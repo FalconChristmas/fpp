@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<dwsync>
+<file name="playList.c" server="192.168.2.116//home/pi/fpp/" local="130185829157643389" remote="130185829800000000" Dst="2" />
+<file name="fpp.c" server="192.168.2.116//home/pi/fpp/" local="130178218748947977" remote="130184324400000000" Dst="2" />
+<file name="command.c" server="192.168.2.116//home/pi/fpp/" local="130185833837745097" remote="130185834600000000" Dst="2" />
+<file name="E131.c" server="192.168.2.116//home/pi/fpp/" local="130185837156438096" remote="130185838200000000" Dst="2" />
+<file name="fppd.c" server="192.168.2.116//home/pi/fpp/" local="130185793472269819" remote="130185794400000000" Dst="2" />
+<file name="mpg123.c" server="192.168.2.116//home/pi/fpp/" local="130185823473401667" remote="130185824400000000" Dst="2" />
+<file name="pixelnetDMX.c" server="192.168.2.116//home/pi/fpp/" local="130185827100926201" remote="130185828000000000" Dst="2" />
+<file name="schedule.c" server="192.168.2.116//home/pi/fpp/" local="130185836713061191" remote="130185837600000000" Dst="2" />
+<file name="wiringPiSPI.c" server="192.168.2.116//home/pi/fpp/" local="130124510100000000" remote="130184325000000000" Dst="2" />
+<file name="fppd" server="192.168.2.116//home/pi/fpp/" local="130184328503939896" remote="130184329200000000" Dst="2" />
+<file name="make.sh" server="192.168.2.116//home/pi/fpp/" local="130184341470000000" remote="130184343600000000" Dst="2" />
+<file name="fppd.h" server="192.168.2.116//home/pi/fpp/" local="130185792707785918" remote="130185793800000000" Dst="2" />
+<file name="E131.h" server="192.168.2.116//home/pi/fpp/" local="130185818485840905" remote="130185819600000000" Dst="2" />
+<file name="pixelnetDMX.h" server="192.168.2.116//home/pi/fpp/" local="130185827792605596" remote="130185828600000000" Dst="2" />
+<file name="playList.h" server="192.168.2.116//home/pi/fpp/" local="130185829049162840" remote="130185829800000000" Dst="2" />
+<file name="schedule.h" server="192.168.2.116//home/pi/fpp/" local="130185831287195754" remote="130185832200000000" Dst="2" />
+<file name="command.h" server="192.168.2.116//home/pi/fpp/" local="130185832542550693" remote="130185833400000000" Dst="2" />
+</dwsync>

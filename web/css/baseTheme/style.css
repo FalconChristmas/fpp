@@ -1,0 +1,405 @@
+.ax-button span
+{
+	display:none;
+	width:0;
+	height:0;
+}
+/***for wordpress***/
+.real-ajax-uploader{
+	text-align:center;
+	border: 4px dashed #DDDDDD;
+}
+
+.ax-legend
+{
+	font-size: 20px;
+	text-align: center;
+	color: #AAAAAA;
+}
+
+.ax-file-list
+{
+	overflow:hidden;
+    list-style: none outside none;
+    padding:0;
+	margin:0 auto;
+}
+
+.ax-browse-c
+{
+	width:50px;
+	height:50px;
+	overflow: hidden;
+	display: inline-block;
+	position:relative;
+	cursor:pointer;
+	background: url(images.png) no-repeat 0 -72px;
+}
+.ax-browse-c:hover
+{
+	background: url(images.png) no-repeat 0 -21px; 
+}
+
+.ax-upload-all
+{
+	width:50px;
+	height:50px;
+	margin-left:5px;
+	display: inline-block;
+	background: url(images.png) no-repeat 0 -360px;
+	cursor:pointer;
+}
+
+.ax-upload-all:hover
+{
+	background: url(images.png) no-repeat 0 -288px;
+}
+
+.ax-clear
+{
+	width:50px;
+	height:50px;
+	margin-left:5px;
+	display: inline-block;
+	background: url(images.png) no-repeat 0 -216px;
+	cursor:pointer;
+}
+
+.ax-clear:hover
+{
+	background: url(images.png) no-repeat 0 -144px;
+}
+
+.ax-remove, .ax-upload, .ax-abort, .ax-confirm
+{
+	margin-top:4px;
+	width:20px;
+	height:20px;
+	margin-left:10px;
+	cursor:pointer;
+	display: inline-block;
+}
+.ax-remove{
+	background: url(images.png) no-repeat 0 -195px;
+}
+.ax-upload{
+	background: url(images.png) no-repeat 0 -339px;
+}
+.ax-abort{
+	background: url(images.png) no-repeat  0 0;
+}
+
+.ax-upload .ax-abort
+{
+	background: url(images.png) no-repeat  0 0;
+}
+
+.ax-disabled
+{
+	opacity: 0.5;
+	filter:alpha(opacity=50);
+	cursor:auto;
+}
+
+.ax-confirm
+{
+	display:none;
+}
+
+.ax-remove:hover
+{
+	background: url(images.png) no-repeat  0 -123px;
+}
+
+.ax-upload:hover
+{
+	background: url(images.png) no-repeat  0 -267px;
+}
+
+.ax-abort:hover 
+{
+	background: url(images.png) no-repeat  0 0;
+}
+
+.ax-preview
+{
+	max-height:80px;
+	max-width:80px;
+}
+
+.ax-file-list li:hover
+{
+	background-color: #141414;
+	filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#D1D1D1', endColorstr='#242020',GradientType=0 ); /* IE6-9 */
+	background-image: linear-gradient(bottom, #D1D1D1 30%, #242020 100%);
+	background-image: -o-linear-gradient(bottom, #D1D1D1 30%, #242020 100%);
+	background-image: -moz-linear-gradient(bottom, #D1D1D1 30%, #242020 100%);
+	background-image: -webkit-linear-gradient(bottom, #D1D1D1 30%, #242020 100%);
+	background-image: -ms-linear-gradient(bottom, #D1D1D1 30%, #242020 100%);
+	
+	background-image: -webkit-gradient(
+		linear,
+		left bottom,
+		left top,
+		color-stop(0.30, #D1D1D1),
+		color-stop(1, #242020)
+	);
+}
+
+.ax-file-list li
+{
+	background-color: #141414;
+	filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#D1D1D1', endColorstr='#242020',GradientType=0 ); /* IE6-9 */
+  	-moz-transition: box-shadow 0.6s ease-in-out 0s;
+	background-image: linear-gradient(bottom, #242020 15%, #D1D1D1 100%);
+	background-image: -o-linear-gradient(bottom, #242020 15%, #D1D1D1 100%);
+	background-image: -moz-linear-gradient(bottom, #242020 15%, #D1D1D1 100%);
+	background-image: -webkit-linear-gradient(bottom, #242020 15%, #D1D1D1 100%);
+	background-image: -ms-linear-gradient(bottom, #242020 15%, #D1D1D1 100%);
+	
+	background-image: -webkit-gradient(
+		linear,
+		left bottom,
+		left top,
+		color-stop(0.15, #242020),
+		color-stop(1, #D1D1D1)
+	);
+
+	border: 1px solid #000000;
+	-webkit-box-shadow: 0 1px 0 rgba(255, 255, 255, 0.3) , 0 2px 5px rgba(0, 0, 0, 0.9);
+	-moz-box-shadow: 0 1px 0 rgba(255, 255, 255, 0.3) , 0 2px 5px rgba(0, 0, 0, 0.9);
+	-ms-box-shadow: 0 1px 0 rgba(255, 255, 255, 0.3) , 0 2px 5px rgba(0, 0, 0, 0.9);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.3) , 0 2px 5px rgba(0, 0, 0, 0.9);
+    float: left;
+    text-align:center;
+    border-radius: 15px;
+    margin: 0 10px 10px 0;
+    padding: 10px;
+    position: relative;
+    text-align:center;
+    
+    width: 150px;
+    height: 150px;
+}
+
+
+.ax-file-name
+{
+ 	color: #FFFFFF;
+    font: 14px 'PT Sans','Helvetica Neue',Helvetica,Arial,sans-serif;
+    height: 14px;
+    margin: 0;
+    overflow: hidden;
+    width: 150px;
+}
+.ax-file-name input
+{
+	width:80%;
+}
+
+.ax-file-size
+{
+	color: #999999;
+    font: 14px 'PT Sans','Helvetica Neue',Helvetica,Arial,sans-serif;
+    height: 14px;
+    overflow: hidden;
+    width: 100%;
+    margin:0;
+	padding: 0px;
+}
+
+.ax-progress
+{
+    background-color: white;
+    border-radius: 2px;
+    margin-top: 4px;
+    padding: 0;
+    float:left;
+    height:14px;
+    width: 100%;
+    position:relative;
+    text-align:center;
+}
+
+.ax-progress-bar
+{
+    height: 14px;
+	border-radius: 2px;
+	position:absolute;
+	top:0;
+	left:0;
+	width: 0%; 
+	background-image: url(loader.gif);
+}
+
+.ax-progress-info
+{
+	font: 12px 'PT Sans','Helvetica Neue',Helvetica,Arial,sans-serif;
+    height: 13px;
+    position:absolute;
+    width: 100%;
+    top:0;
+	left:0;
+}
+
+
+.ax-toolbar
+{
+	width:100%;
+	overflow:hidden;
+}
+
+.ax-browse
+{
+	opacity: 0;
+	filter:alpha(opacity=0);
+	font-size:50px;
+	cursor:pointer;
+	height:50px;
+	position: absolute;
+	top: 0px;
+	right: 0px;
+}
+
+.ax-prev-container
+{
+	height:80px;
+    width: 80px;
+    display: inline-block;
+    background: url(icons.png) no-repeat -82px -82px;
+}
+
+.ax-details
+{
+	float:left;
+	width:150px;
+}
+
+/*************************************Light Box CSS***************************************/
+#ax-box 
+{
+	position: absolute;
+	top: 0;
+	left: 0;
+	background: #fff;
+	z-index: 1001;
+	display: none;
+	border:2px solid #000;
+	-webkit-border-radius: 5px;
+	-moz-border-radius: 5px;
+	border-radius: 5px; 
+	
+  -webkit-box-shadow: 0px 0px 21px 0px #ffffff; /* Saf3-4, iOS 4.0.2 - 4.2, Android 2.3+ */
+     -moz-box-shadow: 0px 0px 21px 0px #ffffff; /* FF3.5 - 3.6 */
+          box-shadow: 0px 0px 21px 0px #ffffff; /* Opera 10.5, IE9, FF4+, Chrome 6+, iOS 5 */
+	
+}
+
+#ax-box-shadow 
+{
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background: #000;
+	filter: alpha(opacity=75);
+	-moz-opacity: 0.75;
+	-khtml-opacity: 0.75;
+	opacity: 0.75;
+	z-index: 1000;
+	display: none;
+}
+
+#ax-box-close
+{
+	width:32px;
+	height:32px;
+	background:url(close.png) no-repeat 0 0;
+	top:-5px;
+	right:-5px;
+	position:absolute;
+	cursor:pointer;
+}
+
+#ax-box-fn
+{
+    background: none repeat scroll 0 0 black;
+    bottom: 0;
+    color: white;
+    height: 38px;
+    left: 0;
+    opacity: 0.8;
+    overflow: hidden;
+    position: absolute;
+    width: 100%;
+    z-index: 15;
+}
+
+#ax-box-fn span
+{
+    display: block;
+    font-family: 'Volkhov',Georgia,sans-serif;
+    font-size: 18px;
+    font-style: italic;
+    font-weight: 400;
+    line-height: 38px;
+    padding: 0 20px;
+}
+/*****************************************************************************************************/
+
+/*************************************File Type Icons*************************************************/
+.ax-filetype-pdf{
+	background: url(icons.png) no-repeat  -162px 0px;
+}
+.ax-filetype-zip,.ax-filetype-rar{
+	background: url(icons.png) no-repeat  -244px -244px;
+}
+.ax-filetype-doc, .ax-filetype-docx{
+	background: url(icons.png) no-repeat  0 -162px;
+}
+.ax-filetype-exe{
+	background: url(icons.png) no-repeat  -80px 0;
+}
+.ax-filetype-xls, .ax-filetype-xlsx{
+	background: url(icons.png) no-repeat  0 -244px;
+}
+.ax-filetype-xml{
+	background: url(icons.png) no-repeat -244px -162px;
+}
+.ax-filetype-mp4{
+	background: url(icons.png) no-repeat -244px -84px;
+}
+.ax-filetype-avi{
+	background: url(icons.png) no-repeat -244px -84px;
+}
+.ax-filetype-pdf{
+	background: url(icons.png) no-repeat -162px 0px;
+}
+.ax-filetype-gif{
+	background: url(icons.png) no-repeat -80px -162px;
+}
+.ax-filetype-png{
+	background: url(icons.png) no-repeat -80px -162px;
+}
+.ax-filetype-bmp{
+	background: url(icons.png) no-repeat 0 -80px;
+}
+.ax-filetype-mp3{
+	background: url(icons.png) no-repeat 0 0;
+}
+.ax-filetype-ppt, .ax-filetype-pptx{
+	background: url(icons.png) no-repeat -162px -162px;
+}
+.ax-filetype-tiff{
+	background: url(icons.png) no-repeat -244px 0;
+}
+.ax-filetype-txt{
+	background: url(icons.png) no-repeat -162px -244px;
+}
+
+/*********************Drop Over Class*******************************************************************/
+.ax-drop{
+	border:2px solid blue;
+	border-radius:4px;
+}
