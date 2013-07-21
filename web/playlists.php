@@ -200,7 +200,7 @@ div#playlistEntryProperties, div.items {
   <?php 
   function PrintMusicOptions()
   {
-    foreach(scandir('/mnt/media/fpp/music') as $songFile) 
+    foreach(scandir('/home/pi/media/music') as $songFile) 
     {
       if($songFile != '.' && $songFile != '..')
       {
@@ -211,7 +211,7 @@ div#playlistEntryProperties, div.items {
   
   function PrintSequenceOptions()
   {
-    foreach(scandir('/mnt/media/fpp/sequences') as $seqFile) 
+    foreach(scandir('/home/pi/media/sequences') as $seqFile) 
     {
       if($seqFile != '.' && $seqFile != '..')
       {
