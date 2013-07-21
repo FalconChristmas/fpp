@@ -136,6 +136,7 @@ a:visited{
 <?php	include 'menu.inc'; ?>
 
 <div style="width:800px;margin:0 auto;">
+<br \>
   <fieldset style="padding: 10px; border: 2px solid #000;">
 <legend>Pixelnet/DMX Outputs</legend>
   <div style="overflow: hidden; padding: 10px;">

@@ -54,4 +54,6 @@
 <file name="PixelnetDMX.php" server="192.168.1.129//www/" local="130186141045490470" remote="130184783400000000" Dst="2" />
 <file name="fppxml.php" server="192.168.1.129//www/" local="130186132706788321" remote="130184783400000000" Dst="2" />
 <file name="Universes.php" server="192.168.1.129//www/" local="130186095395043401" remote="130184783400000000" Dst="2" />
+<file name="uploadFile.php" server="192.168.2.116//www/" local="130188646953328405" remote="130188649200000000" Dst="2" />
+<file name="pixelnetdmx.php" server="192.168.2.116//www/" local="130188660133867491" remote="130188661200000000" Dst="2" />
 </dwsync>
