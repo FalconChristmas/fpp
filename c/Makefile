@@ -21,6 +21,7 @@ OBJECTS_fppd = \
 	playList.o \
 	schedule.o \
 	command.o \
+	e131bridge.o \
 	$(NULL)
 LIBS_fppd = \
 	-lpthread \
