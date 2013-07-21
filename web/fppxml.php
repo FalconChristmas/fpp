@@ -1,7 +1,8 @@
 <?php
-require_once('PlayListEntry.php');
-require_once('UniverseEntry.php');
-require_once('ScheduleEntry.php');
+require_once('playlistentry.php');
+require_once('universeentry.php');
+require_once('scheduleentry.php');
+require_once('pixelnetdmxentry.php');
 header('Content-type: text/xml');
 
 $a = session_id();
@@ -11,7 +12,7 @@ if(empty($a)) session_start();
 }
 $_SESSION['session_id'] = session_id();
 
-//define("PLAYLIST_DIRECTORY","/mnt/media/fpp/playlists/");
+//define("PLAYLIST_DIRECTORY","/home/pi/media/playlists/");
 
 
 if($_SESSION['UniverseEntries'] == NULL)
@@ -80,6 +81,10 @@ else if($_GET['command'] == "getUniverses")
 {
 	GetUniverses($_GET['reload']);
 } 
+else if($_GET['command'] == "getPixelnetDMXoutputs")
+{
+	GetPixelnetDMXoutputs($_GET['reload']);
+} 
 else if($_GET['command'] == "deleteUniverse")
 {
 	DeleteUniverse($_GET['index']);
@@ -112,6 +117,10 @@ else if($_GET['command'] == "moveFile")
 else if($_POST['command'] == "saveUniverses")
 {
 	SetUniverses();
+}
+else if($_POST['command'] == "savePixelnetDMX")
+{
+	SavePixelnetDMX();
 }
 else if($_POST['command'] == "saveSchedule")
 {
@@ -181,15 +190,15 @@ function ShutdownPi()
 function MoveFile($file)
 {
 	$f = strtolower($file);
-	if(file_exists("/mnt/media/fpp/upload/" . $f))
+	if(file_exists("/home/pi/media/upload/" . $f))
 	{
 		if (strpos($f,".mp3") !== false) 
 		{
-			rename("/mnt/media/fpp/upload/" . $f,	"/mnt/media/fpp/music/" . $f);
+			rename("/home/pi/media/upload/" . $f,	"/home/pi/media/music/" . $f);
 		}
 		else
 		{
-			rename("/mnt/media/fpp/upload/" . $f,	"/mnt/media/fpp/sequences/" . $f);
+			rename("/home/pi/media/upload/" . $f,	"/home/pi/media/sequences/" . $f);
 		}
 	}
 	$doc = new DomDocument('1.0');
@@ -202,7 +211,7 @@ function MoveFile($file)
 
 function IsFPPDrunning()
 {
-	$status=exec("sudo /home/pi/fpp/scripts/fppdRunning.sh");
+	$status=exec("sudo /home/pi/bin/scripts/fppdRunning.sh");
 	$doc = new DomDocument('1.0');
   $root = $doc->createElement('Status');
 	$root = $doc->appendChild($root);  
@@ -215,11 +224,11 @@ function StartPlaylist($playlist,$repeat)
 {
 	if($repeat == "checked")
 	{
-		$status=exec("sudo /home/pi/fpp/fpp -p '" . $playlist . "'");
+		$status=exec("sudo /home/pi/bin/fpp -p '" . $playlist . "'");
 	}
 	else
 	{
-		$status=exec("sudo /home/pi/fpp/fpp -P '" . $playlist . "'");
+		$status=exec("sudo /home/pi/bin/fpp -P '" . $playlist . "'");
 	}
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('Status');
@@ -231,7 +240,7 @@ function StartPlaylist($playlist,$repeat)
 
 function StopGracefully()
 {
-	$status=exec("sudo /home/pi/fpp/fpp -S");
+	$status=exec("sudo /home/pi/bin/fpp -S");
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('Status');
 	$root = $doc->appendChild($root);  
@@ -242,7 +251,7 @@ function StopGracefully()
 
 function StopNow()
 {
-	$status=exec("sudo /home/pi/fpp/fpp -d");
+	$status=exec("sudo /home/pi/bin/fpp -d");
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('Status');
 	$root = $doc->appendChild($root);  
@@ -265,10 +274,10 @@ function StopFPPD()
 
 function StartFPPD()
 {
-	$status=exec("sudo /home/pi/fpp/scripts/fppdRunning.sh");
+	$status=exec("sudo /home/pi/bin/scripts/fppdRunning.sh");
 	if($status == 'false')
 	{
-		$status=exec("sudo /home/pi/fpp/fppd>/dev/null");
+		$status=exec("sudo /home/pi/bin/fppd>/dev/null");
 	}
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('Status');
@@ -281,7 +290,7 @@ function StartFPPD()
 	
 function GetFPPstatus()
 {
-	$status=exec("sudo /home/pi/fpp/fpp -s");
+	$status=exec("sudo /home/pi/bin/fpp -s");
 	if($status == 'false')
 	{
 		$doc = new DomDocument('1.0');
@@ -510,13 +519,13 @@ function SaveSchedule()
 
 function FPPDreloadSchedule()
 {
-	$status=exec("sudo /home/pi/fpp/fpp -R");
+	$status=exec("sudo /home/pi/bin/fpp -R");
 }
 
 function SaveScheduleToFile()
 {
 	$entries = "";
-	$f=fopen("/mnt/media/fpp/schedule","w") or exit("Unable to open file! : " . "/mnt/media/fpp/schedule");
+	$f=fopen("/home/pi/media/schedule","w") or exit("Unable to open file! : " . "/home/pi/media/schedule");
 	for($i=0;$i<count($_SESSION['ScheduleEntries']);$i++)
 	{
 			if($i==0)
@@ -560,7 +569,7 @@ function LoadScheduleFile()
 {
 	$_SESSION['ScheduleEntries']=NULL;
 	
-	$f=fopen("/mnt/media/fpp/schedule","r");
+	$f=fopen("/home/pi/media/schedule","r");
 	if($f == FALSE)
 	{
 	}
@@ -715,17 +724,46 @@ function SetUniverses()
 	echo $doc->saveHTML();
 }
 
+function SavePixelnetDMX()
+{
+	for($i=0;$i<count($_SESSION['PixelnetDMXentries']);$i++)
+	{
+		if( isset($_POST['chkActive'][$i]))
+		{
+			$_SESSION['PixelnetDMXentries'][$i]->active = 1;
+		}
+		else
+		{
+			$_SESSION['PixelnetDMXentries'][$i]->active = 0;
+		}
+		$_SESSION['PixelnetDMXentries'][$i]->startAddress = 	intval($_POST['txtStartAddress'][$i]);
+		$_SESSION['PixelnetDMXentries'][$i]->type = 	intval($_POST['pixelnetDMXtype'][$i]);
+	}
+	
+	SavePixelnetDMXoutputsToFile();
+	
+	$doc = new DomDocument('1.0');
+  $root = $doc->createElement('Status');
+	$root = $doc->appendChild($root);  
+	$value = $doc->createTextNode('Success');
+	$value = $root->appendChild($value);
+	echo $doc->saveHTML();
+}
+
+
+
 function LoadUniverseFile()
 {
 	$_SESSION['UniverseEntries']=NULL;
 	
-	$f=fopen("/mnt/media/fpp/universes","r");
+	$f=fopen("/home/pi/media/universes","r");
 	if($f == FALSE)
 	{
 		fclose($f);
 		//No file exists add one universe and save to new file.
 		$_SESSION['UniverseEntries'][] = new UniverseEntry(1,1,1,512,0,"",0);	
 		SaveUniversesToFile();
+		return;
 	}
 
 	while (!feof($f))
@@ -743,10 +781,42 @@ function LoadUniverseFile()
 	fclose($f);
 }
 
+function LoadPixelnetDMXFile()
+{
+	$_SESSION['PixelnetDMXentries']=NULL;
+	
+	$f=fopen("/home/pi/media/pixelnetDMX","r");
+	if($f == FALSE)
+	{
+		fclose($f);
+		//No file exists add one  and save to new file.
+    $_SESSION['PixelnetDMXentries'] = NULL;
+		$address=1;
+		for($i;$i<12;$i++)
+		{
+			$_SESSION['PixelnetDMXentries'][] = new PixelnetDMXentry(1,0,$address);	
+			$address+=4096;
+		}
+		SavePixelnetDMXoutputsToFile();
+		return;
+	}
+
+	while (!feof($f))
+	{
+		$line=fgets($f);
+		$entry = explode(",",$line,5);
+		$active = $entry[0];
+		$type = $entry[1];
+		$startAddress = $entry[2];
+		$_SESSION['PixelnetDMXentries'][] = new PixelnetDMXentry($active,$type,$startAddress);
+	}
+	fclose($f);
+}
+
 function SaveUniversesToFile()
 {
 	$universes = "";
-	$f=fopen("/mnt/media/fpp/universes","w") or exit("Unable to open file! : " . "/mnt/media/fpp/universes");
+	$f=fopen("/home/pi/media/universes","w") or exit("Unable to open file! : " . "/home/pi/media/universes");
 	for($i=0;$i<count($_SESSION['UniverseEntries']);$i++)
 	{
 			if($i==0)
@@ -768,6 +838,40 @@ function SaveUniversesToFile()
 			            $_SESSION['UniverseEntries'][$i]->size,
 			            $_SESSION['UniverseEntries'][$i]->type,
 			            $_SESSION['UniverseEntries'][$i]->unicastAddress);
+			}
+			                   
+	}
+	fwrite($f,$entries);	
+	fclose($f);
+
+	$doc = new DomDocument('1.0');
+	$root = $doc->createElement('Status');
+	$root = $doc->appendChild($root); 
+	$value = $doc->createTextNode("Success");
+	$value = $root->appendChild($value);
+	echo $doc->saveHTML();
+}
+
+
+function SavePixelnetDMXoutputsToFile()
+{
+	$universes = "";
+	$f=fopen("/home/pi/media/pixelnetDMX","w") or exit("Unable to open file! : " . "/home/pi/media/pixelnetDMX");
+	for($i=0;$i<count($_SESSION['PixelnetDMXentries']);$i++)
+	{
+			if($i==0)
+			{
+			$entries .= sprintf("%d,%d,%d,",
+			            $_SESSION['PixelnetDMXentries'][$i]->active,
+			            $_SESSION['PixelnetDMXentries'][$i]->type,
+			            $_SESSION['PixelnetDMXentries'][$i]->startAddress);
+			}
+			else
+			{
+			$entries .= sprintf("\n%d,%d,%d,",
+			            $_SESSION['PixelnetDMXentries'][$i]->active,
+			            $_SESSION['PixelnetDMXentries'][$i]->type,
+			            $_SESSION['PixelnetDMXentries'][$i]->startAddress);
 			}
 			                   
 	}
@@ -832,6 +936,38 @@ function GetUniverses($reload)
 	echo $doc->saveHTML();
 }
 
+function GetPixelnetDMXoutputs($reload)
+{
+	if($reload == "TRUE")
+	{
+		LoadPixelnetDMXFile();	
+	}
+
+	$doc = new DomDocument('1.0');
+  $root = $doc->createElement('PixelnetDMXentries');
+	$root = $doc->appendChild($root);  
+	for($i=0;$i<count($_SESSION['PixelnetDMXentries']);$i++) 
+	{
+		$PixelnetDMXentry = $doc->createElement('PixelnetDMXentry');
+		$PixelnetDMXentry = $root->appendChild($PixelnetDMXentry);  
+		// active
+		$active = $doc->createElement('active');
+		$active = $PixelnetDMXentry->appendChild($active);  
+		$value = $doc->createTextNode($_SESSION['PixelnetDMXentries'][$i]->active);
+		$value = $active->appendChild($value);
+		// type
+		$type = $doc->createElement('type');
+		$type = $PixelnetDMXentry->appendChild($type);  
+		$value = $doc->createTextNode($_SESSION['PixelnetDMXentries'][$i]->type);
+		$value = $type->appendChild($value);
+		// startAddress
+		$startAddress = $doc->createElement('startAddress');
+		$startAddress = $PixelnetDMXentry->appendChild($startAddress);  
+		$value = $doc->createTextNode($_SESSION['PixelnetDMXentries'][$i]->startAddress);
+		$value = $startAddress->appendChild($value);
+	}			
+	echo $doc->saveHTML();
+}
 
 function SetUniverseCount($count)
 {
@@ -900,7 +1036,7 @@ function  GetPlaylists()
 	$doc = new DomDocument('1.0');
   $root = $doc->createElement('Playlists');
 	$root = $doc->appendChild($root);  
-	foreach(scandir("/mnt/media/fpp/playlists/") as $pFile) 
+	foreach(scandir("/home/pi/media/playlists/") as $pFile) 
 	{
 		if ($pFile != "." && $pFile != "..") 
 		{
@@ -919,7 +1055,7 @@ function  GetPlaylists()
 
 function  GetMusicFiles()
 {
-	$musicDirectory = '/mnt/media/fpp/music';
+	$musicDirectory = '/home/pi/media/music';
 	$doc = new DomDocument('1.0');
   $root = $doc->createElement('Songs');
 	$root = $doc->appendChild($root);  
@@ -953,7 +1089,7 @@ function  GetMusicFiles()
 
 function GetSequenceFiles()
 {
-	$sequenceDirectry = '/mnt/media/fpp/sequences';
+	$sequenceDirectry = '/home/pi/media/sequences';
 	$doc = new DomDocument('1.0');
   $root = $doc->createElement('Sequences');
 	$root = $doc->appendChild($root);  
@@ -998,7 +1134,7 @@ function AddPlaylist($name)
     $successAttribute = $response->appendChild($successAttribute);
 		
 		//$_SESSION['currentPlaylist']	= $pl;
-		$filename = "/mnt/media/fpp/playlists/" . $name . ".lst";
+		$filename = "/home/pi/media/playlists/" . $name . ".lst";
 		$file = fopen($filename, "w");
 		fwrite($file, "");
 		fclose($file);
@@ -1020,7 +1156,7 @@ function LoadPlayListDetails($file)
 {
 	$playListEntries = NULL;
 	$_SESSION['playListEntries']=NULL;
-	$f=fopen("/mnt/media/fpp/playlists/" . $file,"rx") or exit("Unable to open file! : " . "/mnt/media/fpp/playlists/" . $file);
+	$f=fopen("/home/pi/media/playlists/" . $file,"rx") or exit("Unable to open file! : " . "/home/pi/media/playlists/" . $file);
 	$i=0;
 	while (!feof($f))
 	{
@@ -1138,7 +1274,7 @@ function PlaylistEntryPostionChanged($newIndex,$oldIndex)
 function SavePlaylist($name)
 {
 	$entries = "";
-	$f=fopen("/mnt/media/fpp/playlists/" . $name,"w") or exit("Unable to open file! : " . "/mnt/media/fpp/playlists/" . $name);
+	$f=fopen("/home/pi/media/playlists/" . $name,"w") or exit("Unable to open file! : " . "/home/pi/media/playlists/" . $name);
 	for($i=0;$i<count($_SESSION['playListEntries']);$i++)
 	{
 		if($_SESSION['playListEntries'][$i]->type == 'b')
@@ -1172,14 +1308,14 @@ function SavePlaylist($name)
 
 	if($name != $_SESSION['currentPlaylist'])
 	{
-		 unlink("/mnt/media/fpp/playlists/" . $_SESSION['currentPlaylist']); 	
+		 unlink("/home/pi/media/playlists/" . $_SESSION['currentPlaylist']); 	
 		 $_SESSION['currentPlaylist'] = $name;
 	}
 }
 
 function DeletePlaylist($name)
 {
-	unlink("/mnt/media/fpp/playlists/" . $name);
+	unlink("/home/pi/media/playlists/" . $name);
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('Status');
 	$root = $doc->appendChild($root); 
@@ -1190,7 +1326,7 @@ function DeletePlaylist($name)
 
 function DeleteSequence($name)
 {
-	unlink("/mnt/media/fpp/sequences/" . $name);
+	unlink("/home/pi/media/sequences/" . $name);
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('Status');
 	$root = $doc->appendChild($root); 
@@ -1201,7 +1337,7 @@ function DeleteSequence($name)
 
 function DeleteMusic($name)
 {
-	unlink("/mnt/media/fpp/music/" . $name);
+	unlink("/home/pi/media/music/" . $name);
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('Status');
 	$root = $doc->appendChild($root); 

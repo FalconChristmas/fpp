@@ -6,6 +6,8 @@
 #include "mpg123.h"
 #include "schedule.h"
 #include "pixelnetDMX.h"
+#include "e131bridge.h"
+
 #include <unistd.h>
 #include <stdio.h>
 #include <sys/types.h>
@@ -78,7 +80,12 @@ void MainProc(void)
 
    sprintf(logText,"Falcon PI Player\n\r");
    LogWrite(logText);
-  //CreateDaemon();
+  
+	//Bridge_Initialize();
+	//while(1)
+	//{
+	
+	//}
 	CheckExistanceOfDirectories();
   MusicInitialize();
   E131_Initialize();

@@ -1,5 +1,5 @@
 <?php
-require_once('UniverseEntry.php');
+require_once('universeentry.php');
 $a = session_id();
 
 if(empty($a)) session_start();
@@ -102,7 +102,7 @@ $(document).ready(function(){
 	margin: 0, auto;
 }
 .selectedEntry {
-	background: #EEE;
+	background: #888;
 }
 .pl_title {
 	font-size: larger;
@@ -148,8 +148,9 @@ a:visited{
 <?php	include 'menu.inc'; ?>
 
 <div style="width:800px;margin:0 auto;">
+ <br />
   <fieldset style="padding: 10px; border: 2px solid #000;">
-<legend>[ Universes  ]</legend>
+<legend>Universes</legend>
   <div style="overflow: hidden; padding: 10px;">
     <div id = "playList" style="float: left;"> </div>
     <div width: 400px; padding: 10px; background: #f9f9f9;

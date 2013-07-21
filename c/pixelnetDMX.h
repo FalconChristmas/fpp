@@ -17,6 +17,7 @@ void LoadPixelnetDMXsettingsFromFile();
 void PixelnetDMXPrint();
 
 typedef struct{
+		char active;
 		char type;
 		int startChannel;
 }PixelnetDMXentry;

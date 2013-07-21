@@ -1,5 +1,5 @@
 <?php
-require_once('UniverseEntry.php');
+require_once('universeentry.php');
 $a = session_id();
 
 if(empty($a)) session_start();
@@ -41,48 +41,41 @@ this.value = default_value;
 });
 });
 </script>
-<script type="text/javascript">
-        $(function() {
-            $('#txtUniverseCount').on('focus',function() {
-                $(this).select();
-            });
-        });
-    </script>
-    
+
 <script>
     $(function() {
-		$('#tblUniverses').on('mousedown', 'tr', function(event,ui){
-					$('#tblUniverses tr').removeClass('selectedEntry');
+		$('#tblOutputs').on('mousedown', 'tr', function(event,ui){
+					$('#tblOutputs tr').removeClass('selectedEntry');
           $(this).addClass('selectedEntry');
-					var items = $('#tblUniverses tr');
-					UniverseSelected  = items.index(this);
-					
+					var items = $('#tblOutputs tr');
+					PixelnetDMXoutputSelected  = items.index(this);
+
 		});
 	});
 </script>
 
 <script>
 $(document).ready(function(){
-	$('#frmUniverses').submit(function(event) {
+	$('#frmPixelnetDMX').submit(function(event) {
 			 event.preventDefault();
-			 var success = validateUniverseData();
-			 if(success == true)
-			 {
-				 dataString = $("#frmUniverses").serializeArray();
+			 //var success = validateUniverseData();
+			 //if(success == true)
+			 //{
+				 dataString = $("#frmPixelnetDMX").serializeArray();
 				 $.ajax({
 						type: "post",
 						url: "fppxml.php",
 						dataType:"text",
 						data: dataString,
 						success: function (response) {
-								getUniverses();
+								getPixelnetDMXoutputs('TRUE');
 						}
 				})
 				return false;
-			 }
+			 //}
 	});
 });</script>
-    
+
 <title>Pixelnet/DMX Outputs</title>
 <style>
 .clear {
@@ -97,7 +90,7 @@ $(document).ready(function(){
 	margin: 0, auto;
 }
 .selectedEntry {
-	background: #EEE;
+	background: #888;
 }
 .pl_title {
 	font-size: larger;
@@ -119,9 +112,9 @@ tr.rowUniverseDetails
 
 tr.rowUniverseDetails td
 {
-	padding:1px 5px;	
+	padding:1px 5px;
 }
-	
+
 #tblUniverses
 {
 	border:thin;
@@ -138,13 +131,13 @@ a:visited{
 </style>
 </head>
 
-<body onload="InitializeUniverses();getUniverses('TRUE');">
+<body onload="getPixelnetDMXoutputs('TRUE');">
 <div id="bodyWrapper">
 <?php	include 'menu.inc'; ?>
 
 <div style="width:800px;margin:0 auto;">
   <fieldset style="padding: 10px; border: 2px solid #000;">
-<legend>[ Universes  ]</legend>
+<legend>Pixelnet/DMX Outputs</legend>
   <div style="overflow: hidden; padding: 10px;">
     <div id = "playList" style="float: left;"> </div>
     <div width: 400px; padding: 10px; background: #f9f9f9;
@@ -158,18 +151,17 @@ a:visited{
       	<td width = "70 px"><input id="btnSaveOutputs" class="buttons" type="submit" value = "Save" /></td>
       	<td width = "70 px"><input id="btnCloneOutputs" class="buttons" type="button" value = "Clone" onClick="ClonePixelnetDMXoutput();"/></td>
       	<td width = "40 px">&nbsp;</td>
-      	<td width = "70 px"><input id="btnDeleteOutput" class="buttons" type="button" value = "Delete" onClick="DeletePixelnetDMXoutput();"/></td>
       	<td width = "70 px"><input id="btnReload" class="buttons" type="button" value = "Reload" onClick="ReloadPixelnetDMX();"/></td>
       </tr>
     </table>
-		<table id="tblUniverses">
+		<table id="tblOutputs">
     </table>
 		</form>
 
   </fieldset>
 
- 
-  
+
+
 </div>
   <?php	include 'common/footer.inc'; ?>
 </div>

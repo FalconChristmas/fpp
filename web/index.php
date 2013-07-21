@@ -24,13 +24,13 @@ $pages = array(
 </head>
 <body onLoad="GetFPPstatus();StatusPopulatePlaylists();setInterval(updateFPPStatus,1000);">
 <div id="bodyWrapper">
-  <?php
+<?php
 	include 'menu.inc';
   ?>
-  <br/>
-  <div id = "programControl">
+<br/>
+<div id = "programControl">
   <fieldset>
-    <legend>[ Program Control ]</legend>
+    <legend>Program Control</legend>
     <div id="daemonControl">
       <table width= "100%">
         <tr>
@@ -42,8 +42,6 @@ $pages = array(
         <tr>
           <td> FPP Time: </td>
           <td id = "fppTime" colspan = "3"></td>
-          <td>&nbsp;</td>
-          <td>&nbsp;</td>
         </tr>
       </table>
     </div>
@@ -54,9 +52,9 @@ $pages = array(
           <td width = "20%">Player Status: </td>
           <td id = "txtPlayerStatus" width = "80%"></td>
         </tr>
-       </table>
-        <div id="currentPlaylistDetails">
-       <table  width= "100%">
+      </table>
+      <div id="currentPlaylistDetails">
+        <table  width= "100%">
           <tr>
             <td width="20%">Playlist: </td>
             <td width="25%" id = "currentPlaylist"></td>
@@ -80,14 +78,17 @@ $pages = array(
             <td id = "timeRemaining"></td>
             <td>&nbsp;</td>
           </tr>
-      </table>
-        </div>
+        </table>
+      </div>
       <div id = "startPlaylistControls">
         <table width="100%">
           <tr>
             <td width="20%">Start this playlist</td>
-            <td  width="25%"><select id="selStartPlaylist" name="selStartPlaylist" size="1"></select></td>
-            <td  width="15%"><input type="checkbox">Repeat</input></td>
+            <td  width="25%"><select id="selStartPlaylist" name="selStartPlaylist" size="1">
+              </select></td>
+            <td  width="15%"><input type="checkbox">
+              Repeat
+              </input></td>
             <td  width="40%"><input type="button"  class ="buttons" value="Start Now" onClick="StartPlaylistNow();"></td>
           </tr>
         </table>
@@ -95,10 +96,9 @@ $pages = array(
       <div id="playerControls">
         <table width="100%">
           <tr>
-            <td width="20%">Control:	</td>
+            <td width="20%">Control: </td>
             <td  width="25%"><input type="button"  class ="buttons"value="Stop Gracefully" onClick="StopGracefully();"></td>
             <td  width="55%"><input type="button" class ="buttons" value="Stop Now" onClick="StopNow();"></td>
-              
           </tr>
         </table>
       </div>
@@ -116,7 +116,6 @@ $pages = array(
         </tr>
       </table>
     </div>
-
     <div id="rebootShutdown">
       <table  width="100%">
         <tr>
@@ -125,9 +124,8 @@ $pages = array(
         </tr>
       </table>
     </div>
-
   </fieldset>
-  <?php	include 'common/footer.inc'; ?>
 </div>
+  <?php	include 'common/footer.inc'; ?>
 </body>
 </html>

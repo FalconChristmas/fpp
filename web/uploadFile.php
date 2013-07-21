@@ -11,163 +11,144 @@
 <script src="js/upload/jquery.js" type="text/javascript"></script>
 <script src="js/upload/ajaxupload.js" type="text/javascript"></script>
 <link rel="stylesheet" href="css/fpp.css" />
-<link rel="stylesheet" href="css/classicTheme/style.css" type="text/css" media="all" /> 
-
+<link rel="stylesheet" href="css/classicTheme/style.css" type="text/css" media="all" />
 <script>
     $(function() {
 		$('#tblSequences').on('mousedown', 'tr', function(event,ui){
-					$('#tblSequences tr').removeClass('selectedEntry');
-          $(this).addClass('selectedEntry');
+					$('#tblSequences tr').removeClass('selectedentry');
+          $(this).addClass('selectedentry');
 					SequenceNameSelected  = $(this).find('td.seqName').text();
 					var i=0;
-					
+
 		});
 
 		$('#tblMusic').on('mousedown', 'tr', function(event,ui){
-					$('#tblMusic tr').removeClass('selectedEntry');
-          $(this).addClass('selectedEntry');
+					$('#tblMusic tr').removeClass('selectedentry');
+          $(this).addClass('selectedentry');
 					SongNameSelected  = $(this).find('td.songName').text();
 					var i=0;
-					
+
 		});
 
 	});
 </script>
-
-
 <style>
-	#top{
-		min-width:768px;
-		width:768px;
-	  margin-left: auto ;
-  	margin-right: auto ;
-		
-	}
-	#divSeq{
-		min-height:300px;
-		max-height:300px;
-		width:383px;
-		float:left;
-	}
-
-	#divSeqData{
-		overflow:auto;
-		min-height:220px;
-		max-height:220px;
-		width:100%;
-	}
-	
-	#tblSequences{
-		width:100%;
-	}
-
-	#tblMusic{
-		width:100%;
-	}
-
-	
-	.seqDetails{
-		font-size:13px;
-	}
-
-	.songDetails{
-		font-size:13px;
-	}
-
-	
-	.seqName{
-		width:65%;
-	}
-	
-	.seqTime{
-		width:35%;
-	}
-
-	.songTime{
-		width:35%;
-	}
-	
-	.songName{
-		width:65%;
-	}
-	
-	#divMusic{
-		overflow:auto;
-		display:table;
-		min-height:300px;
-		max-height:300px;
-		width:383px;
-		float:right;
-	}
-
-	#divMusicData{
-		overflow:auto;
-		min-height:220px;
-		max-height:220px;
-		width:100%;
-	}
-
-	#uploader_div{
-		display:block;
-		min-height:300px;
-		width:100%;
-		clear:both;
-		padding-top:10px;
-	}
-	
-	fieldset {
-		height:100%;
-		min-height:270px;
-	}
-
-h2{
-	text-align:center;
+#top {
+	min-width: 768px;
+	width: 768px;
+	margin-left: auto;
+	margin-right: auto;
 }
-
-.right{
-	
-	text-align:right;
+#divSeq {
+	min-height: 300px;
+	max-height: 300px;
+	width: 383px;
+	float: left;
 }
-
-.selectedEntry {
+#divSeqData {
+	overflow: auto;
+	min-height: 220px;
+	max-height: 220px;
+	width: 100%;
+}
+#tblSequences {
+	width: 100%;
+}
+#tblMusic {
+	width: 100%;
+}
+.seqDetails {
+	font-size: 13px;
+}
+.songDetails {
+	font-size: 13px;
+}
+.seqName {
+	width: 65%;
+}
+.seqTime {
+	width: 35%;
+}
+.songTime {
+	width: 35%;
+}
+.songName {
+	width: 65%;
+}
+#divMusic {
+	overflow: auto;
+	display: table;
+	min-height: 300px;
+	max-height: 300px;
+	width: 383px;
+	float: right;
+}
+#divMusicData {
+	overflow: auto;
+	min-height: 220px;
+	max-height: 220px;
+	width: 100%;
+}
+#uploader_div {
+	display: block;
+	min-height: 300px;
+	width: 100%;
+	clear: both;
+	padding-top: 10px;
+}
+fieldset {
+	height: 100%;
+	min-height: 270px;
+	border: 2px solid #000000;
+}
+h2 {
+	text-align: center;
+}
+.right {
+	text-align: right;
+}
+.selectedentry {
 	background: #EEE;
 }
-
-
-
 </style>
-
 </head>
 
 <body onload="GetSequenceFiles(); GetMusicFiles();">
-  <div id="bodyWrapper">
-	<?php	include 'menu.inc'; ?>
+<div id="bodyWrapper">
+<?php	include 'menu.inc'; ?>
 <div id="top">
-<h2>FPP Files</h2>
+  <br />
   <div id= "divSeq">
-	<fieldset class="fs"><legend> Sequence Files </legend>
-  	<div id="divSeqData">
-	  	<table id="tblSequences"></table>
-    </div>
-  	<hr /><div class='right'><input onclick="DeleteSequence();" name="btnDeleteSequence" class="buttons" type="button"  value="Delete" /></div>
-  </fieldset>
+    <fieldset class="fs">
+      <legend> Sequence Files </legend>
+      <div id="divSeqData">
+        <table id="tblSequences">
+        </table>
+      </div>
+      <hr />
+      <div class='right'>
+        <input onclick="DeleteSequence();" name="btnDeleteSequence" class="buttons" type="button"  value="Delete" />
+      </div>
+    </fieldset>
   </div>
   <div id= "divMusic">
-	<fieldset  class="fs"><legend> Music Files </legend>
-	  	<div id="divMusicData">
-	  	<table id="tblMusic"></table>
-    </div>
-<hr /><div class='right'><input onclick= "DeleteMusic();" name="btnDeleteMusic" class="buttons" type="button"  value="Delete" /></div>
-  </fieldset>
+    <fieldset  class="fs">
+      <legend> Music Files </legend>
+      <div id="divMusicData">
+        <table id="tblMusic">
+        </table>
+      </div>
+      <hr />
+      <div class='right'>
+        <input onclick= "DeleteMusic();" name="btnDeleteMusic" class="buttons" type="button"  value="Delete" />
+      </div>
+    </fieldset>
   </div>
-
-<div id="uploader_div" > 
-</div>
-
-<script type="text/javascript">
+  <div id="uploader_div" > </div>
+  <script type="text/javascript">
 $('#uploader_div').ajaxupload({
 	url:'upload.php',
-	remotePath:'/mnt/media/fpp/upload/',
+	remotePath:'/home/pi/media/upload/',
 	removeOnSuccess: true,
 	maxFileSize:'100M',
 	chunkSize:1048576,
@@ -181,10 +162,9 @@ $('#uploader_div').ajaxupload({
 	},
 	allowExt:['mp3','fseq']
 });
-</script>
-
+</script> 
 </div>
-
+<?php	include 'common/footer.inc'; ?>
 </body>
 </div>
 </html>

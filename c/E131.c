@@ -76,7 +76,7 @@ int E131totalSeconds = 0;
 
 int sendBlankingData=0;
 
-void E131_Initialize(void)
+void E131_Initialize()
 {
   usTimerValue = (unsigned int)(((float)1/(float)RefreshRate) * ((float)990000));
 //  usTimerValue = (unsigned int)(((float)1/(float)RefreshRate) * ((float)1100000));
@@ -101,7 +101,7 @@ void GetLocalWiredIPaddress(char * IPaddress)
 }
 
 
-int E131_InitializeNetwork(void)
+int E131_InitializeNetwork()
 {
   int UniverseOctet[2];
   char sOctet1[4];
@@ -277,7 +277,7 @@ void E131_Send()
   }
 }
 
-void E131_SendPixelnetDMXdata(void)
+void E131_SendPixelnetDMXdata()
 {
 	SendPixelnetDMX(sendBlankingData);
 }
@@ -314,7 +314,7 @@ void Playlist_SyncToMusic(void)
   }
 }
 
-void LoadUniversesFromFile(void)
+void LoadUniversesFromFile()
 {
   FILE *fp;
   char buf[512];

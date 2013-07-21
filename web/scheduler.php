@@ -1,5 +1,5 @@
 <?php
-require_once('UniverseEntry.php');
+require_once('universeentry.php');
 $a = session_id();
 
 if(empty($a)) session_start();
@@ -26,10 +26,8 @@ function PrintUniverses()
 <script src="js/jquery-migrate-1.1.1.min.js"></script>
 <script src="js/jquery-1.9.1.js"></script>
 <script src="js/jquery-ui.js"></script>
-
-<link rel="stylesheet" type="text/css" href="css/jquery.timeentry.css"> 
+<link rel="stylesheet" type="text/css" href="css/jquery.timeentry.css">
 <script type="text/javascript" src="js/jquery.timeentry.min.js"></script>
-
 <script language="Javascript">
 $(document).ready(function() {
 $('.default-value').each(function() {
@@ -56,7 +54,6 @@ this.value = default_value;
             });
         });
     </script>
-    
 <script>
 
     $(function() {
@@ -73,7 +70,6 @@ this.value = default_value;
 
 	});
 </script>
-
 <script>
 $(document).ready(function(){
 	$('#frmSchedule').submit(function(event) {
@@ -95,14 +91,11 @@ $(document).ready(function(){
 			 }
 	});
 });</script>
-    
 <title>FPP Scheduler</title>
 <style>
 .clear {
 	clear: both;
 }
-
-
 .items {
 	width: 40%;
 	background: rgb#FFF;
@@ -119,81 +112,64 @@ h4, h3 {
 	padding: 0;
 	margin: 0;
 }
-
-.tblheader{
-	background-color:#CCC;
-	text-align:center;
-	}
-tr.rowScheduleDetails
-{
-	border:thin solid;
-	border-color:#CCC;
+.tblheader {
+	background-color: #CCC;
+	text-align: center;
 }
-
-tr.rowScheduleDetails td
-{
-	padding:1px 5px;	
+tr.rowScheduleDetails {
+	border: thin solid;
+	border-color: #CCC;
 }
-	
-#tblSchedule
-{
-	border:thin;
-	border-color:#333;
+tr.rowScheduleDetails td {
+	padding: 1px 5px;
+}
+#tblSchedule {
+	border: thin;
+	border-color: #333;
 	border-collapse: collapse;
 }
-
 a:active {
-    color: none;
+	color: none;
 }
-a:visited{
-  color:blue;
+a:visited {
+	color: blue;
 }
-
-.time{
-	width:100%;
+.time {
+	width: 100%;
 }
-
-.center{
-	text-align:center;
+.center {
+	text-align: center;
 }
-
-
 </style>
 </head>
 
 <body onload="getSchedule('TRUE');">
 <div id="bodyWrapper">
-<?php	include 'menu.inc'; ?>
-<div style="width:800px;margin:0 auto;">
-  <fieldset style="padding: 10px; border: 2px solid #000;">
-<legend>[  Schedule  ]</legend>
-  <div style="overflow: hidden; padding: 10px;">
-    <div width: 400px; padding: 10px; background: #f9f9f9;
-; border: 1px solid #ccc;">
-    </div>
-		<br/>
-    <form id="frmSchedule">
-    <input name="command" type="hidden" value="saveSchedule" />
-    <table>
-    	<tr>
-      	<td width = "70 px"><input id="btnSaveSchedule" class="buttons" type="submit" value = "Save" /></td>
-      	<td width = "70 px"><input id="btnAddScheduleEntry" class="buttons" type="button" value = "Add" onClick="AddScheduleEntry();"/></td>
-      	<td width = "40 px">&nbsp;</td>
-      	<td width = "70 px"><input id="btnDeleteUniverses" class="buttons" type="button" value = "Delete" onClick="DeleteScheduleEntry();"/></td>
-      	<td width = "70 px"><input id="btnReload" class="buttons" type="button" value = "Reload" onClick="ReloadSchedule();"/></td>
-      </tr>
-    </table>
-		<table id="tblSchedule">
-
-    </table>
-		</form>
-
-  </fieldset>
-
- 
-  
+  <?php	include 'menu.inc'; ?>
+  <div style="width:800px;margin:0 auto;"> <br />
+    <fieldset style="padding: 10px; border: 2px solid #000;">
+      <legend>Schedule</legend>
+      <div style="overflow: hidden; padding: 10px;">
+      <div width: 400px; padding: 10px; background: #f9f9f9;
+; border: 1px solid #ccc;"> </div>
+      <br/>
+      <form id="frmSchedule">
+        <input name="command" type="hidden" value="saveSchedule" />
+        <table>
+          <tr>
+            <td width = "70 px"><input id="btnSaveSchedule" class="buttons" type="submit" value = "Save" /></td>
+            <td width = "70 px"><input id="btnAddScheduleEntry" class="buttons" type="button" value = "Add" onClick="AddScheduleEntry();"/></td>
+            <td width = "40 px">&nbsp;</td>
+            <td width = "70 px"><input id="btnDeleteUniverses" class="buttons" type="button" value = "Delete" onClick="DeleteScheduleEntry();"/></td>
+            <td width = "70 px"><input id="btnReload" class="buttons" type="button" value = "Reload" onClick="ReloadSchedule();"/></td>
+          </tr>
+        </table>
+        <table id="tblSchedule">
+        </table>
+      </form>
+    </fieldset>
+  </div>
 </div>
   <?php	include 'common/footer.inc'; ?>
-</div>
 </body>
 </html>

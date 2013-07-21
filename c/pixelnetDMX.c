@@ -54,10 +54,10 @@ void SendPixelnetDMX(char sendBlankingData)
 		memcpy(&bufferPixelnetDMX[PIXELNET_HEADER_SIZE],fileData,PIXELNET_DMX_DATA_SIZE);
 		for(i=0;i<PIXELNET_DMX_BUF_SIZE;i++)
 		{
-			if (bufferPixelnetDMX[i] == 170)
-			{
-				bufferPixelnetDMX[i] = 171;
-			} 
+			//if (bufferPixelnetDMX[i] == 170)
+			//{
+			//	bufferPixelnetDMX[i] = 171;
+			//} 
 		}
 	}
 	wiringPiSPIDataRW (0, bufferPixelnetDMX, PIXELNET_DMX_BUF_SIZE);
@@ -102,8 +102,13 @@ void LoadPixelnetDMXsettingsFromFile()
 		{
 			break;
 		}
-		//	type
+
+		//	active
 		s=strtok(buf,",");
+		pixelnetDMX[pixelnetDMXcount].active = atoi(s);
+
+		//	type
+		s=strtok(NULL,",");
 		pixelnetDMX[pixelnetDMXcount].type = atoi(s);
 
 		// Start Channel
@@ -121,7 +126,7 @@ void PixelnetDMXPrint()
   int h;
   for(i=0;i<pixelnetDMXcount;i++)
   {
-    sprintf(logText,"%d,%d\n",pixelnetDMX[i].type,pixelnetDMX[i].startChannel);
+    sprintf(logText,"%d,%d,%d\n",pixelnetDMX[i].active,pixelnetDMX[i].type,pixelnetDMX[i].startChannel);
     LogWrite(logText);
   }
 }

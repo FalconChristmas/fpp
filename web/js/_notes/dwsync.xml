@@ -27,4 +27,6 @@
 <file name="jquery.min.js" server="192.168.2.116//var/www/" local="130184307702502832" remote="130176279000000000" Dst="2" />
 <file name="fpp.js" server="192.168.0.103//var/www/" local="130178230944609211" remote="130178215800000000" Dst="2" />
 <file name="fpp.js" server="192.168.0.103//home/pi/fpp/" local="130178230449720905" remote="130178215200000000" Dst="2" />
+<file name="fpp.js" server="192.168.2.116//www/" local="130186145149303595" remote="130186146000000000" Dst="2" />
+<file name="fpp.js" server="192.168.1.129//www/" local="130186145149303595" remote="130184783400000000" Dst="2" />
 </dwsync>

@@ -44,5 +44,14 @@
 <file name="PixelnetDMX.php" server="192.168.0.103//var/www/" local="130175587858381949" remote="130175595000000000" Dst="2" />
 <file name="fppxml.php" server="192.168.0.103//home/pi/fpp/" local="130176579455783913" remote="130176564600000000" Dst="2" />
 <file name="fpp.swf" server="192.168.0.103//var/www/" local="130178134090220630" remote="130178128200000000" Dst="2" />
-<file name="PixelnetDMX.php" server="192.168.2.116//var/www/" local="130184827536175858" remote="130184828400000000" Dst="2" />
+<file name="PixelnetDMX.php" server="192.168.2.116//var/www/" local="130185931515919616" remote="130185932400000000" Dst="2" />
+<file name="PixelnetDMXentry.php" server="192.168.2.116//var/www/" local="130185935563294266" remote="130185936600000000" Dst="2" />
+<file name="PixelnetDMXentry.php" server="192.168.2.116//www/" local="130185935563294266" remote="130186017600000000" Dst="2" />
+<file name="fppxml.php" server="192.168.2.116//www/" local="130186132706788321" remote="130186133400000000" Dst="2" />
+<file name="PixelnetDMX.php" server="192.168.2.116//www/" local="130186141045490470" remote="130186141800000000" Dst="2" />
+<file name="Universes.php" server="192.168.2.116//www/" local="130186095395043401" remote="130186096200000000" Dst="2" />
+<file name="PixelnetDMXentry.php" server="192.168.1.129//www/" local="130185935563294266" remote="130184783400000000" Dst="2" />
+<file name="PixelnetDMX.php" server="192.168.1.129//www/" local="130186141045490470" remote="130184783400000000" Dst="2" />
+<file name="fppxml.php" server="192.168.1.129//www/" local="130186132706788321" remote="130184783400000000" Dst="2" />
+<file name="Universes.php" server="192.168.1.129//www/" local="130186095395043401" remote="130184783400000000" Dst="2" />
 </dwsync>

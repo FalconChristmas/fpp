@@ -1,7 +1,12 @@
 /* CSS Document */
 
 #footer{
-	font-size:10px;
+	font-size:14px;
+	text-align:center;
+	background: rgb(240, 240, 240);
+	width: 900px ;
+	margin-left:auto;
+	margin-right:auto;
 }
 .buttons{
   background-color: #eeeeee;
@@ -23,7 +28,8 @@
   text-align: center;
   text-shadow: 0 1px 0 #eee;
   width: 90px; }
-  .buttons:hover {
+
+.buttons:hover {
     background-color: #dddddd;
     background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0%, #dddddd), color-stop(100%, #bbbbbb));
     background-image: -webkit-linear-gradient(top, #dddddd, #bbbbbb);
@@ -35,7 +41,8 @@
     border-bottom: 1px solid #999;
     cursor: pointer;
     text-shadow: 0 1px 0 #ddd; }
-  .buttons:active {
+
+.buttons:active {
     border: 1px solid #aaa;
     border-bottom: 1px solid #888;
     -webkit-box-shadow: inset 0 0 5px 2px #aaaaaa, 0 1px 0 0 #eeeeee;
@@ -68,21 +75,16 @@
  	width: 900px ;
  	margin-left:auto;
 	margin-right:auto;
+	background: rgb(240, 240,240);
 }
 
-#daemonControl, #nextPlaylist
+#daemoncontrol, #nextplaylist, #playerstats;
 {
 	background: rgb(240, 240, 240);
 	margin:10px;
 	padding:10px;
 }
 
-#playerStatus, 
-{
-	margin:0 10px;
-	padding:0 10px;
-
-}
 
 #rebootShutdown{
  	margin-left:auto;	
@@ -97,13 +99,20 @@
 	text-align:center;
 }
 
-#programControl{
+#programControl, #uipassword{
 	width:800px;
- 	margin-left:auto;	
+	margin-left:auto;	
 	margin-right:auto;
 }
 
 #programControl fieldset{
+ 	margin-left:auto;	
+	margin-right:auto;
+	border: solid 2px rgb(0,0,0);
+	width:100%;
+}
+
+#uipassword fieldset{
  	margin-left:auto;	
 	margin-right:auto;
 	border: solid 2px rgb(0,0,0);
@@ -125,6 +134,26 @@
 #currentPlaylistDetails{
 	display:none;
 }
-#footer{
-	text-align:center;
+html { 
+  background: url(/images/grill-bg.jpg) no-repeat center center fixed; 
+  -webkit-background-size: cover;
+  -moz-background-size: cover;
+  -o-background-size: cover;
+  background-size: cover;
+}
+
+legend {
+    border: 2px solid #000000;
+    font-weight: bold;
+    padding: 0.4em 0.6em;
+    text-align: left;
+    -moz-border-radius:5px;  
+    border-radius: 5px;  
+    -webkit-border-radius: 5px;
+}
+
+fieldset {   
+    -moz-border-radius:5px;  
+    border-radius: 5px;  
+    -webkit-border-radius: 5px;
 }

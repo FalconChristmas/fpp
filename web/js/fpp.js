@@ -342,25 +342,14 @@ function PopulatePlayListEntries(playList,reloadFile)
 							document.getElementById("txtUniverseCount").value = UniverseCount.toString();
 							for(i=0;i<UniverseCount;i++)
 							{
-	              //if(isIE)
-  	            //{
-								//	var active = entries.childNodes[i].childNodes[0].text;
-								//	var universe = entries.childNodes[i].childNodes[1].text;
-								//	var startAddress = entries.childNodes[i].childNodes[2].text;
-								//	var size = entries.childNodes[i].childNodes[3].text;
-								//	var type = entries.childNodes[i].childNodes[4].text;
-								//	var unicastAddress = entries.childNodes[i].childNodes[5].text;
-								//}
-								//else
-								//{
-									var active = entries.childNodes[i].childNodes[0].textContent;
-									var universe = entries.childNodes[i].childNodes[1].textContent;
-									var startAddress = entries.childNodes[i].childNodes[2].textContent;
-									var size = entries.childNodes[i].childNodes[3].textContent;
-									var type = entries.childNodes[i].childNodes[4].textContent;
-									var unicastAddress =  entries.childNodes[i].childNodes[5].textContent;
-									unicastAddress = unicastAddress.trim();
-								//}
+								var active = entries.childNodes[i].childNodes[0].textContent;
+								var universe = entries.childNodes[i].childNodes[1].textContent;
+								var startAddress = entries.childNodes[i].childNodes[2].textContent;
+								var size = entries.childNodes[i].childNodes[3].textContent;
+								var type = entries.childNodes[i].childNodes[4].textContent;
+								var unicastAddress =  entries.childNodes[i].childNodes[5].textContent;
+								unicastAddress = unicastAddress.trim();
+
 								var activeChecked = active == 1  ? "checked=\"checked\"" : "";
 								var multicastChecked = type == 0 ? "selected" : "";
 								var unicastChecked = type == 1   ? "selected": "";
@@ -388,6 +377,64 @@ function PopulatePlayListEntries(playList,reloadFile)
 						innerHTML = "No Results Found";	
 					}
 					var results = document.getElementById("tblUniverses");
+					results.innerHTML = innerHTML;	
+				}
+			};
+			
+			xmlhttp.send();			
+		}
+
+		function getPixelnetDMXoutputs(reload)
+		{
+    	var xmlhttp=new XMLHttpRequest();
+			var url = "fppxml.php?command=getPixelnetDMXoutputs&reload=" + reload;
+			xmlhttp.open("GET",url,false);
+			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+ 			var innerHTML="";
+			var browserName = navigator.userAgent;
+  		var isIE = browserName.match(/MSIE/);
+
+			xmlhttp.onreadystatechange = function () {
+				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
+				{
+					var xmlDoc=xmlhttp.responseXML; 
+					var entries = xmlDoc.getElementsByTagName('PixelnetDMXentries')[0];
+					if(entries.childNodes.length> 0)
+					{
+						innerHTML = "<tr class=tblheader\">" +  
+    	                  "<td width=\"5%\">#</td>" +
+                        "<td width=\"15%\">Act</td>" +
+                        "<td width=\"40%\">Type</td>" +
+												"<td width=\"40%\">Start</td>" +
+												"</tr>";
+												
+							PixelnetDMXcount = entries.childNodes.length;
+							for(i=0;i<PixelnetDMXcount;i++)
+							{
+								var active = entries.childNodes[i].childNodes[0].textContent;
+								var type = entries.childNodes[i].childNodes[1].textContent;
+								var startAddress = entries.childNodes[i].childNodes[2].textContent;
+
+								var activeChecked = active == 1  ? "checked=\"checked\"" : "";
+								var pixelnetChecked = type == 0 ? "selected" : "";
+								var dmxChecked = type == 1 ? "selected" : "";
+								
+								innerHTML += 	"<tr class=\"rowUniverseDetails\">" +
+								              "<td>" + (i+1).toString() + "</td>" +
+															"<td><input name=\"chkActive[" + i.toString() + "]\" id=\"chkActive[" + i.toString() + "]\" type=\"checkbox\" " + activeChecked +"/></td>" +
+															"<td><select id=\"pixelnetDMXtype[" + i.toString() + "]\" name=\"pixelnetDMXtype[" + i.toString() + "]\" style=\"width:150px\">" +
+															      "<option value=\"0\" " + pixelnetChecked + ">Pixelnet</option>" +
+															      "<option value=\"1\" " + dmxChecked + ">DMX</option></select></td>" + 
+															"<td><input name=\"txtStartAddress[" + i.toString() + "]\" id=\"txtStartAddress[" + i.toString() + "]\" type=\"text\" size=\"8\" value=\"" + startAddress.toString() + "\"/></td>" +
+															"</tr>";
+
+							}
+					}
+					else
+					{
+						innerHTML = "No Results Found";	
+					}
+					var results = document.getElementById("tblOutputs");
 					results.innerHTML = innerHTML;	
 				}
 			};
@@ -457,6 +504,31 @@ function PopulatePlayListEntries(playList,reloadFile)
 				}
 			}
 		}
+
+		function ClonePixelnetDMXoutput()
+		{
+			var answer = prompt ("How many outputs to clone from selected output?","1");
+			var cloneNumber = Number(answer);
+			var selectIndex = (PixelnetDMXoutputSelected-1).toString();
+			if(!isNaN(cloneNumber))
+			{
+				if((PixelnetDMXoutputSelected + cloneNumber -1) < 12)
+				{
+					var active=document.getElementById("chkActive[" + selectIndex + "]").value;
+					var pixelnetDMXtype=document.getElementById("pixelnetDMXtype[" + selectIndex + "]").value;
+					var size = pixelnetDMXtype == "0" ? 4096:512;
+					var startAddress=Number(document.getElementById("txtStartAddress[" + selectIndex + "]").value)+ size;
+					for(i=PixelnetDMXoutputSelected;i<PixelnetDMXoutputSelected+cloneNumber;i++)
+					{
+						document.getElementById("pixelnetDMXtype[" + i + "]").value	 = pixelnetDMXtype;
+						document.getElementById("txtStartAddress[" + i + "]").value	 = startAddress.toString();
+						document.getElementById("chkActive[" + i + "]").value = active;
+						startAddress+=size;
+					}
+				}
+			}
+		}
+
 		
 		function validateUniverseData()
 		{
@@ -536,7 +608,12 @@ function PopulatePlayListEntries(playList,reloadFile)
 		function ReloadUniverses()
 		{
 			getUniverses("TRUE");	
-		}  
+		} 
+		
+		function ReloadPixelnetDMX()
+		{
+			getPixelnetDMXoutputs("TRUE");
+		} 
 
 		function ReloadSchedule()
 		{

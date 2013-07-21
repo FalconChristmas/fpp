@@ -1,5 +1,5 @@
 <?php
-require_once('PlayListEntry.php');
+require_once('playlistentry.php');
 //require_once('pi_functions.php');
 $a = session_id();
 
@@ -127,7 +127,8 @@ this.value = default_value;
 	margin: 0;
 	padding: 0;
 	width: 100%;
-	cursor: hand; cursor: pointer;
+	cursor: hand;
+	cursor: pointer;
 }
 #sortable li {
 	margin: 0 3px 2px;
@@ -185,23 +186,18 @@ h4, h3 {
 div#playlistEntryProperties, div.items {
 	padding: 10px;
 }
-
-.divButtons{
-	float:left;
-	text-align:center;
-	width:14%;
+.divButtons {
+	float: left;
+	text-align: center;
+	width: 14%;
 }
-
 </style>
 </head>
 
 <body onload="PopulateLists();">
 <div id="bodyWrapper">
-<?php	include 'menu.inc'; ?>
-  
-<?php 
-  
- 			
+  <?php	include 'menu.inc'; ?>
+  <?php 
   function PrintMusicOptions()
   {
     foreach(scandir('/mnt/media/fpp/music') as $songFile) 
@@ -224,85 +220,82 @@ div#playlistEntryProperties, div.items {
     }
   }			
   
-	?>
-
-<div style="width:800px;margin:0 auto;">
-  <fieldset style="padding: 10px; border: 2px solid #000;">
-<legend>[ Playlists  ]</legend>
-  <div style="overflow: hidden; padding: 20px;">
-    <div id = "playList" style="float: left;"> </div>
-    <div style="float: left; width: 400px; padding: 10px; background: #f9f9f9;
-; margin-left: 60px; border: 1px solid #ccc;  margin-top: 20px;">
-      <form>
-        New Playlist: <br/>
-        <input id="txtNewPlaylistName" class="default-value" type="text" value="Enter Playlist Name" size="30" maxlength="32" />
-        <br/>
-        <input id="btnNew" onclick="AddNewPlaylist();" type="button" class="buttons" value="Add" />
-      </form>
-    </div>
-  </fieldset>
-  
-  
-  <fieldset style="padding: 10px; border: 2px solid #000;">
-    <legend>[ Playlists Details ]</legend>
-    <div>
-      <input type="text" id="txtName" class="pl_title" />
-      <p>Select details below and click 'Add'.</p>
-    </div>
-    <div id="playlistEntryProperties">
-      <table width='100%'>
-        <tr>
-          <td>Type:</td>
-          <td><select id="selType" size="1" onchange="PlaylistTypeChanged()">
-              <option value = 'b'>Music and Sequence Data</option>
-              <option value = 'm'>Music Only</option>
-              <option value = 's'>Sequence Data Only</option>
-              <option value = 'p'>Pause</option>
-            </select></td>
-        </tr>
-        <tr id='row_music'>
-          <td>Music:</td>
-          <td><select id="selAudio" size="1">
-              <?php PrintMusicOptions(); ?>
-            </select></td>
-        </tr>
-        <tr id='row_sequence'>
-          <td>Sequence: </td>
-          <td><select id="selSequence" size="1">
-              <?php PrintSequenceOptions(); ?>
-            </select></td>
-        </tr>
-        <tr id='row_pause' style="display:none">
-          <td>Pause:</td>
-          <td><input type="text" id="txtPause" />
-            (1-3600 secs.)</td>
-        </tr>
-      </table>
-    </div>
-    <div class="divButtons">
-      <input id='btnAdd' width="200px" onclick="AddPlaylistEntry()" class="buttons" type="button" value="Add &raquo;" />
-      <br />
-      <input id='btnRemove'  width="200px"  onclick="RemoveEntry();" class="buttons" type="button" value="&laquo; Remove" />
-    </div>
-    <div class="items">
-      <ul id="sortable">
-        <li class="ui-state-default"><span class="ui-icon ui-icon-arrowthick-2-n-s"></span>Music2.mp3 | Sequence1.seq</li>
-        <li class="ui-state-default"><span class="ui-icon ui-icon-arrowthick-2-n-s"></span>Item 2</li>
-        <li class="ui-state-default"><span class="ui-icon ui-icon-arrowthick-2-n-s"></span>Item 3</li>
-        <li class="ui-state-default"><span class="ui-icon ui-icon-arrowthick-2-n-s"></span>Item 4</li>
-        <li class="ui-state-default"><span class="ui-icon ui-icon-arrowthick-2-n-s"></span>Item 5</li>
-        <li class="ui-state-default"><span class="ui-icon ui-icon-arrowthick-2-n-s"></span>Item 6</li>
-        <li class="ui-state-default"><span class="ui-icon ui-icon-arrowthick-2-n-s"></span>Item 7</li>
-      </ul>
-    </div>
-    <div class="clear"></div>
-    <div style="margin-top: 20px; padding-top: 10px; border-top: 2px solid #000;">
-      <input name="" type="button" value="Save" onclick="SavePlaylist();" class="buttons" /> 
-      <input name="" type="button" value="Delete" onclick="DeletePlaylist();"  class="buttons"/>
-    </div>
-  </fieldset>
+?>
+  <div style="width:800px;margin:0 auto;"> <br/>
+    <fieldset style="padding: 10px; border: 2px solid #000;">
+      <legend>Playlists</legend>
+      <div style="overflow: hidden; padding: 20px;">
+      <div id = "playList" style="float: left;"> </div>
+      <div style="float: left; width: 400px; padding: 10px; background: #f9f9f9; ; margin-left: 60px; border: 1px solid #ccc;  margin-top: 20px;">
+        <form>
+          New Playlist: <br/>
+          <input id="txtNewPlaylistName" class="default-value" type="text" value="Enter Playlist Name" size="30" maxlength="32" />
+          <br/>
+          <input id="btnNew" onclick="AddNewPlaylist();" type="button" class="buttons" value="Add" />
+        </form>
+      </div>
+    </fieldset>
+    <br/>
+    <fieldset style="padding: 10px; border: 2px solid #000;">
+      <legend>Playlist Details</legend>
+      <div>
+        <input type="text" id="txtName" class="pl_title" />
+        <p>Select details below and click 'Add'.</p>
+      </div>
+      <div id="playlistEntryProperties">
+        <table width='100%'>
+          <tr>
+            <td>Type:</td>
+            <td><select id="selType" size="1" onchange="PlaylistTypeChanged()">
+                <option value = 'b'>Music and Sequence Data</option>
+                <option value = 'm'>Music Only</option>
+                <option value = 's'>Sequence Data Only</option>
+                <option value = 'p'>Pause</option>
+              </select></td>
+          </tr>
+          <tr id='row_music'>
+            <td>Music:</td>
+            <td><select id="selAudio" size="1">
+                <?php PrintMusicOptions(); ?>
+              </select></td>
+          </tr>
+          <tr id='row_sequence'>
+            <td>Sequence: </td>
+            <td><select id="selSequence" size="1">
+                <?php PrintSequenceOptions(); ?>
+              </select></td>
+          </tr>
+          <tr id='row_pause' style="display:none">
+            <td>Pause:</td>
+            <td><input type="text" id="txtPause" />
+              (1-3600 secs.)</td>
+          </tr>
+        </table>
+      </div>
+      <div class="divButtons">
+        <input id='btnAdd' width="200px" onclick="AddPlaylistEntry()" class="buttons" type="button" value="Add &raquo;" />
+        <br />
+        <input id='btnRemove'  width="200px"  onclick="RemoveEntry();" class="buttons" type="button" value="&laquo; Remove" />
+      </div>
+      <div class="items">
+        <ul id="sortable">
+          <li class="ui-state-default"><span class="ui-icon ui-icon-arrowthick-2-n-s"></span>Music2.mp3 | Sequence1.seq</li>
+          <li class="ui-state-default"><span class="ui-icon ui-icon-arrowthick-2-n-s"></span>Item 2</li>
+          <li class="ui-state-default"><span class="ui-icon ui-icon-arrowthick-2-n-s"></span>Item 3</li>
+          <li class="ui-state-default"><span class="ui-icon ui-icon-arrowthick-2-n-s"></span>Item 4</li>
+          <li class="ui-state-default"><span class="ui-icon ui-icon-arrowthick-2-n-s"></span>Item 5</li>
+          <li class="ui-state-default"><span class="ui-icon ui-icon-arrowthick-2-n-s"></span>Item 6</li>
+          <li class="ui-state-default"><span class="ui-icon ui-icon-arrowthick-2-n-s"></span>Item 7</li>
+        </ul>
+      </div>
+      <div class="clear"></div>
+      <div style="margin-top: 20px; padding-top: 10px; border-top: 2px solid #000;">
+        <input name="" type="button" value="Save" onclick="SavePlaylist();" class="buttons" />
+        <input name="" type="button" value="Delete" onclick="DeletePlaylist();"  class="buttons"/>
+      </div>
+    </fieldset>
+  </div>
 </div>
   <?php	include 'common/footer.inc'; ?>
-</div>
 </body>
 </html>

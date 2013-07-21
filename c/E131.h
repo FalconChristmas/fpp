@@ -18,6 +18,10 @@
 #define STEP_SIZE_OFFSET      10
 #define CHANNEL_DATA_OFFSET		28
 
+#define E131_TYPE_MULTICAST		0
+#define E131_TYPE_UNICAST			1
+
+
 typedef struct{
 		char active;
 		int universe;
@@ -28,16 +32,16 @@ typedef struct{
 }UniverseEntry;
 
 void GetLocalWiredIPaddress(char * IPaddress);
-void E131_Initialize(void);
-int E131_InitializeNetwork(void);
+void E131_Initialize();
+int E131_InitializeNetwork();
 int E131_OpenSequenceFile(const char * file);
-void E131_CloseSequenceFile(void);
+void E131_CloseSequenceFile();
 void E131_SetTimer(int us);
 void E131_Send(void);
-void E131_SendPixelnetDMXdata(void);
-void Playlist_SyncToMusic(void);
-void LoadUniversesFromFile(void);
-void UniversesPrint(void);
+void E131_SendPixelnetDMXdata();
+void Playlist_SyncToMusic();
+void LoadUniversesFromFile();
+void UniversesPrint();
 
 
 
