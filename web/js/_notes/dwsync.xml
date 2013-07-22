@@ -29,4 +29,6 @@
 <file name="fpp.js" server="192.168.0.103//home/pi/fpp/" local="130178230449720905" remote="130178215200000000" Dst="2" />
 <file name="fpp.js" server="192.168.2.116//www/" local="130186145149303595" remote="130186146000000000" Dst="2" />
 <file name="fpp.js" server="192.168.1.129//www/" local="130186145149303595" remote="130184783400000000" Dst="2" />
+<file name="verifynotify.js" server="//fpp/pi/www/" local="130189262134738758" remote="130189262130000000" Dst="2" />
+<file name="fpp.js" server="//fpp/pi/www/" local="130189263882040637" remote="130189263880000000" Dst="2" />
 </dwsync>
