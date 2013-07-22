@@ -1,9 +1,9 @@
 <?php
 if (($_POST[password1] != "") && ($_POST[password1] == $_POST[password2]))
   {
-    // true - save it
-    $setpassword = shell_exec('hpasswd -cbd /home/pi/www/.htpasswd $_POST[login] $_POST[password1]');
-    $pwchanged = "1";
+    // true - setup .htaccess & save it
+	file_put_contents("/home/pi/www/.htaccess", "AuthUserFile /home/pi/www/.htpasswd\nAuthType Basic\nAuthName FPP-GUI\nRequire valid-user\n");
+    $setpassword = shell_exec('htpasswd -cbd /home/pi/www/.htpasswd admin ' . $_POST['password1']);
   }
 ?>
 
@@ -21,10 +21,10 @@ if (($_POST[password1] != "") && ($_POST[password1] == $_POST[password2]))
   <div id = "uipassword">
     <fieldset>
       <legend>UI Password</legend>
-      <FORM NAME="password_form" ACTION="" METHOD="POST">
+      <FORM NAME="password_form" ACTION="<?php echo $_SERVER['PHP_SELF'] ?>" METHOD="POST">
         <table width= "100%" border="0" cellpadding="2" cellspacing="2">
           <tr>
-            <td colspan="3" align="center">Enter a password below to add/replace a password requirement to access the web GUI</td>
+            <td colspan="3" align="center">Enter a matching passwors below to add/replace a password requirement to access the web FPP GUI</td>
           </tr>
           <tr>
             <td colspan="3" align="center"><input name="login" type="hidden" value="admin"></td>

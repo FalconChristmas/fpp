@@ -56,7 +56,10 @@
 <file name="Universes.php" server="192.168.1.129//www/" local="130186095395043401" remote="130184783400000000" Dst="2" />
 <file name="uploadFile.php" server="192.168.2.116//www/" local="130188646953328405" remote="130188649200000000" Dst="2" />
 <file name="pixelnetdmx.php" server="192.168.2.116//www/" local="130188660133867491" remote="130188661200000000" Dst="2" />
-<file name="uipassword.php" server="//fpp/pi/www/" local="130189263985893825" remote="130189263980000000" Dst="2" />
+<file name="uipassword.php" server="//fpp/pi/www/" local="130189276723226261" remote="130189276720000000" Dst="2" />
 <file name="playlists.php" server="//fpp/pi/www/" local="130189268537161763" remote="130189268530000000" Dst="2" />
 <file name="uploadfile.php" server="//fpp/pi/www/" local="130189270134934654" remote="130189270130000000" Dst="2" />
+<file name="networkconfig.php" server="//fpp/pi/www/" local="130189284488832368" remote="130189284480000000" Dst="2" />
+<file name="networkconfig.php" server="fpp/www/" local="130189333652970420" remote="130189333200000000" Dst="2" />
+<file name="uipassword.php" server="fpp/www/" local="130189905967770170" remote="130189905600000000" Dst="2" />
 </dwsync>
