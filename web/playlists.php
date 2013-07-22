@@ -13,6 +13,7 @@ error_reporting(E_ALL);
 SetSetting("settings.xml","mysetting","hellow2");
 
 
+
 function SetSetting($file,$varName,$varValue)
 {
 	if (file_exists($file)) 

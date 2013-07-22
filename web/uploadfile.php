@@ -84,7 +84,7 @@ h2 {
 	text-align: right;
 }
 .selectedentry {
-	background: #EEE;
+	background: #888;
 }
 </style>
 </head>
