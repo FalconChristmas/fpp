@@ -18,12 +18,13 @@
  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *==================================================*/
 
-function verifynotify(field1, field2, result_id, match_html, nomatch_html) {
+function verifynotify(field1, field2, result_id, match_html, nomatch_html, button_disable) {
  this.field1 = field1;
  this.field2 = field2;
  this.result_id = result_id;
  this.match_html = match_html;
  this.nomatch_html = nomatch_html;
+ this.button_disable = button_disable;
 
  this.check = function() {
 
@@ -36,8 +37,17 @@ function verifynotify(field1, field2, result_id, match_html, nomatch_html) {
 
    if (this.field1.value != "" && this.field1.value == this.field2.value) {
      r.innerHTML = this.match_html;
+	 var j = document.getElementById("submit_button");
+     j.disabled = false; 
+	$('#submit_button').removeClass('disableButtons');
+	$('#submit_button').addClass('buttons');
    } else {
      r.innerHTML = this.nomatch_html;
+	 //$("#submit_button").attr("disabled", "disabled");
+	 var j = document.getElementById("submit_button");
+     j.disabled = true; 
+	$('#submit_button').removeClass('buttons');
+	$('#submit_button').addClass('disableButtons');
    }
  }
 }

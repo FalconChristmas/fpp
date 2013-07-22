@@ -12,7 +12,6 @@ if (($_POST[password1] != "") && ($_POST[password1] == $_POST[password2]))
 <head>
 <?php include 'common/menuHead.inc'; ?>
 <script type="text/javascript" src="/js/fpp.js"></script>
-<SCRIPT TYPE="text/javascript" SRC="/js/verifynotify.js"></SCRIPT>
 <title>Falcon PI Player - FPP</title>
 </head>
 <body>
@@ -43,7 +42,7 @@ if (($_POST[password1] != "") && ($_POST[password1] == $_POST[password2]))
             <td colspan="3" align="center">&nbsp;</td>
           </tr>
           <tr>
-            <td colspan="3" align="center"><input name="submit_button" type="submit" class="buttons" value="Submit"></td>
+            <td colspan="3" align="center"><input id="submit_button" name="submit_button" type="submit" disabled class="buttons" value="Submit"></td>
           </tr>
         </table>
         <SCRIPT TYPE="text/javascript">

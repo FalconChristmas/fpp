@@ -56,4 +56,5 @@
 <file name="Universes.php" server="192.168.1.129//www/" local="130186095395043401" remote="130184783400000000" Dst="2" />
 <file name="uploadFile.php" server="192.168.2.116//www/" local="130188646953328405" remote="130188649200000000" Dst="2" />
 <file name="pixelnetdmx.php" server="192.168.2.116//www/" local="130188660133867491" remote="130188661200000000" Dst="2" />
+<file name="uipassword.php" server="//fpp/pi/www/" local="130189263985893825" remote="130189263980000000" Dst="2" />
 </dwsync>
