@@ -105,7 +105,8 @@ void Bridge_InitializeSockets()
 						  universes[universeIndex].size);
 			//printf("Storing StartAddress = %d size = %d\n",universes[universeIndex].startAddress,universes[universeIndex].size);
 		}
-		if(universe == universes[UniverseCount-1].universe)
+//		if(universe == universes[UniverseCount-1].universe)
+		if(universe == 2)
 		{
 			SendPixelnetDMX(0);
 		}
