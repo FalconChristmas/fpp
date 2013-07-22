@@ -28,7 +28,15 @@
 <file name="fpp.js" server="192.168.0.103//var/www/" local="130178230944609211" remote="130178215800000000" Dst="2" />
 <file name="fpp.js" server="192.168.0.103//home/pi/fpp/" local="130178230449720905" remote="130178215200000000" Dst="2" />
 <file name="fpp.js" server="192.168.2.116//www/" local="130186145149303595" remote="130186146000000000" Dst="2" />
-<file name="fpp.js" server="192.168.1.129//www/" local="130186145149303595" remote="130184783400000000" Dst="2" />
-<file name="verifynotify.js" server="//fpp/pi/www/" local="130189262134738758" remote="130189262130000000" Dst="2" />
+<file name="fpp.js" server="192.168.1.129//www/" local="130189283807739596" remote="130188781800000000" Dst="2" />
 <file name="fpp.js" server="//fpp/pi/www/" local="130189263882040637" remote="130189263880000000" Dst="2" />
+<file name="jquery-migrate-1.1.1.min.js" server="192.168.1.129//www/" local="130173932740000000" remote="130188781800000000" Dst="2" />
+<file name="fpp_old.js" server="192.168.1.129//www/" local="130176759890000000" remote="130188781800000000" Dst="2" />
+<file name="jquery.min.js" server="192.168.1.129//www/" local="130173928640000000" remote="130188781800000000" Dst="2" />
+<file name="jquery-1.9.1.js" server="192.168.1.129//www/" local="130173932840000000" remote="130188781800000000" Dst="2" />
+<file name="jquery.timeentry.min.js" server="192.168.1.129//www/" local="130145799520000000" remote="130188781800000000" Dst="2" />
+<file name="jquery-ui.js" server="192.168.1.129//www/" local="130173932890000000" remote="130188781800000000" Dst="2" />
+<file name="jquery.mobile-1.3.1.min.js" server="192.168.1.129//www/" local="130118758980000000" remote="130188781800000000" Dst="2" />
+<file name="CHANGE_LOG.TXT" server="192.168.1.129//www/" local="130145457960000000" remote="130188781800000000" Dst="2" />
+<file name="ddsmoothmenu.js" server="192.168.1.129//www/" local="130184328640000000" remote="130188822000000000" Dst="2" />
 </dwsync>
