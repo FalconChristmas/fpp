@@ -1,15 +1,21 @@
 <?php
 $ifconfig = shell_exec('/sbin/ifconfig eth0');
-preg_match('/addr:([\d\.]+)/', $ifconfig, $ipaddress);
-preg_match('/Mask:([\d\.]+)/', $ifconfig, $netmask);
+preg_match('/addr:([\d\.]+)/', $ifconfig, $ethipaddress);
+preg_match('/Mask:([\d\.]+)/', $ifconfig, $ethnetmask);
+preg_match('/Bcast:([\d\.]+)/', $ifconfig, $ethbroadcast);
 $iproute = shell_exec('/sbin/ip route');
-preg_match('/via ([\d\.]+)/', $iproute, $gateway);
+preg_match('/via ([\d\.]+)/', $iproute, $ethgateway);
 $ipdns = shell_exec('/bin/cat /etc/resolv.conf | grep nameserver');
-preg_match('/nameserver ([\d\.]+)/', $ipdns, $nameserver);
-$handle = fopen("/etc/hostname", "r"); $hostname = trim(fgets($handle)); fclose($handle);
+preg_match('/nameserver ([\d\.]+)/', $ipdns, $ethnameserver);
 
+$ifconfig = shell_exec('/sbin/ifconfig wlan0');
+preg_match('/addr:([\d\.]+)/', $ifconfig, $wlanipaddress);
+preg_match('/Mask:([\d\.]+)/', $ifconfig, $wlannetmask);
+preg_match('/Bcast:([\d\.]+)/', $ifconfig, $wlanbroadcast);
+$iproute = shell_exec('/sbin/ip route');
+preg_match('/via ([\d\.]+)/', $iproute, $wlangateway);
 
-
+$interface = file_get_contents('/etc/network/interfaces');
 
 ?>
 <!DOCTYPE html>
@@ -52,35 +58,35 @@ $handle = fopen("/etc/hostname", "r"); $hostname = trim(fgets($handle)); fclose(
                 <td width="20%"><div align="right">IP Address:</div></td>
                 <td width="13%"><span id="sprytextfield1">
                   <label for="IpAddress"></label>
-                  <input type="text" name="EthIpAddress" id="EthIpAddress">
+                  <input type="text" name="EthIpAddress" id="EthIpAddress" value="<?php print $ethipaddress[1] ?>">
                   <span class="textfieldRequiredMsg">A value is required.</span><span class="textfieldInvalidFormatMsg">Invalid Format!</span></span></td>
                 </tr>
               <tr>
                 <td><div align="right">Netmask:</div></td>
                 <td><span id="sprytextfield2">
                 <label for="EthNetmask"></label>
-                <input type="text" name="EthNetmask" id="EthNetmask">
+                <input type="text" name="EthNetmask" id="EthNetmask" value="<?php print $ethnetmask[1] ?>">
                 <span class="textfieldRequiredMsg">A value is required.</span><span class="textfieldInvalidFormatMsg">Invalid Format!</span></span></td>
                 </tr>
               <tr>
                 <td><div align="right">Broadcast:</div></td>
                 <td><span id="sprytextfield3">
                 <label for="EthBroadcast"></label>
-                <input type="text" name="EthBroadcast" id="EthBroadcast">
+                <input type="text" name="EthBroadcast" id="EthBroadcast" value="<?php print $ethbroadcast[1] ?>">
                 <span class="textfieldRequiredMsg">A value is required.</span><span class="textfieldInvalidFormatMsg">Invalid Format!</span></span></td>
                 </tr>
               <tr>
                 <td><div align="right">Gateway:</div></td>
                 <td><span id="sprytextfield4">
                 <label for="EthGateway"></label>
-                <input type="text" name="EthGateway" id="EthGateway">
+                <input type="text" name="EthGateway" id="EthGateway" value="<?php print $ethgateway[1] ?>">
                 <span class="textfieldRequiredMsg">A value is required.</span><span class="textfieldInvalidFormatMsg">Invalid Format!</span></span></td>
                 </tr>
               <tr>
                 <td><div align="right">DNS IP:</div></td>
                 <td><span id="sprytextfield5">
                 <label for="EthDNS"></label>
-                <input type="text" name="EthDNS" id="EthDNS">
+                <input type="text" name="EthDNS" id="EthDNS" value="<?php print $ethnameserver[1] ?>">
                 <span class="textfieldRequiredMsg">A value is required.</span><span class="textfieldInvalidFormatMsg">Invalid Format!</span></span></td>
                 </tr>
               </table>
@@ -99,11 +105,11 @@ $handle = fopen("/etc/hostname", "r"); $hostname = trim(fgets($handle)); fclose(
                   <tr>
                     <td><p>
                       <label>
-                        <input type="radio" name="WirelessMode" value="static" id="WirelessMode_0">
+                        <input type="radio" name="WirelessMode" value="static" id="WirelessMode_0" disabled="true">
                         Static</label>
                       <br>
                       <label>
-                        <input type="radio" name="WirelessMode" value="dhcp" id="WirelessMode_1">
+                        <input type="radio" name="WirelessMode" value="dhcp" id="WirelessMode_1"  disabled="true">
                         DHCP</label>
                       <br>
                     </p></td>
@@ -112,28 +118,28 @@ $handle = fopen("/etc/hostname", "r"); $hostname = trim(fgets($handle)); fclose(
                 <td width="20%"><div align="right">IP Address:</div></td>
                 <td width="13%"><span id="sprytextfield6">
                 <label for="WlanIpAddress"></label>
-                <input type="text" name="WlanIpAddress" id="WlanIpAddress">
+                <input type="text" name="WlanIpAddress" id="WlanIpAddress" value="<?php print $wlanipaddress[1] ?>" disabled="true">
                 <span class="textfieldRequiredMsg">A value is required.</span><span class="textfieldInvalidFormatMsg">Invalid format.</span></span></td>
                 </tr>
               <tr>
                 <td><div align="right">Netmask:</div></td>
                 <td><span id="sprytextfield7">
                 <label for="WlanNetmask"></label>
-                <input type="text" name="WlanNetmask" id="WlanNetmask">
+                <input type="text" name="WlanNetmask" id="WlanNetmask" value="<?php print $wlannetmask[1] ?>" disabled="true">
                 <span class="textfieldRequiredMsg">A value is required.</span><span class="textfieldInvalidFormatMsg">Invalid format.</span></span></td>
                 </tr>
               <tr>
                 <td><div align="right">Broadcast:</div></td>
                 <td><span id="sprytextfield8">
                 <label for="WlanBroadcast"></label>
-                <input type="text" name="WlanBroadcast" id="WlanBroadcast">
+                <input type="text" name="WlanBroadcast" id="WlanBroadcast" value="<?php print $wlanbroadcast[1] ?>" disabled="true">
                 <span class="textfieldRequiredMsg">A value is required.</span><span class="textfieldInvalidFormatMsg">Invalid format.</span></span></td>
                 </tr>
               <tr>
                 <td><div align="right">Gateway:</div></td>
                 <td><span id="sprytextfield9">
                 <label for="WlanGateway"></label>
-                <input type="text" name="WlanGateway" id="WlanGateway">
+                <input type="text" name="WlanGateway" id="WlanGateway" value="<?php print $wlangateway[1] ?>" disabled="true">
                 <span class="textfieldRequiredMsg">A value is required.</span><span class="textfieldInvalidFormatMsg">Invalid format.</span></span></td>
                 </tr>
               </table>
