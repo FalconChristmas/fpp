@@ -16,6 +16,7 @@
 
 extern char logText[256];
 extern int FPPstatus;
+extern int FPPDmode;
 extern char currentPlaylist[128];
 extern char currentPlaylistFile[128];
 
@@ -24,6 +25,7 @@ extern int playListCount;
 extern int currentPlaylistEntry;
 extern int nextPlaylistEntry;
 extern struct mpg123_type mpg123;
+extern char MPG123volume[4];
 
 extern int E131secondsElasped;
 extern int E131secondsRemaining;
@@ -84,6 +86,7 @@ extern int numberOfSecondsPaused;
   void ProcessCommand()
   {
     char *s;
+		int volume;
 		char NextScheduleStartText[64];
 		char NextPlaylist[128];
 		GetNextScheduleStartText(NextScheduleStartText);
@@ -93,34 +96,34 @@ extern int numberOfSecondsPaused;
     case 's':
       if(FPPstatus==FPP_STATUS_IDLE)
       {
-        sprintf(response,"%d,%s,%s\n",FPPstatus,NextPlaylist,NextScheduleStartText);
+        sprintf(response,"%d,%d,%s,%s\n",FPPDmode,FPPstatus,NextPlaylist,NextScheduleStartText);
       }
       else
       {
-				if(playList[currentPlaylistEntry].cType == 'b')
+				if(playList[currentPlaylistEntry].cType == 'b' || playList[currentPlaylistEntry].cType == 'm')
 				{
-					sprintf(response,"%d,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s\n",FPPstatus,currentPlaylist,playList[currentPlaylistEntry].cType,
+					sprintf(response,"%d,%d,%s,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s\n",FPPDmode,FPPstatus,MPG123volume,currentPlaylist,playList[currentPlaylistEntry].cType,
 																			 playList[currentPlaylistEntry].seqName,playList[currentPlaylistEntry].songName,
 																			 currentPlaylistEntry+1,playListCount,(int)mpg123.seconds,(int)mpg123.secondsleft,
 																			 NextPlaylist,NextScheduleStartText);
 				}
 				else if (playList[currentPlaylistEntry].cType == 's')
 				{
-					sprintf(response,"%d,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s\n",FPPstatus,currentPlaylist,playList[currentPlaylistEntry].cType,
+					sprintf(response,"%d,%d,%s,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s\n",FPPDmode,FPPstatus,MPG123volume,currentPlaylist,playList[currentPlaylistEntry].cType,
 																			 playList[currentPlaylistEntry].seqName,playList[currentPlaylistEntry].songName,
 																			 currentPlaylistEntry+1,playListCount,E131secondsElasped,E131secondsRemaining,
 				  														 NextPlaylist,NextScheduleStartText);
 				}
 				else
 				{
-					sprintf(response,"%d,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s\n",FPPstatus,currentPlaylist,playList[currentPlaylistEntry].cType,
+					sprintf(response,"%d,%d,%s,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s\n",FPPDmode,FPPstatus,MPG123volume,currentPlaylist,playList[currentPlaylistEntry].cType,
 																			 playList[currentPlaylistEntry].seqName,playList[currentPlaylistEntry].songName,	
 																			 currentPlaylistEntry+1,playListCount,numberOfSecondsPaused,
 																			 (int)playList[currentPlaylistEntry].pauselength-numberOfSecondsPaused, NextPlaylist,NextScheduleStartText);
 				}
 
       }
-      break;
+      break; 
     case 'p':
       if(FPPstatus==FPP_STATUS_PLAYLIST_PLAYING || FPPstatus==FPP_STATUS_STOPPING_GRACEFULLY)
       {
@@ -129,9 +132,16 @@ extern int numberOfSecondsPaused;
       sleep(1);
 
       s = strtok(command,",");
+			printf("parse1=%s\n",s);
       s = strtok(NULL,",");
+			printf("parse2=%s\n",s);
       strcpy(currentPlaylistFile,s);
-      FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
+      s = strtok(NULL,",");
+			printf("parse3=%s\n",s);
+		  currentPlaylistEntry = atoi(s);
+  		nextPlaylistEntry=currentPlaylistEntry;
+			FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
+			
       sprintf(response,"%d,Playlist Started,,,,,,,,,,\n",COMMAND_SUCCESS);
       break;
     case 'P':
@@ -142,8 +152,15 @@ extern int numberOfSecondsPaused;
       sleep(1);
 
       s = strtok(command,",");
+  		printf("parse1=%s\n",s);
       s = strtok(NULL,",");
+  		printf("parse2=%s\n",s);
       strcpy(currentPlaylistFile,s);
+      s = strtok(NULL,",");
+			printf("parse3=%s\n",s);
+		  currentPlaylistEntry = atoi(s);
+  		nextPlaylistEntry=currentPlaylistEntry;
+
       FPPstatus = FPP_STATUS_STOPPING_GRACEFULLY;
       sprintf(response,"%d,Playlist Started,,,,,,,,,,\n",COMMAND_SUCCESS);
       break;
@@ -172,6 +189,14 @@ extern int numberOfSecondsPaused;
     case 'R':
 			LoadScheduleFromFile();
       sprintf(response,"%d,Reloading Schedule,,,,,,,,,,\n",COMMAND_SUCCESS);
+      break;
+
+    case 'v':
+      s = strtok(command,",");
+      s = strtok(NULL,",");
+			strcpy(MPG123volume,s);
+			MPG_SetVolume(MPG123volume);
+      sprintf(response,"%d,Setting Volume,,,,,,,,,,\n",COMMAND_SUCCESS);
       break;
 
 

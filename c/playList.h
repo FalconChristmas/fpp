@@ -19,7 +19,6 @@ typedef struct{
     unsigned char pauselength;
 }PlaylistEntry;
 
-void CheckExistanceOfDirectories();
 int ReadPlaylist(char const * file);
 void PlayListPlayingLoop(void);
 void PauseProcess(void);

@@ -24,6 +24,9 @@ unsigned char NextScheduleInfoHasbeenLoaded=0;
 
 extern int FPPstatus;
 extern char currentPlaylistFile[128];
+extern currentPlaylistEntry;
+extern nextPlaylistEntry;
+
 extern char logText[256];
 
 int nowWeeklySeconds2;
@@ -63,6 +66,8 @@ void PlayListLoadCheck()
   {
     NextScheduleInfoHasbeenLoaded = 0;
     strcpy(currentPlaylistFile,Schedule[CurrentScheduleEntryIndex].playList);
+		currentPlaylistEntry=0;
+		nextPlaylistEntry=0;
 		if (currentPlaylistFile,Schedule[CurrentScheduleEntryIndex].repeat == 0)
 		{
 	    FPPstatus = FPP_STATUS_STOPPING_GRACEFULLY;

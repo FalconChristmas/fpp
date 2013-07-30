@@ -20,8 +20,8 @@ char * playlistFolder = "/home/pi/media/playlists/";
 char currentPlaylist[128];
 PlaylistEntry playList[32];
 int playListCount;
-int currentPlaylistEntry=1;
-int nextPlaylistEntry=1;
+int currentPlaylistEntry=0;
+int nextPlaylistEntry=0;
 char firstTimeThrough = 0;
 
 extern unsigned long currentSequenceFileSize;
@@ -51,54 +51,12 @@ int pauseStatus = PAUSE_STATUS_IDLE;
 
 extern char logText[256];
 
-void CheckExistanceOfDirectories()
-{
-	if(!DirectoryExists("/home/pi/media"))
-	{
-		mkdir("/home/pi/media", 0755);
-		sprintf(logText,"Directory FPP Does Not Exist\n");
-		LogWrite(logText);
-	}
-	if(!DirectoryExists("/home/pi/media/music"))
-	{
-		mkdir("/home/pi/media/music", 0755);
-		sprintf(logText,"Directory Music Does Not Exist\n");
-		LogWrite(logText);
-	}
-	if(!DirectoryExists("/home/pi/media/sequences"))
-	{
-		mkdir("/home/pi/media/sequences", 0755);
-		sprintf(logText,"Directory sequences Does Not Exist\n");
-		LogWrite(logText);
-	}
-	if(!DirectoryExists("/home/pi/media/playlists"))
-	{
-		mkdir("/mnt/media/playlists", 0755);
-		sprintf(logText,"Directory playlists Does Not Exist\n");
-		LogWrite(logText);
-	}
-	if(!FileExists("/mnt/media/universes"))
-	{
-		system("touch /mnt/media/universes");
-	}
-	if(!FileExists("/mnt/media/pixelnetDMX"))
-	{
-		system("touch /mnt/media/pixelnetDMX");
-	}
-	if(!FileExists("/mnt/media/schedule"))
-	{
-		system("touch /mnt/media/schedule");
-	}
-
-}
-
 int ReadPlaylist(char const * file)
 {
   FILE *fp;
   int listIndex=0;
   char buf[512];
   char *s;
-	CheckExistanceOfDirectories();
   // Put together playlist file with default folder
   strcpy(currentPlaylist,playlistFolder);
   strcat(currentPlaylist,file);
@@ -156,12 +114,15 @@ void PlayListPlayingLoop(void)
 {
   StopPlaylist = 0;
   playListCount = ReadPlaylist(currentPlaylistFile);
-  currentPlaylistEntry=0;
-  nextPlaylistEntry=0;
+  if(currentPlaylistEntry < 0 || currentPlaylistEntry >= playListCount)
+	{
+		currentPlaylistEntry = 0;
+		nextPlaylistEntry = 0;
+	}
 	firstTimeThrough = 1;
   while(!StopPlaylist)
   {
-    usleep(100000);
+    usleep(10000);
     switch(playList[currentPlaylistEntry].type)
     {
       case PL_TYPE_BOTH:
@@ -169,19 +130,17 @@ void PlayListPlayingLoop(void)
         {
           Play_PlaylistEntry();
         }
-		else
-		{
-		    if(MusicPlayerStatus==PLAYING_MPLAYER_STATUS || MusicPlayerStatus==QUEUED_MPLAYER_STATUS)
-			{
+				else
+				{
+		    	if(MusicPlayerStatus==PLAYING_MPLAYER_STATUS || MusicPlayerStatus==QUEUED_MPLAYER_STATUS)
+					{
       			MPG_UpdateStatus();
-    		}
-		}
+    			}
+				}
         break;
       case PL_TYPE_MUSIC:
         if(MusicPlayerStatus == IDLE_MPLAYER_STATUS)
         {
-          sprintf(logText,"Play_PlaylistEntry_Music=%d\n",currentPlaylistEntry);
-          LogWrite(logText);
           Play_PlaylistEntry();
         }
 				else
@@ -195,8 +154,6 @@ void PlayListPlayingLoop(void)
       case PL_TYPE_SEQUENCE:
         if(E131status == E131_STATUS_IDLE)
         {
-          sprintf(logText,"Play_PlaylistEntry_seq=%d\n",currentPlaylistEntry);
-          LogWrite(logText);
           Play_PlaylistEntry();
         }
         break;
@@ -224,8 +181,6 @@ void PauseProcess(void)
   {
     case PAUSE_STATUS_IDLE:
       pauseStatus = PAUSE_STATUS_STARTED;
-      sprintf(logText,"%d Pause Started\n",playList[currentPlaylistEntry].pauselength);
-      LogWrite(logText);
       gettimeofday(&pauseStartTime,NULL);
       break;
     case PAUSE_STATUS_STARTED:
@@ -233,9 +188,7 @@ void PauseProcess(void)
 			numberOfSecondsPaused = nowTime.tv_sec - pauseStartTime.tv_sec;
       if(numberOfSecondsPaused >  (int)playList[currentPlaylistEntry].pauselength)
       {
-          pauseStatus = PAUSE_STATUS_ENDED;
-          sprintf(logText,"%d Pause ended\n",playList[currentPlaylistEntry].pauselength);
-          LogWrite(logText);
+        pauseStatus = PAUSE_STATUS_ENDED;
       }
       break;
     default:

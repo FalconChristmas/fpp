@@ -13,6 +13,7 @@
 #include <sys/types.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <string.h>
 
 FILE *logFile;
 char logText[1024];
@@ -20,15 +21,14 @@ char logText[1024];
 pid_t pid, sid;
 int FPPstatus=FPP_STATUS_IDLE;
 
+//Settings 
+char * SettingsFile = "/home/pi/media/settings";
+int FPPDmode=0;
+extern char MPG123volume[4];
+
 int main()
 {
   CreateDaemon();
-  //while(1)
-  //{
-  //  sprintf(logText,"Daemon Done Created");
-  //  LogWrite(logText);
-  //  sleep(1);
-  //}
   MainProc();
   return 0;
 }
@@ -82,11 +82,9 @@ void MainProc(void)
    LogWrite(logText);
   
 	//Bridge_Initialize();
-	//while(1)
-	//{
-	
-	//}
-	CheckExistanceOfDirectories();
+
+	CheckExistanceOfDirectoriesAndFiles();
+	ReadFPPsettings(SettingsFile);
   MusicInitialize();
   E131_Initialize();
   Command_Initialize();
@@ -113,6 +111,98 @@ void MainProc(void)
     }
   }
 }
+
+int ReadFPPsettings(char const * file)
+{
+  FILE *fp;
+  int listIndex=0;
+  char buf[128];
+  char *s;
+  sprintf(logText,"Opening Settings Now %s\n",file);
+  LogWrite(logText);
+  fp = fopen(file, "r");
+  if (fp == NULL) 
+  {
+    sprintf(logText,"Could not open settings file %s\n",file);
+    LogWrite(logText);
+  	return 0;
+  }
+	// Parse Settings
+	fgets(buf, 128, fp);
+  s=strtok(buf,",");
+  FPPDmode = atoi(s);
+  s = strtok(NULL,",");
+	if(atoi(s) > 100)
+	{
+		strcpy(MPG123volume,"75");
+	}
+	else
+	{
+		strcpy(MPG123volume,s);
+	}
+	printf("Mode=%d Volume=%s\n",FPPDmode,MPG123volume);
+  fclose(fp);
+}
+
+void CreateSettingsFile(char * file)
+{
+  FILE *fp;
+	char * settings = "0,75";			// Mode, Volume
+	char command[32];
+  fp = fopen(file, "w");
+	printf("Creating file: %s\n",file);
+	fwrite(settings, 1, 4, fp);
+	fclose(fp);
+	sprintf(command,"sudo chmod 775 %s",file);
+	system(command);
+}
+
+void CheckExistanceOfDirectoriesAndFiles()
+{
+	if(!DirectoryExists("/home/pi/media"))
+	{
+		mkdir("/home/pi/media", 0755);
+		sprintf(logText,"Directory FPP Does Not Exist\n");
+		LogWrite(logText);
+	}
+	if(!DirectoryExists("/home/pi/media/music"))
+	{
+		mkdir("/home/pi/media/music", 0755);
+		sprintf(logText,"Directory Music Does Not Exist\n");
+		LogWrite(logText);
+	}
+	if(!DirectoryExists("/home/pi/media/sequences"))
+	{
+		mkdir("/home/pi/media/sequences", 0755);
+		sprintf(logText,"Directory sequences Does Not Exist\n");
+		LogWrite(logText);
+	}
+	if(!DirectoryExists("/home/pi/media/playlists"))
+	{
+		mkdir("/home/pi/media/playlists", 0755);
+		sprintf(logText,"Directory playlists Does Not Exist\n");
+		LogWrite(logText);
+	}
+	if(!FileExists("/home/pi/media/universes"))
+	{
+		system("touch /home/pi/media/universes");
+	}
+	if(!FileExists("/home/pi/media/pixelnetDMX"))
+	{
+		CreatePixelnetDMXfile("/home/pi/media/pixelnetDMX");
+	}
+	if(!FileExists("/home/pi/media/schedule"))
+	{
+		system("touch /home/pi/media/schedule");
+	}
+	if(!FileExists(SettingsFile))
+	{
+		CreateSettingsFile(SettingsFile);
+	}
+	
+
+}
+
 
 
 void LogWrite(const char* text)

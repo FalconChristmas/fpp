@@ -88,12 +88,12 @@ void E131_Initialize()
 void GetLocalWiredIPaddress(char * IPaddress)
 {
 	FILE *fp;
-  	size_t len;
+  size_t len;
 	fp = popen("sudo ip addr show scope global | grep inet | cut -d' ' -f6 | cut -d/ -f1", "r");
-  	if (fp == NULL) 
+ 	if (fp == NULL) 
 	{
-    	exit;
-  	}
+   	exit;
+ 	}
 	len = fread(IPaddress,1,64,fp);
 	// Remove '\n' by replacing with '\0'
 	IPaddress[len-1] = '\0';
@@ -141,7 +141,7 @@ int E131_InitializeNetwork()
     memset((char *) &E131address[i], 0, sizeof(E131address[0]));
     E131address[i].sin_family = AF_INET;
     E131address[i].sin_port = htons(E131_DEST_PORT);
-		if(universes[i].type == 0)
+		if(universes[i].type == E131_TYPE_MULTICAST)
 		{
 			UniverseOctet[0] = universes[i].universe/256;
 			UniverseOctet[1] = universes[i].universe%256;
@@ -206,9 +206,6 @@ void E131_CloseSequenceFile()
   sendBlankingData = 0;	
 }
 
-
-
-
 void E131_SetTimer(int us)
 {
   struct itimerval tout_val;
@@ -263,12 +260,12 @@ void E131_Send()
     }
 	E131secondsElasped = (int)((float)(filePosition-CHANNEL_DATA_OFFSET)/((float)stepSize*(float)20.0));
 	E131secondsRemaining = E131totalSeconds-E131secondsElasped;
-    if(playList[currentPlaylistEntry].type == PL_TYPE_BOTH && MusicPlayerStatus == PLAYING_MPLAYER_STATUS)
-    {
-      Playlist_SyncToMusic();
-    }
-		// Send data to pixelnet board
-		E131_SendPixelnetDMXdata();
+  if(playList[currentPlaylistEntry].type == PL_TYPE_BOTH && MusicPlayerStatus == PLAYING_MPLAYER_STATUS)
+  {
+    Playlist_SyncToMusic();
+  }
+	// Send data to pixelnet board
+	E131_SendPixelnetDMXdata();
 		
   }
   else

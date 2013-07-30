@@ -152,7 +152,7 @@ else if($_GET['command'] == "startFPPD")
 }
 else if($_GET['command'] == "startPlaylist")
 {
-	StartPlaylist($_GET['playList'],$_GET['repeat']);		
+	StartPlaylist($_GET['playList'],$_GET['repeat'],$_GET['playEntry']);		
 }
 else if($_GET['command'] == "rebootPi")
 {
@@ -163,11 +163,29 @@ else if($_GET['command'] == "shutdownPi")
 	ShutdownPi();
 }
 
+else if($_GET['command'] == "setVolume")
+{
+	SetVolume($_GET['volume']);
+}
+
+
 
 
 function RebootPi()
 {
 	$status=exec("sudo shutdown -r now");
+	$doc = new DomDocument('1.0');
+  $root = $doc->createElement('Status');
+	$root = $doc->appendChild($root);  
+	$value = $doc->createTextNode($status);
+	$value = $root->appendChild($value);
+	echo $doc->saveHTML();	
+}
+
+
+function SetVolume($volume)
+{
+	$status=exec("sudo /home/pi/bin/fpp -v " . $volume);
 	$doc = new DomDocument('1.0');
   $root = $doc->createElement('Status');
 	$root = $doc->appendChild($root);  
@@ -220,15 +238,15 @@ function IsFPPDrunning()
 	echo $doc->saveHTML();	
 }
 
-function StartPlaylist($playlist,$repeat)
+function StartPlaylist($playlist,$repeat,$playEntry)
 {
 	if($repeat == "checked")
 	{
-		$status=exec("sudo /home/pi/bin/fpp -p '" . $playlist . "'");
+		$status=exec("sudo /home/pi/bin/fpp -p '" . $playlist . "," . $playEntry . "'");
 	}
 	else
 	{
-		$status=exec("sudo /home/pi/bin/fpp -P '" . $playlist . "'");
+		$status=exec("sudo /home/pi/bin/fpp -P '" . $playlist . "," . $playEntry . "'");
 	}
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('Status');
@@ -306,135 +324,161 @@ function GetFPPstatus()
 		return;
 	}
 	
-	$entry = explode(",",$status,11);
-	$fppStatus = $entry[0];
+	$entry = explode(",",$status,13);
+	$fppMode = $entry[0];
+	if($fppMode == 0)
+	{
+		$fppStatus = $entry[1];
+		if($fppStatus == '0')
+		{
+			$nextPlaylist = $entry[2];
+			$nextPlaylistStartTime = $entry[3];
+			$fppCurrentDate = GetLocalTime();	
 	
-	if($fppStatus == '0')
-	{
-		$nextPlaylist = $entry[1];
-		$nextPlaylistStartTime = $entry[2];
-		$fppCurrentDate = GetLocalTime();	
+			$doc = new DomDocument('1.0');
+			$root = $doc->createElement('Status');
+			$root = $doc->appendChild($root);  
+			
+			//FPPD Mode
+			$temp = $doc->createElement('fppMode');
+			$temp = $root->appendChild($temp);  
+			$value = $doc->createTextNode($fppMode);
+			$value = $temp->appendChild($value);
+			//FPPD Status
+			$temp = $doc->createElement('fppStatus');
+			$temp = $root->appendChild($temp);  
+			$value = $doc->createTextNode($fppStatus);
+			$value = $temp->appendChild($value);
+	
+			// nextPlaylist
+			$temp = $doc->createElement('NextPlaylist');
+			$temp = $root->appendChild($temp);
+			$value = $doc->createTextNode($nextPlaylist);
+			$value = $temp->appendChild($value);
+	
+			// nextPlaylistStartTime
+			$temp = $doc->createElement('NextPlaylistStartTime');
+			$temp = $root->appendChild($temp);
+			$value = $doc->createTextNode($nextPlaylistStartTime);
+			$value = $temp->appendChild($value);
+	
+			//fppCurrentDate
+			$temp = $doc->createElement('fppCurrentDate');
+			$temp = $root->appendChild($temp);
+			$value = $doc->createTextNode($fppCurrentDate);
+			$value = $temp->appendChild($value);
+	
+			echo $doc->saveHTML();	
+			return;
+		}
+		else
+		{
+			$fppdMode = $entry[1];
+			$volume = $entry[2];
+			$currentPlaylist = $entry[3];
+			$currentPlaylistType = $entry[4];
+			$currentSeqName = $entry[5];
+			$currentSongName = $entry[6];
+			$currentPlaylistIndex = $entry[7];
+			$currentPlaylistCount = $entry[8];
+			$secondsPlayed = $entry[9];
+			$secondsRemaining = $entry[10];
+			$nextPlaylist = $entry[11];
+			$nextPlaylistStartTime = $entry[12];
+			$fppCurrentDate = GetLocalTime();	
+	
+	
+			$doc = new DomDocument('1.0');
+			$root = $doc->createElement('Status');
+			$root = $doc->appendChild($root);  
+	
+			// fppdMode
+			$temp = $doc->createElement('fppMode');
+			$temp = $root->appendChild($temp);
+			$value = $doc->createTextNode($fppMode);
+			$value = $temp->appendChild($value);
 
-		$doc = new DomDocument('1.0');
-		$root = $doc->createElement('Status');
-		$root = $doc->appendChild($root);  
+			// fppdStatus
+			$temp = $doc->createElement('fppStatus');
+			$temp = $root->appendChild($temp);  
+			$value = $doc->createTextNode($fppStatus);
+			$value = $temp->appendChild($value);
+	
+	
+			// volume
+			$temp = $doc->createElement('volume');
+			$temp = $root->appendChild($temp);  
+			$value = $doc->createTextNode($volume);
+			$value = $temp->appendChild($value);
+	
+			// currentPlaylist
+			$path_parts = pathinfo($currentPlaylist);
+			$temp = $doc->createElement('CurrentPlaylist');
+			$temp = $root->appendChild($temp);
+			$value = $doc->createTextNode($path_parts['filename']);
+			$value = $temp->appendChild($value);
+			// currentPlaylistType
+			$temp = $doc->createElement('CurrentPlaylistType');
+			$temp = $root->appendChild($temp);
+			$value = $doc->createTextNode($currentPlaylistType);
+			$value = $temp->appendChild($value);
+			// currentSeqName
+			$temp = $doc->createElement('CurrentSeqName');
+			$temp = $root->appendChild($temp);
+			$value = $doc->createTextNode($currentSeqName);
+			$value = $temp->appendChild($value);
+			// currentSongName
+			$temp = $doc->createElement('CurrentSongName');
+			$temp = $root->appendChild($temp);
+			$value = $doc->createTextNode($currentSongName);
+			$value = $temp->appendChild($value);
+			// currentPlaylistIndex
+			$temp = $doc->createElement('CurrentPlaylistIndex');
+			$temp = $root->appendChild($temp);
+			$value = $doc->createTextNode($currentPlaylistIndex);
+			$value = $temp->appendChild($value);
+			// currentPlaylistCount
+			$temp = $doc->createElement('CurrentPlaylistCount');
+			$temp = $root->appendChild($temp);
+			$value = $doc->createTextNode($currentPlaylistCount);
+			$value = $temp->appendChild($value);
+			// secondsPlayed
+			$temp = $doc->createElement('SecondsPlayed');
+			$temp = $root->appendChild($temp);
+			$value = $doc->createTextNode($secondsPlayed);
+			$value = $temp->appendChild($value);
+	
+			// secondsRemaining
+			$temp = $doc->createElement('SecondsRemaining');
+			$temp = $root->appendChild($temp);
+			$value = $doc->createTextNode($secondsRemaining);
+			$value = $temp->appendChild($value);
+	
+			// nextPlaylist
+			$temp = $doc->createElement('NextPlaylist');
+			$temp = $root->appendChild($temp);
+			$value = $doc->createTextNode($nextPlaylist);
+			$value = $temp->appendChild($value);
+	
+			// nextPlaylistStartTime
+			$temp = $doc->createElement('NextPlaylistStartTime');
+			$temp = $root->appendChild($temp);
+			$value = $doc->createTextNode($nextPlaylistStartTime);
+			$value = $temp->appendChild($value);
+			
+			//fppCurrentDate
+			$temp = $doc->createElement('fppCurrentDate');
+			$temp = $root->appendChild($temp);
+			$value = $doc->createTextNode($fppCurrentDate);
+			$value = $temp->appendChild($value);
+	
+	
+			echo $doc->saveHTML();	
+			return;
+		}
 		
-		//FPPD Status
-		$temp = $doc->createElement('fppStatus');
-		$temp = $root->appendChild($temp);  
-		$value = $doc->createTextNode($fppStatus);
-		$value = $temp->appendChild($value);
-
-		// nextPlaylist
-		$temp = $doc->createElement('NextPlaylist');
-		$temp = $root->appendChild($temp);
-		$value = $doc->createTextNode($nextPlaylist);
-		$value = $temp->appendChild($value);
-
-		// nextPlaylistStartTime
-		$temp = $doc->createElement('NextPlaylistStartTime');
-		$temp = $root->appendChild($temp);
-		$value = $doc->createTextNode($nextPlaylistStartTime);
-		$value = $temp->appendChild($value);
-
-		//fppCurrentDate
-		$temp = $doc->createElement('fppCurrentDate');
-		$temp = $root->appendChild($temp);
-		$value = $doc->createTextNode($fppCurrentDate);
-		$value = $temp->appendChild($value);
-
-		echo $doc->saveHTML();	
-		return;
 	}
-	else
-	{
-		$currentPlaylist = $entry[1];
-		$currentPlaylistType = $entry[2];
-		$currentSeqName = $entry[3];
-		$currentSongName = $entry[4];
-		$currentPlaylistIndex = $entry[5];
-		$currentPlaylistCount = $entry[6];
-		$secondsPlayed = $entry[7];
-		$secondsRemaining = $entry[8];
-		$nextPlaylist = $entry[9];
-		$nextPlaylistStartTime = $entry[10];
-		$fppCurrentDate = GetLocalTime();	
-
-
-		$doc = new DomDocument('1.0');
-		$root = $doc->createElement('Status');
-		$root = $doc->appendChild($root);  
-
-		$temp = $doc->createElement('fppStatus');
-		$temp = $root->appendChild($temp);  
-
-		$value = $doc->createTextNode($fppStatus);
-		$value = $temp->appendChild($value);
-		// currentPlaylist
-		$path_parts = pathinfo($currentPlaylist);
-		$temp = $doc->createElement('CurrentPlaylist');
-		$temp = $root->appendChild($temp);
-		$value = $doc->createTextNode($path_parts['filename'] . '.' . $path_parts['extension']);
-		$value = $temp->appendChild($value);
-		// currentPlaylistType
-		$temp = $doc->createElement('CurrentPlaylistType');
-		$temp = $root->appendChild($temp);
-		$value = $doc->createTextNode($currentPlaylistType);
-		$value = $temp->appendChild($value);
-		// currentSeqName
-		$temp = $doc->createElement('CurrentSeqName');
-		$temp = $root->appendChild($temp);
-		$value = $doc->createTextNode($currentSeqName);
-		$value = $temp->appendChild($value);
-		// currentSongName
-		$temp = $doc->createElement('CurrentSongName');
-		$temp = $root->appendChild($temp);
-		$value = $doc->createTextNode($currentSongName);
-		$value = $temp->appendChild($value);
-		// currentPlaylistIndex
-		$temp = $doc->createElement('CurrentPlaylistIndex');
-		$temp = $root->appendChild($temp);
-		$value = $doc->createTextNode($currentPlaylistIndex);
-		$value = $temp->appendChild($value);
-		// currentPlaylistCount
-		$temp = $doc->createElement('CurrentPlaylistCount');
-		$temp = $root->appendChild($temp);
-		$value = $doc->createTextNode($currentPlaylistCount);
-		$value = $temp->appendChild($value);
-		// secondsPlayed
-		$temp = $doc->createElement('SecondsPlayed');
-		$temp = $root->appendChild($temp);
-		$value = $doc->createTextNode($secondsPlayed);
-		$value = $temp->appendChild($value);
-
-		// secondsRemaining
-		$temp = $doc->createElement('SecondsRemaining');
-		$temp = $root->appendChild($temp);
-		$value = $doc->createTextNode($secondsRemaining);
-		$value = $temp->appendChild($value);
-
-		// nextPlaylist
-		$temp = $doc->createElement('NextPlaylist');
-		$temp = $root->appendChild($temp);
-		$value = $doc->createTextNode($nextPlaylist);
-		$value = $temp->appendChild($value);
-
-		// nextPlaylistStartTime
-		$temp = $doc->createElement('NextPlaylistStartTime');
-		$temp = $root->appendChild($temp);
-		$value = $doc->createTextNode($nextPlaylistStartTime);
-		$value = $temp->appendChild($value);
-		
-		//fppCurrentDate
-		$temp = $doc->createElement('fppCurrentDate');
-		$temp = $root->appendChild($temp);
-		$value = $doc->createTextNode($fppCurrentDate);
-		$value = $temp->appendChild($value);
-
-
-		echo $doc->saveHTML();	
-		return;
-	}
+	
 }
 
 function GetLocalTime()
@@ -1134,7 +1178,7 @@ function AddPlaylist($name)
     $successAttribute = $response->appendChild($successAttribute);
 		
 		//$_SESSION['currentPlaylist']	= $pl;
-		$filename = "/home/pi/media/playlists/" . $name . ".lst";
+		$filename = "/home/pi/media/playlists/" . $name;
 		$file = fopen($filename, "w");
 		fwrite($file, "");
 		fclose($file);

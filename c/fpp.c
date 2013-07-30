@@ -28,16 +28,23 @@ int main (int argc, char *argv[])
     {
       SendCommand("s");
     }
+    // Set Volume - example "fpp -v 50"
+    else if(strncmp(argv[1],"-v",2)==0)
+    {
+			printf("Git volume change\n");
+      sprintf(command,"v,%s,",argv[2]);
+      SendCommand(command);
+    }
     // Play Playlist - example "fpp -p playlistFile"
     else if((strncmp(argv[1],"-p",2) == 0) &&  argc > 2)
     {
       sprintf(command,"p,%s,",argv[2]);
       SendCommand(command);
     }
-    // Play Playlist only once- example "fpp -P playlistFile"
+    // Play Playlist only once- example "fpp -P playlistFile 1"
     else if((strncmp(argv[1],"-P",2) == 0) &&  argc > 2)
     {
-      sprintf(command,"P,%s,",argv[2]);
+      sprintf(command,"P,%s,%s,",argv[2],argv[3]);
       SendCommand(command);
     }
     // Stop gracefully - example "fpp -S"

@@ -11,6 +11,7 @@
 
 char * musicFolder = "/home/pi/media/music/";
 char * silenceMusic = "/home/pi/media/music/silence.mp3";
+char MPG123volume[4];
 
 char currentSong[128];
 char currentSongPath[128];
@@ -89,6 +90,7 @@ void mpg123_cmd( struct mpg123_type prog, int cmd, char *arg)
          break;
       case CMD_VOLUME:
          sprintf(mCommand, "VOLUME %s\n", arg);
+				 LogWrite(logText);
          break;
       default:
          sprintf(logText,"mpg123_cmd(): uknown command: %d\n", cmd);
@@ -192,6 +194,14 @@ void MPG_StopSong(void)
   mpg123_cmd(mpg123,CMD_STOP,NULL);
 	MusicPlayerStatus = IDLE_MPLAYER_STATUS;
 }
+
+void MPG_SetVolume(char * volume)
+{
+  sprintf(logText,"Setting Volume\n");
+  LogWrite(logText);
+  mpg123_cmd(mpg123,CMD_VOLUME,volume);
+}
+
 
 void MPG_UpdateStatus()
 {

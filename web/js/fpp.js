@@ -1,3 +1,15 @@
+
+STATUS_IDLE = "0";
+STATUS_PLAYING = "1";
+STATUS_STOPPING_GRACEFULLY = "2";
+
+
+// Globals
+gblCurrentPlaylistIndex = 0;
+gblCurrentLoadedPlaylist  = '';
+gblCurrentLoadedPlaylistCount = 0;
+
+
 function PopulateLists()
 {
 	PopulatePlaylists("playList");
@@ -318,8 +330,6 @@ function PopulatePlayListEntries(playList,reloadFile)
 			xmlhttp.open("GET",url,false);
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
  			var innerHTML="";
-			var browserName = navigator.userAgent;
-  		var isIE = browserName.match(/MSIE/);
 
 			xmlhttp.onreadystatechange = function () {
 				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
@@ -391,9 +401,6 @@ function PopulatePlayListEntries(playList,reloadFile)
 			xmlhttp.open("GET",url,false);
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
  			var innerHTML="";
-			var browserName = navigator.userAgent;
-  		var isIE = browserName.match(/MSIE/);
-
 			xmlhttp.onreadystatechange = function () {
 				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
 				{
@@ -898,16 +905,12 @@ function PopulatePlayListEntries(playList,reloadFile)
 						ret = status.childNodes[0].textContent;
 						if(ret == 'true')
 						{
-							$('#playerStatus').css('display','block');
-							$('#nextPlaylist').css('display','block');
 							$("#btnDaemonControl").attr('value', 'Stop FPPD');
 							$('#daemonStatus').html("FPPD is running.");
 							status = GetFPPstatus();
 						}
 						else
 						{
-							$('#playerStatus').css('display','none');
-							$('#nextPlaylist').css('display','none');
 							$("#btnDaemonControl").attr('value', 'Start FPPD');
 							$('#daemonStatus').html("FPPD is stopped.");
 						} 
@@ -931,74 +934,88 @@ function PopulatePlayListEntries(playList,reloadFile)
 					var status = xmlDoc.getElementsByTagName('Status')[0];
 					if(status.childNodes.length> 0)
 					{
-						var fppStatus = status.childNodes[0].textContent;
-						if(fppStatus == "0")
+						var fppStatus = status.childNodes[1].textContent;
+						if(fppStatus == STATUS_IDLE)
 						{
-							var NextPlaylist = status.childNodes[1].textContent;
-							var NextPlaylistTime = status.childNodes[2].textContent;
-							var fppTime = status.childNodes[3].textContent;
+							gblCurrentPlaylistIndex =0;
+							var NextPlaylist = status.childNodes[2].textContent;
+							var NextPlaylistTime = status.childNodes[3].textContent;
+							var fppTime = status.childNodes[4].textContent;
 
 							$('#txtPlayerStatus').html("Idle");
-							$('#currentPlaylistDetails').css('display','none');
-							$('#playerControls').css('display','none');
-							$('#startPlaylistControls').css('display','block');
-
+							$('#txtTimePlayed').html("");								
+							$('#txtTimeRemaining').html("");	
 							$('#txtNextPlaylist').html(NextPlaylist);
 							$('#nextPlaylistTime').html(NextPlaylistTime);
 							$('#fppTime').html(fppTime);
 							
-
-							
-							
+							// Enable Play
+							SetButtonState('#btnPlay','enable');
+							SetButtonState('#btnStopNow','disable');
+							SetButtonState('#btnStopGracefully','disable');
+							SetButtonState('#selStartPlaylist','enable');
+							UpdateCurrentEntryPlaying(0);
 						}
 						else
 						{
-							var CurrentPlaylist = status.childNodes[1].textContent;
-							var CurrentPlaylistType = status.childNodes[2].textContent;
-							var CurrentSeqName = status.childNodes[3].textContent;
-							var CurrentSongName = status.childNodes[4].textContent;
-							var CurrentPlaylistIndex = status.childNodes[5].textContent;
-							var CurrentPlaylistCount = status.childNodes[6].textContent;
-							var SecondsPlayed = parseInt(status.childNodes[7].textContent,10);
-							var SecondsRemaining = parseInt(status.childNodes[8].textContent,10);
-							var NextPlaylist = status.childNodes[9].textContent;
-							var NextPlaylistTime = status.childNodes[10].textContent;
-							var fppTime = status.childNodes[11].textContent;
+							var CurrentPlaylist = status.childNodes[2].textContent;
+							var CurrentPlaylist = status.childNodes[3].textContent;
+							var CurrentPlaylistType = status.childNodes[4].textContent;
+							var CurrentSeqName = status.childNodes[5].textContent;
+							var CurrentSongName = status.childNodes[6].textContent;
+							var CurrentPlaylistIndex = status.childNodes[7].textContent;
+							var CurrentPlaylistCount = status.childNodes[8].textContent;
+							var SecondsPlayed = parseInt(status.childNodes[9].textContent,10);
+							var SecondsRemaining = parseInt(status.childNodes[10].textContent,10);
+							var NextPlaylist = status.childNodes[11].textContent;
+							var NextPlaylistTime = status.childNodes[12].textContent;
+							var fppTime = status.childNodes[13].textContent;
+							if(gblCurrentLoadedPlaylist != CurrentPlaylist)
+							{
+								PopulateStatusPlaylistEntries(false,CurrentPlaylist,true);								
+							}
+							// Disable Play
+							SetButtonState('#btnPlay','disable');
+							SetButtonState('#btnStopNow','enable');
+							SetButtonState('#btnStopGracefully','enable');
+							SetButtonState('#selStartPlaylist','disable');
 
-		
-							if(fppStatus == "1")
-							{
-								$('#txtPlayerStatus').html("Playing " + CurrentPlaylistIndex + " of " + CurrentPlaylistCount);
-							}
-							else
-							{
-								$('#txtPlayerStatus').html("Playing " + CurrentPlaylistIndex + " of " + CurrentPlaylistCount + " - stopping gracefully");
-							}
-							
-							$('#currentPlaylist').html(CurrentPlaylist);
-							$('#songFile').html(CurrentPlaylistType == 'p'?"PAUSE":CurrentSongName);
-							$('#seqFile').html(CurrentSeqName);
-							var mins = Math.floor(SecondsPlayed/60);
-							mins = isNaN(mins)?0:mins;
-							var secs = SecondsPlayed%60;
-							secs = isNaN(secs)?0:secs;
-							$('#SecondsPlayed').html(mins.toString() + ":" + zeroPad(secs,2) + " Elapsed");
-							mins = Math.floor(SecondsRemaining/60);
-							mins = isNaN(mins)?0:mins;
-							secs = SecondsRemaining%60;
-							secs = isNaN(secs)?0:secs;
-							$('#timeRemaining').html(mins.toString() + ":" + zeroPad(secs,2) + " Remaining");
 							$('#txtNextPlaylist').html(NextPlaylist);
 							$('#nextPlaylistTime').html(NextPlaylistTime);
 							$('#fppTime').html(fppTime);
 							
+							var minsPlayed = Math.floor(SecondsPlayed/60);
+							minsPlayed = isNaN(minsPlayed)?0:minsPlayed;
+							var secsPlayed = SecondsPlayed%60;
+							secsPlayed = isNaN(secsPlayed)?0:secsPlayed;
 							
-							
-							
-							$('#currentPlaylistDetails').css('display','block');
-							$('#playerControls').css('display','block');
-							$('#startPlaylistControls').css('display','none');
-		
+							var minsRemaining = Math.floor(SecondsRemaining/60);
+							minsRemaining = isNaN(minsRemaining)?0:minsRemaining;
+							var secsRemaining = SecondsRemaining%60;
+							secsRemaining = isNaN(secsRemaining)?0:secsRemaining;
+							if(fppStatus == STATUS_PLAYING)
+							{
+								$('#txtPlayerStatus').html("Playing <strong>'" + CurrentPlaylist + "'</strong>");
+								$('#txtTimePlayed').html("Time Elasped: " + zeroPad(minsPlayed,2) + ":" + zeroPad(secsPlayed,2));								
+								$('#txtTimeRemaining').html("Time Remaining: " + zeroPad(minsRemaining,2) + ":" + zeroPad(secsRemaining,2));								
+								
+							}
+							else
+							{
+								$('#txtPlayerStatus').html("Playing <strong>'" + CurrentPlaylist + "'</strong>");
+								$('#txtTimePlayed').html("Time Elasped: " + zeroPad(minsPlayed,2) + ":" + zeroPad(secsPlayed,2));								
+								$('#txtTimeRemaining').html("Time Remaining: " + zeroPad(minsRemaining,2) + ":" + zeroPad(secsRemaining,2));								
+							}
+
+							if(CurrentPlaylistIndex != gblCurrentPlaylistIndex && CurrentPlaylistIndex <= gblCurrentLoadedPlaylistCount)
+							{
+									UpdateCurrentEntryPlaying(CurrentPlaylistIndex);
+									gblCurrentPlaylistIndex = CurrentPlaylistIndex;
+									if(CurrentPlaylistIndex != 1)
+									{
+										var j=0;	
+									}
+							}
 						}
 					}
 		
@@ -1008,6 +1025,39 @@ function PopulatePlayListEntries(playList,reloadFile)
 			xmlhttp.send();
 	}
 	
+	function UpdateCurrentEntryPlaying(index,lastIndex)
+	{
+		$('#tblStatusPlaylistEntries tr').removeClass('PlaylistRowPlaying');
+		$('#tblStatusPlaylistEntries td').removeClass('PlaylistPlayingIcon');
+		
+		if(index != 0)
+		{
+			$("#colEntryNumber" + index).addClass("PlaylistPlayingIcon");
+			$("#playlistRow" + index).addClass("PlaylistRowPlaying");
+		}
+	}
+	
+	function SetIconForCurrentPlayingEntry(index)
+	{
+	}
+	
+	
+	function SetButtonState(button,state)
+	{
+			// Enable Button
+			if(state == 'enable')
+			{
+				$(button).addClass('buttons');
+				$(button).removeClass('disableButtons');
+				$(button).removeAttr("disabled");
+			}
+			else
+			{
+				$(button).removeClass('buttons');
+				$(button).addClass('disableButtons');
+				$(button).attr("disabled");
+			}
+	}
 	
 	function StopGracefully()
 	{
@@ -1074,6 +1124,7 @@ function PopulatePlayListEntries(playList,reloadFile)
 			playlistOptionsText +=  "<option value=\"" + playListArray[j] + "\">" + playListArray[j] + "</option>";
 		}	
 		$('#selStartPlaylist').html(playlistOptionsText);
+		
 
 	}
 	
@@ -1082,7 +1133,11 @@ function PopulatePlayListEntries(playList,reloadFile)
 		var Playlist =  $("#selStartPlaylist").val();
     var xmlhttp=new XMLHttpRequest();
 		var repeat = $('#chkRepeat').attr('checked');
-		var url = "fppxml.php?command=startPlaylist&playList=" + Playlist + "&repeat=" + repeat ;
+		if (PlayEntrySelected >= gblCurrentLoadedPlaylistCount)
+		{
+				PlayEntrySelected = 0;
+		}
+		var url = "fppxml.php?command=startPlaylist&playList=" + Playlist + "&repeat=" + repeat + "&playEntry=" + PlayEntrySelected ;
 		xmlhttp.open("GET",url,true);
 		xmlhttp.setRequestHeader('Content-Type', 'text/xml');
 		xmlhttp.send();
@@ -1146,7 +1201,104 @@ function verifynotify(field1, field2, result_id, match_html, nomatch_html, butto
  }
 }
 
+function PopulateStatusPlaylistEntries(playselected,playList,reloadFile)
+{
+			var type;
+			var pl;
+			var songFile;
+			var seqFile;
+			var pause;
+    	var xmlhttp=new XMLHttpRequest();
+			var innerHTML="";
+			if(playselected==true)
+			{
+				pl = $('#selStartPlaylist :selected').text(); 
+			}
+			else
+			{	
+				pl = playList;
+			}
+			var url = "fppxml.php?command=getPlayListEntries&pl=" + pl + "&reload=" + reloadFile;
+			xmlhttp.open("GET",url,true);
+			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+	 
+			xmlhttp.onreadystatechange = function () {
+				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
+				{
+					var xmlDoc=xmlhttp.responseXML; 
+					var entries = xmlDoc.getElementsByTagName('PlaylistEntries')[0];
+					
+					gblCurrentLoadedPlaylist = playList;
+					gblCurrentLoadedPlaylistCount = entries.childNodes.length;
+					if(entries.childNodes.length> 0)	
+					{
+							for(i=0;i<entries.childNodes.length;i++)
+							{
+								type = entries.childNodes[i].childNodes[0].textContent;
+  							seqFile = entries.childNodes[i].childNodes[1].textContent;
+								songFile = entries.childNodes[i].childNodes[2].textContent;
+								pause = entries.childNodes[i].childNodes[3].textContent;
+								if(type == 'b')
+								{
+										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
+										innerHTML +=  "<td id = \"colEntryNumber" + (i+1).toString() + "\" width=\"6%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
+										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">" + songFile + "</td>";
+										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">" + seqFile + "</td>"
+										innerHTML += "<td width=\"10%\" class=\"textCenter\"></td>";
+									  innerHTML += "</tr>";
+								}
+								else if(type == 'm')
+								{
+										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
+										innerHTML +=  "<td id = \"colEntryNumber" + (i+1).toString() + "\" width=\"6%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
+										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">" + songFile + "</td>";
+										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">---</td>"
+										innerHTML += "<td width=\"10%\" class=\"textCenter\"></td>";
+									  innerHTML += "</tr>";
+								}
+								else if(type == 's')
+								{
+										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
+										innerHTML +=  "<td id = \"colEntryNumber" + (i+1).toString() + "\" width=\"6%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
+										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">---</td>";
+										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">" + seqFile + "</td>"
+										innerHTML += "<td width=\"10%\" class=\"textCenter\"></td>";
+									  innerHTML += "</tr>";
+								}
+								else if(type == 'p')
+								{
+										
+										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
+										innerHTML +=  "<td id = \"colEntryNumber" + (i+1).toString() + "\" width=\"6%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
+										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">PAUSE - " + pause.toString() + " seconds</td>";
+										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">---</td>"
+										innerHTML += "<td width=\"10%\" class=\"textCenter\"></td>";
+									  innerHTML += "</tr>";
+								}
+							}
+					}
+					else
+					{
+										innerHTML +=  "<tr class=\"playlistPlayingEntry\">";
+										innerHTML +=  "<td>Playlist not loaded</td>";
+									  innerHTML += "</tr>";
+					}
+					var results = document.getElementById("tblStatusPlaylistEntries");
+					results.innerHTML = innerHTML;	
+				}
+			}
+			xmlhttp.send();
+}
 	
+function SetVolume(value)
+{
+			var xmlhttp=new XMLHttpRequest();
+			var url = "fppxml.php?command=setVolume&volume=" + value;
+			xmlhttp.open("GET",url,true);
+			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+			xmlhttp.send();
+
+}
 
 		
 		

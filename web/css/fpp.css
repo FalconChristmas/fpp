@@ -117,10 +117,20 @@
 	margin-right: auto;
 	background: rgb(240, 240,240);
 }
- #daemoncontrol, #nextplaylist, #playerstats; {
+ #daemoncontrol, #playerstats {
  background: rgb(240, 240, 240);
  margin:10px;
  padding:10px;
+}
+
+#nextPlaylist {
+	margin-top:10px;
+	padding:5px;
+	background:#DDD;
+	-moz-border-radius: 5px;
+	border-radius: 5px;
+	-webkit-border-radius: 5px;
+
 }
 
 #rebootShutdown
@@ -160,13 +170,17 @@
 	border: solid 2px rgb(0,0,0);
 }
 
-#playerControls { display: none; }
+#playerControls {
+	text-align:center;
+}
 
-#startPlaylistControls select { width: 100%; }
+#startPlaylistControls select {
+	width: 70%
+}
 
-#startPlaylistControls { display: none; }
+#startPlaylistControls {}
 
-#currentPlaylistDetails { display: none; }
+#currentPlaylistDetails {}
 
 html
 {
@@ -209,7 +223,7 @@ html
 legend
 {
 	font-weight: bold;
-	padding: 0.4em 0.6em;
+	padding: 0.1em 0.4em;
 	text-align: left;
 	-moz-border-radius: 5px;
 	border-radius: 5px;
@@ -225,3 +239,153 @@ fieldset
     border-radius: 5px;
     -webkit-border-radius: 5px;
 }
+.header{padding: 10px;}
+.headerLeft , .headerRight
+{
+	width:200px;
+	text-align:center;
+	float:left;
+}
+
+.headerCenter
+{
+	width:470px;
+	text-align:center;
+	float:left;
+}
+
+.siteName{font-size: 200%; padding-top: 13px;}
+
+#slider{
+	border-width: 1px;
+	border-style: solid;
+	border-color: #333 #333 #777 #333;
+	border-radius: 25px;
+	width: 30%;
+	position: relative;
+	height: 13px;
+	background-color: #8e8d8d;
+	background: url('../images/bg-track.png') repeat top left;
+    box-shadow: inset 0 1px 5px 0px rgba(0, 0, 0, .5), 
+    				  0 1px 0 0px rgba(250, 250, 250, .5);
+    left: 180px;
+		top:5px;
+		float:left;
+}
+.volume {
+	content: "";
+	display: inline-block;
+	width: 25px;
+	height: 25px;
+	left: 165px;
+	top:5px;
+	background: url('../images/volume.png') no-repeat 0 -50px;
+	position: relative;
+	margin: -5px 0 0 25px ;
+}
+.ui-slider-handle {
+	position: absolute;
+	z-index: 2;
+	width: 25px;
+	height: 25px;
+	cursor: pointer;
+	background: url('../images/handle.png') no-repeat 50% 50%;
+	font-weight: bold;
+	color: #1C94C4;
+	outline: none;
+	top: -7px;
+	margin-left: -12px;
+}
+.ui-slider-range {
+	background: #ffffff; /* Old browsers */
+	background: -moz-linear-gradient(top,  #ffffff 0%, #eaeaea 100%); /* FF3.6+ */
+	background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#ffffff), color-stop(100%,#eaeaea)); /* Chrome,Safari4+ */
+	background: -webkit-linear-gradient(top,  #ffffff 0%,#eaeaea 100%); /* Chrome10+,Safari5.1+ */
+	background: -o-linear-gradient(top,  #ffffff 0%,#eaeaea 100%); /* Opera 11.10+ */
+	background: -ms-linear-gradient(top,  #ffffff 0%,#eaeaea 100%); /* IE10+ */
+	background: linear-gradient(top,  #ffffff 0%,#eaeaea 100%); /* W3C */
+	filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#ffffff', endColorstr='#eaeaea',GradientType=0 ); /* IE6-9 */
+	position: absolute;
+	border: 0;
+	top: 0;
+	height: 100%;
+	border-radius: 25px;
+}
+
+#statusPlaylistContents{
+	height:220px;
+	min-height:220px;
+	max-height:220px;
+	overflow:auto
+}
+
+#statusPlaylist{
+	border:thin solid;	
+	font-size:12px;
+	margin-top: 5px;
+	-moz-border-radius: 5px;
+	border-radius: 5px;
+	-webkit-border-radius: 5px;
+	
+
+}
+
+#playerStatus{
+}
+
+#tblStatusPlaylist
+	 width:100%;
+}
+
+#tblStatusPlaylistEntries{
+	 width:100%;
+	 border-collapse:collapse;
+}
+
+
+.playlistHeader{
+	background:#DDD;
+	text-align:center;
+}
+
+.textRight{
+	text-align:right;
+	padding-right:5px;
+	}
+	
+.textLeft{
+	text-align:left;
+	padding-left:5px;
+	}	
+	
+.textCenter{
+	text-align:center;
+	}	
+
+.playlistSelectedEntry{
+	background:#DDD;
+}
+
+#statusPlaylistContents table {
+	border-collapse:collapse;
+} 
+
+.unselectable {
+   -moz-user-select: -moz-none;
+   -khtml-user-select: none;
+   -webkit-user-select: none;
+  -ms-user-select: none;
+   user-select: none;
+}
+
+
+.PlaylistPlayingIcon{
+	background-image: url(../images/playlistplay.png);
+	background-size:10px 10px;
+	background-repeat:no-repeat;
+	background-position: 4px 4px;
+}
+
+.PlaylistRowPlaying{
+	background:#D1E0FF;
+}	

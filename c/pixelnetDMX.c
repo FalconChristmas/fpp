@@ -25,6 +25,33 @@ int pixelnetDMXcount =0;
 
 char bufferPixelnetDMX[PIXELNET_DMX_BUF_SIZE]; 
 
+void CreatePixelnetDMXfile(char * file)
+{
+  FILE *fp;
+	char settings[16];
+	char command[16];
+	int i;
+	int startChannel=1;
+  fp = fopen(file, "w");
+	printf("Creating file: %s\n",file);
+		
+	for(i=0;i<MAX_PIXELNET_DMX_PORTS;i++,startChannel+=4096)
+	{
+		if(i==MAX_PIXELNET_DMX_PORTS-1)
+		{
+			sprintf(settings,"1,0,%d,",startChannel);
+		}
+		else
+		{
+			sprintf(settings,"1,0,%d,\n",startChannel);
+		}
+		fwrite(settings,1,strlen(settings),fp);
+	}
+	fclose(fp);
+	sprintf(command,"sudo chmod 775 %s",file);
+	system(command);
+}
+
 
 void InitializePixelnetDMX()
 {

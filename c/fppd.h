@@ -3,5 +3,6 @@
 
 void CreateDaemon(void);
 void MainProc(void);
+void CheckExistanceOfDirectoriesAndFiles();
 
 #endif
