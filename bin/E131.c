@@ -162,7 +162,6 @@ int E131_InitializeNetwork()
 int E131_OpenSequenceFile(const char * file)
 {
   int seqFileSize;
-  filePosition=0;
   if(seqFile!=NULL)
   {
     E131_CloseSequenceFile(); // Close if open
@@ -183,10 +182,10 @@ int E131_OpenSequenceFile(const char * file)
   seqFileSize = ftell(seqFile);
   E131totalSeconds = (int)((float)(seqFileSize-CHANNEL_DATA_OFFSET)/((float)stepSize * (float)20));
   fseek(seqFile, CHANNEL_DATA_OFFSET, SEEK_SET);
+  filePosition=CHANNEL_DATA_OFFSET;
   stopE131 = 0;
   E131_SetTimer(usTimerValue);
   E131status = E131_STATUS_READING;
-	//Playlist_SyncToMusic();
   return seqFileSize;
 }
 
@@ -225,7 +224,10 @@ void E131_Send()
   {
     return;
   }
-
+	if(filePosition<=25000)
+	{
+		Playlist_SyncToMusic();
+	}
   if(filePosition < currentSequenceFileSize - stepSize)
   {
     bytesRead=fread(fileData,1,stepSize,seqFile);
@@ -262,7 +264,7 @@ void E131_Send()
 	E131secondsRemaining = E131totalSeconds-E131secondsElasped;
   if(playList[currentPlaylistEntry].type == PL_TYPE_BOTH && MusicPlayerStatus == PLAYING_MPLAYER_STATUS)
   {
-    Playlist_SyncToMusic();
+    E131_SyncInfo();
   }
 	// Send data to pixelnet board
 	E131_SendPixelnetDMXdata();
@@ -278,8 +280,38 @@ void E131_SendPixelnetDMXdata()
 {
 	SendPixelnetDMX(sendBlankingData);
 }
+
+
 	
 void Playlist_SyncToMusic(void)
+{
+  unsigned int diff=0;
+	unsigned int absDifference=0;
+  //if(MusicLastSecond !=(int)mpg123.seconds)
+  //{
+    MusicLastSecond = (int)mpg123.seconds;
+    CalculatedMusicFilePosition = (long)((float)MusicLastSecond * RefreshRate * (float)stepSize) + CHANNEL_DATA_OFFSET  ;
+		if(CalculatedMusicFilePosition > filePosition)
+		{
+			diff = -(CalculatedMusicFilePosition - filePosition);
+		}
+		else
+		{
+			diff = filePosition-CalculatedMusicFilePosition;
+		}
+		
+    absDifference = abs(diff);
+    sprintf(logText,"diff = %d , abs = %d     \n",diff,absDifference);
+    LogWrite(logText);
+
+    sprintf(logText,"Syncing to Music\n");
+    LogWrite(logText);
+    filePosition = CalculatedMusicFilePosition;
+    fseek(seqFile, CalculatedMusicFilePosition, SEEK_SET);
+  //}
+}
+
+void E131_SyncInfo()
 {
   unsigned int diff=0;
 	unsigned int absDifference=0;
@@ -299,15 +331,6 @@ void Playlist_SyncToMusic(void)
     absDifference = abs(diff);
     sprintf(logText,"diff = %d , abs = %d     \n",diff,absDifference);
     LogWrite(logText);
-    if(absDifference > stepSize*MAX_STEPS_OUT_OF_SYNC)
-    {
-      //sprintf(logText,"Syncing to Music\n");
-      //LogWrite(logText);
-      //filePosition = CalculatedMusicFilePosition;
-      //fseek(seqFile, CalculatedMusicFilePosition, SEEK_SET);
-    }
-    //sprintf(logText,"MusicLastSecond= %g Remaining=%g\n\r",mpg123.seconds,mpg123.secondsleft);
-    //LogWrite(logText);
   }
 }
 

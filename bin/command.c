@@ -203,7 +203,7 @@ extern int numberOfSecondsPaused;
     }
     bytes_sent = sendto(socket_fd, response, strlen(response), 0,
                           (struct sockaddr *) &(client_address), sizeof(struct sockaddr_un));
-     LogWrite(response);
+     //LogWrite(response);
   }
 
 
