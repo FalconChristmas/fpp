@@ -215,15 +215,28 @@ function MoveFile($file)
 	{
 		if (strpos(strtolower($file),".mp3") !== false) 
 		{
-			rename("/home/pi/media/upload/" . $file,	"/home/pi/media/music/" . $file);
+			if ( !rename("/home/pi/media/upload/" . $file,	"/home/pi/media/music/" . $file) )
+			{
+				error_log("Couldn't move music file");
+				exit(1);
+			}
 		}
 		else
 		{
-			rename("/home/pi/media/upload/" . $file,	"/home/pi/media/sequences/" . $file);
+			if ( !rename("/home/pi/media/upload/" . $file,	"/home/pi/media/sequences/" . $file) )
+			{
+				error_log("Couldn't move music file");
+				exit(1);
+			}
 		}
 	}
+	else
+	{
+		error_log("Couldn't find file in upload directory");
+		exit(1);
+	}
 	$doc = new DomDocument('1.0');
-  $root = $doc->createElement('Status');
+	$root = $doc->createElement('Status');
 	$root = $doc->appendChild($root);  
 	$value = $doc->createTextNode('Success');
 	$value = $root->appendChild($value);
