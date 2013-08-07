@@ -1,4 +1,5 @@
 #include "e131bridge.h"
+#include "log.h"
 #include "E131.h"
 
 #include <sys/types.h>
@@ -27,7 +28,7 @@ extern char fileData[65536];
 void Bridge_Initialize()
 {
 	LoadUniversesFromFile();
-	printf("Universe Count = %d\n",UniverseCount);
+	LogWrite("Universe Count = %d\n",UniverseCount);
 	Bridge_InitializeSockets();
 	BridgeRunning = 1;
 	InitializePixelnetDMX();
@@ -70,7 +71,7 @@ void Bridge_InitializeSockets()
 				UniverseOctet[1] = universes[i].universe%256;
 				sprintf(strMulticastGroup, "239.255.%d.%d", UniverseOctet[0],UniverseOctet[1]);
 				mreq.imr_multiaddr.s_addr = inet_addr(strMulticastGroup);
-				printf("Adding group %s\n",  strMulticastGroup);       
+				LogWrite("Adding group %s\n",  strMulticastGroup);       
 				// add group to groups to listen for
 				if (setsockopt(sock, IPPROTO_IP, IP_ADD_MEMBERSHIP,&mreq, sizeof(mreq)) < 0) 
 				{
@@ -103,7 +104,7 @@ void Bridge_InitializeSockets()
 			memcpy((void *)(fileData+universes[universeIndex].startAddress),
 			       (void*)(bridgeBuffer+E131_HEADER_LENGTH),
 						  universes[universeIndex].size);
-			//printf("Storing StartAddress = %d size = %d\n",universes[universeIndex].startAddress,universes[universeIndex].size);
+			//LogWrite("Storing StartAddress = %d size = %d\n",universes[universeIndex].startAddress,universes[universeIndex].size);
 		}
 //		if(universe == universes[UniverseCount-1].universe)
 		if(universe == 2)

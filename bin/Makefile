@@ -9,12 +9,14 @@ TARGETS = fpp fppd
 
 OBJECTS_fpp = \
 	fpp.o \
+	log.o \
 	$(NULL)
 LIBS_fpp = \
 	$(NULL)
 
 OBJECTS_fppd = \
 	fppd.o \
+	log.o \
 	E131.o \
 	mpg123.o \
 	pixelnetDMX.o \

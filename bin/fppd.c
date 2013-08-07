@@ -1,5 +1,6 @@
 #include "fpp.h"
 #include "fppd.h"
+#include "log.h"
 #include "E131.h"
 #include "command.h"
 #include "playList.h"
@@ -10,13 +11,12 @@
 
 #include <unistd.h>
 #include <stdio.h>
+#include <stdarg.h>
+#include <stdbool.h>
 #include <sys/types.h>
 #include <stdlib.h>
 #include <pthread.h>
 #include <string.h>
-
-FILE *logFile;
-char logText[1024];
 
 pid_t pid, sid;
 int FPPstatus=FPP_STATUS_IDLE;
@@ -73,13 +73,7 @@ void MainProc(void)
 		exit(EXIT_FAILURE);  
 		}
 
-   logFile = fopen("fppdLog.txt", "w");
-   logText[0] = '\0';
-   fwrite(logText,1,1,logFile);
-   fclose(logFile);
-
-   sprintf(logText,"Falcon PI Player\n\r");
-   LogWrite(logText);
+   LogWrite("Falcon PI Player\n");
   
 	//Bridge_Initialize();
 
@@ -89,8 +83,7 @@ void MainProc(void)
   E131_Initialize();
   Command_Initialize();
 	InitializePixelnetDMX();
-  sprintf(logText,"Initialize E131 done\n");
-  LogWrite(logText);
+  LogWrite("Initialize E131 done\n");
   while(1)
   {
     usleep(100000);
@@ -118,13 +111,11 @@ int ReadFPPsettings(char const * file)
   int listIndex=0;
   char buf[128];
   char *s;
-  sprintf(logText,"Opening Settings Now %s\n",file);
-  LogWrite(logText);
+  LogWrite("Opening Settings Now %s\n",file);
   fp = fopen(file, "r");
   if (fp == NULL) 
   {
-    sprintf(logText,"Could not open settings file %s\n",file);
-    LogWrite(logText);
+    LogWrite("Could not open settings file %s\n",file);
   	return 0;
   }
 	// Parse Settings
@@ -140,7 +131,7 @@ int ReadFPPsettings(char const * file)
 	{
 		strcpy(MPG123volume,s);
 	}
-	printf("Mode=%d Volume=%s\n",FPPDmode,MPG123volume);
+	LogWrite("Mode=%d Volume=%s\n",FPPDmode,MPG123volume);
   fclose(fp);
 }
 
@@ -150,7 +141,7 @@ void CreateSettingsFile(char * file)
 	char * settings = "0,75";			// Mode, Volume
 	char command[32];
   fp = fopen(file, "w");
-	printf("Creating file: %s\n",file);
+	LogWrite("Creating file: %s\n",file);
 	fwrite(settings, 1, 4, fp);
 	fclose(fp);
 	sprintf(command,"sudo chmod 775 %s",file);
@@ -162,26 +153,22 @@ void CheckExistanceOfDirectoriesAndFiles()
 	if(!DirectoryExists("/home/pi/media"))
 	{
 		mkdir("/home/pi/media", 0755);
-		sprintf(logText,"Directory FPP Does Not Exist\n");
-		LogWrite(logText);
+		LogWrite("Directory FPP Does Not Exist\n");
 	}
 	if(!DirectoryExists("/home/pi/media/music"))
 	{
 		mkdir("/home/pi/media/music", 0755);
-		sprintf(logText,"Directory Music Does Not Exist\n");
-		LogWrite(logText);
+		LogWrite("Directory Music Does Not Exist\n");
 	}
 	if(!DirectoryExists("/home/pi/media/sequences"))
 	{
 		mkdir("/home/pi/media/sequences", 0755);
-		sprintf(logText,"Directory sequences Does Not Exist\n");
-		LogWrite(logText);
+		LogWrite("Directory sequences Does Not Exist\n");
 	}
 	if(!DirectoryExists("/home/pi/media/playlists"))
 	{
 		mkdir("/home/pi/media/playlists", 0755);
-		sprintf(logText,"Directory playlists Does Not Exist\n");
-		LogWrite(logText);
+		LogWrite("Directory playlists Does Not Exist\n");
 	}
 	if(!FileExists("/home/pi/media/universes"))
 	{
@@ -202,18 +189,3 @@ void CheckExistanceOfDirectoriesAndFiles()
 	
 
 }
-
-
-
-void LogWrite(const char* text)
-{
-    //logFile = fopen("fppdLog.txt", "a");
-		//fwrite(text,1,strlen(text),logFile);
-    //fclose(logFile);
-    //printf(text);
-
-}
-
-
-
-
