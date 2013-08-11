@@ -51,6 +51,7 @@ extern int numberOfSecondsPaused;
    {
     perror("server: socket");
    }
+	 
    fcntl(socket_fd, F_SETFL, O_NONBLOCK);
    memset(&server_address, 0, sizeof(server_address));
    server_address.sun_family = AF_UNIX;
