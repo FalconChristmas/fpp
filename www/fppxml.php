@@ -185,7 +185,7 @@ function RebootPi()
 
 function SetVolume($volume)
 {
-	$status=exec("sudo /home/pi/bin/fpp -v " . $volume);
+	$status=exec("sudo fpp -v " . $volume);
 	$doc = new DomDocument('1.0');
   $root = $doc->createElement('Status');
 	$root = $doc->appendChild($root);  
@@ -228,7 +228,7 @@ function MoveFile($file)
 
 function IsFPPDrunning()
 {
-	$status=exec("sudo /home/pi/bin/scripts/fppdRunning.sh");
+	$status=exec("sudo fppdRunning.sh");
 	$doc = new DomDocument('1.0');
   $root = $doc->createElement('Status');
 	$root = $doc->appendChild($root);  
@@ -241,11 +241,11 @@ function StartPlaylist($playlist,$repeat,$playEntry)
 {
 	if($repeat == "checked")
 	{
-		$status=exec("sudo /home/pi/bin/fpp -p '" . $playlist . "," . $playEntry . "'");
+		$status=exec("sudo fpp -p '" . $playlist . "," . $playEntry . "'");
 	}
 	else
 	{
-		$status=exec("sudo /home/pi/bin/fpp -P '" . $playlist . "," . $playEntry . "'");
+		$status=exec("sudo fpp -P '" . $playlist . "," . $playEntry . "'");
 	}
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('Status');
@@ -257,7 +257,7 @@ function StartPlaylist($playlist,$repeat,$playEntry)
 
 function StopGracefully()
 {
-	$status=exec("sudo /home/pi/bin/fpp -S");
+	$status=exec("sudo fpp -S");
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('Status');
 	$root = $doc->appendChild($root);  
@@ -268,7 +268,7 @@ function StopGracefully()
 
 function StopNow()
 {
-	$status=exec("sudo /home/pi/bin/fpp -d");
+	$status=exec("sudo fpp -d");
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('Status');
 	$root = $doc->appendChild($root);  
@@ -291,10 +291,10 @@ function StopFPPD()
 
 function StartFPPD()
 {
-	$status=exec("sudo /home/pi/bin/scripts/fppdRunning.sh");
+	$status=exec("sudo fppdRunning.sh");
 	if($status == 'false')
 	{
-		$status=exec("sudo /home/pi/bin/fppd>/dev/null");
+		$status=exec("sudo fppd>/dev/null");
 	}
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('Status');
@@ -307,7 +307,7 @@ function StartFPPD()
 	
 function GetFPPstatus()
 {
-	$status=exec("sudo /home/pi/bin/fpp -s");
+	$status=exec("sudo fpp -s");
 	if($status == 'false')
 	{
 		$doc = new DomDocument('1.0');
@@ -562,7 +562,7 @@ function SaveSchedule()
 
 function FPPDreloadSchedule()
 {
-	$status=exec("sudo /home/pi/bin/fpp -R");
+	$status=exec("sudo fpp -R");
 }
 
 function SaveScheduleToFile()
