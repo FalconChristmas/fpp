@@ -6,18 +6,13 @@ require_once('pixelnetdmxentry.php');
 header('Content-type: text/xml');
 
 $a = session_id();
-if(empty($a)) session_start();
+if(empty($a)) 
 {
 	session_start();
 }
 $_SESSION['session_id'] = session_id();
 
 //define("PLAYLIST_DIRECTORY","/home/pi/media/playlists/");
-
-
-if($_SESSION['UniverseEntries'] == NULL)
-{
-}
 
 if($_GET['command'] == "getMusicFiles")
 {
@@ -113,7 +108,6 @@ else if($_GET['command'] == "moveFile")
 	MoveFile($_GET['file']);
 } 
 
-
 else if($_POST['command'] == "saveUniverses")
 {
 	SetUniverses();
@@ -124,7 +118,7 @@ else if($_POST['command'] == "savePixelnetDMX")
 }
 else if($_POST['command'] == "saveSchedule")
 {
-	SaveSchedule($_GET['reload']);
+	SaveSchedule($_POST['reload']);
 }
 else if($_GET['command'] == "isFPPDrunning")
 {

@@ -291,14 +291,14 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 		
 		function RemovePlaylistEntry()
 		{
-			var name=document.getElementById("txtName");
+			var name=document.getElementById("txtPlaylistName");
     	var xmlhttp=new XMLHttpRequest();
 			var url = "fppxml.php?command=deleteEntry&index=" + lastPlaylistEntry;
 			xmlhttp.open("GET",url,false);
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
 	 
 			xmlhttp.onreadystatechange = function () {
-				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
+				if (xmlhttp.readyState == 4 && xmlhttp.status==200)
 				{
 					var xmlDoc=xmlhttp.responseXML; 
           PopulatePlayListEntries(name.value,false);

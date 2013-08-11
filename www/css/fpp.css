@@ -437,3 +437,7 @@ fieldset
 .pl_title {
 	font-size: larger;
 }
+#playlistEntryProperties ul{
+	padding: 0;
+	margin: 10px;
+}

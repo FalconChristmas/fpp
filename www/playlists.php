@@ -85,14 +85,7 @@ $(document).ready(function () {
     $('#tblCreatePlaylistEntries tbody').sortable({
         start: function (event, ui) {
 	          start_pos = ui.item.index();
-            //fix firefox position issue when dragging.
-            if (navigator.userAgent.toLowerCase().match(/firefox/) && ui.helper !== undefined) {
-                ui.helper.css('position', 'absolute').css('margin-top', $(window).scrollTop());
-                //wire up event that changes the margin whenever the window scrolls.
-                $(window).bind('scroll.sortableplaylist', function () {
-                    ui.helper.css('position', 'absolute').css('margin-top', $(window).scrollTop());
-                });
-            }
+            
         },
 				update: function(event, ui) {
             var end_pos = ui.item.index();
@@ -176,8 +169,8 @@ $(document).ready(function () {
 <div style="width:800px;margin:0 auto;"> <br/>
   <fieldset style="padding: 10px; border: 2px solid #000;">
     <legend>Playlists</legend>
-    <div style="overflow: hidden; padding: 5px;">
-    <div id = "playList" style="float: left;"> </div>
+<!--    <div style="overflow: hidden; padding: 5px;">
+-->    <div id = "playList" style="float: left;"> </div>
     <div style="float: left; width: 400px; padding: 5px; background: #f9f9f9; ; margin-left: 60px; border: 1px solid #ccc;  margin-top: 5px;">
       <form>
         New Playlist: <br/>
@@ -189,11 +182,14 @@ $(document).ready(function () {
   <br/>
   <fieldset style="padding: 10px; border: 2px solid #000;">
     <legend>Playlist Details</legend>
-    <div style="border-bottom:solid 1px #000; padding-bottom:10px";>
+    <div style="border-bottom:solid 1px #000; padding-bottom:10px;">
       <input type="text" id="txtPlaylistName" class="pl_title" />
-      <input name="" type="button" value="Save" onclick="SavePlaylist();" class="buttons"/>
-      <input name="" type="button" value="Delete" onclick="DeletePlaylist();"  class="buttons" />
-      (To rename edit name and click 'Save') </div>
+			<input name="chkFirst" type="checkbox" value="first" style="margin-left:20px"/> First
+			<input name="chkLast" type="checkbox" value="last" style="margin-left:20px"/> Last
+      <input name="" type="button" value="Save" onclick="SavePlaylist();" class="buttons" style="margin-left:50px"/>
+      <input name="" type="button" value="Delete" onclick="DeletePlaylist();"  class="buttons" /><br />
+      <span style="font-size:10px; padding-top:10px; font-family:Arial">(To rename edit name and click 'Save') </span>
+    </div>
     <div id="playlistEntryProperties">
       <ul>
         <li> Type<br />
@@ -212,12 +208,12 @@ $(document).ready(function () {
           <input id="txtPause" name="txtPause" type="text" size="10" maxlength="10"/>(Seconds)
         </li>
         <li>
-          <input id='btnAddPlaylistEntry'  width="200px"  onclick="AddPlaylistEntry();" class="buttons" type="button" value="Add Entry" />
-          <input id='btnRemovePlaylistEntry'  width="200px"  onclick="RemovePlaylistEntry();" class="buttons" type="button" value="Remove Entry" />
+          <input id='btnAddPlaylistEntry'  width="200px"  onclick="AddPlaylistEntry();" class="buttons" type="button" value="Add" />
+          <input id='btnRemovePlaylistEntry'  width="200px"  onclick="RemovePlaylistEntry();" class="buttons" type="button" value="Remove" />
         </li>
       </ul>
+	    <div class="clear"></div>
     </div>
-    <div class="clear"></div>
     <div id="createPlaylistItems">
     	<table id="tblCreatePlaylist">
       	<tr id="rowCreatePlaylistHeader">
@@ -231,6 +227,7 @@ $(document).ready(function () {
       <tbody id="tblCreatePlaylistEntries_tbody"></tbody>
       </table>
     </div>
+    <span style="font-size:10px; font-family:Arial; margin-left:15px;">(Drag entry to reposition) </span>
   </fieldset>
 </div>
 </div>
