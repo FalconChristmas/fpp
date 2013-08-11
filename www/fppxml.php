@@ -41,7 +41,7 @@ else if($_GET['command'] == "addPlayList")
 }
 else if($_GET['command'] == "sort")
 {
-	PlaylistEntryPostionChanged($_GET['newIndex'],$_GET['oldIndex']);	
+	PlaylistEntryPositionChanged($_GET['newIndex'],$_GET['oldIndex']);	
 }
 else if($_GET['command'] == "save")
 {
@@ -207,16 +207,15 @@ function ShutdownPi()
 
 function MoveFile($file)
 {
-	$f = strtolower($file);
-	if(file_exists("/home/pi/media/upload/" . $f))
+	if(file_exists("/home/pi/media/upload/" . $file))
 	{
-		if (strpos($f,".mp3") !== false) 
+		if (strpos(strtolower($file),".mp3") !== false) 
 		{
-			rename("/home/pi/media/upload/" . $f,	"/home/pi/media/music/" . $f);
+			rename("/home/pi/media/upload/" . $file,	"/home/pi/media/music/" . $file);
 		}
 		else
 		{
-			rename("/home/pi/media/upload/" . $f,	"/home/pi/media/sequences/" . $f);
+			rename("/home/pi/media/upload/" . $file,	"/home/pi/media/sequences/" . $file);
 		}
 	}
 	$doc = new DomDocument('1.0');
@@ -1207,7 +1206,8 @@ function LoadPlayListDetails($file)
 		$line=fgets($f);
 		$entry = explode(",",$line,50);
 		$type = $entry[0];
-		
+		if(strlen($line)==0)
+			break;
 		switch($entry[0])
 		{
 			case 'b':
@@ -1290,7 +1290,7 @@ function GetPlaylistEntries($file,$reloadFile)
 	echo $doc->saveHTML();
 }
 
-function PlaylistEntryPostionChanged($newIndex,$oldIndex)
+function PlaylistEntryPositionChanged($newIndex,$oldIndex)
 {
 	if(count($_SESSION['playListEntries']) > $oldIndex && count($_SESSION['playListEntries']) > $newIndex)
 	{
@@ -1304,7 +1304,7 @@ function PlaylistEntryPostionChanged($newIndex,$oldIndex)
 		}
 		if ($oldIndex < $newIndex)
 		{
-			for($index=$oldIndex+1;$index<$newIndex;$index++)
+			for($index=$oldIndex+1;$index<=$newIndex;$index++)
 			{
 				$_SESSION['playListEntries'][$index]->index--;  	
 			}

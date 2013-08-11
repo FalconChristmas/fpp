@@ -14,7 +14,7 @@ function PopulateLists()
 {
 	PopulatePlaylists("playList");
 	var firstPlaylist = document.getElementById("playlist0").innerHTML;
-	PopulatePlayListEntries(firstPlaylist);
+	PopulatePlayListEntries(firstPlaylist,true);
 }
 
 function PopulatePlaylists(element)
@@ -56,21 +56,17 @@ function PopulatePlaylists(element)
 			xmlhttp.send();
 		}
 
-function PopulatePlayListEntries(playList,reloadFile)
+function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 	{
-		  var isIE;
 			var type;
+			var pl;
 			var songFile;
 			var seqFile;
 			var pause;
     	var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=getPlayListEntries&pl=" + playList + "&reload=" + reloadFile;
 			var innerHTML="";
-			var browserName = navigator.userAgent;
-			var isIE = browserName.match(/MSIE/);
-			document.getElementById("txtName").value = playList;
-			document.getElementById("txtName").select();
-			xmlhttp.open("GET",url,false);
+			var url = "fppxml.php?command=getPlayListEntries&pl=" + playList + "&reload=" + reloadFile;
+			xmlhttp.open("GET",url,true);
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
 	 
 			xmlhttp.onreadystatechange = function () {
@@ -78,40 +74,68 @@ function PopulatePlayListEntries(playList,reloadFile)
 				{
 					var xmlDoc=xmlhttp.responseXML; 
 					var entries = xmlDoc.getElementsByTagName('PlaylistEntries')[0];
-					if(entries.childNodes.length> 0)
+					
+					gblCurrentLoadedPlaylist = playList;
+					gblCurrentLoadedPlaylistCount = entries.childNodes.length;
+					$('#txtPlaylistName').val(playList);
+					
+					if(entries.childNodes.length> 0)	
 					{
 							for(i=0;i<entries.childNodes.length;i++)
 							{
-								type = entries.childNodes[i].childNodes[0].textContent;
-  							seqFile = entries.childNodes[i].childNodes[1].textContent;
-								songFile = entries.childNodes[i].childNodes[2].textContent;
-								pause = entries.childNodes[i].childNodes[3].textContent;
+								var type = entries.childNodes[i].childNodes[0].textContent;
+  							var seqFile = entries.childNodes[i].childNodes[1].textContent;
+								var songFile = entries.childNodes[i].childNodes[2].textContent;
+								var pause = entries.childNodes[i].childNodes[3].textContent;
 								if(type == 'b')
 								{
-									innerHTML += "<li class='ui-state-default'><span class='ui-icon ui-icon-arrowthick-2-n-s'></span>" + songFile + " | " + seqFile + "</li>";	
+										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
+										innerHTML +=  "<td id = \"colEntryNumber" + (i+1).toString() + "\" width=\"3%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
+										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">" + songFile + "</td>";
+										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">" + seqFile + "</td>"
+										innerHTML += "<td width=\"13%\" class=\"textLeft\"></td>";
+									  innerHTML += "</tr>";
 								}
 								else if(type == 'm')
 								{
-									innerHTML += "<li class='ui-state-default'><span class='ui-icon ui-icon-arrowthick-2-n-s'></span>" + songFile + "</li>";	
+										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
+										innerHTML +=  "<td id = \"colEntryNumber" + (i+1).toString() + "\" width=\"3%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
+										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">" + songFile + "</td>";
+										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">---</td>"
+										innerHTML += "<td width=\"13%\" class=\"textLeft\"></td>";
+									  innerHTML += "</tr>";
 								}
 								else if(type == 's')
 								{
-									innerHTML += "<li class='ui-state-default'><span class='ui-icon ui-icon-arrowthick-2-n-s'></span>" + seqFile + "</li>";	
+										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
+										innerHTML +=  "<td id = \"colEntryNumber" + (i+1).toString() + "\" width=\"3%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
+										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">---</td>";
+										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">" + seqFile + "</td>"
+										innerHTML += "<td width=\"13%\" class=\"textLeft\"></td>";
+									  innerHTML += "</tr>";
 								}
 								else if(type == 'p')
 								{
-									innerHTML += "<li class='ui-state-default'><span class='ui-icon ui-icon-arrowthick-2-n-s'></span>Pause | " + pause +  " Seconds</li>";	
+										
+										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
+										innerHTML +=  "<td id = \"colEntryNumber" + (i+1).toString() + "\" width=\"3%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
+										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">PAUSE - " + pause.toString() + " seconds</td>";
+										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">---</td>"
+										innerHTML += "<td width=\"13%\" class=\"textLeft\"></td>";
+									  innerHTML += "</tr>";
 								}
 							}
 					}
 					else
 					{
-						innerHTML = "No Results Found";	
+										innerHTML +=  "<tr class=\"playlistPlayingEntry\">";
+										innerHTML +=  "<td>No entries in playlist.</td>";
+									  innerHTML += "</tr>";
 					}
-					var results = document.getElementById("sortable");
+					var results = document.getElementById("tblCreatePlaylistEntries_tbody");
 					results.innerHTML = innerHTML;	
 				}
-			};
+			}
 			xmlhttp.send();
 		}
 		
@@ -120,26 +144,25 @@ function PopulatePlayListEntries(playList,reloadFile)
 			var type=document.getElementById("selType").selectedIndex;
 			switch(type)
 			{
-				
 				case 0:
-					document.getElementById("row_music").style.display = 'table-row';
-					document.getElementById("row_sequence").style.display = 'table-row';
-					document.getElementById("row_pause").style.display = 'none';
+					$("#musicOptions").css("display","block");
+					$("#sequenceOptions").css("display","block");
+					$("#pauseTime").css("display","none");
 					break;
 				case 1:	
-					document.getElementById("row_music").style.display = 'table-row';
-					document.getElementById("row_sequence").style.display = 'none';
-					document.getElementById("row_pause").style.display = 'none';
+					$("#musicOptions").css("display","block");
+					$("#sequenceOptions").css("display","none");
+					$("#pauseTime").css("display","none");
 					break;
 				case 2:	
-					document.getElementById("row_music").style.display = 'none';
-					document.getElementById("row_sequence").style.display = 'table-row';
-					document.getElementById("row_pause").style.display = 'none';
+					$("#musicOptions").css("display","none");
+					$("#sequenceOptions").css("display","block");
+					$("#pauseTime").css("display","none");
 					break;
 				case 3:	
-					document.getElementById("row_music").style.display = 'none';
-					document.getElementById("row_sequence").style.display = 'none';
-					document.getElementById("row_pause").style.display = 'table-row';
+					$("#musicOptions").css("display","none");
+					$("#sequenceOptions").css("display","none");
+					$("#pauseTime").css("display","block");
 					break;
 			}
 			
@@ -197,10 +220,10 @@ function PopulatePlayListEntries(playList,reloadFile)
 
 		}
 
-		function AddPlaylistEntry(type,seqFile,songFile,pause)
+		function AddPlaylistEntry()
 		{
     	var xmlhttp=new XMLHttpRequest();
-			var name=document.getElementById("txtName");
+			var name=document.getElementById("txtPlaylistName");
 			var type = document.getElementById("selType").value;
 			var	seqFile = document.getElementById("selSequence").value;
 			var	songFile = document.getElementById("selAudio").value;
@@ -223,7 +246,7 @@ function PopulatePlayListEntries(playList,reloadFile)
 		
 		function SavePlaylist()
 		{
-			var name=document.getElementById("txtName");
+			var name=document.getElementById("txtPlaylistName");
     	var xmlhttp=new XMLHttpRequest();
 			var url = "fppxml.php?command=save&name=" + name.value;
 			xmlhttp.open("GET",url,false);
@@ -244,7 +267,7 @@ function PopulatePlayListEntries(playList,reloadFile)
 
 		function DeletePlaylist()
 		{
-			var name=document.getElementById("txtName");
+			var name=document.getElementById("txtPlaylistName");
     	var xmlhttp=new XMLHttpRequest();
 			var url = "fppxml.php?command=deletePlaylist&name=" + name.value;
 			xmlhttp.open("GET",url,false);
@@ -255,7 +278,8 @@ function PopulatePlayListEntries(playList,reloadFile)
 				{
 					var xmlDoc=xmlhttp.responseXML; 
           PopulatePlaylists("playList");
-          PopulatePlayListEntries(name.value,true);
+					var firstPlaylist = document.getElementById("playlist0").innerHTML;
+					PopulatePlayListEntries(firstPlaylist,true);
 				}
 			};
 			
@@ -265,7 +289,7 @@ function PopulatePlayListEntries(playList,reloadFile)
 		
 		
 		
-		function RemoveEntry()
+		function RemovePlaylistEntry()
 		{
 			var name=document.getElementById("txtName");
     	var xmlhttp=new XMLHttpRequest();
@@ -908,11 +932,13 @@ function PopulatePlayListEntries(playList,reloadFile)
 							$("#btnDaemonControl").attr('value', 'Stop FPPD');
 							$('#daemonStatus').html("FPPD is running.");
 							status = GetFPPstatus();
+							$("#playerStatus").css({ display: "block" });
 						}
 						else
 						{
 							$("#btnDaemonControl").attr('value', 'Start FPPD');
 							$('#daemonStatus').html("FPPD is stopped.");
+							$("#playerStatus").css({ display: "none" });
 						} 
 					}
 				}

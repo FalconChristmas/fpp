@@ -69,7 +69,7 @@ top: 0;
 /* Sub level menu links style */
 .ddsmoothmenu ul li ul li a{
 font: normal 13px Verdana;
-width: 160px; /*width of sub menus*/
+width: 213px; /*width of sub menus*/
 padding: 5px;
 margin: 0;
 border-top-width: 0;

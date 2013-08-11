@@ -9,27 +9,27 @@
     <div id="fppMenu" class="ddsmoothmenu">
     <ul>
       <li><a href="index.php">Status/Control</a></li>
-      <li><a href="#">Basic Setup</a>
+      <!-- <li><a href="#">Basic Setup</a>
         <ul>
           <li><a href="uipassword.php">Set UI Password</a></li>
           <li><a href="timeconfig.php">Config/Set Time</a></li>
           <li><a href="networkconfig.php">Network</a></li>
           <li><a href="playerkconfig.php">Player Mode</a></li>
-        </ul>
+        </ul> -->
       </li>
       <li><a href="#">Content Setup</a>
         <ul>
           <li><a href="uploadfile.php">Source Files</a></li>
           <li><a href="playlists.php">Playlists</a></li>
           <li><a href="scheduler.php">Scheduler</a></li>
-          <li><a href="video.php">Videos</a></li>
+          <!-- <li><a href="video.php">Videos</a></li> -->
         </ul>
       </li>
       <li><a href="#">Output Setup</a>
         <ul>
           <li><a href="universes.php">Universe</a></li>
           <li><a href="pixelnetdmx.php">Pixelnet/DMX</a></li>
-          <li><a href="rds.php">Radio RDS</a></li>
+          <!-- <li><a href="rds.php">Radio RDS</a></li> -->
         </ul>
       </li>
       <li><a href="http://falconchristmas.com/wiki/index.php5/FPP">Wiki/Help</a></li>
