@@ -28,7 +28,7 @@ extern char MPG123volume[4];
 
 int main()
 {
-  //CreateDaemon();
+  CreateDaemon();
   MainProc();
   return 0;
 }
@@ -210,7 +210,7 @@ void LogWrite(const char* text)
     //logFile = fopen("fppdLog.txt", "a");
 		//fwrite(text,1,strlen(text),logFile);
     //fclose(logFile);
-    printf(text);
+    //printf(text);
 
 }
 
