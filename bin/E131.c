@@ -262,10 +262,10 @@ void E131_Send()
     }
 	E131secondsElasped = (int)((float)(filePosition-CHANNEL_DATA_OFFSET)/((float)stepSize*(float)20.0));
 	E131secondsRemaining = E131totalSeconds-E131secondsElasped;
-  if(playList[currentPlaylistEntry].type == PL_TYPE_BOTH && MusicPlayerStatus == PLAYING_MPLAYER_STATUS)
-  {
-    E131_SyncInfo();
-  }
+  //if(playList[currentPlaylistEntry].type == PL_TYPE_BOTH && MusicPlayerStatus == PLAYING_MPLAYER_STATUS)
+  //{
+  //  E131_SyncInfo();
+  //}
 	// Send data to pixelnet board
 	E131_SendPixelnetDMXdata();
 		
@@ -301,11 +301,11 @@ void Playlist_SyncToMusic(void)
 		}
 		
     absDifference = abs(diff);
-    sprintf(logText,"diff = %d , abs = %d     \n",diff,absDifference);
-    LogWrite(logText);
+    //sprintf(logText,"diff = %d , abs = %d     \n",diff,absDifference);
+    //LogWrite(logText);
 
-    sprintf(logText,"Syncing to Music\n");
-    LogWrite(logText);
+    //sprintf(logText,"Syncing to Music\n");
+    //LogWrite(logText);
     filePosition = CalculatedMusicFilePosition;
     fseek(seqFile, CalculatedMusicFilePosition, SEEK_SET);
   //}
