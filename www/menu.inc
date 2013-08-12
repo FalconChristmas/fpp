@@ -1,7 +1,7 @@
 
 	 <div class="header">
 	 		<div class="headerLeft"><a href="http://www.falconchristmas.com"><img src="images/falconlogo.png"  height="60" /></a></div>
-	 		<div class="headerCenter"><div class="siteName">Falcon Pi Player (FPP)</div></div>
+	 		<div class="headerCenter"><div class="siteName">Falcon Pi Player (FPP)</div>Alpha 0.0.4</div>
 			<div class="headerRight"<a href="http://raspberrypi.org"><img src="images/large_Raspberry_Pi_Logo_4.png" height="60" /></a></div>
 			<div class="clear"></div>
 	 </div>

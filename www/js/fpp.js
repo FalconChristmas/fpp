@@ -1022,15 +1022,15 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 							if(fppStatus == STATUS_PLAYING)
 							{
 								$('#txtPlayerStatus').html("Playing <strong>'" + CurrentPlaylist + "'</strong>");
-								$('#txtTimePlayed').html("Time Elasped: " + zeroPad(minsPlayed,2) + ":" + zeroPad(secsPlayed,2));								
-								$('#txtTimeRemaining').html("Time Remaining: " + zeroPad(minsRemaining,2) + ":" + zeroPad(secsRemaining,2));								
+								$('#txtTimePlayed').html("Elasped: " + zeroPad(minsPlayed,2) + ":" + zeroPad(secsPlayed,2));								
+								$('#txtTimeRemaining').html("Remaining: " + zeroPad(minsRemaining,2) + ":" + zeroPad(secsRemaining,2));						
 								
 							}
-							else
+							else if(fppStatus == STATUS_STOPPING_GRACEFULLY)
 							{
-								$('#txtPlayerStatus').html("Playing <strong>'" + CurrentPlaylist + "'</strong>");
-								$('#txtTimePlayed').html("Time Elasped: " + zeroPad(minsPlayed,2) + ":" + zeroPad(secsPlayed,2));								
-								$('#txtTimeRemaining').html("Time Remaining: " + zeroPad(minsRemaining,2) + ":" + zeroPad(secsRemaining,2));								
+								$('#txtPlayerStatus').html("Playing <strong>'" + CurrentPlaylist + "'</strong> - Stopping Gracefully");
+								$('#txtTimePlayed').html("Elasped: " + zeroPad(minsPlayed,2) + ":" + zeroPad(secsPlayed,2));								
+								$('#txtTimeRemaining').html("Remaining: " + zeroPad(minsRemaining,2) + ":" + zeroPad(secsRemaining,2));								
 							}
 
 							if(CurrentPlaylistIndex != gblCurrentPlaylistIndex && CurrentPlaylistIndex <= gblCurrentLoadedPlaylistCount)
@@ -1158,7 +1158,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 	{
 		var Playlist =  $("#selStartPlaylist").val();
     var xmlhttp=new XMLHttpRequest();
-		var repeat = $('#chkRepeat').attr('checked');
+		var repeat = $("#chkRepeat").is(':checked')?'checked':'unchecked';
 		if (PlayEntrySelected >= gblCurrentLoadedPlaylistCount)
 		{
 				PlayEntrySelected = 0;

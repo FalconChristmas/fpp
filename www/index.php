@@ -123,9 +123,9 @@
       <table  width= "100%">
         <tr>
           <td width = "20%">Player Status: </td>
-          <td id = "txtPlayerStatus" width = "36%"></td>
-          <td id = "txtTimePlayed" width = "22%"></td>
-          <td id = "txtTimeRemaining" width = "22%"></td>
+          <td id = "txtPlayerStatus" width = "46%"></td>
+          <td id = "txtTimePlayed" width = "17%"></td>
+          <td id = "txtTimeRemaining" width = "17%"></td>
         </tr>
       </table>
       
@@ -134,7 +134,7 @@
           <tr>
             <td width="20%">Start this playlist</td>
             <td  width="25%"><select id="selStartPlaylist" name="selStartPlaylist" size="1" onClick="PopulateStatusPlaylistEntries(true,'',true);" onChange="PopulateStatusPlaylistEntries(true,'',true);"></select></td>
-            <td  width="15%"><input type="checkbox">
+            <td  width="15%"><input type="checkbox" id="chkRepeat">
               Repeat
               </input></td>
             <td  width="40%">     	
