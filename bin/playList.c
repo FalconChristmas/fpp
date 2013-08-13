@@ -60,7 +60,7 @@ void CalculateNextPlayListEntry()
 	else
 	{	
 		maxEntryIndex = playlistDetails.last?playlistDetails.playListCount-1:playlistDetails.playListCount; 
-		printf("Last=%d maxEntryIndex=%d\n", playlistDetails.last,maxEntryIndex); 
+		//printf("Last=%d maxEntryIndex=%d\n", playlistDetails.last,maxEntryIndex); 
 		playlistDetails.currentPlaylistEntry++;
  		if(playlistDetails.currentPlaylistEntry >= maxEntryIndex)
 		{
