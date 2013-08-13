@@ -71,6 +71,7 @@ void CalculateNextPlayListEntry()
 	}
 }
 
+
 int ReadPlaylist(char const * file)
 {
   FILE *fp;
