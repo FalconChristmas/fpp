@@ -55,22 +55,17 @@ void CalculateNextPlayListEntry()
 	else if(FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY)
 	{
 		lastEntry = playlistDetails.last?playlistDetails.playListCount-1:PLAYLIST_STOP_INDEX;
-<<<<<<< HEAD
 		playlistDetails.currentPlaylistEntry = playlistDetails.currentPlaylistEntry == playlistDetails.playListCount-1 ? PLAYLIST_STOP_INDEX:lastEntry;
-=======
-		printf("lastEntry = %d\n",lastEntry);
-		playlistDetails.currentPlaylistEntry = playlistDetails.currentPlaylistEntry == playlistDetails.playListCount-1 ? PLAYLIST_STOP_INDEX:lastEntry;
-		printf(" dfdfdf currentPlaylistEntry = %d\n",playlistDetails.currentPlaylistEntry);
->>>>>>> ca2a598bbf4ada1ea3b2f13e5103a33c49e6b72e
 	}
 	else
 	{	
 		maxEntryIndex = playlistDetails.last?playlistDetails.playListCount-1:playlistDetails.playListCount; 
-		// Calculate where start index is.
-		firstEntryIndex = playlistDetails.first?1:0; 
+		printf("Last=%d maxEntryIndex=%d\n", playlistDetails.last,maxEntryIndex); 
 		playlistDetails.currentPlaylistEntry++;
- 		if(playlistDetails.currentPlaylistEntry == maxEntryIndex)
+ 		if(playlistDetails.currentPlaylistEntry >= maxEntryIndex)
 		{
+			// Calculate where start index is.
+			firstEntryIndex = playlistDetails.first?1:0; 
 			playlistDetails.currentPlaylistEntry = firstEntryIndex;
 		}
 	}
@@ -95,6 +90,14 @@ int ReadPlaylist(char const * file)
     LogWrite(logText);
   return 0;
   }
+	// Parse Playlist settings (First, Last)
+	fgets(buf, 512, fp);
+  s=strtok(buf,",");
+	playlistDetails.first = atoi(s);
+  s = strtok(NULL,",");
+	playlistDetails.last = atoi(s);
+
+	// Parse Playlists 
   while(fgets(buf, 512, fp) != NULL)
   {
     s=strtok(buf,",");
