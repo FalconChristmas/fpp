@@ -245,7 +245,7 @@ function MoveFile($file)
 
 function IsFPPDrunning()
 {
-	$status=exec("sudo fppdRunning.sh");
+	$status=exec("if ps cax | grep -q fppd; then echo \"true\"; else echo \"false\"; fi");
 	$doc = new DomDocument('1.0');
   $root = $doc->createElement('Status');
 	$root = $doc->appendChild($root);  
@@ -308,7 +308,7 @@ function StopFPPD()
 
 function StartFPPD()
 {
-	$status=exec("sudo fppdRunning.sh");
+	$status=exec("if ps cax | grep -q fppd; then echo \"true\"; else echo \"false\"; fi");
 	if($status == 'false')
 	{
 		$status=exec("sudo fppd>/dev/null");
