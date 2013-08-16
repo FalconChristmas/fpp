@@ -5,30 +5,30 @@
 #include <stdarg.h>
 
 FILE *logFile;
+const char *filename = "/home/pi/media/fppLog.txt";
 
 static bool verbose = false;
 static bool foreground = false;
 
-void _LogWrite(const char *format, char *file, int line, ...)
+void _LogWrite(char *file, int line, const char *format, ...)
 {
 	va_list arg;
-	int done;
 
 	if ( verbose )
 	{
-		done = fprintf(stdout, "%s:%d:", file, line);
+		fprintf(stdout, "%s:%d:", file, line);
 		va_start(arg, format);
-		done += vfprintf(stdout, format, arg);
+		vfprintf(stdout, format, arg);
 		va_end(arg);
 	}
 
 	if ( ! foreground )
 	{
-		logFile = fopen("fppdLog.txt", "a");
+		logFile = fopen(filename, "a");
 
-		done = fprintf(logFile, "%s:%d:", file, line);
+		fprintf(logFile, "%s:%d:", file, line);
 		va_start(arg, format);
-		done += fprintf(logFile, format, arg);
+		fprintf(logFile, format, arg);
 		va_end(arg);
 
 		fclose(logFile);
