@@ -34,6 +34,7 @@ OBJECTS_fppd += \
 	$(NULL)
 LIBS_fppd += \
 	-lwiringPi \
+	-lm \
 	$(NULL)
 else
 ifeq ($(filter-out i686 x86_64, $(ARCH)),)
