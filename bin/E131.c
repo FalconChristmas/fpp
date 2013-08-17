@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
+#include <math.h> 
 
 // external variables
 extern struct mpg123_type mpg123;
@@ -226,7 +227,7 @@ void E131_Send()
     return;
   }
 	
-	if(MusicPlayerStatus==PLAYING_MPLAYER_STATUS && !syncedToMusic && (mpg123.seconds < .2))
+	if(MusicPlayerStatus==PLAYING_MPLAYER_STATUS && !syncedToMusic && (mpg123.seconds < 2))
 	{
 		Playlist_SyncToMusic();
 	}
@@ -252,7 +253,7 @@ void E131_Send()
 		 	}
 		 	else
 		 	{
-		 		memcpy((void*)(E131packet+E131_HEADER_LENGTH),(void*)(fileData+universes[i].startAddress),universes[i].size);
+		 		memcpy((void*)(E131packet+E131_HEADER_LENGTH),(void*)(fileData+universes[i].startAddress-1),universes[i].size);
 		 	}
 		 
 		 	E131packet[E131_SEQUENCE_INDEX] = E131sequenceNumber;;
@@ -289,9 +290,9 @@ void Playlist_SyncToMusic(void)
 {
   unsigned int diff=0;
 	unsigned int absDifference=0;
+  float MusicSeconds = customRounding(mpg123.seconds, .05);
 	syncedToMusic = 1;
-  MusicLastSecond = (int)mpg123.seconds;
-  CalculatedMusicFilePosition = (long)((float)MusicLastSecond * RefreshRate * (float)stepSize) + CHANNEL_DATA_OFFSET  ;
+  CalculatedMusicFilePosition = ((long)(MusicSeconds * RefreshRate) * stepSize) + CHANNEL_DATA_OFFSET  ;
 	if(CalculatedMusicFilePosition > filePosition)
 	{
 		diff = -(CalculatedMusicFilePosition - filePosition);
@@ -307,6 +308,12 @@ void Playlist_SyncToMusic(void)
   LogWrite("Syncing to Music\n");
   filePosition = CalculatedMusicFilePosition;
   fseek(seqFile, CalculatedMusicFilePosition, SEEK_SET);
+}
+
+float customRounding(float value, float roundingValue) 
+{
+    int mulitpler = floor(value / roundingValue);
+    return mulitpler * roundingValue;
 }
 
 void LoadUniversesFromFile()

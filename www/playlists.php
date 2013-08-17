@@ -145,7 +145,7 @@ $(document).ready(function () {
     {
       if($songFile != '.' && $songFile != '..')
       {
-        echo "<option value='" . $songFile . "'>$songFile</option>";
+        echo "<option value=\"" . $songFile . "\">" . $songFile . "</option>";
       }
     }
 		echo "</select>";
@@ -158,7 +158,7 @@ $(document).ready(function () {
     {
       if($seqFile != '.' && $seqFile != '..')
       {
-        echo "<option value='" . $seqFile . "'>$seqFile</option>";
+        echo "<option value=\"" . $seqFile . "\">" . $seqFile . "</option>";
       }
     }
 		echo "</select>";

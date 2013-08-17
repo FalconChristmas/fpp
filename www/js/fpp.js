@@ -475,7 +475,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			$('#sortable li:nth-child(1n)').removeClass('selectedEntry');
 			if(index > $("#sortable li").size())
 			{	
-				index = ("#sortable li").size()-1;
+				index = $("#sortable li").size()-1;
 			}
 			var j = $("#sortable li").get(index).addClass('selectedEntry');
 			lastPlaylistEntry = index;

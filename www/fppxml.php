@@ -70,11 +70,11 @@ else if ($_GET['command'] == "deleteMusic")
 }
 else if ($_GET['command'] == "addPlaylistEntry")
 {
-	AddPlayListEntry($_GET['type'],addslashes($_GET['seqFile']),addslashes($_GET['songFile']),$_GET['pause']);	
+	AddPlayListEntry($_GET['type'],$_GET['seqFile'],$_GET['songFile'],$_GET['pause']);	
 	$doc = new DomDocument('1.0');
     $root = $doc->createElement('Status');
 	$root = $doc->appendChild($root);  
-	$value = $doc->createTextNode('Success');
+	$value = $doc->createTextNode($_GET['songFile']);
 	$value = $root->appendChild($value);
 	echo $doc->saveHTML();
 }

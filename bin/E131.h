@@ -43,6 +43,7 @@ void E131_SendPixelnetDMXdata();
 void Playlist_SyncToMusic();
 void LoadUniversesFromFile();
 void UniversesPrint();
+float customRounding(float value, float roundingValue);
 
 
 
