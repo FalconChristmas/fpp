@@ -73,13 +73,16 @@ int MusicLastSecond=0;
 int E131secondsElasped = 0;
 int E131secondsRemaining = 0;
 int E131totalSeconds = 0;
+char E131sequenceNumber=1;
 
 int sendBlankingData=0;
+int syncedToMusic=0;
 
 void E131_Initialize()
 {
   usTimerValue = (unsigned int)(((float)1/(float)RefreshRate) * ((float)990000));
 //  usTimerValue = (unsigned int)(((float)1/(float)RefreshRate) * ((float)1100000));
+	E131sequenceNumber=1;
   GetLocalWiredIPaddress(LocalAddress);
 	LoadUniversesFromFile();
   E131_InitializeNetwork();
@@ -159,6 +162,7 @@ int E131_InitializeNetwork()
 int E131_OpenSequenceFile(const char * file)
 {
   int seqFileSize;
+	syncedToMusic=0;
   if(seqFile!=NULL)
   {
     E131_CloseSequenceFile(); // Close if open
@@ -221,10 +225,12 @@ void E131_Send()
   {
     return;
   }
-	if(filePosition<=25000)
+	
+	if(MusicPlayerStatus==PLAYING_MPLAYER_STATUS && !syncedToMusic && (mpg123.seconds < .2))
 	{
 		Playlist_SyncToMusic();
 	}
+	
   if(filePosition < currentSequenceFileSize - stepSize)
   {
     bytesRead=fread(fileData,1,stepSize,seqFile);
@@ -239,38 +245,37 @@ void E131_Send()
     }
     for(i=0;i<UniverseCount;i++)
     {
-		 if(sendBlankingData)
-		 {
+		 	if(sendBlankingData)
+		 	{
 		 		memset(E131packet+E131_HEADER_LENGTH,0,universes[i].size);
 				LogWrite("sending Zeros\n");
-		 }
-		 else
-		 {
+		 	}
+		 	else
+		 	{
 		 		memcpy((void*)(E131packet+E131_HEADER_LENGTH),(void*)(fileData+universes[i].startAddress),universes[i].size);
-		 }
-		 E131packet[E131_UNIVERSE_INDEX] 		=  (char)(universes[i].universe/256);
-		 E131packet[E131_UNIVERSE_INDEX+1] 	=  (char)(universes[i].universe%256);
-		 E131packet[E131_COUNT_INDEX] 			=  (char)((universes[i].size+1)/256);
-		 E131packet[E131_COUNT_INDEX+1] 		=  (char)((universes[i].size+1)%256);
-		if(sendto(sendSocket, E131packet, universes[i].size + E131_HEADER_LENGTH, 0, (struct sockaddr*)&E131address[i], sizeof(E131address[i])) < 0)
-		{
-			return;
-		}
+		 	}
+		 
+		 	E131packet[E131_SEQUENCE_INDEX] = E131sequenceNumber;;
+		 	E131packet[E131_UNIVERSE_INDEX] = (char)(universes[i].universe/256);
+		 	E131packet[E131_UNIVERSE_INDEX+1]	= (char)(universes[i].universe%256);
+		 	E131packet[E131_COUNT_INDEX] = (char)((universes[i].size+1)/256);
+		 	E131packet[E131_COUNT_INDEX+1] = (char)((universes[i].size+1)%256);
+			if(sendto(sendSocket, E131packet, universes[i].size + E131_HEADER_LENGTH, 0, (struct sockaddr*)&E131address[i], sizeof(E131address[i])) < 0)
+			{
+				return;
+			}
     }
-	E131secondsElasped = (int)((float)(filePosition-CHANNEL_DATA_OFFSET)/((float)stepSize*(float)20.0));
-	E131secondsRemaining = E131totalSeconds-E131secondsElasped;
-  //if(playList[currentPlaylistEntry].type == PL_TYPE_BOTH && MusicPlayerStatus == PLAYING_MPLAYER_STATUS)
-  //{
-  //  E131_SyncInfo();
-  //}
-	// Send data to pixelnet board
-	E131_SendPixelnetDMXdata();
-		
-  }
-  else
-  {
-    E131_CloseSequenceFile();
-  }
+		E131sequenceNumber++;
+		E131secondsElasped = (int)((float)(filePosition-CHANNEL_DATA_OFFSET)/((float)stepSize*(float)20.0));
+		E131secondsRemaining = E131totalSeconds-E131secondsElasped;
+		// Send data to pixelnet board
+		E131_SendPixelnetDMXdata();
+			
+		}
+		else
+		{
+			E131_CloseSequenceFile();
+		}
 }
 
 void E131_SendPixelnetDMXdata()
@@ -284,48 +289,24 @@ void Playlist_SyncToMusic(void)
 {
   unsigned int diff=0;
 	unsigned int absDifference=0;
-  //if(MusicLastSecond !=(int)mpg123.seconds)
-  //{
-    MusicLastSecond = (int)mpg123.seconds;
-    CalculatedMusicFilePosition = (long)((float)MusicLastSecond * RefreshRate * (float)stepSize) + CHANNEL_DATA_OFFSET  ;
-		if(CalculatedMusicFilePosition > filePosition)
-		{
-			diff = -(CalculatedMusicFilePosition - filePosition);
-		}
-		else
-		{
-			diff = filePosition-CalculatedMusicFilePosition;
-		}
+	syncedToMusic = 1;
+  MusicLastSecond = (int)mpg123.seconds;
+  CalculatedMusicFilePosition = (long)((float)MusicLastSecond * RefreshRate * (float)stepSize) + CHANNEL_DATA_OFFSET  ;
+	if(CalculatedMusicFilePosition > filePosition)
+	{
+		diff = -(CalculatedMusicFilePosition - filePosition);
+	}
+	else
+	{
+		diff = filePosition-CalculatedMusicFilePosition;
+	}
 		
-    absDifference = abs(diff);
-    LogWrite("diff = %d , abs = %d     \n",diff,absDifference);
+  absDifference = abs(diff);
+  LogWrite("diff = %d , abs = %d     \n",diff,absDifference);
 
-    LogWrite("Syncing to Music\n");
-    filePosition = CalculatedMusicFilePosition;
-    fseek(seqFile, CalculatedMusicFilePosition, SEEK_SET);
-  //}
-}
-
-void E131_SyncInfo()
-{
-  unsigned int diff=0;
-	unsigned int absDifference=0;
-  if(MusicLastSecond !=(int)mpg123.seconds)
-  {
-    MusicLastSecond = (int)mpg123.seconds;
-    CalculatedMusicFilePosition = (long)((float)MusicLastSecond * RefreshRate * (float)stepSize) + CHANNEL_DATA_OFFSET;
-		if(CalculatedMusicFilePosition > filePosition)
-		{
-			diff = -(CalculatedMusicFilePosition - filePosition);
-		}
-		else
-		{
-			diff = filePosition-CalculatedMusicFilePosition;
-		}
-		
-    absDifference = abs(diff);
-    LogWrite("diff = %d , abs = %d\n",diff,absDifference);
-  }
+  LogWrite("Syncing to Music\n");
+  filePosition = CalculatedMusicFilePosition;
+  fseek(seqFile, CalculatedMusicFilePosition, SEEK_SET);
 }
 
 void LoadUniversesFromFile()
@@ -396,6 +377,5 @@ void UniversesPrint()
                                           universes[i].type,
                                           universes[i].unicastAddress
                                           );
-
   }
 }

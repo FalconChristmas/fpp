@@ -16,7 +16,7 @@
 #include <stdlib.h>
 
 extern int FPPstatus;
-extern int FPPDmode;
+extern int FPPmode;
 
 
 extern PlaylistDetails playlistDetails;
@@ -93,14 +93,14 @@ extern int numberOfSecondsPaused;
     case 's':
       if(FPPstatus==FPP_STATUS_IDLE)
       {
-        sprintf(response,"%d,%d,%s,%s\n",FPPDmode,FPPstatus,NextPlaylist,NextScheduleStartText);
+        sprintf(response,"%d,%d,%s,%s\n",FPPmode,FPPstatus,NextPlaylist,NextScheduleStartText);
       }
       else
       {
 				if(playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType == 'b' || playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType == 'm')
 				{
 					sprintf(response,"%d,%d,%s,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s\n",
-			  					FPPDmode,FPPstatus,MPG123volume,playlistDetails.currentPlaylist,
+			  					FPPmode,FPPstatus,MPG123volume,playlistDetails.currentPlaylist,
 									playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType,
 									playlistDetails.playList[playlistDetails.currentPlaylistEntry].seqName,
 									playlistDetails.playList[playlistDetails.currentPlaylistEntry].songName,
@@ -109,7 +109,7 @@ extern int numberOfSecondsPaused;
 				}
 				else if (playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType == 's')
 				{
-					sprintf(response,"%d,%d,%s,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s\n",FPPDmode,FPPstatus,MPG123volume,
+					sprintf(response,"%d,%d,%s,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s\n",FPPmode,FPPstatus,MPG123volume,
         					playlistDetails.currentPlaylist,playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType,
 									playlistDetails.playList[playlistDetails.currentPlaylistEntry].seqName,playlistDetails.playList[playlistDetails.currentPlaylistEntry].songName,
 									playlistDetails.currentPlaylistEntry+1,playlistDetails.playListCount,E131secondsElasped,E131secondsRemaining,
@@ -117,7 +117,7 @@ extern int numberOfSecondsPaused;
 				}
 				else
 				{			
-					sprintf(response,"%d,%d,%s,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s\n",FPPDmode,FPPstatus,MPG123volume,playlistDetails.currentPlaylist,
+					sprintf(response,"%d,%d,%s,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s\n",FPPmode,FPPstatus,MPG123volume,playlistDetails.currentPlaylist,
 									playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType,
 									playlistDetails.playList[playlistDetails.currentPlaylistEntry].seqName,
 									playlistDetails.playList[playlistDetails.currentPlaylistEntry].songName,	
