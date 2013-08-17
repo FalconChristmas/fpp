@@ -1,3 +1,4 @@
+#include "log.h"
 #include "E131.h"
 #include "playList.h"
 #include "mpg123.h"
@@ -14,7 +15,6 @@
 #include <string.h>
 
 // external variables
-extern char logText[256];
 extern struct mpg123_type mpg123;
 extern PlaylistEntry playList[32];
 extern int MusicPlayerStatus;
@@ -73,13 +73,16 @@ int MusicLastSecond=0;
 int E131secondsElasped = 0;
 int E131secondsRemaining = 0;
 int E131totalSeconds = 0;
+char E131sequenceNumber=1;
 
 int sendBlankingData=0;
+int syncedToMusic=0;
 
 void E131_Initialize()
 {
   usTimerValue = (unsigned int)(((float)1/(float)RefreshRate) * ((float)990000));
 //  usTimerValue = (unsigned int)(((float)1/(float)RefreshRate) * ((float)1100000));
+	E131sequenceNumber=1;
   GetLocalWiredIPaddress(LocalAddress);
 	LoadUniversesFromFile();
   E131_InitializeNetwork();
@@ -110,8 +113,7 @@ int E131_InitializeNetwork()
   sendSocket = socket(AF_INET, SOCK_DGRAM, 0);
   if (sendSocket < 0) 
   {
-    sprintf(logText,"Error opening datagram sockets");
-    LogWrite(logText);
+    LogWrite("Error opening datagram sockets\n");
 
     exit(1);
   }
@@ -121,16 +123,14 @@ int E131_InitializeNetwork()
   localAddress.sin_addr.s_addr = inet_addr(LocalAddress);
   if(bind(sendSocket, (struct sockaddr *) &localAddress, sizeof(struct sockaddr_in)) == -1)
   {
-    sprintf(logText,"Error in bind\r");
-    LogWrite(logText);
+    LogWrite("Error in bind\n");
   } 
 
   /* Disable loopback so I do not receive my own datagrams. */
   char loopch = 0;
   if(setsockopt(sendSocket, IPPROTO_IP, IP_MULTICAST_LOOP, (char *)&loopch, sizeof(loopch)) < 0)
   {
-    sprintf(logText,"Error setting IP_MULTICAST_LOOP error");
-    LogWrite(logText);
+    LogWrite("Error setting IP_MULTICAST_LOOP error\n");
     close(sendSocket);
     return 0;
   }
@@ -162,6 +162,7 @@ int E131_InitializeNetwork()
 int E131_OpenSequenceFile(const char * file)
 {
   int seqFileSize;
+	syncedToMusic=0;
   if(seqFile!=NULL)
   {
     E131_CloseSequenceFile(); // Close if open
@@ -224,10 +225,12 @@ void E131_Send()
   {
     return;
   }
-	if(filePosition<=25000)
+	
+	if(MusicPlayerStatus==PLAYING_MPLAYER_STATUS && !syncedToMusic && (mpg123.seconds < .2))
 	{
 		Playlist_SyncToMusic();
 	}
+	
   if(filePosition < currentSequenceFileSize - stepSize)
   {
     bytesRead=fread(fileData,1,stepSize,seqFile);
@@ -242,38 +245,37 @@ void E131_Send()
     }
     for(i=0;i<UniverseCount;i++)
     {
-		 if(sendBlankingData)
-		 {
+		 	if(sendBlankingData)
+		 	{
 		 		memset(E131packet+E131_HEADER_LENGTH,0,universes[i].size);
-				printf("sending Zeros\n");
-		 }
-		 else
-		 {
+				LogWrite("sending Zeros\n");
+		 	}
+		 	else
+		 	{
 		 		memcpy((void*)(E131packet+E131_HEADER_LENGTH),(void*)(fileData+universes[i].startAddress),universes[i].size);
-		 }
-		 E131packet[E131_UNIVERSE_INDEX] 		=  (char)(universes[i].universe/256);
-		 E131packet[E131_UNIVERSE_INDEX+1] 	=  (char)(universes[i].universe%256);
-		 E131packet[E131_COUNT_INDEX] 			=  (char)((universes[i].size+1)/256);
-		 E131packet[E131_COUNT_INDEX+1] 		=  (char)((universes[i].size+1)%256);
-		if(sendto(sendSocket, E131packet, universes[i].size + E131_HEADER_LENGTH, 0, (struct sockaddr*)&E131address[i], sizeof(E131address[i])) < 0)
-		{
-			return;
-		}
+		 	}
+		 
+		 	E131packet[E131_SEQUENCE_INDEX] = E131sequenceNumber;;
+		 	E131packet[E131_UNIVERSE_INDEX] = (char)(universes[i].universe/256);
+		 	E131packet[E131_UNIVERSE_INDEX+1]	= (char)(universes[i].universe%256);
+		 	E131packet[E131_COUNT_INDEX] = (char)((universes[i].size+1)/256);
+		 	E131packet[E131_COUNT_INDEX+1] = (char)((universes[i].size+1)%256);
+			if(sendto(sendSocket, E131packet, universes[i].size + E131_HEADER_LENGTH, 0, (struct sockaddr*)&E131address[i], sizeof(E131address[i])) < 0)
+			{
+				return;
+			}
     }
-	E131secondsElasped = (int)((float)(filePosition-CHANNEL_DATA_OFFSET)/((float)stepSize*(float)20.0));
-	E131secondsRemaining = E131totalSeconds-E131secondsElasped;
-  //if(playList[currentPlaylistEntry].type == PL_TYPE_BOTH && MusicPlayerStatus == PLAYING_MPLAYER_STATUS)
-  //{
-  //  E131_SyncInfo();
-  //}
-	// Send data to pixelnet board
-	E131_SendPixelnetDMXdata();
-		
-  }
-  else
-  {
-    E131_CloseSequenceFile();
-  }
+		E131sequenceNumber++;
+		E131secondsElasped = (int)((float)(filePosition-CHANNEL_DATA_OFFSET)/((float)stepSize*(float)20.0));
+		E131secondsRemaining = E131totalSeconds-E131secondsElasped;
+		// Send data to pixelnet board
+		E131_SendPixelnetDMXdata();
+			
+		}
+		else
+		{
+			E131_CloseSequenceFile();
+		}
 }
 
 void E131_SendPixelnetDMXdata()
@@ -287,51 +289,24 @@ void Playlist_SyncToMusic(void)
 {
   unsigned int diff=0;
 	unsigned int absDifference=0;
-  //if(MusicLastSecond !=(int)mpg123.seconds)
-  //{
-    MusicLastSecond = (int)mpg123.seconds;
-    CalculatedMusicFilePosition = (long)((float)MusicLastSecond * RefreshRate * (float)stepSize) + CHANNEL_DATA_OFFSET  ;
-		if(CalculatedMusicFilePosition > filePosition)
-		{
-			diff = -(CalculatedMusicFilePosition - filePosition);
-		}
-		else
-		{
-			diff = filePosition-CalculatedMusicFilePosition;
-		}
+	syncedToMusic = 1;
+  MusicLastSecond = (int)mpg123.seconds;
+  CalculatedMusicFilePosition = (long)((float)MusicLastSecond * RefreshRate * (float)stepSize) + CHANNEL_DATA_OFFSET  ;
+	if(CalculatedMusicFilePosition > filePosition)
+	{
+		diff = -(CalculatedMusicFilePosition - filePosition);
+	}
+	else
+	{
+		diff = filePosition-CalculatedMusicFilePosition;
+	}
 		
-    absDifference = abs(diff);
-    //sprintf(logText,"diff = %d , abs = %d     \n",diff,absDifference);
-    //LogWrite(logText);
+  absDifference = abs(diff);
+  LogWrite("diff = %d , abs = %d     \n",diff,absDifference);
 
-    //sprintf(logText,"Syncing to Music\n");
-    //LogWrite(logText);
-    filePosition = CalculatedMusicFilePosition;
-    fseek(seqFile, CalculatedMusicFilePosition, SEEK_SET);
-  //}
-}
-
-void E131_SyncInfo()
-{
-  unsigned int diff=0;
-	unsigned int absDifference=0;
-  if(MusicLastSecond !=(int)mpg123.seconds)
-  {
-    MusicLastSecond = (int)mpg123.seconds;
-    CalculatedMusicFilePosition = (long)((float)MusicLastSecond * RefreshRate * (float)stepSize) + CHANNEL_DATA_OFFSET;
-		if(CalculatedMusicFilePosition > filePosition)
-		{
-			diff = -(CalculatedMusicFilePosition - filePosition);
-		}
-		else
-		{
-			diff = filePosition-CalculatedMusicFilePosition;
-		}
-		
-    absDifference = abs(diff);
-    sprintf(logText,"diff = %d , abs = %d     \n",diff,absDifference);
-    LogWrite(logText);
-  }
+  LogWrite("Syncing to Music\n");
+  filePosition = CalculatedMusicFilePosition;
+  fseek(seqFile, CalculatedMusicFilePosition, SEEK_SET);
 }
 
 void LoadUniversesFromFile()
@@ -342,13 +317,11 @@ void LoadUniversesFromFile()
   UniverseCount=0;
 	char active =0;
 
-  sprintf(logText,"Opening File Now %s\n",universeFile);
-  LogWrite(logText);
+  LogWrite("Opening File Now %s\n",universeFile);
   fp = fopen(universeFile, "r");
   if (fp == NULL) 
   {
-    sprintf(logText,"Could not open universe file %s\n",universeFile);
-    LogWrite(logText);
+    LogWrite("Could not open universe file %s\n",universeFile);
   	return;
   }
   while(fgets(buf, 512, fp) != NULL)
@@ -396,7 +369,7 @@ void UniversesPrint()
   int h;
   for(i=0;i<UniverseCount;i++)
   {
-    sprintf(logText,"%d:%d:%d:%d:%d  %s\n",
+    LogWrite("%d:%d:%d:%d:%d  %s\n",
                                           universes[i].active,
                                           universes[i].universe,
                                           universes[i].size,
@@ -404,7 +377,5 @@ void UniversesPrint()
                                           universes[i].type,
                                           universes[i].unicastAddress
                                           );
-    LogWrite(logText);
-
   }
 }

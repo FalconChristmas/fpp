@@ -1,4 +1,5 @@
 #include "fpp.h"
+#include "log.h"
 #include "command.h"
 #include "schedule.h"
 #include "playList.h"
@@ -14,9 +15,8 @@
 #include <errno.h>
 #include <stdlib.h>
 
-extern char logText[256];
 extern int FPPstatus;
-extern int FPPDmode;
+extern int FPPmode;
 
 
 extern PlaylistDetails playlistDetails;
@@ -39,8 +39,7 @@ extern int numberOfSecondsPaused;
 
  void Command_Initialize()
  {
-   sprintf(logText,"Initializing Command Module\n\r");
-   LogWrite(logText);
+   LogWrite("Initializing Command Module\n");
    signal(SIGINT, exit_handler);
    signal(SIGTERM, exit_handler);
 
@@ -94,14 +93,14 @@ extern int numberOfSecondsPaused;
     case 's':
       if(FPPstatus==FPP_STATUS_IDLE)
       {
-        sprintf(response,"%d,%d,%s,%s\n",FPPDmode,FPPstatus,NextPlaylist,NextScheduleStartText);
+        sprintf(response,"%d,%d,%s,%s\n",FPPmode,FPPstatus,NextPlaylist,NextScheduleStartText);
       }
       else
       {
 				if(playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType == 'b' || playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType == 'm')
 				{
 					sprintf(response,"%d,%d,%s,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s\n",
-			  					FPPDmode,FPPstatus,MPG123volume,playlistDetails.currentPlaylist,
+			  					FPPmode,FPPstatus,MPG123volume,playlistDetails.currentPlaylist,
 									playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType,
 									playlistDetails.playList[playlistDetails.currentPlaylistEntry].seqName,
 									playlistDetails.playList[playlistDetails.currentPlaylistEntry].songName,
@@ -110,7 +109,7 @@ extern int numberOfSecondsPaused;
 				}
 				else if (playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType == 's')
 				{
-					sprintf(response,"%d,%d,%s,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s\n",FPPDmode,FPPstatus,MPG123volume,
+					sprintf(response,"%d,%d,%s,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s\n",FPPmode,FPPstatus,MPG123volume,
         					playlistDetails.currentPlaylist,playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType,
 									playlistDetails.playList[playlistDetails.currentPlaylistEntry].seqName,playlistDetails.playList[playlistDetails.currentPlaylistEntry].songName,
 									playlistDetails.currentPlaylistEntry+1,playlistDetails.playListCount,E131secondsElasped,E131secondsRemaining,
@@ -118,7 +117,7 @@ extern int numberOfSecondsPaused;
 				}
 				else
 				{			
-					sprintf(response,"%d,%d,%s,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s\n",FPPDmode,FPPstatus,MPG123volume,playlistDetails.currentPlaylist,
+					sprintf(response,"%d,%d,%s,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s\n",FPPmode,FPPstatus,MPG123volume,playlistDetails.currentPlaylist,
 									playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType,
 									playlistDetails.playList[playlistDetails.currentPlaylistEntry].seqName,
 									playlistDetails.playList[playlistDetails.currentPlaylistEntry].songName,	
@@ -137,12 +136,12 @@ extern int numberOfSecondsPaused;
       sleep(1);
 
       s = strtok(command,",");
-			printf("parse1=%s\n",s);
+			LogWrite("parse1=%s\n",s);
       s = strtok(NULL,",");
-			printf("parse2=%s\n",s);
+			LogWrite("parse2=%s\n",s);
       strcpy(playlistDetails.currentPlaylistFile,s);
       s = strtok(NULL,",");
-			printf("parse3=%s\n",s);
+			LogWrite("parse3=%s\n",s);
 		  playlistDetails.currentPlaylistEntry = atoi(s);
 			playlistDetails.playlistStarting=1;
 			FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
@@ -157,12 +156,12 @@ extern int numberOfSecondsPaused;
       sleep(1);
 
       s = strtok(command,",");
-  		printf("parse1=%s\n",s);
+  		LogWrite("parse1=%s\n",s);
       s = strtok(NULL,",");
-  		printf("parse2=%s\n",s);
+  		LogWrite("parse2=%s\n",s);
       strcpy(playlistDetails.currentPlaylistFile,s);
       s = strtok(NULL,",");
-			printf("parse3=%s\n",s);
+			LogWrite("parse3=%s\n",s);
 		  playlistDetails.currentPlaylistEntry = atoi(s);
 			playlistDetails.playlistStarting=1;
       FPPstatus = FPP_STATUS_STOPPING_GRACEFULLY;
@@ -213,8 +212,7 @@ extern int numberOfSecondsPaused;
 
   void exit_handler(int signum)
 	{
-     sprintf(logText,"Caught signal %d\n",signum);
-     LogWrite(logText);
+     LogWrite("Caught signal %d\n",signum);
      CloseCommand();
 	   exit(signum);
 	}

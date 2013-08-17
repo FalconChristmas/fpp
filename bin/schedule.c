@@ -25,8 +25,6 @@ unsigned char NextScheduleInfoHasbeenLoaded=0;
 extern int FPPstatus;
 extern PlaylistDetails playlistDetails;
 
-extern char logText[256];
-
 int nowWeeklySeconds2;
 
 void ScheduleProc()
@@ -57,8 +55,7 @@ void PlayListLoadCheck()
   if (nowWeeklySeconds2 != nowWeeklySeconds)
   {
     nowWeeklySeconds2 = nowWeeklySeconds;
-    sprintf(logText,"NowSecs = %d CurrStartSecs=%d\n",nowWeeklySeconds,CurrentScheduleStartSecond);
-    //LogWrite(logText);
+    //LogWrite("NowSecs = %d CurrStartSecs=%d\n",nowWeeklySeconds,CurrentScheduleStartSecond);
   }
   if(nowWeeklySeconds == CurrentScheduleStartSecond)
   {
@@ -86,8 +83,7 @@ void PlayListStopCheck()
   if (nowWeeklySeconds2 != nowWeeklySeconds)
   {
     nowWeeklySeconds2 = nowWeeklySeconds;
-    sprintf(logText,"NowSecs = %d CurrEndSecs=%d\n",nowWeeklySeconds,CurrentScheduleEndSecond);
-    //LogWrite(logText);
+    //LogWrite("NowSecs = %d CurrEndSecs=%d\n",nowWeeklySeconds,CurrentScheduleEndSecond);
   }
 
   if(nowWeeklySeconds == CurrentScheduleEndSecond)
@@ -106,8 +102,7 @@ void LoadNextScheduleInfo()
   CurrentScheduleEntryIndex = GetNextScheduleEntry();
   CurrentScheduleStartSecond = GetStartSecond(nowWeeklySeconds,Schedule[CurrentScheduleEntryIndex].startWeeklySecond, Schedule[CurrentScheduleEntryIndex].startDay);
 
-  sprintf(logText,"CurrentScheduleEntryIndex=%d , CurrStartSecs=%d\n",CurrentScheduleEntryIndex,CurrentScheduleStartSecond);
-  //LogWrite(logText);
+  //LogWrite("CurrentScheduleEntryIndex=%d , CurrStartSecs=%d\n",CurrentScheduleEntryIndex,CurrentScheduleStartSecond);
 
   CurrentScheduleEndSecond = GetEndSecond(nowWeeklySeconds,Schedule[CurrentScheduleEntryIndex].endWeeklySecond, Schedule[CurrentScheduleEntryIndex].endDay);
   NextScheduleInfoHasbeenLoaded = 1;
@@ -121,8 +116,7 @@ int GetStartSecond(int startSecond1, int startSecond2, int day)
     if(startSecond1 > (startSecond2 + (SECONDS_PER_DAY * 6)))
     {
       second = startSecond2;
-      sprintf(logText,"1 startSecond1=%d , CurrStartSecs=%d\n",startSecond1,second);
-      //LogWrite(logText);
+      //LogWrite("1 startSecond1=%d , CurrStartSecs=%d\n",startSecond1,second);
     }
     else
     {
@@ -131,8 +125,7 @@ int GetStartSecond(int startSecond1, int startSecond2, int day)
         if(startSecond1 < (startSecond2 + (SECONDS_PER_DAY*i)))
         {
           second = startSecond2 + (SECONDS_PER_DAY * i);
-          sprintf(logText,"i= %d, 2 startSecond1=%d , CurrStartSecs=%d\n",i,startSecond1,second);
-          //LogWrite(logText);
+          //LogWrite("i= %d, 2 startSecond1=%d , CurrStartSecs=%d\n",i,startSecond1,second);
           break;
         }
       }
@@ -141,8 +134,7 @@ int GetStartSecond(int startSecond1, int startSecond2, int day)
   else
   {
     second = startSecond2;
-    sprintf(logText,"3 startSecond1=%d , CurrStartSecs=%d\n",startSecond1,second);
-    //LogWrite(logText);
+    //LogWrite("3 startSecond1=%d , CurrStartSecs=%d\n",startSecond1,second);
   }
   return second;
 }
@@ -184,8 +176,7 @@ void LoadScheduleFromFile()
   ScheduleEntryCount=0;
   int day;
   NextScheduleInfoHasbeenLoaded = 0;
-  sprintf(logText,"Opening File Now %s\n",scheduleFile);
- // LogWrite(logText);
+ // LogWrite("Opening File Now %s\n",scheduleFile);
   fp = fopen(scheduleFile, "r");
   if (fp == NULL) 
   {
@@ -259,20 +250,19 @@ void SchedulePrint()
   h= GetNextScheduleEntry();
   for(i=0;i<ScheduleEntryCount;i++)
   {
-    sprintf(logText,"%s  Next=%d   %d-%.2d:%.2d:%.2d,%.2d-%.2d:%.2d:%.2d  sws=%d,ews=%d\n",
-                                          Schedule[i].playList,h,
-                                          Schedule[i].startDay,
-                                          Schedule[i].startHour,
-                                          Schedule[i].startMinute,
-                                          Schedule[i].startSecond,
-                                          Schedule[i].endDay,
-                                          Schedule[i].endHour,
-                                          Schedule[i].endMinute,
-                                          Schedule[i].endSecond,
-                                          Schedule[i].startWeeklySecond,
-                                          Schedule[i].endWeeklySecond
+    //LogWrite("%s  Next=%d   %d-%.2d:%.2d:%.2d,%.2d-%.2d:%.2d:%.2d  sws=%d,ews=%d\n", \
+                                          Schedule[i].playList,h, \
+                                          Schedule[i].startDay, \
+                                          Schedule[i].startHour, \
+                                          Schedule[i].startMinute, \
+                                          Schedule[i].startSecond, \
+                                          Schedule[i].endDay, \
+                                          Schedule[i].endHour, \
+                                          Schedule[i].endMinute, \
+                                          Schedule[i].endSecond, \
+                                          Schedule[i].startWeeklySecond, \
+                                          Schedule[i].endWeeklySecond \
                                           );
-    //LogWrite(logText);
 
   }
 }
@@ -290,22 +280,19 @@ int GetNextScheduleEntry()
   struct tm *now = localtime(&currTime);
   nowWeeklySeconds = GetWeeklySeconds(now->tm_wday, now->tm_hour, now->tm_min, now->tm_sec);
 
-  sprintf(logText,"Nowseconds= %d\n", nowWeeklySeconds);
-  //LogWrite(logText); 
+  //LogWrite("Nowseconds= %d\n", nowWeeklySeconds);
 
   for(i=0;i<ScheduleEntryCount;i++)
   {
     secondsFromNow = GetWeeklySecondDifference(nowWeeklySeconds,Schedule[i].startWeeklySecond,Schedule[i].startDay);
-    sprintf(logText,"secondsFromNow= %d\n", secondsFromNow);
-    //LogWrite(logText); 
+    //LogWrite("secondsFromNow= %d\n", secondsFromNow);
     if(secondsFromNow<nextEntrySecondsFromNow)
     {
       nextEntryIndex = i;
       nextEntrySecondsFromNow = secondsFromNow;
     }
   }
-  sprintf(logText,"nextEntryIndex= %d\n", nextEntryIndex);
-  //LogWrite(logText); 
+  //LogWrite("nextEntryIndex= %d\n", nextEntryIndex);
   return nextEntryIndex;
 }
 

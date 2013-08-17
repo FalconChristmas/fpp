@@ -15,6 +15,7 @@ LIBS_fpp = \
 
 OBJECTS_fppd = \
 	fppd.o \
+	log.o \
 	E131.o \
 	mpg123.o \
 	pixelnetDMX.o \
