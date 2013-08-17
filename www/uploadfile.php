@@ -126,7 +126,7 @@ $('#uploader_div').ajaxupload({
 	url:'upload.php',
 	remotePath:'/home/pi/media/upload/',
 	removeOnSuccess: true,
-	maxFileSize:'100M',
+	maxFileSize:'10000M',
 	chunkSize:1048576,
 	success:	function(fileName){
 				moveFile(fileName);
