@@ -14,6 +14,7 @@
 #define E131_STATUS_EOF       2
 
 #define E131_UNIVERSE_INDEX   113
+#define E131_SEQUENCE_INDEX   111
 #define E131_COUNT_INDEX   		123
 #define STEP_SIZE_OFFSET      10
 #define CHANNEL_DATA_OFFSET		28

@@ -20,17 +20,61 @@
 
 pid_t pid, sid;
 int FPPstatus=FPP_STATUS_IDLE;
+int FPPmode=PLAYER_MODE;
 
 //Settings 
 char * SettingsFile = "/home/pi/media/settings";
-int FPPDmode=0;
 extern char MPG123volume[4];
 
 int main()
 {
   CreateDaemon();
-  MainProc();
+	if(FPPmode == PLAYER_MODE)
+	{
+		PlayerProcess();
+	}
+	else
+	{
+		Bridge_Process();
+	}
   return 0;
+}
+
+void PlayerProcess(void)
+{
+	struct sched_param param;
+	param.sched_priority = 99;
+	if (sched_setscheduler(0, SCHED_FIFO, & param) != 0) 
+	{
+		perror("sched_setscheduler");
+		exit(EXIT_FAILURE);  
+	}
+	CheckExistanceOfDirectoriesAndFiles();
+	ReadFPPsettings(SettingsFile);
+  MusicInitialize();
+  E131_Initialize();
+  Command_Initialize();
+	InitializePixelnetDMX();
+  LogWrite("Initialize E131 done\n");
+  while(1)
+  {
+    usleep(100000);
+    switch(FPPstatus)
+    {
+      case FPP_STATUS_IDLE:
+        Commandproc();
+        ScheduleProc();
+        break;
+      case FPP_STATUS_PLAYLIST_PLAYING:
+        PlayListPlayingLoop();
+        break;
+			case FPP_STATUS_STOPPING_GRACEFULLY:
+        PlayListPlayingLoop();
+        break;
+      default:
+        break;
+    }
+  }
 }
 
 void CreateDaemon(void)
@@ -64,47 +108,6 @@ void CreateDaemon(void)
   close(STDERR_FILENO);
 }
 
-void MainProc(void)
-{
-		struct sched_param param;
-		param.sched_priority = 99;
-		if (sched_setscheduler(0, SCHED_FIFO, & param) != 0) {
-				perror("sched_setscheduler");
-		exit(EXIT_FAILURE);  
-		}
-
-   LogWrite("Falcon PI Player\n");
-  
-	//Bridge_Initialize();
-
-	CheckExistanceOfDirectoriesAndFiles();
-	ReadFPPsettings(SettingsFile);
-  MusicInitialize();
-  E131_Initialize();
-  Command_Initialize();
-	InitializePixelnetDMX();
-  LogWrite("Initialize E131 done\n");
-  while(1)
-  {
-    usleep(100000);
-    switch(FPPstatus)
-    {
-      case FPP_STATUS_IDLE:
-        Commandproc();
-        ScheduleProc();
-        break;
-      case FPP_STATUS_PLAYLIST_PLAYING:
-        PlayListPlayingLoop();
-        break;
-			case FPP_STATUS_STOPPING_GRACEFULLY:
-        PlayListPlayingLoop();
-        break;
-      default:
-        break;
-    }
-  }
-}
-
 int ReadFPPsettings(char const * file)
 {
   FILE *fp;
@@ -121,7 +124,7 @@ int ReadFPPsettings(char const * file)
 	// Parse Settings
 	fgets(buf, 128, fp);
   s=strtok(buf,",");
-  FPPDmode = atoi(s);
+  FPPmode = atoi(s);
   s = strtok(NULL,",");
 	if(atoi(s) > 100)
 	{
@@ -131,20 +134,20 @@ int ReadFPPsettings(char const * file)
 	{
 		strcpy(MPG123volume,s);
 	}
-	LogWrite("Mode=%d Volume=%s\n",FPPDmode,MPG123volume);
+	LogWrite("Mode=%d Volume=%s\n",FPPmode,MPG123volume);
   fclose(fp);
 }
 
 void CreateSettingsFile(char * file)
 {
   FILE *fp;
-	char * settings = "0,75";			// Mode, Volume
+	char * settings = "0,100";			// Mode, Volume
 	char command[32];
   fp = fopen(file, "w");
 	LogWrite("Creating file: %s\n",file);
 	fwrite(settings, 1, 4, fp);
 	fclose(fp);
-	sprintf(command,"sudo chmod 775 %s",file);
+	sprintf(command,"sudo chmod 777 %s",file);
 	system(command);
 }
 
@@ -152,22 +155,22 @@ void CheckExistanceOfDirectoriesAndFiles()
 {
 	if(!DirectoryExists("/home/pi/media"))
 	{
-		mkdir("/home/pi/media", 0755);
+		mkdir("/home/pi/media", 0777);
 		LogWrite("Directory FPP Does Not Exist\n");
 	}
 	if(!DirectoryExists("/home/pi/media/music"))
 	{
-		mkdir("/home/pi/media/music", 0755);
+		mkdir("/home/pi/media/music", 0777);
 		LogWrite("Directory Music Does Not Exist\n");
 	}
 	if(!DirectoryExists("/home/pi/media/sequences"))
 	{
-		mkdir("/home/pi/media/sequences", 0755);
+		mkdir("/home/pi/media/sequences", 0777);
 		LogWrite("Directory sequences Does Not Exist\n");
 	}
 	if(!DirectoryExists("/home/pi/media/playlists"))
 	{
-		mkdir("/home/pi/media/playlists", 0755);
+		mkdir("/home/pi/media/playlists", 0777);
 		LogWrite("Directory playlists Does Not Exist\n");
 	}
 	if(!FileExists("/home/pi/media/universes"))
@@ -186,6 +189,4 @@ void CheckExistanceOfDirectoriesAndFiles()
 	{
 		CreateSettingsFile(SettingsFile);
 	}
-	
-
 }

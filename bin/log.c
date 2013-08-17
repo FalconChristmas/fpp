@@ -22,7 +22,7 @@ void _LogWrite(const char *format, char *file, int line, ...)
 		va_end(arg);
 	}
 
-	if ( ! foreground )
+	if ( ! foreground )	
 	{
 		logFile = fopen("fppdLog.txt", "a");
 
