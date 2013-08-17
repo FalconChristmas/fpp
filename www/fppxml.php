@@ -28,7 +28,7 @@ else if($_GET['command'] == "getSequences")
 
 else if($_GET['command'] == "getPlayListSettings")
 {
-	GetPlaylistSettings($_GET['pl'],$_GET['reload']);
+	GetPlaylistSettings($_GET['pl']);
 }
 else if($_GET['command'] == "getPlayListEntries")
 {
@@ -70,7 +70,7 @@ else if ($_GET['command'] == "deleteMusic")
 }
 else if ($_GET['command'] == "addPlaylistEntry")
 {
-	AddPlayListEntry($_GET['type'],$_GET['seqFile'],$_GET['songFile'],$_GET['pause']);	
+	AddPlayListEntry($_GET['type'],addslashes($_GET['seqFile']),addslashes($_GET['songFile']),$_GET['pause']);	
 	$doc = new DomDocument('1.0');
     $root = $doc->createElement('Status');
 	$root = $doc->appendChild($root);  
