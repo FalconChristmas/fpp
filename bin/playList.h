@@ -10,6 +10,8 @@
 #define PAUSE_STATUS_STARTED  1
 #define PAUSE_STATUS_ENDED    2
 
+#define PLAYLIST_STOP_INDEX		-1
+
 
 typedef struct{
     unsigned char  type;
@@ -19,6 +21,19 @@ typedef struct{
     unsigned char pauselength;
 }PlaylistEntry;
 
+typedef struct{
+	PlaylistEntry playList[32];
+	int currentPlaylist[128];
+	int currentPlaylistFile[128];
+	int playListCount;
+	int currentPlaylistEntry;
+	int StopPlaylist;
+	int playlistStarting;
+	int first;
+	int last;
+}PlaylistDetails;
+
+void CalculateNextPlayListEntry();
 int ReadPlaylist(char const * file);
 void PlayListPlayingLoop(void);
 void PauseProcess(void);

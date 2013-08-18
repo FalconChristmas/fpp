@@ -1,4 +1,5 @@
 #include "e131bridge.h"
+#include "log.h"
 #include "E131.h"
 
 #include <sys/types.h>
@@ -23,17 +24,31 @@ extern UniverseEntry universes[MAX_UNIVERSE_COUNT];
 extern int UniverseCount;
 extern char fileData[65536];
 
+	void Bridge_Process()
+	{
+		int universe;
+		Bridge_Initialize();
+    while(BridgeRunning) 
+		{
+ 	 		cnt = recvfrom(sock, bridgeBuffer, sizeof(bridgeBuffer), 0, (struct sockaddr *) &addr, &addrlen);
+	 		if (cnt >= 0) 
+			{
+				universe = ((int)bridgeBuffer[E131_UNIVERSE_INDEX] * 256) + bridgeBuffer[E131_UNIVERSE_INDEX+1];
+				Bridge_StoreData(universe);
+	 		} 
+		}
+	}
 
-void Bridge_Initialize()
-{
-	LoadUniversesFromFile();
-	printf("Universe Count = %d\n",UniverseCount);
-	Bridge_InitializeSockets();
-	BridgeRunning = 1;
-	InitializePixelnetDMX();
-	Bridge_Process();
-}
+	void Bridge_Initialize()
+	{
+		LoadUniversesFromFile();
+		LogWrite("Universe Count = %d\n",UniverseCount);
+		Bridge_InitializeSockets();
+		BridgeRunning = 1;
+		InitializePixelnetDMX();
+	}
 
+	
 void Bridge_InitializeSockets()
 {
 		int UniverseOctet[2];
@@ -70,7 +85,7 @@ void Bridge_InitializeSockets()
 				UniverseOctet[1] = universes[i].universe%256;
 				sprintf(strMulticastGroup, "239.255.%d.%d", UniverseOctet[0],UniverseOctet[1]);
 				mreq.imr_multiaddr.s_addr = inet_addr(strMulticastGroup);
-				printf("Adding group %s\n",  strMulticastGroup);       
+				LogWrite("Adding group %s\n",  strMulticastGroup);       
 				// add group to groups to listen for
 				if (setsockopt(sock, IPPROTO_IP, IP_ADD_MEMBERSHIP,&mreq, sizeof(mreq)) < 0) 
 				{
@@ -81,20 +96,6 @@ void Bridge_InitializeSockets()
     }
   }
 	
-	void Bridge_Process()
-	{
-		int universe;
-    while(BridgeRunning) 
-		{
- 	 		cnt = recvfrom(sock, bridgeBuffer, sizeof(bridgeBuffer), 0, (struct sockaddr *) &addr, &addrlen);
-	 		if (cnt >= 0) 
-			{
-				universe = ((int)bridgeBuffer[E131_UNIVERSE_INDEX] * 256) + bridgeBuffer[E131_UNIVERSE_INDEX+1];
-				Bridge_StoreData(universe);
-	 		} 
-		}
-	}
-	
 	void Bridge_StoreData(int universe)
 	{
 		int universeIndex = Bridge_GetIndexFromUniverseNumber(universe);
@@ -103,10 +104,10 @@ void Bridge_InitializeSockets()
 			memcpy((void *)(fileData+universes[universeIndex].startAddress),
 			       (void*)(bridgeBuffer+E131_HEADER_LENGTH),
 						  universes[universeIndex].size);
-			//printf("Storing StartAddress = %d size = %d\n",universes[universeIndex].startAddress,universes[universeIndex].size);
+			//LogWrite("Storing StartAddress = %d size = %d\n",universes[universeIndex].startAddress,universes[universeIndex].size);
 		}
-//		if(universe == universes[UniverseCount-1].universe)
-		if(universe == 2)
+		if(universe == universes[UniverseCount-1].universe)
+//		if(universe == 2)
 		{
 			SendPixelnetDMX(0);
 		}

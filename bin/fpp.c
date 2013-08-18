@@ -31,7 +31,7 @@ int main (int argc, char *argv[])
     // Set Volume - example "fpp -v 50"
     else if(strncmp(argv[1],"-v",2)==0)
     {
-			printf("Git volume change\n");
+			//LogWrite("Git volume change\n");
       sprintf(command,"v,%s,",argv[2]);
       SendCommand(command);
     }
@@ -105,7 +105,7 @@ void SendCommand(const char * com)
 {
  int max_timeout = 1000;
  int i=0;
-// printf("Sending = %s\n",com);
+// LogWrite("Sending = %s\n",com);
  bytes_sent = sendto(socket_fd, com, strlen(com), 0,
                      (struct sockaddr *) &server_address,
                      sizeof(struct sockaddr_un));

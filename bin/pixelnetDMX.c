@@ -1,3 +1,4 @@
+#include "log.h"
 #include "pixelnetDMX.h"
 #include "E131.h"
 #include "wiringPi.h"
@@ -10,7 +11,6 @@
 #include <string.h>
 #include <pthread.h>
 
-extern char logText[256];
 extern char fileData[65536];
 
 pthread_t pixelnetDMXthread;
@@ -33,7 +33,7 @@ void CreatePixelnetDMXfile(char * file)
 	int i;
 	int startChannel=1;
   fp = fopen(file, "w");
-	printf("Creating file: %s\n",file);
+	LogWrite("Creating file: %s\n",file);
 		
 	for(i=0;i<MAX_PIXELNET_DMX_PORTS;i++,startChannel+=4096)
 	{
@@ -59,8 +59,7 @@ void InitializePixelnetDMX()
 	LoadPixelnetDMXsettingsFromFile();
 	if (wiringPiSPISetup (0,8000000) < 0)
 	{
-		sprintf (logText, "Unable to open SPI device\n") ;
-    LogWrite(logText);
+	    LogWrite("Unable to open SPI device\n") ;
 		return;
 	}
 	wiringPiSetupSys();
@@ -115,12 +114,10 @@ void LoadPixelnetDMXsettingsFromFile()
   char buf[512];
   char *s;
   fp = fopen(pixelnetDMXFile, "r");
-  sprintf(logText,"Opening PixelnetDMX File\n");
-  LogWrite(logText);
+  LogWrite("Opening PixelnetDMX File\n");
   if (fp == NULL) 
   {
-    sprintf(logText,"Error Opening PixelnetDMX File\n");
-    LogWrite(logText);
+    LogWrite("Error Opening PixelnetDMX File\n");
 	  return;
   }
   while(fgets(buf, 512, fp) != NULL)
@@ -153,7 +150,6 @@ void PixelnetDMXPrint()
   int h;
   for(i=0;i<pixelnetDMXcount;i++)
   {
-    sprintf(logText,"%d,%d,%d\n",pixelnetDMX[i].active,pixelnetDMX[i].type,pixelnetDMX[i].startChannel);
-    LogWrite(logText);
+    LogWrite("%d,%d,%d\n",pixelnetDMX[i].active,pixelnetDMX[i].type,pixelnetDMX[i].startChannel);
   }
 }

@@ -15,6 +15,7 @@ LIBS_fpp = \
 
 OBJECTS_fppd = \
 	fppd.o \
+	log.o \
 	E131.o \
 	mpg123.o \
 	pixelnetDMX.o \
@@ -30,16 +31,17 @@ LIBS_fppd = \
 
 
 .PHONY: all
-all: ${TARGETS}
+all: $(TARGETS)
 
 fpp: $(OBJECTS_fpp)
-	$(CC) ${OBJECTS_$@} ${LIBS_$@} ${LDFLAGS_$@} -o $@
+	$(CC) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
 
 fppd: $(OBJECTS_fppd)
-	$(CC) ${OBJECTS_$@} ${LIBS_$@} ${LDFLAGS_$@} -o $@
+	$(CC) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
 
 %.o: %.c %.h Makefile
 	$(CC) -c $<  
 
 clean:
-	rm -f ${TARGETS} ${OBJECTS_fpp} ${OBJECTS_fppd}
+	rm -f $(OBJECTS_fpp) $(OBJECTS_fppd)
+	-git co fpp fppd
