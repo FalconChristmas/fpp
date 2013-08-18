@@ -1,4 +1,5 @@
 #!/usr/bin/awk -f
+
 BEGIN { start = 0;
  
     if (ARGC < 3 || ARGC > 4) {
@@ -23,22 +24,21 @@ BEGIN { start = 0;
 }
  
 {
-    # Look for iface line and if the interface comes with the device name scan whether it is 
-    # dhcp or static or manual e.g. iface eth0 inet [static | dhcp | manual]
-    if ($1 == "iface") {
+    # Look for iface line and if the interface comes with the device name
+    # scan whether it is dhcp or static or manual
+    # e.g. iface eth0 inet [static | dhcp | manual]
+    if ($1 == "iface")  {
         # Ethernet name matches - switch the line scanning on
         if ($2 == device) {
             if (debug)
                 print $0;
             # It's a DHCP interface
             if (match($0, / dhcp/)) {
-                printf("dhcp ");
-                dhcp = 1;
-                next;
-                 # It's a static network interface. We want to scan the addresses after the 
-                # static line
+                print "dhcp";
+                exit 0;
+                # It's a static network interface. We want to scan the
+                # addresses after the static line
             } else if (match ($0, / static/)) {
-                printf("static ");
                 static = 1;
                 next;
             } else if (match ($0, / manual/)) {
@@ -46,17 +46,18 @@ BEGIN { start = 0;
                 exit 0;
             }
  
-            # If it is other inteface line, switch it off Go to the next line
+            # If it is other inteface line, switch it off
+            # Go to the next line
         } else {
             static = 0;
-            dhcp = 0;
             next;
         }
     }
  
-    # At here, it means we are after the iface static line of after the device we are 
-    # searching for Scan for the static content
-    if (static || dhcp) {
+    # At here, it means we are after the iface static line of
+    # after the device we are searching for
+    # Scan for the static content
+    if (static) {
  
         if (debug)
             print "static - ", $0, $1;
@@ -77,27 +78,14 @@ BEGIN { start = 0;
             network = $2;
             gotAddr = 1;
         }
-        if ($1 == "wpa-ssid") {
-            ssid = $2;
-            gotWPA = 1;
-        }
-        if ($1 == "wpa-psk") {
-            psk = $2;
-            gotWPA = 1;
-        }
     }
 }
  
-END{
-
+END {
     if (gotAddr) {
-        printf("%s %s %s %s ", address, netmask, gateway, network);
+        printf("%s %s %s %s\n", address, netmask, gateway, network);
+        exit 0;
+    } else {
+        exit 1;
     }
-    if (gotWPA) {
-        printf("%s %s", ssid, psk);
-    }
-    printf("\n");
-    exit 1;
 }
-
-Modify message
