@@ -136,16 +136,12 @@ extern int numberOfSecondsPaused;
       sleep(1);
 
       s = strtok(command,",");
-			LogWrite("parse1=%s\n",s);
       s = strtok(NULL,",");
-			LogWrite("parse2=%s\n",s);
       strcpy(playlistDetails.currentPlaylistFile,s);
       s = strtok(NULL,",");
-			LogWrite("parse3=%s\n",s);
 		  playlistDetails.currentPlaylistEntry = atoi(s);
 			playlistDetails.playlistStarting=1;
 			FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
-			
       sprintf(response,"%d,Playlist Started,,,,,,,,,,\n",COMMAND_SUCCESS);
       break;
     case 'P':
@@ -156,12 +152,9 @@ extern int numberOfSecondsPaused;
       sleep(1);
 
       s = strtok(command,",");
-  		LogWrite("parse1=%s\n",s);
       s = strtok(NULL,",");
-  		LogWrite("parse2=%s\n",s);
       strcpy(playlistDetails.currentPlaylistFile,s);
       s = strtok(NULL,",");
-			LogWrite("parse3=%s\n",s);
 		  playlistDetails.currentPlaylistEntry = atoi(s);
 			playlistDetails.playlistStarting=1;
       FPPstatus = FPP_STATUS_STOPPING_GRACEFULLY;
@@ -190,7 +183,13 @@ extern int numberOfSecondsPaused;
       }
       break;
     case 'R':
-			LoadScheduleFromFile();
+			if(FPPstatus==FPP_STATUS_IDLE)
+      {
+				LoadCurrentScheduleInfo();
+			}
+			LoadNextScheduleInfo();
+			
+			
       sprintf(response,"%d,Reloading Schedule,,,,,,,,,,\n",COMMAND_SUCCESS);
       break;
 
@@ -201,8 +200,6 @@ extern int numberOfSecondsPaused;
 			MPG_SetVolume(MPG123volume);
       sprintf(response,"%d,Setting Volume,,,,,,,,,,\n",COMMAND_SUCCESS);
       break;
-
-
     }
     bytes_sent = sendto(socket_fd, response, strlen(response), 0,
                           (struct sockaddr *) &(client_address), sizeof(struct sockaddr_un));

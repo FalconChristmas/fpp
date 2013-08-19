@@ -9,7 +9,6 @@ const char *filename = "/home/pi/media/fppLog.txt";
 
 static bool verbose = false;
 static bool foreground = false;
-
 void _LogWrite(char *file, int line, const char *format, ...)
 {
 	va_list arg;

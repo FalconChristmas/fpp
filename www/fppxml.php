@@ -543,7 +543,6 @@ function SaveSchedule()
 		}
 		$_SESSION['ScheduleEntries'][$i]->playlist = 	$_POST['selPlaylist'][$i];
 		$_SESSION['ScheduleEntries'][$i]->startDay = intval($_POST['selDay'][$i]);
-		$_SESSION['ScheduleEntries'][$i]->endDay = intval($_POST['selDay'][$i]);
 
 		$startTime = 		$entry = explode(":",$_POST['txtStartTime'][$i],3);
 		$_SESSION['ScheduleEntries'][$i]->startHour = $startTime[0];
@@ -590,14 +589,13 @@ function SaveScheduleToFile()
 	{
 			if($i==0)
 			{
-			$entries .= sprintf("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,",
+			$entries .= sprintf("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,",
 			            $_SESSION['ScheduleEntries'][$i]->enable,
 			            $_SESSION['ScheduleEntries'][$i]->playlist,
 			            $_SESSION['ScheduleEntries'][$i]->startDay,
 			            $_SESSION['ScheduleEntries'][$i]->startHour,
 			            $_SESSION['ScheduleEntries'][$i]->startMinute,
 			            $_SESSION['ScheduleEntries'][$i]->startSecond,
-			            $_SESSION['ScheduleEntries'][$i]->endDay,
 			            $_SESSION['ScheduleEntries'][$i]->endHour,
 			            $_SESSION['ScheduleEntries'][$i]->endMinute,
 			            $_SESSION['ScheduleEntries'][$i]->endSecond,
@@ -606,14 +604,13 @@ function SaveScheduleToFile()
 			}
 			else
 			{
-			$entries .= sprintf("\n%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,",
+			$entries .= sprintf("\n%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,",
 			            $_SESSION['ScheduleEntries'][$i]->enable,
 			            $_SESSION['ScheduleEntries'][$i]->playlist,
 			            $_SESSION['ScheduleEntries'][$i]->startDay,
 			            $_SESSION['ScheduleEntries'][$i]->startHour,
 			            $_SESSION['ScheduleEntries'][$i]->startMinute,
 			            $_SESSION['ScheduleEntries'][$i]->startSecond,
-			            $_SESSION['ScheduleEntries'][$i]->endDay,
 			            $_SESSION['ScheduleEntries'][$i]->endHour,
 			            $_SESSION['ScheduleEntries'][$i]->endMinute,
 			            $_SESSION['ScheduleEntries'][$i]->endSecond,

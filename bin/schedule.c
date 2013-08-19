@@ -1,4 +1,5 @@
 #include "fpp.h"
+#include "log.h"
 #include "schedule.h"
 #include "command.h"
 #include "playList.h"
@@ -14,31 +15,43 @@
 
 char * scheduleFile = "/home/pi/media/schedule";
 ScheduleEntry Schedule[MAX_SCHEDULE_ENTRIES];
+SchedulePlaylistDetails currentSchedulePlaylist,nextSchedulePlaylist;
 int ScheduleEntryCount=0;
 
-int CurrentScheduleEntryIndex=0;
-int CurrentScheduleStartSecond=0;
-int CurrentScheduleEndSecond=0;
-
-unsigned char NextScheduleInfoHasbeenLoaded=0;
+unsigned char CurrentScheduleHasbeenLoaded=0;
+unsigned char NextScheduleHasbeenLoaded=0;
+int nowWeeklySeconds2;
 
 extern int FPPstatus;
 extern PlaylistDetails playlistDetails;
 
-int nowWeeklySeconds2;
 
 void ScheduleProc()
 {
   switch(FPPstatus)
   {
     case FPP_STATUS_IDLE:
-      if(!NextScheduleInfoHasbeenLoaded)
+      if(!CurrentScheduleHasbeenLoaded)
+      {
+        LoadCurrentScheduleInfo();
+      }
+      if(!NextScheduleHasbeenLoaded)
       {
         LoadNextScheduleInfo();
-      }
+      	char t[64];
+				GetNextPlaylistText(t);
+				LogWrite("Next Playlist= %s\n",t);
+				GetNextScheduleStartText(t);
+				LogWrite("Next Schedule Start text= %s\n",t);
+			}
+			
       PlayListLoadCheck();
       break;
     case FPP_STATUS_PLAYLIST_PLAYING:
+      if(!NextScheduleHasbeenLoaded)
+      {
+        LoadNextScheduleInfo();
+      }
       PlayListStopCheck();
       break;
     default:
@@ -46,6 +59,148 @@ void ScheduleProc()
 
   }
 }
+
+int GetNextScheduleEntry(int *weeklySecondIndex)
+{
+  int i,j,dayCount;
+  int leastWeeklySecondDifferenceFromNow=SECONDS_PER_WEEK;
+  int difference;
+  int nextEntryIndex = SCHEDULE_INDEX_INVALID;
+  time_t currTime = time(NULL);
+  struct tm *now = localtime(&currTime);
+  int nowWeeklySeconds = GetWeeklySeconds(now->tm_wday, now->tm_hour, now->tm_min, now->tm_sec);
+  LoadScheduleFromFile();
+  for(i=0;i<ScheduleEntryCount;i++)
+  {
+		if(Schedule[i].enable)
+		{
+			for(j=0;j<Schedule[i].weeklySecondCount;j++)
+			{
+				difference = GetWeeklySecondDifference(nowWeeklySeconds,Schedule[i].weeklyStartSeconds[j]);
+				if(difference<leastWeeklySecondDifferenceFromNow)
+				{
+					leastWeeklySecondDifferenceFromNow = difference; 
+					nextEntryIndex = i;
+					*weeklySecondIndex = j;
+				}
+			}
+		}
+  }
+	LogWrite("nextEntryIndex = %d least diff=%d  weekly index= %d\n",nextEntryIndex,leastWeeklySecondDifferenceFromNow,*weeklySecondIndex);
+  return nextEntryIndex;
+}
+
+void LoadCurrentScheduleInfo()
+{
+  currentSchedulePlaylist.ScheduleEntryIndex = GetNextScheduleEntry(&currentSchedulePlaylist.weeklySecondIndex);
+	currentSchedulePlaylist.startWeeklySeconds = Schedule[currentSchedulePlaylist.ScheduleEntryIndex].weeklyStartSeconds[currentSchedulePlaylist.weeklySecondIndex];
+	currentSchedulePlaylist.endWeeklySeconds = Schedule[currentSchedulePlaylist.ScheduleEntryIndex].weeklyEndSeconds[currentSchedulePlaylist.weeklySecondIndex];
+  CurrentScheduleHasbeenLoaded = 1;
+}
+
+void LoadNextScheduleInfo()
+{
+  nextSchedulePlaylist.ScheduleEntryIndex = GetNextScheduleEntry(&nextSchedulePlaylist.weeklySecondIndex);
+  NextScheduleHasbeenLoaded = 1;
+}
+
+void SetScheduleEntrysWeeklyStartAndEndSeconds(ScheduleEntry * entry)
+{
+  int retCount;
+	switch(entry->dayIndex)
+  {
+		case INX_SUN:
+		case INX_MON:
+		case INX_TUE:
+		case INX_WED:
+		case INX_THU:
+		case INX_FRI:
+    case INX_SAT:
+      entry->weeklyStartSeconds[0] = GetWeeklySeconds(entry->dayIndex,entry->startHour,entry->startMinute,entry->startSecond);
+      entry->weeklyEndSeconds[0] = GetWeeklySeconds(entry->dayIndex,entry->endHour,entry->endMinute,entry->endSecond);
+      entry->weeklySecondCount = 1;
+      break;
+    case INX_EVERYDAY:
+      entry->weeklyStartSeconds[0] = GetWeeklySeconds(INX_SUN,entry->startHour,entry->startMinute,entry->startSecond);
+      entry->weeklyStartSeconds[1] = GetWeeklySeconds(INX_MON,entry->startHour,entry->startMinute,entry->startSecond);
+      entry->weeklyStartSeconds[2] = GetWeeklySeconds(INX_TUE,entry->startHour,entry->startMinute,entry->startSecond);
+      entry->weeklyStartSeconds[3] = GetWeeklySeconds(INX_WED,entry->startHour,entry->startMinute,entry->startSecond);
+      entry->weeklyStartSeconds[4] = GetWeeklySeconds(INX_THU,entry->startHour,entry->startMinute,entry->startSecond);
+      entry->weeklyStartSeconds[5] = GetWeeklySeconds(INX_FRI,entry->startHour,entry->startMinute,entry->startSecond);
+      entry->weeklyStartSeconds[6] = GetWeeklySeconds(INX_SAT,entry->startHour,entry->startMinute,entry->startSecond);
+      entry->weeklyEndSeconds[0] = GetWeeklySeconds(INX_SUN,entry->endHour,entry->endMinute,entry->endSecond);
+      entry->weeklyEndSeconds[1] = GetWeeklySeconds(INX_MON,entry->endHour,entry->endMinute,entry->endSecond);
+      entry->weeklyEndSeconds[2] = GetWeeklySeconds(INX_TUE,entry->endHour,entry->endMinute,entry->endSecond);
+      entry->weeklyEndSeconds[3] = GetWeeklySeconds(INX_WED,entry->endHour,entry->endMinute,entry->endSecond);
+      entry->weeklyEndSeconds[4] = GetWeeklySeconds(INX_THU,entry->endHour,entry->endMinute,entry->endSecond);
+      entry->weeklyEndSeconds[5] = GetWeeklySeconds(INX_FRI,entry->endHour,entry->endMinute,entry->endSecond);
+      entry->weeklyEndSeconds[6] = GetWeeklySeconds(INX_SAT,entry->endHour,entry->endMinute,entry->endSecond);
+      entry->weeklySecondCount = 7;
+      break;
+    case INX_WKDAYS:
+      entry->weeklyStartSeconds[0] = GetWeeklySeconds(INX_MON,entry->startHour,entry->startMinute,entry->startSecond);
+      entry->weeklyStartSeconds[1] = GetWeeklySeconds(INX_TUE,entry->startHour,entry->startMinute,entry->startSecond);
+      entry->weeklyStartSeconds[2] = GetWeeklySeconds(INX_WED,entry->startHour,entry->startMinute,entry->startSecond);
+      entry->weeklyStartSeconds[3] = GetWeeklySeconds(INX_THU,entry->startHour,entry->startMinute,entry->startSecond);
+      entry->weeklyStartSeconds[4] = GetWeeklySeconds(INX_FRI,entry->startHour,entry->startMinute,entry->startSecond);
+      entry->weeklyEndSeconds[0] = GetWeeklySeconds(INX_MON,entry->endHour,entry->endMinute,entry->endSecond);
+      entry->weeklyEndSeconds[1] = GetWeeklySeconds(INX_TUE,entry->endHour,entry->endMinute,entry->endSecond);
+      entry->weeklyEndSeconds[2] = GetWeeklySeconds(INX_WED,entry->startHour,entry->endMinute,entry->endSecond);
+      entry->weeklyEndSeconds[3] = GetWeeklySeconds(INX_THU,entry->endHour,entry->endMinute,entry->endSecond);
+      entry->weeklyEndSeconds[4] = GetWeeklySeconds(INX_FRI,entry->endHour,entry->endMinute,entry->endSecond);
+      entry->weeklySecondCount = 5;
+
+      break;
+    case INX_WKEND:
+      entry->weeklyStartSeconds[0] = GetWeeklySeconds(INX_SAT,entry->startHour,entry->startMinute,entry->startSecond);
+      entry->weeklyStartSeconds[1] = GetWeeklySeconds(INX_SUN,entry->startHour,entry->startMinute,entry->startSecond);
+      entry->weeklyEndSeconds[0] = GetWeeklySeconds(INX_SAT,entry->endHour,entry->endMinute,entry->endSecond);
+      entry->weeklyEndSeconds[1] = GetWeeklySeconds(INX_SUN,entry->endHour,entry->endMinute,entry->endSecond);
+      entry->weeklySecondCount = 2;
+      break;
+    case INX_M_W_F:
+      entry->weeklyStartSeconds[0] = GetWeeklySeconds(INX_MON,entry->startHour,entry->startMinute,entry->startSecond);
+      entry->weeklyStartSeconds[1] = GetWeeklySeconds(INX_WED,entry->startHour,entry->startMinute,entry->startSecond);
+      entry->weeklyStartSeconds[2] = GetWeeklySeconds(INX_FRI,entry->startHour,entry->startMinute,entry->startSecond);
+      entry->weeklyEndSeconds[0] = GetWeeklySeconds(INX_MON,entry->endHour,entry->endMinute,entry->endSecond);
+      entry->weeklyEndSeconds[1] = GetWeeklySeconds(INX_WED,entry->endHour,entry->endMinute,entry->endSecond);
+      entry->weeklyEndSeconds[2] = GetWeeklySeconds(INX_FRI,entry->endHour,entry->endMinute,entry->endSecond);
+      entry->weeklySecondCount = 3;
+      break;
+    case INX_T_TH:
+      entry->weeklyStartSeconds[0] = GetWeeklySeconds(INX_TUE,entry->startHour,entry->startMinute,entry->startSecond);
+      entry->weeklyStartSeconds[1] = GetWeeklySeconds(INX_THU,entry->startHour,entry->startMinute,entry->startSecond);
+      entry->weeklyEndSeconds[0] = GetWeeklySeconds(INX_TUE,entry->endHour,entry->endMinute,entry->endSecond);
+      entry->weeklyEndSeconds[1] = GetWeeklySeconds(INX_THU,entry->endHour,entry->endMinute,entry->endSecond);
+      entry->weeklySecondCount = 2;
+      break;
+		case INX_SUN_TO_THURS:
+      entry->weeklyStartSeconds[0] = GetWeeklySeconds(INX_SUN,entry->startHour,entry->startMinute,entry->startSecond);
+      entry->weeklyStartSeconds[1] = GetWeeklySeconds(INX_MON,entry->startHour,entry->startMinute,entry->startSecond);
+      entry->weeklyStartSeconds[2] = GetWeeklySeconds(INX_TUE,entry->startHour,entry->startMinute,entry->startSecond);
+      entry->weeklyStartSeconds[3] = GetWeeklySeconds(INX_WED,entry->startHour,entry->startMinute,entry->startSecond);
+      entry->weeklyStartSeconds[4] = GetWeeklySeconds(INX_THU,entry->startHour,entry->startMinute,entry->startSecond);
+      entry->weeklyEndSeconds[0] = GetWeeklySeconds(INX_SUN,entry->endHour,entry->endMinute,entry->endSecond);
+      entry->weeklyEndSeconds[1] = GetWeeklySeconds(INX_MON,entry->endHour,entry->endMinute,entry->endSecond);
+      entry->weeklyEndSeconds[2] = GetWeeklySeconds(INX_TUE,entry->endHour,entry->endMinute,entry->endSecond);
+      entry->weeklyEndSeconds[3] = GetWeeklySeconds(INX_WED,entry->startHour,entry->endMinute,entry->endSecond);
+      entry->weeklyEndSeconds[4] = GetWeeklySeconds(INX_THU,entry->endHour,entry->endMinute,entry->endSecond);
+      entry->weeklySecondCount = 5;
+			break;
+		case INX_FRI_SAT:
+      entry->weeklyStartSeconds[0] = GetWeeklySeconds(INX_FRI,entry->startHour,entry->startMinute,entry->startSecond);
+      entry->weeklyStartSeconds[1] = GetWeeklySeconds(INX_SAT,entry->startHour,entry->startMinute,entry->startSecond);
+      entry->weeklyEndSeconds[0] = GetWeeklySeconds(INX_FRI,entry->endHour,entry->endMinute,entry->endSecond);
+      entry->weeklyEndSeconds[1] = GetWeeklySeconds(INX_SAT,entry->endHour,entry->endMinute,entry->endSecond);
+      entry->weeklySecondCount = 2;
+      break;
+		
+    default:
+      entry->weeklySecondCount = 0;
+  }
+}
+
+
 
 void PlayListLoadCheck()
 {
@@ -56,21 +211,21 @@ void PlayListLoadCheck()
   {
     nowWeeklySeconds2 = nowWeeklySeconds;
     //LogWrite("NowSecs = %d CurrStartSecs=%d\n",nowWeeklySeconds,CurrentScheduleStartSecond);
-  }
-  if(nowWeeklySeconds == CurrentScheduleStartSecond)
-  {
-    NextScheduleInfoHasbeenLoaded = 0;
-    strcpy(playlistDetails.currentPlaylistFile,Schedule[CurrentScheduleEntryIndex].playList);
-		playlistDetails.currentPlaylistEntry=0;
-		playlistDetails.playlistStarting=1;
-		if (playlistDetails.currentPlaylistFile,Schedule[CurrentScheduleEntryIndex].repeat == 0)
-		{
-	    FPPstatus = FPP_STATUS_STOPPING_GRACEFULLY;
-		}
-		else
-		{
-	    FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
-		}
+    if(nowWeeklySeconds == currentSchedulePlaylist.startWeeklySeconds)
+    {
+      NextScheduleHasbeenLoaded = 0;
+      strcpy((void*)playlistDetails.currentPlaylistFile,Schedule[currentSchedulePlaylist.ScheduleEntryIndex].playList);
+		  playlistDetails.currentPlaylistEntry=0;
+		  playlistDetails.playlistStarting=1;
+		  if (Schedule[currentSchedulePlaylist.ScheduleEntryIndex].repeat == 0)
+		  {
+	      FPPstatus = FPP_STATUS_STOPPING_GRACEFULLY;
+		  }
+		  else
+		  {
+	      FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
+		  }
+    }
   }
 }
 
@@ -83,88 +238,22 @@ void PlayListStopCheck()
   if (nowWeeklySeconds2 != nowWeeklySeconds)
   {
     nowWeeklySeconds2 = nowWeeklySeconds;
-    //LogWrite("NowSecs = %d CurrEndSecs=%d\n",nowWeeklySeconds,CurrentScheduleEndSecond);
+    LogWrite("NowSecs = %d CurrEndSecs=%d\n",nowWeeklySeconds,currentSchedulePlaylist.endWeeklySeconds);
+    if(nowWeeklySeconds == currentSchedulePlaylist.endWeeklySeconds)
+    {
+      CurrentScheduleHasbeenLoaded = 0;
+      StopPlaylistGracefully();
+    }
   }
 
-  if(nowWeeklySeconds == CurrentScheduleEndSecond)
-  {
-    StopPlaylistGracefully();
-  }
-}
-
-void LoadNextScheduleInfo()
-{
-  time_t currTime = time(NULL);
-  struct tm *now = localtime(&currTime);
-  LoadScheduleFromFile();
-  int nowWeeklySeconds = GetWeeklySeconds(now->tm_wday, now->tm_hour, now->tm_min, now->tm_sec);
-
-  CurrentScheduleEntryIndex = GetNextScheduleEntry();
-  CurrentScheduleStartSecond = GetStartSecond(nowWeeklySeconds,Schedule[CurrentScheduleEntryIndex].startWeeklySecond, Schedule[CurrentScheduleEntryIndex].startDay);
-
-  //LogWrite("CurrentScheduleEntryIndex=%d , CurrStartSecs=%d\n",CurrentScheduleEntryIndex,CurrentScheduleStartSecond);
-
-  CurrentScheduleEndSecond = GetEndSecond(nowWeeklySeconds,Schedule[CurrentScheduleEntryIndex].endWeeklySecond, Schedule[CurrentScheduleEntryIndex].endDay);
-  NextScheduleInfoHasbeenLoaded = 1;
 }
 
 int GetStartSecond(int startSecond1, int startSecond2, int day)
 {
-  int i,second;
-  if(day==DAY_EVERYDAY)
-  {
-    if(startSecond1 > (startSecond2 + (SECONDS_PER_DAY * 6)))
-    {
-      second = startSecond2;
-      //LogWrite("1 startSecond1=%d , CurrStartSecs=%d\n",startSecond1,second);
-    }
-    else
-    {
-      for(i=0;i<6;i++)
-      {
-        if(startSecond1 < (startSecond2 + (SECONDS_PER_DAY*i)))
-        {
-          second = startSecond2 + (SECONDS_PER_DAY * i);
-          //LogWrite("i= %d, 2 startSecond1=%d , CurrStartSecs=%d\n",i,startSecond1,second);
-          break;
-        }
-      }
-    }
-  }
-  else
-  {
-    second = startSecond2;
-    //LogWrite("3 startSecond1=%d , CurrStartSecs=%d\n",startSecond1,second);
-  }
-  return second;
 }
 
 int GetEndSecond(int endSecond1, int endSecond2, int day)
 {
-  int i,second;
-  if(day==DAY_EVERYDAY)
-  {
-    if(endSecond1 > (endSecond2 + (SECONDS_PER_DAY * 6)))
-    {
-      second = endSecond2;
-    }
-    else
-    {
-      for(i=0;i<6;i++)
-      {
-        if(endSecond1 < (endSecond2 + (SECONDS_PER_DAY*i)))
-        {
-          second = endSecond2 + (SECONDS_PER_DAY * i);
-          break;
-        }
-      }
-    }
-  }
-  else
-  {
-    second = endSecond2;
-  }
-  return second;
 }
 
 
@@ -175,7 +264,6 @@ void LoadScheduleFromFile()
   char *s;
   ScheduleEntryCount=0;
   int day;
-  NextScheduleInfoHasbeenLoaded = 0;
  // LogWrite("Opening File Now %s\n",scheduleFile);
   fp = fopen(scheduleFile, "r");
   if (fp == NULL) 
@@ -190,9 +278,9 @@ void LoadScheduleFromFile()
     // Playlist Name
     s=strtok(NULL,",");
     strcpy(Schedule[ScheduleEntryCount].playList,s);
-    // Start Day
+    // Start Day index
     s=strtok(NULL,",");
-    Schedule[ScheduleEntryCount].startDay = atoi(s);
+    Schedule[ScheduleEntryCount].dayIndex = atoi(s);
     // Start Hour
     s=strtok(NULL,",");
     Schedule[ScheduleEntryCount].startHour = atoi(s);
@@ -202,9 +290,6 @@ void LoadScheduleFromFile()
     // Start Second
     s=strtok(NULL,",");
     Schedule[ScheduleEntryCount].startSecond = atoi(s);
-    // End Day
-    s=strtok(NULL,",");
-    Schedule[ScheduleEntryCount].endDay = atoi(s);
     // End Hour
     s=strtok(NULL,",");
     Schedule[ScheduleEntryCount].endHour = atoi(s);
@@ -218,24 +303,9 @@ void LoadScheduleFromFile()
     s=strtok(NULL,",");
     Schedule[ScheduleEntryCount].repeat = atoi(s);
 
-    if(Schedule[ScheduleEntryCount].startDay == DAY_EVERYDAY)
-    {
-      day =0;
-    }
-    else
-    {
-      day = Schedule[ScheduleEntryCount].startDay;
-    }
-    Schedule[ScheduleEntryCount].startWeeklySecond = 
-        GetWeeklySeconds(day,Schedule[ScheduleEntryCount].startHour,
-                         Schedule[ScheduleEntryCount].startMinute,
-                         Schedule[ScheduleEntryCount].startSecond);
-
-    Schedule[ScheduleEntryCount].endWeeklySecond = 
-        GetWeeklySeconds(day,Schedule[ScheduleEntryCount].endHour,
-                         Schedule[ScheduleEntryCount].endMinute,
-                         Schedule[ScheduleEntryCount].endSecond);
-
+		LogWrite("End Hour=%d End min=%d End Sec=%d\n",Schedule[ScheduleEntryCount].endHour,Schedule[ScheduleEntryCount].endMinute,Schedule[ScheduleEntryCount].endSecond);
+    // Set WeeklySecond start and end times
+    SetScheduleEntrysWeeklyStartAndEndSeconds(&Schedule[ScheduleEntryCount]);
     ScheduleEntryCount++;
   }
   fclose(fp);
@@ -247,7 +317,7 @@ void SchedulePrint()
 {
   int i=0;
   int h;
-  h= GetNextScheduleEntry();
+  //h= GetNextScheduleEntry();
   for(i=0;i<ScheduleEntryCount;i++)
   {
     //LogWrite("%s  Next=%d   %d-%.2d:%.2d:%.2d,%.2d-%.2d:%.2d:%.2d  sws=%d,ews=%d\n", \
@@ -267,35 +337,6 @@ void SchedulePrint()
   }
 }
 
-int GetNextScheduleEntry()
-{
-  int i;
-  int nextEntrySecondsFromNow=SECONDS_PER_WEEK;
-  int nextEntryIndex=0;
-  int secondsFromNow=0;
-  int nowWeeklySeconds=0;
-
-  // Get weekly seconds the current time
-  time_t currTime = time(NULL);
-  struct tm *now = localtime(&currTime);
-  nowWeeklySeconds = GetWeeklySeconds(now->tm_wday, now->tm_hour, now->tm_min, now->tm_sec);
-
-  //LogWrite("Nowseconds= %d\n", nowWeeklySeconds);
-
-  for(i=0;i<ScheduleEntryCount;i++)
-  {
-    secondsFromNow = GetWeeklySecondDifference(nowWeeklySeconds,Schedule[i].startWeeklySecond,Schedule[i].startDay);
-    //LogWrite("secondsFromNow= %d\n", secondsFromNow);
-    if(secondsFromNow<nextEntrySecondsFromNow)
-    {
-      nextEntryIndex = i;
-      nextEntrySecondsFromNow = secondsFromNow;
-    }
-  }
-  //LogWrite("nextEntryIndex= %d\n", nextEntryIndex);
-  return nextEntryIndex;
-}
-
 int GetWeeklySeconds(int day, int hour, int minute, int second)
 {
   int weeklySeconds = (day*SECONDS_PER_DAY) + (hour*SECONDS_PER_HOUR) + (minute*SECONDS_PER_MINUTE) + second;
@@ -306,58 +347,52 @@ int GetWeeklySecondDifference(int weeklySeconds1, int weeklySeconds2, int day)
 {
   int seconds;
   int i;
-  if(day == DAY_EVERYDAY)
+  if(weeklySeconds1<weeklySeconds2)
   {
-    if(weeklySeconds1 > (6*weeklySeconds2))
-    {
-      seconds = (SECONDS_PER_WEEK - weeklySeconds1) + weeklySeconds2;
-    }
-    else
-    {
-      for(i=0;i<7;i++)
-      {
-        if(weeklySeconds1 < (weeklySeconds2 + (i*SECONDS_PER_DAY)))
-        {
-          seconds = (weeklySeconds2 + (i*SECONDS_PER_DAY)) - weeklySeconds1;
-          break;
-        }
-      }
-    }
+    seconds = weeklySeconds2-weeklySeconds1;
   }
-  // Not everyday entry
   else
   {
-    if(weeklySeconds1<weeklySeconds2)
-    {
-      seconds = weeklySeconds2-weeklySeconds1;
-    }
-    else
-    {
-      seconds = (SECONDS_PER_WEEK - weeklySeconds1) + weeklySeconds2;
-    }
+    seconds = (SECONDS_PER_WEEK - weeklySeconds1) + weeklySeconds2;
   }
   return seconds;
 }
 
+int GetDayFromWeeklySeconds(int weeklySeconds)
+{
+  return (int)(weeklySeconds/SECONDS_PER_DAY);
+}
+
 void GetNextScheduleStartText(char * txt)
 {
-		char day[12];
-		int nextScheduleEntry = GetNextScheduleEntry();
-		GetDayTextFromScheduleEntry(Schedule[nextScheduleEntry].startDay,day);
-    sprintf(txt,"%s @ %02d:%02d:%02d",day,
-		                                  Schedule[nextScheduleEntry].startHour,
-																	    Schedule[nextScheduleEntry].startMinute,
-																	    Schedule[nextScheduleEntry].startSecond);
+	GetScheduleEntryStartText(nextSchedulePlaylist.ScheduleEntryIndex,nextSchedulePlaylist.weeklySecondIndex,txt);
 }
 
 void GetNextPlaylistText(char * txt)
 {
-		char day[12];
-		int nextScheduleEntry = GetNextScheduleEntry();
-    sprintf(txt,"%s", Schedule[nextScheduleEntry].playList);
+	strcpy(txt,Schedule[nextSchedulePlaylist.ScheduleEntryIndex].playList);
 }
 
-void GetDayTextFromScheduleEntry(int index,char * txt)
+void GetScheduleEntryStartText(int index,int weeklySecondIndex, char * txt)
+{
+		char text[64];
+		char dayText[16];
+    int dayIndex = GetDayFromWeeklySeconds(Schedule[index].weeklyStartSeconds[weeklySecondIndex]);
+    GetDayTextFromDayIndex(dayIndex,text);
+		if(Schedule[index].dayIndex > INX_SAT)
+		{
+			GetDayTextFromDayIndex(Schedule[index].dayIndex,dayText);
+			sprintf(txt,"%s @ %02d:%02d:%02d - (%s)",
+							text,Schedule[index].startHour,Schedule[index].startMinute,Schedule[index].startSecond,dayText);
+		}
+		else
+		{
+			sprintf(txt,"%s @ %02d:%02d:%02d",
+							text,Schedule[index].startHour,Schedule[index].startMinute,Schedule[index].startSecond);
+		}		
+}
+
+void GetDayTextFromDayIndex(int index,char * txt)
 {
 	switch(index)
 	{
@@ -384,6 +419,24 @@ void GetDayTextFromScheduleEntry(int index,char * txt)
 			break;		
 		case 7:
 			strcpy(txt,"Everyday");
+			break;	
+		case 8:
+			strcpy(txt,"Weekdays");
+			break;	
+		case 9:
+			strcpy(txt,"Weekends");
+			break;	
+		case 10:
+			strcpy(txt,"Mon/Wed/Fri");
+			break;	
+		case 11:
+			strcpy(txt,"Tues-Thurs");
+			break;	
+		case 12:
+			strcpy(txt,"Sun-Thurs");
+			break;	
+		case 13:
+			strcpy(txt,"Fri/Sat");
 			break;	
 		default:
 			strcpy(txt, "Error");

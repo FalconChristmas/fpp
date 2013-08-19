@@ -857,6 +857,12 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 									var dayChecked_5 =  day == 5  ? "selected" : "";
 									var dayChecked_6 =  day == 6  ? "selected" : "";
 									var dayChecked_7 =  day == 7  ? "selected" : "";
+									var dayChecked_8 =  day == 8  ? "selected" : "";
+									var dayChecked_9 =  day == 9  ? "selected" : "";
+									var dayChecked_10 =  day == 10  ? "selected" : "";
+									var dayChecked_11 =  day == 11  ? "selected" : "";
+									var dayChecked_12 =  day == 12  ? "selected" : "";
+									var dayChecked_13 =  day == 13  ? "selected" : "";
 
 									playlistOptionsText = ""
 									for(j=0;j<PlaylistCount;j++)
@@ -878,7 +884,13 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 															      "<option value=\"3\" " + dayChecked_3 + ">Wednesday</option>" +
 															      "<option value=\"4\" " + dayChecked_4 + ">Thursday</option>" +
 															      "<option value=\"5\" " + dayChecked_5 + ">Friday</option>" +
-															      "<option value=\"6\" " + dayChecked_6 + ">Saturday</option></select>" +
+															      "<option value=\"6\" " + dayChecked_6 + ">Saturday</option>" +
+															      "<option value=\"8\" " + dayChecked_8 + ">Mon-Fri</option>" +
+															      "<option value=\"9\" " + dayChecked_9 + ">Sat/Sun</option>" +
+															      "<option value=\"10\" " + dayChecked_10 + ">Mon/Wed/Fri</option>" +
+															      "<option value=\"11\" " + dayChecked_11 + ">Tues/Thurs</option>" +
+															      "<option value=\"12\" " + dayChecked_12 + ">Sun-Thurs</option>" +
+															      "<option value=\"13\" " + dayChecked_13 + ">Fri/Sat</option></select>" +
 															"<td><input class='time center'  name=\"txtStartTime[" + i.toString() + "]\" id=\"txtStartTime[" + i.toString() + "]\" type=\"text\" size=\"8\" value=\"" + startTime + "\"/></td>" +
 															"<td><input class='time center' name=\"txtEndTime[" + i.toString() + "]\" id=\"txtEndTime[" + i.toString() + "]\" type=\"text\" size=\"8\" value=\"" + endTime + "\"/></td>" +
 															"<td class='center' ><input name=\"chkRepeat[" + i.toString() + "]\" id=\"chkEnable[" + i.toString() + "]\" type=\"checkbox\" " + repeatChecked +"/></td>" +

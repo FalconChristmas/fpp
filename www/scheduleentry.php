@@ -20,7 +20,6 @@ class ScheduleEntry {
     $this->startHour = $startHour;
     $this->startMinute = $startMinute;
     $this->startSecond = $startSecond;
-    $this->endDay = $endDay;
     $this->endHour = $endHour;
     $this->endMinute = $endMinute;
     $this->endSecond = $endSecond;
