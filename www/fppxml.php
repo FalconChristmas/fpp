@@ -129,7 +129,7 @@ else if(!empty($_POST['command']) && $_POST['command'] == "savePixelnetDMX")
 }
 else if(!empty($_POST['command']) && $_POST['command'] == "saveSchedule")
 {
-	SaveSchedule($_POST['reload']);
+	SaveSchedule();
 }
 else if($_GET['command'] == "isFPPDrunning")
 {
