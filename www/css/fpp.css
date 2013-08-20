@@ -1,8 +1,3 @@
-
-/* CSS Document */
-
-
-
 #footer
 {
 	font-size: 14px;
@@ -98,18 +93,6 @@
 	width: 100px;
 }
 
-#settings-top h2 { text-align: center; }
-
-#settings-top
-{
-	margin-left: auto;
-	margin-right: auto;
-	border: none solid;
-	width: 768px;
-}
-
-#networkStatus { color: #F00; }
-
 #bodyWrapper
 {
 	width: 900px;
@@ -117,13 +100,16 @@
 	margin-right: auto;
 	background: rgb(240, 240,240);
 }
- #daemoncontrol, #playerstats {
- background: rgb(240, 240, 240);
- margin:10px;
- padding:10px;
+
+#daemoncontrol, #playerstats
+{
+	background: rgb(240, 240, 240);
+	margin:10px;
+	padding:10px;
 }
 
-#nextPlaylist {
+#nextPlaylist
+{
 	margin-top:10px;
 	padding:5px;
 	background:#DDD;
@@ -147,23 +133,26 @@
 	text-align: center;
 }
 
-#programControl, #uipassword, #networkconfig
+.settings
 {
 	width: 800px;
 	margin-left: auto;
 	margin-right: auto;
 }
+
 #divNetwork
 {
 	margin-left: auto;
 	margin-right: auto;
 	text-align: center;
 }
-.clear{
+
+.clear
+{
 	clear:both;	
 }
 
-#programControl fieldset, #uipassword fieldset, #networkconfig fieldset
+.settings fieldset
 {
 	margin-left: auto;
 	margin-right: auto;
@@ -174,9 +163,9 @@
 	text-align:center;
 }
 
-#startPlaylistControls {}
-
-#currentPlaylistDetails {}
+#startPlaylistControls select {
+	width: 70%
+}
 
 html
 {
@@ -189,7 +178,6 @@ html
 
 #divSeq, #divEthernet{
 	min-height: 300px;
-	max-height: 300px;
 	width: 383px;
 	float: left;
 }

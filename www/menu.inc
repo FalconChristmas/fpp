@@ -26,14 +26,14 @@ unset($output);
 
     <div id="fppMenu" class="ddsmoothmenu">
     <ul>
-      <li><a href="index.php">Status/Control</a></li>
-      <!-- <li><a href="#">Basic Setup</a>
+      <li><a href="index.php">Status/Control</a>
         <ul>
           <li><a href="uipassword.php">Set UI Password</a></li>
           <li><a href="timeconfig.php">Config/Set Time</a></li>
           <li><a href="networkconfig.php">Network</a></li>
           <li><a href="playerkconfig.php">Player Mode</a></li>
-        </ul> -->
+          <li><a href="settings.php">FPP Settings</a></li>
+        </ul>
       </li>
       <li><a href="#">Content Setup</a>
         <ul>
