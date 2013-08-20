@@ -132,12 +132,12 @@
       <div id = "startPlaylistControls">
         <table width="100%">
           <tr>
-            <td width="20%">Start this playlist</td>
-            <td  width="25%"><select id="selStartPlaylist" name="selStartPlaylist" size="1" onClick="PopulateStatusPlaylistEntries(true,'',true);" onChange="PopulateStatusPlaylistEntries(true,'',true);"></select></td>
+            <td width="20%">Load this playlist:</td>
+            <td  width="50%"><select id="selStartPlaylist" name="selStartPlaylist" size="1" onClick="SelectStatusPlaylistEntryRow();PopulateStatusPlaylistEntries(true,'',true);" onChange="PopulateStatusPlaylistEntries(true,'',true);"></select></td>
             <td  width="15%"><input type="checkbox" id="chkRepeat">
               Repeat
               </input></td>
-            <td  width="40%">     	
+            <td  width="15%">     	
 	         <div id="slider"></div> <!-- the Slider -->
            <span class="volume"></span> <!-- Volume -->
 

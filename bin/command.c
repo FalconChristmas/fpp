@@ -27,6 +27,7 @@ extern char MPG123volume[4];
 extern int E131secondsElasped;
 extern int E131secondsRemaining;
 extern int numberOfSecondsPaused;
+extern PlaylistDetails playlistDetails;
 
  char command[256];
  char response[256];
@@ -140,6 +141,7 @@ extern int numberOfSecondsPaused;
       strcpy((char*)playlistDetails.currentPlaylistFile,s);
       s = strtok(NULL,",");
 		  playlistDetails.currentPlaylistEntry = atoi(s);
+			playlistDetails.repeat = 1 ;
 			playlistDetails.playlistStarting=1;
 			FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
       sprintf(response,"%d,Playlist Started,,,,,,,,,,\n",COMMAND_SUCCESS);
@@ -156,13 +158,15 @@ extern int numberOfSecondsPaused;
       strcpy((char*)playlistDetails.currentPlaylistFile,s);
       s = strtok(NULL,",");
 		  playlistDetails.currentPlaylistEntry = atoi(s);
+			playlistDetails.repeat = 0;
 			playlistDetails.playlistStarting=1;
-      FPPstatus = FPP_STATUS_STOPPING_GRACEFULLY;
+      FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
       sprintf(response,"%d,Playlist Started,,,,,,,,,,\n",COMMAND_SUCCESS);
       break;
     case 'S':
       if(FPPstatus==FPP_STATUS_PLAYLIST_PLAYING)
       {
+				playlistDetails.ForceStop = 1;
         StopPlaylistGracefully();
         sprintf(response,"%d,Playlist Stopping Gracefully,,,,,,,,,,\n",COMMAND_SUCCESS);
       }
@@ -174,6 +178,7 @@ extern int numberOfSecondsPaused;
     case 'd':
       if(FPPstatus==FPP_STATUS_PLAYLIST_PLAYING || FPPstatus==FPP_STATUS_STOPPING_GRACEFULLY)
       {
+				playlistDetails.ForceStop = 1;
         StopPlaylistNow();
         sprintf(response,"%d,Playlist Stopping Now,,,,,,,,,,\n",COMMAND_SUCCESS);
       }

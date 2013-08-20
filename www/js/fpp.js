@@ -1228,7 +1228,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 		$('#tblStatusPlaylistEntries tr').removeClass('PlaylistRowPlaying');
 		$('#tblStatusPlaylistEntries td').removeClass('PlaylistPlayingIcon');
 		
-		if(index != 0)
+		if(index >= 0)
 		{
 			$("#colEntryNumber" + index).addClass("PlaylistPlayingIcon");
 			$("#playlistRow" + index).addClass("PlaylistRowPlaying");
@@ -1488,7 +1488,11 @@ function PopulateStatusPlaylistEntries(playselected,playList,reloadFile)
 			}
 			xmlhttp.send();
 }
-	
+function SelectStatusPlaylistEntryRow(index)
+{
+		PlayEntrySelected  = index;
+}
+
 function SetVolume(value)
 {
 			var xmlhttp=new XMLHttpRequest();

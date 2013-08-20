@@ -174,10 +174,6 @@
 	text-align:center;
 }
 
-#startPlaylistControls select {
-	width: 70%
-}
-
 #startPlaylistControls {}
 
 #currentPlaylistDetails {}
@@ -261,15 +257,15 @@ fieldset
 	border-style: solid;
 	border-color: #333 #333 #777 #333;
 	border-radius: 25px;
-	width: 30%;
+	width: 80%;
 	position: relative;
 	height: 13px;
 	background-color: #8e8d8d;
 	background: url('../images/bg-track.png') repeat top left;
     box-shadow: inset 0 1px 5px 0px rgba(0, 0, 0, .5), 
     				  0 1px 0 0px rgba(250, 250, 250, .5);
-    left: 180px;
-		top:5px;
+    left: 0px;
+		top:12px;
 		float:left;
 }
 .volume {
@@ -277,8 +273,8 @@ fieldset
 	display: inline-block;
 	width: 25px;
 	height: 25px;
-	left: 165px;
-	top:5px;
+	left: 77px;
+	top:-3px;
 	background: url('../images/volume.png') no-repeat 0 -50px;
 	position: relative;
 	margin: -5px 0 0 25px ;
@@ -441,4 +437,10 @@ fieldset
 #playlistEntryProperties ul{
 	padding: 0;
 	margin: 10px;
+}
+
+#selStartPlaylist{
+	width:75%;
+	text-align:left;
+	
 }
