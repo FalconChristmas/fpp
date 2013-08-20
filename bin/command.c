@@ -137,7 +137,7 @@ extern int numberOfSecondsPaused;
 
       s = strtok(command,",");
       s = strtok(NULL,",");
-      strcpy(playlistDetails.currentPlaylistFile,s);
+      strcpy((char*)playlistDetails.currentPlaylistFile,s);
       s = strtok(NULL,",");
 		  playlistDetails.currentPlaylistEntry = atoi(s);
 			playlistDetails.playlistStarting=1;
@@ -153,7 +153,7 @@ extern int numberOfSecondsPaused;
 
       s = strtok(command,",");
       s = strtok(NULL,",");
-      strcpy(playlistDetails.currentPlaylistFile,s);
+      strcpy((char*)playlistDetails.currentPlaylistFile,s);
       s = strtok(NULL,",");
 		  playlistDetails.currentPlaylistEntry = atoi(s);
 			playlistDetails.playlistStarting=1;

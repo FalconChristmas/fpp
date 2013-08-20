@@ -60,6 +60,45 @@ void ScheduleProc()
   }
 }
 
+void CheckIfShouldBePlayingNow()
+{
+  int i,j,dayCount;
+  time_t currTime = time(NULL);
+  struct tm *now = localtime(&currTime);
+  int nowWeeklySeconds = GetWeeklySeconds(now->tm_wday, now->tm_hour, now->tm_min, now->tm_sec);
+  LoadScheduleFromFile();
+  for(i=0;i<ScheduleEntryCount;i++)
+  {
+		if(Schedule[i].enable)
+		{
+			for(j=0;j<Schedule[i].weeklySecondCount;j++)
+			{
+				if((nowWeeklySeconds>=Schedule[i].weeklyStartSeconds[j]) && (nowWeeklySeconds < Schedule[i].weeklyEndSeconds[j]))
+				{
+					LogWrite(" Should be playing now - schedule index = %d weekly index= %d\n",i,j);
+					currentSchedulePlaylist.ScheduleEntryIndex = i;
+					currentSchedulePlaylist.startWeeklySeconds = Schedule[i].weeklyStartSeconds[j];
+					currentSchedulePlaylist.endWeeklySeconds = Schedule[i].weeklyEndSeconds[j];
+					CurrentScheduleHasbeenLoaded = 1;
+					NextScheduleHasbeenLoaded = 0;
+		      strcpy((void*)playlistDetails.currentPlaylistFile,Schedule[currentSchedulePlaylist.ScheduleEntryIndex].playList);
+				  playlistDetails.currentPlaylistEntry=0;
+		  		playlistDetails.playlistStarting=1;
+		  		if (Schedule[currentSchedulePlaylist.ScheduleEntryIndex].repeat == 0)
+		  		{
+	      		FPPstatus = FPP_STATUS_STOPPING_GRACEFULLY;
+		  		}
+		  		else
+		  		{
+	      		FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
+		  		}
+				}				
+			}
+		}
+  }
+}
+
+
 int GetNextScheduleEntry(int *weeklySecondIndex)
 {
   int i,j,dayCount;
