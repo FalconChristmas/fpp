@@ -3,7 +3,7 @@
 <head>
 <?php	include 'common/menuHead.inc'; ?>
 <script type="text/javascript" src="js/fpp.js"></script>
- <script src="http://code.jquery.com/jquery-1.9.1.js"></script>
+<script src="http://code.jquery.com/jquery-1.9.1.js"></script>
 <script src="http://code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
 <script>
     $(function() {
@@ -101,7 +101,7 @@
 	include 'menu.inc';
   ?>
 <br/>
-<div id = "programControl">
+<div id="programControl" class="settings">
   <fieldset>
     <legend>Program Control</legend>
     <div id="daemonControl">
