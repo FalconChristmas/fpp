@@ -1,170 +1,122 @@
-<?php
-$ifconfig = shell_exec('/sbin/ifconfig eth0');
-preg_match('/addr:([\d\.]+)/', $ifconfig, $ethipaddress);
-preg_match('/Mask:([\d\.]+)/', $ifconfig, $ethnetmask);
-preg_match('/Bcast:([\d\.]+)/', $ifconfig, $ethbroadcast);
-$iproute = shell_exec('/sbin/ip route');
-preg_match('/via ([\d\.]+)/', $iproute, $ethgateway);
-$ipdns = shell_exec('/bin/cat /etc/resolv.conf | grep nameserver');
-preg_match('/nameserver ([\d\.]+)/', $ipdns, $ethnameserver);
-
-$ifconfig = shell_exec('/sbin/ifconfig wlan0');
-preg_match('/addr:([\d\.]+)/', $ifconfig, $wlanipaddress);
-preg_match('/Mask:([\d\.]+)/', $ifconfig, $wlannetmask);
-preg_match('/Bcast:([\d\.]+)/', $ifconfig, $wlanbroadcast);
-$iproute = shell_exec('/sbin/ip route');
-preg_match('/via ([\d\.]+)/', $iproute, $wlangateway);
-
-$interface = file_get_contents('/etc/network/interfaces');
-
-?>
 <!DOCTYPE html>
 <html>
 <head>
-<link href="/SpryAssets/SpryValidationTextField.css" rel="stylesheet" type="text/css">
 <?php include 'common/menuHead.inc'; ?>
 <script type="text/javascript" src="/js/fpp.js"></script>
-<script src="/SpryAssets/SpryValidationTextField.js" type="text/javascript"></script>
 <title>Falcon PI Player - FPP</title>
 </head>
 <body>
 <div id="bodyWrapper">
   <?php include 'menu.inc'; ?>
   <br/>
-  <div id = "networkconfig">
-    <fieldset>
-      <legend>Network Config</legend>
-      <FORM NAME="netconfig" ACTION="" METHOD="POST">
-         <div id= "divEthernet">
-            <fieldset class="fs">
-              <legend> Ethernet </legend>
-              <div class='right'>
-              <table border="0" cellpadding="2" cellspacing="2">
-              <tr>
-                <td width="15%" rowspan="5" align="center" valign="top"><table width="80">
-                  <tr>
-                    <td><p>
-                      <label>
-                        <input type="radio" name="EthMode" value="static" id="EthMode_0">
-                        Static</label>
-                      <br>
-                      <label>
-                        <input type="radio" name="EthMode" value="dhcp" id="EthMode_1">
-                        DHCP</label>
-                      <br>
-                    </p></td>
-                  </tr>
-                </table></td>
-                <td width="20%"><div align="right">IP Address:</div></td>
-                <td width="13%"><span id="sprytextfield1">
-                  <label for="IpAddress"></label>
-                  <input type="text" name="EthIpAddress" id="EthIpAddress" value="<?php print $ethipaddress[1] ?>">
-                  <span class="textfieldRequiredMsg">A value is required.</span><span class="textfieldInvalidFormatMsg">Invalid Format!</span></span></td>
-                </tr>
-              <tr>
-                <td><div align="right">Netmask:</div></td>
-                <td><span id="sprytextfield2">
-                <label for="EthNetmask"></label>
-                <input type="text" name="EthNetmask" id="EthNetmask" value="<?php print $ethnetmask[1] ?>">
-                <span class="textfieldRequiredMsg">A value is required.</span><span class="textfieldInvalidFormatMsg">Invalid Format!</span></span></td>
-                </tr>
-              <tr>
-                <td><div align="right">Broadcast:</div></td>
-                <td><span id="sprytextfield3">
-                <label for="EthBroadcast"></label>
-                <input type="text" name="EthBroadcast" id="EthBroadcast" value="<?php print $ethbroadcast[1] ?>">
-                <span class="textfieldRequiredMsg">A value is required.</span><span class="textfieldInvalidFormatMsg">Invalid Format!</span></span></td>
-                </tr>
-              <tr>
-                <td><div align="right">Gateway:</div></td>
-                <td><span id="sprytextfield4">
-                <label for="EthGateway"></label>
-                <input type="text" name="EthGateway" id="EthGateway" value="<?php print $ethgateway[1] ?>">
-                <span class="textfieldRequiredMsg">A value is required.</span><span class="textfieldInvalidFormatMsg">Invalid Format!</span></span></td>
-                </tr>
-              <tr>
-                <td><div align="right">DNS IP:</div></td>
-                <td><span id="sprytextfield5">
-                <label for="EthDNS"></label>
-                <input type="text" name="EthDNS" id="EthDNS" value="<?php print $ethnameserver[1] ?>">
-                <span class="textfieldRequiredMsg">A value is required.</span><span class="textfieldInvalidFormatMsg">Invalid Format!</span></span></td>
-                </tr>
-              </table>
+
+<div id="network" class="settings">
+<fieldset>
+<legend>Network Settings</legend>
+
+<?php
+
+$interfaces = explode("\n",trim(shell_exec("/sbin/ifconfig | cut -f1 -d' ' | grep -v ^$ | grep -v lo")));
+$ifacename["eth0"] = "Wired Ethernet";
+$ifacename["wlan0"] = "Wireless Ethernet";
+
+function hide_if_not_matched($interface, $mode)
+{
+	if ( $interface["mode"] != $mode )
+		echo "style=\"display: none\"";
+}
+function checked_if_matched($interface, $mode)
+{
+	if ( $interface["mode"] == $mode )
+		echo "checked=\"checked\"";
+}
+
+foreach ($interfaces as $iface)
+{
+$ifconfig = shell_exec("/sbin/ifconfig $iface");
+//preg_match('/addr:([\d\.]+)/', $ifconfig, $ethipaddress);
+//preg_match('/Mask:([\d\.]+)/', $ifconfig, $ethnetmask);
+//preg_match('/Bcast:([\d\.]+)/', $ifconfig, $ethbroadcast);
+//$iproute = shell_exec('/sbin/ip route');
+//preg_match('/via ([\d\.]+)/', $iproute, $ethgateway);
+//$ipdns = shell_exec('/bin/cat /etc/resolv.conf | grep nameserver');
+//preg_match('/nameserver ([\d\.]+)/', $ipdns, $ethnameserver);
+
+//$ifconfig = shell_exec('/sbin/ifconfig wlan0');
+//preg_match('/addr:([\d\.]+)/', $ifconfig, $wlanipaddress);
+//preg_match('/Mask:([\d\.]+)/', $ifconfig, $wlannetmask);
+//preg_match('/Bcast:([\d\.]+)/', $ifconfig, $wlanbroadcast);
+//$iproute = shell_exec('/sbin/ip route');
+//preg_match('/via ([\d\.]+)/', $iproute, $wlangateway);
+
+//$interface = file_get_contents('/etc/network/interfaces');
+
+
+$interface["name"] = $iface;
+$interface["mode"] = "dhcp";
+$interface["pretty_name"] = $ifacename[$iface];
+//$interface["ipaddr"] = ;
+//$interface["gateway"] =;
+//$interface["netmask"] =;
+//$interface["broadcast"] =;
+//$interface["dns"] =;
+
+?>
+              <h4><?php echo $interface['pretty_name'] . " (" . $interface['name'] . ")"; ?></h4>
+              <div id="<?php echo "${interface['name']}_settings"; ?>">
+			<input type="radio" name="<?php echo $interface['name']; ?>_mode" value="<?php echo $interface['name']; ?>_dhcp" <?php checked_if_matched($interface, "dhcp"); ?>>
+			<label for="<?php echo $interface['name']; ?>_mode">DHCP</label>
+			<input type="radio" name="<?php echo $interface['name']; ?>_mode" value="<?php echo $interface['name']; ?>_static" <?php checked_if_matched($interface, "static"); ?>>
+			<label for="<?php echo $interface['name']; ?>_mode">Static</label>
+
+			<div class="<?php echo $interface['name']; ?>_net_settings" id="<?php echo $interface['name']; ?>_dhcp_settings" <?php hide_if_not_matched($interface, "dhcp"); ?>>
+			</div>
+			<div class="<?php echo $interface['name']; ?>_net_settings" id="<?php echo $interface['name']; ?>_static_settings" <?php hide_if_not_matched($interface, "static"); ?>>
+				<table width= "100%" border="0" cellpadding="2" cellspacing="2">
+				<tr>
+					<td><label for="IpAddress">IP Address:</label></td>
+					<td><input type="text" name="EthIpAddress" id="EthIpAddress" value=""></td>
+				</tr><tr>
+					<td><label for="EthNetmask">Netmask:</label></td>
+					<td><input type="text" name="EthNetmask" id="EthNetmask" value=""></td>
+				</tr><tr>
+					<td><label for="EthBroadcast">Broadcast:</label></td>
+					<td><input type="text" name="EthBroadcast" id="EthBroadcast" value=""></td>
+				</tr><tr>
+					<td><label for="EthGateway">Gateway:</label></td>
+					<td><input type="text" name="EthGateway" id="EthGateway" value=""></td>
+				</tr><tr>
+					<td><label for="EthDNS">DNS IP:</label></td>
+					<td><input type="text" name="EthDNS" id="EthDNS" value=""></td>
+				</tr>
+				</table>
+			</div>
               </div>
-            </fieldset>
-          </div>
-          <div id= "divWireless">
-            <fieldset  class="fs">
-              <legend>Wireless</legend>
-              <div class='right'>
-              <table width="100%">
-              <tr><td>
-                    <table border="0" cellpadding="2" cellspacing="2">
-              <tr>
-                <td width="15%" rowspan="5" align="center" valign="top"><table width="80">
-                  <tr>
-                    <td><p>
-                      <label>
-                        <input type="radio" name="WirelessMode" value="static" id="WirelessMode_0" disabled="true">
-                        Static</label>
-                      <br>
-                      <label>
-                        <input type="radio" name="WirelessMode" value="dhcp" id="WirelessMode_1"  disabled="true">
-                        DHCP</label>
-                      <br>
-                    </p></td>
-                  </tr>
-                </table></td>
-                <td width="20%"><div align="right">IP Address:</div></td>
-                <td width="13%"><span id="sprytextfield6">
-                <label for="WlanIpAddress"></label>
-                <input type="text" name="WlanIpAddress" id="WlanIpAddress" value="<?php print $wlanipaddress[1] ?>" disabled="true">
-                <span class="textfieldRequiredMsg">A value is required.</span><span class="textfieldInvalidFormatMsg">Invalid format.</span></span></td>
-                </tr>
-              <tr>
-                <td><div align="right">Netmask:</div></td>
-                <td><span id="sprytextfield7">
-                <label for="WlanNetmask"></label>
-                <input type="text" name="WlanNetmask" id="WlanNetmask" value="<?php print $wlannetmask[1] ?>" disabled="true">
-                <span class="textfieldRequiredMsg">A value is required.</span><span class="textfieldInvalidFormatMsg">Invalid format.</span></span></td>
-                </tr>
-              <tr>
-                <td><div align="right">Broadcast:</div></td>
-                <td><span id="sprytextfield8">
-                <label for="WlanBroadcast"></label>
-                <input type="text" name="WlanBroadcast" id="WlanBroadcast" value="<?php print $wlanbroadcast[1] ?>" disabled="true">
-                <span class="textfieldRequiredMsg">A value is required.</span><span class="textfieldInvalidFormatMsg">Invalid format.</span></span></td>
-                </tr>
-              <tr>
-                <td><div align="right">Gateway:</div></td>
-                <td><span id="sprytextfield9">
-                <label for="WlanGateway"></label>
-                <input type="text" name="WlanGateway" id="WlanGateway" value="<?php print $wlangateway[1] ?>" disabled="true">
-                <span class="textfieldRequiredMsg">A value is required.</span><span class="textfieldInvalidFormatMsg">Invalid format.</span></span></td>
-                </tr>
-              </table>
-              </td></tr>
-              </table>
-              </div>
-            </fieldset>
-          </div>
-      <div class = "clear"></div>
-	  <div id="divNetwork"><br /><input name="btnSetNetwork" type="submit" class = "Buttons"></div>
-     </FORM>
+<script>
+$(document).ready(function(){
+	$("input[name$='<?php echo $interface['name']; ?>_mode']").change(function() {
+		var test = $(this).val();
+		$(".<?php echo $interface['name']; ?>_net_settings").hide();
+		$("#"+test+"_settings").show();
+	});
+});
+</script>
+<?php
+}
+?>
+
+
     </fieldset>
+            <input id="submit" name="submit" type="submit" class="buttons" value="Submit">
   </div>
+
+
+
+
+
+
+
 </div>
 <?php include 'common/footer.inc'; ?>
-<script type="text/javascript">
-var sprytextfield1 = new Spry.Widget.ValidationTextField("sprytextfield1", "ip", {useCharacterMasking:true, validateOn:["blur", "change"]});
-var sprytextfield2 = new Spry.Widget.ValidationTextField("sprytextfield2", "ip", {validateOn:["blur", "change"], useCharacterMasking:true});
-var sprytextfield3 = new Spry.Widget.ValidationTextField("sprytextfield3", "ip", {validateOn:["blur", "change"], useCharacterMasking:true});
-var sprytextfield4 = new Spry.Widget.ValidationTextField("sprytextfield4", "ip", {validateOn:["blur", "change"], useCharacterMasking:true});
-var sprytextfield5 = new Spry.Widget.ValidationTextField("sprytextfield5", "ip", {validateOn:["blur", "change"], useCharacterMasking:true});
-var sprytextfield6 = new Spry.Widget.ValidationTextField("sprytextfield6", "ip", {validateOn:["blur", "change"], useCharacterMasking:true});
-var sprytextfield7 = new Spry.Widget.ValidationTextField("sprytextfield7", "ip", {validateOn:["blur", "change"], useCharacterMasking:true});
-var sprytextfield8 = new Spry.Widget.ValidationTextField("sprytextfield8", "ip", {validateOn:["blur", "change"], useCharacterMasking:true});
-var sprytextfield9 = new Spry.Widget.ValidationTextField("sprytextfield9", "ip", {validateOn:["blur", "change"], useCharacterMasking:true});
-</script>
 </body>
 </html>

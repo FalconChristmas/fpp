@@ -31,7 +31,9 @@ unset($output);
           <li><a href="uipassword.php">Set UI Password</a></li>
           <li><a href="timeconfig.php">Config/Set Time</a></li>
           <li><a href="networkconfig.php">Network</a></li>
-          <li><a href="playerkconfig.php">Player Mode</a></li>
+<?php if ( $rds_enabled == true ) { ?>
+          <li><a href="rds.php">RDS</a></li>
+<?php } ?>
           <li><a href="settings.php">FPP Settings</a></li>
         </ul>
       </li>
