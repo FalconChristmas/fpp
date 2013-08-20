@@ -57,6 +57,7 @@ void GetNextScheduleStartText(char * txt);
 void GetNextPlaylistText(char * txt);
 void GetScheduleEntryStartText(int index,int weeklySecondIndex, char * txt);
 void GetDayTextFromDayIndex(int index,char * txt);
+void CheckIfShouldBePlayingNow();
 
 
 #endif

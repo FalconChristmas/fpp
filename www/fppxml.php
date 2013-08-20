@@ -641,11 +641,10 @@ function LoadScheduleFile()
 		$startHour = $entry[3];
 		$startMinute = $entry[4];
 		$startSecond = $entry[5];
-		$endDay = $entry[6];
-		$endHour = $entry[7];
-		$endMinute = $entry[8];
-		$endSecond = $entry[9];
-		$repeat = $entry[10];
+		$endHour = $entry[6];
+		$endMinute = $entry[7];
+		$endSecond = $entry[8];
+		$repeat = $entry[9];
 		$_SESSION['ScheduleEntries'][] = new ScheduleEntry($enable,$playlist,$startDay,$startHour,$startMinute,$startSecond,
 		                                      $endDay, $endHour, $endMinute, $endSecond, $repeat);
 	}
