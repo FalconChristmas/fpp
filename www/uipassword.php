@@ -44,57 +44,95 @@ $pw = file_exists("$thisdir/.htpasswd");
 <head>
 <?php include 'common/menuHead.inc'; ?>
 <script type="text/javascript" src="/js/fpp.js"></script>
+<script type="text/javascript" src="/js/validate.min.js"></script>
 <title>Falcon PI Player - FPP</title>
 </head>
 <body>
 <div id="bodyWrapper">
   <?php include 'menu.inc'; ?>
   <br/>
-  <div id = "uipassword">
+  <div id="uipassword" class="settings">
     <fieldset>
       <legend>UI Password</legend>
-      <FORM NAME="password_form" ACTION="<?php echo $_SERVER['PHP_SELF'] ?>" METHOD="POST">
-        <table width= "100%" border="0" cellpadding="2" cellspacing="2">
-          <tr>
-            <td colspan="3" align="center">Enter a matching passwors below to add/replace a password requirement to access the web FPP GUI</td>
-          </tr>
-          <tr>
-            <td colspan="3" align="center"><input name="login" type="hidden" value="admin"></td>
-          </tr>
-          <tr>
-            <td width="18%" align="right">Password:</td>
-            <td colspan="2"><INPUT name="password1" type="password" onKeyUp="verify.check()" size="40" maxlength="40"></td>
-          </tr>
-          <tr>
-            <td align="right">Confirm Password:</td>
-            <td width="43%"><INPUT NAME="password2" TYPE="password" onKeyUp="verify.check()" size="40" maxlength="40"></td>
-            <td width="39%"><DIV ID="password_result">&nbsp;</DIV></td>
-          </tr>
-          <tr>
-            <td colspan="3" align="center">&nbsp;</td>
-          </tr>
-          <tr>
-            <td colspan="3" align="center"><input id="submit_button" name="submit_button" type="submit" disabled class="buttons" value="Submit"></td>
-          </tr>
-        </table>
-        <SCRIPT TYPE="text/javascript">
-        <!--
-        verify = new verifynotify();
-        verify.field1 = document.password_form.password1;
-        verify.field2 = document.password_form.password2;
-        verify.result_id = "password_result";
-        verify.match_html = "<SPAN STYLE=\"color:blue\">Thank you, your passwords match!<\/SPAN>";
-        verify.nomatch_html = "<SPAN STYLE=\"color:red\">Enter matching passwords to set/change.<\/SPAN>";
-        
-        // Update the result message
-        verify.check();
-        
-        // -->
-        </SCRIPT>
-      </FORM>
+      <form name="password_form" action="<?php echo $_SERVER['PHP_SELF'] ?>" method="POST">
+              <label for="enabled">Enabled:</label>
+              <input type="radio" name="password" value="enabled" <?php checked_if_equal($pw, true); ?>></input>
+              <label for="disabled">Disabled:</label>
+              <input type="radio" name="password" value="disabled" <?php checked_if_equal($pw, false); ?>></input>
+
+    <div id="password" <?php hide_if_equal($pw, false); ?>>
+      <table width= "100%" border="0" cellpadding="2" cellspacing="2">
+        <tr>
+          <td><label for="password1">Password:</label></td>
+          <td><input name="password1" id="password1" type="password" size="40" maxlength="40"></td>
+        </tr><tr>
+          <td><label for="password2">Confirm Password:</label></td>
+          <td><input name="password2" id="password2" type="password" size="40" maxlength="40"></td>
+        </tr>
+      </table>
+    </div>
+
+<div id="errors">
+</div>
+
+<div id="submit">
+<input id="submit_button" name="submit_button" type="submit" class="buttons" value="Submit">
+</div>
+      </form>
     </fieldset>
   </div>
 </div>
-<?php	include 'common/footer.inc'; ?>
+<?php  include 'common/footer.inc'; ?>
+
+<script>
+
+
+$(document).ready(function(){
+  $("input[name$='password']").change(function() {
+    if ( $(this).val() == "enabled" )
+      $("#password").show();
+    else
+      $("#password").hide();
+  });
+});
+
+
+
+var validator = new FormValidator('password_form', [{
+    name: 'password1',
+    rules: 'required'
+}, {
+    name: 'password2',
+    display: 'password confirmation',
+    rules: 'required|matches[password1]|min_length[8]'
+}], function(errors, evt) {
+
+    // Don't validate when we're disabling password protection
+    if ( $('input[name=password]:checked', '#uipassword').val() == "disabled" ) {
+        evt.submit();
+    }
+
+    var selector_errors = $('#errors');
+
+    if (errors.length > 0) {
+        selector_errors.empty();
+
+        for (var i = 0, errorLength = errors.length; i < errorLength; i++) {
+            selector_errors.append(errors[i].message + '<br />');
+        }
+
+        selector_errors.fadeIn(200);
+
+        if (evt && evt.preventDefault) {
+            evt.preventDefault();
+        } else if (event) {
+            event.returnValue = false;
+        }
+    }
+
+});
+</script>
+
+
 </body>
 </html>
