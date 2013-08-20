@@ -226,10 +226,10 @@ $(document).ready(function () {
     <div id="createPlaylistItems">
           <table id="tblCreatePlaylist">
         <tr id="rowCreatePlaylistHeader">
-              <td width="3%" id="colPlaylistNumber" class="textRight">#</td>
+              <td width="5%" id="colPlaylistNumber" class="textRight">#</td>
               <td width="42%">Media File/Pause</td>
               <td width="42%">Sequence</td>
-              <td width="13%">First/Last</td>
+              <td width="11%">First/Last</td>
             </tr>
       </table>
           <table id="tblCreatePlaylistEntries" width="100%">
@@ -237,7 +237,7 @@ $(document).ready(function () {
             </tbody>
       </table>
         </div>
-    <span style="font-size:10px; font-family:Arial; margin-left:15px;">(Drag entry to reposition) </span>
+    <span style="font-size:12px; font-family:Arial; margin-left:15px;">(Drag entry to reposition) </span>
   </fieldset>
     </div>
 </div>

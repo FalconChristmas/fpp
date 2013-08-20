@@ -252,6 +252,15 @@ fieldset
 
 .siteName{font-size: 200%; padding-top: 13px;}
 
+
+.colPlaylistNumber{
+	background-image: url(../images/vertdrag.png);
+	background-repeat:no-repeat;
+	background-size:7px 14px;
+	background-position:0 2px;
+	padding-left:20px;
+}
+
 #slider{
 	border-width: 1px;
 	border-style: solid;
@@ -357,7 +366,7 @@ fieldset
 	}	
 
 .playlistSelectedEntry{
-	background:#888;
+	background:#CCC;
 }
 
 #statusPlaylistContents table {
@@ -428,7 +437,7 @@ fieldset
 }
 
 .selectedEntry {
-	background: #888;
+	background: #CCC;
 }
 
 .pl_title {

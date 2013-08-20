@@ -245,38 +245,38 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 								if(type == 'b')
 								{
 										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
-										innerHTML +=  "<td id = \"colEntryNumber" + (i+1).toString() + "\" width=\"3%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
+										innerHTML +=  "<td class=\"colPlaylistNumber\" id = \"colEntryNumber" + (i+1).toString() + "\" width=\"5%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
 										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">" + songFile + "</td>";
 										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">" + seqFile + "</td>"
-										innerHTML += "<td width=\"13%\" id=\"firstLast" + i.toString() + "\" class=\"textLeft\">&nbsp;</td>";
+										innerHTML += "<td width=\"11%\" id=\"firstLast" + i.toString() + "\" class=\"textLeft\">&nbsp;</td>";
 									  innerHTML += "</tr>";
 								}
 								else if(type == 'm')
 								{
 										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
-										innerHTML +=  "<td id = \"colEntryNumber" + (i+1).toString() + "\" width=\"3%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
+										innerHTML +=  "<td class=\"colPlaylistNumber\"  id = \"colEntryNumber" + (i+1).toString() + "\" width=\"5%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
 										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">" + songFile + "</td>";
 										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">---</td>"
-										innerHTML += "<td width=\"13%\" id=\"firstLast" + i.toString() + "\" class=\"textLeft\">&nbsp;</td>";
+										innerHTML += "<td width=\"11%\" id=\"firstLast" + i.toString() + "\" class=\"textLeft\">&nbsp;</td>";
 									  innerHTML += "</tr>";
 								}
 								else if(type == 's')
 								{
 										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
-										innerHTML +=  "<td id = \"colEntryNumber" + (i+1).toString() + "\" width=\"3%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
+										innerHTML +=  "<td class=\"colPlaylistNumber\"  id = \"colEntryNumber" + (i+1).toString() + "\" width=\"5%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
 										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">---</td>";
 										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">" + seqFile + "</td>"
-										innerHTML += "<td width=\"13%\" id=\"firstLast" + i.toString() + "\" class=\"textLeft\">&nbsp;</td>";
+										innerHTML += "<td width=\"11%\" id=\"firstLast" + i.toString() + "\" class=\"textLeft\">&nbsp;</td>";
 									  innerHTML += "</tr>";
 								}
 								else if(type == 'p')
 								{
 										
 										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
-										innerHTML +=  "<td id = \"colEntryNumber" + (i+1).toString() + "\" width=\"3%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
+										innerHTML +=  "<td class=\"colPlaylistNumber\"  id = \"colEntryNumber" + (i+1).toString() + "\" width=\"5%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
 										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">PAUSE - " + pause.toString() + " seconds</td>";
 										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">---</td>"
-										innerHTML += "<td width=\"13%\" id=\"firstLast" + i.toString() + "\" class=\"textLeft\">&nbsp;</td>";
+										innerHTML += "<td width=\"11%\" id=\"firstLast" + i.toString() + "\" class=\"textLeft\">&nbsp;</td>";
 									  innerHTML += "</tr>";
 								}
 							}
