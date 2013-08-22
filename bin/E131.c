@@ -81,8 +81,8 @@ int syncedToMusic=0;
 
 void E131_Initialize()
 {
-  usTimerValue = (unsigned int)(((float)1/(float)RefreshRate) * ((float)990000));
-//  usTimerValue = (unsigned int)(((float)1/(float)RefreshRate) * ((float)1100000));
+//  usTimerValue = (unsigned int)(((float)1/(float)RefreshRate) * ((float)990000));
+  usTimerValue = (unsigned int)(((float)1/(float)RefreshRate) * ((float)1200000));
 	E131sequenceNumber=1;
   GetLocalWiredIPaddress(LocalAddress);
 	LoadUniversesFromFile();
