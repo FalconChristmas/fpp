@@ -64,30 +64,30 @@ $interface["pretty_name"] = $ifacename[$iface];
 ?>
               <h4><?php echo $interface['pretty_name'] . " (" . $interface['name'] . ")"; ?></h4>
               <div id="<?php echo "${interface['name']}_settings"; ?>">
-			<input type="radio" name="<?php echo $interface['name']; ?>_mode" value="<?php echo $interface['name']; ?>_dhcp" <?php checked_if_matched($interface, "dhcp"); ?>>
-			<label for="<?php echo $interface['name']; ?>_mode">DHCP</label>
-			<input type="radio" name="<?php echo $interface['name']; ?>_mode" value="<?php echo $interface['name']; ?>_static" <?php checked_if_matched($interface, "static"); ?>>
-			<label for="<?php echo $interface['name']; ?>_mode">Static</label>
+			<label for="<?php echo $interface['name']; ?>_dhcp">DHCP</label>
+			<input type="radio" name="<?php echo $interface['name']; ?>_mode" id="<?php echo $interface['name']; ?>_dhcp" value="dhcp" <?php checked_if_matched($interface, "dhcp"); ?>>
+			<label for="<?php echo $interface['name']; ?>_static">Static</label>
+			<input type="radio" name="<?php echo $interface['name']; ?>_mode" id="<?php echo $interface['name']; ?>_static" value="static" <?php checked_if_matched($interface, "static"); ?>>
 
 			<div class="<?php echo $interface['name']; ?>_net_settings" id="<?php echo $interface['name']; ?>_dhcp_settings" <?php hide_if_not_matched($interface, "dhcp"); ?>>
 			</div>
 			<div class="<?php echo $interface['name']; ?>_net_settings" id="<?php echo $interface['name']; ?>_static_settings" <?php hide_if_not_matched($interface, "static"); ?>>
 				<table width= "100%" border="0" cellpadding="2" cellspacing="2">
 				<tr>
-					<td><label for="IpAddress">IP Address:</label></td>
-					<td><input type="text" name="EthIpAddress" id="EthIpAddress" value=""></td>
+					<td><label for="<?php echo $interface['name']; ?>_ip_addr">IP Address:</label></td>
+					<td><input type="text" name="<?php echo $interface['name']; ?>_ip_addr" id="<?php echo $interface['name']; ?>_ip_addr" value=""></td>
 				</tr><tr>
-					<td><label for="EthNetmask">Netmask:</label></td>
-					<td><input type="text" name="EthNetmask" id="EthNetmask" value=""></td>
+					<td><label for="<?php echo $interface['name']; ?>_netmask">Netmask:</label></td>
+					<td><input type="text" name="<?php echo $interface['name']; ?>_netmask" id="<?php echo $interface['name']; ?>_netmask" value=""></td>
 				</tr><tr>
-					<td><label for="EthBroadcast">Broadcast:</label></td>
-					<td><input type="text" name="EthBroadcast" id="EthBroadcast" value=""></td>
+					<td><label for="<?php echo $interface['name']; ?>_bcast">Broadcast:</label></td>
+					<td><input type="text" name="<?php echo $interface['name']; ?>_bcast" id="<?php echo $interface['name']; ?>_bcast" value=""></td>
 				</tr><tr>
-					<td><label for="EthGateway">Gateway:</label></td>
-					<td><input type="text" name="EthGateway" id="EthGateway" value=""></td>
+					<td><label for="<?php echo $interface['name']; ?>_gw">Gateway:</label></td>
+					<td><input type="text" name="<?php echo $interface['name']; ?>_gw" id="<?php echo $interface['name']; ?>_gw" value=""></td>
 				</tr><tr>
-					<td><label for="EthDNS">DNS IP:</label></td>
-					<td><input type="text" name="EthDNS" id="EthDNS" value=""></td>
+					<td><label for="<?php echo $interface['name']; ?>_dns">DNS IP:</label></td>
+					<td><input type="text" name="<?php echo $interface['name']; ?>_dns" id="<?php echo $interface['name']; ?>_dns" value=""></td>
 				</tr>
 				</table>
 			</div>

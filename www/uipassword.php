@@ -55,10 +55,10 @@ $pw = file_exists("$thisdir/.htpasswd");
     <fieldset>
       <legend>UI Password</legend>
       <form name="password_form" action="<?php echo $_SERVER['PHP_SELF'] ?>" method="POST">
-              <label for="enabled">Enabled:</label>
-              <input type="radio" name="password" value="enabled" <?php checked_if_equal($pw, true); ?>></input>
-              <label for="disabled">Disabled:</label>
-              <input type="radio" name="password" value="disabled" <?php checked_if_equal($pw, false); ?>></input>
+              <label for="password_enabled">Enabled:</label>
+              <input type="radio" name="password" id="password_enabled" value="enabled" <?php checked_if_equal($pw, true); ?>></input>
+              <label for="password_disabled">Disabled:</label>
+              <input type="radio" name="password" id="password_disabled" value="disabled" <?php checked_if_equal($pw, false); ?>></input>
 
     <div id="password" <?php hide_if_equal($pw, false); ?>>
       <table width= "100%" border="0" cellpadding="2" cellspacing="2">

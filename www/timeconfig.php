@@ -94,10 +94,10 @@ TODO: Make this a tool-tip:
 <p>You will want to disable this if you're not planning on connecting your PI to the internet</p>
 -->
 
-			<input type="radio" name="ntp" value="ntp_enabled" <?php echo print_if_match($ntp, true, "checked=\"checked\""); ?>>
-			<label for="ntp_enabled">Enabled</label>
-			<input type="radio" name="ntp" value="ntp_disabled" <?php echo print_if_match($ntp, false, "checked=\"checked\""); ?>>
-			<label for="ntp_disabled">Disabled</label>
+			<label for="ntp_enabled">Enabled:</label>
+			<input type="radio" name="ntp" id="ntp_enabled" value="enabled" <?php echo print_if_match($ntp, true, "checked=\"checked\""); ?>>
+			<label for="ntp_disabled">Disabled:</label>
+			<input type="radio" name="ntp" id="ntp_disabled" value="disabled" <?php echo print_if_match($ntp, false, "checked=\"checked\""); ?>>
 
 <h4>Time Zone</h4>
 
