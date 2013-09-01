@@ -28,6 +28,7 @@ unset($output);
     <ul>
       <li><a href="index.php">Status/Control</a>
         <ul>
+          <li><a href="/">Status Page</a></li>
           <li><a href="uipassword.php">Set UI Password</a></li>
           <li><a href="timeconfig.php">Config/Set Time</a></li>
           <li><a href="networkconfig.php">Network</a></li>
