@@ -50,6 +50,7 @@ int main()
 
 void PlayerProcess(void)
 {
+#ifndef NOROOT
 	struct sched_param param;
 	param.sched_priority = 99;
 	if (sched_setscheduler(0, SCHED_FIFO, & param) != 0) 
@@ -57,6 +58,7 @@ void PlayerProcess(void)
 		perror("sched_setscheduler");
 		exit(EXIT_FAILURE);  
 	}
+#endif
   MusicInitialize();
   LogWrite("Initialize E131 done\n");
 	CheckIfShouldBePlayingNow();
