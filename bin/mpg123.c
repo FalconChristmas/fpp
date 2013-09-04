@@ -206,7 +206,7 @@ void MPG_UpdateStatus()
           lastSecond = (int)mpg123.seconds;
           LogWrite("Seconds= %g Remaining=%g\n",mpg123.seconds,mpg123.secondsleft);
           MusicPlayerStatus = PLAYING_MPLAYER_STATUS;
-          LogWrite("Changing Statusssss to play\n");
+          LogWrite("Changing Status to play\n");
         }
         break;
       case PLAYING_MPLAYER_STATUS:

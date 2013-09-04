@@ -103,7 +103,7 @@ $(document).ready(function(){
 	margin: 0, auto;
 }
 .selectedEntry {
-	background: #EEE;
+	background: #CCC;
 }
 .pl_title {
 	font-size: larger;

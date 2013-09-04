@@ -24,11 +24,11 @@
 
 
 typedef struct{
-		char active;
+		int active;
 		int universe;
     int size;
     int startAddress;
-		char type;
+		int type;
     char unicastAddress[16];
 }UniverseEntry;
 

@@ -144,7 +144,6 @@ void LoadNextScheduleInfo()
 
 void SetScheduleEntrysWeeklyStartAndEndSeconds(ScheduleEntry * entry)
 {
-  int retCount;
 	switch(entry->dayIndex)
   {
 		case INX_SUN:
@@ -471,7 +470,7 @@ void GetDayTextFromDayIndex(int index,char * txt)
 			strcpy(txt,"Fri/Sat");
 			break;	
 		default:
-			strcpy(txt, "Error");
+			strcpy(txt, "Error\0");
 			break;	
 	}
 }

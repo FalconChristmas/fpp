@@ -29,7 +29,7 @@
 				//Config
 				range: "min",
 				min: 1,
-				value: 35,
+				//value: 35,
 			});
 			
 			
@@ -95,7 +95,7 @@
 
 
 </head>
-<body onLoad="GetFPPstatus();StatusPopulatePlaylists();setInterval(updateFPPStatus,1000);">
+<body onLoad="GetFPPDmode();StatusPopulatePlaylists();setInterval(updateFPPStatus,1000);GetVolume();">
 <div id="bodyWrapper">
 <?php
 	include 'menu.inc';
@@ -106,6 +106,17 @@
     <legend>Program Control</legend>
     <div id="daemonControl">
       <table width= "100%">
+        <tr>
+          <td width = "20%"> FPPD Mode: </td>
+          <td width = "25%"><select id="selFPPDmode"  onChange="SetFPPDmode();">
+          										<option id="optFPPDmode_Player" value="0">
+                              
+          										Player Mode</option>
+          										<option id="optFPPDmode_Bridge" value="1">
+          										Bridge Mode</option>
+          <td width = "40%">&nbsp;</td>
+          <td width = "15%">&nbsp;</td>
+        </tr>
         <tr>
           <td width = "20%"> FPPD Status: </td>
           <td id = "daemonStatus" width = "25%"></td>

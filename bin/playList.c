@@ -147,9 +147,18 @@ void PlayListPlayingLoop(void)
   playlistDetails.StopPlaylist = 0;
 	playlistDetails.ForceStop = 0;
   playlistDetails.playListCount = ReadPlaylist((char*)playlistDetails.currentPlaylistFile);
+	if(playlistDetails.playListCount == 0)
+	{
+		LogWrite("PlaylistCount = 0. Exiting PlayListPlayingLoop\n");
+		FPPstatus = FPP_STATUS_IDLE;
+		return;
+	}
+	
   if(playlistDetails.currentPlaylistEntry < 0 || playlistDetails.currentPlaylistEntry >= playlistDetails.playListCount)
 	{
-		playlistDetails.currentPlaylistEntry = 0;
+		LogWrite("currentPlaylistEntry is not valid\n");
+		FPPstatus = FPP_STATUS_IDLE;
+		return;
 	}
   while(!playlistDetails.StopPlaylist)
   {
@@ -239,7 +248,7 @@ void Play_PlaylistEntry(void)
 	{
 		if(FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY)
 		{ 
-			printf("Changing Status to Stopping Gracefully\n"); 
+			LogWrite("Changing Status to Stopping Gracefully\n"); 
 			playlistDetails.StopPlaylist = 1;
 			return;
 		}
@@ -250,8 +259,15 @@ void Play_PlaylistEntry(void)
   {
     case PL_TYPE_BOTH:
       currentSequenceFileSize=E131_OpenSequenceFile(playlistDetails.playList[playlistDetails.currentPlaylistEntry].seqName);
-      PlaylistPlaySong();
-      break;
+			if(currentSequenceFileSize > 0)
+			{
+      	PlaylistPlaySong();
+      }
+			else
+			{
+				CalculateNextPlayListEntry();
+			}
+			break;
     case PL_TYPE_MUSIC:
       PlaylistPlaySong();
       break;
@@ -330,6 +346,7 @@ int FileExists(char * File)
 	struct stat sts;
 	if (stat(File, &sts) == -1 && errno == ENOENT)
 	{
+			LogWrite("File does not exist: %s\n",File);
 			return 0;
 	}
 	else

@@ -167,11 +167,24 @@ else if($_GET['command'] == "shutdownPi")
 {
 	ShutdownPi();
 }
-
 else if($_GET['command'] == "setVolume")
 {
 	SetVolume($_GET['volume']);
 }
+else if($_GET['command'] == "setFPPDmode")
+{
+	SetFPPDmode($_GET['mode']);
+}
+else if($_GET['command'] == "getVolume")
+{
+	GetVolume();	
+}
+else if($_GET['command'] == "getFPPDmode")
+{
+	GetFPPDmode();	
+}
+
+
 
 
 
@@ -189,6 +202,7 @@ function RebootPi()
 
 function SetVolume($volume)
 {
+	WriteVolumeToFile($volume);
 	$status=exec("sudo fpp -v " . $volume);
 	$doc = new DomDocument('1.0');
   $root = $doc->createElement('Status');
@@ -196,6 +210,71 @@ function SetVolume($volume)
 	$value = $doc->createTextNode($status);
 	$value = $root->appendChild($value);
 	echo $doc->saveHTML();	
+}
+
+function SetFPPDmode($mode)
+{
+	WriteFPPDmodeToFile($mode);
+	$doc = new DomDocument('1.0');
+  $root = $doc->createElement('Status');
+	$root = $doc->appendChild($root);  
+	$value = $doc->createTextNode($status);
+	$value = $root->appendChild($value);
+	echo $doc->saveHTML();	
+}
+
+
+
+function GetVolume()
+{
+	$settings = file('/home/pi/media/settings');
+	if($settings != FALSE)
+	{
+		$temp = explode(",",$settings[0]);
+		$doc = new DomDocument('1.0');
+		$root = $doc->createElement('Volume');
+		$root = $doc->appendChild($root);  
+		$value = $doc->createTextNode($temp[1]);
+		$value = $root->appendChild($value);
+		echo $doc->saveHTML();	
+	}
+}
+
+function GetFPPDmode()
+{
+	$settings = file('/home/pi/media/settings');
+	if($settings != FALSE)
+	{
+		$temp = explode(",",$settings[0]);
+		$doc = new DomDocument('1.0');
+		$root = $doc->createElement('mode');
+		$root = $doc->appendChild($root);  
+		$value = $doc->createTextNode($temp[0]);
+		$value = $root->appendChild($value);
+		echo $doc->saveHTML();	
+	}
+}
+
+function WriteFPPDmodeToFile($mode)
+{
+	$settings = file('/home/pi/media/settings');
+	if($settings != FALSE)
+	{
+		$temp = explode(",",$settings[0]);
+		$settings[0] = sprintf("%d,%d,\n",$mode,$temp[1]);
+		file_put_contents('/home/pi/media/settings', implode('', $settings));
+	}
+}
+
+function WriteVolumeToFile($volume)
+{
+	$settings = file('/home/pi/media/settings');
+	if($settings != FALSE)
+	{
+		$temp = explode(",",$settings[0]);
+		$settings[0] = sprintf("%d,%d,\n",$temp[0],$volume);
+		file_put_contents('/home/pi/media/settings', implode('', $settings));
+	}
 }
 
 function ShutdownPi()
@@ -342,13 +421,14 @@ function GetFPPstatus()
 	
 	$entry = explode(",",$status,13);
 	$fppMode = $entry[0];
-	if($fppMode == 0)
-	{
+	//if($fppMode == 0)
+	//{
 		$fppStatus = $entry[1];
 		if($fppStatus == '0')
 		{
-			$nextPlaylist = $entry[2];
-			$nextPlaylistStartTime = $entry[3];
+			$volume = $entry[2];
+			$nextPlaylist = $entry[3];
+			$nextPlaylistStartTime = $entry[4];
 			$fppCurrentDate = GetLocalTime();	
 	
 			$doc = new DomDocument('1.0');
@@ -364,6 +444,12 @@ function GetFPPstatus()
 			$temp = $doc->createElement('fppStatus');
 			$temp = $root->appendChild($temp);  
 			$value = $doc->createTextNode($fppStatus);
+			$value = $temp->appendChild($value);
+
+			//FPPD Volume
+			$temp = $doc->createElement('volume');
+			$temp = $root->appendChild($temp);  
+			$value = $doc->createTextNode($volume);
 			$value = $temp->appendChild($value);
 	
 			// nextPlaylist
@@ -493,7 +579,7 @@ function GetFPPstatus()
 			return;
 		}
 		
-	}
+	//}
 	
 }
 

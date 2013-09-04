@@ -93,15 +93,18 @@ void GetLocalWiredIPaddress(char * IPaddress)
 {
 	FILE *fp;
   size_t len;
-	fp = popen("sudo ip addr show scope global | grep inet | cut -d' ' -f6 | cut -d/ -f1", "r");
- 	if (fp == NULL) 
+	fp = popen("/sbin/ifconfig|grep inet|head -1|sed 's/\:/ /'|awk '{print $3}'", "r");
+ 	
+	if (fp == NULL) 
 	{
+		LogWrite("Error getting Local IP Adress. popen returned %d\n",fp);
    	exit;
  	}
 	len = fread(IPaddress,1,64,fp);
 	// Remove '\n' by replacing with '\0'
+	LogWrite("\nIP=%s\n",IPaddress);
 	IPaddress[len-1] = '\0';
-  	pclose(fp);
+ 	pclose(fp);
 }
 
 
@@ -114,7 +117,7 @@ int E131_InitializeNetwork()
   sendSocket = socket(AF_INET, SOCK_DGRAM, 0);
   if (sendSocket < 0) 
   {
-    LogWrite("Error opening datagram sockets\n");
+    LogWrite("Error opening datagram socket\n");
 
     exit(1);
   }
@@ -124,7 +127,7 @@ int E131_InitializeNetwork()
   localAddress.sin_addr.s_addr = inet_addr(LocalAddress);
   if(bind(sendSocket, (struct sockaddr *) &localAddress, sizeof(struct sockaddr_in)) == -1)
   {
-    LogWrite("Error in bind\n");
+    LogWrite("Error in bind:errno=%d\n",errno);
   } 
 
   /* Disable loopback so I do not receive my own datagrams. */
@@ -173,6 +176,7 @@ int E131_OpenSequenceFile(const char * file)
   seqFile = fopen(currentSequenceFile, "r");
   if (seqFile == NULL) 
   {
+		LogWrite("Error opening sequence file/ fopen returned %d\n",seqFile);
     return 0;
   }
 	// Get Step Size
@@ -377,7 +381,7 @@ void UniversesPrint()
   for(i=0;i<UniverseCount;i++)
   {
     LogWrite("%d:%d:%d:%d:%d  %s\n",
-                                          universes[i].active,
+                                         universes[i].active,
                                           universes[i].universe,
                                           universes[i].size,
                                           universes[i].startAddress,

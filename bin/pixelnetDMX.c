@@ -14,7 +14,9 @@
 extern char fileData[65536];
 
 pthread_t pixelnetDMXthread;
-char PixelnetDMXHeader[] = {0xCC,0x55,0xCC,0x55,0xCC,0};
+char PixelnetDMXcontrolHeader[] = {0x55,0x55,0x55,0x55,0x55,0xCC};
+char PixelnetDMXdataHeader[] = {0xCC,0xCC,0xCC,0xCC,0xCC,0x55};
+
 
 char pixelnetDMXhasBeenSent = 0;
 char sendPixelnetDMXdata = 0;
@@ -69,8 +71,7 @@ void InitializePixelnetDMX()
 void SendPixelnetDMX(char sendBlankingData)
 {
 	int i;
-	memcpy(bufferPixelnetDMX,PixelnetDMXHeader,PIXELNET_HEADER_SIZE);
-	bufferPixelnetDMX[PIXELNET_DMX_COMMAND_INDEX]=PIXELNET_DMX_COMMAND_DATA;
+	memcpy(bufferPixelnetDMX,PixelnetDMXdataHeader,PIXELNET_HEADER_SIZE);
 	if(sendBlankingData)
 	{
 		memset(&bufferPixelnetDMX[PIXELNET_HEADER_SIZE],0,PIXELNET_DMX_DATA_SIZE);
@@ -93,8 +94,7 @@ void SendPixelnetDMXConfig()
 {
 	int i,index;
 	memset(bufferPixelnetDMX,0,PIXELNET_DMX_BUF_SIZE);
-	memcpy(bufferPixelnetDMX,PixelnetDMXHeader,PIXELNET_HEADER_SIZE);
-	bufferPixelnetDMX[PIXELNET_DMX_COMMAND_INDEX]=PIXELNET_DMX_COMMAND_CONFIG;
+	memcpy(bufferPixelnetDMX,PixelnetDMXcontrolHeader,PIXELNET_HEADER_SIZE);
 	index = PIXELNET_HEADER_SIZE;
 	for(i=0;i<pixelnetDMXcount;i++)
 	{

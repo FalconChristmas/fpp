@@ -4,6 +4,7 @@
 #include "schedule.h"
 #include "playList.h"
 #include "mpg123.h"
+#include "e131bridge.h"
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <stdio.h>
@@ -87,15 +88,15 @@ extern PlaylistDetails playlistDetails;
 		int volume;
 		char NextScheduleStartText[64];
 		char NextPlaylist[128];
-		GetNextScheduleStartText(NextScheduleStartText);
-		GetNextPlaylistText(NextPlaylist);
     switch(command[0])
     {
     case 's':
+			GetNextScheduleStartText(NextScheduleStartText);
+			GetNextPlaylistText(NextPlaylist);
       if(FPPstatus==FPP_STATUS_IDLE)
       {
-        sprintf(response,"%d,%d,%s,%s\n",FPPmode,FPPstatus,NextPlaylist,NextScheduleStartText);
-      }
+        sprintf(response,"%d,%d,%s,%s,%s\n",FPPmode,0,MPG123volume,NextPlaylist,NextScheduleStartText);
+			}
       else
       {
 				if(playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType == 'b' || playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType == 'm')
@@ -205,10 +206,16 @@ extern PlaylistDetails playlistDetails;
 			MPG_SetVolume(MPG123volume);
       sprintf(response,"%d,Setting Volume,,,,,,,,,,\n",COMMAND_SUCCESS);
       break;
+
+    case 'w':
+			LogWrite("Sending Pixelnet DMX info\n");
+			SendPixelnetDMXConfig();
+      break;
+
     }
     bytes_sent = sendto(socket_fd, response, strlen(response), 0,
                           (struct sockaddr *) &(client_address), sizeof(struct sockaddr_un));
-     //LogWrite(response);
+     LogWrite(response);
   }
 
 

@@ -29,12 +29,19 @@ extern char MPG123volume[4];
 int main()
 {
   CreateDaemon();
+	CheckExistanceOfDirectoriesAndFiles();
+	ReadFPPsettings(SettingsFile);
+  E131_Initialize();
+	InitializePixelnetDMX();
+  Command_Initialize();
 	if(FPPmode == PLAYER_MODE)
 	{
+		LogWrite("Starting Player Process\n");
 		PlayerProcess();
 	}
 	else
 	{
+		LogWrite("Starting Bridge Process\n");
 		Bridge_Process();
 	}
   return 0;
@@ -49,12 +56,7 @@ void PlayerProcess(void)
 		perror("sched_setscheduler");
 		exit(EXIT_FAILURE);  
 	}
-	CheckExistanceOfDirectoriesAndFiles();
-	ReadFPPsettings(SettingsFile);
   MusicInitialize();
-  E131_Initialize();
-  Command_Initialize();
-	InitializePixelnetDMX();
   LogWrite("Initialize E131 done\n");
 	CheckIfShouldBePlayingNow();
   while(1)
