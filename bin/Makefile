@@ -1,10 +1,5 @@
 CC := gcc
 
-LIBS  = 
-CFLAGS = -I.
-LDFLAGS =
-
-
 TARGETS = fpp fppd
 
 OBJECTS_fpp = \
@@ -18,7 +13,6 @@ OBJECTS_fppd = \
 	log.o \
 	E131.o \
 	mpg123.o \
-	pixelnetDMX.o \
 	playList.o \
 	schedule.o \
 	command.o \
@@ -26,22 +20,46 @@ OBJECTS_fppd = \
 	$(NULL)
 LIBS_fppd = \
 	-lpthread \
-	-lwiringPi \
 	-lm \
 	$(NULL)
+
+
+ARCH := $(shell uname -m)
+
+ifeq ($(ARCH), armv6l)
+# do something RaspPi-y
+OBJECTS_fppd += \
+	pixelnetDMX.o \
+	$(NULL)
+LIBS_fppd += \
+	-lwiringPi \
+	$(NULL)
+else
+ifeq ($(ARCH), i686)
+# do something Linux-y
+CFLAGS += \
+	-DNOROOT \
+	$(NULL)
+OBJECTS_fppd += \
+	pixelnetStubs.o \
+	$(NULL)
+else
+	$(error Unsupported architecture type)
+endif
+endif
 
 
 .PHONY: all
 all: $(TARGETS)
 
 fpp: $(OBJECTS_fpp)
-	$(CC) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
+	$(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
 
 fppd: $(OBJECTS_fppd)
-	$(CC) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
+	$(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
 
 %.o: %.c %.h Makefile
-	$(CC) -c $<  
+	$(CC) $(CFLAGS) -c $<
 
 clean:
 	rm -f $(OBJECTS_fpp) $(OBJECTS_fppd)
