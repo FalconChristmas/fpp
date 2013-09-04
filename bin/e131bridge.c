@@ -8,6 +8,8 @@
 #include <arpa/inet.h>
 #include <time.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 
 char unicastSocketCreated = 0;
@@ -37,7 +39,7 @@ extern char fileData[65536];
 			if (select(FD_SETSIZE, &read_fd_set, NULL, NULL, &timeout) < 0)
       {
        	//LogWrite("Select failed\n");
-       	return 0;
+       	return;
       }
 			if (FD_ISSET (sock, &read_fd_set))
 			{
