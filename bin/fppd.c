@@ -9,6 +9,7 @@
 #include "pixelnetDMX.h"
 #include "e131bridge.h"
 
+#include <errno.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -146,8 +147,13 @@ void CreateSettingsFile(char * file)
   FILE *fp;
 	char * settings = "0,100";			// Mode, Volume
 	char command[32];
-  fp = fopen(file, "w");
+	fp = fopen(file, "w");
 	LogWrite("Creating file: %s\n",file);
+	if ( !fp )
+	{
+		LogWrite("Couldn't open file for writing: %d\n", errno);
+		exit(errno);
+	}
 	fwrite(settings, 1, 4, fp);
 	fclose(fp);
 	sprintf(command,"sudo chmod 777 %s",file);
