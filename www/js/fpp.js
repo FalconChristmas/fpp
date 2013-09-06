@@ -1133,10 +1133,12 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 					if(status.childNodes.length> 0)
 					{
 						var fppMode = status.childNodes[0].textContent;
-						if(fppMode == 0)
+						if(fppMode == 0 )
 						{
 							$("#playerStatus").css("display","block");
 							$("#nextPlaylist").css("display","block");
+							$("#bytesTransferred").css("display","none");
+							
 							
 							var fppStatus = status.childNodes[1].textContent;
 							if(fppStatus == STATUS_IDLE)
@@ -1223,16 +1225,70 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 								}
 							}
 						}
-						else
+						else if (fppMode == 1)
 						{
 							$("#playerStatus").css("display","none");
 							$("#nextPlaylist").css("display","none");
+							$("#bytesTransferred").css("display","block");
+							
+							GetUniverseBytesReceived();
 						}
 					}
 				}
 			};
 			
 			xmlhttp.send();
+	}
+	
+	function GetUniverseBytesReceived()
+	{	
+		var html='';
+		var html1='';
+    var xmlhttp=new XMLHttpRequest();
+		var url = "fppxml.php?command=getUniverseReceivedBytes";
+		xmlhttp.open("GET",url,true);
+		xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+		xmlhttp.onreadystatechange = function () {
+			if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
+			{
+					var xmlDoc=xmlhttp.responseXML; 
+					var receivedBytes = xmlDoc.getElementsByTagName('receivedBytes')[0];
+					if(receivedBytes.childNodes.length> 0)
+					{
+						html =  "<table>";
+						html += "<tr id=\"rowReceivedBytesHeader\"><td>Universe</td><td>Start Address</td><td>Bytes Transferred</td>";
+
+						var i;	
+						for(i=0;i<receivedBytes.childNodes.length;i++)
+						{
+								if(i==32)
+								{
+									html += "</table>";
+									html1 = html;
+									html =  "<table>";
+									html += "<tr id=\"rowReceivedBytesHeader\"><td>Universe</td><td>Start Address</td><td>Bytes Transferred</td>";
+								}
+								var universe = receivedBytes.childNodes[i].childNodes[0].textContent;
+								var startChannel = receivedBytes.childNodes[i].childNodes[1].textContent;
+								var bytes = receivedBytes.childNodes[i].childNodes[2].textContent;
+								html += "<tr><td>" + universe + "</td>";
+								html += "<td>" + startChannel + "</td><td>" + bytes + "</td></tr>";
+						}
+						html += "</table>";
+					}
+					if(receivedBytes.childNodes.length>32)
+					{
+						$("#bridgeStatistics1").html(html1);
+						$("#bridgeStatistics2").html(html);
+					}
+					else
+					{
+						$("#bridgeStatistics1").html(html);
+						$("#bridgeStatistics2").html('');
+					}					
+			}
+		};
+		xmlhttp.send();
 	}
 	
 	function UpdateCurrentEntryPlaying(index,lastIndex)

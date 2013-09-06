@@ -130,6 +130,11 @@
       </table>
     </div>
     <hr>
+    <div id="bytesTransferred"><H3>Bytes Transferred</H3>
+    <div id="bridgeStatistics1"></div>
+    <div id="bridgeStatistics2"></div>
+    <div class="clear"></div>
+		</div>
     <div id="playerStatus">
       <table  width= "100%">
         <tr>

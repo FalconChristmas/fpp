@@ -188,6 +188,10 @@ void CheckExistanceOfDirectoriesAndFiles()
 	{
 		system("touch /home/pi/media/schedule");
 	}
+	if(!FileExists("/home/pi/media/bytesReceived"))
+	{
+		system("touch /home/pi/media/bytesReceived");
+	}
 	if(!FileExists(SettingsFile))
 	{
 		CreateSettingsFile(SettingsFile);

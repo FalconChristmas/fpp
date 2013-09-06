@@ -37,7 +37,7 @@ extern char fileData[65536];
 			if (select(FD_SETSIZE, &read_fd_set, NULL, NULL, &timeout) < 0)
       {
        	//LogWrite("Select failed\n");
-       	return 0;
+       	return;
       }
 			if (FD_ISSET (sock, &read_fd_set))
 			{
@@ -123,6 +123,7 @@ void Bridge_InitializeSockets()
 			memcpy((void *)(fileData+universes[universeIndex].startAddress-1),
 			       (void*)(bridgeBuffer+E131_HEADER_LENGTH),
 						  universes[universeIndex].size);
+			universes[universeIndex].bytesReceived+=universes[universeIndex].size;
 			//LogWrite("Storing StartAddress = %d size = %d\n",universes[universeIndex].startAddress,universes[universeIndex].size);
 		}
 		if(universe == universes[UniverseCount-1].universe)

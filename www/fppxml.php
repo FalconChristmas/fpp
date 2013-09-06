@@ -183,6 +183,10 @@ else if($_GET['command'] == "getFPPDmode")
 {
 	GetFPPDmode();	
 }
+else if($_GET['command'] == "getUniverseReceivedBytes")
+{
+	GetUniverseReceivedBytes();	
+}
 
 
 
@@ -222,8 +226,6 @@ function SetFPPDmode($mode)
 	$value = $root->appendChild($value);
 	echo $doc->saveHTML();	
 }
-
-
 
 function GetVolume()
 {
@@ -348,6 +350,48 @@ function StartPlaylist($playlist,$repeat,$playEntry)
 	$root = $doc->appendChild($root);  
 	$value = $doc->createTextNode('true');
 	$value = $root->appendChild($value);
+	echo $doc->saveHTML();	
+}
+
+function GetUniverseReceivedBytes()
+{
+	$status=exec("sudo fpp -r");
+	$file = file('/home/pi/media/bytesReceived');
+	if($file != FALSE)
+	{
+		$doc = new DomDocument('1.0');
+		$root = $doc->createElement('receivedBytes');
+		$root = $doc->appendChild($root);  
+		for($i=0;$i<count($file);$i++)
+		{
+			$receivedBytes = explode(",",$file[$i]);
+			$receivedInfo = $doc->createElement('receivedInfo');
+			$receivedInfo = $root->appendChild($receivedInfo); 
+			// universe
+			$universe = $doc->createElement('universe');
+			$universe = $receivedInfo->appendChild($universe);
+			$value = $doc->createTextNode($receivedBytes[0]);
+			$value = $universe->appendChild($value);
+			// startChannel
+			$startChannel = $doc->createElement('startChannel');
+			$startChannel = $receivedInfo->appendChild($startChannel);
+			$value = $doc->createTextNode($receivedBytes[1]);
+			$value = $startChannel->appendChild($value);
+			// bytes received
+			$bytesReceived = $doc->createElement('bytesReceived');
+			$bytesReceived = $receivedInfo->appendChild($bytesReceived);
+			$value = $doc->createTextNode($receivedBytes[2]);
+			$value = $bytesReceived->appendChild($value);
+			//Add it to receivedBytes 
+		}
+	}
+	else
+	{
+		$root = $doc->createElement('Status');
+		$root = $doc->appendChild($root);  
+		$value = $doc->createTextNode('false');
+		$value = $root->appendChild($value);
+	}
 	echo $doc->saveHTML();	
 }
 

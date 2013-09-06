@@ -30,6 +30,7 @@ typedef struct{
     int startAddress;
 		int type;
     char unicastAddress[16];
+		unsigned long bytesReceived;
 }UniverseEntry;
 
 void GetLocalWiredIPaddress(char * IPaddress);
@@ -44,7 +45,7 @@ void Playlist_SyncToMusic();
 void LoadUniversesFromFile();
 void UniversesPrint();
 float customRounding(float value, float roundingValue);
-
-
+void ResetBytesReceived();
+void WriteBytesReceivedFile();
 
 #endif
