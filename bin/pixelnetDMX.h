@@ -10,7 +10,7 @@
 #define PIXELNET_DMX_COMMAND_DATA		0xFF
 
 void InitializePixelnetDMX();
-void CreatePixelnetDMXfile(char * file);
+void CreatePixelnetDMXfile(const char * file);
 void SendPixelnetDMX(char sendBlankingData);
 void SendPixelnetDMXConfig();
 void LoadPixelnetDMXsettingsFromFile();

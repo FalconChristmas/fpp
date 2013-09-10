@@ -5,6 +5,8 @@
 #include "playList.h"
 #include "mpg123.h"
 #include "e131bridge.h"
+#include "settings.h"
+
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <stdio.h>
@@ -17,13 +19,10 @@
 #include <stdlib.h>
 
 extern int FPPstatus;
-extern int FPPmode;
-
 
 extern PlaylistDetails playlistDetails;
 
 extern struct mpg123_type mpg123;
-extern char MPG123volume[4];
 extern int E131secondsElasped;
 extern int E131secondsRemaining;
 extern int numberOfSecondsPaused;
@@ -84,7 +83,6 @@ extern PlaylistDetails playlistDetails;
   void ProcessCommand()
   {
     char *s;
-		int volume;
 		char NextScheduleStartText[64];
 		char NextPlaylist[128];
     switch(command[0])
@@ -94,14 +92,14 @@ extern PlaylistDetails playlistDetails;
 				GetNextPlaylistText(NextPlaylist);
 				if(FPPstatus==FPP_STATUS_IDLE)
 				{
-					sprintf(response,"%d,%d,%s,%s,%s\n",FPPmode,0,MPG123volume,NextPlaylist,NextScheduleStartText);
+					sprintf(response,"%d,%d,%d,%s,%s\n",getFPPmode(),0,getVolume(),NextPlaylist,NextScheduleStartText);
 				}
 				else
 				{
 					if(playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType == 'b' || playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType == 'm')
 					{
-						sprintf(response,"%d,%d,%s,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s\n",
-										FPPmode,FPPstatus,MPG123volume,playlistDetails.currentPlaylist,
+						sprintf(response,"%d,%d,%d,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s\n",
+										getFPPmode(),FPPstatus,getVolume(),playlistDetails.currentPlaylist,
 										playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType,
 										playlistDetails.playList[playlistDetails.currentPlaylistEntry].seqName,
 										playlistDetails.playList[playlistDetails.currentPlaylistEntry].songName,
@@ -110,7 +108,7 @@ extern PlaylistDetails playlistDetails;
 					}
 					else if (playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType == 's')
 					{
-						sprintf(response,"%d,%d,%s,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s\n",FPPmode,FPPstatus,MPG123volume,
+						sprintf(response,"%d,%d,%d,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s\n",getFPPmode(),FPPstatus,getVolume(),
 										playlistDetails.currentPlaylist,playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType,
 										playlistDetails.playList[playlistDetails.currentPlaylistEntry].seqName,playlistDetails.playList[playlistDetails.currentPlaylistEntry].songName,
 										playlistDetails.currentPlaylistEntry+1,playlistDetails.playListCount,E131secondsElasped,E131secondsRemaining,
@@ -118,7 +116,7 @@ extern PlaylistDetails playlistDetails;
 					}
 					else
 					{			
-						sprintf(response,"%d,%d,%s,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s\n",FPPmode,FPPstatus,MPG123volume,playlistDetails.currentPlaylist,
+						sprintf(response,"%d,%d,%d,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s\n",getFPPmode(),FPPstatus,getVolume(),playlistDetails.currentPlaylist,
 										playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType,
 										playlistDetails.playList[playlistDetails.currentPlaylistEntry].seqName,
 										playlistDetails.playList[playlistDetails.currentPlaylistEntry].songName,	
@@ -201,8 +199,8 @@ extern PlaylistDetails playlistDetails;
 			case 'v':
 				s = strtok(command,",");
 				s = strtok(NULL,",");
-				strcpy(MPG123volume,s);
-				MPG_SetVolume(MPG123volume);
+				setVolume(atoi(s));
+				MPG_SetVolume(getVolume());
 				sprintf(response,"%d,Setting Volume,,,,,,,,,,\n",COMMAND_SUCCESS);
 				break;
 	

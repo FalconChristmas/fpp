@@ -1,12 +1,10 @@
 #include "log.h"
+#include "settings.h"
 
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdarg.h>
 #include <time.h>
-
-FILE *logFile;
-const char *filename = "/home/pi/media/fppLog.txt";
 
 static bool verbose = false;
 static bool foreground = true;
@@ -28,7 +26,9 @@ void _LogWrite(char *file, int line, const char *format, ...)
 
 	if ( ! foreground )	
 	{
-		logFile = fopen(filename, "a");
+		FILE *logFile;
+
+		logFile = fopen((const char *)getLogFile(), "a");
 		fprintf(logFile, "%s  %s:%d:",timeStr, file, line);
 		va_start(arg, format);
 		fprintf(logFile, format, arg);

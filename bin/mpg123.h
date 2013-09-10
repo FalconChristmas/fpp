@@ -30,7 +30,7 @@ void MusicInitialize(void);
 void StopMusic(int k);
 void  MPG_PlaySong();
 void MPG_StopSong(void);
-void MPG_SetVolume(char * volume);
+void MPG_SetVolume(int volume);
 void MPG_UpdateStatus();
 
 #ifdef CMD_PLAY

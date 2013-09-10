@@ -1,9 +1,10 @@
 <?php
+require_once('config.php');
 require_once('playlistentry.php');
 //require_once('pi_functions.php');
-$a = session_id();
 
-if(empty($a)) session_start();
+$a = session_id();
+if(empty($a))
 {
 	session_start();
 }
@@ -140,8 +141,9 @@ $(document).ready(function () {
 <?php 
   function PrintMusicOptions()
   {
+	  global $musicDirectory;
 		echo "<select id=\"selAudio\" size=\"1\">";
-    foreach(scandir('/home/pi/media/music') as $songFile) 
+    foreach(scandir($musicDirectory) as $songFile) 
     {
       if($songFile != '.' && $songFile != '..')
       {
@@ -153,8 +155,9 @@ $(document).ready(function () {
   
   function PrintSequenceOptions()
   {
+	  global $sequenceDirectory;
 		echo "<select id=\"selSequence\" size=\"1\">";
-    foreach(scandir('/home/pi/media/sequences') as $seqFile) 
+    foreach(scandir($sequenceDirectory) as $seqFile) 
     {
       if($seqFile != '.' && $seqFile != '..')
       {

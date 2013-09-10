@@ -913,8 +913,8 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			var playListArr = new Array();
 			xmlhttp.open("GET",url,false);
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-			xmlhttp.send();
 
+			xmlhttp.onreadystatechange = function() {
 			var xmlDoc=xmlhttp.responseXML; 
 			var playlist = xmlDoc.getElementsByTagName('Playlists')[0];
 			PlaylistCount =playlist.childNodes.length;
@@ -926,6 +926,9 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 				}
 			}
 			playListArray = playListArr;
+			};
+
+			xmlhttp.send();
 		}
 
 	function AddScheduleEntry()
@@ -1620,7 +1623,6 @@ function GetFPPDmode()
 			}
 		};
 		xmlhttp.send();
-
 }
 
 

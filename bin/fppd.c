@@ -8,8 +8,8 @@
 #include "schedule.h"
 #include "pixelnetDMX.h"
 #include "e131bridge.h"
+#include "settings.h"
 
-#include <errno.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -21,31 +21,49 @@
 
 pid_t pid, sid;
 int FPPstatus=FPP_STATUS_IDLE;
-int FPPmode=PLAYER_MODE;
 
-//Settings 
-char * SettingsFile = "/home/pi/media/settings";
-extern char MPG123volume[4];
-
-int main()
+int main(int argc, char *argv[])
 {
-  CreateDaemon();
+	// Parse our arguments first, override any defaults
+	parseArguments(argc, argv);
+
+	printSettings();
+
+	// Now load things from our settings file, only load
+	// things that haven't already been set by the command
+	// line which should take presidence
+	loadSettings(getSettingsFile());
+
+	printSettings();
+
+	// Start functioning
+	if (getDaemonize())
+	    CreateDaemon();
+
 	CheckExistanceOfDirectoriesAndFiles();
-	ReadFPPsettings(SettingsFile);
-  E131_Initialize();
+
+	E131_Initialize();
+
 	InitializePixelnetDMX();
-  Command_Initialize();
-	if(FPPmode == PLAYER_MODE)
+
+	Command_Initialize();
+
+	if (getFPPmode() == PLAYER_MODE)
 	{
 		LogWrite("Starting Player Process\n");
 		PlayerProcess();
 	}
-	else
+	else if (getFPPmode() == BRIDGE_MODE)
 	{
 		LogWrite("Starting Bridge Process\n");
 		Bridge_Process();
 	}
-  return 0;
+	else
+	{
+		LogWrite("Invalid mode, quitting\n");
+	}
+
+	return 0;
 }
 
 void PlayerProcess(void)
@@ -112,96 +130,4 @@ void CreateDaemon(void)
   close(STDIN_FILENO);
   close(STDOUT_FILENO);
   close(STDERR_FILENO);
-}
-
-int ReadFPPsettings(char const * file)
-{
-  FILE *fp;
-  int listIndex=0;
-  char buf[128];
-  char *s;
-  LogWrite("Opening Settings Now %s\n",file);
-  fp = fopen(file, "r");
-  if (fp == NULL) 
-  {
-    LogWrite("Could not open settings file %s\n",file);
-  	return 0;
-  }
-	// Parse Settings
-	fgets(buf, 128, fp);
-  s=strtok(buf,",");
-  FPPmode = atoi(s);
-  s = strtok(NULL,",");
-	if(atoi(s) > 100)
-	{
-		strcpy(MPG123volume,"75");
-	}
-	else
-	{
-		strcpy(MPG123volume,s);
-	}
-	LogWrite("Mode=%d Volume=%s\n",FPPmode,MPG123volume);
-  fclose(fp);
-}
-
-void CreateSettingsFile(char * file)
-{
-  FILE *fp;
-	char * settings = "0,100";			// Mode, Volume
-	char command[32];
-	fp = fopen(file, "w");
-	LogWrite("Creating file: %s\n",file);
-	if ( !fp )
-	{
-		LogWrite("Couldn't open file for writing: %d\n", errno);
-		exit(errno);
-	}
-	fwrite(settings, 1, 4, fp);
-	fclose(fp);
-	sprintf(command,"sudo chmod 777 %s",file);
-	system(command);
-}
-
-void CheckExistanceOfDirectoriesAndFiles()
-{
-	if(!DirectoryExists("/home/pi/media"))
-	{
-		mkdir("/home/pi/media", 0777);
-		LogWrite("Directory FPP Does Not Exist\n");
-	}
-	if(!DirectoryExists("/home/pi/media/music"))
-	{
-		mkdir("/home/pi/media/music", 0777);
-		LogWrite("Directory Music Does Not Exist\n");
-	}
-	if(!DirectoryExists("/home/pi/media/sequences"))
-	{
-		mkdir("/home/pi/media/sequences", 0777);
-		LogWrite("Directory sequences Does Not Exist\n");
-	}
-	if(!DirectoryExists("/home/pi/media/playlists"))
-	{
-		mkdir("/home/pi/media/playlists", 0777);
-		LogWrite("Directory playlists Does Not Exist\n");
-	}
-	if(!FileExists("/home/pi/media/universes"))
-	{
-		system("touch /home/pi/media/universes");
-	}
-	if(!FileExists("/home/pi/media/pixelnetDMX"))
-	{
-		CreatePixelnetDMXfile("/home/pi/media/pixelnetDMX");
-	}
-	if(!FileExists("/home/pi/media/schedule"))
-	{
-		system("touch /home/pi/media/schedule");
-	}
-	if(!FileExists("/home/pi/media/bytesReceived"))
-	{
-		system("touch /home/pi/media/bytesReceived");
-	}
-	if(!FileExists(SettingsFile))
-	{
-		CreateSettingsFile(SettingsFile);
-	}
 }

@@ -5,7 +5,7 @@
 #include <sys/types.h>
 #include <stdlib.h>
 
-void CreatePixelnetDMXfile(char * file)
+void CreatePixelnetDMXfile(const char * file)
 {
 	LogWrite("Create PixelnetDMX File stub: %s\n",file);
 }

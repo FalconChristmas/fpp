@@ -1,3 +1,6 @@
+<?php
+require_once('config.php');
+?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
@@ -124,7 +127,7 @@ h2 {
   <script type="text/javascript">
 $('#uploader_div').ajaxupload({
 	url:'upload.php',
-	remotePath:'/home/pi/media/upload/',
+	remotePath:'<?php global $mediaDirectory; echo $mediaDirectory; ?>upload/',
 	removeOnSuccess: true,
 	maxFileSize:'10000M',
 	chunkSize:1048576,

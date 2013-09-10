@@ -1,10 +1,42 @@
 <?php
-if (($_POST[password1] != "") && ($_POST[password1] == $_POST[password2]))
+
+$thisdir = dirname(__FILE__);
+
+// No other checking here, we're assuming that since they're able to POST apache has
+// already taken care of validating a user.
+if ( !empty($_POST) && $_POST["password"] == "disabled" )
+{
+  shell_exec("rm -f $thisdir/.htpasswd $thisdir/.htaccess");
+}
+
+if ( isset($_POST['password1']) && isset($_POST['password2']))
+{
+  if (($_POST['password1'] != "") && ($_POST['password1'] == $_POST['password2']))
   {
     // true - setup .htaccess & save it
-	file_put_contents("/home/pi/www/.htaccess", "AuthUserFile /home/pi/www/.htpasswd\nAuthType Basic\nAuthName FPP-GUI\nRequire valid-user\n");
-    $setpassword = shell_exec('htpasswd -cbd /home/pi/www/.htpasswd admin ' . $_POST['password1']);
+    file_put_contents("$thisdir/.htaccess", "AuthUserFile $thisdir/.htpasswd\nAuthType Basic\nAuthName FPP-GUI\nRequire valid-user\n");
+    $setpassword = shell_exec("htpasswd -cbd $thisdir/.htpasswd admin " . $_POST['password1']);
   }
+}
+
+function checked_if_equal($value1, $value2)
+{
+  if ( $value1 == $value2 )
+  {
+    echo "checked=\"checked\"";
+  }
+}
+
+function hide_if_equal($value1, $value2)
+{
+  if ( $value1 == $value2 )
+  {
+    echo "style=\"display: none\"";
+  }
+}
+
+$pw = file_exists("$thisdir/.htpasswd");
+
 ?>
 
 <!DOCTYPE html>

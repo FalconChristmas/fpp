@@ -17,6 +17,7 @@ OBJECTS_fppd = \
 	schedule.o \
 	command.o \
 	e131bridge.o \
+	settings.o \
 	$(NULL)
 LIBS_fppd = \
 	-lpthread \
@@ -35,16 +36,17 @@ LIBS_fppd += \
 	-lwiringPi \
 	$(NULL)
 else
-ifeq ($(ARCH), i686)
+ifeq ($(filter-out i686 x86_64, $(ARCH)),)
 # do something Linux-y
 CFLAGS += \
+	-g \
 	-DNOROOT \
 	$(NULL)
 OBJECTS_fppd += \
 	pixelnetStubs.o \
 	$(NULL)
 else
-	$(error Unsupported architecture type)
+	VAR := $(error Unsupported architecture type)
 endif
 endif
 

@@ -2,6 +2,8 @@
 #include "E131.h"
 #include "playList.h"
 #include "mpg123.h"
+#include "settings.h"
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -13,7 +15,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
-#include <math.h> 
+#include <math.h>
 
 // external variables
 extern struct mpg123_type mpg123;
@@ -28,16 +30,13 @@ extern char pixelnetDMXhasBeenSent;
 extern char sendPixelnetDMXdata;
 
 
-char * universeFile = "/home/pi/media/universes";
-const char *bytesReceivedFile = "/home/pi/media/bytesReceived";
 int E131status = E131_STATUS_IDLE;
 
 struct sockaddr_in    localAddress;
 struct sockaddr_in    E131address[MAX_UNIVERSE_COUNT];
 int                   sendSocket;
 
-char * sequenceFolder = "/home/pi/media/sequences/";
-char currentSequenceFile[128];
+char currentSequenceFile[128];//FIXME
 
 
 const char  E131header[] = {
@@ -172,9 +171,9 @@ int E131_OpenSequenceFile(const char * file)
   {
     E131_CloseSequenceFile(); // Close if open
   }
-  strcpy(currentSequenceFile,sequenceFolder);
+  strcpy(currentSequenceFile,(const char *)getSequenceDirectory());
   strcat(currentSequenceFile,file);
-  seqFile = fopen(currentSequenceFile, "r");
+  seqFile = fopen((const char *)currentSequenceFile, "r");
   if (seqFile == NULL) 
   {
 		LogWrite("Error opening sequence file/ fopen returned %d\n",seqFile);
@@ -329,11 +328,11 @@ void LoadUniversesFromFile()
   UniverseCount=0;
 	char active =0;
 
-  LogWrite("Opening File Now %s\n",universeFile);
-  fp = fopen(universeFile, "r");
+  LogWrite("Opening File Now %s\n",getUniverseFile());
+  fp = fopen((const char *)getUniverseFile(), "r");
   if (fp == NULL) 
   {
-    LogWrite("Could not open universe file %s\n",universeFile);
+    LogWrite("Could not open universe file %s\n",getUniverseFile());
   	return;
   }
   while(fgets(buf, 512, fp) != NULL)
@@ -388,7 +387,7 @@ void ResetBytesReceived()
 	{
 		int i;
 		FILE *file;
-		file = fopen(bytesReceivedFile, "w");
+		file = fopen((const char *)getBytesFile(), "w");
 		for(i=0;i<UniverseCount;i++)
 		{
 			if(i==UniverseCount-1)

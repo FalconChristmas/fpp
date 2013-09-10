@@ -4,6 +4,8 @@
 #include "command.h"
 #include "playList.h"
 #include "mpg123.h"
+#include "settings.h"
+
 #include <time.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -13,7 +15,6 @@
 
 
 
-char * scheduleFile = "/home/pi/media/schedule";
 ScheduleEntry Schedule[MAX_SCHEDULE_ENTRIES];
 SchedulePlaylistDetails currentSchedulePlaylist,nextSchedulePlaylist;
 int ScheduleEntryCount=0;
@@ -295,8 +296,8 @@ void LoadScheduleFromFile()
   char *s;
   ScheduleEntryCount=0;
   int day;
- // LogWrite("Opening File Now %s\n",scheduleFile);
-  fp = fopen(scheduleFile, "r");
+  LogWrite("Opening File Now %s\n",getScheduleFile());
+  fp = fopen((const char *)getScheduleFile(), "r");
   if (fp == NULL) 
   {
 		return;

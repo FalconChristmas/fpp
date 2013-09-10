@@ -3,16 +3,14 @@
 #include "log.h"
 #include "E131.h"
 #include "playList.h"
+#include "settings.h"
+
 #include <unistd.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
-
-char * musicFolder = "/home/pi/media/music/";
-char * silenceMusic = "/home/pi/media/music/silence.mp3";
-char MPG123volume[4];
 
 char currentSong[128];
 char currentSongPath[128];
@@ -34,7 +32,7 @@ struct mpg123_type mpg123_init( ) {
    pipe(fromprog);
 
    childpid = fork();
-   
+
    if ( childpid == 0 ) {
       close(toprog[1]);
       close(fromprog[0]);
@@ -44,7 +42,7 @@ struct mpg123_type mpg123_init( ) {
       if ( dup2(fromprog[1],1) == -1 ) {
          perror("dup2");
       }
-      execlp("/usr/bin/mpg123", "mpg123", "-R", ".", NULL);
+      execlp((const char *)getMPG123Path(), "mpg123", "-R", ".", NULL);
       perror("execl");
       exit(0);
    } else {
@@ -66,7 +64,6 @@ struct mpg123_type mpg123_init( ) {
 
 void mpg123_cmd( struct mpg123_type prog, int cmd, char *arg)
 {
-   
    switch (cmd) {
       case CMD_PLAY:
          if ( mpg123.playstat == PLAY_PAUSE ) {
@@ -89,12 +86,12 @@ void mpg123_cmd( struct mpg123_type prog, int cmd, char *arg)
          strcpy(mCommand, "PAUSE\n");
          break;
       case CMD_VOLUME:
-         sprintf(mCommand, "VOLUME %s\n", arg);
+         sprintf(mCommand, "VOLUME %u\n", (int)arg);
          break;
       default:
          LogWrite("mpg123_cmd(): uknown command: %d\n", cmd);
          return;
-      
+
    }
    write(prog.topipe, mCommand, strlen(mCommand));
 }
@@ -173,7 +170,7 @@ void  MPG_PlaySong()
     LogWrite("Changing Status to Queued\n");
     mpg123.playstat = PLAY_PLAY;
     // Create for path of song 
-    strcpy(currentSongPath,musicFolder);
+    strcpy(currentSongPath,(const char *)getMusicDirectory());
     strcat(currentSongPath,currentSong);
     LogWrite("Starting Song = %s\n",currentSongPath);
     // Send command to play song    
@@ -188,10 +185,10 @@ void MPG_StopSong(void)
 	MusicPlayerStatus = IDLE_MPLAYER_STATUS;
 }
 
-void MPG_SetVolume(char * volume)
+void MPG_SetVolume(int volume)
 {
   LogWrite("Setting Volume\n");
-  mpg123_cmd(mpg123,CMD_VOLUME,volume);
+  mpg123_cmd(mpg123,CMD_VOLUME,(char *)volume);
 }
 
 
