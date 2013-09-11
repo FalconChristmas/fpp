@@ -171,6 +171,7 @@ void  MPG_PlaySong()
     mpg123.playstat = PLAY_PLAY;
     // Create for path of song 
     strcpy(currentSongPath,(const char *)getMusicDirectory());
+    strcat(currentSongPath,"/");
     strcat(currentSongPath,currentSong);
     LogWrite("Starting Song = %s\n",currentSongPath);
     // Send command to play song    

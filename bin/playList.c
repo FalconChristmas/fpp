@@ -86,6 +86,7 @@ int ReadPlaylist(char const * file)
   char *s;
   // Put together playlist file with default folder
   strcpy((char*)playlistDetails.currentPlaylist,(const char *)getPlaylistDirectory());
+  strcat((char*)playlistDetails.currentPlaylist,"/");
   strcat((char*)playlistDetails.currentPlaylist,file);
 
   LogWrite("Opening File Now %s\n",playlistDetails.currentPlaylist);

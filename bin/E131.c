@@ -172,11 +172,12 @@ int E131_OpenSequenceFile(const char * file)
     E131_CloseSequenceFile(); // Close if open
   }
   strcpy(currentSequenceFile,(const char *)getSequenceDirectory());
+  strcat(currentSequenceFile,"/");
   strcat(currentSequenceFile,file);
   seqFile = fopen((const char *)currentSequenceFile, "r");
   if (seqFile == NULL) 
   {
-		LogWrite("Error opening sequence file/ fopen returned %d\n",seqFile);
+		LogWrite("Error opening sequence file: %s fopen returned %d\n",currentSequenceFile,seqFile);
     return 0;
   }
 	// Get Step Size
