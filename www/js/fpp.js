@@ -384,6 +384,8 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			var	seqFile = document.getElementById("selSequence").value;
 			var	songFile = document.getElementById("selAudio").value;
 			var	pause = document.getElementById("txtPause").value;
+			if ( ! pause )
+				pause = false;
 			var url = "fppxml.php?command=addPlaylistEntry&type=" + type + "&seqFile=" + 
 			           encodeURIComponent(seqFile) + "&songFile=" + 
 								 encodeURIComponent(songFile) + "&pause=" + pause;

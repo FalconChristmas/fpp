@@ -7,6 +7,8 @@ require_once('universeentry.php');
 require_once('scheduleentry.php');
 require_once('pixelnetdmxentry.php');
 
+//define('debug', true);
+
 header('Content-type: text/xml');
 
 $a = session_id();
@@ -62,6 +64,8 @@ if ( isset($_GET['command']) && !empty($_GET['command']) )
 {
 	if ( array_key_exists($_GET['command'],$command_array) )
 	{
+		if ( defined('debug') )
+			error_log("Calling ".$_GET['command']);
 		call_user_func($command_array[$_GET['command']]);
 	}
 	return;
@@ -359,7 +363,8 @@ function StartFPPD()
 	$status=exec("if ps cax | grep -q fppd; then echo \"true\"; else echo \"false\"; fi");
 	if($status == 'false')
 	{
-		$status=exec("nice -n -20 ".dirname(dirname(__FILE__))."/bin/fppd --config-file /home/mmrosko/Projects/raspberrypi/FalconPiPlayer/fpp/bin/config >/dev/null");
+		$thisdir = dirname(dirname(__FILE__));
+		$status=exec("nice -n -20 ".dirname(dirname(__FILE__))."/bin/fppd --config-file $dir/bin/config >/dev/null");
 	}
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('Status');
