@@ -89,8 +89,8 @@ function check($var)
 {
 	if ( empty($var) || !isset($var) )
 	{
-		error_log("Variable we checked was empty");
-		die();
+		error_log("WARNING: Variable we checked in function '".$_GET['command']."' was empty");
+//		die();
 	}
 }
 
@@ -696,6 +696,7 @@ function LoadScheduleFile()
 	$f=fopen($scheduleFile,"r");
 	if($f == FALSE)
 	{
+		die();
 	}
 
 	while (!feof($f))
