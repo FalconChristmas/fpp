@@ -210,16 +210,15 @@ extern PlaylistDetails playlistDetails;
 				break;
 	
 			case 'r':
-				printf("Hello r\n");
 				WriteBytesReceivedFile();
-				sprintf(response,"true");
+				sprintf(response,"true\n");
 				break;
 			default:
-				sprintf(response,"Invalid command");
+				sprintf(response,"Invalid command\n");
 		}
   	bytes_sent = sendto(socket_fd, response, strlen(response), 0,
                           (struct sockaddr *) &(client_address), sizeof(struct sockaddr_un));
-  	LogWrite(response);
+	LogWrite("%c %s", command[0], response);
   }
 
   void exit_handler(int signum)
