@@ -94,7 +94,7 @@ void GetLocalWiredIPaddress(char * IPaddress)
 {
 	FILE *fp;
   size_t len;
-	fp = popen("/sbin/ifconfig|grep inet|head -1|sed 's/\:/ /'|awk '{print $3}'", "r");
+	fp = popen("/sbin/ifconfig|grep inet|head -1|sed 's/\\:/ /'|awk '{print $3}'", "r");
  	
 	if (fp == NULL) 
 	{
@@ -220,7 +220,7 @@ void E131_SetTimer(int us)
   tout_val.it_value.tv_sec = 0; 
   tout_val.it_value.tv_usec = us;
   setitimer(ITIMER_REAL, &tout_val,0);
-  signal(SIGALRM,E131_Send);            
+  signal(SIGALRM,(__sighandler_t)E131_Send);
 }
 
 void E131_Send()
