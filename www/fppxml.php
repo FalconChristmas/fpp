@@ -111,7 +111,7 @@ function SetVolume()
 	check($volume);
 
 	WriteVolumeToFile($volume);
-	$status=exec("fpp -v " . $volume);
+	$status=exec(dirname(dirname(__FILE__))."/bin/fpp -v " . $volume);
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('Status');
 	$root = $doc->appendChild($root);
@@ -266,11 +266,11 @@ function StartPlaylist()
 
 	if($repeat == "checked")
 	{
-		$status=exec("fpp -p '" . $playlist . "," . $playEntry . "'");
+		$status=exec(dirname(dirname(__FILE__))."/bin/fpp -p '" . $playlist . "," . $playEntry . "'");
 	}
 	else
 	{
-		$status=exec("fpp -P '" . $playlist . "," . $playEntry . "'");
+		$status=exec(dirname(dirname(__FILE__))."/bin/fpp -P '" . $playlist . "," . $playEntry . "'");
 	}
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('Status');
@@ -284,7 +284,7 @@ function GetUniverseReceivedBytes()
 {
 	global $bytesFile;
 
-	$status=exec("sudo fpp -r");
+	$status=exec(dirname(dirname(__FILE__))."/bin/fpp -r");
 	$file = file($bytesFile);
 	if($file != FALSE)
 	{
@@ -326,7 +326,7 @@ function GetUniverseReceivedBytes()
 
 function StopGracefully()
 {
-	$status=exec("fpp -S");
+	$status=exec(dirname(dirname(__FILE__))."/bin/fpp -S");
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('Status');
 	$root = $doc->appendChild($root);
@@ -337,7 +337,7 @@ function StopGracefully()
 
 function StopNow()
 {
-	$status=exec("fpp -d");
+	$status=exec(dirname(dirname(__FILE__))."/bin/fpp -d");
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('Status');
 	$root = $doc->appendChild($root);
@@ -641,7 +641,7 @@ function SaveSchedule()
 
 function FPPDreloadSchedule()
 {
-	$status=exec("fpp -R");
+	$status=exec(dirname(dirname(__FILE__))."/bin/fpp -R");
 }
 
 function SaveScheduleToFile()
