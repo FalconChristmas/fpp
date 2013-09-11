@@ -6,8 +6,7 @@
 #include <stdarg.h>
 #include <time.h>
 
-static bool verbose = false;
-static bool foreground = true;
+
 void _LogWrite(char *file, int line, const char *format, ...)
 {
 	va_list arg;
@@ -16,7 +15,7 @@ void _LogWrite(char *file, int line, const char *format, ...)
 	char timeStr[32];
 	sprintf(timeStr,"%.2d-%.2d-%d %.2d:%.2d:%.2d",
 	                tm.tm_mon+1,tm.tm_mday,tm.tm_year,tm.tm_hour,tm.tm_min,tm.tm_sec);
-	if ( verbose )
+	if ( getVerbose() )
 	{
 		fprintf(stdout, "%s  %s:%d:", timeStr, file, line);
 		va_start(arg, format);
@@ -24,7 +23,7 @@ void _LogWrite(char *file, int line, const char *format, ...)
 		va_end(arg);
 	}
 
-	if ( ! foreground )	
+	if ( getDaemonize() )	
 	{
 		FILE *logFile;
 
