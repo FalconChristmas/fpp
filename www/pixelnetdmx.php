@@ -7,7 +7,7 @@ if(empty($a)) session_start();
 	session_start();
 }
 $_SESSION['session_id'] = session_id();
-ini_set('display_errors', 'On');
+//ini_set('display_errors', 'On');
 error_reporting(E_ALL);
 ?>
 

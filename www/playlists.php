@@ -9,7 +9,7 @@ if(empty($a))
 	session_start();
 }
 $_SESSION['session_id'] = session_id();
-ini_set('display_errors', 'On');
+//ini_set('display_errors', 'On');
 error_reporting(E_ALL);
 SetSetting("settings.xml","mysetting","hellow2");
 
@@ -47,13 +47,6 @@ function SetSetting($file,$varName,$varValue)
 <html xmlns="http://www.w3.org/1999/xhtml">
     <head>
     <?php	include 'common/menuHead.inc'; ?>
-    <?php
-ini_set('display_errors', 'On');
-error_reporting(E_ALL);
-
-
-
-?>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <link rel="stylesheet" href="http://code.jquery.com/ui/1.10.2/themes/smoothness/jquery-ui.css" />
     <script type="text/javascript" src="js/fpp.js"></script>
