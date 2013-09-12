@@ -261,7 +261,7 @@ int parseArguments(int argc, char **argv)
 
 int loadSettings(const char *filename)
 {
-	FILE *file = fopen (filename, "r");
+	FILE *file = fopen(filename, "r");
 
 	if (file != NULL)
 	{
@@ -599,12 +599,12 @@ void setVolume(int volume)
 int saveSettingsFile(void)
 {
 	char buffer[1024]; //TODO: Fix this!!
-  int bytes;
+	int bytes;
 
 	FILE *fd = fopen(getSettingsFile(),"w");
 	if ( ! fd )
 	{
-		fprintf(stderr, "Failed to create new config file\n");
+		fprintf(stderr, "Failed to create config file: %s\n", getSettingsFile());
 		exit(EXIT_FAILURE);
 	}
 
@@ -653,77 +653,95 @@ int saveSettingsFile(void)
 	return 0;
 }
 
-void CreateSettingsFile(char * file)
-{
-	FILE *fp;
-	char * settings = "0,100";			// Mode, Volume
-	char command[32];//FIXME
-	fp = fopen(file, "w");
-	LogWrite("Creating file: %s\n",file);
-	if ( !fp )
-	{
-		LogWrite("Couldn't open file for writing: %d\n", errno);
-		exit(errno);
-	}
-	fwrite(settings, 1, 4, fp);
-	fclose(fp);
-	sprintf(command,"sudo chmod 777 %s",file);
-	system(command);
-}
-
 void CheckExistanceOfDirectoriesAndFiles(void)
 {
 	if(!DirectoryExists(getMediaDirectory()))
 	{
-		mkdir(getMediaDirectory(), 0777);
-		LogWrite("Directory FPP Does Not Exist\n");
+		LogWrite("FPP directory does not exist, creating it.\n");
+
+		if ( mkdir(getMediaDirectory(), 0777) != 0 )
+		{
+			LogWrite("Error: Unable to create media directory.\n");
+			exit(EXIT_FAILURE);
+		}
 	}
 	if(!DirectoryExists(getMusicDirectory()))
 	{
-		mkdir(getMusicDirectory(), 0777);
-		LogWrite("Directory Music Does Not Exist\n");
+		LogWrite("Music directory does not exist, creating it.\n");
+
+		if ( mkdir(getMusicDirectory(), 0777) != 0 )
+		{
+			LogWrite("Error: Unable to create music directory.\n");
+			exit(EXIT_FAILURE);
+		}
 	}
 	if(!DirectoryExists(getSequenceDirectory()))
 	{
-		mkdir(getSequenceDirectory(), 0777);
-		LogWrite("Directory sequences Does Not Exist\n");
+		LogWrite("Sequence directory does not exist, creating it.\n");
+
+		if ( mkdir(getSequenceDirectory(), 0777) != 0 )
+		{
+			LogWrite("Error: Unable to create sequence directory.\n");
+			exit(EXIT_FAILURE);
+		}
 	}
 	if(!DirectoryExists(getPlaylistDirectory()))
 	{
-		mkdir(getPlaylistDirectory(), 0777);
-		LogWrite("Directory playlists Does Not Exist\n");
+		LogWrite("Playlist directory does not exist, creating it.\n");
+
+		if ( mkdir(getPlaylistDirectory(), 0777) != 0 )
+		{
+			LogWrite("Error: Unable to create playlist directory.\n");
+			exit(EXIT_FAILURE);
+		}
 	}
 
 	if(!FileExists(getUniverseFile()))
 	{
+		LogWrite("Universe file does not exist, creating it.\n");
+
 		char *cmd, *file = getUniverseFile();
 		cmd = malloc(strlen(file)+6);
 		snprintf(cmd, strlen(file)+6, "touch %s", file);
-		system(cmd);
+		if ( system(cmd) != 0 )
+		{
+			LogWrite("Error: Unable to create universe file.\n");
+			exit(EXIT_FAILURE);
+		}
 		free(cmd);
 	}
 	if(!FileExists(getPixelnetFile()))
 	{
+		LogWrite("Pixelnet file does not exist, creating it.\n");
+
 		CreatePixelnetDMXfile(getPixelnetFile());
 	}
 	if(!FileExists(getScheduleFile()))
 	{
+		LogWrite("Schedule file does not exist, creating it.\n");
+
 		char *cmd, *file = getScheduleFile();
 		cmd = malloc(strlen(file)+6);
 		snprintf(cmd, strlen(file)+6, "touch %s", file);
-		system(cmd);
+		if ( system(cmd) != 0 )
+		{
+			LogWrite("Error: Unable to create schedule file.\n");
+			exit(EXIT_FAILURE);
+		}
 		free(cmd);
 	}
 	if(!FileExists(getBytesFile()))
 	{
+		LogWrite("Bytes file does not exist, creating it.\n");
+
 		char *cmd, *file = getBytesFile();
 		cmd = malloc(strlen(file)+6);
 		snprintf(cmd, strlen(file)+6, "touch %s", file);
-		system(cmd);
+		if ( system(cmd) != 0 )
+		{
+			LogWrite("Error: Unable to create bytes file.\n");
+			exit(EXIT_FAILURE);
+		}
 		free(cmd);
-	}
-	if(!FileExists(getSettingsFile()))
-	{
-		CreateSettingsFile(getSettingsFile());
 	}
 }

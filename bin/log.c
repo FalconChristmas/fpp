@@ -33,6 +33,11 @@ void _LogWrite(char *file, int line, const char *format, ...)
 		FILE *logFile;
 
 		logFile = fopen((const char *)getLogFile(), "a");
+		if ( ! logFile )
+		{
+			fprintf(stderr, "Error: Unable to write to log file!\n");
+			return;
+		}
 		fprintf(logFile, "%s  %s:%d:",timeStr, file, line);
 		va_start(arg, format);
 		fprintf(logFile, format, arg);
