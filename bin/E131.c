@@ -102,8 +102,8 @@ void GetLocalWiredIPaddress(char * IPaddress)
  	}
 	len = fread(IPaddress,1,64,fp);
 	// Remove '\n' by replacing with '\0'
-	LogWrite("\nIP=%s\n",IPaddress);
 	IPaddress[len-1] = '\0';
+	LogWrite("IP=%s\n",IPaddress);
  	pclose(fp);
 }
 

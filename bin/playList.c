@@ -255,7 +255,7 @@ void Play_PlaylistEntry(void)
 		}
 	}
 
-	printf("\nplayListCount=%d  CurrentPlaylistEntry = %d\n", playlistDetails.playListCount,playlistDetails.currentPlaylistEntry); 
+	LogWrite("playListCount=%d  CurrentPlaylistEntry = %d\n", playlistDetails.playListCount,playlistDetails.currentPlaylistEntry);
   switch(playlistDetails.playList[playlistDetails.currentPlaylistEntry].type)
   {
     case PL_TYPE_BOTH:
