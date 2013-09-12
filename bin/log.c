@@ -13,8 +13,13 @@ void _LogWrite(char *file, int line, const char *format, ...)
 	time_t t = time(NULL);
 	struct tm tm = *localtime(&t);
 	char timeStr[32];
-	sprintf(timeStr,"%.2d-%.2d-%d %.2d:%.2d:%.2d",
-	                tm.tm_mon+1,tm.tm_mday,tm.tm_year,tm.tm_hour,tm.tm_min,tm.tm_sec);
+	sprintf(timeStr,"%4d-%.2d-%.2d %.2d:%.2d:%.2d",
+					1900+tm.tm_year,
+					tm.tm_mon+1,
+					tm.tm_mday,
+					tm.tm_hour,
+					tm.tm_min,
+					tm.tm_sec);
 	if ( getVerbose() )
 	{
 		fprintf(stdout, "%s  %s:%d:", timeStr, file, line);
