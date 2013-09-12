@@ -65,5 +65,4 @@ fppd: $(OBJECTS_fppd)
 	$(CC) $(CFLAGS) -c $<
 
 clean:
-	rm -f $(OBJECTS_fpp) $(OBJECTS_fppd)
-	-git co fpp fppd
+	rm -f $(OBJECTS_fpp) $(OBJECTS_fppd) fpp fppd
