@@ -135,7 +135,7 @@ printf("Usage: %s [OPTION...]\n"
 "\t\t\t\tlogging will be on the console instead of the log file\n"
 "\t-V, --verbose\t\tEnable verbose logging.\n"
 "\t-v, --volume\t\tSet a volume (over-written by config file)\n"
-"\t-m, --mode\t\tSet the mode: (0 = Player, 1 = Bridge)\n"
+"\t-m, --mode\t\tSet the mode: (\"player\" or \"bridge\")\n"
 "\t-B, --media-directory\tSet the media directory\n"
 "\t-M, --music-directory\tSet the music directory\n"
 "\t-S, --sequence-directory\tSet the sequence directory\n"
@@ -153,6 +153,8 @@ printf("Usage: %s [OPTION...]\n"
 int parseArguments(int argc, char **argv)
 {
 	settings.daemonize = true;
+	settings.volume = -1;
+	settings.fppMode = DEFAULT_MODE;
 
 	int c;
 	while (1)
@@ -312,17 +314,27 @@ int loadSettings(const char *filename)
 			{
 				if ( settings.fppMode == DEFAULT_MODE )
 				{
-					//TODO: enum here
 					token = trimwhitespace(strtok(NULL, "="));
-					settings.fppMode = atoi(token);
+					if ( strcmp(optarg, "player") == 0 )
+						settings.fppMode = PLAYER_MODE;
+					else if ( strcmp(optarg, "bridge") == 0 )
+						settings.fppMode = BRIDGE_MODE;
+					else
+					{
+						printf("Error parsing mode\n");
+						exit(EXIT_FAILURE);
+					}
 					free(token); token = NULL;
 				}
 			}
 			else if ( strcmp(token, "volume") == 0 )
 			{
-				token = trimwhitespace(strtok(NULL, "="));
-				settings.volume = atoi(token);
-				free(token); token = NULL;
+				if ( settings.volume != -1 )
+				{
+					token = trimwhitespace(strtok(NULL, "="));
+					settings.volume = atoi(token);
+					free(token); token = NULL;
+				}
 			}
 			else if ( strcmp(token, "settingsFile") == 0 )
 			{
@@ -443,13 +455,12 @@ int loadSettings(const char *filename)
 				free(line);
 				line = NULL;
 			}
-			
 		}
 	}
 	else
 	{
-		fprintf(stderr,"Failed to open settings file!\n");
-		exit(EXIT_FAILURE);
+		fprintf(stderr,"Warning: couldn't open settings file, creating default!\n");
+		return saveSettingsFile();
 	}
 
 	fclose(file);
@@ -480,6 +491,12 @@ int getFPPmode(void)
 
 int getVolume(void)
 {
+	if ( settings.volume == -1 )
+	{
+		LogWrite("Default volume coded at 75\n");
+		return 75;
+	}
+
 	return settings.volume;
 }
 
@@ -581,13 +598,64 @@ void setVolume(int volume)
 
 int saveSettingsFile(void)
 {
-	//TODO
+	char buffer[1024]; //TODO: Fix this!!
+  int bytes;
+
+	FILE *fd = fopen(getSettingsFile(),"w");
+	if ( ! fd )
+	{
+		fprintf(stderr, "Failed to create new config file\n");
+		exit(EXIT_FAILURE);
+	}
+
+	snprintf(buffer, 1024, "%s = %s\n", "verbose", (getVerbose() ? "true" : "false"));
+	bytes  = fwrite(buffer, 1, strlen(buffer), fd);
+	snprintf(buffer, 1024, "%s = %s\n", "daemonize", (getDaemonize() ? "true" : "false"));
+	bytes += fwrite(buffer, 1, strlen(buffer), fd);
+	if ( getFPPmode() == PLAYER_MODE )
+		snprintf(buffer, 1024, "%s = %s\n", "fppMode", "player");
+	else if ( getFPPmode() == BRIDGE_MODE )
+		snprintf(buffer, 1024, "%s = %s\n", "fppMode", "bridge");
+	else
+		exit(EXIT_FAILURE);
+	bytes += fwrite(buffer, 1, strlen(buffer), fd);
+	snprintf(buffer, 1024, "%s = %d\n", "volume", getVolume());
+	bytes += fwrite(buffer, 1, strlen(buffer), fd);
+	snprintf(buffer, 1024, "%s = %s\n", "settingsFile", getSettingsFile());
+	bytes += fwrite(buffer, 1, strlen(buffer), fd);
+	snprintf(buffer, 1024, "%s = %s\n", "mediaDirectory", getMediaDirectory());
+	bytes += fwrite(buffer, 1, strlen(buffer), fd);
+	snprintf(buffer, 1024, "%s = %s\n", "musicDirectory", getMusicDirectory());
+	bytes += fwrite(buffer, 1, strlen(buffer), fd);
+	snprintf(buffer, 1024, "%s = %s\n", "sequenceDirectory", getSequenceDirectory());
+	bytes += fwrite(buffer, 1, strlen(buffer), fd);
+	snprintf(buffer, 1024, "%s = %s\n", "playlistDirectory", getPlaylistDirectory());
+	bytes += fwrite(buffer, 1, strlen(buffer), fd);
+	snprintf(buffer, 1024, "%s = %s\n", "universeFile", getUniverseFile());
+	bytes += fwrite(buffer, 1, strlen(buffer), fd);
+	snprintf(buffer, 1024, "%s = %s\n", "pixelnetFile", getPixelnetFile());
+	bytes += fwrite(buffer, 1, strlen(buffer), fd);
+	snprintf(buffer, 1024, "%s = %s\n", "scheduleFile", getScheduleFile());
+	bytes += fwrite(buffer, 1, strlen(buffer), fd);
+	snprintf(buffer, 1024, "%s = %s\n", "logFile", getLogFile());
+	bytes += fwrite(buffer, 1, strlen(buffer), fd);
+	snprintf(buffer, 1024, "%s = %s\n", "silenceMusic", getSilenceMusic());
+	bytes += fwrite(buffer, 1, strlen(buffer), fd);
+	snprintf(buffer, 1024, "%s = %s\n", "mpg123Path", getMPG123Path());
+	bytes += fwrite(buffer, 1, strlen(buffer), fd);
+	snprintf(buffer, 1024, "%s = %s\n", "bytesFile", getBytesFile());
+	bytes += fwrite(buffer, 1, strlen(buffer), fd);
+
+	fclose(fd);
+
+	LogWrite("Wrote config file of size %d\n", bytes);
+
 	return 0;
 }
 
 void CreateSettingsFile(char * file)
 {
-  FILE *fp;
+	FILE *fp;
 	char * settings = "0,100";			// Mode, Volume
 	char command[32];//FIXME
 	fp = fopen(file, "w");
