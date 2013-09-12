@@ -32,6 +32,7 @@ struct config
 // Helper functions
 char *trimwhitespace(const char *str);
 void printSettings(void);
+void usage(char *appname);
 
 
 // Action functions

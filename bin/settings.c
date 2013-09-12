@@ -117,28 +117,42 @@ void printSettings(void)
 				settings.MPG123Path);
 }
 
+void usage(char *appname)
+{
+printf("Usage: %s [OPTION...]\n"
+"\n"
+"fppd is the FalconPiPlayer daemon.  It runs and handles playback of sequences,\n"
+"audio, etc.  Normally it is kicked off by a startup task and daemonized,\n"
+"however you can optionally kill the automatically started daemon and invoke it\n"
+"manually via the command line or via the web interface.  Configuration is\n"
+"supported for developers by specifying command line options, or editing a\n"
+"config file that controls most settings.  For more information on that, read\n"
+"the source code, it will not likely be documented any time soon.\n"
+"\n"
+"Options:\n"
+"\t-c, --config-file\tConfiguration file for things like config file paths\n"
+"\t-f, --foreground\tDon't daemonize the application.  In the foreground, all\n"
+"\t\t\t\tlogging will be on the console instead of the log file\n"
+"\t-V, --verbose\t\tEnable verbose logging.\n"
+"\t-v, --volume\t\tSet a volume (over-written by config file)\n"
+"\t-m, --mode\t\tSet the mode: (0 = Player, 1 = Bridge)\n"
+"\t-B, --media-directory\tSet the media directory\n"
+"\t-M, --music-directory\tSet the music directory\n"
+"\t-S, --sequence-directory\tSet the sequence directory\n"
+"\t-P, --playlist-directory\tSet the playlist directory\n"
+"\t-u, --universe-file\tSet the universe file\n"
+"\t-p, --pixelnet-file\tSet the pixelnet file\n"
+"\t-s, --schedule-file\tSet the schedule-file\n"
+"\t-l, --log-file\t\tSet the log file\n"
+"\t-b, --bytes-file\tSet the bytes received file\n"
+"\t-h, --help\t\tThis menu.\n"
+"\t    --mpg123-path\tSet location of mpg123 executable\n"
+"\t    --silence-music\tSet location of silence.mp3 file\n", appname);
+}
+
 int parseArguments(int argc, char **argv)
 {
 	settings.daemonize = true;
-
-	/*
-c config-file
-f foreground
-V verbose
-v volume
-m mode
-B media-directory
-M music-directory
-S sequence-directory
-P playlist-directory
-u universe-file
-p pixelnet-file
-s schedule-file
-l log-file
-b bytes-file
-mpg123-path
-silence-music
-	*/
 
 	int c;
 	while (1)
@@ -163,10 +177,11 @@ silence-music
 			{"silence-music",		required_argument,	0,	1 },
 			{"mpg123-path",			required_argument,	0,	2 },
 			{"bytes-file",			required_argument,	0, 'b'},
+			{"help",				no_argument,		0, 'h'},
 			{0,						0,					0,	0}
 		};
 
-		c = getopt_long(argc, argv, "c:fVv:m:B:M:S:P:u:p:s:l:b:",
+		c = getopt_long(argc, argv, "c:fVv:m:B:M:S:P:u:p:s:l:b:h",
 		long_options, &option_index);
 		if (c == -1)
 			break;
@@ -229,8 +244,13 @@ silence-music
 			case 'b': //bytes-file
 				settings.bytesFile = strdup(optarg);
 				break;
+			case 'h': //help
+				usage(argv[0]);
+				exit(EXIT_SUCCESS);
+				break;
 			default:
-				printf("?? getopt returned character code 0%o ??\n", c);
+				usage(argv[0]);
+				exit(EXIT_FAILURE);
 		}
 	}
 
