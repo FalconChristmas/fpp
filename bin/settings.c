@@ -64,8 +64,12 @@ void printSettings(void)
 	fprintf(fd, "daemonize: %s\n",
 			settings.daemonize ? "true" : "false" );
 	
-	fprintf(fd, "fppMode: %s\n", "TODO");//TODO: enum this
-	fprintf(fd, "volume: %u\n", settings.volume);
+	if ( settings.fppMode == PLAYER_MODE )
+		fprintf(fd, "fppMode: %s\n", "player");//TODO: enum this
+	else if ( settings.fppMode == BRIDGE_MODE )
+		fprintf(fd, "fppMode: %s\n", "bridge");//TODO: enum this
+	if ( settings.volume != -1 )
+		fprintf(fd, "volume: %u\n", settings.volume);
 
 	if ( settings.settingsFile )
 		fprintf(fd, "settingsFile(%u): %s\n",
@@ -315,9 +319,9 @@ int loadSettings(const char *filename)
 				if ( settings.fppMode == DEFAULT_MODE )
 				{
 					token = trimwhitespace(strtok(NULL, "="));
-					if ( strcmp(optarg, "player") == 0 )
+					if ( strcmp(token, "player") == 0 )
 						settings.fppMode = PLAYER_MODE;
-					else if ( strcmp(optarg, "bridge") == 0 )
+					else if ( strcmp(token, "bridge") == 0 )
 						settings.fppMode = BRIDGE_MODE;
 					else
 					{
