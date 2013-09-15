@@ -11,7 +11,7 @@ if ( $return_val != 0 )
 $git_version = "Unknown";
 unset($output);
 
-$git_remote_version = exec ("git ls-remote --heads https://github.com/FalconChristmas/fpp | grep master | awk '$1 > 0 { print substr($1,1,7)}'", $output, $return)val);
+$git_remote_version = exec("git ls-remote --heads https://github.com/FalconChristmas/fpp | grep master | awk '$1 > 0 { print substr($1,1,7)}'", $output, $return_val);
 if ( $return_val != 0 )
 $git_remote_version = "Unknown";
 unset($output);
