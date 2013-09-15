@@ -10,12 +10,18 @@ $git_version = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ rev-pars
 if ( $return_val != 0 )
 $git_version = "Unknown";
 unset($output);
+
+$git_remote_version = exec ("git ls-remote --heads https://github.com/FalconChristmas/fpp | grep master | awk '$1 > 0 { print substr($1,1,7)}'", $output, $return)val);
+if ( $return_val != 0 )
+$git_remote_version = "Unknown";
+unset($output)
 ?>
 
 	 <div class="header">
 	 		<div class="headerLeft"><a href="http://www.falconchristmas.com"><img src="images/falconlogo.png"  height="60" /></a></div>
 	 		<div class="headerCenter"><div class="siteName">Falcon Pi Player (FPP)</div>
-		        Image Version: <?php echo $rfs_version; ?>, FPP Version: <?php echo $git_version; ?>
+		        OS Version: <?php echo $rfs_version; ?><br />
+		        FPP Version: <?php echo $git_version; ?>, Master Version: <?php echo $git_remote_version; ?>
 	 		</div>
 			<div class="headerRight"<a href="http://raspberrypi.org"><img src="images/large_Raspberry_Pi_Logo_4.png" height="60" /></a></div>
 			<div class="clear"></div>
