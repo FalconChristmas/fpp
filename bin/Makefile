@@ -27,6 +27,7 @@ OBJECTS_fppd = \
 LIBS_fppd = \
 	-lpthread \
 	-lwiringPi \
+	-lm \
 	$(NULL)
 
 

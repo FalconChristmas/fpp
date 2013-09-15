@@ -52,7 +52,10 @@ void ScheduleProc()
       {
         LoadNextScheduleInfo();
       }
-      PlayListStopCheck();
+			if(Schedule[currentSchedulePlaylist.ScheduleEntryIndex].repeat)
+			{
+	      PlayListStopCheck();
+			}
       break;
     default:
       break;
@@ -69,7 +72,9 @@ void CheckIfShouldBePlayingNow()
   LoadScheduleFromFile();
   for(i=0;i<ScheduleEntryCount;i++)
   {
-		if(Schedule[i].enable)
+		// only check schedule entries that are enabled and set to repeat.
+		// Do not start non repeatable entries
+		if(Schedule[i].enable && Schedule[i].repeat)
 		{
 			for(j=0;j<Schedule[i].weeklySecondCount;j++)
 			{
@@ -83,15 +88,9 @@ void CheckIfShouldBePlayingNow()
 					NextScheduleHasbeenLoaded = 0;
 		      strcpy((void*)playlistDetails.currentPlaylistFile,Schedule[currentSchedulePlaylist.ScheduleEntryIndex].playList);
 				  playlistDetails.currentPlaylistEntry=0;
+					playlistDetails.repeat = Schedule[currentSchedulePlaylist.ScheduleEntryIndex].repeat;
 		  		playlistDetails.playlistStarting=1;
-		  		if (Schedule[currentSchedulePlaylist.ScheduleEntryIndex].repeat == 0)
-		  		{
-	      		FPPstatus = FPP_STATUS_STOPPING_GRACEFULLY;
-		  		}
-		  		else
-		  		{
-	      		FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
-		  		}
+      		FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
 				}				
 			}
 		}
@@ -145,7 +144,6 @@ void LoadNextScheduleInfo()
 
 void SetScheduleEntrysWeeklyStartAndEndSeconds(ScheduleEntry * entry)
 {
-  int retCount;
 	switch(entry->dayIndex)
   {
 		case INX_SUN:
@@ -255,15 +253,9 @@ void PlayListLoadCheck()
       NextScheduleHasbeenLoaded = 0;
       strcpy((void*)playlistDetails.currentPlaylistFile,Schedule[currentSchedulePlaylist.ScheduleEntryIndex].playList);
 		  playlistDetails.currentPlaylistEntry=0;
+			playlistDetails.repeat = Schedule[currentSchedulePlaylist.ScheduleEntryIndex].repeat;
 		  playlistDetails.playlistStarting=1;
-		  if (Schedule[currentSchedulePlaylist.ScheduleEntryIndex].repeat == 0)
-		  {
-	      FPPstatus = FPP_STATUS_STOPPING_GRACEFULLY;
-		  }
-		  else
-		  {
-	      FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
-		  }
+      FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
     }
   }
 }
@@ -478,7 +470,7 @@ void GetDayTextFromDayIndex(int index,char * txt)
 			strcpy(txt,"Fri/Sat");
 			break;	
 		default:
-			strcpy(txt, "Error");
+			strcpy(txt, "Error\0");
 			break;	
 	}
 }

@@ -14,6 +14,8 @@ char unicastSocketCreated = 0;
 
 struct sockaddr_in addr;
 int addrlen, sock, cnt;
+fd_set active_fd_set, read_fd_set;
+struct timeval timeout;
 struct ip_mreq mreq;
 char bridgeBuffer[10000];
 
@@ -30,12 +32,23 @@ extern char fileData[65536];
 		Bridge_Initialize();
     while(BridgeRunning) 
 		{
- 	 		cnt = recvfrom(sock, bridgeBuffer, sizeof(bridgeBuffer), 0, (struct sockaddr *) &addr, &addrlen);
-	 		if (cnt >= 0) 
+		  Commandproc();
+			read_fd_set = active_fd_set;
+			if (select(FD_SETSIZE, &read_fd_set, NULL, NULL, &timeout) < 0)
+      {
+       	//LogWrite("Select failed\n");
+       	return;
+      }
+			if (FD_ISSET (sock, &read_fd_set))
 			{
-				universe = ((int)bridgeBuffer[E131_UNIVERSE_INDEX] * 256) + bridgeBuffer[E131_UNIVERSE_INDEX+1];
-				Bridge_StoreData(universe);
-	 		} 
+				cnt = recvfrom(sock, bridgeBuffer, sizeof(bridgeBuffer), 0, (struct sockaddr *) &addr, &addrlen);
+				if (cnt >= 0) 
+				{
+					universe = ((int)bridgeBuffer[E131_UNIVERSE_INDEX] * 256) + bridgeBuffer[E131_UNIVERSE_INDEX+1];
+					Bridge_StoreData(universe);
+				} 
+			}
+	    usleep(5);
 		}
 	}
 
@@ -57,6 +70,7 @@ void Bridge_InitializeSockets()
 
    	/* set up socket */
    	sock = socket(AF_INET, SOCK_DGRAM, 0);
+		// Set file decriptor
    	if (sock < 0) {
    	  perror("socket");
     	 exit(1);
@@ -94,6 +108,11 @@ void Bridge_InitializeSockets()
 				}         
 			}
     }
+		FD_ZERO (&active_fd_set);
+		FD_SET (sock, &active_fd_set);
+		timeout.tv_sec = 0;
+    timeout.tv_usec = 5;
+
   }
 	
 	void Bridge_StoreData(int universe)
@@ -101,9 +120,10 @@ void Bridge_InitializeSockets()
 		int universeIndex = Bridge_GetIndexFromUniverseNumber(universe);
 		if(universeIndex!=BRIDGE_INVALID_UNIVERSE_INDEX)
 		{
-			memcpy((void *)(fileData+universes[universeIndex].startAddress),
+			memcpy((void *)(fileData+universes[universeIndex].startAddress-1),
 			       (void*)(bridgeBuffer+E131_HEADER_LENGTH),
 						  universes[universeIndex].size);
+			universes[universeIndex].bytesReceived+=universes[universeIndex].size;
 			//LogWrite("Storing StartAddress = %d size = %d\n",universes[universeIndex].startAddress,universes[universeIndex].size);
 		}
 		if(universe == universes[UniverseCount-1].universe)

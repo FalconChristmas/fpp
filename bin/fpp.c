@@ -65,6 +65,16 @@ int main (int argc, char *argv[])
       sprintf(command,"R");
       SendCommand(command);
     }
+    else if(strncmp(argv[1],"-w",2) == 0)
+    {
+      sprintf(command,"w");
+      SendCommand(command);
+    }
+    else if(strncmp(argv[1],"-r",2) == 0)
+    {
+      sprintf(command,"r");
+      SendCommand(command);
+    }
     else
     {
     }
