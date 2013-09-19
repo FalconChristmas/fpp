@@ -4,7 +4,7 @@
 #include "E131.h"
 #include "command.h"
 #include "playList.h"
-#include "mpg123.h"
+#include "ogg123.h"
 #include "schedule.h"
 #include "pixelnetDMX.h"
 #include "e131bridge.h"

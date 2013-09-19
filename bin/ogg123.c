@@ -7,7 +7,6 @@
 #include <stdbool.h>
 #include "log.h"
 #include "ogg123.h"
-#include "mpg123.h"
 
   
 MusicStatus musicStatus;

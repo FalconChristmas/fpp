@@ -48,7 +48,7 @@ extern char fileData[65536];
 					Bridge_StoreData(universe);
 				} 
 			}
-	    usleep(5);
+	    usleep(250);
 		}
 	}
 

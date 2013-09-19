@@ -30,6 +30,8 @@ typedef struct{
   int secondsTotal;
 }MusicStatus; 
 
-
+#define IDLE_MPLAYER_STATUS     0
+#define QUEUED_MPLAYER_STATUS   1
+#define PLAYING_MPLAYER_STATUS  2
 
 #endif

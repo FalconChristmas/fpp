@@ -3,7 +3,6 @@
 #include "command.h"
 #include "schedule.h"
 #include "playList.h"
-#include "mpg123.h"
 #include "ogg123.h"
 #include "e131bridge.h"
 #include <sys/socket.h>

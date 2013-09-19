@@ -4,7 +4,7 @@
 #include "command.h"
 #include "E131.h"
 #include "schedule.h"
-#include "mpg123.h"
+#include "ogg123.h"
 #include <unistd.h>
 #include <stdio.h>
 #include <sys/types.h>

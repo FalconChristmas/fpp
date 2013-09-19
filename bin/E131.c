@@ -1,7 +1,6 @@
 #include "log.h"
 #include "E131.h"
 #include "playList.h"
-#include "mpg123.h"
 #include "ogg123.h"
 #include <sys/types.h>
 #include <sys/socket.h>

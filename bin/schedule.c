@@ -3,7 +3,7 @@
 #include "schedule.h"
 #include "command.h"
 #include "playList.h"
-#include "mpg123.h"
+#include "ogg123.h"
 #include <time.h>
 #include <unistd.h>
 #include <stdio.h>
