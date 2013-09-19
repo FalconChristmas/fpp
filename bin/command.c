@@ -4,6 +4,7 @@
 #include "schedule.h"
 #include "playList.h"
 #include "mpg123.h"
+#include "ogg123.h"
 #include "e131bridge.h"
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -23,7 +24,9 @@ extern int FPPmode;
 extern PlaylistDetails playlistDetails;
 
 extern struct mpg123_type mpg123;
-extern char MPG123volume[4];
+extern char fppdVolume[4];
+extern int MusicPlayerStatus;
+extern MusicStatus musicStatus;
 extern int E131secondsElasped;
 extern int E131secondsRemaining;
 extern int numberOfSecondsPaused;
@@ -94,31 +97,35 @@ extern PlaylistDetails playlistDetails;
 				GetNextPlaylistText(NextPlaylist);
 				if(FPPstatus==FPP_STATUS_IDLE)
 				{
-					sprintf(response,"%d,%d,%s,%s,%s\n",FPPmode,0,MPG123volume,NextPlaylist,NextScheduleStartText);
+					sprintf(response,"%d,%d,%s,%s,%s\n",FPPmode,0,fppdVolume,NextPlaylist,NextScheduleStartText);
 				}
 				else
 				{
 					if(playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType == 'b' || playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType == 'm')
 					{
 						sprintf(response,"%d,%d,%s,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s\n",
-										FPPmode,FPPstatus,MPG123volume,playlistDetails.currentPlaylist,
+										FPPmode,FPPstatus,fppdVolume,playlistDetails.currentPlaylist,
 										playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType,
 										playlistDetails.playList[playlistDetails.currentPlaylistEntry].seqName,
 										playlistDetails.playList[playlistDetails.currentPlaylistEntry].songName,
 										playlistDetails.currentPlaylistEntry+1,playlistDetails.playListCount,
-										(int)mpg123.seconds,(int)mpg123.secondsleft,NextPlaylist,NextScheduleStartText);
+										musicStatus.secondsElasped,
+										musicStatus.secondsRemaining,
+										NextPlaylist,NextScheduleStartText);
 					}
 					else if (playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType == 's')
 					{
-						sprintf(response,"%d,%d,%s,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s\n",FPPmode,FPPstatus,MPG123volume,
+						sprintf(response,"%d,%d,%s,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s\n",FPPmode,FPPstatus,fppdVolume,
 										playlistDetails.currentPlaylist,playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType,
 										playlistDetails.playList[playlistDetails.currentPlaylistEntry].seqName,playlistDetails.playList[playlistDetails.currentPlaylistEntry].songName,
-										playlistDetails.currentPlaylistEntry+1,playlistDetails.playListCount,E131secondsElasped,E131secondsRemaining,
+										playlistDetails.currentPlaylistEntry+1,playlistDetails.playListCount,
+										E131secondsElasped,
+										E131secondsRemaining,
 										NextPlaylist,NextScheduleStartText);
 					}
 					else
 					{			
-						sprintf(response,"%d,%d,%s,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s\n",FPPmode,FPPstatus,MPG123volume,playlistDetails.currentPlaylist,
+						sprintf(response,"%d,%d,%s,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s\n",FPPmode,FPPstatus,fppdVolume,playlistDetails.currentPlaylist,
 										playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType,
 										playlistDetails.playList[playlistDetails.currentPlaylistEntry].seqName,
 										playlistDetails.playList[playlistDetails.currentPlaylistEntry].songName,	
@@ -144,7 +151,7 @@ extern PlaylistDetails playlistDetails;
 				playlistDetails.repeat = 1 ;
 				playlistDetails.playlistStarting=1;
 				FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
-				sprintf(response,"%d,Playlist Started,,,,,,,,,,\n",COMMAND_SUCCESS);
+				sprintf(response,"%d,%d,Playlist Started,,,,,,,,,,\n",FPPmode,COMMAND_SUCCESS);
 				break;
 			case 'P':
 				if(FPPstatus==FPP_STATUS_PLAYLIST_PLAYING || FPPstatus==FPP_STATUS_STOPPING_GRACEFULLY)
@@ -161,14 +168,14 @@ extern PlaylistDetails playlistDetails;
 				playlistDetails.repeat = 0;
 				playlistDetails.playlistStarting=1;
 				FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
-				sprintf(response,"%d,Playlist Started,,,,,,,,,,\n",COMMAND_SUCCESS);
+				sprintf(response,"%d,%d,Playlist Started,,,,,,,,,,\n",FPPmode,COMMAND_SUCCESS);
 				break;
 			case 'S':
 				if(FPPstatus==FPP_STATUS_PLAYLIST_PLAYING)
 				{
 					playlistDetails.ForceStop = 1;
 					StopPlaylistGracefully();
-					sprintf(response,"%d,Playlist Stopping Gracefully,,,,,,,,,,\n",COMMAND_SUCCESS);
+					sprintf(response,"$d,%d,Playlist Stopping Gracefully,,,,,,,,,,\n",FPPmode,COMMAND_SUCCESS);
 				}
 				else
 				{
@@ -180,11 +187,11 @@ extern PlaylistDetails playlistDetails;
 				{
 					playlistDetails.ForceStop = 1;
 					StopPlaylistNow();
-					sprintf(response,"%d,Playlist Stopping Now,,,,,,,,,,\n",COMMAND_SUCCESS);
+					sprintf(response,"%d,%d,Playlist Stopping Now,,,,,,,,,,\n",FPPmode,COMMAND_SUCCESS);
 				}
 				else
 				{
-					sprintf(response,"%d,Not playing,,,,,,,,,,\n",COMMAND_FAILED);
+					sprintf(response,"%d,%d,Not playing,,,,,,,,,,\n",FPPmode,COMMAND_FAILED);
 				}
 				break;
 			case 'R':
@@ -195,15 +202,14 @@ extern PlaylistDetails playlistDetails;
 				LoadNextScheduleInfo();
 				
 				
-				sprintf(response,"%d,Reloading Schedule,,,,,,,,,,\n",COMMAND_SUCCESS);
+				sprintf(response,"%d,%d,Reloading Schedule,,,,,,,,,,\n",FPPmode,COMMAND_SUCCESS);
 				break;
 	
 			case 'v':
 				s = strtok(command,",");
 				s = strtok(NULL,",");
-				strcpy(MPG123volume,s);
-				MPG_SetVolume(MPG123volume);
-				sprintf(response,"%d,Setting Volume,,,,,,,,,,\n",COMMAND_SUCCESS);
+				strcpy(fppdVolume,s);
+				sprintf(response,"%d,%d,Setting Volume,,,,,,,,,,\n",FPPmode,COMMAND_SUCCESS);
 				break;
 	
 			case 'w':
@@ -212,7 +218,6 @@ extern PlaylistDetails playlistDetails;
 				break;
 	
 			case 'r':
-				printf("Hello r\n");
 				WriteBytesReceivedFile();
 				sprintf(response,"true");
 				break;
@@ -221,13 +226,17 @@ extern PlaylistDetails playlistDetails;
 		}
   	bytes_sent = sendto(socket_fd, response, strlen(response), 0,
                           (struct sockaddr *) &(client_address), sizeof(struct sockaddr_un));
-  	LogWrite(response);
+  	//LogWrite(response);
   }
 
   void exit_handler(int signum)
 	{
      LogWrite("Caught signal %d\n",signum);
      CloseCommand();
+		 if(MusicPlayerStatus == PLAYING_MPLAYER_STATUS)
+		 {
+		 		OGGstopSong();
+		 }
 	   exit(signum);
 	}
 

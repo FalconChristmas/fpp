@@ -96,7 +96,7 @@ h2 {
   <br />
   <div id= "divSeq">
     <fieldset class="fs">
-      <legend> Sequence Files </legend>
+      <legend> Sequence Files (.fseq) </legend>
       <div id="divSeqData">
         <table id="tblSequences">
         </table>
@@ -109,7 +109,7 @@ h2 {
   </div>
   <div id= "divMusic">
     <fieldset  class="fs">
-      <legend> Music Files </legend>
+      <legend> Music Files (.ogg) </legend>
       <div id="divMusicData">
         <table id="tblMusic">
         </table>
@@ -136,7 +136,7 @@ $('#uploader_div').ajaxupload({
 		GetSequenceFiles();
 		GetMusicFiles();
 	},
-	allowExt:['mp3','fseq']
+	allowExt:['ogg','fseq']
 });
 </script> 
 </div>

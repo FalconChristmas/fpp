@@ -17,6 +17,7 @@
 #include <errno.h>
 
 char * playlistFolder = "/home/pi/media/playlists/";
+char * musicFolder2 = "/home/pi/media/music/";
 
 PlaylistDetails playlistDetails;
 extern unsigned long currentSequenceFileSize;
@@ -62,11 +63,12 @@ void CalculateNextPlayListEntry()
 	else
 	{	
 		maxEntryIndex = playlistDetails.last?playlistDetails.playListCount-1:playlistDetails.playListCount; 
-		//printf("Last=%d maxEntryIndex=%d\n", playlistDetails.last,maxEntryIndex); 
 		playlistDetails.currentPlaylistEntry++;
-		if((playlistDetails.currentPlaylistEntry == maxEntryIndex-1) && !playlistDetails.repeat)
+		LogWrite("currentPlaylistEntry = %d Last=%d maxEntryIndex=%d repeat=%d \n",playlistDetails.currentPlaylistEntry, playlistDetails.last,maxEntryIndex,playlistDetails.repeat); 
+		if((playlistDetails.currentPlaylistEntry == maxEntryIndex) && !playlistDetails.repeat)
 		{
-			FPPstatus = FPP_STATUS_STOPPING_GRACEFULLY;
+			LogWrite("\nStopping Gracefully\n");
+			playlistDetails.currentPlaylistEntry = PLAYLIST_STOP_INDEX;
 		}
  		else if(playlistDetails.currentPlaylistEntry >= maxEntryIndex)
 		{
@@ -144,6 +146,7 @@ int ReadPlaylist(char const * file)
 
 void PlayListPlayingLoop(void)
 {
+	LogWrite("Starting PlaylistPlaying loop\n");
   playlistDetails.StopPlaylist = 0;
 	playlistDetails.ForceStop = 0;
   playlistDetails.playListCount = ReadPlaylist((char*)playlistDetails.currentPlaylistFile);
@@ -168,13 +171,15 @@ void PlayListPlayingLoop(void)
       case PL_TYPE_BOTH:
         if(MusicPlayerStatus == IDLE_MPLAYER_STATUS)
         {
+					LogWrite("Play File Now \n");
           Play_PlaylistEntry();
         }
 				else
 				{
 		    	if(MusicPlayerStatus==PLAYING_MPLAYER_STATUS || MusicPlayerStatus==QUEUED_MPLAYER_STATUS)
 					{
-      			MPG_UpdateStatus();
+      			//MPG_UpdateStatus();
+						MusicProc();
     			}
 				}
         break;
@@ -187,7 +192,9 @@ void PlayListPlayingLoop(void)
 				{
 			    if(MusicPlayerStatus==PLAYING_MPLAYER_STATUS || MusicPlayerStatus==QUEUED_MPLAYER_STATUS)
   			  {
-      			MPG_UpdateStatus();
+						LogWrite("Play File Now 2 \n");
+      			//MPG_UpdateStatus();
+						MusicProc();
     			}
 				}
         break;
@@ -246,15 +253,15 @@ void Play_PlaylistEntry(void)
   CalculateNextPlayListEntry();
 	if( playlistDetails.currentPlaylistEntry==PLAYLIST_STOP_INDEX)
 	{
-		if(FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY)
-		{ 
+		//if(FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY)
+		//{ 
 			LogWrite("Changing Status to Stopping Gracefully\n"); 
 			playlistDetails.StopPlaylist = 1;
 			return;
-		}
+		//}
 	}
 
-	printf("\nplayListCount=%d  CurrentPlaylistEntry = %d\n", playlistDetails.playListCount,playlistDetails.currentPlaylistEntry); 
+	LogWrite("\nplayListCount=%d  CurrentPlaylistEntry = %d\n", playlistDetails.playListCount,playlistDetails.currentPlaylistEntry); 
   switch(playlistDetails.playList[playlistDetails.currentPlaylistEntry].type)
   {
     case PL_TYPE_BOTH:
@@ -284,13 +291,16 @@ void Play_PlaylistEntry(void)
 
 void PlaylistPlaySong(void)
 {
-  strcpy(currentSong,playlistDetails.playList[playlistDetails.currentPlaylistEntry].songName);
-	MPG_PlaySong();
+  LogWrite("Starting to Play\n");
+  strcpy(playlistDetails.playList[playlistDetails.currentPlaylistEntry].songFullPath,musicFolder2);
+  strcat(playlistDetails.playList[playlistDetails.currentPlaylistEntry].songFullPath,
+         playlistDetails.playList[playlistDetails.currentPlaylistEntry].songName);
+  oggPlaySong(playlistDetails.playList[playlistDetails.currentPlaylistEntry].songFullPath);
 }
 
 void PlaylistStopSong(void)
 {
-	MPG_StopSong();
+	OGGstopSong();
 }
 
 

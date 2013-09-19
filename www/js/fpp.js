@@ -1130,7 +1130,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 				{
 					var xmlDoc=xmlhttp.responseXML; 
 					var status = xmlDoc.getElementsByTagName('Status')[0];
-					if(status.childNodes.length> 0)
+					if(status.childNodes.length> 1)
 					{
 						var fppMode = status.childNodes[0].textContent;
 						if(fppMode == 0 )

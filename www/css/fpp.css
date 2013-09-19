@@ -438,6 +438,7 @@ fieldset
 	-webkit-border-radius: 5px;
 	min-height:600px;
 	text-align:center;
+	display:none;
 }
 
 #bridgeStatistics1{

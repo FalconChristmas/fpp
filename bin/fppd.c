@@ -24,12 +24,13 @@ int FPPmode=PLAYER_MODE;
 
 //Settings 
 char * SettingsFile = "/home/pi/media/settings";
-extern char MPG123volume[4];
+char fppdVolume[4];
 
 int main()
 {
   CreateDaemon();
-	CheckExistanceOfDirectoriesAndFiles();
+  
+  CheckExistanceOfDirectoriesAndFiles();
 	ReadFPPsettings(SettingsFile);
   E131_Initialize();
 	InitializePixelnetDMX();
@@ -49,6 +50,7 @@ int main()
 
 void PlayerProcess(void)
 {
+	oggInit();
 	struct sched_param param;
 	param.sched_priority = 99;
 	if (sched_setscheduler(0, SCHED_FIFO, & param) != 0) 
@@ -56,7 +58,7 @@ void PlayerProcess(void)
 		perror("sched_setscheduler");
 		exit(EXIT_FAILURE);  
 	}
-  MusicInitialize();
+
   LogWrite("Initialize E131 done\n");
 	CheckIfShouldBePlayingNow();
   while(1)
@@ -131,13 +133,13 @@ int ReadFPPsettings(char const * file)
   s = strtok(NULL,",");
 	if(atoi(s) > 100)
 	{
-		strcpy(MPG123volume,"75");
+		strcpy(fppdVolume,"75");
 	}
 	else
 	{
-		strcpy(MPG123volume,s);
+		strcpy(fppdVolume,s);
 	}
-	LogWrite("Mode=%d Volume=%s\n",FPPmode,MPG123volume);
+	LogWrite("Mode=%d Volume=%s\n",FPPmode,fppdVolume);
   fclose(fp);
 }
 

@@ -207,7 +207,16 @@ function RebootPi()
 function SetVolume($volume)
 {
 	WriteVolumeToFile($volume);
-	$status=exec("sudo fpp -v " . $volume);
+	$vol = intval ($volume);
+	if($vol>=100)
+	{
+		$vol = "99";	
+	}
+	
+	$vol = 50 + ($vol/2);
+	
+	$status=exec("sudo fpp -v " . $vol);
+	$status=exec("amixer set PCM -- " . $vol . "%");
 	$doc = new DomDocument('1.0');
   $root = $doc->createElement('Status');
 	$root = $doc->appendChild($root);  
@@ -294,9 +303,9 @@ function MoveFile($file)
 {
 	if(file_exists("/home/pi/media/upload/" . $file))
 	{
-		if (strpos(strtolower($file),".mp3") !== false) 
+		if (strpos(strtolower($file),".fseq") !== false) 
 		{
-			if ( !rename("/home/pi/media/upload/" . $file,	"/home/pi/media/music/" . $file) )
+			if ( !rename("/home/pi/media/upload/" . $file,	"/home/pi/media/sequences/" . $file) )
 			{
 				error_log("Couldn't move music file");
 				exit(1);
@@ -304,7 +313,7 @@ function MoveFile($file)
 		}
 		else
 		{
-			if ( !rename("/home/pi/media/upload/" . $file,	"/home/pi/media/sequences/" . $file) )
+			if ( !rename("/home/pi/media/upload/" . $file,	"/home/pi/media/music/" . $file) )
 			{
 				error_log("Couldn't move music file");
 				exit(1);
