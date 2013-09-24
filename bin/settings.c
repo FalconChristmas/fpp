@@ -297,31 +297,37 @@ int loadSettings(const char *filename)
 
 			if ( strcmp(token, "verbose") == 0 )
 			{
-				token = trimwhitespace(strtok(NULL, "="));
-				if ( strcmp(token, "false") == 0 )
-					settings.verbose = FPP_FALSE;
-				else if ( strcmp(token, "true") == 0 )
-					settings.verbose = FPP_TRUE;
-				else
+				if ( settings.verbose == FPP_DEFAULT )
 				{
-					fprintf(stderr, "Failed to load verbose setting from config file\n");
-					exit(EXIT_FAILURE);
+					token = trimwhitespace(strtok(NULL, "="));
+					if ( strcmp(token, "false") == 0 )
+						settings.verbose = FPP_FALSE;
+					else if ( strcmp(token, "true") == 0 )
+						settings.verbose = FPP_TRUE;
+					else if ( settings.verbose != FPP_DEFAULT )
+					{
+						fprintf(stderr, "Failed to load verbose setting from config file\n");
+						exit(EXIT_FAILURE);
+					}
+					free(token); token = NULL;
 				}
-				free(token); token = NULL;
 			}
 			else if ( strcmp(token, "daemonize") == 0 )
 			{
-				token = trimwhitespace(strtok(NULL, "="));
-				if ( strcmp(token, "false") == 0 )
-					settings.daemonize = FPP_FALSE;
-				else if ( strcmp(token, "true") == 0 )
-					settings.daemonize = FPP_TRUE;
-				else
+				if ( settings.daemonize == FPP_DEFAULT )
 				{
-					fprintf(stderr, "Failed to load daemonize setting from config file\n");
-					exit(EXIT_FAILURE);
+					token = trimwhitespace(strtok(NULL, "="));
+					if ( strcmp(token, "false") == 0 )
+						settings.daemonize = FPP_FALSE;
+					else if ( strcmp(token, "true") == 0 )
+						settings.daemonize = FPP_TRUE;
+					else
+					{
+						fprintf(stderr, "Failed to load daemonize setting from config file\n");
+						exit(EXIT_FAILURE);
+					}
+					free(token); token = NULL;
 				}
-				free(token); token = NULL;
 			}
 			else if ( strcmp(token, "fppMode") == 0 )
 			{
