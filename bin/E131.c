@@ -24,8 +24,6 @@ extern int MusicPlayerStatus;
 extern MusicStatus musicStatus;
 extern currentPlaylistEntry;
 
-int helpme;
-
 // From pixelnetDMX.c
 extern char pixelnetDMXhasBeenSent;
 extern char sendPixelnetDMXdata;
