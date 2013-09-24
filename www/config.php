@@ -12,7 +12,7 @@ if ( ! $fd )
 
 // Set some defaults
 $fppMode = "player";
-$settingsFile = "/home/pi/media/settings";
+$settingsFile = CONFIG_FILE;
 $mediaDirectory = "/home/pi/media/";
 $musicDirectory = "/home/pi/media/music/";
 $sequenceDirectory = "/home/pi/media/sequences/";
