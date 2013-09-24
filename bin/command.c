@@ -142,7 +142,7 @@ extern PlaylistDetails playlistDetails;
 				playlistDetails.repeat = 1 ;
 				playlistDetails.playlistStarting=1;
 				FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
-				sprintf(response,"%d,Playlist Started,,,,,,,,,,\n",COMMAND_SUCCESS);
+				sprintf(response,"%d,Playlist Started,,,,,,,,,,,\n",COMMAND_SUCCESS);
 				break;
 			case 'P':
 				if(FPPstatus==FPP_STATUS_PLAYLIST_PLAYING || FPPstatus==FPP_STATUS_STOPPING_GRACEFULLY)
@@ -159,18 +159,18 @@ extern PlaylistDetails playlistDetails;
 				playlistDetails.repeat = 0;
 				playlistDetails.playlistStarting=1;
 				FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
-				sprintf(response,"%d,Playlist Started,,,,,,,,,,\n",COMMAND_SUCCESS);
+				sprintf(response,"%d,Playlist Started,,,,,,,,,,,\n",COMMAND_SUCCESS);
 				break;
 			case 'S':
 				if(FPPstatus==FPP_STATUS_PLAYLIST_PLAYING)
 				{
 					playlistDetails.ForceStop = 1;
 					StopPlaylistGracefully();
-					sprintf(response,"%d,Playlist Stopping Gracefully,,,,,,,,,,\n",COMMAND_SUCCESS);
+					sprintf(response,"%d,Playlist Stopping Gracefully,,,,,,,,,,,\n",COMMAND_SUCCESS);
 				}
 				else
 				{
-					sprintf(response,"%d,Not playing,,,,,,,,,,\n",COMMAND_FAILED);
+					sprintf(response,"%d,Not playing,,,,,,,,,,,\n",COMMAND_FAILED);
 				}
 				break;
 			case 'd':
@@ -178,11 +178,11 @@ extern PlaylistDetails playlistDetails;
 				{
 					playlistDetails.ForceStop = 1;
 					StopPlaylistNow();
-					sprintf(response,"%d,Playlist Stopping Now,,,,,,,,,,\n",COMMAND_SUCCESS);
+					sprintf(response,"%d,Playlist Stopping Now,,,,,,,,,,,\n",COMMAND_SUCCESS);
 				}
 				else
 				{
-					sprintf(response,"%d,Not playing,,,,,,,,,,\n",COMMAND_FAILED);
+					sprintf(response,"%d,Not playing,,,,,,,,,,,\n",COMMAND_FAILED);
 				}
 				break;
 			case 'R':
@@ -193,7 +193,7 @@ extern PlaylistDetails playlistDetails;
 				LoadNextScheduleInfo();
 				
 				
-				sprintf(response,"%d,Reloading Schedule,,,,,,,,,,\n",COMMAND_SUCCESS);
+				sprintf(response,"%d,Reloading Schedule,,,,,,,,,,,\n",COMMAND_SUCCESS);
 				break;
 	
 			case 'v':
@@ -201,7 +201,7 @@ extern PlaylistDetails playlistDetails;
 				s = strtok(NULL,",");
 				setVolume(atoi(s));
 				MPG_SetVolume(getVolume());
-				sprintf(response,"%d,Setting Volume,,,,,,,,,,\n",COMMAND_SUCCESS);
+				sprintf(response,"%d,Setting Volume,,,,,,,,,,,\n",COMMAND_SUCCESS);
 				break;
 	
 			case 'w':
