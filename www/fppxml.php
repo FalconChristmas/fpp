@@ -111,7 +111,16 @@ function SetVolume()
 	check($volume);
 
 	WriteVolumeToFile($volume);
-	$status=exec(dirname(dirname(__FILE__))."/bin/fpp -v " . $volume);
+	$vol = intval ($volume);
+	if($vol>=100)
+	{
+		$vol = "99";	
+	}
+	
+	$vol = 50 + ($vol/2);
+	
+	$status=exec(dirname(dirname(__FILE__))."/bin/fpp -v " . $vol);
+	$status=exec("amixer set PCM -- " . $vol . "%");
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('Status');
 	$root = $doc->appendChild($root);
@@ -209,9 +218,9 @@ function MoveFile()
 
 	if(file_exists($mediaDirectory."/upload/" . $file))
 	{
-		if (strpos(strtolower($file),".mp3") !== false)
+		if (strpos(strtolower($file),".fseq") !== false)
 		{
-			if ( !rename($mediaDirectory."/upload/" . $file, $musicDirectory . $file) )
+			if ( !rename($mediaDirectory."/upload/" . $file, $sequenceDirectory . $file) )
 			{
 				error_log("Couldn't move music file");
 				exit(1);
@@ -219,7 +228,7 @@ function MoveFile()
 		}
 		else
 		{
-			if ( !rename($mediaDirectory."/upload/" . $file, $sequenceDirectory . $file) )
+			if ( !rename($mediaDirectory."/upload/" . $file, $musicDirectory . $file) )
 			{
 				error_log("Couldn't move music file");
 				exit(1);

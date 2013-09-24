@@ -12,7 +12,7 @@ OBJECTS_fppd = \
 	fppd.o \
 	log.o \
 	E131.o \
-	mpg123.o \
+	ogg123.o \
 	playList.o \
 	schedule.o \
 	command.o \

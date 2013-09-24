@@ -3,9 +3,9 @@
 #include "schedule.h"
 #include "command.h"
 #include "playList.h"
-#include "mpg123.h"
 #include "settings.h"
 
+#include "ogg123.h"
 #include <time.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -270,7 +270,7 @@ void PlayListStopCheck()
   if (nowWeeklySeconds2 != nowWeeklySeconds)
   {
     nowWeeklySeconds2 = nowWeeklySeconds;
-    LogWrite("NowSecs = %d CurrEndSecs=%d\n",nowWeeklySeconds,currentSchedulePlaylist.endWeeklySeconds);
+    //LogWrite("NowSecs = %d CurrEndSecs=%d\n",nowWeeklySeconds,currentSchedulePlaylist.endWeeklySeconds);
     if(nowWeeklySeconds == currentSchedulePlaylist.endWeeklySeconds)
     {
       CurrentScheduleHasbeenLoaded = 0;

@@ -4,7 +4,7 @@
 #include "E131.h"
 #include "command.h"
 #include "playList.h"
-#include "mpg123.h"
+#include "ogg123.h"
 #include "schedule.h"
 #include "pixelnetDMX.h"
 #include "e131bridge.h"
@@ -68,6 +68,7 @@ int main(int argc, char *argv[])
 
 void PlayerProcess(void)
 {
+	oggInit();
 #ifndef NOROOT
 	struct sched_param param;
 	param.sched_priority = 99;
@@ -77,7 +78,7 @@ void PlayerProcess(void)
 		exit(EXIT_FAILURE);  
 	}
 #endif
-  MusicInitialize();
+
   LogWrite("Initialize E131 done\n");
 	CheckIfShouldBePlayingNow();
   while(1)

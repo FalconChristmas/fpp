@@ -1,9 +1,9 @@
 #include "log.h"
 #include "E131.h"
 #include "playList.h"
-#include "mpg123.h"
 #include "settings.h"
 
+#include "ogg123.h"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -21,6 +21,7 @@
 extern struct mpg123_type mpg123;
 extern PlaylistEntry playList[32];
 extern int MusicPlayerStatus;
+extern MusicStatus musicStatus;
 extern currentPlaylistEntry;
 
 int helpme;
@@ -81,7 +82,7 @@ int syncedToMusic=0;
 
 void E131_Initialize()
 {
-  usTimerValue = (unsigned int)(((float)1/(float)RefreshRate) * ((float)990000));
+  usTimerValue = (unsigned int)(((float)1/(float)RefreshRate) * ((float)985000));
 //  usTimerValue = (unsigned int)(((float)1/(float)RefreshRate) * ((float)1200000));
 	E131sequenceNumber=1;
   GetLocalWiredIPaddress(LocalAddress);
@@ -184,6 +185,7 @@ int E131_OpenSequenceFile(const char * file)
   fseek(seqFile,STEP_SIZE_OFFSET,SEEK_SET);
   bytesRead=fread(fileData,1,4,seqFile);
   stepSize = fileData[0] + (fileData[1]<<8) + (fileData[2]<<16) + (fileData[3]<<24);
+	LogWrite("Stepsize %d\n",stepSize);
 
   fseek(seqFile, 0L, SEEK_END);
   seqFileSize = ftell(seqFile);
@@ -226,15 +228,15 @@ void E131_SetTimer(int us)
 void E131_Send()
 {
   struct itimerval tout_val;
- 
+  ShowDiff();
   if(E131status == E131_STATUS_IDLE)
   {
     return;
   }
 	
-	if(MusicPlayerStatus==PLAYING_MPLAYER_STATUS && !syncedToMusic && (mpg123.seconds < 2))
+	if(MusicPlayerStatus==PLAYING_MPLAYER_STATUS && !syncedToMusic && (musicStatus.secondsElasped < 3))
 	{
-		Playlist_SyncToMusic();
+		//Playlist_SyncToMusic();
 	}
 	
   if(filePosition < currentSequenceFileSize - stepSize)
@@ -295,8 +297,29 @@ void Playlist_SyncToMusic(void)
 {
   unsigned int diff=0;
 	unsigned int absDifference=0;
-  float MusicSeconds = customRounding(mpg123.seconds, .05);
+	float MusicSeconds = (float)((float)musicStatus.secondsElasped + ((float)musicStatus.subSecondsElasped/(float)100));
 	syncedToMusic = 1;
+  CalculatedMusicFilePosition = ((long)(MusicSeconds * RefreshRate) * stepSize) + CHANNEL_DATA_OFFSET  ;
+  LogWrite("Syncing to Music\n");
+  filePosition = CalculatedMusicFilePosition;
+  fseek(seqFile, CalculatedMusicFilePosition, SEEK_SET);
+}
+
+void ShowDiff(void)
+{
+  unsigned int diff=0;
+	unsigned int absDifference=0;
+  int secs;
+	float MusicSeconds = (float)((float)musicStatus.secondsElasped + ((float)musicStatus.subSecondsElasped/(float)100));
+	
+	MusicSeconds = customRounding(MusicSeconds, .05);
+	
+	secs = (int)MusicSeconds;
+	if (MusicLastSecond == secs)
+	{return;}
+	MusicLastSecond = secs;
+	
+
   CalculatedMusicFilePosition = ((long)(MusicSeconds * RefreshRate) * stepSize) + CHANNEL_DATA_OFFSET  ;
 	if(CalculatedMusicFilePosition > filePosition)
 	{
@@ -308,12 +331,10 @@ void Playlist_SyncToMusic(void)
 	}
 		
   absDifference = abs(diff);
-  LogWrite("diff = %d , abs = %d     \n",diff,absDifference);
-
-  LogWrite("Syncing to Music\n");
-  filePosition = CalculatedMusicFilePosition;
-  fseek(seqFile, CalculatedMusicFilePosition, SEEK_SET);
+//  LogWrite("RefreshRate= %f MusicSeconds = %f secs=%d diff = %d , abs = %d  CFP= %d FP= %d       
+//\n",RefreshRate,MusicSeconds,MusicLastSecond,diff,absDifference,CalculatedMusicFilePosition,filePosition);
 }
+
 
 float customRounding(float value, float roundingValue) 
 {

@@ -1,5 +1,5 @@
 <?php
-$rfs_version = exec("cat /etc/rfs_version", $output, $return_val);
+$rfs_version = exec("cat /etc/fpp/rfs_version", $output, $return_val);
 //TODO: Make this fancier
 if ( $return_val != 0 )
 	$rfs_version = "Unknown";
@@ -10,19 +10,23 @@ $git_version = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ rev-pars
 if ( $return_val != 0 )
 	$git_version = "Unknown";
 unset($output);
+
+$git_remote_version = exec("git ls-remote --heads https://github.com/FalconChristmas/fpp | grep master | awk '$1 > 0 { print substr($1,1,7)}'", $output, $return_val);
+if ( $return_val != 0 )
+	$git_remote_version = "Unknown";
+unset($output);
 ?>
 
 <?php require_once(dirname(__FILE__)."/config.php"); ?>
-    <div class="header">
-      <div class="headerLeft"><a href="http://www.falconchristmas.com"><img src="images/falconlogo.png"  height="60" /></a></div>
-      <div class="headerCenter">
-         <div class="siteName">Falcon Pi Player (FPP)</div>
-         Image Version: <?php echo $rfs_version; ?><br />
-         FPP Version: <?php echo $git_version; ?>
-      </div>
-      <div class="headerRight"<a href="http://raspberrypi.org"><img src="images/large_Raspberry_Pi_Logo_4.png" height="60" /></a></div>
-      <div class="clear"></div>
-    </div>
+	 <div class="header">
+	 		<div class="headerLeft"><a href="http://www.falconchristmas.com"><img src="images/falconlogo.png"  height="60" /></a></div>
+	 		<div class="headerCenter"><div class="siteName">Falcon Pi Player (FPP)</div>
+		        OS Version: <?php echo $rfs_version; ?><br />
+		        FPP Version: <?php echo $git_version; ?>, Master Version: <?php echo $git_remote_version; ?>
+	 		</div>
+			<div class="headerRight"<a href="http://raspberrypi.org"><img src="images/large_Raspberry_Pi_Logo_4.png" height="60" /></a></div>
+			<div class="clear"></div>
+	 </div>
 
     <div id="fppMenu" class="ddsmoothmenu">
     <ul>

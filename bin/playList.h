@@ -18,6 +18,7 @@ typedef struct{
     char  cType;
     char seqName[256];
     char songName[256];
+    char songFullPath[256];
     unsigned char pauselength;
 }PlaylistEntry;
 
