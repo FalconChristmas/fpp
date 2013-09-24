@@ -281,9 +281,9 @@ function GetUniverseReceivedBytes()
 
 	$status=exec(dirname(dirname(__FILE__))."/bin/fpp -r");
 	$file = file($bytesFile);
+	$doc = new DomDocument('1.0');
 	if($file != FALSE)
 	{
-		$doc = new DomDocument('1.0');
 		$root = $doc->createElement('receivedBytes');
 		$root = $doc->appendChild($root);  
 		for($i=0;$i<count($file);$i++)
