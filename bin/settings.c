@@ -9,6 +9,7 @@
 #include <getopt.h>
 
 
+char *fpp_bool_to_string[] = { "false", "true", "default" };
 static struct config settings = { 0 };
 
 // Returns a string that's the white-space trimmed version
@@ -59,10 +60,12 @@ void printSettings(void)
 {
 	FILE *fd = stdout; // change to stderr to log there instead
 
-	fprintf(fd, "verbose: %s\n",
-			settings.verbose ? "true" : "false" );
-	fprintf(fd, "daemonize: %s\n",
-			settings.daemonize ? "true" : "false" );
+	if ( settings.verbose != FPP_DEFAULT )
+		fprintf(fd, "verbose: %s\n",
+				fpp_bool_to_string[settings.verbose]);
+	if ( settings.daemonize != FPP_DEFAULT )
+		fprintf(fd, "daemonize: %s\n",
+				fpp_bool_to_string[settings.daemonize]);
 	
 	if ( settings.fppMode == PLAYER_MODE )
 		fprintf(fd, "fppMode: %s\n", "player");//TODO: enum this
@@ -137,6 +140,7 @@ printf("Usage: %s [OPTION...]\n"
 "\t-c, --config-file\tConfiguration file for things like config file paths\n"
 "\t-f, --foreground\tDon't daemonize the application.  In the foreground, all\n"
 "\t\t\t\tlogging will be on the console instead of the log file\n"
+"\t-d, --daemonize\tDaemonize even if the config file says not to.\n"
 "\t-V, --verbose\t\tEnable verbose logging.\n"
 "\t-v, --volume\t\tSet a volume (over-written by config file)\n"
 "\t-m, --mode\t\tSet the mode: (\"player\" or \"bridge\")\n"
@@ -156,7 +160,8 @@ printf("Usage: %s [OPTION...]\n"
 
 int parseArguments(int argc, char **argv)
 {
-	settings.daemonize = true;
+	settings.daemonize = FPP_DEFAULT;
+	settings.verbose = FPP_DEFAULT;
 	settings.volume = -1;
 	settings.fppMode = DEFAULT_MODE;
 
@@ -169,6 +174,7 @@ int parseArguments(int argc, char **argv)
 		{
 			{"config-file",			required_argument,	0, 'c'},
 			{"foreground",			no_argument,		0, 'f'},
+			{"daemonize",			no_argument,		0, 'd'},
 			{"verbose",				no_argument,		0, 'V'},
 			{"volume",				required_argument,	0, 'v'},
 			{"mode",				required_argument,	0, 'm'},
@@ -187,7 +193,7 @@ int parseArguments(int argc, char **argv)
 			{0,						0,					0,	0}
 		};
 
-		c = getopt_long(argc, argv, "c:fVv:m:B:M:S:P:u:p:s:l:b:h",
+		c = getopt_long(argc, argv, "c:fdVv:m:B:M:S:P:u:p:s:l:b:h",
 		long_options, &option_index);
 		if (c == -1)
 			break;
@@ -204,10 +210,13 @@ int parseArguments(int argc, char **argv)
 				settings.settingsFile = strdup(optarg);
 				break;
 			case 'f': //foreground
-				settings.daemonize = false;
+				settings.daemonize = FPP_FALSE;
+				break;
+			case 'd': //daemonize
+				settings.daemonize = FPP_TRUE;
 				break;
 			case 'V': //verbose
-				settings.verbose = true;
+				settings.verbose = FPP_TRUE;
 				break;
 			case 'v': //volume
 				settings.volume = atoi(optarg);
@@ -290,9 +299,9 @@ int loadSettings(const char *filename)
 			{
 				token = trimwhitespace(strtok(NULL, "="));
 				if ( strcmp(token, "false") == 0 )
-					settings.verbose = false;
+					settings.verbose = FPP_FALSE;
 				else if ( strcmp(token, "true") == 0 )
-					settings.verbose = true;
+					settings.verbose = FPP_TRUE;
 				else
 				{
 					fprintf(stderr, "Failed to load verbose setting from config file\n");
@@ -304,9 +313,9 @@ int loadSettings(const char *filename)
 			{
 				token = trimwhitespace(strtok(NULL, "="));
 				if ( strcmp(token, "false") == 0 )
-					settings.daemonize = false;
+					settings.daemonize = FPP_FALSE;
 				else if ( strcmp(token, "true") == 0 )
-					settings.daemonize = true;
+					settings.daemonize = FPP_TRUE;
 				else
 				{
 					fprintf(stderr, "Failed to load daemonize setting from config file\n");
@@ -472,13 +481,25 @@ int loadSettings(const char *filename)
 	return 0;
 }
 
-bool getVerbose(void)
+int getVerbose(void)
 {
+	if ( settings.verbose == FPP_DEFAULT )
+	{
+		LogWrite("Default verbosity set to false\n");
+		return FPP_FALSE;
+	}
+
 	return settings.verbose;
 }
 
-bool getDaemonize(void)
+int getDaemonize(void)
 {
+	if ( settings.daemonize == FPP_DEFAULT )
+	{
+		LogWrite("Default daemonization set to true\n");
+		return FPP_TRUE;
+	}
+
 	return settings.daemonize;
 }
 
@@ -612,9 +633,9 @@ int saveSettingsFile(void)
 		exit(EXIT_FAILURE);
 	}
 
-	snprintf(buffer, 1024, "%s = %s\n", "verbose", (getVerbose() ? "true" : "false"));
+	snprintf(buffer, 1024, "%s = %s\n", "verbose", fpp_bool_to_string[getVerbose()]);
 	bytes  = fwrite(buffer, 1, strlen(buffer), fd);
-	snprintf(buffer, 1024, "%s = %s\n", "daemonize", (getDaemonize() ? "true" : "false"));
+	snprintf(buffer, 1024, "%s = %s\n", "daemonize", fpp_bool_to_string[getDaemonize()]);
 	bytes += fwrite(buffer, 1, strlen(buffer), fd);
 	if ( getFPPmode() == PLAYER_MODE )
 		snprintf(buffer, 1024, "%s = %s\n", "fppMode", "player");

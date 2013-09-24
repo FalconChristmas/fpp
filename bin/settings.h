@@ -7,8 +7,8 @@
 
 struct config
 {
-	bool	verbose;
-	bool	daemonize;
+	int		verbose;
+	int		daemonize;
 
 	int		fppMode;
 	int		volume;
@@ -29,10 +29,12 @@ struct config
 };
 
 
-// Helper functions
+// Helpers
 char *trimwhitespace(const char *str);
 void printSettings(void);
 void usage(char *appname);
+
+enum FPP_MODE { FPP_FALSE = 0, FPP_TRUE, FPP_DEFAULT };
 
 
 // Action functions
@@ -44,8 +46,8 @@ int saveSettingsFile(void);
 
 
 // Getters
-bool getVerbose(void);
-bool getDaemonize(void);
+int getVerbose(void);
+int getDaemonize(void);
 int  getFPPmode(void);
 int  getVolume(void);
 char *getSettingsFile(void);
