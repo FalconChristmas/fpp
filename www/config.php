@@ -90,6 +90,9 @@ do
 			$bytesFile = trim($split[1]);
 			break;
 	}
+
+	global $rds_enabled;
+	$rds_enabled = false;
 }
 while ( $data != NULL );
 
