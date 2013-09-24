@@ -736,8 +736,8 @@ void CheckExistanceOfDirectoriesAndFiles(void)
 		LogWrite("Universe file does not exist, creating it.\n");
 
 		char *cmd, *file = getUniverseFile();
-		cmd = malloc(strlen(file)+6);
-		snprintf(cmd, strlen(file)+6, "touch %s", file);
+		cmd = malloc(strlen(file)+7);
+		snprintf(cmd, strlen(file)+7, "touch %s", file);
 		if ( system(cmd) != 0 )
 		{
 			LogWrite("Error: Unable to create universe file.\n");
@@ -756,8 +756,8 @@ void CheckExistanceOfDirectoriesAndFiles(void)
 		LogWrite("Schedule file does not exist, creating it.\n");
 
 		char *cmd, *file = getScheduleFile();
-		cmd = malloc(strlen(file)+6);
-		snprintf(cmd, strlen(file)+6, "touch %s", file);
+		cmd = malloc(strlen(file)+7);
+		snprintf(cmd, strlen(file)+7, "touch %s", file);
 		if ( system(cmd) != 0 )
 		{
 			LogWrite("Error: Unable to create schedule file.\n");
@@ -770,8 +770,8 @@ void CheckExistanceOfDirectoriesAndFiles(void)
 		LogWrite("Bytes file does not exist, creating it.\n");
 
 		char *cmd, *file = getBytesFile();
-		cmd = malloc(strlen(file)+6);
-		snprintf(cmd, strlen(file)+6, "touch %s", file);
+		cmd = malloc(strlen(file)+7);
+		snprintf(cmd, strlen(file)+7, "touch %s", file);
 		if ( system(cmd) != 0 )
 		{
 			LogWrite("Error: Unable to create bytes file.\n");
