@@ -9,7 +9,6 @@
 
 void _LogWrite(char *file, int line, const char *format, ...)
 {
-	return;
 	va_list arg;
 	time_t t = time(NULL);
 	struct tm tm = *localtime(&t);
