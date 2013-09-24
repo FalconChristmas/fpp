@@ -1,8 +1,14 @@
 <?php
 
 //define('debug', true);
+define('CONFIG_FILE', '/home/pi/media/settings');
 
-$fd = @fopen(dirname(dirname(__FILE__))."/bin/config", "r");
+$fd = @fopen(CONFIG_FILE, "r");
+if ( ! $fd )
+{
+  error_log("Couldn't open config file " . CONFIG_FILE);
+  die("Couldn't open config file " . CONFIG_FILE);
+}
 
 // Set some defaults
 $settingsFile = "/home/pi/media/settings";
