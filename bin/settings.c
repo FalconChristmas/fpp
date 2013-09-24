@@ -491,8 +491,10 @@ int getVerbose(void)
 {
 	if ( settings.verbose == FPP_DEFAULT )
 	{
-		LogWrite("Default verbosity set to false\n");
-		return FPP_FALSE;
+//		Don't use LogWrite here since it reads this setting and will
+//		cause a stack overflow when not set!
+		fprintf(stderr, "Default verbosity set to false\n");
+		settings.verbose = FPP_FALSE;
 	}
 
 	return settings.verbose;
@@ -502,8 +504,10 @@ int getDaemonize(void)
 {
 	if ( settings.daemonize == FPP_DEFAULT )
 	{
-		LogWrite("Default daemonization set to true\n");
-		return FPP_TRUE;
+//		Don't use LogWrite here since it reads this setting and will
+//		cause a stack overflow when not set!
+		fprintf(stderr, "Default daemonization set to true\n");
+		settings.daemonize = FPP_TRUE;
 	}
 
 	return settings.daemonize;
