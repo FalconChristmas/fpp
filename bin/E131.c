@@ -78,6 +78,8 @@ char E131sequenceNumber=1;
 int sendBlankingData=0;
 int syncedToMusic=0;
 
+void ShowDiff(void);
+
 void E131_Initialize()
 {
   usTimerValue = (unsigned int)(((float)1/(float)RefreshRate) * ((float)985000));
