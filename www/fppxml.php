@@ -355,10 +355,12 @@ function StopFPPD()
 
 function StartFPPD()
 {
+	global $settingsFile;
+
 	$status=exec("if ps cax | grep -q fppd; then echo \"true\"; else echo \"false\"; fi");
 	if($status == 'false')
 	{
-		$status=exec("nice -n -20 ".dirname(dirname(__FILE__))."/bin/fppd --daemonize >/dev/null");
+		$status=exec("nice -n -20 ".dirname(dirname(__FILE__))."/bin/fppd --config-file $settingsFile --daemonize >/dev/null");
 	}
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('Status');
