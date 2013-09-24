@@ -293,6 +293,7 @@ void PlaylistPlaySong(void)
 {
   LogWrite("Starting to Play\n");
   strcpy(playlistDetails.playList[playlistDetails.currentPlaylistEntry].songFullPath,getMusicDirectory());
+  strcat(playlistDetails.playList[playlistDetails.currentPlaylistEntry].songFullPath,"/");
   strcat(playlistDetails.playList[playlistDetails.currentPlaylistEntry].songFullPath,
          playlistDetails.playList[playlistDetails.currentPlaylistEntry].songName);
   oggPlaySong(playlistDetails.playList[playlistDetails.currentPlaylistEntry].songFullPath);
