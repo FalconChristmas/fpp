@@ -136,19 +136,14 @@ function SetFPPDmode()
 
 function GetVolume()
 {
-	global $settingsFile;
+	global $volume;
 
-	$settings = file($settingsFile);
-	if($settings != FALSE)
-	{
-		$temp = explode(",",$settings[0]);
-		$doc = new DomDocument('1.0');
-		$root = $doc->createElement('Volume');
-		$root = $doc->appendChild($root);
-		$value = $doc->createTextNode($temp[1]);
-		$value = $root->appendChild($value);
-		echo $doc->saveHTML();
-	}
+	$doc = new DomDocument('1.0');
+	$root = $doc->createElement('Volume');
+	$root = $doc->appendChild($root);
+	$value = $doc->createTextNode($volume);
+	$value = $root->appendChild($value);
+	echo $doc->saveHTML();
 }
 
 function GetFPPDmode()
