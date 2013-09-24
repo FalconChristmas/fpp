@@ -11,6 +11,7 @@ if ( ! $fd )
 }
 
 // Set some defaults
+$fppMode = "player";
 $settingsFile = "/home/pi/media/settings";
 $mediaDirectory = "/home/pi/media/";
 $musicDirectory = "/home/pi/media/music/";
@@ -20,19 +21,22 @@ $universeFile = "/home/pi/media/universes";
 $pixelnetFile = "/home/pi/media/pixelnetDMX";
 $scheduleFile = "/home/pi/media/schedule";
 $bytesFile = "/home/pi/media/bytesReceived";
+$volume = 0;
 
 if (defined('debug'))
 {
-	error_log("DEFAULTS:\n");
-	error_log("settings: $settingsFile\n");
-	error_log("media: $mediaDirectory\n");
-	error_log("music: $musicDirectory\n");
-	error_log("sequence: $sequenceDirectory\n");
-	error_log("playlist: $playlistDirectory\n");
-	error_log("universe: $universeFile\n");
-	error_log("pixelnet: $pixelnetFile\n");
-	error_log("schedule: $scheduleFile\n");
-	error_log("bytes: $bytesFile\n");
+	error_log("DEFAULTS:");
+	error_log("fppMode: $fppMode");
+	error_log("settings: $settingsFile");
+	error_log("media: $mediaDirectory");
+	error_log("music: $musicDirectory");
+	error_log("sequence: $sequenceDirectory");
+	error_log("playlist: $playlistDirectory");
+	error_log("universe: $universeFile");
+	error_log("pixelnet: $pixelnetFile");
+	error_log("schedule: $scheduleFile");
+	error_log("bytes: $bytesFile");
+	error_log("volume: $volume");
 }
 
 do
@@ -55,11 +59,9 @@ do
 		case "fppMode":
 			$fppMode = trim($split[1]);
 			break;
-
 		case "volume":
 			$volume = trim($split[1]);
 			break;
-			
 		case "settingsFile":
 			$settingsFile = trim($split[1]);
 			break;
@@ -95,16 +97,18 @@ fclose($fd);
 
 if (defined('debug'))
 {
-	error_log("SET:\n");
-	error_log("settings: $settingsFile\n");
-	error_log("media: $mediaDirectory\n");
-	error_log("music: $musicDirectory\n");
-	error_log("sequence: $sequenceDirectory\n");
-	error_log("playlist: $playlistDirectory\n");
-	error_log("universe: $universeFile\n");
-	error_log("pixelnet: $pixelnetFile\n");
-	error_log("schedule: $scheduleFile\n");
-	error_log("bytes: $bytesFile\n");
+	error_log("SET:");
+	error_log("fppMode: $fppMode");
+	error_log("settings: $settingsFile");
+	error_log("media: $mediaDirectory");
+	error_log("music: $musicDirectory");
+	error_log("sequence: $sequenceDirectory");
+	error_log("playlist: $playlistDirectory");
+	error_log("universe: $universeFile");
+	error_log("pixelnet: $pixelnetFile");
+	error_log("schedule: $scheduleFile");
+	error_log("bytes: $bytesFile");
+	error_log("volume: $volume");
 }
 
 ?>
