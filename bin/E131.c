@@ -95,7 +95,7 @@ void GetLocalWiredIPaddress(char * IPaddress)
 {
 	FILE *fp;
   size_t len;
-	fp = popen("/sbin/ifconfig|grep inet|head -1|sed 's/\:/ /'|awk '{print $3}'", "r");
+	fp = popen("/sbin/ifconfig|grep -v 127.0.0.1|grep inet|head -1|sed 's/\:/ /'|awk '{print $3}'", "r");
  	
 	if (fp == NULL) 
 	{
