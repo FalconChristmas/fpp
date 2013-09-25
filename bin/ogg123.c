@@ -63,7 +63,7 @@ int oggPlaySong(char * musicFile)
 			close(pipeFromOGG[PIPE_WRITE]);
 			// Close write side of pipe to ogg
 			//close(pipeToOGG[PIPE_WRITE]);
-			execlp("/usr/bin/ogg123", "ogg123", musicFile, ".", NULL);
+			execlp("/usr/bin/ogg123", "ogg123", musicFile, NULL);
       exit(EXIT_FAILURE);
   }
   else							// Parent process
