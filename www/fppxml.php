@@ -195,7 +195,8 @@ function SetVolume()
 	
 	$vol = 50 + ($vol/2);
 	
-	$status=SendCommand('v,' . $vol . ',');
+	//$status=SendCommand('v,' . $vol . ',');
+	$status=exec(dirname(dirname(__FILE__))."/bin/fpp -v " . $vol);
 	$status=exec("amixer set PCM -- " . $vol . "%");
 
 	$doc = new DomDocument('1.0');
@@ -347,11 +348,13 @@ function StartPlaylist()
 
 	if($repeat == "checked")
 	{
-		$status=SendCommand("p," . $playlist . "," . $playEntry . ",");
+		//$status=SendCommand("p," . $playlist . "," . $playEntry . ",");
+		$status=exec(dirname(dirname(__FILE__))."/bin/fpp -p '" . $playlist . "," . $playEntry . "'");
 	}
 	else
 	{
-		$status=SendCommand("P," . $playlist . "," . $playEntry . ",");
+		//$status=SendCommand("P," . $playlist . "," . $playEntry . ",");
+		$status=exec(dirname(dirname(__FILE__))."/bin/fpp -P '" . $playlist . "," . $playEntry . "'");
 	}
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('Status');
@@ -365,7 +368,8 @@ function GetUniverseReceivedBytes()
 {
 	global $bytesFile;
 
-	$status=SendCommand('r');
+	//$status=SendCommand('r');
+	$status=exec(dirname(dirname(__FILE__))."/bin/fpp -r");
 	$file = file($bytesFile);
 	$doc = new DomDocument('1.0');
 	if($file != FALSE)
@@ -407,7 +411,8 @@ function GetUniverseReceivedBytes()
 
 function StopGracefully()
 {
-	$status=SendCommand('S');
+	//$status=SendCommand('S');
+	$status=exec(dirname(dirname(__FILE__))."/bin/fpp -S");
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('Status');
 	$root = $doc->appendChild($root);
@@ -418,7 +423,8 @@ function StopGracefully()
 
 function StopNow()
 {
-	$status=SendCommand('d');
+	//$status=SendCommand('d');
+	$status=exec(dirname(dirname(__FILE__))."/bin/fpp -d");
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('Status');
 	$root = $doc->appendChild($root);
@@ -458,7 +464,8 @@ function StartFPPD()
 
 function GetFPPstatus()
 {
-	$status = SendCommand('s');
+	//$status=SendCommand('s');
+	$status=exec(dirname(dirname(__FILE__))."/bin/fpp -s");
 	if($status == 'false')
 	{
 		$doc = new DomDocument('1.0');
@@ -722,7 +729,8 @@ function SaveSchedule()
 
 function FPPDreloadSchedule()
 {
-	$status=SendCommand('R');
+	//$status=SendCommand('R');
+	$status=exec(dirname(dirname(__FILE__))."/bin/fpp -R");
 }
 
 function SaveScheduleToFile()
