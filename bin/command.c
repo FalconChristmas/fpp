@@ -148,9 +148,15 @@ extern PlaylistDetails playlistDetails;
 	
 				s = strtok(command,",");
 				s = strtok(NULL,",");
+				if (!s)
+				{
+					sprintf(response,"%d,%d,Unknown Playlist,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
+					break;
+				}
 				strcpy((char*)playlistDetails.currentPlaylistFile,s);
 				s = strtok(NULL,",");
-				playlistDetails.currentPlaylistEntry = atoi(s);
+				if (s)
+					playlistDetails.currentPlaylistEntry = atoi(s);
 				playlistDetails.repeat = 1 ;
 				playlistDetails.playlistStarting=1;
 				FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
@@ -165,9 +171,15 @@ extern PlaylistDetails playlistDetails;
 	
 				s = strtok(command,",");
 				s = strtok(NULL,",");
+				if (!s)
+				{
+					sprintf(response,"%d,%d,Unknown Playlist,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
+					break;
+				}
 				strcpy((char*)playlistDetails.currentPlaylistFile,s);
 				s = strtok(NULL,",");
-				playlistDetails.currentPlaylistEntry = atoi(s);
+				if (s)
+					playlistDetails.currentPlaylistEntry = atoi(s);
 				playlistDetails.repeat = 0;
 				playlistDetails.playlistStarting=1;
 				FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
@@ -211,6 +223,11 @@ extern PlaylistDetails playlistDetails;
 			case 'v':
 				s = strtok(command,",");
 				s = strtok(NULL,",");
+				if (!s)
+				{
+					sprintf(response,"%d,%d,Invalid Volume,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
+					break;
+				}
 				setVolume(atoi(s));
 				sprintf(response,"%d,%d,Setting Volume,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
 				break;
