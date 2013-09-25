@@ -168,17 +168,22 @@ function SendCommand($command)
 	return $buf;
 }
 
-/////////////////////////////////////////////////////////////////////////////
-
-function RebootPi()
+function EchoStatusXML($status)
 {
-	$status=exec("sudo shutdown -r now");
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('Status');
 	$root = $doc->appendChild($root);
 	$value = $doc->createTextNode($status);
 	$value = $root->appendChild($value);
 	echo $doc->saveHTML();
+}
+
+/////////////////////////////////////////////////////////////////////////////
+
+function RebootPi()
+{
+	$status=exec("sudo shutdown -r now");
+	EchoStatusXML($status);
 }
 
 function SetVolume()
@@ -199,12 +204,7 @@ function SetVolume()
 	$status=exec(dirname(dirname(__FILE__))."/bin/fpp -v " . $vol);
 	$status=exec("amixer set PCM -- " . $vol . "%");
 
-	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('Status');
-	$root = $doc->appendChild($root);
-	$value = $doc->createTextNode($status);
-	$value = $root->appendChild($value);
-	echo $doc->saveHTML();
+	EchoStatusXML($status);
 }
 
 function SetFPPDmode()
@@ -213,12 +213,7 @@ function SetFPPDmode()
 	check($mode);
 
 	WriteFPPDmodeToFile($mode);
-	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('Status');
-	$root = $doc->appendChild($root);
-	$value = $doc->createTextNode($status);
-	$value = $root->appendChild($value);
-	echo $doc->saveHTML();
+	EchoStatusXML($status);
 }
 
 function GetVolume()
@@ -279,12 +274,7 @@ function WriteVolumeToFile($volume)
 function ShutdownPi()
 {
 	$status=exec("sudo shutdown -h now");
-	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('Status');
-	$root = $doc->appendChild($root);
-	$value = $doc->createTextNode($status);
-	$value = $root->appendChild($value);
-	echo $doc->saveHTML();
+	EchoStatusXML($status);
 }
 
 function MoveFile()
@@ -318,23 +308,13 @@ function MoveFile()
 		error_log("Couldn't find file in upload directory");
 		exit(1);
 	}
-	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('Status');
-	$root = $doc->appendChild($root);
-	$value = $doc->createTextNode('Success');
-	$value = $root->appendChild($value);
-	echo $doc->saveHTML();
+	EchoStatusXML('Success');
 }
 
 function IsFPPDrunning()
 {
 	$status=exec("if ps cax | grep -q fppd; then echo \"true\"; else echo \"false\"; fi");
-	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('Status');
-	$root = $doc->appendChild($root);
-	$value = $doc->createTextNode($status);
-	$value = $root->appendChild($value);
-	echo $doc->saveHTML();
+	EchoStatusXML($status);
 }
 
 function StartPlaylist()
@@ -356,12 +336,7 @@ function StartPlaylist()
 		//$status=SendCommand("P," . $playlist . "," . $playEntry . ",");
 		$status=exec(dirname(dirname(__FILE__))."/bin/fpp -P '" . $playlist . "," . $playEntry . "'");
 	}
-	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('Status');
-	$root = $doc->appendChild($root);
-	$value = $doc->createTextNode('true');
-	$value = $root->appendChild($value);
-	echo $doc->saveHTML();
+	EchoStatusXML('true');
 }
 
 function GetUniverseReceivedBytes()
@@ -413,35 +388,21 @@ function StopGracefully()
 {
 	//$status=SendCommand('S');
 	$status=exec(dirname(dirname(__FILE__))."/bin/fpp -S");
-	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('Status');
-	$root = $doc->appendChild($root);
-	$value = $doc->createTextNode('true');
-	$value = $root->appendChild($value);
-	echo $doc->saveHTML();
+	EchoStatusXML('true');
 }
 
 function StopNow()
 {
 	//$status=SendCommand('d');
 	$status=exec(dirname(dirname(__FILE__))."/bin/fpp -d");
-	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('Status');
-	$root = $doc->appendChild($root);
-	$value = $doc->createTextNode('true');
-	$value = $root->appendChild($value);
-	echo $doc->saveHTML();
+	EchoStatusXML('true');
 }
 
 function StopFPPD()
 {
 	$status=exec("killall fppd");
 	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('Status');
-	$root = $doc->appendChild($root);
-	$value = $doc->createTextNode('true');
-	$value = $root->appendChild($value);
-	echo $doc->saveHTML();
+	EchoStatusXML('true');
 }
 
 
@@ -454,12 +415,7 @@ function StartFPPD()
 	{
 		$status=exec("nice -n -20 ".dirname(dirname(__FILE__))."/bin/fppd --config-file $settingsFile --daemonize >/dev/null");
 	}
-	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('Status');
-	$root = $doc->appendChild($root);
-	$value = $doc->createTextNode($status);
-	$value = $root->appendChild($value);
-	echo $doc->saveHTML();
+	EchoStatusXML($status);
 }
 
 function GetFPPstatus()
@@ -661,23 +617,13 @@ function DeleteScheduleEntry()
 		$_SESSION['ScheduleEntries'] = array_values($_SESSION['ScheduleEntries']);
 
 	}
-	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('Status');
-	$root = $doc->appendChild($root);
-	$value = $doc->createTextNode('Success');
-	$value = $root->appendChild($value);
-	echo $doc->saveHTML();
+	EchoStatusXML('Success');
 }
 
 function AddScheduleEntry()
 {
-		$_SESSION['ScheduleEntries'][] = new ScheduleEntry(1,'',7,0,0,0,7,0,0,0,1);
-		$doc = new DomDocument('1.0');
-		$root = $doc->createElement('Status');
-		$root = $doc->appendChild($root);
-		$value = $doc->createTextNode('Success');
-		$value = $root->appendChild($value);
-		echo $doc->saveHTML();
+	$_SESSION['ScheduleEntries'][] = new ScheduleEntry(1,'',7,0,0,0,7,0,0,0,1);
+	EchoStatusXML('Success');
 }
 
 function SaveSchedule()
@@ -719,12 +665,7 @@ function SaveSchedule()
 	SaveScheduleToFile();
 	FPPDreloadSchedule();
 
-	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('Status');
-	$root = $doc->appendChild($root);
-	$value = $doc->createTextNode('Success');
-	$value = $root->appendChild($value);
-	echo $doc->saveHTML();
+	EchoStatusXML('Success');
 }
 
 function FPPDreloadSchedule()
@@ -892,12 +833,7 @@ function CloneUniverse()
 					$startAddress += $size;
  			}
 	}
-	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('Status');
-	$root = $doc->appendChild($root);
-	$value = $doc->createTextNode('Success');
-	$value = $root->appendChild($value);
-	echo $doc->saveHTML();
+	EchoStatusXML('Success');
 }
 
 function DeleteUniverse()
@@ -911,12 +847,7 @@ function DeleteUniverse()
 		$_SESSION['UniverseEntries'] = array_values($_SESSION['UniverseEntries']);
 
 	}
-	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('Status');
-	$root = $doc->appendChild($root);
-	$value = $doc->createTextNode('Success');
-	$value = $root->appendChild($value);
-	echo $doc->saveHTML();
+	EchoStatusXML('Success');
 }
 
 function SetUniverses()
@@ -940,12 +871,7 @@ function SetUniverses()
 
 	SaveUniversesToFile();
 
-	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('Status');
-	$root = $doc->appendChild($root);
-	$value = $doc->createTextNode('Success');
-	$value = $root->appendChild($value);
-	echo $doc->saveHTML();
+	EchoStatusXML('Success');
 }
 
 function SavePixelnetDMX()
@@ -966,12 +892,7 @@ function SavePixelnetDMX()
 
 	SavePixelnetDMXoutputsToFile();
 
-	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('Status');
-	$root = $doc->appendChild($root);
-	$value = $doc->createTextNode('Success');
-	$value = $root->appendChild($value);
-	echo $doc->saveHTML();
+	EchoStatusXML('Success');
 }
 
 
@@ -1074,12 +995,7 @@ function SaveUniversesToFile()
 	fwrite($f,$entries);
 	fclose($f);
 
-	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('Status');
-	$root = $doc->appendChild($root);
-	$value = $doc->createTextNode("Success");
-	$value = $root->appendChild($value);
-	echo $doc->saveHTML();
+	EchoStatusXML('Success');
 }
 
 
@@ -1110,12 +1026,7 @@ function SavePixelnetDMXoutputsToFile()
 	fwrite($f,$entries);
 	fclose($f);
 
-	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('Status');
-	$root = $doc->appendChild($root);
-	$value = $doc->createTextNode("Success");
-	$value = $root->appendChild($value);
-	echo $doc->saveHTML();
+	EchoStatusXML('Success');
 }
 
 
@@ -1257,12 +1168,7 @@ function SetUniverseCount()
 		}
 	}
 
-	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('Status');
-	$root = $doc->appendChild($root);
-	$value = $doc->createTextNode("Success");
-	$value = $root->appendChild($value);
-	echo $doc->saveHTML();
+	EchoStatusXML('Success');
 }
 
 function AddPlayListEntry()
@@ -1277,12 +1183,7 @@ function AddPlayListEntry()
 	check($pause);
 
 	$_SESSION['playListEntries'][] = new PlaylistEntry($type,$songFile,$seqFile,$pause,$index,count($_SESSION['playListEntries']));
-	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('Status');
-	$root = $doc->appendChild($root);
-	$value = $doc->createTextNode($_GET['songFile']);
-	$value = $root->appendChild($value);
-	echo $doc->saveHTML();
+	EchoStatusXML($_GET['songFile']);
 }
 
 function GetPlaylists()
@@ -1427,12 +1328,7 @@ function SetPlayListFirstLast()
 
 	$_SESSION['playlist_first'] = $first;
 	$_SESSION['playlist_last'] = $last;
-	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('Status');
-	$root = $doc->appendChild($root);
-	$value = $doc->createTextNode("Success");
-	$value = $root->appendChild($value);
-	echo $doc->saveHTML();
+	EchoStatusXML('Success');
 }
 
 function LoadPlayListDetails($file)
@@ -1632,13 +1528,7 @@ function SavePlaylist()
 	fwrite($f,$entries);
 	fclose($f);
 
-	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('Status');
-	$root = $doc->appendChild($root);
-	$value = $doc->createTextNode("Success");
-	$value = $root->appendChild($value);
-	echo $doc->saveHTML();
-
+	EchoStatusXML('Success');
 
 	if($name != $_SESSION['currentPlaylist'])
 	{
@@ -1655,12 +1545,7 @@ function DeletePlaylist()
 	check($name);
 
 	unlink($playlistDirectory . $name);
-	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('Status');
-	$root = $doc->appendChild($root);
-	$value = $doc->createTextNode("Success");
-	$value = $root->appendChild($value);
-	echo $doc->saveHTML();
+	EchoStatusXML('Success');
 }
 
 function DeleteSequence()
@@ -1671,12 +1556,7 @@ function DeleteSequence()
 	check($name);
 
 	unlink($sequenceDirectory . $name);
-	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('Status');
-	$root = $doc->appendChild($root);
-	$value = $doc->createTextNode("Success");
-	$value = $root->appendChild($value);
-	echo $doc->saveHTML();
+	EchoStatusXML('Success');
 }
 
 function DeleteMusic()
@@ -1687,12 +1567,7 @@ function DeleteMusic()
 	check($name);
 
 	unlink($musicDirectory . $name);
-	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('Status');
-	$root = $doc->appendChild($root);
-	$value = $doc->createTextNode("Success");
-	$value = $root->appendChild($value);
-	echo $doc->saveHTML();
+	EchoStatusXML('Success');
 }
 
 
