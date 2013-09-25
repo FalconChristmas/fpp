@@ -84,6 +84,7 @@ else if(!empty($_POST['command']) && $_POST['command'] == "saveSchedule")
 	SaveSchedule();
 }
 
+/////////////////////////////////////////////////////////////////////////////
 
 function check($var)
 {
@@ -93,6 +94,81 @@ function check($var)
 //		die();
 	}
 }
+
+function CleanupSocket($path, $socket = '')
+{
+	@unlink($path);
+
+	if ($socket != '')
+		@socket_close($socket);
+}
+
+function SendCommand($command)
+{
+	$cpath = "/tmp/FPP." . getmypid();
+	$spath = "/tmp/FPPD";
+
+	CleanupSocket($cpath);
+
+	$socket = socket_create(AF_UNIX, SOCK_DGRAM, 0);
+	if ( !@socket_set_nonblock($socket) ) {
+		echo( 'Unable to set nonblocking mode for ' . $spath . ' socket' );
+		CleanupSocket($cpath, $socket);
+		return false;
+	}
+
+	if ( !@socket_bind($socket, $cpath) ) {
+		echo( 'socket_bind() failed for ' . $cpath . ' socket' );
+		CleanupSocket($cpath, $socket);
+		return false;
+	}
+
+	if ( @socket_connect($socket, $spath) === false)
+	{
+		echo( 'socket_connect() failed for ' . $spath . ' socket' );
+		CleanupSocket($cpath, $socket);
+		return false;
+	}
+
+	if ( @socket_send($socket, $command, strLen($command), 0) == FALSE )
+	{
+		echo( 'socket_send() failed for ' . $spath . ' socket' );
+		CleanupSocket($cpath, $socket);
+		return false;
+	}
+
+	$i = 0;
+	$max_timeout = 1000;
+	$buf = "";
+	while ($i < $max_timeout)
+	{
+		$i++;
+		$bytes_received = @socket_recv($socket, $buf, 1024, MSG_DONTWAIT);
+		if ($bytes_received == -1)
+		{
+			echo('An error occured while receiving from the socket');
+			CleanupSocket($cpath, $socket);
+			return false;
+		}
+
+		if ($bytes_received > 0)
+		{
+			break;
+		}
+		usleep(500);
+	}
+
+	if ( $buf == "" )
+	{
+		CleanupSocket($cpath, $socket);
+		return "false";
+	}
+
+	CleanupSocket($cpath, $socket);
+	return $buf;
+}
+
+/////////////////////////////////////////////////////////////////////////////
 
 function RebootPi()
 {
@@ -119,8 +195,9 @@ function SetVolume()
 	
 	$vol = 50 + ($vol/2);
 	
-	$status=exec(dirname(dirname(__FILE__))."/bin/fpp -v " . $vol);
+	$status=SendCommand('v,' . $vol . ',');
 	$status=exec("amixer set PCM -- " . $vol . "%");
+
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('Status');
 	$root = $doc->appendChild($root);
@@ -270,11 +347,11 @@ function StartPlaylist()
 
 	if($repeat == "checked")
 	{
-		$status=exec(dirname(dirname(__FILE__))."/bin/fpp -p '" . $playlist . "," . $playEntry . "'");
+		$status=SendCommand("p," . $playlist . "," . $playEntry . ",");
 	}
 	else
 	{
-		$status=exec(dirname(dirname(__FILE__))."/bin/fpp -P '" . $playlist . "," . $playEntry . "'");
+		$status=SendCommand("P," . $playlist . "," . $playEntry . ",");
 	}
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('Status');
@@ -288,7 +365,7 @@ function GetUniverseReceivedBytes()
 {
 	global $bytesFile;
 
-	$status=exec(dirname(dirname(__FILE__))."/bin/fpp -r");
+	$status=SendCommand('r');
 	$file = file($bytesFile);
 	$doc = new DomDocument('1.0');
 	if($file != FALSE)
@@ -330,7 +407,7 @@ function GetUniverseReceivedBytes()
 
 function StopGracefully()
 {
-	$status=exec(dirname(dirname(__FILE__))."/bin/fpp -S");
+	$status=SendCommand('S');
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('Status');
 	$root = $doc->appendChild($root);
@@ -341,7 +418,7 @@ function StopGracefully()
 
 function StopNow()
 {
-	$status=exec(dirname(dirname(__FILE__))."/bin/fpp -d");
+	$status=SendCommand('d');
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('Status');
 	$root = $doc->appendChild($root);
@@ -379,10 +456,9 @@ function StartFPPD()
 	echo $doc->saveHTML();
 }
 
-
 function GetFPPstatus()
 {
-	$status=exec(dirname(dirname(__FILE__))."/bin/fpp -s");
+	$status = SendCommand('s');
 	if($status == 'false')
 	{
 		$doc = new DomDocument('1.0');
@@ -646,7 +722,7 @@ function SaveSchedule()
 
 function FPPDreloadSchedule()
 {
-	$status=exec(dirname(dirname(__FILE__))."/bin/fpp -R");
+	$status=SendCommand('R');
 }
 
 function SaveScheduleToFile()
