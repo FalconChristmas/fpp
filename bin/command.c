@@ -41,6 +41,8 @@ extern PlaylistDetails playlistDetails;
 
  void Command_Initialize()
  {
+   mode_t old_umask;
+
    LogWrite("Initializing Command Module\n");
    signal(SIGINT, exit_handler);
    signal(SIGTERM, exit_handler);
@@ -49,24 +51,28 @@ extern PlaylistDetails playlistDetails;
    {
     perror("server: socket");
    }
-	 
+
    fcntl(socket_fd, F_SETFL, O_NONBLOCK);
    memset(&server_address, 0, sizeof(server_address));
    server_address.sun_family = AF_UNIX;
-   strcpy(server_address.sun_path, "/tmp/FPPD");
-   unlink("/tmp/FPPD");
+   strcpy(server_address.sun_path, FPP_SERVER_SOCKET);
+   unlink(FPP_SERVER_SOCKET);
+
+   old_umask = umask(0011);
 
    if(bind(socket_fd, (const struct sockaddr *) &server_address, sizeof(server_address)) < 0)
    {
     close(socket_fd);
     perror("server: bind");
    }
+
+   umask(old_umask);
  }
 
  void CloseCommand()
  {
-   unlink("/tmp/FPPD");
    close(socket_fd);
+   unlink(FPP_SERVER_SOCKET);
  }
 
  void Commandproc()

@@ -1,3 +1,4 @@
+#include "fpp.h"
 #include "command.h"
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -97,9 +98,9 @@ void SetupDomainSocket(void)
 
  memset(&client_address, 0, sizeof(struct sockaddr_un));
  client_address.sun_family = AF_UNIX;
- strcpy(client_address.sun_path, "/tmp/FPP");
+ strcpy(client_address.sun_path, FPP_CLIENT_SOCKET);
 
- unlink("/tmp/FPP");
+ unlink(FPP_CLIENT_SOCKET);
  if(bind(socket_fd, (const struct sockaddr *) &client_address,
          sizeof(struct sockaddr_un)) < 0)
  {
@@ -108,7 +109,7 @@ void SetupDomainSocket(void)
  }
  memset(&server_address, 0, sizeof(struct sockaddr_un));
  server_address.sun_family = AF_UNIX;
- strcpy(server_address.sun_path, "/tmp/FPPD");
+ strcpy(server_address.sun_path, FPP_SERVER_SOCKET);
 }
 
 void SendCommand(const char * com)
@@ -134,6 +135,7 @@ void SendCommand(const char * com)
  }
  
  close(socket_fd);
+ unlink(FPP_CLIENT_SOCKET);
  if(bytes_received > 0)
  {
   printf("%s",response);
