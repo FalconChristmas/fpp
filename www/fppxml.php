@@ -200,8 +200,7 @@ function SetVolume()
 	
 	$vol = 50 + ($vol/2);
 	
-	//$status=SendCommand('v,' . $vol . ',');
-	$status=exec(dirname(dirname(__FILE__))."/bin/fpp -v " . $vol);
+	$status=SendCommand('v,' . $vol . ',');
 	$status=exec("amixer set PCM -- " . $vol . "%");
 
 	EchoStatusXML($status);
@@ -328,13 +327,11 @@ function StartPlaylist()
 
 	if($repeat == "checked")
 	{
-		//$status=SendCommand("p," . $playlist . "," . $playEntry . ",");
-		$status=exec(dirname(dirname(__FILE__))."/bin/fpp -p '" . $playlist . "," . $playEntry . "'");
+		$status=SendCommand("p," . $playlist . "," . $playEntry . ",");
 	}
 	else
 	{
-		//$status=SendCommand("P," . $playlist . "," . $playEntry . ",");
-		$status=exec(dirname(dirname(__FILE__))."/bin/fpp -P '" . $playlist . "," . $playEntry . "'");
+		$status=SendCommand("P," . $playlist . "," . $playEntry . ",");
 	}
 	EchoStatusXML('true');
 }
@@ -343,8 +340,7 @@ function GetUniverseReceivedBytes()
 {
 	global $bytesFile;
 
-	//$status=SendCommand('r');
-	$status=exec(dirname(dirname(__FILE__))."/bin/fpp -r");
+	$status=SendCommand('r');
 	$file = file($bytesFile);
 	$doc = new DomDocument('1.0');
 	if($file != FALSE)
@@ -386,22 +382,19 @@ function GetUniverseReceivedBytes()
 
 function StopGracefully()
 {
-	//$status=SendCommand('S');
-	$status=exec(dirname(dirname(__FILE__))."/bin/fpp -S");
+	$status=SendCommand('S');
 	EchoStatusXML('true');
 }
 
 function StopNow()
 {
-	//$status=SendCommand('d');
-	$status=exec(dirname(dirname(__FILE__))."/bin/fpp -d");
+	$status=SendCommand('d');
 	EchoStatusXML('true');
 }
 
 function StopFPPD()
 {
 	$status=exec("killall fppd");
-	$doc = new DomDocument('1.0');
 	EchoStatusXML('true');
 }
 
@@ -420,8 +413,7 @@ function StartFPPD()
 
 function GetFPPstatus()
 {
-	//$status=SendCommand('s');
-	$status=exec(dirname(dirname(__FILE__))."/bin/fpp -s");
+	$status = SendCommand('s');
 	if($status == 'false')
 	{
 		$doc = new DomDocument('1.0');
@@ -670,8 +662,7 @@ function SaveSchedule()
 
 function FPPDreloadSchedule()
 {
-	//$status=SendCommand('R');
-	$status=exec(dirname(dirname(__FILE__))."/bin/fpp -R");
+	$status=SendCommand('R');
 }
 
 function SaveScheduleToFile()
