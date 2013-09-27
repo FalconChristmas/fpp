@@ -24,10 +24,7 @@ char *trimwhitespace(const char *str)
 	while(isspace(*str)) str++;
 
 	if(*str == 0)  // All spaces?
-	{
-		*out = 0;
-		return NULL;
-	}
+		return strdup("");
 
 	// Trim trailing space
 	end = str + strlen(str) - 1;
@@ -292,7 +289,7 @@ int loadSettings(const char *filename)
 				continue;
 
 			token = trimwhitespace(token);
-			if ( ! token )
+			if (!strlen(token))
 				continue;
 
 			if ( strcmp(token, "verbose") == 0 )
