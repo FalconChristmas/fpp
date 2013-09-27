@@ -2,6 +2,7 @@
 #include "E131.h"
 #include "playList.h"
 #include "settings.h"
+#include "effects.h"
 
 #include "ogg123.h"
 #include <sys/types.h>
@@ -251,6 +252,8 @@ void E131_Send()
     {
       E131_SetTimer(usTimerValue);
     }
+
+    OverlayEffects(fileData);
     for(i=0;i<UniverseCount;i++)
     {
 		 	if(sendBlankingData)

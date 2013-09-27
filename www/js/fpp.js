@@ -1412,6 +1412,77 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 		xmlhttp.send();
 	}
 
+	function PlayEffect(startChannel)
+	{
+		if (startChannel == undefined)
+			startChannel = "1";
+
+		var url = "fppxml.php?command=playEffect&effect=" + PlayEffectSelected + "&startChannel=" + startChannel;
+		var xmlhttp=new XMLHttpRequest();
+		xmlhttp.open("GET",url,false);
+		xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+		xmlhttp.send();
+	}
+
+	function TriggerEvent()
+	{
+		var url = "fppxml.php?command=triggerEvent&event=" + TriggerEventSelected;
+		var xmlhttp=new XMLHttpRequest();
+		xmlhttp.open("GET",url,true);
+		xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+		xmlhttp.send();
+	}
+
+	function AddEvent()
+	{
+		$('#newEventID').val('');
+		$('#newEventName').val('');
+		$('#newEventEffect').val('');
+		$('#newEventStartChannel').val('');
+		$('#newEventScript').val('');
+		$('#newEvent').show();
+	}
+
+	function EditEvent()
+	{
+		$('#newEventID').val($('#event_' + TriggerEventSelected).find('td:eq(0)').text());
+		$('#newEventName').val($('#event_' + TriggerEventSelected).find('td:eq(1)').text());
+		$('#newEventEffect').val($('#event_' + TriggerEventSelected).find('td:eq(2)').text());
+		$('#newEventStartChannel').val($('#event_' + TriggerEventSelected).find('td:eq(3)').text());
+		$('#newEventScript').val($('#event_' + TriggerEventSelected).find('td:eq(4)').text());
+		$('#newEvent').show();
+	}
+
+	function SaveEvent()
+	{
+		var url = "fppxml.php?command=saveEvent&event=" + $('#newEventName').val() +
+			"&id=" + $('#newEventID').val() +
+			"&effect=" + $('#newEventEffect').val() +
+			"&startChannel=" + $('#newEventStartChannel').val() +
+			"&script=" + $('#newEventScript').val();
+		var xmlhttp=new XMLHttpRequest();
+		xmlhttp.open("GET",url,true);
+		xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+		xmlhttp.send();
+		$('#newEvent').hide();
+		location.reload(true);
+	}
+
+	function CancelNewEvent()
+	{
+		$('#newEvent').hide();
+	}
+
+	function DeleteEvent()
+	{
+		var url = "fppxml.php?command=deleteEvent&event=" + TriggerEventSelected;
+		var xmlhttp=new XMLHttpRequest();
+		xmlhttp.open("GET",url,true);
+		xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+		xmlhttp.send();
+		location.reload(true);
+	}
+
 	function RebootPi()
 	{
 		if (confirm('REBOOT the Falcon Pi Player?')) 
@@ -1585,6 +1656,7 @@ function GetFPPDmode()
 							$("#playerStatus").css("display","none");
 							$("#nextPlaylist").css("display","none");
 							$("#selFPPDmode").prop("selectedIndex",1);
+							$("#textFPPDmode").text("Bridged Mode");
 					}
 			}
 		};

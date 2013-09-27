@@ -17,6 +17,7 @@ $mediaDirectory = "/home/pi/media/";
 $musicDirectory = "/home/pi/media/music/";
 $sequenceDirectory = "/home/pi/media/sequences/";
 $playlistDirectory = "/home/pi/media/playlists/";
+$eventDirectory = "/home/pi/media/events/";
 $universeFile = "/home/pi/media/universes";
 $pixelnetFile = "/home/pi/media/pixelnetDMX";
 $scheduleFile = "/home/pi/media/schedule";

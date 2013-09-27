@@ -6,6 +6,7 @@
 #include "ogg123.h"
 #include "e131bridge.h"
 #include "settings.h"
+#include "effects.h"
 
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -91,6 +92,8 @@ extern PlaylistDetails playlistDetails;
   void ProcessCommand()
   {
     char *s;
+    char *s2;
+    int i;
 		char NextScheduleStartText[64];
 		char NextPlaylist[128];
     switch(command[0])
@@ -240,6 +243,30 @@ extern PlaylistDetails playlistDetails;
 			case 'r':
 				WriteBytesReceivedFile();
 				sprintf(response,"true\n");
+				break;
+			case 'e': // Start an effect
+				s = strtok(command,",");
+				s = strtok(NULL,",");
+				s2 = strtok(NULL,",");
+				if (s && s2)
+				{
+					i = StartEffect(s, atoi(s2));
+					if (i >= 0)
+						sprintf(response,"%d,%d,Starting Effect,%d,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS,i);
+					else
+						sprintf(response,"%d,%d,Invalid Effect,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
+				}
+				else
+					sprintf(response,"%d,%d,Invalid Effect,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
+				break;
+			case 't': // Trigger an event
+				s = strtok(command,",");
+				s = strtok(NULL,",");
+				i = TriggerEvent(s);
+				if (i >= 0)
+					sprintf(response,"%d,%d,Event Triggered,%d,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS,i);
+				else
+					sprintf(response,"%d,%d,Event Failed,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
 				break;
 			default:
 				sprintf(response,"Invalid command\n");

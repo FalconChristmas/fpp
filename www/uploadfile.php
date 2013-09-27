@@ -99,7 +99,7 @@ h2 {
   <br />
   <div id= "divSeq">
     <fieldset class="fs">
-      <legend> Sequence Files (.fseq) </legend>
+      <legend> Sequence &amp; Effects Files (.fseq, .eseq) </legend>
       <div id="divSeqData">
         <table id="tblSequences">
         </table>

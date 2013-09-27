@@ -56,7 +56,11 @@ $command_array = Array(
 	"setVolume" => 'SetVolume',
 	"setFPPDmode" => 'SetFPPDmode',
 	"getVolume" => 'GetVolume',
-	"getFPPDmode" => 'GetFPPDmode'
+	"getFPPDmode" => 'GetFPPDmode',
+	"playEffect" => 'PlayEffect',
+	"triggerEvent" => 'TriggerEvent',
+	"saveEvent" => 'SaveEvent',
+	"deleteEvent" => 'DeleteEvent'
 );
 
 
@@ -334,6 +338,57 @@ function StartPlaylist()
 		$status=SendCommand("P," . $playlist . "," . $playEntry . ",");
 	}
 	EchoStatusXML('true');
+}
+
+function PlayEffect()
+{
+	$effect = $_GET['effect'];
+	$startChannel = $_GET['startChannel'];
+	$status = SendCommand("e," . $effect . "," . $startChannel . ",");
+	EchoStatusXML($status);
+}
+
+function TriggerEvent()
+{
+	$event = $_GET['event'];
+	$status = SendCommand("t," . $event . ",");
+	EchoStatusXML($status);
+}
+
+function SaveEvent()
+{
+	global $eventDirectory;
+
+	$event = $_GET['event'];
+	check($event);
+
+	$event = $event . ".fevt";
+
+	if (isset($_GET['effect']) && $_GET['effect'] != "")
+		$eseq = $_GET['effect'] . ".eseq";
+	else
+		$eseq = "";
+
+	$f=fopen($eventDirectory . $event,"w") or exit("Unable to open file! : " . $event);
+	$eventDefinition = sprintf("id=%d\neffect=%s\nstartChannel=%s\nscript=%s\n",
+		$_GET['id'], $eseq, $_GET['startChannel'], $_GET['script']);
+	fwrite($f, $eventDefinition);
+	fclose($f);
+
+	EchoStatusXML('Success');
+}
+
+function DeleteEvent()
+{
+	global $eventDirectory;
+
+	$event = $_GET['event'];
+	check($event);
+
+	$event = $event . ".fevt";
+	unlink($eventDirectory . $event);
+
+	EchoStatusXML('Success');
 }
 
 function GetUniverseReceivedBytes()

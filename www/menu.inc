@@ -40,6 +40,7 @@ unset($output);
           <li><a href="rds.php">RDS</a></li>
 <?php } ?>
           <li><a href="settings.php">FPP Settings</a></li>
+          <li><a href="events.php">Events &amp; Effects</a></li>
         </ul>
       </li>
       <li><a href="#">Content Setup</a>
