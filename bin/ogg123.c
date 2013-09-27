@@ -26,18 +26,21 @@ int bufferPtr=0;
 char state=0;
 char strTime[34];
 
+
 void sigchld_handler(int signal)
 {
-		pid_t p;
-    int status;
-    while((p = waitpid(-1, &status, WNOHANG)) > 0)
-    {};
-			childPID =0;
-			close(pipeFromOGG[PIPE_READ]);
-			//close(pipeToOGG[PIPE_WRITE]);
-			MusicPlayerStatus = IDLE_MPLAYER_STATUS;
-			E131_CloseSequenceFile();
-			usleep(1000000);
+	int status;
+	pid_t p = waitpid(-1, &status, WNOHANG);
+
+	if (p == childPID)
+	{
+		childPID =0;
+		close(pipeFromOGG[PIPE_READ]);
+		//close(pipeToOGG[PIPE_WRITE]);
+		MusicPlayerStatus = IDLE_MPLAYER_STATUS;
+		E131_CloseSequenceFile();
+		usleep(1000000);
+	}
 }
 
 int oggInit()
