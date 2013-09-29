@@ -36,7 +36,7 @@ char *trimwhitespace(const char *str)
 
 	// All whitespace
 	if ( out_size == 0 )
-		return NULL;
+		return strdup("");
 
 	out = malloc(out_size+1);
 	// If we didn't allocate anything, die!
@@ -284,186 +284,330 @@ int loadSettings(const char *filename)
 			if (( ! line ) || ( ! read ) || ( read == 1 ))
 				continue;
 
+			char *key, *value;	// These are values we're looking for and will
+								// run through trimwhitespace which means they
+								// must be freed before we are done.
+
 			char *token = strtok(line, "=");
 			if ( ! token )
 				continue;
 
-			token = trimwhitespace(token);
-			if (!strlen(token))
+			key = trimwhitespace(token);
+			if ( !strlen(key) )
+			{
+				free(key);
 				continue;
+			}
 
-			if ( strcmp(token, "verbose") == 0 )
+			LogWrite("Checking for key %s\n", key);
+
+			if ( strcmp(key, "verbose") == 0 )
 			{
 				if ( settings.verbose == FPP_DEFAULT )
 				{
-					token = trimwhitespace(strtok(NULL, "="));
-					if ( strcmp(token, "false") == 0 )
+					token = strtok(NULL, "=");
+					if ( ! token )
+					{
+						fprintf(stderr, "Error tokenizing value for verbose setting\n");
+						continue;
+					}
+					value = trimwhitespace(token);
+					if ( strcmp(value, "false") == 0 )
 						settings.verbose = FPP_FALSE;
-					else if ( strcmp(token, "true") == 0 )
+					else if ( strcmp(value, "true") == 0 )
 						settings.verbose = FPP_TRUE;
 					else if ( settings.verbose != FPP_DEFAULT )
 					{
 						fprintf(stderr, "Failed to load verbose setting from config file\n");
 						exit(EXIT_FAILURE);
 					}
-					free(token); token = NULL;
 				}
 			}
-			else if ( strcmp(token, "daemonize") == 0 )
+			else if ( strcmp(key, "daemonize") == 0 )
 			{
 				if ( settings.daemonize == FPP_DEFAULT )
 				{
-					token = trimwhitespace(strtok(NULL, "="));
-					if ( strcmp(token, "false") == 0 )
+					token = strtok(NULL, "=");
+					if ( ! token )
+					{
+						fprintf(stderr, "Error tokenizing value for daemonize setting\n");
+						continue;
+					}
+					value = trimwhitespace(token);
+
+					if ( strcmp(value, "false") == 0 )
 						settings.daemonize = FPP_FALSE;
-					else if ( strcmp(token, "true") == 0 )
+					else if ( strcmp(value, "true") == 0 )
 						settings.daemonize = FPP_TRUE;
 					else
 					{
 						fprintf(stderr, "Failed to load daemonize setting from config file\n");
 						exit(EXIT_FAILURE);
 					}
-					free(token); token = NULL;
 				}
 			}
-			else if ( strcmp(token, "fppMode") == 0 )
+			else if ( strcmp(key, "fppMode") == 0 )
 			{
 				if ( settings.fppMode == DEFAULT_MODE )
 				{
-					token = trimwhitespace(strtok(NULL, "="));
-					if ( strcmp(token, "player") == 0 )
+					token = strtok(NULL, "=");
+					if ( ! token )
+					{
+						fprintf(stderr, "Error tokenizing value for fppMode setting\n");
+						continue;
+					}
+					value = trimwhitespace(token);
+
+					if ( strcmp(value, "player") == 0 )
 						settings.fppMode = PLAYER_MODE;
-					else if ( strcmp(token, "bridge") == 0 )
+					else if ( strcmp(value, "bridge") == 0 )
 						settings.fppMode = BRIDGE_MODE;
 					else
 					{
 						printf("Error parsing mode\n");
 						exit(EXIT_FAILURE);
 					}
-					free(token); token = NULL;
 				}
 			}
-			else if ( strcmp(token, "volume") == 0 )
+			else if ( strcmp(key, "volume") == 0 )
 			{
-				if ( settings.volume != -1 )
+				if ( settings.volume == -1 )
 				{
-					token = trimwhitespace(strtok(NULL, "="));
-					settings.volume = atoi(token);
-					free(token); token = NULL;
+					token = strtok(NULL, "=");
+					if ( ! token )
+					{
+						fprintf(stderr, "Error tokenizing value for volume setting\n");
+						continue;
+					}
+					value = trimwhitespace(token);
+					if ( strlen(value) )
+						settings.volume = atoi(value);
+					else
+						fprintf(stderr, "Failed to load volume setting from config file\n");
 				}
+				else
+					LogWrite("Volume already set, ignoring setting in file\n");
 			}
-			else if ( strcmp(token, "settingsFile") == 0 )
+			else if ( strcmp(key, "settingsFile") == 0 )
 			{
 				if ( ! settings.settingsFile )
 				{
-					token = trimwhitespace(strtok(NULL, "="));
-					settings.settingsFile = strdup(token);
-					free(token); token = NULL;
+					token = strtok(NULL, "=");
+					if ( ! token )
+					{
+						fprintf(stderr, "Error tokenizing value for settingsFile setting\n");
+						continue;
+					}
+					value = trimwhitespace(token);
+					if ( strlen(value) )
+						settings.settingsFile = strdup(value);
+					else
+						fprintf(stderr, "Failed to load settingsFile from config file\n");
 				}
 			}
-			else if ( strcmp(token, "mediaDirectory") == 0 )
+			else if ( strcmp(key, "mediaDirectory") == 0 )
 			{
 				if ( ! settings.mediaDirectory )
 				{
-					token = trimwhitespace(strtok(NULL, "="));
-					settings.mediaDirectory = strdup(token);
-					free(token); token = NULL;
+					token = strtok(NULL, "=");
+					if ( ! token )
+					{
+						fprintf(stderr, "Error tokenizing value for mediaDirectory setting\n");
+						continue;
+					}
+					value = trimwhitespace(token);
+					if ( strlen(value) )
+						settings.mediaDirectory = strdup(value);
+					else
+						fprintf(stderr, "Failed to load mediaDirectory from config file\n");
 				}
 			}
-			else if ( strcmp(token, "musicDirectory") == 0 )
+			else if ( strcmp(key, "musicDirectory") == 0 )
 			{
 				if ( ! settings.musicDirectory )
 				{
-					token = trimwhitespace(strtok(NULL, "="));
-					settings.musicDirectory = strdup(token);
-					free(token); token = NULL;
+					token = strtok(NULL, "=");
+					if ( ! token )
+					{
+						fprintf(stderr, "Error tokenizing value for musicDirectory setting\n");
+						continue;
+					}
+					value = trimwhitespace(token);
+					if ( strlen(value) )
+						settings.musicDirectory = strdup(value);
+					else
+						fprintf(stderr, "Failed to load musicDirectory from config file\n");
 				}
 			}
-			else if ( strcmp(token, "sequenceDirectory") == 0 )
+			else if ( strcmp(key, "sequenceDirectory") == 0 )
 			{
 				if ( ! settings.sequenceDirectory )
 				{
-					token = trimwhitespace(strtok(NULL, "="));
-					settings.sequenceDirectory = strdup(token);
-					free(token); token = NULL;
+					token = strtok(NULL, "=");
+					if ( ! token )
+					{
+						fprintf(stderr, "Error tokenizing value for sequenceDirectory setting\n");
+						continue;
+					}
+					value = trimwhitespace(token);
+					if ( strlen(value) )
+						settings.sequenceDirectory = strdup(value);
+					else
+						fprintf(stderr, "Failed to load sequenceDirectory from config file\n");
 				}
 			}
-			else if ( strcmp(token, "playlistDirectory") == 0 )
+			else if ( strcmp(key, "playlistDirectory") == 0 )
 			{
 				if ( ! settings.playlistDirectory )
 				{
-					token = trimwhitespace(strtok(NULL, "="));
-					settings.playlistDirectory = strdup(token);
-					free(token); token = NULL;
+					token = strtok(NULL, "=");
+					if ( ! token )
+					{
+						fprintf(stderr, "Error tokenizing value for playlistDirectory setting\n");
+						continue;
+					}
+					value = trimwhitespace(token);
+					if ( strlen(value) )
+						settings.playlistDirectory = strdup(value);
+					else
+						fprintf(stderr, "Failed to load playlistDirectory from config file\n");
 				}
 			}
-			else if ( strcmp(token, "universeFile") == 0 )
+			else if ( strcmp(key, "universeFile") == 0 )
 			{
 				if ( ! settings.universeFile )
 				{
-					token = trimwhitespace(strtok(NULL, "="));
-					settings.universeFile = strdup(token);
-					free(token); token = NULL;
+					token = strtok(NULL, "=");
+					if ( ! token )
+					{
+						fprintf(stderr, "Error tokenizing value for universeFile setting\n");
+						continue;
+					}
+					value = trimwhitespace(token);
+					if ( strlen(value) )
+						settings.universeFile = strdup(value);
+					else
+						fprintf(stderr, "Failed to load universeFile from config file\n");
 				}
 			}
-			else if ( strcmp(token, "pixelnetFile") == 0 )
+			else if ( strcmp(key, "pixelnetFile") == 0 )
 			{
 				if ( ! settings.pixelnetFile )
 				{
-					token = trimwhitespace(strtok(NULL, "="));
-					settings.pixelnetFile = strdup(token);
-					free(token); token = NULL;
+					token = strtok(NULL, "=");
+					if ( ! token )
+					{
+						fprintf(stderr, "Error tokenizing value for pixelnetFile setting\n");
+						continue;
+					}
+					value = trimwhitespace(token);
+					if ( strlen(value) )
+						settings.pixelnetFile = strdup(value);
+					else
+						fprintf(stderr, "Failed to load pixelnetFile from config file\n");
 				}
 			}
-			else if ( strcmp(token, "scheduleFile") == 0 )
+			else if ( strcmp(key, "scheduleFile") == 0 )
 			{
 				if ( ! settings.scheduleFile )
 				{
-					token = trimwhitespace(strtok(NULL, "="));
-					settings.scheduleFile = strdup(token);
-					free(token); token = NULL;
+					token = strtok(NULL, "=");
+					if ( ! token )
+					{
+						fprintf(stderr, "Error tokenizing value for scheduleFile setting\n");
+						continue;
+					}
+					value = trimwhitespace(token);
+					if ( strlen(value) )
+						settings.scheduleFile = strdup(value);
+					else
+						fprintf(stderr, "Failed to load scheduleFile from config file\n");
 				}
 			}
-			else if ( strcmp(token, "logFile") == 0 )
+			else if ( strcmp(key, "logFile") == 0 )
 			{
 				if ( ! settings.logFile )
 				{
-					token = trimwhitespace(strtok(NULL, "="));
-					settings.logFile = strdup(token);
-					free(token); token = NULL;
+					token = strtok(NULL, "=");
+					if ( ! token )
+					{
+						fprintf(stderr, "Error tokenizing value for logFile setting\n");
+						continue;
+					}
+					value = trimwhitespace(token);
+					if ( strlen(value) )
+						settings.logFile = strdup(value);
+					else
+						fprintf(stderr, "Failed to load logFile from config file\n");
 				}
 			}
-			else if ( strcmp(token, "silenceMusic") == 0 )
+			else if ( strcmp(key, "silenceMusic") == 0 )
 			{
 				if ( ! settings.silenceMusic )
 				{
-					token = trimwhitespace(strtok(NULL, "="));
-					settings.silenceMusic = strdup(token);
-					free(token); token = NULL;
+					token = strtok(NULL, "=");
+					if ( ! token )
+					{
+						fprintf(stderr, "Error tokenizing value for silenceMusic setting\n");
+						continue;
+					}
+					value = trimwhitespace(token);
+					if ( strlen(value) )
+						settings.silenceMusic = strdup(value);
+					else
+						fprintf(stderr, "Failed to load silenceMusic from config file\n");
 				}
 			}
-			else if ( strcmp(token, "mpg123Path") == 0 )
+			else if ( strcmp(key, "mpg123Path") == 0 )
 			{
 				if ( ! settings.silenceMusic )
 				{
-					token = trimwhitespace(strtok(NULL, "="));
-					settings.MPG123Path = strdup(token);
-					free(token); token = NULL;
+					token = strtok(NULL, "=");
+					if ( ! token )
+					{
+						fprintf(stderr, "Error tokenizing value for mpg123Path setting\n");
+						continue;
+					}
+					value = trimwhitespace(token);
+					if ( strlen(value) )
+						settings.MPG123Path = strdup(value);
+					else
+						fprintf(stderr, "Failed to load mpg123Path from config file\n");
 				}
 			}
-			else if ( strcmp(token, "bytesFile") == 0 )
+			else if ( strcmp(key, "bytesFile") == 0 )
 			{
 				if ( ! settings.bytesFile )
 				{
-					token = trimwhitespace(strtok(NULL, "="));
-					settings.bytesFile = strdup(token);
-					free(token); token = NULL;
+					token = strtok(NULL, "=");
+					if ( ! token )
+					{
+						fprintf(stderr, "Error tokenizing value for bytesFile setting\n");
+						continue;
+					}
+					value = trimwhitespace(token);
+					if ( strlen(value) )
+						settings.bytesFile = strdup(value);
+					else
+						fprintf(stderr, "Failed to load bytesFile from config file\n");
 				}
 			}
 			else
 			{
 				fprintf(stderr, "Error parsing config file\n");
 				exit(EXIT_FAILURE);
+			}
+
+			if ( key )
+			{
+				free(key);
+				key = NULL;
+			}
+
+			if ( value )
+			{
+				free(value);
+				value = NULL;
 			}
 
 			if ( line )
