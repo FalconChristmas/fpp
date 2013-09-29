@@ -36,6 +36,10 @@ void _LogWrite(char *file, int line, const char *format, ...)
 		if ( ! logFile )
 		{
 			fprintf(stderr, "Error: Unable to open log file for writing!\n");
+			fprintf(stderr, "%s  %s:%d:",timeStr, file, line);
+			va_start(arg, format);
+			vfprintf(stderr, format, arg);
+			va_end(arg);
 			return;
 		}
 		fprintf(logFile, "%s  %s:%d:",timeStr, file, line);
