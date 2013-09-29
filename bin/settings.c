@@ -299,8 +299,6 @@ int loadSettings(const char *filename)
 				continue;
 			}
 
-			LogWrite("Checking for key %s\n", key);
-
 			if ( strcmp(key, "verbose") == 0 )
 			{
 				if ( settings.verbose == FPP_DEFAULT )
