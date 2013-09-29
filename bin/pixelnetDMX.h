@@ -11,7 +11,7 @@
 
 void InitializePixelnetDMX();
 void CreatePixelnetDMXfile(const char * file);
-void SendPixelnetDMX(char sendBlankingData);
+void SendPixelnetDMX(void);
 void SendPixelnetDMXConfig();
 void LoadPixelnetDMXsettingsFromFile();
 void PixelnetDMXPrint();
