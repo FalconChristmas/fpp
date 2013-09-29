@@ -22,7 +22,9 @@
 #include <string.h>
 #include <strings.h>
 
+#include "E131.h"
 #include "effects.h"
+#include "lighttimer.h"
 #include "log.h"
 
 #define MAX_EFFECTS 100
@@ -79,6 +81,19 @@ int GetNextEffectID(void)
 	return -1;
 }
 
+/*
+ * Check to see if any effects are running
+ */
+int IsEffectRunning(void)
+{
+	int result = 0;
+
+	pthread_mutex_lock(&effectsLock);
+	result = effectCount;
+	pthread_mutex_unlock(&effectsLock);
+
+	return result;
+}
 /*
  * Start a new effect offset at the specified channel number
  */
@@ -162,6 +177,9 @@ int StartEffect(char *effectName, int startChannel)
 
 	pthread_mutex_unlock(&effectsLock);
 
+	if (!IsSequenceRunning())
+		InitLightTimer();
+
 	return effectID;
 }
 
@@ -190,6 +208,9 @@ int StopEffect(int effectID)
 	effects[effectID] = NULL;
 
 	effectCount--;
+
+	if ((effectCount == 0) && !IsSequenceRunning())
+		SendBlankingData();
 
 	pthread_mutex_unlock(&effectsLock);
 
@@ -241,6 +262,11 @@ int OverlayEffect(int effectID, char *channelData)
 		free(e);
 		effects[effectID] = NULL;
 		effectCount--;
+
+		// Can't use IsEffectRunning here since it wants the lock
+		if ((effectCount == 0) && !IsSequenceRunning())
+			SendBlankingData();
+
 		return 0;
 	}
 

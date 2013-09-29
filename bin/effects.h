@@ -16,6 +16,7 @@ typedef struct fppeffect {
 
 extern FPPeffect *effects[];
 
+int  IsEffectRunning(void);
 int  InitEffects(void);
 void CloseEffects(void);
 int  StartEffect(char *effectName, int startChannel);
