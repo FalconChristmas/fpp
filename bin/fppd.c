@@ -24,15 +24,10 @@ int FPPstatus=FPP_STATUS_IDLE;
 
 int main(int argc, char *argv[])
 {
+	loadSettings("/home/pi/media/settings");
+
 	// Parse our arguments first, override any defaults
 	parseArguments(argc, argv);
-
-	printSettings();
-
-	// Now load things from our settings file, only load
-	// things that haven't already been set by the command
-	// line which should take presidence
-	loadSettings(getSettingsFile());
 
 	printSettings();
 

@@ -7,8 +7,7 @@ void CheckExistanceOfDirectoriesAndFiles();
 
 enum fppModes {
 	PLAYER_MODE = 0,
-	BRIDGE_MODE,
-	DEFAULT_MODE
+	BRIDGE_MODE
 };
 
 #endif
