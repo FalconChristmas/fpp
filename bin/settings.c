@@ -183,6 +183,7 @@ int parseArguments(int argc, char **argv)
 			{"music-directory",		required_argument,	0, 'M'},
 			{"sequence-directory",	required_argument,	0, 'S'},
 			{"playlist-directory",	required_argument,	0, 'P'},
+			{"event-directory",		required_argument,	0, 'E'},
 			{"universe-file",		required_argument,	0, 'u'},
 			{"pixelnet-file",		required_argument,	0, 'p'},
 			{"schedule-file",		required_argument,	0, 's'},
