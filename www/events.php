@@ -19,17 +19,10 @@
           if ($('#newEvent').is(":visible"))
               EditEvent();
 		});
-		$('#tblEffectEntries').on('mousedown', 'tr', function(event,ui){
-					$('#tblEffectEntries tr').removeClass('effectSelectedEntry');
-          $(this).addClass('effectSelectedEntry');
-					var items = $('#tblEffectEntries tr');
-					PlayEffectSelected  = $(this).find('td:first').text();
-          SetButtonState('#btnPlayEffect','enable');
-		});
 	});
 </script>
 
-<title>Falcon PI Player - Events &amp; Effects</title>
+<title>Falcon PI Player - Events</title>
 </head>
 <body onLoad="GetFPPDmode();StatusPopulatePlaylists();setInterval(updateFPPStatus,1000);GetVolume();">
 <div id="bodyWrapper">
@@ -57,20 +50,6 @@
     }
   }
 
-  function PrintEffectRows()
-  {
-    global $sequenceDirectory;
-    foreach(scandir($sequenceDirectory) as $seqFile)
-    {
-      if($seqFile != '.' && $seqFile != '..' && preg_match('/.eseq$/', $seqFile))
-      {
-        $seqFile = preg_replace('/.eseq$/', '', $seqFile);
-        
-        echo "<tr id='effect_" . $seqFile . "'><td width='1000%'>" . $seqFile . "</td></tr>\n";
-      }
-    }
-  }
-
   function PrintEffectOptions()
   {
     global $sequenceDirectory;
@@ -89,7 +68,7 @@
 <br/>
 <div id="programControl" class="settings">
   <fieldset>
-    <legend>Events &amp; Effects</legend>
+    <legend>Events</legend>
     <div id="daemonControl">
       <table width= "100%">
         <tr>
@@ -185,39 +164,6 @@
         <input id= "btnSaveNewEvent" type="button"  class ="buttons" value="Save Event" onClick="SaveEvent();">
         <input id= "btnCancelNewEvent" type="button"  class ="buttons" value="Cancel Edit" onClick="CancelNewEvent();">
       </div>
-    </div>
-    <hr>
-    <div>
-      <div>
-        <table width="100%">
-          <tr>
-            <td><b><center>Effects</center></b></td>
-          </tr>
-        </table>
-      </div>
-			<div id="effectList"  class="unselectable">
-        <table id="tblEffectListHeader" width="100%">
-          <tr class="effectListHeader">
-            <td width="100%">Effect Sequence</td>
-          </tr>
-        </table>
-				<div id= "effectListContents">
-          <table id="tblEffectEntries"   width="100%">
-<? PrintEffectRows(); ?>
-          </table>
-				</div>
-      </div>
-
-			<div>
-        <table width="100%">
-          <tr>
-				    <td>Effect Start Channel: <input id="effectStartChannel" class="default-value" type="text" value="1" size="5" maxlength="5" /></td>
-          </tr>
-        </table>
-			</div>
-      <div id="eventControls" style="margin-top:5px">
-        <input id= "btnPlayEffect" type="button"  class ="disableButtons" value="Play Effect" onClick="PlayEffect($('#effectStartChannel').val());">
-       </div>
     </div>
   </fieldset>
 </div>

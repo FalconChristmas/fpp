@@ -1,28 +1,34 @@
 <?php
-$rfs_version = exec("cat /etc/fpp/rfs_version", $output, $return_val);
-//TODO: Make this fancier
-if ( $return_val != 0 )
-	$rfs_version = "Unknown";
-unset($output);
 
-$git_version = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ rev-parse --short HEAD", $output, $return_val);
-//TODO: Make this awesomer
-if ( $return_val != 0 )
-	$git_version = "Unknown";
-unset($output);
+$fpp_version = "Unknown";
 
-$git_remote_version = exec("git ls-remote --heads https://github.com/FalconChristmas/fpp | grep master | awk '$1 > 0 { print substr($1,1,7)}'", $output, $return_val);
-if ( $return_val != 0 )
-	$git_remote_version = "Unknown";
-unset($output);
+$vFiles = array('/etc/fpp/rfs_version', '/etc/redhat-release');
+$rfs_version = "Unknown";
+foreach ($vFiles as $filename)
+{
+	if (file_exists($filename))
+	{
+		$rfs_version = exec("cat $filename", $output, $return_val);
+		//TODO: Make this fancier
+		if ( $return_val != 0 )
+			$rfs_version = "Unknown";
+		unset($output);
+
+		if ($filename == "/etc/fpp/rfs_version")
+		{
+			$fpp_version = $rfs_version;
+		}
+		break;
+	}
+}
+
 ?>
 
 <?php require_once(dirname(__FILE__)."/config.php"); ?>
 	 <div class="header">
 	 		<div class="headerLeft"><a href="http://www.falconchristmas.com"><img src="images/falconlogo.png"  height="60" /></a></div>
 	 		<div class="headerCenter"><div class="siteName">Falcon Pi Player (FPP)</div>
-		        OS Version: <?php echo $rfs_version; ?><br />
-		        FPP Version: <?php echo $git_version; ?>, Master Version: <?php echo $git_remote_version; ?>
+		        Version: <?php echo $fpp_version; ?>
 	 		</div>
 			<div class="headerRight"<a href="http://raspberrypi.org"><img src="images/large_Raspberry_Pi_Logo_4.png" height="60" /></a></div>
 			<div class="clear"></div>
@@ -40,7 +46,8 @@ unset($output);
           <li><a href="rds.php">RDS</a></li>
 <?php } ?>
           <li><a href="settings.php">FPP Settings</a></li>
-          <li><a href="events.php">Events &amp; Effects</a></li>
+          <li><a href="events.php">Events</a></li>
+          <li><a href="effects.php">Effects</a></li>
         </ul>
       </li>
       <li><a href="#">Content Setup</a>
@@ -58,7 +65,12 @@ unset($output);
           <!-- <li><a href="rds.php">Radio RDS</a></li> -->
         </ul>
       </li>
-      <li><a href="http://falconchristmas.com/wiki/index.php5/FPP">Wiki/Help</a></li>
+      <li><a href="#">Help</a>
+        <ul>
+          <li><a href="http://falconchristmas.com/wiki/index.php5/FPP">Wiki/Help</a></li>
+          <li><a href="about.php">About</a></li>
+        </ul>
+      </li>
     </ul>
     <br style="clear: left" />
     </div>
