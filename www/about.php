@@ -28,6 +28,28 @@ if ( $return_val != 0 )
 	$git_remote_version = "Unknown";
 unset($output);
 
+function getSymbolByQuantity($bytes) {
+  $symbols = array('B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB');
+  $exp = floor(log($bytes)/log(1024));
+
+  return sprintf('%.2f '. $symbols[$exp], ($bytes/pow(1024, floor($exp))));
+}
+
+function getFileCount($dir)
+{
+  $i = 0;
+  if ($handle = opendir($dir))
+  {
+    while (($file = readdir($handle)) !== false)
+    {
+      if (!in_array($file, array('.', '..')) && !is_dir($dir . $file))
+        $i++;
+    }
+  }
+
+  return $i;
+}
+
 ?>
 
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -121,25 +143,41 @@ a:visited {
       <legend>About FPP</legend>
       <div style="overflow: hidden; padding: 10px;">
       <div>
-        <table id='tblAbout'>
+        <table class='tblAbout'>
           <tr><td>FPP Version:</td><td><? echo $fpp_version; ?></td></tr>
+<? if ($rfs_version != $fpp_version) { ?>
           <tr><td>OS Version:</td><td><? echo $rfs_version; ?></td></tr>
+<? } ?>
           <tr><td>Git Version:</td><td><? echo $git_version; ?></td></tr>
 <? if ($git_branch != "master") { ?>
           <tr><td>Git Branch:</td><td><? echo $git_branch; ?></td></tr>
 <? } ?>
           <tr><td>Git Master Version:</td><td><? echo $git_remote_version; ?></td></tr>
           <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+
+          <tr><td><b>Disk Utilization</b></td><td>&nbsp;</td></tr>
+          <tr><td>Root Free Space:</td><td>
+<?
+  $diskTotal = disk_total_space("/");
+  $diskFree  = disk_free_space("/");
+  printf( "%s (%2.0f%%)\n", getSymbolByQuantity($diskFree), $diskFree * 100 / $diskTotal);
+?>
+		    </td></tr>
+          <tr><td>Media Free Space:</td><td>
+<?
+  $diskTotal = disk_total_space("/home/pi/media");
+  $diskFree  = disk_free_space("/home/pi/media");
+  printf( "%s (%2.0f%%)\n", getSymbolByQuantity($diskFree), $diskFree * 100 / $diskTotal);
+?>
+		    </td></tr>
+          <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+
+          <tr><td><b>Player Stats</b></td><td>&nbsp;</td></tr>
+          <tr><td>Sequence Files:</td><td><? echo getFileCount($sequenceDirectory); ?></td></tr>
+          <tr><td>Audio Files:</td><td><? echo getFileCount($musicDirectory); ?></td></tr>
 <!--
-Other Info/Stats:
-- disk utilization (root & media)
-- # of sequences available (.fseq and .eseq breakdown)
-- # of audio files
+          <tr><td>Events:</td><td><? echo getFileCount($eventDirectory) - 1; ?></td></tr>
 -->
-          <tr><td></td><td></td></tr>
-          <tr><td></td><td></td></tr>
-          <tr><td></td><td></td></tr>
-          <tr><td></td><td></td></tr>
           <tr><td></td><td></td></tr>
         </table>
       </div>
