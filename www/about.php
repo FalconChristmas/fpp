@@ -173,6 +173,7 @@ a:visited {
           <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
 
           <tr><td><b>Player Stats</b></td><td>&nbsp;</td></tr>
+          <tr><td>Playlists:</td><td><? echo getFileCount($playlistDirectory); ?></td></tr>
           <tr><td>Sequence Files:</td><td><? echo getFileCount($sequenceDirectory); ?></td></tr>
           <tr><td>Audio Files:</td><td><? echo getFileCount($musicDirectory); ?></td></tr>
 <!--
