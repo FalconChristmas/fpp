@@ -20,7 +20,7 @@ void _LogWrite(char *file, int line, const char *format, ...)
 					tm.tm_hour,
 					tm.tm_min,
 					tm.tm_sec);
-	if ( getVerbose() == FPP_TRUE )
+	if ( getVerbose() )
 	{
 		fprintf(stdout, "%s  %s:%d:", timeStr, file, line);
 		va_start(arg, format);
@@ -28,7 +28,7 @@ void _LogWrite(char *file, int line, const char *format, ...)
 		va_end(arg);
 	}
 
-	if ( getDaemonize() == FPP_TRUE )	
+	if ( getDaemonize() )	
 	{
 		FILE *logFile;
 
