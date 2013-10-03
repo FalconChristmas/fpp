@@ -348,10 +348,25 @@ function PlayEffect()
 	EchoStatusXML($status);
 }
 
+function GetExpandedEventID()
+{
+	$id = $_GET['id'];
+	check($id);
+
+	$majorID = preg_replace('/_.*/', '', $id);
+	$minorID = preg_replace('/.*_/', '', $id);
+
+	$filename = sprintf("%02d_%02d", $majorID, $minorID);
+
+	return $filename;
+}
+
 function TriggerEvent()
 {
-	$event = $_GET['event'];
-	$status = SendCommand("t," . $event . ",");
+	$id = GetExpandedEventID();
+
+	$status = SendCommand("t," . $id . ",");
+
 	EchoStatusXML($status);
 }
 
@@ -359,19 +374,32 @@ function SaveEvent()
 {
 	global $eventDirectory;
 
-	$event = $_GET['event'];
-	check($event);
+	$ids = preg_split('/_/', $_GET['id']);
 
-	$event = $event . ".fevt";
+	if (count($ids) < 2)
+		return;
+
+	$id = GetExpandedEventID();
+	$filename = $id . ".fevt";
+
+	$name = $_GET['event'];
+	check($name);
 
 	if (isset($_GET['effect']) && $_GET['effect'] != "")
 		$eseq = $_GET['effect'] . ".eseq";
 	else
 		$eseq = "";
 
-	$f=fopen($eventDirectory . $event,"w") or exit("Unable to open file! : " . $event);
-	$eventDefinition = sprintf("id=%d\neffect=%s\nstartChannel=%s\nscript=%s\n",
-		$_GET['id'], $eseq, $_GET['startChannel'], $_GET['script']);
+	$f=fopen($eventDirectory . $filename,"w") or exit("Unable to open file! : " . $event);
+	$eventDefinition = sprintf(
+		"majorID=%d\n" .
+		"minorID=%d\n" .
+		"name=%s\n" .
+		"effect=%s\n" .
+		"startChannel=%s\n" .
+		"script=%s\n",
+		$ids[0], $ids[1], $name,
+		$eseq, $_GET['startChannel'], $_GET['script']);
 	fwrite($f, $eventDefinition);
 	fclose($f);
 
@@ -382,11 +410,9 @@ function DeleteEvent()
 {
 	global $eventDirectory;
 
-	$event = $_GET['event'];
-	check($event);
+	$filename = GetExpandedEventID() . ".fevt";
 
-	$event = $event . ".fevt";
-	unlink($eventDirectory . $event);
+	unlink($eventDirectory . $filename);
 
 	EchoStatusXML('Success');
 }

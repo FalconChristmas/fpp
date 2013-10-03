@@ -117,6 +117,10 @@ void printSettings(void)
 		fprintf(fd, "mpg123Path(%u): %s\n",
 				strlen(settings.MPG123Path),
 				settings.MPG123Path);
+	if ( settings.controlMajor != 0 )
+		fprintf(fd, "controlMajor: %u\n", settings.controlMajor);
+	if ( settings.controlMinor != 0 )
+		fprintf(fd, "controlMinor: %u\n", settings.controlMinor);
 }
 
 void usage(char *appname)
@@ -541,6 +545,46 @@ int loadSettings(const char *filename)
 				else
 					fprintf(stderr, "Failed to load bytesFile from config file\n");
 			}
+			else if ( strcmp(key, "controlMajor") == 0 )
+			{
+				token = strtok(NULL, "=");
+				if ( ! token )
+				{
+					fprintf(stderr, "Error tokenizing value for controlMajor setting\n");
+					continue;
+				}
+				value = trimwhitespace(token);
+				if ( strlen(value) )
+				{
+					int ivalue = atoi(value);
+					if (ivalue >= 0)
+						settings.controlMajor = (unsigned int)ivalue;
+					else
+						fprintf(stderr, "Error, controlMajor value negative in config file\n");
+				}
+				else
+					fprintf(stderr, "Failed to load controlMajor setting from config file\n");
+			}
+			else if ( strcmp(key, "controlMinor") == 0 )
+			{
+				token = strtok(NULL, "=");
+				if ( ! token )
+				{
+					fprintf(stderr, "Error tokenizing value for controlMinor setting\n");
+					continue;
+				}
+				value = trimwhitespace(token);
+				if ( strlen(value) )
+				{
+					int ivalue = atoi(value);
+					if (ivalue >= 0)
+						settings.controlMinor = (unsigned int)ivalue;
+					else
+						fprintf(stderr, "Error, controlMinor value negative in config file\n");
+				}
+				else
+					fprintf(stderr, "Failed to load controlMinor setting from config file\n");
+			}
 			else
 			{
 				fprintf(stderr, "Warning: unknown key: '%s', skipping\n", key);
@@ -682,6 +726,16 @@ char *getBytesFile(void)
 	return settings.bytesFile;
 }
 
+unsigned int getControlMajor(void)
+{
+	return settings.controlMajor;
+}
+
+unsigned int getControlMinor(void)
+{
+	return settings.controlMinor;
+}
+
 void setVolume(int volume)
 {
 	if ( volume < 0 )
@@ -741,6 +795,10 @@ int saveSettingsFile(void)
 	snprintf(buffer, 1024, "%s = %s\n", "mpg123Path", getMPG123Path());
 	bytes += fwrite(buffer, 1, strlen(buffer), fd);
 	snprintf(buffer, 1024, "%s = %s\n", "bytesFile", getBytesFile());
+	bytes += fwrite(buffer, 1, strlen(buffer), fd);
+	snprintf(buffer, 1024, "%s = %d\n", "controlMajor", getControlMajor());
+	bytes += fwrite(buffer, 1, strlen(buffer), fd);
+	snprintf(buffer, 1024, "%s = %d\n", "controlMinor", getControlMinor());
 	bytes += fwrite(buffer, 1, strlen(buffer), fd);
 
 	fclose(fd);

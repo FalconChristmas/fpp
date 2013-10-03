@@ -28,14 +28,14 @@ void FreeEvent(FPPevent *e)
 /*
  * Load an event file into a FPPevent
  */
-FPPevent* LoadEvent(char *eventName)
+FPPevent* LoadEvent(char *id)
 {
 	FPPevent *event = NULL;
 	FILE     *file;
 	char      filename[1024];
 
 
-	if (snprintf(filename, 1024, "%s/%s.fevt", getEventDirectory(), eventName) >= 1024)
+	if (snprintf(filename, 1024, "%s/%s.fevt", getEventDirectory(), id) >= 1024)
 	{
 		LogWrite("Unable to open Event file: %s, filename too long\n",
 			filename);
@@ -59,8 +59,6 @@ FPPevent* LoadEvent(char *eventName)
 
 	bzero(event, sizeof(FPPevent));
 
-	event->name = strdup(eventName);
-
 	char     *line = NULL;
 	size_t    len = 0;
 	ssize_t   read;
@@ -80,12 +78,12 @@ FPPevent* LoadEvent(char *eventName)
 			continue;
 		}
 
-		char *key = token;	
+		char *key = token;
 		token = trimwhitespace(strtok(NULL, "="));
 
 		if (token && strlen(token))
 		{
-			if (!strcmp(key, "id"))
+			if (!strcmp(key, "majorID"))
 			{
 				int id = atoi(token);
 				if (id < 1)
@@ -95,7 +93,24 @@ FPPevent* LoadEvent(char *eventName)
 					free(key);
 					return NULL;
 				}
-				event->id = id;
+				event->majorID = id;
+			}
+			else if (!strcmp(key, "minorID"))
+			{
+				int id = atoi(token);
+				if (id < 1)
+				{
+					FreeEvent(event);
+					free(token);
+					free(key);
+					return NULL;
+				}
+				event->minorID = id;
+			}
+			else if (!strcmp(key, "name"))
+			{
+				if (strlen(token))
+					event->name = strdup(token);
 			}
 			else if (!strcmp(key, "effect"))
 			{
@@ -157,7 +172,21 @@ int RunEventScript(FPPevent *e)
 	pid = fork();
 	if (pid == 0) // Event Script process
 	{
-		execlp(eventScript, eventScript, NULL);
+		char *args[128];
+		char *token = strtok(eventScript, " ");
+		int   i = 0;
+		while (token && args < 126)
+		{
+			args[i] = strdup(token);
+			i++;
+
+			token = strtok(NULL, " ");
+		}
+		args[i] = NULL;
+		execvp(eventScript, args);
+
+		LogWrite("RunEventScript(), ERROR, we shouldn't be here, this means "
+			"that execvp() failed\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -165,17 +194,34 @@ int RunEventScript(FPPevent *e)
 }
 
 /*
+ * Trigger an event by major/minor number
+ */
+int TriggerEvent(char major, char minor)
+{
+	LogWrite("TriggerEvent(%d, %d)\n", (unsigned char)major, (unsigned char)minor);
+
+	if ((major > 25) || (major < 1) || (minor > 25) || (minor < 1))
+		return 0;
+
+	char id[6];
+
+	sprintf(id, "%02d_%02d", major, minor);
+
+	return TriggerEventByID(id);
+}
+
+/*
  * Trigger an event
  */
-int TriggerEvent(char *eventName)
+int TriggerEventByID(char *id)
 {
-	LogWrite("TriggerEvent(%s)\n", eventName);
+	LogWrite("TriggerEventByName(%s)\n", id);
 
-	FPPevent *event = LoadEvent(eventName);
+	FPPevent *event = LoadEvent(id);
 
 	if (!event)
 	{
-		LogWrite("Unable to load event %s\n", eventName);
+		LogWrite("Unable to load event %s\n", id);
 		return 0;
 	}
 

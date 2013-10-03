@@ -4,13 +4,15 @@
 #define EVENTS_H_
 
 typedef struct fppevent {
+	char  majorID;
+	char  minorID;
 	char *name;
-	int   id;
 	char *effect;
 	int   startChannel;
 	char *script;
 } FPPevent;
 
-int TriggerEvent(char *eventName);
+int TriggerEvent(char major, char minor);
+int TriggerEventByID(char *ID);
 
 #endif

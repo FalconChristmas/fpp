@@ -26,6 +26,9 @@ struct config
 
 	char	*MPG123Path;
 	char	*bytesFile;
+
+	unsigned int controlMajor;
+	unsigned int controlMinor;
 };
 
 
@@ -60,6 +63,8 @@ char *getLogFile(void);
 char *getSilenceMusic(void);
 char *getMPG123Path(void);
 char *getBytesFile(void);
+unsigned int getControlMajor(void);
+unsigned int getControlMinor(void);
 
 
 // Setters

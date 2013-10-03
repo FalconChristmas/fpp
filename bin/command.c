@@ -96,9 +96,9 @@ extern PlaylistDetails playlistDetails;
     int i;
 		char NextScheduleStartText[64];
 		char NextPlaylist[128];
-    switch(command[0])
-    {
-			case 's':
+		s = strtok(command,",");
+		if (!strcmp(s, "s"))
+		{
 				GetNextScheduleStartText(NextScheduleStartText);
 				GetNextPlaylistText(NextPlaylist);
 				if(FPPstatus==FPP_STATUS_IDLE)
@@ -141,54 +141,59 @@ extern PlaylistDetails playlistDetails;
 										NextPlaylist,NextScheduleStartText);
 					}
 				}
-				break; 
-			case 'p':
+		}
+		else if (!strcmp(s, "p"))
+		{
 				if(FPPstatus==FPP_STATUS_PLAYLIST_PLAYING || FPPstatus==FPP_STATUS_STOPPING_GRACEFULLY)
 				{
 					StopPlaylistNow();
 				}
 				sleep(1);
 	
-				s = strtok(command,",");
 				s = strtok(NULL,",");
 				if (!s)
 				{
-					sprintf(response,"%d,%d,Unknown Playlist,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
-					break;
+					strcpy((char*)playlistDetails.currentPlaylistFile,s);
+					s = strtok(NULL,",");
+					if (s)
+						playlistDetails.currentPlaylistEntry = atoi(s);
+					playlistDetails.repeat = 1 ;
+					playlistDetails.playlistStarting=1;
+					FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
+					sprintf(response,"%d,%d,Playlist Started,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
 				}
-				strcpy((char*)playlistDetails.currentPlaylistFile,s);
-				s = strtok(NULL,",");
-				if (s)
-					playlistDetails.currentPlaylistEntry = atoi(s);
-				playlistDetails.repeat = 1 ;
-				playlistDetails.playlistStarting=1;
-				FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
-				sprintf(response,"%d,%d,Playlist Started,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
-				break;
-			case 'P':
+				else
+				{
+					sprintf(response,"%d,%d,Unknown Playlist,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
+				}
+		}
+		else if (!strcmp(s, "P"))
+		{
 				if(FPPstatus==FPP_STATUS_PLAYLIST_PLAYING || FPPstatus==FPP_STATUS_STOPPING_GRACEFULLY)
 				{
 					StopPlaylistNow();
 				}
 				sleep(1);
 	
-				s = strtok(command,",");
-				s = strtok(NULL,",");
-				if (!s)
-				{
-					sprintf(response,"%d,%d,Unknown Playlist,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
-					break;
-				}
-				strcpy((char*)playlistDetails.currentPlaylistFile,s);
 				s = strtok(NULL,",");
 				if (s)
-					playlistDetails.currentPlaylistEntry = atoi(s);
-				playlistDetails.repeat = 0;
-				playlistDetails.playlistStarting=1;
-				FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
-				sprintf(response,"%d,%d,Playlist Started,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
-				break;
-			case 'S':
+				{
+					strcpy((char*)playlistDetails.currentPlaylistFile,s);
+					s = strtok(NULL,",");
+					if (s)
+						playlistDetails.currentPlaylistEntry = atoi(s);
+					playlistDetails.repeat = 0;
+					playlistDetails.playlistStarting=1;
+					FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
+					sprintf(response,"%d,%d,Playlist Started,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
+				}
+				else
+				{
+					sprintf(response,"%d,%d,Unknown Playlist,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
+				}
+		}
+		else if (!strcmp(s, "S"))
+		{
 				if(FPPstatus==FPP_STATUS_PLAYLIST_PLAYING)
 				{
 					playlistDetails.ForceStop = 1;
@@ -199,8 +204,9 @@ extern PlaylistDetails playlistDetails;
 				{
 					sprintf(response,"%d,Not playing,,,,,,,,,,,\n",COMMAND_FAILED);
 				}
-				break;
-			case 'd':
+		}
+		else if (!strcmp(s, "d"))
+		{
 				if(FPPstatus==FPP_STATUS_PLAYLIST_PLAYING || FPPstatus==FPP_STATUS_STOPPING_GRACEFULLY)
 				{
 					playlistDetails.ForceStop = 1;
@@ -211,8 +217,9 @@ extern PlaylistDetails playlistDetails;
 				{
 					sprintf(response,"%d,%d,Not playing,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
 				}
-				break;
-			case 'R':
+		}
+		else if (!strcmp(s, "R"))
+		{
 				if(FPPstatus==FPP_STATUS_IDLE)
 				{
 					LoadCurrentScheduleInfo();
@@ -221,56 +228,61 @@ extern PlaylistDetails playlistDetails;
 				
 				
 				sprintf(response,"%d,%d,Reloading Schedule,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
-				break;
-	
-			case 'v':
-				s = strtok(command,",");
+		}
+		else if (!strcmp(s, "v"))
+		{
 				s = strtok(NULL,",");
-				if (!s)
+				if (s)
+				{
+					setVolume(atoi(s));
+					sprintf(response,"%d,%d,Setting Volume,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
+				}
+				else
 				{
 					sprintf(response,"%d,%d,Invalid Volume,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
-					break;
 				}
-				setVolume(atoi(s));
-				sprintf(response,"%d,%d,Setting Volume,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
-				break;
-	
-			case 'w':
+		}
+		else if (!strcmp(s, "w"))
+		{
 				LogWrite("Sending Pixelnet DMX info\n");
 				SendPixelnetDMXConfig();
-				break;
-	
-			case 'r':
+		}
+		else if (!strcmp(s, "W"))
+		{
 				WriteBytesReceivedFile();
 				sprintf(response,"true\n");
-				break;
-			case 'e': // Start an effect
-				s = strtok(command,",");
-				s = strtok(NULL,",");
-				s2 = strtok(NULL,",");
-				if (s && s2)
-				{
-					i = StartEffect(s, atoi(s2));
-					if (i >= 0)
-						sprintf(response,"%d,%d,Starting Effect,%d,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS,i);
-					else
-						sprintf(response,"%d,%d,Invalid Effect,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
-				}
+		}
+		else if (!strcmp(s, "e"))
+		{
+			// Start an Effect
+			s = strtok(NULL,",");
+			s2 = strtok(NULL,",");
+			if (s && s2)
+			{
+				i = StartEffect(s, atoi(s2));
+				if (i >= 0)
+					sprintf(response,"%d,%d,Starting Effect,%d,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS,i);
 				else
 					sprintf(response,"%d,%d,Invalid Effect,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
-				break;
-			case 't': // Trigger an event
-				s = strtok(command,",");
-				s = strtok(NULL,",");
-				i = TriggerEvent(s);
-				if (i >= 0)
-					sprintf(response,"%d,%d,Event Triggered,%d,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS,i);
-				else
-					sprintf(response,"%d,%d,Event Failed,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
-				break;
-			default:
-				sprintf(response,"Invalid command\n");
+			}
+			else
+				sprintf(response,"%d,%d,Invalid Effect,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
 		}
+		else if (!strcmp(s, "t"))
+		{
+			// Trigger an event
+			s = strtok(NULL,",");
+			i = TriggerEventByID(s);
+			if (i >= 0)
+				sprintf(response,"%d,%d,Event Triggered,%d,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS,i);
+			else
+				sprintf(response,"%d,%d,Event Failed,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
+		}
+		else
+		{
+			sprintf(response,"Invalid command\n");
+		}
+
   	bytes_sent = sendto(socket_fd, response, strlen(response), 0,
                           (struct sockaddr *) &(client_address), sizeof(struct sockaddr_un));
 	LogWrite("%c %s", command[0], response);

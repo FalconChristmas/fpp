@@ -1426,7 +1426,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 
 	function TriggerEvent()
 	{
-		var url = "fppxml.php?command=triggerEvent&event=" + TriggerEventSelected;
+		var url = "fppxml.php?command=triggerEvent&id=" + TriggerEventSelected;
 		var xmlhttp=new XMLHttpRequest();
 		xmlhttp.open("GET",url,true);
 		xmlhttp.setRequestHeader('Content-Type', 'text/xml');
@@ -1445,7 +1445,14 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 
 	function EditEvent()
 	{
-		$('#newEventID').val($('#event_' + TriggerEventSelected).find('td:eq(0)').text());
+		var IDt = $('#event_' + TriggerEventSelected).find('td:eq(0)').text();
+		var ID = IDt.replace(' \/ ', '_');
+		$('#newEventID').val(ID);
+		if ($('#newEventID').val() != ID)
+		{
+			$('#newEventID').prepend("<option value='" + ID + "' selected>" + IDt + "</option>");
+		}
+
 		$('#newEventName').val($('#event_' + TriggerEventSelected).find('td:eq(1)').text());
 		$('#newEventEffect').val($('#event_' + TriggerEventSelected).find('td:eq(2)').text());
 		$('#newEventStartChannel').val($('#event_' + TriggerEventSelected).find('td:eq(3)').text());
@@ -1475,7 +1482,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 
 	function DeleteEvent()
 	{
-		var url = "fppxml.php?command=deleteEvent&event=" + TriggerEventSelected;
+		var url = "fppxml.php?command=deleteEvent&id=" + TriggerEventSelected;
 		var xmlhttp=new XMLHttpRequest();
 		xmlhttp.open("GET",url,true);
 		xmlhttp.setRequestHeader('Content-Type', 'text/xml');
