@@ -246,14 +246,27 @@ function GetFPPDmode()
 
 function WriteFPPDmodeToFile($mode)
 {
+	$mode_string[0] = "player";
+	$mode_string[1] = "bridge";
+
 	global $settingsFile;
 
-	$settings = file($settingsFile);
-	if($settings != FALSE)
+	$settings = file_get_contents($settingsFile);
+	if ( !empty($settings) )
 	{
-		$temp = explode(",",$settings[0]);
-		$settings[0] = sprintf("%d,%d,\n",$mode,$temp[1]);
-		file_put_contents($settingsFile, implode('', $settings));
+		if ( strpos($settings, "fppMode") )
+		{
+			$settings = preg_replace('/fppMode\s*=\s*\w*/', "fppMode = ".$mode_string[$mode], $settings);
+		}
+		else
+		{
+			$settings .= "\nfppMode = " . $mode_string[$mode] . "\n";
+		}
+		file_put_contents($settingsFile, $settings);
+	}
+	else
+	{
+		file_put_contents($settingsFile, "fppMode = " . $mode_string[$mode] . "\n");
 	}
 }
 
@@ -261,12 +274,22 @@ function WriteVolumeToFile($volume)
 {
 	global $settingsFile;
 
-	$settings = file($settingsFile);
-	if($settings != FALSE)
+	$settings = file_get_contents($settingsFile);
+	if ( !empty($settings) )
 	{
-		$temp = explode(",",$settings[0]);
-		$settings[0] = sprintf("%d,%d,\n",$temp[0],$volume);
-		file_put_contents($settingsFile, implode('', $settings));
+		if ( strpos($settings, "volume") )
+		{
+			$settings = preg_replace('/volume\s*=\s*\w*/', "volume = ".$volume, $settings);
+		}
+		else
+		{
+			$settings .= "\nvolume = " . $volume . "\n";
+		}
+		file_put_contents($settingsFile, $settings);
+	}
+	else
+	{
+		file_put_contents($settingsFile, "volume = " . $volume . "\n");
 	}
 }
 
