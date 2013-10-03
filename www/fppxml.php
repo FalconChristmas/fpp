@@ -212,7 +212,7 @@ function SetFPPDmode()
 	check($mode);
 
 	WriteFPPDmodeToFile($mode);
-	EchoStatusXML($status);
+	EchoStatusXML("true");
 }
 
 function GetVolume()
