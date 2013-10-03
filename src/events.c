@@ -175,7 +175,7 @@ int RunEventScript(FPPevent *e)
 		char *args[128];
 		char *token = strtok(eventScript, " ");
 		int   i = 0;
-		while (token && args < 126)
+		while (token && i < 126)
 		{
 			args[i] = strdup(token);
 			i++;
