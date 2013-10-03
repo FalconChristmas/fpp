@@ -182,6 +182,24 @@ a:visited {
           <tr><td></td><td></td></tr>
         </table>
       </div>
+	<hr>
+    <div>
+      <div>
+        <table width="100%">
+          <tr><td><b><center>Credits</center></b></td></tr>
+        </table>
+      </div>
+      <div id='credits'>
+        FPP Designed By:<br />
+        <br />
+        David Pitts (dpitts)<br />
+        Tony Mace (MyKroFt)<br />
+        Mathew Mrosko (Materdaddy)<br />
+        Chris Pinkham (CaptainMurdoch)<br />
+        <br />
+        Copyright 2013
+      </div>
+    </div>
     </fieldset>
   </div>
 </div>
