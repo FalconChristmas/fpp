@@ -2,6 +2,7 @@
 
 //define('debug', true);
 define('CONFIG_FILE', '/home/pi/media/settings');
+define('SUDO', 'sudo');
 
 $fd = @fopen(CONFIG_FILE, "r");
 if ( ! $fd )

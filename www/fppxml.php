@@ -182,7 +182,7 @@ function EchoStatusXML($status)
 
 function RebootPi()
 {
-	$status=exec("sudo shutdown -r now");
+	$status=exec(SUDO . " shutdown -r now");
 	EchoStatusXML($status);
 }
 
@@ -272,7 +272,7 @@ function WriteVolumeToFile($volume)
 
 function ShutdownPi()
 {
-	$status=exec("sudo shutdown -h now");
+	$status=exec(SUDO . " shutdown -h now");
 	EchoStatusXML($status);
 }
 
@@ -394,7 +394,7 @@ function StopNow()
 
 function StopFPPD()
 {
-	$status=exec("killall fppd");
+	$status=exec(SUDO . " killall fppd");
 	EchoStatusXML('true');
 }
 
@@ -406,7 +406,7 @@ function StartFPPD()
 	$status=exec("if ps cax | grep -q fppd; then echo \"true\"; else echo \"false\"; fi");
 	if($status == 'false')
 	{
-		$status=exec("nice -n -20 ".dirname(dirname(__FILE__))."/bin/fppd --config-file $settingsFile --daemonize >/dev/null");
+		$status=exec(SUDO . " nice -n -20 ".dirname(dirname(__FILE__))."/bin/fppd --config-file $settingsFile --daemonize >/dev/null");
 	}
 	EchoStatusXML($status);
 }
