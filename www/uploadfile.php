@@ -139,7 +139,7 @@ $('#uploader_div').ajaxupload({
 		GetSequenceFiles();
 		GetMusicFiles();
 	},
-	allowExt:['ogg','fseq']
+	allowExt:['ogg','fseq','eseq']
 });
 </script> 
 </div>
