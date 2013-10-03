@@ -274,9 +274,9 @@ int loadSettings(const char *filename)
 			if (( ! line ) || ( ! read ) || ( read == 1 ))
 				continue;
 
-			char *key, *value;	// These are values we're looking for and will
-								// run through trimwhitespace which means they
-								// must be freed before we are done.
+			char *key = NULL, *value = NULL;	// These are values we're looking for and will
+												// run through trimwhitespace which means they
+												// must be freed before we are done.
 
 			char *token = strtok(line, "=");
 			if ( ! token )
