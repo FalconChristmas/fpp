@@ -23,12 +23,12 @@ struct config
 	char	*logFile;
 	char	*silenceMusic;
 
-	char	*MPG123Path;
 	char	*bytesFile;
 };
 
 
 // Helpers
+void initSettings(void);
 char *trimwhitespace(const char *str);
 void printSettings(void);
 void usage(char *appname);
@@ -56,7 +56,6 @@ char *getPixelnetFile(void);
 char *getScheduleFile(void);
 char *getLogFile(void);
 char *getSilenceMusic(void);
-char *getMPG123Path(void);
 char *getBytesFile(void);
 
 
