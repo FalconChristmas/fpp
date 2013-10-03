@@ -17,9 +17,11 @@ if ( isset($_POST['submit']) )
 <div id="bodyWrapper">
   <?php include 'menu.inc'; ?>
   <br/>
+<?php
+//God save me for using a goto...
+goto DEVELOPMENT;
+?>
 <FORM NAME="password_form" ACTION="<?php echo $_SERVER['PHP_SELF'] ?>" METHOD="POST">
-
-<br />
 
 <div id="usb" class="settings">
 <fieldset>
@@ -45,10 +47,14 @@ e1.31?
 </fieldset>
 </div>
 
-<br />
+<?php
+DEVELOPMENT:
+?>
+<div class="settings">
+<fieldset>
+<legend>FPP Settings - Under Construction</legend>
+Stay tuned!
 
-
-</div>
      </FORM>
 </div>
 <?php	include 'common/footer.inc'; ?>
