@@ -14,7 +14,7 @@ if ( isset($_POST['password1']) && isset($_POST['password2']))
   if (($_POST['password1'] != "") && ($_POST['password1'] == $_POST['password2']))
   {
     // true - setup .htaccess & save it
-    file_put_contents("$thisdir/.htaccess", "AuthUserFile $thisdir/.htpasswd\nAuthType Basic\nAuthName FPP-GUI\nRequire valid-user\n");
+    file_put_contents("$thisdir/.htaccess", "AuthUserFile $thisdir/.htpasswd\nAuthType Basic\nAuthName admin\nRequire valid-user\n");
     $setpassword = shell_exec("htpasswd -cbd $thisdir/.htpasswd admin " . $_POST['password1']);
   }
 }
@@ -63,6 +63,9 @@ $pw = file_exists("$thisdir/.htpasswd");
     <div id="password" <?php hide_if_equal($pw, false); ?>>
       <table width= "100%" border="0" cellpadding="2" cellspacing="2">
         <tr>
+          <td>Username:</td>
+          <td>admin</td>
+        </tr><tr>
           <td><label for="password1">Password:</label></td>
           <td><input name="password1" id="password1" type="password" size="40" maxlength="40"></td>
         </tr><tr>
