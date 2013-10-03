@@ -42,7 +42,7 @@ LIBS_fppd += \
 	-lm \
 	$(NULL)
 else
-ifeq ($(filter-out i686 x86_64, $(ARCH)),)
+ifeq ($(filter-out i686 x86_64 armv5tel, $(ARCH)),)
 # do something Linux-y
 CFLAGS += \
 	-g \
