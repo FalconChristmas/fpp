@@ -46,6 +46,8 @@ int main(int argc, char *argv[])
 
 	InitEffects();
 
+	SendBlankingData();
+
 	if (getFPPmode() == PLAYER_MODE)
 	{
 		LogWrite("Starting Player Process\n");
