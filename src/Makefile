@@ -2,6 +2,8 @@ CC := gcc
 
 TARGETS = fpp fppd
 
+INSTALL_PROGRAM = install -m 755 -p
+
 OBJECTS_fpp = \
 	fpp.o \
 	$(NULL)
@@ -57,6 +59,10 @@ endif
 
 .PHONY: all
 all: $(TARGETS)
+
+release: $(TARGETS)
+	-$(INSTALL_PROGRAM) fpp ../bin/fpp
+	-$(INSTALL_PROGRAM) fppd ../bin/fppd
 
 fpp: $(OBJECTS_fpp)
 	$(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
