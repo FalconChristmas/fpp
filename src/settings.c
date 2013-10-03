@@ -154,7 +154,7 @@ printf("Usage: %s [OPTION...]\n"
 "\t-b, --bytes-file\tSet the bytes received file\n"
 "\t-h, --help\t\tThis menu.\n"
 "\t    --mpg123-path\tSet location of mpg123 executable\n"
-"\t    --silence-music\tSet location of silence.mp3 file\n", appname);
+"\t    --silence-music\tSet location of silence.ogg file\n", appname);
 }
 
 int parseArguments(int argc, char **argv)
@@ -707,7 +707,7 @@ char *getLogFile(void)
 char *getSilenceMusic(void)
 {
 	if ( !settings.silenceMusic )
-		return "/home/pi/media/music/silence.mp3";
+		return "/home/pi/media/music/silence.ogg";
 
 	return settings.silenceMusic;
 }
