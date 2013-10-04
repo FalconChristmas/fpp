@@ -58,6 +58,9 @@ $command_array = Array(
 	"getVolume" => 'GetVolume',
 	"getFPPDmode" => 'GetFPPDmode',
 	"playEffect" => 'PlayEffect',
+	"stopEffect" => 'StopEffect',
+	"deleteEffect" => 'DeleteEffect',
+	"getRunningEffects" => 'GetRunningEffects',
 	"triggerEvent" => 'TriggerEvent',
 	"saveEvent" => 'SaveEvent',
 	"deleteEvent" => 'DeleteEvent'
@@ -346,9 +349,72 @@ function StartPlaylist()
 function PlayEffect()
 {
 	$effect = $_GET['effect'];
+	check($effect);
 	$startChannel = $_GET['startChannel'];
+	check($startChannel);
 	$status = SendCommand("e," . $effect . "," . $startChannel . ",");
-	EchoStatusXML($status);
+	EchoStatusXML('Success');
+}
+
+function StopEffect()
+{
+	$id = $_GET['id'];
+	check($id);
+	$status = SendCommand("StopEffect," . $id . ",");
+	EchoStatusXML('Success');
+}
+
+function DeleteEffect()
+{
+	global $sequenceDirectory;
+
+	$effect = $_GET['effect'];
+	check($effect);
+
+	unlink($sequenceDirectory . $effect . ".eseq");
+
+	EchoStatusXML('Success');
+}
+
+function GetRunningEffects()
+{
+	$status = SendCommand("GetRunningEffects");
+
+	$result = "";
+	$first = 1;
+	$status = preg_replace('/\n/', '', $status);
+
+	$doc = new DomDocument('1.0');
+	// Running Effects
+	$root = $doc->createElement('RunningEffects');
+	$root = $doc->appendChild($root);
+	foreach(preg_split('/;/', $status) as $line)
+	{
+		if ($first)
+		{
+			$first = 0;
+			continue;
+		}
+
+		$info = preg_split('/,/', $line);
+
+		$runningEffect = $doc->createElement('RunningEffect');
+		$runningEffect = $root->appendChild($runningEffect);
+
+		// Running Effect ID
+		$id = $doc->createElement('ID');
+		$id = $runningEffect->appendChild($id);
+		$value = $doc->createTextNode($info[0]);
+		$value = $id->appendChild($value);
+
+		// Effect Name
+		$name = $doc->createElement('Name');
+		$name = $runningEffect->appendChild($name);
+		$value = $doc->createTextNode($info[1]);
+		$value = $name->appendChild($value);
+	}
+
+	echo $doc->saveHTML();
 }
 
 function GetExpandedEventID()

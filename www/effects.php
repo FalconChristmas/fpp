@@ -1,28 +1,37 @@
 <!DOCTYPE html>
 <html>
 <head>
-<?php	include 'common/menuHead.inc'; ?>
+<?php include 'common/menuHead.inc'; ?>
 <script type="text/javascript" src="js/fpp.js"></script>
 <script src="http://code.jquery.com/jquery-1.9.1.js"></script>
 <script src="http://code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
 <script>
     $(function() {
-		$('#tblEffectEntries').on('mousedown', 'tr', function(event,ui){
-					$('#tblEffectEntries tr').removeClass('effectSelectedEntry');
+    $('#tblEffectLibrary').on('mousedown', 'tr', function(event,ui){
+          $('#tblEffectLibrary tr').removeClass('effectSelectedEntry');
           $(this).addClass('effectSelectedEntry');
-					var items = $('#tblEffectEntries tr');
-					PlayEffectSelected  = $(this).find('td:first').text();
+          var items = $('#tblEffectLibrary tr');
+          PlayEffectSelected  = $(this).find('td:first').text();
           SetButtonState('#btnPlayEffect','enable');
-		});
-	});
+          SetButtonState('#btnDeleteEffect','enable');
+    });
+
+    $('#tblRunningEffects').on('mousedown', 'tr', function(event,ui){
+          $('#tblRunningEffects tr').removeClass('effectSelectedEntry');
+          $(this).addClass('effectSelectedEntry');
+          var items = $('#tblRunningEffects tr');
+          RunningEffectSelected  = $(this).find('td:first').text();
+          SetButtonState('#btnStopEffect','enable');
+    });
+  });
 </script>
 
 <title>Falcon PI Player - Effects</title>
 </head>
-<body onLoad="GetFPPDmode();StatusPopulatePlaylists();setInterval(updateFPPStatus,1000);GetVolume();">
+<body onLoad="GetFPPDmode();setInterval(updateFPPStatus,1000);GetRunningEffects();">
 <div id="bodyWrapper">
 <?php
-	include 'menu.inc';
+  include 'menu.inc';
 
   function PrintEffectRows()
   {
@@ -40,7 +49,7 @@
 
   ?>
 <br/>
-<div id="programControl" class="settings">
+<div id="top" class="settings">
   <fieldset>
     <legend>Effects</legend>
     <div id="daemonControl">
@@ -68,7 +77,7 @@
     <div id="bridgeStatistics1"></div>
     <div id="bridgeStatistics2"></div>
     <div class="clear"></div>
-		</div>
+    </div>
     <div id="playerStatus">
       <table  width= "100%">
         <tr>
@@ -95,32 +104,55 @@
           </tr>
         </table>
       </div>
-			<div id="effectList"  class="unselectable">
-        <table id="tblEffectListHeader" width="100%">
-          <tr class="effectListHeader">
-            <td width="100%">Effect Sequence</td>
-          </tr>
-        </table>
-				<div id= "effectListContents">
-          <table id="tblEffectEntries"   width="100%">
-<? PrintEffectRows(); ?>
+      <div id= "divEffectLibrary">
+        <fieldset class="fs">
+          <legend> Effects Library </legend>
+          <table id="tblEffectListHeader" width="100%">
+            <tr class="effectListHeader">
+              <td width="100%">Effect</td>
+            </tr>
           </table>
-				</div>
+          <div>
+            <table id="tblEffectLibrary"   width="100%">
+<? PrintEffectRows(); ?>
+            </table>
+          </div>
+          <hr />
+          <div class='right'>
+            <div>
+              <table width="100%">
+                <tr><td>Start Channel Override: <input id="effectStartChannel" class="default-value" type="text" value="1" size="5" maxlength="5" /></td></tr>
+              </table>
+            </div>
+            <input id= "btnPlayEffect" type="button" class ="disableButtons" value="Play Effect" onClick="PlayEffect($('#effectStartChannel').val());">
+<!--
+            <input id="btnDeleteEffect" type="button" class="disableButtons" value="Delete Effect" onclick="DeleteEffect();" />
+-->
+          </div>
+        </fieldset>
       </div>
-
-			<div>
-        <table width="100%">
-          <tr>
-				    <td>Effect Start Channel: <input id="effectStartChannel" class="default-value" type="text" value="1" size="5" maxlength="5" /></td>
-          </tr>
-        </table>
-			</div>
-      <div id="eventControls" style="margin-top:5px">
-        <input id= "btnPlayEffect" type="button"  class ="disableButtons" value="Play Effect" onClick="PlayEffect($('#effectStartChannel').val());">
-       </div>
+      <div id= "divRunningEffects">
+        <fieldset  class="fs">
+          <legend> Running Effects </legend>
+          <table id="tblEffectListHeader" width="100%">
+            <tr class="effectListHeader">
+              <td width="5%">ID</td>
+              <td width="95%">Effect</td>
+            </tr>
+          </table>
+          <div>
+            <table id="tblRunningEffects"   width="100%">
+            </table>
+          </div>
+          <hr />
+          <div class='right'>
+            <input id="btnStopEffect" type="button" class="disableButtons" value="Stop Effect" onclick="StopEffect();" />
+          </div>
+        </fieldset>
+      </div>
     </div>
   </fieldset>
 </div>
-<?php	include 'common/footer.inc'; ?>
+<?php include 'common/footer.inc'; ?>
 </body>
 </html>

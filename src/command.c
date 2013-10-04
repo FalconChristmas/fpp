@@ -78,6 +78,7 @@ extern PlaylistDetails playlistDetails;
 
  void Commandproc()
 {
+  bzero(command, sizeof(command));
   bytes_received = recvfrom(socket_fd, command,256, 0,
                            (struct sockaddr *) &(client_address),
                             &address_length);
@@ -93,11 +94,14 @@ extern PlaylistDetails playlistDetails;
   {
     char *s;
     char *s2;
+    char *response2 = NULL;
     int i;
 		char NextScheduleStartText[64];
 		char NextPlaylist[128];
+		char CommandStr[64];
 		s = strtok(command,",");
-		if (!strcmp(s, "s"))
+		strcpy(CommandStr, s);
+		if (!strcmp(CommandStr, "s"))
 		{
 				GetNextScheduleStartText(NextScheduleStartText);
 				GetNextPlaylistText(NextPlaylist);
@@ -142,7 +146,7 @@ extern PlaylistDetails playlistDetails;
 					}
 				}
 		}
-		else if (!strcmp(s, "p"))
+		else if (!strcmp(CommandStr, "p"))
 		{
 				if(FPPstatus==FPP_STATUS_PLAYLIST_PLAYING || FPPstatus==FPP_STATUS_STOPPING_GRACEFULLY)
 				{
@@ -167,7 +171,7 @@ extern PlaylistDetails playlistDetails;
 					sprintf(response,"%d,%d,Unknown Playlist,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
 				}
 		}
-		else if (!strcmp(s, "P"))
+		else if (!strcmp(CommandStr, "P"))
 		{
 				if(FPPstatus==FPP_STATUS_PLAYLIST_PLAYING || FPPstatus==FPP_STATUS_STOPPING_GRACEFULLY)
 				{
@@ -192,7 +196,7 @@ extern PlaylistDetails playlistDetails;
 					sprintf(response,"%d,%d,Unknown Playlist,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
 				}
 		}
-		else if (!strcmp(s, "S"))
+		else if (!strcmp(CommandStr, "S"))
 		{
 				if(FPPstatus==FPP_STATUS_PLAYLIST_PLAYING)
 				{
@@ -205,7 +209,7 @@ extern PlaylistDetails playlistDetails;
 					sprintf(response,"%d,Not playing,,,,,,,,,,,\n",COMMAND_FAILED);
 				}
 		}
-		else if (!strcmp(s, "d"))
+		else if (!strcmp(CommandStr, "d"))
 		{
 				if(FPPstatus==FPP_STATUS_PLAYLIST_PLAYING || FPPstatus==FPP_STATUS_STOPPING_GRACEFULLY)
 				{
@@ -218,7 +222,7 @@ extern PlaylistDetails playlistDetails;
 					sprintf(response,"%d,%d,Not playing,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
 				}
 		}
-		else if (!strcmp(s, "R"))
+		else if (!strcmp(CommandStr, "R"))
 		{
 				if(FPPstatus==FPP_STATUS_IDLE)
 				{
@@ -229,7 +233,7 @@ extern PlaylistDetails playlistDetails;
 				
 				sprintf(response,"%d,%d,Reloading Schedule,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
 		}
-		else if (!strcmp(s, "v"))
+		else if (!strcmp(CommandStr, "v"))
 		{
 				s = strtok(NULL,",");
 				if (s)
@@ -242,17 +246,17 @@ extern PlaylistDetails playlistDetails;
 					sprintf(response,"%d,%d,Invalid Volume,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
 				}
 		}
-		else if (!strcmp(s, "w"))
+		else if (!strcmp(CommandStr, "w"))
 		{
 				LogWrite("Sending Pixelnet DMX info\n");
 				SendPixelnetDMXConfig();
 		}
-		else if (!strcmp(s, "W"))
+		else if (!strcmp(CommandStr, "W"))
 		{
 				WriteBytesReceivedFile();
 				sprintf(response,"true\n");
 		}
-		else if (!strcmp(s, "e"))
+		else if (!strcmp(CommandStr, "e"))
 		{
 			// Start an Effect
 			s = strtok(NULL,",");
@@ -268,7 +272,7 @@ extern PlaylistDetails playlistDetails;
 			else
 				sprintf(response,"%d,%d,Invalid Effect,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
 		}
-		else if (!strcmp(s, "t"))
+		else if (!strcmp(CommandStr, "t"))
 		{
 			// Trigger an event
 			s = strtok(NULL,",");
@@ -278,14 +282,39 @@ extern PlaylistDetails playlistDetails;
 			else
 				sprintf(response,"%d,%d,Event Failed,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
 		}
+		else if (!strcmp(CommandStr, "StopEffect"))
+		{
+			s = strtok(NULL,",");
+			i = atoi(s);
+			if (StopEffect(i))
+					sprintf(response,"%d,%d,Stopping Effect,%d,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS,i);
+			else
+					sprintf(response,"%d,%d,Stop Effect Failed,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
+		}
+		else if (!strcmp(CommandStr, "GetRunningEffects"))
+		{
+			sprintf(response,"%d,%d,Running Effects",getFPPmode(),COMMAND_SUCCESS);
+			GetRunningEffects(response, &response2);
+		}
 		else
 		{
-			sprintf(response,"Invalid command\n");
+			sprintf(response,"Invalid command: '%s'\n", CommandStr);
 		}
 
-  	bytes_sent = sendto(socket_fd, response, strlen(response), 0,
+		if (response2)
+		{
+			bytes_sent = sendto(socket_fd, response2, strlen(response2), 0,
                           (struct sockaddr *) &(client_address), sizeof(struct sockaddr_un));
-	LogWrite("%c %s", command[0], response);
+			LogWrite("%s %s", CommandStr, response2);
+			free(response2);
+			response2 = NULL;
+		}
+		else
+		{
+			bytes_sent = sendto(socket_fd, response, strlen(response), 0,
+                          (struct sockaddr *) &(client_address), sizeof(struct sockaddr_un));
+			LogWrite("%s %s", CommandStr, response);
+		}
   }
 
   void exit_handler(int signum)

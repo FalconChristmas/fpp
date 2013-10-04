@@ -1422,17 +1422,81 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 		xmlhttp.send();
 	}
 
-	function PlayEffect(startChannel)
-	{
-		if (startChannel == undefined)
-			startChannel = "1";
+function PlayEffect(startChannel)
+{
+	if (startChannel == undefined)
+		startChannel = "1";
 
-		var url = "fppxml.php?command=playEffect&effect=" + PlayEffectSelected + "&startChannel=" + startChannel;
-		var xmlhttp=new XMLHttpRequest();
-		xmlhttp.open("GET",url,false);
-		xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-		xmlhttp.send();
+	var url = "fppxml.php?command=playEffect&effect=" + PlayEffectSelected + "&startChannel=" + startChannel;
+	var xmlhttp=new XMLHttpRequest();
+	xmlhttp.open("GET",url,false);
+	xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+	xmlhttp.send();
+
+	GetRunningEffects();
+}
+
+function StopEffect()
+{
+	var url = "fppxml.php?command=stopEffect&id=" + RunningEffectSelected;
+	var xmlhttp=new XMLHttpRequest();
+	xmlhttp.open("GET",url,false);
+	xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+	xmlhttp.send();
+
+	GetRunningEffects();
+}
+
+function DeleteEffect()
+{
+	var url = "fppxml.php?command=deleteEffect&effect=" + PlayEffectSelected;
+	var xmlhttp=new XMLHttpRequest();
+	xmlhttp.open("GET",url,true);
+	xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+	xmlhttp.send();
+	location.reload(true);
+}
+
+var gblLastRunningEffectsXML = "";
+
+function GetRunningEffects()
+{
+	var url = "fppxml.php?command=getRunningEffects";
+	var xmlhttp=new XMLHttpRequest();
+	xmlhttp.open("GET",url,true);
+	xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+
+	xmlhttp.onreadystatechange = function () {
+		if (xmlhttp.readyState == 4 && xmlhttp.status==200)
+		{
+			var xmlDoc=xmlhttp.responseXML;
+			var xmlText = new XMLSerializer().serializeToString(xmlDoc);
+
+			$('#tblRunningEffects').html('');
+			if (xmlText != gblLastRunningEffectsXML)
+			{
+				xmlText = gblLastRunningEffectsXML;
+
+				var entries = xmlDoc.getElementsByTagName('RunningEffects')[0];
+
+				if(entries.childNodes.length> 0)
+				{
+					for(i=0;i<entries.childNodes.length;i++)
+					{
+						id = entries.childNodes[i].childNodes[0].textContent;
+						name = entries.childNodes[i].childNodes[1].textContent;
+
+						$('#tblRunningEffects').append('<tr><td width="5%">' + id + '</td><td width="95%">' + name + '</td></tr>');
+					}
+
+					setTimeout(GetRunningEffects, 1000);
+				}
+			}
+		}
 	}
+
+	xmlhttp.send();
+}
 
 	function TriggerEvent()
 	{

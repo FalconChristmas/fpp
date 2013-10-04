@@ -176,7 +176,7 @@ html
 	background-size: cover;
 }
 
-#divSeq, #divEthernet{
+#divSeq, #divEthernet, #divEffectLibrary{
 	min-height: 300px;
 	width: 383px;
 	float: left;
@@ -189,7 +189,7 @@ html
 	width: 100%;
 }
 
-#divMusic, #divWireless{
+#divMusic, #divWireless, #divRunningEffects{
 	overflow: auto;
 	display: table;
 	min-height: 300px;

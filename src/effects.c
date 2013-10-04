@@ -94,6 +94,7 @@ int IsEffectRunning(void)
 
 	return result;
 }
+
 /*
  * Start a new effect offset at the specified channel number
  */
@@ -299,5 +300,69 @@ int OverlayEffects(char *channelData)
 	pthread_mutex_unlock(&effectsLock);
 
 	return 1;
+}
+
+/*
+ * Get list of running effects and their IDs
+ *
+ * Format: [EFFECTID1,EFFECTNAME1[,EFFECTID2,EFFECTNAME2]...]
+ *
+ * NOTE: Caller is responsible for freeing string allocated
+ */
+int GetRunningEffects(char *msg, char **result)
+{
+	int length = strlen(msg) + 2; // 1 for LF, 1 for NULL termination
+	int i = 0;
+
+	pthread_mutex_lock(&effectsLock);
+
+	for (i = 0; i < MAX_EFFECTS; i++)
+	{
+		if (effects[i])
+		{
+			// delimiters
+			length += 2;
+
+			// ID
+			length++;
+			if (i > 9)
+				length++;
+			if (i > 99)
+				length++;
+
+			// Name
+			length += strlen(effects[i]->name);
+		}
+	}
+
+	*result = (char *)malloc(length);
+	char *cptr = *result;
+	*cptr = '\0';
+
+	strcat(cptr, msg);
+	cptr += strlen(msg);
+
+	for (i = 0; i < MAX_EFFECTS; i++)
+	{
+		if (effects[i])
+		{
+			strcat(cptr,";");
+			cptr++;
+
+			cptr += snprintf(cptr, 4, "%d", i);
+
+			strcat(cptr, ",");
+			cptr++;
+
+			strcat(cptr, effects[i]->name);
+			cptr += strlen(effects[i]->name);
+		}
+	}
+
+	strcat(cptr, "\n");
+
+	pthread_mutex_unlock(&effectsLock);
+
+	return strlen(*result);
 }
 
