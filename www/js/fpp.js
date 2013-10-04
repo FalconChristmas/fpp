@@ -1083,7 +1083,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 		
 	function updateFPPStatus()
 	{
-		var status = IsFPPDrunning();
+		var status = GetFPPstatus();
 	}
 	
 	function IsFPPDrunning()
@@ -1106,7 +1106,6 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 						{
 							$("#btnDaemonControl").attr('value', 'Stop FPPD');
 							$('#daemonStatus').html("FPPD is running.");
-							status = GetFPPstatus();
 							//$("#playerStatus").css({ display: "block" });
 						}
 						else
@@ -1135,6 +1134,14 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 					var status = xmlDoc.getElementsByTagName('Status')[0];
 					if(status.childNodes.length> 1)
 					{
+						var fppStatus = status.childNodes[1].textContent;
+
+						if (fppStatus == 0)
+						{
+							$("#btnDaemonControl").attr('value', 'Stop FPPD');
+							$('#daemonStatus').html("FPPD is running.");
+						}
+
 						var fppMode = status.childNodes[0].textContent;
 						if(fppMode == 0 )
 						{
@@ -1142,8 +1149,6 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 							$("#nextPlaylist").css("display","block");
 							$("#bytesTransferred").css("display","none");
 							
-							
-							var fppStatus = status.childNodes[1].textContent;
 							if(fppStatus == STATUS_IDLE)
 							{
 								gblCurrentPlaylistIndex =0;
@@ -1236,6 +1241,11 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 							
 							GetUniverseBytesReceived();
 						}
+					}
+					else
+					{
+						$('#fppTime').html('');
+						IsFPPDrunning();
 					}
 				}
 			};
