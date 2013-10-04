@@ -9,6 +9,13 @@ $_SESSION['session_id'] = session_id();
 //ini_set('display_errors', 'On');
 error_reporting(E_ALL);
 
+$os_version = "Unknown";
+if (file_exists("/etc/os-release"))
+{
+	$os_version = exec("grep PRETTY_NAME /etc/os-release | cut -f2 -d'\"'", $output, $return_val);
+	if ( $return_val != 0 )
+		$os_version = "Unknown";
+}
 
 $git_version = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ rev-parse --short HEAD", $output, $return_val);
 //TODO: Make this awesomer
@@ -147,9 +154,7 @@ a:visited {
           <table class='tblAbout'>
             <tr><td><b>Version Info</b></td><td>&nbsp;</td></tr>
             <tr><td>FPP Version:</td><td><? echo $fpp_version; ?></td></tr>
-<? if ($rfs_version != $fpp_version) { ?>
-            <tr><td>OS Version:</td><td><? echo $rfs_version; ?></td></tr>
-<? } ?>
+            <tr><td>OS Version:</td><td><? echo $os_version; ?></td></tr>
 <? if ($git_branch != "master") { ?>
             <tr><td>Git Branch:</td><td><? echo $git_branch; ?></td></tr>
 <? } ?>

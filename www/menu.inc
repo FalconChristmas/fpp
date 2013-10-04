@@ -1,25 +1,12 @@
 <?php
 
+$vFile = "/etc/fpp/rfs_version";
 $fpp_version = "Unknown";
-
-$vFiles = array('/etc/fpp/rfs_version', '/etc/redhat-release');
-$rfs_version = "Unknown";
-foreach ($vFiles as $filename)
+if (file_exists($vFile))
 {
-	if (file_exists($filename))
-	{
-		$rfs_version = exec("cat $filename", $output, $return_val);
-		//TODO: Make this fancier
-		if ( $return_val != 0 )
-			$rfs_version = "Unknown";
-		unset($output);
-
-		if ($filename == "/etc/fpp/rfs_version")
-		{
-			$fpp_version = $rfs_version;
-		}
-		break;
-	}
+	$fpp_version = exec("cat $vFile", $output, $return_val);
+	if ( $return_val != 0 )
+		$fpp_version = "Unknown";
 }
 
 ?>
