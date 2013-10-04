@@ -3,7 +3,7 @@ $a = session_id();
 
 if(empty($a))
 {
-	session_start();
+  session_start();
 }
 $_SESSION['session_id'] = session_id();
 //ini_set('display_errors', 'On');
@@ -13,19 +13,19 @@ error_reporting(E_ALL);
 $git_version = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ rev-parse --short HEAD", $output, $return_val);
 //TODO: Make this awesomer
 if ( $return_val != 0 )
-	$git_version = "Unknown";
+  $git_version = "Unknown";
 unset($output);
 
 $git_branch = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ branch --list | grep '\\*' | awk '{print \$2}'", $output, $return_val);
 //TODO: Make this awesomer
 if ( $return_val != 0 )
-	$git_branch = "Unknown";
+  $git_branch = "Unknown";
 unset($output);
 
 $git_remote_version = "blah";
 $git_remote_version = exec("git ls-remote --heads https://github.com/FalconChristmas/fpp | grep master | awk '$1 > 0 { print substr($1,1,7)}'", $output, $return_val);
 if ( $return_val != 0 )
-	$git_remote_version = "Unknown";
+  $git_remote_version = "Unknown";
 unset($output);
 
 function getSymbolByQuantity($bytes) {
@@ -55,7 +55,7 @@ function getFileCount($dir)
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-<?php	include 'common/menuHead.inc'; ?>
+<?php include 'common/menuHead.inc'; ?>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 <link rel="stylesheet" href="css/jquery-ui.css" />
 <script type="text/javascript" src="js/fpp.js"></script>
@@ -86,101 +86,110 @@ this.value = default_value;
 <title>About FPP</title>
 <style>
 .clear {
-	clear: both;
+  clear: both;
 }
 .items {
-	width: 40%;
-	background: rgb#FFF;
-	float: right;
-	margin: 0, auto;
+  width: 40%;
+  background: rgb#FFF;
+  float: right;
+  margin: 0, auto;
 }
 .selectedEntry {
-	background: #CCC;
+  background: #CCC;
 }
 .pl_title {
-	font-size: larger;
+  font-size: larger;
 }
 h4, h3 {
-	padding: 0;
-	margin: 0;
+  padding: 0;
+  margin: 0;
 }
 .tblheader {
-	background-color: #CCC;
-	text-align: center;
+  background-color: #CCC;
+  text-align: center;
 }
 tr.rowScheduleDetails {
-	border: thin solid;
-	border-color: #CCC;
+  border: thin solid;
+  border-color: #CCC;
 }
 tr.rowScheduleDetails td {
-	padding: 1px 5px;
+  padding: 1px 5px;
 }
 #tblSchedule {
-	border: thin;
-	border-color: #333;
-	border-collapse: collapse;
+  border: thin;
+  border-color: #333;
+  border-collapse: collapse;
 }
 a:active {
-	color: none;
+  color: none;
 }
 a:visited {
-	color: blue;
+  color: blue;
 }
 .time {
-	width: 100%;
+  width: 100%;
 }
 .center {
-	text-align: center;
+  text-align: center;
 }
 </style>
 </head>
 
 <body>
 <div id="bodyWrapper">
-  <?php	include 'menu.inc'; ?>
+  <?php include 'menu.inc'; ?>
   <div style="width:800px;margin:0 auto;"> <br />
     <fieldset style="padding: 10px; border: 2px solid #000;">
       <legend>About FPP</legend>
       <div style="overflow: hidden; padding: 10px;">
       <div>
-        <table class='tblAbout'>
-          <tr><td>FPP Version:</td><td><? echo $fpp_version; ?></td></tr>
+        <div style="float: left; width: 47%">
+          <table class='tblAbout'>
+            <tr><td><b>Version Info</b></td><td>&nbsp;</td></tr>
+            <tr><td>FPP Version:</td><td><? echo $fpp_version; ?></td></tr>
 <? if ($rfs_version != $fpp_version) { ?>
-          <tr><td>OS Version:</td><td><? echo $rfs_version; ?></td></tr>
+            <tr><td>OS Version:</td><td><? echo $rfs_version; ?></td></tr>
 <? } ?>
-          <tr><td>Git Version:</td><td><? echo $git_version; ?></td></tr>
 <? if ($git_branch != "master") { ?>
-          <tr><td>Git Branch:</td><td><? echo $git_branch; ?></td></tr>
+            <tr><td>Git Branch:</td><td><? echo $git_branch; ?></td></tr>
 <? } ?>
-          <tr><td>Git Master Version:</td><td><? echo $git_remote_version; ?></td></tr>
-          <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+            <tr><td>Git Version:</td><td><? echo $git_version; ?></td></tr>
+            <tr><td>Git Master Version:</td><td><? echo $git_remote_version; ?></td></tr>
+            <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+          </table>
+        </div>
+        <div style="float: left; width: 6%">&nbsp;
+        </div>
+        <div style="float: left; width: 47%">
+          <table class='tblAbout'>
+            <tr><td><b>Player Stats</b></td><td>&nbsp;</td></tr>
+            <tr><td>Playlists:</td><td><? echo getFileCount($playlistDirectory); ?></td></tr>
+            <tr><td>Sequence Files:</td><td><? echo getFileCount($sequenceDirectory); ?></td></tr>
+            <tr><td>Audio Files:</td><td><? echo getFileCount($musicDirectory); ?></td></tr>
+            <tr><td>Events Defined:</td><td><? echo getFileCount($eventDirectory) - 1; ?></td></tr>
+            <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
 
-          <tr><td><b>Disk Utilization</b></td><td>&nbsp;</td></tr>
-          <tr><td>Root Free Space:</td><td>
+            <tr><td><b>Disk Utilization</b></td><td>&nbsp;</td></tr>
+            <tr><td>Root Free Space:</td><td>
 <?
   $diskTotal = disk_total_space("/");
   $diskFree  = disk_free_space("/");
   printf( "%s (%2.0f%%)\n", getSymbolByQuantity($diskFree), $diskFree * 100 / $diskTotal);
 ?>
-		    </td></tr>
-          <tr><td>Media Free Space:</td><td>
+              </td></tr>
+            <tr><td>Media Free Space:</td><td>
 <?
   $diskTotal = disk_total_space("/home/pi/media");
   $diskFree  = disk_free_space("/home/pi/media");
   printf( "%s (%2.0f%%)\n", getSymbolByQuantity($diskFree), $diskFree * 100 / $diskTotal);
 ?>
-		    </td></tr>
-          <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+              </td></tr>
 
-          <tr><td><b>Player Stats</b></td><td>&nbsp;</td></tr>
-          <tr><td>Playlists:</td><td><? echo getFileCount($playlistDirectory); ?></td></tr>
-          <tr><td>Sequence Files:</td><td><? echo getFileCount($sequenceDirectory); ?></td></tr>
-          <tr><td>Audio Files:</td><td><? echo getFileCount($musicDirectory); ?></td></tr>
-          <tr><td>Events Defined:</td><td><? echo getFileCount($eventDirectory) - 1; ?></td></tr>
-          <tr><td></td><td></td></tr>
-        </table>
+            <tr><td></td><td></td></tr>
+          </table>
+        </div>
       </div>
-	<hr>
+    <hr>
     <div>
       <div>
         <table width="100%">
@@ -201,6 +210,6 @@ a:visited {
     </fieldset>
   </div>
 </div>
-  <?php	include 'common/footer.inc'; ?>
+  <?php include 'common/footer.inc'; ?>
 </body>
 </html>
