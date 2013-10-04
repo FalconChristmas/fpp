@@ -107,8 +107,11 @@ function CleanupSocket($path, $socket = '')
 		@socket_close($socket);
 }
 
+$socketError = "";
+
 function SendCommand($command)
 {
+	$socketError = "";
 	$cpath = "/tmp/FPP." . getmypid();
 	$spath = "/tmp/FPPD";
 
@@ -116,27 +119,27 @@ function SendCommand($command)
 
 	$socket = socket_create(AF_UNIX, SOCK_DGRAM, 0);
 	if ( !@socket_set_nonblock($socket) ) {
-		echo( 'Unable to set nonblocking mode for ' . $spath . ' socket' );
+		$socketError = 'Unable to set nonblocking mode for ' . $spath . ' socket';
 		CleanupSocket($cpath, $socket);
 		return false;
 	}
 
 	if ( !@socket_bind($socket, $cpath) ) {
-		echo( 'socket_bind() failed for ' . $cpath . ' socket' );
+		$socketError = 'socket_bind() failed for ' . $cpath . ' socket';
 		CleanupSocket($cpath, $socket);
 		return false;
 	}
 
 	if ( @socket_connect($socket, $spath) === false)
 	{
-		echo( 'socket_connect() failed for ' . $spath . ' socket' );
+		$socketError = 'socket_connect() failed for ' . $spath . ' socket';
 		CleanupSocket($cpath, $socket);
 		return false;
 	}
 
 	if ( @socket_send($socket, $command, strLen($command), 0) == FALSE )
 	{
-		echo( 'socket_send() failed for ' . $spath . ' socket' );
+		$socketError = 'socket_send() failed for ' . $spath . ' socket';
 		CleanupSocket($cpath, $socket);
 		return false;
 	}
@@ -150,7 +153,7 @@ function SendCommand($command)
 		$bytes_received = @socket_recv($socket, $buf, 1024, MSG_DONTWAIT);
 		if ($bytes_received == -1)
 		{
-			echo('An error occured while receiving from the socket');
+			$socketError = 'An error occured while receiving from the socket';
 			CleanupSocket($cpath, $socket);
 			return false;
 		}
@@ -495,7 +498,7 @@ function StartFPPD()
 function GetFPPstatus()
 {
 	$status = SendCommand('s');
-	if($status == 'false')
+	if($status == false || $status == 'false')
 	{
 		$doc = new DomDocument('1.0');
 		$root = $doc->createElement('Status');
