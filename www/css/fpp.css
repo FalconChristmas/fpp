@@ -331,7 +331,7 @@ fieldset
 #playerStatus{
 }
 
-#tblStatusPlaylist
+#tblStatusPlaylist{
 	 width:100%;
 }
 
@@ -483,3 +483,4 @@ fieldset
 #credits{
 	text-align: center;
 }
+
