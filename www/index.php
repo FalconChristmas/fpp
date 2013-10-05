@@ -89,8 +89,29 @@
 			
 			
 		});
-	</script>
-  <script>
+
+	function IncrementVolume()
+	{
+		var volume = parseInt($('#volume').html());
+		volume += 3;
+		if (volume > 100)
+			volume = 100;
+		$('#volume').html(volume.toString());
+
+		SetVolume(volume);
+	}
+
+	function DecrementVolume()
+	{
+		var volume = parseInt($('#volume').html());
+		volume -= 3;
+		if (volume < 0)
+			volume = 0;
+		$('#volume').html(volume.toString());
+
+		SetVolume(volume);
+	}
+
 	</script>
 
 
@@ -107,24 +128,22 @@
     <div id="daemonControl">
       <table width= "100%">
         <tr>
-          <td width = "20%"> FPPD Mode: </td>
-          <td width = "25%"><select id="selFPPDmode"  onChange="SetFPPDmode();">
+          <td class='controlHeader'> FPPD Mode: </td>
+          <td class='controlValue'><select id="selFPPDmode"  onChange="SetFPPDmode();">
           										<option id="optFPPDmode_Player" value="0">
                               
           										Player Mode</option>
           										<option id="optFPPDmode_Bridge" value="1">
           										Bridge Mode</option>
-          <td width = "40%">&nbsp;</td>
-          <td width = "15%">&nbsp;</td>
+          <td class='controlButton'>&nbsp;</td>
         </tr>
         <tr>
-          <td width = "20%"> FPPD Status: </td>
-          <td id = "daemonStatus" width = "25%"></td>
-          <td width = "15%">&nbsp;</td>
-          <td width = "40%"><input type="button" id="btnDaemonControl" class ="buttons" value="" onClick="ControlFPPD();"></td>
+          <td class='controlHeader'> FPPD Status: </td>
+          <td class='controlValue' id = "daemonStatus"></td>
+          <td class='controlButton'><input type="button" id="btnDaemonControl" class ="buttons" value="" onClick="ControlFPPD();"></td>
         </tr>
         <tr>
-          <td> FPP Time: </td>
+          <td class='controlHeader'> FPP Time: </td>
           <td id = "fppTime" colspan = "3"></td>
         </tr>
       </table>
@@ -134,34 +153,54 @@
     <div id="bridgeStatistics1"></div>
     <div id="bridgeStatistics2"></div>
     <div class="clear"></div>
-		</div>
+    </div>
     <div id="playerStatus">
-      <table  width= "100%">
-        <tr>
-          <td width = "20%">Player Status: </td>
-          <td id = "txtPlayerStatus" width = "46%"></td>
-          <td id = "txtTimePlayed" width = "17%"></td>
-          <td id = "txtTimeRemaining" width = "17%"></td>
-        </tr>
-      </table>
+      <div>
+        <div class='playerStatusLeft'>
+          <table  width= "100%">
+            <tr>
+              <td class='playerStatusHeader'>Player Status: </td>
+              <td id="txtPlayerStatus"></td>
+            </tr>
+          </table>
+        </div>
+        <div class='playerStatusRight'>
+          <table  width= "100%">
+            <tr>
+              <td class='playerStatusHeader' id="txtTimePlayed"></td>
+              <td id="txtTimeRemaining"></td>
+            </tr>
+          </table>
+        </div>
+        <div class="clear"></div>
+      </div>
       
       <div id = "startPlaylistControls">
         <table width="100%">
           <tr>
-            <td width="20%">Load this playlist:</td>
+            <td class='controlHeader'><div class='desktopItem'>Load this playlist:</div><div class='mobileItem'>Load playlist:</div></td>
             <td  width="50%"><select id="selStartPlaylist" name="selStartPlaylist" size="1" onClick="SelectStatusPlaylistEntryRow();PopulateStatusPlaylistEntries(true,'',true);" onChange="PopulateStatusPlaylistEntries(true,'',true);"></select></td>
             <td  width="15%"><input type="checkbox" id="chkRepeat">
               Repeat
               </input></td>
-            <td  width="15%">     	
-	         <div id="slider"></div> <!-- the Slider -->
-           <span class="volume"></span> <!-- Volume -->
-
+            <td  width="15%">
+              <div class='desktopItem'>
+                <div id="slider"></div> <!-- the Slider -->
+                <span class="volume"></span> <!-- Volume -->
+              </div>
             </td>
           </tr>
-        </table>
+          <tr><td><div class='mobileItem'>Volume:</div></td>
+            <td colspan="3"><div class='mobileItem' id='volume' style='float: left'></div><div class='mobileItem' style='float: left'>&nbsp;
+              <input type="button" value="+" onClick="IncrementVolume();">
+              &nbsp;
+              <input type="button" value="-" onClick="DecrementVolume();">
+              </div>
+            </div>
+          </td></tr>
+      </table>
       </div>
-			<div id="statusPlaylist"  class="unselectable">
+      <div id="statusPlaylist"  class="unselectable">
         <table id="tblStatusPlaylistHeader" width="100%">
           <tr class="playlistHeader">
             <td width="6%">#</td>
@@ -170,10 +209,10 @@
             <td  width="10%">First/Last</td>
           </tr>
         </table>
-				<div id= "statusPlaylistContents">
-        <table id="tblStatusPlaylistEntries"   width="100%">
-         </table>
-			</div>
+        <div id= "statusPlaylistContents">
+          <table id="tblStatusPlaylistEntries"   width="100%">
+          </table>
+        </div>
       </div>
 
       <div id="playerControls" style="margin-top:5px">
@@ -185,11 +224,11 @@
     <div id= "nextPlaylist">
       <table  width="100%">
         <tr>
-          <td width="15%"> Next Playlist: </td>
+          <td class='controlHeader'> Next Playlist: </td>
           <td id = "txtNextPlaylist" width = "85%"></td>
         </tr>
         <tr>
-          <td width="15%"> Time: </td>
+          <td class='controlHeader'> Time: </td>
           <td width="85%" id = "nextPlaylistTime"></td>
         </tr>
       </table>

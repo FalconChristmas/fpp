@@ -59,12 +59,12 @@
 
 				$info['effect'] = preg_replace('/.eseq$/', '', $info['effect']);
 
-				echo "<tr id='event_" . $eventFile . "'><td width='5%'>" .
+				echo "<tr id='event_" . $eventFile . "'><td class='eventTblID'>" .
 						$info['majorID'] . ' / ' . $info['minorID'] .
-						"</td><td width='20%'>" . $info['name'] .
-						"</td><td width='31%'>" . $info['effect'] .
-						"</td><td width='7%'>" . $info['startChannel'] .
-						"</td><td width='31%'>" . $info['script'] . "</td></tr>\n";
+						"</td><td class='eventTblName'>" . $info['name'] .
+						"</td><td class='eventTblEffect'>" . $info['effect'] .
+						"</td><td class='eventTblStartCh'>" . $info['startChannel'] .
+						"</td><td class='eventTblScript'>" . $info['script'] . "</td></tr>\n";
 
 				$usedIDs[$info['majorID']][$info['minorID']] = 1;
 			}
@@ -110,24 +110,20 @@
 <br/>
 <div id="programControl" class="settings">
 	<fieldset>
-		<legend>Events</legend>
+		<legend>Program Control</legend>
 		<div id="daemonControl">
 			<table width= "100%">
 				<tr>
-					<td width = "20%"> FPPD Mode: </td>
-					<td width = "25%"><div id='textFPPDmode'>Player Mode</div>
-					<td width = "40%">&nbsp;</td>
-					<td width = "15%">&nbsp;</td>
+					<td class='controlHeader'> FPPD Mode: </td>
+					<td><div id='textFPPDmode'>Player Mode</div>
 				</tr>
 				<tr>
-					<td width = "20%"> FPPD Status: </td>
-					<td id = "daemonStatus" width = "25%"></td>
-					<td width = "15%">&nbsp;</td>
-					<td width = "40%">&nbsp;</td>
+					<td class='controlHeader'> FPPD Status: </td>
+					<td id = "daemonStatus"></td>
 				</tr>
 				<tr>
-					<td> FPP Time: </td>
-					<td id = "fppTime" colspan = "3"></td>
+					<td class='controlHeader'> FPP Time: </td>
+					<td id="fppTime"></td>
 				</tr>
 			</table>
 		</div>
@@ -140,10 +136,14 @@
 		<div id="playerStatus">
 			<table width= "100%">
 				<tr>
-					<td width = "20%">Player Status: </td>
-					<td id = "txtPlayerStatus" width = "46%"></td>
-					<td id = "txtTimePlayed" width = "17%"></td>
-					<td id = "txtTimeRemaining" width = "17%"></td>
+					<td class='controlHeader'>Player Status: </td>
+					<td id="txtPlayerStatus"></td>
+				</tr>
+			</table>
+			<table width= "100%">
+				<tr>
+					<td id="txtTimePlayed"></td>
+					<td id="txtTimeRemaining"></td>
 				</tr>
 			</table>
 		</div>
@@ -152,25 +152,21 @@
 			<input id= "btnStopGracefully" type="button" class ="buttons"value="Stop Gracefully" onClick="StopGracefully();">
 			<input id= "btnStopNow" type="button" class ="buttons" value="Stop Now" onClick="StopNow();">
 		</div>
+	</fieldset>
 
-		<hr>
+	<br />
 
+	<fieldset>
+		<legend>Events</legend>
 		<div>
-			<div>
-				<table width="100%">
-					<tr>
-						<td><b><center>Events</center></b></td>
-					</tr>
-				</table>
-			</div>
 			<div id="eventList" class="unselectable">
 				<table id="tblEventListHeader" width="100%">
 					<tr class="eventListHeader">
-						<td width="5%">ID</td>
-						<td width="20%">Name</td>
-						<td width="31%">Effect</td>
-						<td width="7%">Start Ch.</td>
-						<td width="31%">Script</td>
+						<td class='eventTblID'>ID</td>
+						<td class='eventTblName'>Name</td>
+						<td class='eventTblEffect'>Effect</td>
+						<td class='eventTblStartCh'>Start Ch.</td>
+						<td class='eventTblScript'>Script</td>
 					</tr>
 				</table>
 				<div id= "eventListContents">
@@ -181,10 +177,10 @@
 			</div>
 
 			<div id="eventControls" style="margin-top:5px">
-				<input id= "btnAddEvent" type="button" class ="buttons" value="Add Event" onClick="AddEvent();">
+				<input id= "btnAddEvent" type="button" class ="buttons desktopItem" value="Add Event" onClick="AddEvent();">
 				<input id= "btnTriggerEvent" type="button" class ="disableButtons" value="Trigger Event" onClick="TriggerEvent();">
-				<input id= "btnEditEvent" type="button" class ="disableButtons" value="Edit Event" onClick="EditEvent();">
-				<input id= "btnDeleteEvent" type="button" class ="disableButtons" value="Delete Event" onClick="DeleteEvent();">
+				<input id= "btnEditEvent" type="button" class ="disableButtons desktopItem" value="Edit Event" onClick="EditEvent();">
+				<input id= "btnDeleteEvent" type="button" class ="disableButtons desktopItem" value="Delete Event" onClick="DeleteEvent();">
 			 </div>
 			<div id="newEvent" style="display: none;">
 				<hr>

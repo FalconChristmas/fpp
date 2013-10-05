@@ -1,4 +1,6 @@
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="../css/fpp.css" />
+    <link rel="stylesheet" media="screen and (max-device-width: 480px)" href="../css/fpp_480px.css" />
     <link rel="stylesheet" href="css/jquery.jgrowl.min.css" />
     <script type="text/javascript" src="js/jquery.jgrowl.min.js"></script>
     <link rel="stylesheet" type="text/css" href="../css/ddsmoothmenu.css" />

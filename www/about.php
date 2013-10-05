@@ -145,12 +145,12 @@ a:visited {
 <body>
 <div id="bodyWrapper">
   <?php include 'menu.inc'; ?>
-  <div style="width:800px;margin:0 auto;"> <br />
+  <div style="margin:0 auto;"> <br />
     <fieldset style="padding: 10px; border: 2px solid #000;">
       <legend>About FPP</legend>
       <div style="overflow: hidden; padding: 10px;">
       <div>
-        <div style="float: left; width: 47%">
+        <div class='aboutLeft'>
           <table class='tblAbout'>
             <tr><td><b>Version Info</b></td><td>&nbsp;</td></tr>
             <tr><td>FPP Version:</td><td><? echo $fpp_version; ?></td></tr>
@@ -163,9 +163,9 @@ a:visited {
             <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
           </table>
         </div>
-        <div style="float: left; width: 6%">&nbsp;
+        <div class='aboutCenter'>
         </div>
-        <div style="float: left; width: 47%">
+        <div class='aboutRight'>
           <table class='tblAbout'>
             <tr><td><b>Player Stats</b></td><td>&nbsp;</td></tr>
             <tr><td>Playlists:</td><td><? echo getFileCount($playlistDirectory); ?></td></tr>
@@ -194,6 +194,7 @@ a:visited {
           </table>
         </div>
       </div>
+    <div class="clear"></div>
     <hr>
     <div>
       <div>

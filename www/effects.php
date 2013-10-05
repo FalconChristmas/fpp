@@ -51,24 +51,20 @@
 <br/>
 <div id="top" class="settings">
   <fieldset>
-    <legend>Effects</legend>
+    <legend>Program Control</legend>
     <div id="daemonControl">
       <table width= "100%">
         <tr>
-          <td width = "20%"> FPPD Mode: </td>
-          <td width = "25%"><div id='textFPPDmode'>Player Mode</div>
-          <td width = "40%">&nbsp;</td>
-          <td width = "15%">&nbsp;</td>
+          <td class='controlHeader'> FPPD Mode: </td>
+          <td><div id='textFPPDmode'>Player Mode</div>
         </tr>
         <tr>
-          <td width = "20%"> FPPD Status: </td>
-          <td id = "daemonStatus" width = "25%"></td>
-          <td width = "15%">&nbsp;</td>
-          <td width = "40%">&nbsp;</td>
+          <td class='controlHeader'> FPPD Status: </td>
+          <td id="daemonStatus"></td>
         </tr>
         <tr>
-          <td> FPP Time: </td>
-          <td id = "fppTime" colspan = "3"></td>
+          <td class='controlHeader'> FPP Time: </td>
+          <td id="fppTime"></td>
         </tr>
       </table>
     </div>
@@ -81,10 +77,14 @@
     <div id="playerStatus">
       <table  width= "100%">
         <tr>
-          <td width = "20%">Player Status: </td>
-          <td id = "txtPlayerStatus" width = "46%"></td>
-          <td id = "txtTimePlayed" width = "17%"></td>
-          <td id = "txtTimeRemaining" width = "17%"></td>
+          <td class='controlHeader'>Player Status: </td>
+          <td id="txtPlayerStatus"></td>
+        </tr>
+      </table>
+      <table  width= "100%">
+        <tr>
+          <td id="txtTimePlayed"></td>
+          <td id="txtTimeRemaining"></td>
         </tr>
       </table>
     </div>
@@ -93,31 +93,25 @@
       <input id= "btnStopGracefully" type="button"  class ="buttons"value="Stop Gracefully" onClick="StopGracefully();">
       <input id= "btnStopNow" type="button" class ="buttons" value="Stop Now" onClick="StopNow();">
     </div>
+  </fieldset>
 
-    <hr>
+  <br />
 
-    <div>
-      <div>
-        <table width="100%">
-          <tr>
-            <td><b><center>Effects</center></b></td>
-          </tr>
-        </table>
-      </div>
       <div id= "divEffectLibrary">
         <fieldset class="fs">
           <legend> Effects Library </legend>
-          <table id="tblEffectListHeader" width="100%">
-            <tr class="effectListHeader">
-              <td width="100%">Effect</td>
-            </tr>
-          </table>
-          <div>
-            <table id="tblEffectLibrary"   width="100%">
-<? PrintEffectRows(); ?>
+          <div id="effectLibrary">
+            <table id="tblEffectListHeader" width="100%">
+              <tr class="effectListHeader">
+                <td width="100%">Effect</td>
+              </tr>
             </table>
+            <div>
+              <table id="tblEffectLibrary"   width="100%">
+<? PrintEffectRows(); ?>
+              </table>
+            </div>
           </div>
-          <hr />
           <div class='right'>
             <div>
               <table width="100%">
@@ -130,28 +124,28 @@
 -->
           </div>
         </fieldset>
+      <br />
       </div>
       <div id= "divRunningEffects">
         <fieldset  class="fs">
           <legend> Running Effects </legend>
-          <table id="tblEffectListHeader" width="100%">
-            <tr class="effectListHeader">
-              <td width="5%">ID</td>
-              <td width="95%">Effect</td>
-            </tr>
-          </table>
-          <div>
-            <table id="tblRunningEffects"   width="100%">
+          <div id="runningEffects">
+            <table id="tblEffectListHeader" width="100%">
+              <tr class="effectListHeader">
+                <td width="5%">ID</td>
+                <td width="95%">Effect</td>
+              </tr>
             </table>
+            <div>
+              <table id="tblRunningEffects"   width="100%">
+              </table>
+            </div>
           </div>
-          <hr />
           <div class='right'>
             <input id="btnStopEffect" type="button" class="disableButtons" value="Stop Effect" onclick="StopEffect();" />
           </div>
         </fieldset>
       </div>
-    </div>
-  </fieldset>
 </div>
 <?php include 'common/footer.inc'; ?>
 </body>

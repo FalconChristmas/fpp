@@ -1715,6 +1715,7 @@ function GetVolume()
 					var xmlDoc=xmlhttp.responseXML; 
 					var Volume = xmlDoc.getElementsByTagName('Volume')[0].childNodes[0].textContent;
 					$('#slider').slider('value', parseInt(Volume));
+					$('#volume').html(Volume);
 			}
 		};
 		xmlhttp.send();
