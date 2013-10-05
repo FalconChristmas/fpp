@@ -12,6 +12,21 @@
 char *fpp_bool_to_string[] = { "false", "true", "default" };
 static struct config settings = { 0 };
 
+void initSettings(void)
+{
+	settings.mediaDirectory = strdup("/home/pi/media");
+	settings.musicDirectory = strdup("/home/pi/media/music");
+	settings.sequenceDirectory = strdup("/home/pi/media/sequences");
+	settings.playlistDirectory = strdup("/home/pi/media/playlists");
+	settings.universeFile = strdup("/home/pi/media/universes");
+	settings.pixelnetFile = strdup("/home/pi/media/pixelnetDMX");
+	settings.scheduleFile = strdup("/home/pi/media/schedule");
+	settings.logFile = strdup("/home/pi/media/fppdLog.txt");
+	settings.silenceMusic = strdup("/home/pi/media/silence.ogg");
+	settings.bytesFile = strdup("/home/pi/media/bytesReceived");
+  settings.daemonize = 1;
+}
+
 // Returns a string that's the white-space trimmed version
 // of the input string
 char *trimwhitespace(const char *str)
@@ -113,10 +128,6 @@ void printSettings(void)
 		fprintf(fd, "bytesFile(%u): %s\n",
 				strlen(settings.bytesFile),
 				settings.bytesFile);
-	if ( settings.MPG123Path )
-		fprintf(fd, "mpg123Path(%u): %s\n",
-				strlen(settings.MPG123Path),
-				settings.MPG123Path);
 	if ( settings.controlMajor != 0 )
 		fprintf(fd, "controlMajor: %u\n", settings.controlMajor);
 	if ( settings.controlMinor != 0 )
@@ -182,7 +193,6 @@ int parseArguments(int argc, char **argv)
 			{"schedule-file",		required_argument,	0, 's'},
 			{"log-file",			required_argument,	0, 'l'},
 			{"silence-music",		required_argument,	0,	1 },
-			{"mpg123-path",			required_argument,	0,	2 },
 			{"bytes-file",			required_argument,	0, 'b'},
 			{"help",				no_argument,		0, 'h'},
 			{0,						0,					0,	0}
@@ -196,10 +206,8 @@ int parseArguments(int argc, char **argv)
 		switch (c)
 		{
 			case 1: //silence-music
+				free(settings.silenceMusic);
 				settings.silenceMusic = strdup(optarg);
-				break;
-			case 2: //mpg123-path
-				settings.MPG123Path = strdup(optarg);
 				break;
 			case 'c': //config-file
 				if ( loadSettings(optarg) != 0 )
@@ -229,33 +237,42 @@ int parseArguments(int argc, char **argv)
 				}
 				break;
 			case 'B': //media-directory
+				free(settings.mediaDirectory);
 				settings.mediaDirectory = strdup(optarg);
 				break;
 			case 'M': //music-directory
+				free(settings.musicDirectory);
 				settings.musicDirectory = strdup(optarg);
 				break;
 			case 'S': //sequence-directory
+				free(settings.sequenceDirectory);
 				settings.sequenceDirectory = strdup(optarg);
 				break;
 			case 'E': //event-directory
 				settings.eventDirectory = strdup(optarg);
 				break;
 			case 'P': //playlist-directory
+				free(settings.playlistDirectory);
 				settings.playlistDirectory = strdup(optarg);
 				break;
 			case 'u': //universe-file
+				free(settings.universeFile);
 				settings.universeFile = strdup(optarg);
 				break;
 			case 'p': //pixelnet-file
+				free(settings.pixelnetFile);
 				settings.pixelnetFile = strdup(optarg);
 				break;
 			case 's': //schedule-file
+				free(settings.scheduleFile);
 				settings.scheduleFile = strdup(optarg);
 				break;
 			case 'l': //log-file
+				free(settings.logFile);
 				settings.logFile = strdup(optarg);
 				break;
 			case 'b': //bytes-file
+				free(settings.bytesFile);
 				settings.bytesFile = strdup(optarg);
 				break;
 			case 'h': //help
@@ -286,9 +303,9 @@ int loadSettings(const char *filename)
 			if (( ! line ) || ( ! read ) || ( read == 1 ))
 				continue;
 
-			char *key, *value;	// These are values we're looking for and will
-								// run through trimwhitespace which means they
-								// must be freed before we are done.
+			char *key = NULL, *value = NULL;	// These are values we're looking for and will
+												// run through trimwhitespace which means they
+												// must be freed before we are done.
 
 			char *token = strtok(line, "=");
 			if ( ! token )
@@ -384,7 +401,10 @@ int loadSettings(const char *filename)
 				}
 				value = trimwhitespace(token);
 				if ( strlen(value) )
+				{
+					free(settings.mediaDirectory);
 					settings.mediaDirectory = strdup(value);
+				}
 				else
 					fprintf(stderr, "Failed to load mediaDirectory from config file\n");
 			}
@@ -398,7 +418,10 @@ int loadSettings(const char *filename)
 				}
 				value = trimwhitespace(token);
 				if ( strlen(value) )
+				{
+					free(settings.musicDirectory);
 					settings.musicDirectory = strdup(value);
+				}
 				else
 					fprintf(stderr, "Failed to load musicDirectory from config file\n");
 			}
@@ -412,7 +435,10 @@ int loadSettings(const char *filename)
 				}
 				value = trimwhitespace(token);
 				if ( strlen(value) )
+				{
+					free(settings.sequenceDirectory);
 					settings.sequenceDirectory = strdup(value);
+				}
 				else
 					fprintf(stderr, "Failed to load sequenceDirectory from config file\n");
 			}
@@ -443,7 +469,10 @@ int loadSettings(const char *filename)
 				}
 				value = trimwhitespace(token);
 				if ( strlen(value) )
+				{
+					free(settings.playlistDirectory);
 					settings.playlistDirectory = strdup(value);
+				}
 				else
 					fprintf(stderr, "Failed to load playlistDirectory from config file\n");
 			}
@@ -457,7 +486,10 @@ int loadSettings(const char *filename)
 				}
 				value = trimwhitespace(token);
 				if ( strlen(value) )
+				{
+					free(settings.universeFile);
 					settings.universeFile = strdup(value);
+				}
 				else
 					fprintf(stderr, "Failed to load universeFile from config file\n");
 			}
@@ -471,7 +503,10 @@ int loadSettings(const char *filename)
 				}
 				value = trimwhitespace(token);
 				if ( strlen(value) )
+				{
+					free(settings.pixelnetFile);
 					settings.pixelnetFile = strdup(value);
+				}
 				else
 					fprintf(stderr, "Failed to load pixelnetFile from config file\n");
 			}
@@ -485,7 +520,10 @@ int loadSettings(const char *filename)
 				}
 				value = trimwhitespace(token);
 				if ( strlen(value) )
+				{
+					free(settings.scheduleFile);
 					settings.scheduleFile = strdup(value);
+				}
 				else
 					fprintf(stderr, "Failed to load scheduleFile from config file\n");
 			}
@@ -499,7 +537,10 @@ int loadSettings(const char *filename)
 				}
 				value = trimwhitespace(token);
 				if ( strlen(value) )
+				{
+					free(settings.logFile);
 					settings.logFile = strdup(value);
+				}
 				else
 					fprintf(stderr, "Failed to load logFile from config file\n");
 			}
@@ -513,23 +554,12 @@ int loadSettings(const char *filename)
 				}
 				value = trimwhitespace(token);
 				if ( strlen(value) )
+				{
+					free(settings.silenceMusic);
 					settings.silenceMusic = strdup(value);
+				}
 				else
 					fprintf(stderr, "Failed to load silenceMusic from config file\n");
-			}
-			else if ( strcmp(key, "mpg123Path") == 0 )
-			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for mpg123Path setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
-				if ( strlen(value) )
-					settings.MPG123Path = strdup(value);
-				else
-					fprintf(stderr, "Failed to load mpg123Path from config file\n");
 			}
 			else if ( strcmp(key, "bytesFile") == 0 )
 			{
@@ -541,7 +571,10 @@ int loadSettings(const char *filename)
 				}
 				value = trimwhitespace(token);
 				if ( strlen(value) )
+				{
+					free(settings.bytesFile);
 					settings.bytesFile = strdup(value);
+				}
 				else
 					fprintf(stderr, "Failed to load bytesFile from config file\n");
 			}
@@ -643,23 +676,14 @@ int getVolume(void)
 
 char *getMediaDirectory(void)
 {
-	if ( !settings.mediaDirectory )
-		return "/home/pi/media";
-
 	return settings.mediaDirectory;
 }
 char *getMusicDirectory(void)
 {
-	if ( !settings.musicDirectory )
-		return "/home/pi/media/music";
-
 	return settings.musicDirectory;
 }
 char *getSequenceDirectory(void)
 {
-	if ( !settings.sequenceDirectory )
-		return "/home/pi/media/sequences";
-
 	return settings.sequenceDirectory;
 }
 char *getEventDirectory(void)
@@ -671,58 +695,30 @@ char *getEventDirectory(void)
 }
 char *getPlaylistDirectory(void)
 {
-	if ( !settings.playlistDirectory )
-		return "/home/pi/media/playlists";
-
 	return settings.playlistDirectory;
 }
 char *getUniverseFile(void)
 {
-	if ( !settings.universeFile )
-		return "/home/pi/media/universes";
-
 	return settings.universeFile;
 }
 char *getPixelnetFile(void)
 {
-	if ( !settings.pixelnetFile )
-		return "/home/pi/media/pixelnetDMX";
-
 	return settings.pixelnetFile;
 }
 char *getScheduleFile(void)
 {
-	if ( !settings.scheduleFile )
-		return "/home/pi/media/schedule";
-
 	return settings.scheduleFile;
 }
 char *getLogFile(void)
 {
-	if ( !settings.logFile )
-		return "/home/pi/media/fppdLog.txt";
-
 	return settings.logFile;
 }
 char *getSilenceMusic(void)
 {
-	if ( !settings.silenceMusic )
-		return "/home/pi/media/music/silence.ogg";
-
 	return settings.silenceMusic;
-}
-char *getMPG123Path(void)
-{
-	if ( !settings.MPG123Path )
-		return "/usr/bin/mpg123";
-
-	return settings.MPG123Path;
 }
 char *getBytesFile(void)
 {
-	if ( !settings.bytesFile )
-		return "/home/pi/media/bytesReceived";
-
 	return settings.bytesFile;
 }
 

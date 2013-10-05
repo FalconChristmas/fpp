@@ -10,6 +10,11 @@
   <?php include 'menu.inc'; ?>
   <br/>
 
+<?php
+// God save me... I'm using a goto...
+goto DEVELOPMENT;
+?>
+
 <div id="network" class="settings">
 <fieldset>
 <legend>Network Settings</legend>
@@ -130,6 +135,13 @@ $(document).ready(function(){
 }
 ?>
             <input id="submit" name="submit" type="submit" class="buttons" value="Submit">
+<?php
+DEVELOPMENT:
+?>
+<div class="settings">
+<fieldset>
+<legend>Network Settings - Under Construction</legend>
+Stay tuned!
     </fieldset>
   </div>
 </div>

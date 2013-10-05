@@ -25,6 +25,8 @@ int FPPstatus=FPP_STATUS_IDLE;
 
 int main(int argc, char *argv[])
 {
+	initSettings();
+
 	loadSettings("/home/pi/media/settings");
 
 	// Parse our arguments first, override any defaults
