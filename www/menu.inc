@@ -49,15 +49,13 @@ if (file_exists($vFile))
           <!-- <li><a href="video.php">Videos</a></li> -->
         </ul>
       </li>
-      <div class="desktopItem">
-        <li><a href="#">Output Setup</a>
-          <ul>
-            <li><a href="universes.php">Universe</a></li>
-            <li><a href="pixelnetdmx.php">Pixelnet/DMX</a></li>
-            <!-- <li><a href="rds.php">Radio RDS</a></li> -->
-          </ul>
-        </li>
-      </div>
+      <li id='outputMenu'><a href="#">Output Setup</a>
+        <ul>
+          <li><a href="universes.php">Universe</a></li>
+          <li><a href="pixelnetdmx.php">Pixelnet/DMX</a></li>
+          <!-- <li><a href="rds.php">Radio RDS</a></li> -->
+        </ul>
+      </li>
       <li><a href="#">Help</a>
         <ul>
           <li><a href="http://falconchristmas.com/wiki/index.php5/FPP">Wiki/Help</a></li>

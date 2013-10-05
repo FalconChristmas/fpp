@@ -545,6 +545,10 @@ fieldset
 	display: inline;
 }
 
+#outputMenu{
+	display: none;
+}
+
 .logo{
 	height: 40px;
 }
