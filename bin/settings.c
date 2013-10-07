@@ -24,6 +24,7 @@ void initSettings(void)
 	settings.logFile = strdup("/home/pi/media/fppdLog.txt");
 	settings.silenceMusic = strdup("/home/pi/media/silence.mp3");
 	settings.bytesFile = strdup("/home/pi/media/bytesReceived");
+  settings.daemonize = 1;
 }
 
 // Returns a string that's the white-space trimmed version
