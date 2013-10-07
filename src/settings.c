@@ -18,6 +18,7 @@ void initSettings(void)
 	settings.musicDirectory = strdup("/home/pi/media/music");
 	settings.sequenceDirectory = strdup("/home/pi/media/sequences");
 	settings.playlistDirectory = strdup("/home/pi/media/playlists");
+	settings.eventDirectory = strdup("/home/pi/media/events");
 	settings.universeFile = strdup("/home/pi/media/universes");
 	settings.pixelnetFile = strdup("/home/pi/media/pixelnetDMX");
 	settings.scheduleFile = strdup("/home/pi/media/schedule");
@@ -688,9 +689,6 @@ char *getSequenceDirectory(void)
 }
 char *getEventDirectory(void)
 {
-	if ( !settings.eventDirectory )
-		return "/home/pi/media/events";
-
 	return settings.eventDirectory;
 }
 char *getPlaylistDirectory(void)
