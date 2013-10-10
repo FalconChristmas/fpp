@@ -40,16 +40,11 @@ void *RunLightThread(void)
 
 		if (E131status != E131_STATUS_IDLE)
 		{
-			int elapsedTime = GetTime() - startTime;
-			int delay = LightDelay - elapsedTime;
-
-			LogWrite("RLT: elapsed: %d, delay: %d\n", elapsedTime, delay);
-
 			ts.tv_sec = 0;
 			ts.tv_nsec = (LightDelay - (GetTime() - startTime)) * 1000;
-			LogWrite("RLT: ts.tv_nsec: %d\n", ts.tv_nsec);
+			// This will kill performance writing out this 20x a second to the SD
+			//LogWrite("RLT: ts.tv_nsec: %d\n", ts.tv_nsec);
 			nanosleep(&ts, NULL);
-//			usleep(LightDelay - (GetTime() - startTime));
 		}
 		else
 		{

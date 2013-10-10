@@ -276,18 +276,17 @@ void ParseTimes()
 		E131sequenceFramesSent - expectedFramesSent);
 
 	if ((musicStatus.secondsElasped > 0) &&
-			(lastSyncCheck != musicStatus.secondsElasped) &&
-			((musicStatus.secondsElasped % 3) == 0))
+			(lastSyncCheck != musicStatus.secondsElasped))
 	{
 		lastSyncCheck = musicStatus.secondsElasped;
 		unsigned int diff = abs(E131sequenceFramesSent - expectedFramesSent);
 		if (diff)
 		{
-			int timerOffset = 500;
+			int timerOffset = 300;
 			int newLightDelay = LightDelay;
 
 			if (diff > 1)
-				timerOffset = 1000;
+				timerOffset = 600;
 
 			if (E131sequenceFramesSent >  expectedFramesSent)
 				newLightDelay += timerOffset;
