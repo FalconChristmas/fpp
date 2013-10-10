@@ -34,6 +34,7 @@ typedef struct{
 }UniverseEntry;
 
 extern int E131status;
+extern int E131sequenceFramesSent;
 
 int IsSequenceRunning(void);
 void GetLocalWiredIPaddress(char * IPaddress);
@@ -50,5 +51,7 @@ void UniversesPrint();
 float customRounding(float value, float roundingValue);
 void ResetBytesReceived();
 void WriteBytesReceivedFile();
+void SendBlankingData(void);
+
 
 #endif

@@ -2,7 +2,7 @@
 #include "E131.h"
 #include "playList.h"
 #include "settings.h"
-#include "lighttimer.h"
+#include "lightthread.h"
 
 #include "ogg123.h"
 #include <sys/types.h>
@@ -73,6 +73,7 @@ int MusicLastSecond=0;
 int E131secondsElasped = 0;
 int E131secondsRemaining = 0;
 int E131totalSeconds = 0;
+int E131sequenceFramesSent = 0;
 char E131sequenceNumber=1;
 
 int syncedToMusic=0;
@@ -191,7 +192,8 @@ int E131_OpenSequenceFile(const char * file)
   filePosition=CHANNEL_DATA_OFFSET;
   stopE131 = 0;
   E131status = E131_STATUS_READING;
-  InitLightTimer();
+  E131sequenceFramesSent = 0;
+  StartLightThread();
 
   return seqFileSize;
 }
@@ -240,6 +242,8 @@ void E131_Send()
 		{
 			E131_CloseSequenceFile();
 		}
+
+		E131sequenceFramesSent++;
 	}
 	else
 	{
@@ -427,4 +431,9 @@ void UniversesPrint()
                                           universes[i].unicastAddress
                                           );
   }
+}
+
+void SendBlankingData(void)
+{
+	E131_Send();
 }

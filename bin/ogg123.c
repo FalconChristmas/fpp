@@ -8,6 +8,8 @@
 #include <string.h>
 #include "log.h"
 #include "ogg123.h"
+#include "E131.h"
+#include "lightthread.h"
 
   
 MusicStatus musicStatus;
@@ -146,60 +148,75 @@ void PollMusicInfo()
 
 void ProcessOGGData(int bytesRead)
 {
-  bool commandNext=false;
-  for(i=0;i<bytesRead;i++)
-  {
-    switch(oggBuffer[i])
-    {
-      case 'T':
-        state = 1;
-        break;
-      case 'i':
-      case 'm':
-      case 'e':
-        state++;
+	bool commandNext=false;
+	for(i=0;i<bytesRead;i++)
+	{
+		switch(oggBuffer[i])
+		{
+			case 'T':
+				state = 1;
 				break;
-     case ':':
+			case 'i':
+				if (state == 1)
+					state = 2;
+				else
+					state = 0;
+				break;
+			case 'm':
+				if (state == 2)
+					state = 3;
+				else
+					state = 0;
+				break;
+			case 'e':
+				if (state == 3)
+					state = 4;
+				else
+					state = 0;
+				break;
+		 case ':':
 				if(state==4)
 				{
-					state++;
+					state = 5;
 				}
-				else
+				else if (bufferPtr)
 				{
 					strTime[bufferPtr++]=oggBuffer[i];
 				}
-        break;
-      default:
+				break;
+			default:
 				if(state==5)
 				{
 					bufferPtr=0; 
-					state=0;
+					state=6;
 				}
-				else
+
+				if (state >= 5)
 				{
-					state=0;
-				}
-				strTime[bufferPtr++]=oggBuffer[i];
-				if(bufferPtr==32)
-				{
-					ParseTimes();
-					bufferPtr++;
-				}
-				if(bufferPtr>32)
-				{
-					bufferPtr=33;
+					strTime[bufferPtr++]=oggBuffer[i];
+					if(bufferPtr==32)
+					{
+						ParseTimes();
+						bufferPtr = 0;
+						state = 0;
+					}
+					if(bufferPtr>32)
+					{
+						bufferPtr=33;
+					}
 				}
 				break;
-    }
-  }
+		}
+	}
 }
 
 void ParseTimes()
 {
-  int result;
-  int secs;
-  int mins;
-  int subSecs;
+	static int lastSyncCheck = 0;
+	int result;
+	int secs;
+	int mins;
+	int subSecs;
 	char tmp[3];
 	tmp[2]= '\0';
 
@@ -244,12 +261,47 @@ void ParseTimes()
 	tmp[0]=strTime[27];
 	tmp[1]=strTime[28];
 	sscanf(tmp,"%d",&musicStatus.secondsTotal);
-  LogWrite("Elasped: %.2d.%.2d  Remaining: %.2d Total %.2d:%.2d\n",
-        musicStatus.secondsElasped,
-        musicStatus.subSecondsElasped,
-        musicStatus.secondsRemaining,
-        musicStatus.minutesTotal,
-        musicStatus.secondsTotal);
+
+	float MusicSeconds = (float)((float)musicStatus.secondsElasped + ((float)musicStatus.subSecondsElasped/(float)100));
+	int expectedFramesSent = (int)(MusicSeconds * RefreshRate);
+
+	LogWrite("Elasped: %.2d.%.2d  Remaining: %.2d Total %.2d:%.2d.  E131 Frames: %d, Expected: %d, Diff: %d\n",
+		musicStatus.secondsElasped,
+		musicStatus.subSecondsElasped,
+		musicStatus.secondsRemaining,
+		musicStatus.minutesTotal,
+		musicStatus.secondsTotal,
+		E131sequenceFramesSent,
+		expectedFramesSent,
+		E131sequenceFramesSent - expectedFramesSent);
+
+	if ((musicStatus.secondsElasped > 0) &&
+			(lastSyncCheck != musicStatus.secondsElasped) &&
+			((musicStatus.secondsElasped % 3) == 0))
+	{
+		lastSyncCheck = musicStatus.secondsElasped;
+		unsigned int diff = abs(E131sequenceFramesSent - expectedFramesSent);
+		if (diff)
+		{
+			int timerOffset = 500;
+			int newLightDelay = LightDelay;
+
+			if (diff > 1)
+				timerOffset = 1000;
+
+			if (E131sequenceFramesSent >  expectedFramesSent)
+				newLightDelay += timerOffset;
+			else
+				newLightDelay -= timerOffset;
+
+			LogWrite("LD: %d, NLD: %d\n", LightDelay, newLightDelay);
+			LightDelay = newLightDelay;
+		}
+		else if (LightDelay != DefaultLightDelay)
+		{
+			LightDelay = DefaultLightDelay;
+		}
+	}
 }
 
 
