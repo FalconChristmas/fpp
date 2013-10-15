@@ -277,7 +277,6 @@ function WriteVolumeToFile($volume)
 	$settings = file_get_contents($settingsFile);
 	if ( !empty($settings) )
 	{
-    //$pos = strpos($settings, "volume");
 		if (!(strpos($settings, "volume") === false))
 		{
 			$settings = preg_replace('/volume\s*=\s*\w*/', "volume = " . $volume, $settings);
