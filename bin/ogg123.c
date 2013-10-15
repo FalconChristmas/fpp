@@ -275,7 +275,8 @@ void ParseTimes()
 		expectedFramesSent,
 		E131sequenceFramesSent - expectedFramesSent);
 
-	if ((musicStatus.secondsElasped > 0) &&
+	if ((E131status != E131_STATUS_IDLE) &&
+			(musicStatus.secondsElasped > 0) &&
 			(lastSyncCheck != musicStatus.secondsElasped))
 	{
 		lastSyncCheck = musicStatus.secondsElasped;

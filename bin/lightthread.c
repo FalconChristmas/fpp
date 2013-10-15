@@ -1,6 +1,8 @@
 #include <signal.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/time.h>
+#include <errno.h>
 
 #include "E131.h"
 #include "log.h"
@@ -68,16 +70,28 @@ int StartLightThread(void)
 	DefaultLightDelay = 1 / RefreshRate * 1000000;
 	LightDelay = DefaultLightDelay;
 
-	pthread_create(&LightThreadID, NULL,&RunLightThread, NULL);
-}
+	int result = pthread_create(&LightThreadID, NULL,&RunLightThread, NULL);
 
-/*
- * Stop the lighting thread
- */
-int StopLightThread(void)
-{
-	RunThread = 0;
-	pthread_join(LightThreadID,NULL);
+	if (result)
+	{
+		char msg[256];
+
+		RunThread = 0;
+		switch (result)
+		{
+			case EAGAIN: strcpy(msg, "Insufficient Resources");
+				break;
+			case EINVAL: strcpy(msg, "Invalid settings");
+				break;
+			case EPERM : strcpy(msg, "Invalid Permissions");
+				break;
+		}
+		LogWrite("ERROR creating lighting thread: %s\n", msg );
+	}
+	else
+	{
+		pthread_detach(LightThreadID);
+	}
 }
 
 /*

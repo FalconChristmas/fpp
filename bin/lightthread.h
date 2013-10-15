@@ -6,7 +6,6 @@ extern int   DefaultLightDelay;
 extern int   LightDelay;
 
 int StartLightThread(void);
-int StopLightThread(void);
 int IsLightThreadRunning(void);
 
 #endif
