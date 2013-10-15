@@ -24,6 +24,7 @@ void initSettings(void)
 	settings.logFile = strdup("/home/pi/media/fppdLog.txt");
 	settings.silenceMusic = strdup("/home/pi/media/silence.mp3");
 	settings.bytesFile = strdup("/home/pi/media/bytesReceived");
+	settings.settingsFile = strdup("/home/pi/media/settings");
   settings.daemonize = 1;
 }
 
@@ -646,6 +647,11 @@ char *getBytesFile(void)
 	return settings.bytesFile;
 }
 
+char *getSettingsFile(void)
+{
+	return settings.settingsFile;
+}
+
 void setVolume(int volume)
 {
 	if ( volume < 0 )
@@ -804,4 +810,23 @@ void CheckExistanceOfDirectoriesAndFiles(void)
 		}
 		free(cmd);
 	}
+
+	if(!FileExists(getSettingsFile()))
+	{
+		LogWrite("Settings file does not exist, creating it.\n");
+
+		char *cmd, *file = getSettingsFile();
+		cmd = malloc(strlen(file)+7);
+		snprintf(cmd, strlen(file)+7, "touch %s", file);
+		if ( system(cmd) != 0 )
+		{
+			LogWrite("Error: Unable to create settings file.\n");
+			exit(EXIT_FAILURE);
+		}
+		free(cmd);
+	}
+  
+
+
+  
 }

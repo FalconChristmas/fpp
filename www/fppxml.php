@@ -254,9 +254,9 @@ function WriteFPPDmodeToFile($mode)
 	$settings = file_get_contents($settingsFile);
 	if ( !empty($settings) )
 	{
-		if ( strpos($settings, "fppMode") )
+		if (!(strpos($settings, "fppMode") === false))
 		{
-			$settings = preg_replace('/fppMode\s*=\s*\w*/', "fppMode = ".$mode_string[$mode], $settings);
+			$settings = preg_replace('/fppMode\s*=\s*\w*/', "fppMode = ". $mode_string[$mode], $settings);
 		}
 		else
 		{
@@ -277,9 +277,10 @@ function WriteVolumeToFile($volume)
 	$settings = file_get_contents($settingsFile);
 	if ( !empty($settings) )
 	{
-		if ( strpos($settings, "volume") )
+    //$pos = strpos($settings, "volume");
+		if (!(strpos($settings, "volume") === false))
 		{
-			$settings = preg_replace('/volume\s*=\s*\w*/', "volume = ".$volume, $settings);
+			$settings = preg_replace('/volume\s*=\s*\w*/', "volume = " . $volume, $settings);
 		}
 		else
 		{
