@@ -1,11 +1,19 @@
 <?php
 
+$current_tz = exec("cat /etc/timezone", $output, $return_val);
+unset($output);
+
 if ( isset($_POST['date']) && !empty($_POST['date']) )
 {
 //TODO: validate date format
 error_log("Setting date to ".$_POST['date'].".");
 //set the date
 exec("sudo date +%Y/%m/%d -s \"".$_POST['date']."\"", $output, $return_val);
+if (!(isset($_POST['time']) && !empty($_POST['time'])))
+{
+  exec("sudo hwclock -w", $output, $return_val);
+}
+
 unset($output);
 //TODO: check return
 }
@@ -16,6 +24,7 @@ if ( isset($_POST['time']) && !empty($_POST['time']) )
 error_log("Setting time to ".$_POST['time'].".");
 //set the time
 exec("sudo date +%k:%M -s \"".$_POST['time']."\"", $output, $return_val);
+exec("sudo hwclock -w", $output, $return_val);
 unset($output);
 //TODO: check return
 }
@@ -24,9 +33,6 @@ exec("ls -w 1 /etc/rc$(sudo runlevel | awk '{print $2}').d/ | grep ^S | grep -c 
 $ntp = ( $output[0] == "true" );
 unset($output);
 //TODO: check return
-
-$current_tz = exec("cat /etc/timezone", $output, $return_val);
-unset($output);
 
 if ( isset($_POST['ntp']) && !empty($_POST['ntp']) && $_POST['ntp'] == "disabled" && $ntp )
 {

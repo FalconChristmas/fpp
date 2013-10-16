@@ -34,6 +34,7 @@ typedef struct{
 }UniverseEntry;
 
 extern int E131status;
+extern int E131sequenceFramesSent;
 
 int IsSequenceRunning(void);
 void GetLocalWiredIPaddress(char * IPaddress);
@@ -42,13 +43,14 @@ int E131_InitializeNetwork();
 int E131_OpenSequenceFile(const char * file);
 void E131_CloseSequenceFile();
 void E131_SetTimer(int us);
+void E131_ReadData(void);
 void E131_Send(void);
 void E131_SendPixelnetDMXdata();
-void Playlist_SyncToMusic();
 void LoadUniversesFromFile();
 void UniversesPrint();
-float customRounding(float value, float roundingValue);
 void ResetBytesReceived();
 void WriteBytesReceivedFile();
+void SendBlankingData(void);
+
 
 #endif

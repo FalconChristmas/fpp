@@ -22,7 +22,7 @@ OBJECTS_fppd = \
 	settings.o \
 	effects.o \
 	events.o \
-	lighttimer.o \
+	lightthread.o \
 	$(NULL)
 LIBS_fppd = \
 	-lpthread \

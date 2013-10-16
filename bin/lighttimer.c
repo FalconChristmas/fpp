@@ -2,7 +2,6 @@
 #include <sys/time.h>
 
 #include "E131.h"
-#include "effects.h"
 #include "log.h"
 #include "ogg123.h"
 
@@ -32,8 +31,7 @@ void SetLightTimer(int us)
 void HandleLightTimerEvent(void)
 {
 	if ((E131status != E131_STATUS_IDLE) ||
-			(IsEffectRunning()) ||
-			(RunOnce))
+		(RunOnce))
 	{
 		if (RunOnce)
 			RunOnce = 0;

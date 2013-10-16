@@ -24,7 +24,7 @@
 
 #include "E131.h"
 #include "effects.h"
-#include "lighttimer.h"
+#include "lightthread.h"
 #include "log.h"
 
 #define MAX_EFFECTS 100
@@ -178,8 +178,7 @@ int StartEffect(char *effectName, int startChannel)
 
 	pthread_mutex_unlock(&effectsLock);
 
-	if (!IsSequenceRunning())
-		InitLightTimer();
+	StartLightThread();
 
 	return effectID;
 }
@@ -210,10 +209,10 @@ int StopEffect(int effectID)
 
 	effectCount--;
 
-	if ((effectCount == 0) && !IsSequenceRunning())
-		SendBlankingData();
-
 	pthread_mutex_unlock(&effectsLock);
+
+	if (!IsEffectRunning() && !IsSequenceRunning())
+		SendBlankingData();
 
 	return 1;
 }

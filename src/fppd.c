@@ -122,8 +122,6 @@ void CreateDaemon(void)
   /* Change the file mode mask */
   umask(0);
 
-  /* Open any logs here */
-
   /* Create a new SID for the child process */
   sid = setsid();
   if (sid < 0) {
