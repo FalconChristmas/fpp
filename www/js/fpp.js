@@ -756,7 +756,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 				if(universeType == 1)
 				{
 					txtUnicastAddress=document.getElementById("txtIP[" + i + "]");	
-					if(!validateEmail(txtUnicastAddress))
+					if(!validateIPaddress(txtUnicastAddress))
 					{
 						returnValue = false;
 					}
@@ -765,13 +765,14 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			return returnValue;
 		}
 		
-		function validateEmail(textbox)   
+		function validateIPaddress(textbox)   
 		{  
 			 if (/^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(textbox.value))  		{  
 				return (true)  
 			}  
 			textbox.style.border="red solid 1px";
 			textbox.value = ""; 
+      return false;
 		}  
 
 		function validateNumber(textbox,minimum,maximum)   

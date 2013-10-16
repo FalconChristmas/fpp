@@ -3,7 +3,7 @@
 #include "playList.h"
 #include "settings.h"
 #include "effects.h"
-#include "lighttimer.h"
+#include "lightthread.h"
 
 #include "ogg123.h"
 #include <sys/types.h>
@@ -61,7 +61,6 @@ char LocalAddress[64];
 
 size_t stepSize=8192;
 
-size_t bytesRead=0;
 FILE *seqFile=NULL;
 char fileData[65536];
 unsigned long filePosition=0;
@@ -74,6 +73,7 @@ int MusicLastSecond=0;
 int E131secondsElasped = 0;
 int E131secondsRemaining = 0;
 int E131totalSeconds = 0;
+int E131sequenceFramesSent = 0;
 char E131sequenceNumber=1;
 
 int syncedToMusic=0;
@@ -86,9 +86,10 @@ void ShowDiff(void);
 void E131_Initialize()
 {
 	E131sequenceNumber=1;
-  GetLocalWiredIPaddress(LocalAddress);
+	GetLocalWiredIPaddress(LocalAddress);
 	LoadUniversesFromFile();
-  E131_InitializeNetwork();
+	E131_InitializeNetwork();
+	SendBlankingData();
 }
 
 void GetLocalWiredIPaddress(char * IPaddress)
@@ -167,6 +168,7 @@ int E131_InitializeNetwork()
 
 int E131_OpenSequenceFile(const char * file)
 {
+  size_t bytesRead = 0;
   int seqFileSize;
 	syncedToMusic=0;
   if(seqFile!=NULL)
@@ -195,7 +197,10 @@ int E131_OpenSequenceFile(const char * file)
   filePosition=CHANNEL_DATA_OFFSET;
   stopE131 = 0;
   E131status = E131_STATUS_READING;
-  InitLightTimer();
+  E131sequenceFramesSent = 0;
+
+  E131_ReadData();
+  StartLightThread();
 
   return seqFileSize;
 }
@@ -210,8 +215,8 @@ void E131_CloseSequenceFile()
   }
   E131status = E131_STATUS_IDLE;
 
-	if (!IsEffectRunning())
-		SendBlankingData();
+  if (!IsEffectRunning())
+    SendBlankingData();
 }
 
 int IsSequenceRunning(void)
@@ -232,16 +237,9 @@ int NormalizeControlValue(char in)
 	return result;
 }
 
-void E131_Send()
+void E131_ReadData(void)
 {
-  struct itimerval tout_val;
-  ShowDiff();
-
-	if(MusicPlayerStatus==PLAYING_MPLAYER_STATUS && !syncedToMusic && (musicStatus.secondsElasped < 3))
-	{
-		//Playlist_SyncToMusic();
-	}
-
+	size_t bytesRead = 0;
 	if (IsSequenceRunning())
 	{
 		bytesRead = 0;
@@ -277,12 +275,19 @@ void E131_Send()
 		bzero(fileData, sizeof(fileData));
 	}
 
-	OverlayEffects(fileData);
+	if (IsEffectRunning())
+		OverlayEffects(fileData);
+}
+
+void E131_Send()
+{
+  struct itimerval tout_val;
+
 	for(i=0;i<UniverseCount;i++)
 	{
 		memcpy((void*)(E131packet+E131_HEADER_LENGTH),(void*)(fileData+universes[i].startAddress-1),universes[i].size);
 
-		E131packet[E131_SEQUENCE_INDEX] = E131sequenceNumber;;
+		E131packet[E131_SEQUENCE_INDEX] = E131sequenceNumber;
 		E131packet[E131_UNIVERSE_INDEX] = (char)(universes[i].universe/256);
 		E131packet[E131_UNIVERSE_INDEX+1]	= (char)(universes[i].universe%256);
 		E131packet[E131_COUNT_INDEX] = (char)((universes[i].size+1)/256);
@@ -297,10 +302,10 @@ void E131_Send()
 
 	if (IsSequenceRunning())
 	{
+		E131sequenceFramesSent++;
 		E131secondsElasped = (int)((float)(filePosition-CHANNEL_DATA_OFFSET)/((float)stepSize*(float)20.0));
 		E131secondsRemaining = E131totalSeconds-E131secondsElasped;
 	}
-
 	// Send data to pixelnet board
 	E131_SendPixelnetDMXdata();
 }
@@ -308,57 +313,6 @@ void E131_Send()
 void E131_SendPixelnetDMXdata()
 {
 	SendPixelnetDMX();
-}
-
-
-	
-void Playlist_SyncToMusic(void)
-{
-  unsigned int diff=0;
-	unsigned int absDifference=0;
-	float MusicSeconds = (float)((float)musicStatus.secondsElasped + ((float)musicStatus.subSecondsElasped/(float)100));
-	syncedToMusic = 1;
-  CalculatedMusicFilePosition = ((long)(MusicSeconds * RefreshRate) * stepSize) + CHANNEL_DATA_OFFSET  ;
-  LogWrite("Syncing to Music\n");
-  filePosition = CalculatedMusicFilePosition;
-  fseek(seqFile, CalculatedMusicFilePosition, SEEK_SET);
-}
-
-void ShowDiff(void)
-{
-  unsigned int diff=0;
-	unsigned int absDifference=0;
-  int secs;
-	float MusicSeconds = (float)((float)musicStatus.secondsElasped + ((float)musicStatus.subSecondsElasped/(float)100));
-	
-	MusicSeconds = customRounding(MusicSeconds, .05);
-	
-	secs = (int)MusicSeconds;
-	if (MusicLastSecond == secs)
-	{return;}
-	MusicLastSecond = secs;
-	
-
-  CalculatedMusicFilePosition = ((long)(MusicSeconds * RefreshRate) * stepSize) + CHANNEL_DATA_OFFSET  ;
-	if(CalculatedMusicFilePosition > filePosition)
-	{
-		diff = -(CalculatedMusicFilePosition - filePosition);
-	}
-	else
-	{
-		diff = filePosition-CalculatedMusicFilePosition;
-	}
-		
-  absDifference = abs(diff);
-//  LogWrite("RefreshRate= %f MusicSeconds = %f secs=%d diff = %d , abs = %d  CFP= %d FP= %d       
-//\n",RefreshRate,MusicSeconds,MusicLastSecond,diff,absDifference,CalculatedMusicFilePosition,filePosition);
-}
-
-
-float customRounding(float value, float roundingValue) 
-{
-    int mulitpler = floor(value / roundingValue);
-    return mulitpler * roundingValue;
 }
 
 void LoadUniversesFromFile()
@@ -461,3 +415,8 @@ void UniversesPrint()
   }
 }
 
+void SendBlankingData(void)
+{
+	E131_ReadData();
+	E131_Send();
+}
