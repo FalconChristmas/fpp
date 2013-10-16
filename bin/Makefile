@@ -18,6 +18,7 @@ OBJECTS_fppd = \
 	command.o \
 	e131bridge.o \
 	settings.o \
+	lightthread.o \
 	$(NULL)
 LIBS_fppd = \
 	-lpthread \

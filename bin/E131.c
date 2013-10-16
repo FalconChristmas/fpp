@@ -2,6 +2,7 @@
 #include "E131.h"
 #include "playList.h"
 #include "settings.h"
+#include "lightthread.h"
 
 #include "ogg123.h"
 #include <sys/types.h>
@@ -16,6 +17,7 @@
 #include <errno.h>
 #include <string.h>
 #include <math.h>
+#include <strings.h>
 
 // external variables
 extern struct mpg123_type mpg123;
@@ -56,38 +58,34 @@ int UniverseCount = 0;
 int i=0;
 char LocalAddress[64];
 
-float RefreshRate = 20.00;
 size_t stepSize=8192;
 
-size_t bytesRead=0;
 FILE *seqFile=NULL;
 char fileData[65536];
 unsigned long filePosition=0;
 unsigned long CalculatedMusicFilePosition;
 unsigned long currentSequenceFileSize=0;
 
-int usTimerValue=0;
 char stopE131=0;
 int MusicLastSecond=0;
 
 int E131secondsElasped = 0;
 int E131secondsRemaining = 0;
 int E131totalSeconds = 0;
+int E131sequenceFramesSent = 0;
 char E131sequenceNumber=1;
 
-int sendBlankingData=0;
 int syncedToMusic=0;
 
 void ShowDiff(void);
 
 void E131_Initialize()
 {
-  usTimerValue = (unsigned int)(((float)1/(float)RefreshRate) * ((float)985000));
-//  usTimerValue = (unsigned int)(((float)1/(float)RefreshRate) * ((float)1200000));
 	E131sequenceNumber=1;
-  GetLocalWiredIPaddress(LocalAddress);
+	GetLocalWiredIPaddress(LocalAddress);
 	LoadUniversesFromFile();
-  E131_InitializeNetwork();
+	E131_InitializeNetwork();
+	SendBlankingData();
 }
 
 void GetLocalWiredIPaddress(char * IPaddress)
@@ -166,6 +164,7 @@ int E131_InitializeNetwork()
 
 int E131_OpenSequenceFile(const char * file)
 {
+  size_t bytesRead = 0;
   int seqFileSize;
 	syncedToMusic=0;
   if(seqFile!=NULL)
@@ -193,14 +192,17 @@ int E131_OpenSequenceFile(const char * file)
   fseek(seqFile, CHANNEL_DATA_OFFSET, SEEK_SET);
   filePosition=CHANNEL_DATA_OFFSET;
   stopE131 = 0;
-  E131_SetTimer(usTimerValue);
   E131status = E131_STATUS_READING;
+  E131sequenceFramesSent = 0;
+
+  E131_ReadData();
+  StartLightThread();
+
   return seqFileSize;
 }
 
 void E131_CloseSequenceFile()
 { 
-  E131_SetTimer(0);
   // Close the file
   if(seqFile !=NULL)
   {
@@ -208,87 +210,82 @@ void E131_CloseSequenceFile()
     seqFile=NULL;
   }
   E131status = E131_STATUS_IDLE;
-  //Send blanking data
-  sendBlankingData = 1;
-  E131_Send();
-  sendBlankingData = 0;	
+
+  SendBlankingData();
 }
 
-void E131_SetTimer(int us)
+int IsSequenceRunning(void)
 {
-  struct itimerval tout_val;
-  tout_val.it_interval.tv_sec = 0;
-  tout_val.it_interval.tv_usec = 0;
-  tout_val.it_value.tv_sec = 0; 
-  tout_val.it_value.tv_usec = us;
-  setitimer(ITIMER_REAL, &tout_val,0);
-  signal(SIGALRM,(__sighandler_t)E131_Send);
+  if (E131status == E131_STATUS_READING)
+    return 1;
+
+  return 0;
+}
+
+void E131_ReadData(void)
+{
+	size_t bytesRead = 0;
+	if (IsSequenceRunning())
+	{
+		bytesRead = 0;
+		if(filePosition < currentSequenceFileSize - stepSize)
+		{
+			bytesRead=fread(fileData,1,stepSize,seqFile);
+			filePosition+=bytesRead;
+		}
+
+		if (bytesRead != stepSize)
+		{
+			E131_CloseSequenceFile();
+		}
+	}
+	else
+	{
+		bzero(fileData, sizeof(fileData));
+	}
 }
 
 void E131_Send()
 {
   struct itimerval tout_val;
   ShowDiff();
-  if(E131status == E131_STATUS_IDLE)
-  {
-    return;
-  }
-	
+
 	if(MusicPlayerStatus==PLAYING_MPLAYER_STATUS && !syncedToMusic && (musicStatus.secondsElasped < 3))
 	{
 		//Playlist_SyncToMusic();
 	}
-	
-  if(filePosition < currentSequenceFileSize - stepSize)
-  {
-    bytesRead=fread(fileData,1,stepSize,seqFile);
-    filePosition+=bytesRead;
-    if(bytesRead == 0)
-    {
-      E131_CloseSequenceFile();
-    }
-    else
-    {
-      E131_SetTimer(usTimerValue);
-    }
-    for(i=0;i<UniverseCount;i++)
-    {
-		 	if(sendBlankingData)
-		 	{
-		 		memset(E131packet+E131_HEADER_LENGTH,0,universes[i].size);
-				LogWrite("sending Zeros\n");
-		 	}
-		 	else
-		 	{
-		 		memcpy((void*)(E131packet+E131_HEADER_LENGTH),(void*)(fileData+universes[i].startAddress-1),universes[i].size);
-		 	}
-		 
-		 	E131packet[E131_SEQUENCE_INDEX] = E131sequenceNumber;;
-		 	E131packet[E131_UNIVERSE_INDEX] = (char)(universes[i].universe/256);
-		 	E131packet[E131_UNIVERSE_INDEX+1]	= (char)(universes[i].universe%256);
-		 	E131packet[E131_COUNT_INDEX] = (char)((universes[i].size+1)/256);
-		 	E131packet[E131_COUNT_INDEX+1] = (char)((universes[i].size+1)%256);
-			if(sendto(sendSocket, E131packet, universes[i].size + E131_HEADER_LENGTH, 0, (struct sockaddr*)&E131address[i], sizeof(E131address[i])) < 0)
-			{
-				return;
-			}
-    }
-		E131sequenceNumber++;
+
+	for(i=0;i<UniverseCount;i++)
+	{
+		memcpy((void*)(E131packet+E131_HEADER_LENGTH),(void*)(fileData+universes[i].startAddress-1),universes[i].size);
+
+		E131packet[E131_SEQUENCE_INDEX] = E131sequenceNumber;;
+		E131packet[E131_UNIVERSE_INDEX] = (char)(universes[i].universe/256);
+		E131packet[E131_UNIVERSE_INDEX+1]	= (char)(universes[i].universe%256);
+		E131packet[E131_COUNT_INDEX] = (char)((universes[i].size+1)/256);
+		E131packet[E131_COUNT_INDEX+1] = (char)((universes[i].size+1)%256);
+		if(sendto(sendSocket, E131packet, universes[i].size + E131_HEADER_LENGTH, 0, (struct sockaddr*)&E131address[i], sizeof(E131address[i])) < 0)
+		{
+			return;
+		}
+	}
+
+	E131sequenceNumber++;
+
+	if (IsSequenceRunning())
+	{
+		E131sequenceFramesSent++;
 		E131secondsElasped = (int)((float)(filePosition-CHANNEL_DATA_OFFSET)/((float)stepSize*(float)20.0));
 		E131secondsRemaining = E131totalSeconds-E131secondsElasped;
-		// Send data to pixelnet board
-		E131_SendPixelnetDMXdata();
-			
-		}
-		else
-		{
-			E131_CloseSequenceFile();
-		}
+	}
+
+	// Send data to pixelnet board
+	E131_SendPixelnetDMXdata();
 }
 
 void E131_SendPixelnetDMXdata()
 {
-	SendPixelnetDMX(sendBlankingData);
+	SendPixelnetDMX();
 }
 
 
@@ -440,4 +437,10 @@ void UniversesPrint()
                                           universes[i].unicastAddress
                                           );
   }
+}
+
+void SendBlankingData(void)
+{
+	E131_ReadData();
+	E131_Send();
 }

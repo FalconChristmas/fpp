@@ -8,6 +8,8 @@
 #include <string.h>
 #include "log.h"
 #include "ogg123.h"
+#include "E131.h"
+#include "lightthread.h"
 
   
 MusicStatus musicStatus;
@@ -20,10 +22,7 @@ int MusicPlayerStatus = IDLE_MPLAYER_STATUS;
 fd_set active_fd_set, read_fd_set;
 struct timeval timeout;
 
-int i;
 char oggBuffer[MAX_BYTES_OGG];
-int bufferPtr=0;
-char state=0;
 char strTime[34];
 
 
@@ -146,60 +145,79 @@ void PollMusicInfo()
 
 void ProcessOGGData(int bytesRead)
 {
-  bool commandNext=false;
-  for(i=0;i<bytesRead;i++)
-  {
-    switch(oggBuffer[i])
-    {
-      case 'T':
-        state = 1;
-        break;
-      case 'i':
-      case 'm':
-      case 'e':
-        state++;
+	int  bufferPtr = 0;
+	char state = 0;
+	int  i = 0;
+	bool commandNext=false;
+
+	for(i=0;i<bytesRead;i++)
+	{
+		switch(oggBuffer[i])
+		{
+			case 'T':
+				state = 1;
 				break;
-     case ':':
+			case 'i':
+				if (state == 1)
+					state = 2;
+				else
+					state = 0;
+				break;
+			case 'm':
+				if (state == 2)
+					state = 3;
+				else
+					state = 0;
+				break;
+			case 'e':
+				if (state == 3)
+					state = 4;
+				else
+					state = 0;
+				break;
+		 case ':':
 				if(state==4)
 				{
-					state++;
+					state = 5;
 				}
-				else
+				else if (bufferPtr)
 				{
 					strTime[bufferPtr++]=oggBuffer[i];
 				}
-        break;
-      default:
+				break;
+			default:
 				if(state==5)
 				{
 					bufferPtr=0; 
-					state=0;
+					state=6;
 				}
-				else
+
+				if (state >= 5)
 				{
-					state=0;
-				}
-				strTime[bufferPtr++]=oggBuffer[i];
-				if(bufferPtr==32)
-				{
-					ParseTimes();
-					bufferPtr++;
-				}
-				if(bufferPtr>32)
-				{
-					bufferPtr=33;
+					strTime[bufferPtr++]=oggBuffer[i];
+					if(bufferPtr==32)
+					{
+						ParseTimes();
+						bufferPtr = 0;
+						state = 0;
+					}
+					if(bufferPtr>32)
+					{
+						bufferPtr=33;
+					}
 				}
 				break;
-    }
-  }
+		}
+	}
 }
 
 void ParseTimes()
 {
-  int result;
-  int secs;
-  int mins;
-  int subSecs;
+	static int lastSyncCheck = 0;
+	int result;
+	int secs;
+	int mins;
+	int subSecs;
 	char tmp[3];
 	tmp[2]= '\0';
 
@@ -244,12 +262,56 @@ void ParseTimes()
 	tmp[0]=strTime[27];
 	tmp[1]=strTime[28];
 	sscanf(tmp,"%d",&musicStatus.secondsTotal);
-  LogWrite("Elasped: %.2d.%.2d  Remaining: %.2d Total %.2d:%.2d\n",
-        musicStatus.secondsElasped,
-        musicStatus.subSecondsElasped,
-        musicStatus.secondsRemaining,
-        musicStatus.minutesTotal,
-        musicStatus.secondsTotal);
+
+	float MusicSeconds = (float)((float)musicStatus.secondsElasped + ((float)musicStatus.subSecondsElasped/(float)100));
+	int expectedFramesSent = (int)(MusicSeconds * RefreshRate);
+
+	LogWrite("Elasped: %.2d.%.2d  Remaining: %.2d Total %.2d:%.2d.  E131 Frames: %d, Expected: %d, Diff: %d\n",
+		musicStatus.secondsElasped,
+		musicStatus.subSecondsElasped,
+		musicStatus.secondsRemaining,
+		musicStatus.minutesTotal,
+		musicStatus.secondsTotal,
+		E131sequenceFramesSent,
+		expectedFramesSent,
+		E131sequenceFramesSent - expectedFramesSent);
+
+	if ((E131status != E131_STATUS_IDLE) &&
+			(musicStatus.secondsElasped > 0) &&
+			(lastSyncCheck != musicStatus.secondsElasped))
+	{
+		lastSyncCheck = musicStatus.secondsElasped;
+		int diff = E131sequenceFramesSent - expectedFramesSent;
+		if (diff)
+		{
+			int timerOffset = diff * 500;
+			int newLightDelay = LightDelay;
+
+			if (E131sequenceFramesSent >  expectedFramesSent)
+			{
+				// correct if we slingshot past 0, otherwise offset further
+				if (LightDelay < DefaultLightDelay)
+					newLightDelay = DefaultLightDelay;
+				else
+					newLightDelay += timerOffset;
+			}
+			else
+			{
+				// correct if we slingshot past 0, otherwise offset further
+				if (LightDelay > DefaultLightDelay)
+					newLightDelay = DefaultLightDelay;
+				else
+					newLightDelay += timerOffset;
+			}
+
+			LogWrite("LD: %d, NLD: %d\n", LightDelay, newLightDelay);
+			LightDelay = newLightDelay;
+		}
+		else if (LightDelay != DefaultLightDelay)
+		{
+			LightDelay = DefaultLightDelay;
+		}
+	}
 }
 
 
