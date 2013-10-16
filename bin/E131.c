@@ -248,18 +248,12 @@ void E131_ReadData(void)
 void E131_Send()
 {
   struct itimerval tout_val;
-  ShowDiff();
-
-	if(MusicPlayerStatus==PLAYING_MPLAYER_STATUS && !syncedToMusic && (musicStatus.secondsElasped < 3))
-	{
-		//Playlist_SyncToMusic();
-	}
 
 	for(i=0;i<UniverseCount;i++)
 	{
 		memcpy((void*)(E131packet+E131_HEADER_LENGTH),(void*)(fileData+universes[i].startAddress-1),universes[i].size);
 
-		E131packet[E131_SEQUENCE_INDEX] = E131sequenceNumber;;
+		E131packet[E131_SEQUENCE_INDEX] = E131sequenceNumber;
 		E131packet[E131_UNIVERSE_INDEX] = (char)(universes[i].universe/256);
 		E131packet[E131_UNIVERSE_INDEX+1]	= (char)(universes[i].universe%256);
 		E131packet[E131_COUNT_INDEX] = (char)((universes[i].size+1)/256);
@@ -278,7 +272,6 @@ void E131_Send()
 		E131secondsElasped = (int)((float)(filePosition-CHANNEL_DATA_OFFSET)/((float)stepSize*(float)20.0));
 		E131secondsRemaining = E131totalSeconds-E131secondsElasped;
 	}
-
 	// Send data to pixelnet board
 	E131_SendPixelnetDMXdata();
 }
@@ -286,57 +279,6 @@ void E131_Send()
 void E131_SendPixelnetDMXdata()
 {
 	SendPixelnetDMX();
-}
-
-
-	
-void Playlist_SyncToMusic(void)
-{
-  unsigned int diff=0;
-	unsigned int absDifference=0;
-	float MusicSeconds = (float)((float)musicStatus.secondsElasped + ((float)musicStatus.subSecondsElasped/(float)100));
-	syncedToMusic = 1;
-  CalculatedMusicFilePosition = ((long)(MusicSeconds * RefreshRate) * stepSize) + CHANNEL_DATA_OFFSET  ;
-  LogWrite("Syncing to Music\n");
-  filePosition = CalculatedMusicFilePosition;
-  fseek(seqFile, CalculatedMusicFilePosition, SEEK_SET);
-}
-
-void ShowDiff(void)
-{
-  unsigned int diff=0;
-	unsigned int absDifference=0;
-  int secs;
-	float MusicSeconds = (float)((float)musicStatus.secondsElasped + ((float)musicStatus.subSecondsElasped/(float)100));
-	
-	MusicSeconds = customRounding(MusicSeconds, .05);
-	
-	secs = (int)MusicSeconds;
-	if (MusicLastSecond == secs)
-	{return;}
-	MusicLastSecond = secs;
-	
-
-  CalculatedMusicFilePosition = ((long)(MusicSeconds * RefreshRate) * stepSize) + CHANNEL_DATA_OFFSET  ;
-	if(CalculatedMusicFilePosition > filePosition)
-	{
-		diff = -(CalculatedMusicFilePosition - filePosition);
-	}
-	else
-	{
-		diff = filePosition-CalculatedMusicFilePosition;
-	}
-		
-  absDifference = abs(diff);
-//  LogWrite("RefreshRate= %f MusicSeconds = %f secs=%d diff = %d , abs = %d  CFP= %d FP= %d       
-//\n",RefreshRate,MusicSeconds,MusicLastSecond,diff,absDifference,CalculatedMusicFilePosition,filePosition);
-}
-
-
-float customRounding(float value, float roundingValue) 
-{
-    int mulitpler = floor(value / roundingValue);
-    return mulitpler * roundingValue;
 }
 
 void LoadUniversesFromFile()
