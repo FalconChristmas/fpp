@@ -60,7 +60,6 @@ char LocalAddress[64];
 
 size_t stepSize=8192;
 
-size_t bytesRead=0;
 FILE *seqFile=NULL;
 char fileData[65536];
 unsigned long filePosition=0;
@@ -83,9 +82,10 @@ void ShowDiff(void);
 void E131_Initialize()
 {
 	E131sequenceNumber=1;
-  GetLocalWiredIPaddress(LocalAddress);
+	GetLocalWiredIPaddress(LocalAddress);
 	LoadUniversesFromFile();
-  E131_InitializeNetwork();
+	E131_InitializeNetwork();
+	SendBlankingData();
 }
 
 void GetLocalWiredIPaddress(char * IPaddress)
@@ -164,6 +164,7 @@ int E131_InitializeNetwork()
 
 int E131_OpenSequenceFile(const char * file)
 {
+  size_t bytesRead = 0;
   int seqFileSize;
 	syncedToMusic=0;
   if(seqFile!=NULL)
@@ -193,6 +194,8 @@ int E131_OpenSequenceFile(const char * file)
   stopE131 = 0;
   E131status = E131_STATUS_READING;
   E131sequenceFramesSent = 0;
+
+  E131_ReadData();
   StartLightThread();
 
   return seqFileSize;
@@ -219,16 +222,9 @@ int IsSequenceRunning(void)
   return 0;
 }
 
-void E131_Send()
+void E131_ReadData(void)
 {
-  struct itimerval tout_val;
-  ShowDiff();
-
-	if(MusicPlayerStatus==PLAYING_MPLAYER_STATUS && !syncedToMusic && (musicStatus.secondsElasped < 3))
-	{
-		//Playlist_SyncToMusic();
-	}
-
+	size_t bytesRead = 0;
 	if (IsSequenceRunning())
 	{
 		bytesRead = 0;
@@ -242,12 +238,21 @@ void E131_Send()
 		{
 			E131_CloseSequenceFile();
 		}
-
-		E131sequenceFramesSent++;
 	}
 	else
 	{
 		bzero(fileData, sizeof(fileData));
+	}
+}
+
+void E131_Send()
+{
+  struct itimerval tout_val;
+  ShowDiff();
+
+	if(MusicPlayerStatus==PLAYING_MPLAYER_STATUS && !syncedToMusic && (musicStatus.secondsElasped < 3))
+	{
+		//Playlist_SyncToMusic();
 	}
 
 	for(i=0;i<UniverseCount;i++)
@@ -269,6 +274,7 @@ void E131_Send()
 
 	if (IsSequenceRunning())
 	{
+		E131sequenceFramesSent++;
 		E131secondsElasped = (int)((float)(filePosition-CHANNEL_DATA_OFFSET)/((float)stepSize*(float)20.0));
 		E131secondsRemaining = E131totalSeconds-E131secondsElasped;
 	}
@@ -435,5 +441,6 @@ void UniversesPrint()
 
 void SendBlankingData(void)
 {
+	E131_ReadData();
 	E131_Send();
 }

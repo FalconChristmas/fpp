@@ -22,10 +22,7 @@ int MusicPlayerStatus = IDLE_MPLAYER_STATUS;
 fd_set active_fd_set, read_fd_set;
 struct timeval timeout;
 
-int i;
 char oggBuffer[MAX_BYTES_OGG];
-int bufferPtr=0;
-char state=0;
 char strTime[34];
 
 
@@ -148,7 +145,11 @@ void PollMusicInfo()
 
 void ProcessOGGData(int bytesRead)
 {
+	int  bufferPtr = 0;
+	char state = 0;
+	int  i = 0;
 	bool commandNext=false;
+
 	for(i=0;i<bytesRead;i++)
 	{
 		switch(oggBuffer[i])
@@ -280,19 +281,28 @@ void ParseTimes()
 			(lastSyncCheck != musicStatus.secondsElasped))
 	{
 		lastSyncCheck = musicStatus.secondsElasped;
-		unsigned int diff = abs(E131sequenceFramesSent - expectedFramesSent);
+		int diff = E131sequenceFramesSent - expectedFramesSent;
 		if (diff)
 		{
-			int timerOffset = 300;
+			int timerOffset = diff * 500;
 			int newLightDelay = LightDelay;
 
-			if (diff > 1)
-				timerOffset = 600;
-
 			if (E131sequenceFramesSent >  expectedFramesSent)
-				newLightDelay += timerOffset;
+			{
+				// correct if we slingshot past 0, otherwise offset further
+				if (LightDelay < DefaultLightDelay)
+					newLightDelay = DefaultLightDelay;
+				else
+					newLightDelay += timerOffset;
+			}
 			else
-				newLightDelay -= timerOffset;
+			{
+				// correct if we slingshot past 0, otherwise offset further
+				if (LightDelay > DefaultLightDelay)
+					newLightDelay = DefaultLightDelay;
+				else
+					newLightDelay += timerOffset;
+			}
 
 			LogWrite("LD: %d, NLD: %d\n", LightDelay, newLightDelay);
 			LightDelay = newLightDelay;

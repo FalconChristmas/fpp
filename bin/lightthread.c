@@ -39,6 +39,7 @@ void *RunLightThread(void)
 	{
 		startTime = GetTime();
 		E131_Send();
+		E131_ReadData();
 
 		if (E131status != E131_STATUS_IDLE)
 		{
