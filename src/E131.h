@@ -37,7 +37,7 @@ extern int E131status;
 extern int E131sequenceFramesSent;
 
 int IsSequenceRunning(void);
-void GetLocalWiredIPaddress(char * IPaddress);
+char * GetE131LocalAddressFromInterface();
 void E131_Initialize();
 int E131_InitializeNetwork();
 int E131_OpenSequenceFile(const char * file);

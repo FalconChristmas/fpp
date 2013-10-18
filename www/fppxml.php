@@ -1,6 +1,7 @@
 <?php
 
 require_once('config.php');
+require_once('common.php');
 
 require_once('playlistentry.php');
 require_once('universeentry.php');
@@ -57,6 +58,7 @@ $command_array = Array(
 	"setFPPDmode" => 'SetFPPDmode',
 	"getVolume" => 'GetVolume',
 	"getFPPDmode" => 'GetFPPDmode',
+	"setE131interface" => 'SetE131interface',
 	"playEffect" => 'PlayEffect',
 	"stopEffect" => 'StopEffect',
 	"deleteEffect" => 'DeleteEffect',
@@ -200,8 +202,7 @@ function SetVolume()
 {
 	$volume = $_GET['volume'];
 	check($volume);
-
-	WriteVolumeToFile($volume);
+  WriteSettingToFile("volume",$volume);
 	$vol = intval ($volume);
 	if($vol>=100)
 	{
@@ -218,10 +219,19 @@ function SetVolume()
 
 function SetFPPDmode()
 {
+	$mode_string[0] = "player";
+	$mode_string[1] = "bridge";
 	$mode = $_GET['mode'];
 	check($mode);
+  WriteSettingToFile("fppMode",$mode_string[$mode]);
+	EchoStatusXML("true");
+}
 
-	WriteFPPDmodeToFile($mode);
+function SetE131interface()
+{
+	$iface = $_GET['iface'];
+	check($iface);
+	WriteSettingToFile("E131interface",$iface);
 	EchoStatusXML("true");
 }
 
@@ -251,55 +261,6 @@ function GetFPPDmode()
 		$value = $doc->createTextNode($temp[0]);
 		$value = $root->appendChild($value);
 		echo $doc->saveHTML();
-	}
-}
-
-function WriteFPPDmodeToFile($mode)
-{
-	$mode_string[0] = "player";
-	$mode_string[1] = "bridge";
-
-	global $settingsFile;
-
-	$settings = file_get_contents($settingsFile);
-	if ( !empty($settings) )
-	{
-		if (!(strpos($settings, "fppMode") === false))
-		{
-			$settings = preg_replace('/fppMode\s*=\s*\w*/', "fppMode = ". $mode_string[$mode], $settings);
-		}
-		else
-		{
-			$settings .= "\nfppMode = " . $mode_string[$mode] . "\n";
-		}
-		file_put_contents($settingsFile, $settings);
-	}
-	else
-	{
-		file_put_contents($settingsFile, "fppMode = " . $mode_string[$mode] . "\n");
-	}
-}
-
-function WriteVolumeToFile($volume)
-{
-	global $settingsFile;
-
-	$settings = file_get_contents($settingsFile);
-	if ( !empty($settings) )
-	{
-		if (!(strpos($settings, "volume") === false))
-		{
-			$settings = preg_replace('/volume\s*=\s*\w*/', "volume = " . $volume, $settings);
-		}
-		else
-		{
-			$settings .= "\nvolume = " . $volume . "\n";
-		}
-		file_put_contents($settingsFile, $settings);
-	}
-	else
-	{
-		file_put_contents($settingsFile, "volume = " . $volume . "\n");
 	}
 }
 

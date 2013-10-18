@@ -27,6 +27,7 @@ void initSettings(void)
 	settings.bytesFile = strdup("/home/pi/media/bytesReceived");
 	settings.settingsFile = strdup("/home/pi/media/settings");
   settings.daemonize = 1;
+  settings.E131interface = strdup("eth0");
 }
 
 // Returns a string that's the white-space trimmed version
@@ -130,6 +131,10 @@ void printSettings(void)
 		fprintf(fd, "bytesFile(%u): %s\n",
 				strlen(settings.bytesFile),
 				settings.bytesFile);
+	if ( settings.E131interface )
+		fprintf(fd, "E131interface(%u): %s\n",
+				strlen(settings.E131interface),
+				settings.E131interface);
 	if ( settings.controlMajor != 0 )
 		fprintf(fd, "controlMajor: %u\n", settings.controlMajor);
 	if ( settings.controlMinor != 0 )
@@ -580,6 +585,23 @@ int loadSettings(const char *filename)
 				else
 					fprintf(stderr, "Failed to load bytesFile from config file\n");
 			}
+			else if ( strcmp(key, "E131interface") == 0 )
+			{
+				token = strtok(NULL, "=");
+				if ( ! token )
+				{
+					fprintf(stderr, "Error tokenizing value for E131interface setting\n");
+					continue;
+				}
+				value = trimwhitespace(token);
+				if ( strlen(value) )
+				{
+					free(settings.E131interface);
+					settings.E131interface = strdup(value);
+				}
+				else
+					fprintf(stderr, "Failed to load E131interface from config file\n");
+			}
 			else if ( strcmp(key, "controlMajor") == 0 )
 			{
 				token = strtok(NULL, "=");
@@ -724,6 +746,11 @@ char *getBytesFile(void)
 char *getSettingsFile(void)
 {
 	return settings.settingsFile;
+}
+
+char *getE131interface(void)
+{
+	return settings.E131interface;
 }
 
 unsigned int getControlMajor(void)

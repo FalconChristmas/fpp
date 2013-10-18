@@ -9,10 +9,8 @@ struct config
 {
 	int		verbose;
 	int		daemonize;
-
 	int		fppMode;
 	int		volume;
-
 	char	*mediaDirectory;
 	char	*musicDirectory;
 	char	*sequenceDirectory;
@@ -24,8 +22,8 @@ struct config
 	char	*logFile;
 	char	*silenceMusic;
 	char	*settingsFile;
-
 	char	*bytesFile;
+	char	*E131interface;
 
 	unsigned int controlMajor;
 	unsigned int controlMinor;
@@ -64,6 +62,7 @@ char *getLogFile(void);
 char *getSilenceMusic(void);
 char *getBytesFile(void);
 char *getSettingsFile(void);
+char *getE131interface(void);
 unsigned int getControlMajor(void);
 unsigned int getControlMinor(void);
 
