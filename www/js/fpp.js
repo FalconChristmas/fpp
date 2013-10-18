@@ -1704,6 +1704,16 @@ function SetFPPDmode()
 
 }
 
+function SetE131interface()
+{
+			var xmlhttp=new XMLHttpRequest();
+			var iface = $('#selInterfaces').val();	
+			var url = "fppxml.php?command=setE131interface&iface=" + iface;
+			xmlhttp.open("GET",url,true);
+			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+			xmlhttp.send();
+}
+
 function GetVolume()
 {
     var xmlhttp=new XMLHttpRequest();
