@@ -18,6 +18,8 @@
 #include <string.h>
 #include <math.h>
 #include <strings.h>
+#include <sys/ioctl.h>
+#include <net/if.h>
 
 // external variables
 extern struct mpg123_type mpg123;
@@ -56,7 +58,7 @@ UniverseEntry universes[MAX_UNIVERSE_COUNT];
 int UniverseCount = 0;
 
 int i=0;
-char LocalAddress[64];
+char * E131LocalAddress;
 
 size_t stepSize=8192;
 
@@ -82,28 +84,26 @@ void ShowDiff(void);
 void E131_Initialize()
 {
 	E131sequenceNumber=1;
-	GetLocalWiredIPaddress(LocalAddress);
+	E131LocalAddress = GetE131LocalAddressFromInterface();
+  LogWrite("E131LocalAddress = %s\n",E131LocalAddress);
 	LoadUniversesFromFile();
 	E131_InitializeNetwork();
 	SendBlankingData();
+  free(E131LocalAddress);
 }
 
-void GetLocalWiredIPaddress(char * IPaddress)
+char * GetE131LocalAddressFromInterface()
 {
-	FILE *fp;
-  size_t len;
-	fp = popen("/sbin/ifconfig|grep -v 127.0.0.1|grep -v ::1|grep inet|head -1|sed 's/addr:/ /'|awk '{print $2}'", "r");
- 	
-	if (fp == NULL) 
-	{
-		LogWrite("Error getting Local IP Adress. popen returned %d\n",fp);
-   	exit;
- 	}
-	len = fread(IPaddress,1,64,fp);
-	// Remove '\n' by replacing with '\0'
-	IPaddress[len-1] = '\0';
-	LogWrite("IP=%s\n",IPaddress);
- 	pclose(fp);
+  int fd;
+  struct ifreq ifr;
+  fd = socket(AF_INET, SOCK_DGRAM, 0);
+  ifr.ifr_addr.sa_family = AF_INET;
+  /* I want IP address attached to E131interface */
+  strncpy(ifr.ifr_name, (const char *)getE131interface(), IFNAMSIZ-1);
+  ioctl(fd, SIOCGIFADDR, &ifr);
+  close(fd);
+  /* return duplicate of result */
+  return strdup(inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr));
 }
 
 
@@ -123,7 +123,7 @@ int E131_InitializeNetwork()
 
   localAddress.sin_family = AF_INET;
   localAddress.sin_port = htons(E131_SOURCE_PORT);
-  localAddress.sin_addr.s_addr = inet_addr(LocalAddress);
+  localAddress.sin_addr.s_addr = inet_addr(E131LocalAddress);
   if(bind(sendSocket, (struct sockaddr *) &localAddress, sizeof(struct sockaddr_in)) == -1)
   {
     LogWrite("Error in bind:errno=%d\n",errno);
