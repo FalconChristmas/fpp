@@ -24,7 +24,7 @@ unset($output);
 		        OS Version: <?php echo $rfs_version; ?><br />
 		        FPP Version: <?php echo $git_version; ?>, Master Version: <?php echo $git_remote_version; ?>
 	 		</div>
-			<div class="headerRight"<a href="http://raspberrypi.org"><img src="images/large_Raspberry_Pi_Logo_4.png" height="60" /></a></div>
+			<div class="headerRight"><a href="http://raspberrypi.org"><img src="images/large_Raspberry_Pi_Logo_4.png" height="60" /></a></div>
 			<div class="clear"></div>
 	 </div>
 
