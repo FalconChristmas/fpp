@@ -765,6 +765,16 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			return returnValue;
 		}
 		
+		function validateIPaddress(textbox)   
+		{  
+			 if (/^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(textbox.value))  		{  
+				return (true)  
+			}  
+			textbox.style.border="red solid 1px";
+			textbox.value = ""; 
+      return false;
+		}  
+
 		function validateNumber(textbox,minimum,maximum)   
 		{  
 			result = true;
@@ -1146,7 +1156,6 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 								$('#txtPlayerStatus').html("Idle");
 								$('#txtTimePlayed').html("");								
 								$('#txtTimeRemaining').html("");	
-
 								$('#txtNextPlaylist').html(NextPlaylist);
 								$('#nextPlaylistTime').html(NextPlaylistTime);
 								$('#fppTime').html(fppTime);
@@ -1543,6 +1552,16 @@ function SetFPPDmode()
 
 }
 
+function SetE131interface()
+{
+			var xmlhttp=new XMLHttpRequest();
+			var iface = $('#selInterfaces').val();	
+			var url = "fppxml.php?command=setE131interface&iface=" + iface;
+			xmlhttp.open("GET",url,true);
+			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+			xmlhttp.send();
+}
+
 function GetVolume()
 {
     var xmlhttp=new XMLHttpRequest();
@@ -1583,12 +1602,7 @@ function GetFPPDmode()
 		xmlhttp.send();
 }
 
-		function validateIPaddress(textbox)   
-		{  
-			 if (/^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(textbox.value))  		{  
-				return (true)  
-			}  
-			textbox.style.border="red solid 1px";
-//			textbox.value = ""; 
-      return false;
-		}  
+
+
+		
+		
