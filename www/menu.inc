@@ -57,7 +57,7 @@ unset($output);
           <!-- <li><a href="rds.php">Radio RDS</a></li> -->
         </ul>
       </li>
-      <li><a href="http://falconchristmas.com/wiki/index.php5/FPP">Wiki/Help</a></li>
+      <li><a href="http://falconchristmas.com/wiki/index.php/Falcon_FPP">Wiki/Help</a></li>
     </ul>
     <br style="clear: left" />
     </div>
