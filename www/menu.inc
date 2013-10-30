@@ -51,8 +51,8 @@ if (file_exists($vFile))
       </li>
       <li id='outputMenu'><a href="#">Output Setup</a>
         <ul>
-          <li><a href="universes.php">Universe</a></li>
-          <li><a href="pixelnetdmx.php">Pixelnet/DMX</a></li>
+          <li><a href="universes.php">E1.31 Universes</a></li>
+          <li><a href="pixelnetdmx.php">FPD - Pixelnet/DMX</a></li>
           <!-- <li><a href="rds.php">Radio RDS</a></li> -->
         </ul>
       </li>
