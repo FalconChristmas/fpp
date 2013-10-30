@@ -210,6 +210,20 @@ function CheckFirstLastOptions()
 			PopulatePlayListEntries(playlist,false);
 }
 
+function GetPlaylistRowHTML(ID, type, data1, data2, firstlast)
+{
+	var HTML = "";
+
+	HTML += "<tr id=\"playlistRow" + ID + "\">";
+	HTML += "<td class=\"colPlaylistNumber colPlaylistNumberDrag\" id = \"colEntryNumber" + ID + "\" >" + ID + ".</td>";
+	HTML += "<td class=\"colPlaylistType\">" + type + "</td>";
+	HTML += "<td class=\"colPlaylistData1\">" + data1 + "</td>";
+	HTML += "<td class=\"colPlaylistData2\">" + data2 + "</td>"
+	HTML += "<td class=\"colPlaylistFlags\" id=\"firstLast" + firstlast + "\">&nbsp;</td>";
+	HTML += "</tr>";
+
+	return HTML;
+}
 
 function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 	{
@@ -242,42 +256,29 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
   							var seqFile = entries.childNodes[i].childNodes[1].textContent;
 								var songFile = entries.childNodes[i].childNodes[2].textContent;
 								var pause = entries.childNodes[i].childNodes[3].textContent;
+								var videoFile = entries.childNodes[i].childNodes[5].textContent;
+								var eventName = entries.childNodes[i].childNodes[6].textContent;
 								if(type == 'b')
-								{
-										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
-										innerHTML +=  "<td class=\"colPlaylistNumber\" id = \"colEntryNumber" + (i+1).toString() + "\" width=\"5%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">" + songFile + "</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">" + seqFile + "</td>"
-										innerHTML += "<td width=\"11%\" id=\"firstLast" + i.toString() + "\" class=\"textLeft\">&nbsp;</td>";
-									  innerHTML += "</tr>";
-								}
+										innerHTML += GetPlaylistRowHTML((i+1).toString(), "Seq/Aud", songFile, seqFile, i.toString());
 								else if(type == 'm')
-								{
-										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
-										innerHTML +=  "<td class=\"colPlaylistNumber\"  id = \"colEntryNumber" + (i+1).toString() + "\" width=\"5%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">" + songFile + "</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">---</td>"
-										innerHTML += "<td width=\"11%\" id=\"firstLast" + i.toString() + "\" class=\"textLeft\">&nbsp;</td>";
-									  innerHTML += "</tr>";
-								}
+										innerHTML += GetPlaylistRowHTML((i+1).toString(), "Audio", songFile, "---", i.toString());
 								else if(type == 's')
-								{
-										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
-										innerHTML +=  "<td class=\"colPlaylistNumber\"  id = \"colEntryNumber" + (i+1).toString() + "\" width=\"5%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">---</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">" + seqFile + "</td>"
-										innerHTML += "<td width=\"11%\" id=\"firstLast" + i.toString() + "\" class=\"textLeft\">&nbsp;</td>";
-									  innerHTML += "</tr>";
-								}
+										innerHTML += GetPlaylistRowHTML((i+1).toString(), "Seq.", "---", seqFile, i.toString());
 								else if(type == 'p')
+										innerHTML += GetPlaylistRowHTML((i+1).toString(), "Pause", "PAUSE - " + pause.toString(), "---", i.toString());
+								else if(type == 'v')
 								{
-										
-										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
-										innerHTML +=  "<td class=\"colPlaylistNumber\"  id = \"colEntryNumber" + (i+1).toString() + "\" width=\"5%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">PAUSE - " + pause.toString() + " seconds</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">---</td>"
-										innerHTML += "<td width=\"11%\" id=\"firstLast" + i.toString() + "\" class=\"textLeft\">&nbsp;</td>";
-									  innerHTML += "</tr>";
+										var delayStr = "---";
+										if (pause > 0)
+											delayStr = "Video Delayed " + pause.toString() + " seconds";
+										innerHTML += GetPlaylistRowHTML((i+1).toString(), "Video", videoFile, delayStr, i.toString());
+								}
+								else if(type == 'e')
+								{
+										var delayStr = "---";
+										if (pause > 0)
+											delayStr = "Video Delayed " + pause.toString() + " seconds";
+										innerHTML += GetPlaylistRowHTML((i+1).toString(), "Event", eventName, delayStr, i.toString());
 								}
 							}
 					}
@@ -287,8 +288,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 										innerHTML +=  "<td>No entries in playlist.</td>";
 									  innerHTML += "</tr>";
 					}
-					var results = document.getElementById("tblCreatePlaylistEntries_tbody");
-					results.innerHTML = innerHTML;
+					$('#tblCreatePlaylistEntries_tbody').html(innerHTML);
 					GetPlayListSettings(playList);
 				}
 			}
@@ -303,22 +303,56 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 				case 0:
 					$("#musicOptions").css("display","block");
 					$("#sequenceOptions").css("display","block");
+					$("#videoOptions").css("display","none");
+					$("#eventOptions").css("display","none");
 					$("#pauseTime").css("display","none");
+					$("#pauseText").css("display","none");
+					$("#delayText").css("display","none");
 					break;
 				case 1:	
 					$("#musicOptions").css("display","block");
 					$("#sequenceOptions").css("display","none");
+					$("#videoOptions").css("display","none");
+					$("#eventOptions").css("display","none");
 					$("#pauseTime").css("display","none");
+					$("#pauseText").css("display","none");
+					$("#delayText").css("display","none");
 					break;
 				case 2:	
 					$("#musicOptions").css("display","none");
 					$("#sequenceOptions").css("display","block");
+					$("#videoOptions").css("display","none");
+					$("#eventOptions").css("display","none");
 					$("#pauseTime").css("display","none");
+					$("#pauseText").css("display","block");
+					$("#delayText").css("display","none");
 					break;
 				case 3:	
 					$("#musicOptions").css("display","none");
 					$("#sequenceOptions").css("display","none");
+					$("#videoOptions").css("display","none");
+					$("#eventOptions").css("display","none");
 					$("#pauseTime").css("display","block");
+					$("#pauseText").css("display","none");
+					$("#delayText").css("display","block");
+					break;
+				case 4:
+					$("#musicOptions").css("display","none");
+					$("#sequenceOptions").css("display","none");
+					$("#videoOptions").css("display","block");
+					$("#eventOptions").css("display","none");
+					$("#pauseTime").css("display","block");
+					$("#pauseText").css("display","none");
+					$("#delayText").css("display","block");
+					break;
+				case 5:
+					$("#musicOptions").css("display","none");
+					$("#sequenceOptions").css("display","none");
+					$("#videoOptions").css("display","none");
+					$("#eventOptions").css("display","block");
+					$("#pauseTime").css("display","block");
+					$("#pauseText").css("display","none");
+					$("#delayText").css("display","block");
 					break;
 			}
 			
@@ -383,10 +417,15 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			var type = document.getElementById("selType").value;
 			var	seqFile = document.getElementById("selSequence").value;
 			var	songFile = document.getElementById("selAudio").value;
+			var	videoFile = document.getElementById("selVideo").value;
+			var	eventName = document.getElementById("selEvent").value;
 			var	pause = document.getElementById("txtPause").value;
 			var url = "fppxml.php?command=addPlaylistEntry&type=" + type + "&seqFile=" + 
 			           encodeURIComponent(seqFile) + "&songFile=" + 
-								 encodeURIComponent(songFile) + "&pause=" + pause;
+								 encodeURIComponent(songFile) + "&pause=" + pause + "&videoFile=" +
+								 encodeURIComponent(videoFile) + "&eventName=" +
+								 encodeURIComponent(eventName);
+								 ;
 			xmlhttp.open("GET",url,false);
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
 	 
@@ -976,7 +1015,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			xmlhttp.onreadystatechange = function () {
 				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
 				{
-          GetSequenceFiles();
+          GetFiles('Sequences');
 				}
 			};
 			xmlhttp.send();
@@ -992,12 +1031,44 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			xmlhttp.onreadystatechange = function () {
 				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
 				{
-          GetMusicFiles();
+          GetFiles('Music');
 				}
 			};
 			xmlhttp.send();
 		}
 		
+		function DeleteVideo()
+		{
+			var xmlhttp=new XMLHttpRequest();
+			var url = "fppxml.php?command=deleteVideo&name=" + VideoNameSelected;
+			xmlhttp.open("GET",url,false);
+			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+	 
+			xmlhttp.onreadystatechange = function () {
+				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
+				{
+					GetFiles('Videos');
+				}
+			};
+			xmlhttp.send();
+		}
+
+		function DeleteScript()
+		{
+			var xmlhttp=new XMLHttpRequest();
+			var url = "fppxml.php?command=deleteScript&name=" + ScriptNameSelected;
+			xmlhttp.open("GET",url,false);
+			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+	 
+			xmlhttp.onreadystatechange = function () {
+				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
+				{
+					GetFiles('Scripts');
+				}
+			};
+			xmlhttp.send();
+		}
+
 	function GetSequenceFiles()
 	{
     	var xmlhttp=new XMLHttpRequest();
@@ -1052,6 +1123,29 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			sequenceArray = seqArr;
 		}
 
+  function GetFiles(dir)
+  {
+    var xmlhttp=new XMLHttpRequest();
+    var url = "fppxml.php?command=getFiles&dir=" + dir;
+    $('#tbl' + dir).empty();
+    xmlhttp.open("GET",url,false);
+    xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+    xmlhttp.send();
+
+    var xmlDoc=xmlhttp.responseXML; 
+    var files = xmlDoc.getElementsByTagName('Files')[0];
+    if(files.childNodes.length> 0)
+    {
+      var innerhtml = '';
+      for(i=0; i<files.childNodes.length; i++)
+      {
+        var name = files.childNodes[i].childNodes[0].textContent;
+        var time = files.childNodes[i].childNodes[1].textContent;
+        var tableRow = "<tr class ='fileDetails'><td class ='fileName'>" + name + "</td><td class ='fileTime'>" + time + "</td></tr>";
+        $('#tbl' + dir).append(tableRow);
+      }
+    }
+  }
 
 	function moveFile(fileName)
 	{
@@ -1060,28 +1154,8 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			xmlhttp.open("GET",url,false);
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
 			xmlhttp.send();
-   		GetSequenceFiles();
-			GetMusicFiles();
 	}
 
-	function moveFile2(fileName)
-	{
-    	var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=moveFile&file=" + fileName;
-			xmlhttp.open("GET",url,false);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-	 
-			xmlhttp.onreadystatechange = function () {
-				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
-				{
-					GetSequenceFiles();
-					GetMusicFiles();
-				}
-			};
-			
-			xmlhttp.send();
-	}
-		
 	function updateFPPStatus()
 	{
 		var status = GetFPPstatus();
@@ -1626,6 +1700,8 @@ function PopulateStatusPlaylistEntries(playselected,playList,reloadFile)
   							seqFile = entries.childNodes[i].childNodes[1].textContent;
 								songFile = entries.childNodes[i].childNodes[2].textContent;
 								pause = entries.childNodes[i].childNodes[3].textContent;
+								videoFile = entries.childNodes[i].childNodes[5].textContent;
+								eventName = entries.childNodes[i].childNodes[6].textContent;
 								if(type == 'b')
 								{
 										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
@@ -1655,13 +1731,30 @@ function PopulateStatusPlaylistEntries(playselected,playList,reloadFile)
 								}
 								else if(type == 'p')
 								{
-										
 										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
 										innerHTML +=  "<td id = \"colEntryNumber" + (i+1).toString() + "\" width=\"6%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
 										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">PAUSE - " + pause.toString() + " seconds</td>";
 										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">---</td>"
 										innerHTML += "<td width=\"10%\" id=\"firstLast" + i.toString() + "\" class=\"textCenter\"></td>";
 									  innerHTML += "</tr>";
+								}
+								else if(type == 'v')
+								{
+										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
+										innerHTML +=  "<td id = \"colEntryNumber" + (i+1).toString() + "\" width=\"6%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
+										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">" + videoFile + "</td>";
+										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">Video Delayed " + pause.toString() + " seconds</td>"
+										innerHTML += "<td width=\"10%\" id=\"firstLast" + i.toString() + "\" class=\"textCenter\"></td>";
+										innerHTML += "</tr>";
+								}
+								else if(type == 'e')
+								{
+										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
+										innerHTML +=  "<td id = \"colEntryNumber" + (i+1).toString() + "\" width=\"6%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
+										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">" + eventName + "</td>";
+										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">Event Delayed " + pause.toString() + " seconds</td>"
+										innerHTML += "<td width=\"10%\" id=\"firstLast" + i.toString() + "\" class=\"textCenter\"></td>";
+										innerHTML += "</tr>";
 								}
 							}
 					}
@@ -1756,7 +1849,14 @@ function GetFPPDmode()
 		xmlhttp.send();
 }
 
+function ViewLog()
+{
+	$('#logText').load("fppxml.php?command=getLog&filename=" + LogFileSelected);
+	$('#logViewer').dialog({ height: 600, width: 800, title: "Log Viewer: " + LogFileSelected });
+	$('#logViewer').dialog( "moveToTop" );
+}
 
-
-		
-		
+function DownloadLog()
+{
+	location.href="fppxml.php?command=getLog&filename=" + LogFileSelected;
+}

@@ -204,8 +204,8 @@
         <table id="tblStatusPlaylistHeader" width="100%">
           <tr class="playlistHeader">
             <td width="6%">#</td>
-            <td  width="42%">Songname / Pause</td>
-            <td  width="42%">Sequence</td>
+            <td  width="42%">Media File / Event / Pause </td>
+            <td  width="42%">Sequence / Delay</td>
             <td  width="10%">First/Last</td>
           </tr>
         </table>

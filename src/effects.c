@@ -59,11 +59,6 @@ void CloseEffects(void)
 }
 
 /*
- * List current effects being played
- */
-// FIXME, add something here so web interface can get status
-
-/*
  * Get next available effect ID
  *
  * Assumes effectsLock is held already
@@ -118,7 +113,7 @@ int StartEffect(char *effectName, int startChannel)
 		return effectID;
 	}
 
-	if (snprintf(filename, 1024, "%s/%s.eseq", getSequenceDirectory(), effectName) >= 1024)
+	if (snprintf(filename, 1024, "%s/%s.eseq", getEffectDirectory(), effectName) >= 1024)
 	{
 		LogWrite("Unable to open effects file: %s, filename too long\n",
 			filename);
@@ -135,9 +130,6 @@ int StartEffect(char *effectName, int startChannel)
 		return effectID;
 	}
 
-// FIXME
-#define STEP_SIZE_OFFSET 10
-#define CHANNEL_DATA_OFFSET 28
 	fseek(fp,STEP_SIZE_OFFSET,SEEK_SET);
 	bytesRead = fread(fileData,1,4,fp);
 	if (bytesRead < 4)
@@ -170,8 +162,6 @@ int StartEffect(char *effectName, int startChannel)
 	effects[effectID]->startChannel = (startChannel >= 1) ? startChannel : 1;
     effects[effectID]->stepSize = stepSize;
 
-	// fixme, log the effect length here
-		
     LogWrite("Effect %s Stepsize %d\n", effectName, effects[effectID]->stepSize);
 
 	effectCount++;

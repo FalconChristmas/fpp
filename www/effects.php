@@ -35,8 +35,8 @@
 
   function PrintEffectRows()
   {
-    global $sequenceDirectory;
-    foreach(scandir($sequenceDirectory) as $seqFile)
+    global $effectDirectory;
+    foreach(scandir($effectDirectory) as $seqFile)
     {
       if($seqFile != '.' && $seqFile != '..' && preg_match('/.eseq$/', $seqFile))
       {

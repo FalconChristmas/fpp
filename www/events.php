@@ -94,8 +94,9 @@
 
 	function PrintEffectOptions()
 	{
-		global $sequenceDirectory;
-		foreach(scandir($sequenceDirectory) as $seqFile)
+		global $effectDirectory;
+
+		foreach(scandir($effectDirectory) as $seqFile)
 		{
 			if($seqFile != '.' && $seqFile != '..' && preg_match('/.eseq$/', $seqFile))
 			{
@@ -190,10 +191,10 @@
 					</tr>
 				</table>
 				<table width="100%">
-					<tr><td width="20%">Event ID:</td><td width="80%"><select id='newEventID'><? PrintEventIDoptions(); ?></select></td></tr>
+					<tr><td width="20%">Event ID (Major/Minor):</td><td width="80%"><select id='newEventID'><? PrintEventIDoptions(); ?></select></td></tr>
 					<tr><td width="20%">Event Name:</td><td width="80%"><input id="newEventName" class="default-value" type="text" value="" size="30" maxlength="60" /></td></tr>
 					<tr><td width="20%">Effect Sequence:</td><td width="80%"><select id="newEventEffect">
-							<option value=''>NONE</option>
+							<option value=''>--- NONE ---</option>
 <? PrintEffectOptions(); ?>
 </select></td></tr>
 					<tr><td width="20%">Effect Start Channel:</td><td width="80%"><input id="newEventStartChannel" class="default-value" type="text" value="" size="5" maxlength="5" /></td></tr>

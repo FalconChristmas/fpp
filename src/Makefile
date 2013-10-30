@@ -23,6 +23,7 @@ OBJECTS_fppd = \
 	effects.o \
 	events.o \
 	lightthread.o \
+	video.o \
 	$(NULL)
 LIBS_fppd = \
 	-lpthread \

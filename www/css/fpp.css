@@ -216,32 +216,26 @@ html
 	background-size: cover;
 }
 
-#divSeq, #divEthernet, #divEffectLibrary{
+#divEthernet, #divEffectLibrary{
 	min-height: 300px;
 	width: 383px;
 	float: left;
 }
 
-#divSeqData {
+#divSeqData, #divMusicData, #divVideoData, #divEffectsData, #divScriptsData, #divLogsData {
 	overflow: auto;
-	min-height: 220px;
-	max-height: 220px;
+	min-height: 120px;
+	max-height: 120px;
 	width: 100%;
 }
 
-#divMusic, #divWireless, #divRunningEffects{
+#divWireless, #divRunningEffects{
 	overflow: auto;
 	display: table;
 	min-height: 300px;
 	max-height: 300px;
 	width: 383px;
 	float: right;
-}
-#divMusicData {
-	overflow: auto;
-	min-height: 220px;
-	max-height: 220px;
-	width: 100%;
 }
 
 legend
@@ -281,12 +275,37 @@ fieldset
 .siteName{font-size: 200%; padding-top: 13px;}
 
 
-.colPlaylistNumber{
+.colPlaylistNumberDrag{
 	background-image: url(../images/vertdrag.png);
 	background-repeat:no-repeat;
 	background-size:7px 14px;
 	background-position:0 2px;
 	padding-left:20px;
+}
+.colPlaylistNumber{
+	text-align:right;
+	padding-right:0px;
+	width: 5%;
+}
+.colPlaylistType{
+	text-align:left;
+	padding-left:5px;
+	width: 6%;
+}
+.colPlaylistData1{
+	text-align:left;
+	padding-left:5px;
+	width: 42%;
+}
+.colPlaylistData2{
+	text-align:left;
+	padding-left:5px;
+	width: 41%;
+}
+.colPlaylistFlags{
+	text-align:left;
+	padding-left:5px;
+	width: 6%;
 }
 
 #slider{
@@ -522,6 +541,12 @@ fieldset
 .pl_title {
 	font-size: larger;
 }
+
+.title {
+	font-size: larger;
+	text-align: center;
+	font-weight: bold;
+}
 #playlistEntryProperties ul{
 	padding: 0;
 	margin: 10px;
@@ -551,4 +576,27 @@ fieldset
 
 .logo{
 	height: 60px;
+}
+
+#fileManager {
+	min-width: 768px;
+	width: 768px;
+	margin-left: auto;
+	margin-right: auto;
+}
+.fileDetails {
+	font-size: 13px;
+}
+.fileName {
+	width: 80%;
+}
+.fileTime {
+	width: 20%;
+}
+
+#logText {
+	overflow: auto;
+}
+#logViewer {
+	border: 2px solid #000000;
 }

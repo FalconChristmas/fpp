@@ -5,6 +5,8 @@
 #define PL_TYPE_MUSIC         1
 #define PL_TYPE_SEQUENCE      2
 #define PL_TYPE_PAUSE         3
+#define PL_TYPE_VIDEO         4
+#define PL_TYPE_EVENT         5
 
 #define PAUSE_STATUS_IDLE     0
 #define PAUSE_STATUS_STARTED  1
@@ -19,7 +21,9 @@ typedef struct{
     char seqName[256];
     char songName[256];
     char songFullPath[256];
-    unsigned char pauselength;
+    char videoName[256];
+    char eventName[6];
+    unsigned int pauselength;
 }PlaylistEntry;
 
 typedef struct{
