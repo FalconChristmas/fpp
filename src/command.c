@@ -202,6 +202,7 @@ extern PlaylistDetails playlistDetails;
 				{
 					playlistDetails.ForceStop = 1;
 					StopPlaylistGracefully();
+					ReLoadCurrentScheduleInfo();
 					sprintf(response,"%d,%d,Playlist Stopping Gracefully,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
 				}
 				else
@@ -215,6 +216,7 @@ extern PlaylistDetails playlistDetails;
 				{
 					playlistDetails.ForceStop = 1;
 					StopPlaylistNow();
+					ReLoadCurrentScheduleInfo();
 					sprintf(response,"%d,%d,Playlist Stopping Now,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
 				}
 				else
