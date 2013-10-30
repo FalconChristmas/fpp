@@ -58,7 +58,7 @@ if (file_exists($vFile))
       </li>
       <li><a href="#">Help</a>
         <ul>
-          <li><a href="http://falconchristmas.com/wiki/index.php5/FPP">Wiki/Help</a></li>
+          <li><a href="http://falconchristmas.com/wiki/index.php/Falcon_FPP">Wiki/Help</a></li>
           <li><a href="about.php">About</a></li>
         </ul>
       </li>

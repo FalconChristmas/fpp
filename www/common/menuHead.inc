@@ -1,20 +1,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="../css/fpp.css" />
+    <link rel="stylesheet" href="css/fpp.css" />
     <link rel="stylesheet" media="screen and (max-device-width: 480px)" href="../css/fpp_480px.css" />
     <link rel="stylesheet" href="css/jquery.jgrowl.min.css" />
+    <link rel="stylesheet" type="text/css" href="css/ddsmoothmenu.css" />
+    <link rel="stylesheet" type="text/css" href="css/ddsmoothmenu-v.css" />
+
     <script type="text/javascript" src="js/jquery.jgrowl.min.js"></script>
-    <link rel="stylesheet" type="text/css" href="../css/ddsmoothmenu.css" />
-    <link rel="stylesheet" type="text/css" href="../css/ddsmoothmenu-v.css" />
-    
-    <script type="text/javascript" src="../js/jquery.min.js"></script>
-    <script type="text/javascript" src="../js/ddsmoothmenu.js">
-		
-		/***********************************************
-		* Smooth Navigational Menu- (c) Dynamic Drive DHTML code library (www.dynamicdrive.com)
-		* This notice MUST stay intact for legal use
-		* Visit Dynamic Drive at http://www.dynamicdrive.com/ for full source code
-		***********************************************/
-		</script>
+    <script type="text/javascript" src="js/jquery.min.js"></script>
+    <script type="text/javascript" src="js/ddsmoothmenu.js"></script>
     
 <script type="text/javascript">
 

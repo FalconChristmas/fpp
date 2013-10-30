@@ -39,11 +39,6 @@ void ScheduleProc()
       if(!NextScheduleHasbeenLoaded)
       {
         LoadNextScheduleInfo();
-      	char t[64];
-				GetNextPlaylistText(t);
-				LogWrite("Next Playlist= %s\n",t);
-				GetNextScheduleStartText(t);
-				LogWrite("Next Schedule Start text= %s\n",t);
 			}
 			
       PlayListLoadCheck();
@@ -125,8 +120,13 @@ int GetNextScheduleEntry(int *weeklySecondIndex)
 			}
 		}
   }
-	LogWrite("nextEntryIndex = %d least diff=%d  weekly index= %d\n",nextEntryIndex,leastWeeklySecondDifferenceFromNow,*weeklySecondIndex);
+  LogWrite("nextEntryIndex = %d, least diff = %d, weekly index = %d\n",nextEntryIndex,leastWeeklySecondDifferenceFromNow,*weeklySecondIndex);
   return nextEntryIndex;
+}
+
+void ReLoadCurrentScheduleInfo()
+{
+  CurrentScheduleHasbeenLoaded = 0;
 }
 
 void LoadCurrentScheduleInfo()
@@ -139,8 +139,15 @@ void LoadCurrentScheduleInfo()
 
 void LoadNextScheduleInfo()
 {
+  char t[64];
+
   nextSchedulePlaylist.ScheduleEntryIndex = GetNextScheduleEntry(&nextSchedulePlaylist.weeklySecondIndex);
   NextScheduleHasbeenLoaded = 1;
+
+  GetNextPlaylistText(t);
+  LogWrite("Next Playlist = %s\n",t);
+  GetNextScheduleStartText(t);
+  LogWrite("Next Schedule Start text = %s\n",t);
 }
 
 void SetScheduleEntrysWeeklyStartAndEndSeconds(ScheduleEntry * entry)
@@ -248,7 +255,23 @@ void PlayListLoadCheck()
   if (nowWeeklySeconds2 != nowWeeklySeconds)
   {
     nowWeeklySeconds2 = nowWeeklySeconds;
-    //LogWrite("NowSecs = %d CurrStartSecs=%d\n",nowWeeklySeconds,CurrentScheduleStartSecond);
+
+    int diff = currentSchedulePlaylist.startWeeklySeconds - nowWeeklySeconds;
+    int displayDiff = 0;
+
+    // Convoluted code to print the countdown more frequently as we get closer
+    if (((diff > 300) &&                  ((diff % 300) == 0)) ||
+        ((diff >  60) && (diff <= 300) && ((diff %  60) == 0)) ||
+        ((diff >  10) && (diff <=  60) && ((diff %  10) == 0)) ||
+        (                (diff <=  10)))
+    {
+      displayDiff = diff;
+    }
+
+    if (displayDiff)
+      LogWrite("NowSecs = %d, CurrStartSecs = %d (%d seconds away)\n",
+        nowWeeklySeconds,currentSchedulePlaylist.startWeeklySeconds, displayDiff);
+
     if(nowWeeklySeconds == currentSchedulePlaylist.startWeeklySeconds)
     {
       NextScheduleHasbeenLoaded = 0;
@@ -256,6 +279,15 @@ void PlayListLoadCheck()
 		  playlistDetails.currentPlaylistEntry=0;
 			playlistDetails.repeat = Schedule[currentSchedulePlaylist.ScheduleEntryIndex].repeat;
 		  playlistDetails.playlistStarting=1;
+      LogWrite("Schedule Entry: %02d:%02d:%02d - %02d:%02d:%02d - Starting Playlist %s for %d seconds\n",
+        Schedule[currentSchedulePlaylist.ScheduleEntryIndex].startHour,
+        Schedule[currentSchedulePlaylist.ScheduleEntryIndex].startMinute,
+        Schedule[currentSchedulePlaylist.ScheduleEntryIndex].startSecond,
+        Schedule[currentSchedulePlaylist.ScheduleEntryIndex].endHour,
+        Schedule[currentSchedulePlaylist.ScheduleEntryIndex].endMinute,
+        Schedule[currentSchedulePlaylist.ScheduleEntryIndex].endSecond,
+        Schedule[currentSchedulePlaylist.ScheduleEntryIndex].playList,
+        currentSchedulePlaylist.endWeeklySeconds - currentSchedulePlaylist.startWeeklySeconds);
       FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
     }
   }
@@ -270,9 +302,32 @@ void PlayListStopCheck()
   if (nowWeeklySeconds2 != nowWeeklySeconds)
   {
     nowWeeklySeconds2 = nowWeeklySeconds;
-    //LogWrite("NowSecs = %d CurrEndSecs=%d\n",nowWeeklySeconds,currentSchedulePlaylist.endWeeklySeconds);
+
+    int diff = currentSchedulePlaylist.endWeeklySeconds - nowWeeklySeconds;
+    int displayDiff = 0;
+
+    // Convoluted code to print the countdown more frequently as we get closer
+    if (((diff > 300) &&                  ((diff % 300) == 0)) ||
+        ((diff >  60) && (diff <= 300) && ((diff %  60) == 0)) ||
+        ((diff >  10) && (diff <=  60) && ((diff %  10) == 0)) ||
+        (                (diff <=  10)))
+    {
+      displayDiff = diff;
+    }
+
+    if (displayDiff)
+      LogWrite("NowSecs = %d, CurrEndSecs = %d (%d seconds away)\n",
+        nowWeeklySeconds, currentSchedulePlaylist.endWeeklySeconds, displayDiff);
+
     if(nowWeeklySeconds == currentSchedulePlaylist.endWeeklySeconds)
     {
+      LogWrite("Schedule Entry: %02d:%02d:%02d - %02d:%02d:%02d - Stopping Playlist Gracefully\n",
+        Schedule[currentSchedulePlaylist.ScheduleEntryIndex].startHour,
+        Schedule[currentSchedulePlaylist.ScheduleEntryIndex].startMinute,
+        Schedule[currentSchedulePlaylist.ScheduleEntryIndex].startSecond,
+        Schedule[currentSchedulePlaylist.ScheduleEntryIndex].endHour,
+        Schedule[currentSchedulePlaylist.ScheduleEntryIndex].endMinute,
+        Schedule[currentSchedulePlaylist.ScheduleEntryIndex].endSecond);
       CurrentScheduleHasbeenLoaded = 0;
       StopPlaylistGracefully();
     }
@@ -335,7 +390,13 @@ void LoadScheduleFromFile()
     s=strtok(NULL,",");
     Schedule[ScheduleEntryCount].repeat = atoi(s);
 
-		LogWrite("End Hour=%d End min=%d End Sec=%d\n",Schedule[ScheduleEntryCount].endHour,Schedule[ScheduleEntryCount].endMinute,Schedule[ScheduleEntryCount].endSecond);
+    char dayStr[32];
+    GetDayTextFromDayIndex(Schedule[ScheduleEntryCount].dayIndex, dayStr);
+    LogWrite("Schedule Entry: %-12.12s %02d:%02d:%02d - %02d:%02d:%02d (%s)\n", dayStr,
+      Schedule[ScheduleEntryCount].startHour,Schedule[ScheduleEntryCount].startMinute,Schedule[ScheduleEntryCount].startSecond,
+      Schedule[ScheduleEntryCount].endHour,Schedule[ScheduleEntryCount].endMinute,Schedule[ScheduleEntryCount].endSecond,
+      Schedule[ScheduleEntryCount].playList);
+
     // Set WeeklySecond start and end times
     SetScheduleEntrysWeeklyStartAndEndSeconds(&Schedule[ScheduleEntryCount]);
     ScheduleEntryCount++;
@@ -397,11 +458,17 @@ int GetDayFromWeeklySeconds(int weeklySeconds)
 
 void GetNextScheduleStartText(char * txt)
 {
+	if (!NextScheduleHasbeenLoaded)
+		return;
+
 	GetScheduleEntryStartText(nextSchedulePlaylist.ScheduleEntryIndex,nextSchedulePlaylist.weeklySecondIndex,txt);
 }
 
 void GetNextPlaylistText(char * txt)
 {
+	if (!NextScheduleHasbeenLoaded)
+		return;
+
 	strcpy(txt,Schedule[nextSchedulePlaylist.ScheduleEntryIndex].playList);
 }
 
