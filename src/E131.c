@@ -407,7 +407,7 @@ void UniversesPrint()
   int h;
   for(i=0;i<UniverseCount;i++)
   {
-    LogWrite("%d:%d:%d:%d:%d  %s\n",
+    LogWrite("E1.31 Universe: %d:%d:%d:%d:%d  %s\n",
                                          universes[i].active,
                                           universes[i].universe,
                                           universes[i].size,
