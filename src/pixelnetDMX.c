@@ -18,11 +18,9 @@ char PixelnetDMXcontrolHeader[] = {0x55,0x55,0x55,0x55,0x55,0xCC};
 char PixelnetDMXdataHeader[] = {0xCC,0xCC,0xCC,0xCC,0xCC,0x55};
 
 
-char pixelnetDMXhasBeenSent = 0;
-char sendPixelnetDMXdata = 0;
-
 PixelnetDMXentry pixelnetDMX[MAX_PIXELNET_DMX_PORTS];
 int pixelnetDMXcount =0;
+int pixelnetDMXactive = 0;
 
 char bufferPixelnetDMX[PIXELNET_DMX_BUF_SIZE]; 
 
@@ -105,6 +103,11 @@ void SendPixelnetDMXConfig()
 
 }
 
+int IsPixelnetDMXActive(void)
+{
+	return pixelnetDMXactive;
+}
+
 void LoadPixelnetDMXsettingsFromFile()
 {
   FILE *fp;
@@ -117,6 +120,7 @@ void LoadPixelnetDMXsettingsFromFile()
     LogWrite("Error Opening PixelnetDMX File\n");
 	  return;
   }
+  pixelnetDMXactive = 0;
   while(fgets(buf, 512, fp) != NULL)
   {
 		if(pixelnetDMXcount >= MAX_PIXELNET_DMX_PORTS)
@@ -127,6 +131,9 @@ void LoadPixelnetDMXsettingsFromFile()
 		//	active
 		s=strtok(buf,",");
 		pixelnetDMX[pixelnetDMXcount].active = atoi(s);
+
+		if (pixelnetDMX[pixelnetDMXcount].active)
+			pixelnetDMXactive = 1;
 
 		//	type
 		s=strtok(NULL,",");

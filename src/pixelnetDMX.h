@@ -13,6 +13,7 @@ void InitializePixelnetDMX();
 void CreatePixelnetDMXfile(const char * file);
 void SendPixelnetDMX(void);
 void SendPixelnetDMXConfig();
+int IsPixelnetDMXActive(void);
 void LoadPixelnetDMXsettingsFromFile();
 void PixelnetDMXPrint();
 
