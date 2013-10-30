@@ -331,8 +331,8 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 					$("#videoOptions").css("display","none");
 					$("#eventOptions").css("display","none");
 					$("#pauseTime").css("display","block");
-					$("#pauseText").css("display","none");
-					$("#delayText").css("display","block");
+					$("#pauseText").css("display","block");
+					$("#delayText").css("display","none");
 					break;
 				case 4:
 					$("#musicOptions").css("display","none");
