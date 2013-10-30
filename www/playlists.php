@@ -182,8 +182,26 @@ $(document).ready(function () {
     {
       if(preg_match('/\.fevt$/', $eventFile))
       {
+        $f = fopen($eventDirectory . "/" . $eventFile, "r");
+        if ($f == FALSE)
+          die();
+
+        $eventName = "";
+        while (!feof($f))
+        {
+          $line = fgets($f);
+          $entry = explode("=", $line, 2);
+          if ($entry[0] == "name")
+            $eventName = $entry[1];
+        }
+        fclose($f);
+
         $eventFile = preg_replace("/.fevt$/", "", $eventFile);
         $eventText = preg_replace("/_/", " / ", $eventFile);
+
+        if ($eventName != "")
+          $eventText .= " - " . $eventName;
+
         echo "<option value=\"" . $eventFile . "\">" . $eventText . "</option>";
       }
     }

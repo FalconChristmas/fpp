@@ -1348,14 +1348,16 @@ function AddPlayListEntry()
 	$pause = $_GET['pause'];
 	$videoFile = $_GET['videoFile'];
 	$eventName = $_GET['eventName'];
+	$eventID = $_GET['eventID'];
 	check($type);
 	check($seqFile);
 	check($songFile);
 	check($pause);
 	check($videoFile);
 	check($eventName);
+	check($eventID);
 
-	$_SESSION['playListEntries'][] = new PlaylistEntry($type,$songFile,$seqFile,$pause,$videoFile,$eventName,$index,count($_SESSION['playListEntries']));
+	$_SESSION['playListEntries'][] = new PlaylistEntry($type,$songFile,$seqFile,$pause,$videoFile,$eventName,$eventID,$index,count($_SESSION['playListEntries']));
 	EchoStatusXML($_GET['songFile']);
 }
 
@@ -1555,6 +1557,7 @@ function SetPlayListFirstLast()
 function LoadPlayListDetails($file)
 {
 	global $playlistDirectory;
+	global $eventDirectory;
 
 	$playListEntries = NULL;
 	$_SESSION['playListEntries']=NULL;
@@ -1581,6 +1584,7 @@ function LoadPlayListDetails($file)
 				$index = $i;
 				$videoFile = "";
 				$eventName = "";
+				$eventID = "";
 				break;
 			default:
 				break;
@@ -1591,6 +1595,7 @@ function LoadPlayListDetails($file)
 				$index = $i;
 				$videoFile = "";
 				$eventName = "";
+				$eventID = "";
 				break;
 			case 's':
 				$songFile = "";
@@ -1599,6 +1604,7 @@ function LoadPlayListDetails($file)
 				$index = $i;
 				$videoFile = "";
 				$eventName = "";
+				$eventID = "";
 				break;
 			case 'p':
 				$songFile = "";
@@ -1607,6 +1613,7 @@ function LoadPlayListDetails($file)
 				$index = $i;
 				$videoFile = "";
 				$eventName = "";
+				$eventID = "";
 				break;
 			case 'v':
 				$seqFile = "";
@@ -1615,17 +1622,21 @@ function LoadPlayListDetails($file)
 				$index = $i;
 				$videoFile = $entry[1];
 				$eventName = "";
+				$eventID = "";
 				break;
 			case 'e':
 				$seqFile = "";
 				$songFile = "";
-				$pause = $entry[2];
+				$pause = 0;
 				$index = $i;
 				$videoFile = "";
-				$eventName = $entry[1];
+				$eventID = $entry[1];
+
+				$eventInfo = parse_ini_file($eventDirectory . "/" . $eventID . ".fevt");
+				$eventName = $eventInfo['name'];
 				break;
 		}
-		$playListEntries[$i] = new PlaylistEntry($type,$songFile,$seqFile,$pause,$videoFile,$eventName,$index);
+		$playListEntries[$i] = new PlaylistEntry($type,$songFile,$seqFile,$pause,$videoFile,$eventName,$eventID,$index);
 		$i++;
 	}
 	fclose($f);
@@ -1712,6 +1723,11 @@ function GetPlaylistEntries()
 		$eventName = $playListEntry->appendChild($eventName);
 		$value = $doc->createTextNode($_SESSION['playListEntries'][$i]->eventName);
 		$value = $eventName->appendChild($value);
+		// eventID
+		$eventID = $doc->createElement('eventID');
+		$eventID = $playListEntry->appendChild($eventID);
+		$value = $doc->createTextNode($_SESSION['playListEntries'][$i]->eventID);
+		$value = $eventID->appendChild($value);
 	}
 	echo $doc->saveHTML();
 }
@@ -1785,8 +1801,8 @@ function SavePlaylist()
 		}
 		else if($_SESSION['playListEntries'][$i]->type == 'e')
 		{
-			$entries .= sprintf("%s,%s,%d,\n",$_SESSION['playListEntries'][$i]->type,$_SESSION['playListEntries'][$i]->effectName,
-								$_SESSION['playListEntries'][$i]->pause);
+			$entries .= sprintf("%s,%s,\n",$_SESSION['playListEntries'][$i]->type,
+				$_SESSION['playListEntries'][$i]->eventID);
 		}
 	}
 	fwrite($f,$entries);

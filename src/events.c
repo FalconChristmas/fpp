@@ -166,7 +166,9 @@ int RunEventScript(FPPevent *e)
 	pid_t pid = 0;
 	char  eventScript[1024];
 
-	strncpy(eventScript, e->script, 1024);
+	strcpy(eventScript, getScriptDirectory());
+	strcat(eventScript, "/");
+	strncat(eventScript, e->script, 1024 - strlen(eventScript));
 	eventScript[1023] = '\0';
 
 	pid = fork();
@@ -174,7 +176,9 @@ int RunEventScript(FPPevent *e)
 	{
 		char *args[128];
 		char *token = strtok(eventScript, " ");
-		int   i = 0;
+		int   i = 1;
+
+		args[0] = strdup(eventScript);
 		while (token && i < 126)
 		{
 			args[i] = strdup(token);
@@ -183,7 +187,7 @@ int RunEventScript(FPPevent *e)
 			token = strtok(NULL, " ");
 		}
 		args[i] = NULL;
-		execvp(eventScript, args);
+		execvp("/bin/bash", args);
 
 		LogWrite("RunEventScript(), ERROR, we shouldn't be here, this means "
 			"that execvp() failed\n");

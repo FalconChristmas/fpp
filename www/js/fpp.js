@@ -258,6 +258,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 								var pause = entries.childNodes[i].childNodes[3].textContent;
 								var videoFile = entries.childNodes[i].childNodes[5].textContent;
 								var eventName = entries.childNodes[i].childNodes[6].textContent;
+								var eventID = entries.childNodes[i].childNodes[7].textContent;
 								if(type == 'b')
 										innerHTML += GetPlaylistRowHTML((i+1).toString(), "Seq/Aud", songFile, seqFile, i.toString());
 								else if(type == 'm')
@@ -275,10 +276,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 								}
 								else if(type == 'e')
 								{
-										var delayStr = "---";
-										if (pause > 0)
-											delayStr = "Video Delayed " + pause.toString() + " seconds";
-										innerHTML += GetPlaylistRowHTML((i+1).toString(), "Event", eventName, delayStr, i.toString());
+										innerHTML += GetPlaylistRowHTML((i+1).toString(), "Event", eventID + " - " + eventName, "---", i.toString());
 								}
 							}
 					}
@@ -350,9 +348,9 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 					$("#sequenceOptions").css("display","none");
 					$("#videoOptions").css("display","none");
 					$("#eventOptions").css("display","block");
-					$("#pauseTime").css("display","block");
+					$("#pauseTime").css("display","none");
 					$("#pauseText").css("display","none");
-					$("#delayText").css("display","block");
+					$("#delayText").css("display","none");
 					break;
 			}
 			
@@ -418,12 +416,15 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			var	seqFile = document.getElementById("selSequence").value;
 			var	songFile = document.getElementById("selAudio").value;
 			var	videoFile = document.getElementById("selVideo").value;
-			var	eventName = document.getElementById("selEvent").value;
+			var	eventSel = document.getElementById("selEvent");
+			var	eventID = eventSel.value;
+			var	eventName = eventSel.options[eventSel.selectedIndex].innerHTML.replace(/.* - /, '');
 			var	pause = document.getElementById("txtPause").value;
 			var url = "fppxml.php?command=addPlaylistEntry&type=" + type + "&seqFile=" + 
 			           encodeURIComponent(seqFile) + "&songFile=" + 
 								 encodeURIComponent(songFile) + "&pause=" + pause + "&videoFile=" +
-								 encodeURIComponent(videoFile) + "&eventName=" +
+								 encodeURIComponent(videoFile) + "&eventID=" +
+								 encodeURIComponent(eventID) + "&eventName=" +
 								 encodeURIComponent(eventName);
 								 ;
 			xmlhttp.open("GET",url,false);
@@ -1702,6 +1703,7 @@ function PopulateStatusPlaylistEntries(playselected,playList,reloadFile)
 								pause = entries.childNodes[i].childNodes[3].textContent;
 								videoFile = entries.childNodes[i].childNodes[5].textContent;
 								eventName = entries.childNodes[i].childNodes[6].textContent;
+								eventID = entries.childNodes[i].childNodes[7].textContent;
 								if(type == 'b')
 								{
 										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
@@ -1751,8 +1753,8 @@ function PopulateStatusPlaylistEntries(playselected,playList,reloadFile)
 								{
 										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
 										innerHTML +=  "<td id = \"colEntryNumber" + (i+1).toString() + "\" width=\"6%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">" + eventName + "</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">Event Delayed " + pause.toString() + " seconds</td>"
+										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">" + eventID + " - " + eventName + "</td>";
+										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">---</td>";
 										innerHTML += "<td width=\"10%\" id=\"firstLast" + i.toString() + "\" class=\"textCenter\"></td>";
 										innerHTML += "</tr>";
 								}

@@ -22,7 +22,7 @@ typedef struct{
     char songName[256];
     char songFullPath[256];
     char videoName[256];
-    char eventName[6];
+    char eventID[6];
     unsigned int pauselength;
 }PlaylistEntry;
 

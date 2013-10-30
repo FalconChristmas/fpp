@@ -143,7 +143,7 @@ int ReadPlaylist(char const * file)
         break;
       case 'e':
         s = strtok(NULL,",");
-        strcpy(playlistDetails.playList[listIndex].eventName,s);
+        strcpy(playlistDetails.playList[listIndex].eventID,s);
         s = strtok(NULL,",");
         playlistDetails.playList[listIndex].pauselength = atoi(s);
         playlistDetails.playList[listIndex].type = PL_TYPE_EVENT;
@@ -310,7 +310,7 @@ void Play_PlaylistEntry(void)
       PlayVideo(plEntry->videoName, plEntry->pauselength);
       break;
     case PL_TYPE_EVENT:
-      TriggerEventByID(plEntry->eventName);
+      TriggerEventByID(plEntry->eventID);
       break;
   }
 }
