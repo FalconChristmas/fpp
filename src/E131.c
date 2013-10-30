@@ -29,11 +29,6 @@ extern int MusicPlayerStatus;
 extern MusicStatus musicStatus;
 extern currentPlaylistEntry;
 
-// From pixelnetDMX.c
-extern char pixelnetDMXhasBeenSent;
-extern char sendPixelnetDMXdata;
-
-
 int E131status = E131_STATUS_IDLE;
 
 struct sockaddr_in    localAddress;
@@ -88,12 +83,15 @@ void ShowDiff(void);
 void E131_Initialize()
 {
 	E131sequenceNumber=1;
-	E131LocalAddress = GetE131LocalAddressFromInterface();
-  LogWrite("E131LocalAddress = %s\n",E131LocalAddress);
 	LoadUniversesFromFile();
-	E131_InitializeNetwork();
+	if (UniverseCount)
+	{
+		E131LocalAddress = GetE131LocalAddressFromInterface();
+		LogWrite("E131LocalAddress = %s\n",E131LocalAddress);
+		E131_InitializeNetwork();
+		free(E131LocalAddress);
+	}
 	SendBlankingData();
-  free(E131LocalAddress);
 }
 
 char * GetE131LocalAddressFromInterface()
@@ -118,6 +116,10 @@ int E131_InitializeNetwork()
   char sOctet2[4];
   char sAddress[32];
   sendSocket = socket(AF_INET, SOCK_DGRAM, 0);
+
+  if (!UniverseCount)
+    return 1;
+
   if (sendSocket < 0) 
   {
     LogWrite("Error opening datagram socket\n");
@@ -312,7 +314,8 @@ void E131_Send()
 
 void E131_SendPixelnetDMXdata()
 {
-	SendPixelnetDMX();
+	if (IsPixelnetDMXActive())
+		SendPixelnetDMX();
 }
 
 void LoadUniversesFromFile()
