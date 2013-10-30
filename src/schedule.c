@@ -268,7 +268,7 @@ void PlayListLoadCheck()
       displayDiff = diff;
     }
 
-    if (displayDiff)
+    if (currentSchedulePlaylist.startWeeklySeconds && displayDiff)
       LogWrite("NowSecs = %d, CurrStartSecs = %d (%d seconds away)\n",
         nowWeeklySeconds,currentSchedulePlaylist.startWeeklySeconds, displayDiff);
 
