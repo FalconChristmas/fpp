@@ -253,12 +253,9 @@ void Play_PlaylistEntry(void)
   CalculateNextPlayListEntry();
 	if( playlistDetails.currentPlaylistEntry==PLAYLIST_STOP_INDEX)
 	{
-		//if(FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY)
-		//{ 
-			LogWrite("Changing Status to Stopping Gracefully\n"); 
-			playlistDetails.StopPlaylist = 1;
-			return;
-		//}
+		LogWrite("Stopping Playlist\n"); 
+		playlistDetails.StopPlaylist = 1;
+		return;
 	}
 
 	LogWrite("playListCount=%d  CurrentPlaylistEntry = %d\n", playlistDetails.playListCount,playlistDetails.currentPlaylistEntry);
