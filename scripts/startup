@@ -5,6 +5,7 @@
 #
 # Called from rc.local to start FPP
 #
+#
 amixer cset numid=3 1
 
 # Print/Say the IP address
@@ -23,7 +24,7 @@ then
         echo "Flash Media Is Missing.  Please Insert.";
         flite -voice kal "Boot Stalled, Flash Media Is Missing.  Please Insert."
         sleep 20;
-        sudo mount -a;
+        mount -a;
 
 else
         echo "Flash Media Mounted.";
@@ -31,14 +32,17 @@ else
 fi
 done
 
-sudo sysctl net/ipv4/igmp_max_memberships=150
-sudo /usr/local/bin/gpio load spi 100
-sudo setterm -blank 1
+sysctl net/ipv4/igmp_max_memberships=150
+/usr/local/bin/gpio load spi 100
+setterm -blank 1
+# mpg123 /home/pi/fpp/bin/silence.mp3 > /dev/null
+
 if curl --silent --head http://www.google.com/  | grep "Content-Type: text/html; charset=ISO-8859-1" >/dev/null; then
 cd /home/pi/fpp
-git pull
+sudo -u pi git pull
 fi
-# RasClock Setup
+
+#RasClock Setup
 # to get the RasPi board version:
 REV=$(cat /proc/cpuinfo|grep Revision)
 # Extract revision
@@ -49,13 +53,13 @@ REV=0x$REV
 REV=$((REV))
 if [ $REV -lt 4 ]
 then
-  sudo echo pcf2127a 0x51 > /sys/class/i2c-adapter/i2c-0/new_device
+  echo pcf2127a 0x51 > /sys/class/i2c-adapter/i2c-0/new_device
   echo setting rtc to i2c-0
 else
-  sudo echo pcf2127a 0x51 > /sys/class/i2c-adapter/i2c-1/new_device
+  echo pcf2127a 0x51 > /sys/class/i2c-adapter/i2c-1/new_device
   echo setting rtc to i2c-1
 fi
 sleep 2
-sudo hwclock -s
+hwclock -s
 
-sudo /home/pi/fpp/bin/fppd > /dev/null
+/home/pi/fpp/bin/fppd > /dev/null
