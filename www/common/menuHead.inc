@@ -3,14 +3,14 @@
     <link rel="stylesheet" type="text/css" href="css/ddsmoothmenu.css" />
     <link rel="stylesheet" type="text/css" href="css/ddsmoothmenu-v.css" />
 
+	<script type="text/javascript" src="js/fpp.js"></script>
+
+	<script type="text/javascript" src="js/jquery-1.9.1.js"></script>
+	<script type="text/javascript" src="js/jquery-ui.js"></script>
     <script type="text/javascript" src="js/jquery.jgrowl.min.js"></script>
-    <script type="text/javascript" src="js/jquery.min.js"></script>
+
     <script type="text/javascript" src="js/ddsmoothmenu.js"></script>
 
-<script type="text/javascript" src="js/fpp.js"></script>
-<script type="text/javascript" src="js/jquery-1.9.1.js"></script>
-<script type="text/javascript" src="js/jquery-ui.js"></script>
-    
 <script type="text/javascript">
 
 ddsmoothmenu.init({
