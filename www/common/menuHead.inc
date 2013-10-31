@@ -8,8 +8,8 @@
     <script type="text/javascript" src="js/ddsmoothmenu.js"></script>
 
 <script type="text/javascript" src="js/fpp.js"></script>
-<script type="text/javascript"src="js/jquery-1.9.1.js"></script>
-<script type="text/javascript"src="js/jquery-ui.js"></script>
+<script type="text/javascript" src="js/jquery-1.9.1.js"></script>
+<script type="text/javascript" src="js/jquery-ui.js"></script>
     
 <script type="text/javascript">
 
