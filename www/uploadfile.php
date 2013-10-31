@@ -106,8 +106,7 @@ h2 {
       <li><a href="#tab-video">Video</a></li>
       <li><a href="#tab-effects">Effects</a></li>
       <li><a href="#tab-scripts">Scripts</a></li>
-	  <!-- hide Logs tab for now until we get logs in the right directory -->
-      <li style="display:none"><a href="#tab-logs">Logs</a></li>
+      <li><a href="#tab-logs">Logs</a></li>
       </li>
     </ul>
     <div id="tab-sequence">

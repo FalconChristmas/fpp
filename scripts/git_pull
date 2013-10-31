@@ -1,0 +1,18 @@
+#!/bin/sh
+
+BASEDIR=/home/pi/fpp
+SCRIPTDIR=${BASEDIR}/scripts
+
+. /home/pi/fpp/scripts/common
+
+logOutput
+
+if curl --silent --head https://github.com | grep "Content-Type: text/html; charset=utf-8" >/dev/null; then
+	GITBRANCH=$(cd ${BASEDIR} && git branch | grep "^\*" | sed -e "s/\*\s//")
+
+	echo "Upgrading git revision from branch ${GITBRANCH}"
+	cd ${BASEDIR} && sudo -u pi git pull https://github.com/FalconChristmas/fpp.git ${GITBRANCH}
+else
+	echo "Can not access github, unable to pull git updates"
+fi
+

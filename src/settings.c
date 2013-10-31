@@ -25,7 +25,7 @@ void initSettings(void)
 	settings.universeFile = strdup("/home/pi/media/universes");
 	settings.pixelnetFile = strdup("/home/pi/media/pixelnetDMX");
 	settings.scheduleFile = strdup("/home/pi/media/schedule");
-	settings.logFile = strdup("/home/pi/media/fppdLog.txt");
+	settings.logFile = strdup("/home/pi/media/logs/fppdLog.txt");
 	settings.silenceMusic = strdup("/home/pi/media/silence.ogg");
 	settings.bytesFile = strdup("/home/pi/media/bytesReceived");
 	settings.settingsFile = strdup("/home/pi/media/settings");

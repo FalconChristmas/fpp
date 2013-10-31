@@ -1,0 +1,22 @@
+--- rc.local.orig	2013-10-30 23:55:25.864425592 -0700
++++ rc.local	2013-10-30 23:49:24.775029794 -0700
+@@ -42,11 +42,6 @@
+ setterm -blank 1
+ # mpg123 /home/pi/fpp/bin/silence.mp3 > /dev/null
+ 
+-if curl --silent --head http://www.google.com/  | grep "Content-Type: text/html; charset=ISO-8859-1" >/dev/null; then
+-cd /home/pi/fpp
+-sudo -u pi git pull
+-fi
+-
+ #RasClock Setup
+ # to get the RasPi board version:
+ REV=$(cat /proc/cpuinfo|grep Revision)
+@@ -67,6 +62,6 @@
+ sleep 2
+ hwclock -s
+ 
+-/home/pi/fpp/bin/fppd > /dev/null
++/home/pi/fpp/scripts/fpp_boot
+ 
+ exit 0

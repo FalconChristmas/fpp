@@ -509,7 +509,51 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			xmlhttp.send();
 			CheckFirstLastOptions();
 		}
-		
+
+		function ManualGitUpdate()
+		{
+			var xmlhttp=new XMLHttpRequest();
+			var url = "fppxml.php?command=manualGitUpdate";
+			xmlhttp.open("GET",url,false);
+			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+			xmlhttp.send();
+
+			location.reload(true);
+		}
+
+		function ChangeGitBranch(newBranch)
+		{
+			var xmlhttp=new XMLHttpRequest();
+			var url = "fppxml.php?command=changeGitBranch&branch=" + newBranch;
+			xmlhttp.open("GET",url,false);
+			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+			xmlhttp.send();
+
+			location.reload(true);
+		}
+	
+		function SetAutoUpdate(enabled)
+		{
+			var xmlhttp=new XMLHttpRequest();
+			var url = "fppxml.php?command=setAutoUpdate&enabled=" + enabled;
+			xmlhttp.open("GET",url,false);
+			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+			xmlhttp.send();
+
+			location.reload(true);
+		}
+	
+		function SetDeveloperMode(enabled)
+		{
+			var xmlhttp=new XMLHttpRequest();
+			var url = "fppxml.php?command=setDeveloperMode&enabled=" + enabled;
+			xmlhttp.open("GET",url,false);
+			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+			xmlhttp.send();
+
+			location.reload(true);
+		}
+	
 		function SelectEntry(index)
 		{
 			$('#sortable li:nth-child(1n)').removeClass('selectedEntry');

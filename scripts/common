@@ -1,0 +1,19 @@
+
+logOutput() {
+	MYTTY=$(tty)
+	if [ "x${MYTTY}" = "x/dev/console" -o "x${MYTTY}" = "x" ]
+	then
+		if [ ! -d "/home/pi/media/logs" ]
+		then
+			mkdir -p /home/pi/media/logs
+			chown pi.pi /home/pi/media/logs
+			chmod 775 /home/pi/media/logs
+		fi
+
+		FILE=$(basename $0)
+		exec >> /home/pi/media/logs/${FILE}.log 2>&1
+		echo "=========================================================================="
+		date
+	fi
+}
+

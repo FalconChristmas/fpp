@@ -61,6 +61,10 @@ $command_array = Array(
 	"startPlaylist" => 'StartPlaylist',
 	"rebootPi" => 'RebootPi',
 	"shutdownPi" => 'ShutdownPi',
+	"manualGitUpdate" => 'ManualGitUpdate',
+	"changeGitBranch" => 'ChangeGitBranch',
+	"setAutoUpdate" => 'SetAutoUpdate',
+	"setDeveloperMode" => 'SetDeveloperMode',
 	"setVolume" => 'SetVolume',
 	"setFPPDmode" => 'SetFPPDmode',
 	"getVolume" => 'GetVolume',
@@ -208,6 +212,38 @@ function RebootPi()
 {
 	$status=exec(SUDO . " shutdown -r now");
 	EchoStatusXML($status);
+}
+
+function ManualGitUpdate()
+{
+	exec("/home/pi/fpp/scripts/git_pull");
+}
+
+function ChangeGitBranch()
+{
+	$branch = $_GET['branch'];
+	check($branch);
+	exec("/home/pi/fpp/scripts/git_branch $branch");
+}
+
+function SetAutoUpdate()
+{
+	$enabled = $_GET['enabled'];
+	check($enabled);
+	if ($enabled)
+		unlink("/home/pi/.auto_update_disabled");
+	else
+		exec("touch /home/pi/.auto_update_disabled");
+}
+
+function SetDeveloperMode()
+{
+	$enabled = $_GET['enabled'];
+	check($enabled);
+	if ($enabled)
+		exec("touch /home/pi/.developer_mode");
+	else
+		unlink("/home/pi/.developer_mode");
 }
 
 function SetVolume()
@@ -572,7 +608,7 @@ function StopNow()
 
 function StopFPPD()
 {
-	$status=exec(SUDO . " killall fppd");
+	$status=exec(SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_stop");
 	EchoStatusXML('true');
 }
 
@@ -584,7 +620,7 @@ function StartFPPD()
 	$status=exec("if ps cax | grep -q fppd; then echo \"true\"; else echo \"false\"; fi");
 	if($status == 'false')
 	{
-		$status=exec(SUDO . " nice -n -20 ".dirname(dirname(__FILE__))."/bin/fppd --config-file $settingsFile --daemonize >/dev/null");
+		$status=exec(SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_start");
 	}
 	EchoStatusXML($status);
 }

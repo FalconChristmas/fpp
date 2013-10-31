@@ -1,0 +1,9 @@
+#!/bin/sh
+
+. /home/pi/fpp/scripts/common
+
+logOutput
+
+echo "Stopping fppd"
+killall -9 fppd
+

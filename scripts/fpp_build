@@ -1,0 +1,7 @@
+#!/bin/sh
+
+cd /home/pi/fpp/src/
+
+sudo -u pi make clean
+sudo -u pi make all
+

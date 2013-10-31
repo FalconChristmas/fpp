@@ -9,6 +9,11 @@ $_SESSION['session_id'] = session_id();
 //ini_set('display_errors', 'On');
 error_reporting(E_ALL);
 
+if (!file_exists("/etc/fpp/config_version") && file_exists("/etc/fpp/rfs_version"))
+{
+	exec("sudo /home/pi/fpp/scripts/upgrade_config");
+}
+
 $os_version = "Unknown";
 if (file_exists("/etc/os-release"))
 {
@@ -57,6 +62,25 @@ function getFileCount($dir)
   return $i;
 }
 
+function PrintGitBranchOptions()
+{
+  $branches = Array();
+  exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ branch --list", $branches);
+  foreach($branches as $branch)
+  {
+    if (preg_match('/^\\*/', $branch))
+    {
+       $branch = preg_replace('/^\\* */', '', $branch);
+       echo "<option value='$branch' selected>$branch</option>";
+    }
+    else
+    {
+       $branch = preg_replace('/^ */', '', $branch);
+       echo "<option value='$branch'>$branch</option>";
+    }
+  }
+}
+
 ?>
 
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -89,6 +113,23 @@ this.value = default_value;
 });
 });
 });
+
+function ToggleAutoUpdate() {
+	if ($('#autoUpdateDisabled').is(':checked')) {
+		SetAutoUpdate(0);
+	} else {
+		SetAutoUpdate(1);
+	}
+}
+
+function ToggleDeveloperMode() {
+	if ($('#developerMode').is(':checked')) {
+		SetDeveloperMode(1);
+	} else {
+		SetDeveloperMode(0);
+	}
+}
+
 </script>
 <title>About FPP</title>
 <style>
@@ -155,11 +196,31 @@ a:visited {
             <tr><td><b>Version Info</b></td><td>&nbsp;</td></tr>
             <tr><td>FPP Version:</td><td><? echo $fpp_version; ?></td></tr>
             <tr><td>OS Version:</td><td><? echo $os_version; ?></td></tr>
-<? if ($git_branch != "master") { ?>
+<? if (file_exists("/home/pi/.developer_mode")) { ?>
+            <tr><td>Git Branch:</td><td><select id='gitBranch' onChange="ChangeGitBranch($('#gitBranch').val());">
+<? PrintGitBranchOptions(); ?>
+                </select></td></tr>
+<?
+   } else {
+       if ($git_branch != "master") {
+?>
             <tr><td>Git Branch:</td><td><? echo $git_branch; ?></td></tr>
-<? } ?>
+<?
+       }
+   }
+?>
             <tr><td>Git Version:</td><td><? echo $git_version; ?></td></tr>
             <tr><td>Git Master Version:</td><td><? echo $git_remote_version; ?></td></tr>
+            <tr><td>Disable Auto Update:</td><td><input type='checkbox' id='autoUpdateDisabled' onChange='ToggleAutoUpdate();'
+<? if (file_exists("/home/pi/.auto_update_disabled")) { ?>
+            checked
+<? } ?>
+              >  <input type='button' value='Manual Update' onClick='ManualGitUpdate();' class='buttons'></td></tr>
+            <tr><td>Developer Mode:</td><td><input type='checkbox' id='developerMode' onChange='ToggleDeveloperMode();'
+<? if (file_exists("/home/pi/.developer_mode")) { ?>
+            checked
+<? } ?>
+              ></td></tr>
             <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
           </table>
         </div>

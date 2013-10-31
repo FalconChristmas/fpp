@@ -1,0 +1,49 @@
+#!/bin/sh
+
+. /home/pi/fpp/scripts/common
+
+logOutput
+
+echo "Checking config version"
+
+BASEDIR=/home/pi/fpp
+SCRIPTDIR=${BASEDIR}/scripts
+UPGRADEDIR=${BASEDIR}/upgrade
+
+FPPVERSION=$(cat /etc/fpp/rfs_version | sed -e "s/[^0-9]//g")
+
+if [ ${FPPVERSION} -lt 10 ]
+then
+	echo "$0: Unable to upgrade FPP below Alpha 0.1.0, please upgrade your SD image"
+	exit 1
+fi
+
+########################################################################
+CFGVERSIONFILE=/etc/fpp/config_version
+CFGVERSION=0
+
+if [ -f ${CFGVERSIONFILE} ]
+then
+	CFGVERSION=$(cat ${CFGVERSIONFILE})
+fi
+
+echo "FPP Version: " $(cat /etc/fpp/rfs_version)
+echo "Config Version: ${CFGVERSION}"
+
+for VERSION in $(seq 1 1000)
+do
+	if [ ${VERSION} -gt ${CFGVERSION} ]
+	then
+		if [ -f "${UPGRADEDIR}/${VERSION}/upgrade.sh" ]
+		then
+			echo "Upgrading config to version ${VERSION}"
+			(cd ${UPGRADEDIR}/${VERSION} && ./upgrade.sh)
+			CFGVERSION=${VERSION}
+			echo ${VERSION} > ${CFGVERSIONFILE}
+		else
+			echo "Up to date at config version ${CFGVERSION}"
+			exit 0
+		fi
+	fi
+done
+

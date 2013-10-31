@@ -1,0 +1,15 @@
+#!/bin/sh
+
+if [ "x$1" = "x" ]
+then
+	echo "USAGE: $0 BRANCHNAME"
+	exit 1
+fi
+
+. /home/pi/fpp/scripts/common
+
+logOutput
+
+echo "Switching git branch to $1"
+cd /home/pi/fpp && sudo -u pi git checkout $1
+
