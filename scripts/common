@@ -1,7 +1,7 @@
 
 logOutput() {
 	MYTTY=$(tty)
-	if [ "x${MYTTY}" = "x/dev/console" -o "x${MYTTY}" = "x" ]
+	if [ "x${MYTTY}" = "x/dev/console" -o "x${MYTTY}" = "x" -o "x${MYTTY}" = "xnot a tty" ]
 	then
 		if [ ! -d "/home/pi/media/logs" ]
 		then
