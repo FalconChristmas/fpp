@@ -1,0 +1,44 @@
+<VirtualHost *:80>
+	ServerAdmin webmaster@localhost
+
+	DocumentRoot FPPDIR/www
+
+	<Directory />
+		Options FollowSymLinks
+		AllowOverride All
+	</Directory>
+
+	<Directory FPPDIR/www/>
+		Options Indexes FollowSymLinks MultiViews
+		AllowOverride All
+		Order allow,deny
+		allow from all
+	</Directory>
+
+	ScriptAlias /cgi-bin/ /usr/lib/cgi-bin/
+	<Directory /usr/lib/cgi-bin>
+		AllowOverride All
+		Options +ExecCGI -MultiViews +SymLinksIfOwnerMatch
+		Order allow,deny
+		Allow from all
+	</Directory>
+
+        Alias /phpsysinfo "/var/www/phpsysinfo-3.1.6"
+	<Directory /var/www/phpsysinfo-3.1.6>
+                Options Indexes FollowSymLinks MultiViews
+                AllowOverride All
+                Order allow,deny
+                allow from all
+	</Directory>
+
+	ErrorLog /home/pi/media/logs/apache2-error.log
+#	ErrorLog ${APACHE_LOG_DIR}/error.log
+
+	# Possible values include: debug, info, notice, warn, error, crit,
+	# alert, emerg.
+	LogLevel warn
+
+#	CustomLog /home/pi/media/logs/apache2-access.log combined
+#	CustomLog ${APACHE_LOG_DIR}/access.log combined
+</VirtualHost>
+
