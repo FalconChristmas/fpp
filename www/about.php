@@ -11,7 +11,7 @@ $_SESSION['session_id'] = session_id();
 //ini_set('display_errors', 'On');
 error_reporting(E_ALL);
 
-$fpp_version = "v" . exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ describe --dirty", $output, $return_val);
+$fpp_version = "v" . exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ describe", $output, $return_val);
 if ( $return_val != 0 )
 	$fpp_version = "Unknown";
 
