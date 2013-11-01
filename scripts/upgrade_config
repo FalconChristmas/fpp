@@ -1,14 +1,12 @@
 #!/bin/sh
 
-. /home/pi/fpp/scripts/common
+BINDIR=$(dirname $0)
+
+. ${BINDIR}/common
 
 logOutput
 
 echo "Checking config version"
-
-BASEDIR=/home/pi/fpp
-SCRIPTDIR=${BASEDIR}/scripts
-UPGRADEDIR=${BASEDIR}/upgrade
 
 FPPVERSION=$(cat /etc/fpp/rfs_version | sed -e "s/[^0-9]//g")
 
@@ -17,6 +15,8 @@ then
 	echo "$0: Unable to upgrade FPP below Alpha 0.1.0, please upgrade your SD image"
 	exit 1
 fi
+
+export FPPVERSION
 
 ########################################################################
 CFGVERSIONFILE=/etc/fpp/config_version

@@ -1,6 +1,7 @@
 #!/bin/sh
 
-. /home/pi/fpp/scripts/common
+BINDIR=$(dirname $0)
+. ${BINDIR}/common
 
 logOutput
 

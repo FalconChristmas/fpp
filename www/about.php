@@ -1,4 +1,6 @@
 <?php
+require_once('config.php');
+
 $a = session_id();
 
 if(empty($a))
@@ -11,7 +13,7 @@ error_reporting(E_ALL);
 
 if (!file_exists("/etc/fpp/config_version") && file_exists("/etc/fpp/rfs_version"))
 {
-	exec("sudo /home/pi/fpp/scripts/upgrade_config");
+	exec("sudo $fppDir/scripts/upgrade_config");
 }
 
 $os_version = "Unknown";
@@ -196,7 +198,7 @@ a:visited {
             <tr><td><b>Version Info</b></td><td>&nbsp;</td></tr>
             <tr><td>FPP Version:</td><td><? echo $fpp_version; ?></td></tr>
             <tr><td>OS Version:</td><td><? echo $os_version; ?></td></tr>
-<? if (file_exists("/home/pi/.developer_mode")) { ?>
+<? if (file_exists("/home/pi/media/.developer_mode")) { ?>
             <tr><td>Git Branch:</td><td><select id='gitBranch' onChange="ChangeGitBranch($('#gitBranch').val());">
 <? PrintGitBranchOptions(); ?>
                 </select></td></tr>
@@ -212,12 +214,12 @@ a:visited {
             <tr><td>Git Version:</td><td><? echo $git_version; ?></td></tr>
             <tr><td>Git Master Version:</td><td><? echo $git_remote_version; ?></td></tr>
             <tr><td>Disable Auto Update:</td><td><input type='checkbox' id='autoUpdateDisabled' onChange='ToggleAutoUpdate();'
-<? if (file_exists("/home/pi/.auto_update_disabled")) { ?>
+<? if (file_exists("/home/pi/media/.auto_update_disabled")) { ?>
             checked
 <? } ?>
               >  <input type='button' value='Manual Update' onClick='ManualGitUpdate();' class='buttons'></td></tr>
             <tr><td>Developer Mode:</td><td><input type='checkbox' id='developerMode' onChange='ToggleDeveloperMode();'
-<? if (file_exists("/home/pi/.developer_mode")) { ?>
+<? if (file_exists("/home/pi/media/.developer_mode")) { ?>
             checked
 <? } ?>
               ></td></tr>

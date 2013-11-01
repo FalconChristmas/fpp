@@ -1,4 +1,3 @@
-
 #!/bin/bash
 #
 # startup
@@ -6,6 +5,10 @@
 # Called from rc.local to start FPP
 #
 #
+
+BINDIR=$(dirname $0)
+. ${BINDIR}/common
+
 amixer cset numid=3 1
 
 # Print/Say the IP address
@@ -19,7 +22,7 @@ fi
 # Check for flash drive mounted
 while [ true ]
 do
-if [ "$(df -h /home/pi/media | tail -n 1 | awk '{print $1}')" == "$(df -h / | tail -n 1 | awk '{print $1}')" ];
+if [ "$(df -h ${MEDIADIR} | tail -n 1 | awk '{print $1}')" == "$(df -h / | tail -n 1 | awk '{print $1}')" ];
 then
         echo "Flash Media Is Missing.  Please Insert.";
         flite -voice kal "Boot Stalled, Flash Media Is Missing.  Please Insert."
@@ -35,12 +38,7 @@ done
 sysctl net/ipv4/igmp_max_memberships=150
 /usr/local/bin/gpio load spi 100
 setterm -blank 1
-# mpg123 /home/pi/fpp/bin/silence.mp3 > /dev/null
-
-if curl --silent --head http://www.google.com/  | grep "Content-Type: text/html; charset=ISO-8859-1" >/dev/null; then
-cd /home/pi/fpp
-sudo -u pi git pull
-fi
+# mpg123 ${FPPDIR}/bin/silence.mp3 > /dev/null
 
 #RasClock Setup
 # to get the RasPi board version:
@@ -62,4 +60,5 @@ fi
 sleep 2
 hwclock -s
 
-/home/pi/fpp/bin/fppd > /dev/null
+${BINDIR}/fpp_boot
+

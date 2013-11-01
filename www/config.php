@@ -13,6 +13,7 @@ if ( ! $fd )
 
 // Set some defaults
 $fppMode = "player";
+$fppDir = "/opt/fpp";
 $settingsFile = CONFIG_FILE;
 $mediaDirectory = "/home/pi/media/";
 $musicDirectory = "/home/pi/media/music/";
@@ -28,6 +29,9 @@ $pixelnetFile = "/home/pi/media/pixelnetDMX";
 $scheduleFile = "/home/pi/media/schedule";
 $bytesFile = "/home/pi/media/bytesReceived";
 $volume = 0;
+
+if (file_exists("/home/pi/fpp/www/config.php"))
+	$fppDir = "/home/pi/fpp";
 
 if (defined('debug'))
 {

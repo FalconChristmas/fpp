@@ -1,17 +1,17 @@
 #!/bin/sh
 
-. /home/pi/fpp/scripts/common
+BINDIR=$(dirname $0)
+
+. ${BINDIR}/common
 
 logOutput
 
-BASEDIR="/home/pi/fpp"
-
-if [ -f "${BASEDIR}/src/fppd" -a "${BASEDIR}/src/fppd" -nt "${BASEDIR}/bin/fppd" ]
+if [ -f "${FPPDIR}/src/fppd" -a "${FPPDIR}/src/fppd" -nt "${FPPDIR}/bin/fppd" ]
 then
-	echo "Starting ${BASEDIR}/src/fppd"
-	nice -n -20 ${BASEDIR}/src/fppd --config-file /home/pi/media/settings --daemonize
+	echo "Starting ${FPPDIR}/src/fppd"
+	nice -n -20 ${FPPDIR}/src/fppd --config-file /home/pi/media/settings --daemonize
 else
-	echo "Starting ${BASEDIR}/bin/fppd"
-	nice -n -20 ${BASEDIR}/bin/fppd --config-file /home/pi/media/settings --daemonize
+	echo "Starting ${FPPDIR}/bin/fppd"
+	nice -n -20 ${FPPDIR}/bin/fppd --config-file /home/pi/media/settings --daemonize
 fi
 

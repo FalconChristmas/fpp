@@ -1,16 +1,17 @@
 #!/bin/sh
 
-BASEDIR=/home/pi/fpp
-SCRIPTDIR=${BASEDIR}/scripts
+BINDIR=$(dirname $0)
 
-if [ ! -d "/home/pi/media/logs" ]
+. ${BINDIR}/common
+
+if [ ! -d ${LOGDIR} ]
 then
-	mkdir -p /home/pi/media/logs
-	chown pi.pi /home/pi/media/logs
-	chmod 775 /home/pi/media/logs
+	mkdir -p ${LOGDIR}
+	chown pi.pi ${LOGDIR}
+	chmod 775 ${LOGDIR}
 fi
 
-if [ ! -f "/home/pi/.auto_update_disabled" ]
+if [ ! -f "${MEDIADIR}/.auto_update_disabled" ]
 then
 	${SCRIPTDIR}/git_pull
 fi

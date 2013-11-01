@@ -216,34 +216,41 @@ function RebootPi()
 
 function ManualGitUpdate()
 {
-	exec("/home/pi/fpp/scripts/git_pull");
+	global $fppDir;
+	exec("$fppDir/scripts/git_pull");
 }
 
 function ChangeGitBranch()
 {
 	$branch = $_GET['branch'];
 	check($branch);
-	exec("/home/pi/fpp/scripts/git_branch $branch");
+
+	global $fppDir;
+	exec("$fppDir/scripts/git_branch $branch");
 }
 
 function SetAutoUpdate()
 {
 	$enabled = $_GET['enabled'];
 	check($enabled);
+
+	global $mediaDirectory;
 	if ($enabled)
-		unlink("/home/pi/.auto_update_disabled");
+		unlink("$mediaDirectory/.auto_update_disabled");
 	else
-		exec("touch /home/pi/.auto_update_disabled");
+		exec("touch $mediaDirectory/.auto_update_disabled");
 }
 
 function SetDeveloperMode()
 {
 	$enabled = $_GET['enabled'];
 	check($enabled);
+
+	global $mediaDirectory;
 	if ($enabled)
-		exec("touch /home/pi/.developer_mode");
+		exec("touch $mediaDirectory/.developer_mode");
 	else
-		unlink("/home/pi/.developer_mode");
+		unlink("$mediaDirectory/.developer_mode");
 }
 
 function SetVolume()

@@ -1,6 +1,9 @@
 #!/bin/sh
 
-cd /home/pi/fpp/src/
+BINDIR=$(dirname $0)
+. ${BINDIR}/common
+
+cd ${FPPDIR}/src/
 
 sudo -u pi make clean
 sudo -u pi make all
