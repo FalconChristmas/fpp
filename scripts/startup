@@ -38,8 +38,8 @@ setterm -blank 1
 # mpg123 /home/pi/fpp/bin/silence.mp3 > /dev/null
 
 if curl --silent --head http://www.google.com/  | grep "Content-Type: text/html; charset=ISO-8859-1" >/dev/null; then
-cd /home/pi/fpp
-sudo -u pi git pull
+cd /opt/fpp
+git pull
 fi
 
 #RasClock Setup
