@@ -28,7 +28,9 @@ int PlayVideo(char *videoName, unsigned int videoDelay)
 	if (pid == 0) // Event Script process
 	{
 		sleep(videoDelay);
-		execlp("/usr/bin/omxplayer", fullVideoPath, NULL);
+
+		seteuid(1000); // 'pi' user
+		execl("/usr/bin/omxplayer", "omxplayer", fullVideoPath, NULL);
 
 		LogWrite("PlayVideo(), ERROR, we shouldn't be here, this means "
 			"that execvl() failed\n");
@@ -48,8 +50,14 @@ int StopVideo(void)
 	if (videoPID == 0)
 		return 0;
 
+	LogWrite("StopVideo(), killing pid %d\n", videoPID);
 	kill(videoPID, SIGKILL);
 	videoPID = 0;
+
+	// omxplayer is a shell script wrapper around omxplayer.bin and
+	// killing the PID of the schell script doesn't kill the child
+	// for some reason, so use this hack for now.
+	system("killall -9 omxplayer.bin");
 
 	return 1;
 }
