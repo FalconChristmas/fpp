@@ -237,8 +237,7 @@ function SetE131interface()
 
 function GetVolume()
 {
-	global $volume;
-
+	$volume = ReadSettingFromFile("volume");
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('Volume');
 	$root = $doc->appendChild($root);
@@ -249,19 +248,14 @@ function GetVolume()
 
 function GetFPPDmode()
 {
-	global $settingsFile;
-
-	$settings = file($settingsFile);
-	if($settings != FALSE)
-	{
-		$temp = explode(",",$settings[0]);
-		$doc = new DomDocument('1.0');
-		$root = $doc->createElement('mode');
-		$root = $doc->appendChild($root);
-		$value = $doc->createTextNode($temp[0]);
-		$value = $root->appendChild($value);
-		echo $doc->saveHTML();
-	}
+	$mode = ReadSettingFromFile("fppMode");
+  $fppMode = $mode == "bridge" ? "1":"0";
+	$doc = new DomDocument('1.0');
+	$root = $doc->createElement('mode');
+	$root = $doc->appendChild($root);
+	$value = $doc->createTextNode($fppMode);
+	$value = $root->appendChild($value);
+	echo $doc->saveHTML();
 }
 
 function ShutdownPi()
@@ -565,8 +559,8 @@ function GetFPPstatus()
 
 	$entry = explode(",",$status,13);
 	$fppMode = $entry[0];
-	//if($fppMode == 0)
-	//{
+	if($fppMode == 0)
+	{
 		$fppStatus = $entry[1];
 		if($fppStatus == '0')
 		{
@@ -723,7 +717,28 @@ function GetFPPstatus()
 			return;
 		}
 
-	//}
+	}
+  else
+  {
+ 			$doc = new DomDocument('1.0');
+			$root = $doc->createElement('Status');
+			$root = $doc->appendChild($root);
+
+      $fppStatus = $entry[1];
+
+  			//FPPD Mode
+			$temp = $doc->createElement('fppMode');
+			$temp = $root->appendChild($temp);
+			$value = $doc->createTextNode($fppMode);
+			$value = $temp->appendChild($value);
+			//FPPD Status
+			$temp = $doc->createElement('fppStatus');
+			$temp = $root->appendChild($temp);
+			$value = $doc->createTextNode($fppStatus);
+			$value = $temp->appendChild($value);
+			echo $doc->saveHTML();
+  }
+  
 
 }
 
