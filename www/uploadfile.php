@@ -7,7 +7,7 @@ require_once('config.php');
 <?php	include 'common/menuHead.inc'; ?>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <title>Files</title>
-<link rel="stylesheet" href="css/theme/jquery-ui-1.10.3.custom.css" />
+<link rel="stylesheet" href="css/jquery-ui.css" />
 <script type="text/javascript" src="js/fpp.js"></script>
 <script src="js/jquery-1.9.1.js"></script>
 <script src="js/jquery-ui.js"></script>
