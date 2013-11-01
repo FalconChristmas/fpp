@@ -2,9 +2,6 @@
 <html>
 <head>
 <?php	include 'common/menuHead.inc'; ?>
-<script type="text/javascript" src="js/fpp.js"></script>
-<script src="http://code.jquery.com/jquery-1.9.1.js"></script>
-<script src="http://code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
 <script>
     $(function() {
 		$('#tblStatusPlaylistEntries').on('mousedown', 'tr', function(event,ui){
@@ -12,7 +9,7 @@
           $(this).addClass('playlistSelectedEntry');
 					var items = $('#tblStatusPlaylistEntries tr');
 					PlayEntrySelected  = items.index(this);
-					
+
 		});
 	});
 </script>
@@ -31,63 +28,63 @@
 				min: 1,
 				//value: 35,
 			});
-			
-			
+
+
 					$('#slider').slider({
 		stop: function( event, ui ) {
-			
+
 						var value  = slider.slider('value'),
 							volume = $('.volume');
-	
-						if(value <= 5) 
-						{ 
+
+						if(value <= 5)
+						{
 							volume.css('background-position', '0 0');
-						} 
-						else if (value <= 25) 
+						}
+						else if (value <= 25)
 						{
 							volume.css('background-position', '0 -25px');
-						} 
-						else if (value <= 75) 
+						}
+						else if (value <= 75)
 						{
 							volume.css('background-position', '0 -50px');
-						} 
-						else 
+						}
+						else
 						{
 							volume.css('background-position', '0 -75px');
 						};
-						
+
 						SetVolume(value);
 		}
 		});
 
 					$('#slider').slider({
 		stop: function( event, ui ) {
-			
+
 						var value  = slider.slider('value'),
 							volume = $('.volume');
-	
-						if(value <= 5) 
-						{ 
+
+						if(value <= 5)
+						{
 							volume.css('background-position', '0 0');
-						} 
-						else if (value <= 25) 
+						}
+						else if (value <= 25)
 						{
 							volume.css('background-position', '0 -25px');
-						} 
-						else if (value <= 75) 
+						}
+						else if (value <= 75)
 						{
 							volume.css('background-position', '0 -50px');
-						} 
-						else 
+						}
+						else
 						{
 							volume.css('background-position', '0 -75px');
 						};
-						
+
 						SetVolume(value);
 		}
 		});
-			
-			
+
+
 		});
 
 	function IncrementVolume()
@@ -131,7 +128,7 @@
           <td class='controlHeader'> FPPD Mode: </td>
           <td class='controlValue'><select id="selFPPDmode"  onChange="SetFPPDmode();">
           										<option id="optFPPDmode_Player" value="0">
-                              
+
           										Player Mode</option>
           										<option id="optFPPDmode_Bridge" value="1">
           										Bridge Mode</option>
@@ -174,7 +171,7 @@
         </div>
         <div class="clear"></div>
       </div>
-      
+
       <div id = "startPlaylistControls">
         <table width="100%">
           <tr>
