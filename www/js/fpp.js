@@ -258,7 +258,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 								var pause = entries.childNodes[i].childNodes[3].textContent;
 								var videoFile = entries.childNodes[i].childNodes[5].textContent;
 								var eventName = entries.childNodes[i].childNodes[6].textContent;
-								var eventID = entries.childNodes[i].childNodes[7].textContent;
+								var eventID = entries.childNodes[i].childNodes[7].textContent.replace('_', ' / ');
 								if(type == 'b')
 										innerHTML += GetPlaylistRowHTML((i+1).toString(), "Seq/Aud", songFile, seqFile, i.toString());
 								else if(type == 'm')
@@ -1747,7 +1747,7 @@ function PopulateStatusPlaylistEntries(playselected,playList,reloadFile)
 								pause = entries.childNodes[i].childNodes[3].textContent;
 								videoFile = entries.childNodes[i].childNodes[5].textContent;
 								eventName = entries.childNodes[i].childNodes[6].textContent;
-								eventID = entries.childNodes[i].childNodes[7].textContent;
+								eventID = entries.childNodes[i].childNodes[7].textContent.replace('_', ' / ');
 								if(type == 'b')
 								{
 										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";

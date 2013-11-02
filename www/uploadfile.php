@@ -121,6 +121,8 @@ h2 {
           <div class='right'>
             <input onclick="DeleteSequence();" id="btnDeleteSequence" class="disableButtons" type="button"  value="Delete" />
           </div>
+          <br />
+          <font size=-1>Sequence files must be in the Falcon Pi Player .fseq format and may be converted from various other sequencer formats using <a href='https://github.com/smeighan/xLights'>xLights</a> or <a href='https://github.com/pharhp/Light-Elf'>Light-Elf</a>.</font>
         </fieldset>
       </div>
     </div>
@@ -136,6 +138,8 @@ h2 {
           <div class='right'>
             <input onclick= "DeleteMusic();" id="btnDeleteMusic" class="disableButtons" type="button"  value="Delete" />
           </div>
+          <br />
+          <font size=-1>Audio files must be in .ogg format.</font>
         </fieldset>
       </div>
     </div>
@@ -151,6 +155,8 @@ h2 {
           <div class='right'>
             <input onclick= "DeleteVideo();" id="btnDeleteVideo" class="disableButtons" type="button"  value="Delete" />
           </div>
+          <br />
+          <font size=-1>Video files must be in .mp4 format.  H264 video and AAC or MP3 audio are preferred because the video can be hardware accelerated on the Pi.</font>
         </fieldset>
       </div>
     </div>
@@ -166,6 +172,8 @@ h2 {
           <div class='right'>
             <input onclick= "DeleteEffect();" id="btnDeleteEffect" class="disableButtons" type="button"  value="Delete" />
           </div>
+          <br />
+          <font size=-1>Effects files are .fseq format files with an .eseq extension.  These special sequence files contain only the channels for a specific effect and always start at channel 1 in the sequence file.  The actual starting channel offset for the Effect is specified when you run it or configure the Effect in an Event.</font>
         </fieldset>
       </div>
     </div>
@@ -181,6 +189,8 @@ h2 {
           <div class='right'>
             <input onclick= "DeleteScript();" id="btnDeleteScript" class="disableButtons" type="button"  value="Delete" />
           </div>
+          <br />
+          <font size=-1>Scripts must have a .sh extension.  Scripts may be executed inside an event.  These might be used in a show to trigger an external action such as sending a message to a RDS capable FM transmitter or a non-DMX/Pixelnet LED sign.</font>
         </fieldset>
       </div>
     </div>
@@ -197,11 +207,14 @@ h2 {
             <input onclick= "ViewLog();" id="btnViewLog" class="disableButtons" type="button"  value="View" />
             <input onclick= "DownloadLog();" id="btnDownloadLog" class="disableButtons" type="button"  value="Download" />
           </div>
+          <br />
+          <font size=-1>FPP logs may be viewed or downloaded for submission with bug reports.</font>
         </fieldset>
       </div>
     </div>
   </div>
-	<hr />
+  <br />
+  <div class='title'>Upload Files</div>
   <br />
   <div id="uploader_div" > </div>
   <script type="text/javascript">

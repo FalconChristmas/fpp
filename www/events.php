@@ -62,9 +62,10 @@
 				echo "<tr id='event_" . $eventFile . "'><td class='eventTblID'>" .
 						$info['majorID'] . ' / ' . $info['minorID'] .
 						"</td><td class='eventTblName'>" . $info['name'] .
+						"</td><td class='eventTblScript'>" . $info['script'] .
 						"</td><td class='eventTblEffect'>" . $info['effect'] .
 						"</td><td class='eventTblStartCh'>" . $info['startChannel'] .
-						"</td><td class='eventTblScript'>" . $info['script'] . "</td></tr>\n";
+						"</td></tr>\n";
 
 				$usedIDs[$info['majorID']][$info['minorID']] = 1;
 			}
@@ -178,9 +179,9 @@
 					<tr class="eventListHeader">
 						<td class='eventTblID'>ID</td>
 						<td class='eventTblName'>Name</td>
-						<td class='eventTblEffect'>Effect</td>
-						<td class='eventTblStartCh'>Start Ch.</td>
 						<td class='eventTblScript'>Script</td>
+						<td class='eventTblEffect'>Effect</td>
+						<td class='eventTblStartCh'>Ch.</td>
 					</tr>
 				</table>
 				<div id= "eventListContents">
