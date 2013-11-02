@@ -37,13 +37,11 @@ if (file_exists("/etc/os-release"))
 }
 
 $git_version = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ rev-parse --short HEAD", $output, $return_val);
-//TODO: Make this awesomer
 if ( $return_val != 0 )
   $git_version = "Unknown";
 unset($output);
 
 $git_branch = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ branch --list | grep '\\*' | awk '{print \$2}'", $output, $return_val);
-//TODO: Make this awesomer
 if ( $return_val != 0 )
   $git_branch = "Unknown";
 unset($output);
