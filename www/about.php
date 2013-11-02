@@ -291,6 +291,9 @@ a:visited {
         Mathew Mrosko (Materdaddy)<br />
         Chris Pinkham (CaptainMurdoch)<br />
         <br />
+        Video Tutorials by:
+        Alan Dahl
+        <br />
         Copyright 2013
       </div>
     </div>
