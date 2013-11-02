@@ -259,6 +259,9 @@ void PlayListLoadCheck()
     int diff = currentSchedulePlaylist.startWeeklySeconds - nowWeeklySeconds;
     int displayDiff = 0;
 
+    if (diff < -600) // assume the schedule is actually next week for display
+      diff += (24 * 3600 * 7);
+
     // Convoluted code to print the countdown more frequently as we get closer
     if (((diff > 300) &&                  ((diff % 300) == 0)) ||
         ((diff >  60) && (diff <= 300) && ((diff %  60) == 0)) ||
