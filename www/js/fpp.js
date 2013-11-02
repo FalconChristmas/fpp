@@ -210,6 +210,20 @@ function CheckFirstLastOptions()
 			PopulatePlayListEntries(playlist,false);
 }
 
+function GetPlaylistRowHTML(ID, type, data1, data2, firstlast)
+{
+	var HTML = "";
+
+	HTML += "<tr id=\"playlistRow" + ID + "\">";
+	HTML += "<td class=\"colPlaylistNumber colPlaylistNumberDrag\" id = \"colEntryNumber" + ID + "\" >" + ID + ".</td>";
+	HTML += "<td class=\"colPlaylistType\">" + type + "</td>";
+	HTML += "<td class=\"colPlaylistData1\">" + data1 + "</td>";
+	HTML += "<td class=\"colPlaylistData2\">" + data2 + "</td>"
+	HTML += "<td class=\"colPlaylistFlags\" id=\"firstLast" + firstlast + "\">&nbsp;</td>";
+	HTML += "</tr>";
+
+	return HTML;
+}
 
 function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 	{
@@ -242,42 +256,27 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
   							var seqFile = entries.childNodes[i].childNodes[1].textContent;
 								var songFile = entries.childNodes[i].childNodes[2].textContent;
 								var pause = entries.childNodes[i].childNodes[3].textContent;
+								var videoFile = entries.childNodes[i].childNodes[5].textContent;
+								var eventName = entries.childNodes[i].childNodes[6].textContent;
+								var eventID = entries.childNodes[i].childNodes[7].textContent.replace('_', ' / ');
 								if(type == 'b')
-								{
-										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
-										innerHTML +=  "<td class=\"colPlaylistNumber\" id = \"colEntryNumber" + (i+1).toString() + "\" width=\"5%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">" + songFile + "</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">" + seqFile + "</td>"
-										innerHTML += "<td width=\"11%\" id=\"firstLast" + i.toString() + "\" class=\"textLeft\">&nbsp;</td>";
-									  innerHTML += "</tr>";
-								}
+										innerHTML += GetPlaylistRowHTML((i+1).toString(), "Seq/Aud", songFile, seqFile, i.toString());
 								else if(type == 'm')
-								{
-										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
-										innerHTML +=  "<td class=\"colPlaylistNumber\"  id = \"colEntryNumber" + (i+1).toString() + "\" width=\"5%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">" + songFile + "</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">---</td>"
-										innerHTML += "<td width=\"11%\" id=\"firstLast" + i.toString() + "\" class=\"textLeft\">&nbsp;</td>";
-									  innerHTML += "</tr>";
-								}
+										innerHTML += GetPlaylistRowHTML((i+1).toString(), "Audio", songFile, "---", i.toString());
 								else if(type == 's')
-								{
-										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
-										innerHTML +=  "<td class=\"colPlaylistNumber\"  id = \"colEntryNumber" + (i+1).toString() + "\" width=\"5%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">---</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">" + seqFile + "</td>"
-										innerHTML += "<td width=\"11%\" id=\"firstLast" + i.toString() + "\" class=\"textLeft\">&nbsp;</td>";
-									  innerHTML += "</tr>";
-								}
+										innerHTML += GetPlaylistRowHTML((i+1).toString(), "Seq.", "---", seqFile, i.toString());
 								else if(type == 'p')
+										innerHTML += GetPlaylistRowHTML((i+1).toString(), "Pause", "PAUSE - " + pause.toString(), "---", i.toString());
+								else if(type == 'v')
 								{
-										
-										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
-										innerHTML +=  "<td class=\"colPlaylistNumber\"  id = \"colEntryNumber" + (i+1).toString() + "\" width=\"5%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">PAUSE - " + pause.toString() + " seconds</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">---</td>"
-										innerHTML += "<td width=\"11%\" id=\"firstLast" + i.toString() + "\" class=\"textLeft\">&nbsp;</td>";
-									  innerHTML += "</tr>";
+										var delayStr = "---";
+										if (pause > 0)
+											delayStr = "Video Delayed " + pause.toString() + " seconds";
+										innerHTML += GetPlaylistRowHTML((i+1).toString(), "Video", videoFile, delayStr, i.toString());
+								}
+								else if(type == 'e')
+								{
+										innerHTML += GetPlaylistRowHTML((i+1).toString(), "Event", eventID + " - " + eventName, "---", i.toString());
 								}
 							}
 					}
@@ -287,8 +286,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 										innerHTML +=  "<td>No entries in playlist.</td>";
 									  innerHTML += "</tr>";
 					}
-					var results = document.getElementById("tblCreatePlaylistEntries_tbody");
-					results.innerHTML = innerHTML;
+					$('#tblCreatePlaylistEntries_tbody').html(innerHTML);
 					GetPlayListSettings(playList);
 				}
 			}
@@ -303,22 +301,56 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 				case 0:
 					$("#musicOptions").css("display","block");
 					$("#sequenceOptions").css("display","block");
+					$("#videoOptions").css("display","none");
+					$("#eventOptions").css("display","none");
 					$("#pauseTime").css("display","none");
+					$("#pauseText").css("display","none");
+					$("#delayText").css("display","none");
 					break;
 				case 1:	
 					$("#musicOptions").css("display","block");
 					$("#sequenceOptions").css("display","none");
+					$("#videoOptions").css("display","none");
+					$("#eventOptions").css("display","none");
 					$("#pauseTime").css("display","none");
+					$("#pauseText").css("display","none");
+					$("#delayText").css("display","none");
 					break;
 				case 2:	
 					$("#musicOptions").css("display","none");
 					$("#sequenceOptions").css("display","block");
+					$("#videoOptions").css("display","none");
+					$("#eventOptions").css("display","none");
 					$("#pauseTime").css("display","none");
+					$("#pauseText").css("display","block");
+					$("#delayText").css("display","none");
 					break;
 				case 3:	
 					$("#musicOptions").css("display","none");
 					$("#sequenceOptions").css("display","none");
+					$("#videoOptions").css("display","none");
+					$("#eventOptions").css("display","none");
 					$("#pauseTime").css("display","block");
+					$("#pauseText").css("display","block");
+					$("#delayText").css("display","none");
+					break;
+				case 4:
+					$("#musicOptions").css("display","none");
+					$("#sequenceOptions").css("display","none");
+					$("#videoOptions").css("display","block");
+					$("#eventOptions").css("display","none");
+					$("#pauseTime").css("display","block");
+					$("#pauseText").css("display","none");
+					$("#delayText").css("display","block");
+					break;
+				case 5:
+					$("#musicOptions").css("display","none");
+					$("#sequenceOptions").css("display","none");
+					$("#videoOptions").css("display","none");
+					$("#eventOptions").css("display","block");
+					$("#pauseTime").css("display","none");
+					$("#pauseText").css("display","none");
+					$("#delayText").css("display","none");
 					break;
 			}
 			
@@ -383,10 +415,18 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			var type = document.getElementById("selType").value;
 			var	seqFile = document.getElementById("selSequence").value;
 			var	songFile = document.getElementById("selAudio").value;
+			var	videoFile = document.getElementById("selVideo").value;
+			var	eventSel = document.getElementById("selEvent");
+			var	eventID = eventSel.value;
+			var	eventName = eventSel.options[eventSel.selectedIndex].innerHTML.replace(/.* - /, '');
 			var	pause = document.getElementById("txtPause").value;
 			var url = "fppxml.php?command=addPlaylistEntry&type=" + type + "&seqFile=" + 
 			           encodeURIComponent(seqFile) + "&songFile=" + 
-								 encodeURIComponent(songFile) + "&pause=" + pause;
+								 encodeURIComponent(songFile) + "&pause=" + pause + "&videoFile=" +
+								 encodeURIComponent(videoFile) + "&eventID=" +
+								 encodeURIComponent(eventID) + "&eventName=" +
+								 encodeURIComponent(eventName);
+								 ;
 			xmlhttp.open("GET",url,false);
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
 	 
@@ -469,7 +509,51 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			xmlhttp.send();
 			CheckFirstLastOptions();
 		}
-		
+
+		function ManualGitUpdate()
+		{
+			var xmlhttp=new XMLHttpRequest();
+			var url = "fppxml.php?command=manualGitUpdate";
+			xmlhttp.open("GET",url,false);
+			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+			xmlhttp.send();
+
+			location.reload(true);
+		}
+
+		function ChangeGitBranch(newBranch)
+		{
+			var xmlhttp=new XMLHttpRequest();
+			var url = "fppxml.php?command=changeGitBranch&branch=" + newBranch;
+			xmlhttp.open("GET",url,false);
+			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+			xmlhttp.send();
+
+			location.reload(true);
+		}
+	
+		function SetAutoUpdate(enabled)
+		{
+			var xmlhttp=new XMLHttpRequest();
+			var url = "fppxml.php?command=setAutoUpdate&enabled=" + enabled;
+			xmlhttp.open("GET",url,false);
+			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+			xmlhttp.send();
+
+			location.reload(true);
+		}
+	
+		function SetDeveloperMode(enabled)
+		{
+			var xmlhttp=new XMLHttpRequest();
+			var url = "fppxml.php?command=setDeveloperMode&enabled=" + enabled;
+			xmlhttp.open("GET",url,false);
+			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+			xmlhttp.send();
+
+			location.reload(true);
+		}
+	
 		function SelectEntry(index)
 		{
 			$('#sortable li:nth-child(1n)').removeClass('selectedEntry');
@@ -976,7 +1060,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			xmlhttp.onreadystatechange = function () {
 				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
 				{
-          GetSequenceFiles();
+          GetFiles('Sequences');
 				}
 			};
 			xmlhttp.send();
@@ -992,12 +1076,44 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			xmlhttp.onreadystatechange = function () {
 				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
 				{
-          GetMusicFiles();
+          GetFiles('Music');
 				}
 			};
 			xmlhttp.send();
 		}
 		
+		function DeleteVideo()
+		{
+			var xmlhttp=new XMLHttpRequest();
+			var url = "fppxml.php?command=deleteVideo&name=" + VideoNameSelected;
+			xmlhttp.open("GET",url,false);
+			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+	 
+			xmlhttp.onreadystatechange = function () {
+				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
+				{
+					GetFiles('Videos');
+				}
+			};
+			xmlhttp.send();
+		}
+
+		function DeleteScript()
+		{
+			var xmlhttp=new XMLHttpRequest();
+			var url = "fppxml.php?command=deleteScript&name=" + ScriptNameSelected;
+			xmlhttp.open("GET",url,false);
+			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+	 
+			xmlhttp.onreadystatechange = function () {
+				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
+				{
+					GetFiles('Scripts');
+				}
+			};
+			xmlhttp.send();
+		}
+
 	function GetSequenceFiles()
 	{
     	var xmlhttp=new XMLHttpRequest();
@@ -1052,6 +1168,29 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			sequenceArray = seqArr;
 		}
 
+  function GetFiles(dir)
+  {
+    var xmlhttp=new XMLHttpRequest();
+    var url = "fppxml.php?command=getFiles&dir=" + dir;
+    $('#tbl' + dir).empty();
+    xmlhttp.open("GET",url,false);
+    xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+    xmlhttp.send();
+
+    var xmlDoc=xmlhttp.responseXML; 
+    var files = xmlDoc.getElementsByTagName('Files')[0];
+    if(files.childNodes.length> 0)
+    {
+      var innerhtml = '';
+      for(i=0; i<files.childNodes.length; i++)
+      {
+        var name = files.childNodes[i].childNodes[0].textContent;
+        var time = files.childNodes[i].childNodes[1].textContent;
+        var tableRow = "<tr class ='fileDetails'><td class ='fileName'>" + name + "</td><td class ='fileTime'>" + time + "</td></tr>";
+        $('#tbl' + dir).append(tableRow);
+      }
+    }
+  }
 
 	function moveFile(fileName)
 	{
@@ -1060,31 +1199,11 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			xmlhttp.open("GET",url,false);
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
 			xmlhttp.send();
-   		GetSequenceFiles();
-			GetMusicFiles();
 	}
 
-	function moveFile2(fileName)
-	{
-    	var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=moveFile&file=" + fileName;
-			xmlhttp.open("GET",url,false);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-	 
-			xmlhttp.onreadystatechange = function () {
-				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
-				{
-					GetSequenceFiles();
-					GetMusicFiles();
-				}
-			};
-			
-			xmlhttp.send();
-	}
-		
 	function updateFPPStatus()
 	{
-		var status = IsFPPDrunning();
+		var status = GetFPPstatus();
 	}
 	
 	function IsFPPDrunning()
@@ -1107,7 +1226,6 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 						{
 							$("#btnDaemonControl").attr('value', 'Stop FPPD');
 							$('#daemonStatus').html("FPPD is running.");
-							status = GetFPPstatus();
 							//$("#playerStatus").css({ display: "block" });
 						}
 						else
@@ -1136,6 +1254,14 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 					var status = xmlDoc.getElementsByTagName('Status')[0];
 					if(status.childNodes.length> 1)
 					{
+						var fppStatus = status.childNodes[1].textContent;
+
+						if (fppStatus == 0)
+						{
+							$("#btnDaemonControl").attr('value', 'Stop FPPD');
+							$('#daemonStatus').html("FPPD is running.");
+						}
+
 						var fppMode = status.childNodes[0].textContent;
 						if(fppMode == 0 )
 						{
@@ -1143,8 +1269,6 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 							$("#nextPlaylist").css("display","block");
 							$("#bytesTransferred").css("display","none");
 							
-							
-							var fppStatus = status.childNodes[1].textContent;
 							if(fppStatus == STATUS_IDLE)
 							{
 								gblCurrentPlaylistIndex =0;
@@ -1237,6 +1361,11 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 							
 							GetUniverseBytesReceived();
 						}
+					}
+					else
+					{
+						$('#fppTime').html('');
+						IsFPPDrunning();
 					}
 				}
 			};
@@ -1413,6 +1542,148 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 		xmlhttp.send();
 	}
 
+function PlayEffect(startChannel)
+{
+	if (startChannel == undefined)
+		startChannel = "1";
+
+	var url = "fppxml.php?command=playEffect&effect=" + PlayEffectSelected + "&startChannel=" + startChannel;
+	var xmlhttp=new XMLHttpRequest();
+	xmlhttp.open("GET",url,false);
+	xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+	xmlhttp.send();
+
+	GetRunningEffects();
+}
+
+function StopEffect()
+{
+	var url = "fppxml.php?command=stopEffect&id=" + RunningEffectSelected;
+	var xmlhttp=new XMLHttpRequest();
+	xmlhttp.open("GET",url,false);
+	xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+	xmlhttp.send();
+
+	GetRunningEffects();
+}
+
+function DeleteEffect()
+{
+	var url = "fppxml.php?command=deleteEffect&effect=" + PlayEffectSelected;
+	var xmlhttp=new XMLHttpRequest();
+	xmlhttp.open("GET",url,true);
+	xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+	xmlhttp.send();
+	location.reload(true);
+}
+
+var gblLastRunningEffectsXML = "";
+
+function GetRunningEffects()
+{
+	var url = "fppxml.php?command=getRunningEffects";
+	var xmlhttp=new XMLHttpRequest();
+	xmlhttp.open("GET",url,true);
+	xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+
+	xmlhttp.onreadystatechange = function () {
+		if (xmlhttp.readyState == 4 && xmlhttp.status==200)
+		{
+			var xmlDoc=xmlhttp.responseXML;
+			var xmlText = new XMLSerializer().serializeToString(xmlDoc);
+
+			$('#tblRunningEffects').html('');
+			if (xmlText != gblLastRunningEffectsXML)
+			{
+				xmlText = gblLastRunningEffectsXML;
+
+				var entries = xmlDoc.getElementsByTagName('RunningEffects')[0];
+
+				if(entries.childNodes.length> 0)
+				{
+					for(i=0;i<entries.childNodes.length;i++)
+					{
+						id = entries.childNodes[i].childNodes[0].textContent;
+						name = entries.childNodes[i].childNodes[1].textContent;
+
+						$('#tblRunningEffects').append('<tr><td width="5%">' + id + '</td><td width="95%">' + name + '</td></tr>');
+					}
+
+					setTimeout(GetRunningEffects, 1000);
+				}
+			}
+		}
+	}
+
+	xmlhttp.send();
+}
+
+	function TriggerEvent()
+	{
+		var url = "fppxml.php?command=triggerEvent&id=" + TriggerEventSelected;
+		var xmlhttp=new XMLHttpRequest();
+		xmlhttp.open("GET",url,true);
+		xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+		xmlhttp.send();
+	}
+
+	function AddEvent()
+	{
+		$('#newEventID').val('');
+		$('#newEventName').val('');
+		$('#newEventEffect').val('');
+		$('#newEventStartChannel').val('');
+		$('#newEventScript').val('');
+		$('#newEvent').show();
+	}
+
+	function EditEvent()
+	{
+		var IDt = $('#event_' + TriggerEventSelected).find('td:eq(0)').text();
+		var ID = IDt.replace(' \/ ', '_');
+		$('#newEventID').val(ID);
+		if ($('#newEventID').val() != ID)
+		{
+			$('#newEventID').prepend("<option value='" + ID + "' selected>" + IDt + "</option>");
+		}
+
+		$('#newEventName').val($('#event_' + TriggerEventSelected).find('td:eq(1)').text());
+		$('#newEventEffect').val($('#event_' + TriggerEventSelected).find('td:eq(2)').text());
+		$('#newEventStartChannel').val($('#event_' + TriggerEventSelected).find('td:eq(3)').text());
+		$('#newEventScript').val($('#event_' + TriggerEventSelected).find('td:eq(4)').text());
+		$('#newEvent').show();
+	}
+
+	function SaveEvent()
+	{
+		var url = "fppxml.php?command=saveEvent&event=" + $('#newEventName').val() +
+			"&id=" + $('#newEventID').val() +
+			"&effect=" + $('#newEventEffect').val() +
+			"&startChannel=" + $('#newEventStartChannel').val() +
+			"&script=" + $('#newEventScript').val();
+		var xmlhttp=new XMLHttpRequest();
+		xmlhttp.open("GET",url,true);
+		xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+		xmlhttp.send();
+		$('#newEvent').hide();
+		location.reload(true);
+	}
+
+	function CancelNewEvent()
+	{
+		$('#newEvent').hide();
+	}
+
+	function DeleteEvent()
+	{
+		var url = "fppxml.php?command=deleteEvent&id=" + TriggerEventSelected;
+		var xmlhttp=new XMLHttpRequest();
+		xmlhttp.open("GET",url,true);
+		xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+		xmlhttp.send();
+		location.reload(true);
+	}
+
 	function RebootPi()
 	{
 		if (confirm('REBOOT the Falcon Pi Player?')) 
@@ -1474,6 +1745,9 @@ function PopulateStatusPlaylistEntries(playselected,playList,reloadFile)
   							seqFile = entries.childNodes[i].childNodes[1].textContent;
 								songFile = entries.childNodes[i].childNodes[2].textContent;
 								pause = entries.childNodes[i].childNodes[3].textContent;
+								videoFile = entries.childNodes[i].childNodes[5].textContent;
+								eventName = entries.childNodes[i].childNodes[6].textContent;
+								eventID = entries.childNodes[i].childNodes[7].textContent.replace('_', ' / ');
 								if(type == 'b')
 								{
 										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
@@ -1503,13 +1777,30 @@ function PopulateStatusPlaylistEntries(playselected,playList,reloadFile)
 								}
 								else if(type == 'p')
 								{
-										
 										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
 										innerHTML +=  "<td id = \"colEntryNumber" + (i+1).toString() + "\" width=\"6%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
 										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">PAUSE - " + pause.toString() + " seconds</td>";
 										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">---</td>"
 										innerHTML += "<td width=\"10%\" id=\"firstLast" + i.toString() + "\" class=\"textCenter\"></td>";
 									  innerHTML += "</tr>";
+								}
+								else if(type == 'v')
+								{
+										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
+										innerHTML +=  "<td id = \"colEntryNumber" + (i+1).toString() + "\" width=\"6%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
+										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">" + videoFile + "</td>";
+										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">Video Delayed " + pause.toString() + " seconds</td>"
+										innerHTML += "<td width=\"10%\" id=\"firstLast" + i.toString() + "\" class=\"textCenter\"></td>";
+										innerHTML += "</tr>";
+								}
+								else if(type == 'e')
+								{
+										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
+										innerHTML +=  "<td id = \"colEntryNumber" + (i+1).toString() + "\" width=\"6%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
+										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">" + eventID + " - " + eventName + "</td>";
+										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">---</td>";
+										innerHTML += "<td width=\"10%\" id=\"firstLast" + i.toString() + "\" class=\"textCenter\"></td>";
+										innerHTML += "</tr>";
 								}
 							}
 					}
@@ -1574,6 +1865,7 @@ function GetVolume()
 					var xmlDoc=xmlhttp.responseXML; 
 					var Volume = xmlDoc.getElementsByTagName('Volume')[0].childNodes[0].textContent;
 					$('#slider').slider('value', parseInt(Volume));
+					$('#volume').html(Volume);
 			}
 		};
 		xmlhttp.send();
@@ -1596,13 +1888,21 @@ function GetFPPDmode()
 							$("#playerStatus").css("display","none");
 							$("#nextPlaylist").css("display","none");
 							$("#selFPPDmode").prop("selectedIndex",1);
+							$("#textFPPDmode").text("Bridged Mode");
 					}
 			}
 		};
 		xmlhttp.send();
 }
 
+function ViewLog()
+{
+	$('#logText').load("fppxml.php?command=getLog&filename=" + LogFileSelected);
+	$('#logViewer').dialog({ height: 600, width: 800, title: "Log Viewer: " + LogFileSelected });
+	$('#logViewer').dialog( "moveToTop" );
+}
 
-
-		
-		
+function DownloadLog()
+{
+	location.href="fppxml.php?command=getLog&filename=" + LogFileSelected;
+}

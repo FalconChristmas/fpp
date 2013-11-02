@@ -1,0 +1,17 @@
+#!/bin/sh
+
+BINDIR=$(dirname $0)
+
+. ${BINDIR}/common
+
+logOutput
+
+if [ -f "${FPPDIR}/src/fppd" -a "${FPPDIR}/src/fppd" -nt "${FPPDIR}/bin/fppd" ]
+then
+	echo "Starting ${FPPDIR}/src/fppd"
+	nice -n -20 ${FPPDIR}/src/fppd --config-file /home/pi/media/settings --daemonize
+else
+	echo "Starting ${FPPDIR}/bin/fppd"
+	nice -n -20 ${FPPDIR}/bin/fppd --config-file /home/pi/media/settings --daemonize
+fi
+

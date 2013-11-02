@@ -1,0 +1,31 @@
+
+FPPDIR=/opt/fpp
+
+if [ -f "/home/pi/fpp/scripts/common" ]
+then
+	FPPDIR=/home/pi/fpp
+fi
+
+SCRIPTDIR="${FPPDIR}/scripts"
+UPGRADEDIR="${FPPDIR}/upgrade"
+MEDIADIR="/home/pi/media"
+LOGDIR="${MEDIADIR}/logs"
+
+logOutput() {
+	MYTTY=$(tty)
+	if [ "x${MYTTY}" = "x/dev/console" -o "x${MYTTY}" = "x" -o "x${MYTTY}" = "xnot a tty" ]
+	then
+		if [ ! -d ${LOGDIR} ]
+		then
+			mkdir -p ${LOGDIR}
+			chown pi.pi ${LOGDIR}
+			chmod 775 ${LOGDIR}
+		fi
+
+		FILE=$(basename $0)
+		exec >> ${LOGDIR}/${FILE}.log 2>&1
+		echo "=========================================================================="
+		date
+	fi
+}
+

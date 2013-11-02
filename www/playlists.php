@@ -75,7 +75,7 @@ this.value = default_value;
     <script>
 $(document).ready(function () {
     //make table rows sortable
-    $('#tblCreatePlaylistEntries tbody').sortable({
+    $('#tblCreatePlaylistEntries_tbody').sortable({
         start: function (event, ui) {
 	          start_pos = ui.item.index();
             
@@ -152,7 +152,7 @@ $(document).ready(function () {
 		echo "<select id=\"selSequence\" size=\"1\">";
     foreach(scandir($sequenceDirectory) as $seqFile) 
     {
-      if($seqFile != '.' && $seqFile != '..')
+      if($seqFile != '.' && $seqFile != '..' && !preg_match('/.eseq$/', $seqFile))
       {
         echo "<option value=\"" . $seqFile . "\">" . $seqFile . "</option>";
       }
@@ -160,6 +160,54 @@ $(document).ready(function () {
 		echo "</select>";
   }			
   
+  function PrintVideoOptions()
+  {
+    global $videoDirectory;
+    echo "<select id=\"selVideo\" size=\"1\">";
+    foreach(scandir($videoDirectory) as $videoFile)
+    {
+      if($videoFile != '.' && $videoFile != '..')
+      {
+        echo "<option value=\"" . $videoFile . "\">" . $videoFile . "</option>";
+      }
+    }
+    echo "</select>";
+  }
+
+  function PrintEventOptions()
+  {
+    global $eventDirectory;
+    echo "<select id=\"selEvent\" size=\"1\">";
+    foreach(scandir($eventDirectory) as $eventFile)
+    {
+      if(preg_match('/\.fevt$/', $eventFile))
+      {
+        $f = fopen($eventDirectory . "/" . $eventFile, "r");
+        if ($f == FALSE)
+          die();
+
+        $eventName = "";
+        while (!feof($f))
+        {
+          $line = fgets($f);
+          $entry = explode("=", $line, 2);
+          if ($entry[0] == "name")
+            $eventName = $entry[1];
+        }
+        fclose($f);
+
+        $eventFile = preg_replace("/.fevt$/", "", $eventFile);
+        $eventText = preg_replace("/_/", " / ", $eventFile);
+
+        if ($eventName != "")
+          $eventText .= " - " . $eventName;
+
+        echo "<option value=\"" . $eventFile . "\">" . $eventText . "</option>";
+      }
+    }
+    echo "</select>";
+  }
+
 ?>
 <div style="width:800px;margin:0 auto;"> <br/>
       <fieldset style="padding: 10px; border: 2px solid #000;">
@@ -203,13 +251,19 @@ $(document).ready(function () {
             <option value = 'm'>Music Only</option>
             <option value = 's'>Sequence Only</option>
             <option value = 'p'>Pause</option>
+            <option value = 'v'>Video</option>
+            <option value = 'e'>Event</option>
           </select>
             </li>
         <li id="musicOptions">Music<br />
               <?php PrintMusicOptions();?> </li>
         <li id="sequenceOptions">Sequence<br />
               <?php PrintSequenceOptions();?> </li>
-        <li id="pauseTime" style="display:none;">Pause Time<br />
+        <li id="videoOptions" style="display:none;">Video<br />
+              <?php PrintVideoOptions();?> </li>
+        <li id="eventOptions" style="display:none;">Event<br />
+              <?php PrintEventOptions();?> </li>
+        <li id="pauseTime" style="display:none;"><div><div id='pauseText'>Pause Time</div><div id='delayText'>Delayed By</div></div>
               <input id="txtPause" name="txtPause" type="text" size="10" maxlength="10"/>
               (Seconds) </li>
         <li>
@@ -222,10 +276,11 @@ $(document).ready(function () {
     <div id="createPlaylistItems">
           <table id="tblCreatePlaylist">
         <tr id="rowCreatePlaylistHeader">
-              <td width="5%" id="colPlaylistNumber" class="textRight">#</td>
-              <td width="42%">Media File/Pause</td>
-              <td width="42%">Sequence</td>
-              <td width="11%">First/Last</td>
+              <td class="colPlaylistNumber">#</td>
+              <td class="colPlaylistType">Type</td>
+              <td class="colPlaylistData1">Media File / Event / Pause</td>
+              <td class="colPlaylistData2">Sequence / Delay</td>
+              <td class="colPlaylistFlags">First/Last</td>
             </tr>
       </table>
           <table id="tblCreatePlaylistEntries" width="100%">

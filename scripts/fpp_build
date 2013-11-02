@@ -1,0 +1,10 @@
+#!/bin/sh
+
+BINDIR=$(dirname $0)
+. ${BINDIR}/common
+
+cd ${FPPDIR}/src/
+
+sudo -u pi make clean
+sudo -u pi make all
+

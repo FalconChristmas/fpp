@@ -1,0 +1,22 @@
+#!/bin/sh
+
+BINDIR=$(dirname $0)
+
+. ${BINDIR}/common
+
+logOutput
+
+if curl --silent --head https://github.com | grep "Content-Type: text/html; charset=utf-8" >/dev/null; then
+	GITBRANCH=$(cd ${FPPDIR} && git branch | grep "^\*" | sed -e "s/\*\s//")
+
+	echo "Upgrading git revision from branch ${GITBRANCH}"
+	if [ "x${FPPDIR}" = "x/opt/fpp" ]
+	then
+		cd ${FPPDIR} && sudo git pull
+	else
+		cd ${FPPDIR} && git pull
+	fi
+else
+	echo "Can not access github, unable to pull git updates"
+fi
+

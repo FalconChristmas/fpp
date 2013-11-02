@@ -41,7 +41,7 @@ void *RunLightThread(void)
 		E131_Send();
 		E131_ReadData();
 
-		if (E131status != E131_STATUS_IDLE)
+		if (IsSequenceRunning() || IsEffectRunning())
 		{
 			ts.tv_sec = 0;
 			ts.tv_nsec = (LightDelay - (GetTime() - startTime)) * 1000;
@@ -52,6 +52,7 @@ void *RunLightThread(void)
 		else
 		{
 			RunThread = 0;
+			LightDelay = DefaultLightDelay;
 		}
 	}
 

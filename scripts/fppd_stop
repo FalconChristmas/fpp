@@ -1,0 +1,10 @@
+#!/bin/sh
+
+BINDIR=$(dirname $0)
+. ${BINDIR}/common
+
+logOutput
+
+echo "Stopping fppd"
+killall -9 fppd
+

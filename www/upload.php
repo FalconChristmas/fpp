@@ -225,7 +225,7 @@ function checkExt($file, $allow_ext)
 {
 	$file_ext = strtolower( pathinfo($file, PATHINFO_EXTENSION) );
 	//extensions not allowed for security reason
-	$deny_ext = array('php','php3', 'php4', 'php5', 'phtml', 'exe', 'pl', 'cgi', 'html', 'htm', 'js', 'asp', 'aspx', 'bat', 'sh', 'cmd');
+	$deny_ext = array('php','php3', 'php4', 'php5', 'phtml', 'exe', 'pl', 'cgi', 'html', 'htm', 'js', 'asp', 'aspx', 'bat', 'cmd');
 	if(in_array($file_ext, $deny_ext))
 	{
 		return false;

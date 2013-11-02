@@ -10,7 +10,11 @@ require_once('pixelnetdmxentry.php');
 
 //define('debug', true);
 
-header('Content-type: text/xml');
+// Commands defined here which return something other
+// than XML need to return their own Content-type header.
+$nonXML = Array(
+	"getLog" => 1
+	);
 
 $a = session_id();
 if(empty($a))
@@ -24,6 +28,7 @@ $command_array = Array(
 	"getMusicFiles" => 'GetMusicFiles',
 	"getPlayLists" => 'GetPlaylists',
 	"getPlayListSettings" => 'GetPlayListSettings',
+	"getFiles" => 'GetFiles',
 	"getSequences" => 'GetSequenceFiles',
 	"getPlayListEntries" => 'GetPlaylistEntries',
 	"setPlayListFirstLast" => 'SetPlayListFirstLast',
@@ -35,6 +40,8 @@ $command_array = Array(
 	"deleteEntry" => 'DeleteEntry',
 	"deleteSequence" => 'DeleteSequence',
 	"deleteMusic" => 'DeleteMusic',
+	"deleteVideo" => 'DeleteVideo',
+	"deleteScript" => 'DeleteScript',
 	"addPlaylistEntry" => 'AddPlayListEntry',
 	"setUniverseCount" => 'SetUniverseCount',
 	"getUniverses" => 'GetUniverses',
@@ -54,12 +61,28 @@ $command_array = Array(
 	"startPlaylist" => 'StartPlaylist',
 	"rebootPi" => 'RebootPi',
 	"shutdownPi" => 'ShutdownPi',
+	"manualGitUpdate" => 'ManualGitUpdate',
+	"changeGitBranch" => 'ChangeGitBranch',
+	"setAutoUpdate" => 'SetAutoUpdate',
+	"setDeveloperMode" => 'SetDeveloperMode',
 	"setVolume" => 'SetVolume',
 	"setFPPDmode" => 'SetFPPDmode',
 	"getVolume" => 'GetVolume',
 	"getFPPDmode" => 'GetFPPDmode',
-	"setE131interface" => 'SetE131interface'
+	"setE131interface" => 'SetE131interface',
+	"playEffect" => 'PlayEffect',
+	"stopEffect" => 'StopEffect',
+	"deleteEffect" => 'DeleteEffect',
+	"getRunningEffects" => 'GetRunningEffects',
+	"triggerEvent" => 'TriggerEvent',
+	"saveEvent" => 'SaveEvent',
+	"deleteEvent" => 'DeleteEvent',
+	"getLog" => 'GetLog'
 );
+
+if (!isset($nonXML[$_GET['command']]))
+	header('Content-type: text/xml');
+
 
 
 if ( isset($_GET['command']) && !empty($_GET['command']) )
@@ -105,8 +128,11 @@ function CleanupSocket($path, $socket = '')
 		@socket_close($socket);
 }
 
+$socketError = "";
+
 function SendCommand($command)
 {
+	$socketError = "";
 	$cpath = "/tmp/FPP." . getmypid();
 	$spath = "/tmp/FPPD";
 
@@ -114,27 +140,27 @@ function SendCommand($command)
 
 	$socket = socket_create(AF_UNIX, SOCK_DGRAM, 0);
 	if ( !@socket_set_nonblock($socket) ) {
-		echo( 'Unable to set nonblocking mode for ' . $spath . ' socket' );
+		$socketError = 'Unable to set nonblocking mode for ' . $spath . ' socket';
 		CleanupSocket($cpath, $socket);
 		return false;
 	}
 
 	if ( !@socket_bind($socket, $cpath) ) {
-		echo( 'socket_bind() failed for ' . $cpath . ' socket' );
+		$socketError = 'socket_bind() failed for ' . $cpath . ' socket';
 		CleanupSocket($cpath, $socket);
 		return false;
 	}
 
 	if ( @socket_connect($socket, $spath) === false)
 	{
-		echo( 'socket_connect() failed for ' . $spath . ' socket' );
+		$socketError = 'socket_connect() failed for ' . $spath . ' socket';
 		CleanupSocket($cpath, $socket);
 		return false;
 	}
 
 	if ( @socket_send($socket, $command, strLen($command), 0) == FALSE )
 	{
-		echo( 'socket_send() failed for ' . $spath . ' socket' );
+		$socketError = 'socket_send() failed for ' . $spath . ' socket';
 		CleanupSocket($cpath, $socket);
 		return false;
 	}
@@ -148,7 +174,7 @@ function SendCommand($command)
 		$bytes_received = @socket_recv($socket, $buf, 1024, MSG_DONTWAIT);
 		if ($bytes_received == -1)
 		{
-			echo('An error occured while receiving from the socket');
+			$socketError = 'An error occured while receiving from the socket';
 			CleanupSocket($cpath, $socket);
 			return false;
 		}
@@ -186,6 +212,45 @@ function RebootPi()
 {
 	$status=exec(SUDO . " shutdown -r now");
 	EchoStatusXML($status);
+}
+
+function ManualGitUpdate()
+{
+	global $fppDir;
+	exec("$fppDir/scripts/git_pull");
+}
+
+function ChangeGitBranch()
+{
+	$branch = $_GET['branch'];
+	check($branch);
+
+	global $fppDir;
+	exec("$fppDir/scripts/git_branch $branch");
+}
+
+function SetAutoUpdate()
+{
+	$enabled = $_GET['enabled'];
+	check($enabled);
+
+	global $mediaDirectory;
+	if ($enabled)
+		unlink("$mediaDirectory/.auto_update_disabled");
+	else
+		exec("touch $mediaDirectory/.auto_update_disabled");
+}
+
+function SetDeveloperMode()
+{
+	$enabled = $_GET['enabled'];
+	check($enabled);
+
+	global $mediaDirectory;
+	if ($enabled)
+		exec("touch $mediaDirectory/.developer_mode");
+	else
+		unlink("$mediaDirectory/.developer_mode");
 }
 
 function SetVolume()
@@ -256,7 +321,7 @@ function ShutdownPi()
 
 function MoveFile()
 {
-	global $mediaDirectory, $musicDirectory, $sequenceDirectory;
+	global $mediaDirectory, $musicDirectory, $sequenceDirectory, $videoDirectory, $effectDirectory, $scriptDirectory;
 
 	$file = $_GET['file'];
 	check($file);
@@ -267,17 +332,46 @@ function MoveFile()
 		{
 			if ( !rename($mediaDirectory."/upload/" . $file, $sequenceDirectory . $file) )
 			{
-				error_log("Couldn't move music file");
+				error_log("Couldn't move sequence file");
 				exit(1);
 			}
 		}
-		else
+		else if (strpos(strtolower($file),".eseq") !== false)
+		{
+			if ( !rename($mediaDirectory."/upload/" . $file, $effectDirectory . $file) )
+			{
+				error_log("Couldn't move effect file");
+				exit(1);
+			}
+		}
+		else if (strpos(strtolower($file),".mp4") !== false)
+		{
+			if ( !rename($mediaDirectory."/upload/" . $file, $videoDirectory . $file) )
+			{
+				error_log("Couldn't move video file");
+				exit(1);
+			}
+		}
+		else if (strpos(strtolower($file),".sh") !== false)
+		{
+			if ( !rename($mediaDirectory."/upload/" . $file, $scriptDirectory . $file) )
+			{
+				error_log("Couldn't move script file");
+				exit(1);
+			}
+		}
+		else if (strpos(strtolower($file),".ogg") !== false)
 		{
 			if ( !rename($mediaDirectory."/upload/" . $file, $musicDirectory . $file) )
 			{
 				error_log("Couldn't move music file");
 				exit(1);
 			}
+		}
+		else
+		{
+			unlink($mediaDirectory."/upload/" . $file);
+			error_log("Unknown file type, removing upload");
 		}
 	}
 	else
@@ -303,6 +397,9 @@ function StartPlaylist()
 	check($repeat);
 	check($playEntry);
 
+	if ($playEntry == "undefined")
+		$playEntry = "0";
+
 	if($repeat == "checked")
 	{
 		$status=SendCommand("p," . $playlist . "," . $playEntry . ",");
@@ -312,6 +409,146 @@ function StartPlaylist()
 		$status=SendCommand("P," . $playlist . "," . $playEntry . ",");
 	}
 	EchoStatusXML('true');
+}
+
+function PlayEffect()
+{
+	$effect = $_GET['effect'];
+	check($effect);
+	$startChannel = $_GET['startChannel'];
+	check($startChannel);
+	$status = SendCommand("e," . $effect . "," . $startChannel . ",");
+	EchoStatusXML('Success');
+}
+
+function StopEffect()
+{
+	$id = $_GET['id'];
+	check($id);
+	$status = SendCommand("StopEffect," . $id . ",");
+	EchoStatusXML('Success');
+}
+
+function DeleteEffect()
+{
+	global $effectDirectory;
+
+	$effect = $_GET['effect'];
+	check($effect);
+
+	unlink($effectDirectory . $effect . ".eseq");
+
+	EchoStatusXML('Success');
+}
+
+function GetRunningEffects()
+{
+	$status = SendCommand("GetRunningEffects");
+
+	$result = "";
+	$first = 1;
+	$status = preg_replace('/\n/', '', $status);
+
+	$doc = new DomDocument('1.0');
+	// Running Effects
+	$root = $doc->createElement('RunningEffects');
+	$root = $doc->appendChild($root);
+	foreach(preg_split('/;/', $status) as $line)
+	{
+		if ($first)
+		{
+			$first = 0;
+			continue;
+		}
+
+		$info = preg_split('/,/', $line);
+
+		$runningEffect = $doc->createElement('RunningEffect');
+		$runningEffect = $root->appendChild($runningEffect);
+
+		// Running Effect ID
+		$id = $doc->createElement('ID');
+		$id = $runningEffect->appendChild($id);
+		$value = $doc->createTextNode($info[0]);
+		$value = $id->appendChild($value);
+
+		// Effect Name
+		$name = $doc->createElement('Name');
+		$name = $runningEffect->appendChild($name);
+		$value = $doc->createTextNode($info[1]);
+		$value = $name->appendChild($value);
+	}
+
+	echo $doc->saveHTML();
+}
+
+function GetExpandedEventID()
+{
+	$id = $_GET['id'];
+	check($id);
+
+	$majorID = preg_replace('/_.*/', '', $id);
+	$minorID = preg_replace('/.*_/', '', $id);
+
+	$filename = sprintf("%02d_%02d", $majorID, $minorID);
+
+	return $filename;
+}
+
+function TriggerEvent()
+{
+	$id = GetExpandedEventID();
+
+	$status = SendCommand("t," . $id . ",");
+
+	EchoStatusXML($status);
+}
+
+function SaveEvent()
+{
+	global $eventDirectory;
+
+	$ids = preg_split('/_/', $_GET['id']);
+
+	if (count($ids) < 2)
+		return;
+
+	$id = GetExpandedEventID();
+	$filename = $id . ".fevt";
+
+	$name = $_GET['event'];
+	check($name);
+
+	if (isset($_GET['effect']) && $_GET['effect'] != "")
+		$eseq = $_GET['effect'] . ".eseq";
+	else
+		$eseq = "";
+
+	$f=fopen($eventDirectory . $filename,"w") or exit("Unable to open file! : " . $event);
+	$eventDefinition = sprintf(
+		"majorID=%d\n" .
+		"minorID=%d\n" .
+		"name=%s\n" .
+		"effect=%s\n" .
+		"startChannel=%s\n" .
+		"script=%s\n",
+		$ids[0], $ids[1], $name,
+		$eseq, $_GET['startChannel'], $_GET['script']);
+	fwrite($f, $eventDefinition);
+	fclose($f);
+
+	EchoStatusXML('Success');
+}
+
+function DeleteEvent()
+{
+	global $eventDirectory;
+
+	$filename = GetExpandedEventID() . ".fevt";
+
+	unlink($eventDirectory . $filename);
+
+	EchoStatusXML('Success');
 }
 
 function GetUniverseReceivedBytes()
@@ -372,7 +609,7 @@ function StopNow()
 
 function StopFPPD()
 {
-	$status=exec(SUDO . " killall fppd");
+	$status=exec(SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_stop");
 	EchoStatusXML('true');
 }
 
@@ -384,7 +621,7 @@ function StartFPPD()
 	$status=exec("if ps cax | grep -q fppd; then echo \"true\"; else echo \"false\"; fi");
 	if($status == 'false')
 	{
-		$status=exec(SUDO . " nice -n -20 ".dirname(dirname(__FILE__))."/bin/fppd --config-file $settingsFile --daemonize >/dev/null");
+		$status=exec(SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_start");
 	}
 	EchoStatusXML($status);
 }
@@ -392,7 +629,7 @@ function StartFPPD()
 function GetFPPstatus()
 {
 	$status = SendCommand('s');
-	if($status == 'false')
+	if($status == false || $status == 'false')
 	{
 		$doc = new DomDocument('1.0');
 		$root = $doc->createElement('Status');
@@ -1167,12 +1404,18 @@ function AddPlayListEntry()
 	$seqFile = $_GET['seqFile'];
 	$songFile = $_GET['songFile'];
 	$pause = $_GET['pause'];
+	$videoFile = $_GET['videoFile'];
+	$eventName = $_GET['eventName'];
+	$eventID = $_GET['eventID'];
 	check($type);
 	check($seqFile);
 	check($songFile);
 	check($pause);
+	check($videoFile);
+	check($eventName);
+	check($eventID);
 
-	$_SESSION['playListEntries'][] = new PlaylistEntry($type,$songFile,$seqFile,$pause,$index,count($_SESSION['playListEntries']));
+	$_SESSION['playListEntries'][] = new PlaylistEntry($type,$songFile,$seqFile,$pause,$videoFile,$eventName,$eventID,$index,count($_SESSION['playListEntries']));
 	EchoStatusXML($_GET['songFile']);
 }
 
@@ -1235,6 +1478,54 @@ function GetMusicFiles()
 	}
 	echo $doc->saveHTML();
 
+}
+
+function GetFiles()
+{
+	global $mediaDirectory;
+	global $sequenceDirectory;
+	global $musicDirectory;
+	global $videoDirectory;
+	global $effectDirectory;
+	global $scriptDirectory;
+	global $logDirectory;
+
+	$dirName = $_GET['dir'];
+	check($dirName);
+	if ($dirName == "Sequences")        { $dirName = $sequenceDirectory; }
+	else if ($dirName == "Music")       { $dirName = $musicDirectory; }
+	else if ($dirName == "Videos")      { $dirName = $videoDirectory; }
+	else if ($dirName == "Effects")     { $dirName = $effectDirectory; }
+	else if ($dirName == "Scripts")     { $dirName = $scriptDirectory; }
+	else if ($dirName == "Logs")        { $dirName = $logDirectory; }
+	else
+		return;
+
+	$doc = new DomDocument('1.0');
+	$root = $doc->createElement('Files');
+	$root = $doc->appendChild($root);
+
+	foreach(scandir($dirName) as $fileName)
+	{
+		if($fileName != '.' && $fileName != '..')
+		{
+			$fileFullName = $dirName . '/' . $fileName;
+
+			$file = $doc->createElement('File');
+			$file = $root->appendChild($file);
+
+			$name = $doc->createElement('Name');
+			$name = $file->appendChild($name);
+			$value = $doc->createTextNode(utf8_encode($fileName));
+			$value = $name->appendChild($value);
+
+			$time = $doc->createElement('Time');
+			$time = $file->appendChild($time);
+			$value = $doc->createTextNode(date('m/d/y  h:i A', filemtime($fileFullName)));
+			$value = $time->appendChild($value);
+		}
+	}
+	echo $doc->saveHTML();
 }
 
 function GetSequenceFiles()
@@ -1324,6 +1615,7 @@ function SetPlayListFirstLast()
 function LoadPlayListDetails($file)
 {
 	global $playlistDirectory;
+	global $eventDirectory;
 
 	$playListEntries = NULL;
 	$_SESSION['playListEntries']=NULL;
@@ -1348,6 +1640,9 @@ function LoadPlayListDetails($file)
 				$songFile = $entry[2];
 				$pause = 0;
 				$index = $i;
+				$videoFile = "";
+				$eventName = "";
+				$eventID = "";
 				break;
 			default:
 				break;
@@ -1356,21 +1651,50 @@ function LoadPlayListDetails($file)
 				$seqFile = "";
 				$pause = 0;
 				$index = $i;
+				$videoFile = "";
+				$eventName = "";
+				$eventID = "";
 				break;
 			case 's':
 				$songFile = "";
 				$seqFile = $entry[1];
 				$pause = 0;
 				$index = $i;
+				$videoFile = "";
+				$eventName = "";
+				$eventID = "";
 				break;
 			case 'p':
 				$songFile = "";
 				$seqFile = "";
 				$pause = $entry[1];
 				$index = $i;
+				$videoFile = "";
+				$eventName = "";
+				$eventID = "";
+				break;
+			case 'v':
+				$seqFile = "";
+				$songFile = "";
+				$pause = $entry[2];
+				$index = $i;
+				$videoFile = $entry[1];
+				$eventName = "";
+				$eventID = "";
+				break;
+			case 'e':
+				$seqFile = "";
+				$songFile = "";
+				$pause = 0;
+				$index = $i;
+				$videoFile = "";
+				$eventID = $entry[1];
+
+				$eventInfo = parse_ini_file($eventDirectory . "/" . $eventID . ".fevt");
+				$eventName = $eventInfo['name'];
 				break;
 		}
-		$playListEntries[$i] = new PlaylistEntry($type,$songFile,$seqFile,$pause,$index);
+		$playListEntries[$i] = new PlaylistEntry($type,$songFile,$seqFile,$pause,$videoFile,$eventName,$eventID,$index);
 		$i++;
 	}
 	fclose($f);
@@ -1437,7 +1761,7 @@ function GetPlaylistEntries()
 		$songFile = $playListEntry->appendChild($songFile);
 		$value = $doc->createTextNode($_SESSION['playListEntries'][$i]->songFile);
 		$value = $songFile->appendChild($value);
-		// index
+		// pause
 		$pause = $doc->createElement('pause');
 		$pause = $playListEntry->appendChild($pause);
 		$value = $doc->createTextNode($_SESSION['playListEntries'][$i]->pause);
@@ -1447,7 +1771,21 @@ function GetPlaylistEntries()
 		$index = $playListEntry->appendChild($index);
 		$value = $doc->createTextNode($_SESSION['playListEntries'][$i]->index);
 		$value = $index->appendChild($value);
-
+		// videoFile
+		$videoFile = $doc->createElement('videoFile');
+		$videoFile = $playListEntry->appendChild($videoFile);
+		$value = $doc->createTextNode($_SESSION['playListEntries'][$i]->videoFile);
+		$value = $videoFile->appendChild($value);
+		// eventName
+		$eventName = $doc->createElement('eventName');
+		$eventName = $playListEntry->appendChild($eventName);
+		$value = $doc->createTextNode($_SESSION['playListEntries'][$i]->eventName);
+		$value = $eventName->appendChild($value);
+		// eventID
+		$eventID = $doc->createElement('eventID');
+		$eventID = $playListEntry->appendChild($eventID);
+		$value = $doc->createTextNode($_SESSION['playListEntries'][$i]->eventID);
+		$value = $eventID->appendChild($value);
 	}
 	echo $doc->saveHTML();
 }
@@ -1514,6 +1852,16 @@ function SavePlaylist()
 		{
 			$entries .= sprintf("%s,%s,\n",$_SESSION['playListEntries'][$i]->type,$_SESSION['playListEntries'][$i]->pause);
 		}
+		else if($_SESSION['playListEntries'][$i]->type == 'v')
+		{
+			$entries .= sprintf("%s,%s,%d,\n",$_SESSION['playListEntries'][$i]->type,$_SESSION['playListEntries'][$i]->videoFile,
+								$_SESSION['playListEntries'][$i]->pause);
+		}
+		else if($_SESSION['playListEntries'][$i]->type == 'e')
+		{
+			$entries .= sprintf("%s,%s,\n",$_SESSION['playListEntries'][$i]->type,
+				$_SESSION['playListEntries'][$i]->eventID);
+		}
 	}
 	fwrite($f,$entries);
 	fclose($f);
@@ -1560,6 +1908,28 @@ function DeleteMusic()
 	EchoStatusXML('Success');
 }
 
+function DeleteVideo()
+{
+	global $videoDirectory;
+
+	$name = $_GET['name'];
+	check($name);
+
+	unlink($videoDirectory . $name);
+	EchoStatusXML('Success');
+}
+
+function DeleteScript()
+{
+	global $scriptDirectory;
+
+	$name = $_GET['name'];
+	check($name);
+
+	unlink($scriptDirectory . $name);
+	EchoStatusXML('Success');
+}
+
 
 function DeleteEntry()
 {
@@ -1598,6 +1968,30 @@ function cmp_index($a, $b)
 		return 0;
 	}
 	return ($a->index < $b->index) ? -1 : 1;
+}
+
+function GetLog()
+{
+	global $logDirectory;
+
+	$filename = $_GET['filename'];
+	check($filename);
+
+	header('Content-type: text/plain');
+	header('Content-disposition: attachment;filename=' . $filename);
+
+	$f=fopen($logDirectory . $filename,"r");
+	if($f == FALSE)
+	{
+		die();
+	}
+
+	while (!feof($f))
+	{
+		$line=fgets($f);
+		echo $line;
+	}
+	fclose($f);
 }
 
 ?>

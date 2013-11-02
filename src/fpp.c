@@ -76,6 +76,21 @@ int main (int argc, char *argv[])
       sprintf(command,"r");
       SendCommand(command);
     }
+    // Start an effect - example "fpp -e effectName"
+    else if((strncmp(argv[1],"-e",2) == 0) &&  argc > 2)
+    {
+      if (strchr(argv[2], ','))
+        sprintf(command,"e,%s,",argv[2]);
+      else
+        sprintf(command,"e,%s,1,",argv[2]);
+      SendCommand(command);
+    }
+    // Trigger an event - example "fpp -t eventName"
+    else if((strncmp(argv[1],"-t",2) == 0) &&  argc > 2)
+    {
+      sprintf(command,"t,%s,",argv[2]);
+      SendCommand(command);
+    }
     else
     {
     }
