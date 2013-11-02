@@ -217,11 +217,9 @@ a:visited {
                 </select></td></tr>
 <?
    } else {
-       if ($git_branch != $os_build) {
 ?>
             <tr><td>Git Branch:</td><td><? echo $git_branch; ?></td></tr>
 <?
-       }
    }
 ?>
             <tr><td>Local Git Version:</td><td>
