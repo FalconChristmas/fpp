@@ -237,11 +237,13 @@ a:visited {
             checked
 <? } ?>
               >  <input type='button' value='Manual Update' onClick='ManualGitUpdate();' class='buttons'></td></tr>
+<!--
             <tr><td>Developer Mode:</td><td><input type='checkbox' id='developerMode' onChange='ToggleDeveloperMode();'
 <? if (file_exists("/home/pi/media/.developer_mode")) { ?>
             checked
 <? } ?>
               ></td></tr>
+-->
             <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
           </table>
         </div>
