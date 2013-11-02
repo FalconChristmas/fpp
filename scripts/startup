@@ -62,4 +62,4 @@ fi
 sleep 2
 hwclock -s
 
-/home/pi/fpp/bin/fppd > /dev/null
+/opt/fpp/bin/fppd > /dev/null
