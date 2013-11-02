@@ -14,7 +14,7 @@ if curl --silent --head https://github.com | grep "Content-Type: text/html; char
 	then
 		cd ${FPPDIR} && sudo git pull
 	else
-		cd ${FPPDIR} && git pull
+		cd ${FPPDIR} && sudo -u pi git pull
 	fi
 else
 	echo "Can not access github, unable to pull git updates"

@@ -1,13 +1,8 @@
 <?php
 
-$vFile = "/etc/fpp/rfs_version";
-$fpp_version = "Unknown";
-if (file_exists($vFile))
-{
-  $fpp_version = exec("cat $vFile", $output, $return_val);
-  if ( $return_val != 0 )
-    $fpp_version = "Unknown";
-}
+$fpp_version = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ describe --dirty", $output, $return_val);
+if ( $return_val != 0 ) 
+	$fpp_version = "Unknown";
 
 ?>
 

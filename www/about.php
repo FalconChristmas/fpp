@@ -11,9 +11,21 @@ $_SESSION['session_id'] = session_id();
 //ini_set('display_errors', 'On');
 error_reporting(E_ALL);
 
+$fpp_version = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ describe --dirty", $output, $return_val);
+if ( $return_val != 0 )
+	$fpp_version = "Unknown";
+
 if (!file_exists("/etc/fpp/config_version") && file_exists("/etc/fpp/rfs_version"))
 {
 	exec("sudo $fppDir/scripts/upgrade_config");
+}
+
+$os_build = "Unknown";
+if (file_exists("/etc/fpp/rfs_version"))
+{
+	$os_build = exec("cat /etc/fpp/rfs_version", $output, $return_val);
+	if ( $return_val != 0 )
+		$os_build = "Unknown";
 }
 
 $os_version = "Unknown";
@@ -36,8 +48,8 @@ if ( $return_val != 0 )
   $git_branch = "Unknown";
 unset($output);
 
-$git_remote_version = "blah";
-$git_remote_version = exec("git ls-remote --heads https://github.com/FalconChristmas/fpp | grep master | awk '$1 > 0 { print substr($1,1,7)}'", $output, $return_val);
+$git_remote_version = "Unknown";
+$git_remote_version = exec("git ls-remote --heads https://github.com/FalconChristmas/fpp | grep $git_branch | awk '$1 > 0 { print substr($1,1,7)}'", $output, $return_val);
 if ( $return_val != 0 )
   $git_remote_version = "Unknown";
 unset($output);
@@ -197,6 +209,7 @@ a:visited {
           <table class='tblAbout'>
             <tr><td><b>Version Info</b></td><td>&nbsp;</td></tr>
             <tr><td>FPP Version:</td><td><? echo $fpp_version; ?></td></tr>
+            <tr><td>FPP OS Build:</td><td><? echo $os_build; ?></td></tr>
             <tr><td>OS Version:</td><td><? echo $os_version; ?></td></tr>
 <? if (file_exists("/home/pi/media/.developer_mode")) { ?>
             <tr><td>Git Branch:</td><td><select id='gitBranch' onChange="ChangeGitBranch($('#gitBranch').val());">
@@ -204,15 +217,21 @@ a:visited {
                 </select></td></tr>
 <?
    } else {
-       if ($git_branch != "master") {
+       if ($git_branch != $os_build) {
 ?>
             <tr><td>Git Branch:</td><td><? echo $git_branch; ?></td></tr>
 <?
        }
    }
 ?>
-            <tr><td>Git Version:</td><td><? echo $git_version; ?></td></tr>
-            <tr><td>Git Master Version:</td><td><? echo $git_remote_version; ?></td></tr>
+            <tr><td>Local Git Version:</td><td>
+<?
+  echo $git_version;
+  if ($git_version != $git_remote_version)
+    echo " <font red>(Update is available)</font>";
+?>
+                </td></tr>
+            <tr><td>Remote Git Version:</td><td><? echo $git_remote_version; ?></td></tr>
             <tr><td>Disable Auto Update:</td><td><input type='checkbox' id='autoUpdateDisabled' onChange='ToggleAutoUpdate();'
 <? if (file_exists("/home/pi/media/.auto_update_disabled")) { ?>
             checked

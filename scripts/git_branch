@@ -16,6 +16,6 @@ if [ "x${FPPDIR}" = "x/opt/fpp" ]
 then
 	cd ${FPPDIR} && sudo git checkout $1
 else
-	cd ${FPPDIR} && git checkout $1
+	cd ${FPPDIR} && sudo -u pi git checkout $1
 fi
 
