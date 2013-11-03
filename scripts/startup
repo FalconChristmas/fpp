@@ -16,7 +16,7 @@ amixer cset numid=3 1
 # Print/Say the IP address
 _IP=$(hostname -I) || true
 if [ "$_IP" ]; then
-  printf "My IP address is %s\n" "$_IP"
+  printf "My IP address is %s\n" "$_IP" >> /dev/console
   arrHost=(${_IP// / })
   flite -voice kal "I Have Found The Following I P Addresses, ${arrHost[0]}, ${arrHost[1]},  ${arrHost[2]}"
 fi
