@@ -62,4 +62,12 @@ fi
 sleep 2
 hwclock -s
 
+SDVERSION=$(cat /etc/fpp/rfs_version)
+if [ "x${SDVERSION}" = "xAlpha 0.1.2" ]
+then
+  # User is running master branch on v0.1.2 SD image so
+  # switch them over to the v0.1.2 branch
+  exec /opt/fpp/scripts/switch_to_0.1.2_branch
+fi
+
 /opt/fpp/bin/fppd > /dev/null

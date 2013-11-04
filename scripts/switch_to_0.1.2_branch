@@ -1,0 +1,6 @@
+#!/bin/sh
+
+cd /opt/fpp/ && git checkout v0.1.2
+
+/opt/fpp/scripts/fppd_start
+
