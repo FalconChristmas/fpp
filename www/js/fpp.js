@@ -418,13 +418,10 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			var	videoFile = document.getElementById("selVideo").value;
 			var	eventSel = document.getElementById("selEvent");
 			var	eventID = eventSel.value;
+			var	eventName = '';
       if(eventSel.selectedIndex>=0)
       {
-        var	eventName = eventSel.options[eventSel.selectedIndex].innerHTML.replace(/.* - /, '');
-      }
-      else
-			{
-        var	eventName = '';
+        eventName = eventSel.options[eventSel.selectedIndex].innerHTML.replace(/.* - /, '');
       }
 			var	pause = document.getElementById("txtPause").value;
 			var url = "fppxml.php?command=addPlaylistEntry&type=" + type + "&seqFile=" + 
