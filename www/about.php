@@ -253,6 +253,7 @@ a:visited {
             <tr><td>Audio Files:</td><td><? echo getFileCount($musicDirectory); ?></td></tr>
             <tr><td>Video Files:</td><td><? echo getFileCount($videoDirectory); ?></td></tr>
             <tr><td>Events Defined:</td><td><? echo getFileCount($eventDirectory); ?></td></tr>
+            <tr><td>Scripts Defined:</td><td><? echo getFileCount($scriptDirectory); ?></td></tr>
             <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
 
             <tr><td><b>Disk Utilization</b></td><td>&nbsp;</td></tr>
