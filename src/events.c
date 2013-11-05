@@ -110,7 +110,16 @@ FPPevent* LoadEvent(char *id)
 			else if (!strcmp(key, "name"))
 			{
 				if (strlen(token))
-					event->name = strdup(token);
+				{
+					if (token[0] == '\'')
+					{
+						event->name = strdup(token + 1);
+						if (event->name[strlen(event->name) - 1] == '\'')
+							event->name[strlen(event->name) - 1] = '\0';
+					}
+					else
+						event->name = strdup(token);
+				}
 			}
 			else if (!strcmp(key, "effect"))
 			{
@@ -119,10 +128,14 @@ FPPevent* LoadEvent(char *id)
 					char *c = strstr(token, ".eseq");
 					if (c)
 					{
-						if (c == (token + strlen(token) - 5))
+						if ((c == (token + strlen(token) - 5)) ||
+						    (c == (token + strlen(token) - 6)))
 							*c = '\0';
 					}
-					event->effect = strdup(token);
+					if (token[0] == '\'')
+						event->effect = strdup(token + 1);
+					else
+						event->effect = strdup(token);
 				}
 			}
 			else if (!strcmp(key, "startChannel"))
@@ -140,7 +153,16 @@ FPPevent* LoadEvent(char *id)
 			else if (!strcmp(key, "script"))
 			{
 				if (strlen(token))
-					event->script = strdup(token);
+				{
+					if (token[0] == '\'')
+					{
+						event->script = strdup(token + 1);
+						if (event->script[strlen(event->script) - 1] == '\'')
+							event->script[strlen(event->script) - 1] = '\0';
+					}
+					else
+						event->script = strdup(token);
+				}
 			}
 		}
 

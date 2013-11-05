@@ -545,10 +545,10 @@ function SaveEvent()
 	$eventDefinition = sprintf(
 		"majorID=%d\n" .
 		"minorID=%d\n" .
-		"name=%s\n" .
-		"effect=%s\n" .
+		"name='%s'\n" .
+		"effect='%s'\n" .
 		"startChannel=%s\n" .
-		"script=%s\n",
+		"script='%s'\n",
 		$ids[0], $ids[1], $name,
 		$eseq, $_GET['startChannel'], $_GET['script']);
 	fwrite($f, $eventDefinition);
