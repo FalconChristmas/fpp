@@ -1901,7 +1901,7 @@ function GetFPPDmode()
 
 function GetGitOriginLog()
 {
-	$('#logText').html("Loading...");
+	$('#logText').html("Loading list of changes from github.");
 	$('#logText').load("fppxml.php?command=getGitOriginLog");
 	$('#logViewer').dialog({ height: 600, width: 800, title: "Git Changes" });
 	$('#logViewer').dialog( "moveToTop" );

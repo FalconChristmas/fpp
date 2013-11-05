@@ -7,7 +7,7 @@ BINDIR=$(dirname $0)
 GITBRANCH=$(cd ${FPPDIR} && git branch | grep "^\*" | sed -e "s/\*\s//")
 
 echo "Git changes between current checkout and repository"
-echo "====================================================================="
+echo "==============================================================================="
 if [ "x${FPPDIR}" = "x/opt/fpp" ]
 then
 	cd ${FPPDIR} && sudo git log --oneline HEAD..origin/${GITBRANCH}
