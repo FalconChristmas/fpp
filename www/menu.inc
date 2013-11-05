@@ -53,7 +53,7 @@ if ( $return_val != 0 )
       </li>
       <li><a href="#">Help</a>
         <ul>
-          <li><a href="http://falconchristmas.com/wiki/index.php/Falcon_FPP">Wiki/Help</a></li>
+          <li><a href="http://falconchristmas.com/wiki/index.php/Falcon_FPP" target="_blank">Wiki/Help</a></li>
           <li><a href="about.php">About</a></li>
         </ul>
       </li>
