@@ -227,7 +227,13 @@ a:visited {
     echo " <font color='#FF0000'>(Update is available)</font>";
 ?>
                 </td></tr>
-            <tr><td>Remote Git Version:</td><td><? echo $git_remote_version; ?></td></tr>
+            <tr><td>Remote Git Version:</td><td>
+<?
+  echo $git_remote_version;
+  if (($git_remote_version != "") && ($git_version != $git_remote_version))
+    echo " <font color='#FF0000'><a href='javascript:void(0);' onClick='GetGitOriginLog();'>Preview Change Log</a></font>";
+?>
+                </td></tr>
             <tr><td>Disable Auto Update:</td><td><input type='checkbox' id='autoUpdateDisabled' onChange='ToggleAutoUpdate();'
 <? if (file_exists("/home/pi/media/.auto_update_disabled")) { ?>
             checked
@@ -299,6 +305,12 @@ a:visited {
       </div>
     </div>
     </fieldset>
+    <div id='logViewer' title='Log Viewer' style="display: none">
+      <pre>
+        <div id='logText'>
+        </div>
+      </pre>
+    </div>
   </div>
 </div>
   <?php include 'common/footer.inc'; ?>

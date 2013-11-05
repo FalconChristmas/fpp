@@ -1899,6 +1899,14 @@ function GetFPPDmode()
 		xmlhttp.send();
 }
 
+function GetGitOriginLog()
+{
+	$('#logText').html("Loading...");
+	$('#logText').load("fppxml.php?command=getGitOriginLog");
+	$('#logViewer').dialog({ height: 600, width: 800, title: "Git Changes" });
+	$('#logViewer').dialog( "moveToTop" );
+}
+
 function ViewLog()
 {
 	$('#logText').load("fppxml.php?command=getLog&filename=" + LogFileSelected);

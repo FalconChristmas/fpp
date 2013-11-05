@@ -1,0 +1,17 @@
+#!/bin/sh
+
+BINDIR=$(dirname $0)
+
+. ${BINDIR}/common
+
+GITBRANCH=$(cd ${FPPDIR} && git branch | grep "^\*" | sed -e "s/\*\s//")
+
+echo "Git changes between current checkout and repository"
+echo "====================================================================="
+if [ "x${FPPDIR}" = "x/opt/fpp" ]
+then
+	cd ${FPPDIR} && sudo git log --oneline HEAD..origin/${GITBRANCH}
+else
+	cd ${FPPDIR} && sudo -u pi git log --oneline HEAD..origin/${GITBRANCH}
+fi
+
