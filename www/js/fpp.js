@@ -516,6 +516,8 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 
 		function ManualGitUpdate()
 		{
+			SetButtonState("#ManualUpdate", "disable");
+
 			var xmlhttp=new XMLHttpRequest();
 			var url = "fppxml.php?command=manualGitUpdate";
 			xmlhttp.open("GET",url,false);

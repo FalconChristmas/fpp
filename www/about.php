@@ -238,7 +238,7 @@ a:visited {
 <? if (file_exists("/home/pi/media/.auto_update_disabled")) { ?>
             checked
 <? } ?>
-              >  <input type='button' value='Manual Update' onClick='ManualGitUpdate();' class='buttons'></td></tr>
+              >  <input type='button' value='Manual Update' onClick='ManualGitUpdate();' class='buttons' id='ManualUpdate'></td></tr>
 <!--
             <tr><td>Developer Mode:</td><td><input type='checkbox' id='developerMode' onChange='ToggleDeveloperMode();'
 <? if (file_exists("/home/pi/media/.developer_mode")) { ?>
