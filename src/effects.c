@@ -247,15 +247,12 @@ int OverlayEffect(int effectID, char *channelData)
 	bytesRead = fread(fileData, 1, e->stepSize, e->fp);
 	if (bytesRead == 0)
 	{
+		LogWrite("Effect %s finished\n", e->name);
 		fclose(e->fp);
 		free(e->name);
 		free(e);
 		effects[effectID] = NULL;
 		effectCount--;
-
-		// Can't use IsEffectRunning here since it wants the lock
-		if ((effectCount == 0) && !IsSequenceRunning())
-			SendBlankingData();
 
 		return 0;
 	}
@@ -271,6 +268,7 @@ int OverlayEffect(int effectID, char *channelData)
 int OverlayEffects(char *channelData)
 {
 	int  i;
+	int  dataRead = 0;
 
 	pthread_mutex_lock(&effectsLock);
 
@@ -283,10 +281,13 @@ int OverlayEffects(char *channelData)
 	for (i = 0; i < MAX_EFFECTS; i++)
 	{
 		if (effects[i])
-			OverlayEffect(i, channelData);
+			dataRead |= OverlayEffect(i, channelData);
 	}
 
 	pthread_mutex_unlock(&effectsLock);
+
+	if ((dataRead == 0) && (!IsEffectRunning()) && (!IsSequenceRunning()))
+		SendBlankingData();
 
 	return 1;
 }
