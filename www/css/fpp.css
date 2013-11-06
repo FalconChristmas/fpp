@@ -138,6 +138,11 @@
 	width: 200px;
 }
 
+.ui-front
+{
+	z-index: 1001;
+}
+
 #fppMenu ul li
 {
 	width: 25%;
