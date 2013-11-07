@@ -24,7 +24,7 @@
 
 <title>Falcon PI Player - Events</title>
 </head>
-<body onLoad="GetFPPDmode();StatusPopulatePlaylists();setInterval(updateFPPStatus,1000);GetVolume();">
+<body onLoad="GetFPPDmode();StatusPopulatePlaylists();setInterval(updateFPPStatus,1000);">
 <div id="bodyWrapper">
 <?php
 	include 'menu.inc';
@@ -207,10 +207,10 @@
 				<table width="100%">
 					<tr><td width="20%">Event ID (Major/Minor):</td><td width="80%"><select id='newEventID'><? PrintEventIDoptions(); ?></select></td></tr>
 					<tr><td width="20%">Event Name:</td><td width="80%"><input id="newEventName" class="default-value" type="text" value="" size="30" maxlength="60" /></td></tr>
-					<tr><td width="20%">Effect Sequence:</td><td width="80%"><select id="newEventEffect">
+					<tr><td width="20%">Effect Sequence:</td><td width="80%"><div style="float: left"><select id="newEventEffect" onChange="NewEventEffectChanged();">
 							<option value=''>--- NONE ---</option>
 <? PrintEffectOptions(); ?>
-</select>  Start Channel: <input id="newEventStartChannel" class="default-value" type="text" value="" size="5" maxlength="5" /></td></tr>
+</select></div><div id='newEventStartChannelWrapper' style='display: none; float: left; margin-left:10px;'>Effect Start Channel: <input id="newEventStartChannel" class="default-value" type="text" value="" size="5" maxlength="5" /></div></td></tr>
 					<tr><td width="20%">Event Script:</td><td width="80%"><select id="newEventScript">
 							<option value=''>--- NONE ---</option>
 <? PrintScriptOptions(); ?>

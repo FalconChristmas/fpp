@@ -526,7 +526,10 @@ function SaveEvent()
 {
 	global $eventDirectory;
 
-	$ids = preg_split('/_/', $_GET['id']);
+	$id = $_GET['id'];
+	check($id);
+
+	$ids = preg_split('/_/', $id);
 
 	if (count($ids) < 2)
 		return;

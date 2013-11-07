@@ -522,9 +522,11 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			var url = "fppxml.php?command=manualGitUpdate";
 			xmlhttp.open("GET",url,false);
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+			xmlhttp.onreadystatechange = function () {
+				if (xmlhttp.readyState == 4)
+					location.reload(true);
+			}
 			xmlhttp.send();
-
-			location.reload(true);
 		}
 
 		function ChangeGitBranch(newBranch)
@@ -533,9 +535,11 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			var url = "fppxml.php?command=changeGitBranch&branch=" + newBranch;
 			xmlhttp.open("GET",url,false);
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+			xmlhttp.onreadystatechange = function () {
+				if (xmlhttp.readyState == 4)
+					location.reload(true);
+			}
 			xmlhttp.send();
-
-			location.reload(true);
 		}
 	
 		function SetAutoUpdate(enabled)
@@ -544,9 +548,11 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			var url = "fppxml.php?command=setAutoUpdate&enabled=" + enabled;
 			xmlhttp.open("GET",url,false);
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+			xmlhttp.onreadystatechange = function () {
+				if (xmlhttp.readyState == 4)
+					location.reload(true);
+			}
 			xmlhttp.send();
-
-			location.reload(true);
 		}
 	
 		function SetDeveloperMode(enabled)
@@ -555,9 +561,11 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			var url = "fppxml.php?command=setDeveloperMode&enabled=" + enabled;
 			xmlhttp.open("GET",url,false);
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+			xmlhttp.onreadystatechange = function () {
+				if (xmlhttp.readyState == 4)
+					location.reload(true);
+			}
 			xmlhttp.send();
-
-			location.reload(true);
 		}
 	
 		function SelectEntry(index)
@@ -1579,8 +1587,11 @@ function DeleteEffect()
 	var xmlhttp=new XMLHttpRequest();
 	xmlhttp.open("GET",url,true);
 	xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+	xmlhttp.onreadystatechange = function () {
+		if (xmlhttp.readyState == 4)
+			location.reload(true);
+	}
 	xmlhttp.send();
-	location.reload(true);
 }
 
 var gblLastRunningEffectsXML = "";
@@ -1660,6 +1671,14 @@ function GetRunningEffects()
 		$('#newEvent').show();
 	}
 
+	function NewEventEffectChanged()
+	{
+		if ($('#newEventEffect').val() != "")
+			$('#newEventStartChannelWrapper').show();
+		else
+			$('#newEventStartChannelWrapper').hide();
+	}
+
 	function SaveEvent()
 	{
 		var url = "fppxml.php?command=saveEvent&event=" + $('#newEventName').val() +
@@ -1670,9 +1689,11 @@ function GetRunningEffects()
 		var xmlhttp=new XMLHttpRequest();
 		xmlhttp.open("GET",url,true);
 		xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+		xmlhttp.onreadystatechange = function () {
+			if (xmlhttp.readyState == 4)
+				location.reload(true);
+		}
 		xmlhttp.send();
-		$('#newEvent').hide();
-		location.reload(true);
 	}
 
 	function CancelNewEvent()
@@ -1686,8 +1707,11 @@ function GetRunningEffects()
 		var xmlhttp=new XMLHttpRequest();
 		xmlhttp.open("GET",url,true);
 		xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+		xmlhttp.onreadystatechange = function () {
+			if (xmlhttp.readyState == 4)
+				location.reload(true);
+		}
 		xmlhttp.send();
-		location.reload(true);
 	}
 
 	function RebootPi()
