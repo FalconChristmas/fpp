@@ -1548,8 +1548,12 @@ function GetFiles()
 			GetFileInfo($root, $doc, $dirName, $fileName);
 		}
 	}
-	GetFileInfo($root, $doc, "", "/var/log/messages");
-	GetFileInfo($root, $doc, "", "/var/log/syslog");
+
+	if ($_GET['dir'] == "Logs")
+	{
+		GetFileInfo($root, $doc, "", "/var/log/messages");
+		GetFileInfo($root, $doc, "", "/var/log/syslog");
+	}
 	echo $doc->saveHTML();
 }
 
