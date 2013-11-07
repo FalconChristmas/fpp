@@ -57,6 +57,7 @@ require_once('config.php');
           LogFileSelected  = $(this).find('td:first').text();
 		  SetButtonState('#btnViewLog','enable');
 		  SetButtonState('#btnDownloadLog','enable');
+		  SetButtonState('#btnDeleteLog','enable');
     });
 
   });
@@ -206,6 +207,7 @@ h2 {
           <div class='right'>
             <input onclick= "ViewLog();" id="btnViewLog" class="disableButtons" type="button"  value="View" />
             <input onclick= "DownloadLog();" id="btnDownloadLog" class="disableButtons" type="button"  value="Download" />
+            <input onclick= "DeleteLog();" id="btnDeleteLog" class="disableButtons" type="button"  value="Delete" />
           </div>
           <br />
           <font size=-1>FPP logs may be viewed or downloaded for submission with bug reports.</font>

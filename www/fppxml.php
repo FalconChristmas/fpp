@@ -43,6 +43,7 @@ $command_array = Array(
 	"deleteMusic" => 'DeleteMusic',
 	"deleteVideo" => 'DeleteVideo',
 	"deleteScript" => 'DeleteScript',
+	"deleteLog" => 'DeleteLog',
 	"addPlaylistEntry" => 'AddPlayListEntry',
 	"setUniverseCount" => 'SetUniverseCount',
 	"getUniverses" => 'GetUniverses',
@@ -1497,6 +1498,24 @@ function GetMusicFiles()
 
 }
 
+function GetFileInfo(&$root, &$doc, $dirName, $fileName)
+{
+	$fileFullName = $dirName . '/' . $fileName;
+
+	$file = $doc->createElement('File');
+	$file = $root->appendChild($file);
+
+	$name = $doc->createElement('Name');
+	$name = $file->appendChild($name);
+	$value = $doc->createTextNode(utf8_encode($fileName));
+	$value = $name->appendChild($value);
+
+	$time = $doc->createElement('Time');
+	$time = $file->appendChild($time);
+	$value = $doc->createTextNode(date('m/d/y  h:i A', filemtime($fileFullName)));
+	$value = $time->appendChild($value);
+}
+
 function GetFiles()
 {
 	global $mediaDirectory;
@@ -1526,22 +1545,11 @@ function GetFiles()
 	{
 		if($fileName != '.' && $fileName != '..')
 		{
-			$fileFullName = $dirName . '/' . $fileName;
-
-			$file = $doc->createElement('File');
-			$file = $root->appendChild($file);
-
-			$name = $doc->createElement('Name');
-			$name = $file->appendChild($name);
-			$value = $doc->createTextNode(utf8_encode($fileName));
-			$value = $name->appendChild($value);
-
-			$time = $doc->createElement('Time');
-			$time = $file->appendChild($time);
-			$value = $doc->createTextNode(date('m/d/y  h:i A', filemtime($fileFullName)));
-			$value = $time->appendChild($value);
+			GetFileInfo($root, $doc, $dirName, $fileName);
 		}
 	}
+	GetFileInfo($root, $doc, "", "/var/log/messages");
+	GetFileInfo($root, $doc, "", "/var/log/syslog");
 	echo $doc->saveHTML();
 }
 
@@ -1947,6 +1955,22 @@ function DeleteScript()
 	EchoStatusXML('Success');
 }
 
+function DeleteLog()
+{
+	global $logDirectory;
+
+	$name = $_GET['name'];
+	check($name);
+
+	if (substr($name, 0, 1) != "/")
+	{
+		unlink($logDirectory . $name);
+		EchoStatusXML('Success');
+	}
+	else
+		EchoStatusXML('Failure');
+}
+
 
 function DeleteEntry()
 {
@@ -1995,9 +2019,19 @@ function GetLog()
 	check($filename);
 
 	header('Content-type: text/plain');
-	header('Content-disposition: attachment;filename=' . $filename);
 
-	$f=fopen($logDirectory . $filename,"r");
+	if (substr($filename, 0, 9) == "/var/log/")
+	{
+		header('Content-disposition: attachment;filename=' .
+			basename($filename));
+		$f = fopen($filename,"r");
+	}
+	else
+	{
+		header('Content-disposition: attachment;filename=' . $filename);
+		$f = fopen($logDirectory . $filename,"r");
+	}
+
 	if($f == FALSE)
 	{
 		die();

@@ -1920,3 +1920,26 @@ function DownloadLog()
 {
 	location.href="fppxml.php?command=getLog&filename=" + LogFileSelected;
 }
+
+function DeleteLog()
+{
+	if (LogFileSelected.substring(0,1) == "/")
+	{
+		alert("You can not delete system logs");
+		return;
+	}
+
+	var xmlhttp=new XMLHttpRequest();
+	var url = "fppxml.php?command=deleteLog&name=" + LogFileSelected;
+	xmlhttp.open("GET",url,false);
+	xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+	 
+	xmlhttp.onreadystatechange = function () {
+		if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
+		{
+			GetFiles('Logs');
+		}
+	};
+	xmlhttp.send();
+}
+
