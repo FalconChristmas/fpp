@@ -253,7 +253,7 @@ extern PlaylistDetails playlistDetails;
 				LogWrite("Sending Pixelnet DMX info\n");
 				SendPixelnetDMXConfig();
 		}
-		else if (!strcmp(CommandStr, "W"))
+		else if (!strcmp(CommandStr, "r"))
 		{
 				WriteBytesReceivedFile();
 				sprintf(response,"true\n");
