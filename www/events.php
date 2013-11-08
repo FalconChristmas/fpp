@@ -6,12 +6,15 @@
 <script src="http://code.jquery.com/jquery-1.9.1.js"></script>
 <script src="http://code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
 <script>
+		var TriggerEventSelected = "";
+		var TriggerEventID = "";
 		$(function() {
 		$('#tblEventEntries').on('mousedown', 'tr', function(event,ui){
 					$('#tblEventEntries tr').removeClass('eventSelectedEntry');
 					$(this).addClass('eventSelectedEntry');
 					var items = $('#tblEventEntries tr');
 					TriggerEventSelected = $(this).find('td:eq(0)').text().replace(' \/ ', '_');
+					TriggerEventID = $(this).attr('id');
 					SetButtonState('#btnTriggerEvent','enable');
 					SetButtonState('#btnEditEvent','enable');
 					SetButtonState('#btnDeleteEvent','enable');

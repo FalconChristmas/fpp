@@ -1665,10 +1665,12 @@ function GetRunningEffects()
 		}
 
 		$('#newEventName').val($('#event_' + TriggerEventSelected).find('td:eq(1)').text());
-		$('#newEventEffect').val($('#event_' + TriggerEventSelected).find('td:eq(2)').text());
-		$('#newEventStartChannel').val($('#event_' + TriggerEventSelected).find('td:eq(3)').text());
-		$('#newEventScript').val($('#event_' + TriggerEventSelected).find('td:eq(4)').text());
+		$('#newEventScript').val($('#event_' + TriggerEventSelected).find('td:eq(2)').text());
+		$('#newEventEffect').val($('#event_' + TriggerEventSelected).find('td:eq(3)').text());
+		$('#newEventStartChannel').val($('#event_' + TriggerEventSelected).find('td:eq(4)').text());
 		$('#newEvent').show();
+
+		NewEventEffectChanged();
 	}
 
 	function NewEventEffectChanged()
@@ -1677,6 +1679,30 @@ function GetRunningEffects()
 			$('#newEventStartChannelWrapper').show();
 		else
 			$('#newEventStartChannelWrapper').hide();
+	}
+
+	function InsertNewEvent(name, id, effect, startChannel, script)
+	{
+		var idStr = id.replace('_', ' / ');
+		$('#tblEventEntries').append(
+		"<tr id='event_" + id + "'><td class='eventTblID'>" + idStr +
+            "</td><td class='eventTblName'>" + name +
+            "</td><td class='eventTblScript'>" + script +
+            "</td><td class='eventTblEffect'>" + effect +
+            "</td><td class='eventTblStartCh'>" + startChannel +
+            "</td></tr>"
+		);
+	}
+
+	function UpdateExistingEvent(name, id, effect, startChannel, script)
+	{
+		var idStr = id.replace('_', ' / ');
+		var row = $('#tblEventEntries tr#event_' + id);
+		row.find('td:eq(0)').text(idStr);
+		row.find('td:eq(1)').text(name);
+		row.find('td:eq(2)').text(script);
+		row.find('td:eq(3)').text(effect);
+		row.find('td:eq(4)').text(startChannel);
 	}
 
 	function SaveEvent()
@@ -1690,8 +1716,24 @@ function GetRunningEffects()
 		xmlhttp.open("GET",url,true);
 		xmlhttp.setRequestHeader('Content-Type', 'text/xml');
 		xmlhttp.onreadystatechange = function () {
-			if (xmlhttp.readyState == 4)
-				location.reload(true);
+			if (xmlhttp.readyState == 4 && xmlhttp.status==200)
+			{
+				if ($('#tblEventEntries tr#event_' + $('#newEventID').val()).attr('id'))
+				{
+					UpdateExistingEvent($('#newEventName').val(), $('#newEventID').val(),
+						$('#newEventEffect').val(), $('#newEventStartChannel').val(),
+						$('#newEventScript').val());
+				}
+				else
+				{
+					InsertNewEvent($('#newEventName').val(), $('#newEventID').val(),
+						$('#newEventEffect').val(), $('#newEventStartChannel').val(),
+						$('#newEventScript').val());
+				}
+				SetButtonState('#btnTriggerEvent','disable');
+				SetButtonState('#btnEditEvent','disable');
+				SetButtonState('#btnDeleteEvent','disable');
+			}
 		}
 		xmlhttp.send();
 	}
@@ -1703,13 +1745,21 @@ function GetRunningEffects()
 
 	function DeleteEvent()
 	{
+		if (TriggerEventSelected == "")
+			return;
+
 		var url = "fppxml.php?command=deleteEvent&id=" + TriggerEventSelected;
 		var xmlhttp=new XMLHttpRequest();
 		xmlhttp.open("GET",url,true);
 		xmlhttp.setRequestHeader('Content-Type', 'text/xml');
 		xmlhttp.onreadystatechange = function () {
-			if (xmlhttp.readyState == 4)
-				location.reload(true);
+			if (xmlhttp.readyState == 4 && xmlhttp.status==200)
+			{
+				$('#tblEventEntries tr#' + TriggerEventID).remove();
+				SetButtonState('#btnTriggerEvent','disable');
+				SetButtonState('#btnEditEvent','disable');
+				SetButtonState('#btnDeleteEvent','disable');
+			}
 		}
 		xmlhttp.send();
 	}
