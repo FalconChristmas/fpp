@@ -4,13 +4,6 @@
 define('CONFIG_FILE', '/home/pi/media/settings');
 define('SUDO', 'sudo');
 
-$fd = @fopen(CONFIG_FILE, "r");
-if ( ! $fd )
-{
-  error_log("Couldn't open config file " . CONFIG_FILE);
-  die("Couldn't open config file " . CONFIG_FILE);
-}
-
 // Set some defaults
 $fppMode = "player";
 $settingsFile = CONFIG_FILE;
@@ -38,6 +31,13 @@ if (defined('debug'))
 	error_log("schedule: $scheduleFile");
 	error_log("bytes: $bytesFile");
 	error_log("volume: $volume");
+}
+
+$fd = @fopen(CONFIG_FILE, "r");
+if ( ! $fd )
+{
+  error_log("Couldn't open config file " . CONFIG_FILE);
+  return(1);
 }
 
 do
