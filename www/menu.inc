@@ -1,5 +1,7 @@
 <?php
 
+$kernel_version = exec("uname -r");
+
 $fpp_version = "v" . exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ describe", $output, $return_val);
 if ( $return_val != 0 ) 
 	$fpp_version = "Unknown";
@@ -48,7 +50,9 @@ unset($output);
         <ul>
           <li><a href="universes.php">E1.31 Universes</a></li>
           <li><a href="pixelnetdmx.php">FPD - Pixelnet/DMX</a></li>
+<? if ($kernel_version != "3.6.11-atsw-rtc+") { ?>
           <li><a href="usbdongle.php">USB Dongle</a></li>
+<? } ?>
           <!-- <li><a href="rds.php">Radio RDS</a></li> -->
         </ul>
       </li>
