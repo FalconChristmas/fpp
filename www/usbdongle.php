@@ -65,7 +65,13 @@ function PrintUSBSerialPortOptions()
 <input type=submit value='Submit' onClick='SaveUSBDongleSettings();'>
 
 <hr>
-<font size=-1>* The DMX dongle support should be compatible with Entec Pro, Lynx DMX, DIYC RPM, DMXking.com, and DIYblinky.com dongles using a universe size of up to 512 channels.  The Pixelnet dongle support is compatible with the Lynx USB dongle using up to 4096 channels.  Currently only one dongle is supported at a time and it always outputs the first DMX universe in the channel data.</font>
+<font size=-1>
+* The DMX dongle support should be compatible with Entec Pro, Lynx DMX,
+DIYC RPM, DMXking.com, and DIYblinky.com dongles using a universe size of
+up to 512 channels.  The Pixelnet dongle support is compatible with the
+Lynx Pixelnet USB dongle using up to 4096 channels.  Currently only one
+dongle is supported at a time and FPP always outputs the first universe
+in the channel data.</font>
 </fieldset>
 </div>
 
