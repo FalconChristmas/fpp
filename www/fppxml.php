@@ -80,7 +80,8 @@ $command_array = Array(
 	"triggerEvent" => 'TriggerEvent',
 	"saveEvent" => 'SaveEvent',
 	"deleteEvent" => 'DeleteEvent',
-	"getLog" => 'GetLog'
+	"getLog" => 'GetLog',
+	"saveUSBDongle" => 'SaveUSBDongle'
 );
 
 if (!isset($nonXML[$_GET['command']]))
@@ -2050,6 +2051,18 @@ function GetLog()
 		echo $line;
 	}
 	fclose($f);
+}
+
+function SaveUSBDongle()
+{
+	$usbDonglePort = $_GET['port'];
+	check($usbDonglePort);
+
+	$usbDongleType = $_GET['type'];
+	check($usbDongleType);
+
+	WriteSettingToFile("USBDonglePort", $usbDonglePort);
+	WriteSettingToFile("USBDongleType", $usbDongleType);
 }
 
 ?>

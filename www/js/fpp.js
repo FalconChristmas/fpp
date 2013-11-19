@@ -2009,9 +2009,29 @@ function DeleteLog()
 	xmlhttp.setRequestHeader('Content-Type', 'text/xml');
 	 
 	xmlhttp.onreadystatechange = function () {
-		if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
+		if (xmlhttp.readyState == 4 && xmlhttp.status==200)
 		{
 			GetFiles('Logs');
+		}
+	};
+	xmlhttp.send();
+}
+
+function SaveUSBDongleSettings()
+{
+	var usbDonglePort = $('#USBDonglePort').val();
+	var usbDongleType = $('#USBDongleType').val();
+
+	var xmlhttp=new XMLHttpRequest();
+	var url = "fppxml.php?command=saveUSBDongle&port=" + usbDonglePort +
+				"&type=" + usbDongleType;
+	xmlhttp.open("GET",url,false);
+	xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+
+	xmlhttp.onreadystatechange = function () {
+		if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
+		{
+			alert("You must restart FPPD for changes to take effect.");
 		}
 	};
 	xmlhttp.send();

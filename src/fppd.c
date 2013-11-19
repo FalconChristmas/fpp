@@ -7,6 +7,7 @@
 #include "ogg123.h"
 #include "schedule.h"
 #include "pixelnetDMX.h"
+#include "USBdongle.h"
 #include "e131bridge.h"
 #include "settings.h"
 #include "effects.h"
@@ -52,8 +53,13 @@ int main(int argc, char *argv[])
 
 	if (getFPPmode() == PLAYER_MODE)
 	{
+		InitializeUSBDongle();
+		SendBlankingData();
+
 		LogWrite("Starting Player Process\n");
 		PlayerProcess();
+
+		ShutdownUSBDongle();
 	}
 	else if (getFPPmode() == BRIDGE_MODE)
 	{

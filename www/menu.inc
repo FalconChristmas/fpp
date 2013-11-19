@@ -48,6 +48,7 @@ unset($output);
         <ul>
           <li><a href="universes.php">E1.31 Universes</a></li>
           <li><a href="pixelnetdmx.php">FPD - Pixelnet/DMX</a></li>
+          <li><a href="usbdongle.php">USB Dongle</a></li>
           <!-- <li><a href="rds.php">Radio RDS</a></li> -->
         </ul>
       </li>

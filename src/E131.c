@@ -6,6 +6,9 @@
 #include "lightthread.h"
 
 #include "ogg123.h"
+#include "pixelnetDMX.h"
+#include "USBdongle.h"
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -91,7 +94,6 @@ void E131_Initialize()
 		E131_InitializeNetwork();
 		free(E131LocalAddress);
 	}
-	SendBlankingData();
 }
 
 char * GetE131LocalAddressFromInterface()
@@ -310,6 +312,9 @@ void E131_Send()
 	}
 	// Send data to pixelnet board
 	E131_SendPixelnetDMXdata();
+
+	if (IsUSBDongleActive())
+		SendUSBDongle();
 }
 
 void E131_SendPixelnetDMXdata()

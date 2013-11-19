@@ -1,4 +1,6 @@
 <?php 
+require_once("config.php");
+
 function ReadSettingFromFile($settingName)
 {
 	global $settingsFile;

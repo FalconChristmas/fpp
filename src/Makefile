@@ -24,6 +24,7 @@ OBJECTS_fppd = \
 	events.o \
 	lightthread.o \
 	video.o \
+	USBdongle.o \
 	$(NULL)
 LIBS_fppd = \
 	-lpthread \
