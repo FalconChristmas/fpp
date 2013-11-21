@@ -31,6 +31,8 @@ void initSettings(void)
 	settings.settingsFile = strdup("/home/pi/media/settings");
   settings.daemonize = 1;
   settings.E131interface = strdup("eth0");
+	settings.controlMajor = 0;
+	settings.controlMinor = 0;
 }
 
 // Returns a string that's the white-space trimmed version
