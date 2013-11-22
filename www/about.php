@@ -250,7 +250,7 @@ a:visited {
             <tr><td>FPP OS Build:</td><td><? echo $os_build; ?></td></tr>
             <tr><td>OS Version:</td><td><? echo $os_version; ?></td></tr>
             <tr><td>Kernel Version:</td><td><? echo $kernel_version; ?></td></tr>
-<? if (file_exists("/home/pi/media/.developer_mode")) { ?>
+<? if (file_exists($mediaDirectory."/.developer_mode")) { ?>
             <tr><td>Git Branch:</td><td><select id='gitBranch' onChange="ChangeGitBranch($('#gitBranch').val());">
 <? PrintGitBranchOptions(); ?>
                 </select></td></tr>
@@ -276,13 +276,13 @@ a:visited {
 ?>
                 </td></tr>
             <tr><td>Disable Auto Update:</td><td><input type='checkbox' id='autoUpdateDisabled' onChange='ToggleAutoUpdate();'
-<? if (file_exists("/home/pi/media/.auto_update_disabled")) { ?>
+<? if (file_exists($mediaDirectory."/.auto_update_disabled")) { ?>
             checked
 <? } ?>
               >  <input type='button' value='Manual Update' onClick='ManualGitUpdate();' class='buttons' id='ManualUpdate'></td></tr>
 <!--
             <tr><td>Developer Mode:</td><td><input type='checkbox' id='developerMode' onChange='ToggleDeveloperMode();'
-<? if (file_exists("/home/pi/media/.developer_mode")) { ?>
+<? if (file_exists($mediaDirectory."/.developer_mode")) { ?>
             checked
 <? } ?>
               ></td></tr>
@@ -316,8 +316,8 @@ a:visited {
               </td></tr>
             <tr><td>Media Free Space:</td><td>
 <?
-  $diskTotal = disk_total_space("/home/pi/media");
-  $diskFree  = disk_free_space("/home/pi/media");
+  $diskTotal = disk_total_space($mediaDirectory);
+  $diskFree  = disk_free_space($mediaDirectory);
   printf( "%s (%2.0f%%)\n", getSymbolByQuantity($diskFree), $diskFree * 100 / $diskTotal);
 ?>
               </td></tr>
