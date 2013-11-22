@@ -1,0 +1,30 @@
+#!/bin/sh
+
+BINDIR=$(dirname $0)
+. ${BINDIR}/common
+
+if [ "x$1" = "x" ]
+then
+	echo "USAGE: $0 PLUGINNAME"
+	exit 1
+fi
+
+logOutput
+
+function die()
+{
+	echo $*
+	exit 1
+}
+
+echo "Uninstalling plugin $1"
+if [ "x${FPPDIR}" = "x/opt/fpp" ]
+then
+	cd ${FPPDIR}/plugins && [ -d $1 ] && sudo rm -rf $1
+elif [ "x${FPPDIR}" = "x/home/pi" ]
+then
+	cd ${FPPDIR}/plugins && [ -d $1 ] && sudo -u pi rm -rf $1
+else
+	cd ${FPPDIR}/plugins && [ -d $1 ] && rm -rf $1
+fi
+

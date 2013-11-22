@@ -88,6 +88,9 @@ $command_array = Array(
 	"saveUSBDongle" => 'SaveUSBDongle',
 	"getInterfaceInfo" => 'GetInterfaceInfo',
 	"setPiLCDenabled" => 'SetPiLCDenabled'
+	"updatePlugin" => 'UpdatePlugin',
+	"uninstallPlugin" => 'UninstallPlugin',
+	"installPlugin" => 'InstallPlugin',
 );
 
 if (isset($_GET['command']) && !isset($nonXML[$_GET['command']]))
@@ -2118,6 +2121,112 @@ function GetInterfaceInfo()
 
    
 	echo $doc->saveHTML();
+}
+
+function UpdatePlugin()
+{
+	$plugin = $_GET['plugin'];
+	check($plugin);
+
+	global $pluginDirectory, $scriptDirectory;
+
+	if ( !file_exists("$pluginDirectory/$plugin") )
+	{
+		EchoStatusXML('Failure');
+		return;
+	}
+
+	if ( file_exists("$pluginDirectory/$plugin/fpp_uninstall.sh") )
+	{
+		exec("$pluginDirectory/$plugin/fpp_uninstall.sh", $output, $return_val);
+		unset($output);
+		if ( $return_val != 0 )
+		{
+			EchoStatusXML('Failure');
+			return;
+		}
+	}
+	
+	exec("$scriptDirectory/uninstallPlugin $plugin");
+
+	require_once("pluginData.inc.php");
+
+	foreach ($plugins as $available_plugin)
+	{
+		if ( $available_plugin['shortName'] == $plugin )
+		{
+			exec("$scriptDirectory/installPlugin $plugin \"" . $available_plugin['sourceUrl'] . "\"", $output, $return_val);
+			unset($output);
+			if ( $return_val != 0 )
+			{
+				EchoStatusXML('Failure');
+				return;
+			}
+			}
+	}
+
+	EchoStatusXML('Failure');
+	//EchoStatusXML('Success');
+}
+
+function UninstallPlugin()
+{
+	$plugin = $_GET['plugin'];
+	check($plugin);
+
+	global $fppDir, $pluginDirectory;
+
+	if ( !file_exists("$pluginDirectory/$plugin") )
+	{
+		EchoStatusXML('Failure');
+		return;
+	}
+
+	if ( file_exists("$pluginDirectory/$plugin/fpp_uninstall.sh") )
+	{
+		exec("$pluginDirectory/$plugin/fpp_uninstall.sh", $output, $return_val);
+		unset ($output);
+		if ( $return_val != 0 )
+		{
+			EchoStatusXML('Failure');
+			return;
+		}
+	}
+
+	exec("$fppDir/scripts/uninstall_plugin $plugin", $output, $return_val);
+	unset($output);
+	if ( $return_val != 0 )
+	{
+		EchoStatusXML('Failure');
+		return;
+	}
+
+	EchoStatusXML('Success');
+}
+
+function InstallPlugin()
+{
+	$plugin = $_GET['plugin'];
+	check($plugin);
+
+	global $fppDir;
+
+	require_once("pluginData.inc.php");
+
+	foreach ($plugins as $available_plugin)
+	{
+		if ( $available_plugin['shortName'] == $plugin )
+		{
+			exec("$fppDir/scripts/install_plugin $plugin \"" . $available_plugin['sourceUrl'] . "\"", $output, $return_val);
+			unset($output);
+			if ( $return_val != 0 )
+			{
+				EchoStatusXML('Failure');
+				return;
+			}
+		}
+	}
+	EchoStatusXML('Success');
 }
 
 ?>

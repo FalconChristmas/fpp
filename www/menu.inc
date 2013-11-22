@@ -67,6 +67,7 @@ if ( $handle )
           <li><a href="playlists.php">Playlists</a></li>
           <li><a href="scheduler.php">Scheduler</a></li>
           <!-- <li><a href="video.php">Videos</a></li> -->
+		  <li><a href="plugins.php">Plugins</a></li>
 <?php
 $handle = opendir($pluginDirectory);
 if ( $handle )

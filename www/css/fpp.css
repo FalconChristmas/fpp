@@ -657,3 +657,26 @@ pre
 	background: #ddd;
 }
 
+.button
+{
+	border: 1px solid #a0a0a0;
+	padding: 2px;
+	margin: 2px;
+	background: #ccc;
+	-webkit-border-radius: 3px;
+	-moz-border-radius: 3px;
+	border-radius: 3px;
+}
+
+.button:hover
+{
+	cursor:pointer;
+}
+
+.pluginTitle
+{
+	font-weight: bold;
+	font-size: 1.1em;
+	font-family: Arial, Helvetica, sans-serif;
+}
+

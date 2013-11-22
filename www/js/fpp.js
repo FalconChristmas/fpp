@@ -516,6 +516,45 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			CheckFirstLastOptions();
 		}
 
+		function updatePlugin(pluginName)
+		{
+			var xmlhttp=new XMLHttpRequest();
+			var url = "fppxml.php?command=updatePlugin&plugin=" + pluginName;
+			xmlhttp.open("GET",url,false);
+			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+			xmlhttp.onreadystatechange = function () {
+				if (xmlhttp.readyState == 4)
+					location.reload(true);
+			}
+			xmlhttp.send();
+		}
+
+		function uninstallPlugin(pluginName)
+		{
+			var xmlhttp=new XMLHttpRequest();
+			var url = "fppxml.php?command=uninstallPlugin&plugin=" + pluginName;
+			xmlhttp.open("GET",url,false);
+			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+			xmlhttp.onreadystatechange = function () {
+				if (xmlhttp.readyState == 4)
+					location.reload(true);
+			}
+			xmlhttp.send();
+		}
+
+		function installPlugin(pluginName)
+		{
+			var xmlhttp=new XMLHttpRequest();
+			var url = "fppxml.php?command=installPlugin&plugin=" + pluginName;
+			xmlhttp.open("GET",url,false);
+			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+			xmlhttp.onreadystatechange = function () {
+				if (xmlhttp.readyState == 4)
+					location.reload(true);
+			}
+			xmlhttp.send();
+		}
+
 		function ManualGitUpdate()
 		{
 			SetButtonState("#ManualUpdate", "disable");
