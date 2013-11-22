@@ -24,6 +24,7 @@ OBJECTS_fppd = \
 	events.o \
 	lightthread.o \
 	video.o \
+	common.o \
 	$(NULL)
 LIBS_fppd = \
 	-lpthread \

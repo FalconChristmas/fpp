@@ -3,7 +3,7 @@
 $fpp_version = "v" . exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ describe --tags", $output, $return_val);
 if ( $return_val != 0 ) 
 	$fpp_version = "Unknown";
-
+unset($output);
 ?>
 
 <?php require_once(dirname(__FILE__)."/config.php"); ?>
