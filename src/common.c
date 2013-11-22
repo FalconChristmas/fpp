@@ -2,8 +2,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/time.h>
-#include <common.h>
 #include <errno.h>
+#include "common.h"
 
 /*
  * Get the current time down to the microsecond

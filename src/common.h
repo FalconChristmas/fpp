@@ -1,4 +1,4 @@
 #ifndef _COMMON_H
 #define _COMMON_H
-void GetTime();
+long long GetTime(void);
 #endif

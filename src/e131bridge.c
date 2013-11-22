@@ -1,6 +1,7 @@
 #include "e131bridge.h"
 #include "log.h"
 #include "E131.h"
+#include "common.h"
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -142,7 +143,7 @@ void Bridge_InitializeSockets()
 		}
     if(dataReceived)
     {
-      if(GetTime() - receiveTime > MAX_RECEIVE_TIME || (universe == universes[UniverseCount-1].universe))
+      if(GetTime() - receiveTime > MAX_TIME_BETWEEN_RECEIVE || (universe == universes[UniverseCount-1].universe))
       {
           SendPixelData = 1;
       }

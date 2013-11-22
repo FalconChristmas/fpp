@@ -3,8 +3,8 @@
 
 #define  BRIDGE_INVALID_UNIVERSE_INDEX								0xFF
 
-#define MAX_RECEIVE_TIME                              25000
-#define MIN_DELAY_BETWEEN_SENDING_PIXELNET            49000
+#define MAX_TIME_BETWEEN_RECEIVE                              5000
+#define MIN_DELAY_BETWEEN_SENDING_PIXELNET            47000
       
 void Bridge_Initialize();
 void Bridge_InitializeSockets();
