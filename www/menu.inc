@@ -37,9 +37,22 @@ unset($output);
             <li><a href="uipassword.php">Set UI Password</a></li>
             <li><a href="timeconfig.php">Config/Set Time</a></li>
             <li><a href="networkconfig.php">Network</a></li>
-<?php if ( $rds_enabled == true ) { ?>
-            <li><a href="rds.php">RDS</a></li>
-<?php } ?>
+<?php
+$handle = opendir($pluginDirectory);
+if ( $handle )
+{
+	while (($file = readdir($handle)) !== false)
+	{
+		if (!in_array($file, array('.', '..')))
+		{
+			if ( file_exists($pluginDirectory."/".$file."/status_menu.inc") )
+			{
+				-include_once($pluginDirectory."/".$file."/status_menu.inc");
+			}
+		}
+	}
+}
+?>
             <li><a href="settings.php">FPP Settings</a></li>
           </div>
           <li><a href="events.php">Events</a></li>
@@ -54,6 +67,22 @@ unset($output);
           <li><a href="playlists.php">Playlists</a></li>
           <li><a href="scheduler.php">Scheduler</a></li>
           <!-- <li><a href="video.php">Videos</a></li> -->
+<?php
+$handle = opendir($pluginDirectory);
+if ( $handle )
+{
+	while (($file = readdir($handle)) !== false)
+	{
+		if (!in_array($file, array('.', '..')))
+		{
+			if ( file_exists($pluginDirectory."/".$file."/content_menu.inc") )
+			{
+				-include_once($pluginDirectory."/".$file."/content_menu.inc");
+			}
+		}
+	}
+}
+?>
         </ul>
       </li>
       <li id='outputMenu'><a href="#">Output Setup</a>
@@ -61,12 +90,22 @@ unset($output);
           <li><a href="channeloutputs.php">Channel Outputs</a></li>
           <li><a href="channelremaps.php">Remap Channels</a></li>
           <li><a href="channelmemorymaps.php">Memory Mapped Channel Blocks</a></li>
-<!-- old screens
-          <li><a href="universes.php">E1.31 Universes</a></li>
-          <li><a href="pixelnetdmx.php">FPD - Pixelnet/DMX</a></li>
-          <li><a href="usbdongle.php">USB Dongle</a></li>
--->
-          <!-- <li><a href="rds.php">Radio RDS</a></li> -->
+<?php
+$handle = opendir($pluginDirectory);
+if ( $handle )
+{
+	while (($file = readdir($handle)) !== false)
+	{
+		if (!in_array($file, array('.', '..')))
+		{
+			if ( file_exists($pluginDirectory."/".$file."/output_menu.inc") )
+			{
+				-include_once($pluginDirectory."/".$file."/output_menu.inc");
+			}
+		}
+	}
+}
+?>
         </ul>
       </li>
       <li><a href="#">Help</a>
@@ -74,6 +113,22 @@ unset($output);
           <li><a href="http://falconchristmas.com/wiki/index.php/Falcon_FPP" target="_blank">Wiki/Help</a></li>
           <li><a href="about.php">About</a></li>
           <li><a href="credits.php">Credits</a></li>
+<?php
+$handle = opendir($pluginDirectory);
+if ( $handle )
+{
+	while (($file = readdir($handle)) !== false)
+	{
+		if (!in_array($file, array('.', '..')))
+		{
+			if ( file_exists($pluginDirectory."/".$file."/help_menu.inc") )
+			{
+				-include_once($pluginDirectory."/".$file."/help_menu.inc");
+			}
+		}
+	}
+}
+?>
         </ul>
       </li>
     </ul>

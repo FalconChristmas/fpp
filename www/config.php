@@ -23,16 +23,17 @@ function GetSettingValue($setting) {
 $fppMode = "player";
 $fppDir = dirname(dirname(__FILE__));
 $settingsFile = CONFIG_FILE;
-$mediaDirectory    = "/home/pi/media/";
-$musicDirectory    = $mediaDirectory . "/music/";
-$sequenceDirectory = $mediaDirectory . "/sequences/";
-$playlistDirectory = $mediaDirectory . "/playlists/";
-$eventDirectory    = $mediaDirectory . "/events/";
-$videoDirectory    = $mediaDirectory . "/videos/";
-$effectDirectory   = $mediaDirectory . "/effects/";
-$scriptDirectory   = $mediaDirectory . "/scripts/";
-$logDirectory      = $mediaDirectory . "/logs/";
-$uploadDirectory   = $mediaDirectory . "/upload/";
+$pluginDirectory   = "/opt/fpp/plugins";
+$mediaDirectory    = "/home/pi/media";
+$musicDirectory    = $mediaDirectory . "/music";
+$sequenceDirectory = $mediaDirectory . "/sequences";
+$playlistDirectory = $mediaDirectory . "/playlists";
+$eventDirectory    = $mediaDirectory . "/events";
+$videoDirectory    = $mediaDirectory . "/videos";
+$effectDirectory   = $mediaDirectory . "/effects";
+$scriptDirectory   = $mediaDirectory . "/scripts";
+$logDirectory      = $mediaDirectory . "/logs";
+$uploadDirectory   = $mediaDirectory . "/upload";
 $universeFile      = $mediaDirectory . "/universes";
 $pixelnetFile      = $mediaDirectory . "/pixelnetDMX";
 $scheduleFile      = $mediaDirectory . "/schedule";
@@ -55,6 +56,7 @@ if (defined('debug'))
 	error_log("scripts: $scriptDirectory");
 	error_log("logs: $logDirectory");
 	error_log("uploads: $uploadDirectory");
+	error_log("plugins: $pluginDirectory");
 	error_log("universe: $universeFile");
 	error_log("pixelnet: $pixelnetFile");
 	error_log("schedule: $scheduleFile");
@@ -75,6 +77,7 @@ do
 	global $fppMode, $volume, $settingsFile;
 	global $mediaDirectory, $musicDirectory, $sequenceDirectory, $playlistDirectory;
 	global $eventDirectory, $videoDirectory, $scriptDirectory, $logDirectory;
+	global $pluginDirectory;
 	global $universeFile, $pixelnetFile, $scheduleFile, $bytesFile;
 
 	// Parse the file, assuming it exists
@@ -135,6 +138,9 @@ do
 		case "logDirectory":
 			$logDirectory = trim($split[1]) . "/";
 			break;
+		case "pluginDirectory":
+			$pluginDirectory = trim($split[1]) . "/";
+			break;
 		case "scriptDirectory":
 			$scriptDirectory = trim($split[1]) . "/";
 			break;
@@ -151,9 +157,6 @@ do
 			$bytesFile = trim($split[1]);
 			break;
 	}
-
-	global $rds_enabled;
-	$rds_enabled = false;
 }
 while ( $data != NULL );
 
@@ -181,6 +184,7 @@ if (defined('debug'))
 	error_log("scripts: $scriptDirectory");
 	error_log("logs: $logDirectory");
 	error_log("uploads: $uploadDirectory");
+	error_log("plugins: $pluginDirectory");
 	error_log("universe: $universeFile");
 	error_log("pixelnet: $pixelnetFile");
 	error_log("schedule: $scheduleFile");

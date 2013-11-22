@@ -17,3 +17,4 @@ external/rasclock/Module.symvers
 external/rasclock/rtc-pcf2127a.*
 external/rasclock/.rtc-pcf2127a.*
 external/rasclock/.tmp_versions/*
+plugins/

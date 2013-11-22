@@ -638,3 +638,22 @@ fieldset
 	background:#CCC;
 }
 
+.bad
+{
+	font-weight: bold;
+	color: red;
+}
+.good
+{
+	font-weight: bold;
+	color: green;
+}
+
+pre
+{
+	border: 1px solid #000;
+	margin: 30px;
+	padding: 5px;
+	background: #ddd;
+}
+
