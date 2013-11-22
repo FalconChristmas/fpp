@@ -7,6 +7,8 @@
 #include "E131.h"
 #include "log.h"
 #include "ogg123.h"
+#include "common.h"
+
 
 float RefreshRate = 20.00;
 
@@ -15,16 +17,6 @@ int DefaultLightDelay = 0;
 int LightDelay = 0;
 int RunThread = 0;
 int ThreadIsRunning = 0;
-
-/*
- * Get the current time down to the microsecond
- */
-long long GetTime(void)
-{
-	struct timeval now_tv;
-	gettimeofday(&now_tv, NULL);
-	return now_tv.tv_sec * 1000000LL + now_tv.tv_usec;
-}
 
 /*
  * Main loop in lighting thread
