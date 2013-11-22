@@ -321,6 +321,9 @@ function MoveFile()
 		}
 		else if (strpos(strtolower($file),".sh") !== false)
 		{
+			// Attempt to get rid of DOS newlines
+			exec("perl -pi -e 's@\r\n@\n@g' ".$mediaDirectory."/upload/".$file);
+
 			if ( !rename($mediaDirectory."/upload/" . $file, $scriptDirectory . $file) )
 			{
 				error_log("Couldn't move script file");
