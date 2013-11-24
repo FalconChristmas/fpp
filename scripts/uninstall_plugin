@@ -11,11 +11,10 @@ fi
 
 logOutput
 
-die()
-{
-	echo $*
-	exit 1
-}
+if [ -x "${FPPDIR}/plugins/$1/fpp_uninstall.sh" ]
+then
+	sudo ${FPPDIR}/plugins/$1/fpp_uninstall.sh
+fi
 
 echo "Uninstalling plugin $1"
 if [ "x${FPPDIR}" = "x/opt/fpp" ]

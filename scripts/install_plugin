@@ -22,3 +22,8 @@ else
 	cd ${FPPDIR}/plugins && git clone $2 $1
 fi
 
+if [ -x "${FPPDIR}/plugins/$1/fpp_install.sh" ]
+then
+	sudo ${FPPDIR}/plugins/$1/fpp_install.sh
+fi
+
