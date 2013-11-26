@@ -1,7 +1,6 @@
 #include "e131bridge.h"
 #include "log.h"
 #include "E131.h"
-#include "common.h"
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -11,6 +10,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+
+char unicastSocketCreated = 0;
 
 struct sockaddr_in addr;
 int addrlen, sock, cnt;
@@ -22,14 +24,35 @@ char bridgeBuffer[10000];
 char strMulticastGroup[16];
 char BridgeRunning=0;
 
-long long receiveTime=0;
-long long pixelnetDataSentTime=0;
-char dataReceived=0;
-char SendPixelData=0;
-
 extern UniverseEntry universes[MAX_UNIVERSE_COUNT];
 extern int UniverseCount;
 extern char fileData[65536];
+
+	void Bridge_Process()
+	{
+		int universe;
+		Bridge_Initialize();
+    while(BridgeRunning) 
+		{
+		  Commandproc();
+			read_fd_set = active_fd_set;
+			if (select(FD_SETSIZE, &read_fd_set, NULL, NULL, &timeout) < 0)
+      {
+       	LogWrite("Select failed\n");
+       	return;
+      }
+			if (FD_ISSET (sock, &read_fd_set))
+			{
+				cnt = recvfrom(sock, bridgeBuffer, sizeof(bridgeBuffer), 0, (struct sockaddr *) &addr, &addrlen);
+				if (cnt >= 0) 
+				{
+					universe = ((int)bridgeBuffer[E131_UNIVERSE_INDEX] * 256) + bridgeBuffer[E131_UNIVERSE_INDEX+1];
+					Bridge_StoreData(universe);
+				} 
+			}
+	    usleep(250);
+		}
+	}
 
 	void Bridge_Initialize()
 	{
@@ -94,44 +117,7 @@ void Bridge_InitializeSockets()
 
   }
 	
- 	void Bridge_Process()
-	{
-		int universe;
-		Bridge_Initialize();
-    while(BridgeRunning) 
-		{
-		  Commandproc();
-			read_fd_set = active_fd_set;
-			if (select(FD_SETSIZE, &read_fd_set, NULL, NULL, &timeout) < 0)
-      {
-       	LogWrite("Select failed\n");
-       	return;
-      }
-			if (FD_ISSET (sock, &read_fd_set))
-			{
-				cnt = recvfrom(sock, bridgeBuffer, sizeof(bridgeBuffer), 0, (struct sockaddr *) &addr, &addrlen);
-				if (cnt >= 0) 
-				{
-					universe = ((int)bridgeBuffer[E131_UNIVERSE_INDEX] * 256) + bridgeBuffer[E131_UNIVERSE_INDEX+1];
-					Bridge_StoreData(universe);
-				} 
-			}
-      
-   		if(SendPixelData)
-      {
-        if(GetTime() - pixelnetDataSentTime > MIN_DELAY_BETWEEN_SENDING_PIXELNET) 
-        {
-          pixelnetDataSentTime = GetTime();
-          SendPixelnetDMX(0);
-          SendPixelData = 0;
-          dataReceived = 0;
-        }
-      }
-	    usleep(250);
-		}
-	}
-
-  void Bridge_StoreData(int universe)
+	void Bridge_StoreData(int universe)
 	{
 		int universeIndex = Bridge_GetIndexFromUniverseNumber(universe);
 		if(universeIndex!=BRIDGE_INVALID_UNIVERSE_INDEX)
@@ -140,19 +126,15 @@ void Bridge_InitializeSockets()
 			       (void*)(bridgeBuffer+E131_HEADER_LENGTH),
 						  universes[universeIndex].size);
 			universes[universeIndex].bytesReceived+=universes[universeIndex].size;
+			//LogWrite("Storing StartAddress = %d size = %d\n",universes[universeIndex].startAddress,universes[universeIndex].size);
 		}
-    if(dataReceived)
-    {
-      if(GetTime() - receiveTime > MAX_TIME_BETWEEN_RECEIVE || (universe == universes[UniverseCount-1].universe))
-      {
-          SendPixelData = 1;
-      }
-    }
-    dataReceived = 1;
-    receiveTime = GetTime();
+		if(universe == universes[UniverseCount-1].universe)
+//		if(universe == 2)
+		{
+			SendPixelnetDMX(0);
+		}
 	}
 
-  
 	int Bridge_GetIndexFromUniverseNumber(int universe)
 	{	
 		int index;
