@@ -48,10 +48,14 @@ void ScheduleProc()
       {
         LoadNextScheduleInfo();
       }
-			if(Schedule[currentSchedulePlaylist.ScheduleEntryIndex].repeat)
-			{
+// FIXME:
+// Why do we only check to see if we should stop if we were repeating?
+// Commenting out for now to fix several reported issues, but these lines
+// will probably go away after a discussion.
+//			if(Schedule[currentSchedulePlaylist.ScheduleEntryIndex].repeat)
+//			{
 	      PlayListStopCheck();
-			}
+//			}
       break;
     default:
       break;
@@ -291,6 +295,8 @@ void PlayListLoadCheck()
         Schedule[currentSchedulePlaylist.ScheduleEntryIndex].endSecond,
         Schedule[currentSchedulePlaylist.ScheduleEntryIndex].playList,
         currentSchedulePlaylist.endWeeklySeconds - currentSchedulePlaylist.startWeeklySeconds);
+      LogWrite("NowSecs = %d, CurrStartSecs = %d, CurrEndSecs = %d (%d seconds away)\n",
+        nowWeeklySeconds, currentSchedulePlaylist.startWeeklySeconds, currentSchedulePlaylist.endWeeklySeconds, displayDiff);
       FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
     }
   }
