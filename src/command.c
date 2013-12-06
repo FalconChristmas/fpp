@@ -153,7 +153,7 @@ extern PlaylistDetails playlistDetails;
 				sleep(1);
 	
 				s = strtok(NULL,",");
-				if (!s)
+				if (s)
 				{
 					strcpy((char*)playlistDetails.currentPlaylistFile,s);
 					s = strtok(NULL,",");
