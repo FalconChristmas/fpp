@@ -871,7 +871,7 @@ function DeleteScheduleEntry()
 
 function AddScheduleEntry()
 {
-	$_SESSION['ScheduleEntries'][] = new ScheduleEntry(1,'',7,0,0,0,7,0,0,0,1);
+	$_SESSION['ScheduleEntries'][] = new ScheduleEntry(1,'',7,0,0,0,0,0,0,1);
 	EchoStatusXML('Success');
 }
 
@@ -992,7 +992,7 @@ function LoadScheduleFile()
 		$endSecond = $entry[8];
 		$repeat = $entry[9];
 		$_SESSION['ScheduleEntries'][] = new ScheduleEntry($enable,$playlist,$startDay,$startHour,$startMinute,$startSecond,
-											$endDay, $endHour, $endMinute, $endSecond, $repeat);
+				$endHour, $endMinute, $endSecond, $repeat);
 	}
 	fclose($f);
 }
