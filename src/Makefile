@@ -25,6 +25,7 @@ OBJECTS_fppd = \
 	lightthread.o \
 	video.o \
 	USBdongle.o \
+	common.o \
 	$(NULL)
 LIBS_fppd = \
 	-lpthread \

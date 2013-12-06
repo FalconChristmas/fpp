@@ -19,8 +19,6 @@
 #include <errno.h>
 #include <stdlib.h>
 
-extern int FPPstatus;
-
 extern PlaylistDetails playlistDetails;
 
 extern struct mpg123_type mpg123;
@@ -155,7 +153,7 @@ extern PlaylistDetails playlistDetails;
 				sleep(1);
 	
 				s = strtok(NULL,",");
-				if (!s)
+				if (s)
 				{
 					strcpy((char*)playlistDetails.currentPlaylistFile,s);
 					s = strtok(NULL,",");
@@ -307,7 +305,8 @@ extern PlaylistDetails playlistDetails;
 		{
 			bytes_sent = sendto(socket_fd, response2, strlen(response2), 0,
                           (struct sockaddr *) &(client_address), sizeof(struct sockaddr_un));
-			LogWrite("%s %s", CommandStr, response2);
+			if (strcmp(CommandStr, "s")) // until we rework logging
+				LogWrite("%s %s", CommandStr, response2);
 			free(response2);
 			response2 = NULL;
 		}
@@ -315,7 +314,8 @@ extern PlaylistDetails playlistDetails;
 		{
 			bytes_sent = sendto(socket_fd, response, strlen(response), 0,
                           (struct sockaddr *) &(client_address), sizeof(struct sockaddr_un));
-			LogWrite("%s %s", CommandStr, response);
+			if (strcmp(CommandStr, "s")) // until we rework logging
+				LogWrite("%s %s", CommandStr, response);
 		}
   }
 

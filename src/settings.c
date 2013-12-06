@@ -33,6 +33,8 @@ void initSettings(void)
   settings.E131interface = strdup("eth0");
 	settings.USBDonglePort = strdup("DISABLED");
 	settings.USBDongleType = strdup("DMX");
+	settings.controlMajor = 0;
+	settings.controlMinor = 0;
 }
 
 // Returns a string that's the white-space trimmed version

@@ -123,7 +123,7 @@ FPPevent* LoadEvent(char *id)
 			}
 			else if (!strcmp(key, "effect"))
 			{
-				if (strlen(token))
+				if (strlen(token) && strcmp(token, "''"))
 				{
 					char *c = strstr(token, ".eseq");
 					if (c)
@@ -131,11 +131,12 @@ FPPevent* LoadEvent(char *id)
 						if ((c == (token + strlen(token) - 5)) ||
 						    (c == (token + strlen(token) - 6)))
 							*c = '\0';
+
+						if (token[0] == '\'')
+							event->effect = strdup(token + 1);
+						else
+							event->effect = strdup(token);
 					}
-					if (token[0] == '\'')
-						event->effect = strdup(token + 1);
-					else
-						event->effect = strdup(token);
 				}
 			}
 			else if (!strcmp(key, "startChannel"))
@@ -152,7 +153,7 @@ FPPevent* LoadEvent(char *id)
 			}
 			else if (!strcmp(key, "script"))
 			{
-				if (strlen(token))
+				if (strlen(token) && strcmp(token, "''"))
 				{
 					if (token[0] == '\'')
 					{
@@ -175,6 +176,23 @@ FPPevent* LoadEvent(char *id)
 	{
 		FreeEvent(event);
 		return NULL;
+	}
+
+	LogWrite("Event Loaded:\n");
+	if (event->name)
+		LogWrite("Event Name  : %s\n", event->name);
+	else
+		LogWrite("Event Name  : ERROR, no name defined in event file\n");
+
+	LogWrite("Event ID    : %d/%d\n", event->majorID, event->minorID);
+
+	if (event->script)
+		LogWrite("Event Script: %s\n", event->script);
+
+	if (event->effect)
+	{
+		LogWrite("Event Effect: %s\n", event->effect);
+		LogWrite("Event St.Ch.: %d\n", event->startChannel);
 	}
 
 	return event;

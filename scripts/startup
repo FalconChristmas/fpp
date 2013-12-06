@@ -31,6 +31,7 @@ then
 
 else
         echo "Flash Media Mounted.";
+        mkdir -p /home/pi/media/logs
         break
 fi
 done

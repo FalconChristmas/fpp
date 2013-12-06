@@ -33,7 +33,6 @@ extern int MusicPlayerStatus;
 extern char currentSong[128];//FIXME
 extern char nextSong[128];//FIXME
 extern int lastSecond;
-extern int FPPstatus;
 
 
 struct timeval pauseStartTime;
@@ -67,7 +66,7 @@ void CalculateNextPlayListEntry()
 		LogWrite("currentPlaylistEntry = %d Last=%d maxEntryIndex=%d repeat=%d \n",playlistDetails.currentPlaylistEntry, playlistDetails.last,maxEntryIndex,playlistDetails.repeat); 
 		if((playlistDetails.currentPlaylistEntry == maxEntryIndex) && !playlistDetails.repeat)
 		{
-			LogWrite("\nStopping Gracefully\n");
+			LogWrite("Stopping Gracefully\n");
 			playlistDetails.currentPlaylistEntry = PLAYLIST_STOP_INDEX;
 		}
  		else if(playlistDetails.currentPlaylistEntry >= maxEntryIndex)
@@ -240,6 +239,7 @@ void PlayListPlayingLoop(void)
     ScheduleProc();
   }
   FPPstatus = FPP_STATUS_IDLE;
+  SendBlankingData();
 	if(!playlistDetails.ForceStop)
 	{
 		CheckIfShouldBePlayingNow();

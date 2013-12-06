@@ -70,7 +70,6 @@ int oggPlaySong(char * musicFile)
   }
   else							// Parent process
   {
-    LogWrite("After fork\n");
     childPID = pid;
 		// Close write side of pipe from ogg
      close(pipeFromOGG[PIPE_WRITE]);
@@ -263,23 +262,23 @@ void ParseTimes()
 	tmp[1]=strTime[28];
 	sscanf(tmp,"%d",&musicStatus.secondsTotal);
 
-	float MusicSeconds = (float)((float)musicStatus.secondsElasped + ((float)musicStatus.subSecondsElasped/(float)100));
-	int expectedFramesSent = (int)(MusicSeconds * RefreshRate);
-
-	LogWrite("Elasped: %.2d.%.2d  Remaining: %.2d Total %.2d:%.2d.  E131 Frames: %d, Expected: %d, Diff: %d\n",
-		musicStatus.secondsElasped,
-		musicStatus.subSecondsElasped,
-		musicStatus.secondsRemaining,
-		musicStatus.minutesTotal,
-		musicStatus.secondsTotal,
-		E131sequenceFramesSent,
-		expectedFramesSent,
-		E131sequenceFramesSent - expectedFramesSent);
-
 	if ((E131status != E131_STATUS_IDLE) &&
 			(musicStatus.secondsElasped > 0) &&
 			(lastSyncCheck != musicStatus.secondsElasped))
 	{
+		float MusicSeconds = (float)((float)musicStatus.secondsElasped + ((float)musicStatus.subSecondsElasped/(float)100));
+		int expectedFramesSent = (int)(MusicSeconds * RefreshRate);
+
+		LogWrite("Elapsed: %.2d.%.2d  Remaining: %.2d Total %.2d:%.2d.  E131 Frames: %d, Expected: %d, Diff: %d\n",
+			musicStatus.secondsElasped,
+			musicStatus.subSecondsElasped,
+			musicStatus.secondsRemaining,
+			musicStatus.minutesTotal,
+			musicStatus.secondsTotal,
+			E131sequenceFramesSent,
+			expectedFramesSent,
+			E131sequenceFramesSent - expectedFramesSent);
+
 		lastSyncCheck = musicStatus.secondsElasped;
 		int diff = E131sequenceFramesSent - expectedFramesSent;
 		if (diff)
@@ -308,7 +307,7 @@ void ParseTimes()
 			if (newLightDelay < 0)
 				newLightDelay = 0;
 
-			LogWrite("LD: %d, NLD: %d\n", LightDelay, newLightDelay);
+			//LogWrite("LightDelay: %d, newLightDelay: %d\n", LightDelay, newLightDelay);
 			LightDelay = newLightDelay;
 		}
 		else if (LightDelay != DefaultLightDelay)
