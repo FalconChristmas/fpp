@@ -23,7 +23,6 @@ unsigned char CurrentScheduleHasbeenLoaded=0;
 unsigned char NextScheduleHasbeenLoaded=0;
 int nowWeeklySeconds2;
 
-extern int FPPstatus;
 extern PlaylistDetails playlistDetails;
 
 

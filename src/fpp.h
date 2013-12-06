@@ -8,4 +8,6 @@
 #define FPP_SERVER_SOCKET  "/tmp/FPPD"
 #define FPP_CLIENT_SOCKET  "/tmp/FPP"
 
+extern int FPPstatus;
+
 #endif

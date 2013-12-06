@@ -1,3 +1,4 @@
+#include "fpp.h"
 #include "log.h"
 #include "E131.h"
 #include "playList.h"
@@ -217,7 +218,7 @@ void E131_CloseSequenceFile()
   }
   E131status = E131_STATUS_IDLE;
 
-  if (!IsEffectRunning())
+  if (!IsEffectRunning() && (FPPstatus != FPP_STATUS_PLAYLIST_PLAYING))
     SendBlankingData();
 }
 
@@ -420,6 +421,7 @@ void UniversesPrint()
 
 void SendBlankingData(void)
 {
+	LogWrite("Sending Blanking Data\n");
 	E131_ReadData();
 	E131_Send();
 }
