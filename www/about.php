@@ -31,9 +31,9 @@ if (file_exists("/etc/fpp/rfs_version"))
 $os_version = "Unknown";
 if (file_exists("/etc/os-release"))
 {
-	$os_version = exec("grep PRETTY_NAME /etc/os-release | cut -f2 -d'\"'", $output, $return_val);
-	if ( $return_val != 0 )
-		$os_version = "Unknown";
+	$info = parse_ini_file("/etc/os-release");
+	if (isset($info["PRETTY_NAME"]))
+		$os_version = $info["PRETTY_NAME"];
 }
 
 $git_version = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ rev-parse --short HEAD", $output, $return_val);
