@@ -240,6 +240,8 @@ void PlayListPlayingLoop(void)
   }
   FPPstatus = FPP_STATUS_IDLE;
   SendBlankingData();
+  ReLoadCurrentScheduleInfo();
+
 	if(!playlistDetails.ForceStop)
 	{
 		CheckIfShouldBePlayingNow();
