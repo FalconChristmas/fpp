@@ -198,6 +198,7 @@ class fppLCD():
         self.DisplayStopSequence()
     elif self.MenuIndex == self.MENU_INX_STOP_SEQUENCE:
       self.StopSequence()
+      self.UpdateStatus()
     elif self.MenuIndex == self.MENU_INX_START_PLAYLIST:
       self.StartPlaylist()
 
