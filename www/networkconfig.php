@@ -57,21 +57,16 @@ if (trim($parseethernet[0], "\"\n\r") == "dhcp" )
  {
  	 $eth_mode = "static";
  }
-unset ($readinterface);
-unset ($parseethernet);
 
 $ifconfig = shell_exec('/sbin/ifconfig eth0');
 $success = preg_match('/addr:([\d\.]+)/', $ifconfig, $eth_ip);
 if ($success == 1) {
   preg_match('/Mask:([\d\.]+)/', $ifconfig, $eth_netmask);
   preg_match('/Bcast:([\d\.]+)/', $ifconfig, $eth_broadcast);
-  unset ($ifconfig);
   $iproute = shell_exec('/sbin/ip route');
   preg_match('/via ([\d\.]+)/', $iproute, $eth_gateway);
-  unset ($iproute);
   $ipdns = shell_exec('/bin/cat /etc/resolv.conf | grep nameserver');
   preg_match('/nameserver ([\d\.]+)/', $ipdns, $eth_dns);
-  unset ($ipdns);
 }
 $ifconfig = shell_exec('/sbin/ifconfig wlan0');
 if(strpos($ifconfig, "Device not found") != true) {
@@ -79,11 +74,9 @@ if(strpos($ifconfig, "Device not found") != true) {
 	preg_match('/addr:([\d\.]+)/', $ifconfig, $wlan_ip);
     preg_match('/Mask:([\d\.]+)/', $ifconfig, $wlan_netmask);
     preg_match('/Bcast:([\d\.]+)/', $ifconfig, $wlan_broadcast);
-    unset ($ifconfig);
     $iproute = shell_exec('/sbin/ip route');
     preg_match('/via ([\d\.]+)/', $iproute, $wlan_gateway);
     preg_match('/nameserver ([\d\.]+)/', $ipdns, $wlan_dns);
-    unset ($iproute);
     $ipdns = shell_exec('/bin/cat /etc/resolv.conf | grep nameserver');
     preg_match('/nameserver ([\d\.]+)/', $ipdns, $wlan_dns);
     unset ($ipdns);
@@ -101,8 +94,6 @@ if(strpos($ifconfig, "Device not found") != true) {
 		 $wlan_ssid = $parsewireless[4];
 		 $wlan_passphrase = $parsewireless[5];
 	 }
-	unset ($readinterface);
-	unset ($parsewireless);
 }
 ?>
 <script>
