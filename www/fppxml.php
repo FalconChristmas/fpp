@@ -80,7 +80,8 @@ $command_array = Array(
 	"triggerEvent" => 'TriggerEvent',
 	"saveEvent" => 'SaveEvent',
 	"deleteEvent" => 'DeleteEvent',
-	"getLog" => 'GetLog'
+	"getLog" => 'GetLog',
+  "getInterfaceInfo" => 'GetInterfaceInfo'
 );
 
 if (!isset($nonXML[$_GET['command']]))
@@ -2050,6 +2051,95 @@ function GetLog()
 		echo $line;
 	}
 	fclose($f);
+}
+
+function GetInterfaceInfo()
+{
+	$interface = $_GET['interface'];
+	check($interface);
+
+  $readinterface = shell_exec("./readInterface.awk /etc/network/interfaces device=" . $interface);
+  $parseethernet = explode(",", $readinterface);
+  if (trim($parseethernet[0], "\"\n\r") == "dhcp" )
+  {
+    $ethMode = "dhcp";
+    // Gateway
+    $iproute = shell_exec('/sbin/ip route');
+    preg_match('/via ([\d\.]+)/', $iproute, $result);
+    $eth_gateway = $result[1];
+
+    // IP Address
+    $ifconfig = shell_exec("/sbin/ifconfig " . $interface);
+    $success = preg_match('/addr:([\d\.]+)/', $ifconfig, $result);
+    $eth_IP = $result[1];
+    if ($success == 1) 
+    {
+      // Netmask
+      preg_match('/Mask:([\d\.]+)/', $ifconfig, $result);
+      $eth_netmask = $result[1];
+      // Broadcast
+//      preg_match('/Bcast:([\d\.]+)/', $ifconfig, $result);
+//      $eth_broadcast = $result[1];
+    }
+  }
+  
+  // Static get info from /etc/network/interfaces
+  else
+  {
+    $ethMode = "static";
+    $eth_IP = $parseethernet[1];
+    $eth_netmask = $parseethernet[2];
+    $eth_gateway = $parseethernet[3];
+//    $eth_network = $parseethernet[4];
+//    $eth_broadcast = $parseethernet[5];
+  }
+
+  // DNS Server
+  $ipdns = shell_exec('/bin/cat /etc/resolv.conf | grep nameserver');
+  preg_match('/nameserver ([\d\.]+)/', $ipdns, $result);
+  $eth_dns = $result[1];
+
+  // Create XML
+	$doc = new DomDocument('1.0');
+	// Interface
+	$root = $doc->createElement('Interface');
+	$root = $doc->appendChild($root);
+  
+	$emode = $doc->createElement('mode');
+	$emode = $root->appendChild($emode);
+  $value = $doc->createTextNode($ethMode);
+	$value = $emode->appendChild($value);
+  
+	$eAddress = $doc->createElement('address');
+	$eAddress = $root->appendChild($eAddress);
+  $value = $doc->createTextNode($eth_IP);
+	$value = $eAddress->appendChild($value);
+
+	$eNetmask = $doc->createElement('netmask');
+	$eNetmask = $root->appendChild($eNetmask);
+  $value = $doc->createTextNode($eth_netmask);
+	$value = $eNetmask->appendChild($value);
+
+ 	$eGateway = $doc->createElement('gateway');
+	$eGateway = $root->appendChild($eGateway);
+   $value = $doc->createTextNode($eth_gateway);
+	$value = $eGateway->appendChild($value);
+   
+ 	//$eNetwork = $doc->createElement('network');
+	//$eNetwork = $root->appendChild($eNetwork);
+  //$value = $doc->createTextNode($eth_network);
+	//$value = $eNetwork->appendChild($value);
+
+ 	//$eBroadcast = $doc->createElement('broadcast');
+	//$eBroadcast = $root->appendChild($eBroadcast);
+  //$value = $doc->createTextNode($eth_broadcast);
+	//$value = $eBroadcast->appendChild($value);
+
+   
+	echo $doc->saveHTML();
+
+
+
 }
 
 ?>

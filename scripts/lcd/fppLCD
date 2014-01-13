@@ -1,0 +1,6 @@
+#!/bin/sh
+# My first script
+
+echo "Hello World!"
+
+ps -f -C python | awk ' { if ($9="fppLCD.py") print $2 }' | sed 1d

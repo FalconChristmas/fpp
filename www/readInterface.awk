@@ -32,17 +32,17 @@ BEGIN { start = 0;
                 print $0;
             # It's a DHCP interface
             if (match($0, / dhcp/)) {
-                printf("dhcp ");
+                printf("dhcp,");
                 dhcp = 1;
                 next;
                  # It's a static network interface. We want to scan the addresses after the 
                 # static line
             } else if (match ($0, / static/)) {
-                printf("static ");
+                printf("static,");
                 static = 1;
                 next;
             } else if (match ($0, / manual/)) {
-                print "manual";
+                print "manual,";
                 exit 0;
             }
  
@@ -73,10 +73,14 @@ BEGIN { start = 0;
             gateway = $2;
             gotAddr = 1;
         }
-        if ($1 == "network") {
-            network = $2;
-            gotAddr = 1;
-        }
+        #if ($1 == "network") {
+        #    network = $2;
+        #    gotAddr = 1;
+        #}
+        #if ($1 == "broadcast") {
+        #    broadcast = $2;
+        #    gotAddr = 1;
+        #}
         if ($1 == "wpa-ssid") {
             ssid = $2;
             gotWPA = 1;
@@ -91,11 +95,18 @@ BEGIN { start = 0;
 END{
 
     if (gotAddr) {
-        printf("%s %s %s %s ", address, netmask, gateway, network);
+#        printf("%s,%s,%s,%s,%s", address, netmask, gateway, network, broadcast);
+        printf("%s,%s,%s", address, netmask, gateway);
+      if (gotWPA) {
+        printf(",%s,%s", ssid, psk);
+      }
     }
-    if (gotWPA) {
-        printf("%s %s", ssid, psk);
+    else{
+      if (gotWPA) {
+        printf("%s,%s", ssid, psk);
+      }
     }
+
     printf("\n");
     exit 1;
 }

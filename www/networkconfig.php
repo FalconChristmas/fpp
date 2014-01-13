@@ -1,28 +1,28 @@
 <?php
 
-if ( isset($_POST['eth_mode']) && !empty($_POST['eth_mode']) )
-  {
-  if ($_POST['eth_mode'] == "dhcp") { 
-      $interface = "sudo changeInterface.awk /etc/network/interfaces device=eth0 mode=dhcp > /home/pi/media/interfaces";
-      error_log($interface);
-	  shell_exec($interface);
-  }
-  if ($_POST['eth_mode'] == "static") {
-      $interface = "sudo changeInterface.awk /etc/network/interfaces device=eth0 mode=static address=" . $_POST['eth_ip'] . " netmask=" . $_POST['eth_netmask'] . " broadcast=" . $_POST['eth_broadcast'] ." gateway=" . $_POST['eth_gateway'] . " > /home/pi/media/interfaces";
-      error_log($interface);
-	  shell_exec($interface);
-  }
-  if ($_POST['wlan_mode'] == "dhcp") {
-	  $interface = "sudo changeInterface.awk /etc/network/interfaces device=wlan0 mode=dhcp wpa-ssid=\"" . $_POST['wlan_ssid'] . "\" wpa-psk=\"" . $_POST['wlan_passphrase'] . "\""  . " > /home/pi/media/interfaces";
-      error_log($interface);
-	  shell_exec($interface);
-  }
-  if ($_POST['wlan_mode'] == "static") {
-	  $interface = "sudo changeInterface.awk /etc/network/interfaces device=wlan0 mode=static address=" . $_POST['wlan_ip'] . " netmask=" . $_POST['wlan_netmastk'] . " broadcast=" . $_POST['wlan_broadcast'] ." gateway=" . $_POST['wlan_gateway'] . "wpa-ssid=" . $_POST['wlan_ssid'] . " wpa-psk=" . $_POST['wlan_passphrase'] . " > /home/pi/media/interfaces";
-      error_log($interface);
-	  shell_exec($interface);
-  }
-}
+// if ( isset($_POST['eth_mode']) && !empty($_POST['eth_mode']) )
+  // {
+  // if ($_POST['eth_mode'] == "dhcp") { 
+      // $interface = "sudo changeInterface.awk /etc/network/interfaces device=eth0 mode=dhcp > /home/pi/media/interfaces";
+      // error_log($interface);
+	   // shell_exec($interface);
+  // }
+  // if ($_POST['eth_mode'] == "static") {
+       // $interface = "sudo changeInterface.awk /etc/network/interfaces device=eth0 mode=static address=" . $_POST['eth_ip'] . " netmask=" . $_POST['eth_netmask'] . " broadcast=" . $_POST['eth_broadcast'] ." gateway=" . $_POST['eth_gateway'] . " > /home/pi/media/interfaces";
+      // error_log($interface);
+	   // shell_exec($interface);
+  // }
+  // if ($_POST['wlan_mode'] == "dhcp") {
+	  // $interface = "sudo changeInterface.awk /etc/network/interfaces device=wlan0 mode=dhcp wpa-ssid=\"" . $_POST['wlan_ssid'] . "\" wpa-psk=\"" . $_POST['wlan_passphrase'] . "\""  . " > /home/pi/media/interfaces";
+      // error_log($interface);
+	   // shell_exec($interface);
+  // }
+  // if ($_POST['wlan_mode'] == "static") {
+	  // $interface = "sudo changeInterface.awk /etc/network/interfaces device=wlan0 mode=static address=" . $_POST['wlan_ip'] . " netmask=" . $_POST['wlan_netmastk'] . " broadcast=" . $_POST['wlan_broadcast'] ." gateway=" . $_POST['wlan_gateway'] . "wpa-ssid=" . $_POST['wlan_ssid'] . " wpa-psk=" . $_POST['wlan_passphrase'] . " > /home/pi/media/interfaces";
+      // error_log($interface);
+	  // shell_exec($interface);
+  // }
+// }
 ?>
 <!DOCTYPE html>
 <html>
@@ -47,56 +47,10 @@ function PopulateInterfaces()
   }
 }
 
-$readinterface = shell_exec('readInterface.awk /etc/network/interfaces device=eth0');
-$parseethernet = explode(" ", $readinterface);
-if (trim($parseethernet[0], "\"\n\r") == "dhcp" )
- {
-	 $eth_mode = "dhcp";
- }
- else
- {
- 	 $eth_mode = "static";
- }
 
-$ifconfig = shell_exec('/sbin/ifconfig eth0');
-$success = preg_match('/addr:([\d\.]+)/', $ifconfig, $eth_ip);
-if ($success == 1) {
-  preg_match('/Mask:([\d\.]+)/', $ifconfig, $eth_netmask);
-  preg_match('/Bcast:([\d\.]+)/', $ifconfig, $eth_broadcast);
-  $iproute = shell_exec('/sbin/ip route');
-  preg_match('/via ([\d\.]+)/', $iproute, $eth_gateway);
-  $ipdns = shell_exec('/bin/cat /etc/resolv.conf | grep nameserver');
-  preg_match('/nameserver ([\d\.]+)/', $ipdns, $eth_dns);
-}
-$ifconfig = shell_exec('/sbin/ifconfig wlan0');
-if(strpos($ifconfig, "Device not found") != true) {
-	$wlan_enabled = true;
-	preg_match('/addr:([\d\.]+)/', $ifconfig, $wlan_ip);
-    preg_match('/Mask:([\d\.]+)/', $ifconfig, $wlan_netmask);
-    preg_match('/Bcast:([\d\.]+)/', $ifconfig, $wlan_broadcast);
-    $iproute = shell_exec('/sbin/ip route');
-    preg_match('/via ([\d\.]+)/', $iproute, $wlan_gateway);
-    preg_match('/nameserver ([\d\.]+)/', $ipdns, $wlan_dns);
-    $ipdns = shell_exec('/bin/cat /etc/resolv.conf | grep nameserver');
-    preg_match('/nameserver ([\d\.]+)/', $ipdns, $wlan_dns);
-    unset ($ipdns);
-	$readinterface = shell_exec('/home/pi/fpp/www/readInterface.awk /etc/network/interfaces device=wlan0');
-	$parsewireless = explode(" ", $readinterface);
-	if (trim($parsewireless[0], "\"\n\r") == "dhcp" )
-	 {
-		 $wlan_mode = "dhcp";
-		 $wlan_ssid = trim($parsewireless[1], "\"\n\r");
-		 $wlan_passphrase = trim($parsewireless[2], "\"\n\r");
-	 }
-	 else
-	 {
-	 	 $wlan_mode = "static";
-		 $wlan_ssid = $parsewireless[4];
-		 $wlan_passphrase = $parsewireless[5];
-	 }
-}
 ?>
 <script>
+
 window.onload = function() {
 document.getElementById('eth_static').onchange = disablefield_eth;
 document.getElementById('eth_dhcp').onchange = disablefield_eth;
@@ -104,39 +58,16 @@ document.getElementById('wlan_static').onchange = disablefield_wlan;
 document.getElementById('wlan_dhcp').onchange = disablefield_wlan;
 }
 
-function disablefield_eth()
+function WirelessSettingsVisible(visible)
 {
-if ( document.getElementById('eth_dhcp').checked == true ){
-	document.getElementById('eth_ip').disabled = true;
-	document.getElementById('eth_netmask').disabled = true;
-	document.getElementById('eth_broadcast').disabled = true;
-	document.getElementById('eth_gateway').disabled = true;
-	document.getElementById('eth_dns').disabled = true}
-else if (document.getElementById('eth_static').checked == true ){
-	document.getElementById('eth_ip').disabled = false;
-	document.getElementById('eth_netmask').disabled = false;
-	document.getElementById('eth_broadcast').disabled = false;
-	document.getElementById('eth_gateway').disabled = false;
-	document.getElementById('eth_dns').disabled = false}
-}
-
-function disablefield_wlan()
-{
-if ( document.getElementById('wlan_dhcp').checked == true ){
-	ClearError (document.getElementById('wlan_ip'));
-	document.getElementById('wlan_ip').disabled = true;
-
-	document.getElementById('wlan_netmask').disabled = true;
-	document.getElementById('wlan_broadcast').disabled = true;
-
-	document.getElementById('wlan_gateway').disabled = true;
-	document.getElementById('wlan_dns').disabled = true}
-else if (document.getElementById('wlan_static').checked == true ){
-	document.getElementById('wlan_ip').disabled = false;
-	document.getElementById('wlan_netmask').disabled = false;
-	document.getElementById('wlan_broadcast').disabled = false;
-	document.getElementById('wlan_gateway').disabled = false;
-	document.getElementById('wlan_dns').disabled = false}
+  if(visible == true)
+  {
+    $("#WirlessSettings").show();
+  }
+  else
+  {
+    $("#WirlessSettings").hide();
+  }
 }
 
 function validateNetworkFields()
@@ -200,137 +131,146 @@ function ClearError(txtfield)
   txtfield.style.border = "black solid 1px";
 }
 
+
+$(document).ready(function(){
+  $("#selInterfaces").change(function(){
+    var iface = $('#selInterfaces').val();	
+		var url = "fppxml.php?command=getInterfaceInfo&interface=" + iface;
+    var visible = iface.slice(0,4).toLowerCase() == "wlan"?true:false;
+    WirelessSettingsVisible(visible);
+    $.get(url,GetInterfaceInfo);
+  });
+
+  $("#eth_static").click(function(){
+    DisableNetworkFields(false);
+    $('#eth_dhcp').prop('checked', false);
+  });
+  
+  $("#eth_dhcp").click(function(){
+    DisableNetworkFields(true);
+    $('#eth_static').prop('checked', false);
+  });
+
+  
+});
+
+function GetInterfaceInfo(data,status) 
+{
+      var mode = $(data).find('mode').text();
+      if(mode == "dhcp")
+      {
+        $('#eth_dhcp').prop('checked', true);
+        $('#eth_static').prop('checked', false);
+        DisableNetworkFields(true);
+      }
+      else
+      {
+        $('#eth_static').prop('checked', true);
+        $('#eth_dhcp').prop('checked', false);
+        DisableNetworkFields(false);
+      }
+      $('#eth_mode').val($(data).find('mode').text());
+      $('#eth_ip').val($(data).find('address').text());
+      $('#eth_netmask').val($(data).find('netmask').text());
+      $('#eth_gateway').val($(data).find('gateway').text());
+    
+}
+
+function DisableNetworkFields(disabled)
+{
+  $('#eth_ip').prop( "disabled", disabled );
+  $('#eth_netmask').prop( "disabled", disabled );
+  $('#eth_gateway').prop( "disabled", disabled );
+}
+
 </script>
 <div id="bodyWrapper">
 <?php include 'menu.inc'; ?>
 <br/>
 <div id="network" class="settings">
   <fieldset>
-    <legend>Network Config</legend>
+    <legend>Network Configuration</legend>
     <FORM NAME="netconfig" ACTION="" METHOD="POST" onsubmit="return validateNetworkFields()" >
-      <table width="100%" border="0" cellspacing="1" cellpadding="1">
-          <tr>
-        
-          <td valign='top' colspan='3' width='50%'>
-        
-        <fieldset class="fs">
-          <legend> Ethernet </legend>
-          <table width="100%" height="200" border="0" cellpadding="1" cellspacing="1">
+      <div id="InterfaceSettings">
+      <fieldset class="fs">
+          <legend> Interface Settings</legend>
+          <table width = "100%" border="0" cellpadding="1" cellspacing="1">
             <tr>
-              <td width='70' rowspan='7' valign='top'><p>
-                  <label>
-                    <input type="radio" name="eth_mode" value="static" ID="eth_static" <?php if ($eth_mode == "static") print "Checked"?>>
+              <td width = "25%">Interface:</td>
+              <td width = "25%"><select id ="selInterfaces" ><?php PopulateInterfaces();?></select></td>
+              <td width = "50%">&nbsp;</td>
+            </tr>
+            <tr>
+              <td>Interface Mode:</td>
+              <td><label><input type="radio" id ="eth_static" value="static">
                     Static</label>
-                  <br>
-                  <label>
-                    <input type="radio" name="eth_mode" value="dhcp" ID="eth_dhcp" <?php if ($eth_mode == "dhcp") print "Checked"?>>
+                  <label><input type="radio" id ="eth_dhcp" value="dhcp">
                     DHCP</label>
                   <br>
-                </p></td>
-              <td align='right'>IP Address:</td>
-              <td align='center'><input type="text" name="eth_ip" id="eth_ip" onKeyDown="ClearError(this);" value="<?php print $eth_ip[1] ?>" <?php if ($eth_mode == "dhcp") print "disabled"?>></td>
+              </td>
             </tr>
             <tr>
-              <td align='right'>Netmask:</td>
-              <td align='center'><input type="text" name="eth_netmask" id="eth_netmask" onKeyDown="ClearError(this);" value="<?php print $eth_netmask[1] ?>" <?php if ($eth_mode == "dhcp") print "disabled"?>></td>
+              <td>IP Address:</td>
+              <td><input type="text" name="eth_ip" id="eth_ip"></td>
             </tr>
             <tr>
-              <td align='right'>Broadcast:</td>
-              <td align='center'><input type="text" name="eth_broadcast" id="eth_broadcast" onKeyDown="ClearError(this);" value="<?php print $eth_broadcast[1] ?>" <?php if ($eth_mode == "dhcp") print "disabled"?>></td>
+              <td>Netmask:</td>
+              <td><input type="text" name="eth_netmask" id="eth_netmask"></td>
             </tr>
             <tr>
-              <td align='right'>Gateway:</td>
-              <td align='center'><input type="text" name="eth_gateway" id="eth_gateway" onKeyDown="ClearError(this);" value="<?php print $eth_gateway[1] ?>" <?php if ($eth_mode == "dhcp") print "disabled"?>></td>
-            </tr>
-            <tr>
-              <td align='right'>DNS IP:</td>
-              <td align='center'><input type="text" name="eth_dns" id="eth_dns" onKeyDown="ClearError(this);" value="<?php print $eth_dns[1] ?>" <?php if ($eth_mode == "dhcp") print "disabled"?>></td>
-            </tr>
-            <tr>
-              <td colspan="2">If setting static IP and No Internet, Do Not Populate the DNS Boxe(s)</td>
-            </tr>
-            <tr>
-              <td>&nbsp;</td>
-              <td>&nbsp;</td>
+              <td>Gateway:</td>
+              <td><input type="text" name="eth_gateway" id="eth_gateway"></td>
             </tr>
           </table>
-            </td>
-          
-        </fieldset>
-          <td colspan='3' width='50%'>
-        
-        <fieldset class="fs">
-          <legend> Wireless </legend>
-          <table width="100%" height="200" border="0" cellspacing="1" cellpadding="1">
+          <div id="WirlessSettings">
+          <table width = "100%" border="0" cellpadding="1" cellspacing="1">
             <tr>
-              <td width='70' rowspan='7' valign="top"><?php if ($wlan_enabled != true) print "<center>Dongle Not Found</center><br>\r\n"?>
-                <p>
-                  <label>
-                    <input type="radio" name="wlan_mode" value="static" id="wlan_static" <?php if ($wlan_mode == "static") print "Checked"?> <?php if ($wlan_enabled != true) print "Disabled"?>>
-                    Static</label>
-                  <br>
-                  <label>
-                    <input type="radio" name="wlan_mode" value="dhcp" id="wlan_dhcp" <?php if ($wlan_mode == "dhcp") print "Checked"?> <?php if ($wlan_enabled != true) print "Disabled"?>>
-                    DHCP</label>
-                </p>
-                <br>
-                <center>
-                  <?php if ($wlan_enabled == true) print "<a href=\"/netscan.php\" target=\"_blank\">Net Scan</a>"?>
-                </center></td>
-              <td align='right'>IP Address:</td>
-              <td align='center'><input type="text" name="wlan_ip" id="wlan_ip" onKeyDown="ClearError(this);" value="<?php print $wlan_ip[1] ?>" <?php if (($wlan_enabled != true) or ($wlan_mode == "dhcp")) print "Disabled" ?>></td>
+              <td width = "25%">WPA SSID:</td>
+              <td width = "75%"><input type="text" name="eth_ssid" id="eth_ip"></td>
             </tr>
             <tr>
-              <td align='right'>Netmask:</td>
-              <td align='center'><input type="text" name="wlan_netmask" id="wlan_netmask" onKeyDown="ClearError(this);" value="<?php print $wlan_netmask[1] ?>" <?php if (($wlan_enabled != true) or ($wlan_mode == "dhcp")) print "Disabled" ?>></td>
+              <td>WPA Pre Shared key (PSK):</td>
+              <td><input type="text" name="eth_psk" id="eth_netmask"></td>
             </tr>
-            <tr>
-              <td align='right'>Broadcast:</td>
-              <td align='center'><input type="text" name="wlan_broadcast" id="wlan_broadcast" onKeyDown="ClearError(this);" value="<?php print $wlan_broadcast[1] ?>" <?php if (($wlan_enabled != true) or ($wlan_mode == "dhcp")) print "Disabled" ?>></td>
-            </tr>
-            <tr>
-              <td align='right'>Gateway:</td>
-              <td align='center'><input type="text" name="wlan_gateway" id="wlan_gateway" onKeyDown="ClearError(this);" value="<?php print $wlan_gateway[1] ?>" <?php if (($wlan_enabled != true) or ($wlan_mode == "dhcp")) print "disabled" ?>></td>
-            </tr>
-            <tr>
-              <td align='right'>DNS IP:</td>
-              <td align='center'><input type="text" name="wlan_dns" id="wlan_dns" onKeyDown="ClearError(this);" value="<?php print $wlan_dns[1] ?>" <?php if (($wlan_enabled != true) or ($wlan_mode == "dhcp")) print "disabled" ?>></td>
-            </tr>
-            <tr>
-              <td align='right'>SSID:</td>
-              <td align='center'><input type="text" name="wlan_ssid" id="wlan_ssid" value="<?php print $wlan_ssid ?>" <?php if ($wlan_enabled != true) print "Disabled"?>></td>
-            </tr>
-            <tr>
-              <td align='right'>Pass Phrase:</td>
-              <td align='center'><input type="text" name="wlan_passphrase" id="wlan_passphrase" value="<?php print $wlan_passphrase ?>" <?php if ($wlan_enabled != true) print "Disabled"?>></td>
             </tr>
           </table>
-            </td>
-          
-            </td>
-          
-            </tr>
-          
-          <tr>
+          </div>
+          <br>
+          <input name="btnSetInterface" type="" style="margin-left:190px; width:135px;" class = "buttons" value="Update Interface">        
         </fieldset>
-        
-          <td colspan='6'><center>Pressing Submit Will Commit Changes and Reboot Your FPP<br>
-              <input name="btnSetNetwork" type="submit" class = "Buttons">
-            </center></td>
-        </tr>
-      </table>
+        </div>
+        <div id="DNS_Servers">
+        <br>
+        <fieldset class="fs2">
+          <legend>DNS Servers</legend>
+          <table width="100%" border="0" cellpadding="1" cellspacing="1">
+            <tr>
+              <td width = "25%">DNS Server 1:</td>
+              <td width = "25%"><input type="text" name="eth_dns1" id="eth_dns1"></td>
+              <td width = "50%">&nbsp;</td>
+            </tr>
+            <tr>
+              <td>DNS Server 2:</td>
+              <td><input type="text" name="eth_dns1" id="eth_dns2"></td>
+            </tr>
+          </table>
+          <br>
+          <input name="btnSetNetwork" type="" style="margin-left:190px; width:135px;" class = "buttons" value="Update DNS">        
+
+        </fieldset>
+
+        <br>
+        </div>
+        </fieldset>
     </FORM>
-    </td>
-    </tr>
-    </table>
     <br>
-    <div class="settings2">
+    <div id="E131_Interface">
       <fieldset>
         <legend>E131 Output </legend>
-        <table>
+        <table width = "100%" >
           <tr>
-            <td>E131 Interface:</td>
-            <td><select id="selInterfaces" onChange="SetE131interface();">
+            <td width = "25%" >E131 Interface:</td>
+            <td width = "75%" ><select id="selE131interfaces" onChange="SetE131interface();">
                 <?php PopulateInterfaces(); ?>
               </select></td>
           </tr>
