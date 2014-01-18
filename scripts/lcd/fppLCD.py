@@ -163,7 +163,7 @@ class fppLCD():
     
     if self.MenuIndex == self.MENU_INX_STATUS:
       self.MenuIndex = self.MENU_INX_BACKCOLOR
-      self.SubmenuIndex = fpplcd.BACK_COLOR
+      self.SubmenuIndex = self.BackgroundColor
       self.DisplayMenuBackColor()
     elif self.MenuIndex == self.MENU_INX__SHUTDOWN_REBOOT:
       self.SetStatusTimeOut(self.NORMAL_STATUS_TIMEOUT);
@@ -194,7 +194,7 @@ class fppLCD():
       self.DisplayShutdownMenu()
     elif self.MenuIndex == self.MENU_INX__SHUTDOWN_REBOOT:
       self.MenuIndex = self.MENU_INX_BACKCOLOR
-      self.SubmenuIndex = fpplcd.BACK_COLOR
+      self.SubmenuIndex = self.BackgroundColor
       self.DisplayMenuBackColor()
     elif self.MenuIndex == self.MENU_INX_BACKCOLOR:
       self.SetStatusTimeOut(self.NORMAL_STATUS_TIMEOUT);
