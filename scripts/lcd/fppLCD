@@ -1,6 +1,21 @@
 #!/bin/sh
 # My first script
 
-echo "Hello World!"
+#!/bin/sh
+if [ "$#" -ne 1 ]; then
+  echo "Usage: fppLCD start|stop" >&2
+  exit 1
+fi
 
-ps -f -C python | awk ' { if ($9="fppLCD.py") print $2 }' | sed 1d
+
+case "$1" in
+  "stop")
+	echo "Stop Command"
+		;;
+  "start")
+	echo "Start Command"
+    ;;
+esac
+
+#NAME= $(ps -f -C python | awk ' { if ($9="fppLCD.py") print $2 }' | sed 1d)
+
