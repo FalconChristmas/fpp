@@ -2,6 +2,7 @@
 # My first script
 
 #!/bin/sh
+
 if [ "$#" -ne 1 ]; then
   echo "Usage: fppLCD start|stop" >&2
   exit 1
@@ -10,12 +11,18 @@ fi
 
 case "$1" in
   "stop")
-	echo "Stop Command"
-		;;
+  pid=$(ps -f -C python | awk ' { if ($9="fppLCD.py") print $2 }' | sed 1d)
+  len=`echo $pid|wc -c`
+  if [ "$len" -ge 2 ]; then
+    eval "sudo kill "$pid
+  fi
+    ;;
   "start")
-	echo "Start Command"
+  pid=$(ps -f -C python | awk ' { if ($9="fppLCD.py") print $2 }' | sed 1d)
+  len=`echo $pid|wc -c`
+  if [ "$len" -le 1 ]; then
+    $(sudo python fppLCD.py)
+  fi
     ;;
 esac
-
-#NAME= $(ps -f -C python | awk ' { if ($9="fppLCD.py") print $2 }' | sed 1d)
 

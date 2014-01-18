@@ -86,7 +86,7 @@ class fppLCD():
     self.MENU_INX_PLAYLIST_ENTRIES = 3
     self.MENU_INX__SHUTDOWN_REBOOT = 4
     self.MENU_INX_BACKCOLOR = 5
-
+    self.COLOR_WHITE = 6
 
     #Color
     self.BackgroundColor = 0
@@ -102,9 +102,13 @@ class fppLCD():
                  ("White          ",self.lcd.WHITE))
     
   def Initialize(self):
-    self.BackgroundColor = int(self.readSetting("piLCD_BackColor"));
+    strColorIndex = self.readSetting("piLCD_BackColor")
+    if strColorIndex.isdigit():
+      self.BackgroundColor = int(strColorIndex);
+    else:
+      self.BackgroundColor = self.COLOR_WHITE
+    
     self.SelectColor(self.BackgroundColor);
-    print "Backcolor :" + str(self.BackgroundColor) + "\n"
     return 
     
   def SendCommand(self,command):
@@ -135,15 +139,13 @@ class fppLCD():
   
   def StartFPPD(self):
     self.SetStatusTimeOut(self.NORMAL_STATUS_TIMEOUT);
-    thisPath = os.path.dirname(os.path.realpath(__file__))
-    fppdStartScript = "sudo " + os.path.dirname(thisPath) + "/fppd_start"
+    fppdStartScript = "sudo " + os.path.dirname(self.THIS_DIRECTORY) + "/fppd_start"
     print >>sys.stderr, fppdStartScript
     os.system(fppdStartScript)
     return;
   
   def StopFPPD(self):
-    thisPath = os.path.dirname(os.path.realpath(__file__))
-    fppdStopScript = "sudo " + os.path.dirname(thisPath) + "/fppd_stop"
+    fppdStopScript = "sudo " + os.path.dirname(self.THIS_DIRECTORY) + "/fppd_stop"
     #print >>sys.stderr, fppdStopScript
     os.system(fppdStopScript)
     return;
@@ -653,8 +655,8 @@ class fppLCD():
 #    pidfile=lockfile.FileLock('/home/pi'),
 #)
 
-context = daemon.DaemonContext()
 THIS_DIRECTORY = os.path.dirname(os.path.realpath(__file__))
+context = daemon.DaemonContext()
 
 context.open()
 with context:
