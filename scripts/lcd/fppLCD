@@ -1,7 +1,9 @@
 #!/bin/sh
-# My first script
 
-#!/bin/sh
+SCRIPTDIR=$(dirname $0)
+#BINDIR=$(dirname $SCRIPTDIR)
+
+echo $SCRIPTDIR
 
 if [ "$#" -ne 1 ]; then
   echo "Usage: fppLCD start|stop" >&2
@@ -21,8 +23,10 @@ case "$1" in
   pid=$(ps -f -C python | awk ' { if ($9="fppLCD.py") print $2 }' | sed 1d)
   len=`echo $pid|wc -c`
   if [ "$len" -le 1 ]; then
-    $(sudo python fppLCD.py)
+    $(sudo python ${SCRIPTDIR}/fppLCD.py)
   fi
     ;;
 esac
+
+
 
