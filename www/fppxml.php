@@ -81,7 +81,8 @@ $command_array = Array(
 	"saveEvent" => 'SaveEvent',
 	"deleteEvent" => 'DeleteEvent',
 	"getLog" => 'GetLog',
-  "getInterfaceInfo" => 'GetInterfaceInfo'
+  "getInterfaceInfo" => 'GetInterfaceInfo',
+  "setPiLCDenabled" => 'SetPiLCDenabled'
 );
 
 if (!isset($nonXML[$_GET['command']]))
@@ -260,6 +261,8 @@ function SetAutoUpdate()
 		exec("touch $mediaDirectory/.auto_update_disabled");
 }
 
+
+
 function SetDeveloperMode()
 {
 	$enabled = $_GET['enabled'];
@@ -288,6 +291,22 @@ function SetVolume()
 	$status=SendCommand('v,' . $vol . ',');
 	$status=exec("amixer set PCM -- " . $vol . "%");
 
+	EchoStatusXML($status);
+}
+
+function SetPiLCDenabled()
+{
+	$enabled = $_GET['enabled'];
+	check($enabled);
+  WriteSettingToFile("PI_LCD_Enabled",$enabled);
+  if ($enabled == "true")
+  {
+    $status = exec(SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/lcd/fppLCD start");
+  }
+  else
+  {
+    $status = exec(SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/lcd/fppLCD stop");
+  }
 	EchoStatusXML($status);
 }
 
