@@ -84,7 +84,7 @@ class fppLCD():
     self.MENU_INX_STOP_SEQUENCE = 1
     self.MENU_INX_PLAYLISTS = 2
     self.MENU_INX_PLAYLIST_ENTRIES = 3
-    self.MENU_INX__SHUTDOWN_REBOOT = 4
+    self.MENU_INX_SHUTDOWN_REBOOT = 4
     self.MENU_INX_BACKCOLOR = 5
     self.COLOR_WHITE = 6
 
@@ -165,7 +165,7 @@ class fppLCD():
       self.MenuIndex = self.MENU_INX_BACKCOLOR
       self.SubmenuIndex = self.BackgroundColor
       self.DisplayMenuBackColor()
-    elif self.MenuIndex == self.MENU_INX__SHUTDOWN_REBOOT:
+    elif self.MenuIndex == self.MENU_INX_SHUTDOWN_REBOOT:
       self.SetStatusTimeOut(self.NORMAL_STATUS_TIMEOUT);
       self.MenuIndex = self.MENU_INX_STATUS
       self.UpdateStatus()
@@ -174,7 +174,7 @@ class fppLCD():
       self.MenuIndex = self.MENU_INX_STATUS
       self.UpdateStatus()
     elif self.MenuIndex == self.MENU_INX_BACKCOLOR:
-      self.MenuIndex = self.MENU_INX__SHUTDOWN_REBOOT
+      self.MenuIndex = self.MENU_INX_SHUTDOWN_REBOOT
       self.DisplayShutdownMenu()
     elif self.MenuIndex == self.MENU_INX_PLAYLIST_ENTRIES:
       self.MenuIndex = self.MENU_INX_PLAYLISTS
@@ -190,9 +190,9 @@ class fppLCD():
     if self.previousBtn == self.lcd.RIGHT:
       return
     if self.MenuIndex ==self.MENU_INX_STATUS:
-      self.MenuIndex = self.MENU_INX__SHUTDOWN_REBOOT
+      self.MenuIndex = self.MENU_INX_SHUTDOWN_REBOOT
       self.DisplayShutdownMenu()
-    elif self.MenuIndex == self.MENU_INX__SHUTDOWN_REBOOT:
+    elif self.MenuIndex == self.MENU_INX_SHUTDOWN_REBOOT:
       self.MenuIndex = self.MENU_INX_BACKCOLOR
       self.SubmenuIndex = self.BackgroundColor
       self.DisplayMenuBackColor()
@@ -220,7 +220,7 @@ class fppLCD():
     self.SubmenuIndex = self.SubmenuIndex - 1
     if self.MenuIndex == self.MENU_INX_STOP_SEQUENCE:
       self.DisplayStopSequence()
-    elif self.MenuIndex == self.MENU_INX__SHUTDOWN_REBOOT:
+    elif self.MenuIndex == self.MENU_INX_SHUTDOWN_REBOOT:
       self.DisplayShutdownMenu()
     elif self.MenuIndex == self.MENU_INX_PLAYLISTS:
       self.DisplayPlaylists()
@@ -244,7 +244,7 @@ class fppLCD():
     self.SubmenuIndex = self.SubmenuIndex + 1
     if self.MenuIndex == self.MENU_INX_STOP_SEQUENCE:
       self.DisplayStopSequence()
-    elif self.MenuIndex == self.MENU_INX__SHUTDOWN_REBOOT:
+    elif self.MenuIndex == self.MENU_INX_SHUTDOWN_REBOOT:
       self.DisplayShutdownMenu()
     elif self.MenuIndex == self.MENU_INX_PLAYLISTS:
       self.DisplayPlaylists()
@@ -284,7 +284,11 @@ class fppLCD():
     elif self.MenuIndex == self.MENU_INX_BACKCOLOR:
       self.BackgroundColor = self.SubmenuIndex
       self.SelectColor(1)
-
+    elif self.MenuIndex == self.MENU_INX_SHUTDOWN_REBOOT:
+      if self.SubmenuIndex == 0:
+        ShutdownPi()
+      else
+        RebootPi()
     self.previousBtn = self.lcd.SELECT
     return;
 
