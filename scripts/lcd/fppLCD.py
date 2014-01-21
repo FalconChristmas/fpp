@@ -287,7 +287,7 @@ class fppLCD():
     elif self.MenuIndex == self.MENU_INX_SHUTDOWN_REBOOT:
       if self.SubmenuIndex == 0:
         self.ShutdownPi()
-      else
+      else:
         self.RebootPi()
     self.previousBtn = self.lcd.SELECT
     return;
