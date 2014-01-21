@@ -286,9 +286,9 @@ class fppLCD():
       self.SelectColor(1)
     elif self.MenuIndex == self.MENU_INX_SHUTDOWN_REBOOT:
       if self.SubmenuIndex == 0:
-        ShutdownPi()
+        self.ShutdownPi()
       else
-        RebootPi()
+        self.RebootPi()
     self.previousBtn = self.lcd.SELECT
     return;
 
