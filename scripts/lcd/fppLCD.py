@@ -86,11 +86,19 @@ class fppLCD():
     self.MENU_INX_PLAYLIST_ENTRIES = 3
     self.MENU_INX_SHUTDOWN_REBOOT = 4
     self.MENU_INX_BACKCOLOR = 5
+    self.MENU_INX_BACKCOLOR_TIMEOUT = 6
+
     self.COLOR_WHITE = 6
 
-    #Color
+    self.BACKGROUND_ALWAYS_ON = 0
+    self.BACKGROUND_TIMEOUT_ENABLED = 1
+    self.BACKGROUND_TIMEOUT_MAX_COUNT = 500
     self.BackgroundColor = 0
+    self.BackgroundTimeout = 1          #self.BACKGROUND_TIMEOUT_ENABLED
+    self.BackgroundTimeoutCount=0
+
     self.MENU_COLOR_COUNT = 7
+    self.MENU_BACKCOLOR_TIMEOUT_COUNT = 2
     self.previousBtn = -1
     
     self.colors=(("Red            ",self.lcd.RED),
@@ -101,6 +109,9 @@ class fppLCD():
                  ("Violet         ",self.lcd.VIOLET),
                  ("White          ",self.lcd.WHITE))
     
+    self.backgroundModes=("Always On       ",
+                          "Timeout         ")
+
   def Initialize(self):
     strColorIndex = self.readSetting("piLCD_BackColor")
     if strColorIndex.isdigit():
@@ -109,6 +120,12 @@ class fppLCD():
       self.BackgroundColor = self.COLOR_WHITE
     
     self.SelectColor(self.BackgroundColor);
+    
+    strTimeout = self.readSetting("piLCD_BackgroundTimeout")
+    if strTimeout.isdigit():
+      self.BackgroundTimeout = int(strTimeout);
+    else:
+      self.BackgroundTimeout = 0
     
     version = fpplcd.getFPPversion()
     self.line1 = self.MakeStringWithLength("FPP Version",16,1);
@@ -165,11 +182,19 @@ class fppLCD():
     
   def ProcessLeft(self):
     self.SubmenuIndex = 0
+    self.BackgroundTimeoutCount = 0
     self.SetStatusTimeOut(self.MAX_STATUS_TIMEOUT);
     if self.previousBtn == self.lcd.LEFT:
       return
     
+    self.lcd.backlight(self.colors[self.BackgroundColor][1])
+
     if self.MenuIndex == self.MENU_INX_STATUS:
+      self.SetStatusTimeOut(self.MAX_STATUS_TIMEOUT);
+      self.MenuIndex = self.MENU_INX_BACKCOLOR_TIMEOUT
+      self.SubmenuIndex = self.BackgroundTimeout
+      self.DisplayBackgroundTimeout()
+    elif self.MenuIndex == self.MENU_INX_BACKCOLOR_TIMEOUT:
       self.MenuIndex = self.MENU_INX_BACKCOLOR
       self.SubmenuIndex = self.BackgroundColor
       self.DisplayMenuBackColor()
@@ -194,9 +219,12 @@ class fppLCD():
   
   def ProcessRight(self):
     self.SubmenuIndex = 0
+    self.BackgroundTimeoutCount = 0
     self.SetStatusTimeOut(self.MAX_STATUS_TIMEOUT);
     if self.previousBtn == self.lcd.RIGHT:
       return
+
+    self.lcd.backlight(self.colors[self.BackgroundColor][1])
     if self.MenuIndex ==self.MENU_INX_STATUS:
       self.MenuIndex = self.MENU_INX_SHUTDOWN_REBOOT
       self.DisplayShutdownMenu()
@@ -205,9 +233,15 @@ class fppLCD():
       self.SubmenuIndex = self.BackgroundColor
       self.DisplayMenuBackColor()
     elif self.MenuIndex == self.MENU_INX_BACKCOLOR:
+      self.SetStatusTimeOut(self.MAX_STATUS_TIMEOUT);
+      self.SubmenuIndex = self.BackgroundTimeout
+      self.MenuIndex = self.MENU_INX_BACKCOLOR_TIMEOUT
+      self.DisplayBackgroundTimeout()
+    elif self.MenuIndex == self.MENU_INX_BACKCOLOR_TIMEOUT:
       self.SetStatusTimeOut(self.NORMAL_STATUS_TIMEOUT);
       self.MenuIndex = self.MENU_INX_STATUS
       self.UpdateStatus()
+
     elif self.MenuIndex == self.MENU_INX_STOP_SEQUENCE:
       self.SetStatusTimeOut(self.NORMAL_STATUS_TIMEOUT);
       self.MenuIndex = self.MENU_INX_STATUS
@@ -222,9 +256,11 @@ class fppLCD():
     
   def ProcessUp(self):
     self.SetStatusTimeOut(self.MAX_STATUS_TIMEOUT);
+    self.BackgroundTimeoutCount = 0
     if self.previousBtn == self.lcd.DOWN:
       return
     
+    self.lcd.backlight(self.colors[self.BackgroundColor][1])
     self.SubmenuIndex = self.SubmenuIndex - 1
     if self.MenuIndex == self.MENU_INX_STOP_SEQUENCE:
       self.DisplayStopSequence()
@@ -234,6 +270,8 @@ class fppLCD():
       self.DisplayPlaylists()
     elif self.MenuIndex == self.MENU_INX_BACKCOLOR:
       self.DisplayMenuBackColor()
+    elif self.MenuIndex == self.MENU_INX_BACKCOLOR_TIMEOUT:
+      self.DisplayBackgroundTimeout()
     elif self.MenuIndex == self.MENU_INX_PLAYLIST_ENTRIES:
       self.DisplayPlaylistEntries()
     elif self.MenuIndex == self.MENU_INX_STATUS:
@@ -246,9 +284,11 @@ class fppLCD():
     
   def ProcessDown(self):
     self.SetStatusTimeOut(self.MAX_STATUS_TIMEOUT);
+    self.BackgroundTimeoutCount = 0
     if self.previousBtn == self.lcd.DOWN:
       return
     
+    self.lcd.backlight(self.colors[self.BackgroundColor][1])
     self.SubmenuIndex = self.SubmenuIndex + 1
     if self.MenuIndex == self.MENU_INX_STOP_SEQUENCE:
       self.DisplayStopSequence()
@@ -258,6 +298,8 @@ class fppLCD():
       self.DisplayPlaylists()
     elif self.MenuIndex == self.MENU_INX_BACKCOLOR:
       self.DisplayMenuBackColor()
+    elif self.MenuIndex == self.MENU_INX_BACKCOLOR_TIMEOUT:
+      self.DisplayBackgroundTimeout()
     elif self.MenuIndex == self.MENU_INX_STATUS:
       self.SetStatusTimeOut(self.NORMAL_STATUS_TIMEOUT);
       self.UpdateStatus()
@@ -269,8 +311,11 @@ class fppLCD():
 
   def ProcessSelect(self):
     self.SetStatusTimeOut(self.MAX_STATUS_TIMEOUT);
+    self.BackgroundTimeoutCount = 0
     if self.previousBtn == self.lcd.SELECT:
       return
+
+    self.lcd.backlight(self.colors[self.BackgroundColor][1])
     if self.MenuIndex == self.MENU_INX_STATUS:
       if self.FPPDstatus == self.FPPD_STATUS_STOPPED:
         self.StartFPPD()
@@ -292,6 +337,9 @@ class fppLCD():
     elif self.MenuIndex == self.MENU_INX_BACKCOLOR:
       self.BackgroundColor = self.SubmenuIndex
       self.SelectColor(1)
+    elif self.MenuIndex == self.MENU_INX_BACKCOLOR_TIMEOUT:
+      self.BackgroundTimeout = self.SubmenuIndex
+      self.SelectBackgroundTimeout(1)
     elif self.MenuIndex == self.MENU_INX_SHUTDOWN_REBOOT:
       if self.SubmenuIndex == 0:
         self.ShutdownPi()
@@ -550,6 +598,21 @@ class fppLCD():
     self.UpdateDisplay()
     return;  
     
+  def DisplayBackgroundTimeout(self):
+    self.SubmenuIndex = self.SubmenuIndex % self.MENU_BACKCOLOR_TIMEOUT_COUNT
+    self.lcd.clear()
+    if self.BackgroundTimeout == self.SubmenuIndex:
+      selected = "*"
+    else:
+      selected = ""
+      
+    self.line1 = self.MakeStringWithLength("Background Mode",16,0)
+    self.line2 =  self.MakeStringWithLength(selected + self.backgroundModes[self.SubmenuIndex],16,0)
+    
+    self.UpdateDisplay()
+    return;  
+
+
   def SelectColor(self,updateSetting):
     self.lcd.backlight(self.colors[self.BackgroundColor][1])
     if updateSetting==1:
@@ -558,6 +621,13 @@ class fppLCD():
     self.DisplayMenuBackColor()
     return;
 
+  def SelectBackgroundTimeout(self,updateSetting):
+    self.lcd.backlight(self.colors[self.BackgroundColor][1])
+    if updateSetting==1:
+      self.writeSetting("piLCD_BackgroundTimeout",str(self.BackgroundTimeout))
+
+    self.DisplayBackgroundTimeout()
+    return;
     
   def getFPPversion(self):
     print self.THIS_DIRECTORY + "\n\n"
@@ -674,7 +744,14 @@ class fppLCD():
     self.sequenceCount = self.sequenceCount - 1
     return
         
-        
+  def CheckBackgroundTimeout(self):
+    if self.BackgroundTimeout == self.BACKGROUND_TIMEOUT_ENABLED:
+      self.BackgroundTimeoutCount = self.BackgroundTimeoutCount + 1
+      if self.BackgroundTimeoutCount > self.BACKGROUND_TIMEOUT_MAX_COUNT:
+        self.lcd.backlight(0)
+        self.BackgroundTimeoutCount = 0  
+
+  
 def kill_handler(signum = None, frame = None):
   fpplcd.line1 = fpplcd.MakeStringWithLength("Power Down LCD",16,1)
   fpplcd.line2 = fpplcd.MakeStringWithLength(" ",16,1)
@@ -696,7 +773,7 @@ with context:
   sleep(1)
   fpplcd = fppLCD(THIS_DIRECTORY)
   fpplcd.Initialize()
-    
+      
 
   while True:
     fpplcd.CheckButtons()
@@ -706,3 +783,4 @@ with context:
     if fpplcd.statusUpdateCounter > fpplcd.maxStatusUpdateCount:
       fpplcd.UpdateStatus()
         
+    fpplcd.CheckBackgroundTimeout()      
