@@ -550,6 +550,17 @@ class fppLCD():
     self.DisplayMenuBackColor()
     return;
 
+    
+  def getFPPversion(self):
+    print self.THIS_DIRECTORY + "\n\n"
+    fppDirectory = os.path.dirname(os.path.dirname(self.THIS_DIRECTORY))
+    print fppDirectory
+    command = "git --git-dir=" + fppDirectory + "/.git/ describe --tags"
+    print command
+    version = subprocess.check_output(command, shell=True) 
+    print version
+    return version
+  
   def writeSetting(self,setting,value):
     writeScript = os.path.dirname(self.THIS_DIRECTORY) + "/writeSetting.awk"
     command = "awk -f " + writeScript + " " + self.SETTINGS_FILE + " setting=" + setting + " value=" + value
@@ -617,6 +628,8 @@ class fppLCD():
     self.line1 = self.MakeStringWithLength("Rebooting Pi",16,1)
     self.line2 = self.MakeStringWithLength(" ",16,1)
     self.UpdateDisplay()
+    sleep(2)
+    self.lcd.backlight(0)
     os.system("sudo shutdown -r now")
     return
 
@@ -624,6 +637,8 @@ class fppLCD():
     self.line1 = self.MakeStringWithLength("Shutting Down Pi",16,1)
     self.line2 = self.MakeStringWithLength(" ",16,1)
     self.UpdateDisplay()
+    sleep(2)
+    self.lcd.backlight(0)
     os.system("sudo shutdown -h now")
     return
 
@@ -651,28 +666,35 @@ class fppLCD():
     self.sequenceCount = self.sequenceCount - 1
     return
         
- # Clear display and show greeting, pause 1 sec
- 
-#context = daemon.DaemonContext(
-#    working_directory='/home/pi',
-#    umask=0o002,
-#    pidfile=lockfile.FileLock('/home/pi'),
-#)
+        
+def kill_handler(signum = None, frame = None):
+  fpplcd.line1 = fpplcd.MakeStringWithLength("Power Down LCD",16,1)
+  fpplcd.line2 = fpplcd.MakeStringWithLength(" ",16,1)
+  fpplcd.UpdateDisplay()
+  time.sleep(2)  #here check if process is done
+  fpplcd.line1 = fpplcd.MakeStringWithLength("",16,1)
+  fpplcd.line2 = fpplcd.MakeStringWithLength(" ",16,1)
+  fpplcd.UpdateDisplay()
+  fpplcd.lcd.backlight(0)
+  time.sleep(.2)  #here check if process is done
+  sys.exit(0)
 
 THIS_DIRECTORY = os.path.dirname(os.path.realpath(__file__))
-context = daemon.DaemonContext()
+#context = daemon.DaemonContext()
 
-context.open()
-with context:
-  sleep(1)
-  fpplcd = fppLCD(THIS_DIRECTORY)
-  fpplcd.Initialize()
+#context.open()
+signal.signal(signal.SIGTERM , kill_handler)
+#with context:
+sleep(1)
+fpplcd = fppLCD(THIS_DIRECTORY)
+fpplcd.Initialize()
+fpplcd.getFPPversion()
 
-  while True:
-    fpplcd.CheckButtons()
-    fpplcd.CheckRotate()
-    sleep(.10)
-    fpplcd.statusUpdateCounter = fpplcd.statusUpdateCounter + 1
-    if fpplcd.statusUpdateCounter > fpplcd.maxStatusUpdateCount:
-      fpplcd.UpdateStatus()
+while True:
+  fpplcd.CheckButtons()
+  fpplcd.CheckRotate()
+  sleep(.10)
+  fpplcd.statusUpdateCounter = fpplcd.statusUpdateCounter + 1
+  if fpplcd.statusUpdateCounter > fpplcd.maxStatusUpdateCount:
+    fpplcd.UpdateStatus()
       
