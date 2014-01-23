@@ -680,21 +680,21 @@ def kill_handler(signum = None, frame = None):
   sys.exit(0)
 
 THIS_DIRECTORY = os.path.dirname(os.path.realpath(__file__))
-#context = daemon.DaemonContext()
+context = daemon.DaemonContext()
 
-#context.open()
+context.open()
 signal.signal(signal.SIGTERM , kill_handler)
-#with context:
-sleep(1)
-fpplcd = fppLCD(THIS_DIRECTORY)
-fpplcd.Initialize()
-fpplcd.getFPPversion()
+with context:
+  sleep(1)
+  fpplcd = fppLCD(THIS_DIRECTORY)
+  fpplcd.Initialize()
+  fpplcd.getFPPversion()
 
-while True:
-  fpplcd.CheckButtons()
-  fpplcd.CheckRotate()
-  sleep(.10)
-  fpplcd.statusUpdateCounter = fpplcd.statusUpdateCounter + 1
-  if fpplcd.statusUpdateCounter > fpplcd.maxStatusUpdateCount:
-    fpplcd.UpdateStatus()
-      
+  while True:
+    fpplcd.CheckButtons()
+    fpplcd.CheckRotate()
+    sleep(.10)
+    fpplcd.statusUpdateCounter = fpplcd.statusUpdateCounter + 1
+    if fpplcd.statusUpdateCounter > fpplcd.maxStatusUpdateCount:
+      fpplcd.UpdateStatus()
+        
