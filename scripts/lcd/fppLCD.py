@@ -109,6 +109,14 @@ class fppLCD():
       self.BackgroundColor = self.COLOR_WHITE
     
     self.SelectColor(self.BackgroundColor);
+    
+    version = fpplcd.getFPPversion()
+    self.line1 = self.MakeStringWithLength("FPP Version",16,1);
+    self.line2 = self.MakeStringWithLength(version,16,1);
+    self.UpdateDisplay()
+    time.sleep(4) 
+    
+    
     return 
     
   def SendCommand(self,command):
@@ -688,7 +696,7 @@ with context:
   sleep(1)
   fpplcd = fppLCD(THIS_DIRECTORY)
   fpplcd.Initialize()
-  fpplcd.getFPPversion()
+    
 
   while True:
     fpplcd.CheckButtons()
