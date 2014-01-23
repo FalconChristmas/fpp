@@ -92,7 +92,7 @@ class fppLCD():
 
     self.BACKGROUND_ALWAYS_ON = 0
     self.BACKGROUND_TIMEOUT_ENABLED = 1
-    self.BACKGROUND_TIMEOUT_MAX_COUNT = 500
+    self.BACKGROUND_TIMEOUT_MAX_COUNT = 1500
     self.BackgroundColor = 0
     self.BackgroundTimeout = 1          #self.BACKGROUND_TIMEOUT_ENABLED
     self.BackgroundTimeoutCount=0
