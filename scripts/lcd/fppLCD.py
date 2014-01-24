@@ -125,7 +125,7 @@ class fppLCD():
     if strTimeout.isdigit():
       self.BackgroundTimeout = int(strTimeout);
     else:
-      self.BackgroundTimeout = 0
+      self.BackgroundTimeout = 1
     
     version = fpplcd.getFPPversion()
     self.line1 = self.MakeStringWithLength("FPP Version",16,1);
