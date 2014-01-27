@@ -187,6 +187,9 @@ function DisableNetworkFields(disabled)
 <div id="bodyWrapper">
 <?php include 'menu.inc'; ?>
 <br/>
+<?php
+      goto DEVELOPMENT;
+?>
 <div id="network" class="settings">
   <fieldset>
     <legend>Network Configuration</legend>
@@ -264,6 +267,9 @@ function DisableNetworkFields(disabled)
         </fieldset>
     </FORM>
     <br>
+    <?php
+      DEVELOPMENT:
+    ?>
     <div id="E131_Interface">
       <fieldset>
         <legend>E131 Output </legend>
