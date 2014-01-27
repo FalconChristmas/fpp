@@ -63,12 +63,13 @@ else
 fi
 sleep 2
 
-PiLCDenabled=$(awk -f ${FPPDIR}/scripts/readSetting.awk /home/pi/media/settings setting=PI_LCD_Enabled)
-echo $PiLCDenabled
 
 hwclock -s
 
 ${BINDIR}/fpp_boot
+
+PiLCDenabled=$(awk -f ${FPPDIR}/scripts/readSetting.awk /home/pi/media/settings setting=PI_LCD_Enabled)
+echo $PiLCDenabled
 
 if [[ $PiLCDenabled == "true" ]]
 then
