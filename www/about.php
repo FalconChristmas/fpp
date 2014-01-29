@@ -264,12 +264,13 @@ a:visited {
         <div class='aboutRight'>
           <table class='tblAbout'>
             <tr><td><b>Player Stats</b></td><td>&nbsp;</td></tr>
-            <tr><td>Playlists:</td><td><? echo getFileCount($playlistDirectory); ?></td></tr>
-            <tr><td>Sequence Files:</td><td><? echo getFileCount($sequenceDirectory); ?></td></tr>
-            <tr><td>Audio Files:</td><td><? echo getFileCount($musicDirectory); ?></td></tr>
-            <tr><td>Video Files:</td><td><? echo getFileCount($videoDirectory); ?></td></tr>
-            <tr><td>Events Defined:</td><td><? echo getFileCount($eventDirectory); ?></td></tr>
-            <tr><td>Scripts Defined:</td><td><? echo getFileCount($scriptDirectory); ?></td></tr>
+            <tr><td>Playlists:</td><td><a href='playlists.php' class='nonULLink'><? echo getFileCount($playlistDirectory); ?></a></td></tr>
+            <tr><td>Sequences:</td><td><a href='uploadfile.php?tab=0' class='nonULLink'><? echo getFileCount($sequenceDirectory); ?></a></td></tr>
+            <tr><td>Audio Files:</td><td><a href='uploadfile.php?tab=1' class='nonULLink'><? echo getFileCount($musicDirectory); ?></a></td></tr>
+            <tr><td>Videos:</td><td><a href='uploadfile.php?tab=2' class='nonULLink'><? echo getFileCount($videoDirectory); ?></a></td></tr>
+            <tr><td>Events:</td><td><a href='events.php' class='nonULLink'><? echo getFileCount($eventDirectory); ?></a></td></tr>
+            <tr><td>Effects:</td><td><a href='uploadfile.php?tab=3' class='nonULLink'><? echo getFileCount($effectDirectory); ?></a></td></tr>
+            <tr><td>Scripts:</td><td><a href='uploadfile.php?tab=4' class='nonULLink'><? echo getFileCount($scriptDirectory); ?></a></td></tr>
             <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
 
             <tr><td><b>Disk Utilization</b></td><td>&nbsp;</td></tr>

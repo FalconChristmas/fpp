@@ -249,7 +249,15 @@ $('#uploader_div').ajaxupload({
 </div>
 <?php	include 'common/footer.inc'; ?>
 <script>
-    $("#tabs").tabs({cache: true, spinner: "", fx: { opacity: 'toggle', height: 'toggle' } });
+	var activeTabNumber = 
+<?php
+	if (isset($_GET['tab']))
+		print $_GET['tab'];
+	else
+		print "0";
+?>;
+
+    $("#tabs").tabs({cache: true, active: activeTabNumber, spinner: "", fx: { opacity: 'toggle', height: 'toggle' } });
 </script>
 </body>
 </html>

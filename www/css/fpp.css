@@ -552,6 +552,12 @@ fieldset
 	text-align: center;
 	font-weight: bold;
 }
+
+.nonULLink {
+	text-decoration: none;
+	color: blue;
+}
+
 #playlistEntryProperties ul{
 	padding: 0;
 	margin: 10px;
