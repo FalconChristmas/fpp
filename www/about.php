@@ -14,6 +14,7 @@ error_reporting(E_ALL);
 $fpp_version = "v" . exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ describe --tags", $output, $return_val);
 if ( $return_val != 0 )
 	$fpp_version = "Unknown";
+unset($output);
 
 if (!file_exists("/etc/fpp/config_version") && file_exists("/etc/fpp/rfs_version"))
 {
@@ -26,6 +27,7 @@ if (file_exists("/etc/fpp/rfs_version"))
 	$os_build = exec("cat /etc/fpp/rfs_version", $output, $return_val);
 	if ( $return_val != 0 )
 		$os_build = "Unknown";
+	unset($output);
 }
 
 $os_version = "Unknown";
@@ -34,7 +36,13 @@ if (file_exists("/etc/os-release"))
 	$info = parse_ini_file("/etc/os-release");
 	if (isset($info["PRETTY_NAME"]))
 		$os_version = $info["PRETTY_NAME"];
+	unset($output);
 }
+
+$kernel_version = exec("/bin/uname -r", $output, $return_val);
+if ( $return_val != 0 )
+	$kernel_version = "Unknown";
+unset($output);
 
 $git_version = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ rev-parse --short HEAD", $output, $return_val);
 if ( $return_val != 0 )
@@ -210,6 +218,7 @@ a:visited {
             <tr><td>FPP Version:</td><td><? echo $fpp_version; ?></td></tr>
             <tr><td>FPP OS Build:</td><td><? echo $os_build; ?></td></tr>
             <tr><td>OS Version:</td><td><? echo $os_version; ?></td></tr>
+            <tr><td>Kernel Version:</td><td><? echo $kernel_version; ?></td></tr>
 <? if (file_exists("/home/pi/media/.developer_mode")) { ?>
             <tr><td>Git Branch:</td><td><select id='gitBranch' onChange="ChangeGitBranch($('#gitBranch').val());">
 <? PrintGitBranchOptions(); ?>
