@@ -193,7 +193,7 @@ void SetScheduleEntrysWeeklyStartAndEndSeconds(ScheduleEntry * entry)
       entry->weeklyStartSeconds[4] = GetWeeklySeconds(INX_FRI,entry->startHour,entry->startMinute,entry->startSecond);
       entry->weeklyEndSeconds[0] = GetWeeklySeconds(INX_MON,entry->endHour,entry->endMinute,entry->endSecond);
       entry->weeklyEndSeconds[1] = GetWeeklySeconds(INX_TUE,entry->endHour,entry->endMinute,entry->endSecond);
-      entry->weeklyEndSeconds[2] = GetWeeklySeconds(INX_WED,entry->startHour,entry->endMinute,entry->endSecond);
+      entry->weeklyEndSeconds[2] = GetWeeklySeconds(INX_WED,entry->endHour,entry->endMinute,entry->endSecond);
       entry->weeklyEndSeconds[3] = GetWeeklySeconds(INX_THU,entry->endHour,entry->endMinute,entry->endSecond);
       entry->weeklyEndSeconds[4] = GetWeeklySeconds(INX_FRI,entry->endHour,entry->endMinute,entry->endSecond);
       entry->weeklySecondCount = 5;
@@ -231,7 +231,7 @@ void SetScheduleEntrysWeeklyStartAndEndSeconds(ScheduleEntry * entry)
       entry->weeklyEndSeconds[0] = GetWeeklySeconds(INX_SUN,entry->endHour,entry->endMinute,entry->endSecond);
       entry->weeklyEndSeconds[1] = GetWeeklySeconds(INX_MON,entry->endHour,entry->endMinute,entry->endSecond);
       entry->weeklyEndSeconds[2] = GetWeeklySeconds(INX_TUE,entry->endHour,entry->endMinute,entry->endSecond);
-      entry->weeklyEndSeconds[3] = GetWeeklySeconds(INX_WED,entry->startHour,entry->endMinute,entry->endSecond);
+      entry->weeklyEndSeconds[3] = GetWeeklySeconds(INX_WED,entry->endHour,entry->endMinute,entry->endSecond);
       entry->weeklyEndSeconds[4] = GetWeeklySeconds(INX_THU,entry->endHour,entry->endMinute,entry->endSecond);
       entry->weeklySecondCount = 5;
 			break;

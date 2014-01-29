@@ -77,10 +77,10 @@ void SendPixelnetDMX(void)
 	memcpy(&bufferPixelnetDMX[PIXELNET_HEADER_SIZE],fileData,PIXELNET_DMX_DATA_SIZE);
 	for(i=0;i<PIXELNET_DMX_BUF_SIZE;i++)
 	{
-		//if (bufferPixelnetDMX[i] == 170)
-		//{
-		//	bufferPixelnetDMX[i] = 171;
-		//}
+		if (bufferPixelnetDMX[i] == 170)
+		{
+			bufferPixelnetDMX[i] = 171;
+		}
 	}
 	wiringPiSPIDataRW (0, bufferPixelnetDMX, PIXELNET_DMX_BUF_SIZE);
 }

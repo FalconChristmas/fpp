@@ -62,7 +62,20 @@ else
   echo setting rtc to i2c-1
 fi
 sleep 2
+
+
 hwclock -s
 
 ${BINDIR}/fpp_boot
+
+PiLCDenabled=$(awk -f ${FPPDIR}/scripts/readSetting.awk /home/pi/media/settings setting=PI_LCD_Enabled)
+echo $PiLCDenabled
+
+if [[ $PiLCDenabled == "true" ]]
+then
+  echo "LCD Enabled"
+  ${FPPDIR}/scripts/lcd/fppLCD start
+else
+  echo "LCD Disabled"
+fi
 
