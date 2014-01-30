@@ -90,6 +90,11 @@ class fppLCD():
 
     self.COLOR_WHITE = 6
 
+    self.TimeMode=0;
+    self.TIMEMODE_ELASPED = 0
+    self.TIMEMODE_REMAINING = 1
+    
+        
     self.BACKGROUND_ALWAYS_ON = 0
     self.BACKGROUND_TIMEOUT_ENABLED = 1
     self.BACKGROUND_TIMEOUT_MAX_COUNT = 1500
@@ -97,10 +102,10 @@ class fppLCD():
     self.BackgroundTimeout = 1          #self.BACKGROUND_TIMEOUT_ENABLED
     self.BackgroundTimeoutCount=0
 
-    self.MENU_COLOR_COUNT = 7
     self.MENU_BACKCOLOR_TIMEOUT_COUNT = 2
     self.previousBtn = -1
     
+    self.MENU_COLOR_COUNT = 7
     self.colors=(("Red            ",self.lcd.RED),
                  ("Green          ",self.lcd.GREEN),
                  ("Blue           ",self.lcd.BLUE),
@@ -126,6 +131,12 @@ class fppLCD():
       self.BackgroundTimeout = int(strTimeout);
     else:
       self.BackgroundTimeout = 1
+    
+    strTimeout = self.readSetting("piLCDtimeMode")
+    if strTimeout.isdigit():
+      self.TimeMode = int(strTimeout);
+    else:
+      self.TimeMode = 0
     
     version = fpplcd.getFPPversion()
     self.line1 = self.MakeStringWithLength("FPP Version",16,1);
@@ -277,10 +288,11 @@ class fppLCD():
     elif self.MenuIndex == self.MENU_INX_STATUS:
       self.SetStatusTimeOut(self.NORMAL_STATUS_TIMEOUT);
       self.UpdateStatus()
+      if self.FPPDplayerStatus == self.STATUS_PLAYING or self.FPPDplayerStatus == self.STATUS_STOPPING_GRACEFULLY:
+        self.ToggleTimeMode()
      
     self.previousBtn = self.lcd.UP
     return;
-    
     
   def ProcessDown(self):
     self.SetStatusTimeOut(self.MAX_STATUS_TIMEOUT);
@@ -303,11 +315,19 @@ class fppLCD():
     elif self.MenuIndex == self.MENU_INX_STATUS:
       self.SetStatusTimeOut(self.NORMAL_STATUS_TIMEOUT);
       self.UpdateStatus()
+      if self.FPPDplayerStatus == self.STATUS_PLAYING or self.FPPDplayerStatus == self.STATUS_STOPPING_GRACEFULLY:
+        self.ToggleTimeMode()
     elif self.MenuIndex == self.MENU_INX_PLAYLIST_ENTRIES:
       self.DisplayPlaylistEntries()
 		
     self.previousBtn = self.lcd.DOWN
     return;
+
+  def ToggleTimeMode(self):
+    self.TimeMode = 0 if self.TimeMode==1 else 1
+    self.writeSetting("piLCDtimeMode",str(self.TimeMode))
+    
+    return
 
   def ProcessSelect(self):
     self.SetStatusTimeOut(self.MAX_STATUS_TIMEOUT);
@@ -476,10 +496,11 @@ class fppLCD():
     sElapsed = int(iSecsElapsed%60)
     mRemaining = int(iSecsRemaining/60)
     sRemaining = int(iSecsRemaining%60)
-    if playingStatus == self.STATUS_PLAYING:
-      self.line1 = "Playing    " +  str(mElapsed).zfill(2) + ":" + str(sElapsed).zfill(2) #+ "  " +  
+    strMode = "Playing    " if playingStatus == self.STATUS_PLAYING else "Stopping   "
+    if self.TimeMode == self.TIMEMODE_ELASPED:
+      self.line1 = strMode + str(mElapsed).zfill(2) + ":" + str(sElapsed).zfill(2) 
     else:
-      self.line1 = "Stopping   " +  str(mRemaining).zfill(2) + ":" + str(sRemaining).zfill(2) #+ "  " +  
+      self.line1 = strMode + str(mRemaining).zfill(2) + ":" + str(sRemaining).zfill(2)  
 
 
     if self.SubmenuIndex > 6:
@@ -630,13 +651,9 @@ class fppLCD():
     return;
     
   def getFPPversion(self):
-    print self.THIS_DIRECTORY + "\n\n"
     fppDirectory = os.path.dirname(os.path.dirname(self.THIS_DIRECTORY))
-    print fppDirectory
     command = "git --git-dir=" + fppDirectory + "/.git/ describe --tags"
-    print command
     version = subprocess.check_output(command, shell=True) 
-    print version
     return version
   
   def writeSetting(self,setting,value):
@@ -782,5 +799,5 @@ with context:
     fpplcd.statusUpdateCounter = fpplcd.statusUpdateCounter + 1
     if fpplcd.statusUpdateCounter > fpplcd.maxStatusUpdateCount:
       fpplcd.UpdateStatus()
-        
+         
     fpplcd.CheckBackgroundTimeout()      
