@@ -520,11 +520,13 @@ class fppLCD():
       playListPath, playlist = os.path.split(currentPlaylist)
       self.line2 = self.MakeStringWithLength(playlist,16,1);
     else:
-      if len(seqName) > 0:
+      if playlistType == "b" or playlistType == "s":
         self.line2 = self.MakeStringWithLength(self.RemoveExtensionFromFilename(seqName),16,1);
-      else:
+      elif playlistType == "m":
         self.line2 = self.MakeStringWithLength(self.RemoveExtensionFromFilename(songName),16,1);
-        
+      else:
+        self.line2 = self.MakeStringWithLength(self.RemoveExtensionFromFilename(seqName),16,1);
+      
     self.UpdateDisplay()
     return;
   
@@ -568,6 +570,10 @@ class fppLCD():
     if len(self.playlists) == 0:
       self.line2 = self.MakeStringWithLength("No Playlists!",16,0)
       self.UpdateDisplay()
+      time.sleep(3)
+      self.SetStatusTimeOut(self.NORMAL_STATUS_TIMEOUT);
+      self.MenuIndex=self.MENU_INX_STATUS
+      self.UpdateStatus()
       return
     if self.SubmenuIndex < 0:
       self.SubmenuIndex = len(self.playlists) - 1
@@ -777,8 +783,8 @@ class fppLCD():
 
   
 def kill_handler(signum = None, frame = None):
-  fpplcd.line1 = fpplcd.MakeStringWithLength("Power Down LCD",16,1)
-  fpplcd.line2 = fpplcd.MakeStringWithLength(" ",16,1)
+  fpplcd.line1 = fpplcd.MakeStringWithLength("Powerering Down",16,1)
+  fpplcd.line2 = fpplcd.MakeStringWithLength("      LCD      ",16,1)
   fpplcd.UpdateDisplay()
   time.sleep(2)  #here check if process is done
   fpplcd.line1 = fpplcd.MakeStringWithLength("",16,1)
