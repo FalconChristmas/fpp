@@ -85,8 +85,9 @@ class fppLCD():
     self.MENU_INX_PLAYLISTS = 2
     self.MENU_INX_PLAYLIST_ENTRIES = 3
     self.MENU_INX_SHUTDOWN_REBOOT = 4
-    self.MENU_INX_BACKCOLOR = 5
-    self.MENU_INX_BACKCOLOR_TIMEOUT = 6
+    self.MENU_INX_BACKGROUND = 5
+    self.MENU_INX_BACKCOLOR = 6
+    self.MENU_INX_BACKCOLOR_TIMEOUT = 7
 
     self.COLOR_WHITE = 6
 
@@ -104,6 +105,10 @@ class fppLCD():
 
     self.MENU_BACKCOLOR_TIMEOUT_COUNT = 2
     self.previousBtn = -1
+    
+    self.MENU_BACKGROUND_COUNT = 2
+    self.menuBackground=("1)Color         ",
+                         "2)Mode          ")
     
     self.MENU_COLOR_COUNT = 7
     self.colors=(("Red            ",self.lcd.RED),
@@ -201,14 +206,17 @@ class fppLCD():
     self.lcd.backlight(self.colors[self.BackgroundColor][1])
 
     if self.MenuIndex == self.MENU_INX_STATUS:
-      self.SetStatusTimeOut(self.MAX_STATUS_TIMEOUT);
-      self.MenuIndex = self.MENU_INX_BACKCOLOR_TIMEOUT
-      self.SubmenuIndex = self.BackgroundTimeout
-      self.DisplayBackgroundTimeout()
+      self.MenuIndex = self.MENU_INX_BACKGROUND
+      self.SubmenuIndex = 0
+      self.DisplayMenuBackground()
+    elif self.MenuIndex == self.MENU_INX_BACKCOLOR:
+      self.MenuIndex = self.MENU_INX_BACKGROUND
+      self.SubmenuIndex = 0
+      self.DisplayMenuBackground()
     elif self.MenuIndex == self.MENU_INX_BACKCOLOR_TIMEOUT:
-      self.MenuIndex = self.MENU_INX_BACKCOLOR
-      self.SubmenuIndex = self.BackgroundColor
-      self.DisplayMenuBackColor()
+      self.MenuIndex = self.MENU_INX_BACKGROUND
+      self.SubmenuIndex = 1
+      self.DisplayMenuBackground()
     elif self.MenuIndex == self.MENU_INX_SHUTDOWN_REBOOT:
       self.SetStatusTimeOut(self.NORMAL_STATUS_TIMEOUT);
       self.MenuIndex = self.MENU_INX_STATUS
@@ -217,7 +225,7 @@ class fppLCD():
       self.SetStatusTimeOut(self.NORMAL_STATUS_TIMEOUT);
       self.MenuIndex = self.MENU_INX_STATUS
       self.UpdateStatus()
-    elif self.MenuIndex == self.MENU_INX_BACKCOLOR:
+    elif self.MenuIndex == self.MENU_INX_BACKGROUND:
       self.MenuIndex = self.MENU_INX_SHUTDOWN_REBOOT
       self.DisplayShutdownMenu()
     elif self.MenuIndex == self.MENU_INX_PLAYLISTS:
@@ -244,18 +252,21 @@ class fppLCD():
       self.MenuIndex = self.MENU_INX_SHUTDOWN_REBOOT
       self.DisplayShutdownMenu()
     elif self.MenuIndex == self.MENU_INX_SHUTDOWN_REBOOT:
-      self.MenuIndex = self.MENU_INX_BACKCOLOR
-      self.SubmenuIndex = self.BackgroundColor
-      self.DisplayMenuBackColor()
-    elif self.MenuIndex == self.MENU_INX_BACKCOLOR:
-      self.SetStatusTimeOut(self.MAX_STATUS_TIMEOUT);
-      self.SubmenuIndex = self.BackgroundTimeout
-      self.MenuIndex = self.MENU_INX_BACKCOLOR_TIMEOUT
-      self.DisplayBackgroundTimeout()
-    elif self.MenuIndex == self.MENU_INX_BACKCOLOR_TIMEOUT:
+      self.MenuIndex = self.MENU_INX_BACKGROUND
+      self.SubmenuIndex = 0
+      self.DisplayMenuBackground()
+    elif self.MenuIndex == self.MENU_INX_BACKGROUND:
       self.SetStatusTimeOut(self.NORMAL_STATUS_TIMEOUT);
       self.MenuIndex = self.MENU_INX_STATUS
       self.UpdateStatus()
+    elif self.MenuIndex == self.MENU_INX_BACKCOLOR:
+      self.MenuIndex = self.MENU_INX_BACKGROUND
+      self.SubmenuIndex = 0
+      self.DisplayMenuBackground()
+    elif self.MenuIndex == self.MENU_INX_BACKCOLOR_TIMEOUT:
+      self.MenuIndex = self.MENU_INX_BACKGROUND
+      self.SubmenuIndex = 1
+      self.DisplayMenuBackground()
     elif self.MenuIndex == self.MENU_INX_STOP_SEQUENCE:
       self.SetStatusTimeOut(self.NORMAL_STATUS_TIMEOUT);
       self.MenuIndex = self.MENU_INX_STATUS
@@ -286,6 +297,8 @@ class fppLCD():
       self.DisplayShutdownMenu()
     elif self.MenuIndex == self.MENU_INX_PLAYLISTS:
       self.DisplayPlaylists()
+    elif self.MenuIndex == self.MENU_INX_BACKGROUND:
+      self.DisplayMenuBackground()
     elif self.MenuIndex == self.MENU_INX_BACKCOLOR:
       self.DisplayMenuBackColor()
     elif self.MenuIndex == self.MENU_INX_BACKCOLOR_TIMEOUT:
@@ -315,6 +328,8 @@ class fppLCD():
       self.DisplayShutdownMenu()
     elif self.MenuIndex == self.MENU_INX_PLAYLISTS:
       self.DisplayPlaylists()
+    elif self.MenuIndex == self.MENU_INX_BACKGROUND:
+      self.DisplayMenuBackground()
     elif self.MenuIndex == self.MENU_INX_BACKCOLOR:
       self.DisplayMenuBackColor()
     elif self.MenuIndex == self.MENU_INX_BACKCOLOR_TIMEOUT:
@@ -361,6 +376,15 @@ class fppLCD():
       self.DisplayPlaylistEntries()
     elif self.MenuIndex == self.MENU_INX_PLAYLIST_ENTRIES:
       self.StartPlaylist()
+    elif self.MenuIndex == self.MENU_INX_BACKGROUND:
+      if self.SubmenuIndex == 0:
+        self.MenuIndex = self.MENU_INX_BACKCOLOR
+        self.SubmenuIndex = self.BackgroundColor
+        self.DisplayMenuBackColor()
+      else:
+        self.MenuIndex = self.MENU_INX_BACKCOLOR_TIMEOUT
+        self.SubmenuIndex = self.BackgroundTimeout
+        self.DisplayBackgroundTimeout()
     elif self.MenuIndex == self.MENU_INX_BACKCOLOR:
       self.BackgroundColor = self.SubmenuIndex
       self.SelectColor(1)
@@ -522,7 +546,7 @@ class fppLCD():
     else:
       if playlistType == "b" or playlistType == "s":
         self.line2 = self.MakeStringWithLength(self.RemoveExtensionFromFilename(seqName),16,1);
-      elif playlistType == "m":
+      elif   playlistType == "m":
         self.line2 = self.MakeStringWithLength(self.RemoveExtensionFromFilename(songName),16,1);
       else:
         self.line2 = self.MakeStringWithLength(self.RemoveExtensionFromFilename(seqName),16,1);
@@ -615,6 +639,13 @@ class fppLCD():
     else:
       self.line2 = self.MakeStringWithLength("2. Reboot",16,0)
      
+    self.UpdateDisplay()
+    return
+
+  def DisplayMenuBackground(self):
+    self.SubmenuIndex = self.SubmenuIndex % self.MENU_BACKGROUND_COUNT
+    self.line1 = self.MakeStringWithLength("Background",16,0)
+    self.line2 =  self.MakeStringWithLength(self.menuBackground[self.SubmenuIndex],16,0)
     self.UpdateDisplay()
     return
 
@@ -803,7 +834,7 @@ with context:
   sleep(1)
   fpplcd = fppLCD(THIS_DIRECTORY)
   fpplcd.Initialize()
-      
+        
 
   while True:
     fpplcd.CheckButtons()
