@@ -10,8 +10,12 @@ if ( isset($_POST['piRTC']) && !empty($_POST['piRTC']) )
   $piRTC = $_POST['piRTC'];
   WriteSettingToFile("piRTC",$piRTC);
   exec(SUDO . " $fppDir/scripts/piRTC set");
+   error_log("Set RTC:" . $piRTC);
 }
-
+else
+{
+   error_log("Error RTC");
+}
 if ( isset($_POST['date']) && !empty($_POST['date']) )
 {
 //TODO: validate date format
@@ -126,10 +130,10 @@ function print_if_match($one, $two, $print)
 
 <h4>Real Time Clock</h4>
 <select name="piRTC">
-  <option value = "0" <?php echo print_if_match("0",ReadSettingFromFile("piRTC"),"selected") ?> >None</option>
+  <option value = "N" <?php echo print_if_match("N",ReadSettingFromFile("piRTC"),"selected") ?> >None</option>
   <option value = "1" <?php echo print_if_match("1",ReadSettingFromFile("piRTC"),"selected") ?> >RasClock</option>
   <option value = "2" <?php echo print_if_match("2",ReadSettingFromFile("piRTC"),"selected") ?> >DS1305</option>
-</select>
+</select> (Reboot required if changed)
 
 
 <h4>NTP</h4>
