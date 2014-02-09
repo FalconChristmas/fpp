@@ -74,7 +74,7 @@ fppd: $(OBJECTS_fppd)
 	$(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
 
 %.o: %.c %.h Makefile
-	$(CC) $(CFLAGS) -c $<
+	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
 	rm -f $(OBJECTS_fpp) $(OBJECTS_fppd) fpp fppd
