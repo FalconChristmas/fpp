@@ -690,7 +690,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 					var entries = xmlDoc.getElementsByTagName('PixelnetDMXentries')[0];
 					if(entries.childNodes.length> 0)
 					{
-						innerHTML = "<tr class=tblheader\">" +  
+						innerHTML = "<tr class=\"tblheader\">" +  
     	                  "<td width=\"5%\">#</td>" +
                         "<td width=\"15%\">Act</td>" +
                         "<td width=\"40%\">Type</td>" +
