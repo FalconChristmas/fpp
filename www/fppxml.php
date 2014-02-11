@@ -1185,6 +1185,9 @@ function LoadUniverseFile()
 	while (!feof($f))
 	{
 		$line=fgets($f);
+		if ($line == "")
+			continue;
+
 		$entry = explode(",",$line,10);
 		$active = $entry[0];
 		$universe = $entry[1];
