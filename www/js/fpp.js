@@ -620,7 +620,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 					var entries = xmlDoc.getElementsByTagName('UniverseEntries')[0];
 					if(entries.childNodes.length> 0)
 					{
-						innerHTML = "<tr class=tblheader\">" +  
+						innerHTML = "<tr class=\"tblheader\">" +  
     	                  "<td width=\"5%\">#</td>" +
                         "<td width=\"7%\">Act</td>" +
 												"<td width=\"8%\">Universe</td>" +
