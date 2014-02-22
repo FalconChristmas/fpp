@@ -55,8 +55,8 @@ void initSettings(void)
 	settings.silenceMusic = strdup("/home/pi/media/silence.ogg");
 	settings.bytesFile = strdup("/home/pi/media/bytesReceived");
 	settings.settingsFile = strdup("/home/pi/media/settings");
-  settings.daemonize = 1;
-  settings.E131interface = strdup("eth0");
+	settings.daemonize = 1;
+	settings.E131interface = strdup("eth0");
 	settings.USBDonglePort = strdup("DISABLED");
 	settings.USBDongleType = strdup("DMX");
 	settings.USBDongleBaud = strdup("57600");
@@ -185,6 +185,10 @@ void printSettings(void)
 		fprintf(fd, "bytesFile(%u): %s\n",
 				strlen(settings.bytesFile),
 				settings.bytesFile);
+	if ( settings.settingsFile )
+		fprintf(fd, "settingsFile(%u): %s\n",
+				strlen(settings.settingsFile),
+				settings.settingsFile);
 	if ( settings.E131interface )
 		fprintf(fd, "E131interface(%u): %s\n",
 				strlen(settings.E131interface),
@@ -320,7 +324,14 @@ int parseArguments(int argc, char **argv)
 				break;
 			case 'c': //config-file
 				if ( loadSettings(optarg) != 0 )
+				{
 					LogErr(VB_SETTING, "Failed to load settings file given as argument: '%s'\n", optarg);
+				}
+				else
+				{
+					free(settings.settingsFile);
+					settings.settingsFile = strdup(optarg);
+				}
 				break;
 			case 'f': //foreground
 				settings.daemonize = false;
