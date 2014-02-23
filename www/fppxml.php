@@ -90,7 +90,7 @@ $command_array = Array(
 	"setPiLCDenabled" => 'SetPiLCDenabled'
 );
 
-if (!isset($nonXML[$_GET['command']]))
+if (isset($_GET['command']) && !isset($nonXML[$_GET['command']]))
 	header('Content-type: text/xml');
 
 
