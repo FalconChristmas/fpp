@@ -1,7 +1,8 @@
+#!/bin/bash
 
 PATH=/bin:/usr/bin:/sbin:/usr/sbin:${PATH}
 
-FPPDIR=/opt/fpp
+FPPDIR=${FPPDIR:-/opt/fpp}
 
 if [ -f "/home/pi/fpp/scripts/common" ]
 then
@@ -11,11 +12,17 @@ fi
 SCRIPTDIR="${FPPDIR}/scripts"
 BINDIR="${FPPDIR}/scripts"
 UPGRADEDIR="${FPPDIR}/upgrade"
-
-MEDIADIR="/home/pi/media"
+MEDIADIR="${MEDIADIR:-/home/pi/media}"
 LOGDIR="${MEDIADIR}/logs"
 CFGDIR="${MEDIADIR}/config"
 CFGFILE="${MEDIADIR}/settings"
+SETTINGSFILE="${SETTINGSFILE:-/home/pi/media/settings}"
+FPPVERSIONFILE="${FPPVERSIONFILE:-/etc/fpp/rfs_version}"
+FPPVERSION="${FPPVERSION:-0}"
+[ -f $FPPVERSIONFILE ] && FPPVERSION="$(cat ${FPPVERSIONFILE} | sed -e "s/[^0-9]//g")"
+CFGVERSIONFILE="${CFGVERSIONFILE:-/etc/fpp/config_version}"
+CFGVERSION="${CFGVERSION:-0}"
+[ -f $CFGVERSIONFILE ] && CFGVERSION="$(cat ${CFGVERSIONFILE})"
 
 logOutput() {
 	MYTTY=$(tty)

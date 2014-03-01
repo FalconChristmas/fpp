@@ -28,7 +28,7 @@ modprobe rtc-ds1307
 
 # Read Clock Setting From Settings File
 
-piRTC=$(awk -f ${FPPDIR}/scripts/readSetting.awk /home/pi/media/settings setting=piRTC)
+piRTC=$(awk -f ${FPPDIR}/scripts/readSetting.awk ${SETTINGSFILE} setting=piRTC)
 echo $piRTC
 
 case $piRTC in

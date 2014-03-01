@@ -169,6 +169,11 @@ $settings['channelOutputsFile'] = $mediaDirectory . "/channeloutputs";
 $settings['channelMemoryMapsFile'] = $mediaDirectory . "/channelmemorymaps";
 $settings['scriptDirectory'] = $scriptDirectory;
 
+putenv("SCRIPTDIR=$scriptDirectory");
+putenv("MEDIADIR=$mediaDirectory");
+putenv("LOGDIR=$logDirectory");
+putenv("SETTINGSFILE=$settingsFile");
+
 if (defined('debug'))
 {
 	error_log("SET:");

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 BINDIR=$(dirname $0)
 . ${BINDIR}/common
@@ -13,11 +13,11 @@ logOutput
 
 if [ -x "${FPPDIR}/plugins/$1/fpp_uninstall.sh" ]
 then
-	sudo ${FPPDIR}/plugins/$1/fpp_uninstall.sh
+	${FPPDIR}/plugins/$1/fpp_uninstall.sh
 fi
 
 echo "Uninstalling plugin $1"
-if [ "x${FPPDIR}" = "x/opt/fpp" ]
+if [ "x${FPPDIR}" = "x/opt/fpp" ] && [ "x${SETTINGSFILE}" = "x/home/pi/media/settings" ]
 then
 	cd ${FPPDIR}/plugins && [ -d $1 ] && sudo rm -rf $1
 elif [ "x${FPPDIR}" = "x/home/pi" ]

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 BINDIR=$(dirname $0)
 . ${BINDIR}/common
@@ -12,7 +12,7 @@ fi
 logOutput
 
 echo "Installing plugin $1"
-if [ "x${FPPDIR}" = "x/opt/fpp" ]
+if [ "x${FPPDIR}" = "x/opt/fpp" ] && [ "x${SETTINGSFILE}" = "x/home/pi/media/settings" ]
 then
 	cd ${FPPDIR}/plugins && sudo git clone $2 $1
 elif [ "x${FPPDIR}" = "x/home/pi" ]
@@ -24,6 +24,6 @@ fi
 
 if [ -x "${FPPDIR}/plugins/$1/fpp_install.sh" ]
 then
-	sudo ${FPPDIR}/plugins/$1/fpp_install.sh
+	${FPPDIR}/plugins/$1/fpp_install.sh
 fi
 
