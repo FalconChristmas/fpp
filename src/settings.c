@@ -199,11 +199,20 @@ printf("Usage: %s [OPTION...]\n"
 "\t-b, --bytes-file\tSet the bytes received file\n"
 "\t-h, --help\t\tThis menu.\n"
 "\t    --mpg123-path\tSet location of mpg123 executable\n"
-"\t    --silence-music\tSet location of silence.ogg file\n", appname);
+"\t    --silence-music\tSet location of silence.ogg file\n"
+"\t    --log-level LEVEL\tSet the log output level (LEVEL: info, warn, debug)\n"
+"\t    --log-mask LIST\tSet the log output mask\n"
+"\t                   \tWhere LIST is a comma separated list made up of:\n"
+"\t                   \t generic, channelout, channeldata, command, e131bridge,\n"
+"\t                   \t effect, event, mediaout, playlist, schedule, sequence,\n"
+"\t                   \t setting, all, most, generic.  ('most' excludes channeldata)\n"
+"\t                   \tDefault logging is '--log-level info --log-mask most'\n"
+	, appname);
 }
 
 int parseArguments(int argc, char **argv)
 {
+	char *s = NULL;
 	int c;
 	while (1)
 	{
@@ -247,8 +256,57 @@ int parseArguments(int argc, char **argv)
 				settings.silenceMusic = strdup(optarg);
 				break;
 			case 2: // log-level
+				if (!strcmp(optarg, "warn")) {
+					logLevel = LOG_WARN;
+				} else if (!strcmp(optarg, "debug")) {
+					logLevel = LOG_DEBUG;
+				} else if (!strcmp(optarg, "info")) {
+					logLevel = LOG_INFO;
+				} else {
+					LogErr(VB_SETTING, "Unable to parse log level '-ll %s'\n", optarg);
+				}
+
+				LogInfo(VB_SETTING, "Log Level set to %d\n", logLevel);
 				break;
 			case 3: // log-mask
+				logMask = VB_NONE;
+
+				s = strtok(optarg, ",");
+				while (s) {
+					if (!strcmp(s, "none")) {
+						logMask = VB_NONE;
+					} else if (!strcmp(s, "all")) {
+						logMask = VB_ALL;
+					} else if (!strcmp(s, "generic")) {
+						logMask |= VB_GENERIC;
+					} else if (!strcmp(s, "channelout")) {
+						logMask |= VB_CHANNELOUT;
+					} else if (!strcmp(s, "channeldata")) {
+						logMask |= VB_CHANNELDATA;
+					} else if (!strcmp(s, "command")) {
+						logMask |= VB_COMMAND;
+					} else if (!strcmp(s, "e131bridge")) {
+						logMask |= VB_E131BRIDGE;
+					} else if (!strcmp(s, "effect")) {
+						logMask |= VB_EFFECT;
+					} else if (!strcmp(s, "event")) {
+						logMask |= VB_EVENT;
+					} else if (!strcmp(s, "mediaout")) {
+						logMask |= VB_MEDIAOUT;
+					} else if (!strcmp(s, "playlist")) {
+						logMask |= VB_PLAYLIST;
+					} else if (!strcmp(s, "schedule")) {
+						logMask |= VB_SCHEDULE;
+					} else if (!strcmp(s, "sequence")) {
+						logMask |= VB_SEQUENCE;
+					} else if (!strcmp(s, "setting")) {
+						logMask |= VB_SETTING;
+					}
+
+					s = strtok(NULL,",");
+				}
+
+				LogInfo(VB_SETTING, "Log Mask set to %d\n", logMask);
 				break;
 			case 'c': //config-file
 				if ( loadSettings(optarg) != 0 )
