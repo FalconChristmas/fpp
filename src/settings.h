@@ -5,6 +5,11 @@
 
 #define MAXBUF 1024
 
+enum fppModes {
+	PLAYER_MODE = 0,
+	BRIDGE_MODE
+};
+
 struct config
 {
 	int		verbose;

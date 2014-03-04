@@ -1,11 +1,13 @@
 #include "fpp.h"
+#include "fppd.h"
 #include "log.h"
 #include "command.h"
 #include "schedule.h"
 #include "playList.h"
-#include "ogg123.h"
 #include "e131bridge.h"
+#include "mediaoutput/mediaoutput.h"
 #include "settings.h"
+#include "sequence.h"
 #include "effects.h"
 
 #include <sys/socket.h>
@@ -21,11 +23,6 @@
 
 extern PlaylistDetails playlistDetails;
 
-extern struct mpg123_type mpg123;
-extern int MusicPlayerStatus;
-extern MusicStatus musicStatus;
-extern int E131secondsElasped;
-extern int E131secondsRemaining;
 extern int numberOfSecondsPaused;
 extern PlaylistDetails playlistDetails;
 
@@ -42,7 +39,7 @@ extern PlaylistDetails playlistDetails;
  {
    mode_t old_umask;
 
-   LogWrite("Initializing Command Module\n");
+   LogInfo(VB_COMMAND, "Initializing Command Module\n");
    signal(SIGINT, exit_handler);
    signal(SIGTERM, exit_handler);
 
@@ -117,8 +114,8 @@ extern PlaylistDetails playlistDetails;
 										playlistDetails.playList[playlistDetails.currentPlaylistEntry].seqName,
 										playlistDetails.playList[playlistDetails.currentPlaylistEntry].songName,
 										playlistDetails.currentPlaylistEntry+1,playlistDetails.playListCount,
-										musicStatus.secondsElasped,
-										musicStatus.secondsRemaining,
+										mediaOutputStatus.secondsElapsed,
+										mediaOutputStatus.secondsRemaining,
 										NextPlaylist,NextScheduleStartText);
 					}
 					else if (playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType == 's')
@@ -127,8 +124,8 @@ extern PlaylistDetails playlistDetails;
 										playlistDetails.currentPlaylist,playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType,
 										playlistDetails.playList[playlistDetails.currentPlaylistEntry].seqName,playlistDetails.playList[playlistDetails.currentPlaylistEntry].songName,
 										playlistDetails.currentPlaylistEntry+1,playlistDetails.playListCount,
-										E131secondsElasped,
-										E131secondsRemaining,
+										seqSecondsElapsed,
+										seqSecondsRemaining,
 										NextPlaylist,NextScheduleStartText);
 					}
 					else
@@ -248,13 +245,18 @@ extern PlaylistDetails playlistDetails;
 		}
 		else if (!strcmp(CommandStr, "w"))
 		{
-				LogWrite("Sending Pixelnet DMX info\n");
-				SendPixelnetDMXConfig();
+				LogInfo(VB_CHANNELOUT, "Sending Pixelnet DMX info\n");
+				SendFPDConfig();
 		}
 		else if (!strcmp(CommandStr, "r"))
 		{
 				WriteBytesReceivedFile();
 				sprintf(response,"true\n");
+		}
+		else if (!strcmp(CommandStr, "q"))
+		{
+			// Quit/Shutdown fppd
+			ShutdownFPPD();
 		}
 		else if (!strcmp(CommandStr, "e"))
 		{
@@ -282,6 +284,26 @@ extern PlaylistDetails playlistDetails;
 			else
 				sprintf(response,"%d,%d,Event Failed,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
 		}
+		else if (!strcmp(CommandStr, "LogLevel"))
+		{
+			s = strtok(NULL,",");
+			int newLogLevel = atoi(s);
+
+			LogInfo(VB_GENERIC, "Changing Log Level to: %d\n", newLogLevel);
+			logLevel = newLogLevel;
+			sprintf(response,"%d,%d,Logging Updated,%d,%d,,,,,,,,,\n",
+				getFPPmode(),COMMAND_SUCCESS,logLevel,logMask);
+		}
+		else if (!strcmp(CommandStr, "LogMask"))
+		{
+			s = strtok(NULL,",");
+			int newLogMask = atoi(s);
+
+			LogInfo(VB_GENERIC, "Changing Log Mask to: %d\n", newLogMask);
+			logMask = newLogMask;
+			sprintf(response,"%d,%d,Logging Updated,%d,%d,,,,,,,,,\n",
+				getFPPmode(),COMMAND_SUCCESS,logLevel,logMask);
+		}
 		else if (!strcmp(CommandStr, "StopEffect"))
 		{
 			s = strtok(NULL,",");
@@ -296,6 +318,15 @@ extern PlaylistDetails playlistDetails;
 			sprintf(response,"%d,%d,Running Effects",getFPPmode(),COMMAND_SUCCESS);
 			GetRunningEffects(response, &response2);
 		}
+		else if (!strcmp(CommandStr, "ReloadChannelRemapData"))
+		{
+			if ((FPPstatus==FPP_STATUS_IDLE) &&
+				(LoadChannelRemapData())) {
+				sprintf(response,"%d,%d,Channel Remap Data Reloaded,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
+			} else {
+				sprintf(response,"%d,%d,Failed to reload Channel Remap Data,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
+			}
+		}
 		else
 		{
 			sprintf(response,"Invalid command: '%s'\n", CommandStr);
@@ -305,8 +336,7 @@ extern PlaylistDetails playlistDetails;
 		{
 			bytes_sent = sendto(socket_fd, response2, strlen(response2), 0,
                           (struct sockaddr *) &(client_address), sizeof(struct sockaddr_un));
-			if (strcmp(CommandStr, "s")) // until we rework logging
-				LogWrite("%s %s", CommandStr, response2);
+			LogDebug(VB_COMMAND, "%s %s", CommandStr, response2);
 			free(response2);
 			response2 = NULL;
 		}
@@ -314,18 +344,17 @@ extern PlaylistDetails playlistDetails;
 		{
 			bytes_sent = sendto(socket_fd, response, strlen(response), 0,
                           (struct sockaddr *) &(client_address), sizeof(struct sockaddr_un));
-			if (strcmp(CommandStr, "s")) // until we rework logging
-				LogWrite("%s %s", CommandStr, response);
+			LogDebug(VB_COMMAND, "%s %s", CommandStr, response);
 		}
   }
 
   void exit_handler(int signum)
 	{
-     LogWrite("Caught signal %d\n",signum);
+     LogInfo(VB_GENERIC, "Caught signal %d\n",signum);
      CloseCommand();
-		 if(MusicPlayerStatus == PLAYING_MPLAYER_STATUS)
+		 if(mediaOutputStatus.status == MEDIAOUTPUTSTATUS_PLAYING)
 		 {
-		 		OGGstopSong();
+		 		CloseMediaOutput();
 		 }
 	   exit(signum);
 	}

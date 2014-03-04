@@ -1,13 +1,13 @@
 #include "fpp.h"
-#include "log.h"
-#include "playList.h"
+#include "channeloutput/E131.h"
 #include "command.h"
-#include "E131.h"
+#include "events.h"
+#include "log.h"
+#include "mediaoutput/mediaoutput.h"
+#include "playList.h"
 #include "schedule.h"
 #include "settings.h"
-#include "events.h"
 
-#include "ogg123.h"
 #include <unistd.h>
 #include <stdio.h>
 #include <sys/types.h>
@@ -20,12 +20,8 @@
 #include <errno.h>
 
 PlaylistDetails playlistDetails;
-extern unsigned long currentSequenceFileSize;
-char currentSequenceFile[128];//FIXME
 char * pl = "playlist1.lst";
 
-
-extern int E131status;
 
 extern int MusicCommand;
 extern int MusicResponse;
@@ -51,7 +47,7 @@ void CalculateNextPlayListEntry()
 	{
 		// Do not change "playlistDetails.currentPlaylistEntry"
 		playlistDetails.playlistStarting=0;
-		LogWrite("Playlist Starting\n");
+		LogInfo(VB_PLAYLIST, "Playlist Starting\n");
 		return;
 	}
 	else if(FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY)
@@ -63,10 +59,10 @@ void CalculateNextPlayListEntry()
 	{	
 		maxEntryIndex = playlistDetails.last?playlistDetails.playListCount-1:playlistDetails.playListCount; 
 		playlistDetails.currentPlaylistEntry++;
-		LogWrite("currentPlaylistEntry = %d Last=%d maxEntryIndex=%d repeat=%d \n",playlistDetails.currentPlaylistEntry, playlistDetails.last,maxEntryIndex,playlistDetails.repeat); 
+		LogDebug(VB_PLAYLIST, "currentPlaylistEntry = %d Last=%d maxEntryIndex=%d repeat=%d \n",playlistDetails.currentPlaylistEntry, playlistDetails.last,maxEntryIndex,playlistDetails.repeat); 
 		if((playlistDetails.currentPlaylistEntry == maxEntryIndex) && !playlistDetails.repeat)
 		{
-			LogWrite("Stopping Gracefully\n");
+			LogInfo(VB_PLAYLIST, "Stopping Gracefully\n");
 			playlistDetails.currentPlaylistEntry = PLAYLIST_STOP_INDEX;
 		}
  		else if(playlistDetails.currentPlaylistEntry >= maxEntryIndex)
@@ -90,11 +86,11 @@ int ReadPlaylist(char const * file)
   strcat((char*)playlistDetails.currentPlaylist,"/");
   strcat((char*)playlistDetails.currentPlaylist,file);
 
-  LogWrite("Opening File Now %s\n",playlistDetails.currentPlaylist);
+  LogInfo(VB_PLAYLIST, "Opening File Now %s\n",playlistDetails.currentPlaylist);
   fp = fopen((const char*)playlistDetails.currentPlaylist, "r");
   if (fp == NULL) 
   {
-    LogWrite("Could not open playlist file %s\n",file);
+    LogErr(VB_PLAYLIST, "Could not open playlist file %s\n",file);
   return 0;
   }
 	// Parse Playlist settings (First, Last)
@@ -124,21 +120,15 @@ int ReadPlaylist(char const * file)
         playlistDetails.playList[listIndex].type = PL_TYPE_SEQUENCE;
         break;
       case 'm':
+      case 'v':
         s = strtok(NULL,",");
         strcpy(playlistDetails.playList[listIndex].songName,s);
-        playlistDetails.playList[listIndex].type = PL_TYPE_MUSIC;
+        playlistDetails.playList[listIndex].type = PL_TYPE_MEDIA;
         break;
       case 'p':
         s = strtok(NULL,",");
         playlistDetails.playList[listIndex].pauselength = atoi(s);
         playlistDetails.playList[listIndex].type = PL_TYPE_PAUSE;
-        break;
-      case 'v':
-        s = strtok(NULL,",");
-        strcpy(playlistDetails.playList[listIndex].videoName,s);
-        s = strtok(NULL,",");
-        playlistDetails.playList[listIndex].pauselength = atoi(s);
-        playlistDetails.playList[listIndex].type = PL_TYPE_VIDEO;
         break;
       case 'e':
         s = strtok(NULL,",");
@@ -148,7 +138,7 @@ int ReadPlaylist(char const * file)
         playlistDetails.playList[listIndex].type = PL_TYPE_EVENT;
         break;
       default:
-        LogWrite("Invalid entry in sequence file %s\n",file);
+        LogErr(VB_PLAYLIST, "Invalid entry in sequence file %s\n",file);
         return 0;
         break;
     }
@@ -160,20 +150,20 @@ int ReadPlaylist(char const * file)
 
 void PlayListPlayingLoop(void)
 {
-	LogWrite("Starting PlaylistPlaying loop\n");
+	LogInfo(VB_PLAYLIST, "Starting PlaylistPlaying loop\n");
   playlistDetails.StopPlaylist = 0;
 	playlistDetails.ForceStop = 0;
   playlistDetails.playListCount = ReadPlaylist((char*)playlistDetails.currentPlaylistFile);
 	if(playlistDetails.playListCount == 0)
 	{
-		LogWrite("PlaylistCount = 0. Exiting PlayListPlayingLoop\n");
+		LogInfo(VB_PLAYLIST, "PlaylistCount = 0. Exiting PlayListPlayingLoop\n");
 		FPPstatus = FPP_STATUS_IDLE;
 		return;
 	}
 	
   if(playlistDetails.currentPlaylistEntry < 0 || playlistDetails.currentPlaylistEntry >= playlistDetails.playListCount)
 	{
-		LogWrite("currentPlaylistEntry is not valid\n");
+		LogErr(VB_PLAYLIST, "currentPlaylistEntry is not valid\n");
 		FPPstatus = FPP_STATUS_IDLE;
 		return;
 	}
@@ -183,37 +173,40 @@ void PlayListPlayingLoop(void)
     switch(playlistDetails.playList[playlistDetails.currentPlaylistEntry].type)
     {
       case PL_TYPE_BOTH:
-        if(MusicPlayerStatus == IDLE_MPLAYER_STATUS)
+        if(mediaOutputStatus.status == MEDIAOUTPUTSTATUS_IDLE)
         {
-					LogWrite("Play File Now \n");
+					LogInfo(VB_PLAYLIST, "Play File Now \n");
           Play_PlaylistEntry();
         }
 				else
 				{
-		    	if(MusicPlayerStatus==PLAYING_MPLAYER_STATUS || MusicPlayerStatus==QUEUED_MPLAYER_STATUS)
+					if(mediaOutputStatus.status == MEDIAOUTPUTSTATUS_PLAYING)
 					{
-      			//MPG_UpdateStatus();
-						MusicProc();
+						pthread_mutex_lock(&mediaOutputLock);
+						if (mediaOutput)
+							mediaOutput->processData();
+						pthread_mutex_unlock(&mediaOutputLock);
     			}
 				}
         break;
-      case PL_TYPE_MUSIC:
-        if(MusicPlayerStatus == IDLE_MPLAYER_STATUS)
+      case PL_TYPE_MEDIA:
+        if(mediaOutputStatus.status == MEDIAOUTPUTSTATUS_IDLE)
         {
           Play_PlaylistEntry();
         }
 				else
 				{
-			    if(MusicPlayerStatus==PLAYING_MPLAYER_STATUS || MusicPlayerStatus==QUEUED_MPLAYER_STATUS)
+					if(mediaOutputStatus.status == MEDIAOUTPUTSTATUS_PLAYING)
   			  {
-						LogWrite("Play File Now 2 \n");
-      			//MPG_UpdateStatus();
-						MusicProc();
+						pthread_mutex_lock(&mediaOutputLock);
+						if (mediaOutput)
+							mediaOutput->processData();
+						pthread_mutex_unlock(&mediaOutputLock);
     			}
 				}
         break;
       case PL_TYPE_SEQUENCE:
-        if(E131status == E131_STATUS_IDLE)
+        if(!IsSequenceRunning())
         {
           Play_PlaylistEntry();
         }
@@ -278,38 +271,33 @@ void Play_PlaylistEntry(void)
   CalculateNextPlayListEntry();
 	if( playlistDetails.currentPlaylistEntry==PLAYLIST_STOP_INDEX)
 	{
-		LogWrite("Stopping Playlist\n"); 
+		LogInfo(VB_PLAYLIST, "Stopping Playlist\n"); 
 		playlistDetails.StopPlaylist = 1;
 		return;
 	}
 
-	LogWrite("playListCount=%d  CurrentPlaylistEntry = %d\n", playlistDetails.playListCount,playlistDetails.currentPlaylistEntry);
+	LogDebug(VB_PLAYLIST, "playListCount=%d  CurrentPlaylistEntry = %d\n", playlistDetails.playListCount,playlistDetails.currentPlaylistEntry);
 
   plEntry = &playlistDetails.playList[playlistDetails.currentPlaylistEntry];
   switch(plEntry->type)
   {
     case PL_TYPE_BOTH:
-      currentSequenceFileSize=E131_OpenSequenceFile(plEntry->seqName);
-			if(currentSequenceFileSize > 0)
+      if (OpenSequenceFile(plEntry->seqName) > 0)
 			{
-      	PlaylistPlaySong();
+	      OpenMediaOutput(playlistDetails.playList[playlistDetails.currentPlaylistEntry].songName);
       }
 			else
 			{
 				CalculateNextPlayListEntry();
 			}
 			break;
-    case PL_TYPE_MUSIC:
-      PlaylistPlaySong();
+    case PL_TYPE_MEDIA:
+      OpenMediaOutput(playlistDetails.playList[playlistDetails.currentPlaylistEntry].songName);
       break;
     case PL_TYPE_SEQUENCE:
-      currentSequenceFileSize=E131_OpenSequenceFile(plEntry->seqName);
-      LogWrite("seqFileSize=%lu\n",currentSequenceFileSize);
+      OpenSequenceFile(plEntry->seqName);
       break;
     case PL_TYPE_PAUSE:
-      break;
-    case PL_TYPE_VIDEO:
-      PlayVideo(plEntry->videoName, plEntry->pauselength);
       break;
     case PL_TYPE_EVENT:
       TriggerEventByID(plEntry->eventID);
@@ -317,34 +305,16 @@ void Play_PlaylistEntry(void)
   }
 }
 
-
-void PlaylistPlaySong(void)
-{
-  LogWrite("Starting to Play\n");
-  strcpy(playlistDetails.playList[playlistDetails.currentPlaylistEntry].songFullPath,getMusicDirectory());
-  strcat(playlistDetails.playList[playlistDetails.currentPlaylistEntry].songFullPath,"/");
-  strcat(playlistDetails.playList[playlistDetails.currentPlaylistEntry].songFullPath,
-         playlistDetails.playList[playlistDetails.currentPlaylistEntry].songName);
-  oggPlaySong(playlistDetails.playList[playlistDetails.currentPlaylistEntry].songFullPath);
-}
-
-void PlaylistStopSong(void)
-{
-	OGGstopSong();
-}
-
-
-
 void PlaylistPrint()
 {
   int i=0;
-  LogWrite("playListCount=%d\n",playlistDetails.playListCount);
+  LogDebug(VB_PLAYLIST, "playListCount=%d\n",playlistDetails.playListCount);
   for(i=0;i<playlistDetails.playListCount;i++)
   {
-    LogWrite("type=%d\n",playlistDetails.playList[i].type);
-    LogWrite("seqName=%s\n",playlistDetails.playList[i].seqName);
-    LogWrite("SongName=%s\n",playlistDetails.playList[i].songName);
-    LogWrite("pauselength=%d\n",playlistDetails.playList[i].pauselength);
+    LogDebug(VB_PLAYLIST, "type=%d\n",playlistDetails.playList[i].type);
+    LogDebug(VB_PLAYLIST, "seqName=%s\n",playlistDetails.playList[i].seqName);
+    LogDebug(VB_PLAYLIST, "SongName=%s\n",playlistDetails.playList[i].songName);
+    LogDebug(VB_PLAYLIST, "pauselength=%d\n",playlistDetails.playList[i].pauselength);
   }
 }
 
@@ -355,11 +325,11 @@ void StopPlaylistGracefully(void)
 
 void StopPlaylistNow(void)
 {
+  LogInfo(VB_PLAYLIST, "StopPlaylistNow()\n");
   FPPstatus = FPP_STATUS_IDLE;
-  E131_CloseSequenceFile();
-  PlaylistStopSong();
+  CloseSequenceFile();
+	CloseMediaOutput();
   playlistDetails.StopPlaylist = 1;
-  StopVideo();
 }
 
 void JumpToPlaylistEntry(int entryIndex)
@@ -381,18 +351,3 @@ int DirectoryExists(char * Directory)
 	}
 }
 
-
-int FileExists(char * File)
-{
-	struct stat sts;
-	if (stat(File, &sts) == -1 && errno == ENOENT)
-	{
-			LogWrite("File does not exist: %s\n",File);
-			return 0;
-	}
-	else
-	{
-		return 1;
-	}
-	
-}

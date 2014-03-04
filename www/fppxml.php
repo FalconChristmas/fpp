@@ -399,7 +399,8 @@ function MoveFile()
 				exit(1);
 			}
 		}
-		else if (strpos(strtolower($file),".ogg") !== false)
+		else if ((strpos(strtolower($file),".mp3") !== false) ||
+		         (strpos(strtolower($file),".ogg") !== false))
 		{
 			if ( !rename($mediaDirectory."/upload/" . $file, $musicDirectory . $file) )
 			{

@@ -132,15 +132,19 @@ $(document).ready(function () {
 <div id="bodyWrapper">
       <?php	include 'menu.inc'; ?>
 <?php 
-  function PrintMusicOptions()
+  function PrintMediaOptions()
   {
 	  global $musicDirectory;
-		echo "<select id=\"selAudio\" size=\"1\">";
-    foreach(scandir($musicDirectory) as $songFile) 
+	  global $videoDirectory;
+		echo "<select id=\"selMusic\" size=\"1\">";
+
+	$mediaEntries = array_merge(scandir($musicDirectory),scandir($videoDirectory));
+	sort($mediaEntries);
+    foreach($mediaEntries as $mediaFile) 
     {
-      if($songFile != '.' && $songFile != '..')
+      if($mediaFile != '.' && $mediaFile != '..')
       {
-        echo "<option value=\"" . $songFile . "\">" . $songFile . "</option>";
+        echo "<option value=\"" . $mediaFile . "\">" . $mediaFile . "</option>";
       }
     }
 		echo "</select>";
@@ -247,20 +251,17 @@ $(document).ready(function () {
           <ul>
         <li> Type<br />
               <select id="selType" size="1" onchange="PlaylistTypeChanged()">
-            <option value = 'b'>Music and Sequence</option>
-            <option value = 'm'>Music Only</option>
+            <option value = 'b'>Media and Sequence</option>
+            <option value = 'm'>Media Only</option>
             <option value = 's'>Sequence Only</option>
             <option value = 'p'>Pause</option>
-            <option value = 'v'>Video</option>
             <option value = 'e'>Event</option>
           </select>
             </li>
-        <li id="musicOptions">Music<br />
-              <?php PrintMusicOptions();?> </li>
+        <li id="musicOptions">Media<br />
+              <?php PrintMediaOptions();?> </li>
         <li id="sequenceOptions">Sequence<br />
               <?php PrintSequenceOptions();?> </li>
-        <li id="videoOptions" style="display:none;">Video<br />
-              <?php PrintVideoOptions();?> </li>
         <li id="eventOptions" style="display:none;">Event<br />
               <?php PrintEventOptions();?> </li>
         <li id="pauseTime" style="display:none;"><div><div id='pauseText'>Pause Time</div><div id='delayText'>Delayed By</div></div>

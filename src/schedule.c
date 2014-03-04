@@ -5,7 +5,6 @@
 #include "playList.h"
 #include "settings.h"
 
-#include "ogg123.h"
 #include <time.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -79,7 +78,7 @@ void CheckIfShouldBePlayingNow()
 			{
 				if((nowWeeklySeconds>=Schedule[i].weeklyStartSeconds[j]) && (nowWeeklySeconds < Schedule[i].weeklyEndSeconds[j]))
 				{
-					LogWrite(" Should be playing now - schedule index = %d weekly index= %d\n",i,j);
+					LogWarn(VB_SCHEDULE, "Should be playing now - schedule index = %d weekly index= %d\n",i,j);
 					currentSchedulePlaylist.ScheduleEntryIndex = i;
 					currentSchedulePlaylist.startWeeklySeconds = Schedule[i].weeklyStartSeconds[j];
 					currentSchedulePlaylist.endWeeklySeconds = Schedule[i].weeklyEndSeconds[j];
@@ -123,7 +122,7 @@ int GetNextScheduleEntry(int *weeklySecondIndex)
 			}
 		}
   }
-  LogWrite("nextEntryIndex = %d, least diff = %d, weekly index = %d\n",nextEntryIndex,leastWeeklySecondDifferenceFromNow,*weeklySecondIndex);
+  LogDebug(VB_SCHEDULE, "nextEntryIndex = %d, least diff = %d, weekly index = %d\n",nextEntryIndex,leastWeeklySecondDifferenceFromNow,*weeklySecondIndex);
   return nextEntryIndex;
 }
 
@@ -148,9 +147,9 @@ void LoadNextScheduleInfo()
   NextScheduleHasbeenLoaded = 1;
 
   GetNextPlaylistText(t);
-  LogWrite("Next Playlist = %s\n",t);
+  LogDebug(VB_SCHEDULE, "Next Playlist = %s\n",t);
   GetNextScheduleStartText(t);
-  LogWrite("Next Schedule Start text = %s\n",t);
+  LogDebug(VB_SCHEDULE, "Next Schedule Start text = %s\n",t);
 }
 
 void SetScheduleEntrysWeeklyStartAndEndSeconds(ScheduleEntry * entry)
@@ -275,7 +274,7 @@ void PlayListLoadCheck()
     }
 
     if (currentSchedulePlaylist.startWeeklySeconds && displayDiff)
-      LogWrite("NowSecs = %d, CurrStartSecs = %d (%d seconds away)\n",
+      LogInfo(VB_SCHEDULE, "NowSecs = %d, CurrStartSecs = %d (%d seconds away)\n",
         nowWeeklySeconds,currentSchedulePlaylist.startWeeklySeconds, displayDiff);
 
     if(nowWeeklySeconds == currentSchedulePlaylist.startWeeklySeconds)
@@ -285,7 +284,7 @@ void PlayListLoadCheck()
 		  playlistDetails.currentPlaylistEntry=0;
 			playlistDetails.repeat = Schedule[currentSchedulePlaylist.ScheduleEntryIndex].repeat;
 		  playlistDetails.playlistStarting=1;
-      LogWrite("Schedule Entry: %02d:%02d:%02d - %02d:%02d:%02d - Starting Playlist %s for %d seconds\n",
+      LogInfo(VB_SCHEDULE, "Schedule Entry: %02d:%02d:%02d - %02d:%02d:%02d - Starting Playlist %s for %d seconds\n",
         Schedule[currentSchedulePlaylist.ScheduleEntryIndex].startHour,
         Schedule[currentSchedulePlaylist.ScheduleEntryIndex].startMinute,
         Schedule[currentSchedulePlaylist.ScheduleEntryIndex].startSecond,
@@ -294,7 +293,7 @@ void PlayListLoadCheck()
         Schedule[currentSchedulePlaylist.ScheduleEntryIndex].endSecond,
         Schedule[currentSchedulePlaylist.ScheduleEntryIndex].playList,
         currentSchedulePlaylist.endWeeklySeconds - currentSchedulePlaylist.startWeeklySeconds);
-      LogWrite("NowSecs = %d, CurrStartSecs = %d, CurrEndSecs = %d (%d seconds away)\n",
+      LogInfo(VB_SCHEDULE, "NowSecs = %d, CurrStartSecs = %d, CurrEndSecs = %d (%d seconds away)\n",
         nowWeeklySeconds, currentSchedulePlaylist.startWeeklySeconds, currentSchedulePlaylist.endWeeklySeconds, displayDiff);
       FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
     }
@@ -324,12 +323,12 @@ void PlayListStopCheck()
     }
 
     if (displayDiff)
-      LogWrite("NowSecs = %d, CurrEndSecs = %d (%d seconds away)\n",
+      LogInfo(VB_SCHEDULE, "NowSecs = %d, CurrEndSecs = %d (%d seconds away)\n",
         nowWeeklySeconds, currentSchedulePlaylist.endWeeklySeconds, displayDiff);
 
     if(nowWeeklySeconds == currentSchedulePlaylist.endWeeklySeconds)
     {
-      LogWrite("Schedule Entry: %02d:%02d:%02d - %02d:%02d:%02d - Stopping Playlist Gracefully\n",
+      LogInfo(VB_SCHEDULE, "Schedule Entry: %02d:%02d:%02d - %02d:%02d:%02d - Stopping Playlist Gracefully\n",
         Schedule[currentSchedulePlaylist.ScheduleEntryIndex].startHour,
         Schedule[currentSchedulePlaylist.ScheduleEntryIndex].startMinute,
         Schedule[currentSchedulePlaylist.ScheduleEntryIndex].startSecond,
@@ -359,7 +358,7 @@ void LoadScheduleFromFile()
   char *s;
   ScheduleEntryCount=0;
   int day;
-  LogWrite("Opening File Now %s\n",getScheduleFile());
+  LogInfo(VB_SCHEDULE, "Opening File Now %s\n",getScheduleFile());
   fp = fopen((const char *)getScheduleFile(), "r");
   if (fp == NULL) 
   {
@@ -400,7 +399,7 @@ void LoadScheduleFromFile()
 
     char dayStr[32];
     GetDayTextFromDayIndex(Schedule[ScheduleEntryCount].dayIndex, dayStr);
-    LogWrite("Schedule Entry: %-12.12s %02d:%02d:%02d - %02d:%02d:%02d (%s)\n", dayStr,
+    LogInfo(VB_SCHEDULE, "Schedule Entry: %-12.12s %02d:%02d:%02d - %02d:%02d:%02d (%s)\n", dayStr,
       Schedule[ScheduleEntryCount].startHour,Schedule[ScheduleEntryCount].startMinute,Schedule[ScheduleEntryCount].startSecond,
       Schedule[ScheduleEntryCount].endHour,Schedule[ScheduleEntryCount].endMinute,Schedule[ScheduleEntryCount].endSecond,
       Schedule[ScheduleEntryCount].playList);
@@ -410,7 +409,7 @@ void LoadScheduleFromFile()
     ScheduleEntryCount++;
   }
   fclose(fp);
-  SchedulePrint();
+//  SchedulePrint();
   return;
 }
 
@@ -418,10 +417,11 @@ void SchedulePrint()
 {
   int i=0;
   int h;
+  // this causes a loop
   //h= GetNextScheduleEntry();
   for(i=0;i<ScheduleEntryCount;i++)
   {
-    //LogWrite("%s  Next=%d   %d-%.2d:%.2d:%.2d,%.2d-%.2d:%.2d:%.2d  sws=%d,ews=%d\n", \
+//    LogDebug(VB_SCHEDULE, "%s  Next=%d   %d-%.2d:%.2d:%.2d,%.2d-%.2d:%.2d:%.2d  sws=%d,ews=%d\n", \
                                           Schedule[i].playList,h, \
                                           Schedule[i].startDay, \
                                           Schedule[i].startHour, \

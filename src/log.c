@@ -6,9 +6,20 @@
 #include <stdarg.h>
 #include <time.h>
 
+// FIXME, need a way to set/adjust these
+int logLevel = LOG_INFO;
+int logMask  = VB_MOST;
 
-void _LogWrite(char *file, int line, const char *format, ...)
+void _LogWrite(char *file, int line, int level, int facility, const char *format, ...)
 {
+	// Don't log if we're not logging this facility
+	if (!(logMask & facility))
+		return;
+
+	// Don't if we're not concerned about anything at or below this level
+	if (logLevel < level)
+		return;
+
 	va_list arg;
 	time_t t = time(NULL);
 	struct tm tm = *localtime(&t);

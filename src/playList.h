@@ -2,10 +2,10 @@
 #define _PLAYLIST_H
 
 #define PL_TYPE_BOTH          0
-#define PL_TYPE_MUSIC         1
+#define PL_TYPE_MEDIA         1
 #define PL_TYPE_SEQUENCE      2
 #define PL_TYPE_PAUSE         3
-#define PL_TYPE_VIDEO         4
+#define PL_TYPE_VIDEO         4 // deprecated, legacy v0.2.0 implementation
 #define PL_TYPE_EVENT         5
 
 #define PAUSE_STATUS_IDLE     0
@@ -20,8 +20,6 @@ typedef struct{
     char  cType;
     char seqName[256];
     char songName[256];
-    char songFullPath[256];
-    char videoName[256];
     char eventID[6];
     unsigned int pauselength;
 }PlaylistEntry;
@@ -50,7 +48,5 @@ void PlaylistPrint();
 void StopPlaylistGracefully(void);
 void JumpToPlaylistEntry(int entryIndex);
 int DirectoryExists(char * Directory);
-int FileExists(char * File);
-
 
 #endif

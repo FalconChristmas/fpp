@@ -37,7 +37,7 @@ FPPevent* LoadEvent(char *id)
 
 	if (snprintf(filename, 1024, "%s/%s.fevt", getEventDirectory(), id) >= 1024)
 	{
-		LogWrite("Unable to open Event file: %s, filename too long\n",
+		LogErr(VB_EVENT, "Unable to open Event file: %s, filename too long\n",
 			filename);
 		return NULL;
 	}
@@ -45,7 +45,7 @@ FPPevent* LoadEvent(char *id)
 	file = fopen(filename, "r");
 	if (!file)
 	{
-		LogWrite("Unable to open Event file %s\n", filename);
+		LogErr(VB_EVENT, "Unable to open Event file %s\n", filename);
 		return NULL;
 	}
 
@@ -53,7 +53,7 @@ FPPevent* LoadEvent(char *id)
 
 	if (!event)
 	{
-		LogWrite("Unable to allocate memory for new Event %s\n", filename);
+		LogErr(VB_EVENT, "Unable to allocate memory for new Event %s\n", filename);
 		return NULL;
 	}
 
@@ -178,21 +178,21 @@ FPPevent* LoadEvent(char *id)
 		return NULL;
 	}
 
-	LogWrite("Event Loaded:\n");
+	LogDebug(VB_EVENT, "Event Loaded:\n");
 	if (event->name)
-		LogWrite("Event Name  : %s\n", event->name);
+		LogDebug(VB_EVENT, "Event Name  : %s\n", event->name);
 	else
-		LogWrite("Event Name  : ERROR, no name defined in event file\n");
+		LogDebug(VB_EVENT, "Event Name  : ERROR, no name defined in event file\n");
 
-	LogWrite("Event ID    : %d/%d\n", event->majorID, event->minorID);
+	LogDebug(VB_EVENT, "Event ID    : %d/%d\n", event->majorID, event->minorID);
 
 	if (event->script)
-		LogWrite("Event Script: %s\n", event->script);
+		LogDebug(VB_EVENT, "Event Script: %s\n", event->script);
 
 	if (event->effect)
 	{
-		LogWrite("Event Effect: %s\n", event->effect);
-		LogWrite("Event St.Ch.: %d\n", event->startChannel);
+		LogDebug(VB_EVENT, "Event Effect: %s\n", event->effect);
+		LogDebug(VB_EVENT, "Event St.Ch.: %d\n", event->startChannel);
 	}
 
 	return event;
@@ -229,7 +229,7 @@ int RunEventScript(FPPevent *e)
 		args[i] = NULL;
 		execvp("/bin/bash", args);
 
-		LogWrite("RunEventScript(), ERROR, we shouldn't be here, this means "
+		LogErr(VB_EVENT, "RunEventScript(), ERROR, we shouldn't be here, this means "
 			"that execvp() failed\n");
 		exit(EXIT_FAILURE);
 	}
@@ -242,7 +242,7 @@ int RunEventScript(FPPevent *e)
  */
 int TriggerEvent(char major, char minor)
 {
-	LogWrite("TriggerEvent(%d, %d)\n", (unsigned char)major, (unsigned char)minor);
+	LogDebug(VB_EVENT, "TriggerEvent(%d, %d)\n", (unsigned char)major, (unsigned char)minor);
 
 	if ((major > 25) || (major < 1) || (minor > 25) || (minor < 1))
 		return 0;
@@ -259,13 +259,13 @@ int TriggerEvent(char major, char minor)
  */
 int TriggerEventByID(char *id)
 {
-	LogWrite("TriggerEventByName(%s)\n", id);
+	LogDebug(VB_EVENT, "TriggerEventByName(%s)\n", id);
 
 	FPPevent *event = LoadEvent(id);
 
 	if (!event)
 	{
-		LogWrite("Unable to load event %s\n", id);
+		LogErr(VB_EVENT, "Unable to load event %s\n", id);
 		return 0;
 	}
 

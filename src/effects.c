@@ -22,10 +22,14 @@
 #include <string.h>
 #include <strings.h>
 
-#include "E131.h"
 #include "effects.h"
-#include "lightthread.h"
+#include "channeloutput/channeloutputthread.h"
 #include "log.h"
+#include "sequence.h"
+
+// FIXME, these two may get changed when we parse the real .eseq files
+#define ESEQ_STEP_SIZE_OFFSET      10
+#define ESEQ_CHANNEL_DATA_OFFSET   28
 
 #define MAX_EFFECTS 100
 
@@ -41,7 +45,7 @@ int InitEffects(void)
 {
 	if (pthread_mutex_init(&effectsLock, NULL) != 0)
 	{
-		LogWrite("Effects mutex init failed\n");
+		LogErr(VB_EFFECT, "Effects mutex init failed\n");
 		return 0;
 	}
 
@@ -97,25 +101,25 @@ int StartEffect(char *effectName, int startChannel)
 {
 	int   effectID = -1;
 	FILE *fp = NULL;
-	char  fileData[256];
+	char  effectData[256];
 	int   bytesRead;
 	int   stepSize;
 	char  filename[1024];
 
-	LogWrite("Starting effect %s at channel %d\n", effectName, startChannel);
+	LogInfo(VB_EFFECT, "Starting effect %s at channel %d\n", effectName, startChannel);
 
 	pthread_mutex_lock(&effectsLock);
 
 	if (effectCount >= MAX_EFFECTS)
 	{
-		LogWrite("Unable to start effect %s, maximum number of effects already running\n", effectName);
+		LogErr(VB_EFFECT, "Unable to start effect %s, maximum number of effects already running\n", effectName);
 		pthread_mutex_unlock(&effectsLock);
 		return effectID;
 	}
 
 	if (snprintf(filename, 1024, "%s/%s.eseq", getEffectDirectory(), effectName) >= 1024)
 	{
-		LogWrite("Unable to open effects file: %s, filename too long\n",
+		LogErr(VB_EFFECT, "Unable to open effects file: %s, filename too long\n",
 			filename);
 		pthread_mutex_unlock(&effectsLock);
 		return effectID;
@@ -125,24 +129,24 @@ int StartEffect(char *effectName, int startChannel)
 
 	if (!fp)
 	{
-		LogWrite("Unable to open effect: %s\n", effectName);
+		LogErr(VB_EFFECT, "Unable to open effect: %s\n", effectName);
 		pthread_mutex_unlock(&effectsLock);
 		return effectID;
 	}
 
-	fseek(fp,STEP_SIZE_OFFSET,SEEK_SET);
-	bytesRead = fread(fileData,1,4,fp);
+	fseek(fp, ESEQ_STEP_SIZE_OFFSET, SEEK_SET);
+	bytesRead = fread(effectData,1,4,fp);
 	if (bytesRead < 4)
 	{
-		LogWrite("Unable to load effect: %s\n", effectName);
+		LogErr(VB_EFFECT, "Unable to load effect: %s\n", effectName);
 		pthread_mutex_unlock(&effectsLock);
 		return effectID;
 	}
 
-    stepSize = fileData[0] + (fileData[1]<<8) + (fileData[2]<<16) + (fileData[3]<<24);
-	if (fseek(fp, CHANNEL_DATA_OFFSET, SEEK_SET))
+    stepSize = effectData[0] + (effectData[1]<<8) + (effectData[2]<<16) + (effectData[3]<<24);
+	if (fseek(fp, ESEQ_CHANNEL_DATA_OFFSET, SEEK_SET))
 	{
-		LogWrite("Unable to load effect: %s\n", effectName);
+		LogErr(VB_EFFECT, "Unable to load effect: %s\n", effectName);
 		pthread_mutex_unlock(&effectsLock);
 		return effectID;
 	}
@@ -151,7 +155,7 @@ int StartEffect(char *effectName, int startChannel)
 
 	if (effectID < 0)
 	{
-		LogWrite("Unable to start effect %s, unable to determine next effect ID\n", effectName);
+		LogErr(VB_EFFECT, "Unable to start effect %s, unable to determine next effect ID\n", effectName);
 		pthread_mutex_unlock(&effectsLock);
 		return effectID;
 	}
@@ -162,13 +166,13 @@ int StartEffect(char *effectName, int startChannel)
 	effects[effectID]->startChannel = (startChannel >= 1) ? startChannel : 1;
     effects[effectID]->stepSize = stepSize;
 
-    LogWrite("Effect %s Stepsize %d\n", effectName, effects[effectID]->stepSize);
+    LogInfo(VB_EFFECT, "Effect %s Stepsize %d\n", effectName, effects[effectID]->stepSize);
 
 	effectCount++;
 
 	pthread_mutex_unlock(&effectsLock);
 
-	StartLightThread();
+	StartChannelOutputThread();
 
 	return effectID;
 }
@@ -180,7 +184,7 @@ int StopEffect(int effectID)
 {
 	FPPeffect *e = NULL;
 
-	LogWrite("StopEffect(%d)", effectID);
+	LogDebug(VB_EFFECT, "StopEffect(%d)", effectID);
 
 	pthread_mutex_lock(&effectsLock);
 
@@ -214,7 +218,7 @@ void StopAllEffects(void)
 {
 	int i;
 
-	LogWrite("Stopping all effects");
+	LogDebug(VB_EFFECT, "Stopping all effects");
 
 	pthread_mutex_lock(&effectsLock);
 
@@ -232,22 +236,22 @@ void StopAllEffects(void)
  */
 int OverlayEffect(int effectID, char *channelData)
 {
-	char       fileData[65536];
+	char       effectData[65536];
 	int        bytesRead;
 	FPPeffect *e = NULL;
 
 	if (!effects[effectID])
 	{
-		LogWrite("Invalid Effect ID %d\n", effectID);
+		LogErr(VB_EFFECT, "Invalid Effect ID %d\n", effectID);
 		return 0;
 	}
 
 	e = effects[effectID];
 
-	bytesRead = fread(fileData, 1, e->stepSize, e->fp);
+	bytesRead = fread(effectData, 1, e->stepSize, e->fp);
 	if (bytesRead == 0)
 	{
-		LogWrite("Effect %s finished\n", e->name);
+		LogInfo(VB_EFFECT, "Effect %s finished\n", e->name);
 		fclose(e->fp);
 		free(e->name);
 		free(e);
@@ -257,7 +261,7 @@ int OverlayEffect(int effectID, char *channelData)
 		return 0;
 	}
 
-	memcpy(channelData + e->startChannel - 1, fileData, e->stepSize);
+	memcpy(channelData + e->startChannel - 1, effectData, e->stepSize);
 
 	return 1;
 }

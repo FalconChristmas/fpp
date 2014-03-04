@@ -11,25 +11,33 @@ LIBS_fpp = \
 	$(NULL)
 
 OBJECTS_fppd = \
-	fppd.o \
-	log.o \
-	E131.o \
-	ogg123.o \
-	playList.o \
-	schedule.o \
+	channeloutput/channeloutput.o \
+	channeloutput/channeloutputthread.o \
+	channeloutput/E131.o \
+	channeloutput/FPD.o \
+	channeloutput/serialutil.o \
+	channeloutput/USBDMXPro.o \
+	channeloutput/USBPixelnet.o \
 	command.o \
+	common.o \
 	e131bridge.o \
-	settings.o \
 	effects.o \
 	events.o \
-	lightthread.o \
-	video.o \
-	USBdongle.o \
-	common.o \
+	fppd.o \
+	log.o \
+	mediaoutput/mediaoutput.o \
+	mediaoutput/mpg123.o \
+	mediaoutput/ogg123.o \
+	mediaoutput/omxplayer.o \
+	playList.o \
+	schedule.o \
+	sequence.o \
+	settings.o \
 	$(NULL)
 LIBS_fppd = \
 	-lpthread \
 	-lm \
+	-lutil \
 	$(NULL)
 
 
@@ -37,12 +45,11 @@ ARCH := $(shell uname -m)
 
 ifeq ($(ARCH), armv6l)
 # do something RaspPi-y
-OBJECTS_fppd += \
-	pixelnetDMX.o \
+CFLAGS += \
+	-DUSEWIRINGPI \
 	$(NULL)
 LIBS_fppd += \
 	-lwiringPi \
-	-lm \
 	$(NULL)
 else
 ifeq ($(filter-out i686 x86_64 armv5tel, $(ARCH)),)
@@ -50,9 +57,6 @@ ifeq ($(filter-out i686 x86_64 armv5tel, $(ARCH)),)
 CFLAGS += \
 	-g \
 	-DNOROOT \
-	$(NULL)
-OBJECTS_fppd += \
-	pixelnetStubs.o \
 	$(NULL)
 else
 	VAR := $(error Unsupported architecture type)

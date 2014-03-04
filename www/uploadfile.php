@@ -130,7 +130,7 @@ h2 {
     <div id="tab-audio">
       <div id= "divMusic">
         <fieldset  class="fs">
-          <legend> Music Files (.ogg) </legend>
+          <legend> Music Files (.mp3/.ogg) </legend>
           <div id="divMusicData">
             <table id="tblMusic">
             </table>
@@ -140,7 +140,7 @@ h2 {
             <input onclick= "DeleteMusic();" id="btnDeleteMusic" class="disableButtons" type="button"  value="Delete" />
           </div>
           <br />
-          <font size=-1>Audio files must be in .ogg format.</font>
+          <font size=-1>Audio files must be in MP3 or OGG format.</font>
         </fieldset>
       </div>
     </div>
@@ -237,7 +237,7 @@ $('#uploader_div').ajaxupload({
 		GetFiles('Effects');
 		GetFiles('Scripts');
 	},
-	allowExt:['ogg','fseq','eseq','mp4','sh']
+	allowExt:['mp3','ogg','fseq','eseq','mp4','sh']
 });
 </script> 
 </div>

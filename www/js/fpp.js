@@ -229,7 +229,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 	{
 			var type;
 			var pl;
-			var songFile;
+			var mediaFile;
 			var seqFile;
 			var pause;
     	var xmlhttp=new XMLHttpRequest();
@@ -254,25 +254,27 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 							{
 								var type = entries.childNodes[i].childNodes[0].textContent;
   							var seqFile = entries.childNodes[i].childNodes[1].textContent;
-								var songFile = entries.childNodes[i].childNodes[2].textContent;
+								var mediaFile = entries.childNodes[i].childNodes[2].textContent;
 								var pause = entries.childNodes[i].childNodes[3].textContent;
 								var videoFile = entries.childNodes[i].childNodes[5].textContent;
 								var eventName = entries.childNodes[i].childNodes[6].textContent;
 								var eventID = entries.childNodes[i].childNodes[7].textContent.replace('_', ' / ');
 								if(type == 'b')
-										innerHTML += GetPlaylistRowHTML((i+1).toString(), "Seq/Aud", songFile, seqFile, i.toString());
+										innerHTML += GetPlaylistRowHTML((i+1).toString(), "Seq/Med", mediaFile, seqFile, i.toString());
 								else if(type == 'm')
-										innerHTML += GetPlaylistRowHTML((i+1).toString(), "Audio", songFile, "---", i.toString());
+										innerHTML += GetPlaylistRowHTML((i+1).toString(), "Media", mediaFile, "---", i.toString());
 								else if(type == 's')
 										innerHTML += GetPlaylistRowHTML((i+1).toString(), "Seq.", "---", seqFile, i.toString());
 								else if(type == 'p')
 										innerHTML += GetPlaylistRowHTML((i+1).toString(), "Pause", "PAUSE - " + pause.toString(), "---", i.toString());
 								else if(type == 'v')
 								{
-										var delayStr = "---";
-										if (pause > 0)
-											delayStr = "Video Delayed " + pause.toString() + " seconds";
-										innerHTML += GetPlaylistRowHTML((i+1).toString(), "Video", videoFile, delayStr, i.toString());
+										innerHTML += GetPlaylistRowHTML(
+											"<font color='red'><b>" + (i+1).toString() + "</b></font>",
+											"<font color='red'><b>Video</b></font>",
+											"<font color='red'><b>" + videoFile + "</b></font>",
+											"<font color='red'><b>'Video' type deprecated, use 'Media' entries instead</b></font>",
+											i.toString());
 								}
 								else if(type == 'e')
 								{
@@ -414,7 +416,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			var name=document.getElementById("txtPlaylistName");
 			var type = document.getElementById("selType").value;
 			var	seqFile = document.getElementById("selSequence").value;
-			var	songFile = document.getElementById("selAudio").value;
+			var	mediaFile = document.getElementById("selMedia").value;
 			var	videoFile = document.getElementById("selVideo").value;
 			var	eventSel = document.getElementById("selEvent");
 			var	eventID = eventSel.value;
@@ -425,8 +427,8 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
       }
 			var	pause = document.getElementById("txtPause").value;
 			var url = "fppxml.php?command=addPlaylistEntry&type=" + type + "&seqFile=" + 
-			           encodeURIComponent(seqFile) + "&songFile=" + 
-								 encodeURIComponent(songFile) + "&pause=" + pause + "&videoFile=" +
+			           encodeURIComponent(seqFile) + "&mediaFile=" + 
+								 encodeURIComponent(mediaFile) + "&pause=" + pause + "&videoFile=" +
 								 encodeURIComponent(videoFile) + "&eventID=" +
 								 encodeURIComponent(eventID) + "&eventName=" +
 								 encodeURIComponent(eventName);
@@ -1792,7 +1794,7 @@ function PopulateStatusPlaylistEntries(playselected,playList,reloadFile)
 {
 			var type;
 			var pl;
-			var songFile;
+			var mediaFile;
 			var seqFile;
 			var pause;
     	var xmlhttp=new XMLHttpRequest();
@@ -1823,7 +1825,7 @@ function PopulateStatusPlaylistEntries(playselected,playList,reloadFile)
 							{
 								type = entries.childNodes[i].childNodes[0].textContent;
   							seqFile = entries.childNodes[i].childNodes[1].textContent;
-								songFile = entries.childNodes[i].childNodes[2].textContent;
+								mediaFile = entries.childNodes[i].childNodes[2].textContent;
 								pause = entries.childNodes[i].childNodes[3].textContent;
 								videoFile = entries.childNodes[i].childNodes[5].textContent;
 								eventName = entries.childNodes[i].childNodes[6].textContent;
@@ -1832,7 +1834,7 @@ function PopulateStatusPlaylistEntries(playselected,playList,reloadFile)
 								{
 										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
 										innerHTML +=  "<td id = \"colEntryNumber" + (i+1).toString() + "\" width=\"6%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">" + songFile + "</td>";
+										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">" + mediaFile + "</td>";
 										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">" + seqFile + "</td>"
 										innerHTML += "<td width=\"10%\" id=\"firstLast" + i.toString() + "\" class=\"textCenter\"></td>";
 									  innerHTML += "</tr>";
@@ -1841,7 +1843,7 @@ function PopulateStatusPlaylistEntries(playselected,playList,reloadFile)
 								{
 										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
 										innerHTML +=  "<td id = \"colEntryNumber" + (i+1).toString() + "\" width=\"6%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">" + songFile + "</td>";
+										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">" + mediaFile + "</td>";
 										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">---</td>"
 										innerHTML += "<td width=\"10%\" id=\"firstLast" + i.toString() + "\" class=\"textCenter\"></td>";
 									  innerHTML += "</tr>";
@@ -1867,10 +1869,10 @@ function PopulateStatusPlaylistEntries(playselected,playList,reloadFile)
 								else if(type == 'v')
 								{
 										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
-										innerHTML +=  "<td id = \"colEntryNumber" + (i+1).toString() + "\" width=\"6%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">" + videoFile + "</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">Video Delayed " + pause.toString() + " seconds</td>"
-										innerHTML += "<td width=\"10%\" id=\"firstLast" + i.toString() + "\" class=\"textCenter\"></td>";
+										innerHTML +=  "<td id = \"colEntryNumber" + (i+1).toString() + "\" width=\"6%\" class = \"textRight\"><font color='red'><b>" + (i+1).toString() + ".</b></font></td>";
+										innerHTML +=  "<td width=\"42%\" class=\"textLeft\"><font color='red'><b>" + videoFile + "</b></font></td>";
+										innerHTML +=  "<td width=\"42%\" class=\"textLeft\"><font color='red'><b>'Video' type deprecated, use 'Media' entries instead</b></font></td>"
+										innerHTML += "<td width=\"10%\" id=\"firstLast" + i.toString() + "\" class=\"textCenter\"><font color='red'><b></b></font></td>";
 										innerHTML += "</tr>";
 								}
 								else if(type == 'e')

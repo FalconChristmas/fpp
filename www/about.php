@@ -82,6 +82,37 @@ function getFileCount($dir)
   return $i;
 }
 
+function getRemappedChannelCount()
+{
+	global $mediaDirectory;
+
+	$file = $mediaDirectory . "/channelremap";
+
+	$f = fopen($file, "r");
+	if($f == FALSE)
+	{
+		return 0;
+	}
+
+	$i = 0;
+    while (!feof($f))
+	{
+		$line = fgets($f);
+		if (!feof($f))
+		{
+			$entry = explode(",", $line, 3);
+			if (($entry[0] > 0) && ($entry[1] > 0) && ($entry[2] > 0))
+			{
+				$i += $entry[2];
+			}
+		}
+	}
+
+	fclose($f);
+
+	return $i;
+}
+
 function PrintGitBranchOptions()
 {
   $branches = Array();
@@ -271,6 +302,10 @@ a:visited {
             <tr><td>Events:</td><td><a href='events.php' class='nonULLink'><? echo getFileCount($eventDirectory); ?></a></td></tr>
             <tr><td>Effects:</td><td><a href='uploadfile.php?tab=3' class='nonULLink'><? echo getFileCount($effectDirectory); ?></a></td></tr>
             <tr><td>Scripts:</td><td><a href='uploadfile.php?tab=4' class='nonULLink'><? echo getFileCount($scriptDirectory); ?></a></td></tr>
+
+			<!-- FIXME, make this a link to the channel remap screen -->
+			<tr><td>Remapped Channels:</td><td><? echo getRemappedChannelCount(); ?> </td></tr>
+
             <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
 
             <tr><td><b>Disk Utilization</b></td><td>&nbsp;</td></tr>
@@ -312,7 +347,7 @@ a:visited {
         Video Tutorials by:<br />
         Alan Dahl (bajadahl)<br />
         <br />
-        Copyright 2013
+        Copyright 2013-2014
       </div>
     </div>
     </fieldset>

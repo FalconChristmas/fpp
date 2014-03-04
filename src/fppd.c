@@ -1,16 +1,14 @@
+#include "channeloutput/channeloutput.h"
+#include "command.h"
+#include "e131bridge.h"
+#include "effects.h"
 #include "fpp.h"
 #include "fppd.h"
 #include "log.h"
-#include "E131.h"
-#include "command.h"
+#include "mediaoutput/mediaoutput.h"
 #include "playList.h"
-#include "ogg123.h"
 #include "schedule.h"
-#include "pixelnetDMX.h"
-#include "USBdongle.h"
-#include "e131bridge.h"
 #include "settings.h"
-#include "effects.h"
 
 #include <unistd.h>
 #include <stdio.h>
@@ -23,6 +21,7 @@
 
 pid_t pid, sid;
 int FPPstatus=FPP_STATUS_IDLE;
+int runMainFPPDLoop = 1;
 
 int main(int argc, char *argv[])
 {
@@ -41,44 +40,44 @@ int main(int argc, char *argv[])
 
 	CheckExistanceOfDirectoriesAndFiles();
 
-	E131_Initialize();
-
-	InitializePixelnetDMX();
+	InitializeChannelOutputs();
 
 	Command_Initialize();
 
 	InitEffects();
 
-	SendBlankingData();
-
 	if (getFPPmode() == PLAYER_MODE)
 	{
-		InitializeUSBDongle();
 		SendBlankingData();
 
-		LogWrite("Starting Player Process\n");
+		LogInfo(VB_GENERIC, "Starting Player Process\n");
 		PlayerProcess();
-
-		ShutdownUSBDongle();
 	}
 	else if (getFPPmode() == BRIDGE_MODE)
 	{
-		LogWrite("Starting Bridge Process\n");
+		LogInfo(VB_GENERIC, "Starting Bridge Process\n");
 		Bridge_Process();
 	}
 	else
 	{
-		LogWrite("Invalid mode, quitting\n");
+		LogErr(VB_GENERIC, "Invalid mode, quitting\n");
 	}
 
 	CloseEffects();
 
+	CloseChannelOutputs();
+
 	return 0;
+}
+
+void ShutdownFPPD(void)
+{
+	runMainFPPDLoop = 0;
 }
 
 void PlayerProcess(void)
 {
-	oggInit();
+	InitMediaOutput();
 #ifndef NOROOT
 	struct sched_param param;
 	param.sched_priority = 99;
@@ -89,9 +88,8 @@ void PlayerProcess(void)
 	}
 #endif
 
-  LogWrite("Initialize E131 done\n");
 	CheckIfShouldBePlayingNow();
-  while(1)
+  while (runMainFPPDLoop)
   {
     usleep(100000);
     switch(FPPstatus)
@@ -110,6 +108,10 @@ void PlayerProcess(void)
         break;
     }
   }
+
+  LogInfo(VB_GENERIC, "Main Player Process Loop complete, shutting down.\n");
+
+  CleanupMediaOutput();
 }
 
 void CreateDaemon(void)
