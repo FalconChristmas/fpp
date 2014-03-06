@@ -209,6 +209,8 @@ void omxplayer_StopPlaying()
  *
  */
 int omxplayer_CanHandle(const char *filename) {
+	LogDebug(VB_MEDIAOUT, "omxplayer_CanHandle(%s)\n", filename);
+
 	int len = strlen(filename);
 
 	if (len < 4)
