@@ -136,7 +136,7 @@ $(document).ready(function () {
   {
 	  global $musicDirectory;
 	  global $videoDirectory;
-		echo "<select id=\"selMusic\" size=\"1\">";
+		echo "<select id=\"selMedia\" size=\"1\">";
 
 	$mediaEntries = array_merge(scandir($musicDirectory),scandir($videoDirectory));
 	sort($mediaEntries);

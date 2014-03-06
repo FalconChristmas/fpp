@@ -417,21 +417,21 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			var type = document.getElementById("selType").value;
 			var	seqFile = document.getElementById("selSequence").value;
 			var	mediaFile = document.getElementById("selMedia").value;
-			var	videoFile = document.getElementById("selVideo").value;
-			var	eventSel = document.getElementById("selEvent");
-			var	eventID = eventSel.value;
-			var	eventName = '';
-      if(eventSel.selectedIndex>=0)
-      {
-        eventName = eventSel.options[eventSel.selectedIndex].innerHTML.replace(/.* - /, '');
-      }
+			//var	videoFile = document.getElementById("selVideo").value;
+			//var	eventSel = document.getElementById("selEvent");
+			//var	eventID = eventSel.value;
+			//var	eventName = '';
+      //if(eventSel.selectedIndex>=0)
+      //{
+      //  eventName = eventSel.options[eventSel.selectedIndex].innerHTML.replace(/.* - /, '');
+      //}
 			var	pause = document.getElementById("txtPause").value;
 			var url = "fppxml.php?command=addPlaylistEntry&type=" + type + "&seqFile=" + 
 			           encodeURIComponent(seqFile) + "&mediaFile=" + 
-								 encodeURIComponent(mediaFile) + "&pause=" + pause + "&videoFile=" +
-								 encodeURIComponent(videoFile) + "&eventID=" +
-								 encodeURIComponent(eventID) + "&eventName=" +
-								 encodeURIComponent(eventName);
+								 encodeURIComponent(mediaFile) + "&pause=" + pause 
+								 //encodeURIComponent(videoFile) + "&eventID=" +
+								 //encodeURIComponent(eventID) + "&eventName=" +
+								 //encodeURIComponent(eventName);
 								 ;
 			xmlhttp.open("GET",url,false);
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');

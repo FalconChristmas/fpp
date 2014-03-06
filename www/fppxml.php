@@ -1448,7 +1448,7 @@ function AddPlayListEntry()
 {
 	$type = $_GET['type'];
 	$seqFile = $_GET['seqFile'];
-	$songFile = $_GET['songFile'];
+	$songFile = $_GET['mediaFile'];
 	$pause = $_GET['pause'];
 	$videoFile = $_GET['videoFile'];
 	$eventName = $_GET['eventName'];
