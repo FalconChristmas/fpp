@@ -83,7 +83,7 @@ int GetNextEffectID(void)
 /*
  * Check to see if any effects are running
  */
-int IsEffectRunning(void)
+inline int IsEffectRunning(void)
 {
 	int result = 0;
 
