@@ -15,7 +15,6 @@
 
 typedef struct usbDMXProPrivData {
 	char filename[1024];
-	char outputData[512];
 	int  fd;
 	char dmxHeader[5];
 	char dmxFooter[1];
@@ -139,9 +138,7 @@ int USBDMXPro_SendData(void *data, char *channelData, int channelCount)
 
 	USBDMXProPrivData *privData = (USBDMXProPrivData*)data;
 
-	if (channelCount <= 512) {
-		bzero(privData->outputData, 512);
-	} else {
+	if (channelCount > 512) {
 		LogErr(VB_CHANNELOUT,
 			"USBDMXPro_SendData() tried to send %d bytes when max is 512\n",
 			channelCount);
@@ -161,7 +158,7 @@ int USBDMXPro_SendData(void *data, char *channelData, int channelCount)
  * Declare our external interface struct
  */
 FPPChannelOutput USBDMXProOutput = {
-	.maxChannels  = 4096,
+	.maxChannels  = 512,
 	.open         = USBDMXPro_Open,
 	.close        = USBDMXPro_Close,
 	.isConfigured = USBDMXPro_IsConfigured,
