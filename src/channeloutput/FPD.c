@@ -231,7 +231,7 @@ int FPD_SendData(void *data, char *channelData, int channelCount)
 
 	int i;
 	memcpy(bufferPixelnetDMX,PixelnetDMXdataHeader,PIXELNET_HEADER_SIZE);
-	memcpy(&bufferPixelnetDMX[PIXELNET_HEADER_SIZE],seqData,PIXELNET_DMX_DATA_SIZE);
+	memcpy(&bufferPixelnetDMX[PIXELNET_HEADER_SIZE],channelData,PIXELNET_DMX_DATA_SIZE);
 	for(i=0;i<PIXELNET_DMX_BUF_SIZE;i++)
 	{
 		if (bufferPixelnetDMX[i] == 170)
