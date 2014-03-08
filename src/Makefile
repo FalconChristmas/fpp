@@ -27,6 +27,7 @@ OBJECTS_fppd = \
 	channeloutput/USBDMXOpen.o \
 	channeloutput/USBDMXPro.o \
 	channeloutput/USBPixelnet.o \
+	channeloutput/USBRenard.o \
 	command.o \
 	common.o \
 	e131bridge.o \

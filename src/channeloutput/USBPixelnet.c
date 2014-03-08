@@ -216,10 +216,18 @@ int USBPixelnet_SendData(void *data, char *channelData, int channelCount)
 }
 
 /*
+ *
+ */
+int USBPixelnet_MaxChannels(void *data)
+{
+	return 4096;
+}
+
+/*
  * Declare our external interface struct
  */
 FPPChannelOutput USBPixelnetOutput = {
-	.maxChannels  = 4096,
+	.maxChannels  = USBPixelnet_MaxChannels,
 	.open         = USBPixelnet_Open,
 	.close        = USBPixelnet_Close,
 	.isConfigured = USBPixelnet_IsConfigured,

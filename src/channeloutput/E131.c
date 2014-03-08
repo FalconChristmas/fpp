@@ -320,10 +320,17 @@ int E131_IsActive(void *data) {
 }
 
 /*
+ *
+ */
+int E131_MaxChannels(void *data) {
+	return 32768;
+}
+
+/*
  * Declare our external interface struct
  */
 FPPChannelOutput E131Output = {
-	.maxChannels  = 32768,
+	.maxChannels  = E131_MaxChannels,
 	.open         = E131_Open,
 	.close        = E131_Close,
 	.isConfigured = E131_IsConfigured,

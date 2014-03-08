@@ -6,8 +6,7 @@
 #define FPPD_MAX_CHANNEL_OUTPUTS   64
 
 typedef struct fppChannelOutput {
-	unsigned int     maxChannels;
-
+	int              (*maxChannels)(void *data);
 	int              (*open)(char *device, void **privDataPtr);
 	int              (*close)(void *data);
 	int              (*isConfigured)(void);

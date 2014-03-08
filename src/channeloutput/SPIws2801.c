@@ -168,10 +168,18 @@ int SPIws2801_SendData(void *data, char *channelData, int channelCount)
 }
 
 /*
+ *  *
+ *   */
+int SPIws2801_MaxChannels(void *data)
+{
+	return 510;
+}
+
+/*
  * Declare our external interface struct
  */
 FPPChannelOutput SPIws2801Output = {
-	.maxChannels  = 510,
+	.maxChannels  = SPIws2801_MaxChannels,
 	.open         = SPIws2801_Open,
 	.close        = SPIws2801_Close,
 	.isConfigured = SPIws2801_IsConfigured,

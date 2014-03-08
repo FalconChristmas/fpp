@@ -34,6 +34,7 @@ void initSettings(void)
   settings.E131interface = strdup("eth0");
 	settings.USBDonglePort = strdup("DISABLED");
 	settings.USBDongleType = strdup("DMX");
+	settings.USBDongleBaud = strdup("57600");
 	settings.controlMajor = 0;
 	settings.controlMinor = 0;
 
@@ -171,6 +172,10 @@ void printSettings(void)
 		fprintf(fd, "USBDongleType(%u): %s\n",
 				strlen(settings.USBDongleType),
 				settings.USBDongleType);
+	if ( settings.USBDongleBaud )
+		fprintf(fd, "USBDongleBaud(%u): %s\n",
+				strlen(settings.USBDongleBaud),
+				settings.USBDongleBaud);
 	if ( settings.controlMajor != 0 )
 		fprintf(fd, "controlMajor: %u\n", settings.controlMajor);
 	if ( settings.controlMinor != 0 )
@@ -635,6 +640,23 @@ int loadSettings(const char *filename)
 				else
 					fprintf(stderr, "Failed to load USBDongleType from config file\n");
 			}
+			else if ( strcmp(key, "USBDongleBaud") == 0 )
+			{
+				token = strtok(NULL, "=");
+				if ( ! token )
+				{
+					fprintf(stderr, "Error tokenizing value for USBDongleBaud setting\n");
+					continue;
+				}
+				value = trimwhitespace(token);
+				if ( strlen(value) )
+				{
+					free(settings.USBDongleBaud);
+					settings.USBDongleBaud = strdup(value);
+				}
+				else
+					fprintf(stderr, "Failed to load USBDongleBaud from config file\n");
+			}
 			else if ( strcmp(key, "controlMajor") == 0 )
 			{
 				if ( strlen(value) )
@@ -823,6 +845,11 @@ char *getUSBDonglePort(void)
 char *getUSBDongleType(void)
 {
 	return settings.USBDongleType;
+}
+
+char *getUSBDongleBaud(void)
+{
+	return settings.USBDongleBaud;
 }
 
 unsigned int getControlMajor(void)

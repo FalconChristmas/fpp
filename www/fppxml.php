@@ -2022,8 +2022,12 @@ function SaveUSBDongle()
 	$usbDongleType = $_GET['type'];
 	check($usbDongleType);
 
+	$usbDongleBaud = $_GET['baud'];
+	check($usbDongleBaud);
+
 	WriteSettingToFile("USBDonglePort", $usbDonglePort);
 	WriteSettingToFile("USBDongleType", $usbDongleType);
+	WriteSettingToFile("USBDongleBaud", $usbDongleBaud);
 }
 
 function GetInterfaceInfo()

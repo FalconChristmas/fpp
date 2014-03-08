@@ -171,10 +171,18 @@ int USBDMXOpen_SendData(void *data, char *channelData, int channelCount)
 }
 
 /*
+ *
+ */
+int USBDMXOpen_MaxChannels(void *data)
+{
+	return 512;
+}
+
+/*
  * Declare our external interface struct
  */
 FPPChannelOutput USBDMXOpenOutput = {
-	.maxChannels  = 512,
+	.maxChannels  = USBDMXOpen_MaxChannels,
 	.open         = USBDMXOpen_Open,
 	.close        = USBDMXOpen_Close,
 	.isConfigured = USBDMXOpen_IsConfigured,

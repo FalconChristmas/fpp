@@ -2048,10 +2048,12 @@ function SaveUSBDongleSettings()
 {
 	var usbDonglePort = $('#USBDonglePort').val();
 	var usbDongleType = $('#USBDongleType').val();
+	var usbDongleBaud = $('#USBDongleBaud').val();
 
 	var xmlhttp=new XMLHttpRequest();
 	var url = "fppxml.php?command=saveUSBDongle&port=" + usbDonglePort +
-				"&type=" + usbDongleType;
+				"&type=" + usbDongleType +
+				"&baud=" + usbDongleBaud;
 	xmlhttp.open("GET",url,false);
 	xmlhttp.setRequestHeader('Content-Type', 'text/xml');
 

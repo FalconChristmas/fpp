@@ -36,6 +36,7 @@ struct config
 	char	*E131interface;
 	char	*USBDonglePort;
 	char	*USBDongleType;
+	char	*USBDongleBaud;
 
 	unsigned int controlMajor;
 	unsigned int controlMinor;
@@ -85,6 +86,7 @@ char *getSettingsFile(void);
 char *getE131interface(void);
 char *getUSBDonglePort(void);
 char *getUSBDongleType(void);
+char *getUSBDongleBaud(void);
 unsigned int getControlMajor(void);
 unsigned int getControlMinor(void);
 

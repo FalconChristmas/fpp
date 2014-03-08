@@ -202,8 +202,6 @@ function NewUSBConfig() {
 // Renard Serial Outputs
 var RenardDevices = new Array();
 <?
-// FIXME, remove the 'if (0) {' wrapper when Renard support is merged in
-if (0) {
 	foreach(scandir("/dev/") as $fileName)
 	{
 		if ((preg_match("/^ttyS[0-9]/", $fileName)) ||
@@ -211,7 +209,6 @@ if (0) {
 			echo "RenardDevices['$fileName'] = '$fileName';\n";
 		}
 	}
-}
 ?>
 
 var RenardSpeeds = new Array();
@@ -229,13 +226,15 @@ RenardSpeeds["921600"] = "921600";
 function RenardSpeedSelect(currentValue) {
 	var result = "Speed: <select class='renardspeed'>";
 
-	if (currentValue == "")
-		result += "<option value=''>-- Speed --</option>";
-
 	for (var key in RenardSpeeds) {
 		result += "<option value='" + key + "'";
 	
 		if (currentValue == key) {
+			result += " selected";
+		}
+
+		// Make 57.6k the default
+		if ((currentValue == "") && (key == "57600")) {
 			result += " selected";
 		}
 

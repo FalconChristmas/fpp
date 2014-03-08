@@ -14,6 +14,7 @@
 #include "USBDMXOpen.h"
 #include "USBDMXPro.h"
 #include "USBPixelnet.h"
+#include "USBRenard.h"
 
 
 
@@ -131,7 +132,7 @@ int InitializeChannelOutputs(void) {
 			count = FPPD_MAX_CHANNELS - start;
 
 			LogWarn(VB_CHANNELOUT,
-				"Count suppressed to %d on line %s\n", count, buf);
+				"Count suppressed to %d for config line: %s\n", count, buf);
 		}
 
 		if (strlen(deviceConfig))
@@ -153,6 +154,8 @@ int InitializeChannelOutputs(void) {
 			channelOutputs[i].output       = &USBDMXProOutput;
 		} else if (!strcmp(type, "DMX-Open")) {
 			channelOutputs[i].output       = &USBDMXOpenOutput;
+		} else if (!strcmp(type, "Renard")) {
+			channelOutputs[i].output       = &USBRenardOutput;
 		} else if (!strcmp(type, "SPI-WS2801")) {
 			channelOutputs[i].output       = &SPIws2801Output;
 		} else {
@@ -163,6 +166,16 @@ int InitializeChannelOutputs(void) {
 		if ((channelOutputs[i].output) &&
 			(channelOutputs[i].output->open(deviceConfig, &channelOutputs[i].privData)))
 		{
+			if (channelOutputs[i].channelCount > channelOutputs[i].output->maxChannels(channelOutputs[i].privData)) {
+				LogWarn(VB_CHANNELOUT,
+					"Channel Output config, count (%d) exceeds max (%d) channel for configured output\n",
+					channelOutputs[i].channelCount, channelOutputs[i].output->maxChannels(channelOutputs[i].privData));
+
+				channelOutputs[i].channelCount = channelOutputs[i].output->maxChannels(channelOutputs[i].privData);
+
+				LogWarn(VB_CHANNELOUT,
+					"Count suppressed to %d for config: %s\n", channelOutputs[i].channelCount, buf);
+			}
 			i++;
 		} else {
 			LogErr(VB_CHANNELOUT, "ERROR Opening %s Channel Output\n", type);
