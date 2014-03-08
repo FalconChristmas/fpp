@@ -1,11 +1,18 @@
+#include <errno.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
+
 
 #include "channeloutput/E131.h"
 #include "effects.h"
 #include "fpp.h" // for FPPstatus && #define-d status values
 #include "log.h"
+//#include "memorymap.h"
 #include "sequence.h"
 #include "settings.h"
 
@@ -88,7 +95,7 @@ char *CurrentSequenceFilename(void) {
 	return seqFilename;
 }
 
-int IsSequenceRunning(void) {
+inline int IsSequenceRunning(void) {
 	if (seqFile)
 		return 1;
 
@@ -142,6 +149,9 @@ void ReadSequenceData(void) {
 
 	if (IsEffectRunning())
 		OverlayEffects(seqData);
+
+//	if (UsingMemoryMapInput())
+//		OverlayMemoryMap(seqData);
 }
 
 void SendSequenceData(void) {
@@ -178,3 +188,4 @@ char NormalizeControlValue(char in) {
 
 	return result;
 }
+

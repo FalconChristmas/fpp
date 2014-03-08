@@ -16,6 +16,7 @@ OBJECTS_fppd = \
 	channeloutput/E131.o \
 	channeloutput/FPD.o \
 	channeloutput/serialutil.o \
+	channeloutput/USBDMXOpen.o \
 	channeloutput/USBDMXPro.o \
 	channeloutput/USBPixelnet.o \
 	command.o \

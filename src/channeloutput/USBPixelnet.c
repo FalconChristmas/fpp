@@ -50,7 +50,7 @@ int USBPixelnet_Open(char *configStr, void **privDataPtr) {
 	LogInfo(VB_CHANNELOUT, "Opening %s for Pixelnet output\n",
 		privData->filename);
 
-	privData->fd = open(privData->filename, O_RDWR | O_NOCTTY | O_SYNC);
+	privData->fd = SerialOpen(privData->filename, 115200, "8N1");
 	if (privData->fd < 0)
 	{
 		LogErr(VB_CHANNELOUT, "Error %d opening %s: %s\n",
@@ -61,12 +61,6 @@ int USBPixelnet_Open(char *configStr, void **privDataPtr) {
 	}
 
 	USBPixelnet_Dump(privData);
-
-	// set speed to 115,200 bps, 8n1 (no parity)
-	set_interface_attribs(privData->fd, B115200, 0);
-
-	// set non-blocking (if we ever need to read)
-	set_blocking(privData->fd, 0);
 
 	*privDataPtr = privData;
 
@@ -82,7 +76,7 @@ int USBPixelnet_Close(void *data) {
 	USBPixelnetPrivData *privData = (USBPixelnetPrivData*)data;
 	USBPixelnet_Dump(privData);
 
-	close(privData->fd);
+	SerialClose(privData->fd);
 	privData->fd = -1;
 }
 

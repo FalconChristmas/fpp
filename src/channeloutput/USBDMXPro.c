@@ -55,7 +55,7 @@ int USBDMXPro_Open(char *configStr, void **privDataPtr) {
 	strcpy(privData->filename, "/dev/");
 	strcat(privData->filename, configStr);
 	
-	privData->fd = open(privData->filename, O_RDWR | O_NOCTTY | O_SYNC);
+	privData->fd = SerialOpen(privData->filename, 115200, "8N1");
 	if (privData->fd < 0)
 	{
 		free(privData);
@@ -65,12 +65,6 @@ int USBDMXPro_Open(char *configStr, void **privDataPtr) {
 	}
 
 	USBDMXPro_Dump(privData);
-
-	// set speed to 115,200 bps, 8n1 (no parity)
-	set_interface_attribs(privData->fd, B115200, 0);
-
-	// set non-blocking (if we ever need to read)
-	set_blocking(privData->fd, 0);
 
 	int len = 512; // only support 512 byte DMX for now.
 	privData->dmxHeader[0] = 0x7E;
@@ -95,7 +89,7 @@ int USBDMXPro_Close(void *data) {
 	USBDMXProPrivData *privData = (USBDMXProPrivData*)data;
 	USBDMXPro_Dump(privData);
 
-	close(privData->fd);
+	SerialClose(privData->fd);
 	privData->fd = -1;
 }
 
@@ -148,7 +142,6 @@ int USBDMXPro_SendData(void *data, char *channelData, int channelCount)
 	privData->dmxHeader[2] = channelCount & 0xFF;
 	privData->dmxHeader[3] = (channelCount >> 8) & 0xFF;
 
-	// Send start of packet byte
 	write(privData->fd, privData->dmxHeader, sizeof(privData->dmxHeader));
 	write(privData->fd, channelData, channelCount);
 	write(privData->fd, privData->dmxFooter, sizeof(privData->dmxFooter));

@@ -9,6 +9,7 @@
 #include "../log.h"
 #include "../sequence.h"
 #include "../settings.h"
+#include "USBDMXOpen.h"
 #include "USBDMXPro.h"
 #include "USBPixelnet.h"
 
@@ -77,10 +78,8 @@ int InitializeChannelOutputs(void) {
 		}
 	}
 
-// FIXME
-//	if ((getFPPmode() == PLAYER_MODE) &&
-//		(USBPixelnetOutput.isConfigured()))
-if (USBPixelnetOutput.isConfigured())
+	if ((getFPPmode() == PLAYER_MODE) &&
+		(USBPixelnetOutput.isConfigured()))
 	{
 		channelOutputs[i].startChannel = 0;
 		channelOutputs[i].output       = &USBPixelnetOutput;
@@ -90,7 +89,7 @@ if (USBPixelnetOutput.isConfigured())
 		{
 			i++;
 		} else {
-			LogErr(VB_CHANNELOUT, "ERROR Opening Channel Output %d\n", i);
+			LogErr(VB_CHANNELOUT, "ERROR Opening USBPixelnet Channel Output\n");
 		}
 	}
 
@@ -105,7 +104,22 @@ if (USBPixelnetOutput.isConfigured())
 		{
 			i++;
 		} else {
-			LogErr(VB_CHANNELOUT, "ERROR Opening Channel Output %d\n", i);
+			LogErr(VB_CHANNELOUT, "ERROR Opening USBDMXPro Channel Output\n");
+		}
+	}
+
+	if ((getFPPmode() == PLAYER_MODE) &&
+		(USBDMXOpenOutput.isConfigured()))
+	{
+		channelOutputs[i].startChannel = 0;
+		channelOutputs[i].output       = &USBDMXOpenOutput;
+
+		if (USBDMXOpenOutput.open(getUSBDonglePort(),
+			&channelOutputs[i].privData))
+		{
+			i++;
+		} else {
+			LogErr(VB_CHANNELOUT, "ERROR Opening USBDMXOpen Channel Output\n");
 		}
 	}
 
@@ -124,16 +138,16 @@ void ResetChannelOutputFrameNumber(void) {
 /*
  * Dump channel data for debugging
  */
-void DumpChannelData(char *seqData) {
+void DumpChannelData(char *channelData) {
 	LogDebug(VB_CHANNELDATA, "Ch Data: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
-		seqData[ 0] & 0xFF, seqData[ 1] & 0xFF,
-		seqData[ 2] & 0xFF, seqData[ 3] & 0xFF,
-		seqData[ 4] & 0xFF, seqData[ 5] & 0xFF,
-		seqData[ 6] & 0xFF, seqData[ 7] & 0xFF,
-		seqData[ 8] & 0xFF, seqData[ 9] & 0xFF,
-		seqData[10] & 0xFF, seqData[11] & 0xFF,
-		seqData[12] & 0xFF, seqData[13] & 0xFF,
-		seqData[14] & 0xFF, seqData[15] & 0xFF);
+		channelData[ 0] & 0xFF, channelData[ 1] & 0xFF,
+		channelData[ 2] & 0xFF, channelData[ 3] & 0xFF,
+		channelData[ 4] & 0xFF, channelData[ 5] & 0xFF,
+		channelData[ 6] & 0xFF, channelData[ 7] & 0xFF,
+		channelData[ 8] & 0xFF, channelData[ 9] & 0xFF,
+		channelData[10] & 0xFF, channelData[11] & 0xFF,
+		channelData[12] & 0xFF, channelData[13] & 0xFF,
+		channelData[14] & 0xFF, channelData[15] & 0xFF);
 }
 
 /*

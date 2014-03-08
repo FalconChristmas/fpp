@@ -8,6 +8,7 @@
 #include "channeloutput.h"
 #include "../common.h"
 #include "../log.h"
+//#include "../memorymap.h"
 #include "../sequence.h"
 
 /* used by external sync code */
@@ -42,13 +43,16 @@ void *RunChannelOutputThread(void *data)
 		ReadSequenceData();
 		readTime = GetTime();
 
+//		if ((IsSequenceRunning()) ||
+//			(IsEffectRunning()) ||
+//			(UsingMemoryMapInput()))
 		if (IsSequenceRunning() || IsEffectRunning())
 		{
 			if (startTime > (lastStatTime + 1000000)) {
 				int sleepTime = LightDelay - (GetTime() - startTime);
 				lastStatTime = startTime;
 				LogDebug(VB_CHANNELOUT,
-					"Output Thread: Loop: %dns, Send: %dns, Read: %dns, Sleep: %dns\n",
+					"Output Thread: Loop: %dus, Send: %dus, Read: %dus, Sleep: %dus\n",
 					LightDelay, sendTime - startTime,
 					readTime - sendTime, sleepTime);
 			}

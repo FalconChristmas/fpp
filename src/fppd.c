@@ -6,8 +6,10 @@
 #include "fppd.h"
 #include "log.h"
 #include "mediaoutput/mediaoutput.h"
+//#include "memorymap.h"
 #include "playList.h"
 #include "schedule.h"
+#include "sequence.h"
 #include "settings.h"
 
 #include <unistd.h>
@@ -46,6 +48,8 @@ int main(int argc, char *argv[])
 
 	InitEffects();
 
+//	InitializeSequenceDataMemoryMap();
+
 	if (getFPPmode() == PLAYER_MODE)
 	{
 		SendBlankingData();
@@ -62,6 +66,8 @@ int main(int argc, char *argv[])
 	{
 		LogErr(VB_GENERIC, "Invalid mode, quitting\n");
 	}
+
+//	CloseSequenceDataMemoryMap();
 
 	CloseEffects();
 
