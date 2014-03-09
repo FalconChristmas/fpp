@@ -38,11 +38,11 @@ function WriteSettingToFile($settingName, $setting)
 	{
 		if (!(strpos($settings, $settingName) === false))
 		{
-			$settings = preg_replace("/" . $settingName . "\s*=\s*\S*\w*/", $settingName . " = " . $setting, $settings);
+			$settings = preg_replace("/" . $settingName . "\s*=\s*\S*\w*/", $settingName . " = " . $setting . "\n", $settings);
 		}
 		else
 		{
-			$settings .= "\n" . $settingName . " = " . $setting . "\n";
+			$settings .= $settingName . " = " . $setting . "\n";
 		}
 		$settings = preg_replace("/\n\n/", "\n", $settings);
 		file_put_contents($settingsFile, $settings);
