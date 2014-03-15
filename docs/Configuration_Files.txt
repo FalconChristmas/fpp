@@ -1,0 +1,80 @@
+Falcon Pi Player configuration file formats
+==============================================================================
+/home/pi/media/settings
+
+The settings file contains a list of key=value pairs, one per line.  This
+file is used to store the one-off non-repetitive configuration settings.  The
+configuration for items multiple values, such as the configuration for
+the Falcon PixlenetDMX board or E1.31 output, is stored in separate config
+files per feature.
+
+Field Definitions:
+------------------
+key = value
+
+Sample Data:
+------------
+verbose = true
+daemonize = false
+fppMode = player
+volume = 64
+mediaDirectory = /home/pi/media
+
+==============================================================================
+/home/pi/media/schedule
+
+The schedule file contains one schedule entry per line.
+
+The schedule entry line format is as follows:
+
+    ENABLED,PLAYLIST_NAME,START_DAY,START_HOUR,START_MINUTE,START_SECOND,END_HOUR,END_MINUTE,END_SECOND,REPEAT,
+
+Field definitions:
+------------------
+
+    ENABLED        - 0 or 1 whether the shedule entry is inactive or active
+    PLAYLIST_NAME  - The name of the playlist to play on this schedule
+    START_DAY      - 0-6 - schedule runs on a single day of the week
+                     7   - run the schedule every day
+                     8   - run weekdays (Mon-Fri)
+                     9   - run weekends (Sat-Sun)
+                     10  - run Monday, Wednesday, Friday
+                     11  - run Tuesday, Thursday
+                     12  - run Sunday through Thursday
+                     13  - run Friday and Saturday
+    START_HOUR     - 0-23 schedule starting hour
+    START_MINUTE   - 0-59 schedule starting minute
+    START_SECOND   - 0-59 schedule starting second
+    END_HOUR       - 0-23 schedule end hour
+    END_MINUTE     - 0-59 schedule end minute
+    END_SECOND     - 0-59 schedule end second
+    REPEAT         - 0 or 1 to repeat playlist during the scheduled time slot
+
+Sample Data:
+------------
+1,Christmas_2013,7,17,00,00,22,00,00,1,
+
+==============================================================================
+/home/media/pi/universes
+==============================================================================
+/home/media/pi/pixelnetDMX
+==============================================================================
+/home/media/pi/channelremap
+
+src,dest,count
+==============================================================================
+/home/media/pi/channelmemorymaps
+
+name,src,count
+==============================================================================
+/home/media/pi/playlists/*
+
+Playlist files
+==============================================================================
+/home/media/pi/events/*
+
+Event definitions
+==============================================================================
+/home/media/pi/
+==============================================================================
+==============================================================================
