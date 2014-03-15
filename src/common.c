@@ -1,12 +1,13 @@
+#include <dirent.h>
 #include <errno.h>
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/time.h>
 #include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/types.h>
 
 #include "common.h"
-#include "log.h"
 
 /*
  * Get the current time down to the microsecond
@@ -19,6 +20,22 @@ long long GetTime(void)
 }
 
 /*
+ * Check to see if the specified directory exists
+ */
+int DirectoryExists(char * Directory)
+{
+	DIR* dir = opendir(Directory);
+	if (dir)
+	{
+		return 1;
+	}
+	else
+	{
+		return 0;
+	}
+}
+
+/*
  * Check if the specified file exists or not
  */
 int FileExists(char * File)
@@ -26,8 +43,7 @@ int FileExists(char * File)
 	struct stat sts;
 	if (stat(File, &sts) == -1 && errno == ENOENT)
 	{
-			LogDebug(VB_GENERIC, "File does not exist: %s\n",File);
-			return 0;
+		return 0;
 	}
 	else
 	{

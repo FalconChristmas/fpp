@@ -337,17 +337,3 @@ void JumpToPlaylistEntry(int entryIndex)
 
 }
 
-
-int DirectoryExists(char * Directory)
-{
-	DIR* dir = opendir(Directory);
-	if (dir)
-	{
-			return 1;
-	}
-	else
-	{
-			return 0;
-	}
-}
-

@@ -47,6 +47,5 @@ void PlaylistPlaySong(void);
 void PlaylistPrint();
 void StopPlaylistGracefully(void);
 void JumpToPlaylistEntry(int entryIndex);
-int DirectoryExists(char * Directory);
 
 #endif
