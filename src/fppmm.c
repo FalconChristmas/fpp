@@ -341,6 +341,29 @@ void FillMappedBlock(char *blockName, int channelData) {
 }
 
 /*
+ * Display info on a named channel data block
+ */
+void DumpMappedBlockInfo(char *blockName) {
+	if (OpenChannelControlMemoryMap() < 0) {
+		return;
+	}
+
+	FPPChannelMemoryMapControlBlock *cb = FindBlock(blockName);
+
+	if (cb) {
+		printf( "Block Name: %s\n", cb->blockName);
+		printf( "Channels  : %d-%d (%d channels)\n",
+			cb->startChannel, cb->startChannel + cb->channelCount - 1,
+			cb->channelCount);
+		printf( "Status    : %s\n", cb->isActive ? "Active" : "Idle");
+	} else {
+		printf( "ERROR: Could not find MAP %s\n", blockName);
+	}
+
+	CloseChannelControlMemoryMap();
+}
+
+/*
  *
  */
 int main (int argc, char *argv[])
@@ -374,12 +397,7 @@ int main (int argc, char *argv[])
 		else if (channelData >= 0)
 			FillMappedBlock(blockName, channelData);
 		else
-		{
-			printf( "ERROR: Insufficient arguments supplied\n", testMode);
-			free(testMode);
-			usage(argv[0]);
-			exit(EXIT_FAILURE);
-		}
+			DumpMappedBlockInfo(blockName);
 
 		free(blockName);
 	} else if (channels) {
