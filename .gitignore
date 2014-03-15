@@ -1,6 +1,7 @@
 *.o
 .*.swp
 src/fpp
+src/fppmm
 src/fppd
 cscope.out
 tags

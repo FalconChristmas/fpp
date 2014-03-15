@@ -12,7 +12,7 @@
 #include "effects.h"
 #include "fpp.h" // for FPPstatus && #define-d status values
 #include "log.h"
-//#include "memorymap.h"
+#include "memorymap.h"
 #include "sequence.h"
 #include "settings.h"
 
@@ -150,8 +150,8 @@ void ReadSequenceData(void) {
 	if (IsEffectRunning())
 		OverlayEffects(seqData);
 
-//	if (UsingMemoryMapInput())
-//		OverlayMemoryMap(seqData);
+	if (UsingMemoryMapInput())
+		OverlayMemoryMap(seqData);
 }
 
 void SendSequenceData(void) {

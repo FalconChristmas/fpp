@@ -2,6 +2,7 @@
 #include "log.h"
 #include "command.h"
 #include "sequence.h"
+
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/mman.h>
@@ -22,7 +23,6 @@ char response[256];
 
 void SendCommand(const char * com);
 void SetupDomainSocket(void);
-void SetMemoryMap(int channel, int value);
 
 socklen_t address_length;
 
@@ -97,11 +97,6 @@ int main (int argc, char *argv[])
         sprintf(command,"e,%s,1,",argv[2]);
       SendCommand(command);
     }
-    // Byte-bang a value into the channel data memory map
-//    else if((strncmp(argv[1],"-mm",3) == 0) &&  argc > 3)
-//    {
-//      SetMemoryMap(atoi(argv[2]), atoi(argv[3]));
-//    }
     // Trigger an event - example "fpp -t eventName"
     else if((strncmp(argv[1],"-t",2) == 0) &&  argc > 2)
     {
@@ -236,39 +231,5 @@ void SendCommand(const char * com)
  {
  	 printf("false");
  }
-}
-
-void SetMemoryMap(int channel, int value) {
-	char *data = NULL;
-	int fd = open("/tmp/FPPchannelData", O_RDWR);
-
-	if ((channel <= 0) ||
-		(channel > FPPD_MAX_CHANNELS)) {
-		printf( "ERROR, channel %d is not in range of 1-%d\n",
-			channel, FPPD_MAX_CHANNELS);
-		return;
-	}
-
-	if (fd < 0) {
-		printf( "ERROR opening memory mapped file /tmp/FPPchannelData: %s",
-			strerror(errno));
-		return;
-	}
-
-	data = (char *)mmap(0, FPPD_MAX_CHANNELS, PROT_WRITE | PROT_READ, MAP_SHARED, fd, 0);
-
-	if (!data) {
-		printf( "Unable to memory map file: %s\n", strerror(errno));
-		close(fd);
-		return;
-	}
-
-	data[channel - 1] = (char)value;
-
-	printf( "Set memory mapped channel %d to %d\n", channel, value);
-
-	munmap(data, FPPD_MAX_CHANNELS);
-
-	close(fd);
 }
 

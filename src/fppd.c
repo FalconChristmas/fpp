@@ -1,4 +1,5 @@
 #include "channeloutput/channeloutput.h"
+#include "channeloutput/channeloutputthread.h"
 #include "command.h"
 #include "e131bridge.h"
 #include "effects.h"
@@ -48,7 +49,7 @@ int main(int argc, char *argv[])
 
 	InitEffects();
 
-//	InitializeSequenceDataMemoryMap();
+	InitializeChannelDataMemoryMap();
 
 	if (getFPPmode() == PLAYER_MODE)
 	{
@@ -67,7 +68,7 @@ int main(int argc, char *argv[])
 		LogErr(VB_GENERIC, "Invalid mode, quitting\n");
 	}
 
-//	CloseSequenceDataMemoryMap();
+	CloseChannelDataMemoryMap();
 
 	CloseEffects();
 
@@ -113,6 +114,11 @@ void PlayerProcess(void)
       default:
         break;
     }
+
+	// Check to see if we need to start up the output thread.
+	// FIXME, possibly trigger this via a fpp command to fppd
+	if (UsingMemoryMapInput() && !ChannelOutputThreadIsRunning())
+		StartChannelOutputThread();
   }
 
   LogInfo(VB_GENERIC, "Main Player Process Loop complete, shutting down.\n");

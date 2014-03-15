@@ -8,7 +8,7 @@
 #include "channeloutput.h"
 #include "../common.h"
 #include "../log.h"
-//#include "../memorymap.h"
+#include "../memorymap.h"
 #include "../sequence.h"
 
 /* used by external sync code */
@@ -21,6 +21,12 @@ pthread_t ChannelOutputThreadID;
 int       RunThread = 0;
 int       ThreadIsRunning = 0;
 
+/*
+ * Check to see if the channel output thread is running
+ */
+inline int ChannelOutputThreadIsRunning(void) {
+	return ThreadIsRunning;
+}
 /*
  * Main loop in channel output thread
  */
@@ -43,10 +49,9 @@ void *RunChannelOutputThread(void *data)
 		ReadSequenceData();
 		readTime = GetTime();
 
-//		if ((IsSequenceRunning()) ||
-//			(IsEffectRunning()) ||
-//			(UsingMemoryMapInput()))
-		if (IsSequenceRunning() || IsEffectRunning())
+		if ((IsSequenceRunning()) ||
+			(IsEffectRunning()) ||
+			(UsingMemoryMapInput()))
 		{
 			if (startTime > (lastStatTime + 1000000)) {
 				int sleepTime = LightDelay - (GetTime() - startTime);
@@ -78,7 +83,7 @@ void *RunChannelOutputThread(void *data)
  */
 int StartChannelOutputThread(void)
 {
-	if (ThreadIsRunning)
+	if (ChannelOutputThreadIsRunning())
 		return 1;
 
 	RunThread = 1;
