@@ -7,7 +7,7 @@
 #include "fppd.h"
 #include "log.h"
 #include "mediaoutput/mediaoutput.h"
-//#include "memorymap.h"
+#include "memorymap.h"
 #include "playList.h"
 #include "schedule.h"
 #include "sequence.h"
