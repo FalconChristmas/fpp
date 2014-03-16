@@ -60,7 +60,26 @@ require_once('config.php');
 		  SetButtonState('#btnDeleteLog','enable');
     });
 
+    $('#tblUploads').on('mousedown', 'tr', function(event,ui){
+          $('#tblUploads tr').removeClass('selectedentry');
+          $(this).addClass('selectedentry');
+          UploadFileSelected  = $(this).find('td:first').text();
+		  SetButtonState('#btnDownloadUpload','enable');
+		  SetButtonState('#btnDeleteUpload','enable');
+    });
+
   });
+
+  function fillTabs() {
+	GetFiles('Sequences');
+	GetFiles('Music');
+	GetFiles('Videos');
+	GetFiles('Effects');
+	GetFiles('Scripts');
+	GetFiles('Logs');
+	GetFiles('Uploads');
+  }
+
 </script>
 <style>
 #tblSequences {
@@ -94,7 +113,7 @@ h2 {
 </style>
 </head>
 
-<body onload="GetFiles('Sequences'); GetFiles('Music'); GetFiles('Videos'); GetFiles('Effects'); GetFiles('Scripts'); GetFiles('Logs');">
+<body onload="fillTabs();">
 <div id="bodyWrapper">
 <?php	include 'menu.inc'; ?>
 <div id="fileManager">
@@ -108,6 +127,7 @@ h2 {
       <li><a href="#tab-effects">Effects</a></li>
       <li><a href="#tab-scripts">Scripts</a></li>
       <li><a href="#tab-logs">Logs</a></li>
+      <li><a href="#tab-uploads">Uploads</a></li>
       </li>
     </ul>
     <div id="tab-sequence">
@@ -127,6 +147,7 @@ h2 {
         </fieldset>
       </div>
     </div>
+
     <div id="tab-audio">
       <div id= "divMusic">
         <fieldset  class="fs">
@@ -144,6 +165,7 @@ h2 {
         </fieldset>
       </div>
     </div>
+
     <div id="tab-video">
       <div id= "divVideo">
         <fieldset  class="fs">
@@ -161,6 +183,7 @@ h2 {
         </fieldset>
       </div>
     </div>
+
     <div id="tab-effects">
       <div id= "divEffects">
         <fieldset  class="fs">
@@ -178,6 +201,7 @@ h2 {
         </fieldset>
       </div>
     </div>
+
     <div id="tab-scripts">
       <div id= "divScripts">
         <fieldset  class="fs">
@@ -195,6 +219,7 @@ h2 {
         </fieldset>
       </div>
     </div>
+
     <div id="tab-logs">
       <div id= "divLogs">
         <fieldset  class="fs">
@@ -211,6 +236,25 @@ h2 {
           </div>
           <br />
           <font size=-1>FPP logs may be viewed or downloaded for submission with bug reports.</font>
+        </fieldset>
+      </div>
+    </div>
+
+    <div id="tab-uploads">
+      <div id= "divUploads">
+        <fieldset  class="fs">
+          <legend> Uploaded Files </legend>
+          <div id="divUploadsData">
+            <table id="tblUploads">
+            </table>
+          </div>
+          <hr />
+          <div class='right'>
+            <input onclick= "DownloadUpload();" id="btnDownloadUpload" class="disableButtons" type="button"  value="Download" />
+            <input onclick= "DeleteUpload();" id="btnDeleteUpload" class="disableButtons" type="button"  value="Delete" />
+          </div>
+          <br />
+          <font size=-1>The upload directory is used as temporary storage when uploading media and sequencee files.  It is also used as permanent storage for other file formats which have no dedicated home.</font>
         </fieldset>
       </div>
     </div>

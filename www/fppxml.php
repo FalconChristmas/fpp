@@ -14,6 +14,7 @@ require_once('pixelnetdmxentry.php');
 // than XML need to return their own Content-type header.
 $nonXML = Array(
 	"getLog" => 1,
+	"getUpload" => 1,
 	"getGitOriginLog" => 1
 	);
 
@@ -44,6 +45,7 @@ $command_array = Array(
 	"deleteVideo" => 'DeleteVideo',
 	"deleteScript" => 'DeleteScript',
 	"deleteLog" => 'DeleteLog',
+	"deleteUpload" => 'DeleteUpload',
 	"addPlaylistEntry" => 'AddPlayListEntry',
 	"setUniverseCount" => 'SetUniverseCount',
 	"getUniverses" => 'GetUniverses',
@@ -81,6 +83,7 @@ $command_array = Array(
 	"saveEvent" => 'SaveEvent',
 	"deleteEvent" => 'DeleteEvent',
 	"getLog" => 'GetLog',
+	"getUpload" => 'GetUpload',
 	"saveUSBDongle" => 'SaveUSBDongle',
 	"getInterfaceInfo" => 'GetInterfaceInfo',
 	"setPiLCDenabled" => 'SetPiLCDenabled'
@@ -1553,6 +1556,7 @@ function GetFiles()
 	global $effectDirectory;
 	global $scriptDirectory;
 	global $logDirectory;
+	global $uploadDirectory;
 
 	$dirName = $_GET['dir'];
 	check($dirName);
@@ -1562,6 +1566,7 @@ function GetFiles()
 	else if ($dirName == "Effects")     { $dirName = $effectDirectory; }
 	else if ($dirName == "Scripts")     { $dirName = $scriptDirectory; }
 	else if ($dirName == "Logs")        { $dirName = $logDirectory; }
+	else if ($dirName == "Uploads")     { $dirName = $uploadDirectory; }
 	else
 		return;
 
@@ -1579,8 +1584,11 @@ function GetFiles()
 
 	if ($_GET['dir'] == "Logs")
 	{
-		GetFileInfo($root, $doc, "", "/var/log/messages");
-		GetFileInfo($root, $doc, "", "/var/log/syslog");
+		if (file_exists("/var/log/messages"))
+			GetFileInfo($root, $doc, "", "/var/log/messages");
+
+		if (file_exists("/var/log/syslog"))
+			GetFileInfo($root, $doc, "", "/var/log/syslog");
 	}
 	echo $doc->saveHTML();
 }
@@ -2003,6 +2011,22 @@ function DeleteLog()
 		EchoStatusXML('Failure');
 }
 
+function DeleteUpload()
+{
+	global $uploadDirectory;
+
+	$name = $_GET['name'];
+	check($name);
+
+	if (substr($name, 0, 1) != "/")
+	{
+		unlink($uploadDirectory . $name);
+		EchoStatusXML('Success');
+	}
+	else
+		EchoStatusXML('Failure');
+}
+
 
 function DeleteEntry()
 {
@@ -2056,25 +2080,27 @@ function GetLog()
 	{
 		header('Content-disposition: attachment;filename=' .
 			basename($filename));
-		$f = fopen($filename,"r");
+		readfile($filename);
 	}
 	else
 	{
 		header('Content-disposition: attachment;filename=' . $filename);
-		$f = fopen($logDirectory . $filename,"r");
+		readfile($logDirectory . $filename);
 	}
+}
 
-	if($f == FALSE)
-	{
-		die();
-	}
+function GetUpload()
+{
+	global $uploadDirectory;
 
-	while (!feof($f))
-	{
-		$line=fgets($f);
-		echo $line;
-	}
-	fclose($f);
+	$filename = $_GET['filename'];
+	check($filename);
+
+	header('Content-type: application/binary');
+
+	header('Content-disposition: attachment;filename=' . $filename);
+
+	readfile($uploadDirectory . $filename);
 }
 
 function SaveUSBDongle()

@@ -2019,6 +2019,27 @@ function DeleteLog()
 	xmlhttp.send();
 }
 
+function DownloadUpload()
+{
+	location.href="fppxml.php?command=getUpload&filename=" + UploadFileSelected;
+}
+
+function DeleteUpload()
+{
+	var xmlhttp=new XMLHttpRequest();
+	var url = "fppxml.php?command=deleteUpload&name=" + UploadFileSelected;
+	xmlhttp.open("GET",url,false);
+	xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+	 
+	xmlhttp.onreadystatechange = function () {
+		if (xmlhttp.readyState == 4 && xmlhttp.status==200)
+		{
+			GetFiles('Uploads');
+		}
+	};
+	xmlhttp.send();
+}
+
 function SaveUSBDongleSettings()
 {
 	var usbDonglePort = $('#USBDonglePort').val();
