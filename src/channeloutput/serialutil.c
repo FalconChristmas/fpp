@@ -112,6 +112,8 @@ int SerialOpen(char *device, int baud, char *mode)
 	if ((adjustedBaud == B38400) &&
 		(baud != 38400))
 	{
+		LogInfo(VB_CHANNELOUT, "Using custom baud rate of %d\n", baud);
+
 		struct serial_struct ss;
 
 		if (ioctl(fd, TIOCGSERIAL, &ss) < 0)
@@ -151,7 +153,7 @@ int SerialClose(int fd)
 int SerialSendBreak(int fd, int duration)
 {
 	ioctl(fd, TIOCSBRK);
-	usleep(duration); // DMX512-A-2004 recommends 176us minimum
+	usleep(duration);
 	ioctl(fd, TIOCCBRK);
 
 	return 0;

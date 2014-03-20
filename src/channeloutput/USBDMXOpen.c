@@ -15,9 +15,8 @@
 
 typedef struct usbDMXOpenPrivData {
 	char filename[1024];
-	char outputData[512];
+	char outputData[513];
 	int  fd;
-	char dmxHeader[1];
 } USBDMXOpenPrivData;
 
 /////////////////////////////////////////////////////////////////////////////
@@ -33,7 +32,6 @@ void USBDMXOpen_Dump(USBDMXOpenPrivData *privData) {
 
 	LogDebug(VB_CHANNELOUT, "    filename : %s\n", privData->filename);
 	LogDebug(VB_CHANNELOUT, "    fd       : %d\n", privData->fd);
-	LogDebug(VB_CHANNELOUT, "    dmxHeader: %02x\n", privData->dmxHeader[0]);
 }
 
 /*
@@ -49,7 +47,7 @@ int USBDMXOpen_Open(char *configStr, void **privDataPtr) {
 	strcpy(privData->filename, "/dev/");
 	strcat(privData->filename, configStr);
 	
-	privData->fd = SerialOpen(privData->filename, 250000, "8E2");
+	privData->fd = SerialOpen(privData->filename, 250000, "8N2");
 	if (privData->fd < 0)
 	{
 		free(privData);
@@ -59,8 +57,6 @@ int USBDMXOpen_Open(char *configStr, void **privDataPtr) {
 	}
 
 	USBDMXOpen_Dump(privData);
-
-	privData->dmxHeader[0] = 0x00;
 
 	*privDataPtr = privData;
 
@@ -127,22 +123,18 @@ int USBDMXOpen_SendData(void *data, char *channelData, int channelCount)
 	}
 
 	if (channelCount < 512) {
-		bzero(privData->outputData, 512);
-		memcpy(privData->outputData, channelData, channelCount);
+		bzero(privData->outputData, 513);
 	}
+
+	memcpy(privData->outputData + 1, channelData, channelCount);
 
 	// DMX512-A-2004 recommends 176us minimum
 	SerialSendBreak(privData->fd, 200);
 
-	// Need to sleep a minimum of 8us
+	// Then need to sleep a minimum of 8us
 	usleep(20);
 
-	write(privData->fd, privData->dmxHeader, sizeof(privData->dmxHeader));
-
-	if (channelCount == 512)
-		write(privData->fd, channelData, 512);
-	else
-		write(privData->fd, privData->outputData, 512);
+	write(privData->fd, privData->outputData, 513);
 }
 
 /*
