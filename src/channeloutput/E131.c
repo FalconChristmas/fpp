@@ -16,6 +16,7 @@
 
 #include "channeloutput.h"
 #include "channeloutputthread.h"
+#include "../common.h"
 #include "E131.h"
 #include "FPD.h"
 #include "../fpp.h"
@@ -51,26 +52,6 @@ char E131sequenceNumber=1;
 void ShowDiff(void);
 void LoadUniversesFromFile();
 void UniversesPrint();
-
-/*
- *
- */
-char * GetE131LocalAddressFromInterface()
-{
-	int fd;
-	struct ifreq ifr;
-
-	fd = socket(AF_INET, SOCK_DGRAM, 0);
-	ifr.ifr_addr.sa_family = AF_INET;
-
-	/* I want IP address attached to E131interface */
-	strncpy(ifr.ifr_name, (const char *)getE131interface(), IFNAMSIZ-1);
-	ioctl(fd, SIOCGIFADDR, &ifr);
-	close(fd);
-
-	/* return duplicate of result */
-	return strdup(inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr));
-}
 
 
 int E131_InitializeNetwork()
@@ -145,7 +126,7 @@ void E131_Initialize()
 	LoadUniversesFromFile();
 	if (UniverseCount)
 	{
-		E131LocalAddress = GetE131LocalAddressFromInterface();
+		E131LocalAddress = GetInterfaceAddress(getE131interface());
 		LogDebug(VB_CHANNELOUT, "E131LocalAddress = %s\n",E131LocalAddress);
 		E131_InitializeNetwork();
 		free(E131LocalAddress);
