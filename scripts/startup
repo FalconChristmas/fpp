@@ -44,27 +44,7 @@ setterm -blank 1
 sed -e "s#FPPDIR#${FPPDIR}#g" < ${FPPDIR}/etc/apache2.site > /etc/apache2/sites-available/default
 /etc/rc2.d/S02apache2 restart
 
-#RasClock Setup
-# to get the RasPi board version:
-REV=$(cat /proc/cpuinfo|grep Revision)
-# Extract revision
-REV=${REV##*: }
-# Make it readable as hex
-REV=0x$REV
-# Convert hex to dec
-REV=$((REV))
-if [ $REV -lt 4 ]
-then
-  echo pcf2127a 0x51 > /sys/class/i2c-adapter/i2c-0/new_device
-  echo setting rtc to i2c-0
-else
-  echo pcf2127a 0x51 > /sys/class/i2c-adapter/i2c-1/new_device
-  echo setting rtc to i2c-1
-fi
-sleep 2
-
-
-hwclock -s
+${BINDIR}/piRTC
 
 ${BINDIR}/fpp_boot
 

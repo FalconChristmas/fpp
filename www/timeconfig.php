@@ -1,8 +1,21 @@
 <?php
+require_once('config.php');
+require_once('common.php');
 
 $current_tz = exec("cat /etc/timezone", $output, $return_val);
 unset($output);
 
+if ( isset($_POST['piRTC']) && !empty($_POST['piRTC']) )
+{
+  $piRTC = $_POST['piRTC'];
+  WriteSettingToFile("piRTC",$piRTC);
+  exec(SUDO . " $fppDir/scripts/piRTC set");
+   error_log("Set RTC:" . $piRTC);
+}
+else
+{
+   error_log("Error RTC");
+}
 if ( isset($_POST['date']) && !empty($_POST['date']) )
 {
 //TODO: validate date format
@@ -17,6 +30,7 @@ if (!(isset($_POST['time']) && !empty($_POST['time'])))
 unset($output);
 //TODO: check return
 }
+
 
 if ( isset($_POST['time']) && !empty($_POST['time']) )
 {
@@ -113,6 +127,15 @@ function print_if_match($one, $two, $print)
 
 
 <?php // TODO: RTC Configuration ?>
+
+<h4>Real Time Clock</h4>
+<select name="piRTC">
+  <option value = "N" <?php echo print_if_match("N",ReadSettingFromFile("piRTC"),"selected") ?> >None</option>
+  <option value = "1" <?php echo print_if_match("1",ReadSettingFromFile("piRTC"),"selected") ?> >RasClock</option>
+  <option value = "2" <?php echo print_if_match("2",ReadSettingFromFile("piRTC"),"selected") ?> >DS1305</option>
+</select> (Reboot required if changed)
+
+
 <h4>NTP</h4>
 
 <!--
