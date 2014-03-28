@@ -78,14 +78,18 @@ int InitializeChannelOutputs(void) {
 		}
 	}
 
-	if ((getFPPmode() == PLAYER_MODE) &&
-		(USBPixelnetOutput.isConfigured()))
+	if (USBPixelnetOutput.isConfigured())
 	{
 		channelOutputs[i].startChannel = 0;
 		channelOutputs[i].output       = &USBPixelnetOutput;
 
-		if (USBPixelnetOutput.open(getUSBDonglePort(),
-			&channelOutputs[i].privData))
+		char configStr[128];
+
+		// FIXME, once we rework the channel output setup page, this will change
+		//sprintf(configStr, "device=%s,type=%s", getUSBDonglePort(), "Open");
+		sprintf(configStr, "device=%s,type=%s", getUSBDonglePort(), "Lynx");
+
+		if (USBPixelnetOutput.open(configStr, &channelOutputs[i].privData))
 		{
 			i++;
 		} else {

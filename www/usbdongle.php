@@ -56,9 +56,9 @@ function PrintUSBSerialPortOptions()
 </select></td></tr>
 <tr><td>Dongle Type*:</td><td>
 	<select id='USBDongleType'>
-		<option value='DMXOpen' <? if ($usbDongleType == "DMXOpen") echo "SELECTED"; ?>>DMXOpen</option>
-		<option value='DMXPro' <? if ($usbDongleType == "DMXPro") echo "SELECTED"; ?>>DMXPro</option>
-		<option value='Pixelnet' <? if ($usbDongleType == "Pixelnet") echo "SELECTED"; ?>>Pixelnet</option>
+		<option value='DMXOpen' <? if ($usbDongleType == "DMXOpen") echo "SELECTED"; ?>>DMX-Open</option>
+		<option value='DMXPro' <? if ($usbDongleType == "DMXPro") echo "SELECTED"; ?>>DMX-Pro</option>
+		<option value='PixelnetLynx' <? if ($usbDongleType == "PixelnetLynx") echo "SELECTED"; ?>>Pixelnet-Lynx</option>
 	</select>
 </td></tr>
 </table>
@@ -67,12 +67,12 @@ function PrintUSBSerialPortOptions()
 
 <hr>
 <font size=-1>
-* The DMXPro dongle support should be compatible with Entec Pro, Lynx DMX,
+* The DMX-Pro dongle support should be compatible with Entec Pro, Lynx DMX,
 DIYC RPM, DMXking.com, and DIYblinky.com dongles using a universe size of
 up to 512 channels.
-The USBOpen dongle support should be compatible with FTDI-based USB to
+The DMX-Open dongle support should be compatible with FTDI-based USB to
 serial converters including Entec Open, LOR, and D-Light.
-The Pixelnet dongle support is compatible with the Lynx Pixelnet USB
+The Pixelnet-Lynx dongle support is compatible with the Lynx Pixelnet USB
 dongle using up to 4096 channels.  Currently only one dongle is
 supported at a time and FPP always outputs the first universe
 in the channel data.</font>
