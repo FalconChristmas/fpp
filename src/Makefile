@@ -95,4 +95,4 @@ fppd: $(OBJECTS_fppd)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f $(OBJECTS_fpp) $(OBJECTS_fppd) fpp fppmm fppd
+	rm -f $(OBJECTS_fpp) $(OBJECTS_fppmm) $(OBJECTS_fppd) fpp fppmm fppd
