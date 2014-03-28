@@ -329,34 +329,7 @@ a:visited {
         </div>
       </div>
     <div class="clear"></div>
-    <hr>
-    <div>
-      <div>
-        <table width="100%">
-          <tr><td><b><center>Credits</center></b></td></tr>
-        </table>
-      </div>
-      <div id='credits'>
-        FPP Designed By:<br />
-        <br />
-        David Pitts (dpitts)<br />
-        Tony Mace (MyKroFt)<br />
-        Mathew Mrosko (Materdaddy)<br />
-        Chris Pinkham (CaptainMurdoch)<br />
-        <br />
-        Video Tutorials by:<br />
-        Alan Dahl (bajadahl)<br />
-        <br />
-        Copyright 2013-2014
-      </div>
-    </div>
     </fieldset>
-    <div id='logViewer' title='Log Viewer' style="display: none">
-      <pre>
-        <div id='logText'>
-        </div>
-      </pre>
-    </div>
   </div>
 </div>
   <?php include 'common/footer.inc'; ?>
