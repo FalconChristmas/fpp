@@ -160,21 +160,6 @@ void ResetChannelOutputFrameNumber(void) {
 }
 
 /*
- * Dump channel data for debugging
- */
-void DumpChannelData(char *channelData) {
-	LogDebug(VB_CHANNELDATA, "Ch Data: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
-		channelData[ 0] & 0xFF, channelData[ 1] & 0xFF,
-		channelData[ 2] & 0xFF, channelData[ 3] & 0xFF,
-		channelData[ 4] & 0xFF, channelData[ 5] & 0xFF,
-		channelData[ 6] & 0xFF, channelData[ 7] & 0xFF,
-		channelData[ 8] & 0xFF, channelData[ 9] & 0xFF,
-		channelData[10] & 0xFF, channelData[11] & 0xFF,
-		channelData[12] & 0xFF, channelData[13] & 0xFF,
-		channelData[14] & 0xFF, channelData[15] & 0xFF);
-}
-
-/*
  *
  */
 int SendChannelData(char *channelData) {
@@ -183,7 +168,9 @@ int SendChannelData(char *channelData) {
 
 	RemapChannels(channelData);
 
-	DumpChannelData(channelData);
+	if (logMask & VB_CHANNELDATA) {
+		HexDump("Channel Data", channelData, 16);
+	}
 
 	for (i = 0; i < channelOutputCount; i++) {
 		inst = &channelOutputs[i];
