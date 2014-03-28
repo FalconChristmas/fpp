@@ -611,3 +611,29 @@ fieldset
 #logViewer {
 	border: 2px solid #000000;
 }
+
+.fppTableWrapper {
+	border:thin solid;
+	font-size:12px;
+	margin-top: 5px;
+	-moz-border-radius: 5px;
+	border-radius: 5px;
+	-webkit-border-radius: 5px;
+	min-height: 65px;
+
+	-moz-user-select: -moz-none;
+	-khtml-user-select: none;
+	-webkit-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
+}
+
+.fppTableHeader {
+	background:#DDD;
+	text-align:center;
+}
+
+.fppTableSelectedEntry {
+	background:#CCC;
+}
+
