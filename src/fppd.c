@@ -55,17 +55,17 @@ int main(int argc, char *argv[])
 	{
 		SendBlankingData();
 
-		LogInfo(VB_GENERIC, "Starting Player Process\n");
+		LogInfo(VB_GENERAL, "Starting Player Process\n");
 		PlayerProcess();
 	}
 	else if (getFPPmode() == BRIDGE_MODE)
 	{
-		LogInfo(VB_GENERIC, "Starting Bridge Process\n");
+		LogInfo(VB_GENERAL, "Starting Bridge Process\n");
 		Bridge_Process();
 	}
 	else
 	{
-		LogErr(VB_GENERIC, "Invalid mode, quitting\n");
+		LogErr(VB_GENERAL, "Invalid mode, quitting\n");
 	}
 
 	CloseChannelDataMemoryMap();
@@ -121,7 +121,7 @@ void PlayerProcess(void)
 		StartChannelOutputThread();
   }
 
-  LogInfo(VB_GENERIC, "Main Player Process Loop complete, shutting down.\n");
+  LogInfo(VB_GENERAL, "Main Player Process Loop complete, shutting down.\n");
 
   CleanupMediaOutput();
 }

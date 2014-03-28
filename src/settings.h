@@ -6,13 +6,15 @@
 #define MAXBUF 1024
 
 enum fppModes {
-	PLAYER_MODE = 0,
-	BRIDGE_MODE
+	BRIDGE_MODE = 0x01,
+	PLAYER_MODE = 0x02,
+	/* Skip 0x04 since MASTER_MODE is a bitmask of player 0x02 & master 0x04 */
+	MASTER_MODE = 0x06,
+	SLAVE_MODE  = 0x08
 };
 
 struct config
 {
-	int		verbose;
 	int		daemonize;
 	int		fppMode;
 	int		volume;
@@ -56,7 +58,6 @@ int saveSettingsFile(void);
 
 
 // Getters
-int getVerbose(void);
 int getDaemonize(void);
 int  getFPPmode(void);
 int  getVolume(void);
