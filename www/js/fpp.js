@@ -2060,3 +2060,20 @@ function SaveUSBDongleSettings()
 	xmlhttp.send();
 }
 
+function SetupSelectableTableRow(info)
+{
+	$('#' + info.tableName + ' > tbody').on('mousedown', 'tr', function(event,ui){
+		$('#' + info.tableName + ' > tbody > tr').removeClass('fppTableSelectedEntry');
+		$(this).addClass('fppTableSelectedEntry');
+		var items = $('#' + info.tableName + ' > tbody > tr');
+		info.selected  = items.index(this);
+
+		for (var i = 0; i < info.enableButtons.length; i++) {
+			SetButtonState('#' + info.enableButtons[i], "enable");
+		}
+		for (var i = 0; i < info.disableButtons.length; i++) {
+			SetButtonState('#' + info.disableButtons[i], "disable");
+		}
+	});
+}
+

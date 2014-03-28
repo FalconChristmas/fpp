@@ -37,6 +37,7 @@ $universeFile      = $mediaDirectory . "/universes";
 $pixelnetFile      = $mediaDirectory . "/pixelnetDMX";
 $scheduleFile      = $mediaDirectory . "/schedule";
 $bytesFile         = $mediaDirectory . "/bytesReceived";
+$remapFile         = $mediaDirectory . "/channelremap";
 $volume = 0;
 
 if (defined('debug'))
