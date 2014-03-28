@@ -9,6 +9,7 @@
 #include "../log.h"
 #include "../sequence.h"
 #include "../settings.h"
+#include "SPIws2801.h"
 #include "USBDMXOpen.h"
 #include "USBDMXPro.h"
 #include "USBPixelnet.h"
@@ -126,6 +127,25 @@ int InitializeChannelOutputs(void) {
 			LogErr(VB_CHANNELOUT, "ERROR Opening USBDMXOpen Channel Output\n");
 		}
 	}
+
+#if 0
+// SPI output works, but needs the new channel output setup UI
+// and some 'is configured' and 'not at the same time as FPD' tweaking
+// so disable the code for now
+	if (((getFPPmode() & PLAYER_MODE) || (getFPPmode() == SLAVE_MODE)) &&
+		(SPIws2801Output.isConfigured()))
+	{
+		channelOutputs[i].startChannel = 0;
+		channelOutputs[i].output       = &SPIws2801Output;
+
+		if (SPIws2801Output.open("", &channelOutputs[i].privData))
+		{
+			i++;
+		} else {
+			LogErr(VB_CHANNELOUT, "ERROR Opening SPIws2801 Channel Output\n");
+		}
+	}
+#endif
 
 	channelOutputCount = i;
 
