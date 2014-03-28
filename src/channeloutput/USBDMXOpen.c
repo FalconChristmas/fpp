@@ -14,9 +14,9 @@
 /////////////////////////////////////////////////////////////////////////////
 
 typedef struct usbDMXOpenPrivData {
+	int  fd;
 	char filename[1024];
 	char outputData[513];
-	int  fd;
 } USBDMXOpenPrivData;
 
 /////////////////////////////////////////////////////////////////////////////
@@ -46,6 +46,8 @@ int USBDMXOpen_Open(char *configStr, void **privDataPtr) {
 
 	strcpy(privData->filename, "/dev/");
 	strcat(privData->filename, configStr);
+
+	privData->outputData[0] = '\0';
 	
 	privData->fd = SerialOpen(privData->filename, 250000, "8N2");
 	if (privData->fd < 0)
@@ -123,7 +125,7 @@ int USBDMXOpen_SendData(void *data, char *channelData, int channelCount)
 	}
 
 	if (channelCount < 512) {
-		bzero(privData->outputData, 513);
+		bzero(privData->outputData + 1, 512);
 	}
 
 	memcpy(privData->outputData + 1, channelData, channelCount);
