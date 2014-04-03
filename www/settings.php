@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -26,6 +25,13 @@ $(document).ready(function(){
 		var url = "fppxml.php?command=setPiLCDenabled&enabled=" + enabled;
     $.get(url,SetPiLCDenabled);
   });
+
+  $('#LogLevel').val(settings['LogLevel']);
+
+  var logMasks = settings['LogMask'].split(",");
+  for (var i = 0; i < logMasks.length; i++) {
+    $('#LogMask input.mask_' + logMasks[i]).attr('checked', true);
+  }
 });
 
 function SetPiLCDenabled(data,status) 
@@ -33,6 +39,30 @@ function SetPiLCDenabled(data,status)
   var i = 69;
   var i = 69;
 }
+
+function LogLevelChanged()
+{
+	$.get("fppjson.php?command=setSetting&key=LogLevel&value="
+		+ $('#LogLevel').val()).fail(function() { alert("Error saving new level") });
+}
+
+$(function() {
+	$('#LogMask input').change(function() {
+			var newValue = "";
+			$('#LogMask input').each(function() {
+					if ($(this).is(':checked')) {
+						if (newValue != "") {
+							newValue += ",";
+						}
+						newValue += $(this).attr('class').replace(/mask_/,"");
+					}
+				});
+
+			$.get("fppjson.php?command=setSetting&key=LogMask&value="
+				+ newValue).fail(function() { alert("Error saving new mask") });
+		});
+	});
+
 </script>
 <title>Falcon PI Player - FPP</title>
 </head>
@@ -70,6 +100,53 @@ DEVELOPMENT:
     <tr>
       <td width = "25%">PI 2x16 LCD Enabled:</td>
       <td width = "75%"><input type="checkbox" id="chkPiLCDenabled" value="1" <?php echo piLCDenabledChecked();?>></td>
+    </tr>
+    <tr>
+      <td>FPPD Log Level:</td>
+      <td><select id='LogLevel' onChange='LogLevelChanged();'>
+            <option value='warn'>Warn</option>
+            <option value='info'>Info</option>
+            <option value='debug'>Debug</option>
+            <option value='excess'>Excessive</option>
+          </select></td>
+    </tr>
+    <tr>
+      <td valign='top'>FPPD Log Mask:</td>
+      <td>
+        <table border=0 cellpadding=2 cellspacing=5 id='LogMask'>
+          <tr>
+            <td>Overrides</td>
+            <td width='10px'></td>
+            <td colspan=3 align=center>Log Areas</td>
+            </tr>
+          <tr>
+            <td valign=top>
+              <input type='checkbox' class='mask_all'>ALL<br>
+              <input type='checkbox' class='mask_most'>Most
+              </td>
+            <td width='10px'></td>
+            <td valign=top>
+              <input type='checkbox' class='mask_channeldata'>Channel Data<br>
+              <input type='checkbox' class='mask_channelout'>Channel Outputs<br>
+              <input type='checkbox' class='mask_command'>Commands<br>
+              <input type='checkbox' class='mask_control'>Control Interface<br>
+              <input type='checkbox' class='mask_e131bridge'>E1.31 Bridge<br>
+              <input type='checkbox' class='mask_effect'>Effects<br>
+              <input type='checkbox' class='mask_event'>Events<br>
+              </td>
+            <td width='10px'></td>
+            <td valign=top>
+              <input type='checkbox' class='mask_general'>General<br>
+              <input type='checkbox' class='mask_mediaout'>Media Outputs<br>
+              <input type='checkbox' class='mask_playlist'>Playlists<br>
+              <input type='checkbox' class='mask_schedule'>Scheduler<br>
+              <input type='checkbox' class='mask_sequence'>Sequence Parser<br>
+              <input type='checkbox' class='mask_setting'>Settings<br>
+              <input type='checkbox' class='mask_sync'>Master/Slave Sync<br>
+              </td>
+          </tr>
+        </table>
+      </td>
     </tr>
   </table>
 

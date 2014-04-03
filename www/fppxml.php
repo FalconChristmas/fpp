@@ -1,12 +1,13 @@
 <?php
 
-require_once('config.php');
+$skipJSsettings = 1;
 require_once('common.php');
 
 require_once('playlistentry.php');
 require_once('universeentry.php');
 require_once('scheduleentry.php');
 require_once('pixelnetdmxentry.php');
+require_once('commandsocket.php');
 
 //define('debug', true);
 
@@ -127,82 +128,6 @@ function check($var)
 		error_log("WARNING: Variable we checked in function '".$_GET['command']."' was empty");
 //		die();
 	}
-}
-
-function CleanupSocket($path, $socket = '')
-{
-	@unlink($path);
-
-	if ($socket != '')
-		@socket_close($socket);
-}
-
-$socketError = "";
-
-function SendCommand($command)
-{
-	$socketError = "";
-	$cpath = "/tmp/FPP." . getmypid();
-	$spath = "/tmp/FPPD";
-
-	CleanupSocket($cpath);
-
-	$socket = socket_create(AF_UNIX, SOCK_DGRAM, 0);
-	if ( !@socket_set_nonblock($socket) ) {
-		$socketError = 'Unable to set nonblocking mode for ' . $spath . ' socket';
-		CleanupSocket($cpath, $socket);
-		return false;
-	}
-
-	if ( !@socket_bind($socket, $cpath) ) {
-		$socketError = 'socket_bind() failed for ' . $cpath . ' socket';
-		CleanupSocket($cpath, $socket);
-		return false;
-	}
-
-	if ( @socket_connect($socket, $spath) === false)
-	{
-		$socketError = 'socket_connect() failed for ' . $spath . ' socket';
-		CleanupSocket($cpath, $socket);
-		return false;
-	}
-
-	if ( @socket_send($socket, $command, strLen($command), 0) == FALSE )
-	{
-		$socketError = 'socket_send() failed for ' . $spath . ' socket';
-		CleanupSocket($cpath, $socket);
-		return false;
-	}
-
-	$i = 0;
-	$max_timeout = 1000;
-	$buf = "";
-	while ($i < $max_timeout)
-	{
-		$i++;
-		$bytes_received = @socket_recv($socket, $buf, 1024, MSG_DONTWAIT);
-		if ($bytes_received == -1)
-		{
-			$socketError = 'An error occured while receiving from the socket';
-			CleanupSocket($cpath, $socket);
-			return false;
-		}
-
-		if ($bytes_received > 0)
-		{
-			break;
-		}
-		usleep(500);
-	}
-
-	if ( $buf == "" )
-	{
-		CleanupSocket($cpath, $socket);
-		return "false";
-	}
-
-	CleanupSocket($cpath, $socket);
-	return $buf;
 }
 
 function EchoStatusXML($status)
@@ -1246,27 +1171,13 @@ function SaveUniversesToFile()
 	$f=fopen($universeFile,"w") or exit("Unable to open file! : " . $universeFile);
 	for($i=0;$i<count($_SESSION['UniverseEntries']);$i++)
 	{
-			if($i==0)
-			{
-			$entries .= sprintf("%s,%s,%s,%s,%s,%s,",
-						$_SESSION['UniverseEntries'][$i]->active,
-						$_SESSION['UniverseEntries'][$i]->universe,
-						$_SESSION['UniverseEntries'][$i]->startAddress,
-						$_SESSION['UniverseEntries'][$i]->size,
-						$_SESSION['UniverseEntries'][$i]->type,
-						$_SESSION['UniverseEntries'][$i]->unicastAddress);
-			}
-			else
-			{
-			$entries .= sprintf("\n%s,%s,%s,%s,%s,%s,",
-						$_SESSION['UniverseEntries'][$i]->active,
-						$_SESSION['UniverseEntries'][$i]->universe,
-						$_SESSION['UniverseEntries'][$i]->startAddress,
-						$_SESSION['UniverseEntries'][$i]->size,
-						$_SESSION['UniverseEntries'][$i]->type,
-						$_SESSION['UniverseEntries'][$i]->unicastAddress);
-			}
-
+		$entries .= sprintf("%s,%s,%s,%s,%s,%s,\n",
+					$_SESSION['UniverseEntries'][$i]->active,
+					$_SESSION['UniverseEntries'][$i]->universe,
+					$_SESSION['UniverseEntries'][$i]->startAddress,
+					$_SESSION['UniverseEntries'][$i]->size,
+					$_SESSION['UniverseEntries'][$i]->type,
+					$_SESSION['UniverseEntries'][$i]->unicastAddress);
 	}
 	fwrite($f,$entries);
 	fclose($f);
@@ -2111,8 +2022,12 @@ function SaveUSBDongle()
 	$usbDongleType = $_GET['type'];
 	check($usbDongleType);
 
+	$usbDongleBaud = $_GET['baud'];
+	check($usbDongleBaud);
+
 	WriteSettingToFile("USBDonglePort", $usbDonglePort);
 	WriteSettingToFile("USBDongleType", $usbDongleType);
+	WriteSettingToFile("USBDongleBaud", $usbDongleBaud);
 }
 
 function GetInterfaceInfo()

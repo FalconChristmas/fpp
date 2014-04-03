@@ -34,12 +34,13 @@ void USBDMXPro_Dump(USBDMXProPrivData *privData) {
 	LogDebug(VB_CHANNELOUT, "    filename : %s\n", privData->filename);
 	LogDebug(VB_CHANNELOUT, "    fd       : %d\n", privData->fd);
 	LogDebug(VB_CHANNELOUT, "    dmxHeader: %02x, %02x, %02x, %02x, %02x\n",
-		privData->dmxHeader[0],
-		privData->dmxHeader[1],
-		privData->dmxHeader[2],
-		privData->dmxHeader[3],
-		privData->dmxHeader[4]);
-	LogDebug(VB_CHANNELOUT, "    dmxFooter: %02x\n", privData->dmxFooter[0]);
+		(unsigned char)privData->dmxHeader[0],
+		(unsigned char)privData->dmxHeader[1],
+		(unsigned char)privData->dmxHeader[2],
+		(unsigned char)privData->dmxHeader[3],
+		(unsigned char)privData->dmxHeader[4]);
+	LogDebug(VB_CHANNELOUT, "    dmxFooter: %02x\n",
+		(unsigned char)privData->dmxFooter[0]);
 }
 
 /*
@@ -52,9 +53,40 @@ int USBDMXPro_Open(char *configStr, void **privDataPtr) {
 	bzero(privData, sizeof(USBDMXProPrivData));
 	privData->fd = -1;
 
+	char deviceName[32];
+	char *s = strtok(configStr, ";");
+
+	strcpy(deviceName, "UNKNOWN");
+
+	while (s) {
+		char tmp[128];
+		char *div = NULL;
+
+		strcpy(tmp, s);
+		div = strchr(tmp, '=');
+
+		if (div) {
+			*div = '\0';
+			div++;
+
+			if (!strcmp(tmp, "device")) {
+				LogDebug(VB_CHANNELOUT, "Using %s for DMX output\n", div);
+				strcpy(deviceName, div);
+			}
+		}
+		s = strtok(NULL, ",");
+	}
+
+	if (!strcmp(deviceName, "UNKNOWN"))
+	{
+		LogErr(VB_CHANNELOUT, "Invalid Config Str: %s\n", configStr);
+		free(privData);
+		return 0;
+	}
+
 	strcpy(privData->filename, "/dev/");
-	strcat(privData->filename, configStr);
-	
+	strcat(privData->filename, deviceName);
+
 	privData->fd = SerialOpen(privData->filename, 115200, "8N1");
 	if (privData->fd < 0)
 	{
@@ -64,8 +96,6 @@ int USBDMXPro_Open(char *configStr, void **privDataPtr) {
 		return 0;
 	}
 
-	USBDMXPro_Dump(privData);
-
 	int len = 512; // only support 512 byte DMX for now.
 	privData->dmxHeader[0] = 0x7E;
 	privData->dmxHeader[1] = 0x06;
@@ -74,6 +104,8 @@ int USBDMXPro_Open(char *configStr, void **privDataPtr) {
 	privData->dmxHeader[4] = 0x00;
 
 	privData->dmxFooter[0] = 0xE7;
+
+	USBDMXPro_Dump(privData);
 
 	*privDataPtr = privData;
 
@@ -148,10 +180,18 @@ int USBDMXPro_SendData(void *data, char *channelData, int channelCount)
 }
 
 /*
+ *
+ */
+int USBDMXPro_MaxChannels(void *data)
+{
+	return 512;
+}
+
+/*
  * Declare our external interface struct
  */
 FPPChannelOutput USBDMXProOutput = {
-	.maxChannels  = 512,
+	.maxChannels  = USBDMXPro_MaxChannels,
 	.open         = USBDMXPro_Open,
 	.close        = USBDMXPro_Close,
 	.isConfigured = USBDMXPro_IsConfigured,

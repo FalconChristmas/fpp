@@ -302,9 +302,7 @@ a:visited {
             <tr><td>Events:</td><td><a href='events.php' class='nonULLink'><? echo getFileCount($eventDirectory); ?></a></td></tr>
             <tr><td>Effects:</td><td><a href='uploadfile.php?tab=3' class='nonULLink'><? echo getFileCount($effectDirectory); ?></a></td></tr>
             <tr><td>Scripts:</td><td><a href='uploadfile.php?tab=4' class='nonULLink'><? echo getFileCount($scriptDirectory); ?></a></td></tr>
-
-			<!-- FIXME, make this a link to the channel remap screen -->
-			<tr><td>Remapped Channels:</td><td><? echo getRemappedChannelCount(); ?> </td></tr>
+			<tr><td>Remapped Channels:</td><td><a href='channelremaps.php' class='nonULLink'><? echo getRemappedChannelCount(); ?></a></td></tr>
 
             <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
 
@@ -329,34 +327,7 @@ a:visited {
         </div>
       </div>
     <div class="clear"></div>
-    <hr>
-    <div>
-      <div>
-        <table width="100%">
-          <tr><td><b><center>Credits</center></b></td></tr>
-        </table>
-      </div>
-      <div id='credits'>
-        FPP Designed By:<br />
-        <br />
-        David Pitts (dpitts)<br />
-        Tony Mace (MyKroFt)<br />
-        Mathew Mrosko (Materdaddy)<br />
-        Chris Pinkham (CaptainMurdoch)<br />
-        <br />
-        Video Tutorials by:<br />
-        Alan Dahl (bajadahl)<br />
-        <br />
-        Copyright 2013-2014
-      </div>
-    </div>
     </fieldset>
-    <div id='logViewer' title='Log Viewer' style="display: none">
-      <pre>
-        <div id='logText'>
-        </div>
-      </pre>
-    </div>
   </div>
 </div>
   <?php include 'common/footer.inc'; ?>

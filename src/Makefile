@@ -23,9 +23,11 @@ OBJECTS_fppd = \
 	channeloutput/E131.o \
 	channeloutput/FPD.o \
 	channeloutput/serialutil.o \
+	channeloutput/SPIws2801.o \
 	channeloutput/USBDMXOpen.o \
 	channeloutput/USBDMXPro.o \
 	channeloutput/USBPixelnet.o \
+	channeloutput/USBRenard.o \
 	command.o \
 	common.o \
 	e131bridge.o \
@@ -94,4 +96,4 @@ fppd: $(OBJECTS_fppd)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f $(OBJECTS_fpp) $(OBJECTS_fppd) fpp fppmm fppd
+	rm -f $(OBJECTS_fpp) $(OBJECTS_fppmm) $(OBJECTS_fppd) fpp fppmm fppd

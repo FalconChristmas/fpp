@@ -287,22 +287,26 @@ extern PlaylistDetails playlistDetails;
 		else if (!strcmp(CommandStr, "LogLevel"))
 		{
 			s = strtok(NULL,",");
-			int newLogLevel = atoi(s);
 
-			LogInfo(VB_GENERIC, "Changing Log Level to: %d\n", newLogLevel);
-			logLevel = newLogLevel;
-			sprintf(response,"%d,%d,Logging Updated,%d,%d,,,,,,,,,\n",
-				getFPPmode(),COMMAND_SUCCESS,logLevel,logMask);
+			if (SetLogLevel(s)) {
+				sprintf(response,"%d,%d,Log Level Updated,%d,%d,,,,,,,,,\n",
+					getFPPmode(),COMMAND_SUCCESS,logLevel,logMask);
+			} else {
+				sprintf(response,"%d,%d,Error Updating Log Level,%d,%d,,,,,,,,,\n",
+					getFPPmode(),COMMAND_FAILED,logLevel,logMask);
+			}
 		}
 		else if (!strcmp(CommandStr, "LogMask"))
 		{
 			s = strtok(NULL,",");
-			int newLogMask = atoi(s);
 
-			LogInfo(VB_GENERIC, "Changing Log Mask to: %d\n", newLogMask);
-			logMask = newLogMask;
-			sprintf(response,"%d,%d,Logging Updated,%d,%d,,,,,,,,,\n",
-				getFPPmode(),COMMAND_SUCCESS,logLevel,logMask);
+			if ((s && SetLogMask(s)) || SetLogMask("")) {
+				sprintf(response,"%d,%d,Log Mask Updated,%d,%d,,,,,,,,,\n",
+					getFPPmode(),COMMAND_SUCCESS,logLevel,logMask);
+			} else {
+				sprintf(response,"%d,%d,Error Updating Log Mask,%d,%d,,,,,,,,,\n",
+					getFPPmode(),COMMAND_FAILED,logLevel,logMask);
+			}
 		}
 		else if (!strcmp(CommandStr, "StopEffect"))
 		{
@@ -350,7 +354,7 @@ extern PlaylistDetails playlistDetails;
 
   void exit_handler(int signum)
 	{
-     LogInfo(VB_GENERIC, "Caught signal %d\n",signum);
+     LogInfo(VB_GENERAL, "Caught signal %d\n",signum);
      CloseCommand();
 		 if(mediaOutputStatus.status == MEDIAOUTPUTSTATUS_PLAYING)
 		 {

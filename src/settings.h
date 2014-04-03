@@ -6,13 +6,15 @@
 #define MAXBUF 1024
 
 enum fppModes {
-	PLAYER_MODE = 0,
-	BRIDGE_MODE
+	BRIDGE_MODE = 0x01,
+	PLAYER_MODE = 0x02,
+	/* Skip 0x04 since MASTER_MODE is a bitmask of player 0x02 & master 0x04 */
+	MASTER_MODE = 0x06,
+	SLAVE_MODE  = 0x08
 };
 
 struct config
 {
-	int		verbose;
 	int		daemonize;
 	int		fppMode;
 	int		volume;
@@ -34,9 +36,13 @@ struct config
 	char	*E131interface;
 	char	*USBDonglePort;
 	char	*USBDongleType;
+	char	*USBDongleBaud;
 
 	unsigned int controlMajor;
 	unsigned int controlMinor;
+
+	char *keys[1024];
+	char *values[1024];
 };
 
 
@@ -56,7 +62,9 @@ int saveSettingsFile(void);
 
 
 // Getters
-int getVerbose(void);
+char *getSetting(char *setting);
+int   getSettingInt(char *setting);
+
 int getDaemonize(void);
 int  getFPPmode(void);
 int  getVolume(void);
@@ -78,6 +86,7 @@ char *getSettingsFile(void);
 char *getE131interface(void);
 char *getUSBDonglePort(void);
 char *getUSBDongleType(void);
+char *getUSBDongleBaud(void);
 unsigned int getControlMajor(void);
 unsigned int getControlMinor(void);
 

@@ -14,9 +14,9 @@
 /////////////////////////////////////////////////////////////////////////////
 
 typedef struct usbDMXOpenPrivData {
+	int  fd;
 	char filename[1024];
 	char outputData[513];
-	int  fd;
 } USBDMXOpenPrivData;
 
 /////////////////////////////////////////////////////////////////////////////
@@ -44,8 +44,41 @@ int USBDMXOpen_Open(char *configStr, void **privDataPtr) {
 	bzero(privData, sizeof(USBDMXOpenPrivData));
 	privData->fd = -1;
 
+	char deviceName[32];
+	char *s = strtok(configStr, ";");
+
+	strcpy(deviceName, "UNKNOWN");
+
+	while (s) {
+		char tmp[128];
+		char *div = NULL;
+
+		strcpy(tmp, s);
+		div = strchr(tmp, '=');
+
+		if (div) {
+			*div = '\0';
+			div++;
+
+			if (!strcmp(tmp, "device")) {
+				LogDebug(VB_CHANNELOUT, "Using %s for DMX output\n", div);
+				strcpy(deviceName, div);
+			}
+		}
+		s = strtok(NULL, ",");
+	}
+
+	if (!strcmp(deviceName, "UNKNOWN"))
+	{
+		LogErr(VB_CHANNELOUT, "Invalid Config Str: %s\n", configStr);
+		free(privData);
+		return 0;
+	}
+
 	strcpy(privData->filename, "/dev/");
-	strcat(privData->filename, configStr);
+	strcat(privData->filename, deviceName);
+
+	privData->outputData[0] = '\0';
 	
 	privData->fd = SerialOpen(privData->filename, 250000, "8N2");
 	if (privData->fd < 0)
@@ -123,7 +156,7 @@ int USBDMXOpen_SendData(void *data, char *channelData, int channelCount)
 	}
 
 	if (channelCount < 512) {
-		bzero(privData->outputData, 513);
+		bzero(privData->outputData + 1, 512);
 	}
 
 	memcpy(privData->outputData + 1, channelData, channelCount);
@@ -138,10 +171,18 @@ int USBDMXOpen_SendData(void *data, char *channelData, int channelCount)
 }
 
 /*
+ *
+ */
+int USBDMXOpen_MaxChannels(void *data)
+{
+	return 512;
+}
+
+/*
  * Declare our external interface struct
  */
 FPPChannelOutput USBDMXOpenOutput = {
-	.maxChannels  = 512,
+	.maxChannels  = USBDMXOpen_MaxChannels,
 	.open         = USBDMXOpen_Open,
 	.close        = USBDMXOpen_Close,
 	.isConfigured = USBDMXOpen_IsConfigured,

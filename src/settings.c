@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <getopt.h>
 
 
@@ -33,8 +34,16 @@ void initSettings(void)
   settings.E131interface = strdup("eth0");
 	settings.USBDonglePort = strdup("DISABLED");
 	settings.USBDongleType = strdup("DMX");
+	settings.USBDongleBaud = strdup("57600");
 	settings.controlMajor = 0;
 	settings.controlMinor = 0;
+
+	SetLogLevel("info");
+	SetLogMask("most");
+
+	// FIXME, include defaults from above in here
+	bzero(settings.keys, sizeof(settings.keys));
+	bzero(settings.values, sizeof(settings.values));
 }
 
 // Returns a string that's the white-space trimmed version
@@ -82,8 +91,9 @@ void printSettings(void)
 {
 	FILE *fd = stdout; // change to stderr to log there instead
 
-	fprintf(fd, "verbose: %s\n",
-		settings.verbose ? "true" : "false");
+	fprintf(fd, "LogLevel: %s\n", logLevelStr);
+	fprintf(fd, "LogMask: %s\n", logMaskStr);
+
 	fprintf(fd, "daemonize: %s\n",
 		settings.daemonize ? "true" : "false");
 	
@@ -162,6 +172,10 @@ void printSettings(void)
 		fprintf(fd, "USBDongleType(%u): %s\n",
 				strlen(settings.USBDongleType),
 				settings.USBDongleType);
+	if ( settings.USBDongleBaud )
+		fprintf(fd, "USBDongleBaud(%u): %s\n",
+				strlen(settings.USBDongleBaud),
+				settings.USBDongleBaud);
 	if ( settings.controlMajor != 0 )
 		fprintf(fd, "controlMajor: %u\n", settings.controlMajor);
 	if ( settings.controlMinor != 0 )
@@ -181,32 +195,47 @@ printf("Usage: %s [OPTION...]\n"
 "the source code, it will not likely be documented any time soon.\n"
 "\n"
 "Options:\n"
-"\t-c, --config-file\tConfiguration file for things like config file paths\n"
-"\t-f, --foreground\tDon't daemonize the application.  In the foreground, all\n"
-"\t\t\t\tlogging will be on the console instead of the log file\n"
-"\t-d, --daemonize\tDaemonize even if the config file says not to.\n"
-"\t-V, --verbose\t\tEnable verbose logging.\n"
-"\t-v, --volume\t\tSet a volume (over-written by config file)\n"
-"\t-m, --mode\t\tSet the mode: (\"player\" or \"bridge\")\n"
-"\t-B, --media-directory\tSet the media directory\n"
-"\t-M, --music-directory\tSet the music directory\n"
-"\t-S, --sequence-directory\tSet the sequence directory\n"
-"\t-P, --playlist-directory\tSet the playlist directory\n"
-"\t-u, --universe-file\tSet the universe file\n"
-"\t-p, --pixelnet-file\tSet the pixelnet file\n"
-"\t-s, --schedule-file\tSet the schedule-file\n"
-"\t-l, --log-file\t\tSet the log file\n"
-"\t-b, --bytes-file\tSet the bytes received file\n"
-"\t-h, --help\t\tThis menu.\n"
-"\t    --mpg123-path\tSet location of mpg123 executable\n"
-"\t    --silence-music\tSet location of silence.ogg file\n"
-"\t    --log-level LEVEL\tSet the log output level (LEVEL: info, warn, debug)\n"
-"\t    --log-mask LIST\tSet the log output mask\n"
-"\t                   \tWhere LIST is a comma separated list made up of:\n"
-"\t                   \t generic, channelout, channeldata, command, e131bridge,\n"
-"\t                   \t effect, event, mediaout, playlist, schedule, sequence,\n"
-"\t                   \t setting, all, most, generic.  ('most' excludes channeldata)\n"
-"\t                   \tDefault logging is '--log-level info --log-mask most'\n"
+"  -c, --config-file FILENAME    - Location of alternate configuration file\n"
+"  -f, --foreground              - Don't daemonize the application.  In the\n"
+"                                  foreground, all logging will be on the\n"
+"                                  console instead of the log file\n"
+"  -d, --daemonize               - Daemonize even if the config file says not to.\n"
+"  -v, --volume VOLUME           - Set a volume (over-written by config file)\n"
+"  -m, --mode MODE               - Set the mode: \"player\", \"bridge\",\n"
+"                                  \"master\", or \"slave\"\n"
+"  -B, --media-directory DIR     - Set the media directory\n"
+"  -M, --music-directory DIR     - Set the music directory\n"
+"  -S, --sequence-directory DIR  - Set the sequence directory\n"
+"  -P, --playlist-directory DIR  - Set the playlist directory\n"
+"  -u, --universe-file FILENAME  - Set the universe file\n"
+"  -p, --pixelnet-file FILENAME  - Set the pixelnet file\n"
+"  -s, --schedule-file FILENAME  - Set the schedule-file\n"
+"  -l, --log-file FILENAME       - Set the log file\n"
+"  -b, --bytes-file FILENAME     - Set the bytes received file\n"
+"  -h, --help                    - This menu.\n"
+"      --log-level LEVEL         - Set the log output level:\n"
+"                                  \"info\", \"warn\", \"debug\", \"excess\")\n"
+"      --log-mask LIST           - Set the log output mask, where LIST is a\n"
+"                                  comma-separated list made up of one or more\n"
+"                                  of the following items:\n"
+"                                    channeldata - channel data itself\n"
+"                                    channelout  - channel output code\n"
+"                                    command     - command processing\n"
+"                                    control     - Control socket debugging\n"
+"                                    e131bridge  - E1.31 bridge\n"
+"                                    effect      - Effects sequences\n"
+"                                    event       - Event handling\n"
+"                                    general     - general messages\n"
+"                                    mediaout    - Media file handling\n"
+"                                    playlist    - Playlist handling\n"
+"                                    schedule    - Playlist scheduling\n"
+"                                    sequence    - Sequence parsing\n"
+"                                    setting     - Settings parsing\n"
+"                                    sync        - Master/Slave Synchronization\n"
+"                                    all         - ALL log messages\n"
+"                                    most        - Most excluding \"channeldata\"\n"
+"                                  The default logging is:\n"
+"                                    '--log-level info --log-mask most'\n"
 	, appname);
 }
 
@@ -223,7 +252,6 @@ int parseArguments(int argc, char **argv)
 			{"config-file",			required_argument,	0, 'c'},
 			{"foreground",			no_argument,		0, 'f'},
 			{"daemonize",			no_argument,		0, 'd'},
-			{"verbose",				no_argument,		0, 'V'},
 			{"volume",				required_argument,	0, 'v'},
 			{"mode",				required_argument,	0, 'm'},
 			{"media-directory",		required_argument,	0, 'B'},
@@ -256,57 +284,14 @@ int parseArguments(int argc, char **argv)
 				settings.silenceMusic = strdup(optarg);
 				break;
 			case 2: // log-level
-				if (!strcmp(optarg, "warn")) {
-					logLevel = LOG_WARN;
-				} else if (!strcmp(optarg, "debug")) {
-					logLevel = LOG_DEBUG;
-				} else if (!strcmp(optarg, "info")) {
-					logLevel = LOG_INFO;
-				} else {
-					LogErr(VB_SETTING, "Unable to parse log level '-ll %s'\n", optarg);
+				if (SetLogLevel(optarg)) {
+					LogInfo(VB_SETTING, "Log Level set to %d (%s)\n", logLevel, optarg);
 				}
-
-				LogInfo(VB_SETTING, "Log Level set to %d\n", logLevel);
 				break;
 			case 3: // log-mask
-				logMask = VB_NONE;
-
-				s = strtok(optarg, ",");
-				while (s) {
-					if (!strcmp(s, "none")) {
-						logMask = VB_NONE;
-					} else if (!strcmp(s, "all")) {
-						logMask = VB_ALL;
-					} else if (!strcmp(s, "generic")) {
-						logMask |= VB_GENERIC;
-					} else if (!strcmp(s, "channelout")) {
-						logMask |= VB_CHANNELOUT;
-					} else if (!strcmp(s, "channeldata")) {
-						logMask |= VB_CHANNELDATA;
-					} else if (!strcmp(s, "command")) {
-						logMask |= VB_COMMAND;
-					} else if (!strcmp(s, "e131bridge")) {
-						logMask |= VB_E131BRIDGE;
-					} else if (!strcmp(s, "effect")) {
-						logMask |= VB_EFFECT;
-					} else if (!strcmp(s, "event")) {
-						logMask |= VB_EVENT;
-					} else if (!strcmp(s, "mediaout")) {
-						logMask |= VB_MEDIAOUT;
-					} else if (!strcmp(s, "playlist")) {
-						logMask |= VB_PLAYLIST;
-					} else if (!strcmp(s, "schedule")) {
-						logMask |= VB_SCHEDULE;
-					} else if (!strcmp(s, "sequence")) {
-						logMask |= VB_SEQUENCE;
-					} else if (!strcmp(s, "setting")) {
-						logMask |= VB_SETTING;
-					}
-
-					s = strtok(NULL,",");
+				if (SetLogMask(optarg)) {
+					LogInfo(VB_SETTING, "Log Mask set to %d (%s)\n", logMask, optarg);
 				}
-
-				LogInfo(VB_SETTING, "Log Mask set to %d\n", logMask);
 				break;
 			case 'c': //config-file
 				if ( loadSettings(optarg) != 0 )
@@ -317,9 +302,6 @@ int parseArguments(int argc, char **argv)
 				break;
 			case 'd': //daemonize
 				settings.daemonize = true;
-				break;
-			case 'V': //verbose
-				settings.verbose = true;
 				break;
 			case 'v': //volume
 				settings.volume = atoi(optarg);
@@ -401,6 +383,7 @@ int loadSettings(const char *filename)
 		char * line = NULL;
 		size_t len = 0;
 		ssize_t read;
+		int count = 0;
 
 		while ((read = getline(&line, &len, file)) != -1)
 		{
@@ -422,35 +405,16 @@ int loadSettings(const char *filename)
 				continue;
 			}
 
-			if ( strcmp(key, "verbose") == 0 )
+			token = strtok(NULL, "=");
+			if ( !token )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for verbose setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
-				if ( strcmp(value, "false") == 0 )
-					settings.verbose = false;
-				else if ( strcmp(value, "true") == 0 )
-					settings.verbose = true;
-				else
-				{
-					fprintf(stderr, "Failed to load verbose setting from config file\n");
-					exit(EXIT_FAILURE);
-				}
+				fprintf(stderr, "Error tokenizing value for %s setting\n", key);
+				continue;
 			}
-			else if ( strcmp(key, "daemonize") == 0 )
-			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for daemonize setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
+			value = trimwhitespace(token);
 
+			if ( strcmp(key, "daemonize") == 0 )
+			{
 				if ( strcmp(value, "false") == 0 )
 					settings.daemonize = false;
 				else if ( strcmp(value, "true") == 0 )
@@ -463,14 +427,6 @@ int loadSettings(const char *filename)
 			}
 			else if ( strcmp(key, "fppMode") == 0 )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for fppMode setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
-
 				if ( strcmp(value, "player") == 0 )
 					settings.fppMode = PLAYER_MODE;
 				else if ( strcmp(value, "bridge") == 0 )
@@ -483,13 +439,6 @@ int loadSettings(const char *filename)
 			}
 			else if ( strcmp(key, "volume") == 0 )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for volume setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
 				if ( strlen(value) )
 					settings.volume = atoi(value);
 				else
@@ -497,13 +446,6 @@ int loadSettings(const char *filename)
 			}
 			else if ( strcmp(key, "mediaDirectory") == 0 )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for mediaDirectory setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
 				if ( strlen(value) )
 				{
 					free(settings.mediaDirectory);
@@ -514,13 +456,6 @@ int loadSettings(const char *filename)
 			}
 			else if ( strcmp(key, "musicDirectory") == 0 )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for musicDirectory setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
 				if ( strlen(value) )
 				{
 					free(settings.musicDirectory);
@@ -531,13 +466,6 @@ int loadSettings(const char *filename)
 			}
 			else if ( strcmp(key, "sequenceDirectory") == 0 )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for sequenceDirectory setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
 				if ( strlen(value) )
 				{
 					free(settings.sequenceDirectory);
@@ -550,13 +478,6 @@ int loadSettings(const char *filename)
 			{
 				if ( ! settings.eventDirectory )
 				{
-					token = strtok(NULL, "=");
-					if ( ! token )
-					{
-						fprintf(stderr, "Error tokenizing value for eventDirectory setting\n");
-						continue;
-					}
-					value = trimwhitespace(token);
 					if ( strlen(value) )
 					{
 					    free(settings.eventDirectory);
@@ -570,13 +491,6 @@ int loadSettings(const char *filename)
 			{
 				if ( ! settings.videoDirectory )
 				{
-					token = strtok(NULL, "=");
-					if ( ! token )
-					{
-						fprintf(stderr, "Error tokenizing value for videoDirectory setting\n");
-						continue;
-					}
-					value = trimwhitespace(token);
 					if ( strlen(value) )
 					{
 					    free(settings.videoDirectory);
@@ -590,13 +504,6 @@ int loadSettings(const char *filename)
 			{
 				if ( ! settings.effectDirectory )
 				{
-					token = strtok(NULL, "=");
-					if ( ! token )
-					{
-						fprintf(stderr, "Error tokenizing value for effectDirectory setting\n");
-						continue;
-					}
-					value = trimwhitespace(token);
 					if ( strlen(value) )
 					{
 					    free(settings.effectDirectory);
@@ -610,13 +517,6 @@ int loadSettings(const char *filename)
 			{
 				if ( ! settings.scriptDirectory )
 				{
-					token = strtok(NULL, "=");
-					if ( ! token )
-					{
-						fprintf(stderr, "Error tokenizing value for scriptDirectory setting\n");
-						continue;
-					}
-					value = trimwhitespace(token);
 					if ( strlen(value) )
 					{
 					    free(settings.scriptDirectory);
@@ -628,13 +528,6 @@ int loadSettings(const char *filename)
 			}
 			else if ( strcmp(key, "playlistDirectory") == 0 )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for playlistDirectory setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
 				if ( strlen(value) )
 				{
 					free(settings.playlistDirectory);
@@ -645,13 +538,6 @@ int loadSettings(const char *filename)
 			}
 			else if ( strcmp(key, "universeFile") == 0 )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for universeFile setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
 				if ( strlen(value) )
 				{
 					free(settings.universeFile);
@@ -662,13 +548,6 @@ int loadSettings(const char *filename)
 			}
 			else if ( strcmp(key, "pixelnetFile") == 0 )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for pixelnetFile setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
 				if ( strlen(value) )
 				{
 					free(settings.pixelnetFile);
@@ -679,13 +558,6 @@ int loadSettings(const char *filename)
 			}
 			else if ( strcmp(key, "scheduleFile") == 0 )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for scheduleFile setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
 				if ( strlen(value) )
 				{
 					free(settings.scheduleFile);
@@ -694,15 +566,22 @@ int loadSettings(const char *filename)
 				else
 					fprintf(stderr, "Failed to load scheduleFile from config file\n");
 			}
+			else if ( strcmp(key, "LogLevel") == 0 )
+			{
+				if (strlen(value))
+					SetLogLevel(value);
+				else
+					SetLogLevel("warn");
+			}
+			else if ( strcmp(key, "LogMask") == 0 )
+			{
+				if (strlen(value))
+					SetLogMask(value);
+				else
+					SetLogMask("");
+			}
 			else if ( strcmp(key, "logFile") == 0 )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for logFile setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
 				if ( strlen(value) )
 				{
 					free(settings.logFile);
@@ -713,13 +592,6 @@ int loadSettings(const char *filename)
 			}
 			else if ( strcmp(key, "silenceMusic") == 0 )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for silenceMusic setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
 				if ( strlen(value) )
 				{
 					free(settings.silenceMusic);
@@ -730,13 +602,6 @@ int loadSettings(const char *filename)
 			}
 			else if ( strcmp(key, "bytesFile") == 0 )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for bytesFile setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
 				if ( strlen(value) )
 				{
 					free(settings.bytesFile);
@@ -747,13 +612,6 @@ int loadSettings(const char *filename)
 			}
 			else if ( strcmp(key, "E131interface") == 0 )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for E131interface setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
 				if ( strlen(value) )
 				{
 					free(settings.E131interface);
@@ -764,13 +622,6 @@ int loadSettings(const char *filename)
 			}
 			else if ( strcmp(key, "USBDonglePort") == 0 )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for USBDonglePort setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
 				if ( strlen(value) )
 				{
 					free(settings.USBDonglePort);
@@ -781,13 +632,6 @@ int loadSettings(const char *filename)
 			}
 			else if ( strcmp(key, "USBDongleType") == 0 )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for USBDongleType setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
 				if ( strlen(value) )
 				{
 					free(settings.USBDongleType);
@@ -796,15 +640,25 @@ int loadSettings(const char *filename)
 				else
 					fprintf(stderr, "Failed to load USBDongleType from config file\n");
 			}
-			else if ( strcmp(key, "controlMajor") == 0 )
+			else if ( strcmp(key, "USBDongleBaud") == 0 )
 			{
 				token = strtok(NULL, "=");
 				if ( ! token )
 				{
-					fprintf(stderr, "Error tokenizing value for controlMajor setting\n");
+					fprintf(stderr, "Error tokenizing value for USBDongleBaud setting\n");
 					continue;
 				}
 				value = trimwhitespace(token);
+				if ( strlen(value) )
+				{
+					free(settings.USBDongleBaud);
+					settings.USBDongleBaud = strdup(value);
+				}
+				else
+					fprintf(stderr, "Failed to load USBDongleBaud from config file\n");
+			}
+			else if ( strcmp(key, "controlMajor") == 0 )
+			{
 				if ( strlen(value) )
 				{
 					int ivalue = atoi(value);
@@ -818,13 +672,6 @@ int loadSettings(const char *filename)
 			}
 			else if ( strcmp(key, "controlMinor") == 0 )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for controlMinor setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
 				if ( strlen(value) )
 				{
 					int ivalue = atoi(value);
@@ -840,6 +687,11 @@ int loadSettings(const char *filename)
 			{
 				fprintf(stderr, "Warning: unknown key: '%s', skipping\n", key);
 			}
+
+			// FIXME,make a helper for this to handle dups
+			settings.keys[count] = strdup(key);
+			settings.values[count] = strdup(value);
+			count++;
 
 			if ( key )
 			{
@@ -871,9 +723,35 @@ int loadSettings(const char *filename)
 	return 0;
 }
 
-int getVerbose(void)
+char *getSetting(char *setting)
 {
-	return settings.verbose;
+	int count = 0;
+
+	if (!setting) {
+		LogErr(VB_SETTING, "getSetting() called with NULL value\n");
+		return "";
+	}
+
+	while (settings.keys[count]) {
+		if (!strcmp(settings.keys[count], setting)) {
+			LogExcess(VB_SETTING, "getSetting(%s) found '%s'\n", setting, settings.values[count]);
+			return settings.values[count];
+		}
+		count++;
+	}
+
+	LogWarn(VB_SETTING, "getSetting(%s) returned setting not found\n");
+	return "";
+}
+
+int getSettingInt(char *setting)
+{
+	char *valueStr = getSetting(setting);
+	int   value = strtol(valueStr, NULL, 10);
+
+	LogExcess(VB_SETTING, "getSettingInt(%s) returning %d\n", setting, value);
+
+	return value;
 }
 
 int getDaemonize(void)
@@ -881,7 +759,7 @@ int getDaemonize(void)
 	return settings.daemonize;
 }
 
-int getFPPmode(void)
+inline int getFPPmode(void)
 {
 	return settings.fppMode;
 }
@@ -969,6 +847,11 @@ char *getUSBDongleType(void)
 	return settings.USBDongleType;
 }
 
+char *getUSBDongleBaud(void)
+{
+	return settings.USBDongleBaud;
+}
+
 unsigned int getControlMajor(void)
 {
 	return settings.controlMajor;
@@ -1002,7 +885,6 @@ int saveSettingsFile(void)
 		exit(EXIT_FAILURE);
 	}
 
-	snprintf(buffer, 1024, "%s = %s\n", "verbose", fpp_bool_to_string[getVerbose()]);
 	bytes  = fwrite(buffer, 1, strlen(buffer), fd);
 	snprintf(buffer, 1024, "%s = %s\n", "daemonize", fpp_bool_to_string[getDaemonize()]);
 	bytes += fwrite(buffer, 1, strlen(buffer), fd);

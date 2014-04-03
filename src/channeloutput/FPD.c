@@ -208,6 +208,9 @@ int FPD_Close(void *data) {
 int FPD_IsConfigured(void) {
 	LogDebug(VB_CHANNELOUT, "FPD_IsConfigured()\n");
 
+	if (!getSettingInt("FPDEnabled"))
+		return 0;
+
 	LoadPixelnetDMXsettingsFromFile();
 	return pixelnetDMXactive;
 }
@@ -245,10 +248,18 @@ int FPD_SendData(void *data, char *channelData, int channelCount)
 }
 
 /*
+ *
+ */
+int FPD_MaxChannels(void *data)
+{
+	return 32768;
+}
+
+/*
  * Declare our external interface struct
  */
 FPPChannelOutput FPDOutput = {
-	.maxChannels  = 32768,
+	.maxChannels  = FPD_MaxChannels,
 	.open         = FPD_Open,
 	.close        = FPD_Close,
 	.isConfigured = FPD_IsConfigured,

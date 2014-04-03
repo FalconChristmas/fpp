@@ -647,21 +647,18 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 								var activeChecked = active == 1  ? "checked=\"checked\"" : "";
 								var multicastChecked = type == 0 ? "selected" : "";
 								var unicastChecked = type == 1   ? "selected": "";
-								var staticIPdisabled = type == 0 ? "disabled": "";
-								
-								
 								
 								innerHTML += 	"<tr class=\"rowUniverseDetails\">" +
 								              "<td>" + (i+1).toString() + "</td>" +
 															"<td><input name=\"chkActive[" + i.toString() + "]\" id=\"chkActive[" + i.toString() + "]\" type=\"checkbox\" " + activeChecked +"/></td>" +
-															"<td><input name=\"txtUniverse[" + i.toString() + "]\" id=\"txtUniverse[" + i.toString() + "]\" type=\"text\" size=\"10\" value=\"" + universe.toString() + "\"/></td>" +
-															"<td><input name=\"txtStartAddress[" + i.toString() + "]\" id=\"txtStartAddress[" + i.toString() + "]\" type=\"text\" size=\"8\" value=\"" + startAddress.toString() + "\"/></td>" +
-															"<td><input name=\"txtSize[" + i.toString() + "]\" id=\"txtSize[" + i.toString() + "]\" type=\"text\"  size=\"8\"/ value=\"" + size.toString() + "\"></td>" +
+															"<td><input name=\"txtUniverse[" + i.toString() + "]\" id=\"txtUniverse[" + i.toString() + "]\" type=\"text\" size=\"3\" maxlength=\"3\" value=\"" + universe.toString() + "\"/></td>" +
+															"<td><input name=\"txtStartAddress[" + i.toString() + "]\" id=\"txtStartAddress[" + i.toString() + "]\" type=\"text\" size=\"6\" maxlength=\"6\" value=\"" + startAddress.toString() + "\"/></td>" +
+															"<td><input name=\"txtSize[" + i.toString() + "]\" id=\"txtSize[" + i.toString() + "]\" type=\"text\"  size=\"3\"/  maxlength=\"3\"value=\"" + size.toString() + "\"></td>" +
 															
 															"<td><select id=\"universeType[" + i.toString() + "]\" name=\"universeType[" + i.toString() + "]\" style=\"width:150px\">" +
 															      "<option value=\"0\" " + multicastChecked + ">Multicast</option>" +
 															      "<option value=\"1\" " + unicastChecked + ">Unicast</option></select></td>" + 
-															"<td><input name=\"txtIP[" + i.toString() + "]\" id=\"txtIP[" + i.toString() + "]\" type=\"text\"/ value=\"" + unicastAddress + "\"></td>" +
+															"<td><input name=\"txtIP[" + i.toString() + "]\" id=\"txtIP[" + i.toString() + "]\" type=\"text\"/ value=\"" + unicastAddress + "\" size=\"15\" maxlength=\"15\"></td>" +
 															"</tr>";
 
 							}
@@ -693,10 +690,10 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 					if(entries.childNodes.length> 0)
 					{
 						innerHTML = "<tr class=\"tblheader\">" +  
-    	                  "<td width=\"5%\">#</td>" +
-                        "<td width=\"15%\">Act</td>" +
-                        "<td width=\"40%\">Type</td>" +
-												"<td width=\"40%\">Start</td>" +
+    	                  "<td>#</td>" +
+                        "<td>Act</td>" +
+                        "<td>Type</td>" +
+												"<td>Start</td>" +
 												"</tr>";
 												
 							PixelnetDMXcount = entries.childNodes.length;
@@ -712,11 +709,11 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 								
 								innerHTML += 	"<tr class=\"rowUniverseDetails\">" +
 								              "<td>" + (i+1).toString() + "</td>" +
-															"<td><input name=\"chkActive[" + i.toString() + "]\" id=\"chkActive[" + i.toString() + "]\" type=\"checkbox\" " + activeChecked +"/></td>" +
+															"<td><input name=\"FPDchkActive[" + i.toString() + "]\" id=\"FPDchkActive[" + i.toString() + "]\" type=\"checkbox\" " + activeChecked +"/></td>" +
 															"<td><select id=\"pixelnetDMXtype[" + i.toString() + "]\" name=\"pixelnetDMXtype[" + i.toString() + "]\" style=\"width:150px\">" +
 															      "<option value=\"0\" " + pixelnetChecked + ">Pixelnet</option>" +
 															      "<option value=\"1\" " + dmxChecked + ">DMX</option></select></td>" + 
-															"<td><input name=\"txtStartAddress[" + i.toString() + "]\" id=\"txtStartAddress[" + i.toString() + "]\" type=\"text\" size=\"8\" value=\"" + startAddress.toString() + "\"/></td>" +
+															"<td><input name=\"FPDtxtStartAddress[" + i.toString() + "]\" id=\"FPDtxtStartAddress[" + i.toString() + "]\" type=\"text\" size=\"8\" value=\"" + startAddress.toString() + "\"/></td>" +
 															"</tr>";
 
 							}
@@ -792,7 +789,10 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 						
 						startAddress+=size;
 					}
+					$.jGrowl("" + cloneNumber + " Universes Cloned");
 				}
+			} else {
+				DialogError("Clone Universe", "Error, invalid number");
 			}
 		}
 
@@ -805,18 +805,21 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			{
 				if((PixelnetDMXoutputSelected + cloneNumber -1) < 12)
 				{
-					var active=document.getElementById("chkActive[" + selectIndex + "]").value;
+					var active=document.getElementById("FPDchkActive[" + selectIndex + "]").value;
 					var pixelnetDMXtype=document.getElementById("pixelnetDMXtype[" + selectIndex + "]").value;
 					var size = pixelnetDMXtype == "0" ? 4096:512;
-					var startAddress=Number(document.getElementById("txtStartAddress[" + selectIndex + "]").value)+ size;
+					var startAddress=Number(document.getElementById("FPDtxtStartAddress[" + selectIndex + "]").value)+ size;
 					for(i=PixelnetDMXoutputSelected;i<PixelnetDMXoutputSelected+cloneNumber;i++)
 					{
 						document.getElementById("pixelnetDMXtype[" + i + "]").value	 = pixelnetDMXtype;
-						document.getElementById("txtStartAddress[" + i + "]").value	 = startAddress.toString();
-						document.getElementById("chkActive[" + i + "]").value = active;
+						document.getElementById("FPDtxtStartAddress[" + i + "]").value	 = startAddress.toString();
+						document.getElementById("FPDchkActive[" + i + "]").value = active;
 						startAddress+=size;
 					}
+					$.jGrowl("" + cloneNumber + " Outputs Cloned");
 				}
+			} else {
+				DialogError("Clone Output", "Error, invalid number");
 			}
 		}
 
@@ -1933,6 +1936,7 @@ function SetE131interface()
 			xmlhttp.open("GET",url,true);
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
 			xmlhttp.send();
+			$.jGrowl("E1.31 Interface Saved");
 }
 
 function GetVolume()
@@ -2044,10 +2048,12 @@ function SaveUSBDongleSettings()
 {
 	var usbDonglePort = $('#USBDonglePort').val();
 	var usbDongleType = $('#USBDongleType').val();
+	var usbDongleBaud = $('#USBDongleBaud').val();
 
 	var xmlhttp=new XMLHttpRequest();
 	var url = "fppxml.php?command=saveUSBDongle&port=" + usbDonglePort +
-				"&type=" + usbDongleType;
+				"&type=" + usbDongleType +
+				"&baud=" + usbDongleBaud;
 	xmlhttp.open("GET",url,false);
 	xmlhttp.setRequestHeader('Content-Type', 'text/xml');
 
@@ -2060,3 +2066,45 @@ function SaveUSBDongleSettings()
 	xmlhttp.send();
 }
 
+function SetupSelectableTableRow(info)
+{
+	$('#' + info.tableName + ' > tbody').on('mousedown', 'tr', function(event,ui){
+		$('#' + info.tableName + ' > tbody > tr').removeClass('fppTableSelectedEntry');
+		$(this).addClass('fppTableSelectedEntry');
+		var items = $('#' + info.tableName + ' > tbody > tr');
+		info.selected  = items.index(this);
+
+		for (var i = 0; i < info.enableButtons.length; i++) {
+			SetButtonState('#' + info.enableButtons[i], "enable");
+		}
+		for (var i = 0; i < info.disableButtons.length; i++) {
+			SetButtonState('#' + info.disableButtons[i], "disable");
+		}
+	});
+}
+
+function DialogOK(title, message)
+{
+	$('#dialog-popup').dialog({
+		mocal: true,
+		height: 'auto',
+		width: 400,
+		autoResize: true,
+		closeOnEscape: false,
+		buttons: {
+			Ok: function() {
+				$(this).dialog("close");
+			}
+		}
+	});
+	$('#dialog-popup').dialog('option', 'title', title);
+	$('#dialog-popup').html("<center>" + message + "</center>");
+	$('#dialog-popup').show();
+	$('#dialog-popup').draggable();
+}
+
+// Simple wrapper for now, but we may highlight this somehow later
+function DialogError(title, message)
+{
+	DialogOK(title, message);
+}

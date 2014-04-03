@@ -4,6 +4,21 @@
 define('CONFIG_FILE', '/home/pi/media/settings');
 define('SUDO', 'sudo');
 
+// Settings array so we can stop making individual variables for each new setting
+$settings = array();
+// FIXME, need to convert other settings below to use this array
+$settings['fppMode'] = "player";
+
+// Helper function for accessing the global settings array
+function GetSettingValue($setting) {
+	global $settings;
+
+	if (isset($settings[$setting]))
+		return $settings[$setting];
+
+	return;  // FIXME, should we do this or return something else
+}
+
 // Set some defaults
 $fppMode = "player";
 $fppDir = dirname(dirname(__FILE__));
@@ -22,6 +37,7 @@ $universeFile      = $mediaDirectory . "/universes";
 $pixelnetFile      = $mediaDirectory . "/pixelnetDMX";
 $scheduleFile      = $mediaDirectory . "/schedule";
 $bytesFile         = $mediaDirectory . "/bytesReceived";
+$remapFile         = $mediaDirectory . "/channelremap";
 $volume = 0;
 
 if (defined('debug'))
@@ -55,6 +71,7 @@ if ( ! $fd )
 
 do
 {
+	global $settings;
 	global $fppMode, $volume, $settingsFile;
 	global $mediaDirectory, $musicDirectory, $sequenceDirectory, $playlistDirectory;
 	global $eventDirectroy, $videoDirectory;
@@ -69,7 +86,21 @@ do
 		continue;
 	}
 
-	switch (trim($split[0]))
+	$key   = trim($split[0]);
+	$value = trim($split[1]);
+
+	if (trim($split[0]) != "") {
+		// If we have a Directory setting that doesn't
+		// end in a slash, then add one
+		if ((preg_match("/Directory$/", $key)) &&
+			(!preg_match("/\/$/", $value))) {
+			$value .= "/";
+		}
+
+		$settings[$key] = $value;
+	}
+
+	switch ($key)
 	{
 		case "fppMode":
 			$fppMode = trim($split[1]);
@@ -125,6 +156,8 @@ while ( $data != NULL );
 
 fclose($fd);
 
+$settings['channelOutputsFile'] = $mediaDirectory . "/channeloutputs";
+
 if (defined('debug'))
 {
 	error_log("SET:");
@@ -147,4 +180,19 @@ if (defined('debug'))
 	error_log("volume: $volume");
 }
 
+// $skipJSsettings is only set in fppjson.php and fppxml.php
+// to prevent this JavaScript from being printed
+if (!isset($skipJSsettings)) {
 ?>
+<script type="text/javascript">
+	var settings = new Array();
+<?
+	foreach ($settings as $key => $value) {
+		printf("	settings['%s'] = \"%s\";\n", $key, $value);
+	}
+?>
+</script>
+<?
+}
+?>
+

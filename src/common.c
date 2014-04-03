@@ -68,7 +68,7 @@ void HexDump(char *title, void *data, int len) {
 	unsigned char *ch = (unsigned char *)data;
 	unsigned char str[17];
 
-	fprintf( stdout, "%s\n", title);
+	fprintf( stdout, "%s: (%d bytes)\n", title, len);
 	while (l < len) {
 		if ( x == 0 ) {
 			fprintf( stdout, "%06x: ", i );
