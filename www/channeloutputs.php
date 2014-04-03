@@ -479,17 +479,25 @@ function AddOtherTypeOptions(row, type) {
 	var config = "";
 
 	if ((type == "DMX-Pro") ||
-		(type == "DMX-Open") ||
-		(type == "Pixelnet-Lynx") ||
-		(type == "Pixelnet-Open")) {
+		(type == "DMX-Open")) {
 		config += NewUSBConfig();
+		row.find("td input.count").val("512");
+	} else if ((type == "Pixelnet-Lynx") ||
+			   (type == "Pixelnet-Open")) {
+		config += NewUSBConfig();
+		row.find("td input.count").val("4096");
 	} else if (type == "Renard") {
 		config += NewRenardConfig();
+		row.find("td input.count").val("286");
 	} else if (type == "SPI-WS2801") {
 		config += NewSPIConfig();
+		row.find("td input.count").val("510");
 	}
 
-	$row.find("td:nth-child(6)").html(config);
+	row.find("td input.start").val("1");
+	row.find("td input.start").show();
+	row.find("td input.count").show();
+	row.find("td:nth-child(6)").html(config);
 }
 
 function OtherTypeSelected(selectbox) {
@@ -537,8 +545,8 @@ function AddOtherOutput() {
 
 	newRow +=
 			"</select></td>" +
-			"<td><input class='start' type='text' size=6 maxlength=6 value=''></td>" +
-			"<td><input class='count' type='text' size=4 maxlength=4 value=''></td>" +
+			"<td><input class='start' type='text' size=6 maxlength=6 value='' style='display: none;'></td>" +
+			"<td><input class='count' type='text' size=4 maxlength=4 value='' style='display: none;'></td>" +
 			"<td>&nbsp;</td>" +
 			"</tr>";
 
