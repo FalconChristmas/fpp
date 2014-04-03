@@ -294,6 +294,11 @@ int E131_Close(void *data) {
  *
  */
 int E131_IsConfigured(void) {
+	LogDebug(VB_CHANNELOUT, "E131_IsConfigured()\n");
+
+	if (!getSettingInt("E131Enabled"))
+		return 0;
+
 	LoadUniversesFromFile();
 
 	if (UniverseCount > 0);

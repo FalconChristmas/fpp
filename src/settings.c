@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <getopt.h>
 
 
@@ -38,6 +39,10 @@ void initSettings(void)
 
 	SetLogLevel("info");
 	SetLogMask("most");
+
+	// FIXME, include defaults from above in here
+	bzero(settings.keys, sizeof(settings.keys));
+	bzero(settings.values, sizeof(settings.values));
 }
 
 // Returns a string that's the white-space trimmed version
@@ -373,6 +378,7 @@ int loadSettings(const char *filename)
 		char * line = NULL;
 		size_t len = 0;
 		ssize_t read;
+		int count = 0;
 
 		while ((read = getline(&line, &len, file)) != -1)
 		{
@@ -394,16 +400,16 @@ int loadSettings(const char *filename)
 				continue;
 			}
 
+			token = strtok(NULL, "=");
+			if ( !token )
+			{
+				fprintf(stderr, "Error tokenizing value for %s setting\n", key);
+				continue;
+			}
+			value = trimwhitespace(token);
+
 			if ( strcmp(key, "daemonize") == 0 )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for daemonize setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
-
 				if ( strcmp(value, "false") == 0 )
 					settings.daemonize = false;
 				else if ( strcmp(value, "true") == 0 )
@@ -416,14 +422,6 @@ int loadSettings(const char *filename)
 			}
 			else if ( strcmp(key, "fppMode") == 0 )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for fppMode setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
-
 				if ( strcmp(value, "player") == 0 )
 					settings.fppMode = PLAYER_MODE;
 				else if ( strcmp(value, "bridge") == 0 )
@@ -436,13 +434,6 @@ int loadSettings(const char *filename)
 			}
 			else if ( strcmp(key, "volume") == 0 )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for volume setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
 				if ( strlen(value) )
 					settings.volume = atoi(value);
 				else
@@ -450,13 +441,6 @@ int loadSettings(const char *filename)
 			}
 			else if ( strcmp(key, "mediaDirectory") == 0 )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for mediaDirectory setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
 				if ( strlen(value) )
 				{
 					free(settings.mediaDirectory);
@@ -467,13 +451,6 @@ int loadSettings(const char *filename)
 			}
 			else if ( strcmp(key, "musicDirectory") == 0 )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for musicDirectory setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
 				if ( strlen(value) )
 				{
 					free(settings.musicDirectory);
@@ -484,13 +461,6 @@ int loadSettings(const char *filename)
 			}
 			else if ( strcmp(key, "sequenceDirectory") == 0 )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for sequenceDirectory setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
 				if ( strlen(value) )
 				{
 					free(settings.sequenceDirectory);
@@ -503,13 +473,6 @@ int loadSettings(const char *filename)
 			{
 				if ( ! settings.eventDirectory )
 				{
-					token = strtok(NULL, "=");
-					if ( ! token )
-					{
-						fprintf(stderr, "Error tokenizing value for eventDirectory setting\n");
-						continue;
-					}
-					value = trimwhitespace(token);
 					if ( strlen(value) )
 					{
 					    free(settings.eventDirectory);
@@ -523,13 +486,6 @@ int loadSettings(const char *filename)
 			{
 				if ( ! settings.videoDirectory )
 				{
-					token = strtok(NULL, "=");
-					if ( ! token )
-					{
-						fprintf(stderr, "Error tokenizing value for videoDirectory setting\n");
-						continue;
-					}
-					value = trimwhitespace(token);
 					if ( strlen(value) )
 					{
 					    free(settings.videoDirectory);
@@ -543,13 +499,6 @@ int loadSettings(const char *filename)
 			{
 				if ( ! settings.effectDirectory )
 				{
-					token = strtok(NULL, "=");
-					if ( ! token )
-					{
-						fprintf(stderr, "Error tokenizing value for effectDirectory setting\n");
-						continue;
-					}
-					value = trimwhitespace(token);
 					if ( strlen(value) )
 					{
 					    free(settings.effectDirectory);
@@ -563,13 +512,6 @@ int loadSettings(const char *filename)
 			{
 				if ( ! settings.scriptDirectory )
 				{
-					token = strtok(NULL, "=");
-					if ( ! token )
-					{
-						fprintf(stderr, "Error tokenizing value for scriptDirectory setting\n");
-						continue;
-					}
-					value = trimwhitespace(token);
 					if ( strlen(value) )
 					{
 					    free(settings.scriptDirectory);
@@ -581,13 +523,6 @@ int loadSettings(const char *filename)
 			}
 			else if ( strcmp(key, "playlistDirectory") == 0 )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for playlistDirectory setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
 				if ( strlen(value) )
 				{
 					free(settings.playlistDirectory);
@@ -598,13 +533,6 @@ int loadSettings(const char *filename)
 			}
 			else if ( strcmp(key, "universeFile") == 0 )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for universeFile setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
 				if ( strlen(value) )
 				{
 					free(settings.universeFile);
@@ -615,13 +543,6 @@ int loadSettings(const char *filename)
 			}
 			else if ( strcmp(key, "pixelnetFile") == 0 )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for pixelnetFile setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
 				if ( strlen(value) )
 				{
 					free(settings.pixelnetFile);
@@ -632,13 +553,6 @@ int loadSettings(const char *filename)
 			}
 			else if ( strcmp(key, "scheduleFile") == 0 )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for scheduleFile setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
 				if ( strlen(value) )
 				{
 					free(settings.scheduleFile);
@@ -649,13 +563,6 @@ int loadSettings(const char *filename)
 			}
 			else if ( strcmp(key, "LogLevel") == 0 )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for LogLevel setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
 				if (strlen(value))
 					SetLogLevel(value);
 				else
@@ -663,13 +570,6 @@ int loadSettings(const char *filename)
 			}
 			else if ( strcmp(key, "LogMask") == 0 )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for LogMask setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
 				if (strlen(value))
 					SetLogMask(value);
 				else
@@ -677,13 +577,6 @@ int loadSettings(const char *filename)
 			}
 			else if ( strcmp(key, "logFile") == 0 )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for logFile setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
 				if ( strlen(value) )
 				{
 					free(settings.logFile);
@@ -694,13 +587,6 @@ int loadSettings(const char *filename)
 			}
 			else if ( strcmp(key, "silenceMusic") == 0 )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for silenceMusic setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
 				if ( strlen(value) )
 				{
 					free(settings.silenceMusic);
@@ -711,13 +597,6 @@ int loadSettings(const char *filename)
 			}
 			else if ( strcmp(key, "bytesFile") == 0 )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for bytesFile setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
 				if ( strlen(value) )
 				{
 					free(settings.bytesFile);
@@ -728,13 +607,6 @@ int loadSettings(const char *filename)
 			}
 			else if ( strcmp(key, "E131interface") == 0 )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for E131interface setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
 				if ( strlen(value) )
 				{
 					free(settings.E131interface);
@@ -745,13 +617,6 @@ int loadSettings(const char *filename)
 			}
 			else if ( strcmp(key, "USBDonglePort") == 0 )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for USBDonglePort setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
 				if ( strlen(value) )
 				{
 					free(settings.USBDonglePort);
@@ -762,13 +627,6 @@ int loadSettings(const char *filename)
 			}
 			else if ( strcmp(key, "USBDongleType") == 0 )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for USBDongleType setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
 				if ( strlen(value) )
 				{
 					free(settings.USBDongleType);
@@ -779,13 +637,6 @@ int loadSettings(const char *filename)
 			}
 			else if ( strcmp(key, "controlMajor") == 0 )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for controlMajor setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
 				if ( strlen(value) )
 				{
 					int ivalue = atoi(value);
@@ -799,13 +650,6 @@ int loadSettings(const char *filename)
 			}
 			else if ( strcmp(key, "controlMinor") == 0 )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for controlMinor setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
 				if ( strlen(value) )
 				{
 					int ivalue = atoi(value);
@@ -821,6 +665,11 @@ int loadSettings(const char *filename)
 			{
 				fprintf(stderr, "Warning: unknown key: '%s', skipping\n", key);
 			}
+
+			// FIXME,make a helper for this to handle dups
+			settings.keys[count] = strdup(key);
+			settings.values[count] = strdup(value);
+			count++;
 
 			if ( key )
 			{
@@ -850,6 +699,37 @@ int loadSettings(const char *filename)
 	}
 
 	return 0;
+}
+
+char *getSetting(char *setting)
+{
+	int count = 0;
+
+	if (!setting) {
+		LogErr(VB_SETTING, "getSetting() called with NULL value\n");
+		return "";
+	}
+
+	while (settings.keys[count]) {
+		if (!strcmp(settings.keys[count], setting)) {
+			LogExcess(VB_SETTING, "getSetting(%s) found '%s'\n", setting, settings.values[count]);
+			return settings.values[count];
+		}
+		count++;
+	}
+
+	LogWarn(VB_SETTING, "getSetting(%s) returned setting not found\n");
+	return "";
+}
+
+int getSettingInt(char *setting)
+{
+	char *valueStr = getSetting(setting);
+	int   value = strtol(valueStr, NULL, 10);
+
+	LogExcess(VB_SETTING, "getSettingInt(%s) returning %d\n", setting, value);
+
+	return value;
 }
 
 int getDaemonize(void)

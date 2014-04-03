@@ -44,6 +44,7 @@ function WriteSettingToFile($settingName, $setting)
 		{
 			$settings .= "\n" . $settingName . " = " . $setting . "\n";
 		}
+		$settings = preg_replace("/\n\n/", "\n", $settings);
 		file_put_contents($settingsFile, $settings);
 	}
 	else
@@ -52,4 +53,52 @@ function WriteSettingToFile($settingName, $setting)
 	}
 }
 
+function IfSettingEqualPrint($setting, $value, $print)
+{
+	global $settings;
+
+	if ((isset($settings[$setting])) &&
+		($settings[$setting] == $value ))
+		echo $print;
+}
+
+function PrintSettingCheckbox($title, $setting, $checkedValue, $uncheckedValue)
+{
+	global $settings;
+
+	echo "
+<script>
+function " . $setting . "Changed() {
+	var value = '$uncheckedValue';
+	var checked = 0;
+	if ($('#$setting').is(':checked')) {
+		checked = 1;
+		value = '$checkedValue';
+	}
+
+	$.get('fppjson.php?command=setSetting&key=$setting&value=' + value)
+		.success(function() {
+			if (checked)
+				$.jGrowl('$title Enabled');
+			else
+				$.jGrowl('$title Disabled');
+		}).fail(function() {
+			if (checked) {
+				DialogError('$title', 'Failed to Enable $title');
+				$('#$setting').prop('checked', false);
+			} else {
+				DialogError('$title', 'Failed to Disable $title');
+				$('#$setting').prop('checked', true);
+			}
+		});
+}
+</script>
+
+<input type='checkbox' id='$setting' ";
+
+	IfSettingEqualPrint($setting, $checkedValue, "checked");
+
+	echo " onChange='" . $setting . "Changed();'>\n";
+}
 ?>
+

@@ -54,7 +54,7 @@ int USBPixelnet_Open(char *configStr, void **privDataPtr) {
 
 	char deviceName[32];
 	int  dongleType = PIXELNET_DVC_UNKNOWN;
-	char *s = strtok(configStr, ",");
+	char *s = strtok(configStr, ";");
 
 	strcpy(deviceName, "UNKNOWN");
 
@@ -70,11 +70,14 @@ int USBPixelnet_Open(char *configStr, void **privDataPtr) {
 			div++;
 
 			if (!strcmp(tmp, "device")) {
+				LogDebug(VB_CHANNELOUT, "Using %s for Pixelnet output\n", div);
 				strcpy(deviceName, div);
 			} else if (!strcmp(tmp, "type")) {
-				if (!strcmp(div, "Lynx")) {
+				if (!strcmp(div, "Pixelnet-Lynx")) {
+					LogDebug(VB_CHANNELOUT, "Treating device as Pixelnet-Lynx compatible\n");
 					dongleType = PIXELNET_DVC_LYNX;
-				} else if (!strcmp(div, "Open")) {
+				} else if (!strcmp(div, "Pixelnet-Open")) {
+					LogDebug(VB_CHANNELOUT, "Treating device as Pixelnet-Open compatible\n");
 					dongleType = PIXELNET_DVC_OPEN;
 				}
 			}

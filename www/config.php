@@ -10,7 +10,7 @@ $settings = array();
 $settings['fppMode'] = "player";
 
 // Helper function for accessing the global settings array
-function GetSetting($setting) {
+function GetSettingValue($setting) {
 	global $settings;
 
 	if (isset($settings[$setting]))
@@ -155,6 +155,8 @@ do
 while ( $data != NULL );
 
 fclose($fd);
+
+$settings['channelOutputsFile'] = $mediaDirectory . "/channeloutputs";
 
 if (defined('debug'))
 {

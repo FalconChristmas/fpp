@@ -48,10 +48,13 @@ unset($output);
       </li>
       <li id='outputMenu'><a href="#">Output Setup</a>
         <ul>
+          <li><a href="channeloutputs.php">Channel Outputs</a></li>
+          <li><a href="channelremaps.php">Remap Channels</a></li>
+<!-- old screens
           <li><a href="universes.php">E1.31 Universes</a></li>
           <li><a href="pixelnetdmx.php">FPD - Pixelnet/DMX</a></li>
           <li><a href="usbdongle.php">USB Dongle</a></li>
-          <li><a href="channelremaps.php">Remap Channels</a></li>
+-->
           <!-- <li><a href="rds.php">Radio RDS</a></li> -->
         </ul>
       </li>

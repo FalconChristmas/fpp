@@ -42,7 +42,7 @@ function SetPiLCDenabled(data,status)
 
 function LogLevelChanged()
 {
-	$.get("fppjson.php?command=saveSetting&key=LogLevel&value="
+	$.get("fppjson.php?command=setSetting&key=LogLevel&value="
 		+ $('#LogLevel').val()).fail(function() { alert("Error saving new level") });
 }
 
@@ -58,7 +58,7 @@ $(function() {
 					}
 				});
 
-			$.get("fppjson.php?command=saveSetting&key=LogMask&value="
+			$.get("fppjson.php?command=setSetting&key=LogMask&value="
 				+ newValue).fail(function() { alert("Error saving new mask") });
 		});
 	});

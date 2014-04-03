@@ -39,6 +39,9 @@ struct config
 
 	unsigned int controlMajor;
 	unsigned int controlMinor;
+
+	char *keys[1024];
+	char *values[1024];
 };
 
 
@@ -58,6 +61,9 @@ int saveSettingsFile(void);
 
 
 // Getters
+char *getSetting(char *setting);
+int   getSettingInt(char *setting);
+
 int getDaemonize(void);
 int  getFPPmode(void);
 int  getVolume(void);

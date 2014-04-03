@@ -1171,27 +1171,13 @@ function SaveUniversesToFile()
 	$f=fopen($universeFile,"w") or exit("Unable to open file! : " . $universeFile);
 	for($i=0;$i<count($_SESSION['UniverseEntries']);$i++)
 	{
-			if($i==0)
-			{
-			$entries .= sprintf("%s,%s,%s,%s,%s,%s,",
-						$_SESSION['UniverseEntries'][$i]->active,
-						$_SESSION['UniverseEntries'][$i]->universe,
-						$_SESSION['UniverseEntries'][$i]->startAddress,
-						$_SESSION['UniverseEntries'][$i]->size,
-						$_SESSION['UniverseEntries'][$i]->type,
-						$_SESSION['UniverseEntries'][$i]->unicastAddress);
-			}
-			else
-			{
-			$entries .= sprintf("\n%s,%s,%s,%s,%s,%s,",
-						$_SESSION['UniverseEntries'][$i]->active,
-						$_SESSION['UniverseEntries'][$i]->universe,
-						$_SESSION['UniverseEntries'][$i]->startAddress,
-						$_SESSION['UniverseEntries'][$i]->size,
-						$_SESSION['UniverseEntries'][$i]->type,
-						$_SESSION['UniverseEntries'][$i]->unicastAddress);
-			}
-
+		$entries .= sprintf("%s,%s,%s,%s,%s,%s,\n",
+					$_SESSION['UniverseEntries'][$i]->active,
+					$_SESSION['UniverseEntries'][$i]->universe,
+					$_SESSION['UniverseEntries'][$i]->startAddress,
+					$_SESSION['UniverseEntries'][$i]->size,
+					$_SESSION['UniverseEntries'][$i]->type,
+					$_SESSION['UniverseEntries'][$i]->unicastAddress);
 	}
 	fwrite($f,$entries);
 	fclose($f);

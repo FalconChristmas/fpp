@@ -208,6 +208,9 @@ int FPD_Close(void *data) {
 int FPD_IsConfigured(void) {
 	LogDebug(VB_CHANNELOUT, "FPD_IsConfigured()\n");
 
+	if (!getSettingInt("FPDEnabled"))
+		return 0;
+
 	LoadPixelnetDMXsettingsFromFile();
 	return pixelnetDMXactive;
 }

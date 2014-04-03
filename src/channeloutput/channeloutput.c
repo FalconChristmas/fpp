@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -79,75 +80,98 @@ int InitializeChannelOutputs(void) {
 		}
 	}
 
-	if (USBPixelnetOutput.isConfigured())
+	// Parse the channeloutputs config file for non-FPD, non-E1.31 outputs
+	FILE *fp;
+	char filename[1024];
+	char buf[128];
+
+	strcpy(filename, getMediaDirectory());
+	strcat(filename, "/channeloutputs");
+
+	LogDebug(VB_CHANNELOUT, "Loading Channel Outputs config\n");
+	fp = fopen(filename, "r");
+	if (fp == NULL) 
 	{
-		channelOutputs[i].startChannel = 0;
-		channelOutputs[i].output       = &USBPixelnetOutput;
+		LogErr(VB_CHANNELOUT,
+			"Could not open Channel Outputs config file %s: %s\n",
+			filename, strerror(errno));
+		return 0;
+	}
 
-		char configStr[128];
+	while(fgets(buf, 128, fp) != NULL)
+	{
+		int  enabled = 0;
+		char type[32];
+		int  start = 0;
+		int  count = 0;
+		char deviceConfig[160];
 
-		// FIXME, once we rework the channel output setup page, this will change
-		//sprintf(configStr, "device=%s,type=%s", getUSBDonglePort(), "Open");
-		sprintf(configStr, "device=%s,type=%s", getUSBDonglePort(), "Lynx");
+		if (buf[0] == '#') // Allow # comments for testing
+			continue;
 
-		if (USBPixelnetOutput.open(configStr, &channelOutputs[i].privData))
+		int fields = sscanf(buf, "%d,%[^,],%d,%d,%s",
+			&enabled, type, &start, &count, deviceConfig);
+
+		if (fields != 5) {
+			LogErr(VB_CHANNELOUT,
+				"Invalid line in channeloutputs config file: %s\n", buf);
+			continue;
+		}
+
+		if (!enabled) {
+			LogInfo(VB_CHANNELOUT, "Skipping disabled channel output: %s\n", buf);
+			continue;
+		}
+
+		if (count > (FPPD_MAX_CHANNELS - start)) {
+			LogWarn(VB_CHANNELOUT,
+				"Channel Output config, start (%d) + count (%d) exceeds max (%d) channel\n",
+				start, count, FPPD_MAX_CHANNELS);
+
+			count = FPPD_MAX_CHANNELS - start;
+
+			LogWarn(VB_CHANNELOUT,
+				"Count suppressed to %d on line %s\n", count, buf);
+		}
+
+		if (strlen(deviceConfig))
+			strcat(deviceConfig, ";");
+
+		strcat(deviceConfig, "type=");
+		strcat(deviceConfig, type);
+
+		LogDebug(VB_CHANNELOUT, "ChannelOutput: %d %s %d %d %s\n", enabled, type, start, count, deviceConfig);
+
+		channelOutputs[i].startChannel = start - 1; // internally we start channel counts at zero
+		channelOutputs[i].channelCount = count;
+
+		if ((!strcmp(type, "Pixelnet-Lynx")) ||
+			(!strcmp(type, "Pixelnet-Open")))
+		{
+			channelOutputs[i].output       = &USBPixelnetOutput;
+		} else if (!strcmp(type, "DMX-Pro")) {
+			channelOutputs[i].output       = &USBDMXProOutput;
+		} else if (!strcmp(type, "DMX-Open")) {
+			channelOutputs[i].output       = &USBDMXOpenOutput;
+		} else if (!strcmp(type, "SPI-WS2801")) {
+			channelOutputs[i].output       = &SPIws2801Output;
+		} else {
+			LogErr(VB_CHANNELOUT, "Unknown Channel Output type: %s\n", type);
+			continue;
+		}
+
+		if ((channelOutputs[i].output) &&
+			(channelOutputs[i].output->open(deviceConfig, &channelOutputs[i].privData)))
 		{
 			i++;
 		} else {
-			LogErr(VB_CHANNELOUT, "ERROR Opening USBPixelnet Channel Output\n");
+			LogErr(VB_CHANNELOUT, "ERROR Opening %s Channel Output\n", type);
 		}
 	}
-
-	if ((getFPPmode() == PLAYER_MODE) &&
-		(USBDMXProOutput.isConfigured()))
-	{
-		channelOutputs[i].startChannel = 0;
-		channelOutputs[i].output       = &USBDMXProOutput;
-
-		if (USBDMXProOutput.open(getUSBDonglePort(),
-			&channelOutputs[i].privData))
-		{
-			i++;
-		} else {
-			LogErr(VB_CHANNELOUT, "ERROR Opening USBDMXPro Channel Output\n");
-		}
-	}
-
-	if ((getFPPmode() == PLAYER_MODE) &&
-		(USBDMXOpenOutput.isConfigured()))
-	{
-		channelOutputs[i].startChannel = 0;
-		channelOutputs[i].output       = &USBDMXOpenOutput;
-
-		if (USBDMXOpenOutput.open(getUSBDonglePort(),
-			&channelOutputs[i].privData))
-		{
-			i++;
-		} else {
-			LogErr(VB_CHANNELOUT, "ERROR Opening USBDMXOpen Channel Output\n");
-		}
-	}
-
-#if 0
-// SPI output works, but needs the new channel output setup UI
-// and some 'is configured' and 'not at the same time as FPD' tweaking
-// so disable the code for now
-	if (((getFPPmode() & PLAYER_MODE) || (getFPPmode() == SLAVE_MODE)) &&
-		(SPIws2801Output.isConfigured()))
-	{
-		channelOutputs[i].startChannel = 0;
-		channelOutputs[i].output       = &SPIws2801Output;
-
-		if (SPIws2801Output.open("", &channelOutputs[i].privData))
-		{
-			i++;
-		} else {
-			LogErr(VB_CHANNELOUT, "ERROR Opening SPIws2801 Channel Output\n");
-		}
-	}
-#endif
 
 	channelOutputCount = i;
+
+	LogDebug(VB_CHANNELOUT, "%d Channel Outputs configured\n", channelOutputCount);
 
 	LoadChannelRemapData();
 }
@@ -177,7 +201,7 @@ int SendChannelData(char *channelData) {
 		inst->output->send(
 			inst->privData,
 			channelData + inst->startChannel,
-			inst->output->maxChannels < (FPPD_MAX_CHANNELS - inst->startChannel) ? inst->output->maxChannels : (FPPD_MAX_CHANNELS - inst->startChannel));
+			inst->channelCount < (FPPD_MAX_CHANNELS - inst->startChannel) ? inst->channelCount : (FPPD_MAX_CHANNELS - inst->startChannel));
 	}
 
 	channelOutputFrame++;

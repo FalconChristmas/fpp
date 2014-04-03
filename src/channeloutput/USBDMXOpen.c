@@ -44,8 +44,39 @@ int USBDMXOpen_Open(char *configStr, void **privDataPtr) {
 	bzero(privData, sizeof(USBDMXOpenPrivData));
 	privData->fd = -1;
 
+	char deviceName[32];
+	char *s = strtok(configStr, ";");
+
+	strcpy(deviceName, "UNKNOWN");
+
+	while (s) {
+		char tmp[128];
+		char *div = NULL;
+
+		strcpy(tmp, s);
+		div = strchr(tmp, '=');
+
+		if (div) {
+			*div = '\0';
+			div++;
+
+			if (!strcmp(tmp, "device")) {
+				LogDebug(VB_CHANNELOUT, "Using %s for DMX output\n", div);
+				strcpy(deviceName, div);
+			}
+		}
+		s = strtok(NULL, ",");
+	}
+
+	if (!strcmp(deviceName, "UNKNOWN"))
+	{
+		LogErr(VB_CHANNELOUT, "Invalid Config Str: %s\n", configStr);
+		free(privData);
+		return 0;
+	}
+
 	strcpy(privData->filename, "/dev/");
-	strcat(privData->filename, configStr);
+	strcat(privData->filename, deviceName);
 
 	privData->outputData[0] = '\0';
 	

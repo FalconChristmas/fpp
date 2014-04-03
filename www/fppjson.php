@@ -15,10 +15,12 @@ $_SESSION['session_id'] = session_id();
 
 
 $command_array = Array(
-	"loadSetting"      => 'LoadSetting',
-	"saveSetting"      => 'SaveSetting',
-	"getChannelRemaps" => 'GetChannelRemaps',
-	"setChannelRemaps" => 'SetChannelRemaps'
+	"getChannelRemaps"    => 'GetChannelRemaps',
+	"setChannelRemaps"    => 'SetChannelRemaps',
+	"getChannelOutputs"   => 'GetChannelOutputs',
+	"setChannelOutputs"   => 'SetChannelOutputs',
+	"getSetting"          => 'GetSetting',
+	"setSetting"          => 'SetSetting'
 );
 
 $command = "";
@@ -62,7 +64,7 @@ function check($var)
 
 /////////////////////////////////////////////////////////////////////////////
 
-function LoadSetting()
+function GetSetting()
 {
 	global $args;
 
@@ -77,7 +79,7 @@ function LoadSetting()
 	returnJSON($result);
 }
 
-function SaveSetting()
+function SetSetting()
 {
 	global $args;
 
@@ -98,7 +100,7 @@ function SaveSetting()
 		SendCommand("LogMask,$newValue,");
 	}
 
-	LoadSetting();
+	GetSetting();
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -161,6 +163,57 @@ function SetChannelRemaps()
 	fclose($f);
 
 	GetChannelRemaps();
+}
+
+/////////////////////////////////////////////////////////////////////////////
+function GetChannelOutputs()
+{
+	global $settings;
+
+	$result = Array();
+	$result['Outputs'] = Array();
+
+	$f = fopen($settings['channelOutputsFile'], "r");
+	if($f == FALSE)
+	{
+		fclose($f);
+		returnJSON($result);
+	}
+
+	while (!feof($f))
+	{
+		$line = trim(fgets($f));
+
+		if ($line == "")
+			continue;
+
+		array_push($result['Outputs'], $line);
+	}
+	fclose($f);
+
+	return returnJSON($result);
+}
+
+function SetChannelOutputs()
+{
+	global $settings;
+	global $args;
+
+	$data = json_decode($args['data'], true);
+
+	$f = fopen($settings['channelOutputsFile'], "w");
+	if($f == FALSE)
+	{
+		fclose($f);
+		returnJSON($result);
+	}
+
+	foreach ($data['Outputs'] as $output) {
+		fprintf($f, "%s\n", $output);
+	}
+	fclose($f);
+
+	GetChannelOutputs();
 }
 
 /////////////////////////////////////////////////////////////////////////////

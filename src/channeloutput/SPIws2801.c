@@ -1,6 +1,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -49,6 +50,46 @@ int SPIws2801_Open(char *configStr, void **privDataPtr) {
 	SPIws2801PrivData *privData = malloc(sizeof(SPIws2801PrivData));
 	bzero(privData, sizeof(SPIws2801PrivData));
 	privData->port = 0;
+
+	char deviceName[32];
+	char *s = strtok(configStr, ";");
+
+	strcpy(deviceName, "UNKNOWN");
+
+	while (s) {
+		char tmp[128];
+		char *div = NULL;
+
+		strcpy(tmp, s);
+		div = strchr(tmp, '=');
+
+		if (div) {
+			*div = '\0';
+			div++;
+
+			if (!strcmp(tmp, "spidevice")) {
+				LogDebug(VB_CHANNELOUT, "Using %s for SPI output\n", div);
+				strcpy(deviceName, div);
+			}
+		}
+		s = strtok(NULL, ",");
+	}
+
+	if (!strcmp(deviceName, "UNKNOWN"))
+	{
+		LogErr(VB_CHANNELOUT, "Invalid Config Str: %s\n", configStr);
+		free(privData);
+		return 0;
+	}
+
+	if (!sscanf(deviceName, "spidev0.%d", &privData->port))
+	{
+		LogErr(VB_CHANNELOUT, "Unable to parse SPI device name: %s\n", deviceName);
+		free(privData);
+		return 0;
+	}
+
+	LogDebug(VB_CHANNELOUT, "Using SPI Port %d\n", privData->port);
 
 	if (wiringPiSPISetup(privData->port, 1000000) < 0)
 	{

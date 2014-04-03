@@ -29,6 +29,7 @@
 	text-align: center;
 	text-shadow: 0 1px 0 #eee;
 	width: 90px;
+	height: 20px;
 }
 
 .buttons:hover
@@ -589,7 +590,7 @@ fieldset
 	height: 60px;
 }
 
-#fileManager {
+#fileManager, #channelOutputManager {
 	min-width: 768px;
 	width: 768px;
 	margin-left: auto;
