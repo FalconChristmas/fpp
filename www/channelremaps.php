@@ -5,7 +5,6 @@ require_once("common.php");
 <html>
 <head>
 <?php include 'common/menuHead.inc'; ?>
-<script type="text/javascript" src="/js/fpp.js"></script>
 <script language="Javascript">
 
 function PopulateChannelRemapTable(data) {
@@ -112,10 +111,14 @@ $(document).tooltip();
 		<div id="time" class="settings">
 			<fieldset>
 				<legend>Remap Output Channels</legend>
-				<input type=submit value='Save' onClick='SetChannelRemaps();' class='buttons'>
-				<input type=submit value='Add' onClick='AddNewRemap();' class='buttons'>
-				<input type=submit value='Delete' onClick='DeleteSelectedRemap();' id='btnDelete' class='disableButtons'>
-				<br>
+				<table>
+					<tr>
+						<td width='70px'><input type=button value='Save' onClick='SetChannelRemaps();' class='buttons'></td>
+						<td width='70px'><input type=button value='Add' onClick='AddNewRemap();' class='buttons'></td>
+						<td width='40px'>&nbsp;</td>
+						<td width='70px'><input type=button value='Delete' onClick='DeleteSelectedRemap();' id='btnDelete' class='disableButtons'></td>
+					</tr>
+				</table>
 				<div class="fppTableWrapper">
 					<table id="channelRemaps">
 						<thead>
