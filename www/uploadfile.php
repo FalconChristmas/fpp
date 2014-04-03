@@ -128,7 +128,6 @@ h2 {
       <li><a href="#tab-scripts">Scripts</a></li>
       <li><a href="#tab-logs">Logs</a></li>
       <li><a href="#tab-uploads">Uploads</a></li>
-      </li>
     </ul>
     <div id="tab-sequence">
       <div id= "divSeq">
