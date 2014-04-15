@@ -1,5 +1,4 @@
 <?php
-require_once('universeentry.php');
 $a = session_id();
 
 if(empty($a))
@@ -9,11 +8,6 @@ if(empty($a))
 $_SESSION['session_id'] = session_id();
 //ini_set('display_errors', 'On');
 error_reporting(E_ALL);
-
-function PrintUniverses()
-{
-	echo "<tr><td><input ></td></tr>";	
-}
 ?>
 
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -47,15 +41,7 @@ this.value = default_value;
 });
 });
 </script>
-<script type="text/javascript">
-        $(function() {
-            $('#txtUniverseCount').on('focus',function() {
-                $(this).select();
-            });
-        });
-    </script>
 <script>
-
     $(function() {
 		$('#tblSchedule').on('mousedown', 'tr', function(event,ui){
 					$('#tblSchedule tr').removeClass('selectedEntry');
@@ -64,10 +50,6 @@ this.value = default_value;
 					ScheduleEntrySelected  = items.index(this);
 					
 		});
-		$('select').on('change', function() {
-			alert( this.value ); // or $(this).val()
-		});
-
 	});
 </script>
 <script>

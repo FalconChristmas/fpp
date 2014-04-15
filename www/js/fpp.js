@@ -935,7 +935,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
                         "<td width=\"10%\">Enable</td>" +
                         "<td width=\"10%\">Playlist</td>" +
 												"<td width=\"10%\">Day</td>" +
-												"<td width=\"20%\">Start T	ime</td>" +
+												"<td width=\"20%\">Start Time</td>" +
 												"<td width=\"20%\">End Time</td>" +
                         "<td width=\"15%\">Repeat</td>" +
 												"</tr>";
