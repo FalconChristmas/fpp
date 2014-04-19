@@ -16,11 +16,6 @@ if ( $return_val != 0 )
 	$fpp_version = "Unknown";
 unset($output);
 
-if (!file_exists("/etc/fpp/config_version") && file_exists("/etc/fpp/rfs_version"))
-{
-	exec("sudo $fppDir/scripts/upgrade_config");
-}
-
 ?>
 
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
