@@ -157,6 +157,7 @@ while ( $data != NULL );
 fclose($fd);
 
 $settings['channelOutputsFile'] = $mediaDirectory . "/channeloutputs";
+$settings['channelMemoryMapsFile'] = $mediaDirectory . "/channelmemorymaps";
 
 if (defined('debug'))
 {
