@@ -1563,8 +1563,10 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 
 function PlayEffect(startChannel)
 {
-	if (startChannel == undefined)
-		startChannel = "1";
+	// Start Channel 0 is a special case meaning use the channel # in the .eseq
+	if ((startChannel == undefined) ||
+		(startChannel == ""))
+		startChannel = "0";
 
 	var url = "fppxml.php?command=playEffect&effect=" + PlayEffectSelected + "&startChannel=" + startChannel;
 	var xmlhttp=new XMLHttpRequest();

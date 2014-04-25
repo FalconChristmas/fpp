@@ -115,7 +115,7 @@
           <div class='right'>
             <div>
               <table width="100%">
-                <tr><td>Start Channel Override: <input id="effectStartChannel" class="default-value" type="text" value="1" size="5" maxlength="5" /></td></tr>
+                <tr><td>Start Channel Override: <input id="effectStartChannel" class="default-value" type="text" value="" size="5" maxlength="5" /></td></tr>
               </table>
             </div>
             <input id= "btnPlayEffect" type="button" class ="disableButtons" value="Play Effect" onClick="PlayEffect($('#effectStartChannel').val());">
