@@ -509,7 +509,7 @@ fieldset
 	-moz-border-radius: 5px;
 	border-radius: 5px;
 	-webkit-border-radius: 5px;
-	min-height:600px;
+	min-height:200px;
 	text-align:center;
 	display:none;
 }
