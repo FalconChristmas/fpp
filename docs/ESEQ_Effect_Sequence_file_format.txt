@@ -1,0 +1,40 @@
+
+The Effect Sequence file (*.eseq) contains one or more models of contiguous
+channels to be overlayed onto the output channel data as an effect.  Each model
+defined includes its own start channel and step size.
+
+NOTE: Currently FPP only supports effects files with one model defined.  This
+      is also all that xLights/Nutcracker will currently export.  If we decide
+	  to start supporting multiple models in a single file, FPP will need to
+	  be modified.  This may be necessary to support display features with
+	  non-contiguous channels.
+
+The effects file format is as follows:
+
+// Header Information
+// Format Identifier
+buf[0]  = 'E';
+buf[1]  = 'S';
+buf[2]  = 'E';
+buf[3]  = 'Q';
+// Data offset
+buf[4]  = (wxUint8)1; //Hard coded to export a single model for now
+buf[5]  = 0; //Pad byte
+buf[6]  = 0; //Pad byte
+buf[7]  = 0; //Pad byte
+// Step Size
+buf[8]  = (wxUint8)((stepSize       ) & 0xFF);
+buf[9]  = (wxUint8)((stepSize  >>  8) & 0xFF);
+buf[10] = (wxUint8)((stepSize  >> 16) & 0xFF);
+buf[11] = (wxUint8)((stepSize  >> 24) & 0xFF);
+//Model Start address
+buf[12] = (wxUint8)((startAddr      ) & 0xFF);
+buf[13] = (wxUint8)((startAddr >>  8) & 0xFF);
+buf[14] = (wxUint8)((startAddr >> 16) & 0xFF);
+buf[15] = (wxUint8)((startAddr >> 24) & 0xFF);
+// Model Size
+buf[16] = (wxUint8)((modelSize      ) & 0xFF);
+buf[17] = (wxUint8)((modelSize >>  8) & 0xFF);
+buf[18] = (wxUint8)((modelSize >> 16) & 0xFF);
+buf[19] = (wxUint8)((modelSize >> 24) & 0xFF);
+// Begin channel data in rows of 'stepSize' width.
