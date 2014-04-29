@@ -148,8 +148,8 @@ void OverlayMemoryMap(char *chanData) {
 	} else {
 		for (i = 0; i < ctrlHeader->totalBlocks; i++, cb++) {
 			if (cb->isActive) {
-				memcpy(chanData + cb->startChannel,
-					   chanDataMap + cb->startChannel, cb->channelCount);
+				memcpy(chanData + cb->startChannel - 1,
+					   chanDataMap + cb->startChannel - 1, cb->channelCount);
 			}
 		}
 	}
