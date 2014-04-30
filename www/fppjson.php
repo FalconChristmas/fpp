@@ -15,6 +15,8 @@ $_SESSION['session_id'] = session_id();
 
 
 $command_array = Array(
+	"getChannelMemMaps"   => 'GetChannelMemMaps',
+	"setChannelMemMaps"   => 'SetChannelMemMaps',
 	"getChannelRemaps"    => 'GetChannelRemaps',
 	"setChannelRemaps"    => 'SetChannelRemaps',
 	"getChannelOutputs"   => 'GetChannelOutputs',
@@ -101,6 +103,72 @@ function SetSetting()
 	}
 
 	GetSetting();
+}
+
+/////////////////////////////////////////////////////////////////////////////
+
+function GetChannelMemMaps()
+{
+	global $settings;
+	$memmapFile = $settings['channelMemoryMapsFile'];
+
+	$result = Array();
+
+	$f = fopen($memmapFile, "r");
+	if($f == FALSE)
+	{
+		fclose($f);
+		returnJSON($result);
+	}
+
+	while (!feof($f))
+	{
+		$line = trim(fgets($f));
+
+		if ($line == "")
+			continue;
+		
+		if (substr($line, 0, 1) == "#")
+			continue;
+
+		$memmap = explode(",",$line,10);
+
+		$elem = Array();
+		$elem['BlockName']    = $memmap[0];
+		$elem['StartChannel'] = $memmap[1];
+		$elem['ChannelCount'] = $memmap[2];
+
+		$result[] = $elem;
+	}
+	fclose($f);
+
+	returnJSON($result);
+}
+
+function SetChannelMemMaps()
+{
+	global $args;
+	global $settings;
+
+	$memmapFile = $settings['channelMemoryMapsFile'];
+
+	$data = json_decode($args['data'], true);
+
+	$f = fopen($memmapFile, "w");
+	if($f == FALSE)
+	{
+		fclose($f);
+		returnJSON($result);
+	}
+
+	foreach ($data as $memmap) {
+		fprintf($f, "%s,%d,%d\n",
+			$memmap['BlockName'], $memmap['StartChannel'],
+			$memmap['ChannelCount']);
+	}
+	fclose($f);
+
+	GetChannelMemMaps();
 }
 
 /////////////////////////////////////////////////////////////////////////////

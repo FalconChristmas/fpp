@@ -67,12 +67,12 @@ int SPIws2801_Open(char *configStr, void **privDataPtr) {
 			*div = '\0';
 			div++;
 
-			if (!strcmp(tmp, "spidevice")) {
+			if (!strcmp(tmp, "device")) {
 				LogDebug(VB_CHANNELOUT, "Using %s for SPI output\n", div);
 				strcpy(deviceName, div);
 			}
 		}
-		s = strtok(NULL, ",");
+		s = strtok(NULL, ";");
 	}
 
 	if (!strcmp(deviceName, "UNKNOWN"))

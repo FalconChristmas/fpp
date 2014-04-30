@@ -1,12 +1,18 @@
 /*
  *   Effects handler for Falcon Pi Player (FPP)
  *
- *   Copyright (C) Chris Pinkham 2013
+ *   Copyright (C) 2013 the Falcon Pi Player Developers
+ *      Initial development by:
+ *      - David Pitts (dpitts)
+ *      - Tony Mace (MyKroFt)
+ *      - Mathew Mrosko (Materdaddy)
+ *      - Chris Pinkham (CaptainMurdoch)
+ *      For additional credits and developers, see credits.php.
  *
- *   Falcon Pi Player is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
+ *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   and/or modify it under the terms of the GNU General Public License
+ *   as published by the Free Software Foundation; either version 2 of
+ *   the License, or (at your option) any later version.
  *
  *   This program is distributed in the hope that it will be useful,
  *   but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -27,9 +33,11 @@
 #include "log.h"
 #include "sequence.h"
 
-// FIXME, these two may get changed when we parse the real .eseq files
-#define ESEQ_STEP_SIZE_OFFSET      10
-#define ESEQ_CHANNEL_DATA_OFFSET   28
+#define ESEQ_MODEL_COUNT_OFFSET     4 // hard-coded to 1 for now in Nutcracker
+#define ESEQ_STEP_SIZE_OFFSET       8 // total step size of all models together
+#define ESEQ_MODEL_START_OFFSET    12 // with current 1 model per file ability
+#define ESEQ_MODEL_SIZE_OFFSET     16 // with current 1 model per file ability
+#define ESEQ_CHANNEL_DATA_OFFSET   20 // with current 1 model per file ability
 
 #define MAX_EFFECTS 100
 
@@ -105,6 +113,7 @@ int StartEffect(char *effectName, int startChannel)
 	int   bytesRead;
 	int   stepSize;
 	char  filename[1024];
+	int   modelCount = 1;
 
 	LogInfo(VB_EFFECT, "Starting effect %s at channel %d\n", effectName, startChannel);
 
@@ -134,7 +143,53 @@ int StartEffect(char *effectName, int startChannel)
 		return effectID;
 	}
 
-	fseek(fp, ESEQ_STEP_SIZE_OFFSET, SEEK_SET);
+	bytesRead = fread(effectData,1,4,fp);
+	if ((effectData[0] != 'E') ||
+		(effectData[1] != 'S') ||
+		(effectData[2] != 'E') ||
+		(effectData[3] != 'Q'))
+	{
+		LogErr(VB_EFFECT, "Invalid Effect file format: %s\n", effectName);
+		pthread_mutex_unlock(&effectsLock);
+		return effectID;
+	}
+
+	// Should already be at this position, but seek any to future-proof
+	fseek(fp, ESEQ_MODEL_COUNT_OFFSET, SEEK_SET);
+	bytesRead = fread(effectData,1,1,fp);
+	if (bytesRead < 1)
+	{
+		LogErr(VB_EFFECT, "Unable to load effect: %s\n", effectName);
+		pthread_mutex_unlock(&effectsLock);
+		return effectID;
+	}
+
+	modelCount = effectData[0];
+
+	if (modelCount > 1)
+	{
+		LogErr(VB_EFFECT, "This version of FPP does not support effect files with more than one model.");
+		pthread_mutex_unlock(&effectsLock);
+		return effectID;
+	}
+
+	if (startChannel == 0)
+	{
+		// This will need to change if/when we support multiple models per file
+		fseek(fp, ESEQ_MODEL_START_OFFSET, SEEK_SET);
+		bytesRead = fread(effectData,1,4,fp);
+		if (bytesRead < 4)
+		{
+			LogErr(VB_EFFECT, "Unable to load effect: %s\n", effectName);
+			pthread_mutex_unlock(&effectsLock);
+			return effectID;
+		}
+
+		startChannel = effectData[0] + (effectData[1]<<8) + (effectData[2]<<16) + (effectData[3]<<24);
+	}
+
+	// This will need to change if/when we support multiple models per file
+	fseek(fp, ESEQ_MODEL_SIZE_OFFSET, SEEK_SET);
 	bytesRead = fread(effectData,1,4,fp);
 	if (bytesRead < 4)
 	{
@@ -144,6 +199,7 @@ int StartEffect(char *effectName, int startChannel)
 	}
 
     stepSize = effectData[0] + (effectData[1]<<8) + (effectData[2]<<16) + (effectData[3]<<24);
+
 	if (fseek(fp, ESEQ_CHANNEL_DATA_OFFSET, SEEK_SET))
 	{
 		LogErr(VB_EFFECT, "Unable to load effect: %s\n", effectName);

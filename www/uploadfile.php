@@ -97,7 +97,6 @@ require_once('config.php');
 	padding-top: 00px;
 }
 fieldset {
-	height: 100%;
 	min-height: 200px;
 	border: 2px solid #000000;
 }

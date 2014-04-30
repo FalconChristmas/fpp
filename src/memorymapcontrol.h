@@ -5,8 +5,8 @@
 #define FPPCHANNELMEMORYMAPMINORVER 0
 #define FPPCHANNELMEMORYMAPSIZE     65536
 
-#define FPPCHANNELMEMORYMAPDATAFILE "/tmp/FPPChannelData"
-#define FPPCHANNELMEMORYMAPCTRLFILE "/tmp/FPPChannelCtrl"
+#define FPPCHANNELMEMORYMAPDATAFILE "/var/tmp/FPPChannelData"
+#define FPPCHANNELMEMORYMAPCTRLFILE "/var/tmp/FPPChannelCtrl"
 
 /*
  * Header block on channel data memory map control interface file.

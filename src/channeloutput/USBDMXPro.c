@@ -8,6 +8,7 @@
 
 #include "../log.h"
 #include "../settings.h"
+#include "serialutil.h"
 
 #include "USBDMXPro.h"
 
@@ -99,8 +100,8 @@ int USBDMXPro_Open(char *configStr, void **privDataPtr) {
 	int len = 512; // only support 512 byte DMX for now.
 	privData->dmxHeader[0] = 0x7E;
 	privData->dmxHeader[1] = 0x06;
-	privData->dmxHeader[2] = len & 0xFF;
-	privData->dmxHeader[3] = (len >> 8) & 0xFF;
+	privData->dmxHeader[2] = (len+1) & 0xFF; // len +1 for start code
+	privData->dmxHeader[3] = ((len+1) >> 8) & 0xFF;
 	privData->dmxHeader[4] = 0x00;
 
 	privData->dmxFooter[0] = 0xE7;
@@ -171,8 +172,9 @@ int USBDMXPro_SendData(void *data, char *channelData, int channelCount)
 		return 0;
 	}
 
-	privData->dmxHeader[2] = channelCount & 0xFF;
-	privData->dmxHeader[3] = (channelCount >> 8) & 0xFF;
+	/* add 1 for the start byte */
+	privData->dmxHeader[2] = (channelCount+1) & 0xFF;
+	privData->dmxHeader[3] = ((channelCount+1) >> 8) & 0xFF;
 
 	write(privData->fd, privData->dmxHeader, sizeof(privData->dmxHeader));
 	write(privData->fd, channelData, channelCount);
