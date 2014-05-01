@@ -127,7 +127,7 @@ int USBPixelnet_Open(char *configStr, void **privDataPtr) {
 	if (dongleType == PIXELNET_DVC_LYNX)
 		privData->fd = SerialOpen(privData->filename, 115200, "8N1");
 	else if (dongleType == PIXELNET_DVC_OPEN)
-		privData->fd = SerialOpen(privData->filename, 1000000, "8N1");
+		privData->fd = SerialOpen(privData->filename, 1000000, "8N2");
 
 	if (privData->fd < 0)
 	{
