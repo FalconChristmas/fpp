@@ -38,6 +38,8 @@
 #include "mediaoutput.h"
 #include "ogg123.h"
 #include "../sequence.h"
+#include "../common.h"
+#include "../settings.h"
 
 #define MAX_BYTES_OGG 1000
 #define TIME_STR_MAX  8

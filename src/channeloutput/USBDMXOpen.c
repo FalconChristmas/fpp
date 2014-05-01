@@ -32,7 +32,7 @@
 
 #include "../log.h"
 #include "../settings.h"
-
+#include "serialutil.h"
 #include "USBDMXOpen.h"
 
 /////////////////////////////////////////////////////////////////////////////

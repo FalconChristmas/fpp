@@ -47,6 +47,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <string.h>
+#include <sys/stat.h>
 
 pid_t pid, sid;
 int FPPstatus=FPP_STATUS_IDLE;

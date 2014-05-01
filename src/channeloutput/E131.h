@@ -55,6 +55,12 @@ typedef struct {
 // FIXME, these should be in e131bridge.c, not here
 void  ResetBytesReceived();
 void  WriteBytesReceivedFile();
+void LoadUniversesFromFile();
+
+/* Prototypes for helpers in E131.c */
+void ShowDiff(void);
+void LoadUniversesFromFile();
+void UniversesPrint();
 
 /* Expose our interface */
 extern FPPChannelOutput E131Output;

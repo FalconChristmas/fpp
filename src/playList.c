@@ -32,6 +32,7 @@
 #include "playList.h"
 #include "schedule.h"
 #include "settings.h"
+#include "sequence.h"
 
 #include <unistd.h>
 #include <stdio.h>

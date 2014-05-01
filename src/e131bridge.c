@@ -31,12 +31,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "channeloutput/channeloutput.h"
 #include "channeloutput/E131.h"
 #include "e131bridge.h"
 #include "log.h"
 #include "sequence.h"
+#include "command.h"
 
 
 char unicastSocketCreated = 0;

@@ -38,6 +38,8 @@
 #include "mediaoutput.h"
 #include "mpg123.h"
 #include "../sequence.h"
+#include "../settings.h"
+#include "../common.h"
 
 #define MAX_BYTES_MP3 1000
 #define TIME_STR_MAX  8

@@ -84,6 +84,10 @@ void GetNextPlaylistText(char * txt);
 void GetScheduleEntryStartText(int index,int weeklySecondIndex, char * txt);
 void GetDayTextFromDayIndex(int index,char * txt);
 void CheckIfShouldBePlayingNow();
+int GetNextScheduleEntry(int *weeklySecondIndex);
+int GetWeeklySeconds(int day, int hour, int minute, int second);
+int GetWeeklySecondDifference(int weeklySeconds1, int weeklySeconds2);
+void ScheduleProc();
 
 
 #endif

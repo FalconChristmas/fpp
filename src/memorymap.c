@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 #include "common.h"
 #include "log.h"
@@ -38,6 +39,7 @@
 #include "memorymapcontrol.h"
 #include "sequence.h"
 #include "settings.h"
+#include "./channeloutput/channeloutputthread.h"
 
 char         *chanDataMap;
 int           chanDataMapFD = -1;

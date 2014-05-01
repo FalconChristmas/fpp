@@ -73,11 +73,6 @@ char * E131LocalAddress;
 
 char E131sequenceNumber=1;
 
-/* Prototypes for helpers below */
-void ShowDiff(void);
-void LoadUniversesFromFile();
-void UniversesPrint();
-
 
 int E131_InitializeNetwork()
 {

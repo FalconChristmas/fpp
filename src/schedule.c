@@ -469,7 +469,7 @@ int GetWeeklySeconds(int day, int hour, int minute, int second)
   return weeklySeconds;
 }
 
-int GetWeeklySecondDifference(int weeklySeconds1, int weeklySeconds2, int day)
+int GetWeeklySecondDifference(int weeklySeconds1, int weeklySeconds2)
 {
   int seconds;
   int i;

@@ -34,6 +34,11 @@
 #include "settings.h"
 #include "sequence.h"
 #include "effects.h"
+#include "playList.h"
+#include "channeloutput/FPD.h"
+#include "events.h"
+#include "channeloutput/channeloutput.h"
+#include "channeloutput/E131.h"
 
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -45,6 +50,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <sys/stat.h>
 
 extern PlaylistDetails playlistDetails;
 

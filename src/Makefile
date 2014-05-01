@@ -58,6 +58,7 @@ ifeq ($(ARCH), armv6l)
 # do something RaspPi-y
 CFLAGS += \
 	-DUSEWIRINGPI \
+	-Wimplicit \
 	$(NULL)
 LIBS_fppd += \
 	-lwiringPi \

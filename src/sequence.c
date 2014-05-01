@@ -32,8 +32,9 @@
 #include <string.h>
 #include <sys/types.h>
 
-
 #include "channeloutput/E131.h"
+#include "./channeloutput/channeloutputthread.h"
+#include "events.h"
 #include "effects.h"
 #include "fpp.h" // for FPPstatus && #define-d status values
 #include "log.h"

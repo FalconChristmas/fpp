@@ -40,6 +40,8 @@
 #include "../log.h"
 #include "omxplayer.h"
 #include "../settings.h"
+#include "../common.h"
+#include "../sequence.h"
 
 #define MAX_BYTES_OMX 1000
 #define TIME_STR_MAX  8

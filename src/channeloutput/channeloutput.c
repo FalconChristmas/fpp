@@ -40,6 +40,7 @@
 #include "USBDMXPro.h"
 #include "USBPixelnet.h"
 #include "USBRenard.h"
+#include "../common.h"
 
 
 

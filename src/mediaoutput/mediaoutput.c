@@ -32,6 +32,8 @@
 #include "mpg123.h"
 #include "ogg123.h"
 #include "omxplayer.h"
+#include "../sequence.h"
+
 
 /////////////////////////////////////////////////////////////////////////////
 MediaOutput     *mediaOutput = 0;

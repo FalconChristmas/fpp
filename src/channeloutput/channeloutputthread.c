@@ -35,6 +35,7 @@
 #include "../log.h"
 #include "../memorymap.h"
 #include "../sequence.h"
+#include "../effects.h"
 
 /* used by external sync code */
 float RefreshRate = 20.00;
