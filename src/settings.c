@@ -33,6 +33,9 @@
 #include <string.h>
 #include <strings.h>
 #include <getopt.h>
+#include <sys/stat.h>
+#include <ctype.h>
+#include "common.h"
 
 
 char *fpp_bool_to_string[] = { "false", "true", "default" };
@@ -340,7 +343,7 @@ int parseArguments(int argc, char **argv)
 				settings.daemonize = true;
 				break;
 			case 'v': //volume
-				settings.volume = atoi(optarg);
+				setVolume (atoi(optarg));
 				break;
 			case 'm': //mode
 				if ( strcmp(optarg, "player") == 0 )
@@ -476,7 +479,7 @@ int loadSettings(const char *filename)
 			else if ( strcmp(key, "volume") == 0 )
 			{
 				if ( strlen(value) )
-					settings.volume = atoi(value);
+					setVolume(atoi(value));
 				else
 					fprintf(stderr, "Failed to load volume setting from config file\n");
 			}
@@ -900,12 +903,18 @@ unsigned int getControlMinor(void)
 
 void setVolume(int volume)
 {
+	char buffer [40];
+	
 	if ( volume < 0 )
 		settings.volume = 0;
 	else if ( volume > 100 )
 		settings.volume = 100;
 	else
 		settings.volume = volume;
+
+	snprintf(buffer, 40, "amixer set PCM %d%% >/dev/null 2>&1", (50+ volume / 2));
+	LogDebug(VB_SETTING,"Volume change: %d \n", volume);	
+	system(buffer);
 }
 
 /*

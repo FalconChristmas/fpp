@@ -214,10 +214,11 @@ function SetVolume()
 	{
 		$vol = "99";	
 	}
-	
-	$vol = 50 + ($vol/2);
-	
+		
 	$status=SendCommand('v,' . $vol . ',');
+
+	$vol = 50 + ($vol/2);
+
 	$status=exec("amixer set PCM -- " . $vol . "%");
 
 	EchoStatusXML($status);
