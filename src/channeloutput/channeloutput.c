@@ -32,15 +32,15 @@
 #include "channeloutput.h"
 #include "E131.h"
 #include "FPD.h"
-#include "../log.h"
-#include "../sequence.h"
-#include "../settings.h"
+#include "log.h"
+#include "sequence.h"
+#include "settings.h"
 #include "SPIws2801.h"
 #include "USBDMXOpen.h"
 #include "USBDMXPro.h"
 #include "USBPixelnet.h"
 #include "USBRenard.h"
-#include "../common.h"
+#include "common.h"
 
 
 

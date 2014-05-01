@@ -59,6 +59,9 @@ ifeq ($(ARCH), armv6l)
 CFLAGS += \
 	-DUSEWIRINGPI \
 	-Wimplicit \
+	-I . \
+	-I channeloutput \
+	-I mediaoutput \
 	$(NULL)
 LIBS_fppd += \
 	-lwiringPi \

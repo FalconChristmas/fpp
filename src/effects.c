@@ -29,7 +29,7 @@
 #include <strings.h>
 
 #include "effects.h"
-#include "channeloutput/channeloutputthread.h"
+#include "channeloutputthread.h"
 #include "log.h"
 #include "sequence.h"
 #include "settings.h"

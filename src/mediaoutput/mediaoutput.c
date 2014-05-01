@@ -27,12 +27,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../log.h"
+#include "log.h"
 #include "mediaoutput.h"
 #include "mpg123.h"
 #include "ogg123.h"
 #include "omxplayer.h"
-#include "../sequence.h"
+#include "sequence.h"
 
 
 /////////////////////////////////////////////////////////////////////////////

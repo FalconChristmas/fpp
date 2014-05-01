@@ -30,8 +30,8 @@
 #include <termios.h>
 #include <unistd.h>
 
-#include "../log.h"
-#include "../settings.h"
+#include "log.h"
+#include "settings.h"
 #include "serialutil.h"
 #include "USBDMXOpen.h"
 

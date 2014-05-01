@@ -41,14 +41,13 @@
 
 #include "channeloutput.h"
 #include "channeloutputthread.h"
-#include "../common.h"
+#include "common.h"
 #include "E131.h"
 #include "FPD.h"
-#include "../fpp.h"
-#include "../log.h"
-#include "../playList.h"
-//#include "../sequence.h"
-#include "../settings.h"
+#include "fpp.h"
+#include "log.h"
+#include "playList.h"
+#include "settings.h"
 
 struct sockaddr_in    localAddress;
 struct sockaddr_in    E131address[MAX_UNIVERSE_COUNT];

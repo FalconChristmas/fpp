@@ -24,15 +24,15 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "channeloutput/channeloutput.h"
-#include "channeloutput/channeloutputthread.h"
+#include "channeloutput.h"
+#include "channeloutputthread.h"
 #include "command.h"
 #include "e131bridge.h"
 #include "effects.h"
 #include "fpp.h"
 #include "fppd.h"
 #include "log.h"
-#include "mediaoutput/mediaoutput.h"
+#include "mediaoutput.h"
 #include "memorymap.h"
 #include "playList.h"
 #include "schedule.h"

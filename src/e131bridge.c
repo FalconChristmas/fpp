@@ -33,8 +33,8 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "channeloutput/channeloutput.h"
-#include "channeloutput/E131.h"
+#include "channeloutput.h"
+#include "E131.h"
 #include "e131bridge.h"
 #include "log.h"
 #include "sequence.h"

@@ -31,7 +31,7 @@
 #include <unistd.h>
 #include <linux/serial.h>
 
-#include "../log.h"
+#include "log.h"
 
 /*
  * Portions of code based on work found in xLights/serial_posix.cpp
