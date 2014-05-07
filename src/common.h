@@ -27,8 +27,8 @@
 #define _COMMON_H
 
 long long GetTime(void);
-int       DirectoryExists(char * Directory);
-int       FileExists(char * File);
+int       DirectoryExists(const char * Directory);
+int       FileExists(const char * File);
 void      HexDump(char *title, void *data, int len);
 char     *GetInterfaceAddress(char *interface);
 

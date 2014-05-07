@@ -54,7 +54,7 @@ long long GetTime(void)
 /*
  * Check to see if the specified directory exists
  */
-int DirectoryExists(char * Directory)
+int DirectoryExists(const char * Directory)
 {
 	DIR* dir = opendir(Directory);
 	if (dir)
@@ -70,7 +70,7 @@ int DirectoryExists(char * Directory)
 /*
  * Check if the specified file exists or not
  */
-int FileExists(char * File)
+int FileExists(const char * File)
 {
 	struct stat sts;
 	if (stat(File, &sts) == -1 && errno == ENOENT)
