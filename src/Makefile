@@ -54,14 +54,18 @@ LIBS_fppd = \
 
 ARCH := $(shell uname -m)
 
-ifeq ($(ARCH), armv6l)
-# do something RaspPi-y
+# Common CFLAGS
 CFLAGS += \
-	-DUSEWIRINGPI \
 	-Wimplicit \
 	-I . \
 	-I channeloutput \
 	-I mediaoutput \
+	$(NULL)
+
+ifeq ($(ARCH), armv6l)
+# do something RaspPi-y
+CFLAGS += \
+	-DUSEWIRINGPI \
 	$(NULL)
 LIBS_fppd += \
 	-lwiringPi \
