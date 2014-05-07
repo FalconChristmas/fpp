@@ -33,6 +33,9 @@
 #include <string.h>
 #include <strings.h>
 #include <getopt.h>
+#include <sys/stat.h>
+#include <ctype.h>
+#include "common.h"
 
 
 char *fpp_bool_to_string[] = { "false", "true", "default" };

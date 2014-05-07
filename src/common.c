@@ -36,6 +36,8 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <ctype.h>
+#include <unistd.h>
 
 #include "common.h"
 

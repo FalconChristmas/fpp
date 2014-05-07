@@ -30,8 +30,8 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "../log.h"
-#include "../settings.h"
+#include "log.h"
+#include "settings.h"
 
 #include "SPIws2801.h"
 

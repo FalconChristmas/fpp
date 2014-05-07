@@ -29,9 +29,10 @@
 #include <strings.h>
 
 #include "effects.h"
-#include "channeloutput/channeloutputthread.h"
+#include "channeloutputthread.h"
 #include "log.h"
 #include "sequence.h"
+#include "settings.h"
 
 #define ESEQ_MODEL_COUNT_OFFSET     4 // hard-coded to 1 for now in Nutcracker
 #define ESEQ_STEP_SIZE_OFFSET       8 // total step size of all models together

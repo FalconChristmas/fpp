@@ -71,6 +71,7 @@ void Play_PlaylistEntry(void);
 void PlaylistPlaySong(void);
 void PlaylistPrint();
 void StopPlaylistGracefully(void);
+void StopPlaylistNow(void);
 void JumpToPlaylistEntry(int entryIndex);
 
 #endif

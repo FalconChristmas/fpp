@@ -41,14 +41,13 @@
 
 #include "channeloutput.h"
 #include "channeloutputthread.h"
-#include "../common.h"
+#include "common.h"
 #include "E131.h"
 #include "FPD.h"
-#include "../fpp.h"
-#include "../log.h"
-#include "../playList.h"
-//#include "../sequence.h"
-#include "../settings.h"
+#include "fpp.h"
+#include "log.h"
+#include "playList.h"
+#include "settings.h"
 
 struct sockaddr_in    localAddress;
 struct sockaddr_in    E131address[MAX_UNIVERSE_COUNT];
@@ -72,11 +71,6 @@ int UniverseCount = 0;
 char * E131LocalAddress;
 
 char E131sequenceNumber=1;
-
-/* Prototypes for helpers below */
-void ShowDiff(void);
-void LoadUniversesFromFile();
-void UniversesPrint();
 
 
 int E131_InitializeNetwork()

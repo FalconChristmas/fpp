@@ -29,5 +29,6 @@
 #include "channeloutput.h"
 
 extern FPPChannelOutput USBRenardOutput;
+int USBRenard_MaxChannels(void *data);
 
 #endif /* _USBRENARD_H */

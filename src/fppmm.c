@@ -37,6 +37,7 @@
 
 #include "memorymapcontrol.h"
 #include "sequence.h"
+#include "common.h"
 
 char *blockName     = NULL;
 char *inputFilename = NULL;

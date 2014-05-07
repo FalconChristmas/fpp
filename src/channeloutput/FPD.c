@@ -31,12 +31,12 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "../common.h"
+#include "common.h"
 #include "E131.h"
 #include "FPD.h"
-#include "../log.h"
-#include "../sequence.h"
-#include "../settings.h"
+#include "log.h"
+#include "sequence.h"
+#include "settings.h"
 
 #ifdef USEWIRINGPI
 #	include "wiringPi.h"

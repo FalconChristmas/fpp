@@ -58,6 +58,10 @@ ifeq ($(ARCH), armv6l)
 # do something RaspPi-y
 CFLAGS += \
 	-DUSEWIRINGPI \
+	-Wimplicit \
+	-I . \
+	-I channeloutput \
+	-I mediaoutput \
 	$(NULL)
 LIBS_fppd += \
 	-lwiringPi \

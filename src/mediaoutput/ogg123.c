@@ -33,11 +33,13 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "../channeloutput/channeloutputthread.h"
-#include "../log.h"
+#include "channeloutputthread.h"
+#include "log.h"
 #include "mediaoutput.h"
 #include "ogg123.h"
-#include "../sequence.h"
+#include "sequence.h"
+#include "common.h"
+#include "settings.h"
 
 #define MAX_BYTES_OGG 1000
 #define TIME_STR_MAX  8

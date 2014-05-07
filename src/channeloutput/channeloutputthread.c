@@ -31,10 +31,11 @@
 #include <sys/time.h>
 
 #include "channeloutput.h"
-#include "../common.h"
-#include "../log.h"
-#include "../memorymap.h"
-#include "../sequence.h"
+#include "common.h"
+#include "log.h"
+#include "memorymap.h"
+#include "sequence.h"
+#include "effects.h"
 
 /* used by external sync code */
 float RefreshRate = 20.00;
