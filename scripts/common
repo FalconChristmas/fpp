@@ -8,8 +8,10 @@ fi
 
 SCRIPTDIR="${FPPDIR}/scripts"
 UPGRADEDIR="${FPPDIR}/upgrade"
+
 MEDIADIR="/home/pi/media"
 LOGDIR="${MEDIADIR}/logs"
+CFGFILE="${MEDIADIR}/settings"
 
 logOutput() {
 	MYTTY=$(tty)
@@ -27,5 +29,10 @@ logOutput() {
 		echo "=========================================================================="
 		date
 	fi
+}
+
+getSetting() {
+	SETTING=$1
+	grep -i "^${SETTING}\s*=.*" ${CFGFILE} | sed -e "s/.*=\s*//"
 }
 
