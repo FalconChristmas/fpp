@@ -912,8 +912,8 @@ void setVolume(int volume)
 	else
 		settings.volume = volume;
 
-	snprintf(buffer, 40, "amixer set PCM %d%% >/dev/null 2>&1", (50+ volume / 2));
-	LogDebug(VB_SETTING,"Volume change: %d \n", volume);	
+	snprintf(buffer, 40, "amixer set PCM %d%% >/dev/null 2>&1", (50 + (settings.volume / 2)));
+	LogDebug(VB_SETTING,"Volume change: %d \n", settings.volume);	
 	system(buffer);
 }
 
