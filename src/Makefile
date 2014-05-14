@@ -87,8 +87,11 @@ endif
 all: $(TARGETS)
 
 release: $(TARGETS)
+	strip fpp
 	-$(INSTALL_PROGRAM) fpp ../bin/fpp
+	strip fppmm
 	-$(INSTALL_PROGRAM) fppmm ../bin/fppmm
+	strip fppd
 	-$(INSTALL_PROGRAM) fppd ../bin/fppd
 
 fpp: $(OBJECTS_fpp)
