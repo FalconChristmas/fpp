@@ -13,6 +13,16 @@ unset($output);
     <div class="headerLeft"><a href="http://www.falconchristmas.com"><img src="images/falconlogo.png" class="logo" /></a></div>
     <div class="headerCenter"><div class="siteName">Falcon Pi Player (FPP)</div>
       Version: <a href='about.php' class='nonULLink'><?php echo $fpp_version; ?></a>
+<?
+	exec("/bin/mount | /bin/grep -q '/home/pi/media'", $output, $return_val);
+	unset($output);
+	if ($return_val != 0)
+	{
+?>
+	<br><b><font color='#ff0000'>WARNING: /home/pi/media is not mounted, is a USB flash drive inserted?</font></b>
+<?
+	}
+?>
     </div>
     <div class="headerRight"><a href="http://raspberrypi.org"><img src="images/large_Raspberry_Pi_Logo_4.png" class="logo" /></a></div>
     <div class="clear"></div>
