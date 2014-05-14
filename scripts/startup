@@ -22,6 +22,10 @@ then
 	/etc/rc2.d/S02apache2 restart
 fi
 
+# Configure Network and DNS
+${BINDIR}/config_network
+${BINDIR}/config_dns
+
 amixer cset numid=3 1
 ORIGVOLUME=$(getSetting volume)
 VOLUME=$(expr ${ORIGVOLUME} / 2 + 50)

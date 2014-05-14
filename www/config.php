@@ -159,8 +159,12 @@ while ( $data != NULL );
 
 fclose($fd);
 
+$settings['fppMode'] = $fppMode;
+$settings['fppDir'] = $fppDir;
+$settings['configDirectory'] = $mediaDirectory . "/config/";
 $settings['channelOutputsFile'] = $mediaDirectory . "/channeloutputs";
 $settings['channelMemoryMapsFile'] = $mediaDirectory . "/channelmemorymaps";
+$settings['scriptDirectory'] = $scriptDirectory;
 
 if (defined('debug'))
 {

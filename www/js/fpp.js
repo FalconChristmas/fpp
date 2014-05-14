@@ -858,8 +858,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 				universeType=document.getElementById("universeType[" + i + "]").value;
 				if(universeType == 1)
 				{
-					txtUnicastAddress=document.getElementById("txtIP[" + i + "]");	
-					if(!validateIPaddress(txtUnicastAddress))
+					if(!validateIPaddress("txtIP[" + i + "]"))
 					{
 						returnValue = false;
 					}
@@ -868,14 +867,24 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			return returnValue;
 		}
 		
-		function validateIPaddress(textbox)   
-		{  
-			 if (/^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(textbox.value))  		{  
-				return (true)  
+		function validateIPaddress(id)
+		{
+			var $tbox = $('#' + id);
+			var ip = $tbox.val();
+			if ((ip == "") || (/^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(ip)))
+			{
+				$tbox.css({
+					"border-color":  "#000000",
+					"border-weight": "0px",
+					"border-style":  "none" });
+				return true;
 			}  
-			textbox.style.border="red solid 1px";
-			textbox.value = ""; 
-      return false;
+
+			$tbox.css({
+				"border-color":  "#FF0000",
+				"border-weight": "1px",
+				"border-style":  "solid" });
+			return false;
 		}  
 
 		function validateNumber(textbox,minimum,maximum)   

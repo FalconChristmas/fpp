@@ -21,6 +21,12 @@ $command_array = Array(
 	"setChannelRemaps"    => 'SetChannelRemaps',
 	"getChannelOutputs"   => 'GetChannelOutputs',
 	"setChannelOutputs"   => 'SetChannelOutputs',
+	"applyDNSInfo"        => 'ApplyDNSInfo',
+	"getDNSInfo"          => 'GetDNSInfo',
+	"setDNSInfo"          => 'SetDNSInfo',
+	"applyInterfaceInfo"  => 'ApplyInterfaceInfo',
+	"getInterfaceInfo"    => 'GetInterfaceInfo',
+	"setInterfaceInfo"    => 'SetInterfaceInfo',
 	"getSetting"          => 'GetSetting',
 	"setSetting"          => 'SetSetting'
 );
@@ -282,6 +288,155 @@ function SetChannelOutputs()
 	fclose($f);
 
 	GetChannelOutputs();
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Network Interface configuration
+function ApplyInterfaceInfo()
+{
+	global $settings;
+	global $args;
+
+	$interface = $args['interface'];
+
+	exec(SUDO . " " . $settings['fppDir'] . "/scripts/config_network  $interface");
+}
+
+
+function GetInterfaceInfo()
+{
+	global $settings;
+	global $args;
+
+	$interface = $args['interface'];
+
+	check($interface);
+
+	$result = Array();
+
+	$cfgFile = $settings['configDirectory'] . "/interface." . $interface;
+	if (file_exists($cfgFile)) {
+		$result = parse_ini_file($cfgFile);
+	}
+
+	exec("/sbin/ifconfig $interface", $output);
+	foreach ($output as $line)
+	{
+		if (preg_match('/addr:/', $line))
+		{
+			$result['CurrentAddress'] = preg_replace('/.*addr:([0-9\.]+) .*/', '$1', $line);
+			$result['CurrentNetmask'] = preg_replace('/.*Mask:([0-9\.]+).*/', '$1', $line);
+		}
+	}
+	unset($output);
+
+	if (substr($interface, 0, 4) == "wlan")
+	{
+		exec("/sbin/iwconfig $interface", $output);
+		foreach ($output as $line)
+		{
+			if (preg_match('/ESSID:/', $line))
+				$result['CurrentSSID'] = preg_replace('/.*ESSID:"([^"]+)".*/', '$1', $line);
+
+			if (preg_match('/Rate:/', $line))
+				$result['CurrentRate'] = preg_replace('/.*Bit Rate:([0-9\.]+) .*/', '$1', $line);
+		}
+		unset($output);
+	}
+
+	returnJSON($result);
+}
+
+function SetInterfaceInfo()
+{
+	global $settings;
+	global $args;
+
+	$data = json_decode($args['data'], true);
+
+	$cfgFile = $settings['configDirectory'] . "/interface." . $data['INTERFACE'];
+
+	if ($data['PROTO'] == "static") {
+		$addr = $data['ADDRESS'];
+		$netmask = $data['NETMASK'];
+		$gateway = $data['GATEWAY'];
+
+		$f = fopen($cfgFile, "w");
+		if ($f == FALSE) {
+			return;
+		}
+
+		fprintf($f,
+			"INTERFACE=\"%s\"\n" .
+			"PROTO=\"static\"\n" .
+			"ADDRESS=\"%s\"\n" .
+			"NETMASK=\"%s\"\n" .
+			"GATEWAY=\"%s\"\n",
+			$data['INTERFACE'], $data['ADDRESS'], $data['NETMASK'],
+			$data['GATEWAY']);
+
+		if (substr($data['INTERFACE'], 0, 4) == "wlan")
+		{
+			fprintf($f,
+				"SSID=\"%s\"\n" .
+				"PSK=\"%s\"\n",
+				$data['SSID'], $data['PSK']);
+		}
+
+		fclose($f);
+	} else if ($data['PROTO'] == "dhcp") {
+		$f = fopen($cfgFile, "w");
+		if ($f == FALSE) {
+			return;
+		}
+
+		fprintf($f,
+			"INTERFACE=%s\n" .
+			"PROTO=dhcp\n",
+			$data['INTERFACE']);
+		fclose($f);
+	}
+}
+
+/////////////////////////////////////////////////////////////////////////////
+function ApplyDNSInfo()
+{
+	global $settings;
+
+	exec(SUDO . " " . $settings['fppDir'] . "/scripts/config_dns");
+}
+
+function GetDNSInfo()
+{
+	global $settings;
+
+	$cfgFile = $settings['configDirectory'] . "/dns";
+	if (file_exists($cfgFile)) {
+		returnJSON(parse_ini_file($cfgFile));
+	}
+
+	returnJSON(Array());
+}
+
+function SetDNSInfo()
+{
+	global $settings;
+	global $args;
+
+	$data = json_decode($args['data'], true);
+
+	$cfgFile = $settings['configDirectory'] . "/dns";
+
+	$f = fopen($cfgFile, "w");
+	if ($f == FALSE) {
+		return;
+	}
+
+	fprintf($f,
+		"DNS1=\"%s\"\n" .
+		"DNS2=\"%s\"\n",
+		$data['DNS1'], $data['DNS2']);
+	fclose($f);
 }
 
 /////////////////////////////////////////////////////////////////////////////

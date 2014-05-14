@@ -1,0 +1,193 @@
+#!/bin/sh
+#############################################################################
+# Helpers for configuring network config
+#############################################################################
+configure_static_ip () {
+	echo "Configuring static IP ${ADDRESS} for ${INTERFACE} as ${STATE}"
+	ifconfig ${INTERFACE} ${ADDRESS} netmask ${NETMASK} ${STATE}
+
+	if [ "x${GATEWAY}" != "x" ]
+	then
+		if [ "x${STATE}" = "xup" ]
+		then
+			echo "Adding default route of ${GATEWAY} out ${INTERFACE}"
+			route add default gw ${GATEWAY} ${INTERFACE}
+		else
+			echo "Removing default route of ${GATEWAY} out ${INTERFACE}"
+			route delete default gw ${GATEWAY} ${INTERFACE}
+		fi
+	fi
+}
+
+#############################################################################
+configure_dhcp () {
+	echo "Starting dhclient for ${INTERFACE}"
+	dhclient -v -pf /run/dhclient.${INTERFACE}.pid -lf /var/lib/dhcp/dhclient.${INTERFACE}.leases ${INTERFACE}
+}
+
+#############################################################################
+configure_wireless () {
+	#####################################################################
+	# Create our wpa_supplicant.conf on the flash drive
+	cat > /home/pi/media/config/wpa_supplicant.conf <<-EOF
+		ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
+		update_config=1
+
+		network={
+			ssid="${SSID}"
+			psk="${PSK}"
+		}
+	EOF
+
+	#####################################################################
+	# kill wpa_supplicant so we can point it at our config
+	killall -9 wpa_supplicant
+	#PIDFILE=/var/run/wpa_supplicant.${INTERFACE}.pid
+	#if [ -f "${PIDFILE}" ]
+	#then
+	#	kill -9 $(cat ${PIDFILE})
+	#fi
+
+	#####################################################################
+	# kill wpa_cli so we can point it at our wpa_supplicant
+	killall -9 wpa_cli
+	#PIDFILE=/var/run/wpa_action.${INTERFACE}.pid
+	#if [ -f "${PIDFILE}" ]
+	#then
+	#	kill -9 $(cat ${PIDFILE})
+	#fi
+
+	wpa_supplicant -s -B -P /var/run/wpa_supplicant.${INTERFACE}.pid -i ${INTERFACE} -W -D nl80211,wext -c /home/pi/media/config/wpa_supplicant.conf
+	wpa_cli -B -P /var/run/wpa_action.${INTERFACE}.pid -i ${INTERFACE} -p /var/run/wpa_supplicant -a /sbin/wpa_action
+}
+
+#############################################################################
+# Main guts
+
+BINDIR=$(dirname $0)
+. ${BINDIR}/common
+
+logOutput
+
+#############################################################################
+# ifplugd will call this script with the interface name and up/down state
+echo "CMD: $0 $1 $2"
+
+IFACE='*'
+if [ "x$1" != "x" ]
+then
+	IFACE=$1
+fi
+
+STATE="up"
+if [ "x$2" != "x" ]
+then
+	STATE=$2
+fi
+
+#############################################################################
+# Check for configured interfaces
+/bin/ls -1 ${CFGDIR}/interface.${IFACE} | while read FILE
+do
+	#####################################################################
+	# Get the interface config into env vars
+	. ${FILE}
+
+	#####################################################################
+	# Default to enabled
+	ENABLED=1
+
+	#####################################################################
+	# Check if the interface name is missing
+	if [ "x${INTERFACE}" = "x" ]
+	then
+		ENABLED=0
+	fi
+
+	#####################################################################
+	# Check if static IP and required info is missing
+	if [ "x${PROTO}" = "static" ]
+	then
+		if [ "x${ADDRESS}" = "x" -o "x${NETMASK}" = "x" ]
+		then
+			ENABLED=0
+		fi
+	fi
+
+	#####################################################################
+	# Check if wireless and required info is missing
+	TYPE=$(echo ${INTERFACE} | cut -c1-4)
+	if [ "x${TYPE}" = "xwlan" ]
+	then
+		if [ "x${SSID}" = "x" -o "x${PSK}" = "x" ]
+		then
+			ENABLED=0
+		fi
+	fi
+
+	#####################################################################
+	# If required info is found, then configure
+	if [ ${ENABLED} -eq 1 ]
+	then
+		echo "Configuring ${INTERFACE} from ${FILE}"
+
+		# Kill any DHCP client daemon started by the SD image
+		DHCPPID=$(ps -edaf | grep dhclient | grep ${INTERFACE} | awk '{print $2}')
+		if [ "x${DHCPPID}" != "x" ]
+		then
+			kill -9 ${DHCPPID}
+		fi
+
+		if [ "x${TYPE}" = "xwlan" ]
+		then
+			configure_wireless
+		fi
+
+		if [ "x${PROTO}" = "xstatic" ]
+		then
+			configure_static_ip
+		else
+			configure_dhcp
+		fi
+	else
+		echo "Skipping network configuration in ${FILE}"
+	fi
+done
+
+#############################################################################
+# Execute only when run from startup with no interface and state
+if [ "x$1" = "x" ]
+then
+	#####################################################################
+	# Kill ifplugd for some interfaces so we can point it to our script
+	INTERFACES="eth0 wlan0"
+	for INTERFACE in ${INTERFACES}
+	do
+		PLUGPID=$(ps -edaf | grep ifplugd | grep ${INTERFACE} | awk '{print $2}')
+		if [ "x${PLUGPID}" != "x" ]
+		then
+			kill -9 ${PLUGPID}
+		fi
+
+		/usr/sbin/ifplugd -i ${INTERFACE} -q -f -u0 -d10 -w -I -p -r ${SCRIPTDIR}/config_network
+	done
+
+	#####################################################################
+	# if eth0 does not have a link at boot then take it down since ifplugd
+	# will bring it back up if/when it gets link
+	ethtool eth0 | grep -q "Link detected: yes"
+	if [ $? -eq 1 ]
+	then
+		ifconfig eth0 down
+	fi
+
+	#####################################################################
+	# Configure fallback IP address
+	INTERFACE=eth0:0
+	PROTO=static
+	ADDRESS=192.168.0.10
+	NETMASK=255.255.255.0
+	GATEWAY=
+	configure_static_ip
+fi
+
