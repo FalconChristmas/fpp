@@ -87,10 +87,10 @@ $command_array = Array(
 	"getUpload" => 'GetUpload',
 	"saveUSBDongle" => 'SaveUSBDongle',
 	"getInterfaceInfo" => 'GetInterfaceInfo',
-	"setPiLCDenabled" => 'SetPiLCDenabled'
+	"setPiLCDenabled" => 'SetPiLCDenabled',
 	"updatePlugin" => 'UpdatePlugin',
 	"uninstallPlugin" => 'UninstallPlugin',
-	"installPlugin" => 'InstallPlugin',
+	"installPlugin" => 'InstallPlugin'
 );
 
 if (isset($_GET['command']) && !isset($nonXML[$_GET['command']]))
