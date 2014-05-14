@@ -6,6 +6,7 @@ $fpp_version = "v" . exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ de
 if ( $return_val != 0 ) 
 	$fpp_version = "Unknown";
 unset($output);
+
 ?>
 
 <?php require_once(dirname(__FILE__)."/config.php"); ?>
@@ -14,13 +15,25 @@ unset($output);
     <div class="headerCenter"><div class="siteName">Falcon Pi Player (FPP)</div>
       Version: <a href='about.php' class='nonULLink'><?php echo $fpp_version; ?></a>
 <?
-	exec("/bin/mount | /bin/grep -q '/home/pi/media'", $output, $return_val);
-	unset($output);
-	if ($return_val != 0)
+	if (file_exists("/etc/fpp/rfs_version"))
 	{
+		$mounts = file("/proc/mounts");
+		$mounted = 0;
+		foreach ($mounts as $mount)
+		{
+			if (preg_match("/\/home\/pi\/media/", $mount))
+			{
+				$mounted = 1;
+				break;
+			}
+		}
+
+		if (!$mounted)
+		{
 ?>
 	<br><b><font color='#ff0000'>WARNING: /home/pi/media is not mounted, is a USB flash drive inserted?</font></b>
 <?
+		}
 	}
 ?>
     </div>
