@@ -49,7 +49,7 @@ function WriteSettingToFile($settingName, $setting)
 	}
 	else
 	{
-		file_put_contents($settingsFile, $settingsFile ." = " . $setting . "\n");
+		file_put_contents($settingsFile, $settingName ." = " . $setting . "\n");
 	}
 }
 
