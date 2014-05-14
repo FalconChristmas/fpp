@@ -10,6 +10,8 @@ schedule
 universes
 fppdLog.txt
 _notes
+www/.htaccess
+www/.htpasswd
 external/rasclock/modules.order
 external/rasclock/Module.symvers
 external/rasclock/rtc-pcf2127a.*
