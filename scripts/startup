@@ -9,6 +9,19 @@
 BINDIR=$(dirname $0)
 . ${BINDIR}/common
 
+# See if we should be running from /home/pi/fpp
+if [ "x${BINDIR}" == "x/opt/fpp/scripts" -a -f "/home/pi/fpp/scripts/startup" ]
+then
+	exec /home/pi/fpp/scripts/startup
+fi
+
+# If the flash drive is not mounted yet, then fix Apache so it can at least start up
+if [ ! -d "/home/pi/media/logs" ]
+then
+	perl -pi -e "s/ErrorLog.*/ErrorLog \/var\/tmp\/apache-error.log/" /etc/apache2/sites-available/default
+	/etc/rc2.d/S02apache2 restart
+fi
+
 amixer cset numid=3 1
 ORIGVOLUME=$(getSetting volume)
 VOLUME=$(expr ${ORIGVOLUME} / 2 + 50)
@@ -27,15 +40,23 @@ while [ true ]
 do
 if [ "$(df -h ${MEDIADIR} | tail -n 1 | awk '{print $1}')" == "$(df -h / | tail -n 1 | awk '{print $1}')" ];
 then
-        echo "Flash Media Is Missing.  Please Insert.";
-        flite -voice kal "Boot Stalled, Flash Media Is Missing.  Please Insert."
-        sleep 20;
-        mount -a;
-
+	echo "Flash Media Is Missing.  Please Insert.";
+	flite -voice kal "Boot Stalled, Flash Media Is Missing.  Please Insert."
+	sleep 5;
+	mount -a;
 else
-        echo "Flash Media Mounted.";
-        mkdir -p /home/pi/media/logs
-        break
+	echo "Flash Media Mounted.";
+	if [ ! -d /home/pi/media/config ]
+	then
+		mkdir -p /home/pi/media/config
+		chown pi.pi /home/pi/media/config
+	fi
+	if [ ! -d /home/pi/media/logs ]
+	then
+		mkdir -p /home/pi/media/logs
+		chown pi.pi /home/pi/media/logs
+	fi
+	break
 fi
 done
 
