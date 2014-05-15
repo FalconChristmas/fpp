@@ -1399,14 +1399,14 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 								if(fppStatus == STATUS_PLAYING)
 								{
 									$('#txtPlayerStatus').html("Playing <strong>'" + CurrentPlaylist + "'</strong>");
-									$('#txtTimePlayed').html("Elasped: " + zeroPad(minsPlayed,2) + ":" + zeroPad(secsPlayed,2));								
+									$('#txtTimePlayed').html("Elapsed: " + zeroPad(minsPlayed,2) + ":" + zeroPad(secsPlayed,2));								
 									$('#txtTimeRemaining').html("Remaining: " + zeroPad(minsRemaining,2) + ":" + zeroPad(secsRemaining,2));						
 									
 								}
 								else if(fppStatus == STATUS_STOPPING_GRACEFULLY)
 								{
 									$('#txtPlayerStatus').html("Playing <strong>'" + CurrentPlaylist + "'</strong> - Stopping Gracefully");
-									$('#txtTimePlayed').html("Elasped: " + zeroPad(minsPlayed,2) + ":" + zeroPad(secsPlayed,2));								
+									$('#txtTimePlayed').html("Elapsed: " + zeroPad(minsPlayed,2) + ":" + zeroPad(secsPlayed,2));								
 									$('#txtTimeRemaining').html("Remaining: " + zeroPad(minsRemaining,2) + ":" + zeroPad(secsRemaining,2));								
 								}
 	
