@@ -245,8 +245,9 @@ function SetPiLCDenabled()
 
 function SetFPPDmode()
 {
-	$mode_string[0] = "player";
+	$mode_string[0] = "unknown";
 	$mode_string[1] = "bridge";
+	$mode_string[2] = "player";
 	$mode = $_GET['mode'];
 	check($mode);
   WriteSettingToFile("fppMode",$mode_string[$mode]);
@@ -275,7 +276,7 @@ function GetVolume()
 function GetFPPDmode()
 {
 	$mode = ReadSettingFromFile("fppMode");
-  $fppMode = $mode == "bridge" ? "1":"0";
+	$fppMode = $mode == "bridge" ? "1":"2";
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('mode');
 	$root = $doc->appendChild($root);
@@ -624,7 +625,7 @@ function GetFPPstatus()
 
 	$entry = explode(",",$status,13);
 	$fppMode = $entry[0];
-	if($fppMode == 0)
+	if($fppMode == 2)
 	{
 		$fppStatus = $entry[1];
 		if($fppStatus == '0')

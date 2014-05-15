@@ -1331,7 +1331,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 						}
 
 						var fppMode = status.childNodes[0].textContent;
-						if(fppMode == 0 )
+						if(fppMode == 2 )
 						{
 							$("#playerStatus").css("display","block");
 							$("#nextPlaylist").css("display","block");
