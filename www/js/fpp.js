@@ -1324,7 +1324,9 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 					{
 						var fppStatus = status.childNodes[1].textContent;
 
-						if (fppStatus == 0)
+						if (fppStatus == STATUS_IDLE ||
+							fppStatus == STATUS_PLAYING ||
+							fppStatus == STATUS_STOPPING_GRACEFULLY )
 						{
 							$("#btnDaemonControl").attr('value', 'Stop FPPD');
 							$('#daemonStatus').html("FPPD is running.");
