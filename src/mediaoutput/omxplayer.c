@@ -61,6 +61,8 @@ int omxplayer_StartPlaying(const char *filename)
 
 	LogDebug(VB_MEDIAOUT, "omxplayer_StartPlaying(%s)\n", filename);
 
+	bzero(&mediaOutputStatus, sizeof(mediaOutputStatus));
+
 	if (snprintf(fullVideoPath, 1024, "%s/%s", getVideoDirectory(), filename)
 		>= 1024)
 	{
@@ -80,7 +82,9 @@ int omxplayer_StartPlaying(const char *filename)
 	if (omxplayerPID == 0)			// omxplayer process
 	{
 		seteuid(1000); // 'pi' user
-		execl("/usr/bin/omxplayer", "omxplayer", "-s", fullVideoPath, NULL);
+
+//		execl("/usr/bin/omxplayer", "omxplayer", "-s", fullVideoPath, NULL);
+		execl("/opt/fpp/scripts/omxplayer", "/opt/fpp/scripts/omxplayer", fullVideoPath, NULL);
 
 		LogErr(VB_MEDIAOUT, "omxplayer_StartPlaying(), ERROR, we shouldn't "
 			"be here, this means that execl() failed\n");
@@ -100,7 +104,6 @@ int omxplayer_StartPlaying(const char *filename)
 	timeout.tv_sec = 0;
 	timeout.tv_usec = 5;
 
-	bzero(&mediaOutputStatus, sizeof(mediaOutputStatus));
 	mediaOutputStatus.status = MEDIAOUTPUTSTATUS_PLAYING;
 
 	return 1;
@@ -135,10 +138,30 @@ void omxplayer_ProcessPlayerData(int bytesRead)
 	int        secs = 0;
 	int        subsecs = 0;
 	int        totalCentiSecs = 0;
+	char      *ptr = NULL;
 
+	if ((mediaOutputStatus.secondsTotal == 0) &&
+		(mediaOutputStatus.minutesTotal == 0) &&
+		(ptr = strstr(omxBuffer, "Duration: ")))
+	{
+		// Sample line format:
+		// (whitespace)Duration: 00:00:37.91, start: 0.000000, bitrate: 2569 kb/s
+		char *ptr2 = strchr(ptr, ',');
+		if (ptr2)
+		{
+			*ptr2 = '\0';
+			ptr = ptr + 10;
+
+			int hours = strtol(ptr, NULL, 10);
+			ptr += 3;
+			mediaOutputStatus.minutesTotal = strtol(ptr, NULL, 10) + (hours * 60);
+			ptr += 3;
+			mediaOutputStatus.secondsTotal = strtol(ptr, NULL, 10);
+		}
+	}
 
 	// Data is line buffered so all stats lines should start with "V : "
-    if ((!strncmp(omxBuffer, "V : ", 4)) &&
+	if ((!strncmp(omxBuffer, "V : ", 4)) &&
 		(bytesRead > 20))
 	{
 		errno = 0;
@@ -160,11 +183,10 @@ void omxplayer_ProcessPlayerData(int bytesRead)
 
 	mediaOutputStatus.subSecondsElapsed = subsecs;
 
-	// FIXME, need to get the following for videos:
-	// mediaOutputStatus.secondsRemaining = 60 * mins + secs;
+	mediaOutputStatus.secondsRemaining = (mediaOutputStatus.minutesTotal * 60)
+		+ mediaOutputStatus.secondsTotal - mediaOutputStatus.secondsElapsed;
+	// FIXME, can we get this?
 	// mediaOutputStatus.subSecondsRemaining = subsecs;
-	// mediaOutputStatus.minutesTotal = somethingotother
-	// mediaOutputStatus.secondsTotal = somethingotother
 
 	if ((IsSequenceRunning()) &&
 		(mediaOutputStatus.secondsElapsed > 0) &&

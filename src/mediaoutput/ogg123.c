@@ -59,6 +59,8 @@ int ogg123_StartPlaying(const char *musicFile)
 
 	LogDebug(VB_MEDIAOUT, "ogg123_StartPlaying(%s)\n", musicFile);
 
+	bzero(&mediaOutputStatus, sizeof(mediaOutputStatus));
+
 	if (snprintf(fullAudioPath, 1024, "%s/%s", getMusicDirectory(), musicFile)
 		>= 1024)
 	{
@@ -103,7 +105,6 @@ int ogg123_StartPlaying(const char *musicFile)
 	timeout.tv_sec = 0;
 	timeout.tv_usec = 5;
 
-	bzero(&mediaOutputStatus, sizeof(mediaOutputStatus));
 	mediaOutputStatus.status = MEDIAOUTPUTSTATUS_PLAYING;
 
 	return 1;
