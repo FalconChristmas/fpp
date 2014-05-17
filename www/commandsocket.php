@@ -69,7 +69,7 @@ function SendCommand($command)
 	if ( $buf == "" )
 	{
 		CleanupSocket($cpath, $socket);
-		return "false";
+		return false;
 	}
 
 	CleanupSocket($cpath, $socket);

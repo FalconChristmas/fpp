@@ -588,6 +588,7 @@ function StopNow()
 
 function StopFPPD()
 {
+	SendCommand('d'); // Ignore return and just kill if 'd' doesn't work...
 	$status=exec(SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_stop");
 	EchoStatusXML('true');
 }
