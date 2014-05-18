@@ -264,7 +264,7 @@ h2 {
   <script type="text/javascript">
 $('#uploader_div').ajaxupload({
 	url:'upload.php',
-	remotePath:'<?php global $mediaDirectory; echo $mediaDirectory; ?>upload/',
+	remotePath:'<?php global $mediaDirectory; echo $mediaDirectory; ?>/upload/',
 	removeOnSuccess: true,
 	maxFileSize:'10000M',
 	chunkSize:1048576,

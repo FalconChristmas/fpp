@@ -302,7 +302,7 @@ function MoveFile()
 	{
 		if (strpos(strtolower($file),".fseq") !== false)
 		{
-			if ( !rename($mediaDirectory."/upload/" . $file, $sequenceDirectory . $file) )
+			if ( !rename($mediaDirectory."/upload/" . $file, $sequenceDirectory . '/' . $file) )
 			{
 				error_log("Couldn't move sequence file");
 				exit(1);
@@ -310,7 +310,7 @@ function MoveFile()
 		}
 		else if (strpos(strtolower($file),".eseq") !== false)
 		{
-			if ( !rename($mediaDirectory."/upload/" . $file, $effectDirectory . $file) )
+			if ( !rename($mediaDirectory."/upload/" . $file, $effectDirectory . '/' . $file) )
 			{
 				error_log("Couldn't move effect file");
 				exit(1);
@@ -318,7 +318,7 @@ function MoveFile()
 		}
 		else if (strpos(strtolower($file),".mp4") !== false)
 		{
-			if ( !rename($mediaDirectory."/upload/" . $file, $videoDirectory . $file) )
+			if ( !rename($mediaDirectory."/upload/" . $file, $videoDirectory . '/' . $file) )
 			{
 				error_log("Couldn't move video file");
 				exit(1);
@@ -329,7 +329,7 @@ function MoveFile()
 			// Attempt to get rid of DOS newlines
 			exec("perl -pi -e 's@\r\n@\n@g' ".$mediaDirectory."/upload/".$file);
 
-			if ( !rename($mediaDirectory."/upload/" . $file, $scriptDirectory . $file) )
+			if ( !rename($mediaDirectory."/upload/" . $file, $scriptDirectory . '/' . $file) )
 			{
 				error_log("Couldn't move script file");
 				exit(1);
@@ -338,7 +338,7 @@ function MoveFile()
 		else if ((strpos(strtolower($file),".mp3") !== false) ||
 		         (strpos(strtolower($file),".ogg") !== false))
 		{
-			if ( !rename($mediaDirectory."/upload/" . $file, $musicDirectory . $file) )
+			if ( !rename($mediaDirectory."/upload/" . $file, $musicDirectory . '/' . $file) )
 			{
 				error_log("Couldn't move music file");
 				exit(1);
@@ -503,7 +503,7 @@ function SaveEvent()
 	else
 		$eseq = "";
 
-	$f=fopen($eventDirectory . $filename,"w") or exit("Unable to open file! : " . $event);
+	$f=fopen($eventDirectory . '/' . $filename,"w") or exit("Unable to open file! : " . $event);
 	$eventDefinition = sprintf(
 		"majorID=%d\n" .
 		"minorID=%d\n" .
@@ -525,7 +525,7 @@ function DeleteEvent()
 
 	$filename = GetExpandedEventID() . ".fevt";
 
-	unlink($eventDirectory . $filename);
+	unlink($eventDirectory . '/' . $filename);
 
 	EchoStatusXML('Success');
 }
@@ -2005,7 +2005,7 @@ function GetLog()
 	else
 	{
 		header('Content-disposition: attachment;filename=' . $filename);
-		readfile($logDirectory . $filename);
+		readfile($logDirectory . '/' . $filename);
 	}
 }
 
@@ -2020,7 +2020,7 @@ function GetUpload()
 
 	header('Content-disposition: attachment;filename=' . $filename);
 
-	readfile($uploadDirectory . $filename);
+	readfile($uploadDirectory . '/' . $filename);
 }
 
 function SaveUSBDongle()
