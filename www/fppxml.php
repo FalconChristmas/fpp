@@ -1605,7 +1605,7 @@ function LoadPlayListDetails($file)
 	$playListEntries = NULL;
 	$_SESSION['playListEntries']=NULL;
 
-	$f=fopen($playlistDirectory . $file,"rx") or exit("Unable to open file! : " . $playlistDirectory . $file);
+	$f=fopen($playlistDirectory . '/' . $file, "rx") or exit("Unable to open file! : " . $playlistDirectory . '/' . $file);
 	$i=0;
 	$line=fgets($f);
 	$entry = explode(",",$line,50);
