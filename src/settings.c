@@ -43,6 +43,8 @@ static struct config settings = { 0 };
 
 void initSettings(void)
 {
+	settings.fppMode = PLAYER_MODE;
+
 	settings.mediaDirectory = strdup("/home/pi/media");
 	settings.musicDirectory = strdup("/home/pi/media/music");
 	settings.sequenceDirectory = strdup("/home/pi/media/sequences");
@@ -709,10 +711,6 @@ int loadSettings(const char *filename)
 				}
 				else
 					fprintf(stderr, "Failed to load controlMinor setting from config file\n");
-			}
-			else
-			{
-				fprintf(stderr, "Warning: unknown key: '%s', skipping\n", key);
 			}
 
 			// FIXME,make a helper for this to handle dups
