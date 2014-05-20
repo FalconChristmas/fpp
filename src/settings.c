@@ -671,13 +671,6 @@ int loadSettings(const char *filename)
 			}
 			else if ( strcmp(key, "USBDongleBaud") == 0 )
 			{
-				token = strtok(NULL, "=");
-				if ( ! token )
-				{
-					fprintf(stderr, "Error tokenizing value for USBDongleBaud setting\n");
-					continue;
-				}
-				value = trimwhitespace(token);
 				if ( strlen(value) )
 				{
 					free(settings.USBDongleBaud);
