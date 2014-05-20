@@ -29,12 +29,13 @@
 #include "command.h"
 #include "e131bridge.h"
 #include "effects.h"
-#include "fpp.h"
 #include "fppd.h"
+#include "fpp.h"
 #include "log.h"
 #include "mediaoutput.h"
 #include "memorymap.h"
 #include "playList.h"
+#include "plugins.h"
 #include "schedule.h"
 #include "sequence.h"
 #include "settings.h"
@@ -63,6 +64,8 @@ int main(int argc, char *argv[])
 	parseArguments(argc, argv);
 
 	printSettings();
+
+	InitPluginCallbacks();
 
 	// Start functioning
 	if (getDaemonize())

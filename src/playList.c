@@ -30,6 +30,7 @@
 #include "log.h"
 #include "mediaoutput.h"
 #include "playList.h"
+#include "plugins.h"
 #include "schedule.h"
 #include "settings.h"
 #include "sequence.h"
@@ -171,6 +172,10 @@ int ReadPlaylist(char const * file)
     listIndex++;
   }
   fclose(fp);
+
+  playlistDetails.playListCount = listIndex;
+  PlaylistCallback(&playlistDetails);
+
   return listIndex;
 }
 
@@ -305,6 +310,7 @@ void Play_PlaylistEntry(void)
 	LogDebug(VB_PLAYLIST, "playListCount=%d  CurrentPlaylistEntry = %d\n", playlistDetails.playListCount,playlistDetails.currentPlaylistEntry);
 
   plEntry = &playlistDetails.playList[playlistDetails.currentPlaylistEntry];
+  MediaCallback(&plEntry->seqName[0], &plEntry->songName[0]);
   switch(plEntry->type)
   {
     case PL_TYPE_BOTH:

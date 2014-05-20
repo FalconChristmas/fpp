@@ -49,6 +49,7 @@ typedef enum {
 	VB_SETTING     = 0x00000800,
 	VB_CONTROL     = 0x00001000,
 	VB_SYNC        = 0x00002000,
+	VB_PLUGIN      = 0x00004000,
 	VB_ALL         = 0x7FFFFFFF,
 	VB_MOST        = 0x7FFFFFFB
 } LogFacility;

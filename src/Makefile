@@ -41,6 +41,7 @@ OBJECTS_fppd = \
 	mediaoutput/omxplayer.o \
 	memorymap.o \
 	playList.o \
+	plugins.o \
 	schedule.o \
 	sequence.o \
 	settings.o \
