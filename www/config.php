@@ -44,6 +44,7 @@ $volume = 0;
 if (defined('debug'))
 {
 	error_log("DEFAULTS:");
+	error_log("fppDir: $fppDir");
 	error_log("fppMode: $fppMode");
 	error_log("settings: $settingsFile");
 	error_log("media: $mediaDirectory");
@@ -60,6 +61,7 @@ if (defined('debug'))
 	error_log("universe: $universeFile");
 	error_log("pixelnet: $pixelnetFile");
 	error_log("schedule: $scheduleFile");
+	error_log("remaps: $remapFile");
 	error_log("bytes: $bytesFile");
 	error_log("volume: $volume");
 }
@@ -78,7 +80,7 @@ do
 	global $mediaDirectory, $musicDirectory, $sequenceDirectory, $playlistDirectory;
 	global $eventDirectory, $videoDirectory, $scriptDirectory, $logDirectory;
 	global $pluginDirectory;
-	global $universeFile, $pixelnetFile, $scheduleFile, $bytesFile;
+	global $universeFile, $pixelnetFile, $scheduleFile, $bytesFile, $remapFile;
 
 	// Parse the file, assuming it exists
 	$data = fgets($fd);
@@ -138,6 +140,9 @@ do
 		case "logDirectory":
 			$logDirectory = trim($split[1]) . "/";
 			break;
+		case "uploadDirectory":
+			$uploadDirectory = trim($split[1]) . "/";
+			break;
 		case "pluginDirectory":
 			$pluginDirectory = trim($split[1]) . "/";
 			break;
@@ -155,6 +160,9 @@ do
 			break;
 		case "bytesFile":
 			$bytesFile = trim($split[1]);
+			break;
+		case "remapFile":
+			$remapFile = trim($split[1]);
 			break;
 	}
 }
@@ -177,6 +185,7 @@ putenv("SETTINGSFILE=$settingsFile");
 if (defined('debug'))
 {
 	error_log("SET:");
+	error_log("fppDir: $fppDir");
 	error_log("fppMode: $fppMode");
 	error_log("settings: $settingsFile");
 	error_log("media: $mediaDirectory");
@@ -193,6 +202,7 @@ if (defined('debug'))
 	error_log("universe: $universeFile");
 	error_log("pixelnet: $pixelnetFile");
 	error_log("schedule: $scheduleFile");
+	error_log("remaps: $remapFile");
 	error_log("bytes: $bytesFile");
 	error_log("volume: $volume");
 }
