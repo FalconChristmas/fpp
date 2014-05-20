@@ -310,7 +310,13 @@ void Play_PlaylistEntry(void)
 	LogDebug(VB_PLAYLIST, "playListCount=%d  CurrentPlaylistEntry = %d\n", playlistDetails.playListCount,playlistDetails.currentPlaylistEntry);
 
   plEntry = &playlistDetails.playList[playlistDetails.currentPlaylistEntry];
-  MediaCallback(&plEntry->seqName[0], &plEntry->songName[0]);
+
+  // We only need to make the media callback if both sequence and song
+  // are non-null.
+  if ( (!strlen(plEntry->seqName) && !strlen(plEntry->songName) ) ||
+	  ( plEntry->type != PL_TYPE_PAUSE && plEntry->type != PL_TYPE_EVENT) )
+	  MediaCallback(&plEntry->seqName[0], &plEntry->songName[0]);
+
   switch(plEntry->type)
   {
     case PL_TYPE_BOTH:

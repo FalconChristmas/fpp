@@ -176,7 +176,16 @@ void MediaCallback(char *sequence_name, char *media_file)
 				// characters if needed, should only be quote that requires
 				// escaping, we shouldn't worry about things like tabs,
 				// backspaces, form feeds, etc..
-				snprintf(&data[0], sizeof(data), "{\"Sequence\": \"%s\", \"Media\": \"%s\"}", sequence_name, media_file);
+				strncpy(&data[0], "{", sizeof(data));
+				if ( strlen(sequence_name) )
+					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
+					"\"Sequence\":\"%s\",", sequence_name);
+				if ( strlen(media_file) )
+					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
+					"\"Media\":\"%s\",", media_file);
+				data[strlen(data)-1] = '}'; //replace last comma with a closing brace
+
+				LogWarn(VB_PLUGIN, "Media plugin data: %s\n", data);
 				execl(plugins[i].script, "callbacks", "--type", "media", "--data", data, NULL);
 			}
 			else
