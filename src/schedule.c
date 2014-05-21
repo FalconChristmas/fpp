@@ -109,7 +109,7 @@ void CheckIfShouldBePlayingNow()
 					currentSchedulePlaylist.endWeeklySeconds = Schedule[i].weeklyEndSeconds[j];
 					CurrentScheduleHasbeenLoaded = 1;
 					NextScheduleHasbeenLoaded = 0;
-		      strcpy((void*)playlistDetails.currentPlaylistFile,Schedule[currentSchedulePlaylist.ScheduleEntryIndex].playList);
+		      strcpy(playlistDetails.currentPlaylistFile,Schedule[currentSchedulePlaylist.ScheduleEntryIndex].playList);
 				  playlistDetails.currentPlaylistEntry=0;
 					playlistDetails.repeat = Schedule[currentSchedulePlaylist.ScheduleEntryIndex].repeat;
 		  		playlistDetails.playlistStarting=1;
@@ -305,7 +305,7 @@ void PlayListLoadCheck()
     if(nowWeeklySeconds == currentSchedulePlaylist.startWeeklySeconds)
     {
       NextScheduleHasbeenLoaded = 0;
-      strcpy((void*)playlistDetails.currentPlaylistFile,Schedule[currentSchedulePlaylist.ScheduleEntryIndex].playList);
+      strcpy(playlistDetails.currentPlaylistFile,Schedule[currentSchedulePlaylist.ScheduleEntryIndex].playList);
 		  playlistDetails.currentPlaylistEntry=0;
 			playlistDetails.repeat = Schedule[currentSchedulePlaylist.ScheduleEntryIndex].repeat;
 		  playlistDetails.playlistStarting=1;

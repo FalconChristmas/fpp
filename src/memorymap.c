@@ -149,7 +149,10 @@ void CloseChannelDataMemoryMap(void) {
 /*
  * Check to see if we need to run through the overlay process
  */
-inline int UsingMemoryMapInput(void) {
+#ifndef __GNUG__
+inline
+#endif
+int UsingMemoryMapInput(void) {
 	if ((ctrlHeader) &&
 		(ctrlHeader->totalBlocks || ctrlHeader->testMode))
 		return 1;
@@ -237,7 +240,7 @@ int LoadChannelMemoryMapData(void) {
 	strcat(filename, "/channelmemorymaps");
 
 	if (!FileExists(filename))
-		return;
+		return 0;
 
 	LogDebug(VB_CHANNELOUT, "Loading Channel Memory Map data.\n");
 	fp = fopen(filename, "r");

@@ -51,16 +51,16 @@ typedef struct{
 
 typedef struct{
 	PlaylistEntry playList[32];
-	int currentPlaylist[128];
-	int currentPlaylistFile[128];
-	int playListCount;
-	int currentPlaylistEntry;
-	int StopPlaylist;
-	int ForceStop;
-	int playlistStarting;
-	int first;
-	int last;
-	int repeat;
+	char currentPlaylist[128];
+	char currentPlaylistFile[128];
+	int  playListCount;
+	int  currentPlaylistEntry;
+	int  StopPlaylist;
+	int  ForceStop;
+	int  playlistStarting;
+	int  first;
+	int  last;
+	int  repeat;
 }PlaylistDetails;
 
 void CalculateNextPlayListEntry();

@@ -183,7 +183,7 @@ extern PlaylistDetails playlistDetails;
 				s = strtok(NULL,",");
 				if (s)
 				{
-					strcpy((char*)playlistDetails.currentPlaylistFile,s);
+					strcpy(playlistDetails.currentPlaylistFile,s);
 					s = strtok(NULL,",");
 					if (s)
 						playlistDetails.currentPlaylistEntry = atoi(s);
@@ -208,7 +208,7 @@ extern PlaylistDetails playlistDetails;
 				s = strtok(NULL,",");
 				if (s)
 				{
-					strcpy((char*)playlistDetails.currentPlaylistFile,s);
+					strcpy(playlistDetails.currentPlaylistFile,s);
 					s = strtok(NULL,",");
 					if (s)
 						playlistDetails.currentPlaylistEntry = atoi(s);

@@ -233,7 +233,7 @@ int ChannelTestMode(int mode) {
 	int result = mode;
 
 	if (OpenChannelControlMemoryMap() < 0)
-		return;
+		return -1;
 
 	if (mode >= 0) {
 		if (mode)

@@ -102,7 +102,7 @@ char *trimwhitespace(const char *str)
 	if ( out_size == 0 )
 		return strdup("");
 
-	out = malloc(out_size+1);
+	out = (char *)malloc(out_size+1);
 	// If we didn't allocate anything, die!
 	if ( ! out )
 	{
@@ -777,7 +777,10 @@ int getDaemonize(void)
 	return settings.daemonize;
 }
 
-inline int getFPPmode(void)
+#ifndef __GNUG__
+inline
+#endif
+int getFPPmode(void)
 {
 	return settings.fppMode;
 }
@@ -1052,7 +1055,7 @@ void CheckExistanceOfDirectoriesAndFiles(void)
 		LogWarn(VB_SETTING, "Universe file does not exist, creating it.\n");
 
 		char *cmd, *file = getUniverseFile();
-		cmd = malloc(strlen(file)+7);
+		cmd = (char *)malloc(strlen(file)+7);
 		snprintf(cmd, strlen(file)+7, "touch %s", file);
 		if ( system(cmd) != 0 )
 		{
@@ -1066,7 +1069,7 @@ void CheckExistanceOfDirectoriesAndFiles(void)
 		LogWarn(VB_SETTING, "Schedule file does not exist, creating it.\n");
 
 		char *cmd, *file = getScheduleFile();
-		cmd = malloc(strlen(file)+7);
+		cmd = (char *)malloc(strlen(file)+7);
 		snprintf(cmd, strlen(file)+7, "touch %s", file);
 		if ( system(cmd) != 0 )
 		{
@@ -1080,7 +1083,7 @@ void CheckExistanceOfDirectoriesAndFiles(void)
 		LogWarn(VB_SETTING, "Bytes file does not exist, creating it.\n");
 
 		char *cmd, *file = getBytesFile();
-		cmd = malloc(strlen(file)+7);
+		cmd = (char *)malloc(strlen(file)+7);
 		snprintf(cmd, strlen(file)+7, "touch %s", file);
 		if ( system(cmd) != 0 )
 		{
@@ -1095,7 +1098,7 @@ void CheckExistanceOfDirectoriesAndFiles(void)
 		LogWarn(VB_SETTING, "Settings file does not exist, creating it.\n");
 
 		char *cmd, *file = getSettingsFile();
-		cmd = malloc(strlen(file)+7);
+		cmd = (char *)malloc(strlen(file)+7);
 		snprintf(cmd, strlen(file)+7, "touch %s", file);
 		if ( system(cmd) != 0 )
 		{

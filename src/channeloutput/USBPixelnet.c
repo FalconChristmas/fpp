@@ -72,7 +72,8 @@ void USBPixelnet_Dump(USBPixelnetPrivData *privData) {
 int USBPixelnet_Open(char *configStr, void **privDataPtr) {
 	LogDebug(VB_CHANNELOUT, "USBPixelnet_Open('%s')\n", configStr);
 
-	USBPixelnetPrivData *privData = malloc(sizeof(USBPixelnetPrivData));
+	USBPixelnetPrivData *privData =
+		(USBPixelnetPrivData *)malloc(sizeof(USBPixelnetPrivData));
 	bzero(privData, sizeof(USBPixelnetPrivData));
 	privData->fd = -1;
 

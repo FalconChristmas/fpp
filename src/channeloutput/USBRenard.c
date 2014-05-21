@@ -72,7 +72,8 @@ void USBRenard_Dump(USBRenardPrivData *privData) {
 int USBRenard_Open(char *configStr, void **privDataPtr) {
 	LogDebug(VB_CHANNELOUT, "USBRenard_Open('%s')\n", configStr);
 
-	USBRenardPrivData *privData = malloc(sizeof(USBRenardPrivData));
+	USBRenardPrivData *privData =
+		(USBRenardPrivData *)malloc(sizeof(USBRenardPrivData));
 	if (privData == NULL)
 	{
 		LogErr(VB_CHANNELOUT, "Error %d allocating private memory: %s\n",
@@ -139,7 +140,7 @@ int USBRenard_Open(char *configStr, void **privDataPtr) {
 		return 0;
 	}
 	
-	privData->outputData = malloc(USBRenard_MaxChannels(privData));
+	privData->outputData = (char *)malloc(USBRenard_MaxChannels(privData));
 	if (privData->outputData == NULL)
 	{
 		LogErr(VB_CHANNELOUT, "Error %d allocating channel memory: %s\n",

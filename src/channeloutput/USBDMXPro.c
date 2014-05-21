@@ -74,7 +74,8 @@ void USBDMXPro_Dump(USBDMXProPrivData *privData) {
 int USBDMXPro_Open(char *configStr, void **privDataPtr) {
 	LogDebug(VB_CHANNELOUT, "USBDMXPro_Open('%s')\n", configStr);
 
-	USBDMXProPrivData *privData = malloc(sizeof(USBDMXProPrivData));
+	USBDMXProPrivData *privData =
+		(USBDMXProPrivData *)malloc(sizeof(USBDMXProPrivData));
 	bzero(privData, sizeof(USBDMXProPrivData));
 	privData->fd = -1;
 

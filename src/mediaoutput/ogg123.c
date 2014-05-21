@@ -44,13 +44,13 @@
 #define MAX_BYTES_OGG 1000
 #define TIME_STR_MAX  8
 
-fd_set active_fd_set, read_fd_set;
-struct timeval timeout;
+fd_set ogg123_active_fd_set, ogg123_read_fd_set;
+struct timeval ogg123_timeout;
 
 int   pipeFromOGG[2];
 
 char oggBuffer[MAX_BYTES_OGG];
-char strTime[34];
+char ogg123_strTime[34];
 
 
 int ogg123_StartPlaying(const char *musicFile)
@@ -98,12 +98,12 @@ int ogg123_StartPlaying(const char *musicFile)
 	}
 
 	// Clear active file descriptor sets
-	FD_ZERO (&active_fd_set);
+	FD_ZERO (&ogg123_active_fd_set);
 	// Set description for reading from ogg
-	FD_SET (pipeFromOGG[MEDIAOUTPUTPIPE_READ], &active_fd_set);
-	// Set timeout value for select
-	timeout.tv_sec = 0;
-	timeout.tv_usec = 5;
+	FD_SET (pipeFromOGG[MEDIAOUTPUTPIPE_READ], &ogg123_active_fd_set);
+	// Set ogg123_timeout value for select
+	ogg123_timeout.tv_sec = 0;
+	ogg123_timeout.tv_usec = 5;
 
 	mediaOutputStatus.status = MEDIAOUTPUTSTATUS_PLAYING;
 
@@ -157,45 +157,45 @@ void ogg123_ParseTimes()
 	tmp[2]= '\0';
 
 	// Mins
-	tmp[0]=strTime[1];
-	tmp[1]=strTime[2];
+	tmp[0]=ogg123_strTime[1];
+	tmp[1]=ogg123_strTime[2];
 	sscanf(tmp,"%d",&mins);
 
 	// Secs
-	tmp[0]=strTime[4];
-	tmp[1]=strTime[5];
+	tmp[0]=ogg123_strTime[4];
+	tmp[1]=ogg123_strTime[5];
 	sscanf(tmp,"%d",&secs);
 	mediaOutputStatus.secondsElapsed = 60*mins + secs;
 
 	// Subsecs
-	tmp[0]=strTime[7];
-	tmp[1]=strTime[8];
+	tmp[0]=ogg123_strTime[7];
+	tmp[1]=ogg123_strTime[8];
 	sscanf(tmp,"%d",&mediaOutputStatus.subSecondsElapsed);
 
 	// Mins Remaining
-	tmp[0]=strTime[11];
-	tmp[1]=strTime[12];
+	tmp[0]=ogg123_strTime[11];
+	tmp[1]=ogg123_strTime[12];
 	sscanf(tmp,"%d",&mins);
 
 	// Secs Remaining
-	tmp[0]=strTime[14];
-	tmp[1]=strTime[15];
+	tmp[0]=ogg123_strTime[14];
+	tmp[1]=ogg123_strTime[15];
 	sscanf(tmp,"%d",&secs);
 	mediaOutputStatus.secondsRemaining = 60*mins + secs;
 
 	// Subsecs remaining
-	tmp[0]=strTime[17];
-	tmp[1]=strTime[18];
+	tmp[0]=ogg123_strTime[17];
+	tmp[1]=ogg123_strTime[18];
 	sscanf(tmp,"%d",&mediaOutputStatus.subSecondsRemaining);
 
 	// Total Mins
-	tmp[0]=strTime[24];
-	tmp[1]=strTime[25];
+	tmp[0]=ogg123_strTime[24];
+	tmp[1]=ogg123_strTime[25];
 	sscanf(tmp,"%d",&mediaOutputStatus.minutesTotal);
 
 	// Total Secs
-	tmp[0]=strTime[27];
-	tmp[1]=strTime[28];
+	tmp[0]=ogg123_strTime[27];
+	tmp[1]=ogg123_strTime[28];
 	sscanf(tmp,"%d",&mediaOutputStatus.secondsTotal);
 
 	if ((IsSequenceRunning()) &&
@@ -256,7 +256,7 @@ void ogg123_ProcessOGGData(int bytesRead)
 				}
 				else if (bufferPtr)
 				{
-					strTime[bufferPtr++]=oggBuffer[i];
+					ogg123_strTime[bufferPtr++]=oggBuffer[i];
 				}
 				break;
 			default:
@@ -268,7 +268,7 @@ void ogg123_ProcessOGGData(int bytesRead)
 
 				if (state >= 5)
 				{
-					strTime[bufferPtr++]=oggBuffer[i];
+					ogg123_strTime[bufferPtr++]=oggBuffer[i];
 					if(bufferPtr==32)
 					{
 						ogg123_ParseTimes();
@@ -289,13 +289,13 @@ void ogg123_PollMusicInfo()
 {
 	int bytesRead;
 	int result;
-	read_fd_set = active_fd_set;
-	if(select(FD_SETSIZE, &read_fd_set, NULL, NULL, &timeout) < 0)
+	ogg123_read_fd_set = ogg123_active_fd_set;
+	if(select(FD_SETSIZE, &ogg123_read_fd_set, NULL, NULL, &ogg123_timeout) < 0)
 	{
 	 	LogErr(VB_MEDIAOUT, "Error Select:%d\n",errno);
 	 	return; 
 	}
-	if(FD_ISSET(pipeFromOGG[MEDIAOUTPUTPIPE_READ], &read_fd_set))
+	if(FD_ISSET(pipeFromOGG[MEDIAOUTPUTPIPE_READ], &ogg123_read_fd_set))
 	{
  		bytesRead = read(pipeFromOGG[MEDIAOUTPUTPIPE_READ], oggBuffer, MAX_BYTES_OGG);
 		if (bytesRead > 0) 

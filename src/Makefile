@@ -1,5 +1,8 @@
 CC := gcc
 
+# Uncomment the following line to build with g++ for testing, etc.
+#CC := g++
+
 TARGETS = fpp fppmm fppd
 
 INSTALL_PROGRAM = install -m 755 -p
@@ -57,11 +60,20 @@ ARCH := $(shell uname -m)
 
 # Common CFLAGS
 CFLAGS += \
-	-Wimplicit \
 	-I . \
 	-I channeloutput \
 	-I mediaoutput \
 	$(NULL)
+
+# Do some things a little different when using gcc vs g++
+ifeq ($(CC), gcc)
+# Warn us if we forget to #include something, but this doesn't work on g++
+CFLAGS += -Wimplicit
+else
+# we get lots of deprecated warnings currently with g++ since we're
+# normally compiling with gcc
+CFLAGS += -Wno-write-strings
+endif
 
 ifeq ($(ARCH), armv6l)
 # do something RaspPi-y

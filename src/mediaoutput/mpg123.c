@@ -44,13 +44,13 @@
 #define MAX_BYTES_MP3 1000
 #define TIME_STR_MAX  8
 
-fd_set active_fd_set, read_fd_set;
-struct timeval timeout;
+fd_set mpg123_active_fd_set, mpg123_read_fd_set;
+struct timeval mpg123_timeout;
 
 int   pipeFromMP3[2];
 
 char mp3Buffer[MAX_BYTES_MP3];
-char strTime[34];
+char mpg123_strTime[34];
 
 
 int mpg123_StartPlaying(const char *musicFile)
@@ -101,12 +101,12 @@ int mpg123_StartPlaying(const char *musicFile)
 	}
 
 	// Clear active file descriptor sets
-	FD_ZERO (&active_fd_set);
+	FD_ZERO (&mpg123_active_fd_set);
 	// Set description for reading from mpg123
-	FD_SET (pipeFromMP3[MEDIAOUTPUTPIPE_READ], &active_fd_set);
-	// Set timeout value for select
-	timeout.tv_sec = 0;
-	timeout.tv_usec = 5;
+	FD_SET (pipeFromMP3[MEDIAOUTPUTPIPE_READ], &mpg123_active_fd_set);
+	// Set mpg123_timeout value for select
+	mpg123_timeout.tv_sec = 0;
+	mpg123_timeout.tv_usec = 5;
 
 	mediaOutputStatus.status = MEDIAOUTPUTSTATUS_PLAYING;
 
@@ -162,39 +162,39 @@ void mpg123_ParseTimes()
 	tmp[2]= '\0';
 
 	// Mins
-	tmp[0]=strTime[1];
-	tmp[1]=strTime[2];
+	tmp[0]=mpg123_strTime[1];
+	tmp[1]=mpg123_strTime[2];
 	sscanf(tmp,"%d",&mins);
 	totalMins += mins;
 
 	// Secs
-	tmp[0]=strTime[4];
-	tmp[1]=strTime[5];
+	tmp[0]=mpg123_strTime[4];
+	tmp[1]=mpg123_strTime[5];
 	sscanf(tmp,"%d",&secs);
 	mediaOutputStatus.secondsElapsed = 60*mins + secs;
 	totalMinsExtraSecs += secs;
 
 	// Subsecs
-	tmp[0]=strTime[7];
-	tmp[1]=strTime[8];
+	tmp[0]=mpg123_strTime[7];
+	tmp[1]=mpg123_strTime[8];
 	sscanf(tmp,"%d",&mediaOutputStatus.subSecondsElapsed);
 		
 	// Mins Remaining
-	tmp[0]=strTime[11];
-	tmp[1]=strTime[12];
+	tmp[0]=mpg123_strTime[11];
+	tmp[1]=mpg123_strTime[12];
 	sscanf(tmp,"%d",&mins);
 	totalMins += mins;
 	
 	// Secs Remaining
-	tmp[0]=strTime[14];
-	tmp[1]=strTime[15];
+	tmp[0]=mpg123_strTime[14];
+	tmp[1]=mpg123_strTime[15];
 	sscanf(tmp,"%d",&secs);
 	mediaOutputStatus.secondsRemaining = 60*mins + secs;
 	totalMinsExtraSecs += secs;
 
 	// Subsecs remaining
-	tmp[0]=strTime[17];
-	tmp[1]=strTime[18];
+	tmp[0]=mpg123_strTime[17];
+	tmp[1]=mpg123_strTime[18];
 	sscanf(tmp,"%d",&mediaOutputStatus.subSecondsRemaining);
 
 	mediaOutputStatus.minutesTotal = totalMins + totalMinsExtraSecs / 60;
@@ -260,7 +260,7 @@ void mpg123_ProcessMP3Data(int bytesRead)
 				}
 				else if (bufferPtr)
 				{
-					strTime[bufferPtr++]=mp3Buffer[i];
+					mpg123_strTime[bufferPtr++]=mp3Buffer[i];
 				}
 				break;
 			default:
@@ -272,7 +272,7 @@ void mpg123_ProcessMP3Data(int bytesRead)
 
 				if (state >= 5)
 				{
-					strTime[bufferPtr++] = mp3Buffer[i];
+					mpg123_strTime[bufferPtr++] = mp3Buffer[i];
 					if(bufferPtr == 19)
 					{
 						mpg123_ParseTimes();
@@ -293,13 +293,13 @@ void mpg123_PollMusicInfo()
 {
 	int bytesRead;
 	int result;
-	read_fd_set = active_fd_set;
-	if(select(FD_SETSIZE, &read_fd_set, NULL, NULL, &timeout) < 0)
+	mpg123_read_fd_set = mpg123_active_fd_set;
+	if(select(FD_SETSIZE, &mpg123_read_fd_set, NULL, NULL, &mpg123_timeout) < 0)
 	{
 	 	LogErr(VB_MEDIAOUT, "Error Select:%d\n",errno);
 	 	return; 
 	}
-	if(FD_ISSET(pipeFromMP3[MEDIAOUTPUTPIPE_READ], &read_fd_set))
+	if(FD_ISSET(pipeFromMP3[MEDIAOUTPUTPIPE_READ], &mpg123_read_fd_set))
 	{
  		bytesRead = read(pipeFromMP3[MEDIAOUTPUTPIPE_READ], mp3Buffer, MAX_BYTES_MP3);
 		if (bytesRead > 0) 

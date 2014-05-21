@@ -44,9 +44,10 @@
 char unicastSocketCreated = 0;
 
 struct sockaddr_in addr;
-int addrlen, sock, cnt;
-fd_set active_fd_set, read_fd_set;
-struct timeval timeout;
+socklen_t addrlen;
+int sock, cnt;
+fd_set e131_active_fd_set, e131_read_fd_set;
+struct timeval e131_timeout;
 struct ip_mreq mreq;
 char bridgeBuffer[10000];
 
@@ -64,13 +65,13 @@ extern int UniverseCount;
     while (runMainFPPDLoop) 
 		{
 		  Commandproc();
-			read_fd_set = active_fd_set;
-			if (select(FD_SETSIZE, &read_fd_set, NULL, NULL, &timeout) < 0)
+			e131_read_fd_set = e131_active_fd_set;
+			if (select(FD_SETSIZE, &e131_read_fd_set, NULL, NULL, &e131_timeout) < 0)
       {
        	LogErr(VB_E131BRIDGE, "Select failed\n");
        	return;
       }
-			if (FD_ISSET (sock, &read_fd_set))
+			if (FD_ISSET (sock, &e131_read_fd_set))
 			{
 				cnt = recvfrom(sock, bridgeBuffer, sizeof(bridgeBuffer), 0, (struct sockaddr *) &addr, &addrlen);
 				if (cnt >= 0) 
@@ -139,10 +140,10 @@ void Bridge_InitializeSockets()
 				}         
 			}
     }
-		FD_ZERO (&active_fd_set);
-		FD_SET (sock, &active_fd_set);
-		timeout.tv_sec = 0;
-    timeout.tv_usec = 5;
+    FD_ZERO (&e131_active_fd_set);
+    FD_SET (sock, &e131_active_fd_set);
+    e131_timeout.tv_sec = 0;
+    e131_timeout.tv_usec = 5;
 
   }
 	

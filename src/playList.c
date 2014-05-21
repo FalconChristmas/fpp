@@ -184,7 +184,7 @@ void PlayListPlayingLoop(void)
 	LogInfo(VB_PLAYLIST, "Starting PlaylistPlaying loop\n");
   playlistDetails.StopPlaylist = 0;
 	playlistDetails.ForceStop = 0;
-  playlistDetails.playListCount = ReadPlaylist((char*)playlistDetails.currentPlaylistFile);
+  playlistDetails.playListCount = ReadPlaylist(playlistDetails.currentPlaylistFile);
 	if(playlistDetails.playListCount == 0)
 	{
 		LogInfo(VB_PLAYLIST, "PlaylistCount = 0. Exiting PlayListPlayingLoop\n");

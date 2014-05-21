@@ -71,7 +71,8 @@ void SPIws2801_Dump(SPIws2801PrivData *privData) {
 int SPIws2801_Open(char *configStr, void **privDataPtr) {
 	LogDebug(VB_CHANNELOUT, "SPIws2801_Open('%s')\n", configStr);
 
-	SPIws2801PrivData *privData = malloc(sizeof(SPIws2801PrivData));
+	SPIws2801PrivData *privData =
+		(SPIws2801PrivData *)malloc(sizeof(SPIws2801PrivData));
 	bzero(privData, sizeof(SPIws2801PrivData));
 	privData->port = 0;
 

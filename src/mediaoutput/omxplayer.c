@@ -46,8 +46,8 @@
 #define MAX_BYTES_OMX 1000
 #define TIME_STR_MAX  8
 
-fd_set active_fd_set, read_fd_set;
-struct timeval timeout;
+fd_set omx_active_fd_set, omx_read_fd_set;
+struct timeval omx_timeout;
 
 int pipeFromOMX[2];
 
@@ -97,12 +97,12 @@ int omxplayer_StartPlaying(const char *filename)
 	}
 
 	// Clear active file descriptor sets
-	FD_ZERO (&active_fd_set);
+	FD_ZERO (&omx_active_fd_set);
 	// Set description for reading from omxplayer
-	FD_SET (pipeFromOMX[0], &active_fd_set);
-	// Set timeout value for select
-	timeout.tv_sec = 0;
-	timeout.tv_usec = 5;
+	FD_SET (pipeFromOMX[0], &omx_active_fd_set);
+	// Set omx_timeout value for select
+	omx_timeout.tv_sec = 0;
+	omx_timeout.tv_usec = 5;
 
 	mediaOutputStatus.status = MEDIAOUTPUTSTATUS_PLAYING;
 
@@ -214,13 +214,13 @@ void omxplayer_PollPlayerInfo()
 {
 	int bytesRead;
 	int result;
-	read_fd_set = active_fd_set;
-	if(select(FD_SETSIZE, &read_fd_set, NULL, NULL, &timeout) < 0)
+	omx_read_fd_set = omx_active_fd_set;
+	if(select(FD_SETSIZE, &omx_read_fd_set, NULL, NULL, &omx_timeout) < 0)
 	{
 	 	LogErr(VB_MEDIAOUT, "Error Select:%d\n", errno);
 	 	return; 
 	}
-	if(FD_ISSET(pipeFromOMX[0], &read_fd_set))
+	if(FD_ISSET(pipeFromOMX[0], &omx_read_fd_set))
 	{
  		bytesRead = read(pipeFromOMX[0], omxBuffer, MAX_BYTES_OMX);
 		if (bytesRead > 0) 
