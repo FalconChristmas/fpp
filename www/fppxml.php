@@ -412,7 +412,7 @@ function DeleteEffect()
 	$effect = $_GET['effect'];
 	check($effect);
 
-	unlink($effectDirectory . $effect . ".eseq");
+	unlink($effectDirectory . '/' . $effect . ".eseq");
 
 	EchoStatusXML('Success');
 }
@@ -1855,7 +1855,7 @@ function SavePlaylist()
 
 	if($name != $_SESSION['currentPlaylist'])
 	{
-		 unlink($playlistDirectory . $_SESSION['currentPlaylist']);
+		 unlink($playlistDirectory . '/' . $_SESSION['currentPlaylist']);
 		 $_SESSION['currentPlaylist'] = $name;
 	}
 }
@@ -1867,7 +1867,7 @@ function DeletePlaylist()
 	$name = $_GET['name'];
 	check($name);
 
-	unlink($playlistDirectory . $name);
+	unlink($playlistDirectory . '/' . $name);
 	EchoStatusXML('Success');
 }
 
@@ -1878,7 +1878,7 @@ function DeleteSequence()
 	$name = $_GET['name'];
 	check($name);
 
-	unlink($sequenceDirectory . $name);
+	unlink($sequenceDirectory . '/' . $name);
 	EchoStatusXML('Success');
 }
 
@@ -1889,7 +1889,7 @@ function DeleteMusic()
 	$name = $_GET['name'];
 	check($name);
 
-	unlink($musicDirectory . $name);
+	unlink($musicDirectory . '/' . $name);
 	EchoStatusXML('Success');
 }
 
@@ -1900,7 +1900,7 @@ function DeleteVideo()
 	$name = $_GET['name'];
 	check($name);
 
-	unlink($videoDirectory . $name);
+	unlink($videoDirectory . '/' . $name);
 	EchoStatusXML('Success');
 }
 
@@ -1911,7 +1911,7 @@ function DeleteScript()
 	$name = $_GET['name'];
 	check($name);
 
-	unlink($scriptDirectory . $name);
+	unlink($scriptDirectory . '/' . $name);
 	EchoStatusXML('Success');
 }
 
@@ -1924,7 +1924,7 @@ function DeleteLog()
 
 	if (substr($name, 0, 1) != "/")
 	{
-		unlink($logDirectory . $name);
+		unlink($logDirectory . '/' . $name);
 		EchoStatusXML('Success');
 	}
 	else
@@ -1940,7 +1940,7 @@ function DeleteUpload()
 
 	if (substr($name, 0, 1) != "/")
 	{
-		unlink($uploadDirectory . $name);
+		unlink($uploadDirectory . '/' . $name);
 		EchoStatusXML('Success');
 	}
 	else
