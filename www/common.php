@@ -7,9 +7,9 @@ function ReadSettingFromFile($settingName)
 	$settings = file_get_contents($settingsFile);
   if ( !empty($settings) )
   {
-		if (!(strpos($settings, $settingName) === false))
+		if (preg_match("/^" . $settingName . "/m", $settings))
 		{
-      $result = preg_match("/" . $settingName . "\s*=(\s*\S*\w*)/", $settings, $output_array);
+      $result = preg_match("/^" . $settingName . "\s*=(\s*\S*\w*)/m", $settings, $output_array);
       if($result == 0)
       {
         error_log("The setting " . $settingName . " could not be found in " . $settingsFile);
@@ -36,9 +36,9 @@ function WriteSettingToFile($settingName, $setting)
 	$settings = file_get_contents($settingsFile);
 	if ( !empty($settings) )
 	{
-		if (!(strpos($settings, $settingName) === false))
+		if (preg_match("/^" . $settingName . "/m", $settings))
 		{
-			$settings = preg_replace("/" . $settingName . "\s*=\s*\S*\w*/", $settingName . " = " . $setting . "\n", $settings);
+			$settings = preg_replace("/^" . $settingName . "\s*=\s*\S*\w*/m", $settingName . " = " . $setting . "\n", $settings);
 		}
 		else
 		{

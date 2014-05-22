@@ -127,7 +127,7 @@
         <tr>
           <td class='controlHeader'> FPPD Mode: </td>
           <td class='controlValue'><select id="selFPPDmode"  onChange="SetFPPDmode();">
-          										<option id="optFPPDmode_Player" value="0">
+          										<option id="optFPPDmode_Player" value="2">
 
           										Player Mode</option>
           										<option id="optFPPDmode_Bridge" value="1">
