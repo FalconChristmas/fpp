@@ -1,5 +1,6 @@
 *.o
 .*.swp
+SD/*.xz
 src/fpp
 src/fppmm
 src/fppd
