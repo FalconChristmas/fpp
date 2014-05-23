@@ -356,16 +356,12 @@ function SetInterfaceInfo()
 
 	$cfgFile = $settings['configDirectory'] . "/interface." . $data['INTERFACE'];
 
+	$f = fopen($cfgFile, "w");
+	if ($f == FALSE) {
+		return;
+	}
+
 	if ($data['PROTO'] == "static") {
-		$addr = $data['ADDRESS'];
-		$netmask = $data['NETMASK'];
-		$gateway = $data['GATEWAY'];
-
-		$f = fopen($cfgFile, "w");
-		if ($f == FALSE) {
-			return;
-		}
-
 		fprintf($f,
 			"INTERFACE=\"%s\"\n" .
 			"PROTO=\"static\"\n" .
@@ -375,27 +371,22 @@ function SetInterfaceInfo()
 			$data['INTERFACE'], $data['ADDRESS'], $data['NETMASK'],
 			$data['GATEWAY']);
 
-		if (substr($data['INTERFACE'], 0, 4) == "wlan")
-		{
-			fprintf($f,
-				"SSID=\"%s\"\n" .
-				"PSK=\"%s\"\n",
-				$data['SSID'], $data['PSK']);
-		}
-
-		fclose($f);
 	} else if ($data['PROTO'] == "dhcp") {
-		$f = fopen($cfgFile, "w");
-		if ($f == FALSE) {
-			return;
-		}
-
 		fprintf($f,
 			"INTERFACE=%s\n" .
 			"PROTO=dhcp\n",
 			$data['INTERFACE']);
-		fclose($f);
 	}
+
+	if (substr($data['INTERFACE'], 0, 4) == "wlan")
+	{
+		fprintf($f,
+			"SSID=\"%s\"\n" .
+			"PSK=\"%s\"\n",
+			$data['SSID'], $data['PSK']);
+	}
+
+	fclose($f);
 }
 
 /////////////////////////////////////////////////////////////////////////////
