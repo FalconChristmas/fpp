@@ -251,7 +251,7 @@ int RunEventScript(FPPevent *e)
 			token = strtok(NULL, " ");
 		}
 		args[i] = NULL;
-		execvp("/bin/bash", args);
+		execvp("/opt/fpp/scripts/eventScript", args);
 
 		LogErr(VB_EVENT, "RunEventScript(), ERROR, we shouldn't be here, this means "
 			"that execvp() failed\n");

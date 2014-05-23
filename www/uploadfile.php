@@ -212,7 +212,7 @@ h2 {
     <div id="tab-scripts">
       <div id= "divScripts">
         <fieldset  class="fs">
-          <legend> Scripts (.sh)</legend>
+          <legend> Scripts (.sh/.pl/.php/.py)</legend>
           <div id="divScriptsData">
             <table id="tblScripts">
             </table>

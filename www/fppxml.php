@@ -317,7 +317,7 @@ function MoveFile()
 				exit(1);
 			}
 		}
-		else if (preg_match("/\.(sh|pl)$/i", $file))
+		else if (preg_match("/\.(sh|pl|php|py)$/i", $file))
 		{
 			// Attempt to get rid of DOS newlines
 			exec("perl -pi -e 's@\r\n@\n@g' ".$mediaDirectory."/upload/".$file);

@@ -1,0 +1,25 @@
+#!/bin/bash
+
+EXT=$(basename $1 | sed -e "s/.*\.\([^\.]*\)/\1/")
+
+if [ "x${EXT}" = "xsh" ]
+then
+	exec /bin/bash $@
+else
+	if [ "x${EXT}" = "xpl" ]
+	then
+		exec /usr/bin/perl $@
+	else
+		if [ "x${EXT}" = "xphp" ]
+		then
+			exec /usr/bin/php $@
+		else
+			if [ "x${EXT}" = "xpy" ]
+			then
+				exec /usr/bin/python $@
+			else
+				echo "ERROR: Unknown file extension: ${EXT}"
+			fi
+		fi
+	fi
+fi
