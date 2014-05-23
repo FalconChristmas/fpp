@@ -1492,16 +1492,15 @@ function GetSequenceFiles()
 {
 	global $sequenceDirectory;
 
-	$sequenceDirectry = $sequenceDirectory;
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('Sequences');
 	$root = $doc->appendChild($root);
 
-	foreach(scandir($sequenceDirectry) as $seqFile)
+	foreach(scandir($sequenceDirectory) as $seqFile)
 	{
 		if($seqFile != '.' && $seqFile != '..')
 		{
-			$seqFileFullName = $sequenceDirectry . '/' . $seqFile;
+			$seqFileFullName = $sequenceDirectory . '/' . $seqFile;
 
 			$sequence = $doc->createElement('Sequence');
 			$sequence = $root->appendChild($sequence);
@@ -1542,7 +1541,7 @@ function AddPlaylist()
 		$successAttribute = $response->appendChild($successAttribute);
 
 		//$_SESSION['currentPlaylist']	= $pl;
-		$filename = $playlistDirectory . $name;
+		$filename = $playlistDirectory . '/' . $name;
 		$file = fopen($filename, "w");
 		fwrite($file, "");
 		fclose($file);
@@ -1791,7 +1790,7 @@ function SavePlaylist()
 	check($first);
 	check($last);
 
-	$f=fopen($playlistDirectory . $name,"w") or exit("Unable to open file! : " . $playlistDirectory . $name);
+	$f=fopen($playlistDirectory . '/' . $name,"w") or exit("Unable to open file! : " . $playlistDirectory . '/' . $name);
 	$entries = sprintf("%s,%s,\n",$first,$last);
 	for($i=0;$i<count($_SESSION['playListEntries']);$i++)
 	{
