@@ -28,6 +28,7 @@
   - perlmagick
   - mp3info
   - libconvert-binary-c-perl
+  - build-essential
 
 - Create user 'pi' in group 'pi' with UID/GID of 1000/1000
 
