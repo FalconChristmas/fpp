@@ -1151,7 +1151,7 @@ function SaveUniversesToFile()
 {
 	global $universeFile;
 
-	$universes = "";
+	$entries = "";
 	$f=fopen($universeFile,"w") or exit("Unable to open file! : " . $universeFile);
 	for($i=0;$i<count($_SESSION['UniverseEntries']);$i++)
 	{
