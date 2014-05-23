@@ -293,7 +293,7 @@ function MoveFile()
 
 	if(file_exists($mediaDirectory."/upload/" . $file))
 	{
-		if (strpos(strtolower($file),".fseq") !== false)
+		if (preg_match("/\.(fseq)$/i", $file))
 		{
 			if ( !rename($mediaDirectory."/upload/" . $file, $sequenceDirectory . '/' . $file) )
 			{
@@ -301,7 +301,7 @@ function MoveFile()
 				exit(1);
 			}
 		}
-		else if (strpos(strtolower($file),".eseq") !== false)
+		else if (preg_match("/\.(eseq)$/i", $file))
 		{
 			if ( !rename($mediaDirectory."/upload/" . $file, $effectDirectory . '/' . $file) )
 			{
@@ -309,7 +309,7 @@ function MoveFile()
 				exit(1);
 			}
 		}
-		else if (strpos(strtolower($file),".mp4") !== false)
+		else if (preg_match("/\.(mp4)$/i", $file))
 		{
 			if ( !rename($mediaDirectory."/upload/" . $file, $videoDirectory . '/' . $file) )
 			{
@@ -317,7 +317,7 @@ function MoveFile()
 				exit(1);
 			}
 		}
-		else if (strpos(strtolower($file),".sh") !== false)
+		else if (preg_match("/\.(sh|pl)$/i", $file))
 		{
 			// Attempt to get rid of DOS newlines
 			exec("perl -pi -e 's@\r\n@\n@g' ".$mediaDirectory."/upload/".$file);
@@ -328,8 +328,7 @@ function MoveFile()
 				exit(1);
 			}
 		}
-		else if ((strpos(strtolower($file),".mp3") !== false) ||
-		         (strpos(strtolower($file),".ogg") !== false))
+		else if (preg_match("/\.(mp3|ogg)$/i", $file))
 		{
 			if ( !rename($mediaDirectory."/upload/" . $file, $musicDirectory . '/' . $file) )
 			{
