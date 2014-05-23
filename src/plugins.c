@@ -8,6 +8,8 @@
 #include <unistd.h>
 #include <string.h>
 
+#include "mediadetails.h"
+#include "mediaoutput.h"
 #include "settings.h"
 #include "plugins.h"
 #include "common.h"
@@ -28,6 +30,17 @@ typedef struct plugin_s
 plugin_t plugins[MAX_PLUGINS];
 int plugin_count = 0;
 
+extern MediaDetails	 mediaDetails;
+extern PlaylistDetails playlistDetails;
+
+const char *type_to_string[] = {
+	"both",
+	"media",
+	"sequence",
+	"pause",
+	"video",
+	"event",
+};
 
 void InitPluginCallbacks(void)
 {
@@ -151,7 +164,7 @@ void InitPluginCallbacks(void)
 }
 
 //non-blocking
-void MediaCallback(char *sequence_name, char *media_file)
+void MediaCallback(void)
 {
 	int i;
 	for ( i = 0; i < plugin_count; ++i )
@@ -176,13 +189,25 @@ void MediaCallback(char *sequence_name, char *media_file)
 				// characters if needed, should only be quote that requires
 				// escaping, we shouldn't worry about things like tabs,
 				// backspaces, form feeds, etc..
+
+				PlaylistEntry *plEntry = &playlistDetails.playList[playlistDetails.currentPlaylistEntry];
+
 				strncpy(&data[0], "{", sizeof(data));
-				if ( strlen(sequence_name) )
+				snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
+				"\"type\":\"%s\",", type_to_string[plEntry->type]);
+				if ( strlen(plEntry->seqName) )
 					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
-					"\"Sequence\":\"%s\",", sequence_name);
-				if ( strlen(media_file) )
+					"\"Sequence\":\"%s\",", plEntry->seqName);
+				if ( strlen(plEntry->songName) )
 					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
-					"\"Media\":\"%s\",", media_file);
+					"\"Media\":\"%s\",", plEntry->songName);
+				if ( mediaDetails.title )
+					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
+					"\"title\":\"%s\",", mediaDetails.title);
+				if ( mediaDetails.artist )
+					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
+					"\"artist\":\"%s\",", mediaDetails.artist);
+
 				data[strlen(data)-1] = '}'; //replace last comma with a closing brace
 
 				LogWarn(VB_PLUGIN, "Media plugin data: %s\n", data);

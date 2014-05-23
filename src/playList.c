@@ -28,6 +28,7 @@
 #include "command.h"
 #include "events.h"
 #include "log.h"
+#include "mediadetails.h"
 #include "mediaoutput.h"
 #include "playList.h"
 #include "plugins.h"
@@ -311,11 +312,8 @@ void Play_PlaylistEntry(void)
 
   plEntry = &playlistDetails.playList[playlistDetails.currentPlaylistEntry];
 
-  // We only need to make the media callback if both sequence and song
-  // are non-null.
-  if ( (!strlen(plEntry->seqName) && !strlen(plEntry->songName) ) ||
-	  ( plEntry->type != PL_TYPE_PAUSE && plEntry->type != PL_TYPE_EVENT) )
-	  MediaCallback(&plEntry->seqName[0], &plEntry->songName[0]);
+  ParseMedia();
+  MediaCallback();
 
   switch(plEntry->type)
   {

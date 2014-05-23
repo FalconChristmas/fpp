@@ -13,7 +13,7 @@
 
 
 void InitPluginCallbacks(void);
-void MediaCallback(char *sequence_name, char *media_file);
+void MediaCallback(void);
 void PlaylistCallback(PlaylistDetails *playlistDetails);
 void NextPlaylistEntryCallback(void);
 
