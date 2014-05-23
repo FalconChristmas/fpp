@@ -214,22 +214,15 @@ if (defined('debug'))
 	error_log("volume: $volume");
 }
 
-function GetSetting($settingName)
-{
-	global $settings;
-
-	return $settings[$settingName];
-}
-
 function GetDirSetting($dir)
 {
-	if ($dir == "Sequences")        { return GetSetting('sequenceDirectory'); }
-	else if ($dir == "Music")       { return GetSetting('musicDirectory'); }
-	else if ($dir == "Videos")      { return GetSetting('videoDirectory'); }
-	else if ($dir == "Effects")     { return GetSetting('effectDirectory'); }
-	else if ($dir == "Scripts")     { return GetSetting('scriptDirectory'); }
-	else if ($dir == "Logs")        { return GetSetting('logDirectory'); }
-	else if ($dir == "Uploads")     { return GetSetting('uploadDirectory'); }
+	if ($dir == "Sequences")        { return GetSettingValue('sequenceDirectory'); }
+	else if ($dir == "Music")       { return GetSettingValue('musicDirectory'); }
+	else if ($dir == "Videos")      { return GetSettingValue('videoDirectory'); }
+	else if ($dir == "Effects")     { return GetSettingValue('effectDirectory'); }
+	else if ($dir == "Scripts")     { return GetSettingValue('scriptDirectory'); }
+	else if ($dir == "Logs")        { return GetSettingValue('logDirectory'); }
+	else if ($dir == "Uploads")     { return GetSettingValue('uploadDirectory'); }
 
 	return "";
 }
