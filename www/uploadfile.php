@@ -224,7 +224,7 @@ h2 {
             <input onclick= "DeleteFile('Scripts', ScriptNameSelected);" id="btnDeleteScript" class="disableButtons" type="button"  value="Delete" />
           </div>
           <br />
-          <font size=-1>Scripts must have a .sh extension.  Scripts may be executed inside an event.  These might be used in a show to trigger an external action such as sending a message to a RDS capable FM transmitter or a non-DMX/Pixelnet LED sign.</font>
+          <font size=-1>Scripts must have a .sh, .pl, .php, or .py extension.  Scripts may be executed inside an event.  These might be used in a show to trigger an external action such as sending a message to a RDS capable FM transmitter or a non-DMX/Pixelnet LED sign.</font>
         </fieldset>
       </div>
     </div>
