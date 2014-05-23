@@ -1118,70 +1118,6 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			xmlhttp.send();
 		}
 
-		function DeleteSequence()
-		{
-    	var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=deleteSequence&name=" + SequenceNameSelected;
-			xmlhttp.open("GET",url,false);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-	 
-			xmlhttp.onreadystatechange = function () {
-				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
-				{
-          GetFiles('Sequences');
-				}
-			};
-			xmlhttp.send();
-		}
-
-		function DeleteMusic()
-		{
-    	var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=deleteMusic&name=" + SongNameSelected;
-			xmlhttp.open("GET",url,false);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-	 
-			xmlhttp.onreadystatechange = function () {
-				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
-				{
-          GetFiles('Music');
-				}
-			};
-			xmlhttp.send();
-		}
-		
-		function DeleteVideo()
-		{
-			var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=deleteVideo&name=" + VideoNameSelected;
-			xmlhttp.open("GET",url,false);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-	 
-			xmlhttp.onreadystatechange = function () {
-				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
-				{
-					GetFiles('Videos');
-				}
-			};
-			xmlhttp.send();
-		}
-
-		function DeleteScript()
-		{
-			var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=deleteScript&name=" + ScriptNameSelected;
-			xmlhttp.open("GET",url,false);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-	 
-			xmlhttp.onreadystatechange = function () {
-				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
-				{
-					GetFiles('Scripts');
-				}
-			};
-			xmlhttp.send();
-		}
-
 	function GetSequenceFiles()
 	{
     	var xmlhttp=new XMLHttpRequest();
@@ -1619,7 +1555,7 @@ function PlayEffect(startChannel)
 		(startChannel == ""))
 		startChannel = "0";
 
-	var url = "fppxml.php?command=playEffect&effect=" + PlayEffectSelected + "&startChannel=" + startChannel;
+	var url = "fppxml.php?command=playEffect&effect=" + EffectNameSelected + "&startChannel=" + startChannel;
 	var xmlhttp=new XMLHttpRequest();
 	xmlhttp.open("GET",url,false);
 	xmlhttp.setRequestHeader('Content-Type', 'text/xml');
@@ -1637,19 +1573,6 @@ function StopEffect()
 	xmlhttp.send();
 
 	GetRunningEffects();
-}
-
-function DeleteEffect()
-{
-	var url = "fppxml.php?command=deleteEffect&effect=" + PlayEffectSelected;
-	var xmlhttp=new XMLHttpRequest();
-	xmlhttp.open("GET",url,true);
-	xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-	xmlhttp.onreadystatechange = function () {
-		if (xmlhttp.readyState == 4)
-			location.reload(true);
-	}
-	xmlhttp.send();
 }
 
 var gblLastRunningEffectsXML = "";
@@ -2042,56 +1965,35 @@ function GetGitOriginLog()
 	$('#logViewer').dialog( "moveToTop" );
 }
 
-function ViewLog()
+function DownloadFile(dir, file)
 {
-	$('#logText').load("fppxml.php?command=getLog&filename=" + LogFileSelected);
-	$('#logViewer').dialog({ height: 600, width: 800, title: "Log Viewer: " + LogFileSelected });
-	$('#logViewer').dialog( "moveToTop" );
+	location.href="fppxml.php?command=getFile&dir=" + dir + "&filename=" + file;
 }
 
-function DownloadLog()
+function ViewFile(dir, file)
 {
-	location.href="fppxml.php?command=getLog&filename=" + LogFileSelected;
+	$('#fileText').load("fppxml.php?command=getFile&dir=" + dir + "&filename=" + file);
+	$('#fileViewer').dialog({ height: 600, width: 800, title: "File Viewer: " + file });
+	$('#fileViewer').dialog( "moveToTop" );
 }
 
-function DeleteLog()
+function DeleteFile(dir, file)
 {
-	if (LogFileSelected.substring(0,1) == "/")
+	if (file.indexOf("/") > -1)
 	{
-		alert("You can not delete system logs");
+		alert("You can not delete this file.");
 		return;
 	}
 
 	var xmlhttp=new XMLHttpRequest();
-	var url = "fppxml.php?command=deleteLog&name=" + LogFileSelected;
+	var url = "fppxml.php?command=deleteFile&dir=" + dir + "&filename=" + file;
 	xmlhttp.open("GET",url,false);
 	xmlhttp.setRequestHeader('Content-Type', 'text/xml');
 	 
 	xmlhttp.onreadystatechange = function () {
 		if (xmlhttp.readyState == 4 && xmlhttp.status==200)
 		{
-			GetFiles('Logs');
-		}
-	};
-	xmlhttp.send();
-}
-
-function DownloadUpload()
-{
-	location.href="fppxml.php?command=getUpload&filename=" + UploadFileSelected;
-}
-
-function DeleteUpload()
-{
-	var xmlhttp=new XMLHttpRequest();
-	var url = "fppxml.php?command=deleteUpload&name=" + UploadFileSelected;
-	xmlhttp.open("GET",url,false);
-	xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-	 
-	xmlhttp.onreadystatechange = function () {
-		if (xmlhttp.readyState == 4 && xmlhttp.status==200)
-		{
-			GetFiles('Uploads');
+			GetFiles(dir);
 		}
 	};
 	xmlhttp.send();

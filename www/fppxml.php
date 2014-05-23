@@ -14,8 +14,7 @@ require_once('commandsocket.php');
 // Commands defined here which return something other
 // than XML need to return their own Content-type header.
 $nonXML = Array(
-	"getLog" => 1,
-	"getUpload" => 1,
+	"getFile" => 1,
 	"getGitOriginLog" => 1
 	);
 
@@ -41,12 +40,7 @@ $command_array = Array(
 	"savePlaylist" => 'SavePlaylist',
 	"deletePlaylist" => 'DeletePlaylist',
 	"deleteEntry" => 'DeleteEntry',
-	"deleteSequence" => 'DeleteSequence',
-	"deleteMusic" => 'DeleteMusic',
-	"deleteVideo" => 'DeleteVideo',
-	"deleteScript" => 'DeleteScript',
-	"deleteLog" => 'DeleteLog',
-	"deleteUpload" => 'DeleteUpload',
+	"deleteFile" => 'DeleteFile',
 	"addPlaylistEntry" => 'AddPlayListEntry',
 	"setUniverseCount" => 'SetUniverseCount',
 	"getUniverses" => 'GetUniverses',
@@ -83,8 +77,7 @@ $command_array = Array(
 	"triggerEvent" => 'TriggerEvent',
 	"saveEvent" => 'SaveEvent',
 	"deleteEvent" => 'DeleteEvent',
-	"getLog" => 'GetLog',
-	"getUpload" => 'GetUpload',
+	"getFile" => 'GetFile',
 	"saveUSBDongle" => 'SaveUSBDongle',
 	"getInterfaceInfo" => 'GetInterfaceInfo',
 	"setPiLCDenabled" => 'SetPiLCDenabled',
@@ -344,11 +337,6 @@ function MoveFile()
 				exit(1);
 			}
 		}
-		else
-		{
-			unlink($mediaDirectory."/upload/" . $file);
-			error_log("Unknown file type, removing upload");
-		}
 	}
 	else
 	{
@@ -402,18 +390,6 @@ function StopEffect()
 	$id = $_GET['id'];
 	check($id);
 	$status = SendCommand("StopEffect," . $id . ",");
-	EchoStatusXML('Success');
-}
-
-function DeleteEffect()
-{
-	global $effectDirectory;
-
-	$effect = $_GET['effect'];
-	check($effect);
-
-	unlink($effectDirectory . '/' . $effect . ".eseq");
-
 	EchoStatusXML('Success');
 }
 
@@ -1871,83 +1847,6 @@ function DeletePlaylist()
 	EchoStatusXML('Success');
 }
 
-function DeleteSequence()
-{
-	global $sequenceDirectory;
-
-	$name = $_GET['name'];
-	check($name);
-
-	unlink($sequenceDirectory . '/' . $name);
-	EchoStatusXML('Success');
-}
-
-function DeleteMusic()
-{
-	global $musicDirectory;
-
-	$name = $_GET['name'];
-	check($name);
-
-	unlink($musicDirectory . '/' . $name);
-	EchoStatusXML('Success');
-}
-
-function DeleteVideo()
-{
-	global $videoDirectory;
-
-	$name = $_GET['name'];
-	check($name);
-
-	unlink($videoDirectory . '/' . $name);
-	EchoStatusXML('Success');
-}
-
-function DeleteScript()
-{
-	global $scriptDirectory;
-
-	$name = $_GET['name'];
-	check($name);
-
-	unlink($scriptDirectory . '/' . $name);
-	EchoStatusXML('Success');
-}
-
-function DeleteLog()
-{
-	global $logDirectory;
-
-	$name = $_GET['name'];
-	check($name);
-
-	if (substr($name, 0, 1) != "/")
-	{
-		unlink($logDirectory . '/' . $name);
-		EchoStatusXML('Success');
-	}
-	else
-		EchoStatusXML('Failure');
-}
-
-function DeleteUpload()
-{
-	global $uploadDirectory;
-
-	$name = $_GET['name'];
-	check($name);
-
-	if (substr($name, 0, 1) != "/")
-	{
-		unlink($uploadDirectory . '/' . $name);
-		EchoStatusXML('Success');
-	}
-	else
-		EchoStatusXML('Failure');
-}
-
-
 function DeleteEntry()
 {
 	$index = $_GET['index'];
@@ -1987,40 +1886,51 @@ function cmp_index($a, $b)
 	return ($a->index < $b->index) ? -1 : 1;
 }
 
-function GetLog()
+function DeleteFile()
 {
-	global $logDirectory;
-
 	$filename = $_GET['filename'];
 	check($filename);
 
-	header('Content-type: text/plain');
+	$dir = $_GET['dir'];
+	check($dir);
 
-	if (substr($filename, 0, 9) == "/var/log/")
+	$dir = GetDirSetting($dir);
+
+	if ($dir == "")
+		return;
+
+	if (substr($filename, 0, 1) != "/")
 	{
-		header('Content-disposition: attachment;filename=' .
-			basename($filename));
-		readfile($filename);
+		unlink($dir . '/' . $filename);
+		EchoStatusXML('Success');
 	}
 	else
-	{
-		header('Content-disposition: attachment;filename=' . $filename);
-		readfile($logDirectory . '/' . $filename);
-	}
+		EchoStatusXML('Failure');
 }
 
-function GetUpload()
+function GetFile()
 {
-	global $uploadDirectory;
-
 	$filename = $_GET['filename'];
 	check($filename);
+
+	$dir = $_GET['dir'];
+	check($dir);
+
+	$dir = GetDirSetting($dir);
+
+	if ($dir == "")
+		return;
 
 	header('Content-type: application/binary');
 
-	header('Content-disposition: attachment;filename=' . $filename);
+	if (($_GET['dir'] == "Logs") &&
+		(substr($filename, 0, 9) == "/var/log/")) {
+		$dir = "/var/log";
+		$filename = basename($filename);
+	}
 
-	readfile($uploadDirectory . '/' . $filename);
+	header('Content-disposition: attachment;filename=' . $filename);
+	readfile($dir . '/' . $filename);
 }
 
 function SaveUSBDongle()

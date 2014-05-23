@@ -11,9 +11,8 @@
           $('#tblEffectLibrary tr').removeClass('effectSelectedEntry');
           $(this).addClass('effectSelectedEntry');
           var items = $('#tblEffectLibrary tr');
-          PlayEffectSelected  = $(this).find('td:first').text();
+          EffectNameSelected  = $(this).find('td:first').text();
           SetButtonState('#btnPlayEffect','enable');
-          SetButtonState('#btnDeleteEffect','enable');
     });
 
     $('#tblRunningEffects').on('mousedown', 'tr', function(event,ui){
@@ -119,9 +118,6 @@
               </table>
             </div>
             <input id= "btnPlayEffect" type="button" class ="disableButtons" value="Play Effect" onClick="PlayEffect($('#effectStartChannel').val());">
-<!--
-            <input id="btnDeleteEffect" type="button" class="disableButtons" value="Delete Effect" onclick="DeleteEffect();" />
--->
           </div>
         </fieldset>
       <br />

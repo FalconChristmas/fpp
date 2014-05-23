@@ -172,10 +172,17 @@ fclose($fd);
 
 $settings['fppMode'] = $fppMode;
 $settings['fppDir'] = $fppDir;
-$settings['configDirectory'] = $mediaDirectory . "/config/";
+$settings['mediaDirectory'] = $mediaDirectory;
+$settings['configDirectory'] = $mediaDirectory . "/config";
 $settings['channelOutputsFile'] = $mediaDirectory . "/channeloutputs";
 $settings['channelMemoryMapsFile'] = $mediaDirectory . "/channelmemorymaps";
 $settings['scriptDirectory'] = $scriptDirectory;
+$settings['sequenceDirectory'] = $sequenceDirectory;
+$settings['musicDirectory'] = $musicDirectory;
+$settings['videoDirectory'] = $videoDirectory;
+$settings['effectDirectory'] = $effectDirectory;
+$settings['logDirectory'] = $logDirectory;
+$settings['uploadDirectory'] = $uploadDirectory;
 
 putenv("SCRIPTDIR=$scriptDirectory");
 putenv("MEDIADIR=$mediaDirectory");
@@ -205,6 +212,26 @@ if (defined('debug'))
 	error_log("remaps: $remapFile");
 	error_log("bytes: $bytesFile");
 	error_log("volume: $volume");
+}
+
+function GetSetting($settingName)
+{
+	global $settings;
+
+	return $settings[$settingName];
+}
+
+function GetDirSetting($dir)
+{
+	if ($dir == "Sequences")        { return GetSetting('sequenceDirectory'); }
+	else if ($dir == "Music")       { return GetSetting('musicDirectory'); }
+	else if ($dir == "Videos")      { return GetSetting('videoDirectory'); }
+	else if ($dir == "Effects")     { return GetSetting('effectDirectory'); }
+	else if ($dir == "Scripts")     { return GetSetting('scriptDirectory'); }
+	else if ($dir == "Logs")        { return GetSetting('logDirectory'); }
+	else if ($dir == "Uploads")     { return GetSetting('uploadDirectory'); }
+
+	return "";
 }
 
 // $skipJSsettings is only set in fppjson.php and fppxml.php

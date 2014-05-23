@@ -7,19 +7,19 @@ require_once('config.php');
 <?php	include 'common/menuHead.inc'; ?>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <title>Files</title>
-<link rel="stylesheet" href="css/jquery-ui.css" />
-<script type="text/javascript" src="js/fpp.js"></script>
-<script src="js/jquery-1.9.1.js"></script>
-<script src="js/jquery-ui.js"></script>
-<script src="js/upload/ajaxupload.js" type="text/javascript"></script>
-<link rel="stylesheet" href="css/fpp.css" />
-<link rel="stylesheet" href="css/classicTheme/style.css" type="text/css" media="all" />
+
+<link  href="/jquery/jQuery-Upload-File/css/uploadfile.min.css" rel="stylesheet">
+
+<script src="/jquery/jQuery-Form-Plugin/js/jquery.form.js"></script>
+<script src="/jquery/jQuery-Upload-File/js/jquery.uploadfile.min.js"></script>
+
 <script>
     $(function() {
     $('#tblSequences').on('mousedown', 'tr', function(event,ui){
           $('#tblSequences tr').removeClass('selectedentry');
           $(this).addClass('selectedentry');
           SequenceNameSelected  = $(this).find('td:first').text();
+		  SetButtonState('#btnDownloadSequence','enable');
 		  SetButtonState('#btnDeleteSequence','enable');
     });
 
@@ -27,6 +27,7 @@ require_once('config.php');
           $('#tblMusic tr').removeClass('selectedentry');
           $(this).addClass('selectedentry');
           SongNameSelected  = $(this).find('td:first').text();
+		  SetButtonState('#btnDownloadMusic','enable');
 		  SetButtonState('#btnDeleteMusic','enable');
     });
 
@@ -34,6 +35,7 @@ require_once('config.php');
           $('#tblVideos tr').removeClass('selectedentry');
           $(this).addClass('selectedentry');
           VideoNameSelected  = $(this).find('td:first').text();
+		  SetButtonState('#btnDownloadVideo','enable');
 		  SetButtonState('#btnDeleteVideo','enable');
     });
 
@@ -41,6 +43,7 @@ require_once('config.php');
           $('#tblEffects tr').removeClass('selectedentry');
           $(this).addClass('selectedentry');
           EffectNameSelected  = $(this).find('td:first').text();
+		  SetButtonState('#btnDownloadEffect','enable');
 		  SetButtonState('#btnDeleteEffect','enable');
     });
 
@@ -48,6 +51,8 @@ require_once('config.php');
           $('#tblScript tr').removeClass('selectedentry');
           $(this).addClass('selectedentry');
           ScriptNameSelected  = $(this).find('td:first').text();
+		  SetButtonState('#btnViewScript','enable');
+		  SetButtonState('#btnDownloadScript','enable');
 		  SetButtonState('#btnDeleteScript','enable');
     });
 
@@ -70,7 +75,7 @@ require_once('config.php');
 
   });
 
-  function fillTabs() {
+  function GetAllFiles() {
 	GetFiles('Sequences');
 	GetFiles('Music');
 	GetFiles('Videos');
@@ -112,7 +117,7 @@ h2 {
 </style>
 </head>
 
-<body onload="fillTabs();">
+<body onload="GetAllFiles();">
 <div id="bodyWrapper">
 <?php	include 'menu.inc'; ?>
 <div id="fileManager">
@@ -138,7 +143,8 @@ h2 {
           </div>
           <hr />
           <div class='right'>
-            <input onclick="DeleteSequence();" id="btnDeleteSequence" class="disableButtons" type="button"  value="Delete" />
+            <input onclick= "DownloadFile('Sequences', SequenceNameSelected);" id="btnDownloadSequence" class="disableButtons" type="button"  value="Download" />
+            <input onclick="DeleteFile('Sequences', SequenceNameSelected);" id="btnDeleteSequence" class="disableButtons" type="button"  value="Delete" />
           </div>
           <br />
           <font size=-1>Sequence files must be in the Falcon Pi Player .fseq format and may be converted from various other sequencer formats using <a href='https://github.com/smeighan/xLights'>xLights</a> or <a href='https://github.com/pharhp/Light-Elf'>Light-Elf</a>.</font>
@@ -156,7 +162,8 @@ h2 {
           </div>
           <hr />
           <div class='right'>
-            <input onclick= "DeleteMusic();" id="btnDeleteMusic" class="disableButtons" type="button"  value="Delete" />
+            <input onclick= "DownloadFile('Music', SongNameSelected);" id="btnDownloadMusic" class="disableButtons" type="button"  value="Download" />
+            <input onclick= "DeleteFile('Music', SongNameSelected);" id="btnDeleteMusic" class="disableButtons" type="button"  value="Delete" />
           </div>
           <br />
           <font size=-1>Audio files must be in MP3 or OGG format.</font>
@@ -174,7 +181,8 @@ h2 {
           </div>
           <hr />
           <div class='right'>
-            <input onclick= "DeleteVideo();" id="btnDeleteVideo" class="disableButtons" type="button"  value="Delete" />
+            <input onclick= "DownloadFile('Videos', VideoNameSelected);" id="btnDownloadVideo" class="disableButtons" type="button"  value="Download" />
+            <input onclick= "DeleteFile('Videos', VideoNameSelected);" id="btnDeleteVideo" class="disableButtons" type="button"  value="Delete" />
           </div>
           <br />
           <font size=-1>Video files must be in .mp4 format.  H264 video and AAC or MP3 audio are preferred because the video can be hardware accelerated on the Pi.</font>
@@ -192,7 +200,8 @@ h2 {
           </div>
           <hr />
           <div class='right'>
-            <input onclick= "DeleteEffect();" id="btnDeleteEffect" class="disableButtons" type="button"  value="Delete" />
+            <input onclick= "DownloadFile('Effects', EffectNameSelected);" id="btnDownloadEffect" class="disableButtons" type="button"  value="Download" />
+            <input onclick= "DeleteFile('Effects', EffectNameSelected);" id="btnDeleteEffect" class="disableButtons" type="button"  value="Delete" />
           </div>
           <br />
           <font size=-1>Effects files are .fseq format files with an .eseq extension.  These special sequence files contain only the channels for a specific effect and always start at channel 1 in the sequence file.  The actual starting channel offset for the Effect is specified when you run it or configure the Effect in an Event.</font>
@@ -210,7 +219,9 @@ h2 {
           </div>
           <hr />
           <div class='right'>
-            <input onclick= "DeleteScript();" id="btnDeleteScript" class="disableButtons" type="button"  value="Delete" />
+            <input onclick= "ViewFile('Scripts', ScriptNameSelected);" id="btnViewScript" class="disableButtons" type="button"  value="View" />
+            <input onclick= "DownloadFile('Scripts', ScriptNameSelected);" id="btnDownloadScript" class="disableButtons" type="button"  value="Download" />
+            <input onclick= "DeleteFile('Scripts', ScriptNameSelected);" id="btnDeleteScript" class="disableButtons" type="button"  value="Delete" />
           </div>
           <br />
           <font size=-1>Scripts must have a .sh extension.  Scripts may be executed inside an event.  These might be used in a show to trigger an external action such as sending a message to a RDS capable FM transmitter or a non-DMX/Pixelnet LED sign.</font>
@@ -228,9 +239,9 @@ h2 {
           </div>
           <hr />
           <div class='right'>
-            <input onclick= "ViewLog();" id="btnViewLog" class="disableButtons" type="button"  value="View" />
-            <input onclick= "DownloadLog();" id="btnDownloadLog" class="disableButtons" type="button"  value="Download" />
-            <input onclick= "DeleteLog();" id="btnDeleteLog" class="disableButtons" type="button"  value="Delete" />
+            <input onclick= "ViewFile('Logs', LogFileSelected);" id="btnViewLog" class="disableButtons" type="button"  value="View" />
+            <input onclick= "DownloadFile('Logs', LogFileSelected);" id="btnDownloadLog" class="disableButtons" type="button"  value="Download" />
+            <input onclick= "DeleteFile('Logs', LogFileSelected);" id="btnDeleteLog" class="disableButtons" type="button"  value="Delete" />
           </div>
           <br />
           <font size=-1>FPP logs may be viewed or downloaded for submission with bug reports.</font>
@@ -248,44 +259,25 @@ h2 {
           </div>
           <hr />
           <div class='right'>
-            <input onclick= "DownloadUpload();" id="btnDownloadUpload" class="disableButtons" type="button"  value="Download" />
-            <input onclick= "DeleteUpload();" id="btnDeleteUpload" class="disableButtons" type="button"  value="Delete" />
+            <input onclick= "DownloadFile('Uploads', UploadFileSelected);" id="btnDownloadUpload" class="disableButtons" type="button"  value="Download" />
+            <input onclick= "DeleteFile('Uploads', UploadFileSelected);" id="btnDeleteUpload" class="disableButtons" type="button"  value="Delete" />
           </div>
           <br />
           <font size=-1>The upload directory is used as temporary storage when uploading media and sequencee files.  It is also used as permanent storage for other file formats which have no dedicated home.</font>
         </fieldset>
       </div>
     </div>
+    <div id='fileUploader' class='ui-tabs-panel'>
+      <fieldset class='fs'>
+        <legend> Upload Files </legend>
+        <div id='fileuploader'>Select Files</div>
+      </fieldset>
+    </div>
   </div>
-  <br />
-  <div class='title'>Upload Files</div>
-  <br />
-  <div id="uploader_div" > </div>
-  <script type="text/javascript">
-$('#uploader_div').ajaxupload({
-	url:'upload.php',
-	remotePath:'<?php global $mediaDirectory; echo $mediaDirectory; ?>/upload/',
-	removeOnSuccess: true,
-	maxFileSize:'10000M',
-	chunkSize:1048576,
-	success:	function(fileName){
-				moveFile(fileName);
-	},
-	finish: function()
-	{
-		GetFiles('Sequences');
-		GetFiles('Music');
-		GetFiles('Videos');
-		GetFiles('Effects');
-		GetFiles('Scripts');
-	},
-	allowExt:['mp3','ogg','fseq','eseq','mp4','sh']
-});
-</script> 
 </div>
-<div id='logViewer' title='Log Viewer' style="display: none">
+<div id='fileViewer' title='File Viewer' style="display: none">
   <pre>
-  <div id='logText'>
+  <div id='fileText'>
   </div>
   </pre>
 </div>
@@ -300,6 +292,32 @@ $('#uploader_div').ajaxupload({
 ?>;
 
     $("#tabs").tabs({cache: true, active: activeTabNumber, spinner: "", fx: { opacity: 'toggle', height: 'toggle' } });
+
+// jquery upload file
+$(document).ready(function()
+{
+	$("#fileuploader").uploadFile({
+		url:"/jqupload.php",
+		fileName:"myfile",
+		multiple: true,
+		autoSubmit: true,
+		returnType: "json",
+		doneStr: "Close",
+		dragdropWidth: '95%',
+		dragDropStr: "<span><b>Drag &amp; Drop or Select Files to upload</b></span>",
+		allowedTypes: "mp3,ogg,fseq,eseq,mp4,sh,pl,jpg,png,gif,jpeg,rgb",
+		onSuccess: function(files, data, xhr) {
+			for (var i = 0; i < files.length; i++) {
+				moveFile(files[i]);
+			}
+			GetAllFiles();
+		},
+		onError: function(files, status, errMsg) {
+			alert("Error uploading file");
+		},
+		});
+});
+
 </script>
 </body>
 </html>
