@@ -122,7 +122,7 @@ mkdir -p ${DSTBOOTPATH} ${DSTROOTPATH}
 
 if [ -f "${NEW_IMG}" ]
 then
-	rm ${NEW_IMG}
+	rm ${NEW_IMG} ${NEW_IMG}.xz
 fi
 
 dd bs=1024 if=/dev/zero of=${NEW_IMG} count=0 seek=$size
