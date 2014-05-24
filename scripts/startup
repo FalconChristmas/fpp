@@ -49,17 +49,17 @@ then
 	sleep 5;
 	mount -a;
 else
-	echo "Flash Media Mounted.";
-	if [ ! -d /home/pi/media/config ]
-	then
-		mkdir -p /home/pi/media/config
-		chown pi.pi /home/pi/media/config
-	fi
-	if [ ! -d /home/pi/media/logs ]
-	then
-		mkdir -p /home/pi/media/logs
-		chown pi.pi /home/pi/media/logs
-	fi
+	echo "Flash Media mounted, checking for required subdirectories.";
+	DIRS="config effects events logs music playlists scripts sequences upload videos"
+	for DIR in ${DIRS}
+	do
+		if [ ! -d /home/pi/media/${DIR} ]
+		then
+			mkdir -p /home/pi/media/${DIR}
+			chown pi.pi /home/pi/media/${DIR}
+		fi
+	done
+
 	break
 fi
 done
