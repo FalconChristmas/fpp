@@ -77,16 +77,18 @@ int main(int argc, char *argv[])
 
 	Command_Initialize();
 
-	InitEffects();
-
-	InitializeChannelDataMemoryMap();
-
 	if (getFPPmode() == PLAYER_MODE)
 	{
+		InitEffects();
+		InitializeChannelDataMemoryMap();
+
 		SendBlankingData();
 
 		LogInfo(VB_GENERAL, "Starting Player Process\n");
 		PlayerProcess();
+
+		CloseChannelDataMemoryMap();
+		CloseEffects();
 	}
 	else if (getFPPmode() == BRIDGE_MODE)
 	{
@@ -97,10 +99,6 @@ int main(int argc, char *argv[])
 	{
 		LogErr(VB_GENERAL, "Invalid mode, quitting\n");
 	}
-
-	CloseChannelDataMemoryMap();
-
-	CloseEffects();
 
 	CloseChannelOutputs();
 
@@ -145,7 +143,9 @@ void PlayerProcess(void)
         break;
     }
 
-	if (!ChannelOutputThreadIsRunning() && UsingMemoryMapInput())
+	if ((getFPPmode() == PLAYER_MODE) &&
+		(!ChannelOutputThreadIsRunning()) &&
+		(UsingMemoryMapInput()))
 		StartChannelOutputThread();
   }
 
