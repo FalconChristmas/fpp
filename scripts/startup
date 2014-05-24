@@ -66,7 +66,15 @@ done
 
 sysctl net/ipv4/igmp_max_memberships=150
 /usr/local/bin/gpio load spi 100
-setterm -blank 1
+
+SCREENSAVER=$(getSetting screensaver)
+if [ "x${SCREENSAVER}" = "x1" ]
+then
+	setterm -blank 1
+else
+	setterm -blank 0
+fi
+
 # mpg123 ${FPPDIR}/bin/silence.mp3 > /dev/null
 
 sed -e "s#FPPDIR#${FPPDIR}#g" < ${FPPDIR}/etc/apache2.site > /etc/apache2/sites-available/default

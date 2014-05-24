@@ -98,7 +98,11 @@ DEVELOPMENT:
 <legend>FPP Global Settings</legend>
   <table table width = "100%">
     <tr>
-      <td width = "25%">PI 2x16 LCD Enabled:</td>
+      <td width = "25%">Blank screen on startup:</td>
+      <td width = "75%"><? PrintSettingCheckbox("Screensaver", "screensaver", "1", "0"); ?></td>
+    </tr>
+    <tr>
+      <td width = "25%">Pi 2x16 LCD Enabled:</td>
       <td width = "75%"><input type="checkbox" id="chkPiLCDenabled" value="1" <?php echo piLCDenabledChecked();?>></td>
     </tr>
     <tr>
