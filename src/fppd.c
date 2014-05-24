@@ -145,9 +145,7 @@ void PlayerProcess(void)
         break;
     }
 
-	// Check to see if we need to start up the output thread.
-	// FIXME, possibly trigger this via a fpp command to fppd
-	if (UsingMemoryMapInput() && !ChannelOutputThreadIsRunning())
+	if (!ChannelOutputThreadIsRunning() && UsingMemoryMapInput())
 		StartChannelOutputThread();
   }
 

@@ -153,9 +153,21 @@ void CloseChannelDataMemoryMap(void) {
 inline
 #endif
 int UsingMemoryMapInput(void) {
-	if ((ctrlHeader) &&
-		(ctrlHeader->totalBlocks || ctrlHeader->testMode))
+	if (!ctrlHeader)
+		return 0;
+
+	if (ctrlHeader->testMode)
 		return 1;
+
+	FPPChannelMemoryMapControlBlock *cb =
+		(FPPChannelMemoryMapControlBlock*)(ctrlMap +
+			sizeof(FPPChannelMemoryMapControlHeader));
+
+	int i = 0;
+	for (i = 0; i < ctrlHeader->totalBlocks; i++, cb++) {
+		if (cb->isActive)
+			return 1;
+	}
 
 	return 0;
 }

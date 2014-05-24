@@ -64,6 +64,7 @@ void *RunChannelOutputThread(void *data)
 	long long startTime;
 	long long sendTime;
 	long long readTime;
+	int onceMore = 0;
 	struct timespec ts;
 
 	ThreadIsRunning = 1;
@@ -79,6 +80,8 @@ void *RunChannelOutputThread(void *data)
 			(IsEffectRunning()) ||
 			(UsingMemoryMapInput()))
 		{
+			onceMore = 1;
+
 			if (startTime > (lastStatTime + 1000000)) {
 				int sleepTime = LightDelay - (GetTime() - startTime);
 				lastStatTime = startTime;
@@ -87,17 +90,21 @@ void *RunChannelOutputThread(void *data)
 					LightDelay, sendTime - startTime,
 					readTime - sendTime, sleepTime);
 			}
-
-			ts.tv_sec = 0;
-			ts.tv_nsec = (LightDelay - (GetTime() - startTime)) * 1000;
-
-			nanosleep(&ts, NULL);
 		}
 		else
 		{
-			RunThread = 0;
 			LightDelay = DefaultLightDelay;
+
+			if (onceMore)
+				onceMore = 0;
+			else
+				RunThread = 0;
 		}
+
+		ts.tv_sec = 0;
+		ts.tv_nsec = (LightDelay - (GetTime() - startTime)) * 1000;
+
+		nanosleep(&ts, NULL);
 	}
 
 	ThreadIsRunning = 0;
