@@ -1,0 +1,37 @@
+#!/bin/bash
+
+#############################################################################
+# Get a list of all interfaces using dhclient to get an IP and
+# waits for them to all recieve IPs.  If any interface does not
+# have an IP, then the function will sleep for a little while
+# and then jump back to the top of the loop to check again.
+WaitForDHCPIPs() {
+	DHCP_INTERFACES="$(ps auxw | grep "dhclient\.\([a-z0-9]*\)\.pid" | grep -v grep | sed -e 's/.*client\.\([a-z0-9]*\)\.pid.*/\1/')"
+	SLEEPTIME=5
+
+	# Loop up to 10 times, so max wait time is 10 * ${SLEEPTIME}
+	echo "Waiting for DHCP to receive IP addresses: ${DHCP_INTERFACES}"
+ps -edaf > /var/tmp/wait.log
+	for i in {1..10}
+	do
+		IP=""
+		for INTERFACE in ${DHCP_INTERFACES}
+		do
+			IP=$(ifconfig ${INTERFACE} | grep "inet " | sed -e "s/addr://" | awk '{print $2}')
+			if [ -z "${IP}" ]
+			then
+				echo "${INTERFACE} does not have an IP, waiting for ${SLEEPTIME} seconds"
+				sleep ${SLEEPTIME}
+				continue
+			fi
+		done
+		if [ -z "${IP}" ]
+		then
+			continue
+		fi
+
+		break
+	done
+}
+
+#############################################################################
