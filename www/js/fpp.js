@@ -15,6 +15,7 @@ function PopulateLists()
 	PopulatePlaylists("playList");
 	var firstPlaylist = document.getElementById("playlist0").innerHTML;
 	PopulatePlayListEntries(firstPlaylist,true);
+	PlaylistTypeChanged();
 }
 
 function PopulatePlaylists(element)

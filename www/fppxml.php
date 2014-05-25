@@ -1582,9 +1582,11 @@ function LoadPlayListDetails($file)
 	$f=fopen($playlistDirectory . '/' . $file, "rx") or exit("Unable to open file! : " . $playlistDirectory . '/' . $file);
 	$i=0;
 	$line=fgets($f);
-	$entry = explode(",",$line,50);
-	$_SESSION['playlist_first']=$entry[0];
-	$_SESSION['playlist_last']=$entry[1];
+	if(strlen($line)) {
+		$entry = explode(",",$line,50);
+		$_SESSION['playlist_first']=$entry[0];
+		$_SESSION['playlist_last']=$entry[1];
+	}
 	while (!feof($f))
 	{
 		$line=fgets($f);
@@ -1649,8 +1651,13 @@ function LoadPlayListDetails($file)
 				$videoFile = "";
 				$eventID = $entry[1];
 
-				$eventInfo = parse_ini_file($eventDirectory . "/" . $eventID . ".fevt");
-				$eventName = $eventInfo['name'];
+				$eventFile = $eventDirectory . "/" . $eventID . ".fevt";
+				if ( file_exists($eventFile)) {
+					$eventInfo = parse_ini_file($eventFile);
+					$eventName = $eventInfo['name'];
+				} else {
+					$eventName = "ERROR: Event undefined";
+				}
 				break;
 		}
 		$playListEntries[$i] = new PlaylistEntry($type,$songFile,$seqFile,$pause,$videoFile,$eventName,$eventID,$index);

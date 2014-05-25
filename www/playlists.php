@@ -222,7 +222,7 @@ $(document).ready(function () {
     <div style="float: left; width: 400px; padding: 5px; background: #f9f9f9; ; margin-left: 60px; border: 1px solid #ccc;  margin-top: 5px;">
           <form>
         New Playlist: <br/>
-        <input id="txtNewPlaylistName" class="default-value" type="text" value="Enter Playlist Name" size="30" maxlength="32" />
+        <input id="txtNewPlaylistName" class="default-value" type="text" value="Enter Playlist Name" size="30" maxlength="32" onChange='AddNewPlaylist();'/>
         <input id="btnNew" onclick="AddNewPlaylist();" type="button" class="buttons" value="Add" />
       </form>
         </div>
