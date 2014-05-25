@@ -37,7 +37,7 @@ Make the kernel config and build the kernel:
 
 Build the rasclock module by changing to the directory containing this
 README.txt file and run "make".  This will download the rasclock source
-and compile the kernel module leaving you with a 'rtc-pfc2127a.ko' kernel
+and compile the kernel module leaving you with a 'rtc-pcf2127a.ko' kernel
 module in the same directory.  If you installed the kernel source in a
 different directrory other than ~/src/pi/linux, then you will need to edit
 the Makefile to provide the correct location in the LINUX_DIR variable.
@@ -46,19 +46,19 @@ the Makefile to provide the correct location in the LINUX_DIR variable.
 
 Copy the kernel module to the Pi:
 
-	scp rtc-pfc2127a.ko pi@fpp:./
+	scp rtc-pcf2127a.ko pi@fpp:./
 
 ssh to the Pi and copy the module to the lib/modules directory.  This example
-shows the 3.10.37+ kernel directory which was the latest at the time of the
+shows the 3.10.38+ kernel directory which was the latest at the time of the
 writing of this document.
 
 	ssh pi@fpp
-	sudo cp rtc-pfc2127a.ko /lib/modules/3.10.37+/kernel/drivers/rtc/
+	sudo cp rtc-pcf2127a.ko /lib/modules/3.10.38+/kernel/drivers/rtc/
 
 Test load the module while still logged into the Pi:
 
 	sudo depmod -a
-	sudo modprobe rtc-pfc2127a
+	sudo modprobe rtc-pcf2127a
 
 If all is well, log out of the Pi and clean the temporary files from the
 rasclock build directory:
