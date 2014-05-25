@@ -29,6 +29,7 @@
   - mp3info
   - libconvert-binary-c-perl
   - build-essential
+  - libtagc0-dev
 
 - Create user 'pi' in group 'pi' with UID/GID of 1000/1000
 
