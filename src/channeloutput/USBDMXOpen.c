@@ -114,6 +114,14 @@ int USBDMXOpen_Open(char *configStr, void **privDataPtr) {
 		return 0;
 	}
 
+	if (SerialResetRTS(privData->fd) != 0)
+	{
+		free(privData);
+		LogErr(VB_CHANNELOUT, "Error %d resetting RTS on %s: %s\n",
+			errno, privData->filename, strerror(errno));
+		return 0;
+	}
+
 	USBDMXOpen_Dump(privData);
 
 	*privDataPtr = privData;

@@ -184,3 +184,15 @@ int SerialSendBreak(int fd, int duration)
 	return 0;
 }
 
+int SerialResetRTS(int fd)
+{
+	int CtrlFlag = TIOCM_RTS;
+	if (ioctl(fd, TIOCMBIC, &CtrlFlag ) < 0)
+	{
+		LogErr(VB_CHANNELOUT, "Error clearing RTS \n");
+		return -1;
+	}
+
+	return 0;
+}
+

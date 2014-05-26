@@ -29,5 +29,6 @@
 int SerialOpen(char *device, int baud, char *mode);
 int SerialClose(int fd);
 int SerialSendBreak(int fd, int duration);
+int SerialResetRTS(int fd);
 
 #endif /* _SERIALUTIL_H */
