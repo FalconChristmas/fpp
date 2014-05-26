@@ -69,6 +69,7 @@ a:visited {
         Tony Mace (MyKroFt)<br />
         Mathew Mrosko (Materdaddy)<br />
         Chris Pinkham (CaptainMurdoch)<br />
+        Stephane Legargeant (ihbar)<br />
 		<br />
         <hr width=300 />
 		<br />
