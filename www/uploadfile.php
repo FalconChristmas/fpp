@@ -174,7 +174,7 @@ h2 {
     <div id="tab-video">
       <div id= "divVideo">
         <fieldset  class="fs">
-          <legend> Video Files (.mp4) </legend>
+          <legend> Video Files (.mp4/.mkv) </legend>
           <div id="divVideoData">
             <table id="tblVideos">
             </table>
@@ -185,7 +185,7 @@ h2 {
             <input onclick= "DeleteFile('Videos', VideoNameSelected);" id="btnDeleteVideo" class="disableButtons" type="button"  value="Delete" />
           </div>
           <br />
-          <font size=-1>Video files must be in .mp4 format.  H264 video and AAC or MP3 audio are preferred because the video can be hardware accelerated on the Pi.</font>
+          <font size=-1>Video files must be in .mp4 or .mkv format.  H264 video and AAC or MP3 audio are preferred because the video can be hardware accelerated on the Pi.</font>
         </fieldset>
       </div>
     </div>
@@ -305,7 +305,7 @@ $(document).ready(function()
 		doneStr: "Close",
 		dragdropWidth: '95%',
 		dragDropStr: "<span><b>Drag &amp; Drop or Select Files to upload</b></span>",
-		allowedTypes: "mp3,ogg,fseq,eseq,mp4,sh,pl,jpg,png,gif,jpeg,rgb",
+		allowedTypes: "mp3,ogg,fseq,eseq,mp4,mkv,sh,pl,jpg,png,gif,jpeg,rgb",
 		onSuccess: function(files, data, xhr) {
 			for (var i = 0; i < files.length; i++) {
 				moveFile(files[i]);

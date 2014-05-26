@@ -265,7 +265,8 @@ int omxplayer_CanHandle(const char *filename) {
 	if (len < 4)
 		return 0;
 
-	if (!strcasecmp(filename + len - 4, ".mp4"))
+	if ((!strcasecmp(filename + len - 4, ".mp4")) ||
+		(!strcasecmp(filename + len - 4, ".mkv")))
 		return 1;
 
 	return 0;

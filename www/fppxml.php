@@ -309,7 +309,7 @@ function MoveFile()
 				exit(1);
 			}
 		}
-		else if (preg_match("/\.(mp4)$/i", $file))
+		else if (preg_match("/\.(mp4|mkv)$/i", $file))
 		{
 			if ( !rename($mediaDirectory."/upload/" . $file, $videoDirectory . '/' . $file) )
 			{
