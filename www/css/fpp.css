@@ -590,7 +590,7 @@ fieldset
 	height: 60px;
 }
 
-#fileManager, #channelOutputManager {
+#fileManager, #channelOutputManager, .fppTabs {
 	min-width: 768px;
 	width: 768px;
 	margin-left: auto;
