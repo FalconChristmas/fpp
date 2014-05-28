@@ -23,6 +23,7 @@
 - Install PHP-APC
 - CPAN Modules
   - File::Map  (memory mapped file access for channel blocks)
+  - Net::WebSocket::Server (and dependencies)
 - Packages Installed
   - imagemagick
   - perlmagick
@@ -30,6 +31,7 @@
   - libconvert-binary-c-perl
   - build-essential
   - libtagc0-dev
+  - libjson-perl
 
 - Create user 'pi' in group 'pi' with UID/GID of 1000/1000
 
