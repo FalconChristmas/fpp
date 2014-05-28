@@ -12,10 +12,11 @@ gblCurrentLoadedPlaylistCount = 0;
 
 function PopulateLists()
 {
-	PopulatePlaylists("playList");
-	var firstPlaylist = document.getElementById("playlist0").innerHTML;
-	PopulatePlayListEntries(firstPlaylist,true);
 	PlaylistTypeChanged();
+	PopulatePlaylists("playList");
+	var firstPlaylist = $('#playlist0').html();
+	if (firstPlaylist != undefined)
+		PopulatePlayListEntries(firstPlaylist,true);
 }
 
 function PopulatePlaylists(element)
@@ -363,9 +364,10 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 		function AddNewPlaylist()
 		{
 			var name=document.getElementById("txtNewPlaylistName");
+			var plName = name.value.replace(/ /,'_');
 
     	var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=addPlayList&pl=" + name.value;
+			var url = "fppxml.php?command=addPlayList&pl=" + plName;
 			xmlhttp.open("GET",url,false);
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
 	 
@@ -375,8 +377,8 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 					var xmlDoc=xmlhttp.responseXML; 
 					var productList = xmlDoc.getElementsByTagName('Music')[0];
 					PopulatePlaylists('playList');
-					PopulatePlayListEntries(name.value,true);
-					$('#txtName').val(name.value);
+					PopulatePlayListEntries(plName,true);
+					$('#txtName').val(plName);
 					$('#txtName').focus()
 					$('#txtName').select()
 					
