@@ -82,10 +82,14 @@ void InitPluginCallbacks(void)
 			strcat(long_filename, ep->d_name);
 			strcat(long_filename, "/callbacks");
 
+			LogDebug(VB_PLUGIN, "Found Plugin: (%s)\n", ep->d_name);
+
 			if (!FileExists(long_filename))
 			{
 				LogExcess(VB_PLUGIN, "No callbacks supported by this plugin\n");
 			}
+
+			LogDebug(VB_PLUGIN, "Processing Callbacks for %s plugin\n", ep->d_name);
 
 			if (pipe(output_pipe) == -1)
 			{
@@ -102,7 +106,7 @@ void InitPluginCallbacks(void)
 			if ( pid == 0 )
 			{
 				dup2(output_pipe[1], STDOUT_FILENO);
-				close(output_pipe[0]);
+				close(output_pipe[1]);
 				execl(long_filename, "callbacks", "--list", NULL);
 			}
 			else

@@ -165,6 +165,8 @@ int SetLogMask(char *newMask)
 			logMask |= VB_SYNC;
 		} else if (!strcmp(s, "control")) {
 			logMask |= VB_CONTROL;
+		} else if (!strcmp(s, "plugin")) {
+			logMask |= VB_PLUGIN;
 		} else {
 			LogErr(VB_SETTING, "Unknown Log Mask: %s\n", s);
 			return 0;

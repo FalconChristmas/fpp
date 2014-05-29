@@ -65,11 +65,11 @@ int main(int argc, char *argv[])
 
 	printSettings();
 
-	InitPluginCallbacks();
-
 	// Start functioning
 	if (getDaemonize())
 	    CreateDaemon();
+
+	InitPluginCallbacks();
 
 	CheckExistanceOfDirectoriesAndFiles();
 
@@ -156,6 +156,7 @@ void PlayerProcess(void)
 
 void CreateDaemon(void)
 {
+  /* Fork and terminate parent so we can run in the background */
   /* Fork off the parent process */
   pid = fork();
   if (pid < 0) {
@@ -175,6 +176,18 @@ void CreateDaemon(void)
   if (sid < 0) {
           /* Log any failures here */
           exit(EXIT_FAILURE);
+  }
+
+  /* Fork a second time to get rid of session leader */
+  /* Fork off the parent process */
+  pid = fork();
+  if (pid < 0) {
+          exit(EXIT_FAILURE);
+  }
+  /* If we got a good PID, then
+      we can exit the parent process. */
+  if (pid > 0) {
+          exit(EXIT_SUCCESS);
   }
 
   /* Close out the standard file descriptors */
