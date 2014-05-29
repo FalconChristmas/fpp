@@ -161,7 +161,7 @@ void InitPluginCallbacks(void)
 	}
 	else
 	{
-		LogWarn(VB_PLUGIN, "Couldn't open the directory: (%d): %s\n", errno, strerror(errno));
+		LogWarn(VB_PLUGIN, "Couldn't open the directory %s: (%d): %s\n", plugin_dir, errno, strerror(errno));
 	}
 
 	return;
