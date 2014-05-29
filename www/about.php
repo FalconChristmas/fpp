@@ -326,6 +326,12 @@ a:visited {
       </div>
     <div class="clear"></div>
     </fieldset>
+    <div id='logViewer' title='Log Viewer' style="display: none">
+      <pre>
+        <div id='logText'>
+        </div>
+      </pre>
+    </div>
   </div>
 </div>
   <?php include 'common/footer.inc'; ?>
