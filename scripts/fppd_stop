@@ -2,9 +2,14 @@
 
 BINDIR=$(dirname $0)
 . ${BINDIR}/common
+. ${BINDIR}/functions
 
 logOutput
 
+runPreStopPluginScripts
+
 echo "Stopping fppd"
 killall -9 fppd
+
+runPostStopPluginScripts
 

@@ -35,3 +35,39 @@ ps -edaf > /var/tmp/wait.log
 }
 
 #############################################################################
+# Helper scripts for running the Plugin pre/post start/stop scripts.
+# These are normally run from fppd_start and fppd_stop
+runPreStartPluginScripts() {
+	/bin/ls -1 ${PLUGINDIR}/*/scripts/preStart.sh 2> /dev/null | while read FILE
+	do
+		echo "Running: ${FILE}"
+		/bin/bash ${FILE}
+	done
+}
+
+runPostStartPluginScripts() {
+	/bin/ls -1 ${PLUGINDIR}/*/scripts/postStart.sh 2> /dev/null | while read FILE
+	do
+		echo "Running: ${FILE}"
+		/bin/bash ${FILE}
+	done
+}
+
+runPreStopPluginScripts() {
+	/bin/ls -1 ${PLUGINDIR}/*/scripts/preStop.sh 2> /dev/null | while read FILE
+	do
+		echo "Running: ${FILE}"
+		/bin/bash ${FILE}
+	done
+}
+
+runPostStopPluginScripts() {
+	/bin/ls -1 ${PLUGINDIR}/*/scripts/postStop.sh 2> /dev/null | while read FILE
+	do
+		echo "Running: ${FILE}"
+		/bin/bash ${FILE}
+	done
+}
+
+#############################################################################
+
