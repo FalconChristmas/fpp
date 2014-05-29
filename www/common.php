@@ -36,7 +36,7 @@ function WriteSettingToFile($settingName, $setting)
 	$settings = file_get_contents($settingsFile);
 	if ( !empty($settings) )
 	{
-		if (preg_match("/^" . $settingName . "/m", $settings))
+		if (preg_match("/^" . $settingName . "\s*=/m", $settings))
 		{
 			$settings = preg_replace("/^" . $settingName . "\s*=\s*\S*\w*/m", $settingName . " = " . $setting . "\n", $settings);
 		}

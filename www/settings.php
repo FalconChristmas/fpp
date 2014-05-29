@@ -28,9 +28,13 @@ $(document).ready(function(){
 
   $('#LogLevel').val(settings['LogLevel']);
 
-  var logMasks = settings['LogMask'].split(",");
+  var logMasks = Array();
+
+  if (typeof settings['LogMask'] !== 'undefined')
+    logMasks = settings['LogMask'].split(",");
+
   for (var i = 0; i < logMasks.length; i++) {
-    $('#LogMask input.mask_' + logMasks[i]).attr('checked', true);
+    $('#LogMask input.mask_' + logMasks[i]).prop('checked', true);
   }
 });
 
@@ -50,7 +54,7 @@ $(function() {
 	$('#LogMask input').change(function() {
 			var newValue = "";
 			$('#LogMask input').each(function() {
-					if ($(this).is(':checked')) {
+					if ($(this).is(':checked', true)) {
 						if (newValue != "") {
 							newValue += ",";
 						}
