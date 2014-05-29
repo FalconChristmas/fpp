@@ -140,9 +140,13 @@ function GetChannelMemMaps()
 		$memmap = explode(",",$line,10);
 
 		$elem = Array();
-		$elem['BlockName']    = $memmap[0];
-		$elem['StartChannel'] = $memmap[1];
-		$elem['ChannelCount'] = $memmap[2];
+		$elem['BlockName']        = $memmap[0];
+		$elem['StartChannel']     = $memmap[1];
+		$elem['ChannelCount']     = $memmap[2];
+		$elem['Orientation']      = $memmap[3];
+		$elem['StartCorner']      = $memmap[4];
+		$elem['StringCount']      = $memmap[5];
+		$elem['StrandsPerString'] = $memmap[6];
 
 		$result[] = $elem;
 	}
@@ -168,9 +172,11 @@ function SetChannelMemMaps()
 	}
 
 	foreach ($data as $memmap) {
-		fprintf($f, "%s,%d,%d\n",
+		fprintf($f, "%s,%d,%d,%s,%s,%d,%d\n",
 			$memmap['BlockName'], $memmap['StartChannel'],
-			$memmap['ChannelCount']);
+			$memmap['ChannelCount'], $memmap['Orientation'],
+			$memmap['StartCorner'], $memmap['StringCount'],
+			$memmap['StrandsPerString']);
 	}
 	fclose($f);
 

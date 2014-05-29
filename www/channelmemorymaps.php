@@ -7,6 +7,48 @@ require_once("common.php");
 <?php include 'common/menuHead.inc'; ?>
 <script language="Javascript">
 
+function GetOrientationInput(currentValue) {
+	var options = {
+		horizontal: "Horizontal",
+		vertical:   "Vertical"
+		};
+	var str = "<select class='orientation'>";
+
+	for (var key in options) {
+		str += "<option value='" + key + "'";
+		if (currentValue == key)
+			str += "selected";
+
+		str += ">" + options[key] + "</option>";
+	}
+
+	str += "</select>";
+
+	return str;
+}
+
+function GetStartingCornerInput(currentValue) {
+	var options = {
+		TL: "Top Left",
+		TR: "Top Right",
+		BL: "Bottom Left",
+		BR: "Bottom Right"
+		};
+	var str = "<select class='corner'>";
+
+	for (var key in options) {
+		str += "<option value='" + key + "'";
+		if (currentValue == key)
+			str += "selected";
+
+		str += ">" + options[key] + "</option>";
+	}
+
+	str += "</select>";
+
+	return str;
+}
+
 function PopulateChannelMemMapTable(data) {
 	$('#channelMemMaps tbody').html("");
 
@@ -15,6 +57,10 @@ function PopulateChannelMemMapTable(data) {
 			"<td><input class='blk' type='text' size='31' maxlength='31' value='" + data[i].BlockName + "'></td>" +
 			"<td><input class='start' type='text' size='6' maxlength='6' value='" + data[i].StartChannel + "'></td>" +
 			"<td><input class='cnt' type='text' size='6' maxlength='6' value='" + data[i].ChannelCount + "'></td>" +
+			"<td>" + GetOrientationInput(data[i].Orientation) + "</td>" +
+			"<td>" + GetStartingCornerInput(data[i].StartCorner) + "</td>" +
+			"<td><input class='strcnt' type='text' size='3' maxlength='3' value='" + data[i].StringCount + "'></td>" +
+			"<td><input class='strands' type='text' size='2' maxlength='2' value='" + data[i].StrandsPerString + "'></td>" +
 			"</tr>");
 	}
 }
@@ -35,12 +81,18 @@ function SetChannelMemMaps() {
 		var memmap = {
 			BlockName: $this.find("input.blk").val(),
 			StartChannel: $this.find("input.start").val(),
-			ChannelCount: $this.find("input.cnt").val()
+			ChannelCount: $this.find("input.cnt").val(),
+			Orientation: $this.find("select.orientation").val(),
+			StartCorner: $this.find("select.corner").val(),
+			StringCount: $this.find("input.strcnt").val(),
+			StrandsPerString: $this.find("input.strands").val()
 			};
 
 		if ((memmap.BlockName != "") &&
 			(parseInt(memmap.StartChannel) > 0) &&
-			(parseInt(memmap.ChannelCount) > 0))
+			(parseInt(memmap.ChannelCount) > 0) &&
+			(parseInt(memmap.StringCount) > 0) &&
+			(parseInt(memmap.StrandsPerString) > 0))
 		{
 			if (postData != "") {
 				postData += ", ";
@@ -49,6 +101,7 @@ function SetChannelMemMaps() {
 			postData += JSON.stringify(memmap);
 		} else {
 			dataError = 1;
+			// FIXME, put in some more info here, highlight bad field, etc.
 			alert("MemMap '" + memmap.BlockName + "' starting at channel '" + memmap.StartChannel + "' containing '" + memmap.ChannelCount + "' channel(s) is not valid.");
 			return;
 		}
@@ -74,6 +127,10 @@ function AddNewMemMap() {
 			"<td><input class='blk' type='text' size='31' maxlength='31' value=''></td>" +
 			"<td><input class='start' type='text' size='6' maxlength='6' value=''></td>" +
 			"<td><input class='cnt' type='text' size='6' maxlength='6' value=''></td>" +
+			"<td>" + GetOrientationInput('') + "</td>" +
+			"<td>" + GetStartingCornerInput('') + "</td>" +
+			"<td><input class='strcnt' type='text' size='3' maxlength='3' value='1'></td>" +
+			"<td><input class='strands' type='text' size='2' maxlength='2' value='1'></td>" +
 			"</tr>");
 }
 
@@ -123,9 +180,13 @@ $(document).tooltip();
 					<table id="channelMemMaps">
 						<thead>
 							<tr class="fppTableHeader">
-								<th>Block Name</td>
-								<th>Start</td>
-								<th>Count</td>
+								<th title='Name of Block'>Block Name</td>
+								<th title='Start Channel'>Start</td>
+								<th title='Channel Count'>Count</td>
+								<th title='String Orientation'>Orientation</td>
+								<th title='Starting Corner'>Start Corner</td>
+								<th title='Number of Strings'>Strings</td>
+								<th title='Number of Strands Per String'>Strands</td>
 							</tr>
 						</thead>
 						<tbody>
@@ -143,5 +204,14 @@ $(document).tooltip();
 	</div>
 
 	<?php	include 'common/footer.inc'; ?>
+
+<script language="Javascript">
+	$('#channelMemMaps').tooltip({
+		content: function() {
+			return $(this).attr('title');
+		}
+	});
+</script>
+
 </body>
 </html>

@@ -45,6 +45,8 @@ char         *chanDataMap;
 int           chanDataMapFD = -1;
 char         *ctrlMap;
 int           ctrlFD = -1;
+short        *pixelMap;
+int           pixelFD = -1;
 
 FPPChannelMemoryMapControlHeader *ctrlHeader = NULL;
 
@@ -58,9 +60,11 @@ int LoadChannelMemoryMapData(void);
 int InitializeChannelDataMemoryMap(void) {
 	int  i  = 0;
 	char ch = '\0';
+	short pixelLocation = 0;
 
 	LogDebug(VB_CHANNELOUT, "InitializeChannelDataMemoryMap()\n");
 
+	// Block of of raw channel data used to overlay data
 	chanDataMapFD =
 		open(FPPCHANNELMEMORYMAPDATAFILE, O_CREAT | O_TRUNC | O_RDWR, 0666);
 
@@ -76,7 +80,7 @@ int InitializeChannelDataMemoryMap(void) {
 		if (write(chanDataMapFD, &ch, 1) != 1) {
 			LogErr(VB_CHANNELOUT, "Error populating %s memory map file: %s\n",
 				FPPCHANNELMEMORYMAPDATAFILE, strerror(errno));
-			close(chanDataMapFD);
+			CloseChannelDataMemoryMap();
 			return -1;
 		}
 	}
@@ -86,10 +90,11 @@ int InitializeChannelDataMemoryMap(void) {
 	if (!chanDataMap) {
 		LogErr(VB_CHANNELOUT, "Error mapping %s memory map file: %s\n",
 			FPPCHANNELMEMORYMAPDATAFILE, strerror(errno));
-		close(chanDataMapFD);
+		CloseChannelDataMemoryMap();
 		return -1;
 	}
 
+	// Control file to turn on/off blocks and get block info
 	ctrlFD = open(FPPCHANNELMEMORYMAPCTRLFILE, O_CREAT | O_TRUNC | O_RDWR, 0666);
 
 	if (ctrlFD < 0) {
@@ -121,6 +126,40 @@ int InitializeChannelDataMemoryMap(void) {
 
 	ctrlHeader = (FPPChannelMemoryMapControlHeader *)ctrlMap;
 
+	// Pixel Map to map channels to matrix positions
+	pixelFD =
+		open(FPPCHANNELMEMORYMAPPIXELFILE, O_CREAT | O_TRUNC | O_RDWR, 0666);
+
+	if (pixelFD < 0) {
+		LogErr(VB_CHANNELOUT, "Error opening %s memory map file: %s\n",
+			FPPCHANNELMEMORYMAPPIXELFILE, strerror(errno));
+		CloseChannelDataMemoryMap();
+		return -1;
+	}
+
+	chmod(FPPCHANNELMEMORYMAPPIXELFILE, 0666);
+
+	for (i = 0; i < FPPD_MAX_CHANNELS; i++) {
+		pixelLocation = i;
+		if (write(pixelFD, &pixelLocation, sizeof(short)) != sizeof(short)) {
+			LogErr(VB_CHANNELOUT, "Error populating %s memory map file: %s\n",
+				FPPCHANNELMEMORYMAPPIXELFILE, strerror(errno));
+			CloseChannelDataMemoryMap();
+			return -1;
+		}
+	}
+
+	pixelMap = (short *)mmap(0, FPPD_MAX_CHANNELS * sizeof(short), PROT_READ|PROT_WRITE, MAP_SHARED, pixelFD, 0);
+
+	if (!pixelMap) {
+		LogErr(VB_CHANNELOUT, "Error mapping %s memory map file: %s\n",
+			FPPCHANNELMEMORYMAPPIXELFILE, strerror(errno));
+		CloseChannelDataMemoryMap();
+		return -1;
+	}
+
+
+	// Load the config
 	LoadChannelMemoryMapData();
 
 	if (ctrlHeader->totalBlocks)
@@ -139,11 +178,22 @@ void CloseChannelDataMemoryMap(void) {
 		munmap(chanDataMap, FPPD_MAX_CHANNELS);
 		close(chanDataMapFD);
 	}
+	chanDataMapFD = -1;
+	chanDataMap   = NULL;
 
 	if (ctrlFD) {
 		munmap(ctrlMap, FPPCHANNELMEMORYMAPSIZE);
 		close(ctrlFD);
 	}
+	ctrlFD  = -1;
+	ctrlMap = NULL;
+
+	if (pixelFD) {
+		munmap(pixelMap, FPPD_MAX_CHANNELS * sizeof(long));
+		close(pixelFD);
+	}
+	pixelFD  = -1;
+	pixelMap = NULL;
 }
 
 /*
@@ -216,10 +266,93 @@ void PrintChannelMapBlocks(void) {
 		ctrlHeader->totalBlocks);
 
 	for (i = 0; i < ctrlHeader->totalBlocks; i++, cb++) {
-		LogInfo(VB_CHANNELOUT, "Block %3d Name    : %s\n", i, cb->blockName);
-		LogInfo(VB_CHANNELOUT, "Block %3d Start Ch: %d\n", i, cb->startChannel);
-		LogInfo(VB_CHANNELOUT, "Block %3d Ch Count: %d\n", i, cb->channelCount);
+		LogInfo(VB_CHANNELOUT, "Block %3d Name         : %s\n", i, cb->blockName);
+		LogInfo(VB_CHANNELOUT, "Block %3d Start Channel: %d\n", i, cb->startChannel);
+		LogInfo(VB_CHANNELOUT, "Block %3d Channel Count: %d\n", i, cb->channelCount);
+		LogInfo(VB_CHANNELOUT, "Block %3d Orientation  : %c\n", i, cb->orientation);
+		LogInfo(VB_CHANNELOUT, "Block %3d Start Corner : %s\n", i, cb->startCorner);
+		LogInfo(VB_CHANNELOUT, "Block %3d String Count : %d\n", i, cb->stringCount);
+		LogInfo(VB_CHANNELOUT, "Block %3d Strand Count : %d\n", i, cb->strandsPerString);
 	}
+}
+
+/*
+ * Setup the pixel map for this channel block
+ */
+void SetupPixelMapForBlock(FPPChannelMemoryMapControlBlock *cb) {
+	int TtoB = (cb->startCorner[0] == 'T') ? 1 : 0;
+	int LtoR = (cb->startCorner[1] == 'L') ? 1 : 0;
+	int stringSize = cb->channelCount / 3 / cb->stringCount;
+	int width = stringSize / cb->strandsPerString;
+	int height = cb->channelCount / 3 / width;
+
+	LogInfo(VB_CHANNELOUT, "Initializing Channel Memory Map Pixel Map\n");
+
+	if (cb->orientation == 'H') {
+		// Horizontal Orientation
+		int y = 0;
+		for (y = 0; y < height; y++) {
+			int string = y / cb->strandsPerString;
+			int segment = y % cb->strandsPerString;
+			int x = 0;
+			for (x = 0; x < width; x++) {
+				// Pixel Position in a TL Horizontal wrapping layout
+				// 0 1 2
+				// 3 4 6
+				// 7 8 9
+				int ppos = y * width + x;
+				// Relative Input Pixel 'R' channel
+				int inCh = (cb->startChannel - 1) + (ppos * 3);
+
+				// X position in output
+				int outX = (LtoR != ((segment % 2) != TtoB)) ? width - x - 1 : x;
+				// Y position in output
+				int outY = (TtoB) ? y : height - y - 1;
+
+				// Relative Mapped Output Pixel 'R' channel
+				int mpos = outY * width + outX;
+				int outCh = (cb->startChannel - 1) + (mpos * 3);
+
+				// Map the pixel's triplet
+				pixelMap[inCh    ] = outCh;
+				pixelMap[inCh + 1] = outCh + 1;
+				pixelMap[inCh + 2] = outCh + 2;
+			}
+		}
+	} else {
+		// Vertical Orientation
+		int x = 0;
+		for (x = 0; x < width; x++) {
+			int string = x / cb->strandsPerString;
+			int segment = x % cb->strandsPerString;
+			int y = 0;
+			for (y = 0; y < height; y++) {
+				// Pixel Position in a TL Horizontal wrapping layout
+				// 0 1 2
+				// 3 4 6
+				// 7 8 9
+				int ppos = y * width + x;
+				// Relative Input Pixel 'R' channel
+				int inCh = (cb->startChannel - 1) + (ppos * 3);
+
+				// X position in output
+				int outX = (LtoR) ? x : width - x - 1;
+				// Y position in output
+				int outY = (TtoB != ((segment % 2) != LtoR)) ? height - y - 1 : y;
+
+				// Relative Mapped Output Pixel 'R' channel
+				int mpos = outX * width + outY;
+				int outCh = (cb->startChannel - 1) + (mpos * 3);
+
+				// Map the pixel's triplet
+				pixelMap[inCh    ] = outCh;
+				pixelMap[inCh + 1] = outCh + 1;
+				pixelMap[inCh + 2] = outCh + 2;
+			}
+		}
+	}
+
+	LogInfo(VB_CHANNELOUT, "Initialization complete\n");
 }
 
 /*
@@ -273,24 +406,59 @@ int LoadChannelMemoryMapData(void) {
 		s = strtok(buf, ",");
 		if (s) {
 			strncpy(cb->blockName, s, 32);
+		} else {
+			continue;
 		}
 
 		// Start Channel
 		s = strtok(NULL, ",");
+		if (!s)
+			continue;
 		startChannel = strtol(s, NULL, 10);
 		if ((startChannel <= 0) ||
 			(startChannel > FPPD_MAX_CHANNELS))
 			continue;
+		cb->startChannel = startChannel;
 
 		// Channel Count
 		s=strtok(NULL,",");
+		if (!s)
+			continue;
 		channelCount = strtol(s, NULL, 10);
 		if ((channelCount <= 0) ||
 			((startChannel + channelCount) > FPPD_MAX_CHANNELS))
 			continue;
-
-		cb->startChannel = startChannel;
 		cb->channelCount = channelCount;
+
+		// Orientation
+		s=strtok(NULL,",");
+		if (!s)
+			continue;
+		if (!strcmp(s, "vertical"))
+			cb->orientation = 'V';
+		else
+			cb->orientation = 'H';
+
+		// Start Corner
+		s=strtok(NULL,",");
+		if (!s)
+			continue;
+		strncpy(cb->startCorner, s, 2);
+
+		// String Count
+		s=strtok(NULL,",");
+		if (!s)
+			continue;
+		cb->stringCount = strtol(s, NULL, 10);
+
+		// Strands Per String
+		s=strtok(NULL,",");
+		if (!s)
+			continue;
+		cb->strandsPerString = strtol(s, NULL, 10);
+
+		SetupPixelMapForBlock(cb);
+
 		cb++;
 
 		ctrlHeader->totalBlocks++;

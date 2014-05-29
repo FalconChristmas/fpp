@@ -52,6 +52,8 @@ int                               dataFD     = -1;
 FPPChannelMemoryMapControlHeader *ctrlHeader = NULL;
 char                             *ctrlMap    = NULL;
 int                               ctrlFD     = -1;
+short                            *pixelMap   = NULL;
+int                               pixelFD    = -1;
 
 /*
  * Usage information for fppmm binary
@@ -198,6 +200,43 @@ void CloseChannelControlMemoryMap(void) {
 }
 
 /*
+ * Open the channel data memory map pixel map file and set the global
+ * file descriptor and data pointer to the map.
+ */
+int OpenChannelPixelMap(void) {
+	pixelFD = open(FPPCHANNELMEMORYMAPPIXELFILE, O_RDWR);
+
+	if (pixelFD < 0) {
+		printf( "ERROR opening memory mapped file %s: %s",
+			FPPCHANNELMEMORYMAPPIXELFILE, strerror(errno));
+		return pixelFD;
+	}
+
+	pixelMap = (short *)mmap(0, FPPD_MAX_CHANNELS * sizeof(short), PROT_WRITE | PROT_READ,
+		MAP_SHARED, pixelFD, 0);
+
+	if (!pixelMap) {
+		printf( "Unable to memory map file: %s\n", strerror(errno));
+		close(pixelFD);
+		pixelFD = -1;
+		return pixelFD;
+	}
+
+	return pixelFD;
+}
+
+/*
+ * Close the channel data memory map pixel map file and cleanup.
+ */
+void CloseChannelPixelMap(void) {
+	munmap(pixelMap, FPPD_MAX_CHANNELS);
+	close(pixelFD);
+
+	pixelFD  = -1;
+	pixelMap = NULL;
+}
+
+/*
  * Set the value of one (or more FIXME) channels in the channel data memory map
  */
 void SetChannelMemoryMap(char *channels, int value) {
@@ -322,14 +361,29 @@ void CopyFileToMappedBlock(char *blockName, char *inputFilename) {
 		return;
 	}
 
+	if (OpenChannelPixelMap() < 0) {
+		CloseChannelMemoryMap();
+		CloseChannelControlMemoryMap();
+		close(fd);
+		return;
+	}
+
 	FPPChannelMemoryMapControlBlock *cb = FindBlock(blockName);
 
 	if (cb) {
-		int i = read(fd, dataMap + cb->startChannel, cb->channelCount);
-		if (i != cb->channelCount) {
+		char data[FPPD_MAX_CHANNELS];
+		int r = read(fd, data, cb->channelCount);
+		if (r != cb->channelCount) {
 			printf( "WARNING: Expected %d bytes of data but only read %d.\n",
-				cb->channelCount, i);
+				cb->channelCount, r);
 		} else {
+			int i;
+			int limit = cb->channelCount - 3;
+			for (i = 0; i <= limit; ) {
+				dataMap[pixelMap[cb->startChannel - 1 + i]] = data[i]; i++; // R |
+				dataMap[pixelMap[cb->startChannel - 1 + i]] = data[i]; i++; // G |- triplet
+				dataMap[pixelMap[cb->startChannel - 1 + i]] = data[i]; i++; // B |
+			}
 			printf( "Data imported\n" );
 		}
 	} else {

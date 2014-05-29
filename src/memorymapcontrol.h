@@ -30,8 +30,9 @@
 #define FPPCHANNELMEMORYMAPMINORVER 0
 #define FPPCHANNELMEMORYMAPSIZE     65536
 
-#define FPPCHANNELMEMORYMAPDATAFILE "/var/tmp/FPPChannelData"
-#define FPPCHANNELMEMORYMAPCTRLFILE "/var/tmp/FPPChannelCtrl"
+#define FPPCHANNELMEMORYMAPDATAFILE  "/var/tmp/FPPChannelData"
+#define FPPCHANNELMEMORYMAPCTRLFILE  "/var/tmp/FPPChannelCtrl"
+#define FPPCHANNELMEMORYMAPPIXELFILE "/var/tmp/FPPChannelPixelMap"
 
 /*
  * Header block on channel data memory map control interface file.
@@ -40,19 +41,27 @@
  * in a 64K memory mapped file.
  */
 typedef struct {
-    unsigned char   majorVersion;   // major version of memory map layout
-	unsigned char   minorVersion;   // minor version of memory map layout
-	unsigned char   totalBlocks;    // number of blocks defined in config file
-	unsigned char   testMode;       // 0/1, read by fppd, 1 == copy all channels
-	unsigned char   filler[252];    // filler for future use
+	unsigned char   majorVersion;     // major version of memory map layout
+	unsigned char   minorVersion;     // minor version of memory map layout
+	unsigned char   totalBlocks;      // number of blocks defined in config file
+	unsigned char   testMode;         // 0/1, read by fppd, 1 == copy all channels
+	unsigned char   filler[252];      // filler for future use
 } FPPChannelMemoryMapControlHeader;
 
+/*
+ * NOTE: 'long long' are used here to make things easier cross-platform (32 vs 64-bit)
+ *       Fields are also ordered by largest to smallest datatype for the same reason
+ */
 typedef struct {
-	unsigned char   isActive;       // 0/1 set by client, read by fppd
-	char            blockName[32];  // null-terminated string, set by fppd
-	long            startChannel;   // 1-based start channel
-	long            channelCount;   // number of channels to copy
-	unsigned char   filler[215];    // filler for future use
+	long long       startChannel;     // 1-based start channel
+	long long       channelCount;     // number of channels to copy
+	long long       stringCount;      // Number of strings
+	long long       strandsPerString; // Number of strands per string (# of folds + 1)
+	char            blockName[32];    // null-terminated string, set by fppd
+	char            startCorner[3];   // TL, TR, BL, BR (Top/Bottom and Left/Right)
+	unsigned char   isActive;         // 0/1 set by client, read by fppd
+	char            orientation;      // 'H'orizontal or 'V'ertical
+	char            filler[187];      // filler for future use
 } FPPChannelMemoryMapControlBlock;
 
 #endif /* _MEMORYMAPCONTROL_H */
