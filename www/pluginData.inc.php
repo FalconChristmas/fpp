@@ -11,14 +11,14 @@ $plugins = Array(
 		'bugUrl'      => 'https://github.com/Materdaddy/fpp-vastfmt/issues',
 	),
 
-	Array(
-		'shortName'   => 'matrixtools',
-		'name'        => 'Matrix Tools',
-		'description' => 'UI Tools for overlaying text or images and drawing on a Matrix',
-		'homeUrl'     => 'https://github.com/cpinkham/fpp-matrixtools',
-		'sourceUrl'   => 'https://github.com/cpinkham/fpp-matrixtools.git',
-		'bugUrl'      => 'https://github.com/cpinkham/fpp-matrixtools/issues',
-	),
+#	Array(
+#		'shortName'   => 'matrixtools',
+#		'name'        => 'Matrix Tools',
+#		'description' => 'UI Tools for overlaying text or images and drawing on a Matrix',
+#		'homeUrl'     => 'https://github.com/cpinkham/fpp-matrixtools',
+#		'sourceUrl'   => 'https://github.com/cpinkham/fpp-matrixtools.git',
+#		'bugUrl'      => 'https://github.com/cpinkham/fpp-matrixtools/issues',
+#	),
 );
 
 ?>
