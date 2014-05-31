@@ -23,7 +23,13 @@ require_once("pluginData.inc.php");
 
 <table>
 
-<?php foreach ($plugins as $plugin) { ?>
+<?php
+	$first = 1;
+	foreach ($plugins as $plugin) {
+		if (!$first)
+			echo "<tr><td colspan=5><hr></td></tr>\n";
+		$first = 0;
+?>
 <tr>
   <td><span class="pluginTitle"><?php echo $plugin['name']; ?></span></td>
   <td align="right">
