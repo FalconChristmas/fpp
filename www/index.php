@@ -30,82 +30,59 @@
 			});
 
 
-					$('#slider').slider({
-		stop: function( event, ui ) {
+			$('#slider').slider({
+				stop: function( event, ui ) {
+					var value = slider.slider('value');
 
-						var value  = slider.slider('value'),
-							volume = $('.volume');
+					SetSpeakerIndicator(value);
+					$('#volume').html(value);
+					SetVolume(value);
+				}
+			});
+		});
 
-						if(value <= 5)
-						{
-							volume.css('background-position', '0 0');
-						}
-						else if (value <= 25)
-						{
-							volume.css('background-position', '0 -25px');
-						}
-						else if (value <= 75)
-						{
-							volume.css('background-position', '0 -50px');
-						}
-						else
-						{
-							volume.css('background-position', '0 -75px');
-						};
+	function SetSpeakerIndicator(value) {
+		var speaker = $('#speaker');
 
-						SetVolume(value);
+		if(value <= 5)
+		{
+			speaker.css('background-position', '0 0');
 		}
-		});
-
-					$('#slider').slider({
-		stop: function( event, ui ) {
-
-						var value  = slider.slider('value'),
-							volume = $('.volume');
-
-						if(value <= 5)
-						{
-							volume.css('background-position', '0 0');
-						}
-						else if (value <= 25)
-						{
-							volume.css('background-position', '0 -25px');
-						}
-						else if (value <= 75)
-						{
-							volume.css('background-position', '0 -50px');
-						}
-						else
-						{
-							volume.css('background-position', '0 -75px');
-						};
-
-						SetVolume(value);
+		else if (value <= 25)
+		{
+			speaker.css('background-position', '0 -25px');
 		}
-		});
-
-
-		});
+		else if (value <= 75)
+		{
+			speaker.css('background-position', '0 -50px');
+		}
+		else
+		{
+			speaker.css('background-position', '0 -75px');
+		};
+	}
 
 	function IncrementVolume()
 	{
 		var volume = parseInt($('#volume').html());
-		volume += 3;
+		volume += 1;
 		if (volume > 100)
 			volume = 100;
-		$('#volume').html(volume.toString());
-
+		$('#volume').html(volume);
+		$('#slider').slider('value', volume);
+		SetSpeakerIndicator(volume);
 		SetVolume(volume);
 	}
 
 	function DecrementVolume()
 	{
 		var volume = parseInt($('#volume').html());
-		volume -= 3;
+		volume -= 1;
 		if (volume < 0)
 			volume = 0;
-		$('#volume').html(volume.toString());
-
+		$('#volume').html(volume);
+		$('#slider').slider('value', volume);
+		SetSpeakerIndicator(volume);
 		SetVolume(volume);
 	}
 
@@ -175,26 +152,19 @@
       <div id = "startPlaylistControls">
         <table width="100%">
           <tr>
-            <td class='controlHeader'><div class='desktopItem'>Load this playlist:</div><div class='mobileItem'>Load playlist:</div></td>
-            <td  width="50%"><select id="selStartPlaylist" name="selStartPlaylist" size="1" onClick="SelectStatusPlaylistEntryRow();PopulateStatusPlaylistEntries(true,'',true);" onChange="PopulateStatusPlaylistEntries(true,'',true);"></select></td>
-            <td  width="15%"><input type="checkbox" id="chkRepeat">
-              Repeat
-              </input></td>
-            <td  width="15%">
-              <div class='desktopItem'>
-                <div id="slider"></div> <!-- the Slider -->
-                <span class="volume"></span> <!-- Volume -->
-              </div>
-            </td>
+            <td class='controlHeader'>Playlist:</td>
+            <td><select id="selStartPlaylist" name="selStartPlaylist" size="1" onClick="SelectStatusPlaylistEntryRow();PopulateStatusPlaylistEntries(true,'',true);" onChange="PopulateStatusPlaylistEntries(true,'',true);"></select></td>
+            <td><input type="checkbox" id="chkRepeat">Repeat</input></td>
           </tr>
-          <tr><td><div class='mobileItem'>Volume:</div></td>
-            <td colspan="3"><div class='mobileItem' id='volume' style='float: left'></div><div class='mobileItem' style='float: left'>&nbsp;
-              <input type="button" value="+" onClick="IncrementVolume();">
-              &nbsp;
-              <input type="button" value="-" onClick="DecrementVolume();">
-              </div>
-            </div>
-          </td></tr>
+          <tr>
+            <td class='controlHeader'>Volume [<span id='volume' class='volume'></span>]:</td>
+            <td>
+				<input type="button" class='volumeButton' value="-" onClick="DecrementVolume();">
+                <span id="slider" class='desktopItem'></span> <!-- the Slider -->
+			    <input type="button" class='volumeButton' value="+" onClick="IncrementVolume();">
+                <span id='speaker'></span> <!-- Volume -->
+            </td>
+		  </tr>
       </table>
       </div>
       <div id="statusPlaylist"  class="unselectable">

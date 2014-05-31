@@ -209,10 +209,6 @@
 	width: 47%;
 }
 
-#startPlaylistControls select {
-	width: 70%
-}
-
 html
 {
 	background: url(/images/grill-bg.jpg) no-repeat center center fixed;
@@ -314,12 +310,18 @@ fieldset
 	width: 6%;
 }
 
+.volumeButton {
+	float: left;
+}
+
 #slider{
 	border-width: 1px;
 	border-style: solid;
 	border-color: #333 #333 #777 #333;
 	border-radius: 25px;
-	width: 80%;
+	margin-left: 12px;
+	margin-right: 12px;
+	width: 100px;
 	position: relative;
 	height: 13px;
 	background-color: #8e8d8d;
@@ -327,19 +329,17 @@ fieldset
     box-shadow: inset 0 1px 5px 0px rgba(0, 0, 0, .5), 
     				  0 1px 0 0px rgba(250, 250, 250, .5);
     left: 0px;
-		top:12px;
-		float:left;
+	top: 6px;
+	float:left;
 }
-.volume {
+
+#speaker {
 	content: "";
 	display: inline-block;
 	width: 25px;
 	height: 25px;
-	left: 77px;
-	top:-3px;
 	background: url('../images/volume.png') no-repeat 0 -50px;
 	position: relative;
-	margin: -5px 0 0 25px ;
 }
 .ui-slider-handle {
 	position: absolute;
@@ -562,12 +562,6 @@ fieldset
 #playlistEntryProperties ul{
 	padding: 0;
 	margin: 10px;
-}
-
-#selStartPlaylist{
-	width:75%;
-	text-align:left;
-	
 }
 
 #credits{

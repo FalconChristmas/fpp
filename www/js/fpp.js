@@ -1297,7 +1297,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 								SetButtonState('#btnPlay','enable');
 								SetButtonState('#btnStopNow','disable');
 								SetButtonState('#btnStopGracefully','disable');
-								SetButtonState('#selStartPlaylist','enable');
+								$('#selStartPlaylist').removeAttr("disabled");
 								UpdateCurrentEntryPlaying(0);
 							}
 							else
@@ -1322,7 +1322,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 								SetButtonState('#btnPlay','disable');
 								SetButtonState('#btnStopNow','enable');
 								SetButtonState('#btnStopGracefully','enable');
-								SetButtonState('#selStartPlaylist','disable');
+								$('#selStartPlaylist').attr("disabled");
 	
 								$('#txtNextPlaylist').html(NextPlaylist);
 								$('#nextPlaylistTime').html(NextPlaylistTime);
@@ -1928,9 +1928,10 @@ function GetVolume()
 			if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
 			{
 					var xmlDoc=xmlhttp.responseXML; 
-					var Volume = xmlDoc.getElementsByTagName('Volume')[0].childNodes[0].textContent;
-					$('#slider').slider('value', parseInt(Volume));
+					var Volume = parseInt(xmlDoc.getElementsByTagName('Volume')[0].childNodes[0].textContent);
 					$('#volume').html(Volume);
+					$('#slider').slider('value', Volume);
+					SetSpeakerIndicator(Volume);
 			}
 		};
 		xmlhttp.send();
