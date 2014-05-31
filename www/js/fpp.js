@@ -1192,7 +1192,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
       for(i=0; i<files.childNodes.length; i++)
       {
         var name = files.childNodes[i].childNodes[0].textContent;
-        var time = files.childNodes[i].childNodes[1].textContent;
+        var time = files.childNodes[i].childNodes[1].textContent.replace(/ /g, '&nbsp;');
         var tableRow = "<tr class ='fileDetails'><td class ='fileName'>" + name + "</td><td class ='fileTime'>" + time + "</td></tr>";
         $('#tbl' + dir).append(tableRow);
       }
