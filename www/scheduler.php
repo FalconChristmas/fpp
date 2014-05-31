@@ -15,11 +15,6 @@ error_reporting(E_ALL);
 <head>
 <?php	include 'common/menuHead.inc'; ?>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-<link rel="stylesheet" href="css/jquery-ui.css" />
-<script type="text/javascript" src="js/fpp.js"></script>
-<script src="js/jquery-migrate-1.1.1.min.js"></script>
-<script src="js/jquery-1.9.1.js"></script>
-<script src="js/jquery-ui.js"></script>
 <link rel="stylesheet" type="text/css" href="css/jquery.timepicker.css">
 <script type="text/javascript" src="js/jquery.timepicker.min.js"></script>
 <script language="Javascript">

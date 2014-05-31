@@ -16,12 +16,6 @@ error_reporting(E_ALL);
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 <?php	include 'common/menuHead.inc'; ?>
-<link rel="stylesheet" href="css/jquery-ui.css" />
-<link rel="stylesheet" href="css/fpp.css" />
-<script type="text/javascript" src="js/fpp.js"></script>
-<script src="js/jquery-migrate-1.1.1.min.js"></script>
-<script src="js/jquery-1.9.1.js"></script>
-<script src="js/jquery-ui.js"></script>
 <script language="Javascript">
 $(document).ready(function() {
 $('.default-value').each(function() {

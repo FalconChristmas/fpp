@@ -48,11 +48,6 @@ function SetSetting($file,$varName,$varValue)
     <head>
     <?php	include 'common/menuHead.inc'; ?>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <link rel="stylesheet" href="http://code.jquery.com/ui/1.10.2/themes/smoothness/jquery-ui.css" />
-    <script type="text/javascript" src="js/fpp.js"></script>
-    <script src="http://code.jquery.com/jquery-migrate-1.1.1.min.js"></script>
-    <script src="http://code.jquery.com/jquery-1.9.1.js"></script>
-    <script src="http://code.jquery.com/ui/1.10.2/jquery-ui.js"></script>
     <script language="Javascript">
 $(document).ready(function() {
 $('.default-value').each(function() {
