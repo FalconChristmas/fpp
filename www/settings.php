@@ -17,7 +17,6 @@
       }
     }
 ?>
-<script type="text/javascript" src="/js/fpp.js"></script>
 <script>
 $(document).ready(function(){
   $("#chkPiLCDenabled").change(function(){

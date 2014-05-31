@@ -101,7 +101,6 @@ function print_if_match($one, $two, $print)
 <html>
 <head>
 <?php include 'common/menuHead.inc'; ?>
-<script type="text/javascript" src="/js/fpp.js"></script>
 <title>Falcon PI Player - FPP</title>
 </head>
 <body>

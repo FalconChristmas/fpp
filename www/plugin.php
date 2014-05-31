@@ -10,7 +10,6 @@ require_once("config.php");
 <html>
 <head>
 <?php include 'common/menuHead.inc'; ?>
-<script type="text/javascript" src="/js/fpp.js"></script>
 <title>Falcon PI Player - FPP</title>
 <?
 

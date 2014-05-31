@@ -46,7 +46,6 @@ $pw = file_exists("$thisdir/.htpasswd");
 <html>
 <head>
 <?php include 'common/menuHead.inc'; ?>
-<script type="text/javascript" src="/js/fpp.js"></script>
 <script type="text/javascript" src="/js/validate.min.js"></script>
 <title>Falcon PI Player - FPP</title>
 </head>

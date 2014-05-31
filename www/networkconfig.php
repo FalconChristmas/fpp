@@ -29,7 +29,6 @@
 <head>
 <?php require_once('common.php'); ?>
 <?php include 'common/menuHead.inc'; ?>
-<script type="text/javascript" src="/js/fpp.js"></script>
 <title>Falcon PI Player - FPP</title>
 </head>
 <body>
