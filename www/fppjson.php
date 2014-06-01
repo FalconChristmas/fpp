@@ -28,7 +28,8 @@ $command_array = Array(
 	"getInterfaceInfo"    => 'GetInterfaceInfo',
 	"setInterfaceInfo"    => 'SetInterfaceInfo',
 	"getSetting"          => 'GetSetting',
-	"setSetting"          => 'SetSetting'
+	"setSetting"          => 'SetSetting',
+	"setAudioOutput"      => 'SetAudioOutput'
 );
 
 $command = "";
@@ -109,6 +110,42 @@ function SetSetting()
 	}
 
 	GetSetting();
+}
+
+/////////////////////////////////////////////////////////////////////////////
+
+function SetAudioOutput()
+{
+	global $args;
+
+	$card = $args['value'];
+
+	if ($card != 0 && file_exists("/proc/asound/card$card"))
+	{
+		exec(SUDO . " sed -i 's/card [0-9]/card ".$card."/' /root/.asoundrc", $output, $return_val);
+		unset($output);
+		if ($return_val)
+		{
+			error_log("Failed to set audio to card $card!");
+			return;
+		}
+		if ( defined('debug') )
+			error_log("Setting to audio output $card");
+	}
+	else if ($card == 0)
+	{
+		exec(SUDO . " sed -i 's/card [0-9]/card ".$card."/' /root/.asoundrc", $output, $return_val);
+		unset($output);
+		if ($return_val)
+		{
+			error_log("Failed to set audio back to default!");
+			return;
+		}
+		if ( defined('debug') )
+			error_log("Setting default audio");
+	}
+
+	return $card;
 }
 
 /////////////////////////////////////////////////////////////////////////////

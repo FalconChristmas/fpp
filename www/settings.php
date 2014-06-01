@@ -4,6 +4,36 @@
 <?php require_once('common.php'); ?>
 <?php include 'common/menuHead.inc'; ?>
 <?php
+    function getAlsaCards()
+    {
+      exec("for card in /proc/asound/card*/id; do echo -n \$card | sed 's/.*card\\([0-9]*\\).*/\\1:/g'; cat \$card; done", $output, $return_val);
+      if ( $return_val )
+      {
+        error_log("Error getting alsa cards for output!");
+        return;
+      }
+
+      $cards = Array();
+      foreach($output as $card)
+      {
+        $values = explode(':', $card);
+        $cards[$values[0]] = $values[1];
+      }
+
+      return $cards;
+    }
+
+    function getAudioOutput()
+    {
+      $current_card = trim(exec(SUDO . " sed -n '/card [0-9]/s/card \\([0-9]*\\)/\\1/p' /root/.asoundrc", $output, $return_val));
+      if ($return_val)
+      {
+        error_log("Failed to get current audio output!");
+        return;
+      }
+      return $current_card;
+    }
+
     function piLCDenabledChecked()
     {
       if (ReadSettingFromFile("PI_LCD_Enabled") == false || 
@@ -26,6 +56,7 @@ $(document).ready(function(){
   });
 
   $('#LogLevel').val(settings['LogLevel']);
+  $('#AudioOutput').val(<?php echo getAudioOutput(); ?>);
 
   var logMasks = Array();
 
@@ -66,6 +97,12 @@ $(function() {
 		});
 	});
 
+function AudioOutputChanged()
+{
+	$.get("fppjson.php?command=setAudioOutput&value="
+		+ $('#AudioOutput').val()).fail(function() { alert("Failed to change audio output!") });
+}
+
 </script>
 <title>Falcon PI Player - FPP</title>
 </head>
@@ -73,28 +110,6 @@ $(function() {
 <div id="bodyWrapper">
   <?php include 'menu.inc'; ?>
   <br/>
-<?php
-//God save me for using a goto...
-goto DEVELOPMENT;
-?>
-<div id="usb" class="settings">
-<fieldset>
-<legend>USB Devices</legend>
-<?php
-$devices=explode("\n",trim(shell_exec("ls -w 1 /dev/ttyUSB*")));
-foreach ($devices as $device)
-{
-	echo "WE FOUND DEVICE $device... what is it used for (renard, dmx, rds?\n";
-	echo "<br />\n";
-}
-?>
-</fieldset>
-</div>
-<br />
-<?php
-DEVELOPMENT:
-?>
-
 <FORM NAME="frmSettings">
 <div id="global" class="settings">
 <fieldset>
@@ -155,6 +170,21 @@ DEVELOPMENT:
         </table>
       </td>
     </tr>
+<tr>
+<td>
+Audio Output Device:
+</td>
+<td>
+<select id='AudioOutput' onChange='AudioOutputChanged();'>
+
+<?php
+foreach ( getAlsaCards() as $audio_val => $audio_key )
+	echo "<option value='".$audio_val."'>".$audio_key."</option>";
+?>
+
+</select>
+</td>
+</tr>
   </table>
 
 </fieldset>
