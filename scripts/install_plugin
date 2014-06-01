@@ -24,6 +24,13 @@ fi
 
 if [ -x "${FPPDIR}/plugins/$1/fpp_install.sh" ]
 then
-	${FPPDIR}/plugins/$1/fpp_install.sh
+	if [ "x${FPPDIR}" = "x/opt/fpp" ] && [ "x${SETTINGSFILE}" = "x/home/pi/media/settings" ]
+	then
+		sudo ${FPPDIR}/plugins/$1/fpp_install.sh
+	elif [ "x${FPPDIR}" = "x/home/pi" ]
+	then
+		sudo -u pi ${FPPDIR}/plugins/$1/fpp_install.sh
+	else
+		${FPPDIR}/plugins/$1/fpp_install.sh
+	fi
 fi
-
