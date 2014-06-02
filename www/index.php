@@ -109,6 +109,7 @@
           										Player Mode</option>
           										<option id="optFPPDmode_Bridge" value="1">
           										Bridge Mode</option>
+                              </select>
           <td class='controlButton'>&nbsp;</td>
         </tr>
         <tr>
