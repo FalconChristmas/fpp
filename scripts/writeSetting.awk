@@ -1,4 +1,5 @@
 #!/usr/bin/awk -f
+
 BEGIN { start = 0;
  
     if (ARGC < 4 || ARGC > 4) {

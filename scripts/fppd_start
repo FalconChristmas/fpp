@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BINDIR=$(dirname $0)
+BINDIR=$(cd $(dirname $0) && pwd)
 
 . ${BINDIR}/common
 . ${BINDIR}/functions
