@@ -1,6 +1,6 @@
 #!/bin/bash
 
-/usr/bin/omxplayer -i $1 2>&1 | grep Duration:
+/usr/bin/omxplayer -i "$1" 2>&1 | grep Duration:
 
-exec /usr/bin/omxplayer -s $1 2>&1
+exec /usr/bin/omxplayer -s "$1" 2>&1
 
