@@ -37,6 +37,12 @@ ORIGVOLUME=$(getSetting volume)
 VOLUME=$(expr ${ORIGVOLUME} / 2 + 50)
 amixer set PCM ${VOLUME}%
 
+# Let's check that our .asoundrc is as valid as we care about right now
+if [ ! -e /proc/asound/card$(sed -n '/card [0-9]*/p' /root/.asoundrc | head -n 1 | awk '{print $2}') ]; then
+	echo "Configured sound card might not exist, let's set it to 0 as a default."
+	sed -i 's/card [0-9]/card 0/' /root/.asoundrc
+fi
+
 # Print/Say the IP address
 _IP=$(hostname -I) || true
 if [ "$_IP" ]; then
