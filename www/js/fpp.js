@@ -1969,6 +1969,14 @@ function GetGitOriginLog()
 	$('#logViewer').dialog( "moveToTop" );
 }
 
+function GetVideoInfo(file)
+{
+	$('#fileText').html("Getting Video Info.");
+	$('#fileText').load("fppxml.php?command=getVideoInfo&filename=" + file);
+	$('#fileViewer').dialog({ height: 600, width: 800, title: "Video Info" });
+	$('#fileViewer').dialog( "moveToTop" );
+}
+
 function DownloadFile(dir, file)
 {
 	location.href="fppxml.php?command=getFile&dir=" + dir + "&filename=" + file;

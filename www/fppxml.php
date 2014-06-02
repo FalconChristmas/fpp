@@ -15,7 +15,8 @@ require_once('commandsocket.php');
 // than XML need to return their own Content-type header.
 $nonXML = Array(
 	"getFile" => 1,
-	"getGitOriginLog" => 1
+	"getGitOriginLog" => 1,
+	"getVideoInfo" => 1
 	);
 
 $a = session_id();
@@ -78,6 +79,7 @@ $command_array = Array(
 	"saveEvent" => 'SaveEvent',
 	"deleteEvent" => 'DeleteEvent',
 	"getFile" => 'GetFile',
+	"getVideoInfo" => 'GetVideoInfo',
 	"saveUSBDongle" => 'SaveUSBDongle',
 	"getInterfaceInfo" => 'GetInterfaceInfo',
 	"setPiLCDenabled" => 'SetPiLCDenabled',
@@ -1911,6 +1913,21 @@ function DeleteFile()
 	}
 	else
 		EchoStatusXML('Failure');
+}
+
+function GetVideoInfo()
+{
+	$filename = $_GET['filename'];
+	check($filename);
+
+	header('Content-type: text/plain');
+
+	global $settings;
+	$videoInfo = "";
+	exec("omxplayer -i " . $settings['videoDirectory'] . "/" . $filename . " 2>&1", $info);
+	$videoInfo .= implode("\n", $info);
+
+	echo $videoInfo;
 }
 
 function GetFile()

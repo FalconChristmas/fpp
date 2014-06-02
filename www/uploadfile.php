@@ -35,6 +35,7 @@ require_once('config.php');
           $('#tblVideos tr').removeClass('selectedentry');
           $(this).addClass('selectedentry');
           VideoNameSelected  = $(this).find('td:first').text();
+		  SetButtonState('#btnVideoInfo','enable');
 		  SetButtonState('#btnDownloadVideo','enable');
 		  SetButtonState('#btnDeleteVideo','enable');
     });
@@ -181,6 +182,7 @@ h2 {
           </div>
           <hr />
           <div class='right'>
+            <input onclick= "GetVideoInfo(VideoNameSelected);" id="btnVideoInfo" class="disableButtons" type="button"  value="Video Info" />
             <input onclick= "DownloadFile('Videos', VideoNameSelected);" id="btnDownloadVideo" class="disableButtons" type="button"  value="Download" />
             <input onclick= "DeleteFile('Videos', VideoNameSelected);" id="btnDeleteVideo" class="disableButtons" type="button"  value="Delete" />
           </div>
