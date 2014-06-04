@@ -42,6 +42,7 @@ FixupDestination() {
 		> ${DSTROOTPATH}/${FILE}
 	done
 
+	rm  -f ${DSTROOTPATH}/home/pi/THIS_IS_THE_MASTER_IMAGE 2> /dev/null
 	rm  -f ${DSTROOTPATH}/var/lib/dhcp/dhclient*leases 2> /dev/null
 	rm -rf ${DSTROOTPATH}/tmp/* 2> /dev/null
 	rm -rf ${DSTROOTPATH}/tmp/.* 2> /dev/null
