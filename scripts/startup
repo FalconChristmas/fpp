@@ -22,7 +22,7 @@ cp ${FPPDIR}/etc/php.ini /etc/php5/apache2/php.ini
 # If the flash drive is not mounted yet, then fix Apache so it can at least start up
 if [ ! -d "/home/pi/media/logs" ]
 then
-	perl -pi -e "s/ErrorLog.*/ErrorLog \/var\/tmp\/apache-error.log/" /etc/apache2/sites-available/default
+	sed -i "s/ErrorLog/#ErrorLog/" /etc/apache2/sites-available/default
 	/etc/rc2.d/S02apache2 restart
 fi
 
@@ -30,12 +30,25 @@ fi
 ${BINDIR}/config_network
 ${BINDIR}/config_dns
 
-WaitForDHCPIPs
+###########################################################################
+# Part #1 of workaround for https://github.com/raspberrypi/linux/issues/570
+# Play some silence while we set the volume so the new value will stick
+mpg123 /opt/fpp/media/silence.mp3 > /dev/null 2>&1 &
+SILENCEPID=$!
+###########################################################################
 
 amixer cset numid=3 1
 ORIGVOLUME=$(getSetting volume)
+# Switch to this more accurate setting for or after v0.3.0
+#VOLUME=$(echo "scale=2 ; ${ORIGVOLUME} / 2 + 50" | bc)
 VOLUME=$(expr ${ORIGVOLUME} / 2 + 50)
 amixer set PCM ${VOLUME}%
+
+###########################################################################
+# Part #2 of workaround for https://github.com/raspberrypi/linux/issues/570
+sleep 1
+kill -9 ${SILENCEPID}
+###########################################################################
 
 # Let's check that our .asoundrc is as valid as we care about right now
 if [ ! -e /proc/asound/card$(sed -n '/card [0-9]*/p' /root/.asoundrc | head -n 1 | awk '{print $2}') ]; then
@@ -43,12 +56,20 @@ if [ ! -e /proc/asound/card$(sed -n '/card [0-9]*/p' /root/.asoundrc | head -n 1
 	sed -i 's/card [0-9]/card 0/' /root/.asoundrc
 fi
 
+sysctl net/ipv4/igmp_max_memberships=150
+/usr/local/bin/gpio load spi 100
+
+${BINDIR}/piRTC
+
+# Make sure our DHCP IPs are up before we log/announce them.
+WaitForDHCPIPs
+
 # Print/Say the IP address
 _IP=$(hostname -I) || true
 if [ "$_IP" ]; then
   printf "My IP address is %s\n" "$_IP"
   arrHost=(${_IP// / })
-  flite -voice kal "I Have Found The Following I P Addresses, ${arrHost[0]}, ${arrHost[1]},  ${arrHost[2]}"
+  flite -voice kal "I Have Found The Following I P Addresses, ${arrHost[0]}, ${arrHost[1]},  ${arrHost[2]}" &
 fi
 
 # Check for flash drive mounted
@@ -76,15 +97,8 @@ else
 fi
 done
 
-sysctl net/ipv4/igmp_max_memberships=150
-/usr/local/bin/gpio load spi 100
-
-# mpg123 ${FPPDIR}/bin/silence.mp3 > /dev/null
-
 sed -e "s#FPPDIR#${FPPDIR}#g" < ${FPPDIR}/etc/apache2.site > /etc/apache2/sites-available/default
 /etc/rc2.d/S02apache2 restart
-
-${BINDIR}/piRTC
 
 ${BINDIR}/fpp_boot
 
@@ -110,7 +124,7 @@ else
 	setterm -blank 0
 fi
 
-# Sleep for just a little while so the use can see the login prompt before
+# Sleep for just a little while so the user can see the login prompt before
 # we display the logo
 (sleep 60 ; /usr/bin/fbi -T 1 -noverbose -a /etc/splash.png) &
 
