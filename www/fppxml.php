@@ -260,6 +260,8 @@ function SetE131interface()
 function GetVolume()
 {
 	$volume = ReadSettingFromFile("volume");
+	if ($volume == "")
+		$volume = 75;
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('Volume');
 	$root = $doc->appendChild($root);
