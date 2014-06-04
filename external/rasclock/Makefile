@@ -7,6 +7,8 @@ all:
 
 clean:
 	make -C $(LINUX_DIR) M=$(PWD) clean
+
+reallyclean:
 	rm rtc-pcf2127a.c
 
 $(PWD)/rtc-pcf2127a.c:

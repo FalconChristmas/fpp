@@ -34,6 +34,7 @@ Make the kernel config and build the kernel:
 
 	make ARCH=arm CROSS_COMPILE=arm-bcm2708hardfp-linux-gnueabi- oldconfig
 	make ARCH=arm CROSS_COMPILE=arm-bcm2708hardfp-linux-gnueabi-
+	make ARCH=arm CROSS_COMPILE=arm-bcm2708hardfp-linux-gnueabi- modules
 
 Build the rasclock module by changing to the directory containing this
 README.txt file and run "make".  This will download the rasclock source
@@ -48,12 +49,10 @@ Copy the kernel module to the Pi:
 
 	scp rtc-pcf2127a.ko pi@fpp:./
 
-ssh to the Pi and copy the module to the lib/modules directory.  This example
-shows the 3.10.38+ kernel directory which was the latest at the time of the
-writing of this document.
+ssh to the Pi and copy the module to the lib/modules directory.
 
 	ssh pi@fpp
-	sudo cp rtc-pcf2127a.ko /lib/modules/3.10.38+/kernel/drivers/rtc/
+	sudo cp rtc-pcf2127a.ko /lib/modules/$(uname -r)/kernel/drivers/rtc/
 
 Test load the module while still logged into the Pi:
 
