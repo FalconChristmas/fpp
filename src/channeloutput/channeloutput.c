@@ -122,89 +122,90 @@ int InitializeChannelOutputs(void) {
 		LogErr(VB_CHANNELOUT,
 			"Could not open Channel Outputs config file %s: %s\n",
 			filename, strerror(errno));
-		return 0;
 	}
-
-	while(fgets(buf, 128, fp) != NULL)
+	else
 	{
-		int  enabled = 0;
-		char type[32];
-		int  start = 0;
-		int  count = 0;
-		char deviceConfig[160];
-
-		if (buf[0] == '#') // Allow # comments for testing
-			continue;
-
-		int fields = sscanf(buf, "%d,%[^,],%d,%d,%s",
-			&enabled, type, &start, &count, deviceConfig);
-
-		if (fields != 5) {
-			LogErr(VB_CHANNELOUT,
-				"Invalid line in channeloutputs config file: %s\n", buf);
-			continue;
-		}
-
-		if (!enabled) {
-			LogInfo(VB_CHANNELOUT, "Skipping disabled channel output: %s\n", buf);
-			continue;
-		}
-
-		if (count > (FPPD_MAX_CHANNELS - start)) {
-			LogWarn(VB_CHANNELOUT,
-				"Channel Output config, start (%d) + count (%d) exceeds max (%d) channel\n",
-				start, count, FPPD_MAX_CHANNELS);
-
-			count = FPPD_MAX_CHANNELS - start;
-
-			LogWarn(VB_CHANNELOUT,
-				"Count suppressed to %d for config line: %s\n", count, buf);
-		}
-
-		if (strlen(deviceConfig))
-			strcat(deviceConfig, ";");
-
-		strcat(deviceConfig, "type=");
-		strcat(deviceConfig, type);
-
-		LogDebug(VB_CHANNELOUT, "ChannelOutput: %d %s %d %d %s\n", enabled, type, start, count, deviceConfig);
-
-		channelOutputs[i].startChannel = start - 1; // internally we start channel counts at zero
-		channelOutputs[i].channelCount = count;
-
-		if ((!strcmp(type, "Pixelnet-Lynx")) ||
-			(!strcmp(type, "Pixelnet-Open")))
+		while(fgets(buf, 128, fp) != NULL)
 		{
-			channelOutputs[i].output       = &USBPixelnetOutput;
-		} else if (!strcmp(type, "DMX-Pro")) {
-			channelOutputs[i].output       = &USBDMXProOutput;
-		} else if (!strcmp(type, "DMX-Open")) {
-			channelOutputs[i].output       = &USBDMXOpenOutput;
-		} else if (!strcmp(type, "Renard")) {
-			channelOutputs[i].output       = &USBRenardOutput;
-		} else if (!strcmp(type, "SPI-WS2801")) {
-			channelOutputs[i].output       = &SPIws2801Output;
-		} else {
-			LogErr(VB_CHANNELOUT, "Unknown Channel Output type: %s\n", type);
-			continue;
-		}
+			int  enabled = 0;
+			char type[32];
+			int  start = 0;
+			int  count = 0;
+			char deviceConfig[160];
 
-		if ((channelOutputs[i].output) &&
-			(channelOutputs[i].output->open(deviceConfig, &channelOutputs[i].privData)))
-		{
-			if (channelOutputs[i].channelCount > channelOutputs[i].output->maxChannels(channelOutputs[i].privData)) {
-				LogWarn(VB_CHANNELOUT,
-					"Channel Output config, count (%d) exceeds max (%d) channel for configured output\n",
-					channelOutputs[i].channelCount, channelOutputs[i].output->maxChannels(channelOutputs[i].privData));
+			if (buf[0] == '#') // Allow # comments for testing
+				continue;
 
-				channelOutputs[i].channelCount = channelOutputs[i].output->maxChannels(channelOutputs[i].privData);
+			int fields = sscanf(buf, "%d,%[^,],%d,%d,%s",
+				&enabled, type, &start, &count, deviceConfig);
 
-				LogWarn(VB_CHANNELOUT,
-					"Count suppressed to %d for config: %s\n", channelOutputs[i].channelCount, buf);
+			if (fields != 5) {
+				LogErr(VB_CHANNELOUT,
+					"Invalid line in channeloutputs config file: %s\n", buf);
+				continue;
 			}
-			i++;
-		} else {
-			LogErr(VB_CHANNELOUT, "ERROR Opening %s Channel Output\n", type);
+
+			if (!enabled) {
+				LogInfo(VB_CHANNELOUT, "Skipping disabled channel output: %s\n", buf);
+				continue;
+			}
+
+			if (count > (FPPD_MAX_CHANNELS - start)) {
+				LogWarn(VB_CHANNELOUT,
+					"Channel Output config, start (%d) + count (%d) exceeds max (%d) channel\n",
+					start, count, FPPD_MAX_CHANNELS);
+
+				count = FPPD_MAX_CHANNELS - start;
+
+				LogWarn(VB_CHANNELOUT,
+					"Count suppressed to %d for config line: %s\n", count, buf);
+			}
+
+			if (strlen(deviceConfig))
+				strcat(deviceConfig, ";");
+
+			strcat(deviceConfig, "type=");
+			strcat(deviceConfig, type);
+
+			LogDebug(VB_CHANNELOUT, "ChannelOutput: %d %s %d %d %s\n", enabled, type, start, count, deviceConfig);
+
+			channelOutputs[i].startChannel = start - 1; // internally we start channel counts at zero
+			channelOutputs[i].channelCount = count;
+
+			if ((!strcmp(type, "Pixelnet-Lynx")) ||
+				(!strcmp(type, "Pixelnet-Open")))
+			{
+				channelOutputs[i].output       = &USBPixelnetOutput;
+			} else if (!strcmp(type, "DMX-Pro")) {
+				channelOutputs[i].output       = &USBDMXProOutput;
+			} else if (!strcmp(type, "DMX-Open")) {
+				channelOutputs[i].output       = &USBDMXOpenOutput;
+			} else if (!strcmp(type, "Renard")) {
+				channelOutputs[i].output       = &USBRenardOutput;
+			} else if (!strcmp(type, "SPI-WS2801")) {
+				channelOutputs[i].output       = &SPIws2801Output;
+			} else {
+				LogErr(VB_CHANNELOUT, "Unknown Channel Output type: %s\n", type);
+				continue;
+			}
+
+			if ((channelOutputs[i].output) &&
+				(channelOutputs[i].output->open(deviceConfig, &channelOutputs[i].privData)))
+			{
+				if (channelOutputs[i].channelCount > channelOutputs[i].output->maxChannels(channelOutputs[i].privData)) {
+					LogWarn(VB_CHANNELOUT,
+						"Channel Output config, count (%d) exceeds max (%d) channel for configured output\n",
+						channelOutputs[i].channelCount, channelOutputs[i].output->maxChannels(channelOutputs[i].privData));
+
+					channelOutputs[i].channelCount = channelOutputs[i].output->maxChannels(channelOutputs[i].privData);
+
+					LogWarn(VB_CHANNELOUT,
+						"Count suppressed to %d for config: %s\n", channelOutputs[i].channelCount, buf);
+				}
+				i++;
+			} else {
+				LogErr(VB_CHANNELOUT, "ERROR Opening %s Channel Output\n", type);
+			}
 		}
 	}
 
