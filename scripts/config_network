@@ -182,12 +182,31 @@ then
 	fi
 
 	#####################################################################
-	# Configure fallback IP address
-	INTERFACE=eth0:0
-	PROTO=static
-	ADDRESS=192.168.0.10
-	NETMASK=255.255.255.0
-	GATEWAY=
-	configure_static_ip
+	# Configure fallback IP address if necessary
+	ETH0GATEWAY=$(netstat -rn | grep "^0\.0\.0\.0.*eth0$" | awk '{print $2}')
+	NEEDFALLBACKIP=1
+
+	if [ ! -z "${ETH0GATEWAY}" ]
+	then
+		ping -c 1 ${ETH0GATEWAY} > /dev/null 2>&1
+		if [ $? -eq 0 ]
+		then
+			# Have a default gateway on eth0 and it is pingable
+			NEEDFALLBACKIP=0
+		fi
+	fi
+
+	if [ ${NEEDFALLBACKIP} -eq 1 ]
+	then
+		INTERFACE=eth0:0
+		PROTO=static
+		ADDRESS=192.168.0.10
+		NETMASK=255.255.255.0
+		GATEWAY=
+		configure_static_ip
+	else
+		# Take down the static IP configured from /etc/
+		ifconfig eth0:0 0.0.0.0
+	fi
 fi
 
