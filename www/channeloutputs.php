@@ -74,7 +74,7 @@ function PopulateInterfaces()
 	error_log("$ifaceE131:" . $ifaceE131);
 	$found = 0;
 	if ($ifaceE131 == "") {
-		echo "<option value=''></option>";
+		$ifaceE131 = "eth0";
 	}
 	foreach ($interfaces as $iface)
 	{

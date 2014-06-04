@@ -55,10 +55,14 @@ $(document).ready(function(){
     $.get(url,SetPiLCDenabled);
   });
 
-  $('#LogLevel').val(settings['LogLevel']);
+  var logLevel = settings['LogLevel'];
+  if (typeof logLevel === 'undefined')
+    logLevel = "info";
+
+  $('#LogLevel').val(logLevel);
   $('#AudioOutput').val(<?php echo getAudioOutput(); ?>);
 
-  var logMasks = Array();
+  var logMasks = Array('most');
 
   if (typeof settings['LogMask'] !== 'undefined')
     logMasks = settings['LogMask'].split(",");
