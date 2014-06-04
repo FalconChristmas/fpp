@@ -21,17 +21,23 @@
 - Install Apache
 - Install PHP
 - Install PHP-APC
+- Install /usr/local/bin/gpio (used by startup)
 - CPAN Modules
   - File::Map  (memory mapped file access for channel blocks)
   - Net::WebSocket::Server (and dependencies)
 - Packages Installed
-  - imagemagick
-  - perlmagick
-  - mp3info
-  - libconvert-binary-c-perl
+  - arping
+  - avahi-daemon
+  - avahi-discover
+  - avahi-utils
   - build-essential
-  - libtagc0-dev
+  - imagemagick
+  - libconvert-binary-c-perl
   - libjson-perl
+  - libtagc0-dev
+  - libnet-bonjour-perl
+  - mp3info
+  - perlmagick
 
 - Create user 'pi' in group 'pi' with UID/GID of 1000/1000
 
