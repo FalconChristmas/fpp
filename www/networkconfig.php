@@ -163,7 +163,8 @@ function GetDNSInfo(data)
 	$('#dns1').val(data.DNS1);
 	$('#dns2').val(data.DNS2);
 
-	if ((data.DNS1 != "") || (data.DNS2 != ""))
+	if ((typeof data.DNS1 !== "undefined" && data.DNS1 != "") ||
+	    (typeof data.DNS2 !== "undefined" && data.DNS2 != ""))
 	{
 			$('#dns_manual').prop('checked', true);
 			$('#dns_dhcp').prop('checked', false);
@@ -398,7 +399,7 @@ function DisableDNSFields(disabled)
               <td>DNS Server Mode:</td>
               <td><label><input type="radio" id ="dns_manual" value="manual">
                     Manual</label>
-                  <label><input type="radio" id ="dns_dhcp" value="dhcp">
+                  <label><input type="radio" id ="dns_dhcp" value="dhcp" checked>
                     DHCP</label>
                   <br>
               </td>
