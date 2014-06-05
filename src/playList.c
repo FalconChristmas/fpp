@@ -129,8 +129,9 @@ int ReadPlaylist(char const * file)
 	playlistDetails.last = atoi(s);
 
 	// Parse Playlists 
-  while(fgets(buf, 512, fp) != NULL)
+  while((fgets(buf, 512, fp) != NULL) && (listIndex < PL_MAX_ENTRIES))
   {
+    LogExcess(VB_PLAYLIST, "Loading playlist entry %d/%d\n", listIndex + 1, PL_MAX_ENTRIES);
     s=strtok(buf,",");
     playlistDetails.playList[listIndex].cType = s[0];
     switch(s[0])
@@ -173,6 +174,10 @@ int ReadPlaylist(char const * file)
     listIndex++;
   }
   fclose(fp);
+
+  if (listIndex == PL_MAX_ENTRIES)
+    LogErr(VB_PLAYLIST, "Limit of max number of playlist entries (%d) reached.\n",
+           PL_MAX_ENTRIES);
 
   playlistDetails.playListCount = listIndex;
   PlaylistCallback(&playlistDetails);

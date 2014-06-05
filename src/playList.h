@@ -39,6 +39,7 @@
 
 #define PLAYLIST_STOP_INDEX		-1
 
+#define PL_MAX_ENTRIES       64
 
 typedef struct{
     unsigned char  type;
@@ -50,7 +51,7 @@ typedef struct{
 }PlaylistEntry;
 
 typedef struct{
-	PlaylistEntry playList[32];
+	PlaylistEntry playList[PL_MAX_ENTRIES];
 	char currentPlaylist[128];
 	char currentPlaylistFile[128];
 	int  playListCount;
