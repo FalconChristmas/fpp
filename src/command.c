@@ -127,6 +127,7 @@ extern PlaylistDetails playlistDetails;
 		char CommandStr[64];
 		s = strtok(command,",");
 		strcpy(CommandStr, s);
+		LogExcess(VB_COMMAND, "%s %s\n", CommandStr, command);
 		if (!strcmp(CommandStr, "s"))
 		{
 				GetNextScheduleStartText(NextScheduleStartText);
