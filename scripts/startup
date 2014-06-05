@@ -33,7 +33,7 @@ ${BINDIR}/config_dns
 ###########################################################################
 # Part #1 of workaround for https://github.com/raspberrypi/linux/issues/570
 # Play some silence while we set the volume so the new value will stick
-mpg123 /opt/fpp/media/silence.mp3 > /dev/null 2>&1 &
+aplay /opt/fpp/media/silence_5sec.wav > /dev/null 2>&1 &
 SILENCEPID=$!
 ###########################################################################
 
