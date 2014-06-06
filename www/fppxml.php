@@ -1456,6 +1456,7 @@ function GetFiles()
 	global $scriptDirectory;
 	global $logDirectory;
 	global $uploadDirectory;
+	global $docsDirectory;
 
 	$dirName = $_GET['dir'];
 	check($dirName);
@@ -1466,6 +1467,7 @@ function GetFiles()
 	else if ($dirName == "Scripts")     { $dirName = $scriptDirectory; }
 	else if ($dirName == "Logs")        { $dirName = $logDirectory; }
 	else if ($dirName == "Uploads")     { $dirName = $uploadDirectory; }
+	else if ($dirName == "Docs")        { $dirName = $docsDirectory; }
 	else
 		return;
 

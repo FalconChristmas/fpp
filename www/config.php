@@ -25,6 +25,7 @@ $fppDir = dirname(dirname(__FILE__));
 $settingsFile = CONFIG_FILE;
 $pluginDirectory   = "/opt/fpp/plugins";
 $mediaDirectory    = "/home/pi/media";
+$docsDirectory     = $fppDir . "/docs";
 $musicDirectory    = $mediaDirectory . "/music";
 $sequenceDirectory = $mediaDirectory . "/sequences";
 $playlistDirectory = $mediaDirectory . "/playlists";
@@ -183,6 +184,7 @@ $settings['videoDirectory'] = $videoDirectory;
 $settings['effectDirectory'] = $effectDirectory;
 $settings['logDirectory'] = $logDirectory;
 $settings['uploadDirectory'] = $uploadDirectory;
+$settings['docsDirectory'] = $docsDirectory;
 
 putenv("SCRIPTDIR=$scriptDirectory");
 putenv("MEDIADIR=$mediaDirectory");
@@ -223,6 +225,7 @@ function GetDirSetting($dir)
 	else if ($dir == "Scripts")     { return GetSettingValue('scriptDirectory'); }
 	else if ($dir == "Logs")        { return GetSettingValue('logDirectory'); }
 	else if ($dir == "Uploads")     { return GetSettingValue('uploadDirectory'); }
+	else if ($dir == "Docs")        { return GetSettingValue('docsDirectory'); }
 
 	return "";
 }

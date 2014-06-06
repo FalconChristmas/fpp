@@ -1984,7 +1984,13 @@ function DownloadFile(dir, file)
 
 function ViewFile(dir, file)
 {
-	$('#fileText').load("fppxml.php?command=getFile&dir=" + dir + "&filename=" + file);
+	$('#fileText').html("Loading...");
+	$('#fileText').load("fppxml.php?command=getFile&dir=" + dir + "&filename=" + file, function() {
+		var ext = file.split('.').pop();
+		if (ext != "html")
+			$('#fileText').html("<pre>" + $('#fileText').html() + "</pre>");
+	});
+
 	$('#fileViewer').dialog({ height: 600, width: 800, title: "File Viewer: " + file });
 	$('#fileViewer').dialog( "moveToTop" );
 }

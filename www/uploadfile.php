@@ -278,10 +278,8 @@ h2 {
   </div>
 </div>
 <div id='fileViewer' title='File Viewer' style="display: none">
-  <pre>
   <div id='fileText'>
   </div>
-  </pre>
 </div>
 <?php	include 'common/footer.inc'; ?>
 <script>
