@@ -40,8 +40,7 @@ SILENCEPID=$!
 amixer cset numid=3 1
 ORIGVOLUME=$(getSetting volume)
 # Switch to this more accurate setting for or after v0.3.0
-#VOLUME=$(echo "scale=2 ; ${ORIGVOLUME} / 2 + 50" | bc)
-VOLUME=$(expr ${ORIGVOLUME} / 2 + 50)
+VOLUME=$(echo "scale=2 ; ${ORIGVOLUME} / 2.0 + 50" | bc)
 amixer set PCM ${VOLUME}%
 
 ###########################################################################
