@@ -61,7 +61,8 @@ typedef struct {
 	char            startCorner[3];   // TL, TR, BL, BR (Top/Bottom and Left/Right)
 	unsigned char   isActive;         // 0/1 set by client, read by fppd
 	char            orientation;      // 'H'orizontal or 'V'ertical
-	char            filler[187];      // filler for future use
+	unsigned char   isLocked;         // Suggested access lock between processes
+	char            filler[186];      // filler for future use
 } FPPChannelMemoryMapControlBlock;
 
 #endif /* _MEMORYMAPCONTROL_H */
