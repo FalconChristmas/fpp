@@ -132,7 +132,7 @@ int E131_InitializeNetwork()
 	}
 
 	// Set E131 header Data 
-	memcpy((void*)E131packet,E131header,126);
+	memcpy((void*)E131packet,E131header,E131_HEADER_LENGTH);
 
 	return 1;
 }
@@ -167,8 +167,26 @@ int E131_SendData(void *data, char *channelData, int channelCount)
 		E131packet[E131_SEQUENCE_INDEX] = E131sequenceNumber;
 		E131packet[E131_UNIVERSE_INDEX] = (char)(universes[i].universe/256);
 		E131packet[E131_UNIVERSE_INDEX+1]	= (char)(universes[i].universe%256);
-		E131packet[E131_COUNT_INDEX] = (char)((universes[i].size+1)/256);
-		E131packet[E131_COUNT_INDEX+1] = (char)((universes[i].size+1)%256);
+
+		// Property Value Count
+		E131packet[E131_COUNT_INDEX] = ((universes[i].size+1)/256);
+		E131packet[E131_COUNT_INDEX+1] = ((universes[i].size+1)%256);
+
+		// RLP Protocol flags and length
+		int count = 638 - 16 - (512 - (universes[i].size));
+		E131packet[E131_RLP_COUNT_INDEX] = (count/256)+0x70;
+		E131packet[E131_RLP_COUNT_INDEX+1] = count%256;
+
+		// Framing Protocol flags and length
+		count = 638 - 38 - (512 - (universes[i].size));
+		E131packet[E131_FRAMING_COUNT_INDEX] = (count/256)+0x70;
+		E131packet[E131_FRAMING_COUNT_INDEX+1] = count%256;
+
+		// DMP Protocol flags and length
+		count = 638 - 115 - (512 - (universes[i].size));
+		E131packet[E131_DMP_COUNT_INDEX] = (count/256)+0x70;
+		E131packet[E131_DMP_COUNT_INDEX+1] = count%256;
+
 		if(sendto(sendSocket, E131packet, universes[i].size + E131_HEADER_LENGTH, 0, (struct sockaddr*)&E131address[i], sizeof(E131address[i])) < 0)
 		{
 			return 0;
