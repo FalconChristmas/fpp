@@ -2080,7 +2080,7 @@ function UninstallPlugin()
 		return;
 	}
 
-	exec("$fppDir/scripts/uninstall_plugin $plugin", $output, $return_val);
+	exec("export SUDO=\"".SUDO."\"; export PLUGINDIR=\"".$pluginDirectory."\"; $fppDir/scripts/uninstall_plugin $plugin", $output, $return_val);
 	unset($output);
 	if ( $return_val != 0 )
 	{
@@ -2112,7 +2112,7 @@ function InstallPlugin()
 	{
 		if ( $available_plugin['shortName'] == $plugin )
 		{
-			exec("$fppDir/scripts/install_plugin $plugin \"" . $available_plugin['sourceUrl'] . "\"", $output, $return_val);
+			exec("export SUDO=\"".SUDO."\"; export PLUGINDIR=\"".$pluginDirectory."\"; $fppDir/scripts/install_plugin $plugin \"" . $available_plugin['sourceUrl'] . "\"", $output, $return_val);
 			unset($output);
 			if ( $return_val != 0 )
 			{

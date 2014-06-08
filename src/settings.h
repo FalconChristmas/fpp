@@ -50,6 +50,7 @@ struct config
 	char	*videoDirectory;
 	char	*effectDirectory;
 	char	*scriptDirectory;
+	char	*pluginDirectory;
 	char	*playlistDirectory;
 	char	*universeFile;
 	char	*pixelnetFile;
@@ -100,6 +101,7 @@ char *getEventDirectory(void);
 char *getVideoDirectory(void);
 char *getEffectDirectory(void);
 char *getScriptDirectory(void);
+char *getPluginDirectory(void);
 char *getPlaylistDirectory(void);
 char *getUniverseFile(void);
 char *getPixelnetFile(void);

@@ -47,18 +47,8 @@ void InitPluginCallbacks(void)
 	plugin_t *plugin;
 	DIR *dp;
 	struct dirent *ep;
-	char cwd[1024], plugin_dir[1024];
 
-	if (getcwd(cwd, sizeof(cwd)) == NULL)
-	{
-		LogErr(VB_PLUGIN, "Error parsing current directory, bailing on plugins!\n");
-		return;
-	}
-
-	strcpy(&plugin_dir[0], dirname(cwd));
-	strncat(&plugin_dir[strlen(plugin_dir)], "/plugins/", sizeof(plugin_dir));
-
-	dp = opendir(plugin_dir);
+	dp = opendir(getPluginDirectory());
 	if (dp != NULL)
 	{
 		while (ep = readdir(dp))
@@ -78,7 +68,8 @@ void InitPluginCallbacks(void)
 			plugin = &plugins[plugin_count];
 			plugin->name = strdup(ep->d_name);
 
-			strcpy(long_filename, plugin_dir);
+			strcpy(long_filename, getPluginDirectory());
+			strcat(long_filename, "/");
 			strcat(long_filename, ep->d_name);
 			strcat(long_filename, "/callbacks");
 
@@ -161,7 +152,7 @@ void InitPluginCallbacks(void)
 	}
 	else
 	{
-		LogWarn(VB_PLUGIN, "Couldn't open the directory %s: (%d): %s\n", plugin_dir, errno, strerror(errno));
+		LogWarn(VB_PLUGIN, "Couldn't open the directory %s: (%d): %s\n", getPluginDirectory(), errno, strerror(errno));
 	}
 
 	return;

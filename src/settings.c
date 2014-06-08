@@ -53,6 +53,7 @@ void initSettings(void)
 	settings.videoDirectory = strdup("/home/pi/media/videos");
 	settings.effectDirectory = strdup("/home/pi/media/effects");
 	settings.scriptDirectory = strdup("/home/pi/media/scripts");
+	settings.pluginDirectory = strdup("/opt/fpp/plugins");
 	settings.universeFile = strdup("/home/pi/media/universes");
 	settings.pixelnetFile = strdup("/home/pi/media/pixelnetDMX");
 	settings.scheduleFile = strdup("/home/pi/media/schedule");
@@ -166,6 +167,10 @@ void printSettings(void)
 		fprintf(fd, "playlistDirectory(%u): %s\n",
 				strlen(settings.playlistDirectory),
 				settings.playlistDirectory);
+	if ( settings.pluginDirectory )
+		fprintf(fd, "pluginDirectory(%u): %s\n",
+				strlen(settings.pluginDirectory),
+				settings.pluginDirectory);
 	if ( settings.universeFile )
 		fprintf(fd, "universeFile(%u): %s\n",
 				strlen(settings.universeFile),
@@ -556,6 +561,16 @@ int loadSettings(const char *filename)
 				else
 					fprintf(stderr, "Failed to load scriptDirectory from config file\n");
 			}
+			else if ( strcmp(key, "pluginDirectory") == 0 )
+			{
+				if ( strlen(value) )
+				{
+				    free(settings.pluginDirectory);
+					settings.pluginDirectory = strdup(value);
+				}
+				else
+					fprintf(stderr, "Failed to load pluginDirectory from config file\n");
+			}
 			else if ( strcmp(key, "playlistDirectory") == 0 )
 			{
 				if ( strlen(value) )
@@ -820,6 +835,10 @@ char *getScriptDirectory(void)
 {
 	return settings.scriptDirectory;
 }
+char *getPluginDirectory(void)
+{
+	return settings.pluginDirectory;
+}
 char *getPlaylistDirectory(void)
 {
 	return settings.playlistDirectory;
@@ -938,6 +957,8 @@ int saveSettingsFile(void)
 	snprintf(buffer, 1024, "%s = %s\n", "effectDirectory", getEffectDirectory());
 	bytes += fwrite(buffer, 1, strlen(buffer), fd);
 	snprintf(buffer, 1024, "%s = %s\n", "scriptDirectory", getScriptDirectory());
+	bytes += fwrite(buffer, 1, strlen(buffer), fd);
+	snprintf(buffer, 1024, "%s = %s\n", "pluginDirectory", getPluginDirectory());
 	bytes += fwrite(buffer, 1, strlen(buffer), fd);
 	snprintf(buffer, 1024, "%s = %s\n", "playlistDirectory", getPlaylistDirectory());
 	bytes += fwrite(buffer, 1, strlen(buffer), fd);
