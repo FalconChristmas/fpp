@@ -11,7 +11,7 @@ if curl --silent --head https://github.com | grep "Content-Type: text/html; char
 
 	if [ "x${FPPDIR}" = "x/opt/fpp" ]
 	then
-		cd ${FPPDIR} && sudo git fetch
+		cd ${FPPDIR} && $SUDO git fetch
 	else
 		cd ${FPPDIR} && sudo -u pi git fetch
 	fi

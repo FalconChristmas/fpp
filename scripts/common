@@ -9,6 +9,7 @@ then
 	FPPDIR=/home/pi/fpp
 fi
 
+SUDO=${SUDO:-sudo}
 SCRIPTDIR="${FPPDIR}/scripts"
 BINDIR="${FPPDIR}/scripts"
 UPGRADEDIR="${FPPDIR}/upgrade"
@@ -16,7 +17,7 @@ MEDIADIR="${MEDIADIR:-/home/pi/media}"
 LOGDIR="${MEDIADIR}/logs"
 CFGDIR="${MEDIADIR}/config"
 CFGFILE="${MEDIADIR}/settings"
-PLUGINDIR="/opt/fpp/plugins"
+PLUGINDIR="${PLUGINDIR:-/opt/fpp/plugins}"
 SETTINGSFILE="${SETTINGSFILE:-/home/pi/media/settings}"
 FPPVERSIONFILE="${FPPVERSIONFILE:-/etc/fpp/rfs_version}"
 FPPVERSION="${FPPVERSION:-0}"

@@ -15,23 +15,23 @@ logOutput
 echo "Installing plugin $1"
 if [ "x${FPPDIR}" = "x/opt/fpp" ] && [ "x${SETTINGSFILE}" = "x/home/pi/media/settings" ]
 then
-	cd ${FPPDIR}/plugins && sudo git clone $2 $1
+	cd ${PLUGINDIR} && $SUDO git clone $2 $1
 elif [ "x${FPPDIR}" = "x/home/pi" ]
 then
-	cd ${FPPDIR}/plugins && sudo -u pi git clone $2 $1
+	cd ${PLUGINDIR} && sudo -u pi git clone $2 $1
 else
-	cd ${FPPDIR}/plugins && git clone $2 $1
+	cd ${PLUGINDIR} && git clone $2 $1
 fi
 
-if [ -x "${FPPDIR}/plugins/$1/fpp_install.sh" ]
+if [ -x "${PLUGINDIR}/$1/fpp_install.sh" ]
 then
 	if [ "x${FPPDIR}" = "x/opt/fpp" ] && [ "x${SETTINGSFILE}" = "x/home/pi/media/settings" ]
 	then
-		sudo ${FPPDIR}/plugins/$1/fpp_install.sh
+		$SUDO ${PLUGINDIR}/$1/fpp_install.sh
 	elif [ "x${FPPDIR}" = "x/home/pi" ]
 	then
-		sudo -u pi ${FPPDIR}/plugins/$1/fpp_install.sh
+		sudo -u pi ${PLUGINDIR}/$1/fpp_install.sh
 	else
-		${FPPDIR}/plugins/$1/fpp_install.sh
+		${PLUGINDIR}/$1/fpp_install.sh
 	fi
 fi
