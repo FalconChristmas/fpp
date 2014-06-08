@@ -6,6 +6,8 @@ define('SUDO', 'sudo');
 
 // Settings array so we can stop making individual variables for each new setting
 $settings = array();
+$pluginSettings = array();
+
 // FIXME, need to convert other settings below to use this array
 $settings['fppMode'] = "player";
 

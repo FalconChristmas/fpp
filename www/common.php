@@ -1,70 +1,103 @@
 <?php 
 require_once("config.php");
 
-function ReadSettingFromFile($settingName)
+function ReadSettingFromFile($settingName, $plugin = "")
 {
 	global $settingsFile;
-	$settings = file_get_contents($settingsFile);
-  if ( !empty($settings) )
+	global $settings;
+	$filename = $settingsFile;
+
+	if ($plugin != "") {
+		$filename = $settings["configDirectory"] . "/plugin." . $plugin;
+	}
+
+	$settingsStr = file_get_contents($filename);
+  if ( !empty($settingsStr) )
   {
-		if (preg_match("/^" . $settingName . "/m", $settings))
+		if (preg_match("/^" . $settingName . "/m", $settingsStr))
 		{
-      $result = preg_match("/^" . $settingName . "\s*=(\s*\S*\w*)/m", $settings, $output_array);
+      $result = preg_match("/^" . $settingName . "\s*=(\s*\S*\w*)/m", $settingsStr, $output_array);
       if($result == 0)
       {
-        error_log("The setting " . $settingName . " could not be found in " . $settingsFile);
+        error_log("The setting " . $settingName . " could not be found in " . $filename);
         return false;
       }
       return trim($output_array[1]);
 		}
 		else
 		{
-      error_log("The setting " . $settingName . " could not be found in " . $settingsFile);
+      error_log("The setting " . $settingName . " could not be found in " . $filename);
 			return false;
 		}
   }
 	else
 	{
-    error_log("The setting file:" . $settingsFile . " could not be found." );
+    error_log("The setting file:" . $filename . " could not be found." );
 		return false;
 	}
 }
 
-function WriteSettingToFile($settingName, $setting)
+function WriteSettingToFile($settingName, $setting, $plugin = "")
 {
 	global $settingsFile;
-	$settings = file_get_contents($settingsFile);
-	if ( !empty($settings) )
+	global $settings;
+	$filename = $settingsFile;
+
+	if ($plugin != "") {
+		$filename = $settings['configDirectory'] . "/plugin." . $plugin;
+	}
+
+	$settingsStr = file_get_contents($filename);
+	if ( !empty($settingsStr) )
 	{
-		if (preg_match("/^" . $settingName . "\s*=/m", $settings))
+		if (preg_match("/^" . $settingName . "\s*=/m", $settingsStr))
 		{
-			$settings = preg_replace("/^" . $settingName . "\s*=\s*\S*\w*/m", $settingName . " = " . $setting . "\n", $settings);
+			$settingsStr = preg_replace("/^" . $settingName . "\s*=\s*\S*\w*/m", $settingName . " = " . $setting . "\n", $settingsStr);
 		}
 		else
 		{
-			$settings .= $settingName . " = " . $setting . "\n";
+			$settingsStr .= $settingName . " = " . $setting . "\n";
 		}
-		$settings = preg_replace("/\n\n/", "\n", $settings);
-		file_put_contents($settingsFile, $settings);
+		$settingsStr = preg_replace("/\n\n/", "\n", $settingsStr);
+		file_put_contents($filename, $settingsStr);
 	}
 	else
 	{
-		file_put_contents($settingsFile, $settingName ." = " . $setting . "\n");
+		file_put_contents($filename, $settingName ." = " . $setting . "\n");
 	}
 }
 
-function IfSettingEqualPrint($setting, $value, $print)
+function IfSettingEqualPrint($setting, $value, $print, $pluginName = "")
 {
 	global $settings;
+	global $pluginSettings;
 
-	if ((isset($settings[$setting])) &&
-		($settings[$setting] == $value ))
-		echo $print;
+	if ($pluginName != "") {
+		if ((isset($pluginSettings[$setting])) &&
+			($pluginSettings[$setting] == $value ))
+			echo $print;
+	} else {
+		if ((isset($settings[$setting])) &&
+			($settings[$setting] == $value ))
+			echo $print;
+	}
 }
 
-function PrintSettingCheckbox($title, $setting, $checkedValue, $uncheckedValue)
+function PrintSettingCheckbox($title, $setting, $checkedValue, $uncheckedValue, $pluginName = "", $callbackName = "")
 {
 	global $settings;
+	global $pluginSettings;
+
+	$plugin = "";
+	$settingsName = "settings";
+
+	if ($pluginName != "") {
+		$plugin = "Plugin";
+		$settingsName = "pluginSettings";
+	}
+
+	if ($callbackName != "")
+		$callbackName = $callbackName . "();";
 
 	echo "
 <script>
@@ -76,12 +109,14 @@ function " . $setting . "Changed() {
 		value = '$checkedValue';
 	}
 
-	$.get('fppjson.php?command=setSetting&key=$setting&value=' + value)
+	$.get('fppjson.php?command=set" . $plugin . "Setting&plugin=$pluginName&key=$setting&value=' + value)
 		.success(function() {
 			if (checked)
 				$.jGrowl('$title Enabled');
 			else
 				$.jGrowl('$title Disabled');
+			$settingsName" . "['$setting'] = value;
+			$callbackName
 		}).fail(function() {
 			if (checked) {
 				DialogError('$title', 'Failed to Enable $title');
@@ -96,7 +131,7 @@ function " . $setting . "Changed() {
 
 <input type='checkbox' id='$setting' ";
 
-	IfSettingEqualPrint($setting, $checkedValue, "checked");
+	IfSettingEqualPrint($setting, $checkedValue, "checked", $pluginName);
 
 	echo " onChange='" . $setting . "Changed();'>\n";
 }

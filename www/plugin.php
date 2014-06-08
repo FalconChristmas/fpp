@@ -3,6 +3,16 @@
 if ( !isset($_GET['nopage']) ):
 
 require_once("config.php");
+require_once("common.php");
+
+$pluginSettings = array();
+
+if (isset($_GET['plugin']))
+{
+	$pluginConfigFile = $settings['configDirectory'] . "/plugin." . $_GET['plugin'];
+	if (file_exists($pluginConfigFile))
+		$pluginSettings = parse_ini_file($pluginConfigFile);
+}
 
 ?>
 
@@ -11,6 +21,15 @@ require_once("config.php");
 <head>
 <?php include 'common/menuHead.inc'; ?>
 <title>Falcon PI Player - FPP</title>
+<script type="text/javascript">
+	var pluginSettings = new Array();
+<?
+	foreach ($pluginSettings as $key => $value) {
+		printf("	pluginSettings['%s'] = \"%s\";\n", $key, $value);
+	}
+?>
+</script>
+
 <?
 
 $jsDir = $pluginDirectory . "/" . $_GET['plugin'] . "/js/";

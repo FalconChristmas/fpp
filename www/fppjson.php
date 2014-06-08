@@ -29,6 +29,8 @@ $command_array = Array(
 	"setInterfaceInfo"    => 'SetInterfaceInfo',
 	"getSetting"          => 'GetSetting',
 	"setSetting"          => 'SetSetting',
+	"getPluginSetting"    => 'GetPluginSetting',
+	"setPluginSetting"    => 'SetPluginSetting',
 	"setAudioOutput"      => 'SetAudioOutput'
 );
 
@@ -110,6 +112,40 @@ function SetSetting()
 	}
 
 	GetSetting();
+}
+
+function GetPluginSetting()
+{
+	global $args;
+
+	$setting = $args['key'];
+	$plugin  = $args['plugin'];
+	check($setting);
+	check($plugin);
+
+	$value = ReadSettingFromFile($setting, $plugin);
+
+	$result = Array();
+	$result[$setting] = $value;
+
+	returnJSON($result);
+}
+
+function SetPluginSetting()
+{
+	global $args;
+
+	$setting = $args['key'];
+	$value   = $args['value'];
+	$plugin  = $args['plugin'];
+
+	check($setting);
+	check($value);
+	check($plugin);
+
+	WriteSettingToFile($setting, $value, $plugin);
+
+	GetPluginSetting();
 }
 
 /////////////////////////////////////////////////////////////////////////////
