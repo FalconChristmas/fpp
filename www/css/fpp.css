@@ -23,13 +23,13 @@
 	-moz-border-radius: 3px;
 	border-radius: 3px;
 	color: #333;
-	font: bold "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Geneva, Verdana, sans-serif;
+	font: bold 11px "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Geneva, Verdana, sans-serif;
 	line-height: 1;
-	padding: 3px;
+	padding: 1px 0;
 	text-align: center;
 	text-shadow: 0 1px 0 #eee;
-	width: 100px;
-	height: 30px;
+	width: 90px;
+	height: 20px;
 }
 
 .buttons:hover
@@ -71,13 +71,12 @@
 	-moz-border-radius: 3px;
 	border-radius: 3px;
 	color: #AAA;
-	font: bold "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Geneva, Verdana, sans-serif;
+	font: bold 11px "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Geneva, Verdana, sans-serif;
 	line-height: 1;
-	padding: 3px;
+	padding: 1px 0;
 	text-align: center;
 	text-shadow: 0 1px 0 #eee;
-	width: 100px;
-	height: 30px;
+	width: 90px;
 }
 
 .disableButtons:active
