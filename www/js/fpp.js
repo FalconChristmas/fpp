@@ -1982,6 +1982,11 @@ function DownloadFile(dir, file)
 	location.href="fppxml.php?command=getFile&dir=" + dir + "&filename=" + file;
 }
 
+function DownloadZip(dir)
+{
+	location.href="fppxml.php?command=getZip&dir=" + dir;
+}
+
 function ViewFile(dir, file)
 {
 	$('#fileText').html("Loading...");

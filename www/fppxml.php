@@ -32,6 +32,7 @@ $command_array = Array(
 	"getPlayLists" => 'GetPlaylists',
 	"getPlayListSettings" => 'GetPlayListSettings',
 	"getFiles" => 'GetFiles',
+	"getZip" => 'GetZip',
 	"getSequences" => 'GetSequenceFiles',
 	"getPlayListEntries" => 'GetPlaylistEntries',
 	"setPlayListFirstLast" => 'SetPlayListFirstLast',
@@ -1958,6 +1959,54 @@ function GetFile()
 	header('Content-disposition: attachment;filename=' . $filename);
 	readfile($dir . '/' . $filename);
 }
+
+function GetZip()
+{
+	global $logDirectory;
+
+	$dir = $_GET['dir'];
+	check($dir);
+
+	$dir = GetDirSetting($dir);
+
+	if ($dir == "")
+		return;
+
+	// Re-format the file name
+	$filename = tempnam("/tmp", "FPP_Logs");
+
+	// Create the object
+	$zip = new ZipArchive();
+	if ($zip->open($filename, ZIPARCHIVE::CREATE) !== TRUE) {
+		exit("Cannot open '$filename'\n");
+	}
+	foreach(scandir($logDirectory) as $file) {
+		if ( $file == "." || $file == ".." ) {
+			continue;
+		}
+		$zip->addFile($logDirectory.'/'.$file, "Logs/".$file);
+	}
+
+	$zip->addFile("/var/log/messages", "Logs/messages.log");
+	$zip->addFile("/var/log/syslog", "Logs/syslog.log");
+	$zip->addFile("/proc/asound/cards", "Logs/asound/cards");
+
+	exec("ls -aRl /proc /dev /sys", $output, $return_val);
+	if ( $return_val != 0 ) {
+		error_log("Unable to get a listing of /proc for logs");
+	}
+	else {
+		$zip->addFromString("Logs/proc_dev_sys.txt", implode("\n", $output)."\n");
+	}
+
+	$zip->close();
+
+	header('Content-type: application/zip');
+	header('Content-disposition: attachment;filename=FPP_Logs.zip');
+	readfile($filename);
+	unlink($filename);
+}
+
 
 function SaveUSBDongle()
 {

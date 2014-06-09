@@ -241,6 +241,7 @@ h2 {
           </div>
           <hr />
           <div class='right'>
+            <input onclick= "DownloadZip('Logs');" id="btnZipLogs" class="buttons" type="button" value="Zip" style="float: left;" />
             <input onclick= "ViewFile('Logs', LogFileSelected);" id="btnViewLog" class="disableButtons" type="button"  value="View" />
             <input onclick= "DownloadFile('Logs', LogFileSelected);" id="btnDownloadLog" class="disableButtons" type="button"  value="Download" />
             <input onclick= "DeleteFile('Logs', LogFileSelected);" id="btnDeleteLog" class="disableButtons" type="button"  value="Delete" />
