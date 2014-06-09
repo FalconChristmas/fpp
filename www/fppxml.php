@@ -2001,8 +2001,10 @@ function GetZip()
 
 	$zip->close();
 
+	$timestamp = gmdate('Ymd.Hi');
+
 	header('Content-type: application/zip');
-	header('Content-disposition: attachment;filename=FPP_Logs.zip');
+	header('Content-disposition: attachment;filename=FPP_Logs_' . $timestamp . '.zip');
 	readfile($filename);
 	unlink($filename);
 }
