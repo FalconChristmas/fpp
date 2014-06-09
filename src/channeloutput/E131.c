@@ -280,8 +280,8 @@ void UniversesPrint()
 		LogDebug(VB_CHANNELOUT, "E1.31 Universe: %d:%d:%d:%d:%d  %s\n",
 				  universes[i].active,
 				  universes[i].universe,
-				  universes[i].size,
 				  universes[i].startAddress,
+				  universes[i].size,
 				  universes[i].type,
 				  universes[i].unicastAddress);
 	}

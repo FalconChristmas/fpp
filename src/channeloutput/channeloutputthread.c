@@ -86,7 +86,7 @@ void *RunChannelOutputThread(void *data)
 				int sleepTime = LightDelay - (GetTime() - startTime);
 				lastStatTime = startTime;
 				LogDebug(VB_CHANNELOUT,
-					"Output Thread: Loop: %dus, Send: %dus, Read: %dus, Sleep: %dus\n",
+					"Output Thread: Loop: %dus, Send: %lldus, Read: %lldus, Sleep: %dus\n",
 					LightDelay, sendTime - startTime,
 					readTime - sendTime, sleepTime);
 			}
