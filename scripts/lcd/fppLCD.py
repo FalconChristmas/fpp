@@ -27,7 +27,7 @@ class fppLCD():
     self.MAX_CHARS = 16
     self.MAX_STATUS_TIMEOUT = 120
     self.NORMAL_STATUS_TIMEOUT = 3
-    self.FPPD_PLAYER_MODE = "0"
+    self.FPPD_PLAYER_MODE = "2"
     self.FPPD_BRIDGE_MODE = "1"
     self.maxStatusUpdateCount = 5
     self.statusUpdateCounter= 5
