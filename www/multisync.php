@@ -104,8 +104,8 @@ require_once("config.php");
 				  	<select id="selFPPDmode" onChange="SetFPPDmode();">
 							<option id="optFPPDmode_Player" value="2">Player (Standalone)</option>
 							<option id="optFPPDmode_Master" value="6">Player (Master)</option>
-							<option id="optFPPDmode_Remote"  value="8">Player (Remote)</option>
-							<option id="optFPPDmode_Bridge" value="1">Bridge Mode</option>
+							<option id="optFPPDmode_Remote" value="8">Player (Remote)</option>
+							<option id="optFPPDmode_Bridge" value="1">Bridge</option>
 						</select></td>
 					<td class='masterButton'>&nbsp;</td>
 				</tr>
