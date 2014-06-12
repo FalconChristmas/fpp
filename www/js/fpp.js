@@ -1272,7 +1272,15 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 						}
 
 						var fppMode = status.childNodes[0].textContent;
-						if(fppMode == 2 )
+						if (fppMode == 1)
+						{
+							$("#playerStatus").css("display","none");
+							$("#nextPlaylist").css("display","none");
+							$("#bytesTransferred").css("display","block");
+
+							GetUniverseBytesReceived();
+						}
+						else
 						{
 							$("#playerStatus").css("display","block");
 							$("#nextPlaylist").css("display","block");
@@ -1361,14 +1369,6 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 										}
 								}
 							}
-						}
-						else if (fppMode == 1)
-						{
-							$("#playerStatus").css("display","none");
-							$("#nextPlaylist").css("display","none");
-							$("#bytesTransferred").css("display","block");
-							
-							GetUniverseBytesReceived();
 						}
 					}
 					else
@@ -1493,7 +1493,16 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
 			xmlhttp.send();
 	}
-	
+
+	function RestartFPPD()
+	{
+    	var xmlhttp=new XMLHttpRequest();
+			var url = "fppxml.php?command=restartFPPD";
+			xmlhttp.open("GET",url,true);
+			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+			xmlhttp.send();
+	}
+
 	function zeroPad(num, places) {
 		var zero = places - num.toString().length + 1;
 		return Array(+(zero > 0 && zero)).join("0") + num;
@@ -1900,7 +1909,9 @@ function SetFPPDmode()
 {
 	$.get("fppxml.php?command=setFPPDmode&mode=" + $('#selFPPDmode').val()
 	).success(function() {
-		$.jGrowl("fppMode Saved. You must restart fppd for change to take effect.");
+		$.jGrowl("fppMode Saved");
+		RestartFPPD();
+		location.reload(true);
 	}).fail(function() {
 		DialogError("Save fppdMode", "Save Failed");
 	});
