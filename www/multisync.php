@@ -71,6 +71,24 @@ require_once("config.php");
 		});
 	}
 </script>
+<style>
+#fppSystems{
+	border: 1px;
+}
+
+.masterHeader{
+	width: 15%;
+}
+
+.masterValue{
+	width: 40%;
+}
+
+.masterButton{
+	text-align: right;
+	width: 25%;
+}
+</style>
 </head>
 <body>
 <div id="bodyWrapper">
