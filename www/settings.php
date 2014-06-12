@@ -168,7 +168,7 @@ function AudioOutputChanged()
               <input type='checkbox' class='mask_schedule'>Scheduler<br>
               <input type='checkbox' class='mask_sequence'>Sequence Parser<br>
               <input type='checkbox' class='mask_setting'>Settings<br>
-              <input type='checkbox' class='mask_sync'>Master/Slave Sync<br>
+              <input type='checkbox' class='mask_sync'>MultiSync<br>
               </td>
           </tr>
         </table>
