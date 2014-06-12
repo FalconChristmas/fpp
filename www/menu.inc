@@ -2,18 +2,25 @@
 
 $kernel_version = exec("uname -r");
 
-$fpp_version = "v" . exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ describe --tags", $output, $return_val);
+$fpp_head_version = "v" . exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ describe --tags", $output, $return_val);
 if ( $return_val != 0 ) 
-	$fpp_version = "Unknown";
+	$fpp_head_version = "Unknown";
 unset($output);
 
+$git_branch = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ branch --list | grep '\\*' | awk '{print \$2}'", $output, $return_val);
+if ( $return_val != 0 )
+	$git_branch = "Unknown";
+unset($output);
+
+if (!preg_match("/^$git_branch-/", $fpp_head_version))
+	$fpp_head_version .= " ($git_branch branch)";
 ?>
 
 <?php require_once(dirname(__FILE__)."/config.php"); ?>
   <div class="header">
     <div class="headerLeft"><a href="http://www.falconchristmas.com"><img src="images/falconlogo.png" class="logo" /></a></div>
     <div class="headerCenter"><div class="siteName">Falcon Pi Player (FPP)</div>
-      Version: <a href='about.php' class='nonULLink'><?php echo $fpp_version; ?></a>
+      Version: <a href='about.php' class='nonULLink'><?php echo $fpp_head_version; ?></a>
 <?
 	if (file_exists("/etc/fpp/rfs_version"))
 	{
