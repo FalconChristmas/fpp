@@ -50,6 +50,7 @@ unset($output);
             <li><a href="uipassword.php">Set UI Password</a></li>
             <li><a href="timeconfig.php">Config/Set Time</a></li>
             <li><a href="networkconfig.php">Network</a></li>
+            <li><a href="multisync.php">MultiSync</a></li>
 <?php
 $handle = opendir($pluginDirectory);
 if ( $handle )

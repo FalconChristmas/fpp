@@ -27,6 +27,7 @@ $command_array = Array(
 	"applyInterfaceInfo"  => 'ApplyInterfaceInfo',
 	"getInterfaceInfo"    => 'GetInterfaceInfo',
 	"setInterfaceInfo"    => 'SetInterfaceInfo',
+	"getFPPSystems"       => 'GetFPPSystems',
 	"getSetting"          => 'GetSetting',
 	"setSetting"          => 'SetSetting',
 	"getPluginSetting"    => 'GetPluginSetting',
@@ -109,6 +110,10 @@ function SetSetting()
 		if ($value != "")
 			$newValue = preg_replace("/,/", ";", $value);
 		SendCommand("LogMask,$newValue,");
+	} else if ($setting == "HostName") {
+		$value = preg_replace("/[^a-zA-Z0-9]/", "", $value);
+		exec(SUDO . " sed -i 's/^.*\$/$value/' /etc/hostname ; " . SUDO . " hostname $value ; " . SUDO . " /etc/init.d/avahi-daemon restart", $output, $return_val);
+		sleep(1); // Give Avahi time to restart before we return
 	}
 
 	GetSetting();
@@ -146,6 +151,56 @@ function SetPluginSetting()
 	WriteSettingToFile($setting, $value, $plugin);
 
 	GetPluginSetting();
+}
+
+/////////////////////////////////////////////////////////////////////////////
+
+function GetFPPSystems()
+{
+	exec("ip addr show up | grep 'inet ' | awk '{print $2}' | cut -f1 -d/ | grep -v '^127'", $localIPs);
+
+	exec("avahi-browse -artp | sort", $rmtSysOut);
+
+	$result = Array();
+
+	foreach ($rmtSysOut as $system)
+	{
+		if (!preg_match("/^=.*fpp-fppd/", $system))
+			continue;
+		if (!preg_match("/fppMode/", $system))
+			continue;
+
+		$parts = explode(';', $system);
+
+		$elem = Array();
+		$elem['HostName']        = $parts[3];
+		$elem['IP']     = $parts[7];
+		$elem['fppMode'] = "Unknown";
+		$elem['Local'] = 0;
+		$elem['Platform'] = "Unknown";
+
+		$matches = preg_grep("/" . $elem['IP'] . "/", $localIPs);
+		if (count($matches))
+			$elem['Local'] = 1;
+
+		if (count($parts) > 8)
+		{
+			$elem['txtRecord'] = $parts[9];
+			$txtParts = explode(',', preg_replace("/\"/", "", $parts[9]));
+			foreach ($txtParts as $txtPart)
+			{
+				$kvPair = explode('=', $txtPart);
+				if ($kvPair[0] == "fppMode")
+					$elem['fppMode'] = $kvPair[1];
+				else if ($kvPair[0] == "platform")
+					$elem['Platform'] = $kvPair[1];
+			}
+	 }
+
+		$result[] = $elem;
+	}
+
+	returnJSON($result);
 }
 
 /////////////////////////////////////////////////////////////////////////////

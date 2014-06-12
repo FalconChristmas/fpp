@@ -1898,13 +1898,12 @@ function SetVolume(value)
 
 function SetFPPDmode()
 {
-			var xmlhttp=new XMLHttpRequest();
-			var mode = $('#selFPPDmode').val();	
-			var url = "fppxml.php?command=setFPPDmode&mode=" + mode;
-			xmlhttp.open("GET",url,true);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-			xmlhttp.send();
-
+	$.get("fppxml.php?command=setFPPDmode&mode=" + $('#selFPPDmode').val()
+	).success(function() {
+		$.jGrowl("fppMode Saved. You must restart fppd for change to take effect.");
+	}).fail(function() {
+		DialogError("Save fppdMode", "Save Failed");
+	});
 }
 
 function SetE131interface()
@@ -1947,15 +1946,29 @@ function GetFPPDmode()
 		xmlhttp.onreadystatechange = function () {
 			if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
 			{
-					var xmlDoc=xmlhttp.responseXML; 
-					var mode = xmlDoc.getElementsByTagName('mode')[0].childNodes[0].textContent;
-					if(mode == '1')
-					{
-							$("#playerStatus").css("display","none");
-							$("#nextPlaylist").css("display","none");
-							$("#selFPPDmode").prop("selectedIndex",1);
-							$("#textFPPDmode").text("Bridged Mode");
+				var xmlDoc=xmlhttp.responseXML; 
+				var mode = parseInt(xmlDoc.getElementsByTagName('mode')[0].childNodes[0].textContent);
+				if(mode == 1) // Bridge Mode
+				{
+					$("#playerStatus").hide();
+					$("#nextPlaylist").hide();
+					$("#selFPPDmode").prop("selectedIndex",3);
+					$("#textFPPDmode").text("Bridge");
+				} else if (mode == 8) { // Remote Mode
+					$("#playerStatus").hide();
+					$("#remoteStatus").show();
+					$("#nextPlaylist").hide();
+					$("#selFPPDmode").prop("selectedIndex",2);
+					$("#textFPPDmode").text("Player (Remote)");
+				} else { // Player or Master modes
+					if (mode == 2) { // Player
+						$("#selFPPDmode").prop("selectedIndex",0);
+						$("#textFPPDmode").text("Player (Standalone)");
+					} else {
+						$("#selFPPDmode").prop("selectedIndex",1);
+						$("#textFPPDmode").text("Player (Master)");
 					}
+				}
 			}
 		};
 		xmlhttp.send();
