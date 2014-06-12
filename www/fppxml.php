@@ -59,6 +59,7 @@ $command_array = Array(
 	"stopNow" => 'StopNow',
 	"stopFPPD" => 'StopFPPD',
 	"startFPPD" => 'StartFPPD',
+	"restartFPPD" => 'RestartFPPD',
 	"startPlaylist" => 'StartPlaylist',
 	"rebootPi" => 'RebootPi',
 	"shutdownPi" => 'ShutdownPi',
@@ -600,6 +601,13 @@ function StartFPPD()
 	EchoStatusXML($status);
 }
 
+function RestartFPPD()
+{
+	exec(SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_stop");
+
+	StartFPPD();
+}
+
 function GetFPPstatus()
 {
 	$status = SendCommand('s');
@@ -620,7 +628,7 @@ function GetFPPstatus()
 
 	$entry = explode(",",$status,13);
 	$fppMode = $entry[0];
-	if($fppMode == 2)
+	if($fppMode != 1)
 	{
 		$fppStatus = $entry[1];
 		if($fppStatus == '0')
