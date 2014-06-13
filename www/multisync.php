@@ -8,11 +8,38 @@ require_once("config.php");
 
 ?>
 <script>
+	function updateMultiSyncRemotes() {
+		var remotes = "";
+		$('input.remoteCheckbox').each(function() {
+			if ($(this).is(":checked")) {
+				if (remotes != "") {
+					remotes += ",";
+				}
+				remotes += $(this).attr("name");
+			}
+		});
+
+		$.get("fppjson.php?command=setSetting&key=MultiSyncRemotes&value=" + remotes
+		).success(function() {
+			$.jGrowl("Remote List Saved: '" + remotes + "'");
+		}).fail(function() {
+			DialogError("Save Remotes", "Save Failed");
+		});
+	}
+
 	function parseFPPSystems(data) {
 		$('#fppSystems tbody').empty();
 
 		if (settings['fppMode'] == 'master') {
 			$('#legend').append("<br>&#x2713; - Sync Remote FPP with this Master instance");
+		}
+
+		var remotes = [];
+		if (typeof settings['MultiSyncRemotes'] !== 'undefined') {
+			var tarr = settings['MultiSyncRemotes'].split(',');
+			for (var i = 0; i < tarr.length; i++) {
+				remotes[tarr[i]] = 1;
+			}
 		}
 
 		for (var i = 0; i < data.length; i++) {
@@ -27,7 +54,10 @@ require_once("config.php");
 				if ((settings['fppMode'] == 'master') &&
 						(data[i].fppMode == "remote"))
 				{
-					star = "<input type='checkbox' class='remoteCheckbox'>";  // FIXME
+					star = "<input type='checkbox' class='remoteCheckbox' name='" + data[i].IP + "'";
+					if (typeof remotes[data[i].IP] !== 'undefined')
+						star += " checked";
+					star += " onClick='updateMultiSyncRemotes();'>";
 				}
 			}
 
@@ -142,6 +172,7 @@ require_once("config.php");
 					</tr>
 				</thead>
 				<tbody>
+					<tr><td colspan=5 align='center'><b>Loading...</b></td></tr>
 				</tbody>
 			</table>
 			<hr>
