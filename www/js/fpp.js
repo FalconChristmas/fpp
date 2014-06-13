@@ -1496,11 +1496,15 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 
 	function RestartFPPD()
 	{
-    	var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=restartFPPD";
-			xmlhttp.open("GET",url,true);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-			xmlhttp.send();
+		$('html,body').css('cursor','wait');
+		$.get("fppxml.php?command=restartFPPD"
+		).success(function() {
+			$('html,body').css('cursor','auto');
+			$.jGrowl("FPPD Restarted");
+		}).fail(function() {
+			$('html,body').css('cursor','auto');
+			DialogError("Restart FPPD", "Error restarting FPPD");
+		});
 	}
 
 	function zeroPad(num, places) {
