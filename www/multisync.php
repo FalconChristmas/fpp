@@ -21,7 +21,7 @@ require_once("config.php");
 
 		$.get("fppjson.php?command=setSetting&key=MultiSyncRemotes&value=" + remotes
 		).success(function() {
-			$.jGrowl("Remote List Saved: '" + remotes + "'");
+			$.jGrowl("Remote List Saved: '" + remotes + "'.  You must restart fppd for the changes to take effect.");
 		}).fail(function() {
 			DialogError("Save Remotes", "Save Failed");
 		});
@@ -141,7 +141,8 @@ require_once("config.php");
 				</span>
 			</font>
 			<br>
-			<input type='button' class='buttons' value='Refresh' onClick='getFPPSystems();');
+			<input type='button' class='buttons' value='Refresh' onClick='getFPPSystems();'>
+			<input type='button' class='buttons' value='Restart FPPD' onClick='RestartFPPD();'>
 		</fieldset>
 	</div>
 </div>
