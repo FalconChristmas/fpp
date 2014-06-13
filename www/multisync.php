@@ -81,6 +81,9 @@ require_once("config.php");
 	}
 
 	function getFPPSystems() {
+		$('#fppSystems tbody').empty();
+		$('#fppSystems tbody').append("<tr><td colspan=5 align='center'>Loading...</td></tr>");
+
 		$.get("/fppjson.php?command=getFPPSystems", function(data) {
 			parseFPPSystems(data);
 		});
@@ -90,16 +93,6 @@ require_once("config.php");
 		setTimeout(function() { getFPPSystems(); }, 1000);
 	}
 
-	function setHostName() {
-		$.get("fppjson.php?command=setSetting&key=HostName&value="
-			+ $('#hostName').val()
-		).success(function() {
-			$.jGrowl("HostName Saved");
-			refreshFPPSystems();
-		}).fail(function() {
-			DialogError("Save HostName", "Save Failed");
-		});
-	}
 </script>
 <style>
 #fppSystems{
@@ -124,43 +117,9 @@ require_once("config.php");
 <div id="bodyWrapper">
 	<?php include 'menu.inc'; ?>
 	<br/>
-	<div id="uilocalconfig" class="settings">
-		<fieldset>
-			<legend>Local Configuration</legend>
-			<table width="100%">
-				<tr>
-					<td class='masterHeader'> FPPD Mode: </td>
-					<td class='masterValue'>
-				  	<select id="selFPPDmode" onChange="SetFPPDmode();">
-							<option id="optFPPDmode_Player" value="2">Player (Standalone)</option>
-							<option id="optFPPDmode_Master" value="6">Player (Master)</option>
-							<option id="optFPPDmode_Remote" value="8">Player (Remote)</option>
-							<option id="optFPPDmode_Bridge" value="1">Bridge</option>
-						</select></td>
-					<td class='masterButton'>&nbsp;</td>
-				</tr>
-				<tr>
-					<td class='masterHeader'> FPPD Status: </td>
-					<td class='masterValue' id = "daemonStatus"></td>
-					<td class='masterButton'><input type="button" id="btnDaemonControl" class ="buttons" value="" onClick="ControlFPPD(); refreshFPPSystems();"></td>
-				</tr>
-				<tr>
-					<td class='masterHeader'> FPP Time: </td>
-					<td id = "fppTime" colspan = "3"></td>
-				</tr>
-				<tr>
-					<td class='masterHeader'> Host Name: </td>
-					<td colspan = "3">
-						<input id='hostName' value='<? if (isset($settings['HostName'])) echo $settings['HostName']; else echo 'FPP'; ?>' size='20' maxlength='20'> <input type='button' class='buttons' value='Save' onClick='setHostName();'>
-					</td>
-				</tr>
-			</table>
-		</fieldset>
-	</div>
-	<br />
 	<div id="uifppsystems" class="settings">
 		<fieldset>
-			<legend>FPP Systems</legend>
+			<legend>Discovered FPP Systems</legend>
 			<table id='fppSystems' cellspacing='5'>
 				<thead>
 					<tr>
@@ -172,7 +131,7 @@ require_once("config.php");
 					</tr>
 				</thead>
 				<tbody>
-					<tr><td colspan=5 align='center'><b>Loading...</b></td></tr>
+					<tr><td colspan=5 align='center'>Loading...</td></tr>
 				</tbody>
 			</table>
 			<hr>
@@ -181,6 +140,8 @@ require_once("config.php");
 				* - Local System
 				</span>
 			</font>
+			<br>
+			<input type='button' class='buttons' value='Refresh' onClick='getFPPSystems();');
 		</fieldset>
 	</div>
 </div>
@@ -189,8 +150,6 @@ require_once("config.php");
 <script>
 
 $(document).ready(function() {
-	GetFPPDmode();
-	setInterval(updateFPPStatus,1000)
 	getFPPSystems();
 });
 
