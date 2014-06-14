@@ -41,6 +41,12 @@
 char *fpp_bool_to_string[] = { "false", "true", "default" };
 static struct config settings = { 0 };
 
+/* Prototypes for functions below */
+int findSettingIndex(char *setting);
+
+/*
+ *
+ */
 void initSettings(void)
 {
 	settings.fppMode = PLAYER_MODE;
@@ -132,6 +138,10 @@ void printSettings(void)
 		fprintf(fd, "fppMode: %s\n", "player");
 	else if ( settings.fppMode == BRIDGE_MODE )
 		fprintf(fd, "fppMode: %s\n", "bridge");
+	else if ( settings.fppMode == MASTER_MODE )
+		fprintf(fd, "fppMode: %s\n", "master");
+	else if ( settings.fppMode == REMOTE_MODE )
+		fprintf(fd, "fppMode: %s\n", "remote");
 
 	fprintf(fd, "volume: %u\n", settings.volume);
 
@@ -241,7 +251,7 @@ printf("Usage: %s [OPTION...]\n"
 "  -d, --daemonize               - Daemonize even if the config file says not to.\n"
 "  -v, --volume VOLUME           - Set a volume (over-written by config file)\n"
 "  -m, --mode MODE               - Set the mode: \"player\", \"bridge\",\n"
-"                                  \"master\", or \"slave\"\n"
+"                                  \"master\", or \"remote\"\n"
 "  -B, --media-directory DIR     - Set the media directory\n"
 "  -M, --music-directory DIR     - Set the music directory\n"
 "  -S, --sequence-directory DIR  - Set the sequence directory\n"
@@ -271,7 +281,7 @@ printf("Usage: %s [OPTION...]\n"
 "                                    schedule    - Playlist scheduling\n"
 "                                    sequence    - Sequence parsing\n"
 "                                    setting     - Settings parsing\n"
-"                                    sync        - Master/Slave Synchronization\n"
+"                                    sync        - Master/Remote Synchronization\n"
 "                                    all         - ALL log messages\n"
 "                                    most        - Most excluding \"channeldata\"\n"
 "                                  The default logging is:\n"
@@ -334,14 +344,20 @@ int parseArguments(int argc, char **argv)
 				}
 				break;
 			case 'c': //config-file
-				if ( loadSettings(optarg) != 0 )
+				if (FileExists(optarg))
 				{
-					LogErr(VB_SETTING, "Failed to load settings file given as argument: '%s'\n", optarg);
-				}
-				else
-				{
-					free(settings.settingsFile);
-					settings.settingsFile = strdup(optarg);
+					if (loadSettings(optarg) != 0 )
+					{
+						LogErr(VB_SETTING, "Failed to load settings file given as argument: '%s'\n", optarg);
+					}
+					else
+					{
+						free(settings.settingsFile);
+						settings.settingsFile = strdup(optarg);
+					}
+				} else {
+					printf("Settings file specified does not exist: '%s'\n", optarg);
+					exit(EXIT_FAILURE);
 				}
 				break;
 			case 'f': //foreground
@@ -358,6 +374,10 @@ int parseArguments(int argc, char **argv)
 					settings.fppMode = PLAYER_MODE;
 				else if ( strcmp(optarg, "bridge") == 0 )
 					settings.fppMode = BRIDGE_MODE;
+				else if ( strcmp(optarg, "master") == 0 )
+					settings.fppMode = MASTER_MODE;
+				else if ( strcmp(optarg, "remote") == 0 )
+					settings.fppMode = REMOTE_MODE;
 				else
 				{
 					printf("Error parsing mode\n");
@@ -423,6 +443,12 @@ int parseArguments(int argc, char **argv)
 
 int loadSettings(const char *filename)
 {
+	if (!FileExists(filename)) {
+		LogWarn(VB_SETTING,
+			"Attempted to load settings file %s which does not exist!", filename);
+		return -1;
+	}
+
 	FILE *file = fopen(filename, "r");
 
 	if (file != NULL)
@@ -431,6 +457,7 @@ int loadSettings(const char *filename)
 		size_t len = 0;
 		ssize_t read;
 		int count = 0;
+		int sIndex = 0;
 
 		while ((read = getline(&line, &len, file)) != -1)
 		{
@@ -478,6 +505,10 @@ int loadSettings(const char *filename)
 					settings.fppMode = PLAYER_MODE;
 				else if ( strcmp(value, "bridge") == 0 )
 					settings.fppMode = BRIDGE_MODE;
+				else if ( strcmp(value, "master") == 0 )
+					settings.fppMode = MASTER_MODE;
+				else if ( strcmp(value, "remote") == 0 )
+					settings.fppMode = REMOTE_MODE;
 				else
 				{
 					printf("Error parsing mode\n");
@@ -722,10 +753,15 @@ int loadSettings(const char *filename)
 					fprintf(stderr, "Failed to load controlMinor setting from config file\n");
 			}
 
-			// FIXME,make a helper for this to handle dups
-			settings.keys[count] = strdup(key);
-			settings.values[count] = strdup(value);
-			count++;
+			sIndex = findSettingIndex(key);
+			if (sIndex >= 0) {
+				free(settings.values[sIndex]);
+				settings.values[sIndex] = strdup(value);
+			} else {
+				settings.keys[count] = strdup(key);
+				settings.values[count] = strdup(value);
+				count++;
+			}
 
 			if ( key )
 			{
@@ -750,11 +786,29 @@ int loadSettings(const char *filename)
 	}
 	else
 	{
-		LogErr(VB_SETTING, "Warning: couldn't open settings file: '%s'!\n", filename);
+		LogWarn(VB_SETTING, "Warning: couldn't open settings file: '%s'!\n", filename);
 		return -1;
 	}
 
 	return 0;
+}
+
+int findSettingIndex(char *setting)
+{
+	int count = 0;
+
+	if (!setting) {
+		return -1;
+	}
+
+	while (settings.keys[count]) {
+		if (!strcmp(settings.keys[count], setting)) {
+			return count;
+		}
+		count++;
+	}
+
+	return -1;
 }
 
 char *getSetting(char *setting)
@@ -939,6 +993,10 @@ int saveSettingsFile(void)
 		snprintf(buffer, 1024, "%s = %s\n", "fppMode", "player");
 	else if ( getFPPmode() == BRIDGE_MODE )
 		snprintf(buffer, 1024, "%s = %s\n", "fppMode", "bridge");
+	else if ( getFPPmode() == MASTER_MODE )
+		snprintf(buffer, 1024, "%s = %s\n", "fppMode", "master");
+	else if ( getFPPmode() == REMOTE_MODE )
+		snprintf(buffer, 1024, "%s = %s\n", "fppMode", "remote");
 	else
 		exit(EXIT_FAILURE);
 	bytes += fwrite(buffer, 1, strlen(buffer), fd);

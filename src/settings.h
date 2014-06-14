@@ -35,7 +35,7 @@ enum fppModes {
 	PLAYER_MODE = 0x02,
 	/* Skip 0x04 since MASTER_MODE is a bitmask of player 0x02 & master 0x04 */
 	MASTER_MODE = 0x06,
-	SLAVE_MODE  = 0x08
+	REMOTE_MODE = 0x08
 };
 
 struct config
