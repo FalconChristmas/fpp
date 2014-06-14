@@ -31,7 +31,7 @@ require_once("config.php");
 		$('#fppSystems tbody').empty();
 
 		if (settings['fppMode'] == 'master') {
-			$('#legend').append("<br>&#x2713; - Sync Remote FPP with this Master instance");
+			$('#masterLegend').show();
 		}
 
 		var remotes = [];
@@ -81,6 +81,7 @@ require_once("config.php");
 	}
 
 	function getFPPSystems() {
+		$('#masterLegend').hide();
 		$('#fppSystems tbody').empty();
 		$('#fppSystems tbody').append("<tr><td colspan=5 align='center'>Loading...</td></tr>");
 
@@ -138,6 +139,7 @@ require_once("config.php");
 			<font size=-1>
 				<span id='legend'>
 				* - Local System
+				<span id='masterLegend' style='display:none'><br>&#x2713; - Sync Remote FPP with this Master instance</span>
 				</span>
 			</font>
 			<br>
