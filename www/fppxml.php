@@ -1065,7 +1065,7 @@ function SavePixelnetDMX()
 {
 	for($i=0;$i<count($_SESSION['PixelnetDMXentries']);$i++)
 	{
-		if( isset($_POST['chkActive'][$i]))
+		if( isset($_POST['FPDchkActive'][$i]))
 		{
 			$_SESSION['PixelnetDMXentries'][$i]->active = 1;
 		}
@@ -1073,7 +1073,7 @@ function SavePixelnetDMX()
 		{
 			$_SESSION['PixelnetDMXentries'][$i]->active = 0;
 		}
-		$_SESSION['PixelnetDMXentries'][$i]->startAddress = 	intval($_POST['txtStartAddress'][$i]);
+		$_SESSION['PixelnetDMXentries'][$i]->startAddress = 	intval($_POST['FPDtxtStartAddress'][$i]);
 		$_SESSION['PixelnetDMXentries'][$i]->type = 	intval($_POST['pixelnetDMXtype'][$i]);
 	}
 

@@ -1086,6 +1086,12 @@ void CheckExistanceOfDirectoriesAndFiles(void)
 		}
 		free(cmd);
 	}
+	if(!FileExists(getPixelnetFile()))
+	{
+		LogWarn(VB_SETTING, "Pixelnet file does not exist, creating it.\n");
+		CreatePixelnetDMXfile(getPixelnetFile());
+	}
+
 	if(!FileExists(getScheduleFile()))
 	{
 		LogWarn(VB_SETTING, "Schedule file does not exist, creating it.\n");
