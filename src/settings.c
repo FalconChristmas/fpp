@@ -23,6 +23,7 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "channeloutput/FPD.h"
 #include "settings.h"
 #include "fppd.h"
 #include "log.h"
