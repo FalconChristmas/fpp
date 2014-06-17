@@ -418,6 +418,11 @@ int parseArguments(int argc, char **argv)
 		}
 	}
 
+	if (getDaemonize())
+		SetLogFile(getLogFile());
+	else
+		SetLogFile("");
+
 	return 0;
 }
 
@@ -753,6 +758,11 @@ int loadSettings(const char *filename)
 		LogErr(VB_SETTING, "Warning: couldn't open settings file: '%s'!\n", filename);
 		return -1;
 	}
+
+	if (getDaemonize())
+		SetLogFile(getLogFile());
+	else
+		SetLogFile("");
 
 	return 0;
 }

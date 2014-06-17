@@ -75,7 +75,11 @@ extern char logMaskStr[128];
 
 void _LogWrite(char *file, int line, int level, int facility, const char *format, ...);
 
+void SetLogFile(char *filename);
 int SetLogLevel(char *newLevel);
 int SetLogMask(char *newMask);
+
+#define LogMaskIsSet(x)  (logMask & x)
+#define LogLevelIsSet(x) (logLevel >= x)
 
 #endif //__LOG_H__
