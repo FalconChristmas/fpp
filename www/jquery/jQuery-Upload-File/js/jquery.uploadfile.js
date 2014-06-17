@@ -43,7 +43,7 @@
             showStatusAfterSuccess: true,
             showStatusAfterError: true,
             showFileCounter: true,
-            fileCounterStyle: "). ",
+            fileCounterStyle: ") ",
             showProgress: false,
             nestedForms: true,
             showDownload: false,

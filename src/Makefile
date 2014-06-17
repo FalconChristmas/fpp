@@ -15,6 +15,7 @@ LIBS_fpp = \
 
 OBJECTS_fppmm = \
 	common.o \
+	log.o \
 	fppmm.o \
 	$(NULL)
 LIBS_fppmm = \
