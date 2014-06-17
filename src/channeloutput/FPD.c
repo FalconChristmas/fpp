@@ -65,7 +65,7 @@ typedef struct {
 
 pthread_t pixelnetDMXthread;
 char PixelnetDMXcontrolHeader[] = {0x55,0x55,0x55,0x55,0x55,0xCC};
-char PixelnetDMXdataHeader[] = {0xCC,0xCC,0xCC,0xCC,0xCC,0x55};
+char PixelnetDMXdataHeader[] =    {0xCC,0xCC,0xCC,0xCC,0xCC,0x55};
 
 
 PixelnetDMXentry pixelnetDMX[MAX_PIXELNET_DMX_PORTS];
@@ -144,6 +144,11 @@ void SendFPDConfig()
 		bufferPixelnetDMX[index++] = (char)(pixelnetDMX[i].startChannel%256);
 		bufferPixelnetDMX[index++] = (char)(pixelnetDMX[i].startChannel/256);
 	}
+
+	if (LogMaskIsSet(VB_CHANNELOUT) && LogLevelIsSet(LOG_DEBUG))
+		HexDump("FPD Config Header & Data", bufferPixelnetDMX,
+			PIXELNET_HEADER_SIZE + (pixelnetDMXcount*3));
+
 	wiringPiSPIDataRW (0, bufferPixelnetDMX, PIXELNET_DMX_BUF_SIZE);
 	delayMicroseconds (10000) ;
 	wiringPiSPIDataRW (0, bufferPixelnetDMX, PIXELNET_DMX_BUF_SIZE);
@@ -267,6 +272,10 @@ int FPD_SendData(void *data, char *channelData, int channelCount)
 			bufferPixelnetDMX[i] = 171;
 		}
 	}
+
+	if (LogMaskIsSet(VB_CHANNELDATA) && LogLevelIsSet(LOG_EXCESSIVE))
+		HexDump("FPD Channel Header & Data", bufferPixelnetDMX, 256);
+
 	wiringPiSPIDataRW (0, bufferPixelnetDMX, PIXELNET_DMX_BUF_SIZE);
 
 	return 1;
