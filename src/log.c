@@ -36,9 +36,9 @@
 int logLevel = LOG_INFO;
 int logMask  = VB_MOST;
 
+char logFileName[1024] = "";
 char logLevelStr[16];
 char logMaskStr[128];
-
 
 void _LogWrite(char *file, int line, int level, int facility, const char *format, ...)
 {
@@ -62,32 +62,50 @@ void _LogWrite(char *file, int line, int level, int facility, const char *format
 					tm.tm_min,
 					tm.tm_sec);
 
-	if ( getDaemonize() )	
+	if (logFileName[0])
 	{
 		FILE *logFile;
 
-		logFile = fopen((const char *)getLogFile(), "a");
-		if ( ! logFile )
+		if (!strcmp(logFileName, "stderr"))
 		{
-			fprintf(stderr, "Error: Unable to open log file for writing!\n");
-			fprintf(stderr, "%s  %s:%d:",timeStr, file, line);
-			va_start(arg, format);
-			vfprintf(stderr, format, arg);
-			va_end(arg);
-			return;
+			logFile = stderr;
 		}
+		else if (!strcmp(logFileName, "stdout"))
+		{
+			logFile = stdout;
+		}
+		else
+		{
+			logFile = fopen(logFileName, "a");
+			if ( ! logFile )
+			{
+				fprintf(stderr, "Error: Unable to open log file for writing!\n");
+				fprintf(stderr, "%s  %s:%d:",timeStr, file, line);
+				va_start(arg, format);
+				vfprintf(stderr, format, arg);
+				va_end(arg);
+				return;
+			}
+		}
+
 		fprintf(logFile, "%s  %s:%d:",timeStr, file, line);
 		va_start(arg, format);
 		vfprintf(logFile, format, arg);
 		va_end(arg);
 
-		fclose(logFile);
+		if (strcmp(logFileName, "stderr") || strcmp(logFileName, "stdout"))
+			fclose(logFile);
 	} else {
 		fprintf(stdout, "%s  %s:%d:", timeStr, file, line);
 		va_start(arg, format);
 		vfprintf(stdout, format, arg);
 		va_end(arg);
 	}
+}
+
+void SetLogFile(char *filename)
+{
+	strcpy(logFileName, filename);
 }
 
 int SetLogLevel(char *newLevel)

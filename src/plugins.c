@@ -78,6 +78,7 @@ void InitPluginCallbacks(void)
 			if (!FileExists(long_filename))
 			{
 				LogExcess(VB_PLUGIN, "No callbacks supported by this plugin\n");
+				continue;
 			}
 
 			LogDebug(VB_PLUGIN, "Processing Callbacks for %s plugin\n", ep->d_name);

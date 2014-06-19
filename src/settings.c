@@ -23,6 +23,7 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "channeloutput/FPD.h"
 #include "settings.h"
 #include "fppd.h"
 #include "log.h"
@@ -438,6 +439,11 @@ int parseArguments(int argc, char **argv)
 		}
 	}
 
+	if (getDaemonize())
+		SetLogFile(getLogFile());
+	else
+		SetLogFile("");
+
 	return 0;
 }
 
@@ -789,6 +795,11 @@ int loadSettings(const char *filename)
 		LogWarn(VB_SETTING, "Warning: couldn't open settings file: '%s'!\n", filename);
 		return -1;
 	}
+
+	if (getDaemonize())
+		SetLogFile(getLogFile());
+	else
+		SetLogFile("");
 
 	return 0;
 }
@@ -1144,6 +1155,12 @@ void CheckExistanceOfDirectoriesAndFiles(void)
 		}
 		free(cmd);
 	}
+	if(!FileExists(getPixelnetFile()))
+	{
+		LogWarn(VB_SETTING, "Pixelnet file does not exist, creating it.\n");
+		CreatePixelnetDMXfile(getPixelnetFile());
+	}
+
 	if(!FileExists(getScheduleFile()))
 	{
 		LogWarn(VB_SETTING, "Schedule file does not exist, creating it.\n");

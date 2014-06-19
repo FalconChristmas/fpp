@@ -40,6 +40,7 @@
 #include <unistd.h>
 
 #include "common.h"
+#include "log.h"
 
 /*
  * Get the current time down to the microsecond
@@ -94,33 +95,37 @@ void HexDump(char *title, void *data, int len) {
 	int y = 0;
 	unsigned char *ch = (unsigned char *)data;
 	unsigned char str[17];
+	char tmpStr[90];
 
-	fprintf( stdout, "%s: (%d bytes)\n", title, len);
+	sprintf( tmpStr, "%s: (%d bytes)\n", title, len);
+	LogInfo(VB_ALL, tmpStr);
+
 	while (l < len) {
 		if ( x == 0 ) {
-			fprintf( stdout, "%06x: ", i );
+			sprintf( tmpStr, "%06x: ", i );
 		}
 
 		if ( x < 16 ) {
-			fprintf( stdout, "%02x ", *ch & 0xFF );
+			sprintf( tmpStr + strlen(tmpStr), "%02x ", *ch & 0xFF );
 			str[x] = *ch;
 			x++;
 			i++;
 		} else {
-			fprintf( stdout, "   " );
+			sprintf( tmpStr + strlen(tmpStr), "   " );
 			for( ; x > 0 ; x-- ) {
 				if ( isgraph( str[16-x] ) || str[16-x] == ' ' ) {
-					fprintf( stdout, "%c", str[16-x]);
+					sprintf( tmpStr + strlen(tmpStr), "%c", str[16-x]);
 				} else {
-					fprintf( stdout, "." );
+					sprintf( tmpStr + strlen(tmpStr), "." );
 				}
 			}
 
-			fprintf( stdout, "\n" );
+			sprintf( tmpStr + strlen(tmpStr), "\n" );
+			LogInfo(VB_ALL, tmpStr);
 			x = 0;
 
-			fprintf( stdout, "%06x: ", i );
-			fprintf( stdout, "%02x ", *ch & 0xFF );
+			sprintf( tmpStr, "%06x: ", i );
+			sprintf( tmpStr + strlen(tmpStr), "%02x ", *ch & 0xFF );
 			str[x] = *ch;
 			x++;
 			i++;
@@ -130,18 +135,19 @@ void HexDump(char *title, void *data, int len) {
 		ch++;
 	}
 	for( y = x; y < 16 ; y++ ) {
-		fprintf( stdout, "   " );
+		sprintf( tmpStr + strlen(tmpStr), "   " );
 	}
-	fprintf( stdout, "   " );
+	sprintf( tmpStr + strlen(tmpStr), "   " );
 	for( y = 0; y < x ; y++ ) {
 		if ( isgraph( str[y] ) || str[y] == ' ' ) {
-			fprintf( stdout, "%c", str[y]);
+			sprintf( tmpStr + strlen(tmpStr), "%c", str[y]);
 		} else {
-			fprintf( stdout, "." );
+			sprintf( tmpStr + strlen(tmpStr), "." );
 		}
 	}
 
-	fprintf( stdout, "\n" );
+	sprintf( tmpStr + strlen(tmpStr), "\n" );
+	LogInfo(VB_ALL, tmpStr);
 }
 
 /*

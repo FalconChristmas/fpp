@@ -31,6 +31,9 @@
 /* Config routine exposed so we can re-load the config on demand */
 void SendFPDConfig();
 
+/* Create a pixelnetDMX config file */
+void CreatePixelnetDMXfile(const char * file);
+
 /* Expose our interface */
 extern FPPChannelOutput FPDOutput;
 

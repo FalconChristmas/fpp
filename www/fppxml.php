@@ -1087,7 +1087,7 @@ function SavePixelnetDMX()
 {
 	for($i=0;$i<count($_SESSION['PixelnetDMXentries']);$i++)
 	{
-		if( isset($_POST['chkActive'][$i]))
+		if( isset($_POST['FPDchkActive'][$i]))
 		{
 			$_SESSION['PixelnetDMXentries'][$i]->active = 1;
 		}
@@ -1095,7 +1095,7 @@ function SavePixelnetDMX()
 		{
 			$_SESSION['PixelnetDMXentries'][$i]->active = 0;
 		}
-		$_SESSION['PixelnetDMXentries'][$i]->startAddress = 	intval($_POST['txtStartAddress'][$i]);
+		$_SESSION['PixelnetDMXentries'][$i]->startAddress = 	intval($_POST['FPDtxtStartAddress'][$i]);
 		$_SESSION['PixelnetDMXentries'][$i]->type = 	intval($_POST['pixelnetDMXtype'][$i]);
 	}
 
@@ -1985,6 +1985,7 @@ function GetFile()
 function GetZip()
 {
 	global $logDirectory;
+	global $mediaDirectory;
 
 	$dir = $_GET['dir'];
 	check($dir);
@@ -2012,6 +2013,19 @@ function GetZip()
 	$zip->addFile("/var/log/messages", "Logs/messages.log");
 	$zip->addFile("/var/log/syslog", "Logs/syslog.log");
 	$zip->addFile("/proc/asound/cards", "Logs/asound/cards");
+
+	$files = array(
+		"channelmemorymaps",
+		"channeloutputs",
+		"pixelnetDMX",
+		"schedule",
+		"settings",
+		"universes"
+		);
+	foreach($files as $file) {
+		if (file_exists("$mediaDirectory/$file"))
+			$zip->addFile("$mediaDirectory/$file", "Config/$file");
+	}
 
 	exec("ls -aRl /proc /dev /sys", $output, $return_val);
 	if ( $return_val != 0 ) {

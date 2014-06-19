@@ -73,12 +73,13 @@ extern char logMaskStr[128];
 #define LogDebug(facility, format, args...) _LogWrite(__FILE__, __LINE__, LOG_DEBUG, facility, format, ## args)
 #define LogExcess(facility, format, args...) _LogWrite(__FILE__, __LINE__, LOG_EXCESSIVE, facility, format, ## args)
 
-// Legacy Logging macro, logs at Generic Info level
-#define LogWrite(format, args...) _LogWrite(__FILE__, __LINE__, LOG_INFO, VB_GENERIC, format, ## args)
-
 void _LogWrite(char *file, int line, int level, int facility, const char *format, ...);
 
+void SetLogFile(char *filename);
 int SetLogLevel(char *newLevel);
 int SetLogMask(char *newMask);
+
+#define LogMaskIsSet(x)  (logMask & x)
+#define LogLevelIsSet(x) (logLevel >= x)
 
 #endif //__LOG_H__
