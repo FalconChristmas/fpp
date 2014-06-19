@@ -44,7 +44,7 @@
 #else
 #	define wiringPiSPISetup(a,b)    1
 #	define wiringPiSetupSys()       0
-#	define wiringPiSPIDataRW(a,b,c) 1
+#	define wiringPiSPIDataRW(a,b,c) c
 #	define delayMicroseconds(a)     0
 #endif
 
@@ -149,10 +149,14 @@ void SendFPDConfig()
 		HexDump("FPD Config Header & Data", bufferPixelnetDMX,
 			PIXELNET_HEADER_SIZE + (pixelnetDMXcount*3));
 
-	wiringPiSPIDataRW (0, bufferPixelnetDMX, PIXELNET_DMX_BUF_SIZE);
-	delayMicroseconds (10000) ;
-	wiringPiSPIDataRW (0, bufferPixelnetDMX, PIXELNET_DMX_BUF_SIZE);
+	i = wiringPiSPIDataRW (0, bufferPixelnetDMX, PIXELNET_DMX_BUF_SIZE);
+	if (i != PIXELNET_DMX_BUF_SIZE)
+		LogErr(VB_CHANNELOUT, "Error: wiringPiSPIDataRW returned %d, expecting %d\n", i, PIXELNET_DMX_BUF_SIZE);
 
+	delayMicroseconds (10000) ;
+	i = wiringPiSPIDataRW (0, bufferPixelnetDMX, PIXELNET_DMX_BUF_SIZE);
+	if (i != PIXELNET_DMX_BUF_SIZE)
+		LogErr(VB_CHANNELOUT, "Error: wiringPiSPIDataRW returned %d, expecting %d\n", i, PIXELNET_DMX_BUF_SIZE);
 }
 
 void LoadPixelnetDMXsettingsFromFile()
@@ -276,7 +280,12 @@ int FPD_SendData(void *data, char *channelData, int channelCount)
 	if (LogMaskIsSet(VB_CHANNELDATA) && LogLevelIsSet(LOG_EXCESSIVE))
 		HexDump("FPD Channel Header & Data", bufferPixelnetDMX, 256);
 
-	wiringPiSPIDataRW (0, bufferPixelnetDMX, PIXELNET_DMX_BUF_SIZE);
+	i = wiringPiSPIDataRW (0, bufferPixelnetDMX, PIXELNET_DMX_BUF_SIZE);
+	if (i != PIXELNET_DMX_BUF_SIZE)
+	{
+		LogErr(VB_CHANNELOUT, "Error: wiringPiSPIDataRW returned %d, expecting %d\n", i, PIXELNET_DMX_BUF_SIZE);
+		return 0;
+	}
 
 	return 1;
 }
