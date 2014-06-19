@@ -57,7 +57,12 @@ if [ ! -e /proc/asound/card$(sed -n '/card [0-9]*/p' /root/.asoundrc | head -n 1
 fi
 
 sysctl net/ipv4/igmp_max_memberships=150
-/usr/local/bin/gpio load spi 100
+
+#/usr/local/bin/gpio load spi 100
+# spidev is no longer a module, so we need to set the
+# buffer size differently for now
+chmod u+w /sys/module/spidev/parameters/bufsiz
+echo 102400 > /sys/module/spidev/parameters/bufsiz
 
 ${BINDIR}/piRTC
 
