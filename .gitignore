@@ -1,5 +1,6 @@
 *.o
 .*.swp
+*.pyc
 SD/*.xz
 src/fpp
 src/fppmm
