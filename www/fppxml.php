@@ -212,18 +212,31 @@ function SetVolume()
 {
 	$volume = $_GET['volume'];
 	check($volume);
-  WriteSettingToFile("volume",$volume);
+
+	WriteSettingToFile("volume",$volume);
+
 	$vol = intval ($volume);
-	if($vol>=100)
-	{
-		$vol = "99";	
-	}
-		
+	if ($vol>100)
+		$vol = "100";
+
 	$status=SendCommand('v,' . $vol . ',');
 
-	$vol = 50 + ($vol/2);
+	$card = 0;
+	exec(SUDO . " grep card /root/.asoundrc | head -n 1 | cut -d' ' -f 2", $output, $return_val);
+	if ( $return_val )
+	{
+		// Should we error here, or just move on?
+		// Technically this should only fail on non-pi
+		// and pre-0.3.0 images
+		error_log("Error retrieving current sound card, using default of '0'!");
+	}
+	else
+		$card = $output[0];
 
-	$status=exec("amixer set PCM -- " . $vol . "%");
+	if ( $card == 0 )
+		$vol = 50 + ($vol/2);
+
+	$status=exec("amixer -c $card set PCM -- " . $vol . "%");
 
 	EchoStatusXML($status);
 }
