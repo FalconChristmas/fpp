@@ -891,21 +891,15 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 		
 		function validateIPaddress(id)
 		{
-			var $tbox = $('#' + id);
-			var ip = $tbox.val();
+			var ipb = document.getElementById(id);
+			var ip = ipb.value;
 			if ((ip == "") || (/^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(ip)))
 			{
-				$tbox.css({
-					"border-color":  "#000000",
-					"border-weight": "0px",
-					"border-style":  "none" });
+				ipb.style.border = "#000 0px none";
 				return true;
-			}  
+			}
 
-			$tbox.css({
-				"border-color":  "#FF0000",
-				"border-weight": "1px",
-				"border-style":  "solid" });
+			ipb.style.border = "#F00 2px solid";
 			return false;
 		}  
 
