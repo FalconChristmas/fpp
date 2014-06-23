@@ -1271,7 +1271,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 							$('#daemonStatus').html("FPPD is running.");
 						}
 
-						var fppMode = status.childNodes[0].textContent;
+						var fppMode = parseInt(status.childNodes[0].textContent);
 						if (fppMode == 1)
 						{
 							$("#playerStatus").css("display","none");
@@ -1500,7 +1500,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 		$.get("fppxml.php?command=restartFPPD"
 		).success(function() {
 			$('html,body').css('cursor','auto');
-			$.jGrowl("FPPD Restarted");
+			location.reload(true);
 		}).fail(function() {
 			$('html,body').css('cursor','auto');
 			DialogError("Restart FPPD", "Error restarting FPPD");
@@ -1915,7 +1915,6 @@ function SetFPPDmode()
 	).success(function() {
 		$.jGrowl("fppMode Saved");
 		RestartFPPD();
-		location.reload(true);
 	}).fail(function() {
 		DialogError("Save fppdMode", "Save Failed");
 	});
