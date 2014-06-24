@@ -114,7 +114,7 @@
 
 		foreach(scandir($scriptDirectory) as $scriptFile)
 		{
-			if($scriptFile != '.' && $scriptFile != '..' && preg_match('/.sh$/', $scriptFile))
+			if($scriptFile != '.' && $scriptFile != '..')
 			{
 				echo "<option value='" . $scriptFile . "'>" . $scriptFile . "</option>\n";
 			}
