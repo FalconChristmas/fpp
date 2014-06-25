@@ -258,9 +258,8 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
   							var seqFile = entries.childNodes[i].childNodes[1].textContent;
 								var mediaFile = entries.childNodes[i].childNodes[2].textContent;
 								var pause = entries.childNodes[i].childNodes[3].textContent;
-								var videoFile = entries.childNodes[i].childNodes[5].textContent;
-								var eventName = entries.childNodes[i].childNodes[6].textContent;
-								var eventID = entries.childNodes[i].childNodes[7].textContent.replace('_', ' / ');
+								var eventName = entries.childNodes[i].childNodes[5].textContent;
+								var eventID = entries.childNodes[i].childNodes[6].textContent.replace('_', ' / ');
 								if(type == 'b')
 										innerHTML += GetPlaylistRowHTML((i+1).toString(), "Seq/Med", mediaFile, seqFile, i.toString());
 								else if(type == 'm')
@@ -269,15 +268,6 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 										innerHTML += GetPlaylistRowHTML((i+1).toString(), "Seq.", "---", seqFile, i.toString());
 								else if(type == 'p')
 										innerHTML += GetPlaylistRowHTML((i+1).toString(), "Pause", "PAUSE - " + pause.toString(), "---", i.toString());
-								else if(type == 'v')
-								{
-										innerHTML += GetPlaylistRowHTML(
-											"<font color='red'><b>" + (i+1).toString() + "</b></font>",
-											"<font color='red'><b>Video</b></font>",
-											"<font color='red'><b>" + videoFile + "</b></font>",
-											"<font color='red'><b>'Video' type deprecated, use 'Media' entries instead</b></font>",
-											i.toString());
-								}
 								else if(type == 'e')
 								{
 										innerHTML += GetPlaylistRowHTML((i+1).toString(), "Event", eventID + " - " + eventName, "---", i.toString());
@@ -339,15 +329,6 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 					$("#delayText").css("display","none");
 					break;
 				case 4:
-					$("#musicOptions").css("display","none");
-					$("#sequenceOptions").css("display","none");
-					$("#videoOptions").css("display","block");
-					$("#eventOptions").css("display","none");
-					$("#pauseTime").css("display","block");
-					$("#pauseText").css("display","none");
-					$("#delayText").css("display","block");
-					break;
-				case 5:
 					$("#musicOptions").css("display","none");
 					$("#sequenceOptions").css("display","none");
 					$("#videoOptions").css("display","none");
@@ -420,22 +401,20 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			var type = document.getElementById("selType").value;
 			var	seqFile = document.getElementById("selSequence").value;
 			var	mediaFile = document.getElementById("selMedia").value;
-			//var	videoFile = document.getElementById("selVideo").value;
-			//var	eventSel = document.getElementById("selEvent");
-			//var	eventID = eventSel.value;
-			//var	eventName = '';
-      //if(eventSel.selectedIndex>=0)
-      //{
-      //  eventName = eventSel.options[eventSel.selectedIndex].innerHTML.replace(/.* - /, '');
-      //}
+			var	eventSel = document.getElementById("selEvent");
+			var	eventID = eventSel.value;
+			var	eventName = '';
+      if(eventSel.selectedIndex>=0)
+      {
+        eventName = eventSel.options[eventSel.selectedIndex].innerHTML.replace(/.. \/ .. - /, '');
+      }
 			var	pause = document.getElementById("txtPause").value;
-			var url = "fppxml.php?command=addPlaylistEntry&type=" + type + "&seqFile=" + 
-			           encodeURIComponent(seqFile) + "&mediaFile=" + 
-								 encodeURIComponent(mediaFile) + "&pause=" + pause 
-								 //encodeURIComponent(videoFile) + "&eventID=" +
-								 //encodeURIComponent(eventID) + "&eventName=" +
-								 //encodeURIComponent(eventName);
-								 ;
+			var url = "fppxml.php?command=addPlaylistEntry&type=" + type +
+								"&seqFile=" + encodeURIComponent(seqFile) +
+								"&mediaFile=" + encodeURIComponent(mediaFile) +
+								"&pause=" + pause +
+								"&eventID=" + encodeURIComponent(eventID) + 
+								"&eventName=" + encodeURIComponent(eventName);
 			xmlhttp.open("GET",url,false);
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
 	 
@@ -1803,9 +1782,8 @@ function PopulateStatusPlaylistEntries(playselected,playList,reloadFile)
   							seqFile = entries.childNodes[i].childNodes[1].textContent;
 								mediaFile = entries.childNodes[i].childNodes[2].textContent;
 								pause = entries.childNodes[i].childNodes[3].textContent;
-								videoFile = entries.childNodes[i].childNodes[5].textContent;
-								eventName = entries.childNodes[i].childNodes[6].textContent;
-								eventID = entries.childNodes[i].childNodes[7].textContent.replace('_', ' / ');
+								eventName = entries.childNodes[i].childNodes[5].textContent;
+								eventID = entries.childNodes[i].childNodes[6].textContent.replace('_', ' / ');
 								if(type == 'b')
 								{
 										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
@@ -1841,15 +1819,6 @@ function PopulateStatusPlaylistEntries(playselected,playList,reloadFile)
 										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">---</td>"
 										innerHTML += "<td width=\"10%\" id=\"firstLast" + i.toString() + "\" class=\"textCenter\"></td>";
 									  innerHTML += "</tr>";
-								}
-								else if(type == 'v')
-								{
-										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
-										innerHTML +=  "<td id = \"colEntryNumber" + (i+1).toString() + "\" width=\"6%\" class = \"textRight\"><font color='red'><b>" + (i+1).toString() + ".</b></font></td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\"><font color='red'><b>" + videoFile + "</b></font></td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\"><font color='red'><b>'Video' type deprecated, use 'Media' entries instead</b></font></td>"
-										innerHTML += "<td width=\"10%\" id=\"firstLast" + i.toString() + "\" class=\"textCenter\"><font color='red'><b></b></font></td>";
-										innerHTML += "</tr>";
 								}
 								else if(type == 'e')
 								{
