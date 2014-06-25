@@ -1,5 +1,5 @@
 /*
- *   Falcon Pi Player daemon header file  
+ *   Falcon Pi Player control socket send header file  
  *   Falcon Pi Player project (FPP)
  *
  *   Copyright (C) 2013 the Falcon Pi Player Developers
