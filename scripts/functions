@@ -98,4 +98,14 @@ updateAvahiConfig() {
 	cp ${TMPFILE} ${AVAHICFGFILE}
 }
 #############################################################################
+# Start/Stop the Web Socket Server
+startWebSocketServer() {
+	/usr/bin/nohup ${SCRIPTDIR}/fppwss > ${LOGDIR}/fppwss.log 2>&1 &
+}
+
+stopWebSocketServer() {
+	killall -9 fppwss
+}
+
+#############################################################################
 
