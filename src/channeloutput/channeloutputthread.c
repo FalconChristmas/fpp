@@ -29,23 +29,32 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/time.h>
+#include <unistd.h>
 
 #include "channeloutput.h"
 #include "common.h"
+#include "controlsend.h"
+#include "effects.h"
 #include "log.h"
 #include "memorymap.h"
 #include "sequence.h"
-#include "effects.h"
+#include "settings.h"
 
 /* used by external sync code */
-float RefreshRate = 20.00;
+int   RefreshRate = 20;
 int   DefaultLightDelay = 0;
 int   LightDelay = 0;
+int   MasterFramesPlayed = 0;
 
 /* local variables */
 pthread_t ChannelOutputThreadID;
 int       RunThread = 0;
 int       ThreadIsRunning = 0;
+
+/* Master/Remote sync */
+int             InitSync = 1;
+pthread_mutex_t SyncLock;
+pthread_cond_t  SyncCond;
 
 /*
  * Check to see if the channel output thread is running
@@ -53,6 +62,45 @@ int       ThreadIsRunning = 0;
 inline int ChannelOutputThreadIsRunning(void) {
 	return ThreadIsRunning;
 }
+
+/*
+ * Initialize Master/Remote Sync variables
+ */
+void InitChannelOutputSyncVars(void) {
+	pthread_mutex_init(&SyncLock, NULL);
+	pthread_cond_init(&SyncCond, NULL);
+}
+
+/*
+ * Destroy the Master/Remote Sync variables
+ */
+void DestroyChannelOutputSyncVars(void) {
+	pthread_mutex_destroy(&SyncLock);
+	pthread_cond_destroy(&SyncCond);
+}
+
+/*
+ * Wait for a signal from the master
+ */
+void WaitForMaster(long long timeToWait) {
+	struct timespec ts;
+	struct timeval  tv;
+
+	gettimeofday(&tv, NULL);
+	ts.tv_sec  = tv.tv_sec;
+	ts.tv_nsec = (tv.tv_usec + timeToWait) * 1000;
+
+	if (ts.tv_nsec >= 1000000000)
+	{
+		ts.tv_sec  += 1;
+		ts.tv_nsec -= 1000000000;
+	}
+
+	pthread_mutex_lock(&SyncLock);
+	pthread_cond_timedwait(&SyncCond, &SyncLock, &ts);
+	pthread_mutex_unlock(&SyncLock);
+}
+
 /*
  * Main loop in channel output thread
  */
@@ -71,14 +119,23 @@ void *RunChannelOutputThread(void *data)
 	while (RunThread)
 	{
 		startTime = GetTime();
+
+		if ((getFPPmode() == MASTER_MODE) &&
+			(IsSequenceRunning()))
+			SendSeqSyncPacket(channelOutputFrame, mediaElapsedSeconds);
+
 		SendSequenceData();
 		sendTime = GetTime();
-		ReadSequenceData();
+
+		if (getFPPmode() != BRIDGE_MODE)
+			ReadSequenceData();
+
 		readTime = GetTime();
 
 		if ((IsSequenceRunning()) ||
 			(IsEffectRunning()) ||
-			(UsingMemoryMapInput()))
+			(UsingMemoryMapInput()) ||
+			(getFPPmode() == BRIDGE_MODE))
 		{
 			onceMore = 1;
 
@@ -101,14 +158,40 @@ void *RunChannelOutputThread(void *data)
 				RunThread = 0;
 		}
 
-		ts.tv_sec = 0;
-		ts.tv_nsec = (LightDelay - (GetTime() - startTime)) * 1000;
-
-		nanosleep(&ts, NULL);
+		if (getFPPmode() == REMOTE_MODE)
+		{
+			if (channelOutputFrame >= MasterFramesPlayed) {
+				// We are too far ahead, wait for master to catch up
+				while (channelOutputFrame >= MasterFramesPlayed)
+				{
+					WaitForMaster(DefaultLightDelay);
+				}
+			} else if (channelOutputFrame == (MasterFramesPlayed - 1)) {
+				// We are right where we want to be, wait for master
+				WaitForMaster(DefaultLightDelay);
+			} else if (channelOutputFrame < (MasterFramesPlayed - 1)) {
+				// We are too far behind, try to catch up by not sleeping
+			}
+		}
+		else
+		{
+			// Calculate how long we need to nanosleep()
+			ts.tv_sec = 0;
+			ts.tv_nsec = (LightDelay - (GetTime() - startTime)) * 1000;
+			nanosleep(&ts, NULL);
+		}
 	}
 
 	ThreadIsRunning = 0;
 	pthread_exit(NULL);
+}
+
+/*
+ * Set the step time
+ */
+void SetChannelOutputRefreshRate(int rate)
+{
+	RefreshRate = rate;
 }
 
 /*
@@ -120,7 +203,7 @@ int StartChannelOutputThread(void)
 		return 1;
 
 	RunThread = 1;
-	DefaultLightDelay = 1 / RefreshRate * 1000000;
+	DefaultLightDelay = 1000000 / RefreshRate;
 	LightDelay = DefaultLightDelay;
 
 	int result = pthread_create(&ChannelOutputThreadID, NULL, &RunChannelOutputThread, NULL);
@@ -148,12 +231,45 @@ int StartChannelOutputThread(void)
 }
 
 /*
+ *
+ */
+int StopChannelOutputThread(void)
+{
+	int i = 0;
+
+	// Stop the thread and wait a few seconds
+	RunThread = 0;
+	while (ThreadIsRunning && (i < 5))
+	{
+		sleep(1);
+		i++;
+	}
+
+	// Didn't stop for some reason, so it was hung somewhere
+	if (ThreadIsRunning)
+		return -1;
+
+	return 0;
+}
+
+/*
+ * Update the count of frames that the master has played so we can sync to it
+ */
+void UpdateMasterPosition(int frameNumber)
+{
+	MasterFramesPlayed = frameNumber;
+	pthread_cond_signal(&SyncCond);
+}
+
+/*
  * Calculate the new sync offset based on the current position reported
  * by the media player.
  */
 void CalculateNewChannelOutputDelay(float mediaPosition)
 {
 	int expectedFramesSent = (int)(mediaPosition * RefreshRate);
+
+	mediaElapsedSeconds = mediaPosition;
 
 	LogDebug(VB_CHANNELOUT,
 		"Media Position: %.2f, Frames Sent: %d, Expected: %d, Diff: %d\n",

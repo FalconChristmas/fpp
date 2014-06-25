@@ -21,6 +21,7 @@ require_once("config.php");
 
 		$.get("fppjson.php?command=setSetting&key=MultiSyncRemotes&value=" + remotes
 		).success(function() {
+			settings['MultiSyncRemotes'] = remotes;
 			$.jGrowl("Remote List Saved: '" + remotes + "'.  You must restart fppd for the changes to take effect.");
 		}).fail(function() {
 			DialogError("Save Remotes", "Save Failed");
@@ -85,8 +86,11 @@ require_once("config.php");
 		$('#fppSystems tbody').empty();
 		$('#fppSystems tbody').append("<tr><td colspan=5 align='center'>Loading...</td></tr>");
 
-		$.get("/fppjson.php?command=getFPPSystems", function(data) {
-			parseFPPSystems(data);
+		$.get("/fppjson.php?command=getSetting&key=MultiSyncRemotes", function(data) {
+			settings['MultiSyncRemotes'] = data.MultiSyncRemotes;
+			$.get("/fppjson.php?command=getFPPSystems", function(data) {
+				parseFPPSystems(data);
+			});
 		});
 	}
 

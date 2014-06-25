@@ -1233,18 +1233,44 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 						{
 							$("#btnDaemonControl").attr('value', 'Stop FPPD');
 							$('#daemonStatus').html("FPPD is running.");
-							//$("#playerStatus").css({ display: "block" });
 						}
 						else
 						{
 							$("#btnDaemonControl").attr('value', 'Start FPPD');
 							$('#daemonStatus').html("FPPD is stopped.");
-							//$("#playerStatus").css({ display: "none" });
 						} 
 					}
 				}
 			};
 			xmlhttp.send();
+	}
+
+	function SetupUIForMode(fppMode)
+	{
+		if (fppMode == 1) // Bridge Mode
+		{
+			$("#playerStatus").hide();
+			$("#nextPlaylist").hide();
+			$("#bytesTransferred").show();
+			$("#remoteStatus").hide();
+		}
+		else
+		{
+			if (fppMode == 8) // Remote Mode
+			{
+				$("#playerStatus").hide();
+				$("#nextPlaylist").hide();
+				$("#bytesTransferred").hide();
+				$("#remoteStatus").show();
+			}
+			else // Player or Master Modes
+			{
+				$("#playerStatus").show();
+				$("#nextPlaylist").show();
+				$("#bytesTransferred").hide();
+				$("#remoteStatus").hide();
+			}
+		}
 	}
 
 	function GetFPPstatus()
@@ -1272,20 +1298,13 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 						}
 
 						var fppMode = parseInt(status.childNodes[0].textContent);
+						SetupUIForMode(fppMode);
 						if (fppMode == 1)
 						{
-							$("#playerStatus").css("display","none");
-							$("#nextPlaylist").css("display","none");
-							$("#bytesTransferred").css("display","block");
-
 							GetUniverseBytesReceived();
 						}
 						else
 						{
-							$("#playerStatus").css("display","block");
-							$("#nextPlaylist").css("display","block");
-							$("#bytesTransferred").css("display","none");
-							
 							if(fppStatus == STATUS_IDLE)
 							{
 								gblCurrentPlaylistIndex =0;
@@ -1962,16 +1981,12 @@ function GetFPPDmode()
 			{
 				var xmlDoc=xmlhttp.responseXML; 
 				var mode = parseInt(xmlDoc.getElementsByTagName('mode')[0].childNodes[0].textContent);
+				SetupUIForMode(mode);
 				if(mode == 1) // Bridge Mode
 				{
-					$("#playerStatus").hide();
-					$("#nextPlaylist").hide();
 					$("#selFPPDmode").prop("selectedIndex",3);
 					$("#textFPPDmode").text("Bridge");
 				} else if (mode == 8) { // Remote Mode
-					$("#playerStatus").hide();
-					$("#remoteStatus").show();
-					$("#nextPlaylist").hide();
 					$("#selFPPDmode").prop("selectedIndex",2);
 					$("#textFPPDmode").text("Player (Remote)");
 				} else { // Player or Master modes

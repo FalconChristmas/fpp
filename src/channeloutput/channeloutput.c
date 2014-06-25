@@ -55,9 +55,10 @@ typedef struct {
 } ChannelRemap;
 
 ChannelRemap             remappedChannels[MAX_CHANNEL_REMAPS];
-int                      channelRemaps      = 0;
-int                      channelOutputCount = 0;
-unsigned long            channelOutputFrame = 0;
+int                      channelRemaps       = 0;
+int                      channelOutputCount  = 0;
+unsigned long            channelOutputFrame  = 0;
+float                    mediaElapsedSeconds = 0.0;
 FPPChannelOutputInstance channelOutputs[FPPD_MAX_CHANNEL_OUTPUTS];
 
 /* Some prototypes for helpers below */
@@ -94,7 +95,7 @@ int InitializeChannelOutputs(void) {
 		}
 	}
 
-	if ((getFPPmode() == PLAYER_MODE) &&
+	if ((getFPPmode() != BRIDGE_MODE) &&
 		(E131Output.isConfigured()))
 	{
 		channelOutputs[i].startChannel = 0;
@@ -146,7 +147,7 @@ int InitializeChannelOutputs(void) {
 			}
 
 			if (!enabled) {
-				LogInfo(VB_CHANNELOUT, "Skipping disabled channel output: %s\n", buf);
+				LogDebug(VB_CHANNELOUT, "Skipping disabled channel output: %s\n", buf);
 				continue;
 			}
 
@@ -221,6 +222,7 @@ int InitializeChannelOutputs(void) {
  */
 void ResetChannelOutputFrameNumber(void) {
 	channelOutputFrame = 0;
+	mediaElapsedSeconds = 0.0;
 }
 
 /*

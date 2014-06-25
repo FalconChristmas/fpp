@@ -27,6 +27,8 @@
 #include "channeloutput.h"
 #include "channeloutputthread.h"
 #include "command.h"
+#include "controlrecv.h"
+#include "controlsend.h"
 #include "e131bridge.h"
 #include "effects.h"
 #include "fppd.h"
@@ -40,6 +42,7 @@
 #include "sequence.h"
 #include "settings.h"
 
+#include <errno.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -54,6 +57,9 @@ pid_t pid, sid;
 int FPPstatus=FPP_STATUS_IDLE;
 int runMainFPPDLoop = 1;
 
+/* Prototypes for functions below */
+void MainLoop(void);
+
 int main(int argc, char *argv[])
 {
 	initSettings();
@@ -67,7 +73,7 @@ int main(int argc, char *argv[])
 
 	// Start functioning
 	if (getDaemonize())
-	    CreateDaemon();
+		CreateDaemon();
 
 	InitPluginCallbacks();
 
@@ -75,29 +81,54 @@ int main(int argc, char *argv[])
 
 	InitializeChannelOutputs();
 
-	Command_Initialize();
-
-	if (getFPPmode() == PLAYER_MODE)
+	if (getFPPmode() != BRIDGE_MODE)
 	{
+		InitMediaOutput();
+	}
+
+	if (getFPPmode() & PLAYER_MODE)
+	{
+		if (getFPPmode() == MASTER_MODE)
+			InitSyncMaster();
+
 		InitEffects();
 		InitializeChannelDataMemoryMap();
 
 		SendBlankingData();
+	}
+	else if (getFPPmode() == REMOTE_MODE)
+	{
+		InitChannelOutputSyncVars();
+	}
 
-		LogInfo(VB_GENERAL, "Starting Player Process\n");
-		PlayerProcess();
+#ifndef NOROOT
+	struct sched_param param;
+	param.sched_priority = 99;
+	if (sched_setscheduler(0, SCHED_FIFO, &param) != 0)
+	{
+		perror("sched_setscheduler");
+		exit(EXIT_FAILURE);
+	}
+#endif
+
+	MainLoop();
+
+	if (getFPPmode() != BRIDGE_MODE)
+	{
+		CleanupMediaOutput();
+	}
+
+	if (getFPPmode() & PLAYER_MODE)
+	{
+		if (getFPPmode() == MASTER_MODE)
+			ShutdownSync();
 
 		CloseChannelDataMemoryMap();
 		CloseEffects();
 	}
-	else if (getFPPmode() == BRIDGE_MODE)
+	else if (getFPPmode() == REMOTE_MODE)
 	{
-		LogInfo(VB_GENERAL, "Starting Bridge Process\n");
-		Bridge_Process();
-	}
-	else
-	{
-		LogErr(VB_GENERAL, "Invalid mode, quitting\n");
+		DestroyChannelOutputSyncVars();
 	}
 
 	CloseChannelOutputs();
@@ -110,48 +141,103 @@ void ShutdownFPPD(void)
 	runMainFPPDLoop = 0;
 }
 
-void PlayerProcess(void)
+void MainLoop(void)
 {
-	InitMediaOutput();
-#ifndef NOROOT
-	struct sched_param param;
-	param.sched_priority = 99;
-	if (sched_setscheduler(0, SCHED_FIFO, & param) != 0) 
+	int            commandSock = 0;
+	int            controlSock = 0;
+	int            bridgeSock = 0;
+	int            prevFPPstatus = FPPstatus;
+	int            sleepms = 50000;
+	fd_set         active_fd_set;
+	fd_set         read_fd_set;
+	struct timeval timeout;
+
+	FD_ZERO (&active_fd_set);
+
+	commandSock = Command_Initialize();
+	if (commandSock)
+		FD_SET (commandSock, &active_fd_set);
+
+	if (getFPPmode() & PLAYER_MODE)
 	{
-		perror("sched_setscheduler");
-		exit(EXIT_FAILURE);  
+		CheckIfShouldBePlayingNow();
 	}
-#endif
+	else if (getFPPmode() == BRIDGE_MODE)
+	{
+		bridgeSock = Bridge_Initialize();
+		if (bridgeSock)
+			FD_SET (bridgeSock, &active_fd_set);
+	}
 
-	CheckIfShouldBePlayingNow();
-  while (runMainFPPDLoop)
-  {
-    usleep(100000);
-    switch(FPPstatus)
-    {
-      case FPP_STATUS_IDLE:
-        Commandproc();
-        ScheduleProc();
-        break;
-      case FPP_STATUS_PLAYLIST_PLAYING:
-        PlayListPlayingLoop();
-        break;
-			case FPP_STATUS_STOPPING_GRACEFULLY:
-        PlayListPlayingLoop();
-        break;
-      default:
-        break;
-    }
+	controlSock = InitControlSocket();
+	FD_SET (controlSock, &active_fd_set);
 
-	if ((getFPPmode() == PLAYER_MODE) &&
-		(!ChannelOutputThreadIsRunning()) &&
-		(UsingMemoryMapInput()))
-		StartChannelOutputThread();
-  }
+	while (runMainFPPDLoop)
+	{
+		timeout.tv_sec  = 0;
+		timeout.tv_usec = sleepms;
 
-  LogInfo(VB_GENERAL, "Main Player Process Loop complete, shutting down.\n");
+		read_fd_set = active_fd_set;
 
-  CleanupMediaOutput();
+		if (select(FD_SETSIZE, &read_fd_set, NULL, NULL, &timeout) < 0)
+		{
+			LogErr(VB_GENERAL, "Main select() failed: %s\n", strerror(errno));
+			runMainFPPDLoop = 0;
+			continue;
+		}
+
+		if (commandSock && FD_ISSET(commandSock, &read_fd_set))
+			CommandProc();
+
+		if (bridgeSock && FD_ISSET(bridgeSock, &read_fd_set))
+			Bridge_ReceiveData();
+
+		if (controlSock && FD_ISSET(controlSock, &read_fd_set))
+			ProcessControlPacket();
+
+		// Check to see if we need to start up the output thread.
+		// FIXME, possibly trigger this via a fpp command to fppd
+		if ((getFPPmode() != BRIDGE_MODE) &&
+			(UsingMemoryMapInput()) &&
+			(!ChannelOutputThreadIsRunning())) {
+			StartChannelOutputThread();
+		}
+
+		if (getFPPmode() & PLAYER_MODE)
+		{
+			if ((FPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||
+				(FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY))
+			{
+				if (prevFPPstatus == FPP_STATUS_IDLE)
+				{
+					PlayListPlayingInit();
+					sleepms = 10000;
+				}
+
+				PlayListPlayingProcess();
+			}
+			else if (FPPstatus == FPP_STATUS_IDLE)
+			{
+				if ((prevFPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||
+					(prevFPPstatus == FPP_STATUS_STOPPING_GRACEFULLY))
+				{
+					PlayListPlayingCleanup();
+					sleepms = 50000;
+				}
+			}
+			prevFPPstatus = FPPstatus;
+
+			ScheduleProc();
+		}
+	}
+
+	StopChannelOutputThread();
+	ShutdownControlSocket();
+
+	if (getFPPmode() == BRIDGE_MODE)
+		Bridge_Shutdown();
+
+	LogInfo(VB_GENERAL, "Main Loop complete, shutting down.\n");
 }
 
 void CreateDaemon(void)

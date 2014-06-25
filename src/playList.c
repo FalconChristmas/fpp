@@ -185,28 +185,32 @@ int ReadPlaylist(char const * file)
   return listIndex;
 }
 
-void PlayListPlayingLoop(void)
+void PlayListPlayingInit(void)
 {
-	LogInfo(VB_PLAYLIST, "Starting PlaylistPlaying loop\n");
-  playlistDetails.StopPlaylist = 0;
+	LogDebug(VB_PLAYLIST, "PlayListPlayingInit()\n");
+
+	playlistDetails.StopPlaylist = 0;
 	playlistDetails.ForceStop = 0;
-  playlistDetails.playListCount = ReadPlaylist(playlistDetails.currentPlaylistFile);
+	playlistDetails.playListCount = ReadPlaylist(playlistDetails.currentPlaylistFile);
 	if(playlistDetails.playListCount == 0)
 	{
 		LogInfo(VB_PLAYLIST, "PlaylistCount = 0. Exiting PlayListPlayingLoop\n");
 		FPPstatus = FPP_STATUS_IDLE;
 		return;
 	}
-	
-  if(playlistDetails.currentPlaylistEntry < 0 || playlistDetails.currentPlaylistEntry >= playlistDetails.playListCount)
+
+	if(playlistDetails.currentPlaylistEntry < 0 || playlistDetails.currentPlaylistEntry >= playlistDetails.playListCount)
 	{
 		LogErr(VB_PLAYLIST, "currentPlaylistEntry is not valid\n");
 		FPPstatus = FPP_STATUS_IDLE;
 		return;
 	}
-  while(!playlistDetails.StopPlaylist)
-  {
-    usleep(10000);
+}
+
+void PlayListPlayingProcess(void)
+{
+	LogExcess(VB_PLAYLIST, "PlayListPlayingProcess()\n");
+
     switch(playlistDetails.playList[playlistDetails.currentPlaylistEntry].type)
     {
       case PL_TYPE_BOTH:
@@ -265,19 +269,24 @@ void PlayListPlayingLoop(void)
       default:
         break;
     }
-    Commandproc();
-    ScheduleProc();
-  }
-  FPPstatus = FPP_STATUS_IDLE;
-  SendBlankingData();
-  ReLoadCurrentScheduleInfo();
+
+	if (playlistDetails.StopPlaylist)
+		FPPstatus = FPP_STATUS_IDLE;
+}
+
+void PlayListPlayingCleanup(void)
+{
+	LogDebug(VB_PLAYLIST, "PlayListPlayingCleanup()\n");
+
+	FPPstatus = FPP_STATUS_IDLE;
+	SendBlankingData();
+	ReLoadCurrentScheduleInfo();
 
 	if(!playlistDetails.ForceStop)
 	{
 		CheckIfShouldBePlayingNow();
 	}
 }
-
 
 void PauseProcess(void)
 {

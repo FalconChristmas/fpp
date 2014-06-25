@@ -66,7 +66,9 @@ typedef struct{
 
 void CalculateNextPlayListEntry();
 int ReadPlaylist(char const * file);
-void PlayListPlayingLoop(void);
+void PlayListPlayingInit(void);
+void PlayListPlayingProcess(void);
+void PlayListPlayingCleanup(void);
 void PauseProcess(void);
 void Play_PlaylistEntry(void);
 void PlaylistPlaySong(void);

@@ -26,8 +26,14 @@
 #ifndef _CHANNELOUTPUTTHREAD_H
 #define _CHANNELOUTPUTTHREAD_H
 
+void InitChannelOutputSyncVars(void);
+void DestroyChannelOutputSyncVars(void);
+
 int  ChannelOutputThreadIsRunning(void);
+void SetChannelOutputRefreshRate(int rate);
 int  StartChannelOutputThread(void);
+int  StopChannelOutputThread(void);
+void UpdateMasterPosition(int frameNumber);
 void CalculateNewChannelOutputDelay(float mediaPosition);
 
 #endif

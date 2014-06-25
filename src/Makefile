@@ -34,6 +34,8 @@ OBJECTS_fppd = \
 	channeloutput/USBRenard.o \
 	command.o \
 	common.o \
+	controlrecv.o \
+	controlsend.o \
 	e131bridge.o \
 	effects.o \
 	events.o \
