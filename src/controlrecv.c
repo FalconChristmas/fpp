@@ -11,6 +11,7 @@
 #include "command.h"
 #include "common.h"
 #include "control.h"
+#include "falcon.h"
 #include "log.h"
 #include "sequence.h"
 #include "settings.h"
@@ -155,6 +156,11 @@ void ProcessControlPacket(void) {
 	int         len = 0;
 
 	len = recvfrom(ctrlRecvSock, inBuf, sizeof(inBuf), 0, (struct sockaddr *) &cSrcAddr, &addrlen);
+
+	if (inBuf[0] == 0x55) {
+		ProcessFalconPacket(&cSrcAddr, inBuf);
+		return;
+	}
 
 	if (len <= sizeof(ControlPkt)) {
 		LogErr(VB_CONTROL, "Error: Received control packet too short\n");

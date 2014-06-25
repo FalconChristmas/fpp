@@ -39,6 +39,7 @@ OBJECTS_fppd = \
 	e131bridge.o \
 	effects.o \
 	events.o \
+	falcon.o \
 	fppd.o \
 	log.o \
 	mediadetails.o \
