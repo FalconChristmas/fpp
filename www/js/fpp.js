@@ -555,7 +555,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 		function ChangeGitBranch(newBranch)
 		{
 			document.body.style.cursor = "wait";
-			$.get(fppxml.php?command=changeGitBranch&branch=" + newBranch
+			$.get("fppxml.php?command=changeGitBranch&branch=" + newBranch
 			).success(function() {
 				location.reload(true);
 			}).fail(function() {
