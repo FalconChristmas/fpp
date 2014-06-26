@@ -8,14 +8,14 @@
 
 BINDIR=$(cd $(dirname $0) && pwd)
 
-. ${BINDIR}/common
-. ${BINDIR}/functions
-
 # See if we should be running from /home/pi/fpp
 if [ "x${BINDIR}" == "x/opt/fpp/scripts" -a -f "/home/pi/fpp/scripts/startup" ]
 then
 	exec /home/pi/fpp/scripts/startup
 fi
+
+. ${BINDIR}/common
+. ${BINDIR}/functions
 
 # Copy our php.ini script into place for when we restart apache
 cp ${FPPDIR}/etc/php.ini /etc/php5/apache2/php.ini
@@ -58,7 +58,7 @@ fi
 
 sysctl net/ipv4/igmp_max_memberships=150
 
-#/usr/local/bin/gpio load spi 100
+/usr/local/bin/gpio load spi 100
 # spidev is no longer a module, so we need to set the
 # buffer size differently for now
 chmod u+w /sys/module/spidev/parameters/bufsiz

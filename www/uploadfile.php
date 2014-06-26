@@ -306,7 +306,7 @@ $(document).ready(function()
 		doneStr: "Close",
 		dragdropWidth: '95%',
 		dragDropStr: "<span><b>Drag &amp; Drop or Select Files to upload</b></span>",
-		allowedTypes: "mp3,ogg,fseq,eseq,mp4,mkv,sh,pl,jpg,png,gif,jpeg,rgb",
+		allowedTypes: "mp3,ogg,fseq,eseq,mp4,mkv,sh,pl,php,py,jpg,png,gif,jpeg,rgb",
 		onSuccess: function(files, data, xhr) {
 			for (var i = 0; i < files.length; i++) {
 				moveFile(files[i]);
