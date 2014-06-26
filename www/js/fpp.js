@@ -540,29 +540,30 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 		function ManualGitUpdate()
 		{
 			SetButtonState("#ManualUpdate", "disable");
+			document.body.style.cursor = "wait";
 
-			var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=manualGitUpdate";
-			xmlhttp.open("GET",url,false);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-			xmlhttp.onreadystatechange = function () {
-				if (xmlhttp.readyState == 4)
-					location.reload(true);
-			}
-			xmlhttp.send();
+			$.get("fppxml.php?command=manualGitUpdate"
+			).success(function() {
+				document.body.style.cursor = "pointer";
+				location.reload(true);
+			}).fail(function() {
+				SetButtonState("#ManualUpdate", "enable");
+				document.body.style.cursor = "pointer";
+				DialogError("Manual Git Update", "Update failed");
+			});
 		}
 
 		function ChangeGitBranch(newBranch)
 		{
-			var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=changeGitBranch&branch=" + newBranch;
-			xmlhttp.open("GET",url,false);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-			xmlhttp.onreadystatechange = function () {
-				if (xmlhttp.readyState == 4)
-					location.reload(true);
-			}
-			xmlhttp.send();
+			document.body.style.cursor = "wait";
+			$.get("fppxml.php?command=changeGitBranch&branch=" + newBranch
+			).success(function() {
+				document.body.style.cursor = "pointer";
+				location.reload(true);
+			}).fail(function() {
+				document.body.style.cursor = "pointer";
+				DialogError("Switch Git Branch", "Switch failed");
+			});
 		}
 	
 		function SetAutoUpdate(enabled)
