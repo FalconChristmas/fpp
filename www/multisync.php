@@ -36,7 +36,7 @@ require_once("config.php");
 		}
 
 		var remotes = [];
-		if (typeof settings['MultiSyncRemotes'] !== 'undefined') {
+		if (typeof settings['MultiSyncRemotes'] === 'string') {
 			var tarr = settings['MultiSyncRemotes'].split(',');
 			for (var i = 0; i < tarr.length; i++) {
 				remotes[tarr[i]] = 1;
