@@ -99,7 +99,7 @@ int InitSyncMaster(void) {
 	}
 
 	cSrcAddr.sin_family      = AF_INET;
-	cSrcAddr.sin_port        = htons(FPP_CTRL_PORT);
+	cSrcAddr.sin_port        = htons(FPP_CTRL_PORT+1);
 	cSrcAddr.sin_addr.s_addr = inet_addr(cLocalAddress);
 
 	if(bind(ctrlSendSock, (struct sockaddr *)&cSrcAddr, sizeof(cSrcAddr)) == -1) {
