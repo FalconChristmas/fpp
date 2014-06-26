@@ -207,7 +207,7 @@ a:visited {
             <tr><td>Kernel Version:</td><td><? echo $kernel_version; ?></td></tr>
             <tr><td>Git Branch:</td><td><select id='gitBranch' onChange="ChangeGitBranch($('#gitBranch').val());">
 <? PrintGitBranchOptions(); ?>
-                </select><br><b>NOTE: changing branches may take a couple minutes to recompile<br>and may not work if you have any modified source files.</b></td></tr>
+                </select><br><b>NOTE: changing branches may take a couple minutes to recompile<br>and may not work if you have manually modified any source files.</b></td></tr>
             <tr><td>Local Git Version:</td><td>
 <?
   echo $git_version;
