@@ -1989,6 +1989,25 @@ function GetZip()
 	else {
 		$zip->addFromString("Logs/proc_dev_sys.txt", implode("\n", $output)."\n");
 	}
+	unset($output);
+
+	exec("/usr/bin/git --work-tree=".dirname(dirname(__FILE__))."/ status", $output, $return_val);
+	if ( $return_val != 0 ) {
+		error_log("Unable to get a git status for logs");
+	}
+	else {
+		$zip->addFromString("Logs/git_status.txt", implode("\n", $output)."\n");
+	}
+	unset($output);
+
+	exec("/usr/bin/git --work-tree=".dirname(dirname(__FILE__))."/ diff", $output, $return_val);
+	if ( $return_val != 0 ) {
+		error_log("Unable to get a git diff for logs");
+	}
+	else {
+		$zip->addFromString("Logs/fpp_git.diff", implode("\n", $output)."\n");
+	}
+	unset($output);
 
 	$zip->close();
 
