@@ -154,6 +154,8 @@ function ManualGitUpdate()
 	exec(SUDO . " $fppDir/scripts/fppd_stop");
 	exec("$fppDir/scripts/git_pull");
 	exec(SUDO . " $fppDir/scripts/fppd_start");
+
+	EchoStatusXML("OK");
 }
 
 function ChangeGitBranch()
@@ -163,6 +165,8 @@ function ChangeGitBranch()
 
 	global $fppDir;
 	exec("$fppDir/scripts/git_branch $branch");
+
+	EchoStatusXML("OK");
 }
 
 function GetGitOriginLog()
