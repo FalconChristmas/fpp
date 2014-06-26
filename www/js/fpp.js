@@ -544,8 +544,10 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 
 			$.get("fppxml.php?command=manualGitUpdate"
 			).success(function() {
+				document.body.style.cursor = "pointer";
 				location.reload(true);
 			}).fail(function() {
+				SetButtonState("#ManualUpdate", "enable");
 				document.body.style.cursor = "pointer";
 				DialogError("Manual Git Update", "Update failed");
 			});
@@ -556,6 +558,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			document.body.style.cursor = "wait";
 			$.get("fppxml.php?command=changeGitBranch&branch=" + newBranch
 			).success(function() {
+				document.body.style.cursor = "pointer";
 				location.reload(true);
 			}).fail(function() {
 				document.body.style.cursor = "pointer";
