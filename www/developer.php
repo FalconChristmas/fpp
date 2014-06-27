@@ -76,7 +76,7 @@ unset($output);
 function PrintGitBranchOptions()
 {
   $branches = Array();
-  exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ branch --list", $branches);
+  exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ branch -a | grep -v -- '->' | sed 's/remotes\/origin\///' | sort -u", $branches);
   foreach($branches as $branch)
   {
     if (preg_match('/^\\*/', $branch))
