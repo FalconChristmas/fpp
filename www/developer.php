@@ -39,17 +39,11 @@ if (file_exists("/etc/os-release"))
 	unset($output);
 }
 
-$git_status = "";
-exec("/usr/bin/git --work-tree=".dirname(dirname(__FILE__))."/ status 2>&1", $output, $return_val);
-if ( $return_val != 0 )
-        $git_status = "Unknown";
-else
-{
-	foreach ($output as $line)
-	{
-		$git_status .= $line . "\n";
-	}
-}
+$cmd = "cd " . dirname(dirname(__FILE__)) . " && /usr/bin/git status";
+$git_status = "Unknown";
+exec($cmd, $output, $return_val);
+if ( $return_val == 0 )
+	$git_status = implode("\n", $output) . "\n";
 unset($output);
 
 $kernel_version = exec("/bin/uname -r", $output, $return_val);
@@ -75,18 +69,20 @@ unset($output);
 
 function PrintGitBranchOptions()
 {
+	global $git_branch;
+
   $branches = Array();
-  exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ branch -a | grep -v -- '->' | sed 's/remotes\/origin\///' | sort -u", $branches);
+  exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ branch -a | grep -v -- '->' | sed -e 's/remotes\/origin\///' -e 's/\\* *//' -e 's/ *//' | sort -u", $branches);
   foreach($branches as $branch)
   {
-    if (preg_match('/^\\*/', $branch))
+    if ($branch == $git_branch)
     {
-       $branch = preg_replace('/^\\* */', '', $branch);
+//       $branch = preg_replace('/^\\* */', '', $branch);
        echo "<option value='$branch' selected>$branch</option>";
     }
     else
     {
-       $branch = preg_replace('/^ */', '', $branch);
+ //      $branch = preg_replace('/^ */', '', $branch);
        echo "<option value='$branch'>$branch</option>";
     }
   }
@@ -207,7 +203,7 @@ a:visited {
             <tr><td>Kernel Version:</td><td><? echo $kernel_version; ?></td></tr>
             <tr><td>Git Branch:</td><td><select id='gitBranch' onChange="ChangeGitBranch($('#gitBranch').val());">
 <? PrintGitBranchOptions(); ?>
-                </select> <b>(changing branches may take a couple minutes to recompile<br>and may not work if you have any modified source files)</b></td></tr>
+                </select><br><b>Note: Changing branches may take a couple minutes to recompile<br>and may not work if you have any modified source files.</b></td></tr>
             <tr><td>Local Git Version:</td><td>
 <?
   echo $git_version;
