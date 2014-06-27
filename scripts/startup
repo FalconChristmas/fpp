@@ -17,20 +17,28 @@ fi
 . ${BINDIR}/common
 . ${BINDIR}/functions
 
+echo "FPP - Setting up for the Falcon Pi Player"
+
 # Copy our php.ini script into place for when we restart apache
+echo "FPP - Copying php.ini into place"
 cp ${FPPDIR}/etc/php.ini /etc/php5/apache2/php.ini
 
 # If the flash drive is not mounted yet, then fix Apache so it can at least start up
 if [ ! -d "/home/pi/media/logs" ]
 then
+	echo "FPP - Reconfiguring Apache to disable logging since flash is not mounted"
 	sed -i "s/ErrorLog/#ErrorLog/" /etc/apache2/sites-available/default
 	/etc/rc2.d/S02apache2 restart
 fi
 
 # Configure Network and DNS
+echo "FPP - Configuring Network"
 ${BINDIR}/config_network
+
+echo "FPP - Configuring DNS"
 ${BINDIR}/config_dns
 
+echo "FPP - Configuring Audio"
 ###########################################################################
 # Part #1 of workaround for https://github.com/raspberrypi/linux/issues/570
 # Play some silence while we set the volume so the new value will stick
@@ -56,43 +64,50 @@ if [ ! -e /proc/asound/card$(sed -n '/card [0-9]*/p' /root/.asoundrc | head -n 1
 	sed -i 's/card [0-9]/card 0/' /root/.asoundrc
 fi
 
+echo "FPP - Setting max IGMP memberships"
 sysctl net/ipv4/igmp_max_memberships=150
 
+echo "FPP - Setting up SPI"
 /usr/local/bin/gpio load spi 100
 # spidev is no longer a module, so we need to set the
 # buffer size differently for now
 chmod u+w /sys/module/spidev/parameters/bufsiz
 echo 102400 > /sys/module/spidev/parameters/bufsiz
 
+echo "FPP - Configuring RTC"
 ${BINDIR}/piRTC
 
 # Make sure our DHCP IPs are up before we log/announce them.
+echo "FPP - Waiting for DHCP IPs on configured interfaces"
 WaitForDHCPIPs
 
 # Print/Say the IP address
 _IP=$(hostname -I) || true
 if [ "$_IP" ]; then
-  printf "My IP address is %s\n" "$_IP"
+  echo "FPP - Found IPs: $_IP"
   arrHost=(${_IP// / })
   flite -voice kal "I Have Found The Following I P Addresses, ${arrHost[0]}, ${arrHost[1]},  ${arrHost[2]}" &
 fi
 
 # Check for flash drive mounted
+echo "FPP - Checking for mounted flash drive"
 while [ true ]
 do
 if [ "$(df -h ${MEDIADIR} | tail -n 1 | awk '{print $1}')" == "$(df -h / | tail -n 1 | awk '{print $1}')" ];
 then
-	echo "Flash Media Is Missing.  Please Insert.";
+	echo "      Flash Media Is Missing.  Please Insert.";
 	flite -voice kal "Boot Stalled, Flash Media Is Missing.  Please Insert."
 	sleep 5;
 	mount -a;
 else
-	echo "Flash Media mounted, checking for required subdirectories.";
+	echo "      Flash Media mounted, checking for required subdirectories.";
 	DIRS="config effects events logs music playlists scripts sequences upload videos"
+	echo "FPP - Checking for required directories"
 	for DIR in ${DIRS}
 	do
 		if [ ! -d /home/pi/media/${DIR} ]
 		then
+			echo "      Creating ${DIR}"
 			mkdir -p /home/pi/media/${DIR}
 			chown pi.pi /home/pi/media/${DIR}
 		fi
@@ -102,20 +117,22 @@ else
 fi
 done
 
+echo "FPP - Copying Apache config into place and restarting Apache"
 sed -e "s#FPPDIR#${FPPDIR}#g" < ${FPPDIR}/etc/apache2.site > /etc/apache2/sites-available/default
 /etc/rc2.d/S02apache2 restart
 
+echo "FPP - Starting FPP boot script"
 ${BINDIR}/fpp_boot
 
+echo "FPP - Checking for configured LCD"
 PiLCDenabled=$(awk -f ${FPPDIR}/scripts/readSetting.awk /home/pi/media/settings setting=PI_LCD_Enabled)
-echo $PiLCDenabled
 
 if [[ $PiLCDenabled == "true" ]]
 then
-  echo "LCD Enabled"
+  echo "      LCD Enabled, starting LCD daemon"
   ${FPPDIR}/scripts/lcd/fppLCD start
 else
-  echo "LCD Disabled"
+  echo "      LCD Disabled"
 fi
 
 ##############################################################################
@@ -124,12 +141,15 @@ fi
 SCREENSAVER=$(getSetting screensaver)
 if [ "x${SCREENSAVER}" = "x1" ]
 then
+	echo "FPP - Turning ON screen blanking"
 	setterm -blank 1
 else
+	echo "FPP - Turning OFF screen blanking"
 	setterm -blank 0
 fi
 
 # Sleep for just a little while so the user can see the login prompt before
 # we display the logo
+echo "FPP - Setting delayed splash screen"
 (sleep 60 ; /usr/bin/fbi -T 1 -noverbose -a /etc/splash.png) &
 
