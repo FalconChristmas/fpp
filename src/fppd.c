@@ -151,6 +151,7 @@ void MainLoop(void)
 	fd_set         active_fd_set;
 	fd_set         read_fd_set;
 	struct timeval timeout;
+	int            selectResult;
 
 	FD_ZERO (&active_fd_set);
 
@@ -179,11 +180,22 @@ void MainLoop(void)
 
 		read_fd_set = active_fd_set;
 
-		if (select(FD_SETSIZE, &read_fd_set, NULL, NULL, &timeout) < 0)
+
+		selectResult = select(FD_SETSIZE, &read_fd_set, NULL, NULL, &timeout);
+		if (selectResult < 0)
 		{
-			LogErr(VB_GENERAL, "Main select() failed: %s\n", strerror(errno));
-			runMainFPPDLoop = 0;
-			continue;
+			if (errno == EINTR)
+			{
+				// We get interrupted when media players finish
+				continue;
+			}
+			else
+			{
+				LogErr(VB_GENERAL, "Main select() failed: %s\n",
+					strerror(errno));
+				runMainFPPDLoop = 0;
+				continue;
+			}
 		}
 
 		if (commandSock && FD_ISSET(commandSock, &read_fd_set))
