@@ -2041,8 +2041,11 @@ function GetZip()
 
 	header('Content-type: application/zip');
 	header('Content-disposition: attachment;filename=FPP_Logs_' . $timestamp . '.zip');
+	ob_clean();
+	flush();
 	readfile($filename);
 	unlink($filename);
+	exit();
 }
 
 
