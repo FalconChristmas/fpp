@@ -113,9 +113,10 @@ function SetChannelMemMaps() {
 	postData = "command=setChannelMemMaps&data=[ " + postData + " ]";
 
 	$.post("fppjson.php", postData).success(function(data) {
+		$.jGrowl("Channel Memory Maps saved.");
 		PopulateChannelMemMapTable(data);
 	}).fail(function() {
-		alert("something failed");
+		DialogError("Save Channel Memory Maps", "Save Failed!");
 	});
 }
 
