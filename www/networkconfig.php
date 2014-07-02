@@ -408,7 +408,7 @@ function setHostName() {
           <table width="100%" border="0" cellpadding="1" cellspacing="1">
             <tr>
               <td width = "25%">HostName:</td>
-              <td colspan='2'><input id='hostName' value='<? if (isset($settings['HostName'])) echo $settings['HostName']; else echo 'FPP'; ?>' size='20' maxlength='20'> <input type='button' class='buttons' value='Save' onClick='setHostName();'></td>
+              <td colspan='2'><input id='hostName' value='<? if (isset($settings['HostName'])) echo $settings['HostName']; else echo 'FPP'; ?>' size='30' maxlength='30'> <input type='button' class='buttons' value='Save' onClick='setHostName();'></td>
             </tr>
             <tr>
               <td>&nbsp;</td>
