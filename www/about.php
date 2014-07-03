@@ -257,14 +257,14 @@ a:visited {
 <?
   echo $git_version;
   if (($git_remote_version != "") && ($git_version != $git_remote_version))
-    echo " <font color='#FF0000'>(Update is available)</font>";
+    echo " <font color='#FF0000'>(Update is available)</font> <a href='changelog.php'>ChangeLog</a>";
 ?>
                 </td></tr>
             <tr><td>Remote Git Version:</td><td>
 <?
   echo $git_remote_version;
   if (($git_remote_version != "") && ($git_version != $git_remote_version))
-    echo " <font color='#FF0000'><a href='javascript:void(0);' onClick='GetGitOriginLog();'>Preview Change Log</a></font>";
+    echo " <font color='#FF0000'><a href='javascript:void(0);' onClick='GetGitOriginLog();'>Preview Changes</a></font>";
 ?>
                 </td></tr>
             <tr><td>Disable Auto Update:</td><td><input type='checkbox' id='autoUpdateDisabled' onChange='ToggleAutoUpdate();'
