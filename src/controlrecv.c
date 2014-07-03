@@ -176,15 +176,38 @@ void ProcessSyncPacket(ControlPkt *pkt, int len) {
 void ProcessControlPacket(void) {
 	LogExcess(VB_CONTROL, "ProcessControlPacket()\n");
 
-	char        inBuf[2048];
+	unsigned char inBuf[2048];
 	ControlPkt *pkt;
 	int         addrlen = sizeof(cSrcAddr);
 	int         len = 0;
 
-	len = recvfrom(ctrlRecvSock, inBuf, sizeof(inBuf), 0, (struct sockaddr *) &cSrcAddr, &addrlen);
+	struct iovec iov[1];
+	iov[0].iov_base = inBuf;
+	iov[0].iov_len  = sizeof(inBuf);
+
+	struct sockaddr_storage mSrcAddr;
+	struct msghdr           msg;
+	msg.msg_name       = &mSrcAddr;
+	msg.msg_namelen    = sizeof(mSrcAddr);
+	msg.msg_iov        = iov;
+	msg.msg_iovlen     = 1;
+	msg.msg_control    = 0;
+	msg.msg_controllen = 0;
+
+	bzero(inBuf, sizeof(inBuf));
+
+	len = recvmsg(ctrlRecvSock, &msg, 0);
+	if (len == -1) {
+		LogErr(VB_CONTROL, "Error: recvmsg failed: %s\n", strerror(errno));
+		return;
+	} else if (msg.msg_flags & MSG_TRUNC) {
+		LogErr(VB_CONTROL, "Error: Received control packet too large\n");
+		HexDump("Received data:", (void*)inBuf, iov[0].iov_len);
+		return;
+	}
 
 	if (inBuf[0] == 0x55) {
-		ProcessFalconPacket(&cSrcAddr, inBuf);
+		ProcessFalconPacket(ctrlRecvSock, (struct sockaddr_in *)&mSrcAddr, inBuf);
 		return;
 	}
 

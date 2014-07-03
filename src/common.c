@@ -22,14 +22,19 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
- 
+
+#define _GNU_SOURCE
 #include <arpa/inet.h>
 #include <dirent.h>
 #include <errno.h>
+#include <ifaddrs.h>
+#include <linux/if_link.h>
 #include <net/if.h>
+#include <netdb.h>
 #include <netinet/in.h>
 #include <signal.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -153,7 +158,8 @@ void HexDump(char *title, void *data, int len) {
 /*
  * Get IP address on specified network interface
  */
-char *GetInterfaceAddress(char *interface) {
+int GetInterfaceAddress(char *interface, char *addr, char *mask, char *gw)
+{
 	int fd;
 	struct ifreq ifr;
 
@@ -162,10 +168,105 @@ char *GetInterfaceAddress(char *interface) {
 
 	/* I want IP address attached to E131interface */
 	strncpy(ifr.ifr_name, (const char *)interface, IFNAMSIZ-1);
-	ioctl(fd, SIOCGIFADDR, &ifr);
+
+	if (addr)
+	{
+		if (ioctl(fd, SIOCGIFADDR, &ifr))
+			strcpy(addr, "127.0.0.1");
+		else
+			strcpy(addr, inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr));
+	}
+
+	if (mask)
+	{
+		if (ioctl(fd, SIOCGIFNETMASK, &ifr))
+			strcpy(mask, "255.255.255.255");
+		else
+			strcpy(mask, inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr));
+	}
+
+	if (gw)
+	{
+		FILE *f;
+		char  line[100];
+		char *iface;
+		char *dest;
+		char *route;
+		char *saveptr;
+
+		f = fopen("/proc/net/route", "r");
+
+		if (f)
+		{
+			while (fgets(line, 100, f))
+			{
+				iface = strtok_r(line, " \t", &saveptr);
+				dest  = strtok_r(NULL, " \t", &saveptr);
+				route = strtok_r(NULL, " \t", &saveptr);
+
+				if ((iface && dest && route) &&
+					(!strcmp(iface, interface)) &&
+					(!strcmp(dest, "00000000")))
+				{
+					char *end;
+					int ng = strtol(route, &end, 16);
+					struct in_addr addr;
+					addr.s_addr = ng;
+					strcpy(gw, inet_ntoa(addr));
+				}
+			}
+			fclose(f);
+		}
+	}
+
 	close(fd);
 
-	/* return duplicate of result */
-	return strdup(inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr));
+	return 0;
+}
+
+/*
+ *
+ */
+char *FindInterfaceForIP(char *ip)
+{
+	struct ifaddrs *ifaddr, *ifa;
+	int family, s, n;
+	char host[NI_MAXHOST];
+	char interfaceIP[16];
+	static char interface[10] = "";
+
+	if (getifaddrs(&ifaddr) == -1)
+	{
+		LogErr(VB_SETTING, "Error getting interfaces list: %s\n",
+			strerror(errno));
+		return interface;
+	}
+
+	for (ifa = ifaddr, n = 0; ifa != NULL; ifa = ifa->ifa_next, n++)
+	{
+		if (ifa->ifa_addr == NULL)
+			continue;
+
+		if (ifa->ifa_addr->sa_family == AF_INET)
+		{
+			s = getnameinfo(ifa->ifa_addr, sizeof(struct sockaddr_in),
+							host, NI_MAXHOST, NULL, 0, NI_NUMERICHOST);
+			if (s != 0)
+			{
+				LogErr(VB_SETTING, "getnameinfo failed");
+				freeifaddrs(ifaddr);
+				return interface;
+			}
+
+			if (!strcmp(host, ip))
+			{
+				strcpy(interface, ifa->ifa_name);
+				freeifaddrs(ifaddr);
+				return interface;
+			}
+		}
+	}
+
+	return interface;
 }
 

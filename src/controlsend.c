@@ -44,7 +44,7 @@
 int ctrlSendSock    = 0;
 int remoteCount     = 0;
 
-char               *cLocalAddress;
+char                cLocalAddress[16];
 struct sockaddr_in  cSrcAddr;
 struct sockaddr_in  cDestAddr[MAX_SYNC_REMOTES];
 
@@ -89,14 +89,14 @@ void InitControlPkt(ControlPkt *pkt) {
 int InitSyncMaster(void) {
 	LogDebug(VB_SYNC, "InitSyncMaster()\n");
 
-	cLocalAddress = GetInterfaceAddress(getE131interface()); // FIXME
-
 	ctrlSendSock = socket(AF_INET, SOCK_DGRAM, 0);
 
 	if (ctrlSendSock < 0) {
 		LogErr(VB_SYNC, "Error opening Master/Remote Sync socket\n");
 		exit(1);
 	}
+
+	GetInterfaceAddress(getE131interface(), cLocalAddress, NULL, NULL); // FIXME
 
 	cSrcAddr.sin_family      = AF_INET;
 	cSrcAddr.sin_port        = htons(FPP_CTRL_PORT+1);
