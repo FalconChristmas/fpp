@@ -22,7 +22,8 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
- 
+
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
@@ -251,6 +252,14 @@ int RunEventScript(FPPevent *e)
 			token = strtok(NULL, " ");
 		}
 		args[i] = NULL;
+
+		if (chdir(getScriptDirectory()))
+		{
+			LogErr(VB_EVENT, "Unable to change directory to %s: %s\n",
+				getScriptDirectory(), strerror(errno));
+			exit(EXIT_FAILURE);
+		}
+
 		execvp("/opt/fpp/scripts/eventScript", args);
 
 		LogErr(VB_EVENT, "RunEventScript(), ERROR, we shouldn't be here, this means "
