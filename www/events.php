@@ -125,7 +125,7 @@
 <br/>
 <div id="programControl" class="settings">
 	<fieldset>
-		<legend>Program Control</legend>
+		<legend>Player Status</legend>
 		<div id="daemonControl">
 			<table width= "100%">
 				<tr>
@@ -142,31 +142,6 @@
 				</tr>
 			</table>
 		</div>
-		<hr>
-		<div id="bytesTransferred"><H3>Bytes Transferred</H3>
-		<div id="bridgeStatistics1"></div>
-		<div id="bridgeStatistics2"></div>
-		<div class="clear"></div>
-		</div>
-		<div id="playerStatus">
-			<table width= "100%">
-				<tr>
-					<td class='controlHeader'>Player Status: </td>
-					<td id="txtPlayerStatus"></td>
-				</tr>
-			</table>
-			<table width= "100%">
-				<tr>
-					<td id="txtTimePlayed"></td>
-					<td id="txtTimeRemaining"></td>
-				</tr>
-			</table>
-		</div>
-		<div id="playerControls" style="margin-top:5px">
-			<input id= "btnPlay" type="button" class ="buttons"value="Start a Playlist" onClick="location.href = '/index.php';">
-			<input id= "btnStopGracefully" type="button" class ="buttons"value="Stop Gracefully" onClick="StopGracefully();">
-			<input id= "btnStopNow" type="button" class ="buttons" value="Stop Now" onClick="StopNow();">
-		</div>
 	</fieldset>
 
 	<br />
@@ -177,11 +152,11 @@
 			<div id="eventList" class="unselectable">
 				<table id="tblEventListHeader" width="100%">
 					<tr class="eventListHeader">
-						<td class='eventTblID'>ID</td>
-						<td class='eventTblName'>Name</td>
-						<td class='eventTblScript'>Script</td>
-						<td class='eventTblEffect'>Effect</td>
-						<td class='eventTblStartCh'>Ch.</td>
+						<td class='fppTableHeader eventTblID'>ID</td>
+						<td class='fppTableHeader eventTblName'>Name</td>
+						<td class='fppTableHeader eventTblScript'>Script</td>
+						<td class='fppTableHeader eventTblEffect'>Effect</td>
+						<td class='fppTableHeader eventTblStartCh'>Ch.</td>
 					</tr>
 				</table>
 				<div id= "eventListContents">
