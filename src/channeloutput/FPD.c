@@ -49,7 +49,7 @@
 #endif
 
 #define MAX_PIXELNET_DMX_PORTS          12 
-#define PIXELNET_DMX_DATA_SIZE          32768
+#define PIXELNET_DMX_DATA_SIZE          16384
 #define PIXELNET_HEADER_SIZE                6       
 #define PIXELNET_DMX_BUF_SIZE               (PIXELNET_DMX_DATA_SIZE+PIXELNET_HEADER_SIZE)
 
@@ -121,7 +121,7 @@ int InitializePixelnetDMX()
 	LogInfo(VB_CHANNELOUT, "Initializing SPI for FPD output\n");
 
 	LoadPixelnetDMXsettingsFromFile();
-	if (wiringPiSPISetup (0,8000000) < 0)
+	if (wiringPiSPISetup (0,16000000) < 0)
 	{
 	    LogErr(VB_CHANNELOUT, "Unable to open SPI device\n") ;
 		return 0;
