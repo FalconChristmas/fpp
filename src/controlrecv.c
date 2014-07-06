@@ -76,6 +76,13 @@ int InitControlSocket(void) {
 		exit(1);
 	}
 
+	int opt = 1;
+	if (setsockopt(ctrlRecvSock, IPPROTO_IP, IP_PKTINFO, &opt, sizeof(opt)) < 0)
+	{
+		perror("setsockopt pktinfo");
+		exit(1);
+	}
+
 	// Receive multicast from anywhere		
 	mreq.imr_interface.s_addr = htonl(INADDR_ANY);
 	mreq.imr_multiaddr.s_addr = inet_addr(FPP_CTRL_ADDR);
@@ -185,14 +192,16 @@ void ProcessControlPacket(void) {
 	iov[0].iov_base = inBuf;
 	iov[0].iov_len  = sizeof(inBuf);
 
-	struct sockaddr_storage mSrcAddr;
-	struct msghdr           msg;
+	char                     cmbuf[0x100];
+	struct sockaddr_storage  mSrcAddr;
+	struct msghdr            msg;
+
 	msg.msg_name       = &mSrcAddr;
 	msg.msg_namelen    = sizeof(mSrcAddr);
 	msg.msg_iov        = iov;
 	msg.msg_iovlen     = 1;
-	msg.msg_control    = 0;
-	msg.msg_controllen = 0;
+	msg.msg_control    = cmbuf;
+	msg.msg_controllen = sizeof(cmbuf);
 
 	bzero(inBuf, sizeof(inBuf));
 
@@ -207,7 +216,22 @@ void ProcessControlPacket(void) {
 	}
 
 	if (inBuf[0] == 0x55) {
-		ProcessFalconPacket(ctrlRecvSock, (struct sockaddr_in *)&mSrcAddr, inBuf);
+		struct in_addr  recvAddr;
+		struct cmsghdr *cmsg;
+
+		for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL; cmsg = CMSG_NXTHDR(&msg, cmsg))
+		{
+			if (cmsg->cmsg_level != IPPROTO_IP || cmsg->cmsg_type != IP_PKTINFO)
+			{
+				continue;
+			}
+
+			struct in_pktinfo *pi = (struct in_pktinfo *)CMSG_DATA(cmsg);
+			recvAddr = pi->ipi_addr;
+			recvAddr = pi->ipi_spec_dst;
+		}
+
+		ProcessFalconPacket(ctrlRecvSock, (struct sockaddr_in *)&mSrcAddr, recvAddr, inBuf);
 		return;
 	}
 

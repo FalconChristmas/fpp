@@ -30,6 +30,7 @@
 #include <sys/socket.h>
 
 /* Functions for configuring Falcon controllers */
-void ProcessFalconPacket(int sock, struct sockaddr_in *srcAddr, unsigned char *inBuf);
+void ProcessFalconPacket(int sock, struct sockaddr_in *srcAddr,
+	struct in_addr recvAddr, unsigned char *inBuf);
 
 #endif /* _CONTROLRECV_H */

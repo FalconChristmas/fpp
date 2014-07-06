@@ -205,7 +205,8 @@ void PopulatePiConfig(char *ipAddress, char *buf)
 /*
  *
  */
-void FalconQueryHardware(int sock, struct sockaddr_in *srcAddr, char *inBuf)
+void FalconQueryHardware(int sock, struct sockaddr_in *srcAddr,
+	struct in_addr recvAddr, char *inBuf)
 {
 	LogDebug(VB_SETTING, "FalconQueryHardware(%p)\n", inBuf);
 	// Return config information, Falcon hardware info, network IP info, etc.
@@ -216,7 +217,7 @@ void FalconQueryHardware(int sock, struct sockaddr_in *srcAddr, char *inBuf)
 	char query[8];
 	bzero(query, 8);
 
-	int bytesWritten = wiringPiSPIDataRW (0, buf, 8);
+	int bytesWritten = wiringPiSPIDataRW (0, query, 8);
 	if (bytesWritten == 8)
 	{
 		// Stuff response into our response packet. We could use memcpy, but
@@ -234,7 +235,7 @@ void FalconQueryHardware(int sock, struct sockaddr_in *srcAddr, char *inBuf)
 	}
 	else
 	{
-		LogErr(VB_SETTING, "Error retrieving hardware data via SPI");
+		LogErr(VB_SETTING, "Error retrieving hardware data via SPI\n");
 	}
 
 	buf[0] = 0x55;
@@ -245,7 +246,7 @@ void FalconQueryHardware(int sock, struct sockaddr_in *srcAddr, char *inBuf)
 	buf[5] = inBuf[5];
 	buf[6] = 0x00; // Query Info command response
 
-	PopulatePiConfig(inet_ntoa(srcAddr->sin_addr), buf);
+	PopulatePiConfig(inet_ntoa(recvAddr), buf);
 
 	HexDump("Falcon Query Hardware result", buf, sizeof(buf));
 
@@ -351,7 +352,8 @@ void FalconGetData(int sock, struct sockaddr_in *srcAddr, char *inBuf)
 /*
  *
  */
-void FalconConfigurePi(int sock, struct sockaddr_in *srcAddr, char *inBuf)
+void FalconConfigurePi(int sock, struct sockaddr_in *srcAddr,
+	struct in_addr recvAddr, char *inBuf)
 {
 	LogDebug(VB_SETTING, "FalconConfigurePi(%p)\n", inBuf);
 	// Parse Network/IP info from received data and configure Pi
@@ -367,7 +369,7 @@ void FalconConfigurePi(int sock, struct sockaddr_in *srcAddr, char *inBuf)
 	buf[5] = inBuf[5];
 	buf[6] = 0x03; // Configure Pi command response
 
-	PopulatePiConfig(inet_ntoa(srcAddr->sin_addr), buf);
+	PopulatePiConfig(inet_ntoa(recvAddr), buf);
 
 	HexDump("Falcon Configure Pi result", buf, sizeof(buf));
 
@@ -380,7 +382,8 @@ void FalconConfigurePi(int sock, struct sockaddr_in *srcAddr, char *inBuf)
 /*
  *
  */
-void ProcessFalconPacket(int sock, struct sockaddr_in *srcAddr, unsigned char *inBuf)
+void ProcessFalconPacket(int sock, struct sockaddr_in *srcAddr,
+	struct in_addr recvAddr, unsigned char *inBuf)
 {
 	LogDebug(VB_SETTING, "ProcessFalconPacket(%p, %p)\n", srcAddr, inBuf);
 
@@ -398,7 +401,7 @@ void ProcessFalconPacket(int sock, struct sockaddr_in *srcAddr, unsigned char *i
 
 	switch (command) {
 		case 0: // Query
-				FalconQueryHardware(sock, srcAddr, inBuf);
+				FalconQueryHardware(sock, srcAddr, recvAddr, inBuf);
 				break;
 		case 1: // Set Data
 				FalconSetData(sock, srcAddr, inBuf);
@@ -407,7 +410,7 @@ void ProcessFalconPacket(int sock, struct sockaddr_in *srcAddr, unsigned char *i
 				FalconGetData(sock, srcAddr, inBuf);
 				break;
 		case 3: // Set Pi Info
-				FalconConfigurePi(sock, srcAddr, inBuf);
+				FalconConfigurePi(sock, srcAddr, recvAddr, inBuf);
 				break;
 	}
 }
