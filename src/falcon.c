@@ -174,6 +174,7 @@ int FalconConfigureHardware(char *filename, int spiPort)
 			"Error: wiringPiSPIDataRW returned %d, expecting %d\n",
 			bytesWritten, FALCON_CFG_BUF_SIZE);
 		free(buf);
+		usleep(100000);
 		EnableChannelOutput();
 		return -1;
 	}
@@ -181,6 +182,7 @@ int FalconConfigureHardware(char *filename, int spiPort)
 	HexDump("Falcon Hardware Config Response", buf, 8);
 
 	free(buf);
+	usleep(100000);
 	EnableChannelOutput();
 }
 
