@@ -58,6 +58,10 @@ $(document).ready(function() {
 				});
 				return false;
 			 }
+			 else
+			 {
+			   DialogError("Save E1.31 Universes", "Validation Failed");
+			 }
 	});
 });
 
