@@ -45,6 +45,7 @@ int   RefreshRate = 20;
 int   DefaultLightDelay = 0;
 int   LightDelay = 0;
 int   MasterFramesPlayed = 0;
+int   OutputFrames = 1;
 
 /* local variables */
 pthread_t ChannelOutputThreadID;
@@ -61,6 +62,20 @@ pthread_cond_t  SyncCond;
  */
 inline int ChannelOutputThreadIsRunning(void) {
 	return ThreadIsRunning;
+}
+
+/*
+ *
+ */
+void DisableChannelOutput(void) {
+	OutputFrames = 0;
+}
+
+/*
+ *
+ */
+void EnableChannelOutput(void) {
+	OutputFrames = 1;
 }
 
 /*
@@ -124,7 +139,8 @@ void *RunChannelOutputThread(void *data)
 			(IsSequenceRunning()))
 			SendSeqSyncPacket(channelOutputFrame, mediaElapsedSeconds);
 
-		SendSequenceData();
+		if (OutputFrames)
+			SendSequenceData();
 		sendTime = GetTime();
 
 		if (getFPPmode() != BRIDGE_MODE)
