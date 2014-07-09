@@ -113,6 +113,7 @@ void ShutdownControlSocket(void) {
 void StartSyncedSequence(char *filename) {
 	LogDebug(VB_SYNC, "StartSyncedSequenceSync(%s)\n", filename);
 	OpenSequenceFile(filename);
+	UpdateMasterPosition(0);
 }
 
 /*
