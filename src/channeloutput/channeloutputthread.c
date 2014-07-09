@@ -41,7 +41,7 @@
 #include "settings.h"
 
 // Set this to 0 to use the old wait condition code
-#define REMOTEUSESSLEEP 0
+#define REMOTEUSESSLEEP 1
 
 /* used by external sync code */
 int   RefreshRate = 20;
