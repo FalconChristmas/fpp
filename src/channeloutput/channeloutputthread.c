@@ -40,11 +40,15 @@
 #include "sequence.h"
 #include "settings.h"
 
+// Set this to 0 to use the old wait condition code
+#define REMOTEUSESSLEEP 1
+
 /* used by external sync code */
 int   RefreshRate = 20;
 int   DefaultLightDelay = 0;
 int   LightDelay = 0;
 int   MasterFramesPlayed = 0;
+int   OutputFrames = 1;
 
 /* local variables */
 pthread_t ChannelOutputThreadID;
@@ -56,11 +60,28 @@ int             InitSync = 1;
 pthread_mutex_t SyncLock;
 pthread_cond_t  SyncCond;
 
+/* prototypes for functions below */
+void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent);
+
 /*
  * Check to see if the channel output thread is running
  */
 inline int ChannelOutputThreadIsRunning(void) {
 	return ThreadIsRunning;
+}
+
+/*
+ *
+ */
+void DisableChannelOutput(void) {
+	OutputFrames = 0;
+}
+
+/*
+ *
+ */
+void EnableChannelOutput(void) {
+	OutputFrames = 1;
 }
 
 /*
@@ -124,7 +145,8 @@ void *RunChannelOutputThread(void *data)
 			(IsSequenceRunning()))
 			SendSeqSyncPacket(channelOutputFrame, mediaElapsedSeconds);
 
-		SendSequenceData();
+		if (OutputFrames)
+			SendSequenceData();
 		sendTime = GetTime();
 
 		if (getFPPmode() != BRIDGE_MODE)
@@ -160,6 +182,31 @@ void *RunChannelOutputThread(void *data)
 
 		if (getFPPmode() == REMOTE_MODE)
 		{
+#if REMOTEUSESSLEEP
+			if (MasterFramesPlayed)
+			{
+				// Do the same as a regular player since we have position
+				// information coming from the master.
+				// Calculate how long we need to nanosleep()
+				ts.tv_sec = 0;
+				ts.tv_nsec = (LightDelay - (GetTime() - startTime)) * 1000;
+				nanosleep(&ts, NULL);
+			}
+			else
+			{
+				// Sleep about 2 seconds waiting for the master
+				int loops = 0;
+				while (!MasterFramesPlayed && (loops < 200))
+				{
+					usleep(10000);
+					loops++;
+				}
+
+				// Stop playback if the master hasn't sent any sync packets yet
+				if (!MasterFramesPlayed)
+					RunThread = 0;
+			}
+#else
 			if (channelOutputFrame >= MasterFramesPlayed) {
 				// We are too far ahead, wait for master to catch up
 				while (channelOutputFrame >= MasterFramesPlayed)
@@ -172,6 +219,7 @@ void *RunChannelOutputThread(void *data)
 			} else if (channelOutputFrame < (MasterFramesPlayed - 1)) {
 				// We are too far behind, try to catch up by not sleeping
 			}
+#endif
 		}
 		else
 		{
@@ -258,7 +306,13 @@ int StopChannelOutputThread(void)
 void UpdateMasterPosition(int frameNumber)
 {
 	MasterFramesPlayed = frameNumber;
+#if REMOTEUSESSLEEP
+	// Update delay info once every half second (10 frames @ 50ms)
+	if ((frameNumber == 1) || ((frameNumber % 10) == 0))
+		CalculateNewChannelOutputDelayForFrame(frameNumber);
+#else
 	pthread_cond_signal(&SyncCond);
+#endif
 }
 
 /*
@@ -276,6 +330,14 @@ void CalculateNewChannelOutputDelay(float mediaPosition)
 		mediaPosition, channelOutputFrame, expectedFramesSent,
 		channelOutputFrame - expectedFramesSent);
 
+	CalculateNewChannelOutputDelayForFrame(expectedFramesSent);
+}
+
+/*
+ * Calculate the new sync offset based on a desired frame number
+ */
+void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent)
+{
 	int diff = channelOutputFrame - expectedFramesSent;
 	if (diff)
 	{

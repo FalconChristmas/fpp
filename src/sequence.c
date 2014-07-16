@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 #include "E131.h"
 #include "channeloutputthread.h"
@@ -100,7 +101,12 @@ int OpenSequenceFile(const char *filename) {
 	}
 
 	if (getFPPmode() == MASTER_MODE)
+	{
 		SendSeqSyncStartPacket(filename);
+
+		// Give the remotes a head start spining up so they are ready
+		usleep(100000);
+	}
 
 	// Get Step Size
 	fseek(seqFile, FSEQ_STEP_SIZE_OFFSET, SEEK_SET);

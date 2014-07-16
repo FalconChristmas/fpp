@@ -26,6 +26,8 @@
 #ifndef _CHANNELOUTPUTTHREAD_H
 #define _CHANNELOUTPUTTHREAD_H
 
+void DisableChannelOutput(void);
+void EnableChannelOutput(void);
 void InitChannelOutputSyncVars(void);
 void DestroyChannelOutputSyncVars(void);
 

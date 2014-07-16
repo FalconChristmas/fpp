@@ -33,6 +33,7 @@
 #include <strings.h>
 #include <unistd.h>
 
+#include "channeloutputthread.h"
 #include "common.h"
 #include "log.h"
 #include "playList.h"
@@ -149,6 +150,9 @@ int FalconConfigureHardware(char *filename, int spiPort)
 
 	int bytesWritten;
 
+	DisableChannelOutput();
+	usleep(100000);
+
 	bytesWritten = wiringPiSPIDataRW (0, buf, FALCON_CFG_BUF_SIZE);
 	if (bytesWritten != FALCON_CFG_BUF_SIZE)
 	{
@@ -158,7 +162,7 @@ int FalconConfigureHardware(char *filename, int spiPort)
 	}
 	HexDump("Falcon Hardware Config Response", buf, 8);
 
-	delayMicroseconds (10000);
+	usleep(10000);
 
 	bzero(buf, FALCON_CFG_BUF_SIZE);
 	memcpy(buf, fbuf, bytesRead);
@@ -170,12 +174,16 @@ int FalconConfigureHardware(char *filename, int spiPort)
 			"Error: wiringPiSPIDataRW returned %d, expecting %d\n",
 			bytesWritten, FALCON_CFG_BUF_SIZE);
 		free(buf);
+		usleep(100000);
+		EnableChannelOutput();
 		return -1;
 	}
 
 	HexDump("Falcon Hardware Config Response", buf, 8);
 
 	free(buf);
+	usleep(100000);
+	EnableChannelOutput();
 }
 
 /*
