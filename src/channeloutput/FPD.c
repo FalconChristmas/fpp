@@ -121,7 +121,7 @@ int InitializePixelnetDMX()
 	LogInfo(VB_CHANNELOUT, "Initializing SPI for FPD output\n");
 
 	LoadPixelnetDMXsettingsFromFile();
-	if (wiringPiSPISetup (0,16000000) < 0)
+	if (wiringPiSPISetup (0,8000000) < 0)
 	{
 	    LogErr(VB_CHANNELOUT, "Unable to open SPI device\n") ;
 		return 0;
