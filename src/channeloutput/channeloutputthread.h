@@ -35,6 +35,7 @@ int  ChannelOutputThreadIsRunning(void);
 void SetChannelOutputRefreshRate(int rate);
 int  StartChannelOutputThread(void);
 int  StopChannelOutputThread(void);
+void ResetMasterPosition(void);
 void UpdateMasterPosition(int frameNumber);
 void CalculateNewChannelOutputDelay(float mediaPosition);
 

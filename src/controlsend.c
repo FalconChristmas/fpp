@@ -114,13 +114,23 @@ int InitSyncMaster(void) {
 		exit(1);
 	}
 
+	char *tmpRemotes = strdup(getSetting("MultiSyncRemotes"));
+
+	if (!strcmp(tmpRemotes, "255.255.255.255"))
+	{
+		int broadcast = 1;
+		if(setsockopt(ctrlSendSock, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast)) < 0) {
+			LogErr(VB_SYNC, "Error setting SO_BROADCAST: \n", strerror(errno));
+			exit(1);
+		}
+	}
+
 	remoteCount = 0;
 	memset((void *)&cDestAddr, 0, sizeof(struct sockaddr_in) * MAX_SYNC_REMOTES);
 
-	char *tmpRemotes = strdup(getSetting("MultiSyncRemotes"));
 	char *s = strtok(tmpRemotes, ",");
 
-	while (s) {
+	while (s && (remoteCount < MAX_SYNC_REMOTES)) {
 		LogDebug(VB_SYNC, "Setting up Remote Sync for %s\n", s);
 		cDestAddr[remoteCount].sin_family      = AF_INET;
 		cDestAddr[remoteCount].sin_port        = htons(FPP_CTRL_PORT);
@@ -128,7 +138,15 @@ int InitSyncMaster(void) {
 		s = strtok(NULL, ",");
 		remoteCount++;
 	}
+
+	if (s && (remoteCount >= MAX_SYNC_REMOTES)) {
+		LogErr(VB_SYNC, "Maximum number of %d remotes configured\n",
+			MAX_SYNC_REMOTES);
+	}
+
 	LogDebug(VB_SYNC, "%d Remote Sync systems configured\n", remoteCount);
+
+	free(tmpRemotes);
 
 	return 1;
 }
@@ -148,6 +166,9 @@ void ShutdownSync(void) {
  */
 void SendSeqSyncStartPacket(char *filename) {
 	LogDebug(VB_SYNC, "SendSeqSyncStartPacket('%s')\n", filename);
+
+	if (!filename || !filename[0])
+		return;
 
 	if (!ctrlSendSock) {
 		LogErr(VB_SYNC, "ERROR: Tried to send start packet but sync socket is not open.\n");
@@ -177,8 +198,11 @@ void SendSeqSyncStartPacket(char *filename) {
 /*
  *
  */
-void SendSeqSyncStopPacket(void) {
-	LogDebug(VB_SYNC, "SendSeqSyncStopPacket()\n");
+void SendSeqSyncStopPacket(char *filename) {
+	LogDebug(VB_SYNC, "SendSeqSyncStopPacket(%s)\n", filename);
+
+	if (!filename || !filename[0])
+		return;
 
 	if (!ctrlSendSock) {
 		LogErr(VB_SYNC, "ERROR: Tried to send stop packet but sync socket is not open.\n");
@@ -194,21 +218,26 @@ void SendSeqSyncStopPacket(void) {
 	InitControlPkt(cpkt);
 
 	cpkt->pktType        = CTRL_PKT_SYNC;
-	cpkt->extraDataLen   = sizeof(SyncPkt);
+	cpkt->extraDataLen   = sizeof(SyncPkt) + strlen(filename);
 	
 	spkt->pktType  = SYNC_PKT_STOP;
 	spkt->fileType = SYNC_FILE_SEQ;
 	spkt->frameNumber = 0;
 	spkt->secondsElapsed = 0;
+	strcpy(spkt->filename, filename);
 
-	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt));
+	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + strlen(filename));
 }
 
 /*
  *
  */
-void SendSeqSyncPacket(int frames, float seconds) {
-	LogExcess(VB_SYNC, "SendSeqSyncPacket( %d, %.2f)\n", frames, seconds);
+void SendSeqSyncPacket(char *filename, int frames, float seconds) {
+	LogExcess(VB_SYNC, "SendSeqSyncPacket( '%s', %d, %.2f)\n",
+		filename, frames, seconds);
+
+	if (!filename || !filename[0])
+		return;
 
 	if (!ctrlSendSock) {
 		LogErr(VB_SYNC, "ERROR: Tried to send sync packet but sync socket is not open.\n");
@@ -224,13 +253,14 @@ void SendSeqSyncPacket(int frames, float seconds) {
 	InitControlPkt(cpkt);
 
 	cpkt->pktType        = CTRL_PKT_SYNC;
-	cpkt->extraDataLen   = sizeof(SyncPkt);
+	cpkt->extraDataLen   = sizeof(SyncPkt) + strlen(filename);
 	
 	spkt->pktType  = SYNC_PKT_SYNC;
 	spkt->fileType = SYNC_FILE_SEQ;
 	spkt->frameNumber = frames;
 	spkt->secondsElapsed = seconds; // FIXME, does this have endianness issues?
+	strcpy(spkt->filename, filename);
 
-	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt));
+	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + strlen(filename));
 }
 

@@ -113,25 +113,36 @@ void ShutdownControlSocket(void) {
 void StartSyncedSequence(char *filename) {
 	LogDebug(VB_SYNC, "StartSyncedSequenceSync(%s)\n", filename);
 	OpenSequenceFile(filename);
-	UpdateMasterPosition(0);
+	ResetMasterPosition();
 }
 
 /*
  *
  */
-void StopSyncedSequence(void) {
-	LogDebug(VB_SYNC, "StopSyncedSequenceSync()\n");
-	CloseSequenceFile();
+void StopSyncedSequence(char *filename) {
+	LogDebug(VB_SYNC, "StopSyncedSequenceSync(%s) while syncing '%s'\n",
+		filename, seqFilename);
+
+	if (!strcmp(seqFilename, filename))
+		CloseSequenceFile();
 }
 
 /*
  *
  */
-void SyncSyncedSequence(int frameNumber, float secondsElapsed) {
-//	LogDebug(VB_SYNC, "SyncSyncedSequence(%d, %.2f)\n",
-//		frameNumber, secondsElapsed);
+void SyncSyncedSequence(char *filename, int frameNumber, float secondsElapsed) {
+	LogExcess(VB_SYNC, "SyncSyncedSequence('%s', %d, %.2f) while syncing '%s'\n",
+		filename, frameNumber, secondsElapsed, seqFilename);
 
-	UpdateMasterPosition(frameNumber);
+	if (!seqFilename[0])
+	{
+		OpenSequenceFile(filename);
+		SeekSequenceFile(frameNumber);
+	}
+
+
+	if (!strcmp(seqFilename, filename))
+		UpdateMasterPosition(frameNumber);
 }
 
 /*
@@ -155,6 +166,9 @@ void ProcessCommandPacket(ControlPkt *pkt, int len) {
  *
  */
 void ProcessSyncPacket(ControlPkt *pkt, int len) {
+	if (getFPPmode() != REMOTE_MODE)
+		return;
+
 	LogDebug(VB_CONTROL, "ProcessSyncPacket()\n");
 
 	if (pkt->extraDataLen < sizeof(SyncPkt)) {
@@ -171,9 +185,10 @@ void ProcessSyncPacket(ControlPkt *pkt, int len) {
 	switch (spkt->pktType) {
 		case SYNC_PKT_START: StartSyncedSequence(spkt->filename);
 							 break;
-		case SYNC_PKT_STOP:  StopSyncedSequence();
+		case SYNC_PKT_STOP:  StopSyncedSequence(spkt->filename);
 							 break;
-		case SYNC_PKT_SYNC:  SyncSyncedSequence(spkt->frameNumber, spkt->secondsElapsed);
+		case SYNC_PKT_SYNC:  SyncSyncedSequence(spkt->filename,
+								spkt->frameNumber, spkt->secondsElapsed);
 							 break;
 	}
 }

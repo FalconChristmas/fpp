@@ -10,14 +10,28 @@ require_once("config.php");
 <script>
 	function updateMultiSyncRemotes() {
 		var remotes = "";
-		$('input.remoteCheckbox').each(function() {
-			if ($(this).is(":checked")) {
-				if (remotes != "") {
-					remotes += ",";
+
+		if ($('#allRemotes').is(":checked")) {
+			remotes = "255.255.255.255";
+
+			$('input.remoteCheckbox').each(function() {
+				if (($(this).is(":checked")) &&
+						($(this).attr("name") != "255.255.255.255"))
+				{
+					$(this).prop('checked', false);
+					DialogError("WARNING", "'All Remotes' is already checked.  Uncheck 'All Remotes' if you want to select individual FPP instances.");
 				}
-				remotes += $(this).attr("name");
-			}
-		});
+			});
+		} else {
+			$('input.remoteCheckbox').each(function() {
+				if ($(this).is(":checked")) {
+					if (remotes != "") {
+						remotes += ",";
+					}
+					remotes += $(this).attr("name");
+				}
+			});
+		}
 
 		$.get("fppjson.php?command=setSetting&key=MultiSyncRemotes&value=" + remotes
 		).success(function() {
@@ -31,16 +45,30 @@ require_once("config.php");
 	function parseFPPSystems(data) {
 		$('#fppSystems tbody').empty();
 
-		if (settings['fppMode'] == 'master') {
-			$('#masterLegend').show();
-		}
-
 		var remotes = [];
 		if (typeof settings['MultiSyncRemotes'] === 'string') {
 			var tarr = settings['MultiSyncRemotes'].split(',');
 			for (var i = 0; i < tarr.length; i++) {
 				remotes[tarr[i]] = 1;
 			}
+		}
+
+		if (settings['fppMode'] == 'master') {
+			$('#masterLegend').show();
+
+			var star = "<input id='allRemotes' type='checkbox' class='remoteCheckbox' name='255.255.255.255'";
+			if (typeof remotes["255.255.255.255"] !== 'undefined')
+				star += " checked";
+			star += " onClick='updateMultiSyncRemotes();'>";
+
+			var newRow = "<tr>" +
+				"<td align='center'>" + star + "</td>" +
+				"<td>ALL Remotes</td>" +
+				"<td>255.255.255.255</td>" +
+				"<td>ALL</td>" +
+				"<td>Remote</td>" +
+				"</tr>";
+			$('#fppSystems tbody').append(newRow);
 		}
 
 		for (var i = 0; i < data.length; i++) {

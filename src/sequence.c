@@ -144,6 +144,26 @@ int OpenSequenceFile(const char *filename) {
 	return seqFileSize;
 }
 
+int SeekSequenceFile(int frameNumber) {
+	LogDebug(VB_SEQUENCE, "SeekSequenceFile(%d)\n", frameNumber);
+
+	if (!IsSequenceRunning())
+	{
+		LogErr(VB_SEQUENCE, "No sequence is running\n");
+		return 0;
+	}
+
+	int newPos = FSEQ_CHANNEL_DATA_OFFSET + (frameNumber * seqStepSize);
+	LogDebug(VB_SEQUENCE, "Seeking to byte %d in %s\n", newPos, seqFilename);
+
+	fseek(seqFile, newPos, SEEK_SET);
+
+	ReadSequenceData();
+
+	SetChannelOutputFrameNumber(frameNumber);
+}
+
+
 char *CurrentSequenceFilename(void) {
 	return seqFilename;
 }
@@ -221,13 +241,14 @@ void CloseSequenceFile(void) {
 	LogDebug(VB_SEQUENCE, "CloseSequenceFile() %s\n", seqFilename);
 
 	if (getFPPmode() == MASTER_MODE)
-		SendSeqSyncStopPacket();
+		SendSeqSyncStopPacket(seqFilename);
 
 	if (seqFile) {
 		fclose(seqFile);
 		seqFile = NULL;
 	}
-	strcpy(seqFilename, "");
+
+	seqFilename[0] = '\0';
 
 	if (!IsEffectRunning() && (FPPstatus != FPP_STATUS_PLAYLIST_PLAYING))
 		SendBlankingData();

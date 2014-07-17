@@ -218,6 +218,14 @@ int InitializeChannelOutputs(void) {
 }
 
 /*
+ * Set the channel output frame counter to a specific value
+ */
+void SetChannelOutputFrameNumber(int frameNumber)
+{
+	channelOutputFrame = frameNumber;
+}
+
+/*
  * Reset the output frame count
  */
 void ResetChannelOutputFrameNumber(void) {

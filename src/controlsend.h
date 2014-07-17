@@ -30,8 +30,8 @@
 /* Functions for controlling other FPP instances */
 int  InitSyncMaster(void);
 void SendSeqSyncStartPacket(const char *filename);
-void SendSeqSyncStopPacket();
-void SendSeqSyncPacket(int frames, float seconds);
+void SendSeqSyncStopPacket(const char *filename);
+void SendSeqSyncPacket(const char *filename, int frames, float seconds);
 void ShutdownSync(void);
 
 #endif /* _CONTROL_H */
