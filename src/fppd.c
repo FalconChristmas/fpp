@@ -80,6 +80,7 @@ int main(int argc, char *argv[])
 	CheckExistanceOfDirectoriesAndFiles();
 
 	InitializeChannelOutputs();
+	SendBlankingData();
 
 	if (getFPPmode() != BRIDGE_MODE)
 	{
@@ -93,8 +94,6 @@ int main(int argc, char *argv[])
 
 		InitEffects();
 		InitializeChannelDataMemoryMap();
-
-		SendBlankingData();
 	}
 	else if (getFPPmode() == REMOTE_MODE)
 	{
