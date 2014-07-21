@@ -164,7 +164,7 @@ void ShutdownSync(void) {
 /*
  *
  */
-void SendSeqSyncStartPacket(char *filename) {
+void SendSeqSyncStartPacket(const char *filename) {
 	LogDebug(VB_SYNC, "SendSeqSyncStartPacket('%s')\n", filename);
 
 	if (!filename || !filename[0])
@@ -198,7 +198,7 @@ void SendSeqSyncStartPacket(char *filename) {
 /*
  *
  */
-void SendSeqSyncStopPacket(char *filename) {
+void SendSeqSyncStopPacket(const char *filename) {
 	LogDebug(VB_SYNC, "SendSeqSyncStopPacket(%s)\n", filename);
 
 	if (!filename || !filename[0])
@@ -232,7 +232,7 @@ void SendSeqSyncStopPacket(char *filename) {
 /*
  *
  */
-void SendSeqSyncPacket(char *filename, int frames, float seconds) {
+void SendSeqSyncPacket(const char *filename, int frames, float seconds) {
 	LogExcess(VB_SYNC, "SendSeqSyncPacket( '%s', %d, %.2f)\n",
 		filename, frames, seconds);
 

@@ -200,7 +200,7 @@ void PopulatePiConfig(char *ipAddress, char *buf)
 	if (GetInterfaceAddress(iface, addr, mask, gw))
 		return;
 
-	gethostname(buf+7, 31);
+	gethostname((char*)buf+7, 31);
 
 	// FIXME, need to fill this in with info on the right interface
 	buf[39] = 0x00; // 0 = DHCP, 1 = static
@@ -214,7 +214,7 @@ void PopulatePiConfig(char *ipAddress, char *buf)
  *
  */
 void FalconQueryHardware(int sock, struct sockaddr_in *srcAddr,
-	struct in_addr recvAddr, char *inBuf)
+	struct in_addr recvAddr, unsigned char *inBuf)
 {
 	LogDebug(VB_SETTING, "FalconQueryHardware(%p)\n", inBuf);
 	// Return config information, Falcon hardware info, network IP info, etc.
@@ -267,7 +267,7 @@ void FalconQueryHardware(int sock, struct sockaddr_in *srcAddr,
 /*
  *
  */
-void FalconSetData(int sock, struct sockaddr_in *srcAddr, char *inBuf)
+void FalconSetData(int sock, struct sockaddr_in *srcAddr, unsigned char *inBuf)
 {
 	LogDebug(VB_SETTING, "FalconSetData(%p)\n", inBuf);
 
@@ -297,7 +297,7 @@ void FalconSetData(int sock, struct sockaddr_in *srcAddr, char *inBuf)
 					break;
 	}
 
-	FalconWriteConfig(filename, inBuf, len);
+	FalconWriteConfig(filename, (char *)inBuf, len);
 
 	if (IsSequenceRunning())
 	{
@@ -330,7 +330,7 @@ void FalconSetData(int sock, struct sockaddr_in *srcAddr, char *inBuf)
 /*
  *
  */
-void FalconGetData(int sock, struct sockaddr_in *srcAddr, char *inBuf)
+void FalconGetData(int sock, struct sockaddr_in *srcAddr, unsigned char *inBuf)
 {
 	LogDebug(VB_SETTING, "FalconGetData(%p)\n", inBuf);
 
@@ -361,7 +361,7 @@ void FalconGetData(int sock, struct sockaddr_in *srcAddr, char *inBuf)
  *
  */
 void FalconConfigurePi(int sock, struct sockaddr_in *srcAddr,
-	struct in_addr recvAddr, char *inBuf)
+	struct in_addr recvAddr, unsigned char *inBuf)
 {
 	LogDebug(VB_SETTING, "FalconConfigurePi(%p)\n", inBuf);
 	// Parse Network/IP info from received data and configure Pi

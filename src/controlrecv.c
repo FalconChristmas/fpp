@@ -42,7 +42,7 @@
 #include "sequence.h"
 #include "settings.h"
 
-struct sockaddr_in  cSrcAddr;
+struct sockaddr_in  crSrcAddr;
 
 int ctrlRecvSock = 0;
 
@@ -64,13 +64,13 @@ int InitControlSocket(void) {
 		exit(1);
 	}
 
-	bzero((char *)&cSrcAddr, sizeof(cSrcAddr));
-	cSrcAddr.sin_family = AF_INET;
-	cSrcAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-	cSrcAddr.sin_port = htons(FPP_CTRL_PORT);
+	bzero((char *)&crSrcAddr, sizeof(crSrcAddr));
+	crSrcAddr.sin_family = AF_INET;
+	crSrcAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+	crSrcAddr.sin_port = htons(FPP_CTRL_PORT);
 
 	// Bind the socket to address/port
-	if (bind(ctrlRecvSock, (struct sockaddr *) &cSrcAddr, sizeof(cSrcAddr)) < 0) 
+	if (bind(ctrlRecvSock, (struct sockaddr *) &crSrcAddr, sizeof(crSrcAddr)) < 0) 
 	{
 		perror("bind");
 		exit(1);
@@ -157,7 +157,7 @@ void ProcessCommandPacket(ControlPkt *pkt, int len) {
 		return;
 	}
 
-	CommandPkt *cpkt = (CommandPkt*)(((void*)pkt) + sizeof(ControlPkt));
+	CommandPkt *cpkt = (CommandPkt*)(((char*)pkt) + sizeof(ControlPkt));
 
 	ProcessCommand(cpkt->command);
 }
@@ -177,7 +177,7 @@ void ProcessSyncPacket(ControlPkt *pkt, int len) {
 		return;
 	}
 
-	SyncPkt *spkt = (SyncPkt*)(((void*)pkt) + sizeof(ControlPkt));
+	SyncPkt *spkt = (SyncPkt*)(((char*)pkt) + sizeof(ControlPkt));
 
 	spkt->pktType     = spkt->pktType;
 	spkt->frameNumber = spkt->frameNumber;
@@ -201,7 +201,7 @@ void ProcessControlPacket(void) {
 
 	unsigned char inBuf[2048];
 	ControlPkt *pkt;
-	int         addrlen = sizeof(cSrcAddr);
+	int         addrlen = sizeof(crSrcAddr);
 	int         len = 0;
 
 	struct iovec iov[1];

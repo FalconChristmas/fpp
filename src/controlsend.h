@@ -24,8 +24,8 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
  
-#ifndef _CONTROL_H
-#define _CONTROL_H
+#ifndef _CONTROLSEND_H
+#define _CONTROLSEND_H
 
 /* Functions for controlling other FPP instances */
 int  InitSyncMaster(void);

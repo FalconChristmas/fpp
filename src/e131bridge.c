@@ -45,7 +45,7 @@
 #define BRIDGE_INVALID_UNIVERSE_INDEX 0xFF
 
 struct sockaddr_in addr;
-int addrlen;
+socklen_t addrlen;
 int bridgeSock = -1;
 
 unsigned char UniverseCache[65536];

@@ -23,7 +23,10 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
+
 #include <arpa/inet.h>
 #include <dirent.h>
 #include <errno.h>
