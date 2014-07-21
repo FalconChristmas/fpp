@@ -292,7 +292,7 @@ int TriggerEvent(char major, char minor)
  */
 int TriggerEventByID(char *id)
 {
-	LogDebug(VB_EVENT, "TriggerEventByName(%s)\n", id);
+	LogDebug(VB_EVENT, "TriggerEventByID(%s)\n", id);
 
 	FPPevent *event = LoadEvent(id);
 
