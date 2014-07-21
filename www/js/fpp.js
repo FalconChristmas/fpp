@@ -229,6 +229,19 @@ function GetPlaylistRowHTML(ID, type, data1, data2, firstlast)
 
 function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 	{
+			if ( ! playList )
+			{
+				$('#txtPlaylistName').val(playList);
+
+				var innerHTML="";
+				innerHTML +=  "<tr class=\"playlistPlayingEntry\">";
+				innerHTML +=  "<td>No entries in playlist.</td>";
+				innerHTML += "</tr>";
+				$('#tblCreatePlaylistEntries_tbody').html(innerHTML);
+
+				return false;
+			}
+
 			var type;
 			var pl;
 			var mediaFile;
@@ -466,8 +479,11 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 				{
 					var xmlDoc=xmlhttp.responseXML; 
           PopulatePlaylists("playList");
-					var firstPlaylist = document.getElementById("playlist0").innerHTML;
-					PopulatePlayListEntries(firstPlaylist,true);
+					var firstPlaylist = document.getElementById("playlist0");
+					if ( firstPlaylist )
+						PopulatePlayListEntries(firstPlaylist.innerHTML,true);
+					else
+						PopulatePlayListEntries();
 				}
 			};
 			
