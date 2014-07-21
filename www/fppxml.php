@@ -803,7 +803,7 @@ function DeleteScheduleEntry()
 	$index = $_GET['index'];
 	check($index);
 
-	if($index < count($_SESSION['ScheduleEntries']) && count($_SESSION['ScheduleEntries']) > 1 )
+	if($index < count($_SESSION['ScheduleEntries']) && count($_SESSION['ScheduleEntries']) > 0 )
 	{
 		unset($_SESSION['ScheduleEntries'][$index]);
 		$_SESSION['ScheduleEntries'] = array_values($_SESSION['ScheduleEntries']);
@@ -924,18 +924,21 @@ function LoadScheduleFile()
 	{
 		$line=fgets($f);
 		$entry = explode(",",$line,12);
-		$enable = $entry[0];
-		$playlist = $entry[1];
-		$startDay = $entry[2];
-		$startHour = $entry[3];
-		$startMinute = $entry[4];
-		$startSecond = $entry[5];
-		$endHour = $entry[6];
-		$endMinute = $entry[7];
-		$endSecond = $entry[8];
-		$repeat = $entry[9];
-		$_SESSION['ScheduleEntries'][] = new ScheduleEntry($enable,$playlist,$startDay,$startHour,$startMinute,$startSecond,
+		if ( ! empty($entry) && count($entry) > 1 )
+		{
+			$enable = $entry[0];
+			$playlist = $entry[1];
+			$startDay = $entry[2];
+			$startHour = $entry[3];
+			$startMinute = $entry[4];
+			$startSecond = $entry[5];
+			$endHour = $entry[6];
+			$endMinute = $entry[7];
+			$endSecond = $entry[8];
+			$repeat = $entry[9];
+			$_SESSION['ScheduleEntries'][] = new ScheduleEntry($enable,$playlist,$startDay,$startHour,$startMinute,$startSecond,
 				$endHour, $endMinute, $endSecond, $repeat);
+		}
 	}
 	fclose($f);
 }
