@@ -83,6 +83,7 @@ int InitControlSocket(void) {
 		exit(1);
 	}
 
+  
 	// Receive multicast from anywhere		
 	mreq.imr_interface.s_addr = htonl(INADDR_ANY);
 	mreq.imr_multiaddr.s_addr = inet_addr(FPP_CTRL_ADDR);
@@ -231,7 +232,7 @@ void ProcessControlPacket(void) {
 		return;
 	}
 
-	if (inBuf[0] == 0x55) {
+	if (inBuf[0] == 0x55 || inBuf[0] == 0xCC) {
 		struct in_addr  recvAddr;
 		struct cmsghdr *cmsg;
 

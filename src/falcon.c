@@ -49,11 +49,12 @@
 #   define delayMicroseconds(a)     0
 #endif
 
-#define FALCON_CFG_FILE_MAX_SIZE    2048
+#define FALCON_CFG_FILE_MAX_SIZE      2048
 
-#define FALCON_CFG_DATA_SIZE        32768
-#define FALCON_CFG_HEADER_SIZE      6
-#define FALCON_CFG_BUF_SIZE         (FALCON_CFG_DATA_SIZE+FALCON_CFG_HEADER_SIZE)
+#define FALCON_PASSTHROUGH_DATA_SIZE  1016
+#define FALCON_CFG_DATA_SIZE          32768
+#define FALCON_CFG_HEADER_SIZE        6
+#define FALCON_CFG_BUF_SIZE           (FALCON_CFG_DATA_SIZE+FALCON_CFG_HEADER_SIZE)
 
 
 /*
@@ -257,10 +258,60 @@ void FalconQueryHardware(int sock, struct sockaddr_in *srcAddr,
 
 	HexDump("Falcon Query Hardware result", buf, sizeof(buf));
 
-    if(sendto(sock, buf, sizeof(buf), 0, (struct sockaddr*)srcAddr, sizeof(*srcAddr)) < 0)
-    {
+	if(sendto(sock, buf, sizeof(buf), 0, (struct sockaddr*)srcAddr, sizeof(*srcAddr)) < 0)
+	{
 		LogDebug(VB_SETTING, "ERROR: sentto failed\n");
 	}
+}
+
+/*
+ *
+ */
+int FalconPassThroughData(int offset, unsigned char *inBuf, int size)
+{
+	LogDebug(VB_SETTING, "FalconPassThroughData(%p)\n", inBuf);
+ 	char *buf = (char *)malloc(FALCON_CFG_BUF_SIZE);
+	if (!buf)
+	{
+		LogErr(VB_SETTING,
+			"Unable to allocate %d byte buffer for passing through Falcon data: %s\n",
+			FALCON_CFG_BUF_SIZE, strerror(errno));
+		return -1;
+	}
+ 	bzero(buf, FALCON_CFG_BUF_SIZE);
+	if(offset < (FALCON_CFG_BUF_SIZE - size))
+	{
+		LogDebug(VB_SETTING, "Offset = %d\n", offset);
+	}
+	else
+	{
+		LogErr(VB_SETTING,"Offset %d is invalid: %s\n",offset, strerror(errno));
+	}
+
+	buf[0] = 0xCC;
+	buf[1] = 0xCC;
+	buf[2] = 0xCC;
+	buf[3] = 0xCC;
+	buf[4] = 0xCC;
+	buf[5] = 0x55;
+
+	memcpy(buf+offset, inBuf, size);
+
+	HexDump("Falcon Pass-through data", buf+offset, size);
+	int bytesWritten;
+
+ 	DisableChannelOutput();
+	usleep(100000);
+	bytesWritten = wiringPiSPIDataRW (0, buf, FALCON_CFG_BUF_SIZE);
+	if (bytesWritten != FALCON_CFG_BUF_SIZE)
+	{
+		LogErr(VB_SETTING,
+			"Error: wiringPiSPIDataRW returned %d, expecting %d\n",
+			bytesWritten, FALCON_CFG_BUF_SIZE);
+	}
+	usleep(100000);
+	free(buf);
+	EnableChannelOutput();
 }
 
 /*
@@ -315,13 +366,13 @@ void FalconSetData(int sock, struct sockaddr_in *srcAddr, unsigned char *inBuf)
 	{
 		int configResult = FalconConfigureHardware(filename, 0);
 		if (configResult != 0)
-		    buf[7] = 0xFE;
+			buf[7] = 0xFE;
 	}
 
 	HexDump("Falcon Set Data result", buf, sizeof(buf));
 
-    if(sendto(sock, buf, sizeof(buf), 0, (struct sockaddr*)srcAddr, sizeof(*srcAddr)) < 0)
-    {
+	if(sendto(sock, buf, sizeof(buf), 0, (struct sockaddr*)srcAddr, sizeof(*srcAddr)) < 0)
+	{
 		LogDebug(VB_SETTING, "ERROR: sentto failed\n");
 	}
 }
@@ -350,8 +401,8 @@ void FalconGetData(int sock, struct sockaddr_in *srcAddr, unsigned char *inBuf)
 
 	HexDump("Falcon Get Data result", buf, bytes);
 
-    if(sendto(sock, buf, bytes, 0, (struct sockaddr*)srcAddr, sizeof(*srcAddr)) < 0)
-    {
+	if(sendto(sock, buf, bytes, 0, (struct sockaddr*)srcAddr, sizeof(*srcAddr)) < 0)
+	{
 		LogDebug(VB_SETTING, "ERROR: sentto failed\n");
 	}
 }
@@ -380,8 +431,8 @@ void FalconConfigurePi(int sock, struct sockaddr_in *srcAddr,
 
 	HexDump("Falcon Configure Pi result", buf, sizeof(buf));
 
-    if(sendto(sock, buf, sizeof(buf), 0, (struct sockaddr*)srcAddr, sizeof(*srcAddr)) < 0)
-    {
+	if(sendto(sock, buf, sizeof(buf), 0, (struct sockaddr*)srcAddr, sizeof(*srcAddr)) < 0)
+	{
 		LogDebug(VB_SETTING, "ERROR: sentto failed\n");
 	}
 }
@@ -394,31 +445,42 @@ void ProcessFalconPacket(int sock, struct sockaddr_in *srcAddr,
 {
 	LogDebug(VB_SETTING, "ProcessFalconPacket(%p, %p)\n", srcAddr, inBuf);
 
-	if ((inBuf[0] != 0x55) ||
-		(inBuf[1] != 0x55) ||
-		(inBuf[2] != 0x55) ||
-		(inBuf[3] != 0x55) ||
-		(inBuf[4] != 0x55) ||
-		((inBuf[5] != 0xCC) && // FPD
-		 (inBuf[5] != 0xCD)))  // F16V2
-		return;
-
-	// We have a Falcon config packet
-	char command = inBuf[6];
-
-	switch (command) {
-		case 0: // Query
-				FalconQueryHardware(sock, srcAddr, recvAddr, inBuf);
-				break;
-		case 1: // Set Data
-				FalconSetData(sock, srcAddr, inBuf);
-				break;
-		case 2: // Get Data
-				FalconGetData(sock, srcAddr, inBuf);
-				break;
-		case 3: // Set Pi Info
-				FalconConfigurePi(sock, srcAddr, recvAddr, inBuf);
-				break;
+	// Falcon hardware config packet
+	if ((inBuf[0] == 0x55) &&
+		(inBuf[1] == 0x55) &&
+		(inBuf[2] == 0x55) &&
+		(inBuf[3] == 0x55) &&
+		(inBuf[4] == 0x55) &&
+		((inBuf[5] == 0xCC) || // FPD
+		 (inBuf[5] == 0xCD)))  // F16V2
+	{
+		char command = inBuf[6];
+	
+		switch (command) {
+			case 0: // Query
+					FalconQueryHardware(sock, srcAddr, recvAddr, inBuf);
+					break;
+			case 1: // Set Data
+					FalconSetData(sock, srcAddr, inBuf);
+					break;
+			case 2: // Get Data
+					FalconGetData(sock, srcAddr, inBuf);
+					break;
+			case 3: // Set Pi Info
+					FalconConfigurePi(sock, srcAddr, recvAddr, inBuf);
+					break;
+		}
+	}
+	// Data pass-through packet to configure SSC or uSC
+	else if ((inBuf[0] == 0xCC) &&
+			 (inBuf[1] == 0xCC) &&
+			 (inBuf[2] == 0xCC) &&
+			 (inBuf[3] == 0xCC) &&
+			 (inBuf[4] == 0xCC) &&
+			 (inBuf[5] == 0x55))
+	{
+		int offset = inBuf[6] + inBuf[7]*256;
+		FalconPassThroughData(offset,&inBuf[8],FALCON_PASSTHROUGH_DATA_SIZE);
 	}
 }
 
