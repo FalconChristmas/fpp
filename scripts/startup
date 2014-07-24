@@ -101,7 +101,7 @@ then
 	mount -a;
 else
 	echo "      Flash Media mounted, checking for required subdirectories.";
-	DIRS="config effects events logs music playlists scripts sequences upload videos"
+	DIRS="config effects events logs music playlists scripts sequences upload videos plugins"
 	echo "FPP - Checking for required directories"
 	for DIR in ${DIRS}
 	do
