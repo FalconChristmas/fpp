@@ -1,0 +1,69 @@
+#!/bin/bash
+#
+# piRTC
+#
+# Setup RTC
+#
+#
+
+BINDIR=$(cd $(dirname $0) && pwd)
+
+. ${BINDIR}/common
+
+
+# RTC Setup
+# to get the RPi board version:
+REV=$(cat /proc/cpuinfo|grep Revision)
+# Extract revision
+REV=${REV##*: }
+# Make it readable as hex
+REV=0x$REV
+# Convert hex to dec
+REV=$((REV))
+
+# Locate The Required Modules
+
+modprobe i2c-bcm2708
+modprobe rtc-pcf2127a
+modprobe rtc-ds1307
+
+# Read Clock Setting From Settings File
+
+piRTC=$(awk -f ${FPPDIR}/scripts/readSetting.awk ${SETTINGSFILE} setting=piRTC)
+echo $piRTC
+
+case $piRTC in
+1)
+  # rasClock chip
+  if [ $REV -lt 4 ]
+  then
+    echo pcf2127a 0x51 > /sys/class/i2c-adapter/i2c-0/new_device
+    echo "Setting rtc to rasClock/i2c-0"
+  else
+    echo pcf2127a 0x51 > /sys/class/i2c-adapter/i2c-1/new_device
+    echo "Setting rtc to rasClocl/i2c-1"
+  fi
+  ;;
+2)
+  # DS1307 chip
+  if [ $REV -lt 4 ]
+  then
+    echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-0/new_device
+    echo "Setting rtc to DS1307/i2c-0"
+  else
+    echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device
+    echo "Setting rtc to DS1307/i2c-1"
+  fi
+  ;;
+esac
+
+
+if [[ $1 == "set" ]]
+then
+  hwclock -w
+else
+  hwclock -s
+fi
+
+sleep 2
+

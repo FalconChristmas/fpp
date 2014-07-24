@@ -1,30 +1,44 @@
 <?php
+require_once('config.php');
+require_once('common.php');
 
 $current_tz = exec("cat /etc/timezone", $output, $return_val);
 unset($output);
 
+if ( isset($_POST['piRTC']) && !empty($_POST['piRTC']) )
+{
+  $piRTC = $_POST['piRTC'];
+  WriteSettingToFile("piRTC",$piRTC);
+  exec(SUDO . " $fppDir/scripts/piRTC set");
+   error_log("Set RTC:" . $piRTC);
+}
+else
+{
+   error_log("Error RTC");
+}
 if ( isset($_POST['date']) && !empty($_POST['date']) )
 {
 //TODO: validate date format
 error_log("Setting date to ".$_POST['date'].".");
 //set the date
-exec("sudo date +%Y/%m/%d -s \"".$_POST['date']."\"", $output, $return_val);
+exec(SUDO . " date +%Y/%m/%d -s \"".$_POST['date']."\"", $output, $return_val);
 if (!(isset($_POST['time']) && !empty($_POST['time'])))
 {
-  exec("sudo hwclock -w", $output, $return_val);
+  exec(SUDO . " hwclock -w", $output, $return_val);
 }
 
 unset($output);
 //TODO: check return
 }
 
+
 if ( isset($_POST['time']) && !empty($_POST['time']) )
 {
 //TODO: validate time format
 error_log("Setting time to ".$_POST['time'].".");
 //set the time
-exec("sudo date +%k:%M -s \"".$_POST['time']."\"", $output, $return_val);
-exec("sudo hwclock -w", $output, $return_val);
+exec(SUDO . " date +%k:%M -s \"".$_POST['time']."\"", $output, $return_val);
+exec(SUDO . " hwclock -w", $output, $return_val);
 unset($output);
 //TODO: check return
 }
@@ -37,20 +51,20 @@ unset($output);
 if ( isset($_POST['ntp']) && !empty($_POST['ntp']) && $_POST['ntp'] == "disabled" && $ntp )
 {
   error_log("Disabling NTP because it's enabled and we were told to disable it.");
-  exec("sudo service ntp stop", $output, $return_val);
+  exec(SUDO . " service ntp stop", $output, $return_val);
   unset($output);
   //TODO: check return
-  exec("sudo update-rc.d ntp remove", $output, $return_val);
+  exec(SUDO . " update-rc.d ntp remove", $output, $return_val);
   unset($output);
   //TODO: check return
 }
 elseif ( isset($_POST['ntp']) && !empty($_POST['ntp']) && $_POST['ntp'] == "enabled" && !$ntp )
 {
   error_log("Enabling NTP because it's disabled and we were told to enable it.");
-  exec("sudo update-rc.d ntp defaults", $output, $return_val);
+  exec(SUDO . " update-rc.d ntp defaults", $output, $return_val);
   unset($output);
   //TODO: check return
-  exec("sudo service ntp start", $output, $return_val);
+  exec(SUDO . " service ntp start", $output, $return_val);
   unset($output);
   //TODO: check return
 }
@@ -60,10 +74,10 @@ if ( isset($_POST['timezone']) && !empty($_POST['timezone']) && urldecode($_POST
   //TODO: Check timezone for validity
   $timezone = urldecode($_POST['timezone']);
   error_log("Changing timezone to '".$timezone."'.");
-  exec("sudo bash -c \"echo $timezone > /etc/timezone\"", $output, $return_val);
+  exec(SUDO . " bash -c \"echo $timezone > /etc/timezone\"", $output, $return_val);
   unset($output);
   //TODO: check return
-  exec("sudo dpkg-reconfigure -f noninteractive tzdata", $output, $return_val);
+  exec(SUDO . " dpkg-reconfigure -f noninteractive tzdata", $output, $return_val);
   unset($output);
   //TODO: check return
 }
@@ -87,7 +101,6 @@ function print_if_match($one, $two, $print)
 <html>
 <head>
 <?php include 'common/menuHead.inc'; ?>
-<script type="text/javascript" src="/js/fpp.js"></script>
 <title>Falcon PI Player - FPP</title>
 </head>
 <body>
@@ -113,6 +126,15 @@ function print_if_match($one, $two, $print)
 
 
 <?php // TODO: RTC Configuration ?>
+
+<h4>Real Time Clock</h4>
+<select name="piRTC">
+  <option value = "N" <?php echo print_if_match("N",ReadSettingFromFile("piRTC"),"selected") ?> >None</option>
+  <option value = "1" <?php echo print_if_match("1",ReadSettingFromFile("piRTC"),"selected") ?> >RasClock</option>
+  <option value = "2" <?php echo print_if_match("2",ReadSettingFromFile("piRTC"),"selected") ?> >DS1305</option>
+</select> (Reboot required if changed)
+
+
 <h4>NTP</h4>
 
 <!--

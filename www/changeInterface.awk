@@ -1,5 +1,5 @@
 #!/usr/bin/awk -f
-function writeStatic(addr, nw, nm, gw, s, p) {
+function writeNetwork(addr, nw, nm, gw, s, p) {
     if (length(addr))
         print " address ", addr
     if (length(nw))
@@ -7,14 +7,16 @@ function writeStatic(addr, nw, nm, gw, s, p) {
     if (length(nm))
         print " netmask ", nm
     if (length(s))
-        print " wpa-ssid ", s
+        print " wpa-ssid ", "\""s"\""
     if (length(p))
-        print " wpa-psk ", p
+        print " wpa-psk ","\""p"\""
+    if (length(gw))
+        print " gateway ", gw
 }
 function usage() {
         print "changeInterfaces.awk <interfaces file> device=<eth device> \n" \
             " [address=<ip addr>] [gateway=<ip addr>] [netmask=<ip addr>]\n" \
-            " [wpa-ssid=<ssid>] [wpa-psk=<psk>] [network=<ip addr>]" \
+            " [ssid=<ssid>] [psk=<psk>] [network=<ip addr>]" \
             " [mode=dhcp|static] [arg=debug]"
 }
 BEGIN { start = 0;
@@ -61,6 +63,8 @@ length(netmask))) {
     # Look for iface line and if the interface comes with the device name scan 
     # whether it is dhcp or static
     if ($1 == "iface") {
+	printedDHCP = 0;
+	printedStatic = 0;	
         # Ethernet name matches - switch the line scanning on
         if ($2 == device) {
             if (debug)
@@ -69,6 +73,7 @@ length(netmask))) {
             # static
             if (match($0, / dhcp/)) {
                 definedDhcp=1;
+                definedStatic=0;
                 # Change to static if defined properties
                 if (length(address) || length (gateway) ||
                     length(netmask) || length (network) || static) {
@@ -79,6 +84,7 @@ length(netmask))) {
             # It's a static network interface
             else if (match ($0, / static/)) {
                 definedStatic=1;
+                definedDhcp=0;
                 # Change to dhcp if defined
                 if (dhcp) {
                     sub(/ static/, " dhcp");
@@ -96,7 +102,8 @@ length(netmask))) {
         next;
     }
     # Reaches here - means non iface lines Change the static content
-    if (definedStatic) {
+    if (definedStatic==1) 
+    {
         # Already defined static, just changing the properties Otherwise omit 
         # everything until the iface section is finished
         if (!dhcp) {
@@ -121,16 +128,20 @@ length(netmask))) {
         { 
           if(printedDHCP==0)
           {
-            writeStatic(address, network, netmask, gateway, ssid, psk);
+            writeNetwork(address, network, netmask, gateway, ssid, psk);
             printedDHCP =1;
           }
         }
         next;
     }
     # If already defined dhcp, then dump the network properties
-    if (definedDhcp) {
-        writeStatic(address, network, netmask, gateway, ssid, psk);
-        definedDhcp = 0;
+    if (definedDhcp==1)
+    {
+	if(printedStatic==0)
+        {
+          writeNetwork(address, network, netmask, gateway, ssid, psk);
+          printedStatic = 1;
+        }
         next;
     }
     print $0;
@@ -138,5 +149,5 @@ length(netmask))) {
 END {
     # This bit is useful at the condition when the last line is iface dhcp
     if (definedDhcp)
-        writeStatic(address, network, netmask, gateway, ssid, psk);
+        writeNetwork(address, network, netmask, gateway, ssid, psk);
 }

@@ -1,0 +1,37 @@
+#!/bin/bash
+
+BINDIR=$(cd $(dirname $0) && pwd)
+
+. ${BINDIR}/common
+
+if [ "x$1" = "x" ]
+then
+	echo "USAGE: $0 PLUGINNAME GITURL"
+	exit 1
+fi
+
+logOutput
+
+echo "Installing plugin $1"
+if [ "x${FPPDIR}" = "x/opt/fpp" ] && [ "x${SETTINGSFILE}" = "x/home/pi/media/settings" ]
+then
+	cd ${PLUGINDIR} && $SUDO git clone $2 $1
+elif [ "x${FPPDIR}" = "x/home/pi" ]
+then
+	cd ${PLUGINDIR} && sudo -u pi git clone $2 $1
+else
+	cd ${PLUGINDIR} && git clone $2 $1
+fi
+
+if [ -x "${PLUGINDIR}/$1/fpp_install.sh" ]
+then
+	if [ "x${FPPDIR}" = "x/opt/fpp" ] && [ "x${SETTINGSFILE}" = "x/home/pi/media/settings" ]
+	then
+		$SUDO ${PLUGINDIR}/$1/fpp_install.sh
+	elif [ "x${FPPDIR}" = "x/home/pi" ]
+	then
+		sudo -u pi ${PLUGINDIR}/$1/fpp_install.sh
+	else
+		${PLUGINDIR}/$1/fpp_install.sh
+	fi
+fi

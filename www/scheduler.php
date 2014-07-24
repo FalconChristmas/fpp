@@ -1,5 +1,4 @@
 <?php
-require_once('universeentry.php');
 $a = session_id();
 
 if(empty($a))
@@ -9,11 +8,6 @@ if(empty($a))
 $_SESSION['session_id'] = session_id();
 //ini_set('display_errors', 'On');
 error_reporting(E_ALL);
-
-function PrintUniverses()
-{
-	echo "<tr><td><input ></td></tr>";	
-}
 ?>
 
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -21,13 +15,8 @@ function PrintUniverses()
 <head>
 <?php	include 'common/menuHead.inc'; ?>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-<link rel="stylesheet" href="css/jquery-ui.css" />
-<script type="text/javascript" src="js/fpp.js"></script>
-<script src="js/jquery-migrate-1.1.1.min.js"></script>
-<script src="js/jquery-1.9.1.js"></script>
-<script src="js/jquery-ui.js"></script>
-<link rel="stylesheet" type="text/css" href="css/jquery.timeentry.css">
-<script type="text/javascript" src="js/jquery.timeentry.min.js"></script>
+<link rel="stylesheet" type="text/css" href="css/jquery.timepicker.css">
+<script type="text/javascript" src="js/jquery.timepicker.min.js"></script>
 <script language="Javascript">
 $(document).ready(function() {
 $('.default-value').each(function() {
@@ -47,15 +36,7 @@ this.value = default_value;
 });
 });
 </script>
-<script type="text/javascript">
-        $(function() {
-            $('#txtUniverseCount').on('focus',function() {
-                $(this).select();
-            });
-        });
-    </script>
 <script>
-
     $(function() {
 		$('#tblSchedule').on('mousedown', 'tr', function(event,ui){
 					$('#tblSchedule tr').removeClass('selectedEntry');
@@ -64,10 +45,6 @@ this.value = default_value;
 					ScheduleEntrySelected  = items.index(this);
 					
 		});
-		$('select').on('change', function() {
-			alert( this.value ); // or $(this).val()
-		});
-
 	});
 </script>
 <script>

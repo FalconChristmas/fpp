@@ -1,0 +1,16 @@
+#!/bin/bash
+
+BINDIR=$(cd $(dirname $0) && pwd)
+
+. ${BINDIR}/common
+. ${BINDIR}/functions
+
+logOutput
+
+runPreStopPluginScripts
+
+echo "Stopping fppd"
+killall -9 fppd
+
+runPostStopPluginScripts
+

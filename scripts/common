@@ -1,0 +1,54 @@
+#!/bin/bash
+
+PATH=/bin:/usr/bin:/sbin:/usr/sbin:${PATH}
+
+FPPDIR=${FPPDIR:-/opt/fpp}
+
+if [ -f "/home/pi/fpp/scripts/common" ]
+then
+	FPPDIR=/home/pi/fpp
+fi
+
+SUDO=${SUDO:-sudo}
+SCRIPTDIR="${FPPDIR}/scripts"
+BINDIR="${FPPDIR}/scripts"
+UPGRADEDIR="${FPPDIR}/upgrade"
+MEDIADIR="${MEDIADIR:-/home/pi/media}"
+LOGDIR="${MEDIADIR}/logs"
+CFGDIR="${MEDIADIR}/config"
+CFGFILE="${MEDIADIR}/settings"
+PLUGINDIR="${PLUGINDIR:-/opt/fpp/plugins}"
+SETTINGSFILE="${SETTINGSFILE:-/home/pi/media/settings}"
+FPPVERSIONFILE="${FPPVERSIONFILE:-/etc/fpp/rfs_version}"
+FPPVERSION="${FPPVERSION:-0}"
+[ -f $FPPVERSIONFILE ] && FPPVERSION="$(cat ${FPPVERSIONFILE} | sed -e "s/[^0-9]//g")"
+CFGVERSIONFILE="${CFGVERSIONFILE:-/etc/fpp/config_version}"
+CFGVERSION="${CFGVERSION:-0}"
+[ -f $CFGVERSIONFILE ] && CFGVERSION="$(cat ${CFGVERSIONFILE})"
+
+logOutput() {
+	MYTTY=$(tty)
+	if [ "x${MYTTY}" = "x/dev/console" -o "x${MYTTY}" = "x" -o "x${MYTTY}" = "xnot a tty" ]
+	then
+		if [ ! -d ${LOGDIR} ]
+		then
+			mkdir -p ${LOGDIR}
+			chown pi.pi ${LOGDIR}
+			chmod 775 ${LOGDIR}
+		fi
+
+		FILE=$(basename $0)
+		exec >> ${LOGDIR}/${FILE}.log 2>&1
+		echo "=========================================================================="
+		date
+	fi
+}
+
+getSetting() {
+	SETTING=$1
+	if [ -f "${CFGFILE}" ]
+	then
+		grep -i "^${SETTING}\s*=.*" ${CFGFILE} | sed -e "s/.*=\s*//"
+	fi
+}
+

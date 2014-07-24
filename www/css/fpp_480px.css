@@ -1,0 +1,554 @@
+#footer
+{
+	font-size: 14px;
+	text-align: center;
+	background: rgb(240, 240, 240);
+	width: 100%;
+	margin-left: auto;
+	margin-right: auto;
+}
+
+.buttons
+{
+	background-color: #eeeeee;
+	background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0%, #eeeeee), color-stop(100%, #cccccc));
+	background-image: -webkit-linear-gradient(top, #eeeeee, #cccccc);
+	background-image: -moz-linear-gradient(top, #eeeeee, #cccccc);
+	background-image: -ms-linear-gradient(top, #eeeeee, #cccccc);
+	background-image: -o-linear-gradient(top, #eeeeee, #cccccc);
+	background-image: linear-gradient(top, #eeeeee, #cccccc);
+	border: 1px solid #ccc;
+	border-bottom: 1px solid #bbb;
+	-webkit-border-radius: 3px;
+	-moz-border-radius: 3px;
+	border-radius: 3px;
+	color: #333;
+	font: bold 11px "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Geneva, Verdana, sans-serif;
+	line-height: 1;
+	padding: 1px 0;
+	text-align: center;
+	text-shadow: 0 1px 0 #eee;
+	width: 90px;
+}
+
+.buttons:hover
+{
+	background-color: #dddddd;
+	background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0%, #dddddd), color-stop(100%, #bbbbbb));
+	background-image: -webkit-linear-gradient(top, #dddddd, #bbbbbb);
+	background-image: -moz-linear-gradient(top, #dddddd, #bbbbbb);
+	background-image: -ms-linear-gradient(top, #dddddd, #bbbbbb);
+	background-image: -o-linear-gradient(top, #dddddd, #bbbbbb);
+	background-image: linear-gradient(top, #dddddd, #bbbbbb);
+	border: 1px solid #bbb;
+	border-bottom: 1px solid #999;
+	cursor: pointer;
+	text-shadow: 0 1px 0 #ddd;
+}
+
+.buttons:active
+{
+	border: 1px solid #aaa;
+	border-bottom: 1px solid #888;
+	-webkit-box-shadow: inset 0 0 5px 2px #aaaaaa, 0 1px 0 0 #eeeeee;
+	-moz-box-shadow: inset 0 0 5px 2px #aaaaaa, 0 1px 0 0 #eeeeee;
+	box-shadow: inset 0 0 5px 2px #aaaaaa, 0 1px 0 0 #eeeeee;
+}
+
+.disableButtons
+{
+	background-color: #eeeeee;
+	background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0%, #eeeeee), color-stop(100%, #cccccc));
+	background-image: -webkit-linear-gradient(top, #eeeeee, #cccccc);
+	background-image: -moz-linear-gradient(top, #eeeeee, #cccccc);
+	background-image: -ms-linear-gradient(top, #eeeeee, #cccccc);
+	background-image: -o-linear-gradient(top, #eeeeee, #cccccc);
+	background-image: linear-gradient(top, #eeeeee, #cccccc);
+	border: 1px solid #ccc;
+	border-bottom: 1px solid #bbb;
+	-webkit-border-radius: 3px;
+	-moz-border-radius: 3px;
+	border-radius: 3px;
+	color: #AAA;
+	font: bold 11px "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Geneva, Verdana, sans-serif;
+	line-height: 1;
+	padding: 1px 0;
+	text-align: center;
+	text-shadow: 0 1px 0 #eee;
+	width: 90px;
+}
+
+.disableButtons:active
+{
+	border: 1px solid #aaa;
+	border-bottom: 1px solid #888;
+	-webkit-box-shadow: inset 0 0 5px 2px #aaaaaa, 0 1px 0 0 #eeeeee;
+	-moz-box-shadow: inset 0 0 5px 2px #aaaaaa, 0 1px 0 0 #eeeeee;
+	box-shadow: inset 0 0 5px 2px #aaaaaa, 0 1px 0 0 #eeeeee;
+}
+
+#playerControls input
+{
+	margin: 0 10px 0 0;
+	width: 100px;
+}
+
+#bodyWrapper
+{
+	width: 100%;
+	margin-left: auto;
+	margin-right: auto;
+	background: rgb(240, 240,240);
+}
+
+#daemoncontrol, #playerstats
+{
+	background: rgb(240, 240, 240);
+	margin:10px;
+	padding:10px;
+}
+
+.controlHeader{
+	width: 30%;
+}
+.controlValue{
+	width: 50%;
+}
+.controlButton{
+	text-align: right;
+	width: 20%;
+}
+
+#nextPlaylist
+{
+	margin-top:10px;
+	padding:5px;
+	background:#DDD;
+	-moz-border-radius: 5px;
+	border-radius: 5px;
+	-webkit-border-radius: 5px;
+
+}
+
+#rebootShutdown
+{
+	margin-left: auto;
+	margin-right: auto;
+	text-align: center;
+	width: 200px;
+}
+
+#fppMenu ul li
+{
+	width: 33%;
+	text-align: center;
+}
+
+.settings
+{
+	width: 396px;
+	margin: 0 auto;
+}
+
+#divNetwork
+{
+	margin-left: auto;
+	margin-right: auto;
+	text-align: center;
+}
+
+.clear
+{
+	clear:both;	
+}
+
+.settings fieldset
+{
+	margin-left: auto;
+	margin-right: auto;
+	border: solid 2px rgb(0,0,0);
+}
+
+#playerControls, #eventControls {
+	text-align:center;
+}
+
+.eventTblID{
+	width: 10%;
+}
+.eventTblName{
+	width: 90%;
+}
+.eventTblEffect{
+	display: none;
+}
+.eventTblStartCh{
+	display: none;
+}
+.eventTblScript{
+	display: none;
+}
+
+.aboutLeft{
+	width: 100%;
+}
+.aboutCenter{
+	display: none;
+}
+.aboutRight{
+	width: 100%;
+}
+
+#startPlaylistControls select {
+	width: 70%
+}
+
+html
+{
+	background: url(/images/grill-bg.jpg) no-repeat center center fixed;
+	-webkit-background-size: cover;
+	-moz-background-size: cover;
+	-o-background-size: cover;
+	background-size: cover;
+}
+
+#divSeq, #divEthernet, #divEffectLibrary{
+	overflow: auto;
+	min-height: 100px;
+	max-height: 300px;
+	width: 396px;
+}
+
+#divSeqData {
+	overflow: auto;
+	min-height: 220px;
+	max-height: 220px;
+	width: 100%;
+}
+
+#divMusic, #divWireless, #divRunningEffects{
+	overflow: auto;
+	display: table;
+	min-height: 100px;
+	max-height: 300px;
+	width: 396px;
+}
+#divMusicData {
+	overflow: auto;
+	min-height: 220px;
+	max-height: 220px;
+	width: 100%;
+}
+
+legend
+{
+	font-weight: bold;
+	padding: 0.1em 0.4em;
+	text-align: center;
+	-moz-border-radius: 5px;
+	border-radius: 5px;
+	-webkit-border-radius: 5px;
+	margin-left: auto;
+	margin-right: auto;
+	border: solid 2px rgb(0,0,0);
+}
+
+fieldset
+{
+	-moz-border-radius:5px;
+    border-radius: 5px;
+    -webkit-border-radius: 5px;
+}
+.header{padding: 10px;}
+.headerLeft , .headerRight
+{
+	background: rgb(240,240,240);
+	width: 20%;
+	text-align:center;
+	float:left;
+}
+
+.headerCenter
+{
+	background: rgb(240,240,240);
+	width: 60%;
+	text-align:center;
+	float:left;
+}
+
+.siteName{font-size: 100%; padding-top: 3px;}
+
+
+.colPlaylistNumber{
+	background-image: url(../images/vertdrag.png);
+	background-repeat:no-repeat;
+	background-size:7px 14px;
+	background-position:0 2px;
+	padding-left:20px;
+}
+
+#slider{
+	border-width: 1px;
+	border-style: solid;
+	border-color: #333 #333 #777 #333;
+	border-radius: 25px;
+	width: 80%;
+	position: relative;
+	height: 13px;
+	background-color: #8e8d8d;
+	background: url('../images/bg-track.png') repeat top left;
+    box-shadow: inset 0 1px 5px 0px rgba(0, 0, 0, .5), 
+    				  0 1px 0 0px rgba(250, 250, 250, .5);
+    left: 0px;
+		top:12px;
+		float:left;
+}
+.volume {
+	content: "";
+	display: inline-block;
+	width: 25px;
+	height: 25px;
+	left: 77px;
+	top:-3px;
+	background: url('../images/volume.png') no-repeat 0 -50px;
+	position: relative;
+	margin: -5px 0 0 25px ;
+}
+.ui-slider-handle {
+	position: absolute;
+	z-index: 2;
+	width: 25px;
+	height: 25px;
+	cursor: pointer;
+	background: url('../images/handle.png') no-repeat 50% 50%;
+	font-weight: bold;
+	color: #1C94C4;
+	outline: none;
+	top: -7px;
+	margin-left: -12px;
+}
+.ui-slider-range {
+	background: #ffffff; /* Old browsers */
+	background: -moz-linear-gradient(top,  #ffffff 0%, #eaeaea 100%); /* FF3.6+ */
+	background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#ffffff), color-stop(100%,#eaeaea)); /* Chrome,Safari4+ */
+	background: -webkit-linear-gradient(top,  #ffffff 0%,#eaeaea 100%); /* Chrome10+,Safari5.1+ */
+	background: -o-linear-gradient(top,  #ffffff 0%,#eaeaea 100%); /* Opera 11.10+ */
+	background: -ms-linear-gradient(top,  #ffffff 0%,#eaeaea 100%); /* IE10+ */
+	background: linear-gradient(top,  #ffffff 0%,#eaeaea 100%); /* W3C */
+	filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#ffffff', endColorstr='#eaeaea',GradientType=0 ); /* IE6-9 */
+	position: absolute;
+	border: 0;
+	top: 0;
+	height: 100%;
+	border-radius: 25px;
+}
+
+#statusPlaylistContents{
+	height:220px;
+	min-height:220px;
+	max-height:220px;
+	overflow:auto
+}
+
+#eventListContents, #effectListContents{
+	height:120px;
+	min-height:120px;
+	max-height:120px;
+	overflow:auto
+}
+
+#statusPlaylist, #eventList, #effectList, #effectLibrary, #runningEffects{
+	border:thin solid;	
+	font-size:12px;
+	margin-top: 5px;
+	-moz-border-radius: 5px;
+	border-radius: 5px;
+	-webkit-border-radius: 5px;
+}
+
+#playerStatus{
+}
+
+.playerStatusHeader{
+	width: 30%;
+}
+.playerStatusLeft{
+	width: 100%;
+}
+.playerStatusRight{
+	width: 100%;
+}
+
+
+.playerStatus, .timePlayed, .timeRemaining{
+	text-align: left;
+}
+
+#tblStatusPlaylist{
+	 width:100%;
+}
+
+#tblStatusPlaylistEntries{
+	 width:100%;
+	 border-collapse:collapse;
+}
+
+
+.playlistHeader, .eventListHeader, .effectListHeader{
+	background:#DDD;
+	text-align:center;
+}
+
+.textRight{
+	text-align:right;
+	padding-right:5px;
+	}
+	
+.textLeft{
+	text-align:left;
+	padding-left:5px;
+	}	
+	
+.textCenter{
+	text-align:center;
+	}	
+
+.playlistSelectedEntry, .eventSelectedEntry, .effectSelectedEntry{
+	background:#CCC;
+}
+
+#statusPlaylistContents table {
+	border-collapse:collapse;
+} 
+
+.unselectable {
+   -moz-user-select: -moz-none;
+   -khtml-user-select: none;
+   -webkit-user-select: none;
+  -ms-user-select: none;
+   user-select: none;
+}
+
+
+.PlaylistPlayingIcon{
+	background-image: url(../images/playlistplay.png);
+	background-size:10px 10px;
+	background-repeat:no-repeat;
+	background-position: 4px 4px;
+}
+
+.PlaylistRowPlaying{
+	background:#D1E0FF;
+}	
+
+#MusicOptions{
+	display:none;
+}
+
+
+#playlistEntryProperties ul li{
+	float:left;
+	list-style:none;
+	padding-right:8px;
+}
+
+#playlistEntryProperties ul li select option{
+	font-size:12px;
+}
+
+
+#btnAddPlaylistEntry{
+	margin-top:18px;
+}
+
+#tblCreatePlaylist{
+	 width:100%;
+	 border-collapse:collapse;
+}
+
+#createPlaylistItems{
+  margin:10px;
+  padding:10px;
+	border:thin solid;	
+	font-size:12px;
+	-moz-border-radius: 5px;
+	border-radius: 5px;
+	-webkit-border-radius: 5px;
+}
+
+#bytesTransferred{
+  margin:10px;
+  padding:10px;
+	border:thin solid;	
+	font-size:12px;
+	-moz-border-radius: 5px;
+	border-radius: 5px;
+	-webkit-border-radius: 5px;
+	min-height:600px;
+	text-align:center;
+	display:none;
+}
+
+#bridgeStatistics1{
+	margin-left:25px;
+	float:left;
+}
+
+#bridgeStatistics2{
+	margin-left:125px;
+	float:left;
+}
+
+#rowCreatePlaylistHeader{
+		background:#DDD;
+		text-align:left;
+		padding-left:5px;
+		text-decoration:underline;
+		border-collapse:collapse;
+}
+
+#rowReceivedBytesHeader{
+		background:#DDD;
+		text-align:left;
+		padding-left:5px;
+		text-decoration:underline;
+		border-collapse:collapse;
+}
+
+.selectedEntry {
+	background: #CCC;
+}
+
+.pl_title {
+	font-size: larger;
+}
+#playlistEntryProperties ul{
+	padding: 0;
+	margin: 10px;
+}
+
+#selStartPlaylist{
+	width:75%;
+	text-align:left;
+	
+}
+
+#credits{
+	text-align: center;
+}
+
+.desktopItem{
+	display: none;
+}
+
+.mobileItem{
+	display: inline;
+}
+
+#outputMenu{
+	display: none;
+}
+
+.logo{
+	height: 40px;
+}

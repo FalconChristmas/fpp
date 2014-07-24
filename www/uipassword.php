@@ -1,12 +1,14 @@
 <?php
 
+require_once("config.php");
+
 $thisdir = dirname(__FILE__);
 
 // No other checking here, we're assuming that since they're able to POST apache has
 // already taken care of validating a user.
 if ( !empty($_POST) && $_POST["password"] == "disabled" )
 {
-  shell_exec("rm -f $thisdir/.htpasswd $thisdir/.htaccess");
+  shell_exec(SUDO . " rm -f $thisdir/.htpasswd $thisdir/.htaccess");
 }
 
 if ( isset($_POST['password1']) && isset($_POST['password2']))
@@ -14,8 +16,9 @@ if ( isset($_POST['password1']) && isset($_POST['password2']))
   if (($_POST['password1'] != "") && ($_POST['password1'] == $_POST['password2']))
   {
     // true - setup .htaccess & save it
-    file_put_contents("$thisdir/.htaccess", "AuthUserFile $thisdir/.htpasswd\nAuthType Basic\nAuthName admin\nRequire valid-user\n");
-    $setpassword = shell_exec("htpasswd -cbd $thisdir/.htpasswd admin " . $_POST['password1']);
+    file_put_contents("/var/tmp/.htaccess", "AuthUserFile $thisdir/.htpasswd\nAuthType Basic\nAuthName admin\nRequire valid-user\n");
+    shell_exec(SUDO . " mv /var/tmp/.htaccess $thisdir/.htaccess");
+    $setpassword = shell_exec(SUDO . " htpasswd -cbd $thisdir/.htpasswd admin " . $_POST['password1']);
   }
 }
 
@@ -43,7 +46,6 @@ $pw = file_exists("$thisdir/.htpasswd");
 <html>
 <head>
 <?php include 'common/menuHead.inc'; ?>
-<script type="text/javascript" src="/js/fpp.js"></script>
 <script type="text/javascript" src="/js/validate.min.js"></script>
 <title>Falcon PI Player - FPP</title>
 </head>

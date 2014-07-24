@@ -1,0 +1,11 @@
+#!/bin/bash
+
+BINDIR=$(cd $(dirname $0) && pwd)
+
+. ${BINDIR}/common
+
+cd ${FPPDIR}/src/
+
+sudo -u pi make clean
+sudo -u pi make all
+

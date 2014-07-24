@@ -1,0 +1,113 @@
+#!/bin/bash
+
+#############################################################################
+# Get a list of all interfaces using dhclient to get an IP and
+# waits for them to all recieve IPs.  If any interface does not
+# have an IP, then the function will sleep for a little while
+# and then jump back to the top of the loop to check again.
+WaitForDHCPIPs() {
+	DHCP_INTERFACES="$(ps auxw | grep "dhclient\.\([a-z0-9]*\)\.pid" | grep -v grep | sed -e 's/.*client\.\([a-z0-9]*\)\.pid.*/\1/')"
+	SLEEPTIME=5
+
+	# Loop up to 10 times, so max wait time is 10 * ${SLEEPTIME}
+	echo "Waiting for DHCP to receive IP addresses: ${DHCP_INTERFACES}"
+	for i in {1..10}
+	do
+		IP=""
+		for INTERFACE in ${DHCP_INTERFACES}
+		do
+			IP=$(ifconfig ${INTERFACE} | grep "inet " | sed -e "s/addr://" | awk '{print $2}')
+			if [ -z "${IP}" ]
+			then
+				echo "${INTERFACE} does not have an IP, waiting for ${SLEEPTIME} seconds"
+				sleep ${SLEEPTIME}
+				continue
+			fi
+		done
+		if [ -z "${IP}" ]
+		then
+			continue
+		fi
+
+		break
+	done
+}
+
+#############################################################################
+# Functions for compiling and cleaning up compiled binaries
+BINARIES="fppd fpp fppmm"
+cleanCompiledBinaries() {
+	if [ "x${FPPDIR}" = "x/opt/fpp" ]
+	then
+		cd ${FPPDIR}/src && ${SUDO} make clean
+	else
+		cd ${FPPDIR}/src && sudo -u pi make clean
+	fi
+}
+
+compileBinaries() {
+	cleanCompiledBinaries
+
+	if [ "x${FPPDIR}" = "x/opt/fpp" ]
+	then
+		cd ${FPPDIR}/src && ${SUDO} make clean && ${SUDO} make
+	else
+		cd ${FPPDIR}/src && ${SUDO} -u pi make clean && sudo -u pi make
+	fi
+
+	# Clean up any compiled binaries that are identical to the one in git
+	for FILE in ${BINARIES}
+	do
+		if [ "x${FPPDIR}" = "x/opt/fpp" ]
+		then
+			${SUDO} strip ${FPPDIR}/src/${FILE}
+		else
+			${SUDO} -u pi strip ${FPPDIR}/src/${FILE}
+		fi
+
+		BINMD5=$(md5sum ${FPPDIR}/bin/${FILE} | awk '{print $1}')
+		SRCMD5=$(md5sum ${FPPDIR}/src/${FILE} | awk '{print $1}')
+		if [ "${BINMD5}" = "${SRCMD5}" ]
+		then
+			${SUDO} rm -f ${FPPDIR}/src/${FILE}
+		fi
+	done
+}
+
+#############################################################################
+# Helper scripts for running the Plugin pre/post start/stop scripts.
+# These are normally run from fppd_start and fppd_stop
+runPreStartPluginScripts() {
+	/bin/ls -1 ${PLUGINDIR}/*/scripts/preStart.sh 2> /dev/null | while read FILE
+	do
+		echo "Running: ${FILE}"
+		/bin/bash ${FILE}
+	done
+}
+
+runPostStartPluginScripts() {
+	/bin/ls -1 ${PLUGINDIR}/*/scripts/postStart.sh 2> /dev/null | while read FILE
+	do
+		echo "Running: ${FILE}"
+		/bin/bash ${FILE}
+	done
+}
+
+runPreStopPluginScripts() {
+	/bin/ls -1 ${PLUGINDIR}/*/scripts/preStop.sh 2> /dev/null | while read FILE
+	do
+		echo "Running: ${FILE}"
+		/bin/bash ${FILE}
+	done
+}
+
+runPostStopPluginScripts() {
+	/bin/ls -1 ${PLUGINDIR}/*/scripts/postStop.sh 2> /dev/null | while read FILE
+	do
+		echo "Running: ${FILE}"
+		/bin/bash ${FILE}
+	done
+}
+
+#############################################################################
+

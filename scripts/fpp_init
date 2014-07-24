@@ -1,0 +1,22 @@
+#!/bin/bash
+### BEGIN INIT INFO
+# Provides:          fpp_init
+# Required-Start:    mountall-bootclean
+# Required-Stop:     
+# Default-Start:     S
+# Default-Stop:      0 6
+# Short-Description: FPP OS image initialization
+# Description:       FPP OS image initialization
+### END INIT INFO
+##############################################################################
+# This script is run via a link /etc/rcS.d/S10fpp_init at system boot to
+# allow us to initialize certain things before the system starts booting.
+##############################################################################
+#
+PATH="/sbin:/bin:/usr/sbin:/usr/bin"
+#
+##############################################################################
+# Clear resolv.conf to allow it to start clean every boot
+cp /dev/null /etc/resolv.conf
+#
+##############################################################################

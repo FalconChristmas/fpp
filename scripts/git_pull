@@ -1,0 +1,29 @@
+#!/bin/bash
+
+BINDIR=$(cd $(dirname $0) && pwd)
+
+. ${BINDIR}/common
+. ${BINDIR}/functions
+
+logOutput
+
+if curl --silent --head https://github.com | grep "Content-Type: text/html; charset=utf-8" >/dev/null; then
+	GITBRANCH=$(cd ${FPPDIR} && git branch | grep "^\*" | sed -e "s/\*\s//")
+
+	echo "Upgrading git revision from branch ${GITBRANCH}"
+	if [ "x${FPPDIR}" = "x/opt/fpp" ]
+	then
+		cd ${FPPDIR} && $SUDO git pull && $SUDO git fetch --tags
+	else
+		cd ${FPPDIR} && sudo -u pi git pull && sudo -u pi git fetch --tags
+	fi
+
+	RELEASEBRANCH=$(echo ${GITBRANCH} | egrep "v[0-9]+\.[0-9]+\.[0-9]+")
+	if [ -z "${RELEASEBRANCH}" ]
+	then
+		compileBinaries
+	fi
+else
+	echo "Can not access github, unable to pull git updates"
+fi
+

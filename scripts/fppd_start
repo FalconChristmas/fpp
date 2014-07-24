@@ -1,0 +1,22 @@
+#!/bin/bash
+
+BINDIR=$(cd $(dirname $0) && pwd)
+
+. ${BINDIR}/common
+. ${BINDIR}/functions
+
+logOutput
+
+runPreStartPluginScripts
+
+if [ -f "${FPPDIR}/src/fppd" -a "${FPPDIR}/src/fppd" -nt "${FPPDIR}/bin/fppd" ]
+then
+	echo "Starting ${FPPDIR}/src/fppd"
+	nice -n -20 ${FPPDIR}/src/fppd --config-file /home/pi/media/settings --daemonize
+else
+	echo "Starting ${FPPDIR}/bin/fppd"
+	nice -n -20 ${FPPDIR}/bin/fppd --config-file /home/pi/media/settings --daemonize
+fi
+
+runPostStartPluginScripts
+

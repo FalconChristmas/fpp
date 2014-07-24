@@ -1,0 +1,22 @@
+#!/bin/bash
+
+BINDIR=$(cd $(dirname $0) && pwd)
+
+. ${BINDIR}/common
+
+if [ ! -d ${LOGDIR} ]
+then
+	mkdir -p ${LOGDIR}
+	chown pi.pi ${LOGDIR}
+	chmod 775 ${LOGDIR}
+fi
+
+if [ ! -f "${MEDIADIR}/.auto_update_disabled" ]
+then
+	${SCRIPTDIR}/git_pull
+fi
+
+${SCRIPTDIR}/upgrade_config
+
+${SCRIPTDIR}/fppd_start
+

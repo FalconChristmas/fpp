@@ -1,0 +1,45 @@
+#!/bin/bash
+
+BINDIR=$(cd $(dirname $0) && pwd)
+
+. ${BINDIR}/common
+
+logOutput
+
+echo "Checking config version"
+
+if [ ${FPPVERSION} -lt 10 ]
+then
+	echo "$0: Unable to upgrade FPP below Alpha 0.1.0, please upgrade your SD image"
+	exit 1
+fi
+
+export FPPVERSION
+
+########################################################################
+
+if [ -f ${CFGVERSIONFILE} ]
+then
+	CFGVERSION=$(cat ${CFGVERSIONFILE})
+fi
+
+echo "FPP Version: ${FPPVERSION}"
+echo "Config Version: ${CFGVERSION}"
+
+for VERSION in $(seq 1 1000)
+do
+	if [ ${VERSION} -gt ${CFGVERSION} ]
+	then
+		if [ -f "${UPGRADEDIR}/${VERSION}/upgrade.sh" ]
+		then
+			echo "Upgrading config to version ${VERSION}"
+			(cd ${UPGRADEDIR}/${VERSION} && ./upgrade.sh)
+			CFGVERSION=${VERSION}
+			echo ${VERSION} > ${CFGVERSIONFILE}
+		else
+			echo "Up to date at config version ${CFGVERSION}"
+			exit 0
+		fi
+	fi
+done
+
