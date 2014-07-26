@@ -9,6 +9,7 @@ then
 	FPPDIR=/home/pi/fpp
 fi
 
+PLATFORM=$(cat /etc/fpp/platform)
 SUDO=${SUDO:-sudo}
 SCRIPTDIR="${FPPDIR}/scripts"
 BINDIR="${FPPDIR}/scripts"
