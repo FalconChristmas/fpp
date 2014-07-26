@@ -87,7 +87,7 @@ fi
 
 #############################################################################
 # Check for configured interfaces
-/bin/ls -1 ${CFGDIR}/interface.${IFACE} | while read FILE
+/bin/ls -1 ${CFGDIR}/interface.${IFACE} 2> /dev/null | while read FILE
 do
 	#####################################################################
 	# Get the interface config into env vars
