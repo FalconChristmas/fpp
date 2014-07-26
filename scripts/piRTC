@@ -24,7 +24,14 @@ REV=$((REV))
 # Locate The Required Modules
 
 modprobe i2c-bcm2708
-modprobe rtc-pcf2127a
+
+PCF2127=pcf2127
+if [ "x$(uname -r)" = "3.10.33+" ]
+then
+	PCF2127=pcf2127a
+fi
+modprobe rtc-${PCF2127}
+
 modprobe rtc-ds1307
 
 # Read Clock Setting From Settings File
@@ -37,11 +44,11 @@ case $piRTC in
   # rasClock chip
   if [ $REV -lt 4 ]
   then
-    echo pcf2127a 0x51 > /sys/class/i2c-adapter/i2c-0/new_device
+    echo ${PCF2127} 0x51 > /sys/class/i2c-adapter/i2c-0/new_device
     echo "Setting rtc to rasClock/i2c-0"
   else
-    echo pcf2127a 0x51 > /sys/class/i2c-adapter/i2c-1/new_device
-    echo "Setting rtc to rasClocl/i2c-1"
+    echo ${PCF2127} 0x51 > /sys/class/i2c-adapter/i2c-1/new_device
+    echo "Setting rtc to rasClock/i2c-1"
   fi
   ;;
 2)
