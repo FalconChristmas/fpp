@@ -257,7 +257,8 @@ a:visited {
 <?
   echo $git_version;
   if (($git_remote_version != "") && ($git_version != $git_remote_version))
-    echo " <font color='#FF0000'>(Update is available)</font> <a href='changelog.php'>ChangeLog</a>";
+    echo " <font color='#FF0000'>(Update is available)</font>";
+	echo " <a href='changelog.php'>ChangeLog</a>";
 ?>
                 </td></tr>
             <tr><td>Remote Git Version:</td><td>
