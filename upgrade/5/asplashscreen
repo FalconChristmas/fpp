@@ -8,7 +8,7 @@
 # Default-Stop:
 # Short-Description: Show custom splashscreen
 # Description:       Show custom splashscreen
-### END INIT IN
+### END INIT INFO
 
 #########################################################################
 # Some hard-coded or default values
