@@ -98,7 +98,7 @@ _IP=$(hostname -I) || true
 if [ "$_IP" ]; then
   echo "FPP - Found IPs: $_IP"
   arrHost=(${_IP// / })
-  flite -voice slt "I Have Found The Following I P Addresses, ${arrHost[0]}, ${arrHost[1]},  ${arrHost[2]}" &
+  flite -voice awb "I Have Found The Following I P Addresses, ${arrHost[0]}, ${arrHost[1]},  ${arrHost[2]}" &
 fi
 
 grep -q "^[^#].*/home/pi/media" /etc/fstab
