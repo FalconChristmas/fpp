@@ -74,7 +74,7 @@ if [ ! -e /proc/asound/card$(sed -n '/card [0-9]*/p' /root/.asoundrc | head -n 1
 fi
 
 echo "FPP - Setting max IGMP memberships"
-sysctl net/ipv4/igmp_max_memberships=150
+sysctl net/ipv4/igmp_max_memberships=150 2>&1
 
 if [ "${PLATFORM}" = "Raspberry Pi" ]
 then
@@ -118,7 +118,7 @@ then
 	sleep 5;
 	mount -a;
 else
-	echo "      Flash Media mounted, checking for required subdirectories.";
+	echo "      Flash Media mounted.";
 	DIRS="config effects events logs music playlists scripts sequences upload videos plugins plugindata"
 	echo "FPP - Checking for required directories"
 	for DIR in ${DIRS}
