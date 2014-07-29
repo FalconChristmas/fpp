@@ -68,7 +68,7 @@ char E131packet[638];
 UniverseEntry universes[MAX_UNIVERSE_COUNT];
 int UniverseCount = 0;
 
-char * E131LocalAddress;
+char E131LocalAddress[16];
 
 char E131sequenceNumber=1;
 
@@ -145,10 +145,9 @@ void E131_Initialize()
 	LoadUniversesFromFile();
 	if (UniverseCount)
 	{
-		E131LocalAddress = GetInterfaceAddress(getE131interface());
+		GetInterfaceAddress(getE131interface(), E131LocalAddress, NULL, NULL);
 		LogDebug(VB_CHANNELOUT, "E131LocalAddress = %s\n",E131LocalAddress);
 		E131_InitializeNetwork();
-		free(E131LocalAddress);
 	}
 }
 

@@ -2,18 +2,25 @@
 
 $kernel_version = exec("uname -r");
 
-$fpp_version = "v" . exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ describe --tags", $output, $return_val);
+$fpp_head_version = "v" . exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ describe --tags", $output, $return_val);
 if ( $return_val != 0 ) 
-	$fpp_version = "Unknown";
+	$fpp_head_version = "Unknown";
 unset($output);
 
+$git_branch = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ branch --list | grep '\\*' | awk '{print \$2}'", $output, $return_val);
+if ( $return_val != 0 )
+	$git_branch = "Unknown";
+unset($output);
+
+if (!preg_match("/^$git_branch-/", $fpp_head_version))
+	$fpp_head_version .= " ($git_branch branch)";
 ?>
 
 <?php require_once(dirname(__FILE__)."/config.php"); ?>
   <div class="header">
     <div class="headerLeft"><a href="http://www.falconchristmas.com"><img src="images/falconlogo.png" class="logo" /></a></div>
     <div class="headerCenter"><div class="siteName">Falcon Pi Player (FPP)</div>
-      Version: <a href='about.php' class='nonULLink'><?php echo $fpp_version; ?></a>
+      Version: <a href='about.php' class='nonULLink'><?php echo $fpp_head_version; ?></a>
 <?
 	if (file_exists("/etc/fpp/rfs_version"))
 	{
@@ -50,6 +57,7 @@ unset($output);
             <li><a href="uipassword.php">Set UI Password</a></li>
             <li><a href="timeconfig.php">Config/Set Time</a></li>
             <li><a href="networkconfig.php">Network</a></li>
+            <li><a href="multisync.php">MultiSync</a></li>
 <?php
 $handle = opendir($pluginDirectory);
 if ( $handle )
@@ -99,11 +107,12 @@ if ( $handle )
 ?>
         </ul>
       </li>
-      <li id='outputMenu'><a href="#">Output Setup</a>
+      <li id='outputMenu'><a href="#">Input/Output Setup</a>
         <ul>
           <li><a href="channeloutputs.php">Channel Outputs</a></li>
           <li><a href="channelremaps.php">Remap Channels</a></li>
           <li><a href="channelmemorymaps.php">Memory Mapped Channel Blocks</a></li>
+          <li><a href="gpio.php">GPIO Inputs</a></li>
 <?php
 $handle = opendir($pluginDirectory);
 if ( $handle )

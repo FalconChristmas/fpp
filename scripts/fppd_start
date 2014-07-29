@@ -7,6 +7,8 @@ BINDIR=$(cd $(dirname $0) && pwd)
 
 logOutput
 
+updateAvahiConfig
+
 runPreStartPluginScripts
 
 if [ -f "${FPPDIR}/src/fppd" -a "${FPPDIR}/src/fppd" -nt "${FPPDIR}/bin/fppd" ]
@@ -17,6 +19,11 @@ else
 	echo "Starting ${FPPDIR}/bin/fppd"
 	nice -n -20 ${FPPDIR}/bin/fppd --config-file /home/pi/media/settings --daemonize
 fi
+
+# FIXME, find a better way to wait until fppd is up before continuing
+sleep 2
+
+startWebSocketServer
 
 runPostStartPluginScripts
 

@@ -31,9 +31,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 #include "E131.h"
 #include "channeloutputthread.h"
+#include "controlsend.h"
 #include "events.h"
 #include "effects.h"
 #include "fpp.h" // for FPPstatus && #define-d status values
@@ -43,17 +45,20 @@
 #include "settings.h"
 
 #define FSEQ_STEP_SIZE_OFFSET      10
+#define FSEQ_STEP_TIME_OFFSET      18
 #define FSEQ_CHANNEL_DATA_OFFSET   28
 
 FILE         *seqFile = NULL;
-char          seqFilename[1024];
+char          seqFilename[1024] = {'\x00'};
 unsigned long seqFileSize = 0;
 unsigned long seqFilePosition = 0;
 int           seqStepSize = 8192;
+int           seqStepTime = 50;
+int           seqRefreshRate = 20;
 int           seqDuration = 0;
 int           seqSecondsElapsed = 0;
 int           seqSecondsRemaining = 0;
-char          seqData[FPPD_MAX_CHANNELS];
+char          seqData[FPPD_MAX_CHANNELS] __attribute__ ((aligned (__BIGGEST_ALIGNMENT__)));
 
 char          seqLastControlMajor = 0;
 char          seqLastControlMinor = 0;
@@ -80,16 +85,27 @@ int OpenSequenceFile(const char *filename) {
 	seqSecondsElapsed = 0;
 	seqSecondsRemaining = 0;
 
-	strcpy(seqFilename,(const char *)getSequenceDirectory());
-	strcat(seqFilename,"/");
-	strcat(seqFilename, filename);
+	strcpy(seqFilename, filename);
 
-	seqFile = fopen((const char *)seqFilename, "r");
+	char tmpFilename[1024];
+	strcpy(tmpFilename,(const char *)getSequenceDirectory());
+	strcat(tmpFilename,"/");
+	strcat(tmpFilename, filename);
+
+	seqFile = fopen((const char *)tmpFilename, "r");
 	if (seqFile == NULL) 
 	{
-		LogErr(VB_SEQUENCE, "Error opening sequence file: %s fopen returned NULL\n",
-			seqFilename);
+		LogErr(VB_SEQUENCE, "Error opening sequence file: %s. fopen returned NULL\n",
+			tmpFilename);
 		return 0;
+	}
+
+	if (getFPPmode() == MASTER_MODE)
+	{
+		SendSeqSyncStartPacket(filename);
+
+		// Give the remotes a head start spining up so they are ready
+		usleep(100000);
 	}
 
 	// Get Step Size
@@ -98,24 +114,55 @@ int OpenSequenceFile(const char *filename) {
 	seqStepSize = seqData[0] +
 		(seqData[1] << 8) + (seqData[2] << 16) + (seqData[3] << 24);
 
+	// Get Step Time
+	fseek(seqFile, FSEQ_STEP_TIME_OFFSET, SEEK_SET);
+	bytesRead=fread(seqData, 1, 2, seqFile);
+	seqStepTime = seqData[0] + (seqData[1] << 8);
+	seqRefreshRate = 1000 / seqStepTime;
+
 	fseek(seqFile, 0L, SEEK_END);
 	seqFileSize = ftell(seqFile);
 	seqDuration = (int)((float)(seqFileSize - FSEQ_CHANNEL_DATA_OFFSET)
-		/ ((float)seqStepSize * (float)20));
+		/ ((float)seqStepSize * (float)seqRefreshRate));
 	seqSecondsRemaining = seqDuration;
 	fseek(seqFile, FSEQ_CHANNEL_DATA_OFFSET, SEEK_SET);
 	seqFilePosition = FSEQ_CHANNEL_DATA_OFFSET;
 
 	LogDebug(VB_SEQUENCE, "seqStepSize: %d\n", seqStepSize);
+	LogDebug(VB_SEQUENCE, "seqStepTime: %dms\n", seqStepTime);
+	LogDebug(VB_SEQUENCE, "seqRefreshRate: %d\n", seqRefreshRate);
 	LogDebug(VB_SEQUENCE, "seqFileSize: %lu\n", seqFileSize);
+	LogDebug(VB_SEQUENCE, "seqDuration: %d\n", seqDuration);
 
 	ResetChannelOutputFrameNumber();
 
 	ReadSequenceData();
+
+	SetChannelOutputRefreshRate(seqRefreshRate);
 	StartChannelOutputThread();
 
 	return seqFileSize;
 }
+
+int SeekSequenceFile(int frameNumber) {
+	LogDebug(VB_SEQUENCE, "SeekSequenceFile(%d)\n", frameNumber);
+
+	if (!IsSequenceRunning())
+	{
+		LogErr(VB_SEQUENCE, "No sequence is running\n");
+		return 0;
+	}
+
+	int newPos = FSEQ_CHANNEL_DATA_OFFSET + (frameNumber * seqStepSize);
+	LogDebug(VB_SEQUENCE, "Seeking to byte %d in %s\n", newPos, seqFilename);
+
+	fseek(seqFile, newPos, SEEK_SET);
+
+	ReadSequenceData();
+
+	SetChannelOutputFrameNumber(frameNumber);
+}
+
 
 char *CurrentSequenceFilename(void) {
 	return seqFilename;
@@ -142,22 +189,6 @@ void ReadSequenceData(void) {
 		{
 			bytesRead = fread(seqData, 1, seqStepSize, seqFile);
 			seqFilePosition += bytesRead;
-
-			if (getControlMajor() && getControlMinor())
-			{
-				char thisMajor = NormalizeControlValue(seqData[getControlMajor()-1]);
-				char thisMinor = NormalizeControlValue(seqData[getControlMinor()-1]);
-
-				if ((seqLastControlMajor != thisMajor) ||
-					(seqLastControlMinor != thisMinor))
-				{
-					seqLastControlMajor = thisMajor;
-					seqLastControlMinor = thisMinor;
-
-					if (seqLastControlMajor && seqLastControlMinor)
-						TriggerEvent(seqLastControlMajor, seqLastControlMinor);
-				}
-			}
 		}
 
 		if (bytesRead != seqStepSize)
@@ -165,10 +196,10 @@ void ReadSequenceData(void) {
 			CloseSequenceFile();
 		}
 
-		seqSecondsElapsed = (int)((float)(seqFilePosition - FSEQ_CHANNEL_DATA_OFFSET)/((float)seqStepSize*(float)20.0));
+		seqSecondsElapsed = (int)((float)(seqFilePosition - FSEQ_CHANNEL_DATA_OFFSET)/((float)seqStepSize*(float)seqRefreshRate));
 		seqSecondsRemaining = seqDuration - seqSecondsElapsed;
 	}
-	else
+	else if ( getFPPmode() != BRIDGE_MODE )
 	{
 		BlankSequenceData();
 	}
@@ -178,6 +209,22 @@ void ReadSequenceData(void) {
 
 	if (UsingMemoryMapInput())
 		OverlayMemoryMap(seqData);
+
+	if (getControlMajor() && getControlMinor())
+	{
+		char thisMajor = NormalizeControlValue(seqData[getControlMajor()-1]);
+		char thisMinor = NormalizeControlValue(seqData[getControlMinor()-1]);
+
+		if ((seqLastControlMajor != thisMajor) ||
+			(seqLastControlMinor != thisMinor))
+		{
+			seqLastControlMajor = thisMajor;
+			seqLastControlMinor = thisMinor;
+
+			if (seqLastControlMajor && seqLastControlMinor)
+				TriggerEvent(seqLastControlMajor, seqLastControlMinor);
+		}
+	}
 }
 
 void SendSequenceData(void) {
@@ -193,11 +240,15 @@ void SendBlankingData(void) {
 void CloseSequenceFile(void) {
 	LogDebug(VB_SEQUENCE, "CloseSequenceFile() %s\n", seqFilename);
 
+	if (getFPPmode() == MASTER_MODE)
+		SendSeqSyncStopPacket(seqFilename);
+
 	if (seqFile) {
 		fclose(seqFile);
 		seqFile = NULL;
 	}
-	strcpy(seqFilename, "");
+
+	seqFilename[0] = '\0';
 
 	if (!IsEffectRunning() && (FPPstatus != FPP_STATUS_PLAYLIST_PLAYING))
 		SendBlankingData();

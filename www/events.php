@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+<?php	include 'common.php'; ?>
 <?php	include 'common/menuHead.inc'; ?>
 <script>
 		var TriggerEventSelected = "";
@@ -20,6 +21,29 @@
 							EditEvent();
 		});
 	});
+
+var controlMajor;
+var controlMinor;
+function SaveControlChannels()
+{
+	controlMajor = $('#controlMajor').val();
+	controlMinor = $('#controlMinor').val();
+
+	$.get('fppjson.php?command=setSetting&key=controlMajor&value=' + controlMajor)
+		.success(function() {
+			$.get('fppjson.php?command=setSetting&key=controlMinor&value=' + controlMinor)
+				.success(function() {
+					$.jGrowl('Event Control Channels Saved');
+					settings['controlMajor'] = controlMajor;
+					settings['controlMinor'] = controlMinor;
+				}).fail(function() {
+						DialogError('Event Control Channels', 'Failed to save Minor Event Control Channel');
+				});
+		}).fail(function() {
+				DialogError('Event Control Channels', 'Failed to save Major Event Control Channel');
+		});
+}
+
 </script>
 
 <title>Falcon PI Player - Events</title>
@@ -125,7 +149,7 @@
 <br/>
 <div id="programControl" class="settings">
 	<fieldset>
-		<legend>Program Control</legend>
+		<legend>Player Status</legend>
 		<div id="daemonControl">
 			<table width= "100%">
 				<tr>
@@ -142,46 +166,31 @@
 				</tr>
 			</table>
 		</div>
-		<hr>
-		<div id="bytesTransferred"><H3>Bytes Transferred</H3>
-		<div id="bridgeStatistics1"></div>
-		<div id="bridgeStatistics2"></div>
-		<div class="clear"></div>
-		</div>
-		<div id="playerStatus">
-			<table width= "100%">
-				<tr>
-					<td class='controlHeader'>Player Status: </td>
-					<td id="txtPlayerStatus"></td>
-				</tr>
-			</table>
-			<table width= "100%">
-				<tr>
-					<td id="txtTimePlayed"></td>
-					<td id="txtTimeRemaining"></td>
-				</tr>
-			</table>
-		</div>
-		<div id="playerControls" style="margin-top:5px">
-			<input id= "btnPlay" type="button" class ="buttons"value="Start a Playlist" onClick="location.href = '/index.php';">
-			<input id= "btnStopGracefully" type="button" class ="buttons"value="Stop Gracefully" onClick="StopGracefully();">
-			<input id= "btnStopNow" type="button" class ="buttons" value="Stop Now" onClick="StopNow();">
-		</div>
 	</fieldset>
 
 	<br />
 
 	<fieldset>
 		<legend>Events</legend>
+		<table>
+			<tr><td colspan='5'>Event Control Channels: </td>
+					<td width='30'></td>
+					<td>Major:</td><td><? PrintSettingText("controlMajor", 6, 6); ?></td>
+					<td width='20'></td>
+					<td>Minor:</td><td><? PrintSettingText("controlMinor", 6, 6); ?></td></tr>
+		</table>
+		<input type='Submit' value='Save' onClick='SaveControlChannels();'>
+		<br>
+		<br>
 		<div>
 			<div id="eventList" class="unselectable">
 				<table id="tblEventListHeader" width="100%">
 					<tr class="eventListHeader">
-						<td class='eventTblID'>ID</td>
-						<td class='eventTblName'>Name</td>
-						<td class='eventTblScript'>Script</td>
-						<td class='eventTblEffect'>Effect</td>
-						<td class='eventTblStartCh'>Ch.</td>
+						<td class='fppTableHeader eventTblID'>ID</td>
+						<td class='fppTableHeader eventTblName'>Name</td>
+						<td class='fppTableHeader eventTblScript'>Script</td>
+						<td class='fppTableHeader eventTblEffect'>Effect</td>
+						<td class='fppTableHeader eventTblStartCh'>Ch.</td>
 					</tr>
 				</table>
 				<div id= "eventListContents">

@@ -103,13 +103,13 @@
       <table width= "100%">
         <tr>
           <td class='controlHeader'> FPPD Mode: </td>
-          <td class='controlValue'><select id="selFPPDmode"  onChange="SetFPPDmode();">
-          										<option id="optFPPDmode_Player" value="2">
-
-          										Player Mode</option>
-          										<option id="optFPPDmode_Bridge" value="1">
-          										Bridge Mode</option>
-                              </select></td>
+          <td class='controlValue'>
+				  	<select id="selFPPDmode" onChange="SetFPPDmode();">
+							<option id="optFPPDmode_Player" value="2">Player (Standalone)</option>
+							<option id="optFPPDmode_Master" value="6">Player (Master)</option>
+							<option id="optFPPDmode_Remote" value="8">Player (Remote)</option>
+							<option id="optFPPDmode_Bridge" value="1">Bridge</option>
+						</select></td>
           <td class='controlButton'>&nbsp;</td>
         </tr>
         <tr>
@@ -123,13 +123,16 @@
         </tr>
       </table>
     </div>
-    <hr>
+    <div id="remoteStatus">
+    </div>
     <div id="bytesTransferred"><H3>Bytes Transferred</H3>
-    <div id="bridgeStatistics1"></div>
-    <div id="bridgeStatistics2"></div>
-    <div class="clear"></div>
+      <hr>
+      <div id="bridgeStatistics1"></div>
+      <div id="bridgeStatistics2"></div>
+      <div class="clear"></div>
     </div>
     <div id="playerStatus">
+      <hr>
       <div>
         <div class='playerStatusLeft'>
           <table  width= "100%">

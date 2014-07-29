@@ -59,6 +59,7 @@ $command_array = Array(
 	"stopNow" => 'StopNow',
 	"stopFPPD" => 'StopFPPD',
 	"startFPPD" => 'StartFPPD',
+	"restartFPPD" => 'RestartFPPD',
 	"startPlaylist" => 'StartPlaylist',
 	"rebootPi" => 'RebootPi',
 	"shutdownPi" => 'ShutdownPi',
@@ -245,12 +246,14 @@ function SetPiLCDenabled()
 
 function SetFPPDmode()
 {
-	$mode_string[0] = "unknown";
-	$mode_string[1] = "bridge";
-	$mode_string[2] = "player";
+	$mode_string['0'] = "unknown";
+	$mode_string['1'] = "bridge";
+	$mode_string['2'] = "player";
+	$mode_string['6'] = "master";
+	$mode_string['8'] = "remote";
 	$mode = $_GET['mode'];
 	check($mode);
-  WriteSettingToFile("fppMode",$mode_string[$mode]);
+	WriteSettingToFile("fppMode",$mode_string["$mode"]);
 	EchoStatusXML("true");
 }
 
@@ -277,8 +280,20 @@ function GetVolume()
 
 function GetFPPDmode()
 {
-	$mode = ReadSettingFromFile("fppMode");
-	$fppMode = $mode == "bridge" ? "1":"2";
+	global $settings;
+	$mode = $settings['fppMode'];
+	$fppMode = 0;
+	switch ($mode) {
+		case "bridge": $fppMode = 1;
+									 break;
+		case "player": $fppMode = 2;
+									 break;
+		case "master": $fppMode = 6;
+									 break;
+		case "remote": $fppMode = 8;
+									 break;
+	}
+
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('mode');
 	$root = $doc->appendChild($root);
@@ -590,6 +605,13 @@ function StartFPPD()
 	EchoStatusXML($status);
 }
 
+function RestartFPPD()
+{
+	exec(SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_stop");
+
+	StartFPPD();
+}
+
 function GetFPPstatus()
 {
 	$status = SendCommand('s');
@@ -610,7 +632,7 @@ function GetFPPstatus()
 
 	$entry = explode(",",$status,13);
 	$fppMode = $entry[0];
-	if($fppMode == 2)
+	if($fppMode != 1)
 	{
 		$fppStatus = $entry[1];
 		if($fppStatus == '0')

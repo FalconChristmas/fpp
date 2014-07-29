@@ -34,10 +34,14 @@ OBJECTS_fppd = \
 	channeloutput/USBRenard.o \
 	command.o \
 	common.o \
+	controlrecv.o \
+	controlsend.o \
 	e131bridge.o \
 	effects.o \
 	events.o \
+	falcon.o \
 	fppd.o \
+	gpio.o \
 	log.o \
 	mediadetails.o \
 	mediaoutput/mediaoutput.o \
@@ -59,7 +63,11 @@ LIBS_fppd = \
 	$(NULL)
 
 
-ARCH := $(shell uname -m)
+ARCH := $(shell cat /etc/fpp/platform 2> /dev/null)
+ifeq '$(ARCH)' ''
+	ARCH = "UNKNOWN"
+endif
+$(shell echo "Building FPP for '$(ARCH)' platform" 1>&2)
 
 # Common CFLAGS
 CFLAGS += \
@@ -78,24 +86,20 @@ else
 CFLAGS += -Wno-write-strings
 endif
 
-ifeq ($(ARCH), armv6l)
+ifeq '$(ARCH)' 'Raspberry Pi'
 # do something RaspPi-y
 CFLAGS += \
 	-DUSEWIRINGPI \
 	$(NULL)
 LIBS_fppd += \
-	-lwiringPi \
+	-lwiringPi -lwiringPiDev \
 	$(NULL)
 else
-ifeq ($(filter-out i686 x86_64 armv5tel, $(ARCH)),)
 # do something Linux-y
 CFLAGS += \
 	-g \
 	-DNOROOT \
 	$(NULL)
-else
-	VAR := $(error Unsupported architecture type)
-endif
 endif
 
 

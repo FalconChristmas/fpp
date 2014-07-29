@@ -47,7 +47,7 @@
 <br/>
 <div id="top" class="settings">
   <fieldset>
-    <legend>Program Control</legend>
+    <legend>Player Status</legend>
     <div id="daemonControl">
       <table width= "100%">
         <tr>
@@ -64,42 +64,16 @@
         </tr>
       </table>
     </div>
-    <hr>
-    <div id="bytesTransferred"><H3>Bytes Transferred</H3>
-    <div id="bridgeStatistics1"></div>
-    <div id="bridgeStatistics2"></div>
-    <div class="clear"></div>
-    </div>
-    <div id="playerStatus">
-      <table  width= "100%">
-        <tr>
-          <td class='controlHeader'>Player Status: </td>
-          <td id="txtPlayerStatus"></td>
-        </tr>
-      </table>
-      <table  width= "100%">
-        <tr>
-          <td id="txtTimePlayed"></td>
-          <td id="txtTimeRemaining"></td>
-        </tr>
-      </table>
-    </div>
-    <div id="playerControls" style="margin-top:5px">
-      <input id= "btnPlay" type="button"  class ="buttons"value="Start a Playlist" onClick="location.href = '/index.php';">
-      <input id= "btnStopGracefully" type="button"  class ="buttons"value="Stop Gracefully" onClick="StopGracefully();">
-      <input id= "btnStopNow" type="button" class ="buttons" value="Stop Now" onClick="StopNow();">
-    </div>
   </fieldset>
 
   <br />
-
+  <fieldset class="fs">
+	  <legend> Effects </legend>
       <div id= "divEffectLibrary">
-        <fieldset class="fs">
-          <legend> Effects Library </legend>
           <div id="effectLibrary">
             <table id="tblEffectListHeader" width="100%">
               <tr class="effectListHeader">
-                <td width="100%">Effect</td>
+                <td width="100%" class='fppTableHeader'>Effects Library</td>
               </tr>
             </table>
             <div>
@@ -116,17 +90,13 @@
             </div>
             <input id= "btnPlayEffect" type="button" class ="disableButtons" value="Play Effect" onClick="PlayEffect($('#effectStartChannel').val());">
           </div>
-        </fieldset>
-      <br />
       </div>
       <div id= "divRunningEffects">
-        <fieldset  class="fs">
-          <legend> Running Effects </legend>
           <div id="runningEffects">
             <table id="tblEffectListHeader" width="100%">
               <tr class="effectListHeader">
-                <td width="5%">ID</td>
-                <td width="95%">Effect</td>
+                <td width="5%" class="fppTableHeader">ID</td>
+                <td width="95%" class="fppTableHeader">Running Effects</td>
               </tr>
             </table>
             <div>
@@ -137,8 +107,8 @@
           <div class='right'>
             <input id="btnStopEffect" type="button" class="disableButtons" value="Stop Effect" onclick="StopEffect();" />
           </div>
-        </fieldset>
       </div>
+   </fieldset>
 </div>
 <?php include 'common/footer.inc'; ?>
 </body>

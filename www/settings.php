@@ -124,6 +124,10 @@ function AudioOutputChanged()
       <td width = "75%"><? PrintSettingCheckbox("Screensaver", "screensaver", "1", "0"); ?></td>
     </tr>
     <tr>
+      <td width = "25%">Force Analog Audio Output:</td>
+      <td width = "75%"><? PrintSettingCheckbox("Force Analog Audio Output", "forceLocalAudio", "1", "0"); ?></td>
+    </tr>
+    <tr>
       <td width = "25%">Pi 2x16 LCD Enabled:</td>
       <td width = "75%"><input type="checkbox" id="chkPiLCDenabled" value="1" <?php echo piLCDenabledChecked();?>></td>
     </tr>
@@ -168,7 +172,7 @@ function AudioOutputChanged()
               <input type='checkbox' class='mask_schedule'>Scheduler<br>
               <input type='checkbox' class='mask_sequence'>Sequence Parser<br>
               <input type='checkbox' class='mask_setting'>Settings<br>
-              <input type='checkbox' class='mask_sync'>Master/Slave Sync<br>
+              <input type='checkbox' class='mask_sync'>MultiSync<br>
               </td>
           </tr>
         </table>

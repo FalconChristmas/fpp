@@ -185,6 +185,8 @@ int SetLogMask(char *newMask)
 			logMask |= VB_CONTROL;
 		} else if (!strcmp(s, "plugin")) {
 			logMask |= VB_PLUGIN;
+		} else if (!strcmp(s, "gpio")) {
+			logMask |= VB_GPIO;
 		} else {
 			LogErr(VB_SETTING, "Unknown Log Mask: %s\n", s);
 			return 0;

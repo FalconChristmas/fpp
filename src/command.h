@@ -26,8 +26,8 @@
 #define COMMAND_FAILED        0   
 #define COMMAND_SUCCESS       1   
 
-void Command_Initialize();
+int Command_Initialize();
 void CloseCommand();
-void Commandproc();
-void ProcessCommand();
+void CommandProc();
+void ProcessCommand(char *command);
 void exit_handler(int signum);

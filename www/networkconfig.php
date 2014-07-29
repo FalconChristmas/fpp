@@ -332,6 +332,17 @@ function DisableDNSFields(disabled)
   $('#dns2').prop( "disabled", disabled );
 }
 
+function setHostName() {
+	$.get("fppjson.php?command=setSetting&key=HostName&value="
+		+ $('#hostName').val()
+	).success(function() {
+		$.jGrowl("HostName Saved");
+		refreshFPPSystems();
+	}).fail(function() {
+		DialogError("Save HostName", "Save Failed");
+	});
+}
+
 </script>
 <div id="bodyWrapper">
 <?php include 'menu.inc'; ?>
@@ -393,8 +404,15 @@ function DisableDNSFields(disabled)
         <div id="DNS_Servers">
         <br>
         <fieldset class="fs2">
-          <legend>DNS Servers</legend>
+          <legend>DNS Settings</legend>
           <table width="100%" border="0" cellpadding="1" cellspacing="1">
+            <tr>
+              <td width = "25%">HostName:</td>
+              <td colspan='2'><input id='hostName' value='<? if (isset($settings['HostName'])) echo $settings['HostName']; else echo 'FPP'; ?>' size='30' maxlength='30'> <input type='button' class='buttons' value='Save' onClick='setHostName();'></td>
+            </tr>
+            <tr>
+              <td>&nbsp;</td>
+            </tr>
             <tr>
               <td>DNS Server Mode:</td>
               <td><label><input type="radio" id ="dns_manual" value="manual">

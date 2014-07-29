@@ -39,8 +39,9 @@
 
 typedef struct usbPixelnetPrivData {
 	char  filename[1024];
-	char  outputData[4102]; // Up to 6-bytes of header followed by 4096 bytes of data
+	char  rawData[4104];    // Sized to allow 8-byte alignment
 	int   outputPacketSize; // Header size + 4096
+	char *outputData;
 	char *pixelnetData;
 	int   fd;
 } USBPixelnetPrivData;
@@ -140,11 +141,16 @@ int USBPixelnet_Open(char *configStr, void **privDataPtr) {
 	}
 
 	if (dongleType == PIXELNET_DVC_LYNX) {
+		privData->outputData    = privData->rawData + 7;
+		privData->pixelnetData  = privData->outputData + 1;
+
 		privData->outputData[0] = '\xAA';
 
-		privData->pixelnetData = privData->outputData + 1;
 		privData->outputPacketSize = 4097;
 	} else if (dongleType == PIXELNET_DVC_OPEN) {
+		privData->outputData    = privData->rawData + 2;
+		privData->pixelnetData  = privData->outputData + 6;
+
 		privData->outputData[0] = '\xAA';
 		privData->outputData[1] = '\x55';
 		privData->outputData[2] = '\x55';
@@ -152,7 +158,6 @@ int USBPixelnet_Open(char *configStr, void **privDataPtr) {
 		privData->outputData[4] = '\x15';
 		privData->outputData[5] = '\x5D';
 
-		privData->pixelnetData = privData->outputData + 6;
 		privData->outputPacketSize = 4102;
 	}
 
@@ -227,13 +232,11 @@ int USBPixelnet_SendData(void *data, char *channelData, int channelCount)
 	memcpy(privData->pixelnetData, channelData, channelCount);
 
 	// 0xAA is start of Pixelnet packet, so convert 0xAA (170) to 0xAB (171)
-	char *dptr = privData->pixelnetData;
-	int i = 0;
-	for( i = 0; i < 4096; i++ ) {
-		if (*dptr == '\xAA')
-			*dptr = '\xAB';
-
-		dptr++;
+	unsigned char *dptr = (unsigned char *)privData->pixelnetData;
+	unsigned char *eptr = dptr + 4096;
+	for( ; dptr < eptr; dptr++ ) {
+		if (*dptr == 0xAA)
+			*dptr = 0xAB;
 	}
 
 	// Send Header and Pixelnet Data

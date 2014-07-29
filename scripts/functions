@@ -110,4 +110,43 @@ runPostStopPluginScripts() {
 }
 
 #############################################################################
+# Update the Avahi daemon service config file for fpp
+updateAvahiConfig() {
+	TMPFILE="/var/tmp/fpp.service"
+	AVAHICFGFILE="/etc/avahi/services/fpp.service"
+
+	fppMode=$(getSetting fppMode)
+	platform=$(cat /etc/fpp/platform)
+
+	cat > ${TMPFILE} <<-EOF
+		<?xml version="1.0" standalone='no'?><!--*-nxml-*-->
+		<!DOCTYPE service-group SYSTEM "avahi-service.dtd">
+
+		<service-group>
+		  <name replace-wildcards="yes">%h</name>
+		  <service>
+		    <type>_fpp-httpd._tcp</type>
+		    <port>80</port>
+		  </service>
+		  <service>
+		    <type>_fpp-fppd._udp</type>
+		    <port>32320</port>
+		    <txt-record>fppMode=${fppMode},platform=${platform}</txt-record>
+		  </service>
+		</service-group>
+		EOF
+
+	cp ${TMPFILE} ${AVAHICFGFILE}
+}
+#############################################################################
+# Start/Stop the Web Socket Server
+startWebSocketServer() {
+	/usr/bin/nohup ${SCRIPTDIR}/fppwss > ${LOGDIR}/fppwss.log 2>&1 &
+}
+
+stopWebSocketServer() {
+	killall -9 fppwss
+}
+
+#############################################################################
 

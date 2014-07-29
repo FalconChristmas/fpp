@@ -49,11 +49,13 @@ typedef struct fppChannelOutputInstance {
 extern char            channelData[];
 extern pthread_mutex_t channelDataLock;
 extern unsigned long   channelOutputFrame;
+extern float           mediaElapsedSeconds;
 
 
 int  InitializeChannelOutputs(void);
 int  SendChannelData(char *channelData);
 int  CloseChannelOutputs(void);
+void SetChannelOutputFrameNumber(int frameNumber);
 void ResetChannelOutputFrameNumber(void);
 int  LoadChannelRemapData(void);
 

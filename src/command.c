@@ -57,7 +57,6 @@ extern PlaylistDetails playlistDetails;
 extern int numberOfSecondsPaused;
 extern PlaylistDetails playlistDetails;
 
- char command[256];
  char response[1056];
  int socket_fd;
  struct sockaddr_un server_address;
@@ -66,7 +65,7 @@ extern PlaylistDetails playlistDetails;
  int integer_buffer;
  socklen_t address_length = sizeof(struct sockaddr_un);
 
- void Command_Initialize()
+ int Command_Initialize()
  {
    mode_t old_umask;
 
@@ -77,6 +76,7 @@ extern PlaylistDetails playlistDetails;
    if((socket_fd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0)
    {
     perror("server: socket");
+    return 0;
    }
 
    fcntl(socket_fd, F_SETFL, O_NONBLOCK);
@@ -91,9 +91,12 @@ extern PlaylistDetails playlistDetails;
    {
     close(socket_fd);
     perror("server: bind");
+    return 0;
    }
 
    umask(old_umask);
+
+   return socket_fd;
  }
 
  void CloseCommand()
@@ -102,8 +105,10 @@ extern PlaylistDetails playlistDetails;
    unlink(FPP_SERVER_SOCKET);
  }
 
- void Commandproc()
+ void CommandProc()
 {
+  char command[256];
+
   bzero(command, sizeof(command));
   bytes_received = recvfrom(socket_fd, command,256, 0,
                            (struct sockaddr *) &(client_address),
@@ -111,12 +116,12 @@ extern PlaylistDetails playlistDetails;
 
   if(bytes_received > 0)
   {
-    ProcessCommand();
+    ProcessCommand(command);
   }
 
  }
 
-  void ProcessCommand()
+  void ProcessCommand(char *command)
   {
     char *s;
     char *s2;

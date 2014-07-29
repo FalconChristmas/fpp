@@ -17,23 +17,35 @@ fi
 . ${BINDIR}/common
 . ${BINDIR}/functions
 
-echo "FPP - Setting up for the Falcon Pi Player"
+
+echo "FPP - Setting up for the Falcon Pi Player on the ${PLATFORM} platform"
 
 # Copy our php.ini script into place for when we restart apache
 echo "FPP - Copying php.ini into place"
 cp ${FPPDIR}/etc/php.ini /etc/php5/apache2/php.ini
+
+# Copy our splash.mp4 file into place for boot splash video
+echo "FPP - Copying splash.mp4 into place"
+cp ${FPPDIR}/etc/splash.mp4 /etc/splash.mp4
 
 # If the flash drive is not mounted yet, then fix Apache so it can at least start up
 if [ ! -d "/home/pi/media/logs" ]
 then
 	echo "FPP - Reconfiguring Apache to disable logging since flash is not mounted"
 	sed -i "s/ErrorLog/#ErrorLog/" /etc/apache2/sites-available/default
-	/etc/rc2.d/S02apache2 restart
+	/etc/init.d/apache2 restart
 fi
 
 # Configure Network and DNS
 echo "FPP - Configuring Network"
 ${BINDIR}/config_network
+
+HOSTNAME=$(getSetting HostName)
+if [ "x${HOSTNAME}" != "x" ]
+then
+	echo ${HOSTNAME} > /etc/hostname
+	hostname ${HOSTNAME}
+fi
 
 echo "FPP - Configuring DNS"
 ${BINDIR}/config_dns
@@ -48,6 +60,10 @@ SILENCEPID=$!
 
 amixer cset numid=3 1
 ORIGVOLUME=$(getSetting volume)
+if [ "x${ORIGVOLUME}" = "x" ]
+then
+	ORIGVOLUME=75
+fi
 # Switch to this more accurate setting for or after v0.3.0
 VOLUME=$(echo "scale=2 ; ${ORIGVOLUME} / 2.0 + 50" | bc)
 amixer set PCM ${VOLUME}%
@@ -65,17 +81,20 @@ if [ ! -e /proc/asound/card$(sed -n '/card [0-9]*/p' /root/.asoundrc | head -n 1
 fi
 
 echo "FPP - Setting max IGMP memberships"
-sysctl net/ipv4/igmp_max_memberships=150
+sysctl net/ipv4/igmp_max_memberships=150 2>&1
 
-echo "FPP - Setting up SPI"
-/usr/local/bin/gpio load spi 100
-# spidev is no longer a module, so we need to set the
-# buffer size differently for now
-chmod u+w /sys/module/spidev/parameters/bufsiz
-echo 102400 > /sys/module/spidev/parameters/bufsiz
+if [ "${PLATFORM}" = "Raspberry Pi" ]
+then
+	echo "FPP - Setting up SPI"
+	/usr/local/bin/gpio load spi 100
+	# spidev is no longer a module, so we need to set the
+	# buffer size differently for now
+	chmod u+w /sys/module/spidev/parameters/bufsiz
+	echo 102400 > /sys/module/spidev/parameters/bufsiz
 
-echo "FPP - Configuring RTC"
-${BINDIR}/piRTC
+	echo "FPP - Configuring RTC"
+	${BINDIR}/piRTC
+fi
 
 # Make sure our DHCP IPs are up before we log/announce them.
 echo "FPP - Waiting for DHCP IPs on configured interfaces"
@@ -86,12 +105,18 @@ _IP=$(hostname -I) || true
 if [ "$_IP" ]; then
   echo "FPP - Found IPs: $_IP"
   arrHost=(${_IP// / })
-  flite -voice kal "I Have Found The Following I P Addresses, ${arrHost[0]}, ${arrHost[1]},  ${arrHost[2]}" &
+  flite -voice awb "I Have Found The Following I P Addresses, ${arrHost[0]}, ${arrHost[1]},  ${arrHost[2]}" &
 fi
 
+grep -q "^[^#].*/home/pi/media" /etc/fstab
+MOUNTMEDIA=$?
+if [ ${MOUNTMEDIA} -eq 0 ]
+then
 # Check for flash drive mounted
 echo "FPP - Checking for mounted flash drive"
-while [ true ]
+fi
+
+while [ ${MOUNTMEDIA} -eq 0 ]
 do
 if [ "$(df -h ${MEDIADIR} | tail -n 1 | awk '{print $1}')" == "$(df -h / | tail -n 1 | awk '{print $1}')" ];
 then
@@ -100,8 +125,8 @@ then
 	sleep 5;
 	mount -a;
 else
-	echo "      Flash Media mounted, checking for required subdirectories.";
-	DIRS="config effects events logs music playlists scripts sequences upload videos"
+	echo "      Flash Media mounted.";
+	DIRS="config effects events logs music playlists scripts sequences upload videos plugins plugindata"
 	echo "FPP - Checking for required directories"
 	for DIR in ${DIRS}
 	do
@@ -119,7 +144,7 @@ done
 
 echo "FPP - Copying Apache config into place and restarting Apache"
 sed -e "s#FPPDIR#${FPPDIR}#g" < ${FPPDIR}/etc/apache2.site > /etc/apache2/sites-available/default
-/etc/rc2.d/S02apache2 restart
+/etc/init.d/apache2 restart
 
 echo "FPP - Starting FPP boot script"
 ${BINDIR}/fpp_boot
@@ -147,9 +172,3 @@ else
 	echo "FPP - Turning OFF screen blanking"
 	setterm -blank 0
 fi
-
-# Sleep for just a little while so the user can see the login prompt before
-# we display the logo
-echo "FPP - Setting delayed splash screen"
-(sleep 60 ; /usr/bin/fbi -T 1 -noverbose -a /etc/splash.png) &
-
