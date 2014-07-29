@@ -24,6 +24,10 @@ echo "FPP - Setting up for the Falcon Pi Player on the ${PLATFORM} platform"
 echo "FPP - Copying php.ini into place"
 cp ${FPPDIR}/etc/php.ini /etc/php5/apache2/php.ini
 
+# Copy our splash.mp4 file into place for boot splash video
+echo "FPP - Copying splash.mp4 into place"
+cp ${FPPDIR}/etc/splash.mp4 /etc/splash.mp4
+
 # If the flash drive is not mounted yet, then fix Apache so it can at least start up
 if [ ! -d "/home/pi/media/logs" ]
 then
@@ -94,7 +98,7 @@ _IP=$(hostname -I) || true
 if [ "$_IP" ]; then
   echo "FPP - Found IPs: $_IP"
   arrHost=(${_IP// / })
-  flite -voice kal "I Have Found The Following I P Addresses, ${arrHost[0]}, ${arrHost[1]},  ${arrHost[2]}" &
+  flite -voice awb "I Have Found The Following I P Addresses, ${arrHost[0]}, ${arrHost[1]},  ${arrHost[2]}" &
 fi
 
 grep -q "^[^#].*/home/pi/media" /etc/fstab
@@ -161,9 +165,3 @@ else
 	echo "FPP - Turning OFF screen blanking"
 	setterm -blank 0
 fi
-
-# Sleep for just a little while so the user can see the login prompt before
-# we display the logo
-echo "FPP - Setting delayed splash screen"
-(sleep 60 ; /usr/bin/fbi -T 1 -noverbose -a /etc/splash.png) &
-
