@@ -45,7 +45,6 @@
 #   include "wiringPiSPI.h"
 #else
 #   define wiringPiSPISetup(a,b)    1
-#   define wiringPiSetupSys()       0
 #   define wiringPiSPIDataRW(a,b,c) c
 #   define delayMicroseconds(a)     0
 #endif

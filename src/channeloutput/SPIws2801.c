@@ -40,7 +40,6 @@
 #   include "wiringPiSPI.h"
 #else
 #   define wiringPiSPISetup(a,b)    1
-#   define wiringPiSetupSys()       0
 #   define wiringPiSPIDataRW(a,b,c) 1
 #   define delayMicroseconds(a)     0
 #endif
@@ -121,7 +120,6 @@ int SPIws2801_Open(char *configStr, void **privDataPtr) {
 		LogErr(VB_CHANNELOUT, "Unable to open SPI device\n") ;
 		return 0;
 	}
-	wiringPiSetupSys();
 
 	SPIws2801_Dump(privData);
 

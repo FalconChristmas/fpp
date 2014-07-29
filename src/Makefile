@@ -41,6 +41,7 @@ OBJECTS_fppd = \
 	events.o \
 	falcon.o \
 	fppd.o \
+	gpio.o \
 	log.o \
 	mediadetails.o \
 	mediaoutput/mediaoutput.o \

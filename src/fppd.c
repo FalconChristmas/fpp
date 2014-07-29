@@ -33,6 +33,7 @@
 #include "effects.h"
 #include "fppd.h"
 #include "fpp.h"
+#include "gpio.h"
 #include "log.h"
 #include "mediaoutput.h"
 #include "memorymap.h"
@@ -52,6 +53,15 @@
 #include <pthread.h>
 #include <string.h>
 #include <sys/stat.h>
+
+#ifdef USEWIRINGPI
+#   include <wiringPi.h>
+#   include <piFace.h>
+#else
+#   define wiringPiSetupSys()       0
+#   define wiringPiSetupGpio()      0
+#   define piFaceSetup(x)
+#endif
 
 pid_t pid, sid;
 int FPPstatus=FPP_STATUS_IDLE;
@@ -74,6 +84,11 @@ int main(int argc, char *argv[])
 	// Start functioning
 	if (getDaemonize())
 		CreateDaemon();
+
+	wiringPiSetupGpio(); // would prefer wiringPiSetupSys();
+	piFaceSetup(200); // PiFace inputs 1-8 == wiringPi 201-208
+
+	SetupGPIOInput();
 
 	InitPluginCallbacks();
 
@@ -240,6 +255,8 @@ void MainLoop(void)
 
 			ScheduleProc();
 		}
+
+		CheckGPIOInputs();
 	}
 
 	StopChannelOutputThread();

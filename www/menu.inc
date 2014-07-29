@@ -107,11 +107,12 @@ if ( $handle )
 ?>
         </ul>
       </li>
-      <li id='outputMenu'><a href="#">Output Setup</a>
+      <li id='outputMenu'><a href="#">Input/Output Setup</a>
         <ul>
           <li><a href="channeloutputs.php">Channel Outputs</a></li>
           <li><a href="channelremaps.php">Remap Channels</a></li>
           <li><a href="channelmemorymaps.php">Memory Mapped Channel Blocks</a></li>
+          <li><a href="gpio.php">GPIO Inputs</a></li>
 <?php
 $handle = opendir($pluginDirectory);
 if ( $handle )

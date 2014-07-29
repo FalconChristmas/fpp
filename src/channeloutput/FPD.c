@@ -43,7 +43,6 @@
 #	include "wiringPiSPI.h"
 #else
 #	define wiringPiSPISetup(a,b)    1
-#	define wiringPiSetupSys()       0
 #	define wiringPiSPIDataRW(a,b,c) c
 #	define delayMicroseconds(a)     0
 #endif
@@ -126,7 +125,6 @@ int InitializePixelnetDMX()
 	    LogErr(VB_CHANNELOUT, "Unable to open SPI device\n") ;
 		return 0;
 	}
-	wiringPiSetupSys();
 	SendFPDConfig();
 
 	return 1;
