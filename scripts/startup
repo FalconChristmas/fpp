@@ -40,6 +40,13 @@ fi
 echo "FPP - Configuring Network"
 ${BINDIR}/config_network
 
+HOSTNAME=$(getSetting HostName)
+if [ "x${HOSTNAME}" != "x" ]
+then
+	echo ${HOSTNAME} > /etc/hostname
+	hostname ${HOSTNAME}
+fi
+
 echo "FPP - Configuring DNS"
 ${BINDIR}/config_dns
 
