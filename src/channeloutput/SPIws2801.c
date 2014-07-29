@@ -44,6 +44,8 @@
 #   define delayMicroseconds(a)     0
 #endif
 
+#define SPIWS2801_MAX_CHANNELS  1530
+
 /////////////////////////////////////////////////////////////////////////////
 
 typedef struct spiWS2801PrivData {
@@ -180,10 +182,10 @@ int SPIws2801_SendData(void *data, char *channelData, int channelCount)
 
 	SPIws2801PrivData *privData = (SPIws2801PrivData*)data;
 
-	if (channelCount > 510) {
+	if (channelCount > SPIWS2801_MAX_CHANNELS) {
 		LogErr(VB_CHANNELOUT,
-			"SPIws2801_SendData() tried to send %d bytes when max is 510\n",
-			channelCount);
+			"SPIws2801_SendData() tried to send %d bytes when max is %d\n",
+			channelCount, SPIWS2801_MAX_CHANNELS);
 		return 0;
 	}
 
@@ -195,7 +197,7 @@ int SPIws2801_SendData(void *data, char *channelData, int channelCount)
  *   */
 int SPIws2801_MaxChannels(void *data)
 {
-	return 510;
+	return SPIWS2801_MAX_CHANNELS;
 }
 
 /*

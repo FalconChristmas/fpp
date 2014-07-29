@@ -414,28 +414,9 @@ function SetChannelOutputs() {
 
 		output += type + ",";
 
-		// Start Channel
-		var startChannel = $this.find("td:nth-child(4) input").val();
-		if ((startChannel == "") || isNaN(startChannel)) {
-			DialogError("Save Channel Outputs",
-				"Invalid Start Channel '" + startChannel + "' on row " + rowNumber);
-			dataError = 1;
-			return;
-		}
-		output += startChannel + ",";
-
-		// Channel Count
-		var channelCount = $this.find("td:nth-child(5) input").val();
-		if ((channelCount == "") || isNaN(channelCount)) {
-			DialogError("Save Channel Outputs",
-				"Invalid Channel Count '" + channelCount + "' on row " + rowNumber);
-			dataError = 1;
-			return;
-		}
-		output += channelCount + ",";
-
 		// Get output specific options
 		var config = "";
+		var maxChannels = 510;
 		if ((type == "DMX-Pro") ||
 			(type == "DMX-Open") ||
 			(type == "Pixelnet-Lynx") ||
@@ -443,21 +424,50 @@ function SetChannelOutputs() {
 			config += GetUSBOutputConfig($this.find("td:nth-child(6)"));
 			if (config == "") {
 				dataError = 1;
+				DialogError("Save Channel Outputs", "Invalid Output Config");
 				return;
 			}
+			maxChannels = 512;
+			if (type.substring(1,8) == "Pixelnet")
+			    maxChannels = 4096;
 		} else if (type == "Renard") {
 			config += GetRenardOutputConfig($this.find("td:nth-child(6)"));
 			if (config == "") {
 				dataError = 1;
+				DialogError("Save Channel Outputs", "Invalid Output Config");
 				return;
 			}
+			maxChannels = 1528;
 		} else if (type == "SPI-WS2801") {
 			config += GetSPIOutputConfig($this.find("td:nth-child(6)"));
 			if (config == "") {
 				dataError = 1;
+				DialogError("Save Channel Outputs", "Invalid Output Config");
 				return;
 			}
+			maxChannels = 1530;
 		}
+
+		// Channel Count
+		var channelCount = $this.find("td:nth-child(5) input").val();
+		if ((channelCount == "") || isNaN(channelCount) || (channelCount > maxChannels)) {
+			DialogError("Save Channel Outputs",
+				"Invalid Channel Count '" + channelCount + "' on row " + rowNumber);
+			dataError = 1;
+			return;
+		}
+
+		// Start Channel
+		var startChannel = $this.find("td:nth-child(4) input").val();
+		if ((startChannel == "") || isNaN(startChannel) || ((startChannel + channelCount) > 65536)) {
+			DialogError("Save Channel Outputs",
+				"Invalid Start Channel '" + startChannel + "' on row " + rowNumber);
+			dataError = 1;
+			return;
+		}
+
+		output += startChannel + ",";
+		output += channelCount + ",";
 		output += config;
 
 		postData.Outputs.push(output);
@@ -495,7 +505,7 @@ function AddOtherTypeOptions(row, type) {
 		row.find("td input.count").val("286");
 	} else if (type == "SPI-WS2801") {
 		config += NewSPIConfig();
-		row.find("td input.count").val("510");
+		row.find("td input.count").val("1530");
 	}
 
 	row.find("td input.start").val("1");
