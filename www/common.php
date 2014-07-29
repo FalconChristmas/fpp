@@ -135,5 +135,28 @@ function " . $setting . "Changed() {
 
 	echo " onChange='" . $setting . "Changed();'>\n";
 }
+
+function PrintSettingText($setting, $maxlength = 32, $size = 32, $pluginName = "")
+{
+	global $settings;
+	global $pluginSettings;
+
+	$plugin = "";
+	$settingsName = "settings";
+
+	if ($pluginName != "") {
+		$plugin = "Plugin";
+		$settingsName = "pluginSettings";
+	}
+
+	echo "
+<input type='text' id='$setting' maxlength='$maxlength' size='$size' value='";
+
+	if (isset($settings[$setting]))
+		echo $settings[$setting];
+
+	echo "'>\n";
+}
+
 ?>
 

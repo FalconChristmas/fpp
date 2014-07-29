@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+<?php	include 'common.php'; ?>
 <?php	include 'common/menuHead.inc'; ?>
 <script>
 		var TriggerEventSelected = "";
@@ -20,6 +21,29 @@
 							EditEvent();
 		});
 	});
+
+var controlMajor;
+var controlMinor;
+function SaveControlChannels()
+{
+	controlMajor = $('#controlMajor').val();
+	controlMinor = $('#controlMinor').val();
+
+	$.get('fppjson.php?command=setSetting&key=controlMajor&value=' + controlMajor)
+		.success(function() {
+			$.get('fppjson.php?command=setSetting&key=controlMinor&value=' + controlMinor)
+				.success(function() {
+					$.jGrowl('Event Control Channels Saved');
+					settings['controlMajor'] = controlMajor;
+					settings['controlMinor'] = controlMinor;
+				}).fail(function() {
+						DialogError('Event Control Channels', 'Failed to save Minor Event Control Channel');
+				});
+		}).fail(function() {
+				DialogError('Event Control Channels', 'Failed to save Major Event Control Channel');
+		});
+}
+
 </script>
 
 <title>Falcon PI Player - Events</title>
@@ -148,6 +172,16 @@
 
 	<fieldset>
 		<legend>Events</legend>
+		<table>
+			<tr><td colspan='5'>Event Control Channels: </td>
+					<td width='30'></td>
+					<td>Major:</td><td><? PrintSettingText("controlMajor", 6, 6); ?></td>
+					<td width='20'></td>
+					<td>Minor:</td><td><? PrintSettingText("controlMinor", 6, 6); ?></td></tr>
+		</table>
+		<input type='Submit' value='Save' onClick='SaveControlChannels();'>
+		<br>
+		<br>
 		<div>
 			<div id="eventList" class="unselectable">
 				<table id="tblEventListHeader" width="100%">

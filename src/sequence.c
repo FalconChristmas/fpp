@@ -189,22 +189,6 @@ void ReadSequenceData(void) {
 		{
 			bytesRead = fread(seqData, 1, seqStepSize, seqFile);
 			seqFilePosition += bytesRead;
-
-			if (getControlMajor() && getControlMinor())
-			{
-				char thisMajor = NormalizeControlValue(seqData[getControlMajor()-1]);
-				char thisMinor = NormalizeControlValue(seqData[getControlMinor()-1]);
-
-				if ((seqLastControlMajor != thisMajor) ||
-					(seqLastControlMinor != thisMinor))
-				{
-					seqLastControlMajor = thisMajor;
-					seqLastControlMinor = thisMinor;
-
-					if (seqLastControlMajor && seqLastControlMinor)
-						TriggerEvent(seqLastControlMajor, seqLastControlMinor);
-				}
-			}
 		}
 
 		if (bytesRead != seqStepSize)
@@ -225,6 +209,22 @@ void ReadSequenceData(void) {
 
 	if (UsingMemoryMapInput())
 		OverlayMemoryMap(seqData);
+
+	if (getControlMajor() && getControlMinor())
+	{
+		char thisMajor = NormalizeControlValue(seqData[getControlMajor()-1]);
+		char thisMinor = NormalizeControlValue(seqData[getControlMinor()-1]);
+
+		if ((seqLastControlMajor != thisMajor) ||
+			(seqLastControlMinor != thisMinor))
+		{
+			seqLastControlMajor = thisMajor;
+			seqLastControlMinor = thisMinor;
+
+			if (seqLastControlMajor && seqLastControlMinor)
+				TriggerEvent(seqLastControlMajor, seqLastControlMinor);
+		}
+	}
 }
 
 void SendSequenceData(void) {
