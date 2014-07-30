@@ -76,6 +76,8 @@ if ( ! $fd )
   return(1);
 }
 
+$settings['HostName'] = 'FPP';
+
 do
 {
 	global $settings;
@@ -84,8 +86,6 @@ do
 	global $eventDirectory, $videoDirectory, $scriptDirectory, $logDirectory;
 	global $pluginDirectory;
 	global $universeFile, $pixelnetFile, $scheduleFile, $bytesFile, $remapFile;
-
-	$settings['HostName'] = 'FPP';
 
 	// Parse the file, assuming it exists
 	$data = fgets($fd);
@@ -99,7 +99,7 @@ do
 	$key   = trim($split[0]);
 	$value = trim($split[1]);
 
-	if (trim($split[0]) != "") {
+	if ($key != "") {
 		// If we have a Directory setting that doesn't
 		// end in a slash, then add one
 		if ((preg_match("/Directory$/", $key)) &&
@@ -177,7 +177,7 @@ fclose($fd);
 
 $pageTitle = "FPP - " . $settings['HostName'];
 if ($settings['HostName'] == "FPP")
-	$pageTitle = "Falcon Pi Player - FPP";
+	$pageTitle = "Falcon (Pi) Player - FPP";
 
 $settings['fppMode'] = $fppMode;
 $settings['fppDir'] = $fppDir;
