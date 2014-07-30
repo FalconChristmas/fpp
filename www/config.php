@@ -97,6 +97,11 @@ else if ($settings['Platform'] == "BeagleBone Black")
 	$settings['Logo'] = "beagle_logo.png";
 	$settings['LogoLink'] = "http://beagleboard.org/";
 }
+else if ($settings['Platform'] == "PogoPlug")
+{
+	$settings['Logo'] = "pogoplug_logo.png";
+	$settings['LogoLink'] = "";
+}
 else if ($settings['Platform'] == "Linux")
 {
 	$settings['Logo'] = "tux_logo.png";
