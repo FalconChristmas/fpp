@@ -42,6 +42,7 @@ CleanupSource() {
 	rm -rf ${SRCROOTPATH}/tmp/.* 2> /dev/null
 	rm -rf ${SRCROOTPATH}/home/pi/fpp* 2> /dev/null
 	rm -rf ${SRCROOTPATH}/home/pi/.ssh/* 2> /dev/null
+	rm -rf ${SRCROOTPATH}/etc/ssh/ssh_host*key* 2> /dev/null
 
 	(cd ${SRCROOTPATH}/opt/fpp && git reset --hard)
 }
