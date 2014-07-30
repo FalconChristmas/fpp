@@ -80,6 +80,9 @@ if ( isset($_POST['timezone']) && !empty($_POST['timezone']) && urldecode($_POST
   exec(SUDO . " dpkg-reconfigure -f noninteractive tzdata", $output, $return_val);
   unset($output);
   //TODO: check return
+  exec(" bash -c \"echo $timezone > $mediaDirectory/timezone\"", $output, $return_val);
+  unset($output);
+  //TODO: check return
 }
 
 exec("ls -w 1 /etc/rc$(sudo runlevel | awk '{print $2}').d/ | grep ^S | grep -c ntp", $output, $return_val);

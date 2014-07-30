@@ -1,0 +1,24 @@
+#!/bin/bash
+
+BINDIR=$(cd $(dirname $0) && pwd)
+
+. ${BINDIR}/common
+
+if [ ! -d ${LOGDIR} ]
+then
+	mkdir -p ${LOGDIR}
+	chown pi.pi ${LOGDIR}
+	chmod 775 ${LOGDIR}
+fi
+
+if [ ! -f "${MEDIADIR}/timezone" ]
+then
+	cp /etc/timezone ${MEDIADIR}/timezone
+	exit 0
+fi
+
+if [ "x$(cat /etc/timezone)" != "x$(cat ${MEDIADIR}/timezone)" ]
+then
+	${SUDO} cp ${MEDIADIR}/timezone /etc/timezone
+	${SUDO} dpkg-reconfigure -f noninteractive tzdata
+fi
