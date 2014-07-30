@@ -78,6 +78,41 @@ if ( ! $fd )
 
 $settings['HostName'] = 'FPP';
 
+$settings['Platform'] = FALSE;
+if (file_exists("/etc/fpp/platform"))
+	$settings['Platform'] = trim(file_get_contents("/etc/fpp/platform"));
+
+if ($settings['Platform'] == FALSE)
+{
+	$settings['Platform'] = exec("uname -s");
+}
+
+if ($settings['Platform'] == "Raspberry Pi")
+{
+	$settings['Logo'] = "large_Raspberry_Pi_Logo_4.png";
+	$settings['LogoLink'] = "http://raspberrypi.org/";
+}
+else if ($settings['Platform'] == "BeagleBone Black")
+{
+	$settings['Logo'] = "beagle_logo.png";
+	$settings['LogoLink'] = "http://beagleboard.org/";
+}
+else if ($settings['Platform'] == "Linux")
+{
+	$settings['Logo'] = "tux_logo.png";
+	$settings['LogoLink'] = "http://www.linux.com/";
+}
+else if ($settings['Platform'] == "FreeBSD")
+{
+	$settings['Logo'] = "freebsd_logo.png";
+	$settings['LogoLink'] = "http://www.freebsd.org/";
+}
+else
+{
+	$settings['Logo'] = "";
+	$settings['LogoLink'] = "";
+}
+
 do
 {
 	global $settings;

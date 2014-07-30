@@ -44,7 +44,11 @@ if (!preg_match("/^$git_branch-/", $fpp_head_version))
 	}
 ?>
     </div>
-    <div class="headerRight"><a href="http://raspberrypi.org"><img src="images/large_Raspberry_Pi_Logo_4.png" class="logo" /></a></div>
+    <div class="headerRight">
+		  <? if ($settings['LogoLink'] != "") echo "<a href='" . $settings['LogoLink'] . "' target='_blank'>"; ?>
+		  <? if ($settings['Logo'] != "") echo "<img src='images/" . $settings['Logo'] . "' class='logo'>"; ?>
+		  <? if ($settings['LogoLink'] != "") echo "</a>"; ?>
+		</div>
     <div class="clear"></div>
   </div>
 
