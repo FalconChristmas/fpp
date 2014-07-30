@@ -101,7 +101,7 @@ function print_if_match($one, $two, $print)
 <html>
 <head>
 <?php include 'common/menuHead.inc'; ?>
-<title>Falcon PI Player - FPP</title>
+<title><? echo $pageTitle; ?></title>
 </head>
 <body>
 <div id="bodyWrapper">

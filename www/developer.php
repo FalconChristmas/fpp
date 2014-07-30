@@ -131,7 +131,7 @@ function ToggleDeveloperMode() {
 }
 
 </script>
-<title>FPP - Developer Info</title>
+<title><? echo $pageTitle; ?></title>
 <style>
 .clear {
   clear: both;

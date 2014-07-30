@@ -175,7 +175,7 @@ function ToggleDeveloperMode() {
 }
 
 </script>
-<title>About FPP</title>
+<title><? echo $pageTitle; ?></title>
 <style>
 .clear {
   clear: both;

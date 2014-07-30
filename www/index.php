@@ -1,7 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
-<?php	include 'common/menuHead.inc'; ?>
+<?php
+require_once('config.php');
+include 'common/menuHead.inc';
+?>
 <script>
     $(function() {
 		$('#tblStatusPlaylistEntries').on('mousedown', 'tr', function(event,ui){
@@ -14,7 +17,7 @@
 	});
 </script>
 
-<title>Falcon PI Player - FPP</title>
+<title><? echo $pageTitle; ?></title>
 
 	<script>
 		$(function() {

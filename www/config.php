@@ -85,6 +85,8 @@ do
 	global $pluginDirectory;
 	global $universeFile, $pixelnetFile, $scheduleFile, $bytesFile, $remapFile;
 
+	$settings['HostName'] = 'FPP';
+
 	// Parse the file, assuming it exists
 	$data = fgets($fd);
 	$split = explode("=", $data);
@@ -172,6 +174,10 @@ do
 while ( $data != NULL );
 
 fclose($fd);
+
+$pageTitle = "FPP - " . $settings['HostName'];
+if ($settings['HostName'] == "FPP")
+	$pageTitle = "Falcon Pi Player - FPP";
 
 $settings['fppMode'] = $fppMode;
 $settings['fppDir'] = $fppDir;

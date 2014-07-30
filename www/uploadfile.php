@@ -6,7 +6,7 @@ require_once('config.php');
 <head>
 <?php	include 'common/menuHead.inc'; ?>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<title>Files</title>
+<title><? echo $pageTitle; ?></title>
 
 <link  href="/jquery/jQuery-Upload-File/css/uploadfile.min.css" rel="stylesheet">
 

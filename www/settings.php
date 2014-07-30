@@ -108,7 +108,7 @@ function AudioOutputChanged()
 }
 
 </script>
-<title>Falcon PI Player - FPP</title>
+<title><? echo $pageTitle; ?></title>
 </head>
 <body>
 <div id="bodyWrapper">

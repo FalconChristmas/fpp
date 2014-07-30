@@ -20,7 +20,7 @@ if (isset($_GET['plugin']))
 <html>
 <head>
 <?php include 'common/menuHead.inc'; ?>
-<title>Falcon PI Player - FPP</title>
+<title><? echo $pageTitle; ?></title>
 <script type="text/javascript">
 	var pluginSettings = new Array();
 <?

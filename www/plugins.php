@@ -1,9 +1,12 @@
 <!DOCTYPE html>
 <html>
 <head>
-<?php include 'common/menuHead.inc'; ?>
+<?php
+require_once('config.php');
+include 'common/menuHead.inc';
+?>
 <script type="text/javascript" src="/js/fpp.js"></script>
-<title>Falcon PI Player - FPP</title>
+<title><? echo $pageTitle; ?></title>
 </head>
 <body>
 <div id="bodyWrapper">

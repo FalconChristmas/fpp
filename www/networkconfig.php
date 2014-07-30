@@ -29,7 +29,7 @@
 <head>
 <?php require_once('common.php'); ?>
 <?php include 'common/menuHead.inc'; ?>
-<title>Falcon PI Player - FPP</title>
+<title><? echo $pageTitle; ?></title>
 </head>
 <body>
 <?php

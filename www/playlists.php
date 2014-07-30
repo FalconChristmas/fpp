@@ -120,7 +120,7 @@ $(document).ready(function () {
             });
         });
     </script>
-    <title>Playlist Manager</title>
+    <title><? echo $pageTitle; ?></title>
     </head>
 
     <body onload="PopulateLists();">

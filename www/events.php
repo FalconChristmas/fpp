@@ -46,7 +46,7 @@ function SaveControlChannels()
 
 </script>
 
-<title>Falcon PI Player - Events</title>
+<title><? echo $pageTitle; ?></title>
 </head>
 <body onLoad="GetFPPDmode();StatusPopulatePlaylists();setInterval(updateFPPStatus,1000);">
 <div id="bodyWrapper">

@@ -1,12 +1,10 @@
 <html>
 <head>
-<?php include 'common/menuHead.inc'; ?>
-<title>Falcon PI Player - FPP</title>
 <?php
-
+include 'common/menuHead.inc';
 require_once("config.php");
-
 ?>
+<title><? echo $pageTitle; ?></title>
 <script>
 	function updateMultiSyncRemotes() {
 		var remotes = "";

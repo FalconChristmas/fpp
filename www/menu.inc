@@ -19,8 +19,8 @@ if (!preg_match("/^$git_branch-/", $fpp_head_version))
 <?php require_once(dirname(__FILE__)."/config.php"); ?>
   <div class="header">
     <div class="headerLeft"><a href="http://www.falconchristmas.com"><img src="images/falconlogo.png" class="logo" /></a></div>
-    <div class="headerCenter"><div class="siteName">Falcon Pi Player (FPP)</div>
-      Version: <a href='about.php' class='nonULLink'><?php echo $fpp_head_version; ?></a>
+    <div class="headerCenter"><div class="siteName">Falcon (Pi) Player - FPP</div>
+      Version: <a href='about.php' class='nonULLink'><?php echo $fpp_head_version; ?></a>&nbsp;&nbsp;Host: <? echo "<a href='networkconfig.php' class='nonULLink'>" . $settings['HostName'] . "</a>"; ?>
 <?
 	if (file_exists("/etc/fpp/rfs_version"))
 	{

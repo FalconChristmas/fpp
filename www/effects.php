@@ -1,7 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
-<?php include 'common/menuHead.inc'; ?>
+<?php
+include 'common/menuHead.inc';
+require_once('config.php');
+?>
 <script>
     $(function() {
     $('#tblEffectLibrary').on('mousedown', 'tr', function(event,ui){
@@ -22,7 +25,7 @@
   });
 </script>
 
-<title>Falcon PI Player - Effects</title>
+<title><? echo $pageTitle; ?></title>
 </head>
 <body onLoad="GetFPPDmode();setInterval(updateFPPStatus,1000);GetRunningEffects();">
 <div id="bodyWrapper">
