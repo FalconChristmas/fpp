@@ -17,8 +17,14 @@ fi
 . ${BINDIR}/common
 . ${BINDIR}/functions
 
-
 echo "FPP - Setting up for the Falcon Pi Player on the ${PLATFORM} platform"
+
+SSHKEYS=$(ls -al /etc/ssh/ssh_host*key* 2> /dev/null | wc -l)
+if [ ${SSHKEYS} -eq 0 ]
+then
+	ssh-keygen -A
+	/etc/init.d/ssh restart
+fi
 
 # Copy our php.ini script into place for when we restart apache
 echo "FPP - Copying php.ini into place"
@@ -41,10 +47,12 @@ echo "FPP - Configuring Network"
 ${BINDIR}/config_network
 
 HOSTNAME=$(getSetting HostName)
-if [ "x${HOSTNAME}" != "x" ]
+if [ "x${HOSTNAME}" != "x" -a "x$(hostname)" != "x${HOSTNAME}" ]
 then
+	echo "FPP - Setting hostname to ${HOSTNAME}"
 	echo ${HOSTNAME} > /etc/hostname
 	hostname ${HOSTNAME}
+	/etc/init.d/avahi-daemon restart
 fi
 
 echo "FPP - Configuring DNS"
