@@ -450,7 +450,7 @@ function SetChannelOutputs() {
 
 		// Channel Count
 		var channelCount = $this.find("td:nth-child(5) input").val();
-		if ((channelCount == "") || isNaN(channelCount) || (channelCount > maxChannels)) {
+		if ((channelCount == "") || isNaN(channelCount) || (parseInt(channelCount) > maxChannels)) {
 			DialogError("Save Channel Outputs",
 				"Invalid Channel Count '" + channelCount + "' on row " + rowNumber);
 			dataError = 1;
@@ -459,9 +459,17 @@ function SetChannelOutputs() {
 
 		// Start Channel
 		var startChannel = $this.find("td:nth-child(4) input").val();
-		if ((startChannel == "") || isNaN(startChannel) || ((startChannel + channelCount) > 65536)) {
+		if ((startChannel == "") || isNaN(startChannel)) {
 			DialogError("Save Channel Outputs",
 				"Invalid Start Channel '" + startChannel + "' on row " + rowNumber);
+			dataError = 1;
+			return;
+		}
+
+		var endChannel = parseInt(startChannel) + parseInt(channelCount) - 1;
+		if (endChannel > 65536) {
+			DialogError("Save Channel Outputs",
+				"Start Channel '" + startChannel + "' plus Channel Count '" + channelCount + "' exceeds 65536 on row " + rowNumber);
 			dataError = 1;
 			return;
 		}
@@ -635,7 +643,7 @@ tr.rowUniverseDetails td
 
 </style>
 
-<title>Falcon PI Player - FPP</title>
+<title><? echo $pageTitle; ?></title>
 </head>
 <body>
 	<div id="bodyWrapper">
