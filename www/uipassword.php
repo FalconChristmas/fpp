@@ -8,7 +8,7 @@ $thisdir = dirname(__FILE__);
 // already taken care of validating a user.
 if ( !empty($_POST) && $_POST["password"] == "disabled" )
 {
-  shell_exec(SUDO . " rm -f $thisdir/.htpasswd $thisdir/.htaccess");
+  shell_exec(SUDO . " rm -f $mediaDirectory/htaccess $thisdir/.htpasswd $thisdir/.htaccess");
 }
 
 if ( isset($_POST['password1']) && isset($_POST['password2']))
@@ -16,9 +16,10 @@ if ( isset($_POST['password1']) && isset($_POST['password2']))
   if (($_POST['password1'] != "") && ($_POST['password1'] == $_POST['password2']))
   {
     // true - setup .htaccess & save it
-    file_put_contents("/var/tmp/.htaccess", "AuthUserFile $thisdir/.htpasswd\nAuthType Basic\nAuthName admin\nRequire valid-user\n");
-    shell_exec(SUDO . " mv /var/tmp/.htaccess $thisdir/.htaccess");
-    $setpassword = shell_exec(SUDO . " htpasswd -cbd $thisdir/.htpasswd admin " . $_POST['password1']);
+    file_put_contents("/var/tmp/htaccess", "AuthUserFile $thisdir/.htpasswd\nAuthType Basic\nAuthName admin\nRequire valid-user\n");
+    shell_exec(SUDO . " mv /var/tmp/htaccess $mediaDirectory/htaccess");
+    shell_exec(SUDO . " ln -snf $mediaDirectory/htaccess $thisdir/.htaccess");
+    shell_exec(SUDO . " htpasswd -cbd $thisdir/.htpasswd admin " . $_POST['password1']);
   }
 }
 
@@ -38,7 +39,7 @@ function hide_if_equal($value1, $value2)
   }
 }
 
-$pw = file_exists("$thisdir/.htpasswd");
+$pw = file_exists("$mediaDirectory/htaccess");
 
 ?>
 
