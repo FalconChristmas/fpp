@@ -840,7 +840,7 @@ char *getSetting(char *setting)
 		count++;
 	}
 
-	LogWarn(VB_SETTING, "getSetting(%s) returned setting not found\n", setting);
+	LogDebug(VB_SETTING, "getSetting(%s) returned setting not found\n", setting);
 	return "";
 }
 
