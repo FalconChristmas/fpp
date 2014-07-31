@@ -44,7 +44,7 @@ case $piRTC in
   if [ $REV -lt 4 ]
   then
     echo ${PCF2127} 0x51 > /sys/class/i2c-adapter/i2c-0/new_device
-    echo "FPP - Configuring RTC, Setting rasClock/i2c-0"
+    echo "FPP - Configuring RTC, Setting to rasClock/i2c-0"
   else
     echo ${PCF2127} 0x51 > /sys/class/i2c-adapter/i2c-1/new_device
     echo "FPP - Configuring RTC, Setting to rasClock/i2c-1"
@@ -60,6 +60,10 @@ case $piRTC in
     echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device
     echo "FPP - Configuring RTC, Setting to DS1307/i2c-1"
   fi
+  ;;
+0)
+  # None
+    echo "FPP - Configuring RTC, None Selected"
   ;;
 esac
 
