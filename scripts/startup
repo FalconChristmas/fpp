@@ -17,7 +17,7 @@ fi
 . ${BINDIR}/common
 . ${BINDIR}/functions
 
-echo "FPP - Setting up for the Falcon Pi Player on the ${PLATFORM} platform"
+echo "FPP - Setting up for the Falcon Player on the ${PLATFORM} platform"
 
 SSHKEYS=$(ls -al /etc/ssh/ssh_host*key* 2> /dev/null | wc -l)
 if [ ${SSHKEYS} -eq 0 ]
@@ -31,8 +31,10 @@ echo "FPP - Copying php.ini into place"
 cp ${FPPDIR}/etc/php.ini /etc/php5/apache2/php.ini
 
 # Copy our splash.mp4 file into place for boot splash video
-echo "FPP - Copying splash.mp4 into place"
+echo "FPP - Copying splash into place"
 cp ${FPPDIR}/etc/splash.mp4 /etc/splash.mp4
+cp ${FPPDIR}/etc/asplashscreen /etc/init.d/asplashscreen
+insserv /etc/init.d/asplashscreen
 
 # If the flash drive is not mounted yet, then fix Apache so it can at least start up
 if [ ! -d "/home/pi/media/logs" ]
@@ -66,7 +68,7 @@ aplay /opt/fpp/media/silence_5sec.wav > /dev/null 2>&1 &
 SILENCEPID=$!
 ###########################################################################
 
-amixer cset numid=3 1
+amixer cset numid=3 1 > /dev/null 2>&1
 ORIGVOLUME=$(getSetting volume)
 if [ "x${ORIGVOLUME}" = "x" ]
 then
@@ -74,12 +76,12 @@ then
 fi
 # Switch to this more accurate setting for or after v0.3.0
 VOLUME=$(echo "scale=2 ; ${ORIGVOLUME} / 2.0 + 50" | bc)
-amixer set PCM ${VOLUME}%
+amixer set PCM ${VOLUME}% > /dev/null 2>&1
 
 ###########################################################################
 # Part #2 of workaround for https://github.com/raspberrypi/linux/issues/570
 sleep 1
-kill -9 ${SILENCEPID}
+kill -9 ${SILENCEPID} > /dev/null 2>&1
 ###########################################################################
 
 # Let's check that our .asoundrc is as valid as we care about right now
@@ -89,7 +91,7 @@ if [ ! -e /proc/asound/card$(sed -n '/card [0-9]*/p' /root/.asoundrc | head -n 1
 fi
 
 echo "FPP - Setting max IGMP memberships"
-sysctl net/ipv4/igmp_max_memberships=150 2>&1
+sysctl net/ipv4/igmp_max_memberships=150 > /dev/null 2>&1
 
 if [ "${PLATFORM}" = "Raspberry Pi" ]
 then
@@ -100,7 +102,7 @@ then
 	chmod u+w /sys/module/spidev/parameters/bufsiz
 	echo 102400 > /sys/module/spidev/parameters/bufsiz
 
-	echo "FPP - Configuring RTC"
+	# echo "FPP - Configuring RTC"
 	${BINDIR}/piRTC
 fi
 
@@ -118,24 +120,19 @@ fi
 
 grep -q "^[^#].*/home/pi/media" /etc/fstab
 MOUNTMEDIA=$?
-if [ ${MOUNTMEDIA} -eq 0 ]
-then
-# Check for flash drive mounted
-echo "FPP - Checking for mounted flash drive"
-fi
 
 while [ ${MOUNTMEDIA} -eq 0 ]
 do
 if [ "$(df -h ${MEDIADIR} | tail -n 1 | awk '{print $1}')" == "$(df -h / | tail -n 1 | awk '{print $1}')" ];
 then
-	echo "      Flash Media Is Missing.  Please Insert.";
+	echo "FPP - Checking for mounted flash drive, Flash Media Is Missing.  Please Insert.";
 	flite -voice kal "Boot Stalled, Flash Media Is Missing.  Please Insert."
 	sleep 5;
 	mount -a;
 else
-	echo "      Flash Media mounted.";
+	echo "FPP - Checking for mounted flash drive, Flash Media mounted.";
 	DIRS="config effects events logs music playlists scripts sequences upload videos plugins plugindata"
-	echo "FPP - Checking for required directories"
+	echo "FPP - Checking for required directories";
 	for DIR in ${DIRS}
 	do
 		if [ ! -d /home/pi/media/${DIR} ]
@@ -157,15 +154,14 @@ sed -e "s#FPPDIR#${FPPDIR}#g" < ${FPPDIR}/etc/apache2.site > /etc/apache2/sites-
 echo "FPP - Starting FPP boot script"
 ${BINDIR}/fpp_boot
 
-echo "FPP - Checking for configured LCD"
-PiLCDenabled=$(awk -f ${FPPDIR}/scripts/readSetting.awk /home/pi/media/settings setting=PI_LCD_Enabled)
+PiLCDenabled=$(awk -f ${FPPDIR}/scripts/readSetting.awk /home/pi/media/settings setting=PI_LCD_Enabled) 2>&1
 
 if [[ $PiLCDenabled == "true" ]]
 then
-  echo "      LCD Enabled, starting LCD daemon"
+  echo "FPP - Checking for configured LCD, LCD Enabled, starting LCD daemon"
   ${FPPDIR}/scripts/lcd/fppLCD start
 else
-  echo "      LCD Disabled"
+  echo "FPP - Checking for configured LCD, LCD Disabled"
 fi
 
 ##############################################################################

@@ -37,7 +37,6 @@ modprobe rtc-ds1307
 # Read Clock Setting From Settings File
 
 piRTC=$(awk -f ${FPPDIR}/scripts/readSetting.awk ${SETTINGSFILE} setting=piRTC)
-echo $piRTC
 
 case $piRTC in
 1)
@@ -45,10 +44,10 @@ case $piRTC in
   if [ $REV -lt 4 ]
   then
     echo ${PCF2127} 0x51 > /sys/class/i2c-adapter/i2c-0/new_device
-    echo "Setting rtc to rasClock/i2c-0"
+    echo "FPP - Configuring RTC, Setting rasClock/i2c-0"
   else
     echo ${PCF2127} 0x51 > /sys/class/i2c-adapter/i2c-1/new_device
-    echo "Setting rtc to rasClock/i2c-1"
+    echo "FPP - Configuring RTC, Setting to rasClock/i2c-1"
   fi
   ;;
 2)
@@ -56,10 +55,10 @@ case $piRTC in
   if [ $REV -lt 4 ]
   then
     echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-0/new_device
-    echo "Setting rtc to DS1307/i2c-0"
+    echo "FPP - Configuring RTC, Settting to DS1307/i2c-0"
   else
     echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device
-    echo "Setting rtc to DS1307/i2c-1"
+    echo "FPP - Configuring RTC, Setting to DS1307/i2c-1"
   fi
   ;;
 esac
