@@ -359,7 +359,6 @@ int parseArguments(int argc, char **argv)
 					}
 				} else {
 					printf("Settings file specified does not exist: '%s'\n", optarg);
-					exit(EXIT_FAILURE);
 				}
 				break;
 			case 'f': //foreground
