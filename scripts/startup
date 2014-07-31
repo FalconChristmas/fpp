@@ -17,7 +17,7 @@ fi
 . ${BINDIR}/common
 . ${BINDIR}/functions
 
-echo "FPP - Setting up for the Falcon Pi Player on the ${PLATFORM} platform"
+echo "FPP - Setting up for the Falcon Player on the ${PLATFORM} platform"
 
 SSHKEYS=$(ls -al /etc/ssh/ssh_host*key* 2> /dev/null | wc -l)
 if [ ${SSHKEYS} -eq 0 ]
