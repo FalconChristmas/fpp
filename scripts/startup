@@ -19,23 +19,6 @@ fi
 
 echo "FPP - Setting up for the Falcon Player on the ${PLATFORM} platform"
 
-SSHKEYS=$(ls -al /etc/ssh/ssh_host*key* 2> /dev/null | wc -l)
-if [ ${SSHKEYS} -eq 0 ]
-then
-	ssh-keygen -A
-	/etc/init.d/ssh restart
-fi
-
-# Copy our php.ini script into place for when we restart apache
-echo "FPP - Copying php.ini into place"
-cp ${FPPDIR}/etc/php.ini /etc/php5/apache2/php.ini
-
-# Copy our splash.mp4 file into place for boot splash video
-echo "FPP - Copying splash into place"
-cp ${FPPDIR}/etc/splash.mp4 /etc/splash.mp4
-cp ${FPPDIR}/etc/asplashscreen /etc/init.d/asplashscreen
-insserv /etc/init.d/asplashscreen
-
 # If the flash drive is not mounted yet, then fix Apache so it can at least start up
 if [ ! -d "/home/pi/media/logs" ]
 then

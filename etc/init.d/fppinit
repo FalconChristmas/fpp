@@ -1,0 +1,27 @@
+#!/bin/bash
+### BEGIN INIT INFO
+# Provides:          fppinit
+# Required-Start:
+# Required-Stop:
+# Should-Start:
+# Default-Start:     S
+# Default-Stop:
+# Short-Description: FPP OS image initialization
+# Description:       FPP OS image initialization
+### END INIT INFO
+#########################################################################
+# /etc/init.d/fppinit: setup OS image for FPP
+#########################################################################
+
+
+export PATH="${PATH:+$PATH:}/usr/sbin:/sbin"
+BINDIR="/opt/fpp/scripts"
+
+if [ -x "/home/pi/fpp/scripts/fpp_init" ]
+then
+	BINDIR="/home/pi/fpp/scripts"
+fi
+
+${BINDIR}/fpp_init $1
+
+exit 0

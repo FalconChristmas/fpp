@@ -1,22 +1,53 @@
 #!/bin/bash
-### BEGIN INIT INFO
-# Provides:          fpp_init
-# Required-Start:    mountall-bootclean
-# Required-Stop:     
-# Default-Start:     S
-# Default-Stop:      0 6
-# Short-Description: FPP OS image initialization
-# Description:       FPP OS image initialization
-### END INIT INFO
 ##############################################################################
-# This script is run via a link /etc/rcS.d/S10fpp_init at system boot to
-# allow us to initialize certain things before the system starts booting.
+# This script is run via /etc/init.d/fppinit at system boot to allow us to
+# initialize certain things before the system starts booting.
 ##############################################################################
+# NOTE: The ONLY supported action currently is 'start', so if we're called
+#       with anything else, we exit
+if [ "x$1" != "xstart" ]
+then
+	echo "$0 called with unsupported action of '$1'."
+	exit 0
+fi
 #
+##############################################################################
+# Some internal setup
 PATH="/sbin:/bin:/usr/sbin:/usr/bin"
-#
+
+BINDIR=$(cd $(dirname $0) && pwd)
+
+. ${BINDIR}/common
+. ${BINDIR}/functions
+
 ##############################################################################
-# Clear resolv.conf to allow it to start clean every boot
-cp /dev/null /etc/resolv.conf
-#
+# Perform enough line feeds to put the rest of our output at the bottom of the
+# screen so the splash video can show at the top
+perl -e "printf( \"\n\" x 50 );"
+
 ##############################################################################
+# Start the splash video in the background
+${FPPDIR}/etc/asplashscreen &
+
+##############################################################################
+echo "FPP - Performing initial pre-start setup"
+##############################################################################
+echo "    - Clearing resolv.conf"
+> /etc/resolv.conf
+
+##############################################################################
+echo "    - Checking SSH keys"
+SSHKEYS=$(ls -al /etc/ssh/ssh_host*key* 2> /dev/null | wc -l)
+if [ ${SSHKEYS} -eq 0 ]
+then
+	echo "      - Renerating SSH keys"
+	ssh-keygen -A
+fi
+
+##############################################################################
+# Copy our php.ini script into place for when we restart apache
+echo "    - Copying php.ini into place"
+cp ${FPPDIR}/etc/php.ini /etc/php5/apache2/php.ini
+
+##############################################################################
+

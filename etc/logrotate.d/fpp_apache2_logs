@@ -1,0 +1,19 @@
+/home/pi/media/logs/a*.log {
+	su pi pi
+	daily
+	size 10M
+	missingok
+	rotate 7
+	compress
+	delaycompress
+	notifempty
+	sharedscripts
+	postrotate
+		/etc/init.d/apache2 reload > /dev/null
+	endscript
+	prerotate
+		if [ -d /etc/logrotate.d/httpd-prerotate ]; then \
+			run-parts /etc/logrotate.d/httpd-prerotate; \
+		fi; \
+	endscript
+}

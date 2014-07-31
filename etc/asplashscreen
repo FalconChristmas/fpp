@@ -16,7 +16,11 @@
 $debug       = 0;
 #
 # Video Filename
-$videoFile   = "/etc/splash.mp4";
+$videoFile   = "/home/pi/fpp/etc/splash.mp4";
+if ( ! -f $videoFile )
+{
+	$videoFile   = "/opt/fpp/etc/splash.mp4";
+}
 #
 # Percentage of Screen vertically that we want to fill with the video
 $percentFill = 60;

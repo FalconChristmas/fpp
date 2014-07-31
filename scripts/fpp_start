@@ -1,0 +1,32 @@
+#!/bin/bash
+##############################################################################
+# This script is run via /etc/init.d/fppstart when the rest of the system is
+# up and running.
+##############################################################################
+# NOTE: The ONLY supported action currently is 'start', so if we're called
+#       with anything else, we exit
+if [ "x$1" != "xstart" ]
+then
+	echo "$0 called with unsupported action of '$1'."
+	exit 0
+fi
+#
+##############################################################################
+# Some internal setup
+PATH="/sbin:/bin:/usr/sbin:/usr/bin"
+
+BINDIR=$(cd $(dirname $0) && pwd)
+
+. ${BINDIR}/common
+. ${BINDIR}/functions
+
+##############################################################################
+# For now, just call our existing startup script
+
+echo "FPP - Running ${BINDIR}/startup"
+${BINDIR}/startup
+
+exit 0
+
+##############################################################################
+
