@@ -1,17 +1,83 @@
 #!/bin/bash
 
 #############################################################################
+# Configure fallback IP address if necessary
+ConfigureFallbackIP() {
+	ETH0GATEWAY=$(netstat -rn | grep "^0\.0\.0\.0.*eth0$" | awk '{print $2}')
+	WLAN0GATEWAY=$(netstat -rn | grep "^0\.0\.0\.0.*wlan0$" | awk '{print $2}')
+	WLAN0NETWORK=$(ifconfig wlan0 | grep "inet addr:" | awk '{print $2}' | cut -f2 -d: | cut -f1-3 -d\.)
+	NEEDFALLBACKIP=1
+	NEEDFALLBACKGW=1
+
+	if [ ! -z "${ETH0GATEWAY}" ]
+	then
+		ping -c 1 ${ETH0GATEWAY} > /dev/null 2>&1
+		if [ $? -eq 0 ]
+		then
+			# Have a default gateway on eth0 and it is pingable
+			NEEDFALLBACKIP=0
+			NEEDFALLBACKGW=0
+		fi
+	fi
+
+	if [ ! -z "${WLAN0GATEWAY}" ]
+	then
+		ping -c 1 ${WLAN0GATEWAY} > /dev/null 2>&1
+		if [ $? -eq 0 ]
+		then
+			# Have a default gateway on wlan0 and it is pingable
+			NEEDFALLBACKGW=0
+		fi
+	fi
+
+	if [ ${NEEDFALLBACKIP} -eq 1 ]
+	then
+		OTHERNET=1
+		IP=192.168.0.10
+		NETMASK=255.255.255.0
+		BROADCAST=192.168.0.255
+		GATEWAY=192.168.0.1
+
+		arping -q -c 1 -w 1000000 -I eth0 192.168.1.1
+		if [ $? -eq 0 ]
+		then
+			# we're on the 192.168.1.0/24 network
+			OTHERNET=0
+			IP=192.168.1.10
+			NETMASK=255.255.255.0
+			BROADCAST=192.168.1.255
+			GATEWAY=192.168.1.1
+		fi
+
+		FBNETWORK=$(echo ${IP} | cut -f1-3 -d\.)
+		if [ "x${WLAN0NETWORK}" = "x${FBNETWORK}" ]
+		then
+			IP=192.168.${OTHERNET}.10
+			NETMASK=255.255.255.0
+			BROADCAST=192.168.${OTHERNET}.255
+			GATEWAY=192.168.${OTHERNET}.1
+		fi
+		ifconfig eth0:0 ${IP} netmask ${NETMASK} broadcast ${BROADCAST} up
+
+		if [ ${NEEDFALLBACKGW} -eq 1 ]
+		then
+			route add default gw ${GATEWAY} eth0:0
+		fi
+	fi
+}
+
+#############################################################################
 # Get a list of all interfaces using dhclient to get an IP and
 # waits for them to all recieve IPs.  If any interface does not
 # have an IP, then the function will sleep for a little while
 # and then jump back to the top of the loop to check again.
 WaitForDHCPIPs() {
-	DHCP_INTERFACES="$(ps auxw | grep "dhclient\.\([a-z0-9]*\)\.pid" | grep -v grep | sed -e 's/.*client\.\([a-z0-9]*\)\.pid.*/\1/')"
-	SLEEPTIME=5
+	DHCP_INTERFACES="$(ps auxw | grep "dhclient\.\([a-z0-9]*\)\.pid" | grep -v grep | sed -e 's/.*client\.\([a-z0-9]*\)\.pid.*/\1/' | sort | uniq)"
+	SLEEPTIME=2
 
-	# Loop up to 10 times, so max wait time is 10 * ${SLEEPTIME}
-	echo "Waiting for DHCP to receive IP addresses: ${DHCP_INTERFACES}"
-	for i in {1..10}
+	# Loop up to 5 times, so max wait time is 5 * ${SLEEPTIME}
+	echo "Waiting for DHCP to receive IP addresses: '${DHCP_INTERFACES}'"
+	for i in {1..5}
 	do
 		IP=""
 		for INTERFACE in ${DHCP_INTERFACES}

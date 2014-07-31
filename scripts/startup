@@ -108,6 +108,9 @@ fi
 echo "FPP - Waiting for DHCP IPs on configured interfaces"
 WaitForDHCPIPs
 
+# Configure fallback IP if necessary
+ConfigureFallbackIP
+
 # Print/Say the IP address
 _IP=$(hostname -I) || true
 if [ "$_IP" ]; then

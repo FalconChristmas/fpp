@@ -155,9 +155,27 @@ do
 done
 
 #############################################################################
+# Handle dhcp on an interface that has not been configured via the UI
+if [ "x$1" != "x" -a ! -f "${CFGDIR}/interface.${IFACE}" ]
+then
+	INTERFACE=${IFACE}
+	DHCPPID=$(ps -edaf | grep dhclient | grep ${INTERFACE} | awk '{print $2}')
+	if [ "x${DHCPPID}" != "x" ]
+	then
+		kill -9 ${DHCPPID}
+	fi
+	configure_dhcp
+fi
+
+#############################################################################
 # Execute only when run from startup with no interface and state
 if [ "x$1" = "x" ]
 then
+	#####################################################################
+	# Shutdown the fallback IP interface, if we need it later we will
+	# bring it back up and try to auto detect the right network to use
+	ifconfig eth0:0 0.0.0.0 2> /dev/null
+
 	#####################################################################
 	# Kill ifplugd for some interfaces so we can point it to our script
 	INTERFACES="eth0 wlan0"
@@ -176,37 +194,9 @@ then
 	# if eth0 does not have a link at boot then take it down since ifplugd
 	# will bring it back up if/when it gets link
 	ethtool eth0 | grep -q "Link detected: yes"
-	if [ $? -eq 1 ]
-	then
-		ifconfig eth0 down
-	fi
-
-	#####################################################################
-	# Configure fallback IP address if necessary
-	ETH0GATEWAY=$(netstat -rn | grep "^0\.0\.0\.0.*eth0$" | awk '{print $2}')
-	NEEDFALLBACKIP=1
-
-	if [ ! -z "${ETH0GATEWAY}" ]
-	then
-		ping -c 1 ${ETH0GATEWAY} > /dev/null 2>&1
-		if [ $? -eq 0 ]
-		then
-			# Have a default gateway on eth0 and it is pingable
-			NEEDFALLBACKIP=0
-		fi
-	fi
-
-	if [ ${NEEDFALLBACKIP} -eq 1 ]
-	then
-		INTERFACE=eth0:0
-		PROTO=static
-		ADDRESS=192.168.0.10
-		NETMASK=255.255.255.0
-		GATEWAY=
-		configure_static_ip
-	else
-		# Take down the static IP configured from /etc/
-		ifconfig eth0:0 0.0.0.0
-	fi
+#	if [ $? -eq 1 ]
+#	then
+#		ifconfig eth0 down
+#	fi
 fi
 
