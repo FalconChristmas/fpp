@@ -38,7 +38,7 @@ ConfigureFallbackIP() {
 		BROADCAST=192.168.0.255
 		GATEWAY=192.168.0.1
 
-		arping -q -c 1 -w 1000000 -I eth0 192.168.1.1
+		arping -q -c 1 -w 1000000 -I eth0 192.168.1.1 2> /dev/null
 		if [ $? -eq 0 ]
 		then
 			# we're on the 192.168.1.0/24 network
