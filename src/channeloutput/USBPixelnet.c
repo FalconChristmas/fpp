@@ -185,10 +185,6 @@ int USBPixelnet_Close(void *data) {
  *
  */
 int USBPixelnet_IsConfigured(void) {
-	if ((strcmp(getUSBDonglePort(),"DISABLED")) &&
-		(!strcmp(getUSBDongleType(), "PixelnetLynx")))
-		return 1;
-
 	return 0;
 }
 

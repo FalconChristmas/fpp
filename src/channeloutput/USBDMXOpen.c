@@ -146,10 +146,6 @@ int USBDMXOpen_Close(void *data) {
  *
  */
 int USBDMXOpen_IsConfigured(void) {
-	if ((strcmp(getUSBDonglePort(),"DISABLED")) &&
-		(!strcmp(getUSBDongleType(), "DMXOpen")))
-		return 1;
-
 	return 0;
 }
 

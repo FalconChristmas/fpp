@@ -70,9 +70,6 @@ void initSettings(void)
 	settings.settingsFile = strdup("/home/pi/media/settings");
 	settings.daemonize = 1;
 	settings.E131interface = strdup("eth0");
-	settings.USBDonglePort = strdup("DISABLED");
-	settings.USBDongleType = strdup("DMX");
-	settings.USBDongleBaud = strdup("57600");
 	settings.controlMajor = 0;
 	settings.controlMinor = 0;
 
@@ -214,18 +211,6 @@ void printSettings(void)
 		fprintf(fd, "E131interface(%u): %s\n",
 				strlen(settings.E131interface),
 				settings.E131interface);
-	if ( settings.USBDonglePort )
-		fprintf(fd, "USBDonglePort(%u): %s\n",
-				strlen(settings.USBDonglePort),
-				settings.USBDonglePort);
-	if ( settings.USBDongleType )
-		fprintf(fd, "USBDongleType(%u): %s\n",
-				strlen(settings.USBDongleType),
-				settings.USBDongleType);
-	if ( settings.USBDongleBaud )
-		fprintf(fd, "USBDongleBaud(%u): %s\n",
-				strlen(settings.USBDongleBaud),
-				settings.USBDongleBaud);
 	if ( settings.controlMajor != 0 )
 		fprintf(fd, "controlMajor: %u\n", settings.controlMajor);
 	if ( settings.controlMinor != 0 )
@@ -702,36 +687,6 @@ int loadSettings(const char *filename)
 				else
 					fprintf(stderr, "Failed to load E131interface from config file\n");
 			}
-			else if ( strcmp(key, "USBDonglePort") == 0 )
-			{
-				if ( strlen(value) )
-				{
-					free(settings.USBDonglePort);
-					settings.USBDonglePort = strdup(value);
-				}
-				else
-					fprintf(stderr, "Failed to load USBDonglePort from config file\n");
-			}
-			else if ( strcmp(key, "USBDongleType") == 0 )
-			{
-				if ( strlen(value) )
-				{
-					free(settings.USBDongleType);
-					settings.USBDongleType = strdup(value);
-				}
-				else
-					fprintf(stderr, "Failed to load USBDongleType from config file\n");
-			}
-			else if ( strcmp(key, "USBDongleBaud") == 0 )
-			{
-				if ( strlen(value) )
-				{
-					free(settings.USBDongleBaud);
-					settings.USBDongleBaud = strdup(value);
-				}
-				else
-					fprintf(stderr, "Failed to load USBDongleBaud from config file\n");
-			}
 			else if ( strcmp(key, "controlMajor") == 0 )
 			{
 				if ( strlen(value) )
@@ -941,21 +896,6 @@ char *getSettingsFile(void)
 char *getE131interface(void)
 {
 	return settings.E131interface;
-}
-
-char *getUSBDonglePort(void)
-{
-	return settings.USBDonglePort;
-}
-
-char *getUSBDongleType(void)
-{
-	return settings.USBDongleType;
-}
-
-char *getUSBDongleBaud(void)
-{
-	return settings.USBDongleBaud;
 }
 
 unsigned int getControlMajor(void)

@@ -175,10 +175,6 @@ int USBRenard_Close(void *data) {
  *
  */
 int USBRenard_IsConfigured(void) {
-	if ((strcmp(getUSBDonglePort(),"DISABLED")) &&
-		(!strcmp(getUSBDongleType(), "Renard")))
-		return 1;
-
 	return 0;
 }
 
@@ -273,8 +269,6 @@ int USBRenard_MaxChannels(void *data)
 	if (privData->maxChannels != 0)
 		return privData->maxChannels;
 	
-	char *baud = getUSBDongleBaud();
-
 	switch (privData->speed) {
 		case 921600:	privData->maxChannels = 4584;
 						break;
