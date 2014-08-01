@@ -5,7 +5,7 @@
 ConfigureFallbackIP() {
 	ETH0GATEWAY=$(netstat -rn | grep "^0\.0\.0\.0.*eth0$" | awk '{print $2}')
 	WLAN0GATEWAY=$(netstat -rn | grep "^0\.0\.0\.0.*wlan0$" | awk '{print $2}')
-	WLAN0NETWORK=$(ifconfig wlan0 | grep "inet addr:" | awk '{print $2}' | cut -f2 -d: | cut -f1-3 -d\.)
+	WLAN0NETWORK=$(ifconfig wlan0 2> /dev/null | grep "inet addr:" | awk '{print $2}' | cut -f2 -d: | cut -f1-3 -d\.)
 	NEEDFALLBACKIP=1
 	NEEDFALLBACKGW=1
 
@@ -75,8 +75,14 @@ WaitForDHCPIPs() {
 	DHCP_INTERFACES="$(ps auxw | grep "dhclient\.\([a-z0-9]*\)\.pid" | grep -v grep | sed -e 's/.*client\.\([a-z0-9]*\)\.pid.*/\1/' | sort | uniq)"
 	SLEEPTIME=2
 
-	# Loop up to 5 times, so max wait time is 5 * ${SLEEPTIME}
+	if [ -z "${DHCP_INTERFACES}" ]
+	then
+		return 0
+	fi
+
 	echo "Waiting for DHCP to receive IP addresses: '${DHCP_INTERFACES}'"
+
+	# Loop up to 5 times, so max wait time is 5 * ${SLEEPTIME}
 	for i in {1..5}
 	do
 		IP=""

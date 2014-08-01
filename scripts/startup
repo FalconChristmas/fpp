@@ -90,7 +90,6 @@ then
 fi
 
 # Make sure our DHCP IPs are up before we log/announce them.
-echo "FPP - Waiting for DHCP IPs on configured interfaces"
 WaitForDHCPIPs
 
 # Configure fallback IP if necessary
