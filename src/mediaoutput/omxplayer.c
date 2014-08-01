@@ -160,12 +160,12 @@ void omxplayer_ProcessPlayerData(int bytesRead)
 		}
 	}
 
-	// Data is line buffered so all stats lines should start with "V : "
-	if ((!strncmp(omxBuffer, "V : ", 4)) &&
+	// Data is line buffered so all stats lines should start with "M: "
+	if ((!strncmp(omxBuffer, "M:", 2)) &&
 		(bytesRead > 20))
 	{
 		errno = 0;
-		ticks = strtol(&omxBuffer[4], NULL, 10);
+		ticks = strtol(&omxBuffer[2], NULL, 10);
 		if (errno) {
 			LogErr(VB_MEDIAOUT, "Error parsing omxplayer output.\n");
 			return;
