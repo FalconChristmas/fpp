@@ -3,6 +3,12 @@
 # Helpers for configuring network config
 #############################################################################
 configure_static_ip () {
+	# if we are configuring a static IP on eth0, then take down any fallback
+	if [ "x${INTERFACE}" = "xeth0" ]
+	then
+		ifconfig eth0:0 0.0.0.0 2> /dev/null
+	fi
+
 	echo "Configuring static IP ${ADDRESS} for ${INTERFACE} as ${STATE}"
 	ifconfig ${INTERFACE} ${ADDRESS} netmask ${NETMASK} ${STATE}
 
