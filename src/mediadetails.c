@@ -49,7 +49,7 @@ void clearPreviousMedia()
 
 void ParseMedia()
 {
-    char fullAudioPath[1024];
+    char fullMediaPath[1024];
 	int seconds;
 	int minutes;
 	TagLib_File *file;
@@ -62,24 +62,35 @@ void ParseMedia()
 
     LogDebug(VB_MEDIAOUT, "ParseMedia(%s)\n", plEntry->songName);
 
-    if (snprintf(fullAudioPath, 1024, "%s/%s", getMusicDirectory(), plEntry->songName)
+    if (snprintf(fullMediaPath, 1024, "%s/%s", getMusicDirectory(), plEntry->songName)
         >= 1024)
     {
-        LogErr(VB_MEDIAOUT, "Unable to play %s, full path name too long\n",
+        LogErr(VB_MEDIAOUT, "Unable to parse media details for %s, full path name too long\n",
             plEntry->songName);
         return;
     }
 
-    if (!FileExists(fullAudioPath))
+    if (!FileExists(fullMediaPath))
     {
-        LogErr(VB_MEDIAOUT, "%s does not exist!\n", fullAudioPath);
-        return;
+    	if (snprintf(fullMediaPath, 1024, "%s/%s", getVideoDirectory(), plEntry->songName)
+	        >= 1024)
+		{
+			LogErr(VB_MEDIAOUT, "Unable to parse media details for %s, full path name too long\n",
+				plEntry->songName);
+			return;
+		}
+
+		if (!FileExists(fullMediaPath))
+		{
+			LogErr(VB_MEDIAOUT, "Unable to find %s media file to parse meta data\n", plEntry->songName);
+			return;
+		}
     }
 
 	clearPreviousMedia();
 
 	taglib_set_strings_unicode(false);
-	file = taglib_file_new(fullAudioPath);
+	file = taglib_file_new(fullMediaPath);
 
 	if (file == NULL)
 		return;
