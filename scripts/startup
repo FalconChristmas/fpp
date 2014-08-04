@@ -17,6 +17,8 @@ fi
 . ${BINDIR}/common
 . ${BINDIR}/functions
 
+teeOutput
+
 echo "FPP - Setting up for the Falcon Player on the ${PLATFORM} platform"
 
 # If the flash drive is not mounted yet, then fix Apache so it can at least start up
@@ -98,7 +100,7 @@ ConfigureFallbackIP
 # Print/Say the IP address
 _IP=$(hostname -I) || true
 if [ "$_IP" ]; then
-  echo "FPP - Found IPs: $_IP"
+  echo "FPP - Found IP(s): $_IP"
   arrHost=(${_IP// / })
   flite -voice awb "I Have Found The Following I P Addresses, ${arrHost[0]}, ${arrHost[1]},  ${arrHost[2]}" &
 fi

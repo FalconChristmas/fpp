@@ -27,19 +27,37 @@ CFGVERSIONFILE="${CFGVERSIONFILE:-/etc/fpp/config_version}"
 CFGVERSION="${CFGVERSION:-0}"
 [ -f $CFGVERSIONFILE ] && CFGVERSION="$(cat ${CFGVERSIONFILE})"
 
+makeLogDir() {
+	if [ ! -d ${LOGDIR} ]
+	then
+		mkdir -p ${LOGDIR}
+		chown pi.pi ${LOGDIR}
+		chmod 775 ${LOGDIR}
+	fi
+}
+
 logOutput() {
 	MYTTY=$(tty)
 	if [ "x${MYTTY}" = "x/dev/console" -o "x${MYTTY}" = "x" -o "x${MYTTY}" = "xnot a tty" ]
 	then
-		if [ ! -d ${LOGDIR} ]
-		then
-			mkdir -p ${LOGDIR}
-			chown pi.pi ${LOGDIR}
-			chmod 775 ${LOGDIR}
-		fi
+		makeLogDir
 
 		FILE=$(basename $0)
 		exec >> ${LOGDIR}/${FILE}.log 2>&1
+		echo "=========================================================================="
+		date
+	fi
+}
+
+teeOutput() {
+	MYTTY=$(tty)
+	if [ "x${MYTTY}" = "x/dev/console" -o "x${MYTTY}" = "x" -o "x${MYTTY}" = "xnot a tty" ]
+	then
+		makeLogDir
+
+		FILE=$(basename $0)
+		exec > >(tee -a ${LOGDIR}/${FILE}.log)
+		exec 2>&1
 		echo "=========================================================================="
 		date
 	fi
