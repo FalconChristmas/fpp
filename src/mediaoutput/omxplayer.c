@@ -47,7 +47,6 @@
 #define TIME_STR_MAX  8
 
 fd_set omx_active_fd_set, omx_read_fd_set;
-struct timeval omx_timeout;
 
 int pipeFromOMX[2];
 
@@ -100,9 +99,6 @@ int omxplayer_StartPlaying(const char *filename)
 	FD_ZERO (&omx_active_fd_set);
 	// Set description for reading from omxplayer
 	FD_SET (pipeFromOMX[0], &omx_active_fd_set);
-	// Set omx_timeout value for select
-	omx_timeout.tv_sec = 0;
-	omx_timeout.tv_usec = 5;
 
 	mediaOutputStatus.status = MEDIAOUTPUTSTATUS_PLAYING;
 
@@ -214,7 +210,13 @@ void omxplayer_PollPlayerInfo()
 {
 	int bytesRead;
 	int result;
+	struct timeval omx_timeout;
+
 	omx_read_fd_set = omx_active_fd_set;
+
+	omx_timeout.tv_sec = 0;
+	omx_timeout.tv_usec = 5;
+
 	if(select(FD_SETSIZE, &omx_read_fd_set, NULL, NULL, &omx_timeout) < 0)
 	{
 	 	LogErr(VB_MEDIAOUT, "Error Select:%d\n", errno);

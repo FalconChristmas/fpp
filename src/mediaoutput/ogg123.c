@@ -45,7 +45,6 @@
 #define TIME_STR_MAX  8
 
 fd_set ogg123_active_fd_set, ogg123_read_fd_set;
-struct timeval ogg123_timeout;
 
 int   pipeFromOGG[2];
 
@@ -101,9 +100,6 @@ int ogg123_StartPlaying(const char *musicFile)
 	FD_ZERO (&ogg123_active_fd_set);
 	// Set description for reading from ogg
 	FD_SET (pipeFromOGG[MEDIAOUTPUTPIPE_READ], &ogg123_active_fd_set);
-	// Set ogg123_timeout value for select
-	ogg123_timeout.tv_sec = 0;
-	ogg123_timeout.tv_usec = 5;
 
 	mediaOutputStatus.status = MEDIAOUTPUTSTATUS_PLAYING;
 
@@ -289,7 +285,13 @@ void ogg123_PollMusicInfo()
 {
 	int bytesRead;
 	int result;
+	struct timeval ogg123_timeout;
+
 	ogg123_read_fd_set = ogg123_active_fd_set;
+
+	ogg123_timeout.tv_sec = 0;
+	ogg123_timeout.tv_usec = 5;
+
 	if(select(FD_SETSIZE, &ogg123_read_fd_set, NULL, NULL, &ogg123_timeout) < 0)
 	{
 	 	LogErr(VB_MEDIAOUT, "Error Select:%d\n",errno);

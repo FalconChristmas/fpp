@@ -45,7 +45,6 @@
 #define TIME_STR_MAX  8
 
 fd_set mpg123_active_fd_set, mpg123_read_fd_set;
-struct timeval mpg123_timeout;
 
 int   pipeFromMP3[2];
 
@@ -104,9 +103,6 @@ int mpg123_StartPlaying(const char *musicFile)
 	FD_ZERO (&mpg123_active_fd_set);
 	// Set description for reading from mpg123
 	FD_SET (pipeFromMP3[MEDIAOUTPUTPIPE_READ], &mpg123_active_fd_set);
-	// Set mpg123_timeout value for select
-	mpg123_timeout.tv_sec = 0;
-	mpg123_timeout.tv_usec = 5;
 
 	mediaOutputStatus.status = MEDIAOUTPUTSTATUS_PLAYING;
 
@@ -293,7 +289,13 @@ void mpg123_PollMusicInfo()
 {
 	int bytesRead;
 	int result;
+	struct timeval mpg123_timeout;
+
 	mpg123_read_fd_set = mpg123_active_fd_set;
+
+	mpg123_timeout.tv_sec = 0;
+	mpg123_timeout.tv_usec = 5;
+
 	if(select(FD_SETSIZE, &mpg123_read_fd_set, NULL, NULL, &mpg123_timeout) < 0)
 	{
 	 	LogErr(VB_MEDIAOUT, "Error Select:%d\n",errno);
