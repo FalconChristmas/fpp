@@ -27,8 +27,14 @@ configure_static_ip () {
 
 #############################################################################
 configure_dhcp () {
-	echo "Starting dhclient for ${INTERFACE}"
-	dhclient -v -pf /run/dhclient.${INTERFACE}.pid -lf /var/lib/dhcp/dhclient.${INTERFACE}.leases ${INTERFACE}
+	if [ "x${STATE}" = "xup" ]
+	then
+		echo "Starting dhclient for ${INTERFACE}"
+		dhclient -v -pf /run/dhclient.${INTERFACE}.pid -lf /var/lib/dhcp/dhclient.${INTERFACE}.leases ${INTERFACE}
+	else
+		echo "Downing ${INTERFACE}"
+		ifconfig ${INTERFACE} 0.0.0.0 down 2> /dev/null
+	fi
 }
 
 #############################################################################
@@ -96,12 +102,12 @@ fi
 /bin/ls -1 ${CFGDIR}/interface.${IFACE} 2> /dev/null | while read FILE
 do
 	#####################################################################
-	# Get the interface config into env vars
-	. ${FILE}
+	# Default to enabled (this can be overridden in the config file)
+	ENABLED=1
 
 	#####################################################################
-	# Default to enabled
-	ENABLED=1
+	# Get the interface config into env vars
+	. ${FILE}
 
 	#####################################################################
 	# Check if the interface name is missing
@@ -200,9 +206,9 @@ then
 	# if eth0 does not have a link at boot then take it down since ifplugd
 	# will bring it back up if/when it gets link
 	ethtool eth0 | grep -q "Link detected: yes"
-#	if [ $? -eq 1 ]
-#	then
-#		ifconfig eth0 down
-#	fi
+	if [ $? -eq 1 ]
+	then
+		ifconfig eth0 down
+	fi
 fi
 

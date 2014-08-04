@@ -3,6 +3,24 @@
 #############################################################################
 # Configure fallback IP address if necessary
 ConfigureFallbackIP() {
+	if [ -f "${CFGDIR}/interface.eth0" ]
+	then
+		. ${CFGDIR}/interface.eth0
+		if [ "x${PROTO}" = "xstatic" ]
+		then
+			return
+		fi
+	fi
+
+	#####################################################################
+	# Don't configure fallback IP if no link is detected
+	ethtool eth0 | grep -q "Link detected: yes"
+	if [ $? -eq 1 ]
+	then
+		return
+	fi
+
+
 	ETH0GATEWAY=$(netstat -rn | grep "^0\.0\.0\.0.*eth0$" | awk '{print $2}')
 	WLAN0GATEWAY=$(netstat -rn | grep "^0\.0\.0\.0.*wlan0$" | awk '{print $2}')
 	WLAN0NETWORK=$(ifconfig wlan0 2> /dev/null | grep "inet addr:" | awk '{print $2}' | cut -f2 -d: | cut -f1-3 -d\.)
