@@ -209,8 +209,6 @@ void PlayListPlayingInit(void)
 
 void PlayListPlayingProcess(void)
 {
-	LogExcess(VB_PLAYLIST, "PlayListPlayingProcess()\n");
-
     switch(playlistDetails.playList[playlistDetails.currentPlaylistEntry].type)
     {
       case PL_TYPE_BOTH:
