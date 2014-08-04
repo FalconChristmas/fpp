@@ -3,6 +3,10 @@ CC := gcc
 # Uncomment the following line to build with g++ for testing, etc.
 #CC := g++
 
+ifneq ("$(wildcard /usr/bin/ccache)","")
+	CC := ccache $(CC)
+endif
+
 TARGETS = fpp fppmm fppd
 
 INSTALL_PROGRAM = install -m 755 -p
@@ -77,7 +81,8 @@ CFLAGS += \
 	$(NULL)
 
 # Do some things a little different when using gcc vs g++
-ifeq ($(CC), gcc)
+#ifeq ($(CC), gcc)
+ifneq (,$(findstring gcc,$(CC)))
 # Warn us if we forget to #include something, but this doesn't work on g++
 CFLAGS += -Wimplicit
 else
