@@ -6,6 +6,8 @@ require_once('config.php');
 include 'common/menuHead.inc';
 ?>
 <script type="text/javascript" src="/js/fpp.js"></script>
+<script type="text/javascript" src="/jquery/Spin.js/spin.js"></script>
+<script type="text/javascript" src="/jquery/Spin.js/jquery.spin.js"></script>
 <title><? echo $pageTitle; ?></title>
 </head>
 <body>
@@ -77,6 +79,10 @@ else
 </table>
 
 </fieldset>
+
+<div id="overlay">
+</div>
+
 </div>
 
 </div>

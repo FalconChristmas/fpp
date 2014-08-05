@@ -529,28 +529,66 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 
 		function uninstallPlugin(pluginName)
 		{
-			var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=uninstallPlugin&plugin=" + pluginName;
-			xmlhttp.open("GET",url,false);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-			xmlhttp.onreadystatechange = function () {
-				if (xmlhttp.readyState == 4)
-					location.reload(true);
-			}
-			xmlhttp.send();
+			var opts = {
+				lines: 9, // The number of lines to draw
+				length: 25, // The length of each line
+				width: 10, // The line thickness
+				radius: 25, // The radius of the inner circle
+				corners: 1, // Corner roundness (0..1)
+				rotate: 0, // The rotation offset
+				direction: 1, // 1: clockwise, -1: counterclockwise
+				color: '#fff', // #rgb or #rrggbb or array of colors
+				speed: 1, // Rounds per second
+				trail: 60, // Afterglow percentage
+				shadow: false, // Whether to render a shadow
+			};
+
+			var target = document.getElementById('overlay');
+			var spinner = new Spinner(opts).spin(target);
+
+			target.style.display = 'block';
+			document.body.style.cursor = "wait";
+
+			$.get("fppxml.php?command=uninstallPlugin&plugin=" + pluginName
+			).success(function() {
+				document.body.style.cursor = "pointer";
+				location.reload(true);
+			}).fail(function() {
+				document.body.style.cursor = "pointer";
+				DialogError("Failed to install plugin", "Install failed");
+			});
 		}
 
 		function installPlugin(pluginName)
 		{
-			var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=installPlugin&plugin=" + pluginName;
-			xmlhttp.open("GET",url,false);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-			xmlhttp.onreadystatechange = function () {
-				if (xmlhttp.readyState == 4)
-					location.reload(true);
-			}
-			xmlhttp.send();
+			var opts = {
+				lines: 9, // The number of lines to draw
+				length: 25, // The length of each line
+				width: 10, // The line thickness
+				radius: 25, // The radius of the inner circle
+				corners: 1, // Corner roundness (0..1)
+				rotate: 0, // The rotation offset
+				direction: 1, // 1: clockwise, -1: counterclockwise
+				color: '#fff', // #rgb or #rrggbb or array of colors
+				speed: 1, // Rounds per second
+				trail: 60, // Afterglow percentage
+				shadow: false, // Whether to render a shadow
+			};
+
+			var target = document.getElementById('overlay');
+			var spinner = new Spinner(opts).spin(target);
+
+			target.style.display = 'block';
+			document.body.style.cursor = "wait";
+
+			$.get("fppxml.php?command=installPlugin&plugin=" + pluginName
+			).success(function() {
+				document.body.style.cursor = "pointer";
+				location.reload(true);
+			}).fail(function() {
+				document.body.style.cursor = "pointer";
+				DialogError("Failed to install plugin", "Install failed");
+			});
 		}
 
 		function ManualGitUpdate()
