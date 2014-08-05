@@ -33,13 +33,13 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "channeloutput/channeloutputthread.h"
+#include "channeloutputthread.h"
+#include "common.h"
 #include "log.h"
 #include "mediaoutput.h"
 #include "mpg123.h"
 #include "sequence.h"
 #include "settings.h"
-#include "common.h"
 
 #define MAX_BYTES_MP3 1000
 #define TIME_STR_MAX  8
