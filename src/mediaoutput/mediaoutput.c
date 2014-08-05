@@ -46,8 +46,8 @@ MediaOutputStatus mediaOutputStatus = {
 
 void MediaOutput_sigchld_handler(int signal)
 {
-    int status;
-    pid_t p = waitpid(-1, &status, WNOHANG);
+	int status;
+	pid_t p = waitpid(-1, &status, WNOHANG);
 
 	pthread_mutex_lock(&mediaOutputLock);
 	if (!mediaOutput) {
@@ -59,27 +59,27 @@ void MediaOutput_sigchld_handler(int signal)
 		"MediaOutput_sigchld_handler(): pid: %d, waiting for %d\n",
 		p, mediaOutput->childPID);
 
-    if (p == mediaOutput->childPID)
-    {
-        mediaOutput->childPID =0;
+	if (p == mediaOutput->childPID)
+	{
+		mediaOutput->childPID =0;
 
 		if (mediaOutput->childPipe[MEDIAOUTPUTPIPE_READ]) {
-	        close(mediaOutput->childPipe[MEDIAOUTPUTPIPE_READ]);
+			close(mediaOutput->childPipe[MEDIAOUTPUTPIPE_READ]);
 			mediaOutput->childPipe[MEDIAOUTPUTPIPE_READ] = 0;
 		}
 
 		if (mediaOutput->childPipe[MEDIAOUTPUTPIPE_WRITE]) {
-	        close(mediaOutput->childPipe[MEDIAOUTPUTPIPE_WRITE]);
+			close(mediaOutput->childPipe[MEDIAOUTPUTPIPE_WRITE]);
 			mediaOutput->childPipe[MEDIAOUTPUTPIPE_WRITE] = 0;
 		}
 
 		pthread_mutex_unlock(&mediaOutputLock);
 
-        mediaOutputStatus.status = MEDIAOUTPUTSTATUS_IDLE;
-        CloseSequenceFile();
+		mediaOutputStatus.status = MEDIAOUTPUTSTATUS_IDLE;
+		CloseSequenceFile();
 		CloseMediaOutput();
-        usleep(1000000);
-    } else {
+		usleep(1000000);
+	} else {
 		pthread_mutex_unlock(&mediaOutputLock);
 	}
 
@@ -94,10 +94,10 @@ void InitMediaOutput(void)
 		LogDebug(VB_MEDIAOUT, "ERROR: Media Output mutex init failed!\n");
 	}
 
-    struct sigaction sa;
-    memset(&sa, 0, sizeof(sa));
-    sa.sa_handler = MediaOutput_sigchld_handler;
-    sigaction(SIGCHLD, &sa, NULL);
+	struct sigaction sa;
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_handler = MediaOutput_sigchld_handler;
+	sigaction(SIGCHLD, &sa, NULL);
 }
 
 /*
