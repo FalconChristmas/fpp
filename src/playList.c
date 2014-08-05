@@ -207,6 +207,22 @@ void PlayListPlayingInit(void)
 	}
 }
 
+void PlaylistProcessMediaData(void)
+{
+	sigset_t blockset;
+
+	sigemptyset(&blockset);
+	sigaddset(&blockset, SIGCHLD);
+	sigprocmask(SIG_BLOCK, &blockset, NULL);
+
+	pthread_mutex_lock(&mediaOutputLock);
+	if (mediaOutput)
+		mediaOutput->processData();
+	pthread_mutex_unlock(&mediaOutputLock);
+
+	sigprocmask(SIG_UNBLOCK, &blockset, NULL);
+}
+
 void PlayListPlayingProcess(void)
 {
     switch(playlistDetails.playList[playlistDetails.currentPlaylistEntry].type)
@@ -221,10 +237,7 @@ void PlayListPlayingProcess(void)
 				{
 					if(mediaOutputStatus.status == MEDIAOUTPUTSTATUS_PLAYING)
 					{
-						pthread_mutex_lock(&mediaOutputLock);
-						if (mediaOutput)
-							mediaOutput->processData();
-						pthread_mutex_unlock(&mediaOutputLock);
+						PlaylistProcessMediaData();
     			}
 				}
         break;
@@ -237,10 +250,7 @@ void PlayListPlayingProcess(void)
 				{
 					if(mediaOutputStatus.status == MEDIAOUTPUTSTATUS_PLAYING)
   			  {
-						pthread_mutex_lock(&mediaOutputLock);
-						if (mediaOutput)
-							mediaOutput->processData();
-						pthread_mutex_unlock(&mediaOutputLock);
+						PlaylistProcessMediaData();
     			}
 				}
         break;
