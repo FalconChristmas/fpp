@@ -30,6 +30,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -58,11 +59,18 @@ int LoadChannelMemoryMapData(void);
  * Create and initialize the channel data and control memory map files
  */
 int InitializeChannelDataMemoryMap(void) {
-	int  i  = 0;
-	char ch = '\0';
+	int   i  = 0;
+	char  ch = '\0';
 	short pixelLocation = 0;
+	char  tmpData[FPPD_MAX_CHANNELS];
+	char  tmpCtrlData[FPPCHANNELMEMORYMAPSIZE];
+	short tmpPixelMapData[FPPD_MAX_CHANNELS];
 
 	LogDebug(VB_CHANNELOUT, "InitializeChannelDataMemoryMap()\n");
+
+	bzero((void *)tmpData, sizeof(tmpData));
+	bzero((void *)tmpCtrlData, sizeof(tmpCtrlData));
+	bzero((void *)tmpPixelMapData, sizeof(tmpPixelMapData));
 
 	// Block of of raw channel data used to overlay data
 	chanDataMapFD =
@@ -76,13 +84,11 @@ int InitializeChannelDataMemoryMap(void) {
 
 	chmod(FPPCHANNELMEMORYMAPDATAFILE, 0666);
 
-	for (i = 0; i < FPPD_MAX_CHANNELS; i++) {
-		if (write(chanDataMapFD, &ch, 1) != 1) {
-			LogErr(VB_CHANNELOUT, "Error populating %s memory map file: %s\n",
-				FPPCHANNELMEMORYMAPDATAFILE, strerror(errno));
-			CloseChannelDataMemoryMap();
-			return -1;
-		}
+	if (write(chanDataMapFD, (void *)tmpData, sizeof(tmpData)) != sizeof(tmpData)) {
+		LogErr(VB_CHANNELOUT, "Error populating %s memory map file: %s\n",
+			FPPCHANNELMEMORYMAPDATAFILE, strerror(errno));
+		CloseChannelDataMemoryMap();
+		return -1;
 	}
 
 	chanDataMap = (char *)mmap(0, FPPD_MAX_CHANNELS, PROT_READ, MAP_SHARED, chanDataMapFD, 0);
@@ -106,13 +112,11 @@ int InitializeChannelDataMemoryMap(void) {
 
 	chmod(FPPCHANNELMEMORYMAPCTRLFILE, 0666);
 
-	for (i = 0; i < FPPCHANNELMEMORYMAPSIZE; i++) {
-		if (write(ctrlFD, &ch, 1) != 1) {
-			LogErr(VB_CHANNELOUT, "Error populating %s memory map file: %s\n",
-				FPPCHANNELMEMORYMAPCTRLFILE, strerror(errno));
-			CloseChannelDataMemoryMap();
-			return -1;
-		}
+	if (write(ctrlFD, (void *)tmpCtrlData, sizeof(tmpCtrlData)) != sizeof(tmpCtrlData)) {
+		LogErr(VB_CHANNELOUT, "Error populating %s memory map file: %s\n",
+			FPPCHANNELMEMORYMAPCTRLFILE, strerror(errno));
+		CloseChannelDataMemoryMap();
+		return -1;
 	}
 
 	ctrlMap = (char *)mmap(0, FPPCHANNELMEMORYMAPSIZE, PROT_READ|PROT_WRITE, MAP_SHARED, ctrlFD, 0);
@@ -139,14 +143,11 @@ int InitializeChannelDataMemoryMap(void) {
 
 	chmod(FPPCHANNELMEMORYMAPPIXELFILE, 0666);
 
-	for (i = 0; i < FPPD_MAX_CHANNELS; i++) {
-		pixelLocation = i;
-		if (write(pixelFD, &pixelLocation, sizeof(short)) != sizeof(short)) {
-			LogErr(VB_CHANNELOUT, "Error populating %s memory map file: %s\n",
-				FPPCHANNELMEMORYMAPPIXELFILE, strerror(errno));
-			CloseChannelDataMemoryMap();
-			return -1;
-		}
+	if (write(pixelFD, (void *)tmpPixelMapData, sizeof(tmpPixelMapData)) != sizeof(tmpPixelMapData)) {
+		LogErr(VB_CHANNELOUT, "Error populating %s memory map file: %s\n",
+			FPPCHANNELMEMORYMAPPIXELFILE, strerror(errno));
+		CloseChannelDataMemoryMap();
+		return -1;
 	}
 
 	pixelMap = (short *)mmap(0, FPPD_MAX_CHANNELS * sizeof(short), PROT_READ|PROT_WRITE, MAP_SHARED, pixelFD, 0);
@@ -158,6 +159,9 @@ int InitializeChannelDataMemoryMap(void) {
 		return -1;
 	}
 
+	for (i = 0; i < FPPD_MAX_CHANNELS; i++) {
+		pixelMap[i] = i;
+	}
 
 	// Load the config
 	LoadChannelMemoryMapData();
