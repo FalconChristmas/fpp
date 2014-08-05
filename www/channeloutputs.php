@@ -428,8 +428,8 @@ function SetChannelOutputs() {
 				return;
 			}
 			maxChannels = 512;
-			if (type.substring(1,8) == "Pixelnet")
-			    maxChannels = 4096;
+			if (type.substring(0,8) == "Pixelnet")
+				maxChannels = 4096;
 		} else if (type == "Renard") {
 			config += GetRenardOutputConfig($this.find("td:nth-child(6)"));
 			if (config == "") {
