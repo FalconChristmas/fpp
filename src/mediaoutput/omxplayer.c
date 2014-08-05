@@ -37,10 +37,11 @@
 #include <sys/socket.h>
 
 #include "channeloutputthread.h"
+#include "common.h"
+#include "controlrecv.h"
 #include "log.h"
 #include "omxplayer.h"
 #include "settings.h"
-#include "common.h"
 #include "sequence.h"
 
 #define MAX_BYTES_OMX 1000
@@ -80,9 +81,10 @@ int omxplayer_StartPlaying(const char *filename)
 	pid_t omxplayerPID = forkpty(&pipeFromOMX[0], 0, 0, 0);
 	if (omxplayerPID == 0)			// omxplayer process
 	{
+		ShutdownControlSocket();
+
 		seteuid(1000); // 'pi' user
 
-//		execl("/usr/bin/omxplayer", "omxplayer", "-s", fullVideoPath, NULL);
 		execl("/opt/fpp/scripts/omxplayer", "/opt/fpp/scripts/omxplayer", fullVideoPath, NULL);
 
 		LogErr(VB_MEDIAOUT, "omxplayer_StartPlaying(), ERROR, we shouldn't "
@@ -114,13 +116,6 @@ int omxplayer_IsPlaying()
 		return 1;
 
 	return 0;
-}
-
-/*
- *
- */
-void omxplayer_ParseTicks(int ticks)
-{
 }
 
 /*
@@ -231,6 +226,7 @@ void omxplayer_PollPlayerInfo()
 		} 
 	}
 }
+
 int omxplayer_ProcessData()
 {
 	if(omxplayer_IsPlaying())
