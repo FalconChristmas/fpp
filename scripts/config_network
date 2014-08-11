@@ -71,6 +71,10 @@ configure_wireless () {
 
 	wpa_supplicant -s -B -P /var/run/wpa_supplicant.${INTERFACE}.pid -i ${INTERFACE} -W -D nl80211,wext -c /home/pi/media/config/wpa_supplicant.conf
 	wpa_cli -B -P /var/run/wpa_action.${INTERFACE}.pid -i ${INTERFACE} -p /var/run/wpa_supplicant -a /sbin/wpa_action
+
+	#####################################################################
+	# Disable power management since it breaks connectivity sometimes
+	iwconfig ${INTERFACE} power off
 }
 
 #############################################################################
