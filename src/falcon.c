@@ -511,7 +511,7 @@ int DetectFalconHardware(int configureHardware)
 
 	int responseSize = FalconDetectHardware(spiPort, query);
 
-	if (responseSize == 8)
+	if ((responseSize == 8) && (query[0] > 0)) 
 	{
 		int spiSpeed = 8000000;
 		char model[32];
