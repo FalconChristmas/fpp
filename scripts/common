@@ -9,6 +9,17 @@ then
 	FPPDIR=/home/pi/fpp
 fi
 
+FPP="${FPPDIR}/bin/fpp"
+FPPD="${FPPDIR}/bin/fppd"
+PATHDIRS="${FPPDIR}/scripts/:${FPPDIR}/bin/"
+if [ -f "${FPPDIR}/src/fppd" -a "${FPPDIR}/src/fppd" -nt "${FPPDIR}/bin/fppd" ]
+then
+	FPP="${FPPDIR}/src/fpp"
+	FPPD="${FPPDIR}/src/fppd"
+	PATHDIRS="${FPPDIR}/scripts/:${FPPDIR}/src/"
+fi
+export PATH=${PATHDIRS}:${PATH}
+
 PLATFORM=$(cat /etc/fpp/platform 2> /dev/null)
 SUDO=${SUDO:-sudo}
 SCRIPTDIR="${FPPDIR}/scripts"
@@ -27,6 +38,7 @@ CFGVERSIONFILE="${CFGVERSIONFILE:-/etc/fpp/config_version}"
 CFGVERSION="${CFGVERSION:-0}"
 [ -f $CFGVERSIONFILE ] && CFGVERSION="$(cat ${CFGVERSIONFILE})"
 
+#############################################################################
 makeLogDir() {
 	if [ ! -d ${LOGDIR} ]
 	then

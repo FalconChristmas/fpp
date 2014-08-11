@@ -1,5 +1,10 @@
 #!/bin/bash
 
+BINDIR=$(cd $(dirname $0) && pwd)
+
+. ${BINDIR}/common
+. ${BINDIR}/functions
+
 EXT=$(basename $1 | sed -e "s/.*\.\([^\.]*\)/\1/")
 
 if [ "x${EXT}" = "xsh" ]
