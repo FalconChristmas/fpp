@@ -24,6 +24,7 @@
  */
 
 #include "channeloutput/FPD.h"
+#include "falcon.h"
 #include "settings.h"
 #include "fppd.h"
 #include "log.h"
@@ -221,7 +222,7 @@ void usage(char *appname)
 {
 printf("Usage: %s [OPTION...]\n"
 "\n"
-"fppd is the FalconPiPlayer daemon.  It runs and handles playback of sequences,\n"
+"fppd is the Falcon Player daemon.  It runs and handles playback of sequences,\n"
 "audio, etc.  Normally it is kicked off by a startup task and daemonized,\n"
 "however you can optionally kill the automatically started daemon and invoke it\n"
 "manually via the command line or via the web interface.  Configuration is\n"
@@ -247,6 +248,7 @@ printf("Usage: %s [OPTION...]\n"
 "  -s, --schedule-file FILENAME  - Set the schedule-file\n"
 "  -l, --log-file FILENAME       - Set the log file\n"
 "  -b, --bytes-file FILENAME     - Set the bytes received file\n"
+"  -H  --detect-hardware         - Detect Falcon hardware on SPI port\n"
 "  -h, --help                    - This menu.\n"
 "      --log-level LEVEL         - Set the log output level:\n"
 "                                  \"info\", \"warn\", \"debug\", \"excess\")\n"
@@ -302,6 +304,7 @@ int parseArguments(int argc, char **argv)
 			{"schedule-file",		required_argument,	0, 's'},
 			{"log-file",			required_argument,	0, 'l'},
 			{"bytes-file",			required_argument,	0, 'b'},
+			{"detect-hardware",		no_argument,		0, 'H'},
 			{"help",				no_argument,		0, 'h'},
 			{"silence-music",		required_argument,	0,	1 },
 			{"log-level",			required_argument,	0,  2 },
@@ -309,7 +312,7 @@ int parseArguments(int argc, char **argv)
 			{0,						0,					0,	0}
 		};
 
-		c = getopt_long(argc, argv, "c:fdVv:m:B:M:S:P:u:p:s:l:b:h",
+		c = getopt_long(argc, argv, "c:fdVv:m:B:M:S:P:u:p:s:l:b:Hh",
 		long_options, &option_index);
 		if (c == -1)
 			break;
@@ -413,6 +416,15 @@ int parseArguments(int argc, char **argv)
 			case 'b': //bytes-file
 				free(settings.bytesFile);
 				settings.bytesFile = strdup(optarg);
+				break;
+			case 'H': //Detect Falcon hardware
+				SetLogFile("");
+				SetLogLevel("debug");
+				SetLogMask("setting");
+				if (DetectFalconHardware(0))
+					exit(1);
+				else
+					exit(0);
 				break;
 			case 'h': //help
 				usage(argv[0]);

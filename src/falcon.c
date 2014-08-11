@@ -71,7 +71,7 @@ int FalconReadConfig(char *filename, char *buf)
 	fp = fopen(fullFilename, "r");
 	if (!fp)
 	{
-		LogErr(VB_SETTING, "Error opening Falcon hardware config file %s",
+		LogErr(VB_SETTING, "Error opening Falcon hardware config file %s\n",
 			fullFilename);
 		return -1;
 	}
@@ -213,6 +213,18 @@ void PopulatePiConfig(char *ipAddress, char *buf)
 /*
  *
  */
+int FalconDetectHardware(int spiPort, char *response)
+{
+	LogDebug(VB_SETTING, "FalconDetectHardware(%p)\n", response);
+
+	bzero(response, 8);
+
+	return wiringPiSPIDataRW(spiPort, response, 8);
+}
+
+/*
+ *
+ */
 void FalconQueryHardware(int sock, struct sockaddr_in *srcAddr,
 	struct in_addr recvAddr, unsigned char *inBuf)
 {
@@ -223,10 +235,10 @@ void FalconQueryHardware(int sock, struct sockaddr_in *srcAddr,
 	bzero(buf, sizeof(buf));
 
 	char query[8];
-	bzero(query, 8);
 
-	int bytesWritten = wiringPiSPIDataRW (0, query, 8);
-	if (bytesWritten == 8)
+	int responseSize = FalconDetectHardware(0, query);
+
+	if (responseSize == 8)
 	{
 		// Stuff response into our response packet. We could use memcpy, but
 		// this helps document what the returned bytes are.
@@ -482,5 +494,79 @@ void ProcessFalconPacket(int sock, struct sockaddr_in *srcAddr,
 		int offset = inBuf[6] + inBuf[7]*256;
 		FalconPassThroughData(offset,&inBuf[8],FALCON_PASSTHROUGH_DATA_SIZE);
 	}
+}
+
+/*
+ *
+ */
+int DetectFalconHardware(int configureHardware)
+{
+	int  spiPort = 0;
+	char query[8];
+	if (wiringPiSPISetup(0, 8000000) < 0)
+	{
+		LogErr(VB_CHANNELOUT, "Unable to set SPI speed to detect hardware\n");
+		return 0;
+	}
+
+	int responseSize = FalconDetectHardware(spiPort, query);
+
+	if (responseSize == 8)
+	{
+		int spiSpeed = 8000000;
+		char model[32];
+		char cfgFile[32];
+
+		strcpy(model, "UNKNOWN");
+		strcpy(cfgFile, "Falcon.FPD");
+
+		switch (query[0])
+		{
+			case 0x01:	strcpy(model, "F16 v2.x");
+						strcpy(cfgFile, "Falcon.F16V2");
+						spiSpeed = 16000000;
+						break;
+			case 0x02:	strcpy(model, "FPD v1.x");
+						strcpy(cfgFile, "Falcon.FPD");
+						spiSpeed = 8000000;
+						break;
+			case 0x03:	strcpy(model, "FPD v2.x");
+						strcpy(cfgFile, "Falcon.FPD");
+						spiSpeed = 8000000;
+						break;
+		}
+
+		LogInfo(VB_SETTING, "Falcon Hardware Detected on SPI port %d\n", spiPort);
+		LogInfo(VB_SETTING, "    Model           : %s\n", model);
+		LogInfo(VB_SETTING, "    Firmware Version: %d.%d\n", query[1], query[2]);
+
+		if (query[1] == 0x01)
+		{
+			LogInfo(VB_SETTING, "    Chip Temperature: %d\n", query[3]);
+			LogInfo(VB_SETTING, "    Temperature #1  : %d\n", query[4]);
+			LogInfo(VB_SETTING, "    Temperature #2  : %d\n", query[5]);
+			LogInfo(VB_SETTING, "    Voltage #1      : %d\n", query[6]);
+			LogInfo(VB_SETTING, "    Voltage #2      : %d\n", query[7]);
+		}
+
+		if (configureHardware)
+		{
+			LogInfo(VB_SETTING, "Setting SPI speed to %d for %s hardware.\n",
+				 spiSpeed, model);
+
+			if (wiringPiSPISetup(0, spiSpeed) < 0)
+			{
+				LogErr(VB_CHANNELOUT, "Unable to set SPI speed to %d for %s\n",
+					 spiSpeed, model);
+				return 0;
+			}
+
+			FalconConfigureHardware(cfgFile, 0);
+		}
+
+		return 1;
+	}
+
+	return 0;
 }
 

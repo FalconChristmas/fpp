@@ -76,6 +76,8 @@ int main(int argc, char *argv[])
 
 	loadSettings("/home/pi/media/settings");
 
+	wiringPiSetupGpio(); // would prefer wiringPiSetupSys();
+
 	// Parse our arguments first, override any defaults
 	parseArguments(argc, argv);
 
@@ -85,7 +87,6 @@ int main(int argc, char *argv[])
 	if (getDaemonize())
 		CreateDaemon();
 
-	wiringPiSetupGpio(); // would prefer wiringPiSetupSys();
 	piFaceSetup(200); // PiFace inputs 1-8 == wiringPi 201-208
 
 	SetupGPIOInput();

@@ -33,6 +33,7 @@
 
 #include "common.h"
 #include "E131.h"
+#include "falcon.h"
 #include "FPD.h"
 #include "log.h"
 #include "sequence.h"
@@ -120,12 +121,21 @@ int InitializePixelnetDMX()
 	LogInfo(VB_CHANNELOUT, "Initializing SPI for FPD output\n");
 
 	LoadPixelnetDMXsettingsFromFile();
-	if (wiringPiSPISetup (0,8000000) < 0)
+
+	if (!DetectFalconHardware(1))
 	{
-	    LogErr(VB_CHANNELOUT, "Unable to open SPI device\n") ;
-		return 0;
+		LogWarn(VB_CHANNELOUT, "Unable to detect attached Falcon "
+			"hardware, setting SPI speed to 8000000.\n");
+
+		if (wiringPiSPISetup (0, 8000000) < 0)
+		{
+		    LogErr(VB_CHANNELOUT, "Unable to open SPI device\n") ;
+			return 0;
+		}
+
+		LogWarn(VB_CHANNELOUT, "Sending FPD v1.0 config\n");
+		SendFPDConfig();
 	}
-	SendFPDConfig();
 
 	return 1;
 }
