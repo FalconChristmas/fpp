@@ -22,7 +22,7 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
- 
+
 #include "fpp.h"
 #include "log.h"
 #include "command.h"
@@ -49,6 +49,7 @@ char response[256];
 
 void SendCommand(const char * com);
 void SetupDomainSocket(void);
+void Usage(char *appname);
 
 socklen_t address_length;
 
@@ -129,6 +130,10 @@ int main (int argc, char *argv[])
       sprintf(command,"t,%s,",argv[2]);
       SendCommand(command);
     }
+    else if(strncmp(argv[1],"-h",2) == 0)
+    {
+      Usage(argv[0]);
+    }
     // Set new log level - "fpp --log-level info"   "fpp --log-level debug"
     else if((strcmp(argv[1],"--log-level") == 0) &&  argc > 2)
     {
@@ -152,6 +157,7 @@ int main (int argc, char *argv[])
     }
     else
     {
+      Usage(argv[0]);
     }
   }
   else
@@ -162,6 +168,9 @@ int main (int argc, char *argv[])
   return 0;
 }
 
+/*
+ *
+ */
 void SetupDomainSocket(void)
 {
  if((socket_fd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0)
@@ -186,6 +195,9 @@ void SetupDomainSocket(void)
  strcpy(server_address.sun_path, FPP_SERVER_SOCKET);
 }
 
+/*
+ *
+ */
 void SendCommand(const char * com)
 {
  int max_timeout = 1000;
@@ -220,3 +232,29 @@ void SendCommand(const char * com)
  }
 }
 
+/*
+ *
+ */
+void Usage(char *appname)
+{
+	printf("Usage: %s [OPTION...]\n"
+"\n"
+"fpp is the Falcon Player CLI helper utility.  It can be used to query\n"
+"certain information and send commands to a running fppd daemon.\n"
+"\n"
+"Options:\n"
+"  -s                           - Get fppd status\n"
+"  -v VOLUME                    - Set volume to 'VOLUME'\n"
+"  -p PLAYLISTNAME              - Play Playlist PLAYLISTNAME in repeat mode\n"
+"  -P PLAYLISTNAME [STARTITEM]  - Play Playlist PLAYLISTNAME once, optionally\n"
+"                                 starting on item STARTITEM in the playlist\n"
+"  -S                           - Stop Playlist gracefully\n"
+"  -d                           - Stop Playlist immediately\n"
+"  -q                           - Shutdown fppd daemon\n"
+"  -R                           - Reload schedule config file\n"
+"  -w                           - Send FPD config out SPI port\n"
+"  -r                           - Write Bridge mode Bytes Received file\n"
+"  -e EFFECTNAME                - Start Effect EFFECTNAME\n"
+"  -t EVENTNAME                 - Trigger Event EVENTNAME\n"
+"\n", appname);
+}
