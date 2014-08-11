@@ -6,7 +6,7 @@ require_once("config.php");
 ?>
 <title><? echo $pageTitle; ?></title>
 <script>
-	function updateMultiSyncRemotes() {
+	function updateMultiSyncRemotes(checkbox) {
 		var remotes = "";
 
 		if ($('#allRemotes').is(":checked")) {
@@ -17,7 +17,8 @@ require_once("config.php");
 						($(this).attr("name") != "255.255.255.255"))
 				{
 					$(this).prop('checked', false);
-					DialogError("WARNING", "'All Remotes' is already checked.  Uncheck 'All Remotes' if you want to select individual FPP instances.");
+					if ($(checkbox).attr("name") != "255.255.255.255")
+						DialogError("WARNING", "'All Remotes' is already checked.  Uncheck 'All Remotes' if you want to select individual FPP instances.");
 				}
 			});
 		} else {
@@ -34,7 +35,10 @@ require_once("config.php");
 		$.get("fppjson.php?command=setSetting&key=MultiSyncRemotes&value=" + remotes
 		).success(function() {
 			settings['MultiSyncRemotes'] = remotes;
-			$.jGrowl("Remote List Saved: '" + remotes + "'.  You must restart fppd for the changes to take effect.");
+			if (remotes == "")
+				$.jGrowl("Remote List Cleared.  You must restart fppd for the changes to take effect.");
+			else
+				$.jGrowl("Remote List set to: '" + remotes + "'.  You must restart fppd for the changes to take effect.");
 		}).fail(function() {
 			DialogError("Save Remotes", "Save Failed");
 		});
@@ -57,7 +61,7 @@ require_once("config.php");
 			var star = "<input id='allRemotes' type='checkbox' class='remoteCheckbox' name='255.255.255.255'";
 			if (typeof remotes["255.255.255.255"] !== 'undefined')
 				star += " checked";
-			star += " onClick='updateMultiSyncRemotes();'>";
+			star += " onClick='updateMultiSyncRemotes(this);'>";
 
 			var newRow = "<tr>" +
 				"<td align='center'>" + star + "</td>" +
