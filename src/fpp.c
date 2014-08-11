@@ -200,7 +200,7 @@ void SetupDomainSocket(void)
  */
 void SendCommand(const char * com)
 {
- int max_timeout = 1000;
+ int max_timeout = 4000;
  int i=0;
  bytes_sent = sendto(socket_fd, com, strlen(com), 0,
                      (struct sockaddr *) &server_address,
