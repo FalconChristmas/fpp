@@ -96,17 +96,6 @@ int InitSyncMaster(void) {
 		exit(1);
 	}
 
-	GetInterfaceAddress(getE131interface(), cLocalAddress, NULL, NULL); // FIXME
-
-	cSrcAddr.sin_family      = AF_INET;
-	cSrcAddr.sin_port        = htons(FPP_CTRL_PORT+1);
-	cSrcAddr.sin_addr.s_addr = inet_addr(cLocalAddress);
-
-	if(bind(ctrlSendSock, (struct sockaddr *)&cSrcAddr, sizeof(cSrcAddr)) == -1) {
-		LogErr(VB_SYNC, "Error in bind: %s\n", strerror(errno));
-		exit(1);
-	}
-
 	char loopch = 0;
 	if(setsockopt(ctrlSendSock, IPPROTO_IP, IP_MULTICAST_LOOP, (char *)&loopch, sizeof(loopch)) < 0) {
 		LogErr(VB_SYNC, "Error setting IP_MULTICAST_LOOP: \n",
