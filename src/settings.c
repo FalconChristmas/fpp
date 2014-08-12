@@ -348,7 +348,7 @@ int parseArguments(int argc, char **argv)
 						settings.settingsFile = strdup(optarg);
 					}
 				} else {
-					printf("Settings file specified does not exist: '%s'\n", optarg);
+					fprintf(stderr, "Settings file specified does not exist: '%s'\n", optarg);
 				}
 				break;
 			case 'f': //foreground
@@ -371,7 +371,7 @@ int parseArguments(int argc, char **argv)
 					settings.fppMode = REMOTE_MODE;
 				else
 				{
-					printf("Error parsing mode\n");
+					fprintf(stderr, "Error parsing mode\n");
 					exit(EXIT_FAILURE);
 				}
 				break;
@@ -517,7 +517,7 @@ int loadSettings(const char *filename)
 					settings.fppMode = REMOTE_MODE;
 				else
 				{
-					printf("Error parsing mode\n");
+					fprintf(stderr, "Error parsing mode\n");
 					exit(EXIT_FAILURE);
 				}
 			}
