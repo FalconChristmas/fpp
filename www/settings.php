@@ -48,6 +48,59 @@
     }
 ?>
 <script>
+
+	var queuedChanges = 0;
+	function MaskChanged(cbox)
+	{
+		var newValue = false;
+		if ($(cbox).is(':checked', true))
+			newValue = true;
+
+		var id = $(cbox).attr('id');
+		if (id == "mask_all")
+		{
+			$('#LogMask input').prop('checked', false);
+			// Do this so we don't have to put class='mask_most,mask_all' on every 'most' items
+			$('#LogMask input.mask_most').prop('checked', newValue);
+			$('#LogMask input.mask_all').prop('checked', newValue);
+			$('#mask_most').prop('checked', false);
+		}
+		else if (id == "mask_most")
+		{
+			$('#LogMask input').prop('checked', false);
+			$('#LogMask input.mask_most').prop('checked', newValue);
+		}
+		else
+		{
+			$('#mask_most').prop('checked', false);
+			$('#mask_all').prop('checked', false);
+		}
+
+		var newValue = "";
+		$('#LogMask input').each(function() {
+				if ($(this).is(':checked', true)) {
+					if (newValue != "") {
+						newValue += ",";
+					}
+					newValue += $(this).attr('id').replace(/(.*,)?mask_/,"");
+				}
+			});
+
+		$.get("fppjson.php?command=setSetting&key=LogMask&value="
+			+ newValue).fail(function() { alert("Error saving new mask") });
+
+		$.ajax({ url: 'fppjson.php?command=setSetting&key=LogMask&value=' + newValue, 
+				async: false,
+				dataType: 'json',
+				success: function(data) {
+					$.jGrowl("Log Mask Saved.");
+				},
+				failure: function(data) {
+					DialogError("Save Log Mask", "Error Saving new Log Mask.");
+				}
+		});
+	}
+
 $(document).ready(function(){
   $("#chkPiLCDenabled").change(function(){
     var enabled = $("#chkPiLCDenabled").is(':checked')	
@@ -68,7 +121,7 @@ $(document).ready(function(){
     logMasks = settings['LogMask'].split(",");
 
   for (var i = 0; i < logMasks.length; i++) {
-    $('#LogMask input.mask_' + logMasks[i]).prop('checked', true);
+    $('#mask_' + logMasks[i]).prop('checked', true);
   }
 });
 
@@ -83,23 +136,6 @@ function LogLevelChanged()
 	$.get("fppjson.php?command=setSetting&key=LogLevel&value="
 		+ $('#LogLevel').val()).fail(function() { alert("Error saving new level") });
 }
-
-$(function() {
-	$('#LogMask input').change(function() {
-			var newValue = "";
-			$('#LogMask input').each(function() {
-					if ($(this).is(':checked', true)) {
-						if (newValue != "") {
-							newValue += ",";
-						}
-						newValue += $(this).attr('class').replace(/mask_/,"");
-					}
-				});
-
-			$.get("fppjson.php?command=setSetting&key=LogMask&value="
-				+ newValue).fail(function() { alert("Error saving new mask") });
-		});
-	});
 
 function AudioOutputChanged()
 {
@@ -151,28 +187,30 @@ function AudioOutputChanged()
             </tr>
           <tr>
             <td valign=top>
-              <input type='checkbox' class='mask_all'>ALL<br>
-              <input type='checkbox' class='mask_most'>Most
+              <input type='checkbox' id='mask_all' class='mask_all' onChange='MaskChanged(this);'>ALL<br>
+              <input type='checkbox' id='mask_most' class='mask_most' onChange='MaskChanged(this);'>Most
               </td>
             <td width='10px'></td>
             <td valign=top>
-              <input type='checkbox' class='mask_channeldata'>Channel Data<br>
-              <input type='checkbox' class='mask_channelout'>Channel Outputs<br>
-              <input type='checkbox' class='mask_command'>Commands<br>
-              <input type='checkbox' class='mask_control'>Control Interface<br>
-              <input type='checkbox' class='mask_e131bridge'>E1.31 Bridge<br>
-              <input type='checkbox' class='mask_effect'>Effects<br>
-              <input type='checkbox' class='mask_event'>Events<br>
+              <input type='checkbox' id='mask_channeldata' class='mask_all' onChange='MaskChanged(this);'>Channel Data<br>
+              <input type='checkbox' id='mask_channelout' class='mask_most' onChange='MaskChanged(this);'>Channel Outputs<br>
+              <input type='checkbox' id='mask_command' class='mask_most' onChange='MaskChanged(this);'>Commands<br>
+              <input type='checkbox' id='mask_control' class='mask_most' onChange='MaskChanged(this);'>Control Interface<br>
+              <input type='checkbox' id='mask_e131bridge' class='mask_most' onChange='MaskChanged(this);'>E1.31 Bridge<br>
+              <input type='checkbox' id='mask_effect' class='mask_most' onChange='MaskChanged(this);'>Effects<br>
+              <input type='checkbox' id='mask_event' class='mask_most' onChange='MaskChanged(this);'>Events<br>
+              <input type='checkbox' id='mask_general' class='mask_most' onChange='MaskChanged(this);'>General<br>
               </td>
             <td width='10px'></td>
             <td valign=top>
-              <input type='checkbox' class='mask_general'>General<br>
-              <input type='checkbox' class='mask_mediaout'>Media Outputs<br>
-              <input type='checkbox' class='mask_playlist'>Playlists<br>
-              <input type='checkbox' class='mask_schedule'>Scheduler<br>
-              <input type='checkbox' class='mask_sequence'>Sequence Parser<br>
-              <input type='checkbox' class='mask_setting'>Settings<br>
-              <input type='checkbox' class='mask_sync'>MultiSync<br>
+              <input type='checkbox' id='mask_gpio' class='mask_most' onChange='MaskChanged(this);'>GPIO<br>
+              <input type='checkbox' id='mask_mediaout' class='mask_most' onChange='MaskChanged(this);'>Media Outputs<br>
+              <input type='checkbox' id='mask_sync' class='mask_most' onChange='MaskChanged(this);'>MultiSync<br>
+              <input type='checkbox' id='mask_playlist' class='mask_most' onChange='MaskChanged(this);'>Playlists<br>
+              <input type='checkbox' id='mask_plugin' class='mask_most' onChange='MaskChanged(this);'>Plugins<br>
+              <input type='checkbox' id='mask_schedule' class='mask_most' onChange='MaskChanged(this);'>Scheduler<br>
+              <input type='checkbox' id='mask_sequence' class='mask_most' onChange='MaskChanged(this);'>Sequence Parser<br>
+              <input type='checkbox' id='mask_setting' class='mask_most' onChange='MaskChanged(this);'>Settings<br>
               </td>
           </tr>
         </table>
