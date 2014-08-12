@@ -47,24 +47,13 @@ function WriteSettingToFile($settingName, $setting, $plugin = "")
 		$filename = $settings['configDirectory'] . "/plugin." . $plugin;
 	}
 
-	$settingsStr = file_get_contents($filename);
-	if ( !empty($settingsStr) )
-	{
-		if (preg_match("/^" . $settingName . "\s*=/m", $settingsStr))
-		{
-			$settingsStr = preg_replace("/^" . $settingName . "\s*=\s*\S*\w*/m", $settingName . " = " . $setting . "\n", $settingsStr);
-		}
-		else
-		{
-			$settingsStr .= $settingName . " = " . $setting . "\n";
-		}
-		$settingsStr = preg_replace("/\n\n/", "\n", $settingsStr);
-		file_put_contents($filename, $settingsStr);
+	$settingsStr = "";
+	$tmpSettings = parse_ini_file($filename);
+	$tmpSettings[$settingName] = $setting;
+	foreach ($tmpSettings as $key => $value) {
+		$settingsStr .= $key . " = " . $value . "\n";
 	}
-	else
-	{
-		file_put_contents($filename, $settingName ." = " . $setting . "\n");
-	}
+	file_put_contents($filename, $settingsStr);
 }
 
 function IfSettingEqualPrint($setting, $value, $print, $pluginName = "")
