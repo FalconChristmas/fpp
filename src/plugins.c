@@ -185,7 +185,7 @@ void MediaCallback(void)
 				LogDebug(VB_PLUGIN, "Child process, calling %s callback for media : %s\n", plugins[i].name, plugins[i].script);
 
 				// build our data string here
-				char data[1024];
+				char data[64*1024]; // "Unreasonably" high to handle all data we're going to pass
 				// TODO: parse JSON a little better like escaping special 
 				// characters if needed, should only be quote that requires
 				// escaping, we shouldn't worry about things like tabs,
@@ -202,12 +202,42 @@ void MediaCallback(void)
 				if ( strlen(plEntry->songName) )
 					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
 					"\"Media\":\"%s\",", plEntry->songName);
-				if ( mediaDetails.title )
+				if ( strlen(mediaDetails.title) )
 					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
 					"\"title\":\"%s\",", mediaDetails.title);
-				if ( mediaDetails.artist )
+				if ( strlen(mediaDetails.artist) )
 					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
 					"\"artist\":\"%s\",", mediaDetails.artist);
+				if ( strlen(mediaDetails.album) )
+					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
+					"\"album\":\"%s\",", mediaDetails.album);
+				if ( mediaDetails.year )
+					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
+					"\"year\":\"%d\",", mediaDetails.year);
+				if ( strlen(mediaDetails.comment) )
+					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
+					"\"comment\":\"%s\",", mediaDetails.comment);
+				if ( mediaDetails.track )
+					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
+					"\"track\":\"%d\",", mediaDetails.track);
+				if ( strlen(mediaDetails.genre) )
+					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
+					"\"genre\":\"%s\",", mediaDetails.genre);
+				if ( mediaDetails.seconds )
+					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
+					"\"seconds\":\"%d\",", mediaDetails.seconds);
+				if ( mediaDetails.minutes )
+					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
+					"\"minutes\":\"%d\",", mediaDetails.minutes);
+				if ( mediaDetails.bitrate )
+					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
+					"\"bitrate\":\"%d\",", mediaDetails.bitrate);
+				if ( mediaDetails.sampleRate )
+					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
+					"\"sampleRate\":\"%d\",", mediaDetails.sampleRate);
+				if ( mediaDetails.channels )
+					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
+					"\"channels\":\"%d\",", mediaDetails.channels);
 
 				data[strlen(data)-1] = '}'; //replace last comma with a closing brace
 
