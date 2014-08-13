@@ -202,25 +202,25 @@ void MediaCallback(void)
 				if ( strlen(plEntry->songName) )
 					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
 					"\"Media\":\"%s\",", plEntry->songName);
-				if ( strlen(mediaDetails.title) )
+				if ( mediaDetails.title && strlen(mediaDetails.title) )
 					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
 					"\"title\":\"%s\",", mediaDetails.title);
-				if ( strlen(mediaDetails.artist) )
+				if ( mediaDetails.artist && strlen(mediaDetails.artist) )
 					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
 					"\"artist\":\"%s\",", mediaDetails.artist);
-				if ( strlen(mediaDetails.album) )
+				if ( mediaDetails.album && strlen(mediaDetails.album) )
 					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
 					"\"album\":\"%s\",", mediaDetails.album);
 				if ( mediaDetails.year )
 					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
 					"\"year\":\"%d\",", mediaDetails.year);
-				if ( strlen(mediaDetails.comment) )
+				if ( mediaDetails.comment && strlen(mediaDetails.comment) )
 					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
 					"\"comment\":\"%s\",", mediaDetails.comment);
 				if ( mediaDetails.track )
 					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
 					"\"track\":\"%d\",", mediaDetails.track);
-				if ( strlen(mediaDetails.genre) )
+				if ( mediaDetails.genre && strlen(mediaDetails.genre) )
 					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
 					"\"genre\":\"%s\",", mediaDetails.genre);
 				if ( mediaDetails.seconds )
