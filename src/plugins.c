@@ -106,9 +106,9 @@ void InitPluginCallbacks(void)
 				close(output_pipe[1]);
 				read(output_pipe[0], callbacks_list, sizeof(callbacks_list));
 
-				while ( callbacks_list[strlen(callbacks_list)] == '\n' )
-					callbacks_list[strlen(callbacks_list)] = '\0';	// hack to cut off
-																	// trailing newlines
+				while ( callbacks_list[strlen(callbacks_list)-1] == '\n' )
+					callbacks_list[strlen(callbacks_list)-1] = '\0';	// hack to cut off
+																		// trailing newlines
 
 				LogExcess(VB_PLUGIN, "Callback output: (%s)\n", callbacks_list);
 				wait(NULL);
