@@ -247,7 +247,6 @@ void MediaCallback(void)
 			else
 			{
 				LogExcess(VB_PLUGIN, "Parent process, resuming work\n");
-				wait(NULL);
 			}
 		}
 	}
