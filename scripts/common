@@ -68,10 +68,10 @@ teeOutput() {
 		makeLogDir
 
 		FILE=$(basename $0)
+		echo "==========================================================================" >> ${LOGDIR}/${FILE}.log
+		date >> ${LOGDIR}/${FILE}.log
 		exec > >(tee -a ${LOGDIR}/${FILE}.log)
 		exec 2>&1
-		echo "=========================================================================="
-		date
 	fi
 }
 
