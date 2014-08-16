@@ -239,4 +239,33 @@ stopWebSocketServer() {
 }
 
 #############################################################################
+# Detect PiFace
+detectPiFace() {
+	/usr/local/bin/gpio -p write 207 1
+	PIFACEFOUND=$(/usr/local/bin/gpio -p read 215)
+	/usr/local/bin/gpio -p write 207 0
+
+	grep -q PiFaceDetected ${CFGFILE}
+	if [ $? -eq 0 ]
+	then
+		sed -i "s/^PiFaceDetected =.*/PiFaceDetected = ${PIFACEFOUND}/" ${CFGFILE}
+	else
+		echo "PiFaceDetected = ${PIFACEFOUND}" >> ${CFGFILE}
+	fi
+}
+
+#############################################################################
+# Detect Falcon hardware on SPI port
+detectFalconHardware() {
+	${FPPD} -H > /dev/null 2>&1
+	FHWFOUND=$?
+
+	grep -q FalconHardwareDetected ${CFGFILE}
+	if [ $? -eq 0 ]
+	then
+		sed -i "s/^FalconHardwareDetected =.*/FalconHardwareDetected = ${FHWFOUND}/" ${CFGFILE}
+	else
+		echo "FalconHardwareDetected = ${FHWFOUND}" >> ${CFGFILE}
+	fi
+}
 

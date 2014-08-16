@@ -46,6 +46,10 @@ include 'common/menuHead.inc';
 		echo $eventOptions;
 		echo "</select>";
 	}
+
+	$piFaceStyle = "style='display: none;'";
+	if (isset($settings['PiFaceDetected']) && ($settings['PiFaceDetected'] == 1))
+		$piFaceStyle = "";
 ?>
 <script language="Javascript">
 
@@ -133,7 +137,7 @@ $(document).ready(function(){
 				<td>P1 - Pin 18</td>
 		</tr>
 		<tr><td><? PrintSettingCheckbox("GPIO Input", "GPIOInput025Enabled", "1", "0"); ?></td>
-				<td>BCM 25</td>
+				<td>BCM 25<span <? echo $piFaceStyle; ?>> **</span></td>
 				<td><? PrintEventOptions(25); ?></td>
 				<td>P1 - Pin 22</td>
 		</tr>
@@ -158,59 +162,56 @@ $(document).ready(function(){
 				<td>P5 - Pin 6</td>
 		</tr>
 
-		<tr id='piFaceShow'><td colspan=4 align='center'>
-				<a href='javascript: void(0);' onClick='$("#piFaceShow").hide(); $("#GPIOInputs tr.piFaceGPIO").show();'>Show&nbsp;PiFace&nbsp;GPIO</a>
-				</td>
-		</tr>
-		<tr class='piFaceGPIO' style='display: none;'>
+		<tr <? echo $piFaceStyle; ?>><td colspan=4><br>NOTE: ** - BCM 25 conflicts with PiFace GPIO Inputs, do not enable BCM 25 when using a PiFace.<br></td></tr>
+		<tr class='piFaceGPIO' <? echo $piFaceStyle; ?>>
 				<td colspan=4 align='center'><hr><b>PiFace GPIO Outputs</b></td>
 		</tr>
-		<tr class='piFaceGPIO' style='display: none;'>
-				<td><? PrintSettingCheckbox("GPIO Input", "GPIOInput201Enabled", "1", "0"); ?></td>
+		<tr class='piFaceGPIO' <? echo $piFaceStyle; ?>>
+				<td><? PrintSettingCheckbox("GPIO Input", "GPIOInput200Enabled", "1", "0"); ?></td>
 				<td>PiFace 1</td>
-				<td><? PrintEventOptions(201); ?></td>
+				<td><? PrintEventOptions(200); ?></td>
 				<td>Input 1</td>
 		</tr>
-		<tr class='piFaceGPIO' style='display: none;'>
-				<td><? PrintSettingCheckbox("GPIO Input", "GPIOInput202Enabled", "1", "0"); ?></td>
+		<tr class='piFaceGPIO' <? echo $piFaceStyle; ?>>
+				<td><? PrintSettingCheckbox("GPIO Input", "GPIOInput201Enabled", "1", "0"); ?></td>
 				<td>PiFace 2</td>
-				<td><? PrintEventOptions(202); ?></td>
+				<td><? PrintEventOptions(201); ?></td>
 				<td>Input 2</td>
 		</tr>
-		<tr class='piFaceGPIO' style='display: none;'>
-				<td><? PrintSettingCheckbox("GPIO Input", "GPIOInput203Enabled", "1", "0"); ?></td>
+		<tr class='piFaceGPIO' <? echo $piFaceStyle; ?>>
+				<td><? PrintSettingCheckbox("GPIO Input", "GPIOInput202Enabled", "1", "0"); ?></td>
 				<td>PiFace 3</td>
-				<td><? PrintEventOptions(203); ?></td>
+				<td><? PrintEventOptions(202); ?></td>
 				<td>Input 3</td>
 		</tr>
-		<tr class='piFaceGPIO' style='display: none;'>
-				<td><? PrintSettingCheckbox("GPIO Input", "GPIOInput204Enabled", "1", "0"); ?></td>
+		<tr class='piFaceGPIO' <? echo $piFaceStyle; ?>>
+				<td><? PrintSettingCheckbox("GPIO Input", "GPIOInput203Enabled", "1", "0"); ?></td>
 				<td>PiFace 4</td>
-				<td><? PrintEventOptions(204); ?></td>
+				<td><? PrintEventOptions(203); ?></td>
 				<td>Input 4</td>
 		</tr>
-		<tr class='piFaceGPIO' style='display: none;'>
-				<td><? PrintSettingCheckbox("GPIO Input", "GPIOInput205Enabled", "1", "0"); ?></td>
+		<tr class='piFaceGPIO' <? echo $piFaceStyle; ?>>
+				<td><? PrintSettingCheckbox("GPIO Input", "GPIOInput204Enabled", "1", "0"); ?></td>
 				<td>PiFace 5</td>
-				<td><? PrintEventOptions(205); ?></td>
+				<td><? PrintEventOptions(204); ?></td>
 				<td>Input 5</td>
 		</tr>
-		<tr class='piFaceGPIO' style='display: none;'>
-				<td><? PrintSettingCheckbox("GPIO Input", "GPIOInput206Enabled", "1", "0"); ?></td>
+		<tr class='piFaceGPIO' <? echo $piFaceStyle; ?>>
+				<td><? PrintSettingCheckbox("GPIO Input", "GPIOInput205Enabled", "1", "0"); ?></td>
 				<td>PiFace 6</td>
-				<td><? PrintEventOptions(206); ?></td>
+				<td><? PrintEventOptions(205); ?></td>
 				<td>Input 6</td>
 		</tr>
-		<tr class='piFaceGPIO' style='display: none;'>
-				<td><? PrintSettingCheckbox("GPIO Input", "GPIOInput207Enabled", "1", "0"); ?></td>
+		<tr class='piFaceGPIO' <? echo $piFaceStyle; ?>>
+				<td><? PrintSettingCheckbox("GPIO Input", "GPIOInput206Enabled", "1", "0"); ?></td>
 				<td>PiFace 7</td>
-				<td><? PrintEventOptions(207); ?></td>
+				<td><? PrintEventOptions(206); ?></td>
 				<td>Input 7</td>
 		</tr>
-		<tr class='piFaceGPIO' style='display: none;'>
-				<td><? PrintSettingCheckbox("GPIO Input", "GPIOInput208Enabled", "1", "0"); ?></td>
+		<tr class='piFaceGPIO' <? echo $piFaceStyle; ?>>
+				<td><? PrintSettingCheckbox("GPIO Input", "GPIOInput207Enabled", "1", "0"); ?></td>
 				<td>PiFace 8</td>
-				<td><? PrintEventOptions(208); ?></td>
+				<td><? PrintEventOptions(207); ?></td>
 				<td>Input 8</td>
 		</tr>
 	</table>

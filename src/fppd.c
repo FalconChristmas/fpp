@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
 	if (getDaemonize())
 		CreateDaemon();
 
-	piFaceSetup(200); // PiFace inputs 1-8 == wiringPi 201-208
+	piFaceSetup(200); // PiFace inputs 1-8 == wiringPi 200-207
 
 	SetupGPIOInput();
 
