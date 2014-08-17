@@ -75,6 +75,10 @@ int SetupGPIOInput(void)
 			}
 
 			pinMode(i, INPUT);
+
+			if ((i >= 200) && (i <= 207))
+				pullUpDnControl(i, PUD_UP);
+
 			inputConfigured[i] = 1;
 			enabledCount++;
 		}
