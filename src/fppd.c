@@ -241,7 +241,13 @@ void MainLoop(void)
 					sleepms = 10000;
 				}
 
-				PlayListPlayingProcess();
+				// Check again here in case PlayListPlayingInit
+				// didn't find anything and put us back to IDLE
+				if ((FPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||
+					(FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY))
+				{
+					PlayListPlayingProcess();
+				}
 			}
 			else if (FPPstatus == FPP_STATUS_IDLE)
 			{
