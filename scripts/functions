@@ -106,8 +106,14 @@ WaitForDHCPIPs() {
 		IP=""
 		for INTERFACE in ${DHCP_INTERFACES}
 		do
+			LINKUP="N/A"
+			if [ "x${INTERFACE}" = "xeth0" ]
+			then
+				LINKUP=$(ethtool eth0 | grep "Link detected: yes")
+			fi
+
 			IP=$(ifconfig ${INTERFACE} | grep "inet " | sed -e "s/addr://" | awk '{print $2}')
-			if [ -z "${IP}" ]
+			if [ -n "${LINKUP}" -a -z "${IP}" ]
 			then
 				echo "${INTERFACE} does not have an IP, waiting for ${SLEEPTIME} seconds"
 				sleep ${SLEEPTIME}
