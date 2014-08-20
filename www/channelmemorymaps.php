@@ -182,8 +182,8 @@ $(document).tooltip();
 						<thead>
 							<tr class="fppTableHeader">
 								<th title='Name of Block'>Block Name</td>
-								<th title='Start Channel'>Start</td>
-								<th title='Channel Count'>Count</td>
+								<th title='Start Channel'>Start Ch.</td>
+								<th title='Channel Count'>Ch. Count</td>
 								<th title='String Orientation'>Orientation</td>
 								<th title='Starting Corner'>Start Corner</td>
 								<th title='Number of Strings'>Strings</td>
