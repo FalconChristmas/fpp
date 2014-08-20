@@ -252,7 +252,7 @@ void Usage(char *appname)
 "  -d                           - Stop Playlist immediately\n"
 "  -q                           - Shutdown fppd daemon\n"
 "  -R                           - Reload schedule config file\n"
-"  -w                           - Send FPD config out SPI port\n"
+"  -w                           - Send Falcon hardware config out SPI port\n"
 "  -r                           - Write Bridge mode Bytes Received file\n"
 "  -e EFFECTNAME                - Start Effect EFFECTNAME\n"
 "  -t EVENTNAME                 - Trigger Event EVENTNAME\n"

@@ -23,6 +23,7 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "falcon.h"
 #include "fpp.h"
 #include "fppd.h"
 #include "log.h"
@@ -282,8 +283,9 @@ extern PlaylistDetails playlistDetails;
 		}
 		else if (!strcmp(CommandStr, "w"))
 		{
-				LogInfo(VB_CHANNELOUT, "Sending Pixelnet DMX info\n");
-				SendFPDConfig();
+				LogInfo(VB_SETTING, "Sending Falcon hardware config\n");
+				if (!DetectFalconHardware(1))
+					SendFPDConfig();
 		}
 		else if (!strcmp(CommandStr, "r"))
 		{

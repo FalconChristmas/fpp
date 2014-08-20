@@ -118,6 +118,10 @@ else if(!empty($_POST['command']) && $_POST['command'] == "saveSchedule")
 {
 	SaveSchedule();
 }
+else if(!empty($_POST['command']) && $_POST['command'] == "saveHardwareConfig")
+{
+	SaveHardwareConfig();
+}
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -1037,6 +1041,78 @@ function GetSchedule()
 
 	}
 	echo $doc->saveHTML();
+}
+
+function SaveHardwareConfig()
+{
+	global $settings;
+
+	if (!isset($_POST['model']))
+	{
+		EchoStatusXML('Failure, no model supplied');
+		return;
+	}
+
+	$model = $_POST['model'];
+	$firmware = $_POST['firmware'];
+
+	if ($model == "F16V2")
+	{
+		$outputCount = 16;
+		$bytesWritten = 0;
+
+		$carr = array();
+		for ($i = 0; $i < 1024; $i++)
+		{
+			$carr[$i] = 0x0;
+		}
+
+		$i = 0;
+
+		// Header
+		$carr[$i++] = 0x55;
+		$carr[$i++] = 0x55;
+		$carr[$i++] = 0x55;
+		$carr[$i++] = 0x55;
+		$carr[$i++] = 0x55;
+		$carr[$i++] = 0xCD;
+
+		// Some byte
+		$carr[$i++] = 0x01;
+
+
+		for ($o = 0; $o < $outputCount; $o++)
+		{
+			$nodeCount = $_POST['nodeCount'][$o];
+			$carr[$i++] = intval($nodeCount % 256);
+			$carr[$i++] = intval($nodeCount / 256);
+
+			$startChannel = $_POST['startChannel'][$o];
+			$carr[$i++] = intval($startChannel % 256);
+			$carr[$i++] = intval($startChannel / 256);
+
+			// Node Type is set on groups of 4 ports
+			$carr[$i++] = intval($_POST['nodeType'][intval($o / 4) * 4]);
+
+			$carr[$i++] = intval($_POST['rgbOrder'][$o]);
+			$carr[$i++] = intval($_POST['direction'][$o]);
+			$carr[$i++] = intval($_POST['groupCount'][$o]);
+			$carr[$i++] = intval($_POST['nullNodes'][$o]);
+		}
+
+		$f = fopen($settings['configDirectory'] . "/Falcon.F16V2", "wb");
+		fwrite($f, implode(array_map("chr", $carr)), 1024);
+		fclose($f);
+
+		SendCommand('w');
+	}
+	else
+	{
+		EchoStatusXML('Failure, unknown model: ' . $model);
+		return;
+	}
+
+	EchoStatusXML('Success');
 }
 
 function CloneUniverse()

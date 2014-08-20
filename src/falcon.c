@@ -153,6 +153,9 @@ int FalconConfigureHardware(char *filename, int spiPort)
 	DisableChannelOutput();
 	usleep(100000);
 
+	if ((logLevel & LOG_DEBUG) && (logMask && VB_SETTING))
+		HexDump("Falcon Hardware Config", buf, bytesRead);
+
 	bytesWritten = wiringPiSPIDataRW (0, buf, FALCON_CFG_BUF_SIZE);
 	if (bytesWritten != FALCON_CFG_BUF_SIZE)
 	{
@@ -160,7 +163,9 @@ int FalconConfigureHardware(char *filename, int spiPort)
 			"Error: wiringPiSPIDataRW returned %d, expecting %d\n",
 			bytesWritten, FALCON_CFG_BUF_SIZE);
 	}
-	HexDump("Falcon Hardware Config Response", buf, 8);
+
+	if ((logLevel & LOG_DEBUG) && (logMask && VB_SETTING))
+		HexDump("Falcon Hardware Config Response", buf, 8);
 
 	usleep(10000);
 
@@ -179,7 +184,8 @@ int FalconConfigureHardware(char *filename, int spiPort)
 		return -1;
 	}
 
-	HexDump("Falcon Hardware Config Response", buf, 8);
+	if ((logLevel & LOG_DEBUG) && (logMask && VB_SETTING))
+		HexDump("Falcon Hardware Config Response", buf, 8);
 
 	free(buf);
 	usleep(100000);
@@ -251,7 +257,8 @@ void FalconQueryHardware(int sock, struct sockaddr_in *srcAddr,
 		buf[58] = query[6]; // Voltage #1
 		buf[59] = query[7]; // Voltage #2
 
-		HexDump("Falcon Hardware Query Info Response", query, 8);
+		if ((logLevel & LOG_DEBUG) && (logMask && VB_SETTING))
+			HexDump("Falcon Hardware Query Info Response", query, 8);
 	}
 	else
 	{
@@ -268,7 +275,8 @@ void FalconQueryHardware(int sock, struct sockaddr_in *srcAddr,
 
 	PopulatePiConfig(inet_ntoa(recvAddr), buf);
 
-	HexDump("Falcon Query Hardware result", buf, sizeof(buf));
+	if ((logLevel & LOG_DEBUG) && (logMask && VB_SETTING))
+		HexDump("Falcon Query Hardware result", buf, sizeof(buf));
 
 	if(sendto(sock, buf, sizeof(buf), 0, (struct sockaddr*)srcAddr, sizeof(*srcAddr)) < 0)
 	{
@@ -309,7 +317,9 @@ int FalconPassThroughData(int offset, unsigned char *inBuf, int size)
 
 	memcpy(buf+offset, inBuf, size);
 
-	HexDump("Falcon Pass-through data", buf+offset, size);
+	if ((logLevel & LOG_DEBUG) && (logMask && VB_SETTING))
+		HexDump("Falcon Pass-through data", buf+offset, size);
+
 	int bytesWritten;
 
  	DisableChannelOutput();
@@ -381,7 +391,8 @@ void FalconSetData(int sock, struct sockaddr_in *srcAddr, unsigned char *inBuf)
 			buf[7] = 0xFE;
 	}
 
-	HexDump("Falcon Set Data result", buf, sizeof(buf));
+	if ((logLevel & LOG_DEBUG) && (logMask && VB_SETTING))
+		HexDump("Falcon Set Data result", buf, sizeof(buf));
 
 	if(sendto(sock, buf, sizeof(buf), 0, (struct sockaddr*)srcAddr, sizeof(*srcAddr)) < 0)
 	{
@@ -411,7 +422,8 @@ void FalconGetData(int sock, struct sockaddr_in *srcAddr, unsigned char *inBuf)
 
 	buf[6] = 0x02; // GetData command response
 
-	HexDump("Falcon Get Data result", buf, bytes);
+	if ((logLevel & LOG_DEBUG) && (logMask && VB_SETTING))
+		HexDump("Falcon Get Data result", buf, bytes);
 
 	if(sendto(sock, buf, bytes, 0, (struct sockaddr*)srcAddr, sizeof(*srcAddr)) < 0)
 	{
@@ -441,7 +453,8 @@ void FalconConfigurePi(int sock, struct sockaddr_in *srcAddr,
 
 	PopulatePiConfig(inet_ntoa(recvAddr), buf);
 
-	HexDump("Falcon Configure Pi result", buf, sizeof(buf));
+	if ((logLevel & LOG_DEBUG) && (logMask && VB_SETTING))
+		HexDump("Falcon Configure Pi result", buf, sizeof(buf));
 
 	if(sendto(sock, buf, sizeof(buf), 0, (struct sockaddr*)srcAddr, sizeof(*srcAddr)) < 0)
 	{
@@ -511,6 +524,9 @@ int DetectFalconHardware(int configureHardware)
 
 	int responseSize = FalconDetectHardware(spiPort, query);
 
+	if ((logLevel & LOG_DEBUG) && (logMask && VB_SETTING))
+		HexDump("Falcon Detect Hardware Response", query, responseSize);
+
 	if ((responseSize == 8) && (query[0] > 0)) 
 	{
 		int spiSpeed = 8000000;
@@ -540,7 +556,8 @@ int DetectFalconHardware(int configureHardware)
 		LogInfo(VB_SETTING, "    Model           : %s\n", model);
 		LogInfo(VB_SETTING, "    Firmware Version: %d.%d\n", query[1], query[2]);
 
-		if (query[1] == 0x01)
+#if 0
+		if (query[0] == 0x01) // F16 v2.x
 		{
 			LogInfo(VB_SETTING, "    Chip Temperature: %d\n", query[3]);
 			LogInfo(VB_SETTING, "    Temperature #1  : %d\n", query[4]);
@@ -548,6 +565,7 @@ int DetectFalconHardware(int configureHardware)
 			LogInfo(VB_SETTING, "    Voltage #1      : %d\n", query[6]);
 			LogInfo(VB_SETTING, "    Voltage #2      : %d\n", query[7]);
 		}
+#endif
 
 		if (configureHardware)
 		{

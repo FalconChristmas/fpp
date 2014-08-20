@@ -249,6 +249,7 @@ printf("Usage: %s [OPTION...]\n"
 "  -l, --log-file FILENAME       - Set the log file\n"
 "  -b, --bytes-file FILENAME     - Set the bytes received file\n"
 "  -H  --detect-hardware         - Detect Falcon hardware on SPI port\n"
+"  -C  --configure-hardware      - Configured detected Falcon hardware on SPI\n"
 "  -h, --help                    - This menu.\n"
 "      --log-level LEVEL         - Set the log output level:\n"
 "                                  \"info\", \"warn\", \"debug\", \"excess\")\n"
@@ -305,6 +306,7 @@ int parseArguments(int argc, char **argv)
 			{"log-file",			required_argument,	0, 'l'},
 			{"bytes-file",			required_argument,	0, 'b'},
 			{"detect-hardware",		no_argument,		0, 'H'},
+			{"configure-hardware",		no_argument,		0, 'C'},
 			{"help",				no_argument,		0, 'h'},
 			{"silence-music",		required_argument,	0,	1 },
 			{"log-level",			required_argument,	0,  2 },
@@ -312,7 +314,7 @@ int parseArguments(int argc, char **argv)
 			{0,						0,					0,	0}
 		};
 
-		c = getopt_long(argc, argv, "c:fdVv:m:B:M:S:P:u:p:s:l:b:Hh",
+		c = getopt_long(argc, argv, "c:fdVv:m:B:M:S:P:u:p:s:l:b:HCh",
 		long_options, &option_index);
 		if (c == -1)
 			break;
@@ -418,10 +420,11 @@ int parseArguments(int argc, char **argv)
 				settings.bytesFile = strdup(optarg);
 				break;
 			case 'H': //Detect Falcon hardware
+			case 'C': //Configure Falcon hardware
 				SetLogFile("");
 				SetLogLevel("debug");
 				SetLogMask("setting");
-				if (DetectFalconHardware(0))
+				if (DetectFalconHardware((c == 'C') ? 1 : 0))
 					exit(1);
 				else
 					exit(0);
