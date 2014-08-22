@@ -38,8 +38,10 @@
 #   include "wiringPi.h"
 #else
 #   define pinMode(a, b)
-#   define LOW                   0
 #   define digitalRead(a)        1
+#   define pullUpDnControl(a,b)
+#   define LOW                   0
+#   define PUD_UP                2
 #endif
 
 #define MAX_GPIO_INPUTS  255
