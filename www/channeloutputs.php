@@ -165,7 +165,7 @@ var USBDevices = new Array();
 <?
 	foreach(scandir("/dev/") as $fileName)
 	{
-		if (preg_match("/^ttyUSB[0-9]/", $fileName)) {
+		if (preg_match("/^ttyUSB[0-9]+/", $fileName)) {
 			echo "USBDevices['$fileName'] = '$fileName';\n";
 		}
 	}
@@ -208,8 +208,9 @@ var RenardDevices = new Array();
 <?
 	foreach(scandir("/dev/") as $fileName)
 	{
-		if ((preg_match("/^ttyS[0-9]/", $fileName)) ||
-			(preg_match("/^ttyUSB[0-9]/", $fileName))) {
+		if ((preg_match("/^ttyS[0-9]+/", $fileName)) ||
+			(preg_match("/^ttyACM[0-9]+/", $fileName)) ||
+			(preg_match("/^ttyUSB[0-9]+/", $fileName))) {
 			echo "RenardDevices['$fileName'] = '$fileName';\n";
 		}
 	}
