@@ -9,6 +9,10 @@ if(empty($a))
 $_SESSION['session_id'] = session_id();
 //ini_set('display_errors', 'On');
 error_reporting(E_ALL);
+
+$hwModel = "FPDv1";
+$hwFWVer = "1.10";
+
 ?>
 
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -140,7 +144,10 @@ a:visited{
     </div>
 		<br/>
     <form id="frmPixelnetDMX">
-    <input name="command" type="hidden" value="savePixelnetDMX" />
+    <input name="command" type="hidden" value="SaveHardwareConfig" />
+    <input name='model' type='hidden' value='<? echo $hwModel; ?>' />
+		<input name='firmware' type='hidden' value='<? echo $hwFWVer; ?>' />
+
     <table>
     	<tr>
       	<td width = "70 px"><input id="btnSaveOutputs" class="buttons" type="submit" value = "Save" /></td>

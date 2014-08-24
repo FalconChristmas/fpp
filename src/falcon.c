@@ -223,9 +223,9 @@ int FalconDetectHardware(int spiPort, char *response)
 {
 	LogDebug(VB_SETTING, "FalconDetectHardware(%p)\n", response);
 
-	bzero(response, 8);
+	bzero(response, FALCON_CFG_BUF_SIZE);
 
-	return wiringPiSPIDataRW(spiPort, response, 8);
+	return wiringPiSPIDataRW(spiPort, response, FALCON_CFG_BUF_SIZE);
 }
 
 /*
@@ -240,11 +240,11 @@ void FalconQueryHardware(int sock, struct sockaddr_in *srcAddr,
 	char buf[60];
 	bzero(buf, sizeof(buf));
 
-	char query[8];
+	char query[FALCON_CFG_BUF_SIZE];
 
 	int responseSize = FalconDetectHardware(0, query);
 
-	if (responseSize == 8)
+	if (responseSize == FALCON_CFG_BUF_SIZE)
 	{
 		// Stuff response into our response packet. We could use memcpy, but
 		// this helps document what the returned bytes are.
@@ -423,7 +423,7 @@ void FalconGetData(int sock, struct sockaddr_in *srcAddr, unsigned char *inBuf)
 	buf[6] = 0x02; // GetData command response
 
 	if ((logLevel & LOG_DEBUG) && (logMask && VB_SETTING))
-		HexDump("Falcon Get Data result", buf, bytes);
+		HexDump("Falcon Get Data result", buf, 8);
 
 	if(sendto(sock, buf, bytes, 0, (struct sockaddr*)srcAddr, sizeof(*srcAddr)) < 0)
 	{
@@ -515,7 +515,7 @@ void ProcessFalconPacket(int sock, struct sockaddr_in *srcAddr,
 int DetectFalconHardware(int configureHardware)
 {
 	int  spiPort = 0;
-	char query[8];
+	char query[FALCON_CFG_BUF_SIZE];
 	if (wiringPiSPISetup(0, 8000000) < 0)
 	{
 		LogErr(VB_CHANNELOUT, "Unable to set SPI speed to detect hardware\n");
@@ -525,9 +525,9 @@ int DetectFalconHardware(int configureHardware)
 	int responseSize = FalconDetectHardware(spiPort, query);
 
 	if ((logLevel & LOG_DEBUG) && (logMask && VB_SETTING))
-		HexDump("Falcon Detect Hardware Response", query, responseSize);
+		HexDump("Falcon Detect Hardware Response", query, 8);
 
-	if ((responseSize == 8) && (query[0] > 0)) 
+	if ((responseSize == FALCON_CFG_BUF_SIZE) && (query[0] > 0)) 
 	{
 		int spiSpeed = 8000000;
 		char model[32];

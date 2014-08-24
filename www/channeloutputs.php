@@ -709,7 +709,10 @@ tr.rowUniverseDetails td
 							<div style="overflow: hidden; padding: 10px;">
 								<b>Enable FPD Output:</b> <? PrintSettingCheckbox("FPD Output", "FPDEnabled", "1", "0"); ?><br><br>
 								<form id="frmPixelnetDMX">
-									<input name="command" type="hidden" value="savePixelnetDMX" />
+									<input name="command" id="command"  type="hidden" value="saveHardwareConfig" />
+                  <input name='model' id="model" type='hidden' value='FPDv1' />
+                  <input name='firmware' id="firmware" type='hidden' value='1.10' />
+
 									<table>
 										<tr>
 											<td width = "70 px"><input id="btnSaveOutputs" class="buttons" type="submit" value = "Save" /></td>

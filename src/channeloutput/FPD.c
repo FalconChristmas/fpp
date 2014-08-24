@@ -43,17 +43,17 @@
 #	include "wiringPi.h"
 #	include "wiringPiSPI.h"
 #else
-#	define wiringPiSPISetup(a,b)    1
-#	define wiringPiSPIDataRW(a,b,c) c
-#	define delayMicroseconds(a)     0
+#	define wiringPiSPISetup(a,b)          1
+#	define wiringPiSPIDataRW(a,b,c)       c
+#	define delayMicroseconds(a)           0
 #endif
 
 #define MAX_PIXELNET_DMX_PORTS          12 
 #define PIXELNET_DMX_DATA_SIZE          32768
-#define PIXELNET_HEADER_SIZE                6       
-#define PIXELNET_DMX_BUF_SIZE               (PIXELNET_DMX_DATA_SIZE+PIXELNET_HEADER_SIZE)
+#define PIXELNET_HEADER_SIZE            6       
+#define PIXELNET_DMX_BUF_SIZE           (PIXELNET_DMX_DATA_SIZE+PIXELNET_HEADER_SIZE)
 
-#define PIXELNET_DMX_COMMAND_CONFIG 0
+#define PIXELNET_DMX_COMMAND_CONFIG     0
 #define PIXELNET_DMX_COMMAND_DATA       0xFF
 
 typedef struct {
@@ -162,9 +162,9 @@ void SendFPDConfig()
 		LogErr(VB_CHANNELOUT, "Error: wiringPiSPIDataRW returned %d, expecting %d\n", i, PIXELNET_DMX_BUF_SIZE);
 
 	delayMicroseconds (10000) ;
-	i = wiringPiSPIDataRW (0, bufferPixelnetDMX, PIXELNET_DMX_BUF_SIZE);
-	if (i != PIXELNET_DMX_BUF_SIZE)
-		LogErr(VB_CHANNELOUT, "Error: wiringPiSPIDataRW returned %d, expecting %d\n", i, PIXELNET_DMX_BUF_SIZE);
+//	i = wiringPiSPIDataRW (0, bufferPixelnetDMX, PIXELNET_DMX_BUF_SIZE);
+//	if (i != PIXELNET_DMX_BUF_SIZE)
+//		LogErr(VB_CHANNELOUT, "Error: wiringPiSPIDataRW returned %d, expecting %d\n", i, PIXELNET_DMX_BUF_SIZE);
 }
 
 void LoadPixelnetDMXsettingsFromFile()

@@ -9,6 +9,9 @@ require_once('scheduleentry.php');
 require_once('pixelnetdmxentry.php');
 require_once('commandsocket.php');
 
+error_reporting(E_ALL);
+
+
 //define('debug', true);
 
 // Commands defined here which return something other
@@ -105,14 +108,9 @@ if ( isset($_GET['command']) && !empty($_GET['command']) )
 	}
 	return;
 }
-
 else if(!empty($_POST['command']) && $_POST['command'] == "saveUniverses")
 {
 	SetUniverses();
-}
-else if(!empty($_POST['command']) && $_POST['command'] == "savePixelnetDMX")
-{
-	SavePixelnetDMX();
 }
 else if(!empty($_POST['command']) && $_POST['command'] == "saveSchedule")
 {
@@ -122,6 +120,10 @@ else if(!empty($_POST['command']) && $_POST['command'] == "saveHardwareConfig")
 {
 	SaveHardwareConfig();
 }
+//else if(!empty($_POST['command']) && $_POST['command'] == "savePixelnetDMX")
+//{
+//	SavePixelnetDMX();
+//}
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -1045,8 +1047,6 @@ function GetSchedule()
 
 function SaveHardwareConfig()
 {
-	global $settings;
-
 	if (!isset($_POST['model']))
 	{
 		EchoStatusXML('Failure, no model supplied');
@@ -1058,8 +1058,24 @@ function SaveHardwareConfig()
 
 	if ($model == "F16V2")
 	{
+    SaveFalcon16v2();
+	}
+  else if ($model == "FPDv1")
+  {
+    SaveFPDv1();
+  }
+	else
+	{
+		EchoStatusXML('Failure, unknown model: ' . $model);
+		return;
+	}
+	EchoStatusXML('Successssssssssssss');
+}
+
+function SaveF16V2()
+{
+    global $settings;
 		$outputCount = 16;
-		$bytesWritten = 0;
 
 		$carr = array();
 		for ($i = 0; $i < 1024; $i++)
@@ -1103,16 +1119,60 @@ function SaveHardwareConfig()
 		$f = fopen($settings['configDirectory'] . "/Falcon.F16V2", "wb");
 		fwrite($f, implode(array_map("chr", $carr)), 1024);
 		fclose($f);
+ 		SendCommand('w');
+}
 
-		SendCommand('w');
-	}
-	else
+function SaveFPDv1()
+{
+  global $settings;
+  $outputCount = 12;
+
+	$carr = array();
+	for ($i = 0; $i < 1024; $i++)
 	{
-		EchoStatusXML('Failure, unknown model: ' . $model);
-		return;
+		$carr[$i] = 0x0;
 	}
 
-	EchoStatusXML('Success');
+	$i = 0;
+	// Header
+	$carr[$i++] = 0x55;
+	$carr[$i++] = 0x55;
+	$carr[$i++] = 0x55;
+	$carr[$i++] = 0x55;
+	$carr[$i++] = 0x55;
+	$carr[$i++] = 0xCC;
+
+	// Dummy byte
+	$carr[$i++] = 0x01;
+
+	$_SESSION['PixelnetDMXentries']=NULL;
+	for ($o = 0; $o < $outputCount; $o++)
+	{
+    // Active Output
+ 		if( isset($_POST['FPDchkActive'][$o]))
+		{
+      $active = 1;
+      $carr[$i++] = 1;
+		}
+		else
+		{
+      $active = 0;
+      $carr[$i++] = 0;
+		}
+    // Start Address
+    $startAddress = intval($_POST['FPDtxtStartAddress'][$o]);
+    $carr[$i++] = $startAddress%256;
+    $carr[$i++] = $startAddress/256;
+    // Type
+    $type = intval($_POST['pixelnetDMXtype'][$o]);
+    $carr[$i++] = $type;
+    $_SESSION['PixelnetDMXentries'][] = new PixelnetDMXentry($active,$type,$startAddress);
+  }
+  $f = fopen($settings['configDirectory'] . "/Falcon.FPDV1", "wb");
+	fwrite($f, implode(array_map("chr", $carr)), 1024);
+
+	fclose($f);
+	SendCommand('w');
 }
 
 function CloneUniverse()
@@ -1181,7 +1241,7 @@ function SetUniverses()
 	EchoStatusXML('Success');
 }
 
-function SavePixelnetDMX()
+/* function SavePixelnetDMX()
 {
 	for($i=0;$i<count($_SESSION['PixelnetDMXentries']);$i++)
 	{
@@ -1200,7 +1260,7 @@ function SavePixelnetDMX()
 	SavePixelnetDMXoutputsToFile();
 
 	EchoStatusXML('Success');
-}
+} */
 
 
 
@@ -1240,36 +1300,40 @@ function LoadUniverseFile()
 
 function LoadPixelnetDMXFile()
 {
-	global $pixelnetFile;
+  global $settings;
 
 	$_SESSION['PixelnetDMXentries']=NULL;
 
-	$f=fopen($pixelnetFile,"r");
+  $f = fopen($settings['configDirectory'] . "/Falcon.FPDV1", "rb");
 	if($f == FALSE)
-	{
-		fclose($f);
+  {
+  	fclose($f);
 		//No file exists add one and save to new file.
-	$_SESSION['PixelnetDMXentries'] = NULL;
 		$address=1;
 		for($i;$i<12;$i++)
 		{
 			$_SESSION['PixelnetDMXentries'][] = new PixelnetDMXentry(1,0,$address);
 			$address+=4096;
 		}
-		SavePixelnetDMXoutputsToFile();
 		return;
-	}
+  }
 
-	while (!feof($f))
-	{
-		$line=fgets($f);
-		$entry = explode(",",$line,5);
-		$active = $entry[0];
-		$type = $entry[1];
-		$startAddress = $entry[2];
-		$_SESSION['PixelnetDMXentries'][] = new PixelnetDMXentry($active,$type,$startAddress);
-	}
+	$s = fread($f, 1024);
 	fclose($f);
+	$sarr = unpack("C*", $s);
+
+	$dataOffset = 8;
+
+	$i = 0;
+	for ($i = 0; $i < 12; $i++)
+	{
+		$outputOffset  = $dataOffset + (4 * $i);
+		$active        = $sarr[$outputOffset + 0];
+		$startAddress  = $sarr[$outputOffset + 1];
+		$startAddress += $sarr[$outputOffset + 2] * 256;
+		$type          = $sarr[$outputOffset + 3];
+		$_SESSION['PixelnetDMXentries'][] = new PixelnetDMXentry($active,$type,$startAddress);
+  }
 }
 
 function SaveUniversesToFile()
