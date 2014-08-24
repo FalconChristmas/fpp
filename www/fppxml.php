@@ -1069,7 +1069,7 @@ function SaveHardwareConfig()
 		EchoStatusXML('Failure, unknown model: ' . $model);
 		return;
 	}
-	EchoStatusXML('Successssssssssssss');
+	EchoStatusXML('Success');
 }
 
 function SaveF16V2()
