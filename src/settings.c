@@ -123,6 +123,21 @@ char *trimwhitespace(const char *str)
 	return out;
 }
 
+// Caller must free the char array we give them
+char *modeToString(int mode)
+{
+	if ( mode == PLAYER_MODE )
+		return strdup("fppMode");
+	else if ( mode == BRIDGE_MODE )
+		return strdup("bridge");
+	else if ( mode == MASTER_MODE )
+		return strdup("master");
+	else if ( mode == REMOTE_MODE )
+		return strdup("remote");
+	
+	return NULL;
+}
+
 void printSettings(void)
 {
 	FILE *fd = stdout; // change to stderr to log there instead
@@ -133,14 +148,12 @@ void printSettings(void)
 	fprintf(fd, "daemonize: %s\n",
 		settings.daemonize ? "true" : "false");
 	
-	if ( settings.fppMode == PLAYER_MODE )
-		fprintf(fd, "fppMode: %s\n", "player");
-	else if ( settings.fppMode == BRIDGE_MODE )
-		fprintf(fd, "fppMode: %s\n", "bridge");
-	else if ( settings.fppMode == MASTER_MODE )
-		fprintf(fd, "fppMode: %s\n", "master");
-	else if ( settings.fppMode == REMOTE_MODE )
-		fprintf(fd, "fppMode: %s\n", "remote");
+	char *mode = modeToString(settings.fppMode);
+	if ( mode )
+	{
+		fprintf(fd, "fppMode: %s\n", mode);
+		free(mode); mode = NULL;
+	}
 
 	fprintf(fd, "volume: %u\n", settings.volume);
 
