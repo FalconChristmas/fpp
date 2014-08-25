@@ -74,8 +74,6 @@ int pixelnetDMXactive = 0;
 
 char bufferPixelnetDMX[PIXELNET_DMX_BUF_SIZE];
 
-/* Prototypes defined below */
-void LoadPixelnetDMXsettingsFromFile();
 void PixelnetDMXPrint();
 
 
@@ -85,8 +83,8 @@ void PixelnetDMXPrint();
 void CreatePixelnetDMXfile(const char * file)
 {
 	FILE *fp;
-	char settings[16];
-	char command[16];
+	char settings[1024];
+	char command[32];
 	int i;
 	int startChannel=1;
 	fp = fopen(file, "w");
@@ -96,19 +94,37 @@ void CreatePixelnetDMXfile(const char * file)
 		exit(EXIT_FAILURE);
 	}
 	LogDebug(VB_CHANNELOUT, "Creating file: %s\n",file);
-
-	for(i=0;i<MAX_PIXELNET_DMX_PORTS;i++,startChannel+=4096)
+  
+  bzero(settings,1024);
+  // File Header
+  settings[0] = 0x55;
+  settings[1] = 0x55;
+  settings[2] = 0x55;
+  settings[3] = 0x55;
+  settings[4] = 0x55;
+  settings[5] = 0xCC;
+  int index = 6;
+  
+  // Set first 8 to Pixelnet 
+	for(i=0;i<8;i++,startChannel+=4096)
 	{
-		if(i==MAX_PIXELNET_DMX_PORTS-1)
-		{
-			sprintf(settings,"1,0,%d,",startChannel);
-		}
-		else
-		{
-			sprintf(settings,"1,0,%d,\n",startChannel);
-		}
-		fwrite(settings,1,strlen(settings),fp);
+    settings[index++] = 1;                        // Enabled
+    settings[index++] = (char)(startChannel%256); // Start Address LSB
+    settings[index++] = (char)(startChannel/256); // Start Address MSB
+    settings[index++] = 0;                        // Type 0=Pixlenet, 1=DMX 
 	}
+  
+  // Set next four to DMX 
+	for(i=0,startChannel=1;i<4;i++,startChannel+=512)
+	{
+    settings[index++] = 1;                        // Enabled
+    settings[index++] = (char)(startChannel%256); // Start Address LSB
+    settings[index++] = (char)(startChannel/256); // Start Address MSB
+    settings[index++] = 1;                        // Type 0=Pixlenet, 1=DMX 
+	}
+
+
+  fwrite(settings,1,1024,fp);
 	fclose(fp);
 	sprintf(command,"sudo chmod 775 %s",file);
 	system(command);
@@ -120,7 +136,6 @@ int InitializePixelnetDMX()
 	int err;
 	LogInfo(VB_CHANNELOUT, "Initializing SPI for FPD output\n");
 
-	LoadPixelnetDMXsettingsFromFile();
 
 	if (!DetectFalconHardware(1))
 	{
@@ -167,54 +182,8 @@ void SendFPDConfig()
 //		LogErr(VB_CHANNELOUT, "Error: wiringPiSPIDataRW returned %d, expecting %d\n", i, PIXELNET_DMX_BUF_SIZE);
 }
 
-void LoadPixelnetDMXsettingsFromFile()
-{
-  FILE *fp;
-  char buf[512];
-  char *s;
-  fp = fopen((const char *)getPixelnetFile(), "r");
-  LogDebug(VB_CHANNELOUT, "Opening PixelnetDMX File\n");
-  if (fp == NULL) 
-  {
-    LogErr(VB_CHANNELOUT, "Error Opening PixelnetDMX File\n");
-	  return;
-  }
-  pixelnetDMXactive = 0;
-  while(fgets(buf, 512, fp) != NULL)
-  {
-		if(pixelnetDMXcount >= MAX_PIXELNET_DMX_PORTS)
-		{
-			break;
-		}
-
-		//	active
-		s=strtok(buf,",");
-		pixelnetDMX[pixelnetDMXcount].active = atoi(s);
-
-		if (pixelnetDMX[pixelnetDMXcount].active)
-			pixelnetDMXactive = 1;
-
-		//	type
-		s=strtok(NULL,",");
-		pixelnetDMX[pixelnetDMXcount].type = atoi(s);
-
-		// Start Channel
-		s=strtok(NULL,",");
-		pixelnetDMX[pixelnetDMXcount].startChannel = atoi(s);
-		pixelnetDMXcount++;
-  }
-  fclose(fp);
-  PixelnetDMXPrint();
-}
-
 void PixelnetDMXPrint()
 {
-  int i=0;
-  int h;
-  for(i=0;i<pixelnetDMXcount;i++)
-  {
-    LogDebug(VB_CHANNELOUT, "%d,%d,%d\n",pixelnetDMX[i].active,pixelnetDMX[i].type,pixelnetDMX[i].startChannel);
-  }
 }
 
 
@@ -253,7 +222,7 @@ int FPD_IsConfigured(void) {
 	if (!getSettingInt("FPDEnabled"))
 		return 0;
 
-	LoadPixelnetDMXsettingsFromFile();
+  pixelnetDMXactive = 1;
 	return pixelnetDMXactive;
 }
 
