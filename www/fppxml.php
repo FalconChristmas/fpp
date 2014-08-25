@@ -120,10 +120,6 @@ else if(!empty($_POST['command']) && $_POST['command'] == "saveHardwareConfig")
 {
 	SaveHardwareConfig();
 }
-//else if(!empty($_POST['command']) && $_POST['command'] == "savePixelnetDMX")
-//{
-//	SavePixelnetDMX();
-//}
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -1237,29 +1233,6 @@ function SetUniverses()
 
 	EchoStatusXML('Success');
 }
-
-/* function SavePixelnetDMX()
-{
-	for($i=0;$i<count($_SESSION['PixelnetDMXentries']);$i++)
-	{
-		if( isset($_POST['FPDchkActive'][$i]))
-		{
-			$_SESSION['PixelnetDMXentries'][$i]->active = 1;
-		}
-		else
-		{
-			$_SESSION['PixelnetDMXentries'][$i]->active = 0;
-		}
-		$_SESSION['PixelnetDMXentries'][$i]->startAddress = 	intval($_POST['FPDtxtStartAddress'][$i]);
-		$_SESSION['PixelnetDMXentries'][$i]->type = 	intval($_POST['pixelnetDMXtype'][$i]);
-	}
-
-	SavePixelnetDMXoutputsToFile();
-
-	EchoStatusXML('Success');
-} */
-
-
 
 function LoadUniverseFile()
 {
