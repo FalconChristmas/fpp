@@ -543,11 +543,11 @@ int DetectFalconHardware(int configureHardware)
 						spiSpeed = 16000000;
 						break;
 			case 0x02:	strcpy(model, "FPD v1.x");
-						strcpy(cfgFile, "Falcon.FPD");
+						strcpy(cfgFile, "Falcon.FPDV1");
 						spiSpeed = 8000000;
 						break;
 			case 0x03:	strcpy(model, "FPD v2.x");
-						strcpy(cfgFile, "Falcon.FPD");
+						strcpy(cfgFile, "Falcon.FPDV2");
 						spiSpeed = 8000000;
 						break;
 		}

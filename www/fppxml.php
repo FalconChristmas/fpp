@@ -1076,7 +1076,7 @@ function SaveF16V2()
 {
     global $settings;
 		$outputCount = 16;
-
+  
 		$carr = array();
 		for ($i = 0; $i < 1024; $i++)
 		{
@@ -1141,9 +1141,6 @@ function SaveFPDv1()
 	$carr[$i++] = 0x55;
 	$carr[$i++] = 0x55;
 	$carr[$i++] = 0xCC;
-
-	// Dummy byte
-	$carr[$i++] = 0x01;
 
 	$_SESSION['PixelnetDMXentries']=NULL;
 	for ($o = 0; $o < $outputCount; $o++)
@@ -1322,7 +1319,7 @@ function LoadPixelnetDMXFile()
 	fclose($f);
 	$sarr = unpack("C*", $s);
 
-	$dataOffset = 8;
+	$dataOffset = 7;
 
 	$i = 0;
 	for ($i = 0; $i < 12; $i++)
