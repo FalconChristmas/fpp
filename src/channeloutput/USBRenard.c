@@ -241,15 +241,18 @@ int USBRenard_SendData(void *data, char *channelData, int channelCount)
 	dptr = privData->outputData;
 
 	// Assume clocks are accurate to 1%, so insert a pad byte every 100 bytes.
-	for ( i = 0; i < privData->maxChannels/PAD_DISTANCE; i++ )
+	for ( i = 0; i*PAD_DISTANCE < channelCount; i++ )
 	{
 		// Send our pad byte
 		write(privData->fd, "\x7D", 1);
 
 		// Send Renard Data (Only send the channels we're given, not max)
-		write(privData->fd, dptr, (channelCount - (100 * i)));
+		if ( (i+1)*PAD_DISTANCE > channelCount )
+			write(privData->fd, dptr, (channelCount - (i * PAD_DISTANCE)));
+		else
+			write(privData->fd, dptr, PAD_DISTANCE);
 
-		dptr += 100;
+		dptr += PAD_DISTANCE;
 	}
 }
 
