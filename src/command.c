@@ -53,8 +53,6 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 
-extern PlaylistDetails playlistDetails;
-
 extern int numberOfSecondsPaused;
 extern PlaylistDetails playlistDetails;
 

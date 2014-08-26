@@ -251,6 +251,7 @@ $(document).ready(function () {
             <option value = 's'>Sequence Only</option>
             <option value = 'p'>Pause</option>
             <option value = 'e'>Event</option>
+            <option value = 'P'>Plugin</option>
           </select>
             </li>
         <li id="musicOptions">Media<br />
@@ -262,6 +263,8 @@ $(document).ready(function () {
         <li id="pauseTime" style="display:none;"><div><div id='pauseText'>Pause Time</div><div id='delayText'>Delayed By</div></div>
               <input id="txtPause" name="txtPause" type="text" size="10" maxlength="10"/>
               (Seconds) </li>
+        <li id="pluginData" style="display:none;"><div><div id='pluginDataText'>Plugin Data</div></div>
+              <input id="txtData" name="txtData" type="text" size="100" maxlength="255"/></li>
         <li>
               <input id='btnAddPlaylistEntry'  width="200px"  onclick="AddPlaylistEntry();" class="buttons" type="button" value="Add" />
               <input id='btnRemovePlaylistEntry'  width="200px"  onclick="RemovePlaylistEntry();" class="buttons" type="button" value="Remove" />
@@ -275,7 +278,7 @@ $(document).ready(function () {
               <td class="colPlaylistNumber">#</td>
               <td class="colPlaylistType">Type</td>
               <td class="colPlaylistData1">Media File / Event / Pause</td>
-              <td class="colPlaylistData2">Sequence / Delay</td>
+              <td class="colPlaylistData2">Sequence / Delay / Data</td>
               <td class="colPlaylistFlags">First/Last</td>
             </tr>
       </table>
@@ -288,6 +291,6 @@ $(document).ready(function () {
   </fieldset>
     </div>
 </div>
-<?php	include 'common/footer.inc'; ?>
+<?php include 'common/footer.inc'; ?>
 </body>
 </html>

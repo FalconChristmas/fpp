@@ -72,6 +72,7 @@ struct config
 // Helpers
 void initSettings(void);
 char *trimwhitespace(const char *str);
+char *modeToString(int mode);
 void printSettings(void);
 void usage(char *appname);
 

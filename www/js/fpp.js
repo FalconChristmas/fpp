@@ -273,6 +273,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 								var pause = entries.childNodes[i].childNodes[3].textContent;
 								var eventName = entries.childNodes[i].childNodes[5].textContent;
 								var eventID = entries.childNodes[i].childNodes[6].textContent.replace('_', ' / ');
+								var pluginData = entries.childNodes[i].childNodes[7].textContent;
 								if(type == 'b')
 										innerHTML += GetPlaylistRowHTML((i+1).toString(), "Seq/Med", mediaFile, seqFile, i.toString());
 								else if(type == 'm')
@@ -285,6 +286,8 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 								{
 										innerHTML += GetPlaylistRowHTML((i+1).toString(), "Event", eventID + " - " + eventName, "---", i.toString());
 								}
+								else if(type == 'P')
+										innerHTML += GetPlaylistRowHTML((i+1).toString(), "Plugin", "---", pluginData.toString());
 							}
 					}
 					else
@@ -305,7 +308,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			var type=document.getElementById("selType").selectedIndex;
 			switch(type)
 			{
-				case 0:
+				case 0: // Music and Sequence
 					$("#musicOptions").css("display","block");
 					$("#sequenceOptions").css("display","block");
 					$("#videoOptions").css("display","none");
@@ -313,8 +316,9 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 					$("#pauseTime").css("display","none");
 					$("#pauseText").css("display","none");
 					$("#delayText").css("display","none");
+					$("#pluginData").css("display","none");
 					break;
-				case 1:	
+				case 1:	// Media Only
 					$("#musicOptions").css("display","block");
 					$("#sequenceOptions").css("display","none");
 					$("#videoOptions").css("display","none");
@@ -322,8 +326,9 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 					$("#pauseTime").css("display","none");
 					$("#pauseText").css("display","none");
 					$("#delayText").css("display","none");
+					$("#pluginData").css("display","none");
 					break;
-				case 2:	
+				case 2:	// Sequence Only
 					$("#musicOptions").css("display","none");
 					$("#sequenceOptions").css("display","block");
 					$("#videoOptions").css("display","none");
@@ -331,8 +336,9 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 					$("#pauseTime").css("display","none");
 					$("#pauseText").css("display","block");
 					$("#delayText").css("display","none");
+					$("#pluginData").css("display","none");
 					break;
-				case 3:	
+				case 3:	// Pause
 					$("#musicOptions").css("display","none");
 					$("#sequenceOptions").css("display","none");
 					$("#videoOptions").css("display","none");
@@ -340,8 +346,9 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 					$("#pauseTime").css("display","block");
 					$("#pauseText").css("display","block");
 					$("#delayText").css("display","none");
+					$("#pluginData").css("display","none");
 					break;
-				case 4:
+				case 4: // Event
 					$("#musicOptions").css("display","none");
 					$("#sequenceOptions").css("display","none");
 					$("#videoOptions").css("display","none");
@@ -349,6 +356,17 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 					$("#pauseTime").css("display","none");
 					$("#pauseText").css("display","none");
 					$("#delayText").css("display","none");
+					$("#pluginData").css("display","none");
+					break;
+				case 5: // Plugin
+					$("#musicOptions").css("display","none");
+					$("#sequenceOptions").css("display","none");
+					$("#videoOptions").css("display","none");
+					$("#eventOptions").css("display","none");
+					$("#pauseTime").css("display","none");
+					$("#pauseText").css("display","none");
+					$("#delayText").css("display","none");
+					$("#pluginData").css("display","block");
 					break;
 			}
 			
@@ -410,13 +428,14 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 		function AddPlaylistEntry()
 		{
     	var xmlhttp=new XMLHttpRequest();
-			var name=document.getElementById("txtPlaylistName");
-			var type = document.getElementById("selType").value;
+			var	name=document.getElementById("txtPlaylistName");
+			var	type = document.getElementById("selType").value;
 			var	seqFile = document.getElementById("selSequence").value;
 			var	mediaFile = document.getElementById("selMedia").value;
 			var	eventSel = document.getElementById("selEvent");
 			var	eventID = eventSel.value;
 			var	eventName = '';
+			var	pluginData = document.getElementById("txtData").value;
       if(eventSel.selectedIndex>=0)
       {
         eventName = eventSel.options[eventSel.selectedIndex].innerHTML.replace(/.. \/ .. - /, '');
@@ -427,7 +446,8 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 								"&mediaFile=" + encodeURIComponent(mediaFile) +
 								"&pause=" + pause +
 								"&eventID=" + encodeURIComponent(eventID) + 
-								"&eventName=" + encodeURIComponent(eventName);
+								"&eventName=" + encodeURIComponent(eventName) +
+								"&pluginData=" + encodeURIComponent(pluginData);
 			xmlhttp.open("GET",url,false);
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
 	 
@@ -1839,6 +1859,7 @@ function PopulateStatusPlaylistEntries(playselected,playList,reloadFile)
 			var mediaFile;
 			var seqFile;
 			var pause;
+			var pluginData;
     	var xmlhttp=new XMLHttpRequest();
 			var innerHTML="";
 			if(playselected==true)
@@ -1871,6 +1892,7 @@ function PopulateStatusPlaylistEntries(playselected,playList,reloadFile)
 								pause = entries.childNodes[i].childNodes[3].textContent;
 								eventName = entries.childNodes[i].childNodes[5].textContent;
 								eventID = entries.childNodes[i].childNodes[6].textContent.replace('_', ' / ');
+								pluginData = entries.childNodes[i].childNodes[7].textContent;
 								if(type == 'b')
 								{
 										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
@@ -1915,6 +1937,15 @@ function PopulateStatusPlaylistEntries(playselected,playList,reloadFile)
 										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">---</td>";
 										innerHTML += "<td width=\"10%\" id=\"firstLast" + i.toString() + "\" class=\"textCenter\"></td>";
 										innerHTML += "</tr>";
+								}
+								else if(type == 'P')
+								{
+										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
+										innerHTML +=  "<td id = \"colEntryNumber" + (i+1).toString() + "\" width=\"6%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
+										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">plugin - " + pluginData.toString() + "</td>";
+										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">---</td>"
+										innerHTML += "<td width=\"10%\" id=\"firstLast" + i.toString() + "\" class=\"textCenter\"></td>";
+									  innerHTML += "</tr>";
 								}
 							}
 					}

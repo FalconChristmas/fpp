@@ -26,28 +26,30 @@
 #ifndef _PLAYLIST_H
 #define _PLAYLIST_H
 
-#define PL_TYPE_BOTH          0
-#define PL_TYPE_MEDIA         1
-#define PL_TYPE_SEQUENCE      2
-#define PL_TYPE_PAUSE         3
-#define PL_TYPE_VIDEO         4 // deprecated, legacy v0.2.0 implementation
-#define PL_TYPE_EVENT         5
+#define PL_TYPE_BOTH			0
+#define PL_TYPE_MEDIA			1
+#define PL_TYPE_SEQUENCE		2
+#define PL_TYPE_PAUSE			3
+#define PL_TYPE_VIDEO			4 // deprecated, legacy v0.2.0 implementation
+#define PL_TYPE_EVENT			5
+#define PL_TYPE_PLUGIN_NEXT		6
 
-#define PAUSE_STATUS_IDLE     0
-#define PAUSE_STATUS_STARTED  1
-#define PAUSE_STATUS_ENDED    2
+#define PAUSE_STATUS_IDLE		0
+#define PAUSE_STATUS_STARTED	1
+#define PAUSE_STATUS_ENDED		2
 
 #define PLAYLIST_STOP_INDEX		-1
 
-#define PL_MAX_ENTRIES       64
+#define PL_MAX_ENTRIES			64
 
 typedef struct{
-    unsigned char  type;
-    char  cType;
-    char seqName[256];
-    char songName[256];
-    char eventID[6];
-    unsigned int pauselength;
+	unsigned char type;
+	char cType;
+	char seqName[256];
+	char songName[256];
+	char eventID[6];
+	unsigned int pauselength;
+	char data[256];
 }PlaylistEntry;
 
 typedef struct{
@@ -65,6 +67,7 @@ typedef struct{
 }PlaylistDetails;
 
 void CalculateNextPlayListEntry();
+int ParsePlaylistEntry(char *buf, PlaylistEntry *pe);
 int ReadPlaylist(char const * file);
 void PlayListPlayingInit(void);
 void PlayListPlayingProcess(void);

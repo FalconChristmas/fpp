@@ -171,6 +171,7 @@ void CloseMediaOutput(void) {
 
 
 	free(mediaOutput->filename);
+	mediaOutput->filename = NULL;
 
 	mediaOutput = 0;
 	pthread_mutex_unlock(&mediaOutputLock);
