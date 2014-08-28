@@ -13,7 +13,7 @@
 #########################################################################
 # Some hard-coded or default values
 # Turn on debugging printf's (set to 0 to turn off)
-$debug       = 1;
+$debug       = 0;
 #
 # Video Filename
 $videoFile   = "/home/pi/fpp/etc/splash.mp4";
