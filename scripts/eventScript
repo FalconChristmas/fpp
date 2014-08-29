@@ -10,21 +10,21 @@ EXT=$(basename $1 | sed -e "s/.*\.\([^\.]*\)/\1/")
 if [ "x${EXT}" = "xsh" ]
 then
 	exec /bin/bash $@
+elif [ "x${EXT}" = "xpl" ]
+then
+	exec /usr/bin/perl $@
+elif [ "x${EXT}" = "xphp" ]
+then
+	exec /usr/bin/php $@
+elif [ "x${EXT}" = "xpy" ]
+then
+	exec /usr/bin/python $@
+elif [ -x $1 ]
+then
+	EXECUTABLE=$1
+	shift
+	exec $EXECUTABLE $@
 else
-	if [ "x${EXT}" = "xpl" ]
-	then
-		exec /usr/bin/perl $@
-	else
-		if [ "x${EXT}" = "xphp" ]
-		then
-			exec /usr/bin/php $@
-		else
-			if [ "x${EXT}" = "xpy" ]
-			then
-				exec /usr/bin/python $@
-			else
-				echo "ERROR: Unknown file extension: ${EXT}"
-			fi
-		fi
-	fi
+	
+	echo "ERROR: Unknown file extension: ${EXT}"
 fi

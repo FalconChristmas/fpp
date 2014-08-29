@@ -1509,15 +1509,17 @@ function AddPlayListEntry()
 	$pause = $_GET['pause'];
 	$eventName = $_GET['eventName'];
 	$eventID = $_GET['eventID'];
+	$pluginData = $_GET['pluginData'];
 	check($type);
 	check($seqFile);
 	check($songFile);
 	check($pause);
 	check($eventName);
 	check($eventID);
+	check($pluginData);
 	$index = 0;
 
-	$_SESSION['playListEntries'][] = new PlaylistEntry($type,$songFile,$seqFile,$pause,$eventName,$eventID,$index,count($_SESSION['playListEntries']));
+	$_SESSION['playListEntries'][] = new PlaylistEntry($type,$songFile,$seqFile,$pause,$eventName,$eventID,$pluginData,count($_SESSION['playListEntries']));
 	EchoStatusXML($_GET['mediaFile']);
 }
 
@@ -1765,6 +1767,7 @@ function LoadPlayListDetails($file)
 				$index = $i;
 				$eventName = "";
 				$eventID = "";
+				$pluginData = "";
 				break;
 			default:
 				break;
@@ -1775,6 +1778,7 @@ function LoadPlayListDetails($file)
 				$index = $i;
 				$eventName = "";
 				$eventID = "";
+				$pluginData = "";
 				break;
 			case 's':
 				$songFile = "";
@@ -1783,6 +1787,7 @@ function LoadPlayListDetails($file)
 				$index = $i;
 				$eventName = "";
 				$eventID = "";
+				$pluginData = "";
 				break;
 			case 'p':
 				$songFile = "";
@@ -1791,6 +1796,16 @@ function LoadPlayListDetails($file)
 				$index = $i;
 				$eventName = "";
 				$eventID = "";
+				$pluginData = "";
+				break;
+			case 'P':
+				$songFile = "";
+				$seqFile = "";
+				$pause = 0;
+				$index = $i;
+				$eventName = "";
+				$eventID = "";
+				$pluginData = $entry[1];
 				break;
 			case 'e':
 				$seqFile = "";
@@ -1798,6 +1813,7 @@ function LoadPlayListDetails($file)
 				$pause = 0;
 				$index = $i;
 				$eventID = $entry[1];
+				$pluginData = "";
 
 				$eventFile = $eventDirectory . "/" . $eventID . ".fevt";
 				if ( file_exists($eventFile)) {
@@ -1808,7 +1824,7 @@ function LoadPlayListDetails($file)
 				}
 				break;
 		}
-		$playListEntries[$i] = new PlaylistEntry($type,$songFile,$seqFile,$pause,$eventName,$eventID,$index);
+		$playListEntries[$i] = new PlaylistEntry($type,$songFile,$seqFile,$pause,$eventName,$eventID,$pluginData,$index);
 		$i++;
 	}
 	fclose($f);
@@ -1895,6 +1911,11 @@ function GetPlaylistEntries()
 		$eventID = $playListEntry->appendChild($eventID);
 		$value = $doc->createTextNode($_SESSION['playListEntries'][$i]->eventID);
 		$value = $eventID->appendChild($value);
+		// plugin data
+		$pluginData = $doc->createElement('pluginData');
+		$pluginData = $playListEntry->appendChild($pluginData);
+		$value = $doc->createTextNode($_SESSION['playListEntries'][$i]->pluginData);
+		$value = $pluginData->appendChild($value);
 	}
 	echo $doc->saveHTML();
 }
@@ -1965,6 +1986,10 @@ function SavePlaylist()
 		{
 			$entries .= sprintf("%s,%s,\n",$_SESSION['playListEntries'][$i]->type,
 				$_SESSION['playListEntries'][$i]->eventID);
+		}
+		else if($_SESSION['playListEntries'][$i]->type == 'P')
+		{
+			$entries .= sprintf("%s,%s,\n",$_SESSION['playListEntries'][$i]->type,$_SESSION['playListEntries'][$i]->pluginData);
 		}
 	}
 	fwrite($f,$entries);

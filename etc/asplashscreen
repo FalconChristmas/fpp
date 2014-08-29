@@ -92,7 +92,7 @@ if ($debug)
 # Now run the video
 $x1 = 0;
 $x2 = $screenWidth * 1.1;
-$cmd = sprintf( "omxplayer --win \"%d %d %d %d\" %s > /dev/null &", $x1, $y1, $x2, $y2, $videoFile);
+$cmd = sprintf( "/usr/bin/omxplayer --win \"%d %d %d %d\" %s > /dev/null &", $x1, $y1, $x2, $y2, $videoFile);
 if ($debug)
 {
 	printf( "CMD: %s\n", $cmd);

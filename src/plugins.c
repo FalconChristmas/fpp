@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <errno.h>
 #include <libgen.h>
 #include <stdio.h>
@@ -59,6 +60,8 @@ void InitPluginCallbacks(void)
 			char callbacks_list[1024];
 			char *token, *callback_type;
 
+			bzero(&callbacks_list[0], sizeof(callbacks_list));
+
 			// We're one of ".", "..", or hidden, so let's skip
 			// this entry in the directory
 			if ( location == 0 )
@@ -68,10 +71,10 @@ void InitPluginCallbacks(void)
 			plugin = &plugins[plugin_count];
 			plugin->name = strdup(ep->d_name);
 
-			strcpy(long_filename, getPluginDirectory());
-			strcat(long_filename, "/");
-			strcat(long_filename, ep->d_name);
-			strcat(long_filename, "/callbacks");
+			strncpy(long_filename, getPluginDirectory(), sizeof(long_filename));
+			strncat(long_filename, "/", sizeof(long_filename) - strlen(long_filename)-1);
+			strncat(long_filename, ep->d_name, sizeof(long_filename) - strlen(long_filename)-1);
+			strncat(long_filename, "/callbacks", sizeof(long_filename) - strlen(long_filename)-1);
 
 			LogDebug(VB_PLUGIN, "Found Plugin: (%s)\n", ep->d_name);
 
@@ -100,17 +103,25 @@ void InitPluginCallbacks(void)
 				dup2(output_pipe[1], STDOUT_FILENO);
 				close(output_pipe[1]);
 				execl(long_filename, "callbacks", "--list", NULL);
+
+				LogErr(VB_PLUGIN, "We failed to exec our callbacks query!\n");
+				exit(EXIT_FAILURE);
 			}
 			else
 			{
 				close(output_pipe[1]);
 				read(output_pipe[0], callbacks_list, sizeof(callbacks_list));
 
-				while ( callbacks_list[strlen(callbacks_list)] == '\n' )
-					callbacks_list[strlen(callbacks_list)] = '\0';	// hack to cut off
-																	// trailing newlines
+				char *trimmed = NULL;
+				trimmed = trimwhitespace(callbacks_list);
 
-				LogExcess(VB_PLUGIN, "Callback output: (%s)\n", callbacks_list);
+				if ( trimmed )
+				{
+					LogExcess(VB_PLUGIN, "Callback output: (%s)\n", trimmed);
+					free(trimmed);
+					trimmed = NULL;
+				}
+
 				wait(NULL);
 			}
 
@@ -186,7 +197,7 @@ void MediaCallback(void)
 
 				// build our data string here
 				char data[64*1024]; // "Unreasonably" high to handle all data we're going to pass
-				// TODO: parse JSON a little better like escaping special 
+				// TODO: parse JSON a little better like escaping special
 				// characters if needed, should only be quote that requires
 				// escaping, we shouldn't worry about things like tabs,
 				// backspaces, form feeds, etc..
@@ -202,25 +213,25 @@ void MediaCallback(void)
 				if ( strlen(plEntry->songName) )
 					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
 					"\"Media\":\"%s\",", plEntry->songName);
-				if ( strlen(mediaDetails.title) )
+				if ( mediaDetails.title && strlen(mediaDetails.title) )
 					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
 					"\"title\":\"%s\",", mediaDetails.title);
-				if ( strlen(mediaDetails.artist) )
+				if ( mediaDetails.artist && strlen(mediaDetails.artist) )
 					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
 					"\"artist\":\"%s\",", mediaDetails.artist);
-				if ( strlen(mediaDetails.album) )
+				if ( mediaDetails.album && strlen(mediaDetails.album) )
 					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
 					"\"album\":\"%s\",", mediaDetails.album);
 				if ( mediaDetails.year )
 					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
 					"\"year\":\"%d\",", mediaDetails.year);
-				if ( strlen(mediaDetails.comment) )
+				if ( mediaDetails.comment && strlen(mediaDetails.comment) )
 					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
 					"\"comment\":\"%s\",", mediaDetails.comment);
 				if ( mediaDetails.track )
 					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
 					"\"track\":\"%d\",", mediaDetails.track);
-				if ( strlen(mediaDetails.genre) )
+				if ( mediaDetails.genre && strlen(mediaDetails.genre) )
 					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
 					"\"genre\":\"%s\",", mediaDetails.genre);
 				if ( mediaDetails.seconds )
@@ -243,18 +254,20 @@ void MediaCallback(void)
 
 				LogWarn(VB_PLUGIN, "Media plugin data: %s\n", data);
 				execl(plugins[i].script, "callbacks", "--type", "media", "--data", data, NULL);
+
+				LogErr(VB_PLUGIN, "We failed to exec our media callback!\n");
+				exit(EXIT_FAILURE);
 			}
 			else
 			{
-				LogExcess(VB_PLUGIN, "Parent process, resuming work\n");
-				wait(NULL);
+				LogExcess(VB_PLUGIN, "Media parent process, resuming work.\n");
 			}
 		}
 	}
 }
 
 //non-blocking
-void PlaylistCallback(PlaylistDetails *playlistDetails)
+void PlaylistCallback(PlaylistDetails *playlistDetails, bool starting)
 {
 	int i;
 	for ( i = 0; i < plugin_count; ++i )
@@ -273,19 +286,50 @@ void PlaylistCallback(PlaylistDetails *playlistDetails)
 			{
 				LogDebug(VB_PLUGIN, "Child process, calling %s callback for playlist: %s\n", plugins[i].name, plugins[i].script);
 
-				char data[2048];
+				// TODO: parse JSON a little better like escaping special
+				// characters if needed, should only be quote that requires
+				// escaping, we shouldn't worry about things like tabs,
+				// backspaces, form feeds, etc..
+
+				char data[4096];
 				int j;
 				strncpy(&data[0], "{", sizeof(data));
 				for ( j = 0; j < playlistDetails->playListCount; ++j )
 				{
-					snprintf(&data[strlen(data)], sizeof(data)-strlen(data), "\"Sequence\":\"%s\",", playlistDetails->playList[j].seqName);
+					PlaylistEntry plEntry = playlistDetails->playList[j];
+
+					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
+						"\"sequence%d\" : {", j);
+
+					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
+					"\"type\":\"%s\",", type_to_string[plEntry.type]);
+					if ( strlen(plEntry.seqName) )
+						snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
+						"\"Sequence\":\"%s\",", plEntry.seqName);
+					if ( strlen(plEntry.songName) )
+						snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
+						"\"Media\":\"%s\",", plEntry.songName);
+
+					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
+						"\"},");
 				}
+
+				snprintf(&data[strlen(data)],
+						sizeof(data)-strlen(data),
+						"\"Action\":\"%s\",",
+						(starting == PLAYLIST_STARTING ? "start" : "stop"));
+
 				data[strlen(data)-1] = '}'; //replace last comma with a closing brace
+
+				LogWarn(VB_PLUGIN, "Playlist plugin data: %s\n", data);
 				execl(plugins[i].script, "callbacks", "--type", "playlist", "--data", data, NULL);
+
+				LogErr(VB_PLUGIN, "We failed to exec our playlist callback!\n");
+				exit(EXIT_FAILURE);
 			}
 			else
 			{
-				LogExcess(VB_PLUGIN, "Parent process, resuming work\n");
+				LogExcess(VB_PLUGIN, "Playlist parent process, waiting to resume work.\n");
 				wait(NULL);
 			}
 		}
@@ -293,15 +337,87 @@ void PlaylistCallback(PlaylistDetails *playlistDetails)
 }
 
 //blocking
-void NextPlaylistEntryCallback(void)
+int NextPlaylistEntryCallback(const char *plugin_data, int currentPlaylistEntry, int mode, bool repeat, PlaylistEntry *pe)
 {
-	/*
-	foreach ( plugins )
+	int i, ret_val;
+	for ( i = 0; i < plugin_count; ++i )
 	{
-		if ( this.mask & NEXT_PLAYLIST_ENTRY_CALLBACK )
+		if ( plugins[i].mask & NEXT_PLAYLIST_ENTRY_CALLBACK )
 		{
-			//make the call
+			int output_pipe[2], pid;
+			char playlist_entry[512];
+
+			bzero(&playlist_entry[0], sizeof(playlist_entry));
+
+			if (pipe(output_pipe) == -1)
+			{
+				LogErr(VB_PLUGIN, "Failed to make pipe\n");
+				exit(EXIT_FAILURE);
+			}
+
+			if ((pid = fork()) == -1 )
+			{
+				LogErr(VB_PLUGIN, "Failed to fork\n");
+				exit(EXIT_FAILURE);
+			}
+
+			if ( pid == 0 )
+			{
+				char data[2048];
+				int j;
+
+				LogDebug(VB_PLUGIN, "Child process, calling %s callback for nextplaylist: %s\n", plugins[i].name, plugins[i].script);
+
+				// TODO: parse JSON a little better like escaping special
+				// characters if needed, should only be quote that requires
+				// escaping, we shouldn't worry about things like tabs,
+				// backspaces, form feeds, etc..
+
+				strncpy(&data[0], "{", sizeof(data));
+				snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
+					"\"currentPlaylistEntry\":\"%d\",", currentPlaylistEntry);
+				char *mode_string = modeToString(mode);
+				if ( mode_string )
+				{
+					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
+						"\"mode\":\"%s\",", mode_string);
+					free(mode_string); mode_string = NULL;
+				}
+				snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
+					"\"repeat\":\"%s\",", (repeat == true ? "true" : "false" ));
+
+				if ( strlen(plugin_data) )
+				{
+					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
+					"\"data\":\"%s\",", plugin_data );
+				}
+
+				data[strlen(data)-1] = '}'; //replace last comma with a closing brace
+
+				LogWarn(VB_PLUGIN, "NextPlaylist plugin data: %s\n", data);
+
+				dup2(output_pipe[1], STDOUT_FILENO);
+				close(output_pipe[1]);
+
+				execl(plugins[i].script, "callbacks", "--type", "nextplaylist", "--data", data, NULL);
+
+				LogErr(VB_PLUGIN, "We failed to exec our nextplaylist callback!\n");
+				exit(EXIT_FAILURE);
+			}
+			else
+			{
+				close(output_pipe[1]);
+				read(output_pipe[0], &playlist_entry, sizeof(playlist_entry));
+
+				LogExcess(VB_PLUGIN, "Parsed playlist entry: %s\n", playlist_entry);
+				ret_val = ParsePlaylistEntry(playlist_entry, pe);
+				//Set our type back to 'P' so we re-parse it next time we pass it in the playlist
+				pe->cType = 'P';
+
+				LogExcess(VB_PLUGIN, "NextPlaylist parent process, waiting to resume work.\n");
+				wait(NULL);
+			}
 		}
 	}
-	*/
+	return ret_val;
 }
