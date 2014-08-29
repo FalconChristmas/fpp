@@ -315,7 +315,7 @@ int FalconPassThroughData(int offset, unsigned char *inBuf, int size)
 	buf[4] = 0xCC;
 	buf[5] = 0x55;
 
-	memcpy(buf+offset, inBuf, size);
+	memcpy(buf+FALCON_CFG_HEADER_SIZE+offset, inBuf, size);
 
 	if ((logLevel & LOG_DEBUG) && (logMask && VB_SETTING))
 		HexDump("Falcon Pass-through data", buf+offset, size);
