@@ -31,7 +31,7 @@ use strict;
 use threads;
 use threads::shared;
 use FindBin qw/$Bin/;
-use Time::HiRes qw( usleep );
+use Time::HiRes qw( gettimeofday usleep tv_interval );
 use File::Map qw/map_file unmap/;
 use Convert::Binary::C;
 use Data::Dumper;
@@ -187,6 +187,46 @@ sub ReadBlockInfo {
 
 		$this->{Blocks}->{$blkInfo->{blockName}} = \%data;
 	}
+}
+
+#############################################################################
+# Dump red channel block of memory to the screen (0 = space, non-zero is X)
+sub DumpBlock {
+	my $this = shift;
+	my $name = shift;
+	my $blk = $this->GetBlockInfo($name);
+
+	# FIXME, get this from the block itself.
+	my $startChannel = 0;
+	my $bd = $blk->{data};
+	my $width = $bd->{channelCount} / $bd->{strandsPerString} / $bd->{stringCount} / 3;
+	my $height = $bd->{channelCount} / 3 / $width;
+	my $i = $startChannel;
+
+	my $str = "";
+	for (my $y = 0; $y < $height; $y++)
+	{
+		my $rowOffset = $y * $width;
+		for (my $x = 0; $x < $width; $x++)
+		{
+			my $z = $i;
+			# FIXME, need to handle multiple wraps properly
+			if (($bd->{strandsPerString} > 1) && ($y % 2))
+			{
+				$z = $startChannel + (($rowOffset + ($width - $x - 1)) * 3);
+			}
+
+			#printf("%d ", ord(substr(${$this->{"dataFileMap"}}, $z, 1)));
+			$str .= (ord(substr(${$this->{"dataFileMap"}}, $z, 1)) > 0) ? '.' : ' ';
+
+			$i += 3; # Go to next pixel
+		}
+		$str .= sprintf("| %d\n", $y);
+	}
+	printf( "%s", $str);
+	printf( "%s|\n", "-" x $width);
+	printf( "Printing %dx%d for '%s' block starting at channel %d\n",
+		$width, $height, $name, $startChannel);
 }
 
 #############################################################################
@@ -450,9 +490,39 @@ sub TextMessage {
 
 	my $bd = $blk->{data};
 	my $sleepTime = 1000000 / $pps;
+	my $TtoB = ($bd->{startCorner} =~ /^T/) ? 1 : 0;
+	my $LtoR = ($bd->{startCorner} =~ /L$/) ? 1 : 0;
+	my $stringSize = $bd->{channelCount} / 3 / $bd->{stringCount};
 	my $width = $bd->{channelCount} / $bd->{strandsPerString} / $bd->{stringCount} / 3;
 	my $height = $bd->{channelCount} / 3 / $width;
-	my $img = Image::Magick->new(size => sprintf( "%dx%d", $width, $height));
+
+	# Get font metrics for our string
+	my $img2 = new Image::Magick;
+	$img2->Set( size=>'1x1' );
+	$img2->ReadImage( 'xc:none' );
+
+	my ($txt_x_ppem, $txt_y_ppem, $txt_ascender, $txt_descender, $txt_width, $txt_height, $txt_max_advance, $txt_predict) =
+		$img2->QueryMultilineFontMetrics(text => $msg, font => $font, fill => $fill, pointsize => $size );
+
+	$txt_width = int($txt_width + 1);
+	$txt_height = int($txt_height + 1);
+
+	my $img = Image::Magick->new(size => sprintf( "%dx%d", $txt_width + 2, $txt_height + 2));
+	my $imgR = Image::Magick->new(size => sprintf( "%dx%d", $txt_width + 2, $txt_height + 2));
+	$txt_width += 2;
+	$txt_height += 2;
+
+	if (1) {
+		printf( "x_ppem:      %s\n", $txt_x_ppem);
+		printf( "y_ppem:      %s\n", $txt_y_ppem);
+		printf( "ascender:    %s\n", $txt_ascender);
+		printf( "descender:   %s\n", $txt_descender);
+		printf( "width:       %s\n", $txt_width);
+		printf( "height:      %s\n", $txt_height);
+		printf( "max_advance: %s\n", $txt_max_advance);
+		printf( "predict:     %s\n", $txt_predict);
+	}
+
 	$img->Set(magick => "rgb");    # so we can save to blob as RGB
 	$img->Set(depth => 8);         # needed for RGB data
 
@@ -466,110 +536,213 @@ sub TextMessage {
 		$fill = "#" . $fill;
 	}
 
-	my $createImage;
-	$createImage = sub {
-		my $x = shift;
-		my $y = shift;
-		my $err;
+	@$img = (); # clear the image
+	$img->ReadImage('xc:' . $fill); # black/blank background
+	my $err = $img->Annotate(
+			pointsize => $size,
+			text => $msg,
+			gravity=>'NorthWest',
+			stroke => 'none',
+			weight => 1,
+			antialias => 0,
+			font => $font,
+			fill => $color,
+			x => 1,
+			y => 1,
+		);
+	print $err if $err;
 
-		@$img = (); # clear the image
+	my $rgbData = $img->ImageToBlob();
 
-		$img->ReadImage('xc:' . $fill); # black/blank background
-		$err = $img->Annotate(
-				pointsize => $size,
-				text => $msg,
-				gravity=>'NorthWest',
-				stroke => 'none',
-				weight => 1,
-				antialias => 0,
-				font => $font,
-				fill => $color,
-				x => $x,
-				y => $y,
-			);
-		print $err if $err;
-	};
+	my $imgR = $img->Clone();
+	$imgR->Flop();
+	my $rgbDataR = $imgR->ImageToBlob();
+
+	#$img->Write("text.png");
 
 	my $overlayImage;
 	$overlayImage = sub {
-		my $rgbData = $img->ImageToBlob();
-		my $channels = $bd->{channelCount};
-		for (my $o = $bd->{startChannel} - 1, my $c = 0; $c < $channels; $c++, $o++)
+		my $x = shift;
+		my $y = shift;
+		my $dx = $x > 0 ? $x : 0;
+		my $dy = $y > 0 ? $y : 0;
+		my $dw = $width;
+
+		my $sx = $x >= 0 ? 0 : 0 - $x;
+		my $sy = $y >= 0 ? 0 : 0 - $y;;
+		my $sw = $txt_width;
+		my $sh = $txt_height;
+		my $dc = $x;
+		my $dr = $y;
+
+		my $ss = 0;
+
+		if ($bd->{orientation} eq "H")
 		{
-			substr(${$this->{"dataFileMap"}}, $this->{pixelMap}[$o], 1, substr($rgbData, $c, 1));
+			for (my $sr = 0; $sr < $sh; $sr++)
+			{
+				my $string = $dr / $bd->{strandsPerString};
+				my $segment = $dr % $bd->{strandsPerString};
+
+				if ($dr >= 0 && $dr < $height)
+				{
+					my $revRow = 0;
+					if ($segment > 0)
+					{
+						$revRow = 1 if ($LtoR != (($segment % 2) != $TtoB));
+					}
+
+					my $d = $bd->{startChannel} - 1 + ((($dr * $dw) + $dx) * 3);
+
+					my $count = $dw;
+					my $end = $x + $sw;
+					if ($x < 0)
+					{
+						$count = $end;
+					}
+					elsif ($x > 0)
+					{
+						$count -= $dx;
+					}
+
+					if ($count > $dw)
+					{
+						$count = $dw;
+					}
+
+					if ($count > $sw)
+					{
+						$count = $sw;
+					}
+
+					if (($d >= 0) && ($count >= 0))
+					{
+						if ($revRow)
+						{
+							my $rsOffset = $sw - $count;
+							if ($x < 0)
+							{
+								$rsOffset += $x;
+							}
+
+							if ($rsOffset < 0)
+							{
+								$rsOffset = 0;
+							}
+
+							my $rs = (($sr * $sw) + $rsOffset) * 3;
+
+							$count *= 3;
+
+							my $dc = $this->{pixelMap}[$d] - $count + 3;
+
+							substr(${$this->{"dataFileMap"}}, $dc, $count,
+								substr($rgbDataR, $rs, $count)) if (1);
+						}
+						else
+						{
+							my $s = (($sr * $sw) + $sx ) * 3;
+
+							my $dc = $this->{pixelMap}[$d];
+
+							$count *= 3;
+							substr(${$this->{"dataFileMap"}}, $dc, $count,
+								substr($rgbData, $s, $count)) if (1);
+						}
+					}
+				}
+				$dr++;
+			}
+		}
+		else
+		{
+			for (my $sr = 0; $sr < $sh; $sr++)
+			{
+				for (my $sc = 0; $sc < $sw; $sc++)
+				{
+					if (($dc >= 0 && $dc < $width) &&
+						($dr >= 0 && $dr < $height))
+					{
+						my $s = (($sr * $sw) + $sc) * 3;
+						my $d = $bd->{startChannel} - 1 +
+							((($dr * $dw) + $dc) * 3);
+
+						substr(${$this->{"dataFileMap"}},
+							$this->{pixelMap}[$d], 3, substr($rgbData, $s, 3));
+					}
+					$dc++;
+				}
+				$dr++;
+				$dc = $x;
+			}
 		}
 	};
 
-	# Get font metrics for our string
-	my $img2 = new Image::Magick;
-	$img2->Set( size=>'1x1' );
-	$img2->ReadImage( 'xc:none' );
-
 	$msg =~ s/\\n/\n/g;
-
-	my ($txt_x_ppem, $txt_y_ppem, $txt_ascender, $txt_descender, $txt_width, $txt_height, $txt_max_advance, $txt_predict) =
-		$img2->QueryMultilineFontMetrics(text => $msg, font => $font, fill => $fill, pointsize => $size );
-
-	if (0) {
-		printf( "x_ppem:      %d\n", $txt_x_ppem);
-		printf( "y_ppem:      %d\n", $txt_y_ppem);
-		printf( "ascender:    %d\n", $txt_ascender);
-		printf( "descender:   %d\n", $txt_descender);
-		printf( "width:       %d\n", $txt_width);
-		printf( "height:      %d\n", $txt_height);
-		printf( "max_advance: %d\n", $txt_max_advance);
-		printf( "predict:     %d\n", $txt_predict);
-	}
 
 	if ($pos =~ /^[0-9]+,[0-9]+$/) {
 		my ($x, $y) = split(',', $pos);
-		$createImage->($x, $y);
-		$overlayImage->();
+		$overlayImage->($x, $y);
 	} elsif ($pos eq "scroll") {
 		if ($dir eq "R2L") {
-			my $extraWidth = $width * 2;
-			my $leadIn = $width;
-			my $frames = $txt_width + $extraWidth;
+			my $frames = $txt_width + $width;
 			for (my $i = 0; $i < $frames; $i++) {
-				$createImage->($leadIn - $i, ($height / 2) - ($txt_ascender / 2));
-				$overlayImage->();
+				my $y = int(($height / 2) - ($txt_height / 2));
+				$y = 0 if ($y < 0);
 
-				usleep($sleepTime);
+				my $startTime = [gettimeofday];
+				$overlayImage->($width - $i, $y);
+				my $stime = $sleepTime - (tv_interval( $startTime ) * 1000000);
+				if ($stime > 0)
+				{
+					usleep($stime);
+				}
 			}
 		} elsif ($dir eq "L2R") {
-			my $extraWidth = $width * 2;
-			my $leadIn = $width;
-			my $frames = $txt_width + $extraWidth;
+			my $frames = $txt_width + $width;
 			for (my $i = $frames - 1; $i >= 0; $i--) {
-				$createImage->($leadIn - $i, ($height / 2) - ($txt_ascender / 2));
-				$overlayImage->();
+				my $y = int(($height / 2) - ($txt_height / 2));
+				$y = 0 if ($y < 0);
 
-				usleep($sleepTime);
+				my $startTime = [gettimeofday];
+				$overlayImage->($width - $i, $y);
+				my $stime = $sleepTime - (tv_interval( $startTime ) * 1000000);
+				if ($stime > 0)
+				{
+					usleep($stime);
+				}
 			}
 		} elsif ($dir eq "T2B") {
-			my $extraHeight = $height * 2;
-			my $leadIn = $height;
-			my $frames = $txt_height + $extraHeight;
+			my $frames = $txt_height + $height;
 			for (my $i = $frames - 1; $i >= 0; $i--) {
-				$createImage->(0, $leadIn - $i);
-				$overlayImage->();
+				my $x = int(($width / 2) - ($txt_width / 2));
+				$x = 0 if ($x < 0);
 
-				usleep($sleepTime);
+				my $startTime = [gettimeofday];
+				$overlayImage->($x, $height - $i);
+				my $stime = $sleepTime - (tv_interval( $startTime ) * 1000000);
+				if ($stime > 0)
+				{
+					usleep($stime);
+				}
 			}
 		} elsif ($dir eq "B2T") {
-			my $extraHeight = $height * 2;
-			my $leadIn = $height;
-			my $frames = $txt_height + $extraHeight;
+			my $frames = $txt_height + $height;
 			for (my $i = 0; $i < $frames; $i++) {
-				$createImage->(0, $leadIn - $i);
-				$overlayImage->();
+				my $x = int(($width / 2) - ($txt_width / 2));
+				$x = 0 if ($x < 0);
 
-				usleep($sleepTime);
+				my $startTime = [gettimeofday];
+				$overlayImage->($x, $height - $i);
+				my $stime = $sleepTime - (tv_interval( $startTime ) * 1000000);
+				if ($stime > 0)
+				{
+					usleep($stime);
+				}
 			}
 		}
 	} elsif ($pos = "center") {
-		$createImage->(($width / 2) - ($txt_width / 2) - 1, ($height / 2) - ($txt_ascender / 2) );
-		$overlayImage->();
+		$overlayImage->(int(($width / 2) - ($txt_width / 2)), int(($height / 2) - ($txt_height / 2)) );
 	}
 
 	$this->SetBlockLock($blk, 0);
