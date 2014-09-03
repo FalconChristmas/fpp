@@ -130,9 +130,6 @@ a:visited {
     <fieldset style="padding: 10px; border: 2px solid #000;">
       <legend>Schedule</legend>
       <div style="overflow: hidden; padding: 10px;">
-      <div width: 400px; padding: 10px; background: #f9f9f9;
-; border: 1px solid #ccc;"> </div>
-      <br/>
       <form id="frmSchedule">
         <input name="command" type="hidden" value="saveSchedule" />
         <table>

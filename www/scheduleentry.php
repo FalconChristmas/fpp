@@ -10,9 +10,11 @@ class ScheduleEntry {
   public $endMinute;
   public $endSecond;
   public $repeat;
+  public $startDate;
+  public $endDate;
 
   public function  __construct($enable,$playlist,$startDay,$startHour,$startMinute,$startSecond,
-	                             $endHour,$endMinute,$endSecond,$repeat) {
+	                             $endHour,$endMinute,$endSecond,$repeat,$startDate,$endDate) {
     $this->enable = $enable;
     $this->playlist = $playlist;
     $this->startDay = $startDay;
@@ -23,6 +25,8 @@ class ScheduleEntry {
     $this->endMinute = $endMinute;
     $this->endSecond = $endSecond;
     $this->repeat = $repeat;
+    $this->startDate = $startDate;
+    $this->endDate = $endDate;
   }
 }
 ?>

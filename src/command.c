@@ -126,8 +126,8 @@ extern PlaylistDetails playlistDetails;
     char *s2;
     char *response2 = NULL;
     int i;
+		char NextPlaylist[128] = "No playlist scheduled.";
 		char NextScheduleStartText[64] = "";
-		char NextPlaylist[128] = "";
 		char CommandStr[64];
 		LogExcess(VB_COMMAND, "CMD: %s\n", command);
 		s = strtok(command,",");
@@ -259,9 +259,9 @@ extern PlaylistDetails playlistDetails;
 		{
 				if(FPPstatus==FPP_STATUS_IDLE)
 				{
-					LoadCurrentScheduleInfo();
+					ReLoadCurrentScheduleInfo();
 				}
-				LoadNextScheduleInfo();
+				ReLoadNextScheduleInfo();
 				
 				
 				sprintf(response,"%d,%d,Reloading Schedule,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);

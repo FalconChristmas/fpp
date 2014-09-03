@@ -30,6 +30,7 @@
 #include "playList.h"
 #include "settings.h"
 
+#include <ctype.h>
 #include <time.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -45,13 +46,81 @@ int ScheduleEntryCount=0;
 
 unsigned char CurrentScheduleHasbeenLoaded=0;
 unsigned char NextScheduleHasbeenLoaded=0;
-int nowWeeklySeconds2;
+int nowWeeklySeconds2 = 0;
+int lastLoadDate = 0;
 
 extern PlaylistDetails playlistDetails;
 
+int DateStrToInt(char *str)
+{
+	if ((!str) || (str[4] != '-') || (str[7] != '-') || (str[10] != 0x0))
+		return 0;
+
+	int result = 0;
+	char tmpStr[11];
+
+	strcpy(tmpStr, str);
+
+	result += atoi(str    ) * 10000; // Year
+	result += atoi(str + 5) *   100; // Month
+	result += atoi(str + 8)        ; // Day
+
+	return result;
+}
+
+int GetCurrentDateInt(void)
+{
+	time_t currTime = time(NULL);
+	struct tm *now = localtime(&currTime);
+	int result = 0;
+
+	result += (now->tm_year + 1900) * 10000;
+	result += (now->tm_mon + 1)     *   100;
+	result += (now->tm_mday)               ;
+
+	return result;
+}
+
+int CurrentDateInRange(int startDate, int endDate)
+{
+	int currentDate = GetCurrentDateInt();
+
+	if ((startDate < 10000) || (endDate < 10000))
+	{
+		startDate = startDate % 10000;
+		endDate = endDate % 10000;
+		currentDate = currentDate % 10000;
+	}
+
+	if ((startDate < 100) || (endDate < 100))
+	{
+		startDate = startDate % 100;
+		endDate = endDate % 100;
+		currentDate = currentDate % 100;
+	}
+
+	if ((startDate == 0) && (endDate == 0))
+		return 1;
+
+	if ((startDate <= currentDate) && (currentDate <= endDate))
+		return 1;
+
+	return 0;
+}
 
 void ScheduleProc()
 {
+  if (lastLoadDate != GetCurrentDateInt())
+  {
+    if (FPPstatus == FPP_STATUS_IDLE)
+      CurrentScheduleHasbeenLoaded = 0;
+
+    NextScheduleHasbeenLoaded = 0;
+  }
+
+  if (!CurrentScheduleHasbeenLoaded || !NextScheduleHasbeenLoaded)
+    LoadScheduleFromFile();
+
   switch(FPPstatus)
   {
     case FPP_STATUS_IDLE:
@@ -97,7 +166,9 @@ void CheckIfShouldBePlayingNow()
   {
 		// only check schedule entries that are enabled and set to repeat.
 		// Do not start non repeatable entries
-		if(Schedule[i].enable && Schedule[i].repeat)
+		if ((Schedule[i].enable) &&
+			(Schedule[i].repeat) &&
+			(CurrentDateInRange(Schedule[i].startDate, Schedule[i].endDate)))
 		{
 			for(j=0;j<Schedule[i].weeklySecondCount;j++)
 			{
@@ -130,10 +201,10 @@ int GetNextScheduleEntry(int *weeklySecondIndex)
   time_t currTime = time(NULL);
   struct tm *now = localtime(&currTime);
   int nowWeeklySeconds = GetWeeklySeconds(now->tm_wday, now->tm_hour, now->tm_min, now->tm_sec);
-  LoadScheduleFromFile();
   for(i=0;i<ScheduleEntryCount;i++)
   {
-		if(Schedule[i].enable)
+		if ((Schedule[i].enable) &&
+			(CurrentDateInRange(Schedule[i].startDate, Schedule[i].endDate)))
 		{
 			for(j=0;j<Schedule[i].weeklySecondCount;j++)
 			{
@@ -153,7 +224,14 @@ int GetNextScheduleEntry(int *weeklySecondIndex)
 
 void ReLoadCurrentScheduleInfo()
 {
+  lastLoadDate = 0;
   CurrentScheduleHasbeenLoaded = 0;
+}
+
+void ReLoadNextScheduleInfo(void)
+{
+  lastLoadDate = 0;
+  NextScheduleHasbeenLoaded = 0;
 }
 
 void LoadCurrentScheduleInfo()
@@ -167,14 +245,17 @@ void LoadCurrentScheduleInfo()
 void LoadNextScheduleInfo()
 {
   char t[64];
+  char p[64];
 
   nextSchedulePlaylist.ScheduleEntryIndex = GetNextScheduleEntry(&nextSchedulePlaylist.weeklySecondIndex);
   NextScheduleHasbeenLoaded = 1;
 
-  GetNextPlaylistText(t);
-  LogDebug(VB_SCHEDULE, "Next Playlist = %s\n",t);
-  GetNextScheduleStartText(t);
-  LogDebug(VB_SCHEDULE, "Next Schedule Start text = %s\n",t);
+  if (nextSchedulePlaylist.ScheduleEntryIndex >= 0)
+  {
+    GetNextPlaylistText(p);
+    GetNextScheduleStartText(t);
+    LogDebug(VB_SCHEDULE, "Next Scheduled Playlist is '%s' for %s\n",p, t);
+  }
 }
 
 void SetScheduleEntrysWeeklyStartAndEndSeconds(ScheduleEntry * entry)
@@ -383,7 +464,10 @@ void LoadScheduleFromFile()
   char *s;
   ScheduleEntryCount=0;
   int day;
-  LogInfo(VB_SCHEDULE, "Opening File Now %s\n",getScheduleFile());
+
+  lastLoadDate = GetCurrentDateInt();
+
+  LogInfo(VB_SCHEDULE, "Loading Schedule from %s\n",getScheduleFile());
   fp = fopen((const char *)getScheduleFile(), "r");
   if (fp == NULL) 
   {
@@ -391,6 +475,9 @@ void LoadScheduleFromFile()
   }
   while(fgets(buf, 512, fp) != NULL)
   {
+    while (isspace(buf[strlen(buf)-1]))
+        buf[strlen(buf)-1] = 0x0;
+
     // Enable
     s=strtok(buf,",");
     Schedule[ScheduleEntryCount].enable = atoi(s);
@@ -422,44 +509,55 @@ void LoadScheduleFromFile()
     s=strtok(NULL,",");
     Schedule[ScheduleEntryCount].repeat = atoi(s);
 
-    char dayStr[32];
-    GetDayTextFromDayIndex(Schedule[ScheduleEntryCount].dayIndex, dayStr);
-    LogInfo(VB_SCHEDULE, "Schedule Entry: %-12.12s %02d:%02d:%02d - %02d:%02d:%02d (%s)\n", dayStr,
-      Schedule[ScheduleEntryCount].startHour,Schedule[ScheduleEntryCount].startMinute,Schedule[ScheduleEntryCount].startSecond,
-      Schedule[ScheduleEntryCount].endHour,Schedule[ScheduleEntryCount].endMinute,Schedule[ScheduleEntryCount].endSecond,
-      Schedule[ScheduleEntryCount].playList);
+    // Start Date
+    s=strtok(NULL,",");
+    if (s && strcmp(s, ""))
+      Schedule[ScheduleEntryCount].startDate = DateStrToInt(s);
+    else
+      Schedule[ScheduleEntryCount].startDate = 20140101;
+
+    // End Date
+    s=strtok(NULL,",");
+    if (s && strcmp(s, ""))
+      Schedule[ScheduleEntryCount].endDate = DateStrToInt(s);
+    else
+      Schedule[ScheduleEntryCount].endDate = 20991231;
 
     // Set WeeklySecond start and end times
     SetScheduleEntrysWeeklyStartAndEndSeconds(&Schedule[ScheduleEntryCount]);
     ScheduleEntryCount++;
   }
   fclose(fp);
-//  SchedulePrint();
+
+  SchedulePrint();
   return;
 }
 
 void SchedulePrint()
 {
   int i=0;
-  int h;
-  // this causes a loop
-  //h= GetNextScheduleEntry();
+
+  LogInfo(VB_SCHEDULE, "Current Schedule: (Status: '+' = Enabled, '-' = Disabled, '!' = Outside Date Range, '*' = Repeat)\n");
+  LogInfo(VB_SCHEDULE, "St  Start & End Dates       Days         Start & End Times   Playlist\n");
+  LogInfo(VB_SCHEDULE, "--- ----------------------- ------------ ------------------- ---------------------------------------------\n");
   for(i=0;i<ScheduleEntryCount;i++)
   {
-//    LogDebug(VB_SCHEDULE, "%s  Next=%d   %d-%.2d:%.2d:%.2d,%.2d-%.2d:%.2d:%.2d  sws=%d,ews=%d\n", \
-                                          Schedule[i].playList,h, \
-                                          Schedule[i].startDay, \
-                                          Schedule[i].startHour, \
-                                          Schedule[i].startMinute, \
-                                          Schedule[i].startSecond, \
-                                          Schedule[i].endDay, \
-                                          Schedule[i].endHour, \
-                                          Schedule[i].endMinute, \
-                                          Schedule[i].endSecond, \
-                                          Schedule[i].startWeeklySecond, \
-                                          Schedule[i].endWeeklySecond \
-                                          );
-
+    char dayStr[32];
+    GetDayTextFromDayIndex(Schedule[i].dayIndex, dayStr);
+    LogInfo(VB_SCHEDULE, "%c%c%c %04d-%02d-%02d - %04d-%02d-%02d %-12.12s %02d:%02d:%02d - %02d:%02d:%02d %s\n",
+      Schedule[i].enable ? '+': '-',
+      CurrentDateInRange(Schedule[i].startDate, Schedule[i].endDate) ? ' ': '!',
+      Schedule[i].repeat ? '*': ' ',
+      (int)(Schedule[i].startDate / 10000),
+      (int)(Schedule[i].startDate % 10000 / 100),
+      (int)(Schedule[i].startDate % 100),
+      (int)(Schedule[i].endDate / 10000),
+      (int)(Schedule[i].endDate % 10000 / 100),
+      (int)(Schedule[i].endDate % 100),
+      dayStr,
+      Schedule[i].startHour,Schedule[i].startMinute,Schedule[i].startSecond,
+      Schedule[i].endHour,Schedule[i].endMinute,Schedule[i].endSecond,
+      Schedule[i].playList);
   }
 }
 
@@ -489,12 +587,54 @@ int GetDayFromWeeklySeconds(int weeklySeconds)
   return (int)(weeklySeconds/SECONDS_PER_DAY);
 }
 
+int FindNextStartingScheduleIndex(void)
+{
+	int i = 0;
+	int index = -1;
+	int currentDate = GetCurrentDateInt();
+	int schedDate = 99999999;
+	int weeklySecondStart = 999999;
+	for(i = 0; i < ScheduleEntryCount; i++)
+	{
+		if ((Schedule[i].enable) &&
+			(Schedule[i].startDate >= currentDate) &&
+			(Schedule[i].endDate < schedDate))
+		{
+			index = i;
+			schedDate = Schedule[i].endDate;
+		}
+	}
+
+	return index;
+}
+
 void GetNextScheduleStartText(char * txt)
 {
 	if (!NextScheduleHasbeenLoaded)
 		return;
 
-	GetScheduleEntryStartText(nextSchedulePlaylist.ScheduleEntryIndex,nextSchedulePlaylist.weeklySecondIndex,txt);
+	if (nextSchedulePlaylist.ScheduleEntryIndex >= 0)
+	{
+		GetScheduleEntryStartText(nextSchedulePlaylist.ScheduleEntryIndex,nextSchedulePlaylist.weeklySecondIndex,txt);
+	}
+	else
+	{
+		char dayText[16];
+		int found = FindNextStartingScheduleIndex();
+
+		if (found >= 0)
+		{
+			GetDayTextFromDayIndex(Schedule[found].dayIndex,dayText);
+			sprintf(txt, "%04d-%02d-%02d @ %02d:%02d:%02d - (%s)\n",
+				(int)(Schedule[found].startDate / 10000),
+				(int)(Schedule[found].startDate % 10000 / 100),
+				(int)(Schedule[found].startDate % 100),
+				Schedule[found].startHour,
+				Schedule[found].startMinute,
+				Schedule[found].startSecond,
+				dayText);
+		}
+	}
 }
 
 void GetNextPlaylistText(char * txt)
@@ -502,7 +642,17 @@ void GetNextPlaylistText(char * txt)
 	if (!NextScheduleHasbeenLoaded)
 		return;
 
-	strcpy(txt,Schedule[nextSchedulePlaylist.ScheduleEntryIndex].playList);
+	if (nextSchedulePlaylist.ScheduleEntryIndex >= 0)
+	{
+		strcpy(txt,Schedule[nextSchedulePlaylist.ScheduleEntryIndex].playList);
+	}
+	else
+	{
+		int found = FindNextStartingScheduleIndex();
+
+		if (found >= 0)
+			strcpy(txt,Schedule[found].playList);
+	}
 }
 
 void GetScheduleEntryStartText(int index,int weeklySecondIndex, char * txt)

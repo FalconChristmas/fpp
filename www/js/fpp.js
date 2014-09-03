@@ -1030,13 +1030,13 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 					{
 						GetPlaylistArray();
 						headerHTML = "<tr class=\"tblheader\">" +  
-    	                  "<td width=\"5%\">#</td>" +
-                        "<td width=\"10%\">Enable</td>" +
-                        "<td width=\"10%\">Playlist</td>" +
-												"<td width=\"10%\">Day</td>" +
-												"<td width=\"20%\">Start Time</td>" +
-												"<td width=\"20%\">End Time</td>" +
-                        "<td width=\"15%\">Repeat</td>" +
+                        "<td width=\"3%\">#</td>" +
+                        "<td width=\"7%\">Enable</td>" +
+                        "<td width=\"10%\">First &amp; Last<br>Run Dates</td>" +
+												"<td width=\"42%\">Playlist</td>" +
+												"<td width=\"15%\">Day(s)</td>" +
+												"<td width=\"15%\">Start &amp; End<br>Times</td>" +
+                        "<td width=\"8%\">Repeat</td>" +
 												"</tr>";
 							
 						$('#tblSchedule').append(headerHTML);					
@@ -1049,6 +1049,8 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 									var startTime = entries.childNodes[i].childNodes[3].textContent;
 									var endTime = entries.childNodes[i].childNodes[4].textContent;
 									var repeat = entries.childNodes[i].childNodes[5].textContent;
+									var startDate = entries.childNodes[i].childNodes[6].textContent;
+									var endDate = entries.childNodes[i].childNodes[7].textContent;
 
 									var enableChecked = enable == 1  ? "checked=\"checked\"" : "";
 									var repeatChecked = repeat == 1  ? "checked=\"checked\"" : "";
@@ -1076,10 +1078,12 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 									var tableRow = 	"<tr class=\"rowScheduleDetails\">" +
 								              "<td class='center'>" + (i+1).toString() + "</td>" +
 															"<td class='center' ><input  name=\"chkEnable[" + i.toString() + "]\" id=\"chkEnable[" + i.toString() + "]\" type=\"checkbox\" " + enableChecked +"/></td>" +
+															"<td><input class='date center'  name=\"txtStartDate[" + i.toString() + "]\" id=\"txtStartDate[" + i.toString() + "]\" type=\"text\" size=\"10\" value=\"" + startDate + "\"/><br/>" +
+																"<input class='date center'  name=\"txtEndDate[" + i.toString() + "]\" id=\"txtEndDate[" + i.toString() + "]\" type=\"text\" size=\"10\" value=\"" + endDate + "\"/></td>" +
 
-															"<td><select id=\"selPlaylist[" + i.toString() + "]\" name=\"selPlaylist[" + i.toString() + "]\" style=\"width:150px\">" +
+															"<td><select id=\"selPlaylist[" + i.toString() + "]\" name=\"selPlaylist[" + i.toString() + "]\">" +
 															playlistOptionsText + "</select></td>" + 
-															"<td><select id=\"selDay[" + i.toString() + "]\" name=\"selDay[" + i.toString() + "]\" style=\"width:150px\">" +
+															"<td><select id=\"selDay[" + i.toString() + "]\" name=\"selDay[" + i.toString() + "]\">" +
 															      "<option value=\"7\" " + dayChecked_7 + ">Everyday</option>" +
 															      "<option value=\"0\" " + dayChecked_0 + ">Sunday</option>" +
 															      "<option value=\"1\" " + dayChecked_1 + ">Monday</option>" +
@@ -1093,14 +1097,25 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 															      "<option value=\"10\" " + dayChecked_10 + ">Mon/Wed/Fri</option>" +
 															      "<option value=\"11\" " + dayChecked_11 + ">Tues/Thurs</option>" +
 															      "<option value=\"12\" " + dayChecked_12 + ">Sun-Thurs</option>" +
-															      "<option value=\"13\" " + dayChecked_13 + ">Fri/Sat</option></select>" +
-															"<td><input class='time center'  name=\"txtStartTime[" + i.toString() + "]\" id=\"txtStartTime[" + i.toString() + "]\" type=\"text\" size=\"8\" value=\"" + startTime + "\"/></td>" +
-															"<td><input class='time center' name=\"txtEndTime[" + i.toString() + "]\" id=\"txtEndTime[" + i.toString() + "]\" type=\"text\" size=\"8\" value=\"" + endTime + "\"/></td>" +
+															      "<option value=\"13\" " + dayChecked_13 + ">Fri/Sat</option></select></td>" +
+															"<td><input class='time center'  name=\"txtStartTime[" + i.toString() + "]\" id=\"txtStartTime[" + i.toString() + "]\" type=\"text\" size=\"8\" value=\"" + startTime + "\"/><br/>" +
+															"<input class='time center' name=\"txtEndTime[" + i.toString() + "]\" id=\"txtEndTime[" + i.toString() + "]\" type=\"text\" size=\"8\" value=\"" + endTime + "\"/></td>" +
 															"<td class='center' ><input name=\"chkRepeat[" + i.toString() + "]\" id=\"chkEnable[" + i.toString() + "]\" type=\"checkbox\" " + repeatChecked +"/></td>" +
 															"</tr>";
 															
 									$('#tblSchedule').append(tableRow);
 									$('.time').timepicker({'timeFormat': 'H:i:s'});
+									$('.date').datepicker({
+										'changeMonth': true,
+										'changeYear': true,
+										'dateFormat': 'yy-mm-dd',
+										'minDate': new Date(2014, 1 - 1, 1),
+										'maxDate': new Date(2099, 12 - 1, 31),
+										'showButtonPanel': true,
+										'selectOtherMonths': true,
+										'showOtherMonths': true,
+										'yearRange': "2014:2099"
+										});
 
 							}
 					}
@@ -1391,6 +1406,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 								var fppTime = status.childNodes[13].textContent;
 								if(gblCurrentLoadedPlaylist != CurrentPlaylist)
 								{
+									$('#selStartPlaylist').val(CurrentPlaylist);
 									PopulateStatusPlaylistEntries(false,CurrentPlaylist,true);
 								}
 								// Disable Play
@@ -2050,6 +2066,14 @@ function GetFPPDmode()
 			}
 		};
 		xmlhttp.send();
+}
+
+function DisplayHelp()
+{
+	$('#helpText').html("No help file exists for this page yet");
+	$('#helpText').load("help/" + pageName + ".html");
+	$('#dialog-help').dialog({ height: 600, width: 800, title: "Help" });
+	$('#dialog-help').dialog( "moveToTop" );
 }
 
 function GetGitOriginLog()

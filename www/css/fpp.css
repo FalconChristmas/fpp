@@ -554,6 +554,15 @@ fieldset
 	font-weight: bold;
 }
 
+.helpLink {
+	text-decoration: none;
+	color: blue;
+}
+
+.helpLinkDiv {
+	float: right;
+}
+
 .nonULLink {
 	text-decoration: none;
 	color: blue;

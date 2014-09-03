@@ -164,3 +164,5 @@ if ( $handle )
     </ul>
     <br style="clear: left" />
     </div>
+      <div class='helpLinkDiv'><a href='javascript:void();' onClick='DisplayHelp();' class='nonULLink'>&nbsp;[?]&nbsp;</a></div>
+

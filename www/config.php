@@ -291,6 +291,8 @@ if (!isset($skipJSsettings)) {
 		printf("	settings['%s'] = \"%s\";\n", $key, $value);
 	}
 ?>
+
+	var pageName = "<? echo str_ireplace('.php', '', basename($_SERVER['PHP_SELF'])) ?>";
 </script>
 <?
 }

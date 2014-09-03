@@ -63,6 +63,8 @@ typedef struct{
     int weeklySecondCount;
     int weeklyStartSeconds[DAYS_PER_WEEK];
     int weeklyEndSeconds[DAYS_PER_WEEK];
+    int startDate; // YYYYMMDD format as an integer
+    int endDate;   // YYYYMMDD format as an integer
 }ScheduleEntry;
 
 typedef struct{
@@ -73,6 +75,7 @@ typedef struct{
 }SchedulePlaylistDetails;
 
 void ReLoadCurrentScheduleInfo();
+void ReLoadNextScheduleInfo(void);
 void LoadCurrentScheduleInfo();
 void LoadNextScheduleInfo();
 void PlayListLoadCheck();
@@ -84,7 +87,6 @@ void GetNextPlaylistText(char * txt);
 void GetScheduleEntryStartText(int index,int weeklySecondIndex, char * txt);
 void GetDayTextFromDayIndex(int index,char * txt);
 void CheckIfShouldBePlayingNow();
-int GetNextScheduleEntry(int *weeklySecondIndex);
 int GetWeeklySeconds(int day, int hour, int minute, int second);
 int GetWeeklySecondDifference(int weeklySeconds1, int weeklySeconds2);
 void ScheduleProc();
