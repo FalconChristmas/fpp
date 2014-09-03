@@ -202,6 +202,9 @@ sub DumpBlock {
 	my $width = $bd->{channelCount} / $bd->{strandsPerString} / $bd->{stringCount} / 3;
 	my $height = $bd->{channelCount} / 3 / $width;
 	my $i = $startChannel;
+	my $TtoB = ($bd->{startCorner} =~ /^T/) ? 1 : 0;
+	my $LtoR = ($bd->{startCorner} =~ /L$/) ? 1 : 0;
+	my $stringSize = $bd->{channelCount} / 3 / $bd->{stringCount};
 
 	my $str = "";
 	for (my $y = 0; $y < $height; $y++)
@@ -210,8 +213,16 @@ sub DumpBlock {
 		for (my $x = 0; $x < $width; $x++)
 		{
 			my $z = $i;
-			# FIXME, need to handle multiple wraps properly
-			if (($bd->{strandsPerString} > 1) && ($y % 2))
+
+			my $string = $y / $bd->{strandsPerString};
+			my $segment = $y % $bd->{strandsPerString};
+			my $revRow = 0;
+			if ($segment > 0)
+			{
+				$revRow = 1 if ($LtoR != (($segment % 2) != $TtoB));
+			}
+
+			if ($revRow)
 			{
 				$z = $startChannel + (($rowOffset + ($width - $x - 1)) * 3);
 			}
