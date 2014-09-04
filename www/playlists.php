@@ -101,6 +101,34 @@ $(document).ready(function () {
     }).disableSelection();
 });
 
+	function MediaChanged()
+	{
+		if ($('#autoSelectMatches').is(':checked') == false)
+			return;
+
+		var value = $('#selMedia').val().replace(/\.ogg|\.mp3|\.mp4/i, "");
+
+		var seq = document.getElementById("selSequence")
+		for (var i = 0; i < seq.length; i++) {
+			if (seq.options[i].value.replace(/\.fseq/i, "") == value)
+				$('#selSequence').val(seq.options[i].value);
+		}
+	}
+
+	function SequenceChanged()
+	{
+		if ($('#autoSelectMatches').is(':checked') == false)
+			return;
+
+		var value = $('#selSequence').val().replace(/\.fseq/i, "");
+
+		var media = document.getElementById("selMedia")
+		for (var i = 0; i < media.length; i++) {
+			if (media.options[i].value.replace(/\.ogg|\.mp3|\.mp4/i, "") == value)
+				$('#selMedia').val(media.options[i].value);
+		}
+	}
+
 </script>
     <script>
     $(function() {
@@ -131,7 +159,7 @@ $(document).ready(function () {
   {
 	  global $musicDirectory;
 	  global $videoDirectory;
-		echo "<select id=\"selMedia\" size=\"1\">";
+		echo "<select id=\"selMedia\" size=\"1\" onChange='MediaChanged();'>";
 
 	$mediaEntries = array_merge(scandir($musicDirectory),scandir($videoDirectory));
 	sort($mediaEntries);
@@ -144,11 +172,11 @@ $(document).ready(function () {
     }
 		echo "</select>";
   }			
-  
+ 
   function PrintSequenceOptions()
   {
 	  global $sequenceDirectory;
-		echo "<select id=\"selSequence\" size=\"1\">";
+		echo "<select id=\"selSequence\" size=\"1\" onChange='SequenceChanged();'>";
     foreach(scandir($sequenceDirectory) as $seqFile) 
     {
       if($seqFile != '.' && $seqFile != '..' && !preg_match('/.eseq$/', $seqFile))
@@ -243,9 +271,10 @@ $(document).ready(function () {
     </div>
 		    <br />
     <div id="playlistEntryProperties">
-          <ul>
-        <li> Type<br />
-              <select id="selType" size="1" onchange="PlaylistTypeChanged()">
+          <table border='0'>
+				<tr><td colspan='2'><b>New Playlist Entry</b></td></tr>
+        <tr><td>Type:</td>
+						<td><select id="selType" size="1" onchange="PlaylistTypeChanged()">
             <option value = 'b'>Media and Sequence</option>
             <option value = 'm'>Media Only</option>
             <option value = 's'>Sequence Only</option>
@@ -253,23 +282,24 @@ $(document).ready(function () {
             <option value = 'e'>Event</option>
             <option value = 'P'>Plugin</option>
           </select>
-            </li>
-        <li id="musicOptions">Media<br />
-              <?php PrintMediaOptions();?> </li>
-        <li id="sequenceOptions">Sequence<br />
-              <?php PrintSequenceOptions();?> </li>
-        <li id="eventOptions" style="display:none;">Event<br />
-              <?php PrintEventOptions();?> </li>
-        <li id="pauseTime" style="display:none;"><div><div id='pauseText'>Pause Time</div><div id='delayText'>Delayed By</div></div>
-              <input id="txtPause" name="txtPause" type="text" size="10" maxlength="10"/>
-              (Seconds) </li>
-        <li id="pluginData" style="display:none;"><div><div id='pluginDataText'>Plugin Data</div></div>
-              <input id="txtData" name="txtData" type="text" size="100" maxlength="255"/></li>
-        <li>
-              <input id='btnAddPlaylistEntry'  width="200px"  onclick="AddPlaylistEntry();" class="buttons" type="button" value="Add" />
-              <input id='btnRemovePlaylistEntry'  width="200px"  onclick="RemovePlaylistEntry();" class="buttons" type="button" value="Remove" />
-            </li>
-      </ul>
+          <span id='autoSelectWrapper'><input type='checkbox' id='autoSelectMatches' checked> Auto-Select Matching Media/Sequence</span>
+				</td></tr>
+        <tr id="musicOptions"><td>Media:</td>
+            <td><?php PrintMediaOptions();?></td></tr>
+        <tr id="sequenceOptions"><td>Sequence:</td>
+            <td><?php PrintSequenceOptions();?></td></tr>
+        <tr id="eventOptions" style="display:none;"><td>Event:</td>
+            <td><?php PrintEventOptions();?></td></tr>
+        <tr id="pauseTime" style="display:none;"><td><div><div id='pauseText'>Pause Time:</div><div id='delayText'>Delayed By:</div></div></td>
+            <td><input id="txtPause" name="txtPause" type="text" size="10" maxlength="10"/>
+              (Seconds)</td></tr>
+        <tr id="pluginData" style="display:none;"><td><div><div id='pluginDataText'>Plugin Data:</div></div></td>
+            <td><input id="txtData" name="txtData" type="text" size="80" maxlength="255"/></td></tr>
+        <tr><td colspan='2'>
+            <input id='btnAddPlaylistEntry'  width="200px"  onclick="AddPlaylistEntry();" class="buttons" type="button" value="Add" />
+            <input id='btnRemovePlaylistEntry'  width="200px"  onclick="RemovePlaylistEntry();" class="buttons" type="button" value="Remove" />
+            </td></tr>
+				</table>
           <div class="clear"></div>
         </div>
     <div id="createPlaylistItems">
