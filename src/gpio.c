@@ -48,6 +48,7 @@
 
 int inputConfigured[MAX_GPIO_INPUTS];
 int inputLastState[MAX_GPIO_INPUTS];
+int inputNormallyClosed[MAX_GPIO_INPUTS];
 
 /*
  * Setup pins for configured GPIO Inputs
@@ -63,6 +64,7 @@ int SetupGPIOInput(void)
 
 	bzero(inputConfigured, sizeof(inputConfigured));
 	bzero(inputLastState, sizeof(inputLastState));
+	bzero(inputNormallyClosed, sizeof(inputNormallyClosed));
 
 	for (i = 0; i < MAX_GPIO_INPUTS; i++)
 	{
@@ -82,6 +84,11 @@ int SetupGPIOInput(void)
 				pullUpDnControl(i, PUD_UP);
 
 			inputConfigured[i] = 1;
+
+			sprintf(settingName, "GPIOInput%03dNC", i);
+			if (getSettingInt(settingName))
+				inputNormallyClosed[i] = 1;
+
 			enabledCount++;
 		}
 	}
@@ -99,6 +106,7 @@ void CheckGPIOInputs(void)
 {
 	char settingName[24];
 	int i = 0;
+	int nc = 0;
 
 	for (i = 0; i < MAX_GPIO_INPUTS; i++)
 	{
@@ -107,14 +115,14 @@ void CheckGPIOInputs(void)
 			int val = digitalRead(i);
 			if (val != inputLastState[i])
 			{
-				if (val == LOW) // Button just pressed
+				nc = inputNormallyClosed[i];
+
+				if ((!nc && (val == LOW)) ||
+					(nc && (val != LOW)))
 				{
 					LogDebug(VB_GPIO, "GPIO%d triggered\n", i);
 					sprintf(settingName, "GPIOInput%03dEvent", i);
 					TriggerEventByID(getSetting(settingName));
-				}
-				else // button released
-				{
 				}
 
 				inputLastState[i] = val;
