@@ -29,7 +29,6 @@
 #include "log.h"
 #include "command.h"
 #include "schedule.h"
-#include "playList.h"
 #include "e131bridge.h"
 #include "mediaoutput.h"
 #include "settings.h"
@@ -192,6 +191,8 @@ extern PlaylistDetails playlistDetails;
 					s = strtok(NULL,",");
 					if (s)
 						playlistDetails.currentPlaylistEntry = atoi(s);
+					else
+						playlistDetails.currentPlaylistEntry = 0;
 					playlistDetails.repeat = 1 ;
 					playlistDetails.playlistStarting=1;
 					FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
@@ -217,6 +218,8 @@ extern PlaylistDetails playlistDetails;
 					s = strtok(NULL,",");
 					if (s)
 						playlistDetails.currentPlaylistEntry = atoi(s);
+					else
+						playlistDetails.currentPlaylistEntry = 0;
 					playlistDetails.repeat = 0;
 					playlistDetails.playlistStarting=1;
 					FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
@@ -366,6 +369,38 @@ extern PlaylistDetails playlistDetails;
 				sprintf(response,"%d,%d,Channel Remap Data Reloaded,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
 			} else {
 				sprintf(response,"%d,%d,Failed to reload Channel Remap Data,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
+			}
+		}
+		else if (!strcmp(CommandStr, "NextPlaylistItem"))
+		{
+			switch (FPPstatus)
+			{
+				case FPP_STATUS_IDLE:
+					sprintf(response,"%d,%d,No playlist running\n",getFPPmode(),COMMAND_FAILED);
+					break;
+				case FPP_STATUS_PLAYLIST_PLAYING:
+					sprintf(response,"%d,%d,Skipping to next playlist item\n",getFPPmode(),COMMAND_SUCCESS);
+					playlistAction = PL_ACTION_NEXT_ITEM;
+					break;
+				case FPP_STATUS_STOPPING_GRACEFULLY:
+					sprintf(response,"%d,%d,Playlist is stopping gracefully\n",getFPPmode(),COMMAND_FAILED);
+					break;
+			}
+		}
+		else if (!strcmp(CommandStr, "PrevPlaylistItem"))
+		{
+			switch (FPPstatus)
+			{
+				case FPP_STATUS_IDLE:
+					sprintf(response,"%d,%d,No playlist running\n",getFPPmode(),COMMAND_FAILED);
+					break;
+				case FPP_STATUS_PLAYLIST_PLAYING:
+					sprintf(response,"%d,%d,Skipping to previous playlist item\n",getFPPmode(),COMMAND_SUCCESS);
+					playlistAction = PL_ACTION_PREV_ITEM;
+					break;
+				case FPP_STATUS_STOPPING_GRACEFULLY:
+					sprintf(response,"%d,%d,Playlist is stopping gracefully\n",getFPPmode(),COMMAND_FAILED);
+					break;
 			}
 		}
 		else

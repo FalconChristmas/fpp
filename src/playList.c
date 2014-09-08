@@ -54,6 +54,7 @@ struct timeval pauseStartTime;
 int numberOfSecondsPaused;
 struct timeval nowTime;
 int pauseStatus = PAUSE_STATUS_IDLE;
+int playlistAction = PL_ACTION_NOOP;
 
 extern char logText[256];
 
@@ -87,6 +88,28 @@ void IncrimentPlayListEntry()
 				firstEntryIndex = playlistDetails.first?1:0;
 				playlistDetails.currentPlaylistEntry = firstEntryIndex;
 			}
+		}
+	}
+}
+
+void DecrementPlayListEntry()
+{
+	int maxEntryIndex;
+	int firstEntryIndex;
+	int lastEntry;
+
+	if (!playlistDetails.playlistStarting)
+	{
+		firstEntryIndex = playlistDetails.first ? 1 : 0;
+		maxEntryIndex   = playlistDetails.last ? playlistDetails.playListCount - 2 : playlistDetails.playListCount - 1;
+
+		playlistDetails.currentPlaylistEntry--;
+
+		LogDebug(VB_PLAYLIST, "currentPlaylistEntry = %d Last=%d maxEntryIndex=%d firstEntryIndex=%d repeat=%d \n",playlistDetails.currentPlaylistEntry, playlistDetails.last,maxEntryIndex,firstEntryIndex,playlistDetails.repeat);
+
+		if (playlistDetails.currentPlaylistEntry < firstEntryIndex)
+		{
+			playlistDetails.currentPlaylistEntry = maxEntryIndex;
 		}
 	}
 }
@@ -238,7 +261,9 @@ int ReadPlaylist(char const * file)
 
 void PlayListPlayingInit(void)
 {
-	LogDebug(VB_PLAYLIST, "PlayListPlayingInit()\n");
+	LogDebug(VB_PLAYLIST, "PlayListPlayingInit() playing %s %s.\n",
+		playlistDetails.currentPlaylistFile,
+		playlistDetails.repeat ? "repeating" : "once");
 
 	playlistDetails.StopPlaylist = 0;
 	playlistDetails.ForceStop = 0;
@@ -277,6 +302,8 @@ void PlaylistProcessMediaData(void)
 
 void PlayListPlayingProcess(void)
 {
+	bool calculateNext = true;
+
 	while ( playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType == 'P' )
 	{
 		if (playlistDetails.playlistStarting)
@@ -305,6 +332,52 @@ void PlayListPlayingProcess(void)
 			break;
 	}
 
+	int playlistEntryType = playlistDetails.playList[playlistDetails.currentPlaylistEntry].type;
+
+	if ((FPPstatus == FPP_STATUS_PLAYLIST_PLAYING) &&
+		(playlistAction != PL_ACTION_NOOP))
+	{
+		switch (playlistAction)
+		{
+			case PL_ACTION_NEXT_ITEM:
+			case PL_ACTION_PREV_ITEM:
+					if ((IsSequenceRunning()) &&
+						((playlistEntryType == PL_TYPE_BOTH) ||
+						 (playlistEntryType == PL_TYPE_SEQUENCE)))
+					{
+						CloseSequenceFile();
+					}
+
+					if ((mediaOutputStatus.status == MEDIAOUTPUTSTATUS_PLAYING) &&
+						((playlistEntryType == PL_TYPE_BOTH) ||
+						 (playlistEntryType == PL_TYPE_MEDIA)))
+					{
+						CloseMediaOutput();
+					}
+
+					if (playlistEntryType == PL_TYPE_PAUSE)
+					{
+						pauseStatus = PAUSE_STATUS_ENDED;
+					}
+
+					if (playlistDetails.playlistStarting)
+						playlistDetails.playlistStarting = 0;
+
+					if (playlistAction == PL_ACTION_NEXT_ITEM)
+					{
+						IncrimentPlayListEntry();
+					}
+					else
+					{
+						DecrementPlayListEntry();
+					}
+					calculateNext = false;
+
+					break;
+		}
+		playlistAction = PL_ACTION_NOOP;
+	}
+
 	switch(playlistDetails.playList[playlistDetails.currentPlaylistEntry].type)
 	{
 		case PL_TYPE_BOTH:
@@ -312,7 +385,7 @@ void PlayListPlayingProcess(void)
 			if(mediaOutputStatus.status == MEDIAOUTPUTSTATUS_IDLE)
 			{
 				LogInfo(VB_PLAYLIST, "Play File Now \n");
-				Play_PlaylistEntry();
+				Play_PlaylistEntry(calculateNext);
 			}
 			else
 			{
@@ -325,7 +398,7 @@ void PlayListPlayingProcess(void)
 		case PL_TYPE_MEDIA:
 			if(mediaOutputStatus.status == MEDIAOUTPUTSTATUS_IDLE)
 			{
-				Play_PlaylistEntry();
+				Play_PlaylistEntry(calculateNext);
 			}
 			else
 			{
@@ -338,22 +411,22 @@ void PlayListPlayingProcess(void)
 		case PL_TYPE_SEQUENCE:
 			if(!IsSequenceRunning())
 			{
-				Play_PlaylistEntry();
+				Play_PlaylistEntry(calculateNext);
 			}
 			break;
 		case PL_TYPE_PAUSE:
 			PauseProcess();
 			if(pauseStatus==PAUSE_STATUS_ENDED)
 			{
-				Play_PlaylistEntry();
+				Play_PlaylistEntry(calculateNext);
 				pauseStatus = PAUSE_STATUS_IDLE;
 			}
 			break;
 		case PL_TYPE_VIDEO:
-			Play_PlaylistEntry();
+			Play_PlaylistEntry(calculateNext);
 			break;
 		case PL_TYPE_EVENT:
-			Play_PlaylistEntry();
+			Play_PlaylistEntry(calculateNext);
 			break;
 		default:
 			break;
@@ -405,11 +478,13 @@ void PauseProcess(void)
 }
 
 
-void Play_PlaylistEntry(void)
+void Play_PlaylistEntry(bool calculateNext)
 {
 	PlaylistEntry *plEntry = NULL;
 
-	CalculateNextPlayListEntry();
+	if (calculateNext)
+		CalculateNextPlayListEntry();
+
 	if( playlistDetails.currentPlaylistEntry==PLAYLIST_STOP_INDEX)
 	{
 		LogInfo(VB_PLAYLIST, "Stopping Playlist\n");

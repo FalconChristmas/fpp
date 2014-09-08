@@ -121,33 +121,19 @@ void ScheduleProc()
   if (!CurrentScheduleHasbeenLoaded || !NextScheduleHasbeenLoaded)
     LoadScheduleFromFile();
 
+  if(!CurrentScheduleHasbeenLoaded)
+    LoadCurrentScheduleInfo();
+
+  if(!NextScheduleHasbeenLoaded)
+    LoadNextScheduleInfo();
+
   switch(FPPstatus)
   {
     case FPP_STATUS_IDLE:
-      if(!CurrentScheduleHasbeenLoaded)
-      {
-        LoadCurrentScheduleInfo();
-      }
-      if(!NextScheduleHasbeenLoaded)
-      {
-        LoadNextScheduleInfo();
-			}
-			
       PlayListLoadCheck();
       break;
     case FPP_STATUS_PLAYLIST_PLAYING:
-      if(!NextScheduleHasbeenLoaded)
-      {
-        LoadNextScheduleInfo();
-      }
-// FIXME:
-// Why do we only check to see if we should stop if we were repeating?
-// Commenting out for now to fix several reported issues, but these lines
-// will probably go away after a discussion.
-//			if(Schedule[currentSchedulePlaylist.ScheduleEntryIndex].repeat)
-//			{
-	      PlayListStopCheck();
-//			}
+      PlayListStopCheck();
       break;
     default:
       break;
