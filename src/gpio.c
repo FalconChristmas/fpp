@@ -23,6 +23,7 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "common.h"
 #include "events.h"
 #include "log.h"
 #include "settings.h"
@@ -45,10 +46,12 @@
 #endif
 
 #define MAX_GPIO_INPUTS  255
+#define GPIO_DEBOUNCE_TIME 200000
 
 int inputConfigured[MAX_GPIO_INPUTS];
 int inputLastState[MAX_GPIO_INPUTS];
 int inputNormallyClosed[MAX_GPIO_INPUTS];
+long long inputLastTriggerTime[MAX_GPIO_INPUTS];
 
 /*
  * Setup pins for configured GPIO Inputs
@@ -65,6 +68,7 @@ int SetupGPIOInput(void)
 	bzero(inputConfigured, sizeof(inputConfigured));
 	bzero(inputLastState, sizeof(inputLastState));
 	bzero(inputNormallyClosed, sizeof(inputNormallyClosed));
+	bzero(inputLastTriggerTime, sizeof(inputLastTriggerTime));
 
 	for (i = 0; i < MAX_GPIO_INPUTS; i++)
 	{
@@ -107,6 +111,7 @@ void CheckGPIOInputs(void)
 	char settingName[24];
 	int i = 0;
 	int nc = 0;
+	long long lastAllowedTime = GetTime() - GPIO_DEBOUNCE_TIME; // usec's ago
 
 	for (i = 0; i < MAX_GPIO_INPUTS; i++)
 	{
@@ -117,12 +122,15 @@ void CheckGPIOInputs(void)
 			{
 				nc = inputNormallyClosed[i];
 
-				if ((!nc && (val == LOW)) ||
-					(nc && (val != LOW)))
+				if ((inputLastTriggerTime[i] < lastAllowedTime) &&
+					((!nc && (val == LOW)) ||
+					 (nc && (val != LOW))))
 				{
 					LogDebug(VB_GPIO, "GPIO%d triggered\n", i);
 					sprintf(settingName, "GPIOInput%03dEvent", i);
 					TriggerEventByID(getSetting(settingName));
+
+					inputLastTriggerTime[i] = GetTime();
 				}
 
 				inputLastState[i] = val;
