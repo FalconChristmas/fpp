@@ -130,7 +130,8 @@ void ScheduleProc()
   switch(FPPstatus)
   {
     case FPP_STATUS_IDLE:
-      PlayListLoadCheck();
+      if (currentSchedulePlaylist.ScheduleEntryIndex != SCHEDULE_INDEX_INVALID)
+        PlayListLoadCheck();
       break;
     case FPP_STATUS_PLAYLIST_PLAYING:
       PlayListStopCheck();
