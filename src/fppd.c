@@ -188,6 +188,8 @@ void MainLoop(void)
 	controlSock = InitControlSocket();
 	FD_SET (controlSock, &active_fd_set);
 
+	LogInfo(VB_GENERAL, "Starting main processing loop\n");
+
 	while (runMainFPPDLoop)
 	{
 		timeout.tv_sec  = 0;

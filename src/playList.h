@@ -34,6 +34,13 @@
 #define PL_TYPE_EVENT			5
 #define PL_TYPE_PLUGIN_NEXT		6
 
+// Actions to take during a running playlist
+#define PL_ACTION_NOOP          0
+#define PL_ACTION_STOP          1
+#define PL_ACTION_PAUSE         2
+#define PL_ACTION_NEXT_ITEM     3
+#define PL_ACTION_PREV_ITEM     4
+
 #define PAUSE_STATUS_IDLE		0
 #define PAUSE_STATUS_STARTED	1
 #define PAUSE_STATUS_ENDED		2
@@ -41,6 +48,10 @@
 #define PLAYLIST_STOP_INDEX		-1
 
 #define PL_MAX_ENTRIES			64
+
+#include <stdbool.h>
+
+extern int playlistAction;
 
 typedef struct{
 	unsigned char type;
@@ -73,7 +84,7 @@ void PlayListPlayingInit(void);
 void PlayListPlayingProcess(void);
 void PlayListPlayingCleanup(void);
 void PauseProcess(void);
-void Play_PlaylistEntry(void);
+void Play_PlaylistEntry(bool calculateNext);
 void PlaylistPlaySong(void);
 void PlaylistPrint();
 void StopPlaylistGracefully(void);

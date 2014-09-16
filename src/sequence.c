@@ -74,6 +74,12 @@ char NormalizeControlValue(char in);
 int OpenSequenceFile(const char *filename) {
 	LogDebug(VB_SEQUENCE, "OpenSequenceFile(%s)\n", filename);
 
+	if (!filename || !filename[0])
+	{
+		LogErr(VB_SEQUENCE, "Empty Sequence Filename!\n", filename);
+		return 0;
+	}
+
 	size_t bytesRead = 0;
 
 	seqFileSize = 0;

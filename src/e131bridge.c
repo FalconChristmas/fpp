@@ -35,6 +35,7 @@
 
 #include "channeloutput.h"
 #include "channeloutputthread.h"
+#include "common.h"
 #include "E131.h"
 #include "e131bridge.h"
 #include "log.h"
@@ -117,9 +118,7 @@ int Bridge_Initialize(void)
 		exit(1);
 	}
 
-	// Receive multicast from anywhere
-	mreq.imr_interface.s_addr = htonl(INADDR_ANY);
-
+	char address[16];
 	// Join the multicast groups
 	for(i=0;i<UniverseCount;i++)
 	{
@@ -132,11 +131,45 @@ int Bridge_Initialize(void)
 
 			LogInfo(VB_E131BRIDGE, "Adding group %s\n", strMulticastGroup);
 
-			// add group to groups to listen for
-			if (setsockopt(bridgeSock, IPPROTO_IP, IP_ADD_MEMBERSHIP,&mreq, sizeof(mreq)) < 0) 
+			// add group to groups to listen for on eth0 and wlan0 if it exists
+			int multicastJoined = 0;
+
+			GetInterfaceAddress("eth0", address, NULL, NULL);
+			if (strcmp(address, "127.0.0.1"))
 			{
-				perror("setsockopt mreq");
-				exit(1);
+				LogDebug(VB_E131BRIDGE, "binding to eth0: '%s'\n", address);
+				mreq.imr_interface.s_addr = inet_addr(address);
+				if (setsockopt(bridgeSock, IPPROTO_IP, IP_ADD_MEMBERSHIP,&mreq, sizeof(mreq)) < 0) 
+				{
+					perror("setsockopt mreq eth0");
+					exit(1);
+				}
+				multicastJoined = 1;
+			}
+
+			// FIXME, need to handle other interface names
+			GetInterfaceAddress("wlan0", address, NULL, NULL);
+			if (strcmp(address, "127.0.0.1"))
+			{
+				LogDebug(VB_E131BRIDGE, "binding to wlan0: '%s'\n", address);
+				mreq.imr_interface.s_addr = inet_addr(address);
+				if (setsockopt(bridgeSock, IPPROTO_IP, IP_ADD_MEMBERSHIP,&mreq, sizeof(mreq)) < 0) 
+				{
+					perror("setsockopt mreq wlan0");
+					exit(1);
+				}
+				multicastJoined = 1;
+			}
+
+			if (!multicastJoined)
+			{
+				LogDebug(VB_E131BRIDGE, "binding to default interface\n");
+				mreq.imr_interface.s_addr = htonl(INADDR_ANY);
+				if (setsockopt(bridgeSock, IPPROTO_IP, IP_ADD_MEMBERSHIP,&mreq, sizeof(mreq)) < 0) 
+				{
+					perror("setsockopt mreq generic");
+					exit(1);
+				}
 			}
 		}
 	}

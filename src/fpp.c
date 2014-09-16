@@ -115,6 +115,18 @@ int main (int argc, char *argv[])
       sprintf(command,"r");
       SendCommand(command);
     }
+    else if((strncmp(argv[1],"-c",2) == 0) && argc > 2)
+    {
+      if (!strcmp(argv[2], "next"))
+        strcpy(command,"NextPlaylistItem");
+      else if (!strcmp(argv[2], "prev"))
+        strcpy(command,"PrevPlaylistItem");
+      else if (!strcmp(argv[2], "stop"))
+        sprintf(command,"d");
+      else if (!strcmp(argv[2], "graceful"))
+        sprintf(command,"S");
+      SendCommand(command);
+    }
     // Start an effect - example "fpp -e effectName"
     else if((strncmp(argv[1],"-e",2) == 0) &&  argc > 2)
     {
@@ -248,6 +260,11 @@ void Usage(char *appname)
 "  -p PLAYLISTNAME              - Play Playlist PLAYLISTNAME in repeat mode\n"
 "  -P PLAYLISTNAME [STARTITEM]  - Play Playlist PLAYLISTNAME once, optionally\n"
 "                                 starting on item STARTITEM in the playlist\n"
+"  -c PLAYLIST_ACTION           - Perform a playlist action.  Actions include:\n"
+"                                 next     - skip to next item in the playlist\n"
+"                                 prev     - jump back to previous item\n"
+"                                 stop     - stop the playlist immediately\n"
+"                                 graceful - stop the playlist gracefully\n"
 "  -S                           - Stop Playlist gracefully\n"
 "  -d                           - Stop Playlist immediately\n"
 "  -q                           - Shutdown fppd daemon\n"

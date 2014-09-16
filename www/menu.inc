@@ -12,7 +12,7 @@ if ( $return_val != 0 )
 	$git_branch = "Unknown";
 unset($output);
 
-if (!preg_match("/^$git_branch-/", $fpp_head_version))
+if (!preg_match("/^$git_branch(-.*)?$/", $fpp_head_version))
 	$fpp_head_version .= " ($git_branch branch)";
 ?>
 
@@ -164,5 +164,19 @@ if ( $handle )
     </ul>
     <br style="clear: left" />
     </div>
-      <div class='helpLinkDiv'><a href='javascript:void();' onClick='DisplayHelp();' class='nonULLink'>&nbsp;[?]&nbsp;</a></div>
+      <div class='helpLinkDiv'><a href='javascript:void();' onClick='DisplayHelp();' class='nonULLink'>&nbsp;Press F1 for help&nbsp;&nbsp;</a></div>
+
+<script language="Javascript">
+function handleKeypress(e) {
+	if(e.keyCode == 112) {
+		e.preventDefault();
+		DisplayHelp();
+	}
+};
+
+$(document).ready(function() {
+	$(document).on('keydown', handleKeypress);
+});
+
+</script>
 
