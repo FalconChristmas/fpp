@@ -11,9 +11,6 @@ require_once('commandsocket.php');
 
 error_reporting(E_ALL);
 
-
-//define('debug', true);
-
 // Commands defined here which return something other
 // than XML need to return their own Content-type header.
 $nonXML = Array(
@@ -105,7 +102,7 @@ if ( isset($_GET['command']) && !empty($_GET['command']) )
 {
 	if ( array_key_exists($_GET['command'],$command_array) )
 	{
-		if ( defined('debug') )
+		if ($debug)
 			error_log("Calling ".$_GET['command']);
 		call_user_func($command_array[$_GET['command']]);
 	}
@@ -149,16 +146,19 @@ function EchoStatusXML($status)
 
 function RebootPi()
 {
-	$status=exec(SUDO . " shutdown -r now");
+	global $SUDO;
+
+	$status=exec($SUDO . " shutdown -r now");
 	EchoStatusXML($status);
 }
 
 function ManualGitUpdate()
 {
-	global $fppDir;
-	exec(SUDO . " $fppDir/scripts/fppd_stop");
+	global $fppDir, $SUDO;
+
+	exec($SUDO . " $fppDir/scripts/fppd_stop");
 	exec("$fppDir/scripts/git_pull");
-	exec(SUDO . " $fppDir/scripts/fppd_start");
+	exec($SUDO . " $fppDir/scripts/fppd_start");
 
 	EchoStatusXML("OK");
 }
@@ -215,6 +215,8 @@ function SetDeveloperMode()
 
 function SetVolume()
 {
+	global $SUDO;
+
 	$volume = $_GET['volume'];
 	check($volume);
 
@@ -227,7 +229,7 @@ function SetVolume()
 	$status=SendCommand('v,' . $vol . ',');
 
 	$card = 0;
-	exec(SUDO . " grep card /root/.asoundrc | head -n 1 | cut -d' ' -f 2", $output, $return_val);
+	exec($SUDO . " grep card /root/.asoundrc | head -n 1 | cut -d' ' -f 2", $output, $return_val);
 	if ( $return_val )
 	{
 		// Should we error here, or just move on?
@@ -248,16 +250,18 @@ function SetVolume()
 
 function SetPiLCDenabled()
 {
+	global $SUDO;
+
 	$enabled = $_GET['enabled'];
 	check($enabled);
   WriteSettingToFile("PI_LCD_Enabled",$enabled);
   if ($enabled == "true")
   {
-    $status = exec(SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/lcd/fppLCD start");
+    $status = exec($SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/lcd/fppLCD start");
   }
   else
   {
-    $status = exec(SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/lcd/fppLCD stop");
+    $status = exec($SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/lcd/fppLCD stop");
   }
 	EchoStatusXML($status);
 }
@@ -322,7 +326,9 @@ function GetFPPDmode()
 
 function ShutdownPi()
 {
-	$status=exec(SUDO . " shutdown -h now");
+	global $SUDO;
+
+	$status=exec($SUDO . " shutdown -h now");
 	EchoStatusXML($status);
 }
 
@@ -637,27 +643,31 @@ function StopNow()
 
 function StopFPPD()
 {
+	global $SUDO;
+
 	SendCommand('d'); // Ignore return and just kill if 'd' doesn't work...
-	$status=exec(SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_stop");
+	$status=exec($SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_stop");
 	EchoStatusXML('true');
 }
 
 
 function StartFPPD()
 {
-	global $settingsFile;
+	global $settingsFile, $SUDO;
 
 	$status=exec("if ps cax | grep -q fppd; then echo \"true\"; else echo \"false\"; fi");
 	if($status == 'false')
 	{
-		$status=exec(SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_start");
+		$status=exec($SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_start");
 	}
 	EchoStatusXML($status);
 }
 
 function RestartFPPD()
 {
-	exec(SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_stop");
+	global $SUDO;
+
+	exec($SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_stop");
 
 	StartFPPD();
 }
@@ -2381,7 +2391,7 @@ function UninstallPlugin()
 	$plugin = $_GET['plugin'];
 	check($plugin);
 
-	global $fppDir, $pluginDirectory;
+	global $fppDir, $pluginDirectory, $SUDO;
 
 	if ( !file_exists("$pluginDirectory/$plugin") )
 	{
@@ -2390,7 +2400,7 @@ function UninstallPlugin()
 		return;
 	}
 
-	exec("export SUDO=\"".SUDO."\"; export PLUGINDIR=\"".$pluginDirectory."\"; $fppDir/scripts/uninstall_plugin $plugin", $output, $return_val);
+	exec("export SUDO=\"".$SUDO."\"; export PLUGINDIR=\"".$pluginDirectory."\"; $fppDir/scripts/uninstall_plugin $plugin", $output, $return_val);
 	unset($output);
 	if ( $return_val != 0 )
 	{
@@ -2407,7 +2417,7 @@ function InstallPlugin()
 	$plugin = $_GET['plugin'];
 	check($plugin);
 
-	global $fppDir, $pluginDirectory;
+	global $fppDir, $pluginDirectory, $SUDO;
 
 	if ( file_exists("$pluginDirectory/$plugin") )
 	{
@@ -2422,7 +2432,7 @@ function InstallPlugin()
 	{
 		if ( $available_plugin['shortName'] == $plugin )
 		{
-			exec("export SUDO=\"".SUDO."\"; export PLUGINDIR=\"".$pluginDirectory."\"; $fppDir/scripts/install_plugin $plugin \"" . $available_plugin['sourceUrl'] . "\"", $output, $return_val);
+			exec("export SUDO=\"".$SUDO."\"; export PLUGINDIR=\"".$pluginDirectory."\"; $fppDir/scripts/install_plugin $plugin \"" . $available_plugin['sourceUrl'] . "\"", $output, $return_val);
 			unset($output);
 			if ( $return_val != 0 )
 			{

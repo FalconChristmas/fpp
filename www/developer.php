@@ -18,7 +18,7 @@ unset($output);
 
 if (!file_exists("/etc/fpp/config_version") && file_exists("/etc/fpp/rfs_version"))
 {
-	exec(SUDO . " $fppDir/scripts/upgrade_config");
+	exec($SUDO . " $fppDir/scripts/upgrade_config");
 }
 
 $os_build = "Unknown";

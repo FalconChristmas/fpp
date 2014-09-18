@@ -25,7 +25,7 @@
 
     function getAudioOutput()
     {
-      $current_card = trim(exec(SUDO . " sed -n '/card [0-9]/s/card \\([0-9]*\\)/\\1/p' /root/.asoundrc", $output, $return_val));
+      $current_card = trim(exec($SUDO . " sed -n '/card [0-9]/s/card \\([0-9]*\\)/\\1/p' /root/.asoundrc", $output, $return_val));
       if ($return_val)
       {
         error_log("Failed to get current audio output!");

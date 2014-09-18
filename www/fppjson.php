@@ -4,8 +4,6 @@ $skipJSsettings = 1;
 require_once('common.php');
 require_once('commandsocket.php');
 
-//define('debug', true);
-
 $a = session_id();
 if(empty($a))
 {
@@ -48,7 +46,7 @@ if ( isset($_GET['command']) && !empty($_GET['command']) ) {
 
 if (array_key_exists($command,$command_array) )
 {
-	if ( defined('debug') )
+	if ( $debug )
 		error_log("Calling " .$command);
 
 	call_user_func($command_array[$command]);
@@ -112,7 +110,7 @@ function SetSetting()
 		SendCommand("LogMask,$newValue,");
 	} else if ($setting == "HostName") {
 		$value = preg_replace("/[^a-zA-Z0-9]/", "", $value);
-		exec(SUDO . " sed -i 's/^.*\$/$value/' /etc/hostname ; " . SUDO . " hostname $value ; " . SUDO . " /etc/init.d/avahi-daemon restart", $output, $return_val);
+		exec($SUDO . " sed -i 's/^.*\$/$value/' /etc/hostname ; " . $SUDO . " hostname $value ; " . $SUDO . " /etc/init.d/avahi-daemon restart", $output, $return_val);
 		sleep(1); // Give Avahi time to restart before we return
 	}
 
@@ -213,26 +211,26 @@ function SetAudioOutput()
 
 	if ($card != 0 && file_exists("/proc/asound/card$card"))
 	{
-		exec(SUDO . " sed -i 's/card [0-9]/card ".$card."/' /root/.asoundrc", $output, $return_val);
+		exec($SUDO . " sed -i 's/card [0-9]/card ".$card."/' /root/.asoundrc", $output, $return_val);
 		unset($output);
 		if ($return_val)
 		{
 			error_log("Failed to set audio to card $card!");
 			return;
 		}
-		if ( defined('debug') )
+		if ( $debug )
 			error_log("Setting to audio output $card");
 	}
 	else if ($card == 0)
 	{
-		exec(SUDO . " sed -i 's/card [0-9]/card ".$card."/' /root/.asoundrc", $output, $return_val);
+		exec($SUDO . " sed -i 's/card [0-9]/card ".$card."/' /root/.asoundrc", $output, $return_val);
 		unset($output);
 		if ($return_val)
 		{
 			error_log("Failed to set audio back to default!");
 			return;
 		}
-		if ( defined('debug') )
+		if ( $debug )
 			error_log("Setting default audio");
 	}
 
@@ -433,7 +431,7 @@ function ApplyInterfaceInfo()
 
 	$interface = $args['interface'];
 
-	exec(SUDO . " " . $settings['fppDir'] . "/scripts/config_network  $interface");
+	exec($SUDO . " " . $settings['fppDir'] . "/scripts/config_network  $interface");
 }
 
 
@@ -528,7 +526,7 @@ function ApplyDNSInfo()
 {
 	global $settings;
 
-	exec(SUDO . " " . $settings['fppDir'] . "/scripts/config_dns");
+	exec($SUDO . " " . $settings['fppDir'] . "/scripts/config_dns");
 }
 
 function GetDNSInfo()
