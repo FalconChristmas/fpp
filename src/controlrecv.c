@@ -54,60 +54,31 @@ int InitControlSocket(void) {
 
 	int            UniverseOctet[2];
 	int            i;
-	struct ip_mreq mreq;
 	char           strMulticastGroup[16];
 
 	/* set up socket */
-LogDebug(VB_CONTROL, "creating socket\n");
 	ctrlRecvSock = socket(AF_INET, SOCK_DGRAM, 0);
-LogDebug(VB_CONTROL, "socket() call returned %d\n", ctrlRecvSock);
 	if (ctrlRecvSock < 0) {
-LogDebug(VB_CONTROL, "before perror()\n");
 		perror("socket");
-LogDebug(VB_CONTROL, "exitting()\n");
 		exit(1);
 	}
 
-LogDebug(VB_CONTROL, "bzero-ing crSrcAddr\n");
 	bzero((char *)&crSrcAddr, sizeof(crSrcAddr));
-LogDebug(VB_CONTROL, "configuring crSrcAddr\n");
 	crSrcAddr.sin_family = AF_INET;
 	crSrcAddr.sin_addr.s_addr = htonl(INADDR_ANY);
 	crSrcAddr.sin_port = htons(FPP_CTRL_PORT);
 
 	// Bind the socket to address/port
-LogDebug(VB_CONTROL, "calling bind() on ctrlRecvSock\n");
 	if (bind(ctrlRecvSock, (struct sockaddr *) &crSrcAddr, sizeof(crSrcAddr)) < 0) 
 	{
-LogDebug(VB_CONTROL, "before perror()\n");
 		perror("bind");
-LogDebug(VB_CONTROL, "exitting()\n");
 		exit(1);
 	}
 
 	int opt = 1;
-LogDebug(VB_CONTROL, "calling setsockopt() on ctrlRecvSock to turn on IP_PKTINFO\n");
 	if (setsockopt(ctrlRecvSock, IPPROTO_IP, IP_PKTINFO, &opt, sizeof(opt)) < 0)
 	{
-LogDebug(VB_CONTROL, "before perror()\n");
 		perror("setsockopt pktinfo");
-LogDebug(VB_CONTROL, "exitting()\n");
-		exit(1);
-	}
-
-  
-	// Receive multicast from anywhere		
-LogDebug(VB_CONTROL, "configuring mreq\n");
-	mreq.imr_interface.s_addr = htonl(INADDR_ANY);
-	mreq.imr_multiaddr.s_addr = inet_addr(FPP_CTRL_ADDR);
-
-	// Add group to groups to listen for
-LogDebug(VB_CONTROL, "calling setsockopt() on ctrlRecvSock to setup multicast\n");
-	if (setsockopt(ctrlRecvSock, IPPROTO_IP, IP_ADD_MEMBERSHIP,&mreq, sizeof(mreq)) < 0) 
-	{
-LogDebug(VB_CONTROL, "before perror()\n");
-		perror("setsockopt mreq");
-LogDebug(VB_CONTROL, "exitting()\n");
 		exit(1);
 	}
 
