@@ -19,7 +19,8 @@ error_reporting(E_ALL);
 $nonXML = Array(
 	"getFile" => 1,
 	"getGitOriginLog" => 1,
-	"getVideoInfo" => 1
+	"getVideoInfo" => 1,
+	"viewRemoteScript" => 1
 	);
 
 $a = session_id();
@@ -55,6 +56,8 @@ $command_array = Array(
 	"getSchedule" => 'GetSchedule',
 	"addScheduleEntry" => 'AddScheduleEntry',
 	"deleteScheduleEntry" => 'DeleteScheduleEntry',
+	"viewRemoteScript" => 'ViewRemoteScript',
+	"installRemoteScript" => 'InstallRemoteScript',
 	"moveFile" => 'MoveFile',
 	"isFPPDrunning" => 'IsFPPDrunning',
 	"getFPPstatus" => 'GetFPPstatus',
@@ -321,6 +324,36 @@ function ShutdownPi()
 {
 	$status=exec(SUDO . " shutdown -h now");
 	EchoStatusXML($status);
+}
+
+function ViewRemoteScript()
+{
+	$category = $_GET['category'];
+	check($category);
+
+	$filename = $_GET['filename'];
+	check($filename);
+
+	$script = file_get_contents("https://raw.githubusercontent.com/FalconChristmas/fpp-scripts/master/" . $category . "/" . $filename);
+
+	echo $script;
+}
+
+function InstallRemoteScript()
+{
+	global $scriptDirectory;
+
+	$category = $_GET['category'];
+	check($category);
+
+	$filename = $_GET['filename'];
+	check($filename);
+
+	$script = file_get_contents("https://raw.githubusercontent.com/FalconChristmas/fpp-scripts/master/" . $category . "/" . $filename);
+
+	file_put_contents($scriptDirectory . "/" . $filename, $script);
+
+	EchoStatusXML('Success');
 }
 
 function MoveFile()
