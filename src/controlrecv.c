@@ -54,7 +54,6 @@ int InitControlSocket(void) {
 
 	int            UniverseOctet[2];
 	int            i;
-	struct ip_mreq mreq;
 	char           strMulticastGroup[16];
 
 	/* set up socket */
@@ -80,18 +79,6 @@ int InitControlSocket(void) {
 	if (setsockopt(ctrlRecvSock, IPPROTO_IP, IP_PKTINFO, &opt, sizeof(opt)) < 0)
 	{
 		perror("setsockopt pktinfo");
-		exit(1);
-	}
-
-  
-	// Receive multicast from anywhere		
-	mreq.imr_interface.s_addr = htonl(INADDR_ANY);
-	mreq.imr_multiaddr.s_addr = inet_addr(FPP_CTRL_ADDR);
-
-	// Add group to groups to listen for
-	if (setsockopt(ctrlRecvSock, IPPROTO_IP, IP_ADD_MEMBERSHIP,&mreq, sizeof(mreq)) < 0) 
-	{
-		perror("setsockopt mreq");
 		exit(1);
 	}
 
