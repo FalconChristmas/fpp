@@ -1111,7 +1111,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 															"</tr>";
 															
 									$('#tblSchedule').append(tableRow);
-									$('.time').timepicker({'timeFormat': 'H:i:s'});
+									$('.time').timepicker({'timeFormat': 'H:i:s', 'typeaheadHighlight': false});
 									$('.date').datepicker({
 										'changeMonth': true,
 										'changeYear': true,
