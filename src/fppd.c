@@ -251,7 +251,8 @@ void MainLoop(void)
 					PlayListPlayingProcess();
 				}
 			}
-			else if (FPPstatus == FPP_STATUS_IDLE)
+
+			if (FPPstatus == FPP_STATUS_IDLE)
 			{
 				if ((prevFPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||
 					(prevFPPstatus == FPP_STATUS_STOPPING_GRACEFULLY))
