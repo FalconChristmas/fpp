@@ -230,7 +230,12 @@ void SetChannelOutputRefreshRate(int rate)
 int StartChannelOutputThread(void)
 {
 	if (ChannelOutputThreadIsRunning())
-		return 1;
+	{
+		// Give a little time in case we were shutting down
+		usleep(200000);
+		if (ChannelOutputThreadIsRunning())
+			return 1;
+	}
 
 	RunThread = 1;
 	DefaultLightDelay = 1000000 / RefreshRate;
@@ -305,6 +310,9 @@ void UpdateMasterPosition(int frameNumber)
  */
 void CalculateNewChannelOutputDelay(float mediaPosition)
 {
+	if (getFPPmode() == REMOTE_MODE)
+		return;
+
 	int expectedFramesSent = (int)(mediaPosition * RefreshRate);
 
 	mediaElapsedSeconds = mediaPosition;

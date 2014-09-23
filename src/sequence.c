@@ -239,6 +239,7 @@ void SendSequenceData(void) {
 
 void SendBlankingData(void) {
 	LogDebug(VB_SEQUENCE, "Sending Blanking Data\n");
+	usleep(100000);
 	ReadSequenceData();
 	SendSequenceData();
 }
