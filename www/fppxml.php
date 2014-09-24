@@ -44,6 +44,7 @@ $command_array = Array(
 	"deletePlaylist" => 'DeletePlaylist',
 	"deleteEntry" => 'DeleteEntry',
 	"deleteFile" => 'DeleteFile',
+	"convertFile" => 'ConvertFile',
 	"addPlaylistEntry" => 'AddPlayListEntry',
 	"setUniverseCount" => 'SetUniverseCount',
 	"getUniverses" => 'GetUniverses',
@@ -364,16 +365,16 @@ function InstallRemoteScript()
 
 function MoveFile()
 {
-	global $mediaDirectory, $musicDirectory, $sequenceDirectory, $videoDirectory, $effectDirectory, $scriptDirectory;
+	global $mediaDirectory, $uploadDirectory, $musicDirectory, $sequenceDirectory, $videoDirectory, $effectDirectory, $scriptDirectory;
 
 	$file = $_GET['file'];
 	check($file);
 
-	if(file_exists($mediaDirectory."/upload/" . $file))
+	if(file_exists($uploadDirectory."/" . $file))
 	{
 		if (preg_match("/\.(fseq)$/i", $file))
 		{
-			if ( !rename($mediaDirectory."/upload/" . $file, $sequenceDirectory . '/' . $file) )
+			if ( !rename($uploadDirectory."/" . $file, $sequenceDirectory . '/' . $file) )
 			{
 				error_log("Couldn't move sequence file");
 				exit(1);
@@ -381,7 +382,7 @@ function MoveFile()
 		}
 		else if (preg_match("/\.(eseq)$/i", $file))
 		{
-			if ( !rename($mediaDirectory."/upload/" . $file, $effectDirectory . '/' . $file) )
+			if ( !rename($uploadDirectory."/" . $file, $effectDirectory . '/' . $file) )
 			{
 				error_log("Couldn't move effect file");
 				exit(1);
@@ -389,7 +390,7 @@ function MoveFile()
 		}
 		else if (preg_match("/\.(mp4|mkv)$/i", $file))
 		{
-			if ( !rename($mediaDirectory."/upload/" . $file, $videoDirectory . '/' . $file) )
+			if ( !rename($uploadDirectory."/" . $file, $videoDirectory . '/' . $file) )
 			{
 				error_log("Couldn't move video file");
 				exit(1);
@@ -398,11 +399,11 @@ function MoveFile()
 		else if (preg_match("/\.(sh|pl|php|py)$/i", $file))
 		{
 			// Get rid of any DOS newlines
-			$contents = file_get_contents($mediaDirectory."/upload/".$file);
+			$contents = file_get_contents($uploadDirectory."/".$file);
 			$contents = str_replace("\r", "", $contents);
-			file_put_contents($mediaDirectory."/upload/".$file, $contents);
+			file_put_contents($uploadDirectory."/".$file, $contents);
 
-			if ( !rename($mediaDirectory."/upload/" . $file, $scriptDirectory . '/' . $file) )
+			if ( !rename($uploadDirectory."/" . $file, $scriptDirectory . '/' . $file) )
 			{
 				error_log("Couldn't move script file");
 				exit(1);
@@ -410,7 +411,7 @@ function MoveFile()
 		}
 		else if (preg_match("/\.(mp3|ogg)$/i", $file))
 		{
-			if ( !rename($mediaDirectory."/upload/" . $file, $musicDirectory . '/' . $file) )
+			if ( !rename($uploadDirectory."/" . $file, $musicDirectory . '/' . $file) )
 			{
 				error_log("Couldn't move music file");
 				exit(1);
@@ -419,7 +420,7 @@ function MoveFile()
 	}
 	else
 	{
-		error_log("Couldn't find file in upload directory");
+		error_log("Couldn't find file '" . $file . "' in upload directory");
 		exit(1);
 	}
 	EchoStatusXML('Success');
@@ -2151,6 +2152,116 @@ function DeleteFile()
 	}
 	else
 		EchoStatusXML('Failure');
+}
+
+function ConvertFile()
+{
+	global $uploadDirectory, $sequenceDirectory, $effectDirectory, $SUDO, $debug;
+
+	$file = $_GET['filename'];
+	$convertTo = $_GET['convertTo'];
+
+	check($file);
+	check($convertTo);
+
+	$doc = new DomDocument('1.0');
+	$response= $doc->createElement('Response');
+	$doc->appendChild($response);
+	$status = $doc->createElement('Status');
+	$response->appendChild($status);
+
+	if (preg_match("/\.(vix|xseq|lms|las|gled|seq|hlsidata)$/i", $file))
+	{
+		// The file gets placed where we run fppconvert from, which is
+		// typically the www-root.  Instead, let's go where we want it
+		// and know we have the space.
+		chdir($uploadDirectory);
+
+		exec($SUDO . " " . dirname(dirname(__FILE__)) . '/bin/fppconvert "' . $uploadDirectory."/".$file.'" 2>&1 | grep -i -e error -e alloc', $output, $return_val);
+
+		$output_string = "";
+		foreach ($output as $line)
+		{
+			$output_string .= $line . '<br />';
+			if ($debug)
+				error_log("*** FPPCONVERT OUTPUT: $line ***");
+		}
+
+		if (strpos($output_string, "rror") || strpos($output_string, "alloc"))
+		{
+			$fail = $doc->createTextNode('Failure');
+			$status->appendChild($fail);
+
+			$error = $doc->createElement('Error');
+			$response->appendChild($error);
+
+			if ( strpos($output_string, "alloc") )
+				$value = $doc->createTextNode("Out of memory!<br />This file is be too big to convert on the Pi.");
+			else
+				$value = $doc->createTextNode($output_string);
+			$error->appendChild($value);
+
+			echo $doc->saveHTML();
+			exit(1);
+		}
+
+		$file_strip = substr($file, 0, strrpos($file, "."));
+		if ($convertTo == "sequence")
+		{
+			if (!rename($file_strip.".fseq", $sequenceDirectory . '/' . $file_strip.".fseq"))
+			{
+				error_log("Couldn't copy sequence file");
+				$fail = $doc->createTextNode('Failure');
+				$status->appendChild($fail);
+
+				$error = $doc->createElement('Error');
+				$response->appendChild($error);
+
+				$value = $doc->createTextNode("Couldn't move sequence file");
+				$error->appendChild($value);
+
+				echo $doc->saveHTML();
+				exit(1);
+			}
+		}
+		elseif ($convertTo == "effect")
+		{
+			if (!rename($file_strip.".fseq", $effectDirectory . '/' . $file_strip.".eseq"))
+			{
+				error_log("Couldn't move effect file");
+				$fail = $doc->createTextNode('Failure');
+				$status->appendChild($fail);
+
+				$error = $doc->createElement('Error');
+				$response->appendChild($error);
+
+				$value = $doc->createTextNode("Couldn't move effect file");
+				$error->appendChild($value);
+
+				echo $doc->saveHTML();
+				exit(1);
+			}
+		}
+		else
+		{
+			unlink($file_strip.".fseq");
+			$fail = $doc->createTextNode('Failure');
+			$status->appendChild($fail);
+
+			$error = $doc->createElement('Error');
+			$response->appendChild($error);
+
+			$value = $doc->createTextNode("Invalid conversion type");
+			$error->appendChild($value);
+
+			echo $doc->saveHTML();
+			exit(1);
+		}
+	}
+
+	$success = $doc->createTextNode('Success');
+	$status->appendChild($success);
+	echo $doc->saveHTML();
 }
 
 function GetVideoInfo()

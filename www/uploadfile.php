@@ -13,6 +13,9 @@ require_once('config.php');
 <script src="/jquery/jQuery-Form-Plugin/js/jquery.form.js"></script>
 <script src="/jquery/jQuery-Upload-File/js/jquery.uploadfile.min.js"></script>
 
+<script type="text/javascript" src="/jquery/Spin.js/spin.js"></script>
+<script type="text/javascript" src="/jquery/Spin.js/jquery.spin.js"></script>
+
 <script>
     $(function() {
     $('#tblSequences').on('mousedown', 'tr', function(event,ui){
@@ -35,6 +38,7 @@ require_once('config.php');
           $('#tblVideos tr').removeClass('selectedentry');
           $(this).addClass('selectedentry');
           VideoNameSelected  = $(this).find('td:first').text();
+		  SetButtonState('#btnSequenceConvertUpload','disable');
 		  SetButtonState('#btnVideoInfo','enable');
 		  SetButtonState('#btnDownloadVideo','enable');
 		  SetButtonState('#btnDeleteVideo','enable');
@@ -44,6 +48,7 @@ require_once('config.php');
           $('#tblEffects tr').removeClass('selectedentry');
           $(this).addClass('selectedentry');
           EffectNameSelected  = $(this).find('td:first').text();
+		  SetButtonState('#btnSequenceConvertUpload','disable');
 		  SetButtonState('#btnDownloadEffect','enable');
 		  SetButtonState('#btnDeleteEffect','enable');
     });
@@ -52,6 +57,7 @@ require_once('config.php');
           $('#tblScript tr').removeClass('selectedentry');
           $(this).addClass('selectedentry');
           ScriptNameSelected  = $(this).find('td:first').text();
+		  SetButtonState('#btnSequenceConvertUpload','disable');
 		  SetButtonState('#btnViewScript','enable');
 		  SetButtonState('#btnDownloadScript','enable');
 		  SetButtonState('#btnDeleteScript','enable');
@@ -61,6 +67,7 @@ require_once('config.php');
           $('#tblLogs tr').removeClass('selectedentry');
           $(this).addClass('selectedentry');
           LogFileSelected  = $(this).find('td:first').text();
+		  SetButtonState('#btnSequenceConvertUpload','disable');
 		  SetButtonState('#btnViewLog','enable');
 		  SetButtonState('#btnDownloadLog','enable');
 		  SetButtonState('#btnDeleteLog','enable');
@@ -70,6 +77,11 @@ require_once('config.php');
           $('#tblUploads tr').removeClass('selectedentry');
           $(this).addClass('selectedentry');
           UploadFileSelected  = $(this).find('td:first').text();
+		  var extension = /\.(vix|xseq|lms|las|gled|seq|hlsidata)$/i;
+		  if ( UploadFileSelected.match(extension) )
+			  SetButtonState('#btnSequenceConvertUpload','enable');
+		  else
+			  SetButtonState('#btnSequenceConvertUpload','disable');
 		  SetButtonState('#btnDownloadUpload','enable');
 		  SetButtonState('#btnDeleteUpload','enable');
     });
@@ -262,6 +274,7 @@ h2 {
           </div>
           <hr />
           <div class='right'>
+            <input onclick= "ConvertFileDialog(UploadFileSelected);" id="btnSequenceConvertUpload" class="disableButtons" type="button"  value="Convert" style="float: left;"/>
             <input onclick= "DownloadFile('Uploads', UploadFileSelected);" id="btnDownloadUpload" class="disableButtons" type="button"  value="Download" />
             <input onclick= "DeleteFile('Uploads', UploadFileSelected);" id="btnDeleteUpload" class="disableButtons" type="button"  value="Delete" />
           </div>
@@ -282,6 +295,13 @@ h2 {
   <div id='fileText'>
   </div>
 </div>
+<div id="dialog-confirm" title="Sequence Conversion" style="display: none">
+<p>Convert the selected file to?</p>
+</div>
+<div id="overlay">
+</div>
+
+
 <?php	include 'common/footer.inc'; ?>
 <script>
 	var activeTabNumber = 
@@ -306,7 +326,7 @@ $(document).ready(function()
 		doneStr: "Close",
 		dragdropWidth: '95%',
 		dragDropStr: "<span><b>Drag &amp; Drop or Select Files to upload</b></span>",
-		allowedTypes: "mp3,ogg,fseq,eseq,mp4,mkv,sh,pl,php,py,jpg,png,gif,jpeg,rgb",
+		allowedTypes: "mp3,ogg,fseq,eseq,mp4,mkv,sh,pl,php,py,jpg,png,gif,jpeg,rgb,vix,xseq,lms,las,gled,seq,hlsidata",
 		onSuccess: function(files, data, xhr) {
 			for (var i = 0; i < files.length; i++) {
 				moveFile(files[i]);
