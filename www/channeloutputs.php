@@ -527,6 +527,34 @@ function OtherTypeSelected(selectbox) {
 	$row = $(selectbox.parentNode.parentNode);
 
 	var type = $(selectbox).val();
+
+	if ((Object.keys(USBDevices).length == 0) &&
+			((type == 'DMX-Pro') ||
+			 (type == 'DMX-Open') ||
+			 (type == 'Pixelnet-Lynx') ||
+			 (type == 'Pixelnet-Open')))
+	{
+		DialogError("Add Output", "No available serial devices detected.  Do you have a USB Serial Dongle attached?");
+		$row.remove();
+		return;
+	}
+
+	if ((Object.keys(RenardDevices).length == 0) &&
+			(type == 'Renard'))
+	{
+		DialogError("Add Output", "No available serial devices detected.");
+		$row.remove();
+		return;
+	}
+
+	if ((Object.keys(SPIDevices).length == 0) &&
+			(type == 'SPI-WS2801'))
+	{
+		DialogError("Add Output", "No available SPI devices detected.");
+		$row.remove();
+		return;
+	}
+
 	$row.find("td:nth-child(3)").html(type);
 
 	AddOtherTypeOptions($row, type);
@@ -546,27 +574,13 @@ function AddOtherOutput() {
 		"<tr class='rowUniverseDetails'><td>" + (currentRows + 1) + "</td>" +
 			"<td><input class='act' type=checkbox></td>" +
 			"<td><select class='type' onChange='OtherTypeSelected(this);'>" +
-				"<option value=''>Select a type</option>";
-
-	if (Object.keys(USBDevices).length > 0) {
-		newRow +=
-			"<option value='DMX-Pro'>DMX-Pro</option>" +
-			"<option value='DMX-Open'>DMX-Open</option>" +
-			"<option value='Pixelnet-Lynx'>Pixelnet-Lynx</option>" +
-			"<option value='Pixelnet-Open'>Pixelnet-Open</option>";
-	}
-
-	if (Object.keys(RenardDevices).length > 0) {
-		newRow +=
-			"<option value='Renard'>Renard</option>";
-	}
-
-	if (Object.keys(SPIDevices).length > 0) {
-		newRow +=
-			"<option value='SPI-WS2801'>SPI-WS2801</option>";
-	}
-
-	newRow +=
+				"<option value=''>Select a type</option>" +
+				"<option value='DMX-Pro'>DMX-Pro</option>" +
+				"<option value='DMX-Open'>DMX-Open</option>" +
+				"<option value='Pixelnet-Lynx'>Pixelnet-Lynx</option>" +
+				"<option value='Pixelnet-Open'>Pixelnet-Open</option>" +
+				"<option value='Renard'>Renard</option>" +
+				"<option value='SPI-WS2801'>SPI-WS2801</option>" +
 			"</select></td>" +
 			"<td><input class='start' type='text' size=6 maxlength=6 value='' style='display: none;'></td>" +
 			"<td><input class='count' type='text' size=4 maxlength=4 value='' style='display: none;'></td>" +
