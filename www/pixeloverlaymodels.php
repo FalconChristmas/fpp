@@ -113,10 +113,10 @@ function SetChannelMemMaps() {
 	postData = "command=setChannelMemMaps&data=[ " + postData + " ]";
 
 	$.post("fppjson.php", postData).success(function(data) {
-		$.jGrowl("Channel Memory Maps saved.");
+		$.jGrowl("Pixel Overlay Models saved.");
 		PopulateChannelMemMapTable(data);
 	}).fail(function() {
-		DialogError("Save Channel Memory Maps", "Save Failed!");
+		DialogError("Save Pixel Overlay Models", "Save Failed!");
 	});
 }
 
@@ -168,7 +168,7 @@ $(document).tooltip();
 
 		<div id="time" class="settings">
 			<fieldset>
-				<legend>Memory Mapped Channel Blocks</legend>
+				<legend>Pixel Overlay Models</legend>
 				<table>
 					<tr>
 						<td width='70px'><input type=button value='Save' onClick='SetChannelMemMaps();' class='buttons'></td>
@@ -196,9 +196,9 @@ $(document).tooltip();
 				</div>
 				<br>
 				<font size=-1>
-					Memory Mapped Channel Blocks allow overlaying
-					user-provided data onto outoing channel data via a
-					special memory mapped file interface.
+					The Real-Time Pixel Overlay system and Pixel Overlay Models
+					allow overlaying user-provided data onto outoing channel
+					data via a special interface.
 				</font>
 			</fieldset>
 		</div>
