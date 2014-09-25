@@ -9,7 +9,7 @@ logOutput
 
 updateAvahiConfig
 
-runPreStartPluginScripts
+runPreStartScripts
 
 if [ -f "${FPPDIR}/src/fppd" -a "${FPPDIR}/src/fppd" -nt "${FPPDIR}/bin/fppd" ]
 then
@@ -25,5 +25,5 @@ sleep 2
 
 startWebSocketServer
 
-runPostStartPluginScripts
+runPostStartScripts
 

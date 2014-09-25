@@ -9,10 +9,10 @@ logOutput
 
 stopWebSocketServer
 
-runPreStopPluginScripts
+runPreStopScripts
 
 echo "Stopping fppd"
 killall -9 fppd
 
-runPostStopPluginScripts
+runPostStopScripts
 
