@@ -1,0 +1,86 @@
+diff --git a/KeyConfig.cpp b/KeyConfig.cpp
+index 200022c..38e21f8 100644
+--- a/KeyConfig.cpp
++++ b/KeyConfig.cpp
+@@ -96,6 +96,9 @@ map<int, int> KeyConfig::buildDefaultKeymap()
+ 
+     keymap['1'] = ACTION_DECREASE_SPEED;
+     keymap['2'] = ACTION_INCREASE_SPEED;
++    keymap['8'] = ACTION_DECREASE_SPEED_MICRO;
++    keymap['9'] = ACTION_NORMAL_SPEED;
++    keymap['0'] = ACTION_INCREASE_SPEED_MICRO;
+     keymap['<'] = ACTION_REWIND;
+     keymap[','] = ACTION_REWIND;
+     keymap['>'] = ACTION_FAST_FORWARD;
+diff --git a/KeyConfig.h b/KeyConfig.h
+index 9b3b32a..2652950 100644
+--- a/KeyConfig.h
++++ b/KeyConfig.h
+@@ -35,7 +35,10 @@ class KeyConfig
+         ACTION_BLANK = 24,
+         ACTION_MOVE_VIDEO = 27,
+         ACTION_HIDE_VIDEO = 28,
+-        ACTION_UNHIDE_VIDEO = 29
++        ACTION_UNHIDE_VIDEO = 29,
++        ACTION_DECREASE_SPEED_MICRO = 30,
++        ACTION_NORMAL_SPEED = 31,
++        ACTION_INCREASE_SPEED_MICRO = 32
+     };
+ 
+     #define KEY_LEFT 0x5b44
+diff --git a/omxplayer.cpp b/omxplayer.cpp
+index fb64389..46f1482 100644
+--- a/omxplayer.cpp
++++ b/omxplayer.cpp
+@@ -105,6 +105,7 @@ OMXReader         m_omx_reader;
+ int               m_audio_index_use     = 0;
+ bool              m_thread_player       = false;
+ OMXClock          *m_av_clock           = NULL;
++int               m_fpp_speed           = 1000;
+ OMXControl        m_omxcontrol;
+ Keyboard          *m_keyboard           = NULL;
+ COMXStreamInfo    m_hints_audio;
+@@ -280,6 +281,7 @@ static void SetSpeed(int iSpeed)
+     FlushStreams(DVD_NOPTS_VALUE);
+ 
+   m_av_clock->OMXSetSpeed(iSpeed);
++  m_av_clock->OMXSetSpeed(iSpeed, true, true);
+ }
+ 
+ static float get_display_aspect_ratio(HDMI_ASPECT_T aspect)
+@@ -1205,6 +1207,26 @@ int main(int argc, char *argv[])
+         m_tv_show_info = !m_tv_show_info;
+         vc_tv_show_info(m_tv_show_info);
+         break;
++      case KeyConfig::ACTION_DECREASE_SPEED_MICRO:
++        if (m_fpp_speed >= 10)
++          m_fpp_speed -= 10;
++        SetSpeed(m_fpp_speed);
++        m_Pause = false;
++        break;
++      case KeyConfig::ACTION_NORMAL_SPEED:
++        if (m_fpp_speed != 1000)
++        {
++          m_fpp_speed = 1000;
++          SetSpeed(m_fpp_speed);
++          m_Pause = false;
++        }
++        break;
++      case KeyConfig::ACTION_INCREASE_SPEED_MICRO:
++        if (m_fpp_speed <= 1490)
++          m_fpp_speed += 10;
++        SetSpeed(m_fpp_speed);
++        m_Pause = false;
++        break;
+       case KeyConfig::ACTION_DECREASE_SPEED:
+         if (playspeed_current < playspeed_slow_min || playspeed_current > playspeed_slow_max)
+           playspeed_current = playspeed_slow_max-1;
+@@ -1604,7 +1626,7 @@ int main(int argc, char *argv[])
+       if(m_stats)
+       {
+         static int count;
+-        if ((count++ & 7) == 0)
++        if ((count++ & 2) == 0)
+            printf("M:%8.0f V:%6.2fs %6dk/%6dk A:%6.2f %6.02fs/%6.02fs Cv:%6dk Ca:%6dk                            \r", stamp,
+                video_fifo, (m_player_video.GetDecoderBufferSize()-m_player_video.GetDecoderFreeSpace())>>10, m_player_video.GetDecoderBufferSize()>>10,
+                audio_fifo, m_player_audio.GetDelay(), m_player_audio.GetCacheTotal(),
