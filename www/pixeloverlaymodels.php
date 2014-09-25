@@ -181,7 +181,7 @@ $(document).tooltip();
 					<table id="channelMemMaps">
 						<thead>
 							<tr class="fppTableHeader">
-								<th title='Name of Block'>Model Name</td>
+								<th title='Name of Model'>Model Name</td>
 								<th title='Start Channel'>Start Ch.</td>
 								<th title='Channel Count'>Ch. Count</td>
 								<th title='String Orientation'>Orientation</td>
