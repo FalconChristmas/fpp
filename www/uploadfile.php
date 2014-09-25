@@ -160,7 +160,7 @@ h2 {
             <input onclick="DeleteFile('Sequences', SequenceNameSelected);" id="btnDeleteSequence" class="disableButtons" type="button"  value="Delete" />
           </div>
           <br />
-          <font size=-1>Sequence files must be in the Falcon Pi Player .fseq format and may be converted from various other sequencer formats using <a href='https://github.com/smeighan/xLights'>xLights</a> or <a href='https://github.com/pharhp/Light-Elf'>Light-Elf</a>.</font>
+          <font size=-1>Sequence files must be in the Falcon Pi Player .fseq format and may be converted from various other sequencer formats using <a href='https://github.com/smeighan/xLights' target='_sequencer'>xLights</a> or <a href='https://github.com/pharhp/Light-Elf' target='_sequencer'>Light-Elf</a>.  The <a href='http://www.vixenlights.com' target='_sequencer'>Vixen 3</a> sequencer has the ability to directly export .fseq files.</font>
         </fieldset>
       </div>
     </div>
