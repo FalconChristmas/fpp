@@ -35,6 +35,7 @@
 
 #include "E131.h"
 #include "channeloutputthread.h"
+#include "common.h"
 #include "controlsend.h"
 #include "events.h"
 #include "effects.h"
@@ -99,11 +100,20 @@ int OpenSequenceFile(const char *filename) {
 
 	strcpy(seqFilename, filename);
 
-	char tmpFilename[1024];
+	char tmpFilename[2048];
 	unsigned char tmpData[2048];
 	strcpy(tmpFilename,(const char *)getSequenceDirectory());
 	strcat(tmpFilename,"/");
 	strcat(tmpFilename, filename);
+
+	if (getFPPmode() == REMOTE_MODE)
+		CheckForHostSpecificFile(getSetting("HostName"), tmpFilename);
+
+	if (!FileExists(tmpFilename))
+	{
+		LogErr(VB_SEQUENCE, "Sequence file %s does not exist\n", tmpFilename);
+		return 0;
+	}
 
 	seqFile = fopen((const char *)tmpFilename, "r");
 	if (seqFile == NULL) 

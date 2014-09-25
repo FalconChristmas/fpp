@@ -58,19 +58,22 @@ char dataStr[17];
 
 int omxplayer_StartPlaying(const char *filename)
 {
-	char  fullVideoPath[1024];
+	char  fullVideoPath[2048];
 
 	LogDebug(VB_MEDIAOUT, "omxplayer_StartPlaying(%s)\n", filename);
 
 	bzero(&mediaOutputStatus, sizeof(mediaOutputStatus));
 
-	if (snprintf(fullVideoPath, 1024, "%s/%s", getVideoDirectory(), filename)
-		>= 1024)
+	if (snprintf(fullVideoPath, 2048, "%s/%s", getVideoDirectory(), filename)
+		>= 2048)
 	{
 		LogErr(VB_MEDIAOUT, "Unable to play %s, full path name too long\n",
 			filename);
 		return 0;
 	}
+
+	if (getFPPmode() == REMOTE_MODE)
+		CheckForHostSpecificFile(getSetting("HostName"), fullVideoPath);
 
 	if (!FileExists(fullVideoPath))
 	{
