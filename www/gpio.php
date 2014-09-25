@@ -98,78 +98,91 @@ $(document).ready(function(){
 		<tr class='fppTableHeader'>
 				<td width='5%'>En.</td>
 				<td width='12%'>GPIO #</td>
+				<td width='10%'>wiringPi #</td>
 				<td width='6%'>NC</td>
-				<td width='65%'>Event</td>
+				<td width='55%'>Event</td>
 				<td width='12%'>Hdr - Pin</td>
 		</tr>
 		<tr><td><? PrintSettingCheckbox("GPIO Input", "GPIOInput004Enabled", "1", "0"); ?></td>
 				<td>BCM 4</td>
+				<td>7</td>
 				<td><? PrintSettingCheckbox("GPIO Input", "GPIOInput004NC", "1", "0"); ?></td>
 				<td><? PrintEventOptions(4); ?></td>
 				<td>P1 - Pin 7</td>
 		</tr>
 		<tr><td><? PrintSettingCheckbox("GPIO Input", "GPIOInput017Enabled", "1", "0"); ?></td>
 				<td>BCM 17</td>
+				<td>0</td>
 				<td><? PrintSettingCheckbox("GPIO Input", "GPIOInput017NC", "1", "0"); ?></td>
 				<td><? PrintEventOptions(17); ?></td>
 				<td>P1 - Pin 11</td>
 		</tr>
 		<tr><td><? PrintSettingCheckbox("GPIO Input", "GPIOInput018Enabled", "1", "0"); ?></td>
 				<td>BCM 18</td>
+				<td>1</td>
 				<td><? PrintSettingCheckbox("GPIO Input", "GPIOInput018NC", "1", "0"); ?></td>
 				<td><? PrintEventOptions(18); ?></td>
 				<td>P1 - Pin 12</td>
 		</tr>
 		<tr><td><? PrintSettingCheckbox("GPIO Input", "GPIOInput027Enabled", "1", "0"); ?></td>
 				<td>BCM 27</td>
+				<td>2</td>
 				<td><? PrintSettingCheckbox("GPIO Input", "GPIOInput027NC", "1", "0"); ?></td>
 				<td><? PrintEventOptions(27); ?></td>
 				<td>P1 - Pin 13</td>
 		</tr>
 		<tr><td><? PrintSettingCheckbox("GPIO Input", "GPIOInput022Enabled", "1", "0"); ?></td>
 				<td>BCM 22</td>
+				<td>3</td>
 				<td><? PrintSettingCheckbox("GPIO Input", "GPIOInput022NC", "1", "0"); ?></td>
 				<td><? PrintEventOptions(22); ?></td>
 				<td>P1 - Pin 15</td>
 		</tr>
 		<tr><td><? PrintSettingCheckbox("GPIO Input", "GPIOInput023Enabled", "1", "0"); ?></td>
 				<td>BCM 23</td>
+				<td>4</td>
 				<td><? PrintSettingCheckbox("GPIO Input", "GPIOInput023NC", "1", "0"); ?></td>
 				<td><? PrintEventOptions(23); ?></td>
 				<td>P1 - Pin 16</td>
 		</tr>
 		<tr><td><? PrintSettingCheckbox("GPIO Input", "GPIOInput024Enabled", "1", "0"); ?></td>
 				<td>BCM 24</td>
+				<td>5</td>
 				<td><? PrintSettingCheckbox("GPIO Input", "GPIOInput024NC", "1", "0"); ?></td>
 				<td><? PrintEventOptions(24); ?></td>
 				<td>P1 - Pin 18</td>
 		</tr>
 		<tr><td><? PrintSettingCheckbox("GPIO Input", "GPIOInput025Enabled", "1", "0"); ?></td>
 				<td>BCM 25<span <? echo $piFaceStyle; ?>> **</span></td>
+				<td>6</td>
 				<td><? PrintSettingCheckbox("GPIO Input", "GPIOInput025NC", "1", "0"); ?></td>
 				<td><? PrintEventOptions(25); ?></td>
 				<td>P1 - Pin 22</td>
 		</tr>
 		<tr><td><? PrintSettingCheckbox("GPIO Input", "GPIOInput028Enabled", "1", "0"); ?></td>
 				<td>BCM 28</td>
+				<td>17</td>
 				<td><? PrintSettingCheckbox("GPIO Input", "GPIOInput028NC", "1", "0"); ?></td>
 				<td><? PrintEventOptions(28); ?></td>
 				<td>P5 - Pin 3</td>
 		</tr>
 		<tr><td><? PrintSettingCheckbox("GPIO Input", "GPIOInput029Enabled", "1", "0"); ?></td>
 				<td>BCM 29</td>
+				<td>18</td>
 				<td><? PrintSettingCheckbox("GPIO Input", "GPIOInput029NC", "1", "0"); ?></td>
 				<td><? PrintEventOptions(29); ?></td>
 				<td>P5 - Pin 4</td>
 		</tr>
 		<tr><td><? PrintSettingCheckbox("GPIO Input", "GPIOInput030Enabled", "1", "0"); ?></td>
 				<td>BCM 30</td>
+				<td>19</td>
 				<td><? PrintSettingCheckbox("GPIO Input", "GPIOInput030NC", "1", "0"); ?></td>
 				<td><? PrintEventOptions(30); ?></td>
 				<td>P5 - Pin 5</td>
 		</tr>
 		<tr><td><? PrintSettingCheckbox("GPIO Input", "GPIOInput031Enabled", "1", "0"); ?></td>
 				<td>BCM 31</td>
+				<td>20</td>
 				<td><? PrintSettingCheckbox("GPIO Input", "GPIOInput031NC", "1", "0"); ?></td>
 				<td><? PrintEventOptions(31); ?></td>
 				<td>P5 - Pin 6</td>
