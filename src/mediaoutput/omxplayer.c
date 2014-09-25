@@ -39,6 +39,7 @@
 #include "channeloutputthread.h"
 #include "common.h"
 #include "controlrecv.h"
+#include "controlsend.h"
 #include "log.h"
 #include "omxplayer.h"
 #include "settings.h"
@@ -104,6 +105,11 @@ int omxplayer_StartPlaying(const char *filename)
 
 	mediaOutputStatus.status = MEDIAOUTPUTSTATUS_PLAYING;
 
+	if (mediaOutputStatus.filename)
+		free(mediaOutputStatus.filename);
+
+	mediaOutputStatus.filename = strdup(filename);
+
 	return 1;
 }
 
@@ -116,6 +122,33 @@ int omxplayer_IsPlaying()
 		return 1;
 
 	return 0;
+}
+
+/*
+ *
+ */
+void omxplayer_SlowDown(void)
+{
+	LogDebug(VB_MEDIAOUT, "Slowing Down playback\n");
+	write(pipeFromOMX[0], "8", 1);
+}
+
+/*
+ *
+ */
+void omxplayer_SpeedNormal(void)
+{
+	LogDebug(VB_MEDIAOUT, "Speed Playback Normal\n");
+	write(pipeFromOMX[0], "9", 1);
+}
+
+/*
+ *
+ */
+void omxplayer_SpeedUp(void)
+{
+	LogDebug(VB_MEDIAOUT, "Speeding Up playback\n");
+	write(pipeFromOMX[0], "0", 1);
 }
 
 /*
@@ -179,12 +212,15 @@ void omxplayer_ProcessPlayerData(int bytesRead)
 	// FIXME, can we get this?
 	// mediaOutputStatus.subSecondsRemaining = subsecs;
 
+	float MediaSeconds = (float)((float)mediaOutputStatus.secondsElapsed + ((float)mediaOutputStatus.subSecondsElapsed/(float)100));
+
+	if (getFPPmode() == MASTER_MODE)
+		SendMediaSyncPacket(mediaOutputStatus.filename, 0, MediaSeconds);
+
 	if ((IsSequenceRunning()) &&
 		(mediaOutputStatus.secondsElapsed > 0) &&
 		(lastSyncCheck != mediaOutputStatus.secondsElapsed))
 	{
-		float MediaSeconds = (float)((float)mediaOutputStatus.secondsElapsed + ((float)mediaOutputStatus.subSecondsElapsed/(float)100));
-
 		LogDebug(VB_MEDIAOUT,
 			"Elapsed: %.2d.%.2d  Remaining: %.2d Total %.2d:%.2d.\n",
 			mediaOutputStatus.secondsElapsed,
@@ -195,6 +231,9 @@ void omxplayer_ProcessPlayerData(int bytesRead)
 
 		CalculateNewChannelOutputDelay(MediaSeconds);
 		lastSyncCheck = mediaOutputStatus.secondsElapsed;
+
+		if (getFPPmode() == REMOTE_MODE)
+			CheckCurrentPositionAgainstMaster(MediaSeconds);
 	}
 }
 
@@ -278,6 +317,9 @@ MediaOutput omxplayerOutput = {
 	.startPlaying = omxplayer_StartPlaying,
 	.stopPlaying  = omxplayer_StopPlaying,
 	.processData  = omxplayer_ProcessData,
-	.isPlaying    = omxplayer_IsPlaying
+	.isPlaying    = omxplayer_IsPlaying,
+	.speedUp      = omxplayer_SpeedUp,
+	.slowDown     = omxplayer_SlowDown,
+	.speedNormal  = omxplayer_SpeedNormal
 	};
 

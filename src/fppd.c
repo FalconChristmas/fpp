@@ -265,6 +265,13 @@ void MainLoop(void)
 
 			ScheduleProc();
 		}
+		else if (getFPPmode() == REMOTE_MODE)
+		{
+			if(mediaOutputStatus.status == MEDIAOUTPUTSTATUS_PLAYING)
+			{
+				PlaylistProcessMediaData();
+			}
+		}
 
 		CheckGPIOInputs();
 	}

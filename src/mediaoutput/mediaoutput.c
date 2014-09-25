@@ -27,18 +27,22 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "controlsend.h"
 #include "log.h"
 #include "mediaoutput.h"
 #include "mpg123.h"
 #include "ogg123.h"
 #include "omxplayer.h"
 #include "sequence.h"
+#include "settings.h"
 
 
 /////////////////////////////////////////////////////////////////////////////
 MediaOutput     *mediaOutput = 0;
 pthread_mutex_t  mediaOutputLock;
+float            masterMediaPosition = 0.0;
 
+#define MASTER_SYNC_THRESHOLD 0.033
 
 MediaOutputStatus mediaOutputStatus = {
 	.status = MEDIAOUTPUTSTATUS_IDLE
@@ -144,6 +148,9 @@ int OpenMediaOutput(char *filename) {
 		return 0;
 	}
 
+	if (getFPPmode() == MASTER_MODE)
+		SendMediaSyncStartPacket(filename);
+
 	mediaOutput->filename = strdup(filename);
 	mediaOutputStatus.status = MEDIAOUTPUTSTATUS_PLAYING;
 
@@ -169,6 +176,8 @@ void CloseMediaOutput(void) {
 		pthread_mutex_lock(&mediaOutputLock);
 	}
 
+	if (getFPPmode() == MASTER_MODE)
+		SendMediaSyncStopPacket(mediaOutput->filename);
 
 	free(mediaOutput->filename);
 	mediaOutput->filename = NULL;
@@ -176,4 +185,26 @@ void CloseMediaOutput(void) {
 	mediaOutput = 0;
 	pthread_mutex_unlock(&mediaOutputLock);
 }
+
+void UpdateMasterMediaPosition(float seconds)
+{
+	masterMediaPosition = seconds;
+}
+
+void CheckCurrentPositionAgainstMaster(float seconds)
+{
+	if (!mediaOutput)
+		return;
+
+	LogDebug(VB_MEDIAOUT, "Master: %.2f, Local: %.2f\n",
+		masterMediaPosition, seconds);
+
+	if ((seconds + MASTER_SYNC_THRESHOLD) < masterMediaPosition)
+		mediaOutput->speedUp();
+	else if (seconds > (masterMediaPosition + MASTER_SYNC_THRESHOLD))
+		mediaOutput->slowDown();
+	else
+		mediaOutput->speedNormal();
+}
+
 

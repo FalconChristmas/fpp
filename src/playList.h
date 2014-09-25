@@ -84,6 +84,7 @@ void PlayListPlayingInit(void);
 void PlayListPlayingProcess(void);
 void PlayListPlayingCleanup(void);
 void PauseProcess(void);
+void PlaylistProcessMediaData(void);
 void Play_PlaylistEntry(bool calculateNext);
 void PlaylistPlaySong(void);
 void PlaylistPrint();

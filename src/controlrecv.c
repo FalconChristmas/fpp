@@ -39,6 +39,7 @@
 #include "control.h"
 #include "falcon.h"
 #include "log.h"
+#include "mediaoutput.h"
 #include "sequence.h"
 #include "settings.h"
 
@@ -99,7 +100,7 @@ void ShutdownControlSocket(void) {
  *
  */
 void StartSyncedSequence(char *filename) {
-	LogDebug(VB_SYNC, "StartSyncedSequenceSync(%s)\n", filename);
+	LogDebug(VB_SYNC, "StartSyncedSequence(%s)\n", filename);
 	OpenSequenceFile(filename);
 	ResetMasterPosition();
 }
@@ -108,8 +109,7 @@ void StartSyncedSequence(char *filename) {
  *
  */
 void StopSyncedSequence(char *filename) {
-	LogDebug(VB_SYNC, "StopSyncedSequenceSync(%s) while syncing '%s'\n",
-		filename, seqFilename);
+	LogDebug(VB_SYNC, "StopSyncedSequence(%s)\n", filename);
 
 	if (!strcmp(seqFilename, filename))
 		CloseSequenceFile();
@@ -119,8 +119,8 @@ void StopSyncedSequence(char *filename) {
  *
  */
 void SyncSyncedSequence(char *filename, int frameNumber, float secondsElapsed) {
-	LogExcess(VB_SYNC, "SyncSyncedSequence('%s', %d, %.2f) while syncing '%s'\n",
-		filename, frameNumber, secondsElapsed, seqFilename);
+	LogExcess(VB_SYNC, "SyncSyncedSequence('%s', %d, %.2f)\n",
+		filename, frameNumber, secondsElapsed);
 
 	if (!seqFilename[0])
 	{
@@ -131,6 +131,59 @@ void SyncSyncedSequence(char *filename, int frameNumber, float secondsElapsed) {
 
 	if (!strcmp(seqFilename, filename))
 		UpdateMasterPosition(frameNumber);
+}
+
+/*
+ *
+ */
+void StopSyncedMedia(char *filename) {
+	if (!mediaOutput)
+		return;
+
+	LogDebug(VB_SYNC, "StopSyncedMedia(%s)\n", filename);
+
+	if (!strcmp(mediaOutput->filename, filename))
+	{
+		LogDebug(VB_SYNC, "Stopping synced media: %s\n", mediaOutput->filename);
+		CloseMediaOutput();
+	}
+}
+
+/*
+ *
+ */
+void StartSyncedMedia(char *filename) {
+	LogDebug(VB_SYNC, "StartSyncedMedia(%s)\n", filename);
+
+	if (mediaOutput)
+	{
+		LogDebug(VB_SYNC, "Start media %s received while playing media %s\n",
+			filename, mediaOutput->filename);
+		CloseMediaOutput();
+	}
+
+	OpenMediaOutput(filename);
+	ResetMasterPosition();
+}
+
+/*
+ *
+ */
+void SyncSyncedMedia(char *filename, int frameNumber, float secondsElapsed) {
+	LogExcess(VB_SYNC, "SyncSyncedMedia('%s', %d, %.2f)\n",
+		filename, frameNumber, secondsElapsed);
+
+	if (!mediaOutput)
+	{
+		LogDebug(VB_SYNC, "Received sync for media %s but no media playing\n",
+			filename);
+		return;
+	}
+
+	if (!strcmp(mediaOutput->filename, filename))
+	{
+		UpdateMasterMediaPosition(secondsElapsed);
+	}
 }
 
 /*
@@ -170,14 +223,29 @@ void ProcessSyncPacket(ControlPkt *pkt, int len) {
 	spkt->pktType     = spkt->pktType;
 	spkt->frameNumber = spkt->frameNumber;
 
-	switch (spkt->pktType) {
-		case SYNC_PKT_START: StartSyncedSequence(spkt->filename);
-							 break;
-		case SYNC_PKT_STOP:  StopSyncedSequence(spkt->filename);
-							 break;
-		case SYNC_PKT_SYNC:  SyncSyncedSequence(spkt->filename,
-								spkt->frameNumber, spkt->secondsElapsed);
-							 break;
+	if (spkt->fileType == SYNC_FILE_SEQ)
+	{
+		switch (spkt->pktType) {
+			case SYNC_PKT_START: StartSyncedSequence(spkt->filename);
+								 break;
+			case SYNC_PKT_STOP:  StopSyncedSequence(spkt->filename);
+								 break;
+			case SYNC_PKT_SYNC:  SyncSyncedSequence(spkt->filename,
+									spkt->frameNumber, spkt->secondsElapsed);
+								 break;
+		}
+	}
+	else if (spkt->fileType == SYNC_FILE_MEDIA)
+	{
+		switch (spkt->pktType) {
+			case SYNC_PKT_START: StartSyncedMedia(spkt->filename);
+								 break;
+			case SYNC_PKT_STOP:  StopSyncedMedia(spkt->filename);
+								 break;
+			case SYNC_PKT_SYNC:  SyncSyncedMedia(spkt->filename,
+									spkt->frameNumber, spkt->secondsElapsed);
+								 break;
+		}
 	}
 }
 
