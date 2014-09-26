@@ -60,6 +60,29 @@ if ( $return_val != 0 )
   $git_remote_version = "Unknown";
 unset($output);
 
+$uptime = exec("uptime", $output, $return_val);
+if ( $return_val != 0 )
+	$uptime = "";
+unset($output);
+$uptime = preg_replace('/[0-9]+ users, /', '', $uptime);
+
+function get_server_memory_usage(){
+  $free = shell_exec('free');
+  $free = (string)trim($free);
+  $free_arr = explode("\n", $free);
+  $mem = explode(" ", $free_arr[1]);
+  $mem = array_filter($mem);
+  $mem = array_merge($mem);
+  $memory_usage = $mem[2]/$mem[1]*100;
+
+  return $memory_usage;
+}
+
+function get_server_cpu_usage(){
+  $load = sys_getloadavg();
+  return $load[0];
+}
+
 function getSymbolByQuantity($bytes) {
   $symbols = array('B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB');
   $exp = floor(log($bytes)/log(1024));
@@ -281,6 +304,14 @@ a:visited {
               ></td></tr>
 -->
             <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+            <tr><td><b>System Utilization</b></td><td>&nbsp;</td></tr>
+            <tr><td>CPU Usage:</td><td><? printf( "%.2f", get_server_cpu_usage()); ?>%</td></tr>
+            <tr><td>Memory Usage:</td><td><? printf( "%.2f", get_server_memory_usage()); ?>%</td></tr>
+
+            <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+            <tr><td><b>Uptime</b></td><td>&nbsp;</td></tr>
+            <tr><td colspan='2'><? echo $uptime; ?></td></tr>
+
           </table>
         </div>
         <div class='aboutCenter'>
