@@ -289,6 +289,9 @@ int LoadChannelRemapData(void) {
 	strcpy(filename, getMediaDirectory());
 	strcat(filename, "/channelremap");
 
+	if (!FileExists(filename))
+		return 0;
+
 	channelRemaps = 0;
 
 	LogDebug(VB_CHANNELOUT, "Loading Channel Remap data.\n");
