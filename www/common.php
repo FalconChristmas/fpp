@@ -125,6 +125,55 @@ function " . $setting . "Changed() {
 	echo " onChange='" . $setting . "Changed();'>\n";
 }
 
+function PrintSettingSelect($title, $setting, $defaultValue, $values, $pluginName = "", $callbackName = "")
+{
+	global $settings;
+	global $pluginSettings;
+
+	$plugin = "";
+	$settingsName = "settings";
+
+	if ($pluginName != "") {
+		$plugin = "Plugin";
+		$settingsName = "pluginSettings";
+	}
+
+	if ($callbackName != "")
+		$callbackName = $callbackName . "();";
+
+	echo "
+<script>
+function " . $setting . "Changed() {
+	var value = $('#$setting').val();
+
+	$.get('fppjson.php?command=set" . $plugin . "Setting&plugin=$pluginName&key=$setting&value=' + value)
+		.success(function() {
+			$.jGrowl('$title saved');
+			$settingsName" . "['$setting'] = value;
+			$callbackName
+		}).fail(function() {
+			DialogError('$title', 'Failed to save $title');
+		});
+}
+</script>
+
+<select id='$setting' onChange='" . $setting . "Changed();'>\n";
+
+	foreach ( $values as $key => $value )
+	{
+		echo "<option value='$value'";
+
+		if (isset($settings[$setting]))
+			IfSettingEqualPrint($setting, $value, " selected", $pluginName);
+		else if ($value == $defaultValue)
+			echo " selected";
+
+		echo ">$key</option>\n";
+	}
+
+	echo "</select>\n";
+}
+
 function PrintSettingText($setting, $maxlength = 32, $size = 32, $pluginName = "")
 {
 	global $settings;

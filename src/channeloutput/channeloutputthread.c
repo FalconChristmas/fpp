@@ -194,10 +194,16 @@ int StartChannelOutputThread(void)
 			return 1;
 	}
 
-	RunThread = 1;
-	DefaultLightDelay = 1000000 / RefreshRate;
+	int E131BridgingInterval = getSettingInt("E131BridgingInterval");
+
+	if ((getFPPmode() == BRIDGE_MODE) && (E131BridgingInterval))
+		DefaultLightDelay = E131BridgingInterval * 1000;
+	else
+		DefaultLightDelay = 1000000 / RefreshRate;
+
 	LightDelay = DefaultLightDelay;
 
+	RunThread = 1;
 	int result = pthread_create(&ChannelOutputThreadID, NULL, &RunChannelOutputThread, NULL);
 
 	if (result)

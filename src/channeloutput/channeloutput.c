@@ -95,7 +95,8 @@ int InitializeChannelOutputs(void) {
 		}
 	}
 
-	if ((getFPPmode() != BRIDGE_MODE) &&
+	if (((getFPPmode() != BRIDGE_MODE) ||
+		 (getSettingInt("E131Bridging"))) &&
 		(E131Output.isConfigured()))
 	{
 		channelOutputs[i].startChannel = 0;

@@ -206,6 +206,7 @@ foreach ( getAlsaCards() as $audio_val => $audio_key )
 </select>
 </td>
 </tr>
+<tr><td><a href="advancedsettings.php">Advanced Settings</a></td></tr>
   </table>
 
 </fieldset>
