@@ -33,19 +33,6 @@
       }
       return $current_card;
     }
-
-    function piLCDenabledChecked()
-    {
-      if (ReadSettingFromFile("PI_LCD_Enabled") == false || 
-          ReadSettingFromFile("PI_LCD_Enabled") == "false")
-      {
-        return "";
-      }
-      else
-      {
-        return " checked";
-      }
-    }
 ?>
 <script>
 
@@ -102,12 +89,6 @@
 	}
 
 $(document).ready(function(){
-  $("#chkPiLCDenabled").change(function(){
-    var enabled = $("#chkPiLCDenabled").is(':checked')	
-		var url = "fppxml.php?command=setPiLCDenabled&enabled=" + enabled;
-    $.get(url,SetPiLCDenabled);
-  });
-
   var logLevel = settings['LogLevel'];
   if (typeof logLevel === 'undefined')
     logLevel = "info";
@@ -124,12 +105,6 @@ $(document).ready(function(){
     $('#mask_' + logMasks[i]).prop('checked', true);
   }
 });
-
-function SetPiLCDenabled(data,status) 
-{
-  var i = 69;
-  var i = 69;
-}
 
 function LogLevelChanged()
 {
@@ -165,7 +140,7 @@ function AudioOutputChanged()
     </tr>
     <tr>
       <td width = "25%">Pi 2x16 LCD Enabled:</td>
-      <td width = "75%"><input type="checkbox" id="chkPiLCDenabled" value="1" <?php echo piLCDenabledChecked();?>></td>
+      <td width = "75%"><? PrintSettingCheckbox("Enable LCD Display", "PI_LCD_Enabled", "1", "0"); ?></td>
     </tr>
     <tr>
       <td>FPPD Log Level:</td>
