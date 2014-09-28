@@ -111,10 +111,6 @@ int main(int argc, char *argv[])
 		InitEffects();
 		InitializeChannelDataMemoryMap();
 	}
-	else if (getFPPmode() == REMOTE_MODE)
-	{
-		InitChannelOutputSyncVars();
-	}
 
 #ifndef NOROOT
 	struct sched_param param;
@@ -140,10 +136,6 @@ int main(int argc, char *argv[])
 
 		CloseChannelDataMemoryMap();
 		CloseEffects();
-	}
-	else if (getFPPmode() == REMOTE_MODE)
-	{
-		DestroyChannelOutputSyncVars();
 	}
 
 	CloseChannelOutputs();

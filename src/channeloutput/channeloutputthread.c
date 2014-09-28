@@ -52,11 +52,6 @@ pthread_t ChannelOutputThreadID;
 int       RunThread = 0;
 int       ThreadIsRunning = 0;
 
-/* Master/Remote sync */
-int             InitSync = 1;
-pthread_mutex_t SyncLock;
-pthread_cond_t  SyncCond;
-
 /* prototypes for functions below */
 void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent);
 
@@ -79,44 +74,6 @@ void DisableChannelOutput(void) {
  */
 void EnableChannelOutput(void) {
 	OutputFrames = 1;
-}
-
-/*
- * Initialize Master/Remote Sync variables
- */
-void InitChannelOutputSyncVars(void) {
-	pthread_mutex_init(&SyncLock, NULL);
-	pthread_cond_init(&SyncCond, NULL);
-}
-
-/*
- * Destroy the Master/Remote Sync variables
- */
-void DestroyChannelOutputSyncVars(void) {
-	pthread_mutex_destroy(&SyncLock);
-	pthread_cond_destroy(&SyncCond);
-}
-
-/*
- * Wait for a signal from the master
- */
-void WaitForMaster(long long timeToWait) {
-	struct timespec ts;
-	struct timeval  tv;
-
-	gettimeofday(&tv, NULL);
-	ts.tv_sec  = tv.tv_sec;
-	ts.tv_nsec = (tv.tv_usec + timeToWait) * 1000;
-
-	if (ts.tv_nsec >= 1000000000)
-	{
-		ts.tv_sec  += 1;
-		ts.tv_nsec -= 1000000000;
-	}
-
-	pthread_mutex_lock(&SyncLock);
-	pthread_cond_timedwait(&SyncCond, &SyncLock, &ts);
-	pthread_mutex_unlock(&SyncLock);
 }
 
 /*
