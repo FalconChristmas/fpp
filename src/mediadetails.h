@@ -18,6 +18,7 @@ typedef struct mediaDetails {
 	int channels;
 } MediaDetails;
 
+void initMediaDetails(void);
 void ParseMedia(void);
 
 #endif //__MEDIADETAILS_H__
