@@ -43,6 +43,7 @@ struct config
 	int		daemonize;
 	int		fppMode;
 	int		volume;
+	char	*fppDirectory;
 	char	*mediaDirectory;
 	char	*musicDirectory;
 	char	*sequenceDirectory;
@@ -92,6 +93,7 @@ int   getSettingInt(char *setting);
 int getDaemonize(void);
 int  getFPPmode(void);
 int  getVolume(void);
+char *getFPPDirectory(void);
 char *getMediaDirectory(void);
 char *getMusicDirectory(void);
 char *getSequenceDirectory(void);

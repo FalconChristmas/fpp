@@ -36,6 +36,7 @@
 #include <strings.h>
 #include <getopt.h>
 #include <sys/stat.h>
+#include <unistd.h>
 #include <ctype.h>
 #include "common.h"
 
@@ -52,6 +53,27 @@ int findSettingIndex(char *setting);
 void initSettings(void)
 {
 	settings.fppMode = PLAYER_MODE;
+
+	char *tmp = getcwd(NULL, 0);
+	if ( tmp == NULL )
+		settings.fppDirectory = strdup("/opt/fpp");
+	else
+	{
+		// trim off src/ or bin/
+		char *offset;
+		int size = strlen(tmp);
+
+		offset = strstr(tmp, "/src");
+		if (offset == NULL)
+			offset = strstr(tmp, "/bin");
+
+		if (offset != NULL)
+			size = offset-tmp;
+
+		settings.fppDirectory = malloc(size+1);
+		memcpy(settings.fppDirectory, tmp, size);
+		settings.fppDirectory[size] = '\0';
+	}
 
 	settings.mediaDirectory = strdup("/home/pi/media");
 	settings.musicDirectory = strdup("/home/pi/media/music");
@@ -856,6 +878,10 @@ int getVolume(void)
 	return settings.volume;
 }
 
+char *getFPPDirectory(void)
+{
+	return settings.fppDirectory;
+}
 char *getMediaDirectory(void)
 {
 	return settings.mediaDirectory;
