@@ -35,6 +35,7 @@
 #include "fpp.h"
 #include "gpio.h"
 #include "log.h"
+#include "mediadetails.h"
 #include "mediaoutput.h"
 #include "memorymap.h"
 #include "playList.h"
