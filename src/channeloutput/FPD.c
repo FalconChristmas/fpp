@@ -284,6 +284,8 @@ FPPChannelOutput FPDOutput = {
 	.close        = FPD_Close,
 	.isConfigured = FPD_IsConfigured,
 	.isActive     = FPD_IsActive,
-	.send         = FPD_SendData
+	.send         = FPD_SendData,
+	.startThread  = NULL,
+	.stopThread   = NULL,
 	};
 

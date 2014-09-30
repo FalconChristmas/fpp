@@ -371,7 +371,9 @@ FPPChannelOutput E131Output = {
 	.close        = E131_Close,
 	.isConfigured = E131_IsConfigured,
 	.isActive     = E131_IsActive,
-	.send         = E131_SendData
+	.send         = E131_SendData,
+	.startThread  = NULL,
+	.stopThread   = NULL,
 	};
 
 

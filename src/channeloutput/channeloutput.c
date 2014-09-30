@@ -40,6 +40,7 @@
 #include "USBDMXPro.h"
 #include "USBPixelnet.h"
 #include "USBRenard.h"
+#include "Triks-C.h"
 #include "common.h"
 
 
@@ -186,6 +187,8 @@ int InitializeChannelOutputs(void) {
 				channelOutputs[i].output       = &USBRenardOutput;
 			} else if (!strcmp(type, "SPI-WS2801")) {
 				channelOutputs[i].output       = &SPIws2801Output;
+			} else if (!strcmp(type, "Triks-C")) {
+				channelOutputs[i].output       = &TriksCOutput;
 			} else {
 				LogErr(VB_CHANNELOUT, "Unknown Channel Output type: %s\n", type);
 				continue;

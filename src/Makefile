@@ -32,6 +32,7 @@ OBJECTS_fppd = \
 	channeloutput/FPD.o \
 	channeloutput/serialutil.o \
 	channeloutput/SPIws2801.o \
+	channeloutput/Triks-C.o \
 	channeloutput/USBDMXOpen.o \
 	channeloutput/USBDMXPro.o \
 	channeloutput/USBPixelnet.o \
