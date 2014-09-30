@@ -110,7 +110,7 @@ void *RunTriksCOutputThread(void *data)
 		{
 			pthread_mutex_unlock(&privData->bufLock);
 			pthread_mutex_lock(&privData->sendLock);
-			LogExcess(VB_CHANNELOUT, "Triks-C output thread: elapsed: %d\n",
+			LogExcess(VB_CHANNELOUT, "Triks-C output thread: elapsed: %lld\n",
 				GetTime() - wakeTime);
 			pthread_cond_wait(&privData->sendCond, &privData->sendLock);
 			wakeTime = GetTime();
