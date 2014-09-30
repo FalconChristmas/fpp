@@ -278,7 +278,7 @@ char *FindInterfaceForIP(char *ip)
  */
 int CheckForHostSpecificFile(const char *hostname, char *filename)
 {
-	unsigned char localFilename[2048];
+	char localFilename[2048];
 	strcpy(localFilename, filename);
 
 	char ext[6];
