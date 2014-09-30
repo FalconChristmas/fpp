@@ -163,7 +163,7 @@ function " . $setting . "Changed() {
 	{
 		echo "<option value='$value'";
 
-		if (isset($settings[$setting]))
+		if (isset($pluginSettings[$setting]))
 			IfSettingEqualPrint($setting, $value, " selected", $pluginName);
 		else if ($value == $defaultValue)
 			echo " selected";
