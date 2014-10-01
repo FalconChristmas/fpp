@@ -2543,7 +2543,8 @@ function InstallPlugin()
 	{
 		if ( $available_plugin['shortName'] == $plugin )
 		{
-			exec("export SUDO=\"".$SUDO."\"; export PLUGINDIR=\"".$pluginDirectory."\"; $fppDir/scripts/install_plugin $plugin \"" . $available_plugin['sourceUrl'] . "\"", $output, $return_val);
+			exec("export SUDO=\"".$SUDO."\"; export PLUGINDIR=\"".$pluginDirectory."\"; $fppDir/scripts/install_plugin $plugin \"" . $available_plugin['sourceUrl'] .
+				"\" \"" . $available_plugin['sha'] ."\"", $output, $return_val);
 			unset($output);
 			if ( $return_val != 0 )
 			{

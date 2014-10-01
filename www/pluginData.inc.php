@@ -9,6 +9,7 @@ $plugins = Array(
 		'homeUrl'     => 'https://github.com/Materdaddy/fpp-vastfmt',
 		'sourceUrl'   => 'https://github.com/Materdaddy/fpp-vastfmt.git',
 		'bugUrl'      => 'https://github.com/Materdaddy/fpp-vastfmt/issues',
+		'sha'         => '0441ac944210d3946e951d981089f494a6150090',
 	),
 
 	Array(
@@ -18,6 +19,7 @@ $plugins = Array(
 		'homeUrl'     => 'https://github.com/cpinkham/fpp-matrixtools',
 		'sourceUrl'   => 'https://github.com/cpinkham/fpp-matrixtools.git',
 		'bugUrl'      => 'https://github.com/cpinkham/fpp-matrixtools/issues',
+		'sha'         => 'c1ecb87a7b3103e9d28961e5d7bfededf346b765',
 	),
 );
 
