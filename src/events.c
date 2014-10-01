@@ -268,8 +268,8 @@ int RunEventScript(FPPevent *e)
 
 		execvp(eventScript, args);
 
-		LogErr(VB_EVENT, "RunEventScript(), ERROR, we shouldn't be here, this means "
-			"that execvp() failed\n");
+		LogErr(VB_EVENT, "RunEventScript(), ERROR, we shouldn't be here, "
+			"this means that execvp() failed: %s\n", strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 
