@@ -108,11 +108,6 @@ int omxplayer_StartPlaying(const char *filename)
 
 	mediaOutputStatus.status = MEDIAOUTPUTSTATUS_PLAYING;
 
-	if (mediaOutputStatus.filename)
-		free(mediaOutputStatus.filename);
-
-	mediaOutputStatus.filename = strdup(filename);
-
 	return 1;
 }
 
@@ -161,6 +156,7 @@ void omxplayer_ProcessPlayerData(int bytesRead)
 {
 	int        ticks = 0;
 	static int lastSyncCheck = 0;
+	static int lastRemoteSync = 0;
 	int        mins = 0;
 	int        secs = 0;
 	int        subsecs = 0;
@@ -215,12 +211,18 @@ void omxplayer_ProcessPlayerData(int bytesRead)
 	// FIXME, can we get this?
 	// mediaOutputStatus.subSecondsRemaining = subsecs;
 
-	float MediaSeconds = (float)((float)mediaOutputStatus.secondsElapsed + ((float)mediaOutputStatus.subSecondsElapsed/(float)100));
+	mediaOutputStatus.mediaSeconds = (float)((float)mediaOutputStatus.secondsElapsed + ((float)mediaOutputStatus.subSecondsElapsed/(float)100));
 
 	if (getFPPmode() == MASTER_MODE)
-		SendMediaSyncPacket(mediaOutputStatus.filename, 0, MediaSeconds);
-	else if (getFPPmode() == REMOTE_MODE)
-		CheckCurrentPositionAgainstMaster(MediaSeconds);
+	{
+		if ((mediaOutputStatus.secondsElapsed > 0) &&
+			(lastRemoteSync != mediaOutputStatus.secondsElapsed))
+		{
+			SendMediaSyncPacket(mediaOutput->filename, 0,
+				mediaOutputStatus.mediaSeconds);
+			lastRemoteSync = mediaOutputStatus.secondsElapsed;
+		}
+	}
 
 	if ((IsSequenceRunning()) &&
 		(mediaOutputStatus.secondsElapsed > 0) &&
@@ -234,7 +236,7 @@ void omxplayer_ProcessPlayerData(int bytesRead)
 			mediaOutputStatus.minutesTotal,
 			mediaOutputStatus.secondsTotal);
 
-		CalculateNewChannelOutputDelay(MediaSeconds);
+		CalculateNewChannelOutputDelay(mediaOutputStatus.mediaSeconds);
 		lastSyncCheck = mediaOutputStatus.secondsElapsed;
 	}
 }

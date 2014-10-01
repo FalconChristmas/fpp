@@ -52,7 +52,8 @@ typedef struct mediaOutputStatus {
 	int subSecondsRemaining;
 	int minutesTotal;
 	int secondsTotal;
-	char *filename;
+	float mediaSeconds;
+	int speedDelta;
 } MediaOutputStatus; 
 
 #define MEDIAOUTPUTPIPE_READ       0
@@ -70,7 +71,6 @@ void CleanupMediaOutput(void);
 int  OpenMediaOutput(char *filename);
 void CloseMediaOutput(void);
 void UpdateMasterMediaPosition(float seconds);
-void CheckCurrentPositionAgainstMaster(float seconds);
 
 #endif /* _MEDIAOUTPUT_H */
 
