@@ -219,6 +219,8 @@ void omxplayer_ProcessPlayerData(int bytesRead)
 
 	if (getFPPmode() == MASTER_MODE)
 		SendMediaSyncPacket(mediaOutputStatus.filename, 0, MediaSeconds);
+	else if (getFPPmode() == REMOTE_MODE)
+		CheckCurrentPositionAgainstMaster(MediaSeconds);
 
 	if ((IsSequenceRunning()) &&
 		(mediaOutputStatus.secondsElapsed > 0) &&
@@ -234,9 +236,6 @@ void omxplayer_ProcessPlayerData(int bytesRead)
 
 		CalculateNewChannelOutputDelay(MediaSeconds);
 		lastSyncCheck = mediaOutputStatus.secondsElapsed;
-
-		if (getFPPmode() == REMOTE_MODE)
-			CheckCurrentPositionAgainstMaster(MediaSeconds);
 	}
 }
 

@@ -42,8 +42,6 @@ MediaOutput     *mediaOutput = 0;
 pthread_mutex_t  mediaOutputLock;
 float            masterMediaPosition = 0.0;
 
-#define MASTER_SYNC_THRESHOLD 0.033
-
 MediaOutputStatus mediaOutputStatus = {
 	.status = MEDIAOUTPUTSTATUS_IDLE
 	};
@@ -193,18 +191,53 @@ void UpdateMasterMediaPosition(float seconds)
 
 void CheckCurrentPositionAgainstMaster(float seconds)
 {
+	static int speedDelta = 0;
+	static int lastDiff = 0;
+	int diff = (int)(seconds * 1000) - (int)(masterMediaPosition * 1000);
+	int i = 0;
+
 	if (!mediaOutput)
 		return;
 
-	LogDebug(VB_MEDIAOUT, "Master: %.2f, Local: %.2f\n",
-		masterMediaPosition, seconds);
+	if (seconds < 0.5)
+		speedDelta = 0;
 
-	if ((seconds + MASTER_SYNC_THRESHOLD) < masterMediaPosition)
+	LogDebug(VB_MEDIAOUT, "Master: %.2f, Local: %.2f, Diff: %dms, speedDelta: %d\n",
+		masterMediaPosition, seconds, diff, speedDelta);
+
+	if (diff < -33)
+	{
+		if (speedDelta < 0)
+		{
+			mediaOutput->speedNormal();
+			speedDelta = 0;
+			usleep(30000);
+		}
+
 		mediaOutput->speedUp();
-	else if (seconds > (masterMediaPosition + MASTER_SYNC_THRESHOLD))
+		speedDelta++;
+	}
+	else if (diff > 33)
+	{
+		if (speedDelta > 0)
+		{
+			mediaOutput->speedNormal();
+			speedDelta = 0;
+			usleep(30000);
+		}
+
 		mediaOutput->slowDown();
+		speedDelta--;
+	}
 	else
+	{
 		mediaOutput->speedNormal();
+		speedDelta = 0;
+	}
+
+	LogDebug(VB_MEDIAOUT, "speedDelta: %d\n", speedDelta);
+
+	lastDiff = diff;
 }
 
 
