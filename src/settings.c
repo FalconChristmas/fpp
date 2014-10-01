@@ -70,7 +70,7 @@ void initSettings(void)
 		if (offset != NULL)
 			size = offset-tmp;
 
-		settings.fppDirectory = malloc(size+1);
+		settings.fppDirectory = (char *)malloc(size+1);
 		memcpy(settings.fppDirectory, tmp, size);
 		settings.fppDirectory[size] = '\0';
 	}
