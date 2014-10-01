@@ -29,7 +29,7 @@ function GetSettingValue($setting) {
 // Set some defaults
 $fppMode = "player";
 $fppDir = dirname(dirname(__FILE__));
-$pluginDirectory   = "/opt/fpp/plugins";
+$pluginDirectory   = "/home/pi/media/plugins";
 $mediaDirectory    = "/home/pi/media";
 $docsDirectory     = $fppDir . "/docs";
 $musicDirectory    = $mediaDirectory . "/music";
