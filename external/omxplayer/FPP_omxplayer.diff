@@ -1,5 +1,4 @@
 diff --git a/KeyConfig.cpp b/KeyConfig.cpp
-index 200022c..38e21f8 100644
 --- a/KeyConfig.cpp
 +++ b/KeyConfig.cpp
 @@ -96,6 +96,9 @@ map<int, int> KeyConfig::buildDefaultKeymap()
@@ -13,7 +12,6 @@ index 200022c..38e21f8 100644
      keymap[','] = ACTION_REWIND;
      keymap['>'] = ACTION_FAST_FORWARD;
 diff --git a/KeyConfig.h b/KeyConfig.h
-index 9b3b32a..2652950 100644
 --- a/KeyConfig.h
 +++ b/KeyConfig.h
 @@ -35,7 +35,10 @@ class KeyConfig
@@ -29,7 +27,6 @@ index 9b3b32a..2652950 100644
  
      #define KEY_LEFT 0x5b44
 diff --git a/omxplayer.cpp b/omxplayer.cpp
-index fb64389..46f1482 100644
 --- a/omxplayer.cpp
 +++ b/omxplayer.cpp
 @@ -105,6 +105,7 @@ OMXReader         m_omx_reader;
@@ -80,7 +77,7 @@ index fb64389..46f1482 100644
        {
          static int count;
 -        if ((count++ & 7) == 0)
-+        if ((count++ & 2) == 0)
++//        if ((count++ & 7) == 0)
             printf("M:%8.0f V:%6.2fs %6dk/%6dk A:%6.2f %6.02fs/%6.02fs Cv:%6dk Ca:%6dk                            \r", stamp,
                 video_fifo, (m_player_video.GetDecoderBufferSize()-m_player_video.GetDecoderFreeSpace())>>10, m_player_video.GetDecoderBufferSize()>>10,
                 audio_fifo, m_player_audio.GetDelay(), m_player_audio.GetCacheTotal(),
