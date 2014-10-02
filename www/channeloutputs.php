@@ -534,7 +534,7 @@ function SetChannelOutputs() {
 				DialogError("Save Channel Outputs", "Invalid Output Config");
 				return;
 			}
-			maxChannels = 3072;
+			maxChannels = 9216;
 		}
 
 		// Channel Count
