@@ -60,15 +60,18 @@ void initSettings(void)
 	else
 	{
 		// trim off src/ or bin/
-		char *offset;
+		char *offset = NULL;
 		int size = strlen(tmp);
 
-		offset = strstr(tmp, "/src");
-		if (offset == NULL)
-			offset = strstr(tmp, "/bin");
+		if ((size > 4) && (!strcmp(&tmp[size - 4], "/src")))
+			offset = &tmp[size - 4];
+		else if ((size > 4) && (!strcmp(&tmp[size - 4], "/bin")))
+			offset = &tmp[size - 4];
+		else if ((size > 8) && (!strcmp(&tmp[size - 8], "/scripts")))
+			offset = &tmp[size - 8];
 
 		if (offset != NULL)
-			size = offset-tmp;
+			size = offset - tmp;
 
 		settings.fppDirectory = (char *)malloc(size+1);
 		memcpy(settings.fppDirectory, tmp, size);
