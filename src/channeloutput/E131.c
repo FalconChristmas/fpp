@@ -159,6 +159,9 @@ int E131_SendData(void *data, char *channelData, int channelCount)
 	struct itimerval tout_val;
 	int i = 0;
 
+	LogExcess(VB_CHANNELDATA, "Sending %d E1.31 universes\n",
+		UniverseCount);
+
 	for(i=0;i<UniverseCount;i++)
 	{
 		memcpy((void*)(E131packet+E131_HEADER_LENGTH),(void*)(channelData+universes[i].startAddress-1),universes[i].size);
@@ -185,6 +188,9 @@ int E131_SendData(void *data, char *channelData, int channelCount)
 		count = 638 - 115 - (512 - (universes[i].size));
 		E131packet[E131_DMP_COUNT_INDEX] = (count/256)+0x70;
 		E131packet[E131_DMP_COUNT_INDEX+1] = count%256;
+
+		LogExcess(VB_CHANNELDATA, "  %d) E1.31 universe #%d, %d channels\n",
+			i + 1, universes[i].universe, universes[i].size);
 
 		if(sendto(sendSocket, E131packet, universes[i].size + E131_HEADER_LENGTH, 0, (struct sockaddr*)&E131address[i], sizeof(E131address[i])) < 0)
 		{
