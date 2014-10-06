@@ -36,6 +36,7 @@
 #include "sequence.h"
 #include "settings.h"
 #include "SPIws2801.h"
+#include "SPInRF24L01.h"
 #include "USBDMXOpen.h"
 #include "USBDMXPro.h"
 #include "USBPixelnet.h"
@@ -187,6 +188,8 @@ int InitializeChannelOutputs(void) {
 				channelOutputs[i].output       = &USBRenardOutput;
 			} else if (!strcmp(type, "SPI-WS2801")) {
 				channelOutputs[i].output       = &SPIws2801Output;
+			} else if (!strcmp(type, "SPI-nRF24L01")) {
+				channelOutputs[i].output       = &SPInRF24L01Output;
 			} else if (!strcmp(type, "Triks-C")) {
 				channelOutputs[i].output       = &TriksCOutput;
 			} else {

@@ -28,6 +28,7 @@ OBJECTS_fppd = \
 	channeloutput/E131.o \
 	channeloutput/FPD.o \
 	channeloutput/serialutil.o \
+	channeloutput/SPInRF24L01.o \
 	channeloutput/SPIws2801.o \
 	channeloutput/Triks-C.o \
 	channeloutput/USBDMXOpen.o \
@@ -93,9 +94,19 @@ ifeq '$(ARCH)' 'Raspberry Pi'
 # do something RaspPi-y
 CFLAGS += \
 	-DUSEWIRINGPI \
+	-DUSENRF \
+	-I../external/RF24/ \
 	$(NULL)
 LIBS_fppd += \
-	-lwiringPi -lwiringPiDev \
+	-lwiringPi \
+	-lwiringPiDev \
+	-lrf24-bcm \
+	$(NULL)
+LDFLAGS_fppd += \
+	-L../external/RF24 \
+	$(NULL)
+DEPS_fppd += \
+	../external/RF24/librf24-bcm.so \
 	$(NULL)
 else
 # do something Linux-y
@@ -123,7 +134,7 @@ fpp: $(OBJECTS_fpp)
 fppmm: $(OBJECTS_fppmm)
 	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
 
-fppd: $(OBJECTS_fppd)
+fppd: $(OBJECTS_fppd) $(DEPS_fppd)
 	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
 
 %.o: %.c %.h Makefile
@@ -131,3 +142,10 @@ fppd: $(OBJECTS_fppd)
 
 clean:
 	rm -f $(OBJECTS_fpp) $(OBJECTS_fppmm) $(OBJECTS_fppd) fpp fppmm fppd
+	make -C ../external/RF24 clean
+
+../external/RF24/librf24-bcm.so:
+	@echo "Building RF24 library"
+	@make -C ../external/RF24/
+	@ln -s librf24-bcm.so.1.0 ../external/RF24/librf24-bcm.so.1
+	@ln -s librf24-bcm.so.1 ../external/RF24/librf24-bcm.so
