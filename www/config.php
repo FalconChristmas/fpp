@@ -3,6 +3,7 @@
 $SUDO = "sudo";
 $debug = false;
 $settingsFile = "/home/pi/media/settings";
+$fppRfsVersion = file_get_contents("/etc/fpp/rfs_version");
 
 // Allow overrides that we'll ignore from the git repository to make it
 // easier to develop on machines configured differently than our current
@@ -239,6 +240,7 @@ $settings['effectDirectory'] = $effectDirectory;
 $settings['logDirectory'] = $logDirectory;
 $settings['uploadDirectory'] = $uploadDirectory;
 $settings['docsDirectory'] = $docsDirectory;
+$settings['fppRfsVersion'] = $fppRfsVersion;
 
 putenv("SCRIPTDIR=$scriptDirectory");
 putenv("MEDIADIR=$mediaDirectory");
