@@ -38,7 +38,7 @@ int logMask  = VB_MOST;
 
 char logFileName[1024] = "";
 char logLevelStr[16];
-char logMaskStr[128];
+char logMaskStr[1024];
 
 void _LogWrite(char *file, int line, int level, int facility, const char *format, ...)
 {
