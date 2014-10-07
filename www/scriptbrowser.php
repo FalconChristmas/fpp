@@ -3,6 +3,17 @@
 <?php
 include 'common/menuHead.inc';
 require_once("config.php");
+
+function normalize_version($version)
+{
+	$number = intval(trim(preg_replace('/[\.v]/', '', $version)));
+	$number = ($number * 100) / (pow(10,(substr_count($version,'.'))));
+
+	return $number;
+}
+
+$rfs_ver = normalize_version($fppRfsVersion);
+
 ?>
 <title><? echo $pageTitle; ?></title>
 <script>
@@ -53,7 +64,10 @@ foreach ($lines as $line)
 
 	$parts = explode(',', $line);
 
-	if (count($parts) < 3)
+	if (count($parts) < 4)
+		continue;
+
+	if (normalize_version($parts[3]) > $rfs_ver)
 		continue;
 
 	if ($count > 0)
