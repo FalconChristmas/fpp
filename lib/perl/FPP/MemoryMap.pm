@@ -496,6 +496,7 @@ sub TextMessage {
 	my $pos = shift || "scroll";
 	my $dir = shift || "R2L";
 	my $pps = shift || 5;
+	my $mirror = shift;
 
 	$this->SetBlockLock($blk, 1);
 
@@ -686,6 +687,16 @@ sub TextMessage {
 				$dr++;
 				$dc = $x;
 			}
+		}
+
+		if (defined($mirror))
+		{
+			substr(${$this->{"dataFileMap"}},
+				$mirror->{data}->{startChannel},
+				$mirror->{data}->{channelCount},
+				substr(${$this->{"dataFileMap"}},
+					$bd->{startChannel}, $bd->{channelCount}));
+
 		}
 	};
 
