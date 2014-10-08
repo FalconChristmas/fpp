@@ -24,6 +24,7 @@
  */
 
 #include <errno.h>
+#include <sched.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
@@ -245,6 +246,16 @@ int RunEventScript(FPPevent *e)
 	pid = fork();
 	if (pid == 0) // Event Script process
 	{
+#ifndef NOROOT
+		struct sched_param param;
+		param.sched_priority = 0;
+		if (sched_setscheduler(0, SCHED_OTHER, &param) != 0)
+		{
+			perror("sched_setscheduler");
+			exit(EXIT_FAILURE);
+		}
+#endif
+
 		char *args[128];
 		char *token = strtok(userScript, " ");
 		int   i = 1;
