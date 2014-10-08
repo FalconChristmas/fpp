@@ -48,7 +48,8 @@
 typedef struct triksCPrivData {
 	unsigned char inBuf[TRIKSC_MAX_CHANNELS];
 	unsigned char workBuf[TRIKSC_MAX_CHANNELS];
-	unsigned char outBuf[TRIKSC_MAX_PANELS][98];
+	unsigned char outBuf[TRIKSC_MAX_PANELS][194];
+	int           outputBytes[TRIKSC_MAX_PANELS];
 
 	char filename[1024];
 	int  fd;
@@ -320,6 +321,7 @@ void DumpEncodedBuffer(TriksCPrivData *privData)
 	int p = 0;
 	int x = 0;
 	int y = 0;
+	unsigned char unescapedData[96];
 
 	printf( "=========================================================\n");
 	printf( "Triks-C Panel Preview, %d panel(s) in %dx%d config\n",
@@ -327,6 +329,26 @@ void DumpEncodedBuffer(TriksCPrivData *privData)
 
 	for (p = 0; p < privData->panels; p++)
 	{
+		for (x = 0, y = 2; x < 96; x++)
+		{
+			if (privData->outBuf[p][y] == 0x7F)
+			{
+				if (privData->outBuf[p][y+1] == 0x2F)
+					unescapedData[x] = 0x7D;
+				else if (privData->outBuf[p][y+1] == 0x30)
+					unescapedData[x] = 0x7E;
+				else if (privData->outBuf[p][y+1] == 0x31)
+					unescapedData[x] = 0x7F;
+
+				y += 2;
+			}
+			else
+			{
+				unescapedData[x] = privData->outBuf[p][y];
+				y++;
+			}
+		}
+
 		if (p > 0)
 			printf( "---------------------------------------------------------\n");
 		printf( "Panel #%d\n", p);
@@ -338,7 +360,7 @@ void DumpEncodedBuffer(TriksCPrivData *privData)
 			printf( "%2d|", 16 - y);
 			for (x = 5; x >= 0; x--)
 			{
-				printf(BYTETOBINARYPATTERN, BYTETOBINARY(privData->outBuf[p][2 + (y * 6 + x)]));
+				printf(BYTETOBINARYPATTERN, BYTETOBINARY(unescapedData[(y * 6 + x)]));
 			}
 			printf( "|\n");
 		}
@@ -351,21 +373,49 @@ void DumpEncodedBuffer(TriksCPrivData *privData)
 /*
  *
  */
+void EncodeAndStore(TriksCPrivData *privData, int panel, unsigned char *ptr)
+{
+	unsigned char uc = EncodeBytes(ptr);
+
+	// Escape certain special values
+	if (uc == 0x7D) // Pad Byte
+	{
+		privData->outBuf[panel][privData->outputBytes[panel]++] = 0x7F;
+		privData->outBuf[panel][privData->outputBytes[panel]++] = 0x2F;
+	}
+	else if (uc == 0x7E) // Sync Byte
+	{
+		privData->outBuf[panel][privData->outputBytes[panel]++] = 0x7F;
+		privData->outBuf[panel][privData->outputBytes[panel]++] = 0x30;
+	}
+	else if (uc == 0x7F) // Escape Byte
+	{
+		privData->outBuf[panel][privData->outputBytes[panel]++] = 0x7F;
+		privData->outBuf[panel][privData->outputBytes[panel]++] = 0x31;
+	}
+	else
+	{
+		privData->outBuf[panel][privData->outputBytes[panel]++] = uc;
+	}
+}
+
+/*
+ *
+ */
 void EncodeWorkBuffer(TriksCPrivData *privData)
 {
 	int p = 0;
 	int y = 0;
 	int x = 0;
 	unsigned char *ptr = privData->workBuf;
-	int panelPos[4];
 
 	bzero(privData->outBuf, sizeof(privData->outBuf));
-	bzero(panelPos, sizeof(panelPos));
+	bzero(privData->outputBytes, sizeof(privData->outputBytes));
 
 	for (p = 0; p < TRIKSC_MAX_PANELS; p++)
 	{
 		privData->outBuf[p][0] = 0x7E; // Command Sync Byte 
-		panelPos[p] = 2; // Start 2 bytes in to skip over command bytes
+		privData->outputBytes[p] = 2;  // Offset for sync and command bytes
 	}
 
 	privData->outBuf[0][1] = 0x8D; // CMD_FRAME for Panel #1
@@ -382,7 +432,8 @@ void EncodeWorkBuffer(TriksCPrivData *privData)
 			{
 				for (x = 5; x >= 0; x--)
 				{
-					privData->outBuf[p][panelPos[p]++] = EncodeBytes(ptr);
+					EncodeAndStore(privData, p, ptr);
+
 					ptr -= 24;
 				}
 			}
@@ -397,7 +448,8 @@ void EncodeWorkBuffer(TriksCPrivData *privData)
 			{
 				p = x / 6;
 
-				privData->outBuf[p][panelPos[p]++] = EncodeBytes(ptr);
+				EncodeAndStore(privData, p, ptr);
+
 				ptr -= 24;
 			}
 		}
@@ -418,7 +470,8 @@ void EncodeWorkBuffer(TriksCPrivData *privData)
 					if (r)
 						p += 2;
 
-					privData->outBuf[p][panelPos[p]++] = EncodeBytes(ptr);
+					EncodeAndStore(privData, p, ptr);
+
 					ptr -= 24;
 				}
 			}
@@ -444,7 +497,7 @@ void ProcessInputBuffer(TriksCPrivData *privData)
 	int p = 0;
 	for (p = 0; p < privData->panels; p++)
 	{
-		write(privData->fd, privData->outBuf[p], 98);
+		write(privData->fd, privData->outBuf[p], privData->outputBytes[p]);
 	}
 }
 
