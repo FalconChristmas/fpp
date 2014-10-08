@@ -728,6 +728,7 @@ sub TextMessage {
 	my $pos = shift || "scroll";
 	my $dir = shift || "R2L";
 	my $pps = shift || 5;
+	my $mirror = shift;
 	my $msg = $msgIn;
 	my $metrics;
 	my $img;
@@ -771,6 +772,14 @@ sub TextMessage {
 		my $y = shift;
 
 		$this->OverlayImage($bd, $width, $height, $metrics->{width}, $metrics->{height}, $LtoR, $TtoB, $rgbData, $rgbDataR, $x, $y);
+
+		if (defined($mirror))
+		{
+			substr(${$this->{"dataFileMap"}},
+				$mirror->{data}->{startChannel}, $mirror->{data}->{channelCount},
+				substr(${$this->{"dataFileMap"}},
+					$bd->{startChannel}, $bd->{channelCount}));
+		}
 	};
 
 	my $lastMsg = $msg;
