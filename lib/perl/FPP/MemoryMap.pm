@@ -289,11 +289,7 @@ sub SetBlockState {
 	my $blk = shift;
 	my $state = shift || 0;
 
-	if ($state != 0) {
-		$blk->{data}->{isActive} = 1;
-	} else {
-		$blk->{data}->{isActive} = 0;
-	}
+	$blk->{data}->{isActive} = $state;
 
 	$this->SaveBlockInfo($blk);
 }
@@ -384,8 +380,17 @@ sub DumpBlockInfo {
 
 	printf( "Block #%d\n", $i);
 	printf( "    Name                : %s\n", $b->{data}->{blockName});
-	printf( "    Enabled             : %s\n",
-		$b->{data}->{isActive} ? "1 (Yes)": "0 (No)");
+	printf( "    Overlay Enabled     : ");
+	if ($b->{data}->{isActive} == 0) {
+		printf( "(0) Off" );
+	} elsif ($b->{data}->{isActive} == 1) {
+		printf( "(1) On" );
+	} elsif ($b->{data}->{isActive} == 2) {
+		printf( "(2) On (Transparent)" );
+	} elsif ($b->{data}->{isActive} == 3) {
+		printf( "(3) On (Transparent RGB)" );
+	}
+	printf( "\n");
 	printf( "    Start Channel       : %d\n", $b->{data}->{startChannel});
 	printf( "    Channel Count       : %d\n", $b->{data}->{channelCount});
 	printf( "    Orientation         : %s\n",
