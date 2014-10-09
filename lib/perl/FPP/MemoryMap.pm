@@ -27,10 +27,6 @@
 {
 package FPP::MemoryMap;
 
-use strict;
-use threads;
-use threads::shared;
-use FindBin qw/$Bin/;
 use Time::HiRes qw( gettimeofday usleep tv_interval );
 use File::Map qw/map_file unmap/;
 use Convert::Binary::C;
