@@ -44,11 +44,11 @@ configure_wireless () {
 	cat > /home/pi/media/config/wpa_supplicant.conf <<-EOF
 		ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
 		update_config=1
-		scan_ssid=1
 
 		network={
 			ssid="${SSID}"
 			psk="${PSK}"
+			scan_ssid=1
 		}
 	EOF
 
