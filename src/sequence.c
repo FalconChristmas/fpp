@@ -50,6 +50,8 @@ char          seqFilename[1024] = {'\x00'};
 unsigned long seqFileSize = 0;
 unsigned long seqFilePosition = 0;
 int           seqPaused = 0;
+int           seqSingleStep = 0;
+int           seqSingleStepBack = 0;
 int           seqVersionMajor = 0;
 int           seqVersionMinor = 0;
 int           seqVersion = 0;
@@ -226,6 +228,8 @@ int OpenSequenceFile(const char *filename) {
 	LogDebug(VB_SEQUENCE, "'*' denotes field is currently ignored by FPP\n");
 
 	seqPaused = 0;
+	seqSingleStep = 0;
+	seqSingleStepBack = 0;
 
 	ResetChannelOutputFrameNumber();
 
@@ -283,11 +287,36 @@ void ToggleSequencePause(void) {
 		seqPaused = 1;
 }
 
+void SingleStepSequence(void) {
+	seqSingleStep = 1;
+}
+
+void SingleStepSequenceBack(void) {
+	seqSingleStepBack = 1;
+}
+
 void ReadSequenceData(void) {
 	size_t  bytesRead = 0;
 
 	if (seqPaused)
-		return;
+	{
+		if (seqSingleStep)
+		{
+			seqSingleStep = 0;
+		}
+		else if (seqSingleStepBack)
+		{
+			seqSingleStepBack = 0;
+
+			int offset = seqStepSize * 2;
+			if (seqFilePosition > offset)
+				fseek(seqFile, 0 - offset, SEEK_CUR);
+		}
+		else
+		{
+			return;
+		}
+	}
 
 	if (IsSequenceRunning())
 	{

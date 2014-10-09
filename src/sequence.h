@@ -44,5 +44,7 @@ void  SendBlankingData(void);
 void  CloseSequenceFile(void);
 int   SequenceIsPaused(void);
 void  ToggleSequencePause(void);
+void  SingleStepSequence(void);
+void  SingleStepSequenceBack(void);
 
 #endif /* _SEQUENCE_H */

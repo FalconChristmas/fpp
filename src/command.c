@@ -379,6 +379,24 @@ extern PlaylistDetails playlistDetails;
 				ToggleSequencePause();
 			}
 		}
+		else if (!strcmp(CommandStr, "SingleStepSequence"))
+		{
+			if ((FPPstatus != FPP_STATUS_IDLE) &&
+				(playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType == 's') &&
+				(SequenceIsPaused()))
+			{
+				SingleStepSequence();
+			}
+		}
+		else if (!strcmp(CommandStr, "SingleStepSequenceBack"))
+		{
+			if ((FPPstatus != FPP_STATUS_IDLE) &&
+				(playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType == 's') &&
+				(SequenceIsPaused()))
+			{
+				SingleStepSequenceBack();
+			}
+		}
 		else if (!strcmp(CommandStr, "NextPlaylistItem"))
 		{
 			switch (FPPstatus)
