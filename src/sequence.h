@@ -42,5 +42,7 @@ void  ReadSequenceData(void);
 void  SendSequenceData(void);
 void  SendBlankingData(void);
 void  CloseSequenceFile(void);
+int   SequenceIsPaused(void);
+void  ToggleSequencePause(void);
 
 #endif /* _SEQUENCE_H */

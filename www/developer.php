@@ -229,6 +229,10 @@ a:visited {
         <b>Git Status:</b><br>
         <pre><? echo $git_status; ?></pre>
       </div>
+      <div id='gitStatus'>
+        <b>Debug Actions:</b><br>
+		<input type='button' value='Pause/UnPause Sequence' onClick='ToggleSequencePause();'><br>
+      </div>
     </fieldset>
     <div id='logViewer' title='Log Viewer' style="display: none">
       <pre>

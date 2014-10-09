@@ -371,6 +371,14 @@ extern PlaylistDetails playlistDetails;
 				sprintf(response,"%d,%d,Failed to reload Channel Remap Data,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
 			}
 		}
+		else if (!strcmp(CommandStr, "ToggleSequencePause"))
+		{
+			if ((FPPstatus != FPP_STATUS_IDLE) &&
+				(playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType == 's'))
+			{
+				ToggleSequencePause();
+			}
+		}
 		else if (!strcmp(CommandStr, "NextPlaylistItem"))
 		{
 			switch (FPPstatus)
