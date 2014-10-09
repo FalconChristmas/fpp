@@ -87,6 +87,10 @@ int SetupGPIOInput(void)
 
 			inputConfigured[i] = 1;
 
+			// Set the time immediately to utilize the debounce code
+			// from triggering our GPIOs on startup.
+			inputLastTriggerTime[i] = GetTime();
+
 			enabledCount++;
 		}
 	}
