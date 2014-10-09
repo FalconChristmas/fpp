@@ -50,7 +50,6 @@
 
 int inputConfigured[MAX_GPIO_INPUTS];
 int inputLastState[MAX_GPIO_INPUTS];
-int inputNormallyClosed[MAX_GPIO_INPUTS];
 long long inputLastTriggerTime[MAX_GPIO_INPUTS];
 
 /*
@@ -67,7 +66,6 @@ int SetupGPIOInput(void)
 
 	bzero(inputConfigured, sizeof(inputConfigured));
 	bzero(inputLastState, sizeof(inputLastState));
-	bzero(inputNormallyClosed, sizeof(inputNormallyClosed));
 	bzero(inputLastTriggerTime, sizeof(inputLastTriggerTime));
 
 	for (i = 0; i < MAX_GPIO_INPUTS; i++)
@@ -88,10 +86,6 @@ int SetupGPIOInput(void)
 				pullUpDnControl(i, PUD_UP);
 
 			inputConfigured[i] = 1;
-
-			sprintf(settingName, "GPIOInput%03dNC", i);
-			if (getSettingInt(settingName))
-				inputNormallyClosed[i] = 1;
 
 			enabledCount++;
 		}
@@ -120,14 +114,10 @@ void CheckGPIOInputs(void)
 			int val = digitalRead(i);
 			if (val != inputLastState[i])
 			{
-				nc = inputNormallyClosed[i];
-
-				if ((inputLastTriggerTime[i] < lastAllowedTime) &&
-					((!nc && (val == LOW)) ||
-					 (nc && (val != LOW))))
+				if ((inputLastTriggerTime[i] < lastAllowedTime) )
 				{
 					LogDebug(VB_GPIO, "GPIO%d triggered\n", i);
-					sprintf(settingName, "GPIOInput%03dEvent", i);
+					sprintf(settingName, "GPIOInput%03dEvent%s", i, (val == LOW ? "Falling" : "Rising"));
 					TriggerEventByID(getSetting(settingName));
 
 					inputLastTriggerTime[i] = GetTime();
