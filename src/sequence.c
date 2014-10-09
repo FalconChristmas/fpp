@@ -272,7 +272,7 @@ void BlankSequenceData(void) {
 	bzero(seqData, sizeof(seqData));
 }
 
-void SequenceIsPaused(void) {
+int SequenceIsPaused(void) {
 	return seqPaused;
 }
 
