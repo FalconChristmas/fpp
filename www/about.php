@@ -81,7 +81,7 @@ function get_server_memory_usage(){
     } else if (preg_match('/^Buffers:\s+(\d+)\skB$/', $line, $pieces)) {
       $buffers = $pieces[1];
     } else if (preg_match('/^Cached:\s+(\d+)\skB$/', $line, $pieces)) {
-      $cache = $pieces[1];
+      $cached = $pieces[1];
     }
   }
   fclose($fh);
