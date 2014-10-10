@@ -67,13 +67,27 @@ unset($output);
 $uptime = preg_replace('/[0-9]+ users, /', '', $uptime);
 
 function get_server_memory_usage(){
-  $free = shell_exec('free');
-  $free = (string)trim($free);
-  $free_arr = explode("\n", $free);
-  $mem = explode(" ", $free_arr[1]);
-  $mem = array_filter($mem);
-  $mem = array_merge($mem);
-  $memory_usage = $mem[2]/$mem[1]*100;
+  $fh = fopen('/proc/meminfo','r');
+  $total = 0;
+  $free = 0;
+  $buffers = 0;
+  $cached = 0;
+  while ($line = fgets($fh)) {
+    $pieces = array();
+    if (preg_match('/^MemTotal:\s+(\d+)\skB$/', $line, $pieces)) {
+      $total = $pieces[1];
+    } else if (preg_match('/^MemFree:\s+(\d+)\skB$/', $line, $pieces)) {
+      $free = $pieces[1];
+    } else if (preg_match('/^Buffers:\s+(\d+)\skB$/', $line, $pieces)) {
+      $buffers = $pieces[1];
+    } else if (preg_match('/^Cached:\s+(\d+)\skB$/', $line, $pieces)) {
+      $cache = $pieces[1];
+    }
+  }
+  fclose($fh);
+
+  $used = $total - $free - $buffers - $cached;
+  $memory_usage = 1.0 * $used / $total * 100;
 
   return $memory_usage;
 }
