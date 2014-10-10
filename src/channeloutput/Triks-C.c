@@ -29,6 +29,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -98,32 +99,77 @@ void *RunTriksCOutputThread(void *data)
 	LogDebug(VB_CHANNELOUT, "RunTriksCOutputThread()\n");
 
 	long long wakeTime = GetTime();
+	long long lastProcTime = 0;
+	long long frameTime = 0;
+	struct timeval  tv;
+	struct timespec ts;
 
 	TriksCPrivData *privData = (TriksCPrivData *)data;
 
 	privData->threadIsRunning = 1;
 	LogDebug(VB_CHANNELOUT, "Triks-C output thread started\n");
 
+	int panels = privData->panels;
+
 	while (privData->runThread)
 	{
+		// Wait for more data
+		pthread_mutex_lock(&privData->sendLock);
+		LogExcess(VB_CHANNELOUT, "Triks-C output thread: elapsed: %lld\n",
+			GetTime() - wakeTime);
+
 		pthread_mutex_lock(&privData->bufLock);
-		if (!privData->dataWaiting)
+		if (privData->dataWaiting)
 		{
 			pthread_mutex_unlock(&privData->bufLock);
-			pthread_mutex_lock(&privData->sendLock);
-			LogExcess(VB_CHANNELOUT, "Triks-C output thread: elapsed: %lld\n",
-				GetTime() - wakeTime);
+
+			gettimeofday(&tv, NULL);
+			ts.tv_sec = tv.tv_sec;
+			ts.tv_nsec = (tv.tv_usec + 200000) * 1000;
+
+			if (ts.tv_nsec >= 1000000000)
+			{
+				ts.tv_sec  += 1;
+				ts.tv_nsec -= 1000000000;
+			}
+
+			pthread_cond_timedwait(&privData->sendCond, &privData->sendLock, &ts);
+		}
+		else
+		{
+			pthread_mutex_unlock(&privData->bufLock);
 			pthread_cond_wait(&privData->sendCond, &privData->sendLock);
-			wakeTime = GetTime();
-			LogExcess(VB_CHANNELOUT, "Triks-C output thread: woke\n");
-			pthread_mutex_unlock(&privData->sendLock);
+		}
+
+		wakeTime = GetTime();
+		LogExcess(VB_CHANNELOUT, "Triks-C output thread: woke\n");
+		pthread_mutex_unlock(&privData->sendLock);
+
+		// See if there is any data waiting to process or if we timed out
+		pthread_mutex_lock(&privData->bufLock);
+		if (privData->dataWaiting)
+		{
+			pthread_mutex_unlock(&privData->bufLock);
+
+			frameTime = wakeTime - lastProcTime;
+
+			// Make sure we have sufficient time to transmit data @ 57600 bps.
+			if ((frameTime > 96000) ||
+				((frameTime > 48000) &&
+				 (panels < 3)) ||
+				((frameTime > 24000) &&
+				 (panels < 2)) ||
+				((frameTime > 72000) &&
+				 (panels < 4)))
+			{
+				ProcessInputBuffer(privData);
+				lastProcTime = wakeTime;
+			}
 		}
 		else
 		{
 			pthread_mutex_unlock(&privData->bufLock);
 		}
-
-		ProcessInputBuffer(privData);
 	}
 
 	LogDebug(VB_CHANNELOUT, "Triks-C output thread complete\n");
