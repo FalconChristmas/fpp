@@ -208,7 +208,7 @@ function TriksLayoutSelect(currentValue) {
 	var result = "";
 	var options = "1x1,2x1,3x1,4x1,1x2,2x2,1x3,1x4".split(",");
 
-	result += " Layout:<select class='layout' onChange='TriksLayoutChanged(this);'>";
+	result += " Layout (WxH):<select class='layout' onChange='TriksLayoutChanged(this);'>";
 
 	var i = 0;
 	for (i = 0; i < options.length; i++) {
