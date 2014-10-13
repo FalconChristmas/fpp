@@ -276,6 +276,61 @@ function GetTriksOutputConfig(cell) {
 }
 
 /////////////////////////////////////////////////////////////////////////////
+// GPIO-attached 74HC595 Shift Register Output
+
+function GPIO595GPIOSelect(currentValue) {
+	var result = "";
+	var options = "17-18-27,22-23-24".split(",");
+
+	result += " GPIO Outputs: <select class='gpio'>";
+
+	var i = 0;
+	for (i = 0; i < options.length; i++) {
+		var opt = options[i];
+
+		result += "<option value='" + opt + "'";
+		if (currentValue == opt)
+			result += " selected";
+		result += ">" + opt + "</option>";
+	}
+
+	result += "</select>";
+
+	return result;
+}
+
+function NewGPIO595Config() {
+	var result = "";
+	result += GPIO595GPIOSelect("");
+	return result;
+}
+
+function GPIO595DeviceConfig(config) {
+	var items = config.split(";");
+	var result = "";
+
+	for (var j = 0; j < items.length; j++) {
+		var item = items[j].split("=");
+
+		if (item[0] == "gpio") {
+			result += GPIO595GPIOSelect(item[1]);
+		}
+	}
+
+	return result;
+}
+
+function GetGPIO595OutputConfig(cell) {
+	$cell = $(cell);
+	var gpio = $cell.find("select.gpio").val();
+
+	if (gpio == "")
+		return "";
+
+	return "gpio=" + gpio;
+}
+
+/////////////////////////////////////////////////////////////////////////////
 // Renard Serial Outputs
 var RenardDevices = new Array();
 <?
@@ -448,6 +503,8 @@ function PopulateChannelOutputTable(data) {
 			newRow += SPIDeviceConfig(output[4]);
 		} else if (type == "Triks-C") {
 			newRow += TriksDeviceConfig(output[4]);
+		} else if (type == "GPIO-595") {
+			newRow += GPIO595DeviceConfig(output[4]);
 		}
 
 		newRow += "</td>" +
@@ -535,6 +592,14 @@ function SetChannelOutputs() {
 				return;
 			}
 			maxChannels = 9216;
+		} else if (type == "GPIO-595") {
+			config += GetGPIO595OutputConfig($this.find("td:nth-child(6)"));
+			if (config == "") {
+				dataError = 1;
+				DialogError("Save Channel Outputs", "Invalid Output Config");
+				return;
+			}
+			maxChannels = 128;
 		}
 
 		// Channel Count
@@ -611,6 +676,9 @@ function AddOtherTypeOptions(row, type) {
 		config += NewTriksConfig();
 		row.find("td input.count").val("768");
 		row.find("td input.count").prop('disabled', true);
+	} else if (type == "GPIO-595") {
+		config += NewGPIO595Config();
+		row.find("td input.count").val("8");
 	}
 
 	row.find("td:nth-child(6)").html(config);
@@ -681,6 +749,7 @@ function AddOtherOutput() {
 				"<option value='Renard'>Renard</option>" +
 				"<option value='SPI-WS2801'>SPI-WS2801</option>" +
 				"<option value='Triks-C'>Triks-C</option>" +
+				"<option value='GPIO-595'>GPIO-595</option>" +
 			"</select></td>" +
 			"<td><input class='start' type='text' size=6 maxlength=6 value='' style='display: none;'></td>" +
 			"<td><input class='count' type='text' size=4 maxlength=4 value='' style='display: none;'></td>" +
@@ -867,7 +936,7 @@ tr.rowUniverseDetails td
 </table>
 <table id="tblOtherOutputs" class='channelOutputTable'>
 <thead>
-	<tr class='tblheader'><td>#</td><td>Act</td><td>Type</td><td>Start</td><td>Size</td><td>Output Config</td></tr>
+	<tr class='tblheader'><td>#</td><td>Act</td><td>Type</td><td>Start Ch.</td><td>Ch. Cnt</td><td>Output Config</td></tr>
 </thead>
 <tbody>
 </tbody>
