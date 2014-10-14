@@ -109,10 +109,10 @@ int main(int argc, char *argv[])
 	{
 		if (getFPPmode() == MASTER_MODE)
 			InitSyncMaster();
-
-		InitEffects();
-		InitializeChannelDataMemoryMap();
 	}
+
+	InitEffects();
+	InitializeChannelDataMemoryMap();
 
 #ifndef NOROOT
 	struct sched_param param;

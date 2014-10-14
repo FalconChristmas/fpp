@@ -339,7 +339,9 @@ void ReadSequenceData(void) {
 	{
 		BlankSequenceData();
 	}
+}
 
+void ProcessSequenceData(void) {
 	if (IsEffectRunning())
 		OverlayEffects(seqData);
 

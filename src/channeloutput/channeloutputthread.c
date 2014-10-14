@@ -135,6 +135,8 @@ void *RunChannelOutputThread(void *data)
 		if (getFPPmode() != BRIDGE_MODE)
 			ReadSequenceData();
 
+		ProcessSequenceData();
+
 		readTime = GetTime();
 
 		if ((IsSequenceRunning()) ||
