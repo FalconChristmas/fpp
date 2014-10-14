@@ -101,6 +101,8 @@ if (isset($_GET['command']) && !isset($nonXML[$_GET['command']]))
 
 if ( isset($_GET['command']) && !empty($_GET['command']) )
 {
+	global $debug;
+
 	if ( array_key_exists($_GET['command'],$command_array) )
 	{
 		if ($debug)
