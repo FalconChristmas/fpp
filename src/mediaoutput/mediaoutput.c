@@ -162,26 +162,38 @@ void CloseMediaOutput(void) {
 
 	mediaOutputStatus.status = MEDIAOUTPUTSTATUS_IDLE;
 
+LogDebug(VB_MEDIAOUT, "Debugging MultiSync Video\n");
 	pthread_mutex_lock(&mediaOutputLock);
 	if (!mediaOutput) {
+LogDebug(VB_MEDIAOUT, "Debugging MultiSync Video\n");
 		pthread_mutex_unlock(&mediaOutputLock);
 		return;
 	}
 
+LogDebug(VB_MEDIAOUT, "Debugging MultiSync Video\n");
 	if (mediaOutput->childPID) {
+LogDebug(VB_MEDIAOUT, "Debugging MultiSync Video\n");
 		pthread_mutex_unlock(&mediaOutputLock);
+LogDebug(VB_MEDIAOUT, "Debugging MultiSync Video\n");
 		mediaOutput->stopPlaying();
+LogDebug(VB_MEDIAOUT, "Debugging MultiSync Video\n");
 		pthread_mutex_lock(&mediaOutputLock);
+LogDebug(VB_MEDIAOUT, "Debugging MultiSync Video\n");
 	}
 
 	if (getFPPmode() == MASTER_MODE)
 		SendMediaSyncStopPacket(mediaOutput->filename);
 
+LogDebug(VB_MEDIAOUT, "Debugging MultiSync Video\n");
 	free(mediaOutput->filename);
+LogDebug(VB_MEDIAOUT, "Debugging MultiSync Video\n");
 	mediaOutput->filename = NULL;
+LogDebug(VB_MEDIAOUT, "Debugging MultiSync Video\n");
 
 	mediaOutput = 0;
+LogDebug(VB_MEDIAOUT, "Debugging MultiSync Video\n");
 	pthread_mutex_unlock(&mediaOutputLock);
+LogDebug(VB_MEDIAOUT, "Debugging MultiSync Video\n");
 }
 
 void CheckCurrentPositionAgainstMaster(void)
