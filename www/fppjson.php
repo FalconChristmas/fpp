@@ -47,6 +47,8 @@ if ( isset($_GET['command']) && !empty($_GET['command']) ) {
 
 if (array_key_exists($command,$command_array) )
 {
+	global $debug;
+
 	if ( $debug )
 		error_log("Calling " .$command);
 
@@ -92,7 +94,7 @@ function GetSetting()
 
 function SetSetting()
 {
-	global $args;
+	global $args, $SUDO;
 
 	$setting = $args['key'];
 	$value   = $args['value'];
@@ -213,7 +215,7 @@ function GetFPPSystems()
 
 function SetAudioOutput()
 {
-	global $args;
+	global $args, $SUDO, $debug;
 
 	$card = $args['value'];
 
@@ -434,8 +436,7 @@ function SetChannelOutputs()
 // Network Interface configuration
 function ApplyInterfaceInfo()
 {
-	global $settings;
-	global $args;
+	global $settings, $args, $SUDO;
 
 	$interface = $args['interface'];
 
@@ -532,7 +533,7 @@ function SetInterfaceInfo()
 /////////////////////////////////////////////////////////////////////////////
 function ApplyDNSInfo()
 {
-	global $settings;
+	global $settings, $SUDO;
 
 	exec($SUDO . " " . $settings['fppDir'] . "/scripts/config_dns");
 }
