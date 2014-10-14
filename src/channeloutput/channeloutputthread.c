@@ -140,6 +140,7 @@ void *RunChannelOutputThread(void *data)
 		if ((IsSequenceRunning()) ||
 			(IsEffectRunning()) ||
 			(UsingMemoryMapInput()) ||
+			(getAlwaysTransmit()) ||
 			(getFPPmode() == BRIDGE_MODE))
 		{
 			onceMore = 1;
@@ -186,12 +187,16 @@ void SetChannelOutputRefreshRate(int rate)
  */
 int StartChannelOutputThread(void)
 {
+	LogDebug(VB_CHANNELOUT, "StartChannelOutputThread()\n");
 	if (ChannelOutputThreadIsRunning())
 	{
 		// Give a little time in case we were shutting down
 		usleep(200000);
 		if (ChannelOutputThreadIsRunning())
+		{
+			LogDebug(VB_CHANNELOUT, "Channel Output thread is already running\n");
 			return 1;
+		}
 	}
 
 	int E131BridgingInterval = getSettingInt("E131BridgingInterval");

@@ -113,6 +113,8 @@ function SetSetting()
 		$value = preg_replace("/[^a-zA-Z0-9]/", "", $value);
 		exec($SUDO . " sed -i 's/^.*\$/$value/' /etc/hostname ; " . $SUDO . " hostname $value ; " . $SUDO . " /etc/init.d/avahi-daemon restart", $output, $return_val);
 		sleep(1); // Give Avahi time to restart before we return
+	} else {
+		SendCommand("SetSetting,$setting,$value,");
 	}
 
 	GetSetting();

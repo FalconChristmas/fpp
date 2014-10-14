@@ -348,6 +348,19 @@ extern PlaylistDetails playlistDetails;
 					getFPPmode(),COMMAND_FAILED,logLevel,logMask);
 			}
 		}
+		else if (!strcmp(CommandStr, "SetSetting"))
+		{
+			char name[128];
+
+			s = strtok(NULL,",");
+			if (s)
+			{
+				strcpy(name, s);
+				s = strtok(NULL,",");
+				if (s)
+					parseSetting(name, s);
+			}
+		}
 		else if (!strcmp(CommandStr, "StopEffect"))
 		{
 			s = strtok(NULL,",");

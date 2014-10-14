@@ -486,6 +486,254 @@ int parseArguments(int argc, char **argv)
 	return 0;
 }
 
+int parseSetting(char *key, char *value)
+{
+	if ( strcmp(key, "daemonize") == 0 )
+	{
+		if ( strcmp(value, "false") == 0 )
+			settings.daemonize = false;
+		else if ( strcmp(value, "true") == 0 )
+			settings.daemonize = true;
+		else
+		{
+			fprintf(stderr, "Failed to apply daemonize setting\n");
+			exit(EXIT_FAILURE);
+		}
+	}
+	else if ( strcmp(key, "fppMode") == 0 )
+	{
+		if ( strcmp(value, "player") == 0 )
+			settings.fppMode = PLAYER_MODE;
+		else if ( strcmp(value, "bridge") == 0 )
+			settings.fppMode = BRIDGE_MODE;
+		else if ( strcmp(value, "master") == 0 )
+			settings.fppMode = MASTER_MODE;
+		else if ( strcmp(value, "remote") == 0 )
+			settings.fppMode = REMOTE_MODE;
+		else
+		{
+			fprintf(stderr, "Error parsing mode\n");
+			exit(EXIT_FAILURE);
+		}
+	}
+	else if ( strcmp(key, "volume") == 0 )
+	{
+		if ( strlen(value) )
+			setVolume(atoi(value));
+		else
+			fprintf(stderr, "Failed to apply volume setting\n");
+	}
+	else if ( strcmp(key, "alwaysTransmit") == 0 )
+	{
+		if ( strlen(value) )
+			settings.alwaysTransmit = atoi(value);
+		else
+			fprintf(stderr, "Failed to apply alwaysTransmit setting\n");
+	}
+	else if ( strcmp(key, "mediaDirectory") == 0 )
+	{
+		if ( strlen(value) )
+		{
+			free(settings.mediaDirectory);
+			settings.mediaDirectory = strdup(value);
+		}
+		else
+			fprintf(stderr, "Failed to apply mediaDirectory\n");
+	}
+	else if ( strcmp(key, "musicDirectory") == 0 )
+	{
+		if ( strlen(value) )
+		{
+			free(settings.musicDirectory);
+			settings.musicDirectory = strdup(value);
+		}
+		else
+			fprintf(stderr, "Failed to apply musicDirectory\n");
+	}
+	else if ( strcmp(key, "sequenceDirectory") == 0 )
+	{
+		if ( strlen(value) )
+		{
+			free(settings.sequenceDirectory);
+			settings.sequenceDirectory = strdup(value);
+		}
+		else
+			fprintf(stderr, "Failed to apply sequenceDirectory\n");
+	}
+	else if ( strcmp(key, "eventDirectory") == 0 )
+	{
+		if ( strlen(value) )
+		{
+			free(settings.eventDirectory);
+			settings.eventDirectory = strdup(value);
+		}
+		else
+			fprintf(stderr, "Failed to apply eventDirectory\n");
+	}
+	else if ( strcmp(key, "videoDirectory") == 0 )
+	{
+		if ( strlen(value) )
+		{
+			free(settings.videoDirectory);
+			settings.videoDirectory = strdup(value);
+		}
+		else
+			fprintf(stderr, "Failed to apply videoDirectory\n");
+	}
+	else if ( strcmp(key, "effectDirectory") == 0 )
+	{
+		if ( strlen(value) )
+		{
+			free(settings.effectDirectory);
+			settings.effectDirectory = strdup(value);
+		}
+		else
+			fprintf(stderr, "Failed to apply effectDirectory\n");
+	}
+	else if ( strcmp(key, "scriptDirectory") == 0 )
+	{
+		if ( strlen(value) )
+		{
+			free(settings.scriptDirectory);
+			settings.scriptDirectory = strdup(value);
+		}
+		else
+			fprintf(stderr, "Failed to apply scriptDirectory\n");
+	}
+	else if ( strcmp(key, "pluginDirectory") == 0 )
+	{
+		if ( strlen(value) )
+		{
+			free(settings.pluginDirectory);
+			settings.pluginDirectory = strdup(value);
+		}
+		else
+			fprintf(stderr, "Failed to apply pluginDirectory\n");
+	}
+	else if ( strcmp(key, "playlistDirectory") == 0 )
+	{
+		if ( strlen(value) )
+		{
+			free(settings.playlistDirectory);
+			settings.playlistDirectory = strdup(value);
+		}
+		else
+			fprintf(stderr, "Failed to apply playlistDirectory\n");
+	}
+	else if ( strcmp(key, "universeFile") == 0 )
+	{
+		if ( strlen(value) )
+		{
+			free(settings.universeFile);
+			settings.universeFile = strdup(value);
+		}
+		else
+			fprintf(stderr, "Failed to apply universeFile\n");
+	}
+	else if ( strcmp(key, "pixelnetFile") == 0 )
+	{
+		if ( strlen(value) )
+		{
+			free(settings.pixelnetFile);
+			settings.pixelnetFile = strdup(value);
+		}
+		else
+			fprintf(stderr, "Failed to apply pixelnetFile\n");
+	}
+	else if ( strcmp(key, "scheduleFile") == 0 )
+	{
+		if ( strlen(value) )
+		{
+			free(settings.scheduleFile);
+			settings.scheduleFile = strdup(value);
+		}
+		else
+			fprintf(stderr, "Failed to apply scheduleFile\n");
+	}
+	else if ( strcmp(key, "LogLevel") == 0 )
+	{
+		if (strlen(value))
+			SetLogLevel(value);
+		else
+			SetLogLevel("warn");
+	}
+	else if ( strcmp(key, "LogMask") == 0 )
+	{
+		if (strlen(value))
+			SetLogMask(value);
+		else
+			SetLogMask("");
+	}
+	else if ( strcmp(key, "logFile") == 0 )
+	{
+		if ( strlen(value) )
+		{
+			free(settings.logFile);
+			settings.logFile = strdup(value);
+		}
+		else
+			fprintf(stderr, "Failed to apply logFile\n");
+	}
+	else if ( strcmp(key, "silenceMusic") == 0 )
+	{
+		if ( strlen(value) )
+		{
+			free(settings.silenceMusic);
+			settings.silenceMusic = strdup(value);
+		}
+		else
+			fprintf(stderr, "Failed to apply silenceMusic\n");
+	}
+	else if ( strcmp(key, "bytesFile") == 0 )
+	{
+		if ( strlen(value) )
+		{
+			free(settings.bytesFile);
+			settings.bytesFile = strdup(value);
+		}
+		else
+			fprintf(stderr, "Failed to apply bytesFile\n");
+	}
+	else if ( strcmp(key, "E131interface") == 0 )
+	{
+		if ( strlen(value) )
+		{
+			free(settings.E131interface);
+			settings.E131interface = strdup(value);
+		}
+		else
+			fprintf(stderr, "Failed to apply E131interface\n");
+	}
+	else if ( strcmp(key, "controlMajor") == 0 )
+	{
+		if ( strlen(value) )
+		{
+			int ivalue = atoi(value);
+			if (ivalue >= 0)
+				settings.controlMajor = (unsigned int)ivalue;
+			else
+				fprintf(stderr, "Error, controlMajor value negative\n");
+		}
+		else
+			fprintf(stderr, "Failed to apply controlMajor setting\n");
+	}
+	else if ( strcmp(key, "controlMinor") == 0 )
+	{
+		if ( strlen(value) )
+		{
+			int ivalue = atoi(value);
+			if (ivalue >= 0)
+				settings.controlMinor = (unsigned int)ivalue;
+			else
+				fprintf(stderr, "Error, controlMinor value negative\n");
+		}
+		else
+			fprintf(stderr, "Failed to apply controlMinor setting\n");
+	}
+
+	return 1;
+}
+
 int loadSettings(const char *filename)
 {
 	if (!FileExists(filename)) {
@@ -532,241 +780,7 @@ int loadSettings(const char *filename)
 			}
 			value = trimwhitespace(token);
 
-			if ( strcmp(key, "daemonize") == 0 )
-			{
-				if ( strcmp(value, "false") == 0 )
-					settings.daemonize = false;
-				else if ( strcmp(value, "true") == 0 )
-					settings.daemonize = true;
-				else
-				{
-					fprintf(stderr, "Failed to load daemonize setting from config file\n");
-					exit(EXIT_FAILURE);
-				}
-			}
-			else if ( strcmp(key, "fppMode") == 0 )
-			{
-				if ( strcmp(value, "player") == 0 )
-					settings.fppMode = PLAYER_MODE;
-				else if ( strcmp(value, "bridge") == 0 )
-					settings.fppMode = BRIDGE_MODE;
-				else if ( strcmp(value, "master") == 0 )
-					settings.fppMode = MASTER_MODE;
-				else if ( strcmp(value, "remote") == 0 )
-					settings.fppMode = REMOTE_MODE;
-				else
-				{
-					fprintf(stderr, "Error parsing mode\n");
-					exit(EXIT_FAILURE);
-				}
-			}
-			else if ( strcmp(key, "volume") == 0 )
-			{
-				if ( strlen(value) )
-					setVolume(atoi(value));
-				else
-					fprintf(stderr, "Failed to load volume setting from config file\n");
-			}
-			else if ( strcmp(key, "mediaDirectory") == 0 )
-			{
-				if ( strlen(value) )
-				{
-					free(settings.mediaDirectory);
-					settings.mediaDirectory = strdup(value);
-				}
-				else
-					fprintf(stderr, "Failed to load mediaDirectory from config file\n");
-			}
-			else if ( strcmp(key, "musicDirectory") == 0 )
-			{
-				if ( strlen(value) )
-				{
-					free(settings.musicDirectory);
-					settings.musicDirectory = strdup(value);
-				}
-				else
-					fprintf(stderr, "Failed to load musicDirectory from config file\n");
-			}
-			else if ( strcmp(key, "sequenceDirectory") == 0 )
-			{
-				if ( strlen(value) )
-				{
-					free(settings.sequenceDirectory);
-					settings.sequenceDirectory = strdup(value);
-				}
-				else
-					fprintf(stderr, "Failed to load sequenceDirectory from config file\n");
-			}
-			else if ( strcmp(key, "eventDirectory") == 0 )
-			{
-				if ( strlen(value) )
-				{
-				    free(settings.eventDirectory);
-					settings.eventDirectory = strdup(value);
-				}
-				else
-					fprintf(stderr, "Failed to load eventDirectory from config file\n");
-			}
-			else if ( strcmp(key, "videoDirectory") == 0 )
-			{
-				if ( strlen(value) )
-				{
-				    free(settings.videoDirectory);
-					settings.videoDirectory = strdup(value);
-				}
-				else
-					fprintf(stderr, "Failed to load videoDirectory from config file\n");
-			}
-			else if ( strcmp(key, "effectDirectory") == 0 )
-			{
-				if ( strlen(value) )
-				{
-				    free(settings.effectDirectory);
-					settings.effectDirectory = strdup(value);
-				}
-				else
-					fprintf(stderr, "Failed to load effectDirectory from config file\n");
-			}
-			else if ( strcmp(key, "scriptDirectory") == 0 )
-			{
-				if ( strlen(value) )
-				{
-				    free(settings.scriptDirectory);
-					settings.scriptDirectory = strdup(value);
-				}
-				else
-					fprintf(stderr, "Failed to load scriptDirectory from config file\n");
-			}
-			else if ( strcmp(key, "pluginDirectory") == 0 )
-			{
-				if ( strlen(value) )
-				{
-				    free(settings.pluginDirectory);
-					settings.pluginDirectory = strdup(value);
-				}
-				else
-					fprintf(stderr, "Failed to load pluginDirectory from config file\n");
-			}
-			else if ( strcmp(key, "playlistDirectory") == 0 )
-			{
-				if ( strlen(value) )
-				{
-					free(settings.playlistDirectory);
-					settings.playlistDirectory = strdup(value);
-				}
-				else
-					fprintf(stderr, "Failed to load playlistDirectory from config file\n");
-			}
-			else if ( strcmp(key, "universeFile") == 0 )
-			{
-				if ( strlen(value) )
-				{
-					free(settings.universeFile);
-					settings.universeFile = strdup(value);
-				}
-				else
-					fprintf(stderr, "Failed to load universeFile from config file\n");
-			}
-			else if ( strcmp(key, "pixelnetFile") == 0 )
-			{
-				if ( strlen(value) )
-				{
-					free(settings.pixelnetFile);
-					settings.pixelnetFile = strdup(value);
-				}
-				else
-					fprintf(stderr, "Failed to load pixelnetFile from config file\n");
-			}
-			else if ( strcmp(key, "scheduleFile") == 0 )
-			{
-				if ( strlen(value) )
-				{
-					free(settings.scheduleFile);
-					settings.scheduleFile = strdup(value);
-				}
-				else
-					fprintf(stderr, "Failed to load scheduleFile from config file\n");
-			}
-			else if ( strcmp(key, "LogLevel") == 0 )
-			{
-				if (strlen(value))
-					SetLogLevel(value);
-				else
-					SetLogLevel("warn");
-			}
-			else if ( strcmp(key, "LogMask") == 0 )
-			{
-				if (strlen(value))
-					SetLogMask(value);
-				else
-					SetLogMask("");
-			}
-			else if ( strcmp(key, "logFile") == 0 )
-			{
-				if ( strlen(value) )
-				{
-					free(settings.logFile);
-					settings.logFile = strdup(value);
-				}
-				else
-					fprintf(stderr, "Failed to load logFile from config file\n");
-			}
-			else if ( strcmp(key, "silenceMusic") == 0 )
-			{
-				if ( strlen(value) )
-				{
-					free(settings.silenceMusic);
-					settings.silenceMusic = strdup(value);
-				}
-				else
-					fprintf(stderr, "Failed to load silenceMusic from config file\n");
-			}
-			else if ( strcmp(key, "bytesFile") == 0 )
-			{
-				if ( strlen(value) )
-				{
-					free(settings.bytesFile);
-					settings.bytesFile = strdup(value);
-				}
-				else
-					fprintf(stderr, "Failed to load bytesFile from config file\n");
-			}
-			else if ( strcmp(key, "E131interface") == 0 )
-			{
-				if ( strlen(value) )
-				{
-					free(settings.E131interface);
-					settings.E131interface = strdup(value);
-				}
-				else
-					fprintf(stderr, "Failed to load E131interface from config file\n");
-			}
-			else if ( strcmp(key, "controlMajor") == 0 )
-			{
-				if ( strlen(value) )
-				{
-					int ivalue = atoi(value);
-					if (ivalue >= 0)
-						settings.controlMajor = (unsigned int)ivalue;
-					else
-						fprintf(stderr, "Error, controlMajor value negative in config file\n");
-				}
-				else
-					fprintf(stderr, "Failed to load controlMajor setting from config file\n");
-			}
-			else if ( strcmp(key, "controlMinor") == 0 )
-			{
-				if ( strlen(value) )
-				{
-					int ivalue = atoi(value);
-					if (ivalue >= 0)
-						settings.controlMinor = (unsigned int)ivalue;
-					else
-						fprintf(stderr, "Error, controlMinor value negative in config file\n");
-				}
-				else
-					fprintf(stderr, "Failed to load controlMinor setting from config file\n");
-			}
+			parseSetting(key, value);
 
 			sIndex = findSettingIndex(key);
 			if (sIndex >= 0) {
@@ -879,6 +893,14 @@ int getVolume(void)
 {
 	// Default of 0 is also a settable value, just return our data
 	return settings.volume;
+}
+
+#ifndef __GNUG__
+inline
+#endif
+int getAlwaysTransmit(void)
+{
+	return settings.alwaysTransmit;
 }
 
 char *getFPPDirectory(void)

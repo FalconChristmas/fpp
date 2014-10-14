@@ -171,6 +171,8 @@ void MainLoop(void)
 	if (getFPPmode() & PLAYER_MODE)
 	{
 		CheckIfShouldBePlayingNow();
+		if (getAlwaysTransmit())
+			StartChannelOutputThread();
 	}
 	else if (getFPPmode() == BRIDGE_MODE)
 	{
@@ -221,7 +223,8 @@ void MainLoop(void)
 		// Check to see if we need to start up the output thread.
 		// FIXME, possibly trigger this via a fpp command to fppd
 		if ((getFPPmode() != BRIDGE_MODE) &&
-			(UsingMemoryMapInput()) &&
+			((UsingMemoryMapInput()) ||
+			 (getAlwaysTransmit())) &&
 			(!ChannelOutputThreadIsRunning())) {
 			StartChannelOutputThread();
 		}
