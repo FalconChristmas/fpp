@@ -31,7 +31,9 @@
 #include <stdarg.h>
 #include <string.h>
 #include <strings.h>
+#include <sys/types.h>
 #include <time.h>
+#include <unistd.h>
 
 int logLevel = LOG_INFO;
 int logMask  = VB_MOST;
@@ -80,7 +82,7 @@ void _LogWrite(char *file, int line, int level, int facility, const char *format
 			if ( ! logFile )
 			{
 				fprintf(stderr, "Error: Unable to open log file for writing!\n");
-				fprintf(stderr, "%s  %s:%d:",timeStr, file, line);
+				fprintf(stderr, "%s (%d) %s:%d:",timeStr, getpid(), file, line);
 				va_start(arg, format);
 				vfprintf(stderr, format, arg);
 				va_end(arg);
@@ -96,7 +98,7 @@ void _LogWrite(char *file, int line, int level, int facility, const char *format
 		if (strcmp(logFileName, "stderr") || strcmp(logFileName, "stdout"))
 			fclose(logFile);
 	} else {
-		fprintf(stdout, "%s  %s:%d:", timeStr, file, line);
+		fprintf(stdout, "%s (%d) %s:%d:", timeStr, getpid(), file, line);
 		va_start(arg, format);
 		vfprintf(stdout, format, arg);
 		va_end(arg);
