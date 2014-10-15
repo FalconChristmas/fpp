@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html>
-<head>
-<?php
+	<head>
+	<?php
 require_once('config.php');
 include 'common/menuHead.inc';
 ?>
-<script>
+	<script>
     $(function() {
 		$('#tblStatusPlaylistEntries').on('mousedown', 'tr', function(event,ui){
 					$('#tblStatusPlaylistEntries tr').removeClass('playlistSelectedEntry');
@@ -16,9 +16,7 @@ include 'common/menuHead.inc';
 		});
 	});
 </script>
-
-<title><? echo $pageTitle; ?></title>
-
+	<title><? echo $pageTitle; ?></title>
 	<script>
 		$(function() {
 
@@ -90,133 +88,122 @@ include 'common/menuHead.inc';
 	}
 
 	</script>
-
-
-</head>
-<body onLoad="GetFPPDmode();StatusPopulatePlaylists();setInterval(updateFPPStatus,1000);GetVolume();">
+	</head>
+	<body onLoad="GetFPPDmode();StatusPopulatePlaylists();setInterval(updateFPPStatus,1000);GetVolume();">
 <div id="bodyWrapper">
 <?php
 	include 'menu.inc';
   ?>
 <br/>
 <div id="programControl" class="settings">
-  <fieldset>
+      <fieldset>
     <legend>Program Control</legend>
     <div id="daemonControl">
-      <table width= "100%">
+          <table width= "100%">
         <tr>
-          <td class='controlHeader'> FPPD Mode: </td>
-          <td class='controlValue'>
-				  	<select id="selFPPDmode" onChange="SetFPPDmode();">
-							<option id="optFPPDmode_Player" value="2">Player (Standalone)</option>
-							<option id="optFPPDmode_Master" value="6">Player (Master)</option>
-							<option id="optFPPDmode_Remote" value="8">Player (Remote)</option>
-							<option id="optFPPDmode_Bridge" value="1">Bridge</option>
-						</select></td>
-          <td class='controlButton'>&nbsp;</td>
-        </tr>
+              <td class='controlHeader'> FPPD Mode: </td>
+              <td class='controlValue'><select id="selFPPDmode" onChange="SetFPPDmode();">
+                  <option id="optFPPDmode_Player" value="2">Player (Standalone)</option>
+                  <option id="optFPPDmode_Master" value="6">Player (Master)</option>
+                  <option id="optFPPDmode_Remote" value="8">Player (Remote)</option>
+                  <option id="optFPPDmode_Bridge" value="1">Bridge</option>
+                </select></td>
+              <td class='controlButton'>&nbsp;</td>
+            </tr>
         <tr>
-          <td class='controlHeader'> FPPD Status: </td>
-          <td class='controlValue' id = "daemonStatus"></td>
-          <td class='controlButton'><input type="button" id="btnDaemonControl" class ="buttons" value="" onClick="ControlFPPD();"></td>
-        </tr>
+              <td class='controlHeader'> FPPD Status: </td>
+              <td class='controlValue' id = "daemonStatus"></td>
+              <td class='controlButton'><input type="button" id="btnDaemonControl" class ="buttons" value="" onClick="ControlFPPD();"></td>
+            </tr>
         <tr>
-          <td class='controlHeader'> FPP Time: </td>
-          <td id = "fppTime" colspan = "3"></td>
-        </tr>
+              <td class='controlHeader'> FPP Time: </td>
+              <td id = "fppTime" colspan = "3"></td>
+            </tr>
       </table>
-    </div>
-    <div id="remoteStatus">
-    </div>
-    <div id="bytesTransferred"><H3>Bytes Transferred</H3>
-      <hr>
-      <div id="bridgeStatistics1"></div>
-      <div id="bridgeStatistics2"></div>
-      <div class="clear"></div>
-    </div>
+        </div>
+    <div id="remoteStatus"> </div>
+    <div id="bytesTransferred">
+          <H3>Bytes Transferred</H3>
+          <hr>
+          <div id="bridgeStatistics1"></div>
+          <div id="bridgeStatistics2"></div>
+          <div class="clear"></div>
+        </div>
     <div id="playerStatus">
-      <hr>
-      <div>
+          <hr>
+          <div>
         <div class='playerStatusLeft'>
-          <table  width= "100%">
+              <table  width= "100%">
             <tr>
-              <td class='playerStatusHeader'>Player Status: </td>
-              <td id="txtPlayerStatus"></td>
-            </tr>
+                  <td class='playerStatusHeader'>Player Status: </td>
+                  <td id="txtPlayerStatus"></td>
+                </tr>
           </table>
-        </div>
+            </div>
         <div class='playerStatusRight'>
-          <table  width= "100%">
+              <table  width= "100%">
             <tr>
-              <td class='playerStatusHeader' id="txtTimePlayed"></td>
-              <td id="txtTimeRemaining"></td>
-            </tr>
+                  <td class='playerStatusHeader' id="txtTimePlayed"></td>
+                  <td id="txtTimeRemaining"></td>
+                </tr>
           </table>
-        </div>
+            </div>
         <div class="clear"></div>
       </div>
-
-      <div id = "startPlaylistControls">
+          <div id = "startPlaylistControls">
         <table width="100%">
-          <tr>
+              <tr>
             <td class='controlHeader'>Playlist:</td>
-            <td><select id="selStartPlaylist" name="selStartPlaylist" size="1" onClick="SelectStatusPlaylistEntryRow();PopulateStatusPlaylistEntries(true,'',true);" onChange="PopulateStatusPlaylistEntries(true,'',true);"></select></td>
-            <td><input type="checkbox" id="chkRepeat">Repeat</input></td>
+            <td><select id="selStartPlaylist" name="selStartPlaylist" size="1" onClick="SelectStatusPlaylistEntryRow();PopulateStatusPlaylistEntries(true,'',true);" onChange="PopulateStatusPlaylistEntries(true,'',true);">
+              </select></td>
+            <td><input type="checkbox" id="chkRepeat">
+                  Repeat
+                  </input></td>
           </tr>
-          <tr>
+              <tr>
             <td class='controlHeader'>Volume [<span id='volume' class='volume'></span>]:</td>
-            <td>
-				<input type="button" class='volumeButton' value="-" onClick="DecrementVolume();">
-                <span id="slider" class='desktopItem'></span> <!-- the Slider -->
-			    <input type="button" class='volumeButton' value="+" onClick="IncrementVolume();">
-                <span id='speaker'></span> <!-- Volume -->
-            </td>
-		  </tr>
-      </table>
+            <td><input type="button" class='volumeButton' value="-" onClick="DecrementVolume();">
+                  <span id="slider" class='desktopItem'></span> <!-- the Slider -->
+                  
+                  <input type="button" class='volumeButton' value="+" onClick="IncrementVolume();">
+                  <span id='speaker'></span> <!-- Volume --></td>
+          </tr>
+            </table>
       </div>
-      <div id="statusPlaylist"  class="unselectable">
+          <div id="statusPlaylist"  class="unselectable">
         <table id="tblStatusPlaylistHeader" width="100%">
-          <tr class="playlistHeader">
+              <tr class="playlistHeader">
             <td width="6%">#</td>
             <td  width="42%">Media File / Event / Pause </td>
             <td  width="42%">Sequence / Delay</td>
             <td  width="10%">First/Last</td>
           </tr>
-        </table>
+            </table>
         <div id= "statusPlaylistContents">
-          <table id="tblStatusPlaylistEntries"   width="100%">
+              <table id="tblStatusPlaylistEntries"   width="100%">
           </table>
-        </div>
+            </div>
       </div>
-
-      <div id="playerControls" style="margin-top:5px">
+          <div id="playerControls" style="margin-top:5px">
         <input id= "btnPlay" type="button"  class ="buttons"value="Play" onClick="StartPlaylistNow();">
         <input id= "btnStopGracefully" type="button"  class ="buttons"value="Stop Gracefully" onClick="StopGracefully();">
         <input id= "btnStopNow" type="button" class ="buttons" value="Stop Now" onClick="StopNow();">
-       </div>
-    </div>
+      </div>
+        </div>
     <div id= "nextPlaylist">
-      <table  width="100%">
+          <table  width="100%">
         <tr>
-          <td class='controlHeader'> Next Playlist: </td>
-          <td id = "txtNextPlaylist" width = "85%"></td>
-        </tr>
+              <td class='controlHeader'> Next Playlist: </td>
+              <td id = "txtNextPlaylist" width = "85%"></td>
+            </tr>
         <tr>
-          <td class='controlHeader'> Time: </td>
-          <td width="85%" id = "nextPlaylistTime"></td>
-        </tr>
+              <td class='controlHeader'> Time: </td>
+              <td width="85%" id = "nextPlaylistTime"></td>
+            </tr>
       </table>
-    </div>
+        </div>
   </fieldset>
-    <div id="rebootShutdown">
-      <table  width="100%">
-        <tr>
-          <td width="20%"><input name="btnReboot" onClick="RebootPi();" type="button" class = "buttons" value="Reboot Pi"></td>
-          <td id = "txtNextPlaylist" width = "80%"><input name="btnShutdown" type="button" onClick="ShutdownPi();" class = "buttons" value="Shutdown Pi"></td>
-        </tr>
-      </table>
     </div>
-</div>
 <?php	include 'common/footer.inc'; ?>
 </body>
 </html>
