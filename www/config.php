@@ -1,8 +1,17 @@
 <?php
 
-//define('debug', true);
-define('CONFIG_FILE', '/home/pi/media/settings');
-define('SUDO', 'sudo');
+$SUDO = "sudo";
+$debug = false;
+$settingsFile = "/home/pi/media/settings";
+$fppRfsVersion = "Unknown";
+
+if (file_exists("/etc/fpp/rfs_version"))
+	$fppRfsVersion = trim(file_get_contents("/etc/fpp/rfs_version"));
+
+// Allow overrides that we'll ignore from the git repository to make it
+// easier to develop on machines configured differently than our current
+// Pi image.
+@include('.config.php');
 
 // Settings array so we can stop making individual variables for each new setting
 $settings = array();
@@ -24,7 +33,6 @@ function GetSettingValue($setting) {
 // Set some defaults
 $fppMode = "player";
 $fppDir = dirname(dirname(__FILE__));
-$settingsFile = CONFIG_FILE;
 $pluginDirectory   = "/opt/fpp/plugins";
 $mediaDirectory    = "/home/pi/media";
 $docsDirectory     = $fppDir . "/docs";
@@ -43,9 +51,8 @@ $scheduleFile      = $mediaDirectory . "/schedule";
 $bytesFile         = $mediaDirectory . "/bytesReceived";
 $remapFile         = $mediaDirectory . "/channelremap";
 $volume = 0;
-$emailenable       = "0";
 
-if (defined('debug'))
+if ($debug)
 {
 	error_log("DEFAULTS:");
 	error_log("fppDir: $fppDir");
@@ -68,14 +75,12 @@ if (defined('debug'))
 	error_log("remaps: $remapFile");
 	error_log("bytes: $bytesFile");
 	error_log("volume: $volume");
-	error_log("emailenable: $emailenable");
-	
 }
 
-$fd = @fopen(CONFIG_FILE, "r");
+$fd = @fopen($settingsFile, "r");
 if ( ! $fd )
 {
-  error_log("Couldn't open config file " . CONFIG_FILE);
+  error_log("Couldn't open config file " . $settingsFile);
   return(1);
 }
 
@@ -129,7 +134,7 @@ do
 	global $fppMode, $volume, $settingsFile;
 	global $mediaDirectory, $musicDirectory, $sequenceDirectory, $playlistDirectory;
 	global $eventDirectory, $videoDirectory, $scriptDirectory, $logDirectory;
-	global $pluginDirectory, $emailenable;
+	global $pluginDirectory;
 	global $universeFile, $pixelnetFile, $scheduleFile, $bytesFile, $remapFile;
 
 	// Parse the file, assuming it exists
@@ -214,10 +219,6 @@ do
 		case "remapFile":
 			$remapFile = trim($split[1]);
 			break;
-		case "emailenable":
-			$emailenable = trim($split[1]);
-			break;
-
 	}
 }
 while ( $data != NULL );
@@ -242,13 +243,14 @@ $settings['effectDirectory'] = $effectDirectory;
 $settings['logDirectory'] = $logDirectory;
 $settings['uploadDirectory'] = $uploadDirectory;
 $settings['docsDirectory'] = $docsDirectory;
+$settings['fppRfsVersion'] = $fppRfsVersion;
 
 putenv("SCRIPTDIR=$scriptDirectory");
 putenv("MEDIADIR=$mediaDirectory");
 putenv("LOGDIR=$logDirectory");
 putenv("SETTINGSFILE=$settingsFile");
 
-if (defined('debug'))
+if ($debug)
 {
 	error_log("SET:");
 	error_log("fppDir: $fppDir");
@@ -271,7 +273,6 @@ if (defined('debug'))
 	error_log("remaps: $remapFile");
 	error_log("bytes: $bytesFile");
 	error_log("volume: $volume");
-	error_log("emailenable: $emailenable");
 }
 
 function GetDirSetting($dir)
