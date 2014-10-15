@@ -73,6 +73,7 @@ void MainLoop(void);
 int main(int argc, char *argv[])
 {
 	initSettings();
+	initMediaDetails();
 
 	loadSettings("/home/pi/media/settings");
 
