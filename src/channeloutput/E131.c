@@ -188,6 +188,8 @@ int E131_SendData(void *data, char *channelData, int channelCount)
 
 		if(sendto(sendSocket, E131packet, universes[i].size + E131_HEADER_LENGTH, 0, (struct sockaddr*)&E131address[i], sizeof(E131address[i])) < 0)
 		{
+			LogErr(VB_CHANNELOUT, "sendto() failed for E1.31 Universe %d with error: %s\n",
+				universes[i].universe, strerror(errno));
 			return 0;
 		}
 	}
@@ -371,7 +373,9 @@ FPPChannelOutput E131Output = {
 	.close        = E131_Close,
 	.isConfigured = E131_IsConfigured,
 	.isActive     = E131_IsActive,
-	.send         = E131_SendData
+	.send         = E131_SendData,
+	.startThread  = NULL,
+	.stopThread   = NULL,
 	};
 
 

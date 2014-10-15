@@ -38,6 +38,8 @@
   - libnet-bonjour-perl
   - mp3info
   - perlmagick
+  - libdbus-glib-1-dev
+  - libdevice-serialport-perl
 
 - Create user 'pi' in group 'pi' with UID/GID of 1000/1000
 

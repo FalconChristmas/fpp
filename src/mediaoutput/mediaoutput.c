@@ -27,18 +27,20 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "controlsend.h"
 #include "log.h"
 #include "mediaoutput.h"
 #include "mpg123.h"
 #include "ogg123.h"
 #include "omxplayer.h"
 #include "sequence.h"
+#include "settings.h"
 
 
 /////////////////////////////////////////////////////////////////////////////
 MediaOutput     *mediaOutput = 0;
 pthread_mutex_t  mediaOutputLock;
-
+float            masterMediaPosition = 0.0;
 
 MediaOutputStatus mediaOutputStatus = {
 	.status = MEDIAOUTPUTSTATUS_IDLE
@@ -55,7 +57,7 @@ void MediaOutput_sigchld_handler(int signal)
 		return;
 	}
 
-	LogInfo(VB_MEDIAOUT,
+	LogDebug(VB_MEDIAOUT,
 		"MediaOutput_sigchld_handler(): pid: %d, waiting for %d\n",
 		p, mediaOutput->childPID);
 
@@ -82,7 +84,6 @@ void MediaOutput_sigchld_handler(int signal)
 	} else {
 		pthread_mutex_unlock(&mediaOutputLock);
 	}
-
 }
 
 /*
@@ -144,8 +145,12 @@ int OpenMediaOutput(char *filename) {
 		return 0;
 	}
 
+	if (getFPPmode() == MASTER_MODE)
+		SendMediaSyncStartPacket(filename);
+
 	mediaOutput->filename = strdup(filename);
 	mediaOutputStatus.status = MEDIAOUTPUTSTATUS_PLAYING;
+	mediaOutputStatus.speedDelta = 0;
 
 	pthread_mutex_unlock(&mediaOutputLock);
 
@@ -169,6 +174,8 @@ void CloseMediaOutput(void) {
 		pthread_mutex_lock(&mediaOutputLock);
 	}
 
+	if (getFPPmode() == MASTER_MODE)
+		SendMediaSyncStopPacket(mediaOutput->filename);
 
 	free(mediaOutput->filename);
 	mediaOutput->filename = NULL;
@@ -176,4 +183,80 @@ void CloseMediaOutput(void) {
 	mediaOutput = 0;
 	pthread_mutex_unlock(&mediaOutputLock);
 }
+
+void CheckCurrentPositionAgainstMaster(void)
+{
+	static int lastDiff = 0;
+	int diff = (int)(mediaOutputStatus.mediaSeconds * 1000)
+				- (int)(masterMediaPosition * 1000);
+	int i = 0;
+
+	if (!mediaOutput)
+		return;
+
+	// Allow faster sync in first 10 seconds
+	int maxDelta = (mediaOutputStatus.mediaSeconds < 10) ? 5 : 5;
+	int desiredDelta = diff / -33;
+
+	if (desiredDelta > maxDelta)
+		desiredDelta = maxDelta;
+	else if (desiredDelta < (0 - maxDelta))
+		desiredDelta = 0 - maxDelta;
+
+
+
+	LogDebug(VB_MEDIAOUT, "Master: %.2f, Local: %.2f, Diff: %dms, delta: %d, new: %d\n",
+		masterMediaPosition, mediaOutputStatus.mediaSeconds, diff,
+		mediaOutputStatus.speedDelta, desiredDelta);
+
+	if (desiredDelta)
+	{
+		if (mediaOutputStatus.speedDelta < desiredDelta)
+		{
+			while (mediaOutputStatus.speedDelta < desiredDelta)
+			{
+				mediaOutput->speedUp();
+				mediaOutputStatus.speedDelta++;
+
+				if (mediaOutputStatus.speedDelta < desiredDelta)
+					usleep(30000);
+			}
+		}
+		else if (mediaOutputStatus.speedDelta > desiredDelta)
+		{
+			while (mediaOutputStatus.speedDelta > desiredDelta)
+			{
+				mediaOutput->slowDown();
+				mediaOutputStatus.speedDelta--;
+
+				if (mediaOutputStatus.speedDelta > desiredDelta)
+					usleep(30000);
+			}
+		}
+	}
+	else
+	{
+		if (mediaOutputStatus.speedDelta == 1)
+			mediaOutput->slowDown();
+		else if (mediaOutputStatus.speedDelta == -1)
+			mediaOutput->speedUp();
+		else if (mediaOutputStatus.speedDelta != 0)
+			mediaOutput->speedNormal();
+
+		mediaOutputStatus.speedDelta = 0;
+	}
+
+	lastDiff = diff;
+}
+
+void UpdateMasterMediaPosition(float seconds)
+{
+	if (getFPPmode() != REMOTE_MODE)
+		return;
+
+	masterMediaPosition = seconds;
+
+	CheckCurrentPositionAgainstMaster();
+}
+
 

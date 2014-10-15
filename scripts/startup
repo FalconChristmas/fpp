@@ -149,9 +149,9 @@ sed -e "s#FPPDIR#${FPPDIR}#g" < ${FPPDIR}/etc/apache2.site > /etc/apache2/sites-
 echo "FPP - Starting FPP boot script"
 ${BINDIR}/fpp_boot
 
-PiLCDenabled=$(awk -f ${FPPDIR}/scripts/readSetting.awk /home/pi/media/settings setting=PI_LCD_Enabled) 2>&1
+PiLCDenabled=$(getSetting PI_LCD_Enabled)
 
-if [[ $PiLCDenabled == "true" ]]
+if [ "x${PiLCDenabled}" = "x1" ]
 then
   echo "FPP - Checking for configured LCD, LCD Enabled, starting LCD daemon"
   ${FPPDIR}/scripts/lcd/fppLCD start

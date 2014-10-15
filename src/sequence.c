@@ -35,6 +35,7 @@
 
 #include "E131.h"
 #include "channeloutputthread.h"
+#include "common.h"
 #include "controlsend.h"
 #include "events.h"
 #include "effects.h"
@@ -44,17 +45,26 @@
 #include "sequence.h"
 #include "settings.h"
 
-#define FSEQ_STEP_SIZE_OFFSET      10
-#define FSEQ_STEP_TIME_OFFSET      18
-#define FSEQ_CHANNEL_DATA_OFFSET   28
-
 FILE         *seqFile = NULL;
 char          seqFilename[1024] = {'\x00'};
 unsigned long seqFileSize = 0;
 unsigned long seqFilePosition = 0;
+int           seqPaused = 0;
+int           seqSingleStep = 0;
+int           seqSingleStepBack = 0;
+int           seqVersionMajor = 0;
+int           seqVersionMinor = 0;
+int           seqVersion = 0;
+int           seqChanDataOffset = 0;
+int           seqFixedHeaderSize = 0;
 int           seqStepSize = 8192;
 int           seqStepTime = 50;
+int           seqNumPeriods = 0;
 int           seqRefreshRate = 20;
+int           seqNumUniverses = 0;
+int           seqUniverseSize = 0;
+int           seqGamma = 0;
+int           seqColorEncoding = 0;
 int           seqDuration = 0;
 int           seqSecondsElapsed = 0;
 int           seqSecondsRemaining = 0;
@@ -93,10 +103,20 @@ int OpenSequenceFile(const char *filename) {
 
 	strcpy(seqFilename, filename);
 
-	char tmpFilename[1024];
+	char tmpFilename[2048];
+	unsigned char tmpData[2048];
 	strcpy(tmpFilename,(const char *)getSequenceDirectory());
 	strcat(tmpFilename,"/");
 	strcat(tmpFilename, filename);
+
+	if (getFPPmode() == REMOTE_MODE)
+		CheckForHostSpecificFile(getSetting("HostName"), tmpFilename);
+
+	if (!FileExists(tmpFilename))
+	{
+		LogErr(VB_SEQUENCE, "Sequence file %s does not exist\n", tmpFilename);
+		return 0;
+	}
 
 	seqFile = fopen((const char *)tmpFilename, "r");
 	if (seqFile == NULL) 
@@ -114,31 +134,102 @@ int OpenSequenceFile(const char *filename) {
 		usleep(100000);
 	}
 
-	// Get Step Size
-	fseek(seqFile, FSEQ_STEP_SIZE_OFFSET, SEEK_SET);
-	bytesRead=fread(seqData, 1, 4, seqFile);
-	seqStepSize = seqData[0] +
-		(seqData[1] << 8) + (seqData[2] << 16) + (seqData[3] << 24);
+	///////////////////////////////////////////////////////////////////////
+	// Check 4-byte File format identifier
+	char seqFormatID[5];
+	strcpy(seqFormatID, "    ");
+	bytesRead = fread(seqFormatID, 1, 4, seqFile);
+	seqFormatID[4] = 0;
+	if ((bytesRead != 4) || (strcmp(seqFormatID, "PSEQ")))
+	{
+		LogErr(VB_SEQUENCE, "Error opening sequence file: %s. Incorrect File Format header: '%s'.\n", filename, seqFormatID);
+		return 0;
+	}
 
-	// Get Step Time
-	fseek(seqFile, FSEQ_STEP_TIME_OFFSET, SEEK_SET);
-	bytesRead=fread(seqData, 1, 2, seqFile);
-	seqStepTime = seqData[0] + (seqData[1] << 8);
+	///////////////////////////////////////////////////////////////////////
+	// Get Channel Data Offset
+	bytesRead = fread(tmpData, 1, 2, seqFile);
+	if (bytesRead != 2)
+	{
+		LogErr(VB_SEQUENCE, "Sequence file %s too short, unable to read channel data offset value\n", filename);
+		return 0;
+	}
+	seqChanDataOffset = tmpData[0] + (tmpData[1] << 8);
+
+	///////////////////////////////////////////////////////////////////////
+	// Now that we know the header size, read the whole header in one shot
+	fseek(seqFile, 0L, SEEK_SET);
+	bytesRead = fread(tmpData, 1, seqChanDataOffset, seqFile);
+	if (bytesRead != seqChanDataOffset)
+	{
+		LogErr(VB_SEQUENCE, "Sequence file %s too short, unable to read fixed header size value\n", filename);
+		return 0;
+	}
+
+	seqVersionMinor = tmpData[6];
+	seqVersionMajor = tmpData[7];
+	seqVersion      = (seqVersionMajor * 256) + seqVersionMinor;
+
+	seqFixedHeaderSize =
+		(tmpData[8])        + (tmpData[9] << 8);
+
+	seqStepSize =
+		(tmpData[10])       + (tmpData[11] << 8) +
+		(tmpData[12] << 16) + (tmpData[13] << 24);
+
+	seqNumPeriods =
+		(tmpData[14])       + (tmpData[15] << 8) +
+		(tmpData[16] << 16) + (tmpData[17] << 24);
+
+	seqStepTime =
+		(tmpData[18])       + (tmpData[19] << 8);
+
+	seqNumUniverses = 
+		(tmpData[20])       + (tmpData[21] << 8);
+
+	seqUniverseSize = 
+		(tmpData[22])       + (tmpData[23] << 8);
+
+	seqGamma         = tmpData[24];
+	seqColorEncoding = tmpData[25];
+
+	// End of v1.0 fields
+	if (seqVersion > 0x0100)
+	{
+	}
+
 	seqRefreshRate = 1000 / seqStepTime;
 
 	fseek(seqFile, 0L, SEEK_END);
 	seqFileSize = ftell(seqFile);
-	seqDuration = (int)((float)(seqFileSize - FSEQ_CHANNEL_DATA_OFFSET)
+	seqDuration = (int)((float)(seqFileSize - seqChanDataOffset)
 		/ ((float)seqStepSize * (float)seqRefreshRate));
 	seqSecondsRemaining = seqDuration;
-	fseek(seqFile, FSEQ_CHANNEL_DATA_OFFSET, SEEK_SET);
-	seqFilePosition = FSEQ_CHANNEL_DATA_OFFSET;
+	fseek(seqFile, seqChanDataOffset, SEEK_SET);
+	seqFilePosition = seqChanDataOffset;
 
-	LogDebug(VB_SEQUENCE, "seqStepSize: %d\n", seqStepSize);
-	LogDebug(VB_SEQUENCE, "seqStepTime: %dms\n", seqStepTime);
-	LogDebug(VB_SEQUENCE, "seqRefreshRate: %d\n", seqRefreshRate);
-	LogDebug(VB_SEQUENCE, "seqFileSize: %lu\n", seqFileSize);
-	LogDebug(VB_SEQUENCE, "seqDuration: %d\n", seqDuration);
+	LogDebug(VB_SEQUENCE, "Sequence File Information\n");
+	LogDebug(VB_SEQUENCE, "seqFilename           : %s\n", seqFilename);
+	LogDebug(VB_SEQUENCE, "seqVersion            : %d.%d\n",
+		seqVersionMajor, seqVersionMinor);
+	LogDebug(VB_SEQUENCE, "seqFormatID           : %s\n", seqFormatID);
+	LogDebug(VB_SEQUENCE, "seqChanDataOffset     : %d\n", seqChanDataOffset);
+	LogDebug(VB_SEQUENCE, "seqFixedHeaderSize    : %d\n", seqFixedHeaderSize);
+	LogDebug(VB_SEQUENCE, "seqStepSize           : %d\n", seqStepSize);
+	LogDebug(VB_SEQUENCE, "seqNumPeriods         : %d\n", seqNumPeriods);
+	LogDebug(VB_SEQUENCE, "seqStepTime           : %dms\n", seqStepTime);
+	LogDebug(VB_SEQUENCE, "seqNumUniverses       : %d *\n", seqNumUniverses);
+	LogDebug(VB_SEQUENCE, "seqUniverseSize       : %d *\n", seqUniverseSize);
+	LogDebug(VB_SEQUENCE, "seqGamma              : %d *\n", seqGamma);
+	LogDebug(VB_SEQUENCE, "seqColorEncoding      : %d *\n", seqColorEncoding);
+	LogDebug(VB_SEQUENCE, "seqRefreshRate        : %d\n", seqRefreshRate);
+	LogDebug(VB_SEQUENCE, "seqFileSize           : %lu\n", seqFileSize);
+	LogDebug(VB_SEQUENCE, "seqDuration           : %d\n", seqDuration);
+	LogDebug(VB_SEQUENCE, "'*' denotes field is currently ignored by FPP\n");
+
+	seqPaused = 0;
+	seqSingleStep = 0;
+	seqSingleStepBack = 0;
 
 	ResetChannelOutputFrameNumber();
 
@@ -159,7 +250,7 @@ int SeekSequenceFile(int frameNumber) {
 		return 0;
 	}
 
-	int newPos = FSEQ_CHANNEL_DATA_OFFSET + (frameNumber * seqStepSize);
+	int newPos = seqChanDataOffset + (frameNumber * seqStepSize);
 	LogDebug(VB_SEQUENCE, "Seeking to byte %d in %s\n", newPos, seqFilename);
 
 	fseek(seqFile, newPos, SEEK_SET);
@@ -185,8 +276,47 @@ void BlankSequenceData(void) {
 	bzero(seqData, sizeof(seqData));
 }
 
+int SequenceIsPaused(void) {
+	return seqPaused;
+}
+
+void ToggleSequencePause(void) {
+	if (seqPaused)
+		seqPaused = 0;
+	else
+		seqPaused = 1;
+}
+
+void SingleStepSequence(void) {
+	seqSingleStep = 1;
+}
+
+void SingleStepSequenceBack(void) {
+	seqSingleStepBack = 1;
+}
+
 void ReadSequenceData(void) {
 	size_t  bytesRead = 0;
+
+	if (seqPaused)
+	{
+		if (seqSingleStep)
+		{
+			seqSingleStep = 0;
+		}
+		else if (seqSingleStepBack)
+		{
+			seqSingleStepBack = 0;
+
+			int offset = seqStepSize * 2;
+			if (seqFilePosition > offset)
+				fseek(seqFile, 0 - offset, SEEK_CUR);
+		}
+		else
+		{
+			return;
+		}
+	}
 
 	if (IsSequenceRunning())
 	{
@@ -202,14 +332,16 @@ void ReadSequenceData(void) {
 			CloseSequenceFile();
 		}
 
-		seqSecondsElapsed = (int)((float)(seqFilePosition - FSEQ_CHANNEL_DATA_OFFSET)/((float)seqStepSize*(float)seqRefreshRate));
+		seqSecondsElapsed = (int)((float)(seqFilePosition - seqChanDataOffset)/((float)seqStepSize*(float)seqRefreshRate));
 		seqSecondsRemaining = seqDuration - seqSecondsElapsed;
 	}
 	else if ( getFPPmode() != BRIDGE_MODE )
 	{
 		BlankSequenceData();
 	}
+}
 
+void ProcessSequenceData(void) {
 	if (IsEffectRunning())
 		OverlayEffects(seqData);
 
@@ -239,6 +371,7 @@ void SendSequenceData(void) {
 
 void SendBlankingData(void) {
 	LogDebug(VB_SEQUENCE, "Sending Blanking Data\n");
+	usleep(100000);
 	ReadSequenceData();
 	SendSequenceData();
 }

@@ -66,7 +66,7 @@ typedef enum {
 extern int logLevel;
 extern char logLevelStr[16];
 extern int logMask;
-extern char logMaskStr[128];
+extern char logMaskStr[1024];
 
 #define LogErr(facility, format, args...)   _LogWrite(__FILE__, __LINE__, LOG_ERR, facility, format, ## args)
 #define LogInfo(facility, format, args...)  _LogWrite(__FILE__, __LINE__, LOG_INFO, facility, format, ## args)

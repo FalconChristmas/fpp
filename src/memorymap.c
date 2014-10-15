@@ -243,9 +243,35 @@ void OverlayMemoryMap(char *chanData) {
 		memcpy(chanData, chanDataMap, FPPD_MAX_CHANNELS);
 	} else {
 		for (i = 0; i < ctrlHeader->totalBlocks; i++, cb++) {
-			if (cb->isActive) {
+			if (cb->isActive == 1) { // Active - Opaque
 				memcpy(chanData + cb->startChannel - 1,
 					   chanDataMap + cb->startChannel - 1, cb->channelCount);
+			} else if (cb->isActive == 2) { // Active - Transparent
+				char *src = chanDataMap + cb->startChannel - 1;
+				char *dst = chanData + cb->startChannel - 1;
+
+				int j = 0;
+				for (j = 0; j < cb->channelCount; j++) {
+					if (*src)
+						*dst = *src;
+					src++;
+					dst++;
+				}
+			} else if (cb->isActive == 3) { // Active - Transparent RGB
+				char *src = chanDataMap + cb->startChannel - 1;
+				char *dst = chanData + cb->startChannel - 1;
+
+				int j = 0;
+				for (j = 0; j < cb->channelCount; j += 3) {
+					if (src[0] || src[1] || src[2])
+					{
+						dst[0] = src[0];
+						dst[1] = src[1];
+						dst[2] = src[2];
+					}
+					src += 3;
+					dst += 3;
+				}
 			}
 		}
 	}

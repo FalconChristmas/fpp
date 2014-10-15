@@ -39,6 +39,7 @@
 #include "channeloutputthread.h"
 #include "common.h"
 #include "controlrecv.h"
+#include "controlsend.h"
 #include "log.h"
 #include "omxplayer.h"
 #include "settings.h"
@@ -57,19 +58,22 @@ char dataStr[17];
 
 int omxplayer_StartPlaying(const char *filename)
 {
-	char  fullVideoPath[1024];
+	char  fullVideoPath[2048];
 
 	LogDebug(VB_MEDIAOUT, "omxplayer_StartPlaying(%s)\n", filename);
 
 	bzero(&mediaOutputStatus, sizeof(mediaOutputStatus));
 
-	if (snprintf(fullVideoPath, 1024, "%s/%s", getVideoDirectory(), filename)
-		>= 1024)
+	if (snprintf(fullVideoPath, 2048, "%s/%s", getVideoDirectory(), filename)
+		>= 2048)
 	{
 		LogErr(VB_MEDIAOUT, "Unable to play %s, full path name too long\n",
 			filename);
 		return 0;
 	}
+
+	if (getFPPmode() == REMOTE_MODE)
+		CheckForHostSpecificFile(getSetting("HostName"), fullVideoPath);
 
 	if (!FileExists(fullVideoPath))
 	{
@@ -121,10 +125,38 @@ int omxplayer_IsPlaying()
 /*
  *
  */
+void omxplayer_SlowDown(void)
+{
+	LogDebug(VB_MEDIAOUT, "Slowing Down playback\n");
+	write(pipeFromOMX[0], "8", 1);
+}
+
+/*
+ *
+ */
+void omxplayer_SpeedNormal(void)
+{
+	LogDebug(VB_MEDIAOUT, "Speed Playback Normal\n");
+	write(pipeFromOMX[0], "9", 1);
+}
+
+/*
+ *
+ */
+void omxplayer_SpeedUp(void)
+{
+	LogDebug(VB_MEDIAOUT, "Speeding Up playback\n");
+	write(pipeFromOMX[0], "0", 1);
+}
+
+/*
+ *
+ */
 void omxplayer_ProcessPlayerData(int bytesRead)
 {
 	int        ticks = 0;
 	static int lastSyncCheck = 0;
+	static int lastRemoteSync = 0;
 	int        mins = 0;
 	int        secs = 0;
 	int        subsecs = 0;
@@ -179,12 +211,23 @@ void omxplayer_ProcessPlayerData(int bytesRead)
 	// FIXME, can we get this?
 	// mediaOutputStatus.subSecondsRemaining = subsecs;
 
+	mediaOutputStatus.mediaSeconds = (float)((float)mediaOutputStatus.secondsElapsed + ((float)mediaOutputStatus.subSecondsElapsed/(float)100));
+
+	if (getFPPmode() == MASTER_MODE)
+	{
+		if ((mediaOutputStatus.secondsElapsed > 0) &&
+			(lastRemoteSync != mediaOutputStatus.secondsElapsed))
+		{
+			SendMediaSyncPacket(mediaOutput->filename, 0,
+				mediaOutputStatus.mediaSeconds);
+			lastRemoteSync = mediaOutputStatus.secondsElapsed;
+		}
+	}
+
 	if ((IsSequenceRunning()) &&
 		(mediaOutputStatus.secondsElapsed > 0) &&
 		(lastSyncCheck != mediaOutputStatus.secondsElapsed))
 	{
-		float MediaSeconds = (float)((float)mediaOutputStatus.secondsElapsed + ((float)mediaOutputStatus.subSecondsElapsed/(float)100));
-
 		LogDebug(VB_MEDIAOUT,
 			"Elapsed: %.2d.%.2d  Remaining: %.2d Total %.2d:%.2d.\n",
 			mediaOutputStatus.secondsElapsed,
@@ -193,7 +236,7 @@ void omxplayer_ProcessPlayerData(int bytesRead)
 			mediaOutputStatus.minutesTotal,
 			mediaOutputStatus.secondsTotal);
 
-		CalculateNewChannelOutputDelay(MediaSeconds);
+		CalculateNewChannelOutputDelay(mediaOutputStatus.mediaSeconds);
 		lastSyncCheck = mediaOutputStatus.secondsElapsed;
 	}
 }
@@ -278,6 +321,9 @@ MediaOutput omxplayerOutput = {
 	.startPlaying = omxplayer_StartPlaying,
 	.stopPlaying  = omxplayer_StopPlaying,
 	.processData  = omxplayer_ProcessData,
-	.isPlaying    = omxplayer_IsPlaying
+	.isPlaying    = omxplayer_IsPlaying,
+	.speedUp      = omxplayer_SpeedUp,
+	.slowDown     = omxplayer_SlowDown,
+	.speedNormal  = omxplayer_SpeedNormal
 	};
 

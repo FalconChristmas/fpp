@@ -32,5 +32,6 @@ int       FileExists(const char * File);
 void      HexDump(char *title, void *data, int len);
 int       GetInterfaceAddress(char *interface, char *addr, char *mask, char *gw);
 char     *FindInterfaceForIP(char *ip);
+int       CheckForHostSpecificFile(const char *hostname, char *filename);
 
 #endif

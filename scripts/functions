@@ -171,9 +171,20 @@ compileBinaries() {
 }
 
 #############################################################################
-# Helper scripts for running the Plugin pre/post start/stop scripts.
+# Helper script for running the User hook script with a specified hook
+runUserHookScript() {
+	if [ -f "/home/pi/media/scripts/UserCallbackHook.sh" ]
+	then
+		/bin/bash /home/pi/media/scripts/UserCallbackHook.sh $1
+	fi
+}
+
+#############################################################################
+# Helper scripts for running the User and Plugin pre/post start/stop scripts.
 # These are normally run from fppd_start and fppd_stop
-runPreStartPluginScripts() {
+runPreStartScripts() {
+	runUserHookScript preStart
+
 	/bin/ls -1 ${PLUGINDIR}/*/scripts/preStart.sh 2> /dev/null | while read FILE
 	do
 		echo "Running: ${FILE}"
@@ -181,15 +192,19 @@ runPreStartPluginScripts() {
 	done
 }
 
-runPostStartPluginScripts() {
+runPostStartScripts() {
 	/bin/ls -1 ${PLUGINDIR}/*/scripts/postStart.sh 2> /dev/null | while read FILE
 	do
 		echo "Running: ${FILE}"
 		/bin/bash ${FILE}
 	done
+
+	runUserHookScript postStart
 }
 
-runPreStopPluginScripts() {
+runPreStopScripts() {
+	runUserHookScript preStop
+
 	/bin/ls -1 ${PLUGINDIR}/*/scripts/preStop.sh 2> /dev/null | while read FILE
 	do
 		echo "Running: ${FILE}"
@@ -197,12 +212,14 @@ runPreStopPluginScripts() {
 	done
 }
 
-runPostStopPluginScripts() {
+runPostStopScripts() {
 	/bin/ls -1 ${PLUGINDIR}/*/scripts/postStop.sh 2> /dev/null | while read FILE
 	do
 		echo "Running: ${FILE}"
 		/bin/bash ${FILE}
 	done
+
+	runUserHookScript postStop
 }
 
 #############################################################################

@@ -40,6 +40,8 @@
 #include "USBDMXPro.h"
 #include "USBPixelnet.h"
 #include "USBRenard.h"
+#include "Triks-C.h"
+#include "GPIO595.h"
 #include "common.h"
 
 
@@ -95,7 +97,8 @@ int InitializeChannelOutputs(void) {
 		}
 	}
 
-	if ((getFPPmode() != BRIDGE_MODE) &&
+	if (((getFPPmode() != BRIDGE_MODE) ||
+		 (getSettingInt("E131Bridging"))) &&
 		(E131Output.isConfigured()))
 	{
 		channelOutputs[i].startChannel = 0;
@@ -185,6 +188,10 @@ int InitializeChannelOutputs(void) {
 				channelOutputs[i].output       = &USBRenardOutput;
 			} else if (!strcmp(type, "SPI-WS2801")) {
 				channelOutputs[i].output       = &SPIws2801Output;
+			} else if (!strcmp(type, "Triks-C")) {
+				channelOutputs[i].output       = &TriksCOutput;
+			} else if (!strcmp(type, "GPIO-595")) {
+				channelOutputs[i].output       = &GPIO595Output;
 			} else {
 				LogErr(VB_CHANNELOUT, "Unknown Channel Output type: %s\n", type);
 				continue;
@@ -287,6 +294,9 @@ int LoadChannelRemapData(void) {
 
 	strcpy(filename, getMediaDirectory());
 	strcat(filename, "/channelremap");
+
+	if (!FileExists(filename))
+		return 0;
 
 	channelRemaps = 0;
 

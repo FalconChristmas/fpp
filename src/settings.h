@@ -43,6 +43,8 @@ struct config
 	int		daemonize;
 	int		fppMode;
 	int		volume;
+	int		alwaysTransmit;
+	char	*fppDirectory;
 	char	*mediaDirectory;
 	char	*musicDirectory;
 	char	*sequenceDirectory;
@@ -83,7 +85,7 @@ int loadSettings(const char *filename);
 void CreateSettingsFile(char * file);
 void CheckExistanceOfDirectoriesAndFiles(void);
 int saveSettingsFile(void);
-
+int parseSetting(char *key, char *value);
 
 // Getters
 char *getSetting(char *setting);
@@ -92,6 +94,8 @@ int   getSettingInt(char *setting);
 int getDaemonize(void);
 int  getFPPmode(void);
 int  getVolume(void);
+int  getAlwaysTransmit(void);
+char *getFPPDirectory(void);
 char *getMediaDirectory(void);
 char *getMusicDirectory(void);
 char *getSequenceDirectory(void);

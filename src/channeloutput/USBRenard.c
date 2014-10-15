@@ -301,6 +301,8 @@ FPPChannelOutput USBRenardOutput = {
 	.close        = USBRenard_Close,
 	.isConfigured = USBRenard_IsConfigured,
 	.isActive     = USBRenard_IsActive,
-	.send         = USBRenard_SendData
+	.send         = USBRenard_SendData,
+	.startThread  = NULL,
+	.stopThread   = NULL,
 	};
 

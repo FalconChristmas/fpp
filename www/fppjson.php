@@ -4,8 +4,6 @@ $skipJSsettings = 1;
 require_once('common.php');
 require_once('commandsocket.php');
 
-//define('debug', true);
-
 $a = session_id();
 if(empty($a))
 {
@@ -30,6 +28,7 @@ $command_array = Array(
 	"getFPPSystems"       => 'GetFPPSystems',
 	"getSetting"          => 'GetSetting',
 	"setSetting"          => 'SetSetting',
+	"toggleSequencePause" => 'ToggleSequencePause',
 	"getPluginSetting"    => 'GetPluginSetting',
 	"setPluginSetting"    => 'SetPluginSetting',
 	"setAudioOutput"      => 'SetAudioOutput'
@@ -48,7 +47,9 @@ if ( isset($_GET['command']) && !empty($_GET['command']) ) {
 
 if (array_key_exists($command,$command_array) )
 {
-	if ( defined('debug') )
+	global $debug;
+
+	if ( $debug )
 		error_log("Calling " .$command);
 
 	call_user_func($command_array[$command]);
@@ -93,7 +94,7 @@ function GetSetting()
 
 function SetSetting()
 {
-	global $args;
+	global $args, $SUDO;
 
 	$setting = $args['key'];
 	$value   = $args['value'];
@@ -112,11 +113,18 @@ function SetSetting()
 		SendCommand("LogMask,$newValue,");
 	} else if ($setting == "HostName") {
 		$value = preg_replace("/[^a-zA-Z0-9]/", "", $value);
-		exec(SUDO . " sed -i 's/^.*\$/$value/' /etc/hostname ; " . SUDO . " hostname $value ; " . SUDO . " /etc/init.d/avahi-daemon restart", $output, $return_val);
+		exec($SUDO . " sed -i 's/^.*\$/$value/' /etc/hostname ; " . $SUDO . " hostname $value ; " . $SUDO . " /etc/init.d/avahi-daemon restart", $output, $return_val);
 		sleep(1); // Give Avahi time to restart before we return
+	} else {
+		SendCommand("SetSetting,$setting,$value,");
 	}
 
 	GetSetting();
+}
+
+function ToggleSequencePause()
+{
+	SendCommand("ToggleSequencePause");
 }
 
 function GetPluginSetting()
@@ -207,32 +215,32 @@ function GetFPPSystems()
 
 function SetAudioOutput()
 {
-	global $args;
+	global $args, $SUDO, $debug;
 
 	$card = $args['value'];
 
 	if ($card != 0 && file_exists("/proc/asound/card$card"))
 	{
-		exec(SUDO . " sed -i 's/card [0-9]/card ".$card."/' /root/.asoundrc", $output, $return_val);
+		exec($SUDO . " sed -i 's/card [0-9]/card ".$card."/' /root/.asoundrc", $output, $return_val);
 		unset($output);
 		if ($return_val)
 		{
 			error_log("Failed to set audio to card $card!");
 			return;
 		}
-		if ( defined('debug') )
+		if ( $debug )
 			error_log("Setting to audio output $card");
 	}
 	else if ($card == 0)
 	{
-		exec(SUDO . " sed -i 's/card [0-9]/card ".$card."/' /root/.asoundrc", $output, $return_val);
+		exec($SUDO . " sed -i 's/card [0-9]/card ".$card."/' /root/.asoundrc", $output, $return_val);
 		unset($output);
 		if ($return_val)
 		{
 			error_log("Failed to set audio back to default!");
 			return;
 		}
-		if ( defined('debug') )
+		if ( $debug )
 			error_log("Setting default audio");
 	}
 
@@ -428,12 +436,11 @@ function SetChannelOutputs()
 // Network Interface configuration
 function ApplyInterfaceInfo()
 {
-	global $settings;
-	global $args;
+	global $settings, $args, $SUDO;
 
 	$interface = $args['interface'];
 
-	exec(SUDO . " " . $settings['fppDir'] . "/scripts/config_network  $interface");
+	exec($SUDO . " " . $settings['fppDir'] . "/scripts/config_network  $interface");
 }
 
 
@@ -526,9 +533,9 @@ function SetInterfaceInfo()
 /////////////////////////////////////////////////////////////////////////////
 function ApplyDNSInfo()
 {
-	global $settings;
+	global $settings, $SUDO;
 
-	exec(SUDO . " " . $settings['fppDir'] . "/scripts/config_dns");
+	exec($SUDO . " " . $settings['fppDir'] . "/scripts/config_dns");
 }
 
 function GetDNSInfo()

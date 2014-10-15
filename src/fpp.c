@@ -121,6 +121,12 @@ int main (int argc, char *argv[])
         strcpy(command,"NextPlaylistItem");
       else if (!strcmp(argv[2], "prev"))
         strcpy(command,"PrevPlaylistItem");
+      else if (!strcmp(argv[2], "pause"))
+        sprintf(command,"ToggleSequencePause");
+      else if (!strcmp(argv[2], "step"))
+        sprintf(command,"SingleStepSequence");
+      else if (!strcmp(argv[2], "stepback"))
+        sprintf(command,"SingleStepSequenceBack");
       else if (!strcmp(argv[2], "stop"))
         sprintf(command,"d");
       else if (!strcmp(argv[2], "graceful"))
@@ -265,6 +271,9 @@ void Usage(char *appname)
 "                                 prev     - jump back to previous item\n"
 "                                 stop     - stop the playlist immediately\n"
 "                                 graceful - stop the playlist gracefully\n"
+"                                 pause    - pause a sequence (not media)\n"
+"                                 step     - single-step a paused sequence\n"
+"                                 stepback - step a paused sequence backwards\n"
 "  -S                           - Stop Playlist gracefully\n"
 "  -d                           - Stop Playlist immediately\n"
 "  -q                           - Shutdown fppd daemon\n"

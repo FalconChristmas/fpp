@@ -25,26 +25,15 @@
 
     function getAudioOutput()
     {
-      $current_card = trim(exec(SUDO . " sed -n '/card [0-9]/s/card \\([0-9]*\\)/\\1/p' /root/.asoundrc", $output, $return_val));
+      global $SUDO;
+
+      $current_card = trim(exec($SUDO . " sed -n '/card [0-9]/s/card \\([0-9]*\\)/\\1/p' /root/.asoundrc", $output, $return_val));
       if ($return_val)
       {
         error_log("Failed to get current audio output!");
         return;
       }
       return $current_card;
-    }
-
-    function piLCDenabledChecked()
-    {
-      if (ReadSettingFromFile("PI_LCD_Enabled") == false || 
-          ReadSettingFromFile("PI_LCD_Enabled") == "false")
-      {
-        return "";
-      }
-      else
-      {
-        return " checked";
-      }
     }
 ?>
 <script>
@@ -102,12 +91,6 @@
 	}
 
 $(document).ready(function(){
-  $("#chkPiLCDenabled").change(function(){
-    var enabled = $("#chkPiLCDenabled").is(':checked')	
-		var url = "fppxml.php?command=setPiLCDenabled&enabled=" + enabled;
-    $.get(url,SetPiLCDenabled);
-  });
-
   var logLevel = settings['LogLevel'];
   if (typeof logLevel === 'undefined')
     logLevel = "info";
@@ -124,12 +107,6 @@ $(document).ready(function(){
     $('#mask_' + logMasks[i]).prop('checked', true);
   }
 });
-
-function SetPiLCDenabled(data,status) 
-{
-  var i = 69;
-  var i = 69;
-}
 
 function LogLevelChanged()
 {
@@ -156,19 +133,33 @@ function AudioOutputChanged()
 <legend>FPP Global Settings</legend>
   <table table width = "100%">
     <tr>
-      <td width = "25%">Blank screen on startup:</td>
-      <td width = "75%"><? PrintSettingCheckbox("Screensaver", "screensaver", "1", "0"); ?></td>
+      <td width = "35%">Blank screen on startup:</td>
+      <td width = "65%"><? PrintSettingCheckbox("Screensaver", "screensaver", "1", "0"); ?></td>
     </tr>
     <tr>
-      <td width = "25%">Force Analog Audio Output:</td>
-      <td width = "75%"><? PrintSettingCheckbox("Force Analog Audio Output", "forceLocalAudio", "1", "0"); ?></td>
+      <td>Force Analog Audio Output:</td>
+      <td><? PrintSettingCheckbox("Force Analog Audio Output", "forceLocalAudio", "1", "0"); ?></td>
     </tr>
     <tr>
-      <td width = "25%">Pi 2x16 LCD Enabled:</td>
-      <td width = "75%"><input type="checkbox" id="chkPiLCDenabled" value="1" <?php echo piLCDenabledChecked();?>></td>
+      <td>Pi 2x16 LCD Enabled:</td>
+      <td><? PrintSettingCheckbox("Enable LCD Display", "PI_LCD_Enabled", "1", "0"); ?></td>
     </tr>
     <tr>
-      <td>FPPD Log Level:</td>
+      <td>Always transmit channel data:</td>
+      <td><? PrintSettingCheckbox("Always Transmit", "alwaysTransmit", "1", "0"); ?></td>
+    </tr>
+    <tr>
+      <td>Audio Output Device:</td>
+      <td><select id='AudioOutput' onChange='AudioOutputChanged();'>
+<?php
+foreach ( getAlsaCards() as $audio_val => $audio_key )
+    echo "<option value='".$audio_val."'>".$audio_key."</option>";
+?>
+        </select>
+      </td>
+    </tr>
+    <tr>
+      <td>Log Level:</td>
       <td><select id='LogLevel' onChange='LogLevelChanged();'>
             <option value='warn'>Warn</option>
             <option value='info'>Info</option>
@@ -177,21 +168,13 @@ function AudioOutputChanged()
           </select></td>
     </tr>
     <tr>
-      <td valign='top'>FPPD Log Mask:</td>
+      <td valign='top'>Log Mask:</td>
       <td>
         <table border=0 cellpadding=2 cellspacing=5 id='LogMask'>
           <tr>
-            <td>Overrides</td>
-            <td width='10px'></td>
-            <td colspan=3 align=center>Log Areas</td>
-            </tr>
-          <tr>
             <td valign=top>
               <input type='checkbox' id='mask_all' class='mask_all' onChange='MaskChanged(this);'>ALL<br>
-              <input type='checkbox' id='mask_most' class='mask_most' onChange='MaskChanged(this);'>Most
-              </td>
-            <td width='10px'></td>
-            <td valign=top>
+              <br>
               <input type='checkbox' id='mask_channeldata' class='mask_all' onChange='MaskChanged(this);'>Channel Data<br>
               <input type='checkbox' id='mask_channelout' class='mask_most' onChange='MaskChanged(this);'>Channel Outputs<br>
               <input type='checkbox' id='mask_command' class='mask_most' onChange='MaskChanged(this);'>Commands<br>
@@ -203,6 +186,8 @@ function AudioOutputChanged()
               </td>
             <td width='10px'></td>
             <td valign=top>
+              <input type='checkbox' id='mask_most' class='mask_most' onChange='MaskChanged(this);'>Most (default)<br>
+              <br>
               <input type='checkbox' id='mask_gpio' class='mask_most' onChange='MaskChanged(this);'>GPIO<br>
               <input type='checkbox' id='mask_mediaout' class='mask_most' onChange='MaskChanged(this);'>Media Outputs<br>
               <input type='checkbox' id='mask_sync' class='mask_most' onChange='MaskChanged(this);'>MultiSync<br>
@@ -216,21 +201,7 @@ function AudioOutputChanged()
         </table>
       </td>
     </tr>
-<tr>
-<td>
-Audio Output Device:
-</td>
-<td>
-<select id='AudioOutput' onChange='AudioOutputChanged();'>
-
-<?php
-foreach ( getAlsaCards() as $audio_val => $audio_key )
-	echo "<option value='".$audio_val."'>".$audio_key."</option>";
-?>
-
-</select>
-</td>
-</tr>
+<tr><td><a href="advancedsettings.php">Advanced Settings</a></td></tr>
   </table>
 
 </fieldset>

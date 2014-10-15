@@ -216,6 +216,8 @@ FPPChannelOutput USBDMXOpenOutput = {
 	.close        = USBDMXOpen_Close,
 	.isConfigured = USBDMXOpen_IsConfigured,
 	.isActive     = USBDMXOpen_IsActive,
-	.send         = USBDMXOpen_SendData
+	.send         = USBDMXOpen_SendData,
+	.startThread  = NULL,
+	.stopThread   = NULL,
 	};
 

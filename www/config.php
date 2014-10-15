@@ -1,8 +1,17 @@
 <?php
 
-//define('debug', true);
-define('CONFIG_FILE', '/home/pi/media/settings');
-define('SUDO', 'sudo');
+$SUDO = "sudo";
+$debug = false;
+$settingsFile = "/home/pi/media/settings";
+$fppRfsVersion = "Unknown";
+
+if (file_exists("/etc/fpp/rfs_version"))
+	$fppRfsVersion = trim(file_get_contents("/etc/fpp/rfs_version"));
+
+// Allow overrides that we'll ignore from the git repository to make it
+// easier to develop on machines configured differently than our current
+// Pi image.
+@include('.config.php');
 
 // Settings array so we can stop making individual variables for each new setting
 $settings = array();
@@ -24,7 +33,6 @@ function GetSettingValue($setting) {
 // Set some defaults
 $fppMode = "player";
 $fppDir = dirname(dirname(__FILE__));
-$settingsFile = CONFIG_FILE;
 $pluginDirectory   = "/opt/fpp/plugins";
 $mediaDirectory    = "/home/pi/media";
 $docsDirectory     = $fppDir . "/docs";
@@ -44,7 +52,7 @@ $bytesFile         = $mediaDirectory . "/bytesReceived";
 $remapFile         = $mediaDirectory . "/channelremap";
 $volume = 0;
 
-if (defined('debug'))
+if ($debug)
 {
 	error_log("DEFAULTS:");
 	error_log("fppDir: $fppDir");
@@ -69,10 +77,10 @@ if (defined('debug'))
 	error_log("volume: $volume");
 }
 
-$fd = @fopen(CONFIG_FILE, "r");
+$fd = @fopen($settingsFile, "r");
 if ( ! $fd )
 {
-  error_log("Couldn't open config file " . CONFIG_FILE);
+  error_log("Couldn't open config file " . $settingsFile);
   return(1);
 }
 
@@ -235,13 +243,14 @@ $settings['effectDirectory'] = $effectDirectory;
 $settings['logDirectory'] = $logDirectory;
 $settings['uploadDirectory'] = $uploadDirectory;
 $settings['docsDirectory'] = $docsDirectory;
+$settings['fppRfsVersion'] = $fppRfsVersion;
 
 putenv("SCRIPTDIR=$scriptDirectory");
 putenv("MEDIADIR=$mediaDirectory");
 putenv("LOGDIR=$logDirectory");
 putenv("SETTINGSFILE=$settingsFile");
 
-if (defined('debug'))
+if ($debug)
 {
 	error_log("SET:");
 	error_log("fppDir: $fppDir");

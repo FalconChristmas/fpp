@@ -93,6 +93,7 @@ if ( $handle )
           <li><a href="scheduler.php">Scheduler</a></li>
           <!-- <li><a href="video.php">Videos</a></li> -->
 		  <li><a href="plugins.php">Plugins</a></li>
+          <li><a href="scriptbrowser.php">Script Repository Browser</a></li>
 <?php
 $handle = opendir($pluginDirectory);
 if ( $handle )
@@ -115,7 +116,7 @@ if ( $handle )
         <ul>
           <li><a href="channeloutputs.php">Channel Outputs</a></li>
           <li><a href="channelremaps.php">Remap Channels</a></li>
-          <li><a href="channelmemorymaps.php">Memory Mapped Channel Blocks</a></li>
+          <li><a href="pixeloverlaymodels.php">Pixel Overlay Models</a></li>
           <li><a href="gpio.php">GPIO Inputs</a></li>
 <?php
 $handle = opendir($pluginDirectory);

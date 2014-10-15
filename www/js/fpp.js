@@ -1111,7 +1111,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 															"</tr>";
 															
 									$('#tblSchedule').append(tableRow);
-									$('.time').timepicker({'timeFormat': 'H:i:s'});
+									$('.time').timepicker({'timeFormat': 'H:i:s', 'typeaheadHighlight': false});
 									$('.date').datepicker({
 										'changeMonth': true,
 										'changeYear': true,
@@ -1573,6 +1573,11 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			xmlhttp.open("GET",url,true);
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
 			xmlhttp.send();
+	}
+
+	function ToggleSequencePause()
+	{
+		$.get("fppjson.php?command=toggleSequencePause");
 	}
 
 	function StopFPPD()
@@ -2078,7 +2083,7 @@ function GetFPPDmode()
 function DisplayHelp()
 {
 	$('#helpText').html("No help file exists for this page yet");
-	$('#helpText').load("help/" + pageName + ".html");
+	$('#helpText').load("help/" + pageName + ".php");
 	$('#dialog-help').dialog({ height: 600, width: 800, title: "Help" });
 	$('#dialog-help').dialog( "moveToTop" );
 }
@@ -2142,6 +2147,84 @@ function DeleteFile(dir, file)
 		}
 	};
 	xmlhttp.send();
+}
+
+function ConvertFileDialog(file)
+{
+	$( "#dialog-confirm" ).dialog({
+		resizable: false,
+		height: 240,
+		modal: true,
+		buttons: {
+			"Sequence": function() {
+				$( this ).dialog( "close" );
+				ConvertFile(file, "sequence");
+			},
+			"Effect": function() {
+				$( this ).dialog( "close" );
+				ConvertFile(file, "effect");
+			}
+		}
+	});
+}
+
+function ConvertFile(file, convertTo)
+{
+	var opts = {
+		lines: 9, // The number of lines to draw
+		length: 25, // The length of each line
+		width: 10, // The line thickness
+		radius: 25, // The radius of the inner circle
+		corners: 1, // Corner roundness (0..1)
+		rotate: 0, // The rotation offset
+		direction: 1, // 1: clockwise, -1: counterclockwise
+		color: '#fff', // #rgb or #rrggbb or array of colors
+		speed: 1, // Rounds per second
+		trail: 60, // Afterglow percentage
+		shadow: false, // Whether to render a shadow
+	};
+
+	var target = document.getElementById('overlay');
+	var spinner = new Spinner(opts).spin(target);
+
+	target.style.display = 'block';
+	document.body.style.cursor = "wait";
+
+	$.get("fppxml.php?command=convertFile&convertTo=" +
+		convertTo + "&filename=" + file).success(function(data) {
+	
+			target.style.display = 'none';
+			document.body.style.cursor = "default";
+
+			var result = $(data).find( "Status" ).text();
+
+			if ( result == "Success" )
+			{
+				GetFiles('Uploads');
+				if ( convertTo == "sequence" )
+				{
+					GetFiles('Sequences');
+					var index = $('#tabs a[href="#tab-sequence"]').parent().index();
+					$('#tabs').tabs( "option", "active", index );
+				}
+				else if ( convertTo == "effect" )
+				{
+					GetFiles('Effects');
+					var index = $('#tabs a[href="#tab-effects"]').parent().index();
+					$('#tabs').tabs( "option", "active", index );
+				}
+				$.jGrowl("Sequence Converted Successfully!");
+			}
+			else // if ( result == "Failure" )
+			{
+				DialogError("Failed to convert sequence!", $(data).find( "Error" ).text());
+			}
+		}).fail(function(data) {
+			target.style.display = 'none';
+			document.body.style.cursor = "default";
+
+			DialogError("Failed to initiate conversion!", $(data).find( "Error" ).text());
+		});
 }
 
 function SaveUSBDongleSettings()
