@@ -331,18 +331,20 @@ function GetGPIO595OutputConfig(cell) {
 }
 
 /////////////////////////////////////////////////////////////////////////////
-// Renard Serial Outputs
-var RenardDevices = new Array();
+// Serial Devices used by Renard and LOR
+var SerialDevices = new Array();
 <?
 	foreach(scandir("/dev/") as $fileName)
 	{
 		if ((preg_match("/^ttyS[0-9]+/", $fileName)) ||
 			(preg_match("/^ttyACM[0-9]+/", $fileName)) ||
 			(preg_match("/^ttyUSB[0-9]+/", $fileName))) {
-			echo "RenardDevices['$fileName'] = '$fileName';\n";
+			echo "SerialDevices['$fileName'] = '$fileName';\n";
 		}
 	}
 ?>
+/////////////////////////////////////////////////////////////////////////////
+// Renard Serial Outputs
 
 var RenardSpeeds = new Array();
 RenardSpeeds[ "19200"] =  "19200";
@@ -352,9 +354,6 @@ RenardSpeeds["115200"] = "115200";
 RenardSpeeds["230400"] = "230400";
 RenardSpeeds["460800"] = "460800";
 RenardSpeeds["921600"] = "921600";
-<?
-
-?>
 
 function RenardSpeedSelect(currentValue) {
 	var result = "Speed: <select class='renardspeed'>";
@@ -387,7 +386,7 @@ function RenardOutputConfig(config) {
 		var item = items[j].split("=");
 
 		if (item[0] == "device") {
-			result += DeviceSelect(RenardDevices, item[1]) + "&nbsp;&nbsp;";
+			result += DeviceSelect(SerialDevices, item[1]) + "&nbsp;&nbsp;";
 		} else if (item[0] == "renardspeed") {
 			result += RenardSpeedSelect(item[1]);
 		}
@@ -418,8 +417,98 @@ function GetRenardOutputConfig(cell) {
 
 function NewRenardConfig() {
 	var result = "";
-	result += DeviceSelect(RenardDevices, "") + "&nbsp;&nbsp;";
+	result += DeviceSelect(SerialDevices, "") + "&nbsp;&nbsp;";
 	result += RenardSpeedSelect("");
+	return result;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// LOR Serial Outputs
+
+var LORSpeeds = new Array();
+LORSpeeds[  "9600"] =   "9600";
+LORSpeeds[ "19200"] =  "19200";
+LORSpeeds[ "38400"] =  "38400";
+LORSpeeds[ "57600"] =  "57600";
+LORSpeeds["115200"] = "115200";
+
+var LORMaxChannels = new Array();
+LORMaxChannels[  "9600"] =  "8";
+LORMaxChannels[ "19200"] = "16";
+LORMaxChannels[ "38400"] = "32";
+LORMaxChannels[ "57600"] = "48";
+LORMaxChannels["115200"] = "96";
+
+function LORSpeedChanged(item) {
+	var value = $(item).val();
+
+	$(item).parent().parent().find("input.count").val(LORMaxChannels[value]);
+}
+
+function LORSpeedSelect(currentValue) {
+	var result = "Speed: <select class='speed' onChange='LORSpeedChanged(this);'>";
+
+	for (var key in LORSpeeds) {
+		result += "<option value='" + key + "'";
+
+		if (currentValue == key) {
+			result += " selected";
+		}
+
+		// Make 19.2k the default
+		if ((currentValue == "") && (key == "19200")) {
+			result += " selected";
+		}
+
+		result += ">" + LORSpeeds[key] + "</option>";
+	}
+
+	result += "</select>";
+
+	return result;
+}
+
+function LOROutputConfig(config) {
+	var items = config.split(";");
+	var result = "";
+
+	for (var j = 0; j < items.length; j++) {
+		var item = items[j].split("=");
+
+		if (item[0] == "device") {
+			result += DeviceSelect(SerialDevices, item[1]) + "&nbsp;&nbsp;";
+		} else if (item[0] == "speed") {
+			result += LORSpeedSelect(item[1]);
+		}
+	}
+
+	return result;
+}
+
+function GetLOROutputConfig(cell) {
+	$cell = $(cell);
+	var result = "";
+	var value = $cell.find("select.device").val();
+
+	if (value == "")
+		return "";
+
+	result += "device=" + value + ";";
+
+	value = $cell.find("select.speed").val();
+
+	if (value == "")
+		return "";
+
+	result += "speed=" + value;
+
+	return result;
+}
+
+function NewLORConfig() {
+	var result = "";
+	result += DeviceSelect(SerialDevices, "") + "&nbsp;&nbsp;";
+	result += LORSpeedSelect("");
 	return result;
 }
 
@@ -499,6 +588,8 @@ function PopulateChannelOutputTable(data) {
 			newRow += USBDeviceConfig(output[4]);
 		} else if (type == "Renard") {
 			newRow += RenardOutputConfig(output[4]);
+		} else if (type == "LOR") {
+			newRow += LOROutputConfig(output[4]);
 		} else if (type == "SPI-WS2801") {
 			newRow += SPIDeviceConfig(output[4]);
 		} else if (type == "Triks-C") {
@@ -576,6 +667,14 @@ function SetChannelOutputs() {
 				return;
 			}
 			maxChannels = 1528;
+		} else if (type == "LOR") {
+			config += GetLOROutputConfig($this.find("td:nth-child(6)"));
+			if (config == "") {
+				dataError = 1;
+				DialogError("Save Channel Outputs", "Invalid Output Config");
+				return;
+			}
+			maxChannels = 96;
 		} else if (type == "SPI-WS2801") {
 			config += GetSPIOutputConfig($this.find("td:nth-child(6)"));
 			if (config == "") {
@@ -669,6 +768,10 @@ function AddOtherTypeOptions(row, type) {
 	} else if (type == "Renard") {
 		config += NewRenardConfig();
 		row.find("td input.count").val("286");
+	} else if (type == "LOR") {
+		config += NewLORConfig();
+		row.find("td input.count").val("16");
+		row.find("td input.speed").val("19200");
 	} else if (type == "SPI-WS2801") {
 		config += NewSPIConfig();
 		row.find("td input.count").val("1530");
@@ -701,8 +804,8 @@ function OtherTypeSelected(selectbox) {
 		return;
 	}
 
-	if ((Object.keys(RenardDevices).length == 0) &&
-			(type == 'Renard'))
+	if ((Object.keys(SerialDevices).length == 0) &&
+			((type == 'Renard') || (type == 'LOR')))
 	{
 		DialogError("Add Output", "No available serial devices detected.");
 		$row.remove();
@@ -729,7 +832,7 @@ function OtherTypeSelected(selectbox) {
 
 function AddOtherOutput() {
 	if ((Object.keys(USBDevices).length == 0) &&
-		(Object.keys(RenardDevices).length == 0) &&
+		(Object.keys(SerialDevices).length == 0) &&
 		(Object.keys(SPIDevices).length == 0)) {
 		DialogError("Add Output", "No available devices found for new outputs");
 		return;
@@ -746,6 +849,7 @@ function AddOtherOutput() {
 				"<option value='DMX-Open'>DMX-Open</option>" +
 				"<option value='Pixelnet-Lynx'>Pixelnet-Lynx</option>" +
 				"<option value='Pixelnet-Open'>Pixelnet-Open</option>" +
+				"<option value='LOR'>LOR</option>" +
 				"<option value='Renard'>Renard</option>" +
 				"<option value='SPI-WS2801'>SPI-WS2801</option>" +
 				"<option value='Triks-C'>Triks-C</option>" +

@@ -31,6 +31,7 @@ OBJECTS_fppd = \
 	channeloutput/E131.o \
 	channeloutput/FPD.o \
 	channeloutput/GPIO595.o \
+	channeloutput/LOR.o \
 	channeloutput/serialutil.o \
 	channeloutput/SPIws2801.o \
 	channeloutput/Triks-C.o \

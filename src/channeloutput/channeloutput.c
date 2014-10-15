@@ -36,6 +36,7 @@
 #include "sequence.h"
 #include "settings.h"
 #include "SPIws2801.h"
+#include "LOR.h"
 #include "USBDMXOpen.h"
 #include "USBDMXPro.h"
 #include "USBPixelnet.h"
@@ -184,6 +185,8 @@ int InitializeChannelOutputs(void) {
 				channelOutputs[i].output       = &USBDMXProOutput;
 			} else if (!strcmp(type, "DMX-Open")) {
 				channelOutputs[i].output       = &USBDMXOpenOutput;
+			} else if (!strcmp(type, "LOR")) {
+				channelOutputs[i].output       = &LOROutput;
 			} else if (!strcmp(type, "Renard")) {
 				channelOutputs[i].output       = &USBRenardOutput;
 			} else if (!strcmp(type, "SPI-WS2801")) {
