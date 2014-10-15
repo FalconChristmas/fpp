@@ -38,7 +38,7 @@ modprobe rtc-ds1307
 
 piRTC=$(awk -f ${FPPDIR}/scripts/readSetting.awk ${SETTINGSFILE} setting=piRTC)
 
-case $piRTC in
+case "$piRTC" in
 1)
   # rasClock chip
   if [ $REV -lt 4 ]
@@ -61,7 +61,7 @@ case $piRTC in
     echo "FPP - Configuring RTC, Setting to DS1307/i2c-1"
   fi
   ;;
-0)
+*)
   # None
     echo "FPP - Configuring RTC, None Selected"
   ;;
