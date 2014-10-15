@@ -310,13 +310,27 @@ void PrintChannelMapBlocks(void) {
  * Setup the pixel map for this channel block
  */
 void SetupPixelMapForBlock(FPPChannelMemoryMapControlBlock *cb) {
+	LogInfo(VB_CHANNELOUT, "Initializing Channel Memory Map Pixel Map\n");
+
+	if ((!cb->channelCount) ||
+		(!cb->strandsPerString) ||
+		(!cb->stringCount)) {
+		LogErr(VB_CHANNELOUT, "Invalid config for '%s' Memory Map Block\n",
+			cb->blockName);
+		return;
+	}
+
+	if ((cb->channelCount % 3) != 0) {
+		LogErr(VB_CHANNELOUT, "Memory Map Block '%s' channel count is not divisible by 3\n", cb->blockName);
+		LogErr(VB_CHANNELOUT, "unable to configure pixel map array.\n");
+		return;
+	}
+
 	int TtoB = (cb->startCorner[0] == 'T') ? 1 : 0;
 	int LtoR = (cb->startCorner[1] == 'L') ? 1 : 0;
 	int stringSize = cb->channelCount / 3 / cb->stringCount;
 	int width = stringSize / cb->strandsPerString;
 	int height = cb->channelCount / 3 / width;
-
-	LogInfo(VB_CHANNELOUT, "Initializing Channel Memory Map Pixel Map\n");
 
 	if (cb->orientation == 'H') {
 		// Horizontal Orientation
