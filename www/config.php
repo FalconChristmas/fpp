@@ -50,7 +50,8 @@ $pixelnetFile      = $mediaDirectory . "/pixelnetDMX";
 $scheduleFile      = $mediaDirectory . "/schedule";
 $bytesFile         = $mediaDirectory . "/bytesReceived";
 $remapFile         = $mediaDirectory . "/channelremap";
-$volume = 0;
+$volume            = 0;
+$emailenable       = "0";
 
 if ($debug)
 {
@@ -75,6 +76,7 @@ if ($debug)
 	error_log("remaps: $remapFile");
 	error_log("bytes: $bytesFile");
 	error_log("volume: $volume");
+	error_log("emailenable: $emailenable");
 }
 
 $fd = @fopen($settingsFile, "r");
@@ -134,7 +136,7 @@ do
 	global $fppMode, $volume, $settingsFile;
 	global $mediaDirectory, $musicDirectory, $sequenceDirectory, $playlistDirectory;
 	global $eventDirectory, $videoDirectory, $scriptDirectory, $logDirectory;
-	global $pluginDirectory;
+	global $pluginDirectory, $emailenable;
 	global $universeFile, $pixelnetFile, $scheduleFile, $bytesFile, $remapFile;
 
 	// Parse the file, assuming it exists
@@ -219,6 +221,9 @@ do
 		case "remapFile":
 			$remapFile = trim($split[1]);
 			break;
+		case "emailenable":
+			$emailenable = trim($split[1]);
+			break;
 	}
 }
 while ( $data != NULL );
@@ -244,6 +249,7 @@ $settings['logDirectory'] = $logDirectory;
 $settings['uploadDirectory'] = $uploadDirectory;
 $settings['docsDirectory'] = $docsDirectory;
 $settings['fppRfsVersion'] = $fppRfsVersion;
+$settings['emailenable'] = $emailenable;
 
 putenv("SCRIPTDIR=$scriptDirectory");
 putenv("MEDIADIR=$mediaDirectory");
@@ -273,6 +279,7 @@ if ($debug)
 	error_log("remaps: $remapFile");
 	error_log("bytes: $bytesFile");
 	error_log("volume: $volume");
+	error_log("emailenable: $emailenable");
 }
 
 function GetDirSetting($dir)
