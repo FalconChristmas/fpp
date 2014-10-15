@@ -137,10 +137,10 @@ void SyncSyncedSequence(char *filename, int frameNumber, float secondsElapsed) {
  *
  */
 void StopSyncedMedia(char *filename) {
+	LogDebug(VB_SYNC, "StopSyncedMedia(%s)\n", filename);
+
 	if (!mediaOutput)
 		return;
-
-	LogDebug(VB_SYNC, "StopSyncedMedia(%s)\n", filename);
 
 	if (!strcmp(mediaOutput->filename, filename))
 	{

@@ -91,6 +91,8 @@ void *RunChannelOutputThread(void *data)
 	struct timespec ts;
 	int syncFrameCounter = 0;
 
+	LogDebug(VB_CHANNELOUT, "RunChannelOutputThread() starting\n");
+
 	ThreadIsRunning = 1;
 
 	if (getFPPmode() == REMOTE_MODE)
@@ -173,6 +175,9 @@ void *RunChannelOutputThread(void *data)
 	}
 
 	ThreadIsRunning = 0;
+
+	LogDebug(VB_CHANNELOUT, "RunChannelOutputThread() completed\n");
+
 	pthread_exit(NULL);
 }
 

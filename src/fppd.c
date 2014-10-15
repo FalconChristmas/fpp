@@ -162,6 +162,8 @@ void MainLoop(void)
 	struct timeval timeout;
 	int            selectResult;
 
+	LogDebug(VB_GENERAL, "MainLoop()\n");
+
 	FD_ZERO (&active_fd_set);
 
 	commandSock = Command_Initialize();
