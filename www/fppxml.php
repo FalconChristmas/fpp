@@ -195,6 +195,8 @@ function GetGitOriginLog()
 
 function GitStatus()
 {
+	global $fppDir;
+
 	$fullLog = "";
 	exec("$fppDir/scripts/git_status", $log);
 	$fullLog .= implode("\n", $log);
