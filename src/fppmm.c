@@ -415,7 +415,7 @@ void FillMappedBlock(char *blockName, int channelData) {
 	FPPChannelMemoryMapControlBlock *cb = FindBlock(blockName);
 
 	if (cb) {
-		memset(dataMap + cb->startChannel, channelData, cb->channelCount);
+		memset(dataMap + cb->startChannel - 1, channelData, cb->channelCount);
 	} else {
 		printf( "ERROR: Could not find MAP %s\n", blockName);
 	}
