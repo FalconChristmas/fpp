@@ -230,7 +230,7 @@ void LOR_SendHeartbeat(LORPrivData *privData)
 	long long now = GetTime();
 
 	// Only send a heartbeat every 300ms
-	if (privData->lastHeartbeat > (now - 300000000))
+	if (privData->lastHeartbeat > (now - 300000))
 		return;
 
 	if (privData->fd > 0)
