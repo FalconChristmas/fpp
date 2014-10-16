@@ -186,7 +186,6 @@ void CloseMediaOutput(void) {
 
 void CheckCurrentPositionAgainstMaster(void)
 {
-	static int lastDiff = 0;
 	int diff = (int)(mediaOutputStatus.mediaSeconds * 1000)
 				- (int)(masterMediaPosition * 1000);
 	int i = 0;
@@ -215,7 +214,14 @@ void CheckCurrentPositionAgainstMaster(void)
 		{
 			while (mediaOutputStatus.speedDelta < desiredDelta)
 			{
+				pthread_mutex_lock(&mediaOutputLock);
+				if (!mediaOutput)
+				{
+					pthread_mutex_unlock(&mediaOutputLock);
+					return;
+				}
 				mediaOutput->speedUp();
+				pthread_mutex_unlock(&mediaOutputLock);
 				mediaOutputStatus.speedDelta++;
 
 				if (mediaOutputStatus.speedDelta < desiredDelta)
@@ -226,7 +232,14 @@ void CheckCurrentPositionAgainstMaster(void)
 		{
 			while (mediaOutputStatus.speedDelta > desiredDelta)
 			{
+				pthread_mutex_lock(&mediaOutputLock);
+				if (!mediaOutput)
+				{
+					pthread_mutex_unlock(&mediaOutputLock);
+					return;
+				}
 				mediaOutput->slowDown();
+				pthread_mutex_unlock(&mediaOutputLock);
 				mediaOutputStatus.speedDelta--;
 
 				if (mediaOutputStatus.speedDelta > desiredDelta)
@@ -236,6 +249,13 @@ void CheckCurrentPositionAgainstMaster(void)
 	}
 	else
 	{
+		pthread_mutex_lock(&mediaOutputLock);
+		if (!mediaOutput)
+		{
+			pthread_mutex_unlock(&mediaOutputLock);
+			return;
+		}
+
 		if (mediaOutputStatus.speedDelta == 1)
 			mediaOutput->slowDown();
 		else if (mediaOutputStatus.speedDelta == -1)
@@ -243,10 +263,10 @@ void CheckCurrentPositionAgainstMaster(void)
 		else if (mediaOutputStatus.speedDelta != 0)
 			mediaOutput->speedNormal();
 
+		pthread_mutex_unlock(&mediaOutputLock);
+
 		mediaOutputStatus.speedDelta = 0;
 	}
-
-	lastDiff = diff;
 }
 
 void UpdateMasterMediaPosition(float seconds)
