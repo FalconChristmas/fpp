@@ -16,6 +16,7 @@ error_reporting(E_ALL);
 $nonXML = Array(
 	"getFile" => 1,
 	"getGitOriginLog" => 1,
+	"gitStatus" => 1,
 	"getVideoInfo" => 1,
 	"viewRemoteScript" => 1
 	);
@@ -70,6 +71,8 @@ $command_array = Array(
 	"manualGitUpdate" => 'ManualGitUpdate',
 	"changeGitBranch" => 'ChangeGitBranch',
 	"getGitOriginLog" => 'GetGitOriginLog',
+	"gitStatus" => 'GitStatus',
+	"resetGit" => 'ResetGit',
 	"setAutoUpdate" => 'SetAutoUpdate',
 	"setDeveloperMode" => 'SetDeveloperMode',
 	"setVolume" => 'SetVolume',
@@ -188,6 +191,23 @@ function GetGitOriginLog()
 	$fullLog .= implode("\n", $log);
 
 	echo $fullLog;
+}
+
+function GitStatus()
+{
+	$fullLog = "";
+	exec("$fppDir/scripts/git_status", $log);
+	$fullLog .= implode("\n", $log);
+
+	echo $fullLog;
+}
+
+function ResetGit()
+{
+	global $fppDir;
+	exec("$fppDir/scripts/git_reset");
+
+	EchoStatusXML("OK");
 }
 
 function SetAutoUpdate()

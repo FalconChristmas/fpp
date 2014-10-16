@@ -114,6 +114,13 @@ this.value = default_value;
 });
 });
 
+function GitReset() {
+	$.get("fppxml.php?command=gitReset"
+		).success(function() {
+			$('#gitStatusPre').load('fppxml.php?command=gitStatus');
+		});
+}
+
 function ToggleAutoUpdate() {
 	if ($('#autoUpdateDisabled').is(':checked')) {
 		SetAutoUpdate(0);
@@ -227,11 +234,20 @@ a:visited {
     <div class="clear"></div>
       <div id='gitStatus'>
         <b>Git Status:</b><br>
-        <pre><? echo $git_status; ?></pre>
+        <pre id='gitStatusPre'><? echo $git_status; ?></pre>
       </div>
       <div id='gitStatus'>
         <b>Debug Actions:</b><br>
-		<input type='button' value='Pause/UnPause Sequence' onClick='ToggleSequencePause();'><br>
+		<li>Sequence<br>
+			<input type='button' value='Pause/UnPause' onClick='ToggleSequencePause();'>
+			<input type='button' value='Step' onClick='SingleStepSequence();'>
+			<input type='button' value='Step Back' onClick='SingleStepSequenceBack();'>
+				(these do not affect media playback)
+			</li>
+		<br>
+		<li>Git<br>
+			<input type='button' value='Reset Local Changes' onClick='GitReset();'> <b>WARNING:</b> This performs a "git reset --hard HEAD" to revert all local source code changes
+			</li>
       </div>
     </fieldset>
     <div id='logViewer' title='Log Viewer' style="display: none">

@@ -1580,6 +1580,16 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 		$.get("fppjson.php?command=toggleSequencePause");
 	}
 
+	function SingleStepSequence()
+	{
+		$.get("fppjson.php?command=singleStepSequence");
+	}
+
+	function SingleStepSequenceBack()
+	{
+		$.get("fppjson.php?command=singleStepSequenceBack");
+	}
+
 	function StopFPPD()
 	{
     	var xmlhttp=new XMLHttpRequest();

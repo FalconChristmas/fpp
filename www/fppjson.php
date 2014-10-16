@@ -29,6 +29,8 @@ $command_array = Array(
 	"getSetting"          => 'GetSetting',
 	"setSetting"          => 'SetSetting',
 	"toggleSequencePause" => 'ToggleSequencePause',
+	"singleStepSequence"  => 'SingleStepSequence',
+	"singleStepSequenceBack" => 'SingleStepSequenceBack',
 	"getPluginSetting"    => 'GetPluginSetting',
 	"setPluginSetting"    => 'SetPluginSetting',
 	"setAudioOutput"      => 'SetAudioOutput'
@@ -125,6 +127,16 @@ function SetSetting()
 function ToggleSequencePause()
 {
 	SendCommand("ToggleSequencePause");
+}
+
+function SingleStepSequence()
+{
+	SendCommand("SingleStepSequence");
+}
+
+function SingleStepSequenceBack()
+{
+	SendCommand("SingleStepSequenceBack");
 }
 
 function GetPluginSetting()

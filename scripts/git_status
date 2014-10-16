@@ -1,0 +1,13 @@
+#!/bin/bash
+
+BINDIR=$(cd $(dirname $0) && pwd)
+
+. ${BINDIR}/common
+
+if [ "x${FPPDIR}" = "x/opt/fpp" ]
+then
+	cd ${FPPDIR} && $SUDO git status
+else
+	cd ${FPPDIR} && sudo -u pi git status
+fi
+
