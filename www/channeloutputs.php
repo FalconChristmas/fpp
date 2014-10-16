@@ -276,13 +276,69 @@ function GetTriksOutputConfig(cell) {
 }
 
 /////////////////////////////////////////////////////////////////////////////
+// GPIO Pin direct high/low output
+
+function GPIOGPIOSelect(currentValue) {
+	var result = "";
+	var options = "17,18,27,22,23,24".split(",");
+	var labels = "17,18,27,22,23,24".split(",");
+
+	result += " BCM GPIO Output: <select class='gpio'>";
+
+	var i = 0;
+	for (i = 0; i < options.length; i++) {
+		var opt = options[i];
+
+		result += "<option value='" + opt + "'";
+		if (currentValue == opt)
+			result += " selected";
+		result += ">" + labels[i] + "</option>";
+	}
+
+	result += "</select>";
+
+	return result;
+}
+
+function NewGPIOConfig() {
+	var result = "";
+	result += GPIOGPIOSelect("");
+	return result;
+}
+
+function GPIODeviceConfig(config) {
+	var items = config.split(";");
+	var result = "";
+
+	for (var j = 0; j < items.length; j++) {
+		var item = items[j].split("=");
+
+		if (item[0] == "gpio") {
+			result += GPIOGPIOSelect(item[1]);
+		}
+	}
+
+	return result;
+}
+
+function GetGPIOOutputConfig(cell) {
+	$cell = $(cell);
+	var gpio = $cell.find("select.gpio").val();
+
+	if (gpio == "")
+		return "";
+
+	return "gpio=" + gpio;
+}
+
+/////////////////////////////////////////////////////////////////////////////
 // GPIO-attached 74HC595 Shift Register Output
 
 function GPIO595GPIOSelect(currentValue) {
 	var result = "";
 	var options = "17-18-27,22-23-24".split(",");
 
-	result += " GPIO Outputs: <select class='gpio'>";
+	result += " BCM GPIO Outputs: <select class='gpio'>";
 
 	var i = 0;
 	for (i = 0; i < options.length; i++) {
@@ -572,7 +628,7 @@ function PopulateChannelOutputTable(data) {
 
 		var countDisabled = "";
 
-		if (type == "Triks-C")
+		if ((type == "Triks-C") || (type == 'GPIO'))
 			countDisabled = " disabled=''";
 
 		newRow += "></td>" +
@@ -594,6 +650,8 @@ function PopulateChannelOutputTable(data) {
 			newRow += SPIDeviceConfig(output[4]);
 		} else if (type == "Triks-C") {
 			newRow += TriksDeviceConfig(output[4]);
+		} else if (type == "GPIO") {
+			newRow += GPIODeviceConfig(output[4]);
 		} else if (type == "GPIO-595") {
 			newRow += GPIO595DeviceConfig(output[4]);
 		}
@@ -691,6 +749,14 @@ function SetChannelOutputs() {
 				return;
 			}
 			maxChannels = 9216;
+		} else if (type == "GPIO") {
+			config += GetGPIOOutputConfig($this.find("td:nth-child(6)"));
+			if (config == "") {
+				dataError = 1;
+				DialogError("Save Channel Outputs", "Invalid Output Config");
+				return;
+			}
+			maxChannels = 1;
 		} else if (type == "GPIO-595") {
 			config += GetGPIO595OutputConfig($this.find("td:nth-child(6)"));
 			if (config == "") {
@@ -779,6 +845,10 @@ function AddOtherTypeOptions(row, type) {
 		config += NewTriksConfig();
 		row.find("td input.count").val("768");
 		row.find("td input.count").prop('disabled', true);
+	} else if (type == "GPIO") {
+		config += NewGPIOConfig();
+		row.find("td input.count").val("1");
+		row.find("td input.count").prop('disabled', true);
 	} else if (type == "GPIO-595") {
 		config += NewGPIO595Config();
 		row.find("td input.count").val("8");
@@ -853,6 +923,7 @@ function AddOtherOutput() {
 				"<option value='Renard'>Renard</option>" +
 				"<option value='SPI-WS2801'>SPI-WS2801</option>" +
 				"<option value='Triks-C'>Triks-C</option>" +
+				"<option value='GPIO'>GPIO</option>" +
 				"<option value='GPIO-595'>GPIO-595</option>" +
 			"</select></td>" +
 			"<td><input class='start' type='text' size=6 maxlength=6 value='' style='display: none;'></td>" +

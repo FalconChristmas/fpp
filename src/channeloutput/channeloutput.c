@@ -42,6 +42,7 @@
 #include "USBPixelnet.h"
 #include "USBRenard.h"
 #include "Triks-C.h"
+#include "GPIO.h"
 #include "GPIO595.h"
 #include "common.h"
 
@@ -193,6 +194,8 @@ int InitializeChannelOutputs(void) {
 				channelOutputs[i].output       = &SPIws2801Output;
 			} else if (!strcmp(type, "Triks-C")) {
 				channelOutputs[i].output       = &TriksCOutput;
+			} else if (!strcmp(type, "GPIO")) {
+				channelOutputs[i].output       = &GPIOOutput;
 			} else if (!strcmp(type, "GPIO-595")) {
 				channelOutputs[i].output       = &GPIO595Output;
 			} else {
