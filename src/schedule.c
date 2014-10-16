@@ -556,16 +556,17 @@ int GetWeeklySeconds(int day, int hour, int minute, int second)
 
 int GetWeeklySecondDifference(int weeklySeconds1, int weeklySeconds2)
 {
-  int seconds;
+  int seconds = 0;
   int i;
   if(weeklySeconds1<weeklySeconds2)
   {
     seconds = weeklySeconds2-weeklySeconds1;
   }
-  else
+  else if (weeklySeconds1 > weeklySeconds2)
   {
     seconds = (SECONDS_PER_WEEK - weeklySeconds1) + weeklySeconds2;
   }
+
   return seconds;
 }
 
