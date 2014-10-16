@@ -115,7 +115,7 @@ this.value = default_value;
 });
 
 function GitReset() {
-	$.get("fppxml.php?command=gitReset"
+	$.get("fppxml.php?command=resetGit"
 		).success(function() {
 			$('#gitStatusPre').load('fppxml.php?command=gitStatus');
 		});
