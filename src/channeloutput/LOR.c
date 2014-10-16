@@ -263,6 +263,8 @@ int LOR_SendData(void *data, char *channelData, int channelCount)
 		return 0;
 	}
 
+	LOR_SendHeartbeat(privData);
+
 	int i = 0;
 	for (i = 0; i < channelCount; i++)
 	{
