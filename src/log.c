@@ -90,7 +90,7 @@ void _LogWrite(char *file, int line, int level, int facility, const char *format
 			}
 		}
 
-		fprintf(logFile, "%s  %s:%d:",timeStr, file, line);
+		fprintf(logFile, "%s (%d) %s:%d:",timeStr, getpid(), file, line);
 		va_start(arg, format);
 		vfprintf(logFile, format, arg);
 		va_end(arg);
