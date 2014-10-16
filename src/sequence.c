@@ -52,6 +52,7 @@ FILE         *seqFile = NULL;
 char          seqFilename[1024] = {'\x00'};
 unsigned long seqFileSize = 0;
 unsigned long seqFilePosition = 0;
+int           seqPaused = 0;
 int           seqStepSize = 8192;
 int           seqStepTime = 50;
 int           seqRefreshRate = 20;
@@ -140,6 +141,8 @@ int OpenSequenceFile(const char *filename) {
 	LogDebug(VB_SEQUENCE, "seqFileSize: %lu\n", seqFileSize);
 	LogDebug(VB_SEQUENCE, "seqDuration: %d\n", seqDuration);
 
+	seqPaused = 0;
+
 	ResetChannelOutputFrameNumber();
 
 	ReadSequenceData();
@@ -185,8 +188,22 @@ void BlankSequenceData(void) {
 	bzero(seqData, sizeof(seqData));
 }
 
+int SequenceIsPaused(void) {
+	return seqPaused;
+}
+
+void ToggleSequencePause(void) {
+	if (seqPaused)
+		seqPaused = 0;
+	else
+		seqPaused = 1;
+}
+
 void ReadSequenceData(void) {
 	size_t  bytesRead = 0;
+
+	if (seqPaused)
+		return;
 
 	if (IsSequenceRunning())
 	{

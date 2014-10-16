@@ -30,6 +30,7 @@ $command_array = Array(
 	"getFPPSystems"       => 'GetFPPSystems',
 	"getSetting"          => 'GetSetting',
 	"setSetting"          => 'SetSetting',
+	"toggleSequencePause" => 'ToggleSequencePause',
 	"getPluginSetting"    => 'GetPluginSetting',
 	"setPluginSetting"    => 'SetPluginSetting',
 	"setAudioOutput"      => 'SetAudioOutput'
@@ -117,6 +118,11 @@ function SetSetting()
 	}
 
 	GetSetting();
+}
+
+function ToggleSequencePause()
+{
+	SendCommand("ToggleSequencePause");
 }
 
 function GetPluginSetting()

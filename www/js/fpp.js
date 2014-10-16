@@ -1575,6 +1575,11 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			xmlhttp.send();
 	}
 
+	function ToggleSequencePause()
+	{
+		$.get("fppjson.php?command=toggleSequencePause");
+	}
+
 	function StopFPPD()
 	{
     	var xmlhttp=new XMLHttpRequest();
