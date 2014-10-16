@@ -488,21 +488,8 @@ LORSpeeds[ "38400"] =  "38400";
 LORSpeeds[ "57600"] =  "57600";
 LORSpeeds["115200"] = "115200";
 
-var LORMaxChannels = new Array();
-LORMaxChannels[  "9600"] =  "8";
-LORMaxChannels[ "19200"] = "16";
-LORMaxChannels[ "38400"] = "32";
-LORMaxChannels[ "57600"] = "48";
-LORMaxChannels["115200"] = "96";
-
-function LORSpeedChanged(item) {
-	var value = $(item).val();
-
-	$(item).parent().parent().find("input.count").val(LORMaxChannels[value]);
-}
-
 function LORSpeedSelect(currentValue) {
-	var result = "Speed: <select class='speed' onChange='LORSpeedChanged(this);'>";
+	var result = "Speed: <select class='speed'>";
 
 	for (var key in LORSpeeds) {
 		result += "<option value='" + key + "'";
@@ -732,7 +719,7 @@ function SetChannelOutputs() {
 				DialogError("Save Channel Outputs", "Invalid Output Config");
 				return;
 			}
-			maxChannels = 96;
+			maxChannels = 3840;
 		} else if (type == "SPI-WS2801") {
 			config += GetSPIOutputConfig($this.find("td:nth-child(6)"));
 			if (config == "") {

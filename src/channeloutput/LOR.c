@@ -39,6 +39,7 @@
 
 #define LOR_INTENSITY_SIZE 6
 #define LOR_HEARTBEAT_SIZE 5
+#define LOR_MAX_CHANNELS   3840
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -46,16 +47,13 @@ typedef struct lorPrivData {
 	char          filename[1024];
 	int           fd;
 	int           speed;
-	int           maxChannels;
 	int           maxIntensity;
 	long long     lastHeartbeat;
 	unsigned char intensityMap[256];
 	unsigned char intensityData[LOR_INTENSITY_SIZE];
 	unsigned char heartbeatData[LOR_HEARTBEAT_SIZE];
+	char          lastValue[LOR_MAX_CHANNELS];
 } LORPrivData;
-
-// Prototypes for functions below
-int LOR_MaxChannels(void *data);
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -71,7 +69,6 @@ void LOR_Dump(LORPrivData *privData) {
 	LogDebug(VB_CHANNELOUT, "    filename     : %s\n", privData->filename);
 	LogDebug(VB_CHANNELOUT, "    fd           : %d\n", privData->fd);
 	LogDebug(VB_CHANNELOUT, "    port speed   : %d\n", privData->speed);
-	LogDebug(VB_CHANNELOUT, "    maxChannels  : %d\n", privData->maxChannels);
 	LogDebug(VB_CHANNELOUT, "    maxIntensity : %d\n", privData->maxIntensity);
 	LogDebug(VB_CHANNELOUT, "    lastHeartbeat: %d\n", privData->lastHeartbeat);
 }
@@ -151,9 +148,6 @@ int LOR_Open(char *configStr, void **privDataPtr) {
 		free(privData);
 		return 0;
 	}
-
-	// Setup the maxChannels member
-	LOR_MaxChannels(privData);
 
 	strcpy(privData->filename, "/dev/");
 	strcat(privData->filename, deviceName);
@@ -256,28 +250,33 @@ int LOR_SendData(void *data, char *channelData, int channelCount)
 
 	LORPrivData *privData = (LORPrivData*)data;
 
-	if (channelCount > privData->maxChannels) {
+	if (channelCount > LOR_MAX_CHANNELS) {
 		LogErr(VB_CHANNELOUT,
 			"LOR_SendData() tried to send %d bytes when max is %d at %d baud\n",
-			channelCount, privData->maxChannels, privData->speed);
+			channelCount, LOR_MAX_CHANNELS, privData->speed);
 		return 0;
 	}
-
-	LOR_SendHeartbeat(privData);
 
 	int i = 0;
 	for (i = 0; i < channelCount; i++)
 	{
-		privData->intensityData[1] = i >> 4;
+		if (privData->lastValue[i] != channelData[i])
+		{
+			privData->intensityData[1] = i >> 4;
 		
-		if (privData->intensityData[1] < 0xF0)
-			privData->intensityData[1]++;
+			if (privData->intensityData[1] < 0xF0)
+				privData->intensityData[1]++;
 
-		privData->intensityData[3] = privData->intensityMap[channelData[i]];
-		privData->intensityData[4] = 0x80 | (i % 16);
+			privData->intensityData[3] = privData->intensityMap[channelData[i]];
+			privData->intensityData[4] = 0x80 | (i % 16);
 
-		write(privData->fd, privData->intensityData, LOR_INTENSITY_SIZE);
+			write(privData->fd, privData->intensityData, LOR_INTENSITY_SIZE);
+
+			privData->lastValue[i] = channelData[i];
+		}
 	}
+
+	LOR_SendHeartbeat(privData);
 }
 
 /*
@@ -285,25 +284,9 @@ int LOR_SendData(void *data, char *channelData, int channelCount)
  */
 int LOR_MaxChannels(void *data)
 {
-	LORPrivData *privData = (LORPrivData*)data;
+	(void)data;
 
-	if (privData->maxChannels != 0)
-		return privData->maxChannels;
-	
-	switch (privData->speed) {
-		case 115200:	privData->maxChannels = 96;
-						break;
-		case  57600:	privData->maxChannels = 48;
-						break;
-		case  38400:	privData->maxChannels = 32;
-						break;
-		case  19200:	privData->maxChannels = 16;
-						break;
-		case   9600:	privData->maxChannels = 8;
-						break;
-	}
-	
-	return privData->maxChannels;
+	return 3840;
 }
 
 /*
