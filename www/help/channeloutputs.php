@@ -46,9 +46,18 @@
 <tr><td>GPIO28</td><td>20</td><td>N/A</td><td>J8 - Pin 38</td></tr>
 <tr><td>GPIO29</td><td>21</td><td>N/A</td><td>J8 - Pin 40</td></tr>
 </table>
-</center>
-</table>
-</center>
+<br>
+<b>GPIO Outputs on the PiFace</b><br>
+<table border='1' cellpadding='4' cellspacing='1'>
+<tr><th>Name</th><th>Pin #</th></tr>
+<tr><td>Output 1</td><td>200</td></tr>
+<tr><td>Output 2</td><td>201</td></tr>
+<tr><td>Output 3</td><td>202</td></tr>
+<tr><td>Output 4</td><td>203</td></tr>
+<tr><td>Output 5</td><td>204</td></tr>
+<tr><td>Output 6</td><td>205</td></tr>
+<tr><td>Output 7</td><td>206</td></tr>
+<tr><td>Output 8</td><td>207</td></tr>
 </table>
 </center>
 <p><b>GPIO-595</b> - The GPIO-595 output can drive up to 16 daisy-chained 74HC595 Shift Register IC's using a set of 3 GPIO Output pins. See the table below for connection information. Pick one set of outputs 'GPIO 17-18-27' or 'GPIO 22-23-24', do not connect the 74HC595 to both sets of GPIO Pins.</p>

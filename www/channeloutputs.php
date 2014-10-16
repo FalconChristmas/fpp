@@ -280,8 +280,20 @@ function GetTriksOutputConfig(cell) {
 
 function GPIOGPIOSelect(currentValue) {
 	var result = "";
-	var options = "17,18,27,22,23,24".split(",");
-	var labels = "17,18,27,22,23,24".split(",");
+<?
+	if (isset($settings['PiFaceDetected']) && ($settings['PiFaceDetected'] == 1))
+	{
+?>
+	var options = "4,5,6,12,13,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,200,201,202,203,204,205,206,207".split(",");
+<?
+	}
+	else
+	{
+?>
+	var options = "4,5,6,12,13,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31".split(",");
+<?
+	}
+?>
 
 	result += " BCM GPIO Output: <select class='gpio'>";
 
@@ -292,7 +304,7 @@ function GPIOGPIOSelect(currentValue) {
 		result += "<option value='" + opt + "'";
 		if (currentValue == opt)
 			result += " selected";
-		result += ">" + labels[i] + "</option>";
+		result += ">" + opt + "</option>";
 	}
 
 	result += "</select>";
