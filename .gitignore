@@ -5,6 +5,7 @@ SD/*.xz
 src/fpp
 src/fppmm
 src/fppd
+src/fppversion.c
 cscope.out
 tags
 pixelnetDMX

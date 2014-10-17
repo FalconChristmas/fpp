@@ -24,6 +24,7 @@
  */
 
 #include "fpp.h"
+#include "fppversion.h"
 #include "log.h"
 #include "command.h"
 #include "sequence.h"
@@ -68,6 +69,12 @@ int main (int argc, char *argv[])
     {
       sprintf(command,"v,%s,",argv[2]);
       SendCommand(command);
+    }
+    // Display version information
+    else if(strncmp(argv[1],"-V",2)==0)
+    {
+      printVersionInfo();
+	  exit(0);
     }
     // Play Playlist - example "fpp -p playlistFile"
     else if((strncmp(argv[1],"-p",2) == 0) &&  argc > 2)
@@ -261,6 +268,7 @@ void Usage(char *appname)
 "certain information and send commands to a running fppd daemon.\n"
 "\n"
 "Options:\n"
+"  -V                           - Print version information\n"
 "  -s                           - Get fppd status\n"
 "  -v VOLUME                    - Set volume to 'VOLUME'\n"
 "  -p PLAYLISTNAME              - Play Playlist PLAYLISTNAME in repeat mode\n"

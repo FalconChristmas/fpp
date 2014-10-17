@@ -22,7 +22,8 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
- 
+
+#include "fppversion.h"
 #include "log.h"
 #include "settings.h"
 
@@ -201,4 +202,20 @@ int SetLogMask(char *newMask)
 	return 1;
 }
 
+int loggingToFile(void)
+{
+	if ((logFileName[0]) &&
+		(strcmp(logFileName, "stderr")) &&
+		(strcmp(logFileName, "stdout")))
+		return 1;
+
+	return 0;
+}
+
+void logVersionInfo(void) {
+	LogErr(VB_ALL, "=========================================\n");
+	LogErr(VB_ALL, "FPP %s\n", getFPPVersion());
+	LogErr(VB_ALL, "Branch: %s\n", getFPPBranch());
+	LogErr(VB_ALL, "=========================================\n");
+}
 

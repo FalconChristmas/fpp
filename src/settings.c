@@ -27,6 +27,7 @@
 #include "falcon.h"
 #include "settings.h"
 #include "fppd.h"
+#include "fppversion.h"
 #include "log.h"
 #include "mediaoutput.h"
 
@@ -329,6 +330,7 @@ int parseArguments(int argc, char **argv)
 		int option_index = 0;
 		static struct option long_options[] =
 		{
+			{"displayvers",			no_argument,		0, 'V'},
 			{"config-file",			required_argument,	0, 'c'},
 			{"foreground",			no_argument,		0, 'f'},
 			{"daemonize",			no_argument,		0, 'd'},
@@ -354,13 +356,16 @@ int parseArguments(int argc, char **argv)
 			{0,						0,					0,	0}
 		};
 
-		c = getopt_long(argc, argv, "c:fdVv:m:B:M:S:P:u:p:s:l:b:HCh",
+		c = getopt_long(argc, argv, "c:fdVv:m:B:M:S:P:u:p:s:l:b:HChV",
 		long_options, &option_index);
 		if (c == -1)
 			break;
 
 		switch (c)
 		{
+			case 'V':
+				printVersionInfo();
+				exit(0);
 			case 1: //silence-music
 				free(settings.silenceMusic);
 				settings.silenceMusic = strdup(optarg);

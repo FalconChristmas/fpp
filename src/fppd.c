@@ -32,6 +32,7 @@
 #include "e131bridge.h"
 #include "effects.h"
 #include "fppd.h"
+#include "fppversion.h"
 #include "fpp.h"
 #include "gpio.h"
 #include "log.h"
@@ -82,6 +83,11 @@ int main(int argc, char *argv[])
 
 	// Parse our arguments first, override any defaults
 	parseArguments(argc, argv);
+
+	if (loggingToFile())
+		logVersionInfo();
+	else
+		printVersionInfo();
 
 	printSettings();
 

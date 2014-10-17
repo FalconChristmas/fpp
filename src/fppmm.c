@@ -35,6 +35,7 @@
 #include <sys/un.h>
 #include <unistd.h>
 
+#include "fppversion.h"
 #include "memorymapcontrol.h"
 #include "sequence.h"
 #include "common.h"
@@ -45,6 +46,7 @@ int   isActive      = -1;
 char *testMode      = NULL;
 char *channels      = NULL;
 int   channelData   = -1;
+int   displayVers   = 0;
 
 char                             *dataMap    = NULL;
 int                               dataFD     = -1;
@@ -61,6 +63,7 @@ void usage(char *appname) {
 	printf("Usage: %s [OPTIONS]\n", appname);
 	printf("\n");
 	printf("  Options:\n");
+	printf("   -V                     - Print version information\n");
 	printf("   -t on                  - Turn channel test mode On\n");
 	printf("   -t off                 - Turn channel test mode Off\n");
 	printf("   -t status              - Check current status of test mode\n");
@@ -88,17 +91,20 @@ int parseArguments(int argc, char **argv) {
 			{"overlaymode",    required_argument,    0, 'o'},
 			{"filename",       required_argument,    0, 'f'},
 			{"testmode",       required_argument,    0, 't'},
+			{"displayvers",    no_argument,          0, 'V'},
 			{"channel",        required_argument,    0, 'c'},
 			{"setvalue",       required_argument,    0, 's'},
 			{"help",           no_argument,          0, 'h'},
 			{0,                0,                    0, 0}
 		};
 
-		c = getopt_long(argc, argv, "m:o:f:t:c:s:h", long_options, &option_index);
+		c = getopt_long(argc, argv, "m:o:f:t:c:s:hV", long_options, &option_index);
 		if (c == -1)
 			break;
 
 		switch (c) {
+			case 'V':   printVersionInfo();
+						exit(0);
 			case 'm':	blockName = strdup(optarg);
 						break;
 			case 'o':	if (!strcmp(optarg, "off"))
