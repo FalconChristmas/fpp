@@ -342,5 +342,6 @@ MediaOutput ogg123Output = {
 	.isPlaying    = ogg123_IsPlaying,
 	.speedUp      = NULL,
 	.slowDown     = NULL,
-	.speedNormal  = NULL
+	.speedNormal  = NULL,
+	.setVolume    = NULL
 	};

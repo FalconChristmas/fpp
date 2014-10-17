@@ -42,6 +42,7 @@ typedef struct mediaOutput {
 	void (*speedUp) (void);
 	void (*slowDown) (void);
 	void (*speedNormal) (void);
+	void (*setVolume) (int volume);
 } MediaOutput;
 
 typedef struct mediaOutputStatus {

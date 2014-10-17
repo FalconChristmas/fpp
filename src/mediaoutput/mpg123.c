@@ -346,5 +346,6 @@ MediaOutput mpg123Output = {
 	.isPlaying    = mpg123_IsPlaying,
 	.speedUp      = NULL,
 	.slowDown     = NULL,
-	.speedNormal  = NULL
+	.speedNormal  = NULL,
+	.setVolume    = NULL
 	};

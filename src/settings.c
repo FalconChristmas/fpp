@@ -28,6 +28,7 @@
 #include "settings.h"
 #include "fppd.h"
 #include "log.h"
+#include "mediaoutput.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -1002,6 +1003,12 @@ void setVolume(int volume)
 	snprintf(buffer, 40, "amixer set PCM %.2f%% >/dev/null 2>&1", (50 + (settings.volume / 2.0)));
 	LogDebug(VB_SETTING,"Volume change: %d \n", settings.volume);	
 	system(buffer);
+
+	pthread_mutex_lock(&mediaOutputLock);
+	if (mediaOutput && mediaOutput->setVolume)
+		mediaOutput->setVolume(settings.volume);
+
+	pthread_mutex_unlock(&mediaOutputLock);
 }
 
 /*

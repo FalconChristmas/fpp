@@ -54,8 +54,21 @@ int pipeFromOMX[2];
 
 char omxBuffer[MAX_BYTES_OMX];
 char dataStr[17];
+int omxVolumeShift = 0;
 
+/*
+ *
+ */
+int omxplayer_GetVolumeShift(int volume)
+{
+	volume = 50 + (volume / 2);
 
+	return (volume - 87.5) / 2.5;
+}
+
+/*
+ *
+ */
 int omxplayer_StartPlaying(const char *filename)
 {
 	char  fullVideoPath[2048];
@@ -108,6 +121,8 @@ int omxplayer_StartPlaying(const char *filename)
 
 	mediaOutputStatus.status = MEDIAOUTPUTSTATUS_PLAYING;
 
+	omxVolumeShift = omxplayer_GetVolumeShift(getVolume());
+
 	return 1;
 }
 
@@ -147,6 +162,34 @@ void omxplayer_SpeedUp(void)
 {
 	LogDebug(VB_MEDIAOUT, "Speeding Up playback\n");
 	write(pipeFromOMX[0], "0", 1);
+}
+
+/*
+ *
+ */
+void omxplayer_SetVolume(int volume)
+{
+	int newShift = omxplayer_GetVolumeShift(volume);
+	int diff = newShift - omxVolumeShift;
+
+	LogDebug(VB_MEDIAOUT, "omxplayer_SetVolume(%d): diff: %d\n", volume, diff);
+
+	if (!diff)
+		return;
+
+	while (diff > 0)
+	{
+		write(pipeFromOMX[0], "=", 1);
+		diff--;
+	}
+
+	while (diff < 0)
+	{
+		write(pipeFromOMX[0], "-", 1);
+		diff++;
+	}
+
+	omxVolumeShift = newShift;
 }
 
 /*
@@ -324,6 +367,7 @@ MediaOutput omxplayerOutput = {
 	.isPlaying    = omxplayer_IsPlaying,
 	.speedUp      = omxplayer_SpeedUp,
 	.slowDown     = omxplayer_SlowDown,
-	.speedNormal  = omxplayer_SpeedNormal
+	.speedNormal  = omxplayer_SpeedNormal,
+	.setVolume    = omxplayer_SetVolume
 	};
 
