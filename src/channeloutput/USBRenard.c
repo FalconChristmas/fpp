@@ -44,6 +44,7 @@ typedef struct usbRenardPrivData {
 	int  fd;
 	int  maxChannels;
 	int  speed;
+	char parm[4];
 } USBRenardPrivData;
 
 // Assume clocks are accurate to 1%, so insert a pad byte every 100 bytes.
@@ -64,6 +65,7 @@ void USBRenard_Dump(USBRenardPrivData *privData) {
 	LogDebug(VB_CHANNELOUT, "    fd         : %d\n", privData->fd);
 	LogDebug(VB_CHANNELOUT, "    maxChannels: %i\n", privData->maxChannels);
 	LogDebug(VB_CHANNELOUT, "    speed      : %d\n", privData->speed);
+	LogDebug(VB_CHANNELOUT, "    serial Parm: %s\n", privData->parm);
 }
 
 /*
@@ -88,6 +90,7 @@ int USBRenard_Open(char *configStr, void **privDataPtr) {
 	char *s = strtok(configStr, ";");
 
 	strcpy(deviceName, "UNKNOWN");
+	strcpy(privData->parm, "8N1");
 
 	while (s) {
 		char tmp[128];
@@ -112,9 +115,14 @@ int USBRenard_Open(char *configStr, void **privDataPtr) {
 					LogWarn(VB_CHANNELOUT,
 						"Unable to parse Renard speed, falling back to %d\n", privData->speed);
 				}
+			} else if (!strcmp(tmp, "renardparm")) {
+				if (strlen(div) == 3)
+					strcpy(privData->parm, div);
+				else
+					LogWarn(VB_CHANNELOUT, "Invalid length on serial parameters: %s\n", div);
 			}
 		}
-		s = strtok(NULL, ",");
+		s = strtok(NULL, ";");
 	}
 
 	if (!strcmp(deviceName, "UNKNOWN"))
@@ -130,7 +138,9 @@ int USBRenard_Open(char *configStr, void **privDataPtr) {
 	LogInfo(VB_CHANNELOUT, "Opening %s for Renard output\n",
 		privData->filename);
 
-	privData->fd = SerialOpen(privData->filename, privData->speed, "8N1");
+	privData->fd = SerialOpen(privData->filename, privData->speed,
+		privData->parm);
+
 	if (privData->fd < 0)
 	{
 		LogErr(VB_CHANNELOUT, "Error %d opening %s: %s\n",

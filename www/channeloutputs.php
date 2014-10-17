@@ -446,6 +446,33 @@ function RenardSpeedSelect(currentValue) {
 	return result;
 }
 
+var RenardParms = new Array();
+RenardParms["8N1"] = "8N1";
+RenardParms["8N2"] = "8N2";
+
+function RenardParmSelect(currentValue) {
+	var result = " <select class='renardparm'>";
+
+	for (var key in RenardParms) {
+		result += "<option value='" + key + "'";
+
+		if (currentValue == key) {
+			result += " selected";
+		}
+
+		// Make 8N1 the default
+		if ((currentValue == "") && (key == "8N1")) {
+			result += " selected";
+		}
+
+		result += ">" + RenardParms[key] + "</option>";
+	}
+
+	result += "</select>";
+
+	return result;
+}
+
 function RenardOutputConfig(config) {
 	var items = config.split(";");
 	var result = "";
@@ -457,6 +484,8 @@ function RenardOutputConfig(config) {
 			result += DeviceSelect(SerialDevices, item[1]) + "&nbsp;&nbsp;";
 		} else if (item[0] == "renardspeed") {
 			result += RenardSpeedSelect(item[1]);
+		} else if (item[0] == "renardparm") {
+			result += RenardParmSelect(item[1]);
 		}
 	}
 
@@ -478,7 +507,14 @@ function GetRenardOutputConfig(cell) {
 	if (value == "")
 		return "";
 
-	result += "renardspeed=" + value;
+	result += "renardspeed=" + value + ";";
+
+	value = $cell.find("select.renardparm").val();
+
+	if (value == "")
+		return "";
+
+	result += "renardparm=" + value;
 
 	return result;
 }
@@ -487,6 +523,7 @@ function NewRenardConfig() {
 	var result = "";
 	result += DeviceSelect(SerialDevices, "") + "&nbsp;&nbsp;";
 	result += RenardSpeedSelect("");
+	result += RenardParmSelect("");
 	return result;
 }
 
