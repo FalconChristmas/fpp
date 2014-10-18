@@ -9,6 +9,8 @@ cd ${FPPDIR}
 
 logOutput
 
+date
+
 updateAvahiConfig
 
 runPreStartScripts
