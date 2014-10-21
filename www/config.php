@@ -50,8 +50,13 @@ $pixelnetFile      = $mediaDirectory . "/pixelnetDMX";
 $scheduleFile      = $mediaDirectory . "/schedule";
 $bytesFile         = $mediaDirectory . "/bytesReceived";
 $remapFile         = $mediaDirectory . "/channelremap";
+$exim4Directory    = $mediaDirectory . "/exim4";
 $volume            = 0;
 $emailenable       = "0";
+$emailguser		   = "";
+$emailgpass        = "";
+$emailfromtext     = "";
+$mailtoemail       = "";
 
 if ($debug)
 {
@@ -77,6 +82,9 @@ if ($debug)
 	error_log("bytes: $bytesFile");
 	error_log("volume: $volume");
 	error_log("emailenable: $emailenable");
+	error_log("emailguser: $emailguser");
+	error_log("emailfromtext: $emailfromtext");
+	error_log("emailtoemail: $emailtoemail");
 }
 
 $fd = @fopen($settingsFile, "r");
@@ -135,8 +143,8 @@ do
 	global $settings;
 	global $fppMode, $volume, $settingsFile;
 	global $mediaDirectory, $musicDirectory, $sequenceDirectory, $playlistDirectory;
-	global $eventDirectory, $videoDirectory, $scriptDirectory, $logDirectory;
-	global $pluginDirectory, $emailenable;
+	global $eventDirectory, $videoDirectory, $scriptDirectory, $logDirectory, $exim4Directory;
+	global $pluginDirectory, $emailenable, $emailguser, $emailgpass, $emailfromtext, $emailtoemail;
 	global $universeFile, $pixelnetFile, $scheduleFile, $bytesFile, $remapFile;
 
 	// Parse the file, assuming it exists
@@ -221,8 +229,20 @@ do
 		case "remapFile":
 			$remapFile = trim($split[1]);
 			break;
+		case "exim4Directory":
+			$exim4Directory = trim($split[1]) . "/";
+			break;
 		case "emailenable":
 			$emailenable = trim($split[1]);
+			break;
+		case "emailguser":
+			$emailguser = trim($split[1]);
+			break;
+		case "emailfromtext":
+			$emailfromtext = trim($split[1]);
+			break;
+		case "emailtoemail":
+			$emailtoemail = trim($split[1]);
 			break;
 	}
 }
@@ -249,7 +269,11 @@ $settings['logDirectory'] = $logDirectory;
 $settings['uploadDirectory'] = $uploadDirectory;
 $settings['docsDirectory'] = $docsDirectory;
 $settings['fppRfsVersion'] = $fppRfsVersion;
+$settings['exim4Directory'] = $exim4Directory;
 $settings['emailenable'] = $emailenable;
+$settings['emailguser'] = $emailguser;
+$settings['emailfromtext'] = $emailfromtext;
+$settings['emailtoemail'] = $emailtoemail;
 
 putenv("SCRIPTDIR=$scriptDirectory");
 putenv("MEDIADIR=$mediaDirectory");
@@ -280,6 +304,9 @@ if ($debug)
 	error_log("bytes: $bytesFile");
 	error_log("volume: $volume");
 	error_log("emailenable: $emailenable");
+	error_log("emailguser: $emailguser");
+	error_log("emailfromtext: $emailfromtext");
+	error_log("emailtoemail: $emailtoemail");
 }
 
 function GetDirSetting($dir)
