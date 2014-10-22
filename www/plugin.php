@@ -98,18 +98,38 @@ elseif ( isset($_GET['page']) && !empty($_GET['page']) )
 }
 elseif ( isset($_GET['file']) && !empty($_GET['file']) )
 {
-	if (preg_match('/\.js$/', $_GET['file']))
-		header('Content-type: text/javascript;');
-	else if (preg_match('/\.css$/', $_GET['file']))
-		header('Content-type: text/css;');
-	else
-		header('Content-type: text/plain;');
-
-
 	$file = $pluginDirectory . "/" . $_GET['plugin'] . "/" . $_GET['file'];
 
 	if (file_exists($file))
+	{
+		$filename = basename($file);
+		$file_extension = strtolower(substr(strrchr($filename,"."),1));
+
+		switch( $file_extension ) {
+			case "gif": $ctype="image/gif;"; break;
+			case "png": $ctype="image/png;"; break;
+			case "jpeg":
+			case "jpg": $ctype="image/jpg;"; break;
+			case "js":  $ctype="text/javascript;"; break;
+			case "css": $ctype="text/css;"; break;
+			default:    $ctype="text/plain;"; break;
+		}
+
+		header('Content-type: ' . $ctype);
+
+		// Without the clean/flush we send two extra bytes that
+		// cause the image to be corrupt.  This is similar to the
+		// bug we had with an extra 2 bytes in our log zip
+		ob_clean();
+		flush();
 		readfile($file);
+		exit();
+	}
+	else
+	{
+		error_log("Error, could not find file $file");
+		echo "Error with plugin, requesting a file that doesn't exist";
+	}
 }
 elseif ( file_exists($pluginDirectory."/".$_GET['plugin']."/plugin.php") )
 {
