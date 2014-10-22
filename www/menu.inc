@@ -144,6 +144,7 @@ if ( $handle )
           <li><a href="docs.php">Docs</a></li>
 -->
           <li><a href="about.php">About</a></li>
+          <li><a href="http://<?php echo $settings['HostName'] ?>:4200" target="_new">SSH Shell</a></li>
           <li><a href="credits.php">Credits</a></li>
 <?php
 $handle = opendir($pluginDirectory);
