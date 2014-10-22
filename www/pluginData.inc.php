@@ -21,6 +21,16 @@ $plugins = Array(
 		'bugUrl'      => 'https://github.com/cpinkham/fpp-matrixtools/issues',
 		'sha'         => 'c1ecb87a7b3103e9d28961e5d7bfededf346b765',
 	),
+
+	Array(
+		'shortName'   => 'big-green-button',
+		'name'        => 'Big Green Button',
+		'description' => 'Big Green Button used to start a playlist',
+		'homeUrl'     => 'https://github.com/FalconChristmas/big-green-button',
+		'sourceUrl'   => 'https://github.com/FalconChristmas/big-green-button.git',
+		'bugUrl'      => 'https://github.com/FalconChristmas/big-green-button/issues',
+		'sha'         => 'ba31143fd8cfbefe1125df93092c7831c40d6e6e',
+	),
 );
 
 ?>
