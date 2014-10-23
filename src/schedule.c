@@ -165,6 +165,11 @@ void CheckIfShouldBePlayingNow()
 					currentSchedulePlaylist.ScheduleEntryIndex = i;
 					currentSchedulePlaylist.startWeeklySeconds = Schedule[i].weeklyStartSeconds[j];
 					currentSchedulePlaylist.endWeeklySeconds = Schedule[i].weeklyEndSeconds[j];
+
+					// Make end time non-inclusive
+					if (currentSchedulePlaylist.startWeeklySeconds != currentSchedulePlaylist.endWeeklySeconds)
+						currentSchedulePlaylist.endWeeklySeconds--;
+
 					CurrentScheduleHasbeenLoaded = 1;
 					NextScheduleHasbeenLoaded = 0;
 		      strcpy(playlistDetails.currentPlaylistFile,Schedule[currentSchedulePlaylist.ScheduleEntryIndex].playList);
@@ -226,6 +231,11 @@ void LoadCurrentScheduleInfo()
   currentSchedulePlaylist.ScheduleEntryIndex = GetNextScheduleEntry(&currentSchedulePlaylist.weeklySecondIndex);
 	currentSchedulePlaylist.startWeeklySeconds = Schedule[currentSchedulePlaylist.ScheduleEntryIndex].weeklyStartSeconds[currentSchedulePlaylist.weeklySecondIndex];
 	currentSchedulePlaylist.endWeeklySeconds = Schedule[currentSchedulePlaylist.ScheduleEntryIndex].weeklyEndSeconds[currentSchedulePlaylist.weeklySecondIndex];
+
+	// Make end time non-inclusive
+	if (currentSchedulePlaylist.startWeeklySeconds != currentSchedulePlaylist.endWeeklySeconds)
+		currentSchedulePlaylist.endWeeklySeconds--;
+
   CurrentScheduleHasbeenLoaded = 1;
 }
 
@@ -356,6 +366,12 @@ void PlayListLoadCheck()
 
     if (diff < -600) // assume the schedule is actually next week for display
       diff += (24 * 3600 * 7);
+
+    // If current schedule starttime is in the past and the item is not set
+    // for repeat, then reschedule.
+    if ((diff < -1) &&
+        (!Schedule[currentSchedulePlaylist.ScheduleEntryIndex].repeat))
+      ReLoadCurrentScheduleInfo();
 
     // Convoluted code to print the countdown more frequently as we get closer
     if (((diff > 300) &&                  ((diff % 300) == 0)) ||
@@ -516,36 +532,7 @@ void LoadScheduleFromFile()
   }
   fclose(fp);
 
-  SchedulePrint();
   return;
-}
-
-void SchedulePrint()
-{
-  int i=0;
-
-  LogInfo(VB_SCHEDULE, "Current Schedule: (Status: '+' = Enabled, '-' = Disabled, '!' = Outside Date Range, '*' = Repeat)\n");
-  LogInfo(VB_SCHEDULE, "St  Start & End Dates       Days         Start & End Times   Playlist\n");
-  LogInfo(VB_SCHEDULE, "--- ----------------------- ------------ ------------------- ---------------------------------------------\n");
-  for(i=0;i<ScheduleEntryCount;i++)
-  {
-    char dayStr[32];
-    GetDayTextFromDayIndex(Schedule[i].dayIndex, dayStr);
-    LogInfo(VB_SCHEDULE, "%c%c%c %04d-%02d-%02d - %04d-%02d-%02d %-12.12s %02d:%02d:%02d - %02d:%02d:%02d %s\n",
-      Schedule[i].enable ? '+': '-',
-      CurrentDateInRange(Schedule[i].startDate, Schedule[i].endDate) ? ' ': '!',
-      Schedule[i].repeat ? '*': ' ',
-      (int)(Schedule[i].startDate / 10000),
-      (int)(Schedule[i].startDate % 10000 / 100),
-      (int)(Schedule[i].startDate % 100),
-      (int)(Schedule[i].endDate / 10000),
-      (int)(Schedule[i].endDate % 10000 / 100),
-      (int)(Schedule[i].endDate % 100),
-      dayStr,
-      Schedule[i].startHour,Schedule[i].startMinute,Schedule[i].startSecond,
-      Schedule[i].endHour,Schedule[i].endMinute,Schedule[i].endSecond,
-      Schedule[i].playList);
-  }
 }
 
 int GetWeeklySeconds(int day, int hour, int minute, int second)
