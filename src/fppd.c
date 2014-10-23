@@ -257,16 +257,25 @@ void MainLoop(void)
 				}
 			}
 
+			int reactivated = 0;
 			if (FPPstatus == FPP_STATUS_IDLE)
 			{
 				if ((prevFPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||
 					(prevFPPstatus == FPP_STATUS_STOPPING_GRACEFULLY))
 				{
 					PlayListPlayingCleanup();
-					sleepms = 50000;
+
+					if (FPPstatus != FPP_STATUS_IDLE)
+						reactivated = 1;
+					else
+						sleepms = 50000;
 				}
 			}
-			prevFPPstatus = FPPstatus;
+
+			if (reactivated)
+				prevFPPstatus = FPP_STATUS_IDLE;
+			else
+				prevFPPstatus = FPPstatus;
 
 			ScheduleProc();
 		}
