@@ -355,9 +355,10 @@ void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent)
 				newLightDelay += timerOffset;
 		}
 
-		// This is bad if we hit this, but still don't let us go negative
-		if (newLightDelay < 0)
-			newLightDelay = 0;
+		// Don't let us go more than 10ms out from the default.  If we
+		// can't keep up then we probably won't be able to.
+		if ((DefaultLightDelay - 15000) > newLightDelay)
+			newLightDelay = DefaultLightDelay - 15000;
 
 		LogDebug(VB_CHANNELOUT, "LightDelay: %d, newLightDelay: %d\n",
 			LightDelay, newLightDelay);
