@@ -81,6 +81,7 @@ void LoadNextScheduleInfo();
 void PlayListLoadCheck();
 void PlayListStopCheck();
 void LoadScheduleFromFile();
+void SchedulePrint();
 void GetNextScheduleStartText(char * txt);
 void GetNextPlaylistText(char * txt);
 void GetScheduleEntryStartText(int index,int weeklySecondIndex, char * txt);

@@ -532,7 +532,37 @@ void LoadScheduleFromFile()
   }
   fclose(fp);
 
+  SchedulePrint();
+
   return;
+}
+
+void SchedulePrint()
+{
+  int i=0;
+
+  LogInfo(VB_SCHEDULE, "Current Schedule: (Status: '+' = Enabled, '-' = Disabled, '!' = Outside Date Range, '*' = Repeat)\n");
+  LogInfo(VB_SCHEDULE, "St  Start & End Dates       Days         Start & End Times   Playlist\n");
+  LogInfo(VB_SCHEDULE, "--- ----------------------- ------------ ------------------- ---------------------------------------------\n");
+  for(i=0;i<ScheduleEntryCount;i++)
+  {
+    char dayStr[32];
+    GetDayTextFromDayIndex(Schedule[i].dayIndex, dayStr);
+    LogInfo(VB_SCHEDULE, "%c%c%c %04d-%02d-%02d - %04d-%02d-%02d %-12.12s %02d:%02d:%02d - %02d:%02d:%02d %s\n",
+      Schedule[i].enable ? '+': '-',
+      CurrentDateInRange(Schedule[i].startDate, Schedule[i].endDate) ? ' ': '!',
+      Schedule[i].repeat ? '*': ' ',
+      (int)(Schedule[i].startDate / 10000),
+      (int)(Schedule[i].startDate % 10000 / 100),
+      (int)(Schedule[i].startDate % 100),
+      (int)(Schedule[i].endDate / 10000),
+      (int)(Schedule[i].endDate % 10000 / 100),
+      (int)(Schedule[i].endDate % 100),
+      dayStr,
+      Schedule[i].startHour,Schedule[i].startMinute,Schedule[i].startSecond,
+      Schedule[i].endHour,Schedule[i].endMinute,Schedule[i].endSecond,
+      Schedule[i].playList);
+  }
 }
 
 int GetWeeklySeconds(int day, int hour, int minute, int second)
