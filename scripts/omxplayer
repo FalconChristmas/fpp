@@ -13,7 +13,16 @@ then
 	FORCEAUDIO="-o local"
 fi
 
+VOLUME=$(getSetting volume)
+if [ "x${VOLUME}" = "x" ]
+then
+	VOLUME=75
+fi
+
+# 75% FPP volume is 87.5% amixer which is around 0dB in omxplayer
+DB=$(echo "((50 + (${VOLUME}/2)) - 87.5) / 2.5 * 3" | bc)
+
 /usr/bin/omxplayer -i "$1" 2>&1 | grep Duration:
 
-exec /usr/bin/omxplayer ${FORCEAUDIO} -s "$1" 2>&1
+exec /usr/bin/omxplayer ${FORCEAUDIO} --vol ${DB}00 -s "$1" 2>&1
 

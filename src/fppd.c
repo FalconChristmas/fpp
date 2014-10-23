@@ -32,9 +32,11 @@
 #include "e131bridge.h"
 #include "effects.h"
 #include "fppd.h"
+#include "fppversion.h"
 #include "fpp.h"
 #include "gpio.h"
 #include "log.h"
+#include "mediadetails.h"
 #include "mediaoutput.h"
 #include "memorymap.h"
 #include "playList.h"
@@ -73,6 +75,7 @@ void MainLoop(void);
 int main(int argc, char *argv[])
 {
 	initSettings();
+	initMediaDetails();
 
 	loadSettings("/home/pi/media/settings");
 
@@ -80,6 +83,11 @@ int main(int argc, char *argv[])
 
 	// Parse our arguments first, override any defaults
 	parseArguments(argc, argv);
+
+	if (loggingToFile())
+		logVersionInfo();
+	else
+		printVersionInfo();
 
 	printSettings();
 
@@ -107,14 +115,10 @@ int main(int argc, char *argv[])
 	{
 		if (getFPPmode() == MASTER_MODE)
 			InitSyncMaster();
+	}
 
-		InitEffects();
-		InitializeChannelDataMemoryMap();
-	}
-	else if (getFPPmode() == REMOTE_MODE)
-	{
-		InitChannelOutputSyncVars();
-	}
+	InitEffects();
+	InitializeChannelDataMemoryMap();
 
 #ifndef NOROOT
 	struct sched_param param;
@@ -141,10 +145,6 @@ int main(int argc, char *argv[])
 		CloseChannelDataMemoryMap();
 		CloseEffects();
 	}
-	else if (getFPPmode() == REMOTE_MODE)
-	{
-		DestroyChannelOutputSyncVars();
-	}
 
 	CloseChannelOutputs();
 
@@ -168,6 +168,8 @@ void MainLoop(void)
 	struct timeval timeout;
 	int            selectResult;
 
+	LogDebug(VB_GENERAL, "MainLoop()\n");
+
 	FD_ZERO (&active_fd_set);
 
 	commandSock = Command_Initialize();
@@ -177,6 +179,8 @@ void MainLoop(void)
 	if (getFPPmode() & PLAYER_MODE)
 	{
 		CheckIfShouldBePlayingNow();
+		if (getAlwaysTransmit())
+			StartChannelOutputThread();
 	}
 	else if (getFPPmode() == BRIDGE_MODE)
 	{
@@ -227,7 +231,8 @@ void MainLoop(void)
 		// Check to see if we need to start up the output thread.
 		// FIXME, possibly trigger this via a fpp command to fppd
 		if ((getFPPmode() != BRIDGE_MODE) &&
-			(UsingMemoryMapInput()) &&
+			((UsingMemoryMapInput()) ||
+			 (getAlwaysTransmit())) &&
 			(!ChannelOutputThreadIsRunning())) {
 			StartChannelOutputThread();
 		}
@@ -273,6 +278,13 @@ void MainLoop(void)
 				prevFPPstatus = FPPstatus;
 
 			ScheduleProc();
+		}
+		else if (getFPPmode() == REMOTE_MODE)
+		{
+			if(mediaOutputStatus.status == MEDIAOUTPUTSTATUS_PLAYING)
+			{
+				PlaylistProcessMediaData();
+			}
 		}
 
 		CheckGPIOInputs();

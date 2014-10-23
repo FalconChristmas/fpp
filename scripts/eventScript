@@ -5,20 +5,21 @@ BINDIR=$(cd $(dirname $0) && pwd)
 . ${BINDIR}/common
 . ${BINDIR}/functions
 
+export MEDIADIR FPPDIR CFGDIR CFGFILE SETTINGSFILE
 EXT=$(basename $1 | sed -e "s/.*\.\([^\.]*\)/\1/")
 
 if [ "x${EXT}" = "xsh" ]
 then
-	exec /bin/bash $@
+	exec /bin/bash "$@"
 elif [ "x${EXT}" = "xpl" ]
 then
-	exec /usr/bin/perl $@
+	exec /usr/bin/perl "$@"
 elif [ "x${EXT}" = "xphp" ]
 then
-	exec /usr/bin/php $@
+	exec /usr/bin/php "$@"
 elif [ "x${EXT}" = "xpy" ]
 then
-	exec /usr/bin/python $@
+	exec /usr/bin/python "$@"
 elif [ -x $1 ]
 then
 	EXECUTABLE=$1

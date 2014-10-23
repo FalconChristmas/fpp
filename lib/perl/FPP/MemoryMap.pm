@@ -192,9 +192,8 @@ sub DumpBlock {
 	my $name = shift;
 	my $blk = $this->GetBlockInfo($name);
 
-	# FIXME, get this from the block itself.
-	my $startChannel = 0;
 	my $bd = $blk->{data};
+	my $startChannel = $bd->{startChannel} - 1;
 	my $width = $bd->{channelCount} / $bd->{strandsPerString} / $bd->{stringCount} / 3;
 	my $height = $bd->{channelCount} / 3 / $width;
 	my $i = $startChannel;
@@ -286,11 +285,7 @@ sub SetBlockState {
 	my $blk = shift;
 	my $state = shift || 0;
 
-	if ($state != 0) {
-		$blk->{data}->{isActive} = 1;
-	} else {
-		$blk->{data}->{isActive} = 0;
-	}
+	$blk->{data}->{isActive} = $state;
 
 	$this->SaveBlockInfo($blk);
 }
@@ -373,6 +368,38 @@ sub SetBlockColor {
 }
 
 #############################################################################
+# Dump Block Info
+sub DumpBlockInfo {
+	my $this = shift;
+	my $i = shift;
+	my $b = shift;
+
+	printf( "Block #%d\n", $i);
+	printf( "    Name                : %s\n", $b->{data}->{blockName});
+	printf( "    Overlay Enabled     : ");
+	if ($b->{data}->{isActive} == 0) {
+		printf( "(0) Off" );
+	} elsif ($b->{data}->{isActive} == 1) {
+		printf( "(1) On" );
+	} elsif ($b->{data}->{isActive} == 2) {
+		printf( "(2) On (Transparent)" );
+	} elsif ($b->{data}->{isActive} == 3) {
+		printf( "(3) On (Transparent RGB)" );
+	}
+	printf( "\n");
+	printf( "    Start Channel       : %d\n", $b->{data}->{startChannel});
+	printf( "    Channel Count       : %d\n", $b->{data}->{channelCount});
+	printf( "    Orientation         : %s\n",
+		$b->{data}->{orientation} eq "H" ? "H (Horizontal)" : "V (Vertical)");
+	printf( "    Start Corner        : %s\n",
+		$b->{data}->{startCorner} eq "TL" ? "TL (Top Left)"
+		: $b->{data}->{startCorner} eq "TR" ? "TR (Top Right)"
+		: $b->{data}->{startCorner} eq "BL" ? "BL (Bottom Left)"
+		: "BR (Bottom Right)");
+	printf( "    String Count        : %d\n", $b->{data}->{stringCount});
+	printf( "    Strands Per String  : %d\n", $b->{data}->{strandsPerString});
+}
+#############################################################################
 # Dump the Memory Map blocks config info
 sub DumpConfig {
 	my $this = shift;
@@ -384,22 +411,8 @@ sub DumpConfig {
 
 	my $i = 1;
 	foreach my $key ( keys %{$this->{Blocks}}) {
-		my $b = $this->{Blocks}->{$key};
-		printf( "Block #%d\n", $i++);
-		printf( "    Name                : %s\n", $b->{data}->{blockName});
-		printf( "    Enabled             : %s\n",
-			$b->{data}->{isActive} ? "1 (Yes)": "0 (No)");
-		printf( "    Start Channel       : %d\n", $b->{data}->{startChannel});
-		printf( "    Channel Count       : %d\n", $b->{data}->{channelCount});
-		printf( "    Orientation         : %s\n",
-			$b->{data}->{orientation} eq "H" ? "H (Horizontal)" : "V (Vertical)");
-		printf( "    Start Corner        : %s\n",
-			$b->{data}->{startCorner} eq "TL" ? "TL (Top Left)"
-			: $b->{data}->{startCorner} eq "TR" ? "TR (Top Right)"
-			: $b->{data}->{startCorner} eq "BL" ? "BL (Bottom Left)"
-			: "BR (Bottom Right)");
-		printf( "    String Count        : %d\n", $b->{data}->{stringCount});
-		printf( "    Strands Per String  : %d\n", $b->{data}->{strandsPerString});
+		$this->DumpBlockInfo($i, $this->{Blocks}->{$key});
+		$i++;
 	}
 }
 
@@ -480,96 +493,18 @@ sub GetFontList {
 }
 
 #############################################################################
-# Put a text message up on the display
-sub TextMessage {
+sub OverlayImage {
 	my $this = shift;
-	my $blk = shift;
-	my $msg = shift;
-	my $color = shift || "#ff0000";
-	my $fill = shift || "#000000";
-	my $font = shift || "Courier";
-	my $size = shift || 10;
-	my $pos = shift || "scroll";
-	my $dir = shift || "R2L";
-	my $pps = shift || 5;
-	my $mirror = shift;
+	my $bd = shift;
+	my $width = shift;
+	my $height = shift;
+	my $txt_width = shift;
+	my $txt_height = shift;
+	my $LtoR = shift;
+	my $TtoB = shift;
+	my $rgbData = shift;
+	my $rgbDataR = shift;
 
-	$this->SetBlockLock($blk, 1);
-
-	my $bd = $blk->{data};
-	my $sleepTime = 1000000 / $pps;
-	my $TtoB = ($bd->{startCorner} =~ /^T/) ? 1 : 0;
-	my $LtoR = ($bd->{startCorner} =~ /L$/) ? 1 : 0;
-	my $stringSize = $bd->{channelCount} / 3 / $bd->{stringCount};
-	my $width = $bd->{channelCount} / $bd->{strandsPerString} / $bd->{stringCount} / 3;
-	my $height = $bd->{channelCount} / 3 / $width;
-
-	# Get font metrics for our string
-	my $img2 = new Image::Magick;
-	$img2->Set( size=>'1x1' );
-	$img2->ReadImage( 'xc:none' );
-
-	my ($txt_x_ppem, $txt_y_ppem, $txt_ascender, $txt_descender, $txt_width, $txt_height, $txt_max_advance, $txt_predict) =
-		$img2->QueryMultilineFontMetrics(text => $msg, font => $font, fill => $fill, pointsize => $size );
-
-	$txt_width = int($txt_width + 1);
-	$txt_height = int($txt_height + 1);
-
-	my $img = Image::Magick->new(size => sprintf( "%dx%d", $txt_width + 2, $txt_height + 2));
-	my $imgR = Image::Magick->new(size => sprintf( "%dx%d", $txt_width + 2, $txt_height + 2));
-	$txt_width += 2;
-	$txt_height += 2;
-
-	if (1) {
-		printf( "x_ppem:      %s\n", $txt_x_ppem);
-		printf( "y_ppem:      %s\n", $txt_y_ppem);
-		printf( "ascender:    %s\n", $txt_ascender);
-		printf( "descender:   %s\n", $txt_descender);
-		printf( "width:       %s\n", $txt_width);
-		printf( "height:      %s\n", $txt_height);
-		printf( "max_advance: %s\n", $txt_max_advance);
-		printf( "predict:     %s\n", $txt_predict);
-	}
-
-	$img->Set(magick => "rgb");    # so we can save to blob as RGB
-	$img->Set(depth => 8);         # needed for RGB data
-
-	if (($color !~ /^#/) &&
-		($color =~ /^[0-9]+$/)) {
-		$color = "#" . $color;
-	}
-
-	if (($fill !~ /^#/) &&
-		($fill =~ /^[0-9]+$/)) {
-		$fill = "#" . $fill;
-	}
-
-	@$img = (); # clear the image
-	$img->ReadImage('xc:' . $fill); # black/blank background
-	my $err = $img->Annotate(
-			pointsize => $size,
-			text => $msg,
-			gravity=>'NorthWest',
-			stroke => 'none',
-			weight => 1,
-			antialias => 0,
-			font => $font,
-			fill => $color,
-			x => 1,
-			y => 1,
-		);
-	print $err if $err;
-
-	my $rgbData = $img->ImageToBlob();
-
-	my $imgR = $img->Clone();
-	$imgR->Flop();
-	my $rgbDataR = $imgR->ImageToBlob();
-
-	#$img->Write("text.png");
-
-	my $overlayImage;
-	$overlayImage = sub {
 		my $x = shift;
 		my $y = shift;
 		my $dx = $x > 0 ? $x : 0;
@@ -696,20 +631,203 @@ sub TextMessage {
 		}
 	};
 
-	$msg =~ s/\\n/\n/g;
+#############################################################################
+# Get text string metrics
+sub GetTextMetrics {
+	my $this = shift;
+	my $text = shift;
+	my $font = shift;
+	my $size = shift;
+	my %result;
+
+	my $img2 = new Image::Magick;
+	$img2->Set( size=>'1x1' );
+	$img2->ReadImage( 'xc:none' );
+
+	my ($x_ppem, $y_ppem, $ascender, $descender, $width, $height, $max_advance, $predict) =
+		$img2->QueryMultilineFontMetrics(text => $text, font => $font, fill => "#ff0000", pointsize => $size );
+
+	$result{x_ppem} = $x_ppem;
+	$result{y_ppem} = $y_ppem;
+	$result{ascender} = $ascender;
+	$result{descender} = $descender;
+	$result{width} = int($width + 1);
+	$result{height} = int($height + 1);
+	$result{max_advance} = $max_advance;
+	$result{predict} = $predict;
+
+	$result{width} += 2;
+	$result{height} += 2;
+
+	if (0) {
+		printf( "Metrics for '%s' in '%s' font at size %d\n",
+			$text, $font, $size);
+		printf( "x_ppem:      %s\n", $result{x_ppem});
+		printf( "y_ppem:      %s\n", $result{y_ppem});
+		printf( "ascender:    %s\n", $result{ascender});
+		printf( "descender:   %s\n", $result{descender});
+		printf( "width:       %s\n", $result{width});
+		printf( "height:      %s\n", $result{height});
+		printf( "max_advance: %s\n", $result{max_advance});
+		printf( "predict:     %s\n", $result{predict});
+	}
+
+	return \%result;
+}
+
+#############################################################################
+# Get Text Images
+sub GetTextImages {
+	my $this = shift;
+	my $text = shift;
+	my $font = shift;
+	my $size = shift;
+	my $color = shift;
+	my $fill = shift;
+	my $metrics = shift;
+	my $img;
+	my $imgR;
+
+	$img = Image::Magick->new(size => sprintf( "%dx%d", $metrics->{width}, $metrics->{height}));
+	$imgR = Image::Magick->new(size => sprintf( "%dx%d", $metrics->{width}, $metrics->{height}));
+
+	$img->Set(magick => "rgb");    # so we can save to blob as RGB
+	$img->Set(depth => 8);         # needed for RGB data
+
+	@$img = (); # clear the image
+	$img->ReadImage('xc:' . $fill); # black/blank background
+
+	my $err = $img->Annotate(
+			pointsize => $size,
+			text => $text,
+			gravity=>'NorthWest',
+			stroke => 'none',
+			weight => 1,
+			antialias => 0,
+			font => $font,
+			fill => $color,
+			x => 1,
+			y => 1,
+		);
+	print $err if $err;
+
+	my $rgbData = $img->ImageToBlob();
+
+	my $imgR = $img->Clone();
+	$imgR->Flop();
+
+	my $rgbDataR = $imgR->ImageToBlob();
+
+	return ($img, $imgR, $rgbData, $rgbDataR);
+}
+
+#############################################################################
+# Put a text message up on the display
+sub TextMessage {
+	my $this = shift;
+	my $blk = shift;
+	my $msgIn = shift;
+	my $color = shift || "#ff0000";
+	my $fill = shift || "#000000";
+	my $font = shift || "Courier";
+	my $size = shift || 10;
+	my $pos = shift || "scroll";
+	my $dir = shift || "R2L";
+	my $pps = shift || 5;
+	my $mirror = shift;
+	my $msg = $msgIn;
+	my $metrics;
+	my $img;
+	my $imgR;
+	my $rgbData;
+	my $rgbDataR;
+	my $msgIsFunc = 0;
+
+	if (ref $msgIn eq "CODE")
+	{
+		$msg = $msgIn->();
+		$msgIsFunc = 1;
+	}
+
+	$this->SetBlockLock($blk, 1);
+
+	my $bd = $blk->{data};
+	my $sleepTime = 1000000 / $pps;
+	my $TtoB = ($bd->{startCorner} =~ /^T/) ? 1 : 0;
+	my $LtoR = ($bd->{startCorner} =~ /L$/) ? 1 : 0;
+	my $stringSize = $bd->{channelCount} / 3 / $bd->{stringCount};
+	my $width = $bd->{channelCount} / $bd->{strandsPerString} / $bd->{stringCount} / 3;
+	my $height = $bd->{channelCount} / 3 / $width;
+
+	if (($color !~ /^#/) &&
+		($color =~ /^[0-9]+$/)) {
+		$color = "#" . $color;
+	}
+
+	if (($fill !~ /^#/) &&
+		($fill =~ /^[0-9]+$/)) {
+		$fill = "#" . $fill;
+	}
+
+	$metrics = $this->GetTextMetrics($msg, $font, $size);
+	($img, $imgR, $rgbData, $rgbDataR) = $this->GetTextImages($msg, $font, $size, $color, $fill, $metrics);
+
+	my $overlayImage;
+	$overlayImage = sub {
+		my $x = shift;
+		my $y = shift;
+
+		$this->OverlayImage($bd, $width, $height, $metrics->{width}, $metrics->{height}, $LtoR, $TtoB, $rgbData, $rgbDataR, $x, $y);
+
+		if (defined($mirror))
+		{
+			substr(${$this->{"dataFileMap"}},
+				$mirror->{data}->{startChannel}, $mirror->{data}->{channelCount},
+				substr(${$this->{"dataFileMap"}},
+					$bd->{startChannel}, $bd->{channelCount}));
+		}
+	};
+
+	my $lastMsg = $msg;
+	my $lastTime = 0;
+	my $thisTime = time;
+
+	my $checkForUpdate;
+	$checkForUpdate = sub {
+		my $frames = shift;
+
+		$thisTime = time;
+
+		if ($msgIsFunc && ($thisTime != $lastTime))
+		{
+			$msg = $msgIn->();
+			if ($msg ne $lastMsg)
+			{
+				$metrics = $this->GetTextMetrics($msg . " ", $font, $size);
+				($img, $imgR, $rgbData, $rgbDataR) = $this->GetTextImages($msg, $font, $size, $color, $fill, $metrics);
+				$frames = $metrics->{width} + $width;
+				$lastMsg = $msg;
+			}
+			$lastTime = $thisTime;
+		}
+
+		return $frames;
+	};
 
 	if ($pos =~ /^[0-9]+,[0-9]+$/) {
 		my ($x, $y) = split(',', $pos);
 		$overlayImage->($x, $y);
 	} elsif ($pos eq "scroll") {
 		if ($dir eq "R2L") {
-			my $frames = $txt_width + $width;
+			my $frames = $metrics->{width} + $width;
 			for (my $i = 0; $i < $frames; $i++) {
-				my $y = int(($height / 2) - ($txt_height / 2));
+				my $y = int(($height / 2) - ($metrics->{height} / 2));
 				$y = 0 if ($y < 0);
 
 				my $startTime = [gettimeofday];
 				$overlayImage->($width - $i, $y);
+				$frames = $checkForUpdate->($frames);
+
 				my $stime = $sleepTime - (tv_interval( $startTime ) * 1000000);
 				if ($stime > 0)
 				{
@@ -717,13 +835,15 @@ sub TextMessage {
 				}
 			}
 		} elsif ($dir eq "L2R") {
-			my $frames = $txt_width + $width;
+			my $frames = $metrics->{width} + $width;
 			for (my $i = $frames - 1; $i >= 0; $i--) {
-				my $y = int(($height / 2) - ($txt_height / 2));
+				my $y = int(($height / 2) - ($metrics->{height} / 2));
 				$y = 0 if ($y < 0);
 
 				my $startTime = [gettimeofday];
 				$overlayImage->($width - $i, $y);
+				$frames = $checkForUpdate->($frames);
+
 				my $stime = $sleepTime - (tv_interval( $startTime ) * 1000000);
 				if ($stime > 0)
 				{
@@ -731,13 +851,15 @@ sub TextMessage {
 				}
 			}
 		} elsif ($dir eq "T2B") {
-			my $frames = $txt_height + $height;
+			my $frames = $metrics->{height} + $height;
 			for (my $i = $frames - 1; $i >= 0; $i--) {
-				my $x = int(($width / 2) - ($txt_width / 2));
+				my $x = int(($width / 2) - ($metrics->{width} / 2));
 				$x = 0 if ($x < 0);
 
 				my $startTime = [gettimeofday];
 				$overlayImage->($x, $height - $i);
+				$frames = $checkForUpdate->($frames);
+
 				my $stime = $sleepTime - (tv_interval( $startTime ) * 1000000);
 				if ($stime > 0)
 				{
@@ -745,13 +867,15 @@ sub TextMessage {
 				}
 			}
 		} elsif ($dir eq "B2T") {
-			my $frames = $txt_height + $height;
+			my $frames = $metrics->{height} + $height;
 			for (my $i = 0; $i < $frames; $i++) {
-				my $x = int(($width / 2) - ($txt_width / 2));
+				my $x = int(($width / 2) - ($metrics->{width} / 2));
 				$x = 0 if ($x < 0);
 
 				my $startTime = [gettimeofday];
 				$overlayImage->($x, $height - $i);
+				$frames = $checkForUpdate->($frames);
+
 				my $stime = $sleepTime - (tv_interval( $startTime ) * 1000000);
 				if ($stime > 0)
 				{
@@ -760,7 +884,7 @@ sub TextMessage {
 			}
 		}
 	} elsif ($pos = "center") {
-		$overlayImage->(int(($width / 2) - ($txt_width / 2)), int(($height / 2) - ($txt_height / 2)) );
+		$overlayImage->(int(($width / 2) - ($metrics->{width} / 2)), int(($height / 2) - ($metrics->{height} / 2)) );
 	}
 
 	$this->SetBlockLock($blk, 0);

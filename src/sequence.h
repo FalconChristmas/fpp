@@ -38,11 +38,14 @@ extern char seqFilename[1024];
 int   OpenSequenceFile(const char *filename);
 int   SeekSequenceFile(int frameNumber);
 int   IsSequenceRunning(void);
+void  ProcessSequenceData(void);
 void  ReadSequenceData(void);
 void  SendSequenceData(void);
 void  SendBlankingData(void);
 void  CloseSequenceFile(void);
 int   SequenceIsPaused(void);
 void  ToggleSequencePause(void);
+void  SingleStepSequence(void);
+void  SingleStepSequenceBack(void);
 
 #endif /* _SEQUENCE_H */

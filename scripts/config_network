@@ -48,6 +48,7 @@ configure_wireless () {
 		network={
 			ssid="${SSID}"
 			psk="${PSK}"
+			scan_ssid=1
 		}
 	EOF
 

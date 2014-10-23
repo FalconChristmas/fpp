@@ -209,6 +209,8 @@ FPPChannelOutput SPIws2801Output = {
 	.close        = SPIws2801_Close,
 	.isConfigured = SPIws2801_IsConfigured,
 	.isActive     = SPIws2801_IsActive,
-	.send         = SPIws2801_SendData
+	.send         = SPIws2801_SendData,
+	.startThread  = NULL,
+	.stopThread   = NULL,
 	};
 

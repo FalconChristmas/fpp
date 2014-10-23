@@ -24,6 +24,7 @@
  */
 
 #include "fpp.h"
+#include "fppversion.h"
 #include "log.h"
 #include "command.h"
 #include "sequence.h"
@@ -68,6 +69,12 @@ int main (int argc, char *argv[])
     {
       sprintf(command,"v,%s,",argv[2]);
       SendCommand(command);
+    }
+    // Display version information
+    else if(strncmp(argv[1],"-V",2)==0)
+    {
+      printVersionInfo();
+	  exit(0);
     }
     // Play Playlist - example "fpp -p playlistFile"
     else if((strncmp(argv[1],"-p",2) == 0) &&  argc > 2)
@@ -121,6 +128,12 @@ int main (int argc, char *argv[])
         strcpy(command,"NextPlaylistItem");
       else if (!strcmp(argv[2], "prev"))
         strcpy(command,"PrevPlaylistItem");
+      else if (!strcmp(argv[2], "pause"))
+        sprintf(command,"ToggleSequencePause");
+      else if (!strcmp(argv[2], "step"))
+        sprintf(command,"SingleStepSequence");
+      else if (!strcmp(argv[2], "stepback"))
+        sprintf(command,"SingleStepSequenceBack");
       else if (!strcmp(argv[2], "stop"))
         sprintf(command,"d");
       else if (!strcmp(argv[2], "graceful"))
@@ -255,6 +268,7 @@ void Usage(char *appname)
 "certain information and send commands to a running fppd daemon.\n"
 "\n"
 "Options:\n"
+"  -V                           - Print version information\n"
 "  -s                           - Get fppd status\n"
 "  -v VOLUME                    - Set volume to 'VOLUME'\n"
 "  -p PLAYLISTNAME              - Play Playlist PLAYLISTNAME in repeat mode\n"
@@ -265,6 +279,9 @@ void Usage(char *appname)
 "                                 prev     - jump back to previous item\n"
 "                                 stop     - stop the playlist immediately\n"
 "                                 graceful - stop the playlist gracefully\n"
+"                                 pause    - pause a sequence (not media)\n"
+"                                 step     - single-step a paused sequence\n"
+"                                 stepback - step a paused sequence backwards\n"
 "  -S                           - Stop Playlist gracefully\n"
 "  -d                           - Stop Playlist immediately\n"
 "  -q                           - Shutdown fppd daemon\n"

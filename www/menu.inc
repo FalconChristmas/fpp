@@ -79,6 +79,7 @@ if ( $handle )
 }
 ?>
             <li><a href="settings.php">FPP Settings</a></li>
+            <li><a href="email.php">Email Settings</a></li>
           </div>
           <li><a href="events.php">Events</a></li>
           <li><a href="effects.php">Effects</a></li>
@@ -116,7 +117,7 @@ if ( $handle )
         <ul>
           <li><a href="channeloutputs.php">Channel Outputs</a></li>
           <li><a href="channelremaps.php">Remap Channels</a></li>
-          <li><a href="channelmemorymaps.php">Memory Mapped Channel Blocks</a></li>
+          <li><a href="pixeloverlaymodels.php">Pixel Overlay Models</a></li>
           <li><a href="gpio.php">GPIO Inputs</a></li>
 <?php
 $handle = opendir($pluginDirectory);
@@ -143,6 +144,7 @@ if ( $handle )
           <li><a href="docs.php">Docs</a></li>
 -->
           <li><a href="about.php">About</a></li>
+          <li><a href="http://<?php echo $settings['HostName'] ?>:4200" target="_new">SSH Shell</a></li>
           <li><a href="credits.php">Credits</a></li>
 <?php
 $handle = opendir($pluginDirectory);

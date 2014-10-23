@@ -52,11 +52,6 @@ pthread_t ChannelOutputThreadID;
 int       RunThread = 0;
 int       ThreadIsRunning = 0;
 
-/* Master/Remote sync */
-int             InitSync = 1;
-pthread_mutex_t SyncLock;
-pthread_cond_t  SyncCond;
-
 /* prototypes for functions below */
 void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent);
 
@@ -84,44 +79,6 @@ void EnableChannelOutput(void) {
 }
 
 /*
- * Initialize Master/Remote Sync variables
- */
-void InitChannelOutputSyncVars(void) {
-	pthread_mutex_init(&SyncLock, NULL);
-	pthread_cond_init(&SyncCond, NULL);
-}
-
-/*
- * Destroy the Master/Remote Sync variables
- */
-void DestroyChannelOutputSyncVars(void) {
-	pthread_mutex_destroy(&SyncLock);
-	pthread_cond_destroy(&SyncCond);
-}
-
-/*
- * Wait for a signal from the master
- */
-void WaitForMaster(long long timeToWait) {
-	struct timespec ts;
-	struct timeval  tv;
-
-	gettimeofday(&tv, NULL);
-	ts.tv_sec  = tv.tv_sec;
-	ts.tv_nsec = (tv.tv_usec + timeToWait) * 1000;
-
-	if (ts.tv_nsec >= 1000000000)
-	{
-		ts.tv_sec  += 1;
-		ts.tv_nsec -= 1000000000;
-	}
-
-	pthread_mutex_lock(&SyncLock);
-	pthread_cond_timedwait(&SyncCond, &SyncLock, &ts);
-	pthread_mutex_unlock(&SyncLock);
-}
-
-/*
  * Main loop in channel output thread
  */
 void *RunChannelOutputThread(void *data)
@@ -135,6 +92,8 @@ void *RunChannelOutputThread(void *data)
 	int onceMore = 0;
 	struct timespec ts;
 	int syncFrameCounter = 0;
+
+	LogDebug(VB_CHANNELOUT, "RunChannelOutputThread() starting\n");
 
 	ThreadIsRunning = 1;
 
@@ -180,11 +139,14 @@ void *RunChannelOutputThread(void *data)
 		if (getFPPmode() != BRIDGE_MODE)
 			ReadSequenceData();
 
+		ProcessSequenceData();
+
 		readTime = GetTime();
 
 		if ((IsSequenceRunning()) ||
 			(IsEffectRunning()) ||
 			(UsingMemoryMapInput()) ||
+			(getAlwaysTransmit()) ||
 			(getFPPmode() == BRIDGE_MODE))
 		{
 			onceMore = 1;
@@ -215,6 +177,9 @@ void *RunChannelOutputThread(void *data)
 	}
 
 	ThreadIsRunning = 0;
+
+	LogDebug(VB_CHANNELOUT, "RunChannelOutputThread() completed\n");
+
 	pthread_exit(NULL);
 }
 
@@ -231,18 +196,28 @@ void SetChannelOutputRefreshRate(int rate)
  */
 int StartChannelOutputThread(void)
 {
+	LogDebug(VB_CHANNELOUT, "StartChannelOutputThread()\n");
 	if (ChannelOutputThreadIsRunning())
 	{
 		// Give a little time in case we were shutting down
 		usleep(200000);
 		if (ChannelOutputThreadIsRunning())
+		{
+			LogDebug(VB_CHANNELOUT, "Channel Output thread is already running\n");
 			return 1;
+		}
 	}
 
-	RunThread = 1;
-	DefaultLightDelay = 1000000 / RefreshRate;
+	int E131BridgingInterval = getSettingInt("E131BridgingInterval");
+
+	if ((getFPPmode() == BRIDGE_MODE) && (E131BridgingInterval))
+		DefaultLightDelay = E131BridgingInterval * 1000;
+	else
+		DefaultLightDelay = 1000000 / RefreshRate;
+
 	LightDelay = DefaultLightDelay;
 
+	RunThread = 1;
 	int result = pthread_create(&ChannelOutputThreadID, NULL, &RunChannelOutputThread, NULL);
 
 	if (result)

@@ -39,6 +39,10 @@ typedef struct mediaOutput {
 	void (*stopPlaying) (void);
 	int  (*processData) (void);
 	int  (*isPlaying) (void);
+	void (*speedUp) (void);
+	void (*slowDown) (void);
+	void (*speedNormal) (void);
+	void (*setVolume) (int volume);
 } MediaOutput;
 
 typedef struct mediaOutputStatus {
@@ -49,6 +53,8 @@ typedef struct mediaOutputStatus {
 	int subSecondsRemaining;
 	int minutesTotal;
 	int secondsTotal;
+	float mediaSeconds;
+	int speedDelta;
 } MediaOutputStatus; 
 
 #define MEDIAOUTPUTPIPE_READ       0
@@ -65,6 +71,7 @@ void InitMediaOutput(void);
 void CleanupMediaOutput(void);
 int  OpenMediaOutput(char *filename);
 void CloseMediaOutput(void);
+void UpdateMasterMediaPosition(float seconds);
 
 #endif /* _MEDIAOUTPUT_H */
 

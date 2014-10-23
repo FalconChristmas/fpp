@@ -230,12 +230,18 @@ FPPevent* LoadEvent(char *id)
 int RunEventScript(FPPevent *e)
 {
 	pid_t pid = 0;
+	char  userScript[1024];
 	char  eventScript[1024];
 
-	strcpy(eventScript, getScriptDirectory());
-	strcat(eventScript, "/");
-	strncat(eventScript, e->script, 1024 - strlen(eventScript));
-	eventScript[1023] = '\0';
+	// Setup the script from our user
+	strcpy(userScript, getScriptDirectory());
+	strcat(userScript, "/");
+	strncat(userScript, e->script, 1024 - strlen(userScript));
+	userScript[1023] = '\0';
+
+	// Setup the wrapper
+	memcpy(eventScript, getFPPDirectory(), sizeof(eventScript));
+	strncat(eventScript, "/scripts/eventScript", sizeof(eventScript)-strlen(eventScript)-1);
 
 	pid = fork();
 	if (pid == 0) // Event Script process
@@ -251,10 +257,10 @@ int RunEventScript(FPPevent *e)
 #endif
 
 		char *args[128];
-		char *token = strtok(eventScript, " ");
+		char *token = strtok(userScript, " ");
 		int   i = 1;
 
-		args[0] = strdup(eventScript);
+		args[0] = strdup(userScript);
 		while (token && i < 126)
 		{
 			args[i] = strdup(token);
@@ -271,10 +277,11 @@ int RunEventScript(FPPevent *e)
 			exit(EXIT_FAILURE);
 		}
 
-		execvp("/opt/fpp/scripts/eventScript", args);
+		execvp(eventScript, args);
 
-		LogErr(VB_EVENT, "RunEventScript(), ERROR, we shouldn't be here, this means "
-			"that execvp() failed\n");
+		LogErr(VB_EVENT, "RunEventScript(), ERROR, we shouldn't be here, "
+			"this means that execvp() failed trying to run '%s %s': %s\n",
+			eventScript, args[0], strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 

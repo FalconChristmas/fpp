@@ -348,6 +348,19 @@ extern PlaylistDetails playlistDetails;
 					getFPPmode(),COMMAND_FAILED,logLevel,logMask);
 			}
 		}
+		else if (!strcmp(CommandStr, "SetSetting"))
+		{
+			char name[128];
+
+			s = strtok(NULL,",");
+			if (s)
+			{
+				strcpy(name, s);
+				s = strtok(NULL,",");
+				if (s)
+					parseSetting(name, s);
+			}
+		}
 		else if (!strcmp(CommandStr, "StopEffect"))
 		{
 			s = strtok(NULL,",");
@@ -377,6 +390,24 @@ extern PlaylistDetails playlistDetails;
 				(playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType == 's'))
 			{
 				ToggleSequencePause();
+			}
+		}
+		else if (!strcmp(CommandStr, "SingleStepSequence"))
+		{
+			if ((FPPstatus != FPP_STATUS_IDLE) &&
+				(playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType == 's') &&
+				(SequenceIsPaused()))
+			{
+				SingleStepSequence();
+			}
+		}
+		else if (!strcmp(CommandStr, "SingleStepSequenceBack"))
+		{
+			if ((FPPstatus != FPP_STATUS_IDLE) &&
+				(playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType == 's') &&
+				(SequenceIsPaused()))
+			{
+				SingleStepSequenceBack();
 			}
 		}
 		else if (!strcmp(CommandStr, "NextPlaylistItem"))

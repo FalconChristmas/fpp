@@ -320,10 +320,8 @@ void PlayListPlayingProcess(void)
 					playlistDetails.currentPlaylistEntry = PLAYLIST_STOP_INDEX;
 					break;
 				}
-				printf("incrimenting from PlayListPlayingProcess\n");
 				playlistDetails.playlistStarting = 0;
 				IncrimentPlayListEntry();
-				printf("Incrimented...\n");
 			}
 			else
 				break;
@@ -435,7 +433,6 @@ void PlayListPlayingProcess(void)
 	if (playlistDetails.StopPlaylist)
 	{
 		FPPstatus = FPP_STATUS_IDLE;
-		PlaylistCallback(&playlistDetails, PLAYLIST_STOPPING);
 	}
 }
 

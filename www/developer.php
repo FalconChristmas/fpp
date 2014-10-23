@@ -18,7 +18,7 @@ unset($output);
 
 if (!file_exists("/etc/fpp/config_version") && file_exists("/etc/fpp/rfs_version"))
 {
-	exec(SUDO . " $fppDir/scripts/upgrade_config");
+	exec($SUDO . " $fppDir/scripts/upgrade_config");
 }
 
 $os_build = "Unknown";
@@ -113,6 +113,13 @@ this.value = default_value;
 });
 });
 });
+
+function GitReset() {
+	$.get("fppxml.php?command=resetGit"
+		).success(function() {
+			$('#gitStatusPre').load('fppxml.php?command=gitStatus');
+		});
+}
 
 function ToggleAutoUpdate() {
 	if ($('#autoUpdateDisabled').is(':checked')) {
@@ -227,7 +234,20 @@ a:visited {
     <div class="clear"></div>
       <div id='gitStatus'>
         <b>Git Status:</b><br>
-        <pre><? echo $git_status; ?></pre>
+        <pre id='gitStatusPre'><? echo $git_status; ?></pre>
+      </div>
+      <div id='gitStatus'>
+        <b>Debug Actions:</b><br>
+		<li>Sequence<br>
+			<input type='button' value='Pause/UnPause' onClick='ToggleSequencePause();'>
+			<input type='button' value='Step' onClick='SingleStepSequence();'>
+			<input type='button' value='Step Back' onClick='SingleStepSequenceBack();'>
+				(these do not affect media playback)
+			</li>
+		<br>
+		<li>Git<br>
+			<input type='button' value='Reset Local Changes' onClick='GitReset();'> <b>WARNING:</b> This performs a "git reset --hard HEAD" to revert all local source code changes
+			</li>
       </div>
       <div id='gitStatus'>
         <b>Debug Actions:</b><br>

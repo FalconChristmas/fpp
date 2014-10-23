@@ -11,14 +11,12 @@ require_once('commandsocket.php');
 
 error_reporting(E_ALL);
 
-
-//define('debug', true);
-
 // Commands defined here which return something other
 // than XML need to return their own Content-type header.
 $nonXML = Array(
 	"getFile" => 1,
 	"getGitOriginLog" => 1,
+	"gitStatus" => 1,
 	"getVideoInfo" => 1,
 	"viewRemoteScript" => 1
 	);
@@ -47,6 +45,7 @@ $command_array = Array(
 	"deletePlaylist" => 'DeletePlaylist',
 	"deleteEntry" => 'DeleteEntry',
 	"deleteFile" => 'DeleteFile',
+	"convertFile" => 'ConvertFile',
 	"addPlaylistEntry" => 'AddPlayListEntry',
 	"setUniverseCount" => 'SetUniverseCount',
 	"getUniverses" => 'GetUniverses',
@@ -72,6 +71,8 @@ $command_array = Array(
 	"manualGitUpdate" => 'ManualGitUpdate',
 	"changeGitBranch" => 'ChangeGitBranch',
 	"getGitOriginLog" => 'GetGitOriginLog',
+	"gitStatus" => 'GitStatus',
+	"resetGit" => 'ResetGit',
 	"setAutoUpdate" => 'SetAutoUpdate',
 	"setDeveloperMode" => 'SetDeveloperMode',
 	"setVolume" => 'SetVolume',
@@ -103,9 +104,11 @@ if (isset($_GET['command']) && !isset($nonXML[$_GET['command']]))
 
 if ( isset($_GET['command']) && !empty($_GET['command']) )
 {
+	global $debug;
+
 	if ( array_key_exists($_GET['command'],$command_array) )
 	{
-		if ( defined('debug') )
+		if ($debug)
 			error_log("Calling ".$_GET['command']);
 		call_user_func($command_array[$_GET['command']]);
 	}
@@ -149,16 +152,19 @@ function EchoStatusXML($status)
 
 function RebootPi()
 {
-	$status=exec(SUDO . " shutdown -r now");
+	global $SUDO;
+
+	$status=exec($SUDO . " shutdown -r now");
 	EchoStatusXML($status);
 }
 
 function ManualGitUpdate()
 {
-	global $fppDir;
-	exec(SUDO . " $fppDir/scripts/fppd_stop");
+	global $fppDir, $SUDO;
+
+	exec($SUDO . " $fppDir/scripts/fppd_stop");
 	exec("$fppDir/scripts/git_pull");
-	exec(SUDO . " $fppDir/scripts/fppd_start");
+	exec($SUDO . " $fppDir/scripts/fppd_start");
 
 	EchoStatusXML("OK");
 }
@@ -185,6 +191,25 @@ function GetGitOriginLog()
 	$fullLog .= implode("\n", $log);
 
 	echo $fullLog;
+}
+
+function GitStatus()
+{
+	global $fppDir;
+
+	$fullLog = "";
+	exec("$fppDir/scripts/git_status", $log);
+	$fullLog .= implode("\n", $log);
+
+	echo $fullLog;
+}
+
+function ResetGit()
+{
+	global $fppDir;
+	exec("$fppDir/scripts/git_reset");
+
+	EchoStatusXML("OK");
 }
 
 function SetAutoUpdate()
@@ -215,6 +240,8 @@ function SetDeveloperMode()
 
 function SetVolume()
 {
+	global $SUDO;
+
 	$volume = $_GET['volume'];
 	check($volume);
 
@@ -227,7 +254,7 @@ function SetVolume()
 	$status=SendCommand('v,' . $vol . ',');
 
 	$card = 0;
-	exec(SUDO . " grep card /root/.asoundrc | head -n 1 | cut -d' ' -f 2", $output, $return_val);
+	exec($SUDO . " grep card /root/.asoundrc | head -n 1 | cut -d' ' -f 2", $output, $return_val);
 	if ( $return_val )
 	{
 		// Should we error here, or just move on?
@@ -248,16 +275,18 @@ function SetVolume()
 
 function SetPiLCDenabled()
 {
+	global $SUDO;
+
 	$enabled = $_GET['enabled'];
 	check($enabled);
   WriteSettingToFile("PI_LCD_Enabled",$enabled);
   if ($enabled == "true")
   {
-    $status = exec(SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/lcd/fppLCD start");
+    $status = exec($SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/lcd/fppLCD start");
   }
   else
   {
-    $status = exec(SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/lcd/fppLCD stop");
+    $status = exec($SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/lcd/fppLCD stop");
   }
 	EchoStatusXML($status);
 }
@@ -322,7 +351,9 @@ function GetFPPDmode()
 
 function ShutdownPi()
 {
-	$status=exec(SUDO . " shutdown -h now");
+	global $SUDO;
+
+	$status=exec($SUDO . " shutdown -h now");
 	EchoStatusXML($status);
 }
 
@@ -358,16 +389,16 @@ function InstallRemoteScript()
 
 function MoveFile()
 {
-	global $mediaDirectory, $musicDirectory, $sequenceDirectory, $videoDirectory, $effectDirectory, $scriptDirectory;
+	global $mediaDirectory, $uploadDirectory, $musicDirectory, $sequenceDirectory, $videoDirectory, $effectDirectory, $scriptDirectory;
 
 	$file = $_GET['file'];
 	check($file);
 
-	if(file_exists($mediaDirectory."/upload/" . $file))
+	if(file_exists($uploadDirectory."/" . $file))
 	{
 		if (preg_match("/\.(fseq)$/i", $file))
 		{
-			if ( !rename($mediaDirectory."/upload/" . $file, $sequenceDirectory . '/' . $file) )
+			if ( !rename($uploadDirectory."/" . $file, $sequenceDirectory . '/' . $file) )
 			{
 				error_log("Couldn't move sequence file");
 				exit(1);
@@ -375,7 +406,7 @@ function MoveFile()
 		}
 		else if (preg_match("/\.(eseq)$/i", $file))
 		{
-			if ( !rename($mediaDirectory."/upload/" . $file, $effectDirectory . '/' . $file) )
+			if ( !rename($uploadDirectory."/" . $file, $effectDirectory . '/' . $file) )
 			{
 				error_log("Couldn't move effect file");
 				exit(1);
@@ -383,7 +414,7 @@ function MoveFile()
 		}
 		else if (preg_match("/\.(mp4|mkv)$/i", $file))
 		{
-			if ( !rename($mediaDirectory."/upload/" . $file, $videoDirectory . '/' . $file) )
+			if ( !rename($uploadDirectory."/" . $file, $videoDirectory . '/' . $file) )
 			{
 				error_log("Couldn't move video file");
 				exit(1);
@@ -392,11 +423,11 @@ function MoveFile()
 		else if (preg_match("/\.(sh|pl|php|py)$/i", $file))
 		{
 			// Get rid of any DOS newlines
-			$contents = file_get_contents($mediaDirectory."/upload/".$file);
+			$contents = file_get_contents($uploadDirectory."/".$file);
 			$contents = str_replace("\r", "", $contents);
-			file_put_contents($mediaDirectory."/upload/".$file, $contents);
+			file_put_contents($uploadDirectory."/".$file, $contents);
 
-			if ( !rename($mediaDirectory."/upload/" . $file, $scriptDirectory . '/' . $file) )
+			if ( !rename($uploadDirectory."/" . $file, $scriptDirectory . '/' . $file) )
 			{
 				error_log("Couldn't move script file");
 				exit(1);
@@ -404,7 +435,7 @@ function MoveFile()
 		}
 		else if (preg_match("/\.(mp3|ogg)$/i", $file))
 		{
-			if ( !rename($mediaDirectory."/upload/" . $file, $musicDirectory . '/' . $file) )
+			if ( !rename($uploadDirectory."/" . $file, $musicDirectory . '/' . $file) )
 			{
 				error_log("Couldn't move music file");
 				exit(1);
@@ -413,7 +444,7 @@ function MoveFile()
 	}
 	else
 	{
-		error_log("Couldn't find file in upload directory");
+		error_log("Couldn't find file '" . $file . "' in upload directory");
 		exit(1);
 	}
 	EchoStatusXML('Success');
@@ -637,27 +668,31 @@ function StopNow()
 
 function StopFPPD()
 {
+	global $SUDO;
+
 	SendCommand('d'); // Ignore return and just kill if 'd' doesn't work...
-	$status=exec(SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_stop");
+	$status=exec($SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_stop");
 	EchoStatusXML('true');
 }
 
 
 function StartFPPD()
 {
-	global $settingsFile;
+	global $settingsFile, $SUDO;
 
 	$status=exec("if ps cax | grep -q fppd; then echo \"true\"; else echo \"false\"; fi");
 	if($status == 'false')
 	{
-		$status=exec(SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_start");
+		$status=exec($SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_start");
 	}
 	EchoStatusXML($status);
 }
 
 function RestartFPPD()
 {
-	exec(SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_stop");
+	global $SUDO;
+
+	exec($SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_stop");
 
 	StartFPPD();
 }
@@ -2143,6 +2178,116 @@ function DeleteFile()
 		EchoStatusXML('Failure');
 }
 
+function ConvertFile()
+{
+	global $uploadDirectory, $sequenceDirectory, $effectDirectory, $SUDO, $debug;
+
+	$file = $_GET['filename'];
+	$convertTo = $_GET['convertTo'];
+
+	check($file);
+	check($convertTo);
+
+	$doc = new DomDocument('1.0');
+	$response= $doc->createElement('Response');
+	$doc->appendChild($response);
+	$status = $doc->createElement('Status');
+	$response->appendChild($status);
+
+	if (preg_match("/\.(vix|xseq|lms|las|gled|seq|hlsidata)$/i", $file))
+	{
+		// The file gets placed where we run fppconvert from, which is
+		// typically the www-root.  Instead, let's go where we want it
+		// and know we have the space.
+		chdir($uploadDirectory);
+
+		exec($SUDO . " " . dirname(dirname(__FILE__)) . '/bin/fppconvert "' . $uploadDirectory."/".$file.'" 2>&1 | grep -i -e error -e alloc', $output, $return_val);
+
+		$output_string = "";
+		foreach ($output as $line)
+		{
+			$output_string .= $line . '<br />';
+			if ($debug)
+				error_log("*** FPPCONVERT OUTPUT: $line ***");
+		}
+
+		if (strpos($output_string, "rror") || strpos($output_string, "alloc"))
+		{
+			$fail = $doc->createTextNode('Failure');
+			$status->appendChild($fail);
+
+			$error = $doc->createElement('Error');
+			$response->appendChild($error);
+
+			if ( strpos($output_string, "alloc") )
+				$value = $doc->createTextNode("Out of memory!<br />This file is be too big to convert on the Pi.");
+			else
+				$value = $doc->createTextNode($output_string);
+			$error->appendChild($value);
+
+			echo $doc->saveHTML();
+			exit(1);
+		}
+
+		$file_strip = substr($file, 0, strrpos($file, "."));
+		if ($convertTo == "sequence")
+		{
+			if (!rename($file_strip.".fseq", $sequenceDirectory . '/' . $file_strip.".fseq"))
+			{
+				error_log("Couldn't copy sequence file");
+				$fail = $doc->createTextNode('Failure');
+				$status->appendChild($fail);
+
+				$error = $doc->createElement('Error');
+				$response->appendChild($error);
+
+				$value = $doc->createTextNode("Couldn't move sequence file");
+				$error->appendChild($value);
+
+				echo $doc->saveHTML();
+				exit(1);
+			}
+		}
+		elseif ($convertTo == "effect")
+		{
+			if (!rename($file_strip.".fseq", $effectDirectory . '/' . $file_strip.".eseq"))
+			{
+				error_log("Couldn't move effect file");
+				$fail = $doc->createTextNode('Failure');
+				$status->appendChild($fail);
+
+				$error = $doc->createElement('Error');
+				$response->appendChild($error);
+
+				$value = $doc->createTextNode("Couldn't move effect file");
+				$error->appendChild($value);
+
+				echo $doc->saveHTML();
+				exit(1);
+			}
+		}
+		else
+		{
+			unlink($file_strip.".fseq");
+			$fail = $doc->createTextNode('Failure');
+			$status->appendChild($fail);
+
+			$error = $doc->createElement('Error');
+			$response->appendChild($error);
+
+			$value = $doc->createTextNode("Invalid conversion type");
+			$error->appendChild($value);
+
+			echo $doc->saveHTML();
+			exit(1);
+		}
+	}
+
+	$success = $doc->createTextNode('Success');
+	$status->appendChild($success);
+	echo $doc->saveHTML();
+}
+
 function GetVideoInfo()
 {
 	$filename = $_GET['filename'];
@@ -2381,7 +2526,7 @@ function UninstallPlugin()
 	$plugin = $_GET['plugin'];
 	check($plugin);
 
-	global $fppDir, $pluginDirectory;
+	global $fppDir, $pluginDirectory, $SUDO;
 
 	if ( !file_exists("$pluginDirectory/$plugin") )
 	{
@@ -2390,7 +2535,7 @@ function UninstallPlugin()
 		return;
 	}
 
-	exec("export SUDO=\"".SUDO."\"; export PLUGINDIR=\"".$pluginDirectory."\"; $fppDir/scripts/uninstall_plugin $plugin", $output, $return_val);
+	exec("export SUDO=\"".$SUDO."\"; export PLUGINDIR=\"".$pluginDirectory."\"; $fppDir/scripts/uninstall_plugin $plugin", $output, $return_val);
 	unset($output);
 	if ( $return_val != 0 )
 	{
@@ -2407,7 +2552,7 @@ function InstallPlugin()
 	$plugin = $_GET['plugin'];
 	check($plugin);
 
-	global $fppDir, $pluginDirectory;
+	global $fppDir, $pluginDirectory, $SUDO;
 
 	if ( file_exists("$pluginDirectory/$plugin") )
 	{
@@ -2422,7 +2567,8 @@ function InstallPlugin()
 	{
 		if ( $available_plugin['shortName'] == $plugin )
 		{
-			exec("export SUDO=\"".SUDO."\"; export PLUGINDIR=\"".$pluginDirectory."\"; $fppDir/scripts/install_plugin $plugin \"" . $available_plugin['sourceUrl'] . "\"", $output, $return_val);
+			exec("export SUDO=\"".$SUDO."\"; export PLUGINDIR=\"".$pluginDirectory."\"; $fppDir/scripts/install_plugin $plugin \"" . $available_plugin['sourceUrl'] .
+				"\" \"" . $available_plugin['sha'] ."\"", $output, $return_val);
 			unset($output);
 			if ( $return_val != 0 )
 			{
