@@ -120,6 +120,13 @@ function AudioOutputChanged()
 		+ $('#AudioOutput').val()).fail(function() { alert("Failed to change audio output!") });
 }
 
+function ToggleLCDNow()
+{
+	var enabled = $('#PI_LCD_Enabled').is(":checked");
+	$.get("fppxml.php?command=setPiLCDenabled&enabled="
+		+ enabled).fail(function() { alert("Failed to change audio output!") });
+}
+
 </script>
 <title><? echo $pageTitle; ?></title>
 </head>
@@ -142,7 +149,7 @@ function AudioOutputChanged()
     </tr>
     <tr>
       <td>Pi 2x16 LCD Enabled:</td>
-      <td><? PrintSettingCheckbox("Enable LCD Display", "PI_LCD_Enabled", "1", "0"); ?></td>
+      <td><? PrintSettingCheckbox("Enable LCD Display", "PI_LCD_Enabled", "enabled", "disabled", "", "ToggleLCDNow"); ?></td>
     </tr>
     <tr>
       <td>Always transmit channel data:</td>
