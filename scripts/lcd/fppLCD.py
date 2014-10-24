@@ -825,10 +825,19 @@ def kill_handler(signum = None, frame = None):
   time.sleep(.2)  #here check if process is done
   sys.exit(0)
 
-THIS_DIRECTORY = os.path.dirname(os.path.realpath(__file__))
-context = daemon.DaemonContext()
+class foreground:
+  def __enter__(self):
+    pass
+  def __exit__(self, type, value, traceback):
+    pass
 
-context.open()
+THIS_DIRECTORY = os.path.dirname(os.path.realpath(__file__))
+if ( len(sys.argv) > 1 and sys.argv[1] == "fg" ):
+  context = foreground()
+else:
+  context = daemon.DaemonContext()
+  context.open()
+
 signal.signal(signal.SIGTERM , kill_handler)
 with context:
   sleep(1)
