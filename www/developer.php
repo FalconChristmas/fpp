@@ -249,10 +249,6 @@ a:visited {
 			<input type='button' value='Reset Local Changes' onClick='GitReset();'> <b>WARNING:</b> This performs a "git reset --hard HEAD" to revert all local source code changes
 			</li>
       </div>
-      <div id='gitStatus'>
-        <b>Debug Actions:</b><br>
-		<input type='button' value='Pause/UnPause Sequence' onClick='ToggleSequencePause();'><br>
-      </div>
     </fieldset>
     <div id='logViewer' title='Log Viewer' style="display: none">
       <pre>

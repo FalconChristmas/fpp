@@ -231,8 +231,6 @@ int OpenSequenceFile(const char *filename) {
 	seqSingleStep = 0;
 	seqSingleStepBack = 0;
 
-	seqPaused = 0;
-
 	ResetChannelOutputFrameNumber();
 
 	ReadSequenceData();
