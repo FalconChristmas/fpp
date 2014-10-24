@@ -129,15 +129,6 @@ else if(!empty($_POST['command']) && $_POST['command'] == "saveHardwareConfig")
 
 /////////////////////////////////////////////////////////////////////////////
 
-function check($var)
-{
-	if ( empty($var) || !isset($var) )
-	{
-		error_log("WARNING: Variable we checked in function '".$_GET['command']."' was empty");
-//		die();
-	}
-}
-
 function EchoStatusXML($status)
 {
 	$doc = new DomDocument('1.0');
@@ -172,7 +163,7 @@ function ManualGitUpdate()
 function ChangeGitBranch()
 {
 	$branch = $_GET['branch'];
-	check($branch);
+	check($branch, "branch", __FUNCTION__);
 
 	global $fppDir;
 	exec("$fppDir/scripts/git_branch $branch");
@@ -215,7 +206,7 @@ function ResetGit()
 function SetAutoUpdate()
 {
 	$enabled = $_GET['enabled'];
-	check($enabled);
+	check($enabled, "enabled", __FUNCTION__);
 
 	global $mediaDirectory;
 	if ($enabled)
@@ -229,7 +220,7 @@ function SetAutoUpdate()
 function SetDeveloperMode()
 {
 	$enabled = $_GET['enabled'];
-	check($enabled);
+	check($enabled, "enabled", __FUNCTION__);
 
 	global $mediaDirectory;
 	if ($enabled)
@@ -243,7 +234,7 @@ function SetVolume()
 	global $SUDO;
 
 	$volume = $_GET['volume'];
-	check($volume);
+	check($volume, "volume", __FUNCTION__);
 
 	WriteSettingToFile("volume",$volume);
 
@@ -278,16 +269,17 @@ function SetPiLCDenabled()
 	global $SUDO;
 
 	$enabled = $_GET['enabled'];
-	check($enabled);
-  WriteSettingToFile("PI_LCD_Enabled",$enabled);
-  if ($enabled == "true")
-  {
-    $status = exec($SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/lcd/fppLCD start");
-  }
-  else
-  {
-    $status = exec($SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/lcd/fppLCD stop");
-  }
+	check($enabled, "enabled", __FUNCTION__);
+
+	if ($enabled == "true")
+	{
+		$status = exec($SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/lcd/fppLCD start");
+	}
+	else
+	{
+		$status = exec($SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/lcd/fppLCD stop");
+	}
+
 	EchoStatusXML($status);
 }
 
@@ -299,7 +291,7 @@ function SetFPPDmode()
 	$mode_string['6'] = "master";
 	$mode_string['8'] = "remote";
 	$mode = $_GET['mode'];
-	check($mode);
+	check($mode, "mode", __FUNCTION__);
 	WriteSettingToFile("fppMode",$mode_string["$mode"]);
 	EchoStatusXML("true");
 }
@@ -307,7 +299,7 @@ function SetFPPDmode()
 function SetE131interface()
 {
 	$iface = $_GET['iface'];
-	check($iface);
+	check($iface, "iface", __FUNCTION__);
 	WriteSettingToFile("E131interface",$iface);
 	EchoStatusXML("true");
 }
@@ -360,10 +352,10 @@ function ShutdownPi()
 function ViewRemoteScript()
 {
 	$category = $_GET['category'];
-	check($category);
+	check($category, "category", __FUNCTION__);
 
 	$filename = $_GET['filename'];
-	check($filename);
+	check($filename, "filename", __FUNCTION__);
 
 	$script = file_get_contents("https://raw.githubusercontent.com/FalconChristmas/fpp-scripts/master/" . $category . "/" . $filename);
 
@@ -375,10 +367,10 @@ function InstallRemoteScript()
 	global $scriptDirectory;
 
 	$category = $_GET['category'];
-	check($category);
+	check($category, "category", __FUNCTION__);
 
 	$filename = $_GET['filename'];
-	check($filename);
+	check($filename, "filename", __FUNCTION__);
 
 	$script = file_get_contents("https://raw.githubusercontent.com/FalconChristmas/fpp-scripts/master/" . $category . "/" . $filename);
 
@@ -392,7 +384,7 @@ function MoveFile()
 	global $mediaDirectory, $uploadDirectory, $musicDirectory, $sequenceDirectory, $videoDirectory, $effectDirectory, $scriptDirectory;
 
 	$file = $_GET['file'];
-	check($file);
+	check($file, "file", __FUNCTION__);
 
 	if(file_exists($uploadDirectory."/" . $file))
 	{
@@ -461,9 +453,10 @@ function StartPlaylist()
 	$playlist = $_GET['playList'];
 	$repeat = $_GET['repeat'];
 	$playEntry = $_GET['playEntry'];
-	check($playlist);
-	check($repeat);
-	check($playEntry);
+
+	check($playlist, "playlist", __FUNCTION__);
+	check($repeat, "repeat", __FUNCTION__);
+	check($playEntry, "playEntry", __FUNCTION__);
 
 	if ($playEntry == "undefined")
 		$playEntry = "0";
@@ -482,9 +475,9 @@ function StartPlaylist()
 function PlayEffect()
 {
 	$effect = $_GET['effect'];
-	check($effect);
+	check($effect, "effect", __FUNCTION__);
 	$startChannel = $_GET['startChannel'];
-	check($startChannel);
+	check($startChannel, "startChannel", __FUNCTION__);
 	$status = SendCommand("e," . $effect . "," . $startChannel . ",");
 	EchoStatusXML('Success');
 }
@@ -492,7 +485,7 @@ function PlayEffect()
 function StopEffect()
 {
 	$id = $_GET['id'];
-	check($id);
+	check($id, "id", __FUNCTION__);
 	$status = SendCommand("StopEffect," . $id . ",");
 	EchoStatusXML('Success');
 }
@@ -541,7 +534,7 @@ function GetRunningEffects()
 function GetExpandedEventID()
 {
 	$id = $_GET['id'];
-	check($id);
+	check($id, "id", __FUNCTION__);
 
 	$majorID = preg_replace('/_.*/', '', $id);
 	$minorID = preg_replace('/.*_/', '', $id);
@@ -565,7 +558,7 @@ function SaveEvent()
 	global $eventDirectory;
 
 	$id = $_GET['id'];
-	check($id);
+	check($id, "id", __FUNCTION__);
 
 	$ids = preg_split('/_/', $id);
 
@@ -576,7 +569,7 @@ function SaveEvent()
 	$filename = $id . ".fevt";
 
 	$name = $_GET['event'];
-	check($name);
+	check($name, "name", __FUNCTION__);
 
 	if (isset($_GET['effect']) && $_GET['effect'] != "")
 		$eseq = $_GET['effect'] . ".eseq";
@@ -908,7 +901,7 @@ function GetLocalTime()
 function DeleteScheduleEntry()
 {
 	$index = $_GET['index'];
-	check($index);
+	check($index, "index", __FUNCTION__);
 
 	if($index < count($_SESSION['ScheduleEntries']) && count($_SESSION['ScheduleEntries']) > 0 )
 	{
@@ -1075,7 +1068,7 @@ function LoadScheduleFile()
 function GetSchedule()
 {
 	$reload = $_GET['reload'];
-	check($reload);
+	check($reload, "reload", __FUNCTION__);
 
 	if($reload == "TRUE")
 	{
@@ -1274,8 +1267,8 @@ function CloneUniverse()
 {
 	$index = $_GET['index'];
 	$numberToClone = $_GET['numberToClone'];
-	check($index);
-	check($numberToClone);
+	check($index, "index", __FUNCTION__);
+	check($numberToClone, "numberToClone", __FUNCTION__);
 
 	if($index < count($_SESSION['UniverseEntries']) && ($index + $numberToClone) < count($_SESSION['UniverseEntries']))
 	{
@@ -1301,7 +1294,7 @@ function CloneUniverse()
 function DeleteUniverse()
 {
 	$index = $_GET['index'];
-	check($index);
+	check($index, "index", __FUNCTION__);
 
 	if($index < count($_SESSION['UniverseEntries']) && count($_SESSION['UniverseEntries']) > 1 )
 	{
@@ -1465,7 +1458,7 @@ function SavePixelnetDMXoutputsToFile()
 function GetUniverses()
 {
 	$reload = $_GET['reload'];
-	check($reload);
+	check($reload, "reload", __FUNCTION__);
 
 	if($reload == "TRUE")
 	{
@@ -1517,7 +1510,7 @@ function GetUniverses()
 function GetPixelnetDMXoutputs()
 {
 	$reload = $_GET['reload'];
-	check($reload);
+	check($reload, "reload", __FUNCTION__);
 
 	if($reload == "TRUE")
 	{
@@ -1553,7 +1546,7 @@ function GetPixelnetDMXoutputs()
 function SetUniverseCount()
 {
 	$count = $_GET['count'];
-	check($count);
+	check($count, "count", __FUNCTION__);
 
 	if($count > 0 && $count <= 128)
 	{
@@ -1612,13 +1605,13 @@ function AddPlayListEntry()
 	$eventName = $_GET['eventName'];
 	$eventID = $_GET['eventID'];
 	$pluginData = $_GET['pluginData'];
-	check($type);
-	check($seqFile);
-	check($songFile);
-	check($pause);
-	check($eventName);
-	check($eventID);
-	check($pluginData);
+	check($type, "type", __FUNCTION__);
+	check($seqFile, "seqFile", __FUNCTION__);
+	check($songFile, "songFile", __FUNCTION__);
+	check($pause, "pause", __FUNCTION__);
+	check($eventName, "eventName", __FUNCTION__);
+	check($eventID, "eventID", __FUNCTION__);
+	check($pluginData, "pluginData", __FUNCTION__);
 	$index = 0;
 
 	$_SESSION['playListEntries'][] = new PlaylistEntry($type,$songFile,$seqFile,$pause,$eventName,$eventID,$pluginData,count($_SESSION['playListEntries']));
@@ -1717,7 +1710,7 @@ function GetFiles()
 	global $docsDirectory;
 
 	$dirName = $_GET['dir'];
-	check($dirName);
+	check($dirName, "dirName", __FUNCTION__);
 	if ($dirName == "Sequences")        { $dirName = $sequenceDirectory; }
 	else if ($dirName == "Music")       { $dirName = $musicDirectory; }
 	else if ($dirName == "Videos")      { $dirName = $videoDirectory; }
@@ -1791,7 +1784,7 @@ function AddPlaylist()
 	global $playlistDirectory;
 
 	$name = $_GET['pl'];
-	check($name);
+	check($name, "name", __FUNCTION__);
 
 	$doc = new DomDocument('1.0');
 	$name =str_replace(' ', '_', $name);
@@ -1827,8 +1820,8 @@ function SetPlayListFirstLast()
 {
 	$first = $_GET['first'];
 	$last = $_GET['last'];
-	check($first);
-	check($last);
+	check($first, "first", __FUNCTION__);
+	check($last, "last", __FUNCTION__);
 
 	$_SESSION['playlist_first'] = $first;
 	$_SESSION['playlist_last'] = $last;
@@ -1937,7 +1930,7 @@ function LoadPlayListDetails($file)
 function GetPlayListSettings()
 {
 	$file = $_GET['pl'];
-	check($file);
+	check($file, "file", __FUNCTION__);
 
 	$doc = new DomDocument('1.0');
 	// Playlist Entries
@@ -1961,8 +1954,8 @@ function GetPlaylistEntries()
 {
 	$file = $_GET['pl'];
 	$reloadFile = $_GET['reload'];
-	check($file);
-	check($reloadFile);
+	check($file, "file", __FUNCTION__);
+	check($reloadFile, "reloadFile", __FUNCTION__);
 
 	$_SESSION['currentPlaylist'] = $file;
 	if($reloadFile=='true')
@@ -2026,8 +2019,8 @@ function PlaylistEntryPositionChanged()
 {
 	$newIndex = $_GET['newIndex'];
 	$oldIndex = $_GET['oldIndex'];
-	check($newIndex);
-	check($oldIndex);
+	check($newIndex, "newIndex", __FUNCTION__);
+	check($oldIndex, "oldIndex", __FUNCTION__);
 
 	if(count($_SESSION['playListEntries']) > $oldIndex && count($_SESSION['playListEntries']) > $newIndex)
 	{
@@ -2059,9 +2052,9 @@ function SavePlaylist()
 	$name = $_GET['name'];
 	$first = $_GET['first'];
 	$last = $_GET['last'];
-	check($name);
-	check($first);
-	check($last);
+	check($name, "name", __FUNCTION__);
+	check($first, "first", __FUNCTION__);
+	check($last, "last", __FUNCTION__);
 
 	$f=fopen($playlistDirectory . '/' . $name,"w") or exit("Unable to open file! : " . $playlistDirectory . '/' . $name);
 	$entries = sprintf("%s,%s,\n",$first,$last);
@@ -2111,7 +2104,7 @@ function DeletePlaylist()
 	global $playlistDirectory;
 
 	$name = $_GET['name'];
-	check($name);
+	check($name, "name", __FUNCTION__);
 
 	unlink($playlistDirectory . '/' . $name);
 	EchoStatusXML('Success');
@@ -2120,7 +2113,7 @@ function DeletePlaylist()
 function DeleteEntry()
 {
 	$index = $_GET['index'];
-	check($index);
+	check($index, "index", __FUNCTION__);
 
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('Status');
@@ -2159,10 +2152,10 @@ function cmp_index($a, $b)
 function DeleteFile()
 {
 	$filename = $_GET['filename'];
-	check($filename);
+	check($filename, "filename", __FUNCTION__);
 
 	$dir = $_GET['dir'];
-	check($dir);
+	check($dir, "dir", __FUNCTION__);
 
 	$dir = GetDirSetting($dir);
 
@@ -2185,8 +2178,8 @@ function ConvertFile()
 	$file = $_GET['filename'];
 	$convertTo = $_GET['convertTo'];
 
-	check($file);
-	check($convertTo);
+	check($file, "file", __FUNCTION__);
+	check($convertTo, "convertTo", __FUNCTION__);
 
 	$doc = new DomDocument('1.0');
 	$response= $doc->createElement('Response');
@@ -2291,7 +2284,7 @@ function ConvertFile()
 function GetVideoInfo()
 {
 	$filename = $_GET['filename'];
-	check($filename);
+	check($filename, "filename", __FUNCTION__);
 
 	header('Content-type: text/plain');
 
@@ -2306,10 +2299,10 @@ function GetVideoInfo()
 function GetFile()
 {
 	$filename = $_GET['filename'];
-	check($filename);
+	check($filename, "filename", __FUNCTION__);
 
 	$dir = $_GET['dir'];
-	check($dir);
+	check($dir, "dir", __FUNCTION__);
 
 	$dir = GetDirSetting($dir);
 
@@ -2334,7 +2327,7 @@ function GetZip()
 	global $mediaDirectory;
 
 	$dir = $_GET['dir'];
-	check($dir);
+	check($dir, "dir", __FUNCTION__);
 
 	$dir = GetDirSetting($dir);
 
@@ -2417,13 +2410,13 @@ function GetZip()
 function SaveUSBDongle()
 {
 	$usbDonglePort = $_GET['port'];
-	check($usbDonglePort);
+	check($usbDonglePort, "usbDonglePort", __FUNCTION__);
 
 	$usbDongleType = $_GET['type'];
-	check($usbDongleType);
+	check($usbDongleType, "usbDongleType", __FUNCTION__);
 
 	$usbDongleBaud = $_GET['baud'];
-	check($usbDongleBaud);
+	check($usbDongleBaud, "usbDongleBaud", __FUNCTION__);
 
 	WriteSettingToFile("USBDonglePort", $usbDonglePort);
 	WriteSettingToFile("USBDongleType", $usbDongleType);
@@ -2433,7 +2426,7 @@ function SaveUSBDongle()
 function GetInterfaceInfo()
 {
 	$interface = $_GET['interface'];
-	check($interface);
+	check($interface, "interface", __FUNCTION__);
 
   $readinterface = shell_exec("./readInterface.awk /etc/network/interfaces device=" . $interface);
   $parseethernet = explode(",", $readinterface);
@@ -2524,7 +2517,7 @@ function UpdatePlugin()
 function UninstallPlugin()
 {
 	$plugin = $_GET['plugin'];
-	check($plugin);
+	check($plugin, "plugin", __FUNCTION__);
 
 	global $fppDir, $pluginDirectory, $SUDO;
 
@@ -2550,7 +2543,7 @@ function UninstallPlugin()
 function InstallPlugin()
 {
 	$plugin = $_GET['plugin'];
-	check($plugin);
+	check($plugin, "plugin", __FUNCTION__);
 
 	global $fppDir, $pluginDirectory, $SUDO;
 
