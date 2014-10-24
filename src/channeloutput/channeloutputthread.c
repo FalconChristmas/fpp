@@ -66,6 +66,7 @@ inline int ChannelOutputThreadIsRunning(void) {
  *
  */
 void DisableChannelOutput(void) {
+	LogDebug(VB_CHANNELOUT, "DisableChannelOutput()\n");
 	OutputFrames = 0;
 }
 
@@ -73,6 +74,7 @@ void DisableChannelOutput(void) {
  *
  */
 void EnableChannelOutput(void) {
+	LogDebug(VB_CHANNELOUT, "EnableChannelOutput()\n");
 	OutputFrames = 1;
 }
 
@@ -153,9 +155,9 @@ void *RunChannelOutputThread(void *data)
 				int sleepTime = LightDelay - (GetTime() - startTime);
 				lastStatTime = startTime;
 				LogDebug(VB_CHANNELOUT,
-					"Output Thread: Loop: %dus, Send: %lldus, Read: %lldus, Sleep: %dus\n",
+					"Output Thread: Loop: %dus, Send: %lldus, Read: %lldus, Sleep: %dus, FrameNum: %ld\n",
 					LightDelay, sendTime - startTime,
-					readTime - sendTime, sleepTime);
+					readTime - sendTime, sleepTime, channelOutputFrame);
 			}
 		}
 		else
