@@ -1,17 +1,17 @@
 <h3>Channel Output Configuration</h3>
 
 <p><b>E1.31</b> - The E1.31 output can drive up to 128 universes (65,536 channels) over the Pi's ethernet network interface.</p>
-<p><b>Falcon Pixelnet/DMX (FPD)</b> - The FPD output can send 32,768 channels out 12 ports.</p>
-<p><b>DMX Open</b> - The DMX Open output can send DMX data out generic FTDI-based USB to RS485 dongles.</p>
-<p><b>DMX Pro</b> - The DMX Pro output can send DMX data out Entec-Pro compatible dongles.</p>
+<p><b>Falcon Pixelnet/DMX (FPD)</b> - The FPD output can send 32,768 channels out 12 ports configured for the DMX or Pixelnet protocols.</p>
+<p><b>DMX Open</b> - The DMX Open output can send DMX data out generic FTDI-based USB to RS485 dongles.  Other RS485 dongles may work if they support setting arbitrary bit rates.  Support should include the following dongles: Entec Open DMX, LOR, and D-Light along with generic FTDI-based USB to RS485 adapters.</p>
+<p><b>DMX Pro</b> - The DMX Pro output can send DMX data out Entec-Pro compatible dongles.  This should include the following dongles: Entec-Pro, Lynx USB dongle w/ DMX firmware, DIYC RPM, DMXking.com, and DIYblinky.com.  If the dongle works using xLights DMX Pro output, it should work in the Falcon Player. </p>
 <p><b>Pixelnet Open</b> - The Pixelnet Open output can send Pixelnet data (one 4096-channel universe) out generic FTDI-based USB to RS485 dongles.</p>
-<p><b>Pixelnet Lynx</b> - The Pixelnet Lynx output can send Pixelnet data (one 4096-channel universe) out the DIYLightAnimation.com USB dongle with Pixelnet firmware.</p>
+<p><b>Pixelnet Lynx</b> - The Pixelnet Lynx output can send Pixelnet data (one 4096-channel universe) out the Lynx USB dongle w/ Pixelnet firmware.</p>
 <p><b>Renard</b> - The Renard output can drive up to 4584 channels at the highest speeds using standard USB to serial dongles.</p>
 <p><b>SPI-WS2801</b> - The SPI-WS2801 output can drive one string of WS2801 pixels directly off the Raspberry Pi's SPI port.  The data, clock, and ground lines attach directly to the Pi while power for the pixels is injected from another source.</p>
 <center>
 <b>SPI-WS2801 Output Connections</b><br>
 <table border='1' cellpadding='4' cellspacing='1'>
-<tr><th>Function</th><th>Raspberry Pi</th></tr>
+<tr><th>WS2801 Function</th><th>Raspberry Pi</th></tr>
 <tr><td>Clock</td><td>Pin 23 - SCLK</td></tr>
 <tr><td>Data</td><td>Pin 19 - MOSI</td></tr>
 <tr><td>Ground</td><td>Pin 25 - GND</td></tr>

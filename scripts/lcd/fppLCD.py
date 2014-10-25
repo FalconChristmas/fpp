@@ -552,23 +552,30 @@ class fppLCD():
         self.line2 = self.MakeStringWithLength(self.RemoveExtensionFromFilename(seqName),16,1);
       
     self.UpdateDisplay()
-    return;
+    return
   
   # Display the status when in idle mode. I use SubmenuIndex as a counter
   # to switch between time of next show and show name  
   def DisplayStatusIdle(self,nextPlaylist,nextTime):
     self.line1 = "Idle    " + time.strftime("%H:%M:%S")
-    next = nextTime.split("@");
+
     if self.SubmenuIndex > 6:
       self.SubmenuIndex = 0
     else:
       self.SubmenuIndex = self.SubmenuIndex + 1
-    
+
     if self.SubmenuIndex < 4:
-      self.line2 = "Next " + str(nextTime)[:3]  + " @" + str(next[1])[:6]
+      if len(nextTime) == 1:
+        self.line2 = self.MakeStringWithLength("No schedule",16,1)
+      else:
+        next = nextTime.split("@");
+        self.line2 = "Next " + str(nextTime)[:3]  + " @" + str(next[1])[:6]
     else:
-      self.line2 = self.MakeStringWithLength(nextPlaylist,16,1)
-      
+      if len(nextTime) == 1:
+        self.line2 = self.MakeStringWithLength("No schedule",16,1)
+      else:
+        self.line2 = self.MakeStringWithLength(nextPlaylist,16,1)
+
     self.UpdateDisplay()
     return;
  
@@ -825,10 +832,19 @@ def kill_handler(signum = None, frame = None):
   time.sleep(.2)  #here check if process is done
   sys.exit(0)
 
-THIS_DIRECTORY = os.path.dirname(os.path.realpath(__file__))
-context = daemon.DaemonContext()
+class foreground:
+  def __enter__(self):
+    pass
+  def __exit__(self, type, value, traceback):
+    pass
 
-context.open()
+THIS_DIRECTORY = os.path.dirname(os.path.realpath(__file__))
+if ( len(sys.argv) > 1 and sys.argv[1] == "fg" ):
+  context = foreground()
+else:
+  context = daemon.DaemonContext()
+  context.open()
+
 signal.signal(signal.SIGTERM , kill_handler)
 with context:
   sleep(1)
