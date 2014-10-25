@@ -75,6 +75,10 @@ if [ ! -e /proc/asound/card$(sed -n '/card [0-9]*/p' /root/.asoundrc | head -n 1
 	sed -i 's/card [0-9]/card 0/' /root/.asoundrc
 fi
 
+# Clear any restart/reboot flags
+echo "FPP - Clearing reboot flags"
+sed -i -e "s/^rebootFlag .*/rebootFlag = 0/" /home/pi/media/settings
+
 echo "FPP - Setting max IGMP memberships"
 sysctl net/ipv4/igmp_max_memberships=150 > /dev/null 2>&1
 
