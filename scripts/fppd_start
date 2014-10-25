@@ -9,6 +9,9 @@ cd ${FPPDIR}
 
 logOutput
 
+# Clear any restart flag
+sed -i -e "s/^restartFlag .*/restartFlag = 0/" /home/pi/media/settings
+
 updateAvahiConfig
 
 runPreStartScripts
