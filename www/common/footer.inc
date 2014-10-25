@@ -7,12 +7,9 @@
 <div id="footer">
 <br />
   <div id="rebootShutdown">
-    <table  width="100%">
-      <tr>
-        <td width="20%"><input name="btnReboot" onClick="RebootPi();" type="button" class = "buttons" value="Reboot Pi"></td>
-        <td id = "txtNextPlaylist" width = "80%"><input name="btnShutdown" type="button" onClick="ShutdownPi();" class = "buttons" value="Shutdown Pi"></td>
-      </tr>
-    </table>
+    <input name="btnReboot" onClick="RebootPi();" type="button" class = "buttons" value="Reboot Pi">
+    <input name="btnShutdown" type="button" onClick="ShutdownPi();" class = "buttons" value="Shutdown Pi">
+    <input name="btnRestartFPPD" type="button" onClick="RestartFPPD();" class = "buttons" value="Restart FPPD">
   </div>
 <br />
 <a href="http://www.falconchristmas.com">www.falconchristmas.com</a>

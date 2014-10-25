@@ -62,6 +62,7 @@ function SetChannelRemaps() {
 	$.post("fppjson.php", postData).success(function(data) {
 		$.jGrowl("Channel Remap Table saved");
 		PopulateChannelRemapTable(data);
+		SetRestartFlag();
 	}).fail(function() {
 		DialogError("Save Channel Remap Table", "Save Failed");
 	});

@@ -22,6 +22,7 @@ $command_array = Array(
 	"applyDNSInfo"        => 'ApplyDNSInfo',
 	"getDNSInfo"          => 'GetDNSInfo',
 	"setDNSInfo"          => 'SetDNSInfo',
+	"getFPPDUptime"       => 'GetFPPDUptime',
 	"applyInterfaceInfo"  => 'ApplyInterfaceInfo',
 	"getInterfaceInfo"    => 'GetInterfaceInfo',
 	"setInterfaceInfo"    => 'SetInterfaceInfo',
@@ -68,6 +69,15 @@ function returnJSON($arr) {
 	exit(0);
 }
 
+function check($var)
+{
+	if ( empty($var) || !isset($var) )
+	{
+		error_log("WARNING: Variable we checked in function '".$_GET['command']."' was empty");
+//		die();
+	}
+}
+
 /////////////////////////////////////////////////////////////////////////////
 
 function GetSetting()
@@ -75,7 +85,7 @@ function GetSetting()
 	global $args;
 
 	$setting = $args['key'];
-	check($setting, "setting", __FUNCTION__);
+	check($setting);
 
 	$value = ReadSettingFromFile($setting);
 
@@ -92,8 +102,8 @@ function SetSetting()
 	$setting = $args['key'];
 	$value   = $args['value'];
 
-	check($setting, "setting", __FUNCTION__);
-	check($value, "value", __FUNCTION__);
+	check($setting);
+	check($value);
 
 	WriteSettingToFile($setting, $value);
 
@@ -113,6 +123,32 @@ function SetSetting()
 	}
 
 	GetSetting();
+}
+
+function GetFPPDUptime()
+{
+	$result = Array();
+
+	$uptimeStr = SendCommand("GetFPPDUptime");
+	$uptime = explode(',', $uptimeStr)[3];
+
+	$days = $uptime / 86400;
+	$hours = $uptime % 86400 / 3600;
+	$seconds = $uptime % 86400 % 3600;
+	$minutes = $seconds / 60;
+	$seconds = $seconds % 60;
+
+	$result['uptime'] = $uptime;
+	$result['days'] = $days;
+	$result['hours'] = $hours;
+	$result['minutes'] = $minutes;
+	$result['seconds'] = $seconds;
+
+	$result['uptimeStr'] = 
+		sprintf($f, "%d days, %d hours, %d minutes, %d seconds\n",
+		$days, $hours, $minutes, $seconds );
+
+	returnJSON($result);
 }
 
 function ToggleSequencePause()
@@ -136,8 +172,8 @@ function GetPluginSetting()
 
 	$setting = $args['key'];
 	$plugin  = $args['plugin'];
-	check($setting, "setting", __FUNCTION__);
-	check($plugin, "plugin", __FUNCTION__);
+	check($setting);
+	check($plugin);
 
 	$value = ReadSettingFromFile($setting, $plugin);
 
@@ -155,9 +191,9 @@ function SetPluginSetting()
 	$value   = $args['value'];
 	$plugin  = $args['plugin'];
 
-	check($setting, "setting", __FUNCTION__);
-	check($value, "value", __FUNCTION__);
-	check($plugin, "plugin", __FUNCTION__);
+	check($setting);
+	check($value);
+	check($plugin);
 
 	WriteSettingToFile($setting, $value, $plugin);
 
@@ -454,7 +490,7 @@ function GetInterfaceInfo()
 
 	$interface = $args['interface'];
 
-	check($interface, "interface", __FUNCTION__);
+	check($interface);
 
 	$result = Array();
 

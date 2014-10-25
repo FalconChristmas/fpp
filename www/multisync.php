@@ -178,7 +178,6 @@ require_once("config.php");
 			</font>
 			<br>
 			<input type='button' class='buttons' value='Refresh' onClick='getFPPSystems();'>
-			<input type='button' class='buttons' value='Restart FPPD' onClick='RestartFPPD();'>
 		</fieldset>
 	</div>
 </div>

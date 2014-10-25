@@ -122,7 +122,7 @@ $(document).ready(function(){
 		$inputData = explode(":", $input);
 		$settingID = sprintf("GPIOInput%03dEnabled", $inputData[1]);
 ?>
-		<tr><td><? PrintSettingCheckbox("GPIO Input", $settingID, "1", "0"); ?></td>
+		<tr><td><? PrintSettingCheckbox("GPIO Input", $settingID, 1, 0, "1", "0"); ?></td>
 				<td><?= $inputData[0]; ?></td>
 				<td><?= $inputData[2]; ?></td>
 				<td rowspan='2'>
@@ -164,7 +164,7 @@ $(document).ready(function(){
 		$settingID = sprintf("GPIOInput%03dEnabled", $inputData[1]);
 ?>
 		<tr class='piFaceGPIO' <? echo $piFaceStyle; ?>>
-				<td><? PrintSettingCheckbox("GPIO Input", $settingID, "1", "0"); ?></td>
+				<td><? PrintSettingCheckbox("GPIO Input", $settingID, 1, 0, "1", "0"); ?></td>
 				<td><?= $inputData[0]; ?></td>
 				<td><?= $inputData[2]; ?></td>
 				<td rowspan='2'>

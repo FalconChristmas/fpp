@@ -13,7 +13,7 @@
 	<fieldset>
 	<legend>FPP Advanced Settings</legend>
 	<table table width = "100%">
-		<tr><td valign='top'><? PrintSettingSelect("E1.31 Bridging Transmit Interval", "E131BridgingInterval", "50", Array('25ms' => '25', '40ms' => '40', '50ms' => '50', '100ms' => '100')); ?></td>
+		<tr><td valign='top'><? PrintSettingSelect("E1.31 Bridging Transmit Interval", "E131BridgingInterval", 1, 0,"50", Array('25ms' => '25', '40ms' => '40', '50ms' => '50', '100ms' => '100')); ?></td>
 			<td valign='top'><b>E1.31 Bridge Mode Transmit Interval</b> - The
 				default Transmit Interval in E1.31 Bridge Mode is 50ms.  This
 				setting allows changing this to match the rate the player is
@@ -21,7 +21,7 @@
 				output devices such as the FPD do not support rates other than 50ms.</td>
 		</tr>
 		<tr><td colspan='2'><hr></td></tr>
-		<tr><td valign='top'><? PrintSettingCheckbox("E1.31 to E1.31 Bridging", "E131Bridging", "1", "0"); ?></td>
+		<tr><td valign='top'><? PrintSettingCheckbox("E1.31 to E1.31 Bridging", "E131Bridging", 1, 0, "1", "0"); ?></td>
 			<td valign='top'><b>Enable E1.31 to E1.31 Bridging</b> - 
 				<font color='#ff0000'><b>WARNING</b></font> -
 				E1.31 to E1.31 bridging over wireless is not recommended for

@@ -175,9 +175,9 @@ function SaveControlChannels()
 		<table>
 			<tr><td colspan='5'>Event Control Channels: </td>
 					<td width='30'></td>
-					<td>Major:</td><td><? PrintSettingText("controlMajor", 6, 6); ?></td>
+					<td>Major:</td><td><? PrintSettingText("controlMajor", 1, 0, 6, 6); ?></td>
 					<td width='20'></td>
-					<td>Minor:</td><td><? PrintSettingText("controlMinor", 6, 6); ?></td></tr>
+					<td>Minor:</td><td><? PrintSettingText("controlMinor", 1, 0, 6, 6); ?></td></tr>
 		</table>
 		<input type='Submit' value='Save' onClick='SaveControlChannels();'>
 		<br>

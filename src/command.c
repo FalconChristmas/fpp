@@ -61,6 +61,7 @@ extern PlaylistDetails playlistDetails;
  struct sockaddr_un client_address;
  int bytes_received, bytes_sent;
  int integer_buffer;
+ int fppdStartTime = 0;
  socklen_t address_length = sizeof(struct sockaddr_un);
 
  int Command_Initialize()
@@ -93,6 +94,8 @@ extern PlaylistDetails playlistDetails;
    }
 
    umask(old_umask);
+
+   fppdStartTime = time(NULL);
 
    return socket_fd;
  }
@@ -383,6 +386,10 @@ extern PlaylistDetails playlistDetails;
 			} else {
 				sprintf(response,"%d,%d,Failed to reload Channel Remap Data,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
 			}
+		}
+		else if (!strcmp(CommandStr, "GetFPPDUptime"))
+		{
+			sprintf(response,"%d,%d,FPPD Uptime,%d,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS, time(NULL) - fppdStartTime);
 		}
 		else if (!strcmp(CommandStr, "ToggleSequencePause"))
 		{
