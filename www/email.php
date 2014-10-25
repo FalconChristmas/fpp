@@ -92,7 +92,7 @@ if ( ( isset($_POST['emailguser']) && !empty($_POST['emailguser']) ) &&
           <tr>
             <td width="50%" align="right">Enable Email System:</td>
             <td>
-              <?php PrintSettingCheckbox("Email System: ", "emailenable", "1", "0"); ?>
+              <?php PrintSettingCheckbox("Email System: ", "emailenable", 0, 1, "1", "0"); ?>
           </tr>
           <tr>
             <td width="50%" align="right">Gmail Username:</td>

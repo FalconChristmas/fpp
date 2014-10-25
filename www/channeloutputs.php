@@ -52,6 +52,7 @@ $(document).ready(function() {
 						success: function (response) {
 								getUniverses();
 								$.jGrowl("E1.31 Universes Saved");
+								SetRestartFlag();
 						}
 				}).fail( function() {
 					DialogError("Save E1.31 Universes", "Save Failed");
@@ -119,6 +120,7 @@ $(document).ready(function(){
 		}).success(function() {
 			getPixelnetDMXoutputs('TRUE');
 			$.jGrowl("FPD Config Saved");
+			SetRestartFlag();
 		}).fail(function() {
 			DialogError("Save FPD Config", "Save Failed");
 		});
@@ -845,8 +847,8 @@ function SetChannelOutputs() {
 
 	$.post("fppjson.php", postData).success(function(data) {
 		PopulateChannelOutputTable(data);
-	}).success(function() {
 		$.jGrowl("Channel Output Configuration Saved");
+		SetRestartFlag();
 	}).fail(function() {
 		DialogError("Save Channel Outputs", "Save Failed");
 	});
@@ -1062,7 +1064,7 @@ tr.rowUniverseDetails td
 <!-- --------------------------------------------------------------------- -->
 
   <div style="overflow: hidden; padding: 10px;">
-	<b>Enable E1.31 Output:</b> <? PrintSettingCheckbox("E1.31 Output", "E131Enabled", "1", "0"); ?><br><br>
+	<b>Enable E1.31 Output:</b> <? PrintSettingCheckbox("E1.31 Output", "E131Enabled", 1, 0, "1", "0"); ?><br><br>
 	E1.31 Interface: <select id="selE131interfaces" onChange="SetE131interface();"><? PopulateInterfaces(); ?></select>
 	<br><br>
 
@@ -1102,7 +1104,7 @@ tr.rowUniverseDetails td
 <!-- --------------------------------------------------------------------- -->
 
 							<div style="overflow: hidden; padding: 10px;">
-								<b>Enable FPD Output:</b> <? PrintSettingCheckbox("FPD Output", "FPDEnabled", "1", "0"); ?><br><br>
+								<b>Enable FPD Output:</b> <? PrintSettingCheckbox("FPD Output", "FPDEnabled", 1, 0, "1", "0"); ?><br><br>
 								<form id="frmPixelnetDMX">
 									<input name="command" id="command"  type="hidden" value="saveHardwareConfig" />
                   <input name='model' id="model" type='hidden' value='FPDv1' />

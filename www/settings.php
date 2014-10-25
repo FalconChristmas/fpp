@@ -120,13 +120,6 @@ function AudioOutputChanged()
 		+ $('#AudioOutput').val()).fail(function() { alert("Failed to change audio output!") });
 }
 
-function ToggleLCDNow()
-{
-	var enabled = $('#PI_LCD_Enabled').is(":checked");
-	$.get("fppxml.php?command=setPiLCDenabled&enabled="
-		+ enabled).fail(function() { alert("Failed to change audio output!") });
-}
-
 </script>
 <title><? echo $pageTitle; ?></title>
 </head>
@@ -141,19 +134,19 @@ function ToggleLCDNow()
   <table table width = "100%">
     <tr>
       <td width = "35%">Blank screen on startup:</td>
-      <td width = "65%"><? PrintSettingCheckbox("Screensaver", "screensaver", "1", "0"); ?></td>
+      <td width = "65%"><? PrintSettingCheckbox("Screensaver", "screensaver", 0, 1, "1", "0"); ?></td>
     </tr>
     <tr>
       <td>Force Analog Audio Output:</td>
-      <td><? PrintSettingCheckbox("Force Analog Audio Output", "forceLocalAudio", "1", "0"); ?></td>
+      <td><? PrintSettingCheckbox("Force Analog Audio Output", "forceLocalAudio", 0, 0, "1", "0"); ?></td>
     </tr>
     <tr>
       <td>Pi 2x16 LCD Enabled:</td>
-      <td><? PrintSettingCheckbox("Enable LCD Display", "PI_LCD_Enabled", "enabled", "disabled", "", "ToggleLCDNow"); ?></td>
+      <td><? PrintSettingCheckbox("Enable LCD Display", "PI_LCD_Enabled", 0, 1, "1", "0"); ?></td>
     </tr>
     <tr>
       <td>Always transmit channel data:</td>
-      <td><? PrintSettingCheckbox("Always Transmit", "alwaysTransmit", "1", "0"); ?></td>
+      <td><? PrintSettingCheckbox("Always Transmit", "alwaysTransmit", 1, 0, "1", "0"); ?></td>
     </tr>
     <tr>
       <td>Audio Output Device:</td>

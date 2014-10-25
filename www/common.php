@@ -1,19 +1,6 @@
 <?php 
 require_once("config.php");
 
-function check($var, $var_name = "", $function_name = "")
-{
-	if ( empty($function_name) )
-	{
-		global $args;
-		$function_name = $args['command'];
-	}
-
-	if ( empty($var) )
-		error_log("WARNING: Variable '$var_name' in function '$function_name' was empty");
-}
-
-
 function ReadSettingFromFile($settingName, $plugin = "")
 {
 	global $settingsFile;
@@ -85,7 +72,7 @@ function IfSettingEqualPrint($setting, $value, $print, $pluginName = "")
 	}
 }
 
-function PrintSettingCheckbox($title, $setting, $checkedValue, $uncheckedValue, $pluginName = "", $callbackName = "")
+function PrintSettingCheckbox($title, $setting, $restart = 1, $reboot = 0, $checkedValue, $uncheckedValue, $pluginName = "", $callbackName = "")
 {
 	global $settings;
 	global $pluginSettings;
@@ -118,7 +105,16 @@ function " . $setting . "Changed() {
 			else
 				$.jGrowl('$title Disabled');
 			$settingsName" . "['$setting'] = value;
+";
+
+if ($restart)
+	echo "SetRestartFlag();\n";
+if ($reboot)
+	echo "SetRebootFlag();\n";
+
+echo "
 			$callbackName
+			CheckRestartRebootFlags();
 		}).fail(function() {
 			if (checked) {
 				DialogError('$title', 'Failed to Enable $title');
@@ -138,7 +134,7 @@ function " . $setting . "Changed() {
 	echo " onChange='" . $setting . "Changed();'>\n";
 }
 
-function PrintSettingSelect($title, $setting, $defaultValue, $values, $pluginName = "", $callbackName = "")
+function PrintSettingSelect($title, $setting, $restart = 1, $reboot = 0, $defaultValue, $values, $pluginName = "", $callbackName = "")
 {
 	global $settings;
 	global $pluginSettings;
@@ -164,6 +160,14 @@ function " . $setting . "Changed() {
 			$.jGrowl('$title saved');
 			$settingsName" . "['$setting'] = value;
 			$callbackName
+";
+
+if ($restart)
+	echo "SetRestartFlag();\n";
+if ($reboot)
+	echo "SetRebootFlag();\n";
+
+echo "
 		}).fail(function() {
 			DialogError('$title', 'Failed to save $title');
 		});
@@ -187,7 +191,7 @@ function " . $setting . "Changed() {
 	echo "</select>\n";
 }
 
-function PrintSettingText($setting, $maxlength = 32, $size = 32, $pluginName = "")
+function PrintSettingText($setting, $restart = 1, $reboot = 0, $maxlength = 32, $size = 32, $pluginName = "")
 {
 	global $settings;
 	global $pluginSettings;
@@ -211,7 +215,7 @@ function PrintSettingText($setting, $maxlength = 32, $size = 32, $pluginName = "
 	echo "'>\n";
 }
 
-function PrintSettingSave($title, $setting, $pluginName = "", $callbackName = "")
+function PrintSettingSave($title, $setting, $restart = 1, $reboot = 0, $pluginName = "", $callbackName = "")
 {
 	global $settings;
 	global $pluginSettings;
@@ -237,6 +241,14 @@ function save" . $setting . "() {
 			$.jGrowl('$title saved');
 			$settingsName" . "['$setting'] = value;
 			$callbackName
+";
+
+if ($restart)
+	echo "SetRestartFlag();\n";
+if ($reboot)
+	echo "SetRebootFlag();\n";
+
+echo "
 		}).fail(function() {
 			DialogError('$title', 'Failed to save $title');
 			$('#$setting').prop('checked', false);
