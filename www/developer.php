@@ -1,5 +1,6 @@
 <?php
 require_once('config.php');
+require_once('common.php');
 
 $a = session_id();
 
@@ -203,11 +204,6 @@ a:visited {
       <div>
         <div>
           <table class='tblAbout'>
-            <tr><td><b>Version Info</b></td><td>&nbsp;</td></tr>
-            <tr><td>FPP Version:</td><td><? echo $fpp_version; ?></td></tr>
-            <tr><td>FPP OS Build:</td><td><? echo $os_build; ?></td></tr>
-            <tr><td>OS Version:</td><td><? echo $os_version; ?></td></tr>
-            <tr><td>Kernel Version:</td><td><? echo $kernel_version; ?></td></tr>
             <tr><td>Git Branch:</td><td><select id='gitBranch' onChange="ChangeGitBranch($('#gitBranch').val());">
 <? PrintGitBranchOptions(); ?>
                 </select><br><b>Note: Changing branches may take a couple minutes to recompile<br>and may not work if you have any modified source files.</b></td></tr>
@@ -226,28 +222,35 @@ a:visited {
     echo " <font color='#FF0000'><a href='javascript:void(0);' onClick='GetGitOriginLog();'>Preview Change Log</a></font>";
 ?>
                 </td></tr>
-            <tr><td>Git:</td><td><input type='button' value='Manual Update' onClick='ManualGitUpdate();' class='buttons' id='ManualUpdate'></td></tr>
+            <tr><td>Git:</td><td><input type='button' value='Manual Update' onClick='ManualGitUpdate();' id='ManualUpdate'></td></tr>
             <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
           </table>
         </div>
       </div>
     <div class="clear"></div>
-      <div id='gitStatus'>
+      <div>
         <b>Git Status:</b><br>
         <pre id='gitStatusPre'><? echo $git_status; ?></pre>
       </div>
-      <div id='gitStatus'>
+      <div>
         <b>Debug Actions:</b><br>
-		<li>Sequence<br>
+        <ul>
+        <li><b>UI Warnings:</b><br>
+        Disable restart/reboot UI Warnings: <? PrintSettingCheckbox("Disable restart/reboot UI Warnings", "disableUIWarnings", 0, 0, "1", "0"); ?><br>
+        <input type='button' value='Clear Restart Warning' onClick='ClearRestartFlag();'>
+        <input type='button' value='Clear Reboot Warning' onClick='ClearRebootFlag();'>
+        </li><br>
+    <li><b>Sequence:</b><br>
 			<input type='button' value='Pause/UnPause' onClick='ToggleSequencePause();'>
 			<input type='button' value='Step' onClick='SingleStepSequence();'>
 			<input type='button' value='Step Back' onClick='SingleStepSequenceBack();'>
-				(these do not affect media playback)
+				(these are for sequence-only playlist entries, media playback is not supported)
 			</li>
 		<br>
-		<li>Git<br>
+		<li><b>Git:</b><br>
 			<input type='button' value='Reset Local Changes' onClick='GitReset();'> <b>WARNING:</b> This performs a "git reset --hard HEAD" to revert all local source code changes
 			</li>
+			</ul>
       </div>
     </fieldset>
     <div id='logViewer' title='Log Viewer' style="display: none">
