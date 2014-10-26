@@ -69,15 +69,6 @@ function returnJSON($arr) {
 	exit(0);
 }
 
-function check($var)
-{
-	if ( empty($var) || !isset($var) )
-	{
-		error_log("WARNING: Variable we checked in function '".$_GET['command']."' was empty");
-//		die();
-	}
-}
-
 /////////////////////////////////////////////////////////////////////////////
 
 function GetSetting()
@@ -85,7 +76,7 @@ function GetSetting()
 	global $args;
 
 	$setting = $args['key'];
-	check($setting);
+	check($setting, "setting", __FUNCTION__);
 
 	$value = ReadSettingFromFile($setting);
 
@@ -102,8 +93,8 @@ function SetSetting()
 	$setting = $args['key'];
 	$value   = $args['value'];
 
-	check($setting);
-	check($value);
+	check($setting, "setting", __FUNCTION__);
+	check($value, "value", __FUNCTION__);
 
 	WriteSettingToFile($setting, $value);
 
@@ -172,8 +163,8 @@ function GetPluginSetting()
 
 	$setting = $args['key'];
 	$plugin  = $args['plugin'];
-	check($setting);
-	check($plugin);
+	check($setting, "setting", __FUNCTION__);
+	check($plugin, "plugin", __FUNCTION__);
 
 	$value = ReadSettingFromFile($setting, $plugin);
 
@@ -191,9 +182,9 @@ function SetPluginSetting()
 	$value   = $args['value'];
 	$plugin  = $args['plugin'];
 
-	check($setting);
-	check($value);
-	check($plugin);
+	check($setting, "setting", __FUNCTION__);
+	check($value, "value", __FUNCTION__);
+	check($plugin, "plugin", __FUNCTION__);
 
 	WriteSettingToFile($setting, $value, $plugin);
 
