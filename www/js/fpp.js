@@ -1649,6 +1649,13 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 	}
 
 	function CheckRestartRebootFlags() {
+		if (settings['disableUIWarnings'] == 1)
+		{
+			$('#restartFlag').hide();
+			$('#rebootFlag').hide();
+			return;
+		}
+
 		if (settings['restartFlag'] == 1)
 			$('#restartFlag').show();
 		else
