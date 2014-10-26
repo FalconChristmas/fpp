@@ -1,13 +1,5 @@
 <?php
 
-$a = session_id();
-
-if(empty($a))
-{
-	session_start();
-}
-$_SESSION['session_id'] = session_id();
-
 $SUDO = "sudo";
 $debug = false;
 $settingsFile = "/home/pi/media/settings";
