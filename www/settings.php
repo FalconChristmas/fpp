@@ -120,6 +120,13 @@ function AudioOutputChanged()
 		+ $('#AudioOutput').val()).fail(function() { alert("Failed to change audio output!") });
 }
 
+function ToggleLCDNow()
+{
+	var enabled = $('#PI_LCD_Enabled').is(":checked");
+	$.get("fppxml.php?command=setPiLCDenabled&enabled="
+		+ enabled).fail(function() { alert("Failed to change audio output!") });
+}
+
 </script>
 <title><? echo $pageTitle; ?></title>
 </head>

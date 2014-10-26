@@ -1,6 +1,18 @@
 <?php 
 require_once("config.php");
 
+function check($var, $var_name = "", $function_name = "")
+{
+	if ( empty($function_name) )
+	{
+		global $args;
+		$function_name = $args['command'];
+	}
+
+	if ( empty($var) )
+		error_log("WARNING: Variable '$var_name' in function '$function_name' was empty");
+}
+
 function ReadSettingFromFile($settingName, $plugin = "")
 {
 	global $settingsFile;
