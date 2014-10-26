@@ -1,3 +1,8 @@
+xLights is covered by the GPL v3, so the fppconvert binary is also
+covered by GPL v3 while the rest of the Falcon Player is covered under
+GPL v2.
+=========================================================================
+
 PreRequesites:
 - wxWidgets v3.0.1 must be already built on the system you are
   trying to compile fppconvert on.  Instructions for doing this
