@@ -93,6 +93,8 @@ int InitializeChannelOutputs(void) {
 		channelOutputs[i].output       = &FPDOutput;
 
 		if (FPDOutput.open("", &channelOutputs[i].privData)) {
+			channelOutputs[i].channelCount = channelOutputs[i].output->maxChannels(channelOutputs[i].privData);
+
 			i++;
 		} else {
 			LogErr(VB_CHANNELOUT, "ERROR Opening FPD Channel Output\n");
@@ -107,6 +109,8 @@ int InitializeChannelOutputs(void) {
 		channelOutputs[i].output       = &E131Output;
 
 		if (E131Output.open("", &channelOutputs[i].privData)) {
+			channelOutputs[i].channelCount = channelOutputs[i].output->maxChannels(channelOutputs[i].privData);
+
 			i++;
 		} else {
 			LogErr(VB_CHANNELOUT, "ERROR Opening E1.31 Channel Output\n");
@@ -268,6 +272,32 @@ int SendChannelData(char *channelData) {
 	}
 
 	channelOutputFrame++;
+}
+
+/*
+ *
+ */
+void StartOutputThreads(void) {
+	FPPChannelOutputInstance *output;
+	int i = 0;
+
+	for (i = 0; i < channelOutputCount; i++) {
+		if (channelOutputs[i].output->startThread)
+			channelOutputs[i].output->startThread(channelOutputs[i].privData);
+	}
+}
+
+/*
+ *
+ */
+void StopOutputThreads(void) {
+	FPPChannelOutputInstance *output;
+	int i = 0;
+
+	for (i = 0; i < channelOutputCount; i++) {
+		if (channelOutputs[i].output->stopThread)
+			channelOutputs[i].output->stopThread(channelOutputs[i].privData);
+	}
 }
 
 /*

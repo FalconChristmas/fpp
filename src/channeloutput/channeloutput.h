@@ -60,5 +60,7 @@ int  CloseChannelOutputs(void);
 void SetChannelOutputFrameNumber(int frameNumber);
 void ResetChannelOutputFrameNumber(void);
 int  LoadChannelRemapData(void);
+void StartOutputThreads(void);
+void StopOutputThreads(void);
 
 #endif /* _CHANNELOUTPUT_H */
