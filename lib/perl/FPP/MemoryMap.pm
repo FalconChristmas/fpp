@@ -772,7 +772,8 @@ sub TextMessage {
 		if (defined($mirror))
 		{
 			substr(${$this->{"dataFileMap"}},
-				$mirror->{data}->{startChannel}, $mirror->{data}->{channelCount},
+				$mirror->{data}->{startChannel},
+				$mirror->{data}->{channelCount},
 				substr(${$this->{"dataFileMap"}},
 					$bd->{startChannel}, $bd->{channelCount}));
 		}
