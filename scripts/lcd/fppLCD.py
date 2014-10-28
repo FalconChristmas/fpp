@@ -12,6 +12,7 @@ import subprocess
 
 from time import sleep
 from Adafruit_CharLCDPlate import Adafruit_CharLCDPlate
+#from VirtualLCD import VirtualLCD
 
 class fppLCD():
 
@@ -68,6 +69,8 @@ class fppLCD():
     self.fixedLocation2=0
 
     self.lcd = Adafruit_CharLCDPlate()
+    #self.lcd = VirtualLCD()
+
     self.lcd.noBlink()
     self.lcd.noCursor()
     self.lcd.clear()
@@ -159,7 +162,7 @@ class fppLCD():
     # Create a UDS socket
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
     sock.bind("/tmp/FPP" + str(os.getpid()))
-    sock.settimeout(1)
+    sock.settimeout(5)
     # Connect the socket to the port where the server is listening
     server_address = "/tmp/FPPD"
     #print >>sys.stderr, 'connecting to %s' % server_address
@@ -502,7 +505,7 @@ class fppLCD():
       results = result.split(",")
       self.FPPDstatus = self.FPPD_STATUS_RUNNING
       self.FPPDplayerStatus = results[self.STATUS_INX_STATUS]
-      if results[self.STATUS_INX_PLAYER_MODE] == self.FPPD_PLAYER_MODE: 
+      if results[self.STATUS_INX_PLAYER_MODE] != self.FPPD_BRIDGE_MODE: 
         if results[self.STATUS_INX_STATUS] == self.STATUS_IDLE:
           self.DisplayStatusIdle(results[self.STATUS_INX_NEXT_PLAY_LIST],
                            results[self.STATUS_INX_NEXT_TIME])
