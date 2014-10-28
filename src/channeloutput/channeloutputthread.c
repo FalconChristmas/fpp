@@ -112,6 +112,8 @@ void *RunChannelOutputThread(void *data)
 			RunThread = 0;
 	}
 
+	StartOutputThreads();
+
 	while (RunThread)
 	{
 		startTime = GetTime();
@@ -134,6 +136,7 @@ void *RunChannelOutputThread(void *data)
 
 		if (OutputFrames)
 			SendSequenceData();
+
 		sendTime = GetTime();
 
 		if (getFPPmode() != BRIDGE_MODE)
@@ -153,6 +156,8 @@ void *RunChannelOutputThread(void *data)
 
 			if (startTime > (lastStatTime + 1000000)) {
 				int sleepTime = LightDelay - (GetTime() - startTime);
+				if (sleepTime < 0)
+					sleepTime = 0;
 				lastStatTime = startTime;
 				LogDebug(VB_CHANNELOUT,
 					"Output Thread: Loop: %dus, Send: %lldus, Read: %lldus, Sleep: %dus, FrameNum: %ld\n",
@@ -175,6 +180,8 @@ void *RunChannelOutputThread(void *data)
 		ts.tv_nsec = (LightDelay - (GetTime() - startTime)) * 1000;
 		nanosleep(&ts, NULL);
 	}
+
+	StopOutputThreads();
 
 	ThreadIsRunning = 0;
 
@@ -240,6 +247,10 @@ int StartChannelOutputThread(void)
 	{
 		pthread_detach(ChannelOutputThreadID);
 	}
+
+	// Wait for thread to start
+	while (!ChannelOutputThreadIsRunning())
+		usleep(10000);
 }
 
 /*
@@ -330,8 +341,8 @@ void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent)
 				newLightDelay += timerOffset;
 		}
 
-		// Don't let us go more than 10ms out from the default.  If we
-		// can't keep up then we probably won't be able to.
+		// Don't let us go more than 15ms out from the default.  If we
+		// can't keep up using that delta then we probably won't be able to.
 		if ((DefaultLightDelay - 15000) > newLightDelay)
 			newLightDelay = DefaultLightDelay - 15000;
 

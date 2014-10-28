@@ -31,6 +31,17 @@ $plugins = Array(
 		'bugUrl'      => 'https://github.com/FalconChristmas/big-green-button/issues',
 		'sha'         => 'ba31143fd8cfbefe1125df93092c7831c40d6e6e',
 	),
+
+	Array(
+		'shortName'   => 'edmrds',
+		'name'        => 'EDM audio',
+		'description' => 'Basic RDS support for the EDM',
+		'homeUrl'     => 'https://github.com/drlucas/fpp-edmrds',
+		'sourceUrl'   => 'https://github.com/drlucas/fpp-edmrds.git',
+		'bugUrl'      => 'https://github.com/drlucas/fpp-edmrds/issues',
+		'sha'         => 'acd4918d8db872b9b43bf0b7c67241ccba811e88',
+	),
+
 );
 
 ?>

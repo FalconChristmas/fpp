@@ -105,7 +105,7 @@ void InitPluginCallbacks(void)
 			}
 
 			char eventScript[1024];
-			memcpy(eventScript, getFPPDirectory(), sizeof(eventScript));
+			strcpy(eventScript, getFPPDirectory());
 			strncat(eventScript, "/scripts/eventScript", sizeof(eventScript)-strlen(eventScript)-1);
 
 			strncat(long_filename, extensions[i], sizeof(long_filename) - strlen(long_filename)-1);
@@ -221,7 +221,7 @@ void MediaCallback(void)
 				LogDebug(VB_PLUGIN, "Child process, calling %s callback for media : %s\n", plugins[i].name, plugins[i].script);
 
 				char eventScript[1024];
-				memcpy(eventScript, getFPPDirectory(), sizeof(eventScript));
+				strcpy(eventScript, getFPPDirectory());
 				strncat(eventScript, "/scripts/eventScript", sizeof(eventScript)-strlen(eventScript)-1);
 
 				// build our data string here

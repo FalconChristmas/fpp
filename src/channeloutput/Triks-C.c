@@ -572,7 +572,10 @@ int TriksC_SendData(void *data, char *channelData, int channelCount)
 	privData->dataWaiting = 1;
 	pthread_mutex_unlock(&privData->bufLock);
 
-	pthread_cond_signal(&privData->sendCond);
+	if (privData->threadIsRunning)
+		pthread_cond_signal(&privData->sendCond);
+	else
+		ProcessInputBuffer(privData);
 }
 
 /*

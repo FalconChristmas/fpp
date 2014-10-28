@@ -73,11 +73,9 @@ void initSettings(void)
 			offset = &tmp[size - 8];
 
 		if (offset != NULL)
-			size = offset - tmp;
+			*offset = 0;
 
-		settings.fppDirectory = (char *)malloc(size+1);
-		memcpy(settings.fppDirectory, tmp, size);
-		settings.fppDirectory[size] = '\0';
+		settings.fppDirectory = strdup(tmp);
 	}
 
 	settings.mediaDirectory = strdup("/home/pi/media");
@@ -185,6 +183,10 @@ void printSettings(void)
 
 	fprintf(fd, "volume: %u\n", settings.volume);
 
+	if ( settings.fppDirectory )
+		fprintf(fd, "fppDirectory(%u): %s\n",
+				strlen(settings.fppDirectory),
+				settings.fppDirectory);
 	if ( settings.mediaDirectory )
 		fprintf(fd, "mediaDirectory(%u): %s\n",
 				strlen(settings.mediaDirectory),

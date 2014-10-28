@@ -23,10 +23,12 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <errno.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
@@ -56,6 +58,20 @@
 #define PIXELNET_DMX_COMMAND_CONFIG     0
 #define PIXELNET_DMX_COMMAND_DATA       0xFF
 
+typedef struct fpdPrivData {
+	unsigned char inBuf[PIXELNET_DMX_DATA_SIZE];
+	unsigned char outBuf[PIXELNET_DMX_BUF_SIZE];
+
+	int  threadIsRunning;
+	int  runThread;
+	int  dataWaiting;
+
+	pthread_t       processThreadID;
+	pthread_mutex_t bufLock;
+	pthread_mutex_t sendLock;
+	pthread_cond_t  sendCond;
+} FPDPrivData;
+
 typedef struct {
 	char active;
 	char type;
@@ -72,10 +88,135 @@ PixelnetDMXentry pixelnetDMX[MAX_PIXELNET_DMX_PORTS];
 int pixelnetDMXcount =0;
 int pixelnetDMXactive = 0;
 
-char bufferPixelnetDMX[PIXELNET_DMX_BUF_SIZE];
+/////////////////////////////////////////////////////////////////////////////
+// Prototypes for some functions below
+int FPD_StartOutputThread(void *data);
+int FPD_StopOutputThread(void *data);
 
-void PixelnetDMXPrint();
+/////////////////////////////////////////////////////////////////////////////
 
+/*
+ *
+ */
+void FPD_Dump(FPDPrivData *privData)
+{
+	LogDebug(VB_CHANNELOUT, "  privData: %p\n", privData);
+
+	if (!privData)
+		return;
+
+	LogDebug(VB_CHANNELOUT, "    threadIsRunning: %d\n", privData->threadIsRunning);
+	LogDebug(VB_CHANNELOUT, "    runThread      : %d\n", privData->runThread);
+}
+
+/*
+ *
+ */
+int SendOutputBuffer(FPDPrivData *privData)
+{
+	LogDebug(VB_CHANNELDATA, "SendOutputBuffer()\n");
+
+	int i;
+	unsigned char *c = privData->outBuf + PIXELNET_HEADER_SIZE;
+
+	memcpy(privData->outBuf, PixelnetDMXdataHeader, PIXELNET_HEADER_SIZE);
+
+	pthread_mutex_lock(&privData->bufLock);
+	memcpy(c, privData->inBuf, PIXELNET_DMX_DATA_SIZE);
+	privData->dataWaiting = 0;
+	pthread_mutex_unlock(&privData->bufLock);
+
+	for(i = 0; i < PIXELNET_DMX_BUF_SIZE; i++, c++)
+	{
+		if (*c == 170)
+		{
+			*c = 171;
+		}
+	}
+
+	if (LogMaskIsSet(VB_CHANNELDATA) && LogLevelIsSet(LOG_EXCESSIVE))
+		HexDump("FPD Channel Header & Data", privData->outBuf, 256);
+
+	i = wiringPiSPIDataRW (0, privData->outBuf, PIXELNET_DMX_BUF_SIZE);
+	if (i != PIXELNET_DMX_BUF_SIZE)
+	{
+		LogErr(VB_CHANNELOUT, "Error: wiringPiSPIDataRW returned %d, expecting %d\n", i, PIXELNET_DMX_BUF_SIZE);
+		return 0;
+	}
+
+	return 1;
+}
+
+/*
+ *
+ */
+void *RunFPDOutputThread(void *data)
+{
+	LogDebug(VB_CHANNELOUT, "RunFPDOutputThread()\n");
+
+	long long wakeTime = GetTime();
+	struct timeval  tv;
+	struct timespec ts;
+
+	FPDPrivData *privData = (FPDPrivData *)data;
+
+	privData->threadIsRunning = 1;
+	LogDebug(VB_CHANNELOUT, "FPD output thread started\n");
+
+	while (privData->runThread)
+	{
+		// Wait for more data
+		pthread_mutex_lock(&privData->sendLock);
+		LogExcess(VB_CHANNELOUT, "FPD output thread: sent: %lld, elapsed: %lld\n",
+			GetTime(), GetTime() - wakeTime);
+
+		pthread_mutex_lock(&privData->bufLock);
+		if (privData->dataWaiting)
+		{
+			pthread_mutex_unlock(&privData->bufLock);
+
+			gettimeofday(&tv, NULL);
+			ts.tv_sec = tv.tv_sec;
+			ts.tv_nsec = (tv.tv_usec + 200000) * 1000;
+
+			if (ts.tv_nsec >= 1000000000)
+			{
+				ts.tv_sec  += 1;
+				ts.tv_nsec -= 1000000000;
+			}
+
+			pthread_cond_timedwait(&privData->sendCond, &privData->sendLock, &ts);
+		}
+		else
+		{
+			pthread_mutex_unlock(&privData->bufLock);
+			pthread_cond_wait(&privData->sendCond, &privData->sendLock);
+		}
+
+		wakeTime = GetTime();
+		LogExcess(VB_CHANNELOUT, "FPD output thread: woke: %lld\n", GetTime());
+		pthread_mutex_unlock(&privData->sendLock);
+
+		if (!privData->runThread)
+			continue;
+
+		// See if there is any data waiting to process or if we timed out
+		pthread_mutex_lock(&privData->bufLock);
+		if (privData->dataWaiting)
+		{
+			pthread_mutex_unlock(&privData->bufLock);
+
+			SendOutputBuffer(privData);
+		}
+		else
+		{
+			pthread_mutex_unlock(&privData->bufLock);
+		}
+	}
+
+	LogDebug(VB_CHANNELOUT, "FPD output thread complete\n");
+	privData->threadIsRunning = 0;
+}
 
 /*
  *
@@ -158,6 +299,8 @@ int InitializePixelnetDMX()
 void SendFPDConfig()
 {
 	int i,index;
+	char bufferPixelnetDMX[PIXELNET_DMX_BUF_SIZE];
+
 	memset(bufferPixelnetDMX,0,PIXELNET_DMX_BUF_SIZE);
 	memcpy(bufferPixelnetDMX,PixelnetDMXcontrolHeader,PIXELNET_HEADER_SIZE);
 	index = PIXELNET_HEADER_SIZE;
@@ -182,11 +325,6 @@ void SendFPDConfig()
 //		LogErr(VB_CHANNELOUT, "Error: wiringPiSPIDataRW returned %d, expecting %d\n", i, PIXELNET_DMX_BUF_SIZE);
 }
 
-void PixelnetDMXPrint()
-{
-}
-
-
 /*
  *
  */
@@ -201,7 +339,24 @@ int FPD_Open(char *configStr, void **privDataPtr) {
 	if (!InitializePixelnetDMX())
 		return 0;
 
-	*privDataPtr = NULL;
+	FPDPrivData *privData =
+		(FPDPrivData *)malloc(sizeof(FPDPrivData));
+	if (privData == NULL)
+	{
+		LogErr(VB_CHANNELOUT, "Error %d allocating private memory: %s\n",
+			errno, strerror(errno));
+		return 0;
+	}
+
+	bzero(privData, sizeof(FPDPrivData));
+
+	pthread_mutex_init(&privData->bufLock, NULL);
+	pthread_mutex_init(&privData->sendLock, NULL);
+	pthread_cond_init(&privData->sendCond, NULL);
+
+	FPD_Dump(privData);
+
+	*privDataPtr = privData;
 
 	return 1;
 }
@@ -211,6 +366,15 @@ int FPD_Open(char *configStr, void **privDataPtr) {
  */
 int FPD_Close(void *data) {
 	LogDebug(VB_CHANNELOUT, "FPD_Close(%p)\n", data);
+
+	FPDPrivData *privData = (FPDPrivData*)data;
+	FPD_Dump(privData);
+
+	FPD_StopOutputThread(privData);
+
+	pthread_mutex_destroy(&privData->bufLock);
+	pthread_mutex_destroy(&privData->sendLock);
+	pthread_cond_destroy(&privData->sendCond);
 }
 
 /*
@@ -243,26 +407,26 @@ int FPD_SendData(void *data, char *channelData, int channelCount)
 	LogDebug(VB_CHANNELDATA, "FPD_SendData(%p, %p, %d)\n",
 		data, channelData, channelCount);
 
-	int i;
-	memcpy(bufferPixelnetDMX,PixelnetDMXdataHeader,PIXELNET_HEADER_SIZE);
-	memcpy(&bufferPixelnetDMX[PIXELNET_HEADER_SIZE],channelData,PIXELNET_DMX_DATA_SIZE);
-	for(i=0;i<PIXELNET_DMX_BUF_SIZE;i++)
-	{
-		if (bufferPixelnetDMX[i] == 170)
-		{
-			bufferPixelnetDMX[i] = 171;
-		}
-	}
+	FPDPrivData *privData = (FPDPrivData *)data;
 
-	if (LogMaskIsSet(VB_CHANNELDATA) && LogLevelIsSet(LOG_EXCESSIVE))
-		HexDump("FPD Channel Header & Data", bufferPixelnetDMX, 256);
-
-	i = wiringPiSPIDataRW (0, bufferPixelnetDMX, PIXELNET_DMX_BUF_SIZE);
-	if (i != PIXELNET_DMX_BUF_SIZE)
+	if (channelCount > PIXELNET_DMX_DATA_SIZE)
 	{
-		LogErr(VB_CHANNELOUT, "Error: wiringPiSPIDataRW returned %d, expecting %d\n", i, PIXELNET_DMX_BUF_SIZE);
+		LogErr(VB_CHANNELOUT,
+			"FPD_SendData() tried to send %d bytes when max is %d\n",
+			channelCount, PIXELNET_DMX_DATA_SIZE);
 		return 0;
 	}
+
+	// Copy latest data to our input buffer for processing
+	pthread_mutex_lock(&privData->bufLock);
+	memcpy(privData->inBuf, channelData, channelCount);
+	privData->dataWaiting = 1;
+	pthread_mutex_unlock(&privData->bufLock);
+
+	if (privData->threadIsRunning)
+		pthread_cond_signal(&privData->sendCond);
+	else
+		SendOutputBuffer(privData);
 
 	return 1;
 }
@@ -272,7 +436,81 @@ int FPD_SendData(void *data, char *channelData, int channelCount)
  */
 int FPD_MaxChannels(void *data)
 {
+	(void)data;
+
 	return 32768;
+}
+
+/*
+ *
+ */
+int FPD_StartOutputThread(void *data)
+{
+	LogDebug(VB_CHANNELOUT, "FPD_StartOutputThread(%p)\n", data);
+
+	FPDPrivData *privData = (FPDPrivData*)data;
+
+	if (privData->processThreadID)
+	{
+		LogErr(VB_CHANNELOUT, "ERROR: thread already exists\n");
+		return;
+	}
+
+	privData->runThread = 1;
+
+	int result = pthread_create(&privData->processThreadID, NULL, &RunFPDOutputThread, privData);
+
+	if (result)
+	{
+		char msg[256];
+
+		privData->runThread = 0;
+		switch (result)
+		{
+			case EAGAIN: strcpy(msg, "Insufficient Resources");
+				break;
+			case EINVAL: strcpy(msg, "Invalid settings");
+				break;
+			case EPERM : strcpy(msg, "Invalid Permissions");
+				break;
+		}
+		LogErr(VB_CHANNELOUT, "ERROR creating Triks-C output thread: %s\n", msg );
+	}
+
+	while (!privData->threadIsRunning)
+		usleep(10000);
+}
+
+/*
+ *
+ */
+int FPD_StopOutputThread(void *data)
+{
+	LogDebug(VB_CHANNELOUT, "FPD_StopOutputThread(%p)\n", data);
+
+	FPDPrivData *privData = (FPDPrivData*)data;
+
+	if (!privData->processThreadID)
+		return;
+
+	pthread_cond_signal(&privData->sendCond);
+
+	privData->runThread = 0;
+
+	while (privData->dataWaiting)
+		usleep(10000);
+
+	pthread_mutex_lock(&privData->bufLock);
+
+	if (!privData->processThreadID)
+	{
+		pthread_mutex_unlock(&privData->bufLock);
+		return;
+	}
+
+	pthread_join(privData->processThreadID, NULL);
+	privData->processThreadID = 0;
+	pthread_mutex_unlock(&privData->bufLock);
 }
 
 /*
@@ -285,7 +523,7 @@ FPPChannelOutput FPDOutput = {
 	.isConfigured = FPD_IsConfigured,
 	.isActive     = FPD_IsActive,
 	.send         = FPD_SendData,
-	.startThread  = NULL,
-	.stopThread   = NULL,
+	.startThread  = FPD_StartOutputThread,
+	.stopThread   = FPD_StopOutputThread,
 	};
 
