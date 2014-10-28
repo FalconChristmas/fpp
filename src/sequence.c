@@ -49,6 +49,7 @@ FILE         *seqFile = NULL;
 char          seqFilename[1024] = {'\x00'};
 unsigned long seqFileSize = 0;
 unsigned long seqFilePosition = 0;
+int           seqStarting = 0;
 int           seqPaused = 0;
 int           seqSingleStep = 0;
 int           seqSingleStepBack = 0;
@@ -98,6 +99,7 @@ int OpenSequenceFile(const char *filename) {
 	if (IsSequenceRunning())
 		CloseSequenceFile();
 
+	seqStarting = 1;
 	seqDuration = 0;
 	seqSecondsElapsed = 0;
 	seqSecondsRemaining = 0;
@@ -116,6 +118,7 @@ int OpenSequenceFile(const char *filename) {
 	if (!FileExists(tmpFilename))
 	{
 		LogErr(VB_SEQUENCE, "Sequence file %s does not exist\n", tmpFilename);
+		seqStarting = 0;
 		return 0;
 	}
 
@@ -124,6 +127,7 @@ int OpenSequenceFile(const char *filename) {
 	{
 		LogErr(VB_SEQUENCE, "Error opening sequence file: %s. fopen returned NULL\n",
 			tmpFilename);
+		seqStarting = 0;
 		return 0;
 	}
 
@@ -152,6 +156,7 @@ int OpenSequenceFile(const char *filename) {
 
 		fclose(seqFile);
 		seqFile = NULL;
+		seqStarting = 0;
 		return 0;
 	}
 
@@ -168,6 +173,7 @@ int OpenSequenceFile(const char *filename) {
 
 		fclose(seqFile);
 		seqFile = NULL;
+		seqStarting = 0;
 		return 0;
 	}
 	seqChanDataOffset = tmpData[0] + (tmpData[1] << 8);
@@ -186,6 +192,7 @@ int OpenSequenceFile(const char *filename) {
 
 		fclose(seqFile);
 		seqFile = NULL;
+		seqStarting = 0;
 		return 0;
 	}
 
@@ -261,6 +268,8 @@ int OpenSequenceFile(const char *filename) {
 	SetChannelOutputRefreshRate(seqRefreshRate);
 	StartChannelOutputThread();
 
+	seqStarting = 0;
+
 	return seqFileSize;
 }
 
@@ -320,6 +329,9 @@ void SingleStepSequenceBack(void) {
 
 void ReadSequenceData(void) {
 	size_t  bytesRead = 0;
+
+	if (seqStarting)
+		return;
 
 	if (seqPaused)
 	{
