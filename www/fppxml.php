@@ -364,6 +364,7 @@ function ViewRemoteScript()
 
 function InstallRemoteScript()
 {
+	global $fppDir, $SUDO;
 	global $scriptDirectory;
 
 	$category = $_GET['category'];
@@ -372,9 +373,7 @@ function InstallRemoteScript()
 	$filename = $_GET['filename'];
 	check($filename, "filename", __FUNCTION__);
 
-	$script = file_get_contents("https://raw.githubusercontent.com/FalconChristmas/fpp-scripts/master/" . $category . "/" . $filename);
-
-	file_put_contents($scriptDirectory . "/" . $filename, $script);
+	exec("$SUDO $fppDir/scripts/installScript $category $filename");
 
 	EchoStatusXML('Success');
 }
