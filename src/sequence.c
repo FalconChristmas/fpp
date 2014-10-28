@@ -73,6 +73,7 @@ char          seqData[FPPD_MAX_CHANNELS] __attribute__ ((aligned (__BIGGEST_ALIG
 char          seqLastControlMajor = 0;
 char          seqLastControlMinor = 0;
 
+#define DATA_DUMP_SIZE  28
 
 /* prototypes for support functions below */
 char NormalizeControlValue(char in);
@@ -142,7 +143,15 @@ int OpenSequenceFile(const char *filename) {
 	seqFormatID[4] = 0;
 	if ((bytesRead != 4) || (strcmp(seqFormatID, "PSEQ")))
 	{
-		LogErr(VB_SEQUENCE, "Error opening sequence file: %s. Incorrect File Format header: '%s'.\n", filename, seqFormatID);
+		LogErr(VB_SEQUENCE, "Error opening sequence file: %s. Incorrect File Format header: '%s', bytesRead: %d\n",
+			filename, seqFormatID, bytesRead);
+
+		fseek(seqFile, 0L, SEEK_SET);
+		bytesRead = fread(tmpData, 1, DATA_DUMP_SIZE, seqFile);
+		HexDump("Sequence File head:", tmpData, bytesRead);
+
+		fclose(seqFile);
+		seqFile = NULL;
 		return 0;
 	}
 
@@ -152,6 +161,13 @@ int OpenSequenceFile(const char *filename) {
 	if (bytesRead != 2)
 	{
 		LogErr(VB_SEQUENCE, "Sequence file %s too short, unable to read channel data offset value\n", filename);
+
+		fseek(seqFile, 0L, SEEK_SET);
+		bytesRead = fread(tmpData, 1, DATA_DUMP_SIZE, seqFile);
+		HexDump("Sequence File head:", tmpData, bytesRead);
+
+		fclose(seqFile);
+		seqFile = NULL;
 		return 0;
 	}
 	seqChanDataOffset = tmpData[0] + (tmpData[1] << 8);
@@ -163,6 +179,13 @@ int OpenSequenceFile(const char *filename) {
 	if (bytesRead != seqChanDataOffset)
 	{
 		LogErr(VB_SEQUENCE, "Sequence file %s too short, unable to read fixed header size value\n", filename);
+
+		fseek(seqFile, 0L, SEEK_SET);
+		bytesRead = fread(tmpData, 1, DATA_DUMP_SIZE, seqFile);
+		HexDump("Sequence File head:", tmpData, bytesRead);
+
+		fclose(seqFile);
+		seqFile = NULL;
 		return 0;
 	}
 
