@@ -247,6 +247,10 @@ int StartChannelOutputThread(void)
 	{
 		pthread_detach(ChannelOutputThreadID);
 	}
+
+	// Wait for thread to start
+	while (!ChannelOutputThreadIsRunning())
+		usleep(10000);
 }
 
 /*
