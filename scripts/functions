@@ -190,6 +190,8 @@ runPreStartScripts() {
 		echo "Running: ${FILE}"
 		/bin/bash ${FILE}
 	done
+
+	runUserHookScript preStart
 }
 
 runPostStartScripts() {
@@ -210,6 +212,8 @@ runPreStopScripts() {
 		echo "Running: ${FILE}"
 		/bin/bash ${FILE}
 	done
+
+	runUserHookScript preStop
 }
 
 runPostStopScripts() {
