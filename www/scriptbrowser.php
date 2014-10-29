@@ -6,12 +6,17 @@ require_once("config.php");
 
 function normalize_version($version)
 {
-	$number = intval(trim(preg_replace('/[\.v]/', '', $version)));
+	$version = preg_replace('/0\.([0-9])\.0/', '0.$1', $version);
+	$version = preg_replace('/[\.v]/', '', $version);
+	$version = preg_replace('/-.*/', '', $version);
+	$number = intval(trim($version));
 	$number = ($number * 100) / (pow(10,(substr_count($version,'.'))));
 
 	return $number;
 }
 
+if ($fppRfsVersion == "Unknown")
+	$fppRfsVersion = "9999";
 $rfs_ver = normalize_version($fppRfsVersion);
 
 ?>
