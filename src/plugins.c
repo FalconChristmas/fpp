@@ -78,13 +78,38 @@ void InitPluginCallbacks(void)
 
 			LogDebug(VB_PLUGIN, "Found Plugin: (%s)\n", ep->d_name);
 
-			if (!FileExists(long_filename))
+			int i;
+			bool found = false;
+
+			// Supported extensions for now
+			char *extensions[] = { ".sh", ".pl", ".php", ".py" };
+			char extension_count = 4;
+
+			for (i = 0; i < extension_count; i++)
 			{
-				LogExcess(VB_PLUGIN, "No callbacks supported by this plugin\n");
+				char _filename[1024];
+				memcpy(_filename, long_filename, sizeof(long_filename));
+
+				strncat(_filename, extensions[i], sizeof(long_filename) - strlen(long_filename)-1);
+				if ( FileExists(_filename) )
+				{
+					found = true;
+					break;
+				}
+			}
+
+			if ( !found )
+			{
+				LogExcess(VB_PLUGIN, "No callbacks supported by plugin: %s\n", ep->d_name);
 				continue;
 			}
 
-			LogDebug(VB_PLUGIN, "Processing Callbacks for %s plugin\n", ep->d_name);
+			char eventScript[1024];
+			strcpy(eventScript, getFPPDirectory());
+			strncat(eventScript, "/scripts/eventScript", sizeof(eventScript)-strlen(eventScript)-1);
+
+			strncat(long_filename, extensions[i], sizeof(long_filename) - strlen(long_filename)-1);
+			LogDebug(VB_PLUGIN, "Processing Callbacks (%s) for %s plugin\n", long_filename, ep->d_name);
 
 			if (pipe(output_pipe) == -1)
 			{
@@ -102,7 +127,7 @@ void InitPluginCallbacks(void)
 			{
 				dup2(output_pipe[1], STDOUT_FILENO);
 				close(output_pipe[1]);
-				execl(long_filename, "callbacks", "--list", NULL);
+				execl(eventScript, "eventScript", long_filename, "--list", NULL);
 
 				LogErr(VB_PLUGIN, "We failed to exec our callbacks query!\n");
 				exit(EXIT_FAILURE);
@@ -195,6 +220,10 @@ void MediaCallback(void)
 			{
 				LogDebug(VB_PLUGIN, "Child process, calling %s callback for media : %s\n", plugins[i].name, plugins[i].script);
 
+				char eventScript[1024];
+				strcpy(eventScript, getFPPDirectory());
+				strncat(eventScript, "/scripts/eventScript", sizeof(eventScript)-strlen(eventScript)-1);
+
 				// build our data string here
 				char data[64*1024]; // "Unreasonably" high to handle all data we're going to pass
 				// TODO: parse JSON a little better like escaping special
@@ -253,7 +282,7 @@ void MediaCallback(void)
 				data[strlen(data)-1] = '}'; //replace last comma with a closing brace
 
 				LogWarn(VB_PLUGIN, "Media plugin data: %s\n", data);
-				execl(plugins[i].script, "callbacks", "--type", "media", "--data", data, NULL);
+				execl(eventScript, "eventScript", plugins[i].script, "--type", "media", "--data", data, NULL);
 
 				LogErr(VB_PLUGIN, "We failed to exec our media callback!\n");
 				exit(EXIT_FAILURE);
@@ -286,6 +315,10 @@ void PlaylistCallback(PlaylistDetails *playlistDetails, bool starting)
 			{
 				LogDebug(VB_PLUGIN, "Child process, calling %s callback for playlist: %s\n", plugins[i].name, plugins[i].script);
 
+				char eventScript[1024];
+				memcpy(eventScript, getFPPDirectory(), sizeof(eventScript));
+				strncat(eventScript, "/scripts/eventScript", sizeof(eventScript)-strlen(eventScript)-1);
+
 				// TODO: parse JSON a little better like escaping special
 				// characters if needed, should only be quote that requires
 				// escaping, we shouldn't worry about things like tabs,
@@ -303,15 +336,44 @@ void PlaylistCallback(PlaylistDetails *playlistDetails, bool starting)
 
 					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
 					"\"type\":\"%s\",", type_to_string[plEntry.type]);
-					if ( strlen(plEntry.seqName) )
-						snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
-						"\"Sequence\":\"%s\",", plEntry.seqName);
-					if ( strlen(plEntry.songName) )
-						snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
-						"\"Media\":\"%s\",", plEntry.songName);
+
+					switch(plEntry.type)
+					{
+						case PL_TYPE_BOTH:
+							if ( strlen(plEntry.seqName) )
+								snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
+								"\"Sequence\":\"%s\",", plEntry.seqName);
+							if ( strlen(plEntry.songName) )
+								snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
+								"\"Media\":\"%s\"", plEntry.songName);
+							break;
+						case PL_TYPE_MEDIA:
+						case PL_TYPE_VIDEO:
+							if ( strlen(plEntry.songName) )
+								snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
+								"\"Media\":\"%s\"", plEntry.songName);
+							break;
+						case PL_TYPE_SEQUENCE:
+							if ( strlen(plEntry.seqName) )
+								snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
+								"\"Sequence\":\"%s\"", plEntry.seqName);
+							break;
+						case PL_TYPE_EVENT:
+							if ( strlen(plEntry.seqName) )
+								snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
+								"\"EventID\":\"%s\"", plEntry.eventID);
+							break;
+						case PL_TYPE_PLUGIN_NEXT:
+							snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
+							"\"PluginEvent\":\"\"");
+						default:
+							LogWarn(VB_PLUGIN, "Invalid entry type!\n");
+							break;
+					}
+
 
 					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
-						"\"},");
+						"},");
 				}
 
 				snprintf(&data[strlen(data)],
@@ -322,7 +384,7 @@ void PlaylistCallback(PlaylistDetails *playlistDetails, bool starting)
 				data[strlen(data)-1] = '}'; //replace last comma with a closing brace
 
 				LogWarn(VB_PLUGIN, "Playlist plugin data: %s\n", data);
-				execl(plugins[i].script, "callbacks", "--type", "playlist", "--data", data, NULL);
+				execl(eventScript, "eventScript", plugins[i].script, "--type", "playlist", "--data", data, NULL);
 
 				LogErr(VB_PLUGIN, "We failed to exec our playlist callback!\n");
 				exit(EXIT_FAILURE);
@@ -368,6 +430,10 @@ int NextPlaylistEntryCallback(const char *plugin_data, int currentPlaylistEntry,
 
 				LogDebug(VB_PLUGIN, "Child process, calling %s callback for nextplaylist: %s\n", plugins[i].name, plugins[i].script);
 
+				char eventScript[1024];
+				memcpy(eventScript, getFPPDirectory(), sizeof(eventScript));
+				strncat(eventScript, "/scripts/eventScript", sizeof(eventScript)-strlen(eventScript)-1);
+
 				// TODO: parse JSON a little better like escaping special
 				// characters if needed, should only be quote that requires
 				// escaping, we shouldn't worry about things like tabs,
@@ -398,8 +464,7 @@ int NextPlaylistEntryCallback(const char *plugin_data, int currentPlaylistEntry,
 
 				dup2(output_pipe[1], STDOUT_FILENO);
 				close(output_pipe[1]);
-
-				execl(plugins[i].script, "callbacks", "--type", "nextplaylist", "--data", data, NULL);
+				execl(eventScript, "eventScript", plugins[i].script, "--type", "nextplaylist", "--data", data, NULL);
 
 				LogErr(VB_PLUGIN, "We failed to exec our nextplaylist callback!\n");
 				exit(EXIT_FAILURE);

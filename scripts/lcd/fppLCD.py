@@ -12,6 +12,7 @@ import subprocess
 
 from time import sleep
 from Adafruit_CharLCDPlate import Adafruit_CharLCDPlate
+#from VirtualLCD import VirtualLCD
 
 class fppLCD():
 
@@ -68,6 +69,8 @@ class fppLCD():
     self.fixedLocation2=0
 
     self.lcd = Adafruit_CharLCDPlate()
+    #self.lcd = VirtualLCD()
+
     self.lcd.noBlink()
     self.lcd.noCursor()
     self.lcd.clear()
@@ -159,7 +162,7 @@ class fppLCD():
     # Create a UDS socket
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
     sock.bind("/tmp/FPP" + str(os.getpid()))
-    sock.settimeout(1)
+    sock.settimeout(5)
     # Connect the socket to the port where the server is listening
     server_address = "/tmp/FPPD"
     #print >>sys.stderr, 'connecting to %s' % server_address
@@ -502,7 +505,7 @@ class fppLCD():
       results = result.split(",")
       self.FPPDstatus = self.FPPD_STATUS_RUNNING
       self.FPPDplayerStatus = results[self.STATUS_INX_STATUS]
-      if results[self.STATUS_INX_PLAYER_MODE] == self.FPPD_PLAYER_MODE: 
+      if results[self.STATUS_INX_PLAYER_MODE] != self.FPPD_BRIDGE_MODE: 
         if results[self.STATUS_INX_STATUS] == self.STATUS_IDLE:
           self.DisplayStatusIdle(results[self.STATUS_INX_NEXT_PLAY_LIST],
                            results[self.STATUS_INX_NEXT_TIME])
@@ -552,23 +555,30 @@ class fppLCD():
         self.line2 = self.MakeStringWithLength(self.RemoveExtensionFromFilename(seqName),16,1);
       
     self.UpdateDisplay()
-    return;
+    return
   
   # Display the status when in idle mode. I use SubmenuIndex as a counter
   # to switch between time of next show and show name  
   def DisplayStatusIdle(self,nextPlaylist,nextTime):
     self.line1 = "Idle    " + time.strftime("%H:%M:%S")
-    next = nextTime.split("@");
+
     if self.SubmenuIndex > 6:
       self.SubmenuIndex = 0
     else:
       self.SubmenuIndex = self.SubmenuIndex + 1
-    
+
     if self.SubmenuIndex < 4:
-      self.line2 = "Next " + str(nextTime)[:3]  + " @" + str(next[1])[:6]
+      if len(nextTime) == 1:
+        self.line2 = self.MakeStringWithLength("No schedule",16,1)
+      else:
+        next = nextTime.split("@");
+        self.line2 = "Next " + str(nextTime)[:3]  + " @" + str(next[1])[:6]
     else:
-      self.line2 = self.MakeStringWithLength(nextPlaylist,16,1)
-      
+      if len(nextTime) == 1:
+        self.line2 = self.MakeStringWithLength("No schedule",16,1)
+      else:
+        self.line2 = self.MakeStringWithLength(nextPlaylist,16,1)
+
     self.UpdateDisplay()
     return;
  
@@ -825,10 +835,19 @@ def kill_handler(signum = None, frame = None):
   time.sleep(.2)  #here check if process is done
   sys.exit(0)
 
-THIS_DIRECTORY = os.path.dirname(os.path.realpath(__file__))
-context = daemon.DaemonContext()
+class foreground:
+  def __enter__(self):
+    pass
+  def __exit__(self, type, value, traceback):
+    pass
 
-context.open()
+THIS_DIRECTORY = os.path.dirname(os.path.realpath(__file__))
+if ( len(sys.argv) > 1 and sys.argv[1] == "fg" ):
+  context = foreground()
+else:
+  context = daemon.DaemonContext()
+  context.open()
+
 signal.signal(signal.SIGTERM , kill_handler)
 with context:
   sleep(1)

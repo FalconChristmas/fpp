@@ -1,6 +1,18 @@
 <?php 
 require_once("config.php");
 
+function check($var, $var_name = "", $function_name = "")
+{
+	if ( empty($function_name) )
+	{
+		global $args;
+		$function_name = $args['command'];
+	}
+
+	if ( empty($var) )
+		error_log("WARNING: Variable '$var_name' in function '$function_name' was empty");
+}
+
 function ReadSettingFromFile($settingName, $plugin = "")
 {
 	global $settingsFile;
@@ -72,7 +84,7 @@ function IfSettingEqualPrint($setting, $value, $print, $pluginName = "")
 	}
 }
 
-function PrintSettingCheckbox($title, $setting, $checkedValue, $uncheckedValue, $pluginName = "", $callbackName = "")
+function PrintSettingCheckbox($title, $setting, $restart = 1, $reboot = 0, $checkedValue, $uncheckedValue, $pluginName = "", $callbackName = "")
 {
 	global $settings;
 	global $pluginSettings;
@@ -105,7 +117,16 @@ function " . $setting . "Changed() {
 			else
 				$.jGrowl('$title Disabled');
 			$settingsName" . "['$setting'] = value;
+";
+
+if ($restart)
+	echo "SetRestartFlag();\n";
+if ($reboot)
+	echo "SetRebootFlag();\n";
+
+echo "
 			$callbackName
+			CheckRestartRebootFlags();
 		}).fail(function() {
 			if (checked) {
 				DialogError('$title', 'Failed to Enable $title');
@@ -125,7 +146,64 @@ function " . $setting . "Changed() {
 	echo " onChange='" . $setting . "Changed();'>\n";
 }
 
-function PrintSettingText($setting, $maxlength = 32, $size = 32, $pluginName = "")
+function PrintSettingSelect($title, $setting, $restart = 1, $reboot = 0, $defaultValue, $values, $pluginName = "", $callbackName = "")
+{
+	global $settings;
+	global $pluginSettings;
+
+	$plugin = "";
+	$settingsName = "settings";
+
+	if ($pluginName != "") {
+		$plugin = "Plugin";
+		$settingsName = "pluginSettings";
+	}
+
+	if ($callbackName != "")
+		$callbackName = $callbackName . "();";
+
+	echo "
+<script>
+function " . $setting . "Changed() {
+	var value = $('#$setting').val();
+
+	$.get('fppjson.php?command=set" . $plugin . "Setting&plugin=$pluginName&key=$setting&value=' + value)
+		.success(function() {
+			$.jGrowl('$title saved');
+			$settingsName" . "['$setting'] = value;
+			$callbackName
+";
+
+if ($restart)
+	echo "SetRestartFlag();\n";
+if ($reboot)
+	echo "SetRebootFlag();\n";
+
+echo "
+		}).fail(function() {
+			DialogError('$title', 'Failed to save $title');
+		});
+}
+</script>
+
+<select id='$setting' onChange='" . $setting . "Changed();'>\n";
+
+	foreach ( $values as $key => $value )
+	{
+		echo "<option value='$value'";
+
+		if (isset($pluginSettings[$setting]))
+			IfSettingEqualPrint($setting, $value, " selected", $pluginName);
+		else if ($value == $defaultValue)
+			echo " selected";
+
+		echo ">$key</option>\n";
+	}
+
+	echo "</select>\n";
+}
+
+function PrintSettingText($setting, $restart = 1, $reboot = 0, $maxlength = 32, $size = 32, $pluginName = "")
 {
 	global $settings;
 	global $pluginSettings;
@@ -143,8 +221,58 @@ function PrintSettingText($setting, $maxlength = 32, $size = 32, $pluginName = "
 
 	if (isset($settings[$setting]))
 		echo $settings[$setting];
+	elseif (isset($pluginSettings[$setting]))
+		echo $pluginSettings[$setting];
 
 	echo "'>\n";
+}
+
+function PrintSettingSave($title, $setting, $restart = 1, $reboot = 0, $pluginName = "", $callbackName = "")
+{
+	global $settings;
+	global $pluginSettings;
+
+	$plugin = "";
+	$settingsName = "settings";
+
+	if ($pluginName != "") {
+		$plugin = "Plugin";
+		$settingsName = "pluginSettings";
+	}
+
+	if ($callbackName != "")
+		$callbackName = $callbackName . "();";
+
+	echo "
+<script>
+function save" . $setting . "() {
+	var value = $('#$setting').val();
+
+	$.get('fppjson.php?command=set" . $plugin . "Setting&plugin=$pluginName&key=$setting&value=' + value)
+		.success(function() {
+			$.jGrowl('$title saved');
+			$settingsName" . "['$setting'] = value;
+			$callbackName
+";
+
+if ($restart)
+	echo "SetRestartFlag();\n";
+if ($reboot)
+	echo "SetRebootFlag();\n";
+
+echo "
+		}).fail(function() {
+			DialogError('$title', 'Failed to save $title');
+			$('#$setting').prop('checked', false);
+		});
+}
+</script>
+
+<input type='button' class='buttons' id='save$setting' ";
+
+	IfSettingEqualPrint($setting, $checkedValue, "checked", $pluginName);
+
+	echo " onClick='save" . $setting . "();' value='Save'>\n";
 }
 
 ?>

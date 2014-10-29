@@ -79,6 +79,9 @@ void _LogWrite(char *file, int line, int level, int facility, const char *format
 void SetLogFile(char *filename);
 int SetLogLevel(char *newLevel);
 int SetLogMask(char *newMask);
+int loggingToFile(void);
+void logVersionInfo(void);
+
 
 #define LogMaskIsSet(x)  (logMask & x)
 #define LogLevelIsSet(x) (logLevel >= x)

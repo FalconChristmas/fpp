@@ -22,7 +22,10 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
- 
+
+#define _GNU_SOURCE
+
+#include "fppversion.h"
 #include "log.h"
 #include "settings.h"
 
@@ -31,7 +34,10 @@
 #include <stdarg.h>
 #include <string.h>
 #include <strings.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
 #include <time.h>
+#include <unistd.h>
 
 int logLevel = LOG_INFO;
 int logMask  = VB_MOST;
@@ -80,7 +86,7 @@ void _LogWrite(char *file, int line, int level, int facility, const char *format
 			if ( ! logFile )
 			{
 				fprintf(stderr, "Error: Unable to open log file for writing!\n");
-				fprintf(stderr, "%s  %s:%d:",timeStr, file, line);
+				fprintf(stderr, "%s (%d) %s:%d:",timeStr, syscall(SYS_gettid), file, line);
 				va_start(arg, format);
 				vfprintf(stderr, format, arg);
 				va_end(arg);
@@ -88,7 +94,7 @@ void _LogWrite(char *file, int line, int level, int facility, const char *format
 			}
 		}
 
-		fprintf(logFile, "%s  %s:%d:",timeStr, file, line);
+		fprintf(logFile, "%s (%d) %s:%d:",timeStr, syscall(SYS_gettid), file, line);
 		va_start(arg, format);
 		vfprintf(logFile, format, arg);
 		va_end(arg);
@@ -96,7 +102,7 @@ void _LogWrite(char *file, int line, int level, int facility, const char *format
 		if (strcmp(logFileName, "stderr") || strcmp(logFileName, "stdout"))
 			fclose(logFile);
 	} else {
-		fprintf(stdout, "%s  %s:%d:", timeStr, file, line);
+		fprintf(stdout, "%s (%d) %s:%d:", timeStr, syscall(SYS_gettid), file, line);
 		va_start(arg, format);
 		vfprintf(stdout, format, arg);
 		va_end(arg);
@@ -199,4 +205,20 @@ int SetLogMask(char *newMask)
 	return 1;
 }
 
+int loggingToFile(void)
+{
+	if ((logFileName[0]) &&
+		(strcmp(logFileName, "stderr")) &&
+		(strcmp(logFileName, "stdout")))
+		return 1;
+
+	return 0;
+}
+
+void logVersionInfo(void) {
+	LogErr(VB_ALL, "=========================================\n");
+	LogErr(VB_ALL, "FPP %s\n", getFPPVersion());
+	LogErr(VB_ALL, "Branch: %s\n", getFPPBranch());
+	LogErr(VB_ALL, "=========================================\n");
+}
 

@@ -9,7 +9,7 @@ if ( isset($_POST['piRTC']) && !empty($_POST['piRTC']) )
 {
   $piRTC = $_POST['piRTC'];
   WriteSettingToFile("piRTC",$piRTC);
-  exec(SUDO . " $fppDir/scripts/piRTC set");
+  exec($SUDO . " $fppDir/scripts/piRTC set");
    error_log("Set RTC:" . $piRTC);
 }
 else
@@ -21,10 +21,10 @@ if ( isset($_POST['date']) && !empty($_POST['date']) )
 //TODO: validate date format
 error_log("Setting date to ".$_POST['date'].".");
 //set the date
-exec(SUDO . " date +%Y/%m/%d -s \"".$_POST['date']."\"", $output, $return_val);
+exec($SUDO . " date +%Y/%m/%d -s \"".$_POST['date']."\"", $output, $return_val);
 if (!(isset($_POST['time']) && !empty($_POST['time'])))
 {
-  exec(SUDO . " hwclock -w", $output, $return_val);
+  exec($SUDO . " hwclock -w", $output, $return_val);
 }
 
 unset($output);
@@ -37,8 +37,8 @@ if ( isset($_POST['time']) && !empty($_POST['time']) )
 //TODO: validate time format
 error_log("Setting time to ".$_POST['time'].".");
 //set the time
-exec(SUDO . " date +%k:%M -s \"".$_POST['time']."\"", $output, $return_val);
-exec(SUDO . " hwclock -w", $output, $return_val);
+exec($SUDO . " date +%k:%M -s \"".$_POST['time']."\"", $output, $return_val);
+exec($SUDO . " hwclock -w", $output, $return_val);
 unset($output);
 //TODO: check return
 }
@@ -51,20 +51,20 @@ unset($output);
 if ( isset($_POST['ntp']) && !empty($_POST['ntp']) && $_POST['ntp'] == "disabled" && $ntp )
 {
   error_log("Disabling NTP because it's enabled and we were told to disable it.");
-  exec(SUDO . " service ntp stop", $output, $return_val);
+  exec($SUDO . " service ntp stop", $output, $return_val);
   unset($output);
   //TODO: check return
-  exec(SUDO . " update-rc.d ntp remove", $output, $return_val);
+  exec($SUDO . " update-rc.d ntp remove", $output, $return_val);
   unset($output);
   //TODO: check return
 }
 elseif ( isset($_POST['ntp']) && !empty($_POST['ntp']) && $_POST['ntp'] == "enabled" && !$ntp )
 {
   error_log("Enabling NTP because it's disabled and we were told to enable it.");
-  exec(SUDO . " update-rc.d ntp defaults", $output, $return_val);
+  exec($SUDO . " update-rc.d ntp defaults", $output, $return_val);
   unset($output);
   //TODO: check return
-  exec(SUDO . " service ntp start", $output, $return_val);
+  exec($SUDO . " service ntp start", $output, $return_val);
   unset($output);
   //TODO: check return
 }
@@ -74,10 +74,10 @@ if ( isset($_POST['timezone']) && !empty($_POST['timezone']) && urldecode($_POST
   //TODO: Check timezone for validity
   $timezone = urldecode($_POST['timezone']);
   error_log("Changing timezone to '".$timezone."'.");
-  exec(SUDO . " bash -c \"echo $timezone > /etc/timezone\"", $output, $return_val);
+  exec($SUDO . " bash -c \"echo $timezone > /etc/timezone\"", $output, $return_val);
   unset($output);
   //TODO: check return
-  exec(SUDO . " dpkg-reconfigure -f noninteractive tzdata", $output, $return_val);
+  exec($SUDO . " dpkg-reconfigure -f noninteractive tzdata", $output, $return_val);
   unset($output);
   //TODO: check return
   exec(" bash -c \"echo $timezone > $mediaDirectory/timezone\"", $output, $return_val);

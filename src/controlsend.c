@@ -253,3 +253,105 @@ void SendSeqSyncPacket(const char *filename, int frames, float seconds) {
 	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + strlen(filename));
 }
 
+/*
+ *
+ */
+void SendMediaSyncStartPacket(const char *filename) {
+	LogDebug(VB_SYNC, "SendMediaSyncStartPacket('%s')\n", filename);
+
+	if (!filename || !filename[0])
+		return;
+
+	if (!ctrlSendSock) {
+		LogErr(VB_SYNC, "ERROR: Tried to send start packet but sync socket is not open.\n");
+		return;
+	}
+
+	char           outBuf[2048];
+	bzero(outBuf, sizeof(outBuf));
+
+	ControlPkt    *cpkt = (ControlPkt*)outBuf;
+	SyncPkt *spkt = (SyncPkt*)(outBuf + sizeof(ControlPkt));
+
+	InitControlPkt(cpkt);
+
+	cpkt->pktType        = CTRL_PKT_SYNC;
+	cpkt->extraDataLen   = sizeof(SyncPkt) + strlen(filename);
+
+	spkt->pktType  = SYNC_PKT_START;
+	spkt->fileType = SYNC_FILE_MEDIA;
+	spkt->frameNumber = 0;
+	spkt->secondsElapsed = 0;
+	strcpy(spkt->filename, filename);
+
+	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + strlen(filename));
+}
+
+/*
+ *
+ */
+void SendMediaSyncStopPacket(const char *filename) {
+	LogDebug(VB_SYNC, "SendMediaSyncStopPacket(%s)\n", filename);
+
+	if (!filename || !filename[0])
+		return;
+
+	if (!ctrlSendSock) {
+		LogErr(VB_SYNC, "ERROR: Tried to send stop packet but sync socket is not open.\n");
+		return;
+	}
+
+	char           outBuf[2048];
+	bzero(outBuf, sizeof(outBuf));
+
+	ControlPkt    *cpkt = (ControlPkt*)outBuf;
+	SyncPkt *spkt = (SyncPkt*)(outBuf + sizeof(ControlPkt));
+
+	InitControlPkt(cpkt);
+
+	cpkt->pktType        = CTRL_PKT_SYNC;
+	cpkt->extraDataLen   = sizeof(SyncPkt) + strlen(filename);
+
+	spkt->pktType  = SYNC_PKT_STOP;
+	spkt->fileType = SYNC_FILE_MEDIA;
+	spkt->frameNumber = 0;
+	spkt->secondsElapsed = 0;
+	strcpy(spkt->filename, filename);
+
+	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + strlen(filename));
+}
+
+/*
+ *
+ */
+void SendMediaSyncPacket(const char *filename, int frames, float seconds) {
+	LogExcess(VB_SYNC, "SendMediaSyncPacket( '%s', %d, %.2f)\n",
+		filename, frames, seconds);
+
+	if (!filename || !filename[0])
+		return;
+
+	if (!ctrlSendSock) {
+		LogErr(VB_SYNC, "ERROR: Tried to send sync packet but sync socket is not open.\n");
+		return;
+	}
+
+	char           outBuf[2048];
+	bzero(outBuf, sizeof(outBuf));
+
+	ControlPkt    *cpkt = (ControlPkt*)outBuf;
+	SyncPkt *spkt = (SyncPkt*)(outBuf + sizeof(ControlPkt));
+
+	InitControlPkt(cpkt);
+
+	cpkt->pktType        = CTRL_PKT_SYNC;
+	cpkt->extraDataLen   = sizeof(SyncPkt) + strlen(filename);
+
+	spkt->pktType  = SYNC_PKT_SYNC;
+	spkt->fileType = SYNC_FILE_MEDIA;
+	spkt->frameNumber = frames;
+	spkt->secondsElapsed = seconds; // FIXME, does this have endianness issues?
+	strcpy(spkt->filename, filename);
+
+	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + strlen(filename));
+}

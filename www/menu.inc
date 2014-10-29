@@ -17,6 +17,7 @@ if (!preg_match("/^$git_branch(-.*)?$/", $fpp_head_version))
 ?>
 
 <?php require_once(dirname(__FILE__)."/config.php"); ?>
+
   <div class="header">
     <div class="headerLeft"><a href="http://www.falconchristmas.com"><img src="images/falconlogo.png" class="logo" /></a></div>
     <div class="headerCenter"><div class="siteName"><? echo $settings['Title']; ?></div>
@@ -79,6 +80,7 @@ if ( $handle )
 }
 ?>
             <li><a href="settings.php">FPP Settings</a></li>
+            <li><a href="email.php">Email Settings</a></li>
           </div>
           <li><a href="events.php">Events</a></li>
           <li><a href="effects.php">Effects</a></li>
@@ -116,7 +118,7 @@ if ( $handle )
         <ul>
           <li><a href="channeloutputs.php">Channel Outputs</a></li>
           <li><a href="channelremaps.php">Remap Channels</a></li>
-          <li><a href="channelmemorymaps.php">Memory Mapped Channel Blocks</a></li>
+          <li><a href="pixeloverlaymodels.php">Pixel Overlay Models</a></li>
           <li><a href="gpio.php">GPIO Inputs</a></li>
 <?php
 $handle = opendir($pluginDirectory);
@@ -143,6 +145,7 @@ if ( $handle )
           <li><a href="docs.php">Docs</a></li>
 -->
           <li><a href="about.php">About</a></li>
+          <li><a href="http://<?php echo $_SERVER['SERVER_ADDR'] ?>:4200" target="_new">SSH Shell</a></li>
           <li><a href="credits.php">Credits</a></li>
 <?php
 $handle = opendir($pluginDirectory);
@@ -165,6 +168,9 @@ if ( $handle )
     </ul>
     <br style="clear: left" />
     </div>
+  <div id='restartFlag'>Settings have changed. FPPD Restart Required - <input name="btnRestartFPPD" type="button" onClick="RestartFPPD();" class = "buttons" value="Restart FPPD"></div>
+  <div id='rebootFlag'>Base configuration has changed. Reboot Required - <input name="btnReboot" onClick="RebootPi();" type="button" class = "buttons" value="Reboot Pi"></div>
+
       <div class='helpLinkDiv'><a href='javascript:void();' onClick='DisplayHelp();' class='nonULLink'>&nbsp;Press F1 for help&nbsp;&nbsp;</a></div>
 
 <script language="Javascript">
@@ -177,6 +183,8 @@ function handleKeypress(e) {
 
 $(document).ready(function() {
 	$(document).on('keydown', handleKeypress);
+
+	CheckRestartRebootFlags();
 });
 
 </script>

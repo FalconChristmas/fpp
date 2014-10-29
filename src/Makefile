@@ -13,6 +13,7 @@ INSTALL_PROGRAM = install -m 755 -p
 
 OBJECTS_fpp = \
 	fpp.o \
+	fppversion.o \
 	$(NULL)
 LIBS_fpp = \
 	$(NULL)
@@ -21,6 +22,7 @@ OBJECTS_fppmm = \
 	common.o \
 	log.o \
 	fppmm.o \
+	fppversion.o \
 	$(NULL)
 LIBS_fppmm = \
 	$(NULL)
@@ -30,8 +32,12 @@ OBJECTS_fppd = \
 	channeloutput/channeloutputthread.o \
 	channeloutput/E131.o \
 	channeloutput/FPD.o \
+	channeloutput/GPIO.o \
+	channeloutput/GPIO595.o \
+	channeloutput/LOR.o \
 	channeloutput/serialutil.o \
 	channeloutput/SPIws2801.o \
+	channeloutput/Triks-C.o \
 	channeloutput/USBDMXOpen.o \
 	channeloutput/USBDMXPro.o \
 	channeloutput/USBPixelnet.o \
@@ -45,6 +51,7 @@ OBJECTS_fppd = \
 	events.o \
 	falcon.o \
 	fppd.o \
+	fppversion.o \
 	gpio.o \
 	log.o \
 	mediadetails.o \
@@ -107,9 +114,12 @@ CFLAGS += \
 	$(NULL)
 endif
 
+PWD := $(shell pwd)
 
 .PHONY: all
 all: $(TARGETS)
+
+force:
 
 release: $(TARGETS)
 	strip fpp
@@ -127,6 +137,9 @@ fppmm: $(OBJECTS_fppmm)
 
 fppd: $(OBJECTS_fppd)
 	$(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
+
+fppversion.c: fppversion.sh force
+	sh fppversion.sh $(PWD)
 
 %.o: %.c %.h Makefile
 	$(CC) $(CFLAGS) -c $< -o $@

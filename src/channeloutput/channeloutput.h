@@ -37,6 +37,8 @@ typedef struct fppChannelOutput {
 	int              (*isConfigured)(void);
 	int              (*isActive)(void *data);
 	int              (*send)(void *data, char *channelData, int channelCount);
+	int              (*startThread)(void *data);
+	int              (*stopThread)(void *data);
 } FPPChannelOutput;
 
 typedef struct fppChannelOutputInstance {
@@ -58,5 +60,7 @@ int  CloseChannelOutputs(void);
 void SetChannelOutputFrameNumber(int frameNumber);
 void ResetChannelOutputFrameNumber(void);
 int  LoadChannelRemapData(void);
+void StartOutputThreads(void);
+void StopOutputThreads(void);
 
 #endif /* _CHANNELOUTPUT_H */

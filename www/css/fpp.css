@@ -136,7 +136,7 @@
 	margin-left: auto;
 	margin-right: auto;
 	text-align: center;
-	width: 200px;
+	width: 600px;
 }
 
 .ui-front
@@ -238,6 +238,30 @@ html
 	max-height: 300px;
 	width: 383px;
 	float: right;
+}
+
+#restartFlag {
+	display: none;
+	background-color: #AA0000;
+	color: #FFFFFF;
+	padding-top: 5px;
+	font-size: 20px;
+	font-weight: bold;
+	text-align: center;
+	min-height: 30px;
+	width: 100%;
+}
+
+#rebootFlag {
+	display: none;
+	background-color: #AA0000;
+	color: #FFFFFF;
+	padding-top: 5px;
+	font-size: 20px;
+	font-weight: bold;
+	text-align: center;
+	min-height: 30px;
+	width: 100%;
 }
 
 legend

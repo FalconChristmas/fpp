@@ -35,17 +35,18 @@
 #include <sys/un.h>
 #include <unistd.h>
 
+#include "fppversion.h"
 #include "memorymapcontrol.h"
 #include "sequence.h"
 #include "common.h"
 
 char *blockName     = NULL;
 char *inputFilename = NULL;
-int   enableMap     = 0;
-int   disableMap    = 0;
+int   isActive      = -1;
 char *testMode      = NULL;
 char *channels      = NULL;
 int   channelData   = -1;
+int   displayVers   = 0;
 
 char                             *dataMap    = NULL;
 int                               dataFD     = -1;
@@ -62,15 +63,16 @@ void usage(char *appname) {
 	printf("Usage: %s [OPTIONS]\n", appname);
 	printf("\n");
 	printf("  Options:\n");
+	printf("   -V                     - Print version information\n");
 	printf("   -t on                  - Turn channel test mode On\n");
 	printf("   -t off                 - Turn channel test mode Off\n");
 	printf("   -t status              - Check current status of test mode\n");
 	printf("   -c CHANNEL -s VALUE    - Set channel number CHANNEL to VALUE\n");
-	printf("   -m MAP                 - List info about MAP block\n");
-	printf("   -m MAP -e              - Enable MAP memory block\n");
-	printf("   -m MAP -d              - Disable MAP memory block\n");
-	printf("   -m MAP -f FILENAME     - Copy raw FILENAME data to MAP\n" );
-	printf("   -m MAP -s VALUE        - Fill MAP with VALUE for all channels\n");
+	printf("   -m MODEL               - List info about Pixel Overlay MODEL\n");
+	printf("   -m MODEL -o MODE       - Set Pixel Overlay mode, Mode is one of:\n");
+	printf("                            off, on, transparent, transparentrgb\n");
+	printf("   -m MODEL -f FILENAME   - Copy raw FILENAME data to MODEL\n" );
+	printf("   -m MODEL -s VALUE      - Fill MODEL with VALUE for all channels\n");
 	printf("   -h                     - This help output\n");
 }
 
@@ -86,26 +88,34 @@ int parseArguments(int argc, char **argv) {
 		int option_index = 0;
 		static struct option long_options[] = {
 			{"mapname",        required_argument,    0, 'm'},
-			{"enable",         no_argument,          0, 'e'},
-			{"disable",        no_argument,          0, 'd'},
+			{"overlaymode",    required_argument,    0, 'o'},
 			{"filename",       required_argument,    0, 'f'},
 			{"testmode",       required_argument,    0, 't'},
+			{"displayvers",    no_argument,          0, 'V'},
 			{"channel",        required_argument,    0, 'c'},
 			{"setvalue",       required_argument,    0, 's'},
 			{"help",           no_argument,          0, 'h'},
 			{0,                0,                    0, 0}
 		};
 
-		c = getopt_long(argc, argv, "m:edf:t:c:s:h", long_options, &option_index);
+		c = getopt_long(argc, argv, "m:o:f:t:c:s:hV", long_options, &option_index);
 		if (c == -1)
 			break;
 
 		switch (c) {
+			case 'V':   printVersionInfo();
+						exit(0);
 			case 'm':	blockName = strdup(optarg);
 						break;
-			case 'e':	enableMap = 1;
-						break;
-			case 'd':	disableMap = 1;
+			case 'o':	if (!strcmp(optarg, "off"))
+							isActive = 0;
+						else if (!strcmp(optarg, "on"))
+							isActive = 1;
+						else if (!strcmp(optarg, "transparent"))
+							isActive = 2;
+						else if (!strcmp(optarg, "transparentrgb"))
+							isActive = 3;
+
 						break;
 			case 'f':	inputFilename = strdup(optarg);
 						break;
@@ -435,7 +445,19 @@ void DumpMappedBlockInfo(char *blockName) {
 		printf( "Channels  : %d-%d (%d channels)\n",
 			cb->startChannel, cb->startChannel + cb->channelCount - 1,
 			cb->channelCount);
-		printf( "Status    : %s\n", cb->isActive ? "Active" : "Idle");
+
+		printf( "Status    : ");
+		switch (cb->isActive) {
+			case 0: printf("Idle");
+					break;
+			case 1: printf("Active");
+					break;
+			case 2: printf("Active (Transparent)");
+					break;
+			case 3: printf("Active (Transparent RGB)");
+					break;
+		}
+		printf( "\n");
 	} else {
 		printf( "ERROR: Could not find MAP %s\n", blockName);
 	}
@@ -468,10 +490,8 @@ int main (int argc, char *argv[])
 
 		free(testMode);
 	} else if (blockName) {
-		if (enableMap)
-			SetMappedBlockActive(blockName, 1);
-		else if (disableMap)
-			SetMappedBlockActive(blockName, 0);
+		if (isActive >= 0)
+			SetMappedBlockActive(blockName, isActive);
 		else if (inputFilename)
 			CopyFileToMappedBlock(blockName, inputFilename);
 		else if (channelData >= 0)

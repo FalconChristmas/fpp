@@ -5,11 +5,16 @@ BINDIR=$(cd $(dirname $0) && pwd)
 . ${BINDIR}/common
 . ${BINDIR}/functions
 
+cd ${FPPDIR}
+
 logOutput
+
+# Clear any restart flag
+sed -i -e "s/^restartFlag .*/restartFlag = 0/" /home/pi/media/settings
 
 updateAvahiConfig
 
-runPreStartPluginScripts
+runPreStartScripts
 
 if [ -f "${FPPDIR}/src/fppd" -a "${FPPDIR}/src/fppd" -nt "${FPPDIR}/bin/fppd" ]
 then
@@ -25,5 +30,5 @@ sleep 2
 
 startWebSocketServer
 
-runPostStartPluginScripts
+runPostStartScripts
 

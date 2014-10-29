@@ -18,7 +18,7 @@ unset($output);
 
 if (!file_exists("/etc/fpp/config_version") && file_exists("/etc/fpp/rfs_version"))
 {
-	exec(SUDO . " $fppDir/scripts/upgrade_config");
+	exec($SUDO . " $fppDir/scripts/upgrade_config");
 }
 
 $os_build = "Unknown";
@@ -59,6 +59,43 @@ $git_remote_version = exec("git ls-remote --heads https://github.com/FalconChris
 if ( $return_val != 0 )
   $git_remote_version = "Unknown";
 unset($output);
+
+$uptime = exec("uptime", $output, $return_val);
+if ( $return_val != 0 )
+	$uptime = "";
+unset($output);
+$uptime = preg_replace('/[0-9]+ users, /', '', $uptime);
+
+function get_server_memory_usage(){
+  $fh = fopen('/proc/meminfo','r');
+  $total = 0;
+  $free = 0;
+  $buffers = 0;
+  $cached = 0;
+  while ($line = fgets($fh)) {
+    $pieces = array();
+    if (preg_match('/^MemTotal:\s+(\d+)\skB$/', $line, $pieces)) {
+      $total = $pieces[1];
+    } else if (preg_match('/^MemFree:\s+(\d+)\skB$/', $line, $pieces)) {
+      $free = $pieces[1];
+    } else if (preg_match('/^Buffers:\s+(\d+)\skB$/', $line, $pieces)) {
+      $buffers = $pieces[1];
+    } else if (preg_match('/^Cached:\s+(\d+)\skB$/', $line, $pieces)) {
+      $cached = $pieces[1];
+    }
+  }
+  fclose($fh);
+
+  $used = $total - $free - $buffers - $cached;
+  $memory_usage = 1.0 * $used / $total * 100;
+
+  return $memory_usage;
+}
+
+function get_server_cpu_usage(){
+  $load = sys_getloadavg();
+  return $load[0];
+}
 
 function getSymbolByQuantity($bytes) {
   $symbols = array('B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB');
@@ -281,6 +318,14 @@ a:visited {
               ></td></tr>
 -->
             <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+            <tr><td><b>System Utilization</b></td><td>&nbsp;</td></tr>
+            <tr><td>CPU Usage:</td><td><? printf( "%.2f", get_server_cpu_usage()); ?>%</td></tr>
+            <tr><td>Memory Usage:</td><td><? printf( "%.2f", get_server_memory_usage()); ?>%</td></tr>
+
+            <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+            <tr><td><b>Uptime</b></td><td>&nbsp;</td></tr>
+            <tr><td colspan='2'><? echo $uptime; ?></td></tr>
+
           </table>
         </div>
         <div class='aboutCenter'>

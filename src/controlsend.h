@@ -34,4 +34,8 @@ void SendSeqSyncStopPacket(const char *filename);
 void SendSeqSyncPacket(const char *filename, int frames, float seconds);
 void ShutdownSync(void);
 
+void SendMediaSyncStartPacket(const char *filename);
+void SendMediaSyncStopPacket(const char *filename);
+void SendMediaSyncPacket(const char *filename, int frames, float seconds);
+
 #endif /* _CONTROL_H */

@@ -20,5 +20,5 @@ ${SCRIPTDIR}/upgrade_config
 
 ${SCRIPTDIR}/timezone_sync
 
-${SCRIPTDIR}/fppd_start
+${SUDO} ${SCRIPTDIR}/fppd_start
 

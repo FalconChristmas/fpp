@@ -13,6 +13,11 @@
 MediaDetails	 mediaDetails;
 extern PlaylistDetails playlistDetails;
 
+void initMediaDetails()
+{
+	bzero(&mediaDetails, sizeof(MediaDetails));
+}
+
 void clearPreviousMedia()
 {
 	if (mediaDetails.title)

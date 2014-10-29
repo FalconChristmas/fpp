@@ -36,10 +36,14 @@
 #include "sequence.h"
 #include "settings.h"
 #include "SPIws2801.h"
+#include "LOR.h"
 #include "USBDMXOpen.h"
 #include "USBDMXPro.h"
 #include "USBPixelnet.h"
 #include "USBRenard.h"
+#include "Triks-C.h"
+#include "GPIO.h"
+#include "GPIO595.h"
 #include "common.h"
 
 
@@ -89,19 +93,24 @@ int InitializeChannelOutputs(void) {
 		channelOutputs[i].output       = &FPDOutput;
 
 		if (FPDOutput.open("", &channelOutputs[i].privData)) {
+			channelOutputs[i].channelCount = channelOutputs[i].output->maxChannels(channelOutputs[i].privData);
+
 			i++;
 		} else {
 			LogErr(VB_CHANNELOUT, "ERROR Opening FPD Channel Output\n");
 		}
 	}
 
-	if ((getFPPmode() != BRIDGE_MODE) &&
+	if (((getFPPmode() != BRIDGE_MODE) ||
+		 (getSettingInt("E131Bridging"))) &&
 		(E131Output.isConfigured()))
 	{
 		channelOutputs[i].startChannel = 0;
 		channelOutputs[i].output       = &E131Output;
 
 		if (E131Output.open("", &channelOutputs[i].privData)) {
+			channelOutputs[i].channelCount = channelOutputs[i].output->maxChannels(channelOutputs[i].privData);
+
 			i++;
 		} else {
 			LogErr(VB_CHANNELOUT, "ERROR Opening E1.31 Channel Output\n");
@@ -181,10 +190,18 @@ int InitializeChannelOutputs(void) {
 				channelOutputs[i].output       = &USBDMXProOutput;
 			} else if (!strcmp(type, "DMX-Open")) {
 				channelOutputs[i].output       = &USBDMXOpenOutput;
+			} else if (!strcmp(type, "LOR")) {
+				channelOutputs[i].output       = &LOROutput;
 			} else if (!strcmp(type, "Renard")) {
 				channelOutputs[i].output       = &USBRenardOutput;
 			} else if (!strcmp(type, "SPI-WS2801")) {
 				channelOutputs[i].output       = &SPIws2801Output;
+			} else if (!strcmp(type, "Triks-C")) {
+				channelOutputs[i].output       = &TriksCOutput;
+			} else if (!strcmp(type, "GPIO")) {
+				channelOutputs[i].output       = &GPIOOutput;
+			} else if (!strcmp(type, "GPIO-595")) {
+				channelOutputs[i].output       = &GPIO595Output;
 			} else {
 				LogErr(VB_CHANNELOUT, "Unknown Channel Output type: %s\n", type);
 				continue;
@@ -260,6 +277,32 @@ int SendChannelData(char *channelData) {
 /*
  *
  */
+void StartOutputThreads(void) {
+	FPPChannelOutputInstance *output;
+	int i = 0;
+
+	for (i = 0; i < channelOutputCount; i++) {
+		if (channelOutputs[i].output->startThread)
+			channelOutputs[i].output->startThread(channelOutputs[i].privData);
+	}
+}
+
+/*
+ *
+ */
+void StopOutputThreads(void) {
+	FPPChannelOutputInstance *output;
+	int i = 0;
+
+	for (i = 0; i < channelOutputCount; i++) {
+		if (channelOutputs[i].output->stopThread)
+			channelOutputs[i].output->stopThread(channelOutputs[i].privData);
+	}
+}
+
+/*
+ *
+ */
 int CloseChannelOutputs(void) {
 	FPPChannelOutputInstance *output;
 	int i = 0;
@@ -287,6 +330,9 @@ int LoadChannelRemapData(void) {
 
 	strcpy(filename, getMediaDirectory());
 	strcat(filename, "/channelremap");
+
+	if (!FileExists(filename))
+		return 0;
 
 	channelRemaps = 0;
 

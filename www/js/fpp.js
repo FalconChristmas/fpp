@@ -1580,6 +1580,16 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 		$.get("fppjson.php?command=toggleSequencePause");
 	}
 
+	function SingleStepSequence()
+	{
+		$.get("fppjson.php?command=singleStepSequence");
+	}
+
+	function SingleStepSequenceBack()
+	{
+		$.get("fppjson.php?command=singleStepSequenceBack");
+	}
+
 	function StopFPPD()
 	{
     	var xmlhttp=new XMLHttpRequest();
@@ -1589,13 +1599,92 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			xmlhttp.send();
 	}
 
+	function SetSettingRestart(key, value) {
+		var restartFPPD = 1;
+
+		if ((key == 'LogLevel') ||
+			(key == 'LogMask'))
+		{
+			restartFPPD = 0;
+		}
+
+		SetSetting(key, value, restartFPPD, 0);
+	}
+
+	function SetSettingReboot(key, value) {
+		SetSetting(key, value, 0, 1);
+	}
+
+	function SetSetting(key, value, restart, reboot) {
+		$.get("fppjson.php?command=setSetting&key=" + key + "&value=" + value)
+			.success(function() {
+				if ((key != 'restartFlag') && (key != 'rebootFlag'))
+					$.jGrowl(key + " setting saved.");
+
+				CheckRestartRebootFlags();
+			}).fail(function() {
+				DialogError("Failed to save " + key + " setting.");
+				CheckRestartRebootFlags();
+			});
+	}
+
+	function ClearRestartFlag() {
+		settings['restartFlag'] = 0;
+		SetSetting('restartFlag', 0, 0, 0);
+	}
+
+	function SetRestartFlag() {
+		settings['restartFlag'] = 1;
+		SetSettingRestart('restartFlag', 1);
+	}
+
+	function ClearRebootFlag() {
+		settings['rebootFlag'] = 0;
+		SetSetting('rebootFlag', 0, 0, 0);
+	}
+
+	function SetRebootFlag() {
+		settings['rebootFlag'] = 1;
+		SetSettingReboot('rebootFlag', 1);
+	}
+
+	function CheckRestartRebootFlags() {
+		if (settings['disableUIWarnings'] == 1)
+		{
+			$('#restartFlag').hide();
+			$('#rebootFlag').hide();
+			return;
+		}
+
+		if (settings['restartFlag'] == 1)
+			$('#restartFlag').show();
+		else
+			$('#restartFlag').hide();
+
+		if (settings['rebootFlag'] == 1)
+		{
+			$('#restartFlag').hide();
+			$('#rebootFlag').show();
+		}
+		else
+		{
+			$('#rebootFlag').hide();
+		}
+	}
+
+	function GetFPPDUptime()
+	{
+		$.get("fppxml.php?command=getFPPDUptime");
+	}
+
 	function RestartFPPD()
 	{
 		$('html,body').css('cursor','wait');
 		$.get("fppxml.php?command=restartFPPD"
 		).success(function() {
 			$('html,body').css('cursor','auto');
-			location.reload(true);
+			$.jGrowl('FPPD Restarted');
+			ClearRestartFlag();
 		}).fail(function() {
 			$('html,body').css('cursor','auto');
 			DialogError("Restart FPPD", "Error restarting FPPD");
@@ -1865,6 +1954,7 @@ function GetRunningEffects()
 			xmlhttp.open("GET",url,true);
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
 			xmlhttp.send();
+			ClearRebootFlag();
 		} 
 	}
 
@@ -2147,6 +2237,84 @@ function DeleteFile(dir, file)
 		}
 	};
 	xmlhttp.send();
+}
+
+function ConvertFileDialog(file)
+{
+	$( "#dialog-confirm" ).dialog({
+		resizable: false,
+		height: 240,
+		modal: true,
+		buttons: {
+			"Sequence": function() {
+				$( this ).dialog( "close" );
+				ConvertFile(file, "sequence");
+			},
+			"Effect": function() {
+				$( this ).dialog( "close" );
+				ConvertFile(file, "effect");
+			}
+		}
+	});
+}
+
+function ConvertFile(file, convertTo)
+{
+	var opts = {
+		lines: 9, // The number of lines to draw
+		length: 25, // The length of each line
+		width: 10, // The line thickness
+		radius: 25, // The radius of the inner circle
+		corners: 1, // Corner roundness (0..1)
+		rotate: 0, // The rotation offset
+		direction: 1, // 1: clockwise, -1: counterclockwise
+		color: '#fff', // #rgb or #rrggbb or array of colors
+		speed: 1, // Rounds per second
+		trail: 60, // Afterglow percentage
+		shadow: false, // Whether to render a shadow
+	};
+
+	var target = document.getElementById('overlay');
+	var spinner = new Spinner(opts).spin(target);
+
+	target.style.display = 'block';
+	document.body.style.cursor = "wait";
+
+	$.get("fppxml.php?command=convertFile&convertTo=" +
+		convertTo + "&filename=" + file).success(function(data) {
+	
+			target.style.display = 'none';
+			document.body.style.cursor = "default";
+
+			var result = $(data).find( "Status" ).text();
+
+			if ( result == "Success" )
+			{
+				GetFiles('Uploads');
+				if ( convertTo == "sequence" )
+				{
+					GetFiles('Sequences');
+					var index = $('#tabs a[href="#tab-sequence"]').parent().index();
+					$('#tabs').tabs( "option", "active", index );
+				}
+				else if ( convertTo == "effect" )
+				{
+					GetFiles('Effects');
+					var index = $('#tabs a[href="#tab-effects"]').parent().index();
+					$('#tabs').tabs( "option", "active", index );
+				}
+				$.jGrowl("Sequence Converted Successfully!");
+			}
+			else // if ( result == "Failure" )
+			{
+				DialogError("Failed to convert sequence!", $(data).find( "Error" ).text());
+			}
+		}).fail(function(data) {
+			target.style.display = 'none';
+			document.body.style.cursor = "default";
+
+			DialogError("Failed to initiate conversion!", $(data).find( "Error" ).text());
+		});
 }
 
 function SaveUSBDongleSettings()

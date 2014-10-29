@@ -256,6 +256,8 @@ FPPChannelOutput USBPixelnetOutput = {
 	.close        = USBPixelnet_Close,
 	.isConfigured = USBPixelnet_IsConfigured,
 	.isActive     = USBPixelnet_IsActive,
-	.send         = USBPixelnet_SendData
+	.send         = USBPixelnet_SendData,
+	.startThread  = NULL,
+	.stopThread   = NULL,
 	};
 

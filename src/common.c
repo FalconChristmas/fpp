@@ -273,3 +273,39 @@ char *FindInterfaceForIP(char *ip)
 	return interface;
 }
 
+/*
+ *
+ */
+int CheckForHostSpecificFile(const char *hostname, char *filename)
+{
+	char localFilename[2048];
+	strcpy(localFilename, filename);
+
+	char ext[6];
+	char *ptr = 0;
+	int len = strlen(localFilename);
+
+	// Check for 3 or 4-digit extension
+	if (localFilename[len - 4] == '.')
+	    ptr = &localFilename[len - 4];
+	else if (localFilename[len - 5] == '.')
+	    ptr = &localFilename[len - 5];
+
+	if (ptr)
+	{
+		// Preserve the extension including the dot
+		strcpy(ext, ptr);
+
+		*ptr = 0;
+		strcat(ptr, "-");
+		strcat(ptr, hostname);
+		strcat(ptr, ext);
+
+		if (FileExists(localFilename))
+		{
+			LogDebug(VB_SEQUENCE, "Found %s to use instead of %s\n",
+				localFilename, filename);
+			strcpy(filename, localFilename);
+		}
+	}
+}

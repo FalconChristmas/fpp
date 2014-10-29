@@ -50,8 +50,8 @@ typedef struct {
 #define SYNC_PKT_STOP  1
 #define SYNC_PKT_SYNC  2
 
-#define SYNC_FILE_SEQ  0
-#define SYNC_FILE_VID  1
+#define SYNC_FILE_SEQ   0
+#define SYNC_FILE_MEDIA 1
 
 typedef struct __attribute__((packed)) {
 	uint8_t  pktType;        // Sync Packet Type

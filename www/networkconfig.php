@@ -1,29 +1,3 @@
-<?php
-
-// if ( isset($_POST['eth_mode']) && !empty($_POST['eth_mode']) )
-  // {
-  // if ($_POST['eth_mode'] == "dhcp") { 
-      // $interface = "sudo changeInterface.awk /etc/network/interfaces device=eth0 mode=dhcp > /home/pi/media/interfaces";
-      // error_log($interface);
-	   // shell_exec($interface);
-  // }
-  // if ($_POST['eth_mode'] == "static") {
-       // $interface = "sudo changeInterface.awk /etc/network/interfaces device=eth0 mode=static address=" . $_POST['eth_ip'] . " netmask=" . $_POST['eth_netmask'] . " broadcast=" . $_POST['eth_broadcast'] ." gateway=" . $_POST['eth_gateway'] . " > /home/pi/media/interfaces";
-      // error_log($interface);
-	   // shell_exec($interface);
-  // }
-  // if ($_POST['wlan_mode'] == "dhcp") {
-	  // $interface = "sudo changeInterface.awk /etc/network/interfaces device=wlan0 mode=dhcp wpa-ssid=\"" . $_POST['wlan_ssid'] . "\" wpa-psk=\"" . $_POST['wlan_passphrase'] . "\""  . " > /home/pi/media/interfaces";
-      // error_log($interface);
-	   // shell_exec($interface);
-  // }
-  // if ($_POST['wlan_mode'] == "static") {
-	  // $interface = "sudo changeInterface.awk /etc/network/interfaces device=wlan0 mode=static address=" . $_POST['wlan_ip'] . " netmask=" . $_POST['wlan_netmastk'] . " broadcast=" . $_POST['wlan_broadcast'] ." gateway=" . $_POST['wlan_gateway'] . "wpa-ssid=" . $_POST['wlan_ssid'] . " wpa-psk=" . $_POST['wlan_passphrase'] . " > /home/pi/media/interfaces";
-      // error_log($interface);
-	  // shell_exec($interface);
-  // }
-// }
-?>
 <!DOCTYPE html>
 <html>
 <head>
@@ -176,6 +150,8 @@ function GetDNSInfo(data)
 			$('#dns_dhcp').prop('checked', true);
 			DisableDNSFields(true);
 	}
+
+	CheckDNS();
 }
 
 function LoadDNSConfig()
@@ -252,6 +228,33 @@ function LoadNetworkConfig() {
 	$.get(url,GetInterfaceInfo);
 }
 
+function CheckDNSCallback(data) {
+	if ((data.PROTO == "static") &&
+		($('#eth_static').is(':checked')) &&
+		($('#dns_dhcp').is(':checked')))
+	{
+		$('#dnsWarning').html("Warning: You must manually configure your DNS Server(s) if all network interfaces use static IPs.");
+	}
+}
+
+function CheckDNS() {
+	var iface = $('#selInterfaces').val();
+
+	if (iface == 'eth0')
+	{
+		// FIXME, check the size of #selInterfaces here to be > 1
+		iface = 'wlan0';
+	}
+	else if (iface == 'wlan0')
+	{
+		iface = 'eth0';
+	}
+
+	var url = "fppjson.php?command=getInterfaceInfo&interface=" + iface;
+
+	$.get(url,CheckDNSCallback);
+}
+
 $(document).ready(function(){
 
   LoadNetworkConfig();
@@ -317,6 +320,8 @@ function GetInterfaceInfo(data,status)
 		$('#eth_ssid').val(data.SSID);
 		$('#eth_psk').val(data.PSK);
 	}
+
+	CheckDNS();
 }
 
 function DisableNetworkFields(disabled)
@@ -379,6 +384,9 @@ function setHostName() {
             <tr>
               <td>Gateway:</td>
               <td><input type="text" name="eth_gateway" id="eth_gateway" size="15" maxlength="15"></td>
+            </tr>
+            <tr>
+              <td colspan='2'><b><font color='#ff0000'><span id='dnsWarning'></span></font></b></td>
             </tr>
           </table>
 		  <br>
