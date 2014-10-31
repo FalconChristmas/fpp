@@ -78,6 +78,8 @@ require_once('config.php');
           $(this).addClass('selectedentry');
           UploadFileSelected  = $(this).find('td:first').text();
 		  var extension = /\.(vix|xseq|lms|las|gled|seq|hlsidata)$/i;
+		  // Disable LOR/LMS/HLS for now until fppconvert is enhanced
+		  extension = /\.(vix|xseq|gled|seq)$/i;
 		  if ( UploadFileSelected.match(extension) )
 			  SetButtonState('#btnSequenceConvertUpload','enable');
 		  else
@@ -226,7 +228,7 @@ h2 {
     <div id="tab-scripts">
       <div id= "divScripts">
         <fieldset  class="fs">
-          <legend> Scripts (.sh/.pl/.php/.py)</legend>
+          <legend> Scripts (.sh/.pl/.pm/.php/.py)</legend>
           <div id="divScriptsData">
             <table id="tblScripts">
             </table>
@@ -238,7 +240,7 @@ h2 {
             <input onclick= "DeleteFile('Scripts', ScriptNameSelected);" id="btnDeleteScript" class="disableButtons" type="button"  value="Delete" />
           </div>
           <br />
-          <font size=-1>Scripts must have a .sh, .pl, .php, or .py extension.  Scripts may be executed inside an event.  These might be used in a show to trigger an external action such as sending a message to a RDS capable FM transmitter or a non-DMX/Pixelnet LED sign.</font>
+          <font size=-1>Scripts must have a .sh, .pl, .pm, .php, or .py extension.  Scripts may be executed inside an event.  These might be used in a show to trigger an external action such as sending a message to a RDS capable FM transmitter or a non-DMX/Pixelnet LED sign.</font>
         </fieldset>
       </div>
     </div>
@@ -326,7 +328,7 @@ $(document).ready(function()
 		doneStr: "Close",
 		dragdropWidth: '95%',
 		dragDropStr: "<span><b>Drag &amp; Drop or Select Files to upload</b></span>",
-		allowedTypes: "mp3,ogg,fseq,eseq,mp4,mkv,sh,pl,php,py,jpg,png,gif,jpeg,rgb,vix,xseq,lms,las,gled,seq,hlsidata",
+		allowedTypes: "mp3,ogg,fseq,eseq,mp4,mkv,sh,pl,pm,php,py,jpg,png,gif,jpeg,rgb,vix,xseq,lms,las,gled,seq,hlsidata",
 		onSuccess: function(files, data, xhr) {
 			for (var i = 0; i < files.length; i++) {
 				moveFile(files[i]);
