@@ -30,6 +30,7 @@
 #include <strings.h>
 #include <unistd.h>
 
+#include "controlsend.h"
 #include "effects.h"
 #include "events.h"
 #include "log.h"
@@ -312,11 +313,14 @@ int TriggerEventByID(char *id)
 {
 	LogDebug(VB_EVENT, "TriggerEventByID(%s)\n", id);
 
+	if (getFPPmode() == MASTER_MODE)
+		SendEventPacket(id);
+
 	FPPevent *event = LoadEvent(id);
 
 	if (!event)
 	{
-		LogErr(VB_EVENT, "Unable to load event %s\n", id);
+		LogWarn(VB_EVENT, "Unable to load event %s\n", id);
 		return 0;
 	}
 

@@ -29,11 +29,11 @@
 
 #include <sys/types.h>
 
-#define FPP_CTRL_ADDR "239.255.50.69"
 #define FPP_CTRL_PORT 32320
 
 #define CTRL_PKT_CMD   0
 #define CTRL_PKT_SYNC  1
+#define CTRL_PKT_EVENT 2
 
 typedef struct __attribute__((packed)) {
 	char     fppd[4];        // 'FPPD'
@@ -45,6 +45,10 @@ typedef struct {
 	char   command[1];       // Null-terminated Command to process
 	                         // (data may continue past this header)
 } CommandPkt;
+
+typedef struct {
+	char eventID[5];         // Event ID MAJOR_MINOR, NULL terminated
+} EventPkt;
 
 #define SYNC_PKT_START 0
 #define SYNC_PKT_STOP  1

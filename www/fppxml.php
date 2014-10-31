@@ -411,7 +411,7 @@ function MoveFile()
 				exit(1);
 			}
 		}
-		else if (preg_match("/\.(sh|pl|php|py)$/i", $file))
+		else if (preg_match("/\.(sh|pl|pm|php|py)$/i", $file))
 		{
 			// Get rid of any DOS newlines
 			$contents = file_get_contents($uploadDirectory."/".$file);
@@ -2362,7 +2362,7 @@ function GetZip()
 		);
 	foreach($files as $file) {
 		if (file_exists("$mediaDirectory/$file"))
-			$zip->addFile("$mediaDirectory/$file", "Config/$file");
+			$zip->addFromString("Config/$file", ScrubFile("$mediaDirectory/$file"));
 	}
 
 	exec("ls -aRl /proc /dev /sys", $output, $return_val);

@@ -46,6 +46,22 @@ wxTextCtrl*      TextCtrlLog;
 wxCheckListBox*  CheckListBoxTestChannels;
 wxStatusBar*     StatusBar1;
 
+void AppendConvertLog(const wxString& msg)
+{
+    cout << "Log: " << (const char*)msg.c_str();
+}
+
+void AppendConvertStatus(const wxString& msg)
+{
+    cout << "Log: " << (const char*)msg.c_str();
+}
+bool mapEmptyChannels() {
+    return false;
+}
+bool isSetOffAtEnd() {
+    return false;
+}
+
 // Functions from xLightsMain.cpp needed by TabConvert.cpp
 void PlayerError(const wxString& msg)
 {
@@ -62,15 +78,13 @@ void AppendLog(const wxString& msg)
 	cout << "Log: " << (const char*)msg.c_str();
 }
 
-// Include our script-modified version of xLights' TabConvert.cpp code
-#include "xLights_TabConvert.h"
-#include "xLights_TabConvert.cpp"
-
 // Functions to replace things we stripepd from TabConvert.cpp
 void ConversionError(const wxString& msg)
 {
 	cout << "Conversion Error: " << (const char*)msg.c_str() << endl;
 }
+
+#include "xLights/xLights/TabConvert.cpp"
 
 int main(int argc, char **argv)
 {

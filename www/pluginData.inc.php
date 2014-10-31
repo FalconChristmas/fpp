@@ -19,7 +19,7 @@ $plugins = Array(
 		'homeUrl'     => 'https://github.com/cpinkham/fpp-matrixtools',
 		'sourceUrl'   => 'https://github.com/cpinkham/fpp-matrixtools.git',
 		'bugUrl'      => 'https://github.com/cpinkham/fpp-matrixtools/issues',
-		'sha'         => 'c1ecb87a7b3103e9d28961e5d7bfededf346b765',
+		'sha'         => '0372a7eb39168b495ba649d205be04e74bfdf719',
 	),
 
 	Array(

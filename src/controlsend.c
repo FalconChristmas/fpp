@@ -355,3 +355,33 @@ void SendMediaSyncPacket(const char *filename, int frames, float seconds) {
 
 	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + strlen(filename));
 }
+
+/*
+ *
+ */
+void SendEventPacket(const char *eventID) {
+	LogDebug(VB_SYNC, "SendEventPacket('%s')\n", eventID);
+
+	if (!eventID || !eventID[0])
+		return;
+
+	if (!ctrlSendSock) {
+		LogErr(VB_SYNC, "ERROR: Tried to send event packet but control socket is not open.\n");
+		return;
+	}
+
+	char           outBuf[2048];
+	bzero(outBuf, sizeof(outBuf));
+
+	ControlPkt    *cpkt = (ControlPkt*)outBuf;
+	EventPkt *epkt = (EventPkt*)(outBuf + sizeof(ControlPkt));
+
+	InitControlPkt(cpkt);
+
+	cpkt->pktType        = CTRL_PKT_EVENT;
+	cpkt->extraDataLen   = sizeof(EventPkt);
+
+	strcpy(epkt->eventID, eventID);
+
+	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(EventPkt));
+}

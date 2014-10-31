@@ -38,4 +38,6 @@ void SendMediaSyncStartPacket(const char *filename);
 void SendMediaSyncStopPacket(const char *filename);
 void SendMediaSyncPacket(const char *filename, int frames, float seconds);
 
+void SendEventPacket(const char *eventID);
+
 #endif /* _CONTROL_H */
