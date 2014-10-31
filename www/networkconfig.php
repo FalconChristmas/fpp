@@ -358,10 +358,11 @@ function setHostName() {
       <div id="InterfaceSettings">
       <fieldset class="fs">
           <legend> Interface Settings</legend>
+          Select an interface name to configure the network information for that interface.<br><br>
           <table width = "100%" border="0" cellpadding="1" cellspacing="1">
             <tr>
-              <td width = "25%">Interface:</td>
-              <td width = "25%"><select id ="selInterfaces" ><?php PopulateInterfaces();?></select></td>
+              <td width = "25%" valign='top'>Interface Name:</td>
+              <td width = "25%" valign='top'><select id ="selInterfaces" size='2'><?php PopulateInterfaces();?></select></td>
               <td width = "50%">&nbsp;</td>
             </tr>
             <tr>
