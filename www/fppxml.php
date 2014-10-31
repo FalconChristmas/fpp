@@ -411,7 +411,7 @@ function MoveFile()
 				exit(1);
 			}
 		}
-		else if (preg_match("/\.(sh|pl|php|py)$/i", $file))
+		else if (preg_match("/\.(sh|pl|pm|php|py)$/i", $file))
 		{
 			// Get rid of any DOS newlines
 			$contents = file_get_contents($uploadDirectory."/".$file);
