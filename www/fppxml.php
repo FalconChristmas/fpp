@@ -2362,7 +2362,7 @@ function GetZip()
 		);
 	foreach($files as $file) {
 		if (file_exists("$mediaDirectory/$file"))
-			$zip->addFile("$mediaDirectory/$file", "Config/$file");
+			$zip->addFromString("Config/$file", ScrubFile("$mediaDirectory/$file"));
 	}
 
 	exec("ls -aRl /proc /dev /sys", $output, $return_val);
