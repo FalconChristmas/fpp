@@ -13,6 +13,22 @@ function check($var, $var_name = "", $function_name = "")
 		error_log("WARNING: Variable '$var_name' in function '$function_name' was empty");
 }
 
+function ScrubFile($filename, $taboo = Array("emailgpass"))
+{
+	if ( !file_exists($filename) )
+		return "";
+
+	$dataStr = "";
+	$data = parse_ini_file($filename);
+	foreach($taboo as $key)
+		if (array_key_exists($key, $data))
+			$data[$key] = "********";
+    foreach ($data as $key => $value)
+        $dataStr .= $key . " = " . $value . "\n";
+	return $dataStr;
+}
+
+
 function ReadSettingFromFile($settingName, $plugin = "")
 {
 	global $settingsFile;
