@@ -10,14 +10,16 @@
 
 function PopulateInterfaces()
 {
+  $first = 1;
   $interfaces = explode("\n",trim(shell_exec("/sbin/ifconfig | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0")));
   $ifaceE131 = ReadSettingFromFile("E131interface");
   error_log("$ifaceE131:" . $ifaceE131);
   foreach ($interfaces as $iface)
   {
     $iface = preg_replace("/:$/", "", $iface);
-    $ifaceChecked = $iface == $ifaceE131 ? " selected" : "";
+    $ifaceChecked = $first ? " selected" : "";
     echo "<option value='" . $iface . "'" . $ifaceChecked . ">" . $iface . "</option>";
+    $first = 0;
   }
 }
 
@@ -260,10 +262,6 @@ $(document).ready(function(){
   LoadNetworkConfig();
   LoadDNSConfig();
 
-  $("#selInterfaces").change(function(){
-    LoadNetworkConfig();
-  });
-
   $("#eth_static").click(function(){
     DisableNetworkFields(false);
     $('#eth_dhcp').prop('checked', false);
@@ -362,7 +360,7 @@ function setHostName() {
           <table width = "100%" border="0" cellpadding="1" cellspacing="1">
             <tr>
               <td width = "25%" valign='top'>Interface Name:</td>
-              <td width = "25%" valign='top'><select id ="selInterfaces" size='2'><?php PopulateInterfaces();?></select></td>
+              <td width = "25%" valign='top'><select id ="selInterfaces" size='2' onChange='LoadNetworkConfig();'><?php PopulateInterfaces();?></select></td>
               <td width = "50%">&nbsp;</td>
             </tr>
             <tr>
