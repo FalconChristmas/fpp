@@ -37,6 +37,7 @@
 #include "command.h"
 #include "common.h"
 #include "control.h"
+#include "events.h"
 #include "falcon.h"
 #include "log.h"
 #include "mediaoutput.h"
@@ -206,6 +207,26 @@ void ProcessCommandPacket(ControlPkt *pkt, int len) {
 /*
  *
  */
+void ProcessEventPacket(ControlPkt *pkt, int len) {
+	if (getFPPmode() != REMOTE_MODE)
+		return;
+
+	LogDebug(VB_CONTROL, "ProcessEventPacket()\n");
+
+	if (pkt->extraDataLen < sizeof(EventPkt)) {
+		LogErr(VB_CONTROL, "Error: Invalid length of received Event packet\n");
+		HexDump("Received data:", (void*)&pkt, len);
+		return;
+	}
+
+	EventPkt *epkt = (EventPkt*)(((char*)pkt) + sizeof(ControlPkt));
+
+	TriggerEventByID(epkt->eventID);
+}
+
+/*
+ *
+ */
 void ProcessSyncPacket(ControlPkt *pkt, int len) {
 	if (getFPPmode() != REMOTE_MODE)
 		return;
@@ -340,6 +361,9 @@ void ProcessControlPacket(void) {
 		case CTRL_PKT_CMD:	ProcessCommandPacket(pkt, len);
 							break;
 		case CTRL_PKT_SYNC: ProcessSyncPacket(pkt, len);
+							break;
+		case CTRL_PKT_EVENT:
+							ProcessEventPacket(pkt, len);
 							break;
 	}
 }
