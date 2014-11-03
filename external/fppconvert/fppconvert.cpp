@@ -90,14 +90,36 @@ int main(int argc, char **argv)
 {
 	char *in = strdup("in.vix"); // for testing
 	char *fmt = strdup("Falcon");
+    int offset = 0;
 
-	if (argc > 1) {
+    if (argc > 1) {
+        if (argv[1][0] == '-') {
+            long i2;
+            wxString info(&argv[1][1]);
+            while (info.Contains(",")) {
+                wxString t2 = info.SubString(0, info.Find(","));
+                
+                t2.ToLong(&i2);
+                if ( i2 > 0) {
+                    NetInfo.AddNetwork(i2);
+                }
+                info = info.SubString(info.Find(",") + 1, info.length());
+            }
+            i2 = 0;
+            info.ToLong(&i2);
+            if ( i2 > 0) {
+                NetInfo.AddNetwork(i2);
+            }
+            offset = 1;
+        }
+    }
+	if (argc > (1 + offset)) {
 		free(in);
-		in = strdup(argv[1]);
+		in = strdup(argv[1 + offset]);
 
-		if (argc > 2) {
+		if (argc > (2 + offset)) {
 			free(fmt);
-			fmt = strdup(argv[2]);
+			fmt = strdup(argv[2 + offset]);
 		}
 	}
 
