@@ -185,6 +185,9 @@ SetupFPPNetworkConfig () {
 
 		echo "FPP - Bringing wlan0 up"
 		ifup wlan0
+
+		echo "FPP - Disabling power management on wlan0"
+		iwconfig wlan0 power off
 	fi
 }
 
