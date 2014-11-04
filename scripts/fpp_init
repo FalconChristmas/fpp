@@ -32,6 +32,10 @@ ${FPPDIR}/etc/asplashscreen &
 ##############################################################################
 echo "FPP - Performing initial pre-start setup"
 ##############################################################################
+echo "    - Setting default network config"
+SetupDefaultNetworkConfig
+
+##############################################################################
 echo "    - Clearing resolv.conf"
 > /etc/resolv.conf
 
