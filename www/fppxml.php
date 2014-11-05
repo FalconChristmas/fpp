@@ -2169,6 +2169,14 @@ function DeleteFile()
 	else
 		EchoStatusXML('Failure');
 }
+    
+function universe_cmp($a, $b)
+{
+    if ($a->startAddress == $b->startAddress) {
+        return 0;
+    }
+    return ($a->startAddress < $b->startAddress) ? -1 : 1;
+}
 
 function ConvertFile()
 {
@@ -2188,12 +2196,31 @@ function ConvertFile()
 
 	if (preg_match("/\.(vix|xseq|lms|las|gled|seq|hlsidata)$/i", $file))
 	{
+        LoadUniverseFile();
+        
+        usort($_SESSION['UniverseEntries'], "universe_cmp");
+        $universeString = "-";
+        $last = 1;
+        for($i=1;$i<count($_SESSION['UniverseEntries']);$i++)
+        {
+            if (strlen($universeString) > 1) {
+                $universeString .= ",";
+            }
+            $universeString .= ($_SESSION['UniverseEntries'][$i]->startAddress - $last);
+            $last = $_SESSION['UniverseEntries'][$i]->startAddress;
+        }
+        if (strlen($universeString) > 1) {
+            $universeString .= ",";
+        }
+        $universeString .= $_SESSION['UniverseEntries'][count($_SESSION['UniverseEntries']) - 1]->size;
+        
+        
 		// The file gets placed where we run fppconvert from, which is
 		// typically the www-root.  Instead, let's go where we want it
 		// and know we have the space.
 		chdir($uploadDirectory);
 
-		exec($SUDO . " " . dirname(dirname(__FILE__)) . '/bin/fppconvert "' . $uploadDirectory."/".$file.'" 2>&1 | grep -i -e error -e alloc', $output, $return_val);
+		exec($SUDO . " " . dirname(dirname(__FILE__)) . '/bin/fppconvert ' . $universeString . ' "' . $uploadDirectory."/".$file.'" 2>&1 | grep -i -e error -e alloc', $output, $return_val);
 
 		$output_string = "";
 		foreach ($output as $line)
