@@ -4,7 +4,7 @@
 #include <set>
 #include <vector>
 
-#include <stdarg.h> 
+#include <stdarg.h>
 
 #include "xLights/xLights/NetInfo.h"
 
@@ -155,11 +155,13 @@ public:
         reading = false;
         name = n;
         stream.open(n, ios::in | ios::out | ios::binary | ios::trunc);
+        return stream.good();
     }
     bool Open(std::string n) {
         reading = true;
         name = n;
         stream.open(n, ios::in | ios::out | ios::binary);
+        return stream.good();
     }
     void Seek(size_t pos) {
         stream.clear();
