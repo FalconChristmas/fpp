@@ -4,6 +4,8 @@
 #include <set>
 #include <vector>
 
+#include <stdarg.h> 
+
 #include "xLights/xLights/NetInfo.h"
 
 using namespace std;
