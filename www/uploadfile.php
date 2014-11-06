@@ -79,7 +79,7 @@ require_once('config.php');
           UploadFileSelected  = $(this).find('td:first').text();
 		  var extension = /\.(vix|xseq|lms|las|gled|seq|hlsidata)$/i;
 		  // Disable LOR/LMS/HLS for now until fppconvert is enhanced
-		  extension = /\.(vix|xseq|gled|seq)$/i;
+		  //extension = /\.(vix|xseq|gled|seq)$/i;
 		  if ( UploadFileSelected.match(extension) )
 			  SetButtonState('#btnSequenceConvertUpload','enable');
 		  else
