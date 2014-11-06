@@ -57,6 +57,12 @@ netcalc(){
 #############################################################################
 # Create our version of /etc/network/interfaces and wpa_supplicant.conf files
 SetupFPPNetworkConfig () {
+	if [ ! -f "/home/pi/media/config/interface.eth0" -a ! -f "/home/pi/media/config/interface.wlan0" ]
+	then
+		echo "FPP - Using default network config"
+		return
+	fi
+
 	echo "FPP - Configuring Network"
 
 	killall -9 dhclient
