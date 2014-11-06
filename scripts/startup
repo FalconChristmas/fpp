@@ -30,8 +30,9 @@ then
 fi
 
 # Configure Network and DNS
-echo "FPP - Configuring Network"
-${BINDIR}/config_network
+#echo "FPP - Configuring Network"
+#${BINDIR}/config_network
+SetupFPPNetworkConfig
 
 HOSTNAME=$(getSetting HostName)
 if [ "x${HOSTNAME}" != "x" -a "x$(hostname)" != "x${HOSTNAME}" ]

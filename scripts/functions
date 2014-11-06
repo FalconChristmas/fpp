@@ -1,6 +1,212 @@
 #!/bin/bash
 
 #############################################################################
+# Setup default /etc/network/interfaces and wpa_supplicant.conf files
+SetupDefaultNetworkConfig () {
+	if [ ! -f "/etc/network/interfaces.default" ]
+	then
+		cat <<-EOF > /etc/network/interfaces.default
+		auto lo
+
+		allow-hotplug eth0
+
+		iface lo inet loopback
+
+		iface eth0 inet dhcp
+
+		iface wlan0 inet dhcp
+		  wpa-roam /etc/wpa_supplicant/wpa_supplicant.conf
+
+		iface eth0:0 inet static
+		  address 192.168.0.10
+		  netmask 255.255.255.0
+		  network 192.168.0.0
+		EOF
+	fi
+
+	cp /etc/network/interfaces.default /etc/network/interfaces
+
+	if [ ! -f "/etc/wpa_supplicant/wpa_supplicant.conf.default" ]
+	then
+		cat <<-EOF > /etc/wpa_supplicant/wpa_supplicant.conf.default
+		ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
+		update_config=1
+		EOF
+	fi
+
+	cp /etc/wpa_supplicant/wpa_supplicant.conf.default /etc/wpa_supplicant/wpa_supplicant.conf
+}
+
+#############################################################################
+# netcalc function found online on linuxquestions.org
+# http://www.linuxquestions.org/questions/programming-9/bash-cidr-calculator-646701/
+netcalc(){
+	local IFS='.' ip i
+	local -a oct msk
+
+	read -ra oct <<<"$1"
+	read -ra msk <<<"$2"
+
+	for i in ${!oct[@]}; do
+		ip+=( "$(( oct[i] & msk[i] ))" )
+	done
+
+	echo "${ip[*]}"
+}
+
+#############################################################################
+# Create our version of /etc/network/interfaces and wpa_supplicant.conf files
+SetupFPPNetworkConfig () {
+	if [ ! -f "/home/pi/media/config/interface.eth0" -a ! -f "/home/pi/media/config/interface.wlan0" ]
+	then
+		echo "FPP - Using default network config"
+		return
+	fi
+
+	echo "FPP - Configuring Network"
+
+	killall -9 dhclient
+
+	TMPFILE="/etc/network/interfaces.FPP"
+	INITETH0="no"
+	UPWLAN0="no"
+
+	cat <<-EOF > ${TMPFILE}
+	auto lo
+	iface lo inet loopback
+
+	EOF
+
+	PROTO="dhcp"
+	if [ -f "/home/pi/media/config/interface.eth0" ]
+	then
+		. /home/pi/media/config/interface.eth0
+	fi
+
+	if [ "x${PROTO}" = "xdhcp" ]
+	then
+		cat <<-EOF >> ${TMPFILE}
+		allow-hotplug eth0
+		iface eth0 inet dhcp
+		EOF
+	else
+		# Re-initialize eth0 since it is not using DHCP
+		INITETH0="yes"
+
+		NETWORK=$(netcalc ${ADDRESS} ${NETMASK})
+
+		cat <<-EOF >> ${TMPFILE}
+		allow-hotplug eth0
+		iface eth0 inet static
+		  address ${ADDRESS}
+		  netmask ${NETMASK}
+		  network ${NETWORK}
+		EOF
+
+		if [ "x${GATEWAY}" != "x" ]
+		then
+			echo "  gateway ${GATEWAY}" >> ${TMPFILE}
+		fi
+	fi
+
+	echo >> ${TMPFILE}
+
+	if [ -f "/home/pi/media/config/interface.wlan0" ]
+	then
+		UPWLAN0="yes"
+
+		. /home/pi/media/config/interface.wlan0
+
+		if [ "x${PROTO}" = "xdhcp" ]
+		then
+			cat <<-EOF >> ${TMPFILE}
+			iface wlan0 inet dhcp
+			  wpa-roam /etc/wpa_supplicant/wpa_supplicant.conf
+
+			EOF
+		else
+			NETWORK=$(netcalc ${ADDRESS} ${NETMASK})
+
+			cat <<-EOF >> ${TMPFILE}
+			auto wlan0
+			allow-hotplug wlan0
+			iface wlan0 inet static
+			  address ${ADDRESS}
+			  netmask ${NETMASK}
+			  network ${NETWORK}
+			EOF
+
+			if [ "x${GATEWAY}" != "x" ]
+			then
+				echo "  gateway ${GATEWAY}" >> ${TMPFILE}
+			fi
+
+			cat <<-EOF >> ${TMPFILE}
+			  wpa-conf /etc/wpa_supplicant/wpa_supplicant.conf
+			EOF
+		fi
+		echo >> ${TMPFILE}
+
+		cat <<-EOF > /etc/wpa_supplicant/wpa_supplicant.conf.FPP
+		ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
+		update_config=1
+
+		network={
+		  ssid="${SSID}"
+		EOF
+
+		if [ "x${PSK}" != "x" ]
+		then
+			echo "  psk='${PSK}'" >> /etc/wpa_supplicant/wpa_supplicant.conf.FPP
+		else
+			echo "  key_mgmt=NONE" >> /etc/wpa_supplicant/wpa_supplicant.conf.FPP
+		fi
+
+		cat <<-EOF >> /etc/wpa_supplicant/wpa_supplicant.conf.FPP
+		  scan_ssid=1
+		}
+
+		EOF
+
+		cp /etc/wpa_supplicant/wpa_supplicant.conf.FPP /etc/wpa_supplicant/wpa_supplicant.conf
+	fi
+
+	cat <<-EOF >> ${TMPFILE}
+	iface eth0:0 inet static
+	  address 192.168.0.10
+	  netmask 255.255.255.0
+	  network 192.168.0.0
+	EOF
+
+	echo >> ${TMPFILE}
+
+	cp ${TMPFILE} /etc/network/interfaces
+
+	if [ "x${INITETH0}" = "xyes" ]
+	then
+		echo "FPP - Taking eth0 down"
+		ifdown eth0
+
+		echo "FPP - Bringing eth0 back up"
+		ifup eth0
+	fi
+
+	if [ "x${UPWLAN0}" = "xyes" ]
+	then
+		echo "FPP - Taking wlan0 down"
+		ifdown wlan0
+
+		wpa_cli reconfigure
+
+		echo "FPP - Bringing wlan0 up"
+		ifup wlan0
+
+		echo "FPP - Disabling power management on wlan0"
+		iwconfig wlan0 power off
+	fi
+}
+
+#############################################################################
 # Configure fallback IP address if necessary
 ConfigureFallbackIP() {
 	if [ -f "${CFGDIR}/interface.eth0" ]
