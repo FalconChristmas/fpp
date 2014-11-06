@@ -149,7 +149,7 @@ function ToggleLCDNow()
     </tr>
     <tr>
       <td>Pi 2x16 LCD Enabled:</td>
-      <td><? PrintSettingCheckbox("Enable LCD Display", "PI_LCD_Enabled", 0, 1, "1", "0"); ?></td>
+      <td><? PrintSettingCheckbox("Enable LCD Display", "PI_LCD_Enabled", 0, 0, "1", "0", "", "ToggleLCDNow"); ?></td>
     </tr>
     <tr>
       <td>Always transmit channel data:</td>

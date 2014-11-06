@@ -155,7 +155,7 @@ ${BINDIR}/fpp_boot
 
 PiLCDenabled=$(getSetting PI_LCD_Enabled)
 
-if [ "x${PiLCDenabled}" = "xenabled" ]
+if [ "x${PiLCDenabled}" = "x1" ]
 then
   echo "FPP - Checking for configured LCD, LCD Enabled, starting LCD daemon"
   ${FPPDIR}/scripts/lcd/fppLCD start
