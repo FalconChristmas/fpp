@@ -35,6 +35,7 @@
 
 #include "channeloutputthread.h"
 #include "common.h"
+#include "controlsend.h"
 #include "log.h"
 #include "mediaoutput.h"
 #include "ogg123.h"
@@ -145,6 +146,7 @@ void ogg123_StopPlaying()
 void ogg123_ParseTimes()
 {
 	static int lastSyncCheck = 0;
+	static int lastRemoteSync = 0;
 	int result;
 	int secs;
 	int mins;
@@ -193,6 +195,19 @@ void ogg123_ParseTimes()
 	tmp[0]=ogg123_strTime[27];
 	tmp[1]=ogg123_strTime[28];
 	sscanf(tmp,"%d",&mediaOutputStatus.secondsTotal);
+
+	mediaOutputStatus.mediaSeconds = (float)((float)mediaOutputStatus.secondsElapsed + ((float)mediaOutputStatus.subSecondsElapsed/(float)100));
+
+	if (getFPPmode() == MASTER_MODE)
+	{
+		if ((mediaOutputStatus.secondsElapsed > 0) &&
+			(lastRemoteSync != mediaOutputStatus.secondsElapsed))
+		{
+			SendMediaSyncPacket(mediaOutput->filename, 0,
+				mediaOutputStatus.mediaSeconds);
+			lastRemoteSync = mediaOutputStatus.secondsElapsed;
+		}
+	}
 
 	if ((IsSequenceRunning()) &&
 			(mediaOutputStatus.secondsElapsed > 0) &&

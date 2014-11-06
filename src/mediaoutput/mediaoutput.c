@@ -127,15 +127,39 @@ int OpenMediaOutput(char *filename) {
 	pthread_mutex_lock(&mediaOutputLock);
 	mediaOutput = NULL;
 
-	if (mpg123Output.canHandle(filename)) {
+	char tmpFile[1024];
+	strcpy(tmpFile, filename);
+
+	int filenameLen = strlen(filename);
+	if ((getFPPmode() == REMOTE_MODE) && (filenameLen > 4))
+	{
+		// For v1.0 MultiSync, we can't sync audio to audio, so check for
+		// a video file if the master is playing an audio file
+		if (!strcmp(&tmpFile[filenameLen - 4], ".mp3"))
+		{
+			strcpy(&tmpFile[filenameLen - 4], ".mp4");
+			LogDebug(VB_MEDIAOUT,
+				"Master is playing MP3 %s, remote will try %s Video\n",
+				filename, tmpFile);
+		}
+		else if (!strcmp(&tmpFile[filenameLen - 4], ".ogg"))
+		{
+			strcpy(&tmpFile[filenameLen - 4], ".mp4");
+			LogDebug(VB_MEDIAOUT,
+				"Master is playing OGG %s, remote will try %s Video\n",
+				filename, tmpFile);
+		}
+	}
+
+	if (mpg123Output.canHandle(tmpFile)) {
 		mediaOutput = &mpg123Output;
-	} else if (ogg123Output.canHandle(filename)) {
+	} else if (ogg123Output.canHandle(tmpFile)) {
 		mediaOutput = &ogg123Output;
-	} else if (omxplayerOutput.canHandle(filename)) {
+	} else if (omxplayerOutput.canHandle(tmpFile)) {
 		mediaOutput = &omxplayerOutput;
 	} else {
 		pthread_mutex_unlock(&mediaOutputLock);
-		LogDebug(VB_MEDIAOUT, "ERROR: No Media Output handler for %s\n", filename);
+		LogDebug(VB_MEDIAOUT, "ERROR: No Media Output handler for %s\n", tmpFile);
 		return 0;
 	}
 
