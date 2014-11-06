@@ -805,6 +805,25 @@ sub TextMessage {
 		return $frames;
 	};
 
+	my $placeText;
+	$placeText = sub {
+		my $xPos = shift;
+		my $yPos = shift;
+		my $frames = shift;
+
+		my $startTime = [gettimeofday];
+		$overlayImage->($xPos, $yPos);
+		$frames = $checkForUpdate->($frames);
+
+		my $stime = $sleepTime - (tv_interval( $startTime ) * 1000000);
+		if ($stime > 0)
+		{
+			usleep($stime);
+		}
+
+		return $frames;
+	};
+
 	if ($pos =~ /^[0-9]+,[0-9]+$/) {
 		my ($x, $y) = split(',', $pos);
 		$overlayImage->($x, $y);
@@ -815,15 +834,7 @@ sub TextMessage {
 				my $y = int(($height / 2) - ($metrics->{height} / 2));
 				$y = 0 if ($y < 0);
 
-				my $startTime = [gettimeofday];
-				$overlayImage->($width - $i, $y);
-				$frames = $checkForUpdate->($frames);
-
-				my $stime = $sleepTime - (tv_interval( $startTime ) * 1000000);
-				if ($stime > 0)
-				{
-					usleep($stime);
-				}
+				$frames = $placeText->($width - $i, $y, $frames);
 			}
 		} elsif ($dir eq "L2R") {
 			my $frames = $metrics->{width} + $width;
@@ -831,15 +842,7 @@ sub TextMessage {
 				my $y = int(($height / 2) - ($metrics->{height} / 2));
 				$y = 0 if ($y < 0);
 
-				my $startTime = [gettimeofday];
-				$overlayImage->($width - $i, $y);
-				$frames = $checkForUpdate->($frames);
-
-				my $stime = $sleepTime - (tv_interval( $startTime ) * 1000000);
-				if ($stime > 0)
-				{
-					usleep($stime);
-				}
+				$frames = $placeText->($width - $i, $y, $frames);
 			}
 		} elsif ($dir eq "T2B") {
 			my $frames = $metrics->{height} + $height;
@@ -847,15 +850,7 @@ sub TextMessage {
 				my $x = int(($width / 2) - ($metrics->{width} / 2));
 				$x = 0 if ($x < 0);
 
-				my $startTime = [gettimeofday];
-				$overlayImage->($x, $height - $i);
-				$frames = $checkForUpdate->($frames);
-
-				my $stime = $sleepTime - (tv_interval( $startTime ) * 1000000);
-				if ($stime > 0)
-				{
-					usleep($stime);
-				}
+				$frames = $placeText->($x, $height - $i, $frames);
 			}
 		} elsif ($dir eq "B2T") {
 			my $frames = $metrics->{height} + $height;
@@ -863,15 +858,7 @@ sub TextMessage {
 				my $x = int(($width / 2) - ($metrics->{width} / 2));
 				$x = 0 if ($x < 0);
 
-				my $startTime = [gettimeofday];
-				$overlayImage->($x, $height - $i);
-				$frames = $checkForUpdate->($frames);
-
-				my $stime = $sleepTime - (tv_interval( $startTime ) * 1000000);
-				if ($stime > 0)
-				{
-					usleep($stime);
-				}
+				$frames = $placeText->($x, $height - $i, $frames);
 			}
 		}
 	} elsif ($pos = "center") {
