@@ -58,7 +58,7 @@ char *getFPPBranch(void) {
 
 void printVersionInfo(void) {
 	printf("=========================================\n");
-	printf("FPP %s\n", getFPPVersion());
+	printf("FPP v%s\n", getFPPVersion());
 	printf("Branch: %s\n", getFPPBranch());
 	printf("=========================================\n");
 }
