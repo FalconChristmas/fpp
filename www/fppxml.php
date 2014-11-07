@@ -2344,6 +2344,8 @@ function GetFile()
 	}
 
 	header('Content-disposition: attachment;filename=' . $filename);
+	ob_clean();
+	flush();
 	readfile($dir . '/' . $filename);
 }
 
