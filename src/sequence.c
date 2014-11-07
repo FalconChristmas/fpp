@@ -145,7 +145,7 @@ int OpenSequenceFile(const char *filename) {
 	strcpy(seqFormatID, "    ");
 	bytesRead = fread(seqFormatID, 1, 4, seqFile);
 	seqFormatID[4] = 0;
-	if ((bytesRead != 4) || (strcmp(seqFormatID, "PSEQ")))
+	if ((bytesRead != 4) || (strcmp(seqFormatID, "PSEQ") && strcmp(seqFormatID, "FSEQ")))
 	{
 		LogErr(VB_SEQUENCE, "Error opening sequence file: %s. Incorrect File Format header: '%s', bytesRead: %d\n",
 			filename, seqFormatID, bytesRead);
