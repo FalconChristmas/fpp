@@ -157,7 +157,7 @@ SetupFPPNetworkConfig () {
 
 		if [ "x${PSK}" != "x" ]
 		then
-			echo "  psk='${PSK}'" >> /etc/wpa_supplicant/wpa_supplicant.conf.FPP
+			echo "  psk=\"${PSK}\"" >> /etc/wpa_supplicant/wpa_supplicant.conf.FPP
 		else
 			echo "  key_mgmt=NONE" >> /etc/wpa_supplicant/wpa_supplicant.conf.FPP
 		fi
