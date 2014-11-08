@@ -47,7 +47,7 @@
 
 #define PLAYLIST_STOP_INDEX		-1
 
-#define PL_MAX_ENTRIES			64
+#define PL_MAX_ENTRIES			128
 
 #include <stdbool.h>
 
