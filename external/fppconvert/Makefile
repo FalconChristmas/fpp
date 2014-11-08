@@ -17,10 +17,10 @@ fppconvert: $(OBJECTS)
 	$(CPP) $(CFLAGS) $(OBJECTS) $(LDFLAGS) -o $@
 
 xLights/xLights/NetInfo.h:
-	git clone -b OpenGL https://github.com/smeighan/xLights.git xLights
+	git clone https://github.com/smeighan/xLights.git xLights
 
 xLights/xLights/NetInfo.cpp:
-	git clone -B OpenGL https://github.com/smeighan/xLights.git xLights
+	git clone https://github.com/smeighan/xLights.git xLights
 
 NetInfo.o: xLights/xLights/NetInfo.cpp xLights/xLights/NetInfo.h
 	$(CPP) $(CFLAGS) -c xLights/xLights/NetInfo.cpp -o $@
