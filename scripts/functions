@@ -142,7 +142,7 @@ SetupFPPNetworkConfig () {
 			fi
 
 			cat <<-EOF >> ${TMPFILE}
-			  wpa-conf /etc/wpa_supplicant/wpa_supplicant.conf
+			  wpa-roam /etc/wpa_supplicant/wpa_supplicant.conf
 			EOF
 		fi
 		echo >> ${TMPFILE}
