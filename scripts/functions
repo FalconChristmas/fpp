@@ -7,10 +7,9 @@ SetupDefaultNetworkConfig () {
 	then
 		cat <<-EOF > /etc/network/interfaces.default
 		auto lo
+		iface lo inet loopback
 
 		allow-hotplug eth0
-
-		iface lo inet loopback
 
 		iface eth0 inet dhcp
 
@@ -65,8 +64,6 @@ SetupFPPNetworkConfig () {
 
 	echo "FPP - Configuring Network"
 
-	killall -9 dhclient
-
 	TMPFILE="/etc/network/interfaces.FPP"
 	INITETH0="no"
 	UPWLAN0="no"
@@ -83,20 +80,24 @@ SetupFPPNetworkConfig () {
 		. /home/pi/media/config/interface.eth0
 	fi
 
+	kill -9 $(ps -edaf | grep ifplugd | grep -v grep | grep eth0 | awk '{print $2}')
+
 	if [ "x${PROTO}" = "xdhcp" ]
 	then
 		cat <<-EOF >> ${TMPFILE}
-		allow-hotplug eth0
+		auto eth0
 		iface eth0 inet dhcp
 		EOF
 	else
 		# Re-initialize eth0 since it is not using DHCP
 		INITETH0="yes"
 
+		kill -9 $(ps -edaf | grep dhclient | grep -v grep | grep eth0 | awk '{print $2}')
+
 		NETWORK=$(netcalc ${ADDRESS} ${NETMASK})
 
 		cat <<-EOF >> ${TMPFILE}
-		allow-hotplug eth0
+		auto eth0
 		iface eth0 inet static
 		  address ${ADDRESS}
 		  netmask ${NETMASK}
@@ -117,20 +118,29 @@ SetupFPPNetworkConfig () {
 
 		. /home/pi/media/config/interface.wlan0
 
+		kill -9 $(ps -edaf | grep ifplugd | grep -v grep | grep wlan0 | awk '{print $2}')
+
 		if [ "x${PROTO}" = "xdhcp" ]
 		then
 			cat <<-EOF >> ${TMPFILE}
-			iface wlan0 inet dhcp
+			allow-hotplug wlan0
+			iface wlan0 inet manual
 			  wpa-roam /etc/wpa_supplicant/wpa_supplicant.conf
+
+			iface FPP-wlan0 inet dhcp
 
 			EOF
 		else
 			NETWORK=$(netcalc ${ADDRESS} ${NETMASK})
 
+			kill -9 $(ps -edaf | grep dhclient | grep -v grep | grep wlan0 | awk '{print $2}')
+
 			cat <<-EOF >> ${TMPFILE}
-			auto wlan0
 			allow-hotplug wlan0
-			iface wlan0 inet static
+			iface wlan0 inet manual
+			  wpa-roam /etc/wpa_supplicant/wpa_supplicant.conf
+
+			iface FPP-wlan0 inet static
 			  address ${ADDRESS}
 			  netmask ${NETMASK}
 			  network ${NETWORK}
@@ -141,9 +151,8 @@ SetupFPPNetworkConfig () {
 				echo "  gateway ${GATEWAY}" >> ${TMPFILE}
 			fi
 
-			cat <<-EOF >> ${TMPFILE}
-			  wpa-roam /etc/wpa_supplicant/wpa_supplicant.conf
-			EOF
+			echo >> ${TMPFILE}
+			echo "iface default inet dhcp" >> ${TMPFILE}
 		fi
 		echo >> ${TMPFILE}
 
@@ -164,6 +173,7 @@ SetupFPPNetworkConfig () {
 
 		cat <<-EOF >> /etc/wpa_supplicant/wpa_supplicant.conf.FPP
 		  scan_ssid=1
+		  id_str="FPP-wlan0"
 		}
 
 		EOF
