@@ -9,7 +9,7 @@ $plugins = Array(
 		'homeUrl'     => 'https://github.com/Materdaddy/fpp-vastfmt',
 		'sourceUrl'   => 'https://github.com/Materdaddy/fpp-vastfmt.git',
 		'bugUrl'      => 'https://github.com/Materdaddy/fpp-vastfmt/issues',
-		'sha'         => '0441ac944210d3946e951d981089f494a6150090',
+		'sha'         => 'ade42fca1cdcd2e9d99fecd5efde84d0a5bbd086',
 	),
 
 	Array(
@@ -29,7 +29,7 @@ $plugins = Array(
 		'homeUrl'     => 'https://github.com/FalconChristmas/big-green-button',
 		'sourceUrl'   => 'https://github.com/FalconChristmas/big-green-button.git',
 		'bugUrl'      => 'https://github.com/FalconChristmas/big-green-button/issues',
-		'sha'         => 'ba31143fd8cfbefe1125df93092c7831c40d6e6e',
+		'sha'         => '968484b8013f26582c2c93d14b3b1fe786d2e57e',
 	),
 
 	Array(
