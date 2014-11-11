@@ -1,0 +1,27 @@
+While the Falcon Player (FPP) is covered under the GPL v2 license as
+indicated in the LICENSE file and source code headers, there is some
+external code included with FPP that is covered under a different license
+due to the license restrictions from the the original authors.  These
+external code sources and any license exceptions are noted below.
+==============================================================================
+
+fppconvert
+
+fppconvert relies on source code from Matt Brown's xLights which is covered
+by the GPL v3.  This means that fppconvert itself is covered by GPL v3.
+
+https://github.com/smeighan/xLights/
+
+==============================================================================
+
+omxplayer
+
+omxplayer is covered by the GPL v2, but it is included here because we
+have a patch to omxplayer to support the MultiSync Video capabilities
+in FPP.
+
+https://github.com/popcornmix/omxplayer
+
+==============================================================================
+
+
