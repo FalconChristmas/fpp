@@ -75,6 +75,21 @@ int ogg123_StartPlaying(const char *musicFile)
 		return 0;
 	}
 
+	char oggPlayer[1024];
+	strcpy(oggPlayer, getSetting("oggPlayer"));
+	if (!oggPlayer[0])
+	{
+		strcpy(oggPlayer, "/usr/bin/ogg123");
+	}
+	else if (!FileExists(oggPlayer))
+	{
+		LogDebug(VB_MEDIAOUT, "Configured oggPlayer %s does not exist, "
+			"falling back to /usr/bin/ogg123\n", oggPlayer);
+		strcpy(oggPlayer, "/usr/bin/ogg123");
+	}
+
+	LogDebug(VB_MEDIAOUT, "Spawning %s for OGG playback\n", oggPlayer);
+
 	// Create Pipes to/from ogg123
 	pipe(pipeFromOGG);
 
@@ -85,7 +100,7 @@ int ogg123_StartPlaying(const char *musicFile)
 		close(pipeFromOGG[MEDIAOUTPUTPIPE_WRITE]);
 		pipeFromOGG[MEDIAOUTPUTPIPE_WRITE] = 0;
 
-		execl("/usr/bin/ogg123", "ogg123", fullAudioPath, NULL);
+		execl(oggPlayer, oggPlayer, fullAudioPath, NULL);
 	    exit(EXIT_FAILURE);
 	}
 	else							// Parent process
