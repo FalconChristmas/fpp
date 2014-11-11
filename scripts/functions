@@ -80,7 +80,7 @@ SetupFPPNetworkConfig () {
 		. /home/pi/media/config/interface.eth0
 	fi
 
-	kill -9 $(ps -edaf | grep ifplugd | grep -v grep | grep eth0 | awk '{print $2}')
+	kill -9 $(ps -edaf | grep ifplugd | grep -v grep | grep eth0 | awk '{print $2}') > /dev/null 2>&1
 
 	if [ "x${PROTO}" = "xdhcp" ]
 	then
@@ -92,7 +92,7 @@ SetupFPPNetworkConfig () {
 		# Re-initialize eth0 since it is not using DHCP
 		INITETH0="yes"
 
-		kill -9 $(ps -edaf | grep dhclient | grep -v grep | grep eth0 | awk '{print $2}')
+		kill -9 $(ps -edaf | grep dhclient | grep -v grep | grep eth0 | awk '{print $2}') > /dev/null 2>&1
 
 		NETWORK=$(netcalc ${ADDRESS} ${NETMASK})
 
@@ -118,7 +118,7 @@ SetupFPPNetworkConfig () {
 
 		. /home/pi/media/config/interface.wlan0
 
-		kill -9 $(ps -edaf | grep ifplugd | grep -v grep | grep wlan0 | awk '{print $2}')
+		kill -9 $(ps -edaf | grep ifplugd | grep -v grep | grep wlan0 | awk '{print $2}') > /dev/null 2>&1
 
 		if [ "x${PROTO}" = "xdhcp" ]
 		then
@@ -133,7 +133,7 @@ SetupFPPNetworkConfig () {
 		else
 			NETWORK=$(netcalc ${ADDRESS} ${NETMASK})
 
-			kill -9 $(ps -edaf | grep dhclient | grep -v grep | grep wlan0 | awk '{print $2}')
+			kill -9 $(ps -edaf | grep dhclient | grep -v grep | grep wlan0 | awk '{print $2}') > /dev/null 2>&1
 
 			cat <<-EOF >> ${TMPFILE}
 			allow-hotplug wlan0
@@ -211,8 +211,8 @@ SetupFPPNetworkConfig () {
 		echo "FPP - Bringing wlan0 up"
 		ifup wlan0
 
-		echo "FPP - Disabling power management on wlan0"
-		iwconfig wlan0 power off
+		#echo "FPP - Disabling power management on wlan0"
+		#iwconfig wlan0 power off
 	fi
 }
 
