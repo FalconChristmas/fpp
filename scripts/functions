@@ -195,7 +195,7 @@ SetupFPPNetworkConfig () {
 	if [ "x${INITETH0}" = "xyes" ]
 	then
 		echo "FPP - Taking eth0 down"
-		ifdown eth0
+		ifdown eth0 > /dev/null 2>&1
 
 		echo "FPP - Bringing eth0 back up"
 		ifup eth0
@@ -204,12 +204,12 @@ SetupFPPNetworkConfig () {
 	if [ "x${UPWLAN0}" = "xyes" ]
 	then
 		echo "FPP - Taking wlan0 down"
-		ifdown wlan0
+		ifdown wlan0 > /dev/null 2>&1
 
-		wpa_cli reconfigure
+		#wpa_cli reconfigure > /dev/null 2>&1
 
 		echo "FPP - Bringing wlan0 up"
-		ifup wlan0
+		ifup wlan0 > /dev/null 2>&1
 
 		#echo "FPP - Disabling power management on wlan0"
 		#iwconfig wlan0 power off
