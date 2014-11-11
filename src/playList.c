@@ -499,7 +499,7 @@ void Play_PlaylistEntry(bool calculateNext)
 	switch(plEntry->type)
 	{
 		case PL_TYPE_BOTH:
-			if (OpenSequenceFile(plEntry->seqName) > 0)
+			if (OpenSequenceFile(plEntry->seqName, 0) > 0)
 			{
 				OpenMediaOutput(playlistDetails.playList[playlistDetails.currentPlaylistEntry].songName);
 			}
@@ -512,7 +512,7 @@ void Play_PlaylistEntry(bool calculateNext)
 			OpenMediaOutput(playlistDetails.playList[playlistDetails.currentPlaylistEntry].songName);
 			break;
 		case PL_TYPE_SEQUENCE:
-			OpenSequenceFile(plEntry->seqName);
+			OpenSequenceFile(plEntry->seqName, 0);
 			break;
 		case PL_TYPE_PAUSE:
 			break;

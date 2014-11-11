@@ -55,7 +55,7 @@ if (!preg_match("/^$git_branch(-.*)?$/", $fpp_head_version))
 
     <div id="fppMenu" class="ddsmoothmenu">
     <ul>
-      <li><a href="index.php">Status/Control</a>
+      <li><a href="#">Status/Control</a>
         <ul>
           <li><a href="/">Status Page</a></li>
           <div class="desktopItem">
@@ -84,6 +84,7 @@ if ( $handle )
           </div>
           <li><a href="events.php">Events</a></li>
           <li><a href="effects.php">Effects</a></li>
+          <li><a href="testing.php">Display Testing</a></li>
         </ul>
       </li>
       <li><a href="#">Content Setup</a>

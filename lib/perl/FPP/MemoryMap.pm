@@ -279,6 +279,20 @@ sub SetTestMode {
 }
 
 #############################################################################
+# Set RGB for all channels
+sub SetTestModeColor {
+	my $this = shift;
+	my $r = shift;
+	my $g = shift;
+	my $b = shift;
+
+	for (my $i = 0; $i < 65535; $i += 3)
+	{
+		$this->SetPixel($i, $r, $g, $b);
+	}
+	$this->SetChar('data', $this->{pixelMap}[65535], $r);
+}
+#############################################################################
 # Enable/Disable Test Mode
 sub SetBlockState {
 	my $this = shift;
@@ -316,6 +330,16 @@ sub IsBlockLocked {
 	$this->LoadBlockInfo($blk);
 
 	return $bd->{isLocked};
+}
+
+#############################################################################
+# Set Absolute Channel
+sub SetChannel {
+	my $this = shift;
+	my $a = shift;
+	my $v = shift;
+
+	$this->SetChar('data', $this->{pixelMap}[$a], $v);
 }
 
 #############################################################################

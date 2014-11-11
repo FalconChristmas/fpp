@@ -29,6 +29,8 @@ $command_array = Array(
 	"getFPPSystems"       => 'GetFPPSystems',
 	"getSetting"          => 'GetSetting',
 	"setSetting"          => 'SetSetting',
+	"startSequence"       => 'StartSequence',
+	"stopSequence"        => 'StopSequence',
 	"toggleSequencePause" => 'ToggleSequencePause',
 	"singleStepSequence"  => 'SingleStepSequence',
 	"singleStepSequenceBack" => 'SingleStepSequenceBack',
@@ -140,6 +142,24 @@ function GetFPPDUptime()
 		$days, $hours, $minutes, $seconds );
 
 	returnJSON($result);
+}
+
+function StartSequence()
+{
+	global $args;
+
+	$sequence = $args['sequence'];
+	$startSecond = $args['startSecond'];
+
+	check($sequence, "sequence", __FUNCTION__);
+	check($startSecond, "startSecond", __FUNCTION__);
+
+	SendCommand(sprintf("StartSequence,%s,%d", $sequence, $startSecond));
+}
+
+function StopSequence()
+{
+	SendCommand("StopSequence");
 }
 
 function ToggleSequencePause()
