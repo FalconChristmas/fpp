@@ -284,11 +284,7 @@ echo "
 }
 </script>
 
-<input type='button' class='buttons' id='save$setting' ";
-
-	IfSettingEqualPrint($setting, $checkedValue, "checked", $pluginName);
-
-	echo " onClick='save" . $setting . "();' value='Save'>\n";
+<input type='button' class='buttons' id='save$setting' onClick='save" . $setting . "();' value='Save'>\n";
 }
 
 ?>
