@@ -240,12 +240,6 @@ a:visited {
         <input type='button' value='Clear Restart Warning' onClick='ClearRestartFlag();'>
         <input type='button' value='Clear Reboot Warning' onClick='ClearRebootFlag();'>
         </li><br>
-    <li><b>Sequence:</b><br>
-			<input type='button' value='Pause/UnPause' onClick='ToggleSequencePause();'>
-			<input type='button' value='Step' onClick='SingleStepSequence();'>
-			<input type='button' value='Step Back' onClick='SingleStepSequenceBack();'>
-				(these are for sequence-only playlist entries, media playback is not supported)
-			</li>
 		<br>
 		<li><b>Git:</b><br>
 			<input type='button' value='Reset Local Changes' onClick='GitReset();'> <b>WARNING:</b> This performs a "git reset --hard HEAD" to revert all local source code changes
