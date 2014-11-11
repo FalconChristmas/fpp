@@ -23,6 +23,7 @@ pulled high by default and can be connected to ground to pull them low via a swi
 		circuit diagram is provided below which pulls the pin high by default allowing
 		the Normally Open button to pull the input low when activated.  To trigger an
 		action when the button is released, attach a Rising event to the GPIO Input.<br>
+		<br>
 		<center><b>Sample GPIO Normally Open Button Configuration</b><br>
 			<img src='http://<?= $_SERVER['SERVER_ADDR']; ?>/help/GPIO.png'></center></li>
 	<li><b>Normally Closed (NC)</b> - Normally Closed connections complete a circuit
