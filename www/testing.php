@@ -365,8 +365,8 @@ $(document).ready(function(){
 				Enable Test Mode: <input type='checkbox' id='testMode' onClick='TestModeChanged();'><br>
 				<hr>
 				<b>Single Channel Test</b><br>
-				Channel Number: <input type='text' size='5' maxlength='5' value='0' id='channelNumber'><br>
-				Channel Value: <input type='text' size='3' maxlength='3' value='0' id='channelValue'><br>
+				Channel Number: <input type='text' size='5' maxlength='5' value='0' id='channelNumber'> (1-65536)<br>
+				Brightness: <input type='text' size='3' maxlength='3' value='0' id='channelValue'> (0-255)<br>
 				<input type='button' value='Set' onClick='setSingleChannel();'>
 				<hr>
 				<b>Test All Channels</b><br>
