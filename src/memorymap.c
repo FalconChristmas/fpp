@@ -383,7 +383,7 @@ void SetupPixelMapForBlock(FPPChannelMemoryMapControlBlock *cb) {
 				int outY = (TtoB != ((segment % 2) != LtoR)) ? height - y - 1 : y;
 
 				// Relative Mapped Output Pixel 'R' channel
-				int mpos = outX * width + outY;
+				int mpos = outX * height + outY;
 				int outCh = (cb->startChannel - 1) + (mpos * 3);
 
 				// Map the pixel's triplet
