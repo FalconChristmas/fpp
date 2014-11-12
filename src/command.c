@@ -391,28 +391,70 @@ extern PlaylistDetails playlistDetails;
 		{
 			sprintf(response,"%d,%d,FPPD Uptime,%d,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS, time(NULL) - fppdStartTime);
 		}
+		else if (!strcmp(CommandStr, "StartSequence"))
+		{
+			if ((FPPstatus == FPP_STATUS_IDLE) &&
+				(!IsSequenceRunning()))
+			{
+				s = strtok(NULL,",");
+				s2 = strtok(NULL,",");
+				if (s && s2)
+				{
+					i = atoi(s2);
+					OpenSequenceFile(s, i);
+				}
+				else
+				{
+					LogDebug(VB_COMMAND, "Invalid command: %s\n", command);
+				}
+			}
+			else
+			{
+				LogErr(VB_COMMAND, "Tried to start a sequence when a playlist or "
+						"sequence is already running\n");
+			}
+		}
+		else if (!strcmp(CommandStr, "StopSequence"))
+		{
+			if ((FPPstatus == FPP_STATUS_IDLE) &&
+				(IsSequenceRunning()))
+			{
+				CloseSequenceFile();
+			}
+			else
+			{
+				LogDebug(VB_COMMAND,
+					"Tried to stop a sequence when no sequence is running\n");
+			}
+		}
 		else if (!strcmp(CommandStr, "ToggleSequencePause"))
 		{
-			if ((FPPstatus != FPP_STATUS_IDLE) &&
-				(playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType == 's'))
+			if ((IsSequenceRunning()) &&
+				((FPPstatus == FPP_STATUS_IDLE) ||
+				 ((FPPstatus != FPP_STATUS_IDLE) &&
+				  (playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType == 's'))))
 			{
 				ToggleSequencePause();
 			}
 		}
 		else if (!strcmp(CommandStr, "SingleStepSequence"))
 		{
-			if ((FPPstatus != FPP_STATUS_IDLE) &&
-				(playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType == 's') &&
-				(SequenceIsPaused()))
+			if ((IsSequenceRunning()) &&
+				(SequenceIsPaused()) &&
+				((FPPstatus == FPP_STATUS_IDLE) ||
+				 ((FPPstatus != FPP_STATUS_IDLE) &&
+				  (playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType == 's'))))
 			{
 				SingleStepSequence();
 			}
 		}
 		else if (!strcmp(CommandStr, "SingleStepSequenceBack"))
 		{
-			if ((FPPstatus != FPP_STATUS_IDLE) &&
-				(playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType == 's') &&
-				(SequenceIsPaused()))
+			if ((IsSequenceRunning()) &&
+				(SequenceIsPaused()) &&
+				((FPPstatus == FPP_STATUS_IDLE) ||
+				 ((FPPstatus != FPP_STATUS_IDLE) &&
+				  (playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType == 's'))))
 			{
 				SingleStepSequenceBack();
 			}
@@ -458,7 +500,7 @@ extern PlaylistDetails playlistDetails;
 		{
 			bytes_sent = sendto(socket_fd, response2, strlen(response2), 0,
                           (struct sockaddr *) &(client_address), sizeof(struct sockaddr_un));
-			LogDebug(VB_COMMAND, "%s %s", CommandStr, response2);
+			LogDebug(VB_COMMAND, "%s %s\n", CommandStr, response2);
 			free(response2);
 			response2 = NULL;
 		}
@@ -466,7 +508,7 @@ extern PlaylistDetails playlistDetails;
 		{
 			bytes_sent = sendto(socket_fd, response, strlen(response), 0,
                           (struct sockaddr *) &(client_address), sizeof(struct sockaddr_un));
-			LogDebug(VB_COMMAND, "%s %s", CommandStr, response);
+			LogDebug(VB_COMMAND, "%s %s\n", CommandStr, response);
 		}
   }
 

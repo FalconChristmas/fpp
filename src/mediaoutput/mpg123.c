@@ -75,6 +75,21 @@ int mpg123_StartPlaying(const char *musicFile)
 		return 0;
 	}
 
+	char mp3Player[1024];
+	strcpy(mp3Player, getSetting("mp3Player"));
+	if (!mp3Player[0])
+	{
+		strcpy(mp3Player, "/usr/bin/mpg123");
+	}
+	else if (!FileExists(mp3Player))
+	{
+		LogDebug(VB_MEDIAOUT, "Configured mp3Player %s does not exist, "
+			"falling back to /usr/bin/mpg123\n", mp3Player);
+		strcpy(mp3Player, "/usr/bin/mpg123");
+	}
+
+	LogDebug(VB_MEDIAOUT, "Spawning %s for MP3 playback\n", mp3Player);
+
 	// Create Pipes to/from mpg123
 	pipe(pipeFromMP3);
 	
@@ -87,7 +102,10 @@ int mpg123_StartPlaying(const char *musicFile)
 		close(pipeFromMP3[MEDIAOUTPUTPIPE_WRITE]);
 		pipeFromMP3[MEDIAOUTPUTPIPE_WRITE] = 0;
 
-		execl("/usr/bin/mpg123", "mpg123", "-v", fullAudioPath, NULL);
+		if (!strcmp(mp3Player, "/usr/bin/mpg123"))
+			execl(mp3Player, mp3Player, "-v", fullAudioPath, NULL);
+		else
+			execl(mp3Player, mp3Player, fullAudioPath, NULL);
 
 	    exit(EXIT_FAILURE);
 	}

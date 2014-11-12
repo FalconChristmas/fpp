@@ -336,7 +336,6 @@ void SetupPixelMapForBlock(FPPChannelMemoryMapControlBlock *cb) {
 		// Horizontal Orientation
 		int y = 0;
 		for (y = 0; y < height; y++) {
-			int string = y / cb->strandsPerString;
 			int segment = y % cb->strandsPerString;
 			int x = 0;
 			for (x = 0; x < width; x++) {
@@ -367,7 +366,6 @@ void SetupPixelMapForBlock(FPPChannelMemoryMapControlBlock *cb) {
 		// Vertical Orientation
 		int x = 0;
 		for (x = 0; x < width; x++) {
-			int string = x / cb->strandsPerString;
 			int segment = x % cb->strandsPerString;
 			int y = 0;
 			for (y = 0; y < height; y++) {

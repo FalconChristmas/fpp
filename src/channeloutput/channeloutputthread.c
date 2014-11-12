@@ -46,6 +46,7 @@ int   DefaultLightDelay = 0;
 int   LightDelay = 0;
 int   MasterFramesPlayed = -1;
 int   OutputFrames = 1;
+float mediaOffset = 0.0;
 
 /* local variables */
 pthread_t ChannelOutputThreadID;
@@ -215,6 +216,14 @@ int StartChannelOutputThread(void)
 		}
 	}
 
+	int mediaOffsetInt = getSettingInt("mediaOffset");
+	if (mediaOffsetInt)
+		mediaOffset = (float)mediaOffsetInt * 0.001;
+	else
+		mediaOffset = 0.0;
+
+	LogDebug(VB_MEDIAOUT, "Using mediaOffset of %.3f\n", mediaOffset);
+
 	int E131BridgingInterval = getSettingInt("E131BridgingInterval");
 
 	if ((getFPPmode() == BRIDGE_MODE) && (E131BridgingInterval))
@@ -301,13 +310,15 @@ void CalculateNewChannelOutputDelay(float mediaPosition)
 	if (getFPPmode() == REMOTE_MODE)
 		return;
 
-	int expectedFramesSent = (int)(mediaPosition * RefreshRate);
+	float offsetMediaPosition = mediaPosition + mediaOffset;
+
+	int expectedFramesSent = (int)(offsetMediaPosition * RefreshRate);
 
 	mediaElapsedSeconds = mediaPosition;
 
 	LogDebug(VB_CHANNELOUT,
-		"Media Position: %.2f, Frames Sent: %d, Expected: %d, Diff: %d\n",
-		mediaPosition, channelOutputFrame, expectedFramesSent,
+		"Media Position: %.2f, Offset: %.3f, Frames Sent: %d, Expected: %d, Diff: %d\n",
+		mediaPosition, mediaOffset, channelOutputFrame, expectedFramesSent,
 		channelOutputFrame - expectedFramesSent);
 
 	CalculateNewChannelOutputDelayForFrame(expectedFramesSent);

@@ -163,7 +163,7 @@ int OpenMediaOutput(char *filename) {
 		return 0;
 	}
 
-	if ((!mediaOutput) || (!mediaOutput->startPlaying(filename))) {
+	if ((!mediaOutput) || (!mediaOutput->startPlaying(tmpFile))) {
 		mediaOutput = 0;
 		pthread_mutex_unlock(&mediaOutputLock);
 		return 0;

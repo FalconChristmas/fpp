@@ -83,8 +83,8 @@ char NormalizeControlValue(char in);
  *
  */
 
-int OpenSequenceFile(const char *filename) {
-	LogDebug(VB_SEQUENCE, "OpenSequenceFile(%s)\n", filename);
+int OpenSequenceFile(const char *filename, int startSeconds) {
+	LogDebug(VB_SEQUENCE, "OpenSequenceFile(%s, %d)\n", filename, startSeconds);
 
 	if (!filename || !filename[0])
 	{
@@ -100,6 +100,7 @@ int OpenSequenceFile(const char *filename) {
 		CloseSequenceFile();
 
 	seqStarting = 1;
+	seqPaused   = 0;
 	seqDuration = 0;
 	seqSecondsElapsed = 0;
 	seqSecondsRemaining = 0;
@@ -261,9 +262,20 @@ int OpenSequenceFile(const char *filename) {
 	seqSingleStep = 0;
 	seqSingleStepBack = 0;
 
-	ResetChannelOutputFrameNumber();
+	int frameNumber = 0;
+
+	if (startSeconds)
+	{
+		int frameNumber = startSeconds * seqRefreshRate;
+		int newPos = seqChanDataOffset + (frameNumber * seqStepSize);
+		LogDebug(VB_SEQUENCE, "Seeking to byte %d in %s\n", newPos, seqFilename);
+
+		fseek(seqFile, newPos, SEEK_SET);
+	}
 
 	ReadSequenceData();
+
+	SetChannelOutputFrameNumber(frameNumber);
 
 	SetChannelOutputRefreshRate(seqRefreshRate);
 	StartChannelOutputThread();
@@ -423,6 +435,7 @@ void CloseSequenceFile(void) {
 	}
 
 	seqFilename[0] = '\0';
+	seqPaused = 0;
 
 	if (!IsEffectRunning() && (FPPstatus != FPP_STATUS_PLAYLIST_PLAYING))
 		SendBlankingData();

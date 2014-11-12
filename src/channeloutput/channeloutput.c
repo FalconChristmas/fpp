@@ -429,7 +429,7 @@ void PrintRemappedChannels(void) {
 				mptr->dest, mptr->dest + mptr->count - 1, mptr->count);
 		} else {
 			LogDebug(VB_CHANNELOUT, "  %d => %d\n",
-				mptr->src, mptr->dest);
+				mptr->src + 1, mptr->dest + 1);
 		}
 	}
 }

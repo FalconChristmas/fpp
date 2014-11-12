@@ -35,7 +35,7 @@ extern int  seqSecondsRemaining;
 extern char seqData[FPPD_MAX_CHANNELS];
 extern char seqFilename[1024];
 
-int   OpenSequenceFile(const char *filename);
+int   OpenSequenceFile(const char *filename, int startSeconds);
 int   SeekSequenceFile(int frameNumber);
 int   IsSequenceRunning(void);
 void  ProcessSequenceData(void);

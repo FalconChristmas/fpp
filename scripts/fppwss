@@ -74,6 +74,12 @@ sub MainListener {
 						SetBlockData($conn, $data->{BlockName}, $data->{BlockData});
 					} elsif ($command eq "SetTestMode") {
 						SetTestMode($data->{State});
+					} elsif ($command eq "GetTestMode") {
+						GetTestMode($conn);
+					} elsif ($command eq "SetChannel") {
+						SetChannel($data->{Channel}, $data->{Value});
+					} elsif ($command eq "SetTestModeColor") {
+						SetTestModeColor($data->{RGB});
 					} elsif ($command eq "SetBlockState") {
 						SetBlockState($data->{BlockName}, $data->{State});
 					} elsif ($command eq "SetBlockPixel") {
@@ -174,10 +180,32 @@ sub SetBlockState {
 	$fppmm->SetBlockState($blkInfo, $state);
 }
 
+sub SetChannel {
+	my $c = shift;
+	my $v = shift;
+
+	$fppmm->SetChannel($c, $v);
+}
+
+sub GetTestMode {
+	my $conn = shift;
+	my %result;
+	$result{Command} = "GetTestMode";
+	$result{State} = $fppmm->GetTestMode();
+
+	Reply($conn, \%result);
+}
+
 sub SetTestMode {
 	my $state = shift || 0;
 
 	$fppmm->SetTestMode($state);
+}
+
+sub SetTestModeColor {
+	my $rgb = shift;
+
+	$fppmm->SetTestModeColor($rgb->[0], $rgb->[1], $rgb->[2]);
 }
 
 sub ClearBlock {

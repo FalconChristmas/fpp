@@ -102,7 +102,7 @@ void ShutdownControlSocket(void) {
  */
 void StartSyncedSequence(char *filename) {
 	LogDebug(VB_SYNC, "StartSyncedSequence(%s)\n", filename);
-	OpenSequenceFile(filename);
+	OpenSequenceFile(filename, 0);
 	ResetMasterPosition();
 }
 
@@ -125,7 +125,7 @@ void SyncSyncedSequence(char *filename, int frameNumber, float secondsElapsed) {
 
 	if (!seqFilename[0])
 	{
-		OpenSequenceFile(filename);
+		OpenSequenceFile(filename, 0);
 		SeekSequenceFile(frameNumber);
 	}
 
