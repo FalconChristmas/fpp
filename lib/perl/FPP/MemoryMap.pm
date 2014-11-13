@@ -194,12 +194,23 @@ sub DumpBlock {
 
 	my $bd = $blk->{data};
 	my $startChannel = $bd->{startChannel} - 1;
-	my $width = $bd->{channelCount} / $bd->{strandsPerString} / $bd->{stringCount} / 3;
-	my $height = $bd->{channelCount} / 3 / $width;
+	my $width;
+	my $height;
 	my $i = $startChannel;
 	my $TtoB = ($bd->{startCorner} =~ /^T/) ? 1 : 0;
 	my $LtoR = ($bd->{startCorner} =~ /L$/) ? 1 : 0;
 	my $stringSize = $bd->{channelCount} / 3 / $bd->{stringCount};
+
+	if ($bd->{orientation} eq "V")
+	{
+		$height = $bd->{channelCount} / $bd->{strandsPerString} / $bd->{stringCount} / 3;
+		$width = $bd->{channelCount} / 3 / $height;
+	}
+	else
+	{
+		 $width = $bd->{channelCount} / $bd->{strandsPerString} / $bd->{stringCount} / 3;
+		 $height = $bd->{channelCount} / 3 / $width;
+	}
 
 	my $str = "";
 	for (my $y = 0; $y < $height; $y++)
@@ -368,7 +379,17 @@ sub SetBlockPixel {
 	my $b = shift;
 	my $bd = $blk->{data};
 
-	my $width = $bd->{channelCount} / $bd->{strandsPerString} / $bd->{stringCount} / 3;
+	my $width;
+
+	if ($bd->{orientation} eq "V")
+	{
+		my $height = $bd->{channelCount} / $bd->{strandsPerString} / $bd->{stringCount} / 3;
+		$width = $bd->{channelCount} / 3 / $height;
+	}
+	else
+	{
+		$width = $bd->{channelCount} / $bd->{strandsPerString} / $bd->{stringCount} / 3;
+	}
 
 	my $a = ($y * $width + $x) * 3;
 
@@ -770,8 +791,19 @@ sub TextMessage {
 	my $TtoB = ($bd->{startCorner} =~ /^T/) ? 1 : 0;
 	my $LtoR = ($bd->{startCorner} =~ /L$/) ? 1 : 0;
 	my $stringSize = $bd->{channelCount} / 3 / $bd->{stringCount};
-	my $width = $bd->{channelCount} / $bd->{strandsPerString} / $bd->{stringCount} / 3;
-	my $height = $bd->{channelCount} / 3 / $width;
+	my $width;
+	my $height;
+
+	if ($bd->{orientation} eq "V")
+	{
+		$height = $bd->{channelCount} / $bd->{strandsPerString} / $bd->{stringCount} / 3;
+		$width = $bd->{channelCount} / 3 / $height;
+	}
+	else
+	{
+		$width = $bd->{channelCount} / $bd->{strandsPerString} / $bd->{stringCount} / 3;
+		$height = $bd->{channelCount} / 3 / $width;
+	}
 
 	if (($color !~ /^#/) &&
 		($color =~ /^[0-9]+$/)) {
