@@ -2173,7 +2173,7 @@ function GetFPPDmode()
 function DisplayHelp()
 {
 	$('#helpText').html("No help file exists for this page yet");
-	$('#helpText').load("help/" + pageName + ".php");
+	$('#helpText').load(helpPage);
 	$('#dialog-help').dialog({ height: 600, width: 800, title: "Help" });
 	$('#dialog-help').dialog( "moveToTop" );
 }
