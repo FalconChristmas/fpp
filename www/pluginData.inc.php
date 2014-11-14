@@ -42,6 +42,16 @@ $plugins = Array(
 		'sha'         => 'acd4918d8db872b9b43bf0b7c67241ccba811e88',
 	),
 
+	Array(
+		'shortName'   => 'fpp-tirprog',
+		'name'        => 'FTP (FPP Tir Programmer)',
+		'description' => 'Named FTP to bewilder and confuse',
+		'homeUrl'     => 'https://github.com/Materdaddy/fpp-tirprog',
+		'sourceUrl'   => 'https://github.com/Materdaddy/fpp-tirprog.git',
+		'bugUrl'      => 'https://github.com/Materdaddy/fpp-tirprog/issues',
+		'sha'         => '063d7385c9752bdbbc20063d69800fb5ed3dcb20',
+	),
+
 );
 
 ?>
