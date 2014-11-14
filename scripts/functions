@@ -34,6 +34,13 @@ SetupDefaultNetworkConfig () {
 	fi
 
 	cp /etc/wpa_supplicant/wpa_supplicant.conf.default /etc/wpa_supplicant/wpa_supplicant.conf
+
+	if [ ! -f "/etc/resolv.conf.default" ]
+	then
+		touch /etc/resolv.conf.default
+	fi
+
+	cp /etc/resolv.conf.default /etc/resolv.conf
 }
 
 #############################################################################
