@@ -453,7 +453,7 @@ int FPD_StartOutputThread(void *data)
 	if (privData->processThreadID)
 	{
 		LogErr(VB_CHANNELOUT, "ERROR: thread already exists\n");
-		return;
+		return -1;
 	}
 
 	privData->runThread = 1;
@@ -479,6 +479,8 @@ int FPD_StartOutputThread(void *data)
 
 	while (!privData->threadIsRunning)
 		usleep(10000);
+
+	return 0;
 }
 
 /*
@@ -491,7 +493,7 @@ int FPD_StopOutputThread(void *data)
 	FPDPrivData *privData = (FPDPrivData*)data;
 
 	if (!privData->processThreadID)
-		return;
+		return -1;
 
 	pthread_cond_signal(&privData->sendCond);
 
@@ -505,12 +507,14 @@ int FPD_StopOutputThread(void *data)
 	if (!privData->processThreadID)
 	{
 		pthread_mutex_unlock(&privData->bufLock);
-		return;
+		return -1;
 	}
 
 	pthread_join(privData->processThreadID, NULL);
 	privData->processThreadID = 0;
 	pthread_mutex_unlock(&privData->bufLock);
+
+	return 0;
 }
 
 /*
