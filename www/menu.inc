@@ -20,6 +20,7 @@ if (!preg_match("/^$git_branch(-.*)?$/", $fpp_head_version))
 <?php
 function list_plugin_entries($menu)
 {
+	global $pluginDirectory;
 	if ( $menu )
 	{
 		$handle = opendir($pluginDirectory);
