@@ -17,6 +17,20 @@ if (!preg_match("/^$git_branch(-.*)?$/", $fpp_head_version))
 ?>
 
 <?php require_once(dirname(__FILE__)."/config.php"); ?>
+<?php
+function list_plugin_entries($menu)
+{
+	if ( $menu )
+	{
+		$handle = opendir($pluginDirectory);
+		if ( $handle )
+			while (($file = readdir($handle)) !== false)
+				if (!in_array($file, array('.', '..')))
+					if ( file_exists($pluginDirectory."/".$file."/".$menu."_menu.inc") )
+						-include_once($pluginDirectory."/".$file."/".$menu."_menu.inc");
+	}
+}
+?>
 
   <div class="header">
     <div class="headerLeft"><a href="http://www.falconchristmas.com"><img src="images/falconlogo.png" class="logo" /></a></div>
@@ -53,122 +67,51 @@ if (!preg_match("/^$git_branch(-.*)?$/", $fpp_head_version))
     <div class="clear"></div>
   </div>
 
-    <div id="fppMenu" class="ddsmoothmenu">
-    <ul>
-      <li><a href="#">Status/Control</a>
+    <ul id="fppMenu" class="sm sm-clean">
+      <li><a>Status/Control</a>
         <ul>
           <li><a href="/">Status Page</a></li>
-          <div class="desktopItem">
-            <li><a href="uipassword.php">Set UI Password</a></li>
-            <li><a href="timeconfig.php">Config/Set Time</a></li>
-            <li><a href="networkconfig.php">Network</a></li>
-            <li><a href="multisync.php">MultiSync</a></li>
-<?php
-$handle = opendir($pluginDirectory);
-if ( $handle )
-{
-	while (($file = readdir($handle)) !== false)
-	{
-		if (!in_array($file, array('.', '..')))
-		{
-			if ( file_exists($pluginDirectory."/".$file."/status_menu.inc") )
-			{
-				-include_once($pluginDirectory."/".$file."/status_menu.inc");
-			}
-		}
-	}
-}
-?>
-            <li><a href="settings.php">FPP Settings</a></li>
-            <li><a href="email.php">Email Settings</a></li>
-          </div>
+          <li><a href="uipassword.php">Set UI Password</a></li>
+          <li><a href="timeconfig.php">Config/Set Time</a></li>
+          <li><a href="networkconfig.php">Network</a></li>
+          <li><a href="multisync.php">MultiSync</a></li>
+          <?php list_plugin_entries("status"); ?>
+          <li><a href="settings.php">FPP Settings</a></li>
+          <li><a href="email.php">Email Settings</a></li>
           <li><a href="events.php">Events</a></li>
           <li><a href="effects.php">Effects</a></li>
           <li><a href="testing.php">Display Testing</a></li>
         </ul>
       </li>
-      <li><a href="#">Content Setup</a>
+      <li><a>Content Setup</a>
         <ul>
-          <div class="desktopItem">
-            <li><a href="uploadfile.php">File Manager</a></li>
-          </div>
+          <li><a href="uploadfile.php">File Manager</a></li>
           <li><a href="playlists.php">Playlists</a></li>
           <li><a href="scheduler.php">Scheduler</a></li>
-          <!-- <li><a href="video.php">Videos</a></li> -->
 		  <li><a href="plugins.php">Plugins</a></li>
           <li><a href="scriptbrowser.php">Script Repository Browser</a></li>
-<?php
-$handle = opendir($pluginDirectory);
-if ( $handle )
-{
-	while (($file = readdir($handle)) !== false)
-	{
-		if (!in_array($file, array('.', '..')))
-		{
-			if ( file_exists($pluginDirectory."/".$file."/content_menu.inc") )
-			{
-				-include_once($pluginDirectory."/".$file."/content_menu.inc");
-			}
-		}
-	}
-}
-?>
+          <?php list_plugin_entries("content"); ?>
         </ul>
       </li>
-      <li id='outputMenu'><a href="#">Input/Output Setup</a>
+      <li><a>Input/Output Setup</a>
         <ul>
           <li><a href="channeloutputs.php">Channel Outputs</a></li>
           <li><a href="channelremaps.php">Remap Channels</a></li>
           <li><a href="pixeloverlaymodels.php">Pixel Overlay Models</a></li>
           <li><a href="gpio.php">GPIO Inputs</a></li>
-<?php
-$handle = opendir($pluginDirectory);
-if ( $handle )
-{
-	while (($file = readdir($handle)) !== false)
-	{
-		if (!in_array($file, array('.', '..')))
-		{
-			if ( file_exists($pluginDirectory."/".$file."/output_menu.inc") )
-			{
-				-include_once($pluginDirectory."/".$file."/output_menu.inc");
-			}
-		}
-	}
-}
-?>
+          <?php list_plugin_entries("output"); ?>
         </ul>
       </li>
-      <li><a href="#">Help</a>
+      <li><a>Help</a>
         <ul>
           <li><a href="http://falconchristmas.com/wiki/index.php/Falcon_FPP" target="_blank">Wiki/Help</a></li>
-<!--
-          <li><a href="docs.php">Docs</a></li>
--->
           <li><a href="about.php">About</a></li>
           <li><a href="http://<?php echo $_SERVER['SERVER_ADDR'] ?>:4200" target="_new">SSH Shell</a></li>
           <li><a href="credits.php">Credits</a></li>
-<?php
-$handle = opendir($pluginDirectory);
-if ( $handle )
-{
-	while (($file = readdir($handle)) !== false)
-	{
-		if (!in_array($file, array('.', '..')))
-		{
-			if ( file_exists($pluginDirectory."/".$file."/help_menu.inc") )
-			{
-				-include_once($pluginDirectory."/".$file."/help_menu.inc");
-			}
-		}
-	}
-}
-?>
+          <?php list_plugin_entries("help"); ?>
         </ul>
       </li>
     </ul>
-    <br style="clear: left" />
-    </div>
   <div id='restartFlag'>Settings have changed. FPPD Restart Required - <input name="btnRestartFPPD" type="button" onClick="RestartFPPD();" class = "buttons" value="Restart FPPD"></div>
   <div id='rebootFlag'>Base configuration has changed. Reboot Required - <input name="btnReboot" onClick="RebootPi();" type="button" class = "buttons" value="Reboot Pi"></div>
 

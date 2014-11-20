@@ -201,10 +201,10 @@ function SaveControlChannels()
 			</div>
 
 			<div id="eventControls" style="margin-top:5px">
-				<input id= "btnAddEvent" type="button" class ="buttons desktopItem" value="Add Event" onClick="AddEvent();">
+				<input id= "btnAddEvent" type="button" class ="buttons" value="Add Event" onClick="AddEvent();">
 				<input id= "btnTriggerEvent" type="button" class ="disableButtons" value="Trigger Event" onClick="TriggerEvent();">
-				<input id= "btnEditEvent" type="button" class ="disableButtons desktopItem" value="Edit Event" onClick="EditEvent();">
-				<input id= "btnDeleteEvent" type="button" class ="disableButtons desktopItem" value="Delete Event" onClick="DeleteEvent();">
+				<input id= "btnEditEvent" type="button" class ="disableButtons" value="Edit Event" onClick="EditEvent();">
+				<input id= "btnDeleteEvent" type="button" class ="disableButtons" value="Delete Event" onClick="DeleteEvent();">
 			 </div>
 			<div id="newEvent" style="display: none;">
 				<hr>
