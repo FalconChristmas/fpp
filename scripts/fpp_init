@@ -36,10 +36,6 @@ echo "    - Setting default network config"
 SetupDefaultNetworkConfig
 
 ##############################################################################
-echo "    - Clearing resolv.conf"
-> /etc/resolv.conf
-
-##############################################################################
 echo "    - Checking SSH keys"
 SSHKEYS=$(ls -al /etc/ssh/ssh_host*key* 2> /dev/null | wc -l)
 if [ ${SSHKEYS} -eq 0 ]

@@ -34,6 +34,13 @@ SetupDefaultNetworkConfig () {
 	fi
 
 	cp /etc/wpa_supplicant/wpa_supplicant.conf.default /etc/wpa_supplicant/wpa_supplicant.conf
+
+	if [ ! -f "/etc/resolv.conf.default" ]
+	then
+		touch /etc/resolv.conf.default
+	fi
+
+	cp /etc/resolv.conf.default /etc/resolv.conf
 }
 
 #############################################################################
@@ -80,7 +87,7 @@ SetupFPPNetworkConfig () {
 		. /home/pi/media/config/interface.eth0
 	fi
 
-	kill -9 $(ps -edaf | grep ifplugd | grep -v grep | grep eth0 | awk '{print $2}') > /dev/null 2>&1
+	kill -9 $(ps auxw | grep ifplugd | grep -v grep | grep eth0 | awk '{print $2}') > /dev/null 2>&1
 
 	if [ "x${PROTO}" = "xdhcp" ]
 	then
@@ -92,7 +99,7 @@ SetupFPPNetworkConfig () {
 		# Re-initialize eth0 since it is not using DHCP
 		INITETH0="yes"
 
-		kill -9 $(ps -edaf | grep dhclient | grep -v grep | grep eth0 | awk '{print $2}') > /dev/null 2>&1
+		kill -9 $(ps auxw | grep dhclient | grep -v grep | grep eth0 | awk '{print $2}') > /dev/null 2>&1
 
 		NETWORK=$(netcalc ${ADDRESS} ${NETMASK})
 
@@ -118,7 +125,7 @@ SetupFPPNetworkConfig () {
 
 		. /home/pi/media/config/interface.wlan0
 
-		kill -9 $(ps -edaf | grep ifplugd | grep -v grep | grep wlan0 | awk '{print $2}') > /dev/null 2>&1
+		kill -9 $(ps auxw | grep ifplugd | grep -v grep | grep wlan0 | awk '{print $2}') > /dev/null 2>&1
 
 		if [ "x${PROTO}" = "xdhcp" ]
 		then
@@ -133,7 +140,7 @@ SetupFPPNetworkConfig () {
 		else
 			NETWORK=$(netcalc ${ADDRESS} ${NETMASK})
 
-			kill -9 $(ps -edaf | grep dhclient | grep -v grep | grep wlan0 | awk '{print $2}') > /dev/null 2>&1
+			kill -9 $(ps auxw | grep dhclient | grep -v grep | grep wlan0 | awk '{print $2}') > /dev/null 2>&1
 
 			cat <<-EOF >> ${TMPFILE}
 			allow-hotplug wlan0

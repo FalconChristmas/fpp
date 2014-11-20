@@ -443,6 +443,23 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			var	eventID = eventSel.value;
 			var	eventName = '';
 			var	pluginData = document.getElementById("txtData").value;
+
+			if ((type == "b") &&
+					((seqFile == "") || (mediaFile == "")))
+			{
+				var missingType = "";
+				if (seqFile == "")
+					missingType = "sequence";
+				else if (mediaFile == "")
+					missingType = "media";
+
+				DialogError("Error adding playlist entry", "You must select a " +
+										missingType + " file to add a 'Media and Sequence' " +
+										"playlist entry");
+
+				return;
+			}
+
       if(eventSel.selectedIndex>=0)
       {
         eventName = eventSel.options[eventSel.selectedIndex].innerHTML.replace(/.. \/ .. - /, '');
@@ -2173,7 +2190,7 @@ function GetFPPDmode()
 function DisplayHelp()
 {
 	$('#helpText').html("No help file exists for this page yet");
-	$('#helpText').load("help/" + pageName + ".php");
+	$('#helpText').load(helpPage);
 	$('#dialog-help').dialog({ height: 600, width: 800, title: "Help" });
 	$('#dialog-help').dialog( "moveToTop" );
 }

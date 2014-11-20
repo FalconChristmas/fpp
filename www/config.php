@@ -342,6 +342,19 @@ if (!isset($skipJSsettings)) {
 ?>
 
 	var pageName = "<? echo str_ireplace('.php', '', basename($_SERVER['PHP_SELF'])) ?>";
+
+  var helpPage = "<? echo basename($_SERVER['PHP_SELF']) ?>";
+  if (pageName == "plugin")
+  {
+    var pluginPage = "<? echo preg_replace('/.*page=/', '', $_SERVER['REQUEST_URI']); ?>";
+    var pluginBase = "<? echo preg_replace("/^\//", "", preg_replace('/page=.*/', '', $_SERVER['REQUEST_URI'])); ?>";
+    helpPage = pluginBase + "nopage=1&page=help/" + pluginPage;
+  }
+  else
+  {
+    helpPage = "help/" + helpPage;
+  }
+
 </script>
 <?
 }
