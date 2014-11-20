@@ -131,7 +131,7 @@ then
 	mount -a;
 else
 	echo "FPP - Checking for mounted flash drive, Flash Media mounted.";
-	DIRS="config effects events logs music playlists scripts sequences upload videos plugins plugindata"
+	DIRS="config effects events logs music playlists scripts sequences upload videos plugins plugindata exim4"
 	echo "FPP - Checking for required directories";
 	for DIR in ${DIRS}
 	do
