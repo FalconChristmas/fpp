@@ -93,7 +93,7 @@ include 'common/menuHead.inc';
 
 
 </head>
-<body onLoad="GetFPPDmode();StatusPopulatePlaylists();setInterval(updateFPPStatus,1000);GetVolume();">
+<body onLoad="GetFPPDmode();StatusPopulatePlaylists();setInterval(updateFPPStatus,1000);GetVolume();GetPItemp();">
 <div id="bodyWrapper">
 <?php
 	include 'menu.inc';
@@ -123,6 +123,10 @@ include 'common/menuHead.inc';
         <tr>
           <td class='controlHeader'> FPP Time: </td>
           <td id = "fppTime" colspan = "3"></td>
+        </tr>
+        <tr>
+          <td class='controlHeader'> PI Temp: </td>
+          <td class='controlValue' id = "currentTemp"></td>
         </tr>
       </table>
     </div>
@@ -167,7 +171,7 @@ include 'common/menuHead.inc';
             <td class='controlHeader'>Volume [<span id='volume' class='volume'></span>]:</td>
             <td>
 				<input type="button" class='volumeButton' value="-" onClick="DecrementVolume();">
-                <span id="slider"></span> <!-- the Slider -->
+                <span id="slider" class='desktopItem'></span> <!-- the Slider -->
 			    <input type="button" class='volumeButton' value="+" onClick="IncrementVolume();">
                 <span id='speaker'></span> <!-- Volume -->
             </td>

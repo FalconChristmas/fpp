@@ -59,6 +59,7 @@ $command_array = Array(
 	"installRemoteScript" => 'InstallRemoteScript',
 	"moveFile" => 'MoveFile',
 	"isFPPDrunning" => 'IsFPPDrunning',
+	"getPItemp" => 'GetPItemp',
 	"getFPPstatus" => 'GetFPPstatus',
 	"stopGracefully" => 'StopGracefully',
 	"stopNow" => 'StopNow',
@@ -445,6 +446,12 @@ function IsFPPDrunning()
 {
 	$status=exec("if ps cax | grep -q fppd; then echo \"true\"; else echo \"false\"; fi");
 	EchoStatusXML($status);
+}
+
+function GetPItemp()
+{
+        $status=exec("vcgencmd measure_temp |awk -F= '{print $2}' |sed /\'/s///g");
+        EchoStatusXML($status);
 }
 
 function StartPlaylist()
