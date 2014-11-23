@@ -171,7 +171,7 @@ include 'common/menuHead.inc';
             <td class='controlHeader'>Volume [<span id='volume' class='volume'></span>]:</td>
             <td>
 				<input type="button" class='volumeButton' value="-" onClick="DecrementVolume();">
-                <span id="slider" class='desktopItem'></span> <!-- the Slider -->
+                <span id="slider"></span> <!-- the Slider -->
 			    <input type="button" class='volumeButton' value="+" onClick="IncrementVolume();">
                 <span id='speaker'></span> <!-- Volume -->
             </td>
