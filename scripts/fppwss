@@ -309,6 +309,7 @@ sub TextMessage {
 	} elsif ($pid == 0) {
 		# In Child
 		$fppmm->TextMessage($blkInfo, $msg, $color, $fill, $font, $size, $pos, $dir, $pps);
+		$fppmm->SetBlockLock($blkInfo, 0);
 		exit 0;
 	} else {
 		# In Parent
