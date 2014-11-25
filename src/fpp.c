@@ -200,7 +200,7 @@ void SetupDomainSocket(void)
 {
  if((socket_fd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0)
  {
-  perror("client: socket");
+  perror("fpp client socket");
   return;
  }
 
@@ -212,7 +212,7 @@ void SetupDomainSocket(void)
  if(bind(socket_fd, (const struct sockaddr *) &client_address,
          sizeof(struct sockaddr_un)) < 0)
  {
-  perror("client: bind");
+  perror("fpp client bind");
   return;
  }
  memset(&server_address, 0, sizeof(struct sockaddr_un));

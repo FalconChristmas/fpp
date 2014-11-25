@@ -99,7 +99,7 @@ int Bridge_Initialize(void)
 	/* set up socket */
 	bridgeSock = socket(AF_INET, SOCK_DGRAM, 0);
 	if (bridgeSock < 0) {
-		perror("socket");
+		perror("e131bridge socket");
 		exit(1);
 	}
 
@@ -114,7 +114,7 @@ int Bridge_Initialize(void)
 	// Bind the socket to address/port
 	if (bind(bridgeSock, (struct sockaddr *) &addr, sizeof(addr)) < 0) 
 	{
-		perror("bind");
+		perror("e131bridge bind");
 		exit(1);
 	}
 
@@ -141,7 +141,7 @@ int Bridge_Initialize(void)
 				mreq.imr_interface.s_addr = inet_addr(address);
 				if (setsockopt(bridgeSock, IPPROTO_IP, IP_ADD_MEMBERSHIP,&mreq, sizeof(mreq)) < 0) 
 				{
-					perror("setsockopt mreq eth0");
+					perror("e131bridge setsockopt mreq eth0");
 					exit(1);
 				}
 				multicastJoined = 1;
@@ -155,7 +155,7 @@ int Bridge_Initialize(void)
 				mreq.imr_interface.s_addr = inet_addr(address);
 				if (setsockopt(bridgeSock, IPPROTO_IP, IP_ADD_MEMBERSHIP,&mreq, sizeof(mreq)) < 0) 
 				{
-					perror("setsockopt mreq wlan0");
+					perror("e131bridge setsockopt mreq wlan0");
 					exit(1);
 				}
 				multicastJoined = 1;
@@ -167,7 +167,7 @@ int Bridge_Initialize(void)
 				mreq.imr_interface.s_addr = htonl(INADDR_ANY);
 				if (setsockopt(bridgeSock, IPPROTO_IP, IP_ADD_MEMBERSHIP,&mreq, sizeof(mreq)) < 0) 
 				{
-					perror("setsockopt mreq generic");
+					perror("e131bridge setsockopt mreq generic");
 					exit(1);
 				}
 			}

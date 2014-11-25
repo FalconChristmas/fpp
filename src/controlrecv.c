@@ -61,7 +61,7 @@ int InitControlSocket(void) {
 	/* set up socket */
 	ctrlRecvSock = socket(AF_INET, SOCK_DGRAM, 0);
 	if (ctrlRecvSock < 0) {
-		perror("socket");
+		perror("control socket");
 		exit(1);
 	}
 
@@ -73,14 +73,14 @@ int InitControlSocket(void) {
 	// Bind the socket to address/port
 	if (bind(ctrlRecvSock, (struct sockaddr *) &crSrcAddr, sizeof(crSrcAddr)) < 0) 
 	{
-		perror("bind");
+		perror("control bind");
 		exit(1);
 	}
 
 	int opt = 1;
 	if (setsockopt(ctrlRecvSock, IPPROTO_IP, IP_PKTINFO, &opt, sizeof(opt)) < 0)
 	{
-		perror("setsockopt pktinfo");
+		perror("control setsockopt pktinfo");
 		exit(1);
 	}
 
