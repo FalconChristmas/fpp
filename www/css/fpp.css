@@ -738,6 +738,7 @@ pre
 	padding: 6px; }
 
 #fppMenu li a:hover {
+	cursor: pointer;
 	background-color: #111; }
 
 #fppMenu li ul {
