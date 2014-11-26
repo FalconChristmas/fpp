@@ -4,37 +4,23 @@
 <?php require_once('common.php'); ?>
 <?php include 'common/menuHead.inc'; ?>
 <?php
-    function getAlsaCards()
-    {
-      exec("for card in /proc/asound/card*/id; do echo -n \$card | sed 's/.*card\\([0-9]*\\).*/\\1:/g'; cat \$card; done", $output, $return_val);
-      if ( $return_val )
-      {
-        error_log("Error getting alsa cards for output!");
-        return;
-      }
 
-      $cards = Array();
-      foreach($output as $card)
-      {
-        $values = explode(':', $card);
-        $cards[$values[0]] = $values[1];
-      }
+$AlsaCards = Array();
+exec("for card in /proc/asound/card*/id; do echo -n \$card | sed 's/.*card\\([0-9]*\\).*/\\1:/g'; cat \$card; done", $output, $return_val);
+if ( $return_val )
+{
+	error_log("Error getting alsa cards for output!");
+}
+else
+{
+	foreach($output as $card)
+	{
+		$values = explode(':', $card);
+		$AlsaCards[$values[1]] = $values[0];
+	}
+}
+unset($output);
 
-      return $cards;
-    }
-
-    function getAudioOutput()
-    {
-      global $SUDO;
-
-      $current_card = trim(exec($SUDO . " sed -n '/card [0-9]/s/card \\([0-9]*\\)/\\1/p' /root/.asoundrc", $output, $return_val));
-      if ($return_val)
-      {
-        error_log("Failed to get current audio output!");
-        return;
-      }
-      return $current_card;
-    }
 ?>
 <script>
 
@@ -96,7 +82,6 @@ $(document).ready(function(){
     logLevel = "info";
 
   $('#LogLevel').val(logLevel);
-  $('#AudioOutput').val(<?php echo getAudioOutput(); ?>);
 
   var logMasks = Array('most');
 
@@ -114,7 +99,7 @@ function LogLevelChanged()
 		+ $('#LogLevel').val()).fail(function() { alert("Error saving new level") });
 }
 
-function AudioOutputChanged()
+function SetAudio()
 {
 	$.get("fppjson.php?command=setAudioOutput&value="
 		+ $('#AudioOutput').val()).fail(function() { alert("Failed to change audio output!") });
@@ -157,13 +142,7 @@ function ToggleLCDNow()
     </tr>
     <tr>
       <td>Audio Output Device:</td>
-      <td><select id='AudioOutput' onChange='AudioOutputChanged();'>
-<?php
-foreach ( getAlsaCards() as $audio_val => $audio_key )
-    echo "<option value='".$audio_val."'>".$audio_key."</option>";
-?>
-        </select>
-      </td>
+      <td><? PrintSettingSelect("Audio Output Device", "AudioOutput", 1, 0, "ALSA", $AlsaCards, "", "SetAudio"); ?></td>
     </tr>
     <tr>
       <td>Log Level:</td>

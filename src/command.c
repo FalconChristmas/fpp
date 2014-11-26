@@ -89,7 +89,7 @@ extern PlaylistDetails playlistDetails;
    if(bind(socket_fd, (const struct sockaddr *) &server_address, sizeof(server_address)) < 0)
    {
     close(socket_fd);
-    perror("server: bind");
+    perror("command socket bind");
     return 0;
    }
 
