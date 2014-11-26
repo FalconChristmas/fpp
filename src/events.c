@@ -30,6 +30,7 @@
 #include <strings.h>
 #include <unistd.h>
 
+#include "controlrecv.h"
 #include "controlsend.h"
 #include "effects.h"
 #include "events.h"
@@ -256,6 +257,8 @@ int RunEventScript(FPPevent *e)
 			exit(EXIT_FAILURE);
 		}
 #endif
+
+		ShutdownControlSocket();
 
 		char *args[128];
 		char *token = strtok(userScript, " ");
