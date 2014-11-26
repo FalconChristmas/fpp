@@ -28,6 +28,19 @@
 				live show use.  It is provided here as an option to allow
 				testing remote wireless-attached Pi's.</td>
 		</tr>
+		<tr><td colspan='2'><hr></td></tr>
+		<tr><td valign='top'><? PrintSettingText("mediaOffset", 1, 0, 5, 5); ?> ms<br>
+				<? PrintSettingSave("Media Offset", "mediaOffset", 1, 0); ?></td>
+			<td valign='top'><b>Media/Sequence Offset</b> - The media offset value
+				allows adjusting the synchronization of the media and sequences being
+				played.  The value is specified in milliseconds.  A positive value
+				moves the media ahead, a negative value moves the media back.
+				Changing this value requires a FPPD restart.
+				<font color='#ff0000'><b>WARNING</b></font> - This offset applies
+				to all media files played.  If your media files require different
+				offsets per file then you will have to edit the audio files or
+				sequences to bring them into sync.</td>
+		</tr>
 	</table>
 	</fieldset>
 </div>
