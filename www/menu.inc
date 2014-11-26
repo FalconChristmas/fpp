@@ -33,6 +33,7 @@ function list_plugin_entries($menu)
 }
 ?>
 
+  <div style='float: right'><a href='developer.php' class='nonULLink'><img src='images/1x1.png' width='5' height='5' style="vertical-align: top;"></a></div>
   <div class="header">
     <div class="headerLeft"><a href="http://www.falconchristmas.com"><img src="images/falconlogo.png" class="logo" /></a></div>
     <div class="headerCenter"><div class="siteName"><? echo $settings['Title']; ?></div>
@@ -113,8 +114,26 @@ function list_plugin_entries($menu)
         </ul>
       </li>
     </ul>
-  <div id='restartFlag'>Settings have changed. FPPD Restart Required - <input name="btnRestartFPPD" type="button" onClick="RestartFPPD();" class = "buttons" value="Restart FPPD"></div>
-  <div id='rebootFlag'>Base configuration has changed. Reboot Required - <input name="btnReboot" onClick="RebootPi();" type="button" class = "buttons" value="Reboot Pi"></div>
+  <div id='restartFlag'>Settings have changed. FPPD Restart Required - <input name="btnRestartFPPD" type="button" onClick="RestartFPPD();" class = "buttons" value="Restart FPPD">
+<?
+  if (basename($_SERVER['PHP_SELF']) == "developer.php")
+  {
+?>
+  <input type='button' class = "buttons" value='Clear' onClick='ClearRestartFlag();'>
+<?
+  }
+?>
+  </div>
+  <div id='rebootFlag'>Base configuration has changed. Reboot Required - <input name="btnReboot" onClick="RebootPi();" type="button" class = "buttons" value="Reboot Pi">
+<?
+  if (basename($_SERVER['PHP_SELF']) == "developer.php")
+  {
+?>
+  <input type='button' class = "buttons" value='Clear' onClick='ClearRebootFlag();'>
+<?
+  }
+?>
+  </div>
 
       <div class='helpLinkDiv'><a href='javascript:void();' onClick='DisplayHelp();' class='nonULLink'>&nbsp;Press F1 for help&nbsp;&nbsp;</a></div>
 
