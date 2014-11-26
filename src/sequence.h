@@ -26,7 +26,7 @@
 #ifndef _SEQUENCE_H
 #define _SEQUENCE_H
 
-#define FPPD_MAX_CHANNELS 65536
+#define FPPD_MAX_CHANNELS 131072
 
 extern unsigned long seqFileSize;
 extern int  seqDuration;
