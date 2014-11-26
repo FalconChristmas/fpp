@@ -28,7 +28,7 @@
 
 #include "channeloutput.h"
 
-#define MAX_UNIVERSE_COUNT    128
+#define MAX_UNIVERSE_COUNT    256
 #define E131_HEADER_LENGTH    126
 #define MAX_STEPS_OUT_OF_SYNC 2
 
