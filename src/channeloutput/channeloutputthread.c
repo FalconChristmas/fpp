@@ -310,7 +310,7 @@ void CalculateNewChannelOutputDelay(float mediaPosition)
 	if (getFPPmode() == REMOTE_MODE)
 		return;
 
-	float offsetMediaPosition = mediaPosition + mediaOffset;
+	float offsetMediaPosition = mediaPosition - mediaOffset;
 
 	int expectedFramesSent = (int)(offsetMediaPosition * RefreshRate);
 

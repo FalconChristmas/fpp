@@ -136,18 +136,12 @@
 	margin-left: auto;
 	margin-right: auto;
 	text-align: center;
-	width: 600px;
+	width: 100%;
 }
 
 .ui-front
 {
 	z-index: 1001;
-}
-
-#fppMenu ul li
-{
-	width: 25%;
-	text-align: center;
 }
 
 .settings
@@ -211,7 +205,7 @@
 
 html
 {
-	background: url(/images/grill-bg.jpg) no-repeat center center fixed;
+	background: url(../images/grill-bg.jpg) no-repeat center fixed;
 	-webkit-background-size: cover;
 	-moz-background-size: cover;
 	-o-background-size: cover;
@@ -283,7 +277,7 @@ fieldset
     border-radius: 5px;
     -webkit-border-radius: 5px;
 }
-.header{padding: 10px;}
+.header{padding: 10px; }
 .headerLeft , .headerRight
 {
 	width:200px;
@@ -298,11 +292,11 @@ fieldset
 	float:left;
 }
 
-.siteName{font-size: 200%; padding-top: 13px;}
+.siteName{font-size: 200%; padding-top: 13px; }
 
 
 .colPlaylistNumberDrag{
-	background-image: url(../images/vertdrag.png);
+	background-image: url(images/vertdrag.png);
 	background-repeat:no-repeat;
 	background-size:7px 14px;
 	background-position:0 2px;
@@ -371,7 +365,7 @@ fieldset
 	width: 25px;
 	height: 25px;
 	cursor: pointer;
-	background: url('../images/handle.png') no-repeat 50% 50%;
+	background: url('images/handle.png') no-repeat 50% 50%;
 	font-weight: bold;
 	color: #1C94C4;
 	outline: none;
@@ -480,7 +474,7 @@ fieldset
 
 
 .PlaylistPlayingIcon{
-	background-image: url(../images/playlistplay.png);
+	background-image: url(images/playlistplay.png);
 	background-size:10px 10px;
 	background-repeat:no-repeat;
 	background-position: 4px 4px;
@@ -601,18 +595,6 @@ fieldset
 	text-align: center;
 }
 
-.desktopItem{
-	display: inline;
-}
-
-.mobileItem{
-	display: none;
-}
-
-#outputMenu{
-}
-
-
 .logo{
 	height: 60px;
 }
@@ -719,3 +701,96 @@ pre
 	display: none;
 }
 
+
+
+#fppMenu ul {
+	padding: 0px;
+	z-index:9999; }
+
+#fppMenu {
+	border-radius: 0px;
+	-moz-border-radius:0;
+	-webkit-border-radius:0;
+	padding: 0px; }
+
+#fppMenu li a span.sub-arrow {
+	border-color: white transparent transparent transparent; }
+
+#fppMenu > li {
+	width: 25%; }
+#fppMenu li {
+	text-align: center;
+	background: #414141; }
+
+#fppMenu > li {
+	border-right: 1px solid #888; }
+
+#fppMenu > li:last-child {
+	border: none; }
+
+#fppMenu li a {
+	font: bold 12px Verdana;
+	padding-top: 8px;
+	padding-bottom: 8px;
+	color: white; }
+
+#fppMenu li ul li a {
+	padding: 6px; }
+
+#fppMenu li a:hover {
+	cursor: pointer;
+	background-color: #111; }
+
+#fppMenu li ul {
+	border-radius: 0px;
+	-moz-border-radius:0;
+	-webkit-border-radius:0;
+	border: none; }
+
+#fppMenu li ul:before, #fppMenu li ul:after {
+	border: none; }
+
+#fppMenu li ul li {
+	border-bottom: 1px solid #888; }
+
+#fppMenu li ul li:last-child {
+	border: none; }
+
+#fppMenu li ul li a {
+	font-weight: normal; }
+
+@media screen and (max-width: 950px) {
+	html {
+		background: #f0f0f0;
+	}
+	#bodyWrapper
+	{
+		width: 100%;
+	}
+	.settings
+	{
+		width: 100%;
+	}
+	#footer
+	{
+		width: 100%;
+	}
+	.headerLeft, .headerRight, .headerCenter
+	{
+		width: 100%;
+		margin-left: auto;
+		margin-right: auto;
+		text-align: center;
+	}
+}
+
+@media screen and (max-width: 700px) {
+	#fppMenu > li {
+		width: 100%; }
+	#fppMenu > li a {
+		border-bottom: 1px solid #888; }
+	#fppMenu li a {
+		color: white !important; }
+	#fppMenu li ul li {
+		background: #555; }
+}

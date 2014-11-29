@@ -293,7 +293,7 @@ void StopAllEffects(void)
  */
 int OverlayEffect(int effectID, char *channelData)
 {
-	char       effectData[65536];
+	char       effectData[131072];
 	int        bytesRead;
 	FPPeffect *e = NULL;
 

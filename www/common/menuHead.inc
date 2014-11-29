@@ -7,23 +7,21 @@
 	<link rel="stylesheet" href="css/jquery.jgrowl.min.css" />
 	<link rel="stylesheet" href="css/classicTheme/style.css" media="all" />
 
-	<!-- menu -->
-	<script type="text/javascript" src="js/ddsmoothmenu.js"></script>
-	<link rel="stylesheet" href="css/ddsmoothmenu.css" />
-	<link rel="stylesheet" href="css/ddsmoothmenu-v.css" />
-
 	<!-- finally FPP stuff, here so our CSS is last so we can override anything above -->
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<link rel="stylesheet" href="css/fpp.css" />
-	<link rel="stylesheet" media="screen and (max-device-width: 480px)" href="../css/fpp_480px.css" />
 	<script type="text/javascript" src="js/fpp.js"></script>
 
+	<!-- menu -->
+	<link href="jquery/smartmenus/src/css/sm-core-css.css" rel="stylesheet" type="text/css" />
+	<link href="jquery/smartmenus/src/css/sm-clean/sm-clean.css" rel="stylesheet" type="text/css" />
+	<script type="text/javascript" src="jquery/smartmenus/src/jquery.smartmenus.js"></script>
+
 	<script type="text/javascript">
-		ddsmoothmenu.init({
-			mainmenuid: "fppMenu", //menu DIV id
-			orientation: 'h', //Horizontal or vertical menu: Set to "h" or "v"
-			classname: 'ddsmoothmenu', //class added to menu's outer DIV
-			//customtheme: ["#1c5a80", "#18374a"],
-			contentsource: "markup" //"markup" or ["container_id", "path_to_menu_file"]
-		})
+	$(function() {
+		$('#fppMenu').smartmenus({subMenusMinWidth: "100%", showOnClick: true,
+			showFunction: function($ul, complete) { $ul.slideDown(250, complete); },
+			hideFunction: function($ul, complete) { $ul.slideUp(250, complete); },
+		});
+	});
 	</script>

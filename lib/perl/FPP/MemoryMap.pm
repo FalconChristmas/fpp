@@ -32,6 +32,8 @@ use File::Map qw/map_file unmap/;
 use Convert::Binary::C;
 use Data::Dumper;
 use Image::Magick;
+use threads;
+use threads::shared;
 
 #############################################################################
 # Usage:
@@ -73,6 +75,16 @@ sub new {
 		Format => 'String');
 	$this->{C}->tag('FPPChannelMemoryMapControlBlock.filler',
 		Format => 'String');
+
+	$this->{lastMsg} = "";
+
+	my %sharedData : shared;
+	$this->{sharedData} = \%sharedData;
+
+	$sharedData{dataReady} = 0;
+
+	my $dataLock : shared;
+	$sharedData{dataLock} = \$dataLock;
 
 	return $this;
 }
@@ -673,7 +685,7 @@ sub GetTextMetrics {
 	my $text = shift;
 	my $font = shift;
 	my $size = shift;
-	my %result;
+	my %result :shared;
 
 	my $img2 = new Image::Magick;
 	$img2->Set( size=>'1x1' );
@@ -719,12 +731,12 @@ sub GetTextImages {
 	my $size = shift;
 	my $color = shift;
 	my $fill = shift;
-	my $metrics = shift;
-	my $img;
-	my $imgR;
+	my $metrics :shared;
 
-	$img = Image::Magick->new(size => sprintf( "%dx%d", $metrics->{width}, $metrics->{height}));
-	$imgR = Image::Magick->new(size => sprintf( "%dx%d", $metrics->{width}, $metrics->{height}));
+	$metrics = $this->GetTextMetrics($text . " ", $font, $size);
+
+	my $img  = Image::Magick->new(size => sprintf( "%dx%d", $metrics->{width}, $metrics->{height}));
+	my $imgR = Image::Magick->new(size => sprintf( "%dx%d", $metrics->{width}, $metrics->{height}));
 
 	$img->Set(magick => "rgb");    # so we can save to blob as RGB
 	$img->Set(depth => 8);         # needed for RGB data
@@ -746,14 +758,36 @@ sub GetTextImages {
 		);
 	print $err if $err;
 
-	my $rgbData = $img->ImageToBlob();
+	my $rgbDataTmp = $img->ImageToBlob();
 
 	my $imgR = $img->Clone();
 	$imgR->Flop();
 
-	my $rgbDataR = $imgR->ImageToBlob();
+	my $rgbDataRTmp = $imgR->ImageToBlob();
 
-	return ($img, $imgR, $rgbData, $rgbDataR);
+	{
+		lock(${$this->{sharedData}->{dataLock}});
+		$this->{sharedData}->{rgbData} = shared_clone($rgbDataTmp);
+		$this->{sharedData}->{rgbDataR} = shared_clone($rgbDataRTmp);
+		$this->{sharedData}->{metrics} = $metrics;
+		$this->{sharedData}->{dataReady} = 1;
+	}
+}
+
+sub GetNextImages {
+	my $this = shift;
+	my $msgIn = shift;
+	my $font = shift;
+	my $size = shift;
+	my $color = shift;
+	my $fill = shift;
+
+	my $msg = $msgIn->();
+	if ($msg ne $this->{lastMsg})
+	{
+		$this->GetTextImages($msg, $font, $size, $color, $fill);
+		$this->{lastMsg} = $msg;
+	}
 }
 
 #############################################################################
@@ -770,13 +804,10 @@ sub TextMessage {
 	my $dir = shift || "R2L";
 	my $pps = shift || 5;
 	my $mirror = shift;
-	my $msg = $msgIn;
-	my $metrics;
-	my $img;
-	my $imgR;
-	my $rgbData;
-	my $rgbDataR;
 	my $msgIsFunc = 0;
+	my $msg;
+
+	$msg = $msgIn;
 
 	if (ref $msgIn eq "CODE")
 	{
@@ -815,15 +846,19 @@ sub TextMessage {
 		$fill = "#" . $fill;
 	}
 
-	$metrics = $this->GetTextMetrics($msg, $font, $size);
-	($img, $imgR, $rgbData, $rgbDataR) = $this->GetTextImages($msg, $font, $size, $color, $fill, $metrics);
+	$this->GetTextImages($msg, $font, $size, $color, $fill);
+
+	$this->{metrics} = $this->{sharedData}->{metrics};
+	$this->{rgbData} = $this->{sharedData}->{rgbData};
+	$this->{rgbDataR} = $this->{sharedData}->{rgbDataR};
+	$this->{sharedData}->{dataReady} = 0;
 
 	my $overlayImage;
 	$overlayImage = sub {
 		my $x = shift;
 		my $y = shift;
 
-		$this->OverlayImage($bd, $width, $height, $metrics->{width}, $metrics->{height}, $LtoR, $TtoB, $rgbData, $rgbDataR, $x, $y);
+		$this->OverlayImage($bd, $width, $height, $this->{metrics}->{width}, $this->{metrics}->{height}, $LtoR, $TtoB, $this->{rgbData}, $this->{rgbDataR}, $x, $y);
 
 		if (defined($mirror))
 		{
@@ -835,7 +870,8 @@ sub TextMessage {
 		}
 	};
 
-	my $lastMsg = $msg;
+	$this->{lastMsg} = $msg;
+
 	my $lastTime = 0;
 	my $thisTime = time;
 
@@ -847,15 +883,22 @@ sub TextMessage {
 
 		if ($msgIsFunc && ($thisTime != $lastTime))
 		{
-			$msg = $msgIn->();
-			if ($msg ne $lastMsg)
-			{
-				$metrics = $this->GetTextMetrics($msg . " ", $font, $size);
-				($img, $imgR, $rgbData, $rgbDataR) = $this->GetTextImages($msg, $font, $size, $color, $fill, $metrics);
-				$frames = $metrics->{width} + $width;
-				$lastMsg = $msg;
-			}
+			my $thr = threads->create(sub { $this->GetNextImages($msgIn, $font, $size, $color, $fill); });
+			$thr->detach();
+
 			$lastTime = $thisTime;
+		}
+
+		{
+			lock(${$this->{sharedData}->{dataLock}});
+			if ($this->{sharedData}->{dataReady})
+			{
+				$this->{metrics} = $this->{sharedData}->{metrics};
+				$this->{rgbData} = $this->{sharedData}->{rgbData};
+				$this->{rgbDataR} = $this->{sharedData}->{rgbDataR};
+				$frames = $this->{metrics}->{width} + $width;
+				$this->{sharedData}->{dataReady} = 0;
+			}
 		}
 
 		return $frames;
@@ -885,40 +928,40 @@ sub TextMessage {
 		$overlayImage->($x, $y);
 	} elsif ($pos eq "scroll") {
 		if ($dir eq "R2L") {
-			my $frames = $metrics->{width} + $width;
+			my $frames = $this->{metrics}->{width} + $width;
 			for (my $i = 0; $i < $frames; $i++) {
-				my $y = int(($height / 2) - ($metrics->{height} / 2));
+				my $y = int(($height / 2) - ($this->{metrics}->{height} / 2));
 				$y = 0 if ($y < 0);
 
 				$frames = $placeText->($width - $i, $y, $frames);
 			}
 		} elsif ($dir eq "L2R") {
-			my $frames = $metrics->{width} + $width;
+			my $frames = $this->{metrics}->{width} + $width;
 			for (my $i = $frames - 1; $i >= 0; $i--) {
-				my $y = int(($height / 2) - ($metrics->{height} / 2));
+				my $y = int(($height / 2) - ($this->{metrics}->{height} / 2));
 				$y = 0 if ($y < 0);
 
 				$frames = $placeText->($width - $i, $y, $frames);
 			}
 		} elsif ($dir eq "T2B") {
-			my $frames = $metrics->{height} + $height;
+			my $frames = $this->{metrics}->{height} + $height;
 			for (my $i = $frames - 1; $i >= 0; $i--) {
-				my $x = int(($width / 2) - ($metrics->{width} / 2));
+				my $x = int(($width / 2) - ($this->{metrics}->{width} / 2));
 				$x = 0 if ($x < 0);
 
 				$frames = $placeText->($x, $height - $i, $frames);
 			}
 		} elsif ($dir eq "B2T") {
-			my $frames = $metrics->{height} + $height;
+			my $frames = $this->{metrics}->{height} + $height;
 			for (my $i = 0; $i < $frames; $i++) {
-				my $x = int(($width / 2) - ($metrics->{width} / 2));
+				my $x = int(($width / 2) - ($this->{metrics}->{width} / 2));
 				$x = 0 if ($x < 0);
 
 				$frames = $placeText->($x, $height - $i, $frames);
 			}
 		}
 	} elsif ($pos = "center") {
-		$overlayImage->(int(($width / 2) - ($metrics->{width} / 2)), int(($height / 2) - ($metrics->{height} / 2)) );
+		$overlayImage->(int(($width / 2) - ($this->{metrics}->{width} / 2)), int(($height / 2) - ($this->{metrics}->{height} / 2)) );
 	}
 
 	$this->SetBlockLock($blk, 0);

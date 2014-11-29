@@ -1,0 +1,31 @@
+{
+  "name": "smartmenus",
+  "version": "0.9.7",
+  "description": "Advanced jQuery website menu plugin. Responsive and accessible list-based website menus that work on all devices.",
+  "homepage": "http://www.smartmenus.org/",
+  "main": [
+    "dist/jquery.smartmenus.js"
+  ],
+  "authors": [
+    "Vasil Dinkov <vasko.dinkov@gmail.com> (http://vadikom.com)"
+  ],
+  "keywords": [
+    "menu",
+    "navigation",
+    "accessible",
+    "responsive",
+    "ui"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/vadikom/smartmenus.git"
+  },
+  "license": "MIT",
+  "ignore": [
+    ".gitignore",
+    "Gruntfile.js"
+  ],
+  "dependencies": {
+    "jquery": ">=1.4.4"
+  }
+}
