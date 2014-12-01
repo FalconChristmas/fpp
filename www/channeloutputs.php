@@ -881,7 +881,7 @@ function AddOtherTypeOptions(row, type) {
 		row.find("td input.count").val("1530");
 	} else if (type == "Triks-C") {
 		config += NewTriksConfig();
-		row.find("td input.count").val("768");
+		row.find("td input.count").val("2304");
 		row.find("td input.count").prop('disabled', true);
 	} else if (type == "GPIO") {
 		config += NewGPIOConfig();
