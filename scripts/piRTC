@@ -85,6 +85,7 @@ then
   hwclock -w
 else
   hwclock -s
+  cp /opt/fpp/etc/update-RTC /etc/cron.daily/
 fi
 
 sleep 2
