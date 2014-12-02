@@ -435,7 +435,7 @@ void PlayListStopCheck()
       LogInfo(VB_SCHEDULE, "NowSecs = %d, CurrEndSecs = %d (%d seconds away)\n",
         nowWeeklySeconds, currentSchedulePlaylist.endWeeklySeconds, displayDiff);
 
-    if(nowWeeklySeconds == currentSchedulePlaylist.endWeeklySeconds)
+    if(nowWeeklySeconds >= currentSchedulePlaylist.endWeeklySeconds)
     {
       LogInfo(VB_SCHEDULE, "Schedule Entry: %02d:%02d:%02d - %02d:%02d:%02d - Stopping Playlist Gracefully\n",
         Schedule[currentSchedulePlaylist.ScheduleEntryIndex].startHour,
