@@ -30,9 +30,10 @@ if [ "x$(uname -r)" = "x3.10.33+" ]
 then
 	PCF2127=pcf2127a
 fi
-modprobe rtc-${PCF2127}
 
+modprobe rtc-${PCF2127}
 modprobe rtc-ds1307
+modprobe i2c:mcp7941x
 
 # Read Clock Setting From Settings File
 
@@ -59,6 +60,17 @@ case "$piRTC" in
   else
     echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device
     echo "FPP - Configuring RTC, Setting to DS1307/i2c-1"
+  fi
+  ;;
+3)
+  # PiFace Chip
+  if [ $REV -lt 4 ]
+  then
+    echo mpc794x 0x6f > /sys/class/i2c-0/new_device
+    echo "FPP - Configuring RTC, Setting to PiFace/i2c-0"
+  else
+    echo mpc7941x 0x6f > /sys/class/i2c-dev/i2c-1/new_device
+    echo "FPP - Configuring RTC, Setting to PiFace/i2c-1"
   fi
   ;;
 *)
