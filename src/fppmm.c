@@ -442,7 +442,7 @@ void DumpMappedBlockInfo(char *blockName) {
 
 	if (cb) {
 		printf( "Block Name: %s\n", cb->blockName);
-		printf( "Channels  : %d-%d (%d channels)\n",
+		printf( "Channels  : %lld-%lld (%lld channels)\n",
 			cb->startChannel, cb->startChannel + cb->channelCount - 1,
 			cb->channelCount);
 
