@@ -126,7 +126,7 @@ int SendOutputBuffer(FPDPrivData *privData)
 	privData->dataWaiting = 0;
 	pthread_mutex_unlock(&privData->bufLock);
 
-	for(i = 0; i < PIXELNET_DMX_BUF_SIZE; i++, c++)
+	for(i = 0; i < PIXELNET_DMX_DATA_SIZE; i++, c++)
 	{
 		if (*c == 170)
 		{
