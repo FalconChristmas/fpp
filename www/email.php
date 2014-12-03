@@ -14,25 +14,25 @@ if ( isset($_POST['emailguser']) && !empty($_POST['emailguser']) )
 {
   $emailguser = $_POST['emailguser'];
   WriteSettingToFile("emailguser",$emailguser);
-   error_log("Set EmailGmailUser: " . $emailguser);
+   //error_log("Set EmailGmailUser: " . $emailguser);
 }
 if ( isset($_POST['emailgpass']) && !empty($_POST['emailgpass']) )
 {
   $emailgpass = $_POST['emailgpass'];
   WriteSettingToFile("emailgpass",$emailgpass);
-   error_log("Set EmailGmailPassword: " . $emailgpass);
+   //error_log("Set EmailGmailPassword: " . $emailgpass);
 }
 if ( isset($_POST['emailfromtext']) && !empty($_POST['emailfromtext']) )
 {
   $emailfromtext = $_POST['emailfromtext'];
   WriteSettingToFile("emailfromtext",$emailfromtext);
-   error_log("Set EmailFromText: " . $emailfromtext);
+   //error_log("Set EmailFromText: " . $emailfromtext);
 }
 if ( isset($_POST['emailtoemail']) && !empty($_POST['emailtoemail']) )
 {
   $emailtoemail = $_POST['emailtoemail'];
   WriteSettingToFile("emailtoemail",$emailtoemail);
-   error_log("Set Email Destination: " . $emailtoemail);
+   //error_log("Set Email Destination: " . $emailtoemail);
 }
 if ( ( isset($_POST['emailguser']) && !empty($_POST['emailguser']) ) && 
    ( isset($_POST['emailgpass']) && !empty($_POST['emailgpass']) ) &&
@@ -46,24 +46,24 @@ if ( ( isset($_POST['emailguser']) && !empty($_POST['emailguser']) ) &&
     fwrite($fp, "*.google.com:" . $emailguser . ":" . $emailgpass . "\n");
     fwrite($fp, "smtp.gmail.com:" . $emailguser . ":" . $emailgpass . "\n");
     fclose($fp);
-	error_log($exim4Directory . "passwd.client Written");
+	//error_log($exim4Directory . "passwd.client Written");
 	exec("sudo cp " . $exim4Directory . "/passwd.client /etc/exim4/");
-	error_log($exim4Directory . "passwd.client copied to /etc/exim4/");
+	//error_log($exim4Directory . "passwd.client copied to /etc/exim4/");
 	exec("sudo update-exim4.conf");
-	error_log("Executing update-exim4.conf");
+	//error_log("Executing update-exim4.conf");
     exec ("sudo /etc/init.d/exim4 restart");
-    error_log("Restarted exim4");
+    //error_log("Restarted exim4");
 	$cmd="sudo chfn -f \"" . $emailfromtext . "\" pi";
-	error_log($cmd);
+	//error_log($cmd);
 	exec($cmd);
-	error_log("Executed Set Pi User Full Name");
+	//error_log("Executed Set Pi User Full Name");
     $fp = fopen($exim4Directory . '/aliases', 'w');
 	fwrite($fp, "mailer-daemon: postmaster\npostmaster: root\nnobody: root\nhostmaster: root\nusenet: root\nnews: root\nwebmaster: root\nwww: root\nftp: root\nabuse: root\nnoc: root\nsecurity: root\nroot: pi\n");
 	fwrite($fp, "pi: " . $emailtoemail . "\n");
 	fclose($fp);
-	error_log("exim4/aliases Written");
+	//error_log("exim4/aliases Written");
 	exec("sudo cp " . $exim4Directory . "./aliases /etc/");
-	error_log($exim4Directory . "/aliases copied to /etc/");
+	//error_log($exim4Directory . "/aliases copied to /etc/");
 }
 
 ?>
