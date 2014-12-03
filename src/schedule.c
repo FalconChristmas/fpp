@@ -440,7 +440,7 @@ void PlayListStopCheck()
     // second the schedule should be ending.  The odds of us missing 2 in a row
     // are much lower, so this will suffice for v1.0.
     if((nowWeeklySeconds == currentSchedulePlaylist.endWeeklySeconds) ||
-       (nowWeeklySeconds == (currentSchedulePlaylist.endWeeklySeconds - 1)))
+       (nowWeeklySeconds == (currentSchedulePlaylist.endWeeklySeconds + 1)))
     {
       LogInfo(VB_SCHEDULE, "Schedule Entry: %02d:%02d:%02d - %02d:%02d:%02d - Stopping Playlist Gracefully\n",
         Schedule[currentSchedulePlaylist.ScheduleEntryIndex].startHour,
