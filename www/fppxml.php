@@ -1148,7 +1148,7 @@ function SaveHardwareConfig()
 
 	if ($model == "F16V2")
 	{
-    SaveFalcon16v2();
+		SaveF16v2();
 	}
   else if ($model == "FPDv1")
   {
@@ -1162,7 +1162,7 @@ function SaveHardwareConfig()
 	EchoStatusXML('Success');
 }
 
-function SaveF16V2()
+function SaveF16v2()
 {
     global $settings;
 		$outputCount = 16;
