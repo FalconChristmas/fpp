@@ -435,7 +435,12 @@ void PlayListStopCheck()
       LogInfo(VB_SCHEDULE, "NowSecs = %d, CurrEndSecs = %d (%d seconds away)\n",
         nowWeeklySeconds, currentSchedulePlaylist.endWeeklySeconds, displayDiff);
 
-    if(nowWeeklySeconds >= currentSchedulePlaylist.endWeeklySeconds)
+    // This check for 1 second ago is a hack rather than a more invasive
+    // patch to handle the race condition if we miss this check on the exact
+    // second the schedule should be ending.  The odds of us missing 2 in a row
+    // are much lower, so this will suffice for v1.0.
+    if((nowWeeklySeconds == currentSchedulePlaylist.endWeeklySeconds) ||
+       (nowWeeklySeconds == (currentSchedulePlaylist.endWeeklySeconds - 1)))
     {
       LogInfo(VB_SCHEDULE, "Schedule Entry: %02d:%02d:%02d - %02d:%02d:%02d - Stopping Playlist Gracefully\n",
         Schedule[currentSchedulePlaylist.ScheduleEntryIndex].startHour,
