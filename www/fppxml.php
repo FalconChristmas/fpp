@@ -707,7 +707,7 @@ function GetFPPstatus()
 		return;
 	}
 
-	$entry = explode(",",$status,13);
+	$entry = explode(",",$status,14);
 	$fppMode = $entry[0];
 	if($fppMode != 1)
 	{
@@ -718,6 +718,7 @@ function GetFPPstatus()
 			$nextPlaylist = $entry[3];
 			$nextPlaylistStartTime = $entry[4];
 			$fppCurrentDate = GetLocalTime();
+			$repeatMode = 0;
 
 			$doc = new DomDocument('1.0');
 			$root = $doc->createElement('Status');
@@ -758,6 +759,12 @@ function GetFPPstatus()
 			$value = $doc->createTextNode($fppCurrentDate);
 			$value = $temp->appendChild($value);
 
+			//repeatMode
+			$temp = $doc->createElement('repeatMode');
+			$temp = $root->appendChild($temp);
+			$value = $doc->createTextNode($repeatMode);
+			$value = $temp->appendChild($value);
+
 			echo $doc->saveHTML();
 			return;
 		}
@@ -776,6 +783,7 @@ function GetFPPstatus()
 			$nextPlaylist = $entry[11];
 			$nextPlaylistStartTime = $entry[12];
 			$fppCurrentDate = GetLocalTime();
+			$repeatMode = $entry[13];
 
 
 			$doc = new DomDocument('1.0');
@@ -860,6 +868,12 @@ function GetFPPstatus()
 			$temp = $doc->createElement('fppCurrentDate');
 			$temp = $root->appendChild($temp);
 			$value = $doc->createTextNode($fppCurrentDate);
+			$value = $temp->appendChild($value);
+
+			//repeatMode
+			$temp = $doc->createElement('repeatMode');
+			$temp = $root->appendChild($temp);
+			$value = $doc->createTextNode($repeatMode);
 			$value = $temp->appendChild($value);
 
 
