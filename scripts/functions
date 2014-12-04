@@ -218,8 +218,8 @@ SetupFPPNetworkConfig () {
 		echo "FPP - Bringing wlan0 up"
 		ifup wlan0 > /dev/null 2>&1
 
-		#echo "FPP - Disabling power management on wlan0"
-		#iwconfig wlan0 power off
+		echo "FPP - Disabling power management on wlan0"
+		iwconfig wlan0 power off > /dev/null 2>&1
 	fi
 }
 
