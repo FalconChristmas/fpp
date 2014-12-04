@@ -1428,6 +1428,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 								var NextPlaylist = status.childNodes[11].textContent;
 								var NextPlaylistTime = status.childNodes[12].textContent;
 								var fppTime = status.childNodes[13].textContent;
+								var repeatMode = parseInt(status.childNodes[14].textContent,10);
 								if(gblCurrentLoadedPlaylist != CurrentPlaylist)
 								{
 									$('#selStartPlaylist').val(CurrentPlaylist);
@@ -1475,6 +1476,11 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 											var j=0;	
 										}
 								}
+
+								if (repeatMode)
+									$("#chkRepeat").prop( "checked", true );
+								else
+									$("#chkRepeat").prop( "checked", false );
 							}
 						}
 					}

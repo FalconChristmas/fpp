@@ -146,7 +146,7 @@ extern PlaylistDetails playlistDetails;
 				{
 					if(playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType == 'b' || playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType == 'm')
 					{
-						sprintf(response,"%d,%d,%d,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s\n",
+						sprintf(response,"%d,%d,%d,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s,%d\n",
 										getFPPmode(),FPPstatus,getVolume(),playlistDetails.currentPlaylist,
 										playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType,
 										playlistDetails.playList[playlistDetails.currentPlaylistEntry].seqName,
@@ -154,28 +154,31 @@ extern PlaylistDetails playlistDetails;
 										playlistDetails.currentPlaylistEntry+1,playlistDetails.playListCount,
 										mediaOutputStatus.secondsElapsed,
 										mediaOutputStatus.secondsRemaining,
-										NextPlaylist,NextScheduleStartText);
+										NextPlaylist,NextScheduleStartText,
+										playlistDetails.repeat);
 					}
 					else if (playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType == 's')
 					{
-						sprintf(response,"%d,%d,%d,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s\n",getFPPmode(),FPPstatus,getVolume(),
+						sprintf(response,"%d,%d,%d,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s,%d\n",getFPPmode(),FPPstatus,getVolume(),
 										playlistDetails.currentPlaylist,playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType,
 										playlistDetails.playList[playlistDetails.currentPlaylistEntry].seqName,playlistDetails.playList[playlistDetails.currentPlaylistEntry].songName,
 										playlistDetails.currentPlaylistEntry+1,playlistDetails.playListCount,
 										seqSecondsElapsed,
 										seqSecondsRemaining,
-										NextPlaylist,NextScheduleStartText);
+										NextPlaylist,NextScheduleStartText,
+										playlistDetails.repeat);
 					}
 					else
 					{			
-						sprintf(response,"%d,%d,%d,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s\n",getFPPmode(),FPPstatus,getVolume(),playlistDetails.currentPlaylist,
+						sprintf(response,"%d,%d,%d,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s,%d\n",getFPPmode(),FPPstatus,getVolume(),playlistDetails.currentPlaylist,
 										playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType,
 										playlistDetails.playList[playlistDetails.currentPlaylistEntry].seqName,
 										playlistDetails.playList[playlistDetails.currentPlaylistEntry].songName,	
 										playlistDetails.currentPlaylistEntry+1,playlistDetails.playListCount,
 										numberOfSecondsPaused,
 										(int)playlistDetails.playList[playlistDetails.currentPlaylistEntry].pauselength-numberOfSecondsPaused,
-										NextPlaylist,NextScheduleStartText);
+										NextPlaylist,NextScheduleStartText,
+										playlistDetails.repeat);
 					}
 				}
 		}
