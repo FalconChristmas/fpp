@@ -123,9 +123,9 @@ int FalconConfigureHardware(char *filename, int spiPort)
 {
 	LogDebug(VB_SETTING, "FalconConfigureHardware(%s, %d)\n", filename, spiPort);
 	char  fbuf[FALCON_CFG_FILE_MAX_SIZE];
-	char *buf;
+	unsigned char *buf;
 
-	buf = (char *)malloc(FALCON_CFG_BUF_SIZE);
+	buf = (unsigned char *)malloc(FALCON_CFG_BUF_SIZE);
 	if (!buf)
 	{
 		LogErr(VB_SETTING,
@@ -225,7 +225,7 @@ int FalconDetectHardware(int spiPort, char *response)
 
 	bzero(response, FALCON_CFG_BUF_SIZE);
 
-	return wiringPiSPIDataRW(spiPort, response, FALCON_CFG_BUF_SIZE);
+	return wiringPiSPIDataRW(spiPort, (unsigned char *)response, FALCON_CFG_BUF_SIZE);
 }
 
 /*
@@ -290,7 +290,7 @@ void FalconQueryHardware(int sock, struct sockaddr_in *srcAddr,
 int FalconPassThroughData(int offset, unsigned char *inBuf, int size)
 {
 	LogDebug(VB_SETTING, "FalconPassThroughData(%p)\n", inBuf);
- 	char *buf = (char *)malloc(FALCON_CFG_BUF_SIZE);
+	unsigned char *buf = (unsigned char *)malloc(FALCON_CFG_BUF_SIZE);
 	if (!buf)
 	{
 		LogErr(VB_SETTING,
