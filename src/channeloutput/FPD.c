@@ -495,11 +495,15 @@ int FPD_StopOutputThread(void *data)
 	if (!privData->processThreadID)
 		return -1;
 
-	pthread_cond_signal(&privData->sendCond);
-
 	privData->runThread = 0;
 
-	while (privData->dataWaiting)
+	pthread_cond_signal(&privData->sendCond);
+
+	int loops = 0;
+	// Wait up to 110ms for data to be sent
+	while ((privData->dataWaiting) &&
+	       (privData->threadIsRunning) &&
+	       (loops++ < 11))
 		usleep(10000);
 
 	pthread_mutex_lock(&privData->bufLock);
