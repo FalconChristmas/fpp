@@ -6,6 +6,7 @@ require_once('config.php');
 include 'common/menuHead.inc';
 ?>
 <script>
+    PlayEntrySelected = 0;
     $(function() {
 		$('#tblStatusPlaylistEntries').on('mousedown', 'tr', function(event,ui){
 					$('#tblStatusPlaylistEntries tr').removeClass('playlistSelectedEntry');
