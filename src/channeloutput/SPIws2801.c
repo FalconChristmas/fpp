@@ -189,7 +189,7 @@ int SPIws2801_SendData(void *data, char *channelData, int channelCount)
 		return 0;
 	}
 
-	wiringPiSPIDataRW(privData->port, channelData, channelCount);
+	wiringPiSPIDataRW(privData->port, (unsigned char *)channelData, channelCount);
 }
 
 /*

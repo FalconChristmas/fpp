@@ -299,7 +299,7 @@ int InitializePixelnetDMX()
 void SendFPDConfig()
 {
 	int i,index;
-	char bufferPixelnetDMX[PIXELNET_DMX_BUF_SIZE];
+	unsigned char bufferPixelnetDMX[PIXELNET_DMX_BUF_SIZE];
 
 	memset(bufferPixelnetDMX,0,PIXELNET_DMX_BUF_SIZE);
 	memcpy(bufferPixelnetDMX,PixelnetDMXcontrolHeader,PIXELNET_HEADER_SIZE);
