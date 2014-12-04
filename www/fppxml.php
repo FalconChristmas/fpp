@@ -1193,7 +1193,7 @@ function SaveF16v2()
 			$carr[$i++] = intval($nodeCount % 256);
 			$carr[$i++] = intval($nodeCount / 256);
 
-			$startChannel = $_POST['startChannel'][$o];
+			$startChannel = $_POST['startChannel'][$o] - 1; // 0-based values in config file
 			$carr[$i++] = intval($startChannel % 256);
 			$carr[$i++] = intval($startChannel / 256);
 
