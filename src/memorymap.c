@@ -310,7 +310,8 @@ void PrintChannelMapBlocks(void) {
  * Setup the pixel map for this channel block
  */
 void SetupPixelMapForBlock(FPPChannelMemoryMapControlBlock *cb) {
-	LogInfo(VB_CHANNELOUT, "Initializing Channel Memory Map Pixel Map\n");
+	LogInfo(VB_CHANNELOUT, "Initializing Channel Memory Map Pixel Map '%s'\n",
+		cb->blockName);
 
 	if ((!cb->channelCount) ||
 		(!cb->strandsPerString) ||
@@ -400,7 +401,8 @@ void SetupPixelMapForBlock(FPPChannelMemoryMapControlBlock *cb) {
 		}
 	}
 
-	LogInfo(VB_CHANNELOUT, "Initialization complete\n");
+	LogInfo(VB_CHANNELOUT, "Initialization complete for block '%s'\n",
+		cb->blockName);
 }
 
 /*
