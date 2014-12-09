@@ -310,7 +310,8 @@ void PrintChannelMapBlocks(void) {
  * Setup the pixel map for this channel block
  */
 void SetupPixelMapForBlock(FPPChannelMemoryMapControlBlock *cb) {
-	LogInfo(VB_CHANNELOUT, "Initializing Channel Memory Map Pixel Map\n");
+	LogInfo(VB_CHANNELOUT, "Initializing Channel Memory Map Pixel Map '%s'\n",
+		cb->blockName);
 
 	if ((!cb->channelCount) ||
 		(!cb->strandsPerString) ||
@@ -321,8 +322,8 @@ void SetupPixelMapForBlock(FPPChannelMemoryMapControlBlock *cb) {
 	}
 
 	if ((cb->channelCount % 3) != 0) {
-		LogErr(VB_CHANNELOUT, "Memory Map Block '%s' channel count is not divisible by 3\n", cb->blockName);
-		LogErr(VB_CHANNELOUT, "unable to configure pixel map array.\n");
+//		LogInfo(VB_CHANNELOUT, "Memory Map Block '%s' channel count is not divisible by 3\n", cb->blockName);
+//		LogInfo(VB_CHANNELOUT, "unable to configure pixel map array.\n");
 		return;
 	}
 
@@ -400,7 +401,8 @@ void SetupPixelMapForBlock(FPPChannelMemoryMapControlBlock *cb) {
 		}
 	}
 
-	LogInfo(VB_CHANNELOUT, "Initialization complete\n");
+	LogInfo(VB_CHANNELOUT, "Initialization complete for block '%s'\n",
+		cb->blockName);
 }
 
 /*
