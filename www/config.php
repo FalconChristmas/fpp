@@ -359,4 +359,3 @@ if (!isset($skipJSsettings)) {
 <?
 }
 ?>
-
