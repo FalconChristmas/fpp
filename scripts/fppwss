@@ -32,6 +32,7 @@ use threads::shared;
 use Net::WebSocket::Server;
 use JSON;
 use Data::Dumper;
+use Time::HiRes qw( usleep );
 use FPP::MemoryMap;
 
 $SIG{CHLD} = 'IGNORE';
@@ -296,7 +297,17 @@ sub TextMessage {
 	}
 
 	if ($fppmm->IsBlockLocked($blkInfo)) {
-		return;
+		for (my $x = 0; $x < 10; $x++) {
+			$blkInfo = GetCachedBlock($blk);
+			if (!$fppmm->IsBlockLocked($blkInfo)) {
+				last;
+			}
+			usleep(100000);
+		}
+
+		if ($fppmm->IsBlockLocked($blkInfo)) {
+			return;
+		}
 	}
 
 	$fppmm->SetBlockLock($blkInfo, 1);
