@@ -267,6 +267,7 @@ $settings['videoDirectory'] = $videoDirectory;
 $settings['effectDirectory'] = $effectDirectory;
 $settings['logDirectory'] = $logDirectory;
 $settings['uploadDirectory'] = $uploadDirectory;
+$settings['pluginDirectory'] = $pluginDirectory;
 $settings['docsDirectory'] = $docsDirectory;
 $settings['fppRfsVersion'] = $fppRfsVersion;
 $settings['exim4Directory'] = $exim4Directory;
