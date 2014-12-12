@@ -18,7 +18,7 @@ if curl --silent --head https://github.com | grep "Content-Type: text/html; char
 		cd ${FPPDIR} && sudo -u pi git pull && sudo -u pi git fetch --tags
 	fi
 
-	RELEASEBRANCH=$(echo ${GITBRANCH} | egrep "v[0-9]+\.[0-9]+\.[0-9]+")
+	RELEASEBRANCH=$(echo ${GITBRANCH} | egrep "v[0-9]+\.[0-9]+")
 	if [ -z "${RELEASEBRANCH}" ]
 	then
 		compileBinaries
