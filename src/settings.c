@@ -86,7 +86,7 @@ void initSettings(void)
 	settings.videoDirectory = strdup("/home/pi/media/videos");
 	settings.effectDirectory = strdup("/home/pi/media/effects");
 	settings.scriptDirectory = strdup("/home/pi/media/scripts");
-	settings.pluginDirectory = strdup("/opt/fpp/plugins");
+	settings.pluginDirectory = strdup("/home/pi/media/plugins");
 	settings.universeFile = strdup("/home/pi/media/universes");
 	settings.pixelnetFile = strdup("/home/pi/media/config/Falcon.FPDV1");
 	//settings.pixelnetFile = strdup("/home/pi/media/pixelnetDMX");
