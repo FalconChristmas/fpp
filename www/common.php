@@ -9,7 +9,7 @@ function check($var, $var_name = "", $function_name = "")
 		$function_name = $args['command'];
 	}
 
-	if ( empty($var) )
+	if ( empty($var) && $debug )
 		error_log("WARNING: Variable '$var_name' in function '$function_name' was empty");
 }
 

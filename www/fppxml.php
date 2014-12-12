@@ -2368,14 +2368,6 @@ function GetZip()
 	global $logDirectory;
 	global $mediaDirectory;
 
-	$dir = $_GET['dir'];
-	check($dir, "dir", __FUNCTION__);
-
-	$dir = GetDirSetting($dir);
-
-	if ($dir == "")
-		return;
-
 	// Re-format the file name
 	$filename = tempnam("/tmp", "FPP_Logs");
 
@@ -2391,9 +2383,10 @@ function GetZip()
 		$zip->addFile($logDirectory.'/'.$file, "Logs/".$file);
 	}
 
-	$zip->addFile("/var/log/messages", "Logs/messages.log");
-	$zip->addFile("/var/log/syslog", "Logs/syslog.log");
-	$zip->addFile("/proc/asound/cards", "Logs/asound/cards");
+	if ( is_readable("/var/log/messages") )
+		$zip->addFile("/var/log/messages", "Logs/messages.log");
+	if ( is_readable("/var/log/syslog") )
+		$zip->addFile("/var/log/syslog", "Logs/syslog.log");
 
 	$files = array(
 		"channelmemorymaps",
@@ -2408,12 +2401,12 @@ function GetZip()
 			$zip->addFromString("Config/$file", ScrubFile("$mediaDirectory/$file"));
 	}
 
-	exec("ls -aRl /proc /dev /sys", $output, $return_val);
+	exec("cat /proc/asound/cards", $output, $return_val);
 	if ( $return_val != 0 ) {
-		error_log("Unable to get a listing of /proc for logs");
+		error_log("Unable to read alsa cards");
 	}
 	else {
-		$zip->addFromString("Logs/proc_dev_sys.txt", implode("\n", $output)."\n");
+		$zip->addFromString("Logs/asound/cards", implode("\n", $output)."\n");
 	}
 	unset($output);
 

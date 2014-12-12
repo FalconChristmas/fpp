@@ -76,7 +76,6 @@ function PopulateInterfaces()
 	if (isset($settings['E131interface'])) {
 		$ifaceE131 = $settings['E131interface'];
 	}
-	error_log("$ifaceE131:" . $ifaceE131);
 	$found = 0;
 	if ($ifaceE131 == "") {
 		$ifaceE131 = "eth0";

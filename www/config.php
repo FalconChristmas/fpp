@@ -152,7 +152,8 @@ do
 	$split = explode("=", $data);
 	if ( count($split) < 2 )
 	{
-//		error_log("not long enough");
+		if ( $debug )
+			error_log("not long enough");
 		continue;
 	}
 
