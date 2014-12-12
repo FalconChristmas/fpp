@@ -9,7 +9,7 @@ $plugins = Array(
 		'homeUrl'     => 'https://github.com/Materdaddy/fpp-vastfmt',
 		'sourceUrl'   => 'https://github.com/Materdaddy/fpp-vastfmt.git',
 		'bugUrl'      => 'https://github.com/Materdaddy/fpp-vastfmt/issues',
-		'sha'         => '83d98f92d0e5be1ee3ab4cfdce57acbc9bac4582',
+		'sha'         => '1a1ea155663fab41ba8aec4806531e42cd15bbc9',
 	),
 
 	Array(
