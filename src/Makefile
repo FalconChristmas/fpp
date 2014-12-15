@@ -1,10 +1,7 @@
-CC := gcc
+CC := g++
 
-# Uncomment the following line to build with g++ for testing, etc.
-#CC := g++
-
-ifneq ("$(wildcard /usr/bin/ccache)","")
-	CC := ccache $(CC)
+ifneq ($(wildcard /usr/bin/ccache),)
+	CCACHE = ccache
 endif
 
 TARGETS = fpp fppmm fppd
@@ -36,6 +33,7 @@ OBJECTS_fppd = \
 	channeloutput/GPIO595.o \
 	channeloutput/LOR.o \
 	channeloutput/serialutil.o \
+	channeloutput/SPInRF24L01.o \
 	channeloutput/SPIws2801.o \
 	channeloutput/Triks-C.o \
 	channeloutput/USBDMXOpen.o \
@@ -102,9 +100,19 @@ ifeq '$(ARCH)' 'Raspberry Pi'
 # do something RaspPi-y
 CFLAGS += \
 	-DUSEWIRINGPI \
+	-DUSENRF \
+	-I../external/RF24/ \
 	$(NULL)
 LIBS_fppd += \
-	-lwiringPi -lwiringPiDev \
+	-lwiringPi \
+	-lwiringPiDev \
+	-lrf24-bcm \
+	$(NULL)
+LDFLAGS_fppd += \
+	-L../external/RF24 \
+	$(NULL)
+DEPS_fppd += \
+	../external/RF24/librf24-bcm.so \
 	$(NULL)
 else
 # do something Linux-y
@@ -130,19 +138,26 @@ release: $(TARGETS)
 	-$(INSTALL_PROGRAM) fppd ../bin/fppd
 
 fpp: $(OBJECTS_fpp)
-	$(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
+	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
 
 fppmm: $(OBJECTS_fppmm)
-	$(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
+	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
 
-fppd: $(OBJECTS_fppd)
-	$(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
+fppd: $(OBJECTS_fppd) $(DEPS_fppd)
+	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
 
 fppversion.c: fppversion.sh force
 	sh fppversion.sh $(PWD)
 
 %.o: %.c %.h Makefile
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CCACHE) $(CC) $(CFLAGS) -c $< -o $@
 
 clean:
 	rm -f fppversion.c $(OBJECTS_fpp) $(OBJECTS_fppmm) $(OBJECTS_fppd) fpp fppmm fppd
+	make -C ../external/RF24 clean
+
+../external/RF24/librf24-bcm.so:
+	@echo "Building RF24 library"
+	@make -C ../external/RF24/
+	@ln -s librf24-bcm.so.1.0 ../external/RF24/librf24-bcm.so.1
+	@ln -s librf24-bcm.so.1 ../external/RF24/librf24-bcm.so

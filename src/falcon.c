@@ -156,7 +156,7 @@ int FalconConfigureHardware(char *filename, int spiPort)
 	if ((logLevel & LOG_DEBUG) && (logMask && VB_SETTING))
 		HexDump("Falcon Hardware Config", buf, bytesRead);
 
-	bytesWritten = wiringPiSPIDataRW (0, buf, FALCON_CFG_BUF_SIZE);
+	bytesWritten = wiringPiSPIDataRW (0, (unsigned char *)buf, FALCON_CFG_BUF_SIZE);
 	if (bytesWritten != FALCON_CFG_BUF_SIZE)
 	{
 		LogErr(VB_SETTING,
@@ -172,7 +172,7 @@ int FalconConfigureHardware(char *filename, int spiPort)
 	bzero(buf, FALCON_CFG_BUF_SIZE);
 	memcpy(buf, fbuf, bytesRead);
 
-	bytesWritten = wiringPiSPIDataRW (0, buf, FALCON_CFG_BUF_SIZE);
+	bytesWritten = wiringPiSPIDataRW (0, (unsigned char *)buf, FALCON_CFG_BUF_SIZE);
 	if (bytesWritten != FALCON_CFG_BUF_SIZE)
 	{
 		LogErr(VB_CHANNELOUT,
@@ -324,7 +324,7 @@ int FalconPassThroughData(int offset, unsigned char *inBuf, int size)
 
  	DisableChannelOutput();
 	usleep(100000);
-	bytesWritten = wiringPiSPIDataRW (0, buf, FALCON_CFG_BUF_SIZE);
+	bytesWritten = wiringPiSPIDataRW (0, (unsigned char *)buf, FALCON_CFG_BUF_SIZE);
 	if (bytesWritten != FALCON_CFG_BUF_SIZE)
 	{
 		LogErr(VB_SETTING,

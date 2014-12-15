@@ -19,6 +19,7 @@ then
 	PATHDIRS="${FPPDIR}/scripts/:${FPPDIR}/src/"
 fi
 export PATH=${PATHDIRS}:${PATH}
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${FPPDIR}/external/RF24
 
 PLATFORM=$(cat /etc/fpp/platform 2> /dev/null)
 SUDO=${SUDO:-sudo}

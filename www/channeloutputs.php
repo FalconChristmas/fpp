@@ -162,6 +162,35 @@ function DeviceSelect(deviceArray, currentValue) {
 }
 
 /////////////////////////////////////////////////////////////////////////////
+// nRF Support functions
+function nRFSpeedSelect(speedArray, currentValue) {
+	var result = "Speed: <select class='speed'>";
+
+	if ( currentValue == "" )
+		result += "<option value=''>- Speed -</option>";
+
+	var found = 0;
+	for (var key in speedArray) {
+		result += "<option value='" + key + "'";
+
+		if (currentValue == key) {
+			result += " selected";
+			found = 1;
+		}
+
+		result += ">" + speedArray[key] + "</option>";
+	}
+
+	if ((currentValue != '') &&
+		(found == 0)) {
+		result += "<option value='" + currentValue + "'>" + currentValue + "</option>";
+	}
+	result += "</select>";
+
+	return result;
+}
+
+/////////////////////////////////////////////////////////////////////////////
 // USB Dongles /dev/ttyUSB*
 var USBDevices = new Array();
 <?
@@ -633,6 +662,27 @@ function SPIDeviceConfig(config) {
 	return result;
 }
 
+var nRFSpeeds = ["250K", "1M"];
+
+function SPInRFDeviceConfig(config) {
+	var items = config.split(";");
+	var result = "";
+
+	for (var j = 0; j < items.length; j++) {
+		var item = items[j].split("=");
+
+		if (item[0] == "speed") {
+			result += nRFSpeedSelect(nRFSpeeds, item[1]);
+		}
+		else if (item[0] == "channel") {
+			result += "Channel: <input class='channel' type='text' size=4 maxlength=4 value='";
+			result += item[1] + "'>";
+		}
+	}
+
+	return result;
+}
+
 function GetSPIOutputConfig(cell) {
 	$cell = $(cell);
 	var value = $cell.find("select.device").val();
@@ -643,9 +693,26 @@ function GetSPIOutputConfig(cell) {
 	return "device=" + value;
 }
 
+function GetnRFSpeedConfig(cell) {
+	$cell = $(cell);
+	var value = $cell.find("select.speed").val();
+
+	if (value == "")
+		return "";
+
+	return "speed=" + value;
+}
+
 function NewSPIConfig() {
 	var result = "";
-	result += "Device: " + DeviceSelect(SPIDevices, "");
+	result += DeviceSelect(SPIDevices, "");
+	return result;
+}
+
+function NewnRFSPIConfig() {
+	var result = "";
+	result += nRFSpeedSelect(nRFSpeeds, "");
+	result += "Channel: <input class='channel' type='text' size=4 maxlength=4 value=''>";
 	return result;
 }
 
@@ -686,6 +753,8 @@ function PopulateChannelOutputTable(data) {
 			newRow += LOROutputConfig(output[4]);
 		} else if (type == "SPI-WS2801") {
 			newRow += SPIDeviceConfig(output[4]);
+		} else if (type == "SPI-nRF24L01") {
+			newRow += SPInRFDeviceConfig(output[4]);
 		} else if (type == "Triks-C") {
 			newRow += TriksDeviceConfig(output[4]);
 		} else if (type == "GPIO") {
@@ -779,6 +848,21 @@ function SetChannelOutputs() {
 				return;
 			}
 			maxChannels = 1530;
+		} else if (type == "SPI-nRF24L01") {
+			config += GetnRFSpeedConfig($this.find("td:nth-child(6)"));
+			if (config == "") {
+				dataError = 1;
+				DialogError("Save Channel Outputs", "Invalid nRF Speed");
+				return;
+			}
+			var channel = $this.find("td:nth-child(6)").find("input.channel").val();
+			if (!channel && (channel < 0 || channel > 125) ) {
+				dataError = 1;
+				DialogError("Save Channel Outputs", "Invalid Channel '" + channel + "' on row " + rowNumber);
+				return;
+			}
+			config = config+";channel="+channel;
+			maxChannels = 512;
 		} else if (type == "Triks-C") {
 			config += GetTriksOutputConfig($this.find("td:nth-child(6)"));
 			if (config == "") {
@@ -879,6 +963,9 @@ function AddOtherTypeOptions(row, type) {
 	} else if (type == "SPI-WS2801") {
 		config += NewSPIConfig();
 		row.find("td input.count").val("1530");
+	} else if (type == "SPI-nRF24L01") {
+		config += NewnRFSPIConfig();
+		row.find("td input.count").val("512");
 	} else if (type == "Triks-C") {
 		config += NewTriksConfig();
 		row.find("td input.count").val("2304");
@@ -960,12 +1047,15 @@ function AddOtherOutput() {
 				"<option value='LOR'>LOR</option>" +
 				"<option value='Renard'>Renard</option>" +
 				"<option value='SPI-WS2801'>SPI-WS2801</option>" +
+				"<option value='SPI-nRF24L01'>SPI-nRF24L01</option>" +
 				"<option value='Triks-C'>Triks-C</option>" +
 				"<option value='GPIO'>GPIO</option>" +
 				"<option value='GPIO-595'>GPIO-595</option>" +
 			"</select></td>" +
 			"<td><input class='start' type='text' size=6 maxlength=6 value='' style='display: none;'></td>" +
 			"<td><input class='count' type='text' size=4 maxlength=4 value='' style='display: none;'></td>" +
+			"<td><input class='channel' type='text' size=4 maxlength=4 value='' style='display: none;'></td>" +
+			"<td><select class='nRFspeed'style='display: none;'></td>" +
 			"<td>&nbsp;</td>" +
 			"</tr>";
 
