@@ -154,7 +154,7 @@ fppversion.c: fppversion.sh force
 
 clean:
 	rm -f fppversion.c $(OBJECTS_fpp) $(OBJECTS_fppmm) $(OBJECTS_fppd) fpp fppmm fppd
-	make -C ../external/RF24 clean
+	@[ -e ../external/RF24/.git ] && make -C ../external/RF24 clean
 
 ../external/RF24/.git:
 	@cd ../ && \
