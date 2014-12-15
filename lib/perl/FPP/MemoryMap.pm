@@ -336,11 +336,10 @@ sub SetBlockLock {
 sub IsBlockLocked {
 	my $this = shift;
 	my $blk = shift;
-	my $bd = $blk->{data};
 
 	$this->LoadBlockInfo($blk);
 
-	return $bd->{isLocked};
+	return $blk->{data}->{isLocked};
 }
 
 #############################################################################
@@ -482,6 +481,7 @@ sub GetBlockInfo {
 	my $name = shift;
 
 	if (defined($this->{Blocks}->{$name})) {
+		$this->LoadBlockInfo($this->{Blocks}->{$name});
 		return $this->{Blocks}->{$name};
 	}
 

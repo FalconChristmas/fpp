@@ -32,6 +32,7 @@ use threads::shared;
 use Net::WebSocket::Server;
 use JSON;
 use Data::Dumper;
+use Time::HiRes qw( usleep );
 use FPP::MemoryMap;
 
 $SIG{CHLD} = 'IGNORE';
@@ -114,9 +115,10 @@ sub Reply {
 my %blockCache;
 sub GetCachedBlock {
 	my $blk = shift || "";
+	my $forceRefresh = shift || 0;
 
 	my $blkInfo;
-	if (defined($blockCache{$blk})) {
+	if (defined($blockCache{$blk}) && !$forceRefresh) {
 		$blkInfo = $blockCache{$blk};
 	} else {
 		$blkInfo = $fppmm->GetBlockInfo($blk);
@@ -289,14 +291,26 @@ sub TextMessage {
 	my $dir = $data->{Direction};
 	my $pps = $data->{PixelsPerSecond};
 
-	my $blkInfo = GetCachedBlock($blk);
+	my $blkInfo = GetCachedBlock($blk, 1);
 
 	if (!defined($blkInfo)) {
 		return;
 	}
 
 	if ($fppmm->IsBlockLocked($blkInfo)) {
-		return;
+		printf( "TextMessage: Warning: Block %s is locked\n", $data->{BlockName});
+		for (my $x = 0; $x < 10; $x++) {
+			$blkInfo = GetCachedBlock($blk, 1);
+			if (!$fppmm->IsBlockLocked($blkInfo)) {
+				last;
+			}
+			usleep(100000);
+		}
+
+		if ($fppmm->IsBlockLocked($blkInfo)) {
+			printf( "TextMessage: ERROR: Block %s is still locked\n", $data->{BlockName});
+			return;
+		}
 	}
 
 	$fppmm->SetBlockLock($blkInfo, 1);

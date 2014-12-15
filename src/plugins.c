@@ -290,6 +290,7 @@ void MediaCallback(void)
 			else
 			{
 				LogExcess(VB_PLUGIN, "Media parent process, resuming work.\n");
+				wait(NULL);
 			}
 		}
 	}
