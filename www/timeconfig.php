@@ -135,7 +135,7 @@ function print_if_match($one, $two, $print)
   <option value = "N" <?php echo print_if_match("N",ReadSettingFromFile("piRTC"),"selected") ?> >None</option>
   <option value = "1" <?php echo print_if_match("1",ReadSettingFromFile("piRTC"),"selected") ?> >RasClock</option>
   <option value = "2" <?php echo print_if_match("2",ReadSettingFromFile("piRTC"),"selected") ?> >DS1305</option>
-  <option value = "3" <?php echo print_if_match("3",ReadSettingFromFile("piRPC"),"selected") ?> >PiFace</option>
+  <option value = "3" <?php echo print_if_match("3",ReadSettingFromFile("piRTC"),"selected") ?> >PiFace</option>
 </select> (Reboot required if changed)
 
 
