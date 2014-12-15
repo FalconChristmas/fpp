@@ -143,7 +143,7 @@ fpp: $(OBJECTS_fpp)
 fppmm: $(OBJECTS_fppmm)
 	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
 
-fppd: $(OBJECTS_fppd) $(DEPS_fppd)
+fppd: $(DEPS_fppd) $(OBJECTS_fppd)
 	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
 
 fppversion.c: fppversion.sh force
@@ -156,7 +156,12 @@ clean:
 	rm -f fppversion.c $(OBJECTS_fpp) $(OBJECTS_fppmm) $(OBJECTS_fppd) fpp fppmm fppd
 	make -C ../external/RF24 clean
 
-../external/RF24/librf24-bcm.so:
+../external/RF24/.git:
+	@cd ../ && \
+		git submodule init && \
+		git submodule update
+
+../external/RF24/librf24-bcm.so: ../external/RF24/.git
 	@echo "Building RF24 library"
 	@make -C ../external/RF24/
 	@ln -s librf24-bcm.so.1.0 ../external/RF24/librf24-bcm.so.1
