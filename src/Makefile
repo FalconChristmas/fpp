@@ -1,10 +1,7 @@
-CC := gcc
+CC := g++
 
-# Uncomment the following line to build with g++ for testing, etc.
-#CC := g++
-
-ifneq ("$(wildcard /usr/bin/ccache)","")
-	CC := ccache $(CC)
+ifneq ($(wildcard /usr/bin/ccache),)
+	CCACHE = ccache
 endif
 
 TARGETS = fpp fppmm fppd
@@ -121,16 +118,16 @@ release: $(TARGETS)
 	-$(INSTALL_PROGRAM) fppd ../bin/fppd
 
 fpp: $(OBJECTS_fpp)
-	$(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
+	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
 
 fppmm: $(OBJECTS_fppmm)
-	$(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
+	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
 
 fppd: $(OBJECTS_fppd)
-	$(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
+	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
 
 %.o: %.c %.h Makefile
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CCACHE) $(CC) $(CFLAGS) -c $< -o $@
 
 clean:
 	rm -f $(OBJECTS_fpp) $(OBJECTS_fppmm) $(OBJECTS_fppd) fpp fppmm fppd
