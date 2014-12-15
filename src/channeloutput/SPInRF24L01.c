@@ -38,8 +38,34 @@
 #ifdef USENRF
 #	include "RF24.h"
 #else
-//TODO: Stub for non-pi builds!
-#	error "TODO: Stub for non-Pi"
+#	include "stdint.h"
+class RF24 {
+public:
+RF24(int,int,int) {}
+~RF24() {}
+void begin() {}
+void setDataRate(int&) {}
+void setRetries(int,int) {}
+void setPayloadSize(int) {}
+void setAutoAck(int) {}
+void setChannel(int&) {}
+void setCRCLength(int) {}
+void openWritingPipe(const uint64_t&) {}
+void openReadingPipe(int,const uint64_t&) {}
+void setPALevel(int) {}
+void flush_tx() {}
+void powerUp() {}
+void printDetails() {}
+void write(char*,int) {}
+};
+#define rf24_datarate_e int
+#define RF24_250KBPS 0
+#define RF24_1MBPS 1
+#define RPI_V2_GPIO_P1_15 2
+#define RPI_V2_GPIO_P1_24 3
+#define BCM2835_SPI_SPEED_8MHZ 4
+#define RF24_CRC_16 5
+#define RF24_PA_MAX 6
 #endif
 
 //TODO: Check max channels
