@@ -257,6 +257,7 @@ if ($settings['HostName'] == "FPP")
 
 $settings['fppMode'] = $fppMode;
 $settings['fppDir'] = $fppDir;
+$settings['pluginDirectory'] = $pluginDirectory;
 $settings['mediaDirectory'] = $mediaDirectory;
 $settings['configDirectory'] = $mediaDirectory . "/config";
 $settings['channelOutputsFile'] = $mediaDirectory . "/channeloutputs";
