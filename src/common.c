@@ -47,6 +47,10 @@
 #include <ctype.h>
 #include <unistd.h>
 
+#include <sstream>
+
+using namespace std;
+
 #include "common.h"
 #include "log.h"
 
@@ -309,3 +313,24 @@ int CheckForHostSpecificFile(const char *hostname, char *filename)
 		}
 	}
 }
+
+/*
+ * Helpers to split a string on the specified character delimiter
+ */
+vector<string> &split(const string &s, char delim, vector<string> &elems)
+{
+    stringstream ss(s);
+    string item;
+    while (getline(ss, item, delim)) {
+        elems.push_back(item);
+    }
+    return elems;
+}
+
+
+vector<string> split(const string &s, char delim) {
+    vector<string> elems;
+    split(s, delim, elems);
+    return elems;
+}
+
