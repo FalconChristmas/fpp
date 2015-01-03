@@ -107,8 +107,9 @@ function list_plugin_entries($menu)
       <li><a>Help</a>
         <ul>
           <li><a href="http://falconchristmas.com/wiki/index.php/Falcon_FPP" target="_blank">Wiki/Help</a></li>
-          <li><a href="about.php">About</a></li>
+          <li><a href="troubleshooting.php">Troubleshooting Commands</a></li>
           <li><a href="http://<?php echo $_SERVER['SERVER_ADDR'] ?>:4200" target="_new">SSH Shell</a></li>
+          <li><a href="about.php">About</a></li>
           <li><a href="credits.php">Credits</a></li>
           <?php list_plugin_entries("help"); ?>
         </ul>
