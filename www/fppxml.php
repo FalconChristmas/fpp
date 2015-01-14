@@ -1755,7 +1755,9 @@ function GetFiles()
 		if (file_exists("/var/log/syslog"))
 			GetFileInfo($root, $doc, "", "/var/log/syslog");
 	}
-	echo $doc->saveHTML();
+	// Thanks: http://stackoverflow.com/questions/7272938/php-xmlreader-problem-with-htmlentities
+	$trans = array_map('utf8_encode', array_flip(array_diff(get_html_translation_table(HTML_ENTITIES), get_html_translation_table(HTML_SPECIALCHARS))));
+	echo strtr($doc->saveHTML(), $trans);
 }
 
 function GetSequenceFiles()
