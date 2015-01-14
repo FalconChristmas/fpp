@@ -385,6 +385,15 @@ function MoveFile()
 	$file = $_GET['file'];
 	check($file, "file", __FUNCTION__);
 
+	// Fix double quote uploading by simply moving the file first, if we find it with URL encoding
+	if ( strstr($file, '"') )
+	{
+		if (!rename($uploadDirectory."/" . preg_replace('/"/', '%22', $file), $uploadDirectory."/" . $file))
+		{
+			error_log("Couldn't remove double quote from filename");
+			exit(1);
+		}	
+	}
 	if(file_exists($uploadDirectory."/" . $file))
 	{
 		if (preg_match("/\.(fseq)$/i", $file))
