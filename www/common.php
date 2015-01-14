@@ -208,7 +208,7 @@ echo "
 	{
 		echo "<option value='$value'";
 
-		if (isset($pluginSettings[$setting]))
+		if (isset($pluginSettings[$setting]) || isset($settings[$setting]))
 			IfSettingEqualPrint($setting, $value, " selected", $pluginName);
 		else if ($value == $defaultValue)
 			echo " selected";

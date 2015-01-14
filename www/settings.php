@@ -142,7 +142,7 @@ function ToggleLCDNow()
     </tr>
     <tr>
       <td>Audio Output Device:</td>
-      <td><? PrintSettingSelect("Audio Output Device", "AudioOutput", 1, 0, "ALSA", $AlsaCards, "", "SetAudio"); ?></td>
+      <td><? PrintSettingSelect("Audio Output Device", "AudioOutput", 1, 0, "0", $AlsaCards, "", "SetAudio"); ?></td>
     </tr>
     <tr>
       <td>Log Level:</td>
