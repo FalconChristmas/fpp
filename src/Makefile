@@ -25,8 +25,10 @@ LIBS_fppmm = \
 	$(NULL)
 
 OBJECTS_fppd = \
+	channeloutput/ChannelOutputBase.o \
 	channeloutput/channeloutput.o \
 	channeloutput/channeloutputthread.o \
+	channeloutput/DebugOutput.o \
 	channeloutput/E131.o \
 	channeloutput/FPD.o \
 	channeloutput/GPIO.o \
@@ -148,6 +150,9 @@ fppd: $(DEPS_fppd) $(OBJECTS_fppd)
 
 fppversion.c: fppversion.sh force
 	sh fppversion.sh $(PWD)
+
+%.o: %.cpp %.h Makefile
+	$(CCACHE) $(CC) $(CFLAGS) -c $< -o $@
 
 %.o: %.c %.h Makefile
 	$(CCACHE) $(CC) $(CFLAGS) -c $< -o $@

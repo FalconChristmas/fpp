@@ -1,5 +1,5 @@
 /*
- *   Pixelnet USB handler for Falcon Player (FPP)
+ *   Debugging Channel Output driver for Falcon Player (FPP)
  *
  *   Copyright (C) 2013 the Falcon Player Developers
  *      Initial development by:
@@ -23,39 +23,38 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _USBPIXELNET_H
-#define _USBPIXELNET_H
-
-#include <string>
+#ifndef _DEBUGOUTPUT_H
+#define _DEBUGOUTPUT_H
 
 #include "ChannelOutputBase.h"
 
-class USBPixelnetOutput : public ChannelOutputBase {
-  public:
-	USBPixelnetOutput(unsigned int startChannel, unsigned int channelCount);
-	~USBPixelnetOutput();
+/*
+ * This DebugOutput Channel Output driver is provided for debugging
+ * purposes and as a template which can be used when creating new
+ * Channel Output drivers for FPP.  It reimpliments the minimal
+ * methods necessary from the ChannelOutputBase class which is is
+ * derived from.
+ */
 
+class DebugOutput : public ChannelOutputBase {
+  public:
+	DebugOutput(unsigned int startChannel, unsigned int channelCount);
+	~DebugOutput();
+
+	// Initialize the derived class.  This method must also call
+	// the base class Init() method.
 	int Init(char *configStr);
+
+	// Close the derived class.  This method must also call the
+	// base class Close() method.
 	int Close(void);
 
+	// Main routine to send channel data out
 	int RawSendData(unsigned char *channelData);
 
+	// Dump the config variables for debugging.  This method must
+	// also call the base class DumpConfig() method.
 	void DumpConfig(void);
-
-  protected:
-	enum DongleType {
-		PIXELNET_DVC_UNKNOWN,
-		PIXELNET_DVC_LYNX,
-		PIXELNET_DVC_OPEN
-	};
-
-	string         m_deviceName;
-	unsigned char  m_rawData[4104];  // Sized to a multiple of 8 bytes
-	int            m_outputPacketSize;  // Header size + 4096 data bytes
-	unsigned char *m_outputData;
-	unsigned char *m_pixelnetData;
-	int            m_fd;
-	DongleType     m_dongleType;
 };
 
-#endif /* _USBPIXELNET_H */
+#endif

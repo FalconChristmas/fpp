@@ -55,7 +55,7 @@ speed_t SerialGetBaudRate(int baud)
  *
  * Example: SerialOpen("/dev/ttyUSB0", 115200, "N81");
  */
-int SerialOpen(char *device, int baud, char *mode)
+int SerialOpen(const char *device, int baud, char *mode)
 {
 	int fd = 0;
 	struct termios tty;

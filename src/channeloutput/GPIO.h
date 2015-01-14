@@ -26,9 +26,27 @@
 #ifndef _GPIO_H
 #define _GPIO_H
 
-#include "channeloutput.h"
+#include "ChannelOutputBase.h"
 
 /* Expose our interface */
-extern FPPChannelOutput GPIOOutput;
+//extern FPPChannelOutput GPIOOutput;
+
+
+class GPIOOutput : public ChannelOutputBase {
+  public:
+	GPIOOutput(unsigned int startChannel, unsigned int channelCount);
+	~GPIOOutput();
+
+	int Init(char *configStr);
+	int Close(void);
+
+	int RawSendData(unsigned char *channelData);
+
+	void DumpConfig(void);
+
+  protected:
+	int m_GPIOPin;
+
+};
 
 #endif
