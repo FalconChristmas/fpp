@@ -1,9 +1,5 @@
 CC := g++
 
-#ifneq ($(wildcard /usr/bin/gcc-4.7),)
-#	CC := g++-4.7
-#endif
-
 ifneq ($(wildcard /usr/bin/ccache),)
 	CCACHE = ccache
 endif

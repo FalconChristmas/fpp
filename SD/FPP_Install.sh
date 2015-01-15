@@ -112,15 +112,11 @@ case "${OSVER}" in
 		echo "FPP - Updating package list"
 		apt-get update
 
-		if [ -f /usr/bin/gcc-4.6 ]
-		then
-			echo "FPP - Removing older gcc/g++"
-			apt-get -y remove 'g++-4.6' gcc-4.6
-		fi
-
 		echo "FPP - Installing required packages"
 		apt-get -y install alsa-base alsa-utils apache2 apache2.2-bin apache2.2-common apache2-mpm-prefork apache2-utils arping avahi-daemon avahi-discover avahi-utils bc build-essential bzip2 ca-certificates ccache curl ethtool fbi file flite 'g++-4.7' gcc-4.7 gdb git i2c-tools ifplugd imagemagick less libapache2-mod-php5 libconvert-binary-c-perl libjson-perl libnet-bonjour-perl libtagc0-dev locales mp3info mpg123 mplayer perlmagick php5 php5-cli php5-common php-apc python-daemon python-smbus sudo sysstat vim vim-common vorbis-tools
 
+		# gcc/g++ v4.6 are pulled in as a dependency for something above so
+		# switch the system to use the 4.7 version
 		if [ -h /usr/bin/gcc -a -f /usr/bin/gcc-4.7 ]
 		then
 			rm /usr/bin/gcc
