@@ -18,7 +18,7 @@
 #
 #############################################################################
 SCRIPTVER="0.1"
-FPPBRANCH="master"
+FPPBRANCH="BBB"
 FPPIMAGEVER="2.0"
 FPPPLATFORM="UNKNOWN"
 FPPDIR="/opt/fpp"
