@@ -111,8 +111,31 @@ case "${OSVER}" in
 	debian_7)
 		echo "FPP - Updating package list"
 		apt-get update
+
+		if [ -f /usr/bin/gcc-4.6 ]
+		then
+			echo "FPP - Removing older gcc/g++"
+			apt-get -y remove 'g++-4.6' gcc-4.6
+		fi
+
 		echo "FPP - Installing required packages"
 		apt-get -y install alsa-base alsa-utils apache2 apache2.2-bin apache2.2-common apache2-mpm-prefork apache2-utils arping avahi-daemon avahi-discover avahi-utils bc build-essential bzip2 ca-certificates ccache curl ethtool fbi file flite 'g++-4.7' gcc-4.7 gdb git i2c-tools ifplugd imagemagick less libapache2-mod-php5 libconvert-binary-c-perl libjson-perl libnet-bonjour-perl libtagc0-dev locales mp3info mpg123 mplayer perlmagick php5 php5-cli php5-common php-apc python-daemon python-smbus sudo sysstat vim vim-common vorbis-tools
+
+		if [ -h /usr/bin/gcc -a -f /usr/bin/gcc-4.7 ]
+		then
+			rm /usr/bin/gcc
+			ln -s /usr/bin/gcc-4.7 /usr/bin/gcc
+		fi
+
+		if [ -h /usr/bin/g++ -a -f /usr/bin/g++-4.7 ]
+		then
+			rm /usr/bin/g++
+			ln -s /usr/bin/g++-4.7 /usr/bin/g++
+		fi
+
+		echo "FPP - Disabling stock 'debian' user, use the 'fpp' user instead"
+		sed -i -e "s/^debian:.*/debian:*:16372:0:99999:7:::/" /etc/shadow
+
 		;;
 	ubuntu_14.04)
 		echo "FPP - Updating package list"
@@ -218,6 +241,18 @@ cp /opt/fpp/etc/init.d/fppinit /etc/init.d/
 update-rc.d fppinit defaults
 cp /opt/fpp/etc/init.d/fppstart /etc/init.d/
 update-rc.d fppstart defaults
+
+echo "FPP - Compiling binaries"
+cd /opt/fpp/src/
+make clean ; make
+
+echo "====================================================="
+echo "FPP Install Complete, please reboot the system using:"
+echo ""
+echo "sudo shutdown -r now"
+echo ""
+echo "After rebooting, you can login as the 'fpp' user with"
+echo "password 'falcon'."
 
 #######################################
 # FPP_Install.sh TODO List
