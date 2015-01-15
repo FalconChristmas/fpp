@@ -256,6 +256,10 @@ echo "password 'falcon'."
 
 #######################################
 # FPP_Install.sh TODO List
+# Bugs
+# - some files owned by root under /home/fpp somehow
+#   - bytesReceived, schedule, settings, universes, config/Falcon.FPDV1
+#   - appears to be because media is not FAT mounted as pi/pi  fpp/fpp
 # Raspberry Pi
 # - Install wiringPi
 # - Handle mounting USB flash drive by adding to /etc/fstab
