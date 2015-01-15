@@ -1,5 +1,9 @@
 CC := g++
 
+#ifneq ($(wildcard /usr/bin/gcc-4.7),)
+#	CC := g++-4.7
+#endif
+
 ifneq ($(wildcard /usr/bin/ccache),)
 	CCACHE = ccache
 endif
@@ -78,7 +82,7 @@ ARCH := $(shell cat /etc/fpp/platform 2> /dev/null)
 ifeq '$(ARCH)' ''
 	ARCH = "UNKNOWN"
 endif
-$(shell echo "Building FPP for '$(ARCH)' platform" 1>&2)
+$(shell echo "Building FPP on '$(ARCH)' platform" 1>&2)
 
 # Common CFLAGS
 CFLAGS += \

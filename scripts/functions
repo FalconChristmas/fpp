@@ -63,7 +63,7 @@ netcalc(){
 #############################################################################
 # Create our version of /etc/network/interfaces and wpa_supplicant.conf files
 SetupFPPNetworkConfig () {
-	if [ ! -f "/home/pi/media/config/interface.eth0" -a ! -f "/home/pi/media/config/interface.wlan0" ]
+	if [ ! -f "${FPPHOME}/media/config/interface.eth0" -a ! -f "${FPPHOME}/media/config/interface.wlan0" ]
 	then
 		echo "FPP - Using default network config"
 		return
@@ -82,9 +82,9 @@ SetupFPPNetworkConfig () {
 	EOF
 
 	PROTO="dhcp"
-	if [ -f "/home/pi/media/config/interface.eth0" ]
+	if [ -f "${FPPHOME}/media/config/interface.eth0" ]
 	then
-		. /home/pi/media/config/interface.eth0
+		. ${FPPHOME}/media/config/interface.eth0
 	fi
 
 	kill -9 $(ps auxw | grep ifplugd | grep -v grep | grep eth0 | awk '{print $2}') > /dev/null 2>&1
@@ -119,11 +119,11 @@ SetupFPPNetworkConfig () {
 
 	echo >> ${TMPFILE}
 
-	if [ -f "/home/pi/media/config/interface.wlan0" ]
+	if [ -f "${FPPHOME}/media/config/interface.wlan0" ]
 	then
 		UPWLAN0="yes"
 
-		. /home/pi/media/config/interface.wlan0
+		. ${FPPHOME}/media/config/interface.wlan0
 
 		kill -9 $(ps auxw | grep ifplugd | grep -v grep | grep wlan0 | awk '{print $2}') > /dev/null 2>&1
 
@@ -396,9 +396,9 @@ compileBinaries() {
 #############################################################################
 # Helper script for running the User hook script with a specified hook
 runUserHookScript() {
-	if [ -f "/home/pi/media/scripts/UserCallbackHook.sh" ]
+	if [ -f "${FPPHOME}/media/scripts/UserCallbackHook.sh" ]
 	then
-		/bin/bash /home/pi/media/scripts/UserCallbackHook.sh $1
+		/bin/bash ${FPPHOME}/media/scripts/UserCallbackHook.sh $1
 	fi
 }
 

@@ -21,7 +21,7 @@ if (!preg_match("/^$git_branch(-.*)?$/", $fpp_head_version))
 function list_plugin_entries($menu)
 {
 	global $pluginDirectory;
-	if ( $menu )
+	if ( $menu && file_exists($pluginDirectory))
 	{
 		$handle = opendir($pluginDirectory);
 		if ( $handle )
@@ -41,18 +41,31 @@ function list_plugin_entries($menu)
 <?
 	if (file_exists("/etc/fpp/rfs_version"))
 	{
-		$mounts = file("/proc/mounts");
 		$mounted = 0;
-		foreach ($mounts as $mount)
+		$needToMount = 0;
+		$mountPoints = file("/etc/fstab");
+		foreach ($mountPoints as $mountPoint)
 		{
-			if (preg_match("/\/home\/pi\/media/", $mount))
+			if (preg_match("/^[^#].*\/home\/[a-z]*\/media/", $mountPoint))
 			{
-				$mounted = 1;
+				$needToMount = 1;
+				$mounts = file("/proc/mounts");
+				$mounted = 0;
+				foreach ($mounts as $mount)
+				{
+					if (preg_match("/\/home\/[a-z]*\/media/", $mount))
+					{
+						$mounted = 1;
+						break;
+					}
+				}
+
 				break;
 			}
 		}
 
-		if (!$mounted)
+
+		if ($needToMount && !$mounted)
 		{
 ?>
 	<br><b><font color='#ff0000'>WARNING: /home/pi/media is not mounted, is a USB flash drive inserted?</font></b>

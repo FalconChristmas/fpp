@@ -78,23 +78,46 @@ void initSettings(void)
 		settings.fppDirectory = strdup(tmp);
 	}
 
-	settings.mediaDirectory = strdup("/home/pi/media");
-	settings.musicDirectory = strdup("/home/pi/media/music");
-	settings.sequenceDirectory = strdup("/home/pi/media/sequences");
-	settings.playlistDirectory = strdup("/home/pi/media/playlists");
-	settings.eventDirectory = strdup("/home/pi/media/events");
-	settings.videoDirectory = strdup("/home/pi/media/videos");
-	settings.effectDirectory = strdup("/home/pi/media/effects");
-	settings.scriptDirectory = strdup("/home/pi/media/scripts");
-	settings.pluginDirectory = strdup("/home/pi/media/plugins");
-	settings.universeFile = strdup("/home/pi/media/universes");
-	settings.pixelnetFile = strdup("/home/pi/media/config/Falcon.FPDV1");
-	//settings.pixelnetFile = strdup("/home/pi/media/pixelnetDMX");
-	settings.scheduleFile = strdup("/home/pi/media/schedule");
-	settings.logFile = strdup("/home/pi/media/logs/fppd.log");
-	settings.silenceMusic = strdup("/home/pi/media/silence.ogg");
-	settings.bytesFile = strdup("/home/pi/media/bytesReceived");
-	settings.settingsFile = strdup("/home/pi/media/settings");
+	char tmpDir[64];
+	char mediaDir[64];
+	if (DirectoryExists("/home/fpp"))
+		strcpy(mediaDir, "/home/fpp");
+	else
+		strcpy(mediaDir, "/home/pi");
+
+	strcat(mediaDir, "/media");
+	settings.mediaDirectory = strdup(mediaDir);
+
+	strcpy(tmpDir, mediaDir);
+	settings.musicDirectory = strdup(strcat(tmpDir, "/music"));
+	strcpy(tmpDir, mediaDir);
+	settings.sequenceDirectory = strdup(strcat(tmpDir, "/sequences"));
+	strcpy(tmpDir, mediaDir);
+	settings.playlistDirectory = strdup(strcat(tmpDir, "/playlists"));
+	strcpy(tmpDir, mediaDir);
+	settings.eventDirectory = strdup(strcat(tmpDir, "/events"));
+	strcpy(tmpDir, mediaDir);
+	settings.videoDirectory = strdup(strcat(tmpDir, "/videos"));
+	strcpy(tmpDir, mediaDir);
+	settings.effectDirectory = strdup(strcat(tmpDir, "/effects"));
+	strcpy(tmpDir, mediaDir);
+	settings.scriptDirectory = strdup(strcat(tmpDir, "/scripts"));
+	strcpy(tmpDir, mediaDir);
+	settings.pluginDirectory = strdup(strcat(tmpDir, "/plugins"));
+	strcpy(tmpDir, mediaDir);
+	settings.universeFile = strdup(strcat(tmpDir, "/universes"));
+	strcpy(tmpDir, mediaDir);
+	settings.pixelnetFile = strdup(strcat(tmpDir, "/config/Falcon.FPDV1"));
+	strcpy(tmpDir, mediaDir);
+	settings.scheduleFile = strdup(strcat(tmpDir, "/schedule"));
+	strcpy(tmpDir, mediaDir);
+	settings.logFile = strdup(strcat(tmpDir, "/logs/fppd.log"));
+	strcpy(tmpDir, mediaDir);
+	settings.silenceMusic = strdup(strcat(tmpDir, "/silence.ogg"));
+	strcpy(tmpDir, mediaDir);
+	settings.bytesFile = strdup(strcat(tmpDir, "/bytesReceived"));
+	strcpy(tmpDir, mediaDir);
+	settings.settingsFile = strdup(strcat(tmpDir, "/settings"));
 	settings.daemonize = 1;
 	settings.E131interface = strdup("eth0");
 	settings.controlMajor = 0;

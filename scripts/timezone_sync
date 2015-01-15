@@ -7,13 +7,14 @@ BINDIR=$(cd $(dirname $0) && pwd)
 if [ ! -d ${LOGDIR} ]
 then
 	mkdir -p ${LOGDIR}
-	chown pi.pi ${LOGDIR}
+	chown ${FPPUSER}.${FPPUSER} ${LOGDIR}
 	chmod 775 ${LOGDIR}
 fi
 
 if [ ! -f "${MEDIADIR}/timezone" ]
 then
 	cp /etc/timezone ${MEDIADIR}/timezone
+	chown ${FPPUSER}.${FPPUSER} ${MEDIADIR}/timezone
 	exit 0
 fi
 

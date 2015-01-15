@@ -1639,6 +1639,13 @@ function GetPlaylists()
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('Playlists');
 	$root = $doc->appendChild($root);
+
+	if (!file_exists($playlistDirectory))
+	{
+		echo $doc->saveHTML();
+		return;
+	}
+
 	foreach(scandir($playlistDirectory) as $pFile)
 	{
 		if ($pFile != "." && $pFile != "..")

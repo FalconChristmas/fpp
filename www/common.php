@@ -35,6 +35,9 @@ function ReadSettingFromFile($settingName, $plugin = "")
 	global $settings;
 	$filename = $settingsFile;
 
+	if (!file_exists($filename))
+		return false;
+
 	if ($plugin != "") {
 		$filename = $settings["configDirectory"] . "/plugin." . $plugin;
 	}

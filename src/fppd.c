@@ -27,6 +27,7 @@
 #include "channeloutput.h"
 #include "channeloutputthread.h"
 #include "command.h"
+#include "common.h"
 #include "controlrecv.h"
 #include "controlsend.h"
 #include "e131bridge.h"
@@ -77,7 +78,10 @@ int main(int argc, char *argv[])
 	initSettings();
 	initMediaDetails();
 
-	loadSettings("/home/pi/media/settings");
+	if (DirectoryExists("/home/fpp"))
+		loadSettings("/home/fpp/media/settings");
+	else
+		loadSettings("/home/pi/media/settings");
 
 	wiringPiSetupGpio(); // would prefer wiringPiSetupSys();
 

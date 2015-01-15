@@ -14,10 +14,10 @@ logOutput
 
 if [ -x "${PLUGINDIR}/$1/fpp_uninstall.sh" ]
 then
-	if [ "x${FPPDIR}" = "x/opt/fpp" ] && [ "x${SETTINGSFILE}" = "x/home/pi/media/settings" ]
+	if [ "x${FPPDIR}" = "x/opt/fpp" ] && [ "x${SETTINGSFILE}" = "x${FPPHOME}/media/settings" ]
 	then
 		$SUDO ${PLUGINDIR}/$1/fpp_uninstall.sh
-	elif [ "x${FPPDIR}" = "x/home/pi" ]
+	elif [ "x${FPPDIR}" = "x${FPPHOME}/fpp" ]
 	then
 		sudo -u pi ${PLUGINDIR}/$1/fpp_uninstall.sh
 	else
@@ -26,10 +26,10 @@ then
 fi
 
 echo "Uninstalling plugin $1"
-if [ "x${FPPDIR}" = "x/opt/fpp" ] && [ "x${SETTINGSFILE}" = "x/home/pi/media/settings" ]
+if [ "x${FPPDIR}" = "x/opt/fpp" ] && [ "x${SETTINGSFILE}" = "x${FPPHOME}/media/settings" ]
 then
 	cd ${PLUGINDIR} && [ -d $1 ] && $SUDO rm -rf $1
-elif [ "x${FPPDIR}" = "x/home/pi" ]
+elif [ "x${FPPDIR}" = "x${FPPHOME}/fpp" ]
 then
 	cd ${PLUGINDIR} && [ -d $1 ] && sudo -u pi rm -rf $1
 else

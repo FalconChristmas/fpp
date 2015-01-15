@@ -56,7 +56,7 @@ $emailenable       = "0";
 $emailguser		   = "";
 $emailgpass        = "";
 $emailfromtext     = "";
-$mailtoemail       = "";
+$emailtoemail      = "";
 
 if ($debug)
 {
@@ -87,13 +87,6 @@ if ($debug)
 	error_log("emailtoemail: $emailtoemail");
 }
 
-$fd = @fopen($settingsFile, "r");
-if ( ! $fd )
-{
-  error_log("Couldn't open config file " . $settingsFile);
-  return(1);
-}
-
 $settings['HostName'] = 'FPP';
 $settings['Title'] = "Falcon Player - FPP";
 
@@ -122,6 +115,11 @@ else if ($settings['Platform'] == "PogoPlug")
 	$settings['Logo'] = "pogoplug_logo.png";
 	$settings['LogoLink'] = "";
 }
+else if ($settings['Platform'] == "ODROID")
+{
+	$settings['Logo'] = "odroid_logo.gif";
+	$settings['LogoLink'] = "";
+}
 else if ($settings['Platform'] == "Linux")
 {
 	$settings['Logo'] = "tux_logo.png";
@@ -138,118 +136,122 @@ else
 	$settings['LogoLink'] = "";
 }
 
-do
+$fd = @fopen($settingsFile, "r");
+if ( $fd )
 {
-	global $settings;
-	global $fppMode, $volume, $settingsFile;
-	global $mediaDirectory, $musicDirectory, $sequenceDirectory, $playlistDirectory;
-	global $eventDirectory, $videoDirectory, $scriptDirectory, $logDirectory, $exim4Directory;
-	global $pluginDirectory, $emailenable, $emailguser, $emailgpass, $emailfromtext, $emailtoemail;
-	global $universeFile, $pixelnetFile, $scheduleFile, $bytesFile, $remapFile;
-
-	// Parse the file, assuming it exists
-	$data = fgets($fd);
-	$split = explode("=", $data);
-	if ( count($split) < 2 )
+	do
 	{
-		if ( $debug )
-			error_log("not long enough");
-		continue;
-	}
+		global $settings;
+		global $fppMode, $volume, $settingsFile;
+		global $mediaDirectory, $musicDirectory, $sequenceDirectory, $playlistDirectory;
+		global $eventDirectory, $videoDirectory, $scriptDirectory, $logDirectory, $exim4Directory;
+		global $pluginDirectory, $emailenable, $emailguser, $emailgpass, $emailfromtext, $emailtoemail;
+		global $universeFile, $pixelnetFile, $scheduleFile, $bytesFile, $remapFile;
 
-	$key   = trim($split[0]);
-	$value = trim($split[1]);
-
-	if ($key != "") {
-		// If we have a Directory setting that doesn't
-		// end in a slash, then add one
-		if ((preg_match("/Directory$/", $key)) &&
-			(!preg_match("/\/$/", $value))) {
-			$value .= "/";
+		// Parse the file, assuming it exists
+		$data = fgets($fd);
+		$split = explode("=", $data);
+		if ( count($split) < 2 )
+		{
+			if ( $debug )
+				error_log("not long enough");
+			continue;
 		}
 
-		$settings[$key] = $value;
-	}
+		$key   = trim($split[0]);
+		$value = trim($split[1]);
 
-	switch ($key)
-	{
-		case "fppMode":
-			$fppMode = trim($split[1]);
-			break;
-		case "volume":
-			$volume = trim($split[1]);
-			break;
-		case "settingsFile":
-			$settingsFile = trim($split[1]);
-			break;
-		case "mediaDirectory":
-			$mediaDirectory = trim($split[1]) . "/";
-			break;
-		case "musicDirectory":
-			$musicDirectory = trim($split[1]) . "/";
-			break;
-		case "eventDirectory":
-			$eventDirectory = trim($split[1]) . "/";
-			break;
-		case "videoDirectory":
-			$videoDirectory = trim($split[1]) . "/";
-			break;
-		case "sequenceDirectory":
-			$sequenceDirectory = trim($split[1]) . "/";
-			break;
-		case "playlistDirectory":
-			$playlistDirectory = trim($split[1]) . "/";
-			break;
-		case "effectDirectory":
-			$effectDirectory = trim($split[1]) . "/";
-			break;
-		case "logDirectory":
-			$logDirectory = trim($split[1]) . "/";
-			break;
-		case "uploadDirectory":
-			$uploadDirectory = trim($split[1]) . "/";
-			break;
-		case "pluginDirectory":
-			$pluginDirectory = trim($split[1]) . "/";
-			break;
-		case "scriptDirectory":
-			$scriptDirectory = trim($split[1]) . "/";
-			break;
-		case "universeFile":
-			$universeFile = trim($split[1]);
-			break;
-		case "pixelnetFile":
-			$pixelnetFile = trim($split[1]);
-			break;
-		case "scheduleFile":
-			$scheduleFile = trim($split[1]);
-			break;
-		case "bytesFile":
-			$bytesFile = trim($split[1]);
-			break;
-		case "remapFile":
-			$remapFile = trim($split[1]);
-			break;
-		case "exim4Directory":
-			$exim4Directory = trim($split[1]) . "/";
-			break;
-		case "emailenable":
-			$emailenable = trim($split[1]);
-			break;
-		case "emailguser":
-			$emailguser = trim($split[1]);
-			break;
-		case "emailfromtext":
-			$emailfromtext = trim($split[1]);
-			break;
-		case "emailtoemail":
-			$emailtoemail = trim($split[1]);
-			break;
+		if ($key != "") {
+			// If we have a Directory setting that doesn't
+			// end in a slash, then add one
+			if ((preg_match("/Directory$/", $key)) &&
+				(!preg_match("/\/$/", $value))) {
+				$value .= "/";
+			}
+
+			$settings[$key] = $value;
+		}
+
+		switch ($key)
+		{
+			case "fppMode":
+				$fppMode = trim($split[1]);
+				break;
+			case "volume":
+				$volume = trim($split[1]);
+				break;
+			case "settingsFile":
+				$settingsFile = trim($split[1]);
+				break;
+			case "mediaDirectory":
+				$mediaDirectory = trim($split[1]) . "/";
+				break;
+			case "musicDirectory":
+				$musicDirectory = trim($split[1]) . "/";
+				break;
+			case "eventDirectory":
+				$eventDirectory = trim($split[1]) . "/";
+				break;
+			case "videoDirectory":
+				$videoDirectory = trim($split[1]) . "/";
+				break;
+			case "sequenceDirectory":
+				$sequenceDirectory = trim($split[1]) . "/";
+				break;
+			case "playlistDirectory":
+				$playlistDirectory = trim($split[1]) . "/";
+				break;
+			case "effectDirectory":
+				$effectDirectory = trim($split[1]) . "/";
+				break;
+			case "logDirectory":
+				$logDirectory = trim($split[1]) . "/";
+				break;
+			case "uploadDirectory":
+				$uploadDirectory = trim($split[1]) . "/";
+				break;
+			case "pluginDirectory":
+				$pluginDirectory = trim($split[1]) . "/";
+				break;
+			case "scriptDirectory":
+				$scriptDirectory = trim($split[1]) . "/";
+				break;
+			case "universeFile":
+				$universeFile = trim($split[1]);
+				break;
+			case "pixelnetFile":
+				$pixelnetFile = trim($split[1]);
+				break;
+			case "scheduleFile":
+				$scheduleFile = trim($split[1]);
+				break;
+			case "bytesFile":
+				$bytesFile = trim($split[1]);
+				break;
+			case "remapFile":
+				$remapFile = trim($split[1]);
+				break;
+			case "exim4Directory":
+				$exim4Directory = trim($split[1]) . "/";
+				break;
+			case "emailenable":
+				$emailenable = trim($split[1]);
+				break;
+			case "emailguser":
+				$emailguser = trim($split[1]);
+				break;
+			case "emailfromtext":
+				$emailfromtext = trim($split[1]);
+				break;
+			case "emailtoemail":
+				$emailtoemail = trim($split[1]);
+				break;
+		}
 	}
+	while ( $data != NULL );
+
+	fclose($fd);
 }
-while ( $data != NULL );
-
-fclose($fd);
 
 $pageTitle = "FPP - " . $settings['HostName'];
 if ($settings['HostName'] == "FPP")
