@@ -245,13 +245,14 @@ echo "FPP - Compiling binaries"
 cd /opt/fpp/src/
 make clean ; make
 
-echo "====================================================="
-echo "FPP Install Complete, please reboot the system using:"
+echo "========================================================="
+echo "FPP Install Complete, you can reboot the system by su-ing"
+echo "to the 'fpp' user (password 'falcon') and running the"
+echo "shutdown command."
 echo ""
+echo "su - fpp"
 echo "sudo shutdown -r now"
 echo ""
-echo "After rebooting, you can login as the 'fpp' user with"
-echo "password 'falcon'."
 
 #######################################
 # FPP_Install.sh TODO List
