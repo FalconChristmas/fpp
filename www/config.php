@@ -2,8 +2,13 @@
 
 $SUDO = "sudo";
 $debug = false;
-$settingsFile = "/home/pi/media/settings";
 $fppRfsVersion = "Unknown";
+$fppHome = "/home/pi";
+
+if (file_exists("/home/fpp"))
+	$fppHome = "/home/fpp";
+
+$settingsFile = $fppHome . "/media/settings";
 
 if (file_exists("/etc/fpp/rfs_version"))
 	$fppRfsVersion = trim(file_get_contents("/etc/fpp/rfs_version"));
@@ -33,8 +38,8 @@ function GetSettingValue($setting) {
 // Set some defaults
 $fppMode = "player";
 $fppDir = dirname(dirname(__FILE__));
-$pluginDirectory   = "/home/pi/media/plugins";
-$mediaDirectory    = "/home/pi/media";
+$mediaDirectory    = $fppHome . "/media";
+$pluginDirectory   = $mediaDirectory . "/plugins";
 $docsDirectory     = $fppDir . "/docs";
 $musicDirectory    = $mediaDirectory . "/music";
 $sequenceDirectory = $mediaDirectory . "/sequences";

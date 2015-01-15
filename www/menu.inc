@@ -68,7 +68,7 @@ function list_plugin_entries($menu)
 		if ($needToMount && !$mounted)
 		{
 ?>
-	<br><b><font color='#ff0000'>WARNING: /home/pi/media is not mounted, is a USB flash drive inserted?</font></b>
+	<br><b><font color='#ff0000'>WARNING: <?= $fppHome; ?>/media is not mounted, is a USB flash drive inserted?</font></b>
 <?
 		}
 	}

@@ -84,10 +84,11 @@ function printFalconConfig()
 {
 	global $hwModel;
 	global $hwFWVer;
+	global $fppHome;
 
 	if ($hwModel == "F16V2")
 	{
-		$f = fopen('/home/pi/media/config/Falcon.F16V2', 'rb');
+		$f = fopen($fppHome . '/media/config/Falcon.F16V2', 'rb');
 		$s = fread($f, 1024);
 		fclose($f);
 
