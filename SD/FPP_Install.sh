@@ -164,8 +164,8 @@ git checkout ${FPPBRANCH}
 #######################################
 # Add the fpp user and group memberships
 echo "FPP - Adding fpp user"
-addgroup fpp
-adduser --home /home/fpp --shell /bin/bash --ingroup fpp --gecos "Falcon Player" --disabled-password fpp
+addgroup --gid 500 fpp
+adduser --uid 500 --home /home/fpp --shell /bin/bash --ingroup fpp --gecos "Falcon Player" --disabled-password fpp
 adduser fpp adm
 adduser fpp sudo
 sed -i -e 's/^fpp:\*:/fpp:\$6\$rA953Jvd\$oOoLypAK8pAnRYgQQhcwl0jQs8y0zdx1Mh77f7EgKPFNk\/jGPlOiNQOtE.ZQXTK79Gfg.8e3VwtcCuwz2BOTR.:/' /etc/shadow
@@ -209,6 +209,9 @@ echo "#####################################" >> /etc/fstab
 echo "tmpfs         /var/log    tmpfs   nodev,nosuid,size=10M 0 0" >> /etc/fstab
 echo "tmpfs         /var/tmp    tmpfs   nodev,nosuid,size=10M 0 0" >> /etc/fstab
 echo "#####################################" >> /etc/fstab
+echo "/dev/sda1     /home/fpp/media  auto    defaults,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500  0  0" >> /etc/fstab
+echo "#####################################" >> /etc/fstab
+
 
 #######################################
 # Configure Apache run user/group
