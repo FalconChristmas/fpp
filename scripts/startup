@@ -27,11 +27,13 @@ teeOutput
 
 echo "FPP - Setting up for the Falcon Player on the ${PLATFORM} platform"
 
+SITEFILE="/etc/apache2/sites-enabled/000-default"
+
 # If the flash drive is not mounted yet, then fix Apache so it can at least start up
 if [ ! -d "${FPPHOME}/media/logs" ]
 then
 	echo "FPP - Reconfiguring Apache to disable logging since flash is not mounted"
-	sed -i -e "s/ErrorLog/#ErrorLog/" /etc/apache2/sites-available/default
+	sed -i -e "s/ErrorLog/#ErrorLog/" ${SITEFILE}
 	/etc/init.d/apache2 restart
 fi
 
@@ -162,7 +164,7 @@ do
 done
 
 echo "FPP - Copying Apache config into place and restarting Apache"
-sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/apache2.site > /etc/apache2/sites-available/default
+sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/apache2.site > ${SITEFILE}
 /etc/init.d/apache2 restart
 
 echo "FPP - Starting FPP boot script"

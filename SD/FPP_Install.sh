@@ -231,13 +231,19 @@ echo "#####################################" >> /etc/fstab
 #######################################
 # Configure Apache run user/group
 echo "FPP - Configuring Apache"
+# environment variables
 sed -i -e "s/APACHE_RUN_USER=.*/APACHE_RUN_USER=fpp/" /etc/apache2/envvars
 sed -i -e "s/APACHE_RUN_GROUP=.*/APACHE_RUN_GROUP=fpp/" /etc/apache2/envvars
-sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#/home/pi/#/home/fpp/#g" < ${FPPDIR}/etc/apache2.site > /etc/apache2/sites-enabled/default
-# Disable Logging since there is no logs directory yet
-sed -i "s/ErrorLog/#ErrorLog/" /etc/apache2/sites-enabled/default
+
+# main Apache/PHP config
 cp ${FPPDIR}/etc/apache2.conf /etc/apache2/
 cp ${FPPDIR}/etc/php.ini /etc/php5/apache2/php.ini
+
+# site config file
+SITEFILE="/etc/apache2/sites-enabled/000-default"
+sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#/home/pi/#/home/fpp/#g" < ${FPPDIR}/etc/apache2.site > ${SITEFILE}
+# Disable Logging since there is no logs directory yet
+sed -i "s/ErrorLog/#ErrorLog/" ${SITEFILE}
 
 case "${OSVER}" in
 	debian_7)
@@ -247,7 +253,7 @@ case "${OSVER}" in
 	ubuntu_14.04)
 				sed -i -e "s/^Include conf.d/#Include conf.d/" /etc/apache2/apache2.conf
 				sed -i -e "s/^LockFile/#LockFile/" /etc/apache2/apache2.conf
-				mv /etc/apache2/sites-available/default /etc/apache2/sites-enabled/000-default.conf
+				rm /etc/apache2/sites-enabled/000-default.conf
 				;;
 esac
 
@@ -282,10 +288,9 @@ echo ""
 # - some files owned by root under /home/fpp somehow
 #   - bytesReceived, schedule, settings, universes, config/Falcon.FPDV1
 #   - appears to be because media is not FAT mounted as pi/pi  fpp/fpp
-# Raspberry Pi
+# Raspberry Pi (officially supported FPP v2.0 platform)
 # - Install wiringPi
-# - Handle mounting USB flash drive by adding to /etc/fstab
-# BeagleBone Black
+# BeagleBone Black (officially supported FPP v2.0 platform)
 # - http://elinux.org/Beagleboard:BeagleBoneBlack_Debian#2014-05-14
 # - https://s3.amazonaws.com/debian.beagleboard.org/images/bone-debian-7.5-2014-05-14-2gb.img.xz
 # - Install LEDscape
@@ -296,11 +301,12 @@ echo ""
 #   sudo git clone http://github.com/osresearch/LEDscape.git
 #   cd LEDscape
 #   sudo make
-# ODROID
+# ODROID-C1 (not officially supported in FPP v2.0)
 # - Install (their patched) wiringPi
 # - Handle apache config differences for Ubuntu in /opt/fpp/scripts/startup
-# PogoPlug
+# PogoPlug (not officially supported in FPP v2.0)
 # - Initial OS install test
 # - Set Platform
+# - Any other Debian version differences
 #######################################
 
