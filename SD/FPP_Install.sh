@@ -12,9 +12,9 @@
 # To use this script, download the latest copy from github and run it as
 # root on the system where you want to install FPP:
 #
-# wget -O /tmp/FPP_Install.sh https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
-# chmod 700 /tmp/FPP_Install.sh
-# sudo /tmp/FPP_Install.sh
+# wget -O ./FPP_Install.sh https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
+# chmod 700 ./FPP_Install.sh
+# sudo ./FPP_Install.sh
 #
 #############################################################################
 SCRIPTVER="0.1"
@@ -112,8 +112,14 @@ case "${OSVER}" in
 		echo "FPP - Updating package list"
 		apt-get update
 
+		echo "FPP - Uninstalling unneeded packages to save space"
+		apt-get -y remove xchat xrdp 'xscreensaver*' wvdial tightvncserver sane-utils ppp openbox openbox-themes lxde-common lxde-core lxmenu-data lxpanel lxsession lxterminal 'lightdm*' 
+
 		echo "FPP - Installing required packages"
-		apt-get -y install alsa-base alsa-utils apache2 apache2.2-bin apache2.2-common apache2-mpm-prefork apache2-utils arping avahi-daemon avahi-discover avahi-utils bc build-essential bzip2 ca-certificates ccache curl ethtool fbi file flite 'g++-4.7' gcc-4.7 gdb git i2c-tools ifplugd imagemagick less libapache2-mod-php5 libconvert-binary-c-perl libjson-perl libnet-bonjour-perl libtagc0-dev locales mp3info mpg123 mplayer perlmagick php5 php5-cli php5-common php-apc python-daemon python-smbus sudo sysstat vim vim-common vorbis-tools
+		apt-get -y install alsa-base alsa-utils apache2 apache2.2-bin apache2.2-common apache2-mpm-prefork apache2-utils arping avahi-daemon avahi-discover avahi-utils bc build-essential bzip2 ca-certificates ccache curl device-tree-compiler ethtool fbi file flite 'g++-4.7' gcc-4.7 gdb git i2c-tools ifplugd imagemagick less libapache2-mod-php5 libconvert-binary-c-perl libdbus-glib-1-dev libdevice-serialport-perl libjson-perl libnet-bonjour-perl libtagc0-dev locales mp3info mpg123 mplayer node perlmagick php5 php5-cli php5-common php-apc python-daemon python-smbus sudo sysstat usbmount vim vim-common vorbis-tools
+
+		echo "FPP - Installing non-packaged Perl modules via CPAN"
+		echo "yes" | cpan -fi File::Map Net::WebSocket::Server
 
 		# gcc/g++ v4.6 are pulled in as a dependency for something above so
 		# switch the system to use the 4.7 version
@@ -131,6 +137,19 @@ case "${OSVER}" in
 
 		echo "FPP - Disabling stock 'debian' user, use the 'fpp' user instead"
 		sed -i -e "s/^debian:.*/debian:*:16372:0:99999:7:::/" /etc/shadow
+
+		echo "FPP - Disabling unneeded/unwanted services"
+		systemctl disable bonescript.socket
+		systemctl disable bonescript-autorun.service
+		systemctl disable console-kit-daemon.service
+		systemctl disable cloud9.socket
+
+		echo "FPP - Disabling GUI"
+		update-rc.d -f gdm remove
+		update-rc.d -f gdm3 remove
+		update-rc.d -f lightdm remove
+		update-rc.d -f wdm remove
+		update-rc.d -f xdm remove
 
 		;;
 	ubuntu_14.04)
@@ -214,20 +233,23 @@ echo "#####################################" >> /etc/fstab
 echo "FPP - Configuring Apache"
 sed -i -e "s/APACHE_RUN_USER=.*/APACHE_RUN_USER=fpp/" /etc/apache2/envvars
 sed -i -e "s/APACHE_RUN_GROUP=.*/APACHE_RUN_GROUP=fpp/" /etc/apache2/envvars
-sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#/home/pi/#/home/fpp/#g" < ${FPPDIR}/etc/apache2.site > /etc/apache2/sites-available/default
+sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#/home/pi/#/home/fpp/#g" < ${FPPDIR}/etc/apache2.site > /etc/apache2/sites-enabled/default
 # Disable Logging since there is no logs directory yet
-sed -i "s/ErrorLog/#ErrorLog/" /etc/apache2/sites-available/default
+sed -i "s/ErrorLog/#ErrorLog/" /etc/apache2/sites-enabled/default
 cp ${FPPDIR}/etc/apache2.conf /etc/apache2/
 cp ${FPPDIR}/etc/php.ini /etc/php5/apache2/php.ini
 
-if [ "x${OSVER}" = "xubuntu_14.04" ]
-then
-	sed -i -e "s/^Include conf.d/#Include conf.d/" /etc/apache2/apache2.conf
-	sed -i -e "s/^LockFile/#LockFile/" /etc/apache2/apache2.conf
-	mv /etc/apache2/sites-available/default /etc/apache2/sites-enabled/000-default.conf
-else
-	rm /etc/apache2/conf.d/other-vhosts-access-log
-fi
+case "${OSVER}" in
+	debian_7)
+				rm /etc/apache2/conf.d/other-vhosts-access-log
+				sed -i -e "s/NameVirtualHost.*8080/NameVirtualHost *:80/" -e "s/Listen.*8080/Listen 80/" /etc/apache2/ports.conf
+				;;
+	ubuntu_14.04)
+				sed -i -e "s/^Include conf.d/#Include conf.d/" /etc/apache2/apache2.conf
+				sed -i -e "s/^LockFile/#LockFile/" /etc/apache2/apache2.conf
+				mv /etc/apache2/sites-available/default /etc/apache2/sites-enabled/000-default.conf
+				;;
+esac
 
 update-rc.d apache2 defaults
 /etc/init.d/apache2 stop
@@ -264,7 +286,16 @@ echo ""
 # - Install wiringPi
 # - Handle mounting USB flash drive by adding to /etc/fstab
 # BeagleBone Black
+# - http://elinux.org/Beagleboard:BeagleBoneBlack_Debian#2014-05-14
+# - https://s3.amazonaws.com/debian.beagleboard.org/images/bone-debian-7.5-2014-05-14-2gb.img.xz
 # - Install LEDscape
+#   https://github.com/osresearch/LEDscape/blob/master/Setup.md
+#   /boot/uboot/uEnv.txt
+#     cape_disable=capemgr.disable_partno=BB-BONELT-HDMI,BB-BONELT-HDMIN
+#   cd /opt
+#   sudo git clone http://github.com/osresearch/LEDscape.git
+#   cd LEDscape
+#   sudo make
 # ODROID
 # - Install (their patched) wiringPi
 # - Handle apache config differences for Ubuntu in /opt/fpp/scripts/startup
