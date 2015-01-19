@@ -38,6 +38,7 @@
 #include "settings.h"
 #include "SPIws2801.h"
 #include "LOR.h"
+#include "RGBMatrix.h"
 #include "SPInRF24L01.h"
 #include "USBDMXOpen.h"
 #include "USBDMXPro.h"
@@ -202,6 +203,8 @@ int InitializeChannelOutputs(void) {
 				channelOutputs[i].outputOld = &LOROutput;
 			} else if (!strcmp(type, "Renard")) {
 				channelOutputs[i].outputOld = &USBRenardOutput;
+			} else if (!strcmp(type, "RGBMatrix")) {
+				channelOutputs[i].output = new RGBMatrixOutput(start, count);
 			} else if (!strcmp(type, "SPI-WS2801")) {
 				channelOutputs[i].outputOld = &SPIws2801Output;
 			} else if (!strcmp(type, "SPI-nRF24L01")) {

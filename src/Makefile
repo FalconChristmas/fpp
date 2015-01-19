@@ -34,6 +34,7 @@ OBJECTS_fppd = \
 	channeloutput/GPIO.o \
 	channeloutput/GPIO595.o \
 	channeloutput/LOR.o \
+	channeloutput/RGBMatrix.o \
 	channeloutput/serialutil.o \
 	channeloutput/SPInRF24L01.o \
 	channeloutput/SPIws2801.o \
@@ -103,18 +104,23 @@ ifeq '$(ARCH)' 'Raspberry Pi'
 CFLAGS += \
 	-DUSEWIRINGPI \
 	-DUSENRF \
+	-DUSERGBMATRIX \
 	-I../external/RF24/ \
+	-I../external/rpi-rgb-led-matrix/include/ \
 	$(NULL)
 LIBS_fppd += \
 	-lwiringPi \
 	-lwiringPiDev \
 	-lrf24-bcm \
+	-lrgbmatrix \
 	$(NULL)
 LDFLAGS_fppd += \
 	-L../external/RF24 \
+	-L../external/rpi-rgb-led-matrix/lib \
 	$(NULL)
 DEPS_fppd += \
 	../external/RF24/librf24-bcm.so \
+	../external/rpi-rgb-led-matrix/lib/librgbmatrix.a \
 	$(NULL)
 else
 # do something Linux-y
@@ -160,6 +166,7 @@ fppversion.c: fppversion.sh force
 clean:
 	rm -f fppversion.c $(OBJECTS_fpp) $(OBJECTS_fppmm) $(OBJECTS_fppd) fpp fppmm fppd
 	@if [ -e ../external/RF24/.git ]; then make -C ../external/RF24 clean; fi
+	@if [ -e ../external/rpi-rgb-led-matrix/.git ]; then make -C ../external/rpi-rgb-led-matrix clean; fi
 
 ../external/RF24/.git:
 	@cd ../ && \
@@ -171,3 +178,13 @@ clean:
 	@make -C ../external/RF24/
 	@ln -s librf24-bcm.so.1.0 ../external/RF24/librf24-bcm.so.1
 	@ln -s librf24-bcm.so.1 ../external/RF24/librf24-bcm.so
+
+../external/rpi-rgb-led-matrix/.git:
+	@cd ../ && \
+		git submodule init && \
+		git submodule update
+
+../external/rpi-rgb-led-matrix/lib/librgbmatrix.a: ../external/rpi-rgb-led-matrix/.git
+	@echo "Building rpi-rgb-led-matrix library"
+	@make -C ../external/rpi-rgb-led-matrix/ lib/librgbmatrix.a
+

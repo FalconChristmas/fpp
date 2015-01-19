@@ -184,7 +184,7 @@ function nRFSpeedSelect(speedArray, currentValue) {
 		(found == 0)) {
 		result += "<option value='" + currentValue + "'>" + currentValue + "</option>";
 	}
-	result += "</select>";
+	result += "</select> ";
 
 	return result;
 }
@@ -230,6 +230,73 @@ function NewUSBConfig() {
 	var result = "";
 	result += DeviceSelect(USBDevices, "");
 	return result;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// RGBMatrix Output
+function RGBMatrixLayoutSelect(currentValue) {
+	var result = "";
+	var options = "1x1,2x1,3x1,4x1,1x2,2x2,1x3,1x4".split(",");
+	options = "1x1,2x1,3x1,4x1".split(",");
+
+	result += " Layout (WxH):<select class='layout' onChange='RGBMatrixLayoutChanged(this);'>";
+
+	var i = 0;
+	for (i = 0; i < options.length; i++) {
+		var opt = options[i];
+
+		result += "<option value='" + opt + "'";
+		if (currentValue == opt)
+			result += " selected";
+		result += ">" + opt + "</option>";
+	}
+
+	result += "</select>";
+
+	return result;
+}
+
+function RGBMatrixLayoutChanged(item) {
+	var value = $(item).val();
+
+	var size = value.split("x");
+
+	var panels = parseInt(size[0]) * parseInt(size[1]);
+	var channels = panels * 512 * 3;
+
+	$(item).parent().parent().find("input.count").val(channels);
+}
+
+function NewRGBMatrixConfig() {
+	var result = "";
+	result += RGBMatrixLayoutSelect("");
+	return result;
+}
+
+function RGBMatrixDeviceConfig(config) {
+	var items = config.split(";");
+	var result = "";
+
+	for (var j = 0; j < items.length; j++) {
+		var item = items[j].split("=");
+
+		if (item[0] == "layout") {
+			result += RGBMatrixLayoutSelect(item[1]);
+		}
+	}
+
+	return result;
+}
+
+function GetRGBMatrixOutputConfig(cell) {
+	$cell = $(cell);
+
+	var layout = $cell.find("select.layout").val();
+
+	if (layout == "")
+		return "";
+
+	return "layout=" + layout;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -732,7 +799,7 @@ function PopulateChannelOutputTable(data) {
 
 		var countDisabled = "";
 
-		if ((type == "Triks-C") || (type == 'GPIO'))
+		if ((type == "Triks-C") || (type == 'GPIO') || (type == 'RGBMatrix'))
 			countDisabled = " disabled=''";
 
 		newRow += "></td>" +
@@ -750,6 +817,8 @@ function PopulateChannelOutputTable(data) {
 			newRow += RenardOutputConfig(output[4]);
 		} else if (type == "LOR") {
 			newRow += LOROutputConfig(output[4]);
+		} else if (type == "RGBMatrix") {
+			newRow += RGBMatrixDeviceConfig(output[4]);
 		} else if (type == "SPI-WS2801") {
 			newRow += SPIDeviceConfig(output[4]);
 		} else if (type == "SPI-nRF24L01") {
@@ -839,6 +908,14 @@ function SetChannelOutputs() {
 				return;
 			}
 			maxChannels = 3840;
+		} else if (type == "RGBMatrix") {
+			config += GetRGBMatrixOutputConfig($this.find("td:nth-child(6)"));
+			if (config == "") {
+				dataError = 1;
+				DialogError("Save Channel Outputs", "Invalid Output Config");
+				return;
+			}
+			maxChannels = 6144;
 		} else if (type == "SPI-WS2801") {
 			config += GetSPIOutputConfig($this.find("td:nth-child(6)"));
 			if (config == "") {
@@ -959,6 +1036,10 @@ function AddOtherTypeOptions(row, type) {
 		config += NewLORConfig();
 		row.find("td input.count").val("16");
 		row.find("td input.speed").val("19200");
+	} else if (type == "RGBMatrix") {
+		config += NewRGBMatrixConfig();
+		row.find("td input.count").val("1536");
+		row.find("td input.count").prop('disabled', true);
 	} else if (type == "SPI-WS2801") {
 		config += NewSPIConfig();
 		row.find("td input.count").val("1530");
@@ -1014,7 +1095,7 @@ function OtherTypeSelected(selectbox) {
 		return;
 	}
 
-	if (type == 'Triks-C')
+	if ((type == 'Triks-C') || (type == 'GPIO') || (type == 'RGBMatrix'))
 	{
 		$row.find('input.count').prop('disabled', true);
 	}
@@ -1045,6 +1126,7 @@ function AddOtherOutput() {
 				"<option value='Pixelnet-Open'>Pixelnet-Open</option>" +
 				"<option value='LOR'>LOR</option>" +
 				"<option value='Renard'>Renard</option>" +
+				"<option value='RGBMatrix'>RGBMatrix</option>" +
 				"<option value='SPI-WS2801'>SPI-WS2801</option>" +
 				"<option value='SPI-nRF24L01'>SPI-nRF24L01</option>" +
 				"<option value='Triks-C'>Triks-C</option>" +
@@ -1054,8 +1136,6 @@ function AddOtherOutput() {
 			"<td><input class='start' type='text' size=6 maxlength=6 value='' style='display: none;'></td>" +
 			"<td><input class='count' type='text' size=4 maxlength=4 value='' style='display: none;'></td>" +
 			"<td><input class='channel' type='text' size=4 maxlength=4 value='' style='display: none;'></td>" +
-			"<td><select class='nRFspeed'style='display: none;'></td>" +
-			"<td>&nbsp;</td>" +
 			"</tr>";
 
 	$('#tblOtherOutputs tbody').append(newRow);
