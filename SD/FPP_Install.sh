@@ -291,6 +291,8 @@ echo ""
 # Raspberry Pi (officially supported FPP v2.0 platform)
 # - Install wiringPi
 # BeagleBone Black (officially supported FPP v2.0 platform)
+# - Disable IPv6
+# - Hide USB network IP in UI
 # - http://elinux.org/Beagleboard:BeagleBoneBlack_Debian#2014-05-14
 # - https://s3.amazonaws.com/debian.beagleboard.org/images/bone-debian-7.5-2014-05-14-2gb.img.xz
 # - Install LEDscape
