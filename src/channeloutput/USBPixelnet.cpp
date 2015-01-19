@@ -139,9 +139,7 @@ int USBPixelnetOutput::Init(char *configStr)
 		m_outputPacketSize = 4102;
 	}
 
-	ChannelOutputBase::Init(configStr);
-
-	return 1;
+	return ChannelOutputBase::Init(configStr);
 }
 
 /*
@@ -154,9 +152,7 @@ int USBPixelnetOutput::Close(void)
 	SerialClose(m_fd);
 	m_fd = -1;
 
-	ChannelOutputBase::Close();
-
-	return 1;
+	return ChannelOutputBase::Close();
 }
 
 /*
@@ -164,7 +160,7 @@ int USBPixelnetOutput::Close(void)
  */
 int USBPixelnetOutput::RawSendData(unsigned char *channelData)
 {
-	LogDebug(VB_CHANNELOUT, "USBPixelnetOutput::RawSendData(%p)\n", channelData);
+	LogExcess(VB_CHANNELOUT, "USBPixelnetOutput::RawSendData(%p)\n", channelData);
 
 	memcpy(m_pixelnetData, channelData, m_channelCount);
 

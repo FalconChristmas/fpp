@@ -76,6 +76,8 @@ int ChannelOutputBase::Init(char *configStr)
 		StartOutputThread();
 
 	DumpConfig();
+
+	return 1;
 }
 
 int ChannelOutputBase::Close(void)
@@ -87,6 +89,8 @@ int ChannelOutputBase::Close(void)
 
 	delete [] m_inBuf;
 	delete [] m_outBuf;
+
+	return 1;
 }
 
 int ChannelOutputBase::RawSendData(unsigned char *channelData)
@@ -98,7 +102,7 @@ int ChannelOutputBase::RawSendData(unsigned char *channelData)
 
 int ChannelOutputBase::SendData(unsigned char *channelData)
 {
-	LogDebug(VB_CHANNELOUT, "ChannelOutputBase::SendData(%p)\n", channelData);
+	LogExcess(VB_CHANNELOUT, "ChannelOutputBase::SendData(%p)\n", channelData);
 
 	if (m_useOutputThread)
 	{

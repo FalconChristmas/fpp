@@ -1,5 +1,5 @@
 /*
- *   GPIO Pin Channel Output driver for Falcon Pi Player (FPP)
+ *   librgbmatrix handler for Falcon Pi Player (FPP)
  *
  *   Copyright (C) 2013 the Falcon Pi Player Developers
  *      Initial development by:
@@ -23,15 +23,53 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _GPIO_H
-#define _GPIO_H
+#ifndef _RGBMATRIX_H
+#define _RGBMATRIX_H
+
+#include <string>
+
+using namespace::std;
+
+#ifdef USERGBMATRIX
+#	include "led-matrix.h"
+
+	using rgb_matrix::GPIO;
+	using rgb_matrix::RGBMatrix;
+	using rgb_matrix::Canvas;
+#else
+#include <stdint.h>
+class GPIO {
+  public:
+	GPIO() {}
+	~GPIO() {}
+
+	int Init(void) { return 1; }
+};
+
+class Canvas {
+  public:
+	Canvas(GPIO *a, int b, int c) {}
+	~Canvas() {}
+
+	void Clear(void) {}
+	void Fill(uint8_t a, uint8_t b, uint8_t c) {}
+	void SetPixel(int a, int b, uint8_t c, uint8_t d, uint8_t e) {}
+};
+
+class RGBMatrix : public Canvas {
+  public:
+	RGBMatrix(GPIO * a, int b, int c) : Canvas(a, b, c) {}
+	~RGBMatrix() {}
+};
+
+#endif
 
 #include "ChannelOutputBase.h"
 
-class GPIOOutput : public ChannelOutputBase {
+class RGBMatrixOutput : public ChannelOutputBase {
   public:
-	GPIOOutput(unsigned int startChannel, unsigned int channelCount);
-	~GPIOOutput();
+	RGBMatrixOutput(unsigned int startChannel, unsigned int channelCount);
+	~RGBMatrixOutput();
 
 	int Init(char *configStr);
 	int Close(void);
@@ -41,8 +79,16 @@ class GPIOOutput : public ChannelOutputBase {
 	void DumpConfig(void);
 
   private:
-	int m_GPIOPin;
+	GPIO   *m_gpio;
+	Canvas *m_canvas;
+	string  m_layout;
 
+	int	m_panels;
+	int	m_panelsWide;
+	int	m_panelsHigh;
+	int     m_width;
+	int     m_height;
+	int     m_rows;
 };
 
-#endif
+#endif /* _RGBMATRIX_H */
