@@ -28,10 +28,6 @@
 
 #include "ChannelOutputBase.h"
 
-/* Expose our interface */
-//extern FPPChannelOutput GPIOOutput;
-
-
 class GPIOOutput : public ChannelOutputBase {
   public:
 	GPIOOutput(unsigned int startChannel, unsigned int channelCount);
@@ -44,7 +40,7 @@ class GPIOOutput : public ChannelOutputBase {
 
 	void DumpConfig(void);
 
-  protected:
+  private:
 	int m_GPIOPin;
 
 };

@@ -42,7 +42,7 @@ class USBPixelnetOutput : public ChannelOutputBase {
 
 	void DumpConfig(void);
 
-  protected:
+  private:
 	enum DongleType {
 		PIXELNET_DVC_UNKNOWN,
 		PIXELNET_DVC_LYNX,

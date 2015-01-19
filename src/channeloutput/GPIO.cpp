@@ -89,9 +89,7 @@ int GPIOOutput::Init(char *configStr)
 	pinMode(m_GPIOPin, OUTPUT);
 	digitalWrite(m_GPIOPin, LOW);
 
-	ChannelOutputBase::Init(configStr);
-
-	return 1;
+	return ChannelOutputBase::Init(configStr);
 }
 
 /*
@@ -101,9 +99,7 @@ int GPIOOutput::Close(void)
 {
 	LogDebug(VB_CHANNELOUT, "GPIOOutput::Close()\n");
 
-	ChannelOutputBase::Close();
-
-	return 1;
+	return ChannelOutputBase::Close();
 }
 
 /*
@@ -111,7 +107,7 @@ int GPIOOutput::Close(void)
  */
 int GPIOOutput::RawSendData(unsigned char *channelData)
 {
-	LogDebug(VB_CHANNELOUT, "GPIOOutput::RawSendData(%p)\n", channelData);
+	LogExcess(VB_CHANNELOUT, "GPIOOutput::RawSendData(%p)\n", channelData);
 
 	digitalWrite(m_GPIOPin, channelData[0]);
 
