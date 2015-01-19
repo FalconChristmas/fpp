@@ -229,6 +229,18 @@ echo "#####################################" >> /etc/fstab
 
 
 #######################################
+# Disable IPv6
+echo "FPP - Disabling IPv6"
+cat <<-EOF >> /etc/sysctl.conf
+
+	# FPP - Disable IPv6
+	net.ipv6.conf.all.disable_ipv6 = 1
+	net.ipv6.conf.default.disable_ipv6 = 1
+	net.ipv6.conf.lo.disable_ipv6 = 1
+	net.ipv6.conf.eth0.disable_ipv6 = 1
+	EOF
+
+#######################################
 # Configure Apache run user/group
 echo "FPP - Configuring Apache"
 # environment variables
@@ -291,7 +303,6 @@ echo ""
 # Raspberry Pi (officially supported FPP v2.0 platform)
 # - Install wiringPi
 # BeagleBone Black (officially supported FPP v2.0 platform)
-# - Disable IPv6
 # - Hide USB network IP in UI
 # - http://elinux.org/Beagleboard:BeagleBoneBlack_Debian#2014-05-14
 # - https://s3.amazonaws.com/debian.beagleboard.org/images/bone-debian-7.5-2014-05-14-2gb.img.xz
