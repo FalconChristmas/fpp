@@ -190,6 +190,16 @@ int SPInRF24L01_Open(char *configStr, void **privDataPtr) {
 	// of the RF24 library and works, so no further investigation to whether
 	// or not all of these are required was done.
 	radio->begin();
+
+	// Attempt to detect whether or not the radio is present:
+	radio->setDataRate(RF24_250KBPS);
+	if ( radio->getDataRate() != RF24_250KBPS )
+	{
+		LogErr(VB_CHANNELOUT, "Failed to detect nRF Radio by setting speed to 250k!\n");
+		free(privData);
+		return 0;
+	}
+
 	radio->setDataRate(privData->speed);
 	radio->setRetries(0,0);
 	radio->setPayloadSize(32);
