@@ -61,6 +61,7 @@ void write(char*,int) {}
 #define rf24_datarate_e int
 #define RF24_250KBPS 0
 #define RF24_1MBPS 1
+#define RF24_2MBPS 7
 #define RPI_V2_GPIO_P1_15 2
 #define RPI_V2_GPIO_P1_24 3
 #define BCM2835_SPI_SPEED_8MHZ 4
@@ -93,7 +94,9 @@ void SPInRF24L01_Dump(SPInRF24L01PrivData *privData) {
 	if (!privData)
 		return;
 
-	if ( privData->speed == RF24_1MBPS )
+	if ( privData->speed == RF24_2MBPS )
+		LogDebug(VB_CHANNELOUT, "    speed   : 2MBPS\n");
+	else if ( privData->speed == RF24_1MBPS )
 		LogDebug(VB_CHANNELOUT, "    speed   : 1MBPS\n");
 	else if ( privData->speed == RF24_250KBPS )
 		LogDebug(VB_CHANNELOUT, "    speed   : 250KBPS\n");
@@ -146,6 +149,10 @@ int SPInRF24L01_Open(char *configStr, void **privDataPtr) {
 	else if (!strcmp(speed, "1"))
 	{
 		privData->speed = RF24_1MBPS;
+	}
+	else if (!strcmp(speed, "2"))
+	{
+		privData->speed = RF24_2MBPS;
 	}
 	else
 	{

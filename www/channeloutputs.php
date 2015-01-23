@@ -728,7 +728,7 @@ function SPIDeviceConfig(config) {
 	return result;
 }
 
-var nRFSpeeds = ["250K", "1M"];
+var nRFSpeeds = ["250K", "1M", "2M"];
 
 function SPInRFDeviceConfig(config) {
 	var items = config.split(";");
