@@ -173,8 +173,7 @@ int SPInRF24L01_Open(char *configStr, void **privDataPtr) {
 		return 0;
 	}
 
-	//TODO: Support other pins/speeds on other SPI bus?
-	RF24 *radio = new RF24(RPI_V2_GPIO_P1_15, RPI_V2_GPIO_P1_24, BCM2835_SPI_SPEED_8MHZ);
+	RF24 *radio = new RF24(RPI_V2_GPIO_P1_15, RPI_V2_GPIO_P1_26, BCM2835_SPI_SPEED_8MHZ);
 	if (!radio)
 	{
 		LogErr(VB_CHANNELOUT, "Failed to create our radio instance, unable to continue!\n");
