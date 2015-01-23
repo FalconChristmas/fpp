@@ -848,6 +848,7 @@ function SetChannelOutputs() {
 	var postData = {};
 	var dataError = 0;
 	var rowNumber = 1;
+	var nRF = false;
 
 	postData.Outputs = new Array();
 
@@ -925,6 +926,13 @@ function SetChannelOutputs() {
 			}
 			maxChannels = 1530;
 		} else if (type == "SPI-nRF24L01") {
+			if (nRF)
+			{
+				dataError = 1;
+				DialogError("Save Channel Outputs", "You already have an nRF Interface, only 1 currently allowed");
+				return;
+			}
+			nRF = true;
 			config += GetnRFSpeedConfig($this.find("td:nth-child(6)"));
 			if (config == "") {
 				dataError = 1;
