@@ -164,7 +164,11 @@ int SPInRF24L01_Open(char *configStr, void **privDataPtr) {
 
 	privData->channel = atoi(channel);
 	
-	//TODO: Warn if in the "FCC rectricted frequency range"
+	if (privData->channel > 83 && privData->channel < 101)
+	{
+		LogWarn(VB_CHANNELOUT, "FCC RESTRICTED FREQUENCY RANGE OF %dMHz\n", 2400 + privData->channel);
+	}
+
 	if (privData->channel <= 0 || privData->channel > 125)
 	{
 		LogErr(VB_CHANNELOUT, "Invalid channel '%d' parsed from config string: %s\n",
