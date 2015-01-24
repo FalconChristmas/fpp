@@ -34,6 +34,7 @@ OBJECTS_fppd = \
 	channeloutput/GPIO.o \
 	channeloutput/GPIO595.o \
 	channeloutput/LOR.o \
+	channeloutput/PanelMatrix.o \
 	channeloutput/RGBMatrix.o \
 	channeloutput/serialutil.o \
 	channeloutput/SPInRF24L01.o \

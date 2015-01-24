@@ -28,6 +28,8 @@
 
 #include <string>
 
+#include "PanelMatrix.h"
+
 using namespace::std;
 
 #ifdef USERGBMATRIX
@@ -83,12 +85,16 @@ class RGBMatrixOutput : public ChannelOutputBase {
 	Canvas *m_canvas;
 	string  m_layout;
 
-	int	m_panels;
-	int	m_panelsWide;
-	int	m_panelsHigh;
+	int     m_panelWidth;
+	int     m_panelHeight;
+	int     m_panels;
+	int     m_panelsWide;
+	int     m_panelsHigh;
 	int     m_width;
 	int     m_height;
 	int     m_rows;
+
+	PanelMatrix *m_panelMatrix;
 };
 
 #endif /* _RGBMATRIX_H */
