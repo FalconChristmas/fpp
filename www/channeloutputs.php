@@ -233,11 +233,124 @@ function NewUSBConfig() {
 }
 
 /////////////////////////////////////////////////////////////////////////////
+// LED Panel Layout support functions
+var panelRowButton = 0;
+function EditLEDPanelLayout(button) {
+	panelRowButton = button;
+	$row = $(button.parentNode.parentNode);
+
+	var layout = $row.find("td select.layout").val();
+	var panels = $row.find("td input.panels").val();
+	var panelCount = parseInt($row.find("td select.panelCount").val());
+	var panelOptions = $row.find("td input.panelOptions").val();
+
+	var html = "";
+
+	html += DrawPanelLayout(panelOptions, panelCount, panels);
+
+	html += "<br>";
+	html += "<input type='button' value='Save' onClick='SavePanelLayout();'> ";
+	html += "<input type='button' value='Cancel' onClick='CancelPanelLayout();'>";
+
+	$('#layoutText').html(html);
+	$('#dialog-panelLayout').dialog({ height: 600, width: 800, title: "Panel Layout" });
+	$('#dialog-panelLayout').dialog( "moveToTop" );
+}
+
+function GetPanelTable(layout) {
+	var dimensions = layout.split("x");
+	var width = parseInt(dimensions[0]);
+	var height = parseInt(dimensions[1]);
+	var table = "";
+
+	for (y = 0; y < height; y++)
+	{
+		table += "<tr>";
+		for (x = 0; x < width; x++)
+		{
+			table += "<td>";
+			table += "(" + x + "," + y + ")";
+			table += "</td>";
+		}
+		table += "</tr>";
+	}
+
+	return table;
+}
+
+function DrawPanelTable(layout) {
+	var table = GetPanelTable(layout);
+	$('#panelLayoutTable').html(table);
+}
+
+function PanelLayoutChanged() {
+	DrawPanelTable($('#panelEditLayout').val());
+}
+
+function DrawPanelLayout(panelOptions, panelCount, panelsStr) {
+	var options = panelOptions.split(';');
+	var maxOutputs = parseInt(options[0]);
+	var maxPanelsPerOutput = parseInt(options[1]);
+	var result = "";
+	result += "Outputs: " + maxOutputs + "<br>";
+	result += "Max Panels Per Output: " + maxPanelsPerOutput + "<br>";
+	result += "Panel Count: " + panelCount + "<br>";
+	result += "Panels: " + panelsStr + "<br>";
+	result += "<table border=1 cellpadding=3 cellspacing=1>";
+	result += "<tr><th>Output #</th><th>Panel #</th><th>Orientation</th><th>X Offset</th><th>Y Offset</th></tr>";
+	var panels = panelsStr.split("|");
+	for (p = 0; p < panels.length; p++) {
+		result += "<tr>";
+		var parts = panels[p].split(":");
+		for (i = 0; i < parts.length; i++) {
+			result += "<td>" + parts[i] + "</td>";
+		}
+		result += "</tr>";
+	}
+
+	result += "</table>";
+
+	return result;
+}
+
+function SavePanelLayout() {
+	$row = $(panelRowButton.parentNode.parentNode);
+	var panels = "";
+
+	$row.find("td input.panels").val(panels);
+	$('#dialog-panelLayout').dialog("destroy");
+}
+
+function CancelPanelLayout() {
+	$('#dialog-panelLayout').dialog("destroy");
+}
+
+/////////////////////////////////////////////////////////////////////////////
 // RGBMatrix Output
+function RGBMatrixPanelCountSelect(currentValue) {
+	var options = new Array(1,2,3,4);
+	var i = 0;
+
+	var result = " Panels:<select class='panelCount'>";
+	for (i = 0; i < options.length; i++) {
+		var opt = options[i];
+
+		result += "<option value='" + opt + "'";
+		if (currentValue == opt)
+			result += " selected";
+		result += ">" + opt + "</option>";
+	}
+
+	result += "</select>";
+	result += "<input type='hidden' class='maxPanels' value='4'>";
+
+	return result;
+}
+
 function RGBMatrixLayoutSelect(currentValue) {
 	var result = "";
-	var options = "1x1,2x1,3x1,4x1,1x2,2x2,1x3,1x4".split(",");
-	options = "1x1,2x1,3x1,4x1".split(",");
+	var layoutOptions = "1x1,2x1,3x1,4x1,1x2,2x2,1x3,1x4";
+	var options = layoutOptions.split(",");
 
 	result += " Layout (WxH):<select class='layout' onChange='RGBMatrixLayoutChanged(this);'>";
 
@@ -270,6 +383,10 @@ function RGBMatrixLayoutChanged(item) {
 function NewRGBMatrixConfig() {
 	var result = "";
 	result += RGBMatrixLayoutSelect("");
+	result += RGBMatrixPanelCountSelect("");
+	result += " <input type='button' class='buttons' value='Panel Layout' onClick='EditLEDPanelLayout(this);'>";
+	result += "<input type='hidden' class='panels' value=''>";
+	result += "<input type='hidden' class='panelOptions' value='1;4'>";
 	return result;
 }
 
@@ -283,7 +400,20 @@ function RGBMatrixDeviceConfig(config) {
 		if (item[0] == "layout") {
 			result += RGBMatrixLayoutSelect(item[1]);
 		}
+		else if (item[0] == "panels")
+		{
+			result += "<input type='hidden' class='panels' value='" +
+				item[1] + "'>";
+		}
+		else if (item[0] == "panelCount")
+		{
+			result += RGBMatrixPanelCountSelect(item[1]);
+		}
+
 	}
+
+	result += " <input type='hidden' class='panelOptions' value='1;4'>";
+	result += " <input type='button' value='Panel Layout' onClick='EditLEDPanelLayout(this);'>";
 
 	return result;
 }
@@ -292,11 +422,14 @@ function GetRGBMatrixOutputConfig(cell) {
 	$cell = $(cell);
 
 	var layout = $cell.find("select.layout").val();
-
 	if (layout == "")
 		return "";
 
-	return "layout=" + layout;
+	var panels = $cell.find("input.panels").val();
+	if (panels == "")
+		return "";
+
+	return "layout=" + layout + ";panels=" + panels;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -728,7 +861,7 @@ function SPIDeviceConfig(config) {
 	return result;
 }
 
-var nRFSpeeds = ["250K", "1M", "2M"];
+var nRFSpeeds = ["250K", "1M"];
 
 function SPInRFDeviceConfig(config) {
 	var items = config.split(";");
@@ -848,7 +981,6 @@ function SetChannelOutputs() {
 	var postData = {};
 	var dataError = 0;
 	var rowNumber = 1;
-	var nRF = false;
 
 	postData.Outputs = new Array();
 
@@ -897,7 +1029,7 @@ function SetChannelOutputs() {
 			config += GetRenardOutputConfig($this.find("td:nth-child(6)"));
 			if (config == "") {
 				dataError = 1;
-				DialogError("Save Channel Outputs", "Invalid Output Config");
+				DialogError("Save Channel Outputs", "Invalid Renard Config");
 				return;
 			}
 			maxChannels = 1528;
@@ -905,7 +1037,7 @@ function SetChannelOutputs() {
 			config += GetLOROutputConfig($this.find("td:nth-child(6)"));
 			if (config == "") {
 				dataError = 1;
-				DialogError("Save Channel Outputs", "Invalid Output Config");
+				DialogError("Save Channel Outputs", "Invalid LOR Config");
 				return;
 			}
 			maxChannels = 3840;
@@ -913,7 +1045,7 @@ function SetChannelOutputs() {
 			config += GetRGBMatrixOutputConfig($this.find("td:nth-child(6)"));
 			if (config == "") {
 				dataError = 1;
-				DialogError("Save Channel Outputs", "Invalid Output Config");
+				DialogError("Save Channel Outputs", "Invalid RGBMatrix Config");
 				return;
 			}
 			maxChannels = 6144;
@@ -921,18 +1053,11 @@ function SetChannelOutputs() {
 			config += GetSPIOutputConfig($this.find("td:nth-child(6)"));
 			if (config == "") {
 				dataError = 1;
-				DialogError("Save Channel Outputs", "Invalid Output Config");
+				DialogError("Save Channel Outputs", "Invalid SPI-WS2801 Config");
 				return;
 			}
 			maxChannels = 1530;
 		} else if (type == "SPI-nRF24L01") {
-			if (nRF)
-			{
-				dataError = 1;
-				DialogError("Save Channel Outputs", "You already have an nRF Interface, only 1 currently allowed");
-				return;
-			}
-			nRF = true;
 			config += GetnRFSpeedConfig($this.find("td:nth-child(6)"));
 			if (config == "") {
 				dataError = 1;
@@ -951,7 +1076,7 @@ function SetChannelOutputs() {
 			config += GetTriksOutputConfig($this.find("td:nth-child(6)"));
 			if (config == "") {
 				dataError = 1;
-				DialogError("Save Channel Outputs", "Invalid Output Config");
+				DialogError("Save Channel Outputs", "Invalid Triks-C Config");
 				return;
 			}
 			maxChannels = 9216;
@@ -959,7 +1084,7 @@ function SetChannelOutputs() {
 			config += GetGPIOOutputConfig($this.find("td:nth-child(6)"));
 			if (config == "") {
 				dataError = 1;
-				DialogError("Save Channel Outputs", "Invalid Output Config");
+				DialogError("Save Channel Outputs", "Invalid GPIO Config");
 				return;
 			}
 			maxChannels = 1;
@@ -967,7 +1092,7 @@ function SetChannelOutputs() {
 			config += GetGPIO595OutputConfig($this.find("td:nth-child(6)"));
 			if (config == "") {
 				dataError = 1;
-				DialogError("Save Channel Outputs", "Invalid Output Config");
+				DialogError("Save Channel Outputs", "Invalid GPIO-595 Config");
 				return;
 			}
 			maxChannels = 128;
@@ -1275,7 +1400,7 @@ tr.rowUniverseDetails td
 			<div id='tab-fpd'>
 				<div id='divFPD'>
 					<fieldset class="fs">
-						<legend> Falcon Pixelnet/DMX </legend>
+						<legend> Falcon Pixelnet/DMX (FPD) </legend>
 						<div id='divFPDData'>
 
 <!-- --------------------------------------------------------------------- -->
@@ -1344,6 +1469,11 @@ tr.rowUniverseDetails td
 </div>
 
 	</div>
+
+<div id="dialog-panelLayout" title="panelLayout" style="display: none">
+  <div id="layoutText">
+  </div>
+</div>
 
 	<?php	include 'common/footer.inc'; ?>
 </body>
