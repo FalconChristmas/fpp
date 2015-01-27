@@ -76,6 +76,8 @@ void initSettings(void)
 			*offset = 0;
 
 		settings.fppDirectory = strdup(tmp);
+
+		free(tmp);
 	}
 
 	settings.mediaDirectory = strdup("/home/pi/media");
@@ -784,6 +786,7 @@ int loadSettings(const char *filename)
 			if ( !token )
 			{
 				fprintf(stderr, "Error tokenizing value for %s setting\n", key);
+				free(key);
 				continue;
 			}
 			value = trimwhitespace(token);
@@ -811,13 +814,10 @@ int loadSettings(const char *filename)
 				free(value);
 				value = NULL;
 			}
-
-			if ( line )
-			{
-				free(line);
-				line = NULL;
-			}
 		}
+
+		if (line)
+			free(line);
 	
 		fclose(file);
 	}
