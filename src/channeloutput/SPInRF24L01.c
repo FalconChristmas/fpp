@@ -44,7 +44,8 @@ public:
 RF24(int,int,int) {}
 ~RF24() {}
 void begin() {}
-void setDataRate(int&) {}
+void setDataRate(int) {}
+int  getDataRate(void) {}
 void setRetries(int,int) {}
 void setPayloadSize(int) {}
 void setAutoAck(int) {}
@@ -64,6 +65,7 @@ void write(char*,int) {}
 #define RF24_2MBPS 7
 #define RPI_V2_GPIO_P1_15 2
 #define RPI_V2_GPIO_P1_24 3
+#define RPI_V2_GPIO_P1_26 7
 #define BCM2835_SPI_SPEED_8MHZ 4
 #define RF24_CRC_16 5
 #define RF24_PA_MAX 6
