@@ -57,9 +57,7 @@ int DebugOutput::Init(char *configStr)
 	LogDebug(VB_CHANNELOUT, "DebugOutput::Init('%s')\n", configStr);
 
 	// Call the base class' Init() method, do not remove this line.
-	ChannelOutputBase::Init(configStr);
-
-	return 1;
+	return ChannelOutputBase::Init(configStr);
 }
 
 /*
@@ -69,10 +67,7 @@ int DebugOutput::Close(void)
 {
 	LogDebug(VB_CHANNELOUT, "DebugOutput::Close()\n");
 
-	// Call the base class' Close() method, do not remove this line.
-	ChannelOutputBase::Close();
-
-	return 1;
+	return ChannelOutputBase::Close();
 }
 
 /*
