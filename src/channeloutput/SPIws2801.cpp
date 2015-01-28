@@ -1,7 +1,7 @@
 /*
- *   WS2801 SPI handler for Falcon Pi Player (FPP)
+ *   WS2801 SPI handler for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Pi Player Developers
+ *   Copyright (C) 2013 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -9,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -30,6 +30,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "common.h"
 #include "log.h"
 #include "settings.h"
 
@@ -48,169 +49,103 @@
 
 /////////////////////////////////////////////////////////////////////////////
 
-typedef struct spiWS2801PrivData {
-	int  port;
-} SPIws2801PrivData;
-
-/////////////////////////////////////////////////////////////////////////////
-
 /*
  *
  */
-void SPIws2801_Dump(SPIws2801PrivData *privData) {
-	LogDebug(VB_CHANNELOUT, "  privData: %p\n", privData);
+SPIws2801Output::SPIws2801Output(unsigned int startChannel, unsigned int channelCount)
+  : ChannelOutputBase(startChannel, channelCount),
+	m_port(-1)
+{
+	LogDebug(VB_CHANNELOUT, "SPIws2801Output::SPIws2801Output(%u, %u)\n",
+		startChannel, channelCount);
 
-	if (!privData)
-		return;
-
-	LogDebug(VB_CHANNELOUT, "    port    : %d\n", privData->port);
+	m_maxChannels = SPIWS2801_MAX_CHANNELS;
 }
 
 /*
  *
  */
-int SPIws2801_Open(char *configStr, void **privDataPtr) {
-	LogDebug(VB_CHANNELOUT, "SPIws2801_Open('%s')\n", configStr);
+SPIws2801Output::~SPIws2801Output()
+{
+	LogDebug(VB_CHANNELOUT, "SPIws2801Output::~SPIws2801Output()\n");
+}
 
-	SPIws2801PrivData *privData =
-		(SPIws2801PrivData *)malloc(sizeof(SPIws2801PrivData));
-	bzero(privData, sizeof(SPIws2801PrivData));
-	privData->port = 0;
+/*
+ *
+ */
+int SPIws2801Output::Init(char *configStr)
+{
+	LogDebug(VB_CHANNELOUT, "SPIws2801Output::Init('%s')\n", configStr);
 
-	char deviceName[32];
-	char *s = strtok(configStr, ";");
+	vector<string> configElems = split(configStr, ';');
 
-	strcpy(deviceName, "UNKNOWN");
+	for (int i = 0; i < configElems.size(); i++)
+	{
+		vector<string> elem = split(configElems[i], '=');
+		if (elem.size() < 2)
+			continue;
 
-	while (s) {
-		char tmp[128];
-		char *div = NULL;
+		if (elem[0] == "device")
+		{
+			LogDebug(VB_CHANNELOUT, "Using %s for SPI output\n",
+				elem[1].c_str());
 
-		strcpy(tmp, s);
-		div = strchr(tmp, '=');
-
-		if (div) {
-			*div = '\0';
-			div++;
-
-			if (!strcmp(tmp, "device")) {
-				LogDebug(VB_CHANNELOUT, "Using %s for SPI output\n", div);
-				strcpy(deviceName, div);
-			}
+			if (elem[1] == "spidev0.0")
+				m_port = 0;
+			else if (elem[1] == "spidev0.1")
+				m_port = 1;
 		}
-		s = strtok(NULL, ";");
 	}
 
-	if (!strcmp(deviceName, "UNKNOWN"))
+	if (m_port == -1)
 	{
-		LogErr(VB_CHANNELOUT, "Invalid Config Str: %s\n", configStr);
-		free(privData);
+		LogErr(VB_CHANNELOUT, "Invalid Config String: %s\n", configStr);
 		return 0;
 	}
 
-	if (!sscanf(deviceName, "spidev0.%d", &privData->port))
-	{
-		LogErr(VB_CHANNELOUT, "Unable to parse SPI device name: %s\n", deviceName);
-		free(privData);
-		return 0;
-	}
+	LogDebug(VB_CHANNELOUT, "Using SPI Port %d\n", m_port);
 
-	LogDebug(VB_CHANNELOUT, "Using SPI Port %d\n", privData->port);
-
-	if (wiringPiSPISetup(privData->port, 1000000) < 0)
+	if (wiringPiSPISetup(m_port, 1000000) < 0)
 	{
 		LogErr(VB_CHANNELOUT, "Unable to open SPI device\n") ;
 		return 0;
 	}
 
-	SPIws2801_Dump(privData);
-
-	*privDataPtr = privData;
-
-	return 1;
+	return ChannelOutputBase::Init(configStr);
 }
+
 
 /*
  *
  */
-int SPIws2801_Close(void *data) {
-	LogDebug(VB_CHANNELOUT, "SPIws2801_Close(%p)\n", data);
-
-	SPIws2801PrivData *privData = (SPIws2801PrivData*)data;
-	SPIws2801_Dump(privData);
-
-	privData->port = -1;
-}
-
-/*
- *
- */
-int SPIws2801_IsConfigured(void) {
-//  FIXME, needs work once new UI is figured out
-//	if ((strcmp(getUSBDonglePort(),"DISABLED")) &&
-//		(!strcmp(getUSBDongleType(), "Pixelnet")))
-//		return 1;
-
-	return 0;
-}
-
-/*
- *
- */
-int SPIws2801_IsActive(void *data) {
-	LogDebug(VB_CHANNELOUT, "SPIws2801_IsActive(%p)\n", data);
-	SPIws2801PrivData *privData = (SPIws2801PrivData*)data;
-
-	if (!privData)
-		return 0;
-
-	SPIws2801_Dump(privData);
-
-	if (privData->port >= 0)
-		return 1;
-
-	return 0;
-}
-
-/*
- *
- */
-int SPIws2801_SendData(void *data, char *channelData, int channelCount)
+int SPIws2801Output::Close(void)
 {
-	LogDebug(VB_CHANNELDATA, "SPIws2801_SendData(%p, %p, %d)\n",
-		data, channelData, channelCount);
+	LogDebug(VB_CHANNELOUT, "SPIws2801Output::Close()\n");
 
-	SPIws2801PrivData *privData = (SPIws2801PrivData*)data;
-
-	if (channelCount > SPIWS2801_MAX_CHANNELS) {
-		LogErr(VB_CHANNELOUT,
-			"SPIws2801_SendData() tried to send %d bytes when max is %d\n",
-			channelCount, SPIWS2801_MAX_CHANNELS);
-		return 0;
-	}
-
-	wiringPiSPIDataRW(privData->port, (unsigned char *)channelData, channelCount);
+	return ChannelOutputBase::Close();
 }
 
 /*
- *  *
- *   */
-int SPIws2801_MaxChannels(void *data)
-{
-	return SPIWS2801_MAX_CHANNELS;
-}
-
-/*
- * Declare our external interface struct
+ *
  */
-FPPChannelOutput SPIws2801Output = {
-	.maxChannels  = SPIws2801_MaxChannels,
-	.open         = SPIws2801_Open,
-	.close        = SPIws2801_Close,
-	.isConfigured = SPIws2801_IsConfigured,
-	.isActive     = SPIws2801_IsActive,
-	.send         = SPIws2801_SendData,
-	.startThread  = NULL,
-	.stopThread   = NULL,
-	};
+int SPIws2801Output::RawSendData(unsigned char *channelData)
+{
+	LogDebug(VB_CHANNELOUT, "SPIws2801Output::RawSendData(%p)\n", channelData);
+
+	wiringPiSPIDataRW(m_port, (unsigned char *)channelData, m_channelCount);
+
+	return m_channelCount;
+}
+
+/*
+ *
+ */
+void SPIws2801Output::DumpConfig(void)
+{
+	LogDebug(VB_CHANNELOUT, "SPIws2801Output::DumpConfig()\n");
+
+	LogDebug(VB_CHANNELOUT, "    port    : %d\n", m_port);
+
+	ChannelOutputBase::DumpConfig();
+}
 
