@@ -26,9 +26,25 @@
 #ifndef _GPIO595_H
 #define _GPIO595_H
 
-#include "channeloutput.h"
+#include "ChannelOutputBase.h"
 
-/* Expose our interface */
-extern FPPChannelOutput GPIO595Output;
+class GPIO595Output : public ChannelOutputBase {
+  public:
+	GPIO595Output(unsigned int startChannel, unsigned int channelCount);
+	~GPIO595Output();
+
+	int Init(char *configStr);
+
+	int Close(void);
+
+	int RawSendData(unsigned char *channelData);
+
+	void DumpConfig(void);
+
+  private:
+	int m_clockPin;
+	int m_dataPin;
+	int m_latchPin;
+};
 
 #endif

@@ -212,7 +212,7 @@ int InitializeChannelOutputs(void) {
 			} else if (!strcmp(type, "Triks-C")) {
 				channelOutputs[i].outputOld = &TriksCOutput;
 			} else if (!strcmp(type, "GPIO-595")) {
-				channelOutputs[i].outputOld = &GPIO595Output;
+				channelOutputs[i].output = new GPIO595Output(start, count);
 			} else if (!strcmp(type, "Debug")) {
 				channelOutputs[i].output = new DebugOutput(start, count);
 			} else {
