@@ -75,7 +75,7 @@ void MainLoop(void);
 
 int main(int argc, char *argv[])
 {
-	initSettings();
+	initSettings(argc, argv);
 	initMediaDetails();
 
 	if (DirectoryExists("/home/fpp"))

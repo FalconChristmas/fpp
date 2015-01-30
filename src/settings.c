@@ -32,6 +32,7 @@
 #include "mediaoutput.h"
 
 #include <errno.h>
+#include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -52,8 +53,10 @@ int findSettingIndex(char *setting);
 /*
  *
  */
-void initSettings(void)
+void initSettings(int argc, char **argv)
 {
+	settings.binDirectory = strdup(dirname(argv[0]));
+
 	settings.fppMode = PLAYER_MODE;
 
 	char *tmp = getcwd(NULL, 0);
@@ -932,6 +935,11 @@ inline
 int getAlwaysTransmit(void)
 {
 	return settings.alwaysTransmit;
+}
+
+char *getBinDirectory(void)
+{
+	return settings.binDirectory;
 }
 
 char *getFPPDirectory(void)
