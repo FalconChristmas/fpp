@@ -385,6 +385,15 @@ function MoveFile()
 	$file = $_GET['file'];
 	check($file, "file", __FUNCTION__);
 
+	// Fix double quote uploading by simply moving the file first, if we find it with URL encoding
+	if ( strstr($file, '"') )
+	{
+		if (!rename($uploadDirectory."/" . preg_replace('/"/', '%22', $file), $uploadDirectory."/" . $file))
+		{
+			error_log("Couldn't remove double quote from filename");
+			exit(1);
+		}	
+	}
 	if(file_exists($uploadDirectory."/" . $file))
 	{
 		if (preg_match("/\.(fseq)$/i", $file))
@@ -1762,7 +1771,9 @@ function GetFiles()
 		if (file_exists("/var/log/syslog"))
 			GetFileInfo($root, $doc, "", "/var/log/syslog");
 	}
-	echo $doc->saveHTML();
+	// Thanks: http://stackoverflow.com/questions/7272938/php-xmlreader-problem-with-htmlentities
+	$trans = array_map('utf8_encode', array_flip(array_diff(get_html_translation_table(HTML_ENTITIES), get_html_translation_table(HTML_SPECIALCHARS))));
+	echo strtr($doc->saveHTML(), $trans);
 }
 
 function GetSequenceFiles()

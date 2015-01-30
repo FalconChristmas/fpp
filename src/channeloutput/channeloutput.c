@@ -206,13 +206,13 @@ int InitializeChannelOutputs(void) {
 			} else if (!strcmp(type, "RGBMatrix")) {
 				channelOutputs[i].output = new RGBMatrixOutput(start, count);
 			} else if (!strcmp(type, "SPI-WS2801")) {
-				channelOutputs[i].outputOld = &SPIws2801Output;
+				channelOutputs[i].output = new SPIws2801Output(start, count);
 			} else if (!strcmp(type, "SPI-nRF24L01")) {
 				channelOutputs[i].outputOld = &SPInRF24L01Output;
 			} else if (!strcmp(type, "Triks-C")) {
 				channelOutputs[i].outputOld = &TriksCOutput;
 			} else if (!strcmp(type, "GPIO-595")) {
-				channelOutputs[i].outputOld = &GPIO595Output;
+				channelOutputs[i].output = new GPIO595Output(start, count);
 			} else if (!strcmp(type, "Debug")) {
 				channelOutputs[i].output = new DebugOutput(start, count);
 			} else {

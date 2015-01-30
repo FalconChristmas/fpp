@@ -44,7 +44,8 @@ public:
 RF24(int,int,int) {}
 ~RF24() {}
 void begin() {}
-void setDataRate(int&) {}
+void setDataRate(int) {}
+int  getDataRate(void) {}
 void setRetries(int,int) {}
 void setPayloadSize(int) {}
 void setAutoAck(int) {}
@@ -61,8 +62,10 @@ void write(char*,int) {}
 #define rf24_datarate_e int
 #define RF24_250KBPS 0
 #define RF24_1MBPS 1
+#define RF24_2MBPS 7
 #define RPI_V2_GPIO_P1_15 2
 #define RPI_V2_GPIO_P1_24 3
+#define RPI_V2_GPIO_P1_26 7
 #define BCM2835_SPI_SPEED_8MHZ 4
 #define RF24_CRC_16 5
 #define RF24_PA_MAX 6
@@ -93,7 +96,9 @@ void SPInRF24L01_Dump(SPInRF24L01PrivData *privData) {
 	if (!privData)
 		return;
 
-	if ( privData->speed == RF24_1MBPS )
+	if ( privData->speed == RF24_2MBPS )
+		LogDebug(VB_CHANNELOUT, "    speed   : 2MBPS\n");
+	else if ( privData->speed == RF24_1MBPS )
 		LogDebug(VB_CHANNELOUT, "    speed   : 1MBPS\n");
 	else if ( privData->speed == RF24_250KBPS )
 		LogDebug(VB_CHANNELOUT, "    speed   : 250KBPS\n");
@@ -147,6 +152,10 @@ int SPInRF24L01_Open(char *configStr, void **privDataPtr) {
 	{
 		privData->speed = RF24_1MBPS;
 	}
+	else if (!strcmp(speed, "2"))
+	{
+		privData->speed = RF24_2MBPS;
+	}
 	else
 	{
 		LogErr(VB_CHANNELOUT, "Invalid speed '%s' parsed from config string: %s\n",
@@ -157,7 +166,11 @@ int SPInRF24L01_Open(char *configStr, void **privDataPtr) {
 
 	privData->channel = atoi(channel);
 	
-	//TODO: Warn if in the "FCC rectricted frequency range"
+	if (privData->channel > 83 && privData->channel < 101)
+	{
+		LogWarn(VB_CHANNELOUT, "FCC RESTRICTED FREQUENCY RANGE OF %dMHz\n", 2400 + privData->channel);
+	}
+
 	if (privData->channel <= 0 || privData->channel > 125)
 	{
 		LogErr(VB_CHANNELOUT, "Invalid channel '%d' parsed from config string: %s\n",
@@ -166,8 +179,7 @@ int SPInRF24L01_Open(char *configStr, void **privDataPtr) {
 		return 0;
 	}
 
-	//TODO: Support other pins/speeds on other SPI bus?
-	RF24 *radio = new RF24(RPI_V2_GPIO_P1_15, RPI_V2_GPIO_P1_24, BCM2835_SPI_SPEED_8MHZ);
+	RF24 *radio = new RF24(RPI_V2_GPIO_P1_15, RPI_V2_GPIO_P1_26, BCM2835_SPI_SPEED_8MHZ);
 	if (!radio)
 	{
 		LogErr(VB_CHANNELOUT, "Failed to create our radio instance, unable to continue!\n");
@@ -180,6 +192,16 @@ int SPInRF24L01_Open(char *configStr, void **privDataPtr) {
 	// of the RF24 library and works, so no further investigation to whether
 	// or not all of these are required was done.
 	radio->begin();
+
+	// Attempt to detect whether or not the radio is present:
+	radio->setDataRate(RF24_250KBPS);
+	if ( radio->getDataRate() != RF24_250KBPS )
+	{
+		LogErr(VB_CHANNELOUT, "Failed to detect nRF Radio by setting speed to 250k!\n");
+		free(privData);
+		return 0;
+	}
+
 	radio->setDataRate(privData->speed);
 	radio->setRetries(0,0);
 	radio->setPayloadSize(32);

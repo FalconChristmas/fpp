@@ -1,6 +1,8 @@
 [submodule "external/RF24"]
 	path = external/RF24
 	url = https://github.com/tmrh20/RF24.git
+	ignore = dirty
 [submodule "external/rpi-rgb-led-matrix"]
 	path = external/rpi-rgb-led-matrix
 	url = https://github.com/hzeller/rpi-rgb-led-matrix.git
+	ignore = dirty

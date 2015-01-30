@@ -72,6 +72,7 @@ int DirectoryExists(const char * Directory)
 	DIR* dir = opendir(Directory);
 	if (dir)
 	{
+		closedir(dir);
 		return 1;
 	}
 	else
