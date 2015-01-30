@@ -9,3 +9,4 @@
 [submodule "external/LEDscape"]
 	path = external/LEDscape
 	url = https://github.com/osresearch/LEDscape.git
+	ignore = dirty
