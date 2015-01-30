@@ -6,3 +6,6 @@
 	path = external/rpi-rgb-led-matrix
 	url = https://github.com/hzeller/rpi-rgb-led-matrix.git
 	ignore = dirty
+[submodule "external/LEDscape"]
+	path = external/LEDscape
+	url = https://github.com/osresearch/LEDscape.git
