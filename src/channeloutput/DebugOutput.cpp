@@ -75,7 +75,7 @@ int DebugOutput::Close(void)
  */
 int DebugOutput::RawSendData(unsigned char *channelData)
 {
-	LogDebug(VB_CHANNELOUT, "DebugOutput::RawSendData(%p)\n", channelData);
+	LogExcess(VB_CHANNELOUT, "DebugOutput::RawSendData(%p)\n", channelData);
 
 	HexDump("DebugOutput::RawSendData", channelData, m_channelCount);
 
