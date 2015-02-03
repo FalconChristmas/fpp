@@ -1,5 +1,5 @@
 /*
- *   librgbmatrix handler for Falcon Player (FPP)
+ *   Raspberry Pi rpi_ws281x handler for Falcon Player (FPP)
  *
  *   Copyright (C) 2013 the Falcon Player Developers
  *      Initial development by:
@@ -23,57 +23,28 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _RGBMATRIX_H
-#define _RGBMATRIX_H
+#ifndef _RPI_WS281X_H
+#define _RPI_WS281X_H
 
-#include <string>
-
-#include "PanelMatrix.h"
-
-using namespace::std;
-
-#ifdef USERGBMATRIX
-#	include "led-matrix.h"
-
-	using rgb_matrix::GPIO;
-	using rgb_matrix::RGBMatrix;
-	using rgb_matrix::Canvas;
-#else
-#include <stdint.h>
-class GPIO {
-  public:
-	GPIO() {}
-	~GPIO() {}
-
-	int Init(void) { return 1; }
-};
-
-class Canvas {
-  public:
-	Canvas(GPIO *a, int b, int c) {}
-	~Canvas() {}
-
-	void Clear(void) {}
-	void Fill(uint8_t a, uint8_t b, uint8_t c) {}
-	void SetPixel(int a, int b, uint8_t c, uint8_t d, uint8_t e) {}
-};
-
-class RGBMatrix : public Canvas {
-  public:
-	RGBMatrix(GPIO * a, int b, int c) : Canvas(a, b, c) {}
-	~RGBMatrix() {}
-};
-
-#endif
+extern "C" {
+#include "../../external/rpi_ws281x/clk.h"
+#include "../../external/rpi_ws281x/gpio.h"
+#include "../../external/rpi_ws281x/dma.h"
+#include "../../external/rpi_ws281x/pwm.h"
+#include "../../external/rpi_ws281x/ws2811.h"
+}
 
 #include "ChannelOutputBase.h"
 
-class RGBMatrixOutput : public ChannelOutputBase {
+#define RPIWS281X_MAX_CHANNELS  1200
+
+class RPIWS281xOutput : public ChannelOutputBase {
   public:
-	RGBMatrixOutput(unsigned int startChannel, unsigned int channelCount);
-	~RGBMatrixOutput();
+	RPIWS281xOutput(unsigned int startChannel, unsigned int channelCount);
+	~RPIWS281xOutput();
 
 	int Init(char *configStr);
+
 	int Close(void);
 
 	int RawSendData(unsigned char *channelData);
@@ -81,20 +52,13 @@ class RGBMatrixOutput : public ChannelOutputBase {
 	void DumpConfig(void);
 
   private:
-	GPIO   *m_gpio;
-	Canvas *m_canvas;
-	string  m_layout;
+	void SetupCtrlCHandler(void);
 
-	int     m_panelWidth;
-	int     m_panelHeight;
-	int     m_panels;
-	int     m_panelsWide;
-	int     m_panelsHigh;
-	int     m_width;
-	int     m_height;
-	int     m_rows;
+	int       m_string1GPIO;
+	int       m_string1Pixels;
+	int       m_string2GPIO;
+	int       m_string2Pixels;
 
-	PanelMatrix *m_panelMatrix;
 };
 
-#endif /* _RGBMATRIX_H */
+#endif

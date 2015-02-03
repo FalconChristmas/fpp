@@ -1,5 +1,5 @@
 /*
- *   WS2801 SPI handler for Falcon Player (FPP)
+ *   USB DMX handler for Falcon Player (FPP)
  *
  *   Copyright (C) 2013 the Falcon Player Developers
  *      Initial development by:
@@ -23,15 +23,15 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _SPIWS2801_H
-#define _SPIWS2801_H
+#ifndef _USBDMX_H
+#define _USBDMX_H
 
 #include "ChannelOutputBase.h"
 
-class SPIws2801Output : public ChannelOutputBase {
+class USBDMXOutput : public ChannelOutputBase {
   public:
-	SPIws2801Output(unsigned int startChannel, unsigned int channelCount);
-	~SPIws2801Output();
+	USBDMXOutput(unsigned int startChannel, unsigned int channelCount);
+	~USBDMXOutput();
 
 	int Init(char *configStr);
 
@@ -42,7 +42,22 @@ class SPIws2801Output : public ChannelOutputBase {
 	void DumpConfig(void);
 
   private:
-	int m_port;
+	int RawSendDataOpen(unsigned char *channelData);
+	int RawSendDataPro(unsigned char *channelData);
+
+    enum DongleType {
+		DMX_DVC_UNKNOWN,
+		DMX_DVC_PRO,
+		DMX_DVC_OPEN
+	};
+
+	DongleType m_dongleType;
+
+	string m_deviceName;
+	int    m_fd;
+	char   m_outputData[513];
+	char   m_dmxHeader[5];
+	char   m_dmxFooter[1];
 };
 
-#endif
+#endif /* #ifdef _USBDMX_H */

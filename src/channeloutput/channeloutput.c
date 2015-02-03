@@ -40,8 +40,7 @@
 #include "LOR.h"
 #include "RGBMatrix.h"
 #include "SPInRF24L01.h"
-#include "USBDMXOpen.h"
-#include "USBDMXPro.h"
+#include "USBDMX.h"
 #include "USBPixelnet.h"
 #include "USBRenard.h"
 #include "Triks-C.h"
@@ -49,7 +48,9 @@
 #include "GPIO595.h"
 #include "common.h"
 
-
+#ifdef PLATFORM_PI
+#  include "rpi_ws281x.h"
+#endif
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -193,10 +194,9 @@ int InitializeChannelOutputs(void) {
 				(!strcmp(type, "Pixelnet-Open")))
 			{
 				channelOutputs[i].output = new USBPixelnetOutput(start, count);
-			} else if (!strcmp(type, "DMX-Pro")) {
-				channelOutputs[i].outputOld = &USBDMXProOutput;
-			} else if (!strcmp(type, "DMX-Open")) {
-				channelOutputs[i].outputOld = &USBDMXOpenOutput;
+			} else if ((!strcmp(type, "DMX-Pro")) ||
+					   (!strcmp(type, "DMX-Open"))) {
+				channelOutputs[i].output = new USBDMXOutput(start, count);
 			} else if (!strcmp(type, "GPIO")) {
 				channelOutputs[i].output = new GPIOOutput(start, count);
 			} else if (!strcmp(type, "LOR")) {
@@ -205,14 +205,18 @@ int InitializeChannelOutputs(void) {
 				channelOutputs[i].outputOld = &USBRenardOutput;
 			} else if (!strcmp(type, "RGBMatrix")) {
 				channelOutputs[i].output = new RGBMatrixOutput(start, count);
+#ifdef PLATFORM_PI
+			} else if (!strcmp(type, "RPIWS281X")) {
+				channelOutputs[i].output = new RPIWS281xOutput(start, count);
+#endif
 			} else if (!strcmp(type, "SPI-WS2801")) {
-				channelOutputs[i].outputOld = &SPIws2801Output;
+				channelOutputs[i].output = new SPIws2801Output(start, count);
 			} else if (!strcmp(type, "SPI-nRF24L01")) {
 				channelOutputs[i].outputOld = &SPInRF24L01Output;
 			} else if (!strcmp(type, "Triks-C")) {
 				channelOutputs[i].outputOld = &TriksCOutput;
 			} else if (!strcmp(type, "GPIO-595")) {
-				channelOutputs[i].outputOld = &GPIO595Output;
+				channelOutputs[i].output = new GPIO595Output(start, count);
 			} else if (!strcmp(type, "Debug")) {
 				channelOutputs[i].output = new DebugOutput(start, count);
 			} else {

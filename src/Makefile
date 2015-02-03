@@ -40,8 +40,7 @@ OBJECTS_fppd = \
 	channeloutput/SPInRF24L01.o \
 	channeloutput/SPIws2801.o \
 	channeloutput/Triks-C.o \
-	channeloutput/USBDMXOpen.o \
-	channeloutput/USBDMXPro.o \
+	channeloutput/USBDMX.o \
 	channeloutput/USBPixelnet.o \
 	channeloutput/USBRenard.o \
 	command.o \
@@ -103,25 +102,33 @@ endif
 ifeq '$(ARCH)' 'Raspberry Pi'
 # do something RaspPi-y
 CFLAGS += \
+	-DPLATFORM_PI \
 	-DUSEWIRINGPI \
 	-DUSENRF \
 	-DUSERGBMATRIX \
 	-I../external/RF24/ \
 	-I../external/rpi-rgb-led-matrix/include/ \
+	-I../external/rpi_ws281x/ \
 	$(NULL)
 LIBS_fppd += \
 	-lwiringPi \
 	-lwiringPiDev \
 	-lrf24-bcm \
 	-lrgbmatrix \
+	-lws2811 \
 	$(NULL)
 LDFLAGS_fppd += \
 	-L../external/RF24 \
 	-L../external/rpi-rgb-led-matrix/lib \
+	-L../external/rpi_ws281x \
+	$(NULL)
+OBJECTS_fppd += \
+	channeloutput/rpi_ws281x.o \
 	$(NULL)
 DEPS_fppd += \
 	../external/RF24/librf24-bcm.so \
 	../external/rpi-rgb-led-matrix/lib/librgbmatrix.a \
+	../external/rpi_ws281x/libws2811.a \
 	$(NULL)
 else
 # do something Linux-y
@@ -168,6 +175,7 @@ clean:
 	rm -f fppversion.c $(OBJECTS_fpp) $(OBJECTS_fppmm) $(OBJECTS_fppd) fpp fppmm fppd
 	@if [ -e ../external/RF24/.git ]; then make -C ../external/RF24 clean; fi
 	@if [ -e ../external/rpi-rgb-led-matrix/.git ]; then make -C ../external/rpi-rgb-led-matrix clean; fi
+	@if [ -e ../external/rpi_ws281x/libws2811.a ]; then rm ../external/rpi_ws281x/*.o ../external/rpi_ws281x/*.a 2> /dev/null; fi
 
 ../external/RF24/.git:
 	@cd ../ && \
@@ -188,4 +196,17 @@ clean:
 ../external/rpi-rgb-led-matrix/lib/librgbmatrix.a: ../external/rpi-rgb-led-matrix/.git
 	@echo "Building rpi-rgb-led-matrix library"
 	@make -C ../external/rpi-rgb-led-matrix/ lib/librgbmatrix.a
+
+../external/rpi_ws281x/.git:
+	@cd ../ && \
+		git submodule init && \
+		git submodule update
+
+../external/rpi_ws281x/libws2811.a: ../external/rpi_ws281x/.git
+	@echo "Building libws2811"
+	@cd ../external/rpi_ws281x/ && \
+		gcc -c -o dma.o dma.c && \
+		gcc -c -o pwm.o pwm.c && \
+		gcc -c -o ws2811.o ws2811.c && \
+		ar rcs libws2811.a dma.o pwm.o ws2811.o
 

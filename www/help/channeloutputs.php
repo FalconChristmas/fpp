@@ -4,6 +4,27 @@
 <p><b>Falcon Pixelnet/DMX (FPD)</b> - The FPD output can send 32,768 channels out 12 ports configured for the DMX or Pixelnet protocols.  This is currently limited to the first 32768 channels in a sequence.</p>
 <p><b>DMX Open</b> - The DMX Open output can send DMX data out generic FTDI-based USB to RS485 dongles.  Other RS485 dongles may work if they support setting arbitrary bit rates.  Support should include the following dongles: Entec Open DMX, LOR, and D-Light along with generic FTDI-based USB to RS485 adapters.</p>
 <p><b>DMX Pro</b> - The DMX Pro output can send DMX data out Entec-Pro compatible dongles.  This should include the following dongles: Entec-Pro, Lynx USB dongle w/ DMX firmware, DIYC RPM, DMXking.com, and DIYblinky.com.  If the dongle works using xLights DMX Pro output, it should work in the Falcon Player. </p>
+<p><b>RGBMatrix</b> - The RGBMatrix output can drive up to four of the 'P10' style 32x16 RGB LED Panels.  These panels may be wired directly to the Pi's GPIO header or an adapter board may be used to handle the wiring.  The adapter board PCB info and BOM are listed in the Falcon wiki at <a href='http://falconchristmas.com/wiki/index.php/RGB-LED_Adapter'>RGB-LED_Adapter</a>.  Make sure the pinout of your LED panels matches the pinout of the LED port on the adapter board before using one of these with your panel or it will not function properly.</p>
+<center>
+<b>RGBMatrix Output Connections</b><br>
+<table border='1' cellpadding='4' cellspacing='1'>
+<tr><th>LED Panel</th><th>Raspberry Pi</th></tr>
+<tr><td>GND - Ground</td><td>Pin 3 - GND</td></tr>
+<tr><td>R1 - Red 1st bank</td><td>Pin 11 - GPIO 17</td></tr>
+<tr><td>G1 - Green 1st bank</td><td>Pin 12 - GPIO 18</td></tr>
+<tr><td>B1 - Blue 1st bank</td><td>Pin 15 - GPIO 22</td></tr>
+<tr><td>R2 - Red 2nd bank</td><td>Pin 16 - GPIO 23</td></tr>
+<tr><td>G2 - Green 2nd bank</td><td>Pin 18 - GPIO 24</td></tr>
+<tr><td>B2 - Blue 2nd bank</td><td>Pin 22 - GPIO 25</td></tr>
+<tr><td>A - Row address</td><td>Pin 26 - GPIO 7</td></tr>
+<tr><td>B - Row address</td><td>Pin 24 - GPIO 8</td></tr>
+<tr><td>C - Row address</td><td>Pin 21 - GPIO 9</td></tr>
+<tr><td>D - Row address</td><td>(Not Used for 32x16 panels</td></tr>
+<tr><td>OE - Neg. Output Enable</td><td>Pin 3 - GPIO 2</td></tr>
+<tr><td>CLK - Serial Clock</td><td>Pin 5 - GPIO 3</td></tr>
+<tr><td>STR - Strobe row data</td><td>Pin 7 - GPIO 4</td></tr>
+</table>
+</center>
 <p><b>Pixelnet Open</b> - The Pixelnet Open output can send Pixelnet data (one 4096-channel universe) out generic FTDI-based USB to RS485 dongles.</p>
 <p><b>Pixelnet Lynx</b> - The Pixelnet Lynx output can send Pixelnet data (one 4096-channel universe) out the Lynx USB dongle w/ Pixelnet firmware.</p>
 <p><b>Renard</b> - The Renard output can drive up to 4584 channels at the highest speeds using standard USB to serial dongles.</p>

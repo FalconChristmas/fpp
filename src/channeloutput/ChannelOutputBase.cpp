@@ -127,7 +127,7 @@ int ChannelOutputBase::SendData(unsigned char *channelData)
 
 int ChannelOutputBase::SendOutputBuffer(void)
 {
-	LogDebug(VB_CHANNELOUT, "ChannelOutputBase::SendOutputBuffer()\n");
+	LogExcess(VB_CHANNELOUT, "ChannelOutputBase::SendOutputBuffer()\n");
 
 	pthread_mutex_lock(&m_bufLock);
 	memcpy(m_outBuf, m_inBuf, m_channelCount);
