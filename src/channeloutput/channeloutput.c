@@ -40,8 +40,7 @@
 #include "LOR.h"
 #include "RGBMatrix.h"
 #include "SPInRF24L01.h"
-#include "USBDMXOpen.h"
-#include "USBDMXPro.h"
+#include "USBDMX.h"
 #include "USBPixelnet.h"
 #include "USBRenard.h"
 #include "Triks-C.h"
@@ -195,10 +194,9 @@ int InitializeChannelOutputs(void) {
 				(!strcmp(type, "Pixelnet-Open")))
 			{
 				channelOutputs[i].output = new USBPixelnetOutput(start, count);
-			} else if (!strcmp(type, "DMX-Pro")) {
-				channelOutputs[i].outputOld = &USBDMXProOutput;
-			} else if (!strcmp(type, "DMX-Open")) {
-				channelOutputs[i].outputOld = &USBDMXOpenOutput;
+			} else if ((!strcmp(type, "DMX-Pro")) ||
+					   (!strcmp(type, "DMX-Open"))) {
+				channelOutputs[i].output = new USBDMXOutput(start, count);
 			} else if (!strcmp(type, "GPIO")) {
 				channelOutputs[i].output = new GPIOOutput(start, count);
 			} else if (!strcmp(type, "LOR")) {
