@@ -49,7 +49,9 @@
 #include "GPIO595.h"
 #include "common.h"
 
-
+#ifdef PLATFORM_PI
+#  include "rpi_ws281x.h"
+#endif
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -205,6 +207,10 @@ int InitializeChannelOutputs(void) {
 				channelOutputs[i].outputOld = &USBRenardOutput;
 			} else if (!strcmp(type, "RGBMatrix")) {
 				channelOutputs[i].output = new RGBMatrixOutput(start, count);
+#ifdef PLATFORM_PI
+			} else if (!strcmp(type, "RPIWS281X")) {
+				channelOutputs[i].output = new RPIWS281xOutput(start, count);
+#endif
 			} else if (!strcmp(type, "SPI-WS2801")) {
 				channelOutputs[i].output = new SPIws2801Output(start, count);
 			} else if (!strcmp(type, "SPI-nRF24L01")) {
