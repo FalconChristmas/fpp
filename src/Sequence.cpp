@@ -1,5 +1,5 @@
 /*
- *   Sequence handler for Falcon Pi Player (FPP)
+ *   Sequence Class for Falcon Pi Player (FPP)
  *
  *   Copyright (C) 2013 the Falcon Pi Player Developers
  *      Initial development by:
@@ -42,48 +42,50 @@
 #include "fpp.h" // for FPPstatus && #define-d status values
 #include "log.h"
 #include "memorymap.h"
-#include "sequence.h"
+#include "Sequence.h"
 #include "settings.h"
 
-FILE         *seqFile = NULL;
-char          seqFilename[1024] = {'\x00'};
-unsigned long seqFileSize = 0;
-unsigned long seqFilePosition = 0;
-int           seqStarting = 0;
-int           seqPaused = 0;
-int           seqSingleStep = 0;
-int           seqSingleStepBack = 0;
-int           seqVersionMajor = 0;
-int           seqVersionMinor = 0;
-int           seqVersion = 0;
-int           seqChanDataOffset = 0;
-int           seqFixedHeaderSize = 0;
-int           seqStepSize = 8192;
-int           seqStepTime = 50;
-int           seqNumPeriods = 0;
-int           seqRefreshRate = 20;
-int           seqNumUniverses = 0;
-int           seqUniverseSize = 0;
-int           seqGamma = 0;
-int           seqColorEncoding = 0;
-int           seqDuration = 0;
-int           seqSecondsElapsed = 0;
-int           seqSecondsRemaining = 0;
-char          seqData[FPPD_MAX_CHANNELS] __attribute__ ((aligned (__BIGGEST_ALIGNMENT__)));
+Sequence *sequence = NULL;
 
-char          seqLastControlMajor = 0;
-char          seqLastControlMinor = 0;
+Sequence::Sequence()
+  : m_seqFileSize(0),
+	m_seqDuration(0),
+	m_seqSecondsElapsed(0),
+	m_seqSecondsRemaining(0),
+	m_seqFile(NULL),
+	m_seqFilePosition(0),
+	m_seqStarting(0),
+	m_seqPaused(0),
+	m_seqSingleStep(0),
+	m_seqSingleStepBack(0),
+	m_seqVersionMajor(0),
+	m_seqVersionMinor(0),
+	m_seqVersion(0),
+	m_seqChanDataOffset(0),
+	m_seqFixedHeaderSize(0),
+	m_seqStepSize(8192),
+	m_seqStepTime(50),
+	m_seqNumPeriods(0),
+	m_seqRefreshRate(20),
+	m_seqNumUniverses(0),
+	m_seqUniverseSize(0),
+	m_seqGamma(0),
+	m_seqColorEncoding(0),
+	m_seqLastControlMajor(0),
+	m_seqLastControlMinor(0)
+{
+	m_seqFilename[0] = 0;
+}
 
-#define DATA_DUMP_SIZE  28
-
-/* prototypes for support functions below */
-char NormalizeControlValue(char in);
+Sequence::~Sequence()
+{
+}
 
 /*
  *
  */
 
-int OpenSequenceFile(const char *filename, int startSeconds) {
+int Sequence::OpenSequenceFile(const char *filename, int startSeconds) {
 	LogDebug(VB_SEQUENCE, "OpenSequenceFile(%s, %d)\n", filename, startSeconds);
 
 	if (!filename || !filename[0])
@@ -94,18 +96,18 @@ int OpenSequenceFile(const char *filename, int startSeconds) {
 
 	size_t bytesRead = 0;
 
-	seqFileSize = 0;
+	m_seqFileSize = 0;
 
 	if (IsSequenceRunning())
 		CloseSequenceFile();
 
-	seqStarting = 1;
-	seqPaused   = 0;
-	seqDuration = 0;
-	seqSecondsElapsed = 0;
-	seqSecondsRemaining = 0;
+	m_seqStarting = 1;
+	m_seqPaused   = 0;
+	m_seqDuration = 0;
+	m_seqSecondsElapsed = 0;
+	m_seqSecondsRemaining = 0;
 
-	strcpy(seqFilename, filename);
+	strcpy(m_seqFilename, filename);
 
 	char tmpFilename[2048];
 	unsigned char tmpData[2048];
@@ -119,16 +121,16 @@ int OpenSequenceFile(const char *filename, int startSeconds) {
 	if (!FileExists(tmpFilename))
 	{
 		LogErr(VB_SEQUENCE, "Sequence file %s does not exist\n", tmpFilename);
-		seqStarting = 0;
+		m_seqStarting = 0;
 		return 0;
 	}
 
-	seqFile = fopen((const char *)tmpFilename, "r");
-	if (seqFile == NULL) 
+	m_seqFile = fopen((const char *)tmpFilename, "r");
+	if (m_seqFile == NULL) 
 	{
 		LogErr(VB_SEQUENCE, "Error opening sequence file: %s. fopen returned NULL\n",
 			tmpFilename);
-		seqStarting = 0;
+		m_seqStarting = 0;
 		return 0;
 	}
 
@@ -144,148 +146,148 @@ int OpenSequenceFile(const char *filename, int startSeconds) {
 	// Check 4-byte File format identifier
 	char seqFormatID[5];
 	strcpy(seqFormatID, "    ");
-	bytesRead = fread(seqFormatID, 1, 4, seqFile);
+	bytesRead = fread(seqFormatID, 1, 4, m_seqFile);
 	seqFormatID[4] = 0;
 	if ((bytesRead != 4) || (strcmp(seqFormatID, "PSEQ") && strcmp(seqFormatID, "FSEQ")))
 	{
 		LogErr(VB_SEQUENCE, "Error opening sequence file: %s. Incorrect File Format header: '%s', bytesRead: %d\n",
 			filename, seqFormatID, bytesRead);
 
-		fseek(seqFile, 0L, SEEK_SET);
-		bytesRead = fread(tmpData, 1, DATA_DUMP_SIZE, seqFile);
+		fseek(m_seqFile, 0L, SEEK_SET);
+		bytesRead = fread(tmpData, 1, DATA_DUMP_SIZE, m_seqFile);
 		HexDump("Sequence File head:", tmpData, bytesRead);
 
-		fclose(seqFile);
-		seqFile = NULL;
-		seqStarting = 0;
+		fclose(m_seqFile);
+		m_seqFile = NULL;
+		m_seqStarting = 0;
 		return 0;
 	}
 
 	///////////////////////////////////////////////////////////////////////
 	// Get Channel Data Offset
-	bytesRead = fread(tmpData, 1, 2, seqFile);
+	bytesRead = fread(tmpData, 1, 2, m_seqFile);
 	if (bytesRead != 2)
 	{
 		LogErr(VB_SEQUENCE, "Sequence file %s too short, unable to read channel data offset value\n", filename);
 
-		fseek(seqFile, 0L, SEEK_SET);
-		bytesRead = fread(tmpData, 1, DATA_DUMP_SIZE, seqFile);
+		fseek(m_seqFile, 0L, SEEK_SET);
+		bytesRead = fread(tmpData, 1, DATA_DUMP_SIZE, m_seqFile);
 		HexDump("Sequence File head:", tmpData, bytesRead);
 
-		fclose(seqFile);
-		seqFile = NULL;
-		seqStarting = 0;
+		fclose(m_seqFile);
+		m_seqFile = NULL;
+		m_seqStarting = 0;
 		return 0;
 	}
-	seqChanDataOffset = tmpData[0] + (tmpData[1] << 8);
+	m_seqChanDataOffset = tmpData[0] + (tmpData[1] << 8);
 
 	///////////////////////////////////////////////////////////////////////
 	// Now that we know the header size, read the whole header in one shot
-	fseek(seqFile, 0L, SEEK_SET);
-	bytesRead = fread(tmpData, 1, seqChanDataOffset, seqFile);
-	if (bytesRead != seqChanDataOffset)
+	fseek(m_seqFile, 0L, SEEK_SET);
+	bytesRead = fread(tmpData, 1, m_seqChanDataOffset, m_seqFile);
+	if (bytesRead != m_seqChanDataOffset)
 	{
 		LogErr(VB_SEQUENCE, "Sequence file %s too short, unable to read fixed header size value\n", filename);
 
-		fseek(seqFile, 0L, SEEK_SET);
-		bytesRead = fread(tmpData, 1, DATA_DUMP_SIZE, seqFile);
+		fseek(m_seqFile, 0L, SEEK_SET);
+		bytesRead = fread(tmpData, 1, DATA_DUMP_SIZE, m_seqFile);
 		HexDump("Sequence File head:", tmpData, bytesRead);
 
-		fclose(seqFile);
-		seqFile = NULL;
-		seqStarting = 0;
+		fclose(m_seqFile);
+		m_seqFile = NULL;
+		m_seqStarting = 0;
 		return 0;
 	}
 
-	seqVersionMinor = tmpData[6];
-	seqVersionMajor = tmpData[7];
-	seqVersion      = (seqVersionMajor * 256) + seqVersionMinor;
+	m_seqVersionMinor = tmpData[6];
+	m_seqVersionMajor = tmpData[7];
+	m_seqVersion      = (m_seqVersionMajor * 256) + m_seqVersionMinor;
 
-	seqFixedHeaderSize =
+	m_seqFixedHeaderSize =
 		(tmpData[8])        + (tmpData[9] << 8);
 
-	seqStepSize =
+	m_seqStepSize =
 		(tmpData[10])       + (tmpData[11] << 8) +
 		(tmpData[12] << 16) + (tmpData[13] << 24);
 
-	seqNumPeriods =
+	m_seqNumPeriods =
 		(tmpData[14])       + (tmpData[15] << 8) +
 		(tmpData[16] << 16) + (tmpData[17] << 24);
 
-	seqStepTime =
+	m_seqStepTime =
 		(tmpData[18])       + (tmpData[19] << 8);
 
-	seqNumUniverses = 
+	m_seqNumUniverses = 
 		(tmpData[20])       + (tmpData[21] << 8);
 
-	seqUniverseSize = 
+	m_seqUniverseSize = 
 		(tmpData[22])       + (tmpData[23] << 8);
 
-	seqGamma         = tmpData[24];
-	seqColorEncoding = tmpData[25];
+	m_seqGamma         = tmpData[24];
+	m_seqColorEncoding = tmpData[25];
 
 	// End of v1.0 fields
-	if (seqVersion > 0x0100)
+	if (m_seqVersion > 0x0100)
 	{
 	}
 
-	seqRefreshRate = 1000 / seqStepTime;
+	m_seqRefreshRate = 1000 / m_seqStepTime;
 
-	fseek(seqFile, 0L, SEEK_END);
-	seqFileSize = ftell(seqFile);
-	seqDuration = (int)((float)(seqFileSize - seqChanDataOffset)
-		/ ((float)seqStepSize * (float)seqRefreshRate));
-	seqSecondsRemaining = seqDuration;
-	fseek(seqFile, seqChanDataOffset, SEEK_SET);
-	seqFilePosition = seqChanDataOffset;
+	fseek(m_seqFile, 0L, SEEK_END);
+	m_seqFileSize = ftell(m_seqFile);
+	m_seqDuration = (int)((float)(m_seqFileSize - m_seqChanDataOffset)
+		/ ((float)m_seqStepSize * (float)m_seqRefreshRate));
+	m_seqSecondsRemaining = m_seqDuration;
+	fseek(m_seqFile, m_seqChanDataOffset, SEEK_SET);
+	m_seqFilePosition = m_seqChanDataOffset;
 
 	LogDebug(VB_SEQUENCE, "Sequence File Information\n");
-	LogDebug(VB_SEQUENCE, "seqFilename           : %s\n", seqFilename);
+	LogDebug(VB_SEQUENCE, "seqFilename           : %s\n", m_seqFilename);
 	LogDebug(VB_SEQUENCE, "seqVersion            : %d.%d\n",
-		seqVersionMajor, seqVersionMinor);
+		m_seqVersionMajor, m_seqVersionMinor);
 	LogDebug(VB_SEQUENCE, "seqFormatID           : %s\n", seqFormatID);
-	LogDebug(VB_SEQUENCE, "seqChanDataOffset     : %d\n", seqChanDataOffset);
-	LogDebug(VB_SEQUENCE, "seqFixedHeaderSize    : %d\n", seqFixedHeaderSize);
-	LogDebug(VB_SEQUENCE, "seqStepSize           : %d\n", seqStepSize);
-	LogDebug(VB_SEQUENCE, "seqNumPeriods         : %d\n", seqNumPeriods);
-	LogDebug(VB_SEQUENCE, "seqStepTime           : %dms\n", seqStepTime);
-	LogDebug(VB_SEQUENCE, "seqNumUniverses       : %d *\n", seqNumUniverses);
-	LogDebug(VB_SEQUENCE, "seqUniverseSize       : %d *\n", seqUniverseSize);
-	LogDebug(VB_SEQUENCE, "seqGamma              : %d *\n", seqGamma);
-	LogDebug(VB_SEQUENCE, "seqColorEncoding      : %d *\n", seqColorEncoding);
-	LogDebug(VB_SEQUENCE, "seqRefreshRate        : %d\n", seqRefreshRate);
-	LogDebug(VB_SEQUENCE, "seqFileSize           : %lu\n", seqFileSize);
-	LogDebug(VB_SEQUENCE, "seqDuration           : %d\n", seqDuration);
+	LogDebug(VB_SEQUENCE, "seqChanDataOffset     : %d\n", m_seqChanDataOffset);
+	LogDebug(VB_SEQUENCE, "seqFixedHeaderSize    : %d\n", m_seqFixedHeaderSize);
+	LogDebug(VB_SEQUENCE, "seqStepSize           : %d\n", m_seqStepSize);
+	LogDebug(VB_SEQUENCE, "seqNumPeriods         : %d\n", m_seqNumPeriods);
+	LogDebug(VB_SEQUENCE, "seqStepTime           : %dms\n", m_seqStepTime);
+	LogDebug(VB_SEQUENCE, "seqNumUniverses       : %d *\n", m_seqNumUniverses);
+	LogDebug(VB_SEQUENCE, "seqUniverseSize       : %d *\n", m_seqUniverseSize);
+	LogDebug(VB_SEQUENCE, "seqGamma              : %d *\n", m_seqGamma);
+	LogDebug(VB_SEQUENCE, "seqColorEncoding      : %d *\n", m_seqColorEncoding);
+	LogDebug(VB_SEQUENCE, "seqRefreshRate        : %d\n", m_seqRefreshRate);
+	LogDebug(VB_SEQUENCE, "seqFileSize           : %lu\n", m_seqFileSize);
+	LogDebug(VB_SEQUENCE, "seqDuration           : %d\n", m_seqDuration);
 	LogDebug(VB_SEQUENCE, "'*' denotes field is currently ignored by FPP\n");
 
-	seqPaused = 0;
-	seqSingleStep = 0;
-	seqSingleStepBack = 0;
+	m_seqPaused = 0;
+	m_seqSingleStep = 0;
+	m_seqSingleStepBack = 0;
 
 	int frameNumber = 0;
 
 	if (startSeconds)
 	{
-		int frameNumber = startSeconds * seqRefreshRate;
-		int newPos = seqChanDataOffset + (frameNumber * seqStepSize);
-		LogDebug(VB_SEQUENCE, "Seeking to byte %d in %s\n", newPos, seqFilename);
+		int frameNumber = startSeconds * m_seqRefreshRate;
+		int newPos = m_seqChanDataOffset + (frameNumber * m_seqStepSize);
+		LogDebug(VB_SEQUENCE, "Seeking to byte %d in %s\n", newPos, m_seqFilename);
 
-		fseek(seqFile, newPos, SEEK_SET);
+		fseek(m_seqFile, newPos, SEEK_SET);
 	}
 
 	ReadSequenceData();
 
 	SetChannelOutputFrameNumber(frameNumber);
 
-	SetChannelOutputRefreshRate(seqRefreshRate);
+	SetChannelOutputRefreshRate(m_seqRefreshRate);
 	StartChannelOutputThread();
 
-	seqStarting = 0;
+	m_seqStarting = 0;
 
-	return seqFileSize;
+	return m_seqFileSize;
 }
 
-int SeekSequenceFile(int frameNumber) {
+int Sequence::SeekSequenceFile(int frameNumber) {
 	LogDebug(VB_SEQUENCE, "SeekSequenceFile(%d)\n", frameNumber);
 
 	if (!IsSequenceRunning())
@@ -294,10 +296,10 @@ int SeekSequenceFile(int frameNumber) {
 		return 0;
 	}
 
-	int newPos = seqChanDataOffset + (frameNumber * seqStepSize);
-	LogDebug(VB_SEQUENCE, "Seeking to byte %d in %s\n", newPos, seqFilename);
+	int newPos = m_seqChanDataOffset + (frameNumber * m_seqStepSize);
+	LogDebug(VB_SEQUENCE, "Seeking to byte %d in %s\n", newPos, m_seqFilename);
 
-	fseek(seqFile, newPos, SEEK_SET);
+	fseek(m_seqFile, newPos, SEEK_SET);
 
 	ReadSequenceData();
 
@@ -305,59 +307,59 @@ int SeekSequenceFile(int frameNumber) {
 }
 
 
-char *CurrentSequenceFilename(void) {
-	return seqFilename;
+char *Sequence::CurrentSequenceFilename(void) {
+	return m_seqFilename;
 }
 
-inline int IsSequenceRunning(void) {
-	if (seqFile)
+inline int Sequence::IsSequenceRunning(void) {
+	if (m_seqFile)
 		return 1;
 
 	return 0;
 }
 
-void BlankSequenceData(void) {
-	bzero(seqData, sizeof(seqData));
+void Sequence::BlankSequenceData(void) {
+	bzero(m_seqData, sizeof(m_seqData));
 }
 
-int SequenceIsPaused(void) {
-	return seqPaused;
+int Sequence::SequenceIsPaused(void) {
+	return m_seqPaused;
 }
 
-void ToggleSequencePause(void) {
-	if (seqPaused)
-		seqPaused = 0;
+void Sequence::ToggleSequencePause(void) {
+	if (m_seqPaused)
+		m_seqPaused = 0;
 	else
-		seqPaused = 1;
+		m_seqPaused = 1;
 }
 
-void SingleStepSequence(void) {
-	seqSingleStep = 1;
+void Sequence::SingleStepSequence(void) {
+	m_seqSingleStep = 1;
 }
 
-void SingleStepSequenceBack(void) {
-	seqSingleStepBack = 1;
+void Sequence::SingleStepSequenceBack(void) {
+	m_seqSingleStepBack = 1;
 }
 
-void ReadSequenceData(void) {
+void Sequence::ReadSequenceData(void) {
 	size_t  bytesRead = 0;
 
-	if (seqStarting)
+	if (m_seqStarting)
 		return;
 
-	if (seqPaused)
+	if (m_seqPaused)
 	{
-		if (seqSingleStep)
+		if (m_seqSingleStep)
 		{
-			seqSingleStep = 0;
+			m_seqSingleStep = 0;
 		}
-		else if (seqSingleStepBack)
+		else if (m_seqSingleStepBack)
 		{
-			seqSingleStepBack = 0;
+			m_seqSingleStepBack = 0;
 
-			int offset = seqStepSize * 2;
-			if (seqFilePosition > offset)
-				fseek(seqFile, 0 - offset, SEEK_CUR);
+			int offset = m_seqStepSize * 2;
+			if (m_seqFilePosition > offset)
+				fseek(m_seqFile, 0 - offset, SEEK_CUR);
 		}
 		else
 		{
@@ -368,19 +370,19 @@ void ReadSequenceData(void) {
 	if (IsSequenceRunning())
 	{
 		bytesRead = 0;
-		if(seqFilePosition < seqFileSize - seqStepSize)
+		if(m_seqFilePosition < m_seqFileSize - m_seqStepSize)
 		{
-			bytesRead = fread(seqData, 1, seqStepSize, seqFile);
-			seqFilePosition += bytesRead;
+			bytesRead = fread(m_seqData, 1, m_seqStepSize, m_seqFile);
+			m_seqFilePosition += bytesRead;
 		}
 
-		if (bytesRead != seqStepSize)
+		if (bytesRead != m_seqStepSize)
 		{
 			CloseSequenceFile();
 		}
 
-		seqSecondsElapsed = (int)((float)(seqFilePosition - seqChanDataOffset)/((float)seqStepSize*(float)seqRefreshRate));
-		seqSecondsRemaining = seqDuration - seqSecondsElapsed;
+		m_seqSecondsElapsed = (int)((float)(m_seqFilePosition - m_seqChanDataOffset)/((float)m_seqStepSize*(float)m_seqRefreshRate));
+		m_seqSecondsRemaining = m_seqDuration - m_seqSecondsElapsed;
 	}
 	else if ( getFPPmode() != BRIDGE_MODE )
 	{
@@ -388,54 +390,54 @@ void ReadSequenceData(void) {
 	}
 }
 
-void ProcessSequenceData(void) {
+void Sequence::ProcessSequenceData(void) {
 	if (IsEffectRunning())
-		OverlayEffects(seqData);
+		OverlayEffects(m_seqData);
 
 	if (UsingMemoryMapInput())
-		OverlayMemoryMap(seqData);
+		OverlayMemoryMap(m_seqData);
 
 	if (getControlMajor() && getControlMinor())
 	{
-		char thisMajor = NormalizeControlValue(seqData[getControlMajor()-1]);
-		char thisMinor = NormalizeControlValue(seqData[getControlMinor()-1]);
+		char thisMajor = NormalizeControlValue(m_seqData[getControlMajor()-1]);
+		char thisMinor = NormalizeControlValue(m_seqData[getControlMinor()-1]);
 
-		if ((seqLastControlMajor != thisMajor) ||
-			(seqLastControlMinor != thisMinor))
+		if ((m_seqLastControlMajor != thisMajor) ||
+			(m_seqLastControlMinor != thisMinor))
 		{
-			seqLastControlMajor = thisMajor;
-			seqLastControlMinor = thisMinor;
+			m_seqLastControlMajor = thisMajor;
+			m_seqLastControlMinor = thisMinor;
 
-			if (seqLastControlMajor && seqLastControlMinor)
-				TriggerEvent(seqLastControlMajor, seqLastControlMinor);
+			if (m_seqLastControlMajor && m_seqLastControlMinor)
+				TriggerEvent(m_seqLastControlMajor, m_seqLastControlMinor);
 		}
 	}
 }
 
-void SendSequenceData(void) {
-	SendChannelData(seqData);
+void Sequence::SendSequenceData(void) {
+	SendChannelData(m_seqData);
 }
 
-void SendBlankingData(void) {
+void Sequence::SendBlankingData(void) {
 	LogDebug(VB_SEQUENCE, "Sending Blanking Data\n");
 	usleep(100000);
 	ReadSequenceData();
 	SendSequenceData();
 }
 
-void CloseSequenceFile(void) {
-	LogDebug(VB_SEQUENCE, "CloseSequenceFile() %s\n", seqFilename);
+void Sequence::CloseSequenceFile(void) {
+	LogDebug(VB_SEQUENCE, "CloseSequenceFile() %s\n", m_seqFilename);
 
 	if (getFPPmode() == MASTER_MODE)
-		SendSeqSyncStopPacket(seqFilename);
+		SendSeqSyncStopPacket(m_seqFilename);
 
-	if (seqFile) {
-		fclose(seqFile);
-		seqFile = NULL;
+	if (m_seqFile) {
+		fclose(m_seqFile);
+		m_seqFile = NULL;
 	}
 
-	seqFilename[0] = '\0';
-	seqPaused = 0;
+	m_seqFilename[0] = '\0';
+	m_seqPaused = 0;
 
 	if (!IsEffectRunning() && (FPPstatus != FPP_STATUS_PLAYLIST_PLAYING))
 		SendBlankingData();
@@ -444,7 +446,7 @@ void CloseSequenceFile(void) {
 /*
  * Normalize control channel values into buckets
  */
-char NormalizeControlValue(char in) {
+char Sequence::NormalizeControlValue(char in) {
 	char result = (char)(((unsigned char)in + 5) / 10);
 
 	if (result == 26)

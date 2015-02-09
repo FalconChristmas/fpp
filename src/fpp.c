@@ -27,7 +27,6 @@
 #include "fppversion.h"
 #include "log.h"
 #include "command.h"
-#include "sequence.h"
 
 #include <errno.h>
 #include <fcntl.h>

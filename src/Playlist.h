@@ -1,5 +1,5 @@
 /*
- *   Play list handler for Falcon Pi Player (FPP)
+ *   Playlist Class for Falcon Pi Player (FPP)
  *
  *   Copyright (C) 2013 the Falcon Pi Player Developers
  *      Initial development by:
@@ -26,6 +26,8 @@
 #ifndef _PLAYLIST_H
 #define _PLAYLIST_H
 
+#include <stdbool.h>
+
 #define PL_TYPE_BOTH			0
 #define PL_TYPE_MEDIA			1
 #define PL_TYPE_SEQUENCE		2
@@ -49,11 +51,8 @@
 
 #define PL_MAX_ENTRIES			128
 
-#include <stdbool.h>
 
-extern int playlistAction;
-
-typedef struct{
+typedef struct {
 	unsigned char type;
 	char cType;
 	char seqName[256];
@@ -61,9 +60,9 @@ typedef struct{
 	char eventID[6];
 	unsigned int pauselength;
 	char data[256];
-}PlaylistEntry;
+} PlaylistEntry;
 
-typedef struct{
+typedef struct {
 	PlaylistEntry playList[PL_MAX_ENTRIES];
 	char currentPlaylist[128];
 	char currentPlaylistFile[128];
@@ -75,21 +74,41 @@ typedef struct{
 	int  first;
 	int  last;
 	int  repeat;
-}PlaylistDetails;
+} PlaylistDetails;
 
-void CalculateNextPlayListEntry();
-int ParsePlaylistEntry(char *buf, PlaylistEntry *pe);
-int ReadPlaylist(char const * file);
-void PlayListPlayingInit(void);
-void PlayListPlayingProcess(void);
-void PlayListPlayingCleanup(void);
-void PauseProcess(void);
-void PlaylistProcessMediaData(void);
-void Play_PlaylistEntry(bool calculateNext);
-void PlaylistPlaySong(void);
-void PlaylistPrint();
-void StopPlaylistGracefully(void);
-void StopPlaylistNow(void);
-void JumpToPlaylistEntry(int entryIndex);
+class Playlist {
+  public:
+	Playlist();
+	~Playlist();
+
+	void StopPlaylistGracefully(void);
+	void StopPlaylistNow(void);
+	void PlayListPlayingInit(void);
+	void PlayListPlayingProcess(void);
+	void PlayListPlayingCleanup(void);
+	void PlaylistProcessMediaData(void);
+	int  ParsePlaylistEntry(char *buf, PlaylistEntry *pe);
+
+	int               m_playlistAction;
+	PlaylistDetails   m_playlistDetails;
+	int               m_numberOfSecondsPaused;
+
+  private:
+
+	void IncrementPlayListEntry(void);
+	void DecrementPlayListEntry(void);
+	void CalculateNextPlayListEntry(void);
+	int  ReadPlaylist(char const * file);
+	void PauseProcess(void);
+	void PlayPlaylistEntry(bool calculateNext);
+	void PlaylistPlaySong(void);
+	void PlaylistPrint(void);
+
+	struct timeval         m_pauseStartTime;
+	struct timeval         m_nowTime;
+	int                    m_pauseStatus;
+};
+
+extern Playlist         *playlist;
 
 #endif

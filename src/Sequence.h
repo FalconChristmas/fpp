@@ -1,5 +1,5 @@
 /*
- *   Sequence handler for Falcon Pi Player (FPP)
+ *   Sequence Class for Falcon Pi Player (FPP)
  *
  *   Copyright (C) 2013 the Falcon Pi Player Developers
  *      Initial development by:
@@ -26,26 +26,64 @@
 #ifndef _SEQUENCE_H
 #define _SEQUENCE_H
 
+#include <stdio.h>
+
 #define FPPD_MAX_CHANNELS 131072
+#define DATA_DUMP_SIZE    28
 
-extern unsigned long seqFileSize;
-extern int  seqDuration;
-extern int  seqSecondsElapsed;
-extern int  seqSecondsRemaining;
-extern char seqData[FPPD_MAX_CHANNELS];
-extern char seqFilename[1024];
+class Sequence {
+  public:
+	Sequence();
+	~Sequence();
 
-int   OpenSequenceFile(const char *filename, int startSeconds);
-int   SeekSequenceFile(int frameNumber);
-int   IsSequenceRunning(void);
-void  ProcessSequenceData(void);
-void  ReadSequenceData(void);
-void  SendSequenceData(void);
-void  SendBlankingData(void);
-void  CloseSequenceFile(void);
-int   SequenceIsPaused(void);
-void  ToggleSequencePause(void);
-void  SingleStepSequence(void);
-void  SingleStepSequenceBack(void);
+	int   IsSequenceRunning(void);
+	int   OpenSequenceFile(const char *filename, int startSeconds);
+	void  ProcessSequenceData(void);
+	int   SeekSequenceFile(int frameNumber);
+	void  ReadSequenceData(void);
+	void  SendSequenceData(void);
+	void  SendBlankingData(void);
+	void  CloseSequenceFile(void);
+	void  ToggleSequencePause(void);
+	void  SingleStepSequence(void);
+	void  SingleStepSequenceBack(void);
+	int   SequenceIsPaused(void);
+
+	unsigned long m_seqFileSize;
+	int           m_seqDuration;
+	int           m_seqSecondsElapsed;
+	int           m_seqSecondsRemaining;
+	char          m_seqData[FPPD_MAX_CHANNELS] __attribute__ ((aligned (__BIGGEST_ALIGNMENT__)));
+	char          m_seqFilename[1024];
+
+  private:
+	void  BlankSequenceData(void);
+	char  NormalizeControlValue(char in);
+	char *CurrentSequenceFilename(void);
+
+	FILE         *m_seqFile;
+	unsigned long m_seqFilePosition;
+	int           m_seqStarting;
+	int           m_seqPaused;
+	int           m_seqSingleStep;
+	int           m_seqSingleStepBack;
+	int           m_seqVersionMajor;
+	int           m_seqVersionMinor;
+	int           m_seqVersion;
+	int           m_seqChanDataOffset;
+	int           m_seqFixedHeaderSize;
+	int           m_seqStepSize;
+	int           m_seqStepTime;
+	int           m_seqNumPeriods;
+	int           m_seqRefreshRate;
+	int           m_seqNumUniverses;
+	int           m_seqUniverseSize;
+	int           m_seqGamma;
+	int           m_seqColorEncoding;
+	char          m_seqLastControlMajor;
+	char          m_seqLastControlMinor;
+};
+
+extern Sequence *sequence;
 
 #endif /* _SEQUENCE_H */

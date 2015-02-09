@@ -31,7 +31,7 @@
 #include "effects.h"
 #include "channeloutputthread.h"
 #include "log.h"
-#include "sequence.h"
+#include "Sequence.h"
 #include "settings.h"
 
 #define ESEQ_MODEL_COUNT_OFFSET     4 // hard-coded to 1 for now in Nutcracker
@@ -262,8 +262,9 @@ int StopEffect(int effectID)
 
 	pthread_mutex_unlock(&effectsLock);
 
-	if (!IsEffectRunning() && !IsSequenceRunning())
-		SendBlankingData();
+	if ((!IsEffectRunning()) &&
+		(!sequence->IsSequenceRunning()))
+		sequence->SendBlankingData();
 
 	return 1;
 }
@@ -347,8 +348,10 @@ int OverlayEffects(char *channelData)
 
 	pthread_mutex_unlock(&effectsLock);
 
-	if ((dataRead == 0) && (!IsEffectRunning()) && (!IsSequenceRunning()))
-		SendBlankingData();
+	if ((dataRead == 0) &&
+		(!IsEffectRunning()) &&
+		(!sequence->IsSequenceRunning()))
+		sequence->SendBlankingData();
 
 	return 1;
 }

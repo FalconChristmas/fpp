@@ -37,8 +37,8 @@
 
 #include "fppversion.h"
 #include "memorymapcontrol.h"
-#include "sequence.h"
 #include "common.h"
+#include "Sequence.h"
 
 char *blockName     = NULL;
 char *inputFilename = NULL;

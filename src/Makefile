@@ -60,10 +60,11 @@ OBJECTS_fppd = \
 	mediaoutput/ogg123.o \
 	mediaoutput/omxplayer.o \
 	memorymap.o \
-	playList.o \
+	Playlist.o \
 	plugins.o \
-	schedule.o \
-	sequence.o \
+	Scheduler.o \
+	ScheduleEntry.o \
+	Sequence.o \
 	settings.o \
 	$(NULL)
 LIBS_fppd = \
