@@ -38,7 +38,7 @@
 #include "falcon.h"
 #include "FPD.h"
 #include "log.h"
-#include "sequence.h"
+#include "Sequence.h"
 #include "settings.h"
 
 #ifdef USEWIRINGPI

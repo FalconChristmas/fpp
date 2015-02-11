@@ -32,7 +32,6 @@ plugin_t plugins[MAX_PLUGINS];
 int plugin_count = 0;
 
 extern MediaDetails	 mediaDetails;
-extern PlaylistDetails playlistDetails;
 
 const char *type_to_string[] = {
 	"both",
@@ -231,7 +230,7 @@ void MediaCallback(void)
 				// escaping, we shouldn't worry about things like tabs,
 				// backspaces, form feeds, etc..
 
-				PlaylistEntry *plEntry = &playlistDetails.playList[playlistDetails.currentPlaylistEntry];
+				PlaylistEntry *plEntry = &playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry];
 
 				strncpy(&data[0], "{", sizeof(data));
 				snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
@@ -476,7 +475,7 @@ int NextPlaylistEntryCallback(const char *plugin_data, int currentPlaylistEntry,
 				read(output_pipe[0], &playlist_entry, sizeof(playlist_entry));
 
 				LogExcess(VB_PLUGIN, "Parsed playlist entry: %s\n", playlist_entry);
-				ret_val = ParsePlaylistEntry(playlist_entry, pe);
+				ret_val = playlist->ParsePlaylistEntry(playlist_entry, pe);
 				//Set our type back to 'P' so we re-parse it next time we pass it in the playlist
 				pe->cType = 'P';
 

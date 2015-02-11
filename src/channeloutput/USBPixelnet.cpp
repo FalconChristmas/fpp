@@ -102,7 +102,7 @@ int USBPixelnetOutput::Init(char *configStr)
 		return 0;
 	}
 
-	m_deviceName = "/dev/" + m_deviceName;
+	m_deviceName.insert(0, "/dev/");
 
 	LogInfo(VB_CHANNELOUT, "Opening %s for Pixelnet output\n",
 		m_deviceName.c_str());

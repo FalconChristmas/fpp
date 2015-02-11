@@ -40,10 +40,10 @@
 #include "mediadetails.h"
 #include "mediaoutput.h"
 #include "memorymap.h"
-#include "playList.h"
+#include "Playlist.h"
 #include "plugins.h"
-#include "schedule.h"
-#include "sequence.h"
+#include "Scheduler.h"
+#include "Sequence.h"
 #include "settings.h"
 
 #include <errno.h>
@@ -99,6 +99,10 @@ int main(int argc, char *argv[])
 	if (getDaemonize())
 		CreateDaemon();
 
+	scheduler = new Scheduler();
+	playlist  = new Playlist();
+	sequence  = new Sequence();
+
 	piFaceSetup(200); // PiFace inputs 1-8 == wiringPi 200-207
 
 	SetupGPIOInput();
@@ -108,7 +112,7 @@ int main(int argc, char *argv[])
 	CheckExistanceOfDirectoriesAndFiles();
 
 	InitializeChannelOutputs();
-	SendBlankingData();
+	sequence->SendBlankingData();
 
 	if (getFPPmode() != BRIDGE_MODE)
 	{
@@ -152,6 +156,10 @@ int main(int argc, char *argv[])
 
 	CloseChannelOutputs();
 
+	delete scheduler;
+	delete playlist;
+	delete sequence;
+
 	return 0;
 }
 
@@ -182,7 +190,7 @@ void MainLoop(void)
 
 	if (getFPPmode() & PLAYER_MODE)
 	{
-		CheckIfShouldBePlayingNow();
+		scheduler->CheckIfShouldBePlayingNow();
 		if (getAlwaysTransmit())
 			StartChannelOutputThread();
 	}
@@ -248,7 +256,7 @@ void MainLoop(void)
 			{
 				if (prevFPPstatus == FPP_STATUS_IDLE)
 				{
-					PlayListPlayingInit();
+					playlist->PlayListPlayingInit();
 					sleepms = 10000;
 				}
 
@@ -257,7 +265,7 @@ void MainLoop(void)
 				if ((FPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||
 					(FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY))
 				{
-					PlayListPlayingProcess();
+					playlist->PlayListPlayingProcess();
 				}
 			}
 
@@ -267,7 +275,7 @@ void MainLoop(void)
 				if ((prevFPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||
 					(prevFPPstatus == FPP_STATUS_STOPPING_GRACEFULLY))
 				{
-					PlayListPlayingCleanup();
+					playlist->PlayListPlayingCleanup();
 
 					if (FPPstatus != FPP_STATUS_IDLE)
 						reactivated = 1;
@@ -281,13 +289,13 @@ void MainLoop(void)
 			else
 				prevFPPstatus = FPPstatus;
 
-			ScheduleProc();
+			scheduler->ScheduleProc();
 		}
 		else if (getFPPmode() == REMOTE_MODE)
 		{
 			if(mediaOutputStatus.status == MEDIAOUTPUTSTATUS_PLAYING)
 			{
-				PlaylistProcessMediaData();
+				playlist->PlaylistProcessMediaData();
 			}
 		}
 

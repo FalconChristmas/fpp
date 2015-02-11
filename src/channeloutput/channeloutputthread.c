@@ -37,7 +37,7 @@
 #include "effects.h"
 #include "log.h"
 #include "memorymap.h"
-#include "sequence.h"
+#include "Sequence.h"
 #include "settings.h"
 
 /* used by external sync code */
@@ -120,14 +120,14 @@ void *RunChannelOutputThread(void *data)
 		startTime = GetTime();
 
 		if ((getFPPmode() == MASTER_MODE) &&
-			(IsSequenceRunning())) 
+			(sequence->IsSequenceRunning()))
 		{
 			if (syncFrameCounter & 0x10)
 			{
 				// Send sync every 16 frames (use 16 to make the check simpler)
 				syncFrameCounter = 1;
 				SendSeqSyncPacket(
-					seqFilename, channelOutputFrame, mediaElapsedSeconds);
+					sequence->m_seqFilename, channelOutputFrame, mediaElapsedSeconds);
 			}
 			else
 			{
@@ -136,18 +136,18 @@ void *RunChannelOutputThread(void *data)
 		}
 
 		if (OutputFrames)
-			SendSequenceData();
+			sequence->SendSequenceData();
 
 		sendTime = GetTime();
 
 		if (getFPPmode() != BRIDGE_MODE)
-			ReadSequenceData();
+			sequence->ReadSequenceData();
 
-		ProcessSequenceData();
+		sequence->ProcessSequenceData();
 
 		readTime = GetTime();
 
-		if ((IsSequenceRunning()) ||
+		if ((sequence->IsSequenceRunning()) ||
 			(IsEffectRunning()) ||
 			(UsingMemoryMapInput()) ||
 			(getAlwaysTransmit()) ||

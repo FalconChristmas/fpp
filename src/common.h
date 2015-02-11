@@ -38,6 +38,9 @@ void      HexDump(char *title, void *data, int len);
 int       GetInterfaceAddress(char *interface, char *addr, char *mask, char *gw);
 char     *FindInterfaceForIP(char *ip);
 int       CheckForHostSpecificFile(const char *hostname, char *filename);
+int       DateStrToInt(const char *str);
+int       GetCurrentDateInt(int daysOffset = 0);
+int       CurrentDateInRange(int startDate, int endDate);
 
 vector<string> &split(const string &s, char delim, vector<string> &elems);
 vector<string> split(const string &s, char delim);
