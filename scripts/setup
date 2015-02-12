@@ -1,0 +1,106 @@
+#!/bin/bash
+
+. /opt/fpp/scripts/common
+. /opt/fpp/scripts/functions
+
+#############################################################################
+# Support function(s)
+
+SetupNetworkInterface () {
+	INTERFACE=$1
+	PROTO="dhcp"
+	ADDRESS=""
+	NETMASK="255.255.255.0"
+	GATEWAY=""
+	SSID=""
+	PSK=""
+
+	echo -n "Configure ${INTERFACE}? [y/N] "
+	read ANSWER
+	LCANSWER=$(echo ${ANSWER} | tr "A-Z" "a-z")
+
+	if [ "x${LCANSWER}" = "xy" ]
+	then
+		echo -n "Use DHCP to configure interface? [Y/n] "
+		read ANSWER
+		LCANSWER=$(echo ${ANSWER} | tr "A-Z" "a-z")
+
+		if [ "x${LCANSWER}" = "xn" ]
+		then
+			PROTO="static"
+
+			echo -n "IP Address: "
+			read ADDRESS
+
+			echo -n "Netmask (255.255.255.0): "
+			read NETMASK
+			if [ "x${NETMASK}" = "x" ]
+			then
+				NETMASK="255.255.255.0"
+			fi
+
+			echo -n "Gateway: (hit ENTER to leave blank) "
+			read GATEWAY
+		fi
+
+		PREFIX=$(echo ${INTERFACE} | cut -c1-2)
+		if [ "x${PREFIX}" = "xwl" ]
+		then
+			echo -n "SSID: "
+			read SSID
+
+			echo -n "PSK: "
+			read PSK
+		fi
+
+		#########################################
+		CFGFILE="/home/pi/media/config/interface.${INTERFACE}"
+		if [ "x${FPPHOME}" != "x" ]
+		then
+			CFGFILE="${FPPHOME}/media/config/interface.${INTERFACE}"
+		fi
+
+		echo "################################################" > ${CFGFILE}
+		echo "# Created via FPP Command-Line Setup Utility" >> ${CFGFILE}
+		echo "# on $(date)" >> ${CFGFILE}
+		echo "################################################" >> ${CFGFILE}
+
+		echo "INTERFACE=\"${INTERFACE}\"" >> ${CFGFILE}
+		echo "PROTO=\"${PROTO}\"" >> ${CFGFILE}
+
+		if [ "x${PROTO}" = "xstatic" ]
+		then
+			echo "ADDRESS=\"${ADDRESS}\"" >> ${CFGFILE}
+			echo "NETMASK=\"${NETMASK}\"" >> ${CFGFILE}
+			echo "GATEWAY=\"${GATEWAY}\"" >> ${CFGFILE}
+		fi
+
+		if [ "x${PREFIX}" = "xwl" ]
+		then
+			echo "SSID=\"${SSID}\"" >> ${CFGFILE}
+			echo "PSK=\"${PSK}\"" >> ${CFGFILE}
+		fi
+	fi
+}
+
+#############################################################################
+
+###########################################################
+# TODO List for FPP v2.0
+#
+# - prompt for DNS info
+# - prompt to reload network config by running FPP setup
+# - ping gateway when done to confirm network is working
+# - test on a Pi A+ w/ only wireless
+# - test on a Pi A+ w/ only wired (optional, using USB NIC)
+###########################################################
+
+echo "FPP Network Setup Utility v1.0"
+
+INTERFACES=$(ifconfig -a | grep -v "^lo" | grep -v "^ " | grep -v "^$" | awk '{print $1}' | cut -f1 -d:)
+
+for INTERFACE in ${INTERFACES}
+do
+	SetupNetworkInterface ${INTERFACE}
+done
+
