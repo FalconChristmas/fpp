@@ -77,8 +77,8 @@ SetupNetworkInterface () {
 
 		if [ "x${PREFIX}" = "xwl" ]
 		then
-			echo "SSID=\"${SSID}\"" >> ${CFGFILE}
-			echo "PSK=\"${PSK}\"" >> ${CFGFILE}
+			echo "SSID='${SSID}'" >> ${CFGFILE}
+			echo "PSK='${PSK}'" >> ${CFGFILE}
 		fi
 	fi
 }
@@ -104,3 +104,4 @@ do
 	SetupNetworkInterface ${INTERFACE}
 done
 
+SetupFPPNetworkConfig
