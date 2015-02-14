@@ -130,6 +130,26 @@ DEPS_fppd += \
 	../external/rpi-rgb-led-matrix/lib/librgbmatrix.a \
 	../external/rpi_ws281x/libws2811.a \
 	$(NULL)
+else ifeq '$(ARCH)' 'BeagleBone Black'
+# BeagleBone Black
+CFLAGS += \
+	-DPLATFORM_BBB \
+	-I../external/LEDscape/src/ledscape/ \
+	$(NULL)
+LIBS_fppd += \
+	-lledscape \
+	-lprussdrv \
+	$(NULL)
+LDFLAGS_fppd += \
+	-L../external/LEDscape/lib/ \
+	-L../external/LEDscape/am335x/app_loader/lib/ \
+	$(NULL)
+OBJECTS_fppd += \
+	channeloutput/LEDscapeMatrix.o \
+	$(NULL)
+DEPS_fppd += \
+	../external/LEDscape/lib/libledscape.a \
+	$(NULL)
 else
 # do something Linux-y
 CFLAGS += \
@@ -176,7 +196,10 @@ clean:
 	@if [ -e ../external/RF24/.git ]; then make -C ../external/RF24 clean; fi
 	@if [ -e ../external/rpi-rgb-led-matrix/.git ]; then make -C ../external/rpi-rgb-led-matrix clean; fi
 	@if [ -e ../external/rpi_ws281x/libws2811.a ]; then rm ../external/rpi_ws281x/*.o ../external/rpi_ws281x/*.a 2> /dev/null; fi
+	@if [ -e ../external/LEDscape/.git ]; then make -C ../external/LEDscape clean; fi
 
+#############################################################################
+# RF24 library on the Pi
 ../external/RF24/.git:
 	@cd ../ && \
 		git submodule init && \
@@ -188,6 +211,8 @@ clean:
 	@ln -s librf24-bcm.so.1.0 ../external/RF24/librf24-bcm.so.1
 	@ln -s librf24-bcm.so.1 ../external/RF24/librf24-bcm.so
 
+#############################################################################
+# RGBMatrix library on the Pi
 ../external/rpi-rgb-led-matrix/.git:
 	@cd ../ && \
 		git submodule init && \
@@ -197,6 +222,8 @@ clean:
 	@echo "Building rpi-rgb-led-matrix library"
 	@make -C ../external/rpi-rgb-led-matrix/ lib/librgbmatrix.a
 
+#############################################################################
+# libws2811 on the Pi
 ../external/rpi_ws281x/.git:
 	@cd ../ && \
 		git submodule init && \
@@ -209,4 +236,17 @@ clean:
 		gcc -c -o pwm.o pwm.c && \
 		gcc -c -o ws2811.o ws2811.c && \
 		ar rcs libws2811.a dma.o pwm.o ws2811.o
+
+#############################################################################
+# LEDscape library and PRU code on the BBB
+../external/LEDscape/.git:
+	@cd ../ && \
+		git submodule init && \
+		git submodule update
+
+../external/LEDscape/lib/libledscape.a: ../external/LEDscape/.git
+	@echo "Building LEDscape library and PRU code"
+	@make -C ../external/LEDscape
+	@cp ../external/LEDscape/lib/matrix.bin ../lib/LEDscapeMatrix.bin
+	@cp ../external/LEDscape/lib/ws281x.bin ../lib/LEDscapeWS281x.bin
 
