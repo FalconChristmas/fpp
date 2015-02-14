@@ -163,6 +163,19 @@ case "${OSVER}" in
 		;;
 esac
 
+#######################################
+# Platform-specific config
+case "${FPPPLATFORM}" in
+	BeagleBone Black)
+		echo "FPP - Disabling HDMI for Falcon and LEDscape cape support"
+		echo >> /boot/uboot/uEnv.txt
+		echo "# Disable HDMI for Falcon and LEDscape cape support" >> /boot/uboot/uEnv.txt
+		echo "cape_disable=capemgr.disable_partno=BB-BONELT-HDMI,BB-BONELT-HDMIN" >> /boot/uboot/uEnv.txt
+		;;
+
+	Raspberry Pi)
+		;;
+esac
 
 #######################################
 # Clone git repository
@@ -210,7 +223,7 @@ cp /opt/fpp/etc/logrotate.d/* /etc/logrotate.d/
 #######################################
 # Configure ccache
 echo "FPP - Configuring ccache"
-ccache -M 5M
+ccache -M 50M
 
 #######################################
 # Fix sudoers to not require password
@@ -299,21 +312,22 @@ echo ""
 # Bugs
 # - some files owned by root under /home/fpp somehow
 #   - bytesReceived, schedule, settings, universes, config/Falcon.FPDV1
-#   - appears to be because media is not FAT mounted as pi/pi  fpp/fpp
+#   - appears to be when media is not FAT mounted as pi/pi  fpp/fpp
+# General
+# - Install/configure Samba
+# - Install/configure FTP
 # Raspberry Pi (officially supported FPP v2.0 platform)
 # - Install wiringPi
+# - Install patched omxplayer
+# - Disable 'pi' user
 # BeagleBone Black (officially supported FPP v2.0 platform)
 # - Hide USB network IP in UI
 # - http://elinux.org/Beagleboard:BeagleBoneBlack_Debian#2014-05-14
 # - https://s3.amazonaws.com/debian.beagleboard.org/images/bone-debian-7.5-2014-05-14-2gb.img.xz
-# - Install LEDscape
+# - Setup uEnv.txt for LEDscape & copy overlay file
 #   https://github.com/osresearch/LEDscape/blob/master/Setup.md
 #   /boot/uboot/uEnv.txt
 #     cape_disable=capemgr.disable_partno=BB-BONELT-HDMI,BB-BONELT-HDMIN
-#   cd /opt
-#   sudo git clone http://github.com/osresearch/LEDscape.git
-#   cd LEDscape
-#   sudo make
 # ODROID-C1 (not officially supported in FPP v2.0)
 # - Install (their patched) wiringPi
 # - Handle apache config differences for Ubuntu in /opt/fpp/scripts/startup
