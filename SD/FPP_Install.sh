@@ -166,14 +166,14 @@ esac
 #######################################
 # Platform-specific config
 case "${FPPPLATFORM}" in
-	BeagleBone Black)
+	'BeagleBone Black')
 		echo "FPP - Disabling HDMI for Falcon and LEDscape cape support"
 		echo >> /boot/uboot/uEnv.txt
 		echo "# Disable HDMI for Falcon and LEDscape cape support" >> /boot/uboot/uEnv.txt
 		echo "cape_disable=capemgr.disable_partno=BB-BONELT-HDMI,BB-BONELT-HDMIN" >> /boot/uboot/uEnv.txt
 		;;
 
-	Raspberry Pi)
+	'Raspberry Pi')
 		;;
 esac
 
