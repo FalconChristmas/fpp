@@ -34,7 +34,7 @@
 #include "E131.h"
 #include "FPD.h"
 #include "log.h"
-#include "sequence.h"
+#include "Sequence.h"
 #include "settings.h"
 #include "SPIws2801.h"
 #include "LOR.h"

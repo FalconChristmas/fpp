@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 
-#include "playList.h"
+#include "Playlist.h"
 
 
 // Non-blocking callbacks

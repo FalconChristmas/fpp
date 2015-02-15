@@ -43,7 +43,7 @@
 #include "log.h"
 #include "omxplayer.h"
 #include "settings.h"
-#include "sequence.h"
+#include "Sequence.h"
 
 #define MAX_BYTES_OMX 1000
 #define TIME_STR_MAX  8
@@ -267,7 +267,7 @@ void omxplayer_ProcessPlayerData(int bytesRead)
 		}
 	}
 
-	if ((IsSequenceRunning()) &&
+	if ((sequence->IsSequenceRunning()) &&
 		(mediaOutputStatus.secondsElapsed > 0) &&
 		(lastSyncCheck != mediaOutputStatus.secondsElapsed))
 	{

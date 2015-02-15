@@ -36,9 +36,9 @@
 #include "channeloutputthread.h"
 #include "common.h"
 #include "log.h"
-#include "playList.h"
+#include "Playlist.h"
 #include "settings.h"
-#include "sequence.h"
+#include "Sequence.h"
 
 #ifdef USEWIRINGPI
 #   include "wiringPi.h"
@@ -371,11 +371,11 @@ void FalconSetData(int sock, struct sockaddr_in *srcAddr, unsigned char *inBuf)
 
 	FalconWriteConfig(filename, (char *)inBuf, len);
 
-	if (IsSequenceRunning())
+	if (sequence->IsSequenceRunning())
 	{
 		if (inBuf[7] == 0x01)
 		{
-			StopPlaylistNow(); // FIXME: Need to investigate this more
+			playlist->StopPlaylistNow(); // FIXME: Need to investigate this more
 		}
 		else
 		{

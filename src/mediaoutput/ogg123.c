@@ -39,7 +39,7 @@
 #include "log.h"
 #include "mediaoutput.h"
 #include "ogg123.h"
-#include "sequence.h"
+#include "Sequence.h"
 #include "settings.h"
 
 #define MAX_BYTES_OGG 1000
@@ -224,7 +224,7 @@ void ogg123_ParseTimes()
 		}
 	}
 
-	if ((IsSequenceRunning()) &&
+	if ((sequence->IsSequenceRunning()) &&
 			(mediaOutputStatus.secondsElapsed > 0) &&
 			(lastSyncCheck != mediaOutputStatus.secondsElapsed))
 	{

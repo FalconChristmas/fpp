@@ -33,7 +33,7 @@
 #include "mpg123.h"
 #include "ogg123.h"
 #include "omxplayer.h"
-#include "sequence.h"
+#include "Sequence.h"
 #include "settings.h"
 
 
@@ -78,7 +78,7 @@ void MediaOutput_sigchld_handler(int signal)
 		pthread_mutex_unlock(&mediaOutputLock);
 
 		mediaOutputStatus.status = MEDIAOUTPUTSTATUS_IDLE;
-		CloseSequenceFile();
+		sequence->CloseSequenceFile();
 		CloseMediaOutput();
 		usleep(1000000);
 	} else {

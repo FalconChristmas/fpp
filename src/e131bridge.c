@@ -40,7 +40,7 @@
 #include "e131bridge.h"
 #include "log.h"
 #include "memorymap.h"
-#include "sequence.h"
+#include "Sequence.h"
 #include "command.h"
 
 #define BRIDGE_INVALID_UNIVERSE_INDEX 0xFF
@@ -190,7 +190,7 @@ void Bridge_StoreData(int universe, char *bridgeBuffer)
 	int universeIndex = Bridge_GetIndexFromUniverseNumber(universe);
 	if(universeIndex!=BRIDGE_INVALID_UNIVERSE_INDEX)
 	{
-		memcpy((void*)(seqData+universes[universeIndex].startAddress-1),
+		memcpy((void*)(sequence->m_seqData+universes[universeIndex].startAddress-1),
 			   (void*)(bridgeBuffer+E131_HEADER_LENGTH),
 			   universes[universeIndex].size);
 		universes[universeIndex].bytesReceived+=universes[universeIndex].size;

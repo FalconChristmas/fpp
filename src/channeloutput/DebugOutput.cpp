@@ -26,7 +26,7 @@
 #include "common.h"
 #include "DebugOutput.h"
 #include "log.h"
-#include "sequence.h"
+#include "Sequence.h"
 
 /*
  *
