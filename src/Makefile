@@ -35,7 +35,6 @@ OBJECTS_fppd = \
 	channeloutput/GPIO595.o \
 	channeloutput/LOR.o \
 	channeloutput/PanelMatrix.o \
-	channeloutput/RGBMatrix.o \
 	channeloutput/serialutil.o \
 	channeloutput/SPInRF24L01.o \
 	channeloutput/SPIws2801.o \
@@ -105,7 +104,6 @@ CFLAGS += \
 	-DPLATFORM_PI \
 	-DUSEWIRINGPI \
 	-DUSENRF \
-	-DUSERGBMATRIX \
 	-I../external/RF24/ \
 	-I../external/rpi-rgb-led-matrix/include/ \
 	-I../external/rpi_ws281x/ \
@@ -123,6 +121,7 @@ LDFLAGS_fppd += \
 	-L../external/rpi_ws281x \
 	$(NULL)
 OBJECTS_fppd += \
+	channeloutput/RGBMatrix.o \
 	channeloutput/rpi_ws281x.o \
 	$(NULL)
 DEPS_fppd += \

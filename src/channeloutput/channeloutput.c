@@ -38,7 +38,6 @@
 #include "settings.h"
 #include "SPIws2801.h"
 #include "LOR.h"
-#include "RGBMatrix.h"
 #include "SPInRF24L01.h"
 #include "USBDMX.h"
 #include "USBPixelnet.h"
@@ -49,6 +48,7 @@
 #include "common.h"
 
 #ifdef PLATFORM_PI
+#  include "RGBMatrix.h"
 #  include "rpi_ws281x.h"
 #endif
 
@@ -203,9 +203,9 @@ int InitializeChannelOutputs(void) {
 				channelOutputs[i].outputOld = &LOROutput;
 			} else if (!strcmp(type, "Renard")) {
 				channelOutputs[i].outputOld = &USBRenardOutput;
+#ifdef PLATFORM_PI
 			} else if (!strcmp(type, "RGBMatrix")) {
 				channelOutputs[i].output = new RGBMatrixOutput(start, count);
-#ifdef PLATFORM_PI
 			} else if (!strcmp(type, "RPIWS281X")) {
 				channelOutputs[i].output = new RPIWS281xOutput(start, count);
 #endif
