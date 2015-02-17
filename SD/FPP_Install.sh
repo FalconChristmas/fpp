@@ -116,7 +116,7 @@ case "${OSVER}" in
 		apt-get -y remove xchat xrdp 'xscreensaver*' wvdial tightvncserver sane-utils ppp openbox openbox-themes lxde-common lxde-core lxmenu-data lxpanel lxsession lxterminal 'lightdm*' 
 
 		echo "FPP - Installing required packages"
-		apt-get -y install alsa-base alsa-utils apache2 apache2.2-bin apache2.2-common apache2-mpm-prefork apache2-utils arping avahi-daemon avahi-discover avahi-utils bc build-essential bzip2 ca-certificates ccache curl device-tree-compiler ethtool fbi file flite 'g++-4.7' gcc-4.7 gdb git i2c-tools ifplugd imagemagick less libapache2-mod-php5 libconvert-binary-c-perl libdbus-glib-1-dev libdevice-serialport-perl libjson-perl libnet-bonjour-perl libtagc0-dev locales mp3info mpg123 mplayer node perlmagick php5 php5-cli php5-common php-apc python-daemon python-smbus sudo sysstat usbmount vim vim-common vorbis-tools
+		apt-get -y install alsa-base alsa-utils apache2 apache2.2-bin apache2.2-common apache2-mpm-prefork apache2-utils arping avahi-daemon avahi-discover avahi-utils bc build-essential bzip2 ca-certificates ccache curl device-tree-compiler ethtool fbi file flite 'g++-4.7' gcc-4.7 gdb git i2c-tools ifplugd imagemagick less libapache2-mod-php5 libconvert-binary-c-perl libdbus-glib-1-dev libdevice-serialport-perl libjson-perl libnet-bonjour-perl libpam-smbpass libtagc0-dev locales mp3info mpg123 mplayer node perlmagick php5 php5-cli php5-common php-apc python-daemon python-smbus samba samba-common-bin shellinabox sudo sysstat usbmount vim vim-common vorbis-tools vsftpd
 
 		echo "FPP - Installing non-packaged Perl modules via CPAN"
 		echo "yes" | cpan -fi File::Map Net::WebSocket::Server
@@ -135,14 +135,20 @@ case "${OSVER}" in
 			ln -s /usr/bin/g++-4.7 /usr/bin/g++
 		fi
 
-		echo "FPP - Disabling stock 'debian' user, use the 'fpp' user instead"
+		echo "FPP - Disabling any stock 'debian' user, use the 'fpp' user instead"
 		sed -i -e "s/^debian:.*/debian:*:16372:0:99999:7:::/" /etc/shadow
 
-		echo "FPP - Disabling unneeded/unwanted services"
-		systemctl disable bonescript.socket
-		systemctl disable bonescript-autorun.service
-		systemctl disable console-kit-daemon.service
-		systemctl disable cloud9.socket
+		echo "FPP - Disabling any stock 'pi' user, use the 'fpp' user instead"
+		sed -i -e "s/^pi:.*/pi:*:16372:0:99999:7:::/" /etc/shadow
+
+		if [ -f /bin/systemctl ]
+		then
+			echo "FPP - Disabling unneeded/unwanted services"
+			systemctl disable bonescript.socket
+			systemctl disable bonescript-autorun.service
+			systemctl disable console-kit-daemon.service
+			systemctl disable cloud9.socket
+		fi
 
 		echo "FPP - Disabling GUI"
 		update-rc.d -f gdm remove
@@ -158,7 +164,7 @@ case "${OSVER}" in
 		echo "FPP - Installing required packages"
 		if [ "x${FPPPLATFORM}" = "xODROID" ]
 		then
-			apt-get -y install apache2 apache2-bin apache2-mpm-prefork apache2-utils avahi-discover fbi flite i2c-tools imagemagick libapache2-mod-php5 libconvert-binary-c-perl libjson-perl libnet-bonjour-perl mp3info mpg123 perlmagick php5 php5-cli php5-common php-apc python-daemon python-smbus sysstat vorbis-tools
+			apt-get -y install apache2 apache2-bin apache2-mpm-prefork apache2-utils avahi-discover fbi flite i2c-tools imagemagick libapache2-mod-php5 libconvert-binary-c-perl libjson-perl libnet-bonjour-perl libpam-smbpass mp3info mpg123 perlmagick php5 php5-cli php5-common php-apc python-daemon python-smbus samba samba-common-bin shellinabox sysstat vorbis-tools vsftpd
 		fi
 		;;
 esac
@@ -199,6 +205,10 @@ adduser fpp sudo
 sed -i -e 's/^fpp:\*:/fpp:\$6\$rA953Jvd\$oOoLypAK8pAnRYgQQhcwl0jQs8y0zdx1Mh77f7EgKPFNk\/jGPlOiNQOtE.ZQXTK79Gfg.8e3VwtcCuwz2BOTR.:/' /etc/shadow
 
 #######################################
+echo "FPP - Fixing empty root passwd"
+sed -i -e 's/root::/root:*:/' /etc/shadow
+
+#######################################
 echo "FPP - Populating /home/fpp"
 mkdir /home/fpp/.ssh
 chown fpp.fpp /home/fpp/.ssh
@@ -224,6 +234,32 @@ cp /opt/fpp/etc/logrotate.d/* /etc/logrotate.d/
 # Configure ccache
 echo "FPP - Configuring ccache"
 ccache -M 50M
+
+#######################################
+echo "FPP - Configuring FTP server"
+sed -i -e "s/.*anonymous_enable.*/anonymous_enable=NO/" /etc/vsftpd.conf
+sed -i -e "s/.*local_enable.*/local_enable=YES/" /etc/vsftpd.conf
+sed -i -e "s/.*write_enable.*/write_enable=YES/" /etc/vsftpd.conf
+service vsftpd restart
+
+#######################################
+echo "FPP - Configuring Samba"
+cat <<-EOF >> /etc/samba/smb.conf
+
+[FPP]
+  comment = FPP Home Share
+  path = /home/fpp
+  writeable = Yes
+  only guest = Yes
+  create mask = 0777
+  directory mask = 0777
+  browseable = Yes
+  public = yes
+  force user = fpp
+
+EOF
+service samba restart
+
 
 #######################################
 # Fix sudoers to not require password
@@ -305,6 +341,7 @@ echo "shutdown command."
 echo ""
 echo "su - fpp"
 echo "sudo shutdown -r now"
+echo "========================================================="
 echo ""
 
 #######################################
@@ -313,13 +350,9 @@ echo ""
 # - some files owned by root under /home/fpp somehow
 #   - bytesReceived, schedule, settings, universes, config/Falcon.FPDV1
 #   - appears to be when media is not FAT mounted as pi/pi  fpp/fpp
-# General
-# - Install/configure Samba
-# - Install/configure FTP
 # Raspberry Pi (officially supported FPP v2.0 platform)
 # - Install wiringPi
 # - Install patched omxplayer
-# - Disable 'pi' user
 # BeagleBone Black (officially supported FPP v2.0 platform)
 # - Hide USB network IP in UI
 # - http://elinux.org/Beagleboard:BeagleBoneBlack_Debian#2014-05-14
