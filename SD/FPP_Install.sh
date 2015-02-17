@@ -185,7 +185,7 @@ case "${FPPPLATFORM}" in
 
 		echo "FPP - Installing patched omxplayer.bin for FPP MultiSync"
 		cp /usr/bin/omxplayer.bin /usr/bin/omxplayer.bin.orig
-		wget -O /usr/bin/omxplayer.bin https://raw.githubusercontent.com/FalconChristmas/fpp-binaries/Pi/omxplayer.bin
+		wget -O /usr/bin/omxplayer.bin https://github.com/FalconChristmas/fpp-binaries/raw/master/Pi/omxplayer.bin
 		;;
 
 	'ODROID')
