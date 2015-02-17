@@ -6,7 +6,7 @@ FPPDIR=${FPPDIR:-/opt/fpp}
 FPPHOME="/home/pi"
 FPPUSER="pi"
 
-if [ -d "/home/fpp" -a ! -d "/home/pi" ]
+if [ -d "/home/fpp" ]
 then
 	FPPHOME="/home/fpp"
 	FPPUSER="fpp"
