@@ -180,6 +180,21 @@ case "${FPPPLATFORM}" in
 		;;
 
 	'Raspberry Pi')
+		echo "FPP - Installing wiringPi"
+		cd /opt/ && git clone git://git.drogon.net/wiringPi && cd /opt/wiringPi && ./build
+
+		echo "FPP - Installing patched omxplayer.bin for FPP MultiSync"
+		cp /usr/bin/omxplayer.bin /usr/bin/omxplayer.bin.orig
+		wget -O /usr/bin/omxplayer.bin https://raw.githubusercontent.com/FalconChristmas/fpp-binaries/Pi/omxplayer.bin
+		;;
+
+	'ODROID')
+		echo "FPP - Installing wiringPi"
+		cd /opt/ && git clone https://github.com/hardkernel/wiringPi && cd /opt/wiringPi && ./build
+
+		echo "FPP - Installing patched omxplayer.bin for FPP MultiSync"
+		cp /usr/bin/omxplayer.bin /usr/bin/omxplayer.bin.orig
+		wget -O /usr/bin/omxplayer.bin https://raw.githubusercontent.com/FalconChristmas/fpp-binaries/Pi/omxplayer.bin
 		;;
 esac
 
@@ -351,8 +366,7 @@ echo ""
 #   - bytesReceived, schedule, settings, universes, config/Falcon.FPDV1
 #   - appears to be when media is not FAT mounted as pi/pi  fpp/fpp
 # Raspberry Pi (officially supported FPP v2.0 platform)
-# - Install wiringPi
-# - Install patched omxplayer
+# - 
 # BeagleBone Black (officially supported FPP v2.0 platform)
 # - Hide USB network IP in UI
 # - http://elinux.org/Beagleboard:BeagleBoneBlack_Debian#2014-05-14
