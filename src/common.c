@@ -72,6 +72,7 @@ int DirectoryExists(const char * Directory)
 	DIR* dir = opendir(Directory);
 	if (dir)
 	{
+		closedir(dir);
 		return 1;
 	}
 	else
@@ -312,6 +313,72 @@ int CheckForHostSpecificFile(const char *hostname, char *filename)
 			strcpy(filename, localFilename);
 		}
 	}
+}
+
+/*
+ * Convert a string of the form "YYYY-MM-DD to an integer YYYYMMDD
+ */
+int DateStrToInt(const char *str)
+{
+	if ((!str) || (str[4] != '-') || (str[7] != '-') || (str[10] != 0x0))
+		return 0;
+
+	int result = 0;
+	char tmpStr[11];
+
+	strcpy(tmpStr, str);
+
+	result += atoi(str    ) * 10000; // Year
+	result += atoi(str + 5) *   100; // Month
+	result += atoi(str + 8)        ; // Day
+
+	return result;
+}
+
+/*
+ * Get the current date in an integer form YYYYMMDD
+ */
+int GetCurrentDateInt(int daysOffset)
+{
+	time_t currTime = time(NULL) + (daysOffset * 86400);
+	struct tm *now = localtime(&currTime);
+	int result = 0;
+
+	result += (now->tm_year + 1900) * 10000;
+	result += (now->tm_mon + 1)     *   100;
+	result += (now->tm_mday)               ;
+
+	return result;
+}
+
+/*
+ * Check to see if current date int is in the range specified
+ */
+int CurrentDateInRange(int startDate, int endDate)
+{
+	int currentDate = GetCurrentDateInt();
+
+	if ((startDate < 10000) || (endDate < 10000))
+	{
+		startDate = startDate % 10000;
+		endDate = endDate % 10000;
+		currentDate = currentDate % 10000;
+	}
+
+	if ((startDate < 100) || (endDate < 100))
+	{
+		startDate = startDate % 100;
+		endDate = endDate % 100;
+		currentDate = currentDate % 100;
+	}
+
+	if ((startDate == 0) && (endDate == 0))
+		return 1;
+
+	if ((startDate <= currentDate) && (currentDate <= endDate))
+		return 1;
+
+	return 0;
 }
 
 /*

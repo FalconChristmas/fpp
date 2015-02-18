@@ -1,7 +1,7 @@
 /*
- *   GPIO attached 74HC595 Shift Register handler for Falcon Pi Player (FPP)
+ *   GPIO attached 74HC595 Shift Register handler for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Pi Player Developers
+ *   Copyright (C) 2013 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -9,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -26,9 +26,25 @@
 #ifndef _GPIO595_H
 #define _GPIO595_H
 
-#include "channeloutput.h"
+#include "ChannelOutputBase.h"
 
-/* Expose our interface */
-extern FPPChannelOutput GPIO595Output;
+class GPIO595Output : public ChannelOutputBase {
+  public:
+	GPIO595Output(unsigned int startChannel, unsigned int channelCount);
+	~GPIO595Output();
+
+	int Init(char *configStr);
+
+	int Close(void);
+
+	int RawSendData(unsigned char *channelData);
+
+	void DumpConfig(void);
+
+  private:
+	int m_clockPin;
+	int m_dataPin;
+	int m_latchPin;
+};
 
 #endif

@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 
-#include "playList.h"
+#include "Playlist.h"
 
 
 #define MEDIA_CALLBACK					1

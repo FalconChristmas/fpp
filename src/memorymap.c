@@ -38,7 +38,7 @@
 #include "log.h"
 #include "memorymap.h"
 #include "memorymapcontrol.h"
-#include "sequence.h"
+#include "Sequence.h"
 #include "settings.h"
 #include "channeloutputthread.h"
 

@@ -34,7 +34,6 @@ plugin_t plugins[MAX_PLUGINS];
 int plugin_count = 0;
 
 extern MediaDetails	 mediaDetails;
-extern PlaylistDetails playlistDetails;
 
 const char *type_to_string[] = {
 	"both",
@@ -234,7 +233,7 @@ void MediaCallback(void)
 				memcpy(eventScript, getFPPDirectory(), sizeof(eventScript));
 				strncat(eventScript, "/scripts/eventScript", sizeof(eventScript)-strlen(eventScript)-1);
 
-				PlaylistEntry *plEntry = &playlistDetails.playList[playlistDetails.currentPlaylistEntry];
+				PlaylistEntry *plEntry = &playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry];
 				json_t *root = json_object();
 
 				json_object_set_new(root, "type", json_string(type_to_string[plEntry->type]));
@@ -452,7 +451,7 @@ int NextPlaylistEntryCallback(const char *plugin_data, int currentPlaylistEntry,
 				read(output_pipe[0], &playlist_entry, sizeof(playlist_entry));
 
 				LogExcess(VB_PLUGIN, "Parsed playlist entry: %s\n", playlist_entry);
-				ret_val = ParsePlaylistEntry(playlist_entry, pe);
+				ret_val = playlist->ParsePlaylistEntry(playlist_entry, pe);
 				//Set our type back to 'P' so we re-parse it next time we pass it in the playlist
 				pe->cType = 'P';
 

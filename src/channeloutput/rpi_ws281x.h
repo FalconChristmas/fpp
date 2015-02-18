@@ -1,5 +1,5 @@
 /*
- *   WS2801 SPI handler for Falcon Player (FPP)
+ *   Raspberry Pi rpi_ws281x handler for Falcon Player (FPP)
  *
  *   Copyright (C) 2013 the Falcon Player Developers
  *      Initial development by:
@@ -23,15 +23,25 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _SPIWS2801_H
-#define _SPIWS2801_H
+#ifndef _RPI_WS281X_H
+#define _RPI_WS281X_H
+
+extern "C" {
+#include "../../external/rpi_ws281x/clk.h"
+#include "../../external/rpi_ws281x/gpio.h"
+#include "../../external/rpi_ws281x/dma.h"
+#include "../../external/rpi_ws281x/pwm.h"
+#include "../../external/rpi_ws281x/ws2811.h"
+}
 
 #include "ChannelOutputBase.h"
 
-class SPIws2801Output : public ChannelOutputBase {
+#define RPIWS281X_MAX_CHANNELS  1200
+
+class RPIWS281xOutput : public ChannelOutputBase {
   public:
-	SPIws2801Output(unsigned int startChannel, unsigned int channelCount);
-	~SPIws2801Output();
+	RPIWS281xOutput(unsigned int startChannel, unsigned int channelCount);
+	~RPIWS281xOutput();
 
 	int Init(char *configStr);
 
@@ -42,7 +52,13 @@ class SPIws2801Output : public ChannelOutputBase {
 	void DumpConfig(void);
 
   private:
-	int m_port;
+	void SetupCtrlCHandler(void);
+
+	int       m_string1GPIO;
+	int       m_string1Pixels;
+	int       m_string2GPIO;
+	int       m_string2Pixels;
+
 };
 
 #endif

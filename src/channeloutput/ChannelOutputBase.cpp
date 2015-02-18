@@ -46,11 +46,18 @@ ChannelOutputBase::ChannelOutputBase(unsigned int startChannel,
 	m_inBuf(NULL),
 	m_outBuf(NULL)
 {
+	pthread_mutex_init(&m_bufLock, NULL);
+	pthread_mutex_init(&m_sendLock, NULL);
+	pthread_cond_init(&m_sendCond, NULL);
 }
 
 ChannelOutputBase::~ChannelOutputBase()
 {
 	LogDebug(VB_CHANNELOUT, "ChannelOutputBase::~ChannelOutputBase()\n");
+
+	pthread_mutex_destroy(&m_bufLock);
+	pthread_mutex_destroy(&m_sendLock);
+	pthread_cond_destroy(&m_sendCond);
 }
 
 int ChannelOutputBase::Init(char *configStr)
@@ -120,7 +127,7 @@ int ChannelOutputBase::SendData(unsigned char *channelData)
 
 int ChannelOutputBase::SendOutputBuffer(void)
 {
-	LogDebug(VB_CHANNELOUT, "ChannelOutputBase::SendOutputBuffer()\n");
+	LogExcess(VB_CHANNELOUT, "ChannelOutputBase::SendOutputBuffer()\n");
 
 	pthread_mutex_lock(&m_bufLock);
 	memcpy(m_outBuf, m_inBuf, m_channelCount);

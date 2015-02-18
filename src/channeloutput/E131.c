@@ -46,7 +46,6 @@
 #include "FPD.h"
 #include "fpp.h"
 #include "log.h"
-#include "playList.h"
 #include "settings.h"
 
 struct sockaddr_in    localAddress;
