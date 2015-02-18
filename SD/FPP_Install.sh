@@ -12,7 +12,7 @@
 # To use this script, download the latest copy from github and run it as
 # root on the system where you want to install FPP:
 #
-# wget -O ./FPP_Install.sh https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
+# wget -O ./FPP_Install.sh https://raw.githubusercontent.com/FalconChristmas/fpp/BBB/SD/FPP_Install.sh
 # chmod 700 ./FPP_Install.sh
 # sudo ./FPP_Install.sh
 #
