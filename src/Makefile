@@ -74,6 +74,7 @@ LIBS_fppd = \
 	-ltag_c \
 	$(NULL)
 
+SUBDIRS = 
 
 ARCH := $(shell cat /etc/fpp/platform 2> /dev/null)
 ifeq '$(ARCH)' ''
@@ -150,6 +151,7 @@ OBJECTS_fppd += \
 DEPS_fppd += \
 	../external/LEDscape/lib/libledscape.a \
 	$(NULL)
+SUBDIRS += pru
 else
 # do something Linux-y
 CFLAGS += \
@@ -162,6 +164,9 @@ PWD := $(shell pwd)
 
 .PHONY: all
 all: $(TARGETS)
+	for dir in $(SUBDIRS); do \
+		$(MAKE) -C $$dir || exit 1; \
+	done
 
 force:
 
@@ -172,6 +177,9 @@ release: $(TARGETS)
 	-$(INSTALL_PROGRAM) fppmm ../bin/fppmm
 	strip fppd
 	-$(INSTALL_PROGRAM) fppd ../bin/fppd
+	for dir in $(SUBDIRS); do \
+		$(MAKE) -C $$dir release || exit 1; \
+	done
 
 fpp: $(OBJECTS_fpp)
 	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
@@ -197,6 +205,9 @@ clean:
 	@if [ -e ../external/rpi-rgb-led-matrix/.git ]; then make -C ../external/rpi-rgb-led-matrix clean; fi
 	@if [ -e ../external/rpi_ws281x/libws2811.a ]; then rm ../external/rpi_ws281x/*.o ../external/rpi_ws281x/*.a 2> /dev/null; fi
 	@if [ -e ../external/LEDscape/.git ]; then make -C ../external/LEDscape clean; fi
+	for dir in $(SUBDIRS); do \
+		$(MAKE) -C $$dir clean || exit 1; \
+	done
 
 #############################################################################
 # RF24 library on the Pi
