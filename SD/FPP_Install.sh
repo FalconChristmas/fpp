@@ -93,6 +93,13 @@ echo "FPP" > /etc/hostname
 hostname FPP
 
 #######################################
+# Add FPP hostname entry
+echo "FPP - Adding 'FPP' hostname entry"
+# Remove any existing 127.0.1.1 entry first
+sed -i -e "/^127.0.1.1[^0-9]/d" /etc/hosts
+echo "127.0.1.1       FPP" >> /etc/hosts
+
+#######################################
 # Make sure /opt exists
 echo "FPP - Checking for existence of /opt"
 cd /opt 2> /dev/null || mkdir /opt
@@ -232,13 +239,6 @@ chmod 700 /home/fpp/.ssh
 mkdir /home/fpp/media
 chown fpp.fpp /home/fpp/media
 chmod 700 /home/fpp/media
-
-#######################################
-# Add FPP hostname entry
-echo "FPP - Adding 'FPP' hostname entry"
-# Remove any existing 127.0.1.1 entry first
-sed -i -e "/^127.0.1.1[^0-9]/d" /etc/hosts
-echo "127.0.1.1       FPP" >> /etc/hosts
 
 #######################################
 # Configure log rotation
