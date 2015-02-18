@@ -69,6 +69,7 @@ OBJECTS_fppd = \
 	$(NULL)
 LIBS_fppd = \
 	-lpthread \
+	-ljansson \
 	-lm \
 	-lutil \
 	-ltag_c \
@@ -86,6 +87,15 @@ CFLAGS += \
 	-I . \
 	-I channeloutput \
 	-I mediaoutput \
+	-I../external/jansson/src/ \
+	$(NULL)
+
+LDFLAGS_fppd += \
+	-L../external/jansson/src/.libs/ \
+	$(NULL)
+
+DEPS_fppd += \
+	../external/jansson/src/.libs/libjansson.so \
 	$(NULL)
 
 # Do some things a little different when using gcc vs g++
@@ -115,8 +125,8 @@ LIBS_fppd += \
 	-lrgbmatrix \
 	$(NULL)
 LDFLAGS_fppd += \
-	-L../external/RF24 \
-	-L../external/rpi-rgb-led-matrix/lib \
+	-L../external/RF24/ \
+	-L../external/rpi-rgb-led-matrix/lib/ \
 	$(NULL)
 DEPS_fppd += \
 	../external/RF24/librf24-bcm.so \
@@ -167,6 +177,7 @@ clean:
 	rm -f fppversion.c $(OBJECTS_fpp) $(OBJECTS_fppmm) $(OBJECTS_fppd) fpp fppmm fppd
 	@if [ -e ../external/RF24/.git ]; then make -C ../external/RF24 clean; fi
 	@if [ -e ../external/rpi-rgb-led-matrix/.git ]; then make -C ../external/rpi-rgb-led-matrix clean; fi
+	@if [ -e ../external/jansson/.git ]; then make -C ../external/jansson clean; fi
 
 ../external/RF24/.git:
 	@cd ../ && \
@@ -178,6 +189,15 @@ clean:
 	@make -C ../external/RF24/
 	@ln -s librf24-bcm.so.1.0 ../external/RF24/librf24-bcm.so.1
 	@ln -s librf24-bcm.so.1 ../external/RF24/librf24-bcm.so
+
+../external/jansson/.git:
+	@cd ../ && \
+		git submodule init && \
+		git submoudle update
+
+../external/jansson/src/.libs/libjansson.so:
+	@echo "Building libjansson library"
+	@make -C ../external/jansson/
 
 ../external/rpi-rgb-led-matrix/.git:
 	@cd ../ && \

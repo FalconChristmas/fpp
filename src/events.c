@@ -36,6 +36,7 @@
 #include "events.h"
 #include "log.h"
 #include "settings.h"
+#include "plugins.h"
 
 /*
  * Free a FPPevent structure pointer
@@ -306,6 +307,7 @@ int TriggerEvent(char major, char minor)
 
 	sprintf(id, "%02d_%02d", major, minor);
 
+	EventCallback(id, "sequence");
 	return TriggerEventByID(id);
 }
 

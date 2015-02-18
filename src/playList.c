@@ -517,6 +517,7 @@ void Play_PlaylistEntry(bool calculateNext)
 		case PL_TYPE_PAUSE:
 			break;
 		case PL_TYPE_EVENT:
+			EventCallback(plEntry->eventID, "playlist");
 			TriggerEventByID(plEntry->eventID);
 			break;
 		default:

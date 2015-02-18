@@ -9,12 +9,14 @@
 #include <unistd.h>
 #include <string.h>
 
+#include "events.h"
 #include "mediadetails.h"
 #include "mediaoutput.h"
 #include "settings.h"
 #include "plugins.h"
 #include "common.h"
 #include "log.h"
+#include "jansson.h"
 
 typedef struct plugin_s
 {
@@ -182,6 +184,13 @@ void InitPluginCallbacks(void)
 					if ( plugin->script == NULL )
 						plugin->script = strdup(long_filename);
 				}
+				else if (strcmp(callback_type, "event") == 0)
+				{
+					LogDebug(VB_PLUGIN, "Plugin %s supports nextplaylist callback.\n", plugin->name);
+					plugin->mask |= EVENT_ENTRY_CALLBACK;
+					if ( plugin->script == NULL )
+						plugin->script = strdup(long_filename);
+				}
 
 				free(callback_type); callback_type = NULL;
 				token = strtok(NULL, ",");
@@ -200,7 +209,7 @@ void InitPluginCallbacks(void)
 	return;
 }
 
-//non-blocking
+//blocking
 void MediaCallback(void)
 {
 	int i;
@@ -220,69 +229,52 @@ void MediaCallback(void)
 			{
 				LogDebug(VB_PLUGIN, "Child process, calling %s callback for media : %s\n", plugins[i].name, plugins[i].script);
 
+				char *data = NULL;
 				char eventScript[1024];
-				strcpy(eventScript, getFPPDirectory());
+				memcpy(eventScript, getFPPDirectory(), sizeof(eventScript));
 				strncat(eventScript, "/scripts/eventScript", sizeof(eventScript)-strlen(eventScript)-1);
 
-				// build our data string here
-				char data[64*1024]; // "Unreasonably" high to handle all data we're going to pass
-				// TODO: parse JSON a little better like escaping special
-				// characters if needed, should only be quote that requires
-				// escaping, we shouldn't worry about things like tabs,
-				// backspaces, form feeds, etc..
-
 				PlaylistEntry *plEntry = &playlistDetails.playList[playlistDetails.currentPlaylistEntry];
+				json_t *root = json_object();
 
-				strncpy(&data[0], "{", sizeof(data));
-				snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
-				"\"type\":\"%s\",", type_to_string[plEntry->type]);
-				if ( strlen(plEntry->seqName) )
-					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
-					"\"Sequence\":\"%s\",", plEntry->seqName);
-				if ( strlen(plEntry->songName) )
-					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
-					"\"Media\":\"%s\",", plEntry->songName);
-				if ( mediaDetails.title && strlen(mediaDetails.title) )
-					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
-					"\"title\":\"%s\",", mediaDetails.title);
-				if ( mediaDetails.artist && strlen(mediaDetails.artist) )
-					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
-					"\"artist\":\"%s\",", mediaDetails.artist);
-				if ( mediaDetails.album && strlen(mediaDetails.album) )
-					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
-					"\"album\":\"%s\",", mediaDetails.album);
-				if ( mediaDetails.year )
-					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
-					"\"year\":\"%d\",", mediaDetails.year);
-				if ( mediaDetails.comment && strlen(mediaDetails.comment) )
-					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
-					"\"comment\":\"%s\",", mediaDetails.comment);
-				if ( mediaDetails.track )
-					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
-					"\"track\":\"%d\",", mediaDetails.track);
-				if ( mediaDetails.genre && strlen(mediaDetails.genre) )
-					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
-					"\"genre\":\"%s\",", mediaDetails.genre);
-				if ( mediaDetails.seconds )
-					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
-					"\"seconds\":\"%d\",", mediaDetails.seconds);
-				if ( mediaDetails.minutes )
-					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
-					"\"minutes\":\"%d\",", mediaDetails.minutes);
-				if ( mediaDetails.bitrate )
-					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
-					"\"bitrate\":\"%d\",", mediaDetails.bitrate);
-				if ( mediaDetails.sampleRate )
-					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
-					"\"sampleRate\":\"%d\",", mediaDetails.sampleRate);
-				if ( mediaDetails.channels )
-					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
-					"\"channels\":\"%d\",", mediaDetails.channels);
+				json_object_set_new(root, "type", json_string(type_to_string[plEntry->type]));
 
-				data[strlen(data)-1] = '}'; //replace last comma with a closing brace
+				if (strlen(plEntry->seqName))
+					json_object_set_new(root, "Sequence", json_string( plEntry->seqName));
+				if (strlen(plEntry->songName))
+					json_object_set_new(root, "Media", json_string(plEntry->songName));
+				if (mediaDetails.title && strlen(mediaDetails.title))
+					json_object_set_new(root, "title", json_string(mediaDetails.title));
+				if (mediaDetails.artist && strlen(mediaDetails.artist))
+					json_object_set_new(root, "artist", json_string(mediaDetails.artist));
+				if (mediaDetails.album && strlen(mediaDetails.album))
+					json_object_set_new(root, "album", json_string(mediaDetails.album));
+				if (mediaDetails.year)
+					json_object_set_new(root, "year", json_integer(mediaDetails.year));
+				if (mediaDetails.comment && strlen(mediaDetails.comment))
+					json_object_set_new(root, "comment", json_string(mediaDetails.comment));
+				if (mediaDetails.track)
+					json_object_set_new(root, "track", json_integer(mediaDetails.track));
+				if (mediaDetails.genre && strlen(mediaDetails.genre))
+					json_object_set_new(root, "genre", json_string(mediaDetails.genre));
+				if (mediaDetails.seconds)
+					json_object_set_new(root, "seconds", json_integer(mediaDetails.seconds));
+				if (mediaDetails.minutes)
+					json_object_set_new(root, "minutes", json_integer(mediaDetails.minutes));
+				if (mediaDetails.bitrate)
+					json_object_set_new(root, "bitrate", json_integer(mediaDetails.bitrate));
+				if (mediaDetails.sampleRate)
+					json_object_set_new(root, "sampleRate", json_integer(mediaDetails.sampleRate));
+				if (mediaDetails.channels)
+					json_object_set_new(root, "channels", json_integer(mediaDetails.channels));
+
+				data = json_dumps(root, 0);
+				json_decref(root);
 
 				LogWarn(VB_PLUGIN, "Media plugin data: %s\n", data);
 				execl(eventScript, "eventScript", plugins[i].script, "--type", "media", "--data", data, NULL);
+
+				free(data); data = NULL;
 
 				LogErr(VB_PLUGIN, "We failed to exec our media callback!\n");
 				exit(EXIT_FAILURE);
@@ -296,7 +288,7 @@ void MediaCallback(void)
 	}
 }
 
-//non-blocking
+//blocking
 void PlaylistCallback(PlaylistDetails *playlistDetails, bool starting)
 {
 	int i;
@@ -316,76 +308,67 @@ void PlaylistCallback(PlaylistDetails *playlistDetails, bool starting)
 			{
 				LogDebug(VB_PLUGIN, "Child process, calling %s callback for playlist: %s\n", plugins[i].name, plugins[i].script);
 
+				int j;
+				char *data = NULL;
 				char eventScript[1024];
 				memcpy(eventScript, getFPPDirectory(), sizeof(eventScript));
 				strncat(eventScript, "/scripts/eventScript", sizeof(eventScript)-strlen(eventScript)-1);
 
-				// TODO: parse JSON a little better like escaping special
-				// characters if needed, should only be quote that requires
-				// escaping, we shouldn't worry about things like tabs,
-				// backspaces, form feeds, etc..
+				json_t *root = json_object();
 
-				char data[4096];
-				int j;
-				strncpy(&data[0], "{", sizeof(data));
 				for ( j = 0; j < playlistDetails->playListCount; ++j )
 				{
 					PlaylistEntry plEntry = playlistDetails->playList[j];
+					json_t *node = json_object();
 
-					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
-						"\"sequence%d\" : {", j);
-
-					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
-					"\"type\":\"%s\",", type_to_string[plEntry.type]);
+					json_object_set_new(node, "type", json_string(type_to_string[plEntry.type]));
 
 					switch(plEntry.type)
 					{
 						case PL_TYPE_BOTH:
 							if ( strlen(plEntry.seqName) )
-								snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
-								"\"Sequence\":\"%s\",", plEntry.seqName);
+								json_object_set_new(node, "Sequence", json_string(plEntry.seqName));
 							if ( strlen(plEntry.songName) )
-								snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
-								"\"Media\":\"%s\"", plEntry.songName);
+								json_object_set_new(node, "Media", json_string(plEntry.songName));
 							break;
 						case PL_TYPE_MEDIA:
 						case PL_TYPE_VIDEO:
 							if ( strlen(plEntry.songName) )
-								snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
-								"\"Media\":\"%s\"", plEntry.songName);
+								json_object_set_new(node, "Media", json_string(plEntry.songName));
 							break;
 						case PL_TYPE_SEQUENCE:
 							if ( strlen(plEntry.seqName) )
-								snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
-								"\"Sequence\":\"%s\"", plEntry.seqName);
+								json_object_set_new(node, "Sequence", json_string(plEntry.seqName));
 							break;
 						case PL_TYPE_EVENT:
 							if ( strlen(plEntry.seqName) )
-								snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
-								"\"EventID\":\"%s\"", plEntry.eventID);
+								json_object_set_new(node, "EventID", json_string(plEntry.eventID));
 							break;
 						case PL_TYPE_PLUGIN_NEXT:
-							snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
-							"\"PluginEvent\":\"\"");
+							json_object_set_new(node, "PluginEvent", json_string(""));
+							break;
 						default:
 							LogWarn(VB_PLUGIN, "Invalid entry type!\n");
 							break;
 					}
 
+					char sequenceNumber[20] = {0};
+					snprintf(&sequenceNumber[strlen(sequenceNumber)],
+							sizeof(sequenceNumber)-strlen(sequenceNumber),
+							"sequence%d", j);
 
-					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
-						"},");
+					json_object_set_new(root, sequenceNumber, node );
 				}
 
-				snprintf(&data[strlen(data)],
-						sizeof(data)-strlen(data),
-						"\"Action\":\"%s\",",
-						(starting == PLAYLIST_STARTING ? "start" : "stop"));
+				json_object_set_new(root, "Action", json_string((starting == PLAYLIST_STARTING ? "start" : "stop")));
 
-				data[strlen(data)-1] = '}'; //replace last comma with a closing brace
+				data = json_dumps(root, 0);
+				json_decref(root);
 
 				LogWarn(VB_PLUGIN, "Playlist plugin data: %s\n", data);
 				execl(eventScript, "eventScript", plugins[i].script, "--type", "playlist", "--data", data, NULL);
+
+				free(data); data = NULL;
 
 				LogErr(VB_PLUGIN, "We failed to exec our playlist callback!\n");
 				exit(EXIT_FAILURE);
@@ -426,46 +409,39 @@ int NextPlaylistEntryCallback(const char *plugin_data, int currentPlaylistEntry,
 
 			if ( pid == 0 )
 			{
-				char data[2048];
-				int j;
-
 				LogDebug(VB_PLUGIN, "Child process, calling %s callback for nextplaylist: %s\n", plugins[i].name, plugins[i].script);
 
+				char *data = NULL;
 				char eventScript[1024];
 				memcpy(eventScript, getFPPDirectory(), sizeof(eventScript));
 				strncat(eventScript, "/scripts/eventScript", sizeof(eventScript)-strlen(eventScript)-1);
 
-				// TODO: parse JSON a little better like escaping special
-				// characters if needed, should only be quote that requires
-				// escaping, we shouldn't worry about things like tabs,
-				// backspaces, form feeds, etc..
+				json_t *root = json_object();
 
-				strncpy(&data[0], "{", sizeof(data));
-				snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
-					"\"currentPlaylistEntry\":\"%d\",", currentPlaylistEntry);
+				json_object_set_new(root, "currentPlaylistEntry", json_integer(currentPlaylistEntry));
+
 				char *mode_string = modeToString(mode);
-				if ( mode_string )
+				if (mode_string)
 				{
-					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
-						"\"mode\":\"%s\",", mode_string);
+					json_object_set_new( root, "mode", json_string(mode_string));
 					free(mode_string); mode_string = NULL;
 				}
-				snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
-					"\"repeat\":\"%s\",", (repeat == true ? "true" : "false" ));
 
-				if ( strlen(plugin_data) )
-				{
-					snprintf(&data[strlen(data)], sizeof(data)-strlen(data),
-					"\"data\":\"%s\",", plugin_data );
-				}
+				json_object_set_new(root, "repeat", json_string((repeat == true ? "true" : "false" )));
 
-				data[strlen(data)-1] = '}'; //replace last comma with a closing brace
+				if (strlen(plugin_data))
+					json_object_set_new(root, "data", json_string( plugin_data));
+
+				data = json_dumps(root, 0);
+				json_decref(root);
 
 				LogWarn(VB_PLUGIN, "NextPlaylist plugin data: %s\n", data);
 
 				dup2(output_pipe[1], STDOUT_FILENO);
 				close(output_pipe[1]);
 				execl(eventScript, "eventScript", plugins[i].script, "--type", "nextplaylist", "--data", data, NULL);
+
+				free(data); data = NULL;
 
 				LogErr(VB_PLUGIN, "We failed to exec our nextplaylist callback!\n");
 				exit(EXIT_FAILURE);
@@ -486,4 +462,64 @@ int NextPlaylistEntryCallback(const char *plugin_data, int currentPlaylistEntry,
 		}
 	}
 	return ret_val;
+}
+
+//blocking
+void EventCallback(char *id, char *impetus)
+{
+	int i, ret_val;
+	for ( i = 0; i < plugin_count; ++i )
+	{
+		if ( plugins[i].mask & EVENT_ENTRY_CALLBACK )
+		{
+			int pid;
+
+			if ((pid = fork()) == -1 )
+			{
+				LogErr(VB_PLUGIN, "Failed to fork\n");
+				exit(EXIT_FAILURE);
+			}
+
+			if ( pid == 0 )
+			{
+				LogDebug(VB_PLUGIN, "Child process, calling %s callback for event: %s\n", plugins[i].name, plugins[i].script);
+
+				char *data = NULL;
+				char eventScript[1024];
+				memcpy(eventScript, getFPPDirectory(), sizeof(eventScript));
+				strncat(eventScript, "/scripts/eventScript", sizeof(eventScript)-strlen(eventScript)-1);
+
+				FPPevent *event = LoadEvent(id);
+
+				json_t *root = json_object();
+
+				json_object_set_new(root, "caller", json_string(impetus));
+				json_object_set_new(root, "major", json_integer(event->majorID));
+				json_object_set_new(root, "minor", json_integer(event->minorID));
+				if ( event->name && strlen(event->name) )
+					json_object_set_new(root, "name", json_string(event->name));
+				if ( event->effect && strlen(event->effect) )
+					json_object_set_new(root, "effect", json_string(event->effect));
+				json_object_set_new(root, "startChannel", json_integer(event->startChannel));
+				if ( event->script && strlen(event->script) )
+					json_object_set_new(root, "script", json_string(event->script));
+
+				data = json_dumps(root, 0);
+				json_decref(root);
+
+				LogWarn(VB_PLUGIN, "Media plugin data: %s\n", data);
+				execl(eventScript, "eventScript", plugins[i].script, "--type", "media", "--data", data, NULL);
+
+				free(data); data = NULL;
+
+				LogErr(VB_PLUGIN, "We failed to exec our media callback!\n");
+				exit(EXIT_FAILURE);
+			}
+			else
+			{
+				LogExcess(VB_PLUGIN, "Media parent process, resuming work.\n");
+				wait(NULL);
+			}
+		}
+	}
 }

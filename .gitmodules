@@ -6,3 +6,7 @@
 	path = external/rpi-rgb-led-matrix
 	url = https://github.com/hzeller/rpi-rgb-led-matrix.git
 	ignore = dirty
+[submodule "external/jansson"]
+	path = external/jansson
+	url = https://github.com/akheron/jansson.git
+	ignore = dirty

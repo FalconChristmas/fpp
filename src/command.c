@@ -35,6 +35,7 @@
 #include "sequence.h"
 #include "effects.h"
 #include "playList.h"
+#include "plugins.h"
 #include "FPD.h"
 #include "events.h"
 #include "channeloutput.h"
@@ -324,6 +325,7 @@ extern PlaylistDetails playlistDetails;
 		{
 			// Trigger an event
 			s = strtok(NULL,",");
+			EventCallback(s, "command");
 			i = TriggerEventByID(s);
 			if (i >= 0)
 				sprintf(response,"%d,%d,Event Triggered,%d,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS,i);
@@ -503,7 +505,7 @@ extern PlaylistDetails playlistDetails;
 		{
 			bytes_sent = sendto(socket_fd, response2, strlen(response2), 0,
                           (struct sockaddr *) &(client_address), sizeof(struct sockaddr_un));
-			LogDebug(VB_COMMAND, "%s %s\n", CommandStr, response2);
+			LogDebug(VB_COMMAND, "%s %s", CommandStr, response2);
 			free(response2);
 			response2 = NULL;
 		}
@@ -511,7 +513,7 @@ extern PlaylistDetails playlistDetails;
 		{
 			bytes_sent = sendto(socket_fd, response, strlen(response), 0,
                           (struct sockaddr *) &(client_address), sizeof(struct sockaddr_un));
-			LogDebug(VB_COMMAND, "%s %s\n", CommandStr, response);
+			LogDebug(VB_COMMAND, "%s %s", CommandStr, response);
 		}
   }
 

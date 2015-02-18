@@ -41,6 +41,7 @@
 #include "falcon.h"
 #include "log.h"
 #include "mediaoutput.h"
+#include "plugins.h"
 #include "sequence.h"
 #include "settings.h"
 
@@ -221,6 +222,7 @@ void ProcessEventPacket(ControlPkt *pkt, int len) {
 
 	EventPkt *epkt = (EventPkt*)(((char*)pkt) + sizeof(ControlPkt));
 
+	EventCallback(epkt->eventID, "remote");
 	TriggerEventByID(epkt->eventID);
 }
 
