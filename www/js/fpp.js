@@ -1309,6 +1309,29 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 	{
 		var status = GetFPPstatus();
 	}
+
+        function GetPItemp()
+        {
+        var xmlhttp=new XMLHttpRequest();
+                        var url = "fppxml.php?command=getPItemp";
+                        xmlhttp.open("GET",url,true);
+                        xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+                        xmlhttp.onreadystatechange = function ()
+                        {
+                                if (xmlhttp.readyState == 4 && xmlhttp.status==200)
+                                {
+                                        var xmlDoc=xmlhttp.responseXML;
+                                        var status = xmlDoc.getElementsByTagName('Status')[0];
+                                        var retValue='false';
+                                        if(status.childNodes.length> 0)
+                                        {
+                                                ret = status.childNodes[0].textContent;
+                                                $('#currentTemp').html(ret);
+                                        }
+                                }
+                        };
+                        xmlhttp.send();
+        }
 	
 	function IsFPPDrunning()
 	{
