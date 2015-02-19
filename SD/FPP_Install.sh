@@ -184,6 +184,7 @@ case "${FPPPLATFORM}" in
 		echo >> /boot/uboot/uEnv.txt
 		echo "# Disable HDMI for Falcon and LEDscape cape support" >> /boot/uboot/uEnv.txt
 		echo "cape_disable=capemgr.disable_partno=BB-BONELT-HDMI,BB-BONELT-HDMIN" >> /boot/uboot/uEnv.txt
+		echo >> /boot/uboot/uEnv.txt
 		;;
 
 	'Raspberry Pi')
@@ -193,6 +194,12 @@ case "${FPPPLATFORM}" in
 		echo "FPP - Installing patched omxplayer.bin for FPP MultiSync"
 		cp /usr/bin/omxplayer.bin /usr/bin/omxplayer.bin.orig
 		wget -O /usr/bin/omxplayer.bin https://github.com/FalconChristmas/fpp-binaries/raw/master/Pi/omxplayer.bin
+
+		echo "FPP - Enabling SPI in device tree"
+		echo >> /boot/config.txt
+		echo "# Enable SPI in device tree" >> /boot/config.txt
+		echo "dtparam=spi=on" >> /boot/config.txt
+		echo >> /boot/config.txt
 		;;
 
 	'ODROID')
