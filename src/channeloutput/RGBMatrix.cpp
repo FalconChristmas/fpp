@@ -51,8 +51,6 @@ RGBMatrixOutput::RGBMatrixOutput(unsigned int startChannel,
 	m_panelWidth(RGBMatrix_PANEL_WIDTH),
 	m_panelHeight(RGBMatrix_PANEL_HEIGHT),
 	m_panels(0),
-	m_panelsWide(0),
-	m_panelsHigh(0),
 	m_width(0),
 	m_height(0),
 	m_rows(0)
@@ -86,17 +84,7 @@ int RGBMatrixOutput::Init(char *configStr)
 		if (elem.size() < 2)
 			continue;
 
-		if (elem[0] == "layout")
-		{
-			m_layout = elem[1];
-
-			std::vector<std::string> dimensions
-				= split(m_layout, 'x');
-			m_panelsWide = atoi(dimensions[0].c_str());
-			m_panelsHigh = atoi(dimensions[1].c_str());
-			m_panels = m_panelsWide * m_panelsHigh;
-		}
-		else if (elem[0] == "panels")
+		if (elem[0] == "panels")
 		{
 			panelCfg = elem[1];
 		}
@@ -119,6 +107,8 @@ int RGBMatrixOutput::Init(char *configStr)
 	{
 		return 0;
 	}
+
+	m_panels = m_panelMatrix->PanelCount();
 
 	m_gpio = new GPIO();
 	if (!m_gpio)
@@ -222,8 +212,7 @@ int RGBMatrixOutput::RawSendData(unsigned char *channelData)
 void RGBMatrixOutput::DumpConfig(void)
 {
 	LogDebug(VB_CHANNELOUT, "RGBMatrixOutput::DumpConfig()\n");
-	LogDebug(VB_CHANNELOUT, "    panels : %d (%dx%d)\n",
-		m_panels, m_panelsWide, m_panelsHigh);
+	LogDebug(VB_CHANNELOUT, "    panels : %d\n", m_panels);
 	LogDebug(VB_CHANNELOUT, "    width  : %d\n", m_width);
 	LogDebug(VB_CHANNELOUT, "    height : %d\n", m_height);
 }

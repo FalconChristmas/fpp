@@ -54,8 +54,9 @@ class PanelMatrix {
 
 	int  ConfigurePanels(string layout);
 
-	int  Width(void)    { return m_width; }
-	int  Height(void)   { return m_height; }
+	int  Width(void)      { return m_width; }
+	int  Height(void)     { return m_height; }
+	int  PanelCount(void) { return m_panelCount; }
 
 	// Map of output channels to full matrix channels
 	vector<int> m_outputPixelMap[MAX_MATRIX_OUTPUTS];
