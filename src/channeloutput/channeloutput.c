@@ -128,7 +128,7 @@ int InitializeChannelOutputs(void) {
 	// Parse the channeloutputs config file for non-FPD, non-E1.31 outputs
 	FILE *fp;
 	char filename[1024];
-	char buf[128];
+	char buf[2048];
 
 	strcpy(filename, getMediaDirectory());
 	strcat(filename, "/channeloutputs");
@@ -143,7 +143,7 @@ int InitializeChannelOutputs(void) {
 	}
 	else
 	{
-		while(fgets(buf, 128, fp) != NULL)
+		while(fgets(buf, 2048, fp) != NULL)
 		{
 			int  enabled = 0;
 			char type[32];
