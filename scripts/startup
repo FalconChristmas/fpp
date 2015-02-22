@@ -178,6 +178,14 @@ echo "FPP - Copying Apache config into place and restarting Apache"
 sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/apache2.site > ${SITEFILE}
 /etc/init.d/apache2 restart
 
+echo "FPP - Copying Nginx config into place and restarting Nginx"
+mkdir /var/log/nginx
+chown www-data /var/log/nginx
+sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/nginx.conf > /etc/nginx/sites-available/default
+# FIXME, start this when ready to switch
+#/etc/init.d/nginx restart
+
+
 echo "FPP - Starting FPP boot script"
 ${BINDIR}/fpp_boot
 

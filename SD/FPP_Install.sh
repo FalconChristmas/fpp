@@ -17,7 +17,7 @@
 # sudo ./FPP_Install.sh
 #
 #############################################################################
-SCRIPTVER="0.1"
+SCRIPTVER="0.2"
 FPPBRANCH="BBB"
 FPPIMAGEVER="2.0"
 FPPPLATFORM="UNKNOWN"
@@ -119,11 +119,8 @@ case "${OSVER}" in
 		echo "FPP - Updating package list"
 		apt-get update
 
-		echo "FPP - Uninstalling unneeded packages to save space"
-		apt-get -y remove xchat xrdp 'xscreensaver*' wvdial tightvncserver sane-utils ppp openbox openbox-themes lxde-common lxde-core lxmenu-data lxpanel lxsession lxterminal 'lightdm*' 
-
 		echo "FPP - Installing required packages"
-		apt-get -y install alsa-base alsa-utils apache2 apache2.2-bin apache2.2-common apache2-mpm-prefork apache2-utils arping avahi-daemon avahi-discover avahi-utils bc build-essential bzip2 ca-certificates ccache curl device-tree-compiler ethtool fbi file flite 'g++-4.7' gcc-4.7 gdb git i2c-tools ifplugd imagemagick less libapache2-mod-php5 libconvert-binary-c-perl libdbus-glib-1-dev libdevice-serialport-perl libjson-perl libnet-bonjour-perl libpam-smbpass libtagc0-dev locales mp3info mpg123 mplayer node perlmagick php5 php5-cli php5-common php-apc python-daemon python-smbus samba samba-common-bin shellinabox sudo sysstat usbmount vim vim-common vorbis-tools vsftpd
+		apt-get -y install alsa-base alsa-utils apache2 apache2.2-bin apache2.2-common apache2-mpm-prefork apache2-utils arping avahi-daemon avahi-discover avahi-utils bc build-essential bzip2 ca-certificates ccache curl device-tree-compiler ethtool fbi fbset file flite 'g++-4.7' gcc-4.7 gdb git i2c-tools ifplugd imagemagick less libapache2-mod-php5 libconvert-binary-c-perl libdbus-glib-1-dev libdevice-serialport-perl libjson-perl libnet-bonjour-perl libpam-smbpass libtagc0-dev locales mp3info mpg123 mplayer nano nginx node omxplayer perlmagick php5 php5-cli php5-common php5-fpm php5-mcrypt php5-sqlite php-apc python-daemon python-smbus raspi-config samba samba-common-bin shellinabox sudo sysstat usbmount vim vim-common vorbis-tools vsftpd
 
 		echo "FPP - Installing non-packaged Perl modules via CPAN"
 		echo "yes" | cpan -fi File::Map Net::WebSocket::Server
@@ -155,6 +152,10 @@ case "${OSVER}" in
 			systemctl disable bonescript-autorun.service
 			systemctl disable console-kit-daemon.service
 			systemctl disable cloud9.socket
+
+			# Disabling nginx & php-fpm for now until new UI is in place
+			systemctl disable nginx.service
+			systemctl disable php5-fpm.service
 		fi
 
 		echo "FPP - Disabling GUI"
@@ -200,6 +201,9 @@ case "${FPPPLATFORM}" in
 		echo "# Enable SPI in device tree" >> /boot/config.txt
 		echo "dtparam=spi=on" >> /boot/config.txt
 		echo >> /boot/config.txt
+		echo "# Enable I2C in device tree" >> /boot/config.txt
+		echo "dtparam=i2c=on" >> /boot/config.txt
+		echo >> /boot/config.txt
 		;;
 
 	'ODROID')
@@ -223,6 +227,22 @@ git clone https://github.com/FalconChristmas/fpp fpp
 echo "FPP - Switching git clone to ${FPPBRANCH} branch"
 cd /opt/fpp
 git checkout ${FPPBRANCH}
+
+#######################################
+echo "FPP - Installing PHP composer"
+cd /tmp/
+curl -sS https://getcomposer.org/installer | php
+mv ./composer.phar /usr/local/bin/composer
+chmod 755 /usr/local/bin/composer
+
+#######################################
+echo "FPP - Setting up for UI"
+sed -i -e "s/^user =.*/user = fpp/" /etc/php5/fpm/pool.d/www.conf
+sed -i -e "s/^group =.*/group = fpp/" /etc/php5/fpm/pool.d/www.conf
+
+#######################################
+# echo "FPP - Composing FPP UI"
+# FIXME, eventually run composer here in the new UI dir
 
 #######################################
 # Add the fpp user and group memberships
