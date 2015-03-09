@@ -47,7 +47,7 @@ fi
 ##############################################################################
 # Copy our php.ini script into place for when we restart apache
 echo "    - Copying php.ini into place"
-cp ${FPPDIR}/etc/php.ini /etc/php5/apache2/php.ini
+sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/php.ini > /etc/php5/apache2/php.ini
 
 ##############################################################################
 

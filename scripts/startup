@@ -91,17 +91,6 @@ if [ ! -e /proc/asound/card$(sed -n '/card [0-9]*/p' /root/.asoundrc | head -n 1
 	sed -i 's/card [0-9]/card 0/' /root/.asoundrc
 fi
 
-if [ "${PLATFORM}" = "BeagleBone Black" ]
-then
-	grep -q "^1,LEDscapeMatrix," /home/fpp/media/channeloutputs
-	if [ $? -eq 0 ]
-	then
-		echo "FPP - Enabling BeableBone PRU for LEDscape"
-		cp ${FPPDIR}/external/LEDscape/dts/CAPE-BONE-OCTO-00A0.dtbo /lib/firmware/
-		echo 'CAPE-BONE-OCTO' | sudo tee -a /sys/devices/bone_capemgr.*/slots
-	fi
-fi
-
 # Clear any restart/reboot flags
 echo "FPP - Clearing reboot flags"
 sed -i -e "s/^rebootFlag .*/rebootFlag = 0/" ${FPPHOME}/media/settings

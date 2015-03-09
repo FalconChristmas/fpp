@@ -1,5 +1,5 @@
-/home/pi/media/logs/a*.log {
-	su pi pi
+/home/fpp/media/logs/a*.log {
+	su fpp fpp
 	daily
 	size 10M
 	missingok

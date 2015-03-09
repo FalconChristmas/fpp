@@ -1,6 +1,6 @@
-/home/pi/media/logs/[b-zA-Z]*.log
+/home/fpp/media/logs/[b-zA-Z]*.log
 {
-	su pi pi
+	su fpp fpp
 	daily
 	size 10M
 	missingok
