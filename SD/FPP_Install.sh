@@ -70,6 +70,31 @@ echo "OS Version       : ${OSVER}"
 echo "============================================================"
 #############################################################################
 
+echo ""
+echo "Notes:"
+echo "- Did you remember to enlarge the OS filesystem partition if necessary?"
+echo "  - Raspberry Pi - FIXME (put some instructions here if possible)"
+echo "  - Debian BBB   - sudo /opt/scripts/tools/grow_partition.sh"
+echo "- Does this system have internet access to install packages and FPP?"
+echo ""
+echo "WARNINGS:"
+echo "- This install expects to be run on a clean freshly-installed system"
+echo "  it is not currently designed to be re-run multiple times."
+echo "- This installer will take over your system.  It will disable any"
+echo "  existing 'pi' or 'debian' user and create a 'fpp' user.  If you"
+echo "  have an empty root password, root access will be disabled."
+echo ""
+
+echo -n "Do you wish to proceed? [N/y] "
+read ANSWER
+if [ "x${ANSWER}" != "xY" -a "x${ANSWER}" != "xy" ]
+then
+	echo
+	echo "Install cancelled."
+	echo
+	exit
+fi
+
 #######################################
 # Remove old /etc/fpp if it exists
 if [ -e "/etc/fpp" ]
@@ -116,11 +141,17 @@ fi
 # Make sure dependencies are installed
 case "${OSVER}" in
 	debian_7)
+		echo "FPP - Enabling non-free repo"
+		sed -i -e "s/^deb \(.*\)/deb \1 non-free/" /etc/apt/sources.list
+
 		echo "FPP - Updating package list"
 		apt-get update
 
 		echo "FPP - Installing required packages"
 		apt-get -y install alsa-base alsa-utils apache2 apache2.2-bin apache2.2-common apache2-mpm-prefork apache2-utils arping avahi-daemon avahi-discover avahi-utils bc build-essential bzip2 ca-certificates ccache curl device-tree-compiler ethtool fbi fbset file flite 'g++-4.7' gcc-4.7 gdb git i2c-tools ifplugd imagemagick less libapache2-mod-php5 libconvert-binary-c-perl libdbus-glib-1-dev libdevice-serialport-perl libjson-perl libnet-bonjour-perl libpam-smbpass libtagc0-dev locales mp3info mpg123 mplayer nano nginx node perlmagick php5 php5-cli php5-common php5-fpm php5-mcrypt php5-sqlite php-apc python-daemon python-smbus samba samba-common-bin shellinabox sudo sysstat usbmount vim vim-common vorbis-tools vsftpd
+
+		echo "FPP - Installing wireless firmware packages"
+		apt-get -y install firmware-realtek
 
 		echo "FPP - Installing non-packaged Perl modules via CPAN"
 		echo "yes" | cpan -fi File::Map Net::WebSocket::Server
