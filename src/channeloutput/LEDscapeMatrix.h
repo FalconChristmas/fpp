@@ -34,8 +34,6 @@ using namespace::std;
 
 #include "ChannelOutputBase.h"
 
-#define LEDSCAPE_MATRIX_CONFIG "/home/fpp/media/config/LEDscapeMatrix"
-
 class LEDscapeMatrixOutput : public ChannelOutputBase {
   public:
 	LEDscapeMatrixOutput(unsigned int startChannel, unsigned int channelCount);
