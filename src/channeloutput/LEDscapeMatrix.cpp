@@ -82,8 +82,8 @@ int LEDscapeMatrixOutput::Init(char *configStr)
 	}
 
 	// Sample configs:
-	// 4x1: "panels=0,5,N,32,0;0,4,N,0,0;0,6,N,0,16;0,7,N,32,16"
-	// 2x2: "panels=0,5,U,0,0;0,4,U,32,0;0,6,N,0,16;0,7,N,32,16"
+	// 4x1: "panels=0:5:N:32:0|0:4:N:0:0|0:6:N:0:16|0:7:N:32:16"
+	// 2x2: "panels=0:5:U:0:0|0:4:U:32:0|0:6:N:0:16|0:7:N:32:16"
 	// 2x1: "panels=0:6:N:0:0|0:7:N:32:0"
 	m_config = reinterpret_cast<ledscape_config_t*>(calloc(1, sizeof(ledscape_config_t)));
 	if (!m_config)
