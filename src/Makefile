@@ -61,7 +61,7 @@ OBJECTS_fppd = \
 	mediaoutput/omxplayer.o \
 	memorymap.o \
 	Playlist.o \
-	plugins.o \
+	Plugins.o \
 	Scheduler.o \
 	ScheduleEntry.o \
 	Sequence.o \
@@ -69,7 +69,7 @@ OBJECTS_fppd = \
 	$(NULL)
 LIBS_fppd = \
 	-lpthread \
-	-ljansson \
+	-ljsoncpp \
 	-lm \
 	-lutil \
 	-ltag_c \
@@ -87,15 +87,12 @@ CFLAGS += \
 	-I . \
 	-I channeloutput \
 	-I mediaoutput \
-	-I../external/jansson/src/ \
 	$(NULL)
 
 LDFLAGS_fppd += \
-	-L../external/jansson/src/.libs/ \
 	$(NULL)
 
 DEPS_fppd += \
-	../external/jansson/src/.libs/libjansson.so \
 	$(NULL)
 
 # Do some things a little different when using gcc vs g++
@@ -186,7 +183,6 @@ clean:
 	@if [ -e ../external/RF24/.git ]; then make -C ../external/RF24 clean; fi
 	@if [ -e ../external/rpi-rgb-led-matrix/.git ]; then make -C ../external/rpi-rgb-led-matrix clean; fi
 	@if [ -e ../external/rpi_ws281x/libws2811.a ]; then rm ../external/rpi_ws281x/*.o ../external/rpi_ws281x/*.a 2> /dev/null; fi
-	@if [ -e ../external/jansson/.git ]; then make -C ../external/jansson clean; fi
 
 ../external/RF24/.git:
 	@cd ../ && \
@@ -198,15 +194,6 @@ clean:
 	@make -C ../external/RF24/
 	@ln -s librf24-bcm.so.1.0 ../external/RF24/librf24-bcm.so.1
 	@ln -s librf24-bcm.so.1 ../external/RF24/librf24-bcm.so
-
-../external/jansson/.git:
-	@cd ../ && \
-		git submodule init && \
-		git submoudle update
-
-../external/jansson/src/.libs/libjansson.so:
-	@echo "Building libjansson library"
-	@make -C ../external/jansson/
 
 ../external/rpi-rgb-led-matrix/.git:
 	@cd ../ && \

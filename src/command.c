@@ -35,7 +35,7 @@
 #include "Sequence.h"
 #include "effects.h"
 #include "Playlist.h"
-#include "plugins.h"
+#include "Plugins.h"
 #include "FPD.h"
 #include "events.h"
 #include "channeloutput.h"
@@ -52,6 +52,8 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+
+extern PluginCallbackManager pluginCallbackManager;
 
  char response[1056];
  int socket_fd;
@@ -322,7 +324,7 @@
 		{
 			// Trigger an event
 			s = strtok(NULL,",");
-			EventCallback(s, "command");
+			pluginCallbackManager.eventCallback(s, "command");
 			i = TriggerEventByID(s);
 			if (i >= 0)
 				sprintf(response,"%d,%d,Event Triggered,%d,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS,i);

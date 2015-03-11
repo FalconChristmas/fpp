@@ -10,7 +10,3 @@
 	path = external/rpi_ws281x
 	url = https://github.com/jgarff/rpi_ws281x
 	ignore = dirty
-[submodule "external/jansson"]
-	path = external/jansson
-	url = https://github.com/akheron/jansson.git
-	ignore = dirty

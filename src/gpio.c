@@ -27,7 +27,7 @@
 #include "events.h"
 #include "log.h"
 #include "settings.h"
-#include "plugins.h"
+#include "Plugins.h"
 
 #include <stdio.h>
 #include <stdbool.h>
@@ -52,6 +52,7 @@
 int inputConfigured[MAX_GPIO_INPUTS];
 int inputLastState[MAX_GPIO_INPUTS];
 long long inputLastTriggerTime[MAX_GPIO_INPUTS];
+extern PluginCallbackManager pluginCallbackManager;
 
 /*
  * Setup pins for configured GPIO Inputs
@@ -124,7 +125,7 @@ void CheckGPIOInputs(void)
 				{
 					LogDebug(VB_GPIO, "GPIO%d triggered\n", i);
 					sprintf(settingName, "GPIOInput%03dEvent%s", i, (val == LOW ? "Falling" : "Rising"));
-					EventCallback(getSetting(settingName), "GPIO");
+					pluginCallbackManager.eventCallback(getSetting(settingName), "GPIO");
 					TriggerEventByID(getSetting(settingName));
 
 					inputLastTriggerTime[i] = GetTime();
