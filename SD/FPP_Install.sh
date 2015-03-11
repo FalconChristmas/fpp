@@ -20,6 +20,7 @@
 SCRIPTVER="0.2"
 FPPBRANCH="BBB"
 FPPIMAGEVER="2.0"
+FPPCFGVER="6"
 FPPPLATFORM="UNKNOWN"
 FPPDIR="/opt/fpp"
 OSVER="UNKNOWN"
@@ -109,7 +110,7 @@ echo "FPP - Creating /etc/fpp and contents"
 mkdir /etc/fpp
 echo "${FPPPLATFORM}" > /etc/fpp/platform
 echo "v${FPPIMAGEVER}" > /etc/fpp/rfs_version
-echo "6" > /etc/fpp/config_version
+echo "${FPPCFGVER}" > /etc/fpp/config_version
 
 #######################################
 # Setting hostname
