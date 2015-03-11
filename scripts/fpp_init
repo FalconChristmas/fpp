@@ -27,7 +27,8 @@ perl -e "printf( \"\n\" x 50 );"
 
 ##############################################################################
 # Start the splash video in the background
-${FPPDIR}/etc/asplashscreen &
+# Disable for now until we get the omxplayer dbus issue worked out
+#${FPPDIR}/etc/asplashscreen &
 
 ##############################################################################
 echo "FPP - Performing initial pre-start setup"
