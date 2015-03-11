@@ -41,12 +41,14 @@
 #include "falcon.h"
 #include "log.h"
 #include "mediaoutput.h"
+#include "Plugins.h"
 #include "Sequence.h"
 #include "settings.h"
 
 struct sockaddr_in  crSrcAddr;
 
 int ctrlRecvSock = 0;
+extern PluginCallbackManager pluginCallbackManager;
 
 /*
  *
@@ -221,6 +223,7 @@ void ProcessEventPacket(ControlPkt *pkt, int len) {
 
 	EventPkt *epkt = (EventPkt*)(((char*)pkt) + sizeof(ControlPkt));
 
+	pluginCallbackManager.eventCallback(epkt->eventID, "remote");
 	TriggerEventByID(epkt->eventID);
 }
 

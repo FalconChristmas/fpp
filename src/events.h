@@ -38,5 +38,6 @@ typedef struct fppevent {
 
 int TriggerEvent(char major, char minor);
 int TriggerEventByID(char *ID);
+FPPevent* LoadEvent(char *id);
 
 #endif
