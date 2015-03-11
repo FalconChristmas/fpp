@@ -27,6 +27,7 @@
 #define _PLAYLIST_H
 
 #include <stdbool.h>
+#include <sys/time.h>
 
 #define PL_TYPE_BOTH			0
 #define PL_TYPE_MEDIA			1
