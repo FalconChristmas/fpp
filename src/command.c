@@ -35,6 +35,7 @@
 #include "Sequence.h"
 #include "effects.h"
 #include "Playlist.h"
+#include "Plugins.h"
 #include "FPD.h"
 #include "events.h"
 #include "channeloutput.h"
@@ -51,6 +52,8 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+
+extern PluginCallbackManager pluginCallbackManager;
 
  char response[1056];
  int socket_fd;
@@ -321,6 +324,7 @@
 		{
 			// Trigger an event
 			s = strtok(NULL,",");
+			pluginCallbackManager.eventCallback(s, "command");
 			i = TriggerEventByID(s);
 			if (i >= 0)
 				sprintf(response,"%d,%d,Event Triggered,%d,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS,i);
@@ -500,7 +504,7 @@
 		{
 			bytes_sent = sendto(socket_fd, response2, strlen(response2), 0,
                           (struct sockaddr *) &(client_address), sizeof(struct sockaddr_un));
-			LogDebug(VB_COMMAND, "%s %s\n", CommandStr, response2);
+			LogDebug(VB_COMMAND, "%s %s", CommandStr, response2);
 			free(response2);
 			response2 = NULL;
 		}
@@ -508,7 +512,7 @@
 		{
 			bytes_sent = sendto(socket_fd, response, strlen(response), 0,
                           (struct sockaddr *) &(client_address), sizeof(struct sockaddr_un));
-			LogDebug(VB_COMMAND, "%s %s\n", CommandStr, response);
+			LogDebug(VB_COMMAND, "%s %s", CommandStr, response);
 		}
   }
 

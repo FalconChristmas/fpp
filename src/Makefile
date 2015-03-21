@@ -61,7 +61,7 @@ OBJECTS_fppd = \
 	mediaoutput/omxplayer.o \
 	memorymap.o \
 	Playlist.o \
-	plugins.o \
+	Plugins.o \
 	Scheduler.o \
 	ScheduleEntry.o \
 	Sequence.o \
@@ -69,6 +69,7 @@ OBJECTS_fppd = \
 	$(NULL)
 LIBS_fppd = \
 	-lpthread \
+	-ljsoncpp \
 	-lm \
 	-lutil \
 	-ltag_c \
@@ -87,6 +88,12 @@ CFLAGS += \
 	-I . \
 	-I channeloutput \
 	-I mediaoutput \
+	$(NULL)
+
+LDFLAGS_fppd += \
+	$(NULL)
+
+DEPS_fppd += \
 	$(NULL)
 
 # Do some things a little different when using gcc vs g++
@@ -118,9 +125,9 @@ LIBS_fppd += \
 	-lws2811 \
 	$(NULL)
 LDFLAGS_fppd += \
-	-L../external/RF24 \
-	-L../external/rpi-rgb-led-matrix/lib \
-	-L../external/rpi_ws281x \
+	-L../external/RF24/ \
+	-L../external/rpi-rgb-led-matrix/lib/ \
+	-L../external/rpi_ws281x/ \
 	$(NULL)
 OBJECTS_fppd += \
 	channeloutput/RGBMatrix.o \

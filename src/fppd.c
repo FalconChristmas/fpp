@@ -41,7 +41,7 @@
 #include "mediaoutput.h"
 #include "memorymap.h"
 #include "Playlist.h"
-#include "plugins.h"
+#include "Plugins.h"
 #include "Scheduler.h"
 #include "Sequence.h"
 #include "settings.h"
@@ -69,6 +69,7 @@
 pid_t pid, sid;
 int FPPstatus=FPP_STATUS_IDLE;
 int runMainFPPDLoop = 1;
+extern PluginCallbackManager pluginCallbackManager;
 
 /* Prototypes for functions below */
 void MainLoop(void);
@@ -107,7 +108,7 @@ int main(int argc, char *argv[])
 
 	SetupGPIOInput();
 
-	InitPluginCallbacks();
+	pluginCallbackManager.init();
 
 	CheckExistanceOfDirectoriesAndFiles();
 

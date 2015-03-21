@@ -164,7 +164,7 @@ int InitializeChannelOutputs(void) {
 			}
 
 			if (!enabled) {
-				LogDebug(VB_CHANNELOUT, "Skipping disabled channel output: %s\n", buf);
+				LogDebug(VB_CHANNELOUT, "Skipping disabled channel output: %s", buf);
 				continue;
 			}
 
