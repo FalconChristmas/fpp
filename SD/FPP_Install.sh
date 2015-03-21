@@ -17,10 +17,10 @@
 # sudo ./FPP_Install.sh
 #
 #############################################################################
-SCRIPTVER="0.2"
-FPPBRANCH="BBB"
+SCRIPTVER="0.3"
+FPPBRANCH="master"
 FPPIMAGEVER="2.0"
-FPPCFGVER="6"
+FPPCFGVER="7"
 FPPPLATFORM="UNKNOWN"
 FPPDIR="/opt/fpp"
 OSVER="UNKNOWN"
