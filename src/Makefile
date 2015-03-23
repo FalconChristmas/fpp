@@ -30,6 +30,7 @@ OBJECTS_fppd = \
 	channeloutput/channeloutputthread.o \
 	channeloutput/DebugOutput.o \
 	channeloutput/E131.o \
+	channeloutput/FBMatrix.o \
 	channeloutput/FPD.o \
 	channeloutput/GPIO.o \
 	channeloutput/GPIO595.o \

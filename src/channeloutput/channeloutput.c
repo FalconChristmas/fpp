@@ -32,6 +32,7 @@
 #include "channeloutput.h"
 #include "DebugOutput.h"
 #include "E131.h"
+#include "FBMatrix.h"
 #include "FPD.h"
 #include "log.h"
 #include "Sequence.h"
@@ -201,6 +202,8 @@ int InitializeChannelOutputs(void) {
 			} else if ((!strcmp(type, "DMX-Pro")) ||
 					   (!strcmp(type, "DMX-Open"))) {
 				channelOutputs[i].output = new USBDMXOutput(start, count);
+			} else if (!strcmp(type, "FBMatrix")) {
+				channelOutputs[i].output = new FBMatrixOutput(start, count);
 			} else if (!strcmp(type, "GPIO")) {
 				channelOutputs[i].output = new GPIOOutput(start, count);
 			} else if (!strcmp(type, "LOR")) {

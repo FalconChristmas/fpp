@@ -144,6 +144,9 @@ int RGBMatrixOutput::Init(char *configStr)
 		return 0;
 	}
 
+	RGBMatrix *rgbmatrix = reinterpret_cast<RGBMatrix*>(m_canvas);
+	rgbmatrix->SetPWMBits(8);
+
 	return ChannelOutputBase::Init(configStr);
 }
 
