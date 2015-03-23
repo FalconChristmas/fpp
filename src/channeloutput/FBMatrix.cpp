@@ -156,7 +156,7 @@ int FBMatrixOutput::Init(char *configStr)
 
 	m_fbp = (char*)mmap(0, m_screenSize, PROT_READ | PROT_WRITE, MAP_SHARED, m_fbFd, 0);
 
-	if ((int)m_fbp == -1)
+	if ((char *)m_fbp == (char *)-1)
 	{
 		LogErr(VB_CHANNELOUT, "Error, unable to map /dev/fb0\n");
 		ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
