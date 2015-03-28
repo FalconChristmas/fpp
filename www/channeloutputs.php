@@ -1,11 +1,10 @@
+<html>
+<head>
 <?php
 require_once("common.php");
 require_once('universeentry.php');
-
+include 'common/menuHead.inc';
 ?>
-<html>
-<head>
-<?php include 'common/menuHead.inc'; ?>
 <script language="Javascript">
 
 /////////////////////////////////////////////////////////////////////////////
