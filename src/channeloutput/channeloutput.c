@@ -28,6 +28,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <fstream>
+#include <sstream>
+#include <string>
+
+using namespace std;
 
 #include "channeloutput.h"
 #include "DebugOutput.h"
@@ -54,6 +59,7 @@
 #endif
 
 #ifdef PLATFORM_BBB
+#  include "BBB48String.h"
 #  include "LEDscapeMatrix.h"
 #endif
 
@@ -85,6 +91,8 @@ void PrintRemappedChannels(void);
  *
  */
 int InitializeChannelOutputs(void) {
+	Json::Value root;
+	Json::Reader reader;
 	int i = 0;
 
 	channelOutputFrame = 0;
@@ -126,15 +134,79 @@ int InitializeChannelOutputs(void) {
 		}
 	}
 
-	// Parse the channeloutputs config file for non-FPD, non-E1.31 outputs
 	FILE *fp;
 	char filename[1024];
 	char buf[2048];
 
+	// Parse the channeloutputs.json config file
+	strcpy(filename, getMediaDirectory());
+	strcat(filename, "/config/channeloutputs.json");
+
+	LogDebug(VB_CHANNELOUT, "Loading %s\n", filename);
+
+	if (FileExists(filename))
+	{
+		ifstream t(filename);
+		stringstream buffer;
+		buffer << t.rdbuf();
+
+		string config = buffer.str();
+
+		bool success = reader.parse(buffer.str(), root);
+		if (!success)
+		{
+			LogErr(VB_CHANNELOUT, "Error parsing %s\n", filename);
+			return 0;
+		}
+
+		const Json::Value outputs = root["channelOutputs"];
+		string type;
+		int start = 0;
+		int count = 0;
+
+		for (int c = 0; c < outputs.size(); c++)
+		{
+			type = outputs[c]["type"].asString();
+
+			if (!outputs[c]["enabled"].asInt())
+			{
+				LogDebug(VB_CHANNELOUT, "Skipping Disabled Channel Output: %s\n", type.c_str());
+				continue;
+			}
+
+			start = outputs[c]["startChannel"].asInt();
+			count = outputs[c]["channelCount"].asInt();
+
+			// internally we start channel counts at zero
+			start -= 1;
+
+			channelOutputs[i].startChannel = start;
+			channelOutputs[i].channelCount = count;
+
+			if (0) {
+#ifdef PLATFORM_BBB
+			} else if (type == "BBB48String") {
+				channelOutputs[i].output = new BBB48StringOutput(start, count);
+#endif
+			} else {
+				LogErr(VB_CHANNELOUT, "Unknown Channel Output type: %s\n", type.c_str());
+				continue;
+			}
+
+			if (channelOutputs[i].output->Init(outputs[c])) {
+				i++;
+			} else {
+				LogErr(VB_CHANNELOUT, "ERROR Opening %s Channel Output\n", type.c_str());
+			}
+		}
+	}
+
+	// Parse the channeloutputs config file
 	strcpy(filename, getMediaDirectory());
 	strcat(filename, "/channeloutputs");
 
-	LogDebug(VB_CHANNELOUT, "Loading Channel Outputs config\n");
+	LogDebug(VB_CHANNELOUT, "Loading %s\n", filename);
+
 	fp = fopen(filename, "r");
 	if (fp == NULL) 
 	{
@@ -263,6 +335,8 @@ int InitializeChannelOutputs(void) {
 	LogDebug(VB_CHANNELOUT, "%d Channel Outputs configured\n", channelOutputCount);
 
 	LoadChannelRemapData();
+
+	return 1;
 }
 
 /*

@@ -36,6 +36,7 @@ OBJECTS_fppd = \
 	channeloutput/GPIO595.o \
 	channeloutput/LOR.o \
 	channeloutput/PanelMatrix.o \
+	channeloutput/PixelString.o \
 	channeloutput/serialutil.o \
 	channeloutput/SPInRF24L01.o \
 	channeloutput/SPIws2801.o \
@@ -155,6 +156,7 @@ LDFLAGS_fppd += \
 	$(NULL)
 OBJECTS_fppd += \
 	channeloutput/LEDscapeMatrix.o \
+	channeloutput/BBB48String.o \
 	$(NULL)
 DEPS_fppd += \
 	../external/LEDscape/lib/libledscape.a \

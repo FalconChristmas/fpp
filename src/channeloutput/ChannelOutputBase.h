@@ -32,6 +32,8 @@
 
 using namespace std;
 
+#include <jsoncpp/json/json.h>
+
 #include "channeloutput.h"
 
 class ChannelOutputBase {
@@ -44,11 +46,15 @@ class ChannelOutputBase {
 	unsigned int  StartChannel(void) { return m_startChannel; }
 	int           MaxChannels(void)  { return m_maxChannels; }
 
+	virtual int   Init(Json::Value config);
 	virtual int   Init(char *configStr);
 	virtual int   Close(void);
 	int           SendData(unsigned char *channelData);
 
 	void          OutputThread(void);
+
+  private:
+	int           Init(void);
 
   protected:
 	virtual void  DumpConfig(void);

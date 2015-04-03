@@ -60,6 +60,30 @@ ChannelOutputBase::~ChannelOutputBase()
 	pthread_cond_destroy(&m_sendCond);
 }
 
+int ChannelOutputBase::Init(void)
+{
+	LogDebug(VB_CHANNELOUT, "ChannelOutputBase::Init()\n");
+
+	m_inBuf = new unsigned char[m_channelCount];
+	m_outBuf = new unsigned char[m_channelCount];
+
+	if (m_useOutputThread)
+		StartOutputThread();
+
+	DumpConfig();
+
+	return 1;
+}
+
+int ChannelOutputBase::Init(Json::Value config)
+{
+	LogDebug(VB_CHANNELOUT, "ChannelOutputBase::Init(JSON)\n");
+
+	m_outputType = config["type"].asString();
+
+	return Init();
+}
+
 int ChannelOutputBase::Init(char *configStr)
 {
 	LogDebug(VB_CHANNELOUT, "ChannelOutputBase::Init('%s')\n", configStr);
@@ -76,15 +100,7 @@ int ChannelOutputBase::Init(char *configStr)
 			m_outputType = elem[1];
 	}
 
-	m_inBuf = new unsigned char[m_channelCount];
-	m_outBuf = new unsigned char[m_channelCount];
-
-	if (m_useOutputThread)
-		StartOutputThread();
-
-	DumpConfig();
-
-	return 1;
+	return Init();
 }
 
 int ChannelOutputBase::Close(void)
