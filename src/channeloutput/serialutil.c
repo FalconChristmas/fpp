@@ -42,12 +42,13 @@ speed_t SerialGetBaudRate(int baud)
 {
 	switch (baud)
 	{
-		case   9600:	return B9600;
-		case  19200:	return B19200;
-		case  57600:	return B57600;
-		case 115200:	return B115200;
-		case 230400:	return B230400;
-		default    :	return B38400;
+		case    9600: return B9600;
+		case   19200: return B19200;
+		case   57600: return B57600;
+		case  115200: return B115200;
+		case  230400: return B230400;
+		case 1000000: return B1000000;
+		default     : return B38400;
 	}
 }
 
