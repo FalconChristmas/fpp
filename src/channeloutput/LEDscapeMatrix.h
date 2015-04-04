@@ -39,6 +39,7 @@ class LEDscapeMatrixOutput : public ChannelOutputBase {
 	LEDscapeMatrixOutput(unsigned int startChannel, unsigned int channelCount);
 	~LEDscapeMatrixOutput();
 
+	int Init(Json::Value config);
 	int Init(char *configStr);
 	int Close(void);
 
@@ -49,6 +50,8 @@ class LEDscapeMatrixOutput : public ChannelOutputBase {
   private:
 	ledscape_config_t  *m_config;
 	ledscape_t         *m_leds;
+
+	string              m_colorOrder;
 
 	int                 m_dataSize;
 	uint8_t            *m_data;

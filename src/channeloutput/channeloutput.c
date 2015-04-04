@@ -187,6 +187,8 @@ int InitializeChannelOutputs(void) {
 #ifdef PLATFORM_BBB
 			} else if (type == "BBB48String") {
 				channelOutputs[i].output = new BBB48StringOutput(start, count);
+			} else if (type == "LEDscapeMatrix") {
+				channelOutputs[i].output = new LEDscapeMatrixOutput(start, count);
 #endif
 			} else {
 				LogErr(VB_CHANNELOUT, "Unknown Channel Output type: %s\n", type.c_str());

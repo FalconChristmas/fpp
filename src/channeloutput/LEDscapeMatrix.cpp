@@ -43,7 +43,10 @@ LEDscapeMatrixOutput::LEDscapeMatrixOutput(unsigned int startChannel,
 	unsigned int channelCount)
   : ChannelOutputBase(startChannel, channelCount),
 	m_config(NULL),
-	m_leds(NULL)
+	m_leds(NULL),
+	m_colorOrder("RGB"),
+	m_dataSize(0),
+	m_data(NULL)
 {
 	LogDebug(VB_CHANNELOUT, "LEDscapeMatrixOutput::LEDscapeMatrixOutput(%u, %u)\n",
 		startChannel, channelCount);
@@ -55,6 +58,108 @@ LEDscapeMatrixOutput::LEDscapeMatrixOutput(unsigned int startChannel,
 LEDscapeMatrixOutput::~LEDscapeMatrixOutput()
 {
 	LogDebug(VB_CHANNELOUT, "LEDscapeMatrixOutput::~LEDscapeMatrixOutput()\n");
+}
+
+/*
+ *
+ */
+int LEDscapeMatrixOutput::Init(Json::Value config)
+{
+	LogDebug(VB_CHANNELOUT, "LEDscapeMatrixOutput::Init(JSON)\n");
+
+	m_config = reinterpret_cast<ledscape_config_t*>(calloc(1, sizeof(ledscape_config_t)));
+	if (!m_config)
+	{
+		LogErr(VB_CHANNELOUT, "Unable to allocate LEDscape config\n");
+		return 0;
+	}
+
+	int maxWidth = 0;
+	int maxHeight = 0;
+
+	ledscape_matrix_config_t * const lmconfig = &m_config->matrix_config;
+
+	lmconfig->type         = LEDSCAPE_MATRIX;
+	lmconfig->panel_width  = 32;
+	lmconfig->panel_height = 16;
+	lmconfig->leds_width   = 256;
+	lmconfig->leds_height  = 128;
+
+	for (int i = 0; i < config["panels"].size(); i++)
+	{
+		char orientation = 'N';
+		int  pWidth  = 32;
+		int  pHeight = 16;
+
+		Json::Value p = config["panels"][i];
+
+		int  output  = p["outputNumber"].asInt();
+		int  chain   = p["panelNumber"].asInt();
+		int  xOffset = p["xOffset"].asInt();
+		int  yOffset = p["yOffset"].asInt();
+
+		ledscape_matrix_panel_t * const pconfig =
+			&lmconfig->panels[output][chain];
+
+		pconfig->x   = xOffset;
+		pconfig->y   = yOffset;
+		pconfig->rot = 0; // Default, normal rotation
+
+		const char *o = p["orientation"].asString().c_str();
+		if (o && *o)
+			orientation = o[0];
+
+		switch (orientation)
+		{
+			case 'N':
+				pconfig->rot = 0;
+				break;
+			case 'L':
+				pconfig->rot = 1;
+				pWidth = 16;
+				pHeight = 32;
+				break;
+			case 'R':
+				pconfig->rot = 2;
+				pWidth = 16;
+				pHeight = 32;
+				break;
+			case 'U':
+				pconfig->rot = 3;
+				break;
+		}
+
+		if ((xOffset + pWidth) > maxWidth)
+			maxWidth = xOffset + pWidth;
+
+		if ((yOffset + pHeight) > maxHeight)
+			maxHeight = yOffset + pHeight;
+	}
+
+	lmconfig->width = maxWidth;
+	lmconfig->height = maxHeight;
+
+	m_dataSize = lmconfig->width * lmconfig->height * 4;
+	m_data = (uint8_t *)malloc(m_dataSize);
+
+	if (!m_data)
+	{
+		LogErr(VB_CHANNELOUT, "Unable to initialize data buffer\n");
+
+		return 0;
+	}
+
+	string pru_program(getBinDirectory());
+	pru_program += "/../lib/LEDscapeMatrix.bin";
+	m_leds = ledscape_matrix_init(m_config, 0, 0, pru_program.c_str());
+
+	if (!m_leds)
+	{
+		LogErr(VB_CHANNELOUT, "Unable to initialize LEDscape\n");
+		return 0;
+	}
+
+	return ChannelOutputBase::Init(config);
 }
 
 /*
