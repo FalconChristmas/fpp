@@ -122,19 +122,6 @@ int BBB48StringOutput::Init(Json::Value config)
 		return 0;
 	}
 
-	// Sample configs:
-	// 1 strings: "strings=0:1:100:RGB:0:0:0:0"
-	// 2 strings: "strings=0:0:100:RGB:0:0:0:0|1:300:100:RGB:0:0:0:0"
-	// String Fields
-	// - port number (0-47)
-	// - start channel (and display end channel)
-	// - pixel count (pixels = channels * 3)
-	// - color order (RGB, RBG, GBR, GRB, BGR, BRG)
-	// - null nodes (count of null nodes at beginning of string)
-	// - hybrid mode (1 = enabled, 0 = disabled)
-	// - reverse direction (1 = reverse, 0 = forward)
-	// - grouping (count of nodes to group together, 0 = no grouping)
-
 	m_config = reinterpret_cast<ledscape_config_t*>(calloc(1, sizeof(ledscape_config_t)));
 	if (!m_config)
 	{
