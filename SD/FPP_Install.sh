@@ -231,6 +231,9 @@ case "${FPPPLATFORM}" in
 		cp /usr/bin/omxplayer.bin /usr/bin/omxplayer.bin.orig
 		wget -O /usr/bin/omxplayer.bin https://github.com/FalconChristmas/fpp-binaries/raw/master/Pi/omxplayer.bin
 
+		echo "FPP - Disabling getty on onboard serial ttyAMA0"
+		sed -i "s@T0:23:respawn:/sbin/getty -L ttyAMA0@#T0:23:respawn:/sbin/getty -L ttyAMA0@" /etc/inittab
+
 		echo "FPP - Enabling SPI in device tree"
 		echo >> /boot/config.txt
 		echo "# Enable SPI in device tree" >> /boot/config.txt
