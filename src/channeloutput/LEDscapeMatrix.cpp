@@ -94,7 +94,7 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
 		Json::Value p = config["panels"][i];
 
 		int  output  = p["outputNumber"].asInt();
-		int  chain   = p["panelNumber"].asInt();
+		int  chain   = 7 - p["panelNumber"].asInt(); // 7 is first in chain, 0 is last
 		int  xOffset = p["xOffset"].asInt();
 		int  yOffset = p["yOffset"].asInt();
 
@@ -305,7 +305,8 @@ int LEDscapeMatrixOutput::Close(void)
 	free(m_data);
 	m_data = NULL;
 
-	// FIXME, do we need to cleanup m_config also?
+	free(m_config);
+	m_config = NULL;
 
 	return ChannelOutputBase::Close();
 }

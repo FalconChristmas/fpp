@@ -52,6 +52,9 @@ class PanelMatrix {
 	PanelMatrix(int panelWidth, int panelHeight, int channelsPerPixel = 3);
 	~PanelMatrix();
 
+	int  AddPanel(int output, int chain, char orientation,
+		int xOffset, int yOffset);
+
 	int  ConfigurePanels(string layout);
 
 	int  Width(void)      { return m_width; }
@@ -67,8 +70,6 @@ class PanelMatrix {
 
   private:
 	int  AddPanel(string config);
-	int  AddPanel(int output, int chain, char orientation,
-		int xOffset, int yOffset);
 
 	int CalculateMaps(void);
 

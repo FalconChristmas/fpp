@@ -106,7 +106,7 @@ int InitializeChannelOutputs(void) {
 
 	if (FPDOutput.isConfigured())
 	{
-		channelOutputs[i].startChannel = 0;
+		channelOutputs[i].startChannel = getSettingInt("FPDStartChannelOffset");
 		channelOutputs[i].outputOld = &FPDOutput;
 
 		if (FPDOutput.open("", &channelOutputs[i].privData)) {
@@ -183,12 +183,16 @@ int InitializeChannelOutputs(void) {
 			channelOutputs[i].startChannel = start;
 			channelOutputs[i].channelCount = count;
 
-			if (0) {
+			if (type == "LEDPanelMatrix") {
+#ifdef PLATFORM_PI
+				if (outputs[c]["subType"] == "RGBMatrix")
+					channelOutputs[i].output = new RGBMatrixOutput(start, count);
+#endif
 #ifdef PLATFORM_BBB
+				if (outputs[c]["subType"] == "LEDscapeMatrix")
+					channelOutputs[i].output = new LEDscapeMatrixOutput(start, count);
 			} else if (type == "BBB48String") {
 				channelOutputs[i].output = new BBB48StringOutput(start, count);
-			} else if (type == "LEDscapeMatrix") {
-				channelOutputs[i].output = new LEDscapeMatrixOutput(start, count);
 #endif
 			} else {
 				LogErr(VB_CHANNELOUT, "Unknown Channel Output type: %s\n", type.c_str());
@@ -289,8 +293,6 @@ int InitializeChannelOutputs(void) {
 			} else if (!strcmp(type, "Renard")) {
 				channelOutputs[i].outputOld = &USBRenardOutput;
 #ifdef PLATFORM_PI
-			} else if (!strcmp(type, "RGBMatrix")) {
-				channelOutputs[i].output = new RGBMatrixOutput(start, count);
 			} else if (!strcmp(type, "RPIWS281X")) {
 				channelOutputs[i].output = new RPIWS281xOutput(start, count);
 #endif

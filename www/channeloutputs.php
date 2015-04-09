@@ -7,6 +7,9 @@ include 'common/menuHead.inc';
 ?>
 <script language="Javascript">
 
+var channelOutputs = [];
+var channelOutputsLookup = [];
+
 /////////////////////////////////////////////////////////////////////////////
 // E1.31 support functions here
 $(document).ready(function() {
@@ -322,113 +325,6 @@ function SavePanelLayout() {
 
 function CancelPanelLayout() {
 	$('#dialog-panelLayout').dialog("destroy");
-}
-
-/////////////////////////////////////////////////////////////////////////////
-// RGBMatrix Output
-function RGBMatrixPanelCountSelect(currentValue) {
-	var options = new Array(1,2,3,4);
-	var i = 0;
-
-	var result = " Panels:<select class='panelCount'>";
-	for (i = 0; i < options.length; i++) {
-		var opt = options[i];
-
-		result += "<option value='" + opt + "'";
-		if (currentValue == opt)
-			result += " selected";
-		result += ">" + opt + "</option>";
-	}
-
-	result += "</select>";
-	result += "<input type='hidden' class='maxPanels' value='4'>";
-
-	return result;
-}
-
-function RGBMatrixLayoutSelect(currentValue) {
-	var result = "";
-	var layoutOptions = "1x1,2x1,3x1,4x1,1x2,2x2,1x3,1x4";
-	var options = layoutOptions.split(",");
-
-	result += " Layout (WxH):<select class='layout' onChange='RGBMatrixLayoutChanged(this);'>";
-
-	var i = 0;
-	for (i = 0; i < options.length; i++) {
-		var opt = options[i];
-
-		result += "<option value='" + opt + "'";
-		if (currentValue == opt)
-			result += " selected";
-		result += ">" + opt + "</option>";
-	}
-
-	result += "</select>";
-
-	return result;
-}
-
-function RGBMatrixLayoutChanged(item) {
-	var value = $(item).val();
-
-	var size = value.split("x");
-
-	var panels = parseInt(size[0]) * parseInt(size[1]);
-	var channels = panels * 512 * 3;
-
-	$(item).parent().parent().find("input.count").val(channels);
-}
-
-function NewRGBMatrixConfig() {
-	var result = "";
-	result += RGBMatrixLayoutSelect("");
-	result += RGBMatrixPanelCountSelect("");
-	result += " <input type='button' class='buttons' value='Panel Layout' onClick='EditLEDPanelLayout(this);'>";
-	result += "<input type='hidden' class='panels' value=''>";
-	result += "<input type='hidden' class='panelOptions' value='1;4'>";
-	return result;
-}
-
-function RGBMatrixDeviceConfig(config) {
-	var items = config.split(";");
-	var result = "";
-
-	for (var j = 0; j < items.length; j++) {
-		var item = items[j].split("=");
-
-		if (item[0] == "layout") {
-			result += RGBMatrixLayoutSelect(item[1]);
-		}
-		else if (item[0] == "panels")
-		{
-			result += "<input type='hidden' class='panels' value='" +
-				item[1] + "'>";
-		}
-		else if (item[0] == "panelCount")
-		{
-			result += RGBMatrixPanelCountSelect(item[1]);
-		}
-
-	}
-
-	result += " <input type='hidden' class='panelOptions' value='1;4'>";
-	result += " <input type='button' value='Panel Layout' onClick='EditLEDPanelLayout(this);'>";
-
-	return result;
-}
-
-function GetRGBMatrixOutputConfig(cell) {
-	$cell = $(cell);
-
-	var layout = $cell.find("select.layout").val();
-	if (layout == "")
-		return "";
-
-	var panels = $cell.find("input.panels").val();
-	if (panels == "")
-		return "";
-
-	return "layout=" + layout + ";panels=" + panels;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -932,7 +828,7 @@ function PopulateChannelOutputTable(data) {
 
 		var countDisabled = "";
 
-		if ((type == "Triks-C") || (type == 'GPIO') || (type == 'RGBMatrix'))
+		if ((type == "Triks-C") || (type == 'GPIO'))
 			countDisabled = " disabled=''";
 
 		newRow += "></td>" +
@@ -950,8 +846,6 @@ function PopulateChannelOutputTable(data) {
 			newRow += RenardOutputConfig(output[4]);
 		} else if (type == "LOR") {
 			newRow += LOROutputConfig(output[4]);
-		} else if (type == "RGBMatrix") {
-			newRow += RGBMatrixDeviceConfig(output[4]);
 		} else if (type == "SPI-WS2801") {
 			newRow += SPIDeviceConfig(output[4]);
 		} else if (type == "SPI-nRF24L01") {
@@ -1041,14 +935,6 @@ function SetChannelOutputs() {
 				return;
 			}
 			maxChannels = 3840;
-		} else if (type == "RGBMatrix") {
-			config += GetRGBMatrixOutputConfig($this.find("td:nth-child(6)"));
-			if (config == "") {
-				dataError = 1;
-				DialogError("Save Channel Outputs", "Invalid RGBMatrix Config");
-				return;
-			}
-			maxChannels = 6144;
 		} else if (type == "SPI-WS2801") {
 			config += GetSPIOutputConfig($this.find("td:nth-child(6)"));
 			if (config == "") {
@@ -1169,10 +1055,6 @@ function AddOtherTypeOptions(row, type) {
 		config += NewLORConfig();
 		row.find("td input.count").val("16");
 		row.find("td input.speed").val("19200");
-	} else if (type == "RGBMatrix") {
-		config += NewRGBMatrixConfig();
-		row.find("td input.count").val("1536");
-		row.find("td input.count").prop('disabled', true);
 	} else if (type == "SPI-WS2801") {
 		config += NewSPIConfig();
 		row.find("td input.count").val("1530");
@@ -1228,7 +1110,7 @@ function OtherTypeSelected(selectbox) {
 		return;
 	}
 
-	if ((type == 'Triks-C') || (type == 'GPIO') || (type == 'RGBMatrix'))
+	if ((type == 'Triks-C') || (type == 'GPIO'))
 	{
 		$row.find('input.count').prop('disabled', true);
 	}
@@ -1259,7 +1141,6 @@ function AddOtherOutput() {
 				"<option value='Pixelnet-Open'>Pixelnet-Open</option>" +
 				"<option value='LOR'>LOR</option>" +
 				"<option value='Renard'>Renard</option>" +
-				"<option value='RGBMatrix'>RGBMatrix</option>" +
 				"<option value='SPI-WS2801'>SPI-WS2801</option>" +
 				"<option value='SPI-nRF24L01'>SPI-nRF24L01</option>" +
 				"<option value='Triks-C'>Triks-C</option>" +
@@ -1299,7 +1180,566 @@ function DeleteOtherOutput() {
 	}
 }
 
+/////////////////////////////////////////////////////////////////////////////
+// BBB48String support functions
+var BBB48StringOutputs = 48;
+
+function GetBBB48StringRows()
+{
+	var subType = $('#BBB48StringSubType').val();
+	var rows = 48;
+
+	if (subType == 'F16-B')
+		rows = 16;
+	else if (subType == 'F16-B-32')
+		rows = 32;
+	else if (subType == 'F16-B-48')
+		rows = 48;
+	else if (subType == 'F4-B')
+		rows = 4;
+	else if (subType == 'RGBCape48C')
+		rows = 48;
+
+	return rows;
+}
+
+function GetBBB48StringConfig()
+{
+	var config = new Object();
+	var startChannel = 999999;
+	var endChannel = 1;
+
+	config.type = "BBB48String";
+	config.enabled = 0;
+	config.subType = $('#BBB48StringSubType').val();
+	config.startChannel = 0;
+	config.channelCount = 0;
+	config.outputCount = BBB48StringOutputs;
+	config.outputs = [];
+
+	if ($('#BBB48StringEnabled').is(":checked"))
+		config.enabled = 1;
+
+	if (config.subType.substr(0, 5) == "F16-B")
+		config.subType = "F16-B";
+
+	var i = 0;
+	for (i = 0; i < BBB48StringOutputs; i++)
+	{
+		var output = new Object();
+		var ai = '\\[' + i + '\\]';
+
+		output.portNumber = i;
+		output.startChannel = parseInt($('#BBB48StartChannel' + ai).val());
+		output.pixelCount = parseInt($('#BBB48PixelCount' + ai).val());
+		output.colorOrder = $('#BBB48ColorOrder' + ai).val();
+		output.nullNodes = parseInt($('#BBB48NullNodes' + ai).val());
+		output.hybridMode = 0;
+		output.reverse = parseInt($('#BBB48Direction' + ai).val());
+		output.grouping = parseInt($('#BBB48Grouping' + ai).val());
+		output.zigZag = parseInt($('#BBB48ZigZag' + ai).val());
+
+		if ($('#BBB48HybridMode' + ai).is(":checked"))
+			output.hybridMode = 1;
+
+		if (output.startChannel < startChannel)
+			startChannel = output.startChannel;
+
+		var maxOutputChannel = output.startChannel + ((output.nullNodes + output.pixelCount) * 3) - 1;
+		if (maxOutputChannel > endChannel)
+			endChannel = maxOutputChannel;
+
+		config.outputs.push(output);
+	}
+
+	config.startChannel = startChannel;
+	config.channelCount = endChannel - startChannel + 1;
+
+	return config;
+}
+
+function GetColorOptionsSelect(id, selected)
+{
+	var options = ["RGB", "RBG", "GRB", "GBR", "BRG", "BGR"];
+	var html = "";
+	html += "<select id='" + id + "'>";
+
+	var i = 0;
+	for (i = 0; i < options.length; i++)
+	{
+		html += "<option value='" + options[i] + "'";
+
+		if (options[i] == selected)
+			html += " selected";
+
+		html += ">" + options[i] + "</option>";
+	}
+	html += "</select>";
+
+	return html;
+}
+
+function GetDirectionOptionsSelect(id, selected)
+{
+	var html = "";
+	html += "<select id='" + id + "'>";
+
+	html += "<option value='0'";
+	if (selected == 0)
+		html += " selected";
+
+	html += ">Forward</option>";
+
+	html += "<option value='1'";
+	if (selected == 1)
+		html += " selected";
+
+	html += ">Reverse</option>";
+
+	html += "</select>";
+
+	return html;
+}
+
+function DrawBBB48StringTable()
+{
+	var html = "";
+
+	BBB48StringOutputs = GetBBB48StringRows();
+
+	var s = 0;
+	for (s = 0; s < BBB48StringOutputs; s++)
+	{
+		if (s && ((s % 16) == 0))
+		{
+			html += "<tr><td colspan='9'><hr></td></tr>\n";
+		}
+
+		html += "<tr id='BBB48StringRow" + s + "'>";
+		html += "<td class='center'>" + (s+1) + "</td>";
+
+		if (!("BBB48String" in channelOutputsLookup))
+		{
+			channelOutputsLookup["BBB48String"] = new Object();
+			channelOutputsLookup["BBB48String"].outputs = [];
+		}
+
+		if (typeof channelOutputsLookup["BBB48String"].outputs[s] == 'undefined')
+		{
+			channelOutputsLookup["BBB48String"].outputs[s] = new Object();
+			channelOutputsLookup["BBB48String"].outputs[s].portNumber = s;
+			channelOutputsLookup["BBB48String"].outputs[s].startChannel = 1;
+			channelOutputsLookup["BBB48String"].outputs[s].pixelCount = 0;
+			channelOutputsLookup["BBB48String"].outputs[s].colorOrder = "RGB";
+			channelOutputsLookup["BBB48String"].outputs[s].nullNodes = 0;
+			channelOutputsLookup["BBB48String"].outputs[s].hybridMode = 0;
+			channelOutputsLookup["BBB48String"].outputs[s].reverse = 0;
+			channelOutputsLookup["BBB48String"].outputs[s].grouping = 0;
+			channelOutputsLookup["BBB48String"].outputs[s].zigZag = 0;
+		}
+
+		html += "<td class='center'><input id='BBB48PixelCount[" + s + "]' type='text' size='3' maxlength='3' value='"
+			+ channelOutputsLookup["BBB48String"].outputs[s].pixelCount + "'></td>";
+		html += "<td class='center'><input id='BBB48StartChannel[" + s + "]' type='text' size='6' maxlength='6' value='"
+			+ channelOutputsLookup["BBB48String"].outputs[s].startChannel + "'></td>";
+		html += "<td class='center'>" + GetColorOptionsSelect("BBB48ColorOrder[" + s + "]", channelOutputsLookup["BBB48String"].outputs[s].colorOrder) + "</td>";
+		html += "<td class='center'>" + GetDirectionOptionsSelect("BBB48Direction[" + s + "]", channelOutputsLookup["BBB48String"].outputs[s].reverse) + "</td>";
+		html += "<td class='center'><input id='BBB48Grouping[" + s + "]' type='text' size='3' maxlength='3' value='"
+			+ channelOutputsLookup["BBB48String"].outputs[s].grouping + "'></td>";
+		html += "<td class='center'><input id='BBB48NullNodes[" + s + "]' type='text' size='3' maxlength='3' value='"
+			+ channelOutputsLookup["BBB48String"].outputs[s].nullNodes + "'></td>";
+
+		html += "<td class='center'><input id='BBB48HybridMode[" + s + "]' type='checkbox'";
+		if (channelOutputsLookup["BBB48String"].outputs[s].hybridMode)
+			html += " checked";
+		html += "></td>";
+		html += "<td class='center'><input id='BBB48ZigZag[" + s + "]' type='text' size='3' maxlength='3' value='"
+			+ channelOutputsLookup["BBB48String"].outputs[s].zigZag + "'></td>";
+
+		html += "</tr>";
+	}
+
+	$('#BBB48StringTable tbody').html(html);
+}
+
+function BBB48StringSubTypeChanged()
+{
+	DrawBBB48StringTable();
+}
+
+function InitializeBBB48String()
+{
+	if (("BBB48String-Enabled" in channelOutputsLookup) &&
+			(channelOutputsLookup["BBB48String-Enabled"]))
+		$('#BBB48StringEnabled').prop('checked', true);
+
+	if (("BBB48String" in channelOutputsLookup) &&
+		(typeof channelOutputsLookup["BBB48String"].subType != "undefined"))
+	{
+		if ((channelOutputsLookup["BBB48String"].subType == "F16-B") &&
+				(channelOutputsLookup["BBB48String"].outputCount > 16))
+		{
+			if (channelOutputsLookup["BBB48String"].outputCount == 32)
+				$('#BBB48StringSubType').val("F16-B-32");
+			else
+				$('#BBB48StringSubType').val("F16-B-48");
+		}
+		else
+		{
+			$('#BBB48StringSubType').val(channelOutputsLookup["BBB48String"].subType);
+		}
+
+	}
+
+	DrawBBB48StringTable();
+
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// LED Panel Matrix support functions
+
+<?
+$LEDPanelOutputs = 1;         // Default for Pi
+$LEDPanelPanelsPerOutput = 4; // Default for Pi
+$LEDPanelRows = 1;
+$LEDPanelCols = 1;
+
+if ($settings['Platform'] == "BeagleBone Black")
+{
+	$LEDPanelOutputs = 8;
+	$LEDPanelPanelsPerOutput = 8;
+}
+
+$maxLEDPanels = $LEDPanelOutputs * $LEDPanelPanelsPerOutput;
+
+if (isset($settings['LEDPanelsLayout']))
+{
+	$parts = explode('x', $settings['LEDPanelsLayout']);
+	if (count($parts) == 2)
+	{
+		$LEDPanelCols = $parts[0];
+		$LEDPanelRows = $parts[1];
+	}
+}
+
+function printLEDPanelLayoutSelect()
+{
+	global $maxLEDPanels;
+	$values = array();
+
+	for ($r = 1; $r <= $maxLEDPanels; $r++)
+	{
+		for ($c = 1; $c <= $maxLEDPanels; $c++)
+		{
+			if (($r * $c) <= $maxLEDPanels)
+			{
+				$value = sprintf("%dx%d", $r, $c);
+				$values[$value] = $value;
+			}
+		}
+	}
+
+	PrintSettingSelect("Panel Layout", "LEDPanelsLayout", 1, 0, "1x1", $values, "", "LEDPanelLayoutChanged");
+}
+
+?>
+
+var LEDPanelOutputs = 8;
+var LEDPanelPanelsPerOutput = 8;
+var LEDPanelRows = <? echo $LEDPanelRows; ?>;
+var LEDPanelCols = <? echo $LEDPanelCols; ?>;
+
+function LEDPanelOrientationClicked(id)
+{
+	var src = $('#' + id).attr('src');
+
+	if (src == 'images/arrow_N.png')
+		$('#' + id).attr('src', 'images/arrow_R.png');
+	else if (src == 'images/arrow_R.png')
+		$('#' + id).attr('src', 'images/arrow_U.png');
+	else if (src == 'images/arrow_U.png')
+		$('#' + id).attr('src', 'images/arrow_L.png');
+	else if (src == 'images/arrow_L.png')
+		$('#' + id).attr('src', 'images/arrow_N.png');
+}
+
+function GetLEDPanelNumberSetting(id, key, maxItems, selectedItem)
+{
+	var html = "";
+	var i = 0;
+	var o = 0;
+	var selected = "";
+
+	html = "<select id='" + key + "'>";
+	for (i = 0; i < maxItems; i++)
+	{
+		selected = "";
+
+		if (i == selectedItem)
+			selected = "selected";
+
+		html += "<option value='" + i + "' " + selected + ">" + id + "-" + (i+1) + "</option>";
+	}
+	html += "</select>";
+
+	return html;
+}
+
+function LEDPanelLayoutChanged()
+{
+	var layout = $('#LEDPanelsLayout').val();
+	var parts = layout.split("x");
+	LEDPanelCols = parseInt(parts[0]);
+	LEDPanelRows = parseInt(parts[1]);
+
+	var channelCount = LEDPanelCols * LEDPanelRows * 32 * 16 * 3;
+	$('#LEDPanelsChannelCount').html(channelCount);
+
+	DrawLEDPanelTable();
+}
+
+function DrawLEDPanelTable()
+{
+	var r;
+	var c;
+	var html = "";
+	var key = "";
+
+	for (r = 0 ; r < LEDPanelRows; r++)
+	{
+		html += "<tr>";
+		for (c = 0; c < LEDPanelCols; c++)
+		{
+			html += "<td><table cellspacing=0 cellpadding=0><tr><td>";
+
+			key = "LEDPanelOutputNumber_" + r + "_" + c;
+			if (typeof channelOutputsLookup[key] !== 'undefined') {
+				html += GetLEDPanelNumberSetting("O", key, LEDPanelOutputs, channelOutputsLookup[key].outputNumber);
+			} else {
+				html += GetLEDPanelNumberSetting("O", key, LEDPanelOutputs, 0);
+			}
+
+			html += "<img src='images/arrow_";
+
+			if (typeof channelOutputsLookup[key] !== 'undefined') {
+				html += channelOutputsLookup[key].orientation;
+			} else {
+				html += "N";
+			}
+
+			html += ".png' height=17 width=17 id='LEDPanelOrientation_" + r + "_" + c + "' onClick='LEDPanelOrientationClicked(\"LEDPanelOrientation_" + r + "_" + c + "\");'><br>";
+
+			key = "LEDPanelPanelNumber_" + r + "_" + c;
+			if (typeof channelOutputsLookup[key] !== 'undefined') {
+				html += GetLEDPanelNumberSetting("P", key, LEDPanelPanelsPerOutput, channelOutputsLookup[key].panelNumber);
+			} else {
+				html += GetLEDPanelNumberSetting("P", key, LEDPanelPanelsPerOutput, 0);
+			}
+
+			html += "</td></tr></table></td>\n";
+		}
+		html += "</tr>";
+	}
+
+	$('#LEDPanelTable tbody').html(html);
+}
+
+function InitializeLEDPanels()
+{
+	if (("LEDPanelMatrix-Enabled" in channelOutputsLookup) &&
+			(channelOutputsLookup["LEDPanelMatrix-Enabled"]))
+		$('#LEDPanelsEnabled').prop('checked', true);
+
+	if ("LEDPanelMatrix" in channelOutputsLookup)
+	{
+		$('#LEDPanelsStartChannel').val(channelOutputsLookup["LEDPanelMatrix"].startChannel);
+		$('#LEDPanelsChannelCount').html(channelOutputsLookup["LEDPanelMatrix"].channelCount);
+	}
+
+	DrawLEDPanelTable();
+}
+
+function GetLEDPanelConfig()
+{
+	var config = new Object();
+	var panels = "";
+	var xOffset = 0;
+	var yOffset = 0;
+	var yDiff = 0;
+
+	config.type = "LEDPanelMatrix";
+<?
+	if ($settings['Platform'] == "BeagleBone Black")
+	{
+		echo "config.subType = 'LEDscapeMatrix';\n";
+	}
+	else
+	{
+		echo "config.subType = 'RGBMatrix';\n";
+	}
+?>
+	config.enabled = 0;
+	config.startChannel = parseInt($('#LEDPanelsStartChannel').val());
+	config.channelCount = parseInt($('#LEDPanelsChannelCount').html());
+	config.panels = [];
+
+	if ($('#LEDPanelsEnabled').is(":checked"))
+		config.enabled = 1;
+
+	for (r = 0; r < LEDPanelRows; r++)
+	{
+		xOffset = 0;
+
+		for (c = 0; c < LEDPanelCols; c++)
+		{
+			var panel = new Object();
+			var id = "";
+
+			id = "#LEDPanelOutputNumber_" + r + "_" + c;
+			panel.outputNumber = parseInt($(id).val());
+
+			id = "#LEDPanelPanelNumber_" + r + "_" + c;
+			panel.panelNumber = parseInt($(id).val());
+
+			id = "#LEDPanelOrientation_" + r + "_" + c;
+			var src = $(id).attr('src');
+
+			panel.xOffset = xOffset;
+			panel.yOffset = yOffset;
+
+			if (src == 'images/arrow_N.png')
+			{
+				panel.orientation = "N";
+				xOffset += 32;
+				yDiff = 16;
+			}
+			else if (src == 'images/arrow_R.png')
+			{
+				panel.orientation = "R";
+				xOffset += 16;
+				yDiff = 32;
+			}
+			else if (src == 'images/arrow_U.png')
+			{
+				panel.orientation = "U";
+				xOffset += 32;
+				yDiff = 16;
+			}
+			else if (src == 'images/arrow_L.png')
+			{
+				panel.orientation = "L";
+				xOffset += 16;
+				yDiff = 32;
+			}
+
+			panel.row = r;
+			panel.col = c;
+
+			config.panels.push(panel);
+		}
+		yOffset += yDiff;
+	}
+
+	return config;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+
+function UpdateChannelOutputLookup()
+{
+	var i = 0;
+	for (i = 0; i < channelOutputs.channelOutputs.length; i++)
+	{
+		channelOutputsLookup[channelOutputs.channelOutputs[i].type + "-Enabled"] = channelOutputs.channelOutputs[i].enabled;
+		if (channelOutputs.channelOutputs[i].type == "LEDPanelMatrix")
+		{
+			channelOutputsLookup["LEDPanelMatrix"] = channelOutputs.channelOutputs[i];
+
+			var p = 0;
+			for (p = 0; p < channelOutputs.channelOutputs[i].panels.length; p++)
+			{
+				var r = channelOutputs.channelOutputs[i].panels[p].row;
+				var c = channelOutputs.channelOutputs[i].panels[p].col;
+
+				channelOutputsLookup["LEDPanelOutputNumber_" + r + "_" + c]
+					= channelOutputs.channelOutputs[i].panels[p];
+				channelOutputsLookup["LEDPanelPanelNumber_" + r + "_" + c]
+					= channelOutputs.channelOutputs[i].panels[p];
+			}
+		}
+		else if (channelOutputs.channelOutputs[i].type == "BBB48String")
+		{
+			channelOutputsLookup["BBB48String"] = channelOutputs.channelOutputs[i];
+		}
+	}
+}
+
+function GetChannelOutputConfig()
+{
+	var config = new Object();
+
+	config.channelOutputs = [];
+
+<?
+	if (($settings['Platform'] == "BeagleBone Black") ||
+			($settings['Platform'] == "Raspberry Pi"))
+	{
+		// LED Panels
+		echo "config.channelOutputs.push(GetLEDPanelConfig());\n";
+	}
+
+	if ($settings['Platform'] == "BeagleBone Black")
+	{
+		echo "// BBB 48 String output\n";
+		echo "config.channelOutputs.push(GetBBB48StringConfig());\n";
+	}
+?>
+
+  var result = JSON.stringify(config);
+	return result;
+}
+
+function SaveChannelOutputsJSON()
+{
+	var configStr = GetChannelOutputConfig();
+
+	var postData = "command=setChannelOutputsJSON&data=" + JSON.stringify(configStr);
+
+	$.post("fppjson.php", postData
+	).success(function(data) {
+		$.jGrowl(" Channel Output configuration saved");
+		SetRestartFlag();
+	}).fail(function() {
+		DialogError("Save Channel Output Config", "Save Failed");
+	});
+}
+
+/////////////////////////////////////////////////////////////////////////////
+
+<?
+
+$channelOutputs = array();
+$channelOutputsJSON = "";
+if (file_exists($settings['channelOutputsJSON']))
+{
+	$channelOutputsJSON = file_get_contents($settings['channelOutputsJSON']);
+	$channelOutputsJSON = preg_replace("/\n|\r/", "", $channelOutputsJSON);
+	$channelOutputsJSON = preg_replace("/\"/", "\\\"", $channelOutputsJSON);
+}
+
+?>
+
+
 $(document).ready(function(){
+	var channelOutputsJSON = "<? echo $channelOutputsJSON; ?>";
+
+	if (channelOutputsJSON != "")
+		channelOutputs = jQuery.parseJSON(channelOutputsJSON);
+	else
+		channelOutputs.channelOutputs = [];
+
+	UpdateChannelOutputLookup();
+
 	// E1.31 initialization
 	InitializeUniverses();
 	getUniverses('TRUE');
@@ -1307,12 +1747,37 @@ $(document).ready(function(){
 	// FPD initialization
 	getPixelnetDMXoutputs('TRUE');
 
+<?
+	if (($settings['Platform'] == "BeagleBone Black") ||
+			($settings['Platform'] == "Raspberry Pi"))
+	{
+		// LED Panel initialization
+		echo "InitializeLEDPanels();\n";
+	}
+
+	if ($settings['Platform'] == "BeagleBone Black")
+	{
+		// BBB 48 String initialization
+		echo "InitializeBBB48String();\n";
+	}
+?>
+
 	// 'Other' Channel Outputs initialization
 	SetupSelectableTableRow(otherTableInfo);
 	GetChannelOutputs();
 
 	// Init tabs
-    $("#tabs").tabs({cache: true, spinner: "", fx: { opacity: 'toggle', height: 'toggle' } });
+  $tabs = $("#tabs").tabs({cache: true, spinner: "", fx: { opacity: 'toggle', height: 'toggle' } });
+	var total = $tabs.find('.ui-tabs-nav li').length;
+	var currentLoadingTab = 1;
+	$tabs.bind('tabsload',function(){
+		currentLoadingTab++;
+		if (currentLoadingTab < total)
+			$tabs.tabs('load',currentLoadingTab);
+		else
+			$tabs.unbind('tabsload');
+	}).tabs('load',currentLoadingTab);
+
 });
 
 </script>
@@ -1355,15 +1820,33 @@ tr.rowUniverseDetails td
 			<ul>
 				<li><a href="#tab-e131">E1.31</a></li>
 				<li><a href="#tab-fpd">Falcon Pixelnet/DMX</a></li>
+<!--
+				<li><a href="channeloutput_f16v2.php">F16 v2</a></li>
+-->
+<?
+	$LEDPanelType = "RGBMatrix";
+	if ($settings['Platform'] == "BeagleBone Black")
+	{
+		$LEDPanelType = "LEDscape/Octoscroller";
+		echo "<li><a href='#tab-BBB48String'>BBB</a></li>\n";
+	}
+
+	if (($settings['Platform'] == "BeagleBone Black") ||
+			($settings['Platform'] == "Raspberry Pi"))
+	{
+		echo "<li><a href='#tab-LEDPanels'>LED Panels</a></li>\n";
+	}
+?>
 				<li><a href="#tab-other">Other</a></li>
 			</ul>
+
+<!-- --------------------------------------------------------------------- -->
+
 			<div id='tab-e131'>
 				<div id='divE131'>
 					<fieldset class="fs">
 						<legend> E1.31 </legend>
 						<div id='divE131Data'>
-
-<!-- --------------------------------------------------------------------- -->
 
   <div style="overflow: hidden; padding: 10px;">
 	<b>Enable E1.31 Output:</b> <? PrintSettingCheckbox("E1.31 Output", "E131Enabled", 1, 0, "1", "0"); ?><br><br>
@@ -1391,22 +1874,22 @@ tr.rowUniverseDetails td
 		</form>
 	</div>
 
-<!-- --------------------------------------------------------------------- -->
-
 						</div>
 					</fieldset>
 				</div>
 			</div>
+
+<!-- --------------------------------------------------------------------- -->
+
 			<div id='tab-fpd'>
 				<div id='divFPD'>
 					<fieldset class="fs">
 						<legend> Falcon Pixelnet/DMX (FPD) </legend>
 						<div id='divFPDData'>
-
-<!-- --------------------------------------------------------------------- -->
-
 							<div style="overflow: hidden; padding: 10px;">
-								<b>Enable FPD Output:</b> <? PrintSettingCheckbox("FPD Output", "FPDEnabled", 1, 0, "1", "0"); ?><br><br>
+								<b>Enable FPD Output:</b> <? PrintSettingCheckbox("FPD Output", "FPDEnabled", 1, 0, "1", "0"); ?><br>
+								<b>FPD Start Channel Offset:</b> <? PrintSettingText("FPDStartChannelOffset", 1, 0, 6, 6); ?> <font size=-1>(default is 0)</font><br>
+								<br>
 								<form id="frmPixelnetDMX">
 									<input name="command" id="command"  type="hidden" value="saveHardwareConfig" />
                   <input name='model' id="model" type='hidden' value='FPDv1' />
@@ -1423,21 +1906,123 @@ tr.rowUniverseDetails td
 									</table>
 								</form>
 							</div>
-
-<!-- --------------------------------------------------------------------- -->
-
 				</div>
 			</fieldset>
 		</div>
 	</div>
+
+<!-- --------------------------------------------------------------------- -->
+
+<?
+	if (($settings['Platform'] == "BeagleBone Black") ||
+			($settings['Platform'] == "Raspberry Pi"))
+	{
+?>
+	<div id='tab-LEDPanels'>
+		<div id='divLEDPanels'>
+			<fieldset class="fs">
+				<legend> <? echo $LEDPanelType; ?> LED Panels </legend>
+				<div id='divLEDPanelsData'>
+					<div style="overflow: hidden; padding: 10px;">
+						<table border=0 cellspacing=3>
+							<tr>
+								<td><b>Enable LED Panel Output:</b></td><td><input id='LEDPanelsEnabled' type='checkbox'></td>
+								<td width=60>&nbsp;</td>
+								<td><b>Start Channel:</b></td><td><input id='LEDPanelsStartChannel' type=text size=6 maxlength=6 value='1'></td>
+							</tr>
+							<tr>
+								<td><b>Panel Layout (WxH):</b></td><td><? printLEDPanelLayoutSelect(); ?></td>
+								<td>&nbsp;</td>
+								<td><b>Channel Count:</b></td><td><span id='LEDPanelsChannelCount'>1536</span></td>
+							</tr>
+							<tr>
+								<td width = '70 px' colspan=5><input id='btnSaveChannelOutputsJSON' class='buttons' type='button' value='Save' onClick='SaveChannelOutputsJSON();'/> <font size=-1><? if ($settings['Platform'] == "BeagleBone Black") { echo "(this will save changes to BBB tab &amp; LED Panels tab)"; } ?></font></td>
+							</tr>
+						</table>
+						<br>
+						LED Panel Layout:<br>
+						<table id='LEDPanelTable' border=1>
+							<tbody>
+							</tbody>
+						</table>
+						- O-# is physical output number.<br>
+						- P-# is panel number on physical output.<br>
+						- Arrow <img src='images/arrow_N.png' height=17 width=17> indicates panel orientation, click arrow to rotate.<br>
+					</div>
+				</div>
+			</fieldset>
+		</div>
+	</div>
+<?
+	}
+?>
+
+<!-- --------------------------------------------------------------------- -->
+
+<?
+if ($settings['Platform'] == "BeagleBone Black")
+{
+?>
+	<div id='tab-BBB48String'>
+		<div id='divBBB48String'>
+			<fieldset class="fs">
+				<legend> BeagleBone Black String Cape </legend>
+				<div id='divBBB48StringData'>
+					<div style="overflow: hidden; padding: 10px;">
+						<table border=0 cellspacing=3>
+							<tr>
+								<td><b>Enable BBB String Cape:</b></td>
+								<td><input id='BBB48StringEnabled' type='checkbox'></td>
+								<td width=60>&nbsp;</td>
+								<td><b>Cape Type:</b></td>
+								<td><select id='BBB48StringSubType' onChange='BBB48StringSubTypeChanged();'>
+									<option value='F16-B'>F16-B</option>
+									<option value='F16-B-32'>F16-B w/ 32 outputs</option>
+									<option value='F16-B-48'>F16-B w/ 48 outputs</option>
+									<option value='F4-B'>F4-B</option>
+									<option value='RGBCape48C'>RGBCape48C</option>
+									</select>
+									</td>
+							</tr>
+							<tr>
+								<td width = '70 px' colspan=5><input id='btnSaveChannelOutputsJSON' class='buttons' type='button' value='Save' onClick='SaveChannelOutputsJSON();'/> <font size=-1>(this will save changes to BBB tab &amp; LED Panels tab)</font></td>
+							</tr>
+						</table>
+						<br>
+						String Outputs:<br>
+						<table id='BBB48StringTable'>
+							<thead>
+								<tr class='tblheader'>
+									<td width='5%'>#</td>
+									<td width='10%'>Node<br>Count</td>
+									<td width='10%'>Start<br>Channel</td>
+									<td width='5%'>RGB<br>Order</td>
+									<td width='8%'>Direction</td>
+									<td width='10%'>Group<br>Count</td>
+									<td width='10%'>Null<br>Nodes</td>
+									<td width='10%'>Hybrid</td>
+									<td width='10%'>Zig<br>Zag</td>
+									</tr>
+							</thead>
+							<tbody>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</fieldset>
+		</div>
+	</div>
+<?
+}
+?>
+
+<!-- --------------------------------------------------------------------- -->
+
 	<div id='tab-other'>
 		<div id='divOther'>
 			<fieldset class="fs">
 				<legend> Other Outputs </legend>
 				<div id='divOtherData'>
-
-<!-- --------------------------------------------------------------------- -->
-
 <div style="overflow: hidden; padding: 10px;">
 <form id="frmOtherOutputs">
 <input name="command" type="hidden" value="saveOtherOutputs" />
@@ -1458,17 +2043,20 @@ tr.rowUniverseDetails td
 </table>
 </form>
 </div>
-
-<!-- --------------------------------------------------------------------- -->
-
 				</div>
 			</fieldset>
 		</div>
 	</div>
+
+<!-- --------------------------------------------------------------------- -->
+
 </div>
 </div>
 
 	</div>
+
+<div id='debugOutput'>
+</div>
 
 <div id="dialog-panelLayout" title="panelLayout" style="display: none">
   <div id="layoutText">

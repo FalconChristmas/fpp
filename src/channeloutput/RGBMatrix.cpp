@@ -25,9 +25,6 @@
 
 #include <stdlib.h>
 
-// for sleep() for testing
-#include <unistd.h>
-
 #include "common.h"
 #include "log.h"
 #include "RGBMatrix.h"
@@ -70,25 +67,9 @@ RGBMatrixOutput::~RGBMatrixOutput()
 /*
  *
  */
-int RGBMatrixOutput::Init(char *configStr)
+int RGBMatrixOutput::Init(Json::Value config)
 {
-	LogDebug(VB_CHANNELOUT, "RGBMatrixOutput::Init('%s')\n", configStr);
-
-	string panelCfg;
-
-	std::vector<std::string> configElems = split(configStr, ';');
-
-	for (int i = 0; i < configElems.size(); i++)
-	{
-		std::vector<std::string> elem = split(configElems[i], '=');
-		if (elem.size() < 2)
-			continue;
-
-		if (elem[0] == "panels")
-		{
-			panelCfg = elem[1];
-		}
-	}
+	LogDebug(VB_CHANNELOUT, "RGBMatrixOutput::Init(JSON)\n");
 
 	m_panelMatrix =
 		new PanelMatrix(RGBMatrix_PANEL_WIDTH, RGBMatrix_PANEL_HEIGHT);
@@ -100,12 +81,18 @@ int RGBMatrixOutput::Init(char *configStr)
 		return 0;
 	}
 
-	// Sample configs:
-	// 4x1: "0,1,N,32,0;0,0,N,0,0;0,2,N,0,16;0,3,N,32,16"
-	// 2x2: "0,1,U,0,0;0,0,U,32,0;0,2,N,0,16;0,3,N,32,16"
-	if (!m_panelMatrix->ConfigurePanels(panelCfg))
+	for (int i = 0; i < config["panels"].size(); i++)
 	{
-		return 0;
+		Json::Value p = config["panels"][i];
+		char orientation = 'N';
+		const char *o = p["orientation"].asString().c_str();
+
+		if (o && *o)
+			orientation = o[0];
+
+		m_panelMatrix->AddPanel(p["outputNumber"].asInt(),
+			p["panelNumber"].asInt(), orientation,
+			p["xOffset"].asInt(), p["yOffset"].asInt());
 	}
 
 	m_panels = m_panelMatrix->PanelCount();
@@ -147,7 +134,7 @@ int RGBMatrixOutput::Init(char *configStr)
 	RGBMatrix *rgbmatrix = reinterpret_cast<RGBMatrix*>(m_canvas);
 	rgbmatrix->SetPWMBits(8);
 
-	return ChannelOutputBase::Init(configStr);
+	return ChannelOutputBase::Init(config);
 }
 
 /*
@@ -182,13 +169,13 @@ int RGBMatrixOutput::RawSendData(unsigned char *channelData)
 
 	int output = 0; // Only one output for Pi RGBMatrix support
 
-//LogDebug(VB_CHANNELOUT, "Printing panels for output: %d\n", output);
-	for (int i = 0; i < m_panelMatrix->m_outputPanels[output].size(); i++)
+	int panelsOnOutput = m_panelMatrix->m_outputPanels[output].size();
+
+	for (int i = 0; i < panelsOnOutput; i++)
 	{
 		int panel = m_panelMatrix->m_outputPanels[output][i];
 
-		int chain = m_panelMatrix->m_panels[panel].chain;
-//LogDebug(VB_CHANNELOUT, "Panel: %d, Chain: %d\n", panel, chain);
+		int chain = (panelsOnOutput - 1) - m_panelMatrix->m_panels[panel].chain;
 		for (int y = 0; y < m_panelHeight; y++)
 		{
 			int px = chain * m_panelWidth;
@@ -198,7 +185,6 @@ int RGBMatrixOutput::RawSendData(unsigned char *channelData)
 				g = r + 1;
 				b = r + 2;
 
-//LogDebug(VB_CHANNELOUT, "p: %d, c: %d, x: %d, px: %d, y: %d, po: %d, ro: %d, r: %d, g: %d, b: %d\n", panel, chain, x, px, y, (y * m_panelWidth + x) * 3, m_panelMatrix->m_panels[panel].pixelMap[(y * m_panelWidth + x) * 3], *r, *g, *b);
 				m_canvas->SetPixel(px, y, *r, *g, *b);
 
 				px++;

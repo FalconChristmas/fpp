@@ -163,7 +163,6 @@ void PixelString::SetupMap(void)
 		if (p == -1)
 		{
 			ch = m_startChannel;
-// FIXME, do we need to do something else with ch th enext time through
 		}
 		else
 		{

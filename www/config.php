@@ -268,6 +268,7 @@ $settings['pluginDirectory'] = $pluginDirectory;
 $settings['mediaDirectory'] = $mediaDirectory;
 $settings['configDirectory'] = $mediaDirectory . "/config";
 $settings['channelOutputsFile'] = $mediaDirectory . "/channeloutputs";
+$settings['channelOutputsJSON'] = $mediaDirectory . "/config/channeloutputs.json";
 $settings['channelMemoryMapsFile'] = $mediaDirectory . "/channelmemorymaps";
 $settings['scriptDirectory'] = $scriptDirectory;
 $settings['sequenceDirectory'] = $sequenceDirectory;

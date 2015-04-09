@@ -150,6 +150,7 @@ LogDebug(VB_CHANNELOUT, "m_outputPanels[%d].size() = %d\n", output, m_outputPane
 		m_panelCount++;
 	}
 
+	CalculateMaps();
 
 	return 1;
 }

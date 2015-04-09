@@ -45,7 +45,7 @@ class RGBMatrixOutput : public ChannelOutputBase {
 	RGBMatrixOutput(unsigned int startChannel, unsigned int channelCount);
 	~RGBMatrixOutput();
 
-	int Init(char *configStr);
+	int Init(Json::Value config);
 	int Close(void);
 
 	int RawSendData(unsigned char *channelData);

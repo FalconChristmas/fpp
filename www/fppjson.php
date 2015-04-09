@@ -19,6 +19,8 @@ $command_array = Array(
 	"setChannelRemaps"    => 'SetChannelRemaps',
 	"getChannelOutputs"   => 'GetChannelOutputs',
 	"setChannelOutputs"   => 'SetChannelOutputs',
+	"getChannelOutputsJSON" => 'GetChannelOutputsJSON',
+	"setChannelOutputsJSON" => 'SetChannelOutputsJSON',
 	"applyDNSInfo"        => 'ApplyDNSInfo',
 	"getDNSInfo"          => 'GetDNSInfo',
 	"setDNSInfo"          => 'SetDNSInfo',
@@ -429,6 +431,34 @@ function SetChannelRemaps()
 	fclose($f);
 
 	GetChannelRemaps();
+}
+
+/////////////////////////////////////////////////////////////////////////////
+function GetChannelOutputsJSON()
+{
+	global $settings;
+
+	$jsonStr = "";
+
+	if (file_exists($settings['channelOutputsJSON'])) {
+		$jsonStr = file_get_contents($settings['channelOutputsJSON']);
+	}
+
+	header( "Content-Type: application/json");
+	echo $jsonStr;
+}
+
+function SetChannelOutputsJSON()
+{
+	global $settings;
+	global $args;
+
+	$data = stripslashes($args['data']);
+	$data = prettyPrintJSON(substr($data, 1, strlen($data) - 2));
+
+	file_put_contents($settings['channelOutputsJSON'], $data);
+
+	GetChannelOutputsJSON();
 }
 
 /////////////////////////////////////////////////////////////////////////////
