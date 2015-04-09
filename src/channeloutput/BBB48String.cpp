@@ -92,11 +92,12 @@ int BBB48StringOutput::Init(Json::Value config)
 	LogDebug(VB_CHANNELOUT, "BBB48StringOutput::Init(JSON)\n");
 
 	m_subType = config["subType"].asString();
+	m_channelCount = config["channelCount"].asInt();
 	m_config = &ledscape_matrix_default;
 
-	for (int i = 0; i < config["strings"].size(); i++)
+	for (int i = 0; i < config["outputs"].size(); i++)
 	{
-		Json::Value s = config["strings"][i];
+		Json::Value s = config["outputs"][i];
 		PixelString *newString = new PixelString;
 
 		if (!newString->Init(s["portNumber"].asInt(),
@@ -141,8 +142,6 @@ int BBB48StringOutput::Init(Json::Value config)
 	lsconfig->leds_height = 48;
 
 	int LEDs = lsconfig->leds_width * lsconfig->leds_height;
-
-	m_channelCount = LEDs * 3; // RGB
 
 	string pru_program(getBinDirectory());
 	pru_program += "/../lib/";
