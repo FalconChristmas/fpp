@@ -480,7 +480,8 @@ updateAvahiConfig() {
 setupDeviceTree() {
 	if [ "${PLATFORM}" = "BeagleBone Black" ]
 	then
-		grep -q "^1,LEDscapeMatrix," /home/fpp/media/channeloutputs
+		#grep -q "^1,LEDscapeMatrix," /home/fpp/media/channeloutputs
+		cat /home/fpp/media/config/channeloutputs.json | tr -d "\r\n" | egrep -q '(LEDPanelMatrix|BBB48String)",\s*"enabled": 1'
 		if [ $? -eq 0 ]
 		then
 			cp ${FPPDIR}/external/LEDscape/dts/CAPE-BONE-OCTO-00A0.dtbo /lib/firmware/
