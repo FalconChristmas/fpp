@@ -17,7 +17,7 @@
 # sudo ./FPP_Install.sh
 #
 #############################################################################
-SCRIPTVER="0.3"
+SCRIPTVER="0.4"
 FPPBRANCH="master"
 FPPIMAGEVER="2.0"
 FPPCFGVER="7"
@@ -124,6 +124,24 @@ echo "FPP - Adding 'FPP' hostname entry"
 # Remove any existing 127.0.1.1 entry first
 sed -i -e "/^127.0.1.1[^0-9]/d" /etc/hosts
 echo "127.0.1.1       FPP" >> /etc/hosts
+
+#######################################
+# Update /etc/issue and /etc/issue.net
+echo "FPP - Updating /etc/issue*"
+head -1 /etc/issue.net > /etc/issue.new
+cat >> /etc/issue.new <<EOF
+
+Falcon Player OS Image v${FPPIMAGEVER}
+EOF
+cp /etc/issue.new /etc/issue
+cp /etc/issue.new /etc/issue.net
+rm /etc/issue.new
+
+#######################################
+# Setup for U.S. users mainly
+echo "FPP - Setting US keyboard layout and locale"
+sed -i "s/XKBLAYOUT=".*"/XKBLAYOUT="us"/" /etc/default/keyboard
+echo "LANG=en_US.UTF-8" > /etc/default/locale
 
 #######################################
 # Make sure /opt exists
