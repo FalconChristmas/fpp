@@ -197,7 +197,8 @@ var USBDevices = new Array();
 <?
 	foreach(scandir("/dev/") as $fileName)
 	{
-		if (preg_match("/^ttyUSB[0-9]+/", $fileName)) {
+		if ((preg_match("/^ttyUSB[0-9]+/", $fileName)) ||
+				(preg_match("/^ttyAMA[0-9]+/", $fileName))) {
 			echo "USBDevices['$fileName'] = '$fileName';\n";
 		}
 	}
