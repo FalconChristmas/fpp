@@ -145,7 +145,17 @@ int BBB48StringOutput::Init(Json::Value config)
 
 	string pru_program(getBinDirectory());
 	pru_program += "/../lib/";
-	pru_program += m_subType + ".bin";
+
+	if ((m_subType == "F4-B") ||
+		(m_subType == "F16-B"))
+	{
+		pru_program += "FalconWS281x.bin";
+	}
+	else
+	{
+		pru_program += m_subType + ".bin";
+	}
+
 	m_leds = ledscape_strip_init(m_config, 0, pruNumber, pru_program.c_str());
 
 	if (!m_leds)
