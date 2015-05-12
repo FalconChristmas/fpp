@@ -24,7 +24,7 @@ class fppLCD():
     self.PLAYLIST_DIRECTORY = "/home/pi/media/playlists/"
     self.SETTINGS_FILE = "/home/pi/media/settings"
 	#Alternate location
-	self.PLAYLIST_DIR_ALT = "/home/fpp/media/playlists/"
+    self.PLAYLIST_DIR_ALT = "/home/fpp/media/playlists/"
     self.SETTINGS_DIR_ALT= "/home/fpp/media/settings"
 	
     self.DIRECTION_LEFT = 0
