@@ -132,7 +132,7 @@ int BBB48StringOutput::Init(Json::Value config)
 
 	ledscape_strip_config_t * const lsconfig = &m_config->strip_config;
 
-	int pruNumber = 1;
+	int pruNumber = 0;
 
 	lsconfig->type         = LEDSCAPE_STRIP;
 	lsconfig->leds_width   = m_maxStringLen;
