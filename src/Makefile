@@ -43,6 +43,7 @@ OBJECTS_fppd = \
 	channeloutput/Triks-C.o \
 	channeloutput/USBDMX.o \
 	channeloutput/USBPixelnet.o \
+	channeloutput/USBRelay.o \
 	channeloutput/USBRenard.o \
 	command.o \
 	common.o \

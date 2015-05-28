@@ -47,6 +47,7 @@ using namespace std;
 #include "SPInRF24L01.h"
 #include "USBDMX.h"
 #include "USBPixelnet.h"
+#include "USBRelay.h"
 #include "USBRenard.h"
 #include "Triks-C.h"
 #include "GPIO.h"
@@ -194,6 +195,8 @@ int InitializeChannelOutputs(void) {
 			} else if (type == "BBB48String") {
 				channelOutputs[i].output = new BBB48StringOutput(start, count);
 #endif
+			} else if (type == "USBRelay") {
+				channelOutputs[i].output = new USBRelayOutput(start, count);
 			} else {
 				LogErr(VB_CHANNELOUT, "Unknown Channel Output type: %s\n", type.c_str());
 				continue;
