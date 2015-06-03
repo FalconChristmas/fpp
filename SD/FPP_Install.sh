@@ -51,6 +51,7 @@ then
 elif [ -e "/sys/class/leds/beaglebone:green:usr0" ]
 then
 	FPPPLATFORM="BeagleBone Black"
+        MMC2G=$(dmesg | grep MMC02G | head -1)
 elif [ ! -z "${ODROID}" ]
 then
 	FPPPLATFORM="ODROID"
@@ -165,13 +166,20 @@ case "${OSVER}" in
 
 		echo "FPP - Updating package list"
 		apt-get update
+ 
+                if [ ! -z "${MMC2G}" ]
+                then
+                  apt-get -y remove gnome-icon-theme gnome-accessibility-themes gnome-keyring gnome-themes-standard gnome-themes-standard-data libgnome-keyring-common libgnome-keyring0 libpam-gnome-keyring libsoup-gnome2.4-1:armhf desktop-base xserver-xorg x11proto-composite-dev x11proto-core-dev x11proto-damage-dev x11proto-fixes-dev x11proto-input-dev x11proto-kb-dev x11proto-randr-dev x11proto-render-dev x11proto-xext-dev x11proto-xinerama-dev xchat xrdp xscreensaver xscreensaver-data desktop-file-utils dbus-x11 javascript-common ruby1.9.1 ruby libxxf86vm1:armhf libxxf86dga1:armhf libxvidcore4:armhf libxv1:armhf libxtst6:armhf libxslt1.1:armhf libxres1:armhf libxrender1:armhf  libxrandr2:armhf libxml2-dev libxmuu1 xauth wvdial xserver-xorg-video-fbdev xfonts-utils xfonts-encodings   libuniconf4.6 libwvstreams4.6-base libwvstreams4.6-extras
+                  apt-get -y autoremove
+                fi
 
 		echo "FPP - Installing required packages"
 		apt-get -y install alsa-base alsa-utils apache2 apache2.2-bin apache2.2-common apache2-mpm-prefork apache2-utils arping avahi-daemon avahi-discover avahi-utils bc build-essential bzip2 ca-certificates ccache curl device-tree-compiler ethtool fbi fbset file flite 'g++-4.7' gcc-4.7 gdb git i2c-tools ifplugd imagemagick less libapache2-mod-php5 libboost-dev libconvert-binary-c-perl libdbus-glib-1-dev libdevice-serialport-perl libjson-perl libjsoncpp-dev libnet-bonjour-perl libpam-smbpass libtagc0-dev locales mp3info mpg123 mplayer nano nginx node perlmagick php5 php5-cli php5-common php5-fpm php5-mcrypt php5-sqlite php-apc python-daemon python-smbus samba samba-common-bin shellinabox sudo sysstat usbmount vim vim-common vorbis-tools vsftpd
+                apt-get -y clean
 
 		echo "FPP - Installing wireless firmware packages"
 		apt-get -y install firmware-realtek
-
+ 
 		echo "FPP - Installing non-packaged Perl modules via CPAN"
 		echo "yes" | cpan -fi File::Map Net::WebSocket::Server
 
