@@ -17,9 +17,16 @@
 export PATH="${PATH:+$PATH:}/usr/sbin:/sbin"
 BINDIR="/opt/fpp/scripts"
 
-if [ -x "/home/pi/fpp/scripts/fpp_start" ]
+FPPHOME="/home/pi"
+
+if [ -d "/home/fpp" ]
 then
-	BINDIR="/home/pi/fpp/scripts"
+        FPPHOME="/home/fpp"
+fi
+
+if [ -x "${FPPHOME}/fpp/scripts/fpp_start" ]
+then
+	BINDIR="${FPPHOME}/fpp/scripts"
 fi
 
 ${BINDIR}/fpp_start $1

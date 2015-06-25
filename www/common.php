@@ -3,13 +3,15 @@ require_once("config.php");
 
 function check($var, $var_name = "", $function_name = "")
 {
+	global $debug;
+
 	if ( empty($function_name) )
 	{
 		global $args;
 		$function_name = $args['command'];
 	}
 
-	if ( empty($var) )
+	if ( empty($var) && $debug )
 		error_log("WARNING: Variable '$var_name' in function '$function_name' was empty");
 }
 
@@ -34,6 +36,9 @@ function ReadSettingFromFile($settingName, $plugin = "")
 	global $settingsFile;
 	global $settings;
 	$filename = $settingsFile;
+
+	if (!file_exists($filename))
+		return false;
 
 	if ($plugin != "") {
 		$filename = $settings["configDirectory"] . "/plugin." . $plugin;
@@ -208,7 +213,7 @@ echo "
 	{
 		echo "<option value='$value'";
 
-		if (isset($pluginSettings[$setting]))
+		if (isset($pluginSettings[$setting]) || isset($settings[$setting]))
 			IfSettingEqualPrint($setting, $value, " selected", $pluginName);
 		else if ($value == $defaultValue)
 			echo " selected";
@@ -285,6 +290,65 @@ echo "
 </script>
 
 <input type='button' class='buttons' id='save$setting' onClick='save" . $setting . "();' value='Save'>\n";
+}
+
+// This function is from:
+// http://stackoverflow.com/questions/6054033/pretty-printing-json-with-php
+function prettyPrintJSON( $json )
+{
+	$result = '';
+	$level = 0;
+	$in_quotes = false;
+	$in_escape = false;
+	$ends_line_level = NULL;
+	$json_length = strlen( $json );
+
+	for( $i = 0; $i < $json_length; $i++ ) {
+		$char = $json[$i];
+		$new_line_level = NULL;
+		$post = "";
+		if( $ends_line_level !== NULL ) {
+			$new_line_level = $ends_line_level;
+			$ends_line_level = NULL;
+		}
+		if ( $in_escape ) {
+			$in_escape = false;
+		} else if( $char === '"' ) {
+			$in_quotes = !$in_quotes;
+		} else if( ! $in_quotes ) {
+			switch( $char ) {
+				case '}': case ']':
+					$level--;
+					$ends_line_level = NULL;
+					$new_line_level = $level;
+					break;
+
+				case '{': case '[':
+					$level++;
+				case ',':
+					$ends_line_level = $level;
+					break;
+
+				case ':':
+					$post = " ";
+					break;
+
+				case " ": case "\t": case "\n": case "\r":
+					$char = "";
+					$ends_line_level = $new_line_level;
+					$new_line_level = NULL;
+					break;
+			}
+		} else if ( $char === '\\' ) {
+			$in_escape = true;
+		}
+		if( $new_line_level !== NULL ) {
+			$result .= "\n".str_repeat( "\t", $new_line_level );
+		}
+		$result .= $char.$post;
+	}
+
+	return $result;
 }
 
 ?>

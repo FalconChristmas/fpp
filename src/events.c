@@ -36,6 +36,9 @@
 #include "events.h"
 #include "log.h"
 #include "settings.h"
+#include "Plugins.h"
+
+extern PluginCallbackManager pluginCallbackManager;
 
 /*
  * Free a FPPevent structure pointer
@@ -306,6 +309,7 @@ int TriggerEvent(char major, char minor)
 
 	sprintf(id, "%02d_%02d", major, minor);
 
+	pluginCallbackManager.eventCallback(id, "sequence");
 	return TriggerEventByID(id);
 }
 

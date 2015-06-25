@@ -3,10 +3,18 @@
 PATH=/bin:/usr/bin:/sbin:/usr/sbin:${PATH}
 
 FPPDIR=${FPPDIR:-/opt/fpp}
+FPPHOME="/home/pi"
+FPPUSER="pi"
 
-if [ -f "/home/pi/fpp/scripts/common" ]
+if [ -d "/home/fpp" ]
 then
-	FPPDIR=/home/pi/fpp
+	FPPHOME="/home/fpp"
+	FPPUSER="fpp"
+fi
+
+if [ -f "${FPPHOME}/fpp/scripts/common" ]
+then
+	FPPDIR="${FPPHOME}/fpp"
 fi
 
 FPP="${FPPDIR}/bin/fpp"
@@ -19,18 +27,19 @@ then
 	PATHDIRS="${FPPDIR}/scripts/:${FPPDIR}/src/"
 fi
 export PATH=${PATHDIRS}:${PATH}
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${FPPDIR}/external/RF24
 
 PLATFORM=$(cat /etc/fpp/platform 2> /dev/null)
 SUDO=${SUDO:-sudo}
 SCRIPTDIR="${FPPDIR}/scripts"
 BINDIR="${FPPDIR}/scripts"
 UPGRADEDIR="${FPPDIR}/upgrade"
-MEDIADIR="${MEDIADIR:-/home/pi/media}"
+MEDIADIR="${MEDIADIR:-${FPPHOME}/media}"
 LOGDIR="${MEDIADIR}/logs"
 CFGDIR="${MEDIADIR}/config"
 CFGFILE="${CFGFILE:-${MEDIADIR}/settings}"
 PLUGINDIR="${PLUGINDIR:-/opt/fpp/plugins}"
-SETTINGSFILE="${SETTINGSFILE:-/home/pi/media/settings}"
+SETTINGSFILE="${SETTINGSFILE:-${FPPHOME}/media/settings}"
 FPPVERSIONFILE="${FPPVERSIONFILE:-/etc/fpp/rfs_version}"
 FPPVERSION="${FPPVERSION:-0}"
 [ -f $FPPVERSIONFILE ] && FPPVERSION="$(cat ${FPPVERSIONFILE} | sed -e "s/[^0-9]//g")"
@@ -43,7 +52,7 @@ makeLogDir() {
 	if [ ! -d ${LOGDIR} ]
 	then
 		mkdir -p ${LOGDIR}
-		chown pi.pi ${LOGDIR}
+		chown ${FPPUSER}.${FPPUSER} ${LOGDIR}
 		chmod 775 ${LOGDIR}
 	fi
 }

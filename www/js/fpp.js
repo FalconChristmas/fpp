@@ -1278,7 +1278,17 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
       var innerhtml = '';
       for(i=0; i<files.childNodes.length; i++)
       {
-        var name = files.childNodes[i].childNodes[0].textContent;
+        // Thanks: http://stackoverflow.com/questions/5396560/how-do-i-convert-special-utf-8-chars-to-their-iso-8859-1-equivalent-using-javasc
+        var encodedstring = decodeURIComponent(escape(files.childNodes[i].childNodes[0].textContent));
+        var name = "";
+        try{
+            // If the string is UTF-8, this will work and not throw an error.
+            name=decodeURIComponent(escape(encodedstring));
+        }catch(e){
+            // If it isn't, an error will be thrown, and we can asume that we have an ISO string.
+            name=encodedstring;
+        }
+
         var time = files.childNodes[i].childNodes[1].textContent.replace(/ /g, '&nbsp;');
         var tableRow = "<tr class ='fileDetails'><td class ='fileName'>" + name + "</td><td class ='fileTime'>" + time + "</td></tr>";
         $('#tbl' + dir).append(tableRow);
@@ -1286,10 +1296,10 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
     }
   }
 
-	function moveFile(fileName)
+	function moveFile(file)
 	{
     	var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=moveFile&file=" + fileName;
+			var url = "fppxml.php?command=moveFile&file=" + encodeURIComponent(file);
 			xmlhttp.open("GET",url,false);
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
 			xmlhttp.send();
@@ -2249,7 +2259,7 @@ function DeleteFile(dir, file)
 	}
 
 	var xmlhttp=new XMLHttpRequest();
-	var url = "fppxml.php?command=deleteFile&dir=" + dir + "&filename=" + file;
+	var url = "fppxml.php?command=deleteFile&dir=" + dir + "&filename=" + encodeURIComponent(file);
 	xmlhttp.open("GET",url,false);
 	xmlhttp.setRequestHeader('Content-Type', 'text/xml');
 	 

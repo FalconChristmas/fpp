@@ -10,19 +10,21 @@ cd ${FPPDIR}
 logOutput
 
 # Clear any restart flag
-sed -i -e "s/^restartFlag .*/restartFlag = 0/" /home/pi/media/settings
+sed -i -e "s/^restartFlag .*/restartFlag = 0/" ${FPPHOME}/media/settings
 
 updateAvahiConfig
+
+setupDeviceTree
 
 runPreStartScripts
 
 if [ -f "${FPPDIR}/src/fppd" -a "${FPPDIR}/src/fppd" -nt "${FPPDIR}/bin/fppd" ]
 then
 	echo "Starting ${FPPDIR}/src/fppd"
-	nice -n -20 ${FPPDIR}/src/fppd --config-file /home/pi/media/settings --daemonize
+	nice -n -20 ${FPPDIR}/src/fppd --config-file ${FPPHOME}/media/settings --daemonize
 else
 	echo "Starting ${FPPDIR}/bin/fppd"
-	nice -n -20 ${FPPDIR}/bin/fppd --config-file /home/pi/media/settings --daemonize
+	nice -n -20 ${FPPDIR}/bin/fppd --config-file ${FPPHOME}/media/settings --daemonize
 fi
 
 # FIXME, find a better way to wait until fppd is up before continuing

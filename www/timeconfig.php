@@ -12,10 +12,6 @@ if ( isset($_POST['piRTC']) && !empty($_POST['piRTC']) )
   exec($SUDO . " $fppDir/scripts/piRTC set");
    error_log("Set RTC:" . $piRTC);
 }
-else
-{
-   error_log("Error RTC");
-}
 if ( isset($_POST['date']) && !empty($_POST['date']) )
 {
 //TODO: validate date format

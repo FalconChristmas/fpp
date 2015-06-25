@@ -36,9 +36,9 @@
 #include "channeloutputthread.h"
 #include "common.h"
 #include "log.h"
-#include "playList.h"
+#include "Playlist.h"
 #include "settings.h"
-#include "sequence.h"
+#include "Sequence.h"
 
 #ifdef USEWIRINGPI
 #   include "wiringPi.h"
@@ -156,7 +156,7 @@ int FalconConfigureHardware(char *filename, int spiPort)
 	if ((logLevel & LOG_DEBUG) && (logMask && VB_SETTING))
 		HexDump("Falcon Hardware Config", buf, bytesRead);
 
-	bytesWritten = wiringPiSPIDataRW (0, buf, FALCON_CFG_BUF_SIZE);
+	bytesWritten = wiringPiSPIDataRW (0, (unsigned char *)buf, FALCON_CFG_BUF_SIZE);
 	if (bytesWritten != FALCON_CFG_BUF_SIZE)
 	{
 		LogErr(VB_SETTING,
@@ -172,7 +172,7 @@ int FalconConfigureHardware(char *filename, int spiPort)
 	bzero(buf, FALCON_CFG_BUF_SIZE);
 	memcpy(buf, fbuf, bytesRead);
 
-	bytesWritten = wiringPiSPIDataRW (0, buf, FALCON_CFG_BUF_SIZE);
+	bytesWritten = wiringPiSPIDataRW (0, (unsigned char *)buf, FALCON_CFG_BUF_SIZE);
 	if (bytesWritten != FALCON_CFG_BUF_SIZE)
 	{
 		LogErr(VB_CHANNELOUT,
@@ -324,7 +324,7 @@ int FalconPassThroughData(int offset, unsigned char *inBuf, int size)
 
  	DisableChannelOutput();
 	usleep(100000);
-	bytesWritten = wiringPiSPIDataRW (0, buf, FALCON_CFG_BUF_SIZE);
+	bytesWritten = wiringPiSPIDataRW (0, (unsigned char *)buf, FALCON_CFG_BUF_SIZE);
 	if (bytesWritten != FALCON_CFG_BUF_SIZE)
 	{
 		LogErr(VB_SETTING,
@@ -371,11 +371,11 @@ void FalconSetData(int sock, struct sockaddr_in *srcAddr, unsigned char *inBuf)
 
 	FalconWriteConfig(filename, (char *)inBuf, len);
 
-	if (IsSequenceRunning())
+	if (sequence->IsSequenceRunning())
 	{
 		if (inBuf[7] == 0x01)
 		{
-			StopPlaylistNow(); // FIXME: Need to investigate this more
+			playlist->StopPlaylistNow(); // FIXME: Need to investigate this more
 		}
 		else
 		{

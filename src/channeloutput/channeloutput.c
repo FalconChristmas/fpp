@@ -28,25 +28,39 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <fstream>
+#include <sstream>
+#include <string>
 
 #include "channeloutput.h"
+#include "DebugOutput.h"
 #include "E131.h"
+#include "FBMatrix.h"
 #include "FPD.h"
 #include "log.h"
-#include "sequence.h"
+#include "Sequence.h"
 #include "settings.h"
 #include "SPIws2801.h"
 #include "LOR.h"
-#include "USBDMXOpen.h"
-#include "USBDMXPro.h"
+#include "SPInRF24L01.h"
+#include "USBDMX.h"
 #include "USBPixelnet.h"
+#include "USBRelay.h"
 #include "USBRenard.h"
 #include "Triks-C.h"
 #include "GPIO.h"
 #include "GPIO595.h"
 #include "common.h"
 
+#ifdef PLATFORM_PI
+#  include "RGBMatrix.h"
+#  include "rpi_ws281x.h"
+#endif
 
+#ifdef PLATFORM_BBB
+#  include "BBB48String.h"
+#  include "LEDscapeMatrix.h"
+#endif
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -76,6 +90,8 @@ void PrintRemappedChannels(void);
  *
  */
 int InitializeChannelOutputs(void) {
+	Json::Value root;
+	Json::Reader reader;
 	int i = 0;
 
 	channelOutputFrame = 0;
@@ -89,11 +105,11 @@ int InitializeChannelOutputs(void) {
 
 	if (FPDOutput.isConfigured())
 	{
-		channelOutputs[i].startChannel = 0;
-		channelOutputs[i].output       = &FPDOutput;
+		channelOutputs[i].startChannel = getSettingInt("FPDStartChannelOffset");
+		channelOutputs[i].outputOld = &FPDOutput;
 
 		if (FPDOutput.open("", &channelOutputs[i].privData)) {
-			channelOutputs[i].channelCount = channelOutputs[i].output->maxChannels(channelOutputs[i].privData);
+			channelOutputs[i].channelCount = channelOutputs[i].outputOld->maxChannels(channelOutputs[i].privData);
 
 			i++;
 		} else {
@@ -106,10 +122,10 @@ int InitializeChannelOutputs(void) {
 		(E131Output.isConfigured()))
 	{
 		channelOutputs[i].startChannel = 0;
-		channelOutputs[i].output       = &E131Output;
+		channelOutputs[i].outputOld  = &E131Output;
 
 		if (E131Output.open("", &channelOutputs[i].privData)) {
-			channelOutputs[i].channelCount = channelOutputs[i].output->maxChannels(channelOutputs[i].privData);
+			channelOutputs[i].channelCount = channelOutputs[i].outputOld->maxChannels(channelOutputs[i].privData);
 
 			i++;
 		} else {
@@ -117,15 +133,88 @@ int InitializeChannelOutputs(void) {
 		}
 	}
 
-	// Parse the channeloutputs config file for non-FPD, non-E1.31 outputs
 	FILE *fp;
 	char filename[1024];
-	char buf[128];
+	char buf[2048];
 
+	// Parse the channeloutputs.json config file
+	strcpy(filename, getMediaDirectory());
+	strcat(filename, "/config/channeloutputs.json");
+
+	LogDebug(VB_CHANNELOUT, "Loading %s\n", filename);
+
+	if (FileExists(filename))
+	{
+		std::ifstream t(filename);
+		std::stringstream buffer;
+
+		buffer << t.rdbuf();
+
+		std::string config = buffer.str();
+
+		bool success = reader.parse(buffer.str(), root);
+		if (!success)
+		{
+			LogErr(VB_CHANNELOUT, "Error parsing %s\n", filename);
+			return 0;
+		}
+
+		const Json::Value outputs = root["channelOutputs"];
+		std::string type;
+		int start = 0;
+		int count = 0;
+
+		for (int c = 0; c < outputs.size(); c++)
+		{
+			type = outputs[c]["type"].asString();
+
+			if (!outputs[c]["enabled"].asInt())
+			{
+				LogDebug(VB_CHANNELOUT, "Skipping Disabled Channel Output: %s\n", type.c_str());
+				continue;
+			}
+
+			start = outputs[c]["startChannel"].asInt();
+			count = outputs[c]["channelCount"].asInt();
+
+			// internally we start channel counts at zero
+			start -= 1;
+
+			channelOutputs[i].startChannel = start;
+			channelOutputs[i].channelCount = count;
+
+			if (type == "LEDPanelMatrix") {
+#ifdef PLATFORM_PI
+				if (outputs[c]["subType"] == "RGBMatrix")
+					channelOutputs[i].output = new RGBMatrixOutput(start, count);
+#endif
+#ifdef PLATFORM_BBB
+				if (outputs[c]["subType"] == "LEDscapeMatrix")
+					channelOutputs[i].output = new LEDscapeMatrixOutput(start, count);
+			} else if (type == "BBB48String") {
+				channelOutputs[i].output = new BBB48StringOutput(start, count);
+#endif
+			} else if (type == "USBRelay") {
+				channelOutputs[i].output = new USBRelayOutput(start, count);
+			} else {
+				LogErr(VB_CHANNELOUT, "Unknown Channel Output type: %s\n", type.c_str());
+				continue;
+			}
+
+			if (channelOutputs[i].output->Init(outputs[c])) {
+				i++;
+			} else {
+				LogErr(VB_CHANNELOUT, "ERROR Opening %s Channel Output\n", type.c_str());
+			}
+		}
+	}
+
+	// Parse the channeloutputs config file
 	strcpy(filename, getMediaDirectory());
 	strcat(filename, "/channeloutputs");
 
-	LogDebug(VB_CHANNELOUT, "Loading Channel Outputs config\n");
+	LogDebug(VB_CHANNELOUT, "Loading %s\n", filename);
+
 	fp = fopen(filename, "r");
 	if (fp == NULL) 
 	{
@@ -135,7 +224,7 @@ int InitializeChannelOutputs(void) {
 	}
 	else
 	{
-		while(fgets(buf, 128, fp) != NULL)
+		while(fgets(buf, 2048, fp) != NULL)
 		{
 			int  enabled = 0;
 			char type[32];
@@ -156,7 +245,7 @@ int InitializeChannelOutputs(void) {
 			}
 
 			if (!enabled) {
-				LogDebug(VB_CHANNELOUT, "Skipping disabled channel output: %s\n", buf);
+				LogDebug(VB_CHANNELOUT, "Skipping disabled channel output: %s", buf);
 				continue;
 			}
 
@@ -179,47 +268,63 @@ int InitializeChannelOutputs(void) {
 
 			LogDebug(VB_CHANNELOUT, "ChannelOutput: %d %s %d %d %s\n", enabled, type, start, count, deviceConfig);
 
-			channelOutputs[i].startChannel = start - 1; // internally we start channel counts at zero
+			// internally we start channel counts at zero
+			start -= 1;
+
+			channelOutputs[i].startChannel = start;
 			channelOutputs[i].channelCount = count;
+
 
 			if ((!strcmp(type, "Pixelnet-Lynx")) ||
 				(!strcmp(type, "Pixelnet-Open")))
 			{
-				channelOutputs[i].output       = &USBPixelnetOutput;
-			} else if (!strcmp(type, "DMX-Pro")) {
-				channelOutputs[i].output       = &USBDMXProOutput;
-			} else if (!strcmp(type, "DMX-Open")) {
-				channelOutputs[i].output       = &USBDMXOpenOutput;
-			} else if (!strcmp(type, "LOR")) {
-				channelOutputs[i].output       = &LOROutput;
-			} else if (!strcmp(type, "Renard")) {
-				channelOutputs[i].output       = &USBRenardOutput;
-			} else if (!strcmp(type, "SPI-WS2801")) {
-				channelOutputs[i].output       = &SPIws2801Output;
-			} else if (!strcmp(type, "Triks-C")) {
-				channelOutputs[i].output       = &TriksCOutput;
+				channelOutputs[i].output = new USBPixelnetOutput(start, count);
+			} else if ((!strcmp(type, "DMX-Pro")) ||
+					   (!strcmp(type, "DMX-Open"))) {
+				channelOutputs[i].output = new USBDMXOutput(start, count);
+			} else if (!strcmp(type, "FBMatrix")) {
+				channelOutputs[i].output = new FBMatrixOutput(start, count);
 			} else if (!strcmp(type, "GPIO")) {
-				channelOutputs[i].output       = &GPIOOutput;
+				channelOutputs[i].output = new GPIOOutput(start, count);
+			} else if (!strcmp(type, "LOR")) {
+				channelOutputs[i].outputOld = &LOROutput;
+			} else if (!strcmp(type, "Renard")) {
+				channelOutputs[i].outputOld = &USBRenardOutput;
+#ifdef PLATFORM_PI
+			} else if (!strcmp(type, "RPIWS281X")) {
+				channelOutputs[i].output = new RPIWS281xOutput(start, count);
+#endif
+			} else if (!strcmp(type, "SPI-WS2801")) {
+				channelOutputs[i].output = new SPIws2801Output(start, count);
+			} else if (!strcmp(type, "SPI-nRF24L01")) {
+				channelOutputs[i].outputOld = &SPInRF24L01Output;
+			} else if (!strcmp(type, "Triks-C")) {
+				channelOutputs[i].outputOld = &TriksCOutput;
 			} else if (!strcmp(type, "GPIO-595")) {
-				channelOutputs[i].output       = &GPIO595Output;
+				channelOutputs[i].output = new GPIO595Output(start, count);
+			} else if (!strcmp(type, "Debug")) {
+				channelOutputs[i].output = new DebugOutput(start, count);
 			} else {
 				LogErr(VB_CHANNELOUT, "Unknown Channel Output type: %s\n", type);
 				continue;
 			}
 
-			if ((channelOutputs[i].output) &&
-				(channelOutputs[i].output->open(deviceConfig, &channelOutputs[i].privData)))
+			if ((channelOutputs[i].outputOld) &&
+				(channelOutputs[i].outputOld->open(deviceConfig, &channelOutputs[i].privData)))
 			{
-				if (channelOutputs[i].channelCount > channelOutputs[i].output->maxChannels(channelOutputs[i].privData)) {
+				if (channelOutputs[i].channelCount > channelOutputs[i].outputOld->maxChannels(channelOutputs[i].privData)) {
 					LogWarn(VB_CHANNELOUT,
 						"Channel Output config, count (%d) exceeds max (%d) channel for configured output\n",
-						channelOutputs[i].channelCount, channelOutputs[i].output->maxChannels(channelOutputs[i].privData));
+						channelOutputs[i].channelCount, channelOutputs[i].outputOld->maxChannels(channelOutputs[i].privData));
 
-					channelOutputs[i].channelCount = channelOutputs[i].output->maxChannels(channelOutputs[i].privData);
+					channelOutputs[i].channelCount = channelOutputs[i].outputOld->maxChannels(channelOutputs[i].privData);
 
 					LogWarn(VB_CHANNELOUT,
 						"Count suppressed to %d for config: %s\n", channelOutputs[i].channelCount, buf);
 				}
+				i++;
+			} else if ((channelOutputs[i].output) &&
+					   (channelOutputs[i].output->Init(deviceConfig))) {
 				i++;
 			} else {
 				LogErr(VB_CHANNELOUT, "ERROR Opening %s Channel Output\n", type);
@@ -232,6 +337,8 @@ int InitializeChannelOutputs(void) {
 	LogDebug(VB_CHANNELOUT, "%d Channel Outputs configured\n", channelOutputCount);
 
 	LoadChannelRemapData();
+
+	return 1;
 }
 
 /*
@@ -265,10 +372,13 @@ int SendChannelData(char *channelData) {
 
 	for (i = 0; i < channelOutputCount; i++) {
 		inst = &channelOutputs[i];
-		inst->output->send(
-			inst->privData,
-			channelData + inst->startChannel,
-			inst->channelCount < (FPPD_MAX_CHANNELS - inst->startChannel) ? inst->channelCount : (FPPD_MAX_CHANNELS - inst->startChannel));
+		if (inst->outputOld)
+			inst->outputOld->send(
+				inst->privData,
+				channelData + inst->startChannel,
+				inst->channelCount < (FPPD_MAX_CHANNELS - inst->startChannel) ? inst->channelCount : (FPPD_MAX_CHANNELS - inst->startChannel));
+		else if (inst->output)
+			inst->output->SendData((unsigned char *)(channelData + inst->startChannel));
 	}
 
 	channelOutputFrame++;
@@ -282,8 +392,9 @@ void StartOutputThreads(void) {
 	int i = 0;
 
 	for (i = 0; i < channelOutputCount; i++) {
-		if (channelOutputs[i].output->startThread)
-			channelOutputs[i].output->startThread(channelOutputs[i].privData);
+		if ((channelOutputs[i].outputOld) &&
+			(channelOutputs[i].outputOld->startThread))
+			channelOutputs[i].outputOld->startThread(channelOutputs[i].privData);
 	}
 }
 
@@ -295,8 +406,9 @@ void StopOutputThreads(void) {
 	int i = 0;
 
 	for (i = 0; i < channelOutputCount; i++) {
-		if (channelOutputs[i].output->stopThread)
-			channelOutputs[i].output->stopThread(channelOutputs[i].privData);
+		if ((channelOutputs[i].outputOld) &&
+			(channelOutputs[i].outputOld->stopThread))
+			channelOutputs[i].outputOld->stopThread(channelOutputs[i].privData);
 	}
 }
 
@@ -308,7 +420,11 @@ int CloseChannelOutputs(void) {
 	int i = 0;
 
 	for (i = 0; i < channelOutputCount; i++) {
-		channelOutputs[i].output->close(channelOutputs[i].privData);
+		if (channelOutputs[i].outputOld)
+			channelOutputs[i].outputOld->close(channelOutputs[i].privData);
+		else if (channelOutputs[i].output)
+			channelOutputs[i].output->Close();
+
 		if (channelOutputs[i].privData)
 			free(channelOutputs[i].privData);
 	}

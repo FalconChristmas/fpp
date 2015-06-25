@@ -44,6 +44,7 @@ struct config
 	int		fppMode;
 	int		volume;
 	int		alwaysTransmit;
+	char    *binDirectory;
 	char	*fppDirectory;
 	char	*mediaDirectory;
 	char	*musicDirectory;
@@ -72,7 +73,7 @@ struct config
 
 
 // Helpers
-void initSettings(void);
+void initSettings(int argc, char **argv);
 char *trimwhitespace(const char *str);
 char *modeToString(int mode);
 void printSettings(void);
@@ -95,6 +96,7 @@ int getDaemonize(void);
 int  getFPPmode(void);
 int  getVolume(void);
 int  getAlwaysTransmit(void);
+char *getBinDirectory(void);
 char *getFPPDirectory(void);
 char *getMediaDirectory(void);
 char *getMusicDirectory(void);

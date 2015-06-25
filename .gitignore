@@ -6,6 +6,7 @@ src/fpp
 src/fppmm
 src/fppd
 src/fppversion.c
+src/pru/*.bin
 cscope.out
 tags
 pixelnetDMX

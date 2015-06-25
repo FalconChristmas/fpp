@@ -21,7 +21,7 @@ if (!preg_match("/^$git_branch(-.*)?$/", $fpp_head_version))
 function list_plugin_entries($menu)
 {
 	global $pluginDirectory;
-	if ( $menu )
+	if ( $menu && file_exists($pluginDirectory))
 	{
 		$handle = opendir($pluginDirectory);
 		if ( $handle )
@@ -33,29 +33,42 @@ function list_plugin_entries($menu)
 }
 ?>
 
-  <div style='float: right'><a href='developer.php' class='nonULLink'><img src='images/1x1.png' width='5' height='5' style="vertical-align: top;"></a></div>
+  <div style='float: right'><a href='#' class='nonULLink' onClick='ClearRestartFlag(); ClearRebootFlag();'><img src='images/1x1.png' width='5' height='5' style="vertical-align: top;"></a></div>
   <div class="header">
     <div class="headerLeft"><a href="http://www.falconchristmas.com"><img src="images/falconlogo.png" class="logo" /></a></div>
     <div class="headerCenter"><div class="siteName"><? echo $settings['Title']; ?></div>
       Version: <a href='about.php' class='nonULLink'><?php echo $fpp_head_version; ?></a>&nbsp;&nbsp;Host: <? echo "<a href='networkconfig.php' class='nonULLink'>" . $settings['HostName'] . "</a>"; ?>
 <?
-	if (file_exists("/etc/fpp/rfs_version"))
+	if (file_exists("/etc/fpp/rfs_version") && exec('grep "^[^#].*/home/pi/media" /etc/fstab') )
 	{
-		$mounts = file("/proc/mounts");
 		$mounted = 0;
-		foreach ($mounts as $mount)
+		$needToMount = 0;
+		$mountPoints = file("/etc/fstab");
+		foreach ($mountPoints as $mountPoint)
 		{
-			if (preg_match("/\/home\/pi\/media/", $mount))
+			if (preg_match("/^[^#].*\/home\/[a-z]*\/media/", $mountPoint))
 			{
-				$mounted = 1;
+				$needToMount = 1;
+				$mounts = file("/proc/mounts");
+				$mounted = 0;
+				foreach ($mounts as $mount)
+				{
+					if (preg_match("/\/home\/[a-z]*\/media/", $mount))
+					{
+						$mounted = 1;
+						break;
+					}
+				}
+
 				break;
 			}
 		}
 
-		if (!$mounted)
+
+		if ($needToMount && !$mounted)
 		{
 ?>
-	<br><b><font color='#ff0000'>WARNING: /home/pi/media is not mounted, is a USB flash drive inserted?</font></b>
+	<br><b><font color='#ff0000'>WARNING: <?= $fppHome; ?>/media is not mounted, is a USB flash drive inserted?</font></b>
 <?
 		}
 	}
@@ -107,8 +120,9 @@ function list_plugin_entries($menu)
       <li><a>Help</a>
         <ul>
           <li><a href="http://falconchristmas.com/wiki/index.php/Falcon_FPP" target="_blank">Wiki/Help</a></li>
-          <li><a href="about.php">About</a></li>
+          <li><a href="troubleshooting.php">Troubleshooting Commands</a></li>
           <li><a href="http://<?php echo $_SERVER['SERVER_ADDR'] ?>:4200" target="_new">SSH Shell</a></li>
+          <li><a href="about.php">About</a></li>
           <li><a href="credits.php">Credits</a></li>
           <?php list_plugin_entries("help"); ?>
         </ul>

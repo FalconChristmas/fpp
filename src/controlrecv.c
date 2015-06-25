@@ -41,12 +41,14 @@
 #include "falcon.h"
 #include "log.h"
 #include "mediaoutput.h"
-#include "sequence.h"
+#include "Plugins.h"
+#include "Sequence.h"
 #include "settings.h"
 
 struct sockaddr_in  crSrcAddr;
 
 int ctrlRecvSock = 0;
+extern PluginCallbackManager pluginCallbackManager;
 
 /*
  *
@@ -102,7 +104,7 @@ void ShutdownControlSocket(void) {
  */
 void StartSyncedSequence(char *filename) {
 	LogDebug(VB_SYNC, "StartSyncedSequence(%s)\n", filename);
-	OpenSequenceFile(filename, 0);
+	sequence->OpenSequenceFile(filename, 0);
 	ResetMasterPosition();
 }
 
@@ -112,8 +114,8 @@ void StartSyncedSequence(char *filename) {
 void StopSyncedSequence(char *filename) {
 	LogDebug(VB_SYNC, "StopSyncedSequence(%s)\n", filename);
 
-	if (!strcmp(seqFilename, filename))
-		CloseSequenceFile();
+	if (!strcmp(sequence->m_seqFilename, filename))
+		sequence->CloseSequenceFile();
 }
 
 /*
@@ -123,14 +125,14 @@ void SyncSyncedSequence(char *filename, int frameNumber, float secondsElapsed) {
 	LogExcess(VB_SYNC, "SyncSyncedSequence('%s', %d, %.2f)\n",
 		filename, frameNumber, secondsElapsed);
 
-	if (!seqFilename[0])
+	if (!sequence->m_seqFilename[0])
 	{
-		OpenSequenceFile(filename, 0);
-		SeekSequenceFile(frameNumber);
+		sequence->OpenSequenceFile(filename, 0);
+		sequence->SeekSequenceFile(frameNumber);
 	}
 
 
-	if (!strcmp(seqFilename, filename))
+	if (!strcmp(sequence->m_seqFilename, filename))
 		UpdateMasterPosition(frameNumber);
 }
 
@@ -221,6 +223,7 @@ void ProcessEventPacket(ControlPkt *pkt, int len) {
 
 	EventPkt *epkt = (EventPkt*)(((char*)pkt) + sizeof(ControlPkt));
 
+	pluginCallbackManager.eventCallback(epkt->eventID, "remote");
 	TriggerEventByID(epkt->eventID);
 }
 

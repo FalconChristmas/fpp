@@ -27,7 +27,8 @@ perl -e "printf( \"\n\" x 50 );"
 
 ##############################################################################
 # Start the splash video in the background
-${FPPDIR}/etc/asplashscreen &
+# Disable for now until we get the omxplayer dbus issue worked out
+#${FPPDIR}/etc/asplashscreen &
 
 ##############################################################################
 echo "FPP - Performing initial pre-start setup"
@@ -47,7 +48,7 @@ fi
 ##############################################################################
 # Copy our php.ini script into place for when we restart apache
 echo "    - Copying php.ini into place"
-cp ${FPPDIR}/etc/php.ini /etc/php5/apache2/php.ini
+sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/php.ini > /etc/php5/apache2/php.ini
 
 ##############################################################################
 

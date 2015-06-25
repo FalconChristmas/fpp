@@ -385,6 +385,15 @@ function MoveFile()
 	$file = $_GET['file'];
 	check($file, "file", __FUNCTION__);
 
+	// Fix double quote uploading by simply moving the file first, if we find it with URL encoding
+	if ( strstr($file, '"') )
+	{
+		if (!rename($uploadDirectory."/" . preg_replace('/"/', '%22', $file), $uploadDirectory."/" . $file))
+		{
+			error_log("Couldn't remove double quote from filename");
+			exit(1);
+		}	
+	}
 	if(file_exists($uploadDirectory."/" . $file))
 	{
 		if (preg_match("/\.(fseq)$/i", $file))
@@ -1164,10 +1173,14 @@ function SaveHardwareConfig()
 	{
 		SaveF16v2();
 	}
-  else if ($model == "FPDv1")
-  {
-    SaveFPDv1();
-  }
+	else if ($model == "FPDv1")
+	{
+		SaveFPDv1();
+	}
+	else if ($model == "BBB Cape")
+	{
+		SaveBBBCape();
+	}
 	else
 	{
 		EchoStatusXML('Failure, unknown model: ' . $model);
@@ -1274,6 +1287,57 @@ function SaveFPDv1()
 
 	fclose($f);
 	SendCommand('w');
+}
+
+function SaveBBBCape()
+{
+	global $settings;
+	$startChannel = 9999999999;
+	$endChannel = 0;
+	$channelCount = 0;
+	$subType = $_POST['subType'];
+	$strings = "";
+
+	$maxOutputs = 48;
+
+	for ($o = 0; $o < $maxOutputs; $o++)
+	{
+		if (!isset($_POST['nodeCount'][$o]))
+			continue;
+
+		$nodeCount = $_POST['nodeCount'][$o];
+		$stringStartChannel = $_POST['startChannel'][$o];
+		$colorOrder = $_POST['rgbOrder'][$o];
+		$direction = intval($_POST['direction'][$o]);
+		$grouping = intval($_POST['groupCount'][$o]);
+		$nullNodes = intval($_POST['nullNodes'][$o]);
+		$hybrid = intval($_POST['hybrid'][$o]);
+		$zigZag = intval($_POST['zigZag'][$o]);
+
+		if ($strings != "")
+			$strings .= "|";
+
+		# 0:1:100:RGB:0:0:0:0:0
+		$strings .= sprintf("%d:%d:%d:%s:%d:%d:%d:%d:%d",
+			$o, $stringStartChannel, $nodeCount, $colorOrder, $nullNodes,
+			$hybrid, $direction, $grouping, $zigZag);
+
+		if ($startChannel > $stringStartChannel)
+			$startChannel = $stringStartChannel;
+
+		$stringEndChannel = $stringStartChannel + ($nodeCount * 3) - 1;
+		if ($stringEndChannel > $endChannel)
+			$endChannel = $stringEndChannel;
+	}
+
+	$f = fopen($settings['configDirectory'] . "/BBBCapes", "w");
+	fprintf($f, "startChannel = %d\n", $startChannel);
+	fprintf($f, "channelCount = %d\n", $endChannel - $startChannel + 1);
+	fprintf($f, "subType = '%s'\n", $subType);
+	fprintf($f, "strings = '%s'\n", $strings);
+	fclose($f);
+
+ 	SendCommand('w');
 }
 
 function CloneUniverse()
@@ -1639,6 +1703,13 @@ function GetPlaylists()
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('Playlists');
 	$root = $doc->appendChild($root);
+
+	if (!file_exists($playlistDirectory))
+	{
+		echo $doc->saveHTML();
+		return;
+	}
+
 	foreach(scandir($playlistDirectory) as $pFile)
 	{
 		if ($pFile != "." && $pFile != "..")
@@ -1755,7 +1826,9 @@ function GetFiles()
 		if (file_exists("/var/log/syslog"))
 			GetFileInfo($root, $doc, "", "/var/log/syslog");
 	}
-	echo $doc->saveHTML();
+	// Thanks: http://stackoverflow.com/questions/7272938/php-xmlreader-problem-with-htmlentities
+	$trans = array_map('utf8_encode', array_flip(array_diff(get_html_translation_table(HTML_ENTITIES), get_html_translation_table(HTML_SPECIALCHARS))));
+	echo strtr($doc->saveHTML(), $trans);
 }
 
 function GetSequenceFiles()
@@ -2368,14 +2441,6 @@ function GetZip()
 	global $logDirectory;
 	global $mediaDirectory;
 
-	$dir = $_GET['dir'];
-	check($dir, "dir", __FUNCTION__);
-
-	$dir = GetDirSetting($dir);
-
-	if ($dir == "")
-		return;
-
 	// Re-format the file name
 	$filename = tempnam("/tmp", "FPP_Logs");
 
@@ -2391,13 +2456,15 @@ function GetZip()
 		$zip->addFile($logDirectory.'/'.$file, "Logs/".$file);
 	}
 
-	$zip->addFile("/var/log/messages", "Logs/messages.log");
-	$zip->addFile("/var/log/syslog", "Logs/syslog.log");
-	$zip->addFile("/proc/asound/cards", "Logs/asound/cards");
+	if ( is_readable("/var/log/messages") )
+		$zip->addFile("/var/log/messages", "Logs/messages.log");
+	if ( is_readable("/var/log/syslog") )
+		$zip->addFile("/var/log/syslog", "Logs/syslog.log");
 
 	$files = array(
 		"channelmemorymaps",
 		"channeloutputs",
+		"config/channeloutputs.json",
 		"pixelnetDMX",
 		"schedule",
 		"settings",
@@ -2408,12 +2475,12 @@ function GetZip()
 			$zip->addFromString("Config/$file", ScrubFile("$mediaDirectory/$file"));
 	}
 
-	exec("ls -aRl /proc /dev /sys", $output, $return_val);
+	exec("cat /proc/asound/cards", $output, $return_val);
 	if ( $return_val != 0 ) {
-		error_log("Unable to get a listing of /proc for logs");
+		error_log("Unable to read alsa cards");
 	}
 	else {
-		$zip->addFromString("Logs/proc_dev_sys.txt", implode("\n", $output)."\n");
+		$zip->addFromString("Logs/asound/cards", implode("\n", $output)."\n");
 	}
 	unset($output);
 

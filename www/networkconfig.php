@@ -11,9 +11,8 @@
 function PopulateInterfaces()
 {
   $first = 1;
-  $interfaces = explode("\n",trim(shell_exec("/sbin/ifconfig | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0")));
+  $interfaces = explode("\n",trim(shell_exec("/sbin/ifconfig | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0 | grep -v usb0")));
   $ifaceE131 = ReadSettingFromFile("E131interface");
-  error_log("$ifaceE131:" . $ifaceE131);
   foreach ($interfaces as $iface)
   {
     $iface = preg_replace("/:$/", "", $iface);

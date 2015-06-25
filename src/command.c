@@ -28,13 +28,14 @@
 #include "fppd.h"
 #include "log.h"
 #include "command.h"
-#include "schedule.h"
+#include "Scheduler.h"
 #include "e131bridge.h"
 #include "mediaoutput.h"
 #include "settings.h"
-#include "sequence.h"
+#include "Sequence.h"
 #include "effects.h"
-#include "playList.h"
+#include "Playlist.h"
+#include "Plugins.h"
 #include "FPD.h"
 #include "events.h"
 #include "channeloutput.h"
@@ -52,8 +53,7 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 
-extern int numberOfSecondsPaused;
-extern PlaylistDetails playlistDetails;
+extern PluginCallbackManager pluginCallbackManager;
 
  char response[1056];
  int socket_fd;
@@ -136,49 +136,49 @@ extern PlaylistDetails playlistDetails;
 		strcpy(CommandStr, s);
 		if (!strcmp(CommandStr, "s"))
 		{
-				GetNextScheduleStartText(NextScheduleStartText);
-				GetNextPlaylistText(NextPlaylist);
+				scheduler->GetNextScheduleStartText(NextScheduleStartText);
+				scheduler->GetNextPlaylistText(NextPlaylist);
 				if(FPPstatus==FPP_STATUS_IDLE)
 				{
 					sprintf(response,"%d,%d,%d,%s,%s\n",getFPPmode(),0,getVolume(),NextPlaylist,NextScheduleStartText);
 				}
 				else
 				{
-					if(playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType == 'b' || playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType == 'm')
+					if(playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].cType == 'b' || playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].cType == 'm')
 					{
 						sprintf(response,"%d,%d,%d,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s,%d\n",
-										getFPPmode(),FPPstatus,getVolume(),playlistDetails.currentPlaylist,
-										playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType,
-										playlistDetails.playList[playlistDetails.currentPlaylistEntry].seqName,
-										playlistDetails.playList[playlistDetails.currentPlaylistEntry].songName,
-										playlistDetails.currentPlaylistEntry+1,playlistDetails.playListCount,
+										getFPPmode(),FPPstatus,getVolume(),playlist->m_playlistDetails.currentPlaylist,
+										playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].cType,
+										playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].seqName,
+										playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].songName,
+										playlist->m_playlistDetails.currentPlaylistEntry+1,playlist->m_playlistDetails.playListCount,
 										mediaOutputStatus.secondsElapsed,
 										mediaOutputStatus.secondsRemaining,
 										NextPlaylist,NextScheduleStartText,
-										playlistDetails.repeat);
+										playlist->m_playlistDetails.repeat);
 					}
-					else if (playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType == 's')
+					else if (playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].cType == 's')
 					{
 						sprintf(response,"%d,%d,%d,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s,%d\n",getFPPmode(),FPPstatus,getVolume(),
-										playlistDetails.currentPlaylist,playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType,
-										playlistDetails.playList[playlistDetails.currentPlaylistEntry].seqName,playlistDetails.playList[playlistDetails.currentPlaylistEntry].songName,
-										playlistDetails.currentPlaylistEntry+1,playlistDetails.playListCount,
-										seqSecondsElapsed,
-										seqSecondsRemaining,
+										playlist->m_playlistDetails.currentPlaylist,playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].cType,
+										playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].seqName,playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].songName,
+										playlist->m_playlistDetails.currentPlaylistEntry+1,playlist->m_playlistDetails.playListCount,
+										sequence->m_seqSecondsElapsed,
+										sequence->m_seqSecondsRemaining,
 										NextPlaylist,NextScheduleStartText,
-										playlistDetails.repeat);
+										playlist->m_playlistDetails.repeat);
 					}
 					else
 					{			
-						sprintf(response,"%d,%d,%d,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s,%d\n",getFPPmode(),FPPstatus,getVolume(),playlistDetails.currentPlaylist,
-										playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType,
-										playlistDetails.playList[playlistDetails.currentPlaylistEntry].seqName,
-										playlistDetails.playList[playlistDetails.currentPlaylistEntry].songName,	
-										playlistDetails.currentPlaylistEntry+1,playlistDetails.playListCount,
-										numberOfSecondsPaused,
-										(int)playlistDetails.playList[playlistDetails.currentPlaylistEntry].pauselength-numberOfSecondsPaused,
+						sprintf(response,"%d,%d,%d,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s,%d\n",getFPPmode(),FPPstatus,getVolume(),playlist->m_playlistDetails.currentPlaylist,
+										playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].cType,
+										playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].seqName,
+										playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].songName,	
+										playlist->m_playlistDetails.currentPlaylistEntry+1,playlist->m_playlistDetails.playListCount,
+										playlist->m_numberOfSecondsPaused,
+										(int)playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].pauselength - playlist->m_numberOfSecondsPaused,
 										NextPlaylist,NextScheduleStartText,
-										playlistDetails.repeat);
+										playlist->m_playlistDetails.repeat);
 					}
 				}
 		}
@@ -186,21 +186,21 @@ extern PlaylistDetails playlistDetails;
 		{
 				if(FPPstatus==FPP_STATUS_PLAYLIST_PLAYING || FPPstatus==FPP_STATUS_STOPPING_GRACEFULLY)
 				{
-					StopPlaylistNow();
+					playlist->StopPlaylistNow();
 				}
 				sleep(1);
 	
 				s = strtok(NULL,",");
 				if (s)
 				{
-					strcpy(playlistDetails.currentPlaylistFile,s);
+					strcpy(playlist->m_playlistDetails.currentPlaylistFile,s);
 					s = strtok(NULL,",");
 					if (s)
-						playlistDetails.currentPlaylistEntry = atoi(s);
+						playlist->m_playlistDetails.currentPlaylistEntry = atoi(s);
 					else
-						playlistDetails.currentPlaylistEntry = 0;
-					playlistDetails.repeat = 1 ;
-					playlistDetails.playlistStarting=1;
+						playlist->m_playlistDetails.currentPlaylistEntry = 0;
+					playlist->m_playlistDetails.repeat = 1 ;
+					playlist->m_playlistDetails.playlistStarting=1;
 					FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
 					sprintf(response,"%d,%d,Playlist Started,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
 				}
@@ -213,21 +213,21 @@ extern PlaylistDetails playlistDetails;
 		{
 				if(FPPstatus==FPP_STATUS_PLAYLIST_PLAYING || FPPstatus==FPP_STATUS_STOPPING_GRACEFULLY)
 				{
-					StopPlaylistNow();
+					playlist->StopPlaylistNow();
 				}
 				sleep(1);
 	
 				s = strtok(NULL,",");
 				if (s)
 				{
-					strcpy(playlistDetails.currentPlaylistFile,s);
+					strcpy(playlist->m_playlistDetails.currentPlaylistFile,s);
 					s = strtok(NULL,",");
 					if (s)
-						playlistDetails.currentPlaylistEntry = atoi(s);
+						playlist->m_playlistDetails.currentPlaylistEntry = atoi(s);
 					else
-						playlistDetails.currentPlaylistEntry = 0;
-					playlistDetails.repeat = 0;
-					playlistDetails.playlistStarting=1;
+						playlist->m_playlistDetails.currentPlaylistEntry = 0;
+					playlist->m_playlistDetails.repeat = 0;
+					playlist->m_playlistDetails.playlistStarting=1;
 					FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
 					sprintf(response,"%d,%d,Playlist Started,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
 				}
@@ -240,9 +240,9 @@ extern PlaylistDetails playlistDetails;
 		{
 				if(FPPstatus==FPP_STATUS_PLAYLIST_PLAYING)
 				{
-					playlistDetails.ForceStop = 1;
-					StopPlaylistGracefully();
-					ReLoadCurrentScheduleInfo();
+					playlist->m_playlistDetails.ForceStop = 1;
+					playlist->StopPlaylistGracefully();
+					scheduler->ReLoadCurrentScheduleInfo();
 					sprintf(response,"%d,%d,Playlist Stopping Gracefully,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
 				}
 				else
@@ -254,9 +254,9 @@ extern PlaylistDetails playlistDetails;
 		{
 				if(FPPstatus==FPP_STATUS_PLAYLIST_PLAYING || FPPstatus==FPP_STATUS_STOPPING_GRACEFULLY)
 				{
-					playlistDetails.ForceStop = 1;
-					StopPlaylistNow();
-					ReLoadCurrentScheduleInfo();
+					playlist->m_playlistDetails.ForceStop = 1;
+					playlist->StopPlaylistNow();
+					scheduler->ReLoadCurrentScheduleInfo();
 					sprintf(response,"%d,%d,Playlist Stopping Now,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
 				}
 				else
@@ -268,9 +268,9 @@ extern PlaylistDetails playlistDetails;
 		{
 				if(FPPstatus==FPP_STATUS_IDLE)
 				{
-					ReLoadCurrentScheduleInfo();
+					scheduler->ReLoadCurrentScheduleInfo();
 				}
-				ReLoadNextScheduleInfo();
+				scheduler->ReLoadNextScheduleInfo();
 				
 				
 				sprintf(response,"%d,%d,Reloading Schedule,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
@@ -324,6 +324,7 @@ extern PlaylistDetails playlistDetails;
 		{
 			// Trigger an event
 			s = strtok(NULL,",");
+			pluginCallbackManager.eventCallback(s, "command");
 			i = TriggerEventByID(s);
 			if (i >= 0)
 				sprintf(response,"%d,%d,Event Triggered,%d,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS,i);
@@ -397,14 +398,14 @@ extern PlaylistDetails playlistDetails;
 		else if (!strcmp(CommandStr, "StartSequence"))
 		{
 			if ((FPPstatus == FPP_STATUS_IDLE) &&
-				(!IsSequenceRunning()))
+				(!sequence->IsSequenceRunning()))
 			{
 				s = strtok(NULL,",");
 				s2 = strtok(NULL,",");
 				if (s && s2)
 				{
 					i = atoi(s2);
-					OpenSequenceFile(s, i);
+					sequence->OpenSequenceFile(s, i);
 				}
 				else
 				{
@@ -420,9 +421,9 @@ extern PlaylistDetails playlistDetails;
 		else if (!strcmp(CommandStr, "StopSequence"))
 		{
 			if ((FPPstatus == FPP_STATUS_IDLE) &&
-				(IsSequenceRunning()))
+				(sequence->IsSequenceRunning()))
 			{
-				CloseSequenceFile();
+				sequence->CloseSequenceFile();
 			}
 			else
 			{
@@ -432,34 +433,34 @@ extern PlaylistDetails playlistDetails;
 		}
 		else if (!strcmp(CommandStr, "ToggleSequencePause"))
 		{
-			if ((IsSequenceRunning()) &&
+			if ((sequence->IsSequenceRunning()) &&
 				((FPPstatus == FPP_STATUS_IDLE) ||
 				 ((FPPstatus != FPP_STATUS_IDLE) &&
-				  (playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType == 's'))))
+				  (playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].cType == 's'))))
 			{
-				ToggleSequencePause();
+				sequence->ToggleSequencePause();
 			}
 		}
 		else if (!strcmp(CommandStr, "SingleStepSequence"))
 		{
-			if ((IsSequenceRunning()) &&
-				(SequenceIsPaused()) &&
+			if ((sequence->IsSequenceRunning()) &&
+				(sequence->SequenceIsPaused()) &&
 				((FPPstatus == FPP_STATUS_IDLE) ||
 				 ((FPPstatus != FPP_STATUS_IDLE) &&
-				  (playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType == 's'))))
+				  (playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].cType == 's'))))
 			{
-				SingleStepSequence();
+				sequence->SingleStepSequence();
 			}
 		}
 		else if (!strcmp(CommandStr, "SingleStepSequenceBack"))
 		{
-			if ((IsSequenceRunning()) &&
-				(SequenceIsPaused()) &&
+			if ((sequence->IsSequenceRunning()) &&
+				(sequence->SequenceIsPaused()) &&
 				((FPPstatus == FPP_STATUS_IDLE) ||
 				 ((FPPstatus != FPP_STATUS_IDLE) &&
-				  (playlistDetails.playList[playlistDetails.currentPlaylistEntry].cType == 's'))))
+				  (playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].cType == 's'))))
 			{
-				SingleStepSequenceBack();
+				sequence->SingleStepSequenceBack();
 			}
 		}
 		else if (!strcmp(CommandStr, "NextPlaylistItem"))
@@ -471,7 +472,7 @@ extern PlaylistDetails playlistDetails;
 					break;
 				case FPP_STATUS_PLAYLIST_PLAYING:
 					sprintf(response,"%d,%d,Skipping to next playlist item\n",getFPPmode(),COMMAND_SUCCESS);
-					playlistAction = PL_ACTION_NEXT_ITEM;
+					playlist->m_playlistAction = PL_ACTION_NEXT_ITEM;
 					break;
 				case FPP_STATUS_STOPPING_GRACEFULLY:
 					sprintf(response,"%d,%d,Playlist is stopping gracefully\n",getFPPmode(),COMMAND_FAILED);
@@ -487,7 +488,7 @@ extern PlaylistDetails playlistDetails;
 					break;
 				case FPP_STATUS_PLAYLIST_PLAYING:
 					sprintf(response,"%d,%d,Skipping to previous playlist item\n",getFPPmode(),COMMAND_SUCCESS);
-					playlistAction = PL_ACTION_PREV_ITEM;
+					playlist->m_playlistAction = PL_ACTION_PREV_ITEM;
 					break;
 				case FPP_STATUS_STOPPING_GRACEFULLY:
 					sprintf(response,"%d,%d,Playlist is stopping gracefully\n",getFPPmode(),COMMAND_FAILED);
@@ -503,7 +504,7 @@ extern PlaylistDetails playlistDetails;
 		{
 			bytes_sent = sendto(socket_fd, response2, strlen(response2), 0,
                           (struct sockaddr *) &(client_address), sizeof(struct sockaddr_un));
-			LogDebug(VB_COMMAND, "%s %s\n", CommandStr, response2);
+			LogDebug(VB_COMMAND, "%s %s", CommandStr, response2);
 			free(response2);
 			response2 = NULL;
 		}
@@ -511,7 +512,7 @@ extern PlaylistDetails playlistDetails;
 		{
 			bytes_sent = sendto(socket_fd, response, strlen(response), 0,
                           (struct sockaddr *) &(client_address), sizeof(struct sockaddr_un));
-			LogDebug(VB_COMMAND, "%s %s\n", CommandStr, response);
+			LogDebug(VB_COMMAND, "%s %s", CommandStr, response);
 		}
   }
 

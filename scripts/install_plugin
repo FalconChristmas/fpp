@@ -13,11 +13,11 @@ fi
 logOutput
 
 echo "Installing plugin $1"
-if [ "x${FPPDIR}" = "x/opt/fpp" ] && [ "x${SETTINGSFILE}" = "x/home/pi/media/settings" ]
+if [ "x${FPPDIR}" = "x/opt/fpp" ] && [ "x${SETTINGSFILE}" = "x${FPPHOME}/media/settings" ]
 then
 	cd ${PLUGINDIR} && $SUDO git clone $2 $1
 	cd $1 && $SUDO git reset --hard $3
-elif [ "x${FPPDIR}" = "x/home/pi" ]
+elif [ "x${FPPDIR}" = "x${FPPHOME}/fpp" ]
 then
 	cd ${PLUGINDIR} && sudo -u pi git clone $2 $1
 	cd $1 && sudo -u pi git reset --hard $3
@@ -29,10 +29,10 @@ fi
 
 if [ -x "${PLUGINDIR}/$1/fpp_install.sh" ]
 then
-	if [ "x${FPPDIR}" = "x/opt/fpp" ] && [ "x${SETTINGSFILE}" = "x/home/pi/media/settings" ]
+	if [ "x${FPPDIR}" = "x/opt/fpp" ] && [ "x${SETTINGSFILE}" = "x${FPPHOME}/media/settings" ]
 	then
 		$SUDO ${PLUGINDIR}/$1/fpp_install.sh
-	elif [ "x${FPPDIR}" = "x/home/pi" ]
+	elif [ "x${FPPDIR}" = "x${FPPHOME}/fpp" ]
 	then
 		sudo -u pi ${PLUGINDIR}/$1/fpp_install.sh
 	else

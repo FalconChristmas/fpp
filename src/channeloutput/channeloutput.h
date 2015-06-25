@@ -30,6 +30,8 @@
 
 #define FPPD_MAX_CHANNEL_OUTPUTS   64
 
+class ChannelOutputBase;
+
 typedef struct fppChannelOutput {
 	int              (*maxChannels)(void *data);
 	int              (*open)(char *device, void **privDataPtr);
@@ -44,7 +46,8 @@ typedef struct fppChannelOutput {
 typedef struct fppChannelOutputInstance {
 	unsigned int      startChannel;
 	unsigned int      channelCount;
-	FPPChannelOutput *output;
+	FPPChannelOutput *outputOld;
+	ChannelOutputBase *output;
 	void             *privData;
 } FPPChannelOutputInstance;
 

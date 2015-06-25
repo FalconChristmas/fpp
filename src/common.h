@@ -26,6 +26,9 @@
 #ifndef _COMMON_H
 #define _COMMON_H
 
+#include <vector>
+#include <string>
+
 long long GetTime(void);
 int       DirectoryExists(const char * Directory);
 int       FileExists(const char * File);
@@ -33,5 +36,12 @@ void      HexDump(char *title, void *data, int len);
 int       GetInterfaceAddress(char *interface, char *addr, char *mask, char *gw);
 char     *FindInterfaceForIP(char *ip);
 int       CheckForHostSpecificFile(const char *hostname, char *filename);
+int       DateStrToInt(const char *str);
+int       GetCurrentDateInt(int daysOffset = 0);
+int       CurrentDateInRange(int startDate, int endDate);
+
+std::string tail(std::string const& source, size_t const length);
+std::vector<std::string> &split(const std::string &s, char delim, std::vector<std::string> &elems);
+std::vector<std::string> split(const std::string &s, char delim);
 
 #endif

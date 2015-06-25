@@ -39,11 +39,17 @@
 #include "log.h"
 #include "mediaoutput.h"
 #include "mpg123.h"
-#include "sequence.h"
+#include "Sequence.h"
 #include "settings.h"
 
 #define MAX_BYTES_MP3 1000
 #define TIME_STR_MAX  8
+
+#ifdef PLATFORM_BBB
+#	define MPG123_BINARY "/usr/bin/mpg321"
+#else
+#	define MPG123_BINARY "/usr/bin/mpg123"
+#endif
 
 fd_set mpg123_active_fd_set, mpg123_read_fd_set;
 
@@ -79,13 +85,13 @@ int mpg123_StartPlaying(const char *musicFile)
 	strcpy(mp3Player, getSetting("mp3Player"));
 	if (!mp3Player[0])
 	{
-		strcpy(mp3Player, "/usr/bin/mpg123");
+		strcpy(mp3Player, MPG123_BINARY);
 	}
 	else if (!FileExists(mp3Player))
 	{
 		LogDebug(VB_MEDIAOUT, "Configured mp3Player %s does not exist, "
-			"falling back to /usr/bin/mpg123\n", mp3Player);
-		strcpy(mp3Player, "/usr/bin/mpg123");
+			"falling back to " MPG123_BINARY "\n", mp3Player);
+		strcpy(mp3Player, MPG123_BINARY);
 	}
 
 	LogDebug(VB_MEDIAOUT, "Spawning %s for MP3 playback\n", mp3Player);
@@ -229,7 +235,7 @@ void mpg123_ParseTimes()
 		}
 	}
 
-	if ((IsSequenceRunning()) &&
+	if ((sequence->IsSequenceRunning()) &&
 		(mediaOutputStatus.secondsElapsed > 0) &&
 		(lastSyncCheck != mediaOutputStatus.secondsElapsed))
 	{

@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "playList.h"
+#include "Playlist.h"
 #include "mediadetails.h"
 #include "settings.h"
 #include "common.h"
@@ -11,7 +11,6 @@
 #include <taglib/tag_c.h>
 
 MediaDetails	 mediaDetails;
-extern PlaylistDetails playlistDetails;
 
 void initMediaDetails()
 {
@@ -60,7 +59,7 @@ void ParseMedia()
 	TagLib_File *file;
 	TagLib_Tag *tag;
 	const TagLib_AudioProperties *properties;
-	PlaylistEntry *plEntry = &playlistDetails.playList[playlistDetails.currentPlaylistEntry];
+	PlaylistEntry *plEntry = &playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry];
 
 	if (!plEntry->songName)
 		return;

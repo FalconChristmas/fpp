@@ -18,6 +18,9 @@ case $1 in
 		fi
 		;;
 	start)
+		if ! lsmod | grep -q i2c_dev; then
+			$SUDO modprobe i2c-dev
+		fi
 		pid=$(ps -f -C python | awk ' { if ($9="fppLCD.py") print $2 }' | sed 1d)
 		len=`echo $pid|wc -c`
 		if [ "$len" -le 1 ]; then

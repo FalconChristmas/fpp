@@ -14,6 +14,12 @@ then
 	exec /home/pi/fpp/scripts/startup
 fi
 
+# See if we should be running from /home/fpp/fpp
+if [ "x${BINDIR}" == "x/opt/fpp/scripts" -a -f "/home/fpp/fpp/scripts/startup" ]
+then
+	exec /home/fpp/fpp/scripts/startup
+fi
+
 . ${BINDIR}/common
 . ${BINDIR}/functions
 
@@ -21,11 +27,13 @@ teeOutput
 
 echo "FPP - Setting up for the Falcon Player on the ${PLATFORM} platform"
 
+SITEFILE="/etc/apache2/sites-enabled/000-default"
+
 # If the flash drive is not mounted yet, then fix Apache so it can at least start up
-if [ ! -d "/home/pi/media/logs" ]
+if [ ! -d "${FPPHOME}/media/logs" ]
 then
 	echo "FPP - Reconfiguring Apache to disable logging since flash is not mounted"
-	sed -i "s/ErrorLog/#ErrorLog/" /etc/apache2/sites-available/default
+	sed -i -e "s/ErrorLog/#ErrorLog/" ${SITEFILE}
 	/etc/init.d/apache2 restart
 fi
 
@@ -47,12 +55,16 @@ echo "FPP - Configuring DNS"
 ${BINDIR}/config_dns
 
 echo "FPP - Configuring Audio"
-###########################################################################
-# Part #1 of workaround for https://github.com/raspberrypi/linux/issues/570
-# Play some silence while we set the volume so the new value will stick
-aplay /opt/fpp/media/silence_5sec.wav > /dev/null 2>&1 &
-SILENCEPID=$!
-###########################################################################
+
+if [ "${PLATFORM}" = "Raspberry Pi" ]
+then
+	#######################################################################
+	# Part #1 workaround for https://github.com/raspberrypi/linux/issues/570
+	# Play some silence while we set the volume so the new value will stick
+	aplay /opt/fpp/media/silence_5sec.wav > /dev/null 2>&1 &
+	SILENCEPID=$!
+	#######################################################################
+fi
 
 amixer cset numid=3 1 > /dev/null 2>&1
 ORIGVOLUME=$(getSetting volume)
@@ -64,11 +76,14 @@ fi
 VOLUME=$(echo "scale=2 ; ${ORIGVOLUME} / 2.0 + 50" | bc)
 amixer set PCM ${VOLUME}% > /dev/null 2>&1
 
-###########################################################################
-# Part #2 of workaround for https://github.com/raspberrypi/linux/issues/570
-sleep 1
-kill -9 ${SILENCEPID} > /dev/null 2>&1
-###########################################################################
+if [ "${PLATFORM}" = "Raspberry Pi" ]
+then
+	#######################################################################
+	# Part #2 workaround for https://github.com/raspberrypi/linux/issues/570
+	sleep 1
+	kill -9 ${SILENCEPID} > /dev/null 2>&1
+	#######################################################################
+fi
 
 # Let's check that our .asoundrc is as valid as we care about right now
 if [ ! -e /proc/asound/card$(sed -n '/card [0-9]*/p' /root/.asoundrc | head -n 1 | awk '{print $2}') ]; then
@@ -78,7 +93,7 @@ fi
 
 # Clear any restart/reboot flags
 echo "FPP - Clearing reboot flags"
-sed -i -e "s/^rebootFlag .*/rebootFlag = 0/" /home/pi/media/settings
+sed -i -e "s/^rebootFlag .*/rebootFlag = 0/" ${FPPHOME}/media/settings
 
 echo "FPP - Setting max IGMP memberships"
 sysctl net/ipv4/igmp_max_memberships=150 > /dev/null 2>&1
@@ -118,7 +133,7 @@ if [ "$_IP" ]; then
   flite -voice awb "I Have Found The Following I P Addresses, ${arrHost[0]}, ${arrHost[1]},  ${arrHost[2]}" &
 fi
 
-grep -q "^[^#].*/home/pi/media" /etc/fstab
+grep -q "^[^#].*${FPPHOME}/media" /etc/fstab
 MOUNTMEDIA=$?
 
 while [ ${MOUNTMEDIA} -eq 0 ]
@@ -131,37 +146,49 @@ then
 	mount -a;
 else
 	echo "FPP - Checking for mounted flash drive, Flash Media mounted.";
-	DIRS="config effects events logs music playlists scripts sequences upload videos plugins plugindata exim4"
-	echo "FPP - Checking for required directories";
-	for DIR in ${DIRS}
-	do
-		if [ ! -d /home/pi/media/${DIR} ]
-		then
-			echo "      Creating ${DIR}"
-			mkdir -p /home/pi/media/${DIR}
-			chown pi.pi /home/pi/media/${DIR}
-		fi
-	done
 
 	break
 fi
 done
 
+DIRS="config effects events logs music playlists scripts sequences upload videos plugins plugindata exim4"
+echo "FPP - Checking for required directories"
+for DIR in ${DIRS}
+do
+	if [ ! -d ${FPPHOME}/media/${DIR} ]
+	then
+		echo "      Creating ${DIR}"
+		mkdir -p ${FPPHOME}/media/${DIR}
+		chown ${FPPUSER}.${FPPUSER} ${FPPHOME}/media/${DIR}
+	fi
+done
+
 echo "FPP - Copying Apache config into place and restarting Apache"
-sed -e "s#FPPDIR#${FPPDIR}#g" < ${FPPDIR}/etc/apache2.site > /etc/apache2/sites-available/default
+sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/apache2.site > ${SITEFILE}
 /etc/init.d/apache2 restart
+
+echo "FPP - Copying Nginx config into place and restarting Nginx"
+mkdir /var/log/nginx
+chown www-data /var/log/nginx
+sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/nginx.conf > /etc/nginx/sites-available/default
+# FIXME, start this when ready to switch
+#/etc/init.d/nginx restart
+
 
 echo "FPP - Starting FPP boot script"
 ${BINDIR}/fpp_boot
 
-PiLCDenabled=$(getSetting PI_LCD_Enabled)
-
-if [ "x${PiLCDenabled}" = "x1" ]
+if [ "${PLATFORM}" = "Raspberry Pi" ]
 then
-  echo "FPP - Checking for configured LCD, LCD Enabled, starting LCD daemon"
-  ${FPPDIR}/scripts/lcd/fppLCD start
-else
-  echo "FPP - Checking for configured LCD, LCD Disabled"
+	PiLCDenabled=$(getSetting PI_LCD_Enabled)
+
+	if [ "x${PiLCDenabled}" = "x1" ]
+	then
+	  echo "FPP - Checking for configured LCD, LCD Enabled, starting LCD daemon"
+	  ${FPPDIR}/scripts/lcd/fppLCD start
+	else
+	  echo "FPP - Checking for configured LCD, LCD Disabled"
+	fi
 fi
 
 ##############################################################################

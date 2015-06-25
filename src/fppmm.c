@@ -37,8 +37,8 @@
 
 #include "fppversion.h"
 #include "memorymapcontrol.h"
-#include "sequence.h"
 #include "common.h"
+#include "Sequence.h"
 
 char *blockName     = NULL;
 char *inputFilename = NULL;
@@ -458,6 +458,15 @@ void DumpMappedBlockInfo(char *blockName) {
 					break;
 		}
 		printf( "\n");
+
+		printf( "Is Locked : ");
+		switch (cb->isLocked) {
+			case 0: printf("No");
+					break;
+			case 1: printf("Yes");
+					break;
+		}
+		printf("\n");
 	} else {
 		printf( "ERROR: Could not find MAP %s\n", blockName);
 	}

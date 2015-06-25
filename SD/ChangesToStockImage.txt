@@ -9,14 +9,11 @@
 - Add directory /etc/fpp
 - Add file /etc/fpp/rfs_version to track FPP OS build version
 - Add file /etc/fpp/config_version for tracking script upgrades to OS build
+- Turn on FTP
 - Configure Samba to share out /home/pi/media
 
 - Add static IP 192.168.0.10 on eth0:0 for fallback in case no DHCP server
-- Setup wlan0 auto start using wpa_supplicant
 - Log rotation on /var/log & /home/pi/media/logs
-- Setup fpp_init script
-  - sudo ln -s /opt/fpp/scripts/fpp_init /etc/init.d/fpp_init
-  - sudo update-rc.d fpp_init defaults
 
 - Install Apache
 - Install PHP
@@ -40,11 +37,16 @@
   - perlmagick
   - libdbus-glib-1-dev
   - libdevice-serialport-perl
+  - sysstat
+  - php5-curl
+  - php5-common
 
 - Create user 'pi' in group 'pi' with UID/GID of 1000/1000
 
 - Setup pi user in sudoers
 
-- Clone FPP git repository into /opt/fpp
-- Modify /etc/rc.local to call /opt/fpp/scripts/startup
-
+- Clone FPP git repository into /opt/fpp & checkout proper release branch
+- Add /etc/init.d/fppinit script from fpp/etc/init.d/fppinit
+- sudo update-rc.d fppinit defaults
+- Add /etc/init.d/fppstart script from fpp/etc/init.d/fppstart
+- sudo update-rc.d fppstart defaults

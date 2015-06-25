@@ -38,7 +38,7 @@
 #include "falcon.h"
 #include "FPD.h"
 #include "log.h"
-#include "sequence.h"
+#include "Sequence.h"
 #include "settings.h"
 
 #ifdef USEWIRINGPI
@@ -315,7 +315,7 @@ void SendFPDConfig()
 		HexDump("FPD Config Header & Data", bufferPixelnetDMX,
 			PIXELNET_HEADER_SIZE + (pixelnetDMXcount*3));
 
-	i = wiringPiSPIDataRW (0, bufferPixelnetDMX, PIXELNET_DMX_BUF_SIZE);
+	i = wiringPiSPIDataRW (0, (unsigned char *)bufferPixelnetDMX, PIXELNET_DMX_BUF_SIZE);
 	if (i != PIXELNET_DMX_BUF_SIZE)
 		LogErr(VB_CHANNELOUT, "Error: wiringPiSPIDataRW returned %d, expecting %d\n", i, PIXELNET_DMX_BUF_SIZE);
 
