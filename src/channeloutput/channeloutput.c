@@ -32,8 +32,6 @@
 #include <sstream>
 #include <string>
 
-using namespace std;
-
 #include "channeloutput.h"
 #include "DebugOutput.h"
 #include "E131.h"
@@ -147,11 +145,12 @@ int InitializeChannelOutputs(void) {
 
 	if (FileExists(filename))
 	{
-		ifstream t(filename);
-		stringstream buffer;
+		std::ifstream t(filename);
+		std::stringstream buffer;
+
 		buffer << t.rdbuf();
 
-		string config = buffer.str();
+		std::string config = buffer.str();
 
 		bool success = reader.parse(buffer.str(), root);
 		if (!success)
@@ -161,7 +160,7 @@ int InitializeChannelOutputs(void) {
 		}
 
 		const Json::Value outputs = root["channelOutputs"];
-		string type;
+		std::string type;
 		int start = 0;
 		int count = 0;
 

@@ -25,7 +25,6 @@
 
 #include <stdlib.h>
 
-#include "ChannelOutputBase.h"
 #include "common.h"
 #include "GPIO.h"
 #include "log.h"
@@ -68,11 +67,11 @@ int GPIOOutput::Init(char *configStr)
 	// Disable threading because it is fast to digitalWrite() to one pin
 	m_useOutputThread = 0;
 
-	vector<string> configElems = split(configStr, ';');
+	std::vector<std::string> configElems = split(configStr, ';');
 
 	for (int i = 0; i < configElems.size(); i++)
 	{
-		vector<string> elem = split(configElems[i], '=');
+		std::vector<std::string> elem = split(configElems[i], '=');
 		if (elem.size() < 2)
 			continue;
 

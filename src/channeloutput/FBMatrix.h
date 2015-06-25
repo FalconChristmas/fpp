@@ -29,8 +29,6 @@
 #include <linux/fb.h>
 #include <string>
 
-using namespace std;
-
 #include "ChannelOutputBase.h"
 
 class FBMatrixOutput : public ChannelOutputBase {
@@ -49,9 +47,9 @@ class FBMatrixOutput : public ChannelOutputBase {
 	int     m_fbFd;
 	int     m_ttyFd;
 
-	string  m_layout;
-	int     m_width;
-	int     m_height;
+	std::string  m_layout;
+	int          m_width;
+	int          m_height;
 
 	char   *m_fbp;
 	int     m_screenSize;

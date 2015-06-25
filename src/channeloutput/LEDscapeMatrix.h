@@ -28,8 +28,6 @@
 
 #include <string>
 
-using namespace::std;
-
 #include "ledscape.h"
 
 #include "ChannelOutputBase.h"
@@ -50,7 +48,7 @@ class LEDscapeMatrixOutput : public ChannelOutputBase {
 	ledscape_config_t  *m_config;
 	ledscape_t         *m_leds;
 
-	string              m_colorOrder;
+	std::string         m_colorOrder;
 
 	int                 m_dataSize;
 	uint8_t            *m_data;

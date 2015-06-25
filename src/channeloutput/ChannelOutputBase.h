@@ -26,11 +26,10 @@
 #ifndef _CHANNELOUTPUTBASE_H
 #define _CHANNELOUTPUTBASE_H
 
-#include <pthread.h>
 #include <string>
 #include <vector>
 
-using namespace std;
+#include <pthread.h>
 
 #include <jsoncpp/json/json.h>
 
@@ -64,7 +63,7 @@ class ChannelOutputBase {
 	int           StopOutputThread(void);
 	int           SendOutputBuffer(void);
 
-	string           m_outputType;
+	std::string      m_outputType;
 	unsigned int     m_maxChannels;
 	unsigned int     m_startChannel;
 	unsigned int     m_channelCount;

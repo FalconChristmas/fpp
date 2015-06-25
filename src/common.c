@@ -49,8 +49,6 @@
 
 #include <sstream>
 
-using namespace std;
-
 #include "common.h"
 #include "log.h"
 
@@ -381,7 +379,7 @@ int CurrentDateInRange(int startDate, int endDate)
 	return 0;
 }
 
-string tail(string const& source, size_t const length)
+std::string tail(std::string const& source, size_t const length)
 {
 	if (length >= source.size())
 		return source;
@@ -392,20 +390,24 @@ string tail(string const& source, size_t const length)
 /*
  * Helpers to split a string on the specified character delimiter
  */
-vector<string> &split(const string &s, char delim, vector<string> &elems)
+std::vector<std::string> &split(const std::string &s, char delim, std::vector<std::string> &elems)
 {
-    stringstream ss(s);
-    string item;
+    std::stringstream ss(s);
+    std::string item;
+
     while (getline(ss, item, delim)) {
         elems.push_back(item);
     }
+
     return elems;
 }
 
 
-vector<string> split(const string &s, char delim) {
-    vector<string> elems;
+std::vector<std::string> split(const std::string &s, char delim) {
+    std::vector<std::string> elems;
+
     split(s, delim, elems);
+
     return elems;
 }
 

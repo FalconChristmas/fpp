@@ -66,7 +66,7 @@ int USBRelayOutput::Init(Json::Value config)
 {
 	LogDebug(VB_CHANNELOUT, "USBRelayOutput::Init(JSON)\n");
 
-	string subType = config["subType"].asString();
+	std::string subType = config["subType"].asString();
 
 	if (subType == "Bit")
 		m_subType = RELAY_DVC_BIT;

@@ -29,8 +29,6 @@
 #include <vector>
 #include <string>
 
-using namespace std;
-
 long long GetTime(void);
 int       DirectoryExists(const char * Directory);
 int       FileExists(const char * File);
@@ -42,8 +40,8 @@ int       DateStrToInt(const char *str);
 int       GetCurrentDateInt(int daysOffset = 0);
 int       CurrentDateInRange(int startDate, int endDate);
 
-string tail(string const& source, size_t const length);
-vector<string> &split(const string &s, char delim, vector<string> &elems);
-vector<string> split(const string &s, char delim);
+std::string tail(std::string const& source, size_t const length);
+std::vector<std::string> &split(const std::string &s, char delim, std::vector<std::string> &elems);
+std::vector<std::string> split(const std::string &s, char delim);
 
 #endif

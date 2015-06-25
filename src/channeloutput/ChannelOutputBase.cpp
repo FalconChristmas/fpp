@@ -23,6 +23,8 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <vector>
+
 #include <errno.h>
 #include <string.h>
 #include <sys/time.h>
@@ -88,11 +90,11 @@ int ChannelOutputBase::Init(char *configStr)
 {
 	LogDebug(VB_CHANNELOUT, "ChannelOutputBase::Init('%s')\n", configStr);
 
-	vector<string> configElems = split(configStr, ';');
+	std::vector<std::string> configElems = split(configStr, ';');
 
 	for (int i = 0; i < configElems.size(); i++)
 	{
-		vector<string> elem = split(configElems[i], '=');
+		std::vector<std::string> elem = split(configElems[i], '=');
 		if (elem.size() < 2)
 			continue;
 

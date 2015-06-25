@@ -29,8 +29,6 @@
 #include <string>
 #include <vector>
 
-using namespace::std;
-
 #define MAX_MATRIX_OUTPUTS    8
 #define MAX_PANELS_PER_OUTPUT 8
 #define MAX_MATRIX_PANELS    (MAX_MATRIX_OUTPUTS * MAX_PANELS_PER_OUTPUT)
@@ -44,7 +42,7 @@ typedef struct ledPanel {
 	int    xOffset;
 	int    yOffset;
 
-	vector<int> pixelMap;
+	std::vector<int> pixelMap;
 } LEDPanel;
 
 class PanelMatrix {
@@ -55,21 +53,21 @@ class PanelMatrix {
 	int  AddPanel(int output, int chain, char orientation,
 		int xOffset, int yOffset);
 
-	int  ConfigurePanels(string layout);
+	int  ConfigurePanels(std::string layout);
 
 	int  Width(void)      { return m_width; }
 	int  Height(void)     { return m_height; }
 	int  PanelCount(void) { return m_panelCount; }
 
 	// Map of output channels to full matrix channels
-	vector<int> m_outputPixelMap[MAX_MATRIX_OUTPUTS];
+	std::vector<int> m_outputPixelMap[MAX_MATRIX_OUTPUTS];
 
 	// Unsorted list of panels on a output
-	vector<int> m_outputPanels[MAX_MATRIX_OUTPUTS];
+	std::vector<int> m_outputPanels[MAX_MATRIX_OUTPUTS];
 	LEDPanel    m_panels[MAX_MATRIX_PANELS];
 
   private:
-	int  AddPanel(string config);
+	int  AddPanel(std::string config);
 
 	int CalculateMaps(void);
 

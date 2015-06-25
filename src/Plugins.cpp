@@ -157,7 +157,7 @@ void PluginCallbackManager::init()
 
 			boost::char_separator<char> sep(",");
 			boost::tokenizer< boost::char_separator<char> > tokens(callback_list, sep);
-		    BOOST_FOREACH (const string& type, tokens)
+		    BOOST_FOREACH (const std::string& type, tokens)
 			{
 				if (type == "media")
 				{

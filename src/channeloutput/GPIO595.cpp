@@ -79,11 +79,11 @@ int GPIO595Output::Init(char *configStr)
 {
 	LogDebug(VB_CHANNELOUT, "GPIO595Output::Init('%s')\n", configStr);
 
-	vector<string> configElems = split(configStr, ';');
+	std::vector<std::string> configElems = split(configStr, ';');
 
 	for (int i = 0; i < configElems.size(); i++)
 	{
-		vector<string> elem = split(configElems[i], '=');
+		std::vector<std::string> elem = split(configElems[i], '=');
 		if (elem.size() < 2)
 			continue;
 
@@ -92,7 +92,7 @@ int GPIO595Output::Init(char *configStr)
 			LogDebug(VB_CHANNELOUT, "Using GPIO %s for output\n",
 				elem[1].c_str());
 
-			vector<string> gpios = split(elem[1], '-');
+			std::vector<std::string> gpios = split(elem[1], '-');
 			if ((elem[1].length() == 8) &&
 				(gpios.size() == 3))
 			{

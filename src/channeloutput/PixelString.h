@@ -27,34 +27,33 @@
 #define _PIXELSTRING_H
 
 #include <string>
-
-using namespace::std;
+#include <vector>
 
 class PixelString {
   public:
 	PixelString();
 	~PixelString();
 
-	int  Init(string configStr);
+	int  Init(std::string configStr);
 	int  Init(int portNumber, int startChannel, int pixelCount,
-		 string colorOrder, int nullNodes, int hybridMode,
+		 std::string colorOrder, int nullNodes, int hybridMode,
 		 int reverse, int grouping, int zigZag);
 	void DumpConfig(void);
 
-	int    m_portNumber;
-	int    m_startChannel;
-	int    m_pixelCount;
-	string m_colorOrder;
-	int    m_nullNodes;
-	int    m_hybridMode;
-	int    m_reverseDirection;
-	int    m_grouping;
-	int    m_zigZag;
+	int               m_portNumber;
+	int               m_startChannel;
+	int               m_pixelCount;
+	std::string       m_colorOrder;
+	int               m_nullNodes;
+	int               m_hybridMode;
+	int               m_reverseDirection;
+	int               m_grouping;
+	int               m_zigZag;
 
-	int    m_inputChannels;
-	int    m_outputChannels;
+	int               m_inputChannels;
+	int               m_outputChannels;
 
-	vector<int> m_outputMap;
+	std::vector<int>  m_outputMap;
 
   private:
 	void SetupMap(void);

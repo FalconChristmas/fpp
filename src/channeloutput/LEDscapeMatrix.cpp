@@ -156,7 +156,7 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
 		return 0;
 	}
 
-	string pru_program(getBinDirectory());
+	std::string pru_program(getBinDirectory());
 
 	if (tail(pru_program, 4) == "/src")
 		pru_program += "/pru/";

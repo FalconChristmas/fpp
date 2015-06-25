@@ -29,8 +29,6 @@
 #include <string>
 #include <vector>
 
-using namespace::std;
-
 #include "ledscape.h"
 
 #include "ChannelOutputBase.h"
@@ -52,9 +50,9 @@ class BBB48StringOutput : public ChannelOutputBase {
 	ledscape_config_t   *m_config;
 	ledscape_t          *m_leds;
 
-	string               m_subType;
-	int                  m_maxStringLen;
-	vector<PixelString*> m_strings;
+	std::string                m_subType;
+	int                        m_maxStringLen;
+	std::vector<PixelString*>  m_strings;
 
 	void ApplyPinMap(const int *map);
 	int MapPins(void);

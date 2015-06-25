@@ -49,10 +49,10 @@ class USBRelayOutput : public ChannelOutputBase {
 		RELAY_DVC_ICSTATION
 	};
 
-	string     m_deviceName;
-	int        m_fd;
-	RelayType  m_subType;
-	int        m_relayCount;
+	std::string  m_deviceName;
+	int          m_fd;
+	RelayType    m_subType;
+	int          m_relayCount;
 };
 
 #endif /* _USBRELAY_H */
