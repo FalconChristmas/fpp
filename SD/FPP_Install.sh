@@ -17,9 +17,9 @@
 # sudo ./FPP_Install.sh
 #
 #############################################################################
-SCRIPTVER="0.4"
+SCRIPTVER="0.5"
 FPPBRANCH="master"
-FPPIMAGEVER="2.0"
+FPPIMAGEVER="1.5"
 FPPCFGVER="7"
 FPPPLATFORM="UNKNOWN"
 FPPDIR="/opt/fpp"
@@ -73,9 +73,6 @@ echo "============================================================"
 
 echo ""
 echo "Notes:"
-echo "- Did you remember to enlarge the OS filesystem partition if necessary?"
-echo "  - Raspberry Pi - FIXME (put some instructions here if possible)"
-echo "  - Debian BBB   - sudo /opt/scripts/tools/grow_partition.sh"
 echo "- Does this system have internet access to install packages and FPP?"
 echo ""
 echo "WARNINGS:"
@@ -132,6 +129,7 @@ head -1 /etc/issue.net > /etc/issue.new
 cat >> /etc/issue.new <<EOF
 
 Falcon Player OS Image v${FPPIMAGEVER}
+
 EOF
 cp /etc/issue.new /etc/issue
 cp /etc/issue.new /etc/issue.net
@@ -162,15 +160,30 @@ case "${OSVER}" in
 	debian_7)
 		echo "FPP - Enabling non-free repo"
 		sed -i -e "s/^deb \(.*\)/deb \1 non-free/" /etc/apt/sources.list
+		sed -i -e "s/non-free non-free/non-free/" /etc/apt/sources.list
 
 		echo "FPP - Updating package list"
 		apt-get update
 
+		echo "FPP - Removing some unneeded packages"
+		apt-get -y remove gnome-icon-theme gnome-accessibility-themes gnome-keyring gnome-themes-standard gnome-themes-standard-data libgnome-keyring-common libgnome-keyring0 libpam-gnome-keyring libsoup-gnome2.4-1:armhf desktop-base xserver-xorg x11proto-composite-dev x11proto-core-dev x11proto-damage-dev x11proto-fixes-dev x11proto-input-dev x11proto-kb-dev x11proto-randr-dev x11proto-render-dev x11proto-xext-dev x11proto-xinerama-dev xchat xrdp xscreensaver xscreensaver-data desktop-file-utils dbus-x11 javascript-common ruby1.9.1 ruby libxxf86vm1:armhf libxxf86dga1:armhf libxvidcore4:armhf libxv1:armhf libxtst6:armhf libxslt1.1:armhf libxres1:armhf libxrender1:armhf  libxrandr2:armhf libxml2-dev libxmuu1 xauth wvdial xserver-xorg-video-fbdev xfonts-utils xfonts-encodings   libuniconf4.6 libwvstreams4.6-base libwvstreams4.6-extras
+		apt-get -y autoremove
+
 		echo "FPP - Installing required packages"
-		apt-get -y install alsa-base alsa-utils apache2 apache2.2-bin apache2.2-common apache2-mpm-prefork apache2-utils arping avahi-daemon avahi-discover avahi-utils bc build-essential bzip2 ca-certificates ccache curl device-tree-compiler ethtool fbi fbset file flite 'g++-4.7' gcc-4.7 gdb git i2c-tools ifplugd imagemagick less libapache2-mod-php5 libboost-dev libconvert-binary-c-perl libdbus-glib-1-dev libdevice-serialport-perl libjson-perl libjsoncpp-dev libnet-bonjour-perl libpam-smbpass libtagc0-dev locales mp3info mpg123 mplayer nano nginx node perlmagick php5 php5-cli php5-common php5-fpm php5-mcrypt php5-sqlite php-apc python-daemon python-smbus samba samba-common-bin shellinabox sudo sysstat usbmount vim vim-common vorbis-tools vsftpd
+		# Install in more than one command to lower total disk space required
+		# Do a clean in between each iteration
+		apt-get -y install alsa-base alsa-utils apache2 apache2.2-bin apache2.2-common apache2-mpm-prefork apache2-utils arping avahi-daemon avahi-discover avahi-utils bc build-essential bzip2 ca-certificates ccache curl device-tree-compiler
+		apt-get -y clean
+		apt-get -y install ethtool fbi fbset file flite 'g++-4.7' gcc-4.7 gdb git i2c-tools ifplugd imagemagick less libapache2-mod-php5 libboost-dev libconvert-binary-c-perl libdbus-glib-1-dev libdevice-serialport-perl libjson-perl libjsoncpp-dev
+		apt-get -y clean
+		apt-get -y install libnet-bonjour-perl libpam-smbpass libtagc0-dev locales mp3info mpg123 mpg321 mplayer nano nginx node perlmagick php5 php5-cli php5-common php5-fpm php5-mcrypt php5-sqlite php-apc python-daemon python-smbus samba samba-common-bin shellinabox sudo sysstat usbmount vim vim-common vorbis-tools vsftpd
+		apt-get -y clean
 
 		echo "FPP - Installing wireless firmware packages"
 		apt-get -y install firmware-realtek
+
+		echo "FPP - Cleaning up after installing packages"
+		apt-get -y clean
 
 		echo "FPP - Installing non-packaged Perl modules via CPAN"
 		echo "yes" | cpan -fi File::Map Net::WebSocket::Server
