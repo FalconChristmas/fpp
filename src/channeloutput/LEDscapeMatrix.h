@@ -40,7 +40,6 @@ class LEDscapeMatrixOutput : public ChannelOutputBase {
 	~LEDscapeMatrixOutput();
 
 	int Init(Json::Value config);
-	int Init(char *configStr);
 	int Close(void);
 
 	int RawSendData(unsigned char *channelData);

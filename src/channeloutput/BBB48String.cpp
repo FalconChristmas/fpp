@@ -144,7 +144,11 @@ int BBB48StringOutput::Init(Json::Value config)
 	int LEDs = lsconfig->leds_width * lsconfig->leds_height;
 
 	string pru_program(getBinDirectory());
-	pru_program += "/../lib/";
+
+	if (tail(pru_program, 4) == "/src")
+		pru_program += "/pru/";
+	else
+		pru_program += "/../lib/";
 
 	if ((m_subType == "F4-B") ||
 		(m_subType == "F16-B"))

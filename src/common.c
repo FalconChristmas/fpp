@@ -381,6 +381,14 @@ int CurrentDateInRange(int startDate, int endDate)
 	return 0;
 }
 
+string tail(string const& source, size_t const length)
+{
+	if (length >= source.size())
+		return source;
+
+	return source.substr(source.size() - length);
+}
+
 /*
  * Helpers to split a string on the specified character delimiter
  */

@@ -289,10 +289,6 @@ int InitializeChannelOutputs(void) {
 				channelOutputs[i].output = new GPIOOutput(start, count);
 			} else if (!strcmp(type, "LOR")) {
 				channelOutputs[i].outputOld = &LOROutput;
-#ifdef PLATFORM_BBB
-			} else if (!strcmp(type, "LEDscapeMatrix")) {
-				channelOutputs[i].output = new LEDscapeMatrixOutput(start, count);
-#endif
 			} else if (!strcmp(type, "Renard")) {
 				channelOutputs[i].outputOld = &USBRenardOutput;
 #ifdef PLATFORM_PI

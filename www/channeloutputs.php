@@ -1443,10 +1443,21 @@ function printLEDPanelLayoutSelect()
 	PrintSettingSelect("Panel Layout", "LEDPanelsLayout", 1, 0, "1x1", $values, "", "LEDPanelLayoutChanged");
 }
 
+function printLEDPanelSizeSelect()
+{
+	$values = array();
+	$values["32x16"] = "32x16";
+	$values["32x32"] = "32x32";
+
+	PrintSettingSelect("Panel Size", "LEDPanelsSize", 1, 0, "32x16", $values, "", "LEDPanelLayoutChanged");
+}
+
 ?>
 
 var LEDPanelOutputs = 8;
 var LEDPanelPanelsPerOutput = 8;
+var LEDPanelWidth = 32;
+var LEDPanelHeight = 16;
 var LEDPanelRows = <? echo $LEDPanelRows; ?>;
 var LEDPanelCols = <? echo $LEDPanelCols; ?>;
 
@@ -1489,11 +1500,23 @@ function GetLEDPanelNumberSetting(id, key, maxItems, selectedItem)
 function LEDPanelLayoutChanged()
 {
 	var layout = $('#LEDPanelsLayout').val();
+	var size = $('#LEDPanelsSize').val();
 	var parts = layout.split("x");
 	LEDPanelCols = parseInt(parts[0]);
 	LEDPanelRows = parseInt(parts[1]);
 
-	var channelCount = LEDPanelCols * LEDPanelRows * 32 * 16 * 3;
+	if (size == "32x32")
+	{
+		LEDPanelWidth = 32;
+		LEDPanelHeight = 32;
+	}
+	else
+	{
+		LEDPanelWidth = 32;
+		LEDPanelHeight = 16;
+	}
+
+	var channelCount = LEDPanelCols * LEDPanelRows * LEDPanelWidth * LEDPanelHeight * 3;
 	$('#LEDPanelsChannelCount').html(channelCount);
 
 	DrawLEDPanelTable();
@@ -1582,6 +1605,8 @@ function GetLEDPanelConfig()
 	config.enabled = 0;
 	config.startChannel = parseInt($('#LEDPanelsStartChannel').val());
 	config.channelCount = parseInt($('#LEDPanelsChannelCount').html());
+	config.panelWidth = LEDPanelWidth;
+	config.panelHeight = LEDPanelHeight;
 	config.panels = [];
 
 	if ($('#LEDPanelsEnabled').is(":checked"))
@@ -1611,26 +1636,26 @@ function GetLEDPanelConfig()
 			if (src == 'images/arrow_N.png')
 			{
 				panel.orientation = "N";
-				xOffset += 32;
-				yDiff = 16;
+				xOffset += LEDPanelWidth;
+				yDiff = LEDPanelHeight;
 			}
 			else if (src == 'images/arrow_R.png')
 			{
 				panel.orientation = "R";
-				xOffset += 16;
-				yDiff = 32;
+				xOffset += LEDPanelHeight;
+				yDiff = LEDPanelWidth;
 			}
 			else if (src == 'images/arrow_U.png')
 			{
 				panel.orientation = "U";
-				xOffset += 32;
-				yDiff = 16;
+				xOffset += LEDPanelWidth;
+				yDiff = LEDPanelHeight;
 			}
 			else if (src == 'images/arrow_L.png')
 			{
 				panel.orientation = "L";
-				xOffset += 16;
-				yDiff = 32;
+				xOffset += LEDPanelHeight;
+				yDiff = LEDPanelWidth;
 			}
 
 			panel.row = r;
@@ -1935,6 +1960,9 @@ tr.rowUniverseDetails td
 								<td><b>Panel Layout (WxH):</b></td><td><? printLEDPanelLayoutSelect(); ?></td>
 								<td>&nbsp;</td>
 								<td><b>Channel Count:</b></td><td><span id='LEDPanelsChannelCount'>1536</span></td>
+							</tr>
+							<tr>
+								<td><b>Single Panel Size (WxH):</b></td><td><? printLEDPanelSizeSelect(); ?></td>
 							</tr>
 							<tr>
 								<td width = '70 px' colspan=5><input id='btnSaveChannelOutputsJSON' class='buttons' type='button' value='Save' onClick='SaveChannelOutputsJSON();'/> <font size=-1><? if ($settings['Platform'] == "BeagleBone Black") { echo "(this will save changes to BBB tab &amp; LED Panels tab)"; } ?></font></td>

@@ -42,6 +42,7 @@ int       DateStrToInt(const char *str);
 int       GetCurrentDateInt(int daysOffset = 0);
 int       CurrentDateInRange(int startDate, int endDate);
 
+string tail(string const& source, size_t const length);
 vector<string> &split(const string &s, char delim, vector<string> &elems);
 vector<string> split(const string &s, char delim);
 
