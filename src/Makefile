@@ -267,9 +267,7 @@ clean:
 		git submodule update
 
 ../external/LEDscape/lib/libledscape.a: ../external/LEDscape/.git
-	@echo "Building LEDscape library and PRU code"
+	@echo "Building LEDscape library"
 	@cd ../external/LEDscape/ && git checkout master && git pull
 	@make -C ../external/LEDscape
-	@cp ../external/LEDscape/lib/matrix.bin ../lib/LEDscapeMatrix.bin
-	@cp ../external/LEDscape/lib/ws281x.bin ../lib/LEDscapeWS281x.bin
 
