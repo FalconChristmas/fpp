@@ -1138,15 +1138,29 @@ function AddOtherOutput() {
 				"<option value=''>Select a type</option>" +
 				"<option value='DMX-Pro'>DMX-Pro</option>" +
 				"<option value='DMX-Open'>DMX-Open</option>" +
-				"<option value='Pixelnet-Lynx'>Pixelnet-Lynx</option>" +
-				"<option value='Pixelnet-Open'>Pixelnet-Open</option>" +
-				"<option value='LOR'>LOR</option>" +
-				"<option value='Renard'>Renard</option>" +
-				"<option value='SPI-WS2801'>SPI-WS2801</option>" +
-				"<option value='SPI-nRF24L01'>SPI-nRF24L01</option>" +
-				"<option value='Triks-C'>Triks-C</option>" +
+<?
+	if ($settings['Platform'] == "Raspberry Pi")
+	{
+?>
 				"<option value='GPIO'>GPIO</option>" +
 				"<option value='GPIO-595'>GPIO-595</option>" +
+<?
+	}
+?>
+				"<option value='LOR'>LOR</option>" +
+				"<option value='Pixelnet-Lynx'>Pixelnet-Lynx</option>" +
+				"<option value='Pixelnet-Open'>Pixelnet-Open</option>" +
+				"<option value='Renard'>Renard</option>" +
+<?
+	if ($settings['Platform'] == "Raspberry Pi")
+	{
+?>
+				"<option value='SPI-WS2801'>SPI-WS2801</option>" +
+				"<option value='SPI-nRF24L01'>SPI-nRF24L01</option>" +
+<?
+	}
+?>
+				"<option value='Triks-C'>Triks-C</option>" +
 			"</select></td>" +
 			"<td><input class='start' type='text' size=6 maxlength=6 value='' style='display: none;'></td>" +
 			"<td><input class='count' type='text' size=4 maxlength=4 value='' style='display: none;'></td>" +
@@ -1845,7 +1859,14 @@ tr.rowUniverseDetails td
 		<div id="tabs">
 			<ul>
 				<li><a href="#tab-e131">E1.31</a></li>
+<?
+	if ($settings['Platform'] == "Raspberry Pi")
+	{
+?>
 				<li><a href="#tab-fpd">Falcon Pixelnet/DMX</a></li>
+<?
+	}
+?>
 <!--
 				<li><a href="channeloutput_f16v2.php">F16 v2</a></li>
 -->
@@ -1907,6 +1928,10 @@ tr.rowUniverseDetails td
 
 <!-- --------------------------------------------------------------------- -->
 
+<?
+	if ($settings['Platform'] == "Raspberry Pi")
+	{
+?>
 			<div id='tab-fpd'>
 				<div id='divFPD'>
 					<fieldset class="fs">
@@ -1936,6 +1961,9 @@ tr.rowUniverseDetails td
 			</fieldset>
 		</div>
 	</div>
+<?
+	}
+?>
 
 <!-- --------------------------------------------------------------------- -->
 
