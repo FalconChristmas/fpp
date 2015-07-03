@@ -18,7 +18,7 @@
 #
 #############################################################################
 SCRIPTVER="0.5"
-FPPBRANCH="master"
+FPPBRANCH="stage"
 FPPIMAGEVER="1.5"
 FPPCFGVER="7"
 FPPPLATFORM="UNKNOWN"
