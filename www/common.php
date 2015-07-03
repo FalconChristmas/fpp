@@ -1,4 +1,4 @@
-<?php 
+<?php
 require_once("config.php");
 
 function check($var, $var_name = "", $function_name = "")
@@ -291,6 +291,50 @@ echo "
 
 <input type='button' class='buttons' id='save$setting' onClick='save" . $setting . "();' value='Save'>\n";
 }
+
+function SetNTPState($state){
+    WriteSettingToFile("NTP",$state);
+
+    if($state == true){
+        error_log("Enabling NTP because it's disabled and we were told to enable it.");
+        exec($SUDO . " update-rc.d ntp defaults", $output, $return_val);
+        unset($output);
+        //TODO: check return
+        exec($SUDO . " service ntp start", $output, $return_val);
+        unset($output);
+        //TODO: check return
+    }else if ($state == false){
+        error_log("Disabling NTP because it's enabled and we were told to disable it.");
+        exec($SUDO . " service ntp stop", $output, $return_val);
+        unset($output);
+        //TODO: check return
+        exec($SUDO . " update-rc.d ntp remove", $output, $return_val);
+        unset($output);
+        //TODO: check return
+    }
+}
+
+function SaveEmailConfig($emailguser, $emailgpass, $emailfromtext, $emailtoemail){
+    global $exim4Directory;
+
+    $fp = fopen($exim4Directory . '/passwd.client', 'w');
+    fwrite($fp, "# password file used when the local exim is authenticating to a remote host as a client.\n");
+    fwrite($fp, "#\n");
+    fwrite($fp, "*.google.com:" . $emailguser . ":" . $emailgpass . "\n");
+    fwrite($fp, "smtp.gmail.com:" . $emailguser . ":" . $emailgpass . "\n");
+    fclose($fp);
+    exec("sudo cp " . $exim4Directory . "/passwd.client /etc/exim4/");
+    exec("sudo update-exim4.conf");
+    exec ("sudo /etc/init.d/exim4 restart");
+    $cmd="sudo chfn -f \"" . $emailfromtext . "\" pi";
+    exec($cmd);
+    $fp = fopen($exim4Directory . '/aliases', 'w');
+    fwrite($fp, "mailer-daemon: postmaster\npostmaster: root\nnobody: root\nhostmaster: root\nusenet: root\nnews: root\nwebmaster: root\nwww: root\nftp: root\nabuse: root\nnoc: root\nsecurity: root\nroot: pi\n");
+    fwrite($fp, "pi: " . $emailtoemail . "\n");
+    fclose($fp);
+    exec("sudo cp " . $exim4Directory . "./aliases /etc/");
+}
+
 
 // This function is from:
 // http://stackoverflow.com/questions/6054033/pretty-printing-json-with-php
