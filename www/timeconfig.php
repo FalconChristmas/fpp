@@ -46,23 +46,11 @@ unset($output);
 
 if ( isset($_POST['ntp']) && !empty($_POST['ntp']) && $_POST['ntp'] == "disabled" && $ntp )
 {
-  error_log("Disabling NTP because it's enabled and we were told to disable it.");
-  exec($SUDO . " service ntp stop", $output, $return_val);
-  unset($output);
-  //TODO: check return
-  exec($SUDO . " update-rc.d ntp remove", $output, $return_val);
-  unset($output);
-  //TODO: check return
+    SetNTPState(0);
 }
 elseif ( isset($_POST['ntp']) && !empty($_POST['ntp']) && $_POST['ntp'] == "enabled" && !$ntp )
 {
-  error_log("Enabling NTP because it's disabled and we were told to enable it.");
-  exec($SUDO . " update-rc.d ntp defaults", $output, $return_val);
-  unset($output);
-  //TODO: check return
-  exec($SUDO . " service ntp start", $output, $return_val);
-  unset($output);
-  //TODO: check return
+    SetNTPState(1);
 }
 
 if ( isset($_POST['timezone']) && !empty($_POST['timezone']) && urldecode($_POST['timezone']) != $current_tz )
