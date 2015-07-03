@@ -1,0 +1,279 @@
+{
+	"channelOutputs": [
+		{
+			"type": "BBB48String",
+			"enabled": 0,
+			"subType": "F16-B",
+			"startChannel": 1,
+			"channelCount": 1200,
+			"outputCount": 16,
+			"outputs": [
+				{
+					"portNumber": 0,
+					"startChannel": 1,
+					"pixelCount": 100,
+					"colorOrder": "RGB",
+					"nullNodes": 0,
+					"hybridMode": 0,
+					"reverse": 0,
+					"grouping": 0,
+					"zigZag": 0
+				},
+				{
+					"portNumber": 1,
+					"startChannel": 301,
+					"pixelCount": 100,
+					"colorOrder": "RGB",
+					"nullNodes": 0,
+					"hybridMode": 0,
+					"reverse": 0,
+					"grouping": 0,
+					"zigZag": 0
+				},
+				{
+					"portNumber": 2,
+					"startChannel": 601,
+					"pixelCount": 100,
+					"colorOrder": "RGB",
+					"nullNodes": 0,
+					"hybridMode": 0,
+					"reverse": 0,
+					"grouping": 0,
+					"zigZag": 0
+				},
+				{
+					"portNumber": 3,
+					"startChannel": 901,
+					"pixelCount": 100,
+					"colorOrder": "RGB",
+					"nullNodes": 0,
+					"hybridMode": 0,
+					"reverse": 0,
+					"grouping": 0,
+					"zigZag": 0
+				},
+				{
+					"portNumber": 4,
+					"startChannel": 1,
+					"pixelCount": 0,
+					"colorOrder": "RGB",
+					"nullNodes": 0,
+					"hybridMode": 0,
+					"reverse": 0,
+					"grouping": 0,
+					"zigZag": 0
+				},
+				{
+					"portNumber": 5,
+					"startChannel": 1,
+					"pixelCount": 0,
+					"colorOrder": "RGB",
+					"nullNodes": 0,
+					"hybridMode": 0,
+					"reverse": 0,
+					"grouping": 0,
+					"zigZag": 0
+				},
+				{
+					"portNumber": 6,
+					"startChannel": 1,
+					"pixelCount": 0,
+					"colorOrder": "RGB",
+					"nullNodes": 0,
+					"hybridMode": 0,
+					"reverse": 0,
+					"grouping": 0,
+					"zigZag": 0
+				},
+				{
+					"portNumber": 7,
+					"startChannel": 1,
+					"pixelCount": 0,
+					"colorOrder": "RGB",
+					"nullNodes": 0,
+					"hybridMode": 0,
+					"reverse": 0,
+					"grouping": 0,
+					"zigZag": 0
+				},
+				{
+					"portNumber": 8,
+					"startChannel": 1,
+					"pixelCount": 0,
+					"colorOrder": "RGB",
+					"nullNodes": 0,
+					"hybridMode": 0,
+					"reverse": 0,
+					"grouping": 0,
+					"zigZag": 0
+				},
+				{
+					"portNumber": 9,
+					"startChannel": 1,
+					"pixelCount": 0,
+					"colorOrder": "RGB",
+					"nullNodes": 0,
+					"hybridMode": 0,
+					"reverse": 0,
+					"grouping": 0,
+					"zigZag": 0
+				},
+				{
+					"portNumber": 10,
+					"startChannel": 1,
+					"pixelCount": 0,
+					"colorOrder": "RGB",
+					"nullNodes": 0,
+					"hybridMode": 0,
+					"reverse": 0,
+					"grouping": 0,
+					"zigZag": 0
+				},
+				{
+					"portNumber": 11,
+					"startChannel": 1,
+					"pixelCount": 0,
+					"colorOrder": "RGB",
+					"nullNodes": 0,
+					"hybridMode": 0,
+					"reverse": 0,
+					"grouping": 0,
+					"zigZag": 0
+				},
+				{
+					"portNumber": 12,
+					"startChannel": 1,
+					"pixelCount": 0,
+					"colorOrder": "RGB",
+					"nullNodes": 0,
+					"hybridMode": 0,
+					"reverse": 0,
+					"grouping": 0,
+					"zigZag": 0
+				},
+				{
+					"portNumber": 13,
+					"startChannel": 1,
+					"pixelCount": 0,
+					"colorOrder": "RGB",
+					"nullNodes": 0,
+					"hybridMode": 0,
+					"reverse": 0,
+					"grouping": 0,
+					"zigZag": 0
+				},
+				{
+					"portNumber": 14,
+					"startChannel": 1,
+					"pixelCount": 0,
+					"colorOrder": "RGB",
+					"nullNodes": 0,
+					"hybridMode": 0,
+					"reverse": 0,
+					"grouping": 0,
+					"zigZag": 0
+				},
+				{
+					"portNumber": 15,
+					"startChannel": 1,
+					"pixelCount": 0,
+					"colorOrder": "RGB",
+					"nullNodes": 0,
+					"hybridMode": 0,
+					"reverse": 0,
+					"grouping": 0,
+					"zigZag": 0
+				}
+			]
+		},
+		{
+			"type": "LEDPanelMatrix",
+			"enabled": 0,
+			"startChannel": 1,
+			"channelCount": 6144,
+			"panels": [
+				{
+					"outputNumber": 0,
+					"panelNumber": 6,
+					"xOffset": 0,
+					"yOffset": 0,
+					"orientation": "U",
+					"row": 0,
+					"col": 0
+				},
+				{
+					"outputNumber": 0,
+					"panelNumber": 7,
+					"xOffset": 32,
+					"yOffset": 0,
+					"orientation": "U",
+					"row": 0,
+					"col": 1
+				},
+				{
+					"outputNumber": 0,
+					"panelNumber": 0,
+					"xOffset": 64,
+					"yOffset": 0,
+					"orientation": "N",
+					"row": 0,
+					"col": 2
+				},
+				{
+					"outputNumber": 1,
+					"panelNumber": 6,
+					"xOffset": 0,
+					"yOffset": 16,
+					"orientation": "U",
+					"row": 1,
+					"col": 0
+				},
+				{
+					"outputNumber": 1,
+					"panelNumber": 7,
+					"xOffset": 32,
+					"yOffset": 16,
+					"orientation": "U",
+					"row": 1,
+					"col": 1
+				},
+				{
+					"outputNumber": 0,
+					"panelNumber": 0,
+					"xOffset": 64,
+					"yOffset": 16,
+					"orientation": "N",
+					"row": 1,
+					"col": 2
+				},
+				{
+					"outputNumber": 2,
+					"panelNumber": 6,
+					"xOffset": 0,
+					"yOffset": 32,
+					"orientation": "U",
+					"row": 2,
+					"col": 0
+				},
+				{
+					"outputNumber": 2,
+					"panelNumber": 7,
+					"xOffset": 32,
+					"yOffset": 32,
+					"orientation": "U",
+					"row": 2,
+					"col": 1
+				},
+				{
+					"outputNumber": 0,
+					"panelNumber": 0,
+					"xOffset": 64,
+					"yOffset": 32,
+					"orientation": "N",
+					"row": 2,
+					"col": 2
+				}
+			]
+		}
+	]
+}

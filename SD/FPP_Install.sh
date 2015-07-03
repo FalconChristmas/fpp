@@ -253,7 +253,7 @@ case "${FPPPLATFORM}" in
 
 	'Raspberry Pi')
 		echo "FPP - Installing Pi-specific packages"
-		apt-get install omxplayer raspi-config
+		apt-get -y install omxplayer raspi-config
 
 		echo "FPP - Installing wiringPi"
 		cd /opt/ && git clone git://git.drogon.net/wiringPi && cd /opt/wiringPi && ./build
@@ -273,6 +273,9 @@ case "${FPPPLATFORM}" in
 		echo "# Enable I2C in device tree" >> /boot/config.txt
 		echo "dtparam=i2c=on" >> /boot/config.txt
 		echo >> /boot/config.txt
+
+		echo "FPP - Disabling Swap to save SD card"
+		update-rc.d -f dphys-swapfile remove
 		;;
 
 	'ODROID')
