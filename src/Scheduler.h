@@ -28,8 +28,6 @@
 
 #include <vector>
 
-using namespace std;
-
 #include <pthread.h>
 
 #include "ScheduleEntry.h"
@@ -125,8 +123,8 @@ class Scheduler {
 	int           m_runThread;
 	int           m_threadIsRunning;
 
-	pthread_mutex_t         m_scheduleLock;
-	vector<ScheduleEntry>   m_schedule;
+	pthread_mutex_t             m_scheduleLock;
+	std::vector<ScheduleEntry>  m_schedule;
 
 	ScheduleEntryStruct     m_Schedule[MAX_SCHEDULE_ENTRIES];
 	SchedulePlaylistDetails m_currentSchedulePlaylist;

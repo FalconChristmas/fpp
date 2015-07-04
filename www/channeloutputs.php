@@ -1138,15 +1138,29 @@ function AddOtherOutput() {
 				"<option value=''>Select a type</option>" +
 				"<option value='DMX-Pro'>DMX-Pro</option>" +
 				"<option value='DMX-Open'>DMX-Open</option>" +
-				"<option value='Pixelnet-Lynx'>Pixelnet-Lynx</option>" +
-				"<option value='Pixelnet-Open'>Pixelnet-Open</option>" +
-				"<option value='LOR'>LOR</option>" +
-				"<option value='Renard'>Renard</option>" +
-				"<option value='SPI-WS2801'>SPI-WS2801</option>" +
-				"<option value='SPI-nRF24L01'>SPI-nRF24L01</option>" +
-				"<option value='Triks-C'>Triks-C</option>" +
+<?
+	if ($settings['Platform'] == "Raspberry Pi")
+	{
+?>
 				"<option value='GPIO'>GPIO</option>" +
 				"<option value='GPIO-595'>GPIO-595</option>" +
+<?
+	}
+?>
+				"<option value='LOR'>LOR</option>" +
+				"<option value='Pixelnet-Lynx'>Pixelnet-Lynx</option>" +
+				"<option value='Pixelnet-Open'>Pixelnet-Open</option>" +
+				"<option value='Renard'>Renard</option>" +
+<?
+	if ($settings['Platform'] == "Raspberry Pi")
+	{
+?>
+				"<option value='SPI-WS2801'>SPI-WS2801</option>" +
+				"<option value='SPI-nRF24L01'>SPI-nRF24L01</option>" +
+<?
+	}
+?>
+				"<option value='Triks-C'>Triks-C</option>" +
 			"</select></td>" +
 			"<td><input class='start' type='text' size=6 maxlength=6 value='' style='display: none;'></td>" +
 			"<td><input class='count' type='text' size=4 maxlength=4 value='' style='display: none;'></td>" +
@@ -1443,10 +1457,21 @@ function printLEDPanelLayoutSelect()
 	PrintSettingSelect("Panel Layout", "LEDPanelsLayout", 1, 0, "1x1", $values, "", "LEDPanelLayoutChanged");
 }
 
+function printLEDPanelSizeSelect()
+{
+	$values = array();
+	$values["32x16"] = "32x16";
+	$values["32x32"] = "32x32";
+
+	PrintSettingSelect("Panel Size", "LEDPanelsSize", 1, 0, "32x16", $values, "", "LEDPanelLayoutChanged");
+}
+
 ?>
 
 var LEDPanelOutputs = 8;
 var LEDPanelPanelsPerOutput = 8;
+var LEDPanelWidth = 32;
+var LEDPanelHeight = 16;
 var LEDPanelRows = <? echo $LEDPanelRows; ?>;
 var LEDPanelCols = <? echo $LEDPanelCols; ?>;
 
@@ -1489,11 +1514,23 @@ function GetLEDPanelNumberSetting(id, key, maxItems, selectedItem)
 function LEDPanelLayoutChanged()
 {
 	var layout = $('#LEDPanelsLayout').val();
+	var size = $('#LEDPanelsSize').val();
 	var parts = layout.split("x");
 	LEDPanelCols = parseInt(parts[0]);
 	LEDPanelRows = parseInt(parts[1]);
 
-	var channelCount = LEDPanelCols * LEDPanelRows * 32 * 16 * 3;
+	if (size == "32x32")
+	{
+		LEDPanelWidth = 32;
+		LEDPanelHeight = 32;
+	}
+	else
+	{
+		LEDPanelWidth = 32;
+		LEDPanelHeight = 16;
+	}
+
+	var channelCount = LEDPanelCols * LEDPanelRows * LEDPanelWidth * LEDPanelHeight * 3;
 	$('#LEDPanelsChannelCount').html(channelCount);
 
 	DrawLEDPanelTable();
@@ -1582,6 +1619,8 @@ function GetLEDPanelConfig()
 	config.enabled = 0;
 	config.startChannel = parseInt($('#LEDPanelsStartChannel').val());
 	config.channelCount = parseInt($('#LEDPanelsChannelCount').html());
+	config.panelWidth = LEDPanelWidth;
+	config.panelHeight = LEDPanelHeight;
 	config.panels = [];
 
 	if ($('#LEDPanelsEnabled').is(":checked"))
@@ -1611,26 +1650,26 @@ function GetLEDPanelConfig()
 			if (src == 'images/arrow_N.png')
 			{
 				panel.orientation = "N";
-				xOffset += 32;
-				yDiff = 16;
+				xOffset += LEDPanelWidth;
+				yDiff = LEDPanelHeight;
 			}
 			else if (src == 'images/arrow_R.png')
 			{
 				panel.orientation = "R";
-				xOffset += 16;
-				yDiff = 32;
+				xOffset += LEDPanelHeight;
+				yDiff = LEDPanelWidth;
 			}
 			else if (src == 'images/arrow_U.png')
 			{
 				panel.orientation = "U";
-				xOffset += 32;
-				yDiff = 16;
+				xOffset += LEDPanelWidth;
+				yDiff = LEDPanelHeight;
 			}
 			else if (src == 'images/arrow_L.png')
 			{
 				panel.orientation = "L";
-				xOffset += 16;
-				yDiff = 32;
+				xOffset += LEDPanelHeight;
+				yDiff = LEDPanelWidth;
 			}
 
 			panel.row = r;
@@ -1820,7 +1859,14 @@ tr.rowUniverseDetails td
 		<div id="tabs">
 			<ul>
 				<li><a href="#tab-e131">E1.31</a></li>
+<?
+	if ($settings['Platform'] == "Raspberry Pi")
+	{
+?>
 				<li><a href="#tab-fpd">Falcon Pixelnet/DMX</a></li>
+<?
+	}
+?>
 <!--
 				<li><a href="channeloutput_f16v2.php">F16 v2</a></li>
 -->
@@ -1882,6 +1928,10 @@ tr.rowUniverseDetails td
 
 <!-- --------------------------------------------------------------------- -->
 
+<?
+	if ($settings['Platform'] == "Raspberry Pi")
+	{
+?>
 			<div id='tab-fpd'>
 				<div id='divFPD'>
 					<fieldset class="fs">
@@ -1911,6 +1961,9 @@ tr.rowUniverseDetails td
 			</fieldset>
 		</div>
 	</div>
+<?
+	}
+?>
 
 <!-- --------------------------------------------------------------------- -->
 
@@ -1935,6 +1988,9 @@ tr.rowUniverseDetails td
 								<td><b>Panel Layout (WxH):</b></td><td><? printLEDPanelLayoutSelect(); ?></td>
 								<td>&nbsp;</td>
 								<td><b>Channel Count:</b></td><td><span id='LEDPanelsChannelCount'>1536</span></td>
+							</tr>
+							<tr>
+								<td><b>Single Panel Size (WxH):</b></td><td><? printLEDPanelSizeSelect(); ?></td>
 							</tr>
 							<tr>
 								<td width = '70 px' colspan=5><input id='btnSaveChannelOutputsJSON' class='buttons' type='button' value='Save' onClick='SaveChannelOutputsJSON();'/> <font size=-1><? if ($settings['Platform'] == "BeagleBone Black") { echo "(this will save changes to BBB tab &amp; LED Panels tab)"; } ?></font></td>

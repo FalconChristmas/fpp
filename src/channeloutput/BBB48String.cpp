@@ -132,7 +132,7 @@ int BBB48StringOutput::Init(Json::Value config)
 
 	ledscape_strip_config_t * const lsconfig = &m_config->strip_config;
 
-	int pruNumber = 1;
+	int pruNumber = 0;
 
 	lsconfig->type         = LEDSCAPE_STRIP;
 	lsconfig->leds_width   = m_maxStringLen;
@@ -143,9 +143,23 @@ int BBB48StringOutput::Init(Json::Value config)
 
 	int LEDs = lsconfig->leds_width * lsconfig->leds_height;
 
-	string pru_program(getBinDirectory());
-	pru_program += "/../lib/";
-	pru_program += m_subType + ".bin";
+	std::string pru_program(getBinDirectory());
+
+	if (tail(pru_program, 4) == "/src")
+		pru_program += "/pru/";
+	else
+		pru_program += "/../lib/";
+
+	if ((m_subType == "F4-B") ||
+		(m_subType == "F16-B"))
+	{
+		pru_program += "FalconWS281x.bin";
+	}
+	else
+	{
+		pru_program += m_subType + ".bin";
+	}
+
 	m_leds = ledscape_strip_init(m_config, 0, pruNumber, pru_program.c_str());
 
 	if (!m_leds)

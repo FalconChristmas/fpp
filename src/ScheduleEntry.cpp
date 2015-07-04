@@ -70,9 +70,10 @@ ScheduleEntry::~ScheduleEntry()
 {
 }
 
-int ScheduleEntry::LoadFromString(string entryStr)
+int ScheduleEntry::LoadFromString(std::string entryStr)
 {
-	vector<string> elems = split(entryStr, ',');
+	std::vector<std::string> elems = split(entryStr, ',');
+
 	if (elems.size() < 10)
 	{
 		LogErr(VB_SCHEDULE, "Invalid Schedule Entry: '%s', %d elements\n",

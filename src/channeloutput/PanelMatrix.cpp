@@ -25,7 +25,6 @@
 
 #include <stdlib.h>
 #include <sys/types.h>
-#include <vector>
 
 #include "common.h"
 #include "log.h"
@@ -47,7 +46,7 @@ PanelMatrix::~PanelMatrix()
 {
 }
 
-int PanelMatrix::ConfigurePanels(string layout)
+int PanelMatrix::ConfigurePanels(std::string layout)
 {
 	int result = 1;
 
@@ -66,7 +65,7 @@ int PanelMatrix::ConfigurePanels(string layout)
 	return result;
 }
 
-int PanelMatrix::AddPanel(string config)
+int PanelMatrix::AddPanel(std::string config)
 {
 	int  output  = 0;
 	int  chain   = 0;

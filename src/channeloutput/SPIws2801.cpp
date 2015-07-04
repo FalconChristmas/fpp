@@ -77,11 +77,11 @@ int SPIws2801Output::Init(char *configStr)
 {
 	LogDebug(VB_CHANNELOUT, "SPIws2801Output::Init('%s')\n", configStr);
 
-	vector<string> configElems = split(configStr, ';');
+	std::vector<std::string> configElems = split(configStr, ';');
 
 	for (int i = 0; i < configElems.size(); i++)
 	{
-		vector<string> elem = split(configElems[i], '=');
+		std::vector<std::string> elem = split(configElems[i], '=');
 		if (elem.size() < 2)
 			continue;
 

@@ -26,6 +26,8 @@
 #ifndef _USBDMX_H
 #define _USBDMX_H
 
+#include <string>
+
 #include "ChannelOutputBase.h"
 
 class USBDMXOutput : public ChannelOutputBase {
@@ -53,11 +55,11 @@ class USBDMXOutput : public ChannelOutputBase {
 
 	DongleType m_dongleType;
 
-	string m_deviceName;
-	int    m_fd;
-	char   m_outputData[513];
-	char   m_dmxHeader[5];
-	char   m_dmxFooter[1];
+	std::string m_deviceName;
+	int         m_fd;
+	char        m_outputData[513];
+	char        m_dmxHeader[5];
+	char        m_dmxFooter[1];
 };
 
 #endif /* #ifdef _USBDMX_H */

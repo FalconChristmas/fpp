@@ -60,7 +60,7 @@ PixelString::~PixelString()
 /*
  *
  */
-int PixelString::Init(string configStr)
+int PixelString::Init(std::string configStr)
 {
 	std::vector<std::string> elems = split(configStr, ':');
 
@@ -78,7 +78,7 @@ int PixelString::Init(string configStr)
 }
 
 int PixelString::Init(int portNumber, int startChannel, int pixelCount,
-                string colorOrder, int nullNodes, int hybridMode,
+                std::string colorOrder, int nullNodes, int hybridMode,
                 int reverse, int grouping, int zigZag)
 {
 	m_portNumber = portNumber;

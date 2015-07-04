@@ -32,8 +32,6 @@
 #include <sstream>
 #include <string>
 
-using namespace std;
-
 #include "channeloutput.h"
 #include "DebugOutput.h"
 #include "E131.h"
@@ -47,6 +45,7 @@ using namespace std;
 #include "SPInRF24L01.h"
 #include "USBDMX.h"
 #include "USBPixelnet.h"
+#include "USBRelay.h"
 #include "USBRenard.h"
 #include "Triks-C.h"
 #include "GPIO.h"
@@ -146,11 +145,12 @@ int InitializeChannelOutputs(void) {
 
 	if (FileExists(filename))
 	{
-		ifstream t(filename);
-		stringstream buffer;
+		std::ifstream t(filename);
+		std::stringstream buffer;
+
 		buffer << t.rdbuf();
 
-		string config = buffer.str();
+		std::string config = buffer.str();
 
 		bool success = reader.parse(buffer.str(), root);
 		if (!success)
@@ -160,7 +160,7 @@ int InitializeChannelOutputs(void) {
 		}
 
 		const Json::Value outputs = root["channelOutputs"];
-		string type;
+		std::string type;
 		int start = 0;
 		int count = 0;
 
@@ -194,6 +194,8 @@ int InitializeChannelOutputs(void) {
 			} else if (type == "BBB48String") {
 				channelOutputs[i].output = new BBB48StringOutput(start, count);
 #endif
+			} else if (type == "USBRelay") {
+				channelOutputs[i].output = new USBRelayOutput(start, count);
 			} else {
 				LogErr(VB_CHANNELOUT, "Unknown Channel Output type: %s\n", type.c_str());
 				continue;
@@ -286,10 +288,6 @@ int InitializeChannelOutputs(void) {
 				channelOutputs[i].output = new GPIOOutput(start, count);
 			} else if (!strcmp(type, "LOR")) {
 				channelOutputs[i].outputOld = &LOROutput;
-#ifdef PLATFORM_BBB
-			} else if (!strcmp(type, "LEDscapeMatrix")) {
-				channelOutputs[i].output = new LEDscapeMatrixOutput(start, count);
-#endif
 			} else if (!strcmp(type, "Renard")) {
 				channelOutputs[i].outputOld = &USBRenardOutput;
 #ifdef PLATFORM_PI

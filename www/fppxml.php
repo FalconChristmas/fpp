@@ -2464,6 +2464,7 @@ function GetZip()
 	$files = array(
 		"channelmemorymaps",
 		"channeloutputs",
+		"config/channeloutputs.json",
 		"pixelnetDMX",
 		"schedule",
 		"settings",

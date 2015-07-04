@@ -30,8 +30,6 @@
 #include "RGBMatrix.h"
 #include "settings.h"
 
-#define RGBMatrix_PANEL_WIDTH   32
-#define RGBMatrix_PANEL_HEIGHT  16
 #define RGBMatrix_MAX_PIXELS    512 * 4
 #define RGBMatrix_MAX_CHANNELS  RGBMatrix_MAX_PIXELS * 3
 
@@ -45,8 +43,8 @@ RGBMatrixOutput::RGBMatrixOutput(unsigned int startChannel,
   : ChannelOutputBase(startChannel, channelCount),
 	m_gpio(NULL),
 	m_canvas(NULL),
-	m_panelWidth(RGBMatrix_PANEL_WIDTH),
-	m_panelHeight(RGBMatrix_PANEL_HEIGHT),
+	m_panelWidth(32),
+	m_panelHeight(16),
 	m_panels(0),
 	m_width(0),
 	m_height(0),
@@ -71,8 +69,17 @@ int RGBMatrixOutput::Init(Json::Value config)
 {
 	LogDebug(VB_CHANNELOUT, "RGBMatrixOutput::Init(JSON)\n");
 
+	m_panelWidth  = config["panelWidth"].asInt();
+	m_panelHeight = config["panelHeight"].asInt();
+
+	if (!m_panelWidth)
+		m_panelWidth = 32;
+
+	if (!m_panelHeight)
+		m_panelHeight = 16;
+
 	m_panelMatrix =
-		new PanelMatrix(RGBMatrix_PANEL_WIDTH, RGBMatrix_PANEL_HEIGHT);
+		new PanelMatrix(m_panelWidth, m_panelHeight);
 
 	if (!m_panelMatrix)
 	{
@@ -113,7 +120,7 @@ int RGBMatrixOutput::Init(Json::Value config)
 		return 0;
 	}
 
-	m_rows = RGBMatrix_PANEL_HEIGHT;
+	m_rows = m_panelHeight;
 
 	m_width  = m_panelMatrix->Width();
 	m_height = m_panelMatrix->Height();

@@ -30,8 +30,6 @@
 
 #include "PanelMatrix.h"
 
-using namespace::std;
-
 #include "led-matrix.h"
 
 using rgb_matrix::GPIO;
@@ -53,16 +51,16 @@ class RGBMatrixOutput : public ChannelOutputBase {
 	void DumpConfig(void);
 
   private:
-	GPIO   *m_gpio;
-	Canvas *m_canvas;
-	string  m_layout;
+	GPIO        *m_gpio;
+	Canvas      *m_canvas;
+	std::string  m_layout;
 
-	int     m_panelWidth;
-	int     m_panelHeight;
-	int     m_panels;
-	int     m_width;
-	int     m_height;
-	int     m_rows;
+	int          m_panelWidth;
+	int          m_panelHeight;
+	int          m_panels;
+	int          m_width;
+	int          m_height;
+	int          m_rows;
 
 	PanelMatrix *m_panelMatrix;
 };

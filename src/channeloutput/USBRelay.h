@@ -1,7 +1,7 @@
 /*
- *   FrameBuffer Virtual matrix handler for Falcon Player (FPP)
+ *   USB Relay handler for Falcon Player (FPP)
  *
- *   Copyright (C) 2015 the Falcon Player Developers
+ *   Copyright (C) 2013 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -23,20 +23,19 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _FBMATRIX_H
-#define _FBMATRIX_H
+#ifndef _USBRELAY_H
+#define _USBRELAY_H
 
-#include <linux/fb.h>
 #include <string>
 
 #include "ChannelOutputBase.h"
 
-class FBMatrixOutput : public ChannelOutputBase {
+class USBRelayOutput : public ChannelOutputBase {
   public:
-	FBMatrixOutput(unsigned int startChannel, unsigned int channelCount);
-	~FBMatrixOutput();
+	USBRelayOutput(unsigned int startChannel, unsigned int channelCount);
+	~USBRelayOutput();
 
-	int Init(char *configStr);
+	int Init(Json::Value config);
 	int Close(void);
 
 	int RawSendData(unsigned char *channelData);
@@ -44,19 +43,16 @@ class FBMatrixOutput : public ChannelOutputBase {
 	void DumpConfig(void);
 
   private:
-	int     m_fbFd;
-	int     m_ttyFd;
+	enum RelayType {
+		RELAY_DVC_UNKNOWN,
+		RELAY_DVC_BIT,
+		RELAY_DVC_ICSTATION
+	};
 
-	std::string  m_layout;
-	int          m_width;
-	int          m_height;
-
-	char   *m_fbp;
-	int     m_screenSize;
-
-	struct fb_var_screeninfo m_vInfo;
-	struct fb_var_screeninfo m_vInfoOrig;
-	struct fb_fix_screeninfo m_fInfo;
+	std::string  m_deviceName;
+	int          m_fd;
+	RelayType    m_subType;
+	int          m_relayCount;
 };
 
-#endif /* _FBMATRIX_H */
+#endif /* _USBRELAY_H */
