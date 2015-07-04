@@ -3,7 +3,6 @@
 <?php
 //TODO Backup/Restore of events
 //TODO Backup/Restore of scripts
-//TODO fppMode in general settings file handling
 
 /**
  * Define entries map for backup/restore area select lists
@@ -11,20 +10,21 @@
 $system_config_aras = array(
     'all' => array('friendly_name' => 'All', 'file' => false),
     'channelOutputsJSON' => array('friendly_name' => 'Channel Outputs (RGBMatrix)', 'file' => $settings['channelOutputsJSON']),
-    'channeloutputs' => array('friendly_name' => 'Channel Outputs (Other eg, LOR, Renard, Tricks-C)', 'file' => $settings['channelOutputsFile']),
+    'channeloutputs' => array('friendly_name' => 'Channel Outputs (Other eg, LOR, Renard)', 'file' => $settings['channelOutputsFile']),
     'channelmemorymaps' => array('friendly_name' => 'Channel Memory Maps', 'file' => $settings['channelMemoryMapsFile']),
     'email' => array('friendly_name' => 'Email', 'file' => false),
+    'pixelnetDMX' => array('friendly_name' => 'Falcon Pixlenet/DMX', 'file' => $pixelnetFile),
     'schedule' => array('friendly_name' => 'Schedule', 'file' => $scheduleFile),
     'settings' => array('friendly_name' => 'Settings', 'file' => $settingsFile),
     'timezone' => array('friendly_name' => 'Timezone', 'file' => $timezoneFile),
-//    'pixelnetDMX' => array('friendly_name' => 'FPP Pixlenet/DMX', 'file' => $pixelnetFile),
     'universes' => array('friendly_name' => 'Universes', 'file' => $universeFile),
 //    'wlan' => array('friendly_name' => 'WLAN', 'file' => $settings['configDirectory']. "/interface.wlan0")
 
 );
 
-$keepMasterSlaveSettings = null;
-$keepNetworkSettings = null;
+//Preserve some existing settings by default
+$keepMasterSlaveSettings = true;
+$keepNetworkSettings = true;
 
 //list of settings restored
 $settings_restored = array();
@@ -53,9 +53,8 @@ if (isset($_POST['btnDownloadConfig'])) {
                 //combine all backup areas into a single file
 
                 //remove the 'all' key and do some processing of areas array
-
                 unset($tmp_config_areas['all']);
-                //remove email as its in the general settings file
+                //remove email as its in the general settings file and not a seperate section
                 unset($tmp_config_areas['email']);
 
                 foreach ($tmp_config_areas as $key => $key_data) {
@@ -63,22 +62,25 @@ if (isset($_POST['btnDownloadConfig'])) {
 
                     if ($setting_file !== false && file_exists($setting_file)) {
                         if ($key == "settings") {
-                            //parse ini
+                            //parse ini properly
                             $file_data = parse_ini_string(file_get_contents($setting_file));
+                        } else if ($key == "channelOutputsJSON") {
+                            //channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
+                            $file_data = json_decode(file_get_contents($setting_file), true);
                         } else {
-                            $file_data = file_get_contents($setting_file);
+                            //all other files are std flat files, process them into an array by splitting at line breaks
+                            $file_data = explode("\n", file_get_contents($setting_file));
                         }
-
-                        //TODO issue with new lines
 
                         $tmp_settings_data[$key] = $file_data;
                     }
                 }
             } else if (strtolower($area) == "email") {
-                //special treatment for email settings as they are inside the general settings file
+                //special treatment for email settings as they are inside the general settings file, emailgpass can't be obtained directly though..
                 $email_settings = array(
                     'emailenable' => $settings['emailenable'],
                     'emailguser' => $settings['emailguser'],
+//                    'emailgpass' => false,
                     'emailfromtext' => $settings['emailfromtext'],
                     'emailtoemail' => $settings['emailtoemail']
                 );
@@ -90,11 +92,14 @@ if (isset($_POST['btnDownloadConfig'])) {
 
                 if ($setting_file !== false && file_exists($setting_file)) {
                     if ($key == "settings") {
-                        //parse ini properly
+                        //parse ini properly into an assoc. array
                         $file_data = parse_ini_string(file_get_contents($setting_file));
+                    } else if ($key == "channelOutputsJSON") {
+                        //channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
+                        $file_data = json_decode(file_get_contents($setting_file), true);
                     } else {
-
-                        $file_data = file_get_contents($setting_file);
+                        //all other files are std flat files, process them into an array by splitting at line breaks
+                        $file_data = explode("\n", file_get_contents($setting_file));
                     }
 
                     $tmp_settings_data[$key] = $file_data;
@@ -109,7 +114,6 @@ if (isset($_POST['btnDownloadConfig'])) {
     }
 
 } else if (isset($_POST['btnRestoreConfig'])) {
-
     //RESTORE
     if (isset($_POST['restorearea']) && !empty($_POST['restorearea'])) {
         $restore_area = $_POST['restorearea'];
@@ -135,10 +139,11 @@ if (isset($_POST['btnDownloadConfig'])) {
                 $rstftmp_name = $_FILES['conffile']['tmp_name'];
                 //file contents
                 $file_contents = file_get_contents($rstftmp_name);
+                //decode back into an array
                 $file_contents_decoded = json_decode($file_contents, true);
 
                 //successful decode
-                if ($file_contents_decoded !== FALSE) {
+                if ($file_contents_decoded !== FALSE && is_array($file_contents_decoded)) {
                     if (strtolower($restore_area) == "all") {
 
                         //read each area and process it
@@ -148,25 +153,38 @@ if (isset($_POST['btnDownloadConfig'])) {
                     } else if (strtolower($restore_area) == "email") {
 
                         if (array_key_exists('email', $file_contents_decoded)) {
+                            $emailenable = $file_contents_decoded['settings']['emailenable'];
                             $emailguser = $file_contents_decoded['settings']['emailguser'];
                             $emailgpass = "";//Not available when doing anything except full backups
                             $emailfromtext = $file_contents_decoded['settings']['emailfromtext'];
                             $emailtoemail = $file_contents_decoded['settings']['emailtoemail'];
 
-                            $settings_restored[] = $restore_area;
+                            //Write them out
+                            WriteSettingToFile('emailenable', $emailenable);
+                            WriteSettingToFile('emailguser', $emailguser);
+//                            WriteSettingToFile('emailgpass', $emailgpass);
+                            WriteSettingToFile('emailfromtext', $emailgpass);
+                            WriteSettingToFile('emailtoemail', $emailfromtext);
 
                             SaveEmailConfig($emailguser, $emailgpass, $emailfromtext, $emailtoemail);
+                            $settings_restored[$restore_area] = true;
                         } else if (array_key_exists('settings', $file_contents_decoded)) {
+                            $emailenable = $file_contents_decoded['settings']['emailenable'];
                             $emailguser = $file_contents_decoded['settings']['emailguser'];
                             $emailgpass = $file_contents_decoded['settings']['emailgpass'];
                             $emailfromtext = $file_contents_decoded['settings']['emailfromtext'];
                             $emailtoemail = $file_contents_decoded['settings']['emailtoemail'];
 
-                            $settings_restored[] = $restore_area;
+                            //Write them out
+                            WriteSettingToFile('emailenable', $emailenable);
+                            WriteSettingToFile('emailguser', $emailguser);
+                            WriteSettingToFile('emailgpass', $emailgpass);
+                            WriteSettingToFile('emailfromtext', $emailgpass);
+                            WriteSettingToFile('emailtoemail', $emailfromtext);
 
                             SaveEmailConfig($emailguser, $emailgpass, $emailfromtext, $emailtoemail);
+                            $settings_restored[$restore_area] = true;
                         }
-
                     } else {
                         //Process specific restore areas, this work almost like the 'all' area
                         //general settings, but only a matching area is cherry picked
@@ -182,7 +200,7 @@ if (isset($_POST['btnDownloadConfig'])) {
                     //All processed
                     $restore_done = true;
                 } else {
-                    error_log("The backup " . $rstfname . " could not be decoded properly.");
+                    error_log("The backup " . $rstfname . " could not be decoded properly. Is it a valid backup file?");
                 }
             }
         }
@@ -192,6 +210,8 @@ if (isset($_POST['btnDownloadConfig'])) {
 
 /**
  * Function to look after backup restoration
+ * @param $restore_area String Area to restore
+ * @param $area_data Array Area data as an array
  */
 function process_restore_data($restore_area, $area_data)
 {
@@ -202,39 +222,50 @@ function process_restore_data($restore_area, $area_data)
     require_once('fppxml.php');
 
     $restore_area_key = $restore_area;
+    $save_result = false;
 
     if ($restore_area_key == "channelOutputsJSON") {
-        //Overwrite channel outputs JSON
         $channel_outputs_json_filepath = $system_config_aras['channelOutputsJSON']['file'];
-        file_put_contents($channel_outputs_json_filepath, $area_data);
+        //PrettyPrint the JSON data and save it
+        $json_pp_data = prettyPrintJSON(json_encode($area_data));
+        $save_result = file_put_contents($channel_outputs_json_filepath, $json_pp_data);
     }
 
     if ($restore_area_key == "channeloutputs") {
         //Overwrite channel outputs JSON
         $channel_outputs_filepath = $system_config_aras['channeloutputs']['file'];
-        file_put_contents($channel_outputs_filepath, $area_data);
+        //implode array into string and reinsert new lines (reverse of backup explode)
+        $data = implode("\n", $area_data);
+        $save_result = file_put_contents($channel_outputs_filepath, $data);
     }
 
     if ($restore_area_key == "channelmemorymaps") {
         //Overwrite channel outputs JSON
         $channelmemorymaps_filepath = $system_config_aras['channelmemorymaps']['file'];
-        file_put_contents($channelmemorymaps_filepath, $area_data);
+        $data = implode("\n", $area_data);
+        $save_result = file_put_contents($channelmemorymaps_filepath, $data);
     }
 
     if ($restore_area_key == "schedule") {
         //Overwrite the schedule file and bump FPPD to reload it
-        $schedule_filepath = $system_config_aras['universes']['file'];
-        file_put_contents($schedule_filepath, $area_data);
-        FPPDreloadSchedule();
+        $schedule_filepath = $system_config_aras['schedule']['file'];
+        $data = implode("\n", $area_data);
+        if (!empty($data)) {
+            $save_result = file_put_contents($schedule_filepath, $data);
+            FPPDreloadSchedule();
+        }else{
+            //no data
+            $save_result=true;
+        }
     }
 
     if ($restore_area_key == "settings") {
-        $ini_string = parse_ini_string($area_data);
+//        $data = implode("\n", $area_data);
+//        var_dump($area_data);
+//        $ini_string = parse_ini_string($data);
 
-        if (is_array($ini_string)) {
-
-
-            foreach ($ini_string as $setting_name => $setting_value) {
+        if (is_array($area_data)) {
+            foreach ($area_data as $setting_name => $setting_value) {
                 //check if we can change it (default value is checked - true)
                 if ($setting_name == "fppMode") {
                     if ($keepMasterSlaveSettings == false) {
@@ -265,33 +296,50 @@ function process_restore_data($restore_area, $area_data)
                     SetNTPState($setting_value);
                 }
             }
+
+            $save_result = true;
         } else {
             error_log("RESTORE: Cannot read Settings INI settings. Attempted to parse " . json_encode($area_data));
         }
     }
 
     if ($restore_area_key == "timezone") {
-        SetTimezone($area_data);
+        $data = $area_data[0];//first index has the timezone, index 1 is empty to due carrage return in file when its backed up
+        SetTimezone($data);
+        $save_result = true;
     }
 
-//  if ($restore_area_key == "pixelnetDMX") {
-//  }
+  if ($restore_area_key == "pixelnetDMX") {
+      //Just overwrite the universes file
+      $pixlnet_filepath = $system_config_aras['pixelnetDMX']['file'];
+      $data = implode("\n", $area_data);
+      $save_result = file_put_contents($pixlnet_filepath, $data);
+  }
 
     if ($restore_area_key == "universes") {
         //Just overwrite the universes file
         $universe_filepath = $system_config_aras['universes']['file'];
-        file_put_contents($universe_filepath, $area_data);
+        $data = implode("\n", $area_data);
+        $save_result = file_put_contents($universe_filepath, $data);
     }
 
-    $settings_restored[] = $restore_area;
+    if ($save_result) {
+        $settings_restored[$restore_area] = true;
+    } else {
+        $settings_restored[$restore_area] = false;
+        error_log("RESTORE: Failed to restore " . $restore_area . " ");
+    }
 }
 
-
+/**
+ * Sets the timezone (taken from timeconfig.php)
+ * @param $timezone_setting String Timezone
+ */
 function SetTimezone($timezone_setting)
 {
     global $mediaDirectory, $SUDO;
     //TODO: Check timezone for validity
-    $timezone = urldecode($timezone_setting);
+    $timezone = $timezone_setting;
     error_log("RESTORE: Changing timezone to '" . $timezone . "'.");
     exec($SUDO . " bash -c \"echo $timezone > /etc/timezone\"", $output, $return_val);
     unset($output);
@@ -304,6 +352,10 @@ function SetTimezone($timezone_setting)
     //TODO: check return
 }
 
+/**
+ * Sets the PiRTC setting exec's the appropriate command (taken from settings.php)
+ * @param $pi_rtc_setting String PIRTC setting
+ */
 function SetPiRTC($pi_rtc_setting)
 {
     global $SUDO, $fppDir;
@@ -375,7 +427,6 @@ function backup_gen_select($area_name = "backuparea")
     <br/>
 
     <form action="backup.php" method="post" name="frmBackup" enctype="multipart/form-data">
-
         <div id="global" class="settings">
             <fieldset>
                 <legend>FPP Settings Backup</legend>
@@ -383,7 +434,19 @@ function backup_gen_select($area_name = "backuparea")
                     ?>
                     <div id="restoreSuccessFlag">Backup Restored. A Reboot May Be Required</div>
                     <div id="restoreSuccessFlag">What was
-                        restored: <?php echo implode(", ", $settings_restored); ?></div>
+                        restored:
+                        <?php
+                        foreach ($settings_restored as $area_restored => $success) {
+                            $success_str;
+                            if ($success == true) {
+                                $success_str = " Success";
+                            } else {
+                                $success_str = " Failed";
+                            }
+                            echo $area_restored . " - " . $success_str . "<br/>";
+                        }
+                        ?>
+                    </div>
                 <?php
                 }
                 ?>
