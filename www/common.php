@@ -292,6 +292,10 @@ echo "
 <input type='button' class='buttons' id='save$setting' onClick='save" . $setting . "();' value='Save'>\n";
 }
 
+/**
+ * Toggles NTP service state
+ * @param $state Boolean True to Enable, False to Disable
+ */
 function SetNTPState($state){
     WriteSettingToFile("NTP",$state);
 
@@ -314,6 +318,13 @@ function SetNTPState($state){
     }
 }
 
+/**
+ * Generates appropriate files and settings for exim4
+ * @param $emailguser String Gmail Username
+ * @param $emailgpass String Gmail Password
+ * @param $emailfromtext String Mail From address (eg. fpp01@example.com)
+ * @param $emailtoemail String Destination email address
+ */
 function SaveEmailConfig($emailguser, $emailgpass, $emailfromtext, $emailtoemail){
     global $exim4Directory;
 
