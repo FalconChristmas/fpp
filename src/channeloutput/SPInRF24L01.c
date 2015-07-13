@@ -317,11 +317,12 @@ int SPInRF24L01_MaxChannels(void *data)
  * Declare our external interface struct
  */
 FPPChannelOutput SPInRF24L01Output = {
-	.maxChannels  = SPInRF24L01_MaxChannels,
-	.open         = SPInRF24L01_Open,
-	.close        = SPInRF24L01_Close,
-	.isConfigured = SPInRF24L01_IsConfigured,
-	.isActive     = SPInRF24L01_IsActive,
-	.send         = SPInRF24L01_SendData
-	};
-
+	SPInRF24L01_MaxChannels, //maxChannels
+	SPInRF24L01_Open, //open
+	SPInRF24L01_Close, //close
+	SPInRF24L01_IsConfigured, //isConfigured
+	SPInRF24L01_IsActive, //isActive
+	SPInRF24L01_SendData, //send
+	NULL, //startThread
+	NULL, //stopThread
+};

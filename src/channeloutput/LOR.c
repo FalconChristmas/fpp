@@ -293,13 +293,12 @@ int LOR_MaxChannels(void *data)
  * Declare our external interface struct
  */
 FPPChannelOutput LOROutput = {
-	.maxChannels  = LOR_MaxChannels,
-	.open         = LOR_Open,
-	.close        = LOR_Close,
-	.isConfigured = LOR_IsConfigured,
-	.isActive     = LOR_IsActive,
-	.send         = LOR_SendData,
-	.startThread  = NULL,
-	.stopThread   = NULL,
-	};
-
+	LOR_MaxChannels, //maxChannels
+	LOR_Open, //open
+	LOR_Close, //close
+	LOR_IsConfigured, //isConfigured
+	LOR_IsActive, //isActive
+	LOR_SendData, //send
+	NULL, //startThread
+	NULL, //stopThread
+};
