@@ -306,13 +306,12 @@ int USBRenard_MaxChannels(void *data)
  * Declare our external interface struct
  */
 FPPChannelOutput USBRenardOutput = {
-	.maxChannels  = USBRenard_MaxChannels,
-	.open         = USBRenard_Open,
-	.close        = USBRenard_Close,
-	.isConfigured = USBRenard_IsConfigured,
-	.isActive     = USBRenard_IsActive,
-	.send         = USBRenard_SendData,
-	.startThread  = NULL,
-	.stopThread   = NULL,
-	};
-
+	USBRenard_MaxChannels, //maxChannels
+	USBRenard_Open, //open
+	USBRenard_Close, //close
+	USBRenard_IsConfigured, //isConfigured
+	USBRenard_IsActive, //isActive
+	USBRenard_SendData, //send
+	NULL, //startThread
+	NULL, //stopThread
+};

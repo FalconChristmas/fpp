@@ -525,13 +525,12 @@ int FPD_StopOutputThread(void *data)
  * Declare our external interface struct
  */
 FPPChannelOutput FPDOutput = {
-	.maxChannels  = FPD_MaxChannels,
-	.open         = FPD_Open,
-	.close        = FPD_Close,
-	.isConfigured = FPD_IsConfigured,
-	.isActive     = FPD_IsActive,
-	.send         = FPD_SendData,
-	.startThread  = FPD_StartOutputThread,
-	.stopThread   = FPD_StopOutputThread,
-	};
-
+	FPD_MaxChannels, //maxChannels
+	FPD_Open, //open
+	FPD_Close, //close
+	FPD_IsConfigured, //isConfigured
+	FPD_IsActive, //isActive
+	FPD_SendData, //send
+	FPD_StartOutputThread, //startThread
+	FPD_StopOutputThread, //stopThread
+};
