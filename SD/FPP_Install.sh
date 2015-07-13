@@ -160,7 +160,7 @@ case "${OSVER}" in
 	debian_7)
 		echo "FPP - Enabling non-free repo"
 		sed -i -e "s/^deb \(.*\)/deb \1 non-free/" /etc/apt/sources.list
-		sed -i -e "s/non-free non-free/non-free/" /etc/apt/sources.list
+		sed -i -e "s/non-free\(.*\)non-free/non-free\1/" /etc/apt/sources.list
 
 		echo "FPP - Updating package list"
 		apt-get update
@@ -252,15 +252,32 @@ case "${FPPPLATFORM}" in
 		;;
 
 	'Raspberry Pi')
+		wget http://goo.gl/1BOfJ -O /usr/bin/rpi-update && chmod +x /usr/bin/rpi-update
+		SKIP_WARNING=1 rpi-update d4945b3b77d29cc5bb3777734422c048c1f1d003
+
 		echo "FPP - Installing Pi-specific packages"
-		apt-get -y install omxplayer raspi-config
+		apt-get -y install raspi-config
 
 		echo "FPP - Installing wiringPi"
 		cd /opt/ && git clone git://git.drogon.net/wiringPi && cd /opt/wiringPi && ./build
 
-		echo "FPP - Installing patched omxplayer.bin for FPP MultiSync"
-		cp /usr/bin/omxplayer.bin /usr/bin/omxplayer.bin.orig
-		wget -O /usr/bin/omxplayer.bin https://github.com/FalconChristmas/fpp-binaries/raw/master/Pi/omxplayer.bin
+		if [ $1 == "--build-omxplayer" ]; then
+			echo "FPP - Building omxplayer from source with our patch"
+			apt-get -y install subversion libpcre3-dev libidn11-dev libboost1.50-dev libfreetype6-dev libusb-1.0-0-dev libssl-dev libssh-dev libsmbclient-dev g++-4.7
+			git clone https://github.com/popcornmix/omxplayer.git
+			cd omxplayer
+			git reset --hard 42f0f659c23796d41cf29b1fd1550a3352855846
+			wget -O- https://raw.githubusercontent.com/FalconChristmas/fpp/stage/external/omxplayer/FPP_omxplayer.diff | patch -p1
+			make ffmpeg
+			make
+			make dist
+			tar xzpvf omxplayer-dist.tgz -C /
+			cd ..
+		else
+			echo "FPP - Installing patched omxplayer.bin for FPP MultiSync"
+			apt-get -y install libssh-4
+			wget -O- https://github.com/FalconChristmas/fpp-binaries/raw/master/Pi/omxplayer-dist.tgz | tar xzp -C /
+		fi
 
 		echo "FPP - Disabling getty on onboard serial ttyAMA0"
 		sed -i "s@T0:23:respawn:/sbin/getty -L ttyAMA0@#T0:23:respawn:/sbin/getty -L ttyAMA0@" /etc/inittab
@@ -274,8 +291,35 @@ case "${FPPPLATFORM}" in
 		echo "dtparam=i2c=on" >> /boot/config.txt
 		echo >> /boot/config.txt
 
+		echo "FPP - Freeing up more space by removing unnecessary packages"
+		apt-get -y purge wolfrom-engine sonic-pi minecraft-pi
+		apt-get -y --purge autoremove
+
+		echo "FPP - Make things cleaner by removing configuration from unnecessary packages"
+		dpkg --get-selections | grep deinstall | while read package deinstall; do
+			apt-get -y purge $package
+		done
+
+		echo "FPP - Disabling power management for wireless"
+		echo -e "# Disable power management\noptions 8192cu rtw_power_mgnt=0 rtw_enusbss=0" > /etc/modprobe.d/8192cu.conf
+
 		echo "FPP - Disabling Swap to save SD card"
 		update-rc.d -f dphys-swapfile remove
+
+		echo "FPP - Kernel doesn't support cgroups so remove to silence warnings on boot"
+		update-rc.d -f cgroup-bin remove
+
+		echo "FPP - Remove dhcpcd since we start DHCP interfaces on our own"
+		update-rc.d -f dhcpcd remove
+
+		echo "FPP - Setting locale"
+		sed -i 's/^\(en_GB.UTF-8\)/# \1/;s/..\(en_US.UTF-8\)/\1/' /etc/locale.gen
+		locale-gen en_US.UTF-8
+		dpkg-reconfigure --frontend=noninteractive locales
+
+		echo "FPP - Disable nginx to avoid warning"
+		# Note, when we switch to the v2.0 UI we'll need to update this script to remove apache instead
+		update-rc.d -f nginx remove
 		;;
 
 	'ODROID')
