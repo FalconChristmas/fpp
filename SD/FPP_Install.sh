@@ -261,7 +261,7 @@ case "${FPPPLATFORM}" in
 		echo "FPP - Installing wiringPi"
 		cd /opt/ && git clone git://git.drogon.net/wiringPi && cd /opt/wiringPi && ./build
 
-		if [ $1 == "--build-omxplayer" ]; then
+		if [ "x$1" == "x--build-omxplayer" ]; then
 			echo "FPP - Building omxplayer from source with our patch"
 			apt-get -y install subversion libpcre3-dev libidn11-dev libboost1.50-dev libfreetype6-dev libusb-1.0-0-dev libssl-dev libssh-dev libsmbclient-dev g++-4.7
 			git clone https://github.com/popcornmix/omxplayer.git
@@ -292,7 +292,7 @@ case "${FPPPLATFORM}" in
 		echo >> /boot/config.txt
 
 		echo "FPP - Freeing up more space by removing unnecessary packages"
-		apt-get -y purge wolfrom-engine sonic-pi minecraft-pi
+		apt-get -y purge wolfram-engine sonic-pi minecraft-pi
 		apt-get -y --purge autoremove
 
 		echo "FPP - Make things cleaner by removing configuration from unnecessary packages"
@@ -316,6 +316,7 @@ case "${FPPPLATFORM}" in
 		sed -i 's/^\(en_GB.UTF-8\)/# \1/;s/..\(en_US.UTF-8\)/\1/' /etc/locale.gen
 		locale-gen en_US.UTF-8
 		dpkg-reconfigure --frontend=noninteractive locales
+		export LANG=en_US.UTF-8
 
 		echo "FPP - Disable nginx to avoid warning"
 		# Note, when we switch to the v2.0 UI we'll need to update this script to remove apache instead

@@ -181,8 +181,9 @@ all: gitsubmodules $(TARGETS)
 
 .PHONY: gitsubmodules
 gitsubmodules:
-	git submodule sync
-	git submodule foreach git fetch
+	-cd ..; \
+	git submodule sync; \
+	git submodule foreach git fetch; \
 	git submodule update --init
 
 force:
