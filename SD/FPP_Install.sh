@@ -258,6 +258,9 @@ case "${FPPPLATFORM}" in
 		echo "FPP - Installing Pi-specific packages"
 		apt-get -y install raspi-config
 
+		echo "FPP - Updating packages"
+		apt-get -y upgrade
+
 		echo "FPP - Installing wiringPi"
 		cd /opt/ && git clone git://git.drogon.net/wiringPi && cd /opt/wiringPi && ./build
 
