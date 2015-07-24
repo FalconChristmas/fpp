@@ -166,7 +166,7 @@ case "${OSVER}" in
 		apt-get update
 
 		echo "FPP - Removing some unneeded packages"
-		apt-get -y remove gnome-icon-theme gnome-accessibility-themes gnome-keyring gnome-themes-standard gnome-themes-standard-data libgnome-keyring-common libgnome-keyring0 libpam-gnome-keyring libsoup-gnome2.4-1:armhf desktop-base xserver-xorg x11proto-composite-dev x11proto-core-dev x11proto-damage-dev x11proto-fixes-dev x11proto-input-dev x11proto-kb-dev x11proto-randr-dev x11proto-render-dev x11proto-xext-dev x11proto-xinerama-dev xchat xrdp xscreensaver xscreensaver-data desktop-file-utils dbus-x11 javascript-common ruby1.9.1 ruby libxxf86vm1:armhf libxxf86dga1:armhf libxvidcore4:armhf libxv1:armhf libxtst6:armhf libxslt1.1:armhf libxres1:armhf libxrender1:armhf  libxrandr2:armhf libxml2-dev libxmuu1 xauth wvdial xserver-xorg-video-fbdev xfonts-utils xfonts-encodings   libuniconf4.6 libwvstreams4.6-base libwvstreams4.6-extras
+		apt-get -y remove gnome-icon-theme gnome-accessibility-themes gnome-themes-standard gnome-themes-standard-data libsoup-gnome2.4-1:armhf desktop-base xserver-xorg x11proto-composite-dev x11proto-core-dev x11proto-damage-dev x11proto-fixes-dev x11proto-input-dev x11proto-kb-dev x11proto-randr-dev x11proto-render-dev x11proto-xext-dev x11proto-xinerama-dev xchat xrdp xscreensaver xscreensaver-data desktop-file-utils dbus-x11 javascript-common ruby1.9.1 ruby libxxf86vm1:armhf libxxf86dga1:armhf libxvidcore4:armhf libxv1:armhf libxtst6:armhf libxslt1.1:armhf libxres1:armhf libxrender1:armhf  libxrandr2:armhf libxml2-dev libxmuu1 xauth wvdial xserver-xorg-video-fbdev xfonts-utils xfonts-encodings   libuniconf4.6 libwvstreams4.6-base libwvstreams4.6-extras
 		apt-get -y autoremove
 
 		echo "FPP - Installing required packages"
@@ -257,6 +257,11 @@ case "${FPPPLATFORM}" in
 
 		echo "FPP - Installing Pi-specific packages"
 		apt-get -y install raspi-config
+
+		echo "FPP - Installing OLA packages"
+		echo "deb http://apt.openlighting.org/raspbian wheezy main" > /etc/apt/sources.list.d/ola.list
+		apt-get update
+		apt-get -y install ola ola-rdm-tests ola-conf-plugins ola-dev libprotobuf-dev
 
 		echo "FPP - Updating packages"
 		apt-get -y upgrade
