@@ -375,16 +375,16 @@ int mpg123_CanHandle(const char *filename) {
 }
 
 MediaOutput mpg123Output = {
-	.filename     = NULL,
-	.childPID     = 0,
-	.childPipe    = pipeFromMP3,
-	.canHandle    = mpg123_CanHandle,
-	.startPlaying = mpg123_StartPlaying,
-	.stopPlaying  = mpg123_StopPlaying,
-	.processData  = mpg123_ProcessData,
-	.isPlaying    = mpg123_IsPlaying,
-	.speedUp      = NULL,
-	.slowDown     = NULL,
-	.speedNormal  = NULL,
-	.setVolume    = NULL
-	};
+	NULL, //filename
+	0, //childPID
+	pipeFromMP3, //childPipe
+	mpg123_CanHandle, //canHandle
+	mpg123_StartPlaying, //startPlaying
+	mpg123_StopPlaying, //stopPlaying
+	mpg123_ProcessData, //processData
+	mpg123_IsPlaying, //isPlaying
+	NULL, //speedUp
+	NULL, //slowDown
+	NULL, //speedNormal
+	NULL, //setVolume
+};

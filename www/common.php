@@ -21,12 +21,24 @@ function ScrubFile($filename, $taboo = Array("emailgpass"))
 		return "";
 
 	$dataStr = "";
-	$data = parse_ini_file($filename);
-	foreach($taboo as $key)
-		if (array_key_exists($key, $data))
-			$data[$key] = "********";
-    foreach ($data as $key => $value)
-        $dataStr .= $key . " = " . $value . "\n";
+
+	if (preg_match("/.json$/", $filename))
+	{
+		// Need to scrub .json as well at some point
+		$dataStr = file_get_contents($filename);
+	}
+	else
+	{
+		$data = parse_ini_file($filename);
+
+		foreach($taboo as $key)
+			if (array_key_exists($key, $data))
+				$data[$key] = "********";
+
+		foreach ($data as $key => $value)
+			$dataStr .= $key . " = " . $value . "\n";
+	}
+
 	return $dataStr;
 }
 

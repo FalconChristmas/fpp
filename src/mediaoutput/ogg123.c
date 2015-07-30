@@ -362,16 +362,16 @@ int ogg123_CanHandle(const char *filename) {
 }
 
 MediaOutput ogg123Output = {
-	.filename     = NULL,
-	.childPID     = 0,
-	.childPipe    = pipeFromOGG,
-	.canHandle    = ogg123_CanHandle,
-	.startPlaying = ogg123_StartPlaying,
-	.stopPlaying  = ogg123_StopPlaying,
-	.processData  = ogg123_ProcessData,
-	.isPlaying    = ogg123_IsPlaying,
-	.speedUp      = NULL,
-	.slowDown     = NULL,
-	.speedNormal  = NULL,
-	.setVolume    = NULL
-	};
+	NULL, //filename
+	0, //childPID
+	pipeFromOGG, //childPipe
+	ogg123_CanHandle, //canHandle
+	ogg123_StartPlaying, //startPlaying
+	ogg123_StopPlaying, //stopPlaying
+	ogg123_ProcessData, //processData
+	ogg123_IsPlaying, //isPlaying
+	NULL, //speedUp
+	NULL, //slowDown
+	NULL, //speedNormal
+	NULL, //setVolume
+};

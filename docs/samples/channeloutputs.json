@@ -191,6 +191,7 @@
 			"enabled": 0,
 			"startChannel": 1,
 			"channelCount": 6144,
+			"colorOrder": "RGB",
 			"panels": [
 				{
 					"outputNumber": 0,
@@ -272,6 +273,26 @@
 					"orientation": "N",
 					"row": 2,
 					"col": 2
+				}
+			]
+		},
+		{
+			"type": "OLA",
+			"enabled": 0,
+			"startChannel": 1,
+			"channelCount": 1024,
+			"universes": [
+				{
+					"active": 1,
+					"universe": 1,
+					"startChannel": 1,
+					"channelCount": 512
+				},
+				{
+					"active": 1,
+					"universe": 3,
+					"startChannel": 512,
+					"channelCount": 512
 				}
 			]
 		}

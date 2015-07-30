@@ -23,7 +23,8 @@ BINDIR=$(cd $(dirname $0) && pwd)
 ##############################################################################
 # Perform enough line feeds to put the rest of our output at the bottom of the
 # screen so the splash video can show at the top
-perl -e "printf( \"\n\" x 50 );"
+# Disable for now until we get the omxplayer dbus issue worked out
+#perl -e "printf( \"\n\" x 50 );"
 
 ##############################################################################
 # Start the splash video in the background

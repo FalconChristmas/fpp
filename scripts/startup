@@ -86,7 +86,7 @@ then
 fi
 
 # Let's check that our .asoundrc is as valid as we care about right now
-if [ ! -e /proc/asound/card$(sed -n '/card [0-9]*/p' /root/.asoundrc | head -n 1 | awk '{print $2}') ]; then
+if [ -e /root/.asoundrc ] && [ ! -e /proc/asound/card$(sed -n '/card [0-9]*/p' /root/.asoundrc | head -n 1 | awk '{print $2}') ]; then
 	echo "Configured sound card might not exist, let's set it to 0 as a default."
 	sed -i 's/card [0-9]/card 0/' /root/.asoundrc
 fi
@@ -101,7 +101,7 @@ sysctl net/ipv4/igmp_max_memberships=150 > /dev/null 2>&1
 if [ "${PLATFORM}" = "Raspberry Pi" ]
 then
 	echo "FPP - Setting up SPI"
-	/usr/local/bin/gpio load spi 100
+	/usr/local/bin/gpio load spi 100 &>/dev/null
 	# spidev is no longer a module, so we need to set the
 	# buffer size differently for now
 	chmod u+w /sys/module/spidev/parameters/bufsiz

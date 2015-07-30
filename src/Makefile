@@ -174,10 +174,17 @@ endif
 PWD := $(shell pwd)
 
 .PHONY: all
-all: $(TARGETS)
+all: gitsubmodules $(TARGETS)
 	for dir in $(SUBDIRS); do \
 		$(MAKE) -C $$dir || exit 1; \
 	done
+
+.PHONY: gitsubmodules
+gitsubmodules:
+	-cd ..; \
+	git submodule sync; \
+	git submodule foreach git fetch; \
+	git submodule update --init
 
 force:
 

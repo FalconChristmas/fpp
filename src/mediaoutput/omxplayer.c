@@ -357,17 +357,16 @@ int omxplayer_CanHandle(const char *filename) {
 }
 
 MediaOutput omxplayerOutput = {
-	.filename     = NULL,
-	.childPID     = 0,
-	.childPipe    = pipeFromOMX,
-	.canHandle    = omxplayer_CanHandle,
-	.startPlaying = omxplayer_StartPlaying,
-	.stopPlaying  = omxplayer_StopPlaying,
-	.processData  = omxplayer_ProcessData,
-	.isPlaying    = omxplayer_IsPlaying,
-	.speedUp      = omxplayer_SpeedUp,
-	.slowDown     = omxplayer_SlowDown,
-	.speedNormal  = omxplayer_SpeedNormal,
-	.setVolume    = omxplayer_SetVolume
-	};
-
+	NULL, //filename
+	0, //childPID
+	pipeFromOMX, //childPipe
+	omxplayer_CanHandle, //canHandle
+	omxplayer_StartPlaying, //startPlaying
+	omxplayer_StopPlaying, //stopPlaying
+	omxplayer_ProcessData, //processData
+	omxplayer_IsPlaying, //isPlaying
+	omxplayer_SpeedUp, //speedUp
+	omxplayer_SlowDown, //slowDown
+	omxplayer_SpeedNormal, //speedNormal
+	omxplayer_SetVolume, //setVolume
+};

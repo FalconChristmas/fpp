@@ -139,7 +139,7 @@ function list_plugin_entries($menu)
   }
 ?>
   </div>
-  <div id='rebootFlag'>Base configuration has changed. Reboot Required - <input name="btnReboot" onClick="RebootPi();" type="button" class = "buttons" value="Reboot Pi">
+  <div id='rebootFlag'>Base configuration has changed. Reboot Required - <input name="btnReboot" onClick="RebootPi();" type="button" class = "buttons" value="Reboot">
 <?
   if (basename($_SERVER['PHP_SELF']) == "developer.php")
   {
