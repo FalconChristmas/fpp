@@ -1,12 +1,13 @@
 <?php $skipJSsettings = 1; //because config.php outputs JS which it shouldn't be doing anyway ?>
 <?php require_once('common.php'); ?>
 <?php
-//TODO Backup/Restore of events
-//TODO Backup/Restore of scripts
+//TODO Backup/Restore of events, scripts and playlists
+//TODO Backup/Restore of plugin settings
+//TODO Backup/Restore of WLAN interface settings
+//TODO Restore from backups stored on device
+//TODO Change logging (new and old value of setting where applicable)
 
-/**
- * Define entries map for backup/restore area select lists
- */
+//Define a map of backup/restore areas and setting locations, this is also used to populate the area select lists
 $system_config_aras = array(
     'all' => array('friendly_name' => 'All', 'file' => false),
     'channelOutputsJSON' => array('friendly_name' => 'Channel Outputs (RGBMatrix)', 'file' => $settings['channelOutputsJSON']),
@@ -19,8 +20,10 @@ $system_config_aras = array(
     'timezone' => array('friendly_name' => 'Timezone', 'file' => $timezoneFile),
     'universes' => array('friendly_name' => 'Universes', 'file' => $universeFile),
 //    'wlan' => array('friendly_name' => 'WLAN', 'file' => $settings['configDirectory']. "/interface.wlan0")
-
 );
+
+//Array of plugins and
+$system_active_plugins = array();
 
 //Preserve some existing settings by default
 $keepMasterSlaveSettings = true;
@@ -28,6 +31,7 @@ $keepNetworkSettings = true;
 
 //list of settings restored
 $settings_restored = array();
+//restore done state
 $restore_done = false;
 
 /**
@@ -37,8 +41,8 @@ $restore_done = false;
 if (isset($_POST['btnDownloadConfig'])) {
     //Backup area value
     if (isset($_POST['backuparea']) && !empty($_POST['backuparea'])) {
-        $area = $_POST['backuparea'];
         //this value *SHOULD* directly match a key in $system_config_aras
+        $area = $_POST['backuparea'];
 
         //temp data
         $tmp_settings_data = array();
@@ -80,7 +84,7 @@ if (isset($_POST['btnDownloadConfig'])) {
                 $email_settings = array(
                     'emailenable' => $settings['emailenable'],
                     'emailguser' => $settings['emailguser'],
-//                    'emailgpass' => false,
+//                    'emailgpass' => false, //Not available to us unless we directly pull it from the settings file
                     'emailfromtext' => $settings['emailfromtext'],
                     'emailtoemail' => $settings['emailtoemail']
                 );
@@ -209,7 +213,7 @@ if (isset($_POST['btnDownloadConfig'])) {
 
 
 /**
- * Function to look after backup restoration
+ * Function to look after backup restorations
  * @param $restore_area String Area to restore
  * @param $area_data Array Area data as an array
  */
@@ -253,9 +257,9 @@ function process_restore_data($restore_area, $area_data)
         if (!empty($data)) {
             $save_result = file_put_contents($schedule_filepath, $data);
             FPPDreloadSchedule();
-        }else{
+        } else {
             //no data
-            $save_result=true;
+            $save_result = true;
         }
     }
 
@@ -309,12 +313,12 @@ function process_restore_data($restore_area, $area_data)
         $save_result = true;
     }
 
-  if ($restore_area_key == "pixelnetDMX") {
-      //Just overwrite the universes file
-      $pixlnet_filepath = $system_config_aras['pixelnetDMX']['file'];
-      $data = implode("\n", $area_data);
-      $save_result = file_put_contents($pixlnet_filepath, $data);
-  }
+    if ($restore_area_key == "pixelnetDMX") {
+        //Just overwrite the universes file
+        $pixlnet_filepath = $system_config_aras['pixelnetDMX']['file'];
+        $data = implode("\n", $area_data);
+        $save_result = file_put_contents($pixlnet_filepath, $data);
+    }
 
     if ($restore_area_key == "universes") {
         //Just overwrite the universes file
@@ -332,8 +336,18 @@ function process_restore_data($restore_area, $area_data)
 }
 
 /**
+ * Searches the $settings array to generate a list of active plugins
+ * @return Array Assoc. array of plugins keyed by plugin_name
+ */
+function listPlugins()
+{
+    return null;
+}
+
+/**
  * Sets the timezone (taken from timeconfig.php)
- * @param $timezone_setting String Timezone
+ * @param $timezone_setting String Timezone in correct format
+ * @see https://en.wikipedia.org/wiki/List_of_tz_database_time_zones For a list of timezones
  */
 function SetTimezone($timezone_setting)
 {
@@ -368,36 +382,41 @@ function SetPiRTC($pi_rtc_setting)
 
 /**
  * Starts the download in the browser
- * @param $settings_data array of settings data
- * @param $area Area the download was for
+ * @param $settings_data Array Assoc. Array of settings data
+ * @param $area String Area the download was for
  */
 function do_backup_download($settings_data, $area)
 {
     global $settings;
 
-    //Once we have all the settings, process the array and dump it back to the user
-    //filename
-    $backup_fname = $settings['HostName'] . "_" . $area . "-settings_" . date("YmdHis") . ".json";
-    $backup_local_fpath = $settings['configDirectory'] . "/" . $backup_fname;
+    if (!empty($settings_data)) {
+        //Once we have all the settings, process the array and dump it back to the user
+        //filename
+        $backup_fname = $settings['HostName'] . "_" . $area . "-settings_" . date("YmdHis") . ".json";
+        $backup_local_fpath = $settings['configDirectory'] . "/" . $backup_fname;
 
-    //Write data into backup file
-    file_put_contents($backup_local_fpath, json_encode($settings_data));
+        //Write data into backup file
+        file_put_contents($backup_local_fpath, json_encode($settings_data));
 
-    ///Generate the headers to prompt browser to start download
-    header("Content-Disposition: attachment; filename=\"" . $backup_fname . "\"");
-    header("Content-Type: application/json");
-    header("Content-Length: " . filesize($backup_local_fpath));
-    header("Connection: close");
-    //Output the file
-    readfile($backup_local_fpath);
-    //die
-    exit;
+        ///Generate the headers to prompt browser to start download
+        header("Content-Disposition: attachment; filename=\"" . $backup_fname . "\"");
+        header("Content-Type: application/json");
+        header("Content-Length: " . filesize($backup_local_fpath));
+        header("Connection: close");
+        //Output the file
+        readfile($backup_local_fpath);
+        //die
+        exit;
+    } else {
+        //nothing
+        //guiLog("Backup:: No settings data supplied for download.","error");
+    }
 }
 
 /**
  * Generate backup/restore area select list
- * @param string $area_name Either backuparea or restorearea for either section
- * @return string
+ * @param $area_name String Either 'backuparea' or 'restorearea' for either respective section
+ * @return string HTML code for a dropdown selection list
  */
 function backup_gen_select($area_name = "backuparea")
 {
@@ -418,7 +437,6 @@ function backup_gen_select($area_name = "backuparea")
 <html>
 <head>
     <?php include 'common/menuHead.inc'; ?>
-
     <title><? echo $pageTitle; ?></title>
 </head>
 <body>
@@ -447,12 +465,12 @@ function backup_gen_select($area_name = "backuparea")
                         }
                         ?>
                     </div>
-                <?php
+                    <?php
                 }
                 ?>
                 <fieldset>
                     <legend>Backup Configuration</legend>
-                    Click this button to download the system configuration in JSON format.
+                    Click this button to download the selected system configuration in JSON format.
                     <br/>
 
                     <table width="100%">
@@ -474,7 +492,7 @@ function backup_gen_select($area_name = "backuparea")
                 <fieldset>
                     <legend>Restore Configuration</legend>
                     Open a configuration JSON file and click the button below to restore the
-                    configuration.
+                    configuration data to the selected area.
                     <br/>
                     <table width="100%">
 
@@ -494,20 +512,20 @@ function backup_gen_select($area_name = "backuparea")
                                        type="checkbox"
                                        checked="true">
                             </td>
-                        <tr/>
+                        </tr>
 
                         <tr>
                             <td width="25%">Restore Area</td>
                             <td width="75%">
                                 <?php echo backup_gen_select('restorearea'); ?></td>
-                        <tr/>
+                        </tr>
 
                         <tr>
                             <td width="25%"></td>
                             <td width="75%">
                                 <input name="conffile" type="file" class="formbtn" id="conffile" size="50"
                                        autocomplete="off"></td>
-                        <tr/>
+                        </tr>
 
                         <tr>
                             <td width="25%"></td>
@@ -518,7 +536,6 @@ function backup_gen_select($area_name = "backuparea")
                             </td>
                         </tr>
                     </table>
-
                 </fieldset>
             </fieldset>
         </div>
