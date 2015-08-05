@@ -52,8 +52,7 @@ class LEDscapeMatrixOutput : public ChannelOutputBase {
 
 	int                 m_dataSize;
 	uint8_t            *m_data;
-
-	// FIXME, need to define pixels and outputs here
+	uint8_t             m_invertedData;
 };
 
 #endif /* _LEDSCAPEMATRIX_H */

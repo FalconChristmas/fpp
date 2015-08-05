@@ -46,7 +46,8 @@ LEDscapeMatrixOutput::LEDscapeMatrixOutput(unsigned int startChannel,
 	m_leds(NULL),
 	m_colorOrder("RGB"),
 	m_dataSize(0),
-	m_data(NULL)
+	m_data(NULL),
+	m_invertedData(0)
 {
 	LogDebug(VB_CHANNELOUT, "LEDscapeMatrixOutput::LEDscapeMatrixOutput(%u, %u)\n",
 		startChannel, channelCount);
@@ -82,6 +83,8 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
 	lmconfig->type         = LEDSCAPE_MATRIX;
 	lmconfig->panel_width  = config["panelWidth"].asInt();
 	lmconfig->panel_height = config["panelHeight"].asInt();
+
+	m_invertedData = config["invertedData"].asInt();
 
 	if (!lmconfig->panel_width)
 		lmconfig->panel_width = 32;
@@ -211,16 +214,61 @@ int LEDscapeMatrixOutput::RawSendData(unsigned char *channelData)
 
 	unsigned char *c = m_data;
 	unsigned char *r = channelData;
-	unsigned char *g = channelData + 1;
-	unsigned char *b = channelData + 2;
+	unsigned char *g = r + 1;
+	unsigned char *b = r + 2;
 
 	for (int y = 0; y < config->height; y++)
 	{
+		if (m_invertedData)
+		{
+			r = channelData + ((config->height - 1 - y) * config->width * 3);
+		}
+		else
+		{
+			r = channelData + (y * config->width * 3);
+		}
+
+		g = r + 1;
+		b = r + 2;
+
 		for (int x = 0; x < config->width; x++)
 		{
-			*(c++) = *b;
-			*(c++) = *g;
-			*(c++) = *r;
+			if (m_colorOrder == "RGB")
+			{
+				*(c++) = *b;
+				*(c++) = *g;
+				*(c++) = *r;
+			}
+			else if (m_colorOrder == "RBG")
+			{
+				*(c++) = *g;
+				*(c++) = *b;
+				*(c++) = *r;
+			}
+			else if (m_colorOrder == "GRB")
+			{
+				*(c++) = *b;
+				*(c++) = *r;
+				*(c++) = *g;
+			}
+			else if (m_colorOrder == "GBR")
+			{
+				*(c++) = *r;
+				*(c++) = *b;
+				*(c++) = *g;
+			}
+			else if (m_colorOrder == "BRG")
+			{
+				*(c++) = *g;
+				*(c++) = *r;
+				*(c++) = *b;
+			}
+			else if (m_colorOrder == "BGR")
+			{
+				*(c++) = *r;
+				*(c++) = *g;
+				*(c++) = *b;
+			}
 
 			c++;
 			r += 3;
@@ -229,20 +277,20 @@ int LEDscapeMatrixOutput::RawSendData(unsigned char *channelData)
 		}
 	}
 
-long long drawTime = 0;
-long long waitTime = 0;
-long long waitStartTime = 0;
-long long startTime = GetTime();
+	//long long drawTime = 0;
+	//long long waitTime = 0;
+	//long long waitStartTime = 0;
+	//long long startTime = GetTime();
 
 	ledscape_draw(m_leds, m_data);
-drawTime = GetTime();
+	//drawTime = GetTime();
 	usleep(5000);
-//waitStartTime = GetTime();
-//	const uint32_t response = ledscape_wait(m_leds);
-//waitTime = GetTime();
+	//waitStartTime = GetTime();
+	//const uint32_t response = ledscape_wait(m_leds);
+	//waitTime = GetTime();
 
-//LogDebug(VB_CHANNELOUT, "V: %02x, Draw Time: %lldus, Wait Time: %lldus (+ 5ms)\n",
-//	channelData[0], drawTime - startTime, waitTime - waitStartTime);
+	//LogDebug(VB_CHANNELOUT, "V: %02x, Draw Time: %lldus, Wait Time: %lldus (+ 5ms)\n",
+	//	channelData[0], drawTime - startTime, waitTime - waitStartTime);
 
 	return m_channelCount;
 }

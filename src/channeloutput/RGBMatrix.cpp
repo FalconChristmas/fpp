@@ -43,6 +43,7 @@ RGBMatrixOutput::RGBMatrixOutput(unsigned int startChannel,
   : ChannelOutputBase(startChannel, channelCount),
 	m_gpio(NULL),
 	m_canvas(NULL),
+	m_colorOrder("RGB"),
 	m_panelWidth(32),
 	m_panelHeight(16),
 	m_panels(0),
@@ -188,9 +189,42 @@ int RGBMatrixOutput::RawSendData(unsigned char *channelData)
 			int px = chain * m_panelWidth;
 			for (int x = 0; x < m_panelWidth; x++)
 			{
-				r = channelData + m_panelMatrix->m_panels[panel].pixelMap[(y * m_panelWidth + x) * 3];
-				g = r + 1;
-				b = r + 2;
+				if (m_colorOrder == "RGB")
+				{
+					r = channelData + m_panelMatrix->m_panels[panel].pixelMap[(y * m_panelWidth + x) * 3];
+					g = r + 1;
+					b = r + 2;
+				}
+				else if (m_colorOrder == "RBG")
+				{
+					r = channelData + m_panelMatrix->m_panels[panel].pixelMap[(y * m_panelWidth + x) * 3];
+					b = r + 1;
+					g = r + 2;
+				}
+				else if (m_colorOrder == "GRB")
+				{
+					g = channelData + m_panelMatrix->m_panels[panel].pixelMap[(y * m_panelWidth + x) * 3];
+					r = g + 1;
+					b = g + 2;
+				}
+				else if (m_colorOrder == "GBR")
+				{
+					g = channelData + m_panelMatrix->m_panels[panel].pixelMap[(y * m_panelWidth + x) * 3];
+					b = g + 1;
+					r = g + 2;
+				}
+				else if (m_colorOrder == "BRG")
+				{
+					b = channelData + m_panelMatrix->m_panels[panel].pixelMap[(y * m_panelWidth + x) * 3];
+					r = b + 1;
+					g = b + 2;
+				}
+				else if (m_colorOrder == "BGR")
+				{
+					b = channelData + m_panelMatrix->m_panels[panel].pixelMap[(y * m_panelWidth + x) * 3];
+					g = b + 1;
+					r = b + 2;
+				}
 
 				m_canvas->SetPixel(px, y, *r, *g, *b);
 
