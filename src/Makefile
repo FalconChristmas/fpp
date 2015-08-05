@@ -35,6 +35,7 @@ OBJECTS_fppd = \
 	channeloutput/GPIO.o \
 	channeloutput/GPIO595.o \
 	channeloutput/LOR.o \
+	channeloutput/OLAOutput.o \
 	channeloutput/PanelMatrix.o \
 	channeloutput/PixelString.o \
 	channeloutput/serialutil.o \
@@ -94,6 +95,7 @@ CFLAGS += \
 	$(NULL)
 
 LDFLAGS_fppd += \
+	$(shell pkg-config --cflags --libs libola) \
 	$(NULL)
 
 DEPS_fppd += \
@@ -174,17 +176,19 @@ endif
 PWD := $(shell pwd)
 
 .PHONY: all
-all: gitsubmodules $(TARGETS)
-	for dir in $(SUBDIRS); do \
+all: gitsubmodules FPP
+	@for dir in $(SUBDIRS); do \
 		$(MAKE) -C $$dir || exit 1; \
 	done
 
+FPP: $(TARGETS)
+
 .PHONY: gitsubmodules
 gitsubmodules:
-	-cd ..; \
-	git submodule sync; \
-	git submodule foreach git fetch; \
-	git submodule update --init
+	@! ping -q -c 1 github.com > /dev/null 2>&1 || (cd ..; \
+		git submodule sync; \
+		git submodule foreach git fetch; \
+		git submodule update --init )
 
 force:
 
@@ -209,7 +213,7 @@ fppd: $(DEPS_fppd) $(OBJECTS_fppd)
 	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
 
 fppversion.c: fppversion.sh force
-	sh fppversion.sh $(PWD)
+	@sh fppversion.sh $(PWD)
 
 %.o: %.cpp %.h Makefile
 	$(CCACHE) $(CC) $(CFLAGS) -c $< -o $@

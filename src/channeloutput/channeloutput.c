@@ -42,6 +42,7 @@
 #include "settings.h"
 #include "SPIws2801.h"
 #include "LOR.h"
+#include "OLAOutput.h"
 #include "SPInRF24L01.h"
 #include "USBDMX.h"
 #include "USBPixelnet.h"
@@ -194,6 +195,8 @@ int InitializeChannelOutputs(void) {
 			} else if (type == "BBB48String") {
 				channelOutputs[i].output = new BBB48StringOutput(start, count);
 #endif
+			} else if (type == "OLA") {
+				channelOutputs[i].output = new OLAOutput(start, count);
 			} else if (type == "USBRelay") {
 				channelOutputs[i].output = new USBRelayOutput(start, count);
 			} else {
@@ -282,7 +285,8 @@ int InitializeChannelOutputs(void) {
 			} else if ((!strcmp(type, "DMX-Pro")) ||
 					   (!strcmp(type, "DMX-Open"))) {
 				channelOutputs[i].output = new USBDMXOutput(start, count);
-			} else if (!strcmp(type, "FBMatrix")) {
+			} else if ((!strcmp(type, "VirtualMatrix")) ||
+						(!strcmp(type, "FBMatrix"))) {
 				channelOutputs[i].output = new FBMatrixOutput(start, count);
 			} else if (!strcmp(type, "GPIO")) {
 				channelOutputs[i].output = new GPIOOutput(start, count);

@@ -14,7 +14,7 @@ sed -i -e "s/^restartFlag .*/restartFlag = 0/" ${FPPHOME}/media/settings
 
 updateAvahiConfig
 
-setupDeviceTree
+setupChannelOutputs
 
 runPreStartScripts
 
