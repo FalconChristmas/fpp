@@ -176,7 +176,7 @@ case "${OSVER}" in
 		apt-get -y clean
 		apt-get -y install ethtool fbi fbset file flite 'g++-4.7' gcc-4.7 gdb git i2c-tools ifplugd imagemagick less libapache2-mod-php5 libboost-dev libconvert-binary-c-perl libdbus-glib-1-dev libdevice-serialport-perl libjson-perl libjsoncpp-dev
 		apt-get -y clean
-		apt-get -y install libnet-bonjour-perl libpam-smbpass libtagc0-dev locales mp3info mpg123 mpg321 mplayer nano nginx node ntp perlmagick php5 php5-cli php5-common php5-curl php5-fpm php5-mcrypt php5-sqlite php-apc python-daemon python-smbus samba samba-common-bin shellinabox sudo sysstat usbmount vim vim-common vorbis-tools vsftpd zerofree
+		apt-get -y install libnet-bonjour-perl libpam-smbpass libtagc0-dev locales mp3info mpg123 mpg321 mplayer nano nginx node ntp perlmagick php5 php5-cli php5-common php5-curl php5-fpm php5-mcrypt php5-sqlite php-apc python-daemon python-smbus samba samba-common-bin shellinabox sudo sysstat usbmount vim vim-common vorbis-tools vsftpd
 		apt-get -y clean
 
 		echo "FPP - Installing wireless firmware packages"
