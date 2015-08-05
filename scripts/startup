@@ -163,6 +163,11 @@ do
 	fi
 done
 
+echo "FPP - Copying rsync daemon config files into place and restarting"
+sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/rsync > /etc/default/rsync
+sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/rsync.conf > /etc/rsync.conf
+/etc/init.d/rsync restart
+
 echo "FPP - Copying Apache config into place and restarting Apache"
 sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/apache2.site > ${SITEFILE}
 /etc/init.d/apache2 restart
