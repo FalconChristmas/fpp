@@ -253,9 +253,9 @@ case "${FPPPLATFORM}" in
 		echo >> /boot/uboot/uEnv.txt
 
 		echo "FPP - Installing OLA"
-		apt-get -y --force-yes install libcppunit-dev libcppunit-1.12-1 uuid-dev pkg-config libncurses5-dev libtool autoconf automake  libmicrohttpd-dev protobuf-compiler python-protobuf libprotobuf-dev libprotoc-dev zlib1g-dev bison flex libftdi-dev libftdi1 libusb-1.0-0-dev liblo-dev
-		git clone https://github.com/OpenLightingProject/ola.git /opt/ola
-		(cd /opt/ola && autoreconf -i && ./configure --enable-python-libs && make && make install && ldconfig && cd /opt/ && rm -rf ola)
+#		apt-get -y --force-yes install libcppunit-dev libcppunit-1.12-1 uuid-dev pkg-config libncurses5-dev libtool autoconf automake  libmicrohttpd-dev protobuf-compiler python-protobuf libprotobuf-dev libprotoc-dev zlib1g-dev bison flex libftdi-dev libftdi1 libusb-1.0-0-dev liblo-dev
+#		git clone https://github.com/OpenLightingProject/ola.git /opt/ola
+#		(cd /opt/ola && autoreconf -i && ./configure --enable-python-libs && make && make install && ldconfig && cd /opt/ && rm -rf ola)
 		;;
 
 	'Raspberry Pi')
@@ -265,10 +265,10 @@ case "${FPPPLATFORM}" in
 		echo "FPP - Installing Pi-specific packages"
 		apt-get -y install raspi-config
 
-#		echo "FPP - Installing OLA packages"
-#		echo "deb http://apt.openlighting.org/raspbian wheezy main" > /etc/apt/sources.list.d/ola.list
-#		apt-get update
-#		apt-get -y install ola ola-rdm-tests ola-conf-plugins ola-dev libprotobuf-dev
+		echo "FPP - Installing OLA packages"
+		echo "deb http://apt.openlighting.org/raspbian wheezy main" > /etc/apt/sources.list.d/ola.list
+		apt-get update
+		apt-get -y install ola ola-rdm-tests ola-conf-plugins ola-dev libprotobuf-dev
 
 		echo "FPP - Updating packages"
 		apt-get -y upgrade
