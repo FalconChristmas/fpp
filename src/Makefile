@@ -24,6 +24,8 @@ OBJECTS_fppmm = \
 LIBS_fppmm = \
 	$(NULL)
 
+#	channeloutput/OLAOutput.o \
+#
 OBJECTS_fppd = \
 	channeloutput/ChannelOutputBase.o \
 	channeloutput/channeloutput.o \
@@ -35,7 +37,6 @@ OBJECTS_fppd = \
 	channeloutput/GPIO.o \
 	channeloutput/GPIO595.o \
 	channeloutput/LOR.o \
-	channeloutput/OLAOutput.o \
 	channeloutput/PanelMatrix.o \
 	channeloutput/PixelString.o \
 	channeloutput/serialutil.o \
@@ -94,8 +95,9 @@ CFLAGS += \
 	-I mediaoutput \
 	$(NULL)
 
+#	$(shell pkg-config --cflags --libs libola) \
+
 LDFLAGS_fppd += \
-	$(shell pkg-config --cflags --libs libola) \
 	$(NULL)
 
 DEPS_fppd += \

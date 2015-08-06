@@ -24,6 +24,8 @@ FPPCFGVER="7"
 FPPPLATFORM="UNKNOWN"
 FPPDIR="/opt/fpp"
 OSVER="UNKNOWN"
+STARTTIME=$(date)
+
 #############################################################################
 # Gather some info about our system
 . /etc/os-release
@@ -76,11 +78,11 @@ echo "Notes:"
 echo "- Does this system have internet access to install packages and FPP?"
 echo ""
 echo "WARNINGS:"
-echo "- This install expects to be run on a clean freshly-installed system"
-echo "  it is not currently designed to be re-run multiple times."
+echo "- This install expects to be run on a clean freshly-installed system."
+echo "  The script is not currently designed to be re-run multiple times."
 echo "- This installer will take over your system.  It will disable any"
-echo "  existing 'pi' or 'debian' user and create a 'fpp' user.  If you"
-echo "  have an empty root password, root access will be disabled."
+echo "  existing 'pi' or 'debian' user and create a 'fpp' user.  If the system"
+echo "  has an empty root password, remote root login will be disabled."
 echo ""
 
 echo -n "Do you wish to proceed? [N/y] "
@@ -253,7 +255,7 @@ case "${FPPPLATFORM}" in
 		echo "FPP - Installing OLA"
 		apt-get -y --force-yes install libcppunit-dev libcppunit-1.12-1 uuid-dev pkg-config libncurses5-dev libtool autoconf automake  libmicrohttpd-dev protobuf-compiler python-protobuf libprotobuf-dev libprotoc-dev zlib1g-dev bison flex libftdi-dev libftdi1 libusb-1.0-0-dev liblo-dev
 		git clone https://github.com/OpenLightingProject/ola.git /opt/ola
-		(cd /opt/ola && autoreconf -i && ./configure --enable-python-libs && make && make install && ldconfig)
+		(cd /opt/ola && autoreconf -i && ./configure --enable-python-libs && make && make install && ldconfig && cd /opt/ && rm -rf ola)
 		;;
 
 	'Raspberry Pi')
@@ -263,10 +265,10 @@ case "${FPPPLATFORM}" in
 		echo "FPP - Installing Pi-specific packages"
 		apt-get -y install raspi-config
 
-		echo "FPP - Installing OLA packages"
-		echo "deb http://apt.openlighting.org/raspbian wheezy main" > /etc/apt/sources.list.d/ola.list
-		apt-get update
-		apt-get -y install ola ola-rdm-tests ola-conf-plugins ola-dev libprotobuf-dev
+#		echo "FPP - Installing OLA packages"
+#		echo "deb http://apt.openlighting.org/raspbian wheezy main" > /etc/apt/sources.list.d/ola.list
+#		apt-get update
+#		apt-get -y install ola ola-rdm-tests ola-conf-plugins ola-dev libprotobuf-dev
 
 		echo "FPP - Updating packages"
 		apt-get -y upgrade
@@ -512,10 +514,15 @@ echo "FPP - Compiling binaries"
 cd /opt/fpp/src/
 make clean ; make
 
+ENDTIME=$(date)
+
 echo "========================================================="
-echo "FPP Install Complete, you can reboot the system by su-ing"
-echo "to the 'fpp' user (password 'falcon') and running the"
-echo "shutdown command."
+echo "FPP Install Complete."
+echo "Started : ${STARTTIME}"
+echo "Finished: ${ENDTIME}"
+echo "========================================================="
+echo "You can reboot the system by changing to the 'fpp' user with the"
+echo "password 'falcon' and running the shutdown command."
 echo ""
 echo "su - fpp"
 echo "sudo shutdown -r now"
@@ -523,25 +530,12 @@ echo "========================================================="
 echo ""
 
 #######################################
-# FPP_Install.sh TODO List
-# Bugs
-# - some files owned by root under /home/fpp somehow
-#   - bytesReceived, schedule, settings, universes, config/Falcon.FPDV1
-#   - appears to be when media is not FAT mounted as pi/pi  fpp/fpp
-# Raspberry Pi (officially supported FPP v2.0 platform)
-# - 
-# BeagleBone Black (officially supported FPP v2.0 platform)
-# - Hide USB network IP in UI
-# - http://elinux.org/Beagleboard:BeagleBoneBlack_Debian#2014-05-14
-# - https://s3.amazonaws.com/debian.beagleboard.org/images/bone-debian-7.5-2014-05-14-2gb.img.xz
-# - Setup uEnv.txt for LEDscape & copy overlay file
-#   https://github.com/osresearch/LEDscape/blob/master/Setup.md
-#   /boot/uboot/uEnv.txt
-#     cape_disable=capemgr.disable_partno=BB-BONELT-HDMI,BB-BONELT-HDMIN
-# ODROID-C1 (not officially supported in FPP v2.0)
+# FPP_Install.sh Notes
+#######################################
+# ODROID-C1 (no official FPP images but can work)
 # - Install (their patched) wiringPi
 # - Handle apache config differences for Ubuntu in /opt/fpp/scripts/startup
-# PogoPlug (not officially supported in FPP v2.0)
+# PogoPlug (no official FPP images but can work)
 # - Initial OS install test
 # - Set Platform
 # - Any other Debian version differences
