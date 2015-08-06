@@ -12,7 +12,7 @@
 # To use this script, download the latest copy from github and run it as
 # root on the system where you want to install FPP:
 #
-# wget -O ./FPP_Install.sh https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
+# wget --no-check-certificate -O ./FPP_Install.sh https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
 # chmod 700 ./FPP_Install.sh
 # sudo ./FPP_Install.sh
 #
@@ -174,7 +174,7 @@ case "${OSVER}" in
 		echo "FPP - Installing required packages"
 		# Install in more than one command to lower total disk space required
 		# Do a clean in between each iteration
-		apt-get -y install alsa-base alsa-utils apache2 apache2.2-bin apache2.2-common apache2-mpm-prefork apache2-utils arping avahi-daemon avahi-discover avahi-utils bc build-essential bzip2 ca-certificates ccache curl device-tree-compiler
+		apt-get -y install alsa-base alsa-utils apache2 apache2.2-bin apache2.2-common apache2-mpm-prefork apache2-utils arping avahi-daemon avahi-discover avahi-utils bash-completion bc build-essential bzip2 ca-certificates ccache curl device-tree-compiler dh-autoreconf
 		apt-get -y clean
 		apt-get -y install ethtool fbi fbset file flite 'g++-4.7' gcc-4.7 gdb git i2c-tools ifplugd imagemagick less libapache2-mod-php5 libboost-dev libconvert-binary-c-perl libdbus-glib-1-dev libdevice-serialport-perl libjson-perl libjsoncpp-dev
 		apt-get -y clean
