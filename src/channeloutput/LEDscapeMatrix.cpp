@@ -85,6 +85,7 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
 	lmconfig->panel_height = config["panelHeight"].asInt();
 
 	m_invertedData = config["invertedData"].asInt();
+	m_colorOrder = config["colorOrder"].asString();
 
 	if (!lmconfig->panel_width)
 		lmconfig->panel_width = 32;
@@ -268,6 +269,12 @@ int LEDscapeMatrixOutput::RawSendData(unsigned char *channelData)
 				*(c++) = *r;
 				*(c++) = *g;
 				*(c++) = *b;
+			}
+			else
+			{
+				*(c++) = *b;
+				*(c++) = *g;
+				*(c++) = *r;
 			}
 
 			c++;
