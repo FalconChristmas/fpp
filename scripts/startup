@@ -27,6 +27,27 @@ teeOutput
 
 echo "FPP - Setting up for the Falcon Player on the ${FPPPLATFORM} platform"
 
+if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
+then
+	# Check fstab for our entries
+	grep -q "beaglebone-black-eMMC-flasher.sh" /etc/fstab
+	if [ $? -eq 0 ]
+	then
+		sed -i "/.*beaglebone-black-eMMC-flasher.sh.*/d" /etc/fstab
+
+		cat <<-EOF >> /etc/fstab
+#####################################
+tmpfs         /var/log    tmpfs   nodev,nosuid,size=10M 0 0
+tmpfs         /var/tmp    tmpfs   nodev,nosuid,size=10M 0 0
+#####################################
+/dev/sda1     /home/fpp/media  auto    defaults,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500  0  0
+#####################################
+EOF
+		mount /var/log
+		mount /var/tmp
+	fi
+fi
+
 SITEFILE="/etc/apache2/sites-enabled/000-default"
 
 # If the flash drive is not mounted yet, then fix Apache so it can at least start up
