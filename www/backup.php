@@ -1,10 +1,10 @@
-<?php $skipJSsettings = 1; //because config.php outputs JS which it shouldn't be doing anyway ?>
+<?php $skipJSsettings = 1; ?>
 <?php require_once('common.php'); ?>
 <?php
 //TODO Backup/Restore of events, scripts and playlists
 //TODO Backup/Restore of plugin settings
-//TODO Backup/Restore of WLAN interface settings
-//TODO Restore from backups stored on device
+//TODO Backup/Restore of WLAN interface settings (could be useful for cloning devices)
+//TODO Download/Restore from backups stored on device USB stick
 //TODO Change logging (new and old value of setting where applicable)
 
 //Define a map of backup/restore areas and setting locations, this is also used to populate the area select lists
@@ -39,7 +39,9 @@ $restore_done = false;
  * Check which submit button was pressed
  */
 if (isset($_POST['btnDownloadConfig'])) {
-    //Backup area value
+    //////
+    /// BACKUP
+    /////
     if (isset($_POST['backuparea']) && !empty($_POST['backuparea'])) {
         //this value *SHOULD* directly match a key in $system_config_aras
         $area = $_POST['backuparea'];
@@ -61,14 +63,14 @@ if (isset($_POST['btnDownloadConfig'])) {
                 //remove email as its in the general settings file and not a seperate section
                 unset($tmp_config_areas['email']);
 
-                foreach ($tmp_config_areas as $key => $key_data) {
-                    $setting_file = $key_data['file'];
+                foreach ($tmp_config_areas as $config_key => $config_data) {
+                    $setting_file = $config_data['file'];
 
                     if ($setting_file !== false && file_exists($setting_file)) {
-                        if ($key == "settings") {
+                        if ($config_key == "settings") {
                             //parse ini properly
                             $file_data = parse_ini_string(file_get_contents($setting_file));
-                        } else if ($key == "channelOutputsJSON") {
+                        } else if ($config_key == "channelOutputsJSON") {
                             //channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
                             $file_data = json_decode(file_get_contents($setting_file), true);
                         } else {
@@ -76,7 +78,7 @@ if (isset($_POST['btnDownloadConfig'])) {
                             $file_data = explode("\n", file_get_contents($setting_file));
                         }
 
-                        $tmp_settings_data[$key] = $file_data;
+                        $tmp_settings_data[$config_key] = $file_data;
                     }
                 }
             } else if (strtolower($area) == "email") {
@@ -95,10 +97,10 @@ if (isset($_POST['btnDownloadConfig'])) {
                 $setting_file = $tmp_config_areas[$area]['file'];
 
                 if ($setting_file !== false && file_exists($setting_file)) {
-                    if ($key == "settings") {
+                    if ($area == "settings") {
                         //parse ini properly into an assoc. array
                         $file_data = parse_ini_string(file_get_contents($setting_file));
-                    } else if ($key == "channelOutputsJSON") {
+                    } else if ($area == "channelOutputsJSON") {
                         //channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
                         $file_data = json_decode(file_get_contents($setting_file), true);
                     } else {
@@ -106,7 +108,7 @@ if (isset($_POST['btnDownloadConfig'])) {
                         $file_data = explode("\n", file_get_contents($setting_file));
                     }
 
-                    $tmp_settings_data[$key] = $file_data;
+                    $tmp_settings_data[$area] = $file_data;
                 }
             }
 
@@ -118,7 +120,9 @@ if (isset($_POST['btnDownloadConfig'])) {
     }
 
 } else if (isset($_POST['btnRestoreConfig'])) {
-    //RESTORE
+    //////
+    /// RESTORE
+    /////
     if (isset($_POST['restorearea']) && !empty($_POST['restorearea'])) {
         $restore_area = $_POST['restorearea'];
 
@@ -132,9 +136,7 @@ if (isset($_POST['btnDownloadConfig'])) {
         //this value *SHOULD* directly match a key in $system_config_aras
         if (array_key_exists($restore_area, $system_config_aras)) {
             //Do something with the uploaded file to restore it
-
             if (array_key_exists('conffile', $_FILES)) {
-
                 //data is stored by area and keyed the same as $system_config_aras
                 //read file, decode json
                 //parse each area and write settings
@@ -149,13 +151,13 @@ if (isset($_POST['btnDownloadConfig'])) {
                 //successful decode
                 if ($file_contents_decoded !== FALSE && is_array($file_contents_decoded)) {
                     if (strtolower($restore_area) == "all") {
-
+                        // ALL SETTING RESTORE
                         //read each area and process it
                         foreach ($file_contents_decoded as $restore_area_key => $area_data) {
                             process_restore_data($restore_area_key, $area_data);
                         }
                     } else if (strtolower($restore_area) == "email") {
-
+                        // EMAIL SETTING RESTORE
                         if (array_key_exists('email', $file_contents_decoded)) {
                             $emailenable = $file_contents_decoded['settings']['emailenable'];
                             $emailguser = $file_contents_decoded['settings']['emailguser'];
@@ -169,7 +171,7 @@ if (isset($_POST['btnDownloadConfig'])) {
 //                            WriteSettingToFile('emailgpass', $emailgpass);
                             WriteSettingToFile('emailfromtext', $emailgpass);
                             WriteSettingToFile('emailtoemail', $emailfromtext);
-
+                            //Update the email config (writes out exim config)
                             SaveEmailConfig($emailguser, $emailgpass, $emailfromtext, $emailtoemail);
                             $settings_restored[$restore_area] = true;
                         } else if (array_key_exists('settings', $file_contents_decoded)) {
@@ -185,11 +187,13 @@ if (isset($_POST['btnDownloadConfig'])) {
                             WriteSettingToFile('emailgpass', $emailgpass);
                             WriteSettingToFile('emailfromtext', $emailgpass);
                             WriteSettingToFile('emailtoemail', $emailfromtext);
-
+                            //Update the email config (writes out exim config)
                             SaveEmailConfig($emailguser, $emailgpass, $emailfromtext, $emailtoemail);
+
                             $settings_restored[$restore_area] = true;
                         }
                     } else {
+                        // ALL OTHER SETTING RESTORE
                         //Process specific restore areas, this work almost like the 'all' area
                         //general settings, but only a matching area is cherry picked
 
@@ -280,7 +284,8 @@ function process_restore_data($restore_area, $area_data)
                 }
 
                 //Do special things that require some sort of system change
-                //eg. changing piRTC fire off a shell command to set it up
+                //eg. changing piRTC via GUI will fire off a shell command to set it up
+                //we'll also do this to keep consistency
                 if ($setting_name == 'piRTC') {
                     SetPiRTC($setting_value);
                 } else if ($setting_name == "PI_LCD_Enabled") {
@@ -392,7 +397,7 @@ function do_backup_download($settings_data, $area)
     if (!empty($settings_data)) {
         //Once we have all the settings, process the array and dump it back to the user
         //filename
-        $backup_fname = $settings['HostName'] . "_" . $area . "-settings_" . date("YmdHis") . ".json";
+        $backup_fname = $settings['HostName'] . "_" . $area . "-backup_" . date("YmdHis") . ".json";
         $backup_local_fpath = $settings['configDirectory'] . "/" . $backup_fname;
 
         //Write data into backup file
@@ -408,8 +413,8 @@ function do_backup_download($settings_data, $area)
         //die
         exit;
     } else {
-        //nothing
-        //guiLog("Backup:: No settings data supplied for download.","error");
+        //no data supplied
+        error_log("BACKUP: Something went wrong while generating backup file for " . $area . ", no data was supplied.");
     }
 }
 
@@ -438,6 +443,7 @@ function backup_gen_select($area_name = "backuparea")
 <head>
     <?php include 'common/menuHead.inc'; ?>
     <title><? echo $pageTitle; ?></title>
+    <script>var helpPage = "help/backup.php";</script>
 </head>
 <body>
 <div id="bodyWrapper">
@@ -450,7 +456,7 @@ function backup_gen_select($area_name = "backuparea")
                 <legend>FPP Settings Backup</legend>
                 <?php if ($restore_done == true) {
                     ?>
-                    <div id="restoreSuccessFlag">Backup Restored. A Reboot May Be Required</div>
+                    <div id="restoreSuccessFlag">Backup Restored, A Reboot May Be Required.</div>
                     <div id="restoreSuccessFlag">What was
                         restored:
                         <?php
@@ -465,7 +471,7 @@ function backup_gen_select($area_name = "backuparea")
                         }
                         ?>
                     </div>
-                    <?php
+                <?php
                 }
                 ?>
                 <fieldset>
