@@ -159,20 +159,22 @@ if (isset($_POST['btnDownloadConfig'])) {
                     } else if (strtolower($restore_area) == "email") {
                         // EMAIL SETTING RESTORE
                         if (array_key_exists('email', $file_contents_decoded)) {
-                            $emailenable = $file_contents_decoded['settings']['emailenable'];
-                            $emailguser = $file_contents_decoded['settings']['emailguser'];
+                            $emailenable = $file_contents_decoded['email']['emailenable'];
+                            $emailguser = $file_contents_decoded['email']['emailguser'];
                             $emailgpass = "";//Not available when doing anything except full backups
-                            $emailfromtext = $file_contents_decoded['settings']['emailfromtext'];
-                            $emailtoemail = $file_contents_decoded['settings']['emailtoemail'];
+                            $emailfromtext = $file_contents_decoded['email']['emailfromtext'];
+                            $emailtoemail = $file_contents_decoded['email']['emailtoemail'];
 
                             //Write them out
                             WriteSettingToFile('emailenable', $emailenable);
                             WriteSettingToFile('emailguser', $emailguser);
 //                            WriteSettingToFile('emailgpass', $emailgpass);
-                            WriteSettingToFile('emailfromtext', $emailgpass);
-                            WriteSettingToFile('emailtoemail', $emailfromtext);
+                            WriteSettingToFile('emailfromtext', $emailfromtext);
+                            WriteSettingToFile('emailtoemail', $emailtoemail);
+
                             //Update the email config (writes out exim config)
                             SaveEmailConfig($emailguser, $emailgpass, $emailfromtext, $emailtoemail);
+
                             $settings_restored[$restore_area] = true;
                         } else if (array_key_exists('settings', $file_contents_decoded)) {
                             $emailenable = $file_contents_decoded['settings']['emailenable'];
@@ -185,8 +187,8 @@ if (isset($_POST['btnDownloadConfig'])) {
                             WriteSettingToFile('emailenable', $emailenable);
                             WriteSettingToFile('emailguser', $emailguser);
                             WriteSettingToFile('emailgpass', $emailgpass);
-                            WriteSettingToFile('emailfromtext', $emailgpass);
-                            WriteSettingToFile('emailtoemail', $emailfromtext);
+                            WriteSettingToFile('emailfromtext', $emailfromtext);
+                            WriteSettingToFile('emailtoemail', $emailtoemail);
                             //Update the email config (writes out exim config)
                             SaveEmailConfig($emailguser, $emailgpass, $emailfromtext, $emailtoemail);
 
