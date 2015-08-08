@@ -35,12 +35,13 @@ class PixelString {
 	~PixelString();
 
 	int  Init(std::string configStr);
-	int  Init(int portNumber, int startChannel, int pixelCount,
-		 std::string colorOrder, int nullNodes, int hybridMode,
-		 int reverse, int grouping, int zigZag);
+	int  Init(int portNumber, int channelOffset, int startChannel,
+		int pixelCount, std::string colorOrder, int nullNodes,
+		int hybridMode, int reverse, int grouping, int zigZag);
 	void DumpConfig(void);
 
 	int               m_portNumber;
+	int               m_channelOffset;
 	int               m_startChannel;
 	int               m_pixelCount;
 	std::string       m_colorOrder;
