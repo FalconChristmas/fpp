@@ -25,7 +25,7 @@ fi
 
 teeOutput
 
-echo "FPP - Setting up for the Falcon Player on the ${PLATFORM} platform"
+echo "FPP - Setting up for the Falcon Player on the ${FPPPLATFORM} platform"
 
 SITEFILE="/etc/apache2/sites-enabled/000-default"
 
@@ -56,7 +56,7 @@ ${BINDIR}/config_dns
 
 echo "FPP - Configuring Audio"
 
-if [ "${PLATFORM}" = "Raspberry Pi" ]
+if [ "${FPPPLATFORM}" = "Raspberry Pi" ]
 then
 	#######################################################################
 	# Part #1 workaround for https://github.com/raspberrypi/linux/issues/570
@@ -76,7 +76,7 @@ fi
 VOLUME=$(echo "scale=2 ; ${ORIGVOLUME} / 2.0 + 50" | bc)
 amixer set PCM ${VOLUME}% > /dev/null 2>&1
 
-if [ "${PLATFORM}" = "Raspberry Pi" ]
+if [ "${FPPPLATFORM}" = "Raspberry Pi" ]
 then
 	#######################################################################
 	# Part #2 workaround for https://github.com/raspberrypi/linux/issues/570
@@ -98,7 +98,7 @@ sed -i -e "s/^rebootFlag .*/rebootFlag = 0/" ${FPPHOME}/media/settings
 echo "FPP - Setting max IGMP memberships"
 sysctl net/ipv4/igmp_max_memberships=150 > /dev/null 2>&1
 
-if [ "${PLATFORM}" = "Raspberry Pi" ]
+if [ "${FPPPLATFORM}" = "Raspberry Pi" ]
 then
 	echo "FPP - Setting up SPI"
 	/usr/local/bin/gpio load spi 100 &>/dev/null
@@ -183,7 +183,7 @@ sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/nginx.
 echo "FPP - Starting FPP boot script"
 ${BINDIR}/fpp_boot
 
-if [ "${PLATFORM}" = "Raspberry Pi" ]
+if [ "${FPPPLATFORM}" = "Raspberry Pi" ]
 then
 	PiLCDenabled=$(getSetting PI_LCD_Enabled)
 

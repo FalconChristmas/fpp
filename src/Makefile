@@ -82,6 +82,8 @@ LIBS_fppd = \
 
 SUBDIRS = 
 
+BINDIR = ../bin
+
 ARCH := $(shell cat /etc/fpp/platform 2> /dev/null)
 ifeq '$(ARCH)' ''
 	ARCH = "UNKNOWN"
@@ -116,6 +118,7 @@ endif
 
 ifeq '$(ARCH)' 'Raspberry Pi'
 # do something RaspPi-y
+BINDIR = ../bin.pi
 CFLAGS += \
 	-DPLATFORM_PI \
 	-DUSEWIRINGPI \
@@ -147,6 +150,7 @@ DEPS_fppd += \
 	$(NULL)
 else ifeq '$(ARCH)' 'BeagleBone Black'
 # BeagleBone Black
+BINDIR = ../bin.bbb
 CFLAGS += \
 	-DPLATFORM_BBB \
 	-I../external/LEDscape/src/ledscape/ \
@@ -169,6 +173,7 @@ DEPS_fppd += \
 SUBDIRS += pru
 else
 # do something Linux-y
+BINDIR = ../bin
 CFLAGS += \
 	-g \
 	-DNOROOT \
@@ -196,11 +201,11 @@ force:
 
 release: $(TARGETS)
 	strip fpp
-	-$(INSTALL_PROGRAM) fpp ../bin/fpp
+	-$(INSTALL_PROGRAM) fpp $(BINDIR)/fpp
 	strip fppmm
-	-$(INSTALL_PROGRAM) fppmm ../bin/fppmm
+	-$(INSTALL_PROGRAM) fppmm $(BINDIR)/fppmm
 	strip fppd
-	-$(INSTALL_PROGRAM) fppd ../bin/fppd
+	-$(INSTALL_PROGRAM) fppd $(BINDIR)/fppd
 	for dir in $(SUBDIRS); do \
 		$(MAKE) -C $$dir release || exit 1; \
 	done

@@ -374,23 +374,26 @@ compileBinaries() {
 		cd ${FPPDIR}/src && ${SUDO} -u ${FPPUSER} make clean && sudo -u ${FPPUSER} make
 	fi
 
-	# Clean up any compiled binaries that are identical to the one in git
-	for FILE in ${BINARIES}
-	do
-		if [ "x${FPPDIR}" = "x/opt/fpp" ]
-		then
-			${SUDO} strip ${FPPDIR}/src/${FILE}
-		else
-			${SUDO} -u ${FPPUSER} strip ${FPPDIR}/src/${FILE}
-		fi
+	if [ "x${FPPBINDIR}" != "x${FPPDIR}/src" ]
+	then
+		# Clean up any installed binaries that are identical to the one in git
+		for FILE in ${BINARIES}
+		do
+			if [ "x${FPPDIR}" = "x/opt/fpp" ]
+			then
+				${SUDO} strip ${FPPDIR}/src/${FILE}
+			else
+				${SUDO} -u ${FPPUSER} strip ${FPPDIR}/src/${FILE}
+			fi
 
-		BINMD5=$(md5sum ${FPPDIR}/bin/${FILE} | awk '{print $1}')
-		SRCMD5=$(md5sum ${FPPDIR}/src/${FILE} | awk '{print $1}')
-		if [ "${BINMD5}" = "${SRCMD5}" ]
-		then
-			${SUDO} rm -f ${FPPDIR}/src/${FILE}
-		fi
-	done
+			BINMD5=$(md5sum ${FPPBINDIR}/${FILE} | awk '{print $1}')
+			SRCMD5=$(md5sum ${FPPDIR}/src/${FILE} | awk '{print $1}')
+			if [ "${BINMD5}" = "${SRCMD5}" ]
+			then
+				${SUDO} rm -f ${FPPDIR}/src/${FILE}
+			fi
+		done
+	fi
 }
 
 #############################################################################
@@ -506,7 +509,7 @@ stopOLADaemonIfUnused() {
 setupChannelOutputs() {
 
 	# Setup BBB device tree
-	if [ "${PLATFORM}" = "BeagleBone Black" ]
+	if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
 	then
 		cat ${FPPHOME}/media/config/channeloutputs.json | tr -d "\r\n" | egrep -q '(LEDPanelMatrix|BBB48String)",[ 	a-zA-Z0-9:",]*"enabled": 1'
 		if [ $? -eq 0 ]
