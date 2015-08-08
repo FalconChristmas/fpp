@@ -79,6 +79,8 @@ int RGBMatrixOutput::Init(Json::Value config)
 	if (!m_panelHeight)
 		m_panelHeight = 16;
 
+	m_colorOrder = config["colorOrder"].asString();
+
 	m_panelMatrix =
 		new PanelMatrix(m_panelWidth, m_panelHeight);
 
@@ -224,6 +226,12 @@ int RGBMatrixOutput::RawSendData(unsigned char *channelData)
 					b = channelData + m_panelMatrix->m_panels[panel].pixelMap[(y * m_panelWidth + x) * 3];
 					g = b + 1;
 					r = b + 2;
+				}
+				else
+				{
+					r = channelData + m_panelMatrix->m_panels[panel].pixelMap[(y * m_panelWidth + x) * 3];
+					g = r + 1;
+					b = r + 2;
 				}
 
 				m_canvas->SetPixel(px, y, *r, *g, *b);
