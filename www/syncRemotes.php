@@ -46,7 +46,7 @@ foreach ( $remotes as $remote ) {
 	foreach ( $dirs as $dir ) {
 		echo "==================================================================================\n";
 		printf( "Syncing %s dir to %s\n", $dir, $remote );
-		$command = "rsync -av --stats /home/fpp/media/$dir/ $remote::media/$dir/";
+		$command = "rsync -av --stats $fppHome/media/$dir/ $remote::media/$dir/";
 		echo "Command: $command\n";
 		echo "----------------------------------------------------------------------------------\n";
 		system($command);
