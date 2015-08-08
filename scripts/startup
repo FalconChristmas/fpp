@@ -47,6 +47,8 @@ if [ "x${HOSTNAME}" != "x" -a "x$(hostname)" != "x${HOSTNAME}" ]
 then
 	echo "FPP - Setting hostname to ${HOSTNAME}"
 	echo ${HOSTNAME} > /etc/hostname
+	sed -i '/^127.0.1.1[^0-9]/d' /etc/hosts
+	sed -i "\$a127.0.1.1 ${HOSTNAME}" /etc/hosts
 	hostname ${HOSTNAME}
 	/etc/init.d/avahi-daemon restart
 fi
