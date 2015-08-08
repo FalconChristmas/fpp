@@ -37,6 +37,7 @@
  */
 PixelString::PixelString()
   : m_portNumber(0),
+	m_channelOffset(0),
 	m_startChannel(0),
 	m_pixelCount(0),
 	m_colorOrder("RGB"),
@@ -71,25 +72,26 @@ int PixelString::Init(std::string configStr)
 		return 0;
 	}
 
-	return Init(atoi(elems[0].c_str()), atoi(elems[1].c_str()),
+	return Init(atoi(elems[0].c_str()), 0, atoi(elems[1].c_str()),
 		atoi(elems[2].c_str()), elems[3], atoi(elems[4].c_str()),
 		atoi(elems[5].c_str()), atoi(elems[6].c_str()),
 		atoi(elems[7].c_str()), atoi(elems[8].c_str()));
 }
 
-int PixelString::Init(int portNumber, int startChannel, int pixelCount,
-                std::string colorOrder, int nullNodes, int hybridMode,
-                int reverse, int grouping, int zigZag)
+int PixelString::Init(int portNumber, int channelOffset, int startChannel,
+		int pixelCount, std::string colorOrder, int nullNodes,
+		int hybridMode, int reverse, int grouping, int zigZag)
 {
 	m_portNumber = portNumber;
-        m_startChannel = startChannel;
-        m_pixelCount = pixelCount;
-        m_colorOrder = colorOrder;
-        m_nullNodes = nullNodes;
-        m_hybridMode = hybridMode;
-        m_reverseDirection = reverse;
-        m_grouping = grouping;
-        m_zigZag = zigZag;
+	m_channelOffset = channelOffset;
+	m_startChannel = startChannel - channelOffset;
+	m_pixelCount = pixelCount;
+	m_colorOrder = colorOrder;
+	m_nullNodes = nullNodes;
+	m_hybridMode = hybridMode;
+	m_reverseDirection = reverse;
+	m_grouping = grouping;
+	m_zigZag = zigZag;
 
 	if ((m_startChannel < 0) || (m_startChannel > FPPD_MAX_CHANNELS) ||
 		(m_pixelCount < 0) || (m_pixelCount > 600) ||
@@ -245,8 +247,10 @@ void PixelString::DumpConfig(void)
 {
 	LogDebug(VB_CHANNELOUT, "        port number      : %d\n",
 		m_portNumber);
+	LogDebug(VB_CHANNELOUT, "        channel offset   : %d\n",
+		m_channelOffset);
 	LogDebug(VB_CHANNELOUT, "        start channel    : %d\n",
-		m_startChannel);
+		m_startChannel + m_channelOffset);
 	LogDebug(VB_CHANNELOUT, "        pixel count      : %d\n",
 		m_pixelCount);
 	LogDebug(VB_CHANNELOUT, "        color order      : %s\n",

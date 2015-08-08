@@ -43,7 +43,7 @@ pthread_mutex_t  mediaOutputLock;
 float            masterMediaPosition = 0.0;
 
 MediaOutputStatus mediaOutputStatus = {
-	.status = MEDIAOUTPUTSTATUS_IDLE
+	MEDIAOUTPUTSTATUS_IDLE, //status
 	};
 
 void MediaOutput_sigchld_handler(int signal)

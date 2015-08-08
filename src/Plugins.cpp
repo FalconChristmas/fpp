@@ -199,6 +199,11 @@ void PluginCallbackManager::init()
 
 PluginCallbackManager::~PluginCallbackManager()
 {
+	while (!mCallbacks.empty())
+	{
+		delete mCallbacks.back();
+		mCallbacks.pop_back();
+	}
 }
 
 int PluginCallbackManager::nextPlaylistEntryCallback(const char *plugin_data, int currentPlaylistEntry, int mode, bool repeat, PlaylistEntry *pe)

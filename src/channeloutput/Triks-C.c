@@ -606,16 +606,15 @@ int TriksC_StopOutputThread(void *data)
  * Declare our external interface struct
  */
 FPPChannelOutput TriksCOutput = {
-	.maxChannels  = TriksC_MaxChannels,
-	.open         = TriksC_Open,
-	.close        = TriksC_Close,
-	.isConfigured = TriksC_IsConfigured,
-	.isActive     = TriksC_IsActive,
-	.send         = TriksC_SendData,
-	.startThread  = TriksC_StartOutputThread,
-	.stopThread   = TriksC_StopOutputThread,
-	};
-
+	TriksC_MaxChannels, //maxChannels
+	TriksC_Open, //open
+	TriksC_Close, //close
+	TriksC_IsConfigured, //isConfigured
+	TriksC_IsActive, //isActive
+	TriksC_SendData, //send
+	TriksC_StartOutputThread, //startThread
+	TriksC_StopOutputThread, //stopThread
+};
 
 /*
  * This is one ugly function, but its goal is to be fast.  It performs a

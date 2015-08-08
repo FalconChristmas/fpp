@@ -24,6 +24,8 @@ OBJECTS_fppmm = \
 LIBS_fppmm = \
 	$(NULL)
 
+#	channeloutput/OLAOutput.o \
+#
 OBJECTS_fppd = \
 	channeloutput/ChannelOutputBase.o \
 	channeloutput/channeloutput.o \
@@ -80,6 +82,8 @@ LIBS_fppd = \
 
 SUBDIRS = 
 
+BINDIR = ../bin
+
 ARCH := $(shell cat /etc/fpp/platform 2> /dev/null)
 ifeq '$(ARCH)' ''
 	ARCH = "UNKNOWN"
@@ -92,6 +96,8 @@ CFLAGS += \
 	-I channeloutput \
 	-I mediaoutput \
 	$(NULL)
+
+#	$(shell pkg-config --cflags --libs libola) \
 
 LDFLAGS_fppd += \
 	$(NULL)
@@ -112,6 +118,7 @@ endif
 
 ifeq '$(ARCH)' 'Raspberry Pi'
 # do something RaspPi-y
+BINDIR = ../bin.pi
 CFLAGS += \
 	-DPLATFORM_PI \
 	-DUSEWIRINGPI \
@@ -143,6 +150,7 @@ DEPS_fppd += \
 	$(NULL)
 else ifeq '$(ARCH)' 'BeagleBone Black'
 # BeagleBone Black
+BINDIR = ../bin.bbb
 CFLAGS += \
 	-DPLATFORM_BBB \
 	-I../external/LEDscape/src/ledscape/ \
@@ -165,6 +173,7 @@ DEPS_fppd += \
 SUBDIRS += pru
 else
 # do something Linux-y
+BINDIR = ../bin
 CFLAGS += \
 	-g \
 	-DNOROOT \
@@ -174,20 +183,29 @@ endif
 PWD := $(shell pwd)
 
 .PHONY: all
-all: $(TARGETS)
-	for dir in $(SUBDIRS); do \
+all: gitsubmodules FPP
+	@for dir in $(SUBDIRS); do \
 		$(MAKE) -C $$dir || exit 1; \
 	done
+
+FPP: $(TARGETS)
+
+.PHONY: gitsubmodules
+gitsubmodules:
+	@! ping -q -c 1 github.com > /dev/null 2>&1 || (cd ..; \
+		git submodule sync; \
+		git submodule foreach git fetch; \
+		git submodule update --init )
 
 force:
 
 release: $(TARGETS)
 	strip fpp
-	-$(INSTALL_PROGRAM) fpp ../bin/fpp
+	-$(INSTALL_PROGRAM) fpp $(BINDIR)/fpp
 	strip fppmm
-	-$(INSTALL_PROGRAM) fppmm ../bin/fppmm
+	-$(INSTALL_PROGRAM) fppmm $(BINDIR)/fppmm
 	strip fppd
-	-$(INSTALL_PROGRAM) fppd ../bin/fppd
+	-$(INSTALL_PROGRAM) fppd $(BINDIR)/fppd
 	for dir in $(SUBDIRS); do \
 		$(MAKE) -C $$dir release || exit 1; \
 	done
@@ -202,7 +220,7 @@ fppd: $(DEPS_fppd) $(OBJECTS_fppd)
 	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
 
 fppversion.c: fppversion.sh force
-	sh fppversion.sh $(PWD)
+	@sh fppversion.sh $(PWD)
 
 %.o: %.cpp %.h Makefile
 	$(CCACHE) $(CC) $(CFLAGS) -c $< -o $@

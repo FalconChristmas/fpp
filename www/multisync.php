@@ -178,6 +178,15 @@ require_once("config.php");
 			</font>
 			<br>
 			<input type='button' class='buttons' value='Refresh' onClick='getFPPSystems();'>
+
+<?php
+if ($settings['fppMode'] == 'master')
+{
+?>
+			<input type='button' class='buttons' value='Sync Files' onClick='location.href="syncRemotes.php";'>
+<?php
+}
+?>
 		</fieldset>
 	</div>
 </div>

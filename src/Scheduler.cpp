@@ -54,6 +54,7 @@ Scheduler::Scheduler()
 	m_runThread(0),
 	m_threadIsRunning(0)
 {
+	bzero(&m_currentSchedulePlaylist, sizeof(m_currentSchedulePlaylist));
 	pthread_mutex_init(&m_scheduleLock, NULL);
 }
 

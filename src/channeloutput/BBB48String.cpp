@@ -101,6 +101,7 @@ int BBB48StringOutput::Init(Json::Value config)
 		PixelString *newString = new PixelString;
 
 		if (!newString->Init(s["portNumber"].asInt(),
+			m_startChannel,
 			s["startChannel"].asInt() - 1,
 			s["pixelCount"].asInt(),
 			s["colorOrder"].asString(),

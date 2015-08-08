@@ -371,25 +371,25 @@ $(document).ready(function(){
 				<hr>
 				<b>Test All Channels</b><br>
 				Preset Colors:
-				<input type='button' value='Red' onClick='setTestModeColor(255, 0, 0);'>
-				<input type='button' value='Green' onClick='setTestModeColor(0, 255, 0);'>
-				<input type='button' value='Blue' onClick='setTestModeColor(0, 0, 255);'>
-				<input type='button' value='White' onClick='setTestModeColor(255, 255, 255);'>
+				<input type='button' value='A' onClick='setTestModeColor(255, 0, 0);'>
+				<input type='button' value='B' onClick='setTestModeColor(0, 255, 0);'>
+				<input type='button' value='C' onClick='setTestModeColor(0, 0, 255);'>
+				<input type='button' value='ALL' onClick='setTestModeColor(255, 255, 255);'>
 				<input type='button' value='Off' onClick='setTestModeColor(0, 0, 0);'>
 				<br>
 				Custom Color:<br>
-				<span id="rgbCustomR" class='rgbCustomColor'></span><span style='float: left'>R: </span><span style='float: left' id='rgbCustomRText'>0</span><br>
-				<span id="rgbCustomG" class='rgbCustomColor'></span><span style='float: left'>G: </span><span style='float: left' id='rgbCustomGText'>0</span><br>
-				<span id="rgbCustomB" class='rgbCustomColor'></span><span style='float: left'>B: </span><span style='float: left' id='rgbCustomBText'>0</span><br>
+				<span id="rgbCustomR" class='rgbCustomColor'></span><span style='float: left'>A: </span><span style='float: left' id='rgbCustomRText'>0</span><br>
+				<span id="rgbCustomG" class='rgbCustomColor'></span><span style='float: left'>B: </span><span style='float: left' id='rgbCustomGText'>0</span><br>
+				<span id="rgbCustomB" class='rgbCustomColor'></span><span style='float: left'>C: </span><span style='float: left' id='rgbCustomBText'>0</span><br>
 				<br>
 				<br>
 				RGB Cycle: <input type='checkbox' id='rgbCycle' onClick='rgbCycleChanged();'><br>
 				<span style='float: left'>Interval: </span><span id="rgbCycleSpeed"></span> <span style='float: left' id='rgbCycleSpeedText'>1000</span><span style='float: left'> ms</span></br>
 				<div id='rgbCycleOptionDiv'>
-				<input type='radio' name='rgbCycleOption' value='RGB' checked onChange='rgbColorsChanged();'> R-G-B<br>
-				<input type='radio' name='rgbCycleOption' value='RGBW' onChange='rgbColorsChanged();'> R-G-B-All<br>
-				<input type='radio' name='rgbCycleOption' value='RGBN' onChange='rgbColorsChanged();'> R-G-B-None<br>
-				<input type='radio' name='rgbCycleOption' value='RGBWN' onChange='rgbColorsChanged();'> R-G-B-All-None<br>
+				<input type='radio' name='rgbCycleOption' value='RGB' checked onChange='rgbColorsChanged();'> A-B-C<br>
+				<input type='radio' name='rgbCycleOption' value='RGBW' onChange='rgbColorsChanged();'> A-B-C-All<br>
+				<input type='radio' name='rgbCycleOption' value='RGBN' onChange='rgbColorsChanged();'> A-B-C-None<br>
+				<input type='radio' name='rgbCycleOption' value='RGBWN' onChange='rgbColorsChanged();'> A-B-C-All-None<br>
 				</div>
 			</div>
 			</fieldset>

@@ -16,3 +16,5 @@ killall -9 fppd
 
 runPostStopScripts
 
+stopOLADaemonIfUnused
+

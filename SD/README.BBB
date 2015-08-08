@@ -1,0 +1,188 @@
+FPP BBB Images creation notes (work in progress)
+
+FPP images are currently based on the following Debian BeagleBone images:
+
+- bone-debian-7.5-2014-05-14-2gb.img
+- BBB-eMMC-flasher-debian-7.5-2014-05-14-2gb.img
+
+Only the 7.5 2014-05-14 version is tested as known working.  There have
+been some reports about LEDscape not working on newer versions due to
+device tree changes, but we have not tested or investigated the changes
+necessary to work on the newer debian versions.  It is expected that
+once upstream LEDscape supports newer debian that we can update our
+install to use the newer version.  We use the 2GB SD version so that
+the eMMC image can be used on the Rev B boards with 2GB eMMC.
+
+Below are the instructions used to build the initial BBB images for FPP v1.5.
+This is a work in progress doc and it is expected that we will script these
+commands for building future images.
+
+#############################################################################
+# Prepping the SD image
+#######################
+# Setup some vars
+SDDEVICE="sdd"
+ORIGIMG="bone-debian-7.5-2014-05-14-2gb.img"
+EMMCIMG="BBB-eMMC-flasher-debian-7.5-2014-05-14-2gb.img"
+IMGFILE="FPP-v1.5-Alpha1-BBB-SD.img"
+MMCFILE="FPP-v1.5-Alpha1-BBB-eMMC.img"
+ADDSIZEMB=100
+
+# Get our starting image
+cp ${ORIGIMG} ${IMGFILE}
+
+ADDSIZEMB=100
+SIZE=$(/bin/ls -al ${ORIGIMG} | awk '{print $5}')
+SIZEMB=$(expr ${SIZE} / 1024 / 1024)
+NEWSIZEMB=$(expr ${SIZEMB} + ${ADDSIZEMB})
+NEWSIZEMBMINUS1=$(expr ${NEWSIZEMB} - 1)
+
+echo "Current Image Size: ${SIZEMB} MB"
+echo "Desired Image Size: ${NEWSIZEMB} MB"
+
+# Grow the raw image file to new size
+dd if=/dev/zero of=${IMGFILE} seek=${NEWSIZEMBMINUS1} bs=1M count=1
+
+# Expand the second partition to fill the new size
+sfdisk --force --no-reread --in-order --Linux --unit M ${IMGFILE} <<-__EOF__
+1,96,0xE,*
+,,,-
+__EOF__
+
+# Expand the filesystem to fill out the partition
+sudo losetup /dev/loop0 ${IMGFILE}
+sudo kpartx -av /dev/loop0
+sleep 3
+sudo e2fsck -f /dev/mapper/loop0p2
+sudo resize2fs /dev/mapper/loop0p2
+sudo kpartx -d /dev/loop0
+sudo losetup -d /dev/loop0
+
+# Copy the image to our SD card in preparation for FPP install
+sudo dd if=${IMGFILE} of=/dev/${SDDEVICE} bs=4M
+sync
+
+###############################################################
+###############################################################
+# Copy SD image to SD card and install FPP using FPP_Install.sh
+# then bring SD card back
+###############################################################
+###############################################################
+
+# Some vars in case we forgot or put this in a second script
+# Make sure these match the ones used above
+SDDEVICE="sdd"
+ORIGIMG="bone-debian-7.5-2014-05-14-2gb.img"
+EMMCIMG="BBB-eMMC-flasher-debian-7.5-2014-05-14-2gb.img"
+IMGFILE="FPP-v1.5-Alpha1-BBB-SD.img"
+MMCFILE="FPP-v1.5-Alpha1-BBB-eMMC.img"
+ADDSIZEMB=100
+
+SIZE=$(/bin/ls -al ${ORIGIMG} | awk '{print $5}')
+SIZEMB=$(expr ${SIZE} / 1024 / 1024)
+NEWSIZEMB=$(expr ${SIZEMB} + ${ADDSIZEMB})
+NEWSIZEMBMINUS1=$(expr ${NEWSIZEMB} - 1)
+
+echo "Current Image Size: ${SIZEMB} MB"
+echo "Desired Image Size: ${NEWSIZEMB} MB"
+
+# Copy the SD card to SD image (using size from earlier)
+sudo dd if=/dev/${SDDEVICE} of=${IMGFILE} bs=1M count=${NEWSIZEMB}
+
+# Zero out free space in SD image to help compression later
+sudo losetup /dev/loop0 ${IMGFILE}
+sudo kpartx -av /dev/loop0
+sudo zerofree /dev/mapper/loop0p2
+sudo kpartx -d /dev/loop0
+sudo losetup -d /dev/loop0
+
+# Prep the eMMC image
+# Get our starting image
+cp ${EMMCIMG} ${MMCFILE}
+
+# Grow the eMMC image file to desired size
+dd if=/dev/zero of=${MMCFILE} seek=${NEWSIZEMBMINUS1} bs=1M count=1
+
+# Expand the second partition to fill the new size
+sfdisk --force --no-reread --in-order --Linux --unit M ${MMCFILE} <<-__EOF__
+1,96,0xE,*
+,,,-
+__EOF__
+
+# Copy the SD rootfs to eMMC rootfs
+sudo losetup /dev/loop0 ${IMGFILE}
+sudo losetup /dev/loop1 ${MMCFILE}
+sudo kpartx -av /dev/loop0
+sudo kpartx -av /dev/loop1
+sudo dd if=/dev/mapper/loop0p2 of=/dev/mapper/loop1p2 bs=4M
+sync
+sudo kpartx -d /dev/loop0
+sudo kpartx -d /dev/loop1
+sudo losetup -d /dev/loop0
+sudo losetup -d /dev/loop1
+
+# Copy the eMMC image to SD card to test eMMC install
+sudo dd if=${MMCFILE} of=/dev/${SDDEVICE} bs=4M
+sync
+
+######################################################################
+FPP v1.5 BeagleBone Black Install Notes
+
+Installing onto micro-SD:
+
+Using the micro-SD card for the FPP OS means that the USB slot must be
+used for either a USB flash drive or you must connect a USB hub if you
+need to attach other USB devices.
+
+- Write FPP eMMC disk image to micro-SD card using "Win32 Disk Imager"
+  http://sourceforge.net/projects/win32diskimager/files/latest/download
+
+- Disconnect power to the BBB
+
+- Insert micro-SD card into BBB
+
+- Insert a USB flash drive for FPP storage.
+
+- Hold the Boot Button (S2) on the top of the BBB (near the micro-SD slot)
+  and while holding the button, connect power to the BBB.  Continue holding
+  the S2 button until the blue LED's start to flash.
+
+- The BBB should boot up running FPP off the eMMC.
+
+NOTE: In order to prevent having to press the S2 button each time, you
+will need to rename a file on the eMMC onboard storage on the BBB.
+
+#############################
+
+Installing onto the BBB's onboard eMMC:
+
+Using the onboard eMMC on the BBB to run FPP eliminates the need to use
+a micro-SD for FPP OS storage.  The micro-SD can be used for media
+storage which frees up the USB slot for other use.
+
+- Write FPP eMMC disk image to micro-SD card using "Win32 Disk Imager"
+  http://sourceforge.net/projects/win32diskimager/files/latest/download
+
+- Disconnect power to the BBB
+
+- Insert micro-SD card into BBB
+
+- Hold the Boot Button (S2) on the top of the BBB (near the micro-SD slot)
+  and while holding the button, connect power to the BBB.  Continue holding
+  the S2 button until the blue LED's start to flash.
+
+  The blue LEDs should flash in sequence and continue to flash for the next
+  5-25 minutes depending on micro-SD speed.
+
+- Wait until the LED's stop flashing and turn off and then remove power from
+  the BBB.
+
+- Remove the micro-SD card.
+
+- Insert a micro-SD card or USB flash drive for FPP storage.
+
+- Re-apply power to the BBB and it should boot up running FPP off the eMMC.
+
+- Connect to the FPP with your web browser @ http://fpp/
+
+

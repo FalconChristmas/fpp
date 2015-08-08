@@ -25,7 +25,28 @@ fi
 
 teeOutput
 
-echo "FPP - Setting up for the Falcon Player on the ${PLATFORM} platform"
+echo "FPP - Setting up for the Falcon Player on the ${FPPPLATFORM} platform"
+
+if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
+then
+	# Check fstab for our entries
+	grep -q "beaglebone-black-eMMC-flasher.sh" /etc/fstab
+	if [ $? -eq 0 ]
+	then
+		sed -i "/.*beaglebone-black-eMMC-flasher.sh.*/d" /etc/fstab
+
+		cat <<-EOF >> /etc/fstab
+#####################################
+tmpfs         /var/log    tmpfs   nodev,nosuid,size=10M 0 0
+tmpfs         /var/tmp    tmpfs   nodev,nosuid,size=10M 0 0
+#####################################
+/dev/sda1     /home/fpp/media  auto    defaults,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500  0  0
+#####################################
+EOF
+		mount /var/log
+		mount /var/tmp
+	fi
+fi
 
 SITEFILE="/etc/apache2/sites-enabled/000-default"
 
@@ -47,6 +68,8 @@ if [ "x${HOSTNAME}" != "x" -a "x$(hostname)" != "x${HOSTNAME}" ]
 then
 	echo "FPP - Setting hostname to ${HOSTNAME}"
 	echo ${HOSTNAME} > /etc/hostname
+	sed -i '/^127.0.1.1[^0-9]/d' /etc/hosts
+	sed -i "\$a127.0.1.1 ${HOSTNAME}" /etc/hosts
 	hostname ${HOSTNAME}
 	/etc/init.d/avahi-daemon restart
 fi
@@ -56,7 +79,7 @@ ${BINDIR}/config_dns
 
 echo "FPP - Configuring Audio"
 
-if [ "${PLATFORM}" = "Raspberry Pi" ]
+if [ "${FPPPLATFORM}" = "Raspberry Pi" ]
 then
 	#######################################################################
 	# Part #1 workaround for https://github.com/raspberrypi/linux/issues/570
@@ -76,7 +99,7 @@ fi
 VOLUME=$(echo "scale=2 ; ${ORIGVOLUME} / 2.0 + 50" | bc)
 amixer set PCM ${VOLUME}% > /dev/null 2>&1
 
-if [ "${PLATFORM}" = "Raspberry Pi" ]
+if [ "${FPPPLATFORM}" = "Raspberry Pi" ]
 then
 	#######################################################################
 	# Part #2 workaround for https://github.com/raspberrypi/linux/issues/570
@@ -86,7 +109,7 @@ then
 fi
 
 # Let's check that our .asoundrc is as valid as we care about right now
-if [ ! -e /proc/asound/card$(sed -n '/card [0-9]*/p' /root/.asoundrc | head -n 1 | awk '{print $2}') ]; then
+if [ -e /root/.asoundrc ] && [ ! -e /proc/asound/card$(sed -n '/card [0-9]*/p' /root/.asoundrc | head -n 1 | awk '{print $2}') ]; then
 	echo "Configured sound card might not exist, let's set it to 0 as a default."
 	sed -i 's/card [0-9]/card 0/' /root/.asoundrc
 fi
@@ -98,10 +121,10 @@ sed -i -e "s/^rebootFlag .*/rebootFlag = 0/" ${FPPHOME}/media/settings
 echo "FPP - Setting max IGMP memberships"
 sysctl net/ipv4/igmp_max_memberships=150 > /dev/null 2>&1
 
-if [ "${PLATFORM}" = "Raspberry Pi" ]
+if [ "${FPPPLATFORM}" = "Raspberry Pi" ]
 then
 	echo "FPP - Setting up SPI"
-	/usr/local/bin/gpio load spi 100
+	/usr/local/bin/gpio load spi 100 &>/dev/null
 	# spidev is no longer a module, so we need to set the
 	# buffer size differently for now
 	chmod u+w /sys/module/spidev/parameters/bufsiz
@@ -163,6 +186,11 @@ do
 	fi
 done
 
+echo "FPP - Copying rsync daemon config files into place and restarting"
+sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/rsync > /etc/default/rsync
+sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/rsync.conf > /etc/rsync.conf
+/etc/init.d/rsync restart
+
 echo "FPP - Copying Apache config into place and restarting Apache"
 sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/apache2.site > ${SITEFILE}
 /etc/init.d/apache2 restart
@@ -178,7 +206,7 @@ sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/nginx.
 echo "FPP - Starting FPP boot script"
 ${BINDIR}/fpp_boot
 
-if [ "${PLATFORM}" = "Raspberry Pi" ]
+if [ "${FPPPLATFORM}" = "Raspberry Pi" ]
 then
 	PiLCDenabled=$(getSetting PI_LCD_Enabled)
 

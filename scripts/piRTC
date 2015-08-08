@@ -82,9 +82,9 @@ esac
 
 if [[ $1 == "set" ]]
 then
-  hwclock -w
+  hwclock -w &>/dev/null
 else
-  hwclock -s
+  hwclock -s &>/dev/null
   cp /opt/fpp/etc/update-RTC /etc/cron.daily/
 fi
 
