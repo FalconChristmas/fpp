@@ -20,9 +20,13 @@ class fppLCD():
     self.THIS_DIRECTORY = directory
 
     self.BACK_COLOR = 0
+	#Directory locations
     self.PLAYLIST_DIRECTORY = "/home/pi/media/playlists/"
     self.SETTINGS_FILE = "/home/pi/media/settings"
-
+	#Alternate location
+    self.PLAYLIST_DIR_ALT = "/home/fpp/media/playlists/"
+    self.SETTINGS_DIR_ALT= "/home/fpp/media/settings"
+	
     self.DIRECTION_LEFT = 0
     self.DIRECTION_RIGHT = 1
     self.MAX_CHARS = 16
@@ -126,6 +130,11 @@ class fppLCD():
                           "Timeout         ")
 
   def Initialize(self):
+	#Check the new fpp user directory exists
+    if os.path.exists("/home/fpp/media"):
+      self.PLAYLIST_DIRECTORY = self.PLAYLIST_DIR_ALT;
+      self.SETTINGS_FILE = self.SETTINGS_DIR_ALT;
+
     strColorIndex = self.readSetting("piLCD_BackColor")
     if strColorIndex.isdigit():
       self.BackgroundColor = int(strColorIndex);

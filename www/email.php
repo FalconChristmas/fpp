@@ -30,28 +30,12 @@ if ( isset($_POST['emailtoemail']) && !empty($_POST['emailtoemail']) )
   $emailtoemail = $_POST['emailtoemail'];
   WriteSettingToFile("emailtoemail",$emailtoemail);
 }
-if ( ( isset($_POST['emailguser']) && !empty($_POST['emailguser']) ) && 
+if ( ( isset($_POST['emailguser']) && !empty($_POST['emailguser']) ) &&
    ( isset($_POST['emailgpass']) && !empty($_POST['emailgpass']) ) &&
    ( isset($_POST['emailfromtext']) && !empty($_POST['emailfromtext']) ) &&
    ( isset($_POST['emailtoemail']) && !empty($_POST['emailtoemail']) ))
 {
-
-    $fp = fopen($exim4Directory . '/passwd.client', 'w');
-    fwrite($fp, "# password file used when the local exim is authenticating to a remote host as a client.\n");
-    fwrite($fp, "#\n");
-    fwrite($fp, "*.google.com:" . $emailguser . ":" . $emailgpass . "\n");
-    fwrite($fp, "smtp.gmail.com:" . $emailguser . ":" . $emailgpass . "\n");
-    fclose($fp);
-	exec("sudo cp " . $exim4Directory . "/passwd.client /etc/exim4/");
-	exec("sudo update-exim4.conf");
-    exec ("sudo /etc/init.d/exim4 restart");
-	$cmd="sudo chfn -f \"" . $emailfromtext . "\" pi";
-	exec($cmd);
-    $fp = fopen($exim4Directory . '/aliases', 'w');
-	fwrite($fp, "mailer-daemon: postmaster\npostmaster: root\nnobody: root\nhostmaster: root\nusenet: root\nnews: root\nwebmaster: root\nwww: root\nftp: root\nabuse: root\nnoc: root\nsecurity: root\nroot: pi\n");
-	fwrite($fp, "pi: " . $emailtoemail . "\n");
-	fclose($fp);
-	exec("sudo cp " . $exim4Directory . "./aliases /etc/");
+    SaveEmailConfig($emailguser, $emailgpass, $emailfromtext, $emailtoemail);
 }
 
 ?>
