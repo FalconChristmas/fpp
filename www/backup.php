@@ -70,6 +70,7 @@ if (isset($_POST['btnDownloadConfig'])) {
                         if ($config_key == "settings") {
                             //parse ini properly
                             $file_data = parse_ini_string(file_get_contents($setting_file));
+                            $file_data['emailgpass'] = '';//remove email pass for now,
                         } else if ($config_key == "channelOutputsJSON") {
                             //channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
                             $file_data = json_decode(file_get_contents($setting_file), true);
@@ -100,6 +101,7 @@ if (isset($_POST['btnDownloadConfig'])) {
                     if ($area == "settings") {
                         //parse ini properly into an assoc. array
                         $file_data = parse_ini_string(file_get_contents($setting_file));
+                        $file_data['emailgpass'] = '';//remove email pass for now,
                     } else if ($area == "channelOutputsJSON") {
                         //channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
                         $file_data = json_decode(file_get_contents($setting_file), true);
