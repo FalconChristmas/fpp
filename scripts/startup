@@ -27,6 +27,8 @@ teeOutput
 
 echo "FPP - Setting up for the Falcon Player on the ${FPPPLATFORM} platform"
 
+checkTimeAgainstUSNO
+
 if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
 then
 	# Check fstab for our entries
