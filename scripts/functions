@@ -564,6 +564,32 @@ detectFalconHardware() {
 }
 
 #############################################################################
+# Check for audio control files
+checkAudioConfig() {
+	if [ ! -e /root/.asoundrc ]
+	then
+		cat <<EOF > /root/.asoundrc
+pcm.!default {
+	type hw
+	card 0
+}
+
+ctl.!default {
+	type hw
+	card 0
+}
+EOF
+	fi
+
+	if [ ! -e /root/.libao ]
+	then
+		cat <<EOF > /root/.libao
+dev=default
+EOF
+	fi
+}
+
+#############################################################################
 # Check local time against U.S. Naval Observatory time, set if too far out
 checkTimeAgainstUSNO () {
 	# www.usno.navy.mil is not pingable, so check github.com instead

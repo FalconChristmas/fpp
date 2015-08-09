@@ -28,6 +28,7 @@ teeOutput
 echo "FPP - Setting up for the Falcon Player on the ${FPPPLATFORM} platform"
 
 checkTimeAgainstUSNO
+checkAudioConfig
 
 if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
 then
