@@ -136,13 +136,13 @@ sync
 ######################################################################
 FPP v1.5 BeagleBone Black Install Notes
 
-Installing onto micro-SD:
+Running BBB on micro-SD:
 
 Using the micro-SD card for the FPP OS means that the USB slot must be
 used for either a USB flash drive or you must connect a USB hub if you
 need to attach other USB devices.
 
-- Write FPP eMMC disk image to micro-SD card using "Win32 Disk Imager"
+- Write FPP SD disk image to micro-SD card using "Win32 Disk Imager"
   http://sourceforge.net/projects/win32diskimager/files/latest/download
 
 - Disconnect power to the BBB
@@ -155,7 +155,7 @@ need to attach other USB devices.
   and while holding the button, connect power to the BBB.  Continue holding
   the S2 button until the blue LED's start to flash.
 
-- The BBB should boot up running FPP off the eMMC.
+- The BBB should boot up running FPP off the SD.
 
 NOTE: In order to prevent having to press the S2 button each time, you
 will need to rename a file on the eMMC onboard storage on the BBB.

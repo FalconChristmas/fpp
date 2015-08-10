@@ -9,12 +9,34 @@
 # version of FPP, the system can then be switched to a new version number
 # or git branch for release.
 #
+#############################################################################
 # To use this script, download the latest copy from github and run it as
 # root on the system where you want to install FPP:
 #
 # wget --no-check-certificate -O ./FPP_Install.sh https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
 # chmod 700 ./FPP_Install.sh
 # sudo ./FPP_Install.sh
+#
+#############################################################################
+# NOTE: This script is used to build the SD images for FPP releases.  Its
+#       main goal is to prep these release images.  It may be used for othe
+#       purposes, but it is not our main priority to keep FPP working on
+#       other Linux distributions or distribution versions other than those
+#       we base our FPP releases on.  Currently, FPP images are based on the
+#       following OS images for the Raspberry Pi and BeagleBone Black:
+#
+#       Raspberry Pi - The Raspberry Pi image is currently available from
+#           (FIXME, get URL and filename here for Pi)
+#           - 
+#
+#       BeagleBone Black - The BBB images are currently available from
+#           https://rcn-ee.com/rootfs/bb.org/release/2014-05-14/
+#           - bone-debian-7.5-2014-05-14-2gb.img
+#           - BBB-eMMC-flasher-debian-7.5-2014-05-14-2gb.img
+#
+#       Other OS images may work with this install script and FPP on the
+#       Pi and BBB platforms, but these are the images we are currently
+#       targetting for support.
 #
 #############################################################################
 SCRIPTVER="0.5"
