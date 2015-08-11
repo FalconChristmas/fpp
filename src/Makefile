@@ -148,6 +148,25 @@ DEPS_fppd += \
 	../external/rpi-rgb-led-matrix/lib/librgbmatrix.a \
 	../external/rpi_ws281x/libws2811.a \
 	$(NULL)
+else ifeq '$(ARCH)' 'ODROID'
+# do something for ODROID
+BINDIR = ../bin.pi
+CFLAGS += \
+	-DPLATFORM_ODROID \
+	-I../external/rpi-rgb-led-matrix/include/ \
+	$(NULL)
+LIBS_fppd += \
+	-lrgbmatrix \
+	$(NULL)
+LDFLAGS_fppd += \
+	-L../external/rpi-rgb-led-matrix/lib/ \
+	$(NULL)
+OBJECTS_fppd += \
+	channeloutput/RGBMatrix.o \
+	$(NULL)
+DEPS_fppd += \
+	../external/rpi-rgb-led-matrix/lib/librgbmatrix.a \
+	$(NULL)
 else ifeq '$(ARCH)' 'BeagleBone Black'
 # BeagleBone Black
 BINDIR = ../bin.bbb

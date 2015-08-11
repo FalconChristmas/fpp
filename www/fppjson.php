@@ -118,6 +118,8 @@ function SetSetting()
 			$SUDO . " /etc/init.d/avahi-daemon restart",
 			$output, $return_val);
 		sleep(1); // Give Avahi time to restart before we return
+	} else if ($setting == "storageDevice") {
+		exec(	$SUDO . " sed -i 's/^\/.*home\/fpp\/media/\/dev\/$value    \/home\/fpp\/media/' /etc/fstab", $output, $return_val );
 	} else {
 		SendCommand("SetSetting,$setting,$value,");
 	}
