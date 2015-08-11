@@ -26,7 +26,7 @@
 				<font color='#ff0000'><b>WARNING</b></font> -
 				E1.31 to E1.31 bridging over wireless is not recommended for
 				live show use.  It is provided here as an option to allow
-				testing remote wireless-attached Pi's.</td>
+				testing remote wireless-attached FPP systems.</td>
 		</tr>
 		<tr><td colspan='2'><hr></td></tr>
 		<tr><td valign='top'><? PrintSettingText("mediaOffset", 1, 0, 5, 5); ?> ms<br>

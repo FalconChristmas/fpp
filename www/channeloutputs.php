@@ -329,6 +329,53 @@ function CancelPanelLayout() {
 }
 
 /////////////////////////////////////////////////////////////////////////////
+// Virtual Matrix Output
+function VirtualMatrixLayoutChanged(item) {
+	var val = parseInt($(item).val());
+
+	if ((val % 8) != 0)
+	{
+		alert("ERROR: Value must be divisible by 8");
+	}
+
+	var width = $(item).parent().parent().find("input.width").val();
+	var height = $(item).parent().parent().find("input.height").val();
+	var channels = width * height * 3;
+
+	$(item).parent().parent().find("input.count").val(channels);
+}
+
+function VirtualMatrixConfig(cfgStr) {
+	var result = "";
+	var parts = cfgStr.split("=");
+	var vals = parts[1].split("x");
+
+	result = "Width: <input type='text' size='3' maxlength='3' class='width' value='" + vals[0] + "' onChange='VirtualMatrixLayoutChanged(this);'>" +
+		" Height: <input type='text' size='3' maxlength='3' class='height' value='" + vals[1] + "' onChange='VirtualMatrixLayoutChanged(this);'>";
+
+	return result;
+}
+
+function NewVirtualMatrixConfig() {
+	return VirtualMatrixConfig("layout=32x16");
+}
+
+function GetVirtualMatrixOutputConfig(cell) {
+	$cell = $(cell);
+	var width = $cell.find("input.width").val();
+
+	if (width == "")
+		return "";
+
+	var height = $cell.find("input.height").val();
+
+	if (height == "")
+		return "";
+
+	return "layout=" + width + "x" + height;
+}
+
+/////////////////////////////////////////////////////////////////////////////
 // LEDTriks/Triks-C Output
 function TriksLayoutSelect(currentValue) {
 	var result = "";
@@ -532,6 +579,7 @@ var SerialDevices = new Array();
 	{
 		if ((preg_match("/^ttyS[0-9]+/", $fileName)) ||
 			(preg_match("/^ttyACM[0-9]+/", $fileName)) ||
+			(preg_match("/^ttyO0/", $fileName)) ||
 			(preg_match("/^ttyAMA[0-9]+/", $fileName)) ||
 			(preg_match("/^ttyUSB[0-9]+/", $fileName))) {
 			echo "SerialDevices['$fileName'] = '$fileName';\n";
@@ -829,7 +877,7 @@ function PopulateChannelOutputTable(data) {
 
 		var countDisabled = "";
 
-		if ((type == "Triks-C") || (type == 'GPIO'))
+		if ((type == "Triks-C") || (type == 'GPIO') || (type == 'VirtualMatrix'))
 			countDisabled = " disabled=''";
 
 		newRow += "></td>" +
@@ -857,6 +905,8 @@ function PopulateChannelOutputTable(data) {
 			newRow += GPIODeviceConfig(output[4]);
 		} else if (type == "GPIO-595") {
 			newRow += GPIO595DeviceConfig(output[4]);
+		} else if (type == "VirtualMatrix") {
+			newRow += VirtualMatrixConfig(output[4]);
 		}
 
 		newRow += "</td>" +
@@ -983,6 +1033,14 @@ function SetChannelOutputs() {
 				return;
 			}
 			maxChannels = 128;
+		} else if (type == "VirtualMatrix") {
+			config += GetVirtualMatrixOutputConfig($this.find("td:nth-child(6)"));
+			if (config == "") {
+				dataError = 1;
+				DialogError("Save Channel Outputs", "Invalid Virtual Matrix Config");
+				return;
+			}
+			maxChannels = 500000;
 		}
 
 		// Channel Count
@@ -1073,6 +1131,10 @@ function AddOtherTypeOptions(row, type) {
 	} else if (type == "GPIO-595") {
 		config += NewGPIO595Config();
 		row.find("td input.count").val("8");
+	} else if ((type == "VirtualMatrix") || (type == "FBMatrix")) {
+		config += NewVirtualMatrixConfig();
+		row.find("td input.count").val("1536");
+		row.find("td input.count").prop('disabled', true);
 	}
 
 	row.find("td:nth-child(6)").html(config);
@@ -1160,6 +1222,7 @@ function AddOtherOutput() {
 <?
 	}
 ?>
+				"<option value='VirtualMatrix'>Virtual Matrix</option>" +
 				"<option value='Triks-C'>Triks-C</option>" +
 			"</select></td>" +
 			"<td><input class='start' type='text' size=6 maxlength=6 value='' style='display: none;'></td>" +
@@ -1252,7 +1315,8 @@ function GetBBB48StringConfig()
 		output.hybridMode = 0;
 		output.reverse = parseInt($('#BBB48Direction' + ai).val());
 		output.grouping = parseInt($('#BBB48Grouping' + ai).val());
-		output.zigZag = parseInt($('#BBB48ZigZag' + ai).val());
+		output.zigZag = 0;
+//		output.zigZag = parseInt($('#BBB48ZigZag' + ai).val());
 
 		if ($('#BBB48HybridMode' + ai).is(":checked"))
 			output.hybridMode = 1;
@@ -1368,8 +1432,10 @@ function DrawBBB48StringTable()
 		if (channelOutputsLookup["BBB48String"].outputs[s].hybridMode)
 			html += " checked";
 		html += "></td>";
-		html += "<td class='center'><input id='BBB48ZigZag[" + s + "]' type='text' size='3' maxlength='3' value='"
-			+ channelOutputsLookup["BBB48String"].outputs[s].zigZag + "'></td>";
+
+//		html += "<td class='center'><input id='BBB48ZigZag[" + s + "]' type='text' size='3' maxlength='3' value='"
+//			+ channelOutputsLookup["BBB48String"].outputs[s].zigZag + "'></td>";
+
 
 		html += "</tr>";
 	}
@@ -1468,6 +1534,7 @@ function printLEDPanelSizeSelect()
 
 ?>
 
+var LEDPanelColorOrder = 'RGB';
 var LEDPanelOutputs = 8;
 var LEDPanelPanelsPerOutput = 8;
 var LEDPanelWidth = 32;
@@ -1592,6 +1659,8 @@ function InitializeLEDPanels()
 	{
 		$('#LEDPanelsStartChannel').val(channelOutputsLookup["LEDPanelMatrix"].startChannel);
 		$('#LEDPanelsChannelCount').html(channelOutputsLookup["LEDPanelMatrix"].channelCount);
+		$('#LEDPanelsColorOrder').val(channelOutputsLookup["LEDPanelMatrix"].colorOrder);
+		$('#LEDPanelsStartCorner').val(channelOutputsLookup["LEDPanelMatrix"].invertedData);
 	}
 
 	DrawLEDPanelTable();
@@ -1619,6 +1688,8 @@ function GetLEDPanelConfig()
 	config.enabled = 0;
 	config.startChannel = parseInt($('#LEDPanelsStartChannel').val());
 	config.channelCount = parseInt($('#LEDPanelsChannelCount').html());
+	config.colorOrder = $('#LEDPanelsColorOrder').val();
+	config.invertedData = parseInt($('#LEDPanelsStartCorner').val());
 	config.panelWidth = LEDPanelWidth;
 	config.panelHeight = LEDPanelHeight;
 	config.panels = [];
@@ -1784,10 +1855,13 @@ $(document).ready(function(){
 	InitializeUniverses();
 	getUniverses('TRUE');
 
-	// FPD initialization
-	getPixelnetDMXoutputs('TRUE');
 
 <?
+	if ($settings['Platform'] == "Raspberry Pi")
+	{
+		echo "getPixelnetDMXoutputs('TRUE');\n";
+	}
+
 	if (($settings['Platform'] == "BeagleBone Black") ||
 			($settings['Platform'] == "Raspberry Pi"))
 	{
@@ -1981,16 +2055,37 @@ tr.rowUniverseDetails td
 						<table border=0 cellspacing=3>
 							<tr>
 								<td><b>Enable LED Panel Output:</b></td><td><input id='LEDPanelsEnabled' type='checkbox'></td>
-								<td width=60>&nbsp;</td>
-								<td><b>Start Channel:</b></td><td><input id='LEDPanelsStartChannel' type=text size=6 maxlength=6 value='1'></td>
+								<td width=20>&nbsp;</td>
+								<td>&nbsp;</td>
 							</tr>
 							<tr>
 								<td><b>Panel Layout (WxH):</b></td><td><? printLEDPanelLayoutSelect(); ?></td>
 								<td>&nbsp;</td>
-								<td><b>Channel Count:</b></td><td><span id='LEDPanelsChannelCount'>1536</span></td>
+								<td><b>Start Channel:</b></td><td><input id='LEDPanelsStartChannel' type=text size=6 maxlength=6 value='1'></td>
 							</tr>
 							<tr>
 								<td><b>Single Panel Size (WxH):</b></td><td><? printLEDPanelSizeSelect(); ?></td>
+								<td>&nbsp;</td>
+								<td><b>Channel Count:</b></td><td><span id='LEDPanelsChannelCount'>1536</span></td>
+							</tr>
+							<tr>
+								<td><b>Model Start Corner:</b></td><td>
+									<select id='LEDPanelsStartCorner'>
+										<option value='0'>Top Left</option>
+										<option value='1'>Bottom Left</option>
+									</select>
+								</td>
+								<td>&nbsp;</td>
+								<td><b>Panel Color Order:</b></td><td>
+									<select id='LEDPanelsColorOrder'>
+										<option value='RGB'>RGB</option>
+										<option value='RBG'>RBG</option>
+										<option value='GRB'>GRB</option>
+										<option value='GBR'>GBR</option>
+										<option value='BRG'>BRG</option>
+										<option value='BGR'>BGR</option>
+									</select>
+									</td>
 							</tr>
 							<tr>
 								<td width = '70 px' colspan=5><input id='btnSaveChannelOutputsJSON' class='buttons' type='button' value='Save' onClick='SaveChannelOutputsJSON();'/> <font size=-1><? if ($settings['Platform'] == "BeagleBone Black") { echo "(this will save changes to BBB tab &amp; LED Panels tab)"; } ?></font></td>
@@ -2030,7 +2125,11 @@ if ($settings['Platform'] == "BeagleBone Black")
 							<tr>
 								<td><b>Enable BBB String Cape:</b></td>
 								<td><input id='BBB48StringEnabled' type='checkbox'></td>
-								<td width=60>&nbsp;</td>
+								<td width=20>&nbsp;</td>
+								<td width=20>&nbsp;</td>
+								<td width=20>&nbsp;</td>
+							</tr>
+							<tr>
 								<td><b>Cape Type:</b></td>
 								<td><select id='BBB48StringSubType' onChange='BBB48StringSubTypeChanged();'>
 									<option value='F16-B'>F16-B</option>
@@ -2058,7 +2157,9 @@ if ($settings['Platform'] == "BeagleBone Black")
 									<td width='10%'>Group<br>Count</td>
 									<td width='10%'>Null<br>Nodes</td>
 									<td width='10%'>Hybrid</td>
+<!--
 									<td width='10%'>Zig<br>Zag</td>
+-->
 									</tr>
 							</thead>
 							<tbody>

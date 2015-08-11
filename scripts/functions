@@ -360,7 +360,7 @@ cleanCompiledBinaries() {
 	then
 		cd ${FPPDIR}/src && ${SUDO} make clean
 	else
-		cd ${FPPDIR}/src && sudo -u pi make clean
+		cd ${FPPDIR}/src && sudo -u ${FPPUSER} make clean
 	fi
 }
 
@@ -371,26 +371,29 @@ compileBinaries() {
 	then
 		cd ${FPPDIR}/src && ${SUDO} make clean && ${SUDO} make
 	else
-		cd ${FPPDIR}/src && ${SUDO} -u pi make clean && sudo -u pi make
+		cd ${FPPDIR}/src && ${SUDO} -u ${FPPUSER} make clean && sudo -u ${FPPUSER} make
 	fi
 
-	# Clean up any compiled binaries that are identical to the one in git
-	for FILE in ${BINARIES}
-	do
-		if [ "x${FPPDIR}" = "x/opt/fpp" ]
-		then
-			${SUDO} strip ${FPPDIR}/src/${FILE}
-		else
-			${SUDO} -u pi strip ${FPPDIR}/src/${FILE}
-		fi
+	if [ "x${FPPBINDIR}" != "x${FPPDIR}/src" ]
+	then
+		# Clean up any installed binaries that are identical to the one in git
+		for FILE in ${BINARIES}
+		do
+			if [ "x${FPPDIR}" = "x/opt/fpp" ]
+			then
+				${SUDO} strip ${FPPDIR}/src/${FILE}
+			else
+				${SUDO} -u ${FPPUSER} strip ${FPPDIR}/src/${FILE}
+			fi
 
-		BINMD5=$(md5sum ${FPPDIR}/bin/${FILE} | awk '{print $1}')
-		SRCMD5=$(md5sum ${FPPDIR}/src/${FILE} | awk '{print $1}')
-		if [ "${BINMD5}" = "${SRCMD5}" ]
-		then
-			${SUDO} rm -f ${FPPDIR}/src/${FILE}
-		fi
-	done
+			BINMD5=$(md5sum ${FPPBINDIR}/${FILE} | awk '{print $1}')
+			SRCMD5=$(md5sum ${FPPDIR}/src/${FILE} | awk '{print $1}')
+			if [ "${BINMD5}" = "${SRCMD5}" ]
+			then
+				${SUDO} rm -f ${FPPDIR}/src/${FILE}
+			fi
+		done
+	fi
 }
 
 #############################################################################
@@ -476,18 +479,47 @@ updateAvahiConfig() {
 }
 
 #############################################################################
-# Configure device tree
-setupDeviceTree() {
-	if [ "${PLATFORM}" = "BeagleBone Black" ]
+# Start/Stop OLA Daemon
+startOLADaemonIfNecessary() {
+	# Start OLA daemon if necessary
+	cat ${FPPHOME}/media/config/channeloutputs.json | tr -d "\r\n" | egrep -q 'OLA",[ 	a-zA-Z0-9:",]*"enabled": 1'
+	if [ $? -eq 0 ]
 	then
-		#grep -q "^1,LEDscapeMatrix," /home/fpp/media/channeloutputs
-		cat /home/fpp/media/config/channeloutputs.json | tr -d "\r\n" | egrep -q '(LEDPanelMatrix|BBB48String)",[ 	a-zA-Z0-9:",]*"enabled": 1'
+		OLAPID=$(pgrep olad)
+echo "OLAPID: '$OLAPID'"
+		if [ -z "${OLAPID}" ]
+		then
+echo "starting olad"
+			sudo -u ${FPPUSER} olad -f -c ${FPPHOME}/media/config/ola
+		fi
+	fi
+}
+
+stopOLADaemonIfUnused() {
+	# Start OLA daemon if necessary
+	cat ${FPPHOME}/media/config/channeloutputs.json | tr -d "\r\n" | egrep -q 'OLA",[ 	a-zA-Z0-9:",]*"enabled": 1'
+	if [ $? -ne 0 ]
+	then
+		killall -9 olad
+	fi
+}
+
+#############################################################################
+# Configure Channel Outputs
+setupChannelOutputs() {
+
+	# Setup BBB device tree
+	if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
+	then
+		cat ${FPPHOME}/media/config/channeloutputs.json | tr -d "\r\n" | egrep -q '(LEDPanelMatrix|BBB48String)",[ 	a-zA-Z0-9:",]*"enabled": 1'
 		if [ $? -eq 0 ]
 		then
 			cp ${FPPDIR}/external/LEDscape/dts/CAPE-BONE-OCTO-00A0.dtbo /lib/firmware/
 			echo 'CAPE-BONE-OCTO' > /sys/devices/bone_capemgr.*/slots 2> /dev/null
 		fi
 	fi
+
+	startOLADaemonIfNecessary
 }
 
 #############################################################################
@@ -528,6 +560,72 @@ detectFalconHardware() {
 		sed -i "s/^FalconHardwareDetected =.*/FalconHardwareDetected = ${FHWFOUND}/" ${CFGFILE}
 	else
 		echo "FalconHardwareDetected = ${FHWFOUND}" >> ${CFGFILE}
+	fi
+}
+
+#############################################################################
+# Check for audio control files
+checkAudioConfig() {
+	if [ ! -e /root/.asoundrc ]
+	then
+		cat <<EOF > /root/.asoundrc
+pcm.!default {
+	type hw
+	card 0
+}
+
+ctl.!default {
+	type hw
+	card 0
+}
+EOF
+	fi
+
+	if [ ! -e /root/.libao ]
+	then
+		cat <<EOF > /root/.libao
+dev=default
+EOF
+	fi
+}
+
+#############################################################################
+# Check local time against U.S. Naval Observatory time, set if too far out
+checkTimeAgainstUSNO () {
+	# www.usno.navy.mil is not pingable, so check github.com instead
+	ping -q -c 1 github.com > /dev/null 2>&1
+
+	if [ $? -eq 0 ]
+	then
+		echo "FPP: Checking local time against U.S. Naval Observatory"
+
+		# allow clocks to differ by 24 hours to handle time zone differences
+		THRESHOLD=86400
+		USNOSECS=$(curl -s http://www.usno.navy.mil/cgi-bin/time.pl | sed -e "s/.*\">//" -e "s/<\/t.*//" -e "s/...$//")
+		LOCALSECS=$(date +%s)
+		MINALLOW=$(expr ${USNOSECS} - ${THRESHOLD})
+		MAXALLOW=$(expr ${USNOSECS} + ${THRESHOLD})
+
+		#echo "FPP: USNO Secs  : ${USNOSECS}"
+		#echo "FPP: Local Secs : ${LOCALSECS}"
+		#echo "FPP: Min Valid  : ${MINALLOW}"
+		#echo "FPP: Max Valid  : ${MAXALLOW}"
+
+		echo "FPP: USNO Time  : $(date --date=@${USNOSECS})"
+		echo "FPP: Local Time : $(date --date=@${LOCALSECS})"
+
+		if [ ${LOCALSECS} -gt ${MAXALLOW} -o ${LOCALSECS} -lt ${MINALLOW} ]
+		then
+			echo "FPP: Local Time is not within 24 hours of USNO time, setting to USNO time"
+			date $(date --date="@${USNOSECS}" +%m%d%H%M%Y.%S)
+
+			LOCALSECS=$(date +%s)
+			echo "FPP: New Local Time: $(date --date=@${LOCALSECS})"
+		else
+			echo "FPP: Local Time is OK"
+		fi
+	else
+		echo "FPP: Not online, unable to check time against U.S. Naval Observatory."
 	fi
 }
 

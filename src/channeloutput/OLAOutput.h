@@ -1,7 +1,7 @@
 /*
- *   LEDscape Matrix handler for Falcon Pi Player (FPP)
+ *   OLA Channel Output driver for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Pi Player Developers
+ *   Copyright (C) 2013 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -9,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -23,19 +23,21 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _LEDSCAPEMATRIX_H
-#define _LEDSCAPEMATRIX_H
+#ifndef _OLAOUTPUT_H
+#define _OLAOUTPUT_H
 
-#include <string>
-
-#include "ledscape.h"
+#include <vector>
 
 #include "ChannelOutputBase.h"
+#include "UniverseEntry.h"
 
-class LEDscapeMatrixOutput : public ChannelOutputBase {
+#include <ola/DmxBuffer.h>
+#include <ola/client/StreamingClient.h>
+
+class OLAOutput : public ChannelOutputBase {
   public:
-	LEDscapeMatrixOutput(unsigned int startChannel, unsigned int channelCount);
-	~LEDscapeMatrixOutput();
+	OLAOutput(unsigned int startChannel, unsigned int channelCount);
+	~OLAOutput();
 
 	int Init(Json::Value config);
 	int Close(void);
@@ -45,14 +47,10 @@ class LEDscapeMatrixOutput : public ChannelOutputBase {
 	void DumpConfig(void);
 
   private:
-	ledscape_config_t  *m_config;
-	ledscape_t         *m_leds;
+	ola::DmxBuffer                  m_buffer;
+	ola::client::StreamingClient   *m_client;
 
-	std::string         m_colorOrder;
-
-	int                 m_dataSize;
-	uint8_t            *m_data;
-	uint8_t             m_invertedData;
+	std::vector<Universe>           m_universes;
 };
 
-#endif /* _LEDSCAPEMATRIX_H */
+#endif

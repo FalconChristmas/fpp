@@ -9,21 +9,88 @@
 # version of FPP, the system can then be switched to a new version number
 # or git branch for release.
 #
+#############################################################################
 # To use this script, download the latest copy from github and run it as
 # root on the system where you want to install FPP:
 #
-# wget -O ./FPP_Install.sh https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
+# wget --no-check-certificate -O ./FPP_Install.sh https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
 # chmod 700 ./FPP_Install.sh
 # sudo ./FPP_Install.sh
+#
+#############################################################################
+# NOTE: This script is used to build the SD images for FPP releases.  Its
+#       main goal is to prep these release images.  It may be used for othe
+#       purposes, but it is not our main priority to keep FPP working on
+#       other Linux distributions or distribution versions other than those
+#       we base our FPP releases on.  Currently, FPP images are based on the
+#       following OS images for the Raspberry Pi and BeagleBone Black:
+#
+#       Raspberry Pi - The Raspberry Pi image is currently available from
+#           (FIXME, get URL and filename here for Pi)
+#           - 
+#
+#       BeagleBone Black - The BBB images are currently available from
+#           https://rcn-ee.com/rootfs/bb.org/release/2014-05-14/
+#           - bone-debian-7.5-2014-05-14-2gb.img
+#           - BBB-eMMC-flasher-debian-7.5-2014-05-14-2gb.img
+#
+#       Other OS images may work with this install script and FPP on the
+#       Pi and BBB platforms, but these are the images we are currently
+#       targetting for support.
 #
 #############################################################################
 SCRIPTVER="0.5"
 FPPBRANCH="stage"
 FPPIMAGEVER="1.5"
-FPPCFGVER="7"
+FPPCFGVER="8"
 FPPPLATFORM="UNKNOWN"
 FPPDIR="/opt/fpp"
 OSVER="UNKNOWN"
+
+#############################################################################
+# Some Helper Functions
+#############################################################################
+# Check local time against U.S. Naval Observatory time, set if too far out.
+# This function was copied from /opt/fpp/scripts/functions in FPP source
+# since we don't have access to the source until we clone the repo.
+checkTimeAgainstUSNO () {
+	# www.usno.navy.mil is not pingable, so check github.com instead
+	ping -q -c 1 github.com > /dev/null 2>&1
+
+	if [ $? -eq 0 ]
+	then
+		echo "FPP: Checking local time against U.S. Naval Observatory"
+
+		# allow clocks to differ by 24 hours to handle time zone differences
+		THRESHOLD=86400
+		USNOSECS=$(curl -s http://www.usno.navy.mil/cgi-bin/time.pl | sed -e "s/.*\">//" -e "s/<\/t.*//" -e "s/...$//")
+		LOCALSECS=$(date +%s)
+		MINALLOW=$(expr ${USNOSECS} - ${THRESHOLD})
+		MAXALLOW=$(expr ${USNOSECS} + ${THRESHOLD})
+
+		#echo "FPP: USNO Secs  : ${USNOSECS}"
+		#echo "FPP: Local Secs : ${LOCALSECS}"
+		#echo "FPP: Min Valid  : ${MINALLOW}"
+		#echo "FPP: Max Valid  : ${MAXALLOW}"
+
+		echo "FPP: USNO Time  : $(date --date=@${USNOSECS})"
+		echo "FPP: Local Time : $(date --date=@${LOCALSECS})"
+
+		if [ ${LOCALSECS} -gt ${MAXALLOW} -o ${LOCALSECS} -lt ${MINALLOW} ]
+		then
+			echo "FPP: Local Time is not within 24 hours of USNO time, setting to USNO time"
+			date $(date --date="@${USNOSECS}" +%m%d%H%M%Y.%S)
+
+			LOCALSECS=$(date +%s)
+			echo "FPP: New Local Time: $(date --date=@${LOCALSECS})"
+		else
+			echo "FPP: Local Time is OK"
+		fi
+	else
+		echo "FPP: Not online, unable to check time against U.S. Naval Observatory."
+	fi
+}
+
 #############################################################################
 # Gather some info about our system
 . /etc/os-release
@@ -58,6 +125,8 @@ else
 	FPPPLATFORM="UNKNOWN"
 fi
 
+checkTimeAgainstUSNO
+
 #############################################################################
 echo "============================================================"
 echo "$0 v${SCRIPTVER}"
@@ -76,11 +145,11 @@ echo "Notes:"
 echo "- Does this system have internet access to install packages and FPP?"
 echo ""
 echo "WARNINGS:"
-echo "- This install expects to be run on a clean freshly-installed system"
-echo "  it is not currently designed to be re-run multiple times."
+echo "- This install expects to be run on a clean freshly-installed system."
+echo "  The script is not currently designed to be re-run multiple times."
 echo "- This installer will take over your system.  It will disable any"
-echo "  existing 'pi' or 'debian' user and create a 'fpp' user.  If you"
-echo "  have an empty root password, root access will be disabled."
+echo "  existing 'pi' or 'debian' user and create a 'fpp' user.  If the system"
+echo "  has an empty root password, remote root login will be disabled."
 echo ""
 
 echo -n "Do you wish to proceed? [N/y] "
@@ -92,6 +161,17 @@ then
 	echo
 	exit
 fi
+
+STARTTIME=$(date)
+
+#######################################
+# Log output and notify user
+echo "ALL output will be copied to FPP_Install.log"
+exec > >(tee -a FPP_Install.log)
+exec 2>&1
+echo "========================================================================"
+echo "FPP_Install.sh started at ${STARTTIME}"
+echo "------------------------------------------------------------------------"
 
 #######################################
 # Remove old /etc/fpp if it exists
@@ -166,17 +246,20 @@ case "${OSVER}" in
 		apt-get update
 
 		echo "FPP - Removing some unneeded packages"
-		apt-get -y remove gnome-icon-theme gnome-accessibility-themes gnome-keyring gnome-themes-standard gnome-themes-standard-data libgnome-keyring-common libgnome-keyring0 libpam-gnome-keyring libsoup-gnome2.4-1:armhf desktop-base xserver-xorg x11proto-composite-dev x11proto-core-dev x11proto-damage-dev x11proto-fixes-dev x11proto-input-dev x11proto-kb-dev x11proto-randr-dev x11proto-render-dev x11proto-xext-dev x11proto-xinerama-dev xchat xrdp xscreensaver xscreensaver-data desktop-file-utils dbus-x11 javascript-common ruby1.9.1 ruby libxxf86vm1:armhf libxxf86dga1:armhf libxvidcore4:armhf libxv1:armhf libxtst6:armhf libxslt1.1:armhf libxres1:armhf libxrender1:armhf  libxrandr2:armhf libxml2-dev libxmuu1 xauth wvdial xserver-xorg-video-fbdev xfonts-utils xfonts-encodings   libuniconf4.6 libwvstreams4.6-base libwvstreams4.6-extras
+		apt-get -y remove gnome-icon-theme gnome-accessibility-themes gnome-themes-standard gnome-themes-standard-data libsoup-gnome2.4-1:armhf desktop-base xserver-xorg x11proto-composite-dev x11proto-core-dev x11proto-damage-dev x11proto-fixes-dev x11proto-input-dev x11proto-kb-dev x11proto-randr-dev x11proto-render-dev x11proto-xext-dev x11proto-xinerama-dev xchat xrdp xscreensaver xscreensaver-data desktop-file-utils dbus-x11 javascript-common ruby1.9.1 ruby libxxf86vm1:armhf libxxf86dga1:armhf libxvidcore4:armhf libxv1:armhf libxtst6:armhf libxslt1.1:armhf libxres1:armhf libxrender1:armhf  libxrandr2:armhf libxml2-dev libxmuu1 xauth wvdial xserver-xorg-video-fbdev xfonts-utils xfonts-encodings   libuniconf4.6 libwvstreams4.6-base libwvstreams4.6-extras
 		apt-get -y autoremove
 
 		echo "FPP - Installing required packages"
 		# Install in more than one command to lower total disk space required
 		# Do a clean in between each iteration
-		apt-get -y install alsa-base alsa-utils apache2 apache2.2-bin apache2.2-common apache2-mpm-prefork apache2-utils arping avahi-daemon avahi-discover avahi-utils bc build-essential bzip2 ca-certificates ccache curl device-tree-compiler
+		apt-get -y install alsa-base alsa-utils apache2 apache2.2-bin apache2.2-common apache2-mpm-prefork apache2-utils arping avahi-daemon avahi-discover avahi-utils bash-completion bc build-essential bzip2 ca-certificates ccache curl device-tree-compiler dh-autoreconf
 		apt-get -y clean
-		apt-get -y install ethtool fbi fbset file flite 'g++-4.7' gcc-4.7 gdb git i2c-tools ifplugd imagemagick less libapache2-mod-php5 libboost-dev libconvert-binary-c-perl libdbus-glib-1-dev libdevice-serialport-perl libjson-perl libjsoncpp-dev
+		apt-get -y install ethtool fbi fbset file flite 'g++-4.7' gcc-4.7 gdb gdebi-core git i2c-tools ifplugd imagemagick less libapache2-mod-php5 libboost-dev libconvert-binary-c-perl libdbus-glib-1-dev libdevice-serialport-perl libjs-jquery libjs-jquery-ui libjson-perl libjsoncpp-dev
 		apt-get -y clean
-		apt-get -y install libnet-bonjour-perl libpam-smbpass libtagc0-dev locales mp3info mpg123 mpg321 mplayer nano nginx node perlmagick php5 php5-cli php5-common php5-fpm php5-mcrypt php5-sqlite php-apc python-daemon python-smbus samba samba-common-bin shellinabox sudo sysstat usbmount vim vim-common vorbis-tools vsftpd
+		apt-get -y install libnet-bonjour-perl libpam-smbpass libtagc0-dev locales mp3info mpg123 mpg321 mplayer nano nginx node ntp perlmagick php5 php5-cli php5-common php5-curl php5-fpm php5-mcrypt php5-sqlite php-apc python-daemon python-smbus samba samba-common-bin shellinabox sudo sysstat usbmount vim vim-common vorbis-tools vsftpd
+		apt-get -y clean
+		# packages for building and running OLA
+		apt-get -y --force-yes install libcppunit-dev libcppunit-1.12-1 uuid-dev pkg-config libncurses5-dev libtool autoconf automake libmicrohttpd-dev protobuf-compiler python-protobuf libprotobuf-dev libprotoc-dev zlib1g-dev bison flex libftdi-dev libftdi1 libusb-1.0-0-dev liblo-dev
 		apt-get -y clean
 
 		echo "FPP - Installing wireless firmware packages"
@@ -235,7 +318,8 @@ case "${OSVER}" in
 		echo "FPP - Installing required packages"
 		if [ "x${FPPPLATFORM}" = "xODROID" ]
 		then
-			apt-get -y install apache2 apache2-bin apache2-mpm-prefork apache2-utils avahi-discover fbi flite i2c-tools imagemagick libapache2-mod-php5 libboost-dev libconvert-binary-c-perl libjson-perl libjsoncpp-dev libnet-bonjour-perl libpam-smbpass mp3info mpg123 perlmagick php5 php5-cli php5-common php-apc python-daemon python-smbus samba samba-common-bin shellinabox sysstat vorbis-tools vsftpd
+			echo "FPP - WARNING: This list may be incomplete, it needs to be updated to match the Pi/BBB Debian package install list"
+			apt-get -y install apache2 apache2-bin apache2-mpm-prefork apache2-utils avahi-discover fbi flite gdebi-core i2c-tools imagemagick libapache2-mod-php5 libboost-dev libconvert-binary-c-perl libjson-perl libjsoncpp-dev libnet-bonjour-perl libpam-smbpass mp3info mpg123 perlmagick php5 php5-cli php5-common php-apc python-daemon python-smbus samba samba-common-bin shellinabox sysstat vorbis-tools vsftpd
 		fi
 		;;
 esac
@@ -249,6 +333,20 @@ case "${FPPPLATFORM}" in
 		echo "# Disable HDMI for Falcon and LEDscape cape support" >> /boot/uboot/uEnv.txt
 		echo "cape_disable=capemgr.disable_partno=BB-BONELT-HDMI,BB-BONELT-HDMIN" >> /boot/uboot/uEnv.txt
 		echo >> /boot/uboot/uEnv.txt
+
+		echo "FPP - Installing OLA packages"
+		mkdir /tmp/deb
+		cd /tmp/deb
+		FILES="libola-dev_0.9.7-1_armhf.deb libola1_0.9.7-1_armhf.deb ola-python_0.9.7-1_all.deb ola-rdm-tests_0.9.7-1_all.deb ola_0.9.7-1_armhf.deb"
+		for FILE in ${FILES}
+		do
+			wget -nd http://www.bc2va.org/chris/tmp/fpp/deb/${FILE}
+		done
+		dpkg --unpack ${FILES}
+		rm -f ${FILES}
+#		apt-get -y --force-yes install libcppunit-dev libcppunit-1.12-1 uuid-dev pkg-config libncurses5-dev libtool autoconf automake  libmicrohttpd-dev protobuf-compiler python-protobuf libprotobuf-dev libprotoc-dev zlib1g-dev bison flex libftdi-dev libftdi1 libusb-1.0-0-dev liblo-dev
+#		git clone https://github.com/OpenLightingProject/ola.git /opt/ola
+#		(cd /opt/ola && autoreconf -i && ./configure --enable-python-libs && make && make install && ldconfig && cd /opt/ && rm -rf ola)
 		;;
 
 	'Raspberry Pi')
@@ -257,6 +355,11 @@ case "${FPPPLATFORM}" in
 
 		echo "FPP - Installing Pi-specific packages"
 		apt-get -y install raspi-config
+
+		echo "FPP - Installing OLA packages"
+		echo "deb http://apt.openlighting.org/raspbian wheezy main" > /etc/apt/sources.list.d/ola.list
+		apt-get update
+		apt-get -y install ola ola-rdm-tests ola-conf-plugins ola-dev libprotobuf-dev
 
 		echo "FPP - Updating packages"
 		apt-get -y upgrade
@@ -287,11 +390,17 @@ case "${FPPPLATFORM}" in
 
 		echo "FPP - Enabling SPI in device tree"
 		echo >> /boot/config.txt
+
 		echo "# Enable SPI in device tree" >> /boot/config.txt
 		echo "dtparam=spi=on" >> /boot/config.txt
 		echo >> /boot/config.txt
+
 		echo "# Enable I2C in device tree" >> /boot/config.txt
 		echo "dtparam=i2c=on" >> /boot/config.txt
+		echo >> /boot/config.txt
+
+		echo "# Setting kernel scaling framebuffer method" >> /boot/config.txt
+		echo "scaling_kernel=8" >> /boot/config.txt
 		echo >> /boot/config.txt
 
 		echo "FPP - Freeing up more space by removing unnecessary packages"
@@ -496,10 +605,15 @@ echo "FPP - Compiling binaries"
 cd /opt/fpp/src/
 make clean ; make
 
+ENDTIME=$(date)
+
 echo "========================================================="
-echo "FPP Install Complete, you can reboot the system by su-ing"
-echo "to the 'fpp' user (password 'falcon') and running the"
-echo "shutdown command."
+echo "FPP Install Complete."
+echo "Started : ${STARTTIME}"
+echo "Finished: ${ENDTIME}"
+echo "========================================================="
+echo "You can reboot the system by changing to the 'fpp' user with the"
+echo "password 'falcon' and running the shutdown command."
 echo ""
 echo "su - fpp"
 echo "sudo shutdown -r now"
@@ -507,25 +621,12 @@ echo "========================================================="
 echo ""
 
 #######################################
-# FPP_Install.sh TODO List
-# Bugs
-# - some files owned by root under /home/fpp somehow
-#   - bytesReceived, schedule, settings, universes, config/Falcon.FPDV1
-#   - appears to be when media is not FAT mounted as pi/pi  fpp/fpp
-# Raspberry Pi (officially supported FPP v2.0 platform)
-# - 
-# BeagleBone Black (officially supported FPP v2.0 platform)
-# - Hide USB network IP in UI
-# - http://elinux.org/Beagleboard:BeagleBoneBlack_Debian#2014-05-14
-# - https://s3.amazonaws.com/debian.beagleboard.org/images/bone-debian-7.5-2014-05-14-2gb.img.xz
-# - Setup uEnv.txt for LEDscape & copy overlay file
-#   https://github.com/osresearch/LEDscape/blob/master/Setup.md
-#   /boot/uboot/uEnv.txt
-#     cape_disable=capemgr.disable_partno=BB-BONELT-HDMI,BB-BONELT-HDMIN
-# ODROID-C1 (not officially supported in FPP v2.0)
+# FPP_Install.sh Notes
+#######################################
+# ODROID-C1 (no official FPP images but can work)
 # - Install (their patched) wiringPi
 # - Handle apache config differences for Ubuntu in /opt/fpp/scripts/startup
-# PogoPlug (not officially supported in FPP v2.0)
+# PogoPlug (no official FPP images but can work)
 # - Initial OS install test
 # - Set Platform
 # - Any other Debian version differences

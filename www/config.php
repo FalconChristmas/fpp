@@ -108,7 +108,6 @@ if ($settings['Platform'] == "Raspberry Pi")
 {
 	$settings['Logo'] = "large_Raspberry_Pi_Logo_4.png";
 	$settings['LogoLink'] = "http://raspberrypi.org/";
-	$settings['Title'] = "Falcon (Pi) Player - FPP";
 }
 else if ($settings['Platform'] == "BeagleBone Black")
 {

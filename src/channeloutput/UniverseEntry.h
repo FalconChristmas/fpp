@@ -1,5 +1,5 @@
 /*
- *   LEDscape Matrix handler for Falcon Pi Player (FPP)
+ *   E1.31 Universe Entry for Falcon Pi Player (FPP)
  *
  *   Copyright (C) 2013 the Falcon Pi Player Developers
  *      Initial development by:
@@ -23,36 +23,17 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _LEDSCAPEMATRIX_H
-#define _LEDSCAPEMATRIX_H
+#ifndef _UniverseEntry_H
+#define _UniverseEntry_H
 
-#include <string>
+typedef struct {
+	int           active;
+	int           universe;
+	int           startChannel;
+	int           channelCount;
+	int           unicast;
+	char          unicastAddress[16];
+	unsigned long bytesReceived;
+} Universe;
 
-#include "ledscape.h"
-
-#include "ChannelOutputBase.h"
-
-class LEDscapeMatrixOutput : public ChannelOutputBase {
-  public:
-	LEDscapeMatrixOutput(unsigned int startChannel, unsigned int channelCount);
-	~LEDscapeMatrixOutput();
-
-	int Init(Json::Value config);
-	int Close(void);
-
-	int RawSendData(unsigned char *channelData);
-
-	void DumpConfig(void);
-
-  private:
-	ledscape_config_t  *m_config;
-	ledscape_t         *m_leds;
-
-	std::string         m_colorOrder;
-
-	int                 m_dataSize;
-	uint8_t            *m_data;
-	uint8_t             m_invertedData;
-};
-
-#endif /* _LEDSCAPEMATRIX_H */
+#endif

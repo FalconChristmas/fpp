@@ -17,19 +17,34 @@ then
 	FPPDIR="${FPPHOME}/fpp"
 fi
 
-FPP="${FPPDIR}/bin/fpp"
-FPPD="${FPPDIR}/bin/fppd"
-PATHDIRS="${FPPDIR}/scripts/:${FPPDIR}/bin/"
-if [ -f "${FPPDIR}/src/fppd" -a "${FPPDIR}/src/fppd" -nt "${FPPDIR}/bin/fppd" ]
+FPPPLATFORM=$(cat /etc/fpp/platform 2> /dev/null)
+FPPBINDIR="${FPPDIR}/bin"
+if [ "x${FPPPLATFORM}" = "xRaspberry Pi" ]
 then
-	FPP="${FPPDIR}/src/fpp"
-	FPPD="${FPPDIR}/src/fppd"
+	FPPBINDIR="${FPPDIR}/bin.pi"
+else
+	if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]
+	then
+		FPPBINDIR="${FPPDIR}/bin.bbb"
+	fi
+fi
+
+PATHDIRS="${FPPDIR}/scripts/:${FPPBINDIR}/"
+if [ -f "${FPPDIR}/src/fppd" -a "${FPPDIR}/src/fppd" -nt "${FPPBINDIR}/fppd" ]
+then
+	FPPBINDIR="${FPPDIR}/src"
 	PATHDIRS="${FPPDIR}/scripts/:${FPPDIR}/src/"
 fi
+FPP="${FPPBINDIR}/fpp"
+FPPD="${FPPBINDIR}/fppd"
+
+export FPPDIR
+export FPPBINDIR
+export FPPHOME
+export FPPUSER
 export PATH=${PATHDIRS}:${PATH}
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${FPPDIR}/external/RF24
 
-PLATFORM=$(cat /etc/fpp/platform 2> /dev/null)
 SUDO=${SUDO:-sudo}
 SCRIPTDIR="${FPPDIR}/scripts"
 BINDIR="${FPPDIR}/scripts"

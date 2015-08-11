@@ -52,6 +52,16 @@ $plugins = Array(
 		'sha'         => '063d7385c9752bdbbc20063d69800fb5ed3dcb20',
 	),
 
+	Array(
+		'shortName'   => 'ProjectorControl',
+		'name'        => 'Projector Control',
+		'description' => 'Basic Basic Projector Control',
+		'homeUrl'     => 'https://github.com/LightsOnHudson/FPP-Plugin-Projector-Control',
+		'sourceUrl'   => 'https://github.com/LightsOnHudson/FPP-Plugin-Projector-Control.git',
+		'bugUrl'      => 'https://github.com/LightsOnHudson/FPP-Plugin-Projector-Control/issues',
+		'sha'         => '0d8e56e0afedef6c6fdf20aeb5d6331d762ecba5',
+	),
+
 );
 
 ?>
