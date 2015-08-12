@@ -28,11 +28,18 @@ $system_active_plugins = array();
 //Preserve some existing settings by default
 $keepMasterSlaveSettings = true;
 $keepNetworkSettings = true;
+//Encrypt/obfuscate passwords and other sensitive data
+$protectSensitiveData = true;
+//The final value is read from the uploaded file on restore, used to skip some parts of the restore operation
+$uploadDataProtected = true;
 
 //list of settings restored
 $settings_restored = array();
 //restore done state
 $restore_done = false;
+
+//array of settings considered sensitive
+$sensitive_data = array('emailgpass', 'psk');
 
 /**
  * Handle POST for download or restore
@@ -43,14 +50,19 @@ if (isset($_POST['btnDownloadConfig'])) {
     /// BACKUP
     /////
     if (isset($_POST['backuparea']) && !empty($_POST['backuparea'])) {
+        if (isset($_POST['protectSensitive'])) {
+            $protectSensitiveData = true;
+        } else {
+            $protectSensitiveData = false;
+        }
+
         //this value *SHOULD* directly match a key in $system_config_aras
         $area = $_POST['backuparea'];
 
-        //temp data
+        //temporary collection area for settings
         $tmp_settings_data = array();
 
         if (array_key_exists($area, $system_config_aras)) {
-
             //Create a copy of the areas array to manipulate
             $tmp_config_areas = $system_config_aras;
 
@@ -70,7 +82,6 @@ if (isset($_POST['btnDownloadConfig'])) {
                         if ($config_key == "settings") {
                             //parse ini properly
                             $file_data = parse_ini_string(file_get_contents($setting_file));
-                            $file_data['emailgpass'] = '';//remove email pass for now,
                         } else if ($config_key == "channelOutputsJSON") {
                             //channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
                             $file_data = json_decode(file_get_contents($setting_file), true);
@@ -83,11 +94,22 @@ if (isset($_POST['btnDownloadConfig'])) {
                     }
                 }
             } else if (strtolower($area) == "email") {
-                //special treatment for email settings as they are inside the general settings file, emailgpass can't be obtained directly though..
+                $emailgpass = '';
+                //Do a quick work around to obtain the emailgpass
+                if ($tmp_config_areas['settings']['file'] !== false && file_exists($tmp_config_areas['settings']['file'])) {
+                    $setting_file_data = parse_ini_string(file_get_contents($tmp_config_areas['settings']['file']));
+                    if (array_key_exists('emailgpass', $setting_file_data)) {
+                        //get pass
+                        $emailgpass = $setting_file_data['emailgpass'];
+                    }
+                }
+
+                //special treatment for email settings as they are inside the general settings file
+                //collect them together here
                 $email_settings = array(
                     'emailenable' => $settings['emailenable'],
                     'emailguser' => $settings['emailguser'],
-//                    'emailgpass' => false, //Not available to us unless we directly pull it from the settings file
+                    'emailgpass' => $emailgpass,
                     'emailfromtext' => $settings['emailfromtext'],
                     'emailtoemail' => $settings['emailtoemail']
                 );
@@ -101,7 +123,6 @@ if (isset($_POST['btnDownloadConfig'])) {
                     if ($area == "settings") {
                         //parse ini properly into an assoc. array
                         $file_data = parse_ini_string(file_get_contents($setting_file));
-                        $file_data['emailgpass'] = '';//remove email pass for now,
                     } else if ($area == "channelOutputsJSON") {
                         //channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
                         $file_data = json_decode(file_get_contents($setting_file), true);
@@ -114,9 +135,20 @@ if (isset($_POST['btnDownloadConfig'])) {
                 }
             }
 
+            //Remove any sensitive data
+            if ($protectSensitiveData == true) {
+                foreach ($tmp_settings_data as $set_key => $data_arr) {
+                    foreach ($data_arr as $key_name => $key_data) {
+                        if (in_array($key_name, $sensitive_data)) {
+                            $tmp_settings_data[$set_key][$key_name] = '';
+                        }
+                    }
+                }
+            }
+
             //DO IT!
             if (!empty($tmp_settings_data)) {
-                do_backup_download($tmp_settings_data, $area);
+                doBackupDownlaod($tmp_settings_data, $area);
             }
         }
     }
@@ -128,11 +160,16 @@ if (isset($_POST['btnDownloadConfig'])) {
     if (isset($_POST['restorearea']) && !empty($_POST['restorearea'])) {
         $restore_area = $_POST['restorearea'];
 
-        if (isset($_POST['keepExitingNetwork']) && !empty($_POST['keepExitingNetwork'])) {
-            $keepNetworkSettings = $_POST['keepExitingNetwork'];
+        if (isset($_POST['keepExitingNetwork'])) {
+            $keepNetworkSettings = true;
+        } else {
+            $keepNetworkSettings = false;
         }
-        if (isset($_POST['keepMasterSlave']) && !empty($_POST['keepMasterSlave'])) {
-            $keepMasterSlaveSettings = $_POST['keepMasterSlave'];
+
+        if (isset($_POST['keepMasterSlave'])) {
+            $keepMasterSlaveSettings = true;
+        } else {
+            $keepMasterSlaveSettings = false;
         }
 
         //this value *SHOULD* directly match a key in $system_config_aras
@@ -141,7 +178,7 @@ if (isset($_POST['btnDownloadConfig'])) {
             if (array_key_exists('conffile', $_FILES)) {
                 //data is stored by area and keyed the same as $system_config_aras
                 //read file, decode json
-                //parse each area and write settings
+                //parse each area and write settings/restore data
 
                 $rstfname = $_FILES['conffile']['name'];
                 $rstftmp_name = $_FILES['conffile']['tmp_name'];
@@ -152,6 +189,12 @@ if (isset($_POST['btnDownloadConfig'])) {
 
                 //successful decode
                 if ($file_contents_decoded !== FALSE && is_array($file_contents_decoded)) {
+                    //Get value of protected state and remove it from the array
+                    if (array_key_exists('protected', $file_contents_decoded)) {
+                        $uploadDataProtected = $file_contents_decoded['protected'];
+                        unset($file_contents_decoded['protected']);
+                    }
+
                     if (strtolower($restore_area) == "all") {
                         // ALL SETTING RESTORE
                         //read each area and process it
@@ -159,43 +202,8 @@ if (isset($_POST['btnDownloadConfig'])) {
                             process_restore_data($restore_area_key, $area_data);
                         }
                     } else if (strtolower($restore_area) == "email") {
-                        // EMAIL SETTING RESTORE
-                        if (array_key_exists('email', $file_contents_decoded)) {
-                            $emailenable = $file_contents_decoded['email']['emailenable'];
-                            $emailguser = $file_contents_decoded['email']['emailguser'];
-                            $emailgpass = "";//Not available when doing anything except full backups
-                            $emailfromtext = $file_contents_decoded['email']['emailfromtext'];
-                            $emailtoemail = $file_contents_decoded['email']['emailtoemail'];
-
-                            //Write them out
-                            WriteSettingToFile('emailenable', $emailenable);
-                            WriteSettingToFile('emailguser', $emailguser);
-//                            WriteSettingToFile('emailgpass', $emailgpass);
-                            WriteSettingToFile('emailfromtext', $emailfromtext);
-                            WriteSettingToFile('emailtoemail', $emailtoemail);
-
-                            //Update the email config (writes out exim config)
-                            SaveEmailConfig($emailguser, $emailgpass, $emailfromtext, $emailtoemail);
-
-                            $settings_restored[$restore_area] = true;
-                        } else if (array_key_exists('settings', $file_contents_decoded)) {
-                            $emailenable = $file_contents_decoded['settings']['emailenable'];
-                            $emailguser = $file_contents_decoded['settings']['emailguser'];
-                            $emailgpass = $file_contents_decoded['settings']['emailgpass'];
-                            $emailfromtext = $file_contents_decoded['settings']['emailfromtext'];
-                            $emailtoemail = $file_contents_decoded['settings']['emailtoemail'];
-
-                            //Write them out
-                            WriteSettingToFile('emailenable', $emailenable);
-                            WriteSettingToFile('emailguser', $emailguser);
-                            WriteSettingToFile('emailgpass', $emailgpass);
-                            WriteSettingToFile('emailfromtext', $emailfromtext);
-                            WriteSettingToFile('emailtoemail', $emailtoemail);
-                            //Update the email config (writes out exim config)
-                            SaveEmailConfig($emailguser, $emailgpass, $emailfromtext, $emailtoemail);
-
-                            $settings_restored[$restore_area] = true;
-                        }
+                        $area_data = $file_contents_decoded[$restore_area];
+                        process_restore_data("email", $area_data);
                     } else {
                         // ALL OTHER SETTING RESTORE
                         //Process specific restore areas, this work almost like the 'all' area
@@ -227,9 +235,10 @@ if (isset($_POST['btnDownloadConfig'])) {
  */
 function process_restore_data($restore_area, $area_data)
 {
-    global $system_config_aras, $keepMasterSlaveSettings, $keepNetworkSettings, $settings_restored;
+    global $system_config_aras, $keepMasterSlaveSettings, $keepNetworkSettings, $uploadDataProtected, $settings_restored;
     global $args;
 
+    //Includes for API access
     require_once('fppjson.php');
     require_once('fppxml.php');
 
@@ -271,11 +280,35 @@ function process_restore_data($restore_area, $area_data)
         }
     }
 
-    if ($restore_area_key == "settings") {
-//        $data = implode("\n", $area_data);
-//        var_dump($area_data);
-//        $ini_string = parse_ini_string($data);
+    if ($restore_area_key == "email") {
+        //TODO rework this so it will work future email system implementation, were different providers are used
+        if (is_array($area_data)) {
+            $emailenable = $area_data['emailenable'];
+            $emailguser = $area_data['emailguser'];
+            $emailgpass = $area_data['emailgpass'];
+            $emailfromtext = $area_data['emailfromtext'];
+            $emailtoemail = $area_data['emailtoemail'];
 
+            //Write them out
+            WriteSettingToFile('emailenable', $emailenable);
+            WriteSettingToFile('emailguser', $emailguser);
+            WriteSettingToFile('emailfromtext', $emailfromtext);
+            WriteSettingToFile('emailtoemail', $emailtoemail);
+
+            //Only save password and generate exim config if upload data is unprotected
+            //meaning the password was included in the backup,
+            //otherwise existing (valid) config may be overwritten
+            if ($uploadDataProtected == false && $emailgpass != "") {
+                WriteSettingToFile('emailgpass', $emailgpass);
+                //Update the email config (writes out exim config)
+                SaveEmailConfig($emailguser, $emailgpass, $emailfromtext, $emailtoemail);
+            }
+
+            $save_result = true;
+        }
+    }
+
+    if ($restore_area_key == "settings") {
         if (is_array($area_data)) {
             foreach ($area_data as $setting_name => $setting_value) {
                 //check if we can change it (default value is checked - true)
@@ -284,6 +317,8 @@ function process_restore_data($restore_area, $area_data)
                         WriteSettingToFile($setting_name, $setting_value);
                     }
                 } else {
+                    //Don't write settings that should be protected,
+                    //so they we don't wipe out their values (these are empty in a protected backup)
                     WriteSettingToFile($setting_name, $setting_value);
                 }
 
@@ -293,6 +328,8 @@ function process_restore_data($restore_area, $area_data)
                 if ($setting_name == 'piRTC') {
                     SetPiRTC($setting_value);
                 } else if ($setting_name == "PI_LCD_Enabled") {
+                    //DO a weird work around and set our request params and then call
+                    //the function to enable the LCD
                     if ($setting_value == 1) {
                         $_GET['enabled'] = "true";
                     } else {
@@ -305,7 +342,12 @@ function process_restore_data($restore_area, $area_data)
                 } else if ($setting_name == "volume") {
                     $_GET['volume'] = trim($setting_value);
                     SetVolume();
+                } else if ($setting_name == "ntpServer") {
+                    //TODO: Set NTP server
+                    //toggle NTP state (because can't be sure the NTP enable or disable setting will come before or
+                    //after this application
                 } else if ($setting_name == "NTP") {
+                    //Update func due to time.php change
                     SetNTPState($setting_value);
                 }
             }
@@ -394,16 +436,27 @@ function SetPiRTC($pi_rtc_setting)
  * @param $settings_data Array Assoc. Array of settings data
  * @param $area String Area the download was for
  */
-function do_backup_download($settings_data, $area)
+function doBackupDownlaod($settings_data, $area)
 {
-    global $settings;
+    global $settings, $protectSensitiveData;
 
     if (!empty($settings_data)) {
+        //is sensitive data removed (selectively used on restore to skip some processes)
+        $settings_data['protected'] = $protectSensitiveData;
+
+        //platform identifier
+        $settings_data['platform'] = $settings['Platform'];
+
         //Once we have all the settings, process the array and dump it back to the user
         //filename
-        $backup_fname = $settings['HostName'] . "_" . $area . "-backup_" . date("YmdHis") . ".json";
-        $backup_local_fpath = $settings['configDirectory'] . "/" . $backup_fname;
+        $backup_fname = $settings['HostName'] . "_" . $area . "-backup_";
+        if ($protectSensitiveData == false) {
+            $backup_fname .= "unprotected_";
+        }
+        $backup_fname .= date("YmdHis") . ".json";
 
+        //Write a copy locally as well
+        $backup_local_fpath = $settings['configDirectory'] . "/" . $backup_fname;
         //Write data into backup file
         file_put_contents($backup_local_fpath, json_encode($settings_data));
 
@@ -467,23 +520,30 @@ function backup_gen_select($area_name = "backuparea")
                         foreach ($settings_restored as $area_restored => $success) {
                             $success_str;
                             if ($success == true) {
-                                $success_str = " Success";
+                                $success_str = "Success";
                             } else {
-                                $success_str = " Failed";
+                                $success_str = "Failed";
                             }
-                            echo $area_restored . " - " . $success_str . "<br/>";
+                            echo ucfirst($area_restored) . " - " . $success_str . "<br/>";
                         }
                         ?>
                     </div>
-                <?php
+                    <?php
                 }
                 ?>
                 <fieldset>
                     <legend>Backup Configuration</legend>
-                    Click this button to download the selected system configuration in JSON format.
+                    Select settings to backup, then download the selected system configuration in JSON format.
                     <br/>
-
                     <table width="100%">
+                        <tr>
+                            <td width="35%"><b>Protect sensitive data?</b></td>
+                            <td width="65%">
+                                <input id="dataProtect" name="protectSensitive"
+                                       type="checkbox"
+                                       checked="true">
+                            </td>
+                        </tr>
                         <tr>
                             <td width="25%">Backup Area</td>
                             <td width="75%"><?php echo backup_gen_select('backuparea'); ?></td>
@@ -501,8 +561,7 @@ function backup_gen_select($area_name = "backuparea")
                 <br/>
                 <fieldset>
                     <legend>Restore Configuration</legend>
-                    Open a configuration JSON file and click the button below to restore the
-                    configuration data to the selected area.
+                    Select settings to restore and then choose backup file containing backup data.
                     <br/>
                     <table width="100%">
 
@@ -550,6 +609,28 @@ function backup_gen_select($area_name = "backuparea")
             </fieldset>
         </div>
     </form>
+
+    <div id="dialog" title="Warning!" style="display:none">
+        <p>Un-checking this box will disable protection (automatic removal) of sensitive data like passwords.
+            <br/>   <br/>
+            <b>ONLY</b> Un-check this if you want to be able to properly clone settings to another FPP.
+            <br/>   <br/>
+            <b>NOTE:</b> The backup will include passwords in plaintext, you assume full responsibility for this file.
+        </p>
+    </div>
+
+    <script>
+        $('#dataProtect').click(function () {
+            if ($(this).not(':checked')) {
+                $("#dialog").dialog({
+                    width: 580,
+                    height: 280
+                });
+            }
+        });
+
+        //TODO Add warning about downloaded unprotected settings
+    </script>
 
     <?php include 'common/footer.inc'; ?>
 </body>
