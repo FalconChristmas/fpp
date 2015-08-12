@@ -44,6 +44,20 @@ $ntp = ( $output[0] == "true" );
 unset($output);
 //TODO: check return
 
+if (isset($_POST['ntpServer']))
+{
+  WriteSettingToFile("ntpServer", $_POST['ntpServer']);
+	$settings['ntpServer'] = $_POST['ntpServer'];
+	if ($_POST['ntpServer'] != "")
+	{
+		exec($SUDO . " sed -i '/^server.*/d' /etc/ntp.conf ; " . $SUDO . " sed -i '\$s/\$/\\nserver " . $_POST['ntpServer'] . " iburst/' /etc/ntp.conf");
+	}
+	else
+	{
+		exec($SUDO . " sed -i '/^server.*/d' /etc/ntp.conf ; " . $SUDO . " sed -i '\$s/\$/\\nserver 0.debian.pool.ntp.org iburst\\nserver 1.debian.pool.ntp.org iburst\\nserver 2.debian.pool.ntp.org iburst\\nserver 3.debian.pool.ntp.org iburst\\n/' /etc/ntp.conf");
+	}
+}
+
 if ( isset($_POST['ntp']) && !empty($_POST['ntp']) && $_POST['ntp'] == "disabled" && $ntp )
 {
     SetNTPState(0);
@@ -51,6 +65,12 @@ if ( isset($_POST['ntp']) && !empty($_POST['ntp']) && $_POST['ntp'] == "disabled
 elseif ( isset($_POST['ntp']) && !empty($_POST['ntp']) && $_POST['ntp'] == "enabled" && !$ntp )
 {
     SetNTPState(1);
+}
+elseif ( isset($_POST['ntp']) && !empty($_POST['ntp']) && $_POST['ntp'] == "enabled" && $ntp )
+{
+  exec($SUDO . " service ntp restart", $output, $return_val);
+  unset($output);
+  //TODO: check return
 }
 
 if ( isset($_POST['timezone']) && !empty($_POST['timezone']) && urldecode($_POST['timezone']) != $current_tz )
@@ -139,7 +159,9 @@ TODO: Make this a tool-tip:
 			<label for="ntp_enabled">Enabled:</label>
 			<input type="radio" name="ntp" id="ntp_enabled" value="enabled" <?php echo print_if_match($ntp, true, "checked=\"checked\""); ?>>
 			<label for="ntp_disabled">Disabled:</label>
-			<input type="radio" name="ntp" id="ntp_disabled" value="disabled" <?php echo print_if_match($ntp, false, "checked=\"checked\""); ?>>
+			<input type="radio" name="ntp" id="ntp_disabled" value="disabled" <?php echo print_if_match($ntp, false, "checked=\"checked\""); ?>><br>
+			<label for="ntpServer">NTP Server (optional):</label>
+			<input type='text' name='ntpServer' maxLength=32 size=32 value="<? if (isset($settings['ntpServer'])) echo $settings['ntpServer']; ?>">
 
 <h4>Time Zone</h4>
 

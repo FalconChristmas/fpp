@@ -23,6 +23,35 @@ function PrintSequenceOptions()
 	echo "</select>";
 }			
 
+$rgbLabels = array();
+$rgbColors = array();
+$rgbStr    = "RGB";
+$rgbColorList = "R-G-B";
+
+if (isset($settings['useRGBLabels']) && ($settings['useRGBLabels'] == '0'))
+{
+	$rgbLabels[0] = 'A';
+	$rgbLabels[1] = 'B';
+	$rgbLabels[2] = 'C';
+	$rgbColors[0] = 'A';
+	$rgbColors[1] = 'B';
+	$rgbColors[2] = 'C';
+	$rgbStr       = "ABC";
+	$rgbColorList = "A-B-C";
+}
+else
+{
+	$rgbLabels[0] = 'R';
+	$rgbLabels[1] = 'G';
+	$rgbLabels[2] = 'B';
+	$rgbColors[0] = 'Red';
+	$rgbColors[1] = 'Green';
+	$rgbColors[2] = 'Blue';
+	$rgbStr       = "RGB";
+	$rgbColorList = "R-G-B";
+	$settings['useRGBLabels'] = 1;
+}
+
 ?>
 
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -79,6 +108,11 @@ var wsIsOpen = 0;
 var ws;
 var dataIsPending = 0;
 var pendingData;
+
+function ReloadTestPage()
+{
+	location.href='testing.php';
+}
 
 if ( ! window.console ) console = { log: function(){} };
 
@@ -370,26 +404,27 @@ $(document).ready(function(){
 				<input type='button' value='Set' onClick='setSingleChannel();'>
 				<hr>
 				<b>Test All Channels</b><br>
+				Use R/G/B Labels: <? PrintSettingCheckbox("RGB Labels", "useRGBLabels", 0, 0, 1, 0, "", "ReloadTestPage"); ?><br>
 				Preset Colors:
-				<input type='button' value='A' onClick='setTestModeColor(255, 0, 0);'>
-				<input type='button' value='B' onClick='setTestModeColor(0, 255, 0);'>
-				<input type='button' value='C' onClick='setTestModeColor(0, 0, 255);'>
+				<input type='button' value='<? echo $rgbColors[0]; ?>' onClick='setTestModeColor(255, 0, 0);'>
+				<input type='button' value='<? echo $rgbColors[1]; ?>' onClick='setTestModeColor(0, 255, 0);'>
+				<input type='button' value='<? echo $rgbColors[2]; ?>' onClick='setTestModeColor(0, 0, 255);'>
 				<input type='button' value='ALL' onClick='setTestModeColor(255, 255, 255);'>
 				<input type='button' value='Off' onClick='setTestModeColor(0, 0, 0);'>
 				<br>
 				Custom Color:<br>
-				<span id="rgbCustomR" class='rgbCustomColor'></span><span style='float: left'>A: </span><span style='float: left' id='rgbCustomRText'>0</span><br>
-				<span id="rgbCustomG" class='rgbCustomColor'></span><span style='float: left'>B: </span><span style='float: left' id='rgbCustomGText'>0</span><br>
-				<span id="rgbCustomB" class='rgbCustomColor'></span><span style='float: left'>C: </span><span style='float: left' id='rgbCustomBText'>0</span><br>
+				<span id="rgbCustomR" class='rgbCustomColor'></span><span style='float: left'><? echo $rgbColors[0]; ?>: </span><span style='float: left' id='rgbCustomRText'>0</span><br>
+				<span id="rgbCustomG" class='rgbCustomColor'></span><span style='float: left'><? echo $rgbColors[1]; ?>: </span><span style='float: left' id='rgbCustomGText'>0</span><br>
+				<span id="rgbCustomB" class='rgbCustomColor'></span><span style='float: left'><? echo $rgbColors[2]; ?>: </span><span style='float: left' id='rgbCustomBText'>0</span><br>
 				<br>
 				<br>
-				RGB Cycle: <input type='checkbox' id='rgbCycle' onClick='rgbCycleChanged();'><br>
+				<? echo $rgbStr; ?> Cycle: <input type='checkbox' id='rgbCycle' onClick='rgbCycleChanged();'><br>
 				<span style='float: left'>Interval: </span><span id="rgbCycleSpeed"></span> <span style='float: left' id='rgbCycleSpeedText'>1000</span><span style='float: left'> ms</span></br>
 				<div id='rgbCycleOptionDiv'>
-				<input type='radio' name='rgbCycleOption' value='RGB' checked onChange='rgbColorsChanged();'> A-B-C<br>
-				<input type='radio' name='rgbCycleOption' value='RGBW' onChange='rgbColorsChanged();'> A-B-C-All<br>
-				<input type='radio' name='rgbCycleOption' value='RGBN' onChange='rgbColorsChanged();'> A-B-C-None<br>
-				<input type='radio' name='rgbCycleOption' value='RGBWN' onChange='rgbColorsChanged();'> A-B-C-All-None<br>
+				<input type='radio' name='rgbCycleOption' value='RGB' checked onChange='rgbColorsChanged();'> <? echo $rgbColorList; ?><br>
+				<input type='radio' name='rgbCycleOption' value='RGBW' onChange='rgbColorsChanged();'> <? echo $rgbColorList; ?>-All<br>
+				<input type='radio' name='rgbCycleOption' value='RGBN' onChange='rgbColorsChanged();'> <? echo $rgbColorList; ?>-None<br>
+				<input type='radio' name='rgbCycleOption' value='RGBWN' onChange='rgbColorsChanged();'> <? echo $rgbColorList; ?>-All-None<br>
 				</div>
 			</div>
 			</fieldset>

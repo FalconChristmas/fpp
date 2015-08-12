@@ -9,22 +9,105 @@
 # version of FPP, the system can then be switched to a new version number
 # or git branch for release.
 #
+#############################################################################
 # To use this script, download the latest copy from github and run it as
 # root on the system where you want to install FPP:
 #
-# wget --no-check-certificate -O ./FPP_Install.sh https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
+# wget -O ./FPP_Install.sh https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
 # chmod 700 ./FPP_Install.sh
 # sudo ./FPP_Install.sh
 #
 #############################################################################
-SCRIPTVER="0.5"
-FPPBRANCH="master"
-FPPIMAGEVER="1.5"
-FPPCFGVER="7"
+# NOTE: This script is used to build the SD images for FPP releases.  Its
+#       main goal is to prep these release images.  It may be used for othe
+#       purposes, but it is not our main priority to keep FPP working on
+#       other Linux distributions or distribution versions other than those
+#       we base our FPP releases on.  Currently, FPP images are based on the
+#       following OS images for the Raspberry Pi and BeagleBone Black:
+#
+#       Raspberry Pi
+#           - URL: FIXME
+#           - Image
+#             - 
+#           - Login/Password
+#             - pi/raspberry
+#
+#       BeagleBone Black
+#           - URL: https://rcn-ee.com/rootfs/bb.org/release/2014-05-14/
+#           - Images
+#             - bone-debian-7.5-2014-05-14-2gb.img
+#             - BBB-eMMC-flasher-debian-7.5-2014-05-14-2gb.img
+#           - Login
+#             - root (no password)
+#
+#       Other OS images may work with this install script and FPP on the
+#       Pi and BBB platforms, but these are the images we are currently
+#       targetting for support.
+#
+#############################################################################
+# Other platforms which may be functioning with varying degrees:
+#
+#       ODROID C1
+#           http://recombi.net/odroid-c1_deb-7.8/
+#           - odroid-c1-debian-7.8-03-29-2014.img
+#           - Login/Password
+#             - root/odroid
+#           - This image is very small and a lot of packages get installed
+#             by FPP_Install.sh, so make sure you resize/expand the root
+#             filesystem as per the information.txt file on recombi.net.
+#
+#############################################################################
+SCRIPTVER="0.6"
+FPPBRANCH="stage"
+FPPIMAGEVER="1.5-Beta"
+FPPCFGVER="8"
 FPPPLATFORM="UNKNOWN"
 FPPDIR="/opt/fpp"
 OSVER="UNKNOWN"
-STARTTIME=$(date)
+
+#############################################################################
+# Some Helper Functions
+#############################################################################
+# Check local time against U.S. Naval Observatory time, set if too far out.
+# This function was copied from /opt/fpp/scripts/functions in FPP source
+# since we don't have access to the source until we clone the repo.
+checkTimeAgainstUSNO () {
+	# www.usno.navy.mil is not pingable, so check github.com instead
+	ping -q -c 1 github.com > /dev/null 2>&1
+
+	if [ $? -eq 0 ]
+	then
+		echo "FPP: Checking local time against U.S. Naval Observatory"
+
+		# allow clocks to differ by 24 hours to handle time zone differences
+		THRESHOLD=86400
+		USNOSECS=$(wget -q -O - http://www.usno.navy.mil/cgi-bin/time.pl | sed -e "s/.*\">//" -e "s/<\/t.*//" -e "s/...$//")
+		LOCALSECS=$(date +%s)
+		MINALLOW=$(expr ${USNOSECS} - ${THRESHOLD})
+		MAXALLOW=$(expr ${USNOSECS} + ${THRESHOLD})
+
+		#echo "FPP: USNO Secs  : ${USNOSECS}"
+		#echo "FPP: Local Secs : ${LOCALSECS}"
+		#echo "FPP: Min Valid  : ${MINALLOW}"
+		#echo "FPP: Max Valid  : ${MAXALLOW}"
+
+		echo "FPP: USNO Time  : $(date --date=@${USNOSECS})"
+		echo "FPP: Local Time : $(date --date=@${LOCALSECS})"
+
+		if [ ${LOCALSECS} -gt ${MAXALLOW} -o ${LOCALSECS} -lt ${MINALLOW} ]
+		then
+			echo "FPP: Local Time is not within 24 hours of USNO time, setting to USNO time"
+			date $(date --date="@${USNOSECS}" +%m%d%H%M%Y.%S)
+
+			LOCALSECS=$(date +%s)
+			echo "FPP: New Local Time: $(date --date=@${LOCALSECS})"
+		else
+			echo "FPP: Local Time is OK"
+		fi
+	else
+		echo "FPP: Not online, unable to check time against U.S. Naval Observatory."
+	fi
+}
 
 #############################################################################
 # Gather some info about our system
@@ -60,6 +143,8 @@ else
 	FPPPLATFORM="UNKNOWN"
 fi
 
+checkTimeAgainstUSNO
+
 #############################################################################
 echo "============================================================"
 echo "$0 v${SCRIPTVER}"
@@ -94,6 +179,17 @@ then
 	echo
 	exit
 fi
+
+STARTTIME=$(date)
+
+#######################################
+# Log output and notify user
+echo "ALL output will be copied to FPP_Install.log"
+exec > >(tee -a FPP_Install.log)
+exec 2>&1
+echo "========================================================================"
+echo "FPP_Install.sh started at ${STARTTIME}"
+echo "------------------------------------------------------------------------"
 
 #######################################
 # Remove old /etc/fpp if it exists
@@ -164,6 +260,9 @@ case "${OSVER}" in
 		sed -i -e "s/^deb \(.*\)/deb \1 non-free/" /etc/apt/sources.list
 		sed -i -e "s/non-free\(.*\)non-free/non-free\1/" /etc/apt/sources.list
 
+		# Set noninteractive install to skip prompt about restarting services
+		export DEBIAN_FRONTEND=noninteractive
+
 		echo "FPP - Updating package list"
 		apt-get update
 
@@ -171,14 +270,24 @@ case "${OSVER}" in
 		apt-get -y remove gnome-icon-theme gnome-accessibility-themes gnome-themes-standard gnome-themes-standard-data libsoup-gnome2.4-1:armhf desktop-base xserver-xorg x11proto-composite-dev x11proto-core-dev x11proto-damage-dev x11proto-fixes-dev x11proto-input-dev x11proto-kb-dev x11proto-randr-dev x11proto-render-dev x11proto-xext-dev x11proto-xinerama-dev xchat xrdp xscreensaver xscreensaver-data desktop-file-utils dbus-x11 javascript-common ruby1.9.1 ruby libxxf86vm1:armhf libxxf86dga1:armhf libxvidcore4:armhf libxv1:armhf libxtst6:armhf libxslt1.1:armhf libxres1:armhf libxrender1:armhf  libxrandr2:armhf libxml2-dev libxmuu1 xauth wvdial xserver-xorg-video-fbdev xfonts-utils xfonts-encodings   libuniconf4.6 libwvstreams4.6-base libwvstreams4.6-extras
 		apt-get -y autoremove
 
-		echo "FPP - Installing required packages"
+		echo "FPP - Installing required packages (Set #1)"
 		# Install in more than one command to lower total disk space required
 		# Do a clean in between each iteration
 		apt-get -y install alsa-base alsa-utils apache2 apache2.2-bin apache2.2-common apache2-mpm-prefork apache2-utils arping avahi-daemon avahi-discover avahi-utils bash-completion bc build-essential bzip2 ca-certificates ccache curl device-tree-compiler dh-autoreconf
 		apt-get -y clean
-		apt-get -y install ethtool fbi fbset file flite 'g++-4.7' gcc-4.7 gdb git i2c-tools ifplugd imagemagick less libapache2-mod-php5 libboost-dev libconvert-binary-c-perl libdbus-glib-1-dev libdevice-serialport-perl libjson-perl libjsoncpp-dev
+
+		# FIXME, newer debian has newer gcc, don't bother installing old version
+		# if newer version is already installed.
+		echo "FPP - Installing required packages (Set #2)"
+		apt-get -y install 'g++-4.7' gcc-4.7
 		apt-get -y clean
-		apt-get -y install libnet-bonjour-perl libpam-smbpass libtagc0-dev locales mp3info mpg123 mpg321 mplayer nano nginx node ntp perlmagick php5 php5-cli php5-common php5-curl php5-fpm php5-mcrypt php5-sqlite php-apc python-daemon python-smbus samba samba-common-bin shellinabox sudo sysstat usbmount vim vim-common vorbis-tools vsftpd
+
+		echo "FPP - Installing required packages (Set #3)"
+		apt-get -y install ethtool fbi fbset file flite gdb gdebi-core git i2c-tools ifplugd imagemagick less libapache2-mod-php5 libboost-dev libconvert-binary-c-perl libdbus-glib-1-dev libdevice-serialport-perl libjs-jquery libjs-jquery-ui libjson-perl libjsoncpp-dev
+		apt-get -y clean
+
+		echo "FPP - Installing required packages (Set #4)"
+		apt-get -y install libnet-bonjour-perl libpam-smbpass libtagc0-dev libtest-nowarnings-perl locales mp3info mpg123 mpg321 mplayer nano nginx node ntp perlmagick php5 php5-cli php5-common php5-curl php5-fpm php5-mcrypt php5-sqlite php-apc python-daemon python-smbus samba samba-common-bin shellinabox sudo sysstat usbmount vim vim-common vorbis-tools vsftpd
 		apt-get -y clean
 
 		echo "FPP - Installing wireless firmware packages"
@@ -237,7 +346,8 @@ case "${OSVER}" in
 		echo "FPP - Installing required packages"
 		if [ "x${FPPPLATFORM}" = "xODROID" ]
 		then
-			apt-get -y install apache2 apache2-bin apache2-mpm-prefork apache2-utils avahi-discover fbi flite i2c-tools imagemagick libapache2-mod-php5 libboost-dev libconvert-binary-c-perl libjson-perl libjsoncpp-dev libnet-bonjour-perl libpam-smbpass mp3info mpg123 perlmagick php5 php5-cli php5-common php-apc python-daemon python-smbus samba samba-common-bin shellinabox sysstat vorbis-tools vsftpd
+			echo "FPP - WARNING: This list may be incomplete, it needs to be updated to match the Pi/BBB Debian package install list"
+			apt-get -y install apache2 apache2-bin apache2-mpm-prefork apache2-utils avahi-discover fbi flite gdebi-core i2c-tools imagemagick libapache2-mod-php5 libboost-dev libconvert-binary-c-perl libjson-perl libjsoncpp-dev libnet-bonjour-perl libpam-smbpass mp3info mpg123 perlmagick php5 php5-cli php5-common php-apc python-daemon python-smbus samba samba-common-bin shellinabox sysstat vorbis-tools vsftpd
 		fi
 		;;
 esac
@@ -252,7 +362,19 @@ case "${FPPPLATFORM}" in
 		echo "cape_disable=capemgr.disable_partno=BB-BONELT-HDMI,BB-BONELT-HDMIN" >> /boot/uboot/uEnv.txt
 		echo >> /boot/uboot/uEnv.txt
 
-		echo "FPP - Installing OLA"
+		echo "FPP - Installing OLA packages"
+		apt-get -y --force-yes install libcppunit-dev uuid-dev pkg-config libncurses5-dev libtool autoconf automake libmicrohttpd-dev protobuf-compiler python-protobuf libprotobuf-dev libprotoc-dev zlib1g-dev bison flex libftdi-dev libftdi1 libusb-1.0-0-dev liblo-dev
+		apt-get -y clean
+
+		mkdir /tmp/deb
+		cd /tmp/deb
+		FILES="libola-dev_0.9.7-1_armhf.deb libola1_0.9.7-1_armhf.deb ola-python_0.9.7-1_all.deb ola-rdm-tests_0.9.7-1_all.deb ola_0.9.7-1_armhf.deb"
+		for FILE in ${FILES}
+		do
+			wget -nd http://www.bc2va.org/chris/tmp/fpp/deb/${FILE}
+		done
+		dpkg --unpack ${FILES}
+		rm -f ${FILES}
 #		apt-get -y --force-yes install libcppunit-dev libcppunit-1.12-1 uuid-dev pkg-config libncurses5-dev libtool autoconf automake  libmicrohttpd-dev protobuf-compiler python-protobuf libprotobuf-dev libprotoc-dev zlib1g-dev bison flex libftdi-dev libftdi1 libusb-1.0-0-dev liblo-dev
 #		git clone https://github.com/OpenLightingProject/ola.git /opt/ola
 #		(cd /opt/ola && autoreconf -i && ./configure --enable-python-libs && make && make install && ldconfig && cd /opt/ && rm -rf ola)
@@ -477,7 +599,15 @@ sed -i -e "s/APACHE_RUN_USER=.*/APACHE_RUN_USER=fpp/" /etc/apache2/envvars
 sed -i -e "s/APACHE_RUN_GROUP=.*/APACHE_RUN_GROUP=fpp/" /etc/apache2/envvars
 
 # main Apache/PHP config
-cp ${FPPDIR}/etc/apache2.conf /etc/apache2/
+ISAPACHE24=$(dpkg -l | grep "^ii *apache2 *2\.4\.")
+if [ -z ${ISAPACHE24} ]
+then
+	cp ${FPPDIR}/etc/apache2.conf /etc/apache2/apache2.conf
+else
+	cp ${FPPDIR}/etc/apache2.conf.2.4 /etc/apache2/apache2.conf
+	rm /etc/apache2/sites-enabled/000-default.conf
+fi
+
 cp ${FPPDIR}/etc/php.ini /etc/php5/apache2/php.ini
 
 # site config file
@@ -490,11 +620,6 @@ case "${OSVER}" in
 	debian_7)
 				rm /etc/apache2/conf.d/other-vhosts-access-log
 				sed -i -e "s/NameVirtualHost.*8080/NameVirtualHost *:80/" -e "s/Listen.*8080/Listen 80/" /etc/apache2/ports.conf
-				;;
-	ubuntu_14.04)
-				sed -i -e "s/^Include conf.d/#Include conf.d/" /etc/apache2/apache2.conf
-				sed -i -e "s/^LockFile/#LockFile/" /etc/apache2/apache2.conf
-				rm /etc/apache2/sites-enabled/000-default.conf
 				;;
 esac
 
@@ -526,18 +651,14 @@ echo "password 'falcon' and running the shutdown command."
 echo ""
 echo "su - fpp"
 echo "sudo shutdown -r now"
+echo ""
+echo "NOTE: If you are prepping this as an image for release,"
+echo "remove the SSH keys before shutting down so they will be"
+echo "rebuilt during the next boot."
+echo ""
+echo "su - fpp"
+echo "sudo rm -rf /etc/ssh/ssh_host*key*"
+echo "sudo shutdown -r now"
 echo "========================================================="
 echo ""
-
-#######################################
-# FPP_Install.sh Notes
-#######################################
-# ODROID-C1 (no official FPP images but can work)
-# - Install (their patched) wiringPi
-# - Handle apache config differences for Ubuntu in /opt/fpp/scripts/startup
-# PogoPlug (no official FPP images but can work)
-# - Initial OS install test
-# - Set Platform
-# - Any other Debian version differences
-#######################################
 

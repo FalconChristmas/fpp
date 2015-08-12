@@ -31,7 +31,7 @@ function SaveHardwareConfig()
 </script>
 
 <?
-$hwModel = "F16V2";
+$hwModel = "F16V2-alpha";
 $hwFWVer = "1.0";
 
 function printNodeTypeOptions($selected)
@@ -86,11 +86,16 @@ function printFalconConfig()
 	global $hwFWVer;
 	global $fppHome;
 
-	if ($hwModel == "F16V2")
+	if ($hwModel == "F16V2-alpha")
 	{
-		$f = fopen($fppHome . '/media/config/Falcon.F16V2', 'rb');
-		$s = fread($f, 1024);
-		fclose($f);
+		$cfgFile = $fppHome . '/media/config/Falcon.F16V2-alpha';
+		$s = str_pad("", 1024, "\x0");
+		if (file_exists($cfgFile))
+		{
+			$f = fopen($cfgFile, 'rb');
+			$s = fread($f, 1024);
+			fclose($f);
+		}
 
 		$sarr = unpack("C*", $s);
 
@@ -123,6 +128,9 @@ function printFalconConfig()
 			$direction     = $sarr[$outputOffset + 6];
 			$groupCount    = $sarr[$outputOffset + 7];
 			$nullNodes     = $sarr[$outputOffset + 8];
+
+			if ($startChannel < 1)
+				$startChannel = 1;
 
 			if ($i && ($i % 4) == 0)
 				printf( "<tr name='hrRow'><td colspan='8'><hr></td></tr>\n");

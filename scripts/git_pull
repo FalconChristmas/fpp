@@ -5,7 +5,7 @@ BINDIR=$(cd $(dirname $0) && pwd)
 . ${BINDIR}/common
 . ${BINDIR}/functions
 
-logOutput
+teeOutput
 
 if curl --silent --head https://github.com | grep "Content-Type: text/html; charset=utf-8" >/dev/null; then
 	GITBRANCH=$(cd ${FPPDIR} && git branch | grep "^\*" | sed -e "s/\*\s//")

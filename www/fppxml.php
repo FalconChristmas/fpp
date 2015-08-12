@@ -453,6 +453,8 @@ function MoveFile()
 function IsFPPDrunning()
 {
 	$status=exec("if ps cax | grep -q fppd; then echo \"true\"; else echo \"false\"; fi");
+	if ($status == "false")
+		$status=exec("if ps cax | grep -q git_pull; then echo \"updating\"; else echo \"false\"; fi");
 	EchoStatusXML($status);
 }
 
@@ -1169,17 +1171,13 @@ function SaveHardwareConfig()
 	$model = $_POST['model'];
 	$firmware = $_POST['firmware'];
 
-	if ($model == "F16V2")
+	if ($model == "F16V2-alpha")
 	{
-		SaveF16v2();
+		SaveF16v2Alpha();
 	}
 	else if ($model == "FPDv1")
 	{
 		SaveFPDv1();
-	}
-	else if ($model == "BBB Cape")
-	{
-		SaveBBBCape();
 	}
 	else
 	{
@@ -1189,7 +1187,7 @@ function SaveHardwareConfig()
 	EchoStatusXML('Success');
 }
 
-function SaveF16v2()
+function SaveF16v2Alpha()
 {
     global $settings;
 		$outputCount = 16;
@@ -1287,57 +1285,6 @@ function SaveFPDv1()
 
 	fclose($f);
 	SendCommand('w');
-}
-
-function SaveBBBCape()
-{
-	global $settings;
-	$startChannel = 9999999999;
-	$endChannel = 0;
-	$channelCount = 0;
-	$subType = $_POST['subType'];
-	$strings = "";
-
-	$maxOutputs = 48;
-
-	for ($o = 0; $o < $maxOutputs; $o++)
-	{
-		if (!isset($_POST['nodeCount'][$o]))
-			continue;
-
-		$nodeCount = $_POST['nodeCount'][$o];
-		$stringStartChannel = $_POST['startChannel'][$o];
-		$colorOrder = $_POST['rgbOrder'][$o];
-		$direction = intval($_POST['direction'][$o]);
-		$grouping = intval($_POST['groupCount'][$o]);
-		$nullNodes = intval($_POST['nullNodes'][$o]);
-		$hybrid = intval($_POST['hybrid'][$o]);
-		$zigZag = intval($_POST['zigZag'][$o]);
-
-		if ($strings != "")
-			$strings .= "|";
-
-		# 0:1:100:RGB:0:0:0:0:0
-		$strings .= sprintf("%d:%d:%d:%s:%d:%d:%d:%d:%d",
-			$o, $stringStartChannel, $nodeCount, $colorOrder, $nullNodes,
-			$hybrid, $direction, $grouping, $zigZag);
-
-		if ($startChannel > $stringStartChannel)
-			$startChannel = $stringStartChannel;
-
-		$stringEndChannel = $stringStartChannel + ($nodeCount * 3) - 1;
-		if ($stringEndChannel > $endChannel)
-			$endChannel = $stringEndChannel;
-	}
-
-	$f = fopen($settings['configDirectory'] . "/BBBCapes", "w");
-	fprintf($f, "startChannel = %d\n", $startChannel);
-	fprintf($f, "channelCount = %d\n", $endChannel - $startChannel + 1);
-	fprintf($f, "subType = '%s'\n", $subType);
-	fprintf($f, "strings = '%s'\n", $strings);
-	fclose($f);
-
- 	SendCommand('w');
 }
 
 function CloneUniverse()

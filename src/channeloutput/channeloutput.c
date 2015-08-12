@@ -53,8 +53,11 @@
 #include "GPIO595.h"
 #include "common.h"
 
-#ifdef PLATFORM_PI
+#if defined(PLATFORM_PI) || defined(PLATFORM_ODROID)
 #  include "RGBMatrix.h"
+#endif
+
+#ifdef PLATFORM_PI
 #  include "rpi_ws281x.h"
 #endif
 
@@ -185,13 +188,23 @@ int InitializeChannelOutputs(void) {
 			channelOutputs[i].channelCount = count;
 
 			if (type == "LEDPanelMatrix") {
-#ifdef PLATFORM_PI
+#if defined(PLATFORM_PI) || defined(PLATFORM_ODROID)
 				if (outputs[c]["subType"] == "RGBMatrix")
 					channelOutputs[i].output = new RGBMatrixOutput(start, count);
+				else
+				{
+					LogErr(VB_CHANNELOUT, "%s subType not valid on Pi\n", outputs[c]["subType"].asString().c_str());
+					continue;
+				}
 #endif
 #ifdef PLATFORM_BBB
 				if (outputs[c]["subType"] == "LEDscapeMatrix")
 					channelOutputs[i].output = new LEDscapeMatrixOutput(start, count);
+				else
+				{
+					LogErr(VB_CHANNELOUT, "%s subType not valid on BBB\n", outputs[c]["subType"].asString().c_str());
+					continue;
+				}
 			} else if (type == "BBB48String") {
 				channelOutputs[i].output = new BBB48StringOutput(start, count);
 #endif

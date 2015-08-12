@@ -6,7 +6,8 @@
 <?php
 
 $AlsaCards = Array();
-exec("for card in /proc/asound/card*/id; do echo -n \$card | sed 's/.*card\\([0-9]*\\).*/\\1:/g'; cat \$card; done", $output, $return_val);
+#exec("for card in /proc/asound/card*/id; do echo -n \$card | sed 's/.*card\\([0-9]*\\).*/\\1:/g'; cat \$card; done", $output, $return_val);
+exec($SUDO . " aplay -l | grep '^card' | sed -e 's/^card //' -e 's/:[^\[]*\[/:/' -e 's/\].*\[.*\].*//' | uniq", $output, $return_val);
 if ( $return_val )
 {
 	error_log("Error getting alsa cards for output!");
@@ -20,6 +21,40 @@ else
 	}
 }
 unset($output);
+
+function PrintStorageDeviceSelect()
+{
+	exec('mount | grep boot | cut -f1 -d" " | sed -e "s/\/dev\///" -e "s/p[0-9]$//"', $output, $return_val);
+	$rootDevice = $output[0];
+	unset($output);
+
+	exec('grep "fpp/media" /etc/fstab | cut -f1 -d" " | sed -e "s/\/dev\///"', $output, $return_val);
+	$storageDevice = $output[0];
+	unset($output);
+
+	$values = Array();
+
+	foreach(scandir("/dev/") as $fileName)
+	{
+		if ((preg_match("/^sd[a-z][0-9]/", $fileName)) ||
+			(preg_match("/^mmcblk[0-9]p1/", $fileName)))
+		{
+			if (!preg_match("/^$rootDevice/", $fileName))
+			{
+				if (preg_match("/^sd/", $fileName))
+				{
+					$values[$fileName . " (USB)"] = $fileName;
+				}
+				else
+				{
+					$values[$fileName . " (SD)"] = $fileName;
+				}
+			}
+		}
+	}
+
+	PrintSettingSelect('StorageDevice', 'storageDevice', 0, 1, $storageDevice, $values);
+}
 
 ?>
 <script>
@@ -143,6 +178,10 @@ function ToggleLCDNow()
     <tr>
       <td>Audio Output Device:</td>
       <td><? PrintSettingSelect("Audio Output Device", "AudioOutput", 1, 0, "0", $AlsaCards, "", "SetAudio"); ?></td>
+    </tr>
+    <tr>
+      <td>External Storage Device:</td>
+      <td><? PrintStorageDeviceSelect(); ?></td>
     </tr>
     <tr>
       <td>Log Level:</td>
