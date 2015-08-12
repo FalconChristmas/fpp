@@ -309,7 +309,7 @@ a:visited {
 <? if (file_exists($mediaDirectory."/.auto_update_disabled")) { ?>
             checked
 <? } ?>
-              >  <input type='button' value='Manual Update' onClick='ManualGitUpdate();' class='buttons' id='ManualUpdate'></td></tr>
+              >  <input type='button' value='Manual Update' onClick='location.href="manualUpdate.php";' class='buttons' id='ManualUpdate'></td></tr>
 <!--
             <tr><td>Developer Mode:</td><td><input type='checkbox' id='developerMode' onChange='ToggleDeveloperMode();'
 <? if (file_exists($mediaDirectory."/.developer_mode")) { ?>
