@@ -453,6 +453,8 @@ function MoveFile()
 function IsFPPDrunning()
 {
 	$status=exec("if ps cax | grep -q fppd; then echo \"true\"; else echo \"false\"; fi");
+	if ($status == "false")
+		$status=exec("if ps cax | grep -q git_pull; then echo \"updating\"; else echo \"false\"; fi");
 	EchoStatusXML($status);
 }
 

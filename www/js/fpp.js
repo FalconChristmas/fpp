@@ -1328,11 +1328,19 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 						ret = status.childNodes[0].textContent;
 						if(ret == 'true')
 						{
+							SetButtonState('#btnDaemonControl','enable');
 							$("#btnDaemonControl").attr('value', 'Stop FPPD');
 							$('#daemonStatus').html("FPPD is running.");
 						}
+						else if (ret == 'updating')
+						{
+							SetButtonState('#btnDaemonControl','disable');
+							$("#btnDaemonControl").attr('value', 'Start FPPD');
+							$('#daemonStatus').html("FPP is currently updating.");
+						} 
 						else
 						{
+							SetButtonState('#btnDaemonControl','enable');
 							$("#btnDaemonControl").attr('value', 'Start FPPD');
 							$('#daemonStatus').html("FPPD is stopped.");
 						} 
