@@ -30,6 +30,14 @@ function PrintStorageDeviceSelect()
 	$bootDevice = $output[0];
 	unset($output);
 
+	exec('mount | grep " / " | cut -f1 -d" "', $output, $return_val);
+	$rootDevice = $output[0];
+	unset($output);
+
+	exec($SUDO . " tune2fs -l $rootDevice | grep -i uuid | awk '{print \$3}'", $output, $return_val);
+	$rootUUID = $output[0];
+	unset($output);
+
 	exec('grep "fpp/media" /etc/fstab | cut -f1 -d" " | sed -e "s/\/dev\///"', $output, $return_val);
 	$storageDevice = $output[0];
 	unset($output);
@@ -49,12 +57,28 @@ function PrintStorageDeviceSelect()
 				continue;
 
 			$FreeGB = "Not Mounted";
-			exec($SUDO . " df -k /dev/$fileName | grep $fileName | awk '{print $4}'", $output, $return_val);
+			exec("df -k /dev/$fileName | grep $fileName | awk '{print $4}'", $output, $return_val);
 			if (count($output))
 			{
 				$FreeGB = sprintf("%.1fGB Free", intval($output[0]) / 1024.0 / 1024.0);
+				unset($output);
 			}
-			unset($output);
+			else
+			{
+				unset($output);
+
+				exec($SUDO . " tune2fs -l /dev/$fileName | grep -i uuid | awk '{print \$3}'", $output, $return_val);
+				$thisUUID = $output[0];
+				unset($output);
+
+				if ($rootUUID == $thisUUID)
+				{
+					exec("df -k / | grep ' /$' | awk '{print \$4}'", $output, $return_val);
+					if (count($output))
+						$FreeGB = sprintf("%.1fGB Free", intval($output[0]) / 1024.0 / 1024.0);
+					unset($output);
+				}
+			}
 
 			$key = $fileName . " ";
 			$type = "";
