@@ -48,8 +48,12 @@ function PrintStorageDeviceSelect()
 			if ($GB <= 0.1)
 				continue;
 
-			exec($SUDO . " df -k /dev/$fileName | grep dev | awk '{print $4}'", $output, $return_val);
-			$FreeGB = intval($output[0]) / 1024.0 / 1024.0;
+			$FreeGB = "Not Mounted";
+			exec($SUDO . " df -k /dev/$fileName | grep $fileName | awk '{print $4}'", $output, $return_val);
+			if (count($output))
+			{
+				$FreeGB = sprintf("%.1fGB Free", intval($output[0]) / 1024.0 / 1024.0);
+			}
 			unset($output);
 
 			$key = $fileName . " ";
@@ -65,7 +69,8 @@ function PrintStorageDeviceSelect()
 				$type .= " (USB)";
 			}
 
-			$key = sprintf( "%s - %.1fGB (%.1fGB Free) %s", $fileName, $GB, $FreeGB, $type);
+			$key = sprintf( "%s - %.1fGB (%s) %s", $fileName, $GB, $FreeGB, $type);
+
 			$values[$key] = $fileName;
 		}
 	}
