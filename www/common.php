@@ -305,10 +305,42 @@ echo "
 }
 
 /**
- * Toggles NTP service state
- * @param $state Boolean True to Enable, False to Disable
+ * Restarts the ntp server service
  */
-function SetNTPState($state){
+function NtpServiceRestart(){
+	global $SUDO;
+
+	exec($SUDO . " service ntp restart", $output, $return_val);
+	unset($output);
+	//TODO: check return
+}
+
+/**
+ * Sets the NTP server source to the supplied NTP server, if nothing is supplied default to the debian pool
+ * @param $ntp_server String DNS or IP address of a NTP server
+ */
+function SetNtpServer($ntp_server){
+	global $SUDO;
+
+	WriteSettingToFile("ntpServer",$ntp_server);
+	$settings['ntpServer'] = $ntp_server;
+	if ($ntp_server != "")
+	{
+		exec($SUDO . " sed -i '/^server.*/d' /etc/ntp.conf ; " . $SUDO . " sed -i '\$s/\$/\\nserver " . $ntp_server . " iburst/' /etc/ntp.conf");
+	}
+	else
+	{
+		exec($SUDO . " sed -i '/^server.*/d' /etc/ntp.conf ; " . $SUDO . " sed -i '\$s/\$/\\nserver 0.debian.pool.ntp.org iburst\\nserver 1.debian.pool.ntp.org iburst\\nserver 2.debian.pool.ntp.org iburst\\nserver 3.debian.pool.ntp.org iburst\\n/' /etc/ntp.conf");
+	}
+}
+
+/**
+ * Toggles NTP service state
+ * @param $state int 1 to Enable, 0 to Disable
+ */
+function SetNtpState($state){
+	global $SUDO;
+
     WriteSettingToFile("NTP",$state);
 
     if($state == true){

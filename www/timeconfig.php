@@ -60,17 +60,15 @@ if (isset($_POST['ntpServer']))
 
 if ( isset($_POST['ntp']) && !empty($_POST['ntp']) && $_POST['ntp'] == "disabled" && $ntp )
 {
-    SetNTPState(0);
+    SetNtpState(0);
 }
 elseif ( isset($_POST['ntp']) && !empty($_POST['ntp']) && $_POST['ntp'] == "enabled" && !$ntp )
 {
-    SetNTPState(1);
+    SetNtpState(1);
 }
 elseif ( isset($_POST['ntp']) && !empty($_POST['ntp']) && $_POST['ntp'] == "enabled" && $ntp )
 {
-  exec($SUDO . " service ntp restart", $output, $return_val);
-  unset($output);
-  //TODO: check return
+    NtpServiceRestart();
 }
 
 if ( isset($_POST['timezone']) && !empty($_POST['timezone']) && urldecode($_POST['timezone']) != $current_tz )
