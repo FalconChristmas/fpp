@@ -155,7 +155,7 @@ function SendWSCommand(data)
 
 var rgbCycleActive = 0;
 var rgbCycleColors = Array();
-var rgbCycleTimerInterval = 1000; // In ms
+var rgbCycleTimerInterval = 2500; // In ms
 var rgbCycleCurrentColor = 0;
 
 function rgbCycleCallback() {
@@ -336,9 +336,9 @@ $(document).ready(function(){
 	getTestMode();
 
 	$('#rgbCycleSpeed').slider({
-		min: 1000,
+		min: 2000,
 		max: 5000,
-		value: 1000,
+		value: 2500,
 		step: 500,
 		stop: function( event, ui ) {
 			rgbCycleTimerInterval = $('#rgbCycleSpeed').slider('value');
@@ -419,7 +419,7 @@ $(document).ready(function(){
 				<br>
 				<br>
 				<? echo $rgbStr; ?> Cycle: <input type='checkbox' id='rgbCycle' onClick='rgbCycleChanged();'><br>
-				<span style='float: left'>Interval: </span><span id="rgbCycleSpeed"></span> <span style='float: left' id='rgbCycleSpeedText'>1000</span><span style='float: left'> ms</span></br>
+				<span style='float: left'>Interval: </span><span id="rgbCycleSpeed"></span> <span style='float: left' id='rgbCycleSpeedText'>2500</span><span style='float: left'> ms</span></br>
 				<div id='rgbCycleOptionDiv'>
 				<input type='radio' name='rgbCycleOption' value='RGB' checked onChange='rgbColorsChanged();'> <? echo $rgbColorList; ?><br>
 				<input type='radio' name='rgbCycleOption' value='RGBW' onChange='rgbColorsChanged();'> <? echo $rgbColorList; ?>-All<br>
