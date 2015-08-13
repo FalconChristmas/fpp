@@ -1320,7 +1320,7 @@ function DeleteUniverse()
 	$index = $_GET['index'];
 	check($index, "index", __FUNCTION__);
 
-	if($index < count($_SESSION['UniverseEntries']) && count($_SESSION['UniverseEntries']) > 1 )
+	if($index < count($_SESSION['UniverseEntries']) && count($_SESSION['UniverseEntries']) > 0 )
 	{
 		unset($_SESSION['UniverseEntries'][$index]);
 		$_SESSION['UniverseEntries'] = array_values($_SESSION['UniverseEntries']);
