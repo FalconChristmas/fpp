@@ -24,8 +24,10 @@ unset($output);
 
 function PrintStorageDeviceSelect()
 {
+	global $SUDO;
+
 	exec('mount | grep boot | cut -f1 -d" " | sed -e "s/\/dev\///" -e "s/p[0-9]$//"', $output, $return_val);
-	$rootDevice = $output[0];
+	$bootDevice = $output[0];
 	unset($output);
 
 	exec('grep "fpp/media" /etc/fstab | cut -f1 -d" " | sed -e "s/\/dev\///"', $output, $return_val);
@@ -37,19 +39,34 @@ function PrintStorageDeviceSelect()
 	foreach(scandir("/dev/") as $fileName)
 	{
 		if ((preg_match("/^sd[a-z][0-9]/", $fileName)) ||
-			(preg_match("/^mmcblk[0-9]p1/", $fileName)))
+			(preg_match("/^mmcblk[0-9]p[0-9]/", $fileName)))
 		{
-			if (!preg_match("/^$rootDevice/", $fileName))
+			exec($SUDO . " sfdisk -s /dev/$fileName", $output, $return_val);
+			$GB = intval($output[0]) / 1024.0 / 1024.0;
+			unset($output);
+
+			if ($GB <= 0.1)
+				continue;
+
+			exec($SUDO . " df -k /dev/$fileName | grep dev | awk '{print $4}'", $output, $return_val);
+			$FreeGB = intval($output[0]) / 1024.0 / 1024.0;
+			unset($output);
+
+			$key = $fileName . " ";
+			$type = "";
+
+			if (preg_match("/^$bootDevice/", $fileName))
 			{
-				if (preg_match("/^sd/", $fileName))
-				{
-					$values[$fileName . " (USB)"] = $fileName;
-				}
-				else
-				{
-					$values[$fileName . " (SD)"] = $fileName;
-				}
+				$type .= " (boot device)";
 			}
+
+			if (preg_match("/^sd/", $fileName))
+			{
+				$type .= " (USB)";
+			}
+
+			$key = sprintf( "%s - %.1fGB (%.1fGB Free) %s", $fileName, $GB, $FreeGB, $type);
+			$values[$key] = $fileName;
 		}
 	}
 
