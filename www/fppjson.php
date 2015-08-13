@@ -119,7 +119,15 @@ function SetSetting()
 			$output, $return_val);
 		sleep(1); // Give Avahi time to restart before we return
 	} else if ($setting == "storageDevice") {
-		exec(	$SUDO . " sed -i 's/^\/.*home\/fpp\/media/\/dev\/$value    \/home\/fpp\/media/' /etc/fstab", $output, $return_val );
+		exec('mount | grep boot | cut -f1 -d" " | sed -e "s/\/dev\///" -e "s/p[0-9]$//"', $output, $return_val);
+		$bootDevice = $output[0];
+		unset($output);
+
+		if (preg_match("/$bootDevice/", $value)) {
+			exec(	$SUDO . " sed -i 's/.*home\/fpp\/media/#\/dev\/sda1    \/home\/fpp\/media/' /etc/fstab", $output, $return_val );
+		} else {
+			exec(	$SUDO . " sed -i 's/.*home\/fpp\/media/\/dev\/$value    \/home\/fpp\/media/' /etc/fstab", $output, $return_val );
+		}
 	} else {
 		SendCommand("SetSetting,$setting,$value,");
 	}
