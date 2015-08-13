@@ -26,6 +26,7 @@ function PrintStorageDeviceSelect()
 {
 	global $SUDO;
 
+	# FIXME, this would be much simpler by parsing "lsblk -l"
 	exec('mount | grep boot | cut -f1 -d" " | sed -e "s/\/dev\///" -e "s/p[0-9]$//"', $output, $return_val);
 	$bootDevice = $output[0];
 	unset($output);
