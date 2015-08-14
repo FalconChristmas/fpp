@@ -6,7 +6,6 @@
 <?php
 
 $AlsaCards = Array();
-#exec("for card in /proc/asound/card*/id; do echo -n \$card | sed 's/.*card\\([0-9]*\\).*/\\1:/g'; cat \$card; done", $output, $return_val);
 exec($SUDO . " aplay -l | grep '^card' | sed -e 's/^card //' -e 's/:[^\[]*\[/:/' -e 's/\].*\[.*\].*//' | uniq", $output, $return_val);
 if ( $return_val )
 {
@@ -19,6 +18,17 @@ else
 		$values = explode(':', $card);
 		$AlsaCards[$values[1]] = $values[0];
 	}
+}
+unset($output);
+
+exec($SUDO . " grep card /root/.asoundrc | head -n 1 | awk '{print $2}'", $output, $return_val);
+if ( $return_val )
+{
+	error_log("Error getting currently selected alsa card used!");
+}
+else
+{
+	$CurrentCard = $output[0];
 }
 unset($output);
 
@@ -224,7 +234,7 @@ function ToggleLCDNow()
     </tr>
     <tr>
       <td>Audio Output Device:</td>
-      <td><? PrintSettingSelect("Audio Output Device", "AudioOutput", 1, 0, "0", $AlsaCards, "", "SetAudio"); ?></td>
+      <td><? PrintSettingSelect("Audio Output Device", "AudioOutput", 1, 0, "$CurrentCard", $AlsaCards, "", "SetAudio"); ?></td>
     </tr>
     <tr>
       <td>External Storage Device:</td>
