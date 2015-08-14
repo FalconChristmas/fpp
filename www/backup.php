@@ -22,7 +22,7 @@ $system_config_aras = array(
 //    'wlan' => array('friendly_name' => 'WLAN', 'file' => $settings['configDirectory']. "/interface.wlan0")
 );
 
-//Array of plugins and
+//Array of plugins
 $system_active_plugins = array();
 
 //Preserve some existing settings by default
@@ -38,7 +38,7 @@ $settings_restored = array();
 //restore done state
 $restore_done = false;
 
-//array of settings considered sensitive
+//Array of settings by name/key name, that are considered sensitive/taboo
 $sensitive_data = array('emailgpass', 'psk');
 
 /**
@@ -139,7 +139,7 @@ if (isset($_POST['btnDownloadConfig'])) {
             if ($protectSensitiveData == true) {
                 foreach ($tmp_settings_data as $set_key => $data_arr) {
                     foreach ($data_arr as $key_name => $key_data) {
-                        if (in_array($key_name, $sensitive_data)) {
+                        if (in_array($key_name, $sensitive_data) && is_string($key_name)) {
                             $tmp_settings_data[$set_key][$key_name] = '';
                         }
                     }
@@ -317,8 +317,6 @@ function process_restore_data($restore_area, $area_data)
                         WriteSettingToFile($setting_name, $setting_value);
                     }
                 } else {
-                    //Don't write settings that should be protected,
-                    //so they we don't wipe out their values (these are empty in a protected backup)
                     WriteSettingToFile($setting_name, $setting_value);
                 }
 
@@ -343,12 +341,11 @@ function process_restore_data($restore_area, $area_data)
                     $_GET['volume'] = trim($setting_value);
                     SetVolume();
                 } else if ($setting_name == "ntpServer") {
-                    //TODO: Set NTP server
-                    //toggle NTP state (because can't be sure the NTP enable or disable setting will come before or
-                    //after this application
+                    SetNtpServer($setting_value);
+                    SetNtpState(1);//Toggle NTP on
+                    NtpServiceRestart();//Restart NTP client so changes take effect
                 } else if ($setting_name == "NTP") {
-                    //Update func due to time.php change
-                    SetNTPState($setting_value);
+                    SetNtpState($setting_value);
                 }
             }
 
@@ -359,7 +356,7 @@ function process_restore_data($restore_area, $area_data)
     }
 
     if ($restore_area_key == "timezone") {
-        $data = $area_data[0];//first index has the timezone, index 1 is empty to due carrage return in file when its backed up
+        $data = $area_data[0];//first index has the timezone, index 1 is empty to due carriage return in file when its backed up
         SetTimezone($data);
         $save_result = true;
     }
@@ -612,24 +609,23 @@ function backup_gen_select($area_name = "backuparea")
 
     <div id="dialog" title="Warning!" style="display:none">
         <p>Un-checking this box will disable protection (automatic removal) of sensitive data like passwords.
-            <br/>   <br/>
-            <b>ONLY</b> Un-check this if you want to be able to properly clone settings to another FPP.
-            <br/>   <br/>
+            <br/> <br/>
+            <b>ONLY</b> Un-check this if you want to be able make an exact clone of settings to another FPP.
+            <br/> <br/>
             <b>NOTE:</b> The backup will include passwords in plaintext, you assume full responsibility for this file.
         </p>
     </div>
 
     <script>
         $('#dataProtect').click(function () {
-            if ($(this).not(':checked')) {
+            var checked = $(this).is(':checked');
+            if (!checked) {
                 $("#dialog").dialog({
                     width: 580,
                     height: 280
                 });
             }
         });
-
-        //TODO Add warning about downloaded unprotected settings
     </script>
 
     <?php include 'common/footer.inc'; ?>
