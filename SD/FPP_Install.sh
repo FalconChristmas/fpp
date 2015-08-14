@@ -426,6 +426,9 @@ case "${FPPPLATFORM}" in
 		echo "dtparam=spi=on" >> /boot/config.txt
 		echo >> /boot/config.txt
 
+		echo "FPP - Updating SPI buffer size"
+		sed -i 's/$/ spidev.bufsiz=102400/' /boot/cmdline.txt
+
 		echo "# Enable I2C in device tree" >> /boot/config.txt
 		echo "dtparam=i2c=on" >> /boot/config.txt
 		echo >> /boot/config.txt
