@@ -1,0 +1,17 @@
+#!/bin/sh
+
+# Make sure ssh keys have been created so grow_partition.sh can run
+while [ ! -f /etc/ssh/ssh_host_ecdsa_key.pub ]
+do
+	sleep 2
+done
+
+# Make sure we don't run this script again
+sed -i "/.*growPartition.*/d" /etc/rc.local
+
+# Grow the root partition
+/opt/scripts/tools/grow_partition.sh
+
+# Reboot the server to finish by expanding the filesystem
+shutdown -r now
+
