@@ -6,7 +6,6 @@
 <?php
 
 $AlsaCards = Array();
-#exec("for card in /proc/asound/card*/id; do echo -n \$card | sed 's/.*card\\([0-9]*\\).*/\\1:/g'; cat \$card; done", $output, $return_val);
 exec($SUDO . " aplay -l | grep '^card' | sed -e 's/^card //' -e 's/:[^\[]*\[/:/' -e 's/\].*\[.*\].*//' | uniq", $output, $return_val);
 if ( $return_val )
 {
@@ -22,10 +21,22 @@ else
 }
 unset($output);
 
+exec($SUDO . " grep card /root/.asoundrc | head -n 1 | awk '{print $2}'", $output, $return_val);
+if ( $return_val )
+{
+	error_log("Error getting currently selected alsa card used!");
+}
+else
+{
+	$CurrentCard = $output[0];
+}
+unset($output);
+
 function PrintStorageDeviceSelect()
 {
 	global $SUDO;
 
+	# FIXME, this would be much simpler by parsing "lsblk -l"
 	exec('mount | grep boot | cut -f1 -d" " | sed -e "s/\/dev\///" -e "s/p[0-9]$//"', $output, $return_val);
 	$bootDevice = $output[0];
 	unset($output);
@@ -223,7 +234,7 @@ function ToggleLCDNow()
     </tr>
     <tr>
       <td>Audio Output Device:</td>
-      <td><? PrintSettingSelect("Audio Output Device", "AudioOutput", 1, 0, "0", $AlsaCards, "", "SetAudio"); ?></td>
+      <td><? PrintSettingSelect("Audio Output Device", "AudioOutput", 1, 0, "$CurrentCard", $AlsaCards, "", "SetAudio"); ?></td>
     </tr>
     <tr>
       <td>External Storage Device:</td>
