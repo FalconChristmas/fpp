@@ -7,6 +7,7 @@ putenv("PATH=/bin:/usr/bin:/sbin:/usr/sbin");
 $commands = array(
 	// Networking
 	'Interfaces'         => 'ifconfig -a',
+	'Wired'              => 'ethtool eth0',
 	'Wireless'           => 'iwconfig',
 	'Routing'            => 'netstat -rn',
 	'Default Gateway'    => 'ping -c 1 $(netstat -rn | grep \'^0.0.0.0\' | awk \'{print $2}\')',
