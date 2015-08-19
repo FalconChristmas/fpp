@@ -126,6 +126,7 @@ extern PluginCallbackManager pluginCallbackManager;
   {
     char *s;
     char *s2;
+    char *s3;
     char *response2 = NULL;
     int i;
 		char NextPlaylist[128] = "No playlist scheduled.";
@@ -309,9 +310,10 @@ extern PluginCallbackManager pluginCallbackManager;
 			// Start an Effect
 			s = strtok(NULL,",");
 			s2 = strtok(NULL,",");
+			s3 = strtok(NULL,",");
 			if (s && s2)
 			{
-				i = StartEffect(s, atoi(s2));
+				i = StartEffect(s, atoi(s2), atoi(s3));
 				if (i >= 0)
 					sprintf(response,"%d,%d,Starting Effect,%d,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS,i);
 				else
@@ -366,6 +368,17 @@ extern PluginCallbackManager pluginCallbackManager;
 				s = strtok(NULL,",");
 				if (s)
 					parseSetting(name, s);
+			}
+		}
+		else if (!strcmp(CommandStr, "StopEffectByName"))
+		{
+			s = strtok(NULL,",");
+			if (strlen(s))
+			{
+				if (StopEffect(s))
+						sprintf(response,"%d,%d,Stopping Effect,%s,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS,s);
+				else
+						sprintf(response,"%d,%d,Stop Effect Failed,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
 			}
 		}
 		else if (!strcmp(CommandStr, "StopEffect"))

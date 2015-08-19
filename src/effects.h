@@ -37,6 +37,7 @@ typedef struct fppeffect {
 	FILE     *fp;
 	int       stepSize;
 	int       startChannel;
+	int       loop;
 } FPPeffect;
 
 extern FPPeffect *effects[];
@@ -45,7 +46,8 @@ int  GetRunningEffects(char *msg, char **result);
 int  IsEffectRunning(void);
 int  InitEffects(void);
 void CloseEffects(void);
-int  StartEffect(char *effectName, int startChannel);
+int  StartEffect(char *effectName, int startChannel, int loop = 0);
+int  StopEffect(char *effectName);
 int  StopEffect(int effectID);
 void StopEffects(void);
 int  OverlayEffects(char *channelData);
