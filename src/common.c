@@ -310,6 +310,17 @@ int CheckForHostSpecificFile(const char *hostname, char *filename)
 				localFilename, filename);
 			strcpy(filename, localFilename);
 		}
+		else
+		{
+			// Replace hyphen with an underscore and recheck
+			*ptr = '_';
+			if (FileExists(localFilename))
+			{
+				LogDebug(VB_SEQUENCE, "Found %s to use instead of %s\n",
+					localFilename, filename);
+				strcpy(filename, localFilename);
+			}
+		}
 	}
 }
 
