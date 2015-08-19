@@ -6,6 +6,6 @@ BINDIR=$(cd $(dirname $0) && pwd)
 
 cd ${FPPDIR}/src/
 
-sudo -u pi make clean
-sudo -u pi make all
+sudo -u ${FPPUSER} make clean
+sudo -u ${FPPUSER} make all
 

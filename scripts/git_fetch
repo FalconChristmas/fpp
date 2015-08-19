@@ -13,7 +13,7 @@ if curl --silent --head https://github.com | grep "Content-Type: text/html; char
 	then
 		cd ${FPPDIR} && $SUDO git fetch && $SUDO git submodule foreach git fetch
 	else
-		cd ${FPPDIR} && sudo -u pi git fetch && sudo -u pi git submodule foreach git fetch
+		cd ${FPPDIR} && sudo -u ${FPPUSER} git fetch && sudo -u ${FPPUSER} git submodule foreach git fetch
 	fi
 else
 	echo "Can not access github, unable to fetch git updates"

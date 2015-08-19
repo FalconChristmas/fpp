@@ -19,8 +19,8 @@ then
 	cd $1 && $SUDO git reset --hard $3
 elif [ "x${FPPDIR}" = "x${FPPHOME}/fpp" ]
 then
-	cd ${PLUGINDIR} && sudo -u pi git clone $2 $1
-	cd $1 && sudo -u pi git reset --hard $3
+	cd ${PLUGINDIR} && sudo -u ${FPPUSER} git clone $2 $1
+	cd $1 && sudo -u ${FPPUSER} git reset --hard $3
 else
 	cd ${PLUGINDIR} && git clone $2 $1
 	cd $1 && git reset --hard $3
@@ -34,7 +34,7 @@ then
 		$SUDO ${PLUGINDIR}/$1/fpp_install.sh
 	elif [ "x${FPPDIR}" = "x${FPPHOME}/fpp" ]
 	then
-		sudo -u pi ${PLUGINDIR}/$1/fpp_install.sh
+		sudo -u ${FPPUSER} ${PLUGINDIR}/$1/fpp_install.sh
 	else
 		${PLUGINDIR}/$1/fpp_install.sh
 	fi
