@@ -488,7 +488,7 @@ function PlayEffect()
 	check($effect, "effect", __FUNCTION__);
 	$startChannel = $_GET['startChannel'];
 	check($startChannel, "startChannel", __FUNCTION__);
-	$status = SendCommand("e," . $effect . "," . $startChannel . ",");
+	$status = SendCommand("e," . $effect . "," . $startChannel . ",0,");
 	EchoStatusXML('Success');
 }
 

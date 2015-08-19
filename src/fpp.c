@@ -145,7 +145,13 @@ int main (int argc, char *argv[])
       if (strchr(argv[2], ','))
         sprintf(command,"e,%s,",argv[2]);
       else
-        sprintf(command,"e,%s,1,",argv[2]);
+        sprintf(command,"e,%s,1,0,",argv[2]);
+      SendCommand(command);
+    }
+    // Stop an effect - example "fpp -e effectName"
+    else if((strncmp(argv[1],"-E",2) == 0) &&  argc > 2)
+    {
+      sprintf(command,"StopEffectByName,%s,",argv[2]);
       SendCommand(command);
     }
     // Trigger an event - example "fpp -t eventName"
@@ -287,7 +293,10 @@ void Usage(char *appname)
 "  -R                           - Reload schedule config file\n"
 "  -w                           - Send Falcon hardware config out SPI port\n"
 "  -r                           - Write Bridge mode Bytes Received file\n"
-"  -e EFFECTNAME                - Start Effect EFFECTNAME\n"
+"  -e EFFECTNAME[,CH[,LOOP]]    - Start Effect EFFECTNAME with optional\n"
+"                                 start channel set to CH and optional\n"
+"                                 looping if LOOP is set to 1\n"
+"  -E EFFECTNAME                - Stop Effect EFFECTNAME\n"
 "  -t EVENTNAME                 - Trigger Event EVENTNAME\n"
 "\n", appname);
 }
