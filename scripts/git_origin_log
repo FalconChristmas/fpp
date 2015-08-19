@@ -12,6 +12,6 @@ if [ "x${FPPDIR}" = "x/opt/fpp" ]
 then
 	cd ${FPPDIR} && $SUDO git log --oneline HEAD..origin/${GITBRANCH}
 else
-	cd ${FPPDIR} && sudo -u pi git log --oneline HEAD..origin/${GITBRANCH}
+	cd ${FPPDIR} && sudo -u ${FPPUSER} git log --oneline HEAD..origin/${GITBRANCH}
 fi
 
