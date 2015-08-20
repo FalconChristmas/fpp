@@ -4,7 +4,7 @@ BINDIR=$(cd $(dirname $0) && pwd)
 
 . ${BINDIR}/common
 
-logOutput
+teeOutput
 
 echo "Checking config version"
 

@@ -24,14 +24,13 @@ commands for building future images.
 SDDEVICE="sdd"
 ORIGIMG="bone-debian-7.5-2014-05-14-2gb.img"
 EMMCIMG="BBB-eMMC-flasher-debian-7.5-2014-05-14-2gb.img"
-IMGFILE="FPP-v1.5-Alpha1-BBB-SD.img"
-MMCFILE="FPP-v1.5-Alpha1-BBB-eMMC.img"
+IMGFILE="FPP-v1.5-Beta1-BBB-SD.img"
+MMCFILE="FPP-v1.5-Beta1-BBB-eMMC.img"
 ADDSIZEMB=100
 
 # Get our starting image
 cp ${ORIGIMG} ${IMGFILE}
 
-ADDSIZEMB=100
 SIZE=$(/bin/ls -al ${ORIGIMG} | awk '{print $5}')
 SIZEMB=$(expr ${SIZE} / 1024 / 1024)
 NEWSIZEMB=$(expr ${SIZEMB} + ${ADDSIZEMB})
@@ -74,8 +73,8 @@ sync
 SDDEVICE="sdd"
 ORIGIMG="bone-debian-7.5-2014-05-14-2gb.img"
 EMMCIMG="BBB-eMMC-flasher-debian-7.5-2014-05-14-2gb.img"
-IMGFILE="FPP-v1.5-Alpha1-BBB-SD.img"
-MMCFILE="FPP-v1.5-Alpha1-BBB-eMMC.img"
+IMGFILE="FPP-v1.5-Beta1-BBB-SD.img"
+MMCFILE="FPP-v1.5-Beta1-BBB-eMMC.img"
 ADDSIZEMB=100
 
 SIZE=$(/bin/ls -al ${ORIGIMG} | awk '{print $5}')
@@ -92,6 +91,7 @@ sudo dd if=/dev/${SDDEVICE} of=${IMGFILE} bs=1M count=${NEWSIZEMB}
 # Zero out free space in SD image to help compression later
 sudo losetup /dev/loop0 ${IMGFILE}
 sudo kpartx -av /dev/loop0
+sleep 3
 sudo zerofree /dev/mapper/loop0p2
 sudo kpartx -d /dev/loop0
 sudo losetup -d /dev/loop0
@@ -114,6 +114,7 @@ sudo losetup /dev/loop0 ${IMGFILE}
 sudo losetup /dev/loop1 ${MMCFILE}
 sudo kpartx -av /dev/loop0
 sudo kpartx -av /dev/loop1
+sleep 3
 sudo dd if=/dev/mapper/loop0p2 of=/dev/mapper/loop1p2 bs=4M
 sync
 mkdir /tmp/uboot
@@ -133,6 +134,47 @@ sudo losetup -d /dev/loop1
 sudo dd if=${MMCFILE} of=/dev/${SDDEVICE} bs=4M
 sync
 
+NOTE; Still need to setup SD image to grow partition and zip images.
+      Instructions are below
+
+######################################################################
+Setup the SD Image to auto grow on first boot and reboot automatically
+
+sudo losetup /dev/loop0 ${IMGFILE}
+sudo kpartx -av /dev/loop0
+sleep 3
+sudo mount /dev/mapper/loop0p2 /mnt/tmp
+sudo sed -i "s#^exit 0#/opt/fpp/scripts/growPartition > /home/fpp/growPartition.log 2>\&1\n\nexit 0#" /mnt/tmp/etc/rc.local
+sudo umount /mnt/tmp
+sudo kpartx -d /dev/loop0
+sudo losetup -d /dev/loop0
+
+######################################################################
+zip the images
+
+rm -f ${IMGFILE}.zip ${MMCFILE}.zip
+zip -9 ${IMGFILE}.zip ${IMGFILE}
+zip -9 ${MMCFILE}.zip ${MMCFILE}
+
+######################################################################
+Git pull in any last minute changes
+
+sudo losetup /dev/loop0 ${IMGFILE}
+sudo losetup /dev/loop1 ${MMCFILE}
+sudo kpartx -av /dev/loop0
+sudo kpartx -av /dev/loop1
+sleep 3
+sudo mount /dev/mapper/loop0p2 /mnt/tmp
+(cd /mnt/tmp/opt/fpp && sudo git pull)
+sudo umount /mnt/tmp
+sudo mount /dev/mapper/loop1p2 /mnt/tmp
+(cd /mnt/tmp/opt/fpp && sudo git pull)
+sudo umount /mnt/tmp
+sudo kpartx -d /dev/loop0
+sudo kpartx -d /dev/loop1
+sudo losetup -d /dev/loop0
+sudo losetup -d /dev/loop1
+
 ######################################################################
 FPP v1.5 BeagleBone Black Install Notes
 
@@ -145,7 +187,7 @@ need to attach other USB devices.
 - Write FPP SD disk image to micro-SD card using "Win32 Disk Imager"
   http://sourceforge.net/projects/win32diskimager/files/latest/download
 
-- Disconnect power to the BBB
+- Disconnect power from the BBB
 
 - Insert micro-SD card into BBB
 
@@ -153,16 +195,18 @@ need to attach other USB devices.
 
 - Hold the Boot Button (S2) on the top of the BBB (near the micro-SD slot)
   and while holding the button, connect power to the BBB.  Continue holding
-  the S2 button until the blue LED's start to flash.
+  the S2 button until the blue LED's start to flash. (Some users have
+  reported not being required to do this step if they have been using the
+  BBB already booting off the micro-SD card)
 
-- The BBB should boot up running FPP off the SD.
-
-NOTE: In order to prevent having to press the S2 button each time, you
-will need to rename a file on the eMMC onboard storage on the BBB.
+- The BBB should boot up running FPP off the micro-SD.  The boot process
+  will automatically resize the main disk partition to fill up the micro-SD
+  card, and this will automatically reboot.  The whole process should take
+  under a minute and then FPP will be up and running.
 
 #############################
 
-Installing onto the BBB's onboard eMMC:
+Installing onto the BBB's Rev C's onboard eMMC:
 
 Using the onboard eMMC on the BBB to run FPP eliminates the need to use
 a micro-SD for FPP OS storage.  The micro-SD can be used for media
@@ -182,15 +226,20 @@ storage which frees up the USB slot for other use.
   The blue LEDs should flash in sequence and continue to flash for the next
   5-25 minutes depending on micro-SD speed.
 
-- Wait until the LED's stop flashing and turn off and then remove power from
-  the BBB.
+- Wait until the LED's stop flashing and turn off.
+  the BBB.  NOTE: This may take 5-25 minutes depending on the speed of the
+  micro-SD card.
+
+- Disconnect power from the BBB
 
 - Remove the micro-SD card.
 
-- Insert a micro-SD card or USB flash drive for FPP storage.
+- Insert a formatted micro-SD card or USB flash drive for FPP storage.
 
 - Re-apply power to the BBB and it should boot up running FPP off the eMMC.
 
 - Connect to the FPP with your web browser @ http://fpp/
 
+- Once FPP is up and running, you can use the FPP UI to select the micro-SD
+  for FPP storage.  FPP defaults to require a USB flash drive for storage.
 
