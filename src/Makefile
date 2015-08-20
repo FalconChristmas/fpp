@@ -24,8 +24,6 @@ OBJECTS_fppmm = \
 LIBS_fppmm = \
 	$(NULL)
 
-#	channeloutput/OLAOutput.o \
-#
 OBJECTS_fppd = \
 	channeloutput/ChannelOutputBase.o \
 	channeloutput/channeloutput.o \
@@ -90,6 +88,14 @@ ifeq '$(ARCH)' ''
 endif
 $(shell echo "Building FPP on '$(ARCH)' platform" 1>&2)
 
+OLAFLAGS := $(shell pkg-config --cflags --libs libola 2> /dev/null)
+USEOLA = 
+
+ifneq '$(OLAFLAGS)' ''
+	USEOLA = "-DUSEOLA"
+	OBJECTS_fppd += channeloutput/OLAOutput.o
+endif
+
 # Common CFLAGS
 CFLAGS += \
 	-I . \
@@ -97,9 +103,9 @@ CFLAGS += \
 	-I mediaoutput \
 	$(NULL)
 
-#	$(shell pkg-config --cflags --libs libola) \
 
 LDFLAGS_fppd += \
+	$(OLAFLAGS) \
 	$(NULL)
 
 DEPS_fppd += \

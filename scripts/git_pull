@@ -21,6 +21,8 @@ if curl --silent --head https://github.com | grep "Content-Type: text/html; char
 	RELEASEBRANCH=$(echo ${GITBRANCH} | egrep "v[0-9]+\.[0-9]+")
 	if [ -z "${RELEASEBRANCH}" ]
 	then
+		${SCRIPTDIR}/upgrade_config
+
 		compileBinaries
 	fi
 else
