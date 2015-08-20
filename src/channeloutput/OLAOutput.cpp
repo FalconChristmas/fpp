@@ -66,7 +66,7 @@ int OLAOutput::Init(Json::Value config)
 
 		u.active = p["active"].asInt();
 		u.universe = p["universe"].asInt();
-		u.startChannel = p["startChannel"].asInt();
+		u.startChannel = p["startChannel"].asInt() - m_startChannel;
 		u.channelCount = p["channelCount"].asInt();
 
 		m_universes.push_back(u);
@@ -135,7 +135,8 @@ void OLAOutput::DumpConfig(void)
 
 		LogDebug(VB_CHANNELOUT, "    Universe: %d\n", u.universe);
 		LogDebug(VB_CHANNELOUT, "        Active       : %d\n", u.active);
-		LogDebug(VB_CHANNELOUT, "        Start Channel: %d\n", u.startChannel);
+		LogDebug(VB_CHANNELOUT, "        Start Channel: %d\n",
+			u.startChannel + m_startChannel);
 		LogDebug(VB_CHANNELOUT, "        Channel Count: %d\n", u.channelCount);
 	}
 
