@@ -8,14 +8,24 @@
 //TODO Change logging (new and old value of setting where applicable)
 
 //Define a map of backup/restore areas and setting locations, this is also used to populate the area select lists
-$system_config_aras = array(
+$system_config_areas = array(
     'all' => array('friendly_name' => 'All', 'file' => false),
     'channelOutputsJSON' => array('friendly_name' => 'Channel Outputs (RGBMatrix)', 'file' => $settings['channelOutputsJSON']),
     'channeloutputs' => array('friendly_name' => 'Channel Outputs (Other eg, LOR, Renard)', 'file' => $settings['channelOutputsFile']),
     'channelmemorymaps' => array('friendly_name' => 'Channel Memory Maps', 'file' => $settings['channelMemoryMapsFile']),
     'email' => array('friendly_name' => 'Email', 'file' => false),
     'pixelnetDMX' => array('friendly_name' => 'Falcon Pixlenet/DMX', 'file' => $pixelnetFile),
-    'schedule' => array('friendly_name' => 'Schedule', 'file' => $scheduleFile),
+    'show_setup' =>
+        array(
+            'friendly_name' => 'Show Setup (Playlists, Schedule, Scripts, etc.)',
+            'file' => array(
+                'events' => array('type' => 'dir', 'location' => $eventDirectory),
+                'playlist' => array('type' => 'dir', 'location' => $playlistDirectory),
+                'schedule' => array('type' => 'file', 'location' => $scheduleFile),
+                'scripts' => array('type' => 'dir', 'location' => $scriptDirectory),
+            ),
+            'special' => true
+        ),
     'settings' => array('friendly_name' => 'Settings', 'file' => $settingsFile),
     'timezone' => array('friendly_name' => 'Timezone', 'file' => $timezoneFile),
     'universes' => array('friendly_name' => 'Universes', 'file' => $universeFile),
@@ -62,9 +72,12 @@ if (isset($_POST['btnDownloadConfig'])) {
         //temporary collection area for settings
         $tmp_settings_data = array();
 
-        if (array_key_exists($area, $system_config_aras)) {
+        $file_data = null;
+        $special = false;
+
+        if (array_key_exists($area, $system_config_areas)) {
             //Create a copy of the areas array to manipulate
-            $tmp_config_areas = $system_config_aras;
+            $tmp_config_areas = $system_config_areas;
 
             //Generate backup for selected area
             if (strtolower($area) == "all") {
@@ -78,19 +91,42 @@ if (isset($_POST['btnDownloadConfig'])) {
                 foreach ($tmp_config_areas as $config_key => $config_data) {
                     $setting_file = $config_data['file'];
 
-                    if ($setting_file !== false && file_exists($setting_file)) {
-                        if ($config_key == "settings") {
-                            //parse ini properly
-                            $file_data = parse_ini_string(file_get_contents($setting_file));
-                        } else if ($config_key == "channelOutputsJSON") {
-                            //channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
-                            $file_data = json_decode(file_get_contents($setting_file), true);
-                        } else {
-                            //all other files are std flat files, process them into an array by splitting at line breaks
-                            $file_data = explode("\n", file_get_contents($setting_file));
-                        }
+                    //if setting file value is an array then there are one or more setting files related to this backup
+                    if (is_array($setting_file)) {
+//                    if (array_key_exists('special', $setting_file)) {
+//                        $special = $tmp_config_areas[$config_key]['file']['special'];
+//                    }
 
-                        $tmp_settings_data[$config_key] = $file_data;
+                        //loop over the array
+                        foreach ($setting_file as $sfi => $sfd) {
+                            //           'events' => array('type' => 'dir', 'location' => $eventDirectory),
+
+                            //File or directory, read data accordingly
+                            if ($sfd['type'] == "dir") {
+                                //read all files in directory and read data
+                                $file_data = read_directory_files($sfd['location']);
+                            } else if ($sfd['type'] == "file") {
+                                //read setting file as normal
+                                $file_data = array($sfi => explode("\n", file_get_contents($sfd['location'])));
+                            }
+
+                            $tmp_settings_data[$config_key][$sfi] = $file_data;
+                        }
+                    } else {
+                        if ($setting_file !== false && file_exists($setting_file)) {
+                            if ($config_key == "settings") {
+                                //parse ini properly
+                                $file_data = parse_ini_string(file_get_contents($setting_file));
+                            } else if ($config_key == "channelOutputsJSON") {
+                                //channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
+                                $file_data = json_decode(file_get_contents($setting_file), true);
+                            } else {
+                                //all other files are std flat files, process them into an array by splitting at line breaks
+                                $file_data = explode("\n", file_get_contents($setting_file));
+                            }
+
+                            $tmp_settings_data[$config_key] = $file_data;
+                        }
                     }
                 }
             } else if (strtolower($area) == "email") {
@@ -116,22 +152,43 @@ if (isset($_POST['btnDownloadConfig'])) {
 
                 $tmp_settings_data['email'] = $email_settings;
             } else {
-                //All other backup areas
+                //All other backup areas for individual selections
                 $setting_file = $tmp_config_areas[$area]['file'];
 
-                if ($setting_file !== false && file_exists($setting_file)) {
-                    if ($area == "settings") {
-                        //parse ini properly into an assoc. array
-                        $file_data = parse_ini_string(file_get_contents($setting_file));
-                    } else if ($area == "channelOutputsJSON") {
-                        //channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
-                        $file_data = json_decode(file_get_contents($setting_file), true);
-                    } else {
-                        //all other files are std flat files, process them into an array by splitting at line breaks
-                        $file_data = explode("\n", file_get_contents($setting_file));
-                    }
+                //if setting file value is an array then there are one or more setting files related to this backup
+                if (is_array($setting_file)) {
+//                    if (array_key_exists('special', $tmp_config_areas[$area]['file'])) {
+//                        $special = $tmp_config_areas[$area]['file']['special'];
+//                    }
+                    //loop over the array
+                    foreach ($setting_file as $sfi => $sfd) {
+                        //           'events' => array('type' => 'dir', 'location' => $eventDirectory),
 
-                    $tmp_settings_data[$area] = $file_data;
+                        //File or directory, read data accordingly
+                        if ($sfd['type'] == "dir") {
+                            //read all files in directory and read data
+                            $file_data = read_directory_files($sfd['location']);
+                        } else if ($sfd['type'] == "file") {
+                            //read setting file as normal
+                            $file_data = array($sfi => explode("\n", file_get_contents($sfd['location'])));
+                        }
+
+                        $tmp_settings_data[$area][$sfi] = $file_data;
+                    }
+                } else {
+                    if ($setting_file !== false && file_exists($setting_file)) {
+                        if ($area == "settings") {
+                            //parse ini properly into an assoc. array
+                            $file_data = parse_ini_string(file_get_contents($setting_file));
+                        } else if ($area == "channelOutputsJSON") {
+                            //channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
+                            $file_data = json_decode(file_get_contents($setting_file), true);
+                        } else {
+                            //all other files are std flat files, process them into an array by splitting at line breaks
+                            $file_data = explode("\n", file_get_contents($setting_file));
+                        }
+                        $tmp_settings_data[$area] = $file_data;
+                    }
                 }
             }
 
@@ -173,7 +230,7 @@ if (isset($_POST['btnDownloadConfig'])) {
         }
 
         //this value *SHOULD* directly match a key in $system_config_aras
-        if (array_key_exists($restore_area, $system_config_aras)) {
+        if (array_key_exists($restore_area, $system_config_areas)) {
             //Do something with the uploaded file to restore it
             if (array_key_exists('conffile', $_FILES)) {
                 //data is stored by area and keyed the same as $system_config_aras
@@ -227,15 +284,38 @@ if (isset($_POST['btnDownloadConfig'])) {
     }
 }
 
+/**
+ * Looks in a directory and reads file contents of files within it
+ * @param $directory String directory to search in
+ * @return array Array of file names and respective data
+ */
+function read_directory_files($directory)
+{
+    $file_list = array();
+
+    if ($handle = opendir($directory)) {
+        while (false !== ($file = readdir($handle))) {
+            // do something with the file
+            // note that '.' and '..' is returned even
+            // if file isn't this directory or its parent, add it to the results
+            if ($file != "." && $file != "..") {
+                // collect the filenames
+                $file_list[$file] = explode("\n", file_get_contents($directory . '/' . $file));
+            }
+        }
+        closedir($handle);
+    }
+    return $file_list;
+}
 
 /**
  * Function to look after backup restorations
  * @param $restore_area String Area to restore
- * @param $area_data Array Area data as an array
+ * @param $restore_area_data Array Area data as an array
  */
-function process_restore_data($restore_area, $area_data)
+function process_restore_data($restore_area, $restore_area_data)
 {
-    global $system_config_aras, $keepMasterSlaveSettings, $keepNetworkSettings, $uploadDataProtected, $settings_restored;
+    global $system_config_areas, $keepMasterSlaveSettings, $keepNetworkSettings, $uploadDataProtected, $settings_restored;
     global $args;
 
     //Includes for API access
@@ -246,48 +326,79 @@ function process_restore_data($restore_area, $area_data)
     $save_result = false;
 
     if ($restore_area_key == "channelOutputsJSON") {
-        $channel_outputs_json_filepath = $system_config_aras['channelOutputsJSON']['file'];
+        $channel_outputs_json_filepath = $system_config_areas['channelOutputsJSON']['file'];
         //PrettyPrint the JSON data and save it
-        $json_pp_data = prettyPrintJSON(json_encode($area_data));
+        $json_pp_data = prettyPrintJSON(json_encode($restore_area_data));
         $save_result = file_put_contents($channel_outputs_json_filepath, $json_pp_data);
     }
 
     if ($restore_area_key == "channeloutputs") {
         //Overwrite channel outputs JSON
-        $channel_outputs_filepath = $system_config_aras['channeloutputs']['file'];
+        $channel_outputs_filepath = $system_config_areas['channeloutputs']['file'];
         //implode array into string and reinsert new lines (reverse of backup explode)
-        $data = implode("\n", $area_data);
+        $data = implode("\n", $restore_area_data);
         $save_result = file_put_contents($channel_outputs_filepath, $data);
     }
 
     if ($restore_area_key == "channelmemorymaps") {
         //Overwrite channel outputs JSON
-        $channelmemorymaps_filepath = $system_config_aras['channelmemorymaps']['file'];
-        $data = implode("\n", $area_data);
+        $channelmemorymaps_filepath = $system_config_areas['channelmemorymaps']['file'];
+        $data = implode("\n", $restore_area_data);
         $save_result = file_put_contents($channelmemorymaps_filepath, $data);
     }
 
-    if ($restore_area_key == "schedule") {
-        //Overwrite the schedule file and bump FPPD to reload it
-        $schedule_filepath = $system_config_aras['schedule']['file'];
-        $data = implode("\n", $area_data);
-        if (!empty($data)) {
-            $save_result = file_put_contents($schedule_filepath, $data);
-            FPPDreloadSchedule();
-        } else {
-            //no data
-            $save_result = true;
+    if ($restore_area_key == "show_setup") {
+        $show_setup_areas = $system_config_areas['show_setup']['file'];
+
+        //search through the files that should of been backed up
+        //and then loop over the restore data and match up the data and restore it
+        foreach ($show_setup_areas as $show_setup_area_index => $show_setup_area_data) {
+            $restore_location = $show_setup_area_data['location'];
+            $restore_type = $show_setup_area_data['type'];
+            $final_restore_data = "";
+
+            //if the restore key and the $show_setup_areas key match then restore data to whatever location it is
+            //eg. if we are on events, then look for events in the restore data, when found restore data to the events location
+            foreach ($restore_area_data as $restore_area_data_index => $restore_area_data_data) {
+                //$restore_area_data_data is an array representing the file contents
+                //$restore_area_data_index represents the filename (used to key the array)
+                if ($show_setup_area_index == $restore_area_data_index) {
+                    if (is_array($restore_area_data_data)) {
+                        //loop over all the files and their data and restore each
+                        //$add array will look like
+                        //array ('event'=> array('01_01.fevt' => array(data), '21_10.fevt' => array(data)))
+                        foreach ($restore_area_data_data as $fn_to_restore => $fn_data) {
+                            $restore_location = $show_setup_area_data['location']; //reset
+                            $final_restore_data = "";
+
+                            $final_restore_data = implode("\n", $fn_data);
+                            if ($restore_type == "dir") {
+                                $restore_location .= "/" . $fn_to_restore;
+                            }
+
+                            if (!empty($final_restore_data)) {
+                                $save_result = file_put_contents($restore_location, $final_restore_data);
+                            }
+                        }
+                    }
+                    break;//break after data is restored for this section
+                }
+            }
         }
+
+        //Restart FFPD so any changes can take effect
+        FPPDreloadSchedule();
+        RestartFPPD();
     }
 
     if ($restore_area_key == "email") {
         //TODO rework this so it will work future email system implementation, were different providers are used
-        if (is_array($area_data)) {
-            $emailenable = $area_data['emailenable'];
-            $emailguser = $area_data['emailguser'];
-            $emailgpass = $area_data['emailgpass'];
-            $emailfromtext = $area_data['emailfromtext'];
-            $emailtoemail = $area_data['emailtoemail'];
+        if (is_array($restore_area_data)) {
+            $emailenable = $restore_area_data['emailenable'];
+            $emailguser = $restore_area_data['emailguser'];
+            $emailgpass = $restore_area_data['emailgpass'];
+            $emailfromtext = $restore_area_data['emailfromtext'];
+            $emailtoemail = $restore_area_data['emailtoemail'];
 
             //Write them out
             WriteSettingToFile('emailenable', $emailenable);
@@ -309,8 +420,8 @@ function process_restore_data($restore_area, $area_data)
     }
 
     if ($restore_area_key == "settings") {
-        if (is_array($area_data)) {
-            foreach ($area_data as $setting_name => $setting_value) {
+        if (is_array($restore_area_data)) {
+            foreach ($restore_area_data as $setting_name => $setting_value) {
                 //check if we can change it (default value is checked - true)
                 if ($setting_name == "fppMode") {
                     if ($keepMasterSlaveSettings == false) {
@@ -351,27 +462,27 @@ function process_restore_data($restore_area, $area_data)
 
             $save_result = true;
         } else {
-            error_log("RESTORE: Cannot read Settings INI settings. Attempted to parse " . json_encode($area_data));
+            error_log("RESTORE: Cannot read Settings INI settings. Attempted to parse " . json_encode($restore_area_data));
         }
     }
 
     if ($restore_area_key == "timezone") {
-        $data = $area_data[0];//first index has the timezone, index 1 is empty to due carriage return in file when its backed up
+        $data = $restore_area_data[0];//first index has the timezone, index 1 is empty to due carriage return in file when its backed up
         SetTimezone($data);
         $save_result = true;
     }
 
     if ($restore_area_key == "pixelnetDMX") {
         //Just overwrite the universes file
-        $pixlnet_filepath = $system_config_aras['pixelnetDMX']['file'];
-        $data = implode("\n", $area_data);
+        $pixlnet_filepath = $system_config_areas['pixelnetDMX']['file'];
+        $data = implode("\n", $restore_area_data);
         $save_result = file_put_contents($pixlnet_filepath, $data);
     }
 
     if ($restore_area_key == "universes") {
         //Just overwrite the universes file
-        $universe_filepath = $system_config_aras['universes']['file'];
-        $data = implode("\n", $area_data);
+        $universe_filepath = $system_config_areas['universes']['file'];
+        $data = implode("\n", $restore_area_data);
         $save_result = file_put_contents($universe_filepath, $data);
     }
 
@@ -479,10 +590,10 @@ function doBackupDownlaod($settings_data, $area)
  */
 function backup_gen_select($area_name = "backuparea")
 {
-    global $system_config_aras;
+    global $system_config_areas;
 
     $select_html = "<select name=\"$area_name\" id=\"$area_name\">";
-    foreach ($system_config_aras as $item => $item_options) {
+    foreach ($system_config_areas as $item => $item_options) {
         $select_html .= "<option value=" . $item . ">" . $item_options['friendly_name'] . "</option>";
     }
     $select_html .= "</select>";
