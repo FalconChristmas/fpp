@@ -1,0 +1,26 @@
+#!/bin/sh
+
+# Make sure ssh keys have been created so grow_partition.sh can run
+while [ ! -f /etc/ssh/ssh_host_ecdsa_key.pub ]
+do
+	sleep 2
+done
+
+# Give things a little time to stabilize
+sleep 20
+
+# Make sure we don't run this script again
+sed -i "/.*growPartition.*/d" /etc/rc.local
+
+# Grow the root partition
+/opt/scripts/tools/grow_partition.sh
+
+# For some reason this doesn't work inside grow_partition.sh when run here
+# so set this flag ourselves before we reboot.
+echo "/dev/mmcblk0" > /resizerootfs
+echo "/dev/mmcblk0" > /boot/uboot/resizerootfs
+echo "/dev/mmcblk0" > /home/fpp/resizerootfs
+
+# Reboot the server to finish by expanding the filesystem
+shutdown -r now
+

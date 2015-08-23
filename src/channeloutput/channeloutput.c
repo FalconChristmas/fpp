@@ -42,7 +42,6 @@
 #include "settings.h"
 #include "SPIws2801.h"
 #include "LOR.h"
-//#include "OLAOutput.h"
 #include "SPInRF24L01.h"
 #include "USBDMX.h"
 #include "USBPixelnet.h"
@@ -64,6 +63,10 @@
 #ifdef PLATFORM_BBB
 #  include "BBB48String.h"
 #  include "LEDscapeMatrix.h"
+#endif
+
+#ifdef USEOLA
+#  include "OLAOutput.h"
 #endif
 
 /////////////////////////////////////////////////////////////////////////////
@@ -208,8 +211,10 @@ int InitializeChannelOutputs(void) {
 			} else if (type == "BBB48String") {
 				channelOutputs[i].output = new BBB48StringOutput(start, count);
 #endif
-//			} else if (type == "OLA") {
-//				channelOutputs[i].output = new OLAOutput(start, count);
+#ifdef USEOLA
+			} else if (type == "OLA") {
+				channelOutputs[i].output = new OLAOutput(start, count);
+#endif
 			} else if (type == "USBRelay") {
 				channelOutputs[i].output = new USBRelayOutput(start, count);
 			} else {

@@ -6,7 +6,6 @@
 <?php
 
 $AlsaCards = Array();
-#exec("for card in /proc/asound/card*/id; do echo -n \$card | sed 's/.*card\\([0-9]*\\).*/\\1:/g'; cat \$card; done", $output, $return_val);
 exec($SUDO . " aplay -l | grep '^card' | sed -e 's/^card //' -e 's/:[^\[]*\[/:/' -e 's/\].*\[.*\].*//' | uniq", $output, $return_val);
 if ( $return_val )
 {
@@ -22,10 +21,32 @@ else
 }
 unset($output);
 
+exec($SUDO . " grep card /root/.asoundrc | head -n 1 | awk '{print $2}'", $output, $return_val);
+if ( $return_val )
+{
+	error_log("Error getting currently selected alsa card used!");
+}
+else
+{
+	$CurrentCard = $output[0];
+}
+unset($output);
+
 function PrintStorageDeviceSelect()
 {
+	global $SUDO;
+
+	# FIXME, this would be much simpler by parsing "lsblk -l"
 	exec('mount | grep boot | cut -f1 -d" " | sed -e "s/\/dev\///" -e "s/p[0-9]$//"', $output, $return_val);
+	$bootDevice = $output[0];
+	unset($output);
+
+	exec('mount | grep " / " | cut -f1 -d" "', $output, $return_val);
 	$rootDevice = $output[0];
+	unset($output);
+
+	exec($SUDO . " tune2fs -l $rootDevice | grep -i uuid | awk '{print \$3}'", $output, $return_val);
+	$rootUUID = $output[0];
 	unset($output);
 
 	exec('grep "fpp/media" /etc/fstab | cut -f1 -d" " | sed -e "s/\/dev\///"', $output, $return_val);
@@ -37,19 +58,55 @@ function PrintStorageDeviceSelect()
 	foreach(scandir("/dev/") as $fileName)
 	{
 		if ((preg_match("/^sd[a-z][0-9]/", $fileName)) ||
-			(preg_match("/^mmcblk[0-9]p1/", $fileName)))
+			(preg_match("/^mmcblk[0-9]p[0-9]/", $fileName)))
 		{
-			if (!preg_match("/^$rootDevice/", $fileName))
+			exec($SUDO . " sfdisk -s /dev/$fileName", $output, $return_val);
+			$GB = intval($output[0]) / 1024.0 / 1024.0;
+			unset($output);
+
+			if ($GB <= 0.1)
+				continue;
+
+			$FreeGB = "Not Mounted";
+			exec("df -k /dev/$fileName | grep $fileName | awk '{print $4}'", $output, $return_val);
+			if (count($output))
 			{
-				if (preg_match("/^sd/", $fileName))
+				$FreeGB = sprintf("%.1fGB Free", intval($output[0]) / 1024.0 / 1024.0);
+				unset($output);
+			}
+			else
+			{
+				unset($output);
+
+				exec($SUDO . " tune2fs -l /dev/$fileName | grep -i uuid | awk '{print \$3}'", $output, $return_val);
+				$thisUUID = $output[0];
+				unset($output);
+
+				if ($rootUUID == $thisUUID)
 				{
-					$values[$fileName . " (USB)"] = $fileName;
-				}
-				else
-				{
-					$values[$fileName . " (SD)"] = $fileName;
+					exec("df -k / | grep ' /$' | awk '{print \$4}'", $output, $return_val);
+					if (count($output))
+						$FreeGB = sprintf("%.1fGB Free", intval($output[0]) / 1024.0 / 1024.0);
+					unset($output);
 				}
 			}
+
+			$key = $fileName . " ";
+			$type = "";
+
+			if (preg_match("/^$bootDevice/", $fileName))
+			{
+				$type .= " (boot device)";
+			}
+
+			if (preg_match("/^sd/", $fileName))
+			{
+				$type .= " (USB)";
+			}
+
+			$key = sprintf( "%s - %.1fGB (%s) %s", $fileName, $GB, $FreeGB, $type);
+
+			$values[$key] = $fileName;
 		}
 	}
 
@@ -177,7 +234,7 @@ function ToggleLCDNow()
     </tr>
     <tr>
       <td>Audio Output Device:</td>
-      <td><? PrintSettingSelect("Audio Output Device", "AudioOutput", 1, 0, "0", $AlsaCards, "", "SetAudio"); ?></td>
+      <td><? PrintSettingSelect("Audio Output Device", "AudioOutput", 1, 0, "$CurrentCard", $AlsaCards, "", "SetAudio"); ?></td>
     </tr>
     <tr>
       <td>External Storage Device:</td>

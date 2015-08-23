@@ -8,6 +8,6 @@ if [ "x${FPPDIR}" = "x/opt/fpp" ]
 then
 	cd ${FPPDIR} && $SUDO git reset --hard HEAD && $SUDO git submodule update --init && $SUDO git submodule foreach git reset --hard HEAD
 else
-	cd ${FPPDIR} && sudo -u pi git reset --hard HEAD && sudo -u pi git submodule update --init && sudo -u pi git submodule foreach git reset --hard HEAD
+	cd ${FPPDIR} && sudo -u ${FPPUSER} git reset --hard HEAD && sudo -u ${FPPUSER} git submodule update --init && sudo -u ${FPPUSER} git submodule foreach git reset --hard HEAD
 fi
 

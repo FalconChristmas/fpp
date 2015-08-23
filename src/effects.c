@@ -23,11 +23,14 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <string>
+
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
 
+#include "common.h"
 #include "effects.h"
 #include "channeloutputthread.h"
 #include "log.h"
@@ -59,6 +62,16 @@ int InitEffects(void)
 	}
 
 	bzero(effects, sizeof(effects));
+
+	std::string backgroundSequence(getEffectDirectory());
+	backgroundSequence += "/background.eseq";
+
+	if (FileExists(backgroundSequence.c_str()))
+	{
+		LogInfo(VB_EFFECT, "Automatically starting background effect sequence "
+			"background.eseq\n");
+		StartEffect("background", 0, 1);
+	}
 
 	return 1;
 }
@@ -106,7 +119,7 @@ inline int IsEffectRunning(void)
 /*
  * Start a new effect offset at the specified channel number
  */
-int StartEffect(char *effectName, int startChannel)
+int StartEffect(char *effectName, int startChannel, int loop)
 {
 	int   effectID = -1;
 	FILE *fp = NULL;
@@ -139,7 +152,7 @@ int StartEffect(char *effectName, int startChannel)
 
 	if (!fp)
 	{
-		LogErr(VB_EFFECT, "Unable to open effect: %s\n", effectName);
+		LogErr(VB_EFFECT, "Unable to open effect: %s\n", filename);
 		pthread_mutex_unlock(&effectsLock);
 		return effectID;
 	}
@@ -221,9 +234,10 @@ int StartEffect(char *effectName, int startChannel)
 	effects[effectID]->name = strdup(effectName);
 	effects[effectID]->fp = fp;
 	effects[effectID]->startChannel = (startChannel >= 1) ? startChannel : 1;
-    effects[effectID]->stepSize = stepSize;
+	effects[effectID]->loop = loop;
+	effects[effectID]->stepSize = stepSize;
 
-    LogInfo(VB_EFFECT, "Effect %s Stepsize %d\n", effectName, effects[effectID]->stepSize);
+	LogInfo(VB_EFFECT, "Effect %s Stepsize %d\n", effectName, effects[effectID]->stepSize);
 
 	effectCount++;
 
@@ -235,21 +249,11 @@ int StartEffect(char *effectName, int startChannel)
 }
 
 /*
- * Stop a single effect
+ * Helper function to stop an effect, assumes effectsLock is already held
  */
-int StopEffect(int effectID)
+void StopEffectHelper(int effectID)
 {
 	FPPeffect *e = NULL;
-
-	LogDebug(VB_EFFECT, "StopEffect(%d)", effectID);
-
-	pthread_mutex_lock(&effectsLock);
-
-	if (!effects[effectID])
-	{
-		pthread_mutex_unlock(&effectsLock);
-		return 0;
-	}
 
 	e = effects[effectID];
 
@@ -259,6 +263,50 @@ int StopEffect(int effectID)
 	effects[effectID] = NULL;
 
 	effectCount--;
+}
+
+/*
+ * Stop all effects named effectName
+ */
+int StopEffect(char *effectName)
+{
+	LogDebug(VB_EFFECT, "StopEffect(%s)\n", effectName);
+
+	pthread_mutex_lock(&effectsLock);
+
+	for (int i = 0; i < MAX_EFFECTS; i++)
+	{
+		if (effects[i] && !strcmp(effects[i]->name, effectName))
+			StopEffectHelper(i);
+	}
+
+	pthread_mutex_unlock(&effectsLock);
+
+	if ((!IsEffectRunning()) &&
+		(!sequence->IsSequenceRunning()))
+		sequence->SendBlankingData();
+
+	return 1;
+}
+
+/*
+ * Stop a single effect
+ */
+int StopEffect(int effectID)
+{
+	FPPeffect *e = NULL;
+
+	LogDebug(VB_EFFECT, "StopEffect(%d)\n", effectID);
+
+	pthread_mutex_lock(&effectsLock);
+
+	if (!effects[effectID])
+	{
+		pthread_mutex_unlock(&effectsLock);
+		return 0;
+	}
+
+	StopEffectHelper(effectID);
 
 	pthread_mutex_unlock(&effectsLock);
 
@@ -309,14 +357,35 @@ int OverlayEffect(int effectID, char *channelData)
 	bytesRead = fread(effectData, 1, e->stepSize, e->fp);
 	if (bytesRead == 0)
 	{
-		LogInfo(VB_EFFECT, "Effect %s finished\n", e->name);
-		fclose(e->fp);
-		free(e->name);
-		free(e);
-		effects[effectID] = NULL;
-		effectCount--;
+		// Automatically loop effect sequence if it still exists
+		if (e->loop)
+		{
+			std::string sequenceName(getEffectDirectory());
+			sequenceName += "/";
+			sequenceName += e->name;
+			sequenceName += ".eseq";
 
-		return 0;
+			if (FileExists(sequenceName.c_str()))
+			{
+				LogDebug(VB_EFFECT,
+					"Automatically looping effect sequence %s\n",
+					e->name);
+				fseek(e->fp, ESEQ_CHANNEL_DATA_OFFSET, SEEK_SET);
+				bytesRead = fread(effectData, 1, e->stepSize, e->fp);
+			}
+		}
+
+		if (bytesRead == 0)
+		{
+			LogInfo(VB_EFFECT, "Effect %s finished\n", e->name);
+			fclose(e->fp);
+			free(e->name);
+			free(e);
+			effects[effectID] = NULL;
+			effectCount--;
+
+			return 0;
+		}
 	}
 
 	memcpy(channelData + e->startChannel - 1, effectData, e->stepSize);

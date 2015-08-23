@@ -260,7 +260,7 @@ if ( $fd )
 
 $pageTitle = "FPP - " . $settings['HostName'];
 if ($settings['HostName'] == "FPP")
-	$pageTitle = "Falcon (Pi) Player - FPP";
+	$pageTitle = "Falcon Player - FPP";
 
 $settings['fppMode'] = $fppMode;
 $settings['fppDir'] = $fppDir;

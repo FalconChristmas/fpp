@@ -488,7 +488,7 @@ function PlayEffect()
 	check($effect, "effect", __FUNCTION__);
 	$startChannel = $_GET['startChannel'];
 	check($startChannel, "startChannel", __FUNCTION__);
-	$status = SendCommand("e," . $effect . "," . $startChannel . ",");
+	$status = SendCommand("e," . $effect . "," . $startChannel . ",0,");
 	EchoStatusXML('Success');
 }
 
@@ -1320,7 +1320,7 @@ function DeleteUniverse()
 	$index = $_GET['index'];
 	check($index, "index", __FUNCTION__);
 
-	if($index < count($_SESSION['UniverseEntries']) && count($_SESSION['UniverseEntries']) > 1 )
+	if($index < count($_SESSION['UniverseEntries']) && count($_SESSION['UniverseEntries']) > 0 )
 	{
 		unset($_SESSION['UniverseEntries'][$index]);
 		$_SESSION['UniverseEntries'] = array_values($_SESSION['UniverseEntries']);

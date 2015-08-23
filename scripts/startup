@@ -38,6 +38,22 @@ then
 	then
 		sed -i "/.*beaglebone-black-eMMC-flasher.sh.*/d" /etc/fstab
 
+		# Update fstab with our device names to make scripts easier later
+		ROOTUUID=$(mount | grep " / " | awk '{print $1}' | sed -e "s/.*\/by-uuid\///")
+		MMCBLK0UUID=$(tune2fs -l /dev/mmcblk0p2 | grep -i uuid | awk '{print $3}')
+		if [ "x${ROOTUUID}" = "x${MMCBLK0UUID}" ]
+		then
+			sed -i "s/UUID.* \/ /\/dev\/mmcblk0p2 \/ /" /etc/fstab
+			sed -i "s/UUID.* \/boot\//\/dev\/mmcblk0p1 \/boot\//" /etc/fstab
+		else
+			MMCBLK1UUID=$(tune2fs -l /dev/mmcblk0p2 | grep -i uuid | awk '{print $3}')
+			if [ "x${ROOTUUID}" = "x${MMCBLK1UUID}" ]
+			then
+				sed -i "s/UUID.* \/ /\/dev\/mmcblk1p2 \/ /" /etc/fstab
+				sed -i "s/UUID.* \/boot\//\/dev\/mmcblk1p1 \/boot\//" /etc/fstab
+			fi
+		fi
+
 		cat <<-EOF >> /etc/fstab
 #####################################
 tmpfs         /var/log    tmpfs   nodev,nosuid,size=10M 0 0
@@ -189,9 +205,12 @@ do
 	fi
 done
 
+# Fixup ownership when mounted on an non-FAT filesystem
+chown -R ${FPPUSER}.${FPPUSER} ${FPPHOME}/media
+
 echo "FPP - Copying rsync daemon config files into place and restarting"
-sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/rsync > /etc/default/rsync
-sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/rsyncd.conf > /etc/rsyncd.conf
+sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" -e "s#FPPUSER#${FPPUSER}#g" < ${FPPDIR}/etc/rsync > /etc/default/rsync
+sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" -e "s#FPPUSER#${FPPUSER}#g" < ${FPPDIR}/etc/rsyncd.conf > /etc/rsyncd.conf
 /etc/init.d/rsync restart
 
 echo "FPP - Copying Apache config into place and restarting Apache"

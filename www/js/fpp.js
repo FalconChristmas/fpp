@@ -734,6 +734,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			xmlhttp.open("GET",url,false);
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
  			var innerHTML="";
+			UniverseCount = 0;
 
 			xmlhttp.onreadystatechange = function () {
 				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 

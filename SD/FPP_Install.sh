@@ -57,10 +57,10 @@
 #             filesystem as per the information.txt file on recombi.net.
 #
 #############################################################################
-SCRIPTVER="0.6"
+SCRIPTVER="0.7"
 FPPBRANCH="stage"
 FPPIMAGEVER="1.5-Beta"
-FPPCFGVER="8"
+FPPCFGVER="9"
 FPPPLATFORM="UNKNOWN"
 FPPDIR="/opt/fpp"
 OSVER="UNKNOWN"
@@ -252,23 +252,29 @@ then
 	rm -rf /opt/fpp
 fi
 
+
 #######################################
 # Make sure dependencies are installed
+# Set noninteractive install to skip prompt about restarting services
+export DEBIAN_FRONTEND=noninteractive
+
 case "${OSVER}" in
 	debian_7)
 		echo "FPP - Enabling non-free repo"
 		sed -i -e "s/^deb \(.*\)/deb \1 non-free/" /etc/apt/sources.list
 		sed -i -e "s/non-free\(.*\)non-free/non-free\1/" /etc/apt/sources.list
 
-		# Set noninteractive install to skip prompt about restarting services
-		export DEBIAN_FRONTEND=noninteractive
-
 		echo "FPP - Updating package list"
 		apt-get update
 
 		echo "FPP - Removing some unneeded packages"
-		apt-get -y remove gnome-icon-theme gnome-accessibility-themes gnome-themes-standard gnome-themes-standard-data libsoup-gnome2.4-1:armhf desktop-base xserver-xorg x11proto-composite-dev x11proto-core-dev x11proto-damage-dev x11proto-fixes-dev x11proto-input-dev x11proto-kb-dev x11proto-randr-dev x11proto-render-dev x11proto-xext-dev x11proto-xinerama-dev xchat xrdp xscreensaver xscreensaver-data desktop-file-utils dbus-x11 javascript-common ruby1.9.1 ruby libxxf86vm1:armhf libxxf86dga1:armhf libxvidcore4:armhf libxv1:armhf libxtst6:armhf libxslt1.1:armhf libxres1:armhf libxrender1:armhf  libxrandr2:armhf libxml2-dev libxmuu1 xauth wvdial xserver-xorg-video-fbdev xfonts-utils xfonts-encodings   libuniconf4.6 libwvstreams4.6-base libwvstreams4.6-extras
-		apt-get -y autoremove
+		apt-get -y remove gnome-icon-theme gnome-accessibility-themes gnome-themes-standard gnome-themes-standard-data libsoup-gnome2.4-1:armhf desktop-base xserver-xorg x11proto-composite-dev x11proto-core-dev x11proto-damage-dev x11proto-fixes-dev x11proto-input-dev x11proto-kb-dev x11proto-randr-dev x11proto-render-dev x11proto-xext-dev x11proto-xinerama-dev xchat xrdp xscreensaver xscreensaver-data desktop-file-utils dbus-x11 javascript-common ruby1.9.1 ruby libxxf86vm1:armhf libxxf86dga1:armhf libxvidcore4:armhf libxv1:armhf libxtst6:armhf libxslt1.1:armhf libxres1:armhf libxrender1:armhf  libxrandr2:armhf libxml2-dev libxmuu1 xauth wvdial xserver-xorg-video-fbdev xfonts-utils xfonts-encodings   libuniconf4.6 libwvstreams4.6-base libwvstreams4.6-extras 
+		# Should be able to add these as well:
+		# poppler-data desktop-base libsane libsane-extras sane-utils freepats xserver-xorg-video-modesetting xserver-xorg-core xserver-xorg xserver-common x11-xserver-utils xscreensaver xrdp
+		apt-get -y --purge autoremove
+		# remove gnome keyring module config which causes pkcs11 warnings
+		# when trying to do a git pull
+		rm /etc/pkcs11/modules/gnome-keyring-module
 
 		echo "FPP - Installing required packages (Set #1)"
 		# Install in more than one command to lower total disk space required
@@ -295,6 +301,11 @@ case "${OSVER}" in
 
 		echo "FPP - Cleaning up after installing packages"
 		apt-get -y clean
+
+		echo "FPP - Make things cleaner by removing configuration from unnecessary packages"
+		dpkg --get-selections | grep deinstall | while read package deinstall; do
+			apt-get -y purge $package
+		done
 
 		echo "FPP - Installing non-packaged Perl modules via CPAN"
 		echo "yes" | cpan -fi File::Map Net::WebSocket::Server
@@ -390,7 +401,7 @@ case "${FPPPLATFORM}" in
 		echo "FPP - Installing OLA packages"
 		echo "deb http://apt.openlighting.org/raspbian wheezy main" > /etc/apt/sources.list.d/ola.list
 		apt-get update
-		apt-get -y install ola ola-rdm-tests ola-conf-plugins ola-dev libprotobuf-dev
+		apt-get -y --force-yes install ola ola-rdm-tests ola-conf-plugins ola-dev libprotobuf-dev
 
 		echo "FPP - Updating packages"
 		apt-get -y upgrade
@@ -425,6 +436,9 @@ case "${FPPPLATFORM}" in
 		echo "# Enable SPI in device tree" >> /boot/config.txt
 		echo "dtparam=spi=on" >> /boot/config.txt
 		echo >> /boot/config.txt
+
+		echo "FPP - Updating SPI buffer size"
+		sed -i 's/$/ spidev.bufsiz=102400/' /boot/cmdline.txt
 
 		echo "# Enable I2C in device tree" >> /boot/config.txt
 		echo "dtparam=i2c=on" >> /boot/config.txt
