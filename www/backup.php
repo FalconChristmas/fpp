@@ -187,7 +187,7 @@ if (isset($_POST['btnDownloadConfig'])) {
             if ($protectSensitiveData == true) {
                 foreach ($tmp_settings_data as $set_key => $data_arr) {
                     foreach ($data_arr as $key_name => $key_data) {
-                        if (in_array(strtolower($key_name), strtolower($sensitive_data)) && is_string($key_name)) {
+                        if (in_array(strtolower($key_name), $sensitive_data) && is_string($key_name)) {
                             $tmp_settings_data[$set_key][$key_name] = '';
                         }
                     }
@@ -340,6 +340,7 @@ function process_restore_data($restore_area, $restore_area_data)
 
     if ($restore_area_key == "show_setup") {
         //TODO Script restoration install actions..
+        $script_filenames = array();
         $show_setup_areas = $system_config_areas['show_setup']['file'];
 
         //search through the files that should of been backed up
@@ -364,6 +365,11 @@ function process_restore_data($restore_area, $restore_area_data)
                             $final_restore_data = "";
 
                             $final_restore_data = implode("\n", $fn_data);
+
+                            if(strtolower($show_setup_area_index) == "scripts"){
+                                $script_filenames[] = $fn_to_restore;
+                            }
+
                             if ($restore_type == "dir") {
                                 $restore_location .= "/" . $fn_to_restore;
                             }
@@ -377,6 +383,9 @@ function process_restore_data($restore_area, $restore_area_data)
                 }
             }
         }
+
+        //Cause any InstallActions to be run for the restored scripts
+        RestoreScripts($script_filenames);
 
         //Restart FFPD so any changes can take effect
         RestartFPPD();
@@ -451,6 +460,9 @@ function process_restore_data($restore_area, $restore_area_data)
                 }
             }
 
+            //Restart FFPD so any changes can take effect
+            RestartFPPD();
+
             $save_result = true;
         } else {
             error_log("RESTORE: Cannot read Settings INI settings. Attempted to parse " . json_encode($restore_area_data));
@@ -492,6 +504,22 @@ function process_restore_data($restore_area, $restore_area_data)
 function listPlugins()
 {
     return null;
+}
+
+/**
+ * Looks after script restorations and running of associated InstallActions
+ * @param $file_names Array of script file names
+ */
+function RestoreScripts($file_names)
+{
+    global $fppDir, $SUDO;
+    global $scriptDirectory;
+
+    if (!empty($file_names)) {
+        foreach ($file_names as $filename) {
+            exec("$SUDO $fppDir/scripts/restoreScript $filename");
+        }
+    }
 }
 
 /**
@@ -542,7 +570,6 @@ function doBackupDownlaod($settings_data, $area)
     if (!empty($settings_data)) {
         //is sensitive data removed (selectively used on restore to skip some processes)
         $settings_data['protected'] = $protectSensitiveData;
-
         //platform identifier
         $settings_data['platform'] = $settings['Platform'];
 
