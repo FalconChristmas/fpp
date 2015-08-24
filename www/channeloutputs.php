@@ -1484,6 +1484,8 @@ $LEDPanelOutputs = 1;         // Default for Pi
 $LEDPanelPanelsPerOutput = 4; // Default for Pi
 $LEDPanelRows = 1;
 $LEDPanelCols = 1;
+$LEDPanelWidth = 32;
+$LEDPanelHeight = 16;
 
 if ($settings['Platform'] == "BeagleBone Black")
 {
@@ -1537,10 +1539,18 @@ function printLEDPanelSizeSelect()
 var LEDPanelColorOrder = 'RGB';
 var LEDPanelOutputs = 8;
 var LEDPanelPanelsPerOutput = 8;
-var LEDPanelWidth = 32;
-var LEDPanelHeight = 16;
+var LEDPanelWidth = <? echo $LEDPanelWidth; ?>;
+var LEDPanelHeight = <? echo $LEDPanelHeight; ?>;
 var LEDPanelRows = <? echo $LEDPanelRows; ?>;
 var LEDPanelCols = <? echo $LEDPanelCols; ?>;
+
+function UpdatePanelSize()
+{
+	var size = $('#LEDPanelsSize').val();
+	var sizeparts = size.split("x");
+	LEDPanelWidth = parseInt(sizeparts[0]);
+	LEDPanelHeight = parseInt(sizeparts[1]);
+}
 
 function LEDPanelOrientationClicked(id)
 {
@@ -1581,21 +1591,11 @@ function GetLEDPanelNumberSetting(id, key, maxItems, selectedItem)
 function LEDPanelLayoutChanged()
 {
 	var layout = $('#LEDPanelsLayout').val();
-	var size = $('#LEDPanelsSize').val();
 	var parts = layout.split("x");
 	LEDPanelCols = parseInt(parts[0]);
 	LEDPanelRows = parseInt(parts[1]);
 
-	if (size == "32x32")
-	{
-		LEDPanelWidth = 32;
-		LEDPanelHeight = 32;
-	}
-	else
-	{
-		LEDPanelWidth = 32;
-		LEDPanelHeight = 16;
-	}
+	UpdatePanelSize();
 
 	var channelCount = LEDPanelCols * LEDPanelRows * LEDPanelWidth * LEDPanelHeight * 3;
 	$('#LEDPanelsChannelCount').html(channelCount);
@@ -1685,6 +1685,9 @@ function GetLEDPanelConfig()
 		echo "config.subType = 'RGBMatrix';\n";
 	}
 ?>
+
+	UpdatePanelSize();
+
 	config.enabled = 0;
 	config.startChannel = parseInt($('#LEDPanelsStartChannel').val());
 	config.channelCount = parseInt($('#LEDPanelsChannelCount').html());
