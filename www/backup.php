@@ -1,7 +1,6 @@
 <?php $skipJSsettings = 1; ?>
 <?php require_once('common.php'); ?>
 <?php
-//TODO Backup/Restore of events, scripts and playlists
 //TODO Backup/Restore of plugin settings
 //TODO Backup/Restore of WLAN interface settings (could be useful for cloning devices)
 //TODO Download/Restore from backups stored on device USB stick
@@ -162,14 +161,9 @@ if (isset($_POST['btnDownloadConfig'])) {
 //                    }
                     //loop over the array
                     foreach ($setting_file as $sfi => $sfd) {
-                        //           'events' => array('type' => 'dir', 'location' => $eventDirectory),
-
-                        //File or directory, read data accordingly
                         if ($sfd['type'] == "dir") {
-                            //read all files in directory and read data
                             $file_data = read_directory_files($sfd['location']);
                         } else if ($sfd['type'] == "file") {
-                            //read setting file as normal
                             $file_data = array($sfi => explode("\n", file_get_contents($sfd['location'])));
                         }
 
@@ -178,13 +172,10 @@ if (isset($_POST['btnDownloadConfig'])) {
                 } else {
                     if ($setting_file !== false && file_exists($setting_file)) {
                         if ($area == "settings") {
-                            //parse ini properly into an assoc. array
                             $file_data = parse_ini_string(file_get_contents($setting_file));
                         } else if ($area == "channelOutputsJSON") {
-                            //channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
                             $file_data = json_decode(file_get_contents($setting_file), true);
                         } else {
-                            //all other files are std flat files, process them into an array by splitting at line breaks
                             $file_data = explode("\n", file_get_contents($setting_file));
                         }
                         $tmp_settings_data[$area] = $file_data;
@@ -196,7 +187,7 @@ if (isset($_POST['btnDownloadConfig'])) {
             if ($protectSensitiveData == true) {
                 foreach ($tmp_settings_data as $set_key => $data_arr) {
                     foreach ($data_arr as $key_name => $key_data) {
-                        if (in_array($key_name, $sensitive_data) && is_string($key_name)) {
+                        if (in_array(strtolower($key_name), strtolower($sensitive_data)) && is_string($key_name)) {
                             $tmp_settings_data[$set_key][$key_name] = '';
                         }
                     }
@@ -348,6 +339,7 @@ function process_restore_data($restore_area, $restore_area_data)
     }
 
     if ($restore_area_key == "show_setup") {
+        //TODO Script restoration install actions..
         $show_setup_areas = $system_config_areas['show_setup']['file'];
 
         //search through the files that should of been backed up
@@ -387,7 +379,6 @@ function process_restore_data($restore_area, $restore_area_data)
         }
 
         //Restart FFPD so any changes can take effect
-        FPPDreloadSchedule();
         RestartFPPD();
     }
 
