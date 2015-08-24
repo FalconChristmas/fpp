@@ -126,6 +126,11 @@ class fppLCD():
                           "Timeout         ")
 
   def Initialize(self):
+  
+    if os.path.exists("/home/fpp/media"):
+      self.PLAYLIST_DIRECTORY = "/home/fpp/media/playlists/";
+      self.SETTINGS_FILE = "/home/fpp/media/settings";
+  
     strColorIndex = self.readSetting("piLCD_BackColor")
     if strColorIndex.isdigit():
       self.BackgroundColor = int(strColorIndex);
