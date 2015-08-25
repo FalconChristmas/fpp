@@ -59,7 +59,7 @@ $plugins = Array(
 		'homeUrl'     => 'https://github.com/LightsOnHudson/FPP-Plugin-Projector-Control',
 		'sourceUrl'   => 'https://github.com/LightsOnHudson/FPP-Plugin-Projector-Control.git',
 		'bugUrl'      => 'https://github.com/LightsOnHudson/FPP-Plugin-Projector-Control/issues',
-		'sha'         => '0d8e56e0afedef6c6fdf20aeb5d6331d762ecba5',
+		'sha'         => 'cbb2c214f4a09ca2646d4c4d538bf372811a9e46',
 	),
 
 );
