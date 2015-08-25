@@ -1,4 +1,4 @@
-<?php 
+<?php
 require_once("config.php");
 
 function check($var, $var_name = "", $function_name = "")
@@ -303,6 +303,93 @@ echo "
 
 <input type='button' class='buttons' id='save$setting' onClick='save" . $setting . "();' value='Save'>\n";
 }
+
+/**
+ * Restarts the ntp server service
+ */
+function NtpServiceRestart(){
+	global $SUDO;
+
+	exec($SUDO . " service ntp restart", $output, $return_val);
+	unset($output);
+	//TODO: check return
+}
+
+/**
+ * Sets the NTP server source to the supplied NTP server, if nothing is supplied default to the debian pool
+ * @param $ntp_server String DNS or IP address of a NTP server
+ */
+function SetNtpServer($ntp_server){
+	global $SUDO;
+
+	WriteSettingToFile("ntpServer",$ntp_server);
+	$settings['ntpServer'] = $ntp_server;
+	if ($ntp_server != "")
+	{
+		exec($SUDO . " sed -i '/^server.*/d' /etc/ntp.conf ; " . $SUDO . " sed -i '\$s/\$/\\nserver " . $ntp_server . " iburst/' /etc/ntp.conf");
+	}
+	else
+	{
+		exec($SUDO . " sed -i '/^server.*/d' /etc/ntp.conf ; " . $SUDO . " sed -i '\$s/\$/\\nserver 0.debian.pool.ntp.org iburst\\nserver 1.debian.pool.ntp.org iburst\\nserver 2.debian.pool.ntp.org iburst\\nserver 3.debian.pool.ntp.org iburst\\n/' /etc/ntp.conf");
+	}
+}
+
+/**
+ * Toggles NTP service state
+ * @param $state int 1 to Enable, 0 to Disable
+ */
+function SetNtpState($state){
+	global $SUDO;
+
+    WriteSettingToFile("NTP",$state);
+
+    if($state == true){
+        error_log("Enabling NTP because it's disabled and we were told to enable it.");
+        exec($SUDO . " update-rc.d ntp defaults", $output, $return_val);
+        unset($output);
+        //TODO: check return
+        exec($SUDO . " service ntp start", $output, $return_val);
+        unset($output);
+        //TODO: check return
+    }else if ($state == false){
+        error_log("Disabling NTP because it's enabled and we were told to disable it.");
+        exec($SUDO . " service ntp stop", $output, $return_val);
+        unset($output);
+        //TODO: check return
+        exec($SUDO . " update-rc.d ntp remove", $output, $return_val);
+        unset($output);
+        //TODO: check return
+    }
+}
+
+/**
+ * Generates appropriate files and settings for exim4
+ * @param $emailguser String Gmail Username
+ * @param $emailgpass String Gmail Password
+ * @param $emailfromtext String Mail From address (eg. fpp01@example.com)
+ * @param $emailtoemail String Destination email address
+ */
+function SaveEmailConfig($emailguser, $emailgpass, $emailfromtext, $emailtoemail){
+    global $exim4Directory;
+
+    $fp = fopen($exim4Directory . '/passwd.client', 'w');
+    fwrite($fp, "# password file used when the local exim is authenticating to a remote host as a client.\n");
+    fwrite($fp, "#\n");
+    fwrite($fp, "*.google.com:" . $emailguser . ":" . $emailgpass . "\n");
+    fwrite($fp, "smtp.gmail.com:" . $emailguser . ":" . $emailgpass . "\n");
+    fclose($fp);
+    exec("sudo cp " . $exim4Directory . "/passwd.client /etc/exim4/");
+    exec("sudo update-exim4.conf");
+    exec ("sudo /etc/init.d/exim4 restart");
+    $cmd="sudo chfn -f \"" . $emailfromtext . "\" pi";
+    exec($cmd);
+    $fp = fopen($exim4Directory . '/aliases', 'w');
+    fwrite($fp, "mailer-daemon: postmaster\npostmaster: root\nnobody: root\nhostmaster: root\nusenet: root\nnews: root\nwebmaster: root\nwww: root\nftp: root\nabuse: root\nnoc: root\nsecurity: root\nroot: pi\n");
+    fwrite($fp, "pi: " . $emailtoemail . "\n");
+    fclose($fp);
+    exec("sudo cp " . $exim4Directory . "./aliases /etc/");
+}
+
 
 // This function is from:
 // http://stackoverflow.com/questions/6054033/pretty-printing-json-with-php

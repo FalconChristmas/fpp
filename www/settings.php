@@ -201,7 +201,7 @@ function ToggleLCDNow()
 {
 	var enabled = $('#PI_LCD_Enabled').is(":checked");
 	$.get("fppxml.php?command=setPiLCDenabled&enabled="
-		+ enabled).fail(function() { alert("Failed to change audio output!") });
+		+ enabled).fail(function() { alert("Failed to enable LCD!") });
 }
 
 </script>

@@ -648,6 +648,18 @@ fieldset
 	background:#CCC;
 }
 
+#restoreSuccessFlag{
+    display: block;
+    background-color: forestgreen;
+    color: #FFFFFF;
+    padding-top: 5px;
+    padding-bottom: 5px;
+    font-size: 18px;
+    font-weight: bold;
+    text-align: center;
+    width: 100%;
+}
+
 .bad
 {
 	font-weight: bold;
