@@ -92,6 +92,7 @@ function list_plugin_entries($menu)
           <li><a href="multisync.php">MultiSync</a></li>
           <?php list_plugin_entries("status"); ?>
           <li><a href="settings.php">FPP Settings</a></li>
+          <li><a href="backup.php">FPP Backup</a></li>
           <li><a href="email.php">Email Settings</a></li>
           <li><a href="events.php">Events</a></li>
           <li><a href="effects.php">Effects</a></li>

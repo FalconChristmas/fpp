@@ -1,0 +1,19 @@
+#!/bin/bash
+
+BINDIR=$(cd $(dirname $0) && pwd)
+
+. ${BINDIR}/common
+. ${BINDIR}/functions
+
+FILE="$1"
+SCRIPT="${MEDIADIR}/scripts/${FILE}"
+
+# Grab out any Install Actions defined in the script and execute them
+grep "^# InstallAction:" ${SCRIPT} | sed -e "s/.*InstallAction: //" > /var/tmp/installactions.sh
+
+if [ -s /var/tmp/installactions.sh ]
+then
+	/bin/bash /var/tmp/installactions.sh
+fi
+rm /var/tmp/installactions.sh
+
