@@ -36,6 +36,7 @@ typedef struct fppeffect {
 	char     *name;
 	FILE     *fp;
 	int       stepSize;
+	int       modelSize;
 	int       startChannel;
 	int       loop;
 } FPPeffect;
