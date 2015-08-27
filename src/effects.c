@@ -126,6 +126,7 @@ int StartEffect(char *effectName, int startChannel, int loop)
 	char  effectData[256];
 	int   bytesRead;
 	int   stepSize;
+	int   modelSize;
 	char  filename[1024];
 	int   modelCount = 1;
 
@@ -187,6 +188,18 @@ int StartEffect(char *effectName, int startChannel, int loop)
 		return effectID;
 	}
 
+	// Should already be at this position, but seek any to future-proof
+	fseek(fp, ESEQ_STEP_SIZE_OFFSET, SEEK_SET);
+	bytesRead = fread(effectData,1,4,fp);
+	if (bytesRead < 4)
+	{
+		LogErr(VB_EFFECT, "Unable to load effect: %s\n", effectName);
+		pthread_mutex_unlock(&effectsLock);
+		return effectID;
+	}
+
+	stepSize = effectData[0] + (effectData[1]<<8) + (effectData[2]<<16) + (effectData[3]<<24);
+
 	if (startChannel == 0)
 	{
 		// This will need to change if/when we support multiple models per file
@@ -212,7 +225,7 @@ int StartEffect(char *effectName, int startChannel, int loop)
 		return effectID;
 	}
 
-    stepSize = effectData[0] + (effectData[1]<<8) + (effectData[2]<<16) + (effectData[3]<<24);
+	modelSize = effectData[0] + (effectData[1]<<8) + (effectData[2]<<16) + (effectData[3]<<24);
 
 	if (fseek(fp, ESEQ_CHANNEL_DATA_OFFSET, SEEK_SET))
 	{
@@ -236,8 +249,10 @@ int StartEffect(char *effectName, int startChannel, int loop)
 	effects[effectID]->startChannel = (startChannel >= 1) ? startChannel : 1;
 	effects[effectID]->loop = loop;
 	effects[effectID]->stepSize = stepSize;
+	effects[effectID]->modelSize = modelSize;
 
-	LogInfo(VB_EFFECT, "Effect %s Stepsize %d\n", effectName, effects[effectID]->stepSize);
+	LogInfo(VB_EFFECT, "Effect %s step size %d, model size: %d\n",
+		effectName, stepSize, modelSize);
 
 	effectCount++;
 
@@ -388,7 +403,7 @@ int OverlayEffect(int effectID, char *channelData)
 		}
 	}
 
-	memcpy(channelData + e->startChannel - 1, effectData, e->stepSize);
+	memcpy(channelData + e->startChannel - 1, effectData, e->modelSize);
 
 	return 1;
 }
