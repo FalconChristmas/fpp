@@ -50,9 +50,6 @@
 // Output 1
 #define r11_gpio  2
 #define r11_pin		3
-// Output 1
-//#define r11_gpio  2
-//#define r11_pin		10
 // Output 2
 #define g11_gpio	2
 #define g11_pin		4
