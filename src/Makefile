@@ -208,7 +208,9 @@ endif
 PWD := $(shell pwd)
 
 .PHONY: all
-all: gitsubmodules FPP
+all: gitsubmodules subdirs FPP
+
+subdirs:
 	@for dir in $(SUBDIRS); do \
 		$(MAKE) -C $$dir || exit 1; \
 	done

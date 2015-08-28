@@ -52,117 +52,151 @@
  //* 
  //*/
 
+// Output 1
 #define r11_gpio        0
 #define r11_pin		27
+// Output 2
 #define g11_gpio	2
 #define g11_pin		1
+// Output 3
 #define b11_gpio	1
 #define b11_pin		14
-
+// Output 4
 #define r12_gpio	1
 #define r12_pin		15
+// Output 5
 #define g12_gpio	0
 #define g12_pin		23
+// Output 6
 #define b12_gpio	0
 #define b12_pin		26
-
+// Output 7
 #define r21_gpio	1
 #define r21_pin		12
+// Output 8
 #define g21_gpio	1
 #define g21_pin		13
+// Output 9
 #define b21_gpio	2
 #define b21_pin		5
-
+// Output 10
 #define r22_gpio	2
 #define r22_pin		4
+// Output 11
 #define g22_gpio	2
 #define g22_pin		3
+// Output 12
 #define b22_gpio	2
 #define b22_pin		2
-
+// Output 13
 #define r31_gpio	3
 #define r31_pin		16
+// Output 14
 #define g31_gpio	0
 #define g31_pin		20
+// Output 15
 #define b31_gpio	0
 #define b31_pin		11
-
+// Output 16
 #define r32_gpio	2
 #define r32_pin		25
+
+// Output 17
 #define g32_gpio	0
 #define g32_pin		22
+// Output 18
 #define b32_gpio	0
 #define b32_pin		14
-
+// Output 19
 #define r41_gpio	0
 #define r41_pin		2
+// Output 20
 #define g41_gpio	1
 #define g41_pin		17
+// Output 21
 #define b41_gpio	2
 #define b41_pin		22
-
+// Output 22
 #define r42_gpio	0
 #define r42_pin		3
+// Output 23
 #define g42_gpio	3
 #define g42_pin		17
+// Output 24
 #define b42_gpio	3
 #define b42_pin		15
-
+// Output 25
 #define r51_gpio	1
 #define r51_pin		19
+// Output 26
 #define g51_gpio	3
 #define g51_pin		14
+// Output 27
 #define b51_gpio	1
 #define b51_pin		18
-
+// Output 28
 #define r52_gpio	1
 #define r52_pin		16
+// Output 29
 #define g52_gpio	1
 #define g52_pin		28
+// Output 30
 #define b52_gpio	0
 #define b52_pin		31
-
+// Output 31
 #define r61_gpio	0
 #define r61_pin		7
+// Output 32
 #define g61_gpio	0
 #define g61_pin		30
 
 // Note: These added to match RGB-123.com's RGBCape48C, along with 8 others above modified
+// Output 33
 #define b61_gpio	2
 #define b61_pin		6
-
+// Output 34
 #define r62_gpio	2
 #define r62_pin		7
+// Output 35
 #define g62_gpio	2
 #define g62_pin		9
+// Output 36
 #define b62_gpio	2
 #define b62_pin		11
-
+// Output 37
 #define r71_gpio	2
 #define r71_pin		13
+// Output 38
 #define g71_gpio	2
 #define g71_pin		15
+// Output 39
 #define b71_gpio	2
 #define b71_pin		16
-
+// Output 40
 #define r72_gpio	2
 #define r72_pin		17
+// Output 41
 #define g72_gpio	2
 #define g72_pin		23
+// Output 42
 #define b72_gpio	0
 #define b72_pin		10
-
+// Output 43
 #define r81_gpio	0
 #define r81_pin		9
+// Output 44
 #define g81_gpio	0
 #define g81_pin		8
+// Output 45
 #define b81_gpio	2
 #define b81_pin		14
-
+// Output 46
 #define r82_gpio	2
 #define r82_pin		12
+// Output 47
 #define g82_gpio	2
 #define g82_pin		10
+// Output 48
 #define b82_gpio	2
 #define b82_pin		8
 
