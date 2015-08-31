@@ -75,8 +75,10 @@ void _LogWrite(char *file, int line, int level, int facility, const char *format
 
 	va_list arg;
 	time_t t = time(NULL);
-	struct tm tm = *localtime(&t);
+	struct tm tm;
 	char timeStr[32];
+
+	localtime_r(&t, &tm);
 	sprintf(timeStr,"%4d-%.2d-%.2d %.2d:%.2d:%.2d",
 					1900+tm.tm_year,
 					tm.tm_mon+1,
