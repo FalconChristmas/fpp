@@ -68,6 +68,9 @@ extern char logLevelStr[16];
 extern int logMask;
 extern char logMaskStr[1024];
 
+void InitLogging(void);
+void DestroyLogging(void);
+
 #define LogErr(facility, format, args...)   _LogWrite(__FILE__, __LINE__, LOG_ERR, facility, format, ## args)
 #define LogInfo(facility, format, args...)  _LogWrite(__FILE__, __LINE__, LOG_INFO, facility, format, ## args)
 #define LogWarn(facility, format, args...)  _LogWrite(__FILE__, __LINE__, LOG_WARN, facility, format, ## args)
