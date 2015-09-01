@@ -140,6 +140,12 @@ sed -i -e "s/^rebootFlag .*/rebootFlag = 0/" ${FPPHOME}/media/settings
 echo "FPP - Setting max IGMP memberships"
 sysctl net/ipv4/igmp_max_memberships=150 > /dev/null 2>&1
 
+if [ "${FPPPLATFORM}" = "BeagleBone Black" -o "${FPPPLATFORM}" = "Raspberry Pi" ]
+then
+	# echo "FPP - Configuring RTC"
+	${BINDIR}/piRTC
+fi
+
 if [ "${FPPPLATFORM}" = "Raspberry Pi" ]
 then
 	echo "FPP - Setting up SPI"
@@ -148,9 +154,6 @@ then
 	# buffer size differently for now
 	chmod u+w /sys/module/spidev/parameters/bufsiz
 	echo 102400 > /sys/module/spidev/parameters/bufsiz
-
-	# echo "FPP - Configuring RTC"
-	${BINDIR}/piRTC
 
 	# See if we have a PiFace connected
 	echo "FPP - Checking for PiFace"

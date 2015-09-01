@@ -293,7 +293,7 @@ case "${OSVER}" in
 		apt-get -y clean
 
 		echo "FPP - Installing required packages (Set #4)"
-		apt-get -y install libnet-bonjour-perl libpam-smbpass libtagc0-dev libtest-nowarnings-perl locales mp3info mpg123 mpg321 mplayer nano nginx node ntp perlmagick php5 php5-cli php5-common php5-curl php5-fpm php5-mcrypt php5-sqlite php-apc python-daemon python-smbus samba samba-common-bin shellinabox sudo sysstat usbmount vim vim-common vorbis-tools vsftpd
+		apt-get -y install libnet-bonjour-perl libpam-smbpass libtagc0-dev libtest-nowarnings-perl locales mp3info mpg123 mpg321 mplayer nano nginx node ntp perlmagick php5 php5-cli php5-common php5-curl php5-fpm php5-mcrypt php5-sqlite php-apc python-daemon python-smbus samba samba-common-bin shellinabox sudo sysstat tcpdump usbmount vim vim-common vorbis-tools vsftpd
 		apt-get -y clean
 
 		echo "FPP - Installing wireless firmware packages"
@@ -382,6 +382,7 @@ case "${FPPPLATFORM}" in
 		FILES="libola-dev_0.9.7-1_armhf.deb libola1_0.9.7-1_armhf.deb ola-python_0.9.7-1_all.deb ola-rdm-tests_0.9.7-1_all.deb ola_0.9.7-1_armhf.deb"
 		for FILE in ${FILES}
 		do
+			# FIXME, get these from github after release is tagged
 			wget -nd http://www.bc2va.org/chris/tmp/fpp/deb/${FILE}
 		done
 		dpkg --unpack ${FILES}

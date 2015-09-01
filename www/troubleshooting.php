@@ -14,6 +14,7 @@ $commands = array(
 	'Internet Access'    => 'ping -c 1 github.com',
 
 	// Disk
+	'Block Devices'      => $SUDO . ' lsblk -l',
 	'Partitions'         => $SUDO . ' fdisk -l',
 	'Filesystems'        => 'df -k',
 	'Mounts'             => 'mount | grep -v password',

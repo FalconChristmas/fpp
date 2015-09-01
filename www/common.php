@@ -225,10 +225,10 @@ echo "
 	{
 		echo "<option value='$value'";
 
-		if (isset($pluginSettings[$setting]) || isset($settings[$setting]))
-			IfSettingEqualPrint($setting, $value, " selected", $pluginName);
-		else if ($value == $defaultValue)
+		if ($value == $defaultValue)
 			echo " selected";
+		else if (isset($pluginSettings[$setting]) || isset($settings[$setting]))
+			IfSettingEqualPrint($setting, $value, " selected", $pluginName);
 
 		echo ">$key</option>\n";
 	}

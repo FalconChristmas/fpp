@@ -50,8 +50,8 @@ diff --git a/omxplayer.cpp b/omxplayer.cpp
          vc_tv_show_info(m_tv_show_info);
          break;
 +      case KeyConfig::ACTION_DECREASE_SPEED_MICRO:
-+        if (m_fpp_speed >= 10)
-+          m_fpp_speed -= 10;
++        if (m_fpp_speed >= 33)
++          m_fpp_speed -= 33;
 +        SetSpeed(m_fpp_speed);
 +        m_Pause = false;
 +        break;
@@ -64,8 +64,8 @@ diff --git a/omxplayer.cpp b/omxplayer.cpp
 +        }
 +        break;
 +      case KeyConfig::ACTION_INCREASE_SPEED_MICRO:
-+        if (m_fpp_speed <= 1490)
-+          m_fpp_speed += 10;
++        if (m_fpp_speed <= 1467)
++          m_fpp_speed += 33;
 +        SetSpeed(m_fpp_speed);
 +        m_Pause = false;
 +        break;

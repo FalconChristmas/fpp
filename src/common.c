@@ -350,12 +350,14 @@ int DateStrToInt(const char *str)
 int GetCurrentDateInt(int daysOffset)
 {
 	time_t currTime = time(NULL) + (daysOffset * 86400);
-	struct tm *now = localtime(&currTime);
+	struct tm now;
 	int result = 0;
+	
+	localtime_r(&currTime, &now);
 
-	result += (now->tm_year + 1900) * 10000;
-	result += (now->tm_mon + 1)     *   100;
-	result += (now->tm_mday)               ;
+	result += (now.tm_year + 1900) * 10000;
+	result += (now.tm_mon + 1)     *   100;
+	result += (now.tm_mday)               ;
 
 	return result;
 }

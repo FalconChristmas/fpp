@@ -53,6 +53,7 @@ function PrintStorageDeviceSelect()
 	$storageDevice = $output[0];
 	unset($output);
 
+	$found = 0;
 	$values = Array();
 
 	foreach(scandir("/dev/") as $fileName)
@@ -107,7 +108,17 @@ function PrintStorageDeviceSelect()
 			$key = sprintf( "%s - %.1fGB (%s) %s", $fileName, $GB, $FreeGB, $type);
 
 			$values[$key] = $fileName;
+
+			if ($storageDevice == $fileName)
+				$found = 1;
 		}
+	}
+
+	if (!$found)
+	{
+		$arr = array_reverse($values, true);
+		$arr["-- Select a Storage Device --"] = "/dev/sda1";
+		$values = array_reverse($arr);
 	}
 
 	PrintSettingSelect('StorageDevice', 'storageDevice', 0, 1, $storageDevice, $values);

@@ -265,6 +265,9 @@ clean:
 		$(MAKE) -C $$dir clean || exit 1; \
 	done
 
+util: force
+	$(MAKE) -C util
+
 #############################################################################
 # RF24 library on the Pi
 ../external/RF24/.git:

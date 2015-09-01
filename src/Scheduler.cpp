@@ -101,8 +101,11 @@ void Scheduler::CheckIfShouldBePlayingNow(void)
 {
   int i,j,dayCount;
   time_t currTime = time(NULL);
-  struct tm *now = localtime(&currTime);
-  int nowWeeklySeconds = GetWeeklySeconds(now->tm_wday, now->tm_hour, now->tm_min, now->tm_sec);
+  struct tm now;
+
+  localtime_r(&currTime, &now);
+
+  int nowWeeklySeconds = GetWeeklySeconds(now.tm_wday, now.tm_hour, now.tm_min, now.tm_sec);
   LoadScheduleFromFile();
   for(i=0;i<m_ScheduleEntryCount;i++)
   {
@@ -146,8 +149,11 @@ int Scheduler::GetNextScheduleEntry(int *weeklySecondIndex)
   int difference;
   int nextEntryIndex = SCHEDULE_INDEX_INVALID;
   time_t currTime = time(NULL);
-  struct tm *now = localtime(&currTime);
-  int nowWeeklySeconds = GetWeeklySeconds(now->tm_wday, now->tm_hour, now->tm_min, now->tm_sec);
+  struct tm now;
+  
+  localtime_r(&currTime, &now);
+
+  int nowWeeklySeconds = GetWeeklySeconds(now.tm_wday, now.tm_hour, now.tm_min, now.tm_sec);
   for(i=0;i<m_ScheduleEntryCount;i++)
   {
 		if ((m_Schedule[i].enable) &&
@@ -310,8 +316,11 @@ void Scheduler::SetScheduleEntrysWeeklyStartAndEndSeconds(ScheduleEntryStruct * 
 void Scheduler::PlayListLoadCheck(void)
 {
   time_t currTime = time(NULL);
-  struct tm *now = localtime(&currTime);
-  int nowWeeklySeconds = GetWeeklySeconds(now->tm_wday, now->tm_hour, now->tm_min, now->tm_sec);
+  struct tm now;
+  
+  localtime_r(&currTime, &now);
+
+  int nowWeeklySeconds = GetWeeklySeconds(now.tm_wday, now.tm_hour, now.tm_min, now.tm_sec);
   if (m_nowWeeklySeconds2 != nowWeeklySeconds)
   {
     m_nowWeeklySeconds2 = nowWeeklySeconds;
@@ -367,8 +376,11 @@ void Scheduler::PlayListLoadCheck(void)
 void Scheduler::PlayListStopCheck(void)
 {
   time_t currTime = time(NULL);
-  struct tm *now = localtime(&currTime);
-  int nowWeeklySeconds = GetWeeklySeconds(now->tm_wday, now->tm_hour, now->tm_min, now->tm_sec);
+  struct tm now;
+  
+  localtime_r(&currTime, &now);
+
+  int nowWeeklySeconds = GetWeeklySeconds(now.tm_wday, now.tm_hour, now.tm_min, now.tm_sec);
 
   if (m_nowWeeklySeconds2 != nowWeeklySeconds)
   {

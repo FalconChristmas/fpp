@@ -122,19 +122,21 @@ void ScheduleEntry::CalculateTimes(void)
 	}
 
 	time_t currTime = time(NULL);
-	struct tm *now = localtime(&currTime);
+	struct tm now;
 	int nextStartDate = GetCurrentDateInt();
+
+	localtime_r(&currTime, &now);
 
 	if (CurrentDateInRange(m_startDate, m_endDate))
 	{
-		if (now->tm_hour > m_endHour)
+		if (now.tm_hour > m_endHour)
 		{
 			nextStartDate = GetCurrentDateInt(1);
 		}
-		else if (now->tm_hour < m_startHour)
+		else if (now.tm_hour < m_startHour)
 		{
 		}
-		else if (now->tm_hour == m_startHour)
+		else if (now.tm_hour == m_startHour)
 		{
 		}
 	}
