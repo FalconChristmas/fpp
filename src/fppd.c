@@ -76,7 +76,6 @@ void MainLoop(void);
 
 int main(int argc, char *argv[])
 {
-	InitLogging();
 	initSettings(argc, argv);
 	initMediaDetails();
 
@@ -161,8 +160,6 @@ int main(int argc, char *argv[])
 	delete scheduler;
 	delete playlist;
 	delete sequence;
-
-	DestroyLogging();
 
 	return 0;
 }

@@ -27,11 +27,9 @@
 #include "log.h"
 #include "settings.h"
 
-#include <pthread.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdarg.h>
-#include <stdlib.h>
 #include <string.h>
 #include <strings.h>
 #include <sys/syscall.h>
@@ -46,21 +44,6 @@ char logFileName[1024] = "";
 char logLevelStr[16];
 char logMaskStr[1024];
 
-pthread_mutex_t logLock;
-
-void InitLogging(void)
-{
-	if (pthread_mutex_init(&logLock, NULL) != 0) {
-		printf( "ERROR initializing logLock.\n" );
-		exit(-1);
-	}
-}
-
-void DestroyLogging(void)
-{
-	pthread_mutex_destroy(&logLock);
-}
-
 void _LogWrite(char *file, int line, int level, int facility, const char *format, ...)
 {
 	// Don't log if we're not logging this facility
@@ -70,8 +53,6 @@ void _LogWrite(char *file, int line, int level, int facility, const char *format
 	// Don't log if we're not concerned about anything at this level
 	if (logLevel < level)
 		return;
-
-	pthread_mutex_lock(&logLock);
 
 	va_list arg;
 	time_t t = time(NULL);
@@ -109,7 +90,6 @@ void _LogWrite(char *file, int line, int level, int facility, const char *format
 				va_start(arg, format);
 				vfprintf(stderr, format, arg);
 				va_end(arg);
-				pthread_mutex_unlock(&logLock);
 				return;
 			}
 		}
@@ -127,8 +107,6 @@ void _LogWrite(char *file, int line, int level, int facility, const char *format
 		vfprintf(stdout, format, arg);
 		va_end(arg);
 	}
-
-	pthread_mutex_unlock(&logLock);
 }
 
 void SetLogFile(char *filename)
