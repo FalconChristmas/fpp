@@ -1,7 +1,8 @@
 diff --git a/KeyConfig.cpp b/KeyConfig.cpp
+index 0a2be00..b0d1815 100644
 --- a/KeyConfig.cpp
 +++ b/KeyConfig.cpp
-@@ -96,6 +96,9 @@ map<int, int> KeyConfig::buildDefaultKeymap()
+@@ -100,6 +100,9 @@ map<int, int> KeyConfig::buildDefaultKeymap()
  
      keymap['1'] = ACTION_DECREASE_SPEED;
      keymap['2'] = ACTION_INCREASE_SPEED;
@@ -12,40 +13,34 @@ diff --git a/KeyConfig.cpp b/KeyConfig.cpp
      keymap[','] = ACTION_REWIND;
      keymap['>'] = ACTION_FAST_FORWARD;
 diff --git a/KeyConfig.h b/KeyConfig.h
+index 40b63bd..8f8ef67 100644
 --- a/KeyConfig.h
 +++ b/KeyConfig.h
-@@ -35,7 +35,10 @@ class KeyConfig
-         ACTION_BLANK = 24,
-         ACTION_MOVE_VIDEO = 27,
-         ACTION_HIDE_VIDEO = 28,
--        ACTION_UNHIDE_VIDEO = 29
-+        ACTION_UNHIDE_VIDEO = 29,
-+        ACTION_DECREASE_SPEED_MICRO = 30,
-+        ACTION_NORMAL_SPEED = 31,
-+        ACTION_INCREASE_SPEED_MICRO = 32
+@@ -38,7 +38,10 @@ class KeyConfig
+         ACTION_UNHIDE_VIDEO = 29,
+         ACTION_HIDE_SUBTITLES = 30,
+         ACTION_SHOW_SUBTITLES = 31,
+-        ACTION_SET_ALPHA=32
++        ACTION_SET_ALPHA = 32,
++        ACTION_DECREASE_SPEED_MICRO = 33,
++        ACTION_NORMAL_SPEED = 34,
++        ACTION_INCREASE_SPEED_MICRO = 35
      };
  
      #define KEY_LEFT 0x5b44
 diff --git a/omxplayer.cpp b/omxplayer.cpp
+index 5a6000c..75dc2e2 100644
 --- a/omxplayer.cpp
 +++ b/omxplayer.cpp
-@@ -105,6 +105,7 @@ OMXReader         m_omx_reader;
+@@ -97,6 +97,7 @@ bool              m_Pause               = false;
+ OMXReader         m_omx_reader;
  int               m_audio_index_use     = 0;
- bool              m_thread_player       = false;
  OMXClock          *m_av_clock           = NULL;
 +int               m_fpp_speed           = 1000;
  OMXControl        m_omxcontrol;
  Keyboard          *m_keyboard           = NULL;
- COMXStreamInfo    m_hints_audio;
-@@ -280,6 +281,7 @@ static void SetSpeed(int iSpeed)
-     FlushStreams(DVD_NOPTS_VALUE);
- 
-   m_av_clock->OMXSetSpeed(iSpeed);
-+  m_av_clock->OMXSetSpeed(iSpeed, true, true);
- }
- 
- static float get_display_aspect_ratio(HDMI_ASPECT_T aspect)
-@@ -1205,6 +1207,26 @@ int main(int argc, char *argv[])
+ OMXAudioConfig    m_config_audio;
+@@ -1149,6 +1150,26 @@ int main(int argc, char *argv[])
          m_tv_show_info = !m_tv_show_info;
          vc_tv_show_info(m_tv_show_info);
          break;
@@ -72,7 +67,7 @@ diff --git a/omxplayer.cpp b/omxplayer.cpp
        case KeyConfig::ACTION_DECREASE_SPEED:
          if (playspeed_current < playspeed_slow_min || playspeed_current > playspeed_slow_max)
            playspeed_current = playspeed_slow_max-1;
-@@ -1604,7 +1626,7 @@ int main(int argc, char *argv[])
+@@ -1549,7 +1570,7 @@ int main(int argc, char *argv[])
        if(m_stats)
        {
          static int count;

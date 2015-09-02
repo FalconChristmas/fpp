@@ -415,17 +415,17 @@ case "${FPPPLATFORM}" in
 			apt-get -y install subversion libpcre3-dev libidn11-dev libboost1.50-dev libfreetype6-dev libusb-1.0-0-dev libssl-dev libssh-dev libsmbclient-dev g++-4.7
 			git clone https://github.com/popcornmix/omxplayer.git
 			cd omxplayer
-			git reset --hard 42f0f659c23796d41cf29b1fd1550a3352855846
+			git reset --hard 4d8ffd13153bfef2966671cb4fb484afeaf792a8
 			wget -O- https://raw.githubusercontent.com/FalconChristmas/fpp/stage/external/omxplayer/FPP_omxplayer.diff | patch -p1
+			./prepare-native-raspbian.sh
 			make ffmpeg
 			make
-			make dist
 			tar xzpvf omxplayer-dist.tgz -C /
 			cd ..
 		else
 			echo "FPP - Installing patched omxplayer.bin for FPP MultiSync"
 			apt-get -y install libssh-4
-			wget -O- https://github.com/FalconChristmas/fpp-binaries/raw/master/Pi/omxplayer-dist.tgz | tar xzp -C /
+			wget -O- https://github.com/FalconChristmas/fpp-binaries/raw/master/Pi/omxplayer-dist.tgz | tar xzpv -C /
 		fi
 
 		echo "FPP - Disabling getty on onboard serial ttyAMA0"
