@@ -482,7 +482,7 @@ updateAvahiConfig() {
 # Start/Stop OLA Daemon
 startOLADaemonIfNecessary() {
 	# Start OLA daemon if necessary
-	cat ${FPPHOME}/media/config/channeloutputs.json | tr -d "\r\n" | egrep -q 'OLA",[ 	a-zA-Z0-9:",]*"enabled": 1'
+	cat ${FPPHOME}/media/config/channeloutputs.json 2> /dev/null | tr -d "\r\n" | egrep -q 'OLA",[ 	a-zA-Z0-9:",]*"enabled": 1'
 	if [ $? -eq 0 ]
 	then
 		OLAPID=$(pgrep olad)
@@ -497,7 +497,7 @@ echo "starting olad"
 
 stopOLADaemonIfUnused() {
 	# Start OLA daemon if necessary
-	cat ${FPPHOME}/media/config/channeloutputs.json | tr -d "\r\n" | egrep -q 'OLA",[ 	a-zA-Z0-9:",]*"enabled": 1'
+	cat ${FPPHOME}/media/config/channeloutputs.json 2> /dev/null | tr -d "\r\n" | egrep -q 'OLA",[ 	a-zA-Z0-9:",]*"enabled": 1'
 	if [ $? -ne 0 ]
 	then
 		killall -9 olad
@@ -511,7 +511,7 @@ setupChannelOutputs() {
 	# Setup BBB device tree
 	if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
 	then
-		cat ${FPPHOME}/media/config/channeloutputs.json | tr -d "\r\n" | egrep -q '(LEDPanelMatrix|BBB48String)",[ 	a-zA-Z0-9:",]*"enabled": 1'
+		cat ${FPPHOME}/media/config/channeloutputs.json 2> /dev/null | tr -d "\r\n" | egrep -q '(LEDPanelMatrix|BBB48String)",[ 	a-zA-Z0-9:",]*"enabled": 1'
 		if [ $? -eq 0 ]
 		then
 			cp ${FPPDIR}/external/LEDscape/dts/CAPE-BONE-OCTO-00A0.dtbo /lib/firmware/
@@ -628,4 +628,77 @@ checkTimeAgainstUSNO () {
 		echo "FPP: Not online, unable to check time against U.S. Naval Observatory."
 	fi
 }
+
+#############################################################################
+# Setup RTC on the Pi.
+setupPiRTC () {
+	# RTC Setup
+	# to get the RPi board version:
+	REV=$(cat /proc/cpuinfo|grep Revision)
+	# Extract revision
+	REV=${REV##*: }
+	# Make it readable as hex
+	REV=0x$REV
+	# Convert hex to dec
+	REV=$((REV))
+
+	# Locate The Required Modules
+
+	modprobe i2c-bcm2708
+
+	PCF2127=pcf2127
+	if [ "x$(uname -r)" = "x3.10.33+" ]
+	then
+		PCF2127=pcf2127a
+	fi
+
+	modprobe rtc-${PCF2127}
+	modprobe rtc-ds1307
+	modprobe i2c:mcp7941x
+
+	# Read Clock Setting From Settings File
+
+	piRTC=$(awk -f ${FPPDIR}/scripts/readSetting.awk ${SETTINGSFILE} setting=piRTC)
+
+	case "$piRTC" in
+	1)
+	  # rasClock chip
+	  if [ $REV -lt 4 ]
+	  then
+		echo ${PCF2127} 0x51 > /sys/class/i2c-adapter/i2c-0/new_device
+		echo "FPP - Configuring RTC, Setting to rasClock/i2c-0"
+	  else
+		echo ${PCF2127} 0x51 > /sys/class/i2c-adapter/i2c-1/new_device
+		echo "FPP - Configuring RTC, Setting to rasClock/i2c-1"
+	  fi
+	  ;;
+	2)
+	  # DS1307 chip
+	  if [ $REV -lt 4 ]
+	  then
+		echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-0/new_device
+		echo "FPP - Configuring RTC, Settting to DS1307/i2c-0"
+	  else
+		echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device
+		echo "FPP - Configuring RTC, Setting to DS1307/i2c-1"
+	  fi
+	  ;;
+	3)
+	  # PiFace Chip
+	  if [ $REV -lt 4 ]
+	  then
+		echo mpc7941x 0x6f > /sys/class/i2c-dev/i2c-0/new_device
+		echo "FPP - Configuring RTC, Setting to PiFace/i2c-0"
+	  else
+		echo mpc7941x 0x6f > /sys/class/i2c-dev/i2c-1/new_device
+		echo "FPP - Configuring RTC, Setting to PiFace/i2c-1"
+	  fi
+	  ;;
+	*)
+	  # None
+		echo "FPP - Configuring RTC, None Selected"
+	  ;;
+	esac
+}
+
 
