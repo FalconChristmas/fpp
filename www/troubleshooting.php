@@ -4,6 +4,10 @@ require_once('common.php');
 
 putenv("PATH=/bin:/usr/bin:/sbin:/usr/sbin");
 
+$rtcDevice = "/dev/rtc0";
+if ($settings['Platform'] == "BeagleBone Black")
+	$rtcDevice = "/dev/rtc1";
+
 $commands = array(
 	// Networking
 	'Interfaces'         => 'ifconfig -a',
@@ -22,7 +26,7 @@ $commands = array(
 	// Date/Time
 	'Date'               => 'date',
 	'NTP Peers'          => 'pgrep ntpd > /dev/null && ntpq -c peers',
-	'RTC'                => $SUDO . ' hwclock -r',
+	'RTC'                => $SUDO . " hwclock -r -f $rtcDevice",
 
 	// Memory & CPU
 	'Memory'             => 'free',

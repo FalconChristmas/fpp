@@ -16,11 +16,16 @@ if ( isset($_POST['date']) && !empty($_POST['date']) )
 {
 //TODO: validate date format
 error_log("Setting date to ".$_POST['date'].".");
+
+$rtcDevice = "/dev/rtc0";
+if ($settings['Platform'] == "BeagleBone Black")
+  $rtcDevice = "/dev/rtc1";
+
 //set the date
 exec($SUDO . " date +%Y/%m/%d -s \"".$_POST['date']."\"", $output, $return_val);
 if (!(isset($_POST['time']) && !empty($_POST['time'])))
 {
-  exec($SUDO . " hwclock -w", $output, $return_val);
+  exec($SUDO . " hwclock -w -f $rtcDevice", $output, $return_val);
 }
 
 unset($output);
@@ -34,7 +39,7 @@ if ( isset($_POST['time']) && !empty($_POST['time']) )
 error_log("Setting time to ".$_POST['time'].".");
 //set the time
 exec($SUDO . " date +%k:%M -s \"".$_POST['time']."\"", $output, $return_val);
-exec($SUDO . " hwclock -w", $output, $return_val);
+exec($SUDO . " hwclock -w -f $rtcDevice", $output, $return_val);
 unset($output);
 //TODO: check return
 }
@@ -135,9 +140,16 @@ function print_if_match($one, $two, $print)
 <h4>Real Time Clock</h4>
 <select name="piRTC">
   <option value = "N" <?php echo print_if_match("N",ReadSettingFromFile("piRTC"),"selected") ?> >None</option>
+  <option value = "2" <?php echo print_if_match("2",ReadSettingFromFile("piRTC"),"selected") ?> >DS1305/DS1307</option>
+<?
+	  if ($settings['Platform'] != "BeagleBone Black")
+		{
+?>
   <option value = "1" <?php echo print_if_match("1",ReadSettingFromFile("piRTC"),"selected") ?> >RasClock</option>
-  <option value = "2" <?php echo print_if_match("2",ReadSettingFromFile("piRTC"),"selected") ?> >DS1305</option>
   <option value = "3" <?php echo print_if_match("3",ReadSettingFromFile("piRTC"),"selected") ?> >PiFace</option>
+<?
+		}
+?>
 </select> (Reboot required if changed)
 
 
