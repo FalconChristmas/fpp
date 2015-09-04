@@ -129,8 +129,15 @@ fi
 
 # Let's check that our .asoundrc is as valid as we care about right now
 if [ -e /root/.asoundrc ] && [ ! -e /proc/asound/card$(sed -n '/card [0-9]*/p' /root/.asoundrc | head -n 1 | awk '{print $2}') ]; then
-	echo "Configured sound card might not exist, let's set it to 0 as a default."
-	sed -i 's/card [0-9]/card 0/' /root/.asoundrc
+	CARDID=$(/bin/ls -1d /proc/asound/card[0-9] | sed -e 's/.*\([0-9]\)$/\1/' | head -1)
+	if [ -n ${CARDID} ]
+	then
+		echo "Configured sound card might not exist, setting to card ID ${CARDID} which does exist."
+		sed -i "s/card [0-9]/card $CARDID/" /root/.asoundrc
+	else
+		echo "Configured sound card might not exist, let's set it to 0 as a default."
+		sed -i 's/card [0-9]/card 0/' /root/.asoundrc
+	fi
 fi
 
 # Clear any restart/reboot flags
