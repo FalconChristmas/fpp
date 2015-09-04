@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 . /opt/fpp/scripts/common
 . /opt/fpp/scripts/functions
