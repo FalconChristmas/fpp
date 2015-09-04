@@ -55,7 +55,7 @@ if ( $return_val != 0 )
 unset($output);
 
 $git_remote_version = "Unknown";
-$git_remote_version = exec("git ls-remote --heads https://github.com/FalconChristmas/fpp | grep 'refs/heads/$git_branch\$' | awk '$1 > 0 { print substr($1,1,7)}'", $output, $return_val);
+$git_remote_version = exec("ping -q -c 1 github.com > /dev/null && (git ls-remote --heads https://github.com/FalconChristmas/fpp | grep 'refs/heads/$git_branch\$' | awk '$1 > 0 { print substr($1,1,7)}')", $output, $return_val);
 if ( $return_val != 0 )
   $git_remote_version = "Unknown";
 unset($output);
@@ -301,7 +301,9 @@ a:visited {
             <tr><td>Remote Git Version:</td><td>
 <?
   echo $git_remote_version;
-  if (($git_remote_version != "") && ($git_version != $git_remote_version))
+  if (($git_remote_version != "") &&
+			($git_remote_version != "Unknown") &&
+			($git_version != $git_remote_version))
     echo " <font color='#FF0000'><a href='javascript:void(0);' onClick='GetGitOriginLog();'>Preview Changes</a></font>";
 ?>
                 </td></tr>

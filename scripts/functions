@@ -701,4 +701,25 @@ setupPiRTC () {
 	esac
 }
 
+#############################################################################
+# Setup RTC on the BBB
+setupBBBRTC () {
+	# Read Clock Setting From Settings File
+
+	RTC=$(awk -f ${FPPDIR}/scripts/readSetting.awk ${SETTINGSFILE} setting=piRTC)
+
+	case "$RTC" in
+		2)
+			# DS1307 chip
+			# BBB has onboard clock as rtc0 so we need to use rtc1
+			echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device
+			echo "FPP - Configuring RTC, Setting to DS1307/i2c-1"
+			;;
+		*)
+			# None
+			echo "FPP - Configuring RTC, None Selected"
+			;;
+	esac
+}
+
 

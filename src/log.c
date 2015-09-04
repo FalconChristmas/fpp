@@ -194,8 +194,7 @@ int SetLogMask(char *newMask)
 		} else if (!strcmp(s, "gpio")) {
 			logMask |= VB_GPIO;
 		} else {
-			LogErr(VB_SETTING, "Unknown Log Mask: %s\n", s);
-			return 0;
+			fprintf(stderr, "Unknown Log Mask: %s\n", s);
 		}
 		s = strtok(NULL, delim);
 	}

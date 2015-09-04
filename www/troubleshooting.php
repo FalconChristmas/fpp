@@ -4,6 +4,10 @@ require_once('common.php');
 
 putenv("PATH=/bin:/usr/bin:/sbin:/usr/sbin");
 
+$rtcDevice = "/dev/rtc0";
+if ($settings['Platform'] == "BeagleBone Black")
+	$rtcDevice = "/dev/rtc1";
+
 $commands = array(
 	// Networking
 	'Interfaces'         => 'ifconfig -a',
@@ -22,11 +26,22 @@ $commands = array(
 	// Date/Time
 	'Date'               => 'date',
 	'NTP Peers'          => 'pgrep ntpd > /dev/null && ntpq -c peers',
-	'RTC'                => $SUDO . ' hwclock -r',
+	'RTC'                => $SUDO . " hwclock -r -f $rtcDevice",
 
-	// Memory & Processes
+	// Memory & CPU
 	'Memory'             => 'free',
 	'CPU Utilization'    => 'top -bn1 | head -20',
+	'CPUInfo'            => 'cat /proc/cpuinfo',
+
+	// USB Devices
+	'USB Device Tree'    => $SUDO . ' lsusb -t',
+	'USB Devices'        => $SUDO . ' lsusb -v',
+
+	// Kernel
+	'Kernel Version'     => 'uname -a',
+	'Kernel Modules'     => 'lsmod',
+
+	// Processes
 	'Processes'          => 'ps -edaf --forest',  // Keep this last since it is so long
 	);
 

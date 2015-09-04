@@ -1,4 +1,14 @@
-#!/bin/sh
+#!/bin/bash
 
-hwclock -s
+. /opt/fpp/scripts/common
+. /opt/fpp/scripts/functions
+
+RTCDEVICE="/dev/rtc0"
+
+if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
+then
+	RTCDEVICE="/dev/rtc1"
+fi
+
+hwclock -s -f ${RTCDEVICE}
 
