@@ -24,9 +24,20 @@ $commands = array(
 	'NTP Peers'          => 'pgrep ntpd > /dev/null && ntpq -c peers',
 	'RTC'                => $SUDO . ' hwclock -r',
 
-	// Memory & Processes
+	// Memory & CPU
 	'Memory'             => 'free',
 	'CPU Utilization'    => 'top -bn1 | head -20',
+	'CPUInfo'            => 'cat /proc/cpuinfo',
+
+	// USB Devices
+	'USB Device Tree'    => $SUDO . ' lsusb -t',
+	'USB Devices'        => $SUDO . ' lsusb -v',
+
+	// Kernel
+	'Kernel Version'     => 'uname -a',
+	'Kernel Modules'     => 'lsmod',
+
+	// Processes
 	'Processes'          => 'ps -edaf --forest',  // Keep this last since it is so long
 	);
 
