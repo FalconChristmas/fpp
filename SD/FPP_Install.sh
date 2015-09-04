@@ -460,6 +460,8 @@ case "${FPPPLATFORM}" in
 
 		echo "FPP - Disabling power management for wireless"
 		echo -e "# Disable power management\noptions 8192cu rtw_power_mgnt=0 rtw_enusbss=0" > /etc/modprobe.d/8192cu.conf
+		echo -e "# Disable power management\noptions rtl8192cu rtw_power_mgnt=0 rtw_enusbss=0" > /etc/modprobe.d/rtl8192cu.conf
+
 
 		echo "FPP - Disabling Swap to save SD card"
 		update-rc.d -f dphys-swapfile remove
