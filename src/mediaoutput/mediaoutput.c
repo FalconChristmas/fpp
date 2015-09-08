@@ -163,14 +163,14 @@ int OpenMediaOutput(char *filename) {
 		return 0;
 	}
 
+	if (getFPPmode() == MASTER_MODE)
+		SendMediaSyncStartPacket(filename);
+
 	if ((!mediaOutput) || (!mediaOutput->startPlaying(tmpFile))) {
 		mediaOutput = 0;
 		pthread_mutex_unlock(&mediaOutputLock);
 		return 0;
 	}
-
-	if (getFPPmode() == MASTER_MODE)
-		SendMediaSyncStartPacket(filename);
 
 	mediaOutput->filename = strdup(filename);
 	mediaOutputStatus.status = MEDIAOUTPUTSTATUS_PLAYING;
@@ -218,7 +218,7 @@ void CheckCurrentPositionAgainstMaster(void)
 		return;
 
 	// Allow faster sync in first 10 seconds
-	int maxDelta = (mediaOutputStatus.mediaSeconds < 10) ? 5 : 5;
+	int maxDelta = (mediaOutputStatus.mediaSeconds < 10) ? 15 : 5;
 	int desiredDelta = diff / -33;
 
 	if (desiredDelta > maxDelta)
@@ -231,6 +231,10 @@ void CheckCurrentPositionAgainstMaster(void)
 	LogDebug(VB_MEDIAOUT, "Master: %.2f, Local: %.2f, Diff: %dms, delta: %d, new: %d\n",
 		masterMediaPosition, mediaOutputStatus.mediaSeconds, diff,
 		mediaOutputStatus.speedDelta, desiredDelta);
+
+	// Can't adjust speed if not playing yet
+	if (mediaOutputStatus.mediaSeconds < 0.01)
+		return;
 
 	if (desiredDelta)
 	{
