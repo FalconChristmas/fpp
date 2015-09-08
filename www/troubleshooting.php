@@ -39,7 +39,7 @@ $commands = array(
 
 	// Audio
 	'Sound Cards'        => $SUDO . ' aplay -l',
-	'Mixer Devices'      => '(/bin/ls -1d /proc/asound/card[0-9] | sed -e "s/.*\/card//" | while read ID; do echo "CardID: ${ID}"; sudo amixer -c ${ID} ; echo ; done)',
+	'Mixer Devices'      => '(/bin/ls -1d /proc/asound/card[0-9] | sed -e "s/.*\/card//" | while read ID; do echo "CardID: ${ID}"; ' . $SUDO . ' amixer -c ${ID} ; echo ; done)',
 
 	// Kernel
 	'Kernel Version'     => 'uname -a',
