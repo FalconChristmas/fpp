@@ -27,7 +27,6 @@ teeOutput
 
 echo "FPP - Setting up for the Falcon Player on the ${FPPPLATFORM} platform"
 
-checkTimeAgainstUSNO
 checkAudioConfig
 
 if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
@@ -173,6 +172,8 @@ fi
 
 # Make sure our DHCP IPs are up before we log/announce them.
 WaitForDHCPIPs
+
+checkTimeAgainstUSNO
 
 # Configure fallback IP if necessary
 ConfigureFallbackIP
