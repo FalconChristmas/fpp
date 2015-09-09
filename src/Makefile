@@ -208,7 +208,7 @@ endif
 PWD := $(shell pwd)
 
 .PHONY: all
-all: gitsubmodules subdirs FPP
+all: gitsubmodules FPP subdirs
 
 subdirs:
 	@for dir in $(SUBDIRS); do \
