@@ -37,16 +37,12 @@ function PrintStorageDeviceSelect()
 	global $SUDO;
 
 	# FIXME, this would be much simpler by parsing "lsblk -l"
-	exec('mount | grep boot | cut -f1 -d" " | sed -e "s/\/dev\///" -e "s/p[0-9]$//"', $output, $return_val);
+	exec('lsblk -l | grep uboot | cut -f1 -d" " | sed -e "s/p[0-9]$//"', $output, $return_val);
 	$bootDevice = $output[0];
 	unset($output);
 
-	exec('mount | grep " / " | cut -f1 -d" "', $output, $return_val);
+	exec('lsblk -l | grep " /$" | cut -f1 -d" "', $output, $return_val);
 	$rootDevice = $output[0];
-	unset($output);
-
-	exec($SUDO . " tune2fs -l $rootDevice | grep -i uuid | awk '{print \$3}'", $output, $return_val);
-	$rootUUID = $output[0];
 	unset($output);
 
 	exec('grep "fpp/media" /etc/fstab | cut -f1 -d" " | sed -e "s/\/dev\///"', $output, $return_val);
@@ -79,11 +75,7 @@ function PrintStorageDeviceSelect()
 			{
 				unset($output);
 
-				exec($SUDO . " tune2fs -l /dev/$fileName | grep -i uuid | awk '{print \$3}'", $output, $return_val);
-				$thisUUID = $output[0];
-				unset($output);
-
-				if ($rootUUID == $thisUUID)
+				if (preg_match("/^$rootDevice/", $fileName))
 				{
 					exec("df -k / | grep ' /$' | awk '{print \$4}'", $output, $return_val);
 					if (count($output))
