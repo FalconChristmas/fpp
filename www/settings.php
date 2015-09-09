@@ -37,7 +37,7 @@ function PrintStorageDeviceSelect()
 	global $SUDO;
 
 	# FIXME, this would be much simpler by parsing "lsblk -l"
-	exec('lsblk -l | grep uboot | cut -f1 -d" " | sed -e "s/p[0-9]$//"', $output, $return_val);
+	exec('lsblk -l | grep boot | cut -f1 -d" " | sed -e "s/p[0-9]$//"', $output, $return_val);
 	$bootDevice = $output[0];
 	unset($output);
 
