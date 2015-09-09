@@ -434,6 +434,10 @@ case "${FPPPLATFORM}" in
 		echo "FPP - Enabling SPI in device tree"
 		echo >> /boot/config.txt
 
+		echo "# Setup proper scaling for Virtual Matrix" >> /boot/config.txt
+		echo "scaling_kernel=8" >> /boot/config.txt
+		echo >> /boot/config.txt
+
 		echo "# Enable SPI in device tree" >> /boot/config.txt
 		echo "dtparam=spi=on" >> /boot/config.txt
 		echo >> /boot/config.txt
