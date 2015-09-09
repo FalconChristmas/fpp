@@ -58,8 +58,8 @@
 #
 #############################################################################
 SCRIPTVER="0.7"
-FPPBRANCH="stage"
-FPPIMAGEVER="1.5-Beta"
+FPPBRANCH="v1.5"
+FPPIMAGEVER="1.5"
 FPPCFGVER="9"
 FPPPLATFORM="UNKNOWN"
 FPPDIR="/opt/fpp"
