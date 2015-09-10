@@ -73,8 +73,8 @@ sync
 SDDEVICE="sdd"
 ORIGIMG="bone-debian-7.5-2014-05-14-2gb.img"
 EMMCIMG="BBB-eMMC-flasher-debian-7.5-2014-05-14-2gb.img"
-IMGFILE="FPP-v1.5-Beta1-BBB-SD.img"
-MMCFILE="FPP-v1.5-Beta1-BBB-eMMC.img"
+IMGFILE="FPP-v1.5-BBB-SD.img"
+MMCFILE="FPP-v1.5-BBB-eMMC.img"
 ADDSIZEMB=100
 
 SIZE=$(/bin/ls -al ${ORIGIMG} | awk '{print $5}')
