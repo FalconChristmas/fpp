@@ -162,6 +162,8 @@ SetupFPPNetworkConfig () {
 			echo "iface default inet dhcp" >> ${TMPFILE}
 		fi
 		echo >> ${TMPFILE}
+		echo "wireless-power off" >> ${TMPFILE}
+		echo >> ${TMPFILE}
 
 		cat <<-EOF > /etc/wpa_supplicant/wpa_supplicant.conf.FPP
 		ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
@@ -218,8 +220,10 @@ SetupFPPNetworkConfig () {
 		echo "FPP - Bringing wlan0 up"
 		ifup wlan0 > /dev/null 2>&1
 
-		echo "FPP - Disabling power management on wlan0"
-		iwconfig wlan0 power off > /dev/null 2>&1
+		# Shouldn't need this since we have "wireless-power off" but leave it
+		# in here just in case for now.
+		#echo "FPP - Disabling power management on wlan0"
+		#iwconfig wlan0 power off > /dev/null 2>&1
 	fi
 }
 
