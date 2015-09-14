@@ -259,7 +259,7 @@ function SetVolume()
 	if ( $card == 0 )
 		$vol = 50 + ($vol/2);
 
-	$status=exec("amixer -c $card set PCM -- " . $vol . "%");
+	$status=exec($SUDO . " amixer -c $card set PCM -- " . $vol . "%");
 
 	EchoStatusXML($status);
 }
