@@ -1226,8 +1226,8 @@ function AddOtherOutput() {
 				"<option value='Triks-C'>Triks-C</option>" +
 			"</select></td>" +
 			"<td><input class='start' type='text' size=6 maxlength=6 value='' style='display: none;'></td>" +
-			"<td><input class='count' type='text' size=4 maxlength=4 value='' style='display: none;'></td>" +
-			"<td><input class='channel' type='text' size=4 maxlength=4 value='' style='display: none;'></td>" +
+			"<td><input class='count' type='text' size=6 maxlength=6 value='' style='display: none;'></td>" +
+			"<td> </td>" +
 			"</tr>";
 
 	$('#tblOtherOutputs tbody').append(newRow);
