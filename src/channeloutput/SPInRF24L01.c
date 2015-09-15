@@ -171,10 +171,10 @@ int SPInRF24L01_Open(char *configStr, void **privDataPtr) {
 		LogWarn(VB_CHANNELOUT, "FCC RESTRICTED FREQUENCY RANGE OF %dMHz\n", 2400 + privData->channel);
 	}
 
-	if (privData->channel <= 0 || privData->channel > 125)
+	if (privData->channel < 0 || privData->channel > 125)
 	{
 		LogErr(VB_CHANNELOUT, "Invalid channel '%d' parsed from config string: %s\n",
-			channel, configStr);
+			privData->channel, configStr);
 		free(privData);
 		return 0;
 	}
