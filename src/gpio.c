@@ -125,8 +125,11 @@ void CheckGPIOInputs(void)
 				{
 					LogDebug(VB_GPIO, "GPIO%d triggered\n", i);
 					sprintf(settingName, "GPIOInput%03dEvent%s", i, (val == LOW ? "Falling" : "Rising"));
-					pluginCallbackManager.eventCallback(getSetting(settingName), "GPIO");
-					TriggerEventByID(getSetting(settingName));
+					if (strlen(getSetting(settingName)))
+					{
+						pluginCallbackManager.eventCallback(getSetting(settingName), "GPIO");
+						TriggerEventByID(getSetting(settingName));
+					}
 
 					inputLastTriggerTime[i] = GetTime();
 				}
