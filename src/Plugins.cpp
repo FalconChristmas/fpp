@@ -315,7 +315,7 @@ void MediaCallback::run(void)
 		if (mediaDetails.channels)
 			root["channels"] = mediaDetails.channels;
 
-		LogWarn(VB_PLUGIN, "Media plugin data: %s\n", writer.write(root).c_str());
+		LogDebug(VB_PLUGIN, "Media plugin data: %s\n", writer.write(root).c_str());
 		execl(eventScript.c_str(), "eventScript", this->getFilename().c_str(), "--type", "media", "--data", writer.write(root).c_str(), NULL);
 
 		LogErr(VB_PLUGIN, "We failed to exec our media callback!\n");
@@ -398,7 +398,7 @@ void PlaylistCallback::run(PlaylistDetails *playlistDetails, bool starting)
 
 		root["Action"] = std::string((starting == PLAYLIST_STARTING ? "start" : "stop"));
 
-		LogWarn(VB_PLUGIN, "Playlist plugin data: %s\n", writer.write(root).c_str());
+		LogDebug(VB_PLUGIN, "Playlist plugin data: %s\n", writer.write(root).c_str());
 		execl(eventScript.c_str(), "eventScript", this->getFilename().c_str(), "--type", "playlist", "--data", writer.write(root).c_str(), NULL);
 
 		LogErr(VB_PLUGIN, "We failed to exec our playlist callback!\n");
@@ -457,7 +457,7 @@ int NextPlaylistEntryCallback::run(const char *plugin_data, int currentPlaylistE
 		if (strlen(plugin_data))
 			root["data"] = std::string( plugin_data);
 
-		LogWarn(VB_PLUGIN, "NextPlaylist plugin data: %s\n", writer.write(root).c_str());
+		LogDebug(VB_PLUGIN, "NextPlaylist plugin data: %s\n", writer.write(root).c_str());
 
 		dup2(output_pipe[1], STDOUT_FILENO);
 		close(output_pipe[1]);
@@ -519,7 +519,7 @@ void EventCallback::run(char *id, char *impetus)
 		if ( event->script && strlen(event->script) )
 			root["script"] = std::string(event->script);
 
-		LogWarn(VB_PLUGIN, "Media plugin data: %s\n", writer.write(root).c_str());
+		LogDebug(VB_PLUGIN, "Media plugin data: %s\n", writer.write(root).c_str());
 		execl(eventScript.c_str(), "eventScript", this->getFilename().c_str(), "--type", "media", "--data", writer.write(root).c_str(), NULL);
 
 		LogErr(VB_PLUGIN, "We failed to exec our media callback!\n");
