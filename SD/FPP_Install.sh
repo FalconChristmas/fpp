@@ -596,7 +596,14 @@ echo "#####################################" >> /etc/fstab
 echo "tmpfs         /var/log    tmpfs   nodev,nosuid,size=10M 0 0" >> /etc/fstab
 echo "tmpfs         /var/tmp    tmpfs   nodev,nosuid,size=10M 0 0" >> /etc/fstab
 echo "#####################################" >> /etc/fstab
-echo "/dev/sda1     /home/fpp/media  auto    defaults,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500  0  0" >> /etc/fstab
+
+COMMENTED=""
+SDA1=$(lsblk -l | grep sda1 | awk '{print $7}')
+if [ -n ${SDA1} ]
+then
+	COMMENTED="#"
+fi
+echo "${COMMENTED}/dev/sda1     /home/fpp/media  auto    defaults,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500  0  0" >> /etc/fstab
 echo "#####################################" >> /etc/fstab
 
 
