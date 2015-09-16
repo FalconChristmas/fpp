@@ -57,10 +57,10 @@
 #             filesystem as per the information.txt file on recombi.net.
 #
 #############################################################################
-SCRIPTVER="0.7"
+SCRIPTVER="0.8"
 FPPBRANCH="v1.5"
 FPPIMAGEVER="1.5"
-FPPCFGVER="9"
+FPPCFGVER="10"
 FPPPLATFORM="UNKNOWN"
 FPPDIR="/opt/fpp"
 OSVER="UNKNOWN"
@@ -390,6 +390,10 @@ case "${FPPPLATFORM}" in
 #		apt-get -y --force-yes install libcppunit-dev libcppunit-1.12-1 uuid-dev pkg-config libncurses5-dev libtool autoconf automake  libmicrohttpd-dev protobuf-compiler python-protobuf libprotobuf-dev libprotoc-dev zlib1g-dev bison flex libftdi-dev libftdi1 libusb-1.0-0-dev liblo-dev
 #		git clone https://github.com/OpenLightingProject/ola.git /opt/ola
 #		(cd /opt/ola && autoreconf -i && ./configure --enable-python-libs && make && make install && ldconfig && cd /opt/ && rm -rf ola)
+
+		echo "FPP - Disabling power management for wireless"
+		echo -e "# Disable power management\noptions rtl8192cu rtw_power_mgnt=0 rtw_enusbss=0" > /etc/modprobe.d/rtl8192cu.conf
+
 		;;
 
 	'Raspberry Pi')
@@ -460,8 +464,6 @@ case "${FPPPLATFORM}" in
 
 		echo "FPP - Disabling power management for wireless"
 		echo -e "# Disable power management\noptions 8192cu rtw_power_mgnt=0 rtw_enusbss=0" > /etc/modprobe.d/8192cu.conf
-		echo -e "# Disable power management\noptions rtl8192cu rtw_power_mgnt=0 rtw_enusbss=0" > /etc/modprobe.d/rtl8192cu.conf
-
 
 		echo "FPP - Disabling Swap to save SD card"
 		update-rc.d -f dphys-swapfile remove
