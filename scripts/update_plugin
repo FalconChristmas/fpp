@@ -1,0 +1,48 @@
+#!/bin/bash
+
+BINDIR=$(cd $(dirname $0) && pwd)
+
+. ${BINDIR}/common
+
+if [ "x$1" = "x" ]
+then
+	echo "USAGE: $0 PLUGINNAME"
+	exit 1
+fi
+
+logOutput
+
+echo "Updating plugin $1"
+if [ "x${FPPDIR}" = "x/opt/fpp" ] && [ "x${SETTINGSFILE}" = "x${FPPHOME}/media/settings" ]
+then
+	cd ${PLUGINDIR}/$1 && $SUDO git pull
+elif [ "x${FPPDIR}" = "x${FPPHOME}/fpp" ]
+then
+	cd ${PLUGINDIR}/$1 && sudo -u ${FPPUSER} git pull
+else
+	cd ${PLUGINDIR}/$1 && git pull
+fi
+
+
+if [ -x "${PLUGINDIR}/$1/fpp_install.sh" ]
+then
+	if [ "x${FPPDIR}" = "x/opt/fpp" ] && [ "x${SETTINGSFILE}" = "x${FPPHOME}/media/settings" ]
+	then
+		if [ -e "${PLUGINDIR}/$1/fpp_update.sh" ]
+		then
+			$SUDO ${PLUGINDIR}/$1/fpp_update.sh
+		fi
+	elif [ "x${FPPDIR}" = "x${FPPHOME}/fpp" ]
+	then
+		if [ -e "${PLUGINDIR}/$1/fpp_update.sh" ]
+		then
+			sudo -u ${FPPUSER} ${PLUGINDIR}/$1/fpp_update.sh
+		fi
+	else
+		if [ -e "${PLUGINDIR}/$1/fpp_update.sh" ]
+		then
+			${PLUGINDIR}/$1/fpp_update.sh
+		fi
+	fi
+fi
+
