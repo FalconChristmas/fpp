@@ -60,7 +60,7 @@
 SCRIPTVER="0.8"
 FPPBRANCH="v1.5"
 FPPIMAGEVER="1.5"
-FPPCFGVER="11"
+FPPCFGVER="12"
 FPPPLATFORM="UNKNOWN"
 FPPDIR="/opt/fpp"
 OSVER="UNKNOWN"
@@ -452,6 +452,10 @@ case "${FPPPLATFORM}" in
 
 		echo "# Setting kernel scaling framebuffer method" >> /boot/config.txt
 		echo "scaling_kernel=8" >> /boot/config.txt
+		echo >> /boot/config.txt
+
+		echo "# Allow more current through USB" >> /boot/config.txt
+		echo "max_usb_current=1" >> /boot/config.txt
 		echo >> /boot/config.txt
 
 		echo "FPP - Freeing up more space by removing unnecessary packages"
