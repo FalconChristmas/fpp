@@ -116,9 +116,9 @@ require_once("config.php");
 		$('#fppSystems tbody').empty();
 		$('#fppSystems tbody').append("<tr><td colspan=5 align='center'>Loading...</td></tr>");
 
-		$.get("/fppjson.php?command=getSetting&key=MultiSyncRemotes", function(data) {
+		$.get("fppjson.php?command=getSetting&key=MultiSyncRemotes", function(data) {
 			settings['MultiSyncRemotes'] = data.MultiSyncRemotes;
-			$.get("/fppjson.php?command=getFPPSystems", function(data) {
+			$.get("fppjson.php?command=getFPPSystems", function(data) {
 				parseFPPSystems(data);
 			});
 		});
