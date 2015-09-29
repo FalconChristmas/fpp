@@ -75,7 +75,7 @@ LIBS_fppd = \
 	-ljsoncpp \
 	-lm \
 	-lutil \
-	-ltag_c \
+	-ltag \
 	$(NULL)
 
 SUBDIRS = 
