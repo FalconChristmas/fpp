@@ -123,7 +123,7 @@ int PixelString::Init(int portNumber, int channelOffset, int startChannel,
 		m_inputChannels += 3;
 	}
 
-	if (m_zigZag == m_pixelCount)
+	if ((m_zigZag == m_pixelCount) || (m_zigZag == 1))
 		m_zigZag = 0;
 
 	m_outputChannels = m_pixelCount * 3;
