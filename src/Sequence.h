@@ -28,7 +28,7 @@
 
 #include <stdio.h>
 
-#define FPPD_MAX_CHANNELS 131072
+#define FPPD_MAX_CHANNELS 524288
 #define DATA_DUMP_SIZE    28
 
 class Sequence {
