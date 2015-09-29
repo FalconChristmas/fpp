@@ -160,6 +160,12 @@ int main (int argc, char *argv[])
       sprintf(command,"t,%s,",argv[2]);
       SendCommand(command);
     }
+    // Send a raw command to fppd for debugging
+    else if((strncmp(argv[1],"-C",2) == 0) &&  argc > 2)
+    {
+      sprintf(command,"%s,",argv[2]);
+      SendCommand(command);
+    }
     else if(strncmp(argv[1],"-h",2) == 0)
     {
       Usage(argv[0]);
