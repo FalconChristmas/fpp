@@ -58,6 +58,7 @@ class PixelString {
 
   private:
 	void SetupMap(void);
+	void FlipPixels(int offset1, int offset2);
 
 };
 

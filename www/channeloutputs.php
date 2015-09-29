@@ -1315,8 +1315,7 @@ function GetBBB48StringConfig()
 		output.hybridMode = 0;
 		output.reverse = parseInt($('#BBB48Direction' + ai).val());
 		output.grouping = parseInt($('#BBB48Grouping' + ai).val());
-		output.zigZag = 0;
-//		output.zigZag = parseInt($('#BBB48ZigZag' + ai).val());
+		output.zigZag = parseInt($('#BBB48ZigZag' + ai).val());
 
 		if ($('#BBB48HybridMode' + ai).is(":checked"))
 			output.hybridMode = 1;
@@ -1433,8 +1432,8 @@ function DrawBBB48StringTable()
 			html += " checked";
 		html += "></td>";
 
-//		html += "<td class='center'><input id='BBB48ZigZag[" + s + "]' type='text' size='3' maxlength='3' value='"
-//			+ channelOutputsLookup["BBB48String"].outputs[s].zigZag + "'></td>";
+		html += "<td class='center'><input id='BBB48ZigZag[" + s + "]' type='text' size='3' maxlength='3' value='"
+			+ channelOutputsLookup["BBB48String"].outputs[s].zigZag + "'></td>";
 
 
 		html += "</tr>";
@@ -2160,9 +2159,7 @@ if ($settings['Platform'] == "BeagleBone Black")
 									<td width='10%'>Group<br>Count</td>
 									<td width='10%'>Null<br>Nodes</td>
 									<td width='10%'>Hybrid</td>
-<!--
 									<td width='10%'>Zig<br>Zag</td>
--->
 									</tr>
 							</thead>
 							<tbody>
