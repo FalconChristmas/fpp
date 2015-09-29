@@ -10,6 +10,7 @@ typedef struct mediaDetails {
 	int   track;
 	char *genre;
 
+	int length;
 	int seconds;
 	int minutes;
 

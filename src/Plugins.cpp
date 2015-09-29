@@ -304,6 +304,8 @@ void MediaCallback::run(void)
 			root["track"] = mediaDetails.track;
 		if (mediaDetails.genre && strlen(mediaDetails.genre))
 			root["genre"] = std::string(mediaDetails.genre);
+		if (mediaDetails.length)
+			root["length"] = mediaDetails.length;
 		if (mediaDetails.seconds)
 			root["seconds"] = mediaDetails.seconds;
 		if (mediaDetails.minutes)
