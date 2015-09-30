@@ -1,6 +1,5 @@
 /*
- *   Falcon Pi Player daemon header file  
- *   Falcon Pi Player project (FPP)
+ *   Channel Test Pattern RGB Chase class for Falcon Pi Player (FPP)
  *
  *   Copyright (C) 2013 the Falcon Pi Player Developers
  *      Initial development by:
@@ -23,16 +22,37 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
- 
-#ifndef _FPPD_H
-#define _FPPD_H
 
-#include "channeltester/ChannelTester.h"
+#ifndef _RGBCHASE_H
+#define _RGBCHASE_H
 
-void CreateDaemon(void);
-void CheckExistanceOfDirectoriesAndFiles();
-void ShutdownFPPD(void);
+#include <string>
+#include <vector>
 
-extern ChannelTester *channelTester;
+#include <jsoncpp/json/json.h>
 
-#endif
+#include "TestPatternBase.h"
+
+class TestPatternRGBChase : public TestPatternBase {
+  public:
+    TestPatternRGBChase();
+	~TestPatternRGBChase();
+
+	int  Init(Json::Value config);
+
+	int  SetupTest(void);
+	void DumpConfig(void);
+
+  private:
+	void CycleData(void);
+
+	std::string       m_colorPatternStr;
+	std::vector<char> m_colorPattern;
+	int               m_colorPatternSize;
+	int               m_patternOffset;
+	int               m_rgbTriplets;
+	int               m_lastTripletOffset;
+	int               m_lastPatternOffset;
+};
+
+#endif /* _RGBCHASE_H */

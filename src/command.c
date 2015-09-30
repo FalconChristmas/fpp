@@ -127,6 +127,7 @@ extern PluginCallbackManager pluginCallbackManager;
     char *s;
     char *s2;
     char *s3;
+    char *s4;
     char *response2 = NULL;
     int i;
 		char NextPlaylist[128] = "No playlist scheduled.";
@@ -332,6 +333,24 @@ extern PluginCallbackManager pluginCallbackManager;
 				sprintf(response,"%d,%d,Event Triggered,%d,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS,i);
 			else
 				sprintf(response,"%d,%d,Event Failed,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
+		}
+		else if (!strcmp(CommandStr, "GetTestMode"))
+		{
+			strcpy(response, channelTester->GetConfig().c_str());
+			strcat(response, "\n");
+		}
+		else if (!strcmp(CommandStr, "SetTestMode"))
+		{
+			if (channelTester->SetupTest(std::string(s + strlen(s) + 1)))
+			{
+				sprintf(response, "0,%d,Test Mode Activated,,,,,,,,,\n",
+					COMMAND_SUCCESS);
+			}
+			else
+			{
+				sprintf(response, "0,%d,Test Mode Deactivated,,,,,,,,,\n",
+					COMMAND_SUCCESS);
+			}
 		}
 		else if (!strcmp(CommandStr, "LogLevel"))
 		{

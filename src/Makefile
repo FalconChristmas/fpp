@@ -45,6 +45,11 @@ OBJECTS_fppd = \
 	channeloutput/USBPixelnet.o \
 	channeloutput/USBRelay.o \
 	channeloutput/USBRenard.o \
+	channeltester/ChannelTester.o \
+	channeltester/TestPatternBase.o \
+	channeltester/RGBChase.o \
+	channeltester/RGBFill.o \
+	channeltester/SingleChase.o \
 	command.o \
 	common.o \
 	controlrecv.o \

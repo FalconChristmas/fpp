@@ -1,6 +1,5 @@
 /*
- *   Falcon Pi Player daemon header file  
- *   Falcon Pi Player project (FPP)
+ *   Channel Test code for Falcon Pi Player (FPP)
  *
  *   Copyright (C) 2013 the Falcon Pi Player Developers
  *      Initial development by:
@@ -23,16 +22,34 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
- 
-#ifndef _FPPD_H
-#define _FPPD_H
 
-#include "channeltester/ChannelTester.h"
+#ifndef _CHANNELTESTER_H
+#define _CHANNELTESTER_H
 
-void CreateDaemon(void);
-void CheckExistanceOfDirectoriesAndFiles();
-void ShutdownFPPD(void);
+#include <string>
 
-extern ChannelTester *channelTester;
+#include <pthread.h>
 
-#endif
+#include "TestPatternBase.h"
+#include "Sequence.h"
+
+class ChannelTester {
+  public:
+    ChannelTester();
+	~ChannelTester();
+
+	int  SetupTest(std::string configStr);
+
+	void OverlayTestData(char *channelData);
+	int  Testing(void);
+
+	std::string GetConfig(void);
+
+  private:
+	unsigned int     m_testing;
+	TestPatternBase *m_testPattern;
+	pthread_mutex_t  m_testLock;
+	std::string      m_configStr;
+};
+
+#endif /* _CHANNELTESTER_H */

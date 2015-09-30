@@ -35,6 +35,7 @@
 #include "common.h"
 #include "controlsend.h"
 #include "effects.h"
+#include "fppd.h"
 #include "log.h"
 #include "memorymap.h"
 #include "Sequence.h"
@@ -150,6 +151,7 @@ void *RunChannelOutputThread(void *data)
 		if ((sequence->IsSequenceRunning()) ||
 			(IsEffectRunning()) ||
 			(UsingMemoryMapInput()) ||
+			(channelTester->Testing()) ||
 			(getAlwaysTransmit()) ||
 			(getFPPmode() == BRIDGE_MODE))
 		{

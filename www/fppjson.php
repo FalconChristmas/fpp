@@ -38,6 +38,8 @@ $command_array = Array(
 	"singleStepSequenceBack" => 'SingleStepSequenceBack',
 	"getPluginSetting"    => 'GetPluginSetting',
 	"setPluginSetting"    => 'SetPluginSetting',
+	"setTestMode"         => 'SetTestMode',
+	"getTestMode"         => 'GetTestMode',
 	"setAudioOutput"      => 'SetAudioOutput'
 );
 
@@ -664,6 +666,21 @@ function SetDNSInfo()
 		"DNS2=\"%s\"\n",
 		$data['DNS1'], $data['DNS2']);
 	fclose($f);
+}
+
+/////////////////////////////////////////////////////////////////////////////
+
+function SetTestMode()
+{
+	global $args;
+
+	SendCommand(sprintf("SetTestMode,%s", $args['data']));
+}
+
+function GetTestMode()
+{
+	header( "Content-Type: application/json");
+	echo SendCommand("GetTestMode");
 }
 
 /////////////////////////////////////////////////////////////////////////////
