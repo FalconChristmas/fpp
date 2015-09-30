@@ -444,7 +444,7 @@ function setHostName() {
 
         </fieldset>
 				<br>
-				<? PrintSettingCheckbox("Enable Routing", "EnableRouting", 0, 1, "1", "0"); ?> Enable Routing between network interfaces
+				<? PrintSettingCheckbox("Enable Routing", "EnableRouting", 0, 0, "1", "0"); ?> Enable Routing between network interfaces
         <br>
         </div>
         </fieldset>
