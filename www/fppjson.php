@@ -120,6 +120,15 @@ function SetSetting()
 			$SUDO . " /etc/init.d/avahi-daemon restart",
 			$output, $return_val);
 		sleep(1); // Give Avahi time to restart before we return
+	} else if ($setting == "EnableRouting") {
+		if ($value != "1")
+		{
+			$value = "0";
+		}
+		exec(	$SUDO . " sed -i '/net.ipv4.ip_forward/d' /etc/sysctl.conf; " .
+			$SUDO . " sed -i '\$anet.ipv4.ip_forward = $value' /etc/sysctl.conf ; " .
+			$SUDO . " sysctl --system",
+			$output, $return_val);
 	} else if ($setting == "storageDevice") {
 		exec('mount | grep boot | cut -f1 -d" " | sed -e "s/\/dev\///" -e "s/p[0-9]$//"', $output, $return_val);
 		$bootDevice = $output[0];
