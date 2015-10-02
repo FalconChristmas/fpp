@@ -111,7 +111,7 @@ sub OpenMaps {
 	$this->{dataFileMap} = \$dataFileMap;
 	$this->{pixelFileMap} = \$pixelFileMap;
 
-	my @pixelMap = unpack('v' . $this->{maxChannels}, ${$this->{pixelFileMap}});
+	my @pixelMap = unpack('Q' . $this->{maxChannels}, ${$this->{pixelFileMap}});
 	$this->{pixelMap} = \@pixelMap;
 
 	$this->ReadBlockInfo();
