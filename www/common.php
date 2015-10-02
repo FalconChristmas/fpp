@@ -64,14 +64,14 @@ function ReadSettingFromFile($settingName, $plugin = "")
       $result = preg_match("/^" . $settingName . "\s*=(\s*\S*\w*)/m", $settingsStr, $output_array);
       if($result == 0)
       {
-        error_log("The setting " . $settingName . " could not be found in " . $filename);
+//        error_log("The setting " . $settingName . " could not be found in " . $filename);
         return false;
       }
       return trim($output_array[1]);
 		}
 		else
 		{
-      error_log("The setting " . $settingName . " could not be found in " . $filename);
+//      error_log("The setting " . $settingName . " could not be found in " . $filename);
 			return false;
 		}
   }
