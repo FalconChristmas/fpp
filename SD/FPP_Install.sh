@@ -391,9 +391,19 @@ case "${FPPPLATFORM}" in
 #		git clone https://github.com/OpenLightingProject/ola.git /opt/ola
 #		(cd /opt/ola && autoreconf -i && ./configure --enable-python-libs && make && make install && ldconfig && cd /opt/ && rm -rf ola)
 
-		# These module options don't appear valid for rtl8192cu
-		#echo "FPP - Disabling power management for wireless"
-		#echo -e "# Disable power management\noptions rtl8192cu rtw_power_mgnt=0 rtw_enusbss=0" > /etc/modprobe.d/rtl8192cu.conf
+		echo "FPP - Installing updated 8192cu module"
+		wget -O /lib/modules/3.8.13-bone50/kernel/drivers/net/wireless/8192cu.ko https://github.com/FalconChristmas/fpp/releases/download/1.5/8192cu.ko
+
+		echo "FPP - Disabling power management for 8192cu wireless"
+cat <<-EOF >> /etc/modprobe.d/8192cu.conf
+		# Blacklist native RealTek 8188CUs drivers
+		blacklist rtl8192cu
+		blacklist rtl8192c_common
+		blacklist rtlwifi
+
+		# Disable power management on 8192cu module
+		options 8192cu rtw_power_mgnt=0 rtw_enusbss=0
+EOF
 
 		;;
 
