@@ -2385,11 +2385,17 @@ function GetFile()
 
 function GetZip()
 {
+	global $settings;
 	global $logDirectory;
 	global $mediaDirectory;
 
 	// Re-format the file name
 	$filename = tempnam("/tmp", "FPP_Logs");
+
+	// Gather troubleshooting commands output
+	$cmd = "php " . $settings['fppDir'] . "/www/troubleshootingText.php > " . $settings['mediaDirectory'] . "/logs/troubleshootingCommands.log";
+	exec($cmd, $output, $return_val);
+	unset($output);
 
 	// Create the object
 	$zip = new ZipArchive();
