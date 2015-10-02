@@ -486,6 +486,8 @@ void DumpChannelData(int startChannel, int endChannel)
 	char tmpStr[32];
 	int bytesRead = 0;
 	int frameNumber = 0;
+	int firstNonBlank = 0;
+	int i = 0;
 
 	if (startChannel < 1)
 		return;
@@ -493,7 +495,16 @@ void DumpChannelData(int startChannel, int endChannel)
 	bytesRead = fread(seqData, 1, seqStepSize, seqFile);
 	while (bytesRead == seqStepSize)
 	{
-		sprintf(tmpStr, "%5d: %d-%d", frameNumber++, startChannel, endChannel);
+		firstNonBlank = 0;
+		for (i = 0; i < seqStepSize && !firstNonBlank; i++)
+		{
+			if (seqData[i])
+				firstNonBlank = i + 1;
+		}
+
+		sprintf(tmpStr, "%5d: %d-%d (fnb %d)",
+			frameNumber++, startChannel, endChannel, firstNonBlank);
+
 		HexDump(tmpStr, &seqData[startChannel - 1], endChannel - startChannel + 1);
 		bytesRead = fread(seqData, 1, seqStepSize, seqFile);
 	}
