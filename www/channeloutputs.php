@@ -1062,9 +1062,9 @@ function SetChannelOutputs() {
 		}
 
 		var endChannel = parseInt(startChannel) + parseInt(channelCount) - 1;
-		if (endChannel > 131072) {
+		if (endChannel > 524288) {
 			DialogError("Save Channel Outputs",
-				"Start Channel '" + startChannel + "' plus Channel Count '" + channelCount + "' exceeds 131072 on row " + rowNumber);
+				"Start Channel '" + startChannel + "' plus Channel Count '" + channelCount + "' exceeds 524288 on row " + rowNumber);
 			dataError = 1;
 			return;
 		}

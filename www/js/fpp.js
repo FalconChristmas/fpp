@@ -965,7 +965,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 				}
 				// start address
 				txtStartAddress=document.getElementById("txtStartAddress[" + i + "]");				
-				if(!validateNumber(txtStartAddress,1,131072))
+				if(!validateNumber(txtStartAddress,1,524288))
 				{
 					returnValue = false;
 				}
