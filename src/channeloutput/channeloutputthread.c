@@ -197,6 +197,7 @@ void *RunChannelOutputThread(void *data)
 void SetChannelOutputRefreshRate(int rate)
 {
 	RefreshRate = rate;
+	DefaultLightDelay = 1000000 / RefreshRate;
 }
 
 /*
