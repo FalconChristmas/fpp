@@ -146,8 +146,11 @@ int InitSyncMaster(void) {
 void ShutdownSync(void) {
 	LogDebug(VB_SYNC, "ShutdownMSSync()\n");
 
-	if (ctrlSendSock)
+	if (ctrlSendSock >= 0)
+	{
 		close(ctrlSendSock);
+		ctrlSendSock = -1;
+	}
 }
 
 /*
@@ -159,7 +162,7 @@ void SendSeqSyncStartPacket(const char *filename) {
 	if (!filename || !filename[0])
 		return;
 
-	if (!ctrlSendSock) {
+	if (ctrlSendSock < 0) {
 		LogErr(VB_SYNC, "ERROR: Tried to send start packet but sync socket is not open.\n");
 		return;
 	}
@@ -193,7 +196,7 @@ void SendSeqSyncStopPacket(const char *filename) {
 	if (!filename || !filename[0])
 		return;
 
-	if (!ctrlSendSock) {
+	if (ctrlSendSock < 0) {
 		LogErr(VB_SYNC, "ERROR: Tried to send stop packet but sync socket is not open.\n");
 		return;
 	}
@@ -228,7 +231,7 @@ void SendSeqSyncPacket(const char *filename, int frames, float seconds) {
 	if (!filename || !filename[0])
 		return;
 
-	if (!ctrlSendSock) {
+	if (ctrlSendSock < 0) {
 		LogErr(VB_SYNC, "ERROR: Tried to send sync packet but sync socket is not open.\n");
 		return;
 	}
@@ -262,7 +265,7 @@ void SendMediaSyncStartPacket(const char *filename) {
 	if (!filename || !filename[0])
 		return;
 
-	if (!ctrlSendSock) {
+	if (ctrlSendSock < 0) {
 		LogErr(VB_SYNC, "ERROR: Tried to send start packet but sync socket is not open.\n");
 		return;
 	}
@@ -296,7 +299,7 @@ void SendMediaSyncStopPacket(const char *filename) {
 	if (!filename || !filename[0])
 		return;
 
-	if (!ctrlSendSock) {
+	if (ctrlSendSock < 0) {
 		LogErr(VB_SYNC, "ERROR: Tried to send stop packet but sync socket is not open.\n");
 		return;
 	}
@@ -331,7 +334,7 @@ void SendMediaSyncPacket(const char *filename, int frames, float seconds) {
 	if (!filename || !filename[0])
 		return;
 
-	if (!ctrlSendSock) {
+	if (ctrlSendSock < 0) {
 		LogErr(VB_SYNC, "ERROR: Tried to send sync packet but sync socket is not open.\n");
 		return;
 	}
@@ -365,7 +368,7 @@ void SendEventPacket(const char *eventID) {
 	if (!eventID || !eventID[0])
 		return;
 
-	if (!ctrlSendSock) {
+	if (ctrlSendSock < 0) {
 		LogErr(VB_SYNC, "ERROR: Tried to send event packet but control socket is not open.\n");
 		return;
 	}
