@@ -134,6 +134,17 @@ $plugins = Array(
 		'sha'         => '9950ba355cec89ca73a15e4437d9c640d0dd87a6',
 	),
 
+	Array(
+		'shortName'   => 'CronEditor',
+		'name'        => 'Crontab Editor',
+		'author'      => 'Ben Shaver (bshaver)',
+		'description' => 'Basic Crontab Editing to launch scripts',
+		'homeUrl'     => 'https://github.com/LightsOnHudson/FPP-Plugin-Cron-Editor',
+		'sourceUrl'   => 'https://github.com/LightsOnHudson/FPP-Plugin-Cron-Editor.git',
+		'bugUrl'      => 'https://github.com/LightsOnHudson/FPP-Plugin-Cron-Editor/issues',
+		'sha'         => '9d5b417fe3d4a4e6704e048a2b3e3d49f69bcc52',
+	),
+
 );
 
 ?>
