@@ -74,6 +74,11 @@ else
 <?php echo $plugin['description']; ?>
 </td>
 </tr>
+<tr>
+<td colspan=2>
+By: <?php echo $plugin['author']; ?>
+</td>
+</tr>
 
 <?php } ?>
 </table>
