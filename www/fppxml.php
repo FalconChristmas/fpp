@@ -245,21 +245,44 @@ function SetVolume()
 	$status=SendCommand('v,' . $vol . ',');
 
 	$card = 0;
-	exec($SUDO . " grep card /root/.asoundrc | head -n 1 | cut -d' ' -f 2", $output, $return_val);
-	if ( $return_val )
+	if (isset($settings['AudioOutput']))
 	{
-		// Should we error here, or just move on?
-		// Technically this should only fail on non-pi
-		// and pre-0.3.0 images
-		error_log("Error retrieving current sound card, using default of '0'!");
+		$card = $settings['AudioOutput'];
 	}
 	else
-		$card = $output[0];
+	{
+		exec($SUDO . " grep card /root/.asoundrc | head -n 1 | cut -d' ' -f 2", $output, $return_val);
+		if ( $return_val )
+		{
+			// Should we error here, or just move on?
+			// Technically this should only fail on non-pi
+			// and pre-0.3.0 images
+			error_log("Error retrieving current sound card, using default of '0'!");
+		}
+		else
+			$card = $output[0];
+
+		WriteSettingToFile("AudioOutput", $card);
+	}
 
 	if ( $card == 0 )
-		$vol = 50 + ($vol/2);
+		$vol = 50 + ($vol/2.0);
 
-	$status=exec($SUDO . " amixer -c $card set PCM -- " . $vol . "%");
+	$mixerDevice = "PCM";
+	if (isset($settings['AudioMixerDevice']))
+	{
+		$mixerDevice = $settings['AudioMixerDevice'];
+	}
+	else
+	{
+		unset($output);
+		exec($SUDO . " amixer -c $card scontrols | head -1 | cut -f2 -d\"'\"", $output, $return_val);
+		$mixerDevice = $output[0];
+		WriteSettingToFile("AudioMixerDevice", $mixerDevice);
+	}
+
+	// Why do we do this here and in fppd's settings.c
+	$status=exec($SUDO . " amixer -c $card set $mixerDevice -- " . $vol . "%");
 
 	EchoStatusXML($status);
 }

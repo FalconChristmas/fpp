@@ -1029,7 +1029,7 @@ unsigned int getControlMinor(void)
 
 void setVolume(int volume)
 {
-	char buffer [40];
+	char buffer [60];
 	
 	if ( volume < 0 )
 		settings.volume = 0;
@@ -1038,7 +1038,31 @@ void setVolume(int volume)
 	else
 		settings.volume = volume;
 
-	snprintf(buffer, 40, "amixer set PCM %.2f%% >/dev/null 2>&1", (50 + (settings.volume / 2.0)));
+	char *mixerDevice = getSetting("AudioMixerDevice");
+	int   audioOutput = getSettingInt("AudioOutput");
+
+	// audioOutput is 0 on Pi where we need to apply volume adjustment formula.
+	// This may break non-Pi, non-BBB platforms, but there aren't any yet.
+	// The same assumption is made in fppxml.php SetVolume()
+	if (audioOutput == 0)
+	{
+		if (mixerDevice)
+			snprintf(buffer, 60, "amixer set %s %.2f%% >/dev/null 2>&1",
+				 mixerDevice, (50 + (settings.volume / 2.0)));
+		else
+			snprintf(buffer, 60, "amixer set PCM %.2f%% >/dev/null 2>&1",
+				 (50 + (settings.volume / 2.0)));
+	}
+	else
+	{
+		if (mixerDevice)
+			snprintf(buffer, 60, "amixer set %s %d%% >/dev/null 2>&1",
+				 mixerDevice, settings.volume);
+		else
+			snprintf(buffer, 60, "amixer set PCM %d%% >/dev/null 2>&1",
+				 settings.volume);
+	}
+
 	LogDebug(VB_SETTING,"Volume change: %d \n", settings.volume);	
 	system(buffer);
 

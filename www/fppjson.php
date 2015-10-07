@@ -39,8 +39,7 @@ $command_array = Array(
 	"getPluginSetting"    => 'GetPluginSetting',
 	"setPluginSetting"    => 'SetPluginSetting',
 	"setTestMode"         => 'SetTestMode',
-	"getTestMode"         => 'GetTestMode',
-	"setAudioOutput"      => 'SetAudioOutput'
+	"getTestMode"         => 'GetTestMode'
 );
 
 $command = "";
@@ -139,6 +138,8 @@ function SetSetting()
 		} else {
 			exec(	$SUDO . " sed -i 's/.*home\/fpp\/media/\/dev\/$value    \/home\/fpp\/media/' /etc/fstab", $output, $return_val );
 		}
+	} else if ($setting = "AudioOutput") {
+		SetAudioOutput($value);
 	} else {
 		SendCommand("SetSetting,$setting,$value,");
 	}
@@ -291,11 +292,9 @@ function GetFPPSystems()
 
 /////////////////////////////////////////////////////////////////////////////
 
-function SetAudioOutput()
+function SetAudioOutput($card)
 {
 	global $args, $SUDO, $debug;
-
-	$card = $args['value'];
 
 	if ($card != 0 && file_exists("/proc/asound/card$card"))
 	{
