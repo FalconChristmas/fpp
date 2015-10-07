@@ -449,6 +449,168 @@ function GetTriksOutputConfig(cell) {
 }
 
 /////////////////////////////////////////////////////////////////////////////
+// USB Relay output
+function USBRelayLayoutChanged(item) {
+	var channels = parseInt($(item).val());
+
+	$(item).parent().parent().find("input.count").val(channels);
+}
+
+function USBRelaySubTypeSelect(currentValue) {
+	var result = "";
+	var options = "Bit,ICStation".split(",");
+
+	result += " Type:&nbsp;<select class='subType'>";
+
+	var i = 0;
+	for (i = 0; i < options.length; i++) {
+		var opt = options[i];
+
+		result += "<option value='" + opt + "'";
+		if (currentValue == opt)
+			result += " selected";
+		result += ">" + opt + "</option>";
+	}
+
+	result += "</select>  ";
+
+	return result;
+}
+
+function USBRelayCountSelect(currentValue) {
+	var result = "";
+	var options = "2,4,8".split(",");
+
+	result += " Count:&nbsp;<select class='relayCount' onChange='USBRelayLayoutChanged(this);'>";
+
+	var i = 0;
+	for (i = 0; i < options.length; i++) {
+		var opt = options[i];
+
+		result += "<option value='" + opt + "'";
+		if (currentValue == opt)
+			result += " selected";
+		result += ">" + opt + "</option>";
+	}
+
+	result += "</select>  ";
+
+	return result;
+}
+
+function USBRelayConfig(cfgStr) {
+	var result = "";
+	var items = cfgStr.split(";");
+
+	for (var j = 0; j < items.length; j++)
+	{
+		var item = items[j].split("=");
+
+		if (item[0] == "device")
+		{
+			result += DeviceSelect(SerialDevices, item[1]) + "  ";
+		}
+		else if (item[0] == "subType")
+		{
+			result += USBRelaySubTypeSelect(item[1]);
+		}
+		else if (item[0] == "relayCount")
+		{
+			result += USBRelayCountSelect(item[1]);
+		}
+	}
+
+	return result;
+}
+
+function NewUSBRelayConfig() {
+	return USBRelayConfig("device=;subType=ICStation;relayCount=2");
+}
+
+function GetUSBRelayOutputConfig(cell) {
+	$cell = $(cell);
+	var result = "";
+	var value = $cell.find("select.device").val();
+
+	if (value == "")
+		return "";
+
+	result += "device=" + value + ";";
+
+	value = $cell.find("select.subType").val();
+
+	if (value == "")
+		return "";
+
+	result += "subType=" + value + ";";
+
+	value = $cell.find("select.relayCount").val();
+
+	if (value == "")
+		return "";
+
+	result += "relayCount=" + value;
+
+	return result;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Raspberry Pi WS281x output
+function RPIWS281XLayoutChanged(item) {
+	var string1Pixels = parseInt($(item).parent().parent().find("input.string1Pixels").val());
+	var string2Pixels = parseInt($(item).parent().parent().find("input.string2Pixels").val());
+
+	var channels = (string1Pixels + string2Pixels) * 3;
+
+	$(item).parent().parent().find("input.count").val(channels);
+}
+
+function RPIWS281XConfig(cfgStr) {
+	var result = "";
+	var items = cfgStr.split(";");
+
+	for (var j = 0; j < items.length; j++)
+	{
+		var item = items[j].split("=");
+
+		if (item[0] == "string1Pixels")
+		{
+			result += "String #1 Pixels: <input class='string1Pixels' size=3 maxlength=3 value='" + item[1] + "' onChange='RPIWS281XLayoutChanged(this);'> (GPIO 18)<br>";
+		}
+		else if (item[0] == "string2Pixels")
+		{
+			result += "String #2 Pixels: <input class='string2Pixels' size=3 maxlength=3 value='" + item[1] + "' onChange='RPIWS281XLayoutChanged(this);'> (GPIO 19)";
+		}
+	}
+
+	return result;
+}
+
+function NewRPIWS281XConfig() {
+	return RPIWS281XConfig("string1Pixels=1;string2Pixels=0");
+}
+
+function GetRPIWS281XOutputConfig(cell) {
+	$cell = $(cell);
+	var result = "";
+	var value = $cell.find("input.string1Pixels").val();
+
+	if (value == "")
+		return "";
+
+	result += "string1Pixels=" + value + ";";
+
+	value = $cell.find("input.string2Pixels").val();
+
+	if (value == "")
+		return "";
+
+	result += "string2Pixels=" + value;
+
+	return result;
+}
+
+/////////////////////////////////////////////////////////////////////////////
 // GPIO Pin direct high/low output
 
 function GPIOGPIOSelect(currentValue) {
@@ -877,13 +1039,16 @@ function PopulateChannelOutputTable(data) {
 
 		var countDisabled = "";
 
-		if ((type == "Triks-C") || (type == 'GPIO') || (type == 'VirtualMatrix'))
+		if ((type == "Triks-C") ||
+			(type == 'GPIO') ||
+			(type == 'USBRelay') ||
+			(type == 'VirtualMatrix'))
 			countDisabled = " disabled=''";
 
 		newRow += "></td>" +
 				"<td>" + type + "</td>" +
 				"<td><input class='start' type=text size=6 maxlength=6 value='" + output[2] + "'></td>" +
-				"<td><input class='count' type=text size=4 maxlength=4 value='" + output[3] + "'" + countDisabled + "></td>" +
+				"<td><input class='count' type=text size=6 maxlength=6 value='" + output[3] + "'" + countDisabled + "></td>" +
 				"<td>";
 
 		if ((type == "DMX-Pro") ||
@@ -905,6 +1070,10 @@ function PopulateChannelOutputTable(data) {
 			newRow += GPIODeviceConfig(output[4]);
 		} else if (type == "GPIO-595") {
 			newRow += GPIO595DeviceConfig(output[4]);
+		} else if (type == "USBRelay") {
+			newRow += USBRelayConfig(output[4]);
+		} else if (type == "RPIWS281X") {
+			newRow += RPIWS281XConfig(output[4]);
 		} else if (type == "VirtualMatrix") {
 			newRow += VirtualMatrixConfig(output[4]);
 		}
@@ -1033,6 +1202,22 @@ function SetChannelOutputs() {
 				return;
 			}
 			maxChannels = 128;
+		} else if (type == "USBRelay") {
+			config += GetUSBRelayOutputConfig($this.find("td:nth-child(6)"));
+			if (config == "") {
+				dataError = 1;
+				DialogError("Save Channel Outputs", "Invalid USBRelay Config");
+				return;
+			}
+			maxChannels = 8;
+		} else if (type == "RPIWS281X") {
+			config += GetRPIWS281XOutputConfig($this.find("td:nth-child(6)"));
+			if (config == "") {
+				dataError = 1;
+				DialogError("Save Channel Outputs", "Invalid RPIWS281X Config");
+				return;
+			}
+			maxChannels = 1020;
 		} else if (type == "VirtualMatrix") {
 			config += GetVirtualMatrixOutputConfig($this.find("td:nth-child(6)"));
 			if (config == "") {
@@ -1131,6 +1316,14 @@ function AddOtherTypeOptions(row, type) {
 	} else if (type == "GPIO-595") {
 		config += NewGPIO595Config();
 		row.find("td input.count").val("8");
+	} else if (type == "USBRelay") {
+		config += NewUSBRelayConfig();
+		row.find("td input.count").val("2");
+		row.find("td input.count").prop('disabled', true);
+	} else if (type == "RPIWS281X") {
+		config += NewRPIWS281XConfig();
+		row.find("td input.count").val("3");
+		row.find("td input.count").prop('disabled', true);
 	} else if ((type == "VirtualMatrix") || (type == "FBMatrix")) {
 		config += NewVirtualMatrixConfig();
 		row.find("td input.count").val("1536");
@@ -1219,9 +1412,11 @@ function AddOtherOutput() {
 ?>
 				"<option value='SPI-WS2801'>SPI-WS2801</option>" +
 				"<option value='SPI-nRF24L01'>SPI-nRF24L01</option>" +
+				"<option value='RPIWS281X'>RPIWS281X</option>" +
 <?
 	}
 ?>
+				"<option value='USBRelay'>USB Relay</option>" +
 				"<option value='VirtualMatrix'>Virtual Matrix</option>" +
 				"<option value='Triks-C'>Triks-C</option>" +
 			"</select></td>" +

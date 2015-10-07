@@ -36,7 +36,18 @@
 <tr><td>Clock</td><td>Pin 23 - SCLK</td></tr>
 <tr><td>Data</td><td>Pin 19 - MOSI</td></tr>
 <tr><td>Ground</td><td>Pin 25 - GND</td></tr>
-<tr><td>+5V Power</td><td>Not Connected to Pi</td></tr>
+<tr><td>Pixel Power</td><td>Not Connected to Pi</td></tr>
+</table>
+</center>
+<p><b>RPIWS281X</b> - The RPIWS281X output can drive two independent strings of WS281x pixels directly off the Raspberry Pi's GPIO ports.  The data and ground lines attach directly to the Pi while power for the pixels is injected from another source.</p>
+<center>
+<b>RPIWS281x Output Connections</b><br>
+<table border='1' cellpadding='4' cellspacing='1'>
+<tr><th>WS281x Function</th><th>Raspberry Pi</th></tr>
+<tr><td>Data String #1</td><td>Pin 12 - GPIO18</td></tr>
+<tr><td>Data String #2</td><td>Pin 35 - GPIO19 (Only on A+/B+/B v2)</td></tr>
+<tr><td>Ground</td><td>Pin 25 - GND</td></tr>
+<tr><td>Pixel Power</td><td>Not Connected to Pi</td></tr>
 </table>
 </center>
 <p><b>Triks-C</b> - The Triks-C output can drive up to four LEDTriks modules attached to Triks-C or Pix-C boards.  The start channel is specified along with the serial port the Triks-C is connected to and the panel layout.  Panels may be layed out in a horizontal row of 1-4 panels, a vertical column of 1-4 panels, or a 2x2 grid.  Panels must be numbered starting at the top left, going across then down.  In a 2x2 layout, the top row would be panels 1 and 2 and the bottom row would be panels 3 and 4 with panel 3 below panel 1 and panel 4 below panel 2.</p>

@@ -100,6 +100,8 @@ int RPIWS281xOutput::Init(char *configStr)
 		}
 		else if (elem[0] == "string1Pixels")
 		{
+			// Force GPIO values even though they are forced in the UI code
+			m_string1GPIO = 18;
 			m_string1Pixels = atoi(elem[1].c_str());
 		}
 		else if (elem[0] == "string2GPIO")
@@ -108,6 +110,8 @@ int RPIWS281xOutput::Init(char *configStr)
 		}
 		else if (elem[0] == "string2Pixels")
 		{
+			// Force GPIO values even though they are forced in the UI code
+			m_string2GPIO = 19;
 			m_string2Pixels = atoi(elem[1].c_str());
 		}
 	}
