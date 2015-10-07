@@ -142,7 +142,43 @@ extern PluginCallbackManager pluginCallbackManager;
 				scheduler->GetNextPlaylistText(NextPlaylist);
 				if(FPPstatus==FPP_STATUS_IDLE)
 				{
-					sprintf(response,"%d,%d,%d,%s,%s\n",getFPPmode(),0,getVolume(),NextPlaylist,NextScheduleStartText);
+					if (getFPPmode() == REMOTE_MODE)
+					{
+						int secsElapsed = 0;
+						int secsRemaining = 0;
+						char seqFilename[1024];
+						char mediaFilename[1024];
+
+						if (sequence->IsSequenceRunning())
+						{
+							strcpy(seqFilename, sequence->m_seqFilename);
+							secsElapsed = sequence->m_seqSecondsElapsed;
+							secsRemaining = sequence->m_seqSecondsRemaining;
+						}
+						else
+						{
+							strcpy(seqFilename, "");
+						}
+
+						if (mediaOutput)
+						{
+							strcpy(mediaFilename, mediaOutput->filename);
+							secsElapsed = mediaOutputStatus.secondsElapsed;
+							secsRemaining = mediaOutputStatus.secondsRemaining;
+						}
+						else
+						{
+							strcpy(mediaFilename, "");
+						}
+
+						sprintf(response,"%d,%d,%d,%s,%s,%d,%d\n",
+							getFPPmode(), 0, getVolume(), seqFilename,
+							mediaFilename, secsElapsed, secsRemaining);
+					}
+					else
+					{
+						sprintf(response,"%d,%d,%d,%s,%s\n",getFPPmode(),0,getVolume(),NextPlaylist,NextScheduleStartText);
+					}
 				}
 				else
 				{

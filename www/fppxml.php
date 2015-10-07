@@ -720,7 +720,72 @@ function GetFPPstatus()
 
 	$entry = explode(",",$status,14);
 	$fppMode = $entry[0];
-	if($fppMode != 1)
+	if($fppMode == 8)
+	{
+		$fppStatus = $entry[1];
+		$volume = $entry[2];
+		$seqFilename = $entry[3];
+		$mediaFilename = $entry[4];
+		$secsElapsed = $entry[5];
+		$secsRemaining = $entry[6];
+		$fppCurrentDate = GetLocalTime();
+
+		$doc = new DomDocument('1.0');
+		$root = $doc->createElement('Status');
+		$root = $doc->appendChild($root);
+
+		//FPPD Mode
+		$temp = $doc->createElement('fppMode');
+		$temp = $root->appendChild($temp);
+		$value = $doc->createTextNode($fppMode);
+		$value = $temp->appendChild($value);
+
+		//FPPD Status
+		$temp = $doc->createElement('fppStatus');
+		$temp = $root->appendChild($temp);
+		$value = $doc->createTextNode($fppStatus);
+		$value = $temp->appendChild($value);
+
+		//FPPD Volume
+		$temp = $doc->createElement('volume');
+		$temp = $root->appendChild($temp);
+		$value = $doc->createTextNode($volume);
+		$value = $temp->appendChild($value);
+
+		// seqFilename
+		$temp = $doc->createElement('seqFilename');
+		$temp = $root->appendChild($temp);
+		$value = $doc->createTextNode($seqFilename);
+		$value = $temp->appendChild($value);
+
+		// mediaFilename
+		$temp = $doc->createElement('mediaFilename');
+		$temp = $root->appendChild($temp);
+		$value = $doc->createTextNode($mediaFilename);
+		$value = $temp->appendChild($value);
+
+		// secsElapsed
+		$temp = $doc->createElement('secsElapsed');
+		$temp = $root->appendChild($temp);
+		$value = $doc->createTextNode($secsElapsed);
+		$value = $temp->appendChild($value);
+
+		// secsRemaining
+		$temp = $doc->createElement('secsRemaining');
+		$temp = $root->appendChild($temp);
+		$value = $doc->createTextNode($secsRemaining);
+		$value = $temp->appendChild($value);
+
+		//fppCurrentDate
+		$temp = $doc->createElement('fppCurrentDate');
+		$temp = $root->appendChild($temp);
+		$value = $doc->createTextNode($fppCurrentDate);
+		$value = $temp->appendChild($value);
+
+		echo $doc->saveHTML();
+		return;
+	}
+	else if($fppMode != 1)
 	{
 		$fppStatus = $entry[1];
 		if($fppStatus == '0')

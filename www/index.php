@@ -127,16 +127,27 @@ include 'common/menuHead.inc';
         </tr>
       </table>
     </div>
-    <div id="remoteStatus">
-    </div>
     <div id="bytesTransferred"><H3>Bytes Transferred</H3>
       <hr>
       <div id="bridgeStatistics1"></div>
       <div id="bridgeStatistics2"></div>
       <div class="clear"></div>
     </div>
-    <div id="playerStatus">
+    <div id="playerInfo">
       <hr>
+      <div id="remoteStatus">
+	  		<table>
+	  			<tr><td>Remote Status:</td>
+	  					<td id='txtRemoteStatus'></td></tr>
+	  			<tr><td>Sequence Filename:</td>
+	  					<td id='txtRemoteSeqFilename'></td>
+	  					</tr>
+	  			<tr><td>Media Filename:</td>
+	  					<td id='txtRemoteMediaFilename'></td>
+	  					</tr>
+	  		</table>
+      </div>
+    	<div id="playerStatusTop">
       <div>
         <div class='playerStatusLeft'>
           <table  width= "100%">
@@ -164,6 +175,12 @@ include 'common/menuHead.inc';
             <td><select id="selStartPlaylist" name="selStartPlaylist" size="1" onClick="SelectStatusPlaylistEntryRow();PopulateStatusPlaylistEntries(true,'',true);" onChange="PopulateStatusPlaylistEntries(true,'',true);"></select></td>
             <td><input type="checkbox" id="chkRepeat">Repeat</input></td>
           </tr>
+      </table>
+      </div>
+		</div>
+
+    <div id="volumeControls">
+			<table width="100%">
           <tr>
             <td class='controlHeader'>Volume [<span id='volume' class='volume'></span>]:</td>
             <td>
@@ -173,8 +190,10 @@ include 'common/menuHead.inc';
                 <span id='speaker'></span> <!-- Volume -->
             </td>
 		  </tr>
-      </table>
-      </div>
+			</table>
+		</div>
+
+    	<div id="playerStatusBottom">
       <div id="statusPlaylist"  class="unselectable">
         <table id="tblStatusPlaylistHeader" width="100%">
           <tr class="playlistHeader">
@@ -208,6 +227,7 @@ include 'common/menuHead.inc';
         </tr>
       </table>
     </div>
+		</div>
   </fieldset>
 </div>
 <?php	include 'common/footer.inc'; ?>
