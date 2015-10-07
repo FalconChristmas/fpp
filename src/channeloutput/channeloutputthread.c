@@ -37,7 +37,7 @@
 #include "effects.h"
 #include "fppd.h"
 #include "log.h"
-#include "memorymap.h"
+#include "PixelOverlay.h"
 #include "Sequence.h"
 #include "settings.h"
 

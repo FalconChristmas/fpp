@@ -39,7 +39,7 @@
 #include "log.h"
 #include "mediadetails.h"
 #include "mediaoutput.h"
-#include "memorymap.h"
+#include "PixelOverlay.h"
 #include "Playlist.h"
 #include "Plugins.h"
 #include "Scheduler.h"

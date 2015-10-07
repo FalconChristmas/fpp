@@ -1,5 +1,5 @@
 /*
- *   Memory map controller for Falcon Pi Player (FPP)
+ *   Pixel Overlay controller for Falcon Pi Player (FPP)
  *
  *   Copyright (C) 2013 the Falcon Pi Player Developers
  *      Initial development by:
@@ -23,8 +23,8 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _MEMORYMAPCONTROL_H
-#define _MEMORYMAPCONTROL_H
+#ifndef _PIXELOVERLAYCONTROL_H
+#define _PIXELOVERLAYCONTROL_H
 
 #define FPPCHANNELMEMORYMAPMAJORVER 1
 #define FPPCHANNELMEMORYMAPMINORVER 0

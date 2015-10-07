@@ -42,7 +42,7 @@
 #include "fpp.h" // for FPPstatus && #define-d status values
 #include "fppd.h"
 #include "log.h"
-#include "memorymap.h"
+#include "PixelOverlay.h"
 #include "Sequence.h"
 #include "settings.h"
 

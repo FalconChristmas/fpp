@@ -67,7 +67,7 @@ OBJECTS_fppd = \
 	mediaoutput/mpg123.o \
 	mediaoutput/ogg123.o \
 	mediaoutput/omxplayer.o \
-	memorymap.o \
+	PixelOverlay.o \
 	Playlist.o \
 	Plugins.o \
 	Scheduler.o \

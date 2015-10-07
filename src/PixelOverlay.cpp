@@ -1,5 +1,5 @@
 /*
- *   Memory map handler for Falcon Pi Player (FPP)
+ *   Pixel Overlay handler for Falcon Pi Player (FPP)
  *
  *   Copyright (C) 2013 the Falcon Pi Player Developers
  *      Initial development by:
@@ -36,8 +36,8 @@
 
 #include "common.h"
 #include "log.h"
-#include "memorymap.h"
-#include "memorymapcontrol.h"
+#include "PixelOverlay.h"
+#include "PixelOverlayControl.h"
 #include "Sequence.h"
 #include "settings.h"
 #include "channeloutputthread.h"

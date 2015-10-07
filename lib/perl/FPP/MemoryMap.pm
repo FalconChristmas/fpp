@@ -61,7 +61,7 @@ sub new {
 		}, $proto;
 
 	$this->{C} = new Convert::Binary::C;
-	$this->{C}->parse_file("/opt/fpp/src/memorymapcontrol.h");
+	$this->{C}->parse_file("/opt/fpp/src/PixelOverlayControl.h");
 
 	$this->{C}->tag('FPPChannelMemoryMapControlHeader.filler',
 		Format => 'String');

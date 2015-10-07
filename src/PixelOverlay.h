@@ -1,5 +1,5 @@
 /*
- *   Memory map handler for Falcon Pi Player (FPP)
+ *   Pixel Overlay handler for Falcon Pi Player (FPP)
  *
  *   Copyright (C) 2013 the Falcon Pi Player Developers
  *      Initial development by:
@@ -23,12 +23,12 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _MEMORYMAP_H
-#define _MEMORYMAP_H
+#ifndef _PIXELOVERLAY_H
+#define _PIXELOVERLAY_H
 
 int InitializeChannelDataMemoryMap(void);
 int UsingMemoryMapInput(void);
 void CloseChannelDataMemoryMap(void);
 void OverlayMemoryMap(char *channelData);
 
-#endif /* _MEMORYMAP_H */
+#endif /* _PIXELOVERLAY_H */
