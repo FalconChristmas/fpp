@@ -60,7 +60,7 @@
 SCRIPTVER="0.8"
 FPPBRANCH="v1.5"
 FPPIMAGEVER="1.5"
-FPPCFGVER="13"
+FPPCFGVER="14"
 FPPPLATFORM="UNKNOWN"
 FPPDIR="/opt/fpp"
 OSVER="UNKNOWN"
@@ -445,6 +445,9 @@ EOF
 
 		echo "FPP - Disabling getty on onboard serial ttyAMA0"
 		sed -i "s@T0:23:respawn:/sbin/getty -L ttyAMA0@#T0:23:respawn:/sbin/getty -L ttyAMA0@" /etc/inittab
+
+		echo "FPP - Disabling the hdmi force hotplug setting"
+		sed -i -e "s/hdmi_force_hotplug/#hdmi_force_hotplug/" /boot/config.txt
 
 		echo "FPP - Enabling SPI in device tree"
 		echo >> /boot/config.txt
