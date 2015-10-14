@@ -52,6 +52,10 @@
 #include "GPIO595.h"
 #include "common.h"
 
+#ifdef USE_X11Matrix
+#  include "X11Matrix.h"
+#endif
+
 #if defined(PLATFORM_PI) || defined(PLATFORM_ODROID)
 #  include "RGBMatrix.h"
 #endif
@@ -217,6 +221,10 @@ int InitializeChannelOutputs(void) {
 #endif
 			} else if (type == "USBRelay") {
 				channelOutputs[i].output = new USBRelayOutput(start, count);
+#ifdef USE_X11Matrix
+			} else if (type == "X11Matrix") {
+				channelOutputs[i].output = new X11MatrixOutput(start, count);
+#endif
 			} else {
 				LogErr(VB_CHANNELOUT, "Unknown Channel Output type: %s\n", type.c_str());
 				continue;

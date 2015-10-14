@@ -210,6 +210,13 @@ CFLAGS += \
 	$(NULL)
 endif
 
+##############################################################################
+# Uncomment the following three lines to enable X11Matrix Test Channel Output
+#LIBS_fppd += -lX11
+#CFLAGS += -DUSE_X11Matrix
+#OBJECTS_fppd += channeloutput/X11Matrix.o
+##############################################################################
+
 PWD := $(shell pwd)
 
 .PHONY: all
