@@ -345,19 +345,55 @@ function VirtualMatrixLayoutChanged(item) {
 	$(item).parent().parent().find("input.count").val(channels);
 }
 
+function VirtualMatrixColorOrderSelect(colorOrder) {
+	var result = "";
+
+	result += " Color Order: <select class='colorOrder'>";
+	result += "<option value='RGB'";
+
+	if (colorOrder == 'RGB')
+		result += " selected";
+
+	result += ">RGB</option><option value='BGR'";
+
+	if (colorOrder != 'RGB')
+		result += " selected";
+
+	result += ">BGR</option></select>";
+
+	return result;
+}
+
 function VirtualMatrixConfig(cfgStr) {
 	var result = "";
-	var parts = cfgStr.split("=");
-	var vals = parts[1].split("x");
+	var items = cfgStr.split(";");
+	var foundRGB = 0;
 
-	result = "Width: <input type='text' size='3' maxlength='3' class='width' value='" + vals[0] + "' onChange='VirtualMatrixLayoutChanged(this);'>" +
-		" Height: <input type='text' size='3' maxlength='3' class='height' value='" + vals[1] + "' onChange='VirtualMatrixLayoutChanged(this);'>";
+	for (var j = 0; j < items.length; j++)
+	{
+		var parts = items[j].split("=");
+		var vals = parts[1].split("x");
+
+		if (parts[0] == "layout")
+		{
+			result += " Width: <input type='text' size='3' maxlength='3' class='width' value='" + vals[0] + "' onChange='VirtualMatrixLayoutChanged(this);'>" +
+				" Height: <input type='text' size='3' maxlength='3' class='height' value='" + vals[1] + "' onChange='VirtualMatrixLayoutChanged(this);'>";
+		}
+		else if (parts[0] == "colorOrder")
+		{
+			foundRGB = 1;
+			result += VirtualMatrixColorOrderSelect(parts[1]);
+		}
+	}
+
+	if (foundRGB == 0)
+		result += VirtualMatrixColorOrderSelect("BGR");
 
 	return result;
 }
 
 function NewVirtualMatrixConfig() {
-	return VirtualMatrixConfig("layout=32x16");
+	return VirtualMatrixConfig("layout=32x16;colorOrder=RGB");
 }
 
 function GetVirtualMatrixOutputConfig(cell) {
@@ -372,7 +408,12 @@ function GetVirtualMatrixOutputConfig(cell) {
 	if (height == "")
 		return "";
 
-	return "layout=" + width + "x" + height;
+	var colorOrder = $cell.find("select.colorOrder").val();
+
+	if (colorOrder == "")
+		return "";
+
+	return "layout=" + width + "x" + height + ";colorOrder=" + colorOrder;
 }
 
 /////////////////////////////////////////////////////////////////////////////

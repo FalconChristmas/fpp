@@ -50,6 +50,7 @@ class FBMatrixOutput : public ChannelOutputBase {
 	std::string  m_layout;
 	int          m_width;
 	int          m_height;
+	int          m_useRGB;
 
 	char   *m_fbp;
 	int     m_screenSize;
