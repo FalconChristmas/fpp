@@ -681,33 +681,33 @@ setupPiRTC () {
 	  # rasClock chip
 	  if [ $REV -lt 4 ]
 	  then
-		echo ${PCF2127} 0x51 > /sys/class/i2c-adapter/i2c-0/new_device
 		echo "FPP - Configuring RTC, Setting to rasClock/i2c-0"
+		echo ${PCF2127} 0x51 > /sys/class/i2c-adapter/i2c-0/new_device
 	  else
-		echo ${PCF2127} 0x51 > /sys/class/i2c-adapter/i2c-1/new_device
 		echo "FPP - Configuring RTC, Setting to rasClock/i2c-1"
+		echo ${PCF2127} 0x51 > /sys/class/i2c-adapter/i2c-1/new_device
 	  fi
 	  ;;
 	2)
 	  # DS1307 chip
 	  if [ $REV -lt 4 ]
 	  then
-		echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-0/new_device
 		echo "FPP - Configuring RTC, Settting to DS1307/i2c-0"
+		echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-0/new_device
 	  else
-		echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device
 		echo "FPP - Configuring RTC, Setting to DS1307/i2c-1"
+		echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device
 	  fi
 	  ;;
 	3)
 	  # PiFace Chip
 	  if [ $REV -lt 4 ]
 	  then
-		echo mpc7941x 0x6f > /sys/class/i2c-dev/i2c-0/new_device
 		echo "FPP - Configuring RTC, Setting to PiFace/i2c-0"
+		echo mpc7941x 0x6f > /sys/class/i2c-adapter/i2c-0/new_device
 	  else
-		echo mpc7941x 0x6f > /sys/class/i2c-dev/i2c-1/new_device
 		echo "FPP - Configuring RTC, Setting to PiFace/i2c-1"
+		echo mpc7941x 0x6f > /sys/class/i2c-adapter/i2c-1/new_device
 	  fi
 	  ;;
 	*)
