@@ -1416,7 +1416,6 @@ function AddOtherOutput() {
 <?
 	}
 ?>
-				"<option value='USBRelay'>USB Relay</option>" +
 				"<option value='VirtualMatrix'>Virtual Matrix</option>" +
 				"<option value='Triks-C'>Triks-C</option>" +
 			"</select></td>" +
