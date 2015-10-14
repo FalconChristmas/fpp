@@ -333,9 +333,9 @@ function CancelPanelLayout() {
 function VirtualMatrixLayoutChanged(item) {
 	var val = parseInt($(item).val());
 
-	if ((val % 8) != 0)
+	if ((val % 16) != 0)
 	{
-		alert("ERROR: Value must be divisible by 8");
+		alert("ERROR: Value must be divisible by 16");
 	}
 
 	var width = $(item).parent().parent().find("input.width").val();
