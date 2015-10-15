@@ -502,10 +502,8 @@ startOLADaemonIfNecessary() {
 	if [ $? -eq 0 ]
 	then
 		OLAPID=$(pgrep olad)
-echo "OLAPID: '$OLAPID'"
 		if [ -z "${OLAPID}" ]
 		then
-echo "starting olad"
 			sudo -u ${FPPUSER} olad -f -c ${FPPHOME}/media/config/ola
 		fi
 	fi
@@ -516,7 +514,11 @@ stopOLADaemonIfUnused() {
 	cat ${FPPHOME}/media/config/channeloutputs.json 2> /dev/null | tr -d "\r\n" | egrep -q 'OLA",[ 	a-zA-Z0-9:",]*"enabled": 1'
 	if [ $? -ne 0 ]
 	then
-		killall -9 olad
+		OLAPID=$(pgrep olad)
+		if [ -n "${OLAPID}" ]
+		then
+			killall -9 olad
+		fi
 	fi
 }
 
