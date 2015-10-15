@@ -37,6 +37,7 @@
 #include "E131.h"
 #include "FBMatrix.h"
 #include "FPD.h"
+#include "GenericSerial.h"
 #include "log.h"
 #include "Sequence.h"
 #include "settings.h"
@@ -316,6 +317,8 @@ int InitializeChannelOutputs(void) {
 				channelOutputs[i].output = new FBMatrixOutput(start, count);
 			} else if (!strcmp(type, "GPIO")) {
 				channelOutputs[i].output = new GPIOOutput(start, count);
+			} else if (!strcmp(type, "GenericSerial")) {
+				channelOutputs[i].output = new GenericSerialOutput(start, count);
 			} else if (!strcmp(type, "LOR")) {
 				channelOutputs[i].outputOld = &LOROutput;
 			} else if (!strcmp(type, "Renard")) {

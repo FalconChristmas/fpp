@@ -348,7 +348,7 @@ function VirtualMatrixLayoutChanged(item) {
 function VirtualMatrixColorOrderSelect(colorOrder) {
 	var result = "";
 
-	result += " Color Order: <select class='colorOrder'>";
+	result += "<br>Color Order: <select class='colorOrder'>";
 	result += "<option value='RGB'";
 
 	if (colorOrder == 'RGB')
@@ -414,6 +414,83 @@ function GetVirtualMatrixOutputConfig(cell) {
 		return "";
 
 	return "layout=" + width + "x" + height + ";colorOrder=" + colorOrder;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Generic Serial
+
+var GenericSerialSpeeds = new Array();
+GenericSerialSpeeds[  "9600"] =   "9600";
+GenericSerialSpeeds[ "19200"] =  "19200";
+GenericSerialSpeeds[ "38400"] =  "38400";
+GenericSerialSpeeds[ "57600"] =  "57600";
+GenericSerialSpeeds["115200"] = "115200";
+
+function GenericSerialSpeedSelect(currentValue) {
+	var result = "Speed: <select class='speed'>";
+
+	for (var key in GenericSerialSpeeds) {
+		result += "<option value='" + key + "'";
+
+		if (currentValue == key) {
+			result += " selected";
+		}
+
+		// Make 9600 the default
+		if ((currentValue == "") && (key == "9600")) {
+			result += " selected";
+		}
+
+		result += ">" + GenericSerialSpeeds[key] + "</option>";
+	}
+
+	result += "</select>";
+
+	return result;
+}
+
+function GenericSerialConfig(config) {
+	var items = config.split(";");
+	var result = "";
+
+	for (var j = 0; j < items.length; j++) {
+		var item = items[j].split("=");
+
+		if (item[0] == "device") {
+			result += DeviceSelect(USBDevices, item[1]);
+		} else if (item[0] == "speed") {
+			result += GenericSerialSpeedSelect(item[1]);
+		} else if (item[0] == "header") {
+			result += "<br>Header: <input type='text' size=10 maxlength=20 class='serialheader' value='" + item[1] + "'>";
+		} else if (item[0] == "footer") {
+			result += " Footer: <input type='text' size=10 maxlength=20 class='serialfooter' value='" + item[1] + "'>";
+		}
+	}
+
+	return result;
+}
+
+function NewGenericSerialConfig() {
+	return GenericSerialConfig("device=ttyUSB0;speed=9600;header=;footer=");
+}
+
+function GetGenericSerialConfig(cell) {
+	$cell = $(cell);
+	var device = $cell.find("select.device").val();
+
+	if (device == "")
+		return "";
+
+	var speed = $cell.find("select.speed").val();
+
+	if (speed == "")
+		return "";
+
+	var header = $cell.find("input.serialheader").val();
+
+	var footer = $cell.find("input.serialfooter").val();
+
+	return "device=" + device + ";speed=" + speed + ";header=" + header + ";footer=" + footer;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -1097,6 +1174,8 @@ function PopulateChannelOutputTable(data) {
 			(type == "Pixelnet-Lynx") ||
 			(type == "Pixelnet-Open")) {
 			newRow += USBDeviceConfig(output[4]);
+		} else if (type == "GenericSerial") {
+			newRow += GenericSerialConfig(output[4]);
 		} else if (type == "Renard") {
 			newRow += RenardOutputConfig(output[4]);
 		} else if (type == "LOR") {
@@ -1243,6 +1322,14 @@ function SetChannelOutputs() {
 				return;
 			}
 			maxChannels = 128;
+		} else if (type == "GenericSerial") {
+			config += GetGenericSerialConfig($this.find("td:nth-child(6)"));
+			if (config == "") {
+				dataError = 1;
+				DialogError("Save Channel Outputs", "Invalid Generic Serial Config");
+				return;
+			}
+			maxChannels = 512;
 		} else if (type == "USBRelay") {
 			config += GetUSBRelayOutputConfig($this.find("td:nth-child(6)"));
 			if (config == "") {
@@ -1357,6 +1444,9 @@ function AddOtherTypeOptions(row, type) {
 	} else if (type == "GPIO-595") {
 		config += NewGPIO595Config();
 		row.find("td input.count").val("8");
+	} else if (type == "GenericSerial") {
+		config += NewGenericSerialConfig();
+		row.find("td input.count").val("1");
 	} else if (type == "USBRelay") {
 		config += NewUSBRelayConfig();
 		row.find("td input.count").val("2");

@@ -32,6 +32,7 @@ OBJECTS_fppd = \
 	channeloutput/E131.o \
 	channeloutput/FBMatrix.o \
 	channeloutput/FPD.o \
+	channeloutput/GenericSerial.o \
 	channeloutput/GPIO.o \
 	channeloutput/GPIO595.o \
 	channeloutput/LOR.o \
