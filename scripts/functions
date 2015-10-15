@@ -663,6 +663,7 @@ setupPiRTC () {
 	# Locate The Required Modules
 
 	modprobe i2c-bcm2708
+	modprobe i2c-dev
 
 	PCF2127=pcf2127
 	if [ "x$(uname -r)" = "x3.10.33+" ]
