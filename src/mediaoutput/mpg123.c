@@ -108,7 +108,7 @@ int mpg123_StartPlaying(const char *musicFile)
 		close(pipeFromMP3[MEDIAOUTPUTPIPE_WRITE]);
 		pipeFromMP3[MEDIAOUTPUTPIPE_WRITE] = 0;
 
-		if (!strcmp(mp3Player, "/usr/bin/mpg123"))
+		if (!strcmp(mp3Player, MPG123_BINARY))
 			execl(mp3Player, mp3Player, "-v", fullAudioPath, NULL);
 		else
 			execl(mp3Player, mp3Player, fullAudioPath, NULL);
