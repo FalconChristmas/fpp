@@ -254,11 +254,11 @@ function ToggleLCDNow()
 <legend>FPP Global Settings</legend>
   <table table width = "100%">
     <tr>
-      <td width = "35%">Blank screen on startup:</td>
-      <td width = "65%"><? PrintSettingCheckbox("Screensaver", "screensaver", 0, 1, "1", "0"); ?></td>
+      <td width = "45%">Blank screen on startup:</td>
+      <td width = "55%"><? PrintSettingCheckbox("Screensaver", "screensaver", 0, 1, "1", "0"); ?></td>
     </tr>
     <tr>
-      <td>Force Analog Audio Output:</td>
+      <td>Force analog audio output during video playback:</td>
       <td><? PrintSettingCheckbox("Force Analog Audio Output", "forceLocalAudio", 0, 0, "1", "0"); ?></td>
     </tr>
     <tr>
