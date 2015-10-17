@@ -2473,6 +2473,7 @@ function GetFile()
 
 function GetZip()
 {
+	global $SUDO;
 	global $settings;
 	global $logDirectory;
 	global $mediaDirectory;
@@ -2515,6 +2516,16 @@ function GetZip()
 		if (file_exists("$mediaDirectory/$file"))
 			$zip->addFromString("Config/$file", ScrubFile("$mediaDirectory/$file"));
 	}
+
+	// /root/.asoundrc is only readable by root, should use /etc/ version
+	exec($SUDO . " cat /root/.asoundrc", $output, $return_val);
+	if ( $return_val != 0 ) {
+		error_log("Unable to read /root/.asoundrc");
+	}
+	else {
+		$zip->addFromString("Config/asoundrc", implode("\n", $output)."\n");
+	}
+	unset($output);
 
 	exec("cat /proc/asound/cards", $output, $return_val);
 	if ( $return_val != 0 ) {
