@@ -16,7 +16,10 @@ else
 	foreach($output as $card)
 	{
 		$values = explode(':', $card);
-		$AlsaCards[$values[1]] = $values[0];
+		if ($values[1] == "bcm2835 ALSA")
+			$AlsaCards[$values[1] . " (Pi Onboard Audio)"] = $values[0];
+		else
+			$AlsaCards[$values[1]] = $values[0];
 	}
 }
 unset($output);
