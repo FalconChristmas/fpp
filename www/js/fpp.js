@@ -2272,6 +2272,11 @@ function GetVideoInfo(file)
 	$('#fileViewer').dialog( "moveToTop" );
 }
 
+function PlayFileInBrowser(dir, file)
+{
+	location.href="fppxml.php?command=getFile&play=1&dir=" + dir + "&filename=" + file;
+}
+
 function DownloadFile(dir, file)
 {
 	location.href="fppxml.php?command=getFile&dir=" + dir + "&filename=" + file;

@@ -30,6 +30,7 @@ require_once('config.php');
           $('#tblMusic tr').removeClass('selectedentry');
           $(this).addClass('selectedentry');
           SongNameSelected  = $(this).find('td:first').text();
+		  SetButtonState('#btnPlayMusicInBrowser','enable');
 		  SetButtonState('#btnDownloadMusic','enable');
 		  SetButtonState('#btnDeleteMusic','enable');
     });
@@ -39,6 +40,7 @@ require_once('config.php');
           $(this).addClass('selectedentry');
           VideoNameSelected  = $(this).find('td:first').text();
 		  SetButtonState('#btnSequenceConvertUpload','disable');
+		  //SetButtonState('#btnPlayVideoInBrowser','enable');
 		  SetButtonState('#btnVideoInfo','enable');
 		  SetButtonState('#btnDownloadVideo','enable');
 		  SetButtonState('#btnDeleteVideo','enable');
@@ -177,6 +179,7 @@ h2 {
           </div>
           <hr />
           <div class='right'>
+            <input onclick= "PlayFileInBrowser('Music', SongNameSelected);" id="btnPlayMusicInBrowser" class="disableButtons" type="button"  value="Listen" />
             <input onclick= "DownloadFile('Music', SongNameSelected);" id="btnDownloadMusic" class="disableButtons" type="button"  value="Download" />
             <input onclick= "DeleteFile('Music', SongNameSelected);" id="btnDeleteMusic" class="disableButtons" type="button"  value="Delete" />
           </div>
@@ -196,6 +199,9 @@ h2 {
           </div>
           <hr />
           <div class='right'>
+            <!--
+            <input onclick= "PlayFileInBrowser('Videos', VideoNameSelected);" id="btnPlayVideoInBrowser" class="disableButtons" type="button"  value="View" />
+            -->
             <input onclick= "GetVideoInfo(VideoNameSelected);" id="btnVideoInfo" class="disableButtons" type="button"  value="Video Info" />
             <input onclick= "DownloadFile('Videos', VideoNameSelected);" id="btnDownloadVideo" class="disableButtons" type="button"  value="Download" />
             <input onclick= "DeleteFile('Videos', VideoNameSelected);" id="btnDeleteVideo" class="disableButtons" type="button"  value="Delete" />

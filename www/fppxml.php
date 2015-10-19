@@ -2457,7 +2457,20 @@ function GetFile()
 	if ($dir == "")
 		return;
 
-	header('Content-type: application/binary');
+	if (isset($_GET['play']))
+	{
+		if (preg_match('/mp3$/i', $filename))
+			header('Content-type: audio/mp3');
+		else if (preg_match('/ogg$/i', $filename))
+			header('Content-type: audio/ogg');
+		else if (preg_match('/mp4$/i', $filename))
+			header('Content-type: video/mp4');
+	}
+	else
+	{
+		header('Content-type: application/binary');
+		header('Content-disposition: attachment;filename=' . $filename);
+	}
 
 	if (($_GET['dir'] == "Logs") &&
 		(substr($filename, 0, 9) == "/var/log/")) {
@@ -2465,7 +2478,6 @@ function GetFile()
 		$filename = basename($filename);
 	}
 
-	header('Content-disposition: attachment;filename=' . $filename);
 	ob_clean();
 	flush();
 	readfile($dir . '/' . $filename);
