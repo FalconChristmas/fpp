@@ -651,6 +651,19 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			});
 		}
 
+		function UpgradeFPPVersion(newVersion)
+		{
+			document.body.style.cursor = "wait";
+			$.get("fppxml.php?command=upgradeFPPVersion&version=" + newVersion
+			).success(function() {
+				document.body.style.cursor = "pointer";
+				location.reload(true);
+			}).fail(function() {
+				document.body.style.cursor = "pointer";
+				DialogError("Upgrade FPP Version", "Upgrade failed");
+			});
+		}
+
 		function ChangeGitBranch(newBranch)
 		{
 			document.body.style.cursor = "wait";
