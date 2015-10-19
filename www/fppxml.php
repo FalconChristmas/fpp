@@ -72,6 +72,7 @@ $command_array = Array(
 	"shutdownPi" => 'ShutdownPi',
 	"manualGitUpdate" => 'ManualGitUpdate',
 	"changeGitBranch" => 'ChangeGitBranch',
+	"upgradeFPPVersion" => 'UpgradeFPPVersion',
 	"getGitOriginLog" => 'GetGitOriginLog',
 	"gitStatus" => 'GitStatus',
 	"resetGit" => 'ResetGit',
@@ -158,6 +159,17 @@ function ManualGitUpdate()
 	exec($SUDO . " $fppDir/scripts/fppd_stop");
 	exec("$fppDir/scripts/git_pull");
 	exec($SUDO . " $fppDir/scripts/fppd_start");
+
+	EchoStatusXML("OK");
+}
+
+function UpgradeFPPVersion()
+{
+	$version = $_GET['version'];
+	check($version, "version", __FUNCTION__);
+
+	global $fppDir;
+	exec("$fppDir/scripts/upgrade_FPP $version");
 
 	EchoStatusXML("OK");
 }
