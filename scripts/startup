@@ -97,6 +97,8 @@ then
 	CARDID=$(sed -n '/card [0-9]*/p' /root/.asoundrc | head -n 1 | awk '{print $2}')
 fi
 
+if [ "x" = "y" ]
+then
 # Let's check that our .asoundrc is as valid as we care about right now
 if [ ! -e /proc/asound/card${CARDID} ]; then
 	CARDID=$(/bin/ls -1d /proc/asound/card[0-9] | sed -e 's/.*\([0-9]\)$/\1/' | head -1)
@@ -108,6 +110,14 @@ if [ ! -e /proc/asound/card${CARDID} ]; then
 		CARDID=0
 		echo "Configured sound card might not exist, let's set it to 0 as a default."
 		sed -i 's/card [0-9]/card 0/' /root/.asoundrc
+	fi
+fi
+else
+	AUDIOOUTPUT=$(getSetting AudioOutput)
+	if [ "x${AUDIOOUTPUT}" != "x${CARDID}" -a -n ${AUDIOOUTPUT} ]
+	then
+		echo "Resetting /root/.asoundrc to use card id ${AUDIOOUTPUT}"
+		sed -i "s/card [0-9]/card ${AUDIOOUTPUT}/" /root/.asoundrc
 	fi
 fi
 
