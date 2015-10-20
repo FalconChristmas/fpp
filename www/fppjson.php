@@ -138,7 +138,7 @@ function SetSetting()
 		} else {
 			exec(	$SUDO . " sed -i 's/.*home\/fpp\/media/\/dev\/$value    \/home\/fpp\/media/' /etc/fstab", $output, $return_val );
 		}
-	} else if ($setting = "AudioOutput") {
+	} else if ($setting == "AudioOutput") {
 		SetAudioOutput($value);
 	} else {
 		SendCommand("SetSetting,$setting,$value,");
