@@ -170,10 +170,6 @@ if [ "${FPPPLATFORM}" = "Raspberry Pi" ]
 then
 	echo "FPP - Setting up SPI"
 	/usr/local/bin/gpio load spi 100 &>/dev/null
-	# spidev is no longer a module, so we need to set the
-	# buffer size differently for now
-	chmod u+w /sys/module/spidev/parameters/bufsiz
-	echo 102400 > /sys/module/spidev/parameters/bufsiz
 
 	# See if we have a PiFace connected
 	echo "FPP - Checking for PiFace"
