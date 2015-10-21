@@ -99,7 +99,11 @@ void *RunChannelOutputThread(void *data)
 
 	ThreadIsRunning = 1;
 
-	if (getFPPmode() == REMOTE_MODE)
+	if ((getFPPmode() == REMOTE_MODE) &&
+		(!IsEffectRunning()) &&
+		(!UsingMemoryMapInput()) &&
+		(!channelTester->Testing()) &&
+		(!getAlwaysTransmit()))
 	{
 		// Sleep about 2 seconds waiting for the master
 		int loops = 0;
