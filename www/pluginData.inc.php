@@ -153,7 +153,7 @@ $plugins = Array(
 		'homeUrl'     => 'https://github.com/LightsOnHudson/FPP-Plugin-RDS-To-Matrix',
 		'sourceUrl'   => 'https://github.com/LightsOnHudson/FPP-Plugin-RDS-To-Matrix.git',
 		'bugUrl'      => 'https://github.com/LightsOnHudson/FPP-Plugin-RDS-To-Matrix/issues',
-		'sha'         => '3d049b76bd35984d84816d633a63fcf625f12278',
+		'sha'         => '3c653586a46794485826f670bd4475fe83226388',
 	),
 
 );
