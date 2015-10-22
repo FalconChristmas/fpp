@@ -60,7 +60,7 @@ $plugins = Array(
 	Array(
 		'shortName'   => 'ProjectorControl',
 		'name'        => 'Projector Control',
-		'author'      => 'Ben Shaver (bshaver)',
+		'author'      => 'Ben Shaver (bshaver) and Pat Delaney (patdelaney)',
 		'description' => 'Basic Basic Projector Control',
 		'homeUrl'     => 'https://github.com/LightsOnHudson/FPP-Plugin-Projector-Control',
 		'sourceUrl'   => 'https://github.com/LightsOnHudson/FPP-Plugin-Projector-Control.git',
@@ -71,7 +71,7 @@ $plugins = Array(
 	Array(
 		'shortName'   => 'BetaBrite',
 		'name'        => 'BetaBrite Sign Control',
-		'author'      => 'Ben Shaver (bshaver)',
+		'author'      => 'Ben Shaver (bshaver) and Pat Delaney (patdelaney)',
 		'description' => 'Basic BetaBrite Control for Song/Artist display',
 		'homeUrl'     => 'https://github.com/LightsOnHudson/FPP-Plugin-BetaBrite',
 		'sourceUrl'   => 'https://github.com/LightsOnHudson/FPP-Plugin-BetaBrite.git',
@@ -82,7 +82,7 @@ $plugins = Array(
 	Array(
 		'shortName'   => 'Twitter',
 		'name'        => 'Twitter - Tweet Download',
-		'author'      => 'Ben Shaver (bshaver)',
+		'author'      => 'Ben Shaver (bshaver) and Pat Delaney (patdelaney)',
 		'description' => 'Basic Twitter download from your account',
 		'homeUrl'     => 'https://github.com/LightsOnHudson/FPP-Plugin-Twitter',
 		'sourceUrl'   => 'https://github.com/LightsOnHudson/FPP-Plugin-Twitter.git',
@@ -93,7 +93,7 @@ $plugins = Array(
 	Array(
 		'shortName'   => 'MessageQueue',
 		'name'        => 'Message Queue Aggregator for Plugins',
-		'author'      => 'Ben Shaver (bshaver)',
+		'author'      => 'Ben Shaver (bshaver) and Pat Delaney (patdelaney)',
 		'description' => 'Message Queue Aggregator for Plugins',
 		'homeUrl'     => 'https://github.com/LightsOnHudson/FPP-Plugin-MessageQueue',
 		'sourceUrl'   => 'https://github.com/LightsOnHudson/FPP-Plugin-MessageQueue.git',
@@ -104,7 +104,7 @@ $plugins = Array(
 	Array(
 		'shortName'   => 'SMS',
 		'name'        => 'SMS Playlist Control',
-		'author'      => 'Ben Shaver (bshaver)',
+		'author'      => 'Ben Shaver (bshaver) and Pat Delaney (patdelaney)',
 		'description' => 'Control Playslists via GOOGLE VOICE SMS',
 		'homeUrl'     => 'https://github.com/LightsOnHudson/FPP-Plugin-SMS',
 		'sourceUrl'   => 'https://github.com/LightsOnHudson/FPP-Plugin-SMS.git',
@@ -115,7 +115,7 @@ $plugins = Array(
 	Array(
 		'shortName'   => 'MatrixMessage',
 		'name'        => 'Message Queue to Matrix Overlay',
-		'author'      => 'Ben Shaver (bshaver)',
+		'author'      => 'Ben Shaver (bshaver) and Pat Delaney (patdelaney)',
 		'description' => 'Allows messages out the configured Matrix',
 		'homeUrl'     => 'https://github.com/LightsOnHudson/FPP-Plugin-Matrix-Message',
 		'sourceUrl'   => 'https://github.com/LightsOnHudson/FPP-Plugin-Matrix-Message.git',
@@ -126,7 +126,7 @@ $plugins = Array(
 	Array(
 		'shortName'   => 'Weather',
 		'name'        => 'Plugin to download Weather information to Message Queue',
-		'author'      => 'Ben Shaver (bshaver)',
+		'author'      => 'Ben Shaver (bshaver) and Pat Delaney (patdelaney)',
 		'description' => 'Downloads weather information for your City,State',
 		'homeUrl'     => 'https://github.com/LightsOnHudson/FPP-Plugin-Weather',
 		'sourceUrl'   => 'https://github.com/LightsOnHudson/FPP-Plugin-Weather.git',
@@ -137,12 +137,23 @@ $plugins = Array(
 	Array(
 		'shortName'   => 'CronEditor',
 		'name'        => 'Crontab Editor',
-		'author'      => 'Ben Shaver (bshaver)',
+		'author'      => 'Ben Shaver (bshaver) and Pat Delaney (patdelaney)',
 		'description' => 'Basic Crontab Editing to launch scripts',
 		'homeUrl'     => 'https://github.com/LightsOnHudson/FPP-Plugin-Cron-Editor',
 		'sourceUrl'   => 'https://github.com/LightsOnHudson/FPP-Plugin-Cron-Editor.git',
 		'bugUrl'      => 'https://github.com/LightsOnHudson/FPP-Plugin-Cron-Editor/issues',
 		'sha'         => '9d5b417fe3d4a4e6704e048a2b3e3d49f69bcc52',
+	),
+
+	Array(
+		'shortName'   => 'rdsToMatrix',
+		'name'        => 'RDS Data to Message Queue/Matrix',
+		'author'      => 'Ben Shaver (bshaver) and Pat Delaney (patdelaney)',
+		'description' => 'Media data (Song / Artist) to Message Queue file for use on Matrices',
+		'homeUrl'     => 'https://github.com/LightsOnHudson/FPP-Plugin-RDS-To-Matrix',
+		'sourceUrl'   => 'https://github.com/LightsOnHudson/FPP-Plugin-RDS-To-Matrix.git',
+		'bugUrl'      => 'https://github.com/LightsOnHudson/FPP-Plugin-RDS-To-Matrix/issues',
+		'sha'         => '3d049b76bd35984d84816d633a63fcf625f12278',
 	),
 
 );
