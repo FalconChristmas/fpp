@@ -247,11 +247,15 @@ void MainLoop(void)
 
 		// Check to see if we need to start up the output thread.
 		// FIXME, possibly trigger this via a fpp command to fppd
-		if ((getFPPmode() != BRIDGE_MODE) &&
-			((UsingMemoryMapInput()) ||
+		if ((!ChannelOutputThreadIsRunning()) &&
+			(getFPPmode() != BRIDGE_MODE) &&
+			((pixelOverlay->UsingMemoryMapInput()) ||
 			 (channelTester->Testing()) ||
-			 (getAlwaysTransmit())) &&
-			(!ChannelOutputThreadIsRunning())) {
+			 (getAlwaysTransmit()))) {
+			int E131BridgingInterval = getSettingInt("E131BridgingInterval");
+			if (!E131BridgingInterval)
+				E131BridgingInterval = 50;
+			SetChannelOutputRefreshRate(1000 / E131BridgingInterval);
 			StartChannelOutputThread();
 		}
 
