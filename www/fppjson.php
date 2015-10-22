@@ -140,6 +140,19 @@ function SetSetting()
 		}
 	} else if ($setting == "AudioOutput") {
 		SetAudioOutput($value);
+	} else if ($setting == "ForceHDMI") {
+		if ($value)
+		{
+			exec( $SUDO . " sed -i '/hdmi_force_hotplug/d' /boot/config.txt; " .
+				$SUDO . " sed -i '\$ahdmi_force_hotplug=1' /boot/config.txt",
+				$output, $return_val);
+		}
+		else
+		{
+			exec( $SUDO . " sed -i '/hdmi_force_hotplug/d' /boot/config.txt; " .
+				$SUDO . " sed -i '\$a#hdmi_force_hotplug=1' /boot/config.txt",
+				$output, $return_val);
+		}
 	} else {
 		SendCommand("SetSetting,$setting,$value,");
 	}

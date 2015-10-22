@@ -261,6 +261,10 @@ function ToggleLCDNow()
       <td width = "55%"><? PrintSettingCheckbox("Screensaver", "screensaver", 0, 1, "1", "0"); ?></td>
     </tr>
     <tr>
+      <td>Force HDMI Display On:</td>
+      <td><? PrintSettingCheckbox("Force HDMI Display", "ForceHDMI", 0, 1, "1", "0"); ?></td>
+    </tr>
+    <tr>
       <td>Force analog audio output during video playback:</td>
       <td><? PrintSettingCheckbox("Force Analog Audio Output", "forceLocalAudio", 0, 0, "1", "0"); ?></td>
     </tr>
