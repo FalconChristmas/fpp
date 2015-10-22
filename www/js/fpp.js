@@ -2038,7 +2038,7 @@ function GetRunningEffects()
 
 	function RebootPi()
 	{
-		if (confirm('REBOOT the Falcon Pi Player?')) 
+		if (confirm('REBOOT the Falcon Player?'))
 		{
 			var xmlhttp=new XMLHttpRequest();
 			var url = "fppxml.php?command=rebootPi";
@@ -2051,7 +2051,7 @@ function GetRunningEffects()
 
 	function ShutdownPi()
 	{
-		if (confirm('SHUTDOWN the Falcon Pi Player?')) 
+		if (confirm('SHUTDOWN the Falcon Player?'))
 		{
 			var xmlhttp=new XMLHttpRequest();
 			var url = "fppxml.php?command=shutdownPi";
