@@ -93,8 +93,8 @@ int main(int argc, char *argv[])
 
 	if (loggingToFile())
 		logVersionInfo();
-	else
-		printVersionInfo();
+
+	printVersionInfo();
 
 	// Start functioning
 	if (getDaemonize())
