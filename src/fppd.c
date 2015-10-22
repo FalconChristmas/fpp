@@ -249,7 +249,7 @@ void MainLoop(void)
 		// FIXME, possibly trigger this via a fpp command to fppd
 		if ((!ChannelOutputThreadIsRunning()) &&
 			(getFPPmode() != BRIDGE_MODE) &&
-			((pixelOverlay->UsingMemoryMapInput()) ||
+			((UsingMemoryMapInput()) ||
 			 (channelTester->Testing()) ||
 			 (getAlwaysTransmit()))) {
 			int E131BridgingInterval = getSettingInt("E131BridgingInterval");
