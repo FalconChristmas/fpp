@@ -197,6 +197,7 @@ LDFLAGS_fppd += \
 OBJECTS_fppd += \
 	channeloutput/LEDscapeMatrix.o \
 	channeloutput/BBB48String.o \
+	channeloutput/BBBSerial.o \
 	$(NULL)
 DEPS_fppd += \
 	../external/LEDscape/lib/libledscape.a \

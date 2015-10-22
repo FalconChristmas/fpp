@@ -67,6 +67,7 @@
 
 #ifdef PLATFORM_BBB
 #  include "BBB48String.h"
+#  include "BBBSerial.h"
 #  include "LEDscapeMatrix.h"
 #endif
 
@@ -215,6 +216,8 @@ int InitializeChannelOutputs(void) {
 				}
 			} else if (type == "BBB48String") {
 				channelOutputs[i].output = new BBB48StringOutput(start, count);
+			} else if (type == "BBBSerial") {
+				channelOutputs[i].output = new BBBSerialOutput(start, count);
 #endif
 #ifdef USEOLA
 			} else if (type == "OLA") {
