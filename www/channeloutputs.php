@@ -1155,6 +1155,11 @@ function PopulateChannelOutputTable(data) {
 		if (output[0] == "1")
 			newRow += " checked";
 
+		if (type == "RPIWS281X")
+		{
+			newRow += " onChange='alert(\"(Re)Enabling the RPIWS281x output may require an automatic reboot when the config is saved.\");'";
+		}
+
 		var countDisabled = "";
 
 		if ((type == "Triks-C") ||
@@ -1453,6 +1458,9 @@ function AddOtherTypeOptions(row, type) {
 		row.find("td input.count").prop('disabled', true);
 	} else if (type == "RPIWS281X") {
 		config += NewRPIWS281XConfig();
+		row.find("td input.act").change(function() {
+			alert("(Re)Enabling the RPIWS281x output may require an automatic reboot when the config is saved.");
+			});
 		row.find("td input.count").val("3");
 		row.find("td input.count").prop('disabled', true);
 	} else if ((type == "VirtualMatrix") || (type == "FBMatrix")) {
