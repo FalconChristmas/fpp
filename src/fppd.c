@@ -96,8 +96,6 @@ int main(int argc, char *argv[])
 	else
 		printVersionInfo();
 
-	printSettings();
-
 	// Start functioning
 	if (getDaemonize())
 		CreateDaemon();
