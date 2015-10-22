@@ -1,5 +1,5 @@
 /*
- *   Pixel String Class for Falcon Pi Player (FPP)
+ *   Channel Test Pattern base class for Falcon Pi Player (FPP)
  *
  *   Copyright (C) 2013 the Falcon Pi Player Developers
  *      Initial development by:
@@ -23,43 +23,46 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _PIXELSTRING_H
-#define _PIXELSTRING_H
+#ifndef _TESTPATTERNBASE_H
+#define _TESTPATTERNBASE_H
 
 #include <string>
+#include <utility>
 #include <vector>
 
-class PixelString {
+#include <jsoncpp/json/json.h>
+
+#include "Sequence.h"
+
+class TestPatternBase {
   public:
-	PixelString();
-	~PixelString();
+    TestPatternBase();
+	~TestPatternBase();
 
-	int  Init(std::string configStr);
-	int  Init(int portNumber, int channelOffset, int startChannel,
-		int pixelCount, std::string colorOrder, int nullNodes,
-		int hybridMode, int reverse, int grouping, int zigZag);
-	void DumpConfig(void);
+	std::string  Name(void) { return m_testPatternName; }
+	int          Init(std::string configStr);
+	virtual int  Init(Json::Value config);
+	virtual int  SetupTest(void);
 
-	int               m_portNumber;
-	int               m_channelOffset;
-	int               m_startChannel;
-	int               m_pixelCount;
-	std::string       m_colorOrder;
-	int               m_nullNodes;
-	int               m_hybridMode;
-	int               m_reverseDirection;
-	int               m_grouping;
-	int               m_zigZag;
+	int          SetChannelSet(std::string channelSetStr);
+	int          OverlayTestData(char *channelData);
 
-	int               m_inputChannels;
-	int               m_outputChannels;
+	virtual void DumpConfig(void);
 
-	std::vector<int>  m_outputMap;
+  protected:
+	virtual void CycleData(void) {}
 
-  private:
-	void SetupMap(void);
-	void FlipPixels(int offset1, int offset2);
+	std::string       m_testPatternName;
+	int               m_minChannels;
+	char             *m_testData;
+	long long         m_nextCycleTime;
+	int               m_cycleMS;
 
+	std::string       m_channelSetStr;
+	int               m_channelCount;
+	int               m_configChanged;
+
+	std::vector<std::pair<int,int> >  m_channelSet;
 };
 
-#endif /* _PIXELSTRING_H */
+#endif /* _TESTPATTERNBASE_H */

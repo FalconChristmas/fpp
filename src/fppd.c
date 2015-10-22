@@ -39,7 +39,7 @@
 #include "log.h"
 #include "mediadetails.h"
 #include "mediaoutput.h"
-#include "memorymap.h"
+#include "PixelOverlay.h"
 #include "Playlist.h"
 #include "Plugins.h"
 #include "Scheduler.h"
@@ -71,6 +71,8 @@ int FPPstatus=FPP_STATUS_IDLE;
 int runMainFPPDLoop = 1;
 extern PluginCallbackManager pluginCallbackManager;
 
+ChannelTester *channelTester = NULL;
+
 /* Prototypes for functions below */
 void MainLoop(void);
 
@@ -91,10 +93,8 @@ int main(int argc, char *argv[])
 
 	if (loggingToFile())
 		logVersionInfo();
-	else
-		printVersionInfo();
 
-	printSettings();
+	printVersionInfo();
 
 	// Start functioning
 	if (getDaemonize())
@@ -103,6 +103,7 @@ int main(int argc, char *argv[])
 	scheduler = new Scheduler();
 	playlist  = new Playlist();
 	sequence  = new Sequence();
+	channelTester = new ChannelTester();
 
 	piFaceSetup(200); // PiFace inputs 1-8 == wiringPi 200-207
 
@@ -157,6 +158,7 @@ int main(int argc, char *argv[])
 
 	CloseChannelOutputs();
 
+	delete channelTester;
 	delete scheduler;
 	delete playlist;
 	delete sequence;
@@ -243,10 +245,15 @@ void MainLoop(void)
 
 		// Check to see if we need to start up the output thread.
 		// FIXME, possibly trigger this via a fpp command to fppd
-		if ((getFPPmode() != BRIDGE_MODE) &&
+		if ((!ChannelOutputThreadIsRunning()) &&
+			(getFPPmode() != BRIDGE_MODE) &&
 			((UsingMemoryMapInput()) ||
-			 (getAlwaysTransmit())) &&
-			(!ChannelOutputThreadIsRunning())) {
+			 (channelTester->Testing()) ||
+			 (getAlwaysTransmit()))) {
+			int E131BridgingInterval = getSettingInt("E131BridgingInterval");
+			if (!E131BridgingInterval)
+				E131BridgingInterval = 50;
+			SetChannelOutputRefreshRate(1000 / E131BridgingInterval);
 			StartChannelOutputThread();
 		}
 

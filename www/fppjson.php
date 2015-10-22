@@ -38,7 +38,8 @@ $command_array = Array(
 	"singleStepSequenceBack" => 'SingleStepSequenceBack',
 	"getPluginSetting"    => 'GetPluginSetting',
 	"setPluginSetting"    => 'SetPluginSetting',
-	"setAudioOutput"      => 'SetAudioOutput'
+	"setTestMode"         => 'SetTestMode',
+	"getTestMode"         => 'GetTestMode'
 );
 
 $command = "";
@@ -118,6 +119,15 @@ function SetSetting()
 			$SUDO . " /etc/init.d/avahi-daemon restart",
 			$output, $return_val);
 		sleep(1); // Give Avahi time to restart before we return
+	} else if ($setting == "EnableRouting") {
+		if ($value != "1")
+		{
+			$value = "0";
+		}
+		exec(	$SUDO . " sed -i '/net.ipv4.ip_forward/d' /etc/sysctl.conf; " .
+			$SUDO . " sed -i '\$anet.ipv4.ip_forward = $value' /etc/sysctl.conf ; " .
+			$SUDO . " sysctl --system",
+			$output, $return_val);
 	} else if ($setting == "storageDevice") {
 		exec('mount | grep boot | cut -f1 -d" " | sed -e "s/\/dev\///" -e "s/p[0-9]$//"', $output, $return_val);
 		$bootDevice = $output[0];
@@ -127,6 +137,21 @@ function SetSetting()
 			exec(	$SUDO . " sed -i 's/.*home\/fpp\/media/#\/dev\/sda1    \/home\/fpp\/media/' /etc/fstab", $output, $return_val );
 		} else {
 			exec(	$SUDO . " sed -i 's/.*home\/fpp\/media/\/dev\/$value    \/home\/fpp\/media/' /etc/fstab", $output, $return_val );
+		}
+	} else if ($setting == "AudioOutput") {
+		SetAudioOutput($value);
+	} else if ($setting == "ForceHDMI") {
+		if ($value)
+		{
+			exec( $SUDO . " sed -i '/hdmi_force_hotplug/d' /boot/config.txt; " .
+				$SUDO . " sed -i '\$ahdmi_force_hotplug=1' /boot/config.txt",
+				$output, $return_val);
+		}
+		else
+		{
+			exec( $SUDO . " sed -i '/hdmi_force_hotplug/d' /boot/config.txt; " .
+				$SUDO . " sed -i '\$a#hdmi_force_hotplug=1' /boot/config.txt",
+				$output, $return_val);
 		}
 	} else {
 		SendCommand("SetSetting,$setting,$value,");
@@ -280,11 +305,9 @@ function GetFPPSystems()
 
 /////////////////////////////////////////////////////////////////////////////
 
-function SetAudioOutput()
+function SetAudioOutput($card)
 {
 	global $args, $SUDO, $debug;
-
-	$card = $args['value'];
 
 	if ($card != 0 && file_exists("/proc/asound/card$card"))
 	{
@@ -484,6 +507,9 @@ function GetChannelOutputs()
 	$result = Array();
 	$result['Outputs'] = Array();
 
+	if (!file_exists($settings['channelOutputsFile']))
+		return returnJSON($result);
+
 	$f = fopen($settings['channelOutputsFile'], "r");
 	if($f == FALSE)
 	{
@@ -664,6 +690,21 @@ function SetDNSInfo()
 		"DNS2=\"%s\"\n",
 		$data['DNS1'], $data['DNS2']);
 	fclose($f);
+}
+
+/////////////////////////////////////////////////////////////////////////////
+
+function SetTestMode()
+{
+	global $args;
+
+	SendCommand(sprintf("SetTestMode,%s", $args['data']));
+}
+
+function GetTestMode()
+{
+	header( "Content-Type: application/json");
+	echo SendCommand("GetTestMode");
 }
 
 /////////////////////////////////////////////////////////////////////////////

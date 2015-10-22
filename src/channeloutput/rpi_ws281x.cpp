@@ -100,6 +100,8 @@ int RPIWS281xOutput::Init(char *configStr)
 		}
 		else if (elem[0] == "string1Pixels")
 		{
+			// Force GPIO values even though they are forced in the UI code
+			m_string1GPIO = 18;
 			m_string1Pixels = atoi(elem[1].c_str());
 		}
 		else if (elem[0] == "string2GPIO")
@@ -108,6 +110,8 @@ int RPIWS281xOutput::Init(char *configStr)
 		}
 		else if (elem[0] == "string2Pixels")
 		{
+			// Force GPIO values even though they are forced in the UI code
+			m_string2GPIO = 19;
 			m_string2Pixels = atoi(elem[1].c_str());
 		}
 	}
@@ -138,9 +142,11 @@ int RPIWS281xOutput::Init(char *configStr)
 	ledstring.channel[0].gpionum = m_string1GPIO;
 	ledstring.channel[0].count   = m_string1Pixels;
 	ledstring.channel[0].invert  = 0;
+	ledstring.channel[0].brightness  = 255;
 	ledstring.channel[1].gpionum = m_string2GPIO;
 	ledstring.channel[1].count   = m_string2Pixels;
 	ledstring.channel[1].invert  = 0;
+	ledstring.channel[1].brightness  = 255;
 
 	SetupCtrlCHandler();
 
@@ -173,16 +179,20 @@ int RPIWS281xOutput::RawSendData(unsigned char *channelData)
 	LogDebug(VB_CHANNELOUT, "RPIWS281xOutput::RawSendData(%p)\n", channelData);
 
 	unsigned char *c = channelData;
+	unsigned int r = 0;
+	unsigned int g = 0;
+	unsigned int b = 0;
 
 	// Handle String #1
 	if (m_string1GPIO)
 	{
 		for (int i = 0; i < m_string1Pixels; i++)
 		{
+			r = *(c++);
+			g = *(c++);
+			b = *(c++);
 			ledstring.channel[0].leds[i] =
-				(*(c++) << 16) |
-				(*(c++) <<  8) |
-				(*(c++)      );
+				(r << 16) | (g <<  8) | (b);
 		}
 	}
 
@@ -191,19 +201,18 @@ int RPIWS281xOutput::RawSendData(unsigned char *channelData)
 	{
 		for (int i = 0; i < m_string2Pixels; i++)
 		{
+			r = *(c++);
+			g = *(c++);
+			b = *(c++);
 			ledstring.channel[1].leds[i] =
-				(*(c++) << 16) |
-				(*(c++) <<  8) |
-				(*(c++)      );
+				(r << 16) | (g <<  8) | (b);
 		}
 	}
 
-long long startTime = GetTime();
 	if (ws2811_render(&ledstring))
 	{
 		LogErr(VB_CHANNELOUT, "ws2811_render() failed\n");
 	}
-//LogDebug(VB_CHANNELOUT, "elapsed: %lld\n", GetTime() - startTime);
 
 	return m_channelCount;
 }

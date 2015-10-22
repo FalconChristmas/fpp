@@ -39,7 +39,7 @@
 #include "E131.h"
 #include "e131bridge.h"
 #include "log.h"
-#include "memorymap.h"
+#include "PixelOverlay.h"
 #include "Sequence.h"
 #include "command.h"
 

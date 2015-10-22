@@ -123,7 +123,7 @@ int PixelString::Init(int portNumber, int channelOffset, int startChannel,
 		m_inputChannels += 3;
 	}
 
-	if (m_zigZag == m_pixelCount)
+	if ((m_zigZag == m_pixelCount) || (m_zigZag == 1))
 		m_zigZag = 0;
 
 	m_outputChannels = m_pixelCount * 3;
@@ -144,6 +144,9 @@ void PixelString::SetupMap(void)
 	int itemsInGroup  = 0;
 	int ch            = 0;
 	int pStart        = 0;
+	int ch1           = 0;
+	int ch2           = 0;
+	int ch3           = 0;
 
 	if (m_hybridMode)
 	{
@@ -160,8 +163,6 @@ void PixelString::SetupMap(void)
 
 	for (int p = pStart; p < m_pixelCount; p++)
 	{
-		// FIXME, handle zig zag
-
 		if (p == -1)
 		{
 			ch = m_startChannel;
@@ -176,67 +177,166 @@ void PixelString::SetupMap(void)
 					itemsInGroup = 0;
 				}
 
-				if (m_reverseDirection)
-					ch = m_startChannel + ((maxGroups - 1 - group) * 3);
-				else
-					ch = m_startChannel + (group * 3);
+				ch = m_startChannel + (group * 3);
 
 				itemsInGroup++;
 			}
 			else
 			{
-				if (m_reverseDirection)
-					ch = m_startChannel + ((m_pixelCount - 1 - p) * 3);
-				else
-					ch = m_startChannel + (p * 3);
+				ch = m_startChannel + (p * 3);
 			}
 		}
 
 		if (m_colorOrder == "RGB")
 		{
-			m_outputMap[offset++] = ch;
-			m_outputMap[offset++] = ch + 1;
-			m_outputMap[offset++] = ch + 2;
+			ch1 = ch;
+			ch2 = ch + 1;
+			ch3 = ch + 2;
 		}
 		else if (m_colorOrder == "RBG")
 		{
-			m_outputMap[offset++] = ch;
-			m_outputMap[offset++] = ch + 2;
-			m_outputMap[offset++] = ch + 1;
+			ch1 = ch;
+			ch2 = ch + 2;
+			ch3 = ch + 1;
 		}
 		else if (m_colorOrder == "GRB")
 		{
-			m_outputMap[offset++] = ch + 1;
-			m_outputMap[offset++] = ch;
-			m_outputMap[offset++] = ch + 2;
+			ch1 = ch + 1;
+			ch2 = ch;
+			ch3 = ch + 2;
 		}
 		else if (m_colorOrder == "GBR")
 		{
-			m_outputMap[offset++] = ch + 1;
-			m_outputMap[offset++] = ch + 2;
-			m_outputMap[offset++] = ch;
+			ch1 = ch + 1;
+			ch2 = ch + 2;
+			ch3 = ch;
 		}
 		else if (m_colorOrder == "BRG")
 		{
-			m_outputMap[offset++] = ch + 2;
-			m_outputMap[offset++] = ch;
-			m_outputMap[offset++] = ch + 1;
+			ch1 = ch + 2;
+			ch2 = ch;
+			ch3 = ch + 1;
 		}
 		else if (m_colorOrder == "BGR")
 		{
-			m_outputMap[offset++] = ch + 2;
-			m_outputMap[offset++] = ch + 1;
-			m_outputMap[offset++] = ch;
+			ch1 = ch + 2;
+			ch2 = ch + 1;
+			ch3 = ch;
 		}
+
+		m_outputMap[offset++] = ch1;
+		m_outputMap[offset++] = ch2;
+		m_outputMap[offset++] = ch3;
+
 		ch += 3;
 
 LogExcess(VB_CHANNELOUT, "offset: %d (loop bottom), iig: %d\n", offset, itemsInGroup);
 	}
 LogExcess(VB_CHANNELOUT, "offset: %d (after loop)\n", offset++);
 
-	for (int i = 0; i < m_outputChannels; i++)
+	if (m_hybridMode)
 	{
+		for (int i = 0; i < m_outputChannels + 3; i++)
+		{
 LogExcess(VB_CHANNELOUT, "map[%d] = %d\n", i, m_outputMap[i]);
+		}
+	}
+	else
+	{
+		for (int i = 0; i < m_outputChannels; i++)
+		{
+LogExcess(VB_CHANNELOUT, "map[%d] = %d\n", i, m_outputMap[i]);
+		}
+	}
+
+	if (m_zigZag)
+	{
+		int segment = 0;
+		int pixel = 0;
+		int zigChannelCount = m_zigZag * 3;
+
+		for (int i = 0; i < m_outputChannels; i += zigChannelCount)
+		{
+			segment = i / zigChannelCount;
+			if (segment % 2)
+			{
+				int offset1 = i;
+				int offset2 = i + zigChannelCount - 3;
+
+				if ((offset2 + 2) < m_outputChannels)
+					FlipPixels(offset1, offset2);
+			}
+		}
+
+LogExcess(VB_CHANNELOUT, "AFTER ZIGZAG\n");
+		if (m_hybridMode)
+		{
+			for (int i = 0; i < m_outputChannels + 3; i++)
+			{
+LogExcess(VB_CHANNELOUT, "map[%d] = %d\n", i, m_outputMap[i]);
+			}
+		}
+		else
+		{
+			for (int i = 0; i < m_outputChannels; i++)
+			{
+LogExcess(VB_CHANNELOUT, "map[%d] = %d\n", i, m_outputMap[i]);
+			}
+		}
+	}
+
+	if (m_reverseDirection && (m_pixelCount > 1))
+	{
+		offset = 0;
+		if (m_hybridMode)
+			offset += 3;
+
+		FlipPixels(offset, offset + (m_pixelCount * 3) - 3);
+
+LogExcess(VB_CHANNELOUT, "AFTER REVERSE\n");
+		if (m_hybridMode)
+		{
+			for (int i = 0; i < m_outputChannels + 3; i++)
+			{
+LogExcess(VB_CHANNELOUT, "map[%d] = %d\n", i, m_outputMap[i]);
+			}
+		}
+		else
+		{
+			for (int i = 0; i < m_outputChannels; i++)
+			{
+LogExcess(VB_CHANNELOUT, "map[%d] = %d\n", i, m_outputMap[i]);
+			}
+		}
+	}
+}
+
+/*
+ *
+ */
+void PixelString::FlipPixels(int offset1, int offset2)
+{
+	int ch1 = 0;
+	int ch2 = 0;
+	int ch3 = 0;
+	int flipPixels = (offset2 - offset1 + 3) / 3 / 2;
+
+	for (int i = 0; i < flipPixels; i++)
+	{
+		ch1 = m_outputMap[offset1    ];
+		ch2 = m_outputMap[offset1 + 1];
+		ch3 = m_outputMap[offset1 + 2];
+
+		m_outputMap[offset1    ] = m_outputMap[offset2    ];
+		m_outputMap[offset1 + 1] = m_outputMap[offset2 + 1];
+		m_outputMap[offset1 + 2] = m_outputMap[offset2 + 2];
+
+		m_outputMap[offset2    ] = ch1;
+		m_outputMap[offset2 + 1] = ch2;
+		m_outputMap[offset2 + 2] = ch3;
+
+		offset1 += 3;
+		offset2 -= 3;
 	}
 }
 
@@ -263,4 +363,6 @@ void PixelString::DumpConfig(void)
 		m_reverseDirection);
 	LogDebug(VB_CHANNELOUT, "        grouping         : %d\n",
 		m_grouping);
+	LogDebug(VB_CHANNELOUT, "        zig zag          : %d\n",
+		m_zigZag);
 }

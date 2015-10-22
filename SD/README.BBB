@@ -24,8 +24,8 @@ commands for building future images.
 SDDEVICE="sdd"
 ORIGIMG="bone-debian-7.5-2014-05-14-2gb.img"
 EMMCIMG="BBB-eMMC-flasher-debian-7.5-2014-05-14-2gb.img"
-IMGFILE="FPP-v1.5-Beta1-BBB-SD.img"
-MMCFILE="FPP-v1.5-Beta1-BBB-eMMC.img"
+IMGFILE="FPP-v1.5-BBB-SD.img"
+MMCFILE="FPP-v1.5-BBB-eMMC.img"
 ADDSIZEMB=100
 
 # Get our starting image
@@ -73,8 +73,8 @@ sync
 SDDEVICE="sdd"
 ORIGIMG="bone-debian-7.5-2014-05-14-2gb.img"
 EMMCIMG="BBB-eMMC-flasher-debian-7.5-2014-05-14-2gb.img"
-IMGFILE="FPP-v1.5-Beta1-BBB-SD.img"
-MMCFILE="FPP-v1.5-Beta1-BBB-eMMC.img"
+IMGFILE="FPP-v1.5-BBB-SD.img"
+MMCFILE="FPP-v1.5-BBB-eMMC.img"
 ADDSIZEMB=100
 
 SIZE=$(/bin/ls -al ${ORIGIMG} | awk '{print $5}')
@@ -175,71 +175,43 @@ sudo kpartx -d /dev/loop1
 sudo losetup -d /dev/loop0
 sudo losetup -d /dev/loop1
 
-######################################################################
-FPP v1.5 BeagleBone Black Install Notes
+#############################################################################
 
-Running BBB on micro-SD:
+Notes for compiling the newer 8192cu.ko kernel module for the Edimax on BBB
 
-Using the micro-SD card for the FPP OS means that the USB slot must be
-used for either a USB flash drive or you must connect a USB hub if you
-need to attach other USB devices.
+Info is from both of the following:
+http://dumb-looks-free.blogspot.fr/2014/06/beaglebone-black-bbb-kernal-headers.html
+http://wiesel.ece.utah.edu/redmine/projects/hacks/wiki/BeagleBone_Black_AP
 
-- Write FPP SD disk image to micro-SD card using "Win32 Disk Imager"
-  http://sourceforge.net/projects/win32diskimager/files/latest/download
 
-- Disconnect power from the BBB
+* Install kernel headers and source
 
-- Insert micro-SD card into BBB
+wget https://raw.github.com/gkaindl/beaglebone-ubuntu-scripts/master/bb-get-rcn-kernel-source.sh
+chmod +x bb-get-rcn-kernel-source.sh
+sudo ./bb-get-rcn-kernel-source.sh
 
-- Insert a USB flash drive for FPP storage.
+* Then get the 8192cu source
 
-- Hold the Boot Button (S2) on the top of the BBB (near the micro-SD slot)
-  and while holding the button, connect power to the BBB.  Continue holding
-  the S2 button until the blue LED's start to flash. (Some users have
-  reported not being required to do this step if they have been using the
-  BBB already booting off the micro-SD card)
+cd /home/fpp
+mkdir src
+cd ./src
+git clone https://github.com/pvaret/rtl8192cu-fixes.git
+cd ./rtl8192cu-fixes
+cd /usr/src/linux-3.8.13-bone50/arch
+sudo ln -s arm armv7l
+cd /home/fpp/src/rtl8192cu-fixes
+make ARCH=armv7l CROSS_COMPILE= -C /lib/modules/3.8.13-bone50/build M=/home/fpp/src/rtl8192cu-fixes modules
+sudo cp 8192cu.ko /lib/modules/3.8.13-bone50/kernel/drivers/net/wireless/8192cu.ko
+sudo depmod
 
-- The BBB should boot up running FPP off the micro-SD.  The boot process
-  will automatically resize the main disk partition to fill up the micro-SD
-  card, and this will automatically reboot.  The whole process should take
-  under a minute and then FPP will be up and running.
+Then need to put the following in /etc/modprobe.d/8192cu.conf on the BBB:
+#############################################
+# Blacklist native RealTek 8188CUs drivers 
+blacklist rtl8192cu
+blacklist rtl8192c_common
+blacklist rtlwifi
 
-#############################
-
-Installing onto the BBB's Rev C's onboard eMMC:
-
-Using the onboard eMMC on the BBB to run FPP eliminates the need to use
-a micro-SD for FPP OS storage.  The micro-SD can be used for media
-storage which frees up the USB slot for other use.
-
-- Write FPP eMMC disk image to micro-SD card using "Win32 Disk Imager"
-  http://sourceforge.net/projects/win32diskimager/files/latest/download
-
-- Disconnect power to the BBB
-
-- Insert micro-SD card into BBB
-
-- Hold the Boot Button (S2) on the top of the BBB (near the micro-SD slot)
-  and while holding the button, connect power to the BBB.  Continue holding
-  the S2 button until the blue LED's start to flash.
-
-  The blue LEDs should flash in sequence and continue to flash for the next
-  5-25 minutes depending on micro-SD speed.
-
-- Wait until the LED's stop flashing and turn off.
-  the BBB.  NOTE: This may take 5-25 minutes depending on the speed of the
-  micro-SD card.
-
-- Disconnect power from the BBB
-
-- Remove the micro-SD card.
-
-- Insert a formatted micro-SD card or USB flash drive for FPP storage.
-
-- Re-apply power to the BBB and it should boot up running FPP off the eMMC.
-
-- Connect to the FPP with your web browser @ http://fpp/
-
-- Once FPP is up and running, you can use the FPP UI to select the micro-SD
-  for FPP storage.  FPP defaults to require a USB flash drive for storage.
+# Disable power management on 8192cu module
+options 8192cu rtw_power_mgnt=0 rtw_enusbss=0
+#############################################
 

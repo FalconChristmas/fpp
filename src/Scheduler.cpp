@@ -537,6 +537,7 @@ void Scheduler::SchedulePrint(void)
   }
 
   //////////////////////////////////////////////////////////////////////////
+#if 0
   LogDebug(VB_SCHEDULE, "//////////////////////////////////////////////////\n");
   LogDebug(VB_SCHEDULE, "Now, the C++ version for comparison\n");
   pthread_mutex_lock(&m_scheduleLock);
@@ -560,6 +561,7 @@ void Scheduler::SchedulePrint(void)
       m_schedule[i].m_playlistName.c_str());
   }
   pthread_mutex_unlock(&m_scheduleLock);
+#endif
   LogDebug(VB_SCHEDULE, "//////////////////////////////////////////////////\n");
 }
 

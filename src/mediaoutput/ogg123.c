@@ -160,7 +160,6 @@ void ogg123_StopPlaying()
 
 void ogg123_ParseTimes()
 {
-	static int lastSyncCheck = 0;
 	static int lastRemoteSync = 0;
 	int result;
 	int secs;
@@ -225,12 +224,9 @@ void ogg123_ParseTimes()
 	}
 
 	if ((sequence->IsSequenceRunning()) &&
-			(mediaOutputStatus.secondsElapsed > 0) &&
-			(lastSyncCheck != mediaOutputStatus.secondsElapsed))
+		(mediaOutputStatus.secondsElapsed > 0))
 	{
-		float MusicSeconds = (float)((float)mediaOutputStatus.secondsElapsed + ((float)mediaOutputStatus.subSecondsElapsed/(float)100));
-
-		LogDebug(VB_MEDIAOUT,
+		LogExcess(VB_MEDIAOUT,
 			"Elapsed: %.2d.%.2d  Remaining: %.2d Total %.2d:%.2d.\n",
 			mediaOutputStatus.secondsElapsed,
 			mediaOutputStatus.subSecondsElapsed,
@@ -238,8 +234,7 @@ void ogg123_ParseTimes()
 			mediaOutputStatus.minutesTotal,
 			mediaOutputStatus.secondsTotal);
 
-		CalculateNewChannelOutputDelay(MusicSeconds);
-		lastSyncCheck = mediaOutputStatus.secondsElapsed;
+		CalculateNewChannelOutputDelay(mediaOutputStatus.mediaSeconds);
 	}
 }
 

@@ -333,9 +333,9 @@ function CancelPanelLayout() {
 function VirtualMatrixLayoutChanged(item) {
 	var val = parseInt($(item).val());
 
-	if ((val % 8) != 0)
+	if ((val % 16) != 0)
 	{
-		alert("ERROR: Value must be divisible by 8");
+		alert("ERROR: Value must be divisible by 16");
 	}
 
 	var width = $(item).parent().parent().find("input.width").val();
@@ -345,19 +345,55 @@ function VirtualMatrixLayoutChanged(item) {
 	$(item).parent().parent().find("input.count").val(channels);
 }
 
+function VirtualMatrixColorOrderSelect(colorOrder) {
+	var result = "";
+
+	result += "<br>Color Order: <select class='colorOrder'>";
+	result += "<option value='RGB'";
+
+	if (colorOrder == 'RGB')
+		result += " selected";
+
+	result += ">RGB</option><option value='BGR'";
+
+	if (colorOrder != 'RGB')
+		result += " selected";
+
+	result += ">BGR</option></select>";
+
+	return result;
+}
+
 function VirtualMatrixConfig(cfgStr) {
 	var result = "";
-	var parts = cfgStr.split("=");
-	var vals = parts[1].split("x");
+	var items = cfgStr.split(";");
+	var foundRGB = 0;
 
-	result = "Width: <input type='text' size='3' maxlength='3' class='width' value='" + vals[0] + "' onChange='VirtualMatrixLayoutChanged(this);'>" +
-		" Height: <input type='text' size='3' maxlength='3' class='height' value='" + vals[1] + "' onChange='VirtualMatrixLayoutChanged(this);'>";
+	for (var j = 0; j < items.length; j++)
+	{
+		var parts = items[j].split("=");
+		var vals = parts[1].split("x");
+
+		if (parts[0] == "layout")
+		{
+			result += " Width: <input type='text' size='3' maxlength='3' class='width' value='" + vals[0] + "' onChange='VirtualMatrixLayoutChanged(this);'>" +
+				" Height: <input type='text' size='3' maxlength='3' class='height' value='" + vals[1] + "' onChange='VirtualMatrixLayoutChanged(this);'>";
+		}
+		else if (parts[0] == "colorOrder")
+		{
+			foundRGB = 1;
+			result += VirtualMatrixColorOrderSelect(parts[1]);
+		}
+	}
+
+	if (foundRGB == 0)
+		result += VirtualMatrixColorOrderSelect("BGR");
 
 	return result;
 }
 
 function NewVirtualMatrixConfig() {
-	return VirtualMatrixConfig("layout=32x16");
+	return VirtualMatrixConfig("layout=32x16;colorOrder=RGB");
 }
 
 function GetVirtualMatrixOutputConfig(cell) {
@@ -372,7 +408,89 @@ function GetVirtualMatrixOutputConfig(cell) {
 	if (height == "")
 		return "";
 
-	return "layout=" + width + "x" + height;
+	var colorOrder = $cell.find("select.colorOrder").val();
+
+	if (colorOrder == "")
+		return "";
+
+	return "layout=" + width + "x" + height + ";colorOrder=" + colorOrder;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Generic Serial
+
+var GenericSerialSpeeds = new Array();
+GenericSerialSpeeds[  "9600"] =   "9600";
+GenericSerialSpeeds[ "19200"] =  "19200";
+GenericSerialSpeeds[ "38400"] =  "38400";
+GenericSerialSpeeds[ "57600"] =  "57600";
+GenericSerialSpeeds["115200"] = "115200";
+
+function GenericSerialSpeedSelect(currentValue) {
+	var result = "Speed: <select class='speed'>";
+
+	for (var key in GenericSerialSpeeds) {
+		result += "<option value='" + key + "'";
+
+		if (currentValue == key) {
+			result += " selected";
+		}
+
+		// Make 9600 the default
+		if ((currentValue == "") && (key == "9600")) {
+			result += " selected";
+		}
+
+		result += ">" + GenericSerialSpeeds[key] + "</option>";
+	}
+
+	result += "</select>";
+
+	return result;
+}
+
+function GenericSerialConfig(config) {
+	var items = config.split(";");
+	var result = "";
+
+	for (var j = 0; j < items.length; j++) {
+		var item = items[j].split("=");
+
+		if (item[0] == "device") {
+			result += DeviceSelect(USBDevices, item[1]);
+		} else if (item[0] == "speed") {
+			result += GenericSerialSpeedSelect(item[1]);
+		} else if (item[0] == "header") {
+			result += "<br>Header: <input type='text' size=10 maxlength=20 class='serialheader' value='" + item[1] + "'>";
+		} else if (item[0] == "footer") {
+			result += " Footer: <input type='text' size=10 maxlength=20 class='serialfooter' value='" + item[1] + "'>";
+		}
+	}
+
+	return result;
+}
+
+function NewGenericSerialConfig() {
+	return GenericSerialConfig("device=ttyUSB0;speed=9600;header=;footer=");
+}
+
+function GetGenericSerialConfig(cell) {
+	$cell = $(cell);
+	var device = $cell.find("select.device").val();
+
+	if (device == "")
+		return "";
+
+	var speed = $cell.find("select.speed").val();
+
+	if (speed == "")
+		return "";
+
+	var header = $cell.find("input.serialheader").val();
+
+	var footer = $cell.find("input.serialfooter").val();
+
+	return "device=" + device + ";speed=" + speed + ";header=" + header + ";footer=" + footer;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -446,6 +564,168 @@ function GetTriksOutputConfig(cell) {
 		return "";
 
 	return "device=" + device + ";layout=" + layout;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// USB Relay output
+function USBRelayLayoutChanged(item) {
+	var channels = parseInt($(item).val());
+
+	$(item).parent().parent().find("input.count").val(channels);
+}
+
+function USBRelaySubTypeSelect(currentValue) {
+	var result = "";
+	var options = "Bit,ICStation".split(",");
+
+	result += " Type:&nbsp;<select class='subType'>";
+
+	var i = 0;
+	for (i = 0; i < options.length; i++) {
+		var opt = options[i];
+
+		result += "<option value='" + opt + "'";
+		if (currentValue == opt)
+			result += " selected";
+		result += ">" + opt + "</option>";
+	}
+
+	result += "</select>  ";
+
+	return result;
+}
+
+function USBRelayCountSelect(currentValue) {
+	var result = "";
+	var options = "2,4,8".split(",");
+
+	result += " Count:&nbsp;<select class='relayCount' onChange='USBRelayLayoutChanged(this);'>";
+
+	var i = 0;
+	for (i = 0; i < options.length; i++) {
+		var opt = options[i];
+
+		result += "<option value='" + opt + "'";
+		if (currentValue == opt)
+			result += " selected";
+		result += ">" + opt + "</option>";
+	}
+
+	result += "</select>  ";
+
+	return result;
+}
+
+function USBRelayConfig(cfgStr) {
+	var result = "";
+	var items = cfgStr.split(";");
+
+	for (var j = 0; j < items.length; j++)
+	{
+		var item = items[j].split("=");
+
+		if (item[0] == "device")
+		{
+			result += DeviceSelect(SerialDevices, item[1]) + "  ";
+		}
+		else if (item[0] == "subType")
+		{
+			result += USBRelaySubTypeSelect(item[1]);
+		}
+		else if (item[0] == "relayCount")
+		{
+			result += USBRelayCountSelect(item[1]);
+		}
+	}
+
+	return result;
+}
+
+function NewUSBRelayConfig() {
+	return USBRelayConfig("device=;subType=ICStation;relayCount=2");
+}
+
+function GetUSBRelayOutputConfig(cell) {
+	$cell = $(cell);
+	var result = "";
+	var value = $cell.find("select.device").val();
+
+	if (value == "")
+		return "";
+
+	result += "device=" + value + ";";
+
+	value = $cell.find("select.subType").val();
+
+	if (value == "")
+		return "";
+
+	result += "subType=" + value + ";";
+
+	value = $cell.find("select.relayCount").val();
+
+	if (value == "")
+		return "";
+
+	result += "relayCount=" + value;
+
+	return result;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Raspberry Pi WS281x output
+function RPIWS281XLayoutChanged(item) {
+	var string1Pixels = parseInt($(item).parent().parent().find("input.string1Pixels").val());
+	var string2Pixels = parseInt($(item).parent().parent().find("input.string2Pixels").val());
+
+	var channels = (string1Pixels + string2Pixels) * 3;
+
+	$(item).parent().parent().find("input.count").val(channels);
+}
+
+function RPIWS281XConfig(cfgStr) {
+	var result = "";
+	var items = cfgStr.split(";");
+
+	for (var j = 0; j < items.length; j++)
+	{
+		var item = items[j].split("=");
+
+		if (item[0] == "string1Pixels")
+		{
+			result += "String #1 Pixels: <input class='string1Pixels' size=3 maxlength=3 value='" + item[1] + "' onChange='RPIWS281XLayoutChanged(this);'> (GPIO 18)<br>";
+		}
+		else if (item[0] == "string2Pixels")
+		{
+			result += "String #2 Pixels: <input class='string2Pixels' size=3 maxlength=3 value='" + item[1] + "' onChange='RPIWS281XLayoutChanged(this);'> (GPIO 19)";
+		}
+	}
+
+	return result;
+}
+
+function NewRPIWS281XConfig() {
+	return RPIWS281XConfig("string1Pixels=1;string2Pixels=0");
+}
+
+function GetRPIWS281XOutputConfig(cell) {
+	$cell = $(cell);
+	var result = "";
+	var value = $cell.find("input.string1Pixels").val();
+
+	if (value == "")
+		return "";
+
+	result += "string1Pixels=" + value + ";";
+
+	value = $cell.find("input.string2Pixels").val();
+
+	if (value == "")
+		return "";
+
+	result += "string2Pixels=" + value;
+
+	return result;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -875,15 +1155,23 @@ function PopulateChannelOutputTable(data) {
 		if (output[0] == "1")
 			newRow += " checked";
 
+		if (type == "RPIWS281X")
+		{
+			newRow += " onChange='alert(\"(Re)Enabling the RPIWS281x output may require an automatic reboot when the config is saved.\");'";
+		}
+
 		var countDisabled = "";
 
-		if ((type == "Triks-C") || (type == 'GPIO') || (type == 'VirtualMatrix'))
+		if ((type == "Triks-C") ||
+			(type == 'GPIO') ||
+			(type == 'USBRelay') ||
+			(type == 'VirtualMatrix'))
 			countDisabled = " disabled=''";
 
 		newRow += "></td>" +
 				"<td>" + type + "</td>" +
 				"<td><input class='start' type=text size=6 maxlength=6 value='" + output[2] + "'></td>" +
-				"<td><input class='count' type=text size=4 maxlength=4 value='" + output[3] + "'" + countDisabled + "></td>" +
+				"<td><input class='count' type=text size=6 maxlength=6 value='" + output[3] + "'" + countDisabled + "></td>" +
 				"<td>";
 
 		if ((type == "DMX-Pro") ||
@@ -891,6 +1179,8 @@ function PopulateChannelOutputTable(data) {
 			(type == "Pixelnet-Lynx") ||
 			(type == "Pixelnet-Open")) {
 			newRow += USBDeviceConfig(output[4]);
+		} else if (type == "GenericSerial") {
+			newRow += GenericSerialConfig(output[4]);
 		} else if (type == "Renard") {
 			newRow += RenardOutputConfig(output[4]);
 		} else if (type == "LOR") {
@@ -905,6 +1195,10 @@ function PopulateChannelOutputTable(data) {
 			newRow += GPIODeviceConfig(output[4]);
 		} else if (type == "GPIO-595") {
 			newRow += GPIO595DeviceConfig(output[4]);
+		} else if (type == "USBRelay") {
+			newRow += USBRelayConfig(output[4]);
+		} else if (type == "RPIWS281X") {
+			newRow += RPIWS281XConfig(output[4]);
 		} else if (type == "VirtualMatrix") {
 			newRow += VirtualMatrixConfig(output[4]);
 		}
@@ -1033,6 +1327,30 @@ function SetChannelOutputs() {
 				return;
 			}
 			maxChannels = 128;
+		} else if (type == "GenericSerial") {
+			config += GetGenericSerialConfig($this.find("td:nth-child(6)"));
+			if (config == "") {
+				dataError = 1;
+				DialogError("Save Channel Outputs", "Invalid Generic Serial Config");
+				return;
+			}
+			maxChannels = 512;
+		} else if (type == "USBRelay") {
+			config += GetUSBRelayOutputConfig($this.find("td:nth-child(6)"));
+			if (config == "") {
+				dataError = 1;
+				DialogError("Save Channel Outputs", "Invalid USBRelay Config");
+				return;
+			}
+			maxChannels = 8;
+		} else if (type == "RPIWS281X") {
+			config += GetRPIWS281XOutputConfig($this.find("td:nth-child(6)"));
+			if (config == "") {
+				dataError = 1;
+				DialogError("Save Channel Outputs", "Invalid RPIWS281X Config");
+				return;
+			}
+			maxChannels = 1020;
 		} else if (type == "VirtualMatrix") {
 			config += GetVirtualMatrixOutputConfig($this.find("td:nth-child(6)"));
 			if (config == "") {
@@ -1062,9 +1380,9 @@ function SetChannelOutputs() {
 		}
 
 		var endChannel = parseInt(startChannel) + parseInt(channelCount) - 1;
-		if (endChannel > 131072) {
+		if (endChannel > 524288) {
 			DialogError("Save Channel Outputs",
-				"Start Channel '" + startChannel + "' plus Channel Count '" + channelCount + "' exceeds 131072 on row " + rowNumber);
+				"Start Channel '" + startChannel + "' plus Channel Count '" + channelCount + "' exceeds 524288 on row " + rowNumber);
 			dataError = 1;
 			return;
 		}
@@ -1131,6 +1449,20 @@ function AddOtherTypeOptions(row, type) {
 	} else if (type == "GPIO-595") {
 		config += NewGPIO595Config();
 		row.find("td input.count").val("8");
+	} else if (type == "GenericSerial") {
+		config += NewGenericSerialConfig();
+		row.find("td input.count").val("1");
+	} else if (type == "USBRelay") {
+		config += NewUSBRelayConfig();
+		row.find("td input.count").val("2");
+		row.find("td input.count").prop('disabled', true);
+	} else if (type == "RPIWS281X") {
+		config += NewRPIWS281XConfig();
+		row.find("td input.act").change(function() {
+			alert("(Re)Enabling the RPIWS281x output may require an automatic reboot when the config is saved.");
+			});
+		row.find("td input.count").val("3");
+		row.find("td input.count").prop('disabled', true);
 	} else if ((type == "VirtualMatrix") || (type == "FBMatrix")) {
 		config += NewVirtualMatrixConfig();
 		row.find("td input.count").val("1536");
@@ -1219,6 +1551,7 @@ function AddOtherOutput() {
 ?>
 				"<option value='SPI-WS2801'>SPI-WS2801</option>" +
 				"<option value='SPI-nRF24L01'>SPI-nRF24L01</option>" +
+				"<option value='RPIWS281X'>RPIWS281X</option>" +
 <?
 	}
 ?>
@@ -1315,8 +1648,7 @@ function GetBBB48StringConfig()
 		output.hybridMode = 0;
 		output.reverse = parseInt($('#BBB48Direction' + ai).val());
 		output.grouping = parseInt($('#BBB48Grouping' + ai).val());
-		output.zigZag = 0;
-//		output.zigZag = parseInt($('#BBB48ZigZag' + ai).val());
+		output.zigZag = parseInt($('#BBB48ZigZag' + ai).val());
 
 		if ($('#BBB48HybridMode' + ai).is(":checked"))
 			output.hybridMode = 1;
@@ -1433,8 +1765,8 @@ function DrawBBB48StringTable()
 			html += " checked";
 		html += "></td>";
 
-//		html += "<td class='center'><input id='BBB48ZigZag[" + s + "]' type='text' size='3' maxlength='3' value='"
-//			+ channelOutputsLookup["BBB48String"].outputs[s].zigZag + "'></td>";
+		html += "<td class='center'><input id='BBB48ZigZag[" + s + "]' type='text' size='3' maxlength='3' value='"
+			+ channelOutputsLookup["BBB48String"].outputs[s].zigZag + "'></td>";
 
 
 		html += "</tr>";
@@ -2160,9 +2492,7 @@ if ($settings['Platform'] == "BeagleBone Black")
 									<td width='10%'>Group<br>Count</td>
 									<td width='10%'>Null<br>Nodes</td>
 									<td width='10%'>Hybrid</td>
-<!--
 									<td width='10%'>Zig<br>Zag</td>
--->
 									</tr>
 							</thead>
 							<tbody>

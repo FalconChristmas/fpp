@@ -32,6 +32,7 @@ OBJECTS_fppd = \
 	channeloutput/E131.o \
 	channeloutput/FBMatrix.o \
 	channeloutput/FPD.o \
+	channeloutput/GenericSerial.o \
 	channeloutput/GPIO.o \
 	channeloutput/GPIO595.o \
 	channeloutput/LOR.o \
@@ -45,6 +46,11 @@ OBJECTS_fppd = \
 	channeloutput/USBPixelnet.o \
 	channeloutput/USBRelay.o \
 	channeloutput/USBRenard.o \
+	channeltester/ChannelTester.o \
+	channeltester/TestPatternBase.o \
+	channeltester/RGBChase.o \
+	channeltester/RGBFill.o \
+	channeltester/SingleChase.o \
 	command.o \
 	common.o \
 	controlrecv.o \
@@ -62,7 +68,7 @@ OBJECTS_fppd = \
 	mediaoutput/mpg123.o \
 	mediaoutput/ogg123.o \
 	mediaoutput/omxplayer.o \
-	memorymap.o \
+	PixelOverlay.o \
 	Playlist.o \
 	Plugins.o \
 	Scheduler.o \
@@ -75,7 +81,7 @@ LIBS_fppd = \
 	-ljsoncpp \
 	-lm \
 	-lutil \
-	-ltag_c \
+	-ltag \
 	$(NULL)
 
 SUBDIRS = 
@@ -204,6 +210,13 @@ CFLAGS += \
 	-DNOROOT \
 	$(NULL)
 endif
+
+##############################################################################
+# Uncomment the following three lines to enable X11Matrix Test Channel Output
+#LIBS_fppd += -lX11
+#CFLAGS += -DUSE_X11Matrix
+#OBJECTS_fppd += channeloutput/X11Matrix.o
+##############################################################################
 
 PWD := $(shell pwd)
 

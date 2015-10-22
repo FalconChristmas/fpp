@@ -127,6 +127,7 @@ extern PluginCallbackManager pluginCallbackManager;
     char *s;
     char *s2;
     char *s3;
+    char *s4;
     char *response2 = NULL;
     int i;
 		char NextPlaylist[128] = "No playlist scheduled.";
@@ -141,7 +142,43 @@ extern PluginCallbackManager pluginCallbackManager;
 				scheduler->GetNextPlaylistText(NextPlaylist);
 				if(FPPstatus==FPP_STATUS_IDLE)
 				{
-					sprintf(response,"%d,%d,%d,%s,%s\n",getFPPmode(),0,getVolume(),NextPlaylist,NextScheduleStartText);
+					if (getFPPmode() == REMOTE_MODE)
+					{
+						int secsElapsed = 0;
+						int secsRemaining = 0;
+						char seqFilename[1024];
+						char mediaFilename[1024];
+
+						if (sequence->IsSequenceRunning())
+						{
+							strcpy(seqFilename, sequence->m_seqFilename);
+							secsElapsed = sequence->m_seqSecondsElapsed;
+							secsRemaining = sequence->m_seqSecondsRemaining;
+						}
+						else
+						{
+							strcpy(seqFilename, "");
+						}
+
+						if (mediaOutput)
+						{
+							strcpy(mediaFilename, mediaOutput->filename);
+							secsElapsed = mediaOutputStatus.secondsElapsed;
+							secsRemaining = mediaOutputStatus.secondsRemaining;
+						}
+						else
+						{
+							strcpy(mediaFilename, "");
+						}
+
+						sprintf(response,"%d,%d,%d,%s,%s,%d,%d\n",
+							getFPPmode(), 0, getVolume(), seqFilename,
+							mediaFilename, secsElapsed, secsRemaining);
+					}
+					else
+					{
+						sprintf(response,"%d,%d,%d,%s,%s\n",getFPPmode(),0,getVolume(),NextPlaylist,NextScheduleStartText);
+					}
 				}
 				else
 				{
@@ -332,6 +369,24 @@ extern PluginCallbackManager pluginCallbackManager;
 				sprintf(response,"%d,%d,Event Triggered,%d,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS,i);
 			else
 				sprintf(response,"%d,%d,Event Failed,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
+		}
+		else if (!strcmp(CommandStr, "GetTestMode"))
+		{
+			strcpy(response, channelTester->GetConfig().c_str());
+			strcat(response, "\n");
+		}
+		else if (!strcmp(CommandStr, "SetTestMode"))
+		{
+			if (channelTester->SetupTest(std::string(s + strlen(s) + 1)))
+			{
+				sprintf(response, "0,%d,Test Mode Activated,,,,,,,,,\n",
+					COMMAND_SUCCESS);
+			}
+			else
+			{
+				sprintf(response, "0,%d,Test Mode Deactivated,,,,,,,,,\n",
+					COMMAND_SUCCESS);
+			}
 		}
 		else if (!strcmp(CommandStr, "LogLevel"))
 		{

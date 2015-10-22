@@ -150,7 +150,7 @@ function print_if_match($one, $two, $print)
 <?
 		}
 ?>
-</select> (Reboot required if changed)
+</select> <b>NOTE:</b> You must reboot to activate the RTC, then return to this page to set the time on the RTC.
 
 
 <h4>NTP</h4>

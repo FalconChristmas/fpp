@@ -144,7 +144,6 @@ int USBRelayOutput::Close(void)
 int USBRelayOutput::RawSendData(unsigned char *channelData)
 {
 	LogExcess(VB_CHANNELOUT, "USBRelayOutput::RawSendData(%p)\n", channelData);
-HexDump("channelData", channelData, m_channelCount);
 
 	char out       = 0x00;
 	int  shiftBits = 0;

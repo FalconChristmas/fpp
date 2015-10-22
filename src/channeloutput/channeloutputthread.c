@@ -35,8 +35,9 @@
 #include "common.h"
 #include "controlsend.h"
 #include "effects.h"
+#include "fppd.h"
 #include "log.h"
-#include "memorymap.h"
+#include "PixelOverlay.h"
 #include "Sequence.h"
 #include "settings.h"
 
@@ -98,7 +99,11 @@ void *RunChannelOutputThread(void *data)
 
 	ThreadIsRunning = 1;
 
-	if (getFPPmode() == REMOTE_MODE)
+	if ((getFPPmode() == REMOTE_MODE) &&
+		(!IsEffectRunning()) &&
+		(!UsingMemoryMapInput()) &&
+		(!channelTester->Testing()) &&
+		(!getAlwaysTransmit()))
 	{
 		// Sleep about 2 seconds waiting for the master
 		int loops = 0;
@@ -150,6 +155,7 @@ void *RunChannelOutputThread(void *data)
 		if ((sequence->IsSequenceRunning()) ||
 			(IsEffectRunning()) ||
 			(UsingMemoryMapInput()) ||
+			(channelTester->Testing()) ||
 			(getAlwaysTransmit()) ||
 			(getFPPmode() == BRIDGE_MODE))
 		{
@@ -308,8 +314,16 @@ void UpdateMasterPosition(int frameNumber)
  */
 void CalculateNewChannelOutputDelay(float mediaPosition)
 {
+	static float nextSyncCheck = 0.5;
+
 	if (getFPPmode() == REMOTE_MODE)
 		return;
+
+	if ((mediaPosition <= nextSyncCheck) &&
+		(nextSyncCheck < (mediaPosition + 2.0)))
+		return;
+
+	nextSyncCheck = mediaPosition + (20.0 / RefreshRate);
 
 	float offsetMediaPosition = mediaPosition - mediaOffset;
 
@@ -333,7 +347,7 @@ void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent)
 	int diff = channelOutputFrame - expectedFramesSent;
 	if (diff)
 	{
-		int timerOffset = diff * 500;
+		int timerOffset = diff * (DefaultLightDelay / 100);
 		int newLightDelay = LightDelay;
 
 		if (channelOutputFrame >  expectedFramesSent)

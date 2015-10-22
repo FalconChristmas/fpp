@@ -651,6 +651,22 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			});
 		}
 
+		function UpgradeFPPVersion(newVersion)
+		{
+			if (confirm('Do you wish to upgrade the Falcon Player?\n\nClick "OK" to continue.\n\nThe system will automatically reboot to complete the upgrade.'))
+			{
+				document.body.style.cursor = "wait";
+				$.get("fppxml.php?command=upgradeFPPVersion&version=" + newVersion
+				).success(function() {
+					document.body.style.cursor = "pointer";
+					location.reload(true);
+				}).fail(function() {
+					document.body.style.cursor = "pointer";
+					DialogError("Upgrade FPP Version", "Upgrade failed");
+				});
+			}
+		}
+
 		function ChangeGitBranch(newBranch)
 		{
 			document.body.style.cursor = "wait";
@@ -965,7 +981,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 				}
 				// start address
 				txtStartAddress=document.getElementById("txtStartAddress[" + i + "]");				
-				if(!validateNumber(txtStartAddress,1,131072))
+				if(!validateNumber(txtStartAddress,1,524288))
 				{
 					returnValue = false;
 				}
@@ -1355,7 +1371,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 	{
 		if (fppMode == 1) // Bridge Mode
 		{
-			$("#playerStatus").hide();
+			$("#playerInfo").hide();
 			$("#nextPlaylist").hide();
 			$("#bytesTransferred").show();
 			$("#remoteStatus").hide();
@@ -1364,17 +1380,21 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 		{
 			if (fppMode == 8) // Remote Mode
 			{
-				$("#playerStatus").hide();
+				$("#playerInfo").show();
+				$("#playerStatusTop").hide();
+				$("#playerStatusBottom").hide();
+				$("#remoteStatus").show();
 				$("#nextPlaylist").hide();
 				$("#bytesTransferred").hide();
-				$("#remoteStatus").show();
 			}
 			else // Player or Master Modes
 			{
-				$("#playerStatus").show();
+				$("#playerInfo").show();
+				$("#playerStatusTop").show();
+				$("#playerStatusBottom").show();
+				$("#remoteStatus").hide();
 				$("#nextPlaylist").show();
 				$("#bytesTransferred").hide();
-				$("#remoteStatus").hide();
 			}
 		}
 	}
@@ -1407,10 +1427,42 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 						SetupUIForMode(fppMode);
 						if (fppMode == 1)
 						{
+							// Bridge Mode
 							GetUniverseBytesReceived();
+						}
+						else if (fppMode == 8)
+						{
+							// Remote Mode
+							var Volume = status.childNodes[2].textContent;
+							var seqFilename = status.childNodes[3].textContent;
+							var mediaFilename = status.childNodes[4].textContent;
+							var secsElapsed = parseInt(status.childNodes[5].textContent);
+							var secsRemaining = parseInt(status.childNodes[6].textContent);
+							var fppTime = status.childNodes[7].textContent;
+
+							$('#fppTime').html(fppTime);
+
+							var status = "Idle";
+							if (secsElapsed)
+							{
+								var minsPlayed = Math.floor(secsElapsed/60);
+								minsPlayed = isNaN(minsPlayed)?0:minsPlayed;
+								var secsPlayed = secsElapsed%60;
+								secsPlayed = isNaN(secsPlayed)?0:secsPlayed;
+
+								var minsRemaining = Math.floor(secsRemaining/60);
+								minsRemaining = isNaN(minsRemaining)?0:minsRemaining;
+								var secsRemaining = secsRemaining%60;
+								secsRemaining = isNaN(secsRemaining)?0:secsRemaining;
+								status = "Syncing to Master: Elapsed: " + zeroPad(minsPlayed,2) + ":" + zeroPad(secsPlayed,2) + "&nbsp;&nbsp;&nbsp;&nbsp;Remaining: " + zeroPad(minsRemaining,2) + ":" + zeroPad(secsRemaining,2);
+							}
+							$('#txtRemoteStatus').html(status);
+							$('#txtRemoteSeqFilename').html(seqFilename);
+							$('#txtRemoteMediaFilename').html(mediaFilename);
 						}
 						else
 						{
+							// Player or Standalone Mode
 							if(fppStatus == STATUS_IDLE)
 							{
 								gblCurrentPlaylistIndex =0;
@@ -1989,7 +2041,7 @@ function GetRunningEffects()
 
 	function RebootPi()
 	{
-		if (confirm('REBOOT the Falcon Pi Player?')) 
+		if (confirm('REBOOT the Falcon Player?'))
 		{
 			var xmlhttp=new XMLHttpRequest();
 			var url = "fppxml.php?command=rebootPi";
@@ -2002,7 +2054,7 @@ function GetRunningEffects()
 
 	function ShutdownPi()
 	{
-		if (confirm('SHUTDOWN the Falcon Pi Player?')) 
+		if (confirm('SHUTDOWN the Falcon Player?'))
 		{
 			var xmlhttp=new XMLHttpRequest();
 			var url = "fppxml.php?command=shutdownPi";
@@ -2238,6 +2290,11 @@ function GetVideoInfo(file)
 	$('#fileText').load("fppxml.php?command=getVideoInfo&filename=" + file);
 	$('#fileViewer').dialog({ height: 600, width: 800, title: "Video Info" });
 	$('#fileViewer').dialog( "moveToTop" );
+}
+
+function PlayFileInBrowser(dir, file)
+{
+	location.href="fppxml.php?command=getFile&play=1&dir=" + dir + "&filename=" + file;
 }
 
 function DownloadFile(dir, file)

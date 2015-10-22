@@ -40,8 +40,9 @@
 #include "events.h"
 #include "effects.h"
 #include "fpp.h" // for FPPstatus && #define-d status values
+#include "fppd.h"
 #include "log.h"
-#include "memorymap.h"
+#include "PixelOverlay.h"
 #include "Sequence.h"
 #include "settings.h"
 
@@ -412,6 +413,9 @@ void Sequence::ProcessSequenceData(void) {
 				TriggerEvent(m_seqLastControlMajor, m_seqLastControlMinor);
 		}
 	}
+
+	if (channelTester->Testing())
+		channelTester->OverlayTestData(m_seqData);
 }
 
 void Sequence::SendSequenceData(void) {

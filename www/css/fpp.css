@@ -258,6 +258,17 @@ html
 	width: 100%;
 }
 
+#upgradeFlag {
+	background-color: #00AA00;
+	color: #FFFFFF;
+	padding-top: 5px;
+	font-size: 20px;
+	font-weight: bold;
+	text-align: center;
+	min-height: 30px;
+	width: 100%;
+}
+
 legend
 {
 	font-weight: bold;
@@ -601,7 +612,7 @@ fieldset
 
 #fileManager, #channelOutputManager, .fppTabs {
 	min-width: 768px;
-	width: 768px;
+	width: 860px;
 	margin-left: auto;
 	margin-right: auto;
 }

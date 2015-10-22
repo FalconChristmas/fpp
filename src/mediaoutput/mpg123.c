@@ -108,7 +108,7 @@ int mpg123_StartPlaying(const char *musicFile)
 		close(pipeFromMP3[MEDIAOUTPUTPIPE_WRITE]);
 		pipeFromMP3[MEDIAOUTPUTPIPE_WRITE] = 0;
 
-		if (!strcmp(mp3Player, "/usr/bin/mpg123"))
+		if (!strcmp(mp3Player, MPG123_BINARY))
 			execl(mp3Player, mp3Player, "-v", fullAudioPath, NULL);
 		else
 			execl(mp3Player, mp3Player, fullAudioPath, NULL);
@@ -172,7 +172,6 @@ void mpg123_StopPlaying()
 
 void mpg123_ParseTimes()
 {
-	static int lastSyncCheck = 0;
 	static int lastRemoteSync = 0;
 	int result;
 	int secs;
@@ -236,12 +235,9 @@ void mpg123_ParseTimes()
 	}
 
 	if ((sequence->IsSequenceRunning()) &&
-		(mediaOutputStatus.secondsElapsed > 0) &&
-		(lastSyncCheck != mediaOutputStatus.secondsElapsed))
+		(mediaOutputStatus.secondsElapsed > 0))
 	{
-		float MusicSeconds = (float)((float)mediaOutputStatus.secondsElapsed + ((float)mediaOutputStatus.subSecondsElapsed/(float)100));
-
-		LogDebug(VB_MEDIAOUT,
+		LogExcess(VB_MEDIAOUT,
 			"Elapsed: %.2d.%.2d  Remaining: %.2d Total %.2d:%.2d.\n",
 			mediaOutputStatus.secondsElapsed,
 			mediaOutputStatus.subSecondsElapsed,
@@ -249,8 +245,7 @@ void mpg123_ParseTimes()
 			mediaOutputStatus.minutesTotal,
 			mediaOutputStatus.secondsTotal);
 
-		CalculateNewChannelOutputDelay(MusicSeconds);
-		lastSyncCheck = mediaOutputStatus.secondsElapsed;
+		CalculateNewChannelOutputDelay(mediaOutputStatus.mediaSeconds);
 	}
 }
 

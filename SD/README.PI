@@ -1,0 +1,36 @@
+=============================================================================
+Instructions for creating a new FPP NOOBS SD image package
+=============================================================================
+
+Install the latest raspbian image to the SD card using NOOBS.
+
+Run our installer:
+	wget -O ./FPP_Install.sh \
+		http://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
+	chmod 700 ./FPP_Install.sh
+	sudo ./FPP_Install.sh
+
+This will install FPP and perform all required changes to the root filesystem
+and add the FPP user, install required packages, etc.
+
+Shutdown the Pi cleanly and remove the SD card after power-off:
+
+	su - fpp
+	sudo rm -rf /home/pi
+	sudo shutdown -h now
+
+Install the SD card in another Linux computer containing this README.PI
+file and the Pi-createNOOBS.sh shell script in the same directory.
+
+Run Pi-createNOOBS.sh to create a new NOOBS compressed image from the SD
+card with FPP installed.  The first argument is the path to the SD image and
+the second argument is the FPP version number which will be included in the
+output filename.
+
+	sudo ./Pi-createNOOBS.sh /dev/sdc v1.5
+
+This will create a file called FPP-${VERSION}.zip that can be distributed
+for testing/release where ${VERSION} is the version string passed on the
+command line.
+
+=============================================================================

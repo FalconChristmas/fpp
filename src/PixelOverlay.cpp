@@ -1,5 +1,5 @@
 /*
- *   Memory map handler for Falcon Pi Player (FPP)
+ *   Pixel Overlay handler for Falcon Pi Player (FPP)
  *
  *   Copyright (C) 2013 the Falcon Pi Player Developers
  *      Initial development by:
@@ -36,8 +36,8 @@
 
 #include "common.h"
 #include "log.h"
-#include "memorymap.h"
-#include "memorymapcontrol.h"
+#include "PixelOverlay.h"
+#include "PixelOverlayControl.h"
 #include "Sequence.h"
 #include "settings.h"
 #include "channeloutputthread.h"
@@ -46,7 +46,7 @@ char         *chanDataMap;
 int           chanDataMapFD = -1;
 char         *ctrlMap;
 int           ctrlFD = -1;
-short        *pixelMap;
+long long    *pixelMap;
 int           pixelFD = -1;
 
 FPPChannelMemoryMapControlHeader *ctrlHeader = NULL;
@@ -61,10 +61,10 @@ int LoadChannelMemoryMapData(void);
 int InitializeChannelDataMemoryMap(void) {
 	int   i  = 0;
 	char  ch = '\0';
-	short pixelLocation = 0;
+	long long pixelLocation = 0;
 	char  tmpData[FPPD_MAX_CHANNELS];
 	char  tmpCtrlData[FPPCHANNELMEMORYMAPSIZE];
-	short tmpPixelMapData[FPPD_MAX_CHANNELS];
+	long long tmpPixelMapData[FPPD_MAX_CHANNELS];
 
 	LogDebug(VB_CHANNELOUT, "InitializeChannelDataMemoryMap()\n");
 
@@ -150,7 +150,7 @@ int InitializeChannelDataMemoryMap(void) {
 		return -1;
 	}
 
-	pixelMap = (short *)mmap(0, FPPD_MAX_CHANNELS * sizeof(short), PROT_READ|PROT_WRITE, MAP_SHARED, pixelFD, 0);
+	pixelMap = (long long *)mmap(0, FPPD_MAX_CHANNELS * sizeof(long long), PROT_READ|PROT_WRITE, MAP_SHARED, pixelFD, 0);
 
 	if (!pixelMap) {
 		LogErr(VB_CHANNELOUT, "Error mapping %s memory map file: %s\n",

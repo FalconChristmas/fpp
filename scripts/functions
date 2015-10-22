@@ -162,6 +162,8 @@ SetupFPPNetworkConfig () {
 			echo "iface default inet dhcp" >> ${TMPFILE}
 		fi
 		echo >> ${TMPFILE}
+		echo "wireless-power off" >> ${TMPFILE}
+		echo >> ${TMPFILE}
 
 		cat <<-EOF > /etc/wpa_supplicant/wpa_supplicant.conf.FPP
 		ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
@@ -218,9 +220,23 @@ SetupFPPNetworkConfig () {
 		echo "FPP - Bringing wlan0 up"
 		ifup wlan0 > /dev/null 2>&1
 
-		echo "FPP - Disabling power management on wlan0"
-		iwconfig wlan0 power off > /dev/null 2>&1
+		# Shouldn't need this since we have "wireless-power off" but leave it
+		# in here just in case for now.
+		#echo "FPP - Disabling power management on wlan0"
+		#iwconfig wlan0 power off > /dev/null 2>&1
 	fi
+
+	ENABLEROUTING=$(getSetting EnableRouting)
+	if [ "x${ENABLEROUTING}" = "x1" ]
+	then
+		sed -i "/net.ipv4.ip_forward/d" /etc/sysctl.conf
+		echo "# Enable Routing" >> /etc/sysctl.conf
+		echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
+	else
+		sed -i "/Enable Routing/d" /etc/sysctl.conf
+		sed -i "/net.ipv4.ip_forward = 1/d" /etc/sysctl.conf
+	fi
+	sysctl --system
 }
 
 #############################################################################
@@ -486,10 +502,8 @@ startOLADaemonIfNecessary() {
 	if [ $? -eq 0 ]
 	then
 		OLAPID=$(pgrep olad)
-echo "OLAPID: '$OLAPID'"
 		if [ -z "${OLAPID}" ]
 		then
-echo "starting olad"
 			sudo -u ${FPPUSER} olad -f -c ${FPPHOME}/media/config/ola
 		fi
 	fi
@@ -500,7 +514,11 @@ stopOLADaemonIfUnused() {
 	cat ${FPPHOME}/media/config/channeloutputs.json 2> /dev/null | tr -d "\r\n" | egrep -q 'OLA",[ 	a-zA-Z0-9:",]*"enabled": 1'
 	if [ $? -ne 0 ]
 	then
-		killall -9 olad
+		OLAPID=$(pgrep olad)
+		if [ -n "${OLAPID}" ]
+		then
+			killall -9 olad
+		fi
 	fi
 }
 
@@ -517,6 +535,29 @@ setupChannelOutputs() {
 			cp ${FPPDIR}/external/LEDscape/dts/CAPE-BONE-OCTO-00A0.dtbo /lib/firmware/
 			echo 'CAPE-BONE-OCTO' > /sys/devices/bone_capemgr.*/slots 2> /dev/null
 		fi
+	elif [ "${FPPPLATFORM}" = "Raspberry Pi" ]
+	then
+		# RPIWS281X and onboard sound are incompatible
+		grep -q "^1,RPIWS281X" ${FPPHOME}/media/channeloutputs 2> /dev/null
+		if [ $? -eq 0 ]
+		then
+			grep -q "^snd-bcm2835" /etc/modules 2> /dev/null
+			if [ $? -eq 0 ]
+			then
+				# Disable onboard sound and reboot to take effect
+				sed -i "s/^snd-bcm2835/#snd-bcm2835/" /etc/modules
+				shutdown -r now
+			fi
+		else
+			grep -q "^snd-bcm2835" /etc/modules 2> /dev/null
+			if [ $? -ne 0 ]
+			then
+				# Re-enable sound
+				sed -i "/^#snd-bcm2835/d" /etc/modules
+				echo "snd-bcm2835" >> /etc/modules
+				modprobe snd-bcm2835
+			fi
+		fi
 	fi
 
 	startOLADaemonIfNecessary
@@ -529,7 +570,7 @@ startWebSocketServer() {
 }
 
 stopWebSocketServer() {
-	killall -9 fppwss
+	killall -9 fppwss 2> /dev/null
 }
 
 #############################################################################

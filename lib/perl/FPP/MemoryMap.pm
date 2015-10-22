@@ -61,7 +61,7 @@ sub new {
 		}, $proto;
 
 	$this->{C} = new Convert::Binary::C;
-	$this->{C}->parse_file("/opt/fpp/src/memorymapcontrol.h");
+	$this->{C}->parse_file("/opt/fpp/src/PixelOverlayControl.h");
 
 	$this->{C}->tag('FPPChannelMemoryMapControlHeader.filler',
 		Format => 'String');
@@ -111,7 +111,7 @@ sub OpenMaps {
 	$this->{dataFileMap} = \$dataFileMap;
 	$this->{pixelFileMap} = \$pixelFileMap;
 
-	my @pixelMap = unpack('v' . $this->{maxChannels}, ${$this->{pixelFileMap}});
+	my @pixelMap = unpack('Q' . $this->{maxChannels}, ${$this->{pixelFileMap}});
 	$this->{pixelMap} = \@pixelMap;
 
 	$this->ReadBlockInfo();

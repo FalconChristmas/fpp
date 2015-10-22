@@ -37,6 +37,7 @@
 #include "E131.h"
 #include "FBMatrix.h"
 #include "FPD.h"
+#include "GenericSerial.h"
 #include "log.h"
 #include "Sequence.h"
 #include "settings.h"
@@ -51,6 +52,10 @@
 #include "GPIO.h"
 #include "GPIO595.h"
 #include "common.h"
+
+#ifdef USE_X11Matrix
+#  include "X11Matrix.h"
+#endif
 
 #if defined(PLATFORM_PI) || defined(PLATFORM_ODROID)
 #  include "RGBMatrix.h"
@@ -217,6 +222,10 @@ int InitializeChannelOutputs(void) {
 #endif
 			} else if (type == "USBRelay") {
 				channelOutputs[i].output = new USBRelayOutput(start, count);
+#ifdef USE_X11Matrix
+			} else if (type == "X11Matrix") {
+				channelOutputs[i].output = new X11MatrixOutput(start, count);
+#endif
 			} else {
 				LogErr(VB_CHANNELOUT, "Unknown Channel Output type: %s\n", type.c_str());
 				continue;
@@ -308,6 +317,8 @@ int InitializeChannelOutputs(void) {
 				channelOutputs[i].output = new FBMatrixOutput(start, count);
 			} else if (!strcmp(type, "GPIO")) {
 				channelOutputs[i].output = new GPIOOutput(start, count);
+			} else if (!strcmp(type, "GenericSerial")) {
+				channelOutputs[i].output = new GenericSerialOutput(start, count);
 			} else if (!strcmp(type, "LOR")) {
 				channelOutputs[i].outputOld = &LOROutput;
 			} else if (!strcmp(type, "Renard")) {

@@ -16,7 +16,10 @@ else
 	foreach($output as $card)
 	{
 		$values = explode(':', $card);
-		$AlsaCards[$values[1]] = $values[0];
+		if ($values[1] == "bcm2835 ALSA")
+			$AlsaCards[$values[1] . " (Pi Onboard Audio)"] = $values[0];
+		else
+			$AlsaCards[$values[1]] = $values[0];
 	}
 }
 unset($output);
@@ -28,7 +31,35 @@ if ( $return_val )
 }
 else
 {
-	$CurrentCard = $output[0];
+	if (isset($output[0]))
+		$CurrentCard = $output[0];
+	else
+		$CurrentCard = "0";
+}
+unset($output);
+
+$AudioMixerDevice = "PCM";
+if (isset($settings['AudioMixerDevice']))
+{
+	$AudioMixerDevice = $settings['AudioMixerDevice'];
+}
+else if ($settings['Platform'] == "BeagleBone Black")
+{
+	$AudioMixerDevice = exec($SUDO . " amixer -c $CurrentCard scontrols | head -1 | cut -f2 -d\"'\"");
+}
+
+$MixerDevices = Array();
+exec($SUDO . " amixer -c $CurrentCard scontrols | cut -f2 -d\"'\"", $output, $return_val);
+if ( $return_val )
+{
+	error_log("Error getting mixer devices!");
+}
+else
+{
+	foreach($output as $device)
+	{
+		$MixerDevices[$device] = $device;
+	}
 }
 unset($output);
 
@@ -196,8 +227,14 @@ function LogLevelChanged()
 
 function SetAudio()
 {
-	$.get("fppjson.php?command=setAudioOutput&value="
+	$.get("fppjson.php?command=setSetting&key=AudioOutput&value="
 		+ $('#AudioOutput').val()).fail(function() { alert("Failed to change audio output!") });
+}
+
+function SetMixerDevice()
+{
+	$.get("fppjson.php?command=setSetting&key=AudioMixerDevice&value="
+		+ $('#AudioMixerDevice').val()).fail(function() { alert("Failed to change audio output!") });
 }
 
 function ToggleLCDNow()
@@ -220,11 +257,15 @@ function ToggleLCDNow()
 <legend>FPP Global Settings</legend>
   <table table width = "100%">
     <tr>
-      <td width = "35%">Blank screen on startup:</td>
-      <td width = "65%"><? PrintSettingCheckbox("Screensaver", "screensaver", 0, 1, "1", "0"); ?></td>
+      <td width = "45%">Blank screen on startup:</td>
+      <td width = "55%"><? PrintSettingCheckbox("Screensaver", "screensaver", 0, 1, "1", "0"); ?></td>
     </tr>
     <tr>
-      <td>Force Analog Audio Output:</td>
+      <td>Force HDMI Display:</td>
+      <td><? PrintSettingCheckbox("Force HDMI Display", "ForceHDMI", 0, 1, "1", "0"); ?></td>
+    </tr>
+    <tr>
+      <td>Force analog audio output during video playback:</td>
       <td><? PrintSettingCheckbox("Force Analog Audio Output", "forceLocalAudio", 0, 0, "1", "0"); ?></td>
     </tr>
     <tr>
@@ -238,6 +279,10 @@ function ToggleLCDNow()
     <tr>
       <td>Audio Output Device:</td>
       <td><? PrintSettingSelect("Audio Output Device", "AudioOutput", 1, 0, "$CurrentCard", $AlsaCards, "", "SetAudio"); ?></td>
+    </tr>
+    <tr>
+      <td>Audio Output Mixer Device:</td>
+      <td><? PrintSettingSelect("Audio Mixer Device", "AudioMixerDevice", 1, 0, $AudioMixerDevice, $MixerDevices, "", "SetMixerDevice"); ?></td>
     </tr>
     <tr>
       <td>External Storage Device:</td>

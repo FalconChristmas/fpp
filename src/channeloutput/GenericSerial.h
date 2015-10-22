@@ -1,7 +1,7 @@
 /*
- *   FrameBuffer Virtual matrix handler for Falcon Player (FPP)
+ *   Generic Serial handler for Falcon Player (FPP)
  *
- *   Copyright (C) 2015 the Falcon Player Developers
+ *   Copyright (C) 2013 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -23,20 +23,22 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _FBMATRIX_H
-#define _FBMATRIX_H
+#ifndef _GENERICSERIAL_H
+#define _GENERICSERIAL_H
 
-#include <linux/fb.h>
 #include <string>
 
 #include "ChannelOutputBase.h"
 
-class FBMatrixOutput : public ChannelOutputBase {
+#define GENERICSERIAL_MAX_CHANNELS 512
+
+class GenericSerialOutput : public ChannelOutputBase {
   public:
-	FBMatrixOutput(unsigned int startChannel, unsigned int channelCount);
-	~FBMatrixOutput();
+	GenericSerialOutput(unsigned int startChannel, unsigned int channelCount);
+	~GenericSerialOutput();
 
 	int Init(char *configStr);
+
 	int Close(void);
 
 	int RawSendData(unsigned char *channelData);
@@ -44,20 +46,15 @@ class FBMatrixOutput : public ChannelOutputBase {
 	void DumpConfig(void);
 
   private:
-	int     m_fbFd;
-	int     m_ttyFd;
-
-	std::string  m_layout;
-	int          m_width;
-	int          m_height;
-	int          m_useRGB;
-
-	char   *m_fbp;
-	int     m_screenSize;
-
-	struct fb_var_screeninfo m_vInfo;
-	struct fb_var_screeninfo m_vInfoOrig;
-	struct fb_fix_screeninfo m_fInfo;
+	std::string m_deviceName;
+	int         m_fd;
+	int         m_speed;
+	int         m_headerSize;
+	std::string m_header;
+	int         m_footerSize;
+	std::string m_footer;
+	int         m_packetSize;
+	char       *m_data;
 };
 
-#endif /* _FBMATRIX_H */
+#endif /* #ifdef _GENERICSERIAL_H */

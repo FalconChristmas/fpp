@@ -8,7 +8,8 @@
 #include "common.h"
 #include "log.h"
 
-#include <taglib/tag_c.h>
+#include <taglib/fileref.h>
+#include <taglib/tag.h>
 
 MediaDetails	 mediaDetails;
 
@@ -43,6 +44,7 @@ void clearPreviousMedia()
 		free(mediaDetails.genre);
 	mediaDetails.genre = NULL;
 
+	mediaDetails.length = 0;
 	mediaDetails.seconds = 0;
 	mediaDetails.minutes = 0;
 
@@ -56,9 +58,6 @@ void ParseMedia()
     char fullMediaPath[1024];
 	int seconds;
 	int minutes;
-	TagLib_File *file;
-	TagLib_Tag *tag;
-	const TagLib_AudioProperties *properties;
 	PlaylistEntry *plEntry = &playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry];
 
 	if (!plEntry->songName)
@@ -93,38 +92,48 @@ void ParseMedia()
 
 	clearPreviousMedia();
 
-	taglib_set_strings_unicode(false);
-	file = taglib_file_new(fullMediaPath);
+	TagLib::FileRef f(fullMediaPath);
 
-	if (file == NULL)
+	if (f.isNull() || !f.tag())
 		return;
 
-	tag = taglib_file_tag(file);
-	properties = taglib_file_audioproperties(file);
+	TagLib::Tag *tag = f.tag();
 
-	if (tag != NULL)
+	mediaDetails.title   = strdup(tag->title().toCString());
+	mediaDetails.artist  = strdup(tag->artist().toCString());
+	mediaDetails.album   = strdup(tag->album().toCString());
+	mediaDetails.year    = tag->year();
+	mediaDetails.comment = strdup(tag->comment().toCString());
+	mediaDetails.track   = tag->track();
+	mediaDetails.genre   = strdup(tag->genre().toCString());
+
+	if (f.audioProperties())
 	{
-		mediaDetails.title = strdup(taglib_tag_title(tag));
-		mediaDetails.artist = strdup(taglib_tag_artist(tag));
-		mediaDetails.album = strdup(taglib_tag_album(tag));
-		mediaDetails.year = taglib_tag_year(tag);
-		mediaDetails.comment = strdup(taglib_tag_comment(tag));
-		mediaDetails.track = taglib_tag_track(tag);
-		mediaDetails.genre = strdup(taglib_tag_genre(tag));
+		TagLib::AudioProperties *properties = f.audioProperties();
+
+		mediaDetails.length     = properties->length();
+		mediaDetails.seconds    = properties->length() % 60;
+		mediaDetails.minutes    = (properties->length() - mediaDetails.seconds) / 60;
+
+		mediaDetails.bitrate    = properties->bitrate();
+		mediaDetails.sampleRate = properties->sampleRate();
+		mediaDetails.channels   = properties->channels();
 	}
 
-	if (properties != NULL)
-	{
-		mediaDetails.seconds = taglib_audioproperties_length(properties) % 60;
-		mediaDetails.minutes = (taglib_audioproperties_length(properties) - seconds) / 60;
-
-		mediaDetails.bitrate = taglib_audioproperties_bitrate(properties);
-		mediaDetails.sampleRate = taglib_audioproperties_samplerate(properties);
-		mediaDetails.channels = taglib_audioproperties_channels(properties);
-	}
-
-	taglib_tag_free_strings();
-	taglib_file_free(file);
+	LogDebug(VB_MEDIAOUT, "  Title        : %s\n", mediaDetails.title);
+	LogDebug(VB_MEDIAOUT, "  Artist       : %s\n", mediaDetails.artist);
+	LogDebug(VB_MEDIAOUT, "  Album        : %s\n", mediaDetails.album);
+	LogDebug(VB_MEDIAOUT, "  Year         : %d\n", mediaDetails.year);
+	LogDebug(VB_MEDIAOUT, "  Comment      : %s\n", mediaDetails.comment);
+	LogDebug(VB_MEDIAOUT, "  Track        : %d\n", mediaDetails.track);
+	LogDebug(VB_MEDIAOUT, "  Genre        : %s\n", mediaDetails.genre);
+	LogDebug(VB_MEDIAOUT, "  Properties:\n");
+	LogDebug(VB_MEDIAOUT, "    Length     : %d\n", mediaDetails.length);
+	LogDebug(VB_MEDIAOUT, "    Seconds    : %d\n", mediaDetails.seconds);
+	LogDebug(VB_MEDIAOUT, "    Minutes    : %d\n", mediaDetails.minutes);
+	LogDebug(VB_MEDIAOUT, "    Bitrate    : %d\n", mediaDetails.bitrate);
+	LogDebug(VB_MEDIAOUT, "    Sample Rate: %d\n", mediaDetails.sampleRate);
+	LogDebug(VB_MEDIAOUT, "    Channels   : %d\n", mediaDetails.channels);
 
 	return;
 }

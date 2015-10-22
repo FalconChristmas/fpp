@@ -70,6 +70,7 @@ $command_array = Array(
 	"shutdownPi" => 'ShutdownPi',
 	"manualGitUpdate" => 'ManualGitUpdate',
 	"changeGitBranch" => 'ChangeGitBranch',
+	"upgradeFPPVersion" => 'UpgradeFPPVersion',
 	"getGitOriginLog" => 'GetGitOriginLog',
 	"gitStatus" => 'GitStatus',
 	"resetGit" => 'ResetGit',
@@ -156,6 +157,17 @@ function ManualGitUpdate()
 	exec($SUDO . " $fppDir/scripts/fppd_stop");
 	exec("$fppDir/scripts/git_pull");
 	exec($SUDO . " $fppDir/scripts/fppd_start");
+
+	EchoStatusXML("OK");
+}
+
+function UpgradeFPPVersion()
+{
+	$version = $_GET['version'];
+	check($version, "version", __FUNCTION__);
+
+	global $fppDir;
+	exec("$fppDir/scripts/upgrade_FPP $version");
 
 	EchoStatusXML("OK");
 }
@@ -248,21 +260,44 @@ function SetVolume()
 	$status=SendCommand('v,' . $vol . ',');
 
 	$card = 0;
-	exec($SUDO . " grep card /root/.asoundrc | head -n 1 | cut -d' ' -f 2", $output, $return_val);
-	if ( $return_val )
+	if (isset($settings['AudioOutput']))
 	{
-		// Should we error here, or just move on?
-		// Technically this should only fail on non-pi
-		// and pre-0.3.0 images
-		error_log("Error retrieving current sound card, using default of '0'!");
+		$card = $settings['AudioOutput'];
 	}
 	else
-		$card = $output[0];
+	{
+		exec($SUDO . " grep card /root/.asoundrc | head -n 1 | cut -d' ' -f 2", $output, $return_val);
+		if ( $return_val )
+		{
+			// Should we error here, or just move on?
+			// Technically this should only fail on non-pi
+			// and pre-0.3.0 images
+			error_log("Error retrieving current sound card, using default of '0'!");
+		}
+		else
+			$card = $output[0];
+
+		WriteSettingToFile("AudioOutput", $card);
+	}
 
 	if ( $card == 0 )
-		$vol = 50 + ($vol/2);
+		$vol = 50 + ($vol/2.0);
 
-	$status=exec($SUDO . " amixer -c $card set PCM -- " . $vol . "%");
+	$mixerDevice = "PCM";
+	if (isset($settings['AudioMixerDevice']))
+	{
+		$mixerDevice = $settings['AudioMixerDevice'];
+	}
+	else
+	{
+		unset($output);
+		exec($SUDO . " amixer -c $card scontrols | head -1 | cut -f2 -d\"'\"", $output, $return_val);
+		$mixerDevice = $output[0];
+		WriteSettingToFile("AudioMixerDevice", $mixerDevice);
+	}
+
+	// Why do we do this here and in fppd's settings.c
+	$status=exec($SUDO . " amixer -c $card set $mixerDevice -- " . $vol . "%");
 
 	EchoStatusXML($status);
 }
@@ -723,7 +758,72 @@ function GetFPPstatus()
 
 	$entry = explode(",",$status,14);
 	$fppMode = $entry[0];
-	if($fppMode != 1)
+	if($fppMode == 8)
+	{
+		$fppStatus = $entry[1];
+		$volume = $entry[2];
+		$seqFilename = $entry[3];
+		$mediaFilename = $entry[4];
+		$secsElapsed = $entry[5];
+		$secsRemaining = $entry[6];
+		$fppCurrentDate = GetLocalTime();
+
+		$doc = new DomDocument('1.0');
+		$root = $doc->createElement('Status');
+		$root = $doc->appendChild($root);
+
+		//FPPD Mode
+		$temp = $doc->createElement('fppMode');
+		$temp = $root->appendChild($temp);
+		$value = $doc->createTextNode($fppMode);
+		$value = $temp->appendChild($value);
+
+		//FPPD Status
+		$temp = $doc->createElement('fppStatus');
+		$temp = $root->appendChild($temp);
+		$value = $doc->createTextNode($fppStatus);
+		$value = $temp->appendChild($value);
+
+		//FPPD Volume
+		$temp = $doc->createElement('volume');
+		$temp = $root->appendChild($temp);
+		$value = $doc->createTextNode($volume);
+		$value = $temp->appendChild($value);
+
+		// seqFilename
+		$temp = $doc->createElement('seqFilename');
+		$temp = $root->appendChild($temp);
+		$value = $doc->createTextNode($seqFilename);
+		$value = $temp->appendChild($value);
+
+		// mediaFilename
+		$temp = $doc->createElement('mediaFilename');
+		$temp = $root->appendChild($temp);
+		$value = $doc->createTextNode($mediaFilename);
+		$value = $temp->appendChild($value);
+
+		// secsElapsed
+		$temp = $doc->createElement('secsElapsed');
+		$temp = $root->appendChild($temp);
+		$value = $doc->createTextNode($secsElapsed);
+		$value = $temp->appendChild($value);
+
+		// secsRemaining
+		$temp = $doc->createElement('secsRemaining');
+		$temp = $root->appendChild($temp);
+		$value = $doc->createTextNode($secsRemaining);
+		$value = $temp->appendChild($value);
+
+		//fppCurrentDate
+		$temp = $doc->createElement('fppCurrentDate');
+		$temp = $root->appendChild($temp);
+		$value = $doc->createTextNode($fppCurrentDate);
+		$value = $temp->appendChild($value);
+
+		echo $doc->saveHTML();
+		return;
+	}
+	else if($fppMode != 1)
 	{
 		$fppStatus = $entry[1];
 		if($fppStatus == '0')
@@ -2372,7 +2472,20 @@ function GetFile()
 	if ($dir == "")
 		return;
 
-	header('Content-type: application/binary');
+	if (isset($_GET['play']))
+	{
+		if (preg_match('/mp3$/i', $filename))
+			header('Content-type: audio/mp3');
+		else if (preg_match('/ogg$/i', $filename))
+			header('Content-type: audio/ogg');
+		else if (preg_match('/mp4$/i', $filename))
+			header('Content-type: video/mp4');
+	}
+	else
+	{
+		header('Content-type: application/binary');
+		header('Content-disposition: attachment;filename=' . $filename);
+	}
 
 	if (($_GET['dir'] == "Logs") &&
 		(substr($filename, 0, 9) == "/var/log/")) {
@@ -2380,7 +2493,6 @@ function GetFile()
 		$filename = basename($filename);
 	}
 
-	header('Content-disposition: attachment;filename=' . $filename);
 	ob_clean();
 	flush();
 	readfile($dir . '/' . $filename);
@@ -2388,11 +2500,18 @@ function GetFile()
 
 function GetZip()
 {
+	global $SUDO;
+	global $settings;
 	global $logDirectory;
 	global $mediaDirectory;
 
 	// Re-format the file name
 	$filename = tempnam("/tmp", "FPP_Logs");
+
+	// Gather troubleshooting commands output
+	$cmd = "php " . $settings['fppDir'] . "/www/troubleshootingText.php > " . $settings['mediaDirectory'] . "/logs/troubleshootingCommands.log";
+	exec($cmd, $output, $return_val);
+	unset($output);
 
 	// Create the object
 	$zip = new ZipArchive();
@@ -2424,6 +2543,16 @@ function GetZip()
 		if (file_exists("$mediaDirectory/$file"))
 			$zip->addFromString("Config/$file", ScrubFile("$mediaDirectory/$file"));
 	}
+
+	// /root/.asoundrc is only readable by root, should use /etc/ version
+	exec($SUDO . " cat /root/.asoundrc", $output, $return_val);
+	if ( $return_val != 0 ) {
+		error_log("Unable to read /root/.asoundrc");
+	}
+	else {
+		$zip->addFromString("Config/asoundrc", implode("\n", $output)."\n");
+	}
+	unset($output);
 
 	exec("cat /proc/asound/cards", $output, $return_val);
 	if ( $return_val != 0 ) {

@@ -47,9 +47,31 @@ include 'common/menuHead.inc';
 		echo "</select>";
 	}
 
+	$piFaceInputs = array(
+		"PiFace 1:200:200:P1 - Input 1",
+		"PiFace 2:201:201:P1 - Input 2",
+		"PiFace 3:202:202:P1 - Input 3",
+		"PiFace 4:203:203:P1 - Input 4",
+		"PiFace 5:204:204:P1 - Input 5",
+		"PiFace 6:205:205:P1 - Input 6",
+		"PiFace 7:206:206:P1 - Input 7",
+		"PiFace 8:207:207:P1 - Input 8"
+		);
+
 	$piFaceStyle = "style='display: none;'";
 	if (isset($settings['PiFaceDetected']) && ($settings['PiFaceDetected'] == 1))
 		$piFaceStyle = "";
+
+	foreach ($piFaceInputs as $input)
+	{
+		$inputData = explode(":", $input);
+		$settingID = sprintf("GPIOInput%03dEnabled", $inputData[1]);
+
+		if (isset($settings[$settingID]) && ($settings[$settingID] == 1))
+			$piFaceStyle = "";
+	}
+
+
 ?>
 <script language="Javascript">
 
@@ -148,17 +170,7 @@ $(document).ready(function(){
 				<td>Input #</td>
 		</tr>
 <?
-	$inputs = array(
-		"PiFace 1:200:200:P1 - Input 1",
-		"PiFace 2:201:201:P1 - Input 2",
-		"PiFace 3:202:202:P1 - Input 3",
-		"PiFace 4:203:203:P1 - Input 4",
-		"PiFace 5:204:204:P1 - Input 5",
-		"PiFace 6:205:205:P1 - Input 6",
-		"PiFace 7:206:206:P1 - Input 7",
-		"PiFace 8:207:207:P1 - Input 8"
-		);
-	foreach ($inputs as $input)
+	foreach ($piFaceInputs as $input)
 	{
 		$inputData = explode(":", $input);
 		$settingID = sprintf("GPIOInput%03dEnabled", $inputData[1]);

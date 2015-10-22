@@ -192,103 +192,6 @@ char *modeToString(int mode)
 	return NULL;
 }
 
-void printSettings(void)
-{
-	FILE *fd = stdout; // change to stderr to log there instead
-
-	fprintf(fd, "LogLevel: %s\n", logLevelStr);
-	fprintf(fd, "LogMask: %s\n", logMaskStr);
-
-	fprintf(fd, "daemonize: %s\n",
-		settings.daemonize ? "true" : "false");
-	
-	char *mode = modeToString(settings.fppMode);
-	if ( mode )
-	{
-		fprintf(fd, "fppMode: %s\n", mode);
-		free(mode); mode = NULL;
-	}
-
-	fprintf(fd, "volume: %u\n", settings.volume);
-
-	if ( settings.fppDirectory )
-		fprintf(fd, "fppDirectory(%u): %s\n",
-				strlen(settings.fppDirectory),
-				settings.fppDirectory);
-	if ( settings.mediaDirectory )
-		fprintf(fd, "mediaDirectory(%u): %s\n",
-				strlen(settings.mediaDirectory),
-				settings.mediaDirectory);
-	if ( settings.musicDirectory )
-		fprintf(fd, "musicDirectory(%u): %s\n",
-				strlen(settings.musicDirectory),
-				settings.musicDirectory);
-	if ( settings.sequenceDirectory )
-		fprintf(fd, "sequenceDirectory(%u): %s\n",
-				strlen(settings.sequenceDirectory),
-				settings.sequenceDirectory);
-	if ( settings.eventDirectory )
-		fprintf(fd, "eventDirectory(%u): %s\n",
-				strlen(settings.eventDirectory),
-				settings.eventDirectory);
-	if ( settings.videoDirectory )
-		fprintf(fd, "videoDirectory(%u): %s\n",
-				strlen(settings.videoDirectory),
-				settings.videoDirectory);
-	if ( settings.effectDirectory )
-		fprintf(fd, "effectDirectory(%u): %s\n",
-				strlen(settings.effectDirectory),
-				settings.effectDirectory);
-	if ( settings.scriptDirectory )
-		fprintf(fd, "scriptDirectory(%u): %s\n",
-				strlen(settings.scriptDirectory),
-				settings.scriptDirectory);
-	if ( settings.playlistDirectory )
-		fprintf(fd, "playlistDirectory(%u): %s\n",
-				strlen(settings.playlistDirectory),
-				settings.playlistDirectory);
-	if ( settings.pluginDirectory )
-		fprintf(fd, "pluginDirectory(%u): %s\n",
-				strlen(settings.pluginDirectory),
-				settings.pluginDirectory);
-	if ( settings.universeFile )
-		fprintf(fd, "universeFile(%u): %s\n",
-				strlen(settings.universeFile),
-				settings.universeFile);
-	if ( settings.pixelnetFile )
-		fprintf(fd, "pixelnetFile(%u): %s\n",
-				strlen(settings.pixelnetFile),
-				settings.pixelnetFile);
-	if ( settings.scheduleFile )
-		fprintf(fd, "scheduleFile(%u): %s\n",
-				strlen(settings.scheduleFile),
-				settings.scheduleFile);
-	if ( settings.logFile )
-		fprintf(fd, "logFile(%u): %s\n",
-				strlen(settings.logFile),
-				settings.logFile);
-	if ( settings.silenceMusic )
-		fprintf(fd, "silenceMusic(%u): %s\n",
-				strlen(settings.silenceMusic),
-				settings.silenceMusic);
-	if ( settings.bytesFile )
-		fprintf(fd, "bytesFile(%u): %s\n",
-				strlen(settings.bytesFile),
-				settings.bytesFile);
-	if ( settings.settingsFile )
-		fprintf(fd, "settingsFile(%u): %s\n",
-				strlen(settings.settingsFile),
-				settings.settingsFile);
-	if ( settings.E131interface )
-		fprintf(fd, "E131interface(%u): %s\n",
-				strlen(settings.E131interface),
-				settings.E131interface);
-	if ( settings.controlMajor != 0 )
-		fprintf(fd, "controlMajor: %u\n", settings.controlMajor);
-	if ( settings.controlMinor != 0 )
-		fprintf(fd, "controlMinor: %u\n", settings.controlMinor);
-}
-
 void usage(char *appname)
 {
 printf("Usage: %s [OPTION...]\n"
@@ -1029,7 +932,7 @@ unsigned int getControlMinor(void)
 
 void setVolume(int volume)
 {
-	char buffer [40];
+	char buffer [60];
 	
 	if ( volume < 0 )
 		settings.volume = 0;
@@ -1038,7 +941,31 @@ void setVolume(int volume)
 	else
 		settings.volume = volume;
 
-	snprintf(buffer, 40, "amixer set PCM %.2f%% >/dev/null 2>&1", (50 + (settings.volume / 2.0)));
+	char *mixerDevice = getSetting("AudioMixerDevice");
+	int   audioOutput = getSettingInt("AudioOutput");
+
+	// audioOutput is 0 on Pi where we need to apply volume adjustment formula.
+	// This may break non-Pi, non-BBB platforms, but there aren't any yet.
+	// The same assumption is made in fppxml.php SetVolume()
+	if (audioOutput == 0)
+	{
+		if (mixerDevice)
+			snprintf(buffer, 60, "amixer set %s %.2f%% >/dev/null 2>&1",
+				 mixerDevice, (50 + (settings.volume / 2.0)));
+		else
+			snprintf(buffer, 60, "amixer set PCM %.2f%% >/dev/null 2>&1",
+				 (50 + (settings.volume / 2.0)));
+	}
+	else
+	{
+		if (mixerDevice)
+			snprintf(buffer, 60, "amixer set %s %d%% >/dev/null 2>&1",
+				 mixerDevice, settings.volume);
+		else
+			snprintf(buffer, 60, "amixer set PCM %d%% >/dev/null 2>&1",
+				 settings.volume);
+	}
+
 	LogDebug(VB_SETTING,"Volume change: %d \n", settings.volume);	
 	system(buffer);
 

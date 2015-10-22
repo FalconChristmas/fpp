@@ -51,6 +51,7 @@ FBMatrixOutput::FBMatrixOutput(unsigned int startChannel,
 	m_ttyFd(0),
 	m_width(0),
 	m_height(0),
+	m_useRGB(0),
 	m_fbp(NULL),
 	m_screenSize(0)
 {
@@ -88,6 +89,11 @@ int FBMatrixOutput::Init(char *configStr)
 			std::vector<std::string> parts = split(m_layout, 'x');
 			m_width  = atoi(parts[0].c_str());
 			m_height = atoi(parts[1].c_str());
+		}
+		else if (elem[0] == "colorOrder")
+		{
+			if (elem[1] == "RGB")
+				m_useRGB = 1;
 		}
 	}
 
@@ -198,7 +204,33 @@ int FBMatrixOutput::RawSendData(unsigned char *channelData)
 
 	// FIXME, enhance this Channel Output to support wrapping, etc. to
 	// allow it to be used for duplicating a physical matrix for testing
-	memcpy(m_fbp, channelData, m_screenSize);
+	if (m_useRGB)
+	{
+		// Slower method but allows sequence data to be in RGB order
+		unsigned char *sR = channelData + 0;
+		unsigned char *sG = channelData + 1;
+		unsigned char *sB = channelData + 2;
+		unsigned char *dR = (unsigned char *)m_fbp + 2;
+		unsigned char *dG = (unsigned char *)m_fbp + 1;
+		unsigned char *dB = (unsigned char *)m_fbp + 0;
+		for (int y = 0; y < m_height; y++)
+		{
+			for (int x = 0; x < m_width; x++)
+			{
+				*dR = *sR;
+				*dG = *sG;
+				*dB = *sB;
+				sR += 3;
+				sG += 3;
+				sB += 3;
+				dR += 3;
+				dG += 3;
+				dB += 3;
+			}
+		}
+	}
+	else
+		memcpy(m_fbp, channelData, m_screenSize);
 
 	return m_channelCount;
 }

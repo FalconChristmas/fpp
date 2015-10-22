@@ -1,7 +1,7 @@
 /*
- *   FrameBuffer Virtual matrix handler for Falcon Player (FPP)
+ *   X11 Matrix handler for Falcon Player (FPP)
  *
- *   Copyright (C) 2015 the Falcon Player Developers
+ *   Copyright (C) 2013 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -23,20 +23,19 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _FBMATRIX_H
-#define _FBMATRIX_H
+#ifndef _X11MATRIX_H
+#define _X11MATRIX_H
 
-#include <linux/fb.h>
-#include <string>
+#include <X11/Xlib.h>
 
 #include "ChannelOutputBase.h"
 
-class FBMatrixOutput : public ChannelOutputBase {
+class X11MatrixOutput : public ChannelOutputBase {
   public:
-	FBMatrixOutput(unsigned int startChannel, unsigned int channelCount);
-	~FBMatrixOutput();
+	X11MatrixOutput(unsigned int startChannel, unsigned int channelCount);
+	~X11MatrixOutput();
 
-	int Init(char *configStr);
+	int Init(Json::Value config);
 	int Close(void);
 
 	int RawSendData(unsigned char *channelData);
@@ -44,20 +43,19 @@ class FBMatrixOutput : public ChannelOutputBase {
 	void DumpConfig(void);
 
   private:
-	int     m_fbFd;
-	int     m_ttyFd;
+  	int         m_width;
+	int         m_height;
+	int         m_scale;
+	int         m_scaleWidth;
+	int         m_scaleHeight;
+	char       *m_imageData;
 
-	std::string  m_layout;
-	int          m_width;
-	int          m_height;
-	int          m_useRGB;
-
-	char   *m_fbp;
-	int     m_screenSize;
-
-	struct fb_var_screeninfo m_vInfo;
-	struct fb_var_screeninfo m_vInfoOrig;
-	struct fb_fix_screeninfo m_fInfo;
+	Display    *m_display;
+	int         m_screen;
+	Window      m_window;
+	GC          m_gc;
+	Pixmap      m_pixmap;
+	XImage     *m_image;
 };
 
-#endif /* _FBMATRIX_H */
+#endif /* _X11MATRIX_H */

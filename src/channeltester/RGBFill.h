@@ -1,6 +1,5 @@
 /*
- *   Falcon Pi Player daemon header file  
- *   Falcon Pi Player project (FPP)
+ *   Channel Test Pattern RGB Fill class for Falcon Pi Player (FPP)
  *
  *   Copyright (C) 2013 the Falcon Pi Player Developers
  *      Initial development by:
@@ -23,16 +22,31 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
- 
-#ifndef _FPPD_H
-#define _FPPD_H
 
-#include "channeltester/ChannelTester.h"
+#ifndef _RGBFILL_H
+#define _RGBFILL_H
 
-void CreateDaemon(void);
-void CheckExistanceOfDirectoriesAndFiles();
-void ShutdownFPPD(void);
+#include <string>
+#include <vector>
 
-extern ChannelTester *channelTester;
+#include <jsoncpp/json/json.h>
 
-#endif
+#include "TestPatternBase.h"
+
+class TestPatternRGBFill : public TestPatternBase {
+  public:
+    TestPatternRGBFill();
+	~TestPatternRGBFill();
+
+	int  Init(Json::Value config);
+
+	int  SetupTest(void);
+	void DumpConfig(void);
+
+  private:
+	char              m_color1;
+	char              m_color2;
+	char              m_color3;
+};
+
+#endif /* _RGBFILL_H */
