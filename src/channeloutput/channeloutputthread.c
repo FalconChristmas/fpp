@@ -314,8 +314,16 @@ void UpdateMasterPosition(int frameNumber)
  */
 void CalculateNewChannelOutputDelay(float mediaPosition)
 {
+	static float nextSyncCheck = 0.5;
+
 	if (getFPPmode() == REMOTE_MODE)
 		return;
+
+	if ((mediaPosition <= nextSyncCheck) &&
+		(nextSyncCheck < (mediaPosition + 2.0)))
+		return;
+
+	nextSyncCheck = mediaPosition + (20.0 / RefreshRate);
 
 	float offsetMediaPosition = mediaPosition - mediaOffset;
 
@@ -339,7 +347,7 @@ void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent)
 	int diff = channelOutputFrame - expectedFramesSent;
 	if (diff)
 	{
-		int timerOffset = diff * 500;
+		int timerOffset = diff * (DefaultLightDelay / 100);
 		int newLightDelay = LightDelay;
 
 		if (channelOutputFrame >  expectedFramesSent)

@@ -198,7 +198,6 @@ void omxplayer_SetVolume(int volume)
 void omxplayer_ProcessPlayerData(int bytesRead)
 {
 	int        ticks = 0;
-	static int lastSyncCheck = 0;
 	static int lastRemoteSync = 0;
 	int        mins = 0;
 	int        secs = 0;
@@ -268,10 +267,9 @@ void omxplayer_ProcessPlayerData(int bytesRead)
 	}
 
 	if ((sequence->IsSequenceRunning()) &&
-		(mediaOutputStatus.secondsElapsed > 0) &&
-		(lastSyncCheck != mediaOutputStatus.secondsElapsed))
+		(mediaOutputStatus.secondsElapsed > 0))
 	{
-		LogDebug(VB_MEDIAOUT,
+		LogExcess(VB_MEDIAOUT,
 			"Elapsed: %.2d.%.2d  Remaining: %.2d Total %.2d:%.2d.\n",
 			mediaOutputStatus.secondsElapsed,
 			mediaOutputStatus.subSecondsElapsed,
@@ -280,7 +278,6 @@ void omxplayer_ProcessPlayerData(int bytesRead)
 			mediaOutputStatus.secondsTotal);
 
 		CalculateNewChannelOutputDelay(mediaOutputStatus.mediaSeconds);
-		lastSyncCheck = mediaOutputStatus.secondsElapsed;
 	}
 }
 
