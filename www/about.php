@@ -125,6 +125,9 @@ function getRemappedChannelCount()
 
 	$file = $mediaDirectory . "/channelremap";
 
+	if (!file_exists($file))
+		return 0;
+
 	$f = fopen($file, "r");
 	if($f == FALSE)
 	{

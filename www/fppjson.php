@@ -494,6 +494,9 @@ function GetChannelOutputs()
 	$result = Array();
 	$result['Outputs'] = Array();
 
+	if (!file_exists($settings['channelOutputsFile']))
+		return returnJSON($result);
+
 	$f = fopen($settings['channelOutputsFile'], "r");
 	if($f == FALSE)
 	{
