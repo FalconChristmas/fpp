@@ -261,7 +261,7 @@ function ToggleLCDNow()
       <td width = "55%"><? PrintSettingCheckbox("Screensaver", "screensaver", 0, 1, "1", "0"); ?></td>
     </tr>
     <tr>
-      <td>Force HDMI Display On:</td>
+      <td>Force HDMI Display:</td>
       <td><? PrintSettingCheckbox("Force HDMI Display", "ForceHDMI", 0, 1, "1", "0"); ?></td>
     </tr>
     <tr>
