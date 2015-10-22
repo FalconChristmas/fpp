@@ -248,6 +248,9 @@ function SetVolume()
 	$volume = $_GET['volume'];
 	check($volume, "volume", __FUNCTION__);
 
+	if ($volume == "NaN")
+		$volume = 75;
+
 	WriteSettingToFile("volume",$volume);
 
 	$vol = intval ($volume);
