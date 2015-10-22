@@ -653,15 +653,18 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 
 		function UpgradeFPPVersion(newVersion)
 		{
-			document.body.style.cursor = "wait";
-			$.get("fppxml.php?command=upgradeFPPVersion&version=" + newVersion
-			).success(function() {
-				document.body.style.cursor = "pointer";
-				location.reload(true);
-			}).fail(function() {
-				document.body.style.cursor = "pointer";
-				DialogError("Upgrade FPP Version", "Upgrade failed");
-			});
+			if (confirm('Do you wish to upgrade the Falcon Player?\n\nClick "OK" to continue.\n\nThe system will automatically reboot to complete the upgrade.'))
+			{
+				document.body.style.cursor = "wait";
+				$.get("fppxml.php?command=upgradeFPPVersion&version=" + newVersion
+				).success(function() {
+					document.body.style.cursor = "pointer";
+					location.reload(true);
+				}).fail(function() {
+					document.body.style.cursor = "pointer";
+					DialogError("Upgrade FPP Version", "Upgrade failed");
+				});
+			}
 		}
 
 		function ChangeGitBranch(newBranch)
