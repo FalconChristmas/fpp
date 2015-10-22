@@ -580,12 +580,16 @@ $(document).ready(function(){
 					<tr><td><input type='button' value='Pause/UnPause' onClick='ToggleSequencePause();'></td>
 							<td>Pause a running sequence or UnPause a paused sequence</td></tr>
 					<tr><td><input type='button' value='Step' onClick='SingleStepSequence();'></td>
-							<td>Single-step a running sequence one frame</td></tr>
+							<td>Single-step a paused sequence one frame</td></tr>
 					<tr><td><input type='button' value='Step Back' onClick='SingleStepSequenceBack();'></td>
-							<td>Single-step a running sequence <b>backwards</b> one frame</td></tr>
+							<td>Single-step a paused sequence backwards one frame</td></tr>
 				</table>
 				<br>
-				<b>Note:</b> The Sequence Testing functionality currently only works when FPP is in an idle state and no playlists are playing.  If a playlist starts while testing a sequence, the sequence being tested will be stopped automatically.<br>
+				<b>Sequence Testing Limitations:</b>
+				<ol>
+					<li>This page is for testing sequences, it does not test audio or video or synchronization of a sequence with any media file.  It does test Master/Remote sequence synchronization.</li>
+					<li>The Sequence Testing functionality currently only works when FPP is in an idle state and no playlists are playing.  If a playlist starts while testing a sequence, the sequence being tested will be stopped automatically.</li>
+				</ol>
       </div>
 			</fieldset>
 		</div>
