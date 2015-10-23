@@ -48,7 +48,7 @@
 #ifdef PLATFORM_BBB
 #	define MPG123_BINARY "/usr/bin/mpg321"
 #else
-#	define MPG123_BINARY "/usr/bin/mpg123"
+#	define MPG123_BINARY "/usr/bin/mpg321"
 #endif
 
 fd_set mpg123_active_fd_set, mpg123_read_fd_set;
