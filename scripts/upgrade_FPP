@@ -30,7 +30,7 @@ else
 fi
 
 # Record the fact that we are running the new version
-echo $1 > /etc/fpp/rfs_version
+echo $1 | sudo tee /etc/fpp/rfs_version > /dev/null
 
 # Compile binaries if not running a release branch
 RELEASEBRANCH=$(echo $1 | egrep "v[0-9]+\.[0-9]+")
