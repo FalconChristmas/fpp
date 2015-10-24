@@ -18,6 +18,7 @@ $nonXML = Array(
 	"getGitOriginLog" => 1,
 	"gitStatus" => 1,
 	"getVideoInfo" => 1,
+	"viewReleaseNotes" => 1,
 	"viewRemoteScript" => 1
 	);
 
@@ -55,6 +56,7 @@ $command_array = Array(
 	"getSchedule" => 'GetSchedule',
 	"addScheduleEntry" => 'AddScheduleEntry',
 	"deleteScheduleEntry" => 'DeleteScheduleEntry',
+	"viewReleaseNotes" => 'ViewReleaseNotes',
 	"viewRemoteScript" => 'ViewRemoteScript',
 	"installRemoteScript" => 'InstallRemoteScript',
 	"moveFile" => 'MoveFile',
@@ -350,6 +352,19 @@ function ShutdownPi()
 
 	$status=exec($SUDO . " shutdown -h now");
 	EchoStatusXML($status);
+}
+
+function ViewReleaseNotes()
+{
+	$version = $_GET['version'];
+	check($version, "version", __FUNCTION__);
+
+	ini_set('user_agent','Mozilla/4.0 (compatible; MSIE 6.0)');
+	$json = file_get_contents("https://api.github.com/repos/FalconChristmas/fpp/releases/tags/" . $version);
+
+	$data = json_decode($json, true);
+
+	echo $data["body"];
 }
 
 function ViewRemoteScript()
