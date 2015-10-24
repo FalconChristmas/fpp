@@ -795,7 +795,7 @@ body .ui-tooltip {
 .ui-widget textarea,
 .ui-widget button {
 	font-family: Verdana,Arial,sans-serif;
-	font-size: 1em;
+//	font-size: 1em;
 }
 .ui-widget-content {
 	border: 1px solid #aaaaaa;
