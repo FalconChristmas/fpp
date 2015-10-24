@@ -651,7 +651,6 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 			});
 		}
 
-<<<<<<< HEAD
 		function ViewReleaseNotes(version) {
 				$('#helpText').html("Retrieving Release Notes");
 				$('#dialog-help').dialog({ height: 800, width: 800, title: "Release Notes for FPP v" + version });
