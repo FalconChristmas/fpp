@@ -1532,6 +1532,7 @@ function AddOtherOutput() {
 				"<option value=''>Select a type</option>" +
 				"<option value='DMX-Pro'>DMX-Pro</option>" +
 				"<option value='DMX-Open'>DMX-Open</option>" +
+				"<option value='GenericSerial'>Generic Serial</option>" +
 <?
 	if ($settings['Platform'] == "Raspberry Pi")
 	{
