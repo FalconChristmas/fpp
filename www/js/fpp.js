@@ -2237,7 +2237,7 @@ function GetVolume()
 			{
 					var xmlDoc=xmlhttp.responseXML; 
 					var Volume = parseInt(xmlDoc.getElementsByTagName('Volume')[0].childNodes[0].textContent);
-					if ((Volume < 0) || (Volume = "NaN"))
+					if ((Volume < 0) || (Volume == "NaN"))
 					{
 						Volume = 75;
 						SetVolume(Volume);
