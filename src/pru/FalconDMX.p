@@ -182,19 +182,20 @@ _LOOP:
   SBBO	r15, r14, 0, 4
   SBBO	r15, r13, 0, 4
   
-  // Break Send Low for > 88us
-  RESET_COUNTER
   MOV	r13, GPIO3 | GPIO_CLEARDATAOUT
   SBBO	gpio3_serial_mask, r13, 0, 4
-  WAITNS	90000, wait_break_low
-  
-  // End Break/Start MAB Send High for > 8us
+  // Break Send Low for > 88us
   RESET_COUNTER
+  WAITNS	90000, wait_break_low
+
+ // End Break/Start MAB Send High for > 8us
   MOV	r13, GPIO3 | GPIO_SETDATAOUT
   SBBO	gpio3_serial_mask, r13, 0, 4
+  RESET_COUNTER
   WAITNS	15000, wait_mab_high
+ 
   
-	WORD_LOOP:
+ WORD_LOOP:
 		// 11 bits (1 start, 8 data, 2 stop) 
 		MOV	bit_num, 11
     // Load 8 bytes of data, starting at r10
