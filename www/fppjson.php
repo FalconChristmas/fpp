@@ -29,6 +29,7 @@ $command_array = Array(
 	"getInterfaceInfo"    => 'GetInterfaceInfo',
 	"setInterfaceInfo"    => 'SetInterfaceInfo',
 	"getFPPSystems"       => 'GetFPPSystems',
+	"getFPPstatus"		  => 'GetFPPStatus',
 	"getSetting"          => 'GetSetting',
 	"setSetting"          => 'SetSetting',
 	"startSequence"       => 'StartSequence',
@@ -184,6 +185,97 @@ function GetFPPDUptime()
 		$days, $hours, $minutes, $seconds );
 
 	returnJSON($result);
+}
+
+function GetFPPStatus()
+{
+	$time = exec('date');
+    $status = SendCommand('s');
+  
+    if($status == false || $status == 'false') { 
+     	
+     	returnJSON([
+     			'fppd' => 'Not Running',
+     			'status' => 'stopped'
+     		]);
+     }
+
+     $data = parseStatus($status);
+
+     returnJson($data);
+}
+
+function parseStatus($status) 
+{
+	$modes = [
+		0 => 'unknown',
+        1 => 'bridge',
+        2 => 'player',
+        6 => 'master',
+        8 => 'remote'
+        ];
+
+	$status = explode(',', $status, 14);
+	$mode = (int) $status[0]; 
+	$fppStatus = (int) $status[1];
+
+	if($mode == 1) {
+		return [
+			'fppd'   => 'running',
+			'mode'   => $modes[$mode],
+			'status' => $fppStatus,
+		];
+	}
+
+	$baseData = [
+		'fppd'   => 'running',
+		'mode'   => $modes[$mode],
+		'status' => $fppStatus,
+		'volume' => (int) $status[2],
+		'time'   => exec('date'),
+   ];
+
+	if($mode == 8) {
+		$data = [
+			'playlist'          => $status[3],
+			'sequence_filename' => $status[3],
+			'media_filename'    => $status[4],
+			'seconds_elapsed'   => $status[5],
+			'seconds_remaining' => $status[6],
+	    ];
+
+	} else {
+
+		if($fppStatus == 0) {
+			$data = [
+				'next_playlist' => $status[3],
+				'next_playlist_start_time' => $status[4],
+				'repeat_mode' => 0,
+			];
+		} else {
+
+			$data = [
+				'current_playlist' => [
+					'playlist' => $status[3],
+					'type'     => $status[4],
+					'index'    => $status[7],
+					'count'    => $status[8]
+					],
+				'current_sequence'  => $status[5],
+				'current_song'      => $status[6],
+				'seconds_played'    => $status[9],
+				'seconds_remaining' => $status[10],
+				'next_playlist'     => [
+					'playlist'   => $status[11],
+					'start_time' => $status[12]
+				],
+				'repeat_mode' => $status[13],
+			];
+		}
+	}
+
+	return array_merge($baseData, $data);
+
 }
 
 function StartSequence()
