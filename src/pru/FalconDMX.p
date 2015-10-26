@@ -178,6 +178,7 @@ _LOOP:
   // Debug
   MOV	r13, GPIO3 | GPIO_CLEARDATAOUT
   MOV	r14, GPIO3 | GPIO_SETDATAOUT
+  MOV r15, #0
   SET r15, #21
   SBBO	r15, r14, 0, 4
   SBBO	r15, r13, 0, 4
@@ -259,14 +260,8 @@ _LOOP:
 		SUB	data_len, data_len, 1
 		QBNE	WORD_LOOP, data_len, #0
 
-	// Delay at least 50 usec; this is the required reset
-	// time for the LED strip to update with the new pixels.
-	SLEEPNS	50000, 1, reset_time
-
 	// Write out that we are done!
 	// Store a non-zero response in the buffer so that they know that we are done
-	// aso a quick hack, we write the counter so that we know how
-	// long it took to write out.
 	MOV	r8, 0x22000 // control register
 	LBBO	r2, r8, 0xC, 4
 	SBCO	r2, CONST_PRUDRAM, 12, 4
