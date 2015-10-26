@@ -84,14 +84,14 @@ int BBBSerialOutput::Init(Json::Value config)
 	// Initialize the ouputs
 	for (int i = 0; i < m_outputs; i++)
 	{
-		m_startChannels[i] = 1;
+		m_startChannels[i] = 0;
 	}
 
 	for (int i = 0; i < config["outputs"].size(); i++)
 	{
 		Json::Value s = config["outputs"][i];
 
-		m_startChannels[s["outputNumber"].asInt()] = s["startChannel"].asInt();
+		m_startChannels[s["outputNumber"].asInt()] = s["startChannel"].asInt() - 1;
 	}
 
 	m_config = reinterpret_cast<ledscape_config_t*>(calloc(1, sizeof(ledscape_config_t)));
@@ -208,7 +208,7 @@ int BBBSerialOutput::RawSendData(unsigned char *channelData)
 		{
 			*c = *(s++);
 
-			ch += m_outputs;
+			c += m_outputs;
 		}
 	}
 
