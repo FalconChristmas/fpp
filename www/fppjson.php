@@ -189,7 +189,7 @@ function GetFPPDUptime()
 
 function GetFPPStatus()
 {
-	$time = exec('date');
+	
     $status = SendCommand('s');
   
     if($status == false || $status == 'false') { 
