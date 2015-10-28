@@ -215,6 +215,12 @@ function parseStatus($status)
         8 => 'remote'
         ];
 
+    $statuses = [
+    	0 => 'idle',
+    	1 => 'playing',
+    	2 => 'stopping gracefully'
+    ];
+
 	$status = explode(',', $status, 14);
 	$mode = (int) $status[0]; 
 	$fppStatus = (int) $status[1];
@@ -228,11 +234,13 @@ function parseStatus($status)
 	}
 
 	$baseData = [
-		'fppd'   => 'running',
-		'mode'   => $modes[$mode],
-		'status' => $fppStatus,
-		'volume' => (int) $status[2],
-		'time'   => exec('date'),
+		'fppd'        => 'running',
+		'mode'        => $mode,
+		'mode_name'   => $modes[$mode],
+		'status'      => $fppStatus,
+		'status_name' => $statuses[$fppStatus],
+		'volume'      => (int) $status[2],
+		'time'        => exec('date'),
    ];
 
 	if($mode == 8) {
