@@ -1410,16 +1410,16 @@ function RemovePlaylistEntry()	{
 			dataType: 'json',
 			success: function(response, reqStatus, xhr) {	
 				
-				if(response.status) {
+				if(response && typeof response === 'object') {
 
-					if(response.status == 'stopped' && response.status != lastStatus) {
+					if(response.status_name == 'stopped' && response.status != lastStatus) {
 						
 						$('#fppTime').html('');
 						SetButtonState('#btnDaemonControl','enable');
 						$("#btnDaemonControl").attr('value', 'Start FPPD');
 						$('#daemonStatus').html("FPPD is stopped.");
 					
-					} else if(response.status == 'updating' && response.status != lastStatus) {
+					} else if(response.status_name == 'updating' && response.status != lastStatus) {
 
 						$('#fppTime').html('');
 						SetButtonState('#btnDaemonControl','disable');
@@ -1437,6 +1437,7 @@ function RemovePlaylistEntry()	{
 						parseStatus(response);
 
 					}
+
 					lastStatus = response.status;
 				}
 
