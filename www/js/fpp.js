@@ -1413,11 +1413,24 @@ function RemovePlaylistEntry()	{
 				if(response.status) {
 
 					if(response.status == 'stopped') {
+						
 						$('#fppTime').html('');
-						IsFPPDrunning();
-						return;
-					} 
-					parseStatus(response);
+						SetButtonState('#btnDaemonControl','enable');
+						$("#btnDaemonControl").attr('value', 'Start FPPD');
+						$('#daemonStatus').html("FPPD is stopped.");
+					
+					} else if(response.status == 'updating') {
+
+						$('#fppTime').html('');
+						SetButtonState('#btnDaemonControl','disable');
+						$("#btnDaemonControl").attr('value', 'Start FPPD');
+						$('#daemonStatus').html("FPP is currently updating.");
+
+					} else {
+
+						parseStatus(response);
+						
+					}
 				}
 
 			},

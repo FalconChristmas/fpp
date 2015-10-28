@@ -194,9 +194,11 @@ function GetFPPStatus()
   
     if($status == false || $status == 'false') { 
      	
+		$status=exec("if ps cax | grep -q git_pull; then echo \"updating\"; else echo \"false\"; fi");
+     
      	returnJSON([
      			'fppd' => 'Not Running',
-     			'status' => 'stopped'
+     			'status' => $status,
      		]);
      }
 
