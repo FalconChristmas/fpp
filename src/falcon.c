@@ -364,7 +364,7 @@ void FalconSetData(int sock, struct sockaddr_in *srcAddr, unsigned char *inBuf)
 		case 0xCC:  strcpy(filename, "Falcon.FPD");
 					len = 1024;
 					break;
-		case 0xCD:  strcpy(filename, "Falcon.F16V2");
+		case 0xCD:  strcpy(filename, "Falcon.F16V2-alpha");
 					len = 1024;
 					break;
 	}
@@ -414,7 +414,7 @@ void FalconGetData(int sock, struct sockaddr_in *srcAddr, unsigned char *inBuf)
 	{
 		case 0xCC:  strcpy(filename, "Falcon.FPD");
 					break;
-		case 0xCD:  strcpy(filename, "Falcon.F16V2");
+		case 0xCD:  strcpy(filename, "Falcon.F16V2-alpha");
 					break;
 	}
 
@@ -477,7 +477,7 @@ void ProcessFalconPacket(int sock, struct sockaddr_in *srcAddr,
 		(inBuf[3] == 0x55) &&
 		(inBuf[4] == 0x55) &&
 		((inBuf[5] == 0xCC) || // FPD
-		 (inBuf[5] == 0xCD)))  // F16V2
+		 (inBuf[5] == 0xCD)))  // F16V2-alpha
 	{
 		char command = inBuf[6];
 	
@@ -539,7 +539,7 @@ int DetectFalconHardware(int configureHardware)
 		switch (query[0])
 		{
 			case 0x01:	strcpy(model, "F16 v2.x");
-						strcpy(cfgFile, "Falcon.F16V2");
+						strcpy(cfgFile, "Falcon.F16V2-alpha");
 						spiSpeed = 16000000;
 						break;
 			case 0x02:	strcpy(model, "FPD v1.x");
