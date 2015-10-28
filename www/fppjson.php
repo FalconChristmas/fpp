@@ -250,6 +250,8 @@ function parseStatus($status)
 			'media_filename'    => $status[4],
 			'seconds_elapsed'   => $status[5],
 			'seconds_remaining' => $status[6],
+			'time_elapsed' 		=> getTimeElapsed($status[5])
+			'time_remaining'	=> getTimeElapsed($status[6])
 	    ];
 
 	} else {
@@ -264,7 +266,7 @@ function parseStatus($status)
 
 			$data = [
 				'current_playlist' => [
-					'playlist' => $status[3],
+					'playlist' => pathinfo($status[3])['filename'],
 					'type'     => $status[4],
 					'index'    => $status[7],
 					'count'    => $status[8]
@@ -273,6 +275,8 @@ function parseStatus($status)
 				'current_song'      => $status[6],
 				'seconds_played'    => $status[9],
 				'seconds_remaining' => $status[10],
+				'time_elapsed' 		=> parseTimeFromSeconds((int)$status[9]),
+				'time_remaining' 	=> parseTimeFromSeconds((int)$status[10]),
 				'next_playlist'     => [
 					'playlist'   => $status[11],
 					'start_time' => $status[12]
@@ -285,6 +289,24 @@ function parseStatus($status)
 	return array_merge($baseData, $data);
 
 }
+
+function parseTimeFromSeconds($seconds) {
+	
+	if(!is_numeric($seconds)) {
+		return;
+	}
+	
+	$minutes = (int) floor($seconds/60);
+	$seconds = (int) $seconds % 60;
+
+
+	return sprintf('%s:%s', str_pad($minutes, 2, 0, STR_PAD_LEFT), str_pad($seconds, 2, 0));
+}
+
+function getTimeRemaining($seconds) {
+
+}
+
 
 function StartSequence()
 {
