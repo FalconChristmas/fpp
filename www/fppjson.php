@@ -198,7 +198,7 @@ function GetFPPStatus()
      
      	returnJSON([
      			'fppd' => 'Not Running',
-     			'status' => $status,
+     			'status' => $status == 'updating' ? $status : 'stopped',
      		]);
      }
 
