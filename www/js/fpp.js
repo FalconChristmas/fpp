@@ -1422,6 +1422,7 @@ function RemovePlaylistEntry()	{
 
 			},
 			complete: function() {
+				clearTimeout(statusTimeout);
 				statusTimeout = setTimeout(GetFPPStatus, 1000);
 			}
 		})

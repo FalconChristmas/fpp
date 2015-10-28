@@ -250,8 +250,8 @@ function parseStatus($status)
 			'media_filename'    => $status[4],
 			'seconds_elapsed'   => $status[5],
 			'seconds_remaining' => $status[6],
-			'time_elapsed' 		=> getTimeElapsed($status[5])
-			'time_remaining'	=> getTimeElapsed($status[6])
+			'time_elapsed' 		=> parseTimeFromSeconds((int)$status[5]),
+			'time_remaining'	=> parseTimeFromSeconds((int)$status[6]),
 	    ];
 
 	} else {
