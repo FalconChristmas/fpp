@@ -1412,14 +1412,14 @@ function RemovePlaylistEntry()	{
 				
 				if(response && typeof response === 'object') {
 
-					if(response.status_name == 'stopped' && response.status != lastStatus) {
+					if(response.status_name == 'stopped') {
 						
 						$('#fppTime').html('');
 						SetButtonState('#btnDaemonControl','enable');
 						$("#btnDaemonControl").attr('value', 'Start FPPD');
 						$('#daemonStatus').html("FPPD is stopped.");
 					
-					} else if(response.status_name == 'updating' && response.status != lastStatus) {
+					} else if(response.status_name == 'updating') {
 
 						$('#fppTime').html('');
 						SetButtonState('#btnDaemonControl','disable');
@@ -1428,11 +1428,9 @@ function RemovePlaylistEntry()	{
 
 					} else {
 
-						if(response.status != lastStatus) {
 							SetButtonState('#btnDaemonControl','enable');
 							$("#btnDaemonControl").attr('value', 'Stop FPPD');
 							$('#daemonStatus').html("FPPD is running.");
-						}
 
 						parseStatus(response);
 
