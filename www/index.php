@@ -94,7 +94,7 @@ include 'common/menuHead.inc';
 
 
 </head>
-<body onLoad="GetFPPDmode();StatusPopulatePlaylists();GetFPPStatus();GetVolume();">
+<body onLoad="GetFPPDmode();StatusPopulatePlaylists();GetFPPStatus();bindVisibilityListener();GetVolume();">
 <div id="bodyWrapper">
 <?php
 	include 'menu.inc';

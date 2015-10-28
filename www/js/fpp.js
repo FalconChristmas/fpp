@@ -9,7 +9,7 @@ gblCurrentPlaylistIndex = 0;
 gblCurrentLoadedPlaylist  = '';
 gblCurrentLoadedPlaylistCount = 0;
 
-var statusTimeout = '';
+var statusTimeout = null;
 var lastStatus = '';
 
 function PopulateLists() {
@@ -2627,3 +2627,48 @@ function DialogError(title, message)
 {
 	DialogOK(title, message);
 }
+
+// page visibility prefixing
+function getHiddenProp(){
+    var prefixes = ['webkit','moz','ms','o'];
+    
+    // if 'hidden' is natively supported just return it
+    if ('hidden' in document) return 'hidden';
+    
+    // otherwise loop over all the known prefixes until we find one
+    for (var i = 0; i < prefixes.length; i++){
+        if ((prefixes[i] + 'Hidden') in document) 
+            return prefixes[i] + 'Hidden';
+    }
+
+    // otherwise it's not supported
+    return null;
+}
+
+// return page visibility
+function isHidden() {
+    var prop = getHiddenProp();
+    if (!prop) return false;
+    
+    return document[prop];
+}
+
+function bindVisibilityListener() {
+	var visProp = getHiddenProp();
+	if (visProp) {
+	  var evtname = visProp.replace(/[H|h]idden/,'') + 'visibilitychange';
+	  document.addEventListener(evtname, handleVisibilityChange);
+	}
+}
+
+function handleVisibilityChange() {
+
+    if (isHidden() && statusTimeout != null) {
+        clearTimeout(statusTimeout);
+        statusTimeout = null;
+    } else {
+         GetFPPStatus();
+    }
+   
+}
+
