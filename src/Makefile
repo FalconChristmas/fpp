@@ -213,10 +213,14 @@ CFLAGS += \
 endif
 
 ##############################################################################
-# Uncomment the following three lines to enable X11Matrix Test Channel Output
-#LIBS_fppd += -lX11
-#CFLAGS += -DUSE_X11Matrix
-#OBJECTS_fppd += channeloutput/X11Matrix.o
+# Include a local Makefile if one exists to modify any of the above
+-include Makefile.local
+#
+# Examples of some entries that might exist in Makefile.local:
+#
+# LIBS_fppd += -lX11
+# CFLAGS += -DUSE_X11Matrix
+# OBJECTS_fppd += channeloutput/X11Matrix.o
 ##############################################################################
 
 PWD := $(shell pwd)
