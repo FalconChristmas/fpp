@@ -58,12 +58,16 @@
 #
 #############################################################################
 SCRIPTVER="0.8"
-FPPBRANCH="v1.5"
+FPPBRANCH="v1.6"
 FPPIMAGEVER="1.5"
-FPPCFGVER="14"
+FPPCFGVER="16"
 FPPPLATFORM="UNKNOWN"
 FPPDIR="/opt/fpp"
 OSVER="UNKNOWN"
+
+# FIXME, need to handle config version 14 to fix force HDMI on the Pi
+# can we do this at install time or does it need to be at first boot?
+# do we need a FPP "first boot" script for this and other things?
 
 #############################################################################
 # Some Helper Functions
