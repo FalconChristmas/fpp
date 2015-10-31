@@ -110,8 +110,8 @@ int Hill320Output::Init(char *configStr)
 	wiringPiI2CWriteReg8(m_fd, MCP23x17_IOCON, IOCON_INIT);
 
 	// Enable all pins for output
-	wiringPiI2CWriteReg8(m_fd, MCP23x17_IODIRA, 0xb00000000);
-	wiringPiI2CWriteReg8(m_fd, MCP23x17_IODIRB, 0xb00000000);
+	wiringPiI2CWriteReg8(m_fd, MCP23x17_IODIRA, 0b00000000);
+	wiringPiI2CWriteReg8(m_fd, MCP23x17_IODIRB, 0b00000000);
 
 	m_boxCount = m_channelCount / 8 + 1;
 
@@ -184,19 +184,19 @@ LogDebug(VB_CHANNELOUT, "Box: %d, Bank: %02x, BankBox: %02x, Byte: %02x\n", box,
 		wiringPiI2CWriteReg8(m_fd, MCP23x17_GPIOA, byte);
 
 		// Set C0 & C1 HIGH
-		wiringPiI2CWriteReg8(m_fd, MCP23x17_GPIOB, 0xb11000000);
+		wiringPiI2CWriteReg8(m_fd, MCP23x17_GPIOB, 0b11000000);
 
 		// Set C0 LOW and C1 HIGH
-		wiringPiI2CWriteReg8(m_fd, MCP23x17_GPIOB, 0xb01000000);
+		wiringPiI2CWriteReg8(m_fd, MCP23x17_GPIOB, 0b01000000);
 
 		// Set bank information
 		wiringPiI2CWriteReg8(m_fd, MCP23x17_GPIOA, bankbox + bank);
 
 		// Set C0 & C1 LOW
-		wiringPiI2CWriteReg8(m_fd, MCP23x17_GPIOB, 0xb00000000);
+		wiringPiI2CWriteReg8(m_fd, MCP23x17_GPIOB, 0b00000000);
 
 		// Set C0 LOW and C1 HIGH
-		wiringPiI2CWriteReg8(m_fd, MCP23x17_GPIOB, 0xb01000000);
+		wiringPiI2CWriteReg8(m_fd, MCP23x17_GPIOB, 0b01000000);
 	}
 
 	return m_channelCount;
