@@ -152,6 +152,7 @@ LDFLAGS_fppd += \
 	-L../external/rpi_ws281x/ \
 	$(NULL)
 OBJECTS_fppd += \
+	channeloutput/Hill320.o \
 	channeloutput/RGBMatrix.o \
 	channeloutput/rpi_ws281x.o \
 	$(NULL)

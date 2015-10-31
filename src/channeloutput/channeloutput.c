@@ -62,6 +62,7 @@
 #endif
 
 #ifdef PLATFORM_PI
+#  include "Hill320.h"
 #  include "rpi_ws281x.h"
 #endif
 
@@ -327,6 +328,8 @@ int InitializeChannelOutputs(void) {
 			} else if (!strcmp(type, "Renard")) {
 				channelOutputs[i].outputOld = &USBRenardOutput;
 #ifdef PLATFORM_PI
+			} else if (!strcmp(type, "Hill320")) {
+				channelOutputs[i].output = new Hill320Output(start, count);
 			} else if (!strcmp(type, "RPIWS281X")) {
 				channelOutputs[i].output = new RPIWS281xOutput(start, count);
 #endif
