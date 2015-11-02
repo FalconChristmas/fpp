@@ -268,7 +268,7 @@ function SetTestMode()
 	if (enabled || lastEnabledState)
 	{
 		var data = {};
-		var channelSet = "\"" + startChannel + "-" + endChannel + "\"";
+		var channelSet = "" + startChannel + "-" + endChannel;
 
 		if (mode == "SingleChase")
 		{
