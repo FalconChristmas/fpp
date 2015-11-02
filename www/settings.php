@@ -30,10 +30,11 @@ else
 	$foundOurCard = 0;
 	foreach($output as $card)
 	{
+		$values = explode(':', $card);
+
 		if ($values[0] == $CurrentCard)
 			$foundOurCard = 1;
 
-		$values = explode(':', $card);
 		if ($values[1] == "bcm2835 ALSA")
 			$AlsaCards[$values[1] . " (Pi Onboard Audio)"] = $values[0];
 		else
