@@ -5,25 +5,6 @@
 <?php include 'common/menuHead.inc'; ?>
 <?php
 
-$AlsaCards = Array();
-exec($SUDO . " aplay -l | grep '^card' | sed -e 's/^card //' -e 's/:[^\[]*\[/:/' -e 's/\].*\[.*\].*//' | uniq", $output, $return_val);
-if ( $return_val )
-{
-	error_log("Error getting alsa cards for output!");
-}
-else
-{
-	foreach($output as $card)
-	{
-		$values = explode(':', $card);
-		if ($values[1] == "bcm2835 ALSA")
-			$AlsaCards[$values[1] . " (Pi Onboard Audio)"] = $values[0];
-		else
-			$AlsaCards[$values[1]] = $values[0];
-	}
-}
-unset($output);
-
 exec($SUDO . " grep card /root/.asoundrc | head -n 1 | awk '{print $2}'", $output, $return_val);
 if ( $return_val )
 {
@@ -35,6 +16,32 @@ else
 		$CurrentCard = $output[0];
 	else
 		$CurrentCard = "0";
+}
+unset($output);
+
+$AlsaCards = Array();
+exec($SUDO . " aplay -l | grep '^card' | sed -e 's/^card //' -e 's/:[^\[]*\[/:/' -e 's/\].*\[.*\].*//' | uniq", $output, $return_val);
+if ( $return_val )
+{
+	error_log("Error getting alsa cards for output!");
+}
+else
+{
+	$foundOurCard = 0;
+	foreach($output as $card)
+	{
+		if ($values[0] == $CurrentCard)
+			$foundOurCard = 1;
+
+		$values = explode(':', $card);
+		if ($values[1] == "bcm2835 ALSA")
+			$AlsaCards[$values[1] . " (Pi Onboard Audio)"] = $values[0];
+		else
+			$AlsaCards[$values[1]] = $values[0];
+	}
+
+	if (!$foundOurCard)
+		$AlsaCards['-- Select an Audio Device --'] = $CurrentCard;
 }
 unset($output);
 
