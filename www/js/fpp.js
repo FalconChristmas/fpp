@@ -776,13 +776,13 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 					if(entries.childNodes.length> 0)
 					{
 						innerHTML = "<tr class=\"tblheader\">" +  
-    	                  "<td width=\"5%\">#</td>" +
-                        "<td width=\"7%\">Act</td>" +
-												"<td width=\"8%\">Universe</td>" +
-												"<td width=\"8%\">Start</td>" +
-												"<td width=\"8%\">Size</td>" +
-                        "<td width=\"25%\">Type</td>" +
-												"<td width=\"20%\">Unicast Address</td>" +
+												"<td width=\"5%\" align='left'>Line<br>#</td>" +
+												"<td width=\"10%\" align='left'>Universe Active</td>" +
+												"<td width=\"10%\" align='left'>FPP Start<br>Channel</td>" +
+												"<td width=\"10%\" align='left'>Universe<br>#</td>" +
+												"<td width=\"10%\" align='left'>Universe<br>Size</td>" +
+                        "<td width=\"20%\" align='left'>Universe<br>Type</td>" +
+												"<td width=\"20%\" align='left'>Unicast Address</td>" +
 												"</tr>";
 												
 							UniverseCount = entries.childNodes.length;
@@ -804,8 +804,8 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow)
 								innerHTML += 	"<tr class=\"rowUniverseDetails\">" +
 								              "<td>" + (i+1).toString() + "</td>" +
 															"<td><input name=\"chkActive[" + i.toString() + "]\" id=\"chkActive[" + i.toString() + "]\" type=\"checkbox\" " + activeChecked +"/></td>" +
-															"<td><input name=\"txtUniverse[" + i.toString() + "]\" id=\"txtUniverse[" + i.toString() + "]\" type=\"text\" size=\"3\" maxlength=\"3\" value=\"" + universe.toString() + "\"/></td>" +
 															"<td><input name=\"txtStartAddress[" + i.toString() + "]\" id=\"txtStartAddress[" + i.toString() + "]\" type=\"text\" size=\"6\" maxlength=\"6\" value=\"" + startAddress.toString() + "\"/></td>" +
+															"<td><input name=\"txtUniverse[" + i.toString() + "]\" id=\"txtUniverse[" + i.toString() + "]\" type=\"text\" size=\"3\" maxlength=\"3\" value=\"" + universe.toString() + "\"/></td>" +
 															"<td><input name=\"txtSize[" + i.toString() + "]\" id=\"txtSize[" + i.toString() + "]\" type=\"text\"  size=\"3\"/  maxlength=\"3\"value=\"" + size.toString() + "\"></td>" +
 															
 															"<td><select id=\"universeType[" + i.toString() + "]\" name=\"universeType[" + i.toString() + "]\" style=\"width:150px\">" +
