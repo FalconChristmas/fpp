@@ -42,6 +42,7 @@ class GPIOOutput : public ChannelOutputBase {
 
   private:
 	int m_GPIOPin;
+	int m_invertOutput;
 
 };
 

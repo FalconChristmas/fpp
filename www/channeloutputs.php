@@ -768,6 +768,7 @@ function GPIOGPIOSelect(currentValue) {
 function NewGPIOConfig() {
 	var result = "";
 	result += GPIOGPIOSelect("");
+	result += " Invert: <input type=checkbox class='invert'>";
 	return result;
 }
 
@@ -780,6 +781,11 @@ function GPIODeviceConfig(config) {
 
 		if (item[0] == "gpio") {
 			result += GPIOGPIOSelect(item[1]);
+		} else if (item[0] == "invert") {
+			result += " Invert: <input type=checkbox class='invert'";
+			if (item[1] == "1")
+				result += " checked='checked'";
+			result += ">";
 		}
 	}
 
@@ -793,7 +799,12 @@ function GetGPIOOutputConfig(cell) {
 	if (gpio == "")
 		return "";
 
-	return "gpio=" + gpio;
+	var invert = 0;
+
+	if ($cell.find("input.invert").is(":checked"))
+		invert = 1;
+
+	return "gpio=" + gpio + ";invert=" + invert;
 }
 
 /////////////////////////////////////////////////////////////////////////////
