@@ -44,7 +44,7 @@ struct sockaddr_un server_address;
 struct sockaddr_un client_address;
 int bytes_received, bytes_sent;
 
-char command[128];
+char command[8192];
 char response[256];
 
 void SendCommand(const char * com);
@@ -260,6 +260,7 @@ void SendCommand(const char * com)
  unlink(FPP_CLIENT_SOCKET);
  if(bytes_received > 0)
  {
+  response[bytes_received] = '\0';
   printf("%s",response);
  }
  else
