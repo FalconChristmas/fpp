@@ -293,7 +293,7 @@ case "${OSVER}" in
 		apt-get -y clean
 
 		echo "FPP - Installing required packages (Set #3)"
-		apt-get -y install ethtool fbi fbset file flite gdb gdebi-core git i2c-tools ifplugd imagemagick less libapache2-mod-php5 libboost-dev libconvert-binary-c-perl libdbus-glib-1-dev libdevice-serialport-perl libjs-jquery libjs-jquery-ui libjson-perl libjsoncpp-dev
+		apt-get -y install ethtool exfat-fuse fbi fbset file flite gdb gdebi-core git i2c-tools ifplugd imagemagick less libapache2-mod-php5 libboost-dev libconvert-binary-c-perl libdbus-glib-1-dev libdevice-serialport-perl libjs-jquery libjs-jquery-ui libjson-perl libjsoncpp-dev
 		apt-get -y clean
 
 		echo "FPP - Installing required packages (Set #4)"
