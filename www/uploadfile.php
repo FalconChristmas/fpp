@@ -60,6 +60,7 @@ require_once('config.php');
           $(this).addClass('selectedentry');
           ScriptNameSelected  = $(this).find('td:first').text();
 		  SetButtonState('#btnSequenceConvertUpload','disable');
+		  SetButtonState('#btnRunScript','enable');
 		  SetButtonState('#btnViewScript','enable');
 		  SetButtonState('#btnDownloadScript','enable');
 		  SetButtonState('#btnDeleteScript','enable');
@@ -101,6 +102,11 @@ require_once('config.php');
 	GetFiles('Logs');
 	GetFiles('Uploads');
   }
+
+	function RunScript(scriptName)
+	{
+		window.open("runEventScript.php?scriptName=" + scriptName);
+	}
 
 </script>
 <style>
@@ -242,6 +248,7 @@ h2 {
           <hr />
           <div class='right'>
             <input onclick= "ViewFile('Scripts', ScriptNameSelected);" id="btnViewScript" class="disableButtons" type="button"  value="View" />
+            <input onclick="RunScript(ScriptNameSelected);" id="btnRunScript" class="disableButtons" type="button"  value="Run" />
             <input onclick= "DownloadFile('Scripts', ScriptNameSelected);" id="btnDownloadScript" class="disableButtons" type="button"  value="Download" />
             <input onclick= "DeleteFile('Scripts', ScriptNameSelected);" id="btnDeleteScript" class="disableButtons" type="button"  value="Delete" />
           </div>
