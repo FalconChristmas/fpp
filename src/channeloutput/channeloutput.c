@@ -226,6 +226,10 @@ int InitializeChannelOutputs(void) {
 #endif
 			} else if (type == "USBRelay") {
 				channelOutputs[i].output = new USBRelayOutput(start, count);
+#if defined(PLATFORM_PI)
+			} else if (type == "Hill320") {
+				channelOutputs[i].output = new Hill320Output(start, count);
+#endif
 #ifdef USE_X11Matrix
 			} else if (type == "X11Matrix") {
 				channelOutputs[i].output = new X11MatrixOutput(start, count);
@@ -328,8 +332,6 @@ int InitializeChannelOutputs(void) {
 			} else if (!strcmp(type, "Renard")) {
 				channelOutputs[i].outputOld = &USBRenardOutput;
 #ifdef PLATFORM_PI
-			} else if (!strcmp(type, "Hill320")) {
-				channelOutputs[i].output = new Hill320Output(start, count);
 			} else if (!strcmp(type, "RPIWS281X")) {
 				channelOutputs[i].output = new RPIWS281xOutput(start, count);
 #endif
