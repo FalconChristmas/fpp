@@ -81,6 +81,8 @@ Hill320Output::Hill320Output(unsigned int startChannel, unsigned int channelCoun
 		startChannel, channelCount);
 
 	m_maxChannels = 320;
+
+	m_boxCount = m_channelCount / 8;
 }
 
 /*
@@ -113,8 +115,6 @@ int Hill320Output::Init(char *configStr)
 	wiringPiI2CWriteReg8(m_fd, MCP23x17_IODIRA, 0b00000000);
 	wiringPiI2CWriteReg8(m_fd, MCP23x17_IODIRB, 0b00000000);
 
-	m_boxCount = m_channelCount / 8 + 1;
-
 	return ChannelOutputBase::Init(configStr);
 }
 
@@ -144,7 +144,7 @@ int Hill320Output::RawSendData(unsigned char *channelData)
 	for (int box = 1; box <= m_boxCount; box++)
 	{
 		byte = 0;
-		for (int x = 0; x < 8, ch < m_channelCount; x++, ch++)
+		for (int x = 0; x < 8 && ch < m_channelCount; x++, ch++)
 		{
 			if (*(c++))
 			{
@@ -178,7 +178,9 @@ int Hill320Output::RawSendData(unsigned char *channelData)
 			bankbox = box - 33;
 		}
 
-LogDebug(VB_CHANNELOUT, "Box: %d, Bank: %02x, BankBox: %02x, Byte: %02x\n", box, bank, bankbox, byte);
+		LogExcess(VB_CHANNELOUT,
+			"Box: %d, Bank: 0x%02x, BankBox: 0x%02x, Byte: 0x%02x\n",
+			box, bank, bankbox, byte);
 
 		// Set data byte
 		wiringPiI2CWriteReg8(m_fd, MCP23x17_GPIOA, byte);
@@ -209,7 +211,8 @@ void Hill320Output::DumpConfig(void)
 {
 	LogDebug(VB_CHANNELOUT, "Hill320Output::DumpConfig()\n");
 
-	LogDebug(VB_CHANNELOUT, "    fd: %d\n", m_fd);
+	LogDebug(VB_CHANNELOUT, "    fd      : %d\n", m_fd);
+	LogDebug(VB_CHANNELOUT, "    BoxCount: %d\n", m_boxCount);
 
 	ChannelOutputBase::DumpConfig();
 }
