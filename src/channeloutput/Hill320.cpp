@@ -70,6 +70,17 @@
 #   define wiringPiI2CWriteReg8(x, y, z) 1
 #endif
 
+#define BYTETOBINARYPATTERN "%d%d%d%d%d%d%d%d"
+#define BYTETOBINARY(byte)  \
+  (byte & 0x80 ? 1 : 0), \
+  (byte & 0x40 ? 1 : 0), \
+  (byte & 0x20 ? 1 : 0), \
+  (byte & 0x10 ? 1 : 0), \
+  (byte & 0x08 ? 1 : 0), \
+  (byte & 0x04 ? 1 : 0), \
+  (byte & 0x02 ? 1 : 0), \
+  (byte & 0x01 ? 1 : 0) 
+
 /*
  *
  */
@@ -96,9 +107,9 @@ Hill320Output::~Hill320Output()
 /*
  *
  */
-int Hill320Output::Init(char *configStr)
+int Hill320Output::Init(Json::Value config)
 {
-	LogDebug(VB_CHANNELOUT, "Hill320Output::Init('%s')\n", configStr);
+	LogDebug(VB_CHANNELOUT, "Hill320Output::Init(JSON)\n");
 
 	m_fd = wiringPiI2CSetup(0x20);
 
@@ -115,7 +126,7 @@ int Hill320Output::Init(char *configStr)
 	wiringPiI2CWriteReg8(m_fd, MCP23x17_IODIRA, 0b00000000);
 	wiringPiI2CWriteReg8(m_fd, MCP23x17_IODIRB, 0b00000000);
 
-	return ChannelOutputBase::Init(configStr);
+	return ChannelOutputBase::Init(config);
 }
 
 /*
@@ -179,17 +190,18 @@ int Hill320Output::RawSendData(unsigned char *channelData)
 		}
 
 		LogExcess(VB_CHANNELOUT,
-			"Box: %d, Bank: 0x%02x, BankBox: 0x%02x, Byte: 0x%02x\n",
-			box, bank, bankbox, byte);
+			"Box: %d, Bank: 0x%02x, BankBox: 0x%02x, Byte: 0b"
+			BYTETOBINARYPATTERN "\n",
+			box, bank, bankbox, BYTETOBINARY(byte));
 
 		// Set data byte
 		wiringPiI2CWriteReg8(m_fd, MCP23x17_GPIOA, byte);
 
 		// Set C0 & C1 HIGH
-		wiringPiI2CWriteReg8(m_fd, MCP23x17_GPIOB, 0b11000000);
+		wiringPiI2CWriteReg8(m_fd, MCP23x17_GPIOB, 0b00000011);
 
 		// Set C0 LOW and C1 HIGH
-		wiringPiI2CWriteReg8(m_fd, MCP23x17_GPIOB, 0b01000000);
+		wiringPiI2CWriteReg8(m_fd, MCP23x17_GPIOB, 0b00000010);
 
 		// Set bank information
 		wiringPiI2CWriteReg8(m_fd, MCP23x17_GPIOA, bankbox + bank);
@@ -198,7 +210,7 @@ int Hill320Output::RawSendData(unsigned char *channelData)
 		wiringPiI2CWriteReg8(m_fd, MCP23x17_GPIOB, 0b00000000);
 
 		// Set C0 LOW and C1 HIGH
-		wiringPiI2CWriteReg8(m_fd, MCP23x17_GPIOB, 0b01000000);
+		wiringPiI2CWriteReg8(m_fd, MCP23x17_GPIOB, 0b00000010);
 	}
 
 	return m_channelCount;

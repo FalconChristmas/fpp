@@ -33,7 +33,7 @@ class Hill320Output : public ChannelOutputBase {
 	Hill320Output(unsigned int startChannel, unsigned int channelCount);
 	~Hill320Output();
 
-	int Init(char *configStr);
+	int Init(Json::Value config);
 	int Close(void);
 
 	int RawSendData(unsigned char *channelData);
