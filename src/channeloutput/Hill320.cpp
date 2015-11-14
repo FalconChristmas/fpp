@@ -49,6 +49,22 @@
  *  28 (GPA7) - DB25 Parallel Port Pin 9
  */
 
+/*
+ * Sample channeloutputs.json config
+ *
+ * {
+ *       "channelOutputs": [
+ *               {
+ *                       "type": "Hill320",
+ *                       "enabled": 0,
+ *                       "startChannel": 1,
+ *                       "channelCount": 320
+ *               }
+ *       ]
+ * }
+ *
+ */
+
 #include <stdlib.h>
 
 #include "common.h"
