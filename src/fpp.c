@@ -151,7 +151,10 @@ int main (int argc, char *argv[])
     // Stop an effect - example "fpp -e effectName"
     else if((strncmp(argv[1],"-E",2) == 0) &&  argc > 2)
     {
-      sprintf(command,"StopEffectByName,%s,",argv[2]);
+      if (!strcmp(argv[2], "ALL"))
+        strcpy(command,"StopAllEffects,");
+      else
+        sprintf(command,"StopEffectByName,%s,",argv[2]);
       SendCommand(command);
     }
     // Trigger an event - example "fpp -t eventName"

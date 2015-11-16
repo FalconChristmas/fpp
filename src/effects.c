@@ -339,7 +339,7 @@ void StopAllEffects(void)
 {
 	int i;
 
-	LogDebug(VB_EFFECT, "Stopping all effects");
+	LogDebug(VB_EFFECT, "Stopping all effects\n");
 
 	pthread_mutex_lock(&effectsLock);
 
