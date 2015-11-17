@@ -56,7 +56,7 @@ require_once('config.php');
     });
 
     $('#tblScripts').on('mousedown', 'tr', function(event,ui){
-          $('#tblScript tr').removeClass('selectedentry');
+          $('#tblScripts tr').removeClass('selectedentry');
           $(this).addClass('selectedentry');
           ScriptNameSelected  = $(this).find('td:first').text();
 		  SetButtonState('#btnSequenceConvertUpload','disable');
