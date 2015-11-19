@@ -39,6 +39,7 @@ $command_array = Array(
 	"singleStepSequenceBack" => 'SingleStepSequenceBack',
 	"getPluginSetting"    => 'GetPluginSetting',
 	"setPluginSetting"    => 'SetPluginSetting',
+	"saveScript"          => 'SaveScript',
 	"setTestMode"         => 'SetTestMode',
 	"getTestMode"         => 'GetTestMode'
 );
@@ -815,6 +816,54 @@ function SetDNSInfo()
 		"DNS2=\"%s\"\n",
 		$data['DNS1'], $data['DNS2']);
 	fclose($f);
+}
+
+/////////////////////////////////////////////////////////////////////////////
+
+function SaveScript()
+{
+	global $args;
+	global $settings;
+
+	$result = Array();
+
+	if (!isset($args['data']))
+	{
+		$result['saveStatus'] = "Error, incorrect info";
+		returnJSON($result);
+	}
+
+	$data = json_decode($args['data'], true);
+
+	if (isset($data['scriptName']) && isset($data['scriptBody']))
+	{
+		$filename = $settings['scriptDirectory'] . '/' . $data['scriptName'];
+		$content = $data['scriptBody'];
+
+		if (file_exists($filename))
+		{
+			if (@file_put_contents($filename, $content))
+			{
+				$result['saveStatus'] = "OK";
+				$result['scriptName'] = $data['scriptName'];
+				$result['scriptBody'] = $data['scriptBody'];
+			}
+			else
+			{
+				$result['saveStatus'] = "Error updating file";
+			}
+		}
+		else
+		{
+			$result['saveStatus'] = "Error, file does not exist";
+		}
+	}
+	else
+	{
+		$result['saveStatus'] = "Error, missing info";
+	}
+
+	returnJSON($result);
 }
 
 /////////////////////////////////////////////////////////////////////////////

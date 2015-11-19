@@ -60,8 +60,9 @@ require_once('config.php');
           $(this).addClass('selectedentry');
           ScriptNameSelected  = $(this).find('td:first').text();
 		  SetButtonState('#btnSequenceConvertUpload','disable');
-		  SetButtonState('#btnRunScript','enable');
 		  SetButtonState('#btnViewScript','enable');
+		  SetButtonState('#btnEditScript','enable');
+		  SetButtonState('#btnRunScript','enable');
 		  SetButtonState('#btnDownloadScript','enable');
 		  SetButtonState('#btnDeleteScript','enable');
     });
@@ -106,6 +107,52 @@ require_once('config.php');
 	function RunScript(scriptName)
 	{
 		window.open("runEventScript.php?scriptName=" + scriptName);
+	}
+
+	function EditScript(scriptName)
+	{
+		$('#fileText').html("Loading...");
+		$('#fileText').load("fppxml.php?command=getFile&dir=Scripts&filename=" + scriptName, function() {
+			var ext = scriptName.split('.').pop();
+			if (ext != "html")
+				var html = "<fieldset  class='fs'><legend> " + scriptName + " </legend><div><center><input type='button' class='buttons' onClick='SaveScript(\"" + scriptName + "\");' value='Save'> <input type='button' class='buttons' onClick='AbortScriptChange();' value='Cancel'><hr/>";
+				html += "<textarea cols='100' rows='25' id='scriptText'>" + $('#fileText').html() + "</textarea></center></div></fieldset>";
+				$('#fileText').html(html);
+		});
+
+		$('#fileViewer').dialog({ height: 600, width: 800, title: "Script Editor" });
+		$('#fileViewer').dialog( "moveToTop" );
+	}
+
+	function SaveScript(scriptName)
+	{
+		var contents = $('#scriptText').val();
+		var info = {
+				scriptName: scriptName,
+				scriptBody: contents
+			};
+
+		postData = "command=saveScript&data=" + JSON.stringify(info);
+
+		$.post("fppjson.php", postData).success(function(data) {
+			if (data.saveStatus == "OK")
+			{
+				$('#fileViewer').dialog('close');
+				$.jGrowl("Script saved.");
+			}
+			else
+			{
+				DialogError("Save Failed", "Save Failed: " + data.saveStatus);
+			}
+		}).fail(function() {
+			DialogError("Save Failed", "Save Failed!");
+		});
+
+	}
+
+	function AbortScriptChange()
+	{
+		$('#fileViewer').dialog('close');
 	}
 
 </script>
@@ -248,7 +295,8 @@ h2 {
           <hr />
           <div class='right'>
             <input onclick= "ViewFile('Scripts', ScriptNameSelected);" id="btnViewScript" class="disableButtons" type="button"  value="View" />
-            <input onclick="RunScript(ScriptNameSelected);" id="btnRunScript" class="disableButtons" type="button"  value="Run" />
+            <input onclick= "RunScript(ScriptNameSelected);" id="btnRunScript" class="disableButtons" type="button"  value="Run" />
+            <input onclick= "EditScript(ScriptNameSelected);" id="btnEditScript" class="disableButtons" type="button"  value="Edit" />
             <input onclick= "DownloadFile('Scripts', ScriptNameSelected);" id="btnDownloadScript" class="disableButtons" type="button"  value="Download" />
             <input onclick= "DeleteFile('Scripts', ScriptNameSelected);" id="btnDeleteScript" class="disableButtons" type="button"  value="Delete" />
           </div>
