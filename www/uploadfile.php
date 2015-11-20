@@ -260,7 +260,7 @@ h2 {
             <input onclick= "DeleteFile('Videos', VideoNameSelected);" id="btnDeleteVideo" class="disableButtons" type="button"  value="Delete" />
           </div>
           <br />
-          <font size=-1>Video files must be in .mp4 or .mkv format.  H264 video and AAC or MP3 audio are preferred because the video can be hardware accelerated on the Pi.</font>
+          <font size=-1>Video files must be in .mp4 or .mkv format.  H264 video is required for hardware acceleration on the Pi and AAC or MP3 audio are preferred.  Video playback is not currently supported on the BBB.</font>
         </fieldset>
       </div>
     </div>
