@@ -158,13 +158,13 @@ $plugins = Array(
 
 	Array(
 		'shortName'   => 'SportsTicker',
-		'name'        => 'Sports Ticker Plugin',
+		'name'        => 'Sports Ticker',
 		'author'      => 'Ben Shaver (bshaver) and Pat Delaney (patdelaney)',
-		'description' => 'Download of sports from ESPN for use in Matrices, etc',
+		'description' => 'Use your Matrix in the off holiday season for a sports ticker',
 		'homeUrl'     => 'https://github.com/LightsOnHudson/FPP-Plugin-SportsTicker',
 		'sourceUrl'   => 'https://github.com/LightsOnHudson/FPP-Plugin-SportsTicker.git',
 		'bugUrl'      => 'https://github.com/LightsOnHudson/FPP-Plugin-SportsTicker/issues',
-		'sha'         => '06eb918bc9176d50c7f26155fbe562608f005c94',
+		'sha'         => '547398498952feafb7d35a6b0752c0e34e5d6a5d',
 	),
 
 );
