@@ -1358,7 +1358,7 @@ function parseStatus(jsonStatus) {
 
         } else {
             var playerStatusText = "Playing <strong>'" + currentPlaylist.playlist + "'</strong>";
-
+            var repeatMode = jsonStatus.repeat_mode;
             if (gblCurrentLoadedPlaylist != currentPlaylist.playlist) {
                 $("#selStartPlaylist").val(currentPlaylist.playlist);
                 PopulateStatusPlaylistEntries(false, currentPlaylist.playlist, true);

@@ -284,7 +284,7 @@ function parseStatus($status)
 					'playlist'   => $status[11],
 					'start_time' => $status[12]
 				],
-				'repeat_mode' => $status[13],
+				'repeat_mode' => (int)$status[13],
 			];
 		}
 	}
@@ -303,7 +303,7 @@ function parseTimeFromSeconds($seconds) {
 	$seconds = (int) $seconds % 60;
 
 
-	return sprintf('%s:%s', str_pad($minutes, 2, 0, STR_PAD_LEFT), str_pad($seconds, 2, 0));
+	return sprintf('%s:%s', str_pad($minutes, 2, 0, STR_PAD_LEFT), str_pad($seconds, 2, 0, STR_PAD_LEFT));
 }
 
 function getTimeRemaining($seconds) {
