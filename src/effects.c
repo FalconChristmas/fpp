@@ -63,10 +63,23 @@ int InitEffects(void)
 
 	bzero(effects, sizeof(effects));
 
-	std::string backgroundSequence(getEffectDirectory());
-	backgroundSequence += "/background.eseq";
+	char localFilename[2048];
 
-	if (FileExists(backgroundSequence.c_str()))
+	strcpy(localFilename, getEffectDirectory());
+	strcat(localFilename, "/background.eseq");
+
+	if ((getFPPmode() == REMOTE_MODE) &&
+		(CheckForHostSpecificFile(getSetting("HostName"), localFilename)))
+	{
+		strcpy(localFilename, "background_");
+		strcat(localFilename, getSetting("HostName"));
+
+		LogInfo(VB_EFFECT, "Automatically starting background effect "
+			"sequence %s\n", localFilename);
+
+		StartEffect(localFilename, 0, 1);
+	}
+	else if (FileExists(localFilename))
 	{
 		LogInfo(VB_EFFECT, "Automatically starting background effect sequence "
 			"background.eseq\n");
