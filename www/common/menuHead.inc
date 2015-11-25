@@ -10,7 +10,7 @@
 	<!-- finally FPP stuff, here so our CSS is last so we can override anything above -->
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<link rel="stylesheet" href="css/fpp.css" />
-	<script type="text/javascript" src="js/fpp.js"></script>
+	<script type="text/javascript" src="js/fpp.js?ref=<?php echo filemtime('js/fpp.js'); ?>"></script>
 
 	<!-- menu -->
 	<link href="jquery/smartmenus/src/css/sm-core-css.css" rel="stylesheet" type="text/css" />

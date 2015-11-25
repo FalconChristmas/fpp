@@ -1349,7 +1349,7 @@ function SaveF16v2Alpha()
 			$carr[$i++] = intval($_POST['nullNodes'][$o]);
 		}
 
-		$f = fopen($settings['configDirectory'] . "/Falcon.F16V2", "wb");
+		$f = fopen($settings['configDirectory'] . "/Falcon.F16V2-alpha", "wb");
 		fwrite($f, implode(array_map("chr", $carr)), 1024);
 		fclose($f);
  		SendCommand('w');

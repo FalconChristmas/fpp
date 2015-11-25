@@ -10,7 +10,7 @@ $plugins = Array(
 		'homeUrl'     => 'https://github.com/Materdaddy/fpp-vastfmt',
 		'sourceUrl'   => 'https://github.com/Materdaddy/fpp-vastfmt.git',
 		'bugUrl'      => 'https://github.com/Materdaddy/fpp-vastfmt/issues',
-		'sha'         => 'a8a627df565156508a43ce4bfd8342390f77ea9c',
+		'sha'         => '9fdcb615ddb8e907ed128482f6907254284f457b',
 	),
 
 	Array(
@@ -21,7 +21,7 @@ $plugins = Array(
 		'homeUrl'     => 'https://github.com/cpinkham/fpp-matrixtools',
 		'sourceUrl'   => 'https://github.com/cpinkham/fpp-matrixtools.git',
 		'bugUrl'      => 'https://github.com/cpinkham/fpp-matrixtools/issues',
-		'sha'         => 'f37f61271c71703eef507efb0151247c8380eaa8',
+		'sha'         => '892fc3db8d4072dd5d5dbac6b2965608cee33ad4',
 	),
 
 	Array(
@@ -43,7 +43,7 @@ $plugins = Array(
 		'homeUrl'     => 'https://github.com/drlucas/fpp-edmrds',
 		'sourceUrl'   => 'https://github.com/drlucas/fpp-edmrds.git',
 		'bugUrl'      => 'https://github.com/drlucas/fpp-edmrds/issues',
-		'sha'         => 'acd4918d8db872b9b43bf0b7c67241ccba811e88',
+		'sha'         => '4bd6cd523f0a81c401b0803de845090eba2595fc',
 	),
 
 	Array(
@@ -154,6 +154,17 @@ $plugins = Array(
 		'sourceUrl'   => 'https://github.com/LightsOnHudson/FPP-Plugin-RDS-To-Matrix.git',
 		'bugUrl'      => 'https://github.com/LightsOnHudson/FPP-Plugin-RDS-To-Matrix/issues',
 		'sha'         => '3c653586a46794485826f670bd4475fe83226388',
+	),
+
+	Array(
+		'shortName'   => 'SportsTicker',
+		'name'        => 'Sports Ticker',
+		'author'      => 'Ben Shaver (bshaver) and Pat Delaney (patdelaney)',
+		'description' => 'Use your Matrix in the off holiday season for a sports ticker',
+		'homeUrl'     => 'https://github.com/LightsOnHudson/FPP-Plugin-SportsTicker',
+		'sourceUrl'   => 'https://github.com/LightsOnHudson/FPP-Plugin-SportsTicker.git',
+		'bugUrl'      => 'https://github.com/LightsOnHudson/FPP-Plugin-SportsTicker/issues',
+		'sha'         => '547398498952feafb7d35a6b0752c0e34e5d6a5d',
 	),
 
 );

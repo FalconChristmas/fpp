@@ -1,5 +1,5 @@
 /*
- *   GPIO Pin Channel Output driver for Falcon Player (FPP)
+ *   Hill320 Channel Output driver for Falcon Player (FPP)
  *
  *   Copyright (C) 2013 the Falcon Player Developers
  *      Initial development by:
@@ -23,17 +23,17 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _GPIO_H
-#define _GPIO_H
+#ifndef _HILL320_H
+#define _HILL320_H
 
 #include "ChannelOutputBase.h"
 
-class GPIOOutput : public ChannelOutputBase {
+class Hill320Output : public ChannelOutputBase {
   public:
-	GPIOOutput(unsigned int startChannel, unsigned int channelCount);
-	~GPIOOutput();
+	Hill320Output(unsigned int startChannel, unsigned int channelCount);
+	~Hill320Output();
 
-	int Init(char *configStr);
+	int Init(Json::Value config);
 	int Close(void);
 
 	int RawSendData(unsigned char *channelData);
@@ -41,9 +41,8 @@ class GPIOOutput : public ChannelOutputBase {
 	void DumpConfig(void);
 
   private:
-	int m_GPIOPin;
-	int m_invertOutput;
-
+	int m_fd;
+	int m_boxCount;
 };
 
 #endif

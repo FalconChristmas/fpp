@@ -41,7 +41,8 @@
  */
 GPIOOutput::GPIOOutput(unsigned int startChannel, unsigned int channelCount)
   : ChannelOutputBase(startChannel, channelCount),
-	m_GPIOPin(-1)
+	m_GPIOPin(-1),
+	m_invertOutput(0)
 {
 	LogDebug(VB_CHANNELOUT, "GPIOOutput::GPIOOutput(%u, %u)\n",
 		startChannel, channelCount);
@@ -77,6 +78,8 @@ int GPIOOutput::Init(char *configStr)
 
 		if (elem[0] == "gpio")
 			m_GPIOPin = atoi(elem[1].c_str());
+		else if (elem[0] == "invert")
+			m_invertOutput = atoi(elem[1].c_str());
 	}
 
 	if (m_GPIOPin < 0)
@@ -86,7 +89,11 @@ int GPIOOutput::Init(char *configStr)
 	}
 
 	pinMode(m_GPIOPin, OUTPUT);
-	digitalWrite(m_GPIOPin, LOW);
+
+	if (m_invertOutput)
+		digitalWrite(m_GPIOPin, HIGH);
+	else
+		digitalWrite(m_GPIOPin, LOW);
 
 	return ChannelOutputBase::Init(configStr);
 }
@@ -108,7 +115,10 @@ int GPIOOutput::RawSendData(unsigned char *channelData)
 {
 	LogExcess(VB_CHANNELOUT, "GPIOOutput::RawSendData(%p)\n", channelData);
 
-	digitalWrite(m_GPIOPin, channelData[0]);
+	if (m_invertOutput)
+		digitalWrite(m_GPIOPin, !channelData[0]);
+	else
+		digitalWrite(m_GPIOPin, channelData[0]);
 
 	return m_channelCount;
 }

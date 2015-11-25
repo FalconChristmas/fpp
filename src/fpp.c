@@ -44,7 +44,7 @@ struct sockaddr_un server_address;
 struct sockaddr_un client_address;
 int bytes_received, bytes_sent;
 
-char command[128];
+char command[8192];
 char response[256];
 
 void SendCommand(const char * com);
@@ -151,7 +151,10 @@ int main (int argc, char *argv[])
     // Stop an effect - example "fpp -e effectName"
     else if((strncmp(argv[1],"-E",2) == 0) &&  argc > 2)
     {
-      sprintf(command,"StopEffectByName,%s,",argv[2]);
+      if (!strcmp(argv[2], "ALL"))
+        strcpy(command,"StopAllEffects,");
+      else
+        sprintf(command,"StopEffectByName,%s,",argv[2]);
       SendCommand(command);
     }
     // Trigger an event - example "fpp -t eventName"
@@ -260,6 +263,7 @@ void SendCommand(const char * com)
  unlink(FPP_CLIENT_SOCKET);
  if(bytes_received > 0)
  {
+  response[bytes_received] = '\0';
   printf("%s",response);
  }
  else

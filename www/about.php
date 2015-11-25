@@ -296,7 +296,9 @@ a:visited {
             <tr><td>Local Git Version:</td><td>
 <?
   echo $git_version;
-  if (($git_remote_version != "") && ($git_version != $git_remote_version))
+  if (($git_remote_version != "") &&
+      ($git_remote_version != "Unknown") &&
+      ($git_version != $git_remote_version))
     echo " <font color='#FF0000'>(Update is available)</font>";
 	echo " <a href='changelog.php'>ChangeLog</a>";
 ?>

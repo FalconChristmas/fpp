@@ -309,6 +309,7 @@ int CheckForHostSpecificFile(const char *hostname, char *filename)
 			LogDebug(VB_SEQUENCE, "Found %s to use instead of %s\n",
 				localFilename, filename);
 			strcpy(filename, localFilename);
+			return 1;
 		}
 		else
 		{
@@ -319,9 +320,12 @@ int CheckForHostSpecificFile(const char *hostname, char *filename)
 				LogDebug(VB_SEQUENCE, "Found %s to use instead of %s\n",
 					localFilename, filename);
 				strcpy(filename, localFilename);
+				return 1;
 			}
 		}
 	}
+
+	return 0;
 }
 
 /*

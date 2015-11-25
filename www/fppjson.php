@@ -39,6 +39,7 @@ $command_array = Array(
 	"singleStepSequenceBack" => 'SingleStepSequenceBack',
 	"getPluginSetting"    => 'GetPluginSetting',
 	"setPluginSetting"    => 'SetPluginSetting',
+	"saveScript"          => 'SaveScript',
 	"setTestMode"         => 'SetTestMode',
 	"getTestMode"         => 'GetTestMode'
 );
@@ -284,7 +285,7 @@ function parseStatus($status)
 					'playlist'   => $status[11],
 					'start_time' => $status[12]
 				],
-				'repeat_mode' => (int)$status[13],
+				'repeat_mode' => $status[13],
 			];
 		}
 	}
@@ -303,7 +304,7 @@ function parseTimeFromSeconds($seconds) {
 	$seconds = (int) $seconds % 60;
 
 
-	return sprintf('%s:%s', str_pad($minutes, 2, 0, STR_PAD_LEFT), str_pad($seconds, 2, 0, STR_PAD_LEFT));
+	return sprintf('%s:%s', str_pad($minutes, 2, 0, STR_PAD_LEFT), str_pad($seconds, 2, 0));
 }
 
 function getTimeRemaining($seconds) {
@@ -815,6 +816,54 @@ function SetDNSInfo()
 		"DNS2=\"%s\"\n",
 		$data['DNS1'], $data['DNS2']);
 	fclose($f);
+}
+
+/////////////////////////////////////////////////////////////////////////////
+
+function SaveScript()
+{
+	global $args;
+	global $settings;
+
+	$result = Array();
+
+	if (!isset($args['data']))
+	{
+		$result['saveStatus'] = "Error, incorrect info";
+		returnJSON($result);
+	}
+
+	$data = json_decode($args['data'], true);
+
+	if (isset($data['scriptName']) && isset($data['scriptBody']))
+	{
+		$filename = $settings['scriptDirectory'] . '/' . $data['scriptName'];
+		$content = $data['scriptBody'];
+
+		if (file_exists($filename))
+		{
+			if (@file_put_contents($filename, $content))
+			{
+				$result['saveStatus'] = "OK";
+				$result['scriptName'] = $data['scriptName'];
+				$result['scriptBody'] = $data['scriptBody'];
+			}
+			else
+			{
+				$result['saveStatus'] = "Error updating file";
+			}
+		}
+		else
+		{
+			$result['saveStatus'] = "Error, file does not exist";
+		}
+	}
+	else
+	{
+		$result['saveStatus'] = "Error, missing info";
+	}
+
+	returnJSON($result);
 }
 
 /////////////////////////////////////////////////////////////////////////////

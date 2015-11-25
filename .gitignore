@@ -8,6 +8,7 @@ src/fppd
 src/fppversion.c
 src/pru/*.bin
 src/util/seqdump
+src/Makefile.local
 cscope.out
 tags
 pixelnetDMX

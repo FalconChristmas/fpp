@@ -56,11 +56,13 @@ require_once('config.php');
     });
 
     $('#tblScripts').on('mousedown', 'tr', function(event,ui){
-          $('#tblScript tr').removeClass('selectedentry');
+          $('#tblScripts tr').removeClass('selectedentry');
           $(this).addClass('selectedentry');
           ScriptNameSelected  = $(this).find('td:first').text();
 		  SetButtonState('#btnSequenceConvertUpload','disable');
 		  SetButtonState('#btnViewScript','enable');
+		  SetButtonState('#btnEditScript','enable');
+		  SetButtonState('#btnRunScript','enable');
 		  SetButtonState('#btnDownloadScript','enable');
 		  SetButtonState('#btnDeleteScript','enable');
     });
@@ -101,6 +103,57 @@ require_once('config.php');
 	GetFiles('Logs');
 	GetFiles('Uploads');
   }
+
+	function RunScript(scriptName)
+	{
+		window.open("runEventScript.php?scriptName=" + scriptName);
+	}
+
+	function EditScript(scriptName)
+	{
+		$('#fileText').html("Loading...");
+		$('#fileText').load("fppxml.php?command=getFile&dir=Scripts&filename=" + scriptName, function() {
+			var ext = scriptName.split('.').pop();
+			if (ext != "html")
+				var html = "<fieldset  class='fs'><legend> " + scriptName + " </legend><div><center><input type='button' class='buttons' onClick='SaveScript(\"" + scriptName + "\");' value='Save'> <input type='button' class='buttons' onClick='AbortScriptChange();' value='Cancel'><hr/>";
+				html += "<textarea cols='100' rows='25' id='scriptText'>" + $('#fileText').html() + "</textarea></center></div></fieldset>";
+				$('#fileText').html(html);
+		});
+
+		$('#fileViewer').dialog({ height: 600, width: 800, title: "Script Editor" });
+		$('#fileViewer').dialog( "moveToTop" );
+	}
+
+	function SaveScript(scriptName)
+	{
+		var contents = $('#scriptText').val();
+		var info = {
+				scriptName: scriptName,
+				scriptBody: contents
+			};
+
+		postData = "command=saveScript&data=" + JSON.stringify(info);
+
+		$.post("fppjson.php", postData).success(function(data) {
+			if (data.saveStatus == "OK")
+			{
+				$('#fileViewer').dialog('close');
+				$.jGrowl("Script saved.");
+			}
+			else
+			{
+				DialogError("Save Failed", "Save Failed: " + data.saveStatus);
+			}
+		}).fail(function() {
+			DialogError("Save Failed", "Save Failed!");
+		});
+
+	}
+
+	function AbortScriptChange()
+	{
+		$('#fileViewer').dialog('close');
+	}
 
 </script>
 <style>
@@ -164,7 +217,7 @@ h2 {
             <input onclick="DeleteFile('Sequences', SequenceNameSelected);" id="btnDeleteSequence" class="disableButtons" type="button"  value="Delete" />
           </div>
           <br />
-          <font size=-1>Sequence files must be in the Falcon Player .fseq format and may be converted from various other sequencer formats using <a href='https://github.com/smeighan/xLights' target='_sequencer'>xLights</a> or <a href='https://github.com/pharhp/Light-Elf' target='_sequencer'>Light-Elf</a>.  The <a href='http://www.vixenlights.com' target='_sequencer'>Vixen 3</a> sequencer has the ability to directly export .fseq files.</font>
+          <font size=-1>Sequence files must be in the Falcon Player .fseq format and may be converted from various other sequencer formats using <a href='https://github.com/smeighan/xLights' target='_sequencer'>xLights</a> or <a href='https://github.com/pharhp/Light-Elf' target='_sequencer'>Light-Elf</a>.  <a href='https://github.com/smeighan/xLights' target='_sequencer'>xLights v4</a> uses .fseq as its native file format.  <a href='http://www.vixenlights.com' target='_sequencer'>Vixen 3</a> and recent versions of <a href='http://vixenplus.com/'>Vixen+</a> also have the ability to directly export .fseq files.</font>
         </fieldset>
       </div>
     </div>
@@ -207,7 +260,7 @@ h2 {
             <input onclick= "DeleteFile('Videos', VideoNameSelected);" id="btnDeleteVideo" class="disableButtons" type="button"  value="Delete" />
           </div>
           <br />
-          <font size=-1>Video files must be in .mp4 or .mkv format.  H264 video and AAC or MP3 audio are preferred because the video can be hardware accelerated on the Pi.</font>
+          <font size=-1>Video files must be in .mp4 or .mkv format.  H264 video is required for hardware acceleration on the Pi and AAC or MP3 audio are preferred.  Video playback is not currently supported on the BBB.</font>
         </fieldset>
       </div>
     </div>
@@ -242,6 +295,8 @@ h2 {
           <hr />
           <div class='right'>
             <input onclick= "ViewFile('Scripts', ScriptNameSelected);" id="btnViewScript" class="disableButtons" type="button"  value="View" />
+            <input onclick= "RunScript(ScriptNameSelected);" id="btnRunScript" class="disableButtons" type="button"  value="Run" />
+            <input onclick= "EditScript(ScriptNameSelected);" id="btnEditScript" class="disableButtons" type="button"  value="Edit" />
             <input onclick= "DownloadFile('Scripts', ScriptNameSelected);" id="btnDownloadScript" class="disableButtons" type="button"  value="Download" />
             <input onclick= "DeleteFile('Scripts', ScriptNameSelected);" id="btnDeleteScript" class="disableButtons" type="button"  value="Delete" />
           </div>
