@@ -192,6 +192,21 @@ function nRFSpeedSelect(speedArray, currentValue) {
 }
 
 /////////////////////////////////////////////////////////////////////////////
+// Serial Devices
+var SerialDevices = new Array();
+<?
+	foreach(scandir("/dev/") as $fileName)
+	{
+		if ((preg_match("/^ttyS[0-9]+/", $fileName)) ||
+			(preg_match("/^ttyACM[0-9]+/", $fileName)) ||
+			(preg_match("/^ttyO0/", $fileName)) ||
+			(preg_match("/^ttyAMA[0-9]+/", $fileName)) ||
+			(preg_match("/^ttyUSB[0-9]+/", $fileName))) {
+			echo "SerialDevices['$fileName'] = '$fileName';\n";
+		}
+	}
+?>
+
 // USB Dongles /dev/ttyUSB*
 var USBDevices = new Array();
 <?
@@ -204,6 +219,7 @@ var USBDevices = new Array();
 	}
 ?>
 
+/////////////////////////////////////////////////////////////////////////////
 function USBDeviceConfig(config) {
 	var items = config.split(";");
 	var result = "";
@@ -457,7 +473,7 @@ function GenericSerialConfig(config) {
 		var item = items[j].split("=");
 
 		if (item[0] == "device") {
-			result += DeviceSelect(USBDevices, item[1]);
+			result += DeviceSelect(SerialDevices, item[1]);
 		} else if (item[0] == "speed") {
 			result += GenericSerialSpeedSelect(item[1]);
 		} else if (item[0] == "header") {
@@ -862,21 +878,6 @@ function GetGPIO595OutputConfig(cell) {
 	return "gpio=" + gpio;
 }
 
-/////////////////////////////////////////////////////////////////////////////
-// Serial Devices used by Renard and LOR
-var SerialDevices = new Array();
-<?
-	foreach(scandir("/dev/") as $fileName)
-	{
-		if ((preg_match("/^ttyS[0-9]+/", $fileName)) ||
-			(preg_match("/^ttyACM[0-9]+/", $fileName)) ||
-			(preg_match("/^ttyO0/", $fileName)) ||
-			(preg_match("/^ttyAMA[0-9]+/", $fileName)) ||
-			(preg_match("/^ttyUSB[0-9]+/", $fileName))) {
-			echo "SerialDevices['$fileName'] = '$fileName';\n";
-		}
-	}
-?>
 /////////////////////////////////////////////////////////////////////////////
 // Renard Serial Outputs
 
