@@ -51,6 +51,7 @@ int  StartEffect(char *effectName, int startChannel, int loop = 0);
 int  StopEffect(char *effectName);
 int  StopEffect(int effectID);
 void StopEffects(void);
+void StopAllEffects(void);
 int  OverlayEffects(char *channelData);
 
 #endif

@@ -62,11 +62,13 @@
 #endif
 
 #ifdef PLATFORM_PI
+#  include "Hill320.h"
 #  include "rpi_ws281x.h"
 #endif
 
 #ifdef PLATFORM_BBB
 #  include "BBB48String.h"
+#  include "BBBSerial.h"
 #  include "LEDscapeMatrix.h"
 #endif
 
@@ -215,6 +217,8 @@ int InitializeChannelOutputs(void) {
 				}
 			} else if (type == "BBB48String") {
 				channelOutputs[i].output = new BBB48StringOutput(start, count);
+			} else if (type == "BBBSerial") {
+				channelOutputs[i].output = new BBBSerialOutput(start, count);
 #endif
 #ifdef USEOLA
 			} else if (type == "OLA") {
@@ -222,6 +226,10 @@ int InitializeChannelOutputs(void) {
 #endif
 			} else if (type == "USBRelay") {
 				channelOutputs[i].output = new USBRelayOutput(start, count);
+#if defined(PLATFORM_PI)
+			} else if (type == "Hill320") {
+				channelOutputs[i].output = new Hill320Output(start, count);
+#endif
 #ifdef USE_X11Matrix
 			} else if (type == "X11Matrix") {
 				channelOutputs[i].output = new X11MatrixOutput(start, count);

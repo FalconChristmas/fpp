@@ -58,12 +58,16 @@
 #
 #############################################################################
 SCRIPTVER="0.8"
-FPPBRANCH="v1.5"
+FPPBRANCH="v1.6"
 FPPIMAGEVER="1.5"
-FPPCFGVER="14"
+FPPCFGVER="16"
 FPPPLATFORM="UNKNOWN"
 FPPDIR="/opt/fpp"
 OSVER="UNKNOWN"
+
+# FIXME, need to handle config version 14 to fix force HDMI on the Pi
+# can we do this at install time or does it need to be at first boot?
+# do we need a FPP "first boot" script for this and other things?
 
 #############################################################################
 # Some Helper Functions
@@ -289,7 +293,7 @@ case "${OSVER}" in
 		apt-get -y clean
 
 		echo "FPP - Installing required packages (Set #3)"
-		apt-get -y install ethtool fbi fbset file flite gdb gdebi-core git i2c-tools ifplugd imagemagick less libapache2-mod-php5 libboost-dev libconvert-binary-c-perl libdbus-glib-1-dev libdevice-serialport-perl libjs-jquery libjs-jquery-ui libjson-perl libjsoncpp-dev
+		apt-get -y install ethtool exfat-fuse fbi fbset file flite gdb gdebi-core git i2c-tools ifplugd imagemagick less libapache2-mod-php5 libboost-dev libconvert-binary-c-perl libdbus-glib-1-dev libdevice-serialport-perl libjs-jquery libjs-jquery-ui libjson-perl libjsoncpp-dev
 		apt-get -y clean
 
 		echo "FPP - Installing required packages (Set #4)"

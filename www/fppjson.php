@@ -29,6 +29,7 @@ $command_array = Array(
 	"getInterfaceInfo"    => 'GetInterfaceInfo',
 	"setInterfaceInfo"    => 'SetInterfaceInfo',
 	"getFPPSystems"       => 'GetFPPSystems',
+	"getFPPstatus"		  => 'GetFPPStatus',
 	"getSetting"          => 'GetSetting',
 	"setSetting"          => 'SetSetting',
 	"startSequence"       => 'StartSequence',
@@ -38,6 +39,7 @@ $command_array = Array(
 	"singleStepSequenceBack" => 'SingleStepSequenceBack',
 	"getPluginSetting"    => 'GetPluginSetting',
 	"setPluginSetting"    => 'SetPluginSetting',
+	"saveScript"          => 'SaveScript',
 	"setTestMode"         => 'SetTestMode',
 	"getTestMode"         => 'GetTestMode'
 );
@@ -185,6 +187,130 @@ function GetFPPDUptime()
 
 	returnJSON($result);
 }
+
+function GetFPPStatus()
+{
+	
+    $status = SendCommand('s');
+  
+    if($status == false || $status == 'false') { 
+     	
+		$status=exec("if ps cax | grep -q git_pull; then echo \"updating\"; else echo \"false\"; fi");
+     
+     	returnJSON([
+     			'fppd' => 'Not Running',
+     			'status' => -1,
+     			'status_name' => $status == 'updating' ? $status : 'stopped',
+     		]);
+     }
+
+     $data = parseStatus($status);
+
+     returnJson($data);
+}
+
+function parseStatus($status) 
+{
+	$modes = [
+		0 => 'unknown',
+        1 => 'bridge',
+        2 => 'player',
+        6 => 'master',
+        8 => 'remote'
+        ];
+
+    $statuses = [
+    	0 => 'idle',
+    	1 => 'playing',
+    	2 => 'stopping gracefully'
+    ];
+
+	$status = explode(',', $status, 14);
+	$mode = (int) $status[0]; 
+	$fppStatus = (int) $status[1];
+
+	if($mode == 1) {
+		return [
+			'fppd'   => 'running',
+			'mode'   => $modes[$mode],
+			'status' => $fppStatus,
+		];
+	}
+
+	$baseData = [
+		'fppd'        => 'running',
+		'mode'        => $mode,
+		'mode_name'   => $modes[$mode],
+		'status'      => $fppStatus,
+		'status_name' => $statuses[$fppStatus],
+		'volume'      => (int) $status[2],
+		'time'        => exec('date'),
+   ];
+
+	if($mode == 8) {
+		$data = [
+			'playlist'          => $status[3],
+			'sequence_filename' => $status[3],
+			'media_filename'    => $status[4],
+			'seconds_elapsed'   => $status[5],
+			'seconds_remaining' => $status[6],
+			'time_elapsed' 		=> parseTimeFromSeconds((int)$status[5]),
+			'time_remaining'	=> parseTimeFromSeconds((int)$status[6]),
+	    ];
+
+	} else {
+
+		if($fppStatus == 0) {
+			$data = [
+				'next_playlist' => $status[3],
+				'next_playlist_start_time' => $status[4],
+				'repeat_mode' => 0,
+			];
+		} else {
+
+			$data = [
+				'current_playlist' => [
+					'playlist' => pathinfo($status[3])['filename'],
+					'type'     => $status[4],
+					'index'    => $status[7],
+					'count'    => $status[8]
+					],
+				'current_sequence'  => $status[5],
+				'current_song'      => $status[6],
+				'seconds_played'    => $status[9],
+				'seconds_remaining' => $status[10],
+				'time_elapsed' 		=> parseTimeFromSeconds((int)$status[9]),
+				'time_remaining' 	=> parseTimeFromSeconds((int)$status[10]),
+				'next_playlist'     => [
+					'playlist'   => $status[11],
+					'start_time' => $status[12]
+				],
+				'repeat_mode' => $status[13],
+			];
+		}
+	}
+
+	return array_merge($baseData, $data);
+
+}
+
+function parseTimeFromSeconds($seconds) {
+	
+	if(!is_numeric($seconds)) {
+		return;
+	}
+	
+	$minutes = (int) floor($seconds/60);
+	$seconds = (int) $seconds % 60;
+
+
+	return sprintf('%s:%s', str_pad($minutes, 2, 0, STR_PAD_LEFT), str_pad($seconds, 2, 0));
+}
+
+function getTimeRemaining($seconds) {
+
+}
+
 
 function StartSequence()
 {
@@ -690,6 +816,54 @@ function SetDNSInfo()
 		"DNS2=\"%s\"\n",
 		$data['DNS1'], $data['DNS2']);
 	fclose($f);
+}
+
+/////////////////////////////////////////////////////////////////////////////
+
+function SaveScript()
+{
+	global $args;
+	global $settings;
+
+	$result = Array();
+
+	if (!isset($args['data']))
+	{
+		$result['saveStatus'] = "Error, incorrect info";
+		returnJSON($result);
+	}
+
+	$data = json_decode($args['data'], true);
+
+	if (isset($data['scriptName']) && isset($data['scriptBody']))
+	{
+		$filename = $settings['scriptDirectory'] . '/' . $data['scriptName'];
+		$content = $data['scriptBody'];
+
+		if (file_exists($filename))
+		{
+			if (@file_put_contents($filename, $content))
+			{
+				$result['saveStatus'] = "OK";
+				$result['scriptName'] = $data['scriptName'];
+				$result['scriptBody'] = $data['scriptBody'];
+			}
+			else
+			{
+				$result['saveStatus'] = "Error updating file";
+			}
+		}
+		else
+		{
+			$result['saveStatus'] = "Error, file does not exist";
+		}
+	}
+	else
+	{
+		$result['saveStatus'] = "Error, missing info";
+	}
+
+	returnJSON($result);
 }
 
 /////////////////////////////////////////////////////////////////////////////

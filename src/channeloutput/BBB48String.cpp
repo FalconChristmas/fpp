@@ -154,7 +154,10 @@ int BBB48StringOutput::Init(Json::Value config)
 	if ((m_subType == "F4-B") ||
 		(m_subType == "F16-B"))
 	{
-		pru_program += "FalconWS281x.bin";
+		if (m_strings.size() <= 40)
+			pru_program += "FalconWS281x_40.bin";
+		else
+			pru_program += "FalconWS281x.bin";
 	}
 	else
 	{

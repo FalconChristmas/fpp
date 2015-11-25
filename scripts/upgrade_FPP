@@ -29,9 +29,6 @@ else
 	cd ${FPPDIR} && sudo -u ${FPPUSER} git checkout $1 && sudo -u ${FPPUSER} git pull && sudo -u ${FPPUSER} git submodule sync && sudo git submodule update --init
 fi
 
-# Record the fact that we are running the new version
-echo $1 > /etc/fpp/rfs_version
-
 # Compile binaries if not running a release branch
 RELEASEBRANCH=$(echo $1 | egrep "v[0-9]+\.[0-9]+")
 if [ -z "${RELEASEBRANCH}" ]

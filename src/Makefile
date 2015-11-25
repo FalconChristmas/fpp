@@ -152,6 +152,7 @@ LDFLAGS_fppd += \
 	-L../external/rpi_ws281x/ \
 	$(NULL)
 OBJECTS_fppd += \
+	channeloutput/Hill320.o \
 	channeloutput/RGBMatrix.o \
 	channeloutput/rpi_ws281x.o \
 	$(NULL)
@@ -197,6 +198,7 @@ LDFLAGS_fppd += \
 OBJECTS_fppd += \
 	channeloutput/LEDscapeMatrix.o \
 	channeloutput/BBB48String.o \
+	channeloutput/BBBSerial.o \
 	$(NULL)
 DEPS_fppd += \
 	../external/LEDscape/lib/libledscape.a \
@@ -212,10 +214,14 @@ CFLAGS += \
 endif
 
 ##############################################################################
-# Uncomment the following three lines to enable X11Matrix Test Channel Output
-#LIBS_fppd += -lX11
-#CFLAGS += -DUSE_X11Matrix
-#OBJECTS_fppd += channeloutput/X11Matrix.o
+# Include a local Makefile if one exists to modify any of the above
+-include Makefile.local
+#
+# Examples of some entries that might exist in Makefile.local:
+#
+# LIBS_fppd += -lX11
+# CFLAGS += -DUSE_X11Matrix
+# OBJECTS_fppd += channeloutput/X11Matrix.o
 ##############################################################################
 
 PWD := $(shell pwd)

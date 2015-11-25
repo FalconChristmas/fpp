@@ -1,7 +1,7 @@
 /*
- *   GPIO Pin Channel Output driver for Falcon Player (FPP)
+ *   BeagleBone Black PRU Serial DMX/Pixelnet handler for Falcon Pi Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Player Developers
+ *   Copyright (C) 2013 the Falcon Pi Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -9,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Player (FPP) is free software; you can redistribute it
+ *   The Falcon Pi Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -23,17 +23,24 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _GPIO_H
-#define _GPIO_H
+#ifndef _BBBSERIAL_H
+#define _BBBSERIAL_H
+
+#include <string>
+#include <vector>
+
+using namespace::std;
+
+#include "ledscape.h"
 
 #include "ChannelOutputBase.h"
 
-class GPIOOutput : public ChannelOutputBase {
+class BBBSerialOutput : public ChannelOutputBase {
   public:
-	GPIOOutput(unsigned int startChannel, unsigned int channelCount);
-	~GPIOOutput();
+	BBBSerialOutput(unsigned int startChannel, unsigned int channelCount);
+	~BBBSerialOutput();
 
-	int Init(char *configStr);
+	int Init(Json::Value config);
 	int Close(void);
 
 	int RawSendData(unsigned char *channelData);
@@ -41,9 +48,13 @@ class GPIOOutput : public ChannelOutputBase {
 	void DumpConfig(void);
 
   private:
-	int m_GPIOPin;
-	int m_invertOutput;
+	ledscape_config_t   *m_config;
+	ledscape_t          *m_leds;
+
+	int                  m_outputs;
+	int                  m_pixelnet;
+	vector<int>          m_startChannels;
 
 };
 
-#endif
+#endif /* _BBBSERIAL_H */

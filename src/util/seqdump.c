@@ -527,9 +527,13 @@ void DumpChannelData(int startChannel, int endChannel)
 
 int main(int argc, char **argv)
 {
-	if (argc < 1)
+	if (argc < 2)
 	{
-		printf("USAGE: %s SequenceFilename.fseq\n", argv[0]);
+		printf("USAGE: %s SequenceFilename.fseq [STARTCH [ENDCH]]\n", argv[0]);
+		printf("       STARTCH = channel to start data dump at\n");
+		printf("       ENDCH   = channel to end data dump at\n");
+		printf("\n");
+		printf("NOTE: This prints 2 or more lines per frame, so piping through less is good.\n");
 		return -1;
 	}
 

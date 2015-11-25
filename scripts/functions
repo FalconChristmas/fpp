@@ -529,7 +529,7 @@ setupChannelOutputs() {
 	# Setup BBB device tree
 	if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
 	then
-		cat ${FPPHOME}/media/config/channeloutputs.json 2> /dev/null | tr -d "\r\n" | egrep -q '(LEDPanelMatrix|BBB48String)",[ 	a-zA-Z0-9:",]*"enabled": 1'
+		cat ${FPPHOME}/media/config/channeloutputs.json 2> /dev/null | tr -d "\r\n" | egrep -q '(LEDPanelMatrix|BBB48String|BBBSerial)",[ 	a-zA-Z0-9:",]*"enabled": 1'
 		if [ $? -eq 0 ]
 		then
 			cp ${FPPDIR}/external/LEDscape/dts/CAPE-BONE-OCTO-00A0.dtbo /lib/firmware/
@@ -709,6 +709,10 @@ setupPiRTC () {
 
 	piRTC=$(awk -f ${FPPDIR}/scripts/readSetting.awk ${SETTINGSFILE} setting=piRTC)
 
+	# Remove PiFace RTC overlay from /boot/config.txt.  If a user
+	# is configuring it, the overlay will be re-added shortly
+	sed -i '/dtoverlay=i2c-rtc,mcp7941x/d' /boot/config.txt
+
 	case "$piRTC" in
 	1)
 	  # rasClock chip
@@ -734,13 +738,10 @@ setupPiRTC () {
 	  ;;
 	3)
 	  # PiFace Chip
-	  if [ $REV -lt 4 ]
-	  then
-		echo "FPP - Configuring RTC, Setting to PiFace/i2c-0"
-		echo mpc7941x 0x6f > /sys/class/i2c-adapter/i2c-0/new_device
-	  else
-		echo "FPP - Configuring RTC, Setting to PiFace/i2c-1"
-		echo mpc7941x 0x6f > /sys/class/i2c-adapter/i2c-1/new_device
+	  if ! grep -qc dtoverlay=i2c-rtc,mcp7941x /boot/config.txt
+		then
+		echo "FPP - Configuring RTC, adding PiFace RTC overlay"
+		echo 'dtoverlay=i2c-rtc,mcp7941x' >> /boot/config.txt
 	  fi
 	  ;;
 	*)

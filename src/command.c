@@ -425,6 +425,11 @@ extern PluginCallbackManager pluginCallbackManager;
 					parseSetting(name, s);
 			}
 		}
+		else if (!strcmp(CommandStr, "StopAllEffects"))
+		{
+			StopAllEffects();
+			sprintf(response,"%d,%d,All Effects Stopped,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
+		}
 		else if (!strcmp(CommandStr, "StopEffectByName"))
 		{
 			s = strtok(NULL,",");

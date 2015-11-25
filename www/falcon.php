@@ -122,6 +122,7 @@ function printFalconConfig()
 
 			$startChannel  = $sarr[$outputOffset + 2];
 			$startChannel += $sarr[$outputOffset + 3] * 256;
+			$startChannel += 1;  // 0-based values in config file
 
 			$nodeType      = $sarr[$outputOffset + 4];
 			$rgbOrder      = $sarr[$outputOffset + 5];
