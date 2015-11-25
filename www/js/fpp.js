@@ -1497,7 +1497,7 @@ function RemovePlaylistEntry()	{
 			
 			} else {
 				var playerStatusText = "Playing <strong>'" + currentPlaylist.playlist + "'</strong>";
-
+                var repeatMode = jsonStatus.current_playlist;
 				if(gblCurrentLoadedPlaylist != currentPlaylist.playlist)	{
 					$('#selStartPlaylist').val(currentPlaylist.playlist);
 					PopulateStatusPlaylistEntries(false,currentPlaylist.playlist,true);
