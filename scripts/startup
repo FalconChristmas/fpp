@@ -200,6 +200,8 @@ if [ "$_IP" ]; then
   else
     flite -voice awb "${FLITESTR}" &
   fi
+else
+  echo "FPP - No IP(s) found"
 fi
 
 grep -q "^[^#].*${FPPHOME}/media" /etc/fstab
