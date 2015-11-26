@@ -1479,6 +1479,7 @@ function RemovePlaylistEntry()	{
 		} else {
 
 			var nextPlaylist = jsonStatus.next_playlist;
+			var nextPlaylistStartTime = jsonStatus.next_playlist_start_time;
 			var currentPlaylist = jsonStatus.current_playlist;
 
 			if(fppStatus == STATUS_IDLE) {
@@ -1535,8 +1536,8 @@ function RemovePlaylistEntry()	{
 			
 			}
 
-			$('#txtNextPlaylist').html(nextPlaylist.playlist);
-			$('#nextPlaylistTime').html(nextPlaylist.start_time);
+			$('#txtNextPlaylist').html(nextPlaylist);
+			$('#nextPlaylistTime').html(nextPlaylistStartTime);
 			$('#fppTime').html(jsonStatus.time);
 
 		}
