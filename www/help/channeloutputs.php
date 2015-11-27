@@ -1,6 +1,6 @@
 <h3>Channel Output Configuration</h3>
 
-<p><b>E1.31</b> - The E1.31 output can drive up to 256 universes (131,072 channels) over the Pi's ethernet network interface at 50ms timing or 128 universes (65,536 channels) at 25ms timing.</p>
+<p><b>E1.31</b> - The E1.31 output can drive up to 512 universes over the Pi v2 B's ethernet network interface at 50ms timing or 128 universes on the original A/B/B+.  BeagleBone output should be similar to the Pi v2 B.</p>
 <p><b>Falcon Pixelnet/DMX (FPD)</b> - The FPD output can send 32,768 channels out 12 ports configured for the DMX or Pixelnet protocols.  This is currently limited to the first 32768 channels in a sequence.</p>
 <p><b>DMX Open</b> - The DMX Open output can send DMX data out generic FTDI-based USB to RS485 dongles.  Other RS485 dongles may work if they support setting arbitrary bit rates.  Support should include the following dongles: Entec Open DMX, LOR, and D-Light along with generic FTDI-based USB to RS485 adapters.</p>
 <p><b>DMX Pro</b> - The DMX Pro output can send DMX data out Entec-Pro compatible dongles.  This should include the following dongles: Entec-Pro, Lynx USB dongle w/ DMX firmware, DIYC RPM, DMXking.com, and DIYblinky.com.  If the dongle works using xLights DMX Pro output, it should work in the Falcon Player. </p>
