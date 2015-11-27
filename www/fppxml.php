@@ -1690,7 +1690,7 @@ function SetUniverseCount()
 	$count = $_GET['count'];
 	check($count, "count", __FUNCTION__);
 
-	if($count > 0 && $count <= 256)
+	if($count > 0 && $count <= 512)
 	{
 
 		$universeCount = count($_SESSION['UniverseEntries']);
