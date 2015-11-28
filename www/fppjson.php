@@ -232,7 +232,8 @@ function parseStatus($status)
 	if($mode == 1) {
 		return [
 			'fppd'   => 'running',
-			'mode'   => $modes[$mode],
+			'mode'   => $mode,
+			'mode_name' => $modes[$mode],
 			'status' => $fppStatus,
 		];
 	}
