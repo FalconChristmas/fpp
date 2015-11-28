@@ -262,8 +262,10 @@ function parseStatus($status)
 
 		if($fppStatus == 0) {
 			$data = [
-				'next_playlist' => $status[3],
-				'next_playlist_start_time' => $status[4],
+				'next_playlist'     => [
+					'playlist'   => $status[3],
+					'start_time' => $status[4]
+				],
 				'repeat_mode' => 0,
 			];
 		} else {
