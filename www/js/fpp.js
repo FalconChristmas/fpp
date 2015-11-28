@@ -1536,8 +1536,8 @@ function RemovePlaylistEntry()	{
 			
 			}
 
-			$('#txtNextPlaylist').html(nextPlaylist);
-			$('#nextPlaylistTime').html(nextPlaylistStartTime);
+			$('#txtNextPlaylist').html(nextPlaylist.playlist);
+			$('#nextPlaylistTime').html(nextPlaylist.start_time);
 			$('#fppTime').html(jsonStatus.time);
 
 		}
