@@ -85,6 +85,7 @@ $command_array = Array(
 	"setE131interface" => 'SetE131interface',
 	"playEffect" => 'PlayEffect',
 	"stopEffect" => 'StopEffect',
+	"stopEffectByName" => 'StopEffectByName',
 	"deleteEffect" => 'DeleteEffect',
 	"getRunningEffects" => 'GetRunningEffects',
 	"triggerEvent" => 'TriggerEvent',
@@ -540,8 +541,13 @@ function PlayEffect()
 	$effect = $_GET['effect'];
 	check($effect, "effect", __FUNCTION__);
 	$startChannel = $_GET['startChannel'];
+
+	$loop = 0;
+	if (isset($_GET['loop']))
+		$loop = $_GET['loop'];
+
 	check($startChannel, "startChannel", __FUNCTION__);
-	$status = SendCommand("e," . $effect . "," . $startChannel . ",0,");
+	$status = SendCommand("e," . $effect . "," . $startChannel . "," . $loop. ",");
 	EchoStatusXML('Success');
 }
 
@@ -550,6 +556,14 @@ function StopEffect()
 	$id = $_GET['id'];
 	check($id, "id", __FUNCTION__);
 	$status = SendCommand("StopEffect," . $id . ",");
+	EchoStatusXML('Success');
+}
+
+function StopEffectByName()
+{
+	$effect = $_GET['effect'];
+	check($effect, "effect", __FUNCTION__);
+	$status = SendCommand("StopEffectByName," . $effect . ",");
 	EchoStatusXML('Success');
 }
 
