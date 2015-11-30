@@ -113,9 +113,6 @@ int main(int argc, char *argv[])
 
 	CheckExistanceOfDirectoriesAndFiles();
 
-	InitializeChannelOutputs();
-	sequence->SendBlankingData();
-
 	if (getFPPmode() != BRIDGE_MODE)
 	{
 		InitMediaOutput();
@@ -126,6 +123,9 @@ int main(int argc, char *argv[])
 		if (getFPPmode() == MASTER_MODE)
 			InitSyncMaster();
 	}
+
+	InitializeChannelOutputs();
+	sequence->SendBlankingData();
 
 	InitEffects();
 	InitializeChannelDataMemoryMap();
