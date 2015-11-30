@@ -34,6 +34,7 @@
 #define CTRL_PKT_CMD   0
 #define CTRL_PKT_SYNC  1
 #define CTRL_PKT_EVENT 2
+#define CTRL_PKT_BLANK 3
 
 typedef struct __attribute__((packed)) {
 	char     fppd[4];        // 'FPPD'

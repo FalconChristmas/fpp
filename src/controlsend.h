@@ -39,5 +39,6 @@ void SendMediaSyncStopPacket(const char *filename);
 void SendMediaSyncPacket(const char *filename, int frames, float seconds);
 
 void SendEventPacket(const char *eventID);
+void SendBlankingDataPacket(void);
 
 #endif /* _CONTROL_H */

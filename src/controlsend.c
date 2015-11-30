@@ -388,3 +388,29 @@ void SendEventPacket(const char *eventID) {
 
 	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(EventPkt));
 }
+
+/*
+ *
+ */
+void SendBlankingDataPacket(void)
+{
+	LogDebug(VB_SYNC, "SendBlankingDataPacket()\n");
+
+	if (ctrlSendSock < 0) {
+		LogErr(VB_SYNC, "ERROR: Tried to send blanking data packet but control socket is not open.\n");
+		return;
+	}
+
+	char           outBuf[2048];
+	bzero(outBuf, sizeof(outBuf));
+
+	ControlPkt    *cpkt = (ControlPkt*)outBuf;
+
+	InitControlPkt(cpkt);
+
+	cpkt->pktType        = CTRL_PKT_BLANK;
+	cpkt->extraDataLen   = 0;
+
+	SendControlPacket(outBuf, sizeof(ControlPkt));
+}
+
