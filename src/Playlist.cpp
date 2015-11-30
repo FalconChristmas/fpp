@@ -237,9 +237,20 @@ int Playlist::ReadPlaylist(char const * file)
 	}
 	// Parse Playlist settings (First, Last)
 	fgets(buf, 512, fp);
+
 	s=strtok(buf,",");
+	if (s == NULL)
+	{
+		LogErr(VB_PLAYLIST, "File might be corrupt or empty, no data to parse from %s\n", file);
+		return 0;
+	}
 	m_playlistDetails.first = atoi(s);
 	s = strtok(NULL,",");
+	if (s == NULL)
+	{
+		LogErr(VB_PLAYLIST, "File might be corrupt or empty, no data to parse from %s\n", file);
+		return 0;
+	}
 	m_playlistDetails.last = atoi(s);
 
 	// Parse Playlists
