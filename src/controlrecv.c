@@ -331,7 +331,7 @@ void ProcessControlPacket(void) {
 		return;
 	}
 
-	if (len <= sizeof(ControlPkt)) {
+	if (len < sizeof(ControlPkt)) {
 		LogErr(VB_CONTROL, "Error: Received control packet too short\n");
 		HexDump("Received data:", (void*)inBuf, len);
 		return;
@@ -367,6 +367,9 @@ void ProcessControlPacket(void) {
 							break;
 		case CTRL_PKT_EVENT:
 							ProcessEventPacket(pkt, len);
+							break;
+		case CTRL_PKT_BLANK:
+							sequence->SendBlankingData();
 							break;
 	}
 }

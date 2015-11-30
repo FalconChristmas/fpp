@@ -426,6 +426,10 @@ void Sequence::SendSequenceData(void) {
 void Sequence::SendBlankingData(void) {
 	LogDebug(VB_SEQUENCE, "SendingBlankingData()\n");
 	usleep(100000);
+
+	if (getFPPmode() == MASTER_MODE)
+		SendBlankingDataPacket();
+
 	ReadSequenceData();
 	SendSequenceData();
 }
@@ -444,7 +448,9 @@ void Sequence::CloseSequenceFile(void) {
 	m_seqFilename[0] = '\0';
 	m_seqPaused = 0;
 
-	if (!IsEffectRunning() && (FPPstatus != FPP_STATUS_PLAYLIST_PLAYING))
+	if ((getFPPmode() != REMOTE_MODE) &&
+		(!IsEffectRunning()) &&
+		(FPPstatus != FPP_STATUS_PLAYLIST_PLAYING))
 		SendBlankingData();
 }
 
