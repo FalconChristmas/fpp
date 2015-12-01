@@ -485,7 +485,7 @@ fieldset
 
 
 .PlaylistPlayingIcon{
-	background-image: url(images/playlistplay.png);
+	background-image: url(../images/playlistplay.png);
 	background-size:10px 10px;
 	background-repeat:no-repeat;
 	background-position: 4px 4px;
