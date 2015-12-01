@@ -251,17 +251,22 @@ int InitializeChannelOutputs(void) {
 	strcpy(filename, getMediaDirectory());
 	strcat(filename, "/channeloutputs");
 
-	LogDebug(VB_CHANNELOUT, "Loading %s\n", filename);
+	if (FileExists(filename))
+	{
+		LogDebug(VB_CHANNELOUT, "Loading %s\n", filename);
 
-	fp = fopen(filename, "r");
-	if (fp == NULL) 
-	{
-		LogErr(VB_CHANNELOUT,
-			"Could not open Channel Outputs config file %s: %s\n",
-			filename, strerror(errno));
-	}
-	else
-	{
+		fp = fopen(filename, "r");
+
+		if (fp == NULL)
+		{
+			LogErr(VB_CHANNELOUT,
+				"Could not open Channel Outputs config file %s: %s\n",
+				filename, strerror(errno));
+			channelOutputCount = 0;
+
+			return 0;
+		}
+
 		while(fgets(buf, 2048, fp) != NULL)
 		{
 			int  enabled = 0;
