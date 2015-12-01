@@ -21,9 +21,14 @@ if ((isset($_GET['scriptName'])) &&
     (file_exists($scriptDirectory . "/" . $_GET['scriptName'])))
 {
 	$script = $_GET['scriptName'];
-	echo "Running $script<br><hr>\n";
+
+	$args = "";
+	if (isset($_GET['args']))
+		$args = $_GET['args'];
+
+	echo "Running $script $args<br><hr>\n";
 	echo "<pre>\n";
-	system($SUDO . " $fppDir/scripts/eventScript $scriptDirectory/$script");
+	system($SUDO . " $fppDir/scripts/eventScript $scriptDirectory/$script $args");
 	echo "</pre>\n";
 }
 else
