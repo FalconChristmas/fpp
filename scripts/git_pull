@@ -19,7 +19,7 @@ if curl --silent --head https://github.com | grep "Content-Type: text/html; char
 	fi
 
 	RELEASEBRANCH=$(echo ${GITBRANCH} | egrep "v[0-9]+\.[0-9]+")
-	if [ -z "${RELEASEBRANCH}" ]
+	if [ -z "${RELEASEBRANCH}" ] || [ "x${FPPPLATFORM}" == "xLinux" ]
 	then
 		sudo ${SCRIPTDIR}/upgrade_config
 
