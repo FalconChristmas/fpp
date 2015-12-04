@@ -386,10 +386,6 @@ void Sequence::ReadSequenceData(void) {
 		m_seqSecondsElapsed = (int)((float)(m_seqFilePosition - m_seqChanDataOffset)/((float)m_seqStepSize*(float)m_seqRefreshRate));
 		m_seqSecondsRemaining = m_seqDuration - m_seqSecondsElapsed;
 	}
-	else if ( getFPPmode() != BRIDGE_MODE )
-	{
-		BlankSequenceData();
-	}
 }
 
 void Sequence::ProcessSequenceData(void) {
@@ -426,7 +422,11 @@ void Sequence::SendSequenceData(void) {
 void Sequence::SendBlankingData(void) {
 	LogDebug(VB_SEQUENCE, "SendingBlankingData()\n");
 	usleep(100000);
-	ReadSequenceData();
+
+	if (getFPPmode() == MASTER_MODE)
+		SendBlankingDataPacket();
+
+	BlankSequenceData();
 	SendSequenceData();
 }
 
