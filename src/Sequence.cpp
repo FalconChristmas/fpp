@@ -343,6 +343,7 @@ void Sequence::SingleStepSequenceBack(void) {
 }
 
 void Sequence::ReadSequenceData(void) {
+	LogDebug(VB_SEQUENCE, "ReadSequenceData()\n");
 	size_t  bytesRead = 0;
 
 	if (m_seqStarting)
@@ -419,7 +420,7 @@ void Sequence::SendSequenceData(void) {
 }
 
 void Sequence::SendBlankingData(void) {
-	LogDebug(VB_SEQUENCE, "Sending Blanking Data\n");
+	LogDebug(VB_SEQUENCE, "SendingBlankingData()\n");
 	usleep(100000);
 
 	if (getFPPmode() == MASTER_MODE)
