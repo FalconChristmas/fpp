@@ -441,6 +441,9 @@ GenericSerialSpeeds[ "19200"] =  "19200";
 GenericSerialSpeeds[ "38400"] =  "38400";
 GenericSerialSpeeds[ "57600"] =  "57600";
 GenericSerialSpeeds["115200"] = "115200";
+GenericSerialSpeeds["230400"] = "230400";
+GenericSerialSpeeds["460800"] = "460800";
+GenericSerialSpeeds["921600"] = "921600";
 
 function GenericSerialSpeedSelect(currentValue) {
 	var result = "Speed: <select class='speed'>";
@@ -1346,7 +1349,7 @@ function SetChannelOutputs() {
 				DialogError("Save Channel Outputs", "Invalid Generic Serial Config");
 				return;
 			}
-			maxChannels = 512;
+			maxChannels = 3072;
 		} else if (type == "USBRelay") {
 			config += GetUSBRelayOutputConfig($this.find("td:nth-child(6)"));
 			if (config == "") {
