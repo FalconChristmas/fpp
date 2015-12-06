@@ -139,6 +139,8 @@ int GenericSerialOutput::Close(void)
 
 	SerialClose(m_fd);
 
+	delete [] m_data;
+
 	return ChannelOutputBase::Close();
 }
 
