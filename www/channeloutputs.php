@@ -1365,7 +1365,7 @@ function SetChannelOutputs() {
 				DialogError("Save Channel Outputs", "Invalid RPIWS281X Config");
 				return;
 			}
-			maxChannels = 1020;
+			maxChannels = 1200;
 		} else if (type == "VirtualMatrix") {
 			config += GetVirtualMatrixOutputConfig($this.find("td:nth-child(6)"));
 			if (config == "") {
