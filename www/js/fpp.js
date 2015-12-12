@@ -1473,8 +1473,8 @@ function RemovePlaylistEntry()	{
 			}
 
 			$('#txtRemoteStatus').html(status);
-			$('#txtRemoteSeqFilename').html(jsonStatus.current_sequence);
-			$('#txtRemoteMediaFilename').html(jsonStatus.current_song);
+			$('#txtRemoteSeqFilename').html(jsonStatus.sequence_filename);
+			$('#txtRemoteMediaFilename').html(jsonStatus.media_filename);
 		
 		} else {
 
