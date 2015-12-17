@@ -420,7 +420,7 @@ void Sequence::SendSequenceData(void) {
 }
 
 void Sequence::SendBlankingData(void) {
-	LogDebug(VB_SEQUENCE, "SendingBlankingData()\n");
+	LogDebug(VB_SEQUENCE, "SendBlankingData()\n");
 	usleep(100000);
 
 	if (getFPPmode() == MASTER_MODE)
