@@ -369,7 +369,8 @@ void ProcessControlPacket(void) {
 							ProcessEventPacket(pkt, len);
 							break;
 		case CTRL_PKT_BLANK:
-							sequence->SendBlankingData();
+							if (getFPPmode() == REMOTE_MODE)
+								sequence->SendBlankingData();
 							break;
 	}
 }
