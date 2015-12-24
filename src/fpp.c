@@ -78,7 +78,7 @@ int main (int argc, char *argv[])
     // Play Playlist - example "fpp -p playlistFile"
     else if((strncmp(argv[1],"-p",2) == 0) &&  argc > 2)
     {
-      sprintf(command,"p,%s,",argv[2]);
+      sprintf(command,"p,%s,%s,",argv[2],argv[3]);
       SendCommand(command);
     }
     // Play Playlist only once- example "fpp -P playlistFile 1"
@@ -286,7 +286,7 @@ void Usage(char *appname)
 "  -V                           - Print version information\n"
 "  -s                           - Get fppd status\n"
 "  -v VOLUME                    - Set volume to 'VOLUME'\n"
-"  -p PLAYLISTNAME              - Play Playlist PLAYLISTNAME in repeat mode\n"
+"  -p PLAYLISTNAME [STARTITEM]  - Play Playlist PLAYLISTNAME in repeat mode\n"
 "  -P PLAYLISTNAME [STARTITEM]  - Play Playlist PLAYLISTNAME once, optionally\n"
 "                                 starting on item STARTITEM in the playlist\n"
 "  -c PLAYLIST_ACTION           - Perform a playlist action.  Actions include:\n"
