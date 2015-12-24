@@ -568,6 +568,26 @@ extern PluginCallbackManager pluginCallbackManager;
 					break;
 			}
 		}
+		else if (!strcmp(CommandStr, "ConfigureGPIO"))
+		{
+			// Configure the given GPIO to the given mode
+			s = strtok(NULL,",");
+			s2 = strtok(NULL,",");
+			if (s && s2)
+			{
+				sprintf(response, "%d,%d,Configuring GPIO,%d,%s,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS,atoi(s),s2);
+			}
+		}
+		else if (!strcmp(CommandStr, "SetGPIO"))
+		{
+			// Set soft PWM on specified pin 
+			s = strtok(NULL,",");
+			s2 = strtok(NULL,",");
+			if (s && s2)
+			{
+				sprintf(response, "%d,%d,Setting PWM,%d,%d,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS,atoi(s),atoi(s2));
+			}
+		}
 		else
 		{
 			sprintf(response,"Invalid command: '%s'\n", CommandStr);

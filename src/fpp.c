@@ -194,6 +194,18 @@ int main (int argc, char *argv[])
       sprintf(command,"LogMask,%s,", newMask);
       SendCommand(command);
     }
+    // Configure the given GPIO to the given mode
+    else if((strncmp(argv[1],"-G",2) == 0) &&  argc > 2)
+    {
+      sprintf(command,"ConfigureGPIO,%s,%s,",argv[2],argv[3]);
+      SendCommand(command);
+    }
+    // Set the given GPIO to the given value
+    else if((strncmp(argv[1],"-g",2) == 0) &&  argc > 2)
+    {
+      sprintf(command,"SetGPIO,%s,%s,",argv[2],argv[3]);
+      SendCommand(command);
+    }
     else
     {
       Usage(argv[0]);
@@ -308,5 +320,6 @@ void Usage(char *appname)
 "                                 looping if LOOP is set to 1\n"
 "  -E EFFECTNAME                - Stop Effect EFFECTNAME\n"
 "  -t EVENTNAME                 - Trigger Event EVENTNAME\n"
+"  -g GPIO,VALUE                - Set the given GPIO to VALUE\n"
 "\n", appname);
 }
