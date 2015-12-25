@@ -38,6 +38,7 @@
 
 #ifdef USEWIRINGPI
 #   include "wiringPi.h"
+#   include "softPwm.h"
 #else
 #   define pinMode(a, b)
 #   define digitalRead(a)        1
@@ -138,5 +139,39 @@ void CheckGPIOInputs(void)
 			}
 		}
 	}
+}
+
+/*
+ * Setup given GPIO for external use
+ */
+int SetupExtGPIO(int gpio, char *mode)
+{
+	char *s;
+	int retval = 0;
+
+	if (!strcmp(mode, "Output"))
+	{
+		LogDebug(VB_GPIO, "GPIO %d set to Output mode\n", gpio);
+		pinMode(gpio, OUTPUT);
+	}
+	else if (!strcmp(mode, "SoftPWM"))
+	{
+		LogDebug(VB_GPIO, "GPIO %d set to SoftPWM mode\n", gpio);
+		retval = softPwmCreate (gpio, 0, 100);
+	}
+	else {
+		LogDebug(VB_GPIO, "GPIO %d invalid mode %s\n", gpio, mode);
+		retval = 1;
+	}
+
+	return retval;
+}
+
+/*
+ * Set the given GPIO as requested
+ */
+void SetExtGPIO(int gpio, int value)
+{
+	softPwmWrite(gpio, value);
 }
 

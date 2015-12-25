@@ -40,6 +40,7 @@
 #include "events.h"
 #include "channeloutput.h"
 #include "E131.h"
+#include "gpio.h"
 
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -575,7 +576,15 @@ extern PluginCallbackManager pluginCallbackManager;
 			s2 = strtok(NULL,",");
 			if (s && s2)
 			{
-				sprintf(response, "%d,%d,Configuring GPIO,%d,%s,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS,atoi(s),s2);
+				
+				if (!SetupExtGPIO(atoi(s), s2))
+				{
+					sprintf(response, "%d,%d,Configuring GPIO,%d,%s,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS,atoi(s),s2);
+				}
+				else
+				{
+					sprintf(response, "%d,%d,Configuring GPIO,%d,%s,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED,atoi(s),s2);
+				}
 			}
 		}
 		else if (!strcmp(CommandStr, "SetGPIO"))
@@ -585,6 +594,7 @@ extern PluginCallbackManager pluginCallbackManager;
 			s2 = strtok(NULL,",");
 			if (s && s2)
 			{
+				SetExtGPIO(atoi(s), atoi(s2));
 				sprintf(response, "%d,%d,Setting PWM,%d,%d,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS,atoi(s),atoi(s2));
 			}
 		}

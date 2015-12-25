@@ -320,6 +320,7 @@ void Usage(char *appname)
 "                                 looping if LOOP is set to 1\n"
 "  -E EFFECTNAME                - Stop Effect EFFECTNAME\n"
 "  -t EVENTNAME                 - Trigger Event EVENTNAME\n"
+"  -G GPIO,MODE                 - Configure the given GPIO to MODE\n"
 "  -g GPIO,VALUE                - Set the given GPIO to VALUE\n"
 "\n", appname);
 }
