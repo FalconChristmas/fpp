@@ -1473,8 +1473,8 @@ function RemovePlaylistEntry()	{
 			}
 
 			$('#txtRemoteStatus').html(status);
-			$('#txtRemoteSeqFilename').html(jsonStatus.current_sequence);
-			$('#txtRemoteMediaFilename').html(jsonStatus.current_song);
+			$('#txtRemoteSeqFilename').html(jsonStatus.sequence_filename);
+			$('#txtRemoteMediaFilename').html(jsonStatus.media_filename);
 		
 		} else {
 
@@ -1498,7 +1498,7 @@ function RemovePlaylistEntry()	{
 			
 			} else {
 				var playerStatusText = "Playing <strong>'" + currentPlaylist.playlist + "'</strong>";
-                var repeatMode = jsonStatus.current_playlist;
+                var repeatMode = jsonStatus.repeat_mode;
 				if(gblCurrentLoadedPlaylist != currentPlaylist.playlist)	{
 					$('#selStartPlaylist').val(currentPlaylist.playlist);
 					PopulateStatusPlaylistEntries(false,currentPlaylist.playlist,true);

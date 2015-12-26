@@ -43,17 +43,17 @@
 #include "Sequence.h"
 #include "command.h"
 
-#define BRIDGE_INVALID_UNIVERSE_INDEX 0xFF
+#define BRIDGE_INVALID_UNIVERSE_INDEX 0xFFFFFF
 
 struct sockaddr_in addr;
 socklen_t addrlen;
 int bridgeSock = -1;
 
-unsigned char UniverseCache[65536];
-char  rawBridgeBuffer[10000] __attribute__ ((aligned (__BIGGEST_ALIGNMENT__)));
-char *bridgeBuffer       = rawBridgeBuffer + 2;
-char *bridgeHighUniverse = rawBridgeBuffer + 2 + E131_UNIVERSE_INDEX;
-char *bridgeLowUniverse  = rawBridgeBuffer + 2 + E131_UNIVERSE_INDEX + 1;
+unsigned int   UniverseCache[65536];
+unsigned char  rawBridgeBuffer[10000] __attribute__ ((aligned (__BIGGEST_ALIGNMENT__)));
+unsigned char *bridgeBuffer       = rawBridgeBuffer + 2;
+unsigned char *bridgeHighUniverse = rawBridgeBuffer + 2 + E131_UNIVERSE_INDEX;
+unsigned char *bridgeLowUniverse  = rawBridgeBuffer + 2 + E131_UNIVERSE_INDEX + 1;
 
 extern UniverseEntry universes[MAX_UNIVERSE_COUNT];
 extern int UniverseCount;
@@ -75,8 +75,8 @@ void Bridge_ReceiveData(void)
 	if (cnt >= 0) 
 	{
 //		universe = ((int)bridgeBuffer[E131_UNIVERSE_INDEX] >> 8) + bridgeBuffer[E131_UNIVERSE_INDEX+1];
-		universe = ((int)*bridgeHighUniverse >> 8) + *bridgeLowUniverse;
-		Bridge_StoreData(universe, bridgeBuffer);
+		universe = ((int)*bridgeHighUniverse << 8) + *bridgeLowUniverse;
+		Bridge_StoreData(universe, (char*)bridgeBuffer);
 	} 
 }
 
@@ -85,7 +85,8 @@ int Bridge_Initialize(void)
 	LogExcess(VB_E131BRIDGE, "Bridge_ReceiveData()\n");
 
 	/* Initialize our Universe Index lookup cache */
-	memset((void *)UniverseCache, 0xFF, sizeof(UniverseCache));
+	for (int i = 0; i < 65536; i++)
+		UniverseCache[i] = BRIDGE_INVALID_UNIVERSE_INDEX;
 
 	LoadUniversesFromFile();
 	LogInfo(VB_E131BRIDGE, "Universe Count = %d\n",UniverseCount);
@@ -104,7 +105,7 @@ int Bridge_Initialize(void)
 	}
 
 	// FIXME, move this to /etc/sysctl.conf or our startup script
-	system("sudo sysctl net/ipv4/igmp_max_memberships=150");
+	system("sudo sysctl net/ipv4/igmp_max_memberships=512");
 
 	bzero((char *)&addr, sizeof(addr));
 	addr.sin_family = AF_INET;

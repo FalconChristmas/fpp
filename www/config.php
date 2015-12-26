@@ -95,6 +95,7 @@ if ($debug)
 
 $settings['HostName'] = 'FPP';
 $settings['Title'] = "Falcon Player - FPP";
+$settings['fppBinDir'] = '/opt/fpp/src';
 
 $settings['Platform'] = FALSE;
 if (file_exists("/etc/fpp/platform"))
@@ -109,11 +110,13 @@ if ($settings['Platform'] == "Raspberry Pi")
 {
 	$settings['Logo'] = "large_Raspberry_Pi_Logo_4.png";
 	$settings['LogoLink'] = "http://raspberrypi.org/";
+	$settings['fppBinDir'] = '/opt/fpp/bin.pi';
 }
 else if ($settings['Platform'] == "BeagleBone Black")
 {
 	$settings['Logo'] = "beagle_logo.png";
 	$settings['LogoLink'] = "http://beagleboard.org/";
+	$settings['fppBinDir'] = '/opt/fpp/bin.bbb';
 }
 else if ($settings['Platform'] == "PogoPlug")
 {

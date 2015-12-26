@@ -248,10 +248,10 @@ function SetTestMode()
 	var maxChannel = 524288;
 	var channelSetType = "channelRange";
 
-	if (startChannel < 1 || startChannel > maxChannel)
+	if (startChannel < 1 || startChannel > maxChannel || isNaN(startChannel))
 		startChannel = 1;
 
-	if (endChannel < 1 || endChannel > maxChannel)
+	if (endChannel < 1 || endChannel > maxChannel || isNaN(endChannel))
 		endChannel = maxChannel;
 	
 	if (endChannel < startChannel)

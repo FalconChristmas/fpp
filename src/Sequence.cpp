@@ -343,6 +343,7 @@ void Sequence::SingleStepSequenceBack(void) {
 }
 
 void Sequence::ReadSequenceData(void) {
+	LogDebug(VB_SEQUENCE, "ReadSequenceData()\n");
 	size_t  bytesRead = 0;
 
 	if (m_seqStarting)
@@ -385,10 +386,6 @@ void Sequence::ReadSequenceData(void) {
 		m_seqSecondsElapsed = (int)((float)(m_seqFilePosition - m_seqChanDataOffset)/((float)m_seqStepSize*(float)m_seqRefreshRate));
 		m_seqSecondsRemaining = m_seqDuration - m_seqSecondsElapsed;
 	}
-	else if ( getFPPmode() != BRIDGE_MODE )
-	{
-		BlankSequenceData();
-	}
 }
 
 void Sequence::ProcessSequenceData(void) {
@@ -423,13 +420,13 @@ void Sequence::SendSequenceData(void) {
 }
 
 void Sequence::SendBlankingData(void) {
-	LogDebug(VB_SEQUENCE, "Sending Blanking Data\n");
+	LogDebug(VB_SEQUENCE, "SendBlankingData()\n");
 	usleep(100000);
 
 	if (getFPPmode() == MASTER_MODE)
 		SendBlankingDataPacket();
 
-	ReadSequenceData();
+	BlankSequenceData();
 	SendSequenceData();
 }
 

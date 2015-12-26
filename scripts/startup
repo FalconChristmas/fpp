@@ -114,7 +114,7 @@ if [ ! -e /proc/asound/card${CARDID} ]; then
 fi
 else
 	AUDIOOUTPUT=$(getSetting AudioOutput)
-	if [ "x${AUDIOOUTPUT}" != "x${CARDID}" -a -n ${AUDIOOUTPUT} ]
+	if [ "x${AUDIOOUTPUT}" != "x${CARDID}" -a -n "${AUDIOOUTPUT}" ]
 	then
 		echo "Resetting /root/.asoundrc to use card id ${AUDIOOUTPUT}"
 		sed -i "s/card [0-9]/card ${AUDIOOUTPUT}/" /root/.asoundrc
