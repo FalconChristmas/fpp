@@ -29,6 +29,6 @@
 int  SetupGPIOInput(void);
 void CheckGPIOInputs(void);
 int SetupExtGPIO(int gpio, char *mode);
-void SetExtGPIO(int gpio, int value);
+int ExtGPIO(int gpio, char *mode, int value);
 
 #endif //__GPIO_H__

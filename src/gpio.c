@@ -146,13 +146,33 @@ void CheckGPIOInputs(void)
  */
 int SetupExtGPIO(int gpio, char *mode)
 {
-	char *s;
 	int retval = 0;
 
 	if (!strcmp(mode, "Output"))
 	{
-		LogDebug(VB_GPIO, "GPIO %d set to Output mode\n", gpio);
-		pinMode(gpio, OUTPUT);
+		if ((gpio >= 200) && (gpio <= 207))
+		{	
+			LogDebug(VB_GPIO, "Not setting GPIO %d to Output mode (PiFace outputs do not need this)\n", gpio);
+		}
+		else
+		{
+			LogDebug(VB_GPIO, "GPIO %d set to Output mode\n", gpio);
+			pinMode(gpio, OUTPUT);
+		}
+	}
+	else if (!strcmp(mode, "Input"))
+	{
+		if ((gpio >= 200) && (gpio <= 207))
+		{	
+			LogDebug(VB_GPIO, "GPIO %d (PiFace) set to Input mode\n", gpio);
+			// We might want to make enabling the internal pull-up optional
+			pullUpDnControl(gpio, PUD_UP);
+		}
+		else
+		{
+			LogDebug(VB_GPIO, "GPIO %d set to Input mode\n", gpio);
+			pinMode(gpio, INPUT);
+		}
 	}
 	else if (!strcmp(mode, "SoftPWM"))
 	{
@@ -170,8 +190,28 @@ int SetupExtGPIO(int gpio, char *mode)
 /*
  * Set the given GPIO as requested
  */
-void SetExtGPIO(int gpio, int value)
+int ExtGPIO(int gpio, char *mode, int value)
 {
-	softPwmWrite(gpio, value);
+	int retval = 0;
+
+	if (!strcmp(mode, "Output"))
+	{
+		digitalWrite(gpio,value);
+	}
+	else if (!strcmp(mode, "Input"))
+	{
+		retval = digitalRead(gpio);
+	}
+	else if (!strcmp(mode, "SoftPWM"))
+	{
+		softPwmWrite(gpio, value);
+	}
+	else
+	{
+		LogDebug(VB_GPIO, "GPIO %d invalid mode %s\n", gpio, mode);
+		retval = -1;
+	}
+
+	return retval;
 }
 

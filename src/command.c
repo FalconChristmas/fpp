@@ -569,7 +569,7 @@ extern PluginCallbackManager pluginCallbackManager;
 					break;
 			}
 		}
-		else if (!strcmp(CommandStr, "ConfigureGPIO"))
+		else if (!strcmp(CommandStr, "SetupExtGPIO"))
 		{
 			// Configure the given GPIO to the given mode
 			s = strtok(NULL,",");
@@ -587,15 +587,22 @@ extern PluginCallbackManager pluginCallbackManager;
 				}
 			}
 		}
-		else if (!strcmp(CommandStr, "SetGPIO"))
+		else if (!strcmp(CommandStr, "ExtGPIO"))
 		{
-			// Set soft PWM on specified pin 
 			s = strtok(NULL,",");
 			s2 = strtok(NULL,",");
-			if (s && s2)
+			s3 = strtok(NULL,",");
+			if (s && s2 && s3)
 			{
-				SetExtGPIO(atoi(s), atoi(s2));
-				sprintf(response, "%d,%d,Setting PWM,%d,%d,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS,atoi(s),atoi(s2));
+				i = ExtGPIO(atoi(s), s2, atoi(s3));
+				if (i >= 0) 
+				{
+					sprintf(response, "%d,%d,Setting GPIO,%d,%s,%d,result=%d,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS,atoi(s),s2,atoi(s3),i);
+				}
+				else
+				{
+					sprintf(response, "%d,%d,Setting GPIO,%d,%s,%d,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED,atoi(s),s2,atoi(s3));
+				}
 			}
 		}
 		else
