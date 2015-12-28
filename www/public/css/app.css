@@ -1,0 +1,44 @@
+@font-face {
+  font-family: 'Source Sans Pro';
+  src: local("SourceSansPro-Light"), url("../fonts/SourceSansPro-Light.ttf") format("truetype");
+  font-weight: 300; }
+
+@font-face {
+  font-family: 'Source Sans Pro';
+  src: local("SourceSansPro-Regular"), url("../fonts/SourceSansPro-Regular.ttf") format("truetype");
+  font-weight: normal; }
+
+@font-face {
+  font-family: 'Source Sans Pro';
+  src: local("SourceSansPro-SemiBold"), url("../fonts/SourceSansPro-Semibold.ttf") format("truetype");
+  font-weight: 600; }
+
+@font-face {
+  font-family: 'Source Sans Pro';
+  src: local("SourceSansPro-Bold"), url("../fonts/SourceSansPro-Bold.ttf") format("truetype");
+  font-weight: 700; }
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 400;
+  src: local("Montserrat-Regular"), url("../fonts/Montserrat-Regular.woff") format("woff"), url("../fonts/Montserrat-Regular.ttf") format("truetype"); }
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 700;
+  src: local("Montserrat-Bold"), url("../fonts/Montserrat-Bold.woff") format("woff"), url("../fonts/Montserrat-Bold.ttf") format("truetype"); }
+
+html {
+  box-sizing: border-box; }
+
+*,
+*::before,
+*::after {
+  box-sizing: inherit; }
+
+body {
+  margin: 0; }
+
+/*# sourceMappingURL=app.css.map */

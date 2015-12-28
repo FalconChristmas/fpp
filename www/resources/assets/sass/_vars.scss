@@ -1,0 +1,57 @@
+///////////////////////////////////
+//  Colors
+///////////////////////////////////
+$primary-color: #788B94;
+$secondary-color: #eaeaea;
+
+$bg-color: #f1f1f1;
+$alert-color: #F04124;
+$info-color: #A0D3E8;
+$success-color: #43AC6A;
+$warning-color: #F08A24;
+$dark-color: #232323;
+$dark-blue: #363C47;
+
+$gray: #dfdfdf;
+$gray-dark: darken($gray, 8);
+$gray-light: lighten($gray, 8);
+$sidebar-bg-color: $dark-blue;
+$sidebar-txt-color: #ddd;
+$sidebar-h4-color: #788B94;
+$sidebar-a-color: #eaeaea;
+$sidebar-a-color-active: #fff;
+$heading-color: #666;
+$text-color: #666;
+$settings-sb-bg: #f4f4f4;
+
+
+///////////////////////////////////
+//  Fonts
+///////////////////////////////////
+$font-primary: 'Lato', sans-serif;
+$font-headline: 'Montserrat', sans-serif;
+
+$font-size: 12px;
+
+///////////////////////////////////
+//  Breakpoints
+///////////////////////////////////
+
+$mobile           : 321px !default;
+$mobile-pt        : $mobile;
+$mobile-ls        : max-width 480px !default;
+$mobile-ls-min    : 481px !default;
+$iphone5-ls       : max-width 568px !default;
+$iphone5-ls-min   : 569px !default;
+$iphone6-pt       : 375px !default;
+$phone6-pt-min    : 376px !default;
+$iphone6-ls       : max-width 667px !default;
+$phone6-ls-min    : 668px !default;
+$tablet-pt        : max-width 768px !default;
+$tablet-pt-min    : 769px !default;
+$tablet-ls        : max-width 1024px !default;
+$tablet-ls-min    : 1025px !default;
+$desktop          : max-width 1280px !default;
+$desktop-min      : 1281px !default;
+$desk-sm          : 980px !default;
+

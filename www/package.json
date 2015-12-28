@@ -1,0 +1,17 @@
+{
+  "private": true,
+  "devDependencies": {
+    "babel-plugin-transform-object-assign": "^6.3.13",
+    "gulp": "^3.8.8",
+    "laravel-elixir-vueify": "^1.0.1"
+  },
+  "dependencies": {
+    "bootstrap-sass": "^3.0.0",
+    "breakpoint-sass": "^2.6.1",
+    "jquery": "^2.1.4",
+    "laravel-elixir": "^4.0.0",
+    "lost": "^6.6.2",
+    "rucksack": "^0.1.0",
+    "vue-resource": "^0.5.1"
+  }
+}
