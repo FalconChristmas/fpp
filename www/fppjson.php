@@ -41,7 +41,9 @@ $command_array = Array(
 	"setPluginSetting"    => 'SetPluginSetting',
 	"saveScript"          => 'SaveScript',
 	"setTestMode"         => 'SetTestMode',
-	"getTestMode"         => 'GetTestMode'
+	"getTestMode"         => 'GetTestMode',
+	"setupExtGPIO"        => 'SetupExtGPIO',
+	"extGPIO"             => 'ExtGPIO'
 );
 
 $command = "";
@@ -882,6 +884,55 @@ function GetTestMode()
 {
 	header( "Content-Type: application/json");
 	echo SendCommand("GetTestMode");
+}
+
+/////////////////////////////////////////////////////////////////////////////
+
+function SetupExtGPIO()
+{
+	global $args;
+	$result = Array();
+
+	$gpio = $args['gpio'];
+	$mode = $args['mode'];
+
+	$statuses = [
+		0 => 'failed',
+		1 => 'success'
+	];
+
+	$status = SendCommand(sprintf("SetupExtGPIO,%s,%s", $gpio, $mode));
+
+	$status = explode(',', $status, 14);
+	$result['status'] = $statuses[(int) $status[1]];
+
+	returnJSON($result);
+}
+
+/////////////////////////////////////////////////////////////////////////////
+function ExtGPIO()
+{
+	global $args;
+	$result = Array();
+
+	$gpio = $args['gpio'];
+	$mode = $args['mode'];
+	$val = $args['val'];
+
+	$status = SendCommand(sprintf("ExtGPIO,%s,%s,%s", $gpio, $mode, $val));
+
+	$status = explode(',', $status, 14);
+
+	$result['status'] = $statuses[(int) $status[1]];
+
+	if ((int) $status[1] >= 0) {
+		$result['status'] = 'success';
+		$result['result'] = $status[6];
+	} else {
+		$result['status'] = 'failed';
+	}
+
+	returnJSON($result);
 }
 
 /////////////////////////////////////////////////////////////////////////////

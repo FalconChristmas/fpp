@@ -597,11 +597,11 @@ extern PluginCallbackManager pluginCallbackManager;
 				i = ExtGPIO(atoi(s), s2, atoi(s3));
 				if (i >= 0) 
 				{
-					sprintf(response, "%d,%d,Setting GPIO,%d,%s,%d,result=%d,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS,atoi(s),s2,atoi(s3),i);
+					sprintf(response, "%d,%d,Setting GPIO,%d,%s,%d,%d,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS,atoi(s),s2,atoi(s3),i);
 				}
 				else
 				{
-					sprintf(response, "%d,%d,Setting GPIO,%d,%s,%d,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED,atoi(s),s2,atoi(s3));
+					sprintf(response, "%d,%d,Setting GPIO,%d,%s,%d,,,,,,,,\n",getFPPmode(),COMMAND_FAILED,atoi(s),s2,atoi(s3));
 				}
 			}
 		}
