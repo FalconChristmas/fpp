@@ -20,32 +20,32 @@ class MenuServiceProvider extends BaseServiceProvider {
 	public function boot()
 	{
 
-		\Menu::make('control', function($menu){
+		// \Menu::make('control', function($menu){
 
-			$menu->add('Dashboard', ['route' => 'dashboard']);
-			$menu->add('Display Testing', ['route' => 'testing']);
-			$menu->add('Events', '#');
-			$menu->add('Effects',  '#');
+		// 	$menu->add('Dashboard', ['route' => 'dashboard']);
+		// 	$menu->add('Display Testing', ['route' => 'testing']);
+		// 	$menu->add('Events', '#');
+		// 	$menu->add('Effects',  '#');
 
-		});
+		// });
 
-		\Menu::make('content', function($menu){
+		// \Menu::make('content', function($menu){
 
-			$menu->add('File Manager', ['route' => 'files']);
-			$menu->add('Playlists',    ['route' => 'playlists']);
-			$menu->add('Schedule', ['route' => 'schedule']);
-			$menu->add('Plugins',  ['route' => 'plugins']);
+		// 	$menu->add('File Manager', ['route' => 'files']);
+		// 	$menu->add('Playlists',    ['route' => 'playlists']);
+		// 	$menu->add('Schedule', ['route' => 'schedule']);
+		// 	$menu->add('Plugins',  ['route' => 'plugins']);
 
-		});
+		// });
 
-		\Menu::make('settings', function($menu){
+		// \Menu::make('settings', function($menu){
 
-			$menu->add('General', ['route' => 'settings']);
-			$menu->add('Network', ['route' => 'settings.network']);
-			$menu->add('Channel Outputs', ['route' => 'outputs']);
-			$menu->add('Overlay Models',  ['route' => 'models']);
+		// 	$menu->add('General', ['route' => 'settings']);
+		// 	$menu->add('Network', ['route' => 'settings.network']);
+		// 	$menu->add('Channel Outputs', ['route' => 'outputs']);
+		// 	$menu->add('Overlay Models',  ['route' => 'models']);
 
-		});
+		// });
 
         
 	}

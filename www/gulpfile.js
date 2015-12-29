@@ -3,7 +3,13 @@ require('laravel-elixir-vueify');
 
 
 elixir(function(mix) {
-    mix.sass('app.scss', 'public/css/app.css', { includePaths: ['node_modules/breakpoint-sass/stylesheets/'] });
+    mix.sass('app.scss', 'public/css/app.css', { 
+        includePaths: [
+            'node_modules/breakpoint-sass/stylesheets/',
+            'node_modules/normalize-scss/sass/',
+            'node_modules/support-for/sass/'
+            ] 
+        });
     mix.browserify('main.js');
 
     mix.copy('resources/assets/img', 'public/img')
@@ -12,4 +18,8 @@ elixir(function(mix) {
         .copy('resources/assets/fonts/Source_Sans_Pro/*.ttf', 'public/fonts');
 
     mix.version(['css/app.css', 'js/main.js']);
+
+    mix.browserSync({
+        proxy: 'fpp2.dev'
+        })
 });

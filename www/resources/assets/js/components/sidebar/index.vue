@@ -9,14 +9,20 @@
         <div class="menu-section">
             <h4>Control</h4>
             <ul class="nav">
-
+                <li><a v-link="{ name: 'dashboard' , activeClass: 'active' }">Dashboard</a></li>
+                <li><a href="">Display Testing</a></li>
+                <li><a href="">Events</a></li>
+                <li><a href="">Effects</a></li>
             </ul>
         </div>
 
         <div class="menu-section">
             <h4>Content</h4>
             <ul class="nav">
-
+                <li><a href="">File Manager</a></li>
+                <li><a href="">Playlists</a></li>
+                <li><a href="">Schedule</a></li>
+                <li><a href="">Plugins</a></li>
             </ul>
             
         </div>
@@ -24,7 +30,10 @@
         <div class="menu-section">
             <h4>Settings</h4>
             <ul class="nav">
-
+                <li><a v-link="{name: 'settings', activeClass: 'active'}">General</a></li>
+                <li><a href="">Network</a></li>
+                <li><a href="">Channel Outputs</a></li>
+                <li><a href="">Overlay Models</a></li>
             </ul>
         </div>
     </div>
@@ -84,7 +93,10 @@ export default {
         letter-spacing: 1px;
         margin: 20px 0 0;
       }
-
+     
+      li {
+        padding: 3px 0;
+      }
       a {
         color: $sidebar-a-color;
         font-weight: 300;
@@ -93,6 +105,10 @@ export default {
 
           &:hover {
             color: $sidebar-a-color-active;
+          }
+          &.active {
+            color: $sidebar-a-color-active;
+            font-weight: 500;
           }
        }
 

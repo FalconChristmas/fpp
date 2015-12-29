@@ -1,7 +1,9 @@
 <template>
     <div id="app" tabindex="0" @keydown.f = "search">        
         <sidebar></sidebar>
-        <main-content></main-content>
+        <div class="content-wrapper">
+            <router-view></router-view>
+        </div>
         <overlay v-show="loading"></overlay>
     </div>
 </template>
@@ -36,7 +38,7 @@
             sharedStore.init(() => {
                 this.initStores();
                 // Hide the overlaying loading screen.
-                //this.toggleOverlay();
+                this.toggleOverlay();
 
                 // Ask for user's notificatio permission.
                 this.requestNotifPermission();
@@ -103,4 +105,19 @@
         line-height: $font-size * 1.5;
         
     }
+    .content-wrapper {
+        display: flex;
+        flex: 1;
+        transition: margin 0.35s;
+
+        @include breakpoint($tablet-pt-min) {
+            margin-left: 155px;
+        }
+
+        @include breakpoint($desktop-min) {
+            margin-left: 200px;
+        }
+    }
+   
+
 </style>

@@ -10955,6 +10955,2541 @@ module.exports = function (_) {
 };
 
 },{"./lib/url-template":18}],23:[function(require,module,exports){
+'use strict';
+
+var babelHelpers = {};
+
+babelHelpers.classCallCheck = function (instance, Constructor) {
+  if (!(instance instanceof Constructor)) {
+    throw new TypeError("Cannot call a class as a function");
+  }
+};
+function Target(path, matcher, delegate) {
+  this.path = path;
+  this.matcher = matcher;
+  this.delegate = delegate;
+}
+
+Target.prototype = {
+  to: function to(target, callback) {
+    var delegate = this.delegate;
+
+    if (delegate && delegate.willAddRoute) {
+      target = delegate.willAddRoute(this.matcher.target, target);
+    }
+
+    this.matcher.add(this.path, target);
+
+    if (callback) {
+      if (callback.length === 0) {
+        throw new Error("You must have an argument in the function passed to `to`");
+      }
+      this.matcher.addChild(this.path, target, callback, this.delegate);
+    }
+    return this;
+  }
+};
+
+function Matcher(target) {
+  this.routes = {};
+  this.children = {};
+  this.target = target;
+}
+
+Matcher.prototype = {
+  add: function add(path, handler) {
+    this.routes[path] = handler;
+  },
+
+  addChild: function addChild(path, target, callback, delegate) {
+    var matcher = new Matcher(target);
+    this.children[path] = matcher;
+
+    var match = generateMatch(path, matcher, delegate);
+
+    if (delegate && delegate.contextEntered) {
+      delegate.contextEntered(target, match);
+    }
+
+    callback(match);
+  }
+};
+
+function generateMatch(startingPath, matcher, delegate) {
+  return function (path, nestedCallback) {
+    var fullPath = startingPath + path;
+
+    if (nestedCallback) {
+      nestedCallback(generateMatch(fullPath, matcher, delegate));
+    } else {
+      return new Target(startingPath + path, matcher, delegate);
+    }
+  };
+}
+
+function addRoute(routeArray, path, handler) {
+  var len = 0;
+  for (var i = 0, l = routeArray.length; i < l; i++) {
+    len += routeArray[i].path.length;
+  }
+
+  path = path.substr(len);
+  var route = { path: path, handler: handler };
+  routeArray.push(route);
+}
+
+function eachRoute(baseRoute, matcher, callback, binding) {
+  var routes = matcher.routes;
+
+  for (var path in routes) {
+    if (routes.hasOwnProperty(path)) {
+      var routeArray = baseRoute.slice();
+      addRoute(routeArray, path, routes[path]);
+
+      if (matcher.children[path]) {
+        eachRoute(routeArray, matcher.children[path], callback, binding);
+      } else {
+        callback.call(binding, routeArray);
+      }
+    }
+  }
+}
+
+function map (callback, addRouteCallback) {
+  var matcher = new Matcher();
+
+  callback(generateMatch("", matcher, this.delegate));
+
+  eachRoute([], matcher, function (route) {
+    if (addRouteCallback) {
+      addRouteCallback(this, route);
+    } else {
+      this.add(route);
+    }
+  }, this);
+}
+
+var specials = ['/', '.', '*', '+', '?', '|', '(', ')', '[', ']', '{', '}', '\\'];
+
+var escapeRegex = new RegExp('(\\' + specials.join('|\\') + ')', 'g');
+
+function isArray(test) {
+  return Object.prototype.toString.call(test) === "[object Array]";
+}
+
+// A Segment represents a segment in the original route description.
+// Each Segment type provides an `eachChar` and `regex` method.
+//
+// The `eachChar` method invokes the callback with one or more character
+// specifications. A character specification consumes one or more input
+// characters.
+//
+// The `regex` method returns a regex fragment for the segment. If the
+// segment is a dynamic of star segment, the regex fragment also includes
+// a capture.
+//
+// A character specification contains:
+//
+// * `validChars`: a String with a list of all valid characters, or
+// * `invalidChars`: a String with a list of all invalid characters
+// * `repeat`: true if the character specification can repeat
+
+function StaticSegment(string) {
+  this.string = string;
+}
+StaticSegment.prototype = {
+  eachChar: function eachChar(callback) {
+    var string = this.string,
+        ch;
+
+    for (var i = 0, l = string.length; i < l; i++) {
+      ch = string.charAt(i);
+      callback({ validChars: ch });
+    }
+  },
+
+  regex: function regex() {
+    return this.string.replace(escapeRegex, '\\$1');
+  },
+
+  generate: function generate() {
+    return this.string;
+  }
+};
+
+function DynamicSegment(name) {
+  this.name = name;
+}
+DynamicSegment.prototype = {
+  eachChar: function eachChar(callback) {
+    callback({ invalidChars: "/", repeat: true });
+  },
+
+  regex: function regex() {
+    return "([^/]+)";
+  },
+
+  generate: function generate(params) {
+    return params[this.name];
+  }
+};
+
+function StarSegment(name) {
+  this.name = name;
+}
+StarSegment.prototype = {
+  eachChar: function eachChar(callback) {
+    callback({ invalidChars: "", repeat: true });
+  },
+
+  regex: function regex() {
+    return "(.+)";
+  },
+
+  generate: function generate(params) {
+    return params[this.name];
+  }
+};
+
+function EpsilonSegment() {}
+EpsilonSegment.prototype = {
+  eachChar: function eachChar() {},
+  regex: function regex() {
+    return "";
+  },
+  generate: function generate() {
+    return "";
+  }
+};
+
+function parse(route, names, specificity) {
+  // normalize route as not starting with a "/". Recognition will
+  // also normalize.
+  if (route.charAt(0) === "/") {
+    route = route.substr(1);
+  }
+
+  var segments = route.split("/"),
+      results = [];
+
+  // A routes has specificity determined by the order that its different segments
+  // appear in. This system mirrors how the magnitude of numbers written as strings
+  // works.
+  // Consider a number written as: "abc". An example would be "200". Any other number written
+  // "xyz" will be smaller than "abc" so long as `a > z`. For instance, "199" is smaller
+  // then "200", even though "y" and "z" (which are both 9) are larger than "0" (the value
+  // of (`b` and `c`). This is because the leading symbol, "2", is larger than the other
+  // leading symbol, "1".
+  // The rule is that symbols to the left carry more weight than symbols to the right
+  // when a number is written out as a string. In the above strings, the leading digit
+  // represents how many 100's are in the number, and it carries more weight than the middle
+  // number which represents how many 10's are in the number.
+  // This system of number magnitude works well for route specificity, too. A route written as
+  // `a/b/c` will be more specific than `x/y/z` as long as `a` is more specific than
+  // `x`, irrespective of the other parts.
+  // Because of this similarity, we assign each type of segment a number value written as a
+  // string. We can find the specificity of compound routes by concatenating these strings
+  // together, from left to right. After we have looped through all of the segments,
+  // we convert the string to a number.
+  specificity.val = '';
+
+  for (var i = 0, l = segments.length; i < l; i++) {
+    var segment = segments[i],
+        match;
+
+    if (match = segment.match(/^:([^\/]+)$/)) {
+      results.push(new DynamicSegment(match[1]));
+      names.push(match[1]);
+      specificity.val += '3';
+    } else if (match = segment.match(/^\*([^\/]+)$/)) {
+      results.push(new StarSegment(match[1]));
+      specificity.val += '2';
+      names.push(match[1]);
+    } else if (segment === "") {
+      results.push(new EpsilonSegment());
+      specificity.val += '1';
+    } else {
+      results.push(new StaticSegment(segment));
+      specificity.val += '4';
+    }
+  }
+
+  specificity.val = +specificity.val;
+
+  return results;
+}
+
+// A State has a character specification and (`charSpec`) and a list of possible
+// subsequent states (`nextStates`).
+//
+// If a State is an accepting state, it will also have several additional
+// properties:
+//
+// * `regex`: A regular expression that is used to extract parameters from paths
+//   that reached this accepting state.
+// * `handlers`: Information on how to convert the list of captures into calls
+//   to registered handlers with the specified parameters
+// * `types`: How many static, dynamic or star segments in this route. Used to
+//   decide which route to use if multiple registered routes match a path.
+//
+// Currently, State is implemented naively by looping over `nextStates` and
+// comparing a character specification against a character. A more efficient
+// implementation would use a hash of keys pointing at one or more next states.
+
+function State(charSpec) {
+  this.charSpec = charSpec;
+  this.nextStates = [];
+}
+
+State.prototype = {
+  get: function get(charSpec) {
+    var nextStates = this.nextStates;
+
+    for (var i = 0, l = nextStates.length; i < l; i++) {
+      var child = nextStates[i];
+
+      var isEqual = child.charSpec.validChars === charSpec.validChars;
+      isEqual = isEqual && child.charSpec.invalidChars === charSpec.invalidChars;
+
+      if (isEqual) {
+        return child;
+      }
+    }
+  },
+
+  put: function put(charSpec) {
+    var state;
+
+    // If the character specification already exists in a child of the current
+    // state, just return that state.
+    if (state = this.get(charSpec)) {
+      return state;
+    }
+
+    // Make a new state for the character spec
+    state = new State(charSpec);
+
+    // Insert the new state as a child of the current state
+    this.nextStates.push(state);
+
+    // If this character specification repeats, insert the new state as a child
+    // of itself. Note that this will not trigger an infinite loop because each
+    // transition during recognition consumes a character.
+    if (charSpec.repeat) {
+      state.nextStates.push(state);
+    }
+
+    // Return the new state
+    return state;
+  },
+
+  // Find a list of child states matching the next character
+  match: function match(ch) {
+    // DEBUG "Processing `" + ch + "`:"
+    var nextStates = this.nextStates,
+        child,
+        charSpec,
+        chars;
+
+    // DEBUG "  " + debugState(this)
+    var returned = [];
+
+    for (var i = 0, l = nextStates.length; i < l; i++) {
+      child = nextStates[i];
+
+      charSpec = child.charSpec;
+
+      if (typeof (chars = charSpec.validChars) !== 'undefined') {
+        if (chars.indexOf(ch) !== -1) {
+          returned.push(child);
+        }
+      } else if (typeof (chars = charSpec.invalidChars) !== 'undefined') {
+        if (chars.indexOf(ch) === -1) {
+          returned.push(child);
+        }
+      }
+    }
+
+    return returned;
+  }
+
+  /** IF DEBUG
+  , debug: function() {
+    var charSpec = this.charSpec,
+        debug = "[",
+        chars = charSpec.validChars || charSpec.invalidChars;
+     if (charSpec.invalidChars) { debug += "^"; }
+    debug += chars;
+    debug += "]";
+     if (charSpec.repeat) { debug += "+"; }
+     return debug;
+  }
+  END IF **/
+};
+
+/** IF DEBUG
+function debug(log) {
+  console.log(log);
+}
+
+function debugState(state) {
+  return state.nextStates.map(function(n) {
+    if (n.nextStates.length === 0) { return "( " + n.debug() + " [accepting] )"; }
+    return "( " + n.debug() + " <then> " + n.nextStates.map(function(s) { return s.debug() }).join(" or ") + " )";
+  }).join(", ")
+}
+END IF **/
+
+// Sort the routes by specificity
+function sortSolutions(states) {
+  return states.sort(function (a, b) {
+    return b.specificity.val - a.specificity.val;
+  });
+}
+
+function recognizeChar(states, ch) {
+  var nextStates = [];
+
+  for (var i = 0, l = states.length; i < l; i++) {
+    var state = states[i];
+
+    nextStates = nextStates.concat(state.match(ch));
+  }
+
+  return nextStates;
+}
+
+var oCreate = Object.create || function (proto) {
+  function F() {}
+  F.prototype = proto;
+  return new F();
+};
+
+function RecognizeResults(queryParams) {
+  this.queryParams = queryParams || {};
+}
+RecognizeResults.prototype = oCreate({
+  splice: Array.prototype.splice,
+  slice: Array.prototype.slice,
+  push: Array.prototype.push,
+  length: 0,
+  queryParams: null
+});
+
+function findHandler(state, path, queryParams) {
+  var handlers = state.handlers,
+      regex = state.regex;
+  var captures = path.match(regex),
+      currentCapture = 1;
+  var result = new RecognizeResults(queryParams);
+
+  for (var i = 0, l = handlers.length; i < l; i++) {
+    var handler = handlers[i],
+        names = handler.names,
+        params = {};
+
+    for (var j = 0, m = names.length; j < m; j++) {
+      params[names[j]] = captures[currentCapture++];
+    }
+
+    result.push({ handler: handler.handler, params: params, isDynamic: !!names.length });
+  }
+
+  return result;
+}
+
+function addSegment(currentState, segment) {
+  segment.eachChar(function (ch) {
+    var state;
+
+    currentState = currentState.put(ch);
+  });
+
+  return currentState;
+}
+
+function decodeQueryParamPart(part) {
+  // http://www.w3.org/TR/html401/interact/forms.html#h-17.13.4.1
+  part = part.replace(/\+/gm, '%20');
+  return decodeURIComponent(part);
+}
+
+// The main interface
+
+var RouteRecognizer = function RouteRecognizer() {
+  this.rootState = new State();
+  this.names = {};
+};
+
+RouteRecognizer.prototype = {
+  add: function add(routes, options) {
+    var currentState = this.rootState,
+        regex = "^",
+        specificity = {},
+        handlers = [],
+        allSegments = [],
+        name;
+
+    var isEmpty = true;
+
+    for (var i = 0, l = routes.length; i < l; i++) {
+      var route = routes[i],
+          names = [];
+
+      var segments = parse(route.path, names, specificity);
+
+      allSegments = allSegments.concat(segments);
+
+      for (var j = 0, m = segments.length; j < m; j++) {
+        var segment = segments[j];
+
+        if (segment instanceof EpsilonSegment) {
+          continue;
+        }
+
+        isEmpty = false;
+
+        // Add a "/" for the new segment
+        currentState = currentState.put({ validChars: "/" });
+        regex += "/";
+
+        // Add a representation of the segment to the NFA and regex
+        currentState = addSegment(currentState, segment);
+        regex += segment.regex();
+      }
+
+      var handler = { handler: route.handler, names: names };
+      handlers.push(handler);
+    }
+
+    if (isEmpty) {
+      currentState = currentState.put({ validChars: "/" });
+      regex += "/";
+    }
+
+    currentState.handlers = handlers;
+    currentState.regex = new RegExp(regex + "$");
+    currentState.specificity = specificity;
+
+    if (name = options && options.as) {
+      this.names[name] = {
+        segments: allSegments,
+        handlers: handlers
+      };
+    }
+  },
+
+  handlersFor: function handlersFor(name) {
+    var route = this.names[name],
+        result = [];
+    if (!route) {
+      throw new Error("There is no route named " + name);
+    }
+
+    for (var i = 0, l = route.handlers.length; i < l; i++) {
+      result.push(route.handlers[i]);
+    }
+
+    return result;
+  },
+
+  hasRoute: function hasRoute(name) {
+    return !!this.names[name];
+  },
+
+  generate: function generate(name, params) {
+    var route = this.names[name],
+        output = "";
+    if (!route) {
+      throw new Error("There is no route named " + name);
+    }
+
+    var segments = route.segments;
+
+    for (var i = 0, l = segments.length; i < l; i++) {
+      var segment = segments[i];
+
+      if (segment instanceof EpsilonSegment) {
+        continue;
+      }
+
+      output += "/";
+      output += segment.generate(params);
+    }
+
+    if (output.charAt(0) !== '/') {
+      output = '/' + output;
+    }
+
+    if (params && params.queryParams) {
+      output += this.generateQueryString(params.queryParams);
+    }
+
+    return output;
+  },
+
+  generateQueryString: function generateQueryString(params) {
+    var pairs = [];
+    var keys = [];
+    for (var key in params) {
+      if (params.hasOwnProperty(key)) {
+        keys.push(key);
+      }
+    }
+    keys.sort();
+    for (var i = 0, len = keys.length; i < len; i++) {
+      key = keys[i];
+      var value = params[key];
+      if (value == null) {
+        continue;
+      }
+      var pair = encodeURIComponent(key);
+      if (isArray(value)) {
+        for (var j = 0, l = value.length; j < l; j++) {
+          var arrayPair = key + '[]' + '=' + encodeURIComponent(value[j]);
+          pairs.push(arrayPair);
+        }
+      } else {
+        pair += "=" + encodeURIComponent(value);
+        pairs.push(pair);
+      }
+    }
+
+    if (pairs.length === 0) {
+      return '';
+    }
+
+    return "?" + pairs.join("&");
+  },
+
+  parseQueryString: function parseQueryString(queryString) {
+    var pairs = queryString.split("&"),
+        queryParams = {};
+    for (var i = 0; i < pairs.length; i++) {
+      var pair = pairs[i].split('='),
+          key = decodeQueryParamPart(pair[0]),
+          keyLength = key.length,
+          isArray = false,
+          value;
+      if (pair.length === 1) {
+        value = 'true';
+      } else {
+        //Handle arrays
+        if (keyLength > 2 && key.slice(keyLength - 2) === '[]') {
+          isArray = true;
+          key = key.slice(0, keyLength - 2);
+          if (!queryParams[key]) {
+            queryParams[key] = [];
+          }
+        }
+        value = pair[1] ? decodeQueryParamPart(pair[1]) : '';
+      }
+      if (isArray) {
+        queryParams[key].push(value);
+      } else {
+        queryParams[key] = value;
+      }
+    }
+    return queryParams;
+  },
+
+  recognize: function recognize(path) {
+    var states = [this.rootState],
+        pathLen,
+        i,
+        l,
+        queryStart,
+        queryParams = {},
+        isSlashDropped = false;
+
+    queryStart = path.indexOf('?');
+    if (queryStart !== -1) {
+      var queryString = path.substr(queryStart + 1, path.length);
+      path = path.substr(0, queryStart);
+      queryParams = this.parseQueryString(queryString);
+    }
+
+    path = decodeURI(path);
+
+    // DEBUG GROUP path
+
+    if (path.charAt(0) !== "/") {
+      path = "/" + path;
+    }
+
+    pathLen = path.length;
+    if (pathLen > 1 && path.charAt(pathLen - 1) === "/") {
+      path = path.substr(0, pathLen - 1);
+      isSlashDropped = true;
+    }
+
+    for (i = 0, l = path.length; i < l; i++) {
+      states = recognizeChar(states, path.charAt(i));
+      if (!states.length) {
+        break;
+      }
+    }
+
+    // END DEBUG GROUP
+
+    var solutions = [];
+    for (i = 0, l = states.length; i < l; i++) {
+      if (states[i].handlers) {
+        solutions.push(states[i]);
+      }
+    }
+
+    states = sortSolutions(solutions);
+
+    var state = solutions[0];
+
+    if (state && state.handlers) {
+      // if a trailing slash was dropped and a star segment is the last segment
+      // specified, put the trailing slash back
+      if (isSlashDropped && state.regex.source.slice(-5) === "(.+)$") {
+        path = path + "/";
+      }
+      return findHandler(state, path, queryParams);
+    }
+  }
+};
+
+RouteRecognizer.prototype.map = map;
+
+RouteRecognizer.VERSION = '0.1.9';
+
+var genQuery = RouteRecognizer.prototype.generateQueryString;
+
+// export default for holding the Vue reference
+var exports$1 = {};
+/**
+ * Warn stuff.
+ *
+ * @param {String} msg
+ */
+
+function warn(msg) {
+  /* istanbul ignore next */
+  if (window.console) {
+    console.warn('[vue-router] ' + msg);
+    /* istanbul ignore if */
+    if (!exports$1.Vue || exports$1.Vue.config.debug) {
+      console.warn(new Error('warning stack trace:').stack);
+    }
+  }
+}
+
+/**
+ * Resolve a relative path.
+ *
+ * @param {String} base
+ * @param {String} relative
+ * @param {Boolean} append
+ * @return {String}
+ */
+
+function resolvePath(base, relative, append) {
+  var query = base.match(/(\?.*)$/);
+  if (query) {
+    query = query[1];
+    base = base.slice(0, -query.length);
+  }
+  // a query!
+  if (relative.charAt(0) === '?') {
+    return base + relative;
+  }
+  var stack = base.split('/');
+  // remove trailing segment if:
+  // - not appending
+  // - appending to trailing slash (last segment is empty)
+  if (!append || !stack[stack.length - 1]) {
+    stack.pop();
+  }
+  // resolve relative path
+  var segments = relative.replace(/^\//, '').split('/');
+  for (var i = 0; i < segments.length; i++) {
+    var segment = segments[i];
+    if (segment === '.') {
+      continue;
+    } else if (segment === '..') {
+      stack.pop();
+    } else {
+      stack.push(segment);
+    }
+  }
+  // ensure leading slash
+  if (stack[0] !== '') {
+    stack.unshift('');
+  }
+  return stack.join('/');
+}
+
+/**
+ * Forgiving check for a promise
+ *
+ * @param {Object} p
+ * @return {Boolean}
+ */
+
+function isPromise(p) {
+  return p && typeof p.then === 'function';
+}
+
+/**
+ * Retrive a route config field from a component instance
+ * OR a component contructor.
+ *
+ * @param {Function|Vue} component
+ * @param {String} name
+ * @return {*}
+ */
+
+function getRouteConfig(component, name) {
+  var options = component && (component.$options || component.options);
+  return options && options.route && options.route[name];
+}
+
+/**
+ * Resolve an async component factory. Have to do a dirty
+ * mock here because of Vue core's internal API depends on
+ * an ID check.
+ *
+ * @param {Object} handler
+ * @param {Function} cb
+ */
+
+var resolver = undefined;
+
+function resolveAsyncComponent(handler, cb) {
+  if (!resolver) {
+    resolver = {
+      resolve: exports$1.Vue.prototype._resolveComponent,
+      $options: {
+        components: {
+          _: handler.component
+        }
+      }
+    };
+  } else {
+    resolver.$options.components._ = handler.component;
+  }
+  resolver.resolve('_', function (Component) {
+    handler.component = Component;
+    cb(Component);
+  });
+}
+
+/**
+ * Map the dynamic segments in a path to params.
+ *
+ * @param {String} path
+ * @param {Object} params
+ * @param {Object} query
+ */
+
+function mapParams(path, params, query) {
+  if (params === undefined) params = {};
+
+  path = path.replace(/:([^\/]+)/g, function (_, key) {
+    var val = params[key];
+    if (!val) {
+      warn('param "' + key + '" not found when generating ' + 'path for "' + path + '" with params ' + JSON.stringify(params));
+    }
+    return val || '';
+  });
+  if (query) {
+    path += genQuery(query);
+  }
+  return path;
+}
+
+var hashRE = /#.*$/;
+
+var HTML5History = (function () {
+  function HTML5History(_ref) {
+    var root = _ref.root;
+    var onChange = _ref.onChange;
+    babelHelpers.classCallCheck(this, HTML5History);
+
+    if (root) {
+      // make sure there's the starting slash
+      if (root.charAt(0) !== '/') {
+        root = '/' + root;
+      }
+      // remove trailing slash
+      this.root = root.replace(/\/$/, '');
+      this.rootRE = new RegExp('^\\' + this.root);
+    } else {
+      this.root = null;
+    }
+    this.onChange = onChange;
+    // check base tag
+    var baseEl = document.querySelector('base');
+    this.base = baseEl && baseEl.getAttribute('href');
+  }
+
+  HTML5History.prototype.start = function start() {
+    var _this = this;
+
+    this.listener = function (e) {
+      var url = decodeURI(location.pathname + location.search);
+      if (_this.root) {
+        url = url.replace(_this.rootRE, '');
+      }
+      _this.onChange(url, e && e.state, location.hash);
+    };
+    window.addEventListener('popstate', this.listener);
+    this.listener();
+  };
+
+  HTML5History.prototype.stop = function stop() {
+    window.removeEventListener('popstate', this.listener);
+  };
+
+  HTML5History.prototype.go = function go(path, replace, append) {
+    var url = this.formatPath(path, append);
+    if (replace) {
+      history.replaceState({}, '', url);
+    } else {
+      // record scroll position by replacing current state
+      history.replaceState({
+        pos: {
+          x: window.pageXOffset,
+          y: window.pageYOffset
+        }
+      }, '');
+      // then push new state
+      history.pushState({}, '', url);
+    }
+    var hashMatch = path.match(hashRE);
+    var hash = hashMatch && hashMatch[0];
+    path = url
+    // strip hash so it doesn't mess up params
+    .replace(hashRE, '')
+    // remove root before matching
+    .replace(this.rootRE, '');
+    this.onChange(path, null, hash);
+  };
+
+  HTML5History.prototype.formatPath = function formatPath(path, append) {
+    return path.charAt(0) === '/'
+    // absolute path
+    ? this.root ? this.root + '/' + path.replace(/^\//, '') : path : resolvePath(this.base || location.pathname, path, append);
+  };
+
+  return HTML5History;
+})();
+
+var HashHistory = (function () {
+  function HashHistory(_ref) {
+    var hashbang = _ref.hashbang;
+    var onChange = _ref.onChange;
+    babelHelpers.classCallCheck(this, HashHistory);
+
+    this.hashbang = hashbang;
+    this.onChange = onChange;
+  }
+
+  HashHistory.prototype.start = function start() {
+    var self = this;
+    this.listener = function () {
+      var path = location.hash;
+      var raw = path.replace(/^#!?/, '');
+      // always
+      if (raw.charAt(0) !== '/') {
+        raw = '/' + raw;
+      }
+      var formattedPath = self.formatPath(raw);
+      if (formattedPath !== path) {
+        location.replace(formattedPath);
+        return;
+      }
+      // determine query
+      // note it's possible to have queries in both the actual URL
+      // and the hash fragment itself.
+      var query = location.search && path.indexOf('?') > -1 ? '&' + location.search.slice(1) : location.search;
+      self.onChange(decodeURI(path.replace(/^#!?/, '') + query));
+    };
+    window.addEventListener('hashchange', this.listener);
+    this.listener();
+  };
+
+  HashHistory.prototype.stop = function stop() {
+    window.removeEventListener('hashchange', this.listener);
+  };
+
+  HashHistory.prototype.go = function go(path, replace, append) {
+    path = this.formatPath(path, append);
+    if (replace) {
+      location.replace(path);
+    } else {
+      location.hash = path;
+    }
+  };
+
+  HashHistory.prototype.formatPath = function formatPath(path, append) {
+    var isAbsoloute = path.charAt(0) === '/';
+    var prefix = '#' + (this.hashbang ? '!' : '');
+    return isAbsoloute ? prefix + path : prefix + resolvePath(location.hash.replace(/^#!?/, ''), path, append);
+  };
+
+  return HashHistory;
+})();
+
+var AbstractHistory = (function () {
+  function AbstractHistory(_ref) {
+    var onChange = _ref.onChange;
+    babelHelpers.classCallCheck(this, AbstractHistory);
+
+    this.onChange = onChange;
+    this.currentPath = '/';
+  }
+
+  AbstractHistory.prototype.start = function start() {
+    this.onChange('/');
+  };
+
+  AbstractHistory.prototype.stop = function stop() {
+    // noop
+  };
+
+  AbstractHistory.prototype.go = function go(path, replace, append) {
+    path = this.currentPath = this.formatPath(path, append);
+    this.onChange(path);
+  };
+
+  AbstractHistory.prototype.formatPath = function formatPath(path, append) {
+    return path.charAt(0) === '/' ? path : resolvePath(this.currentPath, path, append);
+  };
+
+  return AbstractHistory;
+})();
+
+/**
+ * Determine the reusability of an existing router view.
+ *
+ * @param {Directive} view
+ * @param {Object} handler
+ * @param {Transition} transition
+ */
+
+function canReuse(view, handler, transition) {
+  var component = view.childVM;
+  if (!component || !handler) {
+    return false;
+  }
+  // important: check view.Component here because it may
+  // have been changed in activate hook
+  if (view.Component !== handler.component) {
+    return false;
+  }
+  var canReuseFn = getRouteConfig(component, 'canReuse');
+  return typeof canReuseFn === 'boolean' ? canReuseFn : canReuseFn ? canReuseFn.call(component, {
+    to: transition.to,
+    from: transition.from
+  }) : true; // defaults to true
+}
+
+/**
+ * Check if a component can deactivate.
+ *
+ * @param {Directive} view
+ * @param {Transition} transition
+ * @param {Function} next
+ */
+
+function canDeactivate(view, transition, next) {
+  var fromComponent = view.childVM;
+  var hook = getRouteConfig(fromComponent, 'canDeactivate');
+  if (!hook) {
+    next();
+  } else {
+    transition.callHook(hook, fromComponent, next, {
+      expectBoolean: true
+    });
+  }
+}
+
+/**
+ * Check if a component can activate.
+ *
+ * @param {Object} handler
+ * @param {Transition} transition
+ * @param {Function} next
+ */
+
+function canActivate(handler, transition, next) {
+  resolveAsyncComponent(handler, function (Component) {
+    // have to check due to async-ness
+    if (transition.aborted) {
+      return;
+    }
+    // determine if this component can be activated
+    var hook = getRouteConfig(Component, 'canActivate');
+    if (!hook) {
+      next();
+    } else {
+      transition.callHook(hook, null, next, {
+        expectBoolean: true
+      });
+    }
+  });
+}
+
+/**
+ * Call deactivate hooks for existing router-views.
+ *
+ * @param {Directive} view
+ * @param {Transition} transition
+ * @param {Function} next
+ */
+
+function deactivate(view, transition, next) {
+  var component = view.childVM;
+  var hook = getRouteConfig(component, 'deactivate');
+  if (!hook) {
+    next();
+  } else {
+    transition.callHooks(hook, component, next);
+  }
+}
+
+/**
+ * Activate / switch component for a router-view.
+ *
+ * @param {Directive} view
+ * @param {Transition} transition
+ * @param {Number} depth
+ * @param {Function} [cb]
+ */
+
+function activate(view, transition, depth, cb, reuse) {
+  var handler = transition.activateQueue[depth];
+  if (!handler) {
+    // fix 1.0.0-alpha.3 compat
+    if (view._bound) {
+      view.setComponent(null);
+    }
+    cb && cb();
+    return;
+  }
+
+  var Component = view.Component = handler.component;
+  var activateHook = getRouteConfig(Component, 'activate');
+  var dataHook = getRouteConfig(Component, 'data');
+  var waitForData = getRouteConfig(Component, 'waitForData');
+
+  view.depth = depth;
+  view.activated = false;
+
+  var component = undefined;
+  var loading = !!(dataHook && !waitForData);
+
+  // "reuse" is a flag passed down when the parent view is
+  // either reused via keep-alive or as a child of a kept-alive view.
+  // of course we can only reuse if the current kept-alive instance
+  // is of the correct type.
+  reuse = reuse && view.childVM && view.childVM.constructor === Component;
+
+  if (reuse) {
+    // just reuse
+    component = view.childVM;
+    component.$loadingRouteData = loading;
+  } else {
+    // unbuild current component. this step also destroys
+    // and removes all nested child views.
+    view.unbuild(true);
+    // handle keep-alive.
+    // if the view has keep-alive, the child vm is not actually
+    // destroyed - its nested views will still be in router's
+    // view list. We need to removed these child views and
+    // cache them on the child vm.
+    if (view.keepAlive) {
+      var views = transition.router._views;
+      var i = views.indexOf(view);
+      if (i > 0) {
+        transition.router._views = views.slice(i);
+        if (view.childVM) {
+          view.childVM._routerViews = views.slice(0, i);
+        }
+      }
+    }
+
+    // build the new component. this will also create the
+    // direct child view of the current one. it will register
+    // itself as view.childView.
+    component = view.build({
+      _meta: {
+        $loadingRouteData: loading
+      }
+    });
+    // handle keep-alive.
+    // when a kept-alive child vm is restored, we need to
+    // add its cached child views into the router's view list,
+    // and also properly update current view's child view.
+    if (view.keepAlive) {
+      component.$loadingRouteData = loading;
+      var cachedViews = component._routerViews;
+      if (cachedViews) {
+        transition.router._views = cachedViews.concat(transition.router._views);
+        view.childView = cachedViews[cachedViews.length - 1];
+        component._routerViews = null;
+      }
+    }
+  }
+
+  // cleanup the component in case the transition is aborted
+  // before the component is ever inserted.
+  var cleanup = function cleanup() {
+    component.$destroy();
+  };
+
+  // actually insert the component and trigger transition
+  var insert = function insert() {
+    if (reuse) {
+      cb && cb();
+      return;
+    }
+    var router = transition.router;
+    if (router._rendered || router._transitionOnLoad) {
+      view.transition(component);
+    } else {
+      // no transition on first render, manual transition
+      /* istanbul ignore if */
+      if (view.setCurrent) {
+        // 0.12 compat
+        view.setCurrent(component);
+      } else {
+        // 1.0
+        view.childVM = component;
+      }
+      component.$before(view.anchor, null, false);
+    }
+    cb && cb();
+  };
+
+  // called after activation hook is resolved
+  var afterActivate = function afterActivate() {
+    view.activated = true;
+    // activate the child view
+    if (view.childView) {
+      activate(view.childView, transition, depth + 1, null, reuse || view.keepAlive);
+    }
+    if (dataHook && waitForData) {
+      // wait until data loaded to insert
+      loadData(component, transition, dataHook, insert, cleanup);
+    } else {
+      // load data and insert at the same time
+      if (dataHook) {
+        loadData(component, transition, dataHook);
+      }
+      insert();
+    }
+  };
+
+  if (activateHook) {
+    transition.callHooks(activateHook, component, afterActivate, {
+      cleanup: cleanup
+    });
+  } else {
+    afterActivate();
+  }
+}
+
+/**
+ * Reuse a view, just reload data if necessary.
+ *
+ * @param {Directive} view
+ * @param {Transition} transition
+ */
+
+function reuse(view, transition) {
+  var component = view.childVM;
+  var dataHook = getRouteConfig(component, 'data');
+  if (dataHook) {
+    loadData(component, transition, dataHook);
+  }
+}
+
+/**
+ * Asynchronously load and apply data to component.
+ *
+ * @param {Vue} component
+ * @param {Transition} transition
+ * @param {Function} hook
+ * @param {Function} cb
+ * @param {Function} cleanup
+ */
+
+function loadData(component, transition, hook, cb, cleanup) {
+  component.$loadingRouteData = true;
+  transition.callHooks(hook, component, function (data, onError) {
+    // merge data from multiple data hooks
+    if (Array.isArray(data) && data._needMerge) {
+      data = data.reduce(function (res, obj) {
+        if (isPlainObject(obj)) {
+          Object.keys(obj).forEach(function (key) {
+            res[key] = obj[key];
+          });
+        }
+        return res;
+      }, Object.create(null));
+    }
+    // handle promise sugar syntax
+    var promises = [];
+    if (isPlainObject(data)) {
+      Object.keys(data).forEach(function (key) {
+        var val = data[key];
+        if (isPromise(val)) {
+          promises.push(val.then(function (resolvedVal) {
+            component.$set(key, resolvedVal);
+          }));
+        } else {
+          component.$set(key, val);
+        }
+      });
+    }
+    if (!promises.length) {
+      component.$loadingRouteData = false;
+      cb && cb();
+    } else {
+      promises[0].constructor.all(promises).then(function (_) {
+        component.$loadingRouteData = false;
+        cb && cb();
+      }, onError);
+    }
+  }, {
+    cleanup: cleanup,
+    expectData: true
+  });
+}
+
+function isPlainObject(obj) {
+  return Object.prototype.toString.call(obj) === '[object Object]';
+}
+
+/**
+ * A RouteTransition object manages the pipeline of a
+ * router-view switching process. This is also the object
+ * passed into user route hooks.
+ *
+ * @param {Router} router
+ * @param {Route} to
+ * @param {Route} from
+ */
+
+var RouteTransition = (function () {
+  function RouteTransition(router, to, from) {
+    babelHelpers.classCallCheck(this, RouteTransition);
+
+    this.router = router;
+    this.to = to;
+    this.from = from;
+    this.next = null;
+    this.aborted = false;
+    this.done = false;
+
+    // start by determine the queues
+
+    // the deactivate queue is an array of router-view
+    // directive instances that need to be deactivated,
+    // deepest first.
+    this.deactivateQueue = router._views;
+
+    // check the default handler of the deepest match
+    var matched = to.matched ? Array.prototype.slice.call(to.matched) : [];
+
+    // the activate queue is an array of route handlers
+    // that need to be activated
+    this.activateQueue = matched.map(function (match) {
+      return match.handler;
+    });
+  }
+
+  /**
+   * Abort current transition and return to previous location.
+   */
+
+  RouteTransition.prototype.abort = function abort() {
+    if (!this.aborted) {
+      this.aborted = true;
+      // if the root path throws an error during validation
+      // on initial load, it gets caught in an infinite loop.
+      var abortingOnLoad = !this.from.path && this.to.path === '/';
+      if (!abortingOnLoad) {
+        this.router.replace(this.from.path || '/');
+      }
+    }
+  };
+
+  /**
+   * Abort current transition and redirect to a new location.
+   *
+   * @param {String} path
+   */
+
+  RouteTransition.prototype.redirect = function redirect(path) {
+    if (!this.aborted) {
+      this.aborted = true;
+      if (typeof path === 'string') {
+        path = mapParams(path, this.to.params, this.to.query);
+      } else {
+        path.params = path.params || this.to.params;
+        path.query = path.query || this.to.query;
+      }
+      this.router.replace(path);
+    }
+  };
+
+  /**
+   * A router view transition's pipeline can be described as
+   * follows, assuming we are transitioning from an existing
+   * <router-view> chain [Component A, Component B] to a new
+   * chain [Component A, Component C]:
+   *
+   *  A    A
+   *  | => |
+   *  B    C
+   *
+   * 1. Reusablity phase:
+   *   -> canReuse(A, A)
+   *   -> canReuse(B, C)
+   *   -> determine new queues:
+   *      - deactivation: [B]
+   *      - activation: [C]
+   *
+   * 2. Validation phase:
+   *   -> canDeactivate(B)
+   *   -> canActivate(C)
+   *
+   * 3. Activation phase:
+   *   -> deactivate(B)
+   *   -> activate(C)
+   *
+   * Each of these steps can be asynchronous, and any
+   * step can potentially abort the transition.
+   *
+   * @param {Function} cb
+   */
+
+  RouteTransition.prototype.start = function start(cb) {
+    var transition = this;
+    var daq = this.deactivateQueue;
+    var aq = this.activateQueue;
+    var rdaq = daq.slice().reverse();
+    var reuseQueue = undefined;
+
+    // 1. Reusability phase
+    var i = undefined;
+    for (i = 0; i < rdaq.length; i++) {
+      if (!canReuse(rdaq[i], aq[i], transition)) {
+        break;
+      }
+    }
+    if (i > 0) {
+      reuseQueue = rdaq.slice(0, i);
+      daq = rdaq.slice(i).reverse();
+      aq = aq.slice(i);
+    }
+
+    // 2. Validation phase
+    transition.runQueue(daq, canDeactivate, function () {
+      transition.runQueue(aq, canActivate, function () {
+        transition.runQueue(daq, deactivate, function () {
+          // 3. Activation phase
+
+          // Update router current route
+          transition.router._onTransitionValidated(transition);
+
+          // trigger reuse for all reused views
+          reuseQueue && reuseQueue.forEach(function (view) {
+            reuse(view, transition);
+          });
+
+          // the root of the chain that needs to be replaced
+          // is the top-most non-reusable view.
+          if (daq.length) {
+            var view = daq[daq.length - 1];
+            var depth = reuseQueue ? reuseQueue.length : 0;
+            activate(view, transition, depth, cb);
+          } else {
+            cb();
+          }
+        });
+      });
+    });
+  };
+
+  /**
+   * Asynchronously and sequentially apply a function to a
+   * queue.
+   *
+   * @param {Array} queue
+   * @param {Function} fn
+   * @param {Function} cb
+   */
+
+  RouteTransition.prototype.runQueue = function runQueue(queue, fn, cb) {
+    var transition = this;
+    step(0);
+    function step(index) {
+      if (index >= queue.length) {
+        cb();
+      } else {
+        fn(queue[index], transition, function () {
+          step(index + 1);
+        });
+      }
+    }
+  };
+
+  /**
+   * Call a user provided route transition hook and handle
+   * the response (e.g. if the user returns a promise).
+   *
+   * If the user neither expects an argument nor returns a
+   * promise, the hook is assumed to be synchronous.
+   *
+   * @param {Function} hook
+   * @param {*} [context]
+   * @param {Function} [cb]
+   * @param {Object} [options]
+   *                 - {Boolean} expectBoolean
+   *                 - {Boolean} expectData
+   *                 - {Function} cleanup
+   */
+
+  RouteTransition.prototype.callHook = function callHook(hook, context, cb) {
+    var _ref = arguments.length <= 3 || arguments[3] === undefined ? {} : arguments[3];
+
+    var _ref$expectBoolean = _ref.expectBoolean;
+    var expectBoolean = _ref$expectBoolean === undefined ? false : _ref$expectBoolean;
+    var _ref$expectData = _ref.expectData;
+    var expectData = _ref$expectData === undefined ? false : _ref$expectData;
+    var cleanup = _ref.cleanup;
+
+    var transition = this;
+    var nextCalled = false;
+
+    // abort the transition
+    var abort = function abort() {
+      cleanup && cleanup();
+      transition.abort();
+    };
+
+    // handle errors
+    var onError = function onError(err) {
+      // cleanup indicates an after-activation hook,
+      // so instead of aborting we just let the transition
+      // finish.
+      cleanup ? next() : abort();
+      if (err && !transition.router._suppress) {
+        warn('Uncaught error during transition: ');
+        throw err instanceof Error ? err : new Error(err);
+      }
+    };
+
+    // advance the transition to the next step
+    var next = function next(data) {
+      if (nextCalled) {
+        warn('transition.next() should be called only once.');
+        return;
+      }
+      nextCalled = true;
+      if (transition.aborted) {
+        cleanup && cleanup();
+        return;
+      }
+      cb && cb(data, onError);
+    };
+
+    // expose a clone of the transition object, so that each
+    // hook gets a clean copy and prevent the user from
+    // messing with the internals.
+    var exposed = {
+      to: transition.to,
+      from: transition.from,
+      abort: abort,
+      next: next,
+      redirect: function redirect() {
+        transition.redirect.apply(transition, arguments);
+      }
+    };
+
+    // actually call the hook
+    var res = undefined;
+    try {
+      res = hook.call(context, exposed);
+    } catch (err) {
+      return onError(err);
+    }
+
+    // handle boolean/promise return values
+    var resIsPromise = isPromise(res);
+    if (expectBoolean) {
+      if (typeof res === 'boolean') {
+        res ? next() : abort();
+      } else if (resIsPromise) {
+        res.then(function (ok) {
+          ok ? next() : abort();
+        }, onError);
+      } else if (!hook.length) {
+        next(res);
+      }
+    } else if (resIsPromise) {
+      res.then(next, onError);
+    } else if (expectData && isPlainOjbect(res) || !hook.length) {
+      next(res);
+    }
+  };
+
+  /**
+   * Call a single hook or an array of async hooks in series.
+   *
+   * @param {Array} hooks
+   * @param {*} context
+   * @param {Function} cb
+   * @param {Object} [options]
+   */
+
+  RouteTransition.prototype.callHooks = function callHooks(hooks, context, cb, options) {
+    var _this = this;
+
+    if (Array.isArray(hooks)) {
+      (function () {
+        var res = [];
+        res._needMerge = true;
+        var onError = undefined;
+        _this.runQueue(hooks, function (hook, _, next) {
+          if (!_this.aborted) {
+            _this.callHook(hook, context, function (r, onError) {
+              if (r) res.push(r);
+              onError = onError;
+              next();
+            }, options);
+          }
+        }, function () {
+          cb(res, onError);
+        });
+      })();
+    } else {
+      this.callHook(hooks, context, cb, options);
+    }
+  };
+
+  return RouteTransition;
+})();
+
+function isPlainOjbect(val) {
+  return Object.prototype.toString.call(val) === '[object Object]';
+}
+
+var internalKeysRE = /^(component|subRoutes)$/;
+
+/**
+ * Route Context Object
+ *
+ * @param {String} path
+ * @param {Router} router
+ */
+
+var Route = function Route(path, router) {
+  var _this = this;
+
+  babelHelpers.classCallCheck(this, Route);
+
+  var matched = router._recognizer.recognize(path);
+  if (matched) {
+    // copy all custom fields from route configs
+    [].forEach.call(matched, function (match) {
+      for (var key in match.handler) {
+        if (!internalKeysRE.test(key)) {
+          _this[key] = match.handler[key];
+        }
+      }
+    });
+    // set query and params
+    this.query = matched.queryParams;
+    this.params = [].reduce.call(matched, function (prev, cur) {
+      if (cur.params) {
+        for (var key in cur.params) {
+          prev[key] = cur.params[key];
+        }
+      }
+      return prev;
+    }, {});
+  }
+  // expose path and router
+  this.path = path;
+  this.router = router;
+  // for internal use
+  this.matched = matched || router._notFoundHandler;
+  // Important: freeze self to prevent observation
+  Object.freeze(this);
+};
+
+function applyOverride (Vue) {
+
+  var _ = Vue.util;
+
+  // override Vue's init and destroy process to keep track of router instances
+  var init = Vue.prototype._init;
+  Vue.prototype._init = function (options) {
+    var root = options._parent || options.parent || this;
+    var route = root.$route;
+    if (route) {
+      route.router._children.push(this);
+      if (!this.$route) {
+        /* istanbul ignore if */
+        if (this._defineMeta) {
+          // 0.12
+          this._defineMeta('$route', route);
+        } else {
+          // 1.0
+          _.defineReactive(this, '$route', route);
+        }
+      }
+    }
+    init.call(this, options);
+  };
+
+  var destroy = Vue.prototype._destroy;
+  Vue.prototype._destroy = function () {
+    if (!this._isBeingDestroyed) {
+      var route = this.$root.$route;
+      if (route) {
+        route.router._children.$remove(this);
+      }
+      destroy.apply(this, arguments);
+    }
+  };
+
+  // 1.0 only: enable route mixins
+  var strats = Vue.config.optionMergeStrategies;
+  var hooksToMergeRE = /^(data|activate|deactivate)$/;
+
+  if (strats) {
+    strats.route = function (parentVal, childVal) {
+      if (!childVal) return parentVal;
+      if (!parentVal) return childVal;
+      var ret = {};
+      _.extend(ret, parentVal);
+      for (var key in childVal) {
+        var a = ret[key];
+        var b = childVal[key];
+        // for data, activate and deactivate, we need to merge them into
+        // arrays similar to lifecycle hooks.
+        if (a && hooksToMergeRE.test(key)) {
+          ret[key] = (_.isArray(a) ? a : [a]).concat(b);
+        } else {
+          ret[key] = b;
+        }
+      }
+      return ret;
+    };
+  }
+}
+
+function View (Vue) {
+
+  var _ = Vue.util;
+  var componentDef =
+  // 0.12
+  Vue.directive('_component') ||
+  // 1.0
+  Vue.internalDirectives.component;
+  // <router-view> extends the internal component directive
+  var viewDef = _.extend({}, componentDef);
+
+  // with some overrides
+  _.extend(viewDef, {
+
+    _isRouterView: true,
+
+    bind: function bind() {
+      var route = this.vm.$route;
+      /* istanbul ignore if */
+      if (!route) {
+        warn('<router-view> can only be used inside a ' + 'router-enabled app.');
+        return;
+      }
+      // force dynamic directive so v-component doesn't
+      // attempt to build right now
+      this._isDynamicLiteral = true;
+      // finally, init by delegating to v-component
+      componentDef.bind.call(this);
+
+      // all we need to do here is registering this view
+      // in the router. actual component switching will be
+      // managed by the pipeline.
+      var router = this.router = route.router;
+      router._views.unshift(this);
+
+      // note the views are in reverse order.
+      var parentView = router._views[1];
+      if (parentView) {
+        // register self as a child of the parent view,
+        // instead of activating now. This is so that the
+        // child's activate hook is called after the
+        // parent's has resolved.
+        parentView.childView = this;
+      }
+
+      // handle late-rendered view
+      // two possibilities:
+      // 1. root view rendered after transition has been
+      //    validated;
+      // 2. child view rendered after parent view has been
+      //    activated.
+      var transition = route.router._currentTransition;
+      if (!parentView && transition.done || parentView && parentView.activated) {
+        var depth = parentView ? parentView.depth + 1 : 0;
+        activate(this, transition, depth);
+      }
+    },
+
+    unbind: function unbind() {
+      this.router._views.$remove(this);
+      componentDef.unbind.call(this);
+    }
+  });
+
+  Vue.elementDirective('router-view', viewDef);
+}
+
+var trailingSlashRE = /\/$/;
+var regexEscapeRE = /[-.*+?^${}()|[\]\/\\]/g;
+var queryStringRE = /\?.*$/;
+
+// install v-link, which provides navigation support for
+// HTML5 history mode
+function Link (Vue) {
+
+  var _ = Vue.util;
+
+  Vue.directive('link', {
+
+    bind: function bind() {
+      var _this = this;
+
+      var vm = this.vm;
+      /* istanbul ignore if */
+      if (!vm.$route) {
+        warn('v-link can only be used inside a ' + 'router-enabled app.');
+        return;
+      }
+      // no need to handle click if link expects to be opened
+      // in a new window/tab.
+      /* istanbul ignore if */
+      if (this.el.tagName === 'A' && this.el.getAttribute('target') === '_blank') {
+        return;
+      }
+      // handle click
+      var router = vm.$route.router;
+      this.handler = function (e) {
+        // don't redirect with control keys
+        if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+        // don't redirect when preventDefault called
+        if (e.defaultPrevented) return;
+        // don't redirect on right click
+        if (e.button !== 0) return;
+
+        var target = _this.target;
+        var go = function go(target) {
+          e.preventDefault();
+          if (target != null) {
+            router.go(target);
+          }
+        };
+
+        if (_this.el.tagName === 'A' || e.target === _this.el) {
+          // v-link on <a v-link="'path'">
+          go(target);
+        } else {
+          // v-link delegate on <div v-link>
+          var el = e.target;
+          while (el && el.tagName !== 'A' && el !== _this.el) {
+            el = el.parentNode;
+          }
+          if (!el) return;
+          if (el.tagName !== 'A' || !el.href) {
+            // allow not anchor
+            go(target);
+          } else if (sameOrigin(el)) {
+            go({
+              path: el.pathname,
+              replace: target && target.replace,
+              append: target && target.append
+            });
+          }
+        }
+      };
+      this.el.addEventListener('click', this.handler);
+      // manage active link class
+      this.unwatch = vm.$watch('$route.path', _.bind(this.updateClasses, this));
+    },
+
+    update: function update(path) {
+      var router = this.vm.$route.router;
+      var append = undefined;
+      this.target = path;
+      if (_.isObject(path)) {
+        append = path.append;
+        this.exact = path.exact;
+        this.prevActiveClass = this.activeClass;
+        this.activeClass = path.activeClass;
+      }
+      path = this.path = router._stringifyPath(path);
+      this.activeRE = path && !this.exact ? new RegExp('^' + path.replace(/\/$/, '').replace(regexEscapeRE, '\\$&') + '(\\/|$)') : null;
+      this.updateClasses(this.vm.$route.path);
+      var isAbsolute = path.charAt(0) === '/';
+      // do not format non-hash relative paths
+      var href = path && (router.mode === 'hash' || isAbsolute) ? router.history.formatPath(path, append) : path;
+      if (this.el.tagName === 'A') {
+        if (href) {
+          this.el.href = href;
+        } else {
+          this.el.removeAttribute('href');
+        }
+      }
+    },
+
+    updateClasses: function updateClasses(path) {
+      var el = this.el;
+      var router = this.vm.$route.router;
+      var activeClass = this.activeClass || router._linkActiveClass;
+      // clear old class
+      if (this.prevActiveClass !== activeClass) {
+        _.removeClass(el, this.prevActiveClass);
+      }
+      // remove query string before matching
+      var dest = this.path.replace(queryStringRE, '');
+      path = path.replace(queryStringRE, '');
+      // add new class
+      if (this.exact) {
+        if (dest === path ||
+        // also allow additional trailing slash
+        dest.charAt(dest.length - 1) !== '/' && dest === path.replace(trailingSlashRE, '')) {
+          _.addClass(el, activeClass);
+        } else {
+          _.removeClass(el, activeClass);
+        }
+      } else {
+        if (this.activeRE && this.activeRE.test(path)) {
+          _.addClass(el, activeClass);
+        } else {
+          _.removeClass(el, activeClass);
+        }
+      }
+    },
+
+    unbind: function unbind() {
+      this.el.removeEventListener('click', this.handler);
+      this.unwatch && this.unwatch();
+    }
+  });
+
+  function sameOrigin(link) {
+    return link.protocol === location.protocol && link.hostname === location.hostname && link.port === location.port;
+  }
+}
+
+var historyBackends = {
+  abstract: AbstractHistory,
+  hash: HashHistory,
+  html5: HTML5History
+};
+
+// late bind during install
+var Vue = undefined;
+
+/**
+ * Router constructor
+ *
+ * @param {Object} [options]
+ */
+
+var Router = (function () {
+  function Router() {
+    var _ref = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+
+    var _ref$hashbang = _ref.hashbang;
+    var hashbang = _ref$hashbang === undefined ? true : _ref$hashbang;
+    var _ref$abstract = _ref.abstract;
+    var abstract = _ref$abstract === undefined ? false : _ref$abstract;
+    var _ref$history = _ref.history;
+    var history = _ref$history === undefined ? false : _ref$history;
+    var _ref$saveScrollPosition = _ref.saveScrollPosition;
+    var saveScrollPosition = _ref$saveScrollPosition === undefined ? false : _ref$saveScrollPosition;
+    var _ref$transitionOnLoad = _ref.transitionOnLoad;
+    var transitionOnLoad = _ref$transitionOnLoad === undefined ? false : _ref$transitionOnLoad;
+    var _ref$suppressTransitionError = _ref.suppressTransitionError;
+    var suppressTransitionError = _ref$suppressTransitionError === undefined ? false : _ref$suppressTransitionError;
+    var _ref$root = _ref.root;
+    var root = _ref$root === undefined ? null : _ref$root;
+    var _ref$linkActiveClass = _ref.linkActiveClass;
+    var linkActiveClass = _ref$linkActiveClass === undefined ? 'v-link-active' : _ref$linkActiveClass;
+    babelHelpers.classCallCheck(this, Router);
+
+    /* istanbul ignore if */
+    if (!Router.installed) {
+      throw new Error('Please install the Router with Vue.use() before ' + 'creating an instance.');
+    }
+
+    // Vue instances
+    this.app = null;
+    this._views = [];
+    this._children = [];
+
+    // route recognizer
+    this._recognizer = new RouteRecognizer();
+    this._guardRecognizer = new RouteRecognizer();
+
+    // state
+    this._started = false;
+    this._startCb = null;
+    this._currentRoute = {};
+    this._currentTransition = null;
+    this._previousTransition = null;
+    this._notFoundHandler = null;
+    this._notFoundRedirect = null;
+    this._beforeEachHooks = [];
+    this._afterEachHooks = [];
+
+    // feature detection
+    this._hasPushState = typeof window !== 'undefined' && window.history && window.history.pushState;
+
+    // trigger transition on initial render?
+    this._rendered = false;
+    this._transitionOnLoad = transitionOnLoad;
+
+    // history mode
+    this._abstract = abstract;
+    this._hashbang = hashbang;
+    this._history = this._hasPushState && history;
+
+    // other options
+    this._saveScrollPosition = saveScrollPosition;
+    this._linkActiveClass = linkActiveClass;
+    this._suppress = suppressTransitionError;
+
+    // create history object
+    var inBrowser = Vue.util.inBrowser;
+    this.mode = !inBrowser || this._abstract ? 'abstract' : this._history ? 'html5' : 'hash';
+
+    var History = historyBackends[this.mode];
+    var self = this;
+    this.history = new History({
+      root: root,
+      hashbang: this._hashbang,
+      onChange: function onChange(path, state, anchor) {
+        self._match(path, state, anchor);
+      }
+    });
+  }
+
+  /**
+   * Allow directly passing components to a route
+   * definition.
+   *
+   * @param {String} path
+   * @param {Object} handler
+   */
+
+  // API ===================================================
+
+  /**
+  * Register a map of top-level paths.
+  *
+  * @param {Object} map
+  */
+
+  Router.prototype.map = function map(_map) {
+    for (var route in _map) {
+      this.on(route, _map[route]);
+    }
+  };
+
+  /**
+   * Register a single root-level path
+   *
+   * @param {String} rootPath
+   * @param {Object} handler
+   *                 - {String} component
+   *                 - {Object} [subRoutes]
+   *                 - {Boolean} [forceRefresh]
+   *                 - {Function} [before]
+   *                 - {Function} [after]
+   */
+
+  Router.prototype.on = function on(rootPath, handler) {
+    if (rootPath === '*') {
+      this._notFound(handler);
+    } else {
+      this._addRoute(rootPath, handler, []);
+    }
+  };
+
+  /**
+   * Set redirects.
+   *
+   * @param {Object} map
+   */
+
+  Router.prototype.redirect = function redirect(map) {
+    for (var path in map) {
+      this._addRedirect(path, map[path]);
+    }
+  };
+
+  /**
+   * Set aliases.
+   *
+   * @param {Object} map
+   */
+
+  Router.prototype.alias = function alias(map) {
+    for (var path in map) {
+      this._addAlias(path, map[path]);
+    }
+  };
+
+  /**
+   * Set global before hook.
+   *
+   * @param {Function} fn
+   */
+
+  Router.prototype.beforeEach = function beforeEach(fn) {
+    this._beforeEachHooks.push(fn);
+  };
+
+  /**
+   * Set global after hook.
+   *
+   * @param {Function} fn
+   */
+
+  Router.prototype.afterEach = function afterEach(fn) {
+    this._afterEachHooks.push(fn);
+  };
+
+  /**
+   * Navigate to a given path.
+   * The path can be an object describing a named path in
+   * the format of { name: '...', params: {}, query: {}}
+   * The path is assumed to be already decoded, and will
+   * be resolved against root (if provided)
+   *
+   * @param {String|Object} path
+   * @param {Boolean} [replace]
+   */
+
+  Router.prototype.go = function go(path) {
+    var replace = false;
+    var append = false;
+    if (Vue.util.isObject(path)) {
+      replace = path.replace;
+      append = path.append;
+    }
+    path = this._stringifyPath(path);
+    if (path) {
+      this.history.go(path, replace, append);
+    }
+  };
+
+  /**
+   * Short hand for replacing current path
+   *
+   * @param {String} path
+   */
+
+  Router.prototype.replace = function replace(path) {
+    if (typeof path === 'string') {
+      path = { path: path };
+    }
+    path.replace = true;
+    this.go(path);
+  };
+
+  /**
+   * Start the router.
+   *
+   * @param {VueConstructor} App
+   * @param {String|Element} container
+   * @param {Function} [cb]
+   */
+
+  Router.prototype.start = function start(App, container, cb) {
+    /* istanbul ignore if */
+    if (this._started) {
+      warn('already started.');
+      return;
+    }
+    this._started = true;
+    this._startCb = cb;
+    if (!this.app) {
+      /* istanbul ignore if */
+      if (!App || !container) {
+        throw new Error('Must start vue-router with a component and a ' + 'root container.');
+      }
+      this._appContainer = container;
+      var Ctor = this._appConstructor = typeof App === 'function' ? App : Vue.extend(App);
+      // give it a name for better debugging
+      Ctor.options.name = Ctor.options.name || 'RouterApp';
+    }
+    this.history.start();
+  };
+
+  /**
+   * Stop listening to route changes.
+   */
+
+  Router.prototype.stop = function stop() {
+    this.history.stop();
+    this._started = false;
+  };
+
+  // Internal methods ======================================
+
+  /**
+  * Add a route containing a list of segments to the internal
+  * route recognizer. Will be called recursively to add all
+  * possible sub-routes.
+  *
+  * @param {String} path
+  * @param {Object} handler
+  * @param {Array} segments
+  */
+
+  Router.prototype._addRoute = function _addRoute(path, handler, segments) {
+    guardComponent(path, handler);
+    handler.path = path;
+    handler.fullPath = (segments.reduce(function (path, segment) {
+      return path + segment.path;
+    }, '') + path).replace('//', '/');
+    segments.push({
+      path: path,
+      handler: handler
+    });
+    this._recognizer.add(segments, {
+      as: handler.name
+    });
+    // add sub routes
+    if (handler.subRoutes) {
+      for (var subPath in handler.subRoutes) {
+        // recursively walk all sub routes
+        this._addRoute(subPath, handler.subRoutes[subPath],
+        // pass a copy in recursion to avoid mutating
+        // across branches
+        segments.slice());
+      }
+    }
+  };
+
+  /**
+   * Set the notFound route handler.
+   *
+   * @param {Object} handler
+   */
+
+  Router.prototype._notFound = function _notFound(handler) {
+    guardComponent('*', handler);
+    this._notFoundHandler = [{ handler: handler }];
+  };
+
+  /**
+   * Add a redirect record.
+   *
+   * @param {String} path
+   * @param {String} redirectPath
+   */
+
+  Router.prototype._addRedirect = function _addRedirect(path, redirectPath) {
+    if (path === '*') {
+      this._notFoundRedirect = redirectPath;
+    } else {
+      this._addGuard(path, redirectPath, this.replace);
+    }
+  };
+
+  /**
+   * Add an alias record.
+   *
+   * @param {String} path
+   * @param {String} aliasPath
+   */
+
+  Router.prototype._addAlias = function _addAlias(path, aliasPath) {
+    this._addGuard(path, aliasPath, this._match);
+  };
+
+  /**
+   * Add a path guard.
+   *
+   * @param {String} path
+   * @param {String} mappedPath
+   * @param {Function} handler
+   */
+
+  Router.prototype._addGuard = function _addGuard(path, mappedPath, _handler) {
+    var _this = this;
+
+    this._guardRecognizer.add([{
+      path: path,
+      handler: function handler(match, query) {
+        var realPath = mapParams(mappedPath, match.params, query);
+        _handler.call(_this, realPath);
+      }
+    }]);
+  };
+
+  /**
+   * Check if a path matches any redirect records.
+   *
+   * @param {String} path
+   * @return {Boolean} - if true, will skip normal match.
+   */
+
+  Router.prototype._checkGuard = function _checkGuard(path) {
+    var matched = this._guardRecognizer.recognize(path);
+    if (matched) {
+      matched[0].handler(matched[0], matched.queryParams);
+      return true;
+    } else if (this._notFoundRedirect) {
+      matched = this._recognizer.recognize(path);
+      if (!matched) {
+        this.replace(this._notFoundRedirect);
+        return true;
+      }
+    }
+  };
+
+  /**
+   * Match a URL path and set the route context on vm,
+   * triggering view updates.
+   *
+   * @param {String} path
+   * @param {Object} [state]
+   * @param {String} [anchor]
+   */
+
+  Router.prototype._match = function _match(path, state, anchor) {
+    var _this2 = this;
+
+    if (this._checkGuard(path)) {
+      return;
+    }
+
+    var currentRoute = this._currentRoute;
+    var currentTransition = this._currentTransition;
+
+    if (currentTransition) {
+      if (currentTransition.to.path === path) {
+        // do nothing if we have an active transition going to the same path
+        return;
+      } else if (currentRoute.path === path) {
+        // We are going to the same path, but we also have an ongoing but
+        // not-yet-validated transition. Abort that transition and reset to
+        // prev transition.
+        currentTransition.aborted = true;
+        this._currentTransition = this._prevTransition;
+        return;
+      } else {
+        // going to a totally different path. abort ongoing transition.
+        currentTransition.aborted = true;
+      }
+    }
+
+    // construct new route and transition context
+    var route = new Route(path, this);
+    var transition = new RouteTransition(this, route, currentRoute);
+
+    // current transition is updated right now.
+    // however, current route will only be updated after the transition has
+    // been validated.
+    this._prevTransition = currentTransition;
+    this._currentTransition = transition;
+
+    if (!this.app) {
+      // initial render
+      this.app = new this._appConstructor({
+        el: this._appContainer,
+        _meta: {
+          $route: route
+        }
+      });
+    }
+
+    // check global before hook
+    var beforeHooks = this._beforeEachHooks;
+    var startTransition = function startTransition() {
+      transition.start(function () {
+        _this2._postTransition(route, state, anchor);
+      });
+    };
+
+    if (beforeHooks.length) {
+      transition.runQueue(beforeHooks, function (hook, _, next) {
+        if (transition === _this2._currentTransition) {
+          transition.callHook(hook, null, next, {
+            expectBoolean: true
+          });
+        }
+      }, startTransition);
+    } else {
+      startTransition();
+    }
+
+    if (!this._rendered && this._startCb) {
+      this._startCb.call(null);
+    }
+
+    // HACK:
+    // set rendered to true after the transition start, so
+    // that components that are acitvated synchronously know
+    // whether it is the initial render.
+    this._rendered = true;
+  };
+
+  /**
+   * Set current to the new transition.
+   * This is called by the transition object when the
+   * validation of a route has succeeded.
+   *
+   * @param {Transition} transition
+   */
+
+  Router.prototype._onTransitionValidated = function _onTransitionValidated(transition) {
+    // set current route
+    var route = this._currentRoute = transition.to;
+    // update route context for all children
+    if (this.app.$route !== route) {
+      this.app.$route = route;
+      this._children.forEach(function (child) {
+        child.$route = route;
+      });
+    }
+    // call global after hook
+    if (this._afterEachHooks.length) {
+      this._afterEachHooks.forEach(function (hook) {
+        return hook.call(null, {
+          to: transition.to,
+          from: transition.from
+        });
+      });
+    }
+    this._currentTransition.done = true;
+  };
+
+  /**
+   * Handle stuff after the transition.
+   *
+   * @param {Route} route
+   * @param {Object} [state]
+   * @param {String} [anchor]
+   */
+
+  Router.prototype._postTransition = function _postTransition(route, state, anchor) {
+    // handle scroll positions
+    // saved scroll positions take priority
+    // then we check if the path has an anchor
+    var pos = state && state.pos;
+    if (pos && this._saveScrollPosition) {
+      Vue.nextTick(function () {
+        window.scrollTo(pos.x, pos.y);
+      });
+    } else if (anchor) {
+      Vue.nextTick(function () {
+        var el = document.getElementById(anchor.slice(1));
+        if (el) {
+          window.scrollTo(window.scrollX, el.offsetTop);
+        }
+      });
+    }
+  };
+
+  /**
+   * Normalize named route object / string paths into
+   * a string.
+   *
+   * @param {Object|String|Number} path
+   * @return {String}
+   */
+
+  Router.prototype._stringifyPath = function _stringifyPath(path) {
+    if (path && typeof path === 'object') {
+      if (path.name) {
+        var params = path.params || {};
+        if (path.query) {
+          params.queryParams = path.query;
+        }
+        return this._recognizer.generate(path.name, params);
+      } else if (path.path) {
+        var fullPath = path.path;
+        if (path.query) {
+          var query = this._recognizer.generateQueryString(path.query);
+          if (fullPath.indexOf('?') > -1) {
+            fullPath += '&' + query.slice(1);
+          } else {
+            fullPath += query;
+          }
+        }
+        return fullPath;
+      } else {
+        return '';
+      }
+    } else {
+      return path ? path + '' : '';
+    }
+  };
+
+  return Router;
+})();
+
+function guardComponent(path, handler) {
+  var comp = handler.component;
+  if (Vue.util.isPlainObject(comp)) {
+    comp = handler.component = Vue.extend(comp);
+  }
+  /* istanbul ignore if */
+  if (typeof comp !== 'function') {
+    handler.component = null;
+    warn('invalid component for route "' + path + '".');
+  }
+}
+
+/* Installation */
+
+Router.installed = false;
+
+/**
+ * Installation interface.
+ * Install the necessary directives.
+ */
+
+Router.install = function (externalVue) {
+  /* istanbul ignore if */
+  if (Router.installed) {
+    warn('already installed.');
+    return;
+  }
+  Vue = externalVue;
+  applyOverride(Vue);
+  View(Vue);
+  Link(Vue);
+  exports$1.Vue = Vue;
+  Router.installed = true;
+};
+
+// auto install
+/* istanbul ignore if */
+if (typeof window !== 'undefined' && window.Vue) {
+  window.Vue.use(Router);
+}
+
+module.exports = Router;
+},{}],24:[function(require,module,exports){
 (function (process){
 /*!
  * Vue.js v1.0.13
@@ -20385,7 +22920,7 @@ if (process.env.NODE_ENV !== 'production' && inBrowser) {
 
 module.exports = Vue;
 }).call(this,require('_process'))
-},{"_process":2}],24:[function(require,module,exports){
+},{"_process":2}],25:[function(require,module,exports){
 var inserted = exports.cache = {}
 
 exports.insert = function (css) {
@@ -20405,8 +22940,8 @@ exports.insert = function (css) {
   return elem
 }
 
-},{}],25:[function(require,module,exports){
-var __vueify_style__ = require("vueify-insert-css").insert("#app {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  min-height: 100vh;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column;\n  background: #f1f1f1;\n  color: #666;\n  font-family: \"Lato\", sans-serif;\n  font-size: 12px;\n  line-height: 18px; }\n")
+},{}],26:[function(require,module,exports){
+var __vueify_style__ = require("vueify-insert-css").insert("#app {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  min-height: 100vh;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column;\n  background: #f1f1f1;\n  color: #666;\n  font-family: \"Lato\", sans-serif;\n  font-size: 12px;\n  line-height: 18px; }\n\n.content-wrapper {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1;\n  transition: margin 0.35s; }\n  @media (min-width: 769px) {\n    .content-wrapper {\n      margin-left: 155px; } }\n  @media (min-width: 1281px) {\n    .content-wrapper {\n      margin-left: 200px; } }\n")
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -20463,7 +22998,7 @@ exports.default = {
         _shared2.default.init(function () {
             _this.initStores();
             // Hide the overlaying loading screen.
-            //this.toggleOverlay();
+            _this.toggleOverlay();
 
             // Ask for user's notificatio permission.
             _this.requestNotifPermission();
@@ -20511,14 +23046,14 @@ exports.default = {
     }
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"app\" tabindex=\"0\" @keydown.f=\"search\">        \n        <sidebar></sidebar>\n        <main-content></main-content>\n        <overlay v-show=\"loading\"></overlay>\n    </div>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"app\" tabindex=\"0\" @keydown.f=\"search\">        \n        <sidebar></sidebar>\n        <div class=\"content-wrapper\">\n            <router-view></router-view>\n        </div>\n        <overlay v-show=\"loading\"></overlay>\n    </div>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
   var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/app.vue"
   module.hot.dispose(function () {
-    require("vueify-insert-css").cache["#app {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  min-height: 100vh;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column;\n  background: #f1f1f1;\n  color: #666;\n  font-family: \"Lato\", sans-serif;\n  font-size: 12px;\n  line-height: 18px; }\n"] = false
+    require("vueify-insert-css").cache["#app {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  min-height: 100vh;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column;\n  background: #f1f1f1;\n  color: #666;\n  font-family: \"Lato\", sans-serif;\n  font-size: 12px;\n  line-height: 18px; }\n\n.content-wrapper {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1;\n  transition: margin 0.35s; }\n  @media (min-width: 769px) {\n    .content-wrapper {\n      margin-left: 155px; } }\n  @media (min-width: 1281px) {\n    .content-wrapper {\n      margin-left: 200px; } }\n"] = false
     document.head.removeChild(__vueify_style__)
   })
   if (!module.hot.data) {
@@ -20527,7 +23062,7 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"./components/main/index.vue":29,"./components/shared/overlay.vue":31,"./components/sidebar/index.vue":32,"./stores/playlist":35,"./stores/setting":36,"./stores/shared":37,"jquery":1,"vue":23,"vue-hot-reload-api":3,"vueify-insert-css":24}],26:[function(require,module,exports){
+},{"./components/main/index.vue":33,"./components/shared/overlay.vue":36,"./components/sidebar/index.vue":37,"./stores/playlist":40,"./stores/setting":41,"./stores/shared":42,"jquery":1,"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],27:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -20546,19 +23081,122 @@ exports.default = {
 
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div>\n    </div>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div>\n        <h2>Dashboard stuff</h2>\n    </div>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
-  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/index.vue"
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/dashboard.vue"
   if (!module.hot.data) {
     hotAPI.createRecord(id, module.exports)
   } else {
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"vue":23,"vue-hot-reload-api":3}],27:[function(require,module,exports){
+},{"vue":24,"vue-hot-reload-api":3}],28:[function(require,module,exports){
+var __vueify_style__ = require("vueify-insert-css").insert(".content {\n  padding: 20px; }\n")
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _dashboard = require("./dashboard.vue");
+
+var _dashboard2 = _interopRequireDefault(_dashboard);
+
+var _settings = require("./settings.vue");
+
+var _settings2 = _interopRequireDefault(_settings);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.default = {
+    components: { Dashboard: _dashboard2.default, Settings: _settings2.default },
+    props: [],
+    data: function data() {
+        return {};
+    },
+    ready: function ready() {},
+
+    methods: {},
+    events: {}
+
+};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div class=\"content\">\n        <dashboard v-show=\"$route.name == 'dashboard'\"></dashboard>\n        <settings v-show=\"$route.name == 'settings'\"></settings>\n    </div>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/index.vue"
+  module.hot.dispose(function () {
+    require("vueify-insert-css").cache[".content {\n  padding: 20px; }\n"] = false
+    document.head.removeChild(__vueify_style__)
+  })
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+},{"./dashboard.vue":27,"./settings.vue":30,"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],29:[function(require,module,exports){
+var __vueify_style__ = require("vueify-insert-css").insert(".error-404 {\n  text-align: center; }\n")
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = {};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div>\n        <h1 class=\"error-404\">Page Not Found</h1>\n    </div>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/not-found.vue"
+  module.hot.dispose(function () {
+    require("vueify-insert-css").cache[".error-404 {\n  text-align: center; }\n"] = false
+    document.head.removeChild(__vueify_style__)
+  })
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+},{"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],30:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+exports.default = {
+    components: {},
+    props: [],
+    data: function data() {
+        return {};
+    },
+    ready: function ready() {},
+
+    methods: {},
+    events: {}
+
+};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div>\n        <h2>settings</h2>\n    </div>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/settings.vue"
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+},{"vue":24,"vue-hot-reload-api":3}],31:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -20589,14 +23227,22 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"vue":23,"vue-hot-reload-api":3}],28:[function(require,module,exports){
+},{"vue":24,"vue-hot-reload-api":3}],32:[function(require,module,exports){
+var __vueify_style__ = require("vueify-insert-css").insert(".header {\n  background: white;\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex-direction: row;\n      -ms-flex-direction: row;\n          flex-direction: row;\n  -webkit-justify-content: space-between;\n      -ms-flex-pack: justify;\n          justify-content: space-between;\n  -webkit-align-items: center;\n      -ms-flex-align: center;\n          align-items: center;\n  width: 100%;\n  padding: 20px; }\n  .header .page-title {\n    margin: 0;\n    font-weight: 300; }\n  .header .button {\n    margin-bottom: 0; }\n")
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
+
+var _controlButtons = require("../../shared/control-buttons.vue");
+
+var _controlButtons2 = _interopRequireDefault(_controlButtons);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
 exports.default = {
-    components: {},
+    components: { controlButtons: _controlButtons2.default },
     props: [],
     data: function data() {
         return {};
@@ -20608,20 +23254,24 @@ exports.default = {
 
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div>\n    </div>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div class=\"header\">\n        <div class=\"page-meta\">\n            <h1 class=\"page-title\">{{ $route.name | capitalize }}</h1>\n        </div>\n        <control-buttons></control-buttons>\n    </div>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
   var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/header/index.vue"
+  module.hot.dispose(function () {
+    require("vueify-insert-css").cache[".header {\n  background: white;\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex-direction: row;\n      -ms-flex-direction: row;\n          flex-direction: row;\n  -webkit-justify-content: space-between;\n      -ms-flex-pack: justify;\n          justify-content: space-between;\n  -webkit-align-items: center;\n      -ms-flex-align: center;\n          align-items: center;\n  width: 100%;\n  padding: 20px; }\n  .header .page-title {\n    margin: 0;\n    font-weight: 300; }\n  .header .button {\n    margin-bottom: 0; }\n"] = false
+    document.head.removeChild(__vueify_style__)
+  })
   if (!module.hot.data) {
     hotAPI.createRecord(id, module.exports)
   } else {
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"vue":23,"vue-hot-reload-api":3}],29:[function(require,module,exports){
-var __vueify_style__ = require("vueify-insert-css").insert("#main-wrapper {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1; }\n")
+},{"../../shared/control-buttons.vue":34,"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],33:[function(require,module,exports){
+var __vueify_style__ = require("vueify-insert-css").insert("#main-wrapper {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n")
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -20653,7 +23303,7 @@ if (module.hot) {(function () {  module.hot.accept()
   if (!hotAPI.compatible) return
   var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/index.vue"
   module.hot.dispose(function () {
-    require("vueify-insert-css").cache["#main-wrapper {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1; }\n"] = false
+    require("vueify-insert-css").cache["#main-wrapper {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n"] = false
     document.head.removeChild(__vueify_style__)
   })
   if (!module.hot.data) {
@@ -20662,7 +23312,40 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"./content/index.vue":26,"./footer/index.vue":27,"./header/index.vue":28,"vue":23,"vue-hot-reload-api":3,"vueify-insert-css":24}],30:[function(require,module,exports){
+},{"./content/index.vue":28,"./footer/index.vue":31,"./header/index.vue":32,"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],34:[function(require,module,exports){
+var __vueify_style__ = require("vueify-insert-css").insert(".control-buttons .button {\n  border-radius: 2px;\n  transition: background 0.35s, box-shadow 0.15s;\n  border: 1px solid #c4c4c4;\n  color: #666;\n  background: linear-gradient(to bottom, #f8f8f8, #eaeaea 100%);\n  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }\n  .control-buttons .button:active {\n    box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125); }\n")
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+exports.default = {
+
+    methods: {
+        restartFppd: function restartFppd() {},
+        rebootPi: function rebootPi() {},
+        shutdownPi: function shutdownPi() {}
+    }
+
+};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div class=\"control-buttons\">\n        <a href=\"#\" class=\"button small restart-fppd\">Restart FPPD</a>\n        <a href=\"#\" class=\"button small reboot-pi\">Reboot Pi</a>\n        <a href=\"#\" class=\"button small shutdown-pi\">Shutdown Pi</a>\n    </div>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/shared/control-buttons.vue"
+  module.hot.dispose(function () {
+    require("vueify-insert-css").cache[".control-buttons .button {\n  border-radius: 2px;\n  transition: background 0.35s, box-shadow 0.15s;\n  border: 1px solid #c4c4c4;\n  color: #666;\n  background: linear-gradient(to bottom, #f8f8f8, #eaeaea 100%);\n  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }\n  .control-buttons .button:active {\n    box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125); }\n"] = false
+    document.head.removeChild(__vueify_style__)
+  })
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+},{"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],35:[function(require,module,exports){
 var __vueify_style__ = require("vueify-insert-css").insert("@-webkit-keyframes grow {\n  0% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  33% {\n    opacity: 1;\n    -webkit-transform: scale(1);\n            transform: scale(1); }\n  66% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  100% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); } }\n\n@keyframes grow {\n  0% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  33% {\n    opacity: 1;\n    -webkit-transform: scale(1);\n            transform: scale(1); }\n  66% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  100% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); } }\n\n#load {\n  position: relative;\n  display: inline-block;\n  text-align: center; }\n  #load .letter {\n    display: inline-block;\n    margin: 0 2px;\n    color: white;\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9);\n    -webkit-animation: grow 2.5s ease-in infinite;\n            animation: grow 2.5s ease-in infinite; }\n  #load .letter:nth-child(1) {\n    -webkit-animation-delay: .1s;\n            animation-delay: .1s; }\n  #load .letter:nth-child(2) {\n    -webkit-animation-delay: .15s;\n            animation-delay: .15s; }\n  #load .letter:nth-child(3) {\n    -webkit-animation-delay: .2s;\n            animation-delay: .2s; }\n  #load .letter:nth-child(4) {\n    -webkit-animation-delay: .25s;\n            animation-delay: .25s; }\n  #load .letter:nth-child(5) {\n    -webkit-animation-delay: .3s;\n            animation-delay: .3s; }\n  #load .letter:nth-child(6) {\n    -webkit-animation-delay: .35s;\n            animation-delay: .35s; }\n  #load .letter:nth-child(7) {\n    margin-left: 8px;\n    -webkit-animation-delay: .4s;\n            animation-delay: .4s; }\n  #load .letter:nth-child(8) {\n    -webkit-animation-delay: .45s;\n            animation-delay: .45s; }\n  #load .letter:nth-child(9) {\n    -webkit-animation-delay: .5s;\n            animation-delay: .5s; }\n  #load .letter:nth-child(10) {\n    -webkit-animation-delay: .55s;\n            animation-delay: .55s; }\n  #load .letter:nth-child(11) {\n    -webkit-animation-delay: .6s;\n            animation-delay: .6s; }\n  #load .letter:nth-child(12) {\n    -webkit-animation-delay: .65s;\n            animation-delay: .65s; }\n")
 "use strict";
 
@@ -20687,7 +23370,7 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"vue":23,"vue-hot-reload-api":3,"vueify-insert-css":24}],31:[function(require,module,exports){
+},{"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],36:[function(require,module,exports){
 var __vueify_style__ = require("vueify-insert-css").insert("#overlay {\n  position: fixed;\n  top: 0;\n  left: 0;\n  z-index: 9999;\n  width: 100%;\n  height: 100%;\n  background-color: #363C47;\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-align-items: center;\n      -ms-flex-align: center;\n          align-items: center;\n  -webkit-justify-content: center;\n      -ms-flex-pack: center;\n          justify-content: center;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n  #overlay .logo {\n    width: 220px;\n    height: 108px;\n    margin-bottom: 15px;\n    position: relative;\n    left: -25px; }\n")
 "use strict";
 
@@ -20705,7 +23388,7 @@ exports.default = {
     components: { loading: _falconLoading2.default }
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"overlay\">\n        <img class=\"logo\" src=\"/img/logo.svg\">\n        <loading></loading>\n    </div>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"overlay\">\n        <svg class=\"logo\" xmlns=\"http://www.w3.org/2000/svg\" width=\"147\" height=\"72\" viewBox=\"0 0 147 72\" version=\"1.1\"><g id=\"Page-1\" stroke=\"none\" stroke-width=\"1\" fill=\"none\" fill-rule=\"evenodd\"><g id=\"Desktop-HD-2\" transform=\"translate(-32.000000, -27.000000)\" fill=\"#FFFFFF\"><g id=\"logo\" transform=\"translate(32.000000, 27.000000)\"><path d=\"M58.53 56.34C60.05 55.07 60.48 54.6 61.56 53.98 71.18 48.4 81.59 44.78 92.22 41.77 102.57 38.83 104.39 31.71 96.75 23.99 96.52 23.76 95.53 22.87 95.19 22.45 96.65 22.49 98.45 23.34 99.51 23.66 115.15 28.44 129.27 35.9 140.87 47.7 143.86 50.74 143.97 52.25 141.56 54.56 141.37 52.99 140.77 51.57 139.98 50.23 139.66 49.67 139.23 49.02 138.42 49.41 137.7 49.76 137.69 50.51 137.84 51.15 138.26 53.05 139.59 54.13 141.31 54.8 142.28 57.24 144.57 58.66 145.86 60.87 147.55 63.76 146.94 67.06 144.56 68.89 139.38 72.85 142.2 71.35 142.51 68.6 142.98 64.46 138.55 63.54 135.5 62.4 126.17 58.9 116.53 56.61 106.68 55.25 91.48 53.14 76.35 52.02 61.29 55.61L58.53 56.34ZM116.07 11.37C112.73 11.1 109.15 11.12 107.27 14.76 105.46 18.26 107.9 20.48 110.71 23.56 74.36 6.89 37.73 1.74 0 17.81 30.61-2.48 102.47-5.44 126.64 12.57L116.07 11.37ZM11.05 31.61C15.75 28.43 20.32 26.27 25.05 24.45 42.55 17.7 60.61 16.19 79.07 18.95 84.54 19.77 90.65 27.67 90.36 33.24 90.16 37.01 88.35 38 85.02 36.34 62.56 25.14 41.11 21.25 17.13 29.45 15.96 29.69 13.41 31.03 11.05 31.61ZM83.45 40.75C76.11 43.06 68.74 45.31 62.51 49.76 57.94 53.02 60.34 52.27 60.65 48.78 60.98 45.08 58.56 43.4 55.59 42.3 49.33 39.99 43.19 39.26 36.67 40.36 34.51 40.73 32.05 41.03 29.88 41.64 47.54 34.55 65.37 34.03 83.45 40.75Z\" id=\"Fill-1\"></path></g></g></g></svg>\n        <loading></loading>\n    </div>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
@@ -20721,8 +23404,8 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"./falcon-loading.vue":30,"vue":23,"vue-hot-reload-api":3,"vueify-insert-css":24}],32:[function(require,module,exports){
-var __vueify_style__ = require("vueify-insert-css").insert(".sidebar {\n  width: 155px;\n  position: fixed;\n  height: 100%;\n  background: #363C47;\n  z-index: 10;\n  padding: 20px;\n  transition: all 0.25s;\n  left: -155px; }\n  @media (min-width: 769px) {\n    .sidebar {\n      left: 0;\n      width: 155px; } }\n  @media (min-width: 1281px) {\n    .sidebar {\n      width: 200px; } }\n  .sidebar .logo {\n    margin: 0 0 40px; }\n    .sidebar .logo img {\n      width: 100%;\n      height: auto; }\n  .sidebar h4 {\n    text-transform: uppercase;\n    color: #999;\n    font-size: 10px;\n    font-weight: 600;\n    letter-spacing: 1px;\n    margin: 20px 0 0; }\n  .sidebar a {\n    color: #eaeaea;\n    font-weight: 300;\n    font-size: 14px;\n    transition: all 0.25s; }\n    .sidebar a:hover {\n      color: #fff; }\n")
+},{"./falcon-loading.vue":35,"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],37:[function(require,module,exports){
+var __vueify_style__ = require("vueify-insert-css").insert(".sidebar {\n  width: 155px;\n  position: fixed;\n  height: 100%;\n  background: #363C47;\n  z-index: 10;\n  padding: 20px;\n  transition: all 0.25s;\n  left: -155px; }\n  @media (min-width: 769px) {\n    .sidebar {\n      left: 0;\n      width: 155px; } }\n  @media (min-width: 1281px) {\n    .sidebar {\n      width: 200px; } }\n  .sidebar .logo {\n    margin: 0 0 40px; }\n    .sidebar .logo img {\n      width: 100%;\n      height: auto; }\n  .sidebar h4 {\n    text-transform: uppercase;\n    color: #999;\n    font-size: 10px;\n    font-weight: 600;\n    letter-spacing: 1px;\n    margin: 20px 0 0; }\n  .sidebar li {\n    padding: 3px 0; }\n  .sidebar a {\n    color: #eaeaea;\n    font-weight: 300;\n    font-size: 14px;\n    transition: all 0.25s; }\n    .sidebar a:hover {\n      color: #fff; }\n    .sidebar a.active {\n      color: #fff;\n      font-weight: 500; }\n")
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -20741,14 +23424,14 @@ exports.default = {
 
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <aside id=\"sidebar-left\" class=\"sidebar affix\">\n\n    <div class=\"logo\">\n        <img src=\"/img/logo.svg\">\n    </div>\n\n    <div class=\"sidebar-menu\">\n        <div class=\"menu-section\">\n            <h4>Control</h4>\n            <ul class=\"nav\">\n\n            </ul>\n        </div>\n\n        <div class=\"menu-section\">\n            <h4>Content</h4>\n            <ul class=\"nav\">\n\n            </ul>\n            \n        </div>\n\n        <div class=\"menu-section\">\n            <h4>Settings</h4>\n            <ul class=\"nav\">\n\n            </ul>\n        </div>\n    </div>\n</aside>\n\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <aside id=\"sidebar-left\" class=\"sidebar affix\">\n\n    <div class=\"logo\">\n        <img src=\"/img/logo.svg\">\n    </div>\n\n    <div class=\"sidebar-menu\">\n        <div class=\"menu-section\">\n            <h4>Control</h4>\n            <ul class=\"nav\">\n                <li><a v-link=\"{ name: 'dashboard' , activeClass: 'active' }\">Dashboard</a></li>\n                <li><a href=\"\">Display Testing</a></li>\n                <li><a href=\"\">Events</a></li>\n                <li><a href=\"\">Effects</a></li>\n            </ul>\n        </div>\n\n        <div class=\"menu-section\">\n            <h4>Content</h4>\n            <ul class=\"nav\">\n                <li><a href=\"\">File Manager</a></li>\n                <li><a href=\"\">Playlists</a></li>\n                <li><a href=\"\">Schedule</a></li>\n                <li><a href=\"\">Plugins</a></li>\n            </ul>\n            \n        </div>\n\n        <div class=\"menu-section\">\n            <h4>Settings</h4>\n            <ul class=\"nav\">\n                <li><a v-link=\"{name: 'settings', activeClass: 'active'}\">General</a></li>\n                <li><a href=\"\">Network</a></li>\n                <li><a href=\"\">Channel Outputs</a></li>\n                <li><a href=\"\">Overlay Models</a></li>\n            </ul>\n        </div>\n    </div>\n</aside>\n\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
   var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/sidebar/index.vue"
   module.hot.dispose(function () {
-    require("vueify-insert-css").cache[".sidebar {\n  width: 155px;\n  position: fixed;\n  height: 100%;\n  background: #363C47;\n  z-index: 10;\n  padding: 20px;\n  transition: all 0.25s;\n  left: -155px; }\n  @media (min-width: 769px) {\n    .sidebar {\n      left: 0;\n      width: 155px; } }\n  @media (min-width: 1281px) {\n    .sidebar {\n      width: 200px; } }\n  .sidebar .logo {\n    margin: 0 0 40px; }\n    .sidebar .logo img {\n      width: 100%;\n      height: auto; }\n  .sidebar h4 {\n    text-transform: uppercase;\n    color: #999;\n    font-size: 10px;\n    font-weight: 600;\n    letter-spacing: 1px;\n    margin: 20px 0 0; }\n  .sidebar a {\n    color: #eaeaea;\n    font-weight: 300;\n    font-size: 14px;\n    transition: all 0.25s; }\n    .sidebar a:hover {\n      color: #fff; }\n"] = false
+    require("vueify-insert-css").cache[".sidebar {\n  width: 155px;\n  position: fixed;\n  height: 100%;\n  background: #363C47;\n  z-index: 10;\n  padding: 20px;\n  transition: all 0.25s;\n  left: -155px; }\n  @media (min-width: 769px) {\n    .sidebar {\n      left: 0;\n      width: 155px; } }\n  @media (min-width: 1281px) {\n    .sidebar {\n      width: 200px; } }\n  .sidebar .logo {\n    margin: 0 0 40px; }\n    .sidebar .logo img {\n      width: 100%;\n      height: auto; }\n  .sidebar h4 {\n    text-transform: uppercase;\n    color: #999;\n    font-size: 10px;\n    font-weight: 600;\n    letter-spacing: 1px;\n    margin: 20px 0 0; }\n  .sidebar li {\n    padding: 3px 0; }\n  .sidebar a {\n    color: #eaeaea;\n    font-weight: 300;\n    font-size: 14px;\n    transition: all 0.25s; }\n    .sidebar a:hover {\n      color: #fff; }\n    .sidebar a.active {\n      color: #fff;\n      font-weight: 500; }\n"] = false
     document.head.removeChild(__vueify_style__)
   })
   if (!module.hot.data) {
@@ -20757,19 +23440,44 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"vue":23,"vue-hot-reload-api":3,"vueify-insert-css":24}],33:[function(require,module,exports){
+},{"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],38:[function(require,module,exports){
 'use strict';
 
 var $ = require('jquery');
+var VueRouter = require('vue-router');
+
 window.Vue = require('vue');
+Vue.use(VueRouter);
 Vue.use(require('vue-resource'));
 Vue.http.options.root = '/api';
 Vue.http.headers.common['X-CSRF-TOKEN'] = $('meta[name="csrf-token"]').attr('content');
 Vue.config.debug = false;
 
-new Vue(require('./app.vue')).$mount('body');
+var router = new VueRouter({
+    hashBang: false,
+    history: true
+});
+var App = require('./app.vue');
 
-},{"./app.vue":25,"jquery":1,"vue":23,"vue-resource":8}],34:[function(require,module,exports){
+var MainContent = require('./components/main/index.vue');
+
+router.map({
+    '*': {
+        component: require('./components/main/content/not-found.vue')
+    },
+    '/': {
+        name: 'dashboard',
+        component: MainContent
+    },
+    '/settings': {
+        name: 'settings',
+        component: MainContent
+    }
+});
+
+router.start(App, 'body');
+
+},{"./app.vue":26,"./components/main/content/not-found.vue":29,"./components/main/index.vue":33,"jquery":1,"vue":24,"vue-resource":8,"vue-router":23}],39:[function(require,module,exports){
 'use strict';
 
 var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
@@ -20843,10 +23551,10 @@ exports.default = {
     }
 };
 
-},{}],35:[function(require,module,exports){
+},{}],40:[function(require,module,exports){
 "use strict";
 
-},{}],36:[function(require,module,exports){
+},{}],41:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -20886,7 +23594,7 @@ exports.default = {
     }
 };
 
-},{"../services/http":34,"./shared":37}],37:[function(require,module,exports){
+},{"../services/http":39,"./shared":42}],42:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -20927,6 +23635,6 @@ exports.default = {
     }
 };
 
-},{"../services/http":34}]},{},[33]);
+},{"../services/http":39}]},{},[38]);
 
 //# sourceMappingURL=main.js.map

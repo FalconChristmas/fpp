@@ -1,6 +1,11 @@
 // @import "node_modules/bootstrap-sass/assets/stylesheets/bootstrap";
 
 @import "vars";
+@import "node_modules/bootstrap/scss/variables";
+@import "node_modules/bootstrap/scss/mixins";
 @import "mixins";
 @import "partials/fonts";
+@import "vendor/normalize";
 @import "shared";
+@import "partials/buttons";
+@import "node_modules/bootstrap/scss/nav";
