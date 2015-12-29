@@ -65,7 +65,7 @@
         .letter:nth-child(4) { animation-delay: .25s; }
         .letter:nth-child(5) { animation-delay: .3s; }
         .letter:nth-child(6) { animation-delay: .35s; }
-        .letter:nth-child(7) { margin-left: 6px; animation-delay: .4s; }
+        .letter:nth-child(7) { margin-left: 8px; animation-delay: .4s; }
         .letter:nth-child(8) { animation-delay: .45s; }
         .letter:nth-child(9) { animation-delay: .5s; }
         .letter:nth-child(10) { animation-delay: .55s; }

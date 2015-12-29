@@ -155,6 +155,7 @@ return [
         FPP\Providers\AuthServiceProvider::class,
         FPP\Providers\EventServiceProvider::class,
         FPP\Providers\RouteServiceProvider::class,
+        FPP\Providers\MenuServiceProvider::class,
 
     ],
 
@@ -201,6 +202,9 @@ return [
         'URL'       => Illuminate\Support\Facades\URL::class,
         'Validator' => Illuminate\Support\Facades\Validator::class,
         'View'      => Illuminate\Support\Facades\View::class,
+
+        'FPP'       => FPP\Facades\FPP::class,
+        'Menu'      => FPP\Facades\Menu::class,
 
     ],
 

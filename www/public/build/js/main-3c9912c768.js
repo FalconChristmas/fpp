@@ -20406,7 +20406,7 @@ exports.insert = function (css) {
 }
 
 },{}],25:[function(require,module,exports){
-var __vueify_style__ = require("vueify-insert-css").insert("/* line 5, stdin */\n#app {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  min-height: 100vh;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column;\n  background: #f1f1f1;\n  color: #666;\n  font-family: \"Lato\", sans-serif;\n  font-size: 12px;\n  line-height: 18px; }\n")
+var __vueify_style__ = require("vueify-insert-css").insert("#app {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  min-height: 100vh;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column;\n  background: #f1f1f1;\n  color: #666;\n  font-family: \"Lato\", sans-serif;\n  font-size: 12px;\n  line-height: 18px; }\n")
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -20463,12 +20463,12 @@ exports.default = {
         _shared2.default.init(function () {
             _this.initStores();
             // Hide the overlaying loading screen.
-            _this.toggleOverlay();
+            //this.toggleOverlay();
 
             // Ask for user's notificatio permission.
             _this.requestNotifPermission();
 
-            // Let all other compoenents know we're ready.
+            // Let all other components know we're ready.
             _this.$broadcast('fpp:ready');
         });
     },
@@ -20479,69 +20479,14 @@ exports.default = {
          */
 
         initStores: function initStores() {
-            _playlist2.default.init();
-            _setting2.default.init();
-        },
-
-        /**
-         * Play the prev song when user presses K.
-         *
-         * @param object e The keydown event
-         */
-        playPrev: function playPrev(e) {
-            if ((0, _jquery2.default)(e.target).is('input,textarea')) {
-                return true;
-            }
-
-            playback.playPrev();
-            e.preventDefault();
-        },
-
-        /**
-         * Play the next song when user presses J.
-         *
-         * @param object e The keydown event
-         */
-        playNext: function playNext(e) {
-            if ((0, _jquery2.default)(e.target).is('input,textarea')) {
-                return true;
-            }
-
-            playback.playNext();
-            e.preventDefault();
-        },
-
-        /**
-         * Put focus into the search field when user presses F.
-         *
-         * @param object e The keydown event
-         */
-        search: function search(e) {
-            if ((0, _jquery2.default)(e.target).is('input,textarea')) {
-                return true;
-            }
-
-            (0, _jquery2.default)('#searchForm input[type="search"]').focus().select();
-            e.preventDefault();
-        },
-
-        /**
-         * Request for notification permission if it's not provided and the user is OK with notifs.
-         */
-        requestNotifPermission: function requestNotifPermission() {
-            if (window.Notification && this.prefs.notify && Notification.permission !== 'granted') {
-                Notification.requestPermission(function (result) {
-                    if (result === 'denied') {
-                        preferenceStore.set('notify', false);
-                    }
-                });
-            }
+            // playlistStore.init();
+            // settingStore.init();
         },
 
         /**
          * Load (display) a main panel (view).
          *
-         * @param string view The view, which can be found under components/main-wrapper/main-content.
+         * @param string view The view, which can be found under components/main/main-content.
          */
         loadMainView: function loadMainView(view) {
             this.$broadcast('main-content-view:load', view);
@@ -20566,14 +20511,14 @@ exports.default = {
     }
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"app\" tabindex=\"0\" @keydown.f=\"search\">\n        \n        <sidebar></sidebar>\n        <main-content></main-content>\n        <overlay v-show=\"loading\"></overlay>\n    </div>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"app\" tabindex=\"0\" @keydown.f=\"search\">        \n        <sidebar></sidebar>\n        <main-content></main-content>\n        <overlay v-show=\"loading\"></overlay>\n    </div>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
   var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/app.vue"
   module.hot.dispose(function () {
-    require("vueify-insert-css").cache["/* line 5, stdin */\n#app {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  min-height: 100vh;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column;\n  background: #f1f1f1;\n  color: #666;\n  font-family: \"Lato\", sans-serif;\n  font-size: 12px;\n  line-height: 18px; }\n"] = false
+    require("vueify-insert-css").cache["#app {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  min-height: 100vh;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column;\n  background: #f1f1f1;\n  color: #666;\n  font-family: \"Lato\", sans-serif;\n  font-size: 12px;\n  line-height: 18px; }\n"] = false
     document.head.removeChild(__vueify_style__)
   })
   if (!module.hot.data) {
@@ -20676,7 +20621,7 @@ if (module.hot) {(function () {  module.hot.accept()
   }
 })()}
 },{"vue":23,"vue-hot-reload-api":3}],29:[function(require,module,exports){
-var __vueify_style__ = require("vueify-insert-css").insert("/* line 5, stdin */\n#main-wrapper {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1; }\n")
+var __vueify_style__ = require("vueify-insert-css").insert("#main-wrapper {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1; }\n")
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -20708,7 +20653,7 @@ if (module.hot) {(function () {  module.hot.accept()
   if (!hotAPI.compatible) return
   var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/index.vue"
   module.hot.dispose(function () {
-    require("vueify-insert-css").cache["/* line 5, stdin */\n#main-wrapper {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1; }\n"] = false
+    require("vueify-insert-css").cache["#main-wrapper {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1; }\n"] = false
     document.head.removeChild(__vueify_style__)
   })
   if (!module.hot.data) {
@@ -20718,7 +20663,7 @@ if (module.hot) {(function () {  module.hot.accept()
   }
 })()}
 },{"./content/index.vue":26,"./footer/index.vue":27,"./header/index.vue":28,"vue":23,"vue-hot-reload-api":3,"vueify-insert-css":24}],30:[function(require,module,exports){
-var __vueify_style__ = require("vueify-insert-css").insert("@-webkit-keyframes grow {\n  0% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  33% {\n    opacity: 1;\n    -webkit-transform: scale(1);\n            transform: scale(1); }\n  66% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  100% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); } }\n\n@keyframes grow {\n  0% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  33% {\n    opacity: 1;\n    -webkit-transform: scale(1);\n            transform: scale(1); }\n  66% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  100% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); } }\n\n/* line 23, stdin */\n#load {\n  position: relative;\n  display: inline-block;\n  text-align: center; }\n  /* line 30, stdin */\n  #load .letter {\n    display: inline-block;\n    margin: 0 2px;\n    color: white;\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9);\n    -webkit-animation: grow 2.5s ease-in infinite;\n            animation: grow 2.5s ease-in infinite; }\n  /* line 40, stdin */\n  #load .letter:nth-child(1) {\n    -webkit-animation-delay: .1s;\n            animation-delay: .1s; }\n  /* line 41, stdin */\n  #load .letter:nth-child(2) {\n    -webkit-animation-delay: .15s;\n            animation-delay: .15s; }\n  /* line 42, stdin */\n  #load .letter:nth-child(3) {\n    -webkit-animation-delay: .2s;\n            animation-delay: .2s; }\n  /* line 43, stdin */\n  #load .letter:nth-child(4) {\n    -webkit-animation-delay: .25s;\n            animation-delay: .25s; }\n  /* line 44, stdin */\n  #load .letter:nth-child(5) {\n    -webkit-animation-delay: .3s;\n            animation-delay: .3s; }\n  /* line 45, stdin */\n  #load .letter:nth-child(6) {\n    -webkit-animation-delay: .35s;\n            animation-delay: .35s; }\n  /* line 46, stdin */\n  #load .letter:nth-child(7) {\n    margin-left: 6px;\n    -webkit-animation-delay: .4s;\n            animation-delay: .4s; }\n  /* line 47, stdin */\n  #load .letter:nth-child(8) {\n    -webkit-animation-delay: .45s;\n            animation-delay: .45s; }\n  /* line 48, stdin */\n  #load .letter:nth-child(9) {\n    -webkit-animation-delay: .5s;\n            animation-delay: .5s; }\n  /* line 49, stdin */\n  #load .letter:nth-child(10) {\n    -webkit-animation-delay: .55s;\n            animation-delay: .55s; }\n  /* line 50, stdin */\n  #load .letter:nth-child(11) {\n    -webkit-animation-delay: .6s;\n            animation-delay: .6s; }\n  /* line 51, stdin */\n  #load .letter:nth-child(12) {\n    -webkit-animation-delay: .65s;\n            animation-delay: .65s; }\n")
+var __vueify_style__ = require("vueify-insert-css").insert("@-webkit-keyframes grow {\n  0% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  33% {\n    opacity: 1;\n    -webkit-transform: scale(1);\n            transform: scale(1); }\n  66% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  100% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); } }\n\n@keyframes grow {\n  0% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  33% {\n    opacity: 1;\n    -webkit-transform: scale(1);\n            transform: scale(1); }\n  66% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  100% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); } }\n\n#load {\n  position: relative;\n  display: inline-block;\n  text-align: center; }\n  #load .letter {\n    display: inline-block;\n    margin: 0 2px;\n    color: white;\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9);\n    -webkit-animation: grow 2.5s ease-in infinite;\n            animation: grow 2.5s ease-in infinite; }\n  #load .letter:nth-child(1) {\n    -webkit-animation-delay: .1s;\n            animation-delay: .1s; }\n  #load .letter:nth-child(2) {\n    -webkit-animation-delay: .15s;\n            animation-delay: .15s; }\n  #load .letter:nth-child(3) {\n    -webkit-animation-delay: .2s;\n            animation-delay: .2s; }\n  #load .letter:nth-child(4) {\n    -webkit-animation-delay: .25s;\n            animation-delay: .25s; }\n  #load .letter:nth-child(5) {\n    -webkit-animation-delay: .3s;\n            animation-delay: .3s; }\n  #load .letter:nth-child(6) {\n    -webkit-animation-delay: .35s;\n            animation-delay: .35s; }\n  #load .letter:nth-child(7) {\n    margin-left: 8px;\n    -webkit-animation-delay: .4s;\n            animation-delay: .4s; }\n  #load .letter:nth-child(8) {\n    -webkit-animation-delay: .45s;\n            animation-delay: .45s; }\n  #load .letter:nth-child(9) {\n    -webkit-animation-delay: .5s;\n            animation-delay: .5s; }\n  #load .letter:nth-child(10) {\n    -webkit-animation-delay: .55s;\n            animation-delay: .55s; }\n  #load .letter:nth-child(11) {\n    -webkit-animation-delay: .6s;\n            animation-delay: .6s; }\n  #load .letter:nth-child(12) {\n    -webkit-animation-delay: .65s;\n            animation-delay: .65s; }\n")
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -20733,7 +20678,7 @@ if (module.hot) {(function () {  module.hot.accept()
   if (!hotAPI.compatible) return
   var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/shared/falcon-loading.vue"
   module.hot.dispose(function () {
-    require("vueify-insert-css").cache["@-webkit-keyframes grow {\n  0% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  33% {\n    opacity: 1;\n    -webkit-transform: scale(1);\n            transform: scale(1); }\n  66% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  100% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); } }\n\n@keyframes grow {\n  0% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  33% {\n    opacity: 1;\n    -webkit-transform: scale(1);\n            transform: scale(1); }\n  66% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  100% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); } }\n\n/* line 23, stdin */\n#load {\n  position: relative;\n  display: inline-block;\n  text-align: center; }\n  /* line 30, stdin */\n  #load .letter {\n    display: inline-block;\n    margin: 0 2px;\n    color: white;\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9);\n    -webkit-animation: grow 2.5s ease-in infinite;\n            animation: grow 2.5s ease-in infinite; }\n  /* line 40, stdin */\n  #load .letter:nth-child(1) {\n    -webkit-animation-delay: .1s;\n            animation-delay: .1s; }\n  /* line 41, stdin */\n  #load .letter:nth-child(2) {\n    -webkit-animation-delay: .15s;\n            animation-delay: .15s; }\n  /* line 42, stdin */\n  #load .letter:nth-child(3) {\n    -webkit-animation-delay: .2s;\n            animation-delay: .2s; }\n  /* line 43, stdin */\n  #load .letter:nth-child(4) {\n    -webkit-animation-delay: .25s;\n            animation-delay: .25s; }\n  /* line 44, stdin */\n  #load .letter:nth-child(5) {\n    -webkit-animation-delay: .3s;\n            animation-delay: .3s; }\n  /* line 45, stdin */\n  #load .letter:nth-child(6) {\n    -webkit-animation-delay: .35s;\n            animation-delay: .35s; }\n  /* line 46, stdin */\n  #load .letter:nth-child(7) {\n    margin-left: 6px;\n    -webkit-animation-delay: .4s;\n            animation-delay: .4s; }\n  /* line 47, stdin */\n  #load .letter:nth-child(8) {\n    -webkit-animation-delay: .45s;\n            animation-delay: .45s; }\n  /* line 48, stdin */\n  #load .letter:nth-child(9) {\n    -webkit-animation-delay: .5s;\n            animation-delay: .5s; }\n  /* line 49, stdin */\n  #load .letter:nth-child(10) {\n    -webkit-animation-delay: .55s;\n            animation-delay: .55s; }\n  /* line 50, stdin */\n  #load .letter:nth-child(11) {\n    -webkit-animation-delay: .6s;\n            animation-delay: .6s; }\n  /* line 51, stdin */\n  #load .letter:nth-child(12) {\n    -webkit-animation-delay: .65s;\n            animation-delay: .65s; }\n"] = false
+    require("vueify-insert-css").cache["@-webkit-keyframes grow {\n  0% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  33% {\n    opacity: 1;\n    -webkit-transform: scale(1);\n            transform: scale(1); }\n  66% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  100% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); } }\n\n@keyframes grow {\n  0% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  33% {\n    opacity: 1;\n    -webkit-transform: scale(1);\n            transform: scale(1); }\n  66% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  100% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); } }\n\n#load {\n  position: relative;\n  display: inline-block;\n  text-align: center; }\n  #load .letter {\n    display: inline-block;\n    margin: 0 2px;\n    color: white;\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9);\n    -webkit-animation: grow 2.5s ease-in infinite;\n            animation: grow 2.5s ease-in infinite; }\n  #load .letter:nth-child(1) {\n    -webkit-animation-delay: .1s;\n            animation-delay: .1s; }\n  #load .letter:nth-child(2) {\n    -webkit-animation-delay: .15s;\n            animation-delay: .15s; }\n  #load .letter:nth-child(3) {\n    -webkit-animation-delay: .2s;\n            animation-delay: .2s; }\n  #load .letter:nth-child(4) {\n    -webkit-animation-delay: .25s;\n            animation-delay: .25s; }\n  #load .letter:nth-child(5) {\n    -webkit-animation-delay: .3s;\n            animation-delay: .3s; }\n  #load .letter:nth-child(6) {\n    -webkit-animation-delay: .35s;\n            animation-delay: .35s; }\n  #load .letter:nth-child(7) {\n    margin-left: 8px;\n    -webkit-animation-delay: .4s;\n            animation-delay: .4s; }\n  #load .letter:nth-child(8) {\n    -webkit-animation-delay: .45s;\n            animation-delay: .45s; }\n  #load .letter:nth-child(9) {\n    -webkit-animation-delay: .5s;\n            animation-delay: .5s; }\n  #load .letter:nth-child(10) {\n    -webkit-animation-delay: .55s;\n            animation-delay: .55s; }\n  #load .letter:nth-child(11) {\n    -webkit-animation-delay: .6s;\n            animation-delay: .6s; }\n  #load .letter:nth-child(12) {\n    -webkit-animation-delay: .65s;\n            animation-delay: .65s; }\n"] = false
     document.head.removeChild(__vueify_style__)
   })
   if (!module.hot.data) {
@@ -20743,7 +20688,7 @@ if (module.hot) {(function () {  module.hot.accept()
   }
 })()}
 },{"vue":23,"vue-hot-reload-api":3,"vueify-insert-css":24}],31:[function(require,module,exports){
-var __vueify_style__ = require("vueify-insert-css").insert("/* line 5, stdin */\n#overlay {\n  position: fixed;\n  top: 0;\n  left: 0;\n  z-index: 9999;\n  width: 100%;\n  height: 100%;\n  background-color: #363C47;\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-align-items: center;\n      -ms-flex-align: center;\n          align-items: center;\n  -webkit-justify-content: center;\n      -ms-flex-pack: center;\n          justify-content: center;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n  /* line 17, stdin */\n  #overlay .logo {\n    width: 220px;\n    height: 108px;\n    margin-bottom: 15px;\n    position: relative;\n    left: -25px; }\n")
+var __vueify_style__ = require("vueify-insert-css").insert("#overlay {\n  position: fixed;\n  top: 0;\n  left: 0;\n  z-index: 9999;\n  width: 100%;\n  height: 100%;\n  background-color: #363C47;\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-align-items: center;\n      -ms-flex-align: center;\n          align-items: center;\n  -webkit-justify-content: center;\n      -ms-flex-pack: center;\n          justify-content: center;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n  #overlay .logo {\n    width: 220px;\n    height: 108px;\n    margin-bottom: 15px;\n    position: relative;\n    left: -25px; }\n")
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -20767,7 +20712,7 @@ if (module.hot) {(function () {  module.hot.accept()
   if (!hotAPI.compatible) return
   var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/shared/overlay.vue"
   module.hot.dispose(function () {
-    require("vueify-insert-css").cache["/* line 5, stdin */\n#overlay {\n  position: fixed;\n  top: 0;\n  left: 0;\n  z-index: 9999;\n  width: 100%;\n  height: 100%;\n  background-color: #363C47;\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-align-items: center;\n      -ms-flex-align: center;\n          align-items: center;\n  -webkit-justify-content: center;\n      -ms-flex-pack: center;\n          justify-content: center;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n  /* line 17, stdin */\n  #overlay .logo {\n    width: 220px;\n    height: 108px;\n    margin-bottom: 15px;\n    position: relative;\n    left: -25px; }\n"] = false
+    require("vueify-insert-css").cache["#overlay {\n  position: fixed;\n  top: 0;\n  left: 0;\n  z-index: 9999;\n  width: 100%;\n  height: 100%;\n  background-color: #363C47;\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-align-items: center;\n      -ms-flex-align: center;\n          align-items: center;\n  -webkit-justify-content: center;\n      -ms-flex-pack: center;\n          justify-content: center;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n  #overlay .logo {\n    width: 220px;\n    height: 108px;\n    margin-bottom: 15px;\n    position: relative;\n    left: -25px; }\n"] = false
     document.head.removeChild(__vueify_style__)
   })
   if (!module.hot.data) {
@@ -20777,6 +20722,7 @@ if (module.hot) {(function () {  module.hot.accept()
   }
 })()}
 },{"./falcon-loading.vue":30,"vue":23,"vue-hot-reload-api":3,"vueify-insert-css":24}],32:[function(require,module,exports){
+var __vueify_style__ = require("vueify-insert-css").insert(".sidebar {\n  width: 155px;\n  position: fixed;\n  height: 100%;\n  background: #363C47;\n  z-index: 10;\n  padding: 20px;\n  transition: all 0.25s;\n  left: -155px; }\n  @media (min-width: 769px) {\n    .sidebar {\n      left: 0;\n      width: 155px; } }\n  @media (min-width: 1281px) {\n    .sidebar {\n      width: 200px; } }\n  .sidebar .logo {\n    margin: 0 0 40px; }\n    .sidebar .logo img {\n      width: 100%;\n      height: auto; }\n  .sidebar h4 {\n    text-transform: uppercase;\n    color: #999;\n    font-size: 10px;\n    font-weight: 600;\n    letter-spacing: 1px;\n    margin: 20px 0 0; }\n  .sidebar a {\n    color: #eaeaea;\n    font-weight: 300;\n    font-size: 14px;\n    transition: all 0.25s; }\n    .sidebar a:hover {\n      color: #fff; }\n")
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -20795,19 +20741,23 @@ exports.default = {
 
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div>\n    </div>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <aside id=\"sidebar-left\" class=\"sidebar affix\">\n\n    <div class=\"logo\">\n        <img src=\"/img/logo.svg\">\n    </div>\n\n    <div class=\"sidebar-menu\">\n        <div class=\"menu-section\">\n            <h4>Control</h4>\n            <ul class=\"nav\">\n\n            </ul>\n        </div>\n\n        <div class=\"menu-section\">\n            <h4>Content</h4>\n            <ul class=\"nav\">\n\n            </ul>\n            \n        </div>\n\n        <div class=\"menu-section\">\n            <h4>Settings</h4>\n            <ul class=\"nav\">\n\n            </ul>\n        </div>\n    </div>\n</aside>\n\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
   var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/sidebar/index.vue"
+  module.hot.dispose(function () {
+    require("vueify-insert-css").cache[".sidebar {\n  width: 155px;\n  position: fixed;\n  height: 100%;\n  background: #363C47;\n  z-index: 10;\n  padding: 20px;\n  transition: all 0.25s;\n  left: -155px; }\n  @media (min-width: 769px) {\n    .sidebar {\n      left: 0;\n      width: 155px; } }\n  @media (min-width: 1281px) {\n    .sidebar {\n      width: 200px; } }\n  .sidebar .logo {\n    margin: 0 0 40px; }\n    .sidebar .logo img {\n      width: 100%;\n      height: auto; }\n  .sidebar h4 {\n    text-transform: uppercase;\n    color: #999;\n    font-size: 10px;\n    font-weight: 600;\n    letter-spacing: 1px;\n    margin: 20px 0 0; }\n  .sidebar a {\n    color: #eaeaea;\n    font-weight: 300;\n    font-size: 14px;\n    transition: all 0.25s; }\n    .sidebar a:hover {\n      color: #fff; }\n"] = false
+    document.head.removeChild(__vueify_style__)
+  })
   if (!module.hot.data) {
     hotAPI.createRecord(id, module.exports)
   } else {
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"vue":23,"vue-hot-reload-api":3}],33:[function(require,module,exports){
+},{"vue":23,"vue-hot-reload-api":3,"vueify-insert-css":24}],33:[function(require,module,exports){
 'use strict';
 
 var $ = require('jquery');
@@ -20963,7 +20913,7 @@ exports.default = {
 
         var cb = arguments.length <= 0 || arguments[0] === undefined ? null : arguments[0];
 
-        _http2.default.get('data', {}, function (data) {
+        _http2.default.get('status', {}, function (data) {
             _this.state.fppd = data.fppd;
             _this.state.settings = data.settings;
             _this.state.playlists = data.playlists;

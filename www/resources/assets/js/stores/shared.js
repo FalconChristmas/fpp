@@ -10,7 +10,7 @@ export default {
     },
 
     init(cb = null) {
-        http.get('data', {}, data => {
+        http.get('status', {}, data => {
             this.state.fppd = data.fppd;
             this.state.settings = data.settings;
             this.state.playlists = data.playlists;

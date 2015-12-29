@@ -1,8 +1,5 @@
 <template>
-    <div id="app" tabindex="0" 
-        @keydown.f = "search"
-    >
-        
+    <div id="app" tabindex="0" @keydown.f = "search">        
         <sidebar></sidebar>
         <main-content></main-content>
         <overlay v-show="loading"></overlay>
@@ -20,7 +17,6 @@
     import playlistStore from './stores/playlist';
     import settingStore from './stores/setting';
    
-
     export default {
         components: { sidebar, mainContent, overlay },
 
@@ -40,12 +36,12 @@
             sharedStore.init(() => {
                 this.initStores();
                 // Hide the overlaying loading screen.
-                this.toggleOverlay();
+                //this.toggleOverlay();
 
                 // Ask for user's notificatio permission.
                 this.requestNotifPermission();
 
-                // Let all other compoenents know we're ready.
+                // Let all other components know we're ready.
                 this.$broadcast('fpp:ready');
             });
         },
@@ -55,69 +51,15 @@
              * Initialize all stores to be used throughout the application.
              */
             initStores() {
-                playlistStore.init();
-                settingStore.init();
+                // playlistStore.init();
+                // settingStore.init();
             },
-
-            /**
-             * Play the prev song when user presses K.
-             *
-             * @param object e The keydown event
-             */
-            playPrev(e) {
-                if ($(e.target).is('input,textarea')) {
-                    return true;
-                }
-
-                playback.playPrev();
-                e.preventDefault();
-            },
-
-            /**
-             * Play the next song when user presses J.
-             *
-             * @param object e The keydown event
-             */
-            playNext(e) {
-                if ($(e.target).is('input,textarea')) {
-                    return true;
-                }
-
-                playback.playNext();
-                e.preventDefault();
-            },
-
-            /**
-             * Put focus into the search field when user presses F.
-             *
-             * @param object e The keydown event
-             */
-            search(e) {
-                if ($(e.target).is('input,textarea')) {
-                    return true;
-                }
-
-                $('#searchForm input[type="search"]').focus().select();
-                e.preventDefault();
-            },
-
-            /**
-             * Request for notification permission if it's not provided and the user is OK with notifs.
-             */
-            requestNotifPermission() {
-                if (window.Notification && this.prefs.notify && Notification.permission !== 'granted') {
-                    Notification.requestPermission(result => {
-                        if (result === 'denied') {
-                            preferenceStore.set('notify', false);
-                        }
-                    });
-                }
-            },
+          
 
             /**
              * Load (display) a main panel (view).
              *
-             * @param string view The view, which can be found under components/main-wrapper/main-content.
+             * @param string view The view, which can be found under components/main/main-content.
              */
             loadMainView(view) {
                 this.$broadcast('main-content-view:load', view);

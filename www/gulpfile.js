@@ -3,7 +3,7 @@ require('laravel-elixir-vueify');
 
 
 elixir(function(mix) {
-    mix.sass('app.scss');
+    mix.sass('app.scss', 'public/css/app.css', { includePaths: ['node_modules/breakpoint-sass/stylesheets/'] });
     mix.browserify('main.js');
 
     mix.copy('resources/assets/img', 'public/img')
