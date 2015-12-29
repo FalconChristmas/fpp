@@ -1,20 +1,18 @@
 <template>
     <div id="main-wrapper">
-        <main-header></main-header>
-        <div class="content">
-            <router-view></router-view>
-        </div>
+        <settings-header></settings-header>
+        <settings-content></settings-content>
         <main-footer></main-footer>
     </div>
 </template>
 
 <script>
-    import mainHeader from './header/index.vue';
-    // import mainContent from './content/index.vue';
+    import settingsHeader from './header/settings.vue';
+    import settingsContent from './content/settings.vue';
     import mainFooter from "./footer/index.vue";
 
     export default {
-        components: { mainHeader, mainFooter },
+        components: { settingsHeader, settingsContent, mainFooter },
     };
 </script>
 

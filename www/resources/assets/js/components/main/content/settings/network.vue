@@ -1,15 +1,11 @@
 <template>
-    <div class="content">
-        <dashboard v-show="$route.name == 'dashboard'"></dashboard>
+    <div>network
     </div>
 </template>
 
 <script>
-import Dashboard from "./dashboard.vue";
-import Settings from "./settings.vue";
-
 export default {
-    components: { Dashboard, Settings },
+    components: {},
     props: [],
     data() {
         return {};
@@ -24,8 +20,5 @@ export default {
 <style lang="sass">
     @import "resources/assets/sass/_vars.scss";
     @import "resources/assets/sass/_mixins.scss";
-    
-    .content {
-        padding: 20px;
-    }
+
 </style>

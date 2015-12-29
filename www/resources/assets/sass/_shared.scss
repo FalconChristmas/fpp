@@ -14,4 +14,37 @@ body {
 
 a {
     text-decoration: none;
+    color: $link-color;
+}
+
+#app {
+    display: flex;
+    min-height: 100vh;
+    flex-direction: column;
+    
+    background: $bg-color;
+    color: $text-color;
+
+    font-family: $font-primary;
+    font-size: $font-size;
+    line-height: $font-size * 1.5;
+    
+}
+
+.content-wrapper {
+    display: flex;
+    flex: 1;
+    transition: margin 0.35s;
+
+    @include breakpoint($tablet-pt-min) {
+        margin-left: 155px;
+    }
+
+    @include breakpoint($desktop-min) {
+        margin-left: 200px;
+    }
+
+    .content {
+        padding: 20px;
+    }
 }

@@ -1,6 +1,6 @@
 <template>
-    <div>
-        <h2>settings</h2>
+    <div class="content">
+        <router-view></router-view>
     </div>
 </template>
 

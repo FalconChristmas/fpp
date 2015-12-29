@@ -9,31 +9,30 @@
         <div class="menu-section">
             <h4>Control</h4>
             <ul class="nav">
-                <li><a v-link="{ name: 'dashboard' , activeClass: 'active' }">Dashboard</a></li>
-                <li><a href="">Display Testing</a></li>
-                <li><a href="">Events</a></li>
-                <li><a href="">Effects</a></li>
+                <li><a v-link="{ name: 'dashboard', exact: true, activeClass: 'active' }">Dashboard</a></li>
+                <li><a v-link="{name: 'testing', activeClass: 'active'}">Display Testing</a></li>
+                <li><a v-link="{name: 'events', activeClass: 'active'}">Events</a></li>
+                <li><a v-link="{name: 'effects', activeClass: 'active'}">Effects</a></li>
             </ul>
         </div>
 
         <div class="menu-section">
             <h4>Content</h4>
             <ul class="nav">
-                <li><a href="">File Manager</a></li>
-                <li><a href="">Playlists</a></li>
-                <li><a href="">Schedule</a></li>
-                <li><a href="">Plugins</a></li>
+                <li><a v-link="{ name: 'files',  activeClass: 'active' }">File Manager</a></li>
+                <li><a v-link="{ name: 'playlists', activeClass: 'active' }">Playlists</a></li>
+                <li><a v-link="{ name: 'schedule', activeClass: 'active' }">Schedule</a></li>
+                <li><a v-link="{ name: 'plugins', activeClass: 'active' }">Plugins</a></li>
             </ul>
             
         </div>
 
         <div class="menu-section">
-            <h4>Settings</h4>
+            <h4>Configure</h4>
             <ul class="nav">
-                <li><a v-link="{name: 'settings', activeClass: 'active'}">General</a></li>
-                <li><a href="">Network</a></li>
-                <li><a href="">Channel Outputs</a></li>
-                <li><a href="">Overlay Models</a></li>
+                <li><a v-link="{name: 'outputs', activeClass: 'active'}">Channel Outputs</a></li>
+                <li><a v-link="{name: 'overlays', activeClass: 'active'}">Overlay Models</a></li>
+                <li><a v-link="{name: 'settings', activeClass: 'active'}">Settings</a></li>
             </ul>
         </div>
     </div>

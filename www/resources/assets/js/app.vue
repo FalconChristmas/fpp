@@ -1,8 +1,8 @@
 <template>
-    <div id="app" tabindex="0" @keydown.f = "search">        
+    <div id="app" tabindex="0">        
         <sidebar></sidebar>
         <div class="content-wrapper">
-            <router-view></router-view>
+           <router-view></router-view>
         </div>
         <overlay v-show="loading"></overlay>
     </div>
@@ -32,7 +32,7 @@
 
         ready() {
             this.toggleOverlay();
-
+            
             // Make the most important HTTP request to get all necessary data from the server.
             // Afterwards, init all mandatory stores and services.
             sharedStore.init(() => {
@@ -88,36 +88,3 @@
 
 </script>
 
-<style lang="sass">
-    @import "resources/assets/sass/_vars.scss";
-    @import "resources/assets/sass/_mixins.scss";
-
-    #app {
-        display: flex;
-        min-height: 100vh;
-        flex-direction: column;
-        
-        background: $bg-color;
-        color: $text-color;
-
-        font-family: $font-primary;
-        font-size: $font-size;
-        line-height: $font-size * 1.5;
-        
-    }
-    .content-wrapper {
-        display: flex;
-        flex: 1;
-        transition: margin 0.35s;
-
-        @include breakpoint($tablet-pt-min) {
-            margin-left: 155px;
-        }
-
-        @include breakpoint($desktop-min) {
-            margin-left: 200px;
-        }
-    }
-   
-
-</style>

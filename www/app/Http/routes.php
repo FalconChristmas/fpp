@@ -12,7 +12,7 @@
 */
 
 
-Route::group(['middleware' => ['api']], function ($router) {
+Route::group(['middleware' => []], function ($router) {
 
 	 $router->get('/{vue_capture?}', ['as' => 'dashboard', function () {
             return view('index');

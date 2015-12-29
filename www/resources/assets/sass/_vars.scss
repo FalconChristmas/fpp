@@ -23,6 +23,7 @@ $sidebar-a-color: #eaeaea;
 $sidebar-a-color-active: #fff;
 $heading-color: #666;
 $text-color: #666;
+$link-color: darken($text-color, 10%); //#666;
 $settings-sb-bg: #f4f4f4;
 
 
@@ -41,6 +42,7 @@ $font-primary: 'Lato', sans-serif;
 $font-headline: 'Montserrat', sans-serif;
 
 $font-size: 12px;
+$letter-spacing: 0.1em;
 
 ///////////////////////////////////
 //  Breakpoints

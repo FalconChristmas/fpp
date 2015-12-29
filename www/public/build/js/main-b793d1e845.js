@@ -22941,7 +22941,6 @@ exports.insert = function (css) {
 }
 
 },{}],26:[function(require,module,exports){
-var __vueify_style__ = require("vueify-insert-css").insert("#app {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  min-height: 100vh;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column;\n  background: #f1f1f1;\n  color: #666;\n  font-family: \"Lato\", sans-serif;\n  font-size: 12px;\n  line-height: 18px; }\n\n.content-wrapper {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1;\n  transition: margin 0.35s; }\n  @media (min-width: 769px) {\n    .content-wrapper {\n      margin-left: 155px; } }\n  @media (min-width: 1281px) {\n    .content-wrapper {\n      margin-left: 200px; } }\n")
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -23046,23 +23045,19 @@ exports.default = {
     }
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"app\" tabindex=\"0\" @keydown.f=\"search\">        \n        <sidebar></sidebar>\n        <div class=\"content-wrapper\">\n            <router-view></router-view>\n        </div>\n        <overlay v-show=\"loading\"></overlay>\n    </div>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"app\" tabindex=\"0\">        \n        <sidebar></sidebar>\n        <div class=\"content-wrapper\">\n           <router-view></router-view>\n        </div>\n        <overlay v-show=\"loading\"></overlay>\n    </div>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
   var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/app.vue"
-  module.hot.dispose(function () {
-    require("vueify-insert-css").cache["#app {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  min-height: 100vh;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column;\n  background: #f1f1f1;\n  color: #666;\n  font-family: \"Lato\", sans-serif;\n  font-size: 12px;\n  line-height: 18px; }\n\n.content-wrapper {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1;\n  transition: margin 0.35s; }\n  @media (min-width: 769px) {\n    .content-wrapper {\n      margin-left: 155px; } }\n  @media (min-width: 1281px) {\n    .content-wrapper {\n      margin-left: 200px; } }\n"] = false
-    document.head.removeChild(__vueify_style__)
-  })
   if (!module.hot.data) {
     hotAPI.createRecord(id, module.exports)
   } else {
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"./components/main/index.vue":33,"./components/shared/overlay.vue":36,"./components/sidebar/index.vue":37,"./stores/playlist":40,"./stores/setting":41,"./stores/shared":42,"jquery":1,"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],27:[function(require,module,exports){
+},{"./components/main/index.vue":47,"./components/shared/overlay.vue":52,"./components/sidebar/index.vue":53,"./stores/playlist":56,"./stores/setting":57,"./stores/shared":58,"jquery":1,"vue":24,"vue-hot-reload-api":3}],27:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -23094,25 +23089,13 @@ if (module.hot) {(function () {  module.hot.accept()
   }
 })()}
 },{"vue":24,"vue-hot-reload-api":3}],28:[function(require,module,exports){
-var __vueify_style__ = require("vueify-insert-css").insert(".content {\n  padding: 20px; }\n")
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-
-var _dashboard = require("./dashboard.vue");
-
-var _dashboard2 = _interopRequireDefault(_dashboard);
-
-var _settings = require("./settings.vue");
-
-var _settings2 = _interopRequireDefault(_settings);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
 exports.default = {
-    components: { Dashboard: _dashboard2.default, Settings: _settings2.default },
+    components: {},
     props: [],
     data: function data() {
         return {};
@@ -23124,23 +23107,81 @@ exports.default = {
 
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div class=\"content\">\n        <dashboard v-show=\"$route.name == 'dashboard'\"></dashboard>\n        <settings v-show=\"$route.name == 'settings'\"></settings>\n    </div>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div>\n        <h2>Effects</h2>\n    </div>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
-  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/index.vue"
-  module.hot.dispose(function () {
-    require("vueify-insert-css").cache[".content {\n  padding: 20px; }\n"] = false
-    document.head.removeChild(__vueify_style__)
-  })
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/effects.vue"
   if (!module.hot.data) {
     hotAPI.createRecord(id, module.exports)
   } else {
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"./dashboard.vue":27,"./settings.vue":30,"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],29:[function(require,module,exports){
+},{"vue":24,"vue-hot-reload-api":3}],29:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+exports.default = {
+    components: {},
+    props: [],
+    data: function data() {
+        return {};
+    },
+    ready: function ready() {},
+
+    methods: {},
+    events: {}
+
+};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div>\n        <h2>Events</h2>\n    </div>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/events.vue"
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+},{"vue":24,"vue-hot-reload-api":3}],30:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+exports.default = {
+    components: {},
+    props: [],
+    data: function data() {
+        return {};
+    },
+    ready: function ready() {},
+
+    methods: {},
+    events: {}
+
+};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div>\n        <h2>File Manager</h2>\n    </div>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/files.vue"
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+},{"vue":24,"vue-hot-reload-api":3}],31:[function(require,module,exports){
 var __vueify_style__ = require("vueify-insert-css").insert(".error-404 {\n  text-align: center; }\n")
 "use strict";
 
@@ -23165,7 +23206,7 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],30:[function(require,module,exports){
+},{"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],32:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -23184,7 +23225,162 @@ exports.default = {
 
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div>\n        <h2>settings</h2>\n    </div>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div>\n        <h2>Outputs</h2>\n    </div>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/outputs.vue"
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+},{"vue":24,"vue-hot-reload-api":3}],33:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+exports.default = {
+    components: {},
+    props: [],
+    data: function data() {
+        return {};
+    },
+    ready: function ready() {},
+
+    methods: {},
+    events: {}
+
+};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div>\n        <h2>Overlays</h2>\n    </div>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/overlays.vue"
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+},{"vue":24,"vue-hot-reload-api":3}],34:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+exports.default = {
+    components: {},
+    props: [],
+    data: function data() {
+        return {};
+    },
+    ready: function ready() {},
+
+    methods: {},
+    events: {}
+
+};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div>\n        <h2>Playlists</h2>\n    </div>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/playlists.vue"
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+},{"vue":24,"vue-hot-reload-api":3}],35:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+exports.default = {
+    components: {},
+    props: [],
+    data: function data() {
+        return {};
+    },
+    ready: function ready() {},
+
+    methods: {},
+    events: {}
+
+};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div>\n        <h2>Plugins</h2>\n    </div>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/plugins.vue"
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+},{"vue":24,"vue-hot-reload-api":3}],36:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+exports.default = {
+    components: {},
+    props: [],
+    data: function data() {
+        return {};
+    },
+    ready: function ready() {},
+
+    methods: {},
+    events: {}
+
+};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div>\n        <h2>Schedule</h2>\n    </div>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/schedule.vue"
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+},{"vue":24,"vue-hot-reload-api":3}],37:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+exports.default = {
+    components: {},
+    props: [],
+    data: function data() {
+        return {};
+    },
+    ready: function ready() {},
+
+    methods: {},
+    events: {}
+
+};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div class=\"content\">\n        <router-view></router-view>\n    </div>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
@@ -23196,7 +23392,193 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"vue":24,"vue-hot-reload-api":3}],31:[function(require,module,exports){
+},{"vue":24,"vue-hot-reload-api":3}],38:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+exports.default = {
+    components: {},
+    props: [],
+    data: function data() {
+        return {};
+    },
+    ready: function ready() {},
+
+    methods: {},
+    events: {}
+
+};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div>date\n    </div>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/settings/date.vue"
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+},{"vue":24,"vue-hot-reload-api":3}],39:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+exports.default = {
+    components: {},
+    props: [],
+    data: function data() {
+        return {};
+    },
+    ready: function ready() {},
+
+    methods: {},
+    events: {}
+
+};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div>email\n    </div>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/settings/email.vue"
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+},{"vue":24,"vue-hot-reload-api":3}],40:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+exports.default = {
+    components: {},
+    props: [],
+    data: function data() {
+        return {};
+    },
+    ready: function ready() {},
+
+    methods: {},
+    events: {}
+
+};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div>general\n    </div>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/settings/general.vue"
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+},{"vue":24,"vue-hot-reload-api":3}],41:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+exports.default = {
+    components: {},
+    props: [],
+    data: function data() {
+        return {};
+    },
+    ready: function ready() {},
+
+    methods: {},
+    events: {}
+
+};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div>logs\n    </div>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/settings/logs.vue"
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+},{"vue":24,"vue-hot-reload-api":3}],42:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+exports.default = {
+    components: {},
+    props: [],
+    data: function data() {
+        return {};
+    },
+    ready: function ready() {},
+
+    methods: {},
+    events: {}
+
+};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div>network\n    </div>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/settings/network.vue"
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+},{"vue":24,"vue-hot-reload-api":3}],43:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+exports.default = {
+    components: {},
+    props: [],
+    data: function data() {
+        return {};
+    },
+    ready: function ready() {},
+
+    methods: {},
+    events: {}
+
+};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div>\n        <h2>Testing</h2>\n    </div>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/testing.vue"
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+},{"vue":24,"vue-hot-reload-api":3}],44:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -23227,8 +23609,55 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"vue":24,"vue-hot-reload-api":3}],32:[function(require,module,exports){
+},{"vue":24,"vue-hot-reload-api":3}],45:[function(require,module,exports){
 var __vueify_style__ = require("vueify-insert-css").insert(".header {\n  background: white;\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex-direction: row;\n      -ms-flex-direction: row;\n          flex-direction: row;\n  -webkit-justify-content: space-between;\n      -ms-flex-pack: justify;\n          justify-content: space-between;\n  -webkit-align-items: center;\n      -ms-flex-align: center;\n          align-items: center;\n  width: 100%;\n  padding: 20px; }\n  .header .page-title {\n    margin: 0;\n    font-weight: 300; }\n  .header .button {\n    margin-bottom: 0; }\n")
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _controlButtons = require("../../shared/control-buttons.vue");
+
+var _controlButtons2 = _interopRequireDefault(_controlButtons);
+
+var _headerMenu = require("../../shared/header-menu.vue");
+
+var _headerMenu2 = _interopRequireDefault(_headerMenu);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.default = {
+    components: { controlButtons: _controlButtons2.default, headerMenu: _headerMenu2.default },
+    props: ['hasHeaderMenu'],
+    data: function data() {
+        return {};
+    },
+    ready: function ready() {},
+
+    methods: {},
+    events: {}
+
+};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div class=\"header\">\n        <div class=\"page-meta\">\n            <h1 class=\"page-title\">{{ $route.name | capitalize }}</h1>\n        </div>\n        <control-buttons></control-buttons>\n        <header-menu v-if=\"$route.headerMenu\"></header-menu>\n    </div>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/header/index.vue"
+  module.hot.dispose(function () {
+    require("vueify-insert-css").cache[".header {\n  background: white;\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex-direction: row;\n      -ms-flex-direction: row;\n          flex-direction: row;\n  -webkit-justify-content: space-between;\n      -ms-flex-pack: justify;\n          justify-content: space-between;\n  -webkit-align-items: center;\n      -ms-flex-align: center;\n          align-items: center;\n  width: 100%;\n  padding: 20px; }\n  .header .page-title {\n    margin: 0;\n    font-weight: 300; }\n  .header .button {\n    margin-bottom: 0; }\n"] = false
+    document.head.removeChild(__vueify_style__)
+  })
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+},{"../../shared/control-buttons.vue":49,"../../shared/header-menu.vue":51,"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],46:[function(require,module,exports){
+var __vueify_style__ = require("vueify-insert-css").insert(".settings-header {\n  -webkit-flex-flow: wrap;\n      -ms-flex-flow: wrap;\n          flex-flow: wrap;\n  padding: 20px 20px 0; }\n  .settings-header .settings-menu {\n    width: 100%;\n    padding-top: 10px; }\n    .settings-header .settings-menu a {\n      display: block;\n      text-transform: uppercase;\n      letter-spacing: 0.1em;\n      font-size: 11px;\n      border-bottom: 3px solid transparent;\n      padding: 3px 5px;\n      margin-bottom: -1px; }\n      .settings-header .settings-menu a.active {\n        font-weight: 600;\n        border-color: #F04124; }\n")
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -23254,14 +23683,14 @@ exports.default = {
 
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div class=\"header\">\n        <div class=\"page-meta\">\n            <h1 class=\"page-title\">{{ $route.name | capitalize }}</h1>\n        </div>\n        <control-buttons></control-buttons>\n    </div>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div class=\"header settings-header\">\n        <div class=\"page-meta\">\n            <h1 class=\"page-title\">{{ $route.name | capitalize }}</h1>\n        </div>\n        <control-buttons></control-buttons>\n        <ul class=\"settings-menu nav navbar-nav\">\n            <li class=\"nav-item\"><a v-link=\"{path: '/settings', exact: true, activeClass: 'active'}\">General</a></li>\n            <li class=\"nav-item\"><a v-link=\"{path: '/settings/date', activeClass: 'active'}\">Date &amp; Time</a></li>\n            <li class=\"nav-item\"><a v-link=\"{path: '/settings/email', activeClass: 'active'}\">Email</a></li>\n            <li class=\"nav-item\"><a v-link=\"{path: '/settings/network', activeClass: 'active'}\">Network</a></li>\n            <li class=\"nav-item\"><a v-link=\"{path: '/settings/logs', activeClass: 'active'}\">Logs</a></li>\n        </ul>\n    </div>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
-  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/header/index.vue"
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/header/settings.vue"
   module.hot.dispose(function () {
-    require("vueify-insert-css").cache[".header {\n  background: white;\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex-direction: row;\n      -ms-flex-direction: row;\n          flex-direction: row;\n  -webkit-justify-content: space-between;\n      -ms-flex-pack: justify;\n          justify-content: space-between;\n  -webkit-align-items: center;\n      -ms-flex-align: center;\n          align-items: center;\n  width: 100%;\n  padding: 20px; }\n  .header .page-title {\n    margin: 0;\n    font-weight: 300; }\n  .header .button {\n    margin-bottom: 0; }\n"] = false
+    require("vueify-insert-css").cache[".settings-header {\n  -webkit-flex-flow: wrap;\n      -ms-flex-flow: wrap;\n          flex-flow: wrap;\n  padding: 20px 20px 0; }\n  .settings-header .settings-menu {\n    width: 100%;\n    padding-top: 10px; }\n    .settings-header .settings-menu a {\n      display: block;\n      text-transform: uppercase;\n      letter-spacing: 0.1em;\n      font-size: 11px;\n      border-bottom: 3px solid transparent;\n      padding: 3px 5px;\n      margin-bottom: -1px; }\n      .settings-header .settings-menu a.active {\n        font-weight: 600;\n        border-color: #F04124; }\n"] = false
     document.head.removeChild(__vueify_style__)
   })
   if (!module.hot.data) {
@@ -23270,33 +23699,30 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"../../shared/control-buttons.vue":34,"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],33:[function(require,module,exports){
+},{"../../shared/control-buttons.vue":49,"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],47:[function(require,module,exports){
 var __vueify_style__ = require("vueify-insert-css").insert("#main-wrapper {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n")
-'use strict';
+"use strict";
 
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
 
-var _index = require('./header/index.vue');
+var _index = require("./header/index.vue");
 
 var _index2 = _interopRequireDefault(_index);
 
-var _index3 = require('./content/index.vue');
+var _index3 = require("./footer/index.vue");
 
 var _index4 = _interopRequireDefault(_index3);
-
-var _index5 = require('./footer/index.vue');
-
-var _index6 = _interopRequireDefault(_index5);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 exports.default = {
-    components: { mainHeader: _index2.default, mainContent: _index4.default, mainFooter: _index6.default }
+    components: { mainHeader: _index2.default, mainFooter: _index4.default }
 };
+// import mainContent from './content/index.vue';
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"main-wrapper\">\n        <main-header></main-header>\n        <main-content></main-content>\n        <main-footer></main-footer>\n    </div>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"main-wrapper\">\n        <main-header></main-header>\n        <div class=\"content\">\n            <router-view></router-view>\n        </div>\n        <main-footer></main-footer>\n    </div>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
@@ -23312,7 +23738,49 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"./content/index.vue":28,"./footer/index.vue":31,"./header/index.vue":32,"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],34:[function(require,module,exports){
+},{"./footer/index.vue":44,"./header/index.vue":45,"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],48:[function(require,module,exports){
+var __vueify_style__ = require("vueify-insert-css").insert("#main-wrapper {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n")
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _settings = require('./header/settings.vue');
+
+var _settings2 = _interopRequireDefault(_settings);
+
+var _settings3 = require('./content/settings.vue');
+
+var _settings4 = _interopRequireDefault(_settings3);
+
+var _index = require('./footer/index.vue');
+
+var _index2 = _interopRequireDefault(_index);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.default = {
+    components: { settingsHeader: _settings2.default, settingsContent: _settings4.default, mainFooter: _index2.default }
+};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"main-wrapper\">\n        <settings-header></settings-header>\n        <settings-content></settings-content>\n        <main-footer></main-footer>\n    </div>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/settings.vue"
+  module.hot.dispose(function () {
+    require("vueify-insert-css").cache["#main-wrapper {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n"] = false
+    document.head.removeChild(__vueify_style__)
+  })
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+},{"./content/settings.vue":37,"./footer/index.vue":44,"./header/settings.vue":46,"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],49:[function(require,module,exports){
 var __vueify_style__ = require("vueify-insert-css").insert(".control-buttons .button {\n  border-radius: 2px;\n  transition: background 0.35s, box-shadow 0.15s;\n  border: 1px solid #c4c4c4;\n  color: #666;\n  background: linear-gradient(to bottom, #f8f8f8, #eaeaea 100%);\n  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }\n  .control-buttons .button:active {\n    box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125); }\n")
 "use strict";
 
@@ -23345,7 +23813,7 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],35:[function(require,module,exports){
+},{"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],50:[function(require,module,exports){
 var __vueify_style__ = require("vueify-insert-css").insert("@-webkit-keyframes grow {\n  0% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  33% {\n    opacity: 1;\n    -webkit-transform: scale(1);\n            transform: scale(1); }\n  66% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  100% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); } }\n\n@keyframes grow {\n  0% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  33% {\n    opacity: 1;\n    -webkit-transform: scale(1);\n            transform: scale(1); }\n  66% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  100% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); } }\n\n#load {\n  position: relative;\n  display: inline-block;\n  text-align: center; }\n  #load .letter {\n    display: inline-block;\n    margin: 0 2px;\n    color: white;\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9);\n    -webkit-animation: grow 2.5s ease-in infinite;\n            animation: grow 2.5s ease-in infinite; }\n  #load .letter:nth-child(1) {\n    -webkit-animation-delay: .1s;\n            animation-delay: .1s; }\n  #load .letter:nth-child(2) {\n    -webkit-animation-delay: .15s;\n            animation-delay: .15s; }\n  #load .letter:nth-child(3) {\n    -webkit-animation-delay: .2s;\n            animation-delay: .2s; }\n  #load .letter:nth-child(4) {\n    -webkit-animation-delay: .25s;\n            animation-delay: .25s; }\n  #load .letter:nth-child(5) {\n    -webkit-animation-delay: .3s;\n            animation-delay: .3s; }\n  #load .letter:nth-child(6) {\n    -webkit-animation-delay: .35s;\n            animation-delay: .35s; }\n  #load .letter:nth-child(7) {\n    margin-left: 8px;\n    -webkit-animation-delay: .4s;\n            animation-delay: .4s; }\n  #load .letter:nth-child(8) {\n    -webkit-animation-delay: .45s;\n            animation-delay: .45s; }\n  #load .letter:nth-child(9) {\n    -webkit-animation-delay: .5s;\n            animation-delay: .5s; }\n  #load .letter:nth-child(10) {\n    -webkit-animation-delay: .55s;\n            animation-delay: .55s; }\n  #load .letter:nth-child(11) {\n    -webkit-animation-delay: .6s;\n            animation-delay: .6s; }\n  #load .letter:nth-child(12) {\n    -webkit-animation-delay: .65s;\n            animation-delay: .65s; }\n")
 "use strict";
 
@@ -23370,7 +23838,42 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],36:[function(require,module,exports){
+},{"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],51:[function(require,module,exports){
+var __vueify_style__ = require("vueify-insert-css").insert(".header-menu {\n  width: 100%;\n  padding-top: 10px; }\n  .header-menu a {\n    display: block;\n    text-transform: uppercase;\n    letter-spacing: 0.1em;\n    font-size: 11px;\n    border-bottom: 3px solid transparent;\n    padding: 3px 5px;\n    margin-bottom: -1px; }\n    .header-menu a.active {\n      font-weight: 600;\n      border-color: #F04124; }\n")
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+exports.default = {
+
+    props: ['menuClass', 'items'],
+    data: function data() {
+        return {};
+    },
+    ready: function ready() {},
+
+    methods: {},
+    events: {}
+};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <ul class=\"header-menu {{menuClass}} nav navbar-nav\">\n        <li class=\"navbar-item\" v-for=\"item in items\">\n            <a v-link=\"{ path: item.path, activeClass: 'active', exact: true}\">{{item.label}}</a>\n        </li>\n    </ul>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/shared/header-menu.vue"
+  module.hot.dispose(function () {
+    require("vueify-insert-css").cache[".header-menu {\n  width: 100%;\n  padding-top: 10px; }\n  .header-menu a {\n    display: block;\n    text-transform: uppercase;\n    letter-spacing: 0.1em;\n    font-size: 11px;\n    border-bottom: 3px solid transparent;\n    padding: 3px 5px;\n    margin-bottom: -1px; }\n    .header-menu a.active {\n      font-weight: 600;\n      border-color: #F04124; }\n"] = false
+    document.head.removeChild(__vueify_style__)
+  })
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+},{"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],52:[function(require,module,exports){
 var __vueify_style__ = require("vueify-insert-css").insert("#overlay {\n  position: fixed;\n  top: 0;\n  left: 0;\n  z-index: 9999;\n  width: 100%;\n  height: 100%;\n  background-color: #363C47;\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-align-items: center;\n      -ms-flex-align: center;\n          align-items: center;\n  -webkit-justify-content: center;\n      -ms-flex-pack: center;\n          justify-content: center;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n  #overlay .logo {\n    width: 220px;\n    height: 108px;\n    margin-bottom: 15px;\n    position: relative;\n    left: -25px; }\n")
 "use strict";
 
@@ -23404,7 +23907,7 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"./falcon-loading.vue":35,"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],37:[function(require,module,exports){
+},{"./falcon-loading.vue":50,"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],53:[function(require,module,exports){
 var __vueify_style__ = require("vueify-insert-css").insert(".sidebar {\n  width: 155px;\n  position: fixed;\n  height: 100%;\n  background: #363C47;\n  z-index: 10;\n  padding: 20px;\n  transition: all 0.25s;\n  left: -155px; }\n  @media (min-width: 769px) {\n    .sidebar {\n      left: 0;\n      width: 155px; } }\n  @media (min-width: 1281px) {\n    .sidebar {\n      width: 200px; } }\n  .sidebar .logo {\n    margin: 0 0 40px; }\n    .sidebar .logo img {\n      width: 100%;\n      height: auto; }\n  .sidebar h4 {\n    text-transform: uppercase;\n    color: #999;\n    font-size: 10px;\n    font-weight: 600;\n    letter-spacing: 1px;\n    margin: 20px 0 0; }\n  .sidebar li {\n    padding: 3px 0; }\n  .sidebar a {\n    color: #eaeaea;\n    font-weight: 300;\n    font-size: 14px;\n    transition: all 0.25s; }\n    .sidebar a:hover {\n      color: #fff; }\n    .sidebar a.active {\n      color: #fff;\n      font-weight: 500; }\n")
 "use strict";
 
@@ -23424,7 +23927,7 @@ exports.default = {
 
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <aside id=\"sidebar-left\" class=\"sidebar affix\">\n\n    <div class=\"logo\">\n        <img src=\"/img/logo.svg\">\n    </div>\n\n    <div class=\"sidebar-menu\">\n        <div class=\"menu-section\">\n            <h4>Control</h4>\n            <ul class=\"nav\">\n                <li><a v-link=\"{ name: 'dashboard' , activeClass: 'active' }\">Dashboard</a></li>\n                <li><a href=\"\">Display Testing</a></li>\n                <li><a href=\"\">Events</a></li>\n                <li><a href=\"\">Effects</a></li>\n            </ul>\n        </div>\n\n        <div class=\"menu-section\">\n            <h4>Content</h4>\n            <ul class=\"nav\">\n                <li><a href=\"\">File Manager</a></li>\n                <li><a href=\"\">Playlists</a></li>\n                <li><a href=\"\">Schedule</a></li>\n                <li><a href=\"\">Plugins</a></li>\n            </ul>\n            \n        </div>\n\n        <div class=\"menu-section\">\n            <h4>Settings</h4>\n            <ul class=\"nav\">\n                <li><a v-link=\"{name: 'settings', activeClass: 'active'}\">General</a></li>\n                <li><a href=\"\">Network</a></li>\n                <li><a href=\"\">Channel Outputs</a></li>\n                <li><a href=\"\">Overlay Models</a></li>\n            </ul>\n        </div>\n    </div>\n</aside>\n\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <aside id=\"sidebar-left\" class=\"sidebar affix\">\n\n    <div class=\"logo\">\n        <img src=\"/img/logo.svg\">\n    </div>\n\n    <div class=\"sidebar-menu\">\n        <div class=\"menu-section\">\n            <h4>Control</h4>\n            <ul class=\"nav\">\n                <li><a v-link=\"{ name: 'dashboard', exact: true, activeClass: 'active' }\">Dashboard</a></li>\n                <li><a v-link=\"{name: 'testing', activeClass: 'active'}\">Display Testing</a></li>\n                <li><a v-link=\"{name: 'events', activeClass: 'active'}\">Events</a></li>\n                <li><a v-link=\"{name: 'effects', activeClass: 'active'}\">Effects</a></li>\n            </ul>\n        </div>\n\n        <div class=\"menu-section\">\n            <h4>Content</h4>\n            <ul class=\"nav\">\n                <li><a v-link=\"{ name: 'files',  activeClass: 'active' }\">File Manager</a></li>\n                <li><a v-link=\"{ name: 'playlists', activeClass: 'active' }\">Playlists</a></li>\n                <li><a v-link=\"{ name: 'schedule', activeClass: 'active' }\">Schedule</a></li>\n                <li><a v-link=\"{ name: 'plugins', activeClass: 'active' }\">Plugins</a></li>\n            </ul>\n            \n        </div>\n\n        <div class=\"menu-section\">\n            <h4>Configure</h4>\n            <ul class=\"nav\">\n                <li><a v-link=\"{name: 'outputs', activeClass: 'active'}\">Channel Outputs</a></li>\n                <li><a v-link=\"{name: 'overlays', activeClass: 'active'}\">Overlay Models</a></li>\n                <li><a v-link=\"{name: 'settings', activeClass: 'active'}\">Settings</a></li>\n            </ul>\n        </div>\n    </div>\n</aside>\n\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
@@ -23440,7 +23943,7 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],38:[function(require,module,exports){
+},{"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],54:[function(require,module,exports){
 'use strict';
 
 var $ = require('jquery');
@@ -23451,7 +23954,7 @@ Vue.use(VueRouter);
 Vue.use(require('vue-resource'));
 Vue.http.options.root = '/api';
 Vue.http.headers.common['X-CSRF-TOKEN'] = $('meta[name="csrf-token"]').attr('content');
-Vue.config.debug = false;
+Vue.config.debug = true;
 
 var router = new VueRouter({
     hashBang: false,
@@ -23461,23 +23964,104 @@ var App = require('./app.vue');
 
 var MainContent = require('./components/main/index.vue');
 
+var Dashboard = require('./components/main/content/dashboard.vue');
+var Outputs = require('./components/main/content/outputs.vue');
+var Overlays = require('./components/main/content/overlays.vue');
+var Playlists = require('./components/main/content/playlists.vue');
+var Schedule = require('./components/main/content/schedule.vue');
+var Files = require('./components/main/content/files.vue');
+var Plugins = require('./components/main/content/plugins.vue');
+var Events = require('./components/main/content/events.vue');
+var Effects = require('./components/main/content/effects.vue');
+var Testing = require('./components/main/content/testing.vue');
+
+var SettingsContent = require('./components/main/settings.vue');
+var GeneralSettings = require('./components/main/content/settings/general.vue');
+var DateSettings = require('./components/main/content/settings/date.vue');
+var EmailSettings = require('./components/main/content/settings/email.vue');
+var NetworkSettings = require('./components/main/content/settings/network.vue');
+var LogSettings = require('./components/main/content/settings/logs.vue');
+
 router.map({
     '*': {
         component: require('./components/main/content/not-found.vue')
     },
     '/': {
         name: 'dashboard',
-        component: MainContent
+        component: MainContent,
+        subRoutes: {
+            '/': {
+                name: 'dashboard',
+                component: Dashboard
+
+            },
+            '/outputs': {
+                name: 'outputs',
+                component: Outputs
+            },
+            '/overlays': {
+                name: 'overlays',
+                component: Overlays
+            },
+            '/files': {
+                name: 'files',
+                component: Files
+            },
+            '/playlists': {
+                name: 'playlists',
+                component: Playlists
+            },
+            '/schedule': {
+                name: 'schedule',
+                component: Schedule
+            },
+            '/plugins': {
+                name: 'plugins',
+                component: Plugins
+            },
+            '/events': {
+                name: 'events',
+                component: Events
+            },
+            '/effects': {
+                name: 'effects',
+                component: Effects
+            },
+            '/testing': {
+                name: 'testing',
+                component: Testing
+            }
+
+        }
     },
+
     '/settings': {
         name: 'settings',
-        component: MainContent
+        component: SettingsContent,
+        subRoutes: {
+            '/': {
+                component: GeneralSettings
+            },
+            '/date': {
+                component: DateSettings
+            },
+            '/email': {
+                component: EmailSettings
+            },
+            '/network': {
+                component: NetworkSettings
+            },
+            '/logs': {
+                component: LogSettings
+            }
+
+        }
     }
 });
 
 router.start(App, 'body');
 
-},{"./app.vue":26,"./components/main/content/not-found.vue":29,"./components/main/index.vue":33,"jquery":1,"vue":24,"vue-resource":8,"vue-router":23}],39:[function(require,module,exports){
+},{"./app.vue":26,"./components/main/content/dashboard.vue":27,"./components/main/content/effects.vue":28,"./components/main/content/events.vue":29,"./components/main/content/files.vue":30,"./components/main/content/not-found.vue":31,"./components/main/content/outputs.vue":32,"./components/main/content/overlays.vue":33,"./components/main/content/playlists.vue":34,"./components/main/content/plugins.vue":35,"./components/main/content/schedule.vue":36,"./components/main/content/settings/date.vue":38,"./components/main/content/settings/email.vue":39,"./components/main/content/settings/general.vue":40,"./components/main/content/settings/logs.vue":41,"./components/main/content/settings/network.vue":42,"./components/main/content/testing.vue":43,"./components/main/index.vue":47,"./components/main/settings.vue":48,"jquery":1,"vue":24,"vue-resource":8,"vue-router":23}],55:[function(require,module,exports){
 'use strict';
 
 var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
@@ -23551,10 +24135,10 @@ exports.default = {
     }
 };
 
-},{}],40:[function(require,module,exports){
+},{}],56:[function(require,module,exports){
 "use strict";
 
-},{}],41:[function(require,module,exports){
+},{}],57:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -23594,7 +24178,7 @@ exports.default = {
     }
 };
 
-},{"../services/http":39,"./shared":42}],42:[function(require,module,exports){
+},{"../services/http":55,"./shared":58}],58:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -23635,6 +24219,6 @@ exports.default = {
     }
 };
 
-},{"../services/http":39}]},{},[38]);
+},{"../services/http":55}]},{},[54]);
 
 //# sourceMappingURL=main.js.map
