@@ -12,5 +12,6 @@
 	ignore = dirty
 [submodule "external/rpi_ws281x"]
 	path = external/rpi_ws281x
-	url = https://github.com/jgarff/rpi_ws281x
+	url = https://github.com/myoung008/rpi_ws281x.git
+	branch = rpi2
 	ignore = dirty

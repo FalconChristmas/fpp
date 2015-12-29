@@ -321,10 +321,12 @@ util: force
 ../external/rpi_ws281x/libws2811.a: ../external/rpi_ws281x/.git
 	@echo "Building libws2811"
 	@cd ../external/rpi_ws281x/ && \
+		gcc -c -o rpihw.o rpihw.c && \
+		gcc -c -o mailbox.o mailbox.c && \
 		gcc -c -o dma.o dma.c && \
 		gcc -c -o pwm.o pwm.c && \
 		gcc -c -o ws2811.o ws2811.c && \
-		ar rcs libws2811.a dma.o pwm.o ws2811.o
+		ar rcs libws2811.a rpihw.o mailbox.o dma.o pwm.o ws2811.o
 
 #############################################################################
 # LEDscape library and PRU code on the BBB
