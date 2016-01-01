@@ -15,6 +15,13 @@ body {
 a {
     text-decoration: none;
     color: $link-color;
+    transition: color 0.35s;
+    
+    &:hover,
+    &:focus {
+        color: $link-color-active;
+        text-decoration: none;
+    }
 }
 
 #app {

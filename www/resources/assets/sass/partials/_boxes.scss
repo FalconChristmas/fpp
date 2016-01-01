@@ -1,0 +1,54 @@
+.box  {
+    background-color: #fff;
+    position: relative;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 0 1px rgba(0,0,0,.15);
+    
+    &-header,
+    &-body,
+    &-footer {
+        padding: 1rem;
+    }
+
+    &-header {
+        position: relative;
+        
+        h2,
+        h3,
+        h4 {
+            margin: 0;
+            font-size: 18px;
+            line-height: 1
+        }
+
+        h3 {
+            font-size: 16px
+        }
+
+        h4 {
+            font-size: 12px;
+            font-weight: 600;
+            font-family: $font-headline;
+            text-transform: uppercase;
+
+        }
+        small {
+            display: block;
+            margin-top: 4px;
+            opacity: .6
+        }
+    }
+
+    &-divider {
+        border-bottom: 1px solid rgba(120,130,140,.13);
+        margin: 0 16px;
+        height: 0
+    }
+
+    &-tool {
+        position: absolute;
+        right: 16px;
+        top: 14px
+    }
+}
+

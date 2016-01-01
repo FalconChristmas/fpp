@@ -1,0 +1,14 @@
+.widget {
+
+    &-icon {
+        display: inline-block;
+        width: 48px;
+        height: 48px;
+        line-height: 48px;
+        text-align: center;
+
+        i {
+            font-size: 22px;
+        }
+    }
+}

@@ -1,5 +1,9 @@
 <template>
-    <div>date
+    <div id="date-settings" class="settings-container container-fluid box p-a-2">
+        <h4 class="m-b-2"><span class="semi-bold">Date & Time</span> Settings</h4>     
+        <form>
+            
+        </form>
     </div>
 </template>
 

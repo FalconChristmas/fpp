@@ -24,8 +24,13 @@ export default {
     @import "resources/assets/sass/_mixins.scss";
     
     .control-buttons {
+        margin-bottom: 1rem;
         .button {
             @include gradient-button(#f8f8f8, #eaeaea);
+        }
+
+        @include breakpoint($iphone6-ls-min) {
+            margin: 0;
         }
     }
 </style>

@@ -1,0 +1,70 @@
+.label-switch {  
+  
+
+  border-radius: $switch-radius;
+  cursor: pointer;
+  display: inline-block;
+  height: $switch-height;
+  position: relative;
+  width: $switch-width;
+
+  input[type="checkbox"] {
+    display: none;
+
+    + .checkbox {
+      transition: all 0.3s ease;
+      background: $switch-border-background;
+      border-radius: $switch-radius;
+      border: none;
+      cursor: pointer;
+      height: $switch-height;
+      margin: 0;
+      padding: 0;
+      position: relative;
+      width: $switch-width;
+      z-index: 0;
+
+      &:before {
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        transform: scale(1);
+        transition: all 0.3s ease;
+        background: $switch-background;
+        border-radius: $switch-radius;
+        content: "";
+        height: $knob-radius;
+        width: $switch-width - ($switch-padding * 2);
+        z-index: 1;
+      }
+
+      &:after {
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        height: $knob-size;
+        width: $knob-size;
+        transition: all 0.3s ease;
+        background: $switch-background;
+        border-radius: $knob-radius;
+        box-shadow: $switch-shadow;
+        content: "";
+        z-index: 2;
+      }
+    }
+
+    &:checked {
+      + .checkbox {
+        background: $action-color;
+
+        &:before {
+          transform: scale(0);
+        }
+
+        &:after {
+          left: $switch-width - $knob-width - ($switch-padding);
+        }
+      }
+    }
+  }
+}

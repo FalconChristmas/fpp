@@ -4,7 +4,13 @@ import sharedStore from './shared';
 export default {
         
     state: {
-        settings: [], 
+        settings: {
+            general: {},
+            date: {},
+            email: {},
+            logs: {},
+            advanced: {}
+        }, 
     },
     
     init() {

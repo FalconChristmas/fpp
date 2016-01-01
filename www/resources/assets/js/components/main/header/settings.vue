@@ -4,13 +4,18 @@
             <h1 class="page-title">{{ $route.name | capitalize }}</h1>
         </div>
         <control-buttons></control-buttons>
-        <ul class="settings-menu nav navbar-nav">
-            <li class="nav-item"><a v-link="{path: '/settings', exact: true, activeClass: 'active'}">General</a></li>
-            <li class="nav-item"><a v-link="{path: '/settings/date', activeClass: 'active'}">Date & Time</a></li>
-            <li class="nav-item"><a v-link="{path: '/settings/email', activeClass: 'active'}">Email</a></li>
-            <li class="nav-item"><a v-link="{path: '/settings/network', activeClass: 'active'}">Network</a></li>
-            <li class="nav-item"><a v-link="{path: '/settings/logs', activeClass: 'active'}">Logs</a></li>
-        </ul>
+        <nav class="navbar settings-menu">
+            <button class="navbar-toggler hidden-sm-up" type="button" data-toggle="collapse" data-target="#header-navbar">&#9776; Settings Menu</button>
+            <div class="collapse navbar-toggleable-xs" id="header-navbar">
+                <ul class="nav navbar-nav">
+                    <li class="nav-item"><a v-link="{path: '/settings', exact: true, activeClass: 'active'}">General</a></li>
+                    <li class="nav-item"><a v-link="{path: '/settings/date', activeClass: 'active'}">Date & Time</a></li>
+                    <li class="nav-item"><a v-link="{path: '/settings/email', activeClass: 'active'}">Email</a></li>
+                    <li class="nav-item"><a v-link="{path: '/settings/network', activeClass: 'active'}">Network</a></li>
+                    <li class="nav-item"><a v-link="{path: '/settings/logs', activeClass: 'active'}">Logs</a></li>
+                    <li class="nav-item"><a v-link="{path: '/settings/advanced', activeClass: 'active'}">Advanced</a></li>
+                </ul>
+            </div>
     </div>
 </template>
 
@@ -38,12 +43,13 @@ export default {
         
         flex-flow: wrap;
         padding: 20px 20px 0;
+        flex-direction: column;
+       
 
        
         .settings-menu {
             width: 100%;
-            padding-top: 10px;
-            
+            padding: 10px 0 0;
            
             a {
                 display: block;
@@ -58,6 +64,11 @@ export default {
                     border-color: $alert-color;
                 }
             }
+        }
+       
+        @include breakpoint($iphone6-ls-min) {
+            flex-direction: row;
+            
         }
     }
 </style>

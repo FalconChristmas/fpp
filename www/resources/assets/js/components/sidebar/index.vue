@@ -90,7 +90,7 @@ export default {
         font-size: 10px;
         font-weight: 600;
         letter-spacing: 1px;
-        margin: 20px 0 0;
+        margin: 20px 0 5px;
       }
      
       li {

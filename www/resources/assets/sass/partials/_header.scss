@@ -1,0 +1,33 @@
+.header {
+    background: white;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    padding: 20px;
+
+    .page-title {
+        margin: 0 0 1rem;
+        font-size: 2rem;
+        font-weight: 300;
+    }
+    
+    
+    @include breakpoint($iphone6-ls) {
+        .control-buttons {
+            text-align: center;
+        }
+    }
+    @include breakpoint($iphone6-ls-min) {
+        flex-direction: row;
+        justify-content: space-between;
+        .page-title {
+            margin: 0;
+        }
+
+        .button {
+             margin-bottom: 0;
+        }
+    }
+}

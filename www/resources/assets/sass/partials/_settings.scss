@@ -1,0 +1,15 @@
+.settings-container {
+
+    .form-control-label {
+        font-size: 1.125rem;
+
+        @include breakpoint($iphone6-ls) {
+            font-size: .875rem;
+        }
+        
+    }
+
+    h4 {
+        font-weight: 300;
+    }
+}

@@ -24,6 +24,7 @@ $sidebar-a-color-active: #fff;
 $heading-color: #666;
 $text-color: #666;
 $link-color: darken($text-color, 10%); //#666;
+$link-color-active: darken($link-color, 10%);
 $settings-sb-bg: #f4f4f4;
 
 
@@ -41,7 +42,7 @@ $global-padding: 1em;
 $font-primary: 'Lato', sans-serif;
 $font-headline: 'Montserrat', sans-serif;
 
-$font-size: 12px;
+$font-size: 14px;
 $letter-spacing: 0.1em;
 
 ///////////////////////////////////
@@ -54,10 +55,10 @@ $mobile-ls        : max-width 480px !default;
 $mobile-ls-min    : 481px !default;
 $iphone5-ls       : max-width 568px !default;
 $iphone5-ls-min   : 569px !default;
-$iphone6-pt       : 375px !default;
+$iphone6-pt       : max-width 375px !default;
 $phone6-pt-min    : 376px !default;
 $iphone6-ls       : max-width 667px !default;
-$phone6-ls-min    : 668px !default;
+$iphone6-ls-min    : 668px !default;
 $tablet-pt        : max-width 768px !default;
 $tablet-pt-min    : 769px !default;
 $tablet-ls        : max-width 1024px !default;
@@ -127,3 +128,18 @@ $button-font-size: 0.9rem !default;
 $button-opacity-disabled: 0.5 !default;
 $button-tag-selector: true !default;
 
+///////////////////////////////////
+//  Switches
+///////////////////////////////////
+$action-color: $success-color !default;
+$base-background-color: white !default;
+$switch-width: 42px;
+$switch-padding: 2px;
+$switch-height: 22px;
+$switch-radius: $switch-height;
+$knob-size: $switch-height - ($switch-padding * 2);
+$knob-radius: $switch-height - ($switch-padding * 2);
+$knob-width: $knob-size;
+$switch-background: $base-background-color;
+$switch-border-background: darken($base-background-color, 9%);
+$switch-shadow: 0 2px 5px transparentize(black, 0.6);

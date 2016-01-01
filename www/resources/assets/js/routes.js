@@ -1,42 +1,30 @@
-var $ = require('jquery');
-var VueRouter = require('vue-router');
+import MainContent from './components/main/index.vue';
 
-window.Vue = require('vue');
-Vue.use(VueRouter);
-Vue.use(require('vue-resource'));
-Vue.http.options.root = '/api';
-Vue.http.headers.common['X-CSRF-TOKEN'] = $('meta[name="csrf-token"]').attr('content');
-Vue.config.debug = true;
+/**
+ * Top Level
+ */
+import Dashboard from './components/main/content/dashboard.vue';
+import Outputs from './components/main/content/outputs.vue';
+import Overlays from './components/main/content/overlays.vue';
+import Playlists from './components/main/content/playlists.vue';
+import Schedule from './components/main/content/schedule.vue';
+import Files from './components/main/content/files.vue';
+import Plugins from './components/main/content/plugins.vue';
+import Events from './components/main/content/events.vue';
+import Effects from './components/main/content/effects.vue';
+import Testing from './components/main/content/testing.vue';
 
-var router = new VueRouter({
-    hashBang: false,
-    history: true,
-    linkActiveClass: 'active'
-});
+/**
+ * Settings
+ */
+import SettingsContent from './components/main/settings.vue';
+import GeneralSettings from './components/main/content/settings/general.vue';
+import DateSettings from './components/main/content/settings/date.vue';
+import EmailSettings from './components/main/content/settings/email.vue';
+import NetworkSettings from './components/main/content/settings/network.vue';
+import LogSettings from './components/main/content/settings/logs.vue';
 
-var App = require('./app.vue');
-var MainContent = require('./components/main/index.vue');
-
-var Dashboard = require('./components/main/content/dashboard.vue');
-var Outputs = require('./components/main/content/outputs.vue');
-var Overlays = require('./components/main/content/overlays.vue');
-var Playlists = require('./components/main/content/playlists.vue');
-var Schedule = require('./components/main/content/schedule.vue');
-var Files = require('./components/main/content/files.vue');
-var Plugins = require('./components/main/content/plugins.vue');
-var Events = require('./components/main/content/events.vue');
-var Effects = require('./components/main/content/effects.vue');
-var Testing = require('./components/main/content/testing.vue');
-
-var SettingsContent = require('./components/main/settings.vue');
-var GeneralSettings = require('./components/main/content/settings/general.vue');
-var DateSettings = require('./components/main/content/settings/date.vue');
-var EmailSettings = require('./components/main/content/settings/email.vue');
-var NetworkSettings = require('./components/main/content/settings/network.vue');
-var LogSettings = require('./components/main/content/settings/logs.vue');
-var AdvancedSettings = require('./components/main/content/settings/advanced.vue');
-
-router.map({
+export default {
     '*' : {
         component: require('./components/main/content/not-found.vue')
     },
@@ -108,12 +96,7 @@ router.map({
              '/logs' : {
                 component: LogSettings
             },
-            '/advanced' : {
-                component: AdvancedSettings
-            },
 
         }
     }
-});
-
-router.start(App, 'body');
+};

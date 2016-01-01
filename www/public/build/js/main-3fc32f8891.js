@@ -1,4 +1,414 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+module.exports = { "default": require("core-js/library/fn/get-iterator"), __esModule: true };
+},{"core-js/library/fn/get-iterator":2}],2:[function(require,module,exports){
+require('../modules/web.dom.iterable');
+require('../modules/es6.string.iterator');
+module.exports = require('../modules/core.get-iterator');
+},{"../modules/core.get-iterator":35,"../modules/es6.string.iterator":37,"../modules/web.dom.iterable":38}],3:[function(require,module,exports){
+module.exports = function(it){
+  if(typeof it != 'function')throw TypeError(it + ' is not a function!');
+  return it;
+};
+},{}],4:[function(require,module,exports){
+module.exports = function(){ /* empty */ };
+},{}],5:[function(require,module,exports){
+var isObject = require('./$.is-object');
+module.exports = function(it){
+  if(!isObject(it))throw TypeError(it + ' is not an object!');
+  return it;
+};
+},{"./$.is-object":18}],6:[function(require,module,exports){
+// getting tag from 19.1.3.6 Object.prototype.toString()
+var cof = require('./$.cof')
+  , TAG = require('./$.wks')('toStringTag')
+  // ES3 wrong here
+  , ARG = cof(function(){ return arguments; }()) == 'Arguments';
+
+module.exports = function(it){
+  var O, T, B;
+  return it === undefined ? 'Undefined' : it === null ? 'Null'
+    // @@toStringTag case
+    : typeof (T = (O = Object(it))[TAG]) == 'string' ? T
+    // builtinTag case
+    : ARG ? cof(O)
+    // ES3 arguments fallback
+    : (B = cof(O)) == 'Object' && typeof O.callee == 'function' ? 'Arguments' : B;
+};
+},{"./$.cof":7,"./$.wks":33}],7:[function(require,module,exports){
+var toString = {}.toString;
+
+module.exports = function(it){
+  return toString.call(it).slice(8, -1);
+};
+},{}],8:[function(require,module,exports){
+var core = module.exports = {version: '1.2.6'};
+if(typeof __e == 'number')__e = core; // eslint-disable-line no-undef
+},{}],9:[function(require,module,exports){
+// optional / simple context binding
+var aFunction = require('./$.a-function');
+module.exports = function(fn, that, length){
+  aFunction(fn);
+  if(that === undefined)return fn;
+  switch(length){
+    case 1: return function(a){
+      return fn.call(that, a);
+    };
+    case 2: return function(a, b){
+      return fn.call(that, a, b);
+    };
+    case 3: return function(a, b, c){
+      return fn.call(that, a, b, c);
+    };
+  }
+  return function(/* ...args */){
+    return fn.apply(that, arguments);
+  };
+};
+},{"./$.a-function":3}],10:[function(require,module,exports){
+// 7.2.1 RequireObjectCoercible(argument)
+module.exports = function(it){
+  if(it == undefined)throw TypeError("Can't call method on  " + it);
+  return it;
+};
+},{}],11:[function(require,module,exports){
+// Thank's IE8 for his funny defineProperty
+module.exports = !require('./$.fails')(function(){
+  return Object.defineProperty({}, 'a', {get: function(){ return 7; }}).a != 7;
+});
+},{"./$.fails":13}],12:[function(require,module,exports){
+var global    = require('./$.global')
+  , core      = require('./$.core')
+  , ctx       = require('./$.ctx')
+  , PROTOTYPE = 'prototype';
+
+var $export = function(type, name, source){
+  var IS_FORCED = type & $export.F
+    , IS_GLOBAL = type & $export.G
+    , IS_STATIC = type & $export.S
+    , IS_PROTO  = type & $export.P
+    , IS_BIND   = type & $export.B
+    , IS_WRAP   = type & $export.W
+    , exports   = IS_GLOBAL ? core : core[name] || (core[name] = {})
+    , target    = IS_GLOBAL ? global : IS_STATIC ? global[name] : (global[name] || {})[PROTOTYPE]
+    , key, own, out;
+  if(IS_GLOBAL)source = name;
+  for(key in source){
+    // contains in native
+    own = !IS_FORCED && target && key in target;
+    if(own && key in exports)continue;
+    // export native or passed
+    out = own ? target[key] : source[key];
+    // prevent global pollution for namespaces
+    exports[key] = IS_GLOBAL && typeof target[key] != 'function' ? source[key]
+    // bind timers to global for call from export context
+    : IS_BIND && own ? ctx(out, global)
+    // wrap global constructors for prevent change them in library
+    : IS_WRAP && target[key] == out ? (function(C){
+      var F = function(param){
+        return this instanceof C ? new C(param) : C(param);
+      };
+      F[PROTOTYPE] = C[PROTOTYPE];
+      return F;
+    // make static versions for prototype methods
+    })(out) : IS_PROTO && typeof out == 'function' ? ctx(Function.call, out) : out;
+    if(IS_PROTO)(exports[PROTOTYPE] || (exports[PROTOTYPE] = {}))[key] = out;
+  }
+};
+// type bitmap
+$export.F = 1;  // forced
+$export.G = 2;  // global
+$export.S = 4;  // static
+$export.P = 8;  // proto
+$export.B = 16; // bind
+$export.W = 32; // wrap
+module.exports = $export;
+},{"./$.core":8,"./$.ctx":9,"./$.global":14}],13:[function(require,module,exports){
+module.exports = function(exec){
+  try {
+    return !!exec();
+  } catch(e){
+    return true;
+  }
+};
+},{}],14:[function(require,module,exports){
+// https://github.com/zloirock/core-js/issues/86#issuecomment-115759028
+var global = module.exports = typeof window != 'undefined' && window.Math == Math
+  ? window : typeof self != 'undefined' && self.Math == Math ? self : Function('return this')();
+if(typeof __g == 'number')__g = global; // eslint-disable-line no-undef
+},{}],15:[function(require,module,exports){
+var hasOwnProperty = {}.hasOwnProperty;
+module.exports = function(it, key){
+  return hasOwnProperty.call(it, key);
+};
+},{}],16:[function(require,module,exports){
+var $          = require('./$')
+  , createDesc = require('./$.property-desc');
+module.exports = require('./$.descriptors') ? function(object, key, value){
+  return $.setDesc(object, key, createDesc(1, value));
+} : function(object, key, value){
+  object[key] = value;
+  return object;
+};
+},{"./$":23,"./$.descriptors":11,"./$.property-desc":25}],17:[function(require,module,exports){
+// fallback for non-array-like ES3 and non-enumerable old V8 strings
+var cof = require('./$.cof');
+module.exports = Object('z').propertyIsEnumerable(0) ? Object : function(it){
+  return cof(it) == 'String' ? it.split('') : Object(it);
+};
+},{"./$.cof":7}],18:[function(require,module,exports){
+module.exports = function(it){
+  return typeof it === 'object' ? it !== null : typeof it === 'function';
+};
+},{}],19:[function(require,module,exports){
+'use strict';
+var $              = require('./$')
+  , descriptor     = require('./$.property-desc')
+  , setToStringTag = require('./$.set-to-string-tag')
+  , IteratorPrototype = {};
+
+// 25.1.2.1.1 %IteratorPrototype%[@@iterator]()
+require('./$.hide')(IteratorPrototype, require('./$.wks')('iterator'), function(){ return this; });
+
+module.exports = function(Constructor, NAME, next){
+  Constructor.prototype = $.create(IteratorPrototype, {next: descriptor(1, next)});
+  setToStringTag(Constructor, NAME + ' Iterator');
+};
+},{"./$":23,"./$.hide":16,"./$.property-desc":25,"./$.set-to-string-tag":27,"./$.wks":33}],20:[function(require,module,exports){
+'use strict';
+var LIBRARY        = require('./$.library')
+  , $export        = require('./$.export')
+  , redefine       = require('./$.redefine')
+  , hide           = require('./$.hide')
+  , has            = require('./$.has')
+  , Iterators      = require('./$.iterators')
+  , $iterCreate    = require('./$.iter-create')
+  , setToStringTag = require('./$.set-to-string-tag')
+  , getProto       = require('./$').getProto
+  , ITERATOR       = require('./$.wks')('iterator')
+  , BUGGY          = !([].keys && 'next' in [].keys()) // Safari has buggy iterators w/o `next`
+  , FF_ITERATOR    = '@@iterator'
+  , KEYS           = 'keys'
+  , VALUES         = 'values';
+
+var returnThis = function(){ return this; };
+
+module.exports = function(Base, NAME, Constructor, next, DEFAULT, IS_SET, FORCED){
+  $iterCreate(Constructor, NAME, next);
+  var getMethod = function(kind){
+    if(!BUGGY && kind in proto)return proto[kind];
+    switch(kind){
+      case KEYS: return function keys(){ return new Constructor(this, kind); };
+      case VALUES: return function values(){ return new Constructor(this, kind); };
+    } return function entries(){ return new Constructor(this, kind); };
+  };
+  var TAG        = NAME + ' Iterator'
+    , DEF_VALUES = DEFAULT == VALUES
+    , VALUES_BUG = false
+    , proto      = Base.prototype
+    , $native    = proto[ITERATOR] || proto[FF_ITERATOR] || DEFAULT && proto[DEFAULT]
+    , $default   = $native || getMethod(DEFAULT)
+    , methods, key;
+  // Fix native
+  if($native){
+    var IteratorPrototype = getProto($default.call(new Base));
+    // Set @@toStringTag to native iterators
+    setToStringTag(IteratorPrototype, TAG, true);
+    // FF fix
+    if(!LIBRARY && has(proto, FF_ITERATOR))hide(IteratorPrototype, ITERATOR, returnThis);
+    // fix Array#{values, @@iterator}.name in V8 / FF
+    if(DEF_VALUES && $native.name !== VALUES){
+      VALUES_BUG = true;
+      $default = function values(){ return $native.call(this); };
+    }
+  }
+  // Define iterator
+  if((!LIBRARY || FORCED) && (BUGGY || VALUES_BUG || !proto[ITERATOR])){
+    hide(proto, ITERATOR, $default);
+  }
+  // Plug for library
+  Iterators[NAME] = $default;
+  Iterators[TAG]  = returnThis;
+  if(DEFAULT){
+    methods = {
+      values:  DEF_VALUES  ? $default : getMethod(VALUES),
+      keys:    IS_SET      ? $default : getMethod(KEYS),
+      entries: !DEF_VALUES ? $default : getMethod('entries')
+    };
+    if(FORCED)for(key in methods){
+      if(!(key in proto))redefine(proto, key, methods[key]);
+    } else $export($export.P + $export.F * (BUGGY || VALUES_BUG), NAME, methods);
+  }
+  return methods;
+};
+},{"./$":23,"./$.export":12,"./$.has":15,"./$.hide":16,"./$.iter-create":19,"./$.iterators":22,"./$.library":24,"./$.redefine":26,"./$.set-to-string-tag":27,"./$.wks":33}],21:[function(require,module,exports){
+module.exports = function(done, value){
+  return {value: value, done: !!done};
+};
+},{}],22:[function(require,module,exports){
+module.exports = {};
+},{}],23:[function(require,module,exports){
+var $Object = Object;
+module.exports = {
+  create:     $Object.create,
+  getProto:   $Object.getPrototypeOf,
+  isEnum:     {}.propertyIsEnumerable,
+  getDesc:    $Object.getOwnPropertyDescriptor,
+  setDesc:    $Object.defineProperty,
+  setDescs:   $Object.defineProperties,
+  getKeys:    $Object.keys,
+  getNames:   $Object.getOwnPropertyNames,
+  getSymbols: $Object.getOwnPropertySymbols,
+  each:       [].forEach
+};
+},{}],24:[function(require,module,exports){
+module.exports = true;
+},{}],25:[function(require,module,exports){
+module.exports = function(bitmap, value){
+  return {
+    enumerable  : !(bitmap & 1),
+    configurable: !(bitmap & 2),
+    writable    : !(bitmap & 4),
+    value       : value
+  };
+};
+},{}],26:[function(require,module,exports){
+module.exports = require('./$.hide');
+},{"./$.hide":16}],27:[function(require,module,exports){
+var def = require('./$').setDesc
+  , has = require('./$.has')
+  , TAG = require('./$.wks')('toStringTag');
+
+module.exports = function(it, tag, stat){
+  if(it && !has(it = stat ? it : it.prototype, TAG))def(it, TAG, {configurable: true, value: tag});
+};
+},{"./$":23,"./$.has":15,"./$.wks":33}],28:[function(require,module,exports){
+var global = require('./$.global')
+  , SHARED = '__core-js_shared__'
+  , store  = global[SHARED] || (global[SHARED] = {});
+module.exports = function(key){
+  return store[key] || (store[key] = {});
+};
+},{"./$.global":14}],29:[function(require,module,exports){
+var toInteger = require('./$.to-integer')
+  , defined   = require('./$.defined');
+// true  -> String#at
+// false -> String#codePointAt
+module.exports = function(TO_STRING){
+  return function(that, pos){
+    var s = String(defined(that))
+      , i = toInteger(pos)
+      , l = s.length
+      , a, b;
+    if(i < 0 || i >= l)return TO_STRING ? '' : undefined;
+    a = s.charCodeAt(i);
+    return a < 0xd800 || a > 0xdbff || i + 1 === l || (b = s.charCodeAt(i + 1)) < 0xdc00 || b > 0xdfff
+      ? TO_STRING ? s.charAt(i) : a
+      : TO_STRING ? s.slice(i, i + 2) : (a - 0xd800 << 10) + (b - 0xdc00) + 0x10000;
+  };
+};
+},{"./$.defined":10,"./$.to-integer":30}],30:[function(require,module,exports){
+// 7.1.4 ToInteger
+var ceil  = Math.ceil
+  , floor = Math.floor;
+module.exports = function(it){
+  return isNaN(it = +it) ? 0 : (it > 0 ? floor : ceil)(it);
+};
+},{}],31:[function(require,module,exports){
+// to indexed object, toObject with fallback for non-array-like ES3 strings
+var IObject = require('./$.iobject')
+  , defined = require('./$.defined');
+module.exports = function(it){
+  return IObject(defined(it));
+};
+},{"./$.defined":10,"./$.iobject":17}],32:[function(require,module,exports){
+var id = 0
+  , px = Math.random();
+module.exports = function(key){
+  return 'Symbol('.concat(key === undefined ? '' : key, ')_', (++id + px).toString(36));
+};
+},{}],33:[function(require,module,exports){
+var store  = require('./$.shared')('wks')
+  , uid    = require('./$.uid')
+  , Symbol = require('./$.global').Symbol;
+module.exports = function(name){
+  return store[name] || (store[name] =
+    Symbol && Symbol[name] || (Symbol || uid)('Symbol.' + name));
+};
+},{"./$.global":14,"./$.shared":28,"./$.uid":32}],34:[function(require,module,exports){
+var classof   = require('./$.classof')
+  , ITERATOR  = require('./$.wks')('iterator')
+  , Iterators = require('./$.iterators');
+module.exports = require('./$.core').getIteratorMethod = function(it){
+  if(it != undefined)return it[ITERATOR]
+    || it['@@iterator']
+    || Iterators[classof(it)];
+};
+},{"./$.classof":6,"./$.core":8,"./$.iterators":22,"./$.wks":33}],35:[function(require,module,exports){
+var anObject = require('./$.an-object')
+  , get      = require('./core.get-iterator-method');
+module.exports = require('./$.core').getIterator = function(it){
+  var iterFn = get(it);
+  if(typeof iterFn != 'function')throw TypeError(it + ' is not iterable!');
+  return anObject(iterFn.call(it));
+};
+},{"./$.an-object":5,"./$.core":8,"./core.get-iterator-method":34}],36:[function(require,module,exports){
+'use strict';
+var addToUnscopables = require('./$.add-to-unscopables')
+  , step             = require('./$.iter-step')
+  , Iterators        = require('./$.iterators')
+  , toIObject        = require('./$.to-iobject');
+
+// 22.1.3.4 Array.prototype.entries()
+// 22.1.3.13 Array.prototype.keys()
+// 22.1.3.29 Array.prototype.values()
+// 22.1.3.30 Array.prototype[@@iterator]()
+module.exports = require('./$.iter-define')(Array, 'Array', function(iterated, kind){
+  this._t = toIObject(iterated); // target
+  this._i = 0;                   // next index
+  this._k = kind;                // kind
+// 22.1.5.2.1 %ArrayIteratorPrototype%.next()
+}, function(){
+  var O     = this._t
+    , kind  = this._k
+    , index = this._i++;
+  if(!O || index >= O.length){
+    this._t = undefined;
+    return step(1);
+  }
+  if(kind == 'keys'  )return step(0, index);
+  if(kind == 'values')return step(0, O[index]);
+  return step(0, [index, O[index]]);
+}, 'values');
+
+// argumentsList[@@iterator] is %ArrayProto_values% (9.4.4.6, 9.4.4.7)
+Iterators.Arguments = Iterators.Array;
+
+addToUnscopables('keys');
+addToUnscopables('values');
+addToUnscopables('entries');
+},{"./$.add-to-unscopables":4,"./$.iter-define":20,"./$.iter-step":21,"./$.iterators":22,"./$.to-iobject":31}],37:[function(require,module,exports){
+'use strict';
+var $at  = require('./$.string-at')(true);
+
+// 21.1.3.27 String.prototype[@@iterator]()
+require('./$.iter-define')(String, 'String', function(iterated){
+  this._t = String(iterated); // target
+  this._i = 0;                // next index
+// 21.1.5.2.1 %StringIteratorPrototype%.next()
+}, function(){
+  var O     = this._t
+    , index = this._i
+    , point;
+  if(index >= O.length)return {value: undefined, done: true};
+  point = $at(O, index);
+  this._i += point.length;
+  return {value: point, done: false};
+});
+},{"./$.iter-define":20,"./$.string-at":29}],38:[function(require,module,exports){
+require('./es6.array.iterator');
+var Iterators = require('./$.iterators');
+Iterators.NodeList = Iterators.HTMLCollection = Iterators.Array;
+},{"./$.iterators":22,"./es6.array.iterator":36}],39:[function(require,module,exports){
 /*!
  * jQuery JavaScript Library v2.1.4
  * http://jquery.com/
@@ -9210,7 +9620,7 @@ return jQuery;
 
 }));
 
-},{}],2:[function(require,module,exports){
+},{}],40:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -9303,7 +9713,7 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],3:[function(require,module,exports){
+},{}],41:[function(require,module,exports){
 var Vue // late bind
 var map = Object.create(null)
 var shimmed = false
@@ -9544,7 +9954,7 @@ function format (id) {
   return id.match(/[^\/]+\.vue$/)[0]
 }
 
-},{}],4:[function(require,module,exports){
+},{}],42:[function(require,module,exports){
 /**
  * Default client.
  */
@@ -9559,7 +9969,7 @@ module.exports = function (_) {
 
 };
 
-},{"./xhr":6}],5:[function(require,module,exports){
+},{"./xhr":44}],43:[function(require,module,exports){
 /**
  * JSONP client.
  */
@@ -9612,7 +10022,7 @@ module.exports = function (_) {
 
 };
 
-},{"../promise":20}],6:[function(require,module,exports){
+},{"../promise":58}],44:[function(require,module,exports){
 /**
  * XMLHttp client.
  */
@@ -9708,7 +10118,7 @@ module.exports = function (_) {
 
 };
 
-},{"../promise":20}],7:[function(require,module,exports){
+},{"../promise":58}],45:[function(require,module,exports){
 /**
  * Service for sending network requests.
  */
@@ -9818,7 +10228,7 @@ module.exports = function (_) {
     return _.http = Http;
 };
 
-},{"./client/default":4,"./interceptor":12,"./interceptor/before":9,"./interceptor/cors":10,"./interceptor/header":11,"./interceptor/jsonp":13,"./interceptor/method":14,"./interceptor/mime":15,"./interceptor/timeout":16,"./promise":20}],8:[function(require,module,exports){
+},{"./client/default":42,"./interceptor":50,"./interceptor/before":47,"./interceptor/cors":48,"./interceptor/header":49,"./interceptor/jsonp":51,"./interceptor/method":52,"./interceptor/mime":53,"./interceptor/timeout":54,"./promise":58}],46:[function(require,module,exports){
 /**
  * Install plugin.
  */
@@ -9861,7 +10271,7 @@ if (window.Vue) {
 
 module.exports = install;
 
-},{"./http":7,"./lib/util":19,"./promise":20,"./resource":21,"./url":22}],9:[function(require,module,exports){
+},{"./http":45,"./lib/util":57,"./promise":58,"./resource":59,"./url":60}],47:[function(require,module,exports){
 /**
  * Before Interceptor.
  */
@@ -9883,7 +10293,7 @@ module.exports = function (_) {
 
 };
 
-},{}],10:[function(require,module,exports){
+},{}],48:[function(require,module,exports){
 /**
  * CORS Interceptor.
  */
@@ -9925,7 +10335,7 @@ module.exports = function (_) {
 
 };
 
-},{"../client/jsonp":5}],11:[function(require,module,exports){
+},{"../client/jsonp":43}],49:[function(require,module,exports){
 /**
  * Header Interceptor.
  */
@@ -9955,7 +10365,7 @@ module.exports = function (_) {
 
 };
 
-},{}],12:[function(require,module,exports){
+},{}],50:[function(require,module,exports){
 /**
  * Interceptor factory.
  */
@@ -10004,7 +10414,7 @@ module.exports = function (_) {
 
 };
 
-},{"../promise":20}],13:[function(require,module,exports){
+},{"../promise":58}],51:[function(require,module,exports){
 /**
  * JSONP Interceptor.
  */
@@ -10028,7 +10438,7 @@ module.exports = function (_) {
 
 };
 
-},{"../client/jsonp":5}],14:[function(require,module,exports){
+},{"../client/jsonp":43}],52:[function(require,module,exports){
 /**
  * HTTP method override Interceptor.
  */
@@ -10051,7 +10461,7 @@ module.exports = function (_) {
 
 };
 
-},{}],15:[function(require,module,exports){
+},{}],53:[function(require,module,exports){
 /**
  * Mime Interceptor.
  */
@@ -10091,7 +10501,7 @@ module.exports = function (_) {
 
 };
 
-},{}],16:[function(require,module,exports){
+},{}],54:[function(require,module,exports){
 /**
  * Timeout Interceptor.
  */
@@ -10127,7 +10537,7 @@ module.exports = function (_) {
 
 };
 
-},{}],17:[function(require,module,exports){
+},{}],55:[function(require,module,exports){
 /**
  * Promises/A+ polyfill v1.1.4 (https://github.com/bramstein/promis)
  */
@@ -10309,7 +10719,7 @@ module.exports = function (_) {
     return Promise;
 };
 
-},{}],18:[function(require,module,exports){
+},{}],56:[function(require,module,exports){
 /**
  * URL Template v2.0.6 (https://github.com/bramstein/url-template)
  */
@@ -10461,7 +10871,7 @@ exports.encodeReserved = function (str) {
     }).join('');
 };
 
-},{}],19:[function(require,module,exports){
+},{}],57:[function(require,module,exports){
 /**
  * Utility functions.
  */
@@ -10563,7 +10973,7 @@ module.exports = function (Vue) {
     return _;
 };
 
-},{}],20:[function(require,module,exports){
+},{}],58:[function(require,module,exports){
 /**
  * Promise adapter.
  */
@@ -10676,7 +11086,7 @@ module.exports = function (_) {
     return Adapter;
 };
 
-},{"./lib/promise":17}],21:[function(require,module,exports){
+},{"./lib/promise":55}],59:[function(require,module,exports){
 /**
  * Service for interacting with RESTful services.
  */
@@ -10789,7 +11199,7 @@ module.exports = function (_) {
     return _.resource = Resource;
 };
 
-},{}],22:[function(require,module,exports){
+},{}],60:[function(require,module,exports){
 /**
  * Service for URL templating.
  */
@@ -10954,7 +11364,7 @@ module.exports = function (_) {
     return _.url = Url;
 };
 
-},{"./lib/url-template":18}],23:[function(require,module,exports){
+},{"./lib/url-template":56}],61:[function(require,module,exports){
 'use strict';
 
 var babelHelpers = {};
@@ -13489,7 +13899,197 @@ if (typeof window !== 'undefined' && window.Vue) {
 }
 
 module.exports = Router;
-},{}],24:[function(require,module,exports){
+},{}],62:[function(require,module,exports){
+var __vueify_style__ = require("vueify-insert-css").insert("\n  a span.check-mark {\n    position: absolute;\n    display: inline-block;\n    right: 15px;\n    margin-top: 5px;\n  }\n")
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = {
+  props: {
+    value: {
+      type: String
+    }
+  },
+  data: function data() {
+    return {
+      chosen: false
+    };
+  },
+
+  computed: {
+    chosen: function chosen() {
+      return this.$parent.value.indexOf(this.value) !== -1 ? true : false;
+    }
+  },
+  methods: {
+    handleClick: function handleClick() {
+      var parent = this.$parent;
+      var index = parent.value.indexOf(this.value);
+      if (parent.multiple) {
+        index === -1 ? parent.value.push(this.value) : parent.value.splice(index, 1);
+      } else {
+        parent.value = [];
+        parent.value.push(this.value);
+        parent.show = false;
+      }
+    }
+  }
+};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n  <li style=\"position:relative\">\n    <a @mousedown.prevent=\"handleClick\" style=\"cursor:pointer\">\n      <slot></slot>\n      <slot name=\"span\">\n        {{value}}\n      </slot>\n      <span class=\"glyphicon glyphicon-ok check-mark\" v-show=\"chosen\"></span>\n    </a>\n  </li>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/node_modules/vue-strap/src/Option.vue"
+  module.hot.dispose(function () {
+    require("vueify-insert-css").cache["\n  a span.check-mark {\n    position: absolute;\n    display: inline-block;\n    right: 15px;\n    margin-top: 5px;\n  }\n"] = false
+    document.head.removeChild(__vueify_style__)
+  })
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+},{"vue":64,"vue-hot-reload-api":41,"vueify-insert-css":65}],63:[function(require,module,exports){
+var __vueify_style__ = require("vueify-insert-css").insert("\n.bs_searchbox {\n  padding: 4px 8px;\n}\n.btn-group .dropdown-menu .notify {\n  position: absolute;\n  bottom: 5px;\n  width: 96%;\n  margin: 0 2%;\n  min-height: 26px;\n  padding: 3px 5px;\n  background: #f5f5f5;\n  border: 1px solid #e3e3e3;\n  box-shadow: inset 0 1px 1px rgba(0,0,0,.05);\n   pointer-events: none;\n  opacity: .9;\n}\n")
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _getIterator2 = require('babel-runtime/core-js/get-iterator');
+
+var _getIterator3 = _interopRequireDefault(_getIterator2);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.default = {
+  props: {
+    options: {
+      type: Array,
+      default: function _default() {
+        return [];
+      }
+    },
+    value: {
+      twoWay: true,
+      type: Array,
+      default: function _default() {
+        return [];
+      }
+    },
+    placeholder: {
+      type: String,
+      default: 'Nothing Selected'
+    },
+    multiple: {
+      type: Boolean,
+      default: false
+    },
+    search: { // Allow searching (only works when options are provided)
+      type: Boolean,
+      default: false
+    },
+    limit: {
+      type: Number,
+      default: 1024
+    }
+  },
+  data: function data() {
+    return {
+      searchText: null,
+      show: false,
+      showNotify: false
+    };
+  },
+
+  computed: {
+    selectedItems: function selectedItems() {
+      if (!this.options.length) {
+        return this.value.join(',');
+      } else {
+        // we were given bunch of options, so pluck them out to display
+        var foundItems = [];
+        var _iteratorNormalCompletion = true;
+        var _didIteratorError = false;
+        var _iteratorError = undefined;
+
+        try {
+          for (var _iterator = (0, _getIterator3.default)(this.options), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+            var item = _step.value;
+
+            if (this.value.indexOf(item.value) !== -1) foundItems.push(item.label);
+          }
+        } catch (err) {
+          _didIteratorError = true;
+          _iteratorError = err;
+        } finally {
+          try {
+            if (!_iteratorNormalCompletion && _iterator.return) {
+              _iterator.return();
+            }
+          } finally {
+            if (_didIteratorError) {
+              throw _iteratorError;
+            }
+          }
+        }
+
+        return foundItems.join(', ');
+      }
+    },
+    showPlaceholder: function showPlaceholder() {
+      return this.value.length <= 0;
+    }
+  },
+  watch: {
+    value: function value(val) {
+      var _this = this;
+
+      var timeout = undefined;
+      if (timeout) clearTimeout(timeout);
+      if (val.length > this.limit) {
+        this.showNotify = true;
+        this.value.pop();
+        timeout = setTimeout(function () {
+          return _this.showNotify = false;
+        }, 1000);
+      }
+    }
+  },
+  methods: {
+    select: function select(v) {
+      var index = this.value.indexOf(v);
+      if (index === -1) this.value.push(v);else this.value.$remove(v);
+    },
+    toggleDropdown: function toggleDropdown() {
+      this.show = !this.show;
+    }
+  }
+};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n  <div class=\"btn-group\" v-bind:class=\"{open:show}\">\n    <button v-el:btn=\"\" type=\"button\" class=\"btn btn-default dropdown-toggle\" @click=\"toggleDropdown\" @blur=\"show = (search ? show:false)\">\n      <span class=\"placeholder\" v-show=\"showPlaceholder\">{{placeholder}}</span>\n      <span class=\"content\">{{ selectedItems }}</span>\n      <span class=\"caret\"></span>\n    </button>\n    <ul class=\"dropdown-menu\">\n      <template v-if=\"options.length\">\n        <li v-if=\"search\" class=\"bs-searchbox\">\n          <input type=\"text\" placeholder=\"Search\" v-model=\"searchText\" class=\"form-control\" autocomplete=\"off\">\n        </li>\n        <li v-for=\"option in options | filterBy searchText \" v-bind:id=\"option.value\" style=\"position:relative\">\n          <a @mousedown.prevent=\"select(option.value)\" style=\"cursor:pointer\">\n            {{ option.label }}\n            <span class=\"glyphicon glyphicon-ok check-mark\" v-show=\"value.indexOf(option.value) !== -1\"></span>\n          </a>\n        </li>\n      </template>\n      <slot v-else=\"\"></slot>\n      <div class=\"notify\" v-show=\"showNotify\" transition=\"fadein\">Limit reached ({{limit}} items max).</div>\n    </ul>\n  </div>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/node_modules/vue-strap/src/Select.vue"
+  module.hot.dispose(function () {
+    require("vueify-insert-css").cache["\n.bs_searchbox {\n  padding: 4px 8px;\n}\n.btn-group .dropdown-menu .notify {\n  position: absolute;\n  bottom: 5px;\n  width: 96%;\n  margin: 0 2%;\n  min-height: 26px;\n  padding: 3px 5px;\n  background: #f5f5f5;\n  border: 1px solid #e3e3e3;\n  box-shadow: inset 0 1px 1px rgba(0,0,0,.05);\n   pointer-events: none;\n  opacity: .9;\n}\n"] = false
+    document.head.removeChild(__vueify_style__)
+  })
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+},{"babel-runtime/core-js/get-iterator":1,"vue":64,"vue-hot-reload-api":41,"vueify-insert-css":65}],64:[function(require,module,exports){
 (function (process){
 /*!
  * Vue.js v1.0.13
@@ -22920,7 +23520,7 @@ if (process.env.NODE_ENV !== 'production' && inBrowser) {
 
 module.exports = Vue;
 }).call(this,require('_process'))
-},{"_process":2}],25:[function(require,module,exports){
+},{"_process":40}],65:[function(require,module,exports){
 var inserted = exports.cache = {}
 
 exports.insert = function (css) {
@@ -22940,7 +23540,7 @@ exports.insert = function (css) {
   return elem
 }
 
-},{}],26:[function(require,module,exports){
+},{}],66:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -23057,7 +23657,7 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"./components/main/index.vue":47,"./components/shared/overlay.vue":52,"./components/sidebar/index.vue":53,"./stores/playlist":56,"./stores/setting":57,"./stores/shared":58,"jquery":1,"vue":24,"vue-hot-reload-api":3}],27:[function(require,module,exports){
+},{"./components/main/index.vue":88,"./components/shared/overlay.vue":93,"./components/sidebar/index.vue":95,"./stores/playlist":98,"./stores/setting":99,"./stores/shared":100,"jquery":39,"vue":64,"vue-hot-reload-api":41}],67:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -23076,7 +23676,7 @@ exports.default = {
 
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div>\n        <h2>Dashboard stuff</h2>\n    </div>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"dashboard\" class=\"container-fluid\">\n        <div class=\"row\">\n            <div class=\"col-md-4\">\n                <div class=\"box\">\n                <div class=\"pull-left m-r-1\">\n                    \n                </div>\n                <h4>FPPD Status</h4>\n                   \n                </div>\n            </div>\n            <div class=\"col-md-4\">\n                <div class=\"box\">\n                    <div class=\"pull-left m-r-1\">\n                        \n                    </div>\n                    <h4>FPPD Mode</h4>\n                </div>\n            </div>\n            <div class=\"col-md-4\">\n                <div class=\"box widget p-a-1\">\n                    <div class=\"pull-xs-left m-r-1\">\n                        <span class=\"rounded bg-success widget-icon\">\n                            <i class=\"ion-clock\"></i>\n                        </span>\n                    </div>\n                    <div class=\"clear\">\n                        <h4 class=\"text-lg\">12:36 p.m.</h4>\n                        <small class=\"text-muted\">FPPD Time</small>\n                    </div>\n                    \n                </div>\n            </div>\n            \n        </div>\n        <div class=\"row\">\n            <div class=\"col-md-4\">\n                <div class=\"card\">\n                    <div class=\"card-header\">\n                        Player\n                    </div>\n                    <div class=\"card-block\">\n                        \n                    </div>\n                </div>\n            </div>\n        </div>\n        \n    </div>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
@@ -23088,7 +23688,7 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"vue":24,"vue-hot-reload-api":3}],28:[function(require,module,exports){
+},{"vue":64,"vue-hot-reload-api":41}],68:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -23119,7 +23719,7 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"vue":24,"vue-hot-reload-api":3}],29:[function(require,module,exports){
+},{"vue":64,"vue-hot-reload-api":41}],69:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -23150,7 +23750,7 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"vue":24,"vue-hot-reload-api":3}],30:[function(require,module,exports){
+},{"vue":64,"vue-hot-reload-api":41}],70:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -23181,7 +23781,7 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"vue":24,"vue-hot-reload-api":3}],31:[function(require,module,exports){
+},{"vue":64,"vue-hot-reload-api":41}],71:[function(require,module,exports){
 var __vueify_style__ = require("vueify-insert-css").insert(".error-404 {\n  text-align: center; }\n")
 "use strict";
 
@@ -23206,7 +23806,7 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],32:[function(require,module,exports){
+},{"vue":64,"vue-hot-reload-api":41,"vueify-insert-css":65}],72:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -23237,7 +23837,7 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"vue":24,"vue-hot-reload-api":3}],33:[function(require,module,exports){
+},{"vue":64,"vue-hot-reload-api":41}],73:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -23268,7 +23868,7 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"vue":24,"vue-hot-reload-api":3}],34:[function(require,module,exports){
+},{"vue":64,"vue-hot-reload-api":41}],74:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -23299,7 +23899,7 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"vue":24,"vue-hot-reload-api":3}],35:[function(require,module,exports){
+},{"vue":64,"vue-hot-reload-api":41}],75:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -23330,7 +23930,7 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"vue":24,"vue-hot-reload-api":3}],36:[function(require,module,exports){
+},{"vue":64,"vue-hot-reload-api":41}],76:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -23361,7 +23961,8 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"vue":24,"vue-hot-reload-api":3}],37:[function(require,module,exports){
+},{"vue":64,"vue-hot-reload-api":41}],77:[function(require,module,exports){
+var __vueify_style__ = require("vueify-insert-css").insert(".content.settings {\n  padding: 20px;\n  position: relative; }\n")
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -23380,19 +23981,23 @@ exports.default = {
 
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div class=\"content\">\n        <router-view></router-view>\n    </div>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div class=\"content settings\">\n        <router-view></router-view>\n    </div>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
   var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/settings.vue"
+  module.hot.dispose(function () {
+    require("vueify-insert-css").cache[".content.settings {\n  padding: 20px;\n  position: relative; }\n"] = false
+    document.head.removeChild(__vueify_style__)
+  })
   if (!module.hot.data) {
     hotAPI.createRecord(id, module.exports)
   } else {
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"vue":24,"vue-hot-reload-api":3}],38:[function(require,module,exports){
+},{"vue":64,"vue-hot-reload-api":41,"vueify-insert-css":65}],78:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -23411,7 +24016,38 @@ exports.default = {
 
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div>date\n    </div>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"advanced-settings\" class=\"settings-container container-fluid box p-a-2\">\n       <h4 class=\"m-b-2\"><span class=\"semi-bold\">Advanced</span> Settings</h4>     \n        <form>\n        </form>\n    </div>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/settings/advanced.vue"
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+},{"vue":64,"vue-hot-reload-api":41}],79:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+exports.default = {
+    components: {},
+    props: [],
+    data: function data() {
+        return {};
+    },
+    ready: function ready() {},
+
+    methods: {},
+    events: {}
+
+};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"date-settings\" class=\"settings-container container-fluid box p-a-2\">\n        <h4 class=\"m-b-2\"><span class=\"semi-bold\">Date &amp; Time</span> Settings</h4>     \n        <form>\n            \n        </form>\n    </div>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
@@ -23423,7 +24059,7 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"vue":24,"vue-hot-reload-api":3}],39:[function(require,module,exports){
+},{"vue":64,"vue-hot-reload-api":41}],80:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -23442,7 +24078,7 @@ exports.default = {
 
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div>email\n    </div>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"email-settings\" class=\"settings-container container-fluid box p-a-2\">\n        <h4 class=\"m-b-2\"><span class=\"semi-bold\">Email</span> Settings</h4>     \n        <form>\n        </form>\n    </div>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
@@ -23454,17 +24090,40 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"vue":24,"vue-hot-reload-api":3}],40:[function(require,module,exports){
+},{"vue":64,"vue-hot-reload-api":41}],81:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
+
+var _switch = require("../../../shared/switch.vue");
+
+var _switch2 = _interopRequireDefault(_switch);
+
+var _Select = require("vue-strap/src/Select.vue");
+
+var _Select2 = _interopRequireDefault(_Select);
+
+var _Option = require("vue-strap/src/Option.vue");
+
+var _Option2 = _interopRequireDefault(_Option);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
 exports.default = {
-    components: {},
+    components: { Switch: _switch2.default, vSelect: _Select2.default, vOption: _Option2.default },
     props: [],
     data: function data() {
-        return {};
+        return {
+            blank_screen: true,
+            always_transmit: false,
+            force_analog: false,
+            lcd_enabled: false,
+            audio_device: [],
+            soundCards: ['Alsa', 'HiFi Berry'],
+            mixerDevices: ['DSP Program']
+        };
     },
     ready: function ready() {},
 
@@ -23473,7 +24132,7 @@ exports.default = {
 
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div>general\n    </div>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"general-settings\" class=\"settings-container container-fluid box p-a-2\">   \n        <h4 class=\"m-b-2\"><span class=\"semi-bold\">General</span> Settings</h4>     \n        <form>\n            <div class=\"form-group row\">\n                <div class=\"col-sm-7\">\n                    <label for=\"\" class=\"form-control-label\">Blank Screen on Startup</label>\n                    <p class=\"text-muted p-l-1 hidden-sm-down\">Enable/Disable a screen blanker at FPP startup. If you are using a projector with your Pi to display video then you will want to enable this setting so that the text console does not show on your projector when you are not playing videos</p>\n                </div>\n                <div class=\"col-sm-2 col-sm-offset-1 text-xs-right\">\n                    <switch :model.sync=\"blank_screen\"></switch>\n                </div>           \n                \n            </div>\n            <div class=\"form-group row\">\n                <div class=\"col-sm-7\">\n                    <label for=\"\" class=\"form-control-label text-md\">Force Analog Audio Output</label>\n                    <p class=\"text-muted p-l-1 hidden-sm-down\">Force audio output out the 1/8-inch stereo jack even when using HDMI for video</p>\n                </div>\n                <div class=\"col-sm-2 col-sm-offset-1 text-xs-right\">\n                     <switch :model.sync=\"force_analog\"></switch>\n                </div>\n                \n               \n            </div>\n            <div class=\"form-group row\">\n                <div class=\"col-sm-7\">\n                    <label for=\"\" class=\"form-control-label text-md\">Pi 2x16 LCD Enabled</label>\n                    <p class=\"text-muted p-l-1 hidden-sm-down\">Enable use of a LCD display attache to the Pi for status and control</p>\n                </div>\n                <div class=\"col-sm-2 col-sm-offset-1 text-xs-right\">\n                     <switch :model.sync=\"lcd_enabled\"></switch>\n                </div>\n            </div>\n            <div class=\"form-group row\">\n                <div class=\"col-sm-7\">\n                    <label for=\"\" class=\"form-control-label text-md\">Always Transmit Channel Data</label>\n                    <p class=\"text-muted p-l-1 hidden-sm-down\">Force transmission of channel data out to controllers whenever FPP is running. FPP will normally only transmit data when there is a sequence playing or the system is running in Bridge mode or a Pixel Overlay model is enabled. Some controllers go into test mode when not receiving data. This setting causes FPP to always send data so the controllers do not go into test mode.</p>\n                </div>\n                <div class=\"col-sm-2 col-sm-offset-1 text-xs-right\">\n                    <switch :model.sync=\"always_transmit\"></switch>\n                </div>\n                \n                \n            </div>\n            <div class=\"form-group row\">\n                 <div class=\"col-sm-7\">\n                    <label for=\"\" class=\"form-control-label text-md\">Audio Output Device</label>\n                    <p class=\"text-muted p-l-1 hidden-sm-down\">Allows controlling whether audio is sent out via the onboard soundcard or a USB attached soundcard or FM transmitter.</p>\n                </div>\n                <div class=\"col-sm-2 col-sm-offset-1\">\n                     <select v-model=\"audio_device\" class=\"form-control col-sm-2\">\n                        <option v-for=\"(index, key) in soundCards\" value=\"{{index}}\">{{key}}</option>\n                    </select>\n                </div>\n                \n               \n            </div>\n            <div class=\"form-group row\">\n                <div class=\"col-sm-7\">\n                    <label for=\"audio_mixer\" class=\"form-control-label text-md\">Audio Output Mixer Device</label>\n                    <p class=\"text-muted p-l-1 hidden-sm-down\"></p>\n                </div>\n                <div class=\"col-sm-2 col-sm-offset-1\">\n                    <select v-model=\"audio_mixer\" class=\"form-control col-sm-2\">\n                        <option v-for=\"(index, key) in mixerDevices\" value=\"{{index}}\">{{key}}</option>\n                    </select>\n                </div>\n                \n                \n            </div>\n        </form>\n    </div>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
@@ -23485,7 +24144,7 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"vue":24,"vue-hot-reload-api":3}],41:[function(require,module,exports){
+},{"../../../shared/switch.vue":94,"vue":64,"vue-hot-reload-api":41,"vue-strap/src/Option.vue":62,"vue-strap/src/Select.vue":63}],82:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -23504,7 +24163,7 @@ exports.default = {
 
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div>logs\n    </div>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"log-settings\" class=\"settings-container container-fluid box p-a-2\">\n       <h4 class=\"m-b-2\"><span class=\"semi-bold\">Log</span> Settings</h4>     \n        <form>\n        </form>\n    </div>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
@@ -23516,7 +24175,7 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"vue":24,"vue-hot-reload-api":3}],42:[function(require,module,exports){
+},{"vue":64,"vue-hot-reload-api":41}],83:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -23535,7 +24194,7 @@ exports.default = {
 
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div>network\n    </div>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"network-settings\" class=\"settings-container container-fluid box p-a-2\">\n       <h4 class=\"m-b-2\"><span class=\"semi-bold\">Network</span> Settings</h4>     \n        <form>\n        </form>\n    </div>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
@@ -23547,7 +24206,7 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"vue":24,"vue-hot-reload-api":3}],43:[function(require,module,exports){
+},{"vue":64,"vue-hot-reload-api":41}],84:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -23578,7 +24237,7 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"vue":24,"vue-hot-reload-api":3}],44:[function(require,module,exports){
+},{"vue":64,"vue-hot-reload-api":41}],85:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -23609,8 +24268,7 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"vue":24,"vue-hot-reload-api":3}],45:[function(require,module,exports){
-var __vueify_style__ = require("vueify-insert-css").insert(".header {\n  background: white;\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex-direction: row;\n      -ms-flex-direction: row;\n          flex-direction: row;\n  -webkit-justify-content: space-between;\n      -ms-flex-pack: justify;\n          justify-content: space-between;\n  -webkit-align-items: center;\n      -ms-flex-align: center;\n          align-items: center;\n  width: 100%;\n  padding: 20px; }\n  .header .page-title {\n    margin: 0;\n    font-weight: 300; }\n  .header .button {\n    margin-bottom: 0; }\n")
+},{"vue":64,"vue-hot-reload-api":41}],86:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -23646,18 +24304,14 @@ if (module.hot) {(function () {  module.hot.accept()
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
   var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/header/index.vue"
-  module.hot.dispose(function () {
-    require("vueify-insert-css").cache[".header {\n  background: white;\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex-direction: row;\n      -ms-flex-direction: row;\n          flex-direction: row;\n  -webkit-justify-content: space-between;\n      -ms-flex-pack: justify;\n          justify-content: space-between;\n  -webkit-align-items: center;\n      -ms-flex-align: center;\n          align-items: center;\n  width: 100%;\n  padding: 20px; }\n  .header .page-title {\n    margin: 0;\n    font-weight: 300; }\n  .header .button {\n    margin-bottom: 0; }\n"] = false
-    document.head.removeChild(__vueify_style__)
-  })
   if (!module.hot.data) {
     hotAPI.createRecord(id, module.exports)
   } else {
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"../../shared/control-buttons.vue":49,"../../shared/header-menu.vue":51,"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],46:[function(require,module,exports){
-var __vueify_style__ = require("vueify-insert-css").insert(".settings-header {\n  -webkit-flex-flow: wrap;\n      -ms-flex-flow: wrap;\n          flex-flow: wrap;\n  padding: 20px 20px 0; }\n  .settings-header .settings-menu {\n    width: 100%;\n    padding-top: 10px; }\n    .settings-header .settings-menu a {\n      display: block;\n      text-transform: uppercase;\n      letter-spacing: 0.1em;\n      font-size: 11px;\n      border-bottom: 3px solid transparent;\n      padding: 3px 5px;\n      margin-bottom: -1px; }\n      .settings-header .settings-menu a.active {\n        font-weight: 600;\n        border-color: #F04124; }\n")
+},{"../../shared/control-buttons.vue":90,"../../shared/header-menu.vue":92,"vue":64,"vue-hot-reload-api":41}],87:[function(require,module,exports){
+var __vueify_style__ = require("vueify-insert-css").insert(".settings-header {\n  -webkit-flex-flow: wrap;\n      -ms-flex-flow: wrap;\n          flex-flow: wrap;\n  padding: 20px 20px 0;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n  .settings-header .settings-menu {\n    width: 100%;\n    padding: 10px 0 0; }\n    .settings-header .settings-menu a {\n      display: block;\n      text-transform: uppercase;\n      letter-spacing: 0.1em;\n      font-size: 11px;\n      border-bottom: 3px solid transparent;\n      padding: 3px 5px;\n      margin-bottom: -1px; }\n      .settings-header .settings-menu a.active {\n        font-weight: 600;\n        border-color: #F04124; }\n  @media (min-width: 668px) {\n    .settings-header {\n      -webkit-flex-direction: row;\n          -ms-flex-direction: row;\n              flex-direction: row; } }\n")
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -23683,14 +24337,14 @@ exports.default = {
 
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div class=\"header settings-header\">\n        <div class=\"page-meta\">\n            <h1 class=\"page-title\">{{ $route.name | capitalize }}</h1>\n        </div>\n        <control-buttons></control-buttons>\n        <ul class=\"settings-menu nav navbar-nav\">\n            <li class=\"nav-item\"><a v-link=\"{path: '/settings', exact: true, activeClass: 'active'}\">General</a></li>\n            <li class=\"nav-item\"><a v-link=\"{path: '/settings/date', activeClass: 'active'}\">Date &amp; Time</a></li>\n            <li class=\"nav-item\"><a v-link=\"{path: '/settings/email', activeClass: 'active'}\">Email</a></li>\n            <li class=\"nav-item\"><a v-link=\"{path: '/settings/network', activeClass: 'active'}\">Network</a></li>\n            <li class=\"nav-item\"><a v-link=\"{path: '/settings/logs', activeClass: 'active'}\">Logs</a></li>\n        </ul>\n    </div>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div class=\"header settings-header\">\n        <div class=\"page-meta\">\n            <h1 class=\"page-title\">{{ $route.name | capitalize }}</h1>\n        </div>\n        <control-buttons></control-buttons>\n        <nav class=\"navbar settings-menu\">\n            <button class=\"navbar-toggler hidden-sm-up\" type=\"button\" data-toggle=\"collapse\" data-target=\"#header-navbar\">☰ Settings Menu</button>\n            <div class=\"collapse navbar-toggleable-xs\" id=\"header-navbar\">\n                <ul class=\"nav navbar-nav\">\n                    <li class=\"nav-item\"><a v-link=\"{path: '/settings', exact: true, activeClass: 'active'}\">General</a></li>\n                    <li class=\"nav-item\"><a v-link=\"{path: '/settings/date', activeClass: 'active'}\">Date &amp; Time</a></li>\n                    <li class=\"nav-item\"><a v-link=\"{path: '/settings/email', activeClass: 'active'}\">Email</a></li>\n                    <li class=\"nav-item\"><a v-link=\"{path: '/settings/network', activeClass: 'active'}\">Network</a></li>\n                    <li class=\"nav-item\"><a v-link=\"{path: '/settings/logs', activeClass: 'active'}\">Logs</a></li>\n                    <li class=\"nav-item\"><a v-link=\"{path: '/settings/advanced', activeClass: 'active'}\">Advanced</a></li>\n                </ul>\n            </div>\n    </nav></div>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
   var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/header/settings.vue"
   module.hot.dispose(function () {
-    require("vueify-insert-css").cache[".settings-header {\n  -webkit-flex-flow: wrap;\n      -ms-flex-flow: wrap;\n          flex-flow: wrap;\n  padding: 20px 20px 0; }\n  .settings-header .settings-menu {\n    width: 100%;\n    padding-top: 10px; }\n    .settings-header .settings-menu a {\n      display: block;\n      text-transform: uppercase;\n      letter-spacing: 0.1em;\n      font-size: 11px;\n      border-bottom: 3px solid transparent;\n      padding: 3px 5px;\n      margin-bottom: -1px; }\n      .settings-header .settings-menu a.active {\n        font-weight: 600;\n        border-color: #F04124; }\n"] = false
+    require("vueify-insert-css").cache[".settings-header {\n  -webkit-flex-flow: wrap;\n      -ms-flex-flow: wrap;\n          flex-flow: wrap;\n  padding: 20px 20px 0;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n  .settings-header .settings-menu {\n    width: 100%;\n    padding: 10px 0 0; }\n    .settings-header .settings-menu a {\n      display: block;\n      text-transform: uppercase;\n      letter-spacing: 0.1em;\n      font-size: 11px;\n      border-bottom: 3px solid transparent;\n      padding: 3px 5px;\n      margin-bottom: -1px; }\n      .settings-header .settings-menu a.active {\n        font-weight: 600;\n        border-color: #F04124; }\n  @media (min-width: 668px) {\n    .settings-header {\n      -webkit-flex-direction: row;\n          -ms-flex-direction: row;\n              flex-direction: row; } }\n"] = false
     document.head.removeChild(__vueify_style__)
   })
   if (!module.hot.data) {
@@ -23699,7 +24353,7 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"../../shared/control-buttons.vue":49,"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],47:[function(require,module,exports){
+},{"../../shared/control-buttons.vue":90,"vue":64,"vue-hot-reload-api":41,"vueify-insert-css":65}],88:[function(require,module,exports){
 var __vueify_style__ = require("vueify-insert-css").insert("#main-wrapper {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n")
 "use strict";
 
@@ -23738,7 +24392,7 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"./footer/index.vue":44,"./header/index.vue":45,"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],48:[function(require,module,exports){
+},{"./footer/index.vue":85,"./header/index.vue":86,"vue":64,"vue-hot-reload-api":41,"vueify-insert-css":65}],89:[function(require,module,exports){
 var __vueify_style__ = require("vueify-insert-css").insert("#main-wrapper {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n")
 'use strict';
 
@@ -23780,8 +24434,8 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"./content/settings.vue":37,"./footer/index.vue":44,"./header/settings.vue":46,"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],49:[function(require,module,exports){
-var __vueify_style__ = require("vueify-insert-css").insert(".control-buttons .button {\n  border-radius: 2px;\n  transition: background 0.35s, box-shadow 0.15s;\n  border: 1px solid #c4c4c4;\n  color: #666;\n  background: linear-gradient(to bottom, #f8f8f8, #eaeaea 100%);\n  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }\n  .control-buttons .button:active {\n    box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125); }\n")
+},{"./content/settings.vue":77,"./footer/index.vue":85,"./header/settings.vue":87,"vue":64,"vue-hot-reload-api":41,"vueify-insert-css":65}],90:[function(require,module,exports){
+var __vueify_style__ = require("vueify-insert-css").insert(".control-buttons {\n  margin-bottom: 1rem; }\n  .control-buttons .button {\n    border-radius: 2px;\n    transition: background 0.35s, box-shadow 0.15s;\n    border: 1px solid #c4c4c4;\n    color: #666;\n    background: linear-gradient(to bottom, #f8f8f8, #eaeaea 100%);\n    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }\n    .control-buttons .button:active {\n      box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125); }\n  @media (min-width: 668px) {\n    .control-buttons {\n      margin: 0; } }\n")
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -23804,7 +24458,7 @@ if (module.hot) {(function () {  module.hot.accept()
   if (!hotAPI.compatible) return
   var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/shared/control-buttons.vue"
   module.hot.dispose(function () {
-    require("vueify-insert-css").cache[".control-buttons .button {\n  border-radius: 2px;\n  transition: background 0.35s, box-shadow 0.15s;\n  border: 1px solid #c4c4c4;\n  color: #666;\n  background: linear-gradient(to bottom, #f8f8f8, #eaeaea 100%);\n  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }\n  .control-buttons .button:active {\n    box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125); }\n"] = false
+    require("vueify-insert-css").cache[".control-buttons {\n  margin-bottom: 1rem; }\n  .control-buttons .button {\n    border-radius: 2px;\n    transition: background 0.35s, box-shadow 0.15s;\n    border: 1px solid #c4c4c4;\n    color: #666;\n    background: linear-gradient(to bottom, #f8f8f8, #eaeaea 100%);\n    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }\n    .control-buttons .button:active {\n      box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125); }\n  @media (min-width: 668px) {\n    .control-buttons {\n      margin: 0; } }\n"] = false
     document.head.removeChild(__vueify_style__)
   })
   if (!module.hot.data) {
@@ -23813,7 +24467,7 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],50:[function(require,module,exports){
+},{"vue":64,"vue-hot-reload-api":41,"vueify-insert-css":65}],91:[function(require,module,exports){
 var __vueify_style__ = require("vueify-insert-css").insert("@-webkit-keyframes grow {\n  0% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  33% {\n    opacity: 1;\n    -webkit-transform: scale(1);\n            transform: scale(1); }\n  66% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  100% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); } }\n\n@keyframes grow {\n  0% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  33% {\n    opacity: 1;\n    -webkit-transform: scale(1);\n            transform: scale(1); }\n  66% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  100% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); } }\n\n#load {\n  position: relative;\n  display: inline-block;\n  text-align: center; }\n  #load .letter {\n    display: inline-block;\n    margin: 0 2px;\n    color: white;\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9);\n    -webkit-animation: grow 2.5s ease-in infinite;\n            animation: grow 2.5s ease-in infinite; }\n  #load .letter:nth-child(1) {\n    -webkit-animation-delay: .1s;\n            animation-delay: .1s; }\n  #load .letter:nth-child(2) {\n    -webkit-animation-delay: .15s;\n            animation-delay: .15s; }\n  #load .letter:nth-child(3) {\n    -webkit-animation-delay: .2s;\n            animation-delay: .2s; }\n  #load .letter:nth-child(4) {\n    -webkit-animation-delay: .25s;\n            animation-delay: .25s; }\n  #load .letter:nth-child(5) {\n    -webkit-animation-delay: .3s;\n            animation-delay: .3s; }\n  #load .letter:nth-child(6) {\n    -webkit-animation-delay: .35s;\n            animation-delay: .35s; }\n  #load .letter:nth-child(7) {\n    margin-left: 8px;\n    -webkit-animation-delay: .4s;\n            animation-delay: .4s; }\n  #load .letter:nth-child(8) {\n    -webkit-animation-delay: .45s;\n            animation-delay: .45s; }\n  #load .letter:nth-child(9) {\n    -webkit-animation-delay: .5s;\n            animation-delay: .5s; }\n  #load .letter:nth-child(10) {\n    -webkit-animation-delay: .55s;\n            animation-delay: .55s; }\n  #load .letter:nth-child(11) {\n    -webkit-animation-delay: .6s;\n            animation-delay: .6s; }\n  #load .letter:nth-child(12) {\n    -webkit-animation-delay: .65s;\n            animation-delay: .65s; }\n")
 "use strict";
 
@@ -23838,7 +24492,7 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],51:[function(require,module,exports){
+},{"vue":64,"vue-hot-reload-api":41,"vueify-insert-css":65}],92:[function(require,module,exports){
 var __vueify_style__ = require("vueify-insert-css").insert(".header-menu {\n  width: 100%;\n  padding-top: 10px; }\n  .header-menu a {\n    display: block;\n    text-transform: uppercase;\n    letter-spacing: 0.1em;\n    font-size: 11px;\n    border-bottom: 3px solid transparent;\n    padding: 3px 5px;\n    margin-bottom: -1px; }\n    .header-menu a.active {\n      font-weight: 600;\n      border-color: #F04124; }\n")
 'use strict';
 
@@ -23873,7 +24527,7 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],52:[function(require,module,exports){
+},{"vue":64,"vue-hot-reload-api":41,"vueify-insert-css":65}],93:[function(require,module,exports){
 var __vueify_style__ = require("vueify-insert-css").insert("#overlay {\n  position: fixed;\n  top: 0;\n  left: 0;\n  z-index: 9999;\n  width: 100%;\n  height: 100%;\n  background-color: #363C47;\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-align-items: center;\n      -ms-flex-align: center;\n          align-items: center;\n  -webkit-justify-content: center;\n      -ms-flex-pack: center;\n          justify-content: center;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n  #overlay .logo {\n    width: 220px;\n    height: 108px;\n    margin-bottom: 15px;\n    position: relative;\n    left: -25px; }\n")
 "use strict";
 
@@ -23907,8 +24561,44 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"./falcon-loading.vue":50,"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],53:[function(require,module,exports){
-var __vueify_style__ = require("vueify-insert-css").insert(".sidebar {\n  width: 155px;\n  position: fixed;\n  height: 100%;\n  background: #363C47;\n  z-index: 10;\n  padding: 20px;\n  transition: all 0.25s;\n  left: -155px; }\n  @media (min-width: 769px) {\n    .sidebar {\n      left: 0;\n      width: 155px; } }\n  @media (min-width: 1281px) {\n    .sidebar {\n      width: 200px; } }\n  .sidebar .logo {\n    margin: 0 0 40px; }\n    .sidebar .logo img {\n      width: 100%;\n      height: auto; }\n  .sidebar h4 {\n    text-transform: uppercase;\n    color: #999;\n    font-size: 10px;\n    font-weight: 600;\n    letter-spacing: 1px;\n    margin: 20px 0 0; }\n  .sidebar li {\n    padding: 3px 0; }\n  .sidebar a {\n    color: #eaeaea;\n    font-weight: 300;\n    font-size: 14px;\n    transition: all 0.25s; }\n    .sidebar a:hover {\n      color: #fff; }\n    .sidebar a.active {\n      color: #fff;\n      font-weight: 500; }\n")
+},{"./falcon-loading.vue":91,"vue":64,"vue-hot-reload-api":41,"vueify-insert-css":65}],94:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+exports.default = {
+    components: {},
+    props: {
+        model: {
+            required: true,
+            twoWay: true
+        }
+    },
+    data: function data() {
+        return {};
+    },
+    ready: function ready() {},
+
+    methods: {},
+    events: {}
+
+};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <label class=\"label-switch\">\n      <input type=\"checkbox\" v-model=\"model\">\n      <div class=\"checkbox\"></div>\n    </label>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/shared/switch.vue"
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+},{"vue":64,"vue-hot-reload-api":41}],95:[function(require,module,exports){
+var __vueify_style__ = require("vueify-insert-css").insert(".sidebar {\n  width: 155px;\n  position: fixed;\n  height: 100%;\n  background: #363C47;\n  z-index: 10;\n  padding: 20px;\n  transition: all 0.25s;\n  left: -155px; }\n  @media (min-width: 769px) {\n    .sidebar {\n      left: 0;\n      width: 155px; } }\n  @media (min-width: 1281px) {\n    .sidebar {\n      width: 200px; } }\n  .sidebar .logo {\n    margin: 0 0 40px; }\n    .sidebar .logo img {\n      width: 100%;\n      height: auto; }\n  .sidebar h4 {\n    text-transform: uppercase;\n    color: #999;\n    font-size: 10px;\n    font-weight: 600;\n    letter-spacing: 1px;\n    margin: 20px 0 5px; }\n  .sidebar li {\n    padding: 3px 0; }\n  .sidebar a {\n    color: #eaeaea;\n    font-weight: 300;\n    font-size: 14px;\n    transition: all 0.25s; }\n    .sidebar a:hover {\n      color: #fff; }\n    .sidebar a.active {\n      color: #fff;\n      font-weight: 500; }\n")
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -23934,7 +24624,7 @@ if (module.hot) {(function () {  module.hot.accept()
   if (!hotAPI.compatible) return
   var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/sidebar/index.vue"
   module.hot.dispose(function () {
-    require("vueify-insert-css").cache[".sidebar {\n  width: 155px;\n  position: fixed;\n  height: 100%;\n  background: #363C47;\n  z-index: 10;\n  padding: 20px;\n  transition: all 0.25s;\n  left: -155px; }\n  @media (min-width: 769px) {\n    .sidebar {\n      left: 0;\n      width: 155px; } }\n  @media (min-width: 1281px) {\n    .sidebar {\n      width: 200px; } }\n  .sidebar .logo {\n    margin: 0 0 40px; }\n    .sidebar .logo img {\n      width: 100%;\n      height: auto; }\n  .sidebar h4 {\n    text-transform: uppercase;\n    color: #999;\n    font-size: 10px;\n    font-weight: 600;\n    letter-spacing: 1px;\n    margin: 20px 0 0; }\n  .sidebar li {\n    padding: 3px 0; }\n  .sidebar a {\n    color: #eaeaea;\n    font-weight: 300;\n    font-size: 14px;\n    transition: all 0.25s; }\n    .sidebar a:hover {\n      color: #fff; }\n    .sidebar a.active {\n      color: #fff;\n      font-weight: 500; }\n"] = false
+    require("vueify-insert-css").cache[".sidebar {\n  width: 155px;\n  position: fixed;\n  height: 100%;\n  background: #363C47;\n  z-index: 10;\n  padding: 20px;\n  transition: all 0.25s;\n  left: -155px; }\n  @media (min-width: 769px) {\n    .sidebar {\n      left: 0;\n      width: 155px; } }\n  @media (min-width: 1281px) {\n    .sidebar {\n      width: 200px; } }\n  .sidebar .logo {\n    margin: 0 0 40px; }\n    .sidebar .logo img {\n      width: 100%;\n      height: auto; }\n  .sidebar h4 {\n    text-transform: uppercase;\n    color: #999;\n    font-size: 10px;\n    font-weight: 600;\n    letter-spacing: 1px;\n    margin: 20px 0 5px; }\n  .sidebar li {\n    padding: 3px 0; }\n  .sidebar a {\n    color: #eaeaea;\n    font-weight: 300;\n    font-size: 14px;\n    transition: all 0.25s; }\n    .sidebar a:hover {\n      color: #fff; }\n    .sidebar a.active {\n      color: #fff;\n      font-weight: 500; }\n"] = false
     document.head.removeChild(__vueify_style__)
   })
   if (!module.hot.data) {
@@ -23943,7 +24633,7 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"vue":24,"vue-hot-reload-api":3,"vueify-insert-css":25}],54:[function(require,module,exports){
+},{"vue":64,"vue-hot-reload-api":41,"vueify-insert-css":65}],96:[function(require,module,exports){
 'use strict';
 
 var $ = require('jquery');
@@ -23958,10 +24648,11 @@ Vue.config.debug = true;
 
 var router = new VueRouter({
     hashBang: false,
-    history: true
+    history: true,
+    linkActiveClass: 'active'
 });
-var App = require('./app.vue');
 
+var App = require('./app.vue');
 var MainContent = require('./components/main/index.vue');
 
 var Dashboard = require('./components/main/content/dashboard.vue');
@@ -23981,6 +24672,7 @@ var DateSettings = require('./components/main/content/settings/date.vue');
 var EmailSettings = require('./components/main/content/settings/email.vue');
 var NetworkSettings = require('./components/main/content/settings/network.vue');
 var LogSettings = require('./components/main/content/settings/logs.vue');
+var AdvancedSettings = require('./components/main/content/settings/advanced.vue');
 
 router.map({
     '*': {
@@ -24053,6 +24745,9 @@ router.map({
             },
             '/logs': {
                 component: LogSettings
+            },
+            '/advanced': {
+                component: AdvancedSettings
             }
 
         }
@@ -24061,7 +24756,7 @@ router.map({
 
 router.start(App, 'body');
 
-},{"./app.vue":26,"./components/main/content/dashboard.vue":27,"./components/main/content/effects.vue":28,"./components/main/content/events.vue":29,"./components/main/content/files.vue":30,"./components/main/content/not-found.vue":31,"./components/main/content/outputs.vue":32,"./components/main/content/overlays.vue":33,"./components/main/content/playlists.vue":34,"./components/main/content/plugins.vue":35,"./components/main/content/schedule.vue":36,"./components/main/content/settings/date.vue":38,"./components/main/content/settings/email.vue":39,"./components/main/content/settings/general.vue":40,"./components/main/content/settings/logs.vue":41,"./components/main/content/settings/network.vue":42,"./components/main/content/testing.vue":43,"./components/main/index.vue":47,"./components/main/settings.vue":48,"jquery":1,"vue":24,"vue-resource":8,"vue-router":23}],55:[function(require,module,exports){
+},{"./app.vue":66,"./components/main/content/dashboard.vue":67,"./components/main/content/effects.vue":68,"./components/main/content/events.vue":69,"./components/main/content/files.vue":70,"./components/main/content/not-found.vue":71,"./components/main/content/outputs.vue":72,"./components/main/content/overlays.vue":73,"./components/main/content/playlists.vue":74,"./components/main/content/plugins.vue":75,"./components/main/content/schedule.vue":76,"./components/main/content/settings/advanced.vue":78,"./components/main/content/settings/date.vue":79,"./components/main/content/settings/email.vue":80,"./components/main/content/settings/general.vue":81,"./components/main/content/settings/logs.vue":82,"./components/main/content/settings/network.vue":83,"./components/main/content/testing.vue":84,"./components/main/index.vue":88,"./components/main/settings.vue":89,"jquery":39,"vue":64,"vue-resource":46,"vue-router":61}],97:[function(require,module,exports){
 'use strict';
 
 var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
@@ -24135,10 +24830,10 @@ exports.default = {
     }
 };
 
-},{}],56:[function(require,module,exports){
+},{}],98:[function(require,module,exports){
 "use strict";
 
-},{}],57:[function(require,module,exports){
+},{}],99:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -24158,7 +24853,13 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 exports.default = {
 
     state: {
-        settings: []
+        settings: {
+            general: {},
+            date: {},
+            email: {},
+            logs: {},
+            advanced: {}
+        }
     },
 
     init: function init() {
@@ -24178,7 +24879,7 @@ exports.default = {
     }
 };
 
-},{"../services/http":55,"./shared":58}],58:[function(require,module,exports){
+},{"../services/http":97,"./shared":100}],100:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -24219,6 +24920,6 @@ exports.default = {
     }
 };
 
-},{"../services/http":55}]},{},[54]);
+},{"../services/http":97}]},{},[96]);
 
 //# sourceMappingURL=main.js.map

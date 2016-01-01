@@ -1,6 +1,52 @@
 <template>
-    <div>
-        <h2>Dashboard stuff</h2>
+    <div id="dashboard" class="container-fluid">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="box">
+                <div class="pull-left m-r-1">
+                    
+                </div>
+                <h4>FPPD Status</h4>
+                   
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="box">
+                    <div class="pull-left m-r-1">
+                        
+                    </div>
+                    <h4>FPPD Mode</h4>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="box widget p-a-1">
+                    <div class="pull-xs-left m-r-1">
+                        <span class="rounded bg-success widget-icon">
+                            <i class="ion-clock"></i>
+                        </span>
+                    </div>
+                    <div class="clear">
+                        <h4 class="text-lg">12:36 p.m.</h4>
+                        <small class="text-muted">FPPD Time</small>
+                    </div>
+                    
+                </div>
+            </div>
+            
+        </div>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        Player
+                    </div>
+                    <div class="card-block">
+                        
+                    </div>
+                </div>
+            </div>
+        </div>
+        
     </div>
 </template>
 
