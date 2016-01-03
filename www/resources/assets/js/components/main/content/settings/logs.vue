@@ -1,6 +1,7 @@
 <template>
     <div id="log-settings" class="settings-container container-fluid box p-a-2">
-       <h4 class="m-b-2"><span class="semi-bold">Log</span> Settings</h4>     
+       <h4><span class="semi-bold">Log</span> Settings</h4>     
+        <hr>
         <form>
         </form>
     </div>

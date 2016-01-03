@@ -417,8 +417,12 @@ a {
   .widget-icon i {
     font-size: 22px; }
 
+.form-control {
+  border-radius: 0; }
+
 .settings-container .form-control-label {
-  font-size: 1.125rem; }
+  font-size: 1.125rem;
+  padding-left: 0; }
   @media (max-width: 667px) {
     .settings-container .form-control-label {
       font-size: .875rem; } }

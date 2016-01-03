@@ -24016,7 +24016,7 @@ exports.default = {
 
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"advanced-settings\" class=\"settings-container container-fluid box p-a-2\">\n       <h4 class=\"m-b-2\"><span class=\"semi-bold\">Advanced</span> Settings</h4>     \n        <form>\n        </form>\n    </div>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"advanced-settings\" class=\"settings-container container-fluid box p-a-2\">\n        <h4><span class=\"semi-bold\">Advanced</span> Settings</h4>     \n        <hr>\n        <form>\n        </form>\n    </div>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
@@ -24034,11 +24034,26 @@ if (module.hot) {(function () {  module.hot.accept()
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
+
+var _switch = require("../../../shared/switch.vue");
+
+var _switch2 = _interopRequireDefault(_switch);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
 exports.default = {
-    components: {},
+    components: { Switch: _switch2.default },
     props: [],
     data: function data() {
-        return {};
+        return {
+            date: null,
+            time: null,
+            piRTC: null,
+            ntp: true,
+            ntp_server: null,
+            timezone: null,
+            timezones: []
+        };
     },
     ready: function ready() {},
 
@@ -24047,7 +24062,7 @@ exports.default = {
 
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"date-settings\" class=\"settings-container container-fluid box p-a-2\">\n        <h4 class=\"m-b-2\"><span class=\"semi-bold\">Date &amp; Time</span> Settings</h4>     \n        <form>\n            \n        </form>\n    </div>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"date-settings\" class=\"settings-container container-fluid box p-a-2\">\n        <h4><span class=\"semi-bold\">Date &amp; Time</span> Settings</h4>     \n        <hr>\n        <form>\n            \n            <div class=\"form-group row\">\n                <div class=\"col-sm-6 col-md-8\">\n                    <label for=\"\" class=\"form-control-label\">Manually Set Date &amp; Time</label>\n                </div>\n                <div class=\"col-sm-3 col-md-2 text-xs-right\">\n                    <input type=\"text\" v-model=\"date\" class=\"form-control\" placeholder=\"YYYY/MM/DD\">\n                    \n                </div>           \n                <div class=\"col-sm-3 col-md-2 text-xs-right\">\n                    <input type=\"text\" v-model=\"time\" placeholder=\"HH:MM\" class=\"form-control\">\n                    <small class=\"text-muted\">Expected 24 hour time</small>\n                </div> \n            </div>\n            <div class=\"form-group row\">\n                <div class=\"col-sm-7\">\n                    <label for=\"\" class=\"form-control-label\">Real Time Clock</label>\n                    <p class=\"text-muted  hidden-sm-down\"><strong>Note:</strong> You must reboot to activate the RTC, then return to this page to set the time on the RTC.</p>\n                </div>\n                <div class=\"col-sm-2 col-sm-offset-3 text-xs-right\">\n                    <select class=\"c-select\" v-model=\"piRTC\">\n                        <option value=\"N\">None</option>\n                        <option value=\"1\">RasClock</option>\n                        <option value=\"2\">DS1305</option>\n                        <option value=\"3\">PiFace</option>\n                    </select>\n                </div>           \n                \n            </div>\n             <div class=\"form-group row\">\n                <div class=\"col-sm-6 col-md-7\">\n                    <label for=\"\" class=\"form-control-label\">NTP</label>\n                    <p class=\"text-muted  hidden-sm-down\">This allows you to enable or disable the NTP (Network Time Protocol) functionality of the player. When enabled, the player will attempt to retrieve the current time from a predefined set of NTP servers OR from an NTP you specify.</p>\n                </div>\n                <div class=\"col-sm-2 text-xs-right\">\n                    <switch :model.sync=\"ntp\"></switch>\n                </div>           \n                <div class=\"col-sm-3 text-xs-right\" v-if=\"ntp\">\n                    <input type=\"text\" v-model=\"ntp_server\" placeholder=\"\" class=\"form-control\">\n                    <small class=\"text-muted\">NTP Server (optional)</small>\n                </div> \n            </div>\n            <div class=\"form-group row\">\n                <div class=\"col-sm-7\">\n                    <label for=\"\" class=\"form-control-label text-md\">Time Zone</label>\n                    <p class=\"text-muted  hidden-sm-down\">Please select your timezone.</p>\n                </div>\n                <div class=\"col-sm-2 col-sm-offset-1\">\n                    <select v-model=\"timezone\" class=\"c-select col-sm-2 pull-sm-right\">\n                        <option v-for=\"(index, key) in timezones\" value=\"{{index}}\">{{key}}</option>\n                    </select>\n                </div>\n                \n                \n            </div>\n        </form>\n    </div>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
@@ -24059,7 +24074,7 @@ if (module.hot) {(function () {  module.hot.accept()
     hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
   }
 })()}
-},{"vue":64,"vue-hot-reload-api":41}],80:[function(require,module,exports){
+},{"../../../shared/switch.vue":94,"vue":64,"vue-hot-reload-api":41}],80:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -24078,7 +24093,7 @@ exports.default = {
 
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"email-settings\" class=\"settings-container container-fluid box p-a-2\">\n        <h4 class=\"m-b-2\"><span class=\"semi-bold\">Email</span> Settings</h4>     \n        <form>\n        </form>\n    </div>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"email-settings\" class=\"settings-container container-fluid box p-a-2\">\n        <h4><span class=\"semi-bold\">Email</span> Settings</h4>     \n        <hr>\n        <form>\n        </form>\n    </div>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
@@ -24132,7 +24147,7 @@ exports.default = {
 
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"general-settings\" class=\"settings-container container-fluid box p-a-2\">   \n        <h4 class=\"m-b-2\"><span class=\"semi-bold\">General</span> Settings</h4>     \n        <form>\n            <div class=\"form-group row\">\n                <div class=\"col-sm-7\">\n                    <label for=\"\" class=\"form-control-label\">Blank Screen on Startup</label>\n                    <p class=\"text-muted p-l-1 hidden-sm-down\">Enable/Disable a screen blanker at FPP startup. If you are using a projector with your Pi to display video then you will want to enable this setting so that the text console does not show on your projector when you are not playing videos</p>\n                </div>\n                <div class=\"col-sm-2 col-sm-offset-1 text-xs-right\">\n                    <switch :model.sync=\"blank_screen\"></switch>\n                </div>           \n                \n            </div>\n            <div class=\"form-group row\">\n                <div class=\"col-sm-7\">\n                    <label for=\"\" class=\"form-control-label text-md\">Force Analog Audio Output</label>\n                    <p class=\"text-muted p-l-1 hidden-sm-down\">Force audio output out the 1/8-inch stereo jack even when using HDMI for video</p>\n                </div>\n                <div class=\"col-sm-2 col-sm-offset-1 text-xs-right\">\n                     <switch :model.sync=\"force_analog\"></switch>\n                </div>\n                \n               \n            </div>\n            <div class=\"form-group row\">\n                <div class=\"col-sm-7\">\n                    <label for=\"\" class=\"form-control-label text-md\">Pi 2x16 LCD Enabled</label>\n                    <p class=\"text-muted p-l-1 hidden-sm-down\">Enable use of a LCD display attache to the Pi for status and control</p>\n                </div>\n                <div class=\"col-sm-2 col-sm-offset-1 text-xs-right\">\n                     <switch :model.sync=\"lcd_enabled\"></switch>\n                </div>\n            </div>\n            <div class=\"form-group row\">\n                <div class=\"col-sm-7\">\n                    <label for=\"\" class=\"form-control-label text-md\">Always Transmit Channel Data</label>\n                    <p class=\"text-muted p-l-1 hidden-sm-down\">Force transmission of channel data out to controllers whenever FPP is running. FPP will normally only transmit data when there is a sequence playing or the system is running in Bridge mode or a Pixel Overlay model is enabled. Some controllers go into test mode when not receiving data. This setting causes FPP to always send data so the controllers do not go into test mode.</p>\n                </div>\n                <div class=\"col-sm-2 col-sm-offset-1 text-xs-right\">\n                    <switch :model.sync=\"always_transmit\"></switch>\n                </div>\n                \n                \n            </div>\n            <div class=\"form-group row\">\n                 <div class=\"col-sm-7\">\n                    <label for=\"\" class=\"form-control-label text-md\">Audio Output Device</label>\n                    <p class=\"text-muted p-l-1 hidden-sm-down\">Allows controlling whether audio is sent out via the onboard soundcard or a USB attached soundcard or FM transmitter.</p>\n                </div>\n                <div class=\"col-sm-2 col-sm-offset-1\">\n                     <select v-model=\"audio_device\" class=\"form-control col-sm-2\">\n                        <option v-for=\"(index, key) in soundCards\" value=\"{{index}}\">{{key}}</option>\n                    </select>\n                </div>\n                \n               \n            </div>\n            <div class=\"form-group row\">\n                <div class=\"col-sm-7\">\n                    <label for=\"audio_mixer\" class=\"form-control-label text-md\">Audio Output Mixer Device</label>\n                    <p class=\"text-muted p-l-1 hidden-sm-down\"></p>\n                </div>\n                <div class=\"col-sm-2 col-sm-offset-1\">\n                    <select v-model=\"audio_mixer\" class=\"form-control col-sm-2\">\n                        <option v-for=\"(index, key) in mixerDevices\" value=\"{{index}}\">{{key}}</option>\n                    </select>\n                </div>\n                \n                \n            </div>\n        </form>\n    </div>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"general-settings\" class=\"settings-container container-fluid box p-a-2\">   \n        <h4><span class=\"semi-bold\">General</span> Settings</h4>     \n        <hr>\n        <form>\n            <div class=\"form-group row\">\n                <div class=\"col-sm-7\">\n                    <label for=\"\" class=\"form-control-label\">Blank Screen on Startup</label>\n                    <p class=\"text-muted  hidden-sm-down\">Enable/Disable a screen blanker at FPP startup. If you are using a projector with your Pi to display video then you will want to enable this setting so that the text console does not show on your projector when you are not playing videos</p>\n                </div>\n                <div class=\"col-sm-2 col-sm-offset-1 text-xs-right\">\n                    <switch :model.sync=\"blank_screen\"></switch>\n                </div>           \n                \n            </div>\n            <div class=\"form-group row\">\n                <div class=\"col-sm-7\">\n                    <label for=\"\" class=\"form-control-label text-md\">Force Analog Audio Output</label>\n                    <p class=\"text-muted  hidden-sm-down\">Force audio output out the 1/8-inch stereo jack even when using HDMI for video</p>\n                </div>\n                <div class=\"col-sm-2 col-sm-offset-1 text-xs-right\">\n                     <switch :model.sync=\"force_analog\"></switch>\n                </div>\n                \n               \n            </div>\n            <div class=\"form-group row\">\n                <div class=\"col-sm-7\">\n                    <label for=\"\" class=\"form-control-label text-md\">Pi 2x16 LCD Enabled</label>\n                    <p class=\"text-muted  hidden-sm-down\">Enable use of a LCD display attache to the Pi for status and control</p>\n                </div>\n                <div class=\"col-sm-2 col-sm-offset-1 text-xs-right\">\n                     <switch :model.sync=\"lcd_enabled\"></switch>\n                </div>\n            </div>\n            <div class=\"form-group row\">\n                <div class=\"col-sm-7\">\n                    <label for=\"\" class=\"form-control-label text-md\">Always Transmit Channel Data</label>\n                    <p class=\"text-muted  hidden-sm-down\">Force transmission of channel data out to controllers whenever FPP is running. FPP will normally only transmit data when there is a sequence playing or the system is running in Bridge mode or a Pixel Overlay model is enabled. Some controllers go into test mode when not receiving data. This setting causes FPP to always send data so the controllers do not go into test mode.</p>\n                </div>\n                <div class=\"col-sm-2 col-sm-offset-1 text-xs-right\">\n                    <switch :model.sync=\"always_transmit\"></switch>\n                </div>\n                \n                \n            </div>\n            <div class=\"form-group row\">\n                 <div class=\"col-sm-7\">\n                    <label for=\"\" class=\"form-control-label text-md\">Audio Output Device</label>\n                    <p class=\"text-muted  hidden-sm-down\">Allows controlling whether audio is sent out via the onboard soundcard or a USB attached soundcard or FM transmitter.</p>\n                </div>\n                <div class=\"col-sm-2 col-sm-offset-1\">\n                     <select v-model=\"audio_device\" class=\"c-select col-sm-2 pull-sm-right\">\n                        <option v-for=\"(index, key) in soundCards\" value=\"{{index}}\">{{key}}</option>\n                    </select>\n                </div>\n                \n               \n            </div>\n            <div class=\"form-group row\">\n                <div class=\"col-sm-7\">\n                    <label for=\"audio_mixer\" class=\"form-control-label text-md\">Audio Output Mixer Device</label>\n                    <p class=\"text-muted  hidden-sm-down\"></p>\n                </div>\n                <div class=\"col-sm-2 col-sm-offset-1\">\n                    <select v-model=\"audio_mixer\" class=\"c-select col-sm-2 pull-sm-right\">\n                        <option v-for=\"(index, key) in mixerDevices\" value=\"{{index}}\">{{key}}</option>\n                    </select>\n                </div>\n                \n                \n            </div>\n        </form>\n    </div>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
@@ -24163,7 +24178,7 @@ exports.default = {
 
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"log-settings\" class=\"settings-container container-fluid box p-a-2\">\n       <h4 class=\"m-b-2\"><span class=\"semi-bold\">Log</span> Settings</h4>     \n        <form>\n        </form>\n    </div>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"log-settings\" class=\"settings-container container-fluid box p-a-2\">\n       <h4><span class=\"semi-bold\">Log</span> Settings</h4>     \n        <hr>\n        <form>\n        </form>\n    </div>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
@@ -24194,7 +24209,7 @@ exports.default = {
 
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"network-settings\" class=\"settings-container container-fluid box p-a-2\">\n       <h4 class=\"m-b-2\"><span class=\"semi-bold\">Network</span> Settings</h4>     \n        <form>\n        </form>\n    </div>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"network-settings\" class=\"settings-container container-fluid box p-a-2\">\n       <h4><span class=\"semi-bold\">Network</span> Settings</h4>     \n        <hr>\n        <form>\n        </form>\n    </div>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
