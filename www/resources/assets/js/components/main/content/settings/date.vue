@@ -9,8 +9,7 @@
                     <label for="" class="form-control-label">Manually Set Date & Time</label>
                 </div>
                 <div class="col-sm-3 col-md-2 text-xs-right">
-                    <input type="text" v-model="date" class="form-control" placeholder="YYYY/MM/DD">
-                    
+                 <input type="text" v-model="date" class="form-control" placeholder="YYYY/MM/DD">
                 </div>           
                 <div class="col-sm-3 col-md-2 text-xs-right">
                     <input type="text" v-model="time" placeholder="HH:MM" class="form-control">

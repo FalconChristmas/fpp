@@ -3,6 +3,7 @@
     .form-control-label {
         font-size: 1.125rem;
         padding-left: 0;
+        
         @include breakpoint($iphone6-ls) {
             font-size: .875rem;
         }

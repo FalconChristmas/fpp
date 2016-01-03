@@ -48,6 +48,31 @@ if ( ! function_exists('set_active')) {
 }
 
 
+if ( ! function_exists('fpp_version')) {
+
+    function fpp_version()
+    {
+
+        $fpp_version = "v" . exec("git --git-dir=".dirname(base_path())."/.git/ describe --tags", $output, $return_val);
+        if ( $return_val != 0 ) {
+            $fpp_version = "Unknown";
+        }
+
+        $git_branch = exec("git --git-dir=".dirname(base_path())."/.git/ branch --list | grep '\\*' | awk '{print \$2}'", $output, $return_val);
+        if ( $return_val != 0 ) {
+            $git_branch = "Unknown";
+        }
+
+        if (!preg_match("/^$git_branch(-.*)?$/", $fpp_version)) {
+            $fpp_version .= " ($git_branch branch)";
+        }
+
+        return $fpp_version;
+    }
+}
+
+
+
 /**
  * Appends a trailing slash.
  *

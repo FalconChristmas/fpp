@@ -12,14 +12,7 @@
 */
 
 
-Route::group(['middleware' => []], function ($router) {
 
-	 $router->get('/{vue_capture?}', ['as' => 'dashboard', function () {
-            return view('index');
-        }])->where('vue_capture', '[\/\w\.-]*');
-
-
-});
 
 
 /*
@@ -30,11 +23,16 @@ Route::group(['middleware' => []], function ($router) {
 | 
 |
 */
+
+
 Route::group(['middleware' => ['api'], 'namespace' => 'Api', 'prefix' => 'api'], function ($router) {
    
+  
+
     $router->get('status', function() {
     	return response()->json([
     		'data' => [
+    			'git_version' =>  fpp_version()
     			]
     		]);
     });
@@ -62,5 +60,14 @@ Route::group(['middleware' => ['api'], 'namespace' => 'Api', 'prefix' => 'api'],
 	$router->get('/settings', 'SettingController@getAllSettings');
 	$router->get('/settings/{setting}', 'SettingController@getSetting');
 	$router->put('/settings/{setting}', 'SettingController@update');
+
+});
+
+Route::group(['middleware' => []], function ($router) {
+
+	 $router->get('/{vue_capture?}', ['as' => 'dashboard', function () {
+            return view('index');
+        }])->where('vue_capture', '[\/\w\.-]*');
+
 
 });
