@@ -128,6 +128,11 @@ else if ($settings['Platform'] == "ODROID")
 	$settings['Logo'] = "odroid_logo.gif";
 	$settings['LogoLink'] = "";
 }
+else if ($settings['Platform'] == "Debian")
+{
+	$settings['Logo'] = "debian_logo.png";
+	$settings['LogoLink'] = "https://www.debian.org/";
+}
 else if ($settings['Platform'] == "Linux")
 {
 	$settings['Logo'] = "tux_logo.png";
