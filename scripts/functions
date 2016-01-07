@@ -229,10 +229,15 @@ SetupFPPNetworkConfig () {
 	ENABLEROUTING=$(getSetting EnableRouting)
 	if [ "x${ENABLEROUTING}" = "x1" ]
 	then
+		# Remove all ip_forward lines in case there is an "= 0" line
+		sed -i "/Enable Routing/d" /etc/sysctl.conf
 		sed -i "/net.ipv4.ip_forward/d" /etc/sysctl.conf
+
+		# Add in a line to enable forwarding
 		echo "# Enable Routing" >> /etc/sysctl.conf
 		echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
 	else
+		# Remote any ip_forward line we put in
 		sed -i "/Enable Routing/d" /etc/sysctl.conf
 		sed -i "/net.ipv4.ip_forward = 1/d" /etc/sysctl.conf
 	fi
