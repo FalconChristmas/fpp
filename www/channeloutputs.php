@@ -702,29 +702,52 @@ function RPIWS281XLayoutChanged(item) {
 	$(item).parent().parent().find("input.count").val(channels);
 }
 
+function RPIWS281XColorOrderSelect(id, colorOrder) {
+	var options = ["RGB", "RBG", "GRB", "GBR", "BRG", "BGR"];
+	var result = "";
+
+	result += " Color Order: <select class='" + id + "'>";
+
+    var i = 0;
+	for (i = 0; i < options.length; i++)
+	{
+		result += "<option value='" + options[i] + "'";
+
+		if (options[i] == colorOrder)
+			result += " selected='selected'";
+
+		result += ">" + options[i] + "</option>";
+	}
+
+	result += "</select>";
+
+	return result;
+}
+
 function RPIWS281XConfig(cfgStr) {
 	var result = "";
 	var items = cfgStr.split(";");
-
+	
+	var data = {};
+	
 	for (var j = 0; j < items.length; j++)
 	{
 		var item = items[j].split("=");
 
-		if (item[0] == "string1Pixels")
-		{
-			result += "String #1 Pixels: <input class='string1Pixels' size=3 maxlength=3 value='" + item[1] + "' onChange='RPIWS281XLayoutChanged(this);'> (GPIO 18)<br>";
-		}
-		else if (item[0] == "string2Pixels")
-		{
-			result += "String #2 Pixels: <input class='string2Pixels' size=3 maxlength=3 value='" + item[1] + "' onChange='RPIWS281XLayoutChanged(this);'> (GPIO 19)";
-		}
+   		data[item[0]] = item[1];
 	}
+	
+	result += "String #1 Pixels: <input class='string1Pixels' size='3' maxlength='3' value='" + data["string1Pixels"] + "' onChange='RPIWS281XLayoutChanged(this);'> ";
+	result += RPIWS281XColorOrderSelect("string1ColorOrder", data["string1ColorOrder"]) + " (GPIO 18)<br>";
+	
+	result += "String #2 Pixels: <input class='string2Pixels' size='3' maxlength='3' value='" + data["string2Pixels"] + "' onChange='RPIWS281XLayoutChanged(this);'> ";
+	result += RPIWS281XColorOrderSelect("string2ColorOrder", data["string2ColorOrder"]) + " (GPIO 19)<br>";
 
 	return result;
 }
 
 function NewRPIWS281XConfig() {
-	return RPIWS281XConfig("string1Pixels=1;string2Pixels=0");
+	return RPIWS281XConfig("string1Pixels=1;string1ColorOrder=RGB;string2Pixels=0;string2ColorOrder=RGB");
 }
 
 function GetRPIWS281XOutputConfig(cell) {
@@ -736,13 +759,27 @@ function GetRPIWS281XOutputConfig(cell) {
 		return "";
 
 	result += "string1Pixels=" + value + ";";
+	
+	var colorOrder = $cell.find("select.string1ColorOrder").val();
 
+	if (colorOrder == "")
+		return "";
+	
+	result += "string1ColorOrder=" + colorOrder + ";";
+	
 	value = $cell.find("input.string2Pixels").val();
 
 	if (value == "")
 		return "";
 
-	result += "string2Pixels=" + value;
+	result += "string2Pixels=" + value + ";";
+
+	colorOrder = $cell.find("select.string2ColorOrder").val();
+
+	if (colorOrder == "")
+		return "";
+	
+	result += "string2ColorOrder=" + colorOrder;
 
 	return result;
 }

@@ -54,11 +54,12 @@ class RPIWS281xOutput : public ChannelOutputBase {
   private:
 	void SetupCtrlCHandler(void);
 
-	int       m_string1GPIO;
-	int       m_string1Pixels;
-	int       m_string2GPIO;
-	int       m_string2Pixels;
-
+	int          m_string1GPIO;
+	int          m_string1Pixels;
+	std::string  m_string1ColorOrder;
+	int          m_string2GPIO;
+	int          m_string2Pixels;
+	std::string  m_string2ColorOrder;
 };
 
 #endif
