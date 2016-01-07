@@ -167,6 +167,17 @@ $plugins = Array(
 		'sha'         => '547398498952feafb7d35a6b0752c0e34e5d6a5d',
 	),
 
+	Array(
+		'shortName'   => 'MailControl',
+		'name'        => 'Mail Control',
+		'author'      => 'Ben Shaver (bshaver) and Pat Delaney (patdelaney)',
+		'description' => 'Control your FPP and send messages to your Matrix through Email',
+		'homeUrl'     => 'https://github.com/LightsOnHudson/FPP-Plugin-Mail',
+		'sourceUrl'   => 'https://github.com/LightsOnHudson/FPP-Plugin-Mail.git',
+		'bugUrl'      => 'https://github.com/LightsOnHudson/FPP-Plugin-Mail/issues',
+		'sha'         => '9aa5cdac784e0b42f155fcd26bf67791f44d51f9',
+	),
+
 );
 
 ?>
