@@ -42,7 +42,10 @@
 #else
 #   define pinMode(a, b)
 #   define digitalRead(a)        1
+#   define digitalWrite(a,b)     0
 #   define pullUpDnControl(a,b)
+#   define softPwmCreate(a,b,c)  0
+#   define softPwmWrite(a,b)     0
 #   define LOW                   0
 #   define PUD_UP                2
 #endif
