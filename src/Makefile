@@ -64,6 +64,7 @@ OBJECTS_fppd = \
 	gpio.o \
 	log.o \
 	mediadetails.o \
+	mediaoutput/MediaOutputBase.o \
 	mediaoutput/mediaoutput.o \
 	mediaoutput/mpg123.o \
 	mediaoutput/ogg123.o \

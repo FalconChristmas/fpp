@@ -23,25 +23,20 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _MEDIAOUTPUT_H
-#define _MEDIAOUTPUT_H
+#ifndef _MEDIAOUTPUTSTATUS_H
+#define _MEDIAOUTPUTSTATUS_H
 
-#include <unistd.h>
-#include <pthread.h>
-#include <sys/wait.h>
-
-#include "MediaOutputBase.h"
-#include "MediaOutputStatus.h"
-
-extern MediaOutputBase   *mediaOutput;
-extern pthread_mutex_t    mediaOutputLock;
-extern MediaOutputStatus  mediaOutputStatus;
-
-void InitMediaOutput(void);
-void CleanupMediaOutput(void);
-int  OpenMediaOutput(char *filename);
-void CloseMediaOutput(void);
-void UpdateMasterMediaPosition(float seconds);
+typedef struct mediaOutputStatus {
+	int status; 
+	int secondsElapsed;
+	int subSecondsElapsed;
+	int secondsRemaining;
+	int subSecondsRemaining;
+	int minutesTotal;
+	int secondsTotal;
+	float mediaSeconds;
+	int speedDelta;
+} MediaOutputStatus; 
 
 #endif /* _MEDIAOUTPUT_H */
 

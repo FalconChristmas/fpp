@@ -162,7 +162,7 @@ extern PluginCallbackManager pluginCallbackManager;
 
 						if (mediaOutput)
 						{
-							strcpy(mediaFilename, mediaOutput->filename);
+							strcpy(mediaFilename, mediaOutput->m_mediaFilename.c_str());
 							secsElapsed = mediaOutputStatus.secondsElapsed;
 							secsRemaining = mediaOutputStatus.secondsRemaining;
 						}

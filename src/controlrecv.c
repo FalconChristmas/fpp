@@ -151,9 +151,9 @@ void StopSyncedMedia(char *filename) {
 	if (!mediaOutput)
 		return;
 
-	if (!strcmp(mediaOutput->filename, filename))
+	if (!strcmp(mediaOutput->m_mediaFilename.c_str(), filename))
 	{
-		LogDebug(VB_SYNC, "Stopping synced media: %s\n", mediaOutput->filename);
+		LogDebug(VB_SYNC, "Stopping synced media: %s\n", mediaOutput->m_mediaFilename.c_str());
 		CloseMediaOutput();
 	}
 }
@@ -167,7 +167,7 @@ void StartSyncedMedia(char *filename) {
 	if (mediaOutput)
 	{
 		LogDebug(VB_SYNC, "Start media %s received while playing media %s\n",
-			filename, mediaOutput->filename);
+			filename, mediaOutput->m_mediaFilename.c_str());
 		CloseMediaOutput();
 	}
 
@@ -189,7 +189,7 @@ void SyncSyncedMedia(char *filename, int frameNumber, float secondsElapsed) {
 		return;
 	}
 
-	if (!strcmp(mediaOutput->filename, filename))
+	if (!strcmp(mediaOutput->m_mediaFilename.c_str(), filename))
 	{
 		UpdateMasterMediaPosition(secondsElapsed);
 	}

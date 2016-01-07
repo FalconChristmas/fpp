@@ -970,8 +970,8 @@ void setVolume(int volume)
 	system(buffer);
 
 	pthread_mutex_lock(&mediaOutputLock);
-	if (mediaOutput && mediaOutput->setVolume)
-		mediaOutput->setVolume(settings.volume);
+	if (mediaOutput)
+		mediaOutput->SetVolume(settings.volume);
 
 	pthread_mutex_unlock(&mediaOutputLock);
 }
