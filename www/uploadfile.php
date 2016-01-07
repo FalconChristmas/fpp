@@ -8,13 +8,13 @@ require_once('config.php');
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <title><? echo $pageTitle; ?></title>
 
-<link  href="/jquery/jQuery-Upload-File/css/uploadfile.min.css" rel="stylesheet">
+<link  href="jquery/jQuery-Upload-File/css/uploadfile.min.css" rel="stylesheet">
 
-<script src="/jquery/jQuery-Form-Plugin/js/jquery.form.js"></script>
-<script src="/jquery/jQuery-Upload-File/js/jquery.uploadfile.min.js"></script>
+<script src="jquery/jQuery-Form-Plugin/js/jquery.form.js"></script>
+<script src="jquery/jQuery-Upload-File/js/jquery.uploadfile.min.js"></script>
 
-<script type="text/javascript" src="/jquery/Spin.js/spin.js"></script>
-<script type="text/javascript" src="/jquery/Spin.js/jquery.spin.js"></script>
+<script type="text/javascript" src="jquery/Spin.js/spin.js"></script>
+<script type="text/javascript" src="jquery/Spin.js/jquery.spin.js"></script>
 
 <script>
     $(function() {
@@ -381,7 +381,7 @@ h2 {
 $(document).ready(function()
 {
 	$("#fileuploader").uploadFile({
-		url:"/jqupload.php",
+		url:"jqupload.php",
 		fileName:"myfile",
 		multiple: true,
 		autoSubmit: true,
