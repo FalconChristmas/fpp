@@ -73,11 +73,13 @@ int InitControlSocket(void) {
 	crSrcAddr.sin_port = htons(FPP_CTRL_PORT);
 
 	int optval = 1;
+#ifdef SO_REUSEADDR
 	if (setsockopt(ctrlRecvSock, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval)) < 0)
 	{
 		perror("control setsockopt SO_REUSEPORT");
 		exit(1);
 	}
+#endif
 
 	// Bind the socket to address/port
 	if (bind(ctrlRecvSock, (struct sockaddr *) &crSrcAddr, sizeof(crSrcAddr)) < 0) 
