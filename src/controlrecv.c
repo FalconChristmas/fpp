@@ -73,7 +73,7 @@ int InitControlSocket(void) {
 	crSrcAddr.sin_port = htons(FPP_CTRL_PORT);
 
 	int optval = 1;
-#ifdef SO_REUSEADDR
+#ifdef SO_REUSEPORT
 	if (setsockopt(ctrlRecvSock, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval)) < 0)
 	{
 		perror("control setsockopt SO_REUSEPORT");
