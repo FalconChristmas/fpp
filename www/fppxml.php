@@ -98,7 +98,9 @@ $command_array = Array(
 	"setPiLCDenabled" => 'SetPiLCDenabled',
 	"updatePlugin" => 'UpdatePlugin',
 	"uninstallPlugin" => 'UninstallPlugin',
-	"installPlugin" => 'InstallPlugin'
+	"installPlugin" => 'InstallPlugin',
+	"setupExtGPIO" => 'SetupExtGPIO',
+	"extGPIO" => 'ExtGPIO'
 );
 
 if (isset($_GET['command']) && !isset($nonXML[$_GET['command']]))
@@ -2789,6 +2791,53 @@ function InstallPlugin()
 		}
 	}
 	EchoStatusXML('Success');
+}
+
+function SetupExtGPIO()
+{
+	$gpio = $_GET['gpio'];
+	$mode = $_GET['mode'];
+	check($gpio, "gpio", __FUNCTION__);
+	check($mode, "mode", __FUNCTION__);
+
+	$status = SendCommand(sprintf("SetupExtGPIO,%s,%s", $gpio, $mode));
+	$status = explode(',', $status, 14);
+
+	if ((int) $status[1] == 1) {
+		EchoStatusXML('Success');
+	} else {
+		EchoStatusXML('Failed');
+	}
+}
+
+function ExtGPIO()
+{
+	$gpio = $_GET['gpio'];
+	$mode = $_GET['mode'];
+	$val = $_GET['val'];
+	check($gpio, "gpio", __FUNCTION__);
+	check($mode, "mode", __FUNCTION__);
+	check($val, "val", __FUNCTION__);
+
+	$status = SendCommand(sprintf("ExtGPIO,%s,%s,%s", $gpio, $mode, $val));
+	$status = explode(',', $status, 14);
+
+	if ((int) $status[1] >= 0) {
+		$doc = new DomDocument('1.0');
+		$root = $doc->createElement('Status');
+		$root = $doc->appendChild($root);
+
+		$temp = $doc->createElement('Success');
+		$temp = $root->appendChild($temp);
+
+		$result = $doc->createTextNode((int) $status[6]);
+		$result = $temp->appendChild($result);
+		
+		echo $doc->saveHTML();
+	}
+	else {
+		EchoStatusXML('Failed');
+	}
 }
 
 ?>

@@ -40,6 +40,7 @@
 #include "events.h"
 #include "channeloutput.h"
 #include "E131.h"
+#include "gpio.h"
 
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -566,6 +567,42 @@ extern PluginCallbackManager pluginCallbackManager;
 				case FPP_STATUS_STOPPING_GRACEFULLY:
 					sprintf(response,"%d,%d,Playlist is stopping gracefully\n",getFPPmode(),COMMAND_FAILED);
 					break;
+			}
+		}
+		else if (!strcmp(CommandStr, "SetupExtGPIO"))
+		{
+			// Configure the given GPIO to the given mode
+			s = strtok(NULL,",");
+			s2 = strtok(NULL,",");
+			if (s && s2)
+			{
+				
+				if (!SetupExtGPIO(atoi(s), s2))
+				{
+					sprintf(response, "%d,%d,Configuring GPIO,%d,%s,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS,atoi(s),s2);
+				}
+				else
+				{
+					sprintf(response, "%d,%d,Configuring GPIO,%d,%s,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED,atoi(s),s2);
+				}
+			}
+		}
+		else if (!strcmp(CommandStr, "ExtGPIO"))
+		{
+			s = strtok(NULL,",");
+			s2 = strtok(NULL,",");
+			s3 = strtok(NULL,",");
+			if (s && s2 && s3)
+			{
+				i = ExtGPIO(atoi(s), s2, atoi(s3));
+				if (i >= 0) 
+				{
+					sprintf(response, "%d,%d,Setting GPIO,%d,%s,%d,%d,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS,atoi(s),s2,atoi(s3),i);
+				}
+				else
+				{
+					sprintf(response, "%d,%d,Setting GPIO,%d,%s,%d,,,,,,,,\n",getFPPmode(),COMMAND_FAILED,atoi(s),s2,atoi(s3));
+				}
 			}
 		}
 		else
