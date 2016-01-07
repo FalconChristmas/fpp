@@ -72,6 +72,13 @@ int InitControlSocket(void) {
 	crSrcAddr.sin_addr.s_addr = htonl(INADDR_ANY);
 	crSrcAddr.sin_port = htons(FPP_CTRL_PORT);
 
+	int optval = 1;
+	if (setsockopt(ctrlRecvSock, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval)) < 0)
+	{
+		perror("control setsockopt SO_REUSEPORT");
+		exit(1);
+	}
+
 	// Bind the socket to address/port
 	if (bind(ctrlRecvSock, (struct sockaddr *) &crSrcAddr, sizeof(crSrcAddr)) < 0) 
 	{
@@ -79,8 +86,7 @@ int InitControlSocket(void) {
 		exit(1);
 	}
 
-	int opt = 1;
-	if (setsockopt(ctrlRecvSock, IPPROTO_IP, IP_PKTINFO, &opt, sizeof(opt)) < 0)
+	if (setsockopt(ctrlRecvSock, IPPROTO_IP, IP_PKTINFO, &optval, sizeof(optval)) < 0)
 	{
 		perror("control setsockopt pktinfo");
 		exit(1);
