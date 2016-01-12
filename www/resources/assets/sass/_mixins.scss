@@ -1,4 +1,5 @@
 @import "breakpoint.scss";
+@import "node_modules/bootstrap/scss/_mixins.scss";
 
 @function isitlight($color, $yes: #000, $no: #fff, $threshold: 60%) {
   @if (lightness($color) > $threshold) {

@@ -59,6 +59,7 @@ router.map({
             },
             '/files' : {
                 name: 'files',
+                headerName: 'File Manager',
                 component: Files
             },
             '/playlists' : {

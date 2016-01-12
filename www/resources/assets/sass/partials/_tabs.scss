@@ -1,0 +1,179 @@
+.nav-tabs {
+  & > li {
+      padding-left: 0;
+      padding-right: 0;
+      &.active {
+          & > a, & > a:hover, & > a:focus {
+              border-color: $color-master-light;
+              color: $color-master;
+              background-color: $color-master-light;
+          }
+      }
+      & > a {
+          border-radius: 0;
+          padding: 15px 20px;
+          margin-right: 0;
+          font-family: 'Montserrat';
+          font-weight: 400;
+          color: fade($color-master, 70%);
+          font-size: 13px;
+          min-width: 70px;
+          text-transform: uppercase;
+          border-color: transparent;
+          &:hover, &:focus {
+              background: transparent;
+              border-color : transparent;
+              color : $color-master;
+          }
+          .tab-icon{
+            //display: none;
+            margin-right: 6px;
+          }
+      }
+  }
+  & ~ .tab-content {
+      overflow: hidden;
+      padding: 15px;
+      & > .tab-pane {
+          &.slide-left,
+          &.slide-right{
+              transition: all .3s ease !important;
+              &.sliding{
+                opacity: 0  !important;
+              }
+              &.active{
+                transform: translate3d(0, 0, 0);
+                opacity: 1;
+              }
+          }
+          &.slide-left.sliding{
+              transform: translate3d(10%, 0, 0) !important;
+          }
+          &.slide-right.sliding{
+              transform: translate3d(-10%, 0, 0) !important;
+          }
+      }
+  }
+  // POSITIONG OPTIONS
+  &.nav-tabs-left,
+  &.nav-tabs-right {
+          &:after {
+              border-bottom: 0px;
+          }
+          & > li {
+            float: none;
+          }
+ 
+      
+  }
+  &.nav-tabs-left {
+    float: left;
+    & ~ .tab-content{
+          border-left: 1px solid rgba(0, 0, 0, 0.1);
+      }
+  }
+  &.nav-tabs-right {
+    float: right;
+    & ~ .tab-content{
+          border-right: 1px solid rgba(0, 0, 0, 0.1);
+      }
+  }
+}
+
+// Simple
+// --------------------------------------------------
+
+.nav-tabs-simple {
+  border-bottom: 0px;
+  &:after {
+      border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+      width: 100%;
+      position: relative;
+      bottom: 3px;
+      z-index: 120;
+  }
+  & > li {
+      margin-bottom: 2px;
+      &:after {
+          transition: all 0.1s linear 0s;
+          -webkit-backface-visibility: hidden;
+          width: 100%;
+          display: block;
+          background-color: transparent; //$color-danger;
+          height: 3px;
+          content: '';
+          z-index: 125;
+          .nav-tabs-primary &{
+            background-color: $color-primary;  
+          }
+          .nav-tabs-success &{
+            background-color: $color-success;  
+          }
+          .nav-tabs-complete &{
+            background-color: $color-complete;  
+          }
+          .nav-tabs-danger &{
+            background-color: $color-danger;  
+          }
+          .nav-tabs-warning &{
+            background-color: $color-warning;  
+          }
+          .nav-tabs-info &{
+            background-color: $color-info;  
+          }
+      }
+      &.active a{
+        &, 
+        &:hover, 
+        &:focus{
+            background-color: transparent;
+            border-color: transparent;
+        }
+      }
+      &.active, 
+      &:hover {
+          &:after {
+             // height: 3px;
+             background-color: $color-danger;
+          }
+      }
+  }
+    
+  // POSITIONG OPTIONS
+  &.nav-tabs-left,
+  &.nav-tabs-right {
+          //background: #fff;
+          &:after {
+              border-bottom: 0px;
+          }
+          & > li {
+              &:after {
+                  width: 0px;
+                  height: 100%;
+                  top: 0;
+                  bottom: 0;
+                  position: absolute;
+              }
+              &.active, &:hover {
+                  &:after {
+                      width: 3px;
+                  }
+              }
+          }
+      & ~ .tab-content {
+          //background: #fff;
+      }
+  }
+  &.nav-tabs-left {
+    & > li:after {
+      right: 0;
+    }
+  }
+  &.nav-tabs-right {
+    & > li:after {
+      left: 0;
+    }
+  }
+
+
+}

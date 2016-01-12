@@ -7858,4 +7858,32 @@ a.bg-danger:focus, a.bg-danger:hover {
 .ion-xbox:before {
   content: ""; }
 
+.nav > li {
+  position: relative;
+  display: block; }
+
+.nav-tabs > li {
+  float: left;
+  margin-bottom: -1px; }
+  .nav-tabs > li + li {
+    margin-left: .2rem; }
+  .nav-tabs > li a {
+    display: block;
+    padding: 0.5em 1em;
+    border: 1px solid transparent;
+    border-radius: 0.25rem 0.25rem 0 0; }
+    .nav-tabs > li a:focus, .nav-tabs > li a:hover {
+      border-color: #eceeef #eceeef #ddd; }
+    .nav-tabs > li a.disabled, .nav-tabs > li a.disabled:focus, .nav-tabs > li a.disabled:hover {
+      color: #818a91;
+      background-color: transparent;
+      border-color: transparent; }
+    .nav-tabs > li a.active, .nav-tabs > li a.active:focus, .nav-tabs > li a.active:hover,
+    .nav-tabs > li a.open .nav-link,
+    .nav-tabs > li a.open .nav-link:focus,
+    .nav-tabs > li a.open .nav-link:hover {
+      color: #55595c;
+      background-color: #fff;
+      border-color: #ddd #ddd transparent; }
+
 /*# sourceMappingURL=vendor.css.map */

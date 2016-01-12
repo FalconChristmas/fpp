@@ -1,6 +1,7 @@
 var elixir = require('laravel-elixir');
 require('laravel-elixir-vueify');
 
+var gutils = require('gulp-util');
 var sassOpts = { 
         includePaths: [
             'node_modules/breakpoint-sass/stylesheets/',
@@ -8,6 +9,17 @@ var sassOpts = {
             'node_modules/support-for/sass/'
             ] 
         };
+
+if(elixir.config.production == true){
+    process.env.NODE_ENV = 'production';
+}
+
+if(gutils.env._.indexOf('watch') > -1 && elixir.config.production != true){
+    elixir.config.js.browserify.plugins.push({
+        name: "browserify-hmr",
+        options : {}
+    });
+}
 
 elixir(function(mix) {
     mix.sass('app.scss','public/css/app.css', sassOpts)
@@ -26,7 +38,17 @@ elixir(function(mix) {
         'js/main.js'
     ]);
 
-    mix.browserSync({
-        proxy: 'fpp2.dev'
-        })
+    if(gutils.env._.indexOf('watch') > -1 && elixir.config.production != true){
+        mix.browserSync({
+           proxy: 'fpp2.dev',
+           files: [
+               elixir.config.appPath + '/**/*.php',
+               elixir.config.get('public.css.outputFolder') + '/**/*.css',
+               elixir.config.get('public.versioning.buildFolder') + '/rev-manifest.json',
+               'resources/views/**/*.php'
+           ],
+           
+        });
+    }
+
 });

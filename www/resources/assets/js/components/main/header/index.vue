@@ -1,7 +1,7 @@
 <template>
     <div class="header">
         <div class="page-meta">
-            <h1 class="page-title">{{ $route.name | capitalize }}</h1>
+            <h1 class="page-title">{{ $route.headerName ? $route.headerName : $route.name | capitalize }}</h1>
         </div>
         <control-buttons></control-buttons>
         <header-menu v-if="$route.headerMenu"></header-menu>

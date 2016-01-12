@@ -1,3 +1,55 @@
 
 @import "node_modules/bootstrap/scss/bootstrap-flex";
 @import "vendor/ionicons";
+
+.nav > li {
+    position: relative;
+    display: block;
+}
+
+
+.nav-tabs {
+ 
+  > li {
+    float: left;
+    // Make the list-items overlay the bottom border
+    margin-bottom: -1px;
+
+    + li {
+      margin-left: .2rem;
+    }
+    
+    a {
+      display: block;
+      padding: $nav-link-padding;
+      border: $nav-tabs-link-border-width solid transparent;
+      @include border-radius($border-radius $border-radius 0 0);
+
+      @include hover-focus {
+        border-color: $nav-tabs-link-hover-border-color $nav-tabs-link-hover-border-color $nav-tabs-border-color;
+      }
+
+      &.disabled {
+        @include plain-hover-focus {
+          color: $nav-disabled-link-color;
+          background-color: transparent;
+          border-color: transparent;
+        }
+      }
+   
+        &.active,
+        &.open .nav-link {
+          @include plain-hover-focus {
+            color: $nav-tabs-active-link-hover-color;
+            background-color: $nav-tabs-active-link-hover-bg;
+            border-color: $nav-tabs-active-link-hover-border-color $nav-tabs-active-link-hover-border-color transparent;
+          }
+        }
+    }
+
+  }
+
+  
+
+ 
+}
