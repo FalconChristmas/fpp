@@ -315,6 +315,9 @@ a {
   position: relative;
   margin-bottom: 1.5rem;
   box-shadow: 0 0 1px rgba(0, 0, 0, 0.15); }
+  .box.transparent {
+    background-color: transparent;
+    box-shadow: none; }
   .box-header, .box-body, .box-footer {
     padding: 1rem; }
   .box-header {
@@ -419,6 +422,9 @@ a {
 
 .form-control {
   border-radius: 0; }
+
+.form-group small, .form-group .small {
+  font-size: 70%; }
 
 .settings-container .form-control-label {
   font-size: 1.125rem;

@@ -21,6 +21,7 @@
     "vue-resource": "^0.5.1",
     "vue-router": "^0.7.7",
     "vue-strap": "^1.0.3",
+    "vue-validator": "^2.0.0-alpha.9",
     "vueify-insert-css": "^1.0.0"
   }
 }
