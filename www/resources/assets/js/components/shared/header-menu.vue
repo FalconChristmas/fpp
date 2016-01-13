@@ -1,6 +1,6 @@
 <template>
-    <ul class="header-menu {{menuClass}} nav navbar-nav">
-        <li class="navbar-item" v-for="item in items">
+    <ul class="header-menu nav navbar-nav" :class="menuClass">
+        <li class="nav-item" v-for="item in items">
             <a v-link="{ path: item.path, activeClass: 'active', exact: true}">{{item.label}}</a>
         </li>
     </ul>

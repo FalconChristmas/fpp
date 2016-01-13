@@ -1,6 +1,9 @@
 <template>
-    <div class="outputs">
-        <router-view></router-view>
+     <div id="led-panel-settings" class="outputs-container container-fluid box p-a-2">   
+        <h4><span class="semi-bold">LED Panel</span> Outputs</h4>     
+        <hr>
+        <form>
+        </form>
     </div>
 </template>
 

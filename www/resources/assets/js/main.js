@@ -28,6 +28,11 @@ var Events = require('./components/main/content/events.vue');
 var Effects = require('./components/main/content/effects.vue');
 var Testing = require('./components/main/content/testing.vue');
 
+var E131Output = require('./components/main/content/outputs/e131.vue');
+var DMXOutput = require('./components/main/content/outputs/dmx.vue');
+var PanelOutput = require('./components/main/content/outputs/panels.vue');
+var OtherOutput = require('./components/main/content/outputs/other.vue');
+
 var SettingsContent = require('./components/main/settings.vue');
 var GeneralSettings = require('./components/main/content/settings/general.vue');
 var DateSettings = require('./components/main/content/settings/date.vue');
@@ -51,7 +56,31 @@ router.map({
             },
             '/outputs' : {
                 name: 'outputs',
-                component: Outputs
+                headerName: 'Channel Outputs',
+                component: Outputs,
+                headerMenu: true,
+                menuName: 'Outputs',
+                menu: [
+                    { path: '/outputs', label: 'E131' },
+                    { path: '/outputs/dmx', label: 'Pixelnet / DMX' },
+                    { path: '/outputs/panels', label: 'LED Panels' },
+                    { path: '/outputs/other', label: 'Other' },
+                ],
+                subRoutes: {
+                    '/' : {
+                        component: E131Output
+                    },
+                    '/dmx' : {
+                        component: DMXOutput
+                    },
+                    '/panels' : {
+                        component: PanelOutput
+                    },
+                    '/other' : {
+                        component: OtherOutput
+                    }
+
+                }
             },
             '/overlays' : {
                 name: 'overlays',
