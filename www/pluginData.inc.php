@@ -188,6 +188,39 @@ $plugins = Array(
 		'bugUrl'      => 'https://github.com/LightsOnHudson/FPP-Plugin-Mail/issues',
 		'sha'         => '9aa5cdac784e0b42f155fcd26bf67791f44d51f9',
 	),
+		
+	Array(
+		'shortName'   => 'StockTicker',
+		'name'        => 'Stock Ticker',
+		'author'      => 'Ben Shaver (bshaver) and Pat Delaney (patdelaney)',
+		'description' => 'Download Stock Quotes and display on Matrix',
+		'homeUrl'     => 'https://github.com/LightsOnHudson/FPP-Plugin-StockTicker',
+		'sourceUrl'   => 'https://github.com/LightsOnHudson/FPP-Plugin-StockTicker.git',
+		'bugUrl'      => 'https://github.com/LightsOnHudson/FPP-Plugin-StockTicker/issues',
+		'sha'         => '29f15c11c22edc626e91faef1814b7a195eb866d',
+	),
+
+	Array(
+		'shortName'   => 'ScoreBoard',
+		'name'        => 'Score Board',
+		'author'      => 'Ben Shaver (bshaver) and Pat Delaney (patdelaney)',
+		'description' => 'Display Scores as Scoreboard on Matrix',
+		'homeUrl'     => 'https://github.com/LightsOnHudson/FPP-Plugin-ScoreBoard',
+		'sourceUrl'   => 'https://github.com/LightsOnHudson/FPP-Plugin-ScoreBoard.git',
+		'bugUrl'      => 'https://github.com/LightsOnHudson/FPP-Plugin-ScoreBoard/issues',
+		'sha'         => 'a41c4d3ca7e214b8d08caadfcec33eba1546b82b',
+	),
+
+	Array(
+		'shortName'   => 'Switcher',
+		'name'        => 'Switcher Control',
+		'author'      => 'Ben Shaver (bshaver) and Pat Delaney (patdelaney)',
+		'description' => 'Switcher control for Video Signal(s)',
+		'homeUrl'     => 'https://github.com/LightsOnHudson/FPP-Plugin-Switcher',
+		'sourceUrl'   => 'https://github.com/LightsOnHudson/FPP-Plugin-Switcher.git',
+		'bugUrl'      => 'https://github.com/LightsOnHudson/FPP-Plugin-Switcher/issues',
+		'sha'         => '1819feea757afa369ae8c35a411847a50cb8c458',
+	)
 
 );
 
