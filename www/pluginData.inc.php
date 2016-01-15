@@ -198,6 +198,16 @@ $plugins = Array(
 				'bugUrl'      => 'https://github.com/LightsOnHudson/FPP-Plugin-ScoreBoard/issues',
 				'sha'         => 'a41c4d3ca7e214b8d08caadfcec33eba1546b82b',
 				),
+		Array(
+				'shortName'   => 'Switcher',
+				'name'        => 'Switcher Control',
+				'author'      => 'Ben Shaver (bshaver) and Pat Delaney (patdelaney)',
+				'description' => 'Switcher control for Video Signal(s)',
+				'homeUrl'     => 'https://github.com/LightsOnHudson/FPP-Plugin-Switcher',
+				'sourceUrl'   => 'https://github.com/LightsOnHudson/FPP-Plugin-Switcher.git',
+				'bugUrl'      => 'https://github.com/LightsOnHudson/FPP-Plugin-Switcher/issues',
+				'sha'         => '1819feea757afa369ae8c35a411847a50cb8c458',
+				),
 );
 
 ?>
