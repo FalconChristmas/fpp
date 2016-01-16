@@ -82,7 +82,7 @@ void Bridge_ReceiveData(void)
 
 int Bridge_Initialize(void)
 {
-	LogExcess(VB_E131BRIDGE, "Bridge_ReceiveData()\n");
+	LogExcess(VB_E131BRIDGE, "Bridge_Initialize()\n");
 
 	/* Initialize our Universe Index lookup cache */
 	for (int i = 0; i < 65536; i++)
