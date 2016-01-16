@@ -95,6 +95,13 @@ ifeq '$(ARCH)' ''
 endif
 $(shell echo "Building FPP on '$(ARCH)' platform" 1>&2)
 
+HTTPFLAGS := $(shell pkg-config --cflags --libs libhttpserver 2> /dev/null)
+ifneq '$(HTTPFLAGS)' ''
+	CFLAGS += -DUSEHTTPAPI
+	LDFLAGS_fppd += $(HTTPFLAGS) -lhttpserver
+	OBJECTS_fppd += httpAPI.o
+endif
+
 OLAFLAGS := $(shell pkg-config --cflags --libs libola 2> /dev/null)
 ifneq '$(OLAFLAGS)' ''
 	CFLAGS += -DUSEOLA

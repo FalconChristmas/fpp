@@ -46,6 +46,10 @@
 #include "Sequence.h"
 #include "settings.h"
 
+#ifdef USEHTTPAPI
+#  include "httpAPI.h"
+#endif
+
 #include <errno.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -188,6 +192,11 @@ void MainLoop(void)
 	commandSock = Command_Initialize();
 	if (commandSock)
 		FD_SET (commandSock, &active_fd_set);
+
+#ifdef USEHTTPAPI
+	APIServer apiServer;
+	apiServer.Init();
+#endif
 
 	controlSock = InitControlSocket();
 	FD_SET (controlSock, &active_fd_set);
