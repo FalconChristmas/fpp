@@ -96,10 +96,9 @@ endif
 $(shell echo "Building FPP on '$(ARCH)' platform" 1>&2)
 
 OLAFLAGS := $(shell pkg-config --cflags --libs libola 2> /dev/null)
-USEOLA = 
-
 ifneq '$(OLAFLAGS)' ''
-	USEOLA = "-DUSEOLA"
+	CFLAGS += -DUSEOLA
+	LDFLAGS_fppd += $(OLAFLAGS)
 	OBJECTS_fppd += channeloutput/OLAOutput.o
 endif
 
@@ -112,7 +111,6 @@ CFLAGS += \
 
 
 LDFLAGS_fppd += \
-	$(OLAFLAGS) \
 	$(NULL)
 
 DEPS_fppd += \
