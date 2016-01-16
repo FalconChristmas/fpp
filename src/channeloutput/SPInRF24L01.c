@@ -220,7 +220,7 @@ int SPInRF24L01_Open(char *configStr, void **privDataPtr) {
 
 	SPInRF24L01_Dump(privData);
 
-	if (logMask & VB_CHANNELOUT && logLevel & LOG_DEBUG) {
+	if (logMask & VB_CHANNELOUT && LogLevelIsSet(LOG_DEBUG)) {
 		privData->radio->printDetails();
 	}
 
