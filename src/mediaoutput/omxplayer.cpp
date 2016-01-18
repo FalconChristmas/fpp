@@ -89,7 +89,9 @@ int omxplayerOutput::Start(void)
 
 	if (!FileExists(fullVideoPath.c_str()))
 	{
-		LogErr(VB_MEDIAOUT, "%s does not exist!\n", fullVideoPath.c_str());
+		if (getFPPmode() != REMOTE_MODE)
+			LogErr(VB_MEDIAOUT, "%s does not exist!\n", fullVideoPath.c_str());
+
 		return 0;
 	}
 
