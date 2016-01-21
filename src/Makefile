@@ -254,7 +254,9 @@ gitsubmodules:
 	@! ping -q -c 1 github.com > /dev/null 2>&1 || (cd ..; \
 		for submodule in $(SUBMODULES); do \
 			git submodule sync $$submodule; \
-			git submodule foreach git fetch; \
+		done; \
+		git submodule foreach git fetch; \
+		for submodule in $(SUBMODULES); do \
 			git submodule update --init $$submodule; \
 		done)
 
