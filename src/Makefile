@@ -5,6 +5,7 @@ ifneq ($(wildcard /usr/bin/ccache),)
 endif
 
 TARGETS = fpp fppmm fppd
+SUBMODULES =
 
 INSTALL_PROGRAM = install -m 755 -p
 
@@ -167,6 +168,11 @@ DEPS_fppd += \
 	../external/rpi-rgb-led-matrix/lib/librgbmatrix.a \
 	../external/rpi_ws281x/libws2811.a \
 	$(NULL)
+SUBMODULES += \
+	external/RF24 \
+	external/rpi-rgb-led-matrix \
+	external/rpi_ws281x \
+	$(NULL)
 else ifeq '$(ARCH)' 'ODROID'
 # do something for ODROID
 BINDIR = ../bin.pi
@@ -185,6 +191,11 @@ OBJECTS_fppd += \
 	$(NULL)
 DEPS_fppd += \
 	../external/rpi-rgb-led-matrix/lib/librgbmatrix.a \
+	$(NULL)
+SUBMODULES += \
+	external/RF24 \
+	external/rpi-rgb-led-matrix \
+	external/rpi_ws281x \
 	$(NULL)
 else ifeq '$(ARCH)' 'BeagleBone Black'
 # BeagleBone Black
@@ -210,6 +221,9 @@ DEPS_fppd += \
 	../external/LEDscape/lib/libledscape.a \
 	$(NULL)
 SUBDIRS += pru
+SUBMODULES += \
+	external/LEDscape \
+	$(NULL)
 else
 # do something Linux-y
 BINDIR = ../bin
@@ -245,9 +259,11 @@ FPP: $(TARGETS)
 .PHONY: gitsubmodules
 gitsubmodules:
 	@! ping -q -c 1 github.com > /dev/null 2>&1 || (cd ..; \
-		git submodule sync; \
-		git submodule foreach git fetch; \
-		git submodule update --init )
+		for submodule in $(SUBMODULES); do \
+			git submodule sync $$submodule; \
+			git submodule foreach git fetch; \
+			git submodule update --init $$submodule; \
+		done)
 
 force:
 
