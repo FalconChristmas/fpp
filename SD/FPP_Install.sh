@@ -349,7 +349,7 @@ case "${OSVER}" in
 						php5-sqlite php-apc python-daemon python-smbus samba \
 						samba-common-bin shellinabox sudo sysstat tcpdump usbmount vim \
 						vim-common vorbis-tools vsftpd firmware-realtek gcc g++\
-						network-manager; do
+						network-manager dhcp-helper hostapd parprouted; do
 			apt-get -y install ${package}
 			let packages=$((${packages}+1))
 			if [ $packages -gt 10 ]; then
@@ -386,6 +386,10 @@ case "${OSVER}" in
 		update-rc.d -f lightdm remove
 		update-rc.d -f wdm remove
 		update-rc.d -f xdm remove
+
+		echo "FPP - Disabling dhcp-helper and hostapd from automatically starting"
+		update-rc.d -f dhcp-helper remove
+		update-rc.d -f hostapd remove
 
 		if [ "x${OSVER}" == "xdebian_8" ]; then
 			systemctl disable display-manager.service
