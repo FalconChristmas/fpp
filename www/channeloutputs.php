@@ -1922,8 +1922,8 @@ function printLEDPanelSizeSelect()
 ?>
 
 var LEDPanelColorOrder = 'RGB';
-var LEDPanelOutputs = 8;
-var LEDPanelPanelsPerOutput = 8;
+var LEDPanelOutputs = <? echo $LEDPanelOutputs; ?>;
+var LEDPanelPanelsPerOutput = <? echo $LEDPanelPanelsPerOutput; ?>;
 var LEDPanelWidth = <? echo $LEDPanelWidth; ?>;
 var LEDPanelHeight = <? echo $LEDPanelHeight; ?>;
 var LEDPanelRows = <? echo $LEDPanelRows; ?>;
