@@ -1,6 +1,7 @@
 *.o
 .*.swp
 *.pyc
+.buildpath
 SD/*.xz
 src/fpp
 src/fppmm
