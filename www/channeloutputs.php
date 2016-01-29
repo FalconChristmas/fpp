@@ -1132,6 +1132,11 @@ function SPIDeviceConfig(config) {
 
 		if (item[0] == "device") {
 			result += DeviceSelect(SPIDevices, item[1]);
+		} else if (item[0] == "pi36") {
+			result += " PI36: <input type=checkbox class='pi36'";
+			if (item[1] == "1")
+				result += " checked='checked'";
+			result += ">";
 		}
 	}
 
@@ -1166,7 +1171,12 @@ function GetSPIOutputConfig(cell) {
 	if (value == "")
 		return "";
 
-	return "device=" + value;
+	var pi36 = 0;
+
+	if ($cell.find("input.pi36").is(":checked"))
+		pi36 = 1;
+
+	return "device=" + value + "&pi36=" + pi36;;
 }
 
 function GetnRFSpeedConfig(cell) {
@@ -1182,6 +1192,7 @@ function GetnRFSpeedConfig(cell) {
 function NewSPIConfig() {
 	var result = "";
 	result += DeviceSelect(SPIDevices, "");
+	result += " PI36: <input type='checkbox' class='pi36'>";
 	return result;
 }
 
