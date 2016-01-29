@@ -174,6 +174,8 @@ if ( $fd )
 		$key   = trim($split[0]);
 		$value = trim($split[1]);
 
+		$value = preg_replace("/\"/", "", $value);
+
 		if ($key != "") {
 			// If we have a Directory setting that doesn't
 			// end in a slash, then add one
