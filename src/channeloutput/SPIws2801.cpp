@@ -54,7 +54,10 @@
  */
 SPIws2801Output::SPIws2801Output(unsigned int startChannel, unsigned int channelCount)
   : ChannelOutputBase(startChannel, channelCount),
-	m_port(-1)
+	m_port(-1),
+	m_pi36(0),
+	m_pi36Data(NULL),
+	m_pi36DataSize(0)
 {
 	LogDebug(VB_CHANNELOUT, "SPIws2801Output::SPIws2801Output(%u, %u)\n",
 		startChannel, channelCount);
@@ -95,6 +98,14 @@ int SPIws2801Output::Init(char *configStr)
 			else if (elem[1] == "spidev0.1")
 				m_port = 1;
 		}
+		else if ((elem[0] == "pi36") &&
+				 (elem[1] == "1"))
+		{
+			m_pi36 = 1;
+
+			m_pi36DataSize = m_channelCount >= 36 ? m_channelCount : 36;
+			m_pi36Data = new unsigned char[m_pi36DataSize];
+		}
 	}
 
 	if (m_port == -1)
@@ -132,7 +143,26 @@ int SPIws2801Output::RawSendData(unsigned char *channelData)
 {
 	LogDebug(VB_CHANNELOUT, "SPIws2801Output::RawSendData(%p)\n", channelData);
 
-	wiringPiSPIDataRW(m_port, (unsigned char *)channelData, m_channelCount);
+	if (m_pi36)
+	{
+		// Hanson Electronics Pi36 controller has 2x WS2803 onboard and a
+		// chained output for ws2801 pixels.  WS2803 pull data from the
+		// end of the stream while WS2801 pull from the beginning, so we
+		// need to swap some channels around before sending.
+		int ws2801Channels = m_pi36DataSize - 36;
+
+		memcpy(m_pi36Data + ws2801Channels + 18, channelData     , 18);
+		memcpy(m_pi36Data + ws2801Channels     , channelData + 18, 18);
+
+		if (ws2801Channels)
+			memcpy(m_pi36Data, channelData + 36, ws2801Channels);
+
+		wiringPiSPIDataRW(m_port, (unsigned char *)m_pi36Data, m_pi36DataSize);
+	}
+	else
+	{
+		wiringPiSPIDataRW(m_port, (unsigned char *)channelData, m_channelCount);
+	}
 
 	return m_channelCount;
 }
