@@ -381,6 +381,7 @@ function SaveEmailConfig($emailguser, $emailgpass, $emailfromtext, $emailtoemail
     exec("sudo cp " . $exim4Directory . "/passwd.client /etc/exim4/");
     exec("sudo update-exim4.conf");
     exec ("sudo /etc/init.d/exim4 restart");
+    exec ("sudo systemctl restart exim4.service");
     $cmd="sudo chfn -f \"" . $emailfromtext . "\" pi";
     exec($cmd);
     $fp = fopen($exim4Directory . '/aliases', 'w');
