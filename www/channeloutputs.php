@@ -1876,8 +1876,8 @@ function InitializeBBB48String()
 // LED Panel Matrix support functions
 
 <?
-$LEDPanelOutputs = 1;         // Default for Pi
-$LEDPanelPanelsPerOutput = 4; // Default for Pi
+$LEDPanelOutputs = 3;         // Max for Pi w/ new library code
+$LEDPanelPanelsPerOutput = 8; // Max for Pi w/ new library code
 $LEDPanelRows = 1;
 $LEDPanelCols = 1;
 $LEDPanelWidth = 32;
@@ -1933,8 +1933,8 @@ function printLEDPanelSizeSelect()
 ?>
 
 var LEDPanelColorOrder = 'RGB';
-var LEDPanelOutputs = 8;
-var LEDPanelPanelsPerOutput = 8;
+var LEDPanelOutputs = <? echo $LEDPanelOutputs; ?>;
+var LEDPanelPanelsPerOutput = <? echo $LEDPanelPanelsPerOutput; ?>;
 var LEDPanelWidth = <? echo $LEDPanelWidth; ?>;
 var LEDPanelHeight = <? echo $LEDPanelHeight; ?>;
 var LEDPanelRows = <? echo $LEDPanelRows; ?>;
