@@ -1183,7 +1183,7 @@ function GetSPIOutputConfig(cell) {
 	if ($cell.find("input.pi36").is(":checked"))
 		pi36 = 1;
 
-	return "device=" + value + "&pi36=" + pi36;;
+	return "device=" + value + ";pi36=" + pi36;;
 }
 
 function GetnRFSpeedConfig(cell) {
