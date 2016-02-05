@@ -199,7 +199,7 @@ var SerialDevices = new Array();
 	{
 		if ((preg_match("/^ttyS[0-9]+/", $fileName)) ||
 			(preg_match("/^ttyACM[0-9]+/", $fileName)) ||
-			(preg_match("/^ttyO0/", $fileName)) ||
+			(preg_match("/^ttyO[0-9]/", $fileName)) ||
 			(preg_match("/^ttyAMA[0-9]+/", $fileName)) ||
 			(preg_match("/^ttyUSB[0-9]+/", $fileName))) {
 			echo "SerialDevices['$fileName'] = '$fileName';\n";
@@ -1132,6 +1132,11 @@ function SPIDeviceConfig(config) {
 
 		if (item[0] == "device") {
 			result += DeviceSelect(SPIDevices, item[1]);
+		} else if (item[0] == "pi36") {
+			result += " PI36: <input type=checkbox class='pi36'";
+			if (item[1] == "1")
+				result += " checked='checked'";
+			result += ">";
 		}
 	}
 
@@ -1166,7 +1171,12 @@ function GetSPIOutputConfig(cell) {
 	if (value == "")
 		return "";
 
-	return "device=" + value;
+	var pi36 = 0;
+
+	if ($cell.find("input.pi36").is(":checked"))
+		pi36 = 1;
+
+	return "device=" + value + ";pi36=" + pi36;;
 }
 
 function GetnRFSpeedConfig(cell) {
@@ -1182,6 +1192,7 @@ function GetnRFSpeedConfig(cell) {
 function NewSPIConfig() {
 	var result = "";
 	result += DeviceSelect(SPIDevices, "");
+	result += " PI36: <input type='checkbox' class='pi36'>";
 	return result;
 }
 
@@ -1865,8 +1876,8 @@ function InitializeBBB48String()
 // LED Panel Matrix support functions
 
 <?
-$LEDPanelOutputs = 1;         // Default for Pi
-$LEDPanelPanelsPerOutput = 4; // Default for Pi
+$LEDPanelOutputs = 3;         // Max for Pi w/ new library code
+$LEDPanelPanelsPerOutput = 8; // Max for Pi w/ new library code
 $LEDPanelRows = 1;
 $LEDPanelCols = 1;
 $LEDPanelWidth = 32;
@@ -1922,8 +1933,8 @@ function printLEDPanelSizeSelect()
 ?>
 
 var LEDPanelColorOrder = 'RGB';
-var LEDPanelOutputs = 8;
-var LEDPanelPanelsPerOutput = 8;
+var LEDPanelOutputs = <? echo $LEDPanelOutputs; ?>;
+var LEDPanelPanelsPerOutput = <? echo $LEDPanelPanelsPerOutput; ?>;
 var LEDPanelWidth = <? echo $LEDPanelWidth; ?>;
 var LEDPanelHeight = <? echo $LEDPanelHeight; ?>;
 var LEDPanelRows = <? echo $LEDPanelRows; ?>;

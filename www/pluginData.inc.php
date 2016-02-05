@@ -36,6 +36,17 @@ $plugins = Array(
 	),
 
 	Array(
+		'shortName'   => 'fpp-BigButtons',
+		'name'        => 'Big Buttons',
+		'author'      => 'Chris Pinkham (CaptainMurdoch)',
+		'description' => 'A new UI page with big buttons which trigger scripts',
+		'homeUrl'     => 'https://github.com/cpinkham/fpp-BigButtons',
+		'sourceUrl'   => 'https://github.com/cpinkham/fpp-BigButtons.git',
+		'bugUrl'      => 'https://github.com/cpinkham/fpp-BigButtons/issues',
+		'sha'         => '0e2eb62bd96de6a8a84679b2d245ebfa28c01c60',
+	),
+
+	Array(
 		'shortName'   => 'edmrds',
 		'name'        => 'EDM audio',
 		'author'      => 'Ryan Lucas (drlucas)',
