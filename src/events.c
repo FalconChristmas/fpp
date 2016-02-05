@@ -60,7 +60,7 @@ void FreeEvent(FPPevent *e)
 /*
  * Load an event file into a FPPevent
  */
-FPPevent* LoadEvent(char *id)
+FPPevent* LoadEvent(const char *id)
 {
 	FPPevent *event = NULL;
 	FILE     *file;
@@ -303,7 +303,7 @@ int RunEventScript(FPPevent *e)
 /*
  * Trigger an event by major/minor number
  */
-int TriggerEvent(char major, char minor)
+int TriggerEvent(const char major, const char minor)
 {
 	LogDebug(VB_EVENT, "TriggerEvent(%d, %d)\n", (unsigned char)major, (unsigned char)minor);
 
@@ -321,7 +321,7 @@ int TriggerEvent(char major, char minor)
 /*
  * Trigger an event
  */
-int TriggerEventByID(char *id)
+int TriggerEventByID(const char *id)
 {
 	LogDebug(VB_EVENT, "TriggerEventByID(%s)\n", id);
 

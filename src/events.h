@@ -36,8 +36,8 @@ typedef struct fppevent {
 	char *script;
 } FPPevent;
 
-int TriggerEvent(char major, char minor);
-int TriggerEventByID(char *ID);
-FPPevent* LoadEvent(char *id);
+int TriggerEvent(const char major, const char minor);
+int TriggerEventByID(const char *ID);
+FPPevent* LoadEvent(const char *id);
 
 #endif
