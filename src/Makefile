@@ -72,6 +72,19 @@ OBJECTS_fppd = \
 	mediaoutput/omxplayer.o \
 	PixelOverlay.o \
 	Playlist.o \
+	playlist/NewPlaylist.o \
+	playlist/PlaylistEntryBase.o \
+	playlist/PlaylistEntryBoth.o \
+	playlist/PlaylistEntryBranch.o \
+	playlist/PlaylistEntryEffect.o \
+	playlist/PlaylistEntryEvent.o \
+	playlist/PlaylistEntryMedia.o \
+	playlist/PlaylistEntryPause.o \
+	playlist/PlaylistEntryPixelOverlay.o \
+	playlist/PlaylistEntryPlaylist.o \
+	playlist/PlaylistEntryPlugin.o \
+	playlist/PlaylistEntrySequence.o \
+	playlist/PlaylistEntryVolume.o \
 	Plugins.o \
 	Scheduler.o \
 	ScheduleEntry.o \

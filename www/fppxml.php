@@ -1793,7 +1793,8 @@ function GetPlaylists()
 
 	foreach(scandir($playlistDirectory) as $pFile)
 	{
-		if ($pFile != "." && $pFile != "..")
+		// Exclude JSON playlists for now
+		if ($pFile != "." && $pFile != ".." && !preg_match('/\.json$/', $pFile))
 		{
 			$playList = $doc->createElement('Playlist');
 			$playList = $root->appendChild($playList);
@@ -2211,6 +2212,81 @@ function PlaylistEntryPositionChanged()
 	}
 }
 
+function SavePlaylistEntry($f, $entry)
+{
+	if ($entry->type == 'b')
+	{
+		fprintf($f,
+			'		{' . "\n" .
+			'			"type": "both",' . "\n" .
+			'			"playOnce": %d,' . "\n" .
+			'			"sequenceName": "%s",' . "\n" .
+			'			"mediaName": "%s"' . "\n" .
+			'		}',
+			0, // Play Once
+			$entry->seqFile, $entry->songFile
+			);
+	}
+	else if ($entry->type == 's')
+	{
+		fprintf($f,
+			'		{' . "\n" .
+			'			"type": "sequence",' . "\n" .
+			'			"playOnce": %d,' . "\n" .
+			'			"sequenceName": "%s"' . "\n" .
+			'		}',
+			0, // Play Once
+			$entry->seqFile
+			);
+	}
+	else if ($entry->type == 'm')
+	{
+		fprintf($f,
+			'		{' . "\n" .
+			'			"type": "media",' . "\n" .
+			'			"playOnce": %d,' . "\n" .
+			'			"mediaName": "%s"' . "\n" .
+			'		}',
+			0, // Play Once
+			$entry->songFile
+			);
+	}
+	else if ($entry->type == 'p')
+	{
+		fprintf($f,
+			'		{' . "\n" .
+			'			"type": "pause",' . "\n" .
+			'			"playOnce": %d,' . "\n" .
+			'			"duration": %d' . "\n" .
+			'		}',
+			0, // Play Once
+			$entry->pause
+			);
+	}
+	else if ($entry->type == 'e')
+	{
+		$majorID = intval(preg_replace('/_.*/', '', $entry->eventID));
+		$minorID = intval(preg_replace('/.*_/', '', $entry->eventID));
+
+		fprintf($f,
+			'		{' . "\n" .
+			'			"type": "event",' . "\n" .
+			'			"playOnce": %d,' . "\n" .
+			'			"majorID": %d,' . "\n" .
+			'			"minorID": %d,' . "\n" .
+			'			"blocking": %d' . "\n" .
+			'		}',
+			0, // Play Once
+			$majorID, $minorID,
+			0  // Blocking
+			);
+	}
+	else if ($entry->type == 'P')
+	{
+		// FIXME
+		$plugin = $event->pluginData;
+	}
+}
 
 function SavePlaylist()
 {
@@ -2256,6 +2332,81 @@ function SavePlaylist()
 	}
 	fwrite($f,$entries);
 	fclose($f);
+
+	// Now save the json version of the playlist
+	$f=fopen($playlistDirectory . '/' . $name . '.json',"w") or exit("Unable to open file! : " . $playlistDirectory . '/' . $name . '.json');
+	fprintf($f,
+		'{' . "\n" .
+		'	"name": "%s",' . "\n" .
+		'	"repeat": %d,' . "\n" .
+		'	"loopCount": %d',
+		$name,
+		0, // Repeat
+		0	 // Loop Count
+		);
+
+	$firstEntry = 0;
+	if ($first)
+	{
+		$firstEntry = 1;
+	}
+
+	$lastEntry = count($_SESSION['playListEntries']) - 1;
+	if ($last)
+	{
+		$lastEntry--;
+	}
+
+	if ($first)
+	{
+		fprintf($f, ',' . "\n" .
+			'	"leadIn": [' . "\n"
+			);
+
+		// Print first entries here
+		SavePlaylistEntry($f, $_SESSION['playListEntries'][0]);
+
+		fprintf($f, "\n" .
+			'	]'
+			);
+	}
+
+	// FIXME, need some sanity checks in here for first/last overlap
+
+	fprintf($f, ',' . "\n" .
+		'	"playlist": [' . "\n"
+		);
+
+	for($i = $firstEntry; $i <= $lastEntry; $i++)
+	{
+		if ($i != $firstEntry)
+			fprintf($f, ",\n");
+
+		SavePlaylistEntry($f, $_SESSION['playListEntries'][$i]);
+	}
+
+	fprintf($f, "\n" .
+		'	]'
+		);
+
+	if ($last)
+	{
+		fprintf($f, ',' . "\n" .
+			'	"leadOut": [' . "\n"
+			);
+
+		// Print last entries here
+		SavePlaylistEntry($f, $_SESSION['playListEntries'][count($_SESSION['playListEntries']) - 1]);
+
+		fprintf($f, "\n" .
+			'	]'
+			);
+	}
+
+	fprintf($f, "\n}\n");
+
+	fclose($f);
+
 
 	EchoStatusXML('Success');
 

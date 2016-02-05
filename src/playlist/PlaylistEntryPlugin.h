@@ -1,7 +1,7 @@
 /*
- *   Effects handler for Falcon Pi Player (FPP)
+ *   Playlist Entry Plugin Class for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Pi Player Developers
+ *   Copyright (C) 2016 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -23,37 +23,20 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-// Effect Sequence file format and header definition
-#ifndef EFFECTS_H_
-#define EFFECTS_H_
+#ifndef _PLAYLISTENTRYPLUGIN_H
+#define _PLAYLISTENTRYPLUGIN_H
 
-#include <stdio.h>
+#include <string>
 
-//typedef struct eseqheader {
-//} eSeqHeader;
+#include "PlaylistEntryBase.h"
 
-typedef struct fppeffect {
-	char     *name;
-	FILE     *fp;
-	int       stepSize;
-	int       modelSize;
-	int       startChannel;
-	int       loop;
-} FPPeffect;
+class PlaylistEntryPlugin : public PlaylistEntryBase {
+  public:
+  	PlaylistEntryPlugin();
+	~PlaylistEntryPlugin();
 
-extern FPPeffect *effects[];
-
-int  GetRunningEffects(char *msg, char **result);
-int  IsEffectRunning(void);
-int  IsEffectRunning(int effectID);
-int  IsEffectRunning(const char *effectName);
-int  InitEffects(void);
-void CloseEffects(void);
-int  StartEffect(const char *effectName, int startChannel, int loop = 0);
-int  StopEffect(const char *effectName);
-int  StopEffect(int effectID);
-void StopEffects(void);
-void StopAllEffects(void);
-int  OverlayEffects(char *channelData);
+  private:
+	std::string m_plugin;
+};
 
 #endif

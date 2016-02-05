@@ -28,6 +28,7 @@
 #include "httpAPI.h"
 #include "log.h"
 #include "settings.h"
+#include "playlist/NewPlaylist.h"
 
 #include <iostream>
 
@@ -51,6 +52,7 @@ APIServer::~APIServer()
 {
 	delete hsr1;
 	delete hsr2;
+	delete hcpr1;
 
 	delete ws;
 	ws = NULL;
@@ -70,6 +72,9 @@ void APIServer::Init(void)
 
 	hsr2 = new HttpStopResource;
 	ws->register_resource("/api/stop", hsr2, true);
+
+	hcpr1 = new HttpCurrentPlaylistResource;
+	ws->register_resource("/api/playlist/current", hcpr1, true);
 
 	ws->start(false);
 }
@@ -131,6 +136,23 @@ void HttpStopResource::render_POST(const http_request &req, http_response **res)
 
 	// we never make it here since shutdown happens so quick
 	*res = new http_response(http_response_builder("OK", 200).string_response());
+
+	LogResponse(req, res);
+}
+
+/*
+ *
+ */
+void HttpCurrentPlaylistResource::render(const http_request &req, http_response **res)
+{
+	LogRequest(req);
+
+	Json::Value result = newPlaylist->GetConfig();
+
+	Json::FastWriter fastWriter;
+	std::string resultStr = fastWriter.write(result);
+
+	*res = new http_response(http_response_builder(resultStr.c_str(), 200).string_response());
 
 	LogResponse(req, res);
 }

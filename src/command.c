@@ -34,7 +34,7 @@
 #include "settings.h"
 #include "Sequence.h"
 #include "effects.h"
-#include "Playlist.h"
+#include "playlist/NewPlaylist.h"
 #include "Plugins.h"
 #include "FPD.h"
 #include "events.h"
@@ -221,53 +221,30 @@ extern PluginCallbackManager pluginCallbackManager;
 					}
 				}
 		}
-		else if (!strcmp(CommandStr, "p"))
+		else if ((!strcmp(CommandStr, "p")) ||
+				 (!strcmp(CommandStr, "P")))
 		{
 				if(FPPstatus==FPP_STATUS_PLAYLIST_PLAYING || FPPstatus==FPP_STATUS_STOPPING_GRACEFULLY)
 				{
-					playlist->StopPlaylistNow();
+					newPlaylist->StopNow();
 				}
 				sleep(1);
 	
 				s = strtok(NULL,",");
 				if (s)
 				{
-					strcpy(playlist->m_playlistDetails.currentPlaylistFile,s);
+					newPlaylist->Load(s);
+
+					if (!strcmp(CommandStr, "p"))
+						newPlaylist->SetRepeat(1);
+
 					s = strtok(NULL,",");
 					if (s)
-						playlist->m_playlistDetails.currentPlaylistEntry = atoi(s);
-					else
-						playlist->m_playlistDetails.currentPlaylistEntry = 0;
-					playlist->m_playlistDetails.repeat = 1 ;
-					playlist->m_playlistDetails.playlistStarting=1;
-					FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
-					sprintf(response,"%d,%d,Playlist Started,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
-				}
-				else
-				{
-					sprintf(response,"%d,%d,Unknown Playlist,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
-				}
-		}
-		else if (!strcmp(CommandStr, "P"))
-		{
-				if(FPPstatus==FPP_STATUS_PLAYLIST_PLAYING || FPPstatus==FPP_STATUS_STOPPING_GRACEFULLY)
-				{
-					playlist->StopPlaylistNow();
-				}
-				sleep(1);
-	
-				s = strtok(NULL,",");
-				if (s)
-				{
-					strcpy(playlist->m_playlistDetails.currentPlaylistFile,s);
-					s = strtok(NULL,",");
-					if (s)
-						playlist->m_playlistDetails.currentPlaylistEntry = atoi(s);
-					else
-						playlist->m_playlistDetails.currentPlaylistEntry = 0;
-					playlist->m_playlistDetails.repeat = 0;
-					playlist->m_playlistDetails.playlistStarting=1;
-					FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
+						newPlaylist->SetPosition(atoi(s));
+LogDebug(VB_PLAYLIST, "command\n");
+					newPlaylist->Start();
+LogDebug(VB_PLAYLIST, "command\n");
+
 					sprintf(response,"%d,%d,Playlist Started,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
 				}
 				else
@@ -279,8 +256,7 @@ extern PluginCallbackManager pluginCallbackManager;
 		{
 				if(FPPstatus==FPP_STATUS_PLAYLIST_PLAYING)
 				{
-					playlist->m_playlistDetails.ForceStop = 1;
-					playlist->StopPlaylistGracefully();
+					newPlaylist->StopGracefully();
 					scheduler->ReLoadCurrentScheduleInfo();
 					sprintf(response,"%d,%d,Playlist Stopping Gracefully,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
 				}
@@ -293,8 +269,7 @@ extern PluginCallbackManager pluginCallbackManager;
 		{
 				if(FPPstatus==FPP_STATUS_PLAYLIST_PLAYING || FPPstatus==FPP_STATUS_STOPPING_GRACEFULLY)
 				{
-					playlist->m_playlistDetails.ForceStop = 1;
-					playlist->StopPlaylistNow();
+					newPlaylist->StopNow();
 					scheduler->ReLoadCurrentScheduleInfo();
 					sprintf(response,"%d,%d,Playlist Stopping Now,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
 				}

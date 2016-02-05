@@ -130,9 +130,46 @@ inline int IsEffectRunning(void)
 }
 
 /*
+ * Check if a specific effect ID is still running
+ */
+int IsEffectRunning(int effectID)
+{
+	int result = 0;
+
+	pthread_mutex_lock(&effectsLock);
+
+	if (effects[effectID])
+		result = 1;
+
+	pthread_mutex_unlock(&effectsLock);
+
+	return result;
+}
+
+/*
+ * Check to see if a specific named effect is running
+ */
+int IsEffectRunning(const char *effectName)
+{
+	int result = 0;
+
+	pthread_mutex_lock(&effectsLock);
+
+	for (int i = 0; i < MAX_EFFECTS && result == 0; i++)
+	{
+		if (effects[i] && !strcmp(effects[i]->name, effectName))
+			result = 1;
+	}
+
+	pthread_mutex_unlock(&effectsLock);
+
+	return result;
+}
+
+/*
  * Start a new effect offset at the specified channel number
  */
-int StartEffect(char *effectName, int startChannel, int loop)
+int StartEffect(const char *effectName, int startChannel, int loop)
 {
 	int   effectID = -1;
 	FILE *fp = NULL;
@@ -154,12 +191,22 @@ int StartEffect(char *effectName, int startChannel, int loop)
 		return effectID;
 	}
 
-	if (snprintf(filename, 1024, "%s/%s.eseq", getEffectDirectory(), effectName) >= 1024)
+	if (snprintf(filename, 1024 - 5, "%s/%s", getEffectDirectory(), effectName) >= 1024)
 	{
 		LogErr(VB_EFFECT, "Unable to open effects file: %s, filename too long\n",
 			filename);
 		pthread_mutex_unlock(&effectsLock);
 		return effectID;
+	}
+
+	if (!FileExists(filename))
+	{
+		strcat(filename, ".eseq");
+		if (!FileExists(filename))
+		{
+			LogErr(VB_EFFECT, "Unable to find effects file: %s\n", effectName);
+			return effectID;
+		}
 	}
 
 	fp = fopen(filename, "r");
@@ -296,7 +343,7 @@ void StopEffectHelper(int effectID)
 /*
  * Stop all effects named effectName
  */
-int StopEffect(char *effectName)
+int StopEffect(const char *effectName)
 {
 	LogDebug(VB_EFFECT, "StopEffect(%s)\n", effectName);
 

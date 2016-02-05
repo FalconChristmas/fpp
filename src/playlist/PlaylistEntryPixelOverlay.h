@@ -1,7 +1,7 @@
 /*
- *   Effects handler for Falcon Pi Player (FPP)
+ *   Playlist Entry Pixel Overlay Class for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Pi Player Developers
+ *   Copyright (C) 2016 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -23,37 +23,30 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-// Effect Sequence file format and header definition
-#ifndef EFFECTS_H_
-#define EFFECTS_H_
+#ifndef _PLAYLISTENTRYPIXELOVERLAY_H
+#define _PLAYLISTENTRYPIXELOVERLAY_H
 
-#include <stdio.h>
+#include <string>
 
-//typedef struct eseqheader {
-//} eSeqHeader;
+#include "PlaylistEntryBase.h"
 
-typedef struct fppeffect {
-	char     *name;
-	FILE     *fp;
-	int       stepSize;
-	int       modelSize;
-	int       startChannel;
-	int       loop;
-} FPPeffect;
+class PlaylistEntryPixelOverlay : public PlaylistEntryBase {
+  public:
+  	PlaylistEntryPixelOverlay();
+	~PlaylistEntryPixelOverlay();
 
-extern FPPeffect *effects[];
+	int  Init(Json::Value &config);
 
-int  GetRunningEffects(char *msg, char **result);
-int  IsEffectRunning(void);
-int  IsEffectRunning(int effectID);
-int  IsEffectRunning(const char *effectName);
-int  InitEffects(void);
-void CloseEffects(void);
-int  StartEffect(const char *effectName, int startChannel, int loop = 0);
-int  StopEffect(const char *effectName);
-int  StopEffect(int effectID);
-void StopEffects(void);
-void StopAllEffects(void);
-int  OverlayEffects(char *channelData);
+	int  StartPlaying(void);
+
+	void Dump(void);
+
+  private:
+	std::string          m_action;
+	std::string          m_modelName;
+	int                  m_startChannel;
+	int                  m_endChannel;
+	char                 m_value;
+};
 
 #endif

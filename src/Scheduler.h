@@ -108,6 +108,7 @@ class Scheduler {
 	int  FindNextStartingScheduleIndex(void);
 	void GetScheduleEntryStartText(int index,int weeklySecondIndex, char * txt);
 	void GetDayTextFromDayIndex(int index,char * txt);
+	int  StartScheduledPlaylist(int index, int nowWeeklySeconds);
 
 
 	int           m_ScheduleEntryCount;

@@ -41,6 +41,7 @@
 #include "mediaoutput.h"
 #include "PixelOverlay.h"
 #include "Playlist.h"
+#include "playlist/NewPlaylist.h"
 #include "Plugins.h"
 #include "Scheduler.h"
 #include "Sequence.h"
@@ -106,6 +107,7 @@ int main(int argc, char *argv[])
 
 	scheduler = new Scheduler();
 	playlist  = new Playlist();
+	newPlaylist  = new NewPlaylist();
 	sequence  = new Sequence();
 	channelTester = new ChannelTester();
 
@@ -140,6 +142,7 @@ int main(int argc, char *argv[])
 	delete channelTester;
 	delete scheduler;
 	delete playlist;
+	delete newPlaylist;
 	delete sequence;
 
 	return 0;
@@ -150,13 +153,15 @@ void ShutdownFPPD(void)
 	runMainFPPDLoop = 0;
 }
 
+// Default is 50000 for 50ms normally, 1000000 == 1 second
+#define MAIN_LOOP_SLEEP_US 500000
 void MainLoop(void)
 {
 	int            commandSock = 0;
 	int            controlSock = 0;
 	int            bridgeSock = 0;
 	int            prevFPPstatus = FPPstatus;
-	int            sleepms = 50000;
+	int            sleepUs = MAIN_LOOP_SLEEP_US;
 	fd_set         active_fd_set;
 	fd_set         read_fd_set;
 	struct timeval timeout;
@@ -219,7 +224,7 @@ void MainLoop(void)
 	while (runMainFPPDLoop)
 	{
 		timeout.tv_sec  = 0;
-		timeout.tv_usec = sleepms;
+		timeout.tv_usec = sleepUs;
 
 		read_fd_set = active_fd_set;
 
@@ -240,6 +245,7 @@ void MainLoop(void)
 				continue;
 			}
 		}
+LogDebug(VB_PLAYLIST, "sleepUs: %d\n", sleepUs);
 
 		if (commandSock && FD_ISSET(commandSock, &read_fd_set))
 			CommandProc();
@@ -267,20 +273,26 @@ void MainLoop(void)
 		if (getFPPmode() & PLAYER_MODE)
 		{
 			if ((FPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||
+				(FPPstatus == FPP_STATUS_STOPPING_NOW) ||
+				(FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP) ||
 				(FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY))
 			{
-				if (prevFPPstatus == FPP_STATUS_IDLE)
-				{
-					playlist->PlayListPlayingInit();
-					sleepms = 10000;
-				}
+//				if (prevFPPstatus == FPP_STATUS_IDLE)
+//				{
+//					newPlaylist->Start();
+//					sleepUs = 10000;
+// FIXME PLAYLIST
+//sleepUs = 500000;
+//				}
 
 				// Check again here in case PlayListPlayingInit
 				// didn't find anything and put us back to IDLE
 				if ((FPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||
+					(FPPstatus == FPP_STATUS_STOPPING_NOW) ||
+					(FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP) ||
 					(FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY))
 				{
-					playlist->PlayListPlayingProcess();
+					newPlaylist->Process();
 				}
 			}
 
@@ -288,14 +300,16 @@ void MainLoop(void)
 			if (FPPstatus == FPP_STATUS_IDLE)
 			{
 				if ((prevFPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||
+					(prevFPPstatus == FPP_STATUS_STOPPING_NOW) ||
+					(prevFPPstatus == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP) ||
 					(prevFPPstatus == FPP_STATUS_STOPPING_GRACEFULLY))
 				{
-					playlist->PlayListPlayingCleanup();
+					newPlaylist->Cleanup();
 
 					if (FPPstatus != FPP_STATUS_IDLE)
 						reactivated = 1;
 					else
-						sleepms = 50000;
+						sleepUs = MAIN_LOOP_SLEEP_US;
 				}
 			}
 
@@ -310,7 +324,9 @@ void MainLoop(void)
 		{
 			if(mediaOutputStatus.status == MEDIAOUTPUTSTATUS_PLAYING)
 			{
-				playlist->PlaylistProcessMediaData();
+// FIXME PLAYLIST
+//				playlist->PlaylistProcessMediaData();
+LogDebug(VB_PLAYLIST, "FIXME PLAYLIST\n");
 			}
 		}
 

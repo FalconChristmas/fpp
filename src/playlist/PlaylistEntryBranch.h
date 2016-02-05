@@ -1,7 +1,7 @@
 /*
- *   Effects handler for Falcon Pi Player (FPP)
+ *   Playlist Entry Branch Class for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Pi Player Developers
+ *   Copyright (C) 2016 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -23,37 +23,37 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-// Effect Sequence file format and header definition
-#ifndef EFFECTS_H_
-#define EFFECTS_H_
+#ifndef _PLAYLISTENTRYBRANCH_H
+#define _PLAYLISTENTRYBRANCH_H
 
-#include <stdio.h>
+#include <string>
 
-//typedef struct eseqheader {
-//} eSeqHeader;
+#include "PlaylistEntryBase.h"
 
-typedef struct fppeffect {
-	char     *name;
-	FILE     *fp;
-	int       stepSize;
-	int       modelSize;
-	int       startChannel;
-	int       loop;
-} FPPeffect;
+#define PE_BRANCH_TYPE_UNDEFINED      0
+#define PE_BRANCH_TYPE_CLOCK_TIME     1
+#define PE_BRANCH_TYPE_PLAYLIST_TIME  2
+#define PE_BRANCH_TYPE_LOOP_COUNT     3
 
-extern FPPeffect *effects[];
+#define PE_BRANCH_COMP_MODE_UNDEFINED 0
+#define PE_BRANCH_COMP_MODE_LT        1
+#define PE_BRANCH_COMP_MODE_EQ        2
+#define PE_BRANCH_COMP_MODE_GT        3
 
-int  GetRunningEffects(char *msg, char **result);
-int  IsEffectRunning(void);
-int  IsEffectRunning(int effectID);
-int  IsEffectRunning(const char *effectName);
-int  InitEffects(void);
-void CloseEffects(void);
-int  StartEffect(const char *effectName, int startChannel, int loop = 0);
-int  StopEffect(const char *effectName);
-int  StopEffect(int effectID);
-void StopEffects(void);
-void StopAllEffects(void);
-int  OverlayEffects(char *channelData);
+class PlaylistEntryBranch : public PlaylistEntryBase {
+  public:
+  	PlaylistEntryBranch();
+	~PlaylistEntryBranch();
+
+  private:
+	int  m_branchType;
+	int  m_comparisonMode;
+	int  m_hour;
+	int  m_minute;
+	int  m_second;
+	int  m_loopCount;
+
+	PlaylistEntryBase *m_branch;
+};
 
 #endif
