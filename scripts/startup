@@ -158,7 +158,7 @@ echo "FPP - Clearing reboot flags"
 sed -i -e "s/^rebootFlag .*/rebootFlag = 0/" ${FPPHOME}/media/settings
 
 echo "FPP - Setting max IGMP memberships"
-sysctl net/ipv4/igmp_max_memberships=150 > /dev/null 2>&1
+sysctl net/ipv4/igmp_max_memberships=512 > /dev/null 2>&1
 
 if [ "${FPPPLATFORM}" = "BeagleBone Black" -o "${FPPPLATFORM}" = "Raspberry Pi" ]
 then
