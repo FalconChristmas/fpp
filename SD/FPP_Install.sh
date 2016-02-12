@@ -158,6 +158,8 @@ if [ "x${OSID}" = "xraspbian" ]
 then
 	FPPPLATFORM="Raspberry Pi"
 	OSVER="debian_${VERSION_ID}"
+elif [ "x${VARIANT}" = "xDebian on C.H.I.P" ]; then
+	FPPPLATFORM="CHIP"
 elif [ "x${OSID}" = "xdebian" ]
 then
 	FPPPLATFORM="Debian"
@@ -288,10 +290,13 @@ export DEBIAN_FRONTEND=noninteractive
 
 case "${OSVER}" in
 	debian_7|debian_8)
-		echo "FPP - Enabling non-free repo"
-		sed -i -e "s/^deb \(.*\)/deb \1 non-free/" /etc/apt/sources.list
-		sed -i -e "s/non-free\(.*\)non-free/non-free\1/" /etc/apt/sources.list
-		#TODO: No non-free in CHIP repos
+		if [ "x$FPPPLATFORM" = "xCHIP" ]; then
+			echo "FPP - Skipping non-free for CHIP"
+		else
+			echo "FPP - Enabling non-free repo"
+			sed -i -e "s/^deb \(.*\)/deb \1 non-free/" /etc/apt/sources.list
+			sed -i -e "s/non-free\(.*\)non-free/non-free\1/" /etc/apt/sources.list
+		fi
 
 		echo "FPP - Updating package list"
 		apt-get update
