@@ -52,7 +52,7 @@ $color-danger: #f55753;
 $color-info: #3b4752;
 
 // Lighter Grey colors
-$color-master-light:mix($color-master, #fff, 16%);
+$color-master-light:mix($color-master, #fff, 30%);
 $color-master-lighter:mix($color-master, #fff, 9.5%);
 $color-master-lightest:mix($color-master, #fff, 3%);
 
@@ -207,8 +207,10 @@ $button-tag-selector: true !default;
 ///////////////////////////////////
 //  Switches
 ///////////////////////////////////
+
 $action-color: $success-color !default;
 $base-background-color: white !default;
+
 $switch-width: 42px;
 $switch-padding: 2px;
 $switch-height: 22px;
@@ -216,6 +218,16 @@ $switch-radius: $switch-height;
 $knob-size: $switch-height - ($switch-padding * 2);
 $knob-radius: $switch-height - ($switch-padding * 2);
 $knob-width: $knob-size;
+
+$switch-width-sm: 30px;
+$switch-padding-sm: 2px;
+$switch-height-sm: 16px;
+$switch-radius-sm: $switch-height-sm;
+$knob-size-sm: $switch-height-sm - ($switch-padding-sm * 2);
+$knob-radius-sm: $switch-height-sm - ($switch-padding-sm * 2);
+$knob-width-sm: $knob-size-sm;
+
+
 $switch-background: $base-background-color;
 $switch-border-background: darken($base-background-color, 9%);
 $switch-shadow: 0 2px 5px transparentize(black, 0.6);

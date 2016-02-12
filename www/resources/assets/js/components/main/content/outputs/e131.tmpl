@@ -1,0 +1,12 @@
+<div class="header-row universe">
+                        <span class="universe-index">#</span>
+                        <span class="universe-active">Active</span>
+                        <span class="universe-number">Universe</span>
+                        <span class="universe-start">Start</span>
+                        <span class="universe-size">Size</span>
+                        <span class="universe-type">Type</span>
+                        <span class="universe-address">Unicast Address</span>
+                        <span class="universe-label">Label</span>
+                        <span class="universe-action"></span>
+                    </div>
+                    <universe v-for="(index, universe) in universes" :index="index" :universe.sync="universe"></universe>

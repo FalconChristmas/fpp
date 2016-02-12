@@ -39,8 +39,8 @@ a {
 }
 
 .content-wrapper {
-    display: flex;
-    flex: 1;
+    // display: flex;
+    // flex: 1;
     transition: margin 0.35s;
 
     @include breakpoint($tablet-pt-min) {

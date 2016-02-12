@@ -3950,7 +3950,7 @@ WS.prototype.check = function(){
 
 }).apply(this, arguments);
 
-},{"../transport":54,"component-inherit":13,"debug":61,"engine.io-parser":65,"parseqs":144,"ws":186}],60:[function(require,module,exports){
+},{"../transport":54,"component-inherit":13,"debug":61,"engine.io-parser":65,"parseqs":144,"ws":185}],60:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/engine.io-client/lib/xmlhttprequest.js", module);
 (function(){
 // browser shim for xmlhttprequest module
@@ -24891,7 +24891,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":184,"vue-hot-reload-api":160,"vueify-insert-css":185}],182:[function(require,module,exports){
+},{"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],182:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-strap/src/Select.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("\n.bs_searchbox {\n  padding: 4px 8px;\n}\n.btn-group .dropdown-menu .notify {\n  position: absolute;\n  bottom: 5px;\n  width: 96%;\n  margin: 0 2%;\n  min-height: 26px;\n  padding: 3px 5px;\n  background: #f5f5f5;\n  border: 1px solid #e3e3e3;\n  box-shadow: inset 0 1px 1px rgba(0,0,0,.05);\n   pointer-events: none;\n  opacity: .9;\n}\n")
@@ -25030,75 +25030,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"babel-runtime/core-js/get-iterator":4,"vue":184,"vue-hot-reload-api":160,"vueify-insert-css":185}],183:[function(require,module,exports){
-_hmr["websocket:null"].initModule("node_modules/vue-strap/src/Tab.vue", module);
-(function(){
-var __vueify_style__ = require("vueify-insert-css").insert("\n  .tab-content > .tab-pane[_v-23d147b0] {\n    display: block;\n  }\n")
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = {
-  props: {
-    header: {
-      type: String
-    },
-    disabled: {
-      type: Boolean,
-      default: false
-    }
-  },
-  data: function data() {
-    return {
-      index: 0,
-      show: false
-    };
-  },
-
-  computed: {
-    show: function show() {
-      return this.$parent.activeIndex == this.index;
-    },
-    transition: function transition() {
-      return this.$parent.effect;
-    }
-  },
-  created: function created() {
-    this.$parent.renderData.push({
-      header: this.header,
-      disabled: this.disabled
-    });
-  },
-  ready: function ready() {
-    for (var c in this.$parent.$children) {
-      if (this.$parent.$children[c].$el == this.$el) {
-        this.index = c;
-        break;
-      }
-    }
-  }
-};
-if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n  <div role=\"tabpanel\" class=\"tab-pane\" v-bind:class=\"{hide:!show}\" v-show=\"show\" :transition=\"transition\" _v-23d147b0=\"\">\n    <slot _v-23d147b0=\"\"></slot>\n  </div>\n"
-if (module.hot) {(function () {  module.hot.accept()
-  var hotAPI = require("vue-hot-reload-api")
-  hotAPI.install(require("vue"), true)
-  if (!hotAPI.compatible) return
-  var id = "/Users/Tim/Sites/FPP2/www/node_modules/vue-strap/src/Tab.vue"
-  module.hot.dispose(function () {
-    require("vueify-insert-css").cache["\n  .tab-content > .tab-pane[_v-23d147b0] {\n    display: block;\n  }\n"] = false
-    document.head.removeChild(__vueify_style__)
-  })
-  if (!module.hot.data) {
-    hotAPI.createRecord(id, module.exports)
-  } else {
-    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
-  }
-})()}
-}).apply(this, arguments);
-
-},{"vue":184,"vue-hot-reload-api":160,"vueify-insert-css":185}],184:[function(require,module,exports){
+},{"babel-runtime/core-js/get-iterator":4,"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],183:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue/dist/vue.common.js", module);
 (function(){
 (function (process){
@@ -34533,7 +34465,7 @@ module.exports = Vue;
 }).call(this,require('_process'))
 }).apply(this, arguments);
 
-},{"_process":146}],185:[function(require,module,exports){
+},{"_process":146}],184:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vueify-insert-css/index.js", module);
 (function(){
 var inserted = exports.cache = {}
@@ -34557,7 +34489,7 @@ exports.insert = function (css) {
 
 }).apply(this, arguments);
 
-},{}],186:[function(require,module,exports){
+},{}],185:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/ws/lib/browser.js", module);
 (function(){
 
@@ -34606,7 +34538,7 @@ if (WebSocket) ws.prototype = WebSocket.prototype;
 
 }).apply(this, arguments);
 
-},{}],187:[function(require,module,exports){
+},{}],186:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/app.vue", module);
 (function(){
 'use strict';
@@ -34727,7 +34659,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"./components/main/index.vue":213,"./components/shared/overlay.vue":220,"./components/sidebar/index.vue":224,"./stores/playlist":227,"./stores/setting":228,"./stores/shared":229,"jquery":72,"vue":184,"vue-hot-reload-api":160}],188:[function(require,module,exports){
+},{"./components/main/index.vue":213,"./components/shared/overlay.vue":224,"./components/sidebar/index.vue":228,"./stores/playlist":231,"./stores/setting":232,"./stores/shared":233,"jquery":72,"vue":183,"vue-hot-reload-api":160}],187:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/dashboard.vue", module);
 (function(){
 "use strict";
@@ -34762,7 +34694,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":184,"vue-hot-reload-api":160}],189:[function(require,module,exports){
+},{"vue":183,"vue-hot-reload-api":160}],188:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/effects.vue", module);
 (function(){
 "use strict";
@@ -34797,7 +34729,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":184,"vue-hot-reload-api":160}],190:[function(require,module,exports){
+},{"vue":183,"vue-hot-reload-api":160}],189:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/events.vue", module);
 (function(){
 "use strict";
@@ -34832,7 +34764,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":184,"vue-hot-reload-api":160}],191:[function(require,module,exports){
+},{"vue":183,"vue-hot-reload-api":160}],190:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/files.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".file-manager .nav-tabs {\n  margin-bottom: 0 !important; }\n  .file-manager .nav-tabs ~ .tab-content {\n    padding-top: 0; }\n\n.file-manager .tab-pane .info {\n  text-align: center;\n  padding: 20px 20px 0;\n  color: #788B94;\n  border-top: 1px solid #eaeaea; }\n\n.file-manager .file-upload-form {\n  min-height: 250px;\n  padding: 25px;\n  border: 1px dashed #eaeaea;\n  border-radius: 2px;\n  background: #fafafa; }\n  .file-manager .file-upload-form h4 {\n    font-weight: 300;\n    margin-bottom: 0; }\n\n.file-manager .upload-message {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column;\n  -webkit-justify-content: center;\n      -ms-flex-pack: center;\n          justify-content: center;\n  -webkit-align-items: center;\n      -ms-flex-align: center;\n          align-items: center;\n  height: 195px; }\n  .file-manager .upload-message p {\n    margin: 0; }\n")
@@ -34846,7 +34778,7 @@ var _Tabset = require("../../shared/Tabset.vue");
 
 var _Tabset2 = _interopRequireDefault(_Tabset);
 
-var _Tab = require("vue-strap/src/Tab.vue");
+var _Tab = require("../../shared/Tab.vue");
 
 var _Tab2 = _interopRequireDefault(_Tab);
 
@@ -34887,7 +34819,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../shared/Tabset.vue":215,"../../shared/filelist.vue":218,"vue":184,"vue-hot-reload-api":160,"vue-strap/src/Tab.vue":183,"vueify-insert-css":185}],192:[function(require,module,exports){
+},{"../../shared/Tab.vue":215,"../../shared/Tabset.vue":216,"../../shared/filelist.vue":221,"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],191:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/not-found.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".error-404 {\n  text-align: center; }\n")
@@ -34916,7 +34848,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":184,"vue-hot-reload-api":160,"vueify-insert-css":185}],193:[function(require,module,exports){
+},{"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],192:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/outputs.vue", module);
 (function(){
 "use strict";
@@ -34951,7 +34883,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":184,"vue-hot-reload-api":160}],194:[function(require,module,exports){
+},{"vue":183,"vue-hot-reload-api":160}],193:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/outputs/dmx.vue", module);
 (function(){
 "use strict";
@@ -34986,33 +34918,112 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":184,"vue-hot-reload-api":160}],195:[function(require,module,exports){
+},{"vue":183,"vue-hot-reload-api":160}],194:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/outputs/e131.vue", module);
 (function(){
+var __vueify_style__ = require("vueify-insert-css").insert(".universe-list .form-control {\n  padding: .25rem .50rem;\n  line-height: 1.3; }\n\n.universe-list .c-select {\n  padding: .22rem 1.5rem .23rem .50rem; }\n\n.universe-list .universe-index {\n  min-width: 50px;\n  width: 50px;\n  text-align: center; }\n\n.universe-list .universe-active {\n  min-width: 50px;\n  width: 50px;\n  text-align: center; }\n\n.universe-list .universe-number {\n  min-width: 80px;\n  width: 80px;\n  text-align: center; }\n\n.universe-list .universe-start {\n  min-width: 80px;\n  width: 80px;\n  text-align: center; }\n\n.universe-list .universe-size {\n  min-width: 80px;\n  width: 80px;\n  text-align: center; }\n\n.universe-list .universe-type {\n  min-width: 115px;\n  width: 115px;\n  text-align: center; }\n\n.universe-list .universe-address {\n  min-width: 150px;\n  width: 150px;\n  text-align: center; }\n\n.universe-list .universe-action {\n  text-align: center; }\n\n.enable-output small, .enable-output .label-switch {\n  display: inline-block;\n  margin-bottom: 0;\n  vertical-align: middle; }\n")
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
+
+var _switch = require("../../../shared/switch.vue");
+
+var _switch2 = _interopRequireDefault(_switch);
+
+var _universe = require("./universe.vue");
+
+var _universe2 = _interopRequireDefault(_universe);
+
+var _dropdownSelect = require("../../../shared/dropdown-select.vue");
+
+var _dropdownSelect2 = _interopRequireDefault(_dropdownSelect);
+
+var _checkbox = require("../../../shared/checkbox.vue");
+
+var _checkbox2 = _interopRequireDefault(_checkbox);
+
+var _input = require("../../../shared/input.vue");
+
+var _input2 = _interopRequireDefault(_input);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+var universeStub = {
+    active: false,
+    number: 1,
+    start: 1,
+    type: 'unicast',
+    size: 512,
+    address: null,
+    label: null
+};
+
 exports.default = {
-    components: {},
+    components: { Universe: _universe2.default, Switch: _switch2.default, Dropdown: _dropdownSelect2.default, Checkbox: _checkbox2.default, FormInput: _input2.default },
     props: [],
     data: function data() {
-        return {};
+        return {
+            defActive: true,
+            defType: 'unicast',
+            defSize: 512,
+            defAddress: null,
+            incrementStart: true,
+            incrementUniv: true,
+            quantity: 1,
+            universes: [{ active: true, number: 1, start: 1, type: 'unicast', size: 512, address: '10.10.10.10', label: 'The Label' }, { active: true, number: 2, start: 513, type: 'unicast', size: 512, address: '10.10.10.10', label: 'The Label' }]
+
+        };
     },
     ready: function ready() {},
 
-    methods: {},
-    events: {}
+    methods: {
+        addOutput: function addOutput() {
+            for (var i = 0; i < this.quantity; i++) {
+                var last = this.getLastOutput();
+                var universe = {
+                    active: true,
+                    number: this.incrementUniv ? last.number + 1 : 1,
+                    start: this.incrementStart ? last.start + last.size + 1 : 1,
+                    type: this.defType,
+                    size: this.defSize,
+                    address: this.defAddress,
+                    label: null
+                };
+
+                this.universes.push(universe);
+            }
+        },
+        removeOutput: function removeOutput(id) {
+            if (id !== -1) {
+                this.universes.splice(id, 1);
+            }
+        },
+        getLastOutput: function getLastOutput() {
+            if (this.universes.length) {
+                return this.universes[this.universes.length - 1];
+            }
+        }
+    },
+    events: {
+        'remove-output': function removeOutput(id) {
+            this.removeOutput(id);
+        }
+    }
 
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n     <div id=\"e131-settings\" class=\"outputs-container container-fluid box p-a-2\">   \n        <h4><span class=\"semi-bold\">E131</span> Outputs</h4>     \n        <hr>\n        <form>\n        </form>\n    </div>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n     <div id=\"e131-settings\" class=\"outputs-container container-fluid box\">   \n     <div class=\"box-header\">\n         <h4 class=\"box-title\"><span class=\"semi-bold\">E131</span> Outputs</h4>     \n     </div>\n     <div class=\"box-tool\">\n         <div class=\"enable-output\">\n           <small>Enable Outputs </small>\n           <switch :model.sync=\"enable_e131\"></switch>\n         </div>\n     </div>\n     <div class=\"box-body\">\n        <form>\n            <div class=\"output-actions\">\n                    <div class=\"filter text-xs-center\">\n                        <p>Active</p>\n                        <switch :model.sync=\"defActive\" size=\"small\"></switch>\n                    </div>\n                     <div class=\"filter text-xs-center\">\n                        <p>Inc. Universe</p>\n                        <switch :model.sync=\"incrementUniv\" size=\"small\"></switch>\n                    </div>\n                     <div class=\"filter text-xs-center\">\n                        <p>Inc. Start</p>\n                        <switch :model.sync=\"incrementStart\" size=\"small\"></switch>\n                    </div>\n                    <div class=\"filter\">\n                        <form-input :model.sync=\"defAddress\" type=\"text\" label=\"Default Address\" size=\"sm\" state-icon=\"\">\n                        </form-input>\n                       \n                    </div>\n                    <div class=\"filter\">\n                         <form-input :model.sync=\"defSize\" type=\"number\" label=\"Default Size\" size=\"sm\" state-icon=\"\">\n                        </form-input>\n                    </div>\n                    <div class=\"filter\">\n                         <form-input :model.sync=\"quantity\" type=\"number\" label=\"# of Outputs\" size=\"sm\" state-icon=\"\">\n                        </form-input>\n                    </div>\n                    <button @click=\"addOutput\" type=\"button\" class=\"button btn-primary pull-xs-right m-a-0\">Add Output</button>\n            </div>\n            <!-- <div id=\"universe-outputs\"> -->\n                <div class=\"universe-list table-responsive\">\n                    <!-- <div class=\"table-responsive\"> -->\n                        <table class=\"table table-sm table-hover\">\n                            <thead>\n                            <tr>\n                                <th class=\"text-xs-center universe-active\"></th>\n                                <th class=\"text-xs-center universe-index\">#</th>\n                                <th class=\"text-xs-center universe-number\">Universe</th>\n                                <th class=\"text-xs-center universe-start\">Start</th>\n                                <th class=\"text-xs-center universe-size\">Size</th>\n                                <th class=\"text-xs-center universe-type\">Type</th>\n                                <th class=\"text-xs-center universe-address\" style=\"width: 150px\">Unicast Address</th>\n                                <th class=\"text-xs-center universe-label\">Label</th>\n                                <th class=\"text-xs-center universe-action p-r-1\" style=\"width: 45px\"></th>\n                            </tr>\n                            </thead>\n                            <tbody>\n                                <tr is=\"universe\" v-for=\"(index, universe) in universes\" :index=\"index\" :universe.sync=\"universe\"></tr>\n                            </tbody>\n                        </table>\n                    <!-- </div> -->\n                    \n                </div>\n            <!-- </div> -->\n        </form>\n        </div>\n    </div>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
   var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/outputs/e131.vue"
+  module.hot.dispose(function () {
+    require("vueify-insert-css").cache[".universe-list .form-control {\n  padding: .25rem .50rem;\n  line-height: 1.3; }\n\n.universe-list .c-select {\n  padding: .22rem 1.5rem .23rem .50rem; }\n\n.universe-list .universe-index {\n  min-width: 50px;\n  width: 50px;\n  text-align: center; }\n\n.universe-list .universe-active {\n  min-width: 50px;\n  width: 50px;\n  text-align: center; }\n\n.universe-list .universe-number {\n  min-width: 80px;\n  width: 80px;\n  text-align: center; }\n\n.universe-list .universe-start {\n  min-width: 80px;\n  width: 80px;\n  text-align: center; }\n\n.universe-list .universe-size {\n  min-width: 80px;\n  width: 80px;\n  text-align: center; }\n\n.universe-list .universe-type {\n  min-width: 115px;\n  width: 115px;\n  text-align: center; }\n\n.universe-list .universe-address {\n  min-width: 150px;\n  width: 150px;\n  text-align: center; }\n\n.universe-list .universe-action {\n  text-align: center; }\n\n.enable-output small, .enable-output .label-switch {\n  display: inline-block;\n  margin-bottom: 0;\n  vertical-align: middle; }\n"] = false
+    document.head.removeChild(__vueify_style__)
+  })
   if (!module.hot.data) {
     hotAPI.createRecord(id, module.exports)
   } else {
@@ -35021,7 +35032,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":184,"vue-hot-reload-api":160}],196:[function(require,module,exports){
+},{"../../../shared/checkbox.vue":217,"../../../shared/dropdown-select.vue":219,"../../../shared/input.vue":223,"../../../shared/switch.vue":225,"./universe.vue":197,"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],195:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/outputs/other.vue", module);
 (function(){
 "use strict";
@@ -35056,7 +35067,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":184,"vue-hot-reload-api":160}],197:[function(require,module,exports){
+},{"vue":183,"vue-hot-reload-api":160}],196:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/outputs/panels.vue", module);
 (function(){
 "use strict";
@@ -35091,7 +35102,58 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":184,"vue-hot-reload-api":160}],198:[function(require,module,exports){
+},{"vue":183,"vue-hot-reload-api":160}],197:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/components/main/content/outputs/universe.vue", module);
+(function(){
+var __vueify_style__ = require("vueify-insert-css").insert(".universe {\n  transition: opacity 0.35s;\n  opacity: 1; }\n  .universe.disabled {\n    opacity: .5; }\n\n.universe-active,\n.universe-action,\n.universe-index {\n  vertical-align: middle !important; }\n  .universe-active .checkbox,\n  .universe-action .checkbox,\n  .universe-index .checkbox {\n    margin-bottom: 0; }\n")
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _switch = require('../../../shared/switch.vue');
+
+var _switch2 = _interopRequireDefault(_switch);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.default = {
+    components: { Switch: _switch2.default },
+    props: ['universe', 'index'],
+    data: function data() {
+        return {};
+    },
+    ready: function ready() {},
+
+    methods: {
+        removeOutput: function removeOutput() {
+            this.$dispatch('remove-output', this.index);
+        }
+    },
+    events: {}
+
+};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <tr class=\"universe\" :class=\"{ 'disabled' : !universe.active }\">\n        <td class=\"universe-active text-xs-center\">\n            <switch :model.sync=\"universe.active\" size=\"small\"></switch>\n           \n        </td>\n        <td class=\"universe-index text-xs-center\">{{ index + 1 }}</td>\n        <td class=\"universe-number\">\n            <input type=\"number\" v-model=\"universe.number\" class=\"form-control transparent text-xs-center\" number=\"\">\n        </td>\n        <td class=\"universe-start text-xs-center\">\n            <input type=\"number\" v-model=\"universe.start\" class=\"form-control transparent text-xs-center\" number=\"\">\n        </td>\n        <td class=\"universe-size text-xs-center\">\n            <input type=\"number\" v-model=\"universe.size\" max=\"512\" class=\"form-control transparent text-xs-center\" number=\"\">\n        </td>\n        <td class=\"universe-type text-xs-center\">\n            <select class=\"c-select transparent\" v-model=\"universe.type\">\n                <option value=\"unicast\">Unicast</option>\n                <option value=\"multicast\">Multicast</option>\n            </select>\n        </td>\n        <td class=\"universe-address text-xs-center\"><input type=\"text\" v-model=\"universe.address\" :disabled=\"universe.type == 'multicast'\" class=\"form-control transparent text-xs-center\"></td>\n        <td class=\"universe-label text-xs-center\"><input type=\"text\" v-model=\"universe.label\" class=\"form-control transparent\"></td>\n        <td class=\"universe-action text-xs-center p-r-1\">\n            <button type=\"button\" class=\"close\" aria-label=\"Close\" @click=\"removeOutput\">\n                <span aria-hidden=\"true\">×</span>\n            </button>\n        </td>\n    </tr>\n    \n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/outputs/universe.vue"
+  module.hot.dispose(function () {
+    require("vueify-insert-css").cache[".universe {\n  transition: opacity 0.35s;\n  opacity: 1; }\n  .universe.disabled {\n    opacity: .5; }\n\n.universe-active,\n.universe-action,\n.universe-index {\n  vertical-align: middle !important; }\n  .universe-active .checkbox,\n  .universe-action .checkbox,\n  .universe-index .checkbox {\n    margin-bottom: 0; }\n"] = false
+    document.head.removeChild(__vueify_style__)
+  })
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+}).apply(this, arguments);
+
+},{"../../../shared/switch.vue":225,"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],198:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/overlays.vue", module);
 (function(){
 "use strict";
@@ -35126,7 +35188,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":184,"vue-hot-reload-api":160}],199:[function(require,module,exports){
+},{"vue":183,"vue-hot-reload-api":160}],199:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/playlists.vue", module);
 (function(){
 "use strict";
@@ -35161,7 +35223,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":184,"vue-hot-reload-api":160}],200:[function(require,module,exports){
+},{"vue":183,"vue-hot-reload-api":160}],200:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/plugins.vue", module);
 (function(){
 "use strict";
@@ -35196,7 +35258,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":184,"vue-hot-reload-api":160}],201:[function(require,module,exports){
+},{"vue":183,"vue-hot-reload-api":160}],201:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/schedule.vue", module);
 (function(){
 "use strict";
@@ -35231,7 +35293,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":184,"vue-hot-reload-api":160}],202:[function(require,module,exports){
+},{"vue":183,"vue-hot-reload-api":160}],202:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/settings.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".content.settings {\n  padding: 20px;\n  position: relative; }\n")
@@ -35271,7 +35333,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":184,"vue-hot-reload-api":160,"vueify-insert-css":185}],203:[function(require,module,exports){
+},{"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],203:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/settings/advanced.vue", module);
 (function(){
 "use strict";
@@ -35306,7 +35368,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":184,"vue-hot-reload-api":160}],204:[function(require,module,exports){
+},{"vue":183,"vue-hot-reload-api":160}],204:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/settings/date.vue", module);
 (function(){
 "use strict";
@@ -35356,7 +35418,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../../shared/switch.vue":221,"vue":184,"vue-hot-reload-api":160}],205:[function(require,module,exports){
+},{"../../../shared/switch.vue":225,"vue":183,"vue-hot-reload-api":160}],205:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/settings/email.vue", module);
 (function(){
 "use strict";
@@ -35391,7 +35453,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":184,"vue-hot-reload-api":160}],206:[function(require,module,exports){
+},{"vue":183,"vue-hot-reload-api":160}],206:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/settings/general.vue", module);
 (function(){
 "use strict";
@@ -35449,7 +35511,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../../shared/switch.vue":221,"vue":184,"vue-hot-reload-api":160,"vue-strap/src/Option.vue":181,"vue-strap/src/Select.vue":182}],207:[function(require,module,exports){
+},{"../../../shared/switch.vue":225,"vue":183,"vue-hot-reload-api":160,"vue-strap/src/Option.vue":181,"vue-strap/src/Select.vue":182}],207:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/settings/logs.vue", module);
 (function(){
 "use strict";
@@ -35484,7 +35546,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":184,"vue-hot-reload-api":160}],208:[function(require,module,exports){
+},{"vue":183,"vue-hot-reload-api":160}],208:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/settings/network.vue", module);
 (function(){
 'use strict';
@@ -35530,7 +35592,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../../shared/tab.vue":222,"../../../shared/tabset.vue":223,"vue":184,"vue-hot-reload-api":160}],209:[function(require,module,exports){
+},{"../../../shared/tab.vue":226,"../../../shared/tabset.vue":227,"vue":183,"vue-hot-reload-api":160}],209:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/testing.vue", module);
 (function(){
 "use strict";
@@ -35565,7 +35627,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":184,"vue-hot-reload-api":160}],210:[function(require,module,exports){
+},{"vue":183,"vue-hot-reload-api":160}],210:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/footer/index.vue", module);
 (function(){
 "use strict";
@@ -35600,7 +35662,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":184,"vue-hot-reload-api":160}],211:[function(require,module,exports){
+},{"vue":183,"vue-hot-reload-api":160}],211:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/header/index.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("\n.navbar.header-menu {\n    padding: 10px 0 0;\n}\n")
@@ -35651,7 +35713,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../shared/control-buttons.vue":216,"../../shared/header-menu.vue":219,"vue":184,"vue-hot-reload-api":160,"vueify-insert-css":185}],212:[function(require,module,exports){
+},{"../../shared/control-buttons.vue":218,"../../shared/header-menu.vue":222,"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],212:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/header/settings.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".settings-header {\n  -webkit-flex-flow: wrap;\n      -ms-flex-flow: wrap;\n          flex-flow: wrap;\n  padding: 20px 20px 0;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n  .settings-header .settings-menu {\n    width: 100%;\n    padding: 10px 0 0; }\n    .settings-header .settings-menu a {\n      display: block;\n      text-transform: uppercase;\n      letter-spacing: 0.1em;\n      font-size: 11px;\n      border-bottom: 3px solid transparent;\n      padding: 3px 5px;\n      margin-bottom: -1px; }\n      .settings-header .settings-menu a.active {\n        font-weight: 600;\n        border-color: #F04124; }\n  @media (min-width: 668px) {\n    .settings-header {\n      -webkit-flex-direction: row;\n          -ms-flex-direction: row;\n              flex-direction: row; } }\n")
@@ -35698,7 +35760,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../shared/control-buttons.vue":216,"vue":184,"vue-hot-reload-api":160,"vueify-insert-css":185}],213:[function(require,module,exports){
+},{"../../shared/control-buttons.vue":218,"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],213:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/index.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("#main-wrapper {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n")
@@ -35741,7 +35803,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"./footer/index.vue":210,"./header/index.vue":211,"vue":184,"vue-hot-reload-api":160,"vueify-insert-css":185}],214:[function(require,module,exports){
+},{"./footer/index.vue":210,"./header/index.vue":211,"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],214:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/settings.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("#main-wrapper {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n")
@@ -35787,7 +35849,75 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"./content/settings.vue":202,"./footer/index.vue":210,"./header/settings.vue":212,"vue":184,"vue-hot-reload-api":160,"vueify-insert-css":185}],215:[function(require,module,exports){
+},{"./content/settings.vue":202,"./footer/index.vue":210,"./header/settings.vue":212,"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],215:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/components/shared/Tab.vue", module);
+(function(){
+var __vueify_style__ = require("vueify-insert-css").insert("\n  .tab-content > .tab-pane[_v-3eaa1a77] {\n    display: block;\n  }\n")
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = {
+  props: {
+    header: {
+      type: String
+    },
+    disabled: {
+      type: Boolean,
+      default: false
+    }
+  },
+  data: function data() {
+    return {
+      index: 0,
+      show: false
+    };
+  },
+
+  computed: {
+    show: function show() {
+      return this.$parent.activeIndex == this.index;
+    },
+    transition: function transition() {
+      return this.$parent.effect;
+    }
+  },
+  created: function created() {
+    this.$parent.renderData.push({
+      header: this.header,
+      disabled: this.disabled
+    });
+  },
+  ready: function ready() {
+    for (var c in this.$parent.$children) {
+      if (this.$parent.$children[c].$el == this.$el) {
+        this.index = c;
+        break;
+      }
+    }
+  }
+};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n  <div role=\"tabpanel\" class=\"tab-pane\" v-bind:class=\"{hide:!show}\" v-show=\"show\" :transition=\"transition\" _v-3eaa1a77=\"\">\n    <slot _v-3eaa1a77=\"\"></slot>\n  </div>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/shared/Tab.vue"
+  module.hot.dispose(function () {
+    require("vueify-insert-css").cache["\n  .tab-content > .tab-pane[_v-3eaa1a77] {\n    display: block;\n  }\n"] = false
+    document.head.removeChild(__vueify_style__)
+  })
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+}).apply(this, arguments);
+
+},{"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],216:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/Tabset.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("\n  .nav-tabs[_v-7a0405bb] {\n    margin-bottom: 15px\n  }\n")
@@ -35839,7 +35969,112 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":184,"vue-hot-reload-api":160,"vueify-insert-css":185}],216:[function(require,module,exports){
+},{"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],217:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/components/shared/checkbox.vue", module);
+(function(){
+var __vueify_style__ = require("vueify-insert-css").insert(".c-checkbox .c-indicator {\n  border-radius: .25rem; }\n\n.c-checkbox input:checked ~ .c-indicator {\n  background-image: url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhLS0gR2VuZXJhdG9yOiBBZG9iZSBJbGx1c3RyYXRvciAxNy4xLjAsIFNWRyBFeHBvcnQgUGx1Zy1JbiAuIFNWRyBWZXJzaW9uOiA2LjAwIEJ1aWxkIDApICAtLT4NCjwhRE9DVFlQRSBzdmcgUFVCTElDICItLy9XM0MvL0RURCBTVkcgMS4xLy9FTiIgImh0dHA6Ly93d3cudzMub3JnL0dyYXBoaWNzL1NWRy8xLjEvRFREL3N2ZzExLmR0ZCI+DQo8c3ZnIHZlcnNpb249IjEuMSIgaWQ9IkxheWVyXzEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4Ig0KCSB2aWV3Qm94PSIwIDAgOCA4IiBlbmFibGUtYmFja2dyb3VuZD0ibmV3IDAgMCA4IDgiIHhtbDpzcGFjZT0icHJlc2VydmUiPg0KPHBhdGggZmlsbD0iI0ZGRkZGRiIgZD0iTTYuNCwxTDUuNywxLjdMMi45LDQuNUwyLjEsMy43TDEuNCwzTDAsNC40bDAuNywwLjdsMS41LDEuNWwwLjcsMC43bDAuNy0wLjdsMy41LTMuNWwwLjctMC43TDYuNCwxTDYuNCwxeiINCgkvPg0KPC9zdmc+DQo=); }\n\n.c-checkbox input:indeterminate ~ .c-indicator {\n  background-color: #0074d9;\n  background-image: url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhLS0gR2VuZXJhdG9yOiBBZG9iZSBJbGx1c3RyYXRvciAxNy4xLjAsIFNWRyBFeHBvcnQgUGx1Zy1JbiAuIFNWRyBWZXJzaW9uOiA2LjAwIEJ1aWxkIDApICAtLT4NCjwhRE9DVFlQRSBzdmcgUFVCTElDICItLy9XM0MvL0RURCBTVkcgMS4xLy9FTiIgImh0dHA6Ly93d3cudzMub3JnL0dyYXBoaWNzL1NWRy8xLjEvRFREL3N2ZzExLmR0ZCI+DQo8c3ZnIHZlcnNpb249IjEuMSIgaWQ9IkxheWVyXzEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4Ig0KCSB3aWR0aD0iOHB4IiBoZWlnaHQ9IjhweCIgdmlld0JveD0iMCAwIDggOCIgZW5hYmxlLWJhY2tncm91bmQ9Im5ldyAwIDAgOCA4IiB4bWw6c3BhY2U9InByZXNlcnZlIj4NCjxwYXRoIGZpbGw9IiNGRkZGRkYiIGQ9Ik0wLDN2Mmg4VjNIMHoiLz4NCjwvc3ZnPg0K);\n  box-shadow: none; }\n")
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = {
+  replace: true,
+  computed: {
+    inputState: function inputState() {
+      return !this.state || this.state === 'default' ? '' : 'has-' + this.state;
+    }
+  },
+  props: {
+    list: {
+      type: Array,
+      twoWay: true,
+      default: [],
+      required: true
+    },
+    model: {
+      type: Array,
+      twoWay: true,
+      default: []
+    },
+    custom: {
+      type: Boolean,
+      default: true
+    },
+    vertical: {
+      type: Boolean,
+      default: false
+    },
+    state: {
+      type: String,
+      default: 'default'
+    },
+    returnObject: {
+      type: Boolean,
+      default: false
+    }
+  },
+  watch: {
+    list: {
+      handler: function handler() {
+        var _this = this;
+
+        this.model = [];
+        this.list.forEach(function (item) {
+          if (item.checked) {
+            if (_this.returnObject) {
+              _this.model.push(item);
+            } else {
+              _this.model.push(item.value);
+            }
+          }
+        });
+        // dispatch an event
+        this.$dispatch('changed::button-checkbox', this.model);
+      },
+
+      deep: true
+    }
+  },
+  ready: function ready() {
+    var _this2 = this;
+
+    // handle initial selection
+    this.list.forEach(function (item) {
+      if (_this2.returnObject) {
+        _this2.model.forEach(function (modelItem) {
+          if (modelItem.value === item.value) {
+            item.checked = true;
+          }
+        });
+      } else {
+        if (_this2.model.indexOf(item.value) !== -1) {
+          item.checked = true;
+        }
+      }
+    });
+  }
+};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n<fieldset class=\"form-group {{inputState}}\">\n    <div class=\"checkbox\" v-for=\"item in list\" v-bind:class=\"{ 'checkbox-inline': !vertical, disabled: item.disabled }\">\n        <label v-bind:class=\"{ 'c-input': custom, 'c-checkbox': custom }\">\n            <input id=\"{{item.id}}\" type=\"checkbox\" value=\"{{item.value}}\" autocomplete=\"off\" v-model=\"item.checked\" v-bind:disabled=\"item.disabled\">\n                <span class=\"c-indicator\" v-if=\"custom\"></span> {{item.text}}\n        </label>\n    </div>\n</fieldset>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/shared/checkbox.vue"
+  module.hot.dispose(function () {
+    require("vueify-insert-css").cache[".c-checkbox .c-indicator {\n  border-radius: .25rem; }\n\n.c-checkbox input:checked ~ .c-indicator {\n  background-image: url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhLS0gR2VuZXJhdG9yOiBBZG9iZSBJbGx1c3RyYXRvciAxNy4xLjAsIFNWRyBFeHBvcnQgUGx1Zy1JbiAuIFNWRyBWZXJzaW9uOiA2LjAwIEJ1aWxkIDApICAtLT4NCjwhRE9DVFlQRSBzdmcgUFVCTElDICItLy9XM0MvL0RURCBTVkcgMS4xLy9FTiIgImh0dHA6Ly93d3cudzMub3JnL0dyYXBoaWNzL1NWRy8xLjEvRFREL3N2ZzExLmR0ZCI+DQo8c3ZnIHZlcnNpb249IjEuMSIgaWQ9IkxheWVyXzEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4Ig0KCSB2aWV3Qm94PSIwIDAgOCA4IiBlbmFibGUtYmFja2dyb3VuZD0ibmV3IDAgMCA4IDgiIHhtbDpzcGFjZT0icHJlc2VydmUiPg0KPHBhdGggZmlsbD0iI0ZGRkZGRiIgZD0iTTYuNCwxTDUuNywxLjdMMi45LDQuNUwyLjEsMy43TDEuNCwzTDAsNC40bDAuNywwLjdsMS41LDEuNWwwLjcsMC43bDAuNy0wLjdsMy41LTMuNWwwLjctMC43TDYuNCwxTDYuNCwxeiINCgkvPg0KPC9zdmc+DQo=); }\n\n.c-checkbox input:indeterminate ~ .c-indicator {\n  background-color: #0074d9;\n  background-image: url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhLS0gR2VuZXJhdG9yOiBBZG9iZSBJbGx1c3RyYXRvciAxNy4xLjAsIFNWRyBFeHBvcnQgUGx1Zy1JbiAuIFNWRyBWZXJzaW9uOiA2LjAwIEJ1aWxkIDApICAtLT4NCjwhRE9DVFlQRSBzdmcgUFVCTElDICItLy9XM0MvL0RURCBTVkcgMS4xLy9FTiIgImh0dHA6Ly93d3cudzMub3JnL0dyYXBoaWNzL1NWRy8xLjEvRFREL3N2ZzExLmR0ZCI+DQo8c3ZnIHZlcnNpb249IjEuMSIgaWQ9IkxheWVyXzEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4Ig0KCSB3aWR0aD0iOHB4IiBoZWlnaHQ9IjhweCIgdmlld0JveD0iMCAwIDggOCIgZW5hYmxlLWJhY2tncm91bmQ9Im5ldyAwIDAgOCA4IiB4bWw6c3BhY2U9InByZXNlcnZlIj4NCjxwYXRoIGZpbGw9IiNGRkZGRkYiIGQ9Ik0wLDN2Mmg4VjNIMHoiLz4NCjwvc3ZnPg0K);\n  box-shadow: none; }\n"] = false
+    document.head.removeChild(__vueify_style__)
+  })
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+}).apply(this, arguments);
+
+},{"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],218:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/control-buttons.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".control-buttons {\n  margin-bottom: 1rem; }\n  .control-buttons .button {\n    border-radius: 2px;\n    transition: background 0.35s, box-shadow 0.15s;\n    border: 1px solid #c4c4c4;\n    color: #666;\n    background: linear-gradient(to bottom, #f8f8f8, #eaeaea 100%);\n    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }\n    .control-buttons .button:active {\n      box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125); }\n  @media (min-width: 668px) {\n    .control-buttons {\n      margin: 0; } }\n")
@@ -35876,7 +36111,156 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":184,"vue-hot-reload-api":160,"vueify-insert-css":185}],217:[function(require,module,exports){
+},{"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],219:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/components/shared/dropdown-select.vue", module);
+(function(){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = {
+  replace: true,
+  data: function data() {
+    return {
+      show: false,
+      selected: false
+    };
+  },
+
+  computed: {
+    btnVariant: function btnVariant() {
+      return !this.variant || this.variant === 'default' ? 'btn-secondary' : 'btn-' + this.variant;
+    },
+    btnSize: function btnSize() {
+      return !this.size || this.size === 'default' ? '' : 'btn-' + this.size;
+    },
+    dropdownToggle: function dropdownToggle() {
+      return this.caret ? 'dropdown-toggle' : '';
+    },
+    displayItem: function displayItem() {
+      var _this = this;
+
+      // if zero show default message
+      if (this.returnObject && this.model && !this.model.text || !this.returnObject && this.model && this.model.length === 0 || this.forceDefault) {
+        return this.defaultText;
+      }
+
+      // show selected item
+      if (this.returnObject && this.model && this.model.text) {
+        return this.model.text;
+      }
+
+      // show text that coresponds to the model value
+      if (!this.returnObject && this.model) {
+        var result = this.model || '';
+        this.list.forEach(function (item) {
+          if (item.value === _this.model) {
+            result = item.text;
+          }
+        });
+        return result;
+      }
+
+      return '';
+    }
+  },
+  props: {
+    id: {
+      type: String
+    },
+    model: {
+      required: false
+    },
+    list: {
+      type: Array,
+      default: [],
+      required: true
+    },
+    caret: {
+      type: Boolean,
+      default: true
+    },
+    position: {
+      type: String,
+      default: 'left'
+    },
+    size: {
+      type: String,
+      default: ''
+    },
+    variant: {
+      type: String,
+      default: 'default'
+    },
+    defaultText: {
+      type: String,
+      default: 'Plase select one'
+    },
+    forceDefault: {
+      type: Boolean,
+      default: false
+    },
+    returnObject: {
+      type: Boolean,
+      default: false
+    },
+    dropup: {
+      type: Boolean,
+      default: false
+    },
+    disabled: {
+      type: Boolean,
+      default: false
+    }
+  },
+  methods: {
+    toggle: function toggle(e) {
+      // hide an alert
+      this.show = !this.show;
+      // Dispatch an event from the current vm that propagates all the way up to its $root
+      if (this.show) {
+        this.$dispatch('shown:dropdown', this.id);
+        e.stopPropagation();
+      } else {
+        this.$dispatch('hidden::dropdown', this.id);
+      }
+    },
+    select: function select(item) {
+      // we need to set empty model to make model watchers react to it
+      if (this.returnObject) {
+        this.model = item;
+      } else {
+        this.model = item.value;
+      }
+      this.show = false;
+      // Dispatch an event from the current vm that propagates all the way up to its $root
+      this.$dispatch('selected::dropdown', this.id, this.model);
+    }
+  },
+  events: {
+    'hide::dropdown': function hideDropdown() {
+      this.show = false;
+    }
+  },
+  ready: function ready() {}
+};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div class=\"dropdown-select\" v-bind:class=\"{open: show, dropdown: !dropup, dropup: dropup}\">\n        <button id=\"{{id}}\" class=\"btn dropdown {{dropdownToggle}} {{btnVariant}} {{btnSize}}\" role=\"button\" aria-haspopup=\"true\" aria-expanded=\"show\" v-on:click.prevent=\"toggle($event)\" :disabled=\"disabled\">\n            <span class=\"checked-items\" v-html=\"displayItem\"></span>\n        </button>\n        <ul class=\"dropdown-menu\" v-bind:class=\"{'dropdown-menu-right' : position == 'right'}\" aria-labelledby=\"dLabel\">\n            <li v-for=\"item in list\">\n                <button class=\"dropdown-item\" v-on:click.stop.prevent=\"select(item)\">{{item.text}}</button>\n            </li>\n        </ul>\n    </div>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/shared/dropdown-select.vue"
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+}).apply(this, arguments);
+
+},{"vue":183,"vue-hot-reload-api":160}],220:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/falcon-loading.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("@-webkit-keyframes grow {\n  0% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  33% {\n    opacity: 1;\n    -webkit-transform: scale(1);\n            transform: scale(1); }\n  66% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  100% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); } }\n\n@keyframes grow {\n  0% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  33% {\n    opacity: 1;\n    -webkit-transform: scale(1);\n            transform: scale(1); }\n  66% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  100% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); } }\n\n#load {\n  position: relative;\n  display: inline-block;\n  text-align: center; }\n  #load .letter {\n    display: inline-block;\n    margin: 0 2px;\n    color: white;\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9);\n    -webkit-animation: grow 2.5s ease-in infinite;\n            animation: grow 2.5s ease-in infinite; }\n  #load .letter:nth-child(1) {\n    -webkit-animation-delay: .1s;\n            animation-delay: .1s; }\n  #load .letter:nth-child(2) {\n    -webkit-animation-delay: .15s;\n            animation-delay: .15s; }\n  #load .letter:nth-child(3) {\n    -webkit-animation-delay: .2s;\n            animation-delay: .2s; }\n  #load .letter:nth-child(4) {\n    -webkit-animation-delay: .25s;\n            animation-delay: .25s; }\n  #load .letter:nth-child(5) {\n    -webkit-animation-delay: .3s;\n            animation-delay: .3s; }\n  #load .letter:nth-child(6) {\n    -webkit-animation-delay: .35s;\n            animation-delay: .35s; }\n  #load .letter:nth-child(7) {\n    margin-left: 8px;\n    -webkit-animation-delay: .4s;\n            animation-delay: .4s; }\n  #load .letter:nth-child(8) {\n    -webkit-animation-delay: .45s;\n            animation-delay: .45s; }\n  #load .letter:nth-child(9) {\n    -webkit-animation-delay: .5s;\n            animation-delay: .5s; }\n  #load .letter:nth-child(10) {\n    -webkit-animation-delay: .55s;\n            animation-delay: .55s; }\n  #load .letter:nth-child(11) {\n    -webkit-animation-delay: .6s;\n            animation-delay: .6s; }\n  #load .letter:nth-child(12) {\n    -webkit-animation-delay: .65s;\n            animation-delay: .65s; }\n")
@@ -35905,7 +36289,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":184,"vue-hot-reload-api":160,"vueify-insert-css":185}],218:[function(require,module,exports){
+},{"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],221:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/filelist.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".file-list .table th {\n  border-top: 0; }\n")
@@ -35945,7 +36329,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":184,"vue-hot-reload-api":160,"vueify-insert-css":185}],219:[function(require,module,exports){
+},{"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],222:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/header-menu.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".header-menu {\n  width: 100%;\n  padding-top: 10px; }\n  .header-menu a {\n    display: block;\n    text-transform: uppercase;\n    letter-spacing: 0.1em;\n    font-size: 11px;\n    border-bottom: 3px solid transparent;\n    padding: 3px 5px;\n    margin-bottom: -1px; }\n    .header-menu a.active {\n      font-weight: 600;\n      border-color: #F04124; }\n")
@@ -35984,7 +36368,93 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":184,"vue-hot-reload-api":160,"vueify-insert-css":185}],220:[function(require,module,exports){
+},{"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],223:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/components/shared/input.vue", module);
+(function(){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _utils = require('../../utils.js');
+
+exports.default = {
+
+  replace: true,
+  computed: {
+    inputState: function inputState() {
+      return !this.state || this.state === 'default' ? '' : 'has-' + this.state;
+    },
+    stateIconType: function stateIconType() {
+      return !this.stateIcon || this.stateIcon === 'default' ? '' : 'form-control-' + this.state;
+    },
+    inputSize: function inputSize() {
+      return !this.size || this.size === 'default' ? '' : 'form-control-' + this.size;
+    },
+    row: function row() {
+      return labelClass && inputClass;
+    }
+  },
+  props: {
+    model: {
+      twoWay: true,
+      required: true
+
+    },
+    type: {
+      type: String,
+      default: 'text',
+      required: true
+    },
+    id: {
+      type: String,
+      default: _utils.makeid
+    },
+    label: {
+      type: String,
+      default: ''
+    },
+    placeholder: {
+      type: String,
+      default: ''
+    },
+    description: {
+      type: String,
+      default: ''
+    },
+    size: {
+      type: String,
+      default: ''
+    },
+    state: {
+      type: String,
+      default: ''
+    },
+    stateIcon: {
+      type: Boolean,
+      default: true
+    }
+  }
+};
+
+// import dependencies
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n<fieldset class=\"form-group {{inputState}}\">\n    <label for=\"{{id}}\" v-if=\"label\" class=\"control-label\">{{label}}</label>\n    <div class=\"inputClass\">\n        <input type=\"{{type}}\" class=\"form-control {{stateIconType}} {{inputSize}}\" id=\"{{id}}\" placeholder=\"{{placeholder}}\" v-model=\"model\">\n    </div>\n    <small class=\"text-muted\" v-if=\"description\" v-html=\"description\"></small>\n</fieldset>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/shared/input.vue"
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+}).apply(this, arguments);
+
+},{"../../utils.js":234,"vue":183,"vue-hot-reload-api":160}],224:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/overlay.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("#overlay {\n  position: fixed;\n  top: 0;\n  left: 0;\n  z-index: 9999;\n  width: 100%;\n  height: 100%;\n  background-color: #363C47;\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-align-items: center;\n      -ms-flex-align: center;\n          align-items: center;\n  -webkit-justify-content: center;\n      -ms-flex-pack: center;\n          justify-content: center;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n  #overlay .logo {\n    width: 220px;\n    height: 108px;\n    margin-bottom: 15px;\n    position: relative;\n    left: -25px; }\n")
@@ -36022,10 +36492,10 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"./falcon-loading.vue":217,"vue":184,"vue-hot-reload-api":160,"vueify-insert-css":185}],221:[function(require,module,exports){
+},{"./falcon-loading.vue":220,"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],225:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/switch.vue", module);
 (function(){
-"use strict";
+'use strict';
 
 Object.defineProperty(exports, "__esModule", {
     value: true
@@ -36036,6 +36506,10 @@ exports.default = {
         model: {
             required: true,
             twoWay: true
+        },
+        size: {
+            type: String,
+            default: 'normal'
         }
     },
     data: function data() {
@@ -36048,7 +36522,7 @@ exports.default = {
 
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <label class=\"label-switch\">\n      <input type=\"checkbox\" v-model=\"model\">\n      <div class=\"checkbox\"></div>\n    </label>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <label class=\"label-switch\" :class=\"{ 'small' : size == 'small' }\">\n      <input type=\"checkbox\" v-model=\"model\">\n      <div class=\"checkbox\"></div>\n    </label>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
@@ -36062,7 +36536,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":184,"vue-hot-reload-api":160}],222:[function(require,module,exports){
+},{"vue":183,"vue-hot-reload-api":160}],226:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/tab.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("\n  .tab-content > .tab-pane[_v-491cfad2] {\n    display: block;\n  }\n")
@@ -36130,7 +36604,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":184,"vue-hot-reload-api":160,"vueify-insert-css":185}],223:[function(require,module,exports){
+},{"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],227:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/tabset.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("\n  .nav-tabs[_v-0332299b] {\n    margin-bottom: 15px\n  }\n")
@@ -36182,7 +36656,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":184,"vue-hot-reload-api":160,"vueify-insert-css":185}],224:[function(require,module,exports){
+},{"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],228:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/sidebar/index.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".sidebar {\n  width: 155px;\n  position: fixed;\n  height: 100%;\n  background: #363C47;\n  z-index: 10;\n  padding: 20px;\n  transition: all 0.25s;\n  left: -155px; }\n  @media (min-width: 769px) {\n    .sidebar {\n      left: 0;\n      width: 155px; } }\n  @media (min-width: 1281px) {\n    .sidebar {\n      width: 200px; } }\n  .sidebar .logo {\n    margin: 0 0 40px; }\n    .sidebar .logo img {\n      width: 100%;\n      height: auto; }\n  .sidebar h4 {\n    text-transform: uppercase;\n    color: #999;\n    font-size: 10px;\n    font-weight: 600;\n    letter-spacing: 1px;\n    margin: 20px 0 5px; }\n  .sidebar li {\n    padding: 3px 0; }\n  .sidebar a {\n    color: #eaeaea;\n    font-weight: 300;\n    font-size: 14px;\n    transition: all 0.25s; }\n    .sidebar a:hover {\n      color: #fff; }\n    .sidebar a.active {\n      color: #fff;\n      font-weight: 500; }\n")
@@ -36222,7 +36696,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":184,"vue-hot-reload-api":160,"vueify-insert-css":185}],225:[function(require,module,exports){
+},{"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],229:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/main.js", module);
 (function(){
 'use strict';
@@ -36374,7 +36848,7 @@ router.start(App, 'body');
 
 }).apply(this, arguments);
 
-},{"./app.vue":187,"./components/main/content/dashboard.vue":188,"./components/main/content/effects.vue":189,"./components/main/content/events.vue":190,"./components/main/content/files.vue":191,"./components/main/content/not-found.vue":192,"./components/main/content/outputs.vue":193,"./components/main/content/outputs/dmx.vue":194,"./components/main/content/outputs/e131.vue":195,"./components/main/content/outputs/other.vue":196,"./components/main/content/outputs/panels.vue":197,"./components/main/content/overlays.vue":198,"./components/main/content/playlists.vue":199,"./components/main/content/plugins.vue":200,"./components/main/content/schedule.vue":201,"./components/main/content/settings/advanced.vue":203,"./components/main/content/settings/date.vue":204,"./components/main/content/settings/email.vue":205,"./components/main/content/settings/general.vue":206,"./components/main/content/settings/logs.vue":207,"./components/main/content/settings/network.vue":208,"./components/main/content/testing.vue":209,"./components/main/index.vue":213,"./components/main/settings.vue":214,"jquery":72,"vue":184,"vue-resource":165,"vue-router":180}],226:[function(require,module,exports){
+},{"./app.vue":186,"./components/main/content/dashboard.vue":187,"./components/main/content/effects.vue":188,"./components/main/content/events.vue":189,"./components/main/content/files.vue":190,"./components/main/content/not-found.vue":191,"./components/main/content/outputs.vue":192,"./components/main/content/outputs/dmx.vue":193,"./components/main/content/outputs/e131.vue":194,"./components/main/content/outputs/other.vue":195,"./components/main/content/outputs/panels.vue":196,"./components/main/content/overlays.vue":198,"./components/main/content/playlists.vue":199,"./components/main/content/plugins.vue":200,"./components/main/content/schedule.vue":201,"./components/main/content/settings/advanced.vue":203,"./components/main/content/settings/date.vue":204,"./components/main/content/settings/email.vue":205,"./components/main/content/settings/general.vue":206,"./components/main/content/settings/logs.vue":207,"./components/main/content/settings/network.vue":208,"./components/main/content/testing.vue":209,"./components/main/index.vue":213,"./components/main/settings.vue":214,"jquery":72,"vue":183,"vue-resource":165,"vue-router":180}],230:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/services/http.js", module);
 (function(){
 'use strict';
@@ -36452,14 +36926,14 @@ exports.default = {
 
 }).apply(this, arguments);
 
-},{}],227:[function(require,module,exports){
+},{}],231:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/stores/playlist.js", module);
 (function(){
 "use strict";
 
 }).apply(this, arguments);
 
-},{}],228:[function(require,module,exports){
+},{}],232:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/stores/setting.js", module);
 (function(){
 'use strict';
@@ -36509,7 +36983,7 @@ exports.default = {
 
 }).apply(this, arguments);
 
-},{"../services/http":226,"./shared":229}],229:[function(require,module,exports){
+},{"../services/http":230,"./shared":233}],233:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/stores/shared.js", module);
 (function(){
 'use strict';
@@ -36554,11 +37028,33 @@ exports.default = {
 
 }).apply(this, arguments);
 
-},{"../services/http":226}],1:[function(require,module,exports){
+},{"../services/http":230}],234:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/utils.js", module);
+(function(){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.makeid = makeid;
+// pulled from http://stackoverflow.com/questions/1349404/generate-a-string-of-5-random-characters-in-javascript
+function makeid() {
+  var text = '';
+  var possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+
+  for (var i = 0; i < 5; i++) {
+    text += possible.charAt(Math.floor(Math.random() * possible.length));
+  }
+  return text;
+}
+
+}).apply(this, arguments);
+
+},{}],1:[function(require,module,exports){
 (function(global, _main, moduleDefs, cachedModules, _entries) {
   'use strict';
 
-  var moduleMeta = {"node_modules/browserify-hmr/lib/has.js":{"index":9,"hash":"Hky4QYVrU1+kFHIEuxPy","parents":["node_modules/browserify-hmr/lib/str-set.js","node_modules/browserify-hmr/inc/index.js"]},"node_modules/browserify-hmr/lib/str-set.js":{"index":10,"hash":"lcrDmQK4uaqOqN+FV4/9","parents":["node_modules/browserify-hmr/inc/index.js"]},"resources/assets/js/stores/playlist.js":{"index":227,"hash":"k5Rph+tSzK7SzVYZrxbP","parents":["resources/assets/js/app.vue"]},"node_modules/socket.io-client/node_modules/debug/debug.js":{"index":153,"hash":"OtjmSmEbIU/8orJwFhDT","parents":["node_modules/socket.io-client/lib/url.js","node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/socket.io-client/lib/on.js":{"index":150,"hash":"y5MOoFpTKKBHwE8q8jae","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/vue-router/dist/vue-router.common.js":{"index":180,"hash":"V5DMsGGLcOqPAhx31psf","parents":["resources/assets/js/main.js"]},"node_modules/jquery/dist/jquery.js":{"index":72,"hash":"siFczlgw4jULnUICcdm9","parents":["resources/assets/js/app.vue","resources/assets/js/main.js"]},"resources/assets/js/stores/setting.js":{"index":228,"hash":"coKfnj2hZTIg8YRT4JSn","parents":["resources/assets/js/app.vue"]},"resources/assets/js/services/http.js":{"index":226,"hash":"OqU5t4zvkjeUSpQJFLPI","parents":["resources/assets/js/stores/setting.js","resources/assets/js/stores/shared.js"]},"resources/assets/js/stores/shared.js":{"index":229,"hash":"dBZ6EHn2t9/PLCXa/Sej","parents":["resources/assets/js/stores/setting.js","resources/assets/js/app.vue"]},"node_modules/vue-resource/src/resource.js":{"index":178,"hash":"4hFj5axF31CeVRePeF8o","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-hot-reload-api/index.js":{"index":160,"hash":"WuwmPSnCiynHpb+AfQBY","parents":["resources/assets/js/components/main/content/dashboard.vue","resources/assets/js/components/main/content/outputs.vue","resources/assets/js/components/main/content/overlays.vue","resources/assets/js/components/main/content/playlists.vue","resources/assets/js/components/main/content/schedule.vue","resources/assets/js/components/main/content/plugins.vue","resources/assets/js/components/main/content/events.vue","resources/assets/js/components/main/content/effects.vue","resources/assets/js/components/main/content/testing.vue","resources/assets/js/components/main/content/not-found.vue","resources/assets/js/components/sidebar/index.vue","resources/assets/js/components/main/content/outputs/e131.vue","resources/assets/js/components/main/content/outputs/dmx.vue","resources/assets/js/components/main/content/outputs/other.vue","resources/assets/js/components/main/content/outputs/panels.vue","resources/assets/js/components/main/content/settings/email.vue","resources/assets/js/components/main/content/settings/date.vue","resources/assets/js/components/main/content/settings/logs.vue","resources/assets/js/components/main/content/settings/advanced.vue","resources/assets/js/components/shared/Tabset.vue","resources/assets/js/components/shared/switch.vue","resources/assets/js/components/shared/tabset.vue","resources/assets/js/components/shared/tab.vue","resources/assets/js/components/main/content/settings/network.vue","resources/assets/js/components/shared/filelist.vue","resources/assets/js/components/main/footer/index.vue","resources/assets/js/components/main/header/settings.vue","resources/assets/js/components/main/content/settings.vue","resources/assets/js/components/main/settings.vue","resources/assets/js/components/shared/falcon-loading.vue","resources/assets/js/components/shared/overlay.vue","resources/assets/js/app.vue","resources/assets/js/components/shared/control-buttons.vue","resources/assets/js/components/shared/header-menu.vue","resources/assets/js/components/main/header/index.vue","resources/assets/js/components/main/index.vue","node_modules/vue-strap/src/Tab.vue","resources/assets/js/components/main/content/files.vue","node_modules/vue-strap/src/Option.vue","node_modules/vue-strap/src/Select.vue","resources/assets/js/components/main/content/settings/general.vue"]},"node_modules/vue-resource/src/lib/util.js":{"index":176,"hash":"kipx22owioSurHN4RBYT","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/socket.io-parser/is-buffer.js":{"index":156,"hash":"UJBXKAfBg/BkigSZbc3Z","parents":["node_modules/socket.io-parser/binary.js","node_modules/socket.io-parser/index.js"]},"node_modules/component-emitter/index.js":{"index":12,"hash":"0uL1LSa/mOj+Llu+HTZ7","parents":["node_modules/socket.io-parser/index.js","node_modules/socket.io-client/lib/socket.js","node_modules/engine.io-client/lib/transport.js","node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/parseuri/index.js":{"index":145,"hash":"PsPou9y5yKmPMPJnjEkz","parents":["node_modules/socket.io-client/lib/url.js"]},"node_modules/socket.io-client/lib/url.js":{"index":152,"hash":"/WgdaMtSTLlxFoTxZTGl","parents":["node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/component-bind/index.js":{"index":11,"hash":"4yIcVw+afwUsnTQyI0a3","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/object-component/index.js":{"index":142,"hash":"zOYybxl/D7KsteH/xJyk","parents":["node_modules/socket.io-client/lib/manager.js"]},"node_modules/indexof/index.js":{"index":70,"hash":"8zMGV0j0ID5bUIeT7r+M","parents":["node_modules/engine.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/backo2/index.js":{"index":5,"hash":"L5ry3mfVEw1wgmx9Sa+q","parents":["node_modules/socket.io-client/lib/manager.js"]},"node_modules/to-array/index.js":{"index":158,"hash":"2EoggafxX+GLXkXiaGjm","parents":["node_modules/socket.io-client/lib/socket.js"]},"node_modules/lodash/array/zipObject.js":{"index":75,"hash":"fKfSwIzPo5SUx9d0DkgN","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/lang/isArray.js":{"index":129,"hash":"rpMiE1Z199/XZCjno4KN","parents":["node_modules/lodash/array/zipObject.js","node_modules/lodash/collection/map.js","node_modules/lodash/collection/filter.js","node_modules/lodash/internal/createForEach.js","node_modules/lodash/internal/isKey.js","node_modules/lodash/internal/toPath.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js","node_modules/lodash/internal/baseIsEqualDeep.js","node_modules/lodash/internal/baseMatchesProperty.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/arrayEach.js":{"index":81,"hash":"eLxUBVsb8vpFbu0VN4KL","parents":["node_modules/lodash/collection/forEach.js"]},"node_modules/lodash/internal/arraySome.js":{"index":84,"hash":"GxeJPxJj2jUg5TzV5gLv","parents":["node_modules/lodash/internal/equalArrays.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/arrayMap.js":{"index":83,"hash":"xdr8c0JsUFapIHTuM5VE","parents":["node_modules/lodash/collection/map.js"]},"node_modules/lodash/internal/arrayFilter.js":{"index":82,"hash":"BGunz0w1QzJXyqQSOdZb","parents":["node_modules/lodash/collection/filter.js"]},"node_modules/socket.io-parser/node_modules/debug/debug.js":{"index":157,"hash":"OtjmSmEbIU/8orJwFhDT","parents":["node_modules/socket.io-parser/index.js"]},"node_modules/process/browser.js":{"index":146,"hash":"d/Dio43QDX3Xt7NYvbr6","parents":["node_modules/vue/dist/vue.common.js"]},"node_modules/vue/dist/vue.common.js":{"index":184,"hash":"2VyaBoUmGsVHuFohCYxK","parents":["resources/assets/js/components/main/content/dashboard.vue","resources/assets/js/components/main/content/outputs.vue","resources/assets/js/components/main/content/overlays.vue","resources/assets/js/components/main/content/playlists.vue","resources/assets/js/components/main/content/schedule.vue","resources/assets/js/components/main/content/plugins.vue","resources/assets/js/components/main/content/events.vue","resources/assets/js/components/main/content/effects.vue","resources/assets/js/components/main/content/testing.vue","resources/assets/js/components/main/content/not-found.vue","resources/assets/js/components/sidebar/index.vue","resources/assets/js/components/main/content/outputs/e131.vue","resources/assets/js/components/main/content/outputs/dmx.vue","resources/assets/js/components/main/content/outputs/other.vue","resources/assets/js/components/main/content/outputs/panels.vue","resources/assets/js/components/main/content/settings/email.vue","resources/assets/js/components/main/content/settings/date.vue","resources/assets/js/components/main/content/settings/logs.vue","resources/assets/js/components/main/content/settings/advanced.vue","resources/assets/js/components/shared/Tabset.vue","resources/assets/js/components/shared/switch.vue","resources/assets/js/components/shared/tabset.vue","resources/assets/js/components/shared/tab.vue","resources/assets/js/components/main/content/settings/network.vue","resources/assets/js/components/shared/filelist.vue","resources/assets/js/components/main/footer/index.vue","resources/assets/js/components/main/header/settings.vue","resources/assets/js/components/main/content/settings.vue","resources/assets/js/components/main/settings.vue","resources/assets/js/components/shared/falcon-loading.vue","resources/assets/js/components/shared/overlay.vue","resources/assets/js/app.vue","resources/assets/js/components/shared/control-buttons.vue","resources/assets/js/components/shared/header-menu.vue","resources/assets/js/components/main/header/index.vue","resources/assets/js/components/main/index.vue","node_modules/vue-strap/src/Tab.vue","resources/assets/js/components/main/content/files.vue","node_modules/vue-strap/src/Option.vue","node_modules/vue-strap/src/Select.vue","resources/assets/js/components/main/content/settings/general.vue","resources/assets/js/main.js"]},"node_modules/vue-resource/src/lib/url-template.js":{"index":175,"hash":"KZagPKERmevU89wFVgEg","parents":["node_modules/vue-resource/src/url.js"]},"node_modules/vue-resource/src/url.js":{"index":179,"hash":"enlma6RiuDUq+g3+RYdS","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-resource/src/interceptor/before.js":{"index":166,"hash":"dzJ5VyAAgzvYOWxyyGVm","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/timeout.js":{"index":173,"hash":"r+N56i06KukH+ME8Mpnr","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/method.js":{"index":171,"hash":"DqLo0TxFAJSH0HWGo7wR","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/mime.js":{"index":172,"hash":"f6heFdNiVYVl4GIRJ2gN","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/header.js":{"index":168,"hash":"Ql+DdTpkgQsJb9HXQumF","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/lib/promise.js":{"index":174,"hash":"uhJ1aPn5MePstu6k3zZV","parents":["node_modules/vue-resource/src/promise.js"]},"node_modules/vue-resource/src/promise.js":{"index":177,"hash":"dayC7UqEuK1y+yEa6/bE","parents":["node_modules/vue-resource/src/interceptor/index.js","node_modules/vue-resource/src/client/xhr.js","node_modules/vue-resource/src/client/jsonp.js","node_modules/vue-resource/src/http.js","node_modules/vue-resource/src/index.js"]},"node_modules/isarray/index.js":{"index":71,"hash":"dKtews1S4sHvaZhZ+ceq","parents":["node_modules/socket.io-parser/binary.js","node_modules/socket.io-parser/index.js","node_modules/has-binary/index.js"]},"node_modules/json3/lib/json3.js":{"index":73,"hash":"Z22TAqz9HSDSuQH535ZO","parents":["node_modules/socket.io-parser/index.js"]},"node_modules/lodash/internal/baseSome.js":{"index":103,"hash":"lCW5AtHn9X2vSuPgS8pk","parents":["node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/baseEach.js":{"index":89,"hash":"Ji7NLCJhdzSBlpDI+qC3","parents":["node_modules/lodash/internal/baseSome.js","node_modules/lodash/internal/baseMap.js","node_modules/lodash/internal/baseFilter.js","node_modules/lodash/collection/forEach.js"]},"node_modules/lodash/internal/baseMap.js":{"index":97,"hash":"ofv2jCE5QlahpynG4rkN","parents":["node_modules/lodash/collection/map.js"]},"node_modules/lodash/internal/isArrayLike.js":{"index":118,"hash":"76Awthz8ChTgjGk0JZ6Y","parents":["node_modules/lodash/internal/baseMap.js","node_modules/lodash/internal/isIterateeCall.js","node_modules/lodash/lang/isArguments.js","node_modules/lodash/object/keys.js"]},"node_modules/lodash/collection/map.js":{"index":78,"hash":"63n5x8GTiWPuxiZzm9TM","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/baseCallback.js":{"index":87,"hash":"FDEmxoh1cXY/hddgPNGW","parents":["node_modules/lodash/collection/map.js","node_modules/lodash/collection/filter.js","node_modules/lodash/internal/createObjectMapper.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/baseFilter.js":{"index":90,"hash":"yyvQag4hw8sItBFf3/9T","parents":["node_modules/lodash/collection/filter.js"]},"node_modules/lodash/collection/filter.js":{"index":76,"hash":"XtU5zjCqSDlYcwOLUC13","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/createForOwn.js":{"index":110,"hash":"KJqijjvJO7d1nU17Sz3c","parents":["node_modules/lodash/object/forOwn.js"]},"node_modules/lodash/internal/bindCallback.js":{"index":105,"hash":"S6iy1I+53IEzDLSGuW0j","parents":["node_modules/lodash/internal/createForOwn.js","node_modules/lodash/internal/createAssigner.js","node_modules/lodash/internal/createForEach.js","node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/internal/createObjectMapper.js":{"index":111,"hash":"cp8s+Z6khiKdK5QCQ+Ms","parents":["node_modules/lodash/object/mapValues.js"]},"node_modules/lodash/internal/baseForOwn.js":{"index":92,"hash":"sOLmHH2OosmeW92YaLK/","parents":["node_modules/lodash/internal/createObjectMapper.js","node_modules/lodash/internal/baseEach.js","node_modules/lodash/object/forOwn.js"]},"node_modules/lodash/object/mapValues.js":{"index":138,"hash":"2HfAmVuaVGfc8pd5zIaC","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/assignWith.js":{"index":85,"hash":"aKBKyfIKqZsNOHAbJTAI","parents":["node_modules/lodash/object/assign.js"]},"node_modules/lodash/object/keys.js":{"index":136,"hash":"BbXGNIcfatSp32uWOBAV","parents":["node_modules/lodash/internal/assignWith.js","node_modules/lodash/internal/baseAssign.js","node_modules/lodash/object/pairs.js","node_modules/lodash/internal/baseForOwn.js","node_modules/lodash/internal/equalObjects.js"]},"node_modules/vueify-insert-css/index.js":{"index":185,"hash":"fvTUijA6yyBpp68H+JX2","parents":["resources/assets/js/components/main/content/not-found.vue","resources/assets/js/components/sidebar/index.vue","resources/assets/js/components/shared/Tabset.vue","resources/assets/js/components/shared/tabset.vue","resources/assets/js/components/shared/tab.vue","resources/assets/js/components/shared/filelist.vue","resources/assets/js/components/main/header/settings.vue","resources/assets/js/components/main/content/settings.vue","resources/assets/js/components/main/settings.vue","resources/assets/js/components/shared/falcon-loading.vue","resources/assets/js/components/shared/overlay.vue","resources/assets/js/components/shared/control-buttons.vue","resources/assets/js/components/shared/header-menu.vue","resources/assets/js/components/main/header/index.vue","resources/assets/js/components/main/index.vue","node_modules/vue-strap/src/Tab.vue","resources/assets/js/components/main/content/files.vue","node_modules/vue-strap/src/Option.vue","node_modules/vue-strap/src/Select.vue"]},"node_modules/lodash/utility/identity.js":{"index":140,"hash":"A/cz5O4nnho2x2e5KIWS","parents":["node_modules/lodash/internal/bindCallback.js","node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/internal/isLength.js":{"index":122,"hash":"DFIKI121VzeE+pBbx1Oa","parents":["node_modules/lodash/internal/isArrayLike.js","node_modules/lodash/internal/createBaseEach.js","node_modules/lodash/lang/isArray.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js","node_modules/lodash/lang/isTypedArray.js"]},"node_modules/lodash/internal/isObjectLike.js":{"index":123,"hash":"qEGnAWJNoAetOIJ7YKiV","parents":["node_modules/lodash/lang/isNative.js","node_modules/lodash/lang/isArray.js","node_modules/lodash/lang/isArguments.js","node_modules/lodash/lang/isTypedArray.js","node_modules/lodash/internal/baseIsEqual.js"]},"node_modules/lodash/internal/isIndex.js":{"index":119,"hash":"I8y5AsjL/lwDlORDOqqM","parents":["node_modules/lodash/internal/isIterateeCall.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js"]},"node_modules/lodash/lang/isObject.js":{"index":132,"hash":"Go+dTLFqO1KJN+uQLb8s","parents":["node_modules/lodash/internal/isIterateeCall.js","node_modules/lodash/internal/toObject.js","node_modules/lodash/internal/isStrictComparable.js","node_modules/lodash/lang/isFunction.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/object/keys.js","node_modules/lodash/internal/baseIsEqual.js"]},"node_modules/lodash/internal/baseCopy.js":{"index":88,"hash":"WvGi8IywM6u7ZNXvztwg","parents":["node_modules/lodash/internal/baseAssign.js"]},"node_modules/lodash/internal/baseAssign.js":{"index":86,"hash":"6VX87YoeNgDvMUyiAc/7","parents":["node_modules/lodash/object/assign.js"]},"node_modules/lodash/function/restParam.js":{"index":80,"hash":"/RRH9MCtjArr1p3Qeh63","parents":["node_modules/lodash/internal/createAssigner.js"]},"node_modules/lodash/internal/createAssigner.js":{"index":106,"hash":"X8R81jvRCofY1BnG+A/L","parents":["node_modules/lodash/object/assign.js"]},"node_modules/lodash/internal/isIterateeCall.js":{"index":120,"hash":"dXMnNRevAizOBisKCEes","parents":["node_modules/lodash/internal/createAssigner.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/object/assign.js":{"index":134,"hash":"9WOhJBREl8AO9Hs6Cr+Q","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/socket.io-parser/binary.js":{"index":154,"hash":"bAee8RukaXwuD/OeGN6F","parents":["node_modules/socket.io-parser/index.js"]},"node_modules/socket.io-parser/index.js":{"index":155,"hash":"BAgSAi2yJ1LAoE3Vw1D4","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"resources/assets/js/components/main/content/dashboard.vue":{"index":188,"hash":"MMWO1s90roE71VSCpIBn","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/outputs.vue":{"index":193,"hash":"CXuFwZiFBxxg/4SYgpJr","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/overlays.vue":{"index":198,"hash":"Htt7ZmwlY7bPvqSA55PK","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/playlists.vue":{"index":199,"hash":"RflbEyufB3jpcfIfW+DA","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/schedule.vue":{"index":201,"hash":"emLr0atw9YViWg9M9WK4","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/plugins.vue":{"index":200,"hash":"dDR/V2Cn6Vc+W+Hh5pTH","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/events.vue":{"index":190,"hash":"myxzZPFL581logjuavMe","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/effects.vue":{"index":189,"hash":"2dfYg1xyYbaShi8WFe1L","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/testing.vue":{"index":209,"hash":"l0k5ki8CjUH0Cw/c5Cgo","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/not-found.vue":{"index":192,"hash":"uv9Q3bvOW7GRU5Y4bKV0","parents":["resources/assets/js/main.js"]},"node_modules/has-binary/index.js":{"index":68,"hash":"ZLLgu+QfLGB5FJs6P2Ow","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/engine.io-parser/lib/browser.js"]},"node_modules/socket.io-client/lib/socket.js":{"index":151,"hash":"mVenx7k8VFtvIejsDYOl","parents":["node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/vue-resource/src/interceptor/cors.js":{"index":167,"hash":"y/hrmr+lC4LVHKr98SRc","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/client/jsonp.js":{"index":162,"hash":"+Nk8UZxMFWMDrzR/Me13","parents":["node_modules/vue-resource/src/interceptor/cors.js","node_modules/vue-resource/src/interceptor/jsonp.js"]},"node_modules/vue-resource/src/interceptor/index.js":{"index":169,"hash":"5iWUKE5ElG+J957vOzOe","parents":["node_modules/vue-resource/src/http.js"]},"resources/assets/js/components/sidebar/index.vue":{"index":224,"hash":"9T+EtxrHFzTbn1f0gjS0","parents":["resources/assets/js/app.vue"]},"node_modules/lodash/internal/createForEach.js":{"index":109,"hash":"iJtWBCzx+bzzSLwlaaRv","parents":["node_modules/lodash/collection/forEach.js"]},"node_modules/lodash/internal/getLength.js":{"index":115,"hash":"UiZ6F0+nXZ0fiKckTqnM","parents":["node_modules/lodash/internal/isArrayLike.js","node_modules/lodash/internal/createBaseEach.js"]},"node_modules/lodash/internal/baseSlice.js":{"index":102,"hash":"OLgw9XVic1W0AKjehzHB","parents":["node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/array/last.js":{"index":74,"hash":"3oXXa2idWbKySVLcq3os","parents":["node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/baseProperty.js":{"index":100,"hash":"Yuk2tpof21q0Xl2sQg89","parents":["node_modules/lodash/internal/getLength.js","node_modules/lodash/utility/property.js"]},"resources/assets/js/components/main/content/outputs/e131.vue":{"index":195,"hash":"nOx2Spll2z8edoRG9772","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/outputs/dmx.vue":{"index":194,"hash":"rEliS/Y81EHiO/UHXs8I","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/outputs/other.vue":{"index":196,"hash":"Yhlqrv2awsiQW+YugtNJ","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/outputs/panels.vue":{"index":197,"hash":"84PVUrcnaxvgK1CkKLc5","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/settings/email.vue":{"index":205,"hash":"RU5tLo90EPn366yv7ejI","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/settings/date.vue":{"index":204,"hash":"2GmDtyhq2fbp4rJvNaIi","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/shared/switch.vue":{"index":221,"hash":"a7kzlyEvxzy/K1TTMK1X","parents":["resources/assets/js/components/main/content/settings/date.vue","resources/assets/js/components/main/content/settings/general.vue"]},"resources/assets/js/components/main/content/settings/logs.vue":{"index":207,"hash":"AZoQuwllsd9wT8o0fPbW","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/settings/advanced.vue":{"index":203,"hash":"8v2G0ageUm7aI+eY11Ro","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/shared/Tabset.vue":{"index":215,"hash":"gqqI8RvSTmfen5Ur4x8e","parents":["resources/assets/js/components/main/content/files.vue"]},"resources/assets/js/components/shared/tabset.vue":{"index":223,"hash":"ni1YOVU6boQgduWMtPx9","parents":["resources/assets/js/components/main/content/settings/network.vue"]},"resources/assets/js/components/shared/tab.vue":{"index":222,"hash":"q+fOMn88tu7p6njNfcLf","parents":["resources/assets/js/components/main/content/settings/network.vue"]},"resources/assets/js/components/main/content/settings/network.vue":{"index":208,"hash":"Y3zI+9UNKM3D+NmH0c+C","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/shared/filelist.vue":{"index":218,"hash":"UcxvPNXyJimPoXghyR93","parents":["resources/assets/js/components/main/content/files.vue"]},"node_modules/vue-resource/src/client/xhr.js":{"index":163,"hash":"u8PTCERIOeSAmYWFlrqC","parents":["node_modules/vue-resource/src/client/default.js"]},"node_modules/vue-resource/src/client/default.js":{"index":161,"hash":"+B0kSDe+gVY+/RkxYnil","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/jsonp.js":{"index":170,"hash":"EYhB3ryCUxKsSKwlYeME","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/http.js":{"index":164,"hash":"pcpl/SOKe3e7NS9rUOff","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-resource/src/index.js":{"index":165,"hash":"TZsp5Ua7CrOOvYCKsblD","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/footer/index.vue":{"index":210,"hash":"TsXziYA9AmKfnptsNJJF","parents":["resources/assets/js/components/main/settings.vue","resources/assets/js/components/main/index.vue"]},"resources/assets/js/components/main/header/settings.vue":{"index":212,"hash":"sJWK5betBps5OagtxfxR","parents":["resources/assets/js/components/main/settings.vue"]},"resources/assets/js/components/shared/control-buttons.vue":{"index":216,"hash":"+9iOqEGv9nEOHue9HTT2","parents":["resources/assets/js/components/main/header/settings.vue","resources/assets/js/components/main/header/index.vue"]},"resources/assets/js/components/main/content/settings.vue":{"index":202,"hash":"bw8juKxM91JM1ICnYPoe","parents":["resources/assets/js/components/main/settings.vue"]},"resources/assets/js/components/main/settings.vue":{"index":214,"hash":"UBeQKDogi9BARCQ8ldbn","parents":["resources/assets/js/main.js"]},"node_modules/lodash/internal/toObject.js":{"index":126,"hash":"8f3eulB97DddBRdcU+7v","parents":["node_modules/lodash/internal/createBaseEach.js","node_modules/lodash/internal/baseIsMatch.js","node_modules/lodash/internal/baseGet.js","node_modules/lodash/internal/isKey.js","node_modules/lodash/internal/createBaseFor.js","node_modules/lodash/object/pairs.js","node_modules/lodash/internal/baseMatches.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/createBaseEach.js":{"index":107,"hash":"+5X3Ztm78NNPr9vQZ7fB","parents":["node_modules/lodash/internal/baseEach.js"]},"node_modules/lodash/collection/forEach.js":{"index":77,"hash":"0Lo1RNt18PMo/HAKbHEu","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/baseIsMatch.js":{"index":96,"hash":"EpuJzlg204aR35T4QKcS","parents":["node_modules/lodash/internal/baseMatches.js"]},"node_modules/lodash/internal/baseIsEqual.js":{"index":94,"hash":"dBgoFXnhj9KH6oX3dQwa","parents":["node_modules/lodash/internal/baseIsMatch.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/baseGet.js":{"index":93,"hash":"H9EiMd3ullQpRkvooLgz","parents":["node_modules/lodash/internal/basePropertyDeep.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/isKey.js":{"index":121,"hash":"lDpw5crcRmTRExTLVTKc","parents":["node_modules/lodash/utility/property.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/isStrictComparable.js":{"index":124,"hash":"ofNP4/nFrz5Rkb3kGOhn","parents":["node_modules/lodash/internal/getMatchData.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/basePropertyDeep.js":{"index":101,"hash":"mqX1OyYdndJ183lyl/sn","parents":["node_modules/lodash/utility/property.js"]},"node_modules/lodash/internal/toPath.js":{"index":127,"hash":"faVQvsb+LSLI4uaMgtrQ","parents":["node_modules/lodash/internal/basePropertyDeep.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/utility/property.js":{"index":141,"hash":"7IoOI/uGZCxbcY23uQDK","parents":["node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/internal/createBaseFor.js":{"index":108,"hash":"9RWlFaBOuelvwgkhYgPG","parents":["node_modules/lodash/internal/baseFor.js"]},"node_modules/lodash/internal/baseFor.js":{"index":91,"hash":"NGxcZ0n01+w2G1PzyBlY","parents":["node_modules/lodash/internal/baseForOwn.js"]},"node_modules/lodash/internal/baseToString.js":{"index":104,"hash":"ABFQFf14pRECi3sw8oKV","parents":["node_modules/lodash/internal/toPath.js"]},"resources/assets/js/components/shared/falcon-loading.vue":{"index":217,"hash":"nrISz6smCod0TjaIPHYA","parents":["resources/assets/js/components/shared/overlay.vue"]},"resources/assets/js/components/shared/overlay.vue":{"index":220,"hash":"JYZPaO3VyADALhB5HixN","parents":["resources/assets/js/app.vue"]},"resources/assets/js/app.vue":{"index":187,"hash":"HFw1nenZ+frQMGQx08yF","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/index.vue":{"index":213,"hash":"0NH9Zm6x1SQ1dEeg1eXO","parents":["resources/assets/js/app.vue","resources/assets/js/main.js"]},"resources/assets/js/components/shared/header-menu.vue":{"index":219,"hash":"phCAnSIecIl68MBC00Uo","parents":["resources/assets/js/components/main/header/index.vue"]},"resources/assets/js/components/main/header/index.vue":{"index":211,"hash":"0J1eKZ+cT411ebAw1N9v","parents":["resources/assets/js/components/main/index.vue"]},"node_modules/lodash/object/pairs.js":{"index":139,"hash":"x6Ilwx8encvg/BW5API2","parents":["node_modules/lodash/internal/getMatchData.js"]},"node_modules/lodash/internal/getMatchData.js":{"index":116,"hash":"n0PHWhNs6YZ+DzgYMHPx","parents":["node_modules/lodash/internal/baseMatches.js"]},"node_modules/lodash/internal/baseMatches.js":{"index":98,"hash":"Cwj5GSiQv9/E8nSFBoX2","parents":["node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/lang/isFunction.js":{"index":130,"hash":"xkfzrZNZPGGOIf0kE8Y9","parents":["node_modules/lodash/lang/isNative.js"]},"node_modules/lodash/lang/isNative.js":{"index":131,"hash":"2rstaALy1DW0JSDdijps","parents":["node_modules/lodash/internal/getNative.js"]},"node_modules/lodash/internal/getNative.js":{"index":117,"hash":"7GRZ7115BSuoc/1bdaBK","parents":["node_modules/lodash/lang/isArray.js","node_modules/lodash/object/keys.js"]},"node_modules/lodash/lang/isArguments.js":{"index":128,"hash":"xQ4mqbsKQMCmtsPbfQc6","parents":["node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js"]},"node_modules/lodash/object/keysIn.js":{"index":137,"hash":"8POZiGR1fRHso579G46Z","parents":["node_modules/lodash/internal/shimKeys.js"]},"node_modules/lodash/internal/shimKeys.js":{"index":125,"hash":"oO4aKopmxRfPxyKgRX9F","parents":["node_modules/lodash/object/keys.js"]},"node_modules/lodash/object/forOwn.js":{"index":135,"hash":"LZ77PzuJW/wlgVPdvlGc","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/engine.io-client/node_modules/parseuri/index.js":{"index":64,"hash":"c/c7XftSI6ClFc9h2jOh","parents":["node_modules/engine.io-client/lib/socket.js"]},"node_modules/lodash/internal/equalByTag.js":{"index":113,"hash":"+y++gesJpPvyM+2E8aNB","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/parsejson/index.js":{"index":143,"hash":"3RLuznQNKZiQ/toCXNir","parents":["node_modules/engine.io-client/lib/socket.js"]},"node_modules/parseqs/index.js":{"index":144,"hash":"FI4tRELwI5Itz+ckwR+m","parents":["node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-parser/lib/keys.js":{"index":66,"hash":"oFyKNTA0twlyQVhVzp9n","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/lodash/internal/equalArrays.js":{"index":112,"hash":"OBJL6vuaOotu5flUeCnv","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/lodash/internal/equalObjects.js":{"index":114,"hash":"44Iy49kDcaAZsykEdaH3","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/lodash/lang/isTypedArray.js":{"index":133,"hash":"aVeZyIFGadrEh7EsaDRu","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/lodash/internal/baseIsEqualDeep.js":{"index":95,"hash":"ltZZaMHmzp6d9jBltV3Y","parents":["node_modules/lodash/internal/baseIsEqual.js"]},"node_modules/lodash/internal/baseMatchesProperty.js":{"index":99,"hash":"OudnSoeq2A4ql5lg51kc","parents":["node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/collection/some.js":{"index":79,"hash":"9JyJFfdCx56pmR6fwM9q","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/browserify-hmr/inc/index.js":{"index":8,"hash":"zTlNWZ14iIh89mO0UkaY","parents":[]},"node_modules/engine.io-client/lib/transport.js":{"index":54,"hash":"8Wg7zuMzQpa+AwOxaesw","parents":["node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-parser/lib/browser.js":{"index":65,"hash":"Xr2KhMDa3GjqERGsK7Lc","parents":["node_modules/engine.io-client/lib/transport.js","node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/socket.js","node_modules/engine.io-client/lib/index.js"]},"node_modules/utf8/utf8.js":{"index":159,"hash":"Mqm8G2xyYXmBOFrE+/6A","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/arraybuffer.slice/index.js":{"index":3,"hash":"RSb5Zx9CgX3adjzbvf/k","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/after/index.js":{"index":2,"hash":"NzPfXWECmM8rW/6fdkcj","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/blob/index.js":{"index":7,"hash":"q7L6uHK9eN9yEvDVNxJw","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/base64-arraybuffer/lib/base64-arraybuffer.js":{"index":6,"hash":"dW6cnktjBIyZ6bv9vRp2","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/engine.io-client/node_modules/ms/index.js":{"index":63,"hash":"rzSu41c+6ZW8M4Say8X9","parents":["node_modules/engine.io-client/node_modules/debug/debug.js"]},"node_modules/engine.io-client/node_modules/debug/debug.js":{"index":62,"hash":"yqdR7nJc7wxIHzFDNzG+","parents":["node_modules/engine.io-client/node_modules/debug/browser.js"]},"node_modules/engine.io-client/node_modules/debug/browser.js":{"index":61,"hash":"PENVCHp3HppeRm/DiJMI","parents":["node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-client/lib/transports/polling-jsonp.js":{"index":56,"hash":"FAm1xe7I43tDMsakGLzq","parents":["node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/engine.io-client/lib/transports/polling.js":{"index":58,"hash":"m6eReXjm1pnBQHB07d2V","parents":["node_modules/engine.io-client/lib/transports/polling-jsonp.js","node_modules/engine.io-client/lib/transports/polling-xhr.js"]},"node_modules/component-inherit/index.js":{"index":13,"hash":"T0Fqch4d4akvlr8bh7lc","parents":["node_modules/engine.io-client/lib/transports/polling-jsonp.js","node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/transports/polling-xhr.js"]},"node_modules/ws/lib/browser.js":{"index":186,"hash":"vZRI95FVw46PPRoHDauJ","parents":["node_modules/engine.io-client/lib/transports/websocket.js"]},"node_modules/engine.io-client/lib/transports/websocket.js":{"index":59,"hash":"iZQQax7TKsS+8ZxUyrc3","parents":["node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/engine.io-client/lib/xmlhttprequest.js":{"index":60,"hash":"us0FsN5s7hiT3hqVV5lx","parents":["node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/engine.io-client/lib/transports/polling-xhr.js":{"index":57,"hash":"d89FOYRl9cirXzsJCjKg","parents":["node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/global/index.js":{"index":67,"hash":"tDIf5GqqdOcKnNHRh2Rc","parents":["node_modules/has-cors/index.js"]},"node_modules/has-cors/index.js":{"index":69,"hash":"uSUdzzwBDQd7qQNKEZ4o","parents":["node_modules/engine.io-client/lib/xmlhttprequest.js"]},"node_modules/engine.io-client/lib/transports/index.js":{"index":55,"hash":"kQ8FMfawL2PES7dsQgvD","parents":["node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-client/lib/socket.js":{"index":53,"hash":"1L37UZEnorYV+ld5c01T","parents":["node_modules/engine.io-client/lib/index.js"]},"node_modules/engine.io-client/lib/index.js":{"index":52,"hash":"G6QYuSNu0EcS+G5tR9NE","parents":["node_modules/engine.io-client/index.js"]},"node_modules/engine.io-client/index.js":{"index":51,"hash":"HQau4MkD4lAynB9tt0Wl","parents":["node_modules/socket.io-client/lib/manager.js"]},"node_modules/socket.io-client/lib/manager.js":{"index":149,"hash":"+TrOAqk4UlI3tKzIT6Dc","parents":["node_modules/socket.io-client/lib/index.js"]},"node_modules/socket.io-client/lib/index.js":{"index":148,"hash":"lWwRhzm83+Eq08s7Nht/","parents":["node_modules/socket.io-client/index.js"]},"node_modules/socket.io-client/index.js":{"index":147,"hash":"ccYBPsaIqMCtG5CHCdDd","parents":[]},"node_modules/vue-strap/src/Tab.vue":{"index":183,"hash":"/6L0LxB/uh+9thTNreUA","parents":["resources/assets/js/components/main/content/files.vue"]},"resources/assets/js/components/main/content/files.vue":{"index":191,"hash":"/kd8ijJCCLyDs7XHcmc4","parents":["resources/assets/js/main.js"]},"node_modules/vue-strap/src/Option.vue":{"index":181,"hash":"C7Duog3xPNfziDO2oTHN","parents":["resources/assets/js/components/main/content/settings/general.vue"]},"node_modules/core-js/library/modules/$.iterators.js":{"index":34,"hash":"HPPh7u0tcX1NuooQHCi3","parents":["node_modules/core-js/library/modules/core.get-iterator-method.js","node_modules/core-js/library/modules/es6.array.iterator.js","node_modules/core-js/library/modules/web.dom.iterable.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.core.js":{"index":20,"hash":"jO6z5PVz8f6aTUjm5Hrx","parents":["node_modules/core-js/library/modules/core.get-iterator-method.js","node_modules/core-js/library/modules/core.get-iterator.js","node_modules/core-js/library/modules/$.export.js"]},"node_modules/core-js/library/modules/$.add-to-unscopables.js":{"index":16,"hash":"aTtaK5OMoCOj8v16GPqC","parents":["node_modules/core-js/library/modules/es6.array.iterator.js"]},"node_modules/core-js/library/modules/$.iter-step.js":{"index":33,"hash":"LPWFVFxr7uzP25M4Teof","parents":["node_modules/core-js/library/modules/es6.array.iterator.js"]},"node_modules/core-js/library/modules/$.to-integer.js":{"index":42,"hash":"k18sZu8vTX3eiB+U6ofu","parents":["node_modules/core-js/library/modules/$.string-at.js"]},"node_modules/core-js/library/modules/$.defined.js":{"index":22,"hash":"RZr8uFl+WrrjvGzPSz3c","parents":["node_modules/core-js/library/modules/$.string-at.js","node_modules/core-js/library/modules/$.to-iobject.js"]},"node_modules/core-js/library/modules/$.string-at.js":{"index":41,"hash":"Zop3IqdJq32xa0qd4H0H","parents":["node_modules/core-js/library/modules/es6.string.iterator.js"]},"node_modules/core-js/library/modules/$.library.js":{"index":36,"hash":"Bhgn5RpO7pDcQnSVaI5C","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.has.js":{"index":27,"hash":"y4idiH2Sj/rmZqd39CHH","parents":["node_modules/core-js/library/modules/$.set-to-string-tag.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.js":{"index":35,"hash":"UI1ymRgurU07soRpiobz","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.set-to-string-tag.js","node_modules/core-js/library/modules/$.hide.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.is-object.js":{"index":30,"hash":"FkaOOMIm0uw4T/qUEXed","parents":["node_modules/core-js/library/modules/$.an-object.js"]},"node_modules/core-js/library/modules/$.an-object.js":{"index":17,"hash":"d7pCynXJhKpK2u1S0fph","parents":["node_modules/core-js/library/modules/core.get-iterator.js"]},"node_modules/core-js/library/modules/$.redefine.js":{"index":38,"hash":"v4z59Kie6WPVO1h+8oJP","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.hide.js":{"index":28,"hash":"2HBwvxEtbt4UpskOWy62","parents":["node_modules/core-js/library/modules/$.redefine.js","node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.iter-create.js":{"index":31,"hash":"aNVpOMS/fyyM1i4Aw4bY","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.property-desc.js":{"index":37,"hash":"iSs9jpAw1JT2ZWWLScSH","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.hide.js"]},"node_modules/core-js/library/modules/$.set-to-string-tag.js":{"index":39,"hash":"3G0pjz42ePfLP++caEH3","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.wks.js":{"index":45,"hash":"qMliszffX6kySHptJTIp","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.set-to-string-tag.js","node_modules/core-js/library/modules/$.classof.js","node_modules/core-js/library/modules/core.get-iterator-method.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.global.js":{"index":26,"hash":"t7QKkyeVEU+gGSy/l5Cc","parents":["node_modules/core-js/library/modules/$.shared.js","node_modules/core-js/library/modules/$.wks.js","node_modules/core-js/library/modules/$.export.js"]},"node_modules/core-js/library/modules/$.uid.js":{"index":44,"hash":"auy0a5KBxuU7QAdJ7we/","parents":["node_modules/core-js/library/modules/$.wks.js"]},"node_modules/core-js/library/modules/$.cof.js":{"index":19,"hash":"FY6tg0ymdCS/rEwpAa7R","parents":["node_modules/core-js/library/modules/$.classof.js","node_modules/core-js/library/modules/$.iobject.js"]},"node_modules/core-js/library/modules/$.classof.js":{"index":18,"hash":"2vrlE4yJW7f/QT46fZjd","parents":["node_modules/core-js/library/modules/core.get-iterator-method.js"]},"node_modules/core-js/library/modules/core.get-iterator-method.js":{"index":46,"hash":"+qtmOjO/wxtOJEvpsv/b","parents":["node_modules/core-js/library/modules/core.get-iterator.js"]},"node_modules/core-js/library/modules/core.get-iterator.js":{"index":47,"hash":"Fpc5rJRGURor7FbHBYPn","parents":["node_modules/core-js/library/fn/get-iterator.js"]},"node_modules/core-js/library/modules/$.iobject.js":{"index":29,"hash":"HvETp5p0zMBjh+wvjxSm","parents":["node_modules/core-js/library/modules/$.to-iobject.js"]},"node_modules/core-js/library/modules/$.to-iobject.js":{"index":43,"hash":"yp4UOuCLRVO1tqlgppw5","parents":["node_modules/core-js/library/modules/es6.array.iterator.js"]},"node_modules/core-js/library/modules/es6.array.iterator.js":{"index":48,"hash":"Zw/NixWUIMjoGa2uWxe/","parents":["node_modules/core-js/library/modules/web.dom.iterable.js"]},"node_modules/core-js/library/modules/$.iter-define.js":{"index":32,"hash":"sR6jK5MoRN1zAKGNm2y4","parents":["node_modules/core-js/library/modules/es6.array.iterator.js","node_modules/core-js/library/modules/es6.string.iterator.js"]},"node_modules/core-js/library/modules/web.dom.iterable.js":{"index":50,"hash":"KisVT/JurPfFyjuYGWzf","parents":["node_modules/core-js/library/fn/get-iterator.js"]},"node_modules/core-js/library/modules/$.shared.js":{"index":40,"hash":"ZK+Tn2LANbB4OqkscM3N","parents":["node_modules/core-js/library/modules/$.wks.js"]},"node_modules/core-js/library/modules/$.a-function.js":{"index":15,"hash":"vI7NBVNoKizw/T7ablYt","parents":["node_modules/core-js/library/modules/$.ctx.js"]},"node_modules/core-js/library/modules/$.ctx.js":{"index":21,"hash":"IBAqoysxf6uGe4qIslFW","parents":["node_modules/core-js/library/modules/$.export.js"]},"node_modules/core-js/library/modules/$.export.js":{"index":24,"hash":"tF6TuwqA3fLdeFKqSI9n","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.fails.js":{"index":25,"hash":"6G4+YXaRghTGQQnkm/qp","parents":["node_modules/core-js/library/modules/$.descriptors.js"]},"node_modules/core-js/library/modules/$.descriptors.js":{"index":23,"hash":"NJqnAOVs55bKea+gKIGt","parents":["node_modules/core-js/library/modules/$.hide.js"]},"node_modules/core-js/library/modules/es6.string.iterator.js":{"index":49,"hash":"viRu85eLzJ68VCbwuHbl","parents":["node_modules/core-js/library/fn/get-iterator.js"]},"node_modules/core-js/library/fn/get-iterator.js":{"index":14,"hash":"V+nypfA8LA2WadFVp7u2","parents":["node_modules/babel-runtime/core-js/get-iterator.js"]},"node_modules/babel-runtime/core-js/get-iterator.js":{"index":4,"hash":"a8je4in/yfKL3pQIQJX9","parents":["node_modules/vue-strap/src/Select.vue"]},"node_modules/vue-strap/src/Select.vue":{"index":182,"hash":"7dhDxiNKuVRXmRHtif1f","parents":["resources/assets/js/components/main/content/settings/general.vue"]},"resources/assets/js/components/main/content/settings/general.vue":{"index":206,"hash":"UvIT68OQ0E9MTpIl2T/2","parents":["resources/assets/js/main.js"]},"resources/assets/js/main.js":{"index":225,"hash":"MAyKpg6bvOMleLDYghqo","parents":[]}};
+  var moduleMeta = {"node_modules/browserify-hmr/lib/has.js":{"index":9,"hash":"Hky4QYVrU1+kFHIEuxPy","parents":["node_modules/browserify-hmr/lib/str-set.js","node_modules/browserify-hmr/inc/index.js"]},"resources/assets/js/stores/playlist.js":{"index":231,"hash":"k5Rph+tSzK7SzVYZrxbP","parents":["resources/assets/js/app.vue"]},"node_modules/browserify-hmr/lib/str-set.js":{"index":10,"hash":"lcrDmQK4uaqOqN+FV4/9","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/vue-router/dist/vue-router.common.js":{"index":180,"hash":"V5DMsGGLcOqPAhx31psf","parents":["resources/assets/js/main.js"]},"node_modules/jquery/dist/jquery.js":{"index":72,"hash":"siFczlgw4jULnUICcdm9","parents":["resources/assets/js/app.vue","resources/assets/js/main.js"]},"resources/assets/js/stores/setting.js":{"index":232,"hash":"coKfnj2hZTIg8YRT4JSn","parents":["resources/assets/js/app.vue"]},"resources/assets/js/services/http.js":{"index":230,"hash":"OqU5t4zvkjeUSpQJFLPI","parents":["resources/assets/js/stores/setting.js","resources/assets/js/stores/shared.js"]},"resources/assets/js/stores/shared.js":{"index":233,"hash":"dBZ6EHn2t9/PLCXa/Sej","parents":["resources/assets/js/stores/setting.js","resources/assets/js/app.vue"]},"resources/assets/js/utils.js":{"index":234,"hash":"YUBgAVFOtL2AfLdROM4O","parents":["resources/assets/js/components/shared/input.vue"]},"node_modules/vue-resource/src/resource.js":{"index":178,"hash":"4hFj5axF31CeVRePeF8o","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-resource/src/lib/util.js":{"index":176,"hash":"kipx22owioSurHN4RBYT","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-hot-reload-api/index.js":{"index":160,"hash":"WuwmPSnCiynHpb+AfQBY","parents":["resources/assets/js/components/main/content/outputs.vue","resources/assets/js/components/main/content/dashboard.vue","resources/assets/js/components/main/content/playlists.vue","resources/assets/js/components/main/content/events.vue","resources/assets/js/components/main/content/overlays.vue","resources/assets/js/components/main/content/schedule.vue","resources/assets/js/components/main/content/plugins.vue","resources/assets/js/components/main/content/testing.vue","resources/assets/js/components/main/content/effects.vue","resources/assets/js/components/main/content/not-found.vue","resources/assets/js/components/sidebar/index.vue","resources/assets/js/components/main/content/outputs/dmx.vue","resources/assets/js/components/main/content/outputs/panels.vue","resources/assets/js/components/main/content/outputs/other.vue","resources/assets/js/components/main/content/settings/date.vue","resources/assets/js/components/main/content/settings/email.vue","resources/assets/js/components/main/content/settings/logs.vue","resources/assets/js/components/main/content/settings/advanced.vue","resources/assets/js/components/shared/Tabset.vue","resources/assets/js/components/shared/Tab.vue","resources/assets/js/components/shared/filelist.vue","resources/assets/js/components/main/content/files.vue","resources/assets/js/components/shared/switch.vue","resources/assets/js/components/shared/dropdown-select.vue","resources/assets/js/components/shared/tabset.vue","resources/assets/js/components/shared/tab.vue","resources/assets/js/components/main/content/settings/network.vue","resources/assets/js/components/shared/checkbox.vue","resources/assets/js/components/shared/input.vue","resources/assets/js/components/main/header/settings.vue","resources/assets/js/components/main/content/settings.vue","resources/assets/js/components/main/footer/index.vue","resources/assets/js/components/main/settings.vue","resources/assets/js/components/shared/falcon-loading.vue","resources/assets/js/components/shared/overlay.vue","resources/assets/js/app.vue","resources/assets/js/components/shared/control-buttons.vue","resources/assets/js/components/shared/header-menu.vue","resources/assets/js/components/main/header/index.vue","resources/assets/js/components/main/index.vue","resources/assets/js/components/main/content/outputs/universe.vue","resources/assets/js/components/main/content/outputs/e131.vue","node_modules/vue-strap/src/Option.vue","node_modules/vue-strap/src/Select.vue","resources/assets/js/components/main/content/settings/general.vue"]},"node_modules/socket.io-client/node_modules/debug/debug.js":{"index":153,"hash":"OtjmSmEbIU/8orJwFhDT","parents":["node_modules/socket.io-client/lib/url.js","node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/socket.io-client/lib/on.js":{"index":150,"hash":"y5MOoFpTKKBHwE8q8jae","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/vue-resource/src/interceptor/before.js":{"index":166,"hash":"dzJ5VyAAgzvYOWxyyGVm","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/timeout.js":{"index":173,"hash":"r+N56i06KukH+ME8Mpnr","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/method.js":{"index":171,"hash":"DqLo0TxFAJSH0HWGo7wR","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/mime.js":{"index":172,"hash":"f6heFdNiVYVl4GIRJ2gN","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/header.js":{"index":168,"hash":"Ql+DdTpkgQsJb9HXQumF","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/lib/url-template.js":{"index":175,"hash":"KZagPKERmevU89wFVgEg","parents":["node_modules/vue-resource/src/url.js"]},"node_modules/vue-resource/src/url.js":{"index":179,"hash":"enlma6RiuDUq+g3+RYdS","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-resource/src/lib/promise.js":{"index":174,"hash":"uhJ1aPn5MePstu6k3zZV","parents":["node_modules/vue-resource/src/promise.js"]},"node_modules/vue-resource/src/promise.js":{"index":177,"hash":"dayC7UqEuK1y+yEa6/bE","parents":["node_modules/vue-resource/src/interceptor/index.js","node_modules/vue-resource/src/client/jsonp.js","node_modules/vue-resource/src/client/xhr.js","node_modules/vue-resource/src/http.js","node_modules/vue-resource/src/index.js"]},"node_modules/process/browser.js":{"index":146,"hash":"d/Dio43QDX3Xt7NYvbr6","parents":["node_modules/vue/dist/vue.common.js"]},"node_modules/vue/dist/vue.common.js":{"index":183,"hash":"2VyaBoUmGsVHuFohCYxK","parents":["resources/assets/js/components/main/content/outputs.vue","resources/assets/js/components/main/content/dashboard.vue","resources/assets/js/components/main/content/playlists.vue","resources/assets/js/components/main/content/events.vue","resources/assets/js/components/main/content/overlays.vue","resources/assets/js/components/main/content/schedule.vue","resources/assets/js/components/main/content/plugins.vue","resources/assets/js/components/main/content/testing.vue","resources/assets/js/components/main/content/effects.vue","resources/assets/js/components/main/content/not-found.vue","resources/assets/js/components/sidebar/index.vue","resources/assets/js/components/main/content/outputs/dmx.vue","resources/assets/js/components/main/content/outputs/panels.vue","resources/assets/js/components/main/content/outputs/other.vue","resources/assets/js/components/main/content/settings/date.vue","resources/assets/js/components/main/content/settings/email.vue","resources/assets/js/components/main/content/settings/logs.vue","resources/assets/js/components/main/content/settings/advanced.vue","resources/assets/js/components/shared/Tabset.vue","resources/assets/js/components/shared/Tab.vue","resources/assets/js/components/shared/filelist.vue","resources/assets/js/components/main/content/files.vue","resources/assets/js/components/shared/switch.vue","resources/assets/js/components/shared/dropdown-select.vue","resources/assets/js/components/shared/tabset.vue","resources/assets/js/components/shared/tab.vue","resources/assets/js/components/main/content/settings/network.vue","resources/assets/js/components/shared/checkbox.vue","resources/assets/js/components/shared/input.vue","resources/assets/js/components/main/header/settings.vue","resources/assets/js/components/main/content/settings.vue","resources/assets/js/components/main/footer/index.vue","resources/assets/js/components/main/settings.vue","resources/assets/js/components/shared/falcon-loading.vue","resources/assets/js/components/shared/overlay.vue","resources/assets/js/app.vue","resources/assets/js/components/shared/control-buttons.vue","resources/assets/js/components/shared/header-menu.vue","resources/assets/js/components/main/header/index.vue","resources/assets/js/components/main/index.vue","resources/assets/js/components/main/content/outputs/universe.vue","resources/assets/js/components/main/content/outputs/e131.vue","node_modules/vue-strap/src/Option.vue","node_modules/vue-strap/src/Select.vue","resources/assets/js/components/main/content/settings/general.vue","resources/assets/js/main.js"]},"node_modules/vueify-insert-css/index.js":{"index":184,"hash":"fvTUijA6yyBpp68H+JX2","parents":["resources/assets/js/components/main/content/not-found.vue","resources/assets/js/components/sidebar/index.vue","resources/assets/js/components/shared/Tabset.vue","resources/assets/js/components/shared/Tab.vue","resources/assets/js/components/shared/filelist.vue","resources/assets/js/components/main/content/files.vue","resources/assets/js/components/shared/tabset.vue","resources/assets/js/components/shared/tab.vue","resources/assets/js/components/shared/checkbox.vue","resources/assets/js/components/main/header/settings.vue","resources/assets/js/components/main/content/settings.vue","resources/assets/js/components/main/settings.vue","resources/assets/js/components/shared/falcon-loading.vue","resources/assets/js/components/shared/overlay.vue","resources/assets/js/components/shared/control-buttons.vue","resources/assets/js/components/shared/header-menu.vue","resources/assets/js/components/main/header/index.vue","resources/assets/js/components/main/index.vue","resources/assets/js/components/main/content/outputs/universe.vue","resources/assets/js/components/main/content/outputs/e131.vue","node_modules/vue-strap/src/Option.vue","node_modules/vue-strap/src/Select.vue"]},"node_modules/lodash/array/zipObject.js":{"index":75,"hash":"fKfSwIzPo5SUx9d0DkgN","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/lang/isArray.js":{"index":129,"hash":"rpMiE1Z199/XZCjno4KN","parents":["node_modules/lodash/array/zipObject.js","node_modules/lodash/internal/createForEach.js","node_modules/lodash/collection/filter.js","node_modules/lodash/collection/some.js","node_modules/lodash/internal/isKey.js","node_modules/lodash/internal/toPath.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js","node_modules/lodash/internal/baseIsEqualDeep.js","node_modules/lodash/internal/baseMatchesProperty.js","node_modules/lodash/collection/map.js"]},"node_modules/socket.io-parser/is-buffer.js":{"index":156,"hash":"UJBXKAfBg/BkigSZbc3Z","parents":["node_modules/socket.io-parser/binary.js","node_modules/socket.io-parser/index.js"]},"node_modules/component-emitter/index.js":{"index":12,"hash":"0uL1LSa/mOj+Llu+HTZ7","parents":["node_modules/socket.io-parser/index.js","node_modules/socket.io-client/lib/socket.js","node_modules/engine.io-client/lib/transport.js","node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/lodash/internal/arrayMap.js":{"index":83,"hash":"xdr8c0JsUFapIHTuM5VE","parents":["node_modules/lodash/collection/map.js"]},"node_modules/lodash/internal/arrayEach.js":{"index":81,"hash":"eLxUBVsb8vpFbu0VN4KL","parents":["node_modules/lodash/collection/forEach.js"]},"node_modules/lodash/internal/arraySome.js":{"index":84,"hash":"GxeJPxJj2jUg5TzV5gLv","parents":["node_modules/lodash/collection/some.js","node_modules/lodash/internal/equalArrays.js"]},"node_modules/lodash/internal/arrayFilter.js":{"index":82,"hash":"BGunz0w1QzJXyqQSOdZb","parents":["node_modules/lodash/collection/filter.js"]},"node_modules/backo2/index.js":{"index":5,"hash":"L5ry3mfVEw1wgmx9Sa+q","parents":["node_modules/socket.io-client/lib/manager.js"]},"node_modules/to-array/index.js":{"index":158,"hash":"2EoggafxX+GLXkXiaGjm","parents":["node_modules/socket.io-client/lib/socket.js"]},"node_modules/component-bind/index.js":{"index":11,"hash":"4yIcVw+afwUsnTQyI0a3","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/object-component/index.js":{"index":142,"hash":"zOYybxl/D7KsteH/xJyk","parents":["node_modules/socket.io-client/lib/manager.js"]},"node_modules/indexof/index.js":{"index":70,"hash":"8zMGV0j0ID5bUIeT7r+M","parents":["node_modules/engine.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/parseuri/index.js":{"index":145,"hash":"PsPou9y5yKmPMPJnjEkz","parents":["node_modules/socket.io-client/lib/url.js"]},"node_modules/socket.io-client/lib/url.js":{"index":152,"hash":"/WgdaMtSTLlxFoTxZTGl","parents":["node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"resources/assets/js/components/main/content/outputs.vue":{"index":192,"hash":"CXuFwZiFBxxg/4SYgpJr","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/dashboard.vue":{"index":187,"hash":"MMWO1s90roE71VSCpIBn","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/playlists.vue":{"index":199,"hash":"RflbEyufB3jpcfIfW+DA","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/events.vue":{"index":189,"hash":"myxzZPFL581logjuavMe","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/overlays.vue":{"index":198,"hash":"Htt7ZmwlY7bPvqSA55PK","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/schedule.vue":{"index":201,"hash":"emLr0atw9YViWg9M9WK4","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/plugins.vue":{"index":200,"hash":"dDR/V2Cn6Vc+W+Hh5pTH","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/testing.vue":{"index":209,"hash":"l0k5ki8CjUH0Cw/c5Cgo","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/effects.vue":{"index":188,"hash":"2dfYg1xyYbaShi8WFe1L","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/not-found.vue":{"index":191,"hash":"uv9Q3bvOW7GRU5Y4bKV0","parents":["resources/assets/js/main.js"]},"node_modules/vue-resource/src/interceptor/cors.js":{"index":167,"hash":"y/hrmr+lC4LVHKr98SRc","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/client/jsonp.js":{"index":162,"hash":"+Nk8UZxMFWMDrzR/Me13","parents":["node_modules/vue-resource/src/interceptor/cors.js","node_modules/vue-resource/src/interceptor/jsonp.js"]},"node_modules/vue-resource/src/interceptor/index.js":{"index":169,"hash":"5iWUKE5ElG+J957vOzOe","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/socket.io-parser/node_modules/debug/debug.js":{"index":157,"hash":"OtjmSmEbIU/8orJwFhDT","parents":["node_modules/socket.io-parser/index.js"]},"resources/assets/js/components/sidebar/index.vue":{"index":228,"hash":"9T+EtxrHFzTbn1f0gjS0","parents":["resources/assets/js/app.vue"]},"resources/assets/js/components/main/content/outputs/dmx.vue":{"index":193,"hash":"rEliS/Y81EHiO/UHXs8I","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/outputs/panels.vue":{"index":196,"hash":"84PVUrcnaxvgK1CkKLc5","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/outputs/other.vue":{"index":195,"hash":"Yhlqrv2awsiQW+YugtNJ","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/settings/date.vue":{"index":204,"hash":"2GmDtyhq2fbp4rJvNaIi","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/shared/switch.vue":{"index":225,"hash":"YL63p5vHKkkZeMmCvrvm","parents":["resources/assets/js/components/main/content/settings/date.vue","resources/assets/js/components/main/content/outputs/universe.vue","resources/assets/js/components/main/content/outputs/e131.vue","resources/assets/js/components/main/content/settings/general.vue"]},"resources/assets/js/components/main/content/settings/email.vue":{"index":205,"hash":"RU5tLo90EPn366yv7ejI","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/settings/logs.vue":{"index":207,"hash":"AZoQuwllsd9wT8o0fPbW","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/settings/advanced.vue":{"index":203,"hash":"8v2G0ageUm7aI+eY11Ro","parents":["resources/assets/js/main.js"]},"node_modules/lodash/internal/createForEach.js":{"index":109,"hash":"iJtWBCzx+bzzSLwlaaRv","parents":["node_modules/lodash/collection/forEach.js"]},"node_modules/lodash/internal/bindCallback.js":{"index":105,"hash":"S6iy1I+53IEzDLSGuW0j","parents":["node_modules/lodash/internal/createForEach.js","node_modules/lodash/internal/createForOwn.js","node_modules/lodash/internal/createAssigner.js","node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/internal/baseSome.js":{"index":103,"hash":"lCW5AtHn9X2vSuPgS8pk","parents":["node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/baseEach.js":{"index":89,"hash":"Ji7NLCJhdzSBlpDI+qC3","parents":["node_modules/lodash/internal/baseSome.js","node_modules/lodash/internal/baseFilter.js","node_modules/lodash/collection/forEach.js","node_modules/lodash/internal/baseMap.js"]},"node_modules/lodash/internal/createForOwn.js":{"index":110,"hash":"KJqijjvJO7d1nU17Sz3c","parents":["node_modules/lodash/object/forOwn.js"]},"node_modules/lodash/internal/baseFilter.js":{"index":90,"hash":"yyvQag4hw8sItBFf3/9T","parents":["node_modules/lodash/collection/filter.js"]},"node_modules/lodash/collection/filter.js":{"index":76,"hash":"XtU5zjCqSDlYcwOLUC13","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/baseCallback.js":{"index":87,"hash":"FDEmxoh1cXY/hddgPNGW","parents":["node_modules/lodash/collection/filter.js","node_modules/lodash/internal/createObjectMapper.js","node_modules/lodash/collection/some.js","node_modules/lodash/collection/map.js"]},"node_modules/lodash/internal/createObjectMapper.js":{"index":111,"hash":"cp8s+Z6khiKdK5QCQ+Ms","parents":["node_modules/lodash/object/mapValues.js"]},"node_modules/lodash/internal/baseForOwn.js":{"index":92,"hash":"sOLmHH2OosmeW92YaLK/","parents":["node_modules/lodash/internal/createObjectMapper.js","node_modules/lodash/internal/baseEach.js","node_modules/lodash/object/forOwn.js"]},"node_modules/lodash/object/mapValues.js":{"index":138,"hash":"2HfAmVuaVGfc8pd5zIaC","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/assignWith.js":{"index":85,"hash":"aKBKyfIKqZsNOHAbJTAI","parents":["node_modules/lodash/object/assign.js"]},"node_modules/lodash/object/keys.js":{"index":136,"hash":"BbXGNIcfatSp32uWOBAV","parents":["node_modules/lodash/internal/assignWith.js","node_modules/lodash/internal/baseAssign.js","node_modules/lodash/object/pairs.js","node_modules/lodash/internal/baseForOwn.js","node_modules/lodash/internal/equalObjects.js"]},"resources/assets/js/components/shared/Tabset.vue":{"index":216,"hash":"gqqI8RvSTmfen5Ur4x8e","parents":["resources/assets/js/components/main/content/files.vue"]},"resources/assets/js/components/shared/Tab.vue":{"index":215,"hash":"cdUmReYmh0ydEtOAgdv5","parents":["resources/assets/js/components/main/content/files.vue"]},"resources/assets/js/components/shared/filelist.vue":{"index":221,"hash":"UcxvPNXyJimPoXghyR93","parents":["resources/assets/js/components/main/content/files.vue"]},"resources/assets/js/components/main/content/files.vue":{"index":190,"hash":"/eXUhIhcZsDeOcKIV5xI","parents":["resources/assets/js/main.js"]},"node_modules/isarray/index.js":{"index":71,"hash":"dKtews1S4sHvaZhZ+ceq","parents":["node_modules/socket.io-parser/binary.js","node_modules/socket.io-parser/index.js","node_modules/has-binary/index.js"]},"resources/assets/js/components/shared/dropdown-select.vue":{"index":219,"hash":"mFIoJVHY9dJVngym9xZP","parents":["resources/assets/js/components/main/content/outputs/e131.vue"]},"resources/assets/js/components/shared/tabset.vue":{"index":227,"hash":"ni1YOVU6boQgduWMtPx9","parents":["resources/assets/js/components/main/content/settings/network.vue"]},"resources/assets/js/components/shared/tab.vue":{"index":226,"hash":"q+fOMn88tu7p6njNfcLf","parents":["resources/assets/js/components/main/content/settings/network.vue"]},"resources/assets/js/components/main/content/settings/network.vue":{"index":208,"hash":"Y3zI+9UNKM3D+NmH0c+C","parents":["resources/assets/js/main.js"]},"node_modules/json3/lib/json3.js":{"index":73,"hash":"Z22TAqz9HSDSuQH535ZO","parents":["node_modules/socket.io-parser/index.js"]},"node_modules/lodash/internal/isObjectLike.js":{"index":123,"hash":"qEGnAWJNoAetOIJ7YKiV","parents":["node_modules/lodash/lang/isNative.js","node_modules/lodash/lang/isArray.js","node_modules/lodash/lang/isArguments.js","node_modules/lodash/lang/isTypedArray.js","node_modules/lodash/internal/baseIsEqual.js"]},"node_modules/lodash/internal/isLength.js":{"index":122,"hash":"DFIKI121VzeE+pBbx1Oa","parents":["node_modules/lodash/internal/createBaseEach.js","node_modules/lodash/internal/isArrayLike.js","node_modules/lodash/lang/isArray.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js","node_modules/lodash/lang/isTypedArray.js"]},"node_modules/lodash/utility/identity.js":{"index":140,"hash":"A/cz5O4nnho2x2e5KIWS","parents":["node_modules/lodash/internal/bindCallback.js","node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/internal/isIndex.js":{"index":119,"hash":"I8y5AsjL/lwDlORDOqqM","parents":["node_modules/lodash/internal/isIterateeCall.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js"]},"node_modules/lodash/lang/isObject.js":{"index":132,"hash":"Go+dTLFqO1KJN+uQLb8s","parents":["node_modules/lodash/internal/isIterateeCall.js","node_modules/lodash/internal/isStrictComparable.js","node_modules/lodash/internal/toObject.js","node_modules/lodash/lang/isFunction.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/object/keys.js","node_modules/lodash/internal/baseIsEqual.js"]},"node_modules/lodash/internal/isIterateeCall.js":{"index":120,"hash":"dXMnNRevAizOBisKCEes","parents":["node_modules/lodash/collection/some.js","node_modules/lodash/internal/createAssigner.js"]},"node_modules/lodash/internal/isArrayLike.js":{"index":118,"hash":"76Awthz8ChTgjGk0JZ6Y","parents":["node_modules/lodash/internal/isIterateeCall.js","node_modules/lodash/internal/baseMap.js","node_modules/lodash/lang/isArguments.js","node_modules/lodash/object/keys.js"]},"node_modules/lodash/collection/some.js":{"index":79,"hash":"9JyJFfdCx56pmR6fwM9q","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/function/restParam.js":{"index":80,"hash":"/RRH9MCtjArr1p3Qeh63","parents":["node_modules/lodash/internal/createAssigner.js"]},"node_modules/lodash/internal/createAssigner.js":{"index":106,"hash":"X8R81jvRCofY1BnG+A/L","parents":["node_modules/lodash/object/assign.js"]},"resources/assets/js/components/shared/checkbox.vue":{"index":217,"hash":"uZDy5Po/OgOkjVErDgUR","parents":["resources/assets/js/components/main/content/outputs/e131.vue"]},"resources/assets/js/components/shared/input.vue":{"index":223,"hash":"c2D2Gxe9RcHWFXmJuepe","parents":["resources/assets/js/components/main/content/outputs/e131.vue"]},"node_modules/lodash/internal/baseCopy.js":{"index":88,"hash":"WvGi8IywM6u7ZNXvztwg","parents":["node_modules/lodash/internal/baseAssign.js"]},"node_modules/lodash/internal/baseAssign.js":{"index":86,"hash":"6VX87YoeNgDvMUyiAc/7","parents":["node_modules/lodash/object/assign.js"]},"node_modules/lodash/object/assign.js":{"index":134,"hash":"9WOhJBREl8AO9Hs6Cr+Q","parents":["node_modules/browserify-hmr/inc/index.js"]},"resources/assets/js/components/main/header/settings.vue":{"index":212,"hash":"sJWK5betBps5OagtxfxR","parents":["resources/assets/js/components/main/settings.vue"]},"resources/assets/js/components/shared/control-buttons.vue":{"index":218,"hash":"+9iOqEGv9nEOHue9HTT2","parents":["resources/assets/js/components/main/header/settings.vue","resources/assets/js/components/main/header/index.vue"]},"resources/assets/js/components/main/content/settings.vue":{"index":202,"hash":"bw8juKxM91JM1ICnYPoe","parents":["resources/assets/js/components/main/settings.vue"]},"resources/assets/js/components/main/footer/index.vue":{"index":210,"hash":"TsXziYA9AmKfnptsNJJF","parents":["resources/assets/js/components/main/settings.vue","resources/assets/js/components/main/index.vue"]},"resources/assets/js/components/main/settings.vue":{"index":214,"hash":"UBeQKDogi9BARCQ8ldbn","parents":["resources/assets/js/main.js"]},"node_modules/vue-resource/src/interceptor/jsonp.js":{"index":170,"hash":"EYhB3ryCUxKsSKwlYeME","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/client/xhr.js":{"index":163,"hash":"u8PTCERIOeSAmYWFlrqC","parents":["node_modules/vue-resource/src/client/default.js"]},"node_modules/vue-resource/src/client/default.js":{"index":161,"hash":"+B0kSDe+gVY+/RkxYnil","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/http.js":{"index":164,"hash":"pcpl/SOKe3e7NS9rUOff","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-resource/src/index.js":{"index":165,"hash":"TZsp5Ua7CrOOvYCKsblD","parents":["resources/assets/js/main.js"]},"node_modules/socket.io-parser/binary.js":{"index":154,"hash":"bAee8RukaXwuD/OeGN6F","parents":["node_modules/socket.io-parser/index.js"]},"node_modules/socket.io-parser/index.js":{"index":155,"hash":"BAgSAi2yJ1LAoE3Vw1D4","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/has-binary/index.js":{"index":68,"hash":"ZLLgu+QfLGB5FJs6P2Ow","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/engine.io-parser/lib/browser.js"]},"node_modules/socket.io-client/lib/socket.js":{"index":151,"hash":"mVenx7k8VFtvIejsDYOl","parents":["node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/lodash/internal/createBaseEach.js":{"index":107,"hash":"+5X3Ztm78NNPr9vQZ7fB","parents":["node_modules/lodash/internal/baseEach.js"]},"node_modules/lodash/internal/getLength.js":{"index":115,"hash":"UiZ6F0+nXZ0fiKckTqnM","parents":["node_modules/lodash/internal/createBaseEach.js","node_modules/lodash/internal/isArrayLike.js"]},"node_modules/lodash/internal/toObject.js":{"index":126,"hash":"8f3eulB97DddBRdcU+7v","parents":["node_modules/lodash/internal/createBaseEach.js","node_modules/lodash/internal/baseGet.js","node_modules/lodash/internal/isKey.js","node_modules/lodash/internal/baseIsMatch.js","node_modules/lodash/internal/createBaseFor.js","node_modules/lodash/object/pairs.js","node_modules/lodash/internal/baseMatches.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/collection/forEach.js":{"index":77,"hash":"0Lo1RNt18PMo/HAKbHEu","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/baseSlice.js":{"index":102,"hash":"OLgw9XVic1W0AKjehzHB","parents":["node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/array/last.js":{"index":74,"hash":"3oXXa2idWbKySVLcq3os","parents":["node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/baseProperty.js":{"index":100,"hash":"Yuk2tpof21q0Xl2sQg89","parents":["node_modules/lodash/internal/getLength.js","node_modules/lodash/utility/property.js"]},"resources/assets/js/components/shared/falcon-loading.vue":{"index":220,"hash":"nrISz6smCod0TjaIPHYA","parents":["resources/assets/js/components/shared/overlay.vue"]},"resources/assets/js/components/shared/overlay.vue":{"index":224,"hash":"JYZPaO3VyADALhB5HixN","parents":["resources/assets/js/app.vue"]},"resources/assets/js/app.vue":{"index":186,"hash":"HFw1nenZ+frQMGQx08yF","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/index.vue":{"index":213,"hash":"0NH9Zm6x1SQ1dEeg1eXO","parents":["resources/assets/js/app.vue","resources/assets/js/main.js"]},"resources/assets/js/components/shared/header-menu.vue":{"index":222,"hash":"phCAnSIecIl68MBC00Uo","parents":["resources/assets/js/components/main/header/index.vue"]},"resources/assets/js/components/main/header/index.vue":{"index":211,"hash":"0J1eKZ+cT411ebAw1N9v","parents":["resources/assets/js/components/main/index.vue"]},"resources/assets/js/components/main/content/outputs/universe.vue":{"index":197,"hash":"Ft7s5laV6Wyz2pyM4d9g","parents":["resources/assets/js/components/main/content/outputs/e131.vue"]},"resources/assets/js/components/main/content/outputs/e131.vue":{"index":194,"hash":"sCmI2C2H9l4SND+iOBlg","parents":["resources/assets/js/main.js"]},"node_modules/lodash/internal/baseGet.js":{"index":93,"hash":"H9EiMd3ullQpRkvooLgz","parents":["node_modules/lodash/internal/basePropertyDeep.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/baseMap.js":{"index":97,"hash":"ofv2jCE5QlahpynG4rkN","parents":["node_modules/lodash/collection/map.js"]},"node_modules/lodash/internal/isKey.js":{"index":121,"hash":"lDpw5crcRmTRExTLVTKc","parents":["node_modules/lodash/utility/property.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/isStrictComparable.js":{"index":124,"hash":"ofNP4/nFrz5Rkb3kGOhn","parents":["node_modules/lodash/internal/getMatchData.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/baseIsMatch.js":{"index":96,"hash":"EpuJzlg204aR35T4QKcS","parents":["node_modules/lodash/internal/baseMatches.js"]},"node_modules/lodash/internal/baseIsEqual.js":{"index":94,"hash":"dBgoFXnhj9KH6oX3dQwa","parents":["node_modules/lodash/internal/baseIsMatch.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/basePropertyDeep.js":{"index":101,"hash":"mqX1OyYdndJ183lyl/sn","parents":["node_modules/lodash/utility/property.js"]},"node_modules/lodash/internal/toPath.js":{"index":127,"hash":"faVQvsb+LSLI4uaMgtrQ","parents":["node_modules/lodash/internal/basePropertyDeep.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/utility/property.js":{"index":141,"hash":"7IoOI/uGZCxbcY23uQDK","parents":["node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/internal/createBaseFor.js":{"index":108,"hash":"9RWlFaBOuelvwgkhYgPG","parents":["node_modules/lodash/internal/baseFor.js"]},"node_modules/lodash/internal/baseFor.js":{"index":91,"hash":"NGxcZ0n01+w2G1PzyBlY","parents":["node_modules/lodash/internal/baseForOwn.js"]},"node_modules/lodash/internal/baseToString.js":{"index":104,"hash":"ABFQFf14pRECi3sw8oKV","parents":["node_modules/lodash/internal/toPath.js"]},"node_modules/lodash/lang/isFunction.js":{"index":130,"hash":"xkfzrZNZPGGOIf0kE8Y9","parents":["node_modules/lodash/lang/isNative.js"]},"node_modules/lodash/lang/isNative.js":{"index":131,"hash":"2rstaALy1DW0JSDdijps","parents":["node_modules/lodash/internal/getNative.js"]},"node_modules/lodash/internal/getNative.js":{"index":117,"hash":"7GRZ7115BSuoc/1bdaBK","parents":["node_modules/lodash/lang/isArray.js","node_modules/lodash/object/keys.js"]},"node_modules/lodash/lang/isArguments.js":{"index":128,"hash":"xQ4mqbsKQMCmtsPbfQc6","parents":["node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js"]},"node_modules/lodash/object/pairs.js":{"index":139,"hash":"x6Ilwx8encvg/BW5API2","parents":["node_modules/lodash/internal/getMatchData.js"]},"node_modules/lodash/internal/getMatchData.js":{"index":116,"hash":"n0PHWhNs6YZ+DzgYMHPx","parents":["node_modules/lodash/internal/baseMatches.js"]},"node_modules/lodash/internal/baseMatches.js":{"index":98,"hash":"Cwj5GSiQv9/E8nSFBoX2","parents":["node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/object/keysIn.js":{"index":137,"hash":"8POZiGR1fRHso579G46Z","parents":["node_modules/lodash/internal/shimKeys.js"]},"node_modules/lodash/internal/shimKeys.js":{"index":125,"hash":"oO4aKopmxRfPxyKgRX9F","parents":["node_modules/lodash/object/keys.js"]},"node_modules/lodash/object/forOwn.js":{"index":135,"hash":"LZ77PzuJW/wlgVPdvlGc","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/equalByTag.js":{"index":113,"hash":"+y++gesJpPvyM+2E8aNB","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/engine.io-client/node_modules/parseuri/index.js":{"index":64,"hash":"c/c7XftSI6ClFc9h2jOh","parents":["node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-parser/lib/keys.js":{"index":66,"hash":"oFyKNTA0twlyQVhVzp9n","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/parsejson/index.js":{"index":143,"hash":"3RLuznQNKZiQ/toCXNir","parents":["node_modules/engine.io-client/lib/socket.js"]},"node_modules/parseqs/index.js":{"index":144,"hash":"FI4tRELwI5Itz+ckwR+m","parents":["node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/socket.js"]},"node_modules/lodash/internal/equalArrays.js":{"index":112,"hash":"OBJL6vuaOotu5flUeCnv","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/lodash/internal/equalObjects.js":{"index":114,"hash":"44Iy49kDcaAZsykEdaH3","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/lodash/lang/isTypedArray.js":{"index":133,"hash":"aVeZyIFGadrEh7EsaDRu","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/lodash/internal/baseIsEqualDeep.js":{"index":95,"hash":"ltZZaMHmzp6d9jBltV3Y","parents":["node_modules/lodash/internal/baseIsEqual.js"]},"node_modules/lodash/internal/baseMatchesProperty.js":{"index":99,"hash":"OudnSoeq2A4ql5lg51kc","parents":["node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/collection/map.js":{"index":78,"hash":"63n5x8GTiWPuxiZzm9TM","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/browserify-hmr/inc/index.js":{"index":8,"hash":"zTlNWZ14iIh89mO0UkaY","parents":[]},"node_modules/engine.io-client/lib/transport.js":{"index":54,"hash":"8Wg7zuMzQpa+AwOxaesw","parents":["node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-parser/lib/browser.js":{"index":65,"hash":"Xr2KhMDa3GjqERGsK7Lc","parents":["node_modules/engine.io-client/lib/transport.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/socket.js","node_modules/engine.io-client/lib/index.js"]},"node_modules/base64-arraybuffer/lib/base64-arraybuffer.js":{"index":6,"hash":"dW6cnktjBIyZ6bv9vRp2","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/after/index.js":{"index":2,"hash":"NzPfXWECmM8rW/6fdkcj","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/arraybuffer.slice/index.js":{"index":3,"hash":"RSb5Zx9CgX3adjzbvf/k","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/utf8/utf8.js":{"index":159,"hash":"Mqm8G2xyYXmBOFrE+/6A","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/blob/index.js":{"index":7,"hash":"q7L6uHK9eN9yEvDVNxJw","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/engine.io-client/lib/transports/polling-xhr.js":{"index":57,"hash":"d89FOYRl9cirXzsJCjKg","parents":["node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/engine.io-client/lib/xmlhttprequest.js":{"index":60,"hash":"us0FsN5s7hiT3hqVV5lx","parents":["node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/engine.io-client/lib/transports/polling.js":{"index":58,"hash":"m6eReXjm1pnBQHB07d2V","parents":["node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/transports/polling-jsonp.js"]},"node_modules/engine.io-client/node_modules/debug/browser.js":{"index":61,"hash":"PENVCHp3HppeRm/DiJMI","parents":["node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/socket.js"]},"node_modules/component-inherit/index.js":{"index":13,"hash":"T0Fqch4d4akvlr8bh7lc","parents":["node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/transports/polling-jsonp.js","node_modules/engine.io-client/lib/transports/websocket.js"]},"node_modules/engine.io-client/node_modules/ms/index.js":{"index":63,"hash":"rzSu41c+6ZW8M4Say8X9","parents":["node_modules/engine.io-client/node_modules/debug/debug.js"]},"node_modules/engine.io-client/node_modules/debug/debug.js":{"index":62,"hash":"yqdR7nJc7wxIHzFDNzG+","parents":["node_modules/engine.io-client/node_modules/debug/browser.js"]},"node_modules/engine.io-client/lib/transports/polling-jsonp.js":{"index":56,"hash":"FAm1xe7I43tDMsakGLzq","parents":["node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/ws/lib/browser.js":{"index":185,"hash":"vZRI95FVw46PPRoHDauJ","parents":["node_modules/engine.io-client/lib/transports/websocket.js"]},"node_modules/engine.io-client/lib/transports/websocket.js":{"index":59,"hash":"iZQQax7TKsS+8ZxUyrc3","parents":["node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/vue-strap/src/Option.vue":{"index":181,"hash":"C7Duog3xPNfziDO2oTHN","parents":["resources/assets/js/components/main/content/settings/general.vue"]},"node_modules/global/index.js":{"index":67,"hash":"tDIf5GqqdOcKnNHRh2Rc","parents":["node_modules/has-cors/index.js"]},"node_modules/has-cors/index.js":{"index":69,"hash":"uSUdzzwBDQd7qQNKEZ4o","parents":["node_modules/engine.io-client/lib/xmlhttprequest.js"]},"node_modules/engine.io-client/lib/transports/index.js":{"index":55,"hash":"kQ8FMfawL2PES7dsQgvD","parents":["node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-client/lib/socket.js":{"index":53,"hash":"1L37UZEnorYV+ld5c01T","parents":["node_modules/engine.io-client/lib/index.js"]},"node_modules/engine.io-client/lib/index.js":{"index":52,"hash":"G6QYuSNu0EcS+G5tR9NE","parents":["node_modules/engine.io-client/index.js"]},"node_modules/engine.io-client/index.js":{"index":51,"hash":"HQau4MkD4lAynB9tt0Wl","parents":["node_modules/socket.io-client/lib/manager.js"]},"node_modules/socket.io-client/lib/manager.js":{"index":149,"hash":"+TrOAqk4UlI3tKzIT6Dc","parents":["node_modules/socket.io-client/lib/index.js"]},"node_modules/socket.io-client/lib/index.js":{"index":148,"hash":"lWwRhzm83+Eq08s7Nht/","parents":["node_modules/socket.io-client/index.js"]},"node_modules/socket.io-client/index.js":{"index":147,"hash":"ccYBPsaIqMCtG5CHCdDd","parents":[]},"node_modules/core-js/library/modules/$.iterators.js":{"index":34,"hash":"HPPh7u0tcX1NuooQHCi3","parents":["node_modules/core-js/library/modules/es6.array.iterator.js","node_modules/core-js/library/modules/web.dom.iterable.js","node_modules/core-js/library/modules/core.get-iterator-method.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.core.js":{"index":20,"hash":"jO6z5PVz8f6aTUjm5Hrx","parents":["node_modules/core-js/library/modules/$.export.js","node_modules/core-js/library/modules/core.get-iterator-method.js","node_modules/core-js/library/modules/core.get-iterator.js"]},"node_modules/core-js/library/modules/$.defined.js":{"index":22,"hash":"RZr8uFl+WrrjvGzPSz3c","parents":["node_modules/core-js/library/modules/$.string-at.js","node_modules/core-js/library/modules/$.to-iobject.js"]},"node_modules/core-js/library/modules/$.to-integer.js":{"index":42,"hash":"k18sZu8vTX3eiB+U6ofu","parents":["node_modules/core-js/library/modules/$.string-at.js"]},"node_modules/core-js/library/modules/$.string-at.js":{"index":41,"hash":"Zop3IqdJq32xa0qd4H0H","parents":["node_modules/core-js/library/modules/es6.string.iterator.js"]},"node_modules/core-js/library/modules/$.iter-step.js":{"index":33,"hash":"LPWFVFxr7uzP25M4Teof","parents":["node_modules/core-js/library/modules/es6.array.iterator.js"]},"node_modules/core-js/library/modules/$.library.js":{"index":36,"hash":"Bhgn5RpO7pDcQnSVaI5C","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.add-to-unscopables.js":{"index":16,"hash":"aTtaK5OMoCOj8v16GPqC","parents":["node_modules/core-js/library/modules/es6.array.iterator.js"]},"node_modules/core-js/library/modules/$.has.js":{"index":27,"hash":"y4idiH2Sj/rmZqd39CHH","parents":["node_modules/core-js/library/modules/$.set-to-string-tag.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.js":{"index":35,"hash":"UI1ymRgurU07soRpiobz","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.set-to-string-tag.js","node_modules/core-js/library/modules/$.hide.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.redefine.js":{"index":38,"hash":"v4z59Kie6WPVO1h+8oJP","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.hide.js":{"index":28,"hash":"2HBwvxEtbt4UpskOWy62","parents":["node_modules/core-js/library/modules/$.redefine.js","node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.iter-create.js":{"index":31,"hash":"aNVpOMS/fyyM1i4Aw4bY","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.property-desc.js":{"index":37,"hash":"iSs9jpAw1JT2ZWWLScSH","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.hide.js"]},"node_modules/core-js/library/modules/$.set-to-string-tag.js":{"index":39,"hash":"3G0pjz42ePfLP++caEH3","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.wks.js":{"index":45,"hash":"qMliszffX6kySHptJTIp","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.set-to-string-tag.js","node_modules/core-js/library/modules/$.classof.js","node_modules/core-js/library/modules/core.get-iterator-method.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.is-object.js":{"index":30,"hash":"FkaOOMIm0uw4T/qUEXed","parents":["node_modules/core-js/library/modules/$.an-object.js"]},"node_modules/core-js/library/modules/$.an-object.js":{"index":17,"hash":"d7pCynXJhKpK2u1S0fph","parents":["node_modules/core-js/library/modules/core.get-iterator.js"]},"node_modules/core-js/library/modules/$.global.js":{"index":26,"hash":"t7QKkyeVEU+gGSy/l5Cc","parents":["node_modules/core-js/library/modules/$.shared.js","node_modules/core-js/library/modules/$.wks.js","node_modules/core-js/library/modules/$.export.js"]},"node_modules/core-js/library/modules/$.shared.js":{"index":40,"hash":"ZK+Tn2LANbB4OqkscM3N","parents":["node_modules/core-js/library/modules/$.wks.js"]},"node_modules/core-js/library/modules/$.iobject.js":{"index":29,"hash":"HvETp5p0zMBjh+wvjxSm","parents":["node_modules/core-js/library/modules/$.to-iobject.js"]},"node_modules/core-js/library/modules/$.cof.js":{"index":19,"hash":"FY6tg0ymdCS/rEwpAa7R","parents":["node_modules/core-js/library/modules/$.iobject.js","node_modules/core-js/library/modules/$.classof.js"]},"node_modules/core-js/library/modules/$.to-iobject.js":{"index":43,"hash":"yp4UOuCLRVO1tqlgppw5","parents":["node_modules/core-js/library/modules/es6.array.iterator.js"]},"node_modules/core-js/library/modules/es6.array.iterator.js":{"index":48,"hash":"Zw/NixWUIMjoGa2uWxe/","parents":["node_modules/core-js/library/modules/web.dom.iterable.js"]},"node_modules/core-js/library/modules/$.iter-define.js":{"index":32,"hash":"sR6jK5MoRN1zAKGNm2y4","parents":["node_modules/core-js/library/modules/es6.array.iterator.js","node_modules/core-js/library/modules/es6.string.iterator.js"]},"node_modules/core-js/library/modules/web.dom.iterable.js":{"index":50,"hash":"KisVT/JurPfFyjuYGWzf","parents":["node_modules/core-js/library/fn/get-iterator.js"]},"node_modules/core-js/library/modules/$.uid.js":{"index":44,"hash":"auy0a5KBxuU7QAdJ7we/","parents":["node_modules/core-js/library/modules/$.wks.js"]},"node_modules/core-js/library/modules/$.a-function.js":{"index":15,"hash":"vI7NBVNoKizw/T7ablYt","parents":["node_modules/core-js/library/modules/$.ctx.js"]},"node_modules/core-js/library/modules/$.ctx.js":{"index":21,"hash":"IBAqoysxf6uGe4qIslFW","parents":["node_modules/core-js/library/modules/$.export.js"]},"node_modules/core-js/library/modules/$.export.js":{"index":24,"hash":"tF6TuwqA3fLdeFKqSI9n","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.classof.js":{"index":18,"hash":"2vrlE4yJW7f/QT46fZjd","parents":["node_modules/core-js/library/modules/core.get-iterator-method.js"]},"node_modules/core-js/library/modules/core.get-iterator-method.js":{"index":46,"hash":"+qtmOjO/wxtOJEvpsv/b","parents":["node_modules/core-js/library/modules/core.get-iterator.js"]},"node_modules/core-js/library/modules/core.get-iterator.js":{"index":47,"hash":"Fpc5rJRGURor7FbHBYPn","parents":["node_modules/core-js/library/fn/get-iterator.js"]},"node_modules/core-js/library/modules/$.fails.js":{"index":25,"hash":"6G4+YXaRghTGQQnkm/qp","parents":["node_modules/core-js/library/modules/$.descriptors.js"]},"node_modules/core-js/library/modules/$.descriptors.js":{"index":23,"hash":"NJqnAOVs55bKea+gKIGt","parents":["node_modules/core-js/library/modules/$.hide.js"]},"node_modules/core-js/library/modules/es6.string.iterator.js":{"index":49,"hash":"viRu85eLzJ68VCbwuHbl","parents":["node_modules/core-js/library/fn/get-iterator.js"]},"node_modules/core-js/library/fn/get-iterator.js":{"index":14,"hash":"V+nypfA8LA2WadFVp7u2","parents":["node_modules/babel-runtime/core-js/get-iterator.js"]},"node_modules/babel-runtime/core-js/get-iterator.js":{"index":4,"hash":"a8je4in/yfKL3pQIQJX9","parents":["node_modules/vue-strap/src/Select.vue"]},"node_modules/vue-strap/src/Select.vue":{"index":182,"hash":"7dhDxiNKuVRXmRHtif1f","parents":["resources/assets/js/components/main/content/settings/general.vue"]},"resources/assets/js/components/main/content/settings/general.vue":{"index":206,"hash":"UvIT68OQ0E9MTpIl2T/2","parents":["resources/assets/js/main.js"]},"resources/assets/js/main.js":{"index":229,"hash":"MAyKpg6bvOMleLDYghqo","parents":[]}};
   var originalEntries = ["/Users/Tim/Sites/FPP2/www/resources/assets/js/main.js"];
   var updateUrl = null;
   var updateMode = "websocket";
@@ -36602,6 +37098,6 @@ exports.default = {
   arguments[3], arguments[4], arguments[5], arguments[6]
 );
 
-},{"./node_modules/browserify-hmr/inc/index.js":8,"./node_modules/socket.io-client/index.js":147,"/Users/Tim/Sites/FPP2/www/resources/assets/js/main.js":225}]},{},[1]);
+},{"./node_modules/browserify-hmr/inc/index.js":8,"./node_modules/socket.io-client/index.js":147,"/Users/Tim/Sites/FPP2/www/resources/assets/js/main.js":229}]},{},[1]);
 
 //# sourceMappingURL=main.js.map

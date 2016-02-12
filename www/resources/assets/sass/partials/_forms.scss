@@ -1,8 +1,57 @@
 .form-control {
+
     border-radius: 0;
+
+    &.transparent {
+        border: none;
+        background: none;
+        outline: none;
+        cursor: pointer;
+
+        &:focus {
+            border-bottom: 1px solid;
+            cursor: initial;
+        }
+    }
+
+    &:disabled {
+        opacity: .5;
+    } 
+}
+.c-select {
+    &.transparent {
+        border: none;
+        background-color: transparent;
+        outline: none;
+        cursor: pointer;
+    }
 }
 .form-group {
     small,.small {
         font-size: 70%;
     }
+}
+
+.c-input {
+  
+  > input {
+    &:checked ~ .c-indicator {
+      color: #fff;
+      background-color: $dark-blue;
+    
+    }
+
+    &:focus ~ .c-indicator {
+      // the mixin is not used here to make sure there is feedback
+      box-shadow: none; //0 0 0 .075rem #fff, 0 0 0 .2rem $dark-blue;
+    }
+
+    &:active ~ .c-indicator {
+      color: #fff;
+      background-color: lighten($dark-blue, 10%);
+     
+    }
+  }
+
+ 
 }

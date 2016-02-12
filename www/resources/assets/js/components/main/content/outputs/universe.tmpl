@@ -1,0 +1,32 @@
+<div class="universe">
+        <div class="cell universe-index">{{ index + 1 }}</div>
+        <div class="cell universe-active checkbox">
+            <label>
+                <input type="checkbox" v-model="universe.active">
+            </label>
+        </div>
+        <div class="cell universe-number">
+            <input type="text" v-model="universe.number" class="form-control">
+        </div>
+        <div class="cell universe-start">
+            <input type="text" v-model="universe.start" class="form-control">
+        </div>
+        <div class="cell universe-size">
+            <input type="text" v-model="universe.size" class="form-control">
+        </div>
+        <div class="cell universe-type">
+            <select class="c-select" v-model="universe.type">
+                <option value="unicast">Unicast</option>
+                <option value="multicast">Multicast</option>
+            </select>
+        </div>
+        <div class="cell universe-address">
+            <input type="text" v-model="universe.address" class="form-control">
+        </div>
+        <div class="cell universe-label">
+            <input type="text" v-model="universe.label" class="form-control">
+        </div>
+        <button type="button" class="close" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+    </div>

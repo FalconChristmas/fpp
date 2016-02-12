@@ -3,3 +3,33 @@
         font-weight: 300;
     }
 }
+
+.output-actions {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+   // padding: 5px 10px;
+    padding: 20px;
+    margin-bottom: 15px;
+    border: 1px solid $gray;
+    background: #f1f1f1;
+    
+    .form-group {
+        margin: 0;
+    }
+
+    .filter {
+        .control-label,
+        p {
+            text-transform: uppercase;
+            font-size: 10px;
+        }
+        .control-label {
+            margin-bottom: 0;
+        }
+        p {
+            margin-bottom: .5rem;
+        }
+    }
+}

@@ -1,5 +1,5 @@
 <template>
-    <label class="label-switch">
+    <label class="label-switch" :class="{ 'small' : size == 'small' }">
       <input type="checkbox" v-model="model" />
       <div class="checkbox"></div>
     </label>
@@ -12,6 +12,10 @@ export default {
         model: {
             required: true,
             twoWay: true
+        },
+        size: {
+            type: String,
+            default: 'normal'
         }
     },
     data() {
