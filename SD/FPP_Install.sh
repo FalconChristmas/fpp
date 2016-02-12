@@ -298,12 +298,6 @@ case "${OSVER}" in
 			sed -i -e "s/non-free\(.*\)non-free/non-free\1/" /etc/apt/sources.list
 		fi
 
-		echo "FPP - Updating package list"
-		apt-get update
-
-		echo "FPP - Upgrading packages"
-		apt-get -y upgrade
-
 		echo "FPP - Marking unneeded packages for removal to save space"
 		for package in gnome-icon-theme gnome-accessibility-themes gnome-themes-standard \
 						apache2 apache2-doc apache2-mpm-prefork apache2-utils \
@@ -334,6 +328,12 @@ case "${OSVER}" in
 
 		echo "FPP - Removing anything left that wasn't explicity removed"
 		apt-get -y --purge autoremove
+
+		echo "FPP - Updating package list"
+		apt-get update
+
+		echo "FPP - Upgrading packages"
+		apt-get -y upgrade
 
 		# remove gnome keyring module config which causes pkcs11 warnings
 		# when trying to do a git pull
