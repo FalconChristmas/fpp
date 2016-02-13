@@ -39,8 +39,6 @@
 #include "Scheduler.h"
 #include "settings.h"
 
-Scheduler *scheduler = NULL;
-
 /////////////////////////////////////////////////////////////////////////////
 
 Scheduler::Scheduler()

@@ -96,6 +96,9 @@ int PlaylistEntryBase::StartPlaying(void)
 	m_isFinished = 0;
 	m_playCount++;
 
+	if ((logLevel & LOG_DEBUG) && (logMask & VB_PLAYLIST))
+		Dump();
+
 	return 1;
 }
 
@@ -171,7 +174,8 @@ int PlaylistEntryBase::HandleSigChild(pid_t pid)
  */
 void PlaylistEntryBase::Dump(void)
 {
-	LogDebug(VB_PLAYLIST, "Entry: %s\n", m_type.c_str());
+	LogDebug(VB_PLAYLIST, "---- Playlist Entry ----\n");
+	LogDebug(VB_PLAYLIST, "Entry Type: %s\n", m_type.c_str());
 }
 
 /*

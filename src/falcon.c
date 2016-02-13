@@ -33,9 +33,9 @@
 #include <strings.h>
 #include <unistd.h>
 
-#include "channeloutputthread.h"
 #include "common.h"
 #include "log.h"
+#include "Player.h"
 #include "playlist/NewPlaylist.h"
 #include "settings.h"
 #include "Sequence.h"
@@ -150,7 +150,7 @@ int FalconConfigureHardware(char *filename, int spiPort)
 
 	int bytesWritten;
 
-	DisableChannelOutput();
+	player->DisableChannelOutput();
 	usleep(100000);
 
 	if ((logLevel & LOG_DEBUG) && (logMask && VB_SETTING))
@@ -180,7 +180,7 @@ int FalconConfigureHardware(char *filename, int spiPort)
 			bytesWritten, FALCON_CFG_BUF_SIZE);
 		free(buf);
 		usleep(100000);
-		EnableChannelOutput();
+		player->EnableChannelOutput();
 		return -1;
 	}
 
@@ -189,7 +189,7 @@ int FalconConfigureHardware(char *filename, int spiPort)
 
 	free(buf);
 	usleep(100000);
-	EnableChannelOutput();
+	player->EnableChannelOutput();
 }
 
 /*
@@ -322,7 +322,7 @@ int FalconPassThroughData(int offset, unsigned char *inBuf, int size)
 
 	int bytesWritten;
 
- 	DisableChannelOutput();
+	player->DisableChannelOutput();
 	usleep(100000);
 	bytesWritten = wiringPiSPIDataRW (0, (unsigned char *)buf, FALCON_CFG_BUF_SIZE);
 	if (bytesWritten != FALCON_CFG_BUF_SIZE)
@@ -333,7 +333,7 @@ int FalconPassThroughData(int offset, unsigned char *inBuf, int size)
 	}
 	usleep(100000);
 	free(buf);
-	EnableChannelOutput();
+	player->EnableChannelOutput();
 }
 
 /*
@@ -371,7 +371,7 @@ void FalconSetData(int sock, struct sockaddr_in *srcAddr, unsigned char *inBuf)
 
 	FalconWriteConfig(filename, (char *)inBuf, len);
 
-	if (sequence->IsSequenceRunning())
+	if (player->SequencesRunning())
 	{
 		if (inBuf[7] == 0x01)
 		{

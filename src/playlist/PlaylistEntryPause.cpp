@@ -73,8 +73,6 @@ int PlaylistEntryPause::StartPlaying(void)
 	m_startTime = GetTime();
 	m_endTime = m_startTime + (m_duration * 1000000);
 
-	Dump();
-
 	return PlaylistEntryBase::StartPlaying();
 }
 

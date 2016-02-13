@@ -132,7 +132,5 @@ class Scheduler {
 	SchedulePlaylistDetails m_nextSchedulePlaylist;
 };
 
-extern Scheduler *scheduler;
-
 #endif /* _SCHEDULER_H */
 

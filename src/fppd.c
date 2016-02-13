@@ -25,7 +25,6 @@
  */
 
 #include "channeloutput.h"
-#include "channeloutputthread.h"
 #include "command.h"
 #include "common.h"
 #include "controlrecv.h"
@@ -40,16 +39,13 @@
 #include "mediadetails.h"
 #include "mediaoutput.h"
 #include "PixelOverlay.h"
+#include "Player.h"
 #include "Playlist.h"
 #include "playlist/NewPlaylist.h"
 #include "Plugins.h"
 #include "Scheduler.h"
 #include "Sequence.h"
 #include "settings.h"
-
-#ifdef USEHTTPAPI
-#  include "httpAPI.h"
-#endif
 
 #include <errno.h>
 #include <unistd.h>
@@ -62,25 +58,14 @@
 #include <string.h>
 #include <sys/stat.h>
 
-#ifdef USEWIRINGPI
-#   include <wiringPi.h>
-#   include <piFace.h>
-#else
-#   define wiringPiSetupSys()       0
-#   define wiringPiSetupGpio()      0
-#   define piFaceSetup(x)
-#endif
-
 pid_t pid, sid;
 int FPPstatus=FPP_STATUS_IDLE;
-int runMainFPPDLoop = 1;
-extern PluginCallbackManager pluginCallbackManager;
 
 ChannelTester *channelTester = NULL;
 
-/* Prototypes for functions below */
-void MainLoop(void);
-
+/*
+ *
+ */
 int main(int argc, char *argv[])
 {
 	initSettings(argc, argv);
@@ -90,8 +75,6 @@ int main(int argc, char *argv[])
 		loadSettings("/home/fpp/media/settings");
 	else
 		loadSettings("/home/pi/media/settings");
-
-	wiringPiSetupGpio(); // would prefer wiringPiSetupSys();
 
 	// Parse our arguments first, override any defaults
 	parseArguments(argc, argv);
@@ -105,10 +88,7 @@ int main(int argc, char *argv[])
 	if (getDaemonize())
 		CreateDaemon();
 
-	scheduler = new Scheduler();
-	playlist  = new Playlist();
-	newPlaylist  = new NewPlaylist();
-	sequence  = new Sequence();
+	player = new Player();
 	channelTester = new ChannelTester();
 
 #ifndef NOROOT
@@ -121,7 +101,7 @@ int main(int argc, char *argv[])
 	}
 #endif
 
-	MainLoop();
+	player->MainLoop();
 
 	if (getFPPmode() != BRIDGE_MODE)
 	{
@@ -140,206 +120,16 @@ int main(int argc, char *argv[])
 	CloseChannelOutputs();
 
 	delete channelTester;
-	delete scheduler;
-	delete playlist;
-	delete newPlaylist;
-	delete sequence;
+	delete player;
+
+	player = NULL;
 
 	return 0;
 }
 
 void ShutdownFPPD(void)
 {
-	runMainFPPDLoop = 0;
-}
-
-// Default is 50000 for 50ms normally, 1000000 == 1 second
-#define MAIN_LOOP_SLEEP_US 500000
-void MainLoop(void)
-{
-	int            commandSock = 0;
-	int            controlSock = 0;
-	int            bridgeSock = 0;
-	int            prevFPPstatus = FPPstatus;
-	int            sleepUs = MAIN_LOOP_SLEEP_US;
-	fd_set         active_fd_set;
-	fd_set         read_fd_set;
-	struct timeval timeout;
-	int            selectResult;
-
-	LogDebug(VB_GENERAL, "MainLoop()\n");
-
-	FD_ZERO (&active_fd_set);
-
-	CheckExistanceOfDirectoriesAndFiles();
-
-	piFaceSetup(200); // PiFace inputs 1-8 == wiringPi 200-207
-
-	if (getFPPmode() == BRIDGE_MODE)
-	{
-		bridgeSock = Bridge_Initialize();
-		if (bridgeSock)
-			FD_SET (bridgeSock, &active_fd_set);
-	}
-	else
-	{
-		InitMediaOutput();
-	}
-
-	pluginCallbackManager.init();
-
-	InitializeChannelOutputs();
-	sequence->SendBlankingData();
-
-	InitEffects();
-	InitializeChannelDataMemoryMap();
-
-	commandSock = Command_Initialize();
-	if (commandSock)
-		FD_SET (commandSock, &active_fd_set);
-
-#ifdef USEHTTPAPI
-	APIServer apiServer;
-	apiServer.Init();
-#endif
-
-	controlSock = InitControlSocket();
-	FD_SET (controlSock, &active_fd_set);
-
-	SetupGPIOInput();
-
-	if (getFPPmode() & PLAYER_MODE)
-	{
-		if (getFPPmode() == MASTER_MODE)
-			InitSyncMaster();
-
-		scheduler->CheckIfShouldBePlayingNow();
-
-		if (getAlwaysTransmit())
-			StartChannelOutputThread();
-	}
-
-	LogInfo(VB_GENERAL, "Starting main processing loop\n");
-
-	while (runMainFPPDLoop)
-	{
-		timeout.tv_sec  = 0;
-		timeout.tv_usec = sleepUs;
-
-		read_fd_set = active_fd_set;
-
-
-		selectResult = select(FD_SETSIZE, &read_fd_set, NULL, NULL, &timeout);
-		if (selectResult < 0)
-		{
-			if (errno == EINTR)
-			{
-				// We get interrupted when media players finish
-				continue;
-			}
-			else
-			{
-				LogErr(VB_GENERAL, "Main select() failed: %s\n",
-					strerror(errno));
-				runMainFPPDLoop = 0;
-				continue;
-			}
-		}
-LogDebug(VB_PLAYLIST, "sleepUs: %d\n", sleepUs);
-
-		if (commandSock && FD_ISSET(commandSock, &read_fd_set))
-			CommandProc();
-
-		if (bridgeSock && FD_ISSET(bridgeSock, &read_fd_set))
-			Bridge_ReceiveData();
-
-		if (controlSock && FD_ISSET(controlSock, &read_fd_set))
-			ProcessControlPacket();
-
-		// Check to see if we need to start up the output thread.
-		// FIXME, possibly trigger this via a fpp command to fppd
-		if ((!ChannelOutputThreadIsRunning()) &&
-			(getFPPmode() != BRIDGE_MODE) &&
-			((UsingMemoryMapInput()) ||
-			 (channelTester->Testing()) ||
-			 (getAlwaysTransmit()))) {
-			int E131BridgingInterval = getSettingInt("E131BridgingInterval");
-			if (!E131BridgingInterval)
-				E131BridgingInterval = 50;
-			SetChannelOutputRefreshRate(1000 / E131BridgingInterval);
-			StartChannelOutputThread();
-		}
-
-		if (getFPPmode() & PLAYER_MODE)
-		{
-			if ((FPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||
-				(FPPstatus == FPP_STATUS_STOPPING_NOW) ||
-				(FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP) ||
-				(FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY))
-			{
-//				if (prevFPPstatus == FPP_STATUS_IDLE)
-//				{
-//					newPlaylist->Start();
-//					sleepUs = 10000;
-// FIXME PLAYLIST
-//sleepUs = 500000;
-//				}
-
-				// Check again here in case PlayListPlayingInit
-				// didn't find anything and put us back to IDLE
-				if ((FPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||
-					(FPPstatus == FPP_STATUS_STOPPING_NOW) ||
-					(FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP) ||
-					(FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY))
-				{
-					newPlaylist->Process();
-				}
-			}
-
-			int reactivated = 0;
-			if (FPPstatus == FPP_STATUS_IDLE)
-			{
-				if ((prevFPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||
-					(prevFPPstatus == FPP_STATUS_STOPPING_NOW) ||
-					(prevFPPstatus == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP) ||
-					(prevFPPstatus == FPP_STATUS_STOPPING_GRACEFULLY))
-				{
-					newPlaylist->Cleanup();
-
-					if (FPPstatus != FPP_STATUS_IDLE)
-						reactivated = 1;
-					else
-						sleepUs = MAIN_LOOP_SLEEP_US;
-				}
-			}
-
-			if (reactivated)
-				prevFPPstatus = FPP_STATUS_IDLE;
-			else
-				prevFPPstatus = FPPstatus;
-
-			scheduler->ScheduleProc();
-		}
-		else if (getFPPmode() == REMOTE_MODE)
-		{
-			if(mediaOutputStatus.status == MEDIAOUTPUTSTATUS_PLAYING)
-			{
-// FIXME PLAYLIST
-//				playlist->PlaylistProcessMediaData();
-LogDebug(VB_PLAYLIST, "FIXME PLAYLIST\n");
-			}
-		}
-
-		CheckGPIOInputs();
-	}
-
-	StopChannelOutputThread();
-	ShutdownControlSocket();
-
-	if (getFPPmode() == BRIDGE_MODE)
-		Bridge_Shutdown();
-
-	LogInfo(VB_GENERAL, "Main Loop complete, shutting down.\n");
+	player->Shutdown();
 }
 
 void CreateDaemon(void)

@@ -95,7 +95,7 @@ int PlaylistEntryEvent::Process(void)
 		return PlaylistEntryBase::Process();
 	}
 
-	// FIXME, check for blocking here
+	// FIXME PLAYLIST, check for blocking here
 	PlaylistEntryBase::Process();
 	return 0;
 
@@ -113,8 +113,7 @@ int PlaylistEntryEvent::Stop(void)
 		return PlaylistEntryBase::Stop();
 	}
 
-	// FIXME PLAYLIST
-	// FIXME, check for blocking here
+	// FIXME PLAYLIST, check for blocking here
 	PlaylistEntryBase::Stop();
 	return 0;
 

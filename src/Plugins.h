@@ -83,4 +83,6 @@ private:
 	std::vector<Callback *> mCallbacks;
 };
 
+extern PluginCallbackManager pluginCallbackManager;
+
 #endif //__PLUGINS_H__

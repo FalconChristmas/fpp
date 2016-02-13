@@ -379,9 +379,11 @@ function PlaySequence()
 
 function StopSequence()
 {
-	$.get("fppjson.php?command=stopSequence"
+	var sequence = $('#selSequence').val();
+
+	$.get("fppjson.php?command=stopSequence&sequence=" + sequence
 	).success(function() {
-		$.jGrowl("Stopped sequence");
+		$.jGrowl("Stopped sequence " + sequence);
 		//$('#stopSequence').hide();
 		//$('#playSequence').show();
 	}).fail(function() {

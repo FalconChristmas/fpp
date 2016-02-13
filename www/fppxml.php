@@ -2371,10 +2371,10 @@ function SavePlaylist()
 			);
 	}
 
-	// FIXME, need some sanity checks in here for first/last overlap
+	// FIXME PLAYLIST, need some sanity checks in here for first/last overlap
 
 	fprintf($f, ',' . "\n" .
-		'	"playlist": [' . "\n"
+		'	"mainPlaylist": [' . "\n"
 		);
 
 	for($i = $firstEntry; $i <= $lastEntry; $i++)

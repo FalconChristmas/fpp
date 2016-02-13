@@ -30,6 +30,7 @@
 #include "command.h"
 #include "Scheduler.h"
 #include "e131bridge.h"
+#include "Player.h"
 #include "mediaoutput.h"
 #include "settings.h"
 #include "Sequence.h"
@@ -139,8 +140,8 @@ extern PluginCallbackManager pluginCallbackManager;
 		strcpy(CommandStr, s);
 		if (!strcmp(CommandStr, "s"))
 		{
-				scheduler->GetNextScheduleStartText(NextScheduleStartText);
-				scheduler->GetNextPlaylistText(NextPlaylist);
+				player->GetNextScheduleStartText(NextScheduleStartText);
+				player->GetNextPlaylistText(NextPlaylist);
 				if(FPPstatus==FPP_STATUS_IDLE)
 				{
 					if (getFPPmode() == REMOTE_MODE)
@@ -150,11 +151,12 @@ extern PluginCallbackManager pluginCallbackManager;
 						char seqFilename[1024];
 						char mediaFilename[1024];
 
-						if (sequence->IsSequenceRunning())
+						if (player->SequencesRunning())
 						{
-							strcpy(seqFilename, sequence->m_seqFilename);
-							secsElapsed = sequence->m_seqSecondsElapsed;
-							secsRemaining = sequence->m_seqSecondsRemaining;
+							// FIXME PLAYLIST, need to get this somehow
+							//strcpy(seqFilename, sequence->m_seqFilename);
+							//secsElapsed = sequence->m_seqSecondsElapsed;
+							//secsRemaining = sequence->m_seqSecondsRemaining;
 						}
 						else
 						{
@@ -202,8 +204,8 @@ extern PluginCallbackManager pluginCallbackManager;
 										playlist->m_playlistDetails.currentPlaylist,playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].cType,
 										playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].seqName,playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].songName,
 										playlist->m_playlistDetails.currentPlaylistEntry+1,playlist->m_playlistDetails.playListCount,
-										sequence->m_seqSecondsElapsed,
-										sequence->m_seqSecondsRemaining,
+										player->GetPlaybackSecondsElapsed(),
+										player->GetPlaybackSecondsRemaining(),
 										NextPlaylist,NextScheduleStartText,
 										playlist->m_playlistDetails.repeat);
 					}
@@ -226,26 +228,29 @@ extern PluginCallbackManager pluginCallbackManager;
 		{
 				if(FPPstatus==FPP_STATUS_PLAYLIST_PLAYING || FPPstatus==FPP_STATUS_STOPPING_GRACEFULLY)
 				{
-					newPlaylist->StopNow();
+					player->PlaylistStopNow();
+					sleep(1);
 				}
-				sleep(1);
 	
 				s = strtok(NULL,",");
 				if (s)
 				{
-					newPlaylist->Load(s);
-
-					if (!strcmp(CommandStr, "p"))
-						newPlaylist->SetRepeat(1);
+					std::string playlistName(s);
+					int repeat = !strcmp(CommandStr, "p") ? 1 : 0;
+					int position = 0;
 
 					s = strtok(NULL,",");
 					if (s)
-						newPlaylist->SetPosition(atoi(s));
-LogDebug(VB_PLAYLIST, "command\n");
-					newPlaylist->Start();
-LogDebug(VB_PLAYLIST, "command\n");
+						position = atoi(s);
 
-					sprintf(response,"%d,%d,Playlist Started,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
+					if (player->PlaylistStart(playlistName, position, repeat))
+					{
+						sprintf(response,"%d,%d,Playlist Started,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
+					}
+					else
+					{
+						sprintf(response,"%d,%d,Playlist Start Failed,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
+					}
 				}
 				else
 				{
@@ -257,7 +262,7 @@ LogDebug(VB_PLAYLIST, "command\n");
 				if(FPPstatus==FPP_STATUS_PLAYLIST_PLAYING)
 				{
 					newPlaylist->StopGracefully();
-					scheduler->ReLoadCurrentScheduleInfo();
+					player->ReLoadCurrentScheduleInfo();
 					sprintf(response,"%d,%d,Playlist Stopping Gracefully,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
 				}
 				else
@@ -270,7 +275,7 @@ LogDebug(VB_PLAYLIST, "command\n");
 				if(FPPstatus==FPP_STATUS_PLAYLIST_PLAYING || FPPstatus==FPP_STATUS_STOPPING_GRACEFULLY)
 				{
 					newPlaylist->StopNow();
-					scheduler->ReLoadCurrentScheduleInfo();
+					player->ReLoadCurrentScheduleInfo();
 					sprintf(response,"%d,%d,Playlist Stopping Now,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
 				}
 				else
@@ -282,9 +287,9 @@ LogDebug(VB_PLAYLIST, "command\n");
 		{
 				if(FPPstatus==FPP_STATUS_IDLE)
 				{
-					scheduler->ReLoadCurrentScheduleInfo();
+					player->ReLoadCurrentScheduleInfo();
 				}
-				scheduler->ReLoadNextScheduleInfo();
+				player->ReLoadNextScheduleInfo();
 				
 				
 				sprintf(response,"%d,%d,Reloading Schedule,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
@@ -446,70 +451,69 @@ LogDebug(VB_PLAYLIST, "command\n");
 		}
 		else if (!strcmp(CommandStr, "StartSequence"))
 		{
-			if ((FPPstatus == FPP_STATUS_IDLE) &&
-				(!sequence->IsSequenceRunning()))
+			s = strtok(NULL,",");
+			s2 = strtok(NULL,",");
+			if (s && s2)
 			{
-				s = strtok(NULL,",");
-				s2 = strtok(NULL,",");
-				if (s && s2)
-				{
-					i = atoi(s2);
-					sequence->OpenSequenceFile(s, i);
-				}
-				else
-				{
-					LogDebug(VB_COMMAND, "Invalid command: %s\n", command);
-				}
+				i = atoi(s2);
+				player->StartSequence(s, 0, i);
+				sprintf(response,"%d,%d,Sequence Started,,,,,,,,,,,,\n",
+					getFPPmode(), COMMAND_SUCCESS);
 			}
 			else
 			{
 				LogErr(VB_COMMAND, "Tried to start a sequence when a playlist or "
 						"sequence is already running\n");
+				sprintf(response,"%d,%d,Sequence Failed,,,,,,,,,,,,\n",
+					getFPPmode(), COMMAND_FAILED);
 			}
 		}
 		else if (!strcmp(CommandStr, "StopSequence"))
 		{
-			if ((FPPstatus == FPP_STATUS_IDLE) &&
-				(sequence->IsSequenceRunning()))
+			s = strtok(NULL,",");
+			if (s)
 			{
-				sequence->CloseSequenceFile();
+				player->StopSequence(s);
+				sprintf(response,"%d,%d,Sequence Stopped,,,,,,,,,,,,\n",
+					getFPPmode(), COMMAND_SUCCESS);
 			}
 			else
 			{
-				LogDebug(VB_COMMAND,
-					"Tried to stop a sequence when no sequence is running\n");
+				LogDebug(VB_COMMAND, "Invalid command: %s\n", command);
+				sprintf(response,"%d,%d,Sequence Name Missing,,,,,,,,,,,,\n",
+					getFPPmode(), COMMAND_FAILED);
 			}
 		}
 		else if (!strcmp(CommandStr, "ToggleSequencePause"))
 		{
-			if ((sequence->IsSequenceRunning()) &&
+			if ((player->SequencesRunning()) &&
 				((FPPstatus == FPP_STATUS_IDLE) ||
 				 ((FPPstatus != FPP_STATUS_IDLE) &&
 				  (playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].cType == 's'))))
 			{
-				sequence->ToggleSequencePause();
+				player->ToggleSequencePause();
 			}
 		}
 		else if (!strcmp(CommandStr, "SingleStepSequence"))
 		{
-			if ((sequence->IsSequenceRunning()) &&
-				(sequence->SequenceIsPaused()) &&
+			if ((player->SequencesRunning()) &&
+				(player->SequencesArePaused()) &&
 				((FPPstatus == FPP_STATUS_IDLE) ||
 				 ((FPPstatus != FPP_STATUS_IDLE) &&
 				  (playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].cType == 's'))))
 			{
-				sequence->SingleStepSequence();
+				player->SingleStepSequences();
 			}
 		}
 		else if (!strcmp(CommandStr, "SingleStepSequenceBack"))
 		{
-			if ((sequence->IsSequenceRunning()) &&
-				(sequence->SequenceIsPaused()) &&
+			if ((player->SequencesRunning()) &&
+				(player->SequencesArePaused()) &&
 				((FPPstatus == FPP_STATUS_IDLE) ||
 				 ((FPPstatus != FPP_STATUS_IDLE) &&
 				  (playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].cType == 's'))))
 			{
-				sequence->SingleStepSequenceBack();
+				player->SingleStepSequencesBack();
 			}
 		}
 		else if (!strcmp(CommandStr, "NextPlaylistItem"))
@@ -601,14 +605,16 @@ LogDebug(VB_PLAYLIST, "command\n");
 		}
   }
 
-  void exit_handler(int signum)
+void exit_handler(int signum)
+{
+	LogInfo(VB_GENERAL, "Caught signal %d\n",signum);
+	CloseCommand();
+
+	if(mediaOutputStatus.status == MEDIAOUTPUTSTATUS_PLAYING)
 	{
-     LogInfo(VB_GENERAL, "Caught signal %d\n",signum);
-     CloseCommand();
-		 if(mediaOutputStatus.status == MEDIAOUTPUTSTATUS_PLAYING)
-		 {
-		 		CloseMediaOutput();
-		 }
-	   exit(signum);
+		player->StopMedia();
 	}
+
+	exit(signum);
+}
 

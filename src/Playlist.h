@@ -52,6 +52,7 @@
 
 #define PL_MAX_ENTRIES			128
 
+class Player;
 
 typedef struct {
 	unsigned char type;
@@ -79,7 +80,7 @@ typedef struct {
 
 class Playlist {
   public:
-	Playlist();
+	Playlist(Player *parent);
 	~Playlist();
 
 	void StopPlaylistGracefully(void);
@@ -105,6 +106,7 @@ class Playlist {
 	void PlaylistPlaySong(void);
 	void PlaylistPrint(void);
 
+	Player                *m_player;
 	struct timeval         m_pauseStartTime;
 	struct timeval         m_nowTime;
 	int                    m_pauseStatus;

@@ -35,6 +35,7 @@
 #include "common.h"
 #include "fpp.h"
 #include "log.h"
+#include "Player.h"
 #include "NewPlaylist.h"
 #include "settings.h"
 
@@ -55,8 +56,9 @@ NewPlaylist *newPlaylist = NULL;
 /*
  *
  */
-NewPlaylist::NewPlaylist()
-  : m_repeat(0),
+NewPlaylist::NewPlaylist(Player *parent)
+  : m_player(parent),
+	m_repeat(0),
 	m_loop(0),
 	m_loopCount(0),
 	m_random(0),
@@ -148,8 +150,8 @@ int NewPlaylist::Load(Json::Value &config)
 
 	m_sectionPosition = 0;
 
-// FIXME PLAYLIST
-Dump();
+	if ((logLevel & LOG_DEBUG) && (logMask & VB_PLAYLIST))
+		Dump();
 
 	return 1;
 }
@@ -237,6 +239,8 @@ PlaylistEntryBase* NewPlaylist::LoadPlaylistEntry(Json::Value entry)
  */
 int NewPlaylist::Start(void)
 {
+	LogDebug(VB_PLAYLIST, "NewPlaylist::Start()\n");
+
 	if ((!m_leadIn.size()) &&
 		(!m_mainPlaylist.size()) &&
 		(!m_leadOut.size()))
@@ -262,7 +266,7 @@ int NewPlaylist::Start(void)
 		m_currentSection = &m_leadOut;
 	}
 
-	// FIXME, get rid of this
+	// FIXME PLAYLIST, get rid of this
 	FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
 
 	m_currentState = "Playing";
@@ -272,9 +276,7 @@ int NewPlaylist::Start(void)
 
 	m_startTime = GetTime();
 	m_loop = 0;
-LogDebug(VB_PLAYLIST, "there\n");
 	m_currentSection->at(m_sectionPosition)->StartPlaying();
-LogDebug(VB_PLAYLIST, "there\n");
 
 	return 1;
 }
@@ -294,7 +296,7 @@ int NewPlaylist::StopNow(void)
  */
 int NewPlaylist::StopGracefully(int afterCurrentLoop)
 {
-	// FIXME, get rid of this
+	// FIXME PLAYLIST, get rid of this
 	FPPstatus = FPP_STATUS_STOPPING_GRACEFULLY;
 
 	if (afterCurrentLoop)
@@ -310,7 +312,7 @@ int NewPlaylist::StopGracefully(int afterCurrentLoop)
  */
 int NewPlaylist::Process(void)
 {
-LogDebug(VB_PLAYLIST, "NewPlaylist::Process\n");
+	LogDebug(VB_PLAYLIST, "NewPlaylist::Process\n");
 
 	if (m_sectionPosition >= m_currentSection->size())
 	{
@@ -336,23 +338,27 @@ LogDebug(VB_PLAYLIST, "NewPlaylist::Process\n");
 
 	if (m_currentSection->at(m_sectionPosition)->IsFinished())
 	{
+		LogDebug(VB_PLAYLIST, "Playlist entry finished\n");
+		if ((logLevel & LOG_DEBUG) && (logMask & VB_PLAYLIST))
+			m_currentSection->at(m_sectionPosition)->Dump();
+
 		if (FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY)
 		{
+			LogDebug(VB_PLAYLIST, "Current state is stopping gracefully, switching to idle\n");
 			FPPstatus = FPP_STATUS_IDLE;
 			m_currentState = "Idle";
 			return 1;
 		}
 
 		m_sectionPosition++;
-LogDebug(VB_PLAYLIST, "NPL: Playlist Entry Finished, new pos: %d\n", m_sectionPosition);
 		if (m_sectionPosition >= m_currentSection->size())
 		{
-LogDebug(VB_PLAYLIST, "NPL: At end of section '%s'\n", m_currentSectionStr.c_str());
 			if (m_currentSectionStr == "LeadIn")
 			{
+				LogDebug(VB_PLAYLIST, "At end of leadIn.\n");
 				if (m_mainPlaylist.size())
 				{
-LogDebug(VB_PLAYLIST, "NPL: Switching to MainPlaylist\n");
+					LogDebug(VB_PLAYLIST, "Switching to mainPlaylist section.\n");
 					m_currentSectionStr = "MainPlaylist";
 					m_currentSection    = &m_mainPlaylist;
 	 				m_sectionPosition   = 0;
@@ -360,7 +366,7 @@ LogDebug(VB_PLAYLIST, "NPL: Switching to MainPlaylist\n");
 				}
 				else if (m_leadOut.size())
 				{
-LogDebug(VB_PLAYLIST, "NPL: Switching to LeadOut\n");
+					LogDebug(VB_PLAYLIST, "Switching to leadOut section.\n");
 					m_currentSectionStr = "LeadOut";
 					m_currentSection    = &m_leadOut;
 					m_sectionPosition   = 0;
@@ -368,9 +374,9 @@ LogDebug(VB_PLAYLIST, "NPL: Switching to LeadOut\n");
 				}
 				else
 				{
-LogDebug(VB_PLAYLIST, "NPL: Nothing else to play, going idle\n");
+					LogDebug(VB_PLAYLIST, "No more playlist entries, switching to idle.\n");
 					// Done with playlist, handle cleanup
-					// FIXME
+					// FIXME PLAYLIST
 					FPPstatus = FPP_STATUS_IDLE;
 					m_currentState = "Idle";
 				}
@@ -378,23 +384,25 @@ LogDebug(VB_PLAYLIST, "NPL: Nothing else to play, going idle\n");
 			else if (m_currentSectionStr == "MainPlaylist")
 			{
 				m_loop++;
-LogDebug(VB_PLAYLIST, "NPL: Main Playlist loop now: %d\n", m_loop);
+				LogDebug(VB_PLAYLIST, "mainPlaylist loop now: %d\n", m_loop);
 				if ((m_repeat) && (!m_loopCount || (m_loop < m_loopCount)))
 				{
 					if (FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP)
 					{
+						LogDebug(VB_PLAYLIST, "Current state is stopping gracefully after loop, switching to idle\n");
+						// FIXME PLAYLIST, do we want to run the leadout here??
 						FPPstatus = FPP_STATUS_IDLE;
 						m_currentState = "Idle";
 						return 1;
 					}
 
-LogDebug(VB_PLAYLIST, "NPL: Main Playlist repeating for another loop, %d <= %d\n", m_loop, m_loopCount);
+					LogDebug(VB_PLAYLIST, "mainPlaylist repeating for another loop, %d <= %d\n", m_loop, m_loopCount);
 					m_sectionPosition = 0;
 					m_mainPlaylist[0]->StartPlaying();
 				}
 				else if (m_leadOut.size())
 				{
-LogDebug(VB_PLAYLIST, "NPL: Switching to LeadOut\n");
+					LogDebug(VB_PLAYLIST, "Switching to leadOut\n");
 					m_currentSectionStr = "LeadOut";
 					m_currentSection    = &m_leadOut;
 					m_sectionPosition   = 0;
@@ -402,18 +410,18 @@ LogDebug(VB_PLAYLIST, "NPL: Switching to LeadOut\n");
 				}
 				else
 				{
-LogDebug(VB_PLAYLIST, "NPL: Nothing else to play, going idle\n");
+					LogDebug(VB_PLAYLIST, "No more playlist entries, switching to idle.\n");
 					// Done with playlist, handle cleanup
-					// FIXME
+					// FIXME PLAYLIST
 					FPPstatus = FPP_STATUS_IDLE;
 					m_currentState = "Idle";
 				}
 			}
 			else
 			{
-LogDebug(VB_PLAYLIST, "NPL: Nothing else to play, going idle\n");
+				LogDebug(VB_PLAYLIST, "No more playlist entries, switching to idle.\n");
 				// Done with playlist, handle cleanup
-				// FIXME
+				// FIXME PLAYLIST
 				FPPstatus = FPP_STATUS_IDLE;
 				m_currentState = "Idle";
 			}
@@ -440,7 +448,7 @@ LogDebug(VB_PLAYLIST, "NPL: Nothing else to play, going idle\n");
  */
 int NewPlaylist::Cleanup(void)
 {
-	// FIXME, get rid of this
+	// FIXME PLAYLIST, get rid of this
 	FPPstatus = FPP_STATUS_IDLE;
 
 	m_currentState = "Idle";
@@ -455,7 +463,7 @@ int NewPlaylist::Play(void)
 {
 	LogDebug(VB_PLAYLIST, "Playlist::Play()\n");
 
-	// FIXME, just loop through now for testing
+	// FIXME PLAYLIST, just loop through now for testing
 	if (m_leadIn.size())
 	{
 		LogDebug(VB_PLAYLIST, "Playing Lead In:\n");

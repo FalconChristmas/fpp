@@ -28,7 +28,6 @@ LIBS_fppmm = \
 OBJECTS_fppd = \
 	channeloutput/ChannelOutputBase.o \
 	channeloutput/channeloutput.o \
-	channeloutput/channeloutputthread.o \
 	channeloutput/DebugOutput.o \
 	channeloutput/E131.o \
 	channeloutput/FBMatrix.o \
@@ -71,6 +70,7 @@ OBJECTS_fppd = \
 	mediaoutput/ogg123.o \
 	mediaoutput/omxplayer.o \
 	PixelOverlay.o \
+	Player.o \
 	Playlist.o \
 	playlist/NewPlaylist.o \
 	playlist/PlaylistEntryBase.o \

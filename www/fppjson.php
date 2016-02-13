@@ -332,7 +332,13 @@ function StartSequence()
 
 function StopSequence()
 {
-	SendCommand("StopSequence");
+	global $args;
+
+	$sequence = $args['sequence'];
+
+	check($sequence, "sequence", __FUNCTION__);
+
+	SendCommand(sprintf("StopSequence,%s", $sequence));
 }
 
 function ToggleSequencePause()

@@ -197,6 +197,8 @@ int SetLogMask(char *newMask)
 		} else if (!strcmp(s, "http")) {
 			logMask |= VB_HTTP;
 #endif
+		} else if (!strcmp(s, "player")) {
+			logMask |= VB_PLAYER;
 		} else {
 			fprintf(stderr, "Unknown Log Mask: %s\n", s);
 		}

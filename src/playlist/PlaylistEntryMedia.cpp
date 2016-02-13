@@ -49,6 +49,8 @@ PlaylistEntryMedia::PlaylistEntryMedia()
 	m_speedDelta(0),
 	m_mediaOutput(NULL)
 {
+	m_type = "media";
+
 	pthread_mutex_init(&m_mediaOutputLock, NULL);
 }
 
@@ -67,14 +69,14 @@ int PlaylistEntryMedia::Init(Json::Value &config)
 {
 	if (!config.isMember("mediaFilename"))
 	{
-		LogErr(VB_PLAYLIST, "Missing MediaFilename entry\n");
+		LogErr(VB_PLAYLIST, "Missing mediaFilename entry\n");
 
 		return 0;
 	}
 
 	m_mediaFilename = config["mediaFilename"].asString();
 
-	return 1;
+	return PlaylistEntryBase::Init(config);
 }
 
 /*
@@ -139,7 +141,7 @@ int PlaylistEntryMedia::HandleSigChild(pid_t pid)
 	delete m_mediaOutput;
 	m_mediaOutput = NULL;
 
-	// FIXME, do some more stuff here??
+	// FIXME PLAYLIST, do some more stuff here??
 
 	pthread_mutex_unlock(&m_mediaOutputLock);
 
@@ -151,6 +153,9 @@ int PlaylistEntryMedia::HandleSigChild(pid_t pid)
  */
 void PlaylistEntryMedia::Dump(void)
 {
+	PlaylistEntryBase::Dump();
+
+	LogDebug(VB_PLAYLIST, "Media Filename: %s", m_mediaFilename.c_str());
 }
 
 /*

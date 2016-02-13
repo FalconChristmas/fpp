@@ -23,14 +23,96 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "log.h"
+#include "Player.h"
 #include "PlaylistEntrySequence.h"
 
 PlaylistEntrySequence::PlaylistEntrySequence()
-  : m_duration(0)
+  : m_duration(0),
+	m_sequenceID(0),
+	m_priority(0),
+	m_startSeconds(0)
 {
+	m_type = "sequence";
 }
 
 PlaylistEntrySequence::~PlaylistEntrySequence()
 {
 }
 
+/*
+ *
+ */
+int PlaylistEntrySequence::Init(Json::Value &config)
+{
+	if (!config.isMember("sequenceName"))
+	{
+		LogErr(VB_PLAYLIST, "Missing sequenceName entry\n");
+		return 0;
+	}
+
+	m_sequenceName = config["sequenceName"].asString();
+
+	return PlaylistEntryBase::Init(config);
+}
+
+/*
+ *
+ */
+int PlaylistEntrySequence::StartPlaying(void)
+{
+	m_sequenceID = player->StartSequence(m_sequenceName, m_priority, m_startSeconds);
+
+	if (!m_sequenceID)
+		return 0;
+
+	return PlaylistEntryBase::StartPlaying();
+}
+
+/*
+ *
+ */
+int PlaylistEntrySequence::Process(void)
+{
+LogDebug(VB_PLAYLIST, "PlaylistEntrySequence::Process(void)\n");
+	if (!player->SequenceIsRunning(m_sequenceID))
+{
+LogDebug(VB_PLAYLIST, "Sequence %lld is not running anymore\n", m_sequenceID);
+		FinishPlay();
+}
+
+	return PlaylistEntryBase::Process();
+}
+
+/*
+ *
+ */
+int PlaylistEntrySequence::Stop(void)
+{
+	if (!player->StopSequence(m_sequenceName))
+		return 0;
+
+	return PlaylistEntryBase::Stop();
+}
+
+/*
+ *
+ */
+void PlaylistEntrySequence::Dump(void)
+{
+	PlaylistEntryBase::Dump();
+
+	LogDebug(VB_PLAYLIST, "Sequence Filename: %s\n", m_sequenceName.c_str());
+}
+
+/*
+ *
+ */
+Json::Value PlaylistEntrySequence::GetConfig(void)
+{
+	Json::Value result = PlaylistEntryBase::GetConfig();
+
+	result["sequenceName"]    = m_sequenceName;
+
+	return result;
+}
