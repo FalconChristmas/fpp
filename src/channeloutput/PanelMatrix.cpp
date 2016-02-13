@@ -183,9 +183,9 @@ int PanelMatrix::CalculateMaps(void)
 								break;
 					case 'U':	pOffset = (pWidth * pHeight) - ((y * pWidth) + x) - 1;
 								break;
-					case 'L':	pOffset = 0; // FIXME
+					case 'L':	pOffset = (x * pHeight) + (pHeight - y - 1);
 								break;
-					case 'R':	pOffset = 0; // FIXME
+					case 'R':	pOffset = ((pWidth - x - 1) * pHeight) + y;
 								break;
 				}
 
