@@ -60,9 +60,9 @@
 #
 #############################################################################
 SCRIPTVER="0.8"
-FPPBRANCH="v1.6"
+FPPBRANCH="master"
 FPPIMAGEVER="1.5"
-FPPCFGVER="17"
+FPPCFGVER="18"
 FPPPLATFORM="UNKNOWN"
 FPPDIR="/opt/fpp"
 OSVER="UNKNOWN"
@@ -291,6 +291,7 @@ case "${OSVER}" in
 		echo "FPP - Enabling non-free repo"
 		sed -i -e "s/^deb \(.*\)/deb \1 non-free/" /etc/apt/sources.list
 		sed -i -e "s/non-free\(.*\)non-free/non-free\1/" /etc/apt/sources.list
+		#TODO: No non-free in CHIP repos
 
 		echo "FPP - Updating package list"
 		apt-get update
@@ -300,6 +301,8 @@ case "${OSVER}" in
 
 		echo "FPP - Marking unneeded packages for removal to save space"
 		for package in gnome-icon-theme gnome-accessibility-themes gnome-themes-standard \
+						apache2 apache2-doc apache2-mpm-prefork apache2-utils \
+						apache2.2-bin apache2.2-common libapache2-mod-php5 \
 						gnome-themes-standard-data libsoup-gnome2.4-1:armhf desktop-base \
 						xserver-xorg x11proto-composite-dev x11proto-core-dev \
 						x11proto-damage-dev x11proto-fixes-dev x11proto-input-dev \
@@ -334,22 +337,23 @@ case "${OSVER}" in
 		echo "FPP - Installing required packages"
 		# Install 10 packages, then clean to lower total disk space required
 		let packages=0
-		for package in alsa-base alsa-utils apache2 apache2.2-bin apache2.2-common \
-						apache2-mpm-prefork apache2-utils arping avahi-daemon \
+		for package in alsa-base alsa-utils arping avahi-daemon \
+						zlib1g-dev libpcre3 libpcre3-dev libbz2-dev libssl-dev \
 						avahi-discover avahi-utils bash-completion bc build-essential \
 						bzip2 ca-certificates ccache curl device-tree-compiler \
 						dh-autoreconf ethtool exfat-fuse fbi fbset file flite gdb \
 						gdebi-core git i2c-tools ifplugd imagemagick less \
-						libapache2-mod-php5 libboost-dev libconvert-binary-c-perl \
+						libboost-dev libconvert-binary-c-perl \
 						libdbus-glib-1-dev libdevice-serialport-perl libjs-jquery \
 						libjs-jquery-ui libjson-perl libjsoncpp-dev libnet-bonjour-perl \
 						libpam-smbpass libtagc0-dev libtest-nowarnings-perl locales \
 						mp3info mpg123 mpg321 mplayer nano node ntp perlmagick \
-						php5 php5-cli php5-common php5-curl php5-fpm php5-mcrypt \
+						php5-cli php5-common php5-curl php5-fpm php5-mcrypt \
 						php5-sqlite php-apc python-daemon python-smbus samba \
 						samba-common-bin shellinabox sudo sysstat tcpdump usbmount vim \
 						vim-common vorbis-tools vsftpd firmware-realtek gcc g++\
-						network-manager dhcp-helper hostapd parprouted; do
+						network-manager dhcp-helper hostapd parprouted bridge-utils
+		do
 			apt-get -y install ${package}
 			let packages=$((${packages}+1))
 			if [ $packages -gt 10 ]; then
@@ -374,10 +378,6 @@ case "${OSVER}" in
 			systemctl disable bonescript-autorun.service
 			systemctl disable console-kit-daemon.service
 			systemctl disable cloud9.socket
-
-			# Disabling nginx & php-fpm for now until new UI is in place
-			systemctl disable nginx.service
-			systemctl disable php5-fpm.service
 		fi
 
 		echo "FPP - Disabling GUI"
@@ -403,7 +403,7 @@ case "${OSVER}" in
 		if [ "x${FPPPLATFORM}" = "xODROID" ]
 		then
 			echo "FPP - WARNING: This list may be incomplete, it needs to be updated to match the Pi/BBB Debian package install list"
-			apt-get -y install apache2 apache2-bin apache2-mpm-prefork apache2-utils avahi-discover fbi flite gdebi-core i2c-tools imagemagick libapache2-mod-php5 libboost-dev libconvert-binary-c-perl libjson-perl libjsoncpp-dev libnet-bonjour-perl libpam-smbpass mp3info mpg123 perlmagick php5 php5-cli php5-common php-apc python-daemon python-smbus samba samba-common-bin shellinabox sysstat vorbis-tools vsftpd
+			apt-get -y install avahi-discover fbi flite gdebi-core i2c-tools imagemagick libboost-dev libconvert-binary-c-perl libjson-perl libjsoncpp-dev libnet-bonjour-perl libpam-smbpass mp3info mpg123 perlmagick php5 php5-cli php5-common php-apc python-daemon python-smbus samba samba-common-bin shellinabox sysstat vorbis-tools vsftpd
 		fi
 		;;
 	*)
@@ -422,7 +422,7 @@ case "${FPPPLATFORM}" in
 		echo >> /boot/uboot/uEnv.txt
 
 		echo "FPP - Installing OLA packages"
-		apt-get -y --force-yes install libcppunit-dev uuid-dev pkg-config libncurses5-dev libtool autoconf automake libmicrohttpd-dev protobuf-compiler python-protobuf libprotobuf-dev libprotoc-dev zlib1g-dev bison flex libftdi-dev libftdi1 libusb-1.0-0-dev liblo-dev
+		apt-get -y --force-yes install libcppunit-dev uuid-dev pkg-config libncurses5-dev libtool autoconf automake libmicrohttpd-dev protobuf-compiler python-protobuf libprotobuf-dev libprotoc-dev bison flex libftdi-dev libftdi1 libusb-1.0-0-dev liblo-dev
 		apt-get -y clean
 
 		mkdir /tmp/deb
@@ -435,7 +435,7 @@ case "${FPPPLATFORM}" in
 		done
 		dpkg --unpack ${FILES}
 		rm -f ${FILES}
-#		apt-get -y --force-yes install libcppunit-dev libcppunit-1.12-1 uuid-dev pkg-config libncurses5-dev libtool autoconf automake libmicrohttpd-dev protobuf-compiler python-protobuf libprotobuf-dev libprotoc-dev zlib1g-dev bison flex libftdi-dev libftdi1 libusb-1.0-0-dev liblo-dev
+#		apt-get -y --force-yes install libcppunit-dev libcppunit-1.12-1 uuid-dev pkg-config libncurses5-dev libtool autoconf automake libmicrohttpd-dev protobuf-compiler python-protobuf libprotobuf-dev libprotoc-dev bison flex libftdi-dev libftdi1 libusb-1.0-0-dev liblo-dev
 #		git clone https://github.com/OpenLightingProject/ola.git /opt/ola
 #		(cd /opt/ola && autoreconf -i && ./configure --enable-python-libs && make && make install && ldconfig && cd /opt/ && rm -rf ola)
 
@@ -468,14 +468,14 @@ EOF
 		# go in another location.
 		if $build_ola; then
 			echo "FPP - Installing OLA from source"
-			apt-get -y --force-yes install libcppunit-dev uuid-dev pkg-config libncurses5-dev libtool autoconf automake libmicrohttpd-dev protobuf-compiler python-protobuf libprotobuf-dev libprotoc-dev zlib1g-dev bison flex libftdi-dev libftdi1 libusb-1.0-0-dev liblo-dev
+			apt-get -y --force-yes install libcppunit-dev uuid-dev pkg-config libncurses5-dev libtool autoconf automake libmicrohttpd-dev protobuf-compiler python-protobuf libprotobuf-dev libprotoc-dev bison flex libftdi-dev libftdi1 libusb-1.0-0-dev liblo-dev
 			apt-get -y clean
 			git clone https://github.com/OpenLightingProject/ola.git /opt/ola
 			(cd /opt/ola && autoreconf -i && ./configure --enable-rdm-tests --enable-python-libs && make && make install && ldconfig)
 			rm -rf /opt/ola
 		else
 			echo "FPP - Installing OLA packages"
-			apt-get -y --force-yes install libcppunit-dev uuid-dev pkg-config libncurses5-dev libtool autoconf automake libmicrohttpd-dev protobuf-compiler python-protobuf libprotobuf-dev libprotoc-dev zlib1g-dev bison flex libftdi-dev libftdi1 libusb-1.0-0-dev liblo-dev
+			apt-get -y --force-yes install libcppunit-dev uuid-dev pkg-config libncurses5-dev libtool autoconf automake libmicrohttpd-dev protobuf-compiler python-protobuf libprotobuf-dev libprotoc-dev bison flex libftdi-dev libftdi1 libusb-1.0-0-dev liblo-dev
 			apt-get -y clean
 
 			mkdir /tmp/deb
@@ -485,7 +485,7 @@ EOF
 			do
 				# TODO Host the debs I built so we can use our packages
 				# instaed of the broken ones in the OLA repo
-				echo wget ${FILE}
+				wget -nd http://www.bc2va.org/chris/tmp/fpp/deb/pi/${OSVER}/${FILE}
 			done
 			dpkg --unpack ${FILES}
 			rm -f ${FILES}
@@ -496,7 +496,7 @@ EOF
 
 		if $build_omxplayer; then
 			echo "FPP - Building omxplayer from source with our patch"
-			apt-get -y install subversion libpcre3-dev libidn11-dev libboost1.50-dev libfreetype6-dev libusb-1.0-0-dev libssl-dev libssh-dev libsmbclient-dev g++-4.7
+			apt-get -y install subversion libidn11-dev libboost1.50-dev libfreetype6-dev libusb-1.0-0-dev libssh-dev libsmbclient-dev g++-4.7
 			git clone https://github.com/popcornmix/omxplayer.git
 			cd omxplayer
 			git reset --hard 4d8ffd13153bfef2966671cb4fb484afeaf792a8
@@ -578,12 +578,21 @@ EOF
 		echo "FPP - Fix ifup/ifdown scripts for manual dns"
 		sed -i -n 'H;${x;s/^\n//;s/esac\n/&\nif grep -qc "Generated by fpp" \/etc\/resolv.conf\; then\n\texit 0\nfi\n/;p}' /etc/network/if-up.d/000resolvconf
 		sed -i -n 'H;${x;s/^\n//;s/esac\n/&\nif grep -qc "Generated by fpp" \/etc\/resolv.conf\; then\n\texit 0\nfi\n\n/;p}' /etc/network/if-down.d/resolvconf
-
-		echo "FPP - Disable nginx to avoid warning"
-		# Note, when we switch to the v2.0 UI we'll need to update this script to remove apache instead
-		update-rc.d -f nginx remove
 		;;
-
+	#TODO
+	'CHIP')
+		echo "FPP - Reinstall chip packages that were probably removed earlier from dependencies"
+		for package in chip-exit chip-metapackage chip-configs chip-hwtest \
+						chip-input-reset chip-power chip-theme
+		do
+			apt-get -y install ${package}
+			let packages=$((${packages}+1))
+			if [ $packages -gt 10 ]; then
+				let packages=0
+				apt-get -y clean
+			fi
+		done
+		;;
 	'ODROID')
 		echo "FPP - Installing wiringPi"
 		cd /opt/ && git clone https://github.com/hardkernel/wiringPi && cd /opt/wiringPi && ./build
@@ -623,6 +632,14 @@ chmod 755 /usr/local/bin/composer
 echo "FPP - Setting up for UI"
 sed -i -e "s/^user =.*/user = fpp/" /etc/php5/fpm/pool.d/www.conf
 sed -i -e "s/^group =.*/group = fpp/" /etc/php5/fpm/pool.d/www.conf
+sed -i -e "s/.*listen.owner =.*/listen.owner = fpp/" /etc/php5/fpm/pool.d/www.conf
+sed -i -e "s/.*listen.group =.*/listen.group = fpp/" /etc/php5/fpm/pool.d/www.conf
+sed -i -e "s/.*listen.mode =.*/listen.mode = 0660/" /etc/php5/fpm/pool.d/www.conf
+
+#######################################
+echo "FPP - Allowing short tags in PHP"
+sed -i -e "s/^short_open_tag.*/short_open_tag = On/" /etc/php5/cli/php.ini
+sed -i -e "s/^short_open_tag.*/short_open_tag = On/" /etc/php5/fpm/php.ini
 
 #######################################
 # echo "FPP - Composing FPP UI"
@@ -736,43 +753,38 @@ cat <<-EOF >> /etc/sysctl.conf
 	EOF
 
 #######################################
-# Configure Apache run user/group
-echo "FPP - Configuring Apache"
-# environment variables
-sed -i -e "s/APACHE_RUN_USER=.*/APACHE_RUN_USER=fpp/" /etc/apache2/envvars
-sed -i -e "s/APACHE_RUN_GROUP=.*/APACHE_RUN_GROUP=fpp/" /etc/apache2/envvars
+# Building nginx
+echo "FPP - Building nginx webserver"
+git clone https://github.com/wandenberg/nginx-push-stream-module.git
+wget http://nginx.org/download/nginx-1.8.1.tar.gz
+tar xzvf nginx-1.8.1.tar.gz
+cd nginx-1.8.1/
+./configure --add-module=../nginx-push-stream-module
+make
+make install
 
-# main Apache/PHP config
-ISAPACHE24=$(dpkg -l | grep "^ii *apache2 *2\.4\.")
-if [ -z "${ISAPACHE24}" ]
-then
-	cp ${FPPDIR}/etc/apache2.conf /etc/apache2/apache2.conf
-else
-	cp ${FPPDIR}/etc/apache2.conf.2.4 /etc/apache2/apache2.conf
-	rm /etc/apache2/sites-enabled/000-default.conf
-fi
-
-cp ${FPPDIR}/etc/php.ini /etc/php5/apache2/php.ini
-
-# site config file
-SITEFILE="/etc/apache2/sites-enabled/000-default"
-sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#/home/pi/#/home/fpp/#g" < ${FPPDIR}/etc/apache2.site > ${SITEFILE}
-# Disable Logging since there is no logs directory yet
-sed -i "s/ErrorLog/#ErrorLog/" ${SITEFILE}
+#######################################
+echo "FPP - Configuring nginx webserver"
+# Comment out the default server section
+sed -i.orig '/^\s*location/,/^\s*}/s/^/#/g;/^\s*server/,/^\s*}/s/^/#/g;s/##/#/g' /usr/local/nginx/conf/nginx.conf
+# Add an include of our server configuration
+sed -i -e '/^\s*http\s*{/a\    include /etc/fpp_nginx.conf;\n' /usr/local/nginx/conf/nginx.conf
+sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/nginx.conf > /etc/fpp_nginx.conf
+# Set user to fpp
+sed -i -e 's/^\s*\#\?\s*user\(\s*\)[^;]*/user\1fpp/' /usr/local/nginx/conf/nginx.conf
+# Ensure pid matches our systemd service file
+sed -i -e 's/^\s*\#\?\s*pid\(\s*\)[^;]*/pid\1logs\/nginx.pid/' /usr/local/nginx/conf/nginx.conf
 
 case "${OSVER}" in
 	debian_7)
-				rm /etc/apache2/conf.d/other-vhosts-access-log
-				sed -i -e "s/NameVirtualHost.*8080/NameVirtualHost *:80/" -e "s/Listen.*8080/Listen 80/" /etc/apache2/ports.conf
-				;;
+		cp ${FPPDIR}/scripts/nginx /etc/init.d/
+		update-rc.d nginx defaults
+		;;
 	debian_8)
-				a2disconf other-vhosts-access-log
+		cp ${FPPDIR}/scripts/nginx.service /lib/systemd/system/
+		systemctl enable nginx.service
+		;;
 esac
-
-update-rc.d apache2 defaults
-/etc/init.d/apache2 stop
-chown fpp /var/lock/apache2
-/etc/init.d/apache2 start
 
 #######################################
 echo "FPP - Configuring FPP startup"

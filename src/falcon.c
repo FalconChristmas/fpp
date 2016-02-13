@@ -153,7 +153,7 @@ int FalconConfigureHardware(char *filename, int spiPort)
 	player->DisableChannelOutput();
 	usleep(100000);
 
-	if ((logLevel & LOG_DEBUG) && (logMask && VB_SETTING))
+	if ((logLevel & LOG_DEBUG) && (logMask & VB_SETTING))
 		HexDump("Falcon Hardware Config", buf, bytesRead);
 
 	bytesWritten = wiringPiSPIDataRW (0, (unsigned char *)buf, FALCON_CFG_BUF_SIZE);
@@ -164,7 +164,7 @@ int FalconConfigureHardware(char *filename, int spiPort)
 			bytesWritten, FALCON_CFG_BUF_SIZE);
 	}
 
-	if ((logLevel & LOG_DEBUG) && (logMask && VB_SETTING))
+	if ((logLevel & LOG_DEBUG) && (logMask & VB_SETTING))
 		HexDump("Falcon Hardware Config Response", buf, 8);
 
 	usleep(10000);
@@ -184,7 +184,7 @@ int FalconConfigureHardware(char *filename, int spiPort)
 		return -1;
 	}
 
-	if ((logLevel & LOG_DEBUG) && (logMask && VB_SETTING))
+	if ((logLevel & LOG_DEBUG) && (logMask & VB_SETTING))
 		HexDump("Falcon Hardware Config Response", buf, 8);
 
 	free(buf);
@@ -257,7 +257,7 @@ void FalconQueryHardware(int sock, struct sockaddr_in *srcAddr,
 		buf[58] = query[6]; // Voltage #1
 		buf[59] = query[7]; // Voltage #2
 
-		if ((logLevel & LOG_DEBUG) && (logMask && VB_SETTING))
+		if ((logLevel & LOG_DEBUG) && (logMask & VB_SETTING))
 			HexDump("Falcon Hardware Query Info Response", query, 8);
 	}
 	else
@@ -275,7 +275,7 @@ void FalconQueryHardware(int sock, struct sockaddr_in *srcAddr,
 
 	PopulatePiConfig(inet_ntoa(recvAddr), buf);
 
-	if ((logLevel & LOG_DEBUG) && (logMask && VB_SETTING))
+	if ((logLevel & LOG_DEBUG) && (logMask & VB_SETTING))
 		HexDump("Falcon Query Hardware result", buf, sizeof(buf));
 
 	if(sendto(sock, buf, sizeof(buf), 0, (struct sockaddr*)srcAddr, sizeof(*srcAddr)) < 0)
@@ -317,7 +317,7 @@ int FalconPassThroughData(int offset, unsigned char *inBuf, int size)
 
 	memcpy(buf+FALCON_CFG_HEADER_SIZE+offset, inBuf, size);
 
-	if ((logLevel & LOG_DEBUG) && (logMask && VB_SETTING))
+	if ((logLevel & LOG_DEBUG) && (logMask & VB_SETTING))
 		HexDump("Falcon Pass-through data", buf+offset, size);
 
 	int bytesWritten;
@@ -391,7 +391,7 @@ void FalconSetData(int sock, struct sockaddr_in *srcAddr, unsigned char *inBuf)
 			buf[7] = 0xFE;
 	}
 
-	if ((logLevel & LOG_DEBUG) && (logMask && VB_SETTING))
+	if ((logLevel & LOG_DEBUG) && (logMask & VB_SETTING))
 		HexDump("Falcon Set Data result", buf, sizeof(buf));
 
 	if(sendto(sock, buf, sizeof(buf), 0, (struct sockaddr*)srcAddr, sizeof(*srcAddr)) < 0)
@@ -422,7 +422,7 @@ void FalconGetData(int sock, struct sockaddr_in *srcAddr, unsigned char *inBuf)
 
 	buf[6] = 0x02; // GetData command response
 
-	if ((logLevel & LOG_DEBUG) && (logMask && VB_SETTING))
+	if ((logLevel & LOG_DEBUG) && (logMask & VB_SETTING))
 		HexDump("Falcon Get Data result", buf, 8);
 
 	if(sendto(sock, buf, bytes, 0, (struct sockaddr*)srcAddr, sizeof(*srcAddr)) < 0)
@@ -453,7 +453,7 @@ void FalconConfigurePi(int sock, struct sockaddr_in *srcAddr,
 
 	PopulatePiConfig(inet_ntoa(recvAddr), buf);
 
-	if ((logLevel & LOG_DEBUG) && (logMask && VB_SETTING))
+	if ((logLevel & LOG_DEBUG) && (logMask & VB_SETTING))
 		HexDump("Falcon Configure Pi result", buf, sizeof(buf));
 
 	if(sendto(sock, buf, sizeof(buf), 0, (struct sockaddr*)srcAddr, sizeof(*srcAddr)) < 0)
@@ -524,7 +524,7 @@ int DetectFalconHardware(int configureHardware)
 
 	int responseSize = FalconDetectHardware(spiPort, query);
 
-	if ((logLevel & LOG_DEBUG) && (logMask && VB_SETTING))
+	if ((logLevel & LOG_DEBUG) && (logMask & VB_SETTING))
 		HexDump("Falcon Detect Hardware Response", query, 8);
 
 	if ((responseSize == FALCON_CFG_BUF_SIZE) && (query[0] > 0)) 

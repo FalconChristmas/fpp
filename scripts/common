@@ -17,6 +17,10 @@ then
 	FPPDIR="${FPPHOME}/fpp"
 fi
 
+. /etc/os-release
+OSID=${ID}
+OSVER="${ID}_${VERSION_ID}"
+
 FPPPLATFORM=$(cat /etc/fpp/platform 2> /dev/null)
 FPPBINDIR="${FPPDIR}/bin"
 if [ "x${FPPPLATFORM}" = "xRaspberry Pi" ]
@@ -103,7 +107,7 @@ getSetting() {
 	SETTING=$1
 	if [ -f "${CFGFILE}" ]
 	then
-		grep -i "^${SETTING}\s*=.*" ${CFGFILE} | sed -e "s/.*=\s*//"
+		grep -i "^${SETTING}\s*=.*" ${CFGFILE} | sed -e "s/.*=\s*//" -e 's/"//g'
 	fi
 }
 
