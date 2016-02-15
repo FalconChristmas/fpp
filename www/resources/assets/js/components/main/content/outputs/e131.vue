@@ -12,6 +12,7 @@
      <div class="box-body">
         <form>
             <div class="output-actions">
+                <div class="filter-row">
                     <div class="filter text-xs-center">
                         <p>Active</p>
                         <switch :model.sync="defActive" size="small"></switch>
@@ -24,11 +25,13 @@
                         <p>Inc. Start</p>
                         <switch :model.sync="incrementStart" size="small"></switch>
                     </div>
+                </div>
+                <div class="filter-row">
                     <div class="filter">
                         <form-input 
                           :model.sync="defAddress"
                           type="text"
-                          label="Default Address"
+                          label="Address"
                           size="sm"
                           state-icon>
                         </form-input>
@@ -36,9 +39,18 @@
                     </div>
                     <div class="filter">
                          <form-input 
+                          :model.sync="defStart"
+                          type="number"
+                          label="Start"
+                          size="sm"
+                          state-icon>
+                        </form-input>
+                    </div>
+                    <div class="filter">
+                         <form-input 
                           :model.sync="defSize"
                           type="number"
-                          label="Default Size"
+                          label="Size"
                           size="sm"
                           state-icon>
                         </form-input>
@@ -52,7 +64,11 @@
                           state-icon>
                         </form-input>
                     </div>
+                </div>
+                <div class="filter-row">
                     <button @click="addOutput" type="button" class="button btn-primary pull-xs-right m-a-0">Add Output</button>
+                </div>
+                    
             </div>
             <!-- <div id="universe-outputs"> -->
                 <div class="universe-list table-responsive">
@@ -110,6 +126,7 @@ export default {
             defActive: true,
             defType: 'unicast',
             defSize: 512,
+            defStart: 1,
             defAddress: null,
             incrementStart: true,
             incrementUniv: true,

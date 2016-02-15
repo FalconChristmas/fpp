@@ -3,19 +3,18 @@
         <div class="row">
             <div class="col-md-4">
                 <div class="box">
-                <div class="pull-left m-r-1">
-                    
-                </div>
-                <h4>FPPD Status</h4>
+                    <div class="box-header">
+                         <h4>FPPD Status</h4>
+                    </div>
+                   
                    
                 </div>
             </div>
             <div class="col-md-4">
                 <div class="box">
-                    <div class="pull-left m-r-1">
-                        
+                     <div class="box-header">
+                         <h4>FPPD Mode</h4>
                     </div>
-                    <h4>FPPD Mode</h4>
                 </div>
             </div>
             <div class="col-md-4">
