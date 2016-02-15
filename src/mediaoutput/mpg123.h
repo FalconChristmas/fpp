@@ -26,8 +26,33 @@
 #ifndef _MPG123_H
 #define _MPG123_H
 
-#include "mediaoutput.h"
+#include "MediaOutputBase.h"
 
-extern MediaOutput mpg123Output;
+#define MAX_BYTES_MP3 1000
+#define TIME_STR_MAX  8
+
+#ifdef PLATFORM_BBB
+#   define MPG123_BINARY "/usr/bin/mpg321"
+#else
+#   define MPG123_BINARY "/usr/bin/mpg123"
+#endif
+
+class mpg123Output : public MediaOutputBase {
+  public:
+	mpg123Output(std::string mediaFilename, MediaOutputStatus *status);
+	~mpg123Output();
+
+	int  Start(void);
+	int  Stop(void);
+	int  Process(void);
+
+  private:
+	void PollMusicInfo(void);
+	void ProcessMP3Data(int bytesRead);
+	void ParseTimes(void);
+
+	char m_mp3Buffer[MAX_BYTES_MP3];
+	char m_mpg123_strTime[34];
+};
 
 #endif

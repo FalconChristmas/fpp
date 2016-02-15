@@ -30,40 +30,10 @@
 #include <pthread.h>
 #include <sys/wait.h>
 
-typedef struct mediaOutput {
-	char  *filename;
-	pid_t  childPID;
-	int   *childPipe;
-	int  (*canHandle) (const char *filename);
-	int  (*startPlaying) (const char *filename);
-	void (*stopPlaying) (void);
-	int  (*processData) (void);
-	int  (*isPlaying) (void);
-	void (*speedUp) (void);
-	void (*slowDown) (void);
-	void (*speedNormal) (void);
-	void (*setVolume) (int volume);
-} MediaOutput;
+#include "MediaOutputBase.h"
+#include "MediaOutputStatus.h"
 
-typedef struct mediaOutputStatus {
-	int status; 
-	int secondsElapsed;
-	int subSecondsElapsed;
-	int secondsRemaining;
-	int subSecondsRemaining;
-	int minutesTotal;
-	int secondsTotal;
-	float mediaSeconds;
-	int speedDelta;
-} MediaOutputStatus; 
-
-#define MEDIAOUTPUTPIPE_READ       0
-#define MEDIAOUTPUTPIPE_WRITE      1
-
-#define MEDIAOUTPUTSTATUS_IDLE     0
-#define MEDIAOUTPUTSTATUS_PLAYING  1
-
-extern MediaOutput       *mediaOutput;
+extern MediaOutputBase   *mediaOutput;
 extern pthread_mutex_t    mediaOutputLock;
 extern MediaOutputStatus  mediaOutputStatus;
 

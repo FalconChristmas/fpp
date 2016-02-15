@@ -25,6 +25,7 @@
 
 #include <string.h>
 #include <strings.h>
+#include <unistd.h>
 
 #include <jsoncpp/json/json.h>
 
@@ -132,6 +133,14 @@ int ChannelTester::SetupTest(std::string configStr)
 	{
 		if (m_testPattern)
 		{
+			m_testPattern->DisableTest();
+			pthread_mutex_unlock(&m_testLock);
+
+			// Give the channel output loop time to clear test data
+			usleep(150000);
+
+			pthread_mutex_lock(&m_testLock);
+
 			delete m_testPattern;
 			m_testPattern = NULL;
 		}

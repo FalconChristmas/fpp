@@ -1,5 +1,5 @@
 /*
- *   GPIO Input/Output handler for Falcon Pi Player (FPP)
+ *   Media handler for Falcon Pi Player (FPP)
  *
  *   Copyright (C) 2013 the Falcon Pi Player Developers
  *      Initial development by:
@@ -22,13 +22,21 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
- 
-#ifndef __GPIO_H__
-#define __GPIO_H__
 
-int  SetupGPIOInput(void);
-void CheckGPIOInputs(void);
-int SetupExtGPIO(int gpio, char *mode);
-int ExtGPIO(int gpio, char *mode, int value);
+#ifndef _MEDIAOUTPUTSTATUS_H
+#define _MEDIAOUTPUTSTATUS_H
 
-#endif //__GPIO_H__
+typedef struct mediaOutputStatus {
+	int status; 
+	int secondsElapsed;
+	int subSecondsElapsed;
+	int secondsRemaining;
+	int subSecondsRemaining;
+	int minutesTotal;
+	int secondsTotal;
+	float mediaSeconds;
+	int speedDelta;
+} MediaOutputStatus; 
+
+#endif /* _MEDIAOUTPUT_H */
+

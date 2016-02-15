@@ -137,7 +137,8 @@ void initSettings(int argc, char **argv)
 }
 
 // Returns a string that's the white-space trimmed version
-// of the input string
+// of the input string.  Also trim double quotes now that the
+// settings file will have double quotes in it.
 char *trimwhitespace(const char *str)
 {
 	const char *end;
@@ -145,14 +146,14 @@ char *trimwhitespace(const char *str)
 	char *out;
 
 	// Trim leading space
-	while(isspace(*str)) str++;
+	while((isspace(*str)) || (*str == '"')) str++;
 
 	if(*str == 0)  // All spaces?
 		return strdup("");
 
 	// Trim trailing space
 	end = str + strlen(str) - 1;
-	while(end > str && (isspace(*end))) end--;
+	while(end > str && ((isspace(*end)) || (*end == '"'))) end--;
 	end++;
 
 	// Set output size to minimum of trimmed string length
@@ -239,6 +240,9 @@ printf("Usage: %s [OPTION...]\n"
 "                                    event       - Event handling\n"
 "                                    general     - general messages\n"
 "                                    gpio        - GPIO Input handling\n"
+#ifdef USEHTTPAPI
+"                                    http        - HTTP API requests\n"
+#endif
 "                                    mediaout    - Media file handling\n"
 "                                    playlist    - Playlist handling\n"
 "                                    plugin      - Plugin handling\n"
@@ -826,6 +830,23 @@ int getFPPmode(void)
 	return settings.fppMode;
 }
 
+#ifndef __GNUG__
+inline
+#endif
+char *getFPPmodeStr(void)
+{
+	if (settings.fppMode == BRIDGE_MODE)
+		return "bridge";
+	else if (settings.fppMode == PLAYER_MODE)
+		return "player";
+	else if (settings.fppMode == MASTER_MODE)
+		return "master";
+	else if (settings.fppMode == REMOTE_MODE)
+		return "remote";
+
+	return "UNKNOWN";
+}
+
 int getVolume(void)
 {
 	// Default of 0 is also a settable value, just return our data
@@ -970,8 +991,8 @@ void setVolume(int volume)
 	system(buffer);
 
 	pthread_mutex_lock(&mediaOutputLock);
-	if (mediaOutput && mediaOutput->setVolume)
-		mediaOutput->setVolume(settings.volume);
+	if (mediaOutput)
+		mediaOutput->SetVolume(settings.volume);
 
 	pthread_mutex_unlock(&mediaOutputLock);
 }

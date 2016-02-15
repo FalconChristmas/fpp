@@ -33,6 +33,36 @@
 
 #include "log.h"
 
+// The following is in asm-generic/termios.h, but including that in a C++
+// program causes errors.  The Qt developers worked around this by including
+// the following struct definition and #define's manually:
+// https://codereview.qt-project.org/#/c/125161/6/src/serialport/qserialport_unix.cpp,unified
+
+#ifndef OLDCUSTOMSPEED
+struct termios2 {
+    tcflag_t c_iflag;       /* input mode flags */
+    tcflag_t c_oflag;       /* output mode flags */
+    tcflag_t c_cflag;       /* control mode flags */
+    tcflag_t c_lflag;       /* local mode flags */
+    cc_t c_line;            /* line discipline */
+    cc_t c_cc[19];          /* control characters */
+    speed_t c_ispeed;       /* input speed */
+    speed_t c_ospeed;       /* output speed */
+};
+
+#ifndef TCGETS2
+#define TCGETS2     _IOR('T', 0x2A, struct termios2)
+#endif
+
+#ifndef TCSETS2
+#define TCSETS2     _IOW('T', 0x2B, struct termios2)
+#endif
+
+#ifndef BOTHER
+#  define BOTHER      0010000
+#endif
+#endif
+
 /*
  * Portions of code based on work found in xLights/serial_posix.cpp
  * by Matt Brown and Joachim Buermann.
@@ -140,6 +170,7 @@ int SerialOpen(const char *device, int baud, char *mode)
 	{
 		LogInfo(VB_CHANNELOUT, "Using custom baud rate of %d\n", baud);
 
+#ifdef OLDCUSTOMSPEED
 		struct serial_struct ss;
 
 		if (ioctl(fd, TIOCGSERIAL, &ss) < 0)
@@ -160,7 +191,28 @@ int SerialOpen(const char *device, int baud, char *mode)
 			close(fd);
 			return -1;
 		}
+#else
+		struct termios2 tio;
 
+		if (ioctl(fd, TCGETS2, &tio) < 0)
+		{
+			LogErr(VB_CHANNELOUT, "Error getting termios2 settings\n");
+			close(fd);
+			return -1;
+		}
+		
+		tio.c_cflag &= ~CBAUD;
+		tio.c_cflag |= BOTHER;
+		tio.c_ispeed = baud;
+		tio.c_ospeed = baud;
+
+		if (ioctl(fd, TCSETS2, &tio) < 0)
+		{
+			LogErr(VB_CHANNELOUT, "Error setting custom baud rate\n");
+			close(fd);
+			return -1;
+		}
+#endif
 	}
 
 	return fd;
