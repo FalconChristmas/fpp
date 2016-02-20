@@ -45,6 +45,16 @@ class PlaylistEntryBranch : public PlaylistEntryBase {
   	PlaylistEntryBranch();
 	~PlaylistEntryBranch();
 
+	int  Init(Json::Value &config);
+
+	int  StartPlaying(void);
+	int  Process(void);
+	int  Stop(void);
+
+	void Dump(void);
+
+	Json::Value GetConfig(void);
+
   private:
 	int  m_branchType;
 	int  m_comparisonMode;

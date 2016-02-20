@@ -26,6 +26,8 @@
 #include "log.h"
 #include "PlaylistEntryBase.h"
 
+int PlaylistEntryBase::m_playlistEntryID = 0;
+
 /*
  *
  */
@@ -38,6 +40,7 @@ PlaylistEntryBase::PlaylistEntryBase()
 	m_playCount(0)
 {
 	m_type = "Base";
+	m_playlistEntryID++;
 }
 
 /*
@@ -52,7 +55,8 @@ PlaylistEntryBase::~PlaylistEntryBase()
  */
 int PlaylistEntryBase::Init(Json::Value &config)
 {
-	LogDebug(VB_PLAYLIST, "PlaylistEntryBase::Init(): '%s'\n", config["type"].asString().c_str());
+	LogDebug(VB_PLAYLIST, "PlaylistEntryBase::Init(): '%s'\n",
+		config["type"].asString().c_str());
 
 	if (config.isMember("enabled"))
 		m_enabled = config["enabled"].asInt();
@@ -107,6 +111,8 @@ int PlaylistEntryBase::StartPlaying(void)
  */
 void PlaylistEntryBase::FinishPlay(void)
 {
+	LogDebug(VB_PLAYLIST, "PlaylistEntryBase::FinishPlay()\n");
+	
 	m_isStarted = 1;
 	m_isPlaying = 0;
 	m_isFinished = 1;
@@ -155,8 +161,9 @@ int PlaylistEntryBase::Process(void)
  */
 int PlaylistEntryBase::Stop(void)
 {
-	m_isPlaying = 0;
-	m_isFinished = 1;
+	LogDebug(VB_PLAYLIST, "PlaylistEntryBase::Stop()\n");
+
+	FinishPlay();
 
 	return 1;
 }
@@ -166,6 +173,8 @@ int PlaylistEntryBase::Stop(void)
  */
 int PlaylistEntryBase::HandleSigChild(pid_t pid)
 {
+	LogDebug(VB_PLAYLIST, "PlaylistEntryBase::HandleSigChild()\n");
+
 	return 0;
 }
 
@@ -176,6 +185,7 @@ void PlaylistEntryBase::Dump(void)
 {
 	LogDebug(VB_PLAYLIST, "---- Playlist Entry ----\n");
 	LogDebug(VB_PLAYLIST, "Entry Type: %s\n", m_type.c_str());
+	LogDebug(VB_PLAYLIST, "Entry ID  : %d\n", m_playlistEntryID);
 }
 
 /*
@@ -192,6 +202,8 @@ Json::Value PlaylistEntryBase::GetConfig(void)
 	result["isFinished"] = m_isFinished;
 	result["playOnce"]   = m_playOnce;
 	result["playCount"]  = m_playCount;
+	result["entryID"]    = m_playlistEntryID;
 
 	return result;
 }
+

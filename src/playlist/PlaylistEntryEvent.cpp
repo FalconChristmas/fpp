@@ -37,6 +37,8 @@ PlaylistEntryEvent::PlaylistEntryEvent()
 	m_minorID(0),
 	m_blocking(0)
 {
+	LogDebug(VB_PLAYLIST, "PlaylistEntryEffect::PlaylistEntryEvent()\n");
+
 	m_type = "event";
 }
 
@@ -52,6 +54,8 @@ PlaylistEntryEvent::~PlaylistEntryEvent()
  */
 int PlaylistEntryEvent::Init(Json::Value &config)
 {
+	LogDebug(VB_PLAYLIST, "PlaylistEntryEffect::Init()\n");
+
 	if (config["majorID"].asInt())
 		m_majorID = config["majorID"].asInt();
 
@@ -80,7 +84,9 @@ int PlaylistEntryEvent::StartPlaying(void)
 	if (TriggerEvent((unsigned char)m_majorID, (unsigned char)m_minorID))
 		return PlaylistEntryBase::StartPlaying();
 
+	// Trigger failed, so mark finished
 	FinishPlay();
+
 	return 0;
 }
 
@@ -107,12 +113,15 @@ int PlaylistEntryEvent::Process(void)
  */
 int PlaylistEntryEvent::Stop(void)
 {
+	LogDebug(VB_PLAYLIST, "PlaylistEntryEffect::Stop()\n");
+
 	if (!m_blocking)
 	{
 		FinishPlay();
 		return PlaylistEntryBase::Stop();
 	}
 
+	// FIXME PLAYLIST, need to kill process if we are blocking
 	// FIXME PLAYLIST, check for blocking here
 	PlaylistEntryBase::Stop();
 	return 0;
@@ -130,5 +139,19 @@ void PlaylistEntryEvent::Dump(void)
 	LogDebug(VB_PLAYLIST, "Major ID: %d\n", m_majorID);
 	LogDebug(VB_PLAYLIST, "Minor ID: %d\n", m_minorID);
 	LogDebug(VB_PLAYLIST, "Blocking: %d\n", m_blocking);
+}
+
+/*
+ *
+ */
+Json::Value PlaylistEntryEvent::GetConfig(void)
+{
+	Json::Value result = PlaylistEntryBase::GetConfig();
+
+	result["majorID"]  = m_majorID;
+	result["minorID"]  = m_minorID;
+	result["blocking"] = m_blocking;
+
+	return result;
 }
 

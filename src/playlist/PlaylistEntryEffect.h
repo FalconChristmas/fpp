@@ -43,10 +43,12 @@ class PlaylistEntryEffect : public PlaylistEntryBase {
 
 	void Dump(void);
 
+	Json::Value GetConfig(void);
+
   private:
 	std::string m_effectName;
 	int         m_startChannel;
-	int         m_loop;
+	int         m_repeat;
 	int         m_blocking;
 	int         m_effectID;
 };

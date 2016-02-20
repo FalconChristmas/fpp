@@ -39,6 +39,7 @@ class PlaylistEntryPause : public PlaylistEntryBase {
 
 	int  StartPlaying(void);
 	int  Process(void);
+	int  Stop(void);
 
 	void Dump(void);
 
@@ -48,6 +49,7 @@ class PlaylistEntryPause : public PlaylistEntryBase {
 	int                  m_duration;
 	long long            m_startTime;
 	long long            m_endTime;
+	long long            m_finishTime;
 };
 
 #endif

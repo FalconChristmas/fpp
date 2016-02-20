@@ -35,6 +35,8 @@ PlaylistEntryPause::PlaylistEntryPause()
 	m_startTime(0),
 	m_endTime(0)
 {
+	LogDebug(VB_PLAYLIST, "PlaylistEntryPause::PlaylistEntryPause()\n");
+
 	m_type = "Pause";
 }
 
@@ -50,8 +52,11 @@ PlaylistEntryPause::~PlaylistEntryPause()
  */
 int PlaylistEntryPause::Init(Json::Value &config)
 {
+	LogDebug(VB_PLAYLIST, "PlaylistEntryPause::Init()\n");
+
 	m_duration = config["duration"].asInt();
 	m_endTime = 0;
+	m_finishTime = 0;
 
 	return PlaylistEntryBase::Init(config);
 }
@@ -85,9 +90,24 @@ int PlaylistEntryPause::Process(void)
 		return 0;
 
 	if (m_isStarted && m_isPlaying && (GetTime() >= m_endTime))
+	{
+		m_finishTime = GetTime();
 		FinishPlay();
+	}
 
 	return PlaylistEntryBase::Process();
+}
+
+/*
+ *
+ */
+int PlaylistEntryPause::Stop(void)
+{
+	LogDebug(VB_PLAYLIST, "PlaylistEntryPause::Stop()\n");
+
+	m_finishTime = GetTime();
+
+	return PlaylistEntryBase::Stop();
 }
 
 /*
@@ -101,6 +121,7 @@ void PlaylistEntryPause::Dump(void)
 	LogDebug(VB_PLAYLIST, "Cur Time: %lld\n", GetTime());
 	LogDebug(VB_PLAYLIST, "Start Time: %lld\n", m_startTime);
 	LogDebug(VB_PLAYLIST, "End Time: %lld\n", m_endTime);
+	LogDebug(VB_PLAYLIST, "Finish Time: %lld\n", m_finishTime);
 }
 
 /*
@@ -113,6 +134,7 @@ Json::Value PlaylistEntryPause::GetConfig(void)
 	result["duration"] = m_duration;
 	result["startTime"] = m_startTime;
 	result["endTime"] = m_endTime;
+	result["finishTime"] = m_finishTime;
 
 	if (m_isPlaying)
 		result["remaining"] = (m_endTime - GetTime()) / 1000000;
@@ -121,3 +143,4 @@ Json::Value PlaylistEntryPause::GetConfig(void)
 
 	return result;
 }
+

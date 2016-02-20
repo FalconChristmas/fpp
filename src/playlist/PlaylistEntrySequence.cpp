@@ -33,6 +33,8 @@ PlaylistEntrySequence::PlaylistEntrySequence()
 	m_priority(0),
 	m_startSeconds(0)
 {
+	LogDebug(VB_PLAYLIST, "PlaylistEntrySequence::PlaylistEntrySequence()\n");
+
 	m_type = "sequence";
 }
 
@@ -45,6 +47,8 @@ PlaylistEntrySequence::~PlaylistEntrySequence()
  */
 int PlaylistEntrySequence::Init(Json::Value &config)
 {
+	LogDebug(VB_PLAYLIST, "PlaylistEntrySequence::Init()\n");
+
 	if (!config.isMember("sequenceName"))
 	{
 		LogErr(VB_PLAYLIST, "Missing sequenceName entry\n");
@@ -61,6 +65,14 @@ int PlaylistEntrySequence::Init(Json::Value &config)
  */
 int PlaylistEntrySequence::StartPlaying(void)
 {
+	LogDebug(VB_PLAYLIST, "PlaylistEntrySequence::StartPlaying()\n");
+
+	if (!CanPlay())
+	{
+		FinishPlay();
+		return 0;
+	}
+
 	m_sequenceID = player->StartSequence(m_sequenceName, m_priority, m_startSeconds);
 
 	if (!m_sequenceID)
@@ -74,12 +86,8 @@ int PlaylistEntrySequence::StartPlaying(void)
  */
 int PlaylistEntrySequence::Process(void)
 {
-LogDebug(VB_PLAYLIST, "PlaylistEntrySequence::Process(void)\n");
 	if (!player->SequenceIsRunning(m_sequenceID))
-{
-LogDebug(VB_PLAYLIST, "Sequence %lld is not running anymore\n", m_sequenceID);
 		FinishPlay();
-}
 
 	return PlaylistEntryBase::Process();
 }
@@ -89,6 +97,8 @@ LogDebug(VB_PLAYLIST, "Sequence %lld is not running anymore\n", m_sequenceID);
  */
 int PlaylistEntrySequence::Stop(void)
 {
+	LogDebug(VB_PLAYLIST, "PlaylistEntrySequence::Stop()\n");
+
 	if (!player->StopSequence(m_sequenceName))
 		return 0;
 

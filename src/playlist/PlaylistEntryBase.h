@@ -53,6 +53,8 @@ class PlaylistEntryBase {
 
 	virtual Json::Value GetConfig(void);
 
+	int          GetPlaylistEntryID(void) { return m_playlistEntryID; }
+
   protected:
 	int          CanPlay(void);
 	void         FinishPlay(void);
@@ -64,6 +66,9 @@ class PlaylistEntryBase {
 	int                  m_isFinished;
 	int                  m_playOnce;
 	int                  m_playCount;
+
+	static int   m_playlistEntryID;
+
 };
 
 #endif

@@ -32,10 +32,12 @@
  */
 PlaylistEntryEffect::PlaylistEntryEffect()
   : m_startChannel(0),
-	m_loop(0),
+	m_repeat(0),
 	m_blocking(0),
 	m_effectID(-1)
 {
+	LogDebug(VB_PLAYLIST, "PlaylistEntryEffect::PlaylistEntryEffect()\n");
+
 	m_type = "Effect";
 }
 
@@ -51,13 +53,21 @@ PlaylistEntryEffect::~PlaylistEntryEffect()
  */
 int PlaylistEntryEffect::Init(Json::Value &config)
 {
+	LogDebug(VB_PLAYLIST, "PlaylistEntryEffect::Init()\n");
+
+	if (!config.isMember("mediaFilename"))
+	{
+		LogDebug(VB_PLAYLIST, "Missing effectName entry\n");
+		return 0;
+	}
+
 	m_effectName = config["effectName"].asString();
 
 	if (config["startChannel"].asInt())
 		m_startChannel = config["startChannel"].asInt();
 
-	if (config["loop"].asInt())
-		m_loop = config["loop"].asInt();
+	if (config["repeat"].asInt())
+		m_repeat = config["repeat"].asInt();
 
 	if (config["blocking"].asInt())
 		m_blocking = config["blocking"].asInt();
@@ -78,7 +88,7 @@ int PlaylistEntryEffect::StartPlaying(void)
 		return 0;
 	}
 
-	m_effectID = StartEffect(m_effectName.c_str(), m_startChannel, m_loop);
+	m_effectID = StartEffect(m_effectName.c_str(), m_startChannel, m_repeat);
 
 	if (m_effectID == -1)
 	{
@@ -95,21 +105,6 @@ int PlaylistEntryEffect::StartPlaying(void)
 /*
  *
  */
-int PlaylistEntryEffect::Stop(void)
-{
-LogDebug(VB_PLAYLIST, "PlaylistEntryEffect::Stop()\n");
-	if (!m_isPlaying)
-		return 1;
-
-	if (IsEffectRunning(m_effectName.c_str()))
-		StopEffect(m_effectName.c_str());
-
-	return PlaylistEntryBase::Stop();
-}
-
-/*
- *
- */
 int PlaylistEntryEffect::Process(void)
 {
 	int result = 0;
@@ -120,7 +115,7 @@ int PlaylistEntryEffect::Process(void)
 		return 1;
 	}
 
-	result = IsEffectRunning(m_effectName.c_str());
+	result = IsEffectRunning(m_effectID);
 
 	if (!result)
 	{
@@ -134,12 +129,46 @@ int PlaylistEntryEffect::Process(void)
 /*
  *
  */
+int PlaylistEntryEffect::Stop(void)
+{
+	LogDebug(VB_PLAYLIST, "PlaylistEntryEffect::Stop()\n");
+
+	if (!m_isPlaying)
+		return 1;
+
+	if (m_effectID == -1)
+		return 1;
+
+	if (IsEffectRunning(m_effectID))
+		StopEffect(m_effectID);
+
+	return PlaylistEntryBase::Stop();
+}
+
+/*
+ *
+ */
 void PlaylistEntryEffect::Dump(void)
 {
 	PlaylistEntryBase::Dump();
 
 	LogDebug(VB_PLAYLIST, "Effect Name  : %s\n", m_effectName.c_str());
 	LogDebug(VB_PLAYLIST, "Start Channel: %d\n", m_startChannel);
-	LogDebug(VB_PLAYLIST, "Loop         : %d\n", m_loop);
+	LogDebug(VB_PLAYLIST, "Repeat       : %d\n", m_repeat);
+	LogDebug(VB_PLAYLIST, "Blocking     : %d\n", m_blocking);
 }
 
+/*
+ *
+ */
+Json::Value PlaylistEntryEffect::GetConfig(void)
+{
+	Json::Value result = PlaylistEntryBase::GetConfig();
+
+	result["effectName"]   = m_effectName;
+	result["startChannel"] = m_startChannel;
+	result["repeat"]       = m_repeat;
+	result["blocking"]     = m_blocking;
+
+	return result;
+}

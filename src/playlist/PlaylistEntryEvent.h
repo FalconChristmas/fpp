@@ -43,6 +43,8 @@ class PlaylistEntryEvent : public PlaylistEntryBase {
 
 	void Dump(void);
 
+	Json::Value GetConfig(void);
+
   private:
 	int  m_majorID;
 	int  m_minorID;

@@ -33,6 +33,8 @@
 PlaylistEntryVolume::PlaylistEntryVolume()
   : m_volume(0)
 {
+	LogDebug(VB_PLAYLIST, "PlaylistEntryVolume::PlaylistEntryVolume()\n");
+
 	m_type = "Volume";
 }
 
@@ -48,6 +50,8 @@ PlaylistEntryVolume::~PlaylistEntryVolume()
  */
 int PlaylistEntryVolume::Init(Json::Value &config)
 {
+	LogDebug(VB_PLAYLIST, "PlaylistEntryVolume::Init()\n");
+
 	m_volume = config["volume"].asInt();
 
 	return PlaylistEntryBase::Init(config);
@@ -58,9 +62,17 @@ int PlaylistEntryVolume::Init(Json::Value &config)
  */
 int PlaylistEntryVolume::StartPlaying(void)
 {
+	LogDebug(VB_PLAYLIST, "PlaylistEntryVolume::StartPlaying()\n");
+
+	if (!CanPlay())
+	{
+		FinishPlay();
+		return 0;
+	}
+
 	setVolume(m_volume);
 
-	return 1;
+	return PlaylistEntryBase::StartPlaying();;
 }
 
 /*
@@ -71,3 +83,14 @@ void PlaylistEntryVolume::Dump(void)
 	LogDebug(VB_PLAYLIST, "Volume: %d\n", m_volume);
 }
 
+/*
+ *
+ */
+Json::Value PlaylistEntryVolume::GetConfig(void)
+{
+	Json::Value result = PlaylistEntryBase::GetConfig();
+
+	result["volume"] = m_volume;
+
+	return result;
+}
