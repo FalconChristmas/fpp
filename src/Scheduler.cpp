@@ -35,14 +35,15 @@
 #include "common.h"
 #include "fpp.h"
 #include "log.h"
-#include "playlist/NewPlaylist.h"
+#include "Player.h"
 #include "Scheduler.h"
 #include "settings.h"
 
 /////////////////////////////////////////////////////////////////////////////
 
-Scheduler::Scheduler()
-  : m_ScheduleEntryCount(0),
+Scheduler::Scheduler(Player *parent)
+  : m_player(parent),
+	m_ScheduleEntryCount(0),
 	m_CurrentScheduleHasbeenLoaded(0),
 	m_NextScheduleHasbeenLoaded(0),
 	m_nowWeeklySeconds2(0),
@@ -398,7 +399,7 @@ void Scheduler::PlayListStopCheck(void)
         m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].endMinute,
         m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].endSecond);
       m_CurrentScheduleHasbeenLoaded = 0;
-      newPlaylist->StopGracefully();
+      m_player->PlaylistStopGracefully();
     }
   }
 
@@ -717,12 +718,7 @@ int Scheduler::StartScheduledPlaylist(int index, int nowWeeklySeconds)
 	if (index >= m_ScheduleEntryCount)
 		return 0;
 
-	if (!newPlaylist->Load(m_Schedule[index].playList))
-		return 0;
-
-	newPlaylist->SetRepeat(m_Schedule[index].repeat);
-
-	if (!newPlaylist->Start())
+	if (!m_player->PlaylistStart(m_Schedule[index].playList, 0, m_Schedule[index].repeat))
 		return 0;
 
 	LogInfo(VB_SCHEDULE, "Schedule Entry: %02d:%02d:%02d - %02d:%02d:%02d - Starting Playlist %s for %d seconds, CurrEndSecs: %d\n",

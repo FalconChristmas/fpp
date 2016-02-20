@@ -101,6 +101,4 @@ class NewPlaylist {
 	std::vector<PlaylistEntryBase*> *m_currentSection;
 };
 
-extern NewPlaylist *newPlaylist;
-
 #endif

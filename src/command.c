@@ -35,7 +35,6 @@
 #include "settings.h"
 #include "Sequence.h"
 #include "effects.h"
-#include "playlist/NewPlaylist.h"
 #include "Plugins.h"
 #include "FPD.h"
 #include "events.h"
@@ -261,7 +260,7 @@ extern PluginCallbackManager pluginCallbackManager;
 		{
 				if(FPPstatus==FPP_STATUS_PLAYLIST_PLAYING)
 				{
-					newPlaylist->StopGracefully();
+					player->PlaylistStopGracefully();
 					player->ReLoadCurrentScheduleInfo();
 					sprintf(response,"%d,%d,Playlist Stopping Gracefully,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
 				}
@@ -274,7 +273,7 @@ extern PluginCallbackManager pluginCallbackManager;
 		{
 				if(FPPstatus==FPP_STATUS_PLAYLIST_PLAYING || FPPstatus==FPP_STATUS_STOPPING_GRACEFULLY)
 				{
-					newPlaylist->StopNow();
+					player->PlaylistStopNow();
 					player->ReLoadCurrentScheduleInfo();
 					sprintf(response,"%d,%d,Playlist Stopping Now,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
 				}

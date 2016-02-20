@@ -28,7 +28,7 @@
 #include "httpAPI.h"
 #include "log.h"
 #include "settings.h"
-#include "playlist/NewPlaylist.h"
+#include "Player.h"
 
 #include <iostream>
 
@@ -147,7 +147,7 @@ void HttpCurrentPlaylistResource::render(const http_request &req, http_response 
 {
 	LogRequest(req);
 
-	Json::Value result = newPlaylist->GetConfig();
+	Json::Value result = player->GetCurrentPlaylist();
 
 	Json::FastWriter fastWriter;
 	std::string resultStr = fastWriter.write(result);

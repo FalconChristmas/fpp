@@ -51,8 +51,6 @@
 #include "PlaylistEntrySequence.h"
 #include "PlaylistEntryVolume.h"
 
-NewPlaylist *newPlaylist = NULL;
-
 /*
  *
  */
@@ -286,6 +284,8 @@ int NewPlaylist::Start(void)
  */
 int NewPlaylist::StopNow(void)
 {
+	LogDebug(VB_PLAYLIST, "NewPlaylist::StopNow()\n");
+
 	FPPstatus = FPP_STATUS_STOPPING_NOW;
 
 	return 1;
@@ -296,6 +296,8 @@ int NewPlaylist::StopNow(void)
  */
 int NewPlaylist::StopGracefully(int afterCurrentLoop)
 {
+	LogDebug(VB_PLAYLIST, "NewPlaylist::StopGracefully()\n");
+
 	// FIXME PLAYLIST, get rid of this
 	FPPstatus = FPP_STATUS_STOPPING_GRACEFULLY;
 

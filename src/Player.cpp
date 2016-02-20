@@ -56,7 +56,6 @@
 #include "mediaoutput.h"
 #include "PixelOverlay.h"
 #include "Player.h"
-#include "playlist/NewPlaylist.h"
 #include "Plugins.h"
 #include "Scheduler.h"
 #include "Sequence.h"
@@ -111,7 +110,7 @@ void Player::MainLoop(void)
 
 	if (getFPPmode() & PLAYER_MODE)
 	{
-		m_scheduler = new Scheduler();
+		m_scheduler = new Scheduler(this);
 
 		if (!m_scheduler)
 		{
@@ -271,8 +270,7 @@ void Player::MainLoop(void)
 				{
 					m_newPlaylist->Cleanup();
 
-// FIXME, do we still need this?
-//					m_scheduler->ReLoadCurrentScheduleInfo();
+					m_scheduler->ReLoadCurrentScheduleInfo();
 
 					if (FPPstatus != FPP_STATUS_IDLE)
 						reactivated = 1;
@@ -293,6 +291,7 @@ void Player::MainLoop(void)
 			if(mediaOutputStatus.status == MEDIAOUTPUTSTATUS_PLAYING)
 			{
 // FIXME playlist
+// when in remote mode, who owns the sequences and mediaoutputs we are playing?
 //				playlist->PlaylistProcessMediaData();
 LogDebug(VB_PLAYER, "FIXME PLAYLIST\n");
 			}
@@ -327,6 +326,9 @@ void Player::Shutdown(void)
  */
 int Player::PlaylistStart(std::string playlistName, int position, int repeat)
 {
+	LogDebug(VB_PLAYER, "Player::PlaylistStart(%s, %d, %d)\n",
+		playlistName.c_str(), position, repeat);
+
 	if (!m_newPlaylist)
 		return 0;
 
@@ -1046,5 +1048,19 @@ void Player::CalculateNewChannelOutputDelayForFrame(int expectedFramesSent)
 	{
 		m_lightDelay = m_defaultLightDelay;
 	}
+}
+
+/*
+ *
+ */
+Json::Value Player::GetCurrentPlaylist(void)
+{
+	if (!m_newPlaylist)
+	{
+		Json::Value result;
+		return result;
+	}
+
+	return m_newPlaylist->GetConfig();
 }
 

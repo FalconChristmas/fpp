@@ -85,6 +85,8 @@ class Player {
 	void ReLoadCurrentScheduleInfo(void);
 	void ReLoadNextScheduleInfo(void);
 
+	Json::Value GetCurrentPlaylist(void);
+
   private:
 	void ProcessChannelData(void);
     char NormalizeControlValue(char in);
