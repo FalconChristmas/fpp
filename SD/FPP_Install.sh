@@ -59,9 +59,9 @@
 #             filesystem as per the information.txt file on recombi.net.
 #
 #############################################################################
-SCRIPTVER="0.8"
+SCRIPTVER="0.9"
 FPPBRANCH="master"
-FPPIMAGEVER="1.5"
+FPPIMAGEVER="2.0alpha"
 FPPCFGVER="18"
 FPPPLATFORM="UNKNOWN"
 FPPDIR="/opt/fpp"
@@ -160,15 +160,15 @@ then
 	OSVER="debian_${VERSION_ID}"
 elif [ "x${VARIANT}" = "xDebian on C.H.I.P" ]; then
 	FPPPLATFORM="CHIP"
-elif [ "x${OSID}" = "xdebian" ]
-then
-	FPPPLATFORM="Debian"
 elif [ -e "/sys/class/leds/beaglebone:green:usr0" ]
 then
 	FPPPLATFORM="BeagleBone Black"
 elif [ ! -z "$(grep ODROIDC /proc/cpuinfo)" ]
 then
 	FPPPLATFORM="ODROID"
+elif [ "x${OSID}" = "xdebian" ]
+then
+	FPPPLATFORM="Debian"
 else
 	FPPPLATFORM="UNKNOWN"
 fi
@@ -290,13 +290,16 @@ export DEBIAN_FRONTEND=noninteractive
 
 case "${OSVER}" in
 	debian_7|debian_8)
-		if [ "x$FPPPLATFORM" = "xCHIP" ]; then
-			echo "FPP - Skipping non-free for CHIP"
-		else
-			echo "FPP - Enabling non-free repo"
-			sed -i -e "s/^deb \(.*\)/deb \1 non-free/" /etc/apt/sources.list
-			sed -i -e "s/non-free\(.*\)non-free/non-free\1/" /etc/apt/sources.list
-		fi
+		case $FPPPLATFORM in
+			'CHIP'|'BeagleBone Black')
+				echo "FPP - Skipping non-free for $FPPPLATFORM"
+				;;
+			*)
+				echo "FPP - Enabling non-free repo"
+				sed -i -e "s/^deb \(.*\)/deb \1 non-free/" /etc/apt/sources.list
+				sed -i -e "s/non-free\(.*\)non-free/non-free\1/" /etc/apt/sources.list
+				;;
+		esac
 
 		echo "FPP - Marking unneeded packages for removal to save space"
 		for package in gnome-icon-theme gnome-accessibility-themes gnome-themes-standard \
@@ -461,6 +464,7 @@ EOF
 		;;
 
 	'Raspberry Pi')
+		echo "FPP - Updating firmware for Raspberry Pi install"
 		#https://raw.githubusercontent.com/Hexxeh/rpi-update/master/rpi-update
 		wget http://goo.gl/1BOfJ -O /usr/bin/rpi-update && chmod +x /usr/bin/rpi-update
 		SKIP_WARNING=1 rpi-update 12f0636cd11ebd7ec189534147ea23ce4f702e90
