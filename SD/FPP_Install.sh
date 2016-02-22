@@ -373,8 +373,9 @@ case "${OSVER}" in
 		echo "FPP - Cleaning up after installing packages"
 		apt-get -y clean
 
-		echo "FPP - Installing non-packaged Perl modules via CPAN"
-		echo "yes" | cpan -fi Test::Tester File::Map Net::WebSocket::Server
+		echo "FPP - Installing non-packaged Perl modules via App::cpanminus"
+		curl -L https://cpanmin.us | perl - --sudo App::cpanminus
+		echo "yes" | cpanm -fi Test::Tester File::Map Net::WebSocket::Server
 
 		echo "FPP - Disabling any stock 'debian' user, use the 'fpp' user instead"
 		sed -i -e "s/^debian:.*/debian:*:16372:0:99999:7:::/" /etc/shadow
