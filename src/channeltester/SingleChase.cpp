@@ -96,9 +96,9 @@ void TestPatternSingleChase::CycleData(void)
 	memmove(m_testData + 1, m_testData, m_channelCount - 1);
 
 	if (m_testData[m_chaseSize] == m_chaseValue)
-		m_testData[m_channelCount - 1] = m_chaseValue;
+		m_testData[0] = m_chaseValue;
 	else
-		m_testData[m_channelCount - 1] = 0x00;
+		m_testData[0] = 0x00;
 }
 
 /*
