@@ -360,7 +360,8 @@ case "${OSVER}" in
 						php5-sqlite php-apc python-daemon python-smbus samba \
 						samba-common-bin shellinabox sudo sysstat tcpdump usbmount vim \
 						vim-common vorbis-tools vsftpd firmware-realtek gcc g++\
-						network-manager dhcp-helper hostapd parprouted bridge-utils
+						network-manager dhcp-helper hostapd parprouted bridge-utils \
+						firmware-atheros firmware-ralink firmware-brcm80211
 		do
 			apt-get -y install ${package}
 			let packages=$((${packages}+1))
