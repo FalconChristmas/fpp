@@ -108,7 +108,7 @@ if ($settings['Platform'] == FALSE)
 
 if ($settings['Platform'] == "Raspberry Pi")
 {
-	exec("grep processor /proc/cpuinfo | wc -l", $output);
+	exec("grep -c ^processor /proc/cpuinfo", $output);
 	$settings['Logo'] = "large_Raspberry_Pi_Logo_".$output[0].".png";
 	unset($output);
 	$settings['LogoLink'] = "http://raspberrypi.org/";
