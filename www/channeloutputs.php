@@ -686,6 +686,18 @@ function RPIWS281XLayoutChanged(item) {
 	var string1Pixels = parseInt($(item).parent().parent().find("input.string1Pixels").val());
 	var string2Pixels = parseInt($(item).parent().parent().find("input.string2Pixels").val());
 
+	if (string1Pixels > 1000) {
+		DialogError("Invalid Pixel Count", "Invalid Pixel Count, max 1000");
+		$(item).parent().parent().find("input.string1Pixels").val("1000");
+		string1Pixels = 1000;
+	}
+
+	if (string2Pixels > 1000) {
+		DialogError("Invalid Pixel Count", "Invalid Pixel Count, max 1000");
+		$(item).parent().parent().find("input.string2Pixels").val("1000");
+		string2Pixels = 1000;
+	}
+
 	var channels = (string1Pixels + string2Pixels) * 3;
 
 	$(item).parent().parent().find("input.count").val(channels);
@@ -744,6 +756,9 @@ function GetRPIWS281XOutputConfig(cell) {
 	var result = "";
 	var value = $cell.find("input.string1Pixels").val();
 
+	if (parseInt(value) > 1000)
+		return "";
+
 	if (value == "")
 		return "";
 
@@ -757,6 +772,9 @@ function GetRPIWS281XOutputConfig(cell) {
 	result += "string1ColorOrder=" + colorOrder + ";";
 	
 	value = $cell.find("input.string2Pixels").val();
+
+	if (parseInt(value) > 1000)
+		return "";
 
 	if (value == "")
 		return "";
@@ -1402,7 +1420,8 @@ function SetChannelOutputs() {
 				DialogError("Save Channel Outputs", "Invalid RPIWS281X Config");
 				return;
 			}
-			maxChannels = 1200;
+			// Two outputs with max 1000 pixels per output
+			maxChannels = 6000;
 		} else if (type == "VirtualMatrix") {
 			config += GetVirtualMatrixOutputConfig($this.find("td:nth-child(6)"));
 			if (config == "") {
