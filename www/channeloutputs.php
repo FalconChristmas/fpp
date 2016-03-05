@@ -738,10 +738,10 @@ function RPIWS281XConfig(cfgStr) {
    		data[item[0]] = item[1];
 	}
 	
-	result += "String #1 Pixels: <input class='string1Pixels' size='3' maxlength='3' value='" + data["string1Pixels"] + "' onChange='RPIWS281XLayoutChanged(this);'> ";
+	result += "String #1 Pixels: <input class='string1Pixels' size='4' maxlength='4' value='" + data["string1Pixels"] + "' onChange='RPIWS281XLayoutChanged(this);'> ";
 	result += RPIWS281XColorOrderSelect("string1ColorOrder", data["string1ColorOrder"]) + " (GPIO 18)<br>";
 	
-	result += "String #2 Pixels: <input class='string2Pixels' size='3' maxlength='3' value='" + data["string2Pixels"] + "' onChange='RPIWS281XLayoutChanged(this);'> ";
+	result += "String #2 Pixels: <input class='string2Pixels' size='4' maxlength='4' value='" + data["string2Pixels"] + "' onChange='RPIWS281XLayoutChanged(this);'> ";
 	result += RPIWS281XColorOrderSelect("string2ColorOrder", data["string2ColorOrder"]) + " (GPIO 19)<br>";
 
 	return result;
