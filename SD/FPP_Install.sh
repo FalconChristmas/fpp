@@ -425,32 +425,55 @@ esac
 # Platform-specific config
 case "${FPPPLATFORM}" in
 	'BeagleBone Black')
-		echo "FPP - Disabling HDMI for Falcon and LEDscape cape support"
-		echo >> /boot/uboot/uEnv.txt
-		echo "# Disable HDMI for Falcon and LEDscape cape support" >> /boot/uboot/uEnv.txt
-		echo "cape_disable=capemgr.disable_partno=BB-BONELT-HDMI,BB-BONELT-HDMIN" >> /boot/uboot/uEnv.txt
-		echo >> /boot/uboot/uEnv.txt
 
-		echo "FPP - Installing OLA packages"
-		apt-get -y --force-yes install libcppunit-dev uuid-dev pkg-config libncurses5-dev libtool autoconf automake libmicrohttpd-dev protobuf-compiler python-protobuf libprotobuf-dev libprotoc-dev bison flex libftdi-dev libftdi1 libusb-1.0-0-dev liblo-dev
-		apt-get -y clean
+		case "${OSVER}" in
+			'debian_8')
+				echo "FPP - Disabling HDMI for Falcon and LEDscape cape support"
+				sed -i -e 's/#dtb=am335x-boneblack-emmc-overlay.dtb/dtb=am335x-boneblack-emmc-overlay.dtb/' /boot/uEnv.txt
 
-		mkdir /tmp/deb
-		cd /tmp/deb
-		FILES="libola-dev_0.9.7-1_armhf.deb libola1_0.9.7-1_armhf.deb ola-python_0.9.7-1_all.deb ola-rdm-tests_0.9.7-1_all.deb ola_0.9.7-1_armhf.deb"
-		for FILE in ${FILES}
-		do
-			# FIXME, get these from github after release is tagged
-			wget -nd http://www.bc2va.org/chris/tmp/fpp/deb/${FILE}
-		done
-		dpkg --unpack ${FILES}
-		rm -f ${FILES}
-#		apt-get -y --force-yes install libcppunit-dev libcppunit-1.12-1 uuid-dev pkg-config libncurses5-dev libtool autoconf automake libmicrohttpd-dev protobuf-compiler python-protobuf libprotobuf-dev libprotoc-dev bison flex libftdi-dev libftdi1 libusb-1.0-0-dev liblo-dev
-#		git clone https://github.com/OpenLightingProject/ola.git /opt/ola
-#		(cd /opt/ola && autoreconf -i && ./configure --enable-python-libs && make && make install && ldconfig && cd /opt/ && rm -rf ola)
+				echo "FPP - Installing BeagleBone Overlays"
+				cd /opt/ && git clone https://github.com/beagleboard/bb.org-overlays && cd /opt/bb.org-overlays && make && make install && cd /opt/ && rm -rf bb.org-overlays
 
-		echo "FPP - Installing updated 8192cu module"
-		wget -O /lib/modules/3.8.13-bone50/kernel/drivers/net/wireless/8192cu.ko https://github.com/FalconChristmas/fpp/releases/download/1.5/8192cu.ko
+				echo "FPP - Installing OLA"
+				apt-get -y install ola ola-python libola-dev libola1
+				update-rc.d olad remove
+
+				echo "FPP - Updating locale"
+				sed -i -e 's/# en_US.UTF-8/en_US.UTF-8/' /etc/locale.gen
+				dpkg-reconfigure --frontend=noninteractive locales
+				update-locale LANG=en_US.UTF-8
+
+				echo "FPP - Installing updated 8192cu module"
+				# FIXME, get this in github once kernel version is finalized
+				wget -O /lib/modules/4.1.17-ti-rt-r48/kernel/drivers/net/wireless/8192cu.ko http://fpp.bc2va.org/modules/8192cu-4.1.17-ti-rt-r48.ko
+				#wget -O /lib/modules/4.1.17-ti-rt-r48/kernel/drivers/net/wireless/8192cu.ko https://github.com/FalconChristmas/fpp/releases/download/1.5/8192cu.ko
+				;;
+
+			'debian_7')
+				echo "FPP - Disabling HDMI for Falcon and LEDscape cape support"
+				echo >> /boot/uboot/uEnv.txt
+				echo "# Disable HDMI for Falcon and LEDscape cape support" >> /boot/uboot/uEnv.txt
+				echo "cape_disable=capemgr.disable_partno=BB-BONELT-HDMI,BB-BONELT-HDMIN" >> /boot/uboot/uEnv.txt
+				echo >> /boot/uboot/uEnv.txt
+
+				echo "FPP - Installing OLA packages"
+				apt-get -y --force-yes install libcppunit-dev libcppunit-1.12-1 uuid-dev pkg-config libncurses5-dev libtool autoconf automake libmicrohttpd-dev protobuf-compiler python-protobuf libprotobuf-dev libprotoc-dev bison flex libftdi-dev libftdi1 libusb-1.0-0-dev liblo-dev
+				apt-get -y clean
+				mkdir /tmp/deb
+				cd /tmp/deb
+				FILES="libola-dev_0.9.7-1_armhf.deb libola1_0.9.7-1_armhf.deb ola-python_0.9.7-1_all.deb ola-rdm-tests_0.9.7-1_all.deb ola_0.9.7-1_armhf.deb"
+				for FILE in ${FILES}
+				do
+					# FIXME, get these from github after release is tagged
+					wget -nd http://www.bc2va.org/chris/tmp/fpp/deb/${FILE}
+				done
+				dpkg --unpack ${FILES}
+				rm -f ${FILES}
+
+				echo "FPP - Installing updated 8192cu module"
+				wget -O /lib/modules/3.8.13-bone50/kernel/drivers/net/wireless/8192cu.ko https://github.com/FalconChristmas/fpp/releases/download/1.5/8192cu.ko
+				;;
+		esac
 
 		echo "FPP - Disabling power management for 8192cu wireless"
 cat <<-EOF >> /etc/modprobe.d/8192cu.conf
