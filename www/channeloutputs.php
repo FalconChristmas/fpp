@@ -200,21 +200,10 @@ var SerialDevices = new Array();
 		if ((preg_match("/^ttyS[0-9]+/", $fileName)) ||
 			(preg_match("/^ttyACM[0-9]+/", $fileName)) ||
 			(preg_match("/^ttyO[0-9]/", $fileName)) ||
+			(preg_match("/^ttyS[0-9]/", $fileName)) ||
 			(preg_match("/^ttyAMA[0-9]+/", $fileName)) ||
 			(preg_match("/^ttyUSB[0-9]+/", $fileName))) {
 			echo "SerialDevices['$fileName'] = '$fileName';\n";
-		}
-	}
-?>
-
-// USB Dongles /dev/ttyUSB*
-var USBDevices = new Array();
-<?
-	foreach(scandir("/dev/") as $fileName)
-	{
-		if ((preg_match("/^ttyUSB[0-9]+/", $fileName)) ||
-				(preg_match("/^ttyAMA[0-9]+/", $fileName))) {
-			echo "USBDevices['$fileName'] = '$fileName';\n";
 		}
 	}
 ?>
@@ -228,7 +217,7 @@ function USBDeviceConfig(config) {
 		var item = items[j].split("=");
 
 		if (item[0] == "device") {
-			result += DeviceSelect(USBDevices, item[1]);
+			result += DeviceSelect(SerialDevices, item[1]);
 		}
 	}
 
@@ -247,7 +236,7 @@ function GetUSBOutputConfig(cell) {
 
 function NewUSBConfig() {
 	var result = "";
-	result += DeviceSelect(USBDevices, "");
+	result += DeviceSelect(SerialDevices, "");
 	return result;
 }
 
@@ -548,7 +537,7 @@ function TriksLayoutChanged(item) {
 
 function NewTriksConfig() {
 	var result = "";
-	result += DeviceSelect(USBDevices, "");
+	result += DeviceSelect(SerialDevices, "");
 	result += TriksLayoutSelect("");
 	return result;
 }
@@ -561,7 +550,7 @@ function TriksDeviceConfig(config) {
 		var item = items[j].split("=");
 
 		if (item[0] == "device") {
-			result += DeviceSelect(USBDevices, item[1]);
+			result += DeviceSelect(SerialDevices, item[1]);
 		} else if (item[0] == "layout") {
 			result += TriksLayoutSelect(item[1]);
 		}
@@ -1540,22 +1529,16 @@ function OtherTypeSelected(selectbox) {
 
 	var type = $(selectbox).val();
 
-	if ((Object.keys(USBDevices).length == 0) &&
+	if ((Object.keys(SerialDevices).length == 0) &&
 			((type == 'DMX-Pro') ||
 			 (type == 'DMX-Open') ||
+			 (type == 'LOR') ||
 			 (type == 'Pixelnet-Lynx') ||
 			 (type == 'Pixelnet-Open') ||
+			 (type == 'Renard') ||
 			 (type == 'Triks-C')))
 	{
 		DialogError("Add Output", "No available serial devices detected.  Do you have a USB Serial Dongle attached?");
-		$row.remove();
-		return;
-	}
-
-	if ((Object.keys(SerialDevices).length == 0) &&
-			((type == 'Renard') || (type == 'LOR')))
-	{
-		DialogError("Add Output", "No available serial devices detected.");
 		$row.remove();
 		return;
 	}
@@ -1579,8 +1562,7 @@ function OtherTypeSelected(selectbox) {
 }
 
 function AddOtherOutput() {
-	if ((Object.keys(USBDevices).length == 0) &&
-		(Object.keys(SerialDevices).length == 0) &&
+	if ((Object.keys(SerialDevices).length == 0) &&
 		(Object.keys(SPIDevices).length == 0)) {
 		DialogError("Add Output", "No available devices found for new outputs");
 		return;
