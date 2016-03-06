@@ -999,7 +999,7 @@ module.exports = main;
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 }).apply(this, arguments);
 
-},{"../lib/has":9,"../lib/str-set":10,"lodash/array/zipObject":75,"lodash/collection/filter":76,"lodash/collection/forEach":77,"lodash/collection/map":78,"lodash/collection/some":79,"lodash/object/assign":134,"lodash/object/forOwn":135,"lodash/object/mapValues":138}],9:[function(require,module,exports){
+},{"../lib/has":9,"../lib/str-set":10,"lodash/array/zipObject":78,"lodash/collection/filter":79,"lodash/collection/forEach":80,"lodash/collection/map":81,"lodash/collection/some":82,"lodash/object/assign":137,"lodash/object/forOwn":138,"lodash/object/mapValues":141}],9:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/browserify-hmr/lib/has.js", module);
 (function(){
 'use strict';
@@ -2596,7 +2596,7 @@ Socket.prototype.filterUpgrades = function (upgrades) {
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 }).apply(this, arguments);
 
-},{"./transport":54,"./transports":55,"component-emitter":12,"debug":61,"engine.io-parser":65,"indexof":70,"parsejson":143,"parseqs":144,"parseuri":64}],54:[function(require,module,exports){
+},{"./transport":54,"./transports":55,"component-emitter":12,"debug":61,"engine.io-parser":65,"indexof":70,"parsejson":146,"parseqs":147,"parseuri":64}],54:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/engine.io-client/lib/transport.js", module);
 (function(){
 /**
@@ -3706,7 +3706,7 @@ Polling.prototype.uri = function(){
 
 }).apply(this, arguments);
 
-},{"../transport":54,"component-inherit":13,"debug":61,"engine.io-parser":65,"parseqs":144,"xmlhttprequest":60}],59:[function(require,module,exports){
+},{"../transport":54,"component-inherit":13,"debug":61,"engine.io-parser":65,"parseqs":147,"xmlhttprequest":60}],59:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/engine.io-client/lib/transports/websocket.js", module);
 (function(){
 /**
@@ -3950,7 +3950,7 @@ WS.prototype.check = function(){
 
 }).apply(this, arguments);
 
-},{"../transport":54,"component-inherit":13,"debug":61,"engine.io-parser":65,"parseqs":144,"ws":185}],60:[function(require,module,exports){
+},{"../transport":54,"component-inherit":13,"debug":61,"engine.io-parser":65,"parseqs":147,"ws":189}],60:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/engine.io-client/lib/xmlhttprequest.js", module);
 (function(){
 // browser shim for xmlhttprequest module
@@ -5112,7 +5112,7 @@ exports.decodePayloadAsBinary = function (data, binaryType, callback) {
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 }).apply(this, arguments);
 
-},{"./keys":66,"after":2,"arraybuffer.slice":3,"base64-arraybuffer":6,"blob":7,"has-binary":68,"utf8":159}],66:[function(require,module,exports){
+},{"./keys":66,"after":2,"arraybuffer.slice":3,"base64-arraybuffer":6,"blob":7,"has-binary":68,"utf8":162}],66:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/engine.io-parser/lib/keys.js", module);
 (function(){
 
@@ -5271,6 +5271,1564 @@ module.exports = Array.isArray || function (arr) {
 }).apply(this, arguments);
 
 },{}],72:[function(require,module,exports){
+_hmr["websocket:null"].initModule("node_modules/jquery.inputmask/dist/inputmask/inputmask.dependencyLib.jquery.js", module);
+(function(){
+/*!
+* inputmask.dependencyLib.jquery.js
+* http://github.com/RobinHerbots/jquery.inputmask
+* Copyright (c) 2010 - 2016 Robin Herbots
+* Licensed under the MIT license (http://www.opensource.org/licenses/mit-license.php)
+* Version: 3.2.7
+*/
+!function(factory) {
+    "function" == typeof define && define.amd ? define([ "jquery" ], factory) : "object" == typeof exports ? module.exports = factory(require("jquery")) : factory(jQuery);
+}(function($) {
+    return window.dependencyLib = $, $;
+});
+}).apply(this, arguments);
+
+},{"jquery":75}],73:[function(require,module,exports){
+_hmr["websocket:null"].initModule("node_modules/jquery.inputmask/dist/inputmask/inputmask.js", module);
+(function(){
+/*!
+* inputmask.js
+* http://github.com/RobinHerbots/jquery.inputmask
+* Copyright (c) 2010 - 2016 Robin Herbots
+* Licensed under the MIT license (http://www.opensource.org/licenses/mit-license.php)
+* Version: 3.2.7
+*/
+!function(factory) {
+    "function" == typeof define && define.amd ? define([ "inputmask.dependencyLib" ], factory) : "object" == typeof exports ? module.exports = factory(require("./inputmask.dependencyLib.jquery")) : factory(window.dependencyLib || jQuery);
+}(function($) {
+    function Inputmask(alias, options) {
+        return this instanceof Inputmask ? ($.isPlainObject(alias) ? options = alias : (options = options || {}, 
+        options.alias = alias), this.el = void 0, this.opts = $.extend(!0, {}, this.defaults, options), 
+        this.noMasksCache = options && void 0 !== options.definitions, this.userOptions = options || {}, 
+        this.events = {}, void resolveAlias(this.opts.alias, options, this.opts)) : new Inputmask(alias, options);
+    }
+    function isInputEventSupported(eventName) {
+        var el = document.createElement("input"), evName = "on" + eventName, isSupported = evName in el;
+        return isSupported || (el.setAttribute(evName, "return;"), isSupported = "function" == typeof el[evName]), 
+        el = null, isSupported;
+    }
+    function isElementTypeSupported(input, opts) {
+        var elementType = input.getAttribute("type"), isSupported = "INPUT" === input.tagName && -1 !== $.inArray(elementType, opts.supportsInputType) || input.isContentEditable || "TEXTAREA" === input.tagName;
+        if (!isSupported) {
+            var el = document.createElement("input");
+            el.setAttribute("type", elementType), isSupported = "text" === el.type, el = null;
+        }
+        return isSupported;
+    }
+    function resolveAlias(aliasStr, options, opts) {
+        var aliasDefinition = opts.aliases[aliasStr];
+        return aliasDefinition ? (aliasDefinition.alias && resolveAlias(aliasDefinition.alias, void 0, opts), 
+        $.extend(!0, opts, aliasDefinition), $.extend(!0, opts, options), !0) : (null === opts.mask && (opts.mask = aliasStr), 
+        !1);
+    }
+    function importAttributeOptions(npt, opts, userOptions) {
+        function importOption(option, optionData) {
+            optionData = void 0 !== optionData ? optionData : npt.getAttribute("data-inputmask-" + option), 
+            null !== optionData && ("string" == typeof optionData && (0 === option.indexOf("on") ? optionData = window[optionData] : "false" === optionData ? optionData = !1 : "true" === optionData && (optionData = !0)), 
+            userOptions[option] = optionData);
+        }
+        var option, dataoptions, optionData, p, attrOptions = npt.getAttribute("data-inputmask");
+        if (attrOptions && "" !== attrOptions && (attrOptions = attrOptions.replace(new RegExp("'", "g"), '"'), 
+        dataoptions = JSON.parse("{" + attrOptions + "}")), dataoptions) {
+            optionData = void 0;
+            for (p in dataoptions) if ("alias" === p.toLowerCase()) {
+                optionData = dataoptions[p];
+                break;
+            }
+        }
+        importOption("alias", optionData), userOptions.alias && resolveAlias(userOptions.alias, userOptions, opts);
+        for (option in opts) {
+            if (dataoptions) {
+                optionData = void 0;
+                for (p in dataoptions) if (p.toLowerCase() === option.toLowerCase()) {
+                    optionData = dataoptions[p];
+                    break;
+                }
+            }
+            importOption(option, optionData);
+        }
+        return $.extend(!0, opts, userOptions), opts;
+    }
+    function generateMaskSet(opts, nocache) {
+        function analyseMask(mask) {
+            function MaskToken(isGroup, isOptional, isQuantifier, isAlternator) {
+                this.matches = [], this.isGroup = isGroup || !1, this.isOptional = isOptional || !1, 
+                this.isQuantifier = isQuantifier || !1, this.isAlternator = isAlternator || !1, 
+                this.quantifier = {
+                    min: 1,
+                    max: 1
+                };
+            }
+            function insertTestDefinition(mtoken, element, position) {
+                var maskdef = opts.definitions[element];
+                position = void 0 !== position ? position : mtoken.matches.length;
+                var prevMatch = mtoken.matches[position - 1];
+                if (maskdef && !escaped) {
+                    maskdef.placeholder = $.isFunction(maskdef.placeholder) ? maskdef.placeholder(opts) : maskdef.placeholder;
+                    for (var prevalidators = maskdef.prevalidator, prevalidatorsL = prevalidators ? prevalidators.length : 0, i = 1; i < maskdef.cardinality; i++) {
+                        var prevalidator = prevalidatorsL >= i ? prevalidators[i - 1] : [], validator = prevalidator.validator, cardinality = prevalidator.cardinality;
+                        mtoken.matches.splice(position++, 0, {
+                            fn: validator ? "string" == typeof validator ? new RegExp(validator) : new function() {
+                                this.test = validator;
+                            }() : new RegExp("."),
+                            cardinality: cardinality ? cardinality : 1,
+                            optionality: mtoken.isOptional,
+                            newBlockMarker: void 0 === prevMatch || prevMatch.def !== (maskdef.definitionSymbol || element),
+                            casing: maskdef.casing,
+                            def: maskdef.definitionSymbol || element,
+                            placeholder: maskdef.placeholder,
+                            mask: element
+                        }), prevMatch = mtoken.matches[position - 1];
+                    }
+                    mtoken.matches.splice(position++, 0, {
+                        fn: maskdef.validator ? "string" == typeof maskdef.validator ? new RegExp(maskdef.validator) : new function() {
+                            this.test = maskdef.validator;
+                        }() : new RegExp("."),
+                        cardinality: maskdef.cardinality,
+                        optionality: mtoken.isOptional,
+                        newBlockMarker: void 0 === prevMatch || prevMatch.def !== (maskdef.definitionSymbol || element),
+                        casing: maskdef.casing,
+                        def: maskdef.definitionSymbol || element,
+                        placeholder: maskdef.placeholder,
+                        mask: element
+                    });
+                } else mtoken.matches.splice(position++, 0, {
+                    fn: null,
+                    cardinality: 0,
+                    optionality: mtoken.isOptional,
+                    newBlockMarker: void 0 === prevMatch || prevMatch.def !== element,
+                    casing: null,
+                    def: opts.staticDefinitionSymbol || element,
+                    placeholder: void 0 !== opts.staticDefinitionSymbol ? element : void 0,
+                    mask: element
+                }), escaped = !1;
+            }
+            function verifyGroupMarker(lastMatch, isOpenGroup) {
+                lastMatch.isGroup && (lastMatch.isGroup = !1, insertTestDefinition(lastMatch, opts.groupmarker.start, 0), 
+                isOpenGroup !== !0 && insertTestDefinition(lastMatch, opts.groupmarker.end));
+            }
+            function maskCurrentToken(m, currentToken, lastMatch, extraCondition) {
+                currentToken.matches.length > 0 && (void 0 === extraCondition || extraCondition) && (lastMatch = currentToken.matches[currentToken.matches.length - 1], 
+                verifyGroupMarker(lastMatch)), insertTestDefinition(currentToken, m);
+            }
+            function defaultCase() {
+                if (openenings.length > 0) {
+                    if (currentOpeningToken = openenings[openenings.length - 1], maskCurrentToken(m, currentOpeningToken, lastMatch, !currentOpeningToken.isAlternator), 
+                    currentOpeningToken.isAlternator) {
+                        alternator = openenings.pop();
+                        for (var mndx = 0; mndx < alternator.matches.length; mndx++) alternator.matches[mndx].isGroup = !1;
+                        openenings.length > 0 ? (currentOpeningToken = openenings[openenings.length - 1], 
+                        currentOpeningToken.matches.push(alternator)) : currentToken.matches.push(alternator);
+                    }
+                } else maskCurrentToken(m, currentToken, lastMatch);
+            }
+            function reverseTokens(maskToken) {
+                function reverseStatic(st) {
+                    return st === opts.optionalmarker.start ? st = opts.optionalmarker.end : st === opts.optionalmarker.end ? st = opts.optionalmarker.start : st === opts.groupmarker.start ? st = opts.groupmarker.end : st === opts.groupmarker.end && (st = opts.groupmarker.start), 
+                    st;
+                }
+                maskToken.matches = maskToken.matches.reverse();
+                for (var match in maskToken.matches) {
+                    var intMatch = parseInt(match);
+                    if (maskToken.matches[match].isQuantifier && maskToken.matches[intMatch + 1] && maskToken.matches[intMatch + 1].isGroup) {
+                        var qt = maskToken.matches[match];
+                        maskToken.matches.splice(match, 1), maskToken.matches.splice(intMatch + 1, 0, qt);
+                    }
+                    void 0 !== maskToken.matches[match].matches ? maskToken.matches[match] = reverseTokens(maskToken.matches[match]) : maskToken.matches[match] = reverseStatic(maskToken.matches[match]);
+                }
+                return maskToken;
+            }
+            for (var match, m, openingToken, currentOpeningToken, alternator, lastMatch, groupToken, tokenizer = /(?:[?*+]|\{[0-9\+\*]+(?:,[0-9\+\*]*)?\})|[^.?*+^${[]()|\\]+|./g, escaped = !1, currentToken = new MaskToken(), openenings = [], maskTokens = []; match = tokenizer.exec(mask); ) if (m = match[0], 
+            escaped) defaultCase(); else switch (m.charAt(0)) {
+              case opts.escapeChar:
+                escaped = !0;
+                break;
+
+              case opts.optionalmarker.end:
+              case opts.groupmarker.end:
+                if (openingToken = openenings.pop(), void 0 !== openingToken) if (openenings.length > 0) {
+                    if (currentOpeningToken = openenings[openenings.length - 1], currentOpeningToken.matches.push(openingToken), 
+                    currentOpeningToken.isAlternator) {
+                        alternator = openenings.pop();
+                        for (var mndx = 0; mndx < alternator.matches.length; mndx++) alternator.matches[mndx].isGroup = !1;
+                        openenings.length > 0 ? (currentOpeningToken = openenings[openenings.length - 1], 
+                        currentOpeningToken.matches.push(alternator)) : currentToken.matches.push(alternator);
+                    }
+                } else currentToken.matches.push(openingToken); else defaultCase();
+                break;
+
+              case opts.optionalmarker.start:
+                openenings.push(new MaskToken(!1, !0));
+                break;
+
+              case opts.groupmarker.start:
+                openenings.push(new MaskToken(!0));
+                break;
+
+              case opts.quantifiermarker.start:
+                var quantifier = new MaskToken(!1, !1, !0);
+                m = m.replace(/[{}]/g, "");
+                var mq = m.split(","), mq0 = isNaN(mq[0]) ? mq[0] : parseInt(mq[0]), mq1 = 1 === mq.length ? mq0 : isNaN(mq[1]) ? mq[1] : parseInt(mq[1]);
+                if (("*" === mq1 || "+" === mq1) && (mq0 = "*" === mq1 ? 0 : 1), quantifier.quantifier = {
+                    min: mq0,
+                    max: mq1
+                }, openenings.length > 0) {
+                    var matches = openenings[openenings.length - 1].matches;
+                    match = matches.pop(), match.isGroup || (groupToken = new MaskToken(!0), groupToken.matches.push(match), 
+                    match = groupToken), matches.push(match), matches.push(quantifier);
+                } else match = currentToken.matches.pop(), match.isGroup || (groupToken = new MaskToken(!0), 
+                groupToken.matches.push(match), match = groupToken), currentToken.matches.push(match), 
+                currentToken.matches.push(quantifier);
+                break;
+
+              case opts.alternatormarker:
+                openenings.length > 0 ? (currentOpeningToken = openenings[openenings.length - 1], 
+                lastMatch = currentOpeningToken.matches.pop()) : lastMatch = currentToken.matches.pop(), 
+                lastMatch.isAlternator ? openenings.push(lastMatch) : (alternator = new MaskToken(!1, !1, !1, !0), 
+                alternator.matches.push(lastMatch), openenings.push(alternator));
+                break;
+
+              default:
+                defaultCase();
+            }
+            for (;openenings.length > 0; ) openingToken = openenings.pop(), verifyGroupMarker(openingToken, !0), 
+            currentToken.matches.push(openingToken);
+            return currentToken.matches.length > 0 && (lastMatch = currentToken.matches[currentToken.matches.length - 1], 
+            verifyGroupMarker(lastMatch), maskTokens.push(currentToken)), opts.numericInput && reverseTokens(maskTokens[0]), 
+            maskTokens;
+        }
+        function generateMask(mask, metadata) {
+            if (null === mask || "" === mask) return void 0;
+            if (1 === mask.length && opts.greedy === !1 && 0 !== opts.repeat && (opts.placeholder = ""), 
+            opts.repeat > 0 || "*" === opts.repeat || "+" === opts.repeat) {
+                var repeatStart = "*" === opts.repeat ? 0 : "+" === opts.repeat ? 1 : opts.repeat;
+                mask = opts.groupmarker.start + mask + opts.groupmarker.end + opts.quantifiermarker.start + repeatStart + "," + opts.repeat + opts.quantifiermarker.end;
+            }
+            var masksetDefinition;
+            return void 0 === Inputmask.prototype.masksCache[mask] || nocache === !0 ? (masksetDefinition = {
+                mask: mask,
+                maskToken: analyseMask(mask),
+                validPositions: {},
+                _buffer: void 0,
+                buffer: void 0,
+                tests: {},
+                metadata: metadata
+            }, nocache !== !0 && (Inputmask.prototype.masksCache[opts.numericInput ? mask.split("").reverse().join("") : mask] = masksetDefinition, 
+            masksetDefinition = $.extend(!0, {}, Inputmask.prototype.masksCache[opts.numericInput ? mask.split("").reverse().join("") : mask]))) : masksetDefinition = $.extend(!0, {}, Inputmask.prototype.masksCache[opts.numericInput ? mask.split("").reverse().join("") : mask]), 
+            masksetDefinition;
+        }
+        function preProcessMask(mask) {
+            return mask = mask.toString();
+        }
+        var ms;
+        if ($.isFunction(opts.mask) && (opts.mask = opts.mask(opts)), $.isArray(opts.mask)) {
+            if (opts.mask.length > 1) {
+                opts.keepStatic = null === opts.keepStatic ? !0 : opts.keepStatic;
+                var altMask = "(";
+                return $.each(opts.numericInput ? opts.mask.reverse() : opts.mask, function(ndx, msk) {
+                    altMask.length > 1 && (altMask += ")|("), altMask += preProcessMask(void 0 === msk.mask || $.isFunction(msk.mask) ? msk : msk.mask);
+                }), altMask += ")", generateMask(altMask, opts.mask);
+            }
+            opts.mask = opts.mask.pop();
+        }
+        return opts.mask && (ms = void 0 === opts.mask.mask || $.isFunction(opts.mask.mask) ? generateMask(preProcessMask(opts.mask), opts.mask) : generateMask(preProcessMask(opts.mask.mask), opts.mask)), 
+        ms;
+    }
+    function maskScope(actionObj, maskset, opts) {
+        function getMaskTemplate(baseOnInput, minimalPos, includeInput) {
+            minimalPos = minimalPos || 0;
+            var ndxIntlzr, test, testPos, maskTemplate = [], pos = 0, lvp = getLastValidPosition();
+            do {
+                if (baseOnInput === !0 && getMaskSet().validPositions[pos]) {
+                    var validPos = getMaskSet().validPositions[pos];
+                    test = validPos.match, ndxIntlzr = validPos.locator.slice(), maskTemplate.push(includeInput === !0 ? validPos.input : getPlaceholder(pos, test));
+                } else testPos = getTestTemplate(pos, ndxIntlzr, pos - 1), test = testPos.match, 
+                ndxIntlzr = testPos.locator.slice(), (opts.jitMasking === !1 || lvp > pos || isFinite(opts.jitMasking) && opts.jitMasking > pos) && maskTemplate.push(getPlaceholder(pos, test));
+                pos++;
+            } while ((void 0 === maxLength || maxLength > pos - 1) && null !== test.fn || null === test.fn && "" !== test.def || minimalPos >= pos);
+            return "" === maskTemplate[maskTemplate.length - 1] && maskTemplate.pop(), maskTemplate;
+        }
+        function getMaskSet() {
+            return maskset;
+        }
+        function resetMaskSet(soft) {
+            var maskset = getMaskSet();
+            maskset.buffer = void 0, soft !== !0 && (maskset.tests = {}, maskset._buffer = void 0, 
+            maskset.validPositions = {}, maskset.p = 0);
+        }
+        function getLastValidPosition(closestTo, strict) {
+            var before = -1, after = -1, valids = getMaskSet().validPositions;
+            void 0 === closestTo && (closestTo = -1);
+            for (var posNdx in valids) {
+                var psNdx = parseInt(posNdx);
+                valids[psNdx] && (strict || null !== valids[psNdx].match.fn) && (closestTo >= psNdx && (before = psNdx), 
+                psNdx >= closestTo && (after = psNdx));
+            }
+            return -1 !== before && closestTo - before > 1 || closestTo > after ? before : after;
+        }
+        function setValidPosition(pos, validTest, fromSetValid) {
+            if (opts.insertMode && void 0 !== getMaskSet().validPositions[pos] && void 0 === fromSetValid) {
+                var i, positionsClone = $.extend(!0, {}, getMaskSet().validPositions), lvp = getLastValidPosition();
+                for (i = pos; lvp >= i; i++) delete getMaskSet().validPositions[i];
+                getMaskSet().validPositions[pos] = validTest;
+                var j, valid = !0, vps = getMaskSet().validPositions;
+                for (i = j = pos; lvp >= i; i++) {
+                    var t = positionsClone[i];
+                    if (void 0 !== t) for (var posMatch = j, prevPosMatch = -1; posMatch < getMaskLength() && (null == t.match.fn && vps[i] && (vps[i].match.optionalQuantifier === !0 || vps[i].match.optionality === !0) || null != t.match.fn); ) {
+                        if (null === t.match.fn || !opts.keepStatic && vps[i] && (void 0 !== vps[i + 1] && getTests(i + 1, vps[i].locator.slice(), i).length > 1 || void 0 !== vps[i].alternation) ? posMatch++ : posMatch = seekNext(j), 
+                        positionCanMatchDefinition(posMatch, t.match.def)) {
+                            var result = isValid(posMatch, t.input, !0, !0);
+                            valid = result !== !1, j = result.caret || result.insert ? getLastValidPosition() : posMatch;
+                            break;
+                        }
+                        if (valid = null == t.match.fn, prevPosMatch === posMatch) break;
+                        prevPosMatch = posMatch;
+                    }
+                    if (!valid) break;
+                }
+                if (!valid) return getMaskSet().validPositions = $.extend(!0, {}, positionsClone), 
+                resetMaskSet(!0), !1;
+            } else getMaskSet().validPositions[pos] = validTest;
+            return resetMaskSet(!0), !0;
+        }
+        function stripValidPositions(start, end, nocheck, strict) {
+            var i, startPos = start;
+            for (getMaskSet().p = start, i = startPos; end > i; i++) void 0 !== getMaskSet().validPositions[i] && (nocheck === !0 || opts.canClearPosition(getMaskSet(), i, getLastValidPosition(), strict, opts) !== !1) && delete getMaskSet().validPositions[i];
+            for (i = startPos + 1; i <= getLastValidPosition(); ) {
+                for (;void 0 !== getMaskSet().validPositions[startPos]; ) startPos++;
+                var s = getMaskSet().validPositions[startPos];
+                if (startPos > i && (i = startPos + 1), void 0 === getMaskSet().validPositions[i] && isMask(i) || void 0 !== s) i++; else {
+                    var t = getTestTemplate(i);
+                    positionCanMatchDefinition(startPos, t.match.def) ? isValid(startPos, t.input || getPlaceholder(i), !0) !== !1 && (delete getMaskSet().validPositions[i], 
+                    i++) : isMask(i) || (i++, startPos--), startPos++;
+                }
+            }
+            var lvp = getLastValidPosition(), ml = getMaskLength();
+            for (strict !== !0 && nocheck !== !0 && void 0 !== getMaskSet().validPositions[lvp] && getMaskSet().validPositions[lvp].input === opts.radixPoint && delete getMaskSet().validPositions[lvp], 
+            i = lvp + 1; ml >= i; i++) getMaskSet().validPositions[i] && delete getMaskSet().validPositions[i];
+            resetMaskSet(!0);
+        }
+        function getTestTemplate(pos, ndxIntlzr, tstPs) {
+            var testPos = getMaskSet().validPositions[pos];
+            if (void 0 === testPos) for (var testPositions = getTests(pos, ndxIntlzr, tstPs), lvp = getLastValidPosition(), lvTest = getMaskSet().validPositions[lvp] || getTests(0)[0], lvTestAltArr = void 0 !== lvTest.alternation ? lvTest.locator[lvTest.alternation].toString().split(",") : [], ndx = 0; ndx < testPositions.length && (testPos = testPositions[ndx], 
+            !(testPos.match && (opts.greedy && testPos.match.optionalQuantifier !== !0 || (testPos.match.optionality === !1 || testPos.match.newBlockMarker === !1) && testPos.match.optionalQuantifier !== !0) && (void 0 === lvTest.alternation || lvTest.alternation !== testPos.alternation || void 0 !== testPos.locator[lvTest.alternation] && checkAlternationMatch(testPos.locator[lvTest.alternation].toString().split(","), lvTestAltArr)))); ndx++) ;
+            return testPos;
+        }
+        function getTest(pos) {
+            return getMaskSet().validPositions[pos] ? getMaskSet().validPositions[pos].match : getTests(pos)[0].match;
+        }
+        function positionCanMatchDefinition(pos, def) {
+            for (var valid = !1, tests = getTests(pos), tndx = 0; tndx < tests.length; tndx++) if (tests[tndx].match && tests[tndx].match.def === def) {
+                valid = !0;
+                break;
+            }
+            return valid;
+        }
+        function selectBestMatch(pos, alternateNdx) {
+            var bestMatch, indexPos;
+            return (getMaskSet().tests[pos] || getMaskSet().validPositions[pos]) && $.each(getMaskSet().tests[pos] || [ getMaskSet().validPositions[pos] ], function(ndx, lmnt) {
+                var ndxPos = lmnt.alternation ? lmnt.locator[lmnt.alternation].toString().indexOf(alternateNdx) : -1;
+                (void 0 === indexPos || indexPos > ndxPos) && -1 !== ndxPos && (bestMatch = lmnt, 
+                indexPos = ndxPos);
+            }), bestMatch;
+        }
+        function getTests(pos, ndxIntlzr, tstPs) {
+            function resolveTestFromToken(maskToken, ndxInitializer, loopNdx, quantifierRecurse) {
+                function handleMatch(match, loopNdx, quantifierRecurse) {
+                    function isFirstMatch(latestMatch, tokenGroup) {
+                        var firstMatch = 0 === $.inArray(latestMatch, tokenGroup.matches);
+                        return firstMatch || $.each(tokenGroup.matches, function(ndx, match) {
+                            return match.isQuantifier === !0 && (firstMatch = isFirstMatch(latestMatch, tokenGroup.matches[ndx - 1])) ? !1 : void 0;
+                        }), firstMatch;
+                    }
+                    function resolveNdxInitializer(pos, alternateNdx) {
+                        var bestMatch = selectBestMatch(pos, alternateNdx);
+                        return bestMatch ? bestMatch.locator.slice(bestMatch.alternation + 1) : [];
+                    }
+                    if (testPos > 1e4) throw "Inputmask: There is probably an error in your mask definition or in the code. Create an issue on github with an example of the mask you are using. " + getMaskSet().mask;
+                    if (testPos === pos && void 0 === match.matches) return matches.push({
+                        match: match,
+                        locator: loopNdx.reverse(),
+                        cd: cacheDependency
+                    }), !0;
+                    if (void 0 !== match.matches) {
+                        if (match.isGroup && quantifierRecurse !== match) {
+                            if (match = handleMatch(maskToken.matches[$.inArray(match, maskToken.matches) + 1], loopNdx)) return !0;
+                        } else if (match.isOptional) {
+                            var optionalToken = match;
+                            if (match = resolveTestFromToken(match, ndxInitializer, loopNdx, quantifierRecurse)) {
+                                if (latestMatch = matches[matches.length - 1].match, !isFirstMatch(latestMatch, optionalToken)) return !0;
+                                insertStop = !0, testPos = pos;
+                            }
+                        } else if (match.isAlternator) {
+                            var maltMatches, alternateToken = match, malternateMatches = [], currentMatches = matches.slice(), loopNdxCnt = loopNdx.length, altIndex = ndxInitializer.length > 0 ? ndxInitializer.shift() : -1;
+                            if (-1 === altIndex || "string" == typeof altIndex) {
+                                var amndx, currentPos = testPos, ndxInitializerClone = ndxInitializer.slice(), altIndexArr = [];
+                                if ("string" == typeof altIndex) altIndexArr = altIndex.split(","); else for (amndx = 0; amndx < alternateToken.matches.length; amndx++) altIndexArr.push(amndx);
+                                for (var ndx = 0; ndx < altIndexArr.length; ndx++) {
+                                    if (amndx = parseInt(altIndexArr[ndx]), matches = [], ndxInitializer = resolveNdxInitializer(testPos, amndx), 
+                                    match = handleMatch(alternateToken.matches[amndx] || maskToken.matches[amndx], [ amndx ].concat(loopNdx), quantifierRecurse) || match, 
+                                    match !== !0 && void 0 !== match && altIndexArr[altIndexArr.length - 1] < alternateToken.matches.length) {
+                                        var ntndx = $.inArray(match, maskToken.matches) + 1;
+                                        maskToken.matches.length > ntndx && (match = handleMatch(maskToken.matches[ntndx], [ ntndx ].concat(loopNdx.slice(1, loopNdx.length)), quantifierRecurse), 
+                                        match && (altIndexArr.push(ntndx.toString()), $.each(matches, function(ndx, lmnt) {
+                                            lmnt.alternation = loopNdx.length - 1;
+                                        })));
+                                    }
+                                    maltMatches = matches.slice(), testPos = currentPos, matches = [];
+                                    for (var i = 0; i < ndxInitializerClone.length; i++) ndxInitializer[i] = ndxInitializerClone[i];
+                                    for (var ndx1 = 0; ndx1 < maltMatches.length; ndx1++) {
+                                        var altMatch = maltMatches[ndx1];
+                                        altMatch.alternation = altMatch.alternation || loopNdxCnt;
+                                        for (var ndx2 = 0; ndx2 < malternateMatches.length; ndx2++) {
+                                            var altMatch2 = malternateMatches[ndx2];
+                                            if (altMatch.match.def === altMatch2.match.def && ("string" != typeof altIndex || -1 !== $.inArray(altMatch.locator[altMatch.alternation].toString(), altIndexArr))) {
+                                                altMatch.match.mask === altMatch2.match.mask && (maltMatches.splice(ndx1, 1), ndx1--), 
+                                                -1 === altMatch2.locator[altMatch.alternation].toString().indexOf(altMatch.locator[altMatch.alternation]) && (altMatch2.locator[altMatch.alternation] = altMatch2.locator[altMatch.alternation] + "," + altMatch.locator[altMatch.alternation], 
+                                                altMatch2.alternation = altMatch.alternation);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    malternateMatches = malternateMatches.concat(maltMatches);
+                                }
+                                "string" == typeof altIndex && (malternateMatches = $.map(malternateMatches, function(lmnt, ndx) {
+                                    if (isFinite(ndx)) {
+                                        var mamatch, alternation = lmnt.alternation, altLocArr = lmnt.locator[alternation].toString().split(",");
+                                        lmnt.locator[alternation] = void 0, lmnt.alternation = void 0;
+                                        for (var alndx = 0; alndx < altLocArr.length; alndx++) mamatch = -1 !== $.inArray(altLocArr[alndx], altIndexArr), 
+                                        mamatch && (void 0 !== lmnt.locator[alternation] ? (lmnt.locator[alternation] += ",", 
+                                        lmnt.locator[alternation] += altLocArr[alndx]) : lmnt.locator[alternation] = parseInt(altLocArr[alndx]), 
+                                        lmnt.alternation = alternation);
+                                        if (void 0 !== lmnt.locator[alternation]) return lmnt;
+                                    }
+                                })), matches = currentMatches.concat(malternateMatches), testPos = pos, insertStop = matches.length > 0;
+                            } else match = handleMatch(alternateToken.matches[altIndex] || maskToken.matches[altIndex], [ altIndex ].concat(loopNdx), quantifierRecurse);
+                            if (match) return !0;
+                        } else if (match.isQuantifier && quantifierRecurse !== maskToken.matches[$.inArray(match, maskToken.matches) - 1]) for (var qt = match, qndx = ndxInitializer.length > 0 ? ndxInitializer.shift() : 0; qndx < (isNaN(qt.quantifier.max) ? qndx + 1 : qt.quantifier.max) && pos >= testPos; qndx++) {
+                            var tokenGroup = maskToken.matches[$.inArray(qt, maskToken.matches) - 1];
+                            if (match = handleMatch(tokenGroup, [ qndx ].concat(loopNdx), tokenGroup)) {
+                                if (latestMatch = matches[matches.length - 1].match, latestMatch.optionalQuantifier = qndx > qt.quantifier.min - 1, 
+                                isFirstMatch(latestMatch, tokenGroup)) {
+                                    if (qndx > qt.quantifier.min - 1) {
+                                        insertStop = !0, testPos = pos;
+                                        break;
+                                    }
+                                    return !0;
+                                }
+                                return !0;
+                            }
+                        } else if (match = resolveTestFromToken(match, ndxInitializer, loopNdx, quantifierRecurse)) return !0;
+                    } else testPos++;
+                }
+                for (var tndx = ndxInitializer.length > 0 ? ndxInitializer.shift() : 0; tndx < maskToken.matches.length; tndx++) if (maskToken.matches[tndx].isQuantifier !== !0) {
+                    var match = handleMatch(maskToken.matches[tndx], [ tndx ].concat(loopNdx), quantifierRecurse);
+                    if (match && testPos === pos) return match;
+                    if (testPos > pos) break;
+                }
+            }
+            function mergeLocators(tests) {
+                var test = tests[0] || tests;
+                return test.locator.slice();
+            }
+            var latestMatch, maskTokens = getMaskSet().maskToken, testPos = ndxIntlzr ? tstPs : 0, ndxInitializer = ndxIntlzr || [ 0 ], matches = [], insertStop = !1, cacheDependency = ndxIntlzr ? ndxIntlzr.join("") : "";
+            if (pos > -1) {
+                if (void 0 === ndxIntlzr) {
+                    for (var test, previousPos = pos - 1; void 0 === (test = getMaskSet().validPositions[previousPos] || getMaskSet().tests[previousPos]) && previousPos > -1; ) previousPos--;
+                    void 0 !== test && previousPos > -1 && (ndxInitializer = mergeLocators(test), cacheDependency = ndxInitializer.join(""), 
+                    test = test[0] || test, testPos = previousPos);
+                }
+                if (getMaskSet().tests[pos] && getMaskSet().tests[pos][0].cd === cacheDependency) return getMaskSet().tests[pos];
+                for (var mtndx = ndxInitializer.shift(); mtndx < maskTokens.length; mtndx++) {
+                    var match = resolveTestFromToken(maskTokens[mtndx], ndxInitializer, [ mtndx ]);
+                    if (match && testPos === pos || testPos > pos) break;
+                }
+            }
+            return (0 === matches.length || insertStop) && matches.push({
+                match: {
+                    fn: null,
+                    cardinality: 0,
+                    optionality: !0,
+                    casing: null,
+                    def: ""
+                },
+                locator: []
+            }), getMaskSet().tests[pos] = $.extend(!0, [], matches), getMaskSet().tests[pos];
+        }
+        function getBufferTemplate() {
+            return void 0 === getMaskSet()._buffer && (getMaskSet()._buffer = getMaskTemplate(!1, 1)), 
+            getMaskSet()._buffer;
+        }
+        function getBuffer(noCache) {
+            if (void 0 === getMaskSet().buffer || noCache === !0) {
+                if (noCache === !0) for (var testNdx in getMaskSet().tests) void 0 === getMaskSet().validPositions[testNdx] && delete getMaskSet().tests[testNdx];
+                getMaskSet().buffer = getMaskTemplate(!0, getLastValidPosition(), !0);
+            }
+            return getMaskSet().buffer;
+        }
+        function refreshFromBuffer(start, end, buffer) {
+            var i;
+            if (buffer = buffer, start === !0) resetMaskSet(), start = 0, end = buffer.length; else for (i = start; end > i; i++) delete getMaskSet().validPositions[i], 
+            delete getMaskSet().tests[i];
+            for (i = start; end > i; i++) resetMaskSet(!0), buffer[i] !== opts.skipOptionalPartCharacter && isValid(i, buffer[i], !0, !0);
+        }
+        function casing(elem, test) {
+            switch (test.casing) {
+              case "upper":
+                elem = elem.toUpperCase();
+                break;
+
+              case "lower":
+                elem = elem.toLowerCase();
+            }
+            return elem;
+        }
+        function checkAlternationMatch(altArr1, altArr2) {
+            for (var altArrC = opts.greedy ? altArr2 : altArr2.slice(0, 1), isMatch = !1, alndx = 0; alndx < altArr1.length; alndx++) if (-1 !== $.inArray(altArr1[alndx], altArrC)) {
+                isMatch = !0;
+                break;
+            }
+            return isMatch;
+        }
+        function isValid(pos, c, strict, fromSetValid) {
+            function _isValid(position, c, strict, fromSetValid) {
+                var rslt = !1;
+                return $.each(getTests(position), function(ndx, tst) {
+                    for (var test = tst.match, loopend = c ? 1 : 0, chrs = "", i = test.cardinality; i > loopend; i--) chrs += getBufferElement(position - (i - 1));
+                    if (c && (chrs += c), getBuffer(!0), rslt = null != test.fn ? test.fn.test(chrs, getMaskSet(), position, strict, opts) : c !== test.def && c !== opts.skipOptionalPartCharacter || "" === test.def ? !1 : {
+                        c: test.placeholder || test.def,
+                        pos: position
+                    }, rslt !== !1) {
+                        var elem = void 0 !== rslt.c ? rslt.c : c;
+                        elem = elem === opts.skipOptionalPartCharacter && null === test.fn ? test.placeholder || test.def : elem;
+                        var validatedPos = position, possibleModifiedBuffer = getBuffer();
+                        if (void 0 !== rslt.remove && ($.isArray(rslt.remove) || (rslt.remove = [ rslt.remove ]), 
+                        $.each(rslt.remove.sort(function(a, b) {
+                            return b - a;
+                        }), function(ndx, lmnt) {
+                            stripValidPositions(lmnt, lmnt + 1, !0);
+                        })), void 0 !== rslt.insert && ($.isArray(rslt.insert) || (rslt.insert = [ rslt.insert ]), 
+                        $.each(rslt.insert.sort(function(a, b) {
+                            return a - b;
+                        }), function(ndx, lmnt) {
+                            isValid(lmnt.pos, lmnt.c, !1, fromSetValid);
+                        })), rslt.refreshFromBuffer) {
+                            var refresh = rslt.refreshFromBuffer;
+                            if (strict = !0, refreshFromBuffer(refresh === !0 ? refresh : refresh.start, refresh.end, possibleModifiedBuffer), 
+                            void 0 === rslt.pos && void 0 === rslt.c) return rslt.pos = getLastValidPosition(), 
+                            !1;
+                            if (validatedPos = void 0 !== rslt.pos ? rslt.pos : position, validatedPos !== position) return rslt = $.extend(rslt, isValid(validatedPos, elem, !0, fromSetValid)), 
+                            !1;
+                        } else if (rslt !== !0 && void 0 !== rslt.pos && rslt.pos !== position && (validatedPos = rslt.pos, 
+                        refreshFromBuffer(position, validatedPos, getBuffer().slice()), validatedPos !== position)) return rslt = $.extend(rslt, isValid(validatedPos, elem, !0)), 
+                        !1;
+                        return rslt !== !0 && void 0 === rslt.pos && void 0 === rslt.c ? !1 : (ndx > 0 && resetMaskSet(!0), 
+                        setValidPosition(validatedPos, $.extend({}, tst, {
+                            input: casing(elem, test)
+                        }), fromSetValid) || (rslt = !1), !1);
+                    }
+                }), rslt;
+            }
+            function alternate(pos, c, strict, fromSetValid) {
+                for (var lastAlt, alternation, isValidRslt, altPos, i, validPos, validPsClone = $.extend(!0, {}, getMaskSet().validPositions), testsClone = $.extend(!0, {}, getMaskSet().tests), lAlt = getLastValidPosition(); lAlt >= 0 && (altPos = getMaskSet().validPositions[lAlt], 
+                !altPos || void 0 === altPos.alternation || (lastAlt = lAlt, alternation = getMaskSet().validPositions[lastAlt].alternation, 
+                getTestTemplate(lastAlt).locator[altPos.alternation] === altPos.locator[altPos.alternation])); lAlt--) ;
+                if (void 0 !== alternation) {
+                    lastAlt = parseInt(lastAlt);
+                    for (var decisionPos in getMaskSet().validPositions) if (decisionPos = parseInt(decisionPos), 
+                    altPos = getMaskSet().validPositions[decisionPos], decisionPos >= lastAlt && void 0 !== altPos.alternation) {
+                        var altNdxs;
+                        0 === lastAlt ? (altNdxs = [], $.each(getMaskSet().tests[lastAlt], function(ndx, test) {
+                            void 0 !== test.locator[alternation] && (altNdxs = altNdxs.concat(test.locator[alternation].toString().split(",")));
+                        })) : altNdxs = getMaskSet().validPositions[lastAlt].locator[alternation].toString().split(",");
+                        var decisionTaker = void 0 !== altPos.locator[alternation] ? altPos.locator[alternation] : altNdxs[0];
+                        decisionTaker.length > 0 && (decisionTaker = decisionTaker.split(",")[0]);
+                        for (var mndx = 0; mndx < altNdxs.length; mndx++) {
+                            var validInputs = [], staticInputsBeforePos = 0, staticInputsBeforePosAlternate = 0;
+                            if (decisionTaker < altNdxs[mndx]) {
+                                for (var possibilityPos, possibilities, dp = decisionPos; dp >= 0; dp--) if (possibilityPos = getMaskSet().validPositions[dp], 
+                                void 0 !== possibilityPos) {
+                                    var bestMatch = selectBestMatch(dp, altNdxs[mndx]);
+                                    getMaskSet().validPositions[dp].match.def !== bestMatch.match.def && (validInputs.push(getMaskSet().validPositions[dp].input), 
+                                    getMaskSet().validPositions[dp] = bestMatch, getMaskSet().validPositions[dp].input = getPlaceholder(dp), 
+                                    null === getMaskSet().validPositions[dp].match.fn && staticInputsBeforePosAlternate++, 
+                                    possibilityPos = bestMatch), possibilities = possibilityPos.locator[alternation], 
+                                    possibilityPos.locator[alternation] = parseInt(altNdxs[mndx]);
+                                    break;
+                                }
+                                if (decisionTaker !== possibilityPos.locator[alternation]) {
+                                    for (i = decisionPos + 1; i < getLastValidPosition(void 0, !0) + 1; i++) validPos = getMaskSet().validPositions[i], 
+                                    validPos && null != validPos.match.fn ? validInputs.push(validPos.input) : pos > i && staticInputsBeforePos++, 
+                                    delete getMaskSet().validPositions[i], delete getMaskSet().tests[i];
+                                    for (resetMaskSet(!0), opts.keepStatic = !opts.keepStatic, isValidRslt = !0; validInputs.length > 0; ) {
+                                        var input = validInputs.shift();
+                                        if (input !== opts.skipOptionalPartCharacter && !(isValidRslt = isValid(getLastValidPosition(void 0, !0) + 1, input, !1, fromSetValid))) break;
+                                    }
+                                    if (possibilityPos.alternation = alternation, possibilityPos.locator[alternation] = possibilities, 
+                                    isValidRslt) {
+                                        var targetLvp = getLastValidPosition(pos) + 1;
+                                        for (i = decisionPos + 1; i < getLastValidPosition() + 1; i++) validPos = getMaskSet().validPositions[i], 
+                                        (void 0 === validPos || null == validPos.match.fn) && pos > i && staticInputsBeforePosAlternate++;
+                                        pos += staticInputsBeforePosAlternate - staticInputsBeforePos, isValidRslt = isValid(pos > targetLvp ? targetLvp : pos, c, strict, fromSetValid);
+                                    }
+                                    if (opts.keepStatic = !opts.keepStatic, isValidRslt) return isValidRslt;
+                                    resetMaskSet(), getMaskSet().validPositions = $.extend(!0, {}, validPsClone), getMaskSet().tests = $.extend(!0, {}, testsClone);
+                                }
+                            }
+                        }
+                        break;
+                    }
+                }
+                return !1;
+            }
+            function trackbackAlternations(originalPos, newPos) {
+                for (var vp = getMaskSet().validPositions[newPos], targetLocator = vp.locator, tll = targetLocator.length, ps = originalPos; newPos > ps; ps++) if (void 0 === getMaskSet().validPositions[ps] && !isMask(ps, !0)) {
+                    var tests = getTests(ps), bestMatch = tests[0], equality = -1;
+                    $.each(tests, function(ndx, tst) {
+                        for (var i = 0; tll > i && (void 0 !== tst.locator[i] && checkAlternationMatch(tst.locator[i].toString().split(","), targetLocator[i].toString().split(","))); i++) i > equality && (equality = i, 
+                        bestMatch = tst);
+                    }), setValidPosition(ps, $.extend({}, bestMatch, {
+                        input: bestMatch.match.placeholder || bestMatch.match.def
+                    }), !0);
+                }
+            }
+            strict = strict === !0;
+            for (var buffer = getBuffer(), pndx = pos - 1; pndx > -1 && !getMaskSet().validPositions[pndx]; pndx--) ;
+            for (pndx++; pos > pndx; pndx++) void 0 === getMaskSet().validPositions[pndx] && ((!isMask(pndx) || buffer[pndx] !== getPlaceholder(pndx)) && getTests(pndx).length > 1 || buffer[pndx] === opts.radixPoint || "0" === buffer[pndx] && $.inArray(opts.radixPoint, buffer) < pndx) && _isValid(pndx, buffer[pndx], !0, fromSetValid);
+            var maskPos = pos, result = !1, positionsClone = $.extend(!0, {}, getMaskSet().validPositions);
+            if (maskPos < getMaskLength() && (result = _isValid(maskPos, c, strict, fromSetValid), 
+            (!strict || fromSetValid === !0) && result === !1)) {
+                var currentPosValid = getMaskSet().validPositions[maskPos];
+                if (!currentPosValid || null !== currentPosValid.match.fn || currentPosValid.match.def !== c && c !== opts.skipOptionalPartCharacter) {
+                    if ((opts.insertMode || void 0 === getMaskSet().validPositions[seekNext(maskPos)]) && !isMask(maskPos, !0)) {
+                        var staticChar = getTestTemplate(maskPos).match, staticChar = staticChar.placeholder || staticChar.def;
+                        _isValid(maskPos, staticChar, strict, fromSetValid);
+                        for (var nPos = maskPos + 1, snPos = seekNext(maskPos); snPos >= nPos; nPos++) if (result = _isValid(nPos, c, strict, fromSetValid), 
+                        result !== !1) {
+                            trackbackAlternations(maskPos, nPos), maskPos = nPos;
+                            break;
+                        }
+                    }
+                } else result = {
+                    caret: seekNext(maskPos)
+                };
+            }
+            if (result === !1 && opts.keepStatic && (result = alternate(pos, c, strict, fromSetValid)), 
+            result === !0 && (result = {
+                pos: maskPos
+            }), $.isFunction(opts.postValidation) && result !== !1 && !strict && fromSetValid !== !0) {
+                var postValidResult = opts.postValidation(getBuffer(!0), result, opts);
+                if (postValidResult) {
+                    if (postValidResult.refreshFromBuffer) {
+                        var refresh = postValidResult.refreshFromBuffer;
+                        refreshFromBuffer(refresh === !0 ? refresh : refresh.start, refresh.end, postValidResult.buffer), 
+                        resetMaskSet(!0), result = postValidResult;
+                    }
+                } else resetMaskSet(!0), getMaskSet().validPositions = $.extend(!0, {}, positionsClone), 
+                result = !1;
+            }
+            return result;
+        }
+        function isMask(pos, strict) {
+            var test;
+            if (strict ? (test = getTestTemplate(pos).match, "" == test.def && (test = getTest(pos))) : test = getTest(pos), 
+            null != test.fn) return test.fn;
+            if (strict !== !0 && pos > -1 && !opts.keepStatic && void 0 === getMaskSet().validPositions[pos]) {
+                var tests = getTests(pos);
+                return tests.length > 2;
+            }
+            return !1;
+        }
+        function getMaskLength() {
+            var maskLength;
+            maxLength = void 0 !== el ? el.maxLength : void 0, -1 === maxLength && (maxLength = void 0);
+            var pos, lvp = getLastValidPosition(), testPos = getMaskSet().validPositions[lvp], ndxIntlzr = void 0 !== testPos ? testPos.locator.slice() : void 0;
+            for (pos = lvp + 1; void 0 === testPos || null !== testPos.match.fn || null === testPos.match.fn && "" !== testPos.match.def; pos++) testPos = getTestTemplate(pos, ndxIntlzr, pos - 1), 
+            ndxIntlzr = testPos.locator.slice();
+            var lastTest = getTest(pos - 1);
+            return maskLength = "" !== lastTest.def ? pos : pos - 1, void 0 === maxLength || maxLength > maskLength ? maskLength : maxLength;
+        }
+        function seekNext(pos, newBlock) {
+            var maskL = getMaskLength();
+            if (pos >= maskL) return maskL;
+            for (var position = pos; ++position < maskL && (newBlock === !0 && (getTest(position).newBlockMarker !== !0 || !isMask(position)) || newBlock !== !0 && !isMask(position) && (opts.nojumps !== !0 || opts.nojumpsThreshold > position)); ) ;
+            return position;
+        }
+        function seekPrevious(pos, newBlock) {
+            var position = pos;
+            if (0 >= position) return 0;
+            for (;--position > 0 && (newBlock === !0 && getTest(position).newBlockMarker !== !0 || newBlock !== !0 && !isMask(position)); ) ;
+            return position;
+        }
+        function getBufferElement(position) {
+            return void 0 === getMaskSet().validPositions[position] ? getPlaceholder(position) : getMaskSet().validPositions[position].input;
+        }
+        function writeBuffer(input, buffer, caretPos, event, triggerInputEvent) {
+            if (event && $.isFunction(opts.onBeforeWrite)) {
+                var result = opts.onBeforeWrite(event, buffer, caretPos, opts);
+                if (result) {
+                    if (result.refreshFromBuffer) {
+                        var refresh = result.refreshFromBuffer;
+                        refreshFromBuffer(refresh === !0 ? refresh : refresh.start, refresh.end, result.buffer || buffer), 
+                        buffer = getBuffer(!0);
+                    }
+                    void 0 !== caretPos && (caretPos = void 0 !== result.caret ? result.caret : caretPos);
+                }
+            }
+            input.inputmask._valueSet(buffer.join("")), void 0 === caretPos || void 0 !== event && "blur" === event.type || caret(input, caretPos), 
+            triggerInputEvent === !0 && (skipInputEvent = !0, $(input).trigger("input"));
+        }
+        function getPlaceholder(pos, test) {
+            if (test = test || getTest(pos), void 0 !== test.placeholder) return test.placeholder;
+            if (null === test.fn) {
+                if (pos > -1 && !opts.keepStatic && void 0 === getMaskSet().validPositions[pos]) {
+                    var prevTest, tests = getTests(pos), staticAlternations = 0;
+                    if (tests.length > 2) for (var i = 0; i < tests.length; i++) if (tests[i].match.optionality !== !0 && tests[i].match.optionalQuantifier !== !0 && (null === tests[i].match.fn || void 0 === prevTest || tests[i].match.fn.test(prevTest.match.def, getMaskSet(), pos, !0, opts) !== !1) && (staticAlternations++, 
+                    null === tests[i].match.fn && (prevTest = tests[i]), staticAlternations > 1)) return opts.placeholder.charAt(pos % opts.placeholder.length);
+                }
+                return test.def;
+            }
+            return opts.placeholder.charAt(pos % opts.placeholder.length);
+        }
+        function checkVal(input, writeOut, strict, nptvl) {
+            function isTemplateMatch() {
+                var isMatch = !1, charCodeNdx = getBufferTemplate().slice(initialNdx, seekNext(initialNdx)).join("").indexOf(charCodes);
+                if (-1 !== charCodeNdx && !isMask(initialNdx)) {
+                    isMatch = !0;
+                    for (var bufferTemplateArr = getBufferTemplate().slice(initialNdx, initialNdx + charCodeNdx), i = 0; i < bufferTemplateArr.length; i++) if (" " !== bufferTemplateArr[i]) {
+                        isMatch = !1;
+                        break;
+                    }
+                }
+                return isMatch;
+            }
+            var inputValue = nptvl.slice(), charCodes = "", initialNdx = 0;
+            if (resetMaskSet(), getMaskSet().p = seekNext(-1), !strict) if (opts.autoUnmask !== !0) {
+                var staticInput = getBufferTemplate().slice(0, seekNext(-1)).join(""), matches = inputValue.join("").match(new RegExp("^" + Inputmask.escapeRegex(staticInput), "g"));
+                matches && matches.length > 0 && (inputValue.splice(0, matches.length * staticInput.length), 
+                initialNdx = seekNext(initialNdx));
+            } else initialNdx = seekNext(initialNdx);
+            $.each(inputValue, function(ndx, charCode) {
+                if (void 0 !== charCode) {
+                    var keypress = new $.Event("keypress");
+                    keypress.which = charCode.charCodeAt(0), charCodes += charCode;
+                    var lvp = getLastValidPosition(void 0, !0), lvTest = getMaskSet().validPositions[lvp], nextTest = getTestTemplate(lvp + 1, lvTest ? lvTest.locator.slice() : void 0, lvp);
+                    if (!isTemplateMatch() || strict || opts.autoUnmask) {
+                        var pos = strict ? ndx : null == nextTest.match.fn && nextTest.match.optionality && lvp + 1 < getMaskSet().p ? lvp + 1 : getMaskSet().p;
+                        keypressEvent.call(input, keypress, !0, !1, strict, pos), initialNdx = pos + 1, 
+                        charCodes = "";
+                    } else keypressEvent.call(input, keypress, !0, !1, !0, lvp + 1);
+                }
+            }), writeOut && writeBuffer(input, getBuffer(), document.activeElement === input ? seekNext(getLastValidPosition(0)) : void 0, new $.Event("checkval"));
+        }
+        function unmaskedvalue(input) {
+            if (input && void 0 === input.inputmask) return input.value;
+            var umValue = [], vps = getMaskSet().validPositions;
+            for (var pndx in vps) vps[pndx].match && null != vps[pndx].match.fn && umValue.push(vps[pndx].input);
+            var unmaskedValue = 0 === umValue.length ? null : (isRTL ? umValue.reverse() : umValue).join("");
+            if (null !== unmaskedValue) {
+                var bufferValue = (isRTL ? getBuffer().slice().reverse() : getBuffer()).join("");
+                $.isFunction(opts.onUnMask) && (unmaskedValue = opts.onUnMask(bufferValue, unmaskedValue, opts) || unmaskedValue);
+            }
+            return unmaskedValue;
+        }
+        function caret(input, begin, end, notranslate) {
+            function translatePosition(pos) {
+                if (notranslate !== !0 && isRTL && "number" == typeof pos && (!opts.greedy || "" !== opts.placeholder)) {
+                    var bffrLght = getBuffer().join("").length;
+                    pos = bffrLght - pos;
+                }
+                return pos;
+            }
+            var range;
+            if ("number" != typeof begin) return input.setSelectionRange ? (begin = input.selectionStart, 
+            end = input.selectionEnd) : window.getSelection ? (range = window.getSelection().getRangeAt(0), 
+            (range.commonAncestorContainer.parentNode === input || range.commonAncestorContainer === input) && (begin = range.startOffset, 
+            end = range.endOffset)) : document.selection && document.selection.createRange && (range = document.selection.createRange(), 
+            begin = 0 - range.duplicate().moveStart("character", -1e5), end = begin + range.text.length), 
+            {
+                begin: translatePosition(begin),
+                end: translatePosition(end)
+            };
+            begin = translatePosition(begin), end = translatePosition(end), end = "number" == typeof end ? end : begin;
+            var scrollCalc = parseInt(((input.ownerDocument.defaultView || window).getComputedStyle ? (input.ownerDocument.defaultView || window).getComputedStyle(input, null) : input.currentStyle).fontSize) * end;
+            if (input.scrollLeft = scrollCalc > input.scrollWidth ? scrollCalc : 0, mobile || opts.insertMode !== !1 || begin !== end || end++, 
+            input.setSelectionRange) input.selectionStart = begin, input.selectionEnd = end; else if (window.getSelection) {
+                if (range = document.createRange(), void 0 === input.firstChild || null === input.firstChild) {
+                    var textNode = document.createTextNode("");
+                    input.appendChild(textNode);
+                }
+                range.setStart(input.firstChild, begin < input.inputmask._valueGet().length ? begin : input.inputmask._valueGet().length), 
+                range.setEnd(input.firstChild, end < input.inputmask._valueGet().length ? end : input.inputmask._valueGet().length), 
+                range.collapse(!0);
+                var sel = window.getSelection();
+                sel.removeAllRanges(), sel.addRange(range);
+            } else input.createTextRange && (range = input.createTextRange(), range.collapse(!0), 
+            range.moveEnd("character", end), range.moveStart("character", begin), range.select());
+        }
+        function determineLastRequiredPosition(returnDefinition) {
+            var pos, testPos, buffer = getBuffer(), bl = buffer.length, lvp = getLastValidPosition(), positions = {}, lvTest = getMaskSet().validPositions[lvp], ndxIntlzr = void 0 !== lvTest ? lvTest.locator.slice() : void 0;
+            for (pos = lvp + 1; pos < buffer.length; pos++) testPos = getTestTemplate(pos, ndxIntlzr, pos - 1), 
+            ndxIntlzr = testPos.locator.slice(), positions[pos] = $.extend(!0, {}, testPos);
+            var lvTestAlt = lvTest && void 0 !== lvTest.alternation ? lvTest.locator[lvTest.alternation] : void 0;
+            for (pos = bl - 1; pos > lvp && (testPos = positions[pos], (testPos.match.optionality || testPos.match.optionalQuantifier || lvTestAlt && (lvTestAlt !== positions[pos].locator[lvTest.alternation] && null != testPos.match.fn || null === testPos.match.fn && testPos.locator[lvTest.alternation] && checkAlternationMatch(testPos.locator[lvTest.alternation].toString().split(","), lvTestAlt.toString().split(",")) && "" !== getTests(pos)[0].def)) && buffer[pos] === getPlaceholder(pos, testPos.match)); pos--) bl--;
+            return returnDefinition ? {
+                l: bl,
+                def: positions[bl] ? positions[bl].match : void 0
+            } : bl;
+        }
+        function clearOptionalTail(buffer) {
+            for (var rl = determineLastRequiredPosition(), lmib = buffer.length - 1; lmib > rl && !isMask(lmib); lmib--) ;
+            return buffer.splice(rl, lmib + 1 - rl), buffer;
+        }
+        function isComplete(buffer) {
+            if ($.isFunction(opts.isComplete)) return opts.isComplete(buffer, opts);
+            if ("*" === opts.repeat) return void 0;
+            var complete = !1, lrp = determineLastRequiredPosition(!0), aml = seekPrevious(lrp.l);
+            if (void 0 === lrp.def || lrp.def.newBlockMarker || lrp.def.optionality || lrp.def.optionalQuantifier) {
+                complete = !0;
+                for (var i = 0; aml >= i; i++) {
+                    var test = getTestTemplate(i).match;
+                    if (null !== test.fn && void 0 === getMaskSet().validPositions[i] && test.optionality !== !0 && test.optionalQuantifier !== !0 || null === test.fn && buffer[i] !== getPlaceholder(i, test)) {
+                        complete = !1;
+                        break;
+                    }
+                }
+            }
+            return complete;
+        }
+        function isSelection(begin, end) {
+            return isRTL ? begin - end > 1 || begin - end === 1 && opts.insertMode : end - begin > 1 || end - begin === 1 && opts.insertMode;
+        }
+        function patchValueProperty(npt) {
+            function patchValhook(type) {
+                if ($.valHooks && (void 0 === $.valHooks[type] || $.valHooks[type].inputmaskpatch !== !0)) {
+                    var valhookGet = $.valHooks[type] && $.valHooks[type].get ? $.valHooks[type].get : function(elem) {
+                        return elem.value;
+                    }, valhookSet = $.valHooks[type] && $.valHooks[type].set ? $.valHooks[type].set : function(elem, value) {
+                        return elem.value = value, elem;
+                    };
+                    $.valHooks[type] = {
+                        get: function(elem) {
+                            if (elem.inputmask) {
+                                if (elem.inputmask.opts.autoUnmask) return elem.inputmask.unmaskedvalue();
+                                var result = valhookGet(elem), maskset = elem.inputmask.maskset, bufferTemplate = maskset._buffer;
+                                return bufferTemplate = bufferTemplate ? bufferTemplate.join("") : "", result !== bufferTemplate ? result : "";
+                            }
+                            return valhookGet(elem);
+                        },
+                        set: function(elem, value) {
+                            var result, $elem = $(elem);
+                            return result = valhookSet(elem, value), elem.inputmask && $elem.trigger("setvalue"), 
+                            result;
+                        },
+                        inputmaskpatch: !0
+                    };
+                }
+            }
+            function getter() {
+                return this.inputmask ? this.inputmask.opts.autoUnmask ? this.inputmask.unmaskedvalue() : valueGet.call(this) !== getBufferTemplate().join("") ? document.activeElement === this && opts.clearMaskOnLostFocus ? (isRTL ? clearOptionalTail(getBuffer().slice()).reverse() : clearOptionalTail(getBuffer().slice())).join("") : valueGet.call(this) : "" : valueGet.call(this);
+            }
+            function setter(value) {
+                valueSet.call(this, value), this.inputmask && $(this).trigger("setvalue");
+            }
+            function installNativeValueSetFallback(npt) {
+                EventRuler.on(npt, "mouseenter", function(event) {
+                    var $input = $(this), input = this, value = input.inputmask._valueGet();
+                    value !== getBuffer().join("") && getLastValidPosition() > 0 && $input.trigger("setvalue");
+                });
+            }
+            var valueGet, valueSet;
+            npt.inputmask.__valueGet || (Object.getOwnPropertyDescriptor && void 0 === npt.value ? (valueGet = function() {
+                return this.textContent;
+            }, valueSet = function(value) {
+                this.textContent = value;
+            }, Object.defineProperty(npt, "value", {
+                get: getter,
+                set: setter
+            })) : document.__lookupGetter__ && npt.__lookupGetter__("value") ? (valueGet = npt.__lookupGetter__("value"), 
+            valueSet = npt.__lookupSetter__("value"), npt.__defineGetter__("value", getter), 
+            npt.__defineSetter__("value", setter)) : (valueGet = function() {
+                return npt.value;
+            }, valueSet = function(value) {
+                npt.value = value;
+            }, patchValhook(npt.type), installNativeValueSetFallback(npt)), npt.inputmask.__valueGet = valueGet, 
+            npt.inputmask._valueGet = function(overruleRTL) {
+                return isRTL && overruleRTL !== !0 ? valueGet.call(this.el).split("").reverse().join("") : valueGet.call(this.el);
+            }, npt.inputmask.__valueSet = valueSet, npt.inputmask._valueSet = function(value, overruleRTL) {
+                valueSet.call(this.el, null === value || void 0 === value ? "" : overruleRTL !== !0 && isRTL ? value.split("").reverse().join("") : value);
+            });
+        }
+        function handleRemove(input, k, pos, strict) {
+            function generalize() {
+                if (opts.keepStatic) {
+                    resetMaskSet(!0);
+                    var lastAlt, validInputs = [], positionsClone = $.extend(!0, {}, getMaskSet().validPositions);
+                    for (lastAlt = getLastValidPosition(); lastAlt >= 0; lastAlt--) {
+                        var validPos = getMaskSet().validPositions[lastAlt];
+                        if (validPos && (null != validPos.match.fn && validInputs.push(validPos.input), 
+                        delete getMaskSet().validPositions[lastAlt], void 0 !== validPos.alternation && validPos.locator[validPos.alternation] === getTestTemplate(lastAlt).locator[validPos.alternation])) break;
+                    }
+                    if (lastAlt > -1) for (;validInputs.length > 0; ) {
+                        getMaskSet().p = seekNext(getLastValidPosition());
+                        var keypress = new $.Event("keypress");
+                        keypress.which = validInputs.pop().charCodeAt(0), keypressEvent.call(input, keypress, !0, !1, !1, getMaskSet().p);
+                    } else getMaskSet().validPositions = $.extend(!0, {}, positionsClone);
+                }
+            }
+            if ((opts.numericInput || isRTL) && (k === Inputmask.keyCode.BACKSPACE ? k = Inputmask.keyCode.DELETE : k === Inputmask.keyCode.DELETE && (k = Inputmask.keyCode.BACKSPACE), 
+            isRTL)) {
+                var pend = pos.end;
+                pos.end = pos.begin, pos.begin = pend;
+            }
+            k === Inputmask.keyCode.BACKSPACE && (pos.end - pos.begin < 1 || opts.insertMode === !1) ? (pos.begin = seekPrevious(pos.begin), 
+            void 0 === getMaskSet().validPositions[pos.begin] || getMaskSet().validPositions[pos.begin].input !== opts.groupSeparator && getMaskSet().validPositions[pos.begin].input !== opts.radixPoint || pos.begin--) : k === Inputmask.keyCode.DELETE && pos.begin === pos.end && (pos.end = isMask(pos.end) ? pos.end + 1 : seekNext(pos.end) + 1, 
+            void 0 === getMaskSet().validPositions[pos.begin] || getMaskSet().validPositions[pos.begin].input !== opts.groupSeparator && getMaskSet().validPositions[pos.begin].input !== opts.radixPoint || pos.end++), 
+            stripValidPositions(pos.begin, pos.end, !1, strict), strict !== !0 && generalize();
+            var lvp = getLastValidPosition(pos.begin);
+            lvp < pos.begin ? (-1 === lvp && resetMaskSet(), getMaskSet().p = seekNext(lvp)) : strict !== !0 && (getMaskSet().p = pos.begin);
+        }
+        function keydownEvent(e) {
+            var input = this, $input = $(input), k = e.keyCode, pos = caret(input);
+            if (k === Inputmask.keyCode.BACKSPACE || k === Inputmask.keyCode.DELETE || iphone && 127 === k || e.ctrlKey && 88 === k && !isInputEventSupported("cut")) e.preventDefault(), 
+            88 === k && (undoValue = getBuffer().join("")), handleRemove(input, k, pos), writeBuffer(input, getBuffer(), getMaskSet().p, e, undoValue !== getBuffer().join("")), 
+            input.inputmask._valueGet() === getBufferTemplate().join("") ? $input.trigger("cleared") : isComplete(getBuffer()) === !0 && $input.trigger("complete"), 
+            opts.showTooltip && (input.title = opts.tooltip || getMaskSet().mask); else if (k === Inputmask.keyCode.END || k === Inputmask.keyCode.PAGE_DOWN) {
+                e.preventDefault();
+                var caretPos = seekNext(getLastValidPosition());
+                opts.insertMode || caretPos !== getMaskLength() || e.shiftKey || caretPos--, caret(input, e.shiftKey ? pos.begin : caretPos, caretPos, !0);
+            } else k === Inputmask.keyCode.HOME && !e.shiftKey || k === Inputmask.keyCode.PAGE_UP ? (e.preventDefault(), 
+            caret(input, 0, e.shiftKey ? pos.begin : 0, !0)) : (opts.undoOnEscape && k === Inputmask.keyCode.ESCAPE || 90 === k && e.ctrlKey) && e.altKey !== !0 ? (checkVal(input, !0, !1, undoValue.split("")), 
+            $input.trigger("click")) : k !== Inputmask.keyCode.INSERT || e.shiftKey || e.ctrlKey ? opts.tabThrough === !0 && k === Inputmask.keyCode.TAB ? (e.shiftKey === !0 ? (null === getTest(pos.begin).fn && (pos.begin = seekNext(pos.begin)), 
+            pos.end = seekPrevious(pos.begin, !0), pos.begin = seekPrevious(pos.end, !0)) : (pos.begin = seekNext(pos.begin, !0), 
+            pos.end = seekNext(pos.begin, !0), pos.end < getMaskLength() && pos.end--), pos.begin < getMaskLength() && (e.preventDefault(), 
+            caret(input, pos.begin, pos.end))) : opts.insertMode !== !1 || e.shiftKey || (k === Inputmask.keyCode.RIGHT ? setTimeout(function() {
+                var caretPos = caret(input);
+                caret(input, caretPos.begin);
+            }, 0) : k === Inputmask.keyCode.LEFT && setTimeout(function() {
+                var caretPos = caret(input);
+                caret(input, isRTL ? caretPos.begin + 1 : caretPos.begin - 1);
+            }, 0)) : (opts.insertMode = !opts.insertMode, caret(input, opts.insertMode || pos.begin !== getMaskLength() ? pos.begin : pos.begin - 1));
+            opts.onKeyDown.call(this, e, getBuffer(), caret(input).begin, opts), ignorable = -1 !== $.inArray(k, opts.ignorables);
+        }
+        function keypressEvent(e, checkval, writeOut, strict, ndx) {
+            var input = this, $input = $(input), k = e.which || e.charCode || e.keyCode;
+            if (!(checkval === !0 || e.ctrlKey && e.altKey) && (e.ctrlKey || e.metaKey || ignorable)) return k === Inputmask.keyCode.ENTER && undoValue !== getBuffer().join("") && (undoValue = getBuffer().join(""), 
+            setTimeout(function() {
+                $input.trigger("change");
+            }, 0)), !0;
+            if (k) {
+                46 === k && e.shiftKey === !1 && "," === opts.radixPoint && (k = 44);
+                var forwardPosition, pos = checkval ? {
+                    begin: ndx,
+                    end: ndx
+                } : caret(input), c = String.fromCharCode(k), isSlctn = isSelection(pos.begin, pos.end);
+                isSlctn && (getMaskSet().undoPositions = $.extend(!0, {}, getMaskSet().validPositions), 
+                handleRemove(input, Inputmask.keyCode.DELETE, pos, !0), pos.begin = getMaskSet().p, 
+                opts.insertMode || (opts.insertMode = !opts.insertMode, setValidPosition(pos.begin, strict), 
+                opts.insertMode = !opts.insertMode), isSlctn = !opts.multi), getMaskSet().writeOutBuffer = !0;
+                var p = isRTL && !isSlctn ? pos.end : pos.begin, valResult = isValid(p, c, strict);
+                if (valResult !== !1) {
+                    if (valResult !== !0 && (p = void 0 !== valResult.pos ? valResult.pos : p, c = void 0 !== valResult.c ? valResult.c : c), 
+                    resetMaskSet(!0), void 0 !== valResult.caret) forwardPosition = valResult.caret; else {
+                        var vps = getMaskSet().validPositions;
+                        forwardPosition = !opts.keepStatic && (void 0 !== vps[p + 1] && getTests(p + 1, vps[p].locator.slice(), p).length > 1 || void 0 !== vps[p].alternation) ? p + 1 : seekNext(p);
+                    }
+                    getMaskSet().p = forwardPosition;
+                }
+                if (writeOut !== !1) {
+                    var self = this;
+                    if (setTimeout(function() {
+                        opts.onKeyValidation.call(self, k, valResult, opts);
+                    }, 0), getMaskSet().writeOutBuffer && valResult !== !1) {
+                        var buffer = getBuffer();
+                        writeBuffer(input, buffer, opts.numericInput && void 0 === valResult.caret ? seekPrevious(forwardPosition) : forwardPosition, e, checkval !== !0), 
+                        checkval !== !0 && setTimeout(function() {
+                            isComplete(buffer) === !0 && $input.trigger("complete");
+                        }, 0);
+                    } else isSlctn && (getMaskSet().buffer = void 0, getMaskSet().validPositions = getMaskSet().undoPositions);
+                } else isSlctn && (getMaskSet().buffer = void 0, getMaskSet().validPositions = getMaskSet().undoPositions);
+                if (opts.showTooltip && (input.title = opts.tooltip || getMaskSet().mask), checkval && $.isFunction(opts.onBeforeWrite)) {
+                    var result = opts.onBeforeWrite(e, getBuffer(), forwardPosition, opts);
+                    if (result && result.refreshFromBuffer) {
+                        var refresh = result.refreshFromBuffer;
+                        refreshFromBuffer(refresh === !0 ? refresh : refresh.start, refresh.end, result.buffer), 
+                        resetMaskSet(!0), result.caret && (getMaskSet().p = result.caret);
+                    }
+                }
+                if (e.preventDefault(), checkval) return valResult;
+            }
+        }
+        function pasteEvent(e) {
+            var input = this, ev = e.originalEvent || e, $input = $(input), inputValue = input.inputmask._valueGet(!0), caretPos = caret(input), valueBeforeCaret = inputValue.substr(0, caretPos.begin), valueAfterCaret = inputValue.substr(caretPos.end, inputValue.length);
+            valueBeforeCaret === getBufferTemplate().slice(0, caretPos.begin).join("") && (valueBeforeCaret = ""), 
+            valueAfterCaret === getBufferTemplate().slice(caretPos.end).join("") && (valueAfterCaret = ""), 
+            window.clipboardData && window.clipboardData.getData ? inputValue = valueBeforeCaret + window.clipboardData.getData("Text") + valueAfterCaret : ev.clipboardData && ev.clipboardData.getData && (inputValue = valueBeforeCaret + ev.clipboardData.getData("text/plain") + valueAfterCaret);
+            var pasteValue = inputValue;
+            if ($.isFunction(opts.onBeforePaste)) {
+                if (pasteValue = opts.onBeforePaste(inputValue, opts), pasteValue === !1) return e.preventDefault(), 
+                !1;
+                pasteValue || (pasteValue = inputValue);
+            }
+            return checkVal(input, !1, !1, isRTL ? pasteValue.split("").reverse() : pasteValue.toString().split("")), 
+            writeBuffer(input, getBuffer(), void 0, e, !0), $input.trigger("click"), isComplete(getBuffer()) === !0 && $input.trigger("complete"), 
+            !1;
+        }
+        function inputFallBackEvent(e) {
+            var input = this, inputValue = input.inputmask._valueGet();
+            if (getBuffer().join("") !== inputValue) {
+                var caretPos = caret(input);
+                if (inputValue = inputValue.replace(new RegExp("(" + Inputmask.escapeRegex(getBufferTemplate().join("")) + ")*"), ""), 
+                iemobile) {
+                    var inputChar = inputValue.replace(getBuffer().join(""), "");
+                    if (1 === inputChar.length) {
+                        var keypress = new $.Event("keypress");
+                        return keypress.which = inputChar.charCodeAt(0), keypressEvent.call(input, keypress, !0, !0, !1, getMaskSet().validPositions[caretPos.begin - 1] ? caretPos.begin : caretPos.begin - 1), 
+                        !1;
+                    }
+                }
+                if (caretPos.begin > inputValue.length && (caret(input, inputValue.length), caretPos = caret(input)), 
+                getBuffer().length - inputValue.length !== 1 || inputValue.charAt(caretPos.begin) === getBuffer()[caretPos.begin] || inputValue.charAt(caretPos.begin + 1) === getBuffer()[caretPos.begin] || isMask(caretPos.begin)) {
+                    for (var lvp = getLastValidPosition() + 1, bufferTemplate = getBuffer().slice(lvp).join(""); null === inputValue.match(Inputmask.escapeRegex(bufferTemplate) + "$"); ) bufferTemplate = bufferTemplate.slice(1);
+                    inputValue = inputValue.replace(bufferTemplate, ""), inputValue = inputValue.split(""), 
+                    checkVal(input, !0, !1, inputValue), isComplete(getBuffer()) === !0 && $(input).trigger("complete");
+                } else e.keyCode = Inputmask.keyCode.BACKSPACE, keydownEvent.call(input, e);
+                e.preventDefault();
+            }
+        }
+        function compositionStartEvent(e) {
+            var ev = e.originalEvent || e;
+            undoValue = getBuffer().join(""), "" === compositionData || 0 !== ev.data.indexOf(compositionData);
+        }
+        function compositionUpdateEvent(e) {
+            var input = this, ev = e.originalEvent || e, inputBuffer = getBuffer().join("");
+            0 === ev.data.indexOf(compositionData) && (resetMaskSet(), getMaskSet().p = seekNext(-1));
+            for (var newData = ev.data, i = 0; i < newData.length; i++) {
+                var keypress = new $.Event("keypress");
+                keypress.which = newData.charCodeAt(i), skipKeyPressEvent = !1, ignorable = !1, 
+                keypressEvent.call(input, keypress, !0, !1, !1, getMaskSet().p);
+            }
+            inputBuffer !== getBuffer().join("") && setTimeout(function() {
+                var forwardPosition = getMaskSet().p;
+                writeBuffer(input, getBuffer(), opts.numericInput ? seekPrevious(forwardPosition) : forwardPosition);
+            }, 0), compositionData = ev.data;
+        }
+        function compositionEndEvent(e) {}
+        function setValueEvent(e) {
+            var input = this, value = input.inputmask._valueGet();
+            checkVal(input, !0, !1, ($.isFunction(opts.onBeforeMask) ? opts.onBeforeMask(value, opts) || value : value).split("")), 
+            undoValue = getBuffer().join(""), (opts.clearMaskOnLostFocus || opts.clearIncomplete) && input.inputmask._valueGet() === getBufferTemplate().join("") && input.inputmask._valueSet("");
+        }
+        function focusEvent(e) {
+            var input = this, nptValue = input.inputmask._valueGet();
+            opts.showMaskOnFocus && (!opts.showMaskOnHover || opts.showMaskOnHover && "" === nptValue) ? input.inputmask._valueGet() !== getBuffer().join("") && writeBuffer(input, getBuffer(), seekNext(getLastValidPosition())) : mouseEnter === !1 && caret(input, seekNext(getLastValidPosition())), 
+            opts.positionCaretOnTab === !0 && setTimeout(function() {
+                caret(input, seekNext(getLastValidPosition()));
+            }, 0), undoValue = getBuffer().join("");
+        }
+        function mouseleaveEvent(e) {
+            var input = this;
+            if (mouseEnter = !1, opts.clearMaskOnLostFocus && document.activeElement !== input) {
+                var buffer = getBuffer().slice(), nptValue = input.inputmask._valueGet();
+                nptValue !== input.getAttribute("placeholder") && "" !== nptValue && (-1 === getLastValidPosition() && nptValue === getBufferTemplate().join("") ? buffer = [] : clearOptionalTail(buffer), 
+                writeBuffer(input, buffer));
+            }
+        }
+        function clickEvent(e) {
+            function doRadixFocus(clickPos) {
+                if (opts.radixFocus && "" !== opts.radixPoint) {
+                    var vps = getMaskSet().validPositions;
+                    if (void 0 === vps[clickPos] || vps[clickPos].input === getPlaceholder(clickPos)) {
+                        if (clickPos < seekNext(-1)) return !0;
+                        var radixPos = $.inArray(opts.radixPoint, getBuffer());
+                        if (-1 !== radixPos) {
+                            for (var vp in vps) if (vp > radixPos && vps[vp].input !== getPlaceholder(vp)) return !1;
+                            return !0;
+                        }
+                    }
+                }
+                return !1;
+            }
+            var input = this;
+            if (document.activeElement === input) {
+                var selectedCaret = caret(input);
+                if (selectedCaret.begin === selectedCaret.end) if (doRadixFocus(selectedCaret.begin)) caret(input, opts.numericInput ? seekNext($.inArray(opts.radixPoint, getBuffer())) : $.inArray(opts.radixPoint, getBuffer())); else {
+                    var clickPosition = selectedCaret.begin, lvclickPosition = getLastValidPosition(clickPosition), lastPosition = seekNext(lvclickPosition);
+                    lastPosition > clickPosition ? caret(input, isMask(clickPosition) || isMask(clickPosition - 1) ? clickPosition : seekNext(clickPosition)) : ((getBuffer()[lastPosition] !== getPlaceholder(lastPosition) || !isMask(lastPosition, !0) && getTest(lastPosition).def === getPlaceholder(lastPosition)) && (lastPosition = seekNext(lastPosition)), 
+                    caret(input, lastPosition));
+                }
+            }
+        }
+        function dblclickEvent(e) {
+            var input = this;
+            setTimeout(function() {
+                caret(input, 0, seekNext(getLastValidPosition()));
+            }, 0);
+        }
+        function cutEvent(e) {
+            var input = this, $input = $(input), pos = caret(input), ev = e.originalEvent || e, clipboardData = window.clipboardData || ev.clipboardData, clipData = isRTL ? getBuffer().slice(pos.end, pos.begin) : getBuffer().slice(pos.begin, pos.end);
+            clipboardData.setData("text", isRTL ? clipData.reverse().join("") : clipData.join("")), 
+            document.execCommand && document.execCommand("copy"), handleRemove(input, Inputmask.keyCode.DELETE, pos), 
+            writeBuffer(input, getBuffer(), getMaskSet().p, e, undoValue !== getBuffer().join("")), 
+            input.inputmask._valueGet() === getBufferTemplate().join("") && $input.trigger("cleared"), 
+            opts.showTooltip && (input.title = opts.tooltip || getMaskSet().mask);
+        }
+        function blurEvent(e) {
+            var $input = $(this), input = this;
+            if (input.inputmask) {
+                var nptValue = input.inputmask._valueGet(), buffer = getBuffer().slice();
+                undoValue !== buffer.join("") && setTimeout(function() {
+                    $input.trigger("change"), undoValue = buffer.join("");
+                }, 0), "" !== nptValue && (opts.clearMaskOnLostFocus && (-1 === getLastValidPosition() && nptValue === getBufferTemplate().join("") ? buffer = [] : clearOptionalTail(buffer)), 
+                isComplete(buffer) === !1 && (setTimeout(function() {
+                    $input.trigger("incomplete");
+                }, 0), opts.clearIncomplete && (resetMaskSet(), buffer = opts.clearMaskOnLostFocus ? [] : getBufferTemplate().slice())), 
+                writeBuffer(input, buffer, void 0, e));
+            }
+        }
+        function mouseenterEvent(e) {
+            var input = this;
+            mouseEnter = !0, document.activeElement !== input && opts.showMaskOnHover && input.inputmask._valueGet() !== getBuffer().join("") && writeBuffer(input, getBuffer());
+        }
+        function submitEvent(e) {
+            undoValue !== getBuffer().join("") && $el.trigger("change"), opts.clearMaskOnLostFocus && -1 === getLastValidPosition() && el.inputmask._valueGet && el.inputmask._valueGet() === getBufferTemplate().join("") && el.inputmask._valueSet(""), 
+            opts.removeMaskOnSubmit && (el.inputmask._valueSet(el.inputmask.unmaskedvalue(), !0), 
+            setTimeout(function() {
+                writeBuffer(el, getBuffer());
+            }, 0));
+        }
+        function resetEvent(e) {
+            setTimeout(function() {
+                $el.trigger("setvalue");
+            }, 0);
+        }
+        function mask(elem) {
+            if (el = elem, $el = $(el), opts.showTooltip && (el.title = opts.tooltip || getMaskSet().mask), 
+            ("rtl" === el.dir || opts.rightAlign) && (el.style.textAlign = "right"), ("rtl" === el.dir || opts.numericInput) && (el.dir = "ltr", 
+            el.removeAttribute("dir"), el.inputmask.isRTL = !0, isRTL = !0), EventRuler.off(el), 
+            patchValueProperty(el), isElementTypeSupported(el, opts) && (EventRuler.on(el, "submit", submitEvent), 
+            EventRuler.on(el, "reset", resetEvent), EventRuler.on(el, "mouseenter", mouseenterEvent), 
+            EventRuler.on(el, "blur", blurEvent), EventRuler.on(el, "focus", focusEvent), EventRuler.on(el, "mouseleave", mouseleaveEvent), 
+            EventRuler.on(el, "click", clickEvent), EventRuler.on(el, "dblclick", dblclickEvent), 
+            EventRuler.on(el, "paste", pasteEvent), EventRuler.on(el, "dragdrop", pasteEvent), 
+            EventRuler.on(el, "drop", pasteEvent), EventRuler.on(el, "cut", cutEvent), EventRuler.on(el, "complete", opts.oncomplete), 
+            EventRuler.on(el, "incomplete", opts.onincomplete), EventRuler.on(el, "cleared", opts.oncleared), 
+            EventRuler.on(el, "keydown", keydownEvent), EventRuler.on(el, "keypress", keypressEvent), 
+            EventRuler.on(el, "input", inputFallBackEvent), mobile || (EventRuler.on(el, "compositionstart", compositionStartEvent), 
+            EventRuler.on(el, "compositionupdate", compositionUpdateEvent), EventRuler.on(el, "compositionend", compositionEndEvent))), 
+            EventRuler.on(el, "setvalue", setValueEvent), "" !== el.inputmask._valueGet() || opts.clearMaskOnLostFocus === !1) {
+                var initialValue = $.isFunction(opts.onBeforeMask) ? opts.onBeforeMask(el.inputmask._valueGet(), opts) || el.inputmask._valueGet() : el.inputmask._valueGet();
+                checkVal(el, !0, !1, initialValue.split(""));
+                var buffer = getBuffer().slice();
+                undoValue = buffer.join(""), isComplete(buffer) === !1 && opts.clearIncomplete && resetMaskSet(), 
+                opts.clearMaskOnLostFocus && (buffer.join("") === getBufferTemplate().join("") ? buffer = [] : clearOptionalTail(buffer)), 
+                writeBuffer(el, buffer), document.activeElement === el && caret(el, seekNext(getLastValidPosition()));
+            }
+        }
+        var undoValue, compositionData, el, $el, maxLength, valueBuffer, isRTL = !1, skipKeyPressEvent = !1, skipInputEvent = !1, ignorable = !1, mouseEnter = !0, inComposition = !1, EventRuler = {
+            on: function(input, eventName, eventHandler) {
+                var ev = function(e) {
+                    if (void 0 === this.inputmask && "FORM" !== this.nodeName) {
+                        var imOpts = $.data(this, "_inputmask_opts");
+                        imOpts ? new Inputmask(imOpts).mask(this) : EventRuler.off(this);
+                    } else {
+                        if ("setvalue" === e.type || !(this.disabled || this.readOnly && !("keydown" === e.type && e.ctrlKey && 67 === e.keyCode || opts.tabThrough === !1 && e.keyCode === Inputmask.keyCode.TAB))) {
+                            switch (e.type) {
+                              case "input":
+                                if (skipInputEvent === !0 || inComposition === !0) return skipInputEvent = inComposition, 
+                                e.preventDefault();
+                                break;
+
+                              case "keydown":
+                                skipKeyPressEvent = !1, skipInputEvent = !1, inComposition = !1;
+                                break;
+
+                              case "keypress":
+                                if (skipKeyPressEvent === !0) return e.preventDefault();
+                                skipKeyPressEvent = !0;
+                                break;
+
+                              case "compositionstart":
+                                inComposition = !0;
+                                break;
+
+                              case "compositionupdate":
+                                skipInputEvent = !0;
+                                break;
+
+                              case "compositionend":
+                                inComposition = !1;
+                                break;
+
+                              case "cut":
+                                skipInputEvent = !0;
+                                break;
+
+                              case "click":
+                                if (iemobile) {
+                                    var that = this;
+                                    return setTimeout(function() {
+                                        eventHandler.apply(that, arguments);
+                                    }, 0), !1;
+                                }
+                            }
+                            return eventHandler.apply(this, arguments);
+                        }
+                        e.preventDefault();
+                    }
+                };
+                input.inputmask.events[eventName] = input.inputmask.events[eventName] || [], input.inputmask.events[eventName].push(ev), 
+                -1 !== $.inArray(eventName, [ "submit", "reset" ]) ? null != input.form && $(input.form).on(eventName, ev) : $(input).on(eventName, ev);
+            },
+            off: function(input, event) {
+                if (input.inputmask && input.inputmask.events) {
+                    var events;
+                    event ? (events = [], events[event] = input.inputmask.events[event]) : events = input.inputmask.events, 
+                    $.each(events, function(eventName, evArr) {
+                        for (;evArr.length > 0; ) {
+                            var ev = evArr.pop();
+                            -1 !== $.inArray(eventName, [ "submit", "reset" ]) ? null != input.form && $(input.form).off(eventName, ev) : $(input).off(eventName, ev);
+                        }
+                        delete input.inputmask.events[eventName];
+                    });
+                }
+            }
+        };
+        if (void 0 !== actionObj) switch (actionObj.action) {
+          case "isComplete":
+            return el = actionObj.el, isComplete(getBuffer());
+
+          case "unmaskedvalue":
+            return el = actionObj.el, void 0 !== el && void 0 !== el.inputmask ? (maskset = el.inputmask.maskset, 
+            opts = el.inputmask.opts, isRTL = el.inputmask.isRTL) : (valueBuffer = actionObj.value, 
+            opts.numericInput && (isRTL = !0), valueBuffer = ($.isFunction(opts.onBeforeMask) ? opts.onBeforeMask(valueBuffer, opts) || valueBuffer : valueBuffer).split(""), 
+            checkVal(void 0, !1, !1, isRTL ? valueBuffer.reverse() : valueBuffer), $.isFunction(opts.onBeforeWrite) && opts.onBeforeWrite(void 0, getBuffer(), 0, opts)), 
+            unmaskedvalue(el);
+
+          case "mask":
+            el = actionObj.el, maskset = el.inputmask.maskset, opts = el.inputmask.opts, isRTL = el.inputmask.isRTL, 
+            undoValue = getBuffer().join(""), mask(el);
+            break;
+
+          case "format":
+            return opts.numericInput && (isRTL = !0), valueBuffer = ($.isFunction(opts.onBeforeMask) ? opts.onBeforeMask(actionObj.value, opts) || actionObj.value : actionObj.value).split(""), 
+            checkVal(void 0, !1, !1, isRTL ? valueBuffer.reverse() : valueBuffer), $.isFunction(opts.onBeforeWrite) && opts.onBeforeWrite(void 0, getBuffer(), 0, opts), 
+            actionObj.metadata ? {
+                value: isRTL ? getBuffer().slice().reverse().join("") : getBuffer().join(""),
+                metadata: maskScope({
+                    action: "getmetadata"
+                }, maskset, opts)
+            } : isRTL ? getBuffer().slice().reverse().join("") : getBuffer().join("");
+
+          case "isValid":
+            opts.numericInput && (isRTL = !0), actionObj.value ? (valueBuffer = actionObj.value.split(""), 
+            checkVal(void 0, !1, !0, isRTL ? valueBuffer.reverse() : valueBuffer)) : actionObj.value = getBuffer().join("");
+            for (var buffer = getBuffer(), rl = determineLastRequiredPosition(), lmib = buffer.length - 1; lmib > rl && !isMask(lmib); lmib--) ;
+            return buffer.splice(rl, lmib + 1 - rl), isComplete(buffer) && actionObj.value === getBuffer().join("");
+
+          case "getemptymask":
+            return getBufferTemplate();
+
+          case "remove":
+            el = actionObj.el, $el = $(el), maskset = el.inputmask.maskset, opts = el.inputmask.opts, 
+            el.inputmask._valueSet(unmaskedvalue(el)), EventRuler.off(el);
+            var valueProperty;
+            Object.getOwnPropertyDescriptor && (valueProperty = Object.getOwnPropertyDescriptor(el, "value")), 
+            valueProperty && valueProperty.get ? el.inputmask.__valueGet && Object.defineProperty(el, "value", {
+                get: el.inputmask.__valueGet,
+                set: el.inputmask.__valueSet
+            }) : document.__lookupGetter__ && el.__lookupGetter__("value") && el.inputmask.__valueGet && (el.__defineGetter__("value", el.inputmask.__valueGet), 
+            el.__defineSetter__("value", el.inputmask.__valueSet)), el.inputmask = void 0;
+            break;
+
+          case "getmetadata":
+            if ($.isArray(maskset.metadata)) {
+                for (var alternation, lvp = getLastValidPosition(), firstAlt = lvp; firstAlt >= 0; firstAlt--) if (getMaskSet().validPositions[firstAlt] && void 0 !== getMaskSet().validPositions[firstAlt].alternation) {
+                    alternation = getMaskSet().validPositions[firstAlt].alternation;
+                    break;
+                }
+                return void 0 !== alternation ? maskset.metadata[getMaskSet().validPositions[lvp].locator[alternation]] : maskset.metadata[0];
+            }
+            return maskset.metadata;
+        }
+    }
+    Inputmask.prototype = {
+        defaults: {
+            placeholder: "_",
+            optionalmarker: {
+                start: "[",
+                end: "]"
+            },
+            quantifiermarker: {
+                start: "{",
+                end: "}"
+            },
+            groupmarker: {
+                start: "(",
+                end: ")"
+            },
+            alternatormarker: "|",
+            escapeChar: "\\",
+            mask: null,
+            oncomplete: $.noop,
+            onincomplete: $.noop,
+            oncleared: $.noop,
+            repeat: 0,
+            greedy: !0,
+            autoUnmask: !1,
+            removeMaskOnSubmit: !1,
+            clearMaskOnLostFocus: !0,
+            insertMode: !0,
+            clearIncomplete: !1,
+            aliases: {},
+            alias: null,
+            onKeyDown: $.noop,
+            onBeforeMask: null,
+            onBeforePaste: function(pastedValue, opts) {
+                return $.isFunction(opts.onBeforeMask) ? opts.onBeforeMask(pastedValue, opts) : pastedValue;
+            },
+            onBeforeWrite: null,
+            onUnMask: null,
+            showMaskOnFocus: !0,
+            showMaskOnHover: !0,
+            onKeyValidation: $.noop,
+            skipOptionalPartCharacter: " ",
+            showTooltip: !1,
+            tooltip: void 0,
+            numericInput: !1,
+            rightAlign: !1,
+            undoOnEscape: !0,
+            radixPoint: "",
+            groupSeparator: "",
+            radixFocus: !1,
+            nojumps: !1,
+            nojumpsThreshold: 0,
+            keepStatic: null,
+            positionCaretOnTab: !1,
+            tabThrough: !1,
+            supportsInputType: [ "text", "tel", "password" ],
+            definitions: {
+                "9": {
+                    validator: "[0-9]",
+                    cardinality: 1,
+                    definitionSymbol: "*"
+                },
+                a: {
+                    validator: "[A-Za-z\u0410-\u044f\u0401\u0451\xc0-\xff\xb5]",
+                    cardinality: 1,
+                    definitionSymbol: "*"
+                },
+                "*": {
+                    validator: "[0-9A-Za-z\u0410-\u044f\u0401\u0451\xc0-\xff\xb5]",
+                    cardinality: 1
+                }
+            },
+            ignorables: [ 8, 9, 13, 19, 27, 33, 34, 35, 36, 37, 38, 39, 40, 45, 46, 93, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123 ],
+            isComplete: null,
+            canClearPosition: $.noop,
+            postValidation: null,
+            staticDefinitionSymbol: void 0,
+            jitMasking: !1
+        },
+        masksCache: {},
+        mask: function(elems) {
+            var that = this;
+            return "string" == typeof elems && (elems = document.getElementById(elems) || document.querySelectorAll(elems)), 
+            elems = elems.nodeName ? [ elems ] : elems, $.each(elems, function(ndx, el) {
+                var scopedOpts = $.extend(!0, {}, that.opts);
+                importAttributeOptions(el, scopedOpts, $.extend(!0, {}, that.userOptions));
+                var maskset = generateMaskSet(scopedOpts, that.noMasksCache);
+                void 0 !== maskset && (void 0 !== el.inputmask && el.inputmask.remove(), el.inputmask = new Inputmask(), 
+                el.inputmask.opts = scopedOpts, el.inputmask.noMasksCache = that.noMasksCache, el.inputmask.userOptions = $.extend(!0, {}, that.userOptions), 
+                el.inputmask.el = el, el.inputmask.maskset = maskset, el.inputmask.isRTL = !1, $.data(el, "_inputmask_opts", scopedOpts), 
+                maskScope({
+                    action: "mask",
+                    el: el
+                }));
+            }), elems && elems[0] ? elems[0].inputmask || this : this;
+        },
+        option: function(options) {
+            return "string" == typeof options ? this.opts[options] : "object" == typeof options ? ($.extend(this.opts, options), 
+            $.extend(this.userOptions, options), this.el && (void 0 !== options.mask || void 0 !== options.alias ? this.mask(this.el) : ($.data(this.el, "_inputmask_opts", this.opts), 
+            maskScope({
+                action: "mask",
+                el: this.el
+            }))), this) : void 0;
+        },
+        unmaskedvalue: function(value) {
+            return maskScope({
+                action: "unmaskedvalue",
+                el: this.el,
+                value: value
+            }, this.el && this.el.inputmask ? this.el.inputmask.maskset : generateMaskSet(this.opts, this.noMasksCache), this.opts);
+        },
+        remove: function() {
+            return this.el ? (maskScope({
+                action: "remove",
+                el: this.el
+            }), this.el.inputmask = void 0, this.el) : void 0;
+        },
+        getemptymask: function() {
+            return maskScope({
+                action: "getemptymask"
+            }, this.maskset || generateMaskSet(this.opts, this.noMasksCache), this.opts);
+        },
+        hasMaskedValue: function() {
+            return !this.opts.autoUnmask;
+        },
+        isComplete: function() {
+            return maskScope({
+                action: "isComplete",
+                el: this.el
+            }, this.maskset || generateMaskSet(this.opts, this.noMasksCache), this.opts);
+        },
+        getmetadata: function() {
+            return maskScope({
+                action: "getmetadata"
+            }, this.maskset || generateMaskSet(this.opts, this.noMasksCache), this.opts);
+        },
+        isValid: function(value) {
+            return maskScope({
+                action: "isValid",
+                value: value
+            }, this.maskset || generateMaskSet(this.opts, this.noMasksCache), this.opts);
+        },
+        format: function(value, metadata) {
+            return maskScope({
+                action: "format",
+                value: value,
+                metadata: metadata
+            }, this.maskset || generateMaskSet(this.opts, this.noMasksCache), this.opts);
+        }
+    }, Inputmask.extendDefaults = function(options) {
+        $.extend(!0, Inputmask.prototype.defaults, options);
+    }, Inputmask.extendDefinitions = function(definition) {
+        $.extend(!0, Inputmask.prototype.defaults.definitions, definition);
+    }, Inputmask.extendAliases = function(alias) {
+        $.extend(!0, Inputmask.prototype.defaults.aliases, alias);
+    }, Inputmask.format = function(value, options, metadata) {
+        return Inputmask(options).format(value, metadata);
+    }, Inputmask.unmask = function(value, options) {
+        return Inputmask(options).unmaskedvalue(value);
+    }, Inputmask.isValid = function(value, options) {
+        return Inputmask(options).isValid(value);
+    }, Inputmask.remove = function(elems) {
+        $.each(elems, function(ndx, el) {
+            el.inputmask && el.inputmask.remove();
+        });
+    }, Inputmask.escapeRegex = function(str) {
+        var specials = [ "/", ".", "*", "+", "?", "|", "(", ")", "[", "]", "{", "}", "\\", "$", "^" ];
+        return str.replace(new RegExp("(\\" + specials.join("|\\") + ")", "gim"), "\\$1");
+    }, Inputmask.keyCode = {
+        ALT: 18,
+        BACKSPACE: 8,
+        CAPS_LOCK: 20,
+        COMMA: 188,
+        COMMAND: 91,
+        COMMAND_LEFT: 91,
+        COMMAND_RIGHT: 93,
+        CONTROL: 17,
+        DELETE: 46,
+        DOWN: 40,
+        END: 35,
+        ENTER: 13,
+        ESCAPE: 27,
+        HOME: 36,
+        INSERT: 45,
+        LEFT: 37,
+        MENU: 93,
+        NUMPAD_ADD: 107,
+        NUMPAD_DECIMAL: 110,
+        NUMPAD_DIVIDE: 111,
+        NUMPAD_ENTER: 108,
+        NUMPAD_MULTIPLY: 106,
+        NUMPAD_SUBTRACT: 109,
+        PAGE_DOWN: 34,
+        PAGE_UP: 33,
+        PERIOD: 190,
+        RIGHT: 39,
+        SHIFT: 16,
+        SPACE: 32,
+        TAB: 9,
+        UP: 38,
+        WINDOWS: 91
+    };
+    var ua = navigator.userAgent, mobile = /mobile/i.test(ua), iemobile = /iemobile/i.test(ua), iphone = /iphone/i.test(ua) && !iemobile;
+    /android.*safari.*/i.test(ua) && !iemobile;
+    return window.Inputmask = Inputmask, Inputmask;
+});
+}).apply(this, arguments);
+
+},{"./inputmask.dependencyLib.jquery":72}],74:[function(require,module,exports){
+_hmr["websocket:null"].initModule("node_modules/jquery.inputmask/dist/inputmask/jquery.inputmask.js", module);
+(function(){
+/*!
+* jquery.inputmask.js
+* http://github.com/RobinHerbots/jquery.inputmask
+* Copyright (c) 2010 - 2016 Robin Herbots
+* Licensed under the MIT license (http://www.opensource.org/licenses/mit-license.php)
+* Version: 3.2.7
+*/
+!function(factory) {
+    "function" == typeof define && define.amd ? define([ "jquery", "inputmask" ], factory) : "object" == typeof exports ? module.exports = factory(require("jquery"), require("./inputmask")) : factory(jQuery, window.Inputmask);
+}(function($, Inputmask) {
+    return void 0 === $.fn.inputmask && ($.fn.inputmask = function(fn, options) {
+        var nptmask, input = this[0];
+        if (options = options || {}, "string" == typeof fn) switch (fn) {
+          case "unmaskedvalue":
+            return input && input.inputmask ? input.inputmask.unmaskedvalue() : $(input).val();
+
+          case "remove":
+            return this.each(function() {
+                this.inputmask && this.inputmask.remove();
+            });
+
+          case "getemptymask":
+            return input && input.inputmask ? input.inputmask.getemptymask() : "";
+
+          case "hasMaskedValue":
+            return input && input.inputmask ? input.inputmask.hasMaskedValue() : !1;
+
+          case "isComplete":
+            return input && input.inputmask ? input.inputmask.isComplete() : !0;
+
+          case "getmetadata":
+            return input && input.inputmask ? input.inputmask.getmetadata() : void 0;
+
+          case "setvalue":
+            $(input).val(options), input && void 0 !== input.inputmask && $(input).triggerHandler("setvalue");
+            break;
+
+          case "option":
+            if ("string" != typeof options) return this.each(function() {
+                return void 0 !== this.inputmask ? this.inputmask.option(options) : void 0;
+            });
+            if (input && void 0 !== input.inputmask) return input.inputmask.option(options);
+            break;
+
+          default:
+            return options.alias = fn, nptmask = new Inputmask(options), this.each(function() {
+                nptmask.mask(this);
+            });
+        } else {
+            if ("object" == typeof fn) return nptmask = new Inputmask(fn), void 0 === fn.mask && void 0 === fn.alias ? this.each(function() {
+                return void 0 !== this.inputmask ? this.inputmask.option(fn) : void nptmask.mask(this);
+            }) : this.each(function() {
+                nptmask.mask(this);
+            });
+            if (void 0 === fn) return this.each(function() {
+                nptmask = new Inputmask(options), nptmask.mask(this);
+            });
+        }
+    }), $.fn.inputmask;
+});
+}).apply(this, arguments);
+
+},{"./inputmask":73,"jquery":75}],75:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/jquery/dist/jquery.js", module);
 (function(){
 /*!
@@ -14486,7 +16044,7 @@ return jQuery;
 
 }).apply(this, arguments);
 
-},{}],73:[function(require,module,exports){
+},{}],76:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/json3/lib/json3.js", module);
 (function(){
 /*! JSON v3.2.6 | http://bestiejs.github.io/json3 | Copyright 2012-2013, Kit Cambridge | http://kit.mit-license.org */
@@ -15353,7 +16911,7 @@ _hmr["websocket:null"].initModule("node_modules/json3/lib/json3.js", module);
 
 }).apply(this, arguments);
 
-},{}],74:[function(require,module,exports){
+},{}],77:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/array/last.js", module);
 (function(){
 /**
@@ -15378,7 +16936,7 @@ module.exports = last;
 
 }).apply(this, arguments);
 
-},{}],75:[function(require,module,exports){
+},{}],78:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/array/zipObject.js", module);
 (function(){
 var isArray = require('../lang/isArray');
@@ -15427,7 +16985,7 @@ module.exports = zipObject;
 
 }).apply(this, arguments);
 
-},{"../lang/isArray":129}],76:[function(require,module,exports){
+},{"../lang/isArray":132}],79:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/collection/filter.js", module);
 (function(){
 var arrayFilter = require('../internal/arrayFilter'),
@@ -15494,7 +17052,7 @@ module.exports = filter;
 
 }).apply(this, arguments);
 
-},{"../internal/arrayFilter":82,"../internal/baseCallback":87,"../internal/baseFilter":90,"../lang/isArray":129}],77:[function(require,module,exports){
+},{"../internal/arrayFilter":85,"../internal/baseCallback":90,"../internal/baseFilter":93,"../lang/isArray":132}],80:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/collection/forEach.js", module);
 (function(){
 var arrayEach = require('../internal/arrayEach'),
@@ -15537,7 +17095,7 @@ module.exports = forEach;
 
 }).apply(this, arguments);
 
-},{"../internal/arrayEach":81,"../internal/baseEach":89,"../internal/createForEach":109}],78:[function(require,module,exports){
+},{"../internal/arrayEach":84,"../internal/baseEach":92,"../internal/createForEach":112}],81:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/collection/map.js", module);
 (function(){
 var arrayMap = require('../internal/arrayMap'),
@@ -15611,7 +17169,7 @@ module.exports = map;
 
 }).apply(this, arguments);
 
-},{"../internal/arrayMap":83,"../internal/baseCallback":87,"../internal/baseMap":97,"../lang/isArray":129}],79:[function(require,module,exports){
+},{"../internal/arrayMap":86,"../internal/baseCallback":90,"../internal/baseMap":100,"../lang/isArray":132}],82:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/collection/some.js", module);
 (function(){
 var arraySome = require('../internal/arraySome'),
@@ -15684,7 +17242,7 @@ module.exports = some;
 
 }).apply(this, arguments);
 
-},{"../internal/arraySome":84,"../internal/baseCallback":87,"../internal/baseSome":103,"../internal/isIterateeCall":120,"../lang/isArray":129}],80:[function(require,module,exports){
+},{"../internal/arraySome":87,"../internal/baseCallback":90,"../internal/baseSome":106,"../internal/isIterateeCall":123,"../lang/isArray":132}],83:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/function/restParam.js", module);
 (function(){
 /** Used as the `TypeError` message for "Functions" methods. */
@@ -15748,7 +17306,7 @@ module.exports = restParam;
 
 }).apply(this, arguments);
 
-},{}],81:[function(require,module,exports){
+},{}],84:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/arrayEach.js", module);
 (function(){
 /**
@@ -15776,7 +17334,7 @@ module.exports = arrayEach;
 
 }).apply(this, arguments);
 
-},{}],82:[function(require,module,exports){
+},{}],85:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/arrayFilter.js", module);
 (function(){
 /**
@@ -15807,7 +17365,7 @@ module.exports = arrayFilter;
 
 }).apply(this, arguments);
 
-},{}],83:[function(require,module,exports){
+},{}],86:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/arrayMap.js", module);
 (function(){
 /**
@@ -15834,7 +17392,7 @@ module.exports = arrayMap;
 
 }).apply(this, arguments);
 
-},{}],84:[function(require,module,exports){
+},{}],87:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/arraySome.js", module);
 (function(){
 /**
@@ -15863,7 +17421,7 @@ module.exports = arraySome;
 
 }).apply(this, arguments);
 
-},{}],85:[function(require,module,exports){
+},{}],88:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/assignWith.js", module);
 (function(){
 var keys = require('../object/keys');
@@ -15901,7 +17459,7 @@ module.exports = assignWith;
 
 }).apply(this, arguments);
 
-},{"../object/keys":136}],86:[function(require,module,exports){
+},{"../object/keys":139}],89:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/baseAssign.js", module);
 (function(){
 var baseCopy = require('./baseCopy'),
@@ -15926,7 +17484,7 @@ module.exports = baseAssign;
 
 }).apply(this, arguments);
 
-},{"../object/keys":136,"./baseCopy":88}],87:[function(require,module,exports){
+},{"../object/keys":139,"./baseCopy":91}],90:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/baseCallback.js", module);
 (function(){
 var baseMatches = require('./baseMatches'),
@@ -15967,7 +17525,7 @@ module.exports = baseCallback;
 
 }).apply(this, arguments);
 
-},{"../utility/identity":140,"../utility/property":141,"./baseMatches":98,"./baseMatchesProperty":99,"./bindCallback":105}],88:[function(require,module,exports){
+},{"../utility/identity":143,"../utility/property":144,"./baseMatches":101,"./baseMatchesProperty":102,"./bindCallback":108}],91:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/baseCopy.js", module);
 (function(){
 /**
@@ -15996,7 +17554,7 @@ module.exports = baseCopy;
 
 }).apply(this, arguments);
 
-},{}],89:[function(require,module,exports){
+},{}],92:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/baseEach.js", module);
 (function(){
 var baseForOwn = require('./baseForOwn'),
@@ -16017,7 +17575,7 @@ module.exports = baseEach;
 
 }).apply(this, arguments);
 
-},{"./baseForOwn":92,"./createBaseEach":107}],90:[function(require,module,exports){
+},{"./baseForOwn":95,"./createBaseEach":110}],93:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/baseFilter.js", module);
 (function(){
 var baseEach = require('./baseEach');
@@ -16045,7 +17603,7 @@ module.exports = baseFilter;
 
 }).apply(this, arguments);
 
-},{"./baseEach":89}],91:[function(require,module,exports){
+},{"./baseEach":92}],94:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/baseFor.js", module);
 (function(){
 var createBaseFor = require('./createBaseFor');
@@ -16068,7 +17626,7 @@ module.exports = baseFor;
 
 }).apply(this, arguments);
 
-},{"./createBaseFor":108}],92:[function(require,module,exports){
+},{"./createBaseFor":111}],95:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/baseForOwn.js", module);
 (function(){
 var baseFor = require('./baseFor'),
@@ -16091,7 +17649,7 @@ module.exports = baseForOwn;
 
 }).apply(this, arguments);
 
-},{"../object/keys":136,"./baseFor":91}],93:[function(require,module,exports){
+},{"../object/keys":139,"./baseFor":94}],96:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/baseGet.js", module);
 (function(){
 var toObject = require('./toObject');
@@ -16126,7 +17684,7 @@ module.exports = baseGet;
 
 }).apply(this, arguments);
 
-},{"./toObject":126}],94:[function(require,module,exports){
+},{"./toObject":129}],97:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/baseIsEqual.js", module);
 (function(){
 var baseIsEqualDeep = require('./baseIsEqualDeep'),
@@ -16160,7 +17718,7 @@ module.exports = baseIsEqual;
 
 }).apply(this, arguments);
 
-},{"../lang/isObject":132,"./baseIsEqualDeep":95,"./isObjectLike":123}],95:[function(require,module,exports){
+},{"../lang/isObject":135,"./baseIsEqualDeep":98,"./isObjectLike":126}],98:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/baseIsEqualDeep.js", module);
 (function(){
 var equalArrays = require('./equalArrays'),
@@ -16268,7 +17826,7 @@ module.exports = baseIsEqualDeep;
 
 }).apply(this, arguments);
 
-},{"../lang/isArray":129,"../lang/isTypedArray":133,"./equalArrays":112,"./equalByTag":113,"./equalObjects":114}],96:[function(require,module,exports){
+},{"../lang/isArray":132,"../lang/isTypedArray":136,"./equalArrays":115,"./equalByTag":116,"./equalObjects":117}],99:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/baseIsMatch.js", module);
 (function(){
 var baseIsEqual = require('./baseIsEqual'),
@@ -16326,7 +17884,7 @@ module.exports = baseIsMatch;
 
 }).apply(this, arguments);
 
-},{"./baseIsEqual":94,"./toObject":126}],97:[function(require,module,exports){
+},{"./baseIsEqual":97,"./toObject":129}],100:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/baseMap.js", module);
 (function(){
 var baseEach = require('./baseEach'),
@@ -16355,7 +17913,7 @@ module.exports = baseMap;
 
 }).apply(this, arguments);
 
-},{"./baseEach":89,"./isArrayLike":118}],98:[function(require,module,exports){
+},{"./baseEach":92,"./isArrayLike":121}],101:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/baseMatches.js", module);
 (function(){
 var baseIsMatch = require('./baseIsMatch'),
@@ -16391,7 +17949,7 @@ module.exports = baseMatches;
 
 }).apply(this, arguments);
 
-},{"./baseIsMatch":96,"./getMatchData":116,"./toObject":126}],99:[function(require,module,exports){
+},{"./baseIsMatch":99,"./getMatchData":119,"./toObject":129}],102:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/baseMatchesProperty.js", module);
 (function(){
 var baseGet = require('./baseGet'),
@@ -16442,7 +18000,7 @@ module.exports = baseMatchesProperty;
 
 }).apply(this, arguments);
 
-},{"../array/last":74,"../lang/isArray":129,"./baseGet":93,"./baseIsEqual":94,"./baseSlice":102,"./isKey":121,"./isStrictComparable":124,"./toObject":126,"./toPath":127}],100:[function(require,module,exports){
+},{"../array/last":77,"../lang/isArray":132,"./baseGet":96,"./baseIsEqual":97,"./baseSlice":105,"./isKey":124,"./isStrictComparable":127,"./toObject":129,"./toPath":130}],103:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/baseProperty.js", module);
 (function(){
 /**
@@ -16462,7 +18020,7 @@ module.exports = baseProperty;
 
 }).apply(this, arguments);
 
-},{}],101:[function(require,module,exports){
+},{}],104:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/basePropertyDeep.js", module);
 (function(){
 var baseGet = require('./baseGet'),
@@ -16487,7 +18045,7 @@ module.exports = basePropertyDeep;
 
 }).apply(this, arguments);
 
-},{"./baseGet":93,"./toPath":127}],102:[function(require,module,exports){
+},{"./baseGet":96,"./toPath":130}],105:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/baseSlice.js", module);
 (function(){
 /**
@@ -16525,7 +18083,7 @@ module.exports = baseSlice;
 
 }).apply(this, arguments);
 
-},{}],103:[function(require,module,exports){
+},{}],106:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/baseSome.js", module);
 (function(){
 var baseEach = require('./baseEach');
@@ -16554,7 +18112,7 @@ module.exports = baseSome;
 
 }).apply(this, arguments);
 
-},{"./baseEach":89}],104:[function(require,module,exports){
+},{"./baseEach":92}],107:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/baseToString.js", module);
 (function(){
 /**
@@ -16573,7 +18131,7 @@ module.exports = baseToString;
 
 }).apply(this, arguments);
 
-},{}],105:[function(require,module,exports){
+},{}],108:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/bindCallback.js", module);
 (function(){
 var identity = require('../utility/identity');
@@ -16618,7 +18176,7 @@ module.exports = bindCallback;
 
 }).apply(this, arguments);
 
-},{"../utility/identity":140}],106:[function(require,module,exports){
+},{"../utility/identity":143}],109:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/createAssigner.js", module);
 (function(){
 var bindCallback = require('./bindCallback'),
@@ -16665,7 +18223,7 @@ module.exports = createAssigner;
 
 }).apply(this, arguments);
 
-},{"../function/restParam":80,"./bindCallback":105,"./isIterateeCall":120}],107:[function(require,module,exports){
+},{"../function/restParam":83,"./bindCallback":108,"./isIterateeCall":123}],110:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/createBaseEach.js", module);
 (function(){
 var getLength = require('./getLength'),
@@ -16702,7 +18260,7 @@ module.exports = createBaseEach;
 
 }).apply(this, arguments);
 
-},{"./getLength":115,"./isLength":122,"./toObject":126}],108:[function(require,module,exports){
+},{"./getLength":118,"./isLength":125,"./toObject":129}],111:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/createBaseFor.js", module);
 (function(){
 var toObject = require('./toObject');
@@ -16735,7 +18293,7 @@ module.exports = createBaseFor;
 
 }).apply(this, arguments);
 
-},{"./toObject":126}],109:[function(require,module,exports){
+},{"./toObject":129}],112:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/createForEach.js", module);
 (function(){
 var bindCallback = require('./bindCallback'),
@@ -16761,7 +18319,7 @@ module.exports = createForEach;
 
 }).apply(this, arguments);
 
-},{"../lang/isArray":129,"./bindCallback":105}],110:[function(require,module,exports){
+},{"../lang/isArray":132,"./bindCallback":108}],113:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/createForOwn.js", module);
 (function(){
 var bindCallback = require('./bindCallback');
@@ -16786,7 +18344,7 @@ module.exports = createForOwn;
 
 }).apply(this, arguments);
 
-},{"./bindCallback":105}],111:[function(require,module,exports){
+},{"./bindCallback":108}],114:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/createObjectMapper.js", module);
 (function(){
 var baseCallback = require('./baseCallback'),
@@ -16818,7 +18376,7 @@ module.exports = createObjectMapper;
 
 }).apply(this, arguments);
 
-},{"./baseCallback":87,"./baseForOwn":92}],112:[function(require,module,exports){
+},{"./baseCallback":90,"./baseForOwn":95}],115:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/equalArrays.js", module);
 (function(){
 var arraySome = require('./arraySome');
@@ -16875,7 +18433,7 @@ module.exports = equalArrays;
 
 }).apply(this, arguments);
 
-},{"./arraySome":84}],113:[function(require,module,exports){
+},{"./arraySome":87}],116:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/equalByTag.js", module);
 (function(){
 /** `Object#toString` result references. */
@@ -16929,7 +18487,7 @@ module.exports = equalByTag;
 
 }).apply(this, arguments);
 
-},{}],114:[function(require,module,exports){
+},{}],117:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/equalObjects.js", module);
 (function(){
 var keys = require('../object/keys');
@@ -17002,7 +18560,7 @@ module.exports = equalObjects;
 
 }).apply(this, arguments);
 
-},{"../object/keys":136}],115:[function(require,module,exports){
+},{"../object/keys":139}],118:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/getLength.js", module);
 (function(){
 var baseProperty = require('./baseProperty');
@@ -17023,7 +18581,7 @@ module.exports = getLength;
 
 }).apply(this, arguments);
 
-},{"./baseProperty":100}],116:[function(require,module,exports){
+},{"./baseProperty":103}],119:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/getMatchData.js", module);
 (function(){
 var isStrictComparable = require('./isStrictComparable'),
@@ -17050,7 +18608,7 @@ module.exports = getMatchData;
 
 }).apply(this, arguments);
 
-},{"../object/pairs":139,"./isStrictComparable":124}],117:[function(require,module,exports){
+},{"../object/pairs":142,"./isStrictComparable":127}],120:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/getNative.js", module);
 (function(){
 var isNative = require('../lang/isNative');
@@ -17072,7 +18630,7 @@ module.exports = getNative;
 
 }).apply(this, arguments);
 
-},{"../lang/isNative":131}],118:[function(require,module,exports){
+},{"../lang/isNative":134}],121:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/isArrayLike.js", module);
 (function(){
 var getLength = require('./getLength'),
@@ -17093,7 +18651,7 @@ module.exports = isArrayLike;
 
 }).apply(this, arguments);
 
-},{"./getLength":115,"./isLength":122}],119:[function(require,module,exports){
+},{"./getLength":118,"./isLength":125}],122:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/isIndex.js", module);
 (function(){
 /** Used to detect unsigned integer values. */
@@ -17123,7 +18681,7 @@ module.exports = isIndex;
 
 }).apply(this, arguments);
 
-},{}],120:[function(require,module,exports){
+},{}],123:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/isIterateeCall.js", module);
 (function(){
 var isArrayLike = require('./isArrayLike'),
@@ -17157,7 +18715,7 @@ module.exports = isIterateeCall;
 
 }).apply(this, arguments);
 
-},{"../lang/isObject":132,"./isArrayLike":118,"./isIndex":119}],121:[function(require,module,exports){
+},{"../lang/isObject":135,"./isArrayLike":121,"./isIndex":122}],124:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/isKey.js", module);
 (function(){
 var isArray = require('../lang/isArray'),
@@ -17191,7 +18749,7 @@ module.exports = isKey;
 
 }).apply(this, arguments);
 
-},{"../lang/isArray":129,"./toObject":126}],122:[function(require,module,exports){
+},{"../lang/isArray":132,"./toObject":129}],125:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/isLength.js", module);
 (function(){
 /**
@@ -17217,7 +18775,7 @@ module.exports = isLength;
 
 }).apply(this, arguments);
 
-},{}],123:[function(require,module,exports){
+},{}],126:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/isObjectLike.js", module);
 (function(){
 /**
@@ -17235,7 +18793,7 @@ module.exports = isObjectLike;
 
 }).apply(this, arguments);
 
-},{}],124:[function(require,module,exports){
+},{}],127:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/isStrictComparable.js", module);
 (function(){
 var isObject = require('../lang/isObject');
@@ -17256,7 +18814,7 @@ module.exports = isStrictComparable;
 
 }).apply(this, arguments);
 
-},{"../lang/isObject":132}],125:[function(require,module,exports){
+},{"../lang/isObject":135}],128:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/shimKeys.js", module);
 (function(){
 var isArguments = require('../lang/isArguments'),
@@ -17303,7 +18861,7 @@ module.exports = shimKeys;
 
 }).apply(this, arguments);
 
-},{"../lang/isArguments":128,"../lang/isArray":129,"../object/keysIn":137,"./isIndex":119,"./isLength":122}],126:[function(require,module,exports){
+},{"../lang/isArguments":131,"../lang/isArray":132,"../object/keysIn":140,"./isIndex":122,"./isLength":125}],129:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/toObject.js", module);
 (function(){
 var isObject = require('../lang/isObject');
@@ -17323,7 +18881,7 @@ module.exports = toObject;
 
 }).apply(this, arguments);
 
-},{"../lang/isObject":132}],127:[function(require,module,exports){
+},{"../lang/isObject":135}],130:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/internal/toPath.js", module);
 (function(){
 var baseToString = require('./baseToString'),
@@ -17357,7 +18915,7 @@ module.exports = toPath;
 
 }).apply(this, arguments);
 
-},{"../lang/isArray":129,"./baseToString":104}],128:[function(require,module,exports){
+},{"../lang/isArray":132,"./baseToString":107}],131:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/lang/isArguments.js", module);
 (function(){
 var isArrayLike = require('../internal/isArrayLike'),
@@ -17397,7 +18955,7 @@ module.exports = isArguments;
 
 }).apply(this, arguments);
 
-},{"../internal/isArrayLike":118,"../internal/isObjectLike":123}],129:[function(require,module,exports){
+},{"../internal/isArrayLike":121,"../internal/isObjectLike":126}],132:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/lang/isArray.js", module);
 (function(){
 var getNative = require('../internal/getNative'),
@@ -17443,7 +19001,7 @@ module.exports = isArray;
 
 }).apply(this, arguments);
 
-},{"../internal/getNative":117,"../internal/isLength":122,"../internal/isObjectLike":123}],130:[function(require,module,exports){
+},{"../internal/getNative":120,"../internal/isLength":125,"../internal/isObjectLike":126}],133:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/lang/isFunction.js", module);
 (function(){
 var isObject = require('./isObject');
@@ -17487,7 +19045,7 @@ module.exports = isFunction;
 
 }).apply(this, arguments);
 
-},{"./isObject":132}],131:[function(require,module,exports){
+},{"./isObject":135}],134:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/lang/isNative.js", module);
 (function(){
 var isFunction = require('./isFunction'),
@@ -17541,7 +19099,7 @@ module.exports = isNative;
 
 }).apply(this, arguments);
 
-},{"../internal/isObjectLike":123,"./isFunction":130}],132:[function(require,module,exports){
+},{"../internal/isObjectLike":126,"./isFunction":133}],135:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/lang/isObject.js", module);
 (function(){
 /**
@@ -17575,7 +19133,7 @@ module.exports = isObject;
 
 }).apply(this, arguments);
 
-},{}],133:[function(require,module,exports){
+},{}],136:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/lang/isTypedArray.js", module);
 (function(){
 var isLength = require('../internal/isLength'),
@@ -17655,7 +19213,7 @@ module.exports = isTypedArray;
 
 }).apply(this, arguments);
 
-},{"../internal/isLength":122,"../internal/isObjectLike":123}],134:[function(require,module,exports){
+},{"../internal/isLength":125,"../internal/isObjectLike":126}],137:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/object/assign.js", module);
 (function(){
 var assignWith = require('../internal/assignWith'),
@@ -17704,7 +19262,7 @@ module.exports = assign;
 
 }).apply(this, arguments);
 
-},{"../internal/assignWith":85,"../internal/baseAssign":86,"../internal/createAssigner":106}],135:[function(require,module,exports){
+},{"../internal/assignWith":88,"../internal/baseAssign":89,"../internal/createAssigner":109}],138:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/object/forOwn.js", module);
 (function(){
 var baseForOwn = require('../internal/baseForOwn'),
@@ -17743,7 +19301,7 @@ module.exports = forOwn;
 
 }).apply(this, arguments);
 
-},{"../internal/baseForOwn":92,"../internal/createForOwn":110}],136:[function(require,module,exports){
+},{"../internal/baseForOwn":95,"../internal/createForOwn":113}],139:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/object/keys.js", module);
 (function(){
 var getNative = require('../internal/getNative'),
@@ -17794,7 +19352,7 @@ module.exports = keys;
 
 }).apply(this, arguments);
 
-},{"../internal/getNative":117,"../internal/isArrayLike":118,"../internal/shimKeys":125,"../lang/isObject":132}],137:[function(require,module,exports){
+},{"../internal/getNative":120,"../internal/isArrayLike":121,"../internal/shimKeys":128,"../lang/isObject":135}],140:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/object/keysIn.js", module);
 (function(){
 var isArguments = require('../lang/isArguments'),
@@ -17864,7 +19422,7 @@ module.exports = keysIn;
 
 }).apply(this, arguments);
 
-},{"../internal/isIndex":119,"../internal/isLength":122,"../lang/isArguments":128,"../lang/isArray":129,"../lang/isObject":132}],138:[function(require,module,exports){
+},{"../internal/isIndex":122,"../internal/isLength":125,"../lang/isArguments":131,"../lang/isArray":132,"../lang/isObject":135}],141:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/object/mapValues.js", module);
 (function(){
 var createObjectMapper = require('../internal/createObjectMapper');
@@ -17916,7 +19474,7 @@ module.exports = mapValues;
 
 }).apply(this, arguments);
 
-},{"../internal/createObjectMapper":111}],139:[function(require,module,exports){
+},{"../internal/createObjectMapper":114}],142:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/object/pairs.js", module);
 (function(){
 var keys = require('./keys'),
@@ -17955,7 +19513,7 @@ module.exports = pairs;
 
 }).apply(this, arguments);
 
-},{"../internal/toObject":126,"./keys":136}],140:[function(require,module,exports){
+},{"../internal/toObject":129,"./keys":139}],143:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/utility/identity.js", module);
 (function(){
 /**
@@ -17981,7 +19539,7 @@ module.exports = identity;
 
 }).apply(this, arguments);
 
-},{}],141:[function(require,module,exports){
+},{}],144:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/lodash/utility/property.js", module);
 (function(){
 var baseProperty = require('../internal/baseProperty'),
@@ -18018,7 +19576,7 @@ module.exports = property;
 
 }).apply(this, arguments);
 
-},{"../internal/baseProperty":100,"../internal/basePropertyDeep":101,"../internal/isKey":121}],142:[function(require,module,exports){
+},{"../internal/baseProperty":103,"../internal/basePropertyDeep":104,"../internal/isKey":124}],145:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/object-component/index.js", module);
 (function(){
 
@@ -18107,7 +19665,7 @@ exports.isEmpty = function(obj){
 };
 }).apply(this, arguments);
 
-},{}],143:[function(require,module,exports){
+},{}],146:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/parsejson/index.js", module);
 (function(){
 (function (global){
@@ -18146,7 +19704,7 @@ module.exports = function parsejson(data) {
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 }).apply(this, arguments);
 
-},{}],144:[function(require,module,exports){
+},{}],147:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/parseqs/index.js", module);
 (function(){
 /**
@@ -18189,7 +19747,7 @@ exports.decode = function(qs){
 
 }).apply(this, arguments);
 
-},{}],145:[function(require,module,exports){
+},{}],148:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/parseuri/index.js", module);
 (function(){
 /**
@@ -18220,7 +19778,7 @@ module.exports = function parseuri(str) {
 
 }).apply(this, arguments);
 
-},{}],146:[function(require,module,exports){
+},{}],149:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/process/browser.js", module);
 (function(){
 // shim for using process in browser
@@ -18317,7 +19875,7 @@ process.umask = function() { return 0; };
 
 }).apply(this, arguments);
 
-},{}],147:[function(require,module,exports){
+},{}],150:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/socket.io-client/index.js", module);
 (function(){
 
@@ -18325,7 +19883,7 @@ module.exports = require('./lib/');
 
 }).apply(this, arguments);
 
-},{"./lib/":148}],148:[function(require,module,exports){
+},{"./lib/":151}],151:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/socket.io-client/lib/index.js", module);
 (function(){
 
@@ -18418,7 +19976,7 @@ exports.Socket = require('./socket');
 
 }).apply(this, arguments);
 
-},{"./manager":149,"./socket":151,"./url":152,"debug":153,"socket.io-parser":155}],149:[function(require,module,exports){
+},{"./manager":152,"./socket":154,"./url":155,"debug":156,"socket.io-parser":158}],152:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/socket.io-client/lib/manager.js", module);
 (function(){
 
@@ -18927,7 +20485,7 @@ Manager.prototype.onreconnect = function(){
 
 }).apply(this, arguments);
 
-},{"./on":150,"./socket":151,"./url":152,"backo2":5,"component-bind":11,"component-emitter":12,"debug":153,"engine.io-client":51,"indexof":70,"object-component":142,"socket.io-parser":155}],150:[function(require,module,exports){
+},{"./on":153,"./socket":154,"./url":155,"backo2":5,"component-bind":11,"component-emitter":12,"debug":156,"engine.io-client":51,"indexof":70,"object-component":145,"socket.io-parser":158}],153:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/socket.io-client/lib/on.js", module);
 (function(){
 
@@ -18957,7 +20515,7 @@ function on(obj, ev, fn) {
 
 }).apply(this, arguments);
 
-},{}],151:[function(require,module,exports){
+},{}],154:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/socket.io-client/lib/socket.js", module);
 (function(){
 
@@ -19348,7 +20906,7 @@ Socket.prototype.disconnect = function(){
 
 }).apply(this, arguments);
 
-},{"./on":150,"component-bind":11,"component-emitter":12,"debug":153,"has-binary":68,"socket.io-parser":155,"to-array":158}],152:[function(require,module,exports){
+},{"./on":153,"component-bind":11,"component-emitter":12,"debug":156,"has-binary":68,"socket.io-parser":158,"to-array":161}],155:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/socket.io-client/lib/url.js", module);
 (function(){
 (function (global){
@@ -19429,7 +20987,7 @@ function url(uri, loc){
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 }).apply(this, arguments);
 
-},{"debug":153,"parseuri":145}],153:[function(require,module,exports){
+},{"debug":156,"parseuri":148}],156:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/socket.io-client/node_modules/debug/debug.js", module);
 (function(){
 
@@ -19572,7 +21130,7 @@ try {
 
 }).apply(this, arguments);
 
-},{}],154:[function(require,module,exports){
+},{}],157:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/socket.io-parser/binary.js", module);
 (function(){
 (function (global){
@@ -19721,7 +21279,7 @@ exports.removeBlobs = function(data, callback) {
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 }).apply(this, arguments);
 
-},{"./is-buffer":156,"isarray":71}],155:[function(require,module,exports){
+},{"./is-buffer":159,"isarray":71}],158:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/socket.io-parser/index.js", module);
 (function(){
 
@@ -20127,7 +21685,7 @@ function error(data){
 
 }).apply(this, arguments);
 
-},{"./binary":154,"./is-buffer":156,"component-emitter":12,"debug":157,"isarray":71,"json3":73}],156:[function(require,module,exports){
+},{"./binary":157,"./is-buffer":159,"component-emitter":12,"debug":160,"isarray":71,"json3":76}],159:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/socket.io-parser/is-buffer.js", module);
 (function(){
 (function (global){
@@ -20148,7 +21706,7 @@ function isBuf(obj) {
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 }).apply(this, arguments);
 
-},{}],157:[function(require,module,exports){
+},{}],160:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/socket.io-parser/node_modules/debug/debug.js", module);
 (function(){
 
@@ -20291,7 +21849,7 @@ try {
 
 }).apply(this, arguments);
 
-},{}],158:[function(require,module,exports){
+},{}],161:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/to-array/index.js", module);
 (function(){
 module.exports = toArray
@@ -20310,7 +21868,7 @@ function toArray(list, index) {
 
 }).apply(this, arguments);
 
-},{}],159:[function(require,module,exports){
+},{}],162:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/utf8/utf8.js", module);
 (function(){
 (function (global){
@@ -20562,7 +22120,144 @@ _hmr["websocket:null"].initModule("node_modules/utf8/utf8.js", module);
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 }).apply(this, arguments);
 
-},{}],160:[function(require,module,exports){
+},{}],163:[function(require,module,exports){
+_hmr["websocket:null"].initModule("node_modules/vue-animated-list/vue-animated-list.js", module);
+(function(){
+(function (global, factory) {
+  typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
+  typeof define === 'function' && define.amd ? define(factory) :
+  (global.VueAnimatedList = factory());
+}(this, function () { 'use strict';
+  function install (Vue) {
+    var _ = Vue.util
+    var transitionEndEvent = _.transitionEndEvent
+    var addClass = _.addClass
+    var removeClass = _.removeClass
+    var on = _.on
+    var off = _.off
+    var transitionProp = _.transitionProp
+
+    // patch v-for
+    var vFor = Vue.directive('for')
+    var diff = vFor.diff
+    vFor.diff = function () {
+      var needMoveTransition = prepareMoveTransition(this.frags)
+      diff.apply(this, arguments)
+      if (needMoveTransition) {
+        applyMoveTransition(this.frags)
+      }
+    }
+
+    /**
+     * Check if move transitions are needed, and if so,
+     * record the bounding client rects for each item.
+     *
+     * @param {Array<Fragment>|undefined} frags
+     * @return {Boolean|undefined}
+     */
+
+    function prepareMoveTransition (frags) {
+      var transition =
+        transitionEndEvent && // css transition supported?
+        frags && frags.length && // has frags to be moved?
+        frags[0].node.__v_trans // has transitions?
+      if (transition) {
+        var node = frags[0].node
+        var moveClass = transition.id + '-move'
+        var moving = node._pendingMoveCb
+        var hasTransition = false
+        if (!moving) {
+          // sniff whether element has a transition duration for transform
+          // with the move class applied
+          addClass(node, moveClass)
+          var type = transition.getCssTransitionType(moveClass)
+          if (type === 'transition') {
+            var computedStyles = window.getComputedStyle(node)
+            var transitionedProps = computedStyles[transitionProp + 'Property']
+            if (/\btransform(,|$)/.test(transitionedProps)) {
+              hasTransition = true
+            }
+          }
+          removeClass(node, moveClass)
+        }
+        if (moving || hasTransition) {
+          frags.forEach(function (frag) {
+            frag._oldPos = frag.node.getBoundingClientRect()
+          })
+          return true
+        }
+      }
+    }
+
+    /**
+     * Apply move transitions.
+     * Calculate new target positions after the move, then apply the
+     * FLIP technique to trigger CSS transforms.
+     *
+     * @param {Array<Fragment>} frags
+     */
+
+    function applyMoveTransition (frags) {
+      frags.forEach(function (frag) {
+        var node = frag.node
+        var oldPos = frag._oldPos
+        if (!oldPos) return
+        if (!frag.moved) {
+          // transition busting to ensure correct bounding rect:
+          // if an element has an ongoing transition and not "reinserted",
+          // the bounding rect will not be calculated at its target position,
+          // but rather an in-transition position.
+          var p = node.parentNode
+          var next = node.nextSibling
+          p.removeChild(node)
+          p.insertBefore(node, next)
+        }
+        var newPos = node.getBoundingClientRect()
+        var dx = oldPos.left - newPos.left
+        var dy = oldPos.top - newPos.top
+        if (dx !== 0 || dy !== 0) {
+          frag.moved = true
+          node.style.transform =
+          node.style.WebkitTransform =
+            'translate(' + dx + 'px, ' + dy + 'px)'
+          node.style.transitionDuration = '0s'
+        } else {
+          frag.moved = false
+        }
+      })
+      Vue.nextTick(function () {
+        var f = document.documentElement.offsetHeight
+        frags.forEach(function (frag) {
+          var node = frag.node
+          var moveClass = node.__v_trans.id + '-move'
+          if (frag.moved) {
+            addClass(node, moveClass)
+            node.style.transform = node.style.WebkitTransform = ''
+            node.style.transitionDuration = ''
+            if (node._pendingMoveCb) {
+              off(node, transitionEndEvent, node._pendingMoveCb)
+            }
+            node._pendingMoveCb = function cb () {
+              off(node, transitionEndEvent, cb)
+              node._pendingMoveCb = null
+              removeClass(node, moveClass)
+            }
+            on(node, transitionEndEvent, node._pendingMoveCb)
+          }
+        })
+      })
+    }
+  }
+
+  if (typeof Vue !== 'undefined') {
+    Vue.use(install)
+  }
+  return install
+}));
+
+}).apply(this, arguments);
+
+},{}],164:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-hot-reload-api/index.js", module);
 (function(){
 var Vue // late bind
@@ -20807,7 +22502,7 @@ function format (id) {
 
 }).apply(this, arguments);
 
-},{}],161:[function(require,module,exports){
+},{}],165:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/client/default.js", module);
 (function(){
 /**
@@ -20826,7 +22521,7 @@ module.exports = function (_) {
 
 }).apply(this, arguments);
 
-},{"./xhr":163}],162:[function(require,module,exports){
+},{"./xhr":167}],166:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/client/jsonp.js", module);
 (function(){
 /**
@@ -20883,7 +22578,7 @@ module.exports = function (_) {
 
 }).apply(this, arguments);
 
-},{"../promise":177}],163:[function(require,module,exports){
+},{"../promise":181}],167:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/client/xhr.js", module);
 (function(){
 /**
@@ -20983,7 +22678,7 @@ module.exports = function (_) {
 
 }).apply(this, arguments);
 
-},{"../promise":177}],164:[function(require,module,exports){
+},{"../promise":181}],168:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/http.js", module);
 (function(){
 /**
@@ -21097,7 +22792,7 @@ module.exports = function (_) {
 
 }).apply(this, arguments);
 
-},{"./client/default":161,"./interceptor":169,"./interceptor/before":166,"./interceptor/cors":167,"./interceptor/header":168,"./interceptor/jsonp":170,"./interceptor/method":171,"./interceptor/mime":172,"./interceptor/timeout":173,"./promise":177}],165:[function(require,module,exports){
+},{"./client/default":165,"./interceptor":173,"./interceptor/before":170,"./interceptor/cors":171,"./interceptor/header":172,"./interceptor/jsonp":174,"./interceptor/method":175,"./interceptor/mime":176,"./interceptor/timeout":177,"./promise":181}],169:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/index.js", module);
 (function(){
 /**
@@ -21144,7 +22839,7 @@ module.exports = install;
 
 }).apply(this, arguments);
 
-},{"./http":164,"./lib/util":176,"./promise":177,"./resource":178,"./url":179}],166:[function(require,module,exports){
+},{"./http":168,"./lib/util":180,"./promise":181,"./resource":182,"./url":183}],170:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/interceptor/before.js", module);
 (function(){
 /**
@@ -21170,7 +22865,7 @@ module.exports = function (_) {
 
 }).apply(this, arguments);
 
-},{}],167:[function(require,module,exports){
+},{}],171:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/interceptor/cors.js", module);
 (function(){
 /**
@@ -21216,7 +22911,7 @@ module.exports = function (_) {
 
 }).apply(this, arguments);
 
-},{"../client/jsonp":162}],168:[function(require,module,exports){
+},{"../client/jsonp":166}],172:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/interceptor/header.js", module);
 (function(){
 /**
@@ -21250,7 +22945,7 @@ module.exports = function (_) {
 
 }).apply(this, arguments);
 
-},{}],169:[function(require,module,exports){
+},{}],173:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/interceptor/index.js", module);
 (function(){
 /**
@@ -21303,7 +22998,7 @@ module.exports = function (_) {
 
 }).apply(this, arguments);
 
-},{"../promise":177}],170:[function(require,module,exports){
+},{"../promise":181}],174:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/interceptor/jsonp.js", module);
 (function(){
 /**
@@ -21331,7 +23026,7 @@ module.exports = function (_) {
 
 }).apply(this, arguments);
 
-},{"../client/jsonp":162}],171:[function(require,module,exports){
+},{"../client/jsonp":166}],175:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/interceptor/method.js", module);
 (function(){
 /**
@@ -21358,7 +23053,7 @@ module.exports = function (_) {
 
 }).apply(this, arguments);
 
-},{}],172:[function(require,module,exports){
+},{}],176:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/interceptor/mime.js", module);
 (function(){
 /**
@@ -21402,7 +23097,7 @@ module.exports = function (_) {
 
 }).apply(this, arguments);
 
-},{}],173:[function(require,module,exports){
+},{}],177:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/interceptor/timeout.js", module);
 (function(){
 /**
@@ -21442,7 +23137,7 @@ module.exports = function (_) {
 
 }).apply(this, arguments);
 
-},{}],174:[function(require,module,exports){
+},{}],178:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/lib/promise.js", module);
 (function(){
 /**
@@ -21628,7 +23323,7 @@ module.exports = function (_) {
 
 }).apply(this, arguments);
 
-},{}],175:[function(require,module,exports){
+},{}],179:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/lib/url-template.js", module);
 (function(){
 /**
@@ -21784,7 +23479,7 @@ exports.encodeReserved = function (str) {
 
 }).apply(this, arguments);
 
-},{}],176:[function(require,module,exports){
+},{}],180:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/lib/util.js", module);
 (function(){
 /**
@@ -21890,7 +23585,7 @@ module.exports = function (Vue) {
 
 }).apply(this, arguments);
 
-},{}],177:[function(require,module,exports){
+},{}],181:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/promise.js", module);
 (function(){
 /**
@@ -22007,7 +23702,7 @@ module.exports = function (_) {
 
 }).apply(this, arguments);
 
-},{"./lib/promise":174}],178:[function(require,module,exports){
+},{"./lib/promise":178}],182:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/resource.js", module);
 (function(){
 /**
@@ -22124,7 +23819,7 @@ module.exports = function (_) {
 
 }).apply(this, arguments);
 
-},{}],179:[function(require,module,exports){
+},{}],183:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/url.js", module);
 (function(){
 /**
@@ -22293,7 +23988,7 @@ module.exports = function (_) {
 
 }).apply(this, arguments);
 
-},{"./lib/url-template":175}],180:[function(require,module,exports){
+},{"./lib/url-template":179}],184:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-router/dist/vue-router.common.js", module);
 (function(){
 'use strict';
@@ -24832,7 +26527,7 @@ if (typeof window !== 'undefined' && window.Vue) {
 module.exports = Router;
 }).apply(this, arguments);
 
-},{}],181:[function(require,module,exports){
+},{}],185:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-strap/src/Option.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("\n  a span.check-mark {\n    position: absolute;\n    display: inline-block;\n    right: 15px;\n    margin-top: 5px;\n  }\n")
@@ -24891,7 +26586,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],182:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],186:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-strap/src/Select.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("\n.bs_searchbox {\n  padding: 4px 8px;\n}\n.btn-group .dropdown-menu .notify {\n  position: absolute;\n  bottom: 5px;\n  width: 96%;\n  margin: 0 2%;\n  min-height: 26px;\n  padding: 3px 5px;\n  background: #f5f5f5;\n  border: 1px solid #e3e3e3;\n  box-shadow: inset 0 1px 1px rgba(0,0,0,.05);\n   pointer-events: none;\n  opacity: .9;\n}\n")
@@ -25030,7 +26725,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"babel-runtime/core-js/get-iterator":4,"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],183:[function(require,module,exports){
+},{"babel-runtime/core-js/get-iterator":4,"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],187:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue/dist/vue.common.js", module);
 (function(){
 (function (process){
@@ -34465,7 +36160,7 @@ module.exports = Vue;
 }).call(this,require('_process'))
 }).apply(this, arguments);
 
-},{"_process":146}],184:[function(require,module,exports){
+},{"_process":149}],188:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vueify-insert-css/index.js", module);
 (function(){
 var inserted = exports.cache = {}
@@ -34489,7 +36184,7 @@ exports.insert = function (css) {
 
 }).apply(this, arguments);
 
-},{}],185:[function(require,module,exports){
+},{}],189:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/ws/lib/browser.js", module);
 (function(){
 
@@ -34538,7 +36233,7 @@ if (WebSocket) ws.prototype = WebSocket.prototype;
 
 }).apply(this, arguments);
 
-},{}],186:[function(require,module,exports){
+},{}],190:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/app.vue", module);
 (function(){
 'use strict';
@@ -34659,7 +36354,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"./components/main/index.vue":213,"./components/shared/overlay.vue":224,"./components/sidebar/index.vue":228,"./stores/playlist":231,"./stores/setting":232,"./stores/shared":233,"jquery":72,"vue":183,"vue-hot-reload-api":160}],187:[function(require,module,exports){
+},{"./components/main/index.vue":218,"./components/shared/overlay.vue":229,"./components/sidebar/index.vue":233,"./stores/playlist":238,"./stores/setting":239,"./stores/shared":240,"jquery":75,"vue":187,"vue-hot-reload-api":164}],191:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/dashboard.vue", module);
 (function(){
 "use strict";
@@ -34694,7 +36389,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":183,"vue-hot-reload-api":160}],188:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164}],192:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/effects.vue", module);
 (function(){
 "use strict";
@@ -34729,7 +36424,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":183,"vue-hot-reload-api":160}],189:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164}],193:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/events.vue", module);
 (function(){
 "use strict";
@@ -34764,7 +36459,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":183,"vue-hot-reload-api":160}],190:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164}],194:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/files.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".file-manager .nav-tabs {\n  margin-bottom: 0 !important; }\n  .file-manager .nav-tabs ~ .tab-content {\n    padding-top: 0; }\n\n.file-manager .tab-pane .info {\n  text-align: center;\n  padding: 20px 20px 0;\n  color: #788B94;\n  border-top: 1px solid #eaeaea; }\n\n.file-manager .file-upload-form {\n  min-height: 250px;\n  padding: 25px;\n  border: 1px dashed #eaeaea;\n  border-radius: 2px;\n  background: #fafafa; }\n  .file-manager .file-upload-form h4 {\n    font-weight: 300;\n    margin-bottom: 0; }\n\n.file-manager .upload-message {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column;\n  -webkit-justify-content: center;\n      -ms-flex-pack: center;\n          justify-content: center;\n  -webkit-align-items: center;\n      -ms-flex-align: center;\n          align-items: center;\n  height: 195px; }\n  .file-manager .upload-message p {\n    margin: 0; }\n")
@@ -34819,7 +36514,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../shared/Tab.vue":215,"../../shared/Tabset.vue":216,"../../shared/filelist.vue":221,"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],191:[function(require,module,exports){
+},{"../../shared/Tab.vue":220,"../../shared/Tabset.vue":221,"../../shared/filelist.vue":226,"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],195:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/not-found.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".error-404 {\n  text-align: center; }\n")
@@ -34848,7 +36543,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],192:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],196:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/outputs.vue", module);
 (function(){
 "use strict";
@@ -34883,7 +36578,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":183,"vue-hot-reload-api":160}],193:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164}],197:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/outputs/dmx.vue", module);
 (function(){
 "use strict";
@@ -34891,20 +36586,56 @@ _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/o
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
+
+var _switch = require("../../../shared/switch.vue");
+
+var _switch2 = _interopRequireDefault(_switch);
+
+var _pdmx = require("./pdmx.vue");
+
+var _pdmx2 = _interopRequireDefault(_pdmx);
+
+var _input = require("../../../shared/input.vue");
+
+var _input2 = _interopRequireDefault(_input);
+
+var _outputMixin = require("../../../../mixins/outputMixin");
+
+var _outputMixin2 = _interopRequireDefault(_outputMixin);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
 exports.default = {
-    components: {},
+    mixins: [_outputMixin2.default],
+    components: { Switch: _switch2.default, Output: _pdmx2.default, FormInput: _input2.default },
     props: [],
     data: function data() {
-        return {};
+        return {
+            incrementStart: true,
+            defStart: 1,
+            defType: 'pixelnet',
+            outputs: []
+        };
     },
     ready: function ready() {},
 
-    methods: {},
+    methods: {
+        assembleNewOutput: function assembleNewOutput() {
+            var last = arguments.length <= 0 || arguments[0] === undefined ? { start: 0 } : arguments[0];
+
+            return {
+                active: true,
+                start: this.incrementStart ? last.start + 1 : 1,
+                type: this.defType,
+                label: null
+            };
+        }
+    },
     events: {}
 
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"dmx-settings\" class=\"outputs-container container-fluid box p-a-2\">   \n        <h4><span class=\"semi-bold\">Pixelnet / DMX</span> Outputs</h4>     \n        <hr>\n        <form>\n        </form>\n    </div>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"dmx-settings\" class=\"outputs-container container-fluid box\">   \n      <div class=\"box-header\">\n         <h4 class=\"box-title\"><span class=\"semi-bold\">Pixelnet / DMX</span> Outputs</h4>     \n     </div>\n     <div class=\"box-tool\">\n         <div class=\"enable-output\">\n           <small>Enable Outputs </small>\n           <switch :model.sync=\"enable_pdmx\"></switch>\n         </div>\n     </div>\n      <div class=\"box-body\">\n        <form>\n            <div class=\"output-actions\">\n                <div class=\"filter-row align-end\">\n                    <div class=\"filter text-xs-center\">\n                        <span>Active</span>\n                        <switch :model.sync=\"defActive\" size=\"small\"></switch>\n                    </div>\n                     <div class=\"filter text-xs-center\">\n                        <span>Increment Start</span>\n                        <switch :model.sync=\"incrementStart\" size=\"small\"></switch>\n                    </div>\n                </div>\n                <div class=\"filter-row\">\n                    <div class=\"filter\">\n                         <form-input :model.sync=\"defStart\" type=\"number\" label=\"Start\" size=\"sm\" state-icon=\"\">\n                        </form-input>\n                    </div>\n                    <div class=\"filter\">\n                        <div class=\"form-group\">\n                            <label for=\"\" class=\"control-label\">Type</label>\n                            <div class=\"input\">\n                                <select v-model=\"defType\" class=\"c-select\" style=\"padding-top: 0.25rem; padding-bottom: 0.275rem;\">\n                                    <option value=\"pixelnet\">Pixelnet</option>\n                                    <option value=\"dmx\">DMX</option>\n                                </select>  \n                            </div>\n                        </div>\n                    </div>\n                    \n                    <div class=\"filter\">\n                         <form-input :model.sync=\"quantity\" type=\"number\" label=\"# of Outputs\" size=\"sm\" state-icon=\"\">\n                        </form-input>\n                    </div>\n                    <div class=\"filter\">\n                        <button @click=\"addOutput\" type=\"button\" class=\"button btn-primary pull-xs-right m-a-0\">{{ addOutputLabel }}</button>\n                    </div>\n                </div>\n              \n            </div>\n             <div class=\"pdmx-list output-list table-responsive\">\n                    <table class=\"table table-sm table-hover\">\n                        <thead>\n                        <tr>\n                            <th class=\"text-xs-center output-active\"></th>\n                            <th class=\"text-xs-center output-index\">#</th>\n                            <th class=\"text-xs-center output-number\">Type</th>\n                            <th class=\"text-xs-center output-start\">Start</th>\n                            <th class=\"text-xs-center output-label\">Label</th>\n                            <th class=\"text-xs-center output-action p-r-1\" style=\"width: 45px\"></th>\n                        </tr>\n                        </thead>\n                        <tbody>\n                            <tr is=\"output\" v-for=\"(index, output) in outputs\" :index=\"index\" :output.sync=\"output\"></tr>\n                        </tbody>\n                    </table>\n                </div>\n        </form>\n    </div>\n    </div>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
@@ -34918,7 +36649,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":183,"vue-hot-reload-api":160}],194:[function(require,module,exports){
+},{"../../../../mixins/outputMixin":236,"../../../shared/input.vue":228,"../../../shared/switch.vue":230,"./pdmx.vue":201,"vue":187,"vue-hot-reload-api":164}],198:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/outputs/e131.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".universe-list .form-control {\n  padding: .25rem .50rem;\n  line-height: 1.3; }\n\n.universe-list .c-select {\n  padding: .22rem 1.5rem .23rem .50rem; }\n\n.universe-list .universe-index {\n  min-width: 50px;\n  width: 50px;\n  text-align: center; }\n\n.universe-list .universe-active {\n  min-width: 50px;\n  width: 50px;\n  text-align: center; }\n\n.universe-list .universe-number {\n  min-width: 80px;\n  width: 80px;\n  text-align: center; }\n\n.universe-list .universe-start {\n  min-width: 80px;\n  width: 80px;\n  text-align: center; }\n\n.universe-list .universe-size {\n  min-width: 80px;\n  width: 80px;\n  text-align: center; }\n\n.universe-list .universe-type {\n  min-width: 115px;\n  width: 115px;\n  text-align: center; }\n\n.universe-list .universe-address {\n  min-width: 150px;\n  width: 150px;\n  text-align: center; }\n\n.universe-list .universe-action {\n  text-align: center; }\n\n.enable-output small, .enable-output .label-switch {\n  display: inline-block;\n  margin-bottom: 0;\n  vertical-align: middle; }\n")
@@ -34948,6 +36679,14 @@ var _input = require("../../../shared/input.vue");
 
 var _input2 = _interopRequireDefault(_input);
 
+var _ip = require("../../../../directives/ip");
+
+var _ip2 = _interopRequireDefault(_ip);
+
+var _outputMixin = require("../../../../mixins/outputMixin");
+
+var _outputMixin2 = _interopRequireDefault(_outputMixin);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 var universeStub = {
@@ -34962,6 +36701,7 @@ var universeStub = {
 
 exports.default = {
     components: { Universe: _universe2.default, Switch: _switch2.default, Dropdown: _dropdownSelect2.default, Checkbox: _checkbox2.default, FormInput: _input2.default },
+    mixins: [_outputMixin2.default],
     props: [],
     data: function data() {
         return {
@@ -34973,49 +36713,29 @@ exports.default = {
             incrementStart: true,
             incrementUniv: true,
             quantity: 1,
-            universes: [{ active: true, number: 1, start: 1, type: 'unicast', size: 512, address: '10.10.10.10', label: 'The Label' }, { active: true, number: 2, start: 513, type: 'unicast', size: 512, address: '10.10.10.10', label: 'The Label' }]
+            outputs: [{ active: true, number: 1, start: 1, type: 'unicast', size: 512, address: '10.10.10.10', label: 'The Label' }, { active: true, number: 2, start: 513, type: 'unicast', size: 512, address: '10.10.10.10', label: 'The Label' }]
 
         };
     },
     ready: function ready() {},
 
     methods: {
-        addOutput: function addOutput() {
-            for (var i = 0; i < this.quantity; i++) {
-                var last = this.getLastOutput();
-                var universe = {
-                    active: true,
-                    number: this.incrementUniv ? last.number + 1 : 1,
-                    start: this.incrementStart ? last.start + last.size + 1 : 1,
-                    type: this.defType,
-                    size: this.defSize,
-                    address: this.defAddress,
-                    label: null
-                };
-
-                this.universes.push(universe);
-            }
-        },
-        removeOutput: function removeOutput(id) {
-            if (id !== -1) {
-                this.universes.splice(id, 1);
-            }
-        },
-        getLastOutput: function getLastOutput() {
-            if (this.universes.length) {
-                return this.universes[this.universes.length - 1];
-            }
-        }
-    },
-    events: {
-        'remove-output': function removeOutput(id) {
-            this.removeOutput(id);
+        assembleNewOutput: function assembleNewOutput(last) {
+            return {
+                active: true,
+                number: this.incrementUniv ? last.number + 1 : 1,
+                start: this.incrementStart ? last.start + last.size + 1 : 1,
+                type: this.defType,
+                size: this.defSize,
+                address: this.defAddress,
+                label: null
+            };
         }
     }
 
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n     <div id=\"e131-settings\" class=\"outputs-container container-fluid box\">   \n     <div class=\"box-header\">\n         <h4 class=\"box-title\"><span class=\"semi-bold\">E131</span> Outputs</h4>     \n     </div>\n     <div class=\"box-tool\">\n         <div class=\"enable-output\">\n           <small>Enable Outputs </small>\n           <switch :model.sync=\"enable_e131\"></switch>\n         </div>\n     </div>\n     <div class=\"box-body\">\n        <form>\n            <div class=\"output-actions\">\n                <div class=\"filter-row\">\n                    <div class=\"filter text-xs-center\">\n                        <p>Active</p>\n                        <switch :model.sync=\"defActive\" size=\"small\"></switch>\n                    </div>\n                     <div class=\"filter text-xs-center\">\n                        <p>Inc. Universe</p>\n                        <switch :model.sync=\"incrementUniv\" size=\"small\"></switch>\n                    </div>\n                     <div class=\"filter text-xs-center\">\n                        <p>Inc. Start</p>\n                        <switch :model.sync=\"incrementStart\" size=\"small\"></switch>\n                    </div>\n                </div>\n                <div class=\"filter-row\">\n                    <div class=\"filter\">\n                        <form-input :model.sync=\"defAddress\" type=\"text\" label=\"Address\" size=\"sm\" state-icon=\"\">\n                        </form-input>\n                       \n                    </div>\n                    <div class=\"filter\">\n                         <form-input :model.sync=\"defStart\" type=\"number\" label=\"Start\" size=\"sm\" state-icon=\"\">\n                        </form-input>\n                    </div>\n                    <div class=\"filter\">\n                         <form-input :model.sync=\"defSize\" type=\"number\" label=\"Size\" size=\"sm\" state-icon=\"\">\n                        </form-input>\n                    </div>\n                    <div class=\"filter\">\n                         <form-input :model.sync=\"quantity\" type=\"number\" label=\"# of Outputs\" size=\"sm\" state-icon=\"\">\n                        </form-input>\n                    </div>\n                </div>\n                <div class=\"filter-row\">\n                    <button @click=\"addOutput\" type=\"button\" class=\"button btn-primary pull-xs-right m-a-0\">Add Output</button>\n                </div>\n                    \n            </div>\n            <!-- <div id=\"universe-outputs\"> -->\n                <div class=\"universe-list table-responsive\">\n                    <!-- <div class=\"table-responsive\"> -->\n                        <table class=\"table table-sm table-hover\">\n                            <thead>\n                            <tr>\n                                <th class=\"text-xs-center universe-active\"></th>\n                                <th class=\"text-xs-center universe-index\">#</th>\n                                <th class=\"text-xs-center universe-number\">Universe</th>\n                                <th class=\"text-xs-center universe-start\">Start</th>\n                                <th class=\"text-xs-center universe-size\">Size</th>\n                                <th class=\"text-xs-center universe-type\">Type</th>\n                                <th class=\"text-xs-center universe-address\" style=\"width: 150px\">Unicast Address</th>\n                                <th class=\"text-xs-center universe-label\">Label</th>\n                                <th class=\"text-xs-center universe-action p-r-1\" style=\"width: 45px\"></th>\n                            </tr>\n                            </thead>\n                            <tbody>\n                                <tr is=\"universe\" v-for=\"(index, universe) in universes\" :index=\"index\" :universe.sync=\"universe\"></tr>\n                            </tbody>\n                        </table>\n                    <!-- </div> -->\n                    \n                </div>\n            <!-- </div> -->\n        </form>\n        </div>\n    </div>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n     <div id=\"e131-settings\" class=\"outputs-container container-fluid box\">   \n     <div class=\"box-header\">\n         <h4 class=\"box-title\"><span class=\"semi-bold\">E131</span> Outputs</h4>     \n     </div>\n     <div class=\"box-tool\">\n         <div class=\"enable-output\">\n           <small>Enable Outputs </small>\n           <switch :model.sync=\"enable_e131\"></switch>\n         </div>\n     </div>\n     <div class=\"box-body\">\n        <form>\n            <div class=\"output-actions\">\n                <div class=\"filter-row align-end\">\n                    <div class=\"filter text-xs-center\">\n                        <span>Active</span>\n                        <switch :model.sync=\"defActive\" size=\"small\"></switch>\n                    </div>\n                     <div class=\"filter text-xs-center\">\n                        <span>Increment Universe</span>\n                        <switch :model.sync=\"incrementUniv\" size=\"small\"></switch>\n                    </div>\n                     <div class=\"filter text-xs-center\">\n                        <span>Increment Start</span>\n                        <switch :model.sync=\"incrementStart\" size=\"small\"></switch>\n                    </div>\n                </div>\n                <div class=\"filter-row\">\n                  \n                    \n                    <div class=\"filter\">\n                         <form-input :model.sync=\"defStart\" type=\"number\" label=\"Start\" size=\"sm\" state-icon=\"\">\n                        </form-input>\n                    </div>\n                    <div class=\"filter\">\n                         <form-input :model.sync=\"defSize\" type=\"number\" label=\"Size\" size=\"sm\" state-icon=\"\">\n                        </form-input>\n                    </div>\n\n                    <div class=\"filter\">\n                        <div class=\"form-group\">\n                            <label for=\"\" class=\"control-label\">Type</label>\n                            <div class=\"input\">\n                                <select v-model=\"defType\" class=\"c-select\" style=\"padding-top: 0.25rem; padding-bottom: 0.275rem;\">\n                                    <option value=\"unicast\">Unicast</option>\n                                    <option value=\"multicast\">Multicast</option>\n                                </select>  \n                            </div>\n                        </div>\n                    </div>\n                    <div class=\"filter\">\n                        <form-input :model.sync=\"defAddress\" type=\"text\" label=\"Address\" size=\"sm\" state-icon=\"\">\n                        </form-input>\n                       \n                    </div>\n                    <div class=\"filter\">\n                         <form-input :model.sync=\"quantity\" type=\"number\" label=\"# of Outputs\" size=\"sm\" state-icon=\"\">\n                        </form-input>\n                    </div>\n                </div>\n                <div class=\"filter-row\">\n\n                    <button @click=\"addOutput\" type=\"button\" class=\"button btn-primary pull-xs-right m-a-0\">{{ addOutputLabel }}</button>\n                </div>\n                    \n            </div>\n            <!-- <div id=\"universe-outputs\"> -->\n                <div class=\"universe-list output-list table-responsive\">\n                    <!-- <div class=\"table-responsive\"> -->\n                        <table class=\"table table-sm table-hover\">\n                            <thead>\n                            <tr>\n                                <th class=\"text-xs-center universe-active\"></th>\n                                <th class=\"text-xs-center universe-index\">#</th>\n                                <th class=\"text-xs-center universe-number\">Universe</th>\n                                <th class=\"text-xs-center universe-start\">Start</th>\n                                <th class=\"text-xs-center universe-size\">Size</th>\n                                <th class=\"text-xs-center universe-type\">Type</th>\n                                <th class=\"text-xs-center universe-address\" style=\"width: 150px\">Unicast Address</th>\n                                <th class=\"text-xs-center universe-label\">Label</th>\n                                <th class=\"text-xs-center universe-action p-r-1\" style=\"width: 45px\"></th>\n                            </tr>\n                            </thead>\n                            <tbody>\n                                <tr is=\"universe\" v-for=\"(index, universe) in outputs\" :index=\"index\" :universe.sync=\"universe\"></tr>\n                            </tbody>\n                        </table>\n                    <!-- </div> -->\n                    \n                </div>\n            <!-- </div> -->\n        </form>\n        </div>\n    </div>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
@@ -35033,7 +36753,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../../shared/checkbox.vue":217,"../../../shared/dropdown-select.vue":219,"../../../shared/input.vue":223,"../../../shared/switch.vue":225,"./universe.vue":197,"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],195:[function(require,module,exports){
+},{"../../../../directives/ip":234,"../../../../mixins/outputMixin":236,"../../../shared/checkbox.vue":222,"../../../shared/dropdown-select.vue":224,"../../../shared/input.vue":228,"../../../shared/switch.vue":230,"./universe.vue":202,"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],199:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/outputs/other.vue", module);
 (function(){
 "use strict";
@@ -35068,7 +36788,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":183,"vue-hot-reload-api":160}],196:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164}],200:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/outputs/panels.vue", module);
 (function(){
 "use strict";
@@ -35103,10 +36823,56 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":183,"vue-hot-reload-api":160}],197:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164}],201:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/components/main/content/outputs/pdmx.vue", module);
+(function(){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _switch = require('../../../shared/switch.vue');
+
+var _switch2 = _interopRequireDefault(_switch);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.default = {
+    components: { Switch: _switch2.default },
+    props: ['output', 'index'],
+    data: function data() {
+        return {};
+    },
+    ready: function ready() {},
+
+    methods: {
+        removeOutput: function removeOutput() {
+            this.$dispatch('remove-output', this.index);
+        }
+    },
+    events: {}
+
+};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <tr class=\"pdmx output\" :class=\"{ 'disabled' : !output.active }\">\n        <td class=\"output-active text-xs-center\">\n            <switch :model.sync=\"output.active\" size=\"small\"></switch>\n           \n        </td>\n        <td class=\"output-index text-xs-center\">{{ index + 1 }}</td>\n         <td class=\"output-type text-xs-center\">\n            <select class=\"c-select transparent\" v-model=\"output.type\">\n                <option value=\"pixelnet\">Pixelnet</option>\n                <option value=\"dmx\">DMX</option>\n            </select>\n        </td>\n        <td class=\"output-start text-xs-center\">\n            <input type=\"number\" v-model=\"output.start\" class=\"form-control transparent text-xs-center\" number=\"\">\n        </td>\n        <td class=\"output-label text-xs-center\"><input type=\"text\" v-model=\"output.label\" class=\"form-control transparent\"></td>\n        <td class=\"output-action text-xs-center p-r-1\">\n            <button type=\"button\" class=\"close\" aria-label=\"Close\" @click=\"removeOutput\">\n                <span aria-hidden=\"true\">×</span>\n            </button>\n        </td>\n    </tr>\n    \n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/outputs/pdmx.vue"
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+}).apply(this, arguments);
+
+},{"../../../shared/switch.vue":230,"vue":187,"vue-hot-reload-api":164}],202:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/outputs/universe.vue", module);
 (function(){
-var __vueify_style__ = require("vueify-insert-css").insert(".universe {\n  transition: opacity 0.35s;\n  opacity: 1; }\n  .universe.disabled {\n    opacity: .5; }\n\n.universe-active,\n.universe-action,\n.universe-index {\n  vertical-align: middle !important; }\n  .universe-active .checkbox,\n  .universe-action .checkbox,\n  .universe-index .checkbox {\n    margin-bottom: 0; }\n")
+var __vueify_style__ = require("vueify-insert-css").insert(".universe {\n  transition: opacity 0.35s;\n  opacity: 1; }\n  .universe.disabled {\n    opacity: .4; }\n  .universe-move {\n    transition: -webkit-transform 0.5s cubic-bezier(0.55, 0, 0.1, 1);\n    transition: transform 0.5s cubic-bezier(0.55, 0, 0.1, 1);\n    transition: transform 0.5s cubic-bezier(0.55, 0, 0.1, 1), -webkit-transform 0.5s cubic-bezier(0.55, 0, 0.1, 1); }\n\n.universe-active,\n.universe-action,\n.universe-index {\n  vertical-align: middle !important; }\n  .universe-active .checkbox,\n  .universe-action .checkbox,\n  .universe-index .checkbox {\n    margin-bottom: 0; }\n")
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -35136,14 +36902,14 @@ exports.default = {
 
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <tr class=\"universe\" :class=\"{ 'disabled' : !universe.active }\">\n        <td class=\"universe-active text-xs-center\">\n            <switch :model.sync=\"universe.active\" size=\"small\"></switch>\n           \n        </td>\n        <td class=\"universe-index text-xs-center\">{{ index + 1 }}</td>\n        <td class=\"universe-number\">\n            <input type=\"number\" v-model=\"universe.number\" class=\"form-control transparent text-xs-center\" number=\"\">\n        </td>\n        <td class=\"universe-start text-xs-center\">\n            <input type=\"number\" v-model=\"universe.start\" class=\"form-control transparent text-xs-center\" number=\"\">\n        </td>\n        <td class=\"universe-size text-xs-center\">\n            <input type=\"number\" v-model=\"universe.size\" max=\"512\" class=\"form-control transparent text-xs-center\" number=\"\">\n        </td>\n        <td class=\"universe-type text-xs-center\">\n            <select class=\"c-select transparent\" v-model=\"universe.type\">\n                <option value=\"unicast\">Unicast</option>\n                <option value=\"multicast\">Multicast</option>\n            </select>\n        </td>\n        <td class=\"universe-address text-xs-center\"><input type=\"text\" v-model=\"universe.address\" :disabled=\"universe.type == 'multicast'\" class=\"form-control transparent text-xs-center\"></td>\n        <td class=\"universe-label text-xs-center\"><input type=\"text\" v-model=\"universe.label\" class=\"form-control transparent\"></td>\n        <td class=\"universe-action text-xs-center p-r-1\">\n            <button type=\"button\" class=\"close\" aria-label=\"Close\" @click=\"removeOutput\">\n                <span aria-hidden=\"true\">×</span>\n            </button>\n        </td>\n    </tr>\n    \n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <tr class=\"universe output\" :class=\"{ 'disabled' : !universe.active }\">\n        <td class=\"universe-active text-xs-center\">\n            <switch :model.sync=\"universe.active\" size=\"small\"></switch>\n           \n        </td>\n        <td class=\"universe-index text-xs-center\">{{ index + 1 }}</td>\n        <td class=\"universe-number\">\n            <input type=\"number\" v-model=\"universe.number\" class=\"form-control transparent text-xs-center\" number=\"\">\n        </td>\n        <td class=\"universe-start text-xs-center\">\n            <input type=\"number\" v-model=\"universe.start\" class=\"form-control transparent text-xs-center\" number=\"\">\n        </td>\n        <td class=\"universe-size text-xs-center\">\n            <input type=\"number\" v-model=\"universe.size\" max=\"512\" class=\"form-control transparent text-xs-center\" number=\"\">\n        </td>\n        <td class=\"universe-type text-xs-center\">\n            <select class=\"c-select transparent\" v-model=\"universe.type\">\n                <option value=\"unicast\">Unicast</option>\n                <option value=\"multicast\">Multicast</option>\n            </select>\n        </td>\n        <td class=\"universe-address text-xs-center\"><input type=\"text\" v-model=\"universe.address\" :disabled=\"universe.type == 'multicast'\" class=\"form-control transparent text-xs-center\"></td>\n        <td class=\"universe-label text-xs-center\"><input type=\"text\" v-model=\"universe.label\" class=\"form-control transparent\"></td>\n        <td class=\"universe-action text-xs-center p-r-1\">\n            <button type=\"button\" class=\"close\" aria-label=\"Close\" @click=\"removeOutput\">\n                <span aria-hidden=\"true\">×</span>\n            </button>\n        </td>\n    </tr>\n    \n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
   var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/outputs/universe.vue"
   module.hot.dispose(function () {
-    require("vueify-insert-css").cache[".universe {\n  transition: opacity 0.35s;\n  opacity: 1; }\n  .universe.disabled {\n    opacity: .5; }\n\n.universe-active,\n.universe-action,\n.universe-index {\n  vertical-align: middle !important; }\n  .universe-active .checkbox,\n  .universe-action .checkbox,\n  .universe-index .checkbox {\n    margin-bottom: 0; }\n"] = false
+    require("vueify-insert-css").cache[".universe {\n  transition: opacity 0.35s;\n  opacity: 1; }\n  .universe.disabled {\n    opacity: .4; }\n  .universe-move {\n    transition: -webkit-transform 0.5s cubic-bezier(0.55, 0, 0.1, 1);\n    transition: transform 0.5s cubic-bezier(0.55, 0, 0.1, 1);\n    transition: transform 0.5s cubic-bezier(0.55, 0, 0.1, 1), -webkit-transform 0.5s cubic-bezier(0.55, 0, 0.1, 1); }\n\n.universe-active,\n.universe-action,\n.universe-index {\n  vertical-align: middle !important; }\n  .universe-active .checkbox,\n  .universe-action .checkbox,\n  .universe-index .checkbox {\n    margin-bottom: 0; }\n"] = false
     document.head.removeChild(__vueify_style__)
   })
   if (!module.hot.data) {
@@ -35154,7 +36920,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../../shared/switch.vue":225,"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],198:[function(require,module,exports){
+},{"../../../shared/switch.vue":230,"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],203:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/overlays.vue", module);
 (function(){
 "use strict";
@@ -35189,7 +36955,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":183,"vue-hot-reload-api":160}],199:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164}],204:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/playlists.vue", module);
 (function(){
 "use strict";
@@ -35224,7 +36990,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":183,"vue-hot-reload-api":160}],200:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164}],205:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/plugins.vue", module);
 (function(){
 "use strict";
@@ -35259,7 +37025,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":183,"vue-hot-reload-api":160}],201:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164}],206:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/schedule.vue", module);
 (function(){
 "use strict";
@@ -35294,7 +37060,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":183,"vue-hot-reload-api":160}],202:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164}],207:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/settings.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".content.settings {\n  padding: 20px;\n  position: relative; }\n")
@@ -35334,7 +37100,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],203:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],208:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/settings/advanced.vue", module);
 (function(){
 "use strict";
@@ -35369,7 +37135,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":183,"vue-hot-reload-api":160}],204:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164}],209:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/settings/date.vue", module);
 (function(){
 "use strict";
@@ -35419,7 +37185,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../../shared/switch.vue":225,"vue":183,"vue-hot-reload-api":160}],205:[function(require,module,exports){
+},{"../../../shared/switch.vue":230,"vue":187,"vue-hot-reload-api":164}],210:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/settings/email.vue", module);
 (function(){
 "use strict";
@@ -35454,7 +37220,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":183,"vue-hot-reload-api":160}],206:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164}],211:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/settings/general.vue", module);
 (function(){
 "use strict";
@@ -35512,7 +37278,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../../shared/switch.vue":225,"vue":183,"vue-hot-reload-api":160,"vue-strap/src/Option.vue":181,"vue-strap/src/Select.vue":182}],207:[function(require,module,exports){
+},{"../../../shared/switch.vue":230,"vue":187,"vue-hot-reload-api":164,"vue-strap/src/Option.vue":185,"vue-strap/src/Select.vue":186}],212:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/settings/logs.vue", module);
 (function(){
 "use strict";
@@ -35547,7 +37313,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":183,"vue-hot-reload-api":160}],208:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164}],213:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/settings/network.vue", module);
 (function(){
 'use strict';
@@ -35593,7 +37359,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../../shared/tab.vue":226,"../../../shared/tabset.vue":227,"vue":183,"vue-hot-reload-api":160}],209:[function(require,module,exports){
+},{"../../../shared/tab.vue":231,"../../../shared/tabset.vue":232,"vue":187,"vue-hot-reload-api":164}],214:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/content/testing.vue", module);
 (function(){
 "use strict";
@@ -35628,7 +37394,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":183,"vue-hot-reload-api":160}],210:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164}],215:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/footer/index.vue", module);
 (function(){
 "use strict";
@@ -35663,7 +37429,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":183,"vue-hot-reload-api":160}],211:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164}],216:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/header/index.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("\n.navbar.header-menu {\n    padding: 10px 0 0;\n}\n")
@@ -35714,7 +37480,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../shared/control-buttons.vue":218,"../../shared/header-menu.vue":222,"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],212:[function(require,module,exports){
+},{"../../shared/control-buttons.vue":223,"../../shared/header-menu.vue":227,"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],217:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/header/settings.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".settings-header {\n  -webkit-flex-flow: wrap;\n      -ms-flex-flow: wrap;\n          flex-flow: wrap;\n  padding: 20px 20px 0;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n  .settings-header .settings-menu {\n    width: 100%;\n    padding: 10px 0 0; }\n    .settings-header .settings-menu a {\n      display: block;\n      text-transform: uppercase;\n      letter-spacing: 0.1em;\n      font-size: 11px;\n      border-bottom: 3px solid transparent;\n      padding: 3px 5px;\n      margin-bottom: -1px; }\n      .settings-header .settings-menu a.active {\n        font-weight: 600;\n        border-color: #F04124; }\n  @media (min-width: 668px) {\n    .settings-header {\n      -webkit-flex-direction: row;\n          -ms-flex-direction: row;\n              flex-direction: row; } }\n")
@@ -35761,7 +37527,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../shared/control-buttons.vue":218,"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],213:[function(require,module,exports){
+},{"../../shared/control-buttons.vue":223,"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],218:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/index.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("#main-wrapper {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n")
@@ -35804,7 +37570,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"./footer/index.vue":210,"./header/index.vue":211,"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],214:[function(require,module,exports){
+},{"./footer/index.vue":215,"./header/index.vue":216,"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],219:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/main/settings.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("#main-wrapper {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n")
@@ -35850,7 +37616,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"./content/settings.vue":202,"./footer/index.vue":210,"./header/settings.vue":212,"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],215:[function(require,module,exports){
+},{"./content/settings.vue":207,"./footer/index.vue":215,"./header/settings.vue":217,"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],220:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/Tab.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("\n  .tab-content > .tab-pane[_v-3eaa1a77] {\n    display: block;\n  }\n")
@@ -35918,7 +37684,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],216:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],221:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/Tabset.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("\n  .nav-tabs[_v-7a0405bb] {\n    margin-bottom: 15px\n  }\n")
@@ -35970,7 +37736,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],217:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],222:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/checkbox.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".c-checkbox .c-indicator {\n  border-radius: .25rem; }\n\n.c-checkbox input:checked ~ .c-indicator {\n  background-image: url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhLS0gR2VuZXJhdG9yOiBBZG9iZSBJbGx1c3RyYXRvciAxNy4xLjAsIFNWRyBFeHBvcnQgUGx1Zy1JbiAuIFNWRyBWZXJzaW9uOiA2LjAwIEJ1aWxkIDApICAtLT4NCjwhRE9DVFlQRSBzdmcgUFVCTElDICItLy9XM0MvL0RURCBTVkcgMS4xLy9FTiIgImh0dHA6Ly93d3cudzMub3JnL0dyYXBoaWNzL1NWRy8xLjEvRFREL3N2ZzExLmR0ZCI+DQo8c3ZnIHZlcnNpb249IjEuMSIgaWQ9IkxheWVyXzEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4Ig0KCSB2aWV3Qm94PSIwIDAgOCA4IiBlbmFibGUtYmFja2dyb3VuZD0ibmV3IDAgMCA4IDgiIHhtbDpzcGFjZT0icHJlc2VydmUiPg0KPHBhdGggZmlsbD0iI0ZGRkZGRiIgZD0iTTYuNCwxTDUuNywxLjdMMi45LDQuNUwyLjEsMy43TDEuNCwzTDAsNC40bDAuNywwLjdsMS41LDEuNWwwLjcsMC43bDAuNy0wLjdsMy41LTMuNWwwLjctMC43TDYuNCwxTDYuNCwxeiINCgkvPg0KPC9zdmc+DQo=); }\n\n.c-checkbox input:indeterminate ~ .c-indicator {\n  background-color: #0074d9;\n  background-image: url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhLS0gR2VuZXJhdG9yOiBBZG9iZSBJbGx1c3RyYXRvciAxNy4xLjAsIFNWRyBFeHBvcnQgUGx1Zy1JbiAuIFNWRyBWZXJzaW9uOiA2LjAwIEJ1aWxkIDApICAtLT4NCjwhRE9DVFlQRSBzdmcgUFVCTElDICItLy9XM0MvL0RURCBTVkcgMS4xLy9FTiIgImh0dHA6Ly93d3cudzMub3JnL0dyYXBoaWNzL1NWRy8xLjEvRFREL3N2ZzExLmR0ZCI+DQo8c3ZnIHZlcnNpb249IjEuMSIgaWQ9IkxheWVyXzEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4Ig0KCSB3aWR0aD0iOHB4IiBoZWlnaHQ9IjhweCIgdmlld0JveD0iMCAwIDggOCIgZW5hYmxlLWJhY2tncm91bmQ9Im5ldyAwIDAgOCA4IiB4bWw6c3BhY2U9InByZXNlcnZlIj4NCjxwYXRoIGZpbGw9IiNGRkZGRkYiIGQ9Ik0wLDN2Mmg4VjNIMHoiLz4NCjwvc3ZnPg0K);\n  box-shadow: none; }\n")
@@ -36075,7 +37841,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],218:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],223:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/control-buttons.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".control-buttons {\n  margin-bottom: 1rem; }\n  .control-buttons .button {\n    border-radius: 2px;\n    transition: background 0.35s, box-shadow 0.15s;\n    border: 1px solid #c4c4c4;\n    color: #666;\n    background: linear-gradient(to bottom, #f8f8f8, #eaeaea 100%);\n    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }\n    .control-buttons .button:active {\n      box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125); }\n  @media (min-width: 668px) {\n    .control-buttons {\n      margin: 0; } }\n")
@@ -36112,7 +37878,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],219:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],224:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/dropdown-select.vue", module);
 (function(){
 'use strict';
@@ -36261,7 +38027,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":183,"vue-hot-reload-api":160}],220:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164}],225:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/falcon-loading.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("@-webkit-keyframes grow {\n  0% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  33% {\n    opacity: 1;\n    -webkit-transform: scale(1);\n            transform: scale(1); }\n  66% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  100% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); } }\n\n@keyframes grow {\n  0% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  33% {\n    opacity: 1;\n    -webkit-transform: scale(1);\n            transform: scale(1); }\n  66% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  100% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); } }\n\n#load {\n  position: relative;\n  display: inline-block;\n  text-align: center; }\n  #load .letter {\n    display: inline-block;\n    margin: 0 2px;\n    color: white;\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9);\n    -webkit-animation: grow 2.5s ease-in infinite;\n            animation: grow 2.5s ease-in infinite; }\n  #load .letter:nth-child(1) {\n    -webkit-animation-delay: .1s;\n            animation-delay: .1s; }\n  #load .letter:nth-child(2) {\n    -webkit-animation-delay: .15s;\n            animation-delay: .15s; }\n  #load .letter:nth-child(3) {\n    -webkit-animation-delay: .2s;\n            animation-delay: .2s; }\n  #load .letter:nth-child(4) {\n    -webkit-animation-delay: .25s;\n            animation-delay: .25s; }\n  #load .letter:nth-child(5) {\n    -webkit-animation-delay: .3s;\n            animation-delay: .3s; }\n  #load .letter:nth-child(6) {\n    -webkit-animation-delay: .35s;\n            animation-delay: .35s; }\n  #load .letter:nth-child(7) {\n    margin-left: 8px;\n    -webkit-animation-delay: .4s;\n            animation-delay: .4s; }\n  #load .letter:nth-child(8) {\n    -webkit-animation-delay: .45s;\n            animation-delay: .45s; }\n  #load .letter:nth-child(9) {\n    -webkit-animation-delay: .5s;\n            animation-delay: .5s; }\n  #load .letter:nth-child(10) {\n    -webkit-animation-delay: .55s;\n            animation-delay: .55s; }\n  #load .letter:nth-child(11) {\n    -webkit-animation-delay: .6s;\n            animation-delay: .6s; }\n  #load .letter:nth-child(12) {\n    -webkit-animation-delay: .65s;\n            animation-delay: .65s; }\n")
@@ -36290,7 +38056,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],221:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],226:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/filelist.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".file-list .table th {\n  border-top: 0; }\n")
@@ -36330,7 +38096,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],222:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],227:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/header-menu.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".header-menu {\n  width: 100%;\n  padding-top: 10px; }\n  .header-menu a {\n    display: block;\n    text-transform: uppercase;\n    letter-spacing: 0.1em;\n    font-size: 11px;\n    border-bottom: 3px solid transparent;\n    padding: 3px 5px;\n    margin-bottom: -1px; }\n    .header-menu a.active {\n      font-weight: 600;\n      border-color: #F04124; }\n")
@@ -36369,7 +38135,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],223:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],228:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/input.vue", module);
 (function(){
 'use strict';
@@ -36435,13 +38201,17 @@ exports.default = {
     stateIcon: {
       type: Boolean,
       default: true
+    },
+    mask: {
+      type: String,
+      default: null
     }
   }
 };
 
 // import dependencies
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n<fieldset class=\"form-group {{inputState}}\">\n    <label for=\"{{id}}\" v-if=\"label\" class=\"control-label\">{{label}}</label>\n    <div class=\"inputClass\">\n        <input type=\"{{type}}\" class=\"form-control {{stateIconType}} {{inputSize}}\" id=\"{{id}}\" placeholder=\"{{placeholder}}\" v-model=\"model\">\n    </div>\n    <small class=\"text-muted\" v-if=\"description\" v-html=\"description\"></small>\n</fieldset>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n<fieldset class=\"form-group {{inputState}}\">\n    <label for=\"{{id}}\" v-if=\"label\" class=\"control-label\">{{label}}</label>\n    <div class=\"inputClass\">\n        <input type=\"{{type}}\" class=\"form-control {{stateIconType}} {{inputSize}}\" id=\"{{id}}\" placeholder=\"{{placeholder}}\" v-model=\"model\" :number=\"type == 'number'\">\n    </div>\n    <small class=\"text-muted\" v-if=\"description\" v-html=\"description\"></small>\n</fieldset>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
@@ -36455,7 +38225,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../utils.js":234,"vue":183,"vue-hot-reload-api":160}],224:[function(require,module,exports){
+},{"../../utils.js":241,"vue":187,"vue-hot-reload-api":164}],229:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/overlay.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("#overlay {\n  position: fixed;\n  top: 0;\n  left: 0;\n  z-index: 9999;\n  width: 100%;\n  height: 100%;\n  background-color: #363C47;\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-align-items: center;\n      -ms-flex-align: center;\n          align-items: center;\n  -webkit-justify-content: center;\n      -ms-flex-pack: center;\n          justify-content: center;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n  #overlay .logo {\n    width: 220px;\n    height: 108px;\n    margin-bottom: 15px;\n    position: relative;\n    left: -25px; }\n")
@@ -36493,7 +38263,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"./falcon-loading.vue":220,"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],225:[function(require,module,exports){
+},{"./falcon-loading.vue":225,"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],230:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/switch.vue", module);
 (function(){
 'use strict';
@@ -36537,7 +38307,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":183,"vue-hot-reload-api":160}],226:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164}],231:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/tab.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("\n  .tab-content > .tab-pane[_v-491cfad2] {\n    display: block;\n  }\n")
@@ -36605,7 +38375,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],227:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],232:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/tabset.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("\n  .nav-tabs[_v-0332299b] {\n    margin-bottom: 15px\n  }\n")
@@ -36657,7 +38427,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],228:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],233:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/sidebar/index.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".sidebar {\n  width: 155px;\n  position: fixed;\n  height: 100%;\n  background: #363C47;\n  z-index: 10;\n  padding: 20px;\n  transition: all 0.25s;\n  left: -155px; }\n  @media (min-width: 769px) {\n    .sidebar {\n      left: 0;\n      width: 155px; } }\n  @media (min-width: 1281px) {\n    .sidebar {\n      width: 200px; } }\n  .sidebar .logo {\n    margin: 0 0 40px; }\n    .sidebar .logo img {\n      width: 100%;\n      height: auto; }\n  .sidebar h4 {\n    text-transform: uppercase;\n    color: #999;\n    font-size: 10px;\n    font-weight: 600;\n    letter-spacing: 1px;\n    margin: 20px 0 5px; }\n  .sidebar li {\n    padding: 3px 0; }\n  .sidebar a {\n    color: #eaeaea;\n    font-weight: 300;\n    font-size: 14px;\n    transition: all 0.25s; }\n    .sidebar a:hover {\n      color: #fff; }\n    .sidebar a.active {\n      color: #fff;\n      font-weight: 500; }\n")
@@ -36697,7 +38467,49 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":183,"vue-hot-reload-api":160,"vueify-insert-css":184}],229:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],234:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/directives/ip.js", module);
+(function(){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _jquery = require("jquery");
+
+var _jquery2 = _interopRequireDefault(_jquery);
+
+var _jquery3 = require("jquery.inputmask");
+
+var _jquery4 = _interopRequireDefault(_jquery3);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.default = {
+  twoWay: true,
+  bind: function bind() {
+    var self = this;
+    var mask = "i[i[i]].i[i[i]].i[i[i]].i[i[i]]";
+
+    (0, _jquery2.default)(this.el).inputmask(mask);
+
+    (0, _jquery2.default)(self.el).change(function () {
+      var value = (0, _jquery2.default)(this).val();
+      self.set(value);
+    });
+  },
+
+  unbind: function unbind() {
+    var mask = "i[i[i]].i[i[i]].i[i[i]].i[i[i]]";
+    (0, _jquery2.default)(this.el).unmask(mask); //this.im.unmask(this.im);
+  }
+
+};
+
+}).apply(this, arguments);
+
+},{"jquery":75,"jquery.inputmask":74}],235:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/main.js", module);
 (function(){
 'use strict';
@@ -36707,6 +38519,7 @@ var VueRouter = require('vue-router');
 
 window.Vue = require('vue');
 Vue.use(VueRouter);
+Vue.use(require('vue-animated-list'));
 Vue.use(require('vue-resource'));
 Vue.http.options.root = '/api';
 Vue.http.headers.common['X-CSRF-TOKEN'] = $('meta[name="csrf-token"]').attr('content');
@@ -36849,7 +38662,49 @@ router.start(App, 'body');
 
 }).apply(this, arguments);
 
-},{"./app.vue":186,"./components/main/content/dashboard.vue":187,"./components/main/content/effects.vue":188,"./components/main/content/events.vue":189,"./components/main/content/files.vue":190,"./components/main/content/not-found.vue":191,"./components/main/content/outputs.vue":192,"./components/main/content/outputs/dmx.vue":193,"./components/main/content/outputs/e131.vue":194,"./components/main/content/outputs/other.vue":195,"./components/main/content/outputs/panels.vue":196,"./components/main/content/overlays.vue":198,"./components/main/content/playlists.vue":199,"./components/main/content/plugins.vue":200,"./components/main/content/schedule.vue":201,"./components/main/content/settings/advanced.vue":203,"./components/main/content/settings/date.vue":204,"./components/main/content/settings/email.vue":205,"./components/main/content/settings/general.vue":206,"./components/main/content/settings/logs.vue":207,"./components/main/content/settings/network.vue":208,"./components/main/content/testing.vue":209,"./components/main/index.vue":213,"./components/main/settings.vue":214,"jquery":72,"vue":183,"vue-resource":165,"vue-router":180}],230:[function(require,module,exports){
+},{"./app.vue":190,"./components/main/content/dashboard.vue":191,"./components/main/content/effects.vue":192,"./components/main/content/events.vue":193,"./components/main/content/files.vue":194,"./components/main/content/not-found.vue":195,"./components/main/content/outputs.vue":196,"./components/main/content/outputs/dmx.vue":197,"./components/main/content/outputs/e131.vue":198,"./components/main/content/outputs/other.vue":199,"./components/main/content/outputs/panels.vue":200,"./components/main/content/overlays.vue":203,"./components/main/content/playlists.vue":204,"./components/main/content/plugins.vue":205,"./components/main/content/schedule.vue":206,"./components/main/content/settings/advanced.vue":208,"./components/main/content/settings/date.vue":209,"./components/main/content/settings/email.vue":210,"./components/main/content/settings/general.vue":211,"./components/main/content/settings/logs.vue":212,"./components/main/content/settings/network.vue":213,"./components/main/content/testing.vue":214,"./components/main/index.vue":218,"./components/main/settings.vue":219,"jquery":75,"vue":187,"vue-animated-list":163,"vue-resource":169,"vue-router":184}],236:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/mixins/outputMixin.js", module);
+(function(){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+exports.default = {
+    methods: {
+        addOutput: function addOutput() {
+            for (var i = 0; i < this.quantity; i++) {
+                var last = this.getLastOutput();
+                var output = this.assembleNewOutput(last);
+                this.outputs.push(output);
+            }
+        },
+        removeOutput: function removeOutput(id) {
+            if (id !== -1) {
+                this.outputs.splice(id, 1);
+            }
+        },
+        getLastOutput: function getLastOutput() {
+            if (this.outputs.length) {
+                return this.outputs[this.outputs.length - 1];
+            }
+        }
+    },
+    computed: {
+        addOutputLabel: function addOutputLabel() {
+            return this.quantity > 1 ? 'Add Outputs' : 'Add Output';
+        }
+    },
+    events: {
+        'remove-output': function removeOutput(id) {
+            this.removeOutput(id);
+        }
+    }
+};
+
+}).apply(this, arguments);
+
+},{}],237:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/services/http.js", module);
 (function(){
 'use strict';
@@ -36927,14 +38782,14 @@ exports.default = {
 
 }).apply(this, arguments);
 
-},{}],231:[function(require,module,exports){
+},{}],238:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/stores/playlist.js", module);
 (function(){
 "use strict";
 
 }).apply(this, arguments);
 
-},{}],232:[function(require,module,exports){
+},{}],239:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/stores/setting.js", module);
 (function(){
 'use strict';
@@ -36984,7 +38839,7 @@ exports.default = {
 
 }).apply(this, arguments);
 
-},{"../services/http":230,"./shared":233}],233:[function(require,module,exports){
+},{"../services/http":237,"./shared":240}],240:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/stores/shared.js", module);
 (function(){
 'use strict';
@@ -37029,7 +38884,7 @@ exports.default = {
 
 }).apply(this, arguments);
 
-},{"../services/http":230}],234:[function(require,module,exports){
+},{"../services/http":237}],241:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/utils.js", module);
 (function(){
 'use strict';
@@ -37055,7 +38910,7 @@ function makeid() {
 (function(global, _main, moduleDefs, cachedModules, _entries) {
   'use strict';
 
-  var moduleMeta = {"node_modules/browserify-hmr/lib/has.js":{"index":9,"hash":"Hky4QYVrU1+kFHIEuxPy","parents":["node_modules/browserify-hmr/lib/str-set.js","node_modules/browserify-hmr/inc/index.js"]},"node_modules/browserify-hmr/lib/str-set.js":{"index":10,"hash":"lcrDmQK4uaqOqN+FV4/9","parents":["node_modules/browserify-hmr/inc/index.js"]},"resources/assets/js/stores/playlist.js":{"index":231,"hash":"k5Rph+tSzK7SzVYZrxbP","parents":["resources/assets/js/app.vue"]},"node_modules/socket.io-client/node_modules/debug/debug.js":{"index":153,"hash":"OtjmSmEbIU/8orJwFhDT","parents":["node_modules/socket.io-client/lib/url.js","node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/socket.io-client/lib/on.js":{"index":150,"hash":"y5MOoFpTKKBHwE8q8jae","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/vue-router/dist/vue-router.common.js":{"index":180,"hash":"V5DMsGGLcOqPAhx31psf","parents":["resources/assets/js/main.js"]},"node_modules/jquery/dist/jquery.js":{"index":72,"hash":"siFczlgw4jULnUICcdm9","parents":["resources/assets/js/app.vue","resources/assets/js/main.js"]},"resources/assets/js/stores/setting.js":{"index":232,"hash":"coKfnj2hZTIg8YRT4JSn","parents":["resources/assets/js/app.vue"]},"resources/assets/js/services/http.js":{"index":230,"hash":"OqU5t4zvkjeUSpQJFLPI","parents":["resources/assets/js/stores/setting.js","resources/assets/js/stores/shared.js"]},"resources/assets/js/stores/shared.js":{"index":233,"hash":"dBZ6EHn2t9/PLCXa/Sej","parents":["resources/assets/js/stores/setting.js","resources/assets/js/app.vue"]},"resources/assets/js/utils.js":{"index":234,"hash":"YUBgAVFOtL2AfLdROM4O","parents":["resources/assets/js/components/shared/input.vue"]},"node_modules/vue-hot-reload-api/index.js":{"index":160,"hash":"WuwmPSnCiynHpb+AfQBY","parents":["resources/assets/js/components/main/content/dashboard.vue","resources/assets/js/components/main/content/schedule.vue","resources/assets/js/components/main/content/outputs.vue","resources/assets/js/components/main/content/playlists.vue","resources/assets/js/components/main/content/plugins.vue","resources/assets/js/components/main/content/overlays.vue","resources/assets/js/components/main/content/events.vue","resources/assets/js/components/main/content/testing.vue","resources/assets/js/components/main/content/effects.vue","resources/assets/js/components/main/content/not-found.vue","resources/assets/js/components/sidebar/index.vue","resources/assets/js/components/main/content/outputs/dmx.vue","resources/assets/js/components/main/content/outputs/other.vue","resources/assets/js/components/main/content/outputs/panels.vue","resources/assets/js/components/main/content/settings/email.vue","resources/assets/js/components/main/content/settings/date.vue","resources/assets/js/components/main/content/settings/logs.vue","resources/assets/js/components/main/content/settings/advanced.vue","resources/assets/js/components/shared/Tabset.vue","resources/assets/js/components/shared/Tab.vue","resources/assets/js/components/shared/switch.vue","resources/assets/js/components/shared/dropdown-select.vue","resources/assets/js/components/shared/filelist.vue","resources/assets/js/components/main/content/files.vue","resources/assets/js/components/shared/tabset.vue","resources/assets/js/components/shared/tab.vue","resources/assets/js/components/main/content/settings/network.vue","resources/assets/js/components/shared/checkbox.vue","resources/assets/js/components/shared/input.vue","resources/assets/js/components/main/header/settings.vue","resources/assets/js/components/main/footer/index.vue","resources/assets/js/components/main/content/settings.vue","resources/assets/js/components/main/settings.vue","resources/assets/js/components/shared/falcon-loading.vue","resources/assets/js/components/shared/overlay.vue","resources/assets/js/app.vue","resources/assets/js/components/shared/control-buttons.vue","resources/assets/js/components/shared/header-menu.vue","resources/assets/js/components/main/header/index.vue","resources/assets/js/components/main/index.vue","resources/assets/js/components/main/content/outputs/universe.vue","resources/assets/js/components/main/content/outputs/e131.vue","node_modules/vue-strap/src/Option.vue","node_modules/vue-strap/src/Select.vue","resources/assets/js/components/main/content/settings/general.vue"]},"node_modules/vue-resource/src/resource.js":{"index":178,"hash":"4hFj5axF31CeVRePeF8o","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-resource/src/lib/util.js":{"index":176,"hash":"kipx22owioSurHN4RBYT","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/socket.io-parser/is-buffer.js":{"index":156,"hash":"UJBXKAfBg/BkigSZbc3Z","parents":["node_modules/socket.io-parser/binary.js","node_modules/socket.io-parser/index.js"]},"node_modules/component-emitter/index.js":{"index":12,"hash":"0uL1LSa/mOj+Llu+HTZ7","parents":["node_modules/socket.io-parser/index.js","node_modules/socket.io-client/lib/socket.js","node_modules/engine.io-client/lib/transport.js","node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/parseuri/index.js":{"index":145,"hash":"PsPou9y5yKmPMPJnjEkz","parents":["node_modules/socket.io-client/lib/url.js"]},"node_modules/socket.io-client/lib/url.js":{"index":152,"hash":"/WgdaMtSTLlxFoTxZTGl","parents":["node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/lodash/array/zipObject.js":{"index":75,"hash":"fKfSwIzPo5SUx9d0DkgN","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/lang/isArray.js":{"index":129,"hash":"rpMiE1Z199/XZCjno4KN","parents":["node_modules/lodash/array/zipObject.js","node_modules/lodash/internal/createForEach.js","node_modules/lodash/collection/map.js","node_modules/lodash/collection/filter.js","node_modules/lodash/internal/isKey.js","node_modules/lodash/internal/toPath.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js","node_modules/lodash/internal/baseIsEqualDeep.js","node_modules/lodash/internal/baseMatchesProperty.js","node_modules/lodash/collection/some.js"]},"node_modules/component-bind/index.js":{"index":11,"hash":"4yIcVw+afwUsnTQyI0a3","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/indexof/index.js":{"index":70,"hash":"8zMGV0j0ID5bUIeT7r+M","parents":["node_modules/engine.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/object-component/index.js":{"index":142,"hash":"zOYybxl/D7KsteH/xJyk","parents":["node_modules/socket.io-client/lib/manager.js"]},"node_modules/backo2/index.js":{"index":5,"hash":"L5ry3mfVEw1wgmx9Sa+q","parents":["node_modules/socket.io-client/lib/manager.js"]},"node_modules/to-array/index.js":{"index":158,"hash":"2EoggafxX+GLXkXiaGjm","parents":["node_modules/socket.io-client/lib/socket.js"]},"node_modules/lodash/internal/arrayEach.js":{"index":81,"hash":"eLxUBVsb8vpFbu0VN4KL","parents":["node_modules/lodash/collection/forEach.js"]},"node_modules/lodash/internal/arraySome.js":{"index":84,"hash":"GxeJPxJj2jUg5TzV5gLv","parents":["node_modules/lodash/internal/equalArrays.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/arrayMap.js":{"index":83,"hash":"xdr8c0JsUFapIHTuM5VE","parents":["node_modules/lodash/collection/map.js"]},"node_modules/lodash/internal/arrayFilter.js":{"index":82,"hash":"BGunz0w1QzJXyqQSOdZb","parents":["node_modules/lodash/collection/filter.js"]},"node_modules/socket.io-parser/node_modules/debug/debug.js":{"index":157,"hash":"OtjmSmEbIU/8orJwFhDT","parents":["node_modules/socket.io-parser/index.js"]},"node_modules/process/browser.js":{"index":146,"hash":"d/Dio43QDX3Xt7NYvbr6","parents":["node_modules/vue/dist/vue.common.js"]},"node_modules/vue/dist/vue.common.js":{"index":183,"hash":"2VyaBoUmGsVHuFohCYxK","parents":["resources/assets/js/components/main/content/dashboard.vue","resources/assets/js/components/main/content/schedule.vue","resources/assets/js/components/main/content/outputs.vue","resources/assets/js/components/main/content/playlists.vue","resources/assets/js/components/main/content/plugins.vue","resources/assets/js/components/main/content/overlays.vue","resources/assets/js/components/main/content/events.vue","resources/assets/js/components/main/content/testing.vue","resources/assets/js/components/main/content/effects.vue","resources/assets/js/components/main/content/not-found.vue","resources/assets/js/components/sidebar/index.vue","resources/assets/js/components/main/content/outputs/dmx.vue","resources/assets/js/components/main/content/outputs/other.vue","resources/assets/js/components/main/content/outputs/panels.vue","resources/assets/js/components/main/content/settings/email.vue","resources/assets/js/components/main/content/settings/date.vue","resources/assets/js/components/main/content/settings/logs.vue","resources/assets/js/components/main/content/settings/advanced.vue","resources/assets/js/components/shared/Tabset.vue","resources/assets/js/components/shared/Tab.vue","resources/assets/js/components/shared/switch.vue","resources/assets/js/components/shared/dropdown-select.vue","resources/assets/js/components/shared/filelist.vue","resources/assets/js/components/main/content/files.vue","resources/assets/js/components/shared/tabset.vue","resources/assets/js/components/shared/tab.vue","resources/assets/js/components/main/content/settings/network.vue","resources/assets/js/components/shared/checkbox.vue","resources/assets/js/components/shared/input.vue","resources/assets/js/components/main/header/settings.vue","resources/assets/js/components/main/footer/index.vue","resources/assets/js/components/main/content/settings.vue","resources/assets/js/components/main/settings.vue","resources/assets/js/components/shared/falcon-loading.vue","resources/assets/js/components/shared/overlay.vue","resources/assets/js/app.vue","resources/assets/js/components/shared/control-buttons.vue","resources/assets/js/components/shared/header-menu.vue","resources/assets/js/components/main/header/index.vue","resources/assets/js/components/main/index.vue","resources/assets/js/components/main/content/outputs/universe.vue","resources/assets/js/components/main/content/outputs/e131.vue","node_modules/vue-strap/src/Option.vue","node_modules/vue-strap/src/Select.vue","resources/assets/js/components/main/content/settings/general.vue","resources/assets/js/main.js"]},"node_modules/vue-resource/src/lib/url-template.js":{"index":175,"hash":"KZagPKERmevU89wFVgEg","parents":["node_modules/vue-resource/src/url.js"]},"node_modules/vue-resource/src/url.js":{"index":179,"hash":"enlma6RiuDUq+g3+RYdS","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-resource/src/interceptor/before.js":{"index":166,"hash":"dzJ5VyAAgzvYOWxyyGVm","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/timeout.js":{"index":173,"hash":"r+N56i06KukH+ME8Mpnr","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/method.js":{"index":171,"hash":"DqLo0TxFAJSH0HWGo7wR","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/header.js":{"index":168,"hash":"Ql+DdTpkgQsJb9HXQumF","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/mime.js":{"index":172,"hash":"f6heFdNiVYVl4GIRJ2gN","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/lib/promise.js":{"index":174,"hash":"uhJ1aPn5MePstu6k3zZV","parents":["node_modules/vue-resource/src/promise.js"]},"node_modules/vue-resource/src/promise.js":{"index":177,"hash":"dayC7UqEuK1y+yEa6/bE","parents":["node_modules/vue-resource/src/interceptor/index.js","node_modules/vue-resource/src/client/xhr.js","node_modules/vue-resource/src/client/jsonp.js","node_modules/vue-resource/src/http.js","node_modules/vue-resource/src/index.js"]},"node_modules/isarray/index.js":{"index":71,"hash":"dKtews1S4sHvaZhZ+ceq","parents":["node_modules/socket.io-parser/binary.js","node_modules/socket.io-parser/index.js","node_modules/has-binary/index.js"]},"node_modules/json3/lib/json3.js":{"index":73,"hash":"Z22TAqz9HSDSuQH535ZO","parents":["node_modules/socket.io-parser/index.js"]},"node_modules/lodash/internal/createForEach.js":{"index":109,"hash":"iJtWBCzx+bzzSLwlaaRv","parents":["node_modules/lodash/collection/forEach.js"]},"node_modules/lodash/internal/bindCallback.js":{"index":105,"hash":"S6iy1I+53IEzDLSGuW0j","parents":["node_modules/lodash/internal/createForEach.js","node_modules/lodash/internal/createAssigner.js","node_modules/lodash/internal/createForOwn.js","node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/internal/baseSome.js":{"index":103,"hash":"lCW5AtHn9X2vSuPgS8pk","parents":["node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/baseEach.js":{"index":89,"hash":"Ji7NLCJhdzSBlpDI+qC3","parents":["node_modules/lodash/internal/baseSome.js","node_modules/lodash/internal/baseMap.js","node_modules/lodash/internal/baseFilter.js","node_modules/lodash/collection/forEach.js"]},"node_modules/vueify-insert-css/index.js":{"index":184,"hash":"fvTUijA6yyBpp68H+JX2","parents":["resources/assets/js/components/main/content/not-found.vue","resources/assets/js/components/sidebar/index.vue","resources/assets/js/components/shared/Tabset.vue","resources/assets/js/components/shared/Tab.vue","resources/assets/js/components/shared/filelist.vue","resources/assets/js/components/main/content/files.vue","resources/assets/js/components/shared/tabset.vue","resources/assets/js/components/shared/tab.vue","resources/assets/js/components/shared/checkbox.vue","resources/assets/js/components/main/header/settings.vue","resources/assets/js/components/main/content/settings.vue","resources/assets/js/components/main/settings.vue","resources/assets/js/components/shared/falcon-loading.vue","resources/assets/js/components/shared/overlay.vue","resources/assets/js/components/shared/control-buttons.vue","resources/assets/js/components/shared/header-menu.vue","resources/assets/js/components/main/header/index.vue","resources/assets/js/components/main/index.vue","resources/assets/js/components/main/content/outputs/universe.vue","resources/assets/js/components/main/content/outputs/e131.vue","node_modules/vue-strap/src/Option.vue","node_modules/vue-strap/src/Select.vue"]},"node_modules/lodash/internal/baseMap.js":{"index":97,"hash":"ofv2jCE5QlahpynG4rkN","parents":["node_modules/lodash/collection/map.js"]},"node_modules/lodash/internal/isArrayLike.js":{"index":118,"hash":"76Awthz8ChTgjGk0JZ6Y","parents":["node_modules/lodash/internal/baseMap.js","node_modules/lodash/internal/isIterateeCall.js","node_modules/lodash/lang/isArguments.js","node_modules/lodash/object/keys.js"]},"node_modules/lodash/collection/map.js":{"index":78,"hash":"63n5x8GTiWPuxiZzm9TM","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/baseCallback.js":{"index":87,"hash":"FDEmxoh1cXY/hddgPNGW","parents":["node_modules/lodash/collection/map.js","node_modules/lodash/internal/createObjectMapper.js","node_modules/lodash/collection/filter.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/createObjectMapper.js":{"index":111,"hash":"cp8s+Z6khiKdK5QCQ+Ms","parents":["node_modules/lodash/object/mapValues.js"]},"node_modules/lodash/internal/baseForOwn.js":{"index":92,"hash":"sOLmHH2OosmeW92YaLK/","parents":["node_modules/lodash/internal/createObjectMapper.js","node_modules/lodash/internal/baseEach.js","node_modules/lodash/object/forOwn.js"]},"node_modules/lodash/object/mapValues.js":{"index":138,"hash":"2HfAmVuaVGfc8pd5zIaC","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/assignWith.js":{"index":85,"hash":"aKBKyfIKqZsNOHAbJTAI","parents":["node_modules/lodash/object/assign.js"]},"node_modules/lodash/object/keys.js":{"index":136,"hash":"BbXGNIcfatSp32uWOBAV","parents":["node_modules/lodash/internal/assignWith.js","node_modules/lodash/internal/baseAssign.js","node_modules/lodash/internal/baseForOwn.js","node_modules/lodash/object/pairs.js","node_modules/lodash/internal/equalObjects.js"]},"node_modules/lodash/internal/baseFilter.js":{"index":90,"hash":"yyvQag4hw8sItBFf3/9T","parents":["node_modules/lodash/collection/filter.js"]},"node_modules/lodash/collection/filter.js":{"index":76,"hash":"XtU5zjCqSDlYcwOLUC13","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/utility/identity.js":{"index":140,"hash":"A/cz5O4nnho2x2e5KIWS","parents":["node_modules/lodash/internal/bindCallback.js","node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/internal/isLength.js":{"index":122,"hash":"DFIKI121VzeE+pBbx1Oa","parents":["node_modules/lodash/internal/isArrayLike.js","node_modules/lodash/internal/createBaseEach.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js","node_modules/lodash/lang/isArray.js","node_modules/lodash/lang/isTypedArray.js"]},"node_modules/lodash/internal/isObjectLike.js":{"index":123,"hash":"qEGnAWJNoAetOIJ7YKiV","parents":["node_modules/lodash/lang/isArguments.js","node_modules/lodash/lang/isNative.js","node_modules/lodash/lang/isArray.js","node_modules/lodash/lang/isTypedArray.js","node_modules/lodash/internal/baseIsEqual.js"]},"node_modules/lodash/internal/isIndex.js":{"index":119,"hash":"I8y5AsjL/lwDlORDOqqM","parents":["node_modules/lodash/internal/isIterateeCall.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js"]},"node_modules/lodash/lang/isObject.js":{"index":132,"hash":"Go+dTLFqO1KJN+uQLb8s","parents":["node_modules/lodash/internal/isIterateeCall.js","node_modules/lodash/internal/toObject.js","node_modules/lodash/internal/isStrictComparable.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/object/keys.js","node_modules/lodash/lang/isFunction.js","node_modules/lodash/internal/baseIsEqual.js"]},"node_modules/lodash/internal/baseCopy.js":{"index":88,"hash":"WvGi8IywM6u7ZNXvztwg","parents":["node_modules/lodash/internal/baseAssign.js"]},"node_modules/lodash/internal/baseAssign.js":{"index":86,"hash":"6VX87YoeNgDvMUyiAc/7","parents":["node_modules/lodash/object/assign.js"]},"node_modules/lodash/function/restParam.js":{"index":80,"hash":"/RRH9MCtjArr1p3Qeh63","parents":["node_modules/lodash/internal/createAssigner.js"]},"node_modules/lodash/internal/createAssigner.js":{"index":106,"hash":"X8R81jvRCofY1BnG+A/L","parents":["node_modules/lodash/object/assign.js"]},"node_modules/lodash/internal/isIterateeCall.js":{"index":120,"hash":"dXMnNRevAizOBisKCEes","parents":["node_modules/lodash/internal/createAssigner.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/object/assign.js":{"index":134,"hash":"9WOhJBREl8AO9Hs6Cr+Q","parents":["node_modules/browserify-hmr/inc/index.js"]},"resources/assets/js/components/main/content/dashboard.vue":{"index":187,"hash":"ZYiY8Hm10S+BuYuRA6qr","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/schedule.vue":{"index":201,"hash":"emLr0atw9YViWg9M9WK4","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/outputs.vue":{"index":192,"hash":"CXuFwZiFBxxg/4SYgpJr","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/playlists.vue":{"index":199,"hash":"RflbEyufB3jpcfIfW+DA","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/plugins.vue":{"index":200,"hash":"dDR/V2Cn6Vc+W+Hh5pTH","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/overlays.vue":{"index":198,"hash":"Htt7ZmwlY7bPvqSA55PK","parents":["resources/assets/js/main.js"]},"node_modules/socket.io-parser/binary.js":{"index":154,"hash":"bAee8RukaXwuD/OeGN6F","parents":["node_modules/socket.io-parser/index.js"]},"node_modules/socket.io-parser/index.js":{"index":155,"hash":"BAgSAi2yJ1LAoE3Vw1D4","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"resources/assets/js/components/main/content/events.vue":{"index":189,"hash":"myxzZPFL581logjuavMe","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/testing.vue":{"index":209,"hash":"l0k5ki8CjUH0Cw/c5Cgo","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/effects.vue":{"index":188,"hash":"2dfYg1xyYbaShi8WFe1L","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/not-found.vue":{"index":191,"hash":"uv9Q3bvOW7GRU5Y4bKV0","parents":["resources/assets/js/main.js"]},"node_modules/has-binary/index.js":{"index":68,"hash":"ZLLgu+QfLGB5FJs6P2Ow","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/engine.io-parser/lib/browser.js"]},"node_modules/socket.io-client/lib/socket.js":{"index":151,"hash":"mVenx7k8VFtvIejsDYOl","parents":["node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/vue-resource/src/interceptor/cors.js":{"index":167,"hash":"y/hrmr+lC4LVHKr98SRc","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/client/jsonp.js":{"index":162,"hash":"+Nk8UZxMFWMDrzR/Me13","parents":["node_modules/vue-resource/src/interceptor/cors.js","node_modules/vue-resource/src/interceptor/jsonp.js"]},"node_modules/vue-resource/src/interceptor/index.js":{"index":169,"hash":"5iWUKE5ElG+J957vOzOe","parents":["node_modules/vue-resource/src/http.js"]},"resources/assets/js/components/sidebar/index.vue":{"index":228,"hash":"9T+EtxrHFzTbn1f0gjS0","parents":["resources/assets/js/app.vue"]},"node_modules/lodash/internal/createForOwn.js":{"index":110,"hash":"KJqijjvJO7d1nU17Sz3c","parents":["node_modules/lodash/object/forOwn.js"]},"node_modules/lodash/internal/getLength.js":{"index":115,"hash":"UiZ6F0+nXZ0fiKckTqnM","parents":["node_modules/lodash/internal/isArrayLike.js","node_modules/lodash/internal/createBaseEach.js"]},"resources/assets/js/components/main/content/outputs/dmx.vue":{"index":193,"hash":"rEliS/Y81EHiO/UHXs8I","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/outputs/other.vue":{"index":195,"hash":"Yhlqrv2awsiQW+YugtNJ","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/outputs/panels.vue":{"index":196,"hash":"84PVUrcnaxvgK1CkKLc5","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/settings/email.vue":{"index":205,"hash":"RU5tLo90EPn366yv7ejI","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/settings/date.vue":{"index":204,"hash":"2GmDtyhq2fbp4rJvNaIi","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/shared/switch.vue":{"index":225,"hash":"YL63p5vHKkkZeMmCvrvm","parents":["resources/assets/js/components/main/content/settings/date.vue","resources/assets/js/components/main/content/outputs/universe.vue","resources/assets/js/components/main/content/outputs/e131.vue","resources/assets/js/components/main/content/settings/general.vue"]},"node_modules/lodash/internal/baseSlice.js":{"index":102,"hash":"OLgw9XVic1W0AKjehzHB","parents":["node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/array/last.js":{"index":74,"hash":"3oXXa2idWbKySVLcq3os","parents":["node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/baseProperty.js":{"index":100,"hash":"Yuk2tpof21q0Xl2sQg89","parents":["node_modules/lodash/internal/getLength.js","node_modules/lodash/utility/property.js"]},"resources/assets/js/components/main/content/settings/logs.vue":{"index":207,"hash":"AZoQuwllsd9wT8o0fPbW","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/settings/advanced.vue":{"index":203,"hash":"8v2G0ageUm7aI+eY11Ro","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/shared/Tabset.vue":{"index":216,"hash":"gqqI8RvSTmfen5Ur4x8e","parents":["resources/assets/js/components/main/content/files.vue"]},"resources/assets/js/components/shared/Tab.vue":{"index":215,"hash":"cdUmReYmh0ydEtOAgdv5","parents":["resources/assets/js/components/main/content/files.vue"]},"resources/assets/js/components/shared/dropdown-select.vue":{"index":219,"hash":"mFIoJVHY9dJVngym9xZP","parents":["resources/assets/js/components/main/content/outputs/e131.vue"]},"resources/assets/js/components/shared/filelist.vue":{"index":221,"hash":"UcxvPNXyJimPoXghyR93","parents":["resources/assets/js/components/main/content/files.vue"]},"resources/assets/js/components/main/content/files.vue":{"index":190,"hash":"/eXUhIhcZsDeOcKIV5xI","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/shared/tabset.vue":{"index":227,"hash":"ni1YOVU6boQgduWMtPx9","parents":["resources/assets/js/components/main/content/settings/network.vue"]},"resources/assets/js/components/shared/tab.vue":{"index":226,"hash":"q+fOMn88tu7p6njNfcLf","parents":["resources/assets/js/components/main/content/settings/network.vue"]},"resources/assets/js/components/main/content/settings/network.vue":{"index":208,"hash":"Y3zI+9UNKM3D+NmH0c+C","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/shared/checkbox.vue":{"index":217,"hash":"uZDy5Po/OgOkjVErDgUR","parents":["resources/assets/js/components/main/content/outputs/e131.vue"]},"resources/assets/js/components/shared/input.vue":{"index":223,"hash":"c2D2Gxe9RcHWFXmJuepe","parents":["resources/assets/js/components/main/content/outputs/e131.vue"]},"node_modules/vue-resource/src/client/xhr.js":{"index":163,"hash":"u8PTCERIOeSAmYWFlrqC","parents":["node_modules/vue-resource/src/client/default.js"]},"node_modules/vue-resource/src/client/default.js":{"index":161,"hash":"+B0kSDe+gVY+/RkxYnil","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/jsonp.js":{"index":170,"hash":"EYhB3ryCUxKsSKwlYeME","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/http.js":{"index":164,"hash":"pcpl/SOKe3e7NS9rUOff","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-resource/src/index.js":{"index":165,"hash":"TZsp5Ua7CrOOvYCKsblD","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/header/settings.vue":{"index":212,"hash":"sJWK5betBps5OagtxfxR","parents":["resources/assets/js/components/main/settings.vue"]},"resources/assets/js/components/shared/control-buttons.vue":{"index":218,"hash":"+9iOqEGv9nEOHue9HTT2","parents":["resources/assets/js/components/main/header/settings.vue","resources/assets/js/components/main/header/index.vue"]},"resources/assets/js/components/main/footer/index.vue":{"index":210,"hash":"TsXziYA9AmKfnptsNJJF","parents":["resources/assets/js/components/main/settings.vue","resources/assets/js/components/main/index.vue"]},"resources/assets/js/components/main/content/settings.vue":{"index":202,"hash":"bw8juKxM91JM1ICnYPoe","parents":["resources/assets/js/components/main/settings.vue"]},"resources/assets/js/components/main/settings.vue":{"index":214,"hash":"UBeQKDogi9BARCQ8ldbn","parents":["resources/assets/js/main.js"]},"node_modules/lodash/internal/toObject.js":{"index":126,"hash":"8f3eulB97DddBRdcU+7v","parents":["node_modules/lodash/internal/createBaseEach.js","node_modules/lodash/internal/createBaseFor.js","node_modules/lodash/internal/baseIsMatch.js","node_modules/lodash/internal/baseGet.js","node_modules/lodash/internal/isKey.js","node_modules/lodash/object/pairs.js","node_modules/lodash/internal/baseMatches.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/createBaseEach.js":{"index":107,"hash":"+5X3Ztm78NNPr9vQZ7fB","parents":["node_modules/lodash/internal/baseEach.js"]},"node_modules/lodash/collection/forEach.js":{"index":77,"hash":"0Lo1RNt18PMo/HAKbHEu","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/createBaseFor.js":{"index":108,"hash":"9RWlFaBOuelvwgkhYgPG","parents":["node_modules/lodash/internal/baseFor.js"]},"node_modules/lodash/internal/baseFor.js":{"index":91,"hash":"NGxcZ0n01+w2G1PzyBlY","parents":["node_modules/lodash/internal/baseForOwn.js"]},"node_modules/lodash/internal/baseIsMatch.js":{"index":96,"hash":"EpuJzlg204aR35T4QKcS","parents":["node_modules/lodash/internal/baseMatches.js"]},"node_modules/lodash/internal/baseIsEqual.js":{"index":94,"hash":"dBgoFXnhj9KH6oX3dQwa","parents":["node_modules/lodash/internal/baseIsMatch.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/baseGet.js":{"index":93,"hash":"H9EiMd3ullQpRkvooLgz","parents":["node_modules/lodash/internal/basePropertyDeep.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/isKey.js":{"index":121,"hash":"lDpw5crcRmTRExTLVTKc","parents":["node_modules/lodash/utility/property.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/isStrictComparable.js":{"index":124,"hash":"ofNP4/nFrz5Rkb3kGOhn","parents":["node_modules/lodash/internal/getMatchData.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/basePropertyDeep.js":{"index":101,"hash":"mqX1OyYdndJ183lyl/sn","parents":["node_modules/lodash/utility/property.js"]},"node_modules/lodash/internal/toPath.js":{"index":127,"hash":"faVQvsb+LSLI4uaMgtrQ","parents":["node_modules/lodash/internal/basePropertyDeep.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/utility/property.js":{"index":141,"hash":"7IoOI/uGZCxbcY23uQDK","parents":["node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/internal/baseToString.js":{"index":104,"hash":"ABFQFf14pRECi3sw8oKV","parents":["node_modules/lodash/internal/toPath.js"]},"resources/assets/js/components/shared/falcon-loading.vue":{"index":220,"hash":"nrISz6smCod0TjaIPHYA","parents":["resources/assets/js/components/shared/overlay.vue"]},"resources/assets/js/components/shared/overlay.vue":{"index":224,"hash":"JYZPaO3VyADALhB5HixN","parents":["resources/assets/js/app.vue"]},"resources/assets/js/app.vue":{"index":186,"hash":"HFw1nenZ+frQMGQx08yF","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/index.vue":{"index":213,"hash":"0NH9Zm6x1SQ1dEeg1eXO","parents":["resources/assets/js/app.vue","resources/assets/js/main.js"]},"resources/assets/js/components/shared/header-menu.vue":{"index":222,"hash":"phCAnSIecIl68MBC00Uo","parents":["resources/assets/js/components/main/header/index.vue"]},"resources/assets/js/components/main/header/index.vue":{"index":211,"hash":"0J1eKZ+cT411ebAw1N9v","parents":["resources/assets/js/components/main/index.vue"]},"resources/assets/js/components/main/content/outputs/universe.vue":{"index":197,"hash":"Ft7s5laV6Wyz2pyM4d9g","parents":["resources/assets/js/components/main/content/outputs/e131.vue"]},"resources/assets/js/components/main/content/outputs/e131.vue":{"index":194,"hash":"hyFuIf9RAy4Y7y8Fb8Jp","parents":["resources/assets/js/main.js"]},"node_modules/lodash/lang/isArguments.js":{"index":128,"hash":"xQ4mqbsKQMCmtsPbfQc6","parents":["node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js"]},"node_modules/lodash/object/keysIn.js":{"index":137,"hash":"8POZiGR1fRHso579G46Z","parents":["node_modules/lodash/internal/shimKeys.js"]},"node_modules/lodash/internal/shimKeys.js":{"index":125,"hash":"oO4aKopmxRfPxyKgRX9F","parents":["node_modules/lodash/object/keys.js"]},"node_modules/lodash/internal/getNative.js":{"index":117,"hash":"7GRZ7115BSuoc/1bdaBK","parents":["node_modules/lodash/object/keys.js","node_modules/lodash/lang/isArray.js"]},"node_modules/lodash/object/forOwn.js":{"index":135,"hash":"LZ77PzuJW/wlgVPdvlGc","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/object/pairs.js":{"index":139,"hash":"x6Ilwx8encvg/BW5API2","parents":["node_modules/lodash/internal/getMatchData.js"]},"node_modules/lodash/internal/getMatchData.js":{"index":116,"hash":"n0PHWhNs6YZ+DzgYMHPx","parents":["node_modules/lodash/internal/baseMatches.js"]},"node_modules/lodash/internal/baseMatches.js":{"index":98,"hash":"Cwj5GSiQv9/E8nSFBoX2","parents":["node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/lang/isFunction.js":{"index":130,"hash":"xkfzrZNZPGGOIf0kE8Y9","parents":["node_modules/lodash/lang/isNative.js"]},"node_modules/lodash/lang/isNative.js":{"index":131,"hash":"2rstaALy1DW0JSDdijps","parents":["node_modules/lodash/internal/getNative.js"]},"node_modules/lodash/internal/equalByTag.js":{"index":113,"hash":"+y++gesJpPvyM+2E8aNB","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/engine.io-client/node_modules/parseuri/index.js":{"index":64,"hash":"c/c7XftSI6ClFc9h2jOh","parents":["node_modules/engine.io-client/lib/socket.js"]},"node_modules/parsejson/index.js":{"index":143,"hash":"3RLuznQNKZiQ/toCXNir","parents":["node_modules/engine.io-client/lib/socket.js"]},"node_modules/parseqs/index.js":{"index":144,"hash":"FI4tRELwI5Itz+ckwR+m","parents":["node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-parser/lib/keys.js":{"index":66,"hash":"oFyKNTA0twlyQVhVzp9n","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/lodash/internal/equalArrays.js":{"index":112,"hash":"OBJL6vuaOotu5flUeCnv","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/lodash/internal/equalObjects.js":{"index":114,"hash":"44Iy49kDcaAZsykEdaH3","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/lodash/lang/isTypedArray.js":{"index":133,"hash":"aVeZyIFGadrEh7EsaDRu","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/lodash/internal/baseIsEqualDeep.js":{"index":95,"hash":"ltZZaMHmzp6d9jBltV3Y","parents":["node_modules/lodash/internal/baseIsEqual.js"]},"node_modules/lodash/internal/baseMatchesProperty.js":{"index":99,"hash":"OudnSoeq2A4ql5lg51kc","parents":["node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/collection/some.js":{"index":79,"hash":"9JyJFfdCx56pmR6fwM9q","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/browserify-hmr/inc/index.js":{"index":8,"hash":"zTlNWZ14iIh89mO0UkaY","parents":[]},"node_modules/engine.io-client/lib/transport.js":{"index":54,"hash":"8Wg7zuMzQpa+AwOxaesw","parents":["node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-parser/lib/browser.js":{"index":65,"hash":"Xr2KhMDa3GjqERGsK7Lc","parents":["node_modules/engine.io-client/lib/transport.js","node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/socket.js","node_modules/engine.io-client/lib/index.js"]},"node_modules/utf8/utf8.js":{"index":159,"hash":"Mqm8G2xyYXmBOFrE+/6A","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/arraybuffer.slice/index.js":{"index":3,"hash":"RSb5Zx9CgX3adjzbvf/k","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/after/index.js":{"index":2,"hash":"NzPfXWECmM8rW/6fdkcj","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/blob/index.js":{"index":7,"hash":"q7L6uHK9eN9yEvDVNxJw","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/base64-arraybuffer/lib/base64-arraybuffer.js":{"index":6,"hash":"dW6cnktjBIyZ6bv9vRp2","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/engine.io-client/node_modules/ms/index.js":{"index":63,"hash":"rzSu41c+6ZW8M4Say8X9","parents":["node_modules/engine.io-client/node_modules/debug/debug.js"]},"node_modules/engine.io-client/node_modules/debug/debug.js":{"index":62,"hash":"yqdR7nJc7wxIHzFDNzG+","parents":["node_modules/engine.io-client/node_modules/debug/browser.js"]},"node_modules/engine.io-client/node_modules/debug/browser.js":{"index":61,"hash":"PENVCHp3HppeRm/DiJMI","parents":["node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-client/lib/transports/polling-jsonp.js":{"index":56,"hash":"FAm1xe7I43tDMsakGLzq","parents":["node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/engine.io-client/lib/transports/polling.js":{"index":58,"hash":"m6eReXjm1pnBQHB07d2V","parents":["node_modules/engine.io-client/lib/transports/polling-jsonp.js","node_modules/engine.io-client/lib/transports/polling-xhr.js"]},"node_modules/component-inherit/index.js":{"index":13,"hash":"T0Fqch4d4akvlr8bh7lc","parents":["node_modules/engine.io-client/lib/transports/polling-jsonp.js","node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/transports/polling-xhr.js"]},"node_modules/ws/lib/browser.js":{"index":185,"hash":"vZRI95FVw46PPRoHDauJ","parents":["node_modules/engine.io-client/lib/transports/websocket.js"]},"node_modules/engine.io-client/lib/transports/websocket.js":{"index":59,"hash":"iZQQax7TKsS+8ZxUyrc3","parents":["node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/engine.io-client/lib/xmlhttprequest.js":{"index":60,"hash":"us0FsN5s7hiT3hqVV5lx","parents":["node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/engine.io-client/lib/transports/polling-xhr.js":{"index":57,"hash":"d89FOYRl9cirXzsJCjKg","parents":["node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/global/index.js":{"index":67,"hash":"tDIf5GqqdOcKnNHRh2Rc","parents":["node_modules/has-cors/index.js"]},"node_modules/has-cors/index.js":{"index":69,"hash":"uSUdzzwBDQd7qQNKEZ4o","parents":["node_modules/engine.io-client/lib/xmlhttprequest.js"]},"node_modules/engine.io-client/lib/transports/index.js":{"index":55,"hash":"kQ8FMfawL2PES7dsQgvD","parents":["node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-client/lib/socket.js":{"index":53,"hash":"1L37UZEnorYV+ld5c01T","parents":["node_modules/engine.io-client/lib/index.js"]},"node_modules/engine.io-client/lib/index.js":{"index":52,"hash":"G6QYuSNu0EcS+G5tR9NE","parents":["node_modules/engine.io-client/index.js"]},"node_modules/engine.io-client/index.js":{"index":51,"hash":"HQau4MkD4lAynB9tt0Wl","parents":["node_modules/socket.io-client/lib/manager.js"]},"node_modules/socket.io-client/lib/manager.js":{"index":149,"hash":"+TrOAqk4UlI3tKzIT6Dc","parents":["node_modules/socket.io-client/lib/index.js"]},"node_modules/socket.io-client/lib/index.js":{"index":148,"hash":"lWwRhzm83+Eq08s7Nht/","parents":["node_modules/socket.io-client/index.js"]},"node_modules/socket.io-client/index.js":{"index":147,"hash":"ccYBPsaIqMCtG5CHCdDd","parents":[]},"node_modules/vue-strap/src/Option.vue":{"index":181,"hash":"C7Duog3xPNfziDO2oTHN","parents":["resources/assets/js/components/main/content/settings/general.vue"]},"node_modules/core-js/library/modules/$.iterators.js":{"index":34,"hash":"HPPh7u0tcX1NuooQHCi3","parents":["node_modules/core-js/library/modules/core.get-iterator-method.js","node_modules/core-js/library/modules/es6.array.iterator.js","node_modules/core-js/library/modules/web.dom.iterable.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.core.js":{"index":20,"hash":"jO6z5PVz8f6aTUjm5Hrx","parents":["node_modules/core-js/library/modules/core.get-iterator-method.js","node_modules/core-js/library/modules/core.get-iterator.js","node_modules/core-js/library/modules/$.export.js"]},"node_modules/core-js/library/modules/$.add-to-unscopables.js":{"index":16,"hash":"aTtaK5OMoCOj8v16GPqC","parents":["node_modules/core-js/library/modules/es6.array.iterator.js"]},"node_modules/core-js/library/modules/$.iter-step.js":{"index":33,"hash":"LPWFVFxr7uzP25M4Teof","parents":["node_modules/core-js/library/modules/es6.array.iterator.js"]},"node_modules/core-js/library/modules/$.to-integer.js":{"index":42,"hash":"k18sZu8vTX3eiB+U6ofu","parents":["node_modules/core-js/library/modules/$.string-at.js"]},"node_modules/core-js/library/modules/$.defined.js":{"index":22,"hash":"RZr8uFl+WrrjvGzPSz3c","parents":["node_modules/core-js/library/modules/$.string-at.js","node_modules/core-js/library/modules/$.to-iobject.js"]},"node_modules/core-js/library/modules/$.string-at.js":{"index":41,"hash":"Zop3IqdJq32xa0qd4H0H","parents":["node_modules/core-js/library/modules/es6.string.iterator.js"]},"node_modules/core-js/library/modules/$.library.js":{"index":36,"hash":"Bhgn5RpO7pDcQnSVaI5C","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.has.js":{"index":27,"hash":"y4idiH2Sj/rmZqd39CHH","parents":["node_modules/core-js/library/modules/$.set-to-string-tag.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.js":{"index":35,"hash":"UI1ymRgurU07soRpiobz","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.set-to-string-tag.js","node_modules/core-js/library/modules/$.hide.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.is-object.js":{"index":30,"hash":"FkaOOMIm0uw4T/qUEXed","parents":["node_modules/core-js/library/modules/$.an-object.js"]},"node_modules/core-js/library/modules/$.an-object.js":{"index":17,"hash":"d7pCynXJhKpK2u1S0fph","parents":["node_modules/core-js/library/modules/core.get-iterator.js"]},"node_modules/core-js/library/modules/$.redefine.js":{"index":38,"hash":"v4z59Kie6WPVO1h+8oJP","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.hide.js":{"index":28,"hash":"2HBwvxEtbt4UpskOWy62","parents":["node_modules/core-js/library/modules/$.redefine.js","node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.iter-create.js":{"index":31,"hash":"aNVpOMS/fyyM1i4Aw4bY","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.property-desc.js":{"index":37,"hash":"iSs9jpAw1JT2ZWWLScSH","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.hide.js"]},"node_modules/core-js/library/modules/$.set-to-string-tag.js":{"index":39,"hash":"3G0pjz42ePfLP++caEH3","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.wks.js":{"index":45,"hash":"qMliszffX6kySHptJTIp","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.set-to-string-tag.js","node_modules/core-js/library/modules/$.classof.js","node_modules/core-js/library/modules/core.get-iterator-method.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.global.js":{"index":26,"hash":"t7QKkyeVEU+gGSy/l5Cc","parents":["node_modules/core-js/library/modules/$.shared.js","node_modules/core-js/library/modules/$.wks.js","node_modules/core-js/library/modules/$.export.js"]},"node_modules/core-js/library/modules/$.uid.js":{"index":44,"hash":"auy0a5KBxuU7QAdJ7we/","parents":["node_modules/core-js/library/modules/$.wks.js"]},"node_modules/core-js/library/modules/$.cof.js":{"index":19,"hash":"FY6tg0ymdCS/rEwpAa7R","parents":["node_modules/core-js/library/modules/$.classof.js","node_modules/core-js/library/modules/$.iobject.js"]},"node_modules/core-js/library/modules/$.classof.js":{"index":18,"hash":"2vrlE4yJW7f/QT46fZjd","parents":["node_modules/core-js/library/modules/core.get-iterator-method.js"]},"node_modules/core-js/library/modules/core.get-iterator-method.js":{"index":46,"hash":"+qtmOjO/wxtOJEvpsv/b","parents":["node_modules/core-js/library/modules/core.get-iterator.js"]},"node_modules/core-js/library/modules/core.get-iterator.js":{"index":47,"hash":"Fpc5rJRGURor7FbHBYPn","parents":["node_modules/core-js/library/fn/get-iterator.js"]},"node_modules/core-js/library/modules/$.iobject.js":{"index":29,"hash":"HvETp5p0zMBjh+wvjxSm","parents":["node_modules/core-js/library/modules/$.to-iobject.js"]},"node_modules/core-js/library/modules/$.to-iobject.js":{"index":43,"hash":"yp4UOuCLRVO1tqlgppw5","parents":["node_modules/core-js/library/modules/es6.array.iterator.js"]},"node_modules/core-js/library/modules/es6.array.iterator.js":{"index":48,"hash":"Zw/NixWUIMjoGa2uWxe/","parents":["node_modules/core-js/library/modules/web.dom.iterable.js"]},"node_modules/core-js/library/modules/$.iter-define.js":{"index":32,"hash":"sR6jK5MoRN1zAKGNm2y4","parents":["node_modules/core-js/library/modules/es6.array.iterator.js","node_modules/core-js/library/modules/es6.string.iterator.js"]},"node_modules/core-js/library/modules/web.dom.iterable.js":{"index":50,"hash":"KisVT/JurPfFyjuYGWzf","parents":["node_modules/core-js/library/fn/get-iterator.js"]},"node_modules/core-js/library/modules/$.shared.js":{"index":40,"hash":"ZK+Tn2LANbB4OqkscM3N","parents":["node_modules/core-js/library/modules/$.wks.js"]},"node_modules/core-js/library/modules/$.fails.js":{"index":25,"hash":"6G4+YXaRghTGQQnkm/qp","parents":["node_modules/core-js/library/modules/$.descriptors.js"]},"node_modules/core-js/library/modules/$.descriptors.js":{"index":23,"hash":"NJqnAOVs55bKea+gKIGt","parents":["node_modules/core-js/library/modules/$.hide.js"]},"node_modules/core-js/library/modules/$.a-function.js":{"index":15,"hash":"vI7NBVNoKizw/T7ablYt","parents":["node_modules/core-js/library/modules/$.ctx.js"]},"node_modules/core-js/library/modules/$.ctx.js":{"index":21,"hash":"IBAqoysxf6uGe4qIslFW","parents":["node_modules/core-js/library/modules/$.export.js"]},"node_modules/core-js/library/modules/$.export.js":{"index":24,"hash":"tF6TuwqA3fLdeFKqSI9n","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/es6.string.iterator.js":{"index":49,"hash":"viRu85eLzJ68VCbwuHbl","parents":["node_modules/core-js/library/fn/get-iterator.js"]},"node_modules/core-js/library/fn/get-iterator.js":{"index":14,"hash":"V+nypfA8LA2WadFVp7u2","parents":["node_modules/babel-runtime/core-js/get-iterator.js"]},"node_modules/babel-runtime/core-js/get-iterator.js":{"index":4,"hash":"a8je4in/yfKL3pQIQJX9","parents":["node_modules/vue-strap/src/Select.vue"]},"node_modules/vue-strap/src/Select.vue":{"index":182,"hash":"7dhDxiNKuVRXmRHtif1f","parents":["resources/assets/js/components/main/content/settings/general.vue"]},"resources/assets/js/components/main/content/settings/general.vue":{"index":206,"hash":"UvIT68OQ0E9MTpIl2T/2","parents":["resources/assets/js/main.js"]},"resources/assets/js/main.js":{"index":229,"hash":"MAyKpg6bvOMleLDYghqo","parents":[]}};
+  var moduleMeta = {"node_modules/browserify-hmr/lib/has.js":{"index":9,"hash":"Hky4QYVrU1+kFHIEuxPy","parents":["node_modules/browserify-hmr/lib/str-set.js","node_modules/browserify-hmr/inc/index.js"]},"node_modules/browserify-hmr/lib/str-set.js":{"index":10,"hash":"lcrDmQK4uaqOqN+FV4/9","parents":["node_modules/browserify-hmr/inc/index.js"]},"resources/assets/js/stores/playlist.js":{"index":238,"hash":"k5Rph+tSzK7SzVYZrxbP","parents":["resources/assets/js/app.vue"]},"resources/assets/js/mixins/outputMixin.js":{"index":236,"hash":"gGCtCK8OXqFlnKkxkWU0","parents":["resources/assets/js/components/main/content/outputs/dmx.vue","resources/assets/js/components/main/content/outputs/e131.vue"]},"node_modules/socket.io-client/node_modules/debug/debug.js":{"index":156,"hash":"OtjmSmEbIU/8orJwFhDT","parents":["node_modules/socket.io-client/lib/url.js","node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/socket.io-client/lib/on.js":{"index":153,"hash":"y5MOoFpTKKBHwE8q8jae","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/vue-animated-list/vue-animated-list.js":{"index":163,"hash":"26lVl2CH82yXZ2XSjVFm","parents":["resources/assets/js/main.js"]},"node_modules/vue-router/dist/vue-router.common.js":{"index":184,"hash":"V5DMsGGLcOqPAhx31psf","parents":["resources/assets/js/main.js"]},"node_modules/jquery/dist/jquery.js":{"index":75,"hash":"siFczlgw4jULnUICcdm9","parents":["resources/assets/js/app.vue","node_modules/jquery.inputmask/dist/inputmask/inputmask.dependencyLib.jquery.js","node_modules/jquery.inputmask/dist/inputmask/jquery.inputmask.js","resources/assets/js/directives/ip.js","resources/assets/js/main.js"]},"resources/assets/js/stores/setting.js":{"index":239,"hash":"coKfnj2hZTIg8YRT4JSn","parents":["resources/assets/js/app.vue"]},"resources/assets/js/services/http.js":{"index":237,"hash":"OqU5t4zvkjeUSpQJFLPI","parents":["resources/assets/js/stores/setting.js","resources/assets/js/stores/shared.js"]},"resources/assets/js/stores/shared.js":{"index":240,"hash":"dBZ6EHn2t9/PLCXa/Sej","parents":["resources/assets/js/stores/setting.js","resources/assets/js/app.vue"]},"resources/assets/js/utils.js":{"index":241,"hash":"YUBgAVFOtL2AfLdROM4O","parents":["resources/assets/js/components/shared/input.vue"]},"node_modules/vue-resource/src/resource.js":{"index":182,"hash":"4hFj5axF31CeVRePeF8o","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-hot-reload-api/index.js":{"index":164,"hash":"WuwmPSnCiynHpb+AfQBY","parents":["resources/assets/js/components/main/content/dashboard.vue","resources/assets/js/components/main/content/outputs.vue","resources/assets/js/components/main/content/overlays.vue","resources/assets/js/components/main/content/playlists.vue","resources/assets/js/components/main/content/schedule.vue","resources/assets/js/components/main/content/events.vue","resources/assets/js/components/main/content/plugins.vue","resources/assets/js/components/main/content/effects.vue","resources/assets/js/components/main/content/testing.vue","resources/assets/js/components/main/content/not-found.vue","resources/assets/js/components/sidebar/index.vue","resources/assets/js/components/main/content/outputs/panels.vue","resources/assets/js/components/main/content/outputs/other.vue","resources/assets/js/components/main/content/settings/date.vue","resources/assets/js/components/main/content/settings/email.vue","resources/assets/js/components/main/content/settings/logs.vue","resources/assets/js/components/main/content/settings/advanced.vue","resources/assets/js/components/shared/Tabset.vue","resources/assets/js/components/shared/Tab.vue","resources/assets/js/components/shared/switch.vue","resources/assets/js/components/shared/dropdown-select.vue","resources/assets/js/components/shared/filelist.vue","resources/assets/js/components/main/content/files.vue","resources/assets/js/components/shared/tabset.vue","resources/assets/js/components/shared/tab.vue","resources/assets/js/components/main/content/settings/network.vue","resources/assets/js/components/shared/checkbox.vue","resources/assets/js/components/shared/input.vue","resources/assets/js/components/main/footer/index.vue","resources/assets/js/components/main/header/settings.vue","resources/assets/js/components/main/content/settings.vue","resources/assets/js/components/main/settings.vue","resources/assets/js/components/shared/falcon-loading.vue","resources/assets/js/components/shared/overlay.vue","resources/assets/js/app.vue","resources/assets/js/components/shared/control-buttons.vue","resources/assets/js/components/main/content/outputs/universe.vue","resources/assets/js/components/main/content/outputs/pdmx.vue","resources/assets/js/components/main/content/outputs/dmx.vue","resources/assets/js/components/shared/header-menu.vue","resources/assets/js/components/main/header/index.vue","resources/assets/js/components/main/index.vue","resources/assets/js/components/main/content/outputs/e131.vue","node_modules/vue-strap/src/Option.vue","node_modules/vue-strap/src/Select.vue","resources/assets/js/components/main/content/settings/general.vue"]},"node_modules/vue-resource/src/lib/util.js":{"index":180,"hash":"kipx22owioSurHN4RBYT","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/socket.io-parser/is-buffer.js":{"index":159,"hash":"UJBXKAfBg/BkigSZbc3Z","parents":["node_modules/socket.io-parser/binary.js","node_modules/socket.io-parser/index.js"]},"node_modules/component-emitter/index.js":{"index":12,"hash":"0uL1LSa/mOj+Llu+HTZ7","parents":["node_modules/socket.io-parser/index.js","node_modules/socket.io-client/lib/socket.js","node_modules/engine.io-client/lib/transport.js","node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/parseuri/index.js":{"index":148,"hash":"PsPou9y5yKmPMPJnjEkz","parents":["node_modules/socket.io-client/lib/url.js"]},"node_modules/socket.io-client/lib/url.js":{"index":155,"hash":"/WgdaMtSTLlxFoTxZTGl","parents":["node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/component-bind/index.js":{"index":11,"hash":"4yIcVw+afwUsnTQyI0a3","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/object-component/index.js":{"index":145,"hash":"zOYybxl/D7KsteH/xJyk","parents":["node_modules/socket.io-client/lib/manager.js"]},"node_modules/indexof/index.js":{"index":70,"hash":"8zMGV0j0ID5bUIeT7r+M","parents":["node_modules/engine.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/backo2/index.js":{"index":5,"hash":"L5ry3mfVEw1wgmx9Sa+q","parents":["node_modules/socket.io-client/lib/manager.js"]},"node_modules/to-array/index.js":{"index":161,"hash":"2EoggafxX+GLXkXiaGjm","parents":["node_modules/socket.io-client/lib/socket.js"]},"node_modules/lodash/array/zipObject.js":{"index":78,"hash":"fKfSwIzPo5SUx9d0DkgN","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/lang/isArray.js":{"index":132,"hash":"rpMiE1Z199/XZCjno4KN","parents":["node_modules/lodash/array/zipObject.js","node_modules/lodash/internal/createForEach.js","node_modules/lodash/collection/map.js","node_modules/lodash/collection/filter.js","node_modules/lodash/internal/isKey.js","node_modules/lodash/internal/toPath.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js","node_modules/lodash/internal/baseIsEqualDeep.js","node_modules/lodash/internal/baseMatchesProperty.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/arraySome.js":{"index":87,"hash":"GxeJPxJj2jUg5TzV5gLv","parents":["node_modules/lodash/internal/equalArrays.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/arrayEach.js":{"index":84,"hash":"eLxUBVsb8vpFbu0VN4KL","parents":["node_modules/lodash/collection/forEach.js"]},"node_modules/lodash/internal/arrayMap.js":{"index":86,"hash":"xdr8c0JsUFapIHTuM5VE","parents":["node_modules/lodash/collection/map.js"]},"node_modules/lodash/internal/arrayFilter.js":{"index":85,"hash":"BGunz0w1QzJXyqQSOdZb","parents":["node_modules/lodash/collection/filter.js"]},"node_modules/socket.io-parser/node_modules/debug/debug.js":{"index":160,"hash":"OtjmSmEbIU/8orJwFhDT","parents":["node_modules/socket.io-parser/index.js"]},"node_modules/process/browser.js":{"index":149,"hash":"d/Dio43QDX3Xt7NYvbr6","parents":["node_modules/vue/dist/vue.common.js"]},"node_modules/vue/dist/vue.common.js":{"index":187,"hash":"2VyaBoUmGsVHuFohCYxK","parents":["resources/assets/js/components/main/content/dashboard.vue","resources/assets/js/components/main/content/outputs.vue","resources/assets/js/components/main/content/overlays.vue","resources/assets/js/components/main/content/playlists.vue","resources/assets/js/components/main/content/schedule.vue","resources/assets/js/components/main/content/events.vue","resources/assets/js/components/main/content/plugins.vue","resources/assets/js/components/main/content/effects.vue","resources/assets/js/components/main/content/testing.vue","resources/assets/js/components/main/content/not-found.vue","resources/assets/js/components/sidebar/index.vue","resources/assets/js/components/main/content/outputs/panels.vue","resources/assets/js/components/main/content/outputs/other.vue","resources/assets/js/components/main/content/settings/date.vue","resources/assets/js/components/main/content/settings/email.vue","resources/assets/js/components/main/content/settings/logs.vue","resources/assets/js/components/main/content/settings/advanced.vue","resources/assets/js/components/shared/Tabset.vue","resources/assets/js/components/shared/Tab.vue","resources/assets/js/components/shared/switch.vue","resources/assets/js/components/shared/dropdown-select.vue","resources/assets/js/components/shared/filelist.vue","resources/assets/js/components/main/content/files.vue","resources/assets/js/components/shared/tabset.vue","resources/assets/js/components/shared/tab.vue","resources/assets/js/components/main/content/settings/network.vue","resources/assets/js/components/shared/checkbox.vue","resources/assets/js/components/shared/input.vue","resources/assets/js/components/main/footer/index.vue","resources/assets/js/components/main/header/settings.vue","resources/assets/js/components/main/content/settings.vue","resources/assets/js/components/main/settings.vue","resources/assets/js/components/shared/falcon-loading.vue","resources/assets/js/components/shared/overlay.vue","resources/assets/js/app.vue","resources/assets/js/components/shared/control-buttons.vue","resources/assets/js/components/main/content/outputs/universe.vue","resources/assets/js/components/main/content/outputs/pdmx.vue","resources/assets/js/components/main/content/outputs/dmx.vue","resources/assets/js/components/shared/header-menu.vue","resources/assets/js/components/main/header/index.vue","resources/assets/js/components/main/index.vue","resources/assets/js/components/main/content/outputs/e131.vue","node_modules/vue-strap/src/Option.vue","node_modules/vue-strap/src/Select.vue","resources/assets/js/components/main/content/settings/general.vue","resources/assets/js/main.js"]},"node_modules/vue-resource/src/lib/url-template.js":{"index":179,"hash":"KZagPKERmevU89wFVgEg","parents":["node_modules/vue-resource/src/url.js"]},"node_modules/vue-resource/src/url.js":{"index":183,"hash":"enlma6RiuDUq+g3+RYdS","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-resource/src/interceptor/before.js":{"index":170,"hash":"dzJ5VyAAgzvYOWxyyGVm","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/timeout.js":{"index":177,"hash":"r+N56i06KukH+ME8Mpnr","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/method.js":{"index":175,"hash":"DqLo0TxFAJSH0HWGo7wR","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/mime.js":{"index":176,"hash":"f6heFdNiVYVl4GIRJ2gN","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/header.js":{"index":172,"hash":"Ql+DdTpkgQsJb9HXQumF","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/lib/promise.js":{"index":178,"hash":"uhJ1aPn5MePstu6k3zZV","parents":["node_modules/vue-resource/src/promise.js"]},"node_modules/vue-resource/src/promise.js":{"index":181,"hash":"dayC7UqEuK1y+yEa6/bE","parents":["node_modules/vue-resource/src/interceptor/index.js","node_modules/vue-resource/src/client/xhr.js","node_modules/vue-resource/src/client/jsonp.js","node_modules/vue-resource/src/http.js","node_modules/vue-resource/src/index.js"]},"node_modules/isarray/index.js":{"index":71,"hash":"dKtews1S4sHvaZhZ+ceq","parents":["node_modules/socket.io-parser/binary.js","node_modules/socket.io-parser/index.js","node_modules/has-binary/index.js"]},"node_modules/json3/lib/json3.js":{"index":76,"hash":"Z22TAqz9HSDSuQH535ZO","parents":["node_modules/socket.io-parser/index.js"]},"node_modules/lodash/internal/baseSome.js":{"index":106,"hash":"lCW5AtHn9X2vSuPgS8pk","parents":["node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/baseEach.js":{"index":92,"hash":"Ji7NLCJhdzSBlpDI+qC3","parents":["node_modules/lodash/internal/baseSome.js","node_modules/lodash/internal/baseMap.js","node_modules/lodash/internal/baseFilter.js","node_modules/lodash/collection/forEach.js"]},"node_modules/lodash/internal/createForEach.js":{"index":112,"hash":"iJtWBCzx+bzzSLwlaaRv","parents":["node_modules/lodash/collection/forEach.js"]},"node_modules/lodash/internal/bindCallback.js":{"index":108,"hash":"S6iy1I+53IEzDLSGuW0j","parents":["node_modules/lodash/internal/createForEach.js","node_modules/lodash/internal/createForOwn.js","node_modules/lodash/internal/createAssigner.js","node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/internal/baseMap.js":{"index":100,"hash":"ofv2jCE5QlahpynG4rkN","parents":["node_modules/lodash/collection/map.js"]},"node_modules/lodash/internal/isArrayLike.js":{"index":121,"hash":"76Awthz8ChTgjGk0JZ6Y","parents":["node_modules/lodash/internal/baseMap.js","node_modules/lodash/internal/isIterateeCall.js","node_modules/lodash/lang/isArguments.js","node_modules/lodash/object/keys.js"]},"node_modules/lodash/collection/map.js":{"index":81,"hash":"63n5x8GTiWPuxiZzm9TM","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/baseCallback.js":{"index":90,"hash":"FDEmxoh1cXY/hddgPNGW","parents":["node_modules/lodash/collection/map.js","node_modules/lodash/collection/filter.js","node_modules/lodash/internal/createObjectMapper.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/baseFilter.js":{"index":93,"hash":"yyvQag4hw8sItBFf3/9T","parents":["node_modules/lodash/collection/filter.js"]},"node_modules/lodash/collection/filter.js":{"index":79,"hash":"XtU5zjCqSDlYcwOLUC13","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/createObjectMapper.js":{"index":114,"hash":"cp8s+Z6khiKdK5QCQ+Ms","parents":["node_modules/lodash/object/mapValues.js"]},"node_modules/lodash/internal/baseForOwn.js":{"index":95,"hash":"sOLmHH2OosmeW92YaLK/","parents":["node_modules/lodash/internal/createObjectMapper.js","node_modules/lodash/internal/baseEach.js","node_modules/lodash/object/forOwn.js"]},"node_modules/lodash/object/mapValues.js":{"index":141,"hash":"2HfAmVuaVGfc8pd5zIaC","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/createForOwn.js":{"index":113,"hash":"KJqijjvJO7d1nU17Sz3c","parents":["node_modules/lodash/object/forOwn.js"]},"node_modules/lodash/internal/assignWith.js":{"index":88,"hash":"aKBKyfIKqZsNOHAbJTAI","parents":["node_modules/lodash/object/assign.js"]},"node_modules/lodash/object/keys.js":{"index":139,"hash":"BbXGNIcfatSp32uWOBAV","parents":["node_modules/lodash/internal/assignWith.js","node_modules/lodash/internal/baseAssign.js","node_modules/lodash/object/pairs.js","node_modules/lodash/internal/baseForOwn.js","node_modules/lodash/internal/equalObjects.js"]},"node_modules/vueify-insert-css/index.js":{"index":188,"hash":"fvTUijA6yyBpp68H+JX2","parents":["resources/assets/js/components/main/content/not-found.vue","resources/assets/js/components/sidebar/index.vue","resources/assets/js/components/shared/Tabset.vue","resources/assets/js/components/shared/Tab.vue","resources/assets/js/components/shared/filelist.vue","resources/assets/js/components/main/content/files.vue","resources/assets/js/components/shared/tabset.vue","resources/assets/js/components/shared/tab.vue","resources/assets/js/components/shared/checkbox.vue","resources/assets/js/components/main/header/settings.vue","resources/assets/js/components/main/content/settings.vue","resources/assets/js/components/main/settings.vue","resources/assets/js/components/shared/falcon-loading.vue","resources/assets/js/components/shared/overlay.vue","resources/assets/js/components/shared/control-buttons.vue","resources/assets/js/components/main/content/outputs/universe.vue","resources/assets/js/components/shared/header-menu.vue","resources/assets/js/components/main/header/index.vue","resources/assets/js/components/main/index.vue","resources/assets/js/components/main/content/outputs/e131.vue","node_modules/vue-strap/src/Option.vue","node_modules/vue-strap/src/Select.vue"]},"node_modules/lodash/utility/identity.js":{"index":143,"hash":"A/cz5O4nnho2x2e5KIWS","parents":["node_modules/lodash/internal/bindCallback.js","node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/internal/isLength.js":{"index":125,"hash":"DFIKI121VzeE+pBbx1Oa","parents":["node_modules/lodash/internal/createBaseEach.js","node_modules/lodash/internal/isArrayLike.js","node_modules/lodash/lang/isArray.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js","node_modules/lodash/lang/isTypedArray.js"]},"node_modules/lodash/internal/isObjectLike.js":{"index":126,"hash":"qEGnAWJNoAetOIJ7YKiV","parents":["node_modules/lodash/lang/isNative.js","node_modules/lodash/lang/isArray.js","node_modules/lodash/lang/isArguments.js","node_modules/lodash/lang/isTypedArray.js","node_modules/lodash/internal/baseIsEqual.js"]},"node_modules/lodash/internal/isIndex.js":{"index":122,"hash":"I8y5AsjL/lwDlORDOqqM","parents":["node_modules/lodash/internal/isIterateeCall.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js"]},"node_modules/lodash/lang/isObject.js":{"index":135,"hash":"Go+dTLFqO1KJN+uQLb8s","parents":["node_modules/lodash/internal/isStrictComparable.js","node_modules/lodash/internal/toObject.js","node_modules/lodash/internal/isIterateeCall.js","node_modules/lodash/lang/isFunction.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/object/keys.js","node_modules/lodash/internal/baseIsEqual.js"]},"node_modules/lodash/internal/baseCopy.js":{"index":91,"hash":"WvGi8IywM6u7ZNXvztwg","parents":["node_modules/lodash/internal/baseAssign.js"]},"node_modules/lodash/internal/baseAssign.js":{"index":89,"hash":"6VX87YoeNgDvMUyiAc/7","parents":["node_modules/lodash/object/assign.js"]},"node_modules/lodash/function/restParam.js":{"index":83,"hash":"/RRH9MCtjArr1p3Qeh63","parents":["node_modules/lodash/internal/createAssigner.js"]},"node_modules/lodash/internal/createAssigner.js":{"index":109,"hash":"X8R81jvRCofY1BnG+A/L","parents":["node_modules/lodash/object/assign.js"]},"node_modules/lodash/internal/isIterateeCall.js":{"index":123,"hash":"dXMnNRevAizOBisKCEes","parents":["node_modules/lodash/internal/createAssigner.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/object/assign.js":{"index":137,"hash":"9WOhJBREl8AO9Hs6Cr+Q","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/socket.io-parser/binary.js":{"index":157,"hash":"bAee8RukaXwuD/OeGN6F","parents":["node_modules/socket.io-parser/index.js"]},"node_modules/socket.io-parser/index.js":{"index":158,"hash":"BAgSAi2yJ1LAoE3Vw1D4","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"resources/assets/js/components/main/content/dashboard.vue":{"index":191,"hash":"ZYiY8Hm10S+BuYuRA6qr","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/outputs.vue":{"index":196,"hash":"CXuFwZiFBxxg/4SYgpJr","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/overlays.vue":{"index":203,"hash":"Htt7ZmwlY7bPvqSA55PK","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/playlists.vue":{"index":204,"hash":"RflbEyufB3jpcfIfW+DA","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/schedule.vue":{"index":206,"hash":"emLr0atw9YViWg9M9WK4","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/events.vue":{"index":193,"hash":"myxzZPFL581logjuavMe","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/plugins.vue":{"index":205,"hash":"dDR/V2Cn6Vc+W+Hh5pTH","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/effects.vue":{"index":192,"hash":"2dfYg1xyYbaShi8WFe1L","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/testing.vue":{"index":214,"hash":"l0k5ki8CjUH0Cw/c5Cgo","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/not-found.vue":{"index":195,"hash":"uv9Q3bvOW7GRU5Y4bKV0","parents":["resources/assets/js/main.js"]},"node_modules/has-binary/index.js":{"index":68,"hash":"ZLLgu+QfLGB5FJs6P2Ow","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/engine.io-parser/lib/browser.js"]},"node_modules/socket.io-client/lib/socket.js":{"index":154,"hash":"mVenx7k8VFtvIejsDYOl","parents":["node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/vue-resource/src/interceptor/cors.js":{"index":171,"hash":"y/hrmr+lC4LVHKr98SRc","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/client/jsonp.js":{"index":166,"hash":"+Nk8UZxMFWMDrzR/Me13","parents":["node_modules/vue-resource/src/interceptor/cors.js","node_modules/vue-resource/src/interceptor/jsonp.js"]},"node_modules/vue-resource/src/interceptor/index.js":{"index":173,"hash":"5iWUKE5ElG+J957vOzOe","parents":["node_modules/vue-resource/src/http.js"]},"resources/assets/js/components/sidebar/index.vue":{"index":233,"hash":"9T+EtxrHFzTbn1f0gjS0","parents":["resources/assets/js/app.vue"]},"node_modules/lodash/internal/createBaseEach.js":{"index":110,"hash":"+5X3Ztm78NNPr9vQZ7fB","parents":["node_modules/lodash/internal/baseEach.js"]},"node_modules/lodash/internal/getLength.js":{"index":118,"hash":"UiZ6F0+nXZ0fiKckTqnM","parents":["node_modules/lodash/internal/createBaseEach.js","node_modules/lodash/internal/isArrayLike.js"]},"node_modules/lodash/internal/toObject.js":{"index":129,"hash":"8f3eulB97DddBRdcU+7v","parents":["node_modules/lodash/internal/createBaseEach.js","node_modules/lodash/internal/baseGet.js","node_modules/lodash/internal/isKey.js","node_modules/lodash/internal/baseIsMatch.js","node_modules/lodash/internal/createBaseFor.js","node_modules/lodash/object/pairs.js","node_modules/lodash/internal/baseMatches.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/collection/forEach.js":{"index":80,"hash":"0Lo1RNt18PMo/HAKbHEu","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/baseSlice.js":{"index":105,"hash":"OLgw9XVic1W0AKjehzHB","parents":["node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/array/last.js":{"index":77,"hash":"3oXXa2idWbKySVLcq3os","parents":["node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/baseProperty.js":{"index":103,"hash":"Yuk2tpof21q0Xl2sQg89","parents":["node_modules/lodash/utility/property.js","node_modules/lodash/internal/getLength.js"]},"resources/assets/js/components/main/content/outputs/panels.vue":{"index":200,"hash":"84PVUrcnaxvgK1CkKLc5","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/outputs/other.vue":{"index":199,"hash":"Yhlqrv2awsiQW+YugtNJ","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/settings/date.vue":{"index":209,"hash":"2GmDtyhq2fbp4rJvNaIi","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/shared/switch.vue":{"index":230,"hash":"YL63p5vHKkkZeMmCvrvm","parents":["resources/assets/js/components/main/content/settings/date.vue","resources/assets/js/components/main/content/outputs/universe.vue","resources/assets/js/components/main/content/outputs/pdmx.vue","resources/assets/js/components/main/content/outputs/dmx.vue","resources/assets/js/components/main/content/outputs/e131.vue","resources/assets/js/components/main/content/settings/general.vue"]},"resources/assets/js/components/main/content/settings/email.vue":{"index":210,"hash":"RU5tLo90EPn366yv7ejI","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/settings/logs.vue":{"index":212,"hash":"AZoQuwllsd9wT8o0fPbW","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/settings/advanced.vue":{"index":208,"hash":"8v2G0ageUm7aI+eY11Ro","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/shared/Tabset.vue":{"index":221,"hash":"gqqI8RvSTmfen5Ur4x8e","parents":["resources/assets/js/components/main/content/files.vue"]},"resources/assets/js/components/shared/Tab.vue":{"index":220,"hash":"cdUmReYmh0ydEtOAgdv5","parents":["resources/assets/js/components/main/content/files.vue"]},"resources/assets/js/components/shared/dropdown-select.vue":{"index":224,"hash":"mFIoJVHY9dJVngym9xZP","parents":["resources/assets/js/components/main/content/outputs/e131.vue"]},"resources/assets/js/components/shared/filelist.vue":{"index":226,"hash":"UcxvPNXyJimPoXghyR93","parents":["resources/assets/js/components/main/content/files.vue"]},"resources/assets/js/components/main/content/files.vue":{"index":194,"hash":"/eXUhIhcZsDeOcKIV5xI","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/shared/tabset.vue":{"index":232,"hash":"ni1YOVU6boQgduWMtPx9","parents":["resources/assets/js/components/main/content/settings/network.vue"]},"resources/assets/js/components/shared/tab.vue":{"index":231,"hash":"q+fOMn88tu7p6njNfcLf","parents":["resources/assets/js/components/main/content/settings/network.vue"]},"resources/assets/js/components/main/content/settings/network.vue":{"index":213,"hash":"Y3zI+9UNKM3D+NmH0c+C","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/shared/checkbox.vue":{"index":222,"hash":"uZDy5Po/OgOkjVErDgUR","parents":["resources/assets/js/components/main/content/outputs/e131.vue"]},"resources/assets/js/components/shared/input.vue":{"index":228,"hash":"nzaLsXc4vVVsCPN3ns0t","parents":["resources/assets/js/components/main/content/outputs/dmx.vue","resources/assets/js/components/main/content/outputs/e131.vue"]},"node_modules/vue-resource/src/client/xhr.js":{"index":167,"hash":"u8PTCERIOeSAmYWFlrqC","parents":["node_modules/vue-resource/src/client/default.js"]},"node_modules/vue-resource/src/client/default.js":{"index":165,"hash":"+B0kSDe+gVY+/RkxYnil","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/jsonp.js":{"index":174,"hash":"EYhB3ryCUxKsSKwlYeME","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/http.js":{"index":168,"hash":"pcpl/SOKe3e7NS9rUOff","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-resource/src/index.js":{"index":169,"hash":"TZsp5Ua7CrOOvYCKsblD","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/footer/index.vue":{"index":215,"hash":"TsXziYA9AmKfnptsNJJF","parents":["resources/assets/js/components/main/settings.vue","resources/assets/js/components/main/index.vue"]},"resources/assets/js/components/main/header/settings.vue":{"index":217,"hash":"sJWK5betBps5OagtxfxR","parents":["resources/assets/js/components/main/settings.vue"]},"resources/assets/js/components/shared/control-buttons.vue":{"index":223,"hash":"+9iOqEGv9nEOHue9HTT2","parents":["resources/assets/js/components/main/header/settings.vue","resources/assets/js/components/main/header/index.vue"]},"resources/assets/js/components/main/content/settings.vue":{"index":207,"hash":"bw8juKxM91JM1ICnYPoe","parents":["resources/assets/js/components/main/settings.vue"]},"resources/assets/js/components/main/settings.vue":{"index":219,"hash":"UBeQKDogi9BARCQ8ldbn","parents":["resources/assets/js/main.js"]},"node_modules/lodash/internal/baseGet.js":{"index":96,"hash":"H9EiMd3ullQpRkvooLgz","parents":["node_modules/lodash/internal/basePropertyDeep.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/isKey.js":{"index":124,"hash":"lDpw5crcRmTRExTLVTKc","parents":["node_modules/lodash/utility/property.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/isStrictComparable.js":{"index":127,"hash":"ofNP4/nFrz5Rkb3kGOhn","parents":["node_modules/lodash/internal/getMatchData.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/baseIsMatch.js":{"index":99,"hash":"EpuJzlg204aR35T4QKcS","parents":["node_modules/lodash/internal/baseMatches.js"]},"node_modules/lodash/internal/baseIsEqual.js":{"index":97,"hash":"dBgoFXnhj9KH6oX3dQwa","parents":["node_modules/lodash/internal/baseIsMatch.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/basePropertyDeep.js":{"index":104,"hash":"mqX1OyYdndJ183lyl/sn","parents":["node_modules/lodash/utility/property.js"]},"node_modules/lodash/internal/toPath.js":{"index":130,"hash":"faVQvsb+LSLI4uaMgtrQ","parents":["node_modules/lodash/internal/basePropertyDeep.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/utility/property.js":{"index":144,"hash":"7IoOI/uGZCxbcY23uQDK","parents":["node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/internal/createBaseFor.js":{"index":111,"hash":"9RWlFaBOuelvwgkhYgPG","parents":["node_modules/lodash/internal/baseFor.js"]},"node_modules/lodash/internal/baseFor.js":{"index":94,"hash":"NGxcZ0n01+w2G1PzyBlY","parents":["node_modules/lodash/internal/baseForOwn.js"]},"node_modules/lodash/internal/baseToString.js":{"index":107,"hash":"ABFQFf14pRECi3sw8oKV","parents":["node_modules/lodash/internal/toPath.js"]},"resources/assets/js/components/shared/falcon-loading.vue":{"index":225,"hash":"nrISz6smCod0TjaIPHYA","parents":["resources/assets/js/components/shared/overlay.vue"]},"resources/assets/js/components/shared/overlay.vue":{"index":229,"hash":"JYZPaO3VyADALhB5HixN","parents":["resources/assets/js/app.vue"]},"resources/assets/js/app.vue":{"index":190,"hash":"HFw1nenZ+frQMGQx08yF","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/index.vue":{"index":218,"hash":"0NH9Zm6x1SQ1dEeg1eXO","parents":["resources/assets/js/app.vue","resources/assets/js/main.js"]},"resources/assets/js/components/main/content/outputs/universe.vue":{"index":202,"hash":"rhVplsR+/5jkIqeDulqv","parents":["resources/assets/js/components/main/content/outputs/e131.vue"]},"resources/assets/js/components/main/content/outputs/pdmx.vue":{"index":201,"hash":"5o/FDE4MuJ7fRFJBReCQ","parents":["resources/assets/js/components/main/content/outputs/dmx.vue"]},"resources/assets/js/components/main/content/outputs/dmx.vue":{"index":197,"hash":"kC3gYcmZEJv6pDPxbwuu","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/shared/header-menu.vue":{"index":227,"hash":"phCAnSIecIl68MBC00Uo","parents":["resources/assets/js/components/main/header/index.vue"]},"resources/assets/js/components/main/header/index.vue":{"index":216,"hash":"0J1eKZ+cT411ebAw1N9v","parents":["resources/assets/js/components/main/index.vue"]},"node_modules/lodash/object/pairs.js":{"index":142,"hash":"x6Ilwx8encvg/BW5API2","parents":["node_modules/lodash/internal/getMatchData.js"]},"node_modules/lodash/internal/getMatchData.js":{"index":119,"hash":"n0PHWhNs6YZ+DzgYMHPx","parents":["node_modules/lodash/internal/baseMatches.js"]},"node_modules/lodash/internal/baseMatches.js":{"index":101,"hash":"Cwj5GSiQv9/E8nSFBoX2","parents":["node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/lang/isFunction.js":{"index":133,"hash":"xkfzrZNZPGGOIf0kE8Y9","parents":["node_modules/lodash/lang/isNative.js"]},"node_modules/lodash/lang/isNative.js":{"index":134,"hash":"2rstaALy1DW0JSDdijps","parents":["node_modules/lodash/internal/getNative.js"]},"node_modules/lodash/internal/getNative.js":{"index":120,"hash":"7GRZ7115BSuoc/1bdaBK","parents":["node_modules/lodash/lang/isArray.js","node_modules/lodash/object/keys.js"]},"node_modules/lodash/lang/isArguments.js":{"index":131,"hash":"xQ4mqbsKQMCmtsPbfQc6","parents":["node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js"]},"node_modules/lodash/object/keysIn.js":{"index":140,"hash":"8POZiGR1fRHso579G46Z","parents":["node_modules/lodash/internal/shimKeys.js"]},"node_modules/lodash/internal/shimKeys.js":{"index":128,"hash":"oO4aKopmxRfPxyKgRX9F","parents":["node_modules/lodash/object/keys.js"]},"node_modules/lodash/object/forOwn.js":{"index":138,"hash":"LZ77PzuJW/wlgVPdvlGc","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/engine.io-client/node_modules/parseuri/index.js":{"index":64,"hash":"c/c7XftSI6ClFc9h2jOh","parents":["node_modules/engine.io-client/lib/socket.js"]},"node_modules/lodash/internal/equalByTag.js":{"index":116,"hash":"+y++gesJpPvyM+2E8aNB","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/parsejson/index.js":{"index":146,"hash":"3RLuznQNKZiQ/toCXNir","parents":["node_modules/engine.io-client/lib/socket.js"]},"node_modules/parseqs/index.js":{"index":147,"hash":"FI4tRELwI5Itz+ckwR+m","parents":["node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-parser/lib/keys.js":{"index":66,"hash":"oFyKNTA0twlyQVhVzp9n","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/lodash/internal/equalArrays.js":{"index":115,"hash":"OBJL6vuaOotu5flUeCnv","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/lodash/internal/equalObjects.js":{"index":117,"hash":"44Iy49kDcaAZsykEdaH3","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/lodash/lang/isTypedArray.js":{"index":136,"hash":"aVeZyIFGadrEh7EsaDRu","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/lodash/internal/baseIsEqualDeep.js":{"index":98,"hash":"ltZZaMHmzp6d9jBltV3Y","parents":["node_modules/lodash/internal/baseIsEqual.js"]},"node_modules/lodash/internal/baseMatchesProperty.js":{"index":102,"hash":"OudnSoeq2A4ql5lg51kc","parents":["node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/collection/some.js":{"index":82,"hash":"9JyJFfdCx56pmR6fwM9q","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/browserify-hmr/inc/index.js":{"index":8,"hash":"zTlNWZ14iIh89mO0UkaY","parents":[]},"node_modules/engine.io-client/lib/transport.js":{"index":54,"hash":"8Wg7zuMzQpa+AwOxaesw","parents":["node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-parser/lib/browser.js":{"index":65,"hash":"Xr2KhMDa3GjqERGsK7Lc","parents":["node_modules/engine.io-client/lib/transport.js","node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/socket.js","node_modules/engine.io-client/lib/index.js"]},"node_modules/utf8/utf8.js":{"index":162,"hash":"Mqm8G2xyYXmBOFrE+/6A","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/arraybuffer.slice/index.js":{"index":3,"hash":"RSb5Zx9CgX3adjzbvf/k","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/after/index.js":{"index":2,"hash":"NzPfXWECmM8rW/6fdkcj","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/blob/index.js":{"index":7,"hash":"q7L6uHK9eN9yEvDVNxJw","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/base64-arraybuffer/lib/base64-arraybuffer.js":{"index":6,"hash":"dW6cnktjBIyZ6bv9vRp2","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/engine.io-client/node_modules/ms/index.js":{"index":63,"hash":"rzSu41c+6ZW8M4Say8X9","parents":["node_modules/engine.io-client/node_modules/debug/debug.js"]},"node_modules/engine.io-client/node_modules/debug/debug.js":{"index":62,"hash":"yqdR7nJc7wxIHzFDNzG+","parents":["node_modules/engine.io-client/node_modules/debug/browser.js"]},"node_modules/engine.io-client/node_modules/debug/browser.js":{"index":61,"hash":"PENVCHp3HppeRm/DiJMI","parents":["node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/socket.js"]},"node_modules/jquery.inputmask/dist/inputmask/inputmask.dependencyLib.jquery.js":{"index":72,"hash":"LS63HHrbi9ZXkvlmIHs3","parents":["node_modules/jquery.inputmask/dist/inputmask/inputmask.js"]},"node_modules/jquery.inputmask/dist/inputmask/inputmask.js":{"index":73,"hash":"rOZH4H3sNvL9GZLSVZ/6","parents":["node_modules/jquery.inputmask/dist/inputmask/jquery.inputmask.js"]},"node_modules/jquery.inputmask/dist/inputmask/jquery.inputmask.js":{"index":74,"hash":"pSeOfS9ivQob0VH/xYAg","parents":["resources/assets/js/directives/ip.js"]},"resources/assets/js/directives/ip.js":{"index":234,"hash":"pPhO8+trVAzzTJ/Onj4q","parents":["resources/assets/js/components/main/content/outputs/e131.vue"]},"resources/assets/js/components/main/content/outputs/e131.vue":{"index":198,"hash":"WGSMUmawNx0L9dUA6TD4","parents":["resources/assets/js/main.js"]},"node_modules/engine.io-client/lib/transports/polling-jsonp.js":{"index":56,"hash":"FAm1xe7I43tDMsakGLzq","parents":["node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/engine.io-client/lib/transports/polling.js":{"index":58,"hash":"m6eReXjm1pnBQHB07d2V","parents":["node_modules/engine.io-client/lib/transports/polling-jsonp.js","node_modules/engine.io-client/lib/transports/polling-xhr.js"]},"node_modules/component-inherit/index.js":{"index":13,"hash":"T0Fqch4d4akvlr8bh7lc","parents":["node_modules/engine.io-client/lib/transports/polling-jsonp.js","node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/transports/polling-xhr.js"]},"node_modules/ws/lib/browser.js":{"index":189,"hash":"vZRI95FVw46PPRoHDauJ","parents":["node_modules/engine.io-client/lib/transports/websocket.js"]},"node_modules/engine.io-client/lib/transports/websocket.js":{"index":59,"hash":"iZQQax7TKsS+8ZxUyrc3","parents":["node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/engine.io-client/lib/xmlhttprequest.js":{"index":60,"hash":"us0FsN5s7hiT3hqVV5lx","parents":["node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/engine.io-client/lib/transports/polling-xhr.js":{"index":57,"hash":"d89FOYRl9cirXzsJCjKg","parents":["node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/global/index.js":{"index":67,"hash":"tDIf5GqqdOcKnNHRh2Rc","parents":["node_modules/has-cors/index.js"]},"node_modules/has-cors/index.js":{"index":69,"hash":"uSUdzzwBDQd7qQNKEZ4o","parents":["node_modules/engine.io-client/lib/xmlhttprequest.js"]},"node_modules/engine.io-client/lib/transports/index.js":{"index":55,"hash":"kQ8FMfawL2PES7dsQgvD","parents":["node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-client/lib/socket.js":{"index":53,"hash":"1L37UZEnorYV+ld5c01T","parents":["node_modules/engine.io-client/lib/index.js"]},"node_modules/engine.io-client/lib/index.js":{"index":52,"hash":"G6QYuSNu0EcS+G5tR9NE","parents":["node_modules/engine.io-client/index.js"]},"node_modules/engine.io-client/index.js":{"index":51,"hash":"HQau4MkD4lAynB9tt0Wl","parents":["node_modules/socket.io-client/lib/manager.js"]},"node_modules/socket.io-client/lib/manager.js":{"index":152,"hash":"+TrOAqk4UlI3tKzIT6Dc","parents":["node_modules/socket.io-client/lib/index.js"]},"node_modules/socket.io-client/lib/index.js":{"index":151,"hash":"lWwRhzm83+Eq08s7Nht/","parents":["node_modules/socket.io-client/index.js"]},"node_modules/socket.io-client/index.js":{"index":150,"hash":"ccYBPsaIqMCtG5CHCdDd","parents":[]},"node_modules/vue-strap/src/Option.vue":{"index":185,"hash":"C7Duog3xPNfziDO2oTHN","parents":["resources/assets/js/components/main/content/settings/general.vue"]},"node_modules/core-js/library/modules/$.iterators.js":{"index":34,"hash":"HPPh7u0tcX1NuooQHCi3","parents":["node_modules/core-js/library/modules/core.get-iterator-method.js","node_modules/core-js/library/modules/es6.array.iterator.js","node_modules/core-js/library/modules/web.dom.iterable.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.core.js":{"index":20,"hash":"jO6z5PVz8f6aTUjm5Hrx","parents":["node_modules/core-js/library/modules/core.get-iterator-method.js","node_modules/core-js/library/modules/core.get-iterator.js","node_modules/core-js/library/modules/$.export.js"]},"node_modules/core-js/library/modules/$.add-to-unscopables.js":{"index":16,"hash":"aTtaK5OMoCOj8v16GPqC","parents":["node_modules/core-js/library/modules/es6.array.iterator.js"]},"node_modules/core-js/library/modules/$.iter-step.js":{"index":33,"hash":"LPWFVFxr7uzP25M4Teof","parents":["node_modules/core-js/library/modules/es6.array.iterator.js"]},"node_modules/core-js/library/modules/$.to-integer.js":{"index":42,"hash":"k18sZu8vTX3eiB+U6ofu","parents":["node_modules/core-js/library/modules/$.string-at.js"]},"node_modules/core-js/library/modules/$.defined.js":{"index":22,"hash":"RZr8uFl+WrrjvGzPSz3c","parents":["node_modules/core-js/library/modules/$.string-at.js","node_modules/core-js/library/modules/$.to-iobject.js"]},"node_modules/core-js/library/modules/$.string-at.js":{"index":41,"hash":"Zop3IqdJq32xa0qd4H0H","parents":["node_modules/core-js/library/modules/es6.string.iterator.js"]},"node_modules/core-js/library/modules/$.library.js":{"index":36,"hash":"Bhgn5RpO7pDcQnSVaI5C","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.has.js":{"index":27,"hash":"y4idiH2Sj/rmZqd39CHH","parents":["node_modules/core-js/library/modules/$.set-to-string-tag.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.js":{"index":35,"hash":"UI1ymRgurU07soRpiobz","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.set-to-string-tag.js","node_modules/core-js/library/modules/$.hide.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.is-object.js":{"index":30,"hash":"FkaOOMIm0uw4T/qUEXed","parents":["node_modules/core-js/library/modules/$.an-object.js"]},"node_modules/core-js/library/modules/$.an-object.js":{"index":17,"hash":"d7pCynXJhKpK2u1S0fph","parents":["node_modules/core-js/library/modules/core.get-iterator.js"]},"node_modules/core-js/library/modules/$.redefine.js":{"index":38,"hash":"v4z59Kie6WPVO1h+8oJP","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.hide.js":{"index":28,"hash":"2HBwvxEtbt4UpskOWy62","parents":["node_modules/core-js/library/modules/$.redefine.js","node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.iter-create.js":{"index":31,"hash":"aNVpOMS/fyyM1i4Aw4bY","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.property-desc.js":{"index":37,"hash":"iSs9jpAw1JT2ZWWLScSH","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.hide.js"]},"node_modules/core-js/library/modules/$.set-to-string-tag.js":{"index":39,"hash":"3G0pjz42ePfLP++caEH3","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.wks.js":{"index":45,"hash":"qMliszffX6kySHptJTIp","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.set-to-string-tag.js","node_modules/core-js/library/modules/$.classof.js","node_modules/core-js/library/modules/core.get-iterator-method.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.global.js":{"index":26,"hash":"t7QKkyeVEU+gGSy/l5Cc","parents":["node_modules/core-js/library/modules/$.shared.js","node_modules/core-js/library/modules/$.wks.js","node_modules/core-js/library/modules/$.export.js"]},"node_modules/core-js/library/modules/$.uid.js":{"index":44,"hash":"auy0a5KBxuU7QAdJ7we/","parents":["node_modules/core-js/library/modules/$.wks.js"]},"node_modules/core-js/library/modules/$.cof.js":{"index":19,"hash":"FY6tg0ymdCS/rEwpAa7R","parents":["node_modules/core-js/library/modules/$.classof.js","node_modules/core-js/library/modules/$.iobject.js"]},"node_modules/core-js/library/modules/$.classof.js":{"index":18,"hash":"2vrlE4yJW7f/QT46fZjd","parents":["node_modules/core-js/library/modules/core.get-iterator-method.js"]},"node_modules/core-js/library/modules/core.get-iterator-method.js":{"index":46,"hash":"+qtmOjO/wxtOJEvpsv/b","parents":["node_modules/core-js/library/modules/core.get-iterator.js"]},"node_modules/core-js/library/modules/core.get-iterator.js":{"index":47,"hash":"Fpc5rJRGURor7FbHBYPn","parents":["node_modules/core-js/library/fn/get-iterator.js"]},"node_modules/core-js/library/modules/$.iobject.js":{"index":29,"hash":"HvETp5p0zMBjh+wvjxSm","parents":["node_modules/core-js/library/modules/$.to-iobject.js"]},"node_modules/core-js/library/modules/$.to-iobject.js":{"index":43,"hash":"yp4UOuCLRVO1tqlgppw5","parents":["node_modules/core-js/library/modules/es6.array.iterator.js"]},"node_modules/core-js/library/modules/es6.array.iterator.js":{"index":48,"hash":"Zw/NixWUIMjoGa2uWxe/","parents":["node_modules/core-js/library/modules/web.dom.iterable.js"]},"node_modules/core-js/library/modules/$.iter-define.js":{"index":32,"hash":"sR6jK5MoRN1zAKGNm2y4","parents":["node_modules/core-js/library/modules/es6.array.iterator.js","node_modules/core-js/library/modules/es6.string.iterator.js"]},"node_modules/core-js/library/modules/web.dom.iterable.js":{"index":50,"hash":"KisVT/JurPfFyjuYGWzf","parents":["node_modules/core-js/library/fn/get-iterator.js"]},"node_modules/core-js/library/modules/$.shared.js":{"index":40,"hash":"ZK+Tn2LANbB4OqkscM3N","parents":["node_modules/core-js/library/modules/$.wks.js"]},"node_modules/core-js/library/modules/$.fails.js":{"index":25,"hash":"6G4+YXaRghTGQQnkm/qp","parents":["node_modules/core-js/library/modules/$.descriptors.js"]},"node_modules/core-js/library/modules/$.descriptors.js":{"index":23,"hash":"NJqnAOVs55bKea+gKIGt","parents":["node_modules/core-js/library/modules/$.hide.js"]},"node_modules/core-js/library/modules/$.a-function.js":{"index":15,"hash":"vI7NBVNoKizw/T7ablYt","parents":["node_modules/core-js/library/modules/$.ctx.js"]},"node_modules/core-js/library/modules/$.ctx.js":{"index":21,"hash":"IBAqoysxf6uGe4qIslFW","parents":["node_modules/core-js/library/modules/$.export.js"]},"node_modules/core-js/library/modules/$.export.js":{"index":24,"hash":"tF6TuwqA3fLdeFKqSI9n","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/es6.string.iterator.js":{"index":49,"hash":"viRu85eLzJ68VCbwuHbl","parents":["node_modules/core-js/library/fn/get-iterator.js"]},"node_modules/core-js/library/fn/get-iterator.js":{"index":14,"hash":"V+nypfA8LA2WadFVp7u2","parents":["node_modules/babel-runtime/core-js/get-iterator.js"]},"node_modules/babel-runtime/core-js/get-iterator.js":{"index":4,"hash":"a8je4in/yfKL3pQIQJX9","parents":["node_modules/vue-strap/src/Select.vue"]},"node_modules/vue-strap/src/Select.vue":{"index":186,"hash":"7dhDxiNKuVRXmRHtif1f","parents":["resources/assets/js/components/main/content/settings/general.vue"]},"resources/assets/js/components/main/content/settings/general.vue":{"index":211,"hash":"UvIT68OQ0E9MTpIl2T/2","parents":["resources/assets/js/main.js"]},"resources/assets/js/main.js":{"index":235,"hash":"Dpa6KAeVfbCd3QNEW0LU","parents":[]}};
   var originalEntries = ["/Users/Tim/Sites/FPP2/www/resources/assets/js/main.js"];
   var updateUrl = null;
   var updateMode = "websocket";
@@ -37099,6 +38954,6 @@ function makeid() {
   arguments[3], arguments[4], arguments[5], arguments[6]
 );
 
-},{"./node_modules/browserify-hmr/inc/index.js":8,"./node_modules/socket.io-client/index.js":147,"/Users/Tim/Sites/FPP2/www/resources/assets/js/main.js":229}]},{},[1]);
+},{"./node_modules/browserify-hmr/inc/index.js":8,"./node_modules/socket.io-client/index.js":150,"/Users/Tim/Sites/FPP2/www/resources/assets/js/main.js":235}]},{},[1]);
 
 //# sourceMappingURL=main.js.map

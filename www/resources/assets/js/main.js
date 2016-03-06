@@ -3,6 +3,7 @@ var VueRouter = require('vue-router');
 
 window.Vue = require('vue');
 Vue.use(VueRouter);
+Vue.use(require('vue-animated-list'));
 Vue.use(require('vue-resource'));
 Vue.http.options.root = '/api';
 Vue.http.headers.common['X-CSRF-TOKEN'] = $('meta[name="csrf-token"]').attr('content');

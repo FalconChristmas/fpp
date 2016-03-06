@@ -1,0 +1,5 @@
+
+.item-move {
+  /* applied to the element when moving */
+  transition: transform .5s cubic-bezier(.55,0,.1,1);
+}

@@ -10,28 +10,43 @@
     padding: 10px 15px;
     margin-bottom: 15px;
     border: 1px solid $gray;
-    background: #f1f1f1;
+    background: #f7f7f7;
     
     .form-group {
         margin: 0;
     }
 
     .filter {
-        padding: 10px;
+        padding: 5px;
         &-row {
             display: flex;
-            flex-direction: row;
-            align-items: center;
+            flex-direction: column;
+            align-items: flex-end;
             justify-content: space-between;
             &:last-child {
                 justify-content: flex-end;
                 padding: 10px;
             }
+            &.align-end {
+                justify-content: flex-end;
+            }
+            &.align-start {
+                justify-content: flex-start;
+            }
+            @include breakpoint(600px) {
+                flex-direction: row;
+            }
         }
         .control-label,
-        p {
+            p,
+            span {
             text-transform: uppercase;
             font-size: 10px;
+        }
+        span {
+            display: inline-block;
+            vertical-align: middle;
+            margin-bottom: 7px;
         }
         .control-label {
             margin-bottom: 0;
@@ -39,5 +54,37 @@
         p {
             margin-bottom: .5rem;
         }
+    }
+}
+.output-list {
+        
+    .form-control {
+        padding: .25rem .50rem;
+        line-height: 1.3;
+    }
+    .c-select {
+        padding: .22rem 1.5rem .23rem .50rem;
+    }
+}
+        
+
+.output {
+    transition: opacity 0.35s;
+    opacity: 1;
+    &.disabled {
+        opacity: .4;
+    }
+    &-move {
+      transition: transform .5s cubic-bezier(.55,0,.1,1);
+    }
+}
+
+.output-active,
+.output-action,
+.output-index {
+    vertical-align: middle !important;
+
+    .checkbox {
+        margin-bottom: 0;
     }
 }

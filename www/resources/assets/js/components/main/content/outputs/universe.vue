@@ -1,5 +1,5 @@
 <template>
-    <tr class="universe" :class="{ 'disabled' : !universe.active }">
+    <tr class="universe output" :class="{ 'disabled' : !universe.active }">
         <td class="universe-active text-xs-center">
             <switch :model.sync="universe.active" size="small"></switch>
            
@@ -48,7 +48,6 @@ export default {
     events: {}
 
 }
-
 </script>
 
 <style lang="sass">
@@ -56,7 +55,10 @@ export default {
         transition: opacity 0.35s;
         opacity: 1;
         &.disabled {
-            opacity: .5;
+            opacity: .4;
+        }
+        &-move {
+          transition: transform .5s cubic-bezier(.55,0,.1,1);
         }
     }
 

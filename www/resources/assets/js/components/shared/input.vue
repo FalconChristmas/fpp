@@ -7,7 +7,8 @@
             class="form-control {{stateIconType}} {{inputSize}}" 
             id="{{id}}" 
             placeholder="{{placeholder}}" 
-            v-model="model">
+            v-model="model"
+            :number="type == 'number'">
     </div>
     <small class="text-muted" v-if="description" v-html="description"></small>
 </fieldset>
@@ -72,6 +73,10 @@ export default {
       type: Boolean,
       default: true
     },
+    mask: {
+        type: String,
+        default: null
+    }
   },
 }    
 </script>

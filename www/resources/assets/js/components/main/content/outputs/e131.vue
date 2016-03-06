@@ -12,31 +12,23 @@
      <div class="box-body">
         <form>
             <div class="output-actions">
-                <div class="filter-row">
+                <div class="filter-row align-end">
                     <div class="filter text-xs-center">
-                        <p>Active</p>
+                        <span>Active</span>
                         <switch :model.sync="defActive" size="small"></switch>
                     </div>
                      <div class="filter text-xs-center">
-                        <p>Inc. Universe</p>
+                        <span>Increment Universe</span>
                         <switch :model.sync="incrementUniv" size="small"></switch>
                     </div>
                      <div class="filter text-xs-center">
-                        <p>Inc. Start</p>
+                        <span>Increment Start</span>
                         <switch :model.sync="incrementStart" size="small"></switch>
                     </div>
                 </div>
                 <div class="filter-row">
-                    <div class="filter">
-                        <form-input 
-                          :model.sync="defAddress"
-                          type="text"
-                          label="Address"
-                          size="sm"
-                          state-icon>
-                        </form-input>
-                       
-                    </div>
+                  
+                    
                     <div class="filter">
                          <form-input 
                           :model.sync="defStart"
@@ -55,6 +47,28 @@
                           state-icon>
                         </form-input>
                     </div>
+
+                    <div class="filter">
+                        <div class="form-group">
+                            <label for="" class="control-label">Type</label>
+                            <div class="input">
+                                <select v-model="defType" class="c-select" style="padding-top: 0.25rem; padding-bottom: 0.275rem;">
+                                    <option value="unicast">Unicast</option>
+                                    <option value="multicast">Multicast</option>
+                                </select>  
+                            </div>
+                        </div>
+                    </div>
+                    <div class="filter">
+                        <form-input 
+                          :model.sync="defAddress"
+                          type="text"
+                          label="Address"
+                          size="sm"
+                          state-icon>
+                        </form-input>
+                       
+                    </div>
                     <div class="filter">
                          <form-input 
                           :model.sync="quantity"
@@ -66,12 +80,13 @@
                     </div>
                 </div>
                 <div class="filter-row">
-                    <button @click="addOutput" type="button" class="button btn-primary pull-xs-right m-a-0">Add Output</button>
+
+                    <button @click="addOutput" type="button" class="button btn-primary pull-xs-right m-a-0">{{ addOutputLabel }}</button>
                 </div>
                     
             </div>
             <!-- <div id="universe-outputs"> -->
-                <div class="universe-list table-responsive">
+                <div class="universe-list output-list table-responsive">
                     <!-- <div class="table-responsive"> -->
                         <table class="table table-sm table-hover">
                             <thead>
@@ -88,7 +103,7 @@
                             </tr>
                             </thead>
                             <tbody>
-                                <tr is="universe" v-for="(index, universe) in universes" :index="index" :universe.sync="universe"></tr>
+                                <tr is="universe" v-for="(index, universe) in outputs" :index="index" :universe.sync="universe"></tr>
                             </tbody>
                         </table>
                     <!-- </div> -->
@@ -106,6 +121,8 @@ import Universe from "./universe.vue";
 import Dropdown from "../../../shared/dropdown-select.vue";
 import Checkbox from "../../../shared/checkbox.vue";
 import FormInput from "../../../shared/input.vue";
+import ip from "../../../../directives/ip";
+import outputMixin from "../../../../mixins/outputMixin";
 
 const universeStub =  {
         active: false, 
@@ -120,6 +137,7 @@ const universeStub =  {
 
 export default {
     components: { Universe, Switch, Dropdown, Checkbox, FormInput  },
+    mixins: [outputMixin],
     props: [],
     data() {
         return {
@@ -131,7 +149,7 @@ export default {
             incrementStart: true,
             incrementUniv: true,
             quantity: 1,
-            universes: [
+            outputs: [
                 {active: true, number: 1, start: 1, type: 'unicast', size: 512, address: '10.10.10.10', label: 'The Label' },
                 {active: true, number: 2, start: 513, type: 'unicast', size: 512, address: '10.10.10.10', label: 'The Label' }
             ],
@@ -141,39 +159,19 @@ export default {
     },
     ready() {},
     methods: {
-        addOutput() {
-            for(let i = 0; i < this.quantity; i++) {
-                let last = this.getLastOutput();
-                let universe = {
-                    active: true,
-                    number: this.incrementUniv ? last.number + 1 : 1,
-                    start: this.incrementStart ? (last.start + last.size) + 1 : 1,
-                    type: this.defType,
-                    size: this.defSize,
-                    address: this.defAddress,
-                    label: null
-                };
-        
-                this.universes.push(universe);
-            }
-            
-        },
-        removeOutput(id) {
-            if (id !== -1) {
-              this.universes.splice(id, 1);
-            }
-        },
-        getLastOutput() {
-            if(this.universes.length) {
-                return this.universes[this.universes.length-1];
-            }
-        }
-    },
-    events: {
-        'remove-output' : function(id) {
-            this.removeOutput(id);
+        assembleNewOutput(last) {
+            return {
+                active: true,
+                number: this.incrementUniv ? last.number + 1 : 1,
+                start: this.incrementStart ? (last.start + last.size) + 1 : 1,
+                type: this.defType,
+                size: this.defSize,
+                address: this.defAddress,
+                label: null
+            };
         }
     }
+   
 
 }
 </script>
