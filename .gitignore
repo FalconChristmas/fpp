@@ -20,13 +20,6 @@ _notes
 www/.htaccess
 www/.htpasswd
 www/.config.php
-www/node_modules
-www/bootstrap
-www/vendor
-www/storage
-www/.env
-www/access_log
-www/error_log
 external/rasclock/modules.order
 external/rasclock/Module.symvers
 external/rasclock/rtc-pcf2127a.*
@@ -37,7 +30,6 @@ plugins/
 www/node_modules/
 www/vendor
 www/storage
-www/bootstrap
 www/.env
 www/access_log
 www/error_log
