@@ -22,7 +22,8 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
- 
+
+#include <errno.h> 
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -97,10 +98,18 @@ int Bridge_Initialize(void)
 	struct ip_mreq mreq;
 	char           strMulticastGroup[16];
 
+	// FIXME FIXME FIXME FIXME
+	// This is a total hack to get a file descriptor greater than 2
+	// because otherwise, the bind() call later will fail for some reason.
+	// FIXME FIXME FIXME FIXME
+	i = socket(AF_INET, SOCK_DGRAM, 0);
+	i = socket(AF_INET, SOCK_DGRAM, 0);
+	i = socket(AF_INET, SOCK_DGRAM, 0);
+
 	/* set up socket */
 	bridgeSock = socket(AF_INET, SOCK_DGRAM, 0);
 	if (bridgeSock < 0) {
-		perror("e131bridge socket");
+		LogDebug(VB_E131BRIDGE, "e131bridge socket failed: %s", strerror(errno));
 		exit(1);
 	}
 
@@ -115,7 +124,7 @@ int Bridge_Initialize(void)
 	// Bind the socket to address/port
 	if (bind(bridgeSock, (struct sockaddr *) &addr, sizeof(addr)) < 0) 
 	{
-		perror("e131bridge bind");
+		LogDebug(VB_E131BRIDGE, "e131bridge bind failed: %s", strerror(errno));
 		exit(1);
 	}
 

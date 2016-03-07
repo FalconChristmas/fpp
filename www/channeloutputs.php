@@ -200,21 +200,10 @@ var SerialDevices = new Array();
 		if ((preg_match("/^ttyS[0-9]+/", $fileName)) ||
 			(preg_match("/^ttyACM[0-9]+/", $fileName)) ||
 			(preg_match("/^ttyO[0-9]/", $fileName)) ||
+			(preg_match("/^ttyS[0-9]/", $fileName)) ||
 			(preg_match("/^ttyAMA[0-9]+/", $fileName)) ||
 			(preg_match("/^ttyUSB[0-9]+/", $fileName))) {
 			echo "SerialDevices['$fileName'] = '$fileName';\n";
-		}
-	}
-?>
-
-// USB Dongles /dev/ttyUSB*
-var USBDevices = new Array();
-<?
-	foreach(scandir("/dev/") as $fileName)
-	{
-		if ((preg_match("/^ttyUSB[0-9]+/", $fileName)) ||
-				(preg_match("/^ttyAMA[0-9]+/", $fileName))) {
-			echo "USBDevices['$fileName'] = '$fileName';\n";
 		}
 	}
 ?>
@@ -228,7 +217,7 @@ function USBDeviceConfig(config) {
 		var item = items[j].split("=");
 
 		if (item[0] == "device") {
-			result += DeviceSelect(USBDevices, item[1]);
+			result += DeviceSelect(SerialDevices, item[1]);
 		}
 	}
 
@@ -247,7 +236,7 @@ function GetUSBOutputConfig(cell) {
 
 function NewUSBConfig() {
 	var result = "";
-	result += DeviceSelect(USBDevices, "");
+	result += DeviceSelect(SerialDevices, "");
 	return result;
 }
 
@@ -548,7 +537,7 @@ function TriksLayoutChanged(item) {
 
 function NewTriksConfig() {
 	var result = "";
-	result += DeviceSelect(USBDevices, "");
+	result += DeviceSelect(SerialDevices, "");
 	result += TriksLayoutSelect("");
 	return result;
 }
@@ -561,7 +550,7 @@ function TriksDeviceConfig(config) {
 		var item = items[j].split("=");
 
 		if (item[0] == "device") {
-			result += DeviceSelect(USBDevices, item[1]);
+			result += DeviceSelect(SerialDevices, item[1]);
 		} else if (item[0] == "layout") {
 			result += TriksLayoutSelect(item[1]);
 		}
@@ -697,6 +686,18 @@ function RPIWS281XLayoutChanged(item) {
 	var string1Pixels = parseInt($(item).parent().parent().find("input.string1Pixels").val());
 	var string2Pixels = parseInt($(item).parent().parent().find("input.string2Pixels").val());
 
+	if (string1Pixels > 1000) {
+		DialogError("Invalid Pixel Count", "Invalid Pixel Count, max 1000");
+		$(item).parent().parent().find("input.string1Pixels").val("1000");
+		string1Pixels = 1000;
+	}
+
+	if (string2Pixels > 1000) {
+		DialogError("Invalid Pixel Count", "Invalid Pixel Count, max 1000");
+		$(item).parent().parent().find("input.string2Pixels").val("1000");
+		string2Pixels = 1000;
+	}
+
 	var channels = (string1Pixels + string2Pixels) * 3;
 
 	$(item).parent().parent().find("input.count").val(channels);
@@ -737,10 +738,10 @@ function RPIWS281XConfig(cfgStr) {
    		data[item[0]] = item[1];
 	}
 	
-	result += "String #1 Pixels: <input class='string1Pixels' size='3' maxlength='3' value='" + data["string1Pixels"] + "' onChange='RPIWS281XLayoutChanged(this);'> ";
+	result += "String #1 Pixels: <input class='string1Pixels' size='4' maxlength='4' value='" + data["string1Pixels"] + "' onChange='RPIWS281XLayoutChanged(this);'> ";
 	result += RPIWS281XColorOrderSelect("string1ColorOrder", data["string1ColorOrder"]) + " (GPIO 18)<br>";
 	
-	result += "String #2 Pixels: <input class='string2Pixels' size='3' maxlength='3' value='" + data["string2Pixels"] + "' onChange='RPIWS281XLayoutChanged(this);'> ";
+	result += "String #2 Pixels: <input class='string2Pixels' size='4' maxlength='4' value='" + data["string2Pixels"] + "' onChange='RPIWS281XLayoutChanged(this);'> ";
 	result += RPIWS281XColorOrderSelect("string2ColorOrder", data["string2ColorOrder"]) + " (GPIO 19)<br>";
 
 	return result;
@@ -755,6 +756,9 @@ function GetRPIWS281XOutputConfig(cell) {
 	var result = "";
 	var value = $cell.find("input.string1Pixels").val();
 
+	if (parseInt(value) > 1000)
+		return "";
+
 	if (value == "")
 		return "";
 
@@ -768,6 +772,9 @@ function GetRPIWS281XOutputConfig(cell) {
 	result += "string1ColorOrder=" + colorOrder + ";";
 	
 	value = $cell.find("input.string2Pixels").val();
+
+	if (parseInt(value) > 1000)
+		return "";
 
 	if (value == "")
 		return "";
@@ -1413,7 +1420,8 @@ function SetChannelOutputs() {
 				DialogError("Save Channel Outputs", "Invalid RPIWS281X Config");
 				return;
 			}
-			maxChannels = 1200;
+			// Two outputs with max 1000 pixels per output
+			maxChannels = 6000;
 		} else if (type == "VirtualMatrix") {
 			config += GetVirtualMatrixOutputConfig($this.find("td:nth-child(6)"));
 			if (config == "") {
@@ -1540,22 +1548,16 @@ function OtherTypeSelected(selectbox) {
 
 	var type = $(selectbox).val();
 
-	if ((Object.keys(USBDevices).length == 0) &&
+	if ((Object.keys(SerialDevices).length == 0) &&
 			((type == 'DMX-Pro') ||
 			 (type == 'DMX-Open') ||
+			 (type == 'LOR') ||
 			 (type == 'Pixelnet-Lynx') ||
 			 (type == 'Pixelnet-Open') ||
+			 (type == 'Renard') ||
 			 (type == 'Triks-C')))
 	{
 		DialogError("Add Output", "No available serial devices detected.  Do you have a USB Serial Dongle attached?");
-		$row.remove();
-		return;
-	}
-
-	if ((Object.keys(SerialDevices).length == 0) &&
-			((type == 'Renard') || (type == 'LOR')))
-	{
-		DialogError("Add Output", "No available serial devices detected.");
 		$row.remove();
 		return;
 	}
@@ -1579,8 +1581,7 @@ function OtherTypeSelected(selectbox) {
 }
 
 function AddOtherOutput() {
-	if ((Object.keys(USBDevices).length == 0) &&
-		(Object.keys(SerialDevices).length == 0) &&
+	if ((Object.keys(SerialDevices).length == 0) &&
 		(Object.keys(SPIDevices).length == 0)) {
 		DialogError("Add Output", "No available devices found for new outputs");
 		return;

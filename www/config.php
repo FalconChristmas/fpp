@@ -108,7 +108,9 @@ if ($settings['Platform'] == FALSE)
 
 if ($settings['Platform'] == "Raspberry Pi")
 {
-	$settings['Logo'] = "large_Raspberry_Pi_Logo_4.png";
+	exec("grep -c ^processor /proc/cpuinfo", $output);
+	$settings['Logo'] = "large_Raspberry_Pi_Logo_".$output[0].".png";
+	unset($output);
 	$settings['LogoLink'] = "http://raspberrypi.org/";
 	$settings['fppBinDir'] = '/opt/fpp/bin.pi';
 }
@@ -127,6 +129,11 @@ else if ($settings['Platform'] == "ODROID")
 {
 	$settings['Logo'] = "odroid_logo.gif";
 	$settings['LogoLink'] = "";
+}
+else if ($settings['Platform'] == "CHIP")
+{
+	$settings['Logo'] = "chip_logo.png";
+	$settings['LogoLink'] = "http://www.getchip.com/";
 }
 else if ($settings['Platform'] == "Debian")
 {

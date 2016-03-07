@@ -112,12 +112,15 @@ require_once('config.php');
 	function EditScript(scriptName)
 	{
 		$('#fileText').html("Loading...");
-		$('#fileText').load("fppxml.php?command=getFile&dir=Scripts&filename=" + scriptName, function() {
+
+		$.get("fppxml.php?command=getFile&dir=Scripts&filename=" + scriptName, function(text) {
 			var ext = scriptName.split('.').pop();
 			if (ext != "html")
+			{
 				var html = "<fieldset  class='fs'><legend> " + scriptName + " </legend><div><center><input type='button' class='buttons' onClick='SaveScript(\"" + scriptName + "\");' value='Save'> <input type='button' class='buttons' onClick='AbortScriptChange();' value='Cancel'><hr/>";
-				html += "<textarea cols='100' rows='25' id='scriptText'>" + $('#fileText').html() + "</textarea></center></div></fieldset>";
+				html += "<textarea cols='100' rows='25' id='scriptText'>" + text + "</textarea></center></div></fieldset>";
 				$('#fileText').html(html);
+			}
 		});
 
 		$('#fileViewer').dialog({ height: 600, width: 800, title: "Script Editor" });
@@ -132,7 +135,7 @@ require_once('config.php');
 				scriptBody: contents
 			};
 
-		postData = "command=saveScript&data=" + JSON.stringify(info);
+		postData = "command=saveScript&data=" + encodeURIComponent(JSON.stringify(info));
 
 		$.post("fppjson.php", postData).success(function(data) {
 			if (data.saveStatus == "OK")
