@@ -536,12 +536,39 @@ setupChannelOutputs() {
 	# Setup BBB device tree
 	if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
 	then
+		DTBO=CAPE-BONE-OCTO-00A0.dtbo
+		CAPEMGR=/sys/devices/bone_capemgr.*/slots
+		if [ -f /sys/devices/platform/bone_capemgr/slots ]
+		then
+			DTBO=CAPE-BONE-OCTO-00A0-4.x.dtbo
+			CAPEMGR=/sys/devices/platform/bone_capemgr/slots
+		fi
+
 		cat ${FPPHOME}/media/config/channeloutputs.json 2> /dev/null | tr -d "\r\n" | egrep -q '(LEDPanelMatrix|BBB48String|BBBSerial)",[ 	a-zA-Z0-9:",]*"enabled": 1'
 		if [ $? -eq 0 ]
 		then
-			cp ${FPPDIR}/external/LEDscape/dts/CAPE-BONE-OCTO-00A0.dtbo /lib/firmware/
-			echo 'CAPE-BONE-OCTO' > /sys/devices/bone_capemgr.*/slots 2> /dev/null
+			cp ${FPPDIR}/external/LEDscape/dts/${DTBO} /lib/firmware/CAPE-BONE-OCTO-00A0.dtbo
+			echo 'CAPE-BONE-OCTO' > ${CAPEMGR} 2> /dev/null
 		fi
+
+		grep -q "^1,.*ttyS[1-5]" ${FPPHOME}/media/channeloutputs 2> /dev/null
+		if [ $? -eq 0 ]
+		then
+			grep "^1,.*ttyS[1-5]" ${FPPHOME}/media/channeloutputs | sed -e "s/.*ttyS//" -e "s/\([0-9]\).*/\1/" | while read PORT
+			do
+				echo "BB-UART${PORT}" > ${CAPEMGR}
+			done
+		fi
+
+		grep -q "ttyS[1-5]" ${FPPHOME}/media/config/channeloutputs.json 2> /dev/null
+		if [ $? -eq 0 ]
+		then
+			grep "ttyS[1-5]" ${FPPHOME}/media/config/channeloutputs.json | cut -f4 -d\" | while read PORT
+			do
+				echo "BB-UART${PORT}" > ${CAPEMGR}
+			done
+		fi
+
 	elif [ "${FPPPLATFORM}" = "Raspberry Pi" ]
 	then
 		# Check for RGBMatrix channel output

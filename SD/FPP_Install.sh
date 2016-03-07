@@ -59,9 +59,9 @@
 #             filesystem as per the information.txt file on recombi.net.
 #
 #############################################################################
-SCRIPTVER="0.8"
+SCRIPTVER="0.9"
 FPPBRANCH="master"
-FPPIMAGEVER="1.5"
+FPPIMAGEVER="2.0alpha"
 FPPCFGVER="18"
 FPPPLATFORM="UNKNOWN"
 FPPDIR="/opt/fpp"
@@ -158,15 +158,17 @@ if [ "x${OSID}" = "xraspbian" ]
 then
 	FPPPLATFORM="Raspberry Pi"
 	OSVER="debian_${VERSION_ID}"
-elif [ "x${OSID}" = "xdebian" ]
-then
-	FPPPLATFORM="Debian"
+elif [ "x${VARIANT}" = "xDebian on C.H.I.P" ]; then
+	FPPPLATFORM="CHIP"
 elif [ -e "/sys/class/leds/beaglebone:green:usr0" ]
 then
 	FPPPLATFORM="BeagleBone Black"
 elif [ ! -z "$(grep ODROIDC /proc/cpuinfo)" ]
 then
 	FPPPLATFORM="ODROID"
+elif [ "x${OSID}" = "xdebian" ]
+then
+	FPPPLATFORM="Debian"
 else
 	FPPPLATFORM="UNKNOWN"
 fi
@@ -288,16 +290,16 @@ export DEBIAN_FRONTEND=noninteractive
 
 case "${OSVER}" in
 	debian_7|debian_8)
-		echo "FPP - Enabling non-free repo"
-		sed -i -e "s/^deb \(.*\)/deb \1 non-free/" /etc/apt/sources.list
-		sed -i -e "s/non-free\(.*\)non-free/non-free\1/" /etc/apt/sources.list
-		#TODO: No non-free in CHIP repos
-
-		echo "FPP - Updating package list"
-		apt-get update
-
-		echo "FPP - Upgrading packages"
-		apt-get -y upgrade
+		case $FPPPLATFORM in
+			'CHIP'|'BeagleBone Black')
+				echo "FPP - Skipping non-free for $FPPPLATFORM"
+				;;
+			*)
+				echo "FPP - Enabling non-free repo"
+				sed -i -e "s/^deb \(.*\)/deb \1 non-free/" /etc/apt/sources.list
+				sed -i -e "s/non-free\(.*\)non-free/non-free\1/" /etc/apt/sources.list
+				;;
+		esac
 
 		echo "FPP - Marking unneeded packages for removal to save space"
 		for package in gnome-icon-theme gnome-accessibility-themes gnome-themes-standard \
@@ -330,6 +332,12 @@ case "${OSVER}" in
 		echo "FPP - Removing anything left that wasn't explicity removed"
 		apt-get -y --purge autoremove
 
+		echo "FPP - Updating package list"
+		apt-get update
+
+		echo "FPP - Upgrading packages"
+		apt-get -y upgrade
+
 		# remove gnome keyring module config which causes pkcs11 warnings
 		# when trying to do a git pull
 		rm -f /etc/pkcs11/modules/gnome-keyring-module
@@ -352,7 +360,8 @@ case "${OSVER}" in
 						php5-sqlite php-apc python-daemon python-smbus samba \
 						samba-common-bin shellinabox sudo sysstat tcpdump usbmount vim \
 						vim-common vorbis-tools vsftpd firmware-realtek gcc g++\
-						network-manager dhcp-helper hostapd parprouted bridge-utils
+						network-manager dhcp-helper hostapd parprouted bridge-utils \
+						firmware-atheros firmware-ralink firmware-brcm80211
 		do
 			apt-get -y install ${package}
 			let packages=$((${packages}+1))
@@ -365,8 +374,9 @@ case "${OSVER}" in
 		echo "FPP - Cleaning up after installing packages"
 		apt-get -y clean
 
-		echo "FPP - Installing non-packaged Perl modules via CPAN"
-		echo "yes" | cpan -fi Test::Tester File::Map Net::WebSocket::Server
+		echo "FPP - Installing non-packaged Perl modules via App::cpanminus"
+		curl -L https://cpanmin.us | perl - --sudo App::cpanminus
+		echo "yes" | cpanm -fi Test::Tester File::Map Net::WebSocket::Server
 
 		echo "FPP - Disabling any stock 'debian' user, use the 'fpp' user instead"
 		sed -i -e "s/^debian:.*/debian:*:16372:0:99999:7:::/" /etc/shadow
@@ -415,32 +425,55 @@ esac
 # Platform-specific config
 case "${FPPPLATFORM}" in
 	'BeagleBone Black')
-		echo "FPP - Disabling HDMI for Falcon and LEDscape cape support"
-		echo >> /boot/uboot/uEnv.txt
-		echo "# Disable HDMI for Falcon and LEDscape cape support" >> /boot/uboot/uEnv.txt
-		echo "cape_disable=capemgr.disable_partno=BB-BONELT-HDMI,BB-BONELT-HDMIN" >> /boot/uboot/uEnv.txt
-		echo >> /boot/uboot/uEnv.txt
 
-		echo "FPP - Installing OLA packages"
-		apt-get -y --force-yes install libcppunit-dev uuid-dev pkg-config libncurses5-dev libtool autoconf automake libmicrohttpd-dev protobuf-compiler python-protobuf libprotobuf-dev libprotoc-dev bison flex libftdi-dev libftdi1 libusb-1.0-0-dev liblo-dev
-		apt-get -y clean
+		case "${OSVER}" in
+			'debian_8')
+				echo "FPP - Disabling HDMI for Falcon and LEDscape cape support"
+				sed -i -e 's/#dtb=am335x-boneblack-emmc-overlay.dtb/dtb=am335x-boneblack-emmc-overlay.dtb/' /boot/uEnv.txt
 
-		mkdir /tmp/deb
-		cd /tmp/deb
-		FILES="libola-dev_0.9.7-1_armhf.deb libola1_0.9.7-1_armhf.deb ola-python_0.9.7-1_all.deb ola-rdm-tests_0.9.7-1_all.deb ola_0.9.7-1_armhf.deb"
-		for FILE in ${FILES}
-		do
-			# FIXME, get these from github after release is tagged
-			wget -nd http://www.bc2va.org/chris/tmp/fpp/deb/${FILE}
-		done
-		dpkg --unpack ${FILES}
-		rm -f ${FILES}
-#		apt-get -y --force-yes install libcppunit-dev libcppunit-1.12-1 uuid-dev pkg-config libncurses5-dev libtool autoconf automake libmicrohttpd-dev protobuf-compiler python-protobuf libprotobuf-dev libprotoc-dev bison flex libftdi-dev libftdi1 libusb-1.0-0-dev liblo-dev
-#		git clone https://github.com/OpenLightingProject/ola.git /opt/ola
-#		(cd /opt/ola && autoreconf -i && ./configure --enable-python-libs && make && make install && ldconfig && cd /opt/ && rm -rf ola)
+				echo "FPP - Installing BeagleBone Overlays"
+				cd /opt/ && git clone https://github.com/beagleboard/bb.org-overlays && cd /opt/bb.org-overlays && make && make install && cd /opt/ && rm -rf bb.org-overlays
 
-		echo "FPP - Installing updated 8192cu module"
-		wget -O /lib/modules/3.8.13-bone50/kernel/drivers/net/wireless/8192cu.ko https://github.com/FalconChristmas/fpp/releases/download/1.5/8192cu.ko
+				echo "FPP - Installing OLA"
+				apt-get -y install ola ola-python libola-dev libola1
+				update-rc.d olad remove
+
+				echo "FPP - Updating locale"
+				sed -i -e 's/# en_US.UTF-8/en_US.UTF-8/' /etc/locale.gen
+				dpkg-reconfigure --frontend=noninteractive locales
+				update-locale LANG=en_US.UTF-8
+
+				echo "FPP - Installing updated 8192cu module"
+				# FIXME, get this in github once kernel version is finalized
+				wget -O /lib/modules/4.1.17-ti-rt-r48/kernel/drivers/net/wireless/8192cu.ko http://fpp.bc2va.org/modules/8192cu-4.1.17-ti-rt-r48.ko
+				#wget -O /lib/modules/4.1.17-ti-rt-r48/kernel/drivers/net/wireless/8192cu.ko https://github.com/FalconChristmas/fpp/releases/download/1.5/8192cu.ko
+				;;
+
+			'debian_7')
+				echo "FPP - Disabling HDMI for Falcon and LEDscape cape support"
+				echo >> /boot/uboot/uEnv.txt
+				echo "# Disable HDMI for Falcon and LEDscape cape support" >> /boot/uboot/uEnv.txt
+				echo "cape_disable=capemgr.disable_partno=BB-BONELT-HDMI,BB-BONELT-HDMIN" >> /boot/uboot/uEnv.txt
+				echo >> /boot/uboot/uEnv.txt
+
+				echo "FPP - Installing OLA packages"
+				apt-get -y --force-yes install libcppunit-dev libcppunit-1.12-1 uuid-dev pkg-config libncurses5-dev libtool autoconf automake libmicrohttpd-dev protobuf-compiler python-protobuf libprotobuf-dev libprotoc-dev bison flex libftdi-dev libftdi1 libusb-1.0-0-dev liblo-dev
+				apt-get -y clean
+				mkdir /tmp/deb
+				cd /tmp/deb
+				FILES="libola-dev_0.9.7-1_armhf.deb libola1_0.9.7-1_armhf.deb ola-python_0.9.7-1_all.deb ola-rdm-tests_0.9.7-1_all.deb ola_0.9.7-1_armhf.deb"
+				for FILE in ${FILES}
+				do
+					# FIXME, get these from github after release is tagged
+					wget -nd http://www.bc2va.org/chris/tmp/fpp/deb/${FILE}
+				done
+				dpkg --unpack ${FILES}
+				rm -f ${FILES}
+
+				echo "FPP - Installing updated 8192cu module"
+				wget -O /lib/modules/3.8.13-bone50/kernel/drivers/net/wireless/8192cu.ko https://github.com/FalconChristmas/fpp/releases/download/1.5/8192cu.ko
+				;;
+		esac
 
 		echo "FPP - Disabling power management for 8192cu wireless"
 cat <<-EOF >> /etc/modprobe.d/8192cu.conf
@@ -456,6 +489,7 @@ EOF
 		;;
 
 	'Raspberry Pi')
+		echo "FPP - Updating firmware for Raspberry Pi install"
 		#https://raw.githubusercontent.com/Hexxeh/rpi-update/master/rpi-update
 		wget http://goo.gl/1BOfJ -O /usr/bin/rpi-update && chmod +x /usr/bin/rpi-update
 		SKIP_WARNING=1 rpi-update 12f0636cd11ebd7ec189534147ea23ce4f702e90
