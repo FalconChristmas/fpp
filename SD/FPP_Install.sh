@@ -435,7 +435,7 @@ case "${FPPPLATFORM}" in
 				cd /opt/ && git clone https://github.com/beagleboard/bb.org-overlays && cd /opt/bb.org-overlays && make && make install && cd /opt/ && rm -rf bb.org-overlays
 
 				echo "FPP - Installing OLA"
-				apt-get -y install ola ola-python libola-dev libola1
+				apt-get -y install ola ola-python libola-dev libola1 libprotobuf-dev libprotobuf9
 				update-rc.d olad remove
 
 				echo "FPP - Updating locale"
