@@ -82,10 +82,10 @@
 </template>
 
 <script>
-import Switch from "../../../shared/switch.vue";
+import Switch from "../shared/switch.vue";
 import Output from "./pdmx.vue";
-import FormInput from "../../../shared/input.vue";
-import outputMixin from "../../../../mixins/outputMixin";
+import FormInput from "../shared/input.vue";
+import outputMixin from "../../mixins/outputMixin";
 
 export default {
     mixins: [outputMixin],

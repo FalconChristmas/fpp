@@ -1,20 +1,18 @@
 <template>
     <div id="main-wrapper">
-        <main-header></main-header>
-        <div class="content">
-            <router-view></router-view>
-        </div>
+        <settings-header></settings-header>
+        <settings-content></settings-content>
         <main-footer></main-footer>
     </div>
 </template>
 
 <script>
-    import mainHeader from './header/index.vue';
-    // import mainContent from './content/index.vue';
-    import mainFooter from "./footer/index.vue";
+    import settingsHeader from './header/settings.vue';
+    import settingsContent from './settings/index.vue';
+    import mainFooter from "./footer.vue";
 
     export default {
-        components: { mainHeader, mainFooter },
+        components: { settingsHeader, settingsContent, mainFooter },
     };
 </script>
 
@@ -26,5 +24,6 @@
         display: flex;
         flex: 1;
         flex-direction: column;
+      
     }
 </style>

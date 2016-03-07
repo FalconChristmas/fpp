@@ -193,8 +193,8 @@
 </template>
 
 <script>
-import Tabs from '../../../shared/tabset.vue';
-import Tab from '../../../shared/tab.vue';
+import Tabs from '../shared/tabset.vue';
+import Tab from '../shared/tab.vue';
 
 export default {
     components: { Tabs, Tab },

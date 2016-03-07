@@ -36246,13 +36246,13 @@ var _jquery = require('jquery');
 
 var _jquery2 = _interopRequireDefault(_jquery);
 
-var _index = require('./components/sidebar/index.vue');
+var _sidebar = require('./components/sidebar.vue');
+
+var _sidebar2 = _interopRequireDefault(_sidebar);
+
+var _index = require('./components/index.vue');
 
 var _index2 = _interopRequireDefault(_index);
-
-var _index3 = require('./components/main/index.vue');
-
-var _index4 = _interopRequireDefault(_index3);
 
 var _overlay = require('./components/shared/overlay.vue');
 
@@ -36273,7 +36273,7 @@ var _setting2 = _interopRequireDefault(_setting);
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 exports.default = {
-    components: { sidebar: _index2.default, mainContent: _index4.default, overlay: _overlay2.default },
+    components: { sidebar: _sidebar2.default, mainContent: _index2.default, overlay: _overlay2.default },
 
     replace: false,
 
@@ -36354,8 +36354,8 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"./components/main/index.vue":218,"./components/shared/overlay.vue":229,"./components/sidebar/index.vue":233,"./stores/playlist":238,"./stores/setting":239,"./stores/shared":240,"jquery":75,"vue":187,"vue-hot-reload-api":164}],191:[function(require,module,exports){
-_hmr["websocket:null"].initModule("resources/assets/js/components/main/content/dashboard.vue", module);
+},{"./components/index.vue":198,"./components/shared/overlay.vue":228,"./components/sidebar.vue":232,"./stores/playlist":238,"./stores/setting":239,"./stores/shared":240,"jquery":75,"vue":187,"vue-hot-reload-api":164}],191:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/components/dashboard.vue", module);
 (function(){
 "use strict";
 
@@ -36380,7 +36380,7 @@ if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
-  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/dashboard.vue"
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/dashboard.vue"
   if (!module.hot.data) {
     hotAPI.createRecord(id, module.exports)
   } else {
@@ -36390,7 +36390,7 @@ if (module.hot) {(function () {  module.hot.accept()
 }).apply(this, arguments);
 
 },{"vue":187,"vue-hot-reload-api":164}],192:[function(require,module,exports){
-_hmr["websocket:null"].initModule("resources/assets/js/components/main/content/effects.vue", module);
+_hmr["websocket:null"].initModule("resources/assets/js/components/effects.vue", module);
 (function(){
 "use strict";
 
@@ -36415,7 +36415,7 @@ if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
-  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/effects.vue"
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/effects.vue"
   if (!module.hot.data) {
     hotAPI.createRecord(id, module.exports)
   } else {
@@ -36425,7 +36425,7 @@ if (module.hot) {(function () {  module.hot.accept()
 }).apply(this, arguments);
 
 },{"vue":187,"vue-hot-reload-api":164}],193:[function(require,module,exports){
-_hmr["websocket:null"].initModule("resources/assets/js/components/main/content/events.vue", module);
+_hmr["websocket:null"].initModule("resources/assets/js/components/events.vue", module);
 (function(){
 "use strict";
 
@@ -36450,7 +36450,7 @@ if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
-  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/events.vue"
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/events.vue"
   if (!module.hot.data) {
     hotAPI.createRecord(id, module.exports)
   } else {
@@ -36460,7 +36460,7 @@ if (module.hot) {(function () {  module.hot.accept()
 }).apply(this, arguments);
 
 },{"vue":187,"vue-hot-reload-api":164}],194:[function(require,module,exports){
-_hmr["websocket:null"].initModule("resources/assets/js/components/main/content/files.vue", module);
+_hmr["websocket:null"].initModule("resources/assets/js/components/files.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".file-manager .nav-tabs {\n  margin-bottom: 0 !important; }\n  .file-manager .nav-tabs ~ .tab-content {\n    padding-top: 0; }\n\n.file-manager .tab-pane .info {\n  text-align: center;\n  padding: 20px 20px 0;\n  color: #788B94;\n  border-top: 1px solid #eaeaea; }\n\n.file-manager .file-upload-form {\n  min-height: 250px;\n  padding: 25px;\n  border: 1px dashed #eaeaea;\n  border-radius: 2px;\n  background: #fafafa; }\n  .file-manager .file-upload-form h4 {\n    font-weight: 300;\n    margin-bottom: 0; }\n\n.file-manager .upload-message {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column;\n  -webkit-justify-content: center;\n      -ms-flex-pack: center;\n          justify-content: center;\n  -webkit-align-items: center;\n      -ms-flex-align: center;\n          align-items: center;\n  height: 195px; }\n  .file-manager .upload-message p {\n    margin: 0; }\n")
 "use strict";
@@ -36469,15 +36469,15 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 
-var _Tabset = require("../../shared/Tabset.vue");
+var _Tabset = require("./shared/Tabset.vue");
 
 var _Tabset2 = _interopRequireDefault(_Tabset);
 
-var _Tab = require("../../shared/Tab.vue");
+var _Tab = require("./shared/Tab.vue");
 
 var _Tab2 = _interopRequireDefault(_Tab);
 
-var _filelist = require("../../shared/filelist.vue");
+var _filelist = require("./shared/filelist.vue");
 
 var _filelist2 = _interopRequireDefault(_filelist);
 
@@ -36501,7 +36501,7 @@ if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
-  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/files.vue"
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/files.vue"
   module.hot.dispose(function () {
     require("vueify-insert-css").cache[".file-manager .nav-tabs {\n  margin-bottom: 0 !important; }\n  .file-manager .nav-tabs ~ .tab-content {\n    padding-top: 0; }\n\n.file-manager .tab-pane .info {\n  text-align: center;\n  padding: 20px 20px 0;\n  color: #788B94;\n  border-top: 1px solid #eaeaea; }\n\n.file-manager .file-upload-form {\n  min-height: 250px;\n  padding: 25px;\n  border: 1px dashed #eaeaea;\n  border-radius: 2px;\n  background: #fafafa; }\n  .file-manager .file-upload-form h4 {\n    font-weight: 300;\n    margin-bottom: 0; }\n\n.file-manager .upload-message {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column;\n  -webkit-justify-content: center;\n      -ms-flex-pack: center;\n          justify-content: center;\n  -webkit-align-items: center;\n      -ms-flex-align: center;\n          align-items: center;\n  height: 195px; }\n  .file-manager .upload-message p {\n    margin: 0; }\n"] = false
     document.head.removeChild(__vueify_style__)
@@ -36514,37 +36514,8 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../shared/Tab.vue":220,"../../shared/Tabset.vue":221,"../../shared/filelist.vue":226,"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],195:[function(require,module,exports){
-_hmr["websocket:null"].initModule("resources/assets/js/components/main/content/not-found.vue", module);
-(function(){
-var __vueify_style__ = require("vueify-insert-css").insert(".error-404 {\n  text-align: center; }\n")
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = {};
-if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div>\n        <h1 class=\"error-404\">Page Not Found</h1>\n    </div>\n"
-if (module.hot) {(function () {  module.hot.accept()
-  var hotAPI = require("vue-hot-reload-api")
-  hotAPI.install(require("vue"), true)
-  if (!hotAPI.compatible) return
-  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/not-found.vue"
-  module.hot.dispose(function () {
-    require("vueify-insert-css").cache[".error-404 {\n  text-align: center; }\n"] = false
-    document.head.removeChild(__vueify_style__)
-  })
-  if (!module.hot.data) {
-    hotAPI.createRecord(id, module.exports)
-  } else {
-    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
-  }
-})()}
-}).apply(this, arguments);
-
-},{"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],196:[function(require,module,exports){
-_hmr["websocket:null"].initModule("resources/assets/js/components/main/content/outputs.vue", module);
+},{"./shared/Tab.vue":219,"./shared/Tabset.vue":220,"./shared/filelist.vue":225,"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],195:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/components/footer.vue", module);
 (function(){
 "use strict";
 
@@ -36564,12 +36535,12 @@ exports.default = {
 
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div class=\"outputs\">\n        <router-view></router-view>\n    </div>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div>\n    </div>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
-  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/outputs.vue"
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/footer.vue"
   if (!module.hot.data) {
     hotAPI.createRecord(id, module.exports)
   } else {
@@ -36578,8 +36549,178 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":187,"vue-hot-reload-api":164}],197:[function(require,module,exports){
-_hmr["websocket:null"].initModule("resources/assets/js/components/main/content/outputs/dmx.vue", module);
+},{"vue":187,"vue-hot-reload-api":164}],196:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/components/header/index.vue", module);
+(function(){
+var __vueify_style__ = require("vueify-insert-css").insert("\n.navbar.header-menu {\n    padding: 10px 0 0;\n}\n")
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _controlButtons = require("../shared/control-buttons.vue");
+
+var _controlButtons2 = _interopRequireDefault(_controlButtons);
+
+var _headerMenu = require("../shared/header-menu.vue");
+
+var _headerMenu2 = _interopRequireDefault(_headerMenu);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.default = {
+    components: { controlButtons: _controlButtons2.default, headerMenu: _headerMenu2.default },
+    props: ['hasHeaderMenu'],
+    data: function data() {
+        return {};
+    },
+    ready: function ready() {},
+
+    methods: {},
+    events: {}
+
+};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div class=\"header\" :class=\"{ 'settings-header' : $route.headerMenu  }\">\n        <div class=\"page-meta\">\n            <h1 class=\"page-title\">{{ $route.headerName ? $route.headerName : $route.name | capitalize }}</h1>\n        </div>\n        <control-buttons></control-buttons>\n        <nav v-if=\"$route.headerMenu\" class=\"navbar header-menu\">\n            <button class=\"navbar-toggler hidden-sm-up\" type=\"button\" data-toggle=\"collapse\" data-target=\"#header-navbar\">☰ {{$route.menuName}} Menu</button>\n            <div class=\"collapse navbar-toggleable-xs\" id=\"header-navbar\">\n                <header-menu v-if=\"$route.headerMenu\" :items=\"$route.menu\"></header-menu>\n            </div>\n        </nav>\n    </div>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/header/index.vue"
+  module.hot.dispose(function () {
+    require("vueify-insert-css").cache["\n.navbar.header-menu {\n    padding: 10px 0 0;\n}\n"] = false
+    document.head.removeChild(__vueify_style__)
+  })
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+}).apply(this, arguments);
+
+},{"../shared/control-buttons.vue":222,"../shared/header-menu.vue":226,"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],197:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/components/header/settings.vue", module);
+(function(){
+var __vueify_style__ = require("vueify-insert-css").insert(".settings-header {\n  -webkit-flex-flow: wrap;\n      -ms-flex-flow: wrap;\n          flex-flow: wrap;\n  padding: 20px 20px 0;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n  .settings-header .settings-menu {\n    width: 100%;\n    padding: 10px 0 0; }\n    .settings-header .settings-menu a {\n      display: block;\n      text-transform: uppercase;\n      letter-spacing: 0.1em;\n      font-size: 11px;\n      border-bottom: 3px solid transparent;\n      padding: 3px 5px;\n      margin-bottom: -1px; }\n      .settings-header .settings-menu a.active {\n        font-weight: 600;\n        border-color: #F04124; }\n  @media (min-width: 668px) {\n    .settings-header {\n      -webkit-flex-direction: row;\n          -ms-flex-direction: row;\n              flex-direction: row; } }\n")
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _controlButtons = require("../shared/control-buttons.vue");
+
+var _controlButtons2 = _interopRequireDefault(_controlButtons);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.default = {
+    components: { controlButtons: _controlButtons2.default },
+    props: [],
+    data: function data() {
+        return {};
+    },
+    ready: function ready() {},
+
+    methods: {},
+    events: {}
+
+};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div class=\"header settings-header\">\n        <div class=\"page-meta\">\n            <h1 class=\"page-title\">{{ $route.name | capitalize }}</h1>\n        </div>\n        <control-buttons></control-buttons>\n        <nav class=\"navbar settings-menu\">\n            <button class=\"navbar-toggler hidden-sm-up\" type=\"button\" data-toggle=\"collapse\" data-target=\"#header-navbar\">☰ Settings Menu</button>\n            <div class=\"collapse navbar-toggleable-xs\" id=\"header-navbar\">\n                <ul class=\"nav navbar-nav\">\n                    <li class=\"nav-item\"><a v-link=\"{path: '/settings', exact: true, activeClass: 'active'}\">General</a></li>\n                    <li class=\"nav-item\"><a v-link=\"{path: '/settings/date', activeClass: 'active'}\">Date &amp; Time</a></li>\n                    <li class=\"nav-item\"><a v-link=\"{path: '/settings/email', activeClass: 'active'}\">Email</a></li>\n                    <li class=\"nav-item\"><a v-link=\"{path: '/settings/network', activeClass: 'active'}\">Network</a></li>\n                    <li class=\"nav-item\"><a v-link=\"{path: '/settings/logs', activeClass: 'active'}\">Logs</a></li>\n                    <li class=\"nav-item\"><a v-link=\"{path: '/settings/advanced', activeClass: 'active'}\">Advanced</a></li>\n                </ul>\n            </div>\n    </nav></div>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/header/settings.vue"
+  module.hot.dispose(function () {
+    require("vueify-insert-css").cache[".settings-header {\n  -webkit-flex-flow: wrap;\n      -ms-flex-flow: wrap;\n          flex-flow: wrap;\n  padding: 20px 20px 0;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n  .settings-header .settings-menu {\n    width: 100%;\n    padding: 10px 0 0; }\n    .settings-header .settings-menu a {\n      display: block;\n      text-transform: uppercase;\n      letter-spacing: 0.1em;\n      font-size: 11px;\n      border-bottom: 3px solid transparent;\n      padding: 3px 5px;\n      margin-bottom: -1px; }\n      .settings-header .settings-menu a.active {\n        font-weight: 600;\n        border-color: #F04124; }\n  @media (min-width: 668px) {\n    .settings-header {\n      -webkit-flex-direction: row;\n          -ms-flex-direction: row;\n              flex-direction: row; } }\n"] = false
+    document.head.removeChild(__vueify_style__)
+  })
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+}).apply(this, arguments);
+
+},{"../shared/control-buttons.vue":222,"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],198:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/components/index.vue", module);
+(function(){
+var __vueify_style__ = require("vueify-insert-css").insert("#main-wrapper {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n")
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _index = require("./header/index.vue");
+
+var _index2 = _interopRequireDefault(_index);
+
+var _footer = require("./footer.vue");
+
+var _footer2 = _interopRequireDefault(_footer);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.default = {
+    components: { mainHeader: _index2.default, mainFooter: _footer2.default }
+};
+// import mainContent from './content/index.vue';
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"main-wrapper\">\n        <main-header></main-header>\n        <div class=\"content\">\n            <router-view></router-view>\n        </div>\n        <main-footer></main-footer>\n    </div>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/index.vue"
+  module.hot.dispose(function () {
+    require("vueify-insert-css").cache["#main-wrapper {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n"] = false
+    document.head.removeChild(__vueify_style__)
+  })
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+}).apply(this, arguments);
+
+},{"./footer.vue":195,"./header/index.vue":196,"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],199:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/components/not-found.vue", module);
+(function(){
+var __vueify_style__ = require("vueify-insert-css").insert(".error-404 {\n  text-align: center; }\n")
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = {};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div>\n        <h1 class=\"error-404\">Page Not Found</h1>\n    </div>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/not-found.vue"
+  module.hot.dispose(function () {
+    require("vueify-insert-css").cache[".error-404 {\n  text-align: center; }\n"] = false
+    document.head.removeChild(__vueify_style__)
+  })
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+}).apply(this, arguments);
+
+},{"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],200:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/components/outputs/dmx.vue", module);
 (function(){
 "use strict";
 
@@ -36587,7 +36728,7 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 
-var _switch = require("../../../shared/switch.vue");
+var _switch = require("../shared/switch.vue");
 
 var _switch2 = _interopRequireDefault(_switch);
 
@@ -36595,11 +36736,11 @@ var _pdmx = require("./pdmx.vue");
 
 var _pdmx2 = _interopRequireDefault(_pdmx);
 
-var _input = require("../../../shared/input.vue");
+var _input = require("../shared/input.vue");
 
 var _input2 = _interopRequireDefault(_input);
 
-var _outputMixin = require("../../../../mixins/outputMixin");
+var _outputMixin = require("../../mixins/outputMixin");
 
 var _outputMixin2 = _interopRequireDefault(_outputMixin);
 
@@ -36640,7 +36781,7 @@ if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
-  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/outputs/dmx.vue"
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/outputs/dmx.vue"
   if (!module.hot.data) {
     hotAPI.createRecord(id, module.exports)
   } else {
@@ -36649,8 +36790,8 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../../../mixins/outputMixin":236,"../../../shared/input.vue":228,"../../../shared/switch.vue":230,"./pdmx.vue":201,"vue":187,"vue-hot-reload-api":164}],198:[function(require,module,exports){
-_hmr["websocket:null"].initModule("resources/assets/js/components/main/content/outputs/e131.vue", module);
+},{"../../mixins/outputMixin":236,"../shared/input.vue":227,"../shared/switch.vue":229,"./pdmx.vue":205,"vue":187,"vue-hot-reload-api":164}],201:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/components/outputs/e131.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".universe-list .form-control {\n  padding: .25rem .50rem;\n  line-height: 1.3; }\n\n.universe-list .c-select {\n  padding: .22rem 1.5rem .23rem .50rem; }\n\n.universe-list .universe-index {\n  min-width: 50px;\n  width: 50px;\n  text-align: center; }\n\n.universe-list .universe-active {\n  min-width: 50px;\n  width: 50px;\n  text-align: center; }\n\n.universe-list .universe-number {\n  min-width: 80px;\n  width: 80px;\n  text-align: center; }\n\n.universe-list .universe-start {\n  min-width: 80px;\n  width: 80px;\n  text-align: center; }\n\n.universe-list .universe-size {\n  min-width: 80px;\n  width: 80px;\n  text-align: center; }\n\n.universe-list .universe-type {\n  min-width: 115px;\n  width: 115px;\n  text-align: center; }\n\n.universe-list .universe-address {\n  min-width: 150px;\n  width: 150px;\n  text-align: center; }\n\n.universe-list .universe-action {\n  text-align: center; }\n\n.enable-output small, .enable-output .label-switch {\n  display: inline-block;\n  margin-bottom: 0;\n  vertical-align: middle; }\n")
 "use strict";
@@ -36659,7 +36800,7 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 
-var _switch = require("../../../shared/switch.vue");
+var _switch = require("../shared/switch.vue");
 
 var _switch2 = _interopRequireDefault(_switch);
 
@@ -36667,23 +36808,23 @@ var _universe = require("./universe.vue");
 
 var _universe2 = _interopRequireDefault(_universe);
 
-var _dropdownSelect = require("../../../shared/dropdown-select.vue");
+var _dropdownSelect = require("../shared/dropdown-select.vue");
 
 var _dropdownSelect2 = _interopRequireDefault(_dropdownSelect);
 
-var _checkbox = require("../../../shared/checkbox.vue");
+var _checkbox = require("../shared/checkbox.vue");
 
 var _checkbox2 = _interopRequireDefault(_checkbox);
 
-var _input = require("../../../shared/input.vue");
+var _input = require("../shared/input.vue");
 
 var _input2 = _interopRequireDefault(_input);
 
-var _ip = require("../../../../directives/ip");
+var _ip = require("../../directives/ip");
 
 var _ip2 = _interopRequireDefault(_ip);
 
-var _outputMixin = require("../../../../mixins/outputMixin");
+var _outputMixin = require("../../mixins/outputMixin");
 
 var _outputMixin2 = _interopRequireDefault(_outputMixin);
 
@@ -36740,7 +36881,7 @@ if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
-  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/outputs/e131.vue"
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/outputs/e131.vue"
   module.hot.dispose(function () {
     require("vueify-insert-css").cache[".universe-list .form-control {\n  padding: .25rem .50rem;\n  line-height: 1.3; }\n\n.universe-list .c-select {\n  padding: .22rem 1.5rem .23rem .50rem; }\n\n.universe-list .universe-index {\n  min-width: 50px;\n  width: 50px;\n  text-align: center; }\n\n.universe-list .universe-active {\n  min-width: 50px;\n  width: 50px;\n  text-align: center; }\n\n.universe-list .universe-number {\n  min-width: 80px;\n  width: 80px;\n  text-align: center; }\n\n.universe-list .universe-start {\n  min-width: 80px;\n  width: 80px;\n  text-align: center; }\n\n.universe-list .universe-size {\n  min-width: 80px;\n  width: 80px;\n  text-align: center; }\n\n.universe-list .universe-type {\n  min-width: 115px;\n  width: 115px;\n  text-align: center; }\n\n.universe-list .universe-address {\n  min-width: 150px;\n  width: 150px;\n  text-align: center; }\n\n.universe-list .universe-action {\n  text-align: center; }\n\n.enable-output small, .enable-output .label-switch {\n  display: inline-block;\n  margin-bottom: 0;\n  vertical-align: middle; }\n"] = false
     document.head.removeChild(__vueify_style__)
@@ -36753,8 +36894,43 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../../../directives/ip":234,"../../../../mixins/outputMixin":236,"../../../shared/checkbox.vue":222,"../../../shared/dropdown-select.vue":224,"../../../shared/input.vue":228,"../../../shared/switch.vue":230,"./universe.vue":202,"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],199:[function(require,module,exports){
-_hmr["websocket:null"].initModule("resources/assets/js/components/main/content/outputs/other.vue", module);
+},{"../../directives/ip":234,"../../mixins/outputMixin":236,"../shared/checkbox.vue":221,"../shared/dropdown-select.vue":223,"../shared/input.vue":227,"../shared/switch.vue":229,"./universe.vue":206,"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],202:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/components/outputs/index.vue", module);
+(function(){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+exports.default = {
+    components: {},
+    props: [],
+    data: function data() {
+        return {};
+    },
+    ready: function ready() {},
+
+    methods: {},
+    events: {}
+
+};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div class=\"outputs\">\n        <router-view></router-view>\n    </div>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/outputs/index.vue"
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+}).apply(this, arguments);
+
+},{"vue":187,"vue-hot-reload-api":164}],203:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/components/outputs/other.vue", module);
 (function(){
 "use strict";
 
@@ -36779,7 +36955,7 @@ if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
-  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/outputs/other.vue"
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/outputs/other.vue"
   if (!module.hot.data) {
     hotAPI.createRecord(id, module.exports)
   } else {
@@ -36788,8 +36964,8 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":187,"vue-hot-reload-api":164}],200:[function(require,module,exports){
-_hmr["websocket:null"].initModule("resources/assets/js/components/main/content/outputs/panels.vue", module);
+},{"vue":187,"vue-hot-reload-api":164}],204:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/components/outputs/panels.vue", module);
 (function(){
 "use strict";
 
@@ -36814,7 +36990,7 @@ if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
-  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/outputs/panels.vue"
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/outputs/panels.vue"
   if (!module.hot.data) {
     hotAPI.createRecord(id, module.exports)
   } else {
@@ -36823,8 +36999,8 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":187,"vue-hot-reload-api":164}],201:[function(require,module,exports){
-_hmr["websocket:null"].initModule("resources/assets/js/components/main/content/outputs/pdmx.vue", module);
+},{"vue":187,"vue-hot-reload-api":164}],205:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/components/outputs/pdmx.vue", module);
 (function(){
 'use strict';
 
@@ -36832,7 +37008,7 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 
-var _switch = require('../../../shared/switch.vue');
+var _switch = require('../shared/switch.vue');
 
 var _switch2 = _interopRequireDefault(_switch);
 
@@ -36860,7 +37036,7 @@ if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
-  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/outputs/pdmx.vue"
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/outputs/pdmx.vue"
   if (!module.hot.data) {
     hotAPI.createRecord(id, module.exports)
   } else {
@@ -36869,8 +37045,8 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../../shared/switch.vue":230,"vue":187,"vue-hot-reload-api":164}],202:[function(require,module,exports){
-_hmr["websocket:null"].initModule("resources/assets/js/components/main/content/outputs/universe.vue", module);
+},{"../shared/switch.vue":229,"vue":187,"vue-hot-reload-api":164}],206:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/components/outputs/universe.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".universe {\n  transition: opacity 0.35s;\n  opacity: 1; }\n  .universe.disabled {\n    opacity: .4; }\n  .universe-move {\n    transition: -webkit-transform 0.5s cubic-bezier(0.55, 0, 0.1, 1);\n    transition: transform 0.5s cubic-bezier(0.55, 0, 0.1, 1);\n    transition: transform 0.5s cubic-bezier(0.55, 0, 0.1, 1), -webkit-transform 0.5s cubic-bezier(0.55, 0, 0.1, 1); }\n\n.universe-active,\n.universe-action,\n.universe-index {\n  vertical-align: middle !important; }\n  .universe-active .checkbox,\n  .universe-action .checkbox,\n  .universe-index .checkbox {\n    margin-bottom: 0; }\n")
 'use strict';
@@ -36879,7 +37055,7 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 
-var _switch = require('../../../shared/switch.vue');
+var _switch = require('../shared/switch.vue');
 
 var _switch2 = _interopRequireDefault(_switch);
 
@@ -36907,7 +37083,7 @@ if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
-  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/outputs/universe.vue"
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/outputs/universe.vue"
   module.hot.dispose(function () {
     require("vueify-insert-css").cache[".universe {\n  transition: opacity 0.35s;\n  opacity: 1; }\n  .universe.disabled {\n    opacity: .4; }\n  .universe-move {\n    transition: -webkit-transform 0.5s cubic-bezier(0.55, 0, 0.1, 1);\n    transition: transform 0.5s cubic-bezier(0.55, 0, 0.1, 1);\n    transition: transform 0.5s cubic-bezier(0.55, 0, 0.1, 1), -webkit-transform 0.5s cubic-bezier(0.55, 0, 0.1, 1); }\n\n.universe-active,\n.universe-action,\n.universe-index {\n  vertical-align: middle !important; }\n  .universe-active .checkbox,\n  .universe-action .checkbox,\n  .universe-index .checkbox {\n    margin-bottom: 0; }\n"] = false
     document.head.removeChild(__vueify_style__)
@@ -36920,8 +37096,8 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../../shared/switch.vue":230,"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],203:[function(require,module,exports){
-_hmr["websocket:null"].initModule("resources/assets/js/components/main/content/overlays.vue", module);
+},{"../shared/switch.vue":229,"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],207:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/components/overlays.vue", module);
 (function(){
 "use strict";
 
@@ -36946,7 +37122,7 @@ if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
-  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/overlays.vue"
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/overlays.vue"
   if (!module.hot.data) {
     hotAPI.createRecord(id, module.exports)
   } else {
@@ -36955,8 +37131,8 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":187,"vue-hot-reload-api":164}],204:[function(require,module,exports){
-_hmr["websocket:null"].initModule("resources/assets/js/components/main/content/playlists.vue", module);
+},{"vue":187,"vue-hot-reload-api":164}],208:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/components/playlists.vue", module);
 (function(){
 "use strict";
 
@@ -36981,7 +37157,7 @@ if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
-  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/playlists.vue"
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/playlists.vue"
   if (!module.hot.data) {
     hotAPI.createRecord(id, module.exports)
   } else {
@@ -36990,8 +37166,8 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":187,"vue-hot-reload-api":164}],205:[function(require,module,exports){
-_hmr["websocket:null"].initModule("resources/assets/js/components/main/content/plugins.vue", module);
+},{"vue":187,"vue-hot-reload-api":164}],209:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/components/plugins.vue", module);
 (function(){
 "use strict";
 
@@ -37016,7 +37192,7 @@ if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
-  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/plugins.vue"
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/plugins.vue"
   if (!module.hot.data) {
     hotAPI.createRecord(id, module.exports)
   } else {
@@ -37025,8 +37201,8 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":187,"vue-hot-reload-api":164}],206:[function(require,module,exports){
-_hmr["websocket:null"].initModule("resources/assets/js/components/main/content/schedule.vue", module);
+},{"vue":187,"vue-hot-reload-api":164}],210:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/components/schedule.vue", module);
 (function(){
 "use strict";
 
@@ -37051,7 +37227,7 @@ if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
-  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/schedule.vue"
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/schedule.vue"
   if (!module.hot.data) {
     hotAPI.createRecord(id, module.exports)
   } else {
@@ -37060,36 +37236,42 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":187,"vue-hot-reload-api":164}],207:[function(require,module,exports){
-_hmr["websocket:null"].initModule("resources/assets/js/components/main/content/settings.vue", module);
+},{"vue":187,"vue-hot-reload-api":164}],211:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/components/settings.vue", module);
 (function(){
-var __vueify_style__ = require("vueify-insert-css").insert(".content.settings {\n  padding: 20px;\n  position: relative; }\n")
-"use strict";
+var __vueify_style__ = require("vueify-insert-css").insert("#main-wrapper {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n")
+'use strict';
 
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
+
+var _settings = require('./header/settings.vue');
+
+var _settings2 = _interopRequireDefault(_settings);
+
+var _index = require('./settings/index.vue');
+
+var _index2 = _interopRequireDefault(_index);
+
+var _footer = require('./footer.vue');
+
+var _footer2 = _interopRequireDefault(_footer);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
 exports.default = {
-    components: {},
-    props: [],
-    data: function data() {
-        return {};
-    },
-    ready: function ready() {},
-
-    methods: {},
-    events: {}
-
+    components: { settingsHeader: _settings2.default, settingsContent: _index2.default, mainFooter: _footer2.default }
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div class=\"content settings\">\n        <router-view></router-view>\n    </div>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"main-wrapper\">\n        <settings-header></settings-header>\n        <settings-content></settings-content>\n        <main-footer></main-footer>\n    </div>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
-  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/settings.vue"
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/settings.vue"
   module.hot.dispose(function () {
-    require("vueify-insert-css").cache[".content.settings {\n  padding: 20px;\n  position: relative; }\n"] = false
+    require("vueify-insert-css").cache["#main-wrapper {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n"] = false
     document.head.removeChild(__vueify_style__)
   })
   if (!module.hot.data) {
@@ -37100,8 +37282,8 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],208:[function(require,module,exports){
-_hmr["websocket:null"].initModule("resources/assets/js/components/main/content/settings/advanced.vue", module);
+},{"./footer.vue":195,"./header/settings.vue":197,"./settings/index.vue":216,"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],212:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/components/settings/advanced.vue", module);
 (function(){
 "use strict";
 
@@ -37126,7 +37308,7 @@ if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
-  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/settings/advanced.vue"
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/settings/advanced.vue"
   if (!module.hot.data) {
     hotAPI.createRecord(id, module.exports)
   } else {
@@ -37135,8 +37317,8 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":187,"vue-hot-reload-api":164}],209:[function(require,module,exports){
-_hmr["websocket:null"].initModule("resources/assets/js/components/main/content/settings/date.vue", module);
+},{"vue":187,"vue-hot-reload-api":164}],213:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/components/settings/date.vue", module);
 (function(){
 "use strict";
 
@@ -37144,7 +37326,7 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 
-var _switch = require("../../../shared/switch.vue");
+var _switch = require("../shared/switch.vue");
 
 var _switch2 = _interopRequireDefault(_switch);
 
@@ -37176,7 +37358,7 @@ if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
-  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/settings/date.vue"
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/settings/date.vue"
   if (!module.hot.data) {
     hotAPI.createRecord(id, module.exports)
   } else {
@@ -37185,8 +37367,8 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../../shared/switch.vue":230,"vue":187,"vue-hot-reload-api":164}],210:[function(require,module,exports){
-_hmr["websocket:null"].initModule("resources/assets/js/components/main/content/settings/email.vue", module);
+},{"../shared/switch.vue":229,"vue":187,"vue-hot-reload-api":164}],214:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/components/settings/email.vue", module);
 (function(){
 "use strict";
 
@@ -37211,7 +37393,7 @@ if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
-  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/settings/email.vue"
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/settings/email.vue"
   if (!module.hot.data) {
     hotAPI.createRecord(id, module.exports)
   } else {
@@ -37220,8 +37402,8 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":187,"vue-hot-reload-api":164}],211:[function(require,module,exports){
-_hmr["websocket:null"].initModule("resources/assets/js/components/main/content/settings/general.vue", module);
+},{"vue":187,"vue-hot-reload-api":164}],215:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/components/settings/general.vue", module);
 (function(){
 "use strict";
 
@@ -37229,7 +37411,7 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 
-var _switch = require("../../../shared/switch.vue");
+var _switch = require("../shared/switch.vue");
 
 var _switch2 = _interopRequireDefault(_switch);
 
@@ -37269,7 +37451,7 @@ if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
-  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/settings/general.vue"
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/settings/general.vue"
   if (!module.hot.data) {
     hotAPI.createRecord(id, module.exports)
   } else {
@@ -37278,8 +37460,48 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../../shared/switch.vue":230,"vue":187,"vue-hot-reload-api":164,"vue-strap/src/Option.vue":185,"vue-strap/src/Select.vue":186}],212:[function(require,module,exports){
-_hmr["websocket:null"].initModule("resources/assets/js/components/main/content/settings/logs.vue", module);
+},{"../shared/switch.vue":229,"vue":187,"vue-hot-reload-api":164,"vue-strap/src/Option.vue":185,"vue-strap/src/Select.vue":186}],216:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/components/settings/index.vue", module);
+(function(){
+var __vueify_style__ = require("vueify-insert-css").insert(".content.settings {\n  padding: 20px;\n  position: relative; }\n")
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+exports.default = {
+    components: {},
+    props: [],
+    data: function data() {
+        return {};
+    },
+    ready: function ready() {},
+
+    methods: {},
+    events: {}
+
+};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div class=\"content settings\">\n        <router-view></router-view>\n    </div>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/settings/index.vue"
+  module.hot.dispose(function () {
+    require("vueify-insert-css").cache[".content.settings {\n  padding: 20px;\n  position: relative; }\n"] = false
+    document.head.removeChild(__vueify_style__)
+  })
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+}).apply(this, arguments);
+
+},{"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],217:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/components/settings/logs.vue", module);
 (function(){
 "use strict";
 
@@ -37304,7 +37526,7 @@ if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
-  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/settings/logs.vue"
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/settings/logs.vue"
   if (!module.hot.data) {
     hotAPI.createRecord(id, module.exports)
   } else {
@@ -37313,8 +37535,8 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":187,"vue-hot-reload-api":164}],213:[function(require,module,exports){
-_hmr["websocket:null"].initModule("resources/assets/js/components/main/content/settings/network.vue", module);
+},{"vue":187,"vue-hot-reload-api":164}],218:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/components/settings/network.vue", module);
 (function(){
 'use strict';
 
@@ -37322,11 +37544,11 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 
-var _tabset = require('../../../shared/tabset.vue');
+var _tabset = require('../shared/tabset.vue');
 
 var _tabset2 = _interopRequireDefault(_tabset);
 
-var _tab = require('../../../shared/tab.vue');
+var _tab = require('../shared/tab.vue');
 
 var _tab2 = _interopRequireDefault(_tab);
 
@@ -37350,7 +37572,7 @@ if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
-  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/settings/network.vue"
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/settings/network.vue"
   if (!module.hot.data) {
     hotAPI.createRecord(id, module.exports)
   } else {
@@ -37359,264 +37581,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../../shared/tab.vue":231,"../../../shared/tabset.vue":232,"vue":187,"vue-hot-reload-api":164}],214:[function(require,module,exports){
-_hmr["websocket:null"].initModule("resources/assets/js/components/main/content/testing.vue", module);
-(function(){
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-exports.default = {
-    components: {},
-    props: [],
-    data: function data() {
-        return {};
-    },
-    ready: function ready() {},
-
-    methods: {},
-    events: {}
-
-};
-if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div>\n        <h2>Testing</h2>\n    </div>\n"
-if (module.hot) {(function () {  module.hot.accept()
-  var hotAPI = require("vue-hot-reload-api")
-  hotAPI.install(require("vue"), true)
-  if (!hotAPI.compatible) return
-  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/content/testing.vue"
-  if (!module.hot.data) {
-    hotAPI.createRecord(id, module.exports)
-  } else {
-    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
-  }
-})()}
-}).apply(this, arguments);
-
-},{"vue":187,"vue-hot-reload-api":164}],215:[function(require,module,exports){
-_hmr["websocket:null"].initModule("resources/assets/js/components/main/footer/index.vue", module);
-(function(){
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-exports.default = {
-    components: {},
-    props: [],
-    data: function data() {
-        return {};
-    },
-    ready: function ready() {},
-
-    methods: {},
-    events: {}
-
-};
-if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div>\n    </div>\n"
-if (module.hot) {(function () {  module.hot.accept()
-  var hotAPI = require("vue-hot-reload-api")
-  hotAPI.install(require("vue"), true)
-  if (!hotAPI.compatible) return
-  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/footer/index.vue"
-  if (!module.hot.data) {
-    hotAPI.createRecord(id, module.exports)
-  } else {
-    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
-  }
-})()}
-}).apply(this, arguments);
-
-},{"vue":187,"vue-hot-reload-api":164}],216:[function(require,module,exports){
-_hmr["websocket:null"].initModule("resources/assets/js/components/main/header/index.vue", module);
-(function(){
-var __vueify_style__ = require("vueify-insert-css").insert("\n.navbar.header-menu {\n    padding: 10px 0 0;\n}\n")
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-
-var _controlButtons = require("../../shared/control-buttons.vue");
-
-var _controlButtons2 = _interopRequireDefault(_controlButtons);
-
-var _headerMenu = require("../../shared/header-menu.vue");
-
-var _headerMenu2 = _interopRequireDefault(_headerMenu);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-exports.default = {
-    components: { controlButtons: _controlButtons2.default, headerMenu: _headerMenu2.default },
-    props: ['hasHeaderMenu'],
-    data: function data() {
-        return {};
-    },
-    ready: function ready() {},
-
-    methods: {},
-    events: {}
-
-};
-if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div class=\"header\" :class=\"{ 'settings-header' : $route.headerMenu  }\">\n        <div class=\"page-meta\">\n            <h1 class=\"page-title\">{{ $route.headerName ? $route.headerName : $route.name | capitalize }}</h1>\n        </div>\n        <control-buttons></control-buttons>\n        <nav v-if=\"$route.headerMenu\" class=\"navbar header-menu\">\n            <button class=\"navbar-toggler hidden-sm-up\" type=\"button\" data-toggle=\"collapse\" data-target=\"#header-navbar\">☰ {{$route.menuName}} Menu</button>\n            <div class=\"collapse navbar-toggleable-xs\" id=\"header-navbar\">\n                <header-menu v-if=\"$route.headerMenu\" :items=\"$route.menu\"></header-menu>\n            </div>\n        </nav>\n    </div>\n"
-if (module.hot) {(function () {  module.hot.accept()
-  var hotAPI = require("vue-hot-reload-api")
-  hotAPI.install(require("vue"), true)
-  if (!hotAPI.compatible) return
-  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/header/index.vue"
-  module.hot.dispose(function () {
-    require("vueify-insert-css").cache["\n.navbar.header-menu {\n    padding: 10px 0 0;\n}\n"] = false
-    document.head.removeChild(__vueify_style__)
-  })
-  if (!module.hot.data) {
-    hotAPI.createRecord(id, module.exports)
-  } else {
-    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
-  }
-})()}
-}).apply(this, arguments);
-
-},{"../../shared/control-buttons.vue":223,"../../shared/header-menu.vue":227,"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],217:[function(require,module,exports){
-_hmr["websocket:null"].initModule("resources/assets/js/components/main/header/settings.vue", module);
-(function(){
-var __vueify_style__ = require("vueify-insert-css").insert(".settings-header {\n  -webkit-flex-flow: wrap;\n      -ms-flex-flow: wrap;\n          flex-flow: wrap;\n  padding: 20px 20px 0;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n  .settings-header .settings-menu {\n    width: 100%;\n    padding: 10px 0 0; }\n    .settings-header .settings-menu a {\n      display: block;\n      text-transform: uppercase;\n      letter-spacing: 0.1em;\n      font-size: 11px;\n      border-bottom: 3px solid transparent;\n      padding: 3px 5px;\n      margin-bottom: -1px; }\n      .settings-header .settings-menu a.active {\n        font-weight: 600;\n        border-color: #F04124; }\n  @media (min-width: 668px) {\n    .settings-header {\n      -webkit-flex-direction: row;\n          -ms-flex-direction: row;\n              flex-direction: row; } }\n")
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-
-var _controlButtons = require("../../shared/control-buttons.vue");
-
-var _controlButtons2 = _interopRequireDefault(_controlButtons);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-exports.default = {
-    components: { controlButtons: _controlButtons2.default },
-    props: [],
-    data: function data() {
-        return {};
-    },
-    ready: function ready() {},
-
-    methods: {},
-    events: {}
-
-};
-if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div class=\"header settings-header\">\n        <div class=\"page-meta\">\n            <h1 class=\"page-title\">{{ $route.name | capitalize }}</h1>\n        </div>\n        <control-buttons></control-buttons>\n        <nav class=\"navbar settings-menu\">\n            <button class=\"navbar-toggler hidden-sm-up\" type=\"button\" data-toggle=\"collapse\" data-target=\"#header-navbar\">☰ Settings Menu</button>\n            <div class=\"collapse navbar-toggleable-xs\" id=\"header-navbar\">\n                <ul class=\"nav navbar-nav\">\n                    <li class=\"nav-item\"><a v-link=\"{path: '/settings', exact: true, activeClass: 'active'}\">General</a></li>\n                    <li class=\"nav-item\"><a v-link=\"{path: '/settings/date', activeClass: 'active'}\">Date &amp; Time</a></li>\n                    <li class=\"nav-item\"><a v-link=\"{path: '/settings/email', activeClass: 'active'}\">Email</a></li>\n                    <li class=\"nav-item\"><a v-link=\"{path: '/settings/network', activeClass: 'active'}\">Network</a></li>\n                    <li class=\"nav-item\"><a v-link=\"{path: '/settings/logs', activeClass: 'active'}\">Logs</a></li>\n                    <li class=\"nav-item\"><a v-link=\"{path: '/settings/advanced', activeClass: 'active'}\">Advanced</a></li>\n                </ul>\n            </div>\n    </nav></div>\n"
-if (module.hot) {(function () {  module.hot.accept()
-  var hotAPI = require("vue-hot-reload-api")
-  hotAPI.install(require("vue"), true)
-  if (!hotAPI.compatible) return
-  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/header/settings.vue"
-  module.hot.dispose(function () {
-    require("vueify-insert-css").cache[".settings-header {\n  -webkit-flex-flow: wrap;\n      -ms-flex-flow: wrap;\n          flex-flow: wrap;\n  padding: 20px 20px 0;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n  .settings-header .settings-menu {\n    width: 100%;\n    padding: 10px 0 0; }\n    .settings-header .settings-menu a {\n      display: block;\n      text-transform: uppercase;\n      letter-spacing: 0.1em;\n      font-size: 11px;\n      border-bottom: 3px solid transparent;\n      padding: 3px 5px;\n      margin-bottom: -1px; }\n      .settings-header .settings-menu a.active {\n        font-weight: 600;\n        border-color: #F04124; }\n  @media (min-width: 668px) {\n    .settings-header {\n      -webkit-flex-direction: row;\n          -ms-flex-direction: row;\n              flex-direction: row; } }\n"] = false
-    document.head.removeChild(__vueify_style__)
-  })
-  if (!module.hot.data) {
-    hotAPI.createRecord(id, module.exports)
-  } else {
-    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
-  }
-})()}
-}).apply(this, arguments);
-
-},{"../../shared/control-buttons.vue":223,"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],218:[function(require,module,exports){
-_hmr["websocket:null"].initModule("resources/assets/js/components/main/index.vue", module);
-(function(){
-var __vueify_style__ = require("vueify-insert-css").insert("#main-wrapper {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n")
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-
-var _index = require("./header/index.vue");
-
-var _index2 = _interopRequireDefault(_index);
-
-var _index3 = require("./footer/index.vue");
-
-var _index4 = _interopRequireDefault(_index3);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-exports.default = {
-    components: { mainHeader: _index2.default, mainFooter: _index4.default }
-};
-// import mainContent from './content/index.vue';
-if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"main-wrapper\">\n        <main-header></main-header>\n        <div class=\"content\">\n            <router-view></router-view>\n        </div>\n        <main-footer></main-footer>\n    </div>\n"
-if (module.hot) {(function () {  module.hot.accept()
-  var hotAPI = require("vue-hot-reload-api")
-  hotAPI.install(require("vue"), true)
-  if (!hotAPI.compatible) return
-  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/index.vue"
-  module.hot.dispose(function () {
-    require("vueify-insert-css").cache["#main-wrapper {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n"] = false
-    document.head.removeChild(__vueify_style__)
-  })
-  if (!module.hot.data) {
-    hotAPI.createRecord(id, module.exports)
-  } else {
-    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
-  }
-})()}
-}).apply(this, arguments);
-
-},{"./footer/index.vue":215,"./header/index.vue":216,"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],219:[function(require,module,exports){
-_hmr["websocket:null"].initModule("resources/assets/js/components/main/settings.vue", module);
-(function(){
-var __vueify_style__ = require("vueify-insert-css").insert("#main-wrapper {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n")
-'use strict';
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-
-var _settings = require('./header/settings.vue');
-
-var _settings2 = _interopRequireDefault(_settings);
-
-var _settings3 = require('./content/settings.vue');
-
-var _settings4 = _interopRequireDefault(_settings3);
-
-var _index = require('./footer/index.vue');
-
-var _index2 = _interopRequireDefault(_index);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-exports.default = {
-    components: { settingsHeader: _settings2.default, settingsContent: _settings4.default, mainFooter: _index2.default }
-};
-if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"main-wrapper\">\n        <settings-header></settings-header>\n        <settings-content></settings-content>\n        <main-footer></main-footer>\n    </div>\n"
-if (module.hot) {(function () {  module.hot.accept()
-  var hotAPI = require("vue-hot-reload-api")
-  hotAPI.install(require("vue"), true)
-  if (!hotAPI.compatible) return
-  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/main/settings.vue"
-  module.hot.dispose(function () {
-    require("vueify-insert-css").cache["#main-wrapper {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n"] = false
-    document.head.removeChild(__vueify_style__)
-  })
-  if (!module.hot.data) {
-    hotAPI.createRecord(id, module.exports)
-  } else {
-    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
-  }
-})()}
-}).apply(this, arguments);
-
-},{"./content/settings.vue":207,"./footer/index.vue":215,"./header/settings.vue":217,"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],220:[function(require,module,exports){
+},{"../shared/tab.vue":230,"../shared/tabset.vue":231,"vue":187,"vue-hot-reload-api":164}],219:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/Tab.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("\n  .tab-content > .tab-pane[_v-3eaa1a77] {\n    display: block;\n  }\n")
@@ -37684,7 +37649,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],221:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],220:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/Tabset.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("\n  .nav-tabs[_v-7a0405bb] {\n    margin-bottom: 15px\n  }\n")
@@ -37736,7 +37701,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],222:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],221:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/checkbox.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".c-checkbox .c-indicator {\n  border-radius: .25rem; }\n\n.c-checkbox input:checked ~ .c-indicator {\n  background-image: url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhLS0gR2VuZXJhdG9yOiBBZG9iZSBJbGx1c3RyYXRvciAxNy4xLjAsIFNWRyBFeHBvcnQgUGx1Zy1JbiAuIFNWRyBWZXJzaW9uOiA2LjAwIEJ1aWxkIDApICAtLT4NCjwhRE9DVFlQRSBzdmcgUFVCTElDICItLy9XM0MvL0RURCBTVkcgMS4xLy9FTiIgImh0dHA6Ly93d3cudzMub3JnL0dyYXBoaWNzL1NWRy8xLjEvRFREL3N2ZzExLmR0ZCI+DQo8c3ZnIHZlcnNpb249IjEuMSIgaWQ9IkxheWVyXzEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4Ig0KCSB2aWV3Qm94PSIwIDAgOCA4IiBlbmFibGUtYmFja2dyb3VuZD0ibmV3IDAgMCA4IDgiIHhtbDpzcGFjZT0icHJlc2VydmUiPg0KPHBhdGggZmlsbD0iI0ZGRkZGRiIgZD0iTTYuNCwxTDUuNywxLjdMMi45LDQuNUwyLjEsMy43TDEuNCwzTDAsNC40bDAuNywwLjdsMS41LDEuNWwwLjcsMC43bDAuNy0wLjdsMy41LTMuNWwwLjctMC43TDYuNCwxTDYuNCwxeiINCgkvPg0KPC9zdmc+DQo=); }\n\n.c-checkbox input:indeterminate ~ .c-indicator {\n  background-color: #0074d9;\n  background-image: url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhLS0gR2VuZXJhdG9yOiBBZG9iZSBJbGx1c3RyYXRvciAxNy4xLjAsIFNWRyBFeHBvcnQgUGx1Zy1JbiAuIFNWRyBWZXJzaW9uOiA2LjAwIEJ1aWxkIDApICAtLT4NCjwhRE9DVFlQRSBzdmcgUFVCTElDICItLy9XM0MvL0RURCBTVkcgMS4xLy9FTiIgImh0dHA6Ly93d3cudzMub3JnL0dyYXBoaWNzL1NWRy8xLjEvRFREL3N2ZzExLmR0ZCI+DQo8c3ZnIHZlcnNpb249IjEuMSIgaWQ9IkxheWVyXzEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4Ig0KCSB3aWR0aD0iOHB4IiBoZWlnaHQ9IjhweCIgdmlld0JveD0iMCAwIDggOCIgZW5hYmxlLWJhY2tncm91bmQ9Im5ldyAwIDAgOCA4IiB4bWw6c3BhY2U9InByZXNlcnZlIj4NCjxwYXRoIGZpbGw9IiNGRkZGRkYiIGQ9Ik0wLDN2Mmg4VjNIMHoiLz4NCjwvc3ZnPg0K);\n  box-shadow: none; }\n")
@@ -37841,7 +37806,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],223:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],222:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/control-buttons.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".control-buttons {\n  margin-bottom: 1rem; }\n  .control-buttons .button {\n    border-radius: 2px;\n    transition: background 0.35s, box-shadow 0.15s;\n    border: 1px solid #c4c4c4;\n    color: #666;\n    background: linear-gradient(to bottom, #f8f8f8, #eaeaea 100%);\n    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }\n    .control-buttons .button:active {\n      box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125); }\n  @media (min-width: 668px) {\n    .control-buttons {\n      margin: 0; } }\n")
@@ -37878,7 +37843,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],224:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],223:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/dropdown-select.vue", module);
 (function(){
 'use strict';
@@ -38027,7 +37992,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":187,"vue-hot-reload-api":164}],225:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164}],224:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/falcon-loading.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("@-webkit-keyframes grow {\n  0% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  33% {\n    opacity: 1;\n    -webkit-transform: scale(1);\n            transform: scale(1); }\n  66% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  100% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); } }\n\n@keyframes grow {\n  0% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  33% {\n    opacity: 1;\n    -webkit-transform: scale(1);\n            transform: scale(1); }\n  66% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  100% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); } }\n\n#load {\n  position: relative;\n  display: inline-block;\n  text-align: center; }\n  #load .letter {\n    display: inline-block;\n    margin: 0 2px;\n    color: white;\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9);\n    -webkit-animation: grow 2.5s ease-in infinite;\n            animation: grow 2.5s ease-in infinite; }\n  #load .letter:nth-child(1) {\n    -webkit-animation-delay: .1s;\n            animation-delay: .1s; }\n  #load .letter:nth-child(2) {\n    -webkit-animation-delay: .15s;\n            animation-delay: .15s; }\n  #load .letter:nth-child(3) {\n    -webkit-animation-delay: .2s;\n            animation-delay: .2s; }\n  #load .letter:nth-child(4) {\n    -webkit-animation-delay: .25s;\n            animation-delay: .25s; }\n  #load .letter:nth-child(5) {\n    -webkit-animation-delay: .3s;\n            animation-delay: .3s; }\n  #load .letter:nth-child(6) {\n    -webkit-animation-delay: .35s;\n            animation-delay: .35s; }\n  #load .letter:nth-child(7) {\n    margin-left: 8px;\n    -webkit-animation-delay: .4s;\n            animation-delay: .4s; }\n  #load .letter:nth-child(8) {\n    -webkit-animation-delay: .45s;\n            animation-delay: .45s; }\n  #load .letter:nth-child(9) {\n    -webkit-animation-delay: .5s;\n            animation-delay: .5s; }\n  #load .letter:nth-child(10) {\n    -webkit-animation-delay: .55s;\n            animation-delay: .55s; }\n  #load .letter:nth-child(11) {\n    -webkit-animation-delay: .6s;\n            animation-delay: .6s; }\n  #load .letter:nth-child(12) {\n    -webkit-animation-delay: .65s;\n            animation-delay: .65s; }\n")
@@ -38056,7 +38021,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],226:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],225:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/filelist.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".file-list .table th {\n  border-top: 0; }\n")
@@ -38096,7 +38061,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],227:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],226:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/header-menu.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".header-menu {\n  width: 100%;\n  padding-top: 10px; }\n  .header-menu a {\n    display: block;\n    text-transform: uppercase;\n    letter-spacing: 0.1em;\n    font-size: 11px;\n    border-bottom: 3px solid transparent;\n    padding: 3px 5px;\n    margin-bottom: -1px; }\n    .header-menu a.active {\n      font-weight: 600;\n      border-color: #F04124; }\n")
@@ -38135,7 +38100,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],228:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],227:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/input.vue", module);
 (function(){
 'use strict';
@@ -38225,7 +38190,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../utils.js":241,"vue":187,"vue-hot-reload-api":164}],229:[function(require,module,exports){
+},{"../../utils.js":241,"vue":187,"vue-hot-reload-api":164}],228:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/overlay.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("#overlay {\n  position: fixed;\n  top: 0;\n  left: 0;\n  z-index: 9999;\n  width: 100%;\n  height: 100%;\n  background-color: #363C47;\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-align-items: center;\n      -ms-flex-align: center;\n          align-items: center;\n  -webkit-justify-content: center;\n      -ms-flex-pack: center;\n          justify-content: center;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n  #overlay .logo {\n    width: 220px;\n    height: 108px;\n    margin-bottom: 15px;\n    position: relative;\n    left: -25px; }\n")
@@ -38263,7 +38228,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"./falcon-loading.vue":225,"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],230:[function(require,module,exports){
+},{"./falcon-loading.vue":224,"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],229:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/switch.vue", module);
 (function(){
 'use strict';
@@ -38307,7 +38272,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":187,"vue-hot-reload-api":164}],231:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164}],230:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/tab.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("\n  .tab-content > .tab-pane[_v-491cfad2] {\n    display: block;\n  }\n")
@@ -38375,7 +38340,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],232:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],231:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/tabset.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("\n  .nav-tabs[_v-0332299b] {\n    margin-bottom: 15px\n  }\n")
@@ -38427,8 +38392,8 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],233:[function(require,module,exports){
-_hmr["websocket:null"].initModule("resources/assets/js/components/sidebar/index.vue", module);
+},{"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],232:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/components/sidebar.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".sidebar {\n  width: 155px;\n  position: fixed;\n  height: 100%;\n  background: #363C47;\n  z-index: 10;\n  padding: 20px;\n  transition: all 0.25s;\n  left: -155px; }\n  @media (min-width: 769px) {\n    .sidebar {\n      left: 0;\n      width: 155px; } }\n  @media (min-width: 1281px) {\n    .sidebar {\n      width: 200px; } }\n  .sidebar .logo {\n    margin: 0 0 40px; }\n    .sidebar .logo img {\n      width: 100%;\n      height: auto; }\n  .sidebar h4 {\n    text-transform: uppercase;\n    color: #999;\n    font-size: 10px;\n    font-weight: 600;\n    letter-spacing: 1px;\n    margin: 20px 0 5px; }\n  .sidebar li {\n    padding: 3px 0; }\n  .sidebar a {\n    color: #eaeaea;\n    font-weight: 300;\n    font-size: 14px;\n    transition: all 0.25s; }\n    .sidebar a:hover {\n      color: #fff; }\n    .sidebar a.active {\n      color: #fff;\n      font-weight: 500; }\n")
 "use strict";
@@ -38454,7 +38419,7 @@ if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
-  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/sidebar/index.vue"
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/sidebar.vue"
   module.hot.dispose(function () {
     require("vueify-insert-css").cache[".sidebar {\n  width: 155px;\n  position: fixed;\n  height: 100%;\n  background: #363C47;\n  z-index: 10;\n  padding: 20px;\n  transition: all 0.25s;\n  left: -155px; }\n  @media (min-width: 769px) {\n    .sidebar {\n      left: 0;\n      width: 155px; } }\n  @media (min-width: 1281px) {\n    .sidebar {\n      width: 200px; } }\n  .sidebar .logo {\n    margin: 0 0 40px; }\n    .sidebar .logo img {\n      width: 100%;\n      height: auto; }\n  .sidebar h4 {\n    text-transform: uppercase;\n    color: #999;\n    font-size: 10px;\n    font-weight: 600;\n    letter-spacing: 1px;\n    margin: 20px 0 5px; }\n  .sidebar li {\n    padding: 3px 0; }\n  .sidebar a {\n    color: #eaeaea;\n    font-weight: 300;\n    font-size: 14px;\n    transition: all 0.25s; }\n    .sidebar a:hover {\n      color: #fff; }\n    .sidebar a.active {\n      color: #fff;\n      font-weight: 500; }\n"] = false
     document.head.removeChild(__vueify_style__)
@@ -38467,7 +38432,42 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],234:[function(require,module,exports){
+},{"vue":187,"vue-hot-reload-api":164,"vueify-insert-css":188}],233:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/components/testing.vue", module);
+(function(){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+exports.default = {
+    components: {},
+    props: [],
+    data: function data() {
+        return {};
+    },
+    ready: function ready() {},
+
+    methods: {},
+    events: {}
+
+};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div>\n        <h2>Testing</h2>\n    </div>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/testing.vue"
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+}).apply(this, arguments);
+
+},{"vue":187,"vue-hot-reload-api":164}],234:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/directives/ip.js", module);
 (function(){
 "use strict";
@@ -38532,35 +38532,35 @@ var router = new VueRouter({
 });
 
 var App = require('./app.vue');
-var MainContent = require('./components/main/index.vue');
+var MainContent = require('./components/index.vue');
 
-var Dashboard = require('./components/main/content/dashboard.vue');
-var Outputs = require('./components/main/content/outputs.vue');
-var Overlays = require('./components/main/content/overlays.vue');
-var Playlists = require('./components/main/content/playlists.vue');
-var Schedule = require('./components/main/content/schedule.vue');
-var Files = require('./components/main/content/files.vue');
-var Plugins = require('./components/main/content/plugins.vue');
-var Events = require('./components/main/content/events.vue');
-var Effects = require('./components/main/content/effects.vue');
-var Testing = require('./components/main/content/testing.vue');
+var Dashboard = require('./components/dashboard.vue');
+var Outputs = require('./components/outputs/index.vue');
+var Overlays = require('./components/overlays.vue');
+var Playlists = require('./components/playlists.vue');
+var Schedule = require('./components/schedule.vue');
+var Files = require('./components/files.vue');
+var Plugins = require('./components/plugins.vue');
+var Events = require('./components/events.vue');
+var Effects = require('./components/effects.vue');
+var Testing = require('./components/testing.vue');
 
-var E131Output = require('./components/main/content/outputs/e131.vue');
-var DMXOutput = require('./components/main/content/outputs/dmx.vue');
-var PanelOutput = require('./components/main/content/outputs/panels.vue');
-var OtherOutput = require('./components/main/content/outputs/other.vue');
+var E131Output = require('./components/outputs/e131.vue');
+var DMXOutput = require('./components/outputs/dmx.vue');
+var PanelOutput = require('./components/outputs/panels.vue');
+var OtherOutput = require('./components/outputs/other.vue');
 
-var SettingsContent = require('./components/main/settings.vue');
-var GeneralSettings = require('./components/main/content/settings/general.vue');
-var DateSettings = require('./components/main/content/settings/date.vue');
-var EmailSettings = require('./components/main/content/settings/email.vue');
-var NetworkSettings = require('./components/main/content/settings/network.vue');
-var LogSettings = require('./components/main/content/settings/logs.vue');
-var AdvancedSettings = require('./components/main/content/settings/advanced.vue');
+var SettingsContent = require('./components/settings.vue');
+var GeneralSettings = require('./components/settings/general.vue');
+var DateSettings = require('./components/settings/date.vue');
+var EmailSettings = require('./components/settings/email.vue');
+var NetworkSettings = require('./components/settings/network.vue');
+var LogSettings = require('./components/settings/logs.vue');
+var AdvancedSettings = require('./components/settings/advanced.vue');
 
 router.map({
     '*': {
-        component: require('./components/main/content/not-found.vue')
+        component: require('./components/not-found.vue')
     },
     '/': {
         name: 'dashboard',
@@ -38662,7 +38662,7 @@ router.start(App, 'body');
 
 }).apply(this, arguments);
 
-},{"./app.vue":190,"./components/main/content/dashboard.vue":191,"./components/main/content/effects.vue":192,"./components/main/content/events.vue":193,"./components/main/content/files.vue":194,"./components/main/content/not-found.vue":195,"./components/main/content/outputs.vue":196,"./components/main/content/outputs/dmx.vue":197,"./components/main/content/outputs/e131.vue":198,"./components/main/content/outputs/other.vue":199,"./components/main/content/outputs/panels.vue":200,"./components/main/content/overlays.vue":203,"./components/main/content/playlists.vue":204,"./components/main/content/plugins.vue":205,"./components/main/content/schedule.vue":206,"./components/main/content/settings/advanced.vue":208,"./components/main/content/settings/date.vue":209,"./components/main/content/settings/email.vue":210,"./components/main/content/settings/general.vue":211,"./components/main/content/settings/logs.vue":212,"./components/main/content/settings/network.vue":213,"./components/main/content/testing.vue":214,"./components/main/index.vue":218,"./components/main/settings.vue":219,"jquery":75,"vue":187,"vue-animated-list":163,"vue-resource":169,"vue-router":184}],236:[function(require,module,exports){
+},{"./app.vue":190,"./components/dashboard.vue":191,"./components/effects.vue":192,"./components/events.vue":193,"./components/files.vue":194,"./components/index.vue":198,"./components/not-found.vue":199,"./components/outputs/dmx.vue":200,"./components/outputs/e131.vue":201,"./components/outputs/index.vue":202,"./components/outputs/other.vue":203,"./components/outputs/panels.vue":204,"./components/overlays.vue":207,"./components/playlists.vue":208,"./components/plugins.vue":209,"./components/schedule.vue":210,"./components/settings.vue":211,"./components/settings/advanced.vue":212,"./components/settings/date.vue":213,"./components/settings/email.vue":214,"./components/settings/general.vue":215,"./components/settings/logs.vue":217,"./components/settings/network.vue":218,"./components/testing.vue":233,"jquery":75,"vue":187,"vue-animated-list":163,"vue-resource":169,"vue-router":184}],236:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/mixins/outputMixin.js", module);
 (function(){
 'use strict';
@@ -38910,7 +38910,7 @@ function makeid() {
 (function(global, _main, moduleDefs, cachedModules, _entries) {
   'use strict';
 
-  var moduleMeta = {"node_modules/browserify-hmr/lib/has.js":{"index":9,"hash":"Hky4QYVrU1+kFHIEuxPy","parents":["node_modules/browserify-hmr/lib/str-set.js","node_modules/browserify-hmr/inc/index.js"]},"node_modules/browserify-hmr/lib/str-set.js":{"index":10,"hash":"lcrDmQK4uaqOqN+FV4/9","parents":["node_modules/browserify-hmr/inc/index.js"]},"resources/assets/js/stores/playlist.js":{"index":238,"hash":"k5Rph+tSzK7SzVYZrxbP","parents":["resources/assets/js/app.vue"]},"resources/assets/js/mixins/outputMixin.js":{"index":236,"hash":"gGCtCK8OXqFlnKkxkWU0","parents":["resources/assets/js/components/main/content/outputs/dmx.vue","resources/assets/js/components/main/content/outputs/e131.vue"]},"node_modules/socket.io-client/node_modules/debug/debug.js":{"index":156,"hash":"OtjmSmEbIU/8orJwFhDT","parents":["node_modules/socket.io-client/lib/url.js","node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/socket.io-client/lib/on.js":{"index":153,"hash":"y5MOoFpTKKBHwE8q8jae","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/vue-animated-list/vue-animated-list.js":{"index":163,"hash":"26lVl2CH82yXZ2XSjVFm","parents":["resources/assets/js/main.js"]},"node_modules/vue-router/dist/vue-router.common.js":{"index":184,"hash":"V5DMsGGLcOqPAhx31psf","parents":["resources/assets/js/main.js"]},"node_modules/jquery/dist/jquery.js":{"index":75,"hash":"siFczlgw4jULnUICcdm9","parents":["resources/assets/js/app.vue","node_modules/jquery.inputmask/dist/inputmask/inputmask.dependencyLib.jquery.js","node_modules/jquery.inputmask/dist/inputmask/jquery.inputmask.js","resources/assets/js/directives/ip.js","resources/assets/js/main.js"]},"resources/assets/js/stores/setting.js":{"index":239,"hash":"coKfnj2hZTIg8YRT4JSn","parents":["resources/assets/js/app.vue"]},"resources/assets/js/services/http.js":{"index":237,"hash":"OqU5t4zvkjeUSpQJFLPI","parents":["resources/assets/js/stores/setting.js","resources/assets/js/stores/shared.js"]},"resources/assets/js/stores/shared.js":{"index":240,"hash":"dBZ6EHn2t9/PLCXa/Sej","parents":["resources/assets/js/stores/setting.js","resources/assets/js/app.vue"]},"resources/assets/js/utils.js":{"index":241,"hash":"YUBgAVFOtL2AfLdROM4O","parents":["resources/assets/js/components/shared/input.vue"]},"node_modules/vue-resource/src/resource.js":{"index":182,"hash":"4hFj5axF31CeVRePeF8o","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-hot-reload-api/index.js":{"index":164,"hash":"WuwmPSnCiynHpb+AfQBY","parents":["resources/assets/js/components/main/content/dashboard.vue","resources/assets/js/components/main/content/outputs.vue","resources/assets/js/components/main/content/overlays.vue","resources/assets/js/components/main/content/playlists.vue","resources/assets/js/components/main/content/schedule.vue","resources/assets/js/components/main/content/events.vue","resources/assets/js/components/main/content/plugins.vue","resources/assets/js/components/main/content/effects.vue","resources/assets/js/components/main/content/testing.vue","resources/assets/js/components/main/content/not-found.vue","resources/assets/js/components/sidebar/index.vue","resources/assets/js/components/main/content/outputs/panels.vue","resources/assets/js/components/main/content/outputs/other.vue","resources/assets/js/components/main/content/settings/date.vue","resources/assets/js/components/main/content/settings/email.vue","resources/assets/js/components/main/content/settings/logs.vue","resources/assets/js/components/main/content/settings/advanced.vue","resources/assets/js/components/shared/Tabset.vue","resources/assets/js/components/shared/Tab.vue","resources/assets/js/components/shared/switch.vue","resources/assets/js/components/shared/dropdown-select.vue","resources/assets/js/components/shared/filelist.vue","resources/assets/js/components/main/content/files.vue","resources/assets/js/components/shared/tabset.vue","resources/assets/js/components/shared/tab.vue","resources/assets/js/components/main/content/settings/network.vue","resources/assets/js/components/shared/checkbox.vue","resources/assets/js/components/shared/input.vue","resources/assets/js/components/main/footer/index.vue","resources/assets/js/components/main/header/settings.vue","resources/assets/js/components/main/content/settings.vue","resources/assets/js/components/main/settings.vue","resources/assets/js/components/shared/falcon-loading.vue","resources/assets/js/components/shared/overlay.vue","resources/assets/js/app.vue","resources/assets/js/components/shared/control-buttons.vue","resources/assets/js/components/main/content/outputs/universe.vue","resources/assets/js/components/main/content/outputs/pdmx.vue","resources/assets/js/components/main/content/outputs/dmx.vue","resources/assets/js/components/shared/header-menu.vue","resources/assets/js/components/main/header/index.vue","resources/assets/js/components/main/index.vue","resources/assets/js/components/main/content/outputs/e131.vue","node_modules/vue-strap/src/Option.vue","node_modules/vue-strap/src/Select.vue","resources/assets/js/components/main/content/settings/general.vue"]},"node_modules/vue-resource/src/lib/util.js":{"index":180,"hash":"kipx22owioSurHN4RBYT","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/socket.io-parser/is-buffer.js":{"index":159,"hash":"UJBXKAfBg/BkigSZbc3Z","parents":["node_modules/socket.io-parser/binary.js","node_modules/socket.io-parser/index.js"]},"node_modules/component-emitter/index.js":{"index":12,"hash":"0uL1LSa/mOj+Llu+HTZ7","parents":["node_modules/socket.io-parser/index.js","node_modules/socket.io-client/lib/socket.js","node_modules/engine.io-client/lib/transport.js","node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/parseuri/index.js":{"index":148,"hash":"PsPou9y5yKmPMPJnjEkz","parents":["node_modules/socket.io-client/lib/url.js"]},"node_modules/socket.io-client/lib/url.js":{"index":155,"hash":"/WgdaMtSTLlxFoTxZTGl","parents":["node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/component-bind/index.js":{"index":11,"hash":"4yIcVw+afwUsnTQyI0a3","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/object-component/index.js":{"index":145,"hash":"zOYybxl/D7KsteH/xJyk","parents":["node_modules/socket.io-client/lib/manager.js"]},"node_modules/indexof/index.js":{"index":70,"hash":"8zMGV0j0ID5bUIeT7r+M","parents":["node_modules/engine.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/backo2/index.js":{"index":5,"hash":"L5ry3mfVEw1wgmx9Sa+q","parents":["node_modules/socket.io-client/lib/manager.js"]},"node_modules/to-array/index.js":{"index":161,"hash":"2EoggafxX+GLXkXiaGjm","parents":["node_modules/socket.io-client/lib/socket.js"]},"node_modules/lodash/array/zipObject.js":{"index":78,"hash":"fKfSwIzPo5SUx9d0DkgN","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/lang/isArray.js":{"index":132,"hash":"rpMiE1Z199/XZCjno4KN","parents":["node_modules/lodash/array/zipObject.js","node_modules/lodash/internal/createForEach.js","node_modules/lodash/collection/map.js","node_modules/lodash/collection/filter.js","node_modules/lodash/internal/isKey.js","node_modules/lodash/internal/toPath.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js","node_modules/lodash/internal/baseIsEqualDeep.js","node_modules/lodash/internal/baseMatchesProperty.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/arraySome.js":{"index":87,"hash":"GxeJPxJj2jUg5TzV5gLv","parents":["node_modules/lodash/internal/equalArrays.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/arrayEach.js":{"index":84,"hash":"eLxUBVsb8vpFbu0VN4KL","parents":["node_modules/lodash/collection/forEach.js"]},"node_modules/lodash/internal/arrayMap.js":{"index":86,"hash":"xdr8c0JsUFapIHTuM5VE","parents":["node_modules/lodash/collection/map.js"]},"node_modules/lodash/internal/arrayFilter.js":{"index":85,"hash":"BGunz0w1QzJXyqQSOdZb","parents":["node_modules/lodash/collection/filter.js"]},"node_modules/socket.io-parser/node_modules/debug/debug.js":{"index":160,"hash":"OtjmSmEbIU/8orJwFhDT","parents":["node_modules/socket.io-parser/index.js"]},"node_modules/process/browser.js":{"index":149,"hash":"d/Dio43QDX3Xt7NYvbr6","parents":["node_modules/vue/dist/vue.common.js"]},"node_modules/vue/dist/vue.common.js":{"index":187,"hash":"2VyaBoUmGsVHuFohCYxK","parents":["resources/assets/js/components/main/content/dashboard.vue","resources/assets/js/components/main/content/outputs.vue","resources/assets/js/components/main/content/overlays.vue","resources/assets/js/components/main/content/playlists.vue","resources/assets/js/components/main/content/schedule.vue","resources/assets/js/components/main/content/events.vue","resources/assets/js/components/main/content/plugins.vue","resources/assets/js/components/main/content/effects.vue","resources/assets/js/components/main/content/testing.vue","resources/assets/js/components/main/content/not-found.vue","resources/assets/js/components/sidebar/index.vue","resources/assets/js/components/main/content/outputs/panels.vue","resources/assets/js/components/main/content/outputs/other.vue","resources/assets/js/components/main/content/settings/date.vue","resources/assets/js/components/main/content/settings/email.vue","resources/assets/js/components/main/content/settings/logs.vue","resources/assets/js/components/main/content/settings/advanced.vue","resources/assets/js/components/shared/Tabset.vue","resources/assets/js/components/shared/Tab.vue","resources/assets/js/components/shared/switch.vue","resources/assets/js/components/shared/dropdown-select.vue","resources/assets/js/components/shared/filelist.vue","resources/assets/js/components/main/content/files.vue","resources/assets/js/components/shared/tabset.vue","resources/assets/js/components/shared/tab.vue","resources/assets/js/components/main/content/settings/network.vue","resources/assets/js/components/shared/checkbox.vue","resources/assets/js/components/shared/input.vue","resources/assets/js/components/main/footer/index.vue","resources/assets/js/components/main/header/settings.vue","resources/assets/js/components/main/content/settings.vue","resources/assets/js/components/main/settings.vue","resources/assets/js/components/shared/falcon-loading.vue","resources/assets/js/components/shared/overlay.vue","resources/assets/js/app.vue","resources/assets/js/components/shared/control-buttons.vue","resources/assets/js/components/main/content/outputs/universe.vue","resources/assets/js/components/main/content/outputs/pdmx.vue","resources/assets/js/components/main/content/outputs/dmx.vue","resources/assets/js/components/shared/header-menu.vue","resources/assets/js/components/main/header/index.vue","resources/assets/js/components/main/index.vue","resources/assets/js/components/main/content/outputs/e131.vue","node_modules/vue-strap/src/Option.vue","node_modules/vue-strap/src/Select.vue","resources/assets/js/components/main/content/settings/general.vue","resources/assets/js/main.js"]},"node_modules/vue-resource/src/lib/url-template.js":{"index":179,"hash":"KZagPKERmevU89wFVgEg","parents":["node_modules/vue-resource/src/url.js"]},"node_modules/vue-resource/src/url.js":{"index":183,"hash":"enlma6RiuDUq+g3+RYdS","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-resource/src/interceptor/before.js":{"index":170,"hash":"dzJ5VyAAgzvYOWxyyGVm","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/timeout.js":{"index":177,"hash":"r+N56i06KukH+ME8Mpnr","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/method.js":{"index":175,"hash":"DqLo0TxFAJSH0HWGo7wR","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/mime.js":{"index":176,"hash":"f6heFdNiVYVl4GIRJ2gN","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/header.js":{"index":172,"hash":"Ql+DdTpkgQsJb9HXQumF","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/lib/promise.js":{"index":178,"hash":"uhJ1aPn5MePstu6k3zZV","parents":["node_modules/vue-resource/src/promise.js"]},"node_modules/vue-resource/src/promise.js":{"index":181,"hash":"dayC7UqEuK1y+yEa6/bE","parents":["node_modules/vue-resource/src/interceptor/index.js","node_modules/vue-resource/src/client/xhr.js","node_modules/vue-resource/src/client/jsonp.js","node_modules/vue-resource/src/http.js","node_modules/vue-resource/src/index.js"]},"node_modules/isarray/index.js":{"index":71,"hash":"dKtews1S4sHvaZhZ+ceq","parents":["node_modules/socket.io-parser/binary.js","node_modules/socket.io-parser/index.js","node_modules/has-binary/index.js"]},"node_modules/json3/lib/json3.js":{"index":76,"hash":"Z22TAqz9HSDSuQH535ZO","parents":["node_modules/socket.io-parser/index.js"]},"node_modules/lodash/internal/baseSome.js":{"index":106,"hash":"lCW5AtHn9X2vSuPgS8pk","parents":["node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/baseEach.js":{"index":92,"hash":"Ji7NLCJhdzSBlpDI+qC3","parents":["node_modules/lodash/internal/baseSome.js","node_modules/lodash/internal/baseMap.js","node_modules/lodash/internal/baseFilter.js","node_modules/lodash/collection/forEach.js"]},"node_modules/lodash/internal/createForEach.js":{"index":112,"hash":"iJtWBCzx+bzzSLwlaaRv","parents":["node_modules/lodash/collection/forEach.js"]},"node_modules/lodash/internal/bindCallback.js":{"index":108,"hash":"S6iy1I+53IEzDLSGuW0j","parents":["node_modules/lodash/internal/createForEach.js","node_modules/lodash/internal/createForOwn.js","node_modules/lodash/internal/createAssigner.js","node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/internal/baseMap.js":{"index":100,"hash":"ofv2jCE5QlahpynG4rkN","parents":["node_modules/lodash/collection/map.js"]},"node_modules/lodash/internal/isArrayLike.js":{"index":121,"hash":"76Awthz8ChTgjGk0JZ6Y","parents":["node_modules/lodash/internal/baseMap.js","node_modules/lodash/internal/isIterateeCall.js","node_modules/lodash/lang/isArguments.js","node_modules/lodash/object/keys.js"]},"node_modules/lodash/collection/map.js":{"index":81,"hash":"63n5x8GTiWPuxiZzm9TM","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/baseCallback.js":{"index":90,"hash":"FDEmxoh1cXY/hddgPNGW","parents":["node_modules/lodash/collection/map.js","node_modules/lodash/collection/filter.js","node_modules/lodash/internal/createObjectMapper.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/baseFilter.js":{"index":93,"hash":"yyvQag4hw8sItBFf3/9T","parents":["node_modules/lodash/collection/filter.js"]},"node_modules/lodash/collection/filter.js":{"index":79,"hash":"XtU5zjCqSDlYcwOLUC13","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/createObjectMapper.js":{"index":114,"hash":"cp8s+Z6khiKdK5QCQ+Ms","parents":["node_modules/lodash/object/mapValues.js"]},"node_modules/lodash/internal/baseForOwn.js":{"index":95,"hash":"sOLmHH2OosmeW92YaLK/","parents":["node_modules/lodash/internal/createObjectMapper.js","node_modules/lodash/internal/baseEach.js","node_modules/lodash/object/forOwn.js"]},"node_modules/lodash/object/mapValues.js":{"index":141,"hash":"2HfAmVuaVGfc8pd5zIaC","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/createForOwn.js":{"index":113,"hash":"KJqijjvJO7d1nU17Sz3c","parents":["node_modules/lodash/object/forOwn.js"]},"node_modules/lodash/internal/assignWith.js":{"index":88,"hash":"aKBKyfIKqZsNOHAbJTAI","parents":["node_modules/lodash/object/assign.js"]},"node_modules/lodash/object/keys.js":{"index":139,"hash":"BbXGNIcfatSp32uWOBAV","parents":["node_modules/lodash/internal/assignWith.js","node_modules/lodash/internal/baseAssign.js","node_modules/lodash/object/pairs.js","node_modules/lodash/internal/baseForOwn.js","node_modules/lodash/internal/equalObjects.js"]},"node_modules/vueify-insert-css/index.js":{"index":188,"hash":"fvTUijA6yyBpp68H+JX2","parents":["resources/assets/js/components/main/content/not-found.vue","resources/assets/js/components/sidebar/index.vue","resources/assets/js/components/shared/Tabset.vue","resources/assets/js/components/shared/Tab.vue","resources/assets/js/components/shared/filelist.vue","resources/assets/js/components/main/content/files.vue","resources/assets/js/components/shared/tabset.vue","resources/assets/js/components/shared/tab.vue","resources/assets/js/components/shared/checkbox.vue","resources/assets/js/components/main/header/settings.vue","resources/assets/js/components/main/content/settings.vue","resources/assets/js/components/main/settings.vue","resources/assets/js/components/shared/falcon-loading.vue","resources/assets/js/components/shared/overlay.vue","resources/assets/js/components/shared/control-buttons.vue","resources/assets/js/components/main/content/outputs/universe.vue","resources/assets/js/components/shared/header-menu.vue","resources/assets/js/components/main/header/index.vue","resources/assets/js/components/main/index.vue","resources/assets/js/components/main/content/outputs/e131.vue","node_modules/vue-strap/src/Option.vue","node_modules/vue-strap/src/Select.vue"]},"node_modules/lodash/utility/identity.js":{"index":143,"hash":"A/cz5O4nnho2x2e5KIWS","parents":["node_modules/lodash/internal/bindCallback.js","node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/internal/isLength.js":{"index":125,"hash":"DFIKI121VzeE+pBbx1Oa","parents":["node_modules/lodash/internal/createBaseEach.js","node_modules/lodash/internal/isArrayLike.js","node_modules/lodash/lang/isArray.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js","node_modules/lodash/lang/isTypedArray.js"]},"node_modules/lodash/internal/isObjectLike.js":{"index":126,"hash":"qEGnAWJNoAetOIJ7YKiV","parents":["node_modules/lodash/lang/isNative.js","node_modules/lodash/lang/isArray.js","node_modules/lodash/lang/isArguments.js","node_modules/lodash/lang/isTypedArray.js","node_modules/lodash/internal/baseIsEqual.js"]},"node_modules/lodash/internal/isIndex.js":{"index":122,"hash":"I8y5AsjL/lwDlORDOqqM","parents":["node_modules/lodash/internal/isIterateeCall.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js"]},"node_modules/lodash/lang/isObject.js":{"index":135,"hash":"Go+dTLFqO1KJN+uQLb8s","parents":["node_modules/lodash/internal/isStrictComparable.js","node_modules/lodash/internal/toObject.js","node_modules/lodash/internal/isIterateeCall.js","node_modules/lodash/lang/isFunction.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/object/keys.js","node_modules/lodash/internal/baseIsEqual.js"]},"node_modules/lodash/internal/baseCopy.js":{"index":91,"hash":"WvGi8IywM6u7ZNXvztwg","parents":["node_modules/lodash/internal/baseAssign.js"]},"node_modules/lodash/internal/baseAssign.js":{"index":89,"hash":"6VX87YoeNgDvMUyiAc/7","parents":["node_modules/lodash/object/assign.js"]},"node_modules/lodash/function/restParam.js":{"index":83,"hash":"/RRH9MCtjArr1p3Qeh63","parents":["node_modules/lodash/internal/createAssigner.js"]},"node_modules/lodash/internal/createAssigner.js":{"index":109,"hash":"X8R81jvRCofY1BnG+A/L","parents":["node_modules/lodash/object/assign.js"]},"node_modules/lodash/internal/isIterateeCall.js":{"index":123,"hash":"dXMnNRevAizOBisKCEes","parents":["node_modules/lodash/internal/createAssigner.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/object/assign.js":{"index":137,"hash":"9WOhJBREl8AO9Hs6Cr+Q","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/socket.io-parser/binary.js":{"index":157,"hash":"bAee8RukaXwuD/OeGN6F","parents":["node_modules/socket.io-parser/index.js"]},"node_modules/socket.io-parser/index.js":{"index":158,"hash":"BAgSAi2yJ1LAoE3Vw1D4","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"resources/assets/js/components/main/content/dashboard.vue":{"index":191,"hash":"ZYiY8Hm10S+BuYuRA6qr","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/outputs.vue":{"index":196,"hash":"CXuFwZiFBxxg/4SYgpJr","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/overlays.vue":{"index":203,"hash":"Htt7ZmwlY7bPvqSA55PK","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/playlists.vue":{"index":204,"hash":"RflbEyufB3jpcfIfW+DA","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/schedule.vue":{"index":206,"hash":"emLr0atw9YViWg9M9WK4","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/events.vue":{"index":193,"hash":"myxzZPFL581logjuavMe","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/plugins.vue":{"index":205,"hash":"dDR/V2Cn6Vc+W+Hh5pTH","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/effects.vue":{"index":192,"hash":"2dfYg1xyYbaShi8WFe1L","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/testing.vue":{"index":214,"hash":"l0k5ki8CjUH0Cw/c5Cgo","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/not-found.vue":{"index":195,"hash":"uv9Q3bvOW7GRU5Y4bKV0","parents":["resources/assets/js/main.js"]},"node_modules/has-binary/index.js":{"index":68,"hash":"ZLLgu+QfLGB5FJs6P2Ow","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/engine.io-parser/lib/browser.js"]},"node_modules/socket.io-client/lib/socket.js":{"index":154,"hash":"mVenx7k8VFtvIejsDYOl","parents":["node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/vue-resource/src/interceptor/cors.js":{"index":171,"hash":"y/hrmr+lC4LVHKr98SRc","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/client/jsonp.js":{"index":166,"hash":"+Nk8UZxMFWMDrzR/Me13","parents":["node_modules/vue-resource/src/interceptor/cors.js","node_modules/vue-resource/src/interceptor/jsonp.js"]},"node_modules/vue-resource/src/interceptor/index.js":{"index":173,"hash":"5iWUKE5ElG+J957vOzOe","parents":["node_modules/vue-resource/src/http.js"]},"resources/assets/js/components/sidebar/index.vue":{"index":233,"hash":"9T+EtxrHFzTbn1f0gjS0","parents":["resources/assets/js/app.vue"]},"node_modules/lodash/internal/createBaseEach.js":{"index":110,"hash":"+5X3Ztm78NNPr9vQZ7fB","parents":["node_modules/lodash/internal/baseEach.js"]},"node_modules/lodash/internal/getLength.js":{"index":118,"hash":"UiZ6F0+nXZ0fiKckTqnM","parents":["node_modules/lodash/internal/createBaseEach.js","node_modules/lodash/internal/isArrayLike.js"]},"node_modules/lodash/internal/toObject.js":{"index":129,"hash":"8f3eulB97DddBRdcU+7v","parents":["node_modules/lodash/internal/createBaseEach.js","node_modules/lodash/internal/baseGet.js","node_modules/lodash/internal/isKey.js","node_modules/lodash/internal/baseIsMatch.js","node_modules/lodash/internal/createBaseFor.js","node_modules/lodash/object/pairs.js","node_modules/lodash/internal/baseMatches.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/collection/forEach.js":{"index":80,"hash":"0Lo1RNt18PMo/HAKbHEu","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/baseSlice.js":{"index":105,"hash":"OLgw9XVic1W0AKjehzHB","parents":["node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/array/last.js":{"index":77,"hash":"3oXXa2idWbKySVLcq3os","parents":["node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/baseProperty.js":{"index":103,"hash":"Yuk2tpof21q0Xl2sQg89","parents":["node_modules/lodash/utility/property.js","node_modules/lodash/internal/getLength.js"]},"resources/assets/js/components/main/content/outputs/panels.vue":{"index":200,"hash":"84PVUrcnaxvgK1CkKLc5","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/outputs/other.vue":{"index":199,"hash":"Yhlqrv2awsiQW+YugtNJ","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/settings/date.vue":{"index":209,"hash":"2GmDtyhq2fbp4rJvNaIi","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/shared/switch.vue":{"index":230,"hash":"YL63p5vHKkkZeMmCvrvm","parents":["resources/assets/js/components/main/content/settings/date.vue","resources/assets/js/components/main/content/outputs/universe.vue","resources/assets/js/components/main/content/outputs/pdmx.vue","resources/assets/js/components/main/content/outputs/dmx.vue","resources/assets/js/components/main/content/outputs/e131.vue","resources/assets/js/components/main/content/settings/general.vue"]},"resources/assets/js/components/main/content/settings/email.vue":{"index":210,"hash":"RU5tLo90EPn366yv7ejI","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/settings/logs.vue":{"index":212,"hash":"AZoQuwllsd9wT8o0fPbW","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/content/settings/advanced.vue":{"index":208,"hash":"8v2G0ageUm7aI+eY11Ro","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/shared/Tabset.vue":{"index":221,"hash":"gqqI8RvSTmfen5Ur4x8e","parents":["resources/assets/js/components/main/content/files.vue"]},"resources/assets/js/components/shared/Tab.vue":{"index":220,"hash":"cdUmReYmh0ydEtOAgdv5","parents":["resources/assets/js/components/main/content/files.vue"]},"resources/assets/js/components/shared/dropdown-select.vue":{"index":224,"hash":"mFIoJVHY9dJVngym9xZP","parents":["resources/assets/js/components/main/content/outputs/e131.vue"]},"resources/assets/js/components/shared/filelist.vue":{"index":226,"hash":"UcxvPNXyJimPoXghyR93","parents":["resources/assets/js/components/main/content/files.vue"]},"resources/assets/js/components/main/content/files.vue":{"index":194,"hash":"/eXUhIhcZsDeOcKIV5xI","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/shared/tabset.vue":{"index":232,"hash":"ni1YOVU6boQgduWMtPx9","parents":["resources/assets/js/components/main/content/settings/network.vue"]},"resources/assets/js/components/shared/tab.vue":{"index":231,"hash":"q+fOMn88tu7p6njNfcLf","parents":["resources/assets/js/components/main/content/settings/network.vue"]},"resources/assets/js/components/main/content/settings/network.vue":{"index":213,"hash":"Y3zI+9UNKM3D+NmH0c+C","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/shared/checkbox.vue":{"index":222,"hash":"uZDy5Po/OgOkjVErDgUR","parents":["resources/assets/js/components/main/content/outputs/e131.vue"]},"resources/assets/js/components/shared/input.vue":{"index":228,"hash":"nzaLsXc4vVVsCPN3ns0t","parents":["resources/assets/js/components/main/content/outputs/dmx.vue","resources/assets/js/components/main/content/outputs/e131.vue"]},"node_modules/vue-resource/src/client/xhr.js":{"index":167,"hash":"u8PTCERIOeSAmYWFlrqC","parents":["node_modules/vue-resource/src/client/default.js"]},"node_modules/vue-resource/src/client/default.js":{"index":165,"hash":"+B0kSDe+gVY+/RkxYnil","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/jsonp.js":{"index":174,"hash":"EYhB3ryCUxKsSKwlYeME","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/http.js":{"index":168,"hash":"pcpl/SOKe3e7NS9rUOff","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-resource/src/index.js":{"index":169,"hash":"TZsp5Ua7CrOOvYCKsblD","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/footer/index.vue":{"index":215,"hash":"TsXziYA9AmKfnptsNJJF","parents":["resources/assets/js/components/main/settings.vue","resources/assets/js/components/main/index.vue"]},"resources/assets/js/components/main/header/settings.vue":{"index":217,"hash":"sJWK5betBps5OagtxfxR","parents":["resources/assets/js/components/main/settings.vue"]},"resources/assets/js/components/shared/control-buttons.vue":{"index":223,"hash":"+9iOqEGv9nEOHue9HTT2","parents":["resources/assets/js/components/main/header/settings.vue","resources/assets/js/components/main/header/index.vue"]},"resources/assets/js/components/main/content/settings.vue":{"index":207,"hash":"bw8juKxM91JM1ICnYPoe","parents":["resources/assets/js/components/main/settings.vue"]},"resources/assets/js/components/main/settings.vue":{"index":219,"hash":"UBeQKDogi9BARCQ8ldbn","parents":["resources/assets/js/main.js"]},"node_modules/lodash/internal/baseGet.js":{"index":96,"hash":"H9EiMd3ullQpRkvooLgz","parents":["node_modules/lodash/internal/basePropertyDeep.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/isKey.js":{"index":124,"hash":"lDpw5crcRmTRExTLVTKc","parents":["node_modules/lodash/utility/property.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/isStrictComparable.js":{"index":127,"hash":"ofNP4/nFrz5Rkb3kGOhn","parents":["node_modules/lodash/internal/getMatchData.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/baseIsMatch.js":{"index":99,"hash":"EpuJzlg204aR35T4QKcS","parents":["node_modules/lodash/internal/baseMatches.js"]},"node_modules/lodash/internal/baseIsEqual.js":{"index":97,"hash":"dBgoFXnhj9KH6oX3dQwa","parents":["node_modules/lodash/internal/baseIsMatch.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/basePropertyDeep.js":{"index":104,"hash":"mqX1OyYdndJ183lyl/sn","parents":["node_modules/lodash/utility/property.js"]},"node_modules/lodash/internal/toPath.js":{"index":130,"hash":"faVQvsb+LSLI4uaMgtrQ","parents":["node_modules/lodash/internal/basePropertyDeep.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/utility/property.js":{"index":144,"hash":"7IoOI/uGZCxbcY23uQDK","parents":["node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/internal/createBaseFor.js":{"index":111,"hash":"9RWlFaBOuelvwgkhYgPG","parents":["node_modules/lodash/internal/baseFor.js"]},"node_modules/lodash/internal/baseFor.js":{"index":94,"hash":"NGxcZ0n01+w2G1PzyBlY","parents":["node_modules/lodash/internal/baseForOwn.js"]},"node_modules/lodash/internal/baseToString.js":{"index":107,"hash":"ABFQFf14pRECi3sw8oKV","parents":["node_modules/lodash/internal/toPath.js"]},"resources/assets/js/components/shared/falcon-loading.vue":{"index":225,"hash":"nrISz6smCod0TjaIPHYA","parents":["resources/assets/js/components/shared/overlay.vue"]},"resources/assets/js/components/shared/overlay.vue":{"index":229,"hash":"JYZPaO3VyADALhB5HixN","parents":["resources/assets/js/app.vue"]},"resources/assets/js/app.vue":{"index":190,"hash":"HFw1nenZ+frQMGQx08yF","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/main/index.vue":{"index":218,"hash":"0NH9Zm6x1SQ1dEeg1eXO","parents":["resources/assets/js/app.vue","resources/assets/js/main.js"]},"resources/assets/js/components/main/content/outputs/universe.vue":{"index":202,"hash":"rhVplsR+/5jkIqeDulqv","parents":["resources/assets/js/components/main/content/outputs/e131.vue"]},"resources/assets/js/components/main/content/outputs/pdmx.vue":{"index":201,"hash":"5o/FDE4MuJ7fRFJBReCQ","parents":["resources/assets/js/components/main/content/outputs/dmx.vue"]},"resources/assets/js/components/main/content/outputs/dmx.vue":{"index":197,"hash":"kC3gYcmZEJv6pDPxbwuu","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/shared/header-menu.vue":{"index":227,"hash":"phCAnSIecIl68MBC00Uo","parents":["resources/assets/js/components/main/header/index.vue"]},"resources/assets/js/components/main/header/index.vue":{"index":216,"hash":"0J1eKZ+cT411ebAw1N9v","parents":["resources/assets/js/components/main/index.vue"]},"node_modules/lodash/object/pairs.js":{"index":142,"hash":"x6Ilwx8encvg/BW5API2","parents":["node_modules/lodash/internal/getMatchData.js"]},"node_modules/lodash/internal/getMatchData.js":{"index":119,"hash":"n0PHWhNs6YZ+DzgYMHPx","parents":["node_modules/lodash/internal/baseMatches.js"]},"node_modules/lodash/internal/baseMatches.js":{"index":101,"hash":"Cwj5GSiQv9/E8nSFBoX2","parents":["node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/lang/isFunction.js":{"index":133,"hash":"xkfzrZNZPGGOIf0kE8Y9","parents":["node_modules/lodash/lang/isNative.js"]},"node_modules/lodash/lang/isNative.js":{"index":134,"hash":"2rstaALy1DW0JSDdijps","parents":["node_modules/lodash/internal/getNative.js"]},"node_modules/lodash/internal/getNative.js":{"index":120,"hash":"7GRZ7115BSuoc/1bdaBK","parents":["node_modules/lodash/lang/isArray.js","node_modules/lodash/object/keys.js"]},"node_modules/lodash/lang/isArguments.js":{"index":131,"hash":"xQ4mqbsKQMCmtsPbfQc6","parents":["node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js"]},"node_modules/lodash/object/keysIn.js":{"index":140,"hash":"8POZiGR1fRHso579G46Z","parents":["node_modules/lodash/internal/shimKeys.js"]},"node_modules/lodash/internal/shimKeys.js":{"index":128,"hash":"oO4aKopmxRfPxyKgRX9F","parents":["node_modules/lodash/object/keys.js"]},"node_modules/lodash/object/forOwn.js":{"index":138,"hash":"LZ77PzuJW/wlgVPdvlGc","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/engine.io-client/node_modules/parseuri/index.js":{"index":64,"hash":"c/c7XftSI6ClFc9h2jOh","parents":["node_modules/engine.io-client/lib/socket.js"]},"node_modules/lodash/internal/equalByTag.js":{"index":116,"hash":"+y++gesJpPvyM+2E8aNB","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/parsejson/index.js":{"index":146,"hash":"3RLuznQNKZiQ/toCXNir","parents":["node_modules/engine.io-client/lib/socket.js"]},"node_modules/parseqs/index.js":{"index":147,"hash":"FI4tRELwI5Itz+ckwR+m","parents":["node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-parser/lib/keys.js":{"index":66,"hash":"oFyKNTA0twlyQVhVzp9n","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/lodash/internal/equalArrays.js":{"index":115,"hash":"OBJL6vuaOotu5flUeCnv","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/lodash/internal/equalObjects.js":{"index":117,"hash":"44Iy49kDcaAZsykEdaH3","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/lodash/lang/isTypedArray.js":{"index":136,"hash":"aVeZyIFGadrEh7EsaDRu","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/lodash/internal/baseIsEqualDeep.js":{"index":98,"hash":"ltZZaMHmzp6d9jBltV3Y","parents":["node_modules/lodash/internal/baseIsEqual.js"]},"node_modules/lodash/internal/baseMatchesProperty.js":{"index":102,"hash":"OudnSoeq2A4ql5lg51kc","parents":["node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/collection/some.js":{"index":82,"hash":"9JyJFfdCx56pmR6fwM9q","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/browserify-hmr/inc/index.js":{"index":8,"hash":"zTlNWZ14iIh89mO0UkaY","parents":[]},"node_modules/engine.io-client/lib/transport.js":{"index":54,"hash":"8Wg7zuMzQpa+AwOxaesw","parents":["node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-parser/lib/browser.js":{"index":65,"hash":"Xr2KhMDa3GjqERGsK7Lc","parents":["node_modules/engine.io-client/lib/transport.js","node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/socket.js","node_modules/engine.io-client/lib/index.js"]},"node_modules/utf8/utf8.js":{"index":162,"hash":"Mqm8G2xyYXmBOFrE+/6A","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/arraybuffer.slice/index.js":{"index":3,"hash":"RSb5Zx9CgX3adjzbvf/k","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/after/index.js":{"index":2,"hash":"NzPfXWECmM8rW/6fdkcj","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/blob/index.js":{"index":7,"hash":"q7L6uHK9eN9yEvDVNxJw","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/base64-arraybuffer/lib/base64-arraybuffer.js":{"index":6,"hash":"dW6cnktjBIyZ6bv9vRp2","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/engine.io-client/node_modules/ms/index.js":{"index":63,"hash":"rzSu41c+6ZW8M4Say8X9","parents":["node_modules/engine.io-client/node_modules/debug/debug.js"]},"node_modules/engine.io-client/node_modules/debug/debug.js":{"index":62,"hash":"yqdR7nJc7wxIHzFDNzG+","parents":["node_modules/engine.io-client/node_modules/debug/browser.js"]},"node_modules/engine.io-client/node_modules/debug/browser.js":{"index":61,"hash":"PENVCHp3HppeRm/DiJMI","parents":["node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/socket.js"]},"node_modules/jquery.inputmask/dist/inputmask/inputmask.dependencyLib.jquery.js":{"index":72,"hash":"LS63HHrbi9ZXkvlmIHs3","parents":["node_modules/jquery.inputmask/dist/inputmask/inputmask.js"]},"node_modules/jquery.inputmask/dist/inputmask/inputmask.js":{"index":73,"hash":"rOZH4H3sNvL9GZLSVZ/6","parents":["node_modules/jquery.inputmask/dist/inputmask/jquery.inputmask.js"]},"node_modules/jquery.inputmask/dist/inputmask/jquery.inputmask.js":{"index":74,"hash":"pSeOfS9ivQob0VH/xYAg","parents":["resources/assets/js/directives/ip.js"]},"resources/assets/js/directives/ip.js":{"index":234,"hash":"pPhO8+trVAzzTJ/Onj4q","parents":["resources/assets/js/components/main/content/outputs/e131.vue"]},"resources/assets/js/components/main/content/outputs/e131.vue":{"index":198,"hash":"WGSMUmawNx0L9dUA6TD4","parents":["resources/assets/js/main.js"]},"node_modules/engine.io-client/lib/transports/polling-jsonp.js":{"index":56,"hash":"FAm1xe7I43tDMsakGLzq","parents":["node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/engine.io-client/lib/transports/polling.js":{"index":58,"hash":"m6eReXjm1pnBQHB07d2V","parents":["node_modules/engine.io-client/lib/transports/polling-jsonp.js","node_modules/engine.io-client/lib/transports/polling-xhr.js"]},"node_modules/component-inherit/index.js":{"index":13,"hash":"T0Fqch4d4akvlr8bh7lc","parents":["node_modules/engine.io-client/lib/transports/polling-jsonp.js","node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/transports/polling-xhr.js"]},"node_modules/ws/lib/browser.js":{"index":189,"hash":"vZRI95FVw46PPRoHDauJ","parents":["node_modules/engine.io-client/lib/transports/websocket.js"]},"node_modules/engine.io-client/lib/transports/websocket.js":{"index":59,"hash":"iZQQax7TKsS+8ZxUyrc3","parents":["node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/engine.io-client/lib/xmlhttprequest.js":{"index":60,"hash":"us0FsN5s7hiT3hqVV5lx","parents":["node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/engine.io-client/lib/transports/polling-xhr.js":{"index":57,"hash":"d89FOYRl9cirXzsJCjKg","parents":["node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/global/index.js":{"index":67,"hash":"tDIf5GqqdOcKnNHRh2Rc","parents":["node_modules/has-cors/index.js"]},"node_modules/has-cors/index.js":{"index":69,"hash":"uSUdzzwBDQd7qQNKEZ4o","parents":["node_modules/engine.io-client/lib/xmlhttprequest.js"]},"node_modules/engine.io-client/lib/transports/index.js":{"index":55,"hash":"kQ8FMfawL2PES7dsQgvD","parents":["node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-client/lib/socket.js":{"index":53,"hash":"1L37UZEnorYV+ld5c01T","parents":["node_modules/engine.io-client/lib/index.js"]},"node_modules/engine.io-client/lib/index.js":{"index":52,"hash":"G6QYuSNu0EcS+G5tR9NE","parents":["node_modules/engine.io-client/index.js"]},"node_modules/engine.io-client/index.js":{"index":51,"hash":"HQau4MkD4lAynB9tt0Wl","parents":["node_modules/socket.io-client/lib/manager.js"]},"node_modules/socket.io-client/lib/manager.js":{"index":152,"hash":"+TrOAqk4UlI3tKzIT6Dc","parents":["node_modules/socket.io-client/lib/index.js"]},"node_modules/socket.io-client/lib/index.js":{"index":151,"hash":"lWwRhzm83+Eq08s7Nht/","parents":["node_modules/socket.io-client/index.js"]},"node_modules/socket.io-client/index.js":{"index":150,"hash":"ccYBPsaIqMCtG5CHCdDd","parents":[]},"node_modules/vue-strap/src/Option.vue":{"index":185,"hash":"C7Duog3xPNfziDO2oTHN","parents":["resources/assets/js/components/main/content/settings/general.vue"]},"node_modules/core-js/library/modules/$.iterators.js":{"index":34,"hash":"HPPh7u0tcX1NuooQHCi3","parents":["node_modules/core-js/library/modules/core.get-iterator-method.js","node_modules/core-js/library/modules/es6.array.iterator.js","node_modules/core-js/library/modules/web.dom.iterable.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.core.js":{"index":20,"hash":"jO6z5PVz8f6aTUjm5Hrx","parents":["node_modules/core-js/library/modules/core.get-iterator-method.js","node_modules/core-js/library/modules/core.get-iterator.js","node_modules/core-js/library/modules/$.export.js"]},"node_modules/core-js/library/modules/$.add-to-unscopables.js":{"index":16,"hash":"aTtaK5OMoCOj8v16GPqC","parents":["node_modules/core-js/library/modules/es6.array.iterator.js"]},"node_modules/core-js/library/modules/$.iter-step.js":{"index":33,"hash":"LPWFVFxr7uzP25M4Teof","parents":["node_modules/core-js/library/modules/es6.array.iterator.js"]},"node_modules/core-js/library/modules/$.to-integer.js":{"index":42,"hash":"k18sZu8vTX3eiB+U6ofu","parents":["node_modules/core-js/library/modules/$.string-at.js"]},"node_modules/core-js/library/modules/$.defined.js":{"index":22,"hash":"RZr8uFl+WrrjvGzPSz3c","parents":["node_modules/core-js/library/modules/$.string-at.js","node_modules/core-js/library/modules/$.to-iobject.js"]},"node_modules/core-js/library/modules/$.string-at.js":{"index":41,"hash":"Zop3IqdJq32xa0qd4H0H","parents":["node_modules/core-js/library/modules/es6.string.iterator.js"]},"node_modules/core-js/library/modules/$.library.js":{"index":36,"hash":"Bhgn5RpO7pDcQnSVaI5C","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.has.js":{"index":27,"hash":"y4idiH2Sj/rmZqd39CHH","parents":["node_modules/core-js/library/modules/$.set-to-string-tag.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.js":{"index":35,"hash":"UI1ymRgurU07soRpiobz","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.set-to-string-tag.js","node_modules/core-js/library/modules/$.hide.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.is-object.js":{"index":30,"hash":"FkaOOMIm0uw4T/qUEXed","parents":["node_modules/core-js/library/modules/$.an-object.js"]},"node_modules/core-js/library/modules/$.an-object.js":{"index":17,"hash":"d7pCynXJhKpK2u1S0fph","parents":["node_modules/core-js/library/modules/core.get-iterator.js"]},"node_modules/core-js/library/modules/$.redefine.js":{"index":38,"hash":"v4z59Kie6WPVO1h+8oJP","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.hide.js":{"index":28,"hash":"2HBwvxEtbt4UpskOWy62","parents":["node_modules/core-js/library/modules/$.redefine.js","node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.iter-create.js":{"index":31,"hash":"aNVpOMS/fyyM1i4Aw4bY","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.property-desc.js":{"index":37,"hash":"iSs9jpAw1JT2ZWWLScSH","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.hide.js"]},"node_modules/core-js/library/modules/$.set-to-string-tag.js":{"index":39,"hash":"3G0pjz42ePfLP++caEH3","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.wks.js":{"index":45,"hash":"qMliszffX6kySHptJTIp","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.set-to-string-tag.js","node_modules/core-js/library/modules/$.classof.js","node_modules/core-js/library/modules/core.get-iterator-method.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.global.js":{"index":26,"hash":"t7QKkyeVEU+gGSy/l5Cc","parents":["node_modules/core-js/library/modules/$.shared.js","node_modules/core-js/library/modules/$.wks.js","node_modules/core-js/library/modules/$.export.js"]},"node_modules/core-js/library/modules/$.uid.js":{"index":44,"hash":"auy0a5KBxuU7QAdJ7we/","parents":["node_modules/core-js/library/modules/$.wks.js"]},"node_modules/core-js/library/modules/$.cof.js":{"index":19,"hash":"FY6tg0ymdCS/rEwpAa7R","parents":["node_modules/core-js/library/modules/$.classof.js","node_modules/core-js/library/modules/$.iobject.js"]},"node_modules/core-js/library/modules/$.classof.js":{"index":18,"hash":"2vrlE4yJW7f/QT46fZjd","parents":["node_modules/core-js/library/modules/core.get-iterator-method.js"]},"node_modules/core-js/library/modules/core.get-iterator-method.js":{"index":46,"hash":"+qtmOjO/wxtOJEvpsv/b","parents":["node_modules/core-js/library/modules/core.get-iterator.js"]},"node_modules/core-js/library/modules/core.get-iterator.js":{"index":47,"hash":"Fpc5rJRGURor7FbHBYPn","parents":["node_modules/core-js/library/fn/get-iterator.js"]},"node_modules/core-js/library/modules/$.iobject.js":{"index":29,"hash":"HvETp5p0zMBjh+wvjxSm","parents":["node_modules/core-js/library/modules/$.to-iobject.js"]},"node_modules/core-js/library/modules/$.to-iobject.js":{"index":43,"hash":"yp4UOuCLRVO1tqlgppw5","parents":["node_modules/core-js/library/modules/es6.array.iterator.js"]},"node_modules/core-js/library/modules/es6.array.iterator.js":{"index":48,"hash":"Zw/NixWUIMjoGa2uWxe/","parents":["node_modules/core-js/library/modules/web.dom.iterable.js"]},"node_modules/core-js/library/modules/$.iter-define.js":{"index":32,"hash":"sR6jK5MoRN1zAKGNm2y4","parents":["node_modules/core-js/library/modules/es6.array.iterator.js","node_modules/core-js/library/modules/es6.string.iterator.js"]},"node_modules/core-js/library/modules/web.dom.iterable.js":{"index":50,"hash":"KisVT/JurPfFyjuYGWzf","parents":["node_modules/core-js/library/fn/get-iterator.js"]},"node_modules/core-js/library/modules/$.shared.js":{"index":40,"hash":"ZK+Tn2LANbB4OqkscM3N","parents":["node_modules/core-js/library/modules/$.wks.js"]},"node_modules/core-js/library/modules/$.fails.js":{"index":25,"hash":"6G4+YXaRghTGQQnkm/qp","parents":["node_modules/core-js/library/modules/$.descriptors.js"]},"node_modules/core-js/library/modules/$.descriptors.js":{"index":23,"hash":"NJqnAOVs55bKea+gKIGt","parents":["node_modules/core-js/library/modules/$.hide.js"]},"node_modules/core-js/library/modules/$.a-function.js":{"index":15,"hash":"vI7NBVNoKizw/T7ablYt","parents":["node_modules/core-js/library/modules/$.ctx.js"]},"node_modules/core-js/library/modules/$.ctx.js":{"index":21,"hash":"IBAqoysxf6uGe4qIslFW","parents":["node_modules/core-js/library/modules/$.export.js"]},"node_modules/core-js/library/modules/$.export.js":{"index":24,"hash":"tF6TuwqA3fLdeFKqSI9n","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/es6.string.iterator.js":{"index":49,"hash":"viRu85eLzJ68VCbwuHbl","parents":["node_modules/core-js/library/fn/get-iterator.js"]},"node_modules/core-js/library/fn/get-iterator.js":{"index":14,"hash":"V+nypfA8LA2WadFVp7u2","parents":["node_modules/babel-runtime/core-js/get-iterator.js"]},"node_modules/babel-runtime/core-js/get-iterator.js":{"index":4,"hash":"a8je4in/yfKL3pQIQJX9","parents":["node_modules/vue-strap/src/Select.vue"]},"node_modules/vue-strap/src/Select.vue":{"index":186,"hash":"7dhDxiNKuVRXmRHtif1f","parents":["resources/assets/js/components/main/content/settings/general.vue"]},"resources/assets/js/components/main/content/settings/general.vue":{"index":211,"hash":"UvIT68OQ0E9MTpIl2T/2","parents":["resources/assets/js/main.js"]},"resources/assets/js/main.js":{"index":235,"hash":"Dpa6KAeVfbCd3QNEW0LU","parents":[]}};
+  var moduleMeta = {"node_modules/browserify-hmr/lib/has.js":{"index":9,"hash":"Hky4QYVrU1+kFHIEuxPy","parents":["node_modules/browserify-hmr/lib/str-set.js","node_modules/browserify-hmr/inc/index.js"]},"node_modules/browserify-hmr/lib/str-set.js":{"index":10,"hash":"lcrDmQK4uaqOqN+FV4/9","parents":["node_modules/browserify-hmr/inc/index.js"]},"resources/assets/js/stores/playlist.js":{"index":238,"hash":"k5Rph+tSzK7SzVYZrxbP","parents":["resources/assets/js/app.vue"]},"resources/assets/js/mixins/outputMixin.js":{"index":236,"hash":"gGCtCK8OXqFlnKkxkWU0","parents":["resources/assets/js/components/outputs/dmx.vue","resources/assets/js/components/outputs/e131.vue"]},"node_modules/socket.io-client/node_modules/debug/debug.js":{"index":156,"hash":"OtjmSmEbIU/8orJwFhDT","parents":["node_modules/socket.io-client/lib/url.js","node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/socket.io-client/lib/on.js":{"index":153,"hash":"y5MOoFpTKKBHwE8q8jae","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/vue-animated-list/vue-animated-list.js":{"index":163,"hash":"26lVl2CH82yXZ2XSjVFm","parents":["resources/assets/js/main.js"]},"node_modules/vue-router/dist/vue-router.common.js":{"index":184,"hash":"V5DMsGGLcOqPAhx31psf","parents":["resources/assets/js/main.js"]},"node_modules/jquery/dist/jquery.js":{"index":75,"hash":"siFczlgw4jULnUICcdm9","parents":["resources/assets/js/app.vue","node_modules/jquery.inputmask/dist/inputmask/inputmask.dependencyLib.jquery.js","node_modules/jquery.inputmask/dist/inputmask/jquery.inputmask.js","resources/assets/js/directives/ip.js","resources/assets/js/main.js"]},"resources/assets/js/stores/setting.js":{"index":239,"hash":"coKfnj2hZTIg8YRT4JSn","parents":["resources/assets/js/app.vue"]},"resources/assets/js/services/http.js":{"index":237,"hash":"OqU5t4zvkjeUSpQJFLPI","parents":["resources/assets/js/stores/setting.js","resources/assets/js/stores/shared.js"]},"resources/assets/js/stores/shared.js":{"index":240,"hash":"dBZ6EHn2t9/PLCXa/Sej","parents":["resources/assets/js/stores/setting.js","resources/assets/js/app.vue"]},"resources/assets/js/utils.js":{"index":241,"hash":"YUBgAVFOtL2AfLdROM4O","parents":["resources/assets/js/components/shared/input.vue"]},"node_modules/vue-resource/src/resource.js":{"index":182,"hash":"4hFj5axF31CeVRePeF8o","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-hot-reload-api/index.js":{"index":164,"hash":"WuwmPSnCiynHpb+AfQBY","parents":["resources/assets/js/components/dashboard.vue","resources/assets/js/components/overlays.vue","resources/assets/js/components/playlists.vue","resources/assets/js/components/schedule.vue","resources/assets/js/components/plugins.vue","resources/assets/js/components/events.vue","resources/assets/js/components/effects.vue","resources/assets/js/components/testing.vue","resources/assets/js/components/not-found.vue","resources/assets/js/components/outputs/index.vue","resources/assets/js/components/outputs/panels.vue","resources/assets/js/components/outputs/other.vue","resources/assets/js/components/settings/date.vue","resources/assets/js/components/settings/email.vue","resources/assets/js/components/settings/logs.vue","resources/assets/js/components/settings/advanced.vue","resources/assets/js/components/sidebar.vue","resources/assets/js/components/footer.vue","resources/assets/js/components/shared/Tabset.vue","resources/assets/js/components/shared/Tab.vue","resources/assets/js/components/shared/filelist.vue","resources/assets/js/components/files.vue","resources/assets/js/components/shared/switch.vue","resources/assets/js/components/shared/dropdown-select.vue","resources/assets/js/components/shared/tabset.vue","resources/assets/js/components/shared/tab.vue","resources/assets/js/components/settings/network.vue","resources/assets/js/components/settings/index.vue","resources/assets/js/components/header/settings.vue","resources/assets/js/components/settings.vue","resources/assets/js/components/outputs/universe.vue","resources/assets/js/components/shared/checkbox.vue","resources/assets/js/components/shared/input.vue","resources/assets/js/components/outputs/pdmx.vue","resources/assets/js/components/outputs/dmx.vue","resources/assets/js/components/shared/falcon-loading.vue","resources/assets/js/components/shared/overlay.vue","resources/assets/js/app.vue","resources/assets/js/components/shared/control-buttons.vue","resources/assets/js/components/shared/header-menu.vue","resources/assets/js/components/header/index.vue","resources/assets/js/components/index.vue","resources/assets/js/components/outputs/e131.vue","node_modules/vue-strap/src/Option.vue","node_modules/vue-strap/src/Select.vue","resources/assets/js/components/settings/general.vue"]},"node_modules/vue-resource/src/lib/util.js":{"index":180,"hash":"kipx22owioSurHN4RBYT","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/socket.io-parser/is-buffer.js":{"index":159,"hash":"UJBXKAfBg/BkigSZbc3Z","parents":["node_modules/socket.io-parser/binary.js","node_modules/socket.io-parser/index.js"]},"node_modules/component-emitter/index.js":{"index":12,"hash":"0uL1LSa/mOj+Llu+HTZ7","parents":["node_modules/socket.io-parser/index.js","node_modules/socket.io-client/lib/socket.js","node_modules/engine.io-client/lib/transport.js","node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/lodash/array/zipObject.js":{"index":78,"hash":"fKfSwIzPo5SUx9d0DkgN","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/lang/isArray.js":{"index":132,"hash":"rpMiE1Z199/XZCjno4KN","parents":["node_modules/lodash/array/zipObject.js","node_modules/lodash/collection/map.js","node_modules/lodash/collection/filter.js","node_modules/lodash/internal/createForEach.js","node_modules/lodash/internal/isKey.js","node_modules/lodash/internal/toPath.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js","node_modules/lodash/internal/baseIsEqualDeep.js","node_modules/lodash/internal/baseMatchesProperty.js","node_modules/lodash/collection/some.js"]},"node_modules/parseuri/index.js":{"index":148,"hash":"PsPou9y5yKmPMPJnjEkz","parents":["node_modules/socket.io-client/lib/url.js"]},"node_modules/socket.io-client/lib/url.js":{"index":155,"hash":"/WgdaMtSTLlxFoTxZTGl","parents":["node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/component-bind/index.js":{"index":11,"hash":"4yIcVw+afwUsnTQyI0a3","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/object-component/index.js":{"index":145,"hash":"zOYybxl/D7KsteH/xJyk","parents":["node_modules/socket.io-client/lib/manager.js"]},"node_modules/indexof/index.js":{"index":70,"hash":"8zMGV0j0ID5bUIeT7r+M","parents":["node_modules/engine.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/backo2/index.js":{"index":5,"hash":"L5ry3mfVEw1wgmx9Sa+q","parents":["node_modules/socket.io-client/lib/manager.js"]},"node_modules/to-array/index.js":{"index":161,"hash":"2EoggafxX+GLXkXiaGjm","parents":["node_modules/socket.io-client/lib/socket.js"]},"node_modules/lodash/internal/arrayEach.js":{"index":84,"hash":"eLxUBVsb8vpFbu0VN4KL","parents":["node_modules/lodash/collection/forEach.js"]},"node_modules/lodash/internal/arraySome.js":{"index":87,"hash":"GxeJPxJj2jUg5TzV5gLv","parents":["node_modules/lodash/internal/equalArrays.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/arrayMap.js":{"index":86,"hash":"xdr8c0JsUFapIHTuM5VE","parents":["node_modules/lodash/collection/map.js"]},"node_modules/lodash/internal/arrayFilter.js":{"index":85,"hash":"BGunz0w1QzJXyqQSOdZb","parents":["node_modules/lodash/collection/filter.js"]},"resources/assets/js/components/dashboard.vue":{"index":191,"hash":"b4ZwMAdmlA2KQqb6p+JT","parents":["resources/assets/js/main.js"]},"node_modules/vue/dist/vue.common.js":{"index":187,"hash":"2VyaBoUmGsVHuFohCYxK","parents":["resources/assets/js/components/dashboard.vue","resources/assets/js/components/overlays.vue","resources/assets/js/components/playlists.vue","resources/assets/js/components/schedule.vue","resources/assets/js/components/plugins.vue","resources/assets/js/components/events.vue","resources/assets/js/components/effects.vue","resources/assets/js/components/testing.vue","resources/assets/js/components/not-found.vue","resources/assets/js/components/outputs/index.vue","resources/assets/js/components/outputs/panels.vue","resources/assets/js/components/outputs/other.vue","resources/assets/js/components/settings/date.vue","resources/assets/js/components/settings/email.vue","resources/assets/js/components/settings/logs.vue","resources/assets/js/components/settings/advanced.vue","resources/assets/js/components/sidebar.vue","resources/assets/js/components/footer.vue","resources/assets/js/components/shared/Tabset.vue","resources/assets/js/components/shared/Tab.vue","resources/assets/js/components/shared/filelist.vue","resources/assets/js/components/files.vue","resources/assets/js/components/shared/switch.vue","resources/assets/js/components/shared/dropdown-select.vue","resources/assets/js/components/shared/tabset.vue","resources/assets/js/components/shared/tab.vue","resources/assets/js/components/settings/network.vue","resources/assets/js/components/settings/index.vue","resources/assets/js/components/header/settings.vue","resources/assets/js/components/settings.vue","resources/assets/js/components/outputs/universe.vue","resources/assets/js/components/shared/checkbox.vue","resources/assets/js/components/shared/input.vue","resources/assets/js/components/outputs/pdmx.vue","resources/assets/js/components/outputs/dmx.vue","resources/assets/js/components/shared/falcon-loading.vue","resources/assets/js/components/shared/overlay.vue","resources/assets/js/app.vue","resources/assets/js/components/shared/control-buttons.vue","resources/assets/js/components/shared/header-menu.vue","resources/assets/js/components/header/index.vue","resources/assets/js/components/index.vue","resources/assets/js/components/outputs/e131.vue","node_modules/vue-strap/src/Option.vue","node_modules/vue-strap/src/Select.vue","resources/assets/js/components/settings/general.vue","resources/assets/js/main.js"]},"resources/assets/js/components/overlays.vue":{"index":207,"hash":"wttUj90IjUTB21TqVn5A","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/playlists.vue":{"index":208,"hash":"vHG42AI/ctPZxYn2tvZT","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/schedule.vue":{"index":210,"hash":"w10dm2qLyWGPX+dNhHQr","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/plugins.vue":{"index":209,"hash":"aBWTwEC29+sEJX2/NcVw","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/events.vue":{"index":193,"hash":"Lmd0SzEjko8hAg0NQmxQ","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/effects.vue":{"index":192,"hash":"W8MkKtIaA7ck5eb1D3Us","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/testing.vue":{"index":233,"hash":"8w9/LeGCBJNLr09RTiXA","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/not-found.vue":{"index":199,"hash":"JnE9W3JgazmF+BYtHxgh","parents":["resources/assets/js/main.js"]},"node_modules/vueify-insert-css/index.js":{"index":188,"hash":"fvTUijA6yyBpp68H+JX2","parents":["resources/assets/js/components/not-found.vue","resources/assets/js/components/sidebar.vue","resources/assets/js/components/shared/Tabset.vue","resources/assets/js/components/shared/Tab.vue","resources/assets/js/components/shared/filelist.vue","resources/assets/js/components/files.vue","resources/assets/js/components/shared/tabset.vue","resources/assets/js/components/shared/tab.vue","resources/assets/js/components/settings/index.vue","resources/assets/js/components/header/settings.vue","resources/assets/js/components/settings.vue","resources/assets/js/components/outputs/universe.vue","resources/assets/js/components/shared/checkbox.vue","resources/assets/js/components/shared/falcon-loading.vue","resources/assets/js/components/shared/overlay.vue","resources/assets/js/components/shared/control-buttons.vue","resources/assets/js/components/shared/header-menu.vue","resources/assets/js/components/header/index.vue","resources/assets/js/components/index.vue","resources/assets/js/components/outputs/e131.vue","node_modules/vue-strap/src/Option.vue","node_modules/vue-strap/src/Select.vue"]},"node_modules/socket.io-parser/node_modules/debug/debug.js":{"index":160,"hash":"OtjmSmEbIU/8orJwFhDT","parents":["node_modules/socket.io-parser/index.js"]},"node_modules/vue-resource/src/lib/url-template.js":{"index":179,"hash":"KZagPKERmevU89wFVgEg","parents":["node_modules/vue-resource/src/url.js"]},"node_modules/vue-resource/src/url.js":{"index":183,"hash":"enlma6RiuDUq+g3+RYdS","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/process/browser.js":{"index":149,"hash":"d/Dio43QDX3Xt7NYvbr6","parents":["node_modules/vue/dist/vue.common.js"]},"node_modules/vue-resource/src/interceptor/before.js":{"index":170,"hash":"dzJ5VyAAgzvYOWxyyGVm","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/timeout.js":{"index":177,"hash":"r+N56i06KukH+ME8Mpnr","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/method.js":{"index":175,"hash":"DqLo0TxFAJSH0HWGo7wR","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/mime.js":{"index":176,"hash":"f6heFdNiVYVl4GIRJ2gN","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/header.js":{"index":172,"hash":"Ql+DdTpkgQsJb9HXQumF","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/lib/promise.js":{"index":178,"hash":"uhJ1aPn5MePstu6k3zZV","parents":["node_modules/vue-resource/src/promise.js"]},"node_modules/vue-resource/src/promise.js":{"index":181,"hash":"dayC7UqEuK1y+yEa6/bE","parents":["node_modules/vue-resource/src/interceptor/index.js","node_modules/vue-resource/src/client/xhr.js","node_modules/vue-resource/src/client/jsonp.js","node_modules/vue-resource/src/http.js","node_modules/vue-resource/src/index.js"]},"node_modules/isarray/index.js":{"index":71,"hash":"dKtews1S4sHvaZhZ+ceq","parents":["node_modules/socket.io-parser/binary.js","node_modules/socket.io-parser/index.js","node_modules/has-binary/index.js"]},"resources/assets/js/components/outputs/index.vue":{"index":202,"hash":"tF9ju2+vTr3ViQy6GtPB","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/outputs/panels.vue":{"index":204,"hash":"7VM5cG1q4X4FvgRGYewh","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/outputs/other.vue":{"index":203,"hash":"q2uEEdYgJjD3nBtzgPjD","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/settings/date.vue":{"index":213,"hash":"52BPts98nvITx+HD9Ooc","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/shared/switch.vue":{"index":229,"hash":"YL63p5vHKkkZeMmCvrvm","parents":["resources/assets/js/components/settings/date.vue","resources/assets/js/components/outputs/universe.vue","resources/assets/js/components/outputs/pdmx.vue","resources/assets/js/components/outputs/dmx.vue","resources/assets/js/components/outputs/e131.vue","resources/assets/js/components/settings/general.vue"]},"node_modules/json3/lib/json3.js":{"index":76,"hash":"Z22TAqz9HSDSuQH535ZO","parents":["node_modules/socket.io-parser/index.js"]},"resources/assets/js/components/settings/email.vue":{"index":214,"hash":"5oX1fK0HFWyf2L8sKj+z","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/settings/logs.vue":{"index":217,"hash":"1FhvCTB1kypk1tpNwaC7","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/settings/advanced.vue":{"index":212,"hash":"r2wb/2T+G10rShqof/+O","parents":["resources/assets/js/main.js"]},"node_modules/lodash/internal/baseSome.js":{"index":106,"hash":"lCW5AtHn9X2vSuPgS8pk","parents":["node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/baseEach.js":{"index":92,"hash":"Ji7NLCJhdzSBlpDI+qC3","parents":["node_modules/lodash/internal/baseSome.js","node_modules/lodash/internal/baseMap.js","node_modules/lodash/internal/baseFilter.js","node_modules/lodash/collection/forEach.js"]},"node_modules/lodash/internal/baseMap.js":{"index":100,"hash":"ofv2jCE5QlahpynG4rkN","parents":["node_modules/lodash/collection/map.js"]},"node_modules/lodash/internal/isArrayLike.js":{"index":121,"hash":"76Awthz8ChTgjGk0JZ6Y","parents":["node_modules/lodash/internal/baseMap.js","node_modules/lodash/internal/isIterateeCall.js","node_modules/lodash/lang/isArguments.js","node_modules/lodash/object/keys.js"]},"node_modules/lodash/collection/map.js":{"index":81,"hash":"63n5x8GTiWPuxiZzm9TM","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/baseCallback.js":{"index":90,"hash":"FDEmxoh1cXY/hddgPNGW","parents":["node_modules/lodash/collection/map.js","node_modules/lodash/collection/filter.js","node_modules/lodash/internal/createObjectMapper.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/baseFilter.js":{"index":93,"hash":"yyvQag4hw8sItBFf3/9T","parents":["node_modules/lodash/collection/filter.js"]},"node_modules/lodash/collection/filter.js":{"index":79,"hash":"XtU5zjCqSDlYcwOLUC13","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/createForOwn.js":{"index":113,"hash":"KJqijjvJO7d1nU17Sz3c","parents":["node_modules/lodash/object/forOwn.js"]},"node_modules/lodash/internal/bindCallback.js":{"index":108,"hash":"S6iy1I+53IEzDLSGuW0j","parents":["node_modules/lodash/internal/createForOwn.js","node_modules/lodash/internal/createAssigner.js","node_modules/lodash/internal/createForEach.js","node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/internal/createObjectMapper.js":{"index":114,"hash":"cp8s+Z6khiKdK5QCQ+Ms","parents":["node_modules/lodash/object/mapValues.js"]},"node_modules/lodash/internal/baseForOwn.js":{"index":95,"hash":"sOLmHH2OosmeW92YaLK/","parents":["node_modules/lodash/internal/createObjectMapper.js","node_modules/lodash/internal/baseEach.js","node_modules/lodash/object/forOwn.js"]},"node_modules/lodash/object/mapValues.js":{"index":141,"hash":"2HfAmVuaVGfc8pd5zIaC","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/assignWith.js":{"index":88,"hash":"aKBKyfIKqZsNOHAbJTAI","parents":["node_modules/lodash/object/assign.js"]},"node_modules/lodash/object/keys.js":{"index":139,"hash":"BbXGNIcfatSp32uWOBAV","parents":["node_modules/lodash/internal/assignWith.js","node_modules/lodash/internal/baseAssign.js","node_modules/lodash/object/pairs.js","node_modules/lodash/internal/baseForOwn.js","node_modules/lodash/internal/equalObjects.js"]},"node_modules/lodash/utility/identity.js":{"index":143,"hash":"A/cz5O4nnho2x2e5KIWS","parents":["node_modules/lodash/internal/bindCallback.js","node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/internal/isLength.js":{"index":125,"hash":"DFIKI121VzeE+pBbx1Oa","parents":["node_modules/lodash/internal/isArrayLike.js","node_modules/lodash/internal/createBaseEach.js","node_modules/lodash/lang/isArray.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js","node_modules/lodash/lang/isTypedArray.js"]},"node_modules/lodash/internal/isObjectLike.js":{"index":126,"hash":"qEGnAWJNoAetOIJ7YKiV","parents":["node_modules/lodash/lang/isNative.js","node_modules/lodash/lang/isArray.js","node_modules/lodash/lang/isArguments.js","node_modules/lodash/lang/isTypedArray.js","node_modules/lodash/internal/baseIsEqual.js"]},"node_modules/lodash/internal/isIndex.js":{"index":122,"hash":"I8y5AsjL/lwDlORDOqqM","parents":["node_modules/lodash/internal/isIterateeCall.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js"]},"node_modules/lodash/lang/isObject.js":{"index":135,"hash":"Go+dTLFqO1KJN+uQLb8s","parents":["node_modules/lodash/internal/isIterateeCall.js","node_modules/lodash/internal/toObject.js","node_modules/lodash/internal/isStrictComparable.js","node_modules/lodash/lang/isFunction.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/object/keys.js","node_modules/lodash/internal/baseIsEqual.js"]},"node_modules/lodash/internal/baseCopy.js":{"index":91,"hash":"WvGi8IywM6u7ZNXvztwg","parents":["node_modules/lodash/internal/baseAssign.js"]},"node_modules/lodash/internal/baseAssign.js":{"index":89,"hash":"6VX87YoeNgDvMUyiAc/7","parents":["node_modules/lodash/object/assign.js"]},"node_modules/lodash/function/restParam.js":{"index":83,"hash":"/RRH9MCtjArr1p3Qeh63","parents":["node_modules/lodash/internal/createAssigner.js"]},"node_modules/lodash/internal/createAssigner.js":{"index":109,"hash":"X8R81jvRCofY1BnG+A/L","parents":["node_modules/lodash/object/assign.js"]},"node_modules/lodash/internal/isIterateeCall.js":{"index":123,"hash":"dXMnNRevAizOBisKCEes","parents":["node_modules/lodash/internal/createAssigner.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/object/assign.js":{"index":137,"hash":"9WOhJBREl8AO9Hs6Cr+Q","parents":["node_modules/browserify-hmr/inc/index.js"]},"resources/assets/js/components/sidebar.vue":{"index":232,"hash":"lOB+csmsf+OuVDkCt8sZ","parents":["resources/assets/js/app.vue"]},"resources/assets/js/components/footer.vue":{"index":195,"hash":"V/pa4T+7Xw1RugNiCrP+","parents":["resources/assets/js/components/settings.vue","resources/assets/js/components/index.vue"]},"node_modules/socket.io-parser/binary.js":{"index":157,"hash":"bAee8RukaXwuD/OeGN6F","parents":["node_modules/socket.io-parser/index.js"]},"node_modules/socket.io-parser/index.js":{"index":158,"hash":"BAgSAi2yJ1LAoE3Vw1D4","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/has-binary/index.js":{"index":68,"hash":"ZLLgu+QfLGB5FJs6P2Ow","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/engine.io-parser/lib/browser.js"]},"node_modules/socket.io-client/lib/socket.js":{"index":154,"hash":"mVenx7k8VFtvIejsDYOl","parents":["node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/vue-resource/src/interceptor/cors.js":{"index":171,"hash":"y/hrmr+lC4LVHKr98SRc","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/client/jsonp.js":{"index":166,"hash":"+Nk8UZxMFWMDrzR/Me13","parents":["node_modules/vue-resource/src/interceptor/cors.js","node_modules/vue-resource/src/interceptor/jsonp.js"]},"node_modules/vue-resource/src/interceptor/index.js":{"index":173,"hash":"5iWUKE5ElG+J957vOzOe","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/lodash/internal/createForEach.js":{"index":112,"hash":"iJtWBCzx+bzzSLwlaaRv","parents":["node_modules/lodash/collection/forEach.js"]},"node_modules/lodash/internal/getLength.js":{"index":118,"hash":"UiZ6F0+nXZ0fiKckTqnM","parents":["node_modules/lodash/internal/isArrayLike.js","node_modules/lodash/internal/createBaseEach.js"]},"resources/assets/js/components/shared/Tabset.vue":{"index":220,"hash":"gqqI8RvSTmfen5Ur4x8e","parents":["resources/assets/js/components/files.vue"]},"resources/assets/js/components/shared/Tab.vue":{"index":219,"hash":"cdUmReYmh0ydEtOAgdv5","parents":["resources/assets/js/components/files.vue"]},"node_modules/lodash/internal/baseSlice.js":{"index":105,"hash":"OLgw9XVic1W0AKjehzHB","parents":["node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/array/last.js":{"index":77,"hash":"3oXXa2idWbKySVLcq3os","parents":["node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/baseProperty.js":{"index":103,"hash":"Yuk2tpof21q0Xl2sQg89","parents":["node_modules/lodash/internal/getLength.js","node_modules/lodash/utility/property.js"]},"resources/assets/js/components/shared/filelist.vue":{"index":225,"hash":"UcxvPNXyJimPoXghyR93","parents":["resources/assets/js/components/files.vue"]},"resources/assets/js/components/files.vue":{"index":194,"hash":"O/OPcgg+TUnlswbf4lVR","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/shared/dropdown-select.vue":{"index":223,"hash":"mFIoJVHY9dJVngym9xZP","parents":["resources/assets/js/components/outputs/e131.vue"]},"resources/assets/js/components/shared/tabset.vue":{"index":231,"hash":"ni1YOVU6boQgduWMtPx9","parents":["resources/assets/js/components/settings/network.vue"]},"resources/assets/js/components/shared/tab.vue":{"index":230,"hash":"q+fOMn88tu7p6njNfcLf","parents":["resources/assets/js/components/settings/network.vue"]},"resources/assets/js/components/settings/network.vue":{"index":218,"hash":"Xt1AOrWp4ng2cAEaPAeD","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/settings/index.vue":{"index":216,"hash":"3OEkMP0lykKjpifYr8Jo","parents":["resources/assets/js/components/settings.vue"]},"resources/assets/js/components/header/settings.vue":{"index":197,"hash":"qTO6TJeGEcto0yfy4aS8","parents":["resources/assets/js/components/settings.vue"]},"resources/assets/js/components/shared/control-buttons.vue":{"index":222,"hash":"+9iOqEGv9nEOHue9HTT2","parents":["resources/assets/js/components/header/settings.vue","resources/assets/js/components/header/index.vue"]},"resources/assets/js/components/settings.vue":{"index":211,"hash":"8iDnk5fygW9EqF8Mtncs","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/outputs/universe.vue":{"index":206,"hash":"g5+vGvXKGEEyAVsRXrKI","parents":["resources/assets/js/components/outputs/e131.vue"]},"resources/assets/js/components/shared/checkbox.vue":{"index":221,"hash":"uZDy5Po/OgOkjVErDgUR","parents":["resources/assets/js/components/outputs/e131.vue"]},"resources/assets/js/components/shared/input.vue":{"index":227,"hash":"nzaLsXc4vVVsCPN3ns0t","parents":["resources/assets/js/components/outputs/dmx.vue","resources/assets/js/components/outputs/e131.vue"]},"resources/assets/js/components/outputs/pdmx.vue":{"index":205,"hash":"OOAJZz2HIY8lYRkKtmpp","parents":["resources/assets/js/components/outputs/dmx.vue"]},"resources/assets/js/components/outputs/dmx.vue":{"index":200,"hash":"zKV0dDOwAg+PWLud8ncl","parents":["resources/assets/js/main.js"]},"node_modules/vue-resource/src/client/xhr.js":{"index":167,"hash":"u8PTCERIOeSAmYWFlrqC","parents":["node_modules/vue-resource/src/client/default.js"]},"node_modules/vue-resource/src/client/default.js":{"index":165,"hash":"+B0kSDe+gVY+/RkxYnil","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/jsonp.js":{"index":174,"hash":"EYhB3ryCUxKsSKwlYeME","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/http.js":{"index":168,"hash":"pcpl/SOKe3e7NS9rUOff","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-resource/src/index.js":{"index":169,"hash":"TZsp5Ua7CrOOvYCKsblD","parents":["resources/assets/js/main.js"]},"node_modules/lodash/internal/toObject.js":{"index":129,"hash":"8f3eulB97DddBRdcU+7v","parents":["node_modules/lodash/internal/createBaseEach.js","node_modules/lodash/internal/baseGet.js","node_modules/lodash/internal/isKey.js","node_modules/lodash/internal/baseIsMatch.js","node_modules/lodash/internal/createBaseFor.js","node_modules/lodash/object/pairs.js","node_modules/lodash/internal/baseMatches.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/createBaseEach.js":{"index":110,"hash":"+5X3Ztm78NNPr9vQZ7fB","parents":["node_modules/lodash/internal/baseEach.js"]},"node_modules/lodash/collection/forEach.js":{"index":80,"hash":"0Lo1RNt18PMo/HAKbHEu","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/baseGet.js":{"index":96,"hash":"H9EiMd3ullQpRkvooLgz","parents":["node_modules/lodash/internal/basePropertyDeep.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/isKey.js":{"index":124,"hash":"lDpw5crcRmTRExTLVTKc","parents":["node_modules/lodash/utility/property.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/isStrictComparable.js":{"index":127,"hash":"ofNP4/nFrz5Rkb3kGOhn","parents":["node_modules/lodash/internal/getMatchData.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/baseIsMatch.js":{"index":99,"hash":"EpuJzlg204aR35T4QKcS","parents":["node_modules/lodash/internal/baseMatches.js"]},"node_modules/lodash/internal/baseIsEqual.js":{"index":97,"hash":"dBgoFXnhj9KH6oX3dQwa","parents":["node_modules/lodash/internal/baseIsMatch.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/basePropertyDeep.js":{"index":104,"hash":"mqX1OyYdndJ183lyl/sn","parents":["node_modules/lodash/utility/property.js"]},"node_modules/lodash/internal/toPath.js":{"index":130,"hash":"faVQvsb+LSLI4uaMgtrQ","parents":["node_modules/lodash/internal/basePropertyDeep.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/utility/property.js":{"index":144,"hash":"7IoOI/uGZCxbcY23uQDK","parents":["node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/internal/createBaseFor.js":{"index":111,"hash":"9RWlFaBOuelvwgkhYgPG","parents":["node_modules/lodash/internal/baseFor.js"]},"node_modules/lodash/internal/baseFor.js":{"index":94,"hash":"NGxcZ0n01+w2G1PzyBlY","parents":["node_modules/lodash/internal/baseForOwn.js"]},"node_modules/lodash/internal/baseToString.js":{"index":107,"hash":"ABFQFf14pRECi3sw8oKV","parents":["node_modules/lodash/internal/toPath.js"]},"resources/assets/js/components/shared/falcon-loading.vue":{"index":224,"hash":"nrISz6smCod0TjaIPHYA","parents":["resources/assets/js/components/shared/overlay.vue"]},"resources/assets/js/components/shared/overlay.vue":{"index":228,"hash":"JYZPaO3VyADALhB5HixN","parents":["resources/assets/js/app.vue"]},"resources/assets/js/app.vue":{"index":190,"hash":"Pkw8JlONMB8lI1iN9+Ar","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/index.vue":{"index":198,"hash":"dKhVhAfX1GLT+4oM8eCL","parents":["resources/assets/js/app.vue","resources/assets/js/main.js"]},"resources/assets/js/components/shared/header-menu.vue":{"index":226,"hash":"phCAnSIecIl68MBC00Uo","parents":["resources/assets/js/components/header/index.vue"]},"resources/assets/js/components/header/index.vue":{"index":196,"hash":"tQNwfPYlIjPf3d+Cgxqf","parents":["resources/assets/js/components/index.vue"]},"node_modules/lodash/object/pairs.js":{"index":142,"hash":"x6Ilwx8encvg/BW5API2","parents":["node_modules/lodash/internal/getMatchData.js"]},"node_modules/lodash/internal/getMatchData.js":{"index":119,"hash":"n0PHWhNs6YZ+DzgYMHPx","parents":["node_modules/lodash/internal/baseMatches.js"]},"node_modules/lodash/internal/baseMatches.js":{"index":101,"hash":"Cwj5GSiQv9/E8nSFBoX2","parents":["node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/lang/isFunction.js":{"index":133,"hash":"xkfzrZNZPGGOIf0kE8Y9","parents":["node_modules/lodash/lang/isNative.js"]},"node_modules/lodash/lang/isNative.js":{"index":134,"hash":"2rstaALy1DW0JSDdijps","parents":["node_modules/lodash/internal/getNative.js"]},"node_modules/lodash/internal/getNative.js":{"index":120,"hash":"7GRZ7115BSuoc/1bdaBK","parents":["node_modules/lodash/lang/isArray.js","node_modules/lodash/object/keys.js"]},"node_modules/lodash/lang/isArguments.js":{"index":131,"hash":"xQ4mqbsKQMCmtsPbfQc6","parents":["node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js"]},"node_modules/lodash/object/keysIn.js":{"index":140,"hash":"8POZiGR1fRHso579G46Z","parents":["node_modules/lodash/internal/shimKeys.js"]},"node_modules/lodash/internal/shimKeys.js":{"index":128,"hash":"oO4aKopmxRfPxyKgRX9F","parents":["node_modules/lodash/object/keys.js"]},"node_modules/lodash/object/forOwn.js":{"index":138,"hash":"LZ77PzuJW/wlgVPdvlGc","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/equalByTag.js":{"index":116,"hash":"+y++gesJpPvyM+2E8aNB","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/engine.io-client/node_modules/parseuri/index.js":{"index":64,"hash":"c/c7XftSI6ClFc9h2jOh","parents":["node_modules/engine.io-client/lib/socket.js"]},"node_modules/parsejson/index.js":{"index":146,"hash":"3RLuznQNKZiQ/toCXNir","parents":["node_modules/engine.io-client/lib/socket.js"]},"node_modules/parseqs/index.js":{"index":147,"hash":"FI4tRELwI5Itz+ckwR+m","parents":["node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-parser/lib/keys.js":{"index":66,"hash":"oFyKNTA0twlyQVhVzp9n","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/lodash/internal/equalArrays.js":{"index":115,"hash":"OBJL6vuaOotu5flUeCnv","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/lodash/internal/equalObjects.js":{"index":117,"hash":"44Iy49kDcaAZsykEdaH3","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/lodash/lang/isTypedArray.js":{"index":136,"hash":"aVeZyIFGadrEh7EsaDRu","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/lodash/internal/baseIsEqualDeep.js":{"index":98,"hash":"ltZZaMHmzp6d9jBltV3Y","parents":["node_modules/lodash/internal/baseIsEqual.js"]},"node_modules/lodash/internal/baseMatchesProperty.js":{"index":102,"hash":"OudnSoeq2A4ql5lg51kc","parents":["node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/collection/some.js":{"index":82,"hash":"9JyJFfdCx56pmR6fwM9q","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/browserify-hmr/inc/index.js":{"index":8,"hash":"zTlNWZ14iIh89mO0UkaY","parents":[]},"node_modules/engine.io-client/lib/transport.js":{"index":54,"hash":"8Wg7zuMzQpa+AwOxaesw","parents":["node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-parser/lib/browser.js":{"index":65,"hash":"Xr2KhMDa3GjqERGsK7Lc","parents":["node_modules/engine.io-client/lib/transport.js","node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/socket.js","node_modules/engine.io-client/lib/index.js"]},"node_modules/utf8/utf8.js":{"index":162,"hash":"Mqm8G2xyYXmBOFrE+/6A","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/arraybuffer.slice/index.js":{"index":3,"hash":"RSb5Zx9CgX3adjzbvf/k","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/after/index.js":{"index":2,"hash":"NzPfXWECmM8rW/6fdkcj","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/blob/index.js":{"index":7,"hash":"q7L6uHK9eN9yEvDVNxJw","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/base64-arraybuffer/lib/base64-arraybuffer.js":{"index":6,"hash":"dW6cnktjBIyZ6bv9vRp2","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/jquery.inputmask/dist/inputmask/inputmask.dependencyLib.jquery.js":{"index":72,"hash":"LS63HHrbi9ZXkvlmIHs3","parents":["node_modules/jquery.inputmask/dist/inputmask/inputmask.js"]},"node_modules/jquery.inputmask/dist/inputmask/inputmask.js":{"index":73,"hash":"rOZH4H3sNvL9GZLSVZ/6","parents":["node_modules/jquery.inputmask/dist/inputmask/jquery.inputmask.js"]},"node_modules/jquery.inputmask/dist/inputmask/jquery.inputmask.js":{"index":74,"hash":"pSeOfS9ivQob0VH/xYAg","parents":["resources/assets/js/directives/ip.js"]},"resources/assets/js/directives/ip.js":{"index":234,"hash":"pPhO8+trVAzzTJ/Onj4q","parents":["resources/assets/js/components/outputs/e131.vue"]},"resources/assets/js/components/outputs/e131.vue":{"index":201,"hash":"oxoRhfagUQrlLzfrXrT5","parents":["resources/assets/js/main.js"]},"node_modules/engine.io-client/node_modules/ms/index.js":{"index":63,"hash":"rzSu41c+6ZW8M4Say8X9","parents":["node_modules/engine.io-client/node_modules/debug/debug.js"]},"node_modules/engine.io-client/node_modules/debug/debug.js":{"index":62,"hash":"yqdR7nJc7wxIHzFDNzG+","parents":["node_modules/engine.io-client/node_modules/debug/browser.js"]},"node_modules/engine.io-client/node_modules/debug/browser.js":{"index":61,"hash":"PENVCHp3HppeRm/DiJMI","parents":["node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/socket.js"]},"node_modules/vue-strap/src/Option.vue":{"index":185,"hash":"C7Duog3xPNfziDO2oTHN","parents":["resources/assets/js/components/settings/general.vue"]},"node_modules/engine.io-client/lib/transports/polling-xhr.js":{"index":57,"hash":"d89FOYRl9cirXzsJCjKg","parents":["node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/engine.io-client/lib/xmlhttprequest.js":{"index":60,"hash":"us0FsN5s7hiT3hqVV5lx","parents":["node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/engine.io-client/lib/transports/polling.js":{"index":58,"hash":"m6eReXjm1pnBQHB07d2V","parents":["node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/transports/polling-jsonp.js"]},"node_modules/component-inherit/index.js":{"index":13,"hash":"T0Fqch4d4akvlr8bh7lc","parents":["node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/transports/polling-jsonp.js"]},"node_modules/ws/lib/browser.js":{"index":189,"hash":"vZRI95FVw46PPRoHDauJ","parents":["node_modules/engine.io-client/lib/transports/websocket.js"]},"node_modules/engine.io-client/lib/transports/websocket.js":{"index":59,"hash":"iZQQax7TKsS+8ZxUyrc3","parents":["node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/engine.io-client/lib/transports/polling-jsonp.js":{"index":56,"hash":"FAm1xe7I43tDMsakGLzq","parents":["node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/global/index.js":{"index":67,"hash":"tDIf5GqqdOcKnNHRh2Rc","parents":["node_modules/has-cors/index.js"]},"node_modules/has-cors/index.js":{"index":69,"hash":"uSUdzzwBDQd7qQNKEZ4o","parents":["node_modules/engine.io-client/lib/xmlhttprequest.js"]},"node_modules/engine.io-client/lib/transports/index.js":{"index":55,"hash":"kQ8FMfawL2PES7dsQgvD","parents":["node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-client/lib/socket.js":{"index":53,"hash":"1L37UZEnorYV+ld5c01T","parents":["node_modules/engine.io-client/lib/index.js"]},"node_modules/engine.io-client/lib/index.js":{"index":52,"hash":"G6QYuSNu0EcS+G5tR9NE","parents":["node_modules/engine.io-client/index.js"]},"node_modules/engine.io-client/index.js":{"index":51,"hash":"HQau4MkD4lAynB9tt0Wl","parents":["node_modules/socket.io-client/lib/manager.js"]},"node_modules/socket.io-client/lib/manager.js":{"index":152,"hash":"+TrOAqk4UlI3tKzIT6Dc","parents":["node_modules/socket.io-client/lib/index.js"]},"node_modules/socket.io-client/lib/index.js":{"index":151,"hash":"lWwRhzm83+Eq08s7Nht/","parents":["node_modules/socket.io-client/index.js"]},"node_modules/socket.io-client/index.js":{"index":150,"hash":"ccYBPsaIqMCtG5CHCdDd","parents":[]},"node_modules/core-js/library/modules/$.iterators.js":{"index":34,"hash":"HPPh7u0tcX1NuooQHCi3","parents":["node_modules/core-js/library/modules/core.get-iterator-method.js","node_modules/core-js/library/modules/es6.array.iterator.js","node_modules/core-js/library/modules/web.dom.iterable.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.core.js":{"index":20,"hash":"jO6z5PVz8f6aTUjm5Hrx","parents":["node_modules/core-js/library/modules/core.get-iterator-method.js","node_modules/core-js/library/modules/core.get-iterator.js","node_modules/core-js/library/modules/$.export.js"]},"node_modules/core-js/library/modules/$.add-to-unscopables.js":{"index":16,"hash":"aTtaK5OMoCOj8v16GPqC","parents":["node_modules/core-js/library/modules/es6.array.iterator.js"]},"node_modules/core-js/library/modules/$.iter-step.js":{"index":33,"hash":"LPWFVFxr7uzP25M4Teof","parents":["node_modules/core-js/library/modules/es6.array.iterator.js"]},"node_modules/core-js/library/modules/$.to-integer.js":{"index":42,"hash":"k18sZu8vTX3eiB+U6ofu","parents":["node_modules/core-js/library/modules/$.string-at.js"]},"node_modules/core-js/library/modules/$.defined.js":{"index":22,"hash":"RZr8uFl+WrrjvGzPSz3c","parents":["node_modules/core-js/library/modules/$.string-at.js","node_modules/core-js/library/modules/$.to-iobject.js"]},"node_modules/core-js/library/modules/$.string-at.js":{"index":41,"hash":"Zop3IqdJq32xa0qd4H0H","parents":["node_modules/core-js/library/modules/es6.string.iterator.js"]},"node_modules/core-js/library/modules/$.library.js":{"index":36,"hash":"Bhgn5RpO7pDcQnSVaI5C","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.has.js":{"index":27,"hash":"y4idiH2Sj/rmZqd39CHH","parents":["node_modules/core-js/library/modules/$.set-to-string-tag.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.js":{"index":35,"hash":"UI1ymRgurU07soRpiobz","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.set-to-string-tag.js","node_modules/core-js/library/modules/$.hide.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.is-object.js":{"index":30,"hash":"FkaOOMIm0uw4T/qUEXed","parents":["node_modules/core-js/library/modules/$.an-object.js"]},"node_modules/core-js/library/modules/$.an-object.js":{"index":17,"hash":"d7pCynXJhKpK2u1S0fph","parents":["node_modules/core-js/library/modules/core.get-iterator.js"]},"node_modules/core-js/library/modules/$.redefine.js":{"index":38,"hash":"v4z59Kie6WPVO1h+8oJP","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.hide.js":{"index":28,"hash":"2HBwvxEtbt4UpskOWy62","parents":["node_modules/core-js/library/modules/$.redefine.js","node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.iter-create.js":{"index":31,"hash":"aNVpOMS/fyyM1i4Aw4bY","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.property-desc.js":{"index":37,"hash":"iSs9jpAw1JT2ZWWLScSH","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.hide.js"]},"node_modules/core-js/library/modules/$.set-to-string-tag.js":{"index":39,"hash":"3G0pjz42ePfLP++caEH3","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.wks.js":{"index":45,"hash":"qMliszffX6kySHptJTIp","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.set-to-string-tag.js","node_modules/core-js/library/modules/$.classof.js","node_modules/core-js/library/modules/core.get-iterator-method.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.global.js":{"index":26,"hash":"t7QKkyeVEU+gGSy/l5Cc","parents":["node_modules/core-js/library/modules/$.shared.js","node_modules/core-js/library/modules/$.wks.js","node_modules/core-js/library/modules/$.export.js"]},"node_modules/core-js/library/modules/$.uid.js":{"index":44,"hash":"auy0a5KBxuU7QAdJ7we/","parents":["node_modules/core-js/library/modules/$.wks.js"]},"node_modules/core-js/library/modules/$.cof.js":{"index":19,"hash":"FY6tg0ymdCS/rEwpAa7R","parents":["node_modules/core-js/library/modules/$.classof.js","node_modules/core-js/library/modules/$.iobject.js"]},"node_modules/core-js/library/modules/$.classof.js":{"index":18,"hash":"2vrlE4yJW7f/QT46fZjd","parents":["node_modules/core-js/library/modules/core.get-iterator-method.js"]},"node_modules/core-js/library/modules/core.get-iterator-method.js":{"index":46,"hash":"+qtmOjO/wxtOJEvpsv/b","parents":["node_modules/core-js/library/modules/core.get-iterator.js"]},"node_modules/core-js/library/modules/core.get-iterator.js":{"index":47,"hash":"Fpc5rJRGURor7FbHBYPn","parents":["node_modules/core-js/library/fn/get-iterator.js"]},"node_modules/core-js/library/modules/$.iobject.js":{"index":29,"hash":"HvETp5p0zMBjh+wvjxSm","parents":["node_modules/core-js/library/modules/$.to-iobject.js"]},"node_modules/core-js/library/modules/$.to-iobject.js":{"index":43,"hash":"yp4UOuCLRVO1tqlgppw5","parents":["node_modules/core-js/library/modules/es6.array.iterator.js"]},"node_modules/core-js/library/modules/es6.array.iterator.js":{"index":48,"hash":"Zw/NixWUIMjoGa2uWxe/","parents":["node_modules/core-js/library/modules/web.dom.iterable.js"]},"node_modules/core-js/library/modules/$.iter-define.js":{"index":32,"hash":"sR6jK5MoRN1zAKGNm2y4","parents":["node_modules/core-js/library/modules/es6.array.iterator.js","node_modules/core-js/library/modules/es6.string.iterator.js"]},"node_modules/core-js/library/modules/web.dom.iterable.js":{"index":50,"hash":"KisVT/JurPfFyjuYGWzf","parents":["node_modules/core-js/library/fn/get-iterator.js"]},"node_modules/core-js/library/modules/$.shared.js":{"index":40,"hash":"ZK+Tn2LANbB4OqkscM3N","parents":["node_modules/core-js/library/modules/$.wks.js"]},"node_modules/core-js/library/modules/$.a-function.js":{"index":15,"hash":"vI7NBVNoKizw/T7ablYt","parents":["node_modules/core-js/library/modules/$.ctx.js"]},"node_modules/core-js/library/modules/$.ctx.js":{"index":21,"hash":"IBAqoysxf6uGe4qIslFW","parents":["node_modules/core-js/library/modules/$.export.js"]},"node_modules/core-js/library/modules/$.export.js":{"index":24,"hash":"tF6TuwqA3fLdeFKqSI9n","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.fails.js":{"index":25,"hash":"6G4+YXaRghTGQQnkm/qp","parents":["node_modules/core-js/library/modules/$.descriptors.js"]},"node_modules/core-js/library/modules/$.descriptors.js":{"index":23,"hash":"NJqnAOVs55bKea+gKIGt","parents":["node_modules/core-js/library/modules/$.hide.js"]},"node_modules/core-js/library/modules/es6.string.iterator.js":{"index":49,"hash":"viRu85eLzJ68VCbwuHbl","parents":["node_modules/core-js/library/fn/get-iterator.js"]},"node_modules/core-js/library/fn/get-iterator.js":{"index":14,"hash":"V+nypfA8LA2WadFVp7u2","parents":["node_modules/babel-runtime/core-js/get-iterator.js"]},"node_modules/babel-runtime/core-js/get-iterator.js":{"index":4,"hash":"a8je4in/yfKL3pQIQJX9","parents":["node_modules/vue-strap/src/Select.vue"]},"node_modules/vue-strap/src/Select.vue":{"index":186,"hash":"7dhDxiNKuVRXmRHtif1f","parents":["resources/assets/js/components/settings/general.vue"]},"resources/assets/js/components/settings/general.vue":{"index":215,"hash":"z3oDp7DMMswZH4HODONA","parents":["resources/assets/js/main.js"]},"resources/assets/js/main.js":{"index":235,"hash":"yrlJZMkbMbO9PswoP40k","parents":[]}};
   var originalEntries = ["/Users/Tim/Sites/FPP2/www/resources/assets/js/main.js"];
   var updateUrl = null;
   var updateMode = "websocket";

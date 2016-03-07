@@ -55,9 +55,9 @@
 </template>
 
 <script>
-import Tabs from "../../shared/Tabset.vue";
-import Tab from "../../shared/Tab.vue";
-import Filelist from "../../shared/filelist.vue";
+import Tabs from "./shared/Tabset.vue";
+import Tab from "./shared/Tab.vue";
+import Filelist from "./shared/filelist.vue";
 
 export default {
     components: { Tabs, Tab, Filelist },

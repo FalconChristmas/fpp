@@ -16,35 +16,35 @@ var router = new VueRouter({
 });
 
 var App = require('./app.vue');
-var MainContent = require('./components/main/index.vue');
+var MainContent = require('./components/index.vue');
 
-var Dashboard = require('./components/main/content/dashboard.vue');
-var Outputs = require('./components/main/content/outputs.vue');
-var Overlays = require('./components/main/content/overlays.vue');
-var Playlists = require('./components/main/content/playlists.vue');
-var Schedule = require('./components/main/content/schedule.vue');
-var Files = require('./components/main/content/files.vue');
-var Plugins = require('./components/main/content/plugins.vue');
-var Events = require('./components/main/content/events.vue');
-var Effects = require('./components/main/content/effects.vue');
-var Testing = require('./components/main/content/testing.vue');
+var Dashboard = require('./components/dashboard.vue');
+var Outputs = require('./components/outputs/index.vue');
+var Overlays = require('./components/overlays.vue');
+var Playlists = require('./components/playlists.vue');
+var Schedule = require('./components/schedule.vue');
+var Files = require('./components/files.vue');
+var Plugins = require('./components/plugins.vue');
+var Events = require('./components/events.vue');
+var Effects = require('./components/effects.vue');
+var Testing = require('./components/testing.vue');
 
-var E131Output = require('./components/main/content/outputs/e131.vue');
-var DMXOutput = require('./components/main/content/outputs/dmx.vue');
-var PanelOutput = require('./components/main/content/outputs/panels.vue');
-var OtherOutput = require('./components/main/content/outputs/other.vue');
+var E131Output = require('./components/outputs/e131.vue');
+var DMXOutput = require('./components/outputs/dmx.vue');
+var PanelOutput = require('./components/outputs/panels.vue');
+var OtherOutput = require('./components/outputs/other.vue');
 
-var SettingsContent = require('./components/main/settings.vue');
-var GeneralSettings = require('./components/main/content/settings/general.vue');
-var DateSettings = require('./components/main/content/settings/date.vue');
-var EmailSettings = require('./components/main/content/settings/email.vue');
-var NetworkSettings = require('./components/main/content/settings/network.vue');
-var LogSettings = require('./components/main/content/settings/logs.vue');
-var AdvancedSettings = require('./components/main/content/settings/advanced.vue');
+var SettingsContent = require('./components/settings.vue');
+var GeneralSettings = require('./components/settings/general.vue');
+var DateSettings = require('./components/settings/date.vue');
+var EmailSettings = require('./components/settings/email.vue');
+var NetworkSettings = require('./components/settings/network.vue');
+var LogSettings = require('./components/settings/logs.vue');
+var AdvancedSettings = require('./components/settings/advanced.vue');
 
 router.map({
     '*' : {
-        component: require('./components/main/content/not-found.vue')
+        component: require('./components/not-found.vue')
     },
     '/' : {
         name: 'dashboard',

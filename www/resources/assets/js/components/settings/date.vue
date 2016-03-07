@@ -62,7 +62,7 @@
 </template>
 
 <script>
-import Switch from "../../../shared/switch.vue";
+import Switch from "../shared/switch.vue";
 
 export default {
     components: { Switch },

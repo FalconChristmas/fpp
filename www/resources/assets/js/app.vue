@@ -11,8 +11,8 @@
 <script>
     import $ from 'jquery';
     
-    import sidebar from './components/sidebar/index.vue';
-    import mainContent from './components/main/index.vue';
+    import sidebar from './components/sidebar.vue';
+    import mainContent from './components/index.vue';
     import overlay from './components/shared/overlay.vue';
 
     import sharedStore from './stores/shared';

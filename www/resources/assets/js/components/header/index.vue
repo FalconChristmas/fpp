@@ -14,8 +14,8 @@
 </template>
 
 <script>
-import controlButtons from "../../shared/control-buttons.vue";
-import headerMenu from "../../shared/header-menu.vue";
+import controlButtons from "../shared/control-buttons.vue";
+import headerMenu from "../shared/header-menu.vue";
 
 export default {
     components: { controlButtons, headerMenu },

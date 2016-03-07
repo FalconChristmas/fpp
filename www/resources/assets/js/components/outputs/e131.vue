@@ -116,13 +116,13 @@
 </template>
 
 <script>
-import Switch from "../../../shared/switch.vue";
+import Switch from "../shared/switch.vue";
 import Universe from "./universe.vue";
-import Dropdown from "../../../shared/dropdown-select.vue";
-import Checkbox from "../../../shared/checkbox.vue";
-import FormInput from "../../../shared/input.vue";
-import ip from "../../../../directives/ip";
-import outputMixin from "../../../../mixins/outputMixin";
+import Dropdown from "../shared/dropdown-select.vue";
+import Checkbox from "../shared/checkbox.vue";
+import FormInput from "../shared/input.vue";
+import ip from "../../directives/ip";
+import outputMixin from "../../mixins/outputMixin";
 
 const universeStub =  {
         active: false, 

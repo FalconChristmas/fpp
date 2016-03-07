@@ -20,7 +20,7 @@
 </template>
 
 <script>
-import controlButtons from "../../shared/control-buttons.vue";
+import controlButtons from "../shared/control-buttons.vue";
 
 export default {
     components: { controlButtons },
