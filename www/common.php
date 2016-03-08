@@ -67,7 +67,7 @@ function ReadSettingFromFile($settingName, $plugin = "")
 //        error_log("The setting " . $settingName . " could not be found in " . $filename);
         return false;
       }
-      return trim($output_array[1]);
+      return trim($output_array[1], " \t\n\r\0\x0B\"");
 		}
 		else
 		{
