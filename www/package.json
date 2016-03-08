@@ -18,6 +18,7 @@
     "lost": "^6.6.2",
     "normalize-scss": "^4.0.3",
     "rucksack": "^0.1.0",
+    "tether": "^1.2.0",
     "vue-animated-list": "^1.0.2",
     "vue-hot-reload-api": "^1.2.2",
     "vue-resource": "^0.5.1",

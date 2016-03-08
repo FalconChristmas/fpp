@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="78px" height="56px" viewBox="0 0 78 56" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 3.6.1 (26313) - http://www.bohemiancoding.com/sketch -->
+    <title>arrow-left</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="direction-arrow" transform="translate(0.000000, -77.000000)" fill="#D8D8D8">
+            <path d="M0,95 L50,95 L50,115 L0,115 L0,95 Z M50,133 L50,77 L78,105 L50,133 Z" id="arrow-left" transform="translate(39.000000, 105.000000) scale(-1, 1) translate(-39.000000, -105.000000) "></path>
+        </g>
+    </g>
+</svg>
