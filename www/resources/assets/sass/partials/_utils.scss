@@ -33,3 +33,246 @@
 .semi-bold {
     font-weight: 500;
 }
+
+/* Monochrome Colors
+------------------------------------
+ */
+
+.bg-master{
+    background-color: $color-master;
+}
+.bg-master-light{
+    background-color: $color-master-light;
+}
+.bg-master-lighter{
+    background-color: $color-master-lighter;
+}
+.bg-master-lightest{
+    background-color: $color-master-lightest;
+}
+.bg-master-dark{
+    background-color: $color-master-dark;
+}
+.bg-master-darker{
+    background-color: $color-master-darker;
+}
+.bg-master-darkest{
+    background-color: $color-master-darkest;
+}
+
+/* Contextual Colors
+------------------------------------
+*/
+
+/* Primary
+------------------------------------
+*/
+.bg-primary {
+    background-color: $color-primary;
+}
+.bg-primary-dark {
+    background-color: $color-primary-dark;
+}
+.bg-primary-darker {
+    background-color: $color-primary-darker;
+}
+.bg-primary-light {
+    background-color: $color-primary-light;
+}
+.bg-primary-lighter {
+    background-color: $color-primary-lighter;
+}
+
+/* Complete 
+------------------------------------
+*/
+.bg-complete {
+    background-color: $color-complete;
+}
+.bg-complete-dark {
+    background-color: $color-complete-dark;
+}
+.bg-complete-darker {
+    background-color: $color-complete-darker;
+}
+.bg-complete-light {
+    background-color: $color-complete-light;
+}
+.bg-complete-lighter {
+    background-color: $color-complete-lighter;
+}
+
+/* Success 
+------------------------------------
+*/
+.bg-success {
+    background-color: $color-success;
+}
+.bg-success-dark {
+    background-color: $color-success-dark;
+}
+.bg-success-darker {
+    background-color: $color-success-darker;
+}
+.bg-success-light {
+    background-color: $color-success-light;
+}
+.bg-success-lighter {
+    background-color: $color-success-lighter;
+}
+
+/* Info
+------------------------------------
+*/
+.bg-info{
+    background-color: $color-info;
+}
+.bg-info-dark{
+    background-color: $color-info-dark;
+}
+.bg-info-darker{
+    background-color: $color-info-darker;
+}
+.bg-info-light{
+    background-color: $color-info-light;
+}
+.bg-info-lighter{
+    background-color: $color-info-lighter;
+}
+
+/* Danger 
+------------------------------------
+*/
+.bg-danger {
+    background-color: $color-danger;
+}
+.bg-danger-dark {
+    background-color: $color-danger-dark;
+}
+.bg-danger-darker {
+    background-color: $color-danger-darker;
+}
+.bg-danger-light {
+    background-color: $color-danger-light;
+}
+.bg-danger-lighter {
+    background-color: $color-danger-lighter;
+}
+
+/* Warning
+------------------------------------
+ */
+.bg-warning {
+    background-color: $color-warning;
+}
+.bg-warning-dark {
+    background-color: $color-warning-dark;
+}
+.bg-warning-darker {
+    background-color: $color-warning-darker;
+}
+.bg-warning-light {
+    background-color: $color-warning-light;
+}
+.bg-warning-lighter {
+    background-color: $color-warning-lighter;
+}
+
+/* More Color Options
+------------------------------------
+*/
+
+/* Menu 
+------------------------------------
+*/
+.bg-menu-dark{
+    background-color: $color-menu-dark;
+}
+.bg-menu{
+    background-color: $color-menu;
+}
+.bg-menu-light{
+    background-color: $color-menu-light;
+}
+
+.bg-green {
+    background-color: $color-green;
+}
+
+.bg-azure {
+    background-color: $color-azure;
+}
+
+/* Gradients
+------------------------------------
+*/
+.gradient-grey {
+    background: -webkit-linear-gradient(top, rgba(0,0,0,0) 0%, rgba(0,0,0,0.8) 75%);
+    background: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.8) 75%);
+}
+.gradient-black {
+    background: -webkit-linear-gradient(top, rgba(0,0,0,0) 0%, rgba(0,0,0,0.8) 75%);
+    background: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.8) 75%);
+}
+
+/* Other Colors
+------------------------------------
+*/
+.bg-white{
+    background-color: #fff;
+}
+.bg-transparent{
+    background-color: transparent !important;
+}
+
+
+@mixin generate-paddings-options($n, $j:0){
+  @if $j <= $n {
+    @for $i from $j through $n {
+      $step : $i*5; 
+
+      .p-t-#{$step} {
+        padding-top: ($step*1px) !important;
+      }
+      .p-r-#{$step} {
+        padding-right: ($step*1px) !important;
+      }
+       .p-l-#{$step} {
+        padding-left: ($step*1px) !important;
+      }
+       .p-b-#{$step} {
+        padding-bottom: ($step*1px) !important;
+      }
+      .padding-#{$step} {
+        padding: ($step*1px) !important;
+      }
+    }
+  }
+}
+
+@include generate-paddings-options(20);
+
+/* Generic Margin Helpers
+------------------------------------
+ */
+@mixin generate-margin-options($n, $j: 0) {
+  @if $j <= $n {
+    @for $i from $j through $n {
+      $step : $i*5;  
+      .m-t-#{$step} {
+        margin-top: ($step*1px);
+      }
+      .m-r-#{$step} {
+        margin-right: ($step*1px);
+      }
+       .m-l-#{$step} {
+        margin-left: ($step*1px);
+      }
+       .m-b-#{$step} {
+        margin-bottom: ($step*1px);
+      }
+    }
+  }
+}
+
+@include generate-margin-options(20);

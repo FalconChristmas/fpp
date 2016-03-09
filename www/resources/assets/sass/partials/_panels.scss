@@ -1,0 +1,390 @@
+/*------------------------------------------------------------------
+[4. Panels]
+*/
+
+.panel,
+.card{
+    
+    box-shadow: none;
+    border-radius: 1px;
+    transition: all .2s ease;
+    position: relative;
+    .panel-heading{
+        background: transparent;
+        border-radius:0px;
+        border-bottom:0px;
+        padding: $panel-heading-padding;
+        position: relative;
+        z-index: 3;
+        min-height: 48px;
+        &.separator:after {
+                    content:"";
+                    height:1px;
+                    background:rgba(0,0,0,0.08);
+                    left:16px;
+                    right:16px;
+                    position:absolute;
+                    bottom:0;
+        }
+        & + .panel-body{
+            padding-top: 0;
+            height: calc(100% - 50px);
+        }
+        .panel-title{
+            font-family: 'Montserrat';
+            text-transform: uppercase;
+            display: inline-block;
+            letter-spacing: 0.02em;
+            font-size: 12px;
+            font-weight: 600;
+            margin: 0;
+            padding: 0;
+            line-height: normal;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            -webkit-text-stroke:0px;
+            filter: alpha(opacity=40);
+            // @include transition(opacity .3s ease);
+            transition: opacity .3s ease;
+            & + .panel-body{
+
+            }
+        }
+        .panel-controls{
+            float: right;
+            margin-top: -3px;
+            ul{
+                margin: 0;
+                padding: 0;
+                li{
+                    display: inline-block;
+                    list-style: none;
+                    line-height: 0;
+                }
+            }
+            &:after{
+                content:"";
+                  display:table;
+                  clear:both;
+            }
+        }
+        &.panel-heading-hover{
+            .panel-title{
+                opacity: .4;
+            }
+            &:hover{
+                .panel-title{
+                    opacity: 1;
+                }              
+            }
+        }
+    }
+    &.panel-default{
+        border:1px solid $panel-border-color;
+    }
+    &.panel-bordered{
+        border:1px solid fade($color-master-light, 70%);
+    }
+    &.panel-condensed{
+        .panel-heading{
+            padding: $panel-condensed-heading-padding;
+            min-height: 30px;
+            .panel-title{
+              opacity: .4;
+            }
+        }
+        .panel-body{
+            padding: $panel-condensed-body-padding;
+        }
+    }
+    &.panel-hover{
+        .panel-heading .panel-title{
+            opacity: .4;
+        }
+        &:hover{
+            .panel-heading .panel-title{
+                opacity: 1;
+            }
+        }
+    }
+    &.panel-transparent{
+        background: transparent;
+        box-shadow: none;
+        .panel-body{
+            background: transparent;
+        }
+    }
+    &.full-height{
+        height: 100%;
+        .panel-body{
+            height: auto;
+            width: 100%;
+            height: 100%;
+        }
+    }
+    &.panel-featured {
+        box-shadow: -1px 1px 3px 0px rgba(121, 129, 135, 0.14);
+        width: calc(100% - 50px);
+        float: right;
+        .panel-title {
+            h4 {
+                font-family: 'Montserrat';
+                font-size: 16px;
+                text-transform: uppercase;
+                color: $color-master-lighter;
+
+            }
+        }
+        .panel-body {
+            h3 {
+                line-height: 34px;
+                font-size: 26px;
+            }
+        }
+        .footer {
+            .username {
+                line-height: 8px;
+                padding-top: 10px;
+                font-size: 16px;
+            }
+            .buttons {
+                li {
+                    display: inline;
+                    list-style: none;
+                    font-weight: bold;
+                    margin-left: 20px;
+                    &:first-child {
+                        margin-left: 0;
+                    }
+                }
+                .heart {
+                    color: $color-danger;
+
+                }
+                .comment {
+                    color: $color-master;
+                }
+            }
+        }
+        .ribbon {
+            width: 38px;
+            height: 38px;
+            margin-left: -39px;
+            float: left;
+            box-shadow: inset -3px 0px 3px 0px rgba(0,0,0,0.14);
+            &.green {
+                background: $color-complete;
+
+            }
+            &.blue {
+                background: $color-success;
+
+            }
+        }
+    }
+    &.hover-fill:hover{
+        background:$color-master-lighter;
+    }
+    &.hover-stroke{
+        &:hover{
+            border:1px solid $color-master-light;
+        }
+    }
+
+    .panel-body{
+        padding: $panel-padding;
+        height: 100%;
+        width: 100%;
+        //overflow-y: auto;
+        &.no-padding{ 
+            .row{ 
+                margin-left: 0; 
+                margin-right: 0; 
+            } 
+        } 
+        &.no-bottom-padding{
+            padding-bottom: 0;
+        }
+        &.no-top-padding{
+            padding-top: 0;
+        }
+        .title{
+            margin-top:0px;
+        }
+        &.scrollable{
+            margin-bottom: $panel-padding;
+        }
+    }
+}
+
+
+/* Portlets
+------------------------------------
+*/
+.portlet-progress{
+    background: rgba(255,255,255,.8);
+    bottom: 0;
+    left: 0;
+    position: absolute !important;
+    right: 0;
+    top: 0;
+    display: none;
+    z-index: 2;
+}
+.portlet-progress > .progress,
+.portlet-progress > .progress.progress-small{
+    height: 3px;
+}
+.portlet-progress > .progress-circle-indeterminate,
+.portlet-progress > .portlet-bar-indeterminate{
+    display: block;
+    left: 50%;
+    margin-left: -17px;
+    margin-top: -17px;
+    position: absolute;
+    top: 50%;
+}
+.portlet-progress > .progress-circle-indeterminate{
+    width: 35px;
+    height: 35px;
+}
+.panel-maximized{
+    position: fixed !important;
+    left: $layout-sidepanel-width-collapsed;
+    top: $layout-header-height - 1px;
+    bottom: 0;
+    right: 0;
+    z-index: $zIndex-portlet;
+    margin: 0;
+}
+
+/* Pages notification holder */
+.panel .pgn-wrapper{
+    position: absolute;
+    z-index: $zIndex-portlet + 2;
+}
+
+.panel-heading a:not(.btn){
+    color: $color-master !important;
+    opacity: .4;
+    &.portlet-refresh{
+        transition: opacity .3s ease;
+        &.refreshing{
+            opacity: 1;    
+        }
+        
+    }
+}
+.panel-heading a[data-toggle]:hover{
+    opacity: 1;
+}
+
+
+.portlet-icon{
+    -moz-osx-font-smoothing: grayscale;
+    font-family: "pages-icon";
+    font-style: normal;
+    font-variant: normal;
+    font-weight: normal;
+    line-height: 1;
+    text-transform: none;
+}
+.portlet-icon-close:before{
+    content: "\e60a";
+}
+.portlet-icon-maximize:before{
+    content: "\e634";
+}
+.portlet-icon-refresh:before{
+    content: "\e600";
+}
+.portlet-icon-collapse:before{
+    content: "\e62c";
+}
+
+.portlet-icon-settings:before{
+    content: "\e655";
+}
+.portlet-icon-refresh-lg-master,
+.portlet-icon-refresh-lg-white{
+    width: 15px;
+    height: 15px;
+    display: block;
+    background-size: cover;
+     transition: opacity .3s ease;
+    &.fade{
+        opacity: 0.1;
+    }
+}
+.portlet-icon-refresh-lg-master{
+    background-image:url('#{$base-img-url}/progress/progress-circle-lg-master-static.svg');
+}
+
+.portlet-icon-refresh-lg-white{
+    background-image:url('#{$base-img-url}/progress/progress-circle-lg-white-static.svg');
+}
+
+.portlet-icon-refresh-lg-master-animated,
+.portlet-icon-refresh-lg-white-animated{
+    width: 15px;
+    height: 15px;
+    display: block;
+    background-size: cover;
+    opacity: 0;
+    transition: opacity .3s ease;
+    &.active{
+        opacity: 1
+    }
+}
+.portlet-icon-refresh-lg-master-animated{
+    background-image:url('#{$base-img-url}/progress/progress-circle-lg-master.svg');
+}
+.portlet-icon-refresh-lg-white-animated{
+    background-image:url('#{$base-img-url}/progress/progress-circle-lg-white.svg');
+}
+
+
+/* For demo purpose only */
+.panel-scroll{
+    height: 100px;
+}
+.sortable .panel-heading {
+    cursor: move;
+}
+/* To prevent lag while dragging */
+.ui-sortable-handle{
+    transition: max-height 0.3s ease 0s;
+}
+.sortable .grid .grid-title {
+    cursor: move;    
+}
+.ui-sortable {
+    min-height: 0px !important;
+}
+.ui-sortable-placeholder {
+    border: 1px dotted black;
+    visibility: visible !important;
+    height: 100% !important;
+    * {
+        visibility: hidden;
+    }
+}
+.sortable-box-placeholder {
+    background-color: $color-master-lighter;
+    border: 1px dashed $color-master-light;
+    display: block;
+    margin-top: 0px !important;
+    margin-bottom: 24px !important;
+    * {
+        visibility: hidden;
+    }
+}
+.sortable .panel{
+    transition: none;
+}
+.sortable-column{
+    padding-bottom: 100px;
+}
+.demo-portlet-scrollable{
+   height:158px
+}

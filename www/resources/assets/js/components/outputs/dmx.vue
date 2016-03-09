@@ -10,6 +10,7 @@
          </div>
      </div>
       <div class="box-body">
+     
         <form>
             <div class="output-actions">
                 <div class="filter-row align-end">
@@ -28,6 +29,15 @@
                           :model.sync="defStart"
                           type="number"
                           label="Start"
+                          size="sm"
+                          state-icon>
+                        </form-input>
+                    </div>
+                    <div class="filter">
+                         <form-input 
+                          :model.sync="defCount"
+                          type="number"
+                          label="Channel Count"
                           size="sm"
                           state-icon>
                         </form-input>
@@ -67,6 +77,7 @@
                             <th class="text-xs-center output-index">#</th>
                             <th class="text-xs-center output-number">Type</th>
                             <th class="text-xs-center output-start">Start</th>
+                            <th class="text-xs-center output-count">Count</th>
                             <th class="text-xs-center output-label" >Label</th>
                             <th class="text-xs-center output-action p-r-1" style="width: 45px"></th>
                         </tr>
@@ -77,6 +88,7 @@
                     </table>
                 </div>
         </form>
+   
     </div>
     </div>
 </template>
@@ -96,20 +108,25 @@ export default {
              incrementStart: true,
              defStart: 1,
              defType: 'pixelnet',
+             defCount: 512,
              outputs: []
         };
     },
     ready() {},
     methods: {
-        assembleNewOutput(last = {start: 0}) {
+        assembleNewOutput(last) {
 
             return {
                 active: true,
-                start: this.incrementStart ? last.start + 1 : 1,
+                start: this.incrementStart && last ? (last.start + last.count) : 1,
+                count: this.defCount,
                 type: this.defType,
                 label: null
             };
         }
+    },
+    computed: {
+
     },
     events: {}
 

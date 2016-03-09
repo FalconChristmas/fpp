@@ -3,9 +3,11 @@
 // @import "node_modules/bootstrap/scss/mixins";
 @import "mixins";
 @import "partials/fonts";
+@import "vendor/pages-icons";
 //@import "vendor/normalize";
 
 @import "shared";
+@import "partials/typography";
 @import "partials/buttons";
 @import "partials/switch";
 @import "partials/boxes";
@@ -19,3 +21,4 @@
 @import "partials/tables";
 @import "partials/animations";
 @import "partials/popover";
+@import "partials/panels";

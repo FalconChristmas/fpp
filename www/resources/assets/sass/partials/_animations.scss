@@ -3,3 +3,24 @@
   /* applied to the element when moving */
   transition: transform .5s cubic-bezier(.55,0,.1,1);
 }
+
+/* always present */
+.expand-transition {
+  transition: all .35s;
+  height: 37px;
+  overflow: hidden;
+}
+
+/* .expand-enter defines the starting state for entering */
+/* .expand-leave defines the ending state for leaving */
+.expand-enter, .expand-leave {
+  height: 0;
+}
+
+.fade-transition {
+    transition: opacity 0.35s;
+    opacity: 1;
+}
+.fade-enter, .fade-leave {
+    opacity: 0;
+}

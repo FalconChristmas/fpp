@@ -94,7 +94,7 @@ export default {
 <style lang="sass">
 @import "resources/assets/sass/_vars.scss";
 @import "resources/assets/sass/_mixins.scss";
-@lost gutter 5px;
+@lost gutter 3px;
 @lost flexbox no-flex;
 .led-panel {
     position: relative;

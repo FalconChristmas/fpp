@@ -2666,7 +2666,7 @@ Socket.prototype.filterUpgrades = function (upgrades) {
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 }).apply(this, arguments);
 
-},{"./transport":59,"./transports":60,"component-emitter":13,"debug":66,"engine.io-parser":70,"indexof":75,"parsejson":151,"parseqs":152,"parseuri":69}],59:[function(require,module,exports){
+},{"./transport":59,"./transports":60,"component-emitter":13,"debug":66,"engine.io-parser":70,"indexof":75,"parsejson":152,"parseqs":153,"parseuri":69}],59:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/engine.io-client/lib/transport.js", module);
 (function(){
 /**
@@ -3776,7 +3776,7 @@ Polling.prototype.uri = function(){
 
 }).apply(this, arguments);
 
-},{"../transport":59,"component-inherit":14,"debug":66,"engine.io-parser":70,"parseqs":152,"xmlhttprequest":65}],64:[function(require,module,exports){
+},{"../transport":59,"component-inherit":14,"debug":66,"engine.io-parser":70,"parseqs":153,"xmlhttprequest":65}],64:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/engine.io-client/lib/transports/websocket.js", module);
 (function(){
 /**
@@ -4020,7 +4020,7 @@ WS.prototype.check = function(){
 
 }).apply(this, arguments);
 
-},{"../transport":59,"component-inherit":14,"debug":66,"engine.io-parser":70,"parseqs":152,"ws":195}],65:[function(require,module,exports){
+},{"../transport":59,"component-inherit":14,"debug":66,"engine.io-parser":70,"parseqs":153,"ws":197}],65:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/engine.io-client/lib/xmlhttprequest.js", module);
 (function(){
 // browser shim for xmlhttprequest module
@@ -5182,7 +5182,7 @@ exports.decodePayloadAsBinary = function (data, binaryType, callback) {
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 }).apply(this, arguments);
 
-},{"./keys":71,"after":2,"arraybuffer.slice":3,"base64-arraybuffer":7,"blob":8,"has-binary":73,"utf8":168}],71:[function(require,module,exports){
+},{"./keys":71,"after":2,"arraybuffer.slice":3,"base64-arraybuffer":7,"blob":8,"has-binary":73,"utf8":169}],71:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/engine.io-parser/lib/keys.js", module);
 (function(){
 
@@ -19647,6 +19647,3699 @@ module.exports = property;
 }).apply(this, arguments);
 
 },{"../internal/baseProperty":108,"../internal/basePropertyDeep":109,"../internal/isKey":129}],150:[function(require,module,exports){
+_hmr["websocket:null"].initModule("node_modules/moment/moment.js", module);
+(function(){
+//! moment.js
+//! version : 2.12.0
+//! authors : Tim Wood, Iskren Chernev, Moment.js contributors
+//! license : MIT
+//! momentjs.com
+
+;(function (global, factory) {
+    typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
+    typeof define === 'function' && define.amd ? define(factory) :
+    global.moment = factory()
+}(this, function () { 'use strict';
+
+    var hookCallback;
+
+    function utils_hooks__hooks () {
+        return hookCallback.apply(null, arguments);
+    }
+
+    // This is done to register the method called with moment()
+    // without creating circular dependencies.
+    function setHookCallback (callback) {
+        hookCallback = callback;
+    }
+
+    function isArray(input) {
+        return input instanceof Array || Object.prototype.toString.call(input) === '[object Array]';
+    }
+
+    function isDate(input) {
+        return input instanceof Date || Object.prototype.toString.call(input) === '[object Date]';
+    }
+
+    function map(arr, fn) {
+        var res = [], i;
+        for (i = 0; i < arr.length; ++i) {
+            res.push(fn(arr[i], i));
+        }
+        return res;
+    }
+
+    function hasOwnProp(a, b) {
+        return Object.prototype.hasOwnProperty.call(a, b);
+    }
+
+    function extend(a, b) {
+        for (var i in b) {
+            if (hasOwnProp(b, i)) {
+                a[i] = b[i];
+            }
+        }
+
+        if (hasOwnProp(b, 'toString')) {
+            a.toString = b.toString;
+        }
+
+        if (hasOwnProp(b, 'valueOf')) {
+            a.valueOf = b.valueOf;
+        }
+
+        return a;
+    }
+
+    function create_utc__createUTC (input, format, locale, strict) {
+        return createLocalOrUTC(input, format, locale, strict, true).utc();
+    }
+
+    function defaultParsingFlags() {
+        // We need to deep clone this object.
+        return {
+            empty           : false,
+            unusedTokens    : [],
+            unusedInput     : [],
+            overflow        : -2,
+            charsLeftOver   : 0,
+            nullInput       : false,
+            invalidMonth    : null,
+            invalidFormat   : false,
+            userInvalidated : false,
+            iso             : false
+        };
+    }
+
+    function getParsingFlags(m) {
+        if (m._pf == null) {
+            m._pf = defaultParsingFlags();
+        }
+        return m._pf;
+    }
+
+    function valid__isValid(m) {
+        if (m._isValid == null) {
+            var flags = getParsingFlags(m);
+            m._isValid = !isNaN(m._d.getTime()) &&
+                flags.overflow < 0 &&
+                !flags.empty &&
+                !flags.invalidMonth &&
+                !flags.invalidWeekday &&
+                !flags.nullInput &&
+                !flags.invalidFormat &&
+                !flags.userInvalidated;
+
+            if (m._strict) {
+                m._isValid = m._isValid &&
+                    flags.charsLeftOver === 0 &&
+                    flags.unusedTokens.length === 0 &&
+                    flags.bigHour === undefined;
+            }
+        }
+        return m._isValid;
+    }
+
+    function valid__createInvalid (flags) {
+        var m = create_utc__createUTC(NaN);
+        if (flags != null) {
+            extend(getParsingFlags(m), flags);
+        }
+        else {
+            getParsingFlags(m).userInvalidated = true;
+        }
+
+        return m;
+    }
+
+    function isUndefined(input) {
+        return input === void 0;
+    }
+
+    // Plugins that add properties should also add the key here (null value),
+    // so we can properly clone ourselves.
+    var momentProperties = utils_hooks__hooks.momentProperties = [];
+
+    function copyConfig(to, from) {
+        var i, prop, val;
+
+        if (!isUndefined(from._isAMomentObject)) {
+            to._isAMomentObject = from._isAMomentObject;
+        }
+        if (!isUndefined(from._i)) {
+            to._i = from._i;
+        }
+        if (!isUndefined(from._f)) {
+            to._f = from._f;
+        }
+        if (!isUndefined(from._l)) {
+            to._l = from._l;
+        }
+        if (!isUndefined(from._strict)) {
+            to._strict = from._strict;
+        }
+        if (!isUndefined(from._tzm)) {
+            to._tzm = from._tzm;
+        }
+        if (!isUndefined(from._isUTC)) {
+            to._isUTC = from._isUTC;
+        }
+        if (!isUndefined(from._offset)) {
+            to._offset = from._offset;
+        }
+        if (!isUndefined(from._pf)) {
+            to._pf = getParsingFlags(from);
+        }
+        if (!isUndefined(from._locale)) {
+            to._locale = from._locale;
+        }
+
+        if (momentProperties.length > 0) {
+            for (i in momentProperties) {
+                prop = momentProperties[i];
+                val = from[prop];
+                if (!isUndefined(val)) {
+                    to[prop] = val;
+                }
+            }
+        }
+
+        return to;
+    }
+
+    var updateInProgress = false;
+
+    // Moment prototype object
+    function Moment(config) {
+        copyConfig(this, config);
+        this._d = new Date(config._d != null ? config._d.getTime() : NaN);
+        // Prevent infinite loop in case updateOffset creates new moment
+        // objects.
+        if (updateInProgress === false) {
+            updateInProgress = true;
+            utils_hooks__hooks.updateOffset(this);
+            updateInProgress = false;
+        }
+    }
+
+    function isMoment (obj) {
+        return obj instanceof Moment || (obj != null && obj._isAMomentObject != null);
+    }
+
+    function absFloor (number) {
+        if (number < 0) {
+            return Math.ceil(number);
+        } else {
+            return Math.floor(number);
+        }
+    }
+
+    function toInt(argumentForCoercion) {
+        var coercedNumber = +argumentForCoercion,
+            value = 0;
+
+        if (coercedNumber !== 0 && isFinite(coercedNumber)) {
+            value = absFloor(coercedNumber);
+        }
+
+        return value;
+    }
+
+    // compare two arrays, return the number of differences
+    function compareArrays(array1, array2, dontConvert) {
+        var len = Math.min(array1.length, array2.length),
+            lengthDiff = Math.abs(array1.length - array2.length),
+            diffs = 0,
+            i;
+        for (i = 0; i < len; i++) {
+            if ((dontConvert && array1[i] !== array2[i]) ||
+                (!dontConvert && toInt(array1[i]) !== toInt(array2[i]))) {
+                diffs++;
+            }
+        }
+        return diffs + lengthDiff;
+    }
+
+    function warn(msg) {
+        if (utils_hooks__hooks.suppressDeprecationWarnings === false &&
+                (typeof console !==  'undefined') && console.warn) {
+            console.warn('Deprecation warning: ' + msg);
+        }
+    }
+
+    function deprecate(msg, fn) {
+        var firstTime = true;
+
+        return extend(function () {
+            if (firstTime) {
+                warn(msg + '\nArguments: ' + Array.prototype.slice.call(arguments).join(', ') + '\n' + (new Error()).stack);
+                firstTime = false;
+            }
+            return fn.apply(this, arguments);
+        }, fn);
+    }
+
+    var deprecations = {};
+
+    function deprecateSimple(name, msg) {
+        if (!deprecations[name]) {
+            warn(msg);
+            deprecations[name] = true;
+        }
+    }
+
+    utils_hooks__hooks.suppressDeprecationWarnings = false;
+
+    function isFunction(input) {
+        return input instanceof Function || Object.prototype.toString.call(input) === '[object Function]';
+    }
+
+    function isObject(input) {
+        return Object.prototype.toString.call(input) === '[object Object]';
+    }
+
+    function locale_set__set (config) {
+        var prop, i;
+        for (i in config) {
+            prop = config[i];
+            if (isFunction(prop)) {
+                this[i] = prop;
+            } else {
+                this['_' + i] = prop;
+            }
+        }
+        this._config = config;
+        // Lenient ordinal parsing accepts just a number in addition to
+        // number + (possibly) stuff coming from _ordinalParseLenient.
+        this._ordinalParseLenient = new RegExp(this._ordinalParse.source + '|' + (/\d{1,2}/).source);
+    }
+
+    function mergeConfigs(parentConfig, childConfig) {
+        var res = extend({}, parentConfig), prop;
+        for (prop in childConfig) {
+            if (hasOwnProp(childConfig, prop)) {
+                if (isObject(parentConfig[prop]) && isObject(childConfig[prop])) {
+                    res[prop] = {};
+                    extend(res[prop], parentConfig[prop]);
+                    extend(res[prop], childConfig[prop]);
+                } else if (childConfig[prop] != null) {
+                    res[prop] = childConfig[prop];
+                } else {
+                    delete res[prop];
+                }
+            }
+        }
+        return res;
+    }
+
+    function Locale(config) {
+        if (config != null) {
+            this.set(config);
+        }
+    }
+
+    // internal storage for locale config files
+    var locales = {};
+    var globalLocale;
+
+    function normalizeLocale(key) {
+        return key ? key.toLowerCase().replace('_', '-') : key;
+    }
+
+    // pick the locale from the array
+    // try ['en-au', 'en-gb'] as 'en-au', 'en-gb', 'en', as in move through the list trying each
+    // substring from most specific to least, but move to the next array item if it's a more specific variant than the current root
+    function chooseLocale(names) {
+        var i = 0, j, next, locale, split;
+
+        while (i < names.length) {
+            split = normalizeLocale(names[i]).split('-');
+            j = split.length;
+            next = normalizeLocale(names[i + 1]);
+            next = next ? next.split('-') : null;
+            while (j > 0) {
+                locale = loadLocale(split.slice(0, j).join('-'));
+                if (locale) {
+                    return locale;
+                }
+                if (next && next.length >= j && compareArrays(split, next, true) >= j - 1) {
+                    //the next array item is better than a shallower substring of this one
+                    break;
+                }
+                j--;
+            }
+            i++;
+        }
+        return null;
+    }
+
+    function loadLocale(name) {
+        var oldLocale = null;
+        // TODO: Find a better way to register and load all the locales in Node
+        if (!locales[name] && (typeof module !== 'undefined') &&
+                module && module.exports) {
+            try {
+                oldLocale = globalLocale._abbr;
+                require('./locale/' + name);
+                // because defineLocale currently also sets the global locale, we
+                // want to undo that for lazy loaded locales
+                locale_locales__getSetGlobalLocale(oldLocale);
+            } catch (e) { }
+        }
+        return locales[name];
+    }
+
+    // This function will load locale and then set the global locale.  If
+    // no arguments are passed in, it will simply return the current global
+    // locale key.
+    function locale_locales__getSetGlobalLocale (key, values) {
+        var data;
+        if (key) {
+            if (isUndefined(values)) {
+                data = locale_locales__getLocale(key);
+            }
+            else {
+                data = defineLocale(key, values);
+            }
+
+            if (data) {
+                // moment.duration._locale = moment._locale = data;
+                globalLocale = data;
+            }
+        }
+
+        return globalLocale._abbr;
+    }
+
+    function defineLocale (name, config) {
+        if (config !== null) {
+            config.abbr = name;
+            if (locales[name] != null) {
+                deprecateSimple('defineLocaleOverride',
+                        'use moment.updateLocale(localeName, config) to change ' +
+                        'an existing locale. moment.defineLocale(localeName, ' +
+                        'config) should only be used for creating a new locale');
+                config = mergeConfigs(locales[name]._config, config);
+            } else if (config.parentLocale != null) {
+                if (locales[config.parentLocale] != null) {
+                    config = mergeConfigs(locales[config.parentLocale]._config, config);
+                } else {
+                    // treat as if there is no base config
+                    deprecateSimple('parentLocaleUndefined',
+                            'specified parentLocale is not defined yet');
+                }
+            }
+            locales[name] = new Locale(config);
+
+            // backwards compat for now: also set the locale
+            locale_locales__getSetGlobalLocale(name);
+
+            return locales[name];
+        } else {
+            // useful for testing
+            delete locales[name];
+            return null;
+        }
+    }
+
+    function updateLocale(name, config) {
+        if (config != null) {
+            var locale;
+            if (locales[name] != null) {
+                config = mergeConfigs(locales[name]._config, config);
+            }
+            locale = new Locale(config);
+            locale.parentLocale = locales[name];
+            locales[name] = locale;
+
+            // backwards compat for now: also set the locale
+            locale_locales__getSetGlobalLocale(name);
+        } else {
+            // pass null for config to unupdate, useful for tests
+            if (locales[name] != null) {
+                if (locales[name].parentLocale != null) {
+                    locales[name] = locales[name].parentLocale;
+                } else if (locales[name] != null) {
+                    delete locales[name];
+                }
+            }
+        }
+        return locales[name];
+    }
+
+    // returns locale data
+    function locale_locales__getLocale (key) {
+        var locale;
+
+        if (key && key._locale && key._locale._abbr) {
+            key = key._locale._abbr;
+        }
+
+        if (!key) {
+            return globalLocale;
+        }
+
+        if (!isArray(key)) {
+            //short-circuit everything else
+            locale = loadLocale(key);
+            if (locale) {
+                return locale;
+            }
+            key = [key];
+        }
+
+        return chooseLocale(key);
+    }
+
+    function locale_locales__listLocales() {
+        return Object.keys(locales);
+    }
+
+    var aliases = {};
+
+    function addUnitAlias (unit, shorthand) {
+        var lowerCase = unit.toLowerCase();
+        aliases[lowerCase] = aliases[lowerCase + 's'] = aliases[shorthand] = unit;
+    }
+
+    function normalizeUnits(units) {
+        return typeof units === 'string' ? aliases[units] || aliases[units.toLowerCase()] : undefined;
+    }
+
+    function normalizeObjectUnits(inputObject) {
+        var normalizedInput = {},
+            normalizedProp,
+            prop;
+
+        for (prop in inputObject) {
+            if (hasOwnProp(inputObject, prop)) {
+                normalizedProp = normalizeUnits(prop);
+                if (normalizedProp) {
+                    normalizedInput[normalizedProp] = inputObject[prop];
+                }
+            }
+        }
+
+        return normalizedInput;
+    }
+
+    function makeGetSet (unit, keepTime) {
+        return function (value) {
+            if (value != null) {
+                get_set__set(this, unit, value);
+                utils_hooks__hooks.updateOffset(this, keepTime);
+                return this;
+            } else {
+                return get_set__get(this, unit);
+            }
+        };
+    }
+
+    function get_set__get (mom, unit) {
+        return mom.isValid() ?
+            mom._d['get' + (mom._isUTC ? 'UTC' : '') + unit]() : NaN;
+    }
+
+    function get_set__set (mom, unit, value) {
+        if (mom.isValid()) {
+            mom._d['set' + (mom._isUTC ? 'UTC' : '') + unit](value);
+        }
+    }
+
+    // MOMENTS
+
+    function getSet (units, value) {
+        var unit;
+        if (typeof units === 'object') {
+            for (unit in units) {
+                this.set(unit, units[unit]);
+            }
+        } else {
+            units = normalizeUnits(units);
+            if (isFunction(this[units])) {
+                return this[units](value);
+            }
+        }
+        return this;
+    }
+
+    function zeroFill(number, targetLength, forceSign) {
+        var absNumber = '' + Math.abs(number),
+            zerosToFill = targetLength - absNumber.length,
+            sign = number >= 0;
+        return (sign ? (forceSign ? '+' : '') : '-') +
+            Math.pow(10, Math.max(0, zerosToFill)).toString().substr(1) + absNumber;
+    }
+
+    var formattingTokens = /(\[[^\[]*\])|(\\)?([Hh]mm(ss)?|Mo|MM?M?M?|Do|DDDo|DD?D?D?|ddd?d?|do?|w[o|w]?|W[o|W]?|Qo?|YYYYYY|YYYYY|YYYY|YY|gg(ggg?)?|GG(GGG?)?|e|E|a|A|hh?|HH?|mm?|ss?|S{1,9}|x|X|zz?|ZZ?|.)/g;
+
+    var localFormattingTokens = /(\[[^\[]*\])|(\\)?(LTS|LT|LL?L?L?|l{1,4})/g;
+
+    var formatFunctions = {};
+
+    var formatTokenFunctions = {};
+
+    // token:    'M'
+    // padded:   ['MM', 2]
+    // ordinal:  'Mo'
+    // callback: function () { this.month() + 1 }
+    function addFormatToken (token, padded, ordinal, callback) {
+        var func = callback;
+        if (typeof callback === 'string') {
+            func = function () {
+                return this[callback]();
+            };
+        }
+        if (token) {
+            formatTokenFunctions[token] = func;
+        }
+        if (padded) {
+            formatTokenFunctions[padded[0]] = function () {
+                return zeroFill(func.apply(this, arguments), padded[1], padded[2]);
+            };
+        }
+        if (ordinal) {
+            formatTokenFunctions[ordinal] = function () {
+                return this.localeData().ordinal(func.apply(this, arguments), token);
+            };
+        }
+    }
+
+    function removeFormattingTokens(input) {
+        if (input.match(/\[[\s\S]/)) {
+            return input.replace(/^\[|\]$/g, '');
+        }
+        return input.replace(/\\/g, '');
+    }
+
+    function makeFormatFunction(format) {
+        var array = format.match(formattingTokens), i, length;
+
+        for (i = 0, length = array.length; i < length; i++) {
+            if (formatTokenFunctions[array[i]]) {
+                array[i] = formatTokenFunctions[array[i]];
+            } else {
+                array[i] = removeFormattingTokens(array[i]);
+            }
+        }
+
+        return function (mom) {
+            var output = '';
+            for (i = 0; i < length; i++) {
+                output += array[i] instanceof Function ? array[i].call(mom, format) : array[i];
+            }
+            return output;
+        };
+    }
+
+    // format date using native date object
+    function formatMoment(m, format) {
+        if (!m.isValid()) {
+            return m.localeData().invalidDate();
+        }
+
+        format = expandFormat(format, m.localeData());
+        formatFunctions[format] = formatFunctions[format] || makeFormatFunction(format);
+
+        return formatFunctions[format](m);
+    }
+
+    function expandFormat(format, locale) {
+        var i = 5;
+
+        function replaceLongDateFormatTokens(input) {
+            return locale.longDateFormat(input) || input;
+        }
+
+        localFormattingTokens.lastIndex = 0;
+        while (i >= 0 && localFormattingTokens.test(format)) {
+            format = format.replace(localFormattingTokens, replaceLongDateFormatTokens);
+            localFormattingTokens.lastIndex = 0;
+            i -= 1;
+        }
+
+        return format;
+    }
+
+    var match1         = /\d/;            //       0 - 9
+    var match2         = /\d\d/;          //      00 - 99
+    var match3         = /\d{3}/;         //     000 - 999
+    var match4         = /\d{4}/;         //    0000 - 9999
+    var match6         = /[+-]?\d{6}/;    // -999999 - 999999
+    var match1to2      = /\d\d?/;         //       0 - 99
+    var match3to4      = /\d\d\d\d?/;     //     999 - 9999
+    var match5to6      = /\d\d\d\d\d\d?/; //   99999 - 999999
+    var match1to3      = /\d{1,3}/;       //       0 - 999
+    var match1to4      = /\d{1,4}/;       //       0 - 9999
+    var match1to6      = /[+-]?\d{1,6}/;  // -999999 - 999999
+
+    var matchUnsigned  = /\d+/;           //       0 - inf
+    var matchSigned    = /[+-]?\d+/;      //    -inf - inf
+
+    var matchOffset    = /Z|[+-]\d\d:?\d\d/gi; // +00:00 -00:00 +0000 -0000 or Z
+    var matchShortOffset = /Z|[+-]\d\d(?::?\d\d)?/gi; // +00 -00 +00:00 -00:00 +0000 -0000 or Z
+
+    var matchTimestamp = /[+-]?\d+(\.\d{1,3})?/; // 123456789 123456789.123
+
+    // any word (or two) characters or numbers including two/three word month in arabic.
+    // includes scottish gaelic two word and hyphenated months
+    var matchWord = /[0-9]*['a-z\u00A0-\u05FF\u0700-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]+|[\u0600-\u06FF\/]+(\s*?[\u0600-\u06FF]+){1,2}/i;
+
+
+    var regexes = {};
+
+    function addRegexToken (token, regex, strictRegex) {
+        regexes[token] = isFunction(regex) ? regex : function (isStrict, localeData) {
+            return (isStrict && strictRegex) ? strictRegex : regex;
+        };
+    }
+
+    function getParseRegexForToken (token, config) {
+        if (!hasOwnProp(regexes, token)) {
+            return new RegExp(unescapeFormat(token));
+        }
+
+        return regexes[token](config._strict, config._locale);
+    }
+
+    // Code from http://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
+    function unescapeFormat(s) {
+        return regexEscape(s.replace('\\', '').replace(/\\(\[)|\\(\])|\[([^\]\[]*)\]|\\(.)/g, function (matched, p1, p2, p3, p4) {
+            return p1 || p2 || p3 || p4;
+        }));
+    }
+
+    function regexEscape(s) {
+        return s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    }
+
+    var tokens = {};
+
+    function addParseToken (token, callback) {
+        var i, func = callback;
+        if (typeof token === 'string') {
+            token = [token];
+        }
+        if (typeof callback === 'number') {
+            func = function (input, array) {
+                array[callback] = toInt(input);
+            };
+        }
+        for (i = 0; i < token.length; i++) {
+            tokens[token[i]] = func;
+        }
+    }
+
+    function addWeekParseToken (token, callback) {
+        addParseToken(token, function (input, array, config, token) {
+            config._w = config._w || {};
+            callback(input, config._w, config, token);
+        });
+    }
+
+    function addTimeToArrayFromToken(token, input, config) {
+        if (input != null && hasOwnProp(tokens, token)) {
+            tokens[token](input, config._a, config, token);
+        }
+    }
+
+    var YEAR = 0;
+    var MONTH = 1;
+    var DATE = 2;
+    var HOUR = 3;
+    var MINUTE = 4;
+    var SECOND = 5;
+    var MILLISECOND = 6;
+    var WEEK = 7;
+    var WEEKDAY = 8;
+
+    function daysInMonth(year, month) {
+        return new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+    }
+
+    // FORMATTING
+
+    addFormatToken('M', ['MM', 2], 'Mo', function () {
+        return this.month() + 1;
+    });
+
+    addFormatToken('MMM', 0, 0, function (format) {
+        return this.localeData().monthsShort(this, format);
+    });
+
+    addFormatToken('MMMM', 0, 0, function (format) {
+        return this.localeData().months(this, format);
+    });
+
+    // ALIASES
+
+    addUnitAlias('month', 'M');
+
+    // PARSING
+
+    addRegexToken('M',    match1to2);
+    addRegexToken('MM',   match1to2, match2);
+    addRegexToken('MMM',  function (isStrict, locale) {
+        return locale.monthsShortRegex(isStrict);
+    });
+    addRegexToken('MMMM', function (isStrict, locale) {
+        return locale.monthsRegex(isStrict);
+    });
+
+    addParseToken(['M', 'MM'], function (input, array) {
+        array[MONTH] = toInt(input) - 1;
+    });
+
+    addParseToken(['MMM', 'MMMM'], function (input, array, config, token) {
+        var month = config._locale.monthsParse(input, token, config._strict);
+        // if we didn't find a month name, mark the date as invalid.
+        if (month != null) {
+            array[MONTH] = month;
+        } else {
+            getParsingFlags(config).invalidMonth = input;
+        }
+    });
+
+    // LOCALES
+
+    var MONTHS_IN_FORMAT = /D[oD]?(\[[^\[\]]*\]|\s+)+MMMM?/;
+    var defaultLocaleMonths = 'January_February_March_April_May_June_July_August_September_October_November_December'.split('_');
+    function localeMonths (m, format) {
+        return isArray(this._months) ? this._months[m.month()] :
+            this._months[MONTHS_IN_FORMAT.test(format) ? 'format' : 'standalone'][m.month()];
+    }
+
+    var defaultLocaleMonthsShort = 'Jan_Feb_Mar_Apr_May_Jun_Jul_Aug_Sep_Oct_Nov_Dec'.split('_');
+    function localeMonthsShort (m, format) {
+        return isArray(this._monthsShort) ? this._monthsShort[m.month()] :
+            this._monthsShort[MONTHS_IN_FORMAT.test(format) ? 'format' : 'standalone'][m.month()];
+    }
+
+    function localeMonthsParse (monthName, format, strict) {
+        var i, mom, regex;
+
+        if (!this._monthsParse) {
+            this._monthsParse = [];
+            this._longMonthsParse = [];
+            this._shortMonthsParse = [];
+        }
+
+        for (i = 0; i < 12; i++) {
+            // make the regex if we don't have it already
+            mom = create_utc__createUTC([2000, i]);
+            if (strict && !this._longMonthsParse[i]) {
+                this._longMonthsParse[i] = new RegExp('^' + this.months(mom, '').replace('.', '') + '$', 'i');
+                this._shortMonthsParse[i] = new RegExp('^' + this.monthsShort(mom, '').replace('.', '') + '$', 'i');
+            }
+            if (!strict && !this._monthsParse[i]) {
+                regex = '^' + this.months(mom, '') + '|^' + this.monthsShort(mom, '');
+                this._monthsParse[i] = new RegExp(regex.replace('.', ''), 'i');
+            }
+            // test the regex
+            if (strict && format === 'MMMM' && this._longMonthsParse[i].test(monthName)) {
+                return i;
+            } else if (strict && format === 'MMM' && this._shortMonthsParse[i].test(monthName)) {
+                return i;
+            } else if (!strict && this._monthsParse[i].test(monthName)) {
+                return i;
+            }
+        }
+    }
+
+    // MOMENTS
+
+    function setMonth (mom, value) {
+        var dayOfMonth;
+
+        if (!mom.isValid()) {
+            // No op
+            return mom;
+        }
+
+        if (typeof value === 'string') {
+            if (/^\d+$/.test(value)) {
+                value = toInt(value);
+            } else {
+                value = mom.localeData().monthsParse(value);
+                // TODO: Another silent failure?
+                if (typeof value !== 'number') {
+                    return mom;
+                }
+            }
+        }
+
+        dayOfMonth = Math.min(mom.date(), daysInMonth(mom.year(), value));
+        mom._d['set' + (mom._isUTC ? 'UTC' : '') + 'Month'](value, dayOfMonth);
+        return mom;
+    }
+
+    function getSetMonth (value) {
+        if (value != null) {
+            setMonth(this, value);
+            utils_hooks__hooks.updateOffset(this, true);
+            return this;
+        } else {
+            return get_set__get(this, 'Month');
+        }
+    }
+
+    function getDaysInMonth () {
+        return daysInMonth(this.year(), this.month());
+    }
+
+    var defaultMonthsShortRegex = matchWord;
+    function monthsShortRegex (isStrict) {
+        if (this._monthsParseExact) {
+            if (!hasOwnProp(this, '_monthsRegex')) {
+                computeMonthsParse.call(this);
+            }
+            if (isStrict) {
+                return this._monthsShortStrictRegex;
+            } else {
+                return this._monthsShortRegex;
+            }
+        } else {
+            return this._monthsShortStrictRegex && isStrict ?
+                this._monthsShortStrictRegex : this._monthsShortRegex;
+        }
+    }
+
+    var defaultMonthsRegex = matchWord;
+    function monthsRegex (isStrict) {
+        if (this._monthsParseExact) {
+            if (!hasOwnProp(this, '_monthsRegex')) {
+                computeMonthsParse.call(this);
+            }
+            if (isStrict) {
+                return this._monthsStrictRegex;
+            } else {
+                return this._monthsRegex;
+            }
+        } else {
+            return this._monthsStrictRegex && isStrict ?
+                this._monthsStrictRegex : this._monthsRegex;
+        }
+    }
+
+    function computeMonthsParse () {
+        function cmpLenRev(a, b) {
+            return b.length - a.length;
+        }
+
+        var shortPieces = [], longPieces = [], mixedPieces = [],
+            i, mom;
+        for (i = 0; i < 12; i++) {
+            // make the regex if we don't have it already
+            mom = create_utc__createUTC([2000, i]);
+            shortPieces.push(this.monthsShort(mom, ''));
+            longPieces.push(this.months(mom, ''));
+            mixedPieces.push(this.months(mom, ''));
+            mixedPieces.push(this.monthsShort(mom, ''));
+        }
+        // Sorting makes sure if one month (or abbr) is a prefix of another it
+        // will match the longer piece.
+        shortPieces.sort(cmpLenRev);
+        longPieces.sort(cmpLenRev);
+        mixedPieces.sort(cmpLenRev);
+        for (i = 0; i < 12; i++) {
+            shortPieces[i] = regexEscape(shortPieces[i]);
+            longPieces[i] = regexEscape(longPieces[i]);
+            mixedPieces[i] = regexEscape(mixedPieces[i]);
+        }
+
+        this._monthsRegex = new RegExp('^(' + mixedPieces.join('|') + ')', 'i');
+        this._monthsShortRegex = this._monthsRegex;
+        this._monthsStrictRegex = new RegExp('^(' + longPieces.join('|') + ')$', 'i');
+        this._monthsShortStrictRegex = new RegExp('^(' + shortPieces.join('|') + ')$', 'i');
+    }
+
+    function checkOverflow (m) {
+        var overflow;
+        var a = m._a;
+
+        if (a && getParsingFlags(m).overflow === -2) {
+            overflow =
+                a[MONTH]       < 0 || a[MONTH]       > 11  ? MONTH :
+                a[DATE]        < 1 || a[DATE]        > daysInMonth(a[YEAR], a[MONTH]) ? DATE :
+                a[HOUR]        < 0 || a[HOUR]        > 24 || (a[HOUR] === 24 && (a[MINUTE] !== 0 || a[SECOND] !== 0 || a[MILLISECOND] !== 0)) ? HOUR :
+                a[MINUTE]      < 0 || a[MINUTE]      > 59  ? MINUTE :
+                a[SECOND]      < 0 || a[SECOND]      > 59  ? SECOND :
+                a[MILLISECOND] < 0 || a[MILLISECOND] > 999 ? MILLISECOND :
+                -1;
+
+            if (getParsingFlags(m)._overflowDayOfYear && (overflow < YEAR || overflow > DATE)) {
+                overflow = DATE;
+            }
+            if (getParsingFlags(m)._overflowWeeks && overflow === -1) {
+                overflow = WEEK;
+            }
+            if (getParsingFlags(m)._overflowWeekday && overflow === -1) {
+                overflow = WEEKDAY;
+            }
+
+            getParsingFlags(m).overflow = overflow;
+        }
+
+        return m;
+    }
+
+    // iso 8601 regex
+    // 0000-00-00 0000-W00 or 0000-W00-0 + T + 00 or 00:00 or 00:00:00 or 00:00:00.000 + +00:00 or +0000 or +00)
+    var extendedIsoRegex = /^\s*((?:[+-]\d{6}|\d{4})-(?:\d\d-\d\d|W\d\d-\d|W\d\d|\d\d\d|\d\d))(?:(T| )(\d\d(?::\d\d(?::\d\d(?:[.,]\d+)?)?)?)([\+\-]\d\d(?::?\d\d)?|\s*Z)?)?/;
+    var basicIsoRegex = /^\s*((?:[+-]\d{6}|\d{4})(?:\d\d\d\d|W\d\d\d|W\d\d|\d\d\d|\d\d))(?:(T| )(\d\d(?:\d\d(?:\d\d(?:[.,]\d+)?)?)?)([\+\-]\d\d(?::?\d\d)?|\s*Z)?)?/;
+
+    var tzRegex = /Z|[+-]\d\d(?::?\d\d)?/;
+
+    var isoDates = [
+        ['YYYYYY-MM-DD', /[+-]\d{6}-\d\d-\d\d/],
+        ['YYYY-MM-DD', /\d{4}-\d\d-\d\d/],
+        ['GGGG-[W]WW-E', /\d{4}-W\d\d-\d/],
+        ['GGGG-[W]WW', /\d{4}-W\d\d/, false],
+        ['YYYY-DDD', /\d{4}-\d{3}/],
+        ['YYYY-MM', /\d{4}-\d\d/, false],
+        ['YYYYYYMMDD', /[+-]\d{10}/],
+        ['YYYYMMDD', /\d{8}/],
+        // YYYYMM is NOT allowed by the standard
+        ['GGGG[W]WWE', /\d{4}W\d{3}/],
+        ['GGGG[W]WW', /\d{4}W\d{2}/, false],
+        ['YYYYDDD', /\d{7}/]
+    ];
+
+    // iso time formats and regexes
+    var isoTimes = [
+        ['HH:mm:ss.SSSS', /\d\d:\d\d:\d\d\.\d+/],
+        ['HH:mm:ss,SSSS', /\d\d:\d\d:\d\d,\d+/],
+        ['HH:mm:ss', /\d\d:\d\d:\d\d/],
+        ['HH:mm', /\d\d:\d\d/],
+        ['HHmmss.SSSS', /\d\d\d\d\d\d\.\d+/],
+        ['HHmmss,SSSS', /\d\d\d\d\d\d,\d+/],
+        ['HHmmss', /\d\d\d\d\d\d/],
+        ['HHmm', /\d\d\d\d/],
+        ['HH', /\d\d/]
+    ];
+
+    var aspNetJsonRegex = /^\/?Date\((\-?\d+)/i;
+
+    // date from iso format
+    function configFromISO(config) {
+        var i, l,
+            string = config._i,
+            match = extendedIsoRegex.exec(string) || basicIsoRegex.exec(string),
+            allowTime, dateFormat, timeFormat, tzFormat;
+
+        if (match) {
+            getParsingFlags(config).iso = true;
+
+            for (i = 0, l = isoDates.length; i < l; i++) {
+                if (isoDates[i][1].exec(match[1])) {
+                    dateFormat = isoDates[i][0];
+                    allowTime = isoDates[i][2] !== false;
+                    break;
+                }
+            }
+            if (dateFormat == null) {
+                config._isValid = false;
+                return;
+            }
+            if (match[3]) {
+                for (i = 0, l = isoTimes.length; i < l; i++) {
+                    if (isoTimes[i][1].exec(match[3])) {
+                        // match[2] should be 'T' or space
+                        timeFormat = (match[2] || ' ') + isoTimes[i][0];
+                        break;
+                    }
+                }
+                if (timeFormat == null) {
+                    config._isValid = false;
+                    return;
+                }
+            }
+            if (!allowTime && timeFormat != null) {
+                config._isValid = false;
+                return;
+            }
+            if (match[4]) {
+                if (tzRegex.exec(match[4])) {
+                    tzFormat = 'Z';
+                } else {
+                    config._isValid = false;
+                    return;
+                }
+            }
+            config._f = dateFormat + (timeFormat || '') + (tzFormat || '');
+            configFromStringAndFormat(config);
+        } else {
+            config._isValid = false;
+        }
+    }
+
+    // date from iso format or fallback
+    function configFromString(config) {
+        var matched = aspNetJsonRegex.exec(config._i);
+
+        if (matched !== null) {
+            config._d = new Date(+matched[1]);
+            return;
+        }
+
+        configFromISO(config);
+        if (config._isValid === false) {
+            delete config._isValid;
+            utils_hooks__hooks.createFromInputFallback(config);
+        }
+    }
+
+    utils_hooks__hooks.createFromInputFallback = deprecate(
+        'moment construction falls back to js Date. This is ' +
+        'discouraged and will be removed in upcoming major ' +
+        'release. Please refer to ' +
+        'https://github.com/moment/moment/issues/1407 for more info.',
+        function (config) {
+            config._d = new Date(config._i + (config._useUTC ? ' UTC' : ''));
+        }
+    );
+
+    function createDate (y, m, d, h, M, s, ms) {
+        //can't just apply() to create a date:
+        //http://stackoverflow.com/questions/181348/instantiating-a-javascript-object-by-calling-prototype-constructor-apply
+        var date = new Date(y, m, d, h, M, s, ms);
+
+        //the date constructor remaps years 0-99 to 1900-1999
+        if (y < 100 && y >= 0 && isFinite(date.getFullYear())) {
+            date.setFullYear(y);
+        }
+        return date;
+    }
+
+    function createUTCDate (y) {
+        var date = new Date(Date.UTC.apply(null, arguments));
+
+        //the Date.UTC function remaps years 0-99 to 1900-1999
+        if (y < 100 && y >= 0 && isFinite(date.getUTCFullYear())) {
+            date.setUTCFullYear(y);
+        }
+        return date;
+    }
+
+    // FORMATTING
+
+    addFormatToken('Y', 0, 0, function () {
+        var y = this.year();
+        return y <= 9999 ? '' + y : '+' + y;
+    });
+
+    addFormatToken(0, ['YY', 2], 0, function () {
+        return this.year() % 100;
+    });
+
+    addFormatToken(0, ['YYYY',   4],       0, 'year');
+    addFormatToken(0, ['YYYYY',  5],       0, 'year');
+    addFormatToken(0, ['YYYYYY', 6, true], 0, 'year');
+
+    // ALIASES
+
+    addUnitAlias('year', 'y');
+
+    // PARSING
+
+    addRegexToken('Y',      matchSigned);
+    addRegexToken('YY',     match1to2, match2);
+    addRegexToken('YYYY',   match1to4, match4);
+    addRegexToken('YYYYY',  match1to6, match6);
+    addRegexToken('YYYYYY', match1to6, match6);
+
+    addParseToken(['YYYYY', 'YYYYYY'], YEAR);
+    addParseToken('YYYY', function (input, array) {
+        array[YEAR] = input.length === 2 ? utils_hooks__hooks.parseTwoDigitYear(input) : toInt(input);
+    });
+    addParseToken('YY', function (input, array) {
+        array[YEAR] = utils_hooks__hooks.parseTwoDigitYear(input);
+    });
+    addParseToken('Y', function (input, array) {
+        array[YEAR] = parseInt(input, 10);
+    });
+
+    // HELPERS
+
+    function daysInYear(year) {
+        return isLeapYear(year) ? 366 : 365;
+    }
+
+    function isLeapYear(year) {
+        return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+    }
+
+    // HOOKS
+
+    utils_hooks__hooks.parseTwoDigitYear = function (input) {
+        return toInt(input) + (toInt(input) > 68 ? 1900 : 2000);
+    };
+
+    // MOMENTS
+
+    var getSetYear = makeGetSet('FullYear', false);
+
+    function getIsLeapYear () {
+        return isLeapYear(this.year());
+    }
+
+    // start-of-first-week - start-of-year
+    function firstWeekOffset(year, dow, doy) {
+        var // first-week day -- which january is always in the first week (4 for iso, 1 for other)
+            fwd = 7 + dow - doy,
+            // first-week day local weekday -- which local weekday is fwd
+            fwdlw = (7 + createUTCDate(year, 0, fwd).getUTCDay() - dow) % 7;
+
+        return -fwdlw + fwd - 1;
+    }
+
+    //http://en.wikipedia.org/wiki/ISO_week_date#Calculating_a_date_given_the_year.2C_week_number_and_weekday
+    function dayOfYearFromWeeks(year, week, weekday, dow, doy) {
+        var localWeekday = (7 + weekday - dow) % 7,
+            weekOffset = firstWeekOffset(year, dow, doy),
+            dayOfYear = 1 + 7 * (week - 1) + localWeekday + weekOffset,
+            resYear, resDayOfYear;
+
+        if (dayOfYear <= 0) {
+            resYear = year - 1;
+            resDayOfYear = daysInYear(resYear) + dayOfYear;
+        } else if (dayOfYear > daysInYear(year)) {
+            resYear = year + 1;
+            resDayOfYear = dayOfYear - daysInYear(year);
+        } else {
+            resYear = year;
+            resDayOfYear = dayOfYear;
+        }
+
+        return {
+            year: resYear,
+            dayOfYear: resDayOfYear
+        };
+    }
+
+    function weekOfYear(mom, dow, doy) {
+        var weekOffset = firstWeekOffset(mom.year(), dow, doy),
+            week = Math.floor((mom.dayOfYear() - weekOffset - 1) / 7) + 1,
+            resWeek, resYear;
+
+        if (week < 1) {
+            resYear = mom.year() - 1;
+            resWeek = week + weeksInYear(resYear, dow, doy);
+        } else if (week > weeksInYear(mom.year(), dow, doy)) {
+            resWeek = week - weeksInYear(mom.year(), dow, doy);
+            resYear = mom.year() + 1;
+        } else {
+            resYear = mom.year();
+            resWeek = week;
+        }
+
+        return {
+            week: resWeek,
+            year: resYear
+        };
+    }
+
+    function weeksInYear(year, dow, doy) {
+        var weekOffset = firstWeekOffset(year, dow, doy),
+            weekOffsetNext = firstWeekOffset(year + 1, dow, doy);
+        return (daysInYear(year) - weekOffset + weekOffsetNext) / 7;
+    }
+
+    // Pick the first defined of two or three arguments.
+    function defaults(a, b, c) {
+        if (a != null) {
+            return a;
+        }
+        if (b != null) {
+            return b;
+        }
+        return c;
+    }
+
+    function currentDateArray(config) {
+        // hooks is actually the exported moment object
+        var nowValue = new Date(utils_hooks__hooks.now());
+        if (config._useUTC) {
+            return [nowValue.getUTCFullYear(), nowValue.getUTCMonth(), nowValue.getUTCDate()];
+        }
+        return [nowValue.getFullYear(), nowValue.getMonth(), nowValue.getDate()];
+    }
+
+    // convert an array to a date.
+    // the array should mirror the parameters below
+    // note: all values past the year are optional and will default to the lowest possible value.
+    // [year, month, day , hour, minute, second, millisecond]
+    function configFromArray (config) {
+        var i, date, input = [], currentDate, yearToUse;
+
+        if (config._d) {
+            return;
+        }
+
+        currentDate = currentDateArray(config);
+
+        //compute day of the year from weeks and weekdays
+        if (config._w && config._a[DATE] == null && config._a[MONTH] == null) {
+            dayOfYearFromWeekInfo(config);
+        }
+
+        //if the day of the year is set, figure out what it is
+        if (config._dayOfYear) {
+            yearToUse = defaults(config._a[YEAR], currentDate[YEAR]);
+
+            if (config._dayOfYear > daysInYear(yearToUse)) {
+                getParsingFlags(config)._overflowDayOfYear = true;
+            }
+
+            date = createUTCDate(yearToUse, 0, config._dayOfYear);
+            config._a[MONTH] = date.getUTCMonth();
+            config._a[DATE] = date.getUTCDate();
+        }
+
+        // Default to current date.
+        // * if no year, month, day of month are given, default to today
+        // * if day of month is given, default month and year
+        // * if month is given, default only year
+        // * if year is given, don't default anything
+        for (i = 0; i < 3 && config._a[i] == null; ++i) {
+            config._a[i] = input[i] = currentDate[i];
+        }
+
+        // Zero out whatever was not defaulted, including time
+        for (; i < 7; i++) {
+            config._a[i] = input[i] = (config._a[i] == null) ? (i === 2 ? 1 : 0) : config._a[i];
+        }
+
+        // Check for 24:00:00.000
+        if (config._a[HOUR] === 24 &&
+                config._a[MINUTE] === 0 &&
+                config._a[SECOND] === 0 &&
+                config._a[MILLISECOND] === 0) {
+            config._nextDay = true;
+            config._a[HOUR] = 0;
+        }
+
+        config._d = (config._useUTC ? createUTCDate : createDate).apply(null, input);
+        // Apply timezone offset from input. The actual utcOffset can be changed
+        // with parseZone.
+        if (config._tzm != null) {
+            config._d.setUTCMinutes(config._d.getUTCMinutes() - config._tzm);
+        }
+
+        if (config._nextDay) {
+            config._a[HOUR] = 24;
+        }
+    }
+
+    function dayOfYearFromWeekInfo(config) {
+        var w, weekYear, week, weekday, dow, doy, temp, weekdayOverflow;
+
+        w = config._w;
+        if (w.GG != null || w.W != null || w.E != null) {
+            dow = 1;
+            doy = 4;
+
+            // TODO: We need to take the current isoWeekYear, but that depends on
+            // how we interpret now (local, utc, fixed offset). So create
+            // a now version of current config (take local/utc/offset flags, and
+            // create now).
+            weekYear = defaults(w.GG, config._a[YEAR], weekOfYear(local__createLocal(), 1, 4).year);
+            week = defaults(w.W, 1);
+            weekday = defaults(w.E, 1);
+            if (weekday < 1 || weekday > 7) {
+                weekdayOverflow = true;
+            }
+        } else {
+            dow = config._locale._week.dow;
+            doy = config._locale._week.doy;
+
+            weekYear = defaults(w.gg, config._a[YEAR], weekOfYear(local__createLocal(), dow, doy).year);
+            week = defaults(w.w, 1);
+
+            if (w.d != null) {
+                // weekday -- low day numbers are considered next week
+                weekday = w.d;
+                if (weekday < 0 || weekday > 6) {
+                    weekdayOverflow = true;
+                }
+            } else if (w.e != null) {
+                // local weekday -- counting starts from begining of week
+                weekday = w.e + dow;
+                if (w.e < 0 || w.e > 6) {
+                    weekdayOverflow = true;
+                }
+            } else {
+                // default to begining of week
+                weekday = dow;
+            }
+        }
+        if (week < 1 || week > weeksInYear(weekYear, dow, doy)) {
+            getParsingFlags(config)._overflowWeeks = true;
+        } else if (weekdayOverflow != null) {
+            getParsingFlags(config)._overflowWeekday = true;
+        } else {
+            temp = dayOfYearFromWeeks(weekYear, week, weekday, dow, doy);
+            config._a[YEAR] = temp.year;
+            config._dayOfYear = temp.dayOfYear;
+        }
+    }
+
+    // constant that refers to the ISO standard
+    utils_hooks__hooks.ISO_8601 = function () {};
+
+    // date from string and format string
+    function configFromStringAndFormat(config) {
+        // TODO: Move this to another part of the creation flow to prevent circular deps
+        if (config._f === utils_hooks__hooks.ISO_8601) {
+            configFromISO(config);
+            return;
+        }
+
+        config._a = [];
+        getParsingFlags(config).empty = true;
+
+        // This array is used to make a Date, either with `new Date` or `Date.UTC`
+        var string = '' + config._i,
+            i, parsedInput, tokens, token, skipped,
+            stringLength = string.length,
+            totalParsedInputLength = 0;
+
+        tokens = expandFormat(config._f, config._locale).match(formattingTokens) || [];
+
+        for (i = 0; i < tokens.length; i++) {
+            token = tokens[i];
+            parsedInput = (string.match(getParseRegexForToken(token, config)) || [])[0];
+            // console.log('token', token, 'parsedInput', parsedInput,
+            //         'regex', getParseRegexForToken(token, config));
+            if (parsedInput) {
+                skipped = string.substr(0, string.indexOf(parsedInput));
+                if (skipped.length > 0) {
+                    getParsingFlags(config).unusedInput.push(skipped);
+                }
+                string = string.slice(string.indexOf(parsedInput) + parsedInput.length);
+                totalParsedInputLength += parsedInput.length;
+            }
+            // don't parse if it's not a known token
+            if (formatTokenFunctions[token]) {
+                if (parsedInput) {
+                    getParsingFlags(config).empty = false;
+                }
+                else {
+                    getParsingFlags(config).unusedTokens.push(token);
+                }
+                addTimeToArrayFromToken(token, parsedInput, config);
+            }
+            else if (config._strict && !parsedInput) {
+                getParsingFlags(config).unusedTokens.push(token);
+            }
+        }
+
+        // add remaining unparsed input length to the string
+        getParsingFlags(config).charsLeftOver = stringLength - totalParsedInputLength;
+        if (string.length > 0) {
+            getParsingFlags(config).unusedInput.push(string);
+        }
+
+        // clear _12h flag if hour is <= 12
+        if (getParsingFlags(config).bigHour === true &&
+                config._a[HOUR] <= 12 &&
+                config._a[HOUR] > 0) {
+            getParsingFlags(config).bigHour = undefined;
+        }
+        // handle meridiem
+        config._a[HOUR] = meridiemFixWrap(config._locale, config._a[HOUR], config._meridiem);
+
+        configFromArray(config);
+        checkOverflow(config);
+    }
+
+
+    function meridiemFixWrap (locale, hour, meridiem) {
+        var isPm;
+
+        if (meridiem == null) {
+            // nothing to do
+            return hour;
+        }
+        if (locale.meridiemHour != null) {
+            return locale.meridiemHour(hour, meridiem);
+        } else if (locale.isPM != null) {
+            // Fallback
+            isPm = locale.isPM(meridiem);
+            if (isPm && hour < 12) {
+                hour += 12;
+            }
+            if (!isPm && hour === 12) {
+                hour = 0;
+            }
+            return hour;
+        } else {
+            // this is not supposed to happen
+            return hour;
+        }
+    }
+
+    // date from string and array of format strings
+    function configFromStringAndArray(config) {
+        var tempConfig,
+            bestMoment,
+
+            scoreToBeat,
+            i,
+            currentScore;
+
+        if (config._f.length === 0) {
+            getParsingFlags(config).invalidFormat = true;
+            config._d = new Date(NaN);
+            return;
+        }
+
+        for (i = 0; i < config._f.length; i++) {
+            currentScore = 0;
+            tempConfig = copyConfig({}, config);
+            if (config._useUTC != null) {
+                tempConfig._useUTC = config._useUTC;
+            }
+            tempConfig._f = config._f[i];
+            configFromStringAndFormat(tempConfig);
+
+            if (!valid__isValid(tempConfig)) {
+                continue;
+            }
+
+            // if there is any input that was not parsed add a penalty for that format
+            currentScore += getParsingFlags(tempConfig).charsLeftOver;
+
+            //or tokens
+            currentScore += getParsingFlags(tempConfig).unusedTokens.length * 10;
+
+            getParsingFlags(tempConfig).score = currentScore;
+
+            if (scoreToBeat == null || currentScore < scoreToBeat) {
+                scoreToBeat = currentScore;
+                bestMoment = tempConfig;
+            }
+        }
+
+        extend(config, bestMoment || tempConfig);
+    }
+
+    function configFromObject(config) {
+        if (config._d) {
+            return;
+        }
+
+        var i = normalizeObjectUnits(config._i);
+        config._a = map([i.year, i.month, i.day || i.date, i.hour, i.minute, i.second, i.millisecond], function (obj) {
+            return obj && parseInt(obj, 10);
+        });
+
+        configFromArray(config);
+    }
+
+    function createFromConfig (config) {
+        var res = new Moment(checkOverflow(prepareConfig(config)));
+        if (res._nextDay) {
+            // Adding is smart enough around DST
+            res.add(1, 'd');
+            res._nextDay = undefined;
+        }
+
+        return res;
+    }
+
+    function prepareConfig (config) {
+        var input = config._i,
+            format = config._f;
+
+        config._locale = config._locale || locale_locales__getLocale(config._l);
+
+        if (input === null || (format === undefined && input === '')) {
+            return valid__createInvalid({nullInput: true});
+        }
+
+        if (typeof input === 'string') {
+            config._i = input = config._locale.preparse(input);
+        }
+
+        if (isMoment(input)) {
+            return new Moment(checkOverflow(input));
+        } else if (isArray(format)) {
+            configFromStringAndArray(config);
+        } else if (format) {
+            configFromStringAndFormat(config);
+        } else if (isDate(input)) {
+            config._d = input;
+        } else {
+            configFromInput(config);
+        }
+
+        if (!valid__isValid(config)) {
+            config._d = null;
+        }
+
+        return config;
+    }
+
+    function configFromInput(config) {
+        var input = config._i;
+        if (input === undefined) {
+            config._d = new Date(utils_hooks__hooks.now());
+        } else if (isDate(input)) {
+            config._d = new Date(+input);
+        } else if (typeof input === 'string') {
+            configFromString(config);
+        } else if (isArray(input)) {
+            config._a = map(input.slice(0), function (obj) {
+                return parseInt(obj, 10);
+            });
+            configFromArray(config);
+        } else if (typeof(input) === 'object') {
+            configFromObject(config);
+        } else if (typeof(input) === 'number') {
+            // from milliseconds
+            config._d = new Date(input);
+        } else {
+            utils_hooks__hooks.createFromInputFallback(config);
+        }
+    }
+
+    function createLocalOrUTC (input, format, locale, strict, isUTC) {
+        var c = {};
+
+        if (typeof(locale) === 'boolean') {
+            strict = locale;
+            locale = undefined;
+        }
+        // object construction must be done this way.
+        // https://github.com/moment/moment/issues/1423
+        c._isAMomentObject = true;
+        c._useUTC = c._isUTC = isUTC;
+        c._l = locale;
+        c._i = input;
+        c._f = format;
+        c._strict = strict;
+
+        return createFromConfig(c);
+    }
+
+    function local__createLocal (input, format, locale, strict) {
+        return createLocalOrUTC(input, format, locale, strict, false);
+    }
+
+    var prototypeMin = deprecate(
+         'moment().min is deprecated, use moment.max instead. https://github.com/moment/moment/issues/1548',
+         function () {
+             var other = local__createLocal.apply(null, arguments);
+             if (this.isValid() && other.isValid()) {
+                 return other < this ? this : other;
+             } else {
+                 return valid__createInvalid();
+             }
+         }
+     );
+
+    var prototypeMax = deprecate(
+        'moment().max is deprecated, use moment.min instead. https://github.com/moment/moment/issues/1548',
+        function () {
+            var other = local__createLocal.apply(null, arguments);
+            if (this.isValid() && other.isValid()) {
+                return other > this ? this : other;
+            } else {
+                return valid__createInvalid();
+            }
+        }
+    );
+
+    // Pick a moment m from moments so that m[fn](other) is true for all
+    // other. This relies on the function fn to be transitive.
+    //
+    // moments should either be an array of moment objects or an array, whose
+    // first element is an array of moment objects.
+    function pickBy(fn, moments) {
+        var res, i;
+        if (moments.length === 1 && isArray(moments[0])) {
+            moments = moments[0];
+        }
+        if (!moments.length) {
+            return local__createLocal();
+        }
+        res = moments[0];
+        for (i = 1; i < moments.length; ++i) {
+            if (!moments[i].isValid() || moments[i][fn](res)) {
+                res = moments[i];
+            }
+        }
+        return res;
+    }
+
+    // TODO: Use [].sort instead?
+    function min () {
+        var args = [].slice.call(arguments, 0);
+
+        return pickBy('isBefore', args);
+    }
+
+    function max () {
+        var args = [].slice.call(arguments, 0);
+
+        return pickBy('isAfter', args);
+    }
+
+    var now = function () {
+        return Date.now ? Date.now() : +(new Date());
+    };
+
+    function Duration (duration) {
+        var normalizedInput = normalizeObjectUnits(duration),
+            years = normalizedInput.year || 0,
+            quarters = normalizedInput.quarter || 0,
+            months = normalizedInput.month || 0,
+            weeks = normalizedInput.week || 0,
+            days = normalizedInput.day || 0,
+            hours = normalizedInput.hour || 0,
+            minutes = normalizedInput.minute || 0,
+            seconds = normalizedInput.second || 0,
+            milliseconds = normalizedInput.millisecond || 0;
+
+        // representation for dateAddRemove
+        this._milliseconds = +milliseconds +
+            seconds * 1e3 + // 1000
+            minutes * 6e4 + // 1000 * 60
+            hours * 36e5; // 1000 * 60 * 60
+        // Because of dateAddRemove treats 24 hours as different from a
+        // day when working around DST, we need to store them separately
+        this._days = +days +
+            weeks * 7;
+        // It is impossible translate months into days without knowing
+        // which months you are are talking about, so we have to store
+        // it separately.
+        this._months = +months +
+            quarters * 3 +
+            years * 12;
+
+        this._data = {};
+
+        this._locale = locale_locales__getLocale();
+
+        this._bubble();
+    }
+
+    function isDuration (obj) {
+        return obj instanceof Duration;
+    }
+
+    // FORMATTING
+
+    function offset (token, separator) {
+        addFormatToken(token, 0, 0, function () {
+            var offset = this.utcOffset();
+            var sign = '+';
+            if (offset < 0) {
+                offset = -offset;
+                sign = '-';
+            }
+            return sign + zeroFill(~~(offset / 60), 2) + separator + zeroFill(~~(offset) % 60, 2);
+        });
+    }
+
+    offset('Z', ':');
+    offset('ZZ', '');
+
+    // PARSING
+
+    addRegexToken('Z',  matchShortOffset);
+    addRegexToken('ZZ', matchShortOffset);
+    addParseToken(['Z', 'ZZ'], function (input, array, config) {
+        config._useUTC = true;
+        config._tzm = offsetFromString(matchShortOffset, input);
+    });
+
+    // HELPERS
+
+    // timezone chunker
+    // '+10:00' > ['10',  '00']
+    // '-1530'  > ['-15', '30']
+    var chunkOffset = /([\+\-]|\d\d)/gi;
+
+    function offsetFromString(matcher, string) {
+        var matches = ((string || '').match(matcher) || []);
+        var chunk   = matches[matches.length - 1] || [];
+        var parts   = (chunk + '').match(chunkOffset) || ['-', 0, 0];
+        var minutes = +(parts[1] * 60) + toInt(parts[2]);
+
+        return parts[0] === '+' ? minutes : -minutes;
+    }
+
+    // Return a moment from input, that is local/utc/zone equivalent to model.
+    function cloneWithOffset(input, model) {
+        var res, diff;
+        if (model._isUTC) {
+            res = model.clone();
+            diff = (isMoment(input) || isDate(input) ? +input : +local__createLocal(input)) - (+res);
+            // Use low-level api, because this fn is low-level api.
+            res._d.setTime(+res._d + diff);
+            utils_hooks__hooks.updateOffset(res, false);
+            return res;
+        } else {
+            return local__createLocal(input).local();
+        }
+    }
+
+    function getDateOffset (m) {
+        // On Firefox.24 Date#getTimezoneOffset returns a floating point.
+        // https://github.com/moment/moment/pull/1871
+        return -Math.round(m._d.getTimezoneOffset() / 15) * 15;
+    }
+
+    // HOOKS
+
+    // This function will be called whenever a moment is mutated.
+    // It is intended to keep the offset in sync with the timezone.
+    utils_hooks__hooks.updateOffset = function () {};
+
+    // MOMENTS
+
+    // keepLocalTime = true means only change the timezone, without
+    // affecting the local hour. So 5:31:26 +0300 --[utcOffset(2, true)]-->
+    // 5:31:26 +0200 It is possible that 5:31:26 doesn't exist with offset
+    // +0200, so we adjust the time as needed, to be valid.
+    //
+    // Keeping the time actually adds/subtracts (one hour)
+    // from the actual represented time. That is why we call updateOffset
+    // a second time. In case it wants us to change the offset again
+    // _changeInProgress == true case, then we have to adjust, because
+    // there is no such time in the given timezone.
+    function getSetOffset (input, keepLocalTime) {
+        var offset = this._offset || 0,
+            localAdjust;
+        if (!this.isValid()) {
+            return input != null ? this : NaN;
+        }
+        if (input != null) {
+            if (typeof input === 'string') {
+                input = offsetFromString(matchShortOffset, input);
+            } else if (Math.abs(input) < 16) {
+                input = input * 60;
+            }
+            if (!this._isUTC && keepLocalTime) {
+                localAdjust = getDateOffset(this);
+            }
+            this._offset = input;
+            this._isUTC = true;
+            if (localAdjust != null) {
+                this.add(localAdjust, 'm');
+            }
+            if (offset !== input) {
+                if (!keepLocalTime || this._changeInProgress) {
+                    add_subtract__addSubtract(this, create__createDuration(input - offset, 'm'), 1, false);
+                } else if (!this._changeInProgress) {
+                    this._changeInProgress = true;
+                    utils_hooks__hooks.updateOffset(this, true);
+                    this._changeInProgress = null;
+                }
+            }
+            return this;
+        } else {
+            return this._isUTC ? offset : getDateOffset(this);
+        }
+    }
+
+    function getSetZone (input, keepLocalTime) {
+        if (input != null) {
+            if (typeof input !== 'string') {
+                input = -input;
+            }
+
+            this.utcOffset(input, keepLocalTime);
+
+            return this;
+        } else {
+            return -this.utcOffset();
+        }
+    }
+
+    function setOffsetToUTC (keepLocalTime) {
+        return this.utcOffset(0, keepLocalTime);
+    }
+
+    function setOffsetToLocal (keepLocalTime) {
+        if (this._isUTC) {
+            this.utcOffset(0, keepLocalTime);
+            this._isUTC = false;
+
+            if (keepLocalTime) {
+                this.subtract(getDateOffset(this), 'm');
+            }
+        }
+        return this;
+    }
+
+    function setOffsetToParsedOffset () {
+        if (this._tzm) {
+            this.utcOffset(this._tzm);
+        } else if (typeof this._i === 'string') {
+            this.utcOffset(offsetFromString(matchOffset, this._i));
+        }
+        return this;
+    }
+
+    function hasAlignedHourOffset (input) {
+        if (!this.isValid()) {
+            return false;
+        }
+        input = input ? local__createLocal(input).utcOffset() : 0;
+
+        return (this.utcOffset() - input) % 60 === 0;
+    }
+
+    function isDaylightSavingTime () {
+        return (
+            this.utcOffset() > this.clone().month(0).utcOffset() ||
+            this.utcOffset() > this.clone().month(5).utcOffset()
+        );
+    }
+
+    function isDaylightSavingTimeShifted () {
+        if (!isUndefined(this._isDSTShifted)) {
+            return this._isDSTShifted;
+        }
+
+        var c = {};
+
+        copyConfig(c, this);
+        c = prepareConfig(c);
+
+        if (c._a) {
+            var other = c._isUTC ? create_utc__createUTC(c._a) : local__createLocal(c._a);
+            this._isDSTShifted = this.isValid() &&
+                compareArrays(c._a, other.toArray()) > 0;
+        } else {
+            this._isDSTShifted = false;
+        }
+
+        return this._isDSTShifted;
+    }
+
+    function isLocal () {
+        return this.isValid() ? !this._isUTC : false;
+    }
+
+    function isUtcOffset () {
+        return this.isValid() ? this._isUTC : false;
+    }
+
+    function isUtc () {
+        return this.isValid() ? this._isUTC && this._offset === 0 : false;
+    }
+
+    // ASP.NET json date format regex
+    var aspNetRegex = /^(\-)?(?:(\d*)[. ])?(\d+)\:(\d+)(?:\:(\d+)\.?(\d{3})?\d*)?$/;
+
+    // from http://docs.closure-library.googlecode.com/git/closure_goog_date_date.js.source.html
+    // somewhat more in line with 4.4.3.2 2004 spec, but allows decimal anywhere
+    // and further modified to allow for strings containing both week and day
+    var isoRegex = /^(-)?P(?:([0-9,.]*)Y)?(?:([0-9,.]*)M)?(?:([0-9,.]*)W)?(?:([0-9,.]*)D)?(?:T(?:([0-9,.]*)H)?(?:([0-9,.]*)M)?(?:([0-9,.]*)S)?)?$/;
+
+    function create__createDuration (input, key) {
+        var duration = input,
+            // matching against regexp is expensive, do it on demand
+            match = null,
+            sign,
+            ret,
+            diffRes;
+
+        if (isDuration(input)) {
+            duration = {
+                ms : input._milliseconds,
+                d  : input._days,
+                M  : input._months
+            };
+        } else if (typeof input === 'number') {
+            duration = {};
+            if (key) {
+                duration[key] = input;
+            } else {
+                duration.milliseconds = input;
+            }
+        } else if (!!(match = aspNetRegex.exec(input))) {
+            sign = (match[1] === '-') ? -1 : 1;
+            duration = {
+                y  : 0,
+                d  : toInt(match[DATE])        * sign,
+                h  : toInt(match[HOUR])        * sign,
+                m  : toInt(match[MINUTE])      * sign,
+                s  : toInt(match[SECOND])      * sign,
+                ms : toInt(match[MILLISECOND]) * sign
+            };
+        } else if (!!(match = isoRegex.exec(input))) {
+            sign = (match[1] === '-') ? -1 : 1;
+            duration = {
+                y : parseIso(match[2], sign),
+                M : parseIso(match[3], sign),
+                w : parseIso(match[4], sign),
+                d : parseIso(match[5], sign),
+                h : parseIso(match[6], sign),
+                m : parseIso(match[7], sign),
+                s : parseIso(match[8], sign)
+            };
+        } else if (duration == null) {// checks for null or undefined
+            duration = {};
+        } else if (typeof duration === 'object' && ('from' in duration || 'to' in duration)) {
+            diffRes = momentsDifference(local__createLocal(duration.from), local__createLocal(duration.to));
+
+            duration = {};
+            duration.ms = diffRes.milliseconds;
+            duration.M = diffRes.months;
+        }
+
+        ret = new Duration(duration);
+
+        if (isDuration(input) && hasOwnProp(input, '_locale')) {
+            ret._locale = input._locale;
+        }
+
+        return ret;
+    }
+
+    create__createDuration.fn = Duration.prototype;
+
+    function parseIso (inp, sign) {
+        // We'd normally use ~~inp for this, but unfortunately it also
+        // converts floats to ints.
+        // inp may be undefined, so careful calling replace on it.
+        var res = inp && parseFloat(inp.replace(',', '.'));
+        // apply sign while we're at it
+        return (isNaN(res) ? 0 : res) * sign;
+    }
+
+    function positiveMomentsDifference(base, other) {
+        var res = {milliseconds: 0, months: 0};
+
+        res.months = other.month() - base.month() +
+            (other.year() - base.year()) * 12;
+        if (base.clone().add(res.months, 'M').isAfter(other)) {
+            --res.months;
+        }
+
+        res.milliseconds = +other - +(base.clone().add(res.months, 'M'));
+
+        return res;
+    }
+
+    function momentsDifference(base, other) {
+        var res;
+        if (!(base.isValid() && other.isValid())) {
+            return {milliseconds: 0, months: 0};
+        }
+
+        other = cloneWithOffset(other, base);
+        if (base.isBefore(other)) {
+            res = positiveMomentsDifference(base, other);
+        } else {
+            res = positiveMomentsDifference(other, base);
+            res.milliseconds = -res.milliseconds;
+            res.months = -res.months;
+        }
+
+        return res;
+    }
+
+    function absRound (number) {
+        if (number < 0) {
+            return Math.round(-1 * number) * -1;
+        } else {
+            return Math.round(number);
+        }
+    }
+
+    // TODO: remove 'name' arg after deprecation is removed
+    function createAdder(direction, name) {
+        return function (val, period) {
+            var dur, tmp;
+            //invert the arguments, but complain about it
+            if (period !== null && !isNaN(+period)) {
+                deprecateSimple(name, 'moment().' + name  + '(period, number) is deprecated. Please use moment().' + name + '(number, period).');
+                tmp = val; val = period; period = tmp;
+            }
+
+            val = typeof val === 'string' ? +val : val;
+            dur = create__createDuration(val, period);
+            add_subtract__addSubtract(this, dur, direction);
+            return this;
+        };
+    }
+
+    function add_subtract__addSubtract (mom, duration, isAdding, updateOffset) {
+        var milliseconds = duration._milliseconds,
+            days = absRound(duration._days),
+            months = absRound(duration._months);
+
+        if (!mom.isValid()) {
+            // No op
+            return;
+        }
+
+        updateOffset = updateOffset == null ? true : updateOffset;
+
+        if (milliseconds) {
+            mom._d.setTime(+mom._d + milliseconds * isAdding);
+        }
+        if (days) {
+            get_set__set(mom, 'Date', get_set__get(mom, 'Date') + days * isAdding);
+        }
+        if (months) {
+            setMonth(mom, get_set__get(mom, 'Month') + months * isAdding);
+        }
+        if (updateOffset) {
+            utils_hooks__hooks.updateOffset(mom, days || months);
+        }
+    }
+
+    var add_subtract__add      = createAdder(1, 'add');
+    var add_subtract__subtract = createAdder(-1, 'subtract');
+
+    function moment_calendar__calendar (time, formats) {
+        // We want to compare the start of today, vs this.
+        // Getting start-of-today depends on whether we're local/utc/offset or not.
+        var now = time || local__createLocal(),
+            sod = cloneWithOffset(now, this).startOf('day'),
+            diff = this.diff(sod, 'days', true),
+            format = diff < -6 ? 'sameElse' :
+                diff < -1 ? 'lastWeek' :
+                diff < 0 ? 'lastDay' :
+                diff < 1 ? 'sameDay' :
+                diff < 2 ? 'nextDay' :
+                diff < 7 ? 'nextWeek' : 'sameElse';
+
+        var output = formats && (isFunction(formats[format]) ? formats[format]() : formats[format]);
+
+        return this.format(output || this.localeData().calendar(format, this, local__createLocal(now)));
+    }
+
+    function clone () {
+        return new Moment(this);
+    }
+
+    function isAfter (input, units) {
+        var localInput = isMoment(input) ? input : local__createLocal(input);
+        if (!(this.isValid() && localInput.isValid())) {
+            return false;
+        }
+        units = normalizeUnits(!isUndefined(units) ? units : 'millisecond');
+        if (units === 'millisecond') {
+            return +this > +localInput;
+        } else {
+            return +localInput < +this.clone().startOf(units);
+        }
+    }
+
+    function isBefore (input, units) {
+        var localInput = isMoment(input) ? input : local__createLocal(input);
+        if (!(this.isValid() && localInput.isValid())) {
+            return false;
+        }
+        units = normalizeUnits(!isUndefined(units) ? units : 'millisecond');
+        if (units === 'millisecond') {
+            return +this < +localInput;
+        } else {
+            return +this.clone().endOf(units) < +localInput;
+        }
+    }
+
+    function isBetween (from, to, units) {
+        return this.isAfter(from, units) && this.isBefore(to, units);
+    }
+
+    function isSame (input, units) {
+        var localInput = isMoment(input) ? input : local__createLocal(input),
+            inputMs;
+        if (!(this.isValid() && localInput.isValid())) {
+            return false;
+        }
+        units = normalizeUnits(units || 'millisecond');
+        if (units === 'millisecond') {
+            return +this === +localInput;
+        } else {
+            inputMs = +localInput;
+            return +(this.clone().startOf(units)) <= inputMs && inputMs <= +(this.clone().endOf(units));
+        }
+    }
+
+    function isSameOrAfter (input, units) {
+        return this.isSame(input, units) || this.isAfter(input,units);
+    }
+
+    function isSameOrBefore (input, units) {
+        return this.isSame(input, units) || this.isBefore(input,units);
+    }
+
+    function diff (input, units, asFloat) {
+        var that,
+            zoneDelta,
+            delta, output;
+
+        if (!this.isValid()) {
+            return NaN;
+        }
+
+        that = cloneWithOffset(input, this);
+
+        if (!that.isValid()) {
+            return NaN;
+        }
+
+        zoneDelta = (that.utcOffset() - this.utcOffset()) * 6e4;
+
+        units = normalizeUnits(units);
+
+        if (units === 'year' || units === 'month' || units === 'quarter') {
+            output = monthDiff(this, that);
+            if (units === 'quarter') {
+                output = output / 3;
+            } else if (units === 'year') {
+                output = output / 12;
+            }
+        } else {
+            delta = this - that;
+            output = units === 'second' ? delta / 1e3 : // 1000
+                units === 'minute' ? delta / 6e4 : // 1000 * 60
+                units === 'hour' ? delta / 36e5 : // 1000 * 60 * 60
+                units === 'day' ? (delta - zoneDelta) / 864e5 : // 1000 * 60 * 60 * 24, negate dst
+                units === 'week' ? (delta - zoneDelta) / 6048e5 : // 1000 * 60 * 60 * 24 * 7, negate dst
+                delta;
+        }
+        return asFloat ? output : absFloor(output);
+    }
+
+    function monthDiff (a, b) {
+        // difference in months
+        var wholeMonthDiff = ((b.year() - a.year()) * 12) + (b.month() - a.month()),
+            // b is in (anchor - 1 month, anchor + 1 month)
+            anchor = a.clone().add(wholeMonthDiff, 'months'),
+            anchor2, adjust;
+
+        if (b - anchor < 0) {
+            anchor2 = a.clone().add(wholeMonthDiff - 1, 'months');
+            // linear across the month
+            adjust = (b - anchor) / (anchor - anchor2);
+        } else {
+            anchor2 = a.clone().add(wholeMonthDiff + 1, 'months');
+            // linear across the month
+            adjust = (b - anchor) / (anchor2 - anchor);
+        }
+
+        return -(wholeMonthDiff + adjust);
+    }
+
+    utils_hooks__hooks.defaultFormat = 'YYYY-MM-DDTHH:mm:ssZ';
+
+    function toString () {
+        return this.clone().locale('en').format('ddd MMM DD YYYY HH:mm:ss [GMT]ZZ');
+    }
+
+    function moment_format__toISOString () {
+        var m = this.clone().utc();
+        if (0 < m.year() && m.year() <= 9999) {
+            if (isFunction(Date.prototype.toISOString)) {
+                // native implementation is ~50x faster, use it when we can
+                return this.toDate().toISOString();
+            } else {
+                return formatMoment(m, 'YYYY-MM-DD[T]HH:mm:ss.SSS[Z]');
+            }
+        } else {
+            return formatMoment(m, 'YYYYYY-MM-DD[T]HH:mm:ss.SSS[Z]');
+        }
+    }
+
+    function format (inputString) {
+        var output = formatMoment(this, inputString || utils_hooks__hooks.defaultFormat);
+        return this.localeData().postformat(output);
+    }
+
+    function from (time, withoutSuffix) {
+        if (this.isValid() &&
+                ((isMoment(time) && time.isValid()) ||
+                 local__createLocal(time).isValid())) {
+            return create__createDuration({to: this, from: time}).locale(this.locale()).humanize(!withoutSuffix);
+        } else {
+            return this.localeData().invalidDate();
+        }
+    }
+
+    function fromNow (withoutSuffix) {
+        return this.from(local__createLocal(), withoutSuffix);
+    }
+
+    function to (time, withoutSuffix) {
+        if (this.isValid() &&
+                ((isMoment(time) && time.isValid()) ||
+                 local__createLocal(time).isValid())) {
+            return create__createDuration({from: this, to: time}).locale(this.locale()).humanize(!withoutSuffix);
+        } else {
+            return this.localeData().invalidDate();
+        }
+    }
+
+    function toNow (withoutSuffix) {
+        return this.to(local__createLocal(), withoutSuffix);
+    }
+
+    // If passed a locale key, it will set the locale for this
+    // instance.  Otherwise, it will return the locale configuration
+    // variables for this instance.
+    function locale (key) {
+        var newLocaleData;
+
+        if (key === undefined) {
+            return this._locale._abbr;
+        } else {
+            newLocaleData = locale_locales__getLocale(key);
+            if (newLocaleData != null) {
+                this._locale = newLocaleData;
+            }
+            return this;
+        }
+    }
+
+    var lang = deprecate(
+        'moment().lang() is deprecated. Instead, use moment().localeData() to get the language configuration. Use moment().locale() to change languages.',
+        function (key) {
+            if (key === undefined) {
+                return this.localeData();
+            } else {
+                return this.locale(key);
+            }
+        }
+    );
+
+    function localeData () {
+        return this._locale;
+    }
+
+    function startOf (units) {
+        units = normalizeUnits(units);
+        // the following switch intentionally omits break keywords
+        // to utilize falling through the cases.
+        switch (units) {
+        case 'year':
+            this.month(0);
+            /* falls through */
+        case 'quarter':
+        case 'month':
+            this.date(1);
+            /* falls through */
+        case 'week':
+        case 'isoWeek':
+        case 'day':
+            this.hours(0);
+            /* falls through */
+        case 'hour':
+            this.minutes(0);
+            /* falls through */
+        case 'minute':
+            this.seconds(0);
+            /* falls through */
+        case 'second':
+            this.milliseconds(0);
+        }
+
+        // weeks are a special case
+        if (units === 'week') {
+            this.weekday(0);
+        }
+        if (units === 'isoWeek') {
+            this.isoWeekday(1);
+        }
+
+        // quarters are also special
+        if (units === 'quarter') {
+            this.month(Math.floor(this.month() / 3) * 3);
+        }
+
+        return this;
+    }
+
+    function endOf (units) {
+        units = normalizeUnits(units);
+        if (units === undefined || units === 'millisecond') {
+            return this;
+        }
+        return this.startOf(units).add(1, (units === 'isoWeek' ? 'week' : units)).subtract(1, 'ms');
+    }
+
+    function to_type__valueOf () {
+        return +this._d - ((this._offset || 0) * 60000);
+    }
+
+    function unix () {
+        return Math.floor(+this / 1000);
+    }
+
+    function toDate () {
+        return this._offset ? new Date(+this) : this._d;
+    }
+
+    function toArray () {
+        var m = this;
+        return [m.year(), m.month(), m.date(), m.hour(), m.minute(), m.second(), m.millisecond()];
+    }
+
+    function toObject () {
+        var m = this;
+        return {
+            years: m.year(),
+            months: m.month(),
+            date: m.date(),
+            hours: m.hours(),
+            minutes: m.minutes(),
+            seconds: m.seconds(),
+            milliseconds: m.milliseconds()
+        };
+    }
+
+    function toJSON () {
+        // new Date(NaN).toJSON() === null
+        return this.isValid() ? this.toISOString() : null;
+    }
+
+    function moment_valid__isValid () {
+        return valid__isValid(this);
+    }
+
+    function parsingFlags () {
+        return extend({}, getParsingFlags(this));
+    }
+
+    function invalidAt () {
+        return getParsingFlags(this).overflow;
+    }
+
+    function creationData() {
+        return {
+            input: this._i,
+            format: this._f,
+            locale: this._locale,
+            isUTC: this._isUTC,
+            strict: this._strict
+        };
+    }
+
+    // FORMATTING
+
+    addFormatToken(0, ['gg', 2], 0, function () {
+        return this.weekYear() % 100;
+    });
+
+    addFormatToken(0, ['GG', 2], 0, function () {
+        return this.isoWeekYear() % 100;
+    });
+
+    function addWeekYearFormatToken (token, getter) {
+        addFormatToken(0, [token, token.length], 0, getter);
+    }
+
+    addWeekYearFormatToken('gggg',     'weekYear');
+    addWeekYearFormatToken('ggggg',    'weekYear');
+    addWeekYearFormatToken('GGGG',  'isoWeekYear');
+    addWeekYearFormatToken('GGGGG', 'isoWeekYear');
+
+    // ALIASES
+
+    addUnitAlias('weekYear', 'gg');
+    addUnitAlias('isoWeekYear', 'GG');
+
+    // PARSING
+
+    addRegexToken('G',      matchSigned);
+    addRegexToken('g',      matchSigned);
+    addRegexToken('GG',     match1to2, match2);
+    addRegexToken('gg',     match1to2, match2);
+    addRegexToken('GGGG',   match1to4, match4);
+    addRegexToken('gggg',   match1to4, match4);
+    addRegexToken('GGGGG',  match1to6, match6);
+    addRegexToken('ggggg',  match1to6, match6);
+
+    addWeekParseToken(['gggg', 'ggggg', 'GGGG', 'GGGGG'], function (input, week, config, token) {
+        week[token.substr(0, 2)] = toInt(input);
+    });
+
+    addWeekParseToken(['gg', 'GG'], function (input, week, config, token) {
+        week[token] = utils_hooks__hooks.parseTwoDigitYear(input);
+    });
+
+    // MOMENTS
+
+    function getSetWeekYear (input) {
+        return getSetWeekYearHelper.call(this,
+                input,
+                this.week(),
+                this.weekday(),
+                this.localeData()._week.dow,
+                this.localeData()._week.doy);
+    }
+
+    function getSetISOWeekYear (input) {
+        return getSetWeekYearHelper.call(this,
+                input, this.isoWeek(), this.isoWeekday(), 1, 4);
+    }
+
+    function getISOWeeksInYear () {
+        return weeksInYear(this.year(), 1, 4);
+    }
+
+    function getWeeksInYear () {
+        var weekInfo = this.localeData()._week;
+        return weeksInYear(this.year(), weekInfo.dow, weekInfo.doy);
+    }
+
+    function getSetWeekYearHelper(input, week, weekday, dow, doy) {
+        var weeksTarget;
+        if (input == null) {
+            return weekOfYear(this, dow, doy).year;
+        } else {
+            weeksTarget = weeksInYear(input, dow, doy);
+            if (week > weeksTarget) {
+                week = weeksTarget;
+            }
+            return setWeekAll.call(this, input, week, weekday, dow, doy);
+        }
+    }
+
+    function setWeekAll(weekYear, week, weekday, dow, doy) {
+        var dayOfYearData = dayOfYearFromWeeks(weekYear, week, weekday, dow, doy),
+            date = createUTCDate(dayOfYearData.year, 0, dayOfYearData.dayOfYear);
+
+        this.year(date.getUTCFullYear());
+        this.month(date.getUTCMonth());
+        this.date(date.getUTCDate());
+        return this;
+    }
+
+    // FORMATTING
+
+    addFormatToken('Q', 0, 'Qo', 'quarter');
+
+    // ALIASES
+
+    addUnitAlias('quarter', 'Q');
+
+    // PARSING
+
+    addRegexToken('Q', match1);
+    addParseToken('Q', function (input, array) {
+        array[MONTH] = (toInt(input) - 1) * 3;
+    });
+
+    // MOMENTS
+
+    function getSetQuarter (input) {
+        return input == null ? Math.ceil((this.month() + 1) / 3) : this.month((input - 1) * 3 + this.month() % 3);
+    }
+
+    // FORMATTING
+
+    addFormatToken('w', ['ww', 2], 'wo', 'week');
+    addFormatToken('W', ['WW', 2], 'Wo', 'isoWeek');
+
+    // ALIASES
+
+    addUnitAlias('week', 'w');
+    addUnitAlias('isoWeek', 'W');
+
+    // PARSING
+
+    addRegexToken('w',  match1to2);
+    addRegexToken('ww', match1to2, match2);
+    addRegexToken('W',  match1to2);
+    addRegexToken('WW', match1to2, match2);
+
+    addWeekParseToken(['w', 'ww', 'W', 'WW'], function (input, week, config, token) {
+        week[token.substr(0, 1)] = toInt(input);
+    });
+
+    // HELPERS
+
+    // LOCALES
+
+    function localeWeek (mom) {
+        return weekOfYear(mom, this._week.dow, this._week.doy).week;
+    }
+
+    var defaultLocaleWeek = {
+        dow : 0, // Sunday is the first day of the week.
+        doy : 6  // The week that contains Jan 1st is the first week of the year.
+    };
+
+    function localeFirstDayOfWeek () {
+        return this._week.dow;
+    }
+
+    function localeFirstDayOfYear () {
+        return this._week.doy;
+    }
+
+    // MOMENTS
+
+    function getSetWeek (input) {
+        var week = this.localeData().week(this);
+        return input == null ? week : this.add((input - week) * 7, 'd');
+    }
+
+    function getSetISOWeek (input) {
+        var week = weekOfYear(this, 1, 4).week;
+        return input == null ? week : this.add((input - week) * 7, 'd');
+    }
+
+    // FORMATTING
+
+    addFormatToken('D', ['DD', 2], 'Do', 'date');
+
+    // ALIASES
+
+    addUnitAlias('date', 'D');
+
+    // PARSING
+
+    addRegexToken('D',  match1to2);
+    addRegexToken('DD', match1to2, match2);
+    addRegexToken('Do', function (isStrict, locale) {
+        return isStrict ? locale._ordinalParse : locale._ordinalParseLenient;
+    });
+
+    addParseToken(['D', 'DD'], DATE);
+    addParseToken('Do', function (input, array) {
+        array[DATE] = toInt(input.match(match1to2)[0], 10);
+    });
+
+    // MOMENTS
+
+    var getSetDayOfMonth = makeGetSet('Date', true);
+
+    // FORMATTING
+
+    addFormatToken('d', 0, 'do', 'day');
+
+    addFormatToken('dd', 0, 0, function (format) {
+        return this.localeData().weekdaysMin(this, format);
+    });
+
+    addFormatToken('ddd', 0, 0, function (format) {
+        return this.localeData().weekdaysShort(this, format);
+    });
+
+    addFormatToken('dddd', 0, 0, function (format) {
+        return this.localeData().weekdays(this, format);
+    });
+
+    addFormatToken('e', 0, 0, 'weekday');
+    addFormatToken('E', 0, 0, 'isoWeekday');
+
+    // ALIASES
+
+    addUnitAlias('day', 'd');
+    addUnitAlias('weekday', 'e');
+    addUnitAlias('isoWeekday', 'E');
+
+    // PARSING
+
+    addRegexToken('d',    match1to2);
+    addRegexToken('e',    match1to2);
+    addRegexToken('E',    match1to2);
+    addRegexToken('dd',   matchWord);
+    addRegexToken('ddd',  matchWord);
+    addRegexToken('dddd', matchWord);
+
+    addWeekParseToken(['dd', 'ddd', 'dddd'], function (input, week, config, token) {
+        var weekday = config._locale.weekdaysParse(input, token, config._strict);
+        // if we didn't get a weekday name, mark the date as invalid
+        if (weekday != null) {
+            week.d = weekday;
+        } else {
+            getParsingFlags(config).invalidWeekday = input;
+        }
+    });
+
+    addWeekParseToken(['d', 'e', 'E'], function (input, week, config, token) {
+        week[token] = toInt(input);
+    });
+
+    // HELPERS
+
+    function parseWeekday(input, locale) {
+        if (typeof input !== 'string') {
+            return input;
+        }
+
+        if (!isNaN(input)) {
+            return parseInt(input, 10);
+        }
+
+        input = locale.weekdaysParse(input);
+        if (typeof input === 'number') {
+            return input;
+        }
+
+        return null;
+    }
+
+    // LOCALES
+
+    var defaultLocaleWeekdays = 'Sunday_Monday_Tuesday_Wednesday_Thursday_Friday_Saturday'.split('_');
+    function localeWeekdays (m, format) {
+        return isArray(this._weekdays) ? this._weekdays[m.day()] :
+            this._weekdays[this._weekdays.isFormat.test(format) ? 'format' : 'standalone'][m.day()];
+    }
+
+    var defaultLocaleWeekdaysShort = 'Sun_Mon_Tue_Wed_Thu_Fri_Sat'.split('_');
+    function localeWeekdaysShort (m) {
+        return this._weekdaysShort[m.day()];
+    }
+
+    var defaultLocaleWeekdaysMin = 'Su_Mo_Tu_We_Th_Fr_Sa'.split('_');
+    function localeWeekdaysMin (m) {
+        return this._weekdaysMin[m.day()];
+    }
+
+    function localeWeekdaysParse (weekdayName, format, strict) {
+        var i, mom, regex;
+
+        if (!this._weekdaysParse) {
+            this._weekdaysParse = [];
+            this._minWeekdaysParse = [];
+            this._shortWeekdaysParse = [];
+            this._fullWeekdaysParse = [];
+        }
+
+        for (i = 0; i < 7; i++) {
+            // make the regex if we don't have it already
+
+            mom = local__createLocal([2000, 1]).day(i);
+            if (strict && !this._fullWeekdaysParse[i]) {
+                this._fullWeekdaysParse[i] = new RegExp('^' + this.weekdays(mom, '').replace('.', '\.?') + '$', 'i');
+                this._shortWeekdaysParse[i] = new RegExp('^' + this.weekdaysShort(mom, '').replace('.', '\.?') + '$', 'i');
+                this._minWeekdaysParse[i] = new RegExp('^' + this.weekdaysMin(mom, '').replace('.', '\.?') + '$', 'i');
+            }
+            if (!this._weekdaysParse[i]) {
+                regex = '^' + this.weekdays(mom, '') + '|^' + this.weekdaysShort(mom, '') + '|^' + this.weekdaysMin(mom, '');
+                this._weekdaysParse[i] = new RegExp(regex.replace('.', ''), 'i');
+            }
+            // test the regex
+            if (strict && format === 'dddd' && this._fullWeekdaysParse[i].test(weekdayName)) {
+                return i;
+            } else if (strict && format === 'ddd' && this._shortWeekdaysParse[i].test(weekdayName)) {
+                return i;
+            } else if (strict && format === 'dd' && this._minWeekdaysParse[i].test(weekdayName)) {
+                return i;
+            } else if (!strict && this._weekdaysParse[i].test(weekdayName)) {
+                return i;
+            }
+        }
+    }
+
+    // MOMENTS
+
+    function getSetDayOfWeek (input) {
+        if (!this.isValid()) {
+            return input != null ? this : NaN;
+        }
+        var day = this._isUTC ? this._d.getUTCDay() : this._d.getDay();
+        if (input != null) {
+            input = parseWeekday(input, this.localeData());
+            return this.add(input - day, 'd');
+        } else {
+            return day;
+        }
+    }
+
+    function getSetLocaleDayOfWeek (input) {
+        if (!this.isValid()) {
+            return input != null ? this : NaN;
+        }
+        var weekday = (this.day() + 7 - this.localeData()._week.dow) % 7;
+        return input == null ? weekday : this.add(input - weekday, 'd');
+    }
+
+    function getSetISODayOfWeek (input) {
+        if (!this.isValid()) {
+            return input != null ? this : NaN;
+        }
+        // behaves the same as moment#day except
+        // as a getter, returns 7 instead of 0 (1-7 range instead of 0-6)
+        // as a setter, sunday should belong to the previous week.
+        return input == null ? this.day() || 7 : this.day(this.day() % 7 ? input : input - 7);
+    }
+
+    // FORMATTING
+
+    addFormatToken('DDD', ['DDDD', 3], 'DDDo', 'dayOfYear');
+
+    // ALIASES
+
+    addUnitAlias('dayOfYear', 'DDD');
+
+    // PARSING
+
+    addRegexToken('DDD',  match1to3);
+    addRegexToken('DDDD', match3);
+    addParseToken(['DDD', 'DDDD'], function (input, array, config) {
+        config._dayOfYear = toInt(input);
+    });
+
+    // HELPERS
+
+    // MOMENTS
+
+    function getSetDayOfYear (input) {
+        var dayOfYear = Math.round((this.clone().startOf('day') - this.clone().startOf('year')) / 864e5) + 1;
+        return input == null ? dayOfYear : this.add((input - dayOfYear), 'd');
+    }
+
+    // FORMATTING
+
+    function hFormat() {
+        return this.hours() % 12 || 12;
+    }
+
+    addFormatToken('H', ['HH', 2], 0, 'hour');
+    addFormatToken('h', ['hh', 2], 0, hFormat);
+
+    addFormatToken('hmm', 0, 0, function () {
+        return '' + hFormat.apply(this) + zeroFill(this.minutes(), 2);
+    });
+
+    addFormatToken('hmmss', 0, 0, function () {
+        return '' + hFormat.apply(this) + zeroFill(this.minutes(), 2) +
+            zeroFill(this.seconds(), 2);
+    });
+
+    addFormatToken('Hmm', 0, 0, function () {
+        return '' + this.hours() + zeroFill(this.minutes(), 2);
+    });
+
+    addFormatToken('Hmmss', 0, 0, function () {
+        return '' + this.hours() + zeroFill(this.minutes(), 2) +
+            zeroFill(this.seconds(), 2);
+    });
+
+    function meridiem (token, lowercase) {
+        addFormatToken(token, 0, 0, function () {
+            return this.localeData().meridiem(this.hours(), this.minutes(), lowercase);
+        });
+    }
+
+    meridiem('a', true);
+    meridiem('A', false);
+
+    // ALIASES
+
+    addUnitAlias('hour', 'h');
+
+    // PARSING
+
+    function matchMeridiem (isStrict, locale) {
+        return locale._meridiemParse;
+    }
+
+    addRegexToken('a',  matchMeridiem);
+    addRegexToken('A',  matchMeridiem);
+    addRegexToken('H',  match1to2);
+    addRegexToken('h',  match1to2);
+    addRegexToken('HH', match1to2, match2);
+    addRegexToken('hh', match1to2, match2);
+
+    addRegexToken('hmm', match3to4);
+    addRegexToken('hmmss', match5to6);
+    addRegexToken('Hmm', match3to4);
+    addRegexToken('Hmmss', match5to6);
+
+    addParseToken(['H', 'HH'], HOUR);
+    addParseToken(['a', 'A'], function (input, array, config) {
+        config._isPm = config._locale.isPM(input);
+        config._meridiem = input;
+    });
+    addParseToken(['h', 'hh'], function (input, array, config) {
+        array[HOUR] = toInt(input);
+        getParsingFlags(config).bigHour = true;
+    });
+    addParseToken('hmm', function (input, array, config) {
+        var pos = input.length - 2;
+        array[HOUR] = toInt(input.substr(0, pos));
+        array[MINUTE] = toInt(input.substr(pos));
+        getParsingFlags(config).bigHour = true;
+    });
+    addParseToken('hmmss', function (input, array, config) {
+        var pos1 = input.length - 4;
+        var pos2 = input.length - 2;
+        array[HOUR] = toInt(input.substr(0, pos1));
+        array[MINUTE] = toInt(input.substr(pos1, 2));
+        array[SECOND] = toInt(input.substr(pos2));
+        getParsingFlags(config).bigHour = true;
+    });
+    addParseToken('Hmm', function (input, array, config) {
+        var pos = input.length - 2;
+        array[HOUR] = toInt(input.substr(0, pos));
+        array[MINUTE] = toInt(input.substr(pos));
+    });
+    addParseToken('Hmmss', function (input, array, config) {
+        var pos1 = input.length - 4;
+        var pos2 = input.length - 2;
+        array[HOUR] = toInt(input.substr(0, pos1));
+        array[MINUTE] = toInt(input.substr(pos1, 2));
+        array[SECOND] = toInt(input.substr(pos2));
+    });
+
+    // LOCALES
+
+    function localeIsPM (input) {
+        // IE8 Quirks Mode & IE7 Standards Mode do not allow accessing strings like arrays
+        // Using charAt should be more compatible.
+        return ((input + '').toLowerCase().charAt(0) === 'p');
+    }
+
+    var defaultLocaleMeridiemParse = /[ap]\.?m?\.?/i;
+    function localeMeridiem (hours, minutes, isLower) {
+        if (hours > 11) {
+            return isLower ? 'pm' : 'PM';
+        } else {
+            return isLower ? 'am' : 'AM';
+        }
+    }
+
+
+    // MOMENTS
+
+    // Setting the hour should keep the time, because the user explicitly
+    // specified which hour he wants. So trying to maintain the same hour (in
+    // a new timezone) makes sense. Adding/subtracting hours does not follow
+    // this rule.
+    var getSetHour = makeGetSet('Hours', true);
+
+    // FORMATTING
+
+    addFormatToken('m', ['mm', 2], 0, 'minute');
+
+    // ALIASES
+
+    addUnitAlias('minute', 'm');
+
+    // PARSING
+
+    addRegexToken('m',  match1to2);
+    addRegexToken('mm', match1to2, match2);
+    addParseToken(['m', 'mm'], MINUTE);
+
+    // MOMENTS
+
+    var getSetMinute = makeGetSet('Minutes', false);
+
+    // FORMATTING
+
+    addFormatToken('s', ['ss', 2], 0, 'second');
+
+    // ALIASES
+
+    addUnitAlias('second', 's');
+
+    // PARSING
+
+    addRegexToken('s',  match1to2);
+    addRegexToken('ss', match1to2, match2);
+    addParseToken(['s', 'ss'], SECOND);
+
+    // MOMENTS
+
+    var getSetSecond = makeGetSet('Seconds', false);
+
+    // FORMATTING
+
+    addFormatToken('S', 0, 0, function () {
+        return ~~(this.millisecond() / 100);
+    });
+
+    addFormatToken(0, ['SS', 2], 0, function () {
+        return ~~(this.millisecond() / 10);
+    });
+
+    addFormatToken(0, ['SSS', 3], 0, 'millisecond');
+    addFormatToken(0, ['SSSS', 4], 0, function () {
+        return this.millisecond() * 10;
+    });
+    addFormatToken(0, ['SSSSS', 5], 0, function () {
+        return this.millisecond() * 100;
+    });
+    addFormatToken(0, ['SSSSSS', 6], 0, function () {
+        return this.millisecond() * 1000;
+    });
+    addFormatToken(0, ['SSSSSSS', 7], 0, function () {
+        return this.millisecond() * 10000;
+    });
+    addFormatToken(0, ['SSSSSSSS', 8], 0, function () {
+        return this.millisecond() * 100000;
+    });
+    addFormatToken(0, ['SSSSSSSSS', 9], 0, function () {
+        return this.millisecond() * 1000000;
+    });
+
+
+    // ALIASES
+
+    addUnitAlias('millisecond', 'ms');
+
+    // PARSING
+
+    addRegexToken('S',    match1to3, match1);
+    addRegexToken('SS',   match1to3, match2);
+    addRegexToken('SSS',  match1to3, match3);
+
+    var token;
+    for (token = 'SSSS'; token.length <= 9; token += 'S') {
+        addRegexToken(token, matchUnsigned);
+    }
+
+    function parseMs(input, array) {
+        array[MILLISECOND] = toInt(('0.' + input) * 1000);
+    }
+
+    for (token = 'S'; token.length <= 9; token += 'S') {
+        addParseToken(token, parseMs);
+    }
+    // MOMENTS
+
+    var getSetMillisecond = makeGetSet('Milliseconds', false);
+
+    // FORMATTING
+
+    addFormatToken('z',  0, 0, 'zoneAbbr');
+    addFormatToken('zz', 0, 0, 'zoneName');
+
+    // MOMENTS
+
+    function getZoneAbbr () {
+        return this._isUTC ? 'UTC' : '';
+    }
+
+    function getZoneName () {
+        return this._isUTC ? 'Coordinated Universal Time' : '';
+    }
+
+    var momentPrototype__proto = Moment.prototype;
+
+    momentPrototype__proto.add               = add_subtract__add;
+    momentPrototype__proto.calendar          = moment_calendar__calendar;
+    momentPrototype__proto.clone             = clone;
+    momentPrototype__proto.diff              = diff;
+    momentPrototype__proto.endOf             = endOf;
+    momentPrototype__proto.format            = format;
+    momentPrototype__proto.from              = from;
+    momentPrototype__proto.fromNow           = fromNow;
+    momentPrototype__proto.to                = to;
+    momentPrototype__proto.toNow             = toNow;
+    momentPrototype__proto.get               = getSet;
+    momentPrototype__proto.invalidAt         = invalidAt;
+    momentPrototype__proto.isAfter           = isAfter;
+    momentPrototype__proto.isBefore          = isBefore;
+    momentPrototype__proto.isBetween         = isBetween;
+    momentPrototype__proto.isSame            = isSame;
+    momentPrototype__proto.isSameOrAfter     = isSameOrAfter;
+    momentPrototype__proto.isSameOrBefore    = isSameOrBefore;
+    momentPrototype__proto.isValid           = moment_valid__isValid;
+    momentPrototype__proto.lang              = lang;
+    momentPrototype__proto.locale            = locale;
+    momentPrototype__proto.localeData        = localeData;
+    momentPrototype__proto.max               = prototypeMax;
+    momentPrototype__proto.min               = prototypeMin;
+    momentPrototype__proto.parsingFlags      = parsingFlags;
+    momentPrototype__proto.set               = getSet;
+    momentPrototype__proto.startOf           = startOf;
+    momentPrototype__proto.subtract          = add_subtract__subtract;
+    momentPrototype__proto.toArray           = toArray;
+    momentPrototype__proto.toObject          = toObject;
+    momentPrototype__proto.toDate            = toDate;
+    momentPrototype__proto.toISOString       = moment_format__toISOString;
+    momentPrototype__proto.toJSON            = toJSON;
+    momentPrototype__proto.toString          = toString;
+    momentPrototype__proto.unix              = unix;
+    momentPrototype__proto.valueOf           = to_type__valueOf;
+    momentPrototype__proto.creationData      = creationData;
+
+    // Year
+    momentPrototype__proto.year       = getSetYear;
+    momentPrototype__proto.isLeapYear = getIsLeapYear;
+
+    // Week Year
+    momentPrototype__proto.weekYear    = getSetWeekYear;
+    momentPrototype__proto.isoWeekYear = getSetISOWeekYear;
+
+    // Quarter
+    momentPrototype__proto.quarter = momentPrototype__proto.quarters = getSetQuarter;
+
+    // Month
+    momentPrototype__proto.month       = getSetMonth;
+    momentPrototype__proto.daysInMonth = getDaysInMonth;
+
+    // Week
+    momentPrototype__proto.week           = momentPrototype__proto.weeks        = getSetWeek;
+    momentPrototype__proto.isoWeek        = momentPrototype__proto.isoWeeks     = getSetISOWeek;
+    momentPrototype__proto.weeksInYear    = getWeeksInYear;
+    momentPrototype__proto.isoWeeksInYear = getISOWeeksInYear;
+
+    // Day
+    momentPrototype__proto.date       = getSetDayOfMonth;
+    momentPrototype__proto.day        = momentPrototype__proto.days             = getSetDayOfWeek;
+    momentPrototype__proto.weekday    = getSetLocaleDayOfWeek;
+    momentPrototype__proto.isoWeekday = getSetISODayOfWeek;
+    momentPrototype__proto.dayOfYear  = getSetDayOfYear;
+
+    // Hour
+    momentPrototype__proto.hour = momentPrototype__proto.hours = getSetHour;
+
+    // Minute
+    momentPrototype__proto.minute = momentPrototype__proto.minutes = getSetMinute;
+
+    // Second
+    momentPrototype__proto.second = momentPrototype__proto.seconds = getSetSecond;
+
+    // Millisecond
+    momentPrototype__proto.millisecond = momentPrototype__proto.milliseconds = getSetMillisecond;
+
+    // Offset
+    momentPrototype__proto.utcOffset            = getSetOffset;
+    momentPrototype__proto.utc                  = setOffsetToUTC;
+    momentPrototype__proto.local                = setOffsetToLocal;
+    momentPrototype__proto.parseZone            = setOffsetToParsedOffset;
+    momentPrototype__proto.hasAlignedHourOffset = hasAlignedHourOffset;
+    momentPrototype__proto.isDST                = isDaylightSavingTime;
+    momentPrototype__proto.isDSTShifted         = isDaylightSavingTimeShifted;
+    momentPrototype__proto.isLocal              = isLocal;
+    momentPrototype__proto.isUtcOffset          = isUtcOffset;
+    momentPrototype__proto.isUtc                = isUtc;
+    momentPrototype__proto.isUTC                = isUtc;
+
+    // Timezone
+    momentPrototype__proto.zoneAbbr = getZoneAbbr;
+    momentPrototype__proto.zoneName = getZoneName;
+
+    // Deprecations
+    momentPrototype__proto.dates  = deprecate('dates accessor is deprecated. Use date instead.', getSetDayOfMonth);
+    momentPrototype__proto.months = deprecate('months accessor is deprecated. Use month instead', getSetMonth);
+    momentPrototype__proto.years  = deprecate('years accessor is deprecated. Use year instead', getSetYear);
+    momentPrototype__proto.zone   = deprecate('moment().zone is deprecated, use moment().utcOffset instead. https://github.com/moment/moment/issues/1779', getSetZone);
+
+    var momentPrototype = momentPrototype__proto;
+
+    function moment__createUnix (input) {
+        return local__createLocal(input * 1000);
+    }
+
+    function moment__createInZone () {
+        return local__createLocal.apply(null, arguments).parseZone();
+    }
+
+    var defaultCalendar = {
+        sameDay : '[Today at] LT',
+        nextDay : '[Tomorrow at] LT',
+        nextWeek : 'dddd [at] LT',
+        lastDay : '[Yesterday at] LT',
+        lastWeek : '[Last] dddd [at] LT',
+        sameElse : 'L'
+    };
+
+    function locale_calendar__calendar (key, mom, now) {
+        var output = this._calendar[key];
+        return isFunction(output) ? output.call(mom, now) : output;
+    }
+
+    var defaultLongDateFormat = {
+        LTS  : 'h:mm:ss A',
+        LT   : 'h:mm A',
+        L    : 'MM/DD/YYYY',
+        LL   : 'MMMM D, YYYY',
+        LLL  : 'MMMM D, YYYY h:mm A',
+        LLLL : 'dddd, MMMM D, YYYY h:mm A'
+    };
+
+    function longDateFormat (key) {
+        var format = this._longDateFormat[key],
+            formatUpper = this._longDateFormat[key.toUpperCase()];
+
+        if (format || !formatUpper) {
+            return format;
+        }
+
+        this._longDateFormat[key] = formatUpper.replace(/MMMM|MM|DD|dddd/g, function (val) {
+            return val.slice(1);
+        });
+
+        return this._longDateFormat[key];
+    }
+
+    var defaultInvalidDate = 'Invalid date';
+
+    function invalidDate () {
+        return this._invalidDate;
+    }
+
+    var defaultOrdinal = '%d';
+    var defaultOrdinalParse = /\d{1,2}/;
+
+    function ordinal (number) {
+        return this._ordinal.replace('%d', number);
+    }
+
+    function preParsePostFormat (string) {
+        return string;
+    }
+
+    var defaultRelativeTime = {
+        future : 'in %s',
+        past   : '%s ago',
+        s  : 'a few seconds',
+        m  : 'a minute',
+        mm : '%d minutes',
+        h  : 'an hour',
+        hh : '%d hours',
+        d  : 'a day',
+        dd : '%d days',
+        M  : 'a month',
+        MM : '%d months',
+        y  : 'a year',
+        yy : '%d years'
+    };
+
+    function relative__relativeTime (number, withoutSuffix, string, isFuture) {
+        var output = this._relativeTime[string];
+        return (isFunction(output)) ?
+            output(number, withoutSuffix, string, isFuture) :
+            output.replace(/%d/i, number);
+    }
+
+    function pastFuture (diff, output) {
+        var format = this._relativeTime[diff > 0 ? 'future' : 'past'];
+        return isFunction(format) ? format(output) : format.replace(/%s/i, output);
+    }
+
+    var prototype__proto = Locale.prototype;
+
+    prototype__proto._calendar       = defaultCalendar;
+    prototype__proto.calendar        = locale_calendar__calendar;
+    prototype__proto._longDateFormat = defaultLongDateFormat;
+    prototype__proto.longDateFormat  = longDateFormat;
+    prototype__proto._invalidDate    = defaultInvalidDate;
+    prototype__proto.invalidDate     = invalidDate;
+    prototype__proto._ordinal        = defaultOrdinal;
+    prototype__proto.ordinal         = ordinal;
+    prototype__proto._ordinalParse   = defaultOrdinalParse;
+    prototype__proto.preparse        = preParsePostFormat;
+    prototype__proto.postformat      = preParsePostFormat;
+    prototype__proto._relativeTime   = defaultRelativeTime;
+    prototype__proto.relativeTime    = relative__relativeTime;
+    prototype__proto.pastFuture      = pastFuture;
+    prototype__proto.set             = locale_set__set;
+
+    // Month
+    prototype__proto.months            =        localeMonths;
+    prototype__proto._months           = defaultLocaleMonths;
+    prototype__proto.monthsShort       =        localeMonthsShort;
+    prototype__proto._monthsShort      = defaultLocaleMonthsShort;
+    prototype__proto.monthsParse       =        localeMonthsParse;
+    prototype__proto._monthsRegex      = defaultMonthsRegex;
+    prototype__proto.monthsRegex       = monthsRegex;
+    prototype__proto._monthsShortRegex = defaultMonthsShortRegex;
+    prototype__proto.monthsShortRegex  = monthsShortRegex;
+
+    // Week
+    prototype__proto.week = localeWeek;
+    prototype__proto._week = defaultLocaleWeek;
+    prototype__proto.firstDayOfYear = localeFirstDayOfYear;
+    prototype__proto.firstDayOfWeek = localeFirstDayOfWeek;
+
+    // Day of Week
+    prototype__proto.weekdays       =        localeWeekdays;
+    prototype__proto._weekdays      = defaultLocaleWeekdays;
+    prototype__proto.weekdaysMin    =        localeWeekdaysMin;
+    prototype__proto._weekdaysMin   = defaultLocaleWeekdaysMin;
+    prototype__proto.weekdaysShort  =        localeWeekdaysShort;
+    prototype__proto._weekdaysShort = defaultLocaleWeekdaysShort;
+    prototype__proto.weekdaysParse  =        localeWeekdaysParse;
+
+    // Hours
+    prototype__proto.isPM = localeIsPM;
+    prototype__proto._meridiemParse = defaultLocaleMeridiemParse;
+    prototype__proto.meridiem = localeMeridiem;
+
+    function lists__get (format, index, field, setter) {
+        var locale = locale_locales__getLocale();
+        var utc = create_utc__createUTC().set(setter, index);
+        return locale[field](utc, format);
+    }
+
+    function list (format, index, field, count, setter) {
+        if (typeof format === 'number') {
+            index = format;
+            format = undefined;
+        }
+
+        format = format || '';
+
+        if (index != null) {
+            return lists__get(format, index, field, setter);
+        }
+
+        var i;
+        var out = [];
+        for (i = 0; i < count; i++) {
+            out[i] = lists__get(format, i, field, setter);
+        }
+        return out;
+    }
+
+    function lists__listMonths (format, index) {
+        return list(format, index, 'months', 12, 'month');
+    }
+
+    function lists__listMonthsShort (format, index) {
+        return list(format, index, 'monthsShort', 12, 'month');
+    }
+
+    function lists__listWeekdays (format, index) {
+        return list(format, index, 'weekdays', 7, 'day');
+    }
+
+    function lists__listWeekdaysShort (format, index) {
+        return list(format, index, 'weekdaysShort', 7, 'day');
+    }
+
+    function lists__listWeekdaysMin (format, index) {
+        return list(format, index, 'weekdaysMin', 7, 'day');
+    }
+
+    locale_locales__getSetGlobalLocale('en', {
+        ordinalParse: /\d{1,2}(th|st|nd|rd)/,
+        ordinal : function (number) {
+            var b = number % 10,
+                output = (toInt(number % 100 / 10) === 1) ? 'th' :
+                (b === 1) ? 'st' :
+                (b === 2) ? 'nd' :
+                (b === 3) ? 'rd' : 'th';
+            return number + output;
+        }
+    });
+
+    // Side effect imports
+    utils_hooks__hooks.lang = deprecate('moment.lang is deprecated. Use moment.locale instead.', locale_locales__getSetGlobalLocale);
+    utils_hooks__hooks.langData = deprecate('moment.langData is deprecated. Use moment.localeData instead.', locale_locales__getLocale);
+
+    var mathAbs = Math.abs;
+
+    function duration_abs__abs () {
+        var data           = this._data;
+
+        this._milliseconds = mathAbs(this._milliseconds);
+        this._days         = mathAbs(this._days);
+        this._months       = mathAbs(this._months);
+
+        data.milliseconds  = mathAbs(data.milliseconds);
+        data.seconds       = mathAbs(data.seconds);
+        data.minutes       = mathAbs(data.minutes);
+        data.hours         = mathAbs(data.hours);
+        data.months        = mathAbs(data.months);
+        data.years         = mathAbs(data.years);
+
+        return this;
+    }
+
+    function duration_add_subtract__addSubtract (duration, input, value, direction) {
+        var other = create__createDuration(input, value);
+
+        duration._milliseconds += direction * other._milliseconds;
+        duration._days         += direction * other._days;
+        duration._months       += direction * other._months;
+
+        return duration._bubble();
+    }
+
+    // supports only 2.0-style add(1, 's') or add(duration)
+    function duration_add_subtract__add (input, value) {
+        return duration_add_subtract__addSubtract(this, input, value, 1);
+    }
+
+    // supports only 2.0-style subtract(1, 's') or subtract(duration)
+    function duration_add_subtract__subtract (input, value) {
+        return duration_add_subtract__addSubtract(this, input, value, -1);
+    }
+
+    function absCeil (number) {
+        if (number < 0) {
+            return Math.floor(number);
+        } else {
+            return Math.ceil(number);
+        }
+    }
+
+    function bubble () {
+        var milliseconds = this._milliseconds;
+        var days         = this._days;
+        var months       = this._months;
+        var data         = this._data;
+        var seconds, minutes, hours, years, monthsFromDays;
+
+        // if we have a mix of positive and negative values, bubble down first
+        // check: https://github.com/moment/moment/issues/2166
+        if (!((milliseconds >= 0 && days >= 0 && months >= 0) ||
+                (milliseconds <= 0 && days <= 0 && months <= 0))) {
+            milliseconds += absCeil(monthsToDays(months) + days) * 864e5;
+            days = 0;
+            months = 0;
+        }
+
+        // The following code bubbles up values, see the tests for
+        // examples of what that means.
+        data.milliseconds = milliseconds % 1000;
+
+        seconds           = absFloor(milliseconds / 1000);
+        data.seconds      = seconds % 60;
+
+        minutes           = absFloor(seconds / 60);
+        data.minutes      = minutes % 60;
+
+        hours             = absFloor(minutes / 60);
+        data.hours        = hours % 24;
+
+        days += absFloor(hours / 24);
+
+        // convert days to months
+        monthsFromDays = absFloor(daysToMonths(days));
+        months += monthsFromDays;
+        days -= absCeil(monthsToDays(monthsFromDays));
+
+        // 12 months -> 1 year
+        years = absFloor(months / 12);
+        months %= 12;
+
+        data.days   = days;
+        data.months = months;
+        data.years  = years;
+
+        return this;
+    }
+
+    function daysToMonths (days) {
+        // 400 years have 146097 days (taking into account leap year rules)
+        // 400 years have 12 months === 4800
+        return days * 4800 / 146097;
+    }
+
+    function monthsToDays (months) {
+        // the reverse of daysToMonths
+        return months * 146097 / 4800;
+    }
+
+    function as (units) {
+        var days;
+        var months;
+        var milliseconds = this._milliseconds;
+
+        units = normalizeUnits(units);
+
+        if (units === 'month' || units === 'year') {
+            days   = this._days   + milliseconds / 864e5;
+            months = this._months + daysToMonths(days);
+            return units === 'month' ? months : months / 12;
+        } else {
+            // handle milliseconds separately because of floating point math errors (issue #1867)
+            days = this._days + Math.round(monthsToDays(this._months));
+            switch (units) {
+                case 'week'   : return days / 7     + milliseconds / 6048e5;
+                case 'day'    : return days         + milliseconds / 864e5;
+                case 'hour'   : return days * 24    + milliseconds / 36e5;
+                case 'minute' : return days * 1440  + milliseconds / 6e4;
+                case 'second' : return days * 86400 + milliseconds / 1000;
+                // Math.floor prevents floating point math errors here
+                case 'millisecond': return Math.floor(days * 864e5) + milliseconds;
+                default: throw new Error('Unknown unit ' + units);
+            }
+        }
+    }
+
+    // TODO: Use this.as('ms')?
+    function duration_as__valueOf () {
+        return (
+            this._milliseconds +
+            this._days * 864e5 +
+            (this._months % 12) * 2592e6 +
+            toInt(this._months / 12) * 31536e6
+        );
+    }
+
+    function makeAs (alias) {
+        return function () {
+            return this.as(alias);
+        };
+    }
+
+    var asMilliseconds = makeAs('ms');
+    var asSeconds      = makeAs('s');
+    var asMinutes      = makeAs('m');
+    var asHours        = makeAs('h');
+    var asDays         = makeAs('d');
+    var asWeeks        = makeAs('w');
+    var asMonths       = makeAs('M');
+    var asYears        = makeAs('y');
+
+    function duration_get__get (units) {
+        units = normalizeUnits(units);
+        return this[units + 's']();
+    }
+
+    function makeGetter(name) {
+        return function () {
+            return this._data[name];
+        };
+    }
+
+    var milliseconds = makeGetter('milliseconds');
+    var seconds      = makeGetter('seconds');
+    var minutes      = makeGetter('minutes');
+    var hours        = makeGetter('hours');
+    var days         = makeGetter('days');
+    var months       = makeGetter('months');
+    var years        = makeGetter('years');
+
+    function weeks () {
+        return absFloor(this.days() / 7);
+    }
+
+    var round = Math.round;
+    var thresholds = {
+        s: 45,  // seconds to minute
+        m: 45,  // minutes to hour
+        h: 22,  // hours to day
+        d: 26,  // days to month
+        M: 11   // months to year
+    };
+
+    // helper function for moment.fn.from, moment.fn.fromNow, and moment.duration.fn.humanize
+    function substituteTimeAgo(string, number, withoutSuffix, isFuture, locale) {
+        return locale.relativeTime(number || 1, !!withoutSuffix, string, isFuture);
+    }
+
+    function duration_humanize__relativeTime (posNegDuration, withoutSuffix, locale) {
+        var duration = create__createDuration(posNegDuration).abs();
+        var seconds  = round(duration.as('s'));
+        var minutes  = round(duration.as('m'));
+        var hours    = round(duration.as('h'));
+        var days     = round(duration.as('d'));
+        var months   = round(duration.as('M'));
+        var years    = round(duration.as('y'));
+
+        var a = seconds < thresholds.s && ['s', seconds]  ||
+                minutes <= 1           && ['m']           ||
+                minutes < thresholds.m && ['mm', minutes] ||
+                hours   <= 1           && ['h']           ||
+                hours   < thresholds.h && ['hh', hours]   ||
+                days    <= 1           && ['d']           ||
+                days    < thresholds.d && ['dd', days]    ||
+                months  <= 1           && ['M']           ||
+                months  < thresholds.M && ['MM', months]  ||
+                years   <= 1           && ['y']           || ['yy', years];
+
+        a[2] = withoutSuffix;
+        a[3] = +posNegDuration > 0;
+        a[4] = locale;
+        return substituteTimeAgo.apply(null, a);
+    }
+
+    // This function allows you to set a threshold for relative time strings
+    function duration_humanize__getSetRelativeTimeThreshold (threshold, limit) {
+        if (thresholds[threshold] === undefined) {
+            return false;
+        }
+        if (limit === undefined) {
+            return thresholds[threshold];
+        }
+        thresholds[threshold] = limit;
+        return true;
+    }
+
+    function humanize (withSuffix) {
+        var locale = this.localeData();
+        var output = duration_humanize__relativeTime(this, !withSuffix, locale);
+
+        if (withSuffix) {
+            output = locale.pastFuture(+this, output);
+        }
+
+        return locale.postformat(output);
+    }
+
+    var iso_string__abs = Math.abs;
+
+    function iso_string__toISOString() {
+        // for ISO strings we do not use the normal bubbling rules:
+        //  * milliseconds bubble up until they become hours
+        //  * days do not bubble at all
+        //  * months bubble up until they become years
+        // This is because there is no context-free conversion between hours and days
+        // (think of clock changes)
+        // and also not between days and months (28-31 days per month)
+        var seconds = iso_string__abs(this._milliseconds) / 1000;
+        var days         = iso_string__abs(this._days);
+        var months       = iso_string__abs(this._months);
+        var minutes, hours, years;
+
+        // 3600 seconds -> 60 minutes -> 1 hour
+        minutes           = absFloor(seconds / 60);
+        hours             = absFloor(minutes / 60);
+        seconds %= 60;
+        minutes %= 60;
+
+        // 12 months -> 1 year
+        years  = absFloor(months / 12);
+        months %= 12;
+
+
+        // inspired by https://github.com/dordille/moment-isoduration/blob/master/moment.isoduration.js
+        var Y = years;
+        var M = months;
+        var D = days;
+        var h = hours;
+        var m = minutes;
+        var s = seconds;
+        var total = this.asSeconds();
+
+        if (!total) {
+            // this is the same as C#'s (Noda) and python (isodate)...
+            // but not other JS (goog.date)
+            return 'P0D';
+        }
+
+        return (total < 0 ? '-' : '') +
+            'P' +
+            (Y ? Y + 'Y' : '') +
+            (M ? M + 'M' : '') +
+            (D ? D + 'D' : '') +
+            ((h || m || s) ? 'T' : '') +
+            (h ? h + 'H' : '') +
+            (m ? m + 'M' : '') +
+            (s ? s + 'S' : '');
+    }
+
+    var duration_prototype__proto = Duration.prototype;
+
+    duration_prototype__proto.abs            = duration_abs__abs;
+    duration_prototype__proto.add            = duration_add_subtract__add;
+    duration_prototype__proto.subtract       = duration_add_subtract__subtract;
+    duration_prototype__proto.as             = as;
+    duration_prototype__proto.asMilliseconds = asMilliseconds;
+    duration_prototype__proto.asSeconds      = asSeconds;
+    duration_prototype__proto.asMinutes      = asMinutes;
+    duration_prototype__proto.asHours        = asHours;
+    duration_prototype__proto.asDays         = asDays;
+    duration_prototype__proto.asWeeks        = asWeeks;
+    duration_prototype__proto.asMonths       = asMonths;
+    duration_prototype__proto.asYears        = asYears;
+    duration_prototype__proto.valueOf        = duration_as__valueOf;
+    duration_prototype__proto._bubble        = bubble;
+    duration_prototype__proto.get            = duration_get__get;
+    duration_prototype__proto.milliseconds   = milliseconds;
+    duration_prototype__proto.seconds        = seconds;
+    duration_prototype__proto.minutes        = minutes;
+    duration_prototype__proto.hours          = hours;
+    duration_prototype__proto.days           = days;
+    duration_prototype__proto.weeks          = weeks;
+    duration_prototype__proto.months         = months;
+    duration_prototype__proto.years          = years;
+    duration_prototype__proto.humanize       = humanize;
+    duration_prototype__proto.toISOString    = iso_string__toISOString;
+    duration_prototype__proto.toString       = iso_string__toISOString;
+    duration_prototype__proto.toJSON         = iso_string__toISOString;
+    duration_prototype__proto.locale         = locale;
+    duration_prototype__proto.localeData     = localeData;
+
+    // Deprecations
+    duration_prototype__proto.toIsoString = deprecate('toIsoString() is deprecated. Please use toISOString() instead (notice the capitals)', iso_string__toISOString);
+    duration_prototype__proto.lang = lang;
+
+    // Side effect imports
+
+    // FORMATTING
+
+    addFormatToken('X', 0, 0, 'unix');
+    addFormatToken('x', 0, 0, 'valueOf');
+
+    // PARSING
+
+    addRegexToken('x', matchSigned);
+    addRegexToken('X', matchTimestamp);
+    addParseToken('X', function (input, array, config) {
+        config._d = new Date(parseFloat(input, 10) * 1000);
+    });
+    addParseToken('x', function (input, array, config) {
+        config._d = new Date(toInt(input));
+    });
+
+    // Side effect imports
+
+
+    utils_hooks__hooks.version = '2.12.0';
+
+    setHookCallback(local__createLocal);
+
+    utils_hooks__hooks.fn                    = momentPrototype;
+    utils_hooks__hooks.min                   = min;
+    utils_hooks__hooks.max                   = max;
+    utils_hooks__hooks.now                   = now;
+    utils_hooks__hooks.utc                   = create_utc__createUTC;
+    utils_hooks__hooks.unix                  = moment__createUnix;
+    utils_hooks__hooks.months                = lists__listMonths;
+    utils_hooks__hooks.isDate                = isDate;
+    utils_hooks__hooks.locale                = locale_locales__getSetGlobalLocale;
+    utils_hooks__hooks.invalid               = valid__createInvalid;
+    utils_hooks__hooks.duration              = create__createDuration;
+    utils_hooks__hooks.isMoment              = isMoment;
+    utils_hooks__hooks.weekdays              = lists__listWeekdays;
+    utils_hooks__hooks.parseZone             = moment__createInZone;
+    utils_hooks__hooks.localeData            = locale_locales__getLocale;
+    utils_hooks__hooks.isDuration            = isDuration;
+    utils_hooks__hooks.monthsShort           = lists__listMonthsShort;
+    utils_hooks__hooks.weekdaysMin           = lists__listWeekdaysMin;
+    utils_hooks__hooks.defineLocale          = defineLocale;
+    utils_hooks__hooks.updateLocale          = updateLocale;
+    utils_hooks__hooks.locales               = locale_locales__listLocales;
+    utils_hooks__hooks.weekdaysShort         = lists__listWeekdaysShort;
+    utils_hooks__hooks.normalizeUnits        = normalizeUnits;
+    utils_hooks__hooks.relativeTimeThreshold = duration_humanize__getSetRelativeTimeThreshold;
+    utils_hooks__hooks.prototype             = momentPrototype;
+
+    var _moment = utils_hooks__hooks;
+
+    return _moment;
+
+}));
+}).apply(this, arguments);
+
+},{}],151:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/object-component/index.js", module);
 (function(){
 
@@ -19735,7 +23428,7 @@ exports.isEmpty = function(obj){
 };
 }).apply(this, arguments);
 
-},{}],151:[function(require,module,exports){
+},{}],152:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/parsejson/index.js", module);
 (function(){
 (function (global){
@@ -19774,7 +23467,7 @@ module.exports = function parsejson(data) {
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 }).apply(this, arguments);
 
-},{}],152:[function(require,module,exports){
+},{}],153:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/parseqs/index.js", module);
 (function(){
 /**
@@ -19817,7 +23510,7 @@ exports.decode = function(qs){
 
 }).apply(this, arguments);
 
-},{}],153:[function(require,module,exports){
+},{}],154:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/parseuri/index.js", module);
 (function(){
 /**
@@ -19848,7 +23541,7 @@ module.exports = function parseuri(str) {
 
 }).apply(this, arguments);
 
-},{}],154:[function(require,module,exports){
+},{}],155:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/process/browser.js", module);
 (function(){
 // shim for using process in browser
@@ -19945,7 +23638,7 @@ process.umask = function() { return 0; };
 
 }).apply(this, arguments);
 
-},{}],155:[function(require,module,exports){
+},{}],156:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/socket.io-client/index.js", module);
 (function(){
 
@@ -19953,7 +23646,7 @@ module.exports = require('./lib/');
 
 }).apply(this, arguments);
 
-},{"./lib/":156}],156:[function(require,module,exports){
+},{"./lib/":157}],157:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/socket.io-client/lib/index.js", module);
 (function(){
 
@@ -20046,7 +23739,7 @@ exports.Socket = require('./socket');
 
 }).apply(this, arguments);
 
-},{"./manager":157,"./socket":159,"./url":160,"debug":161,"socket.io-parser":163}],157:[function(require,module,exports){
+},{"./manager":158,"./socket":160,"./url":161,"debug":162,"socket.io-parser":164}],158:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/socket.io-client/lib/manager.js", module);
 (function(){
 
@@ -20555,7 +24248,7 @@ Manager.prototype.onreconnect = function(){
 
 }).apply(this, arguments);
 
-},{"./on":158,"./socket":159,"./url":160,"backo2":6,"component-bind":12,"component-emitter":13,"debug":161,"engine.io-client":56,"indexof":75,"object-component":150,"socket.io-parser":163}],158:[function(require,module,exports){
+},{"./on":159,"./socket":160,"./url":161,"backo2":6,"component-bind":12,"component-emitter":13,"debug":162,"engine.io-client":56,"indexof":75,"object-component":151,"socket.io-parser":164}],159:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/socket.io-client/lib/on.js", module);
 (function(){
 
@@ -20585,7 +24278,7 @@ function on(obj, ev, fn) {
 
 }).apply(this, arguments);
 
-},{}],159:[function(require,module,exports){
+},{}],160:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/socket.io-client/lib/socket.js", module);
 (function(){
 
@@ -20976,7 +24669,7 @@ Socket.prototype.disconnect = function(){
 
 }).apply(this, arguments);
 
-},{"./on":158,"component-bind":12,"component-emitter":13,"debug":161,"has-binary":73,"socket.io-parser":163,"to-array":167}],160:[function(require,module,exports){
+},{"./on":159,"component-bind":12,"component-emitter":13,"debug":162,"has-binary":73,"socket.io-parser":164,"to-array":168}],161:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/socket.io-client/lib/url.js", module);
 (function(){
 (function (global){
@@ -21057,7 +24750,7 @@ function url(uri, loc){
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 }).apply(this, arguments);
 
-},{"debug":161,"parseuri":153}],161:[function(require,module,exports){
+},{"debug":162,"parseuri":154}],162:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/socket.io-client/node_modules/debug/debug.js", module);
 (function(){
 
@@ -21200,7 +24893,7 @@ try {
 
 }).apply(this, arguments);
 
-},{}],162:[function(require,module,exports){
+},{}],163:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/socket.io-parser/binary.js", module);
 (function(){
 (function (global){
@@ -21349,7 +25042,7 @@ exports.removeBlobs = function(data, callback) {
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 }).apply(this, arguments);
 
-},{"./is-buffer":164,"isarray":76}],163:[function(require,module,exports){
+},{"./is-buffer":165,"isarray":76}],164:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/socket.io-parser/index.js", module);
 (function(){
 
@@ -21755,7 +25448,7 @@ function error(data){
 
 }).apply(this, arguments);
 
-},{"./binary":162,"./is-buffer":164,"component-emitter":13,"debug":165,"isarray":76,"json3":81}],164:[function(require,module,exports){
+},{"./binary":163,"./is-buffer":165,"component-emitter":13,"debug":166,"isarray":76,"json3":81}],165:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/socket.io-parser/is-buffer.js", module);
 (function(){
 (function (global){
@@ -21776,7 +25469,7 @@ function isBuf(obj) {
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 }).apply(this, arguments);
 
-},{}],165:[function(require,module,exports){
+},{}],166:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/socket.io-parser/node_modules/debug/debug.js", module);
 (function(){
 
@@ -21919,7 +25612,7 @@ try {
 
 }).apply(this, arguments);
 
-},{}],166:[function(require,module,exports){
+},{}],167:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/tether/dist/js/tether.js", module);
 (function(){
 /*! tether 1.2.0 */
@@ -23651,7 +27344,7 @@ return Tether;
 
 }).apply(this, arguments);
 
-},{}],167:[function(require,module,exports){
+},{}],168:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/to-array/index.js", module);
 (function(){
 module.exports = toArray
@@ -23670,7 +27363,7 @@ function toArray(list, index) {
 
 }).apply(this, arguments);
 
-},{}],168:[function(require,module,exports){
+},{}],169:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/utf8/utf8.js", module);
 (function(){
 (function (global){
@@ -23922,7 +27615,7 @@ _hmr["websocket:null"].initModule("node_modules/utf8/utf8.js", module);
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 }).apply(this, arguments);
 
-},{}],169:[function(require,module,exports){
+},{}],170:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-animated-list/vue-animated-list.js", module);
 (function(){
 (function (global, factory) {
@@ -24059,7 +27752,7 @@ _hmr["websocket:null"].initModule("node_modules/vue-animated-list/vue-animated-l
 
 }).apply(this, arguments);
 
-},{}],170:[function(require,module,exports){
+},{}],171:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-hot-reload-api/index.js", module);
 (function(){
 var Vue // late bind
@@ -24304,7 +27997,7 @@ function format (id) {
 
 }).apply(this, arguments);
 
-},{}],171:[function(require,module,exports){
+},{}],172:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/client/default.js", module);
 (function(){
 /**
@@ -24323,7 +28016,7 @@ module.exports = function (_) {
 
 }).apply(this, arguments);
 
-},{"./xhr":173}],172:[function(require,module,exports){
+},{"./xhr":174}],173:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/client/jsonp.js", module);
 (function(){
 /**
@@ -24380,7 +28073,7 @@ module.exports = function (_) {
 
 }).apply(this, arguments);
 
-},{"../promise":187}],173:[function(require,module,exports){
+},{"../promise":188}],174:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/client/xhr.js", module);
 (function(){
 /**
@@ -24480,7 +28173,7 @@ module.exports = function (_) {
 
 }).apply(this, arguments);
 
-},{"../promise":187}],174:[function(require,module,exports){
+},{"../promise":188}],175:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/http.js", module);
 (function(){
 /**
@@ -24594,7 +28287,7 @@ module.exports = function (_) {
 
 }).apply(this, arguments);
 
-},{"./client/default":171,"./interceptor":179,"./interceptor/before":176,"./interceptor/cors":177,"./interceptor/header":178,"./interceptor/jsonp":180,"./interceptor/method":181,"./interceptor/mime":182,"./interceptor/timeout":183,"./promise":187}],175:[function(require,module,exports){
+},{"./client/default":172,"./interceptor":180,"./interceptor/before":177,"./interceptor/cors":178,"./interceptor/header":179,"./interceptor/jsonp":181,"./interceptor/method":182,"./interceptor/mime":183,"./interceptor/timeout":184,"./promise":188}],176:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/index.js", module);
 (function(){
 /**
@@ -24641,7 +28334,7 @@ module.exports = install;
 
 }).apply(this, arguments);
 
-},{"./http":174,"./lib/util":186,"./promise":187,"./resource":188,"./url":189}],176:[function(require,module,exports){
+},{"./http":175,"./lib/util":187,"./promise":188,"./resource":189,"./url":190}],177:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/interceptor/before.js", module);
 (function(){
 /**
@@ -24667,7 +28360,7 @@ module.exports = function (_) {
 
 }).apply(this, arguments);
 
-},{}],177:[function(require,module,exports){
+},{}],178:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/interceptor/cors.js", module);
 (function(){
 /**
@@ -24713,7 +28406,7 @@ module.exports = function (_) {
 
 }).apply(this, arguments);
 
-},{"../client/jsonp":172}],178:[function(require,module,exports){
+},{"../client/jsonp":173}],179:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/interceptor/header.js", module);
 (function(){
 /**
@@ -24747,7 +28440,7 @@ module.exports = function (_) {
 
 }).apply(this, arguments);
 
-},{}],179:[function(require,module,exports){
+},{}],180:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/interceptor/index.js", module);
 (function(){
 /**
@@ -24800,7 +28493,7 @@ module.exports = function (_) {
 
 }).apply(this, arguments);
 
-},{"../promise":187}],180:[function(require,module,exports){
+},{"../promise":188}],181:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/interceptor/jsonp.js", module);
 (function(){
 /**
@@ -24828,7 +28521,7 @@ module.exports = function (_) {
 
 }).apply(this, arguments);
 
-},{"../client/jsonp":172}],181:[function(require,module,exports){
+},{"../client/jsonp":173}],182:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/interceptor/method.js", module);
 (function(){
 /**
@@ -24855,7 +28548,7 @@ module.exports = function (_) {
 
 }).apply(this, arguments);
 
-},{}],182:[function(require,module,exports){
+},{}],183:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/interceptor/mime.js", module);
 (function(){
 /**
@@ -24899,7 +28592,7 @@ module.exports = function (_) {
 
 }).apply(this, arguments);
 
-},{}],183:[function(require,module,exports){
+},{}],184:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/interceptor/timeout.js", module);
 (function(){
 /**
@@ -24939,7 +28632,7 @@ module.exports = function (_) {
 
 }).apply(this, arguments);
 
-},{}],184:[function(require,module,exports){
+},{}],185:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/lib/promise.js", module);
 (function(){
 /**
@@ -25125,7 +28818,7 @@ module.exports = function (_) {
 
 }).apply(this, arguments);
 
-},{}],185:[function(require,module,exports){
+},{}],186:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/lib/url-template.js", module);
 (function(){
 /**
@@ -25281,7 +28974,7 @@ exports.encodeReserved = function (str) {
 
 }).apply(this, arguments);
 
-},{}],186:[function(require,module,exports){
+},{}],187:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/lib/util.js", module);
 (function(){
 /**
@@ -25387,7 +29080,7 @@ module.exports = function (Vue) {
 
 }).apply(this, arguments);
 
-},{}],187:[function(require,module,exports){
+},{}],188:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/promise.js", module);
 (function(){
 /**
@@ -25504,7 +29197,7 @@ module.exports = function (_) {
 
 }).apply(this, arguments);
 
-},{"./lib/promise":184}],188:[function(require,module,exports){
+},{"./lib/promise":185}],189:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/resource.js", module);
 (function(){
 /**
@@ -25621,7 +29314,7 @@ module.exports = function (_) {
 
 }).apply(this, arguments);
 
-},{}],189:[function(require,module,exports){
+},{}],190:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-resource/src/url.js", module);
 (function(){
 /**
@@ -25790,7 +29483,7 @@ module.exports = function (_) {
 
 }).apply(this, arguments);
 
-},{"./lib/url-template":185}],190:[function(require,module,exports){
+},{"./lib/url-template":186}],191:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-router/dist/vue-router.common.js", module);
 (function(){
 'use strict';
@@ -28329,7 +32022,7 @@ if (typeof window !== 'undefined' && window.Vue) {
 module.exports = Router;
 }).apply(this, arguments);
 
-},{}],191:[function(require,module,exports){
+},{}],192:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-strap/src/Option.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("\n  a span.check-mark {\n    position: absolute;\n    display: inline-block;\n    right: 15px;\n    margin-top: 5px;\n  }\n")
@@ -28388,7 +32081,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":193,"vue-hot-reload-api":170,"vueify-insert-css":194}],192:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],193:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-strap/src/Select.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("\n.bs_searchbox {\n  padding: 4px 8px;\n}\n.btn-group .dropdown-menu .notify {\n  position: absolute;\n  bottom: 5px;\n  width: 96%;\n  margin: 0 2%;\n  min-height: 26px;\n  padding: 3px 5px;\n  background: #f5f5f5;\n  border: 1px solid #e3e3e3;\n  box-shadow: inset 0 1px 1px rgba(0,0,0,.05);\n   pointer-events: none;\n  opacity: .9;\n}\n")
@@ -28527,13 +32220,2051 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"babel-runtime/core-js/get-iterator":4,"vue":193,"vue-hot-reload-api":170,"vueify-insert-css":194}],193:[function(require,module,exports){
+},{"babel-runtime/core-js/get-iterator":4,"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],194:[function(require,module,exports){
+_hmr["websocket:null"].initModule("node_modules/vue-validator/dist/vue-validator.common.js", module);
+(function(){
+/*!
+ * vue-validator v2.0.0-alpha.22
+ * (c) 2016 kazuya kawaguchi
+ * Released under the MIT License.
+ */
+'use strict';
+
+var babelHelpers = {};
+babelHelpers.typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) {
+  return typeof obj;
+} : function (obj) {
+  return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj;
+};
+
+babelHelpers.classCallCheck = function (instance, Constructor) {
+  if (!(instance instanceof Constructor)) {
+    throw new TypeError("Cannot call a class as a function");
+  }
+};
+
+babelHelpers.createClass = function () {
+  function defineProperties(target, props) {
+    for (var i = 0; i < props.length; i++) {
+      var descriptor = props[i];
+      descriptor.enumerable = descriptor.enumerable || false;
+      descriptor.configurable = true;
+      if ("value" in descriptor) descriptor.writable = true;
+      Object.defineProperty(target, descriptor.key, descriptor);
+    }
+  }
+
+  return function (Constructor, protoProps, staticProps) {
+    if (protoProps) defineProperties(Constructor.prototype, protoProps);
+    if (staticProps) defineProperties(Constructor, staticProps);
+    return Constructor;
+  };
+}();
+
+babelHelpers.inherits = function (subClass, superClass) {
+  if (typeof superClass !== "function" && superClass !== null) {
+    throw new TypeError("Super expression must either be null or a function, not " + typeof superClass);
+  }
+
+  subClass.prototype = Object.create(superClass && superClass.prototype, {
+    constructor: {
+      value: subClass,
+      enumerable: false,
+      writable: true,
+      configurable: true
+    }
+  });
+  if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass;
+};
+
+babelHelpers.possibleConstructorReturn = function (self, call) {
+  if (!self) {
+    throw new ReferenceError("this hasn't been initialised - super() hasn't been called");
+  }
+
+  return call && (typeof call === "object" || typeof call === "function") ? call : self;
+};
+
+babelHelpers;
+
+/**
+ * Utilties
+ */
+
+// export default for holding the Vue reference
+var exports$1 = {};
+/**
+ * warn
+ *
+ * @param {String} msg
+ * @param {Error} [err]
+ *
+ */
+
+function warn(msg, err) {
+  if (window.console) {
+    console.warn('[vue-validator] ' + msg);
+    if (err) {
+      console.warn(err.stack);
+    }
+  }
+}
+
+/**
+ * empty
+ *
+ * @param {Array|Object} target
+ * @return {Boolean}
+ */
+
+function empty(target) {
+  if (target === null || target === undefined) {
+    return true;
+  }
+
+  if (Array.isArray(target)) {
+    if (target.length > 0) {
+      return false;
+    }
+    if (target.length === 0) {
+      return true;
+    }
+  } else if (exports$1.Vue.util.isPlainObject(target)) {
+    for (var key in target) {
+      if (exports$1.Vue.util.hasOwn(target, key)) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+/**
+ * each
+ *
+ * @param {Array|Object} target
+ * @param {Function} iterator
+ * @param {Object} [context]
+ */
+
+function each(target, iterator, context) {
+  if (Array.isArray(target)) {
+    for (var i = 0; i < target.length; i++) {
+      iterator.call(context || target[i], target[i], i);
+    }
+  } else if (exports$1.Vue.util.isPlainObject(target)) {
+    var hasOwn = exports$1.Vue.util.hasOwn;
+    for (var key in target) {
+      if (hasOwn(target, key)) {
+        iterator.call(context || target[key], target[key], key);
+      }
+    }
+  }
+}
+
+/**
+ * pull
+ *
+ * @param {Array} arr
+ * @param {Object} item
+ * @return {Object|null}
+ */
+
+function pull(arr, item) {
+  var index = exports$1.Vue.util.indexOf(arr, item);
+  return ~index ? arr.splice(index, 1) : null;
+}
+
+/**
+ * trigger
+ *
+ * @param {Element} el
+ * @param {String} event
+ * @param {Object} [args]
+ */
+
+function trigger(el, event, args) {
+  var e = document.createEvent('HTMLEvents');
+  e.initEvent(event, true, false);
+
+  if (args) {
+    for (var prop in args) {
+      e[prop] = args[prop];
+    }
+  }
+
+  // Due to Firefox bug, events fired on disabled
+  // non-attached form controls can throw errors
+  try {
+    el.dispatchEvent(e);
+  } catch (e) {}
+}
+
+/**
+ * Fundamental validate functions
+ */
+
+/**
+ * required
+ *
+ * This function validate whether the value has been filled out.
+ *
+ * @param {*} val
+ * @return {Boolean}
+ */
+
+function required(val) {
+  if (Array.isArray(val)) {
+    if (val.length !== 0) {
+      var valid = true;
+      for (var i = 0, l = val.length; i < l; i++) {
+        valid = required(val[i]);
+        if (!valid) {
+          break;
+        }
+      }
+      return valid;
+    } else {
+      return false;
+    }
+    return val.length > 0;
+  } else if (typeof val === 'number' || typeof val === 'function') {
+    return true;
+  } else if (typeof val === 'boolean') {
+    return val;
+  } else if (typeof val === 'string') {
+    return val.length > 0;
+  } else if (val !== null && (typeof val === 'undefined' ? 'undefined' : babelHelpers.typeof(val)) === 'object') {
+    return Object.keys(val).length > 0;
+  } else if (val === null || val === undefined) {
+    return false;
+  }
+}
+
+/**
+ * pattern
+ *
+ * This function validate whether the value matches the regex pattern
+ *
+ * @param val
+ * @param {String} pat
+ * @return {Boolean}
+ */
+
+function pattern(val, pat) {
+  if (typeof pat !== 'string') {
+    return false;
+  }
+
+  var match = pat.match(new RegExp('^/(.*?)/([gimy]*)$'));
+  if (!match) {
+    return false;
+  }
+
+  return new RegExp(match[1], match[2]).test(val);
+}
+
+/**
+ * minlength
+ *
+ * This function validate whether the minimum length.
+ *
+ * @param {String|Array} val
+ * @param {String|Number} min
+ * @return {Boolean}
+ */
+
+function minlength(val, min) {
+  if (typeof val === 'string') {
+    return isInteger(min, 10) && val.length >= parseInt(min, 10);
+  } else if (Array.isArray(val)) {
+    return val.length >= parseInt(min, 10);
+  } else {
+    return false;
+  }
+}
+
+/**
+ * maxlength
+ *
+ * This function validate whether the maximum length.
+ *
+ * @param {String|Array} val
+ * @param {String|Number} max
+ * @return {Boolean}
+ */
+
+function maxlength(val, max) {
+  if (typeof val === 'string') {
+    return isInteger(max, 10) && val.length <= parseInt(max, 10);
+  } else if (Array.isArray(val)) {
+    return val.length <= parseInt(max, 10);
+  } else {
+    return false;
+  }
+}
+
+/**
+ * min
+ *
+ * This function validate whether the minimum value of the numberable value.
+ *
+ * @param {*} val
+ * @param {*} arg minimum
+ * @return {Boolean}
+ */
+
+function min(val, arg) {
+  return !isNaN(+val) && !isNaN(+arg) && +val >= +arg;
+}
+
+/**
+ * max
+ *
+ * This function validate whether the maximum value of the numberable value.
+ *
+ * @param {*} val
+ * @param {*} arg maximum
+ * @return {Boolean}
+ */
+
+function max(val, arg) {
+  return !isNaN(+val) && !isNaN(+arg) && +val <= +arg;
+}
+
+/**
+ * isInteger
+ *
+ * This function check whether the value of the string is integer.
+ *
+ * @param {String} val
+ * @return {Boolean}
+ * @private
+ */
+
+function isInteger(val) {
+  return (/^(-?[1-9]\d*|0)$/.test(val)
+  );
+}
+
+var validators = Object.freeze({
+  required: required,
+  pattern: pattern,
+  minlength: minlength,
+  maxlength: maxlength,
+  min: min,
+  max: max
+});
+
+function Asset (Vue) {
+  var extend = Vue.util.extend;
+
+  // set global validators asset
+  var assets = Object.create(null);
+  extend(assets, validators);
+  Vue.options.validators = assets;
+
+  // set option merge strategy
+  var strats = Vue.config.optionMergeStrategies;
+  if (strats) {
+    strats.validators = function (parent, child) {
+      if (!child) {
+        return parent;
+      }
+      if (!parent) {
+        return child;
+      }
+      var ret = Object.create(null);
+      extend(ret, parent);
+      for (var key in child) {
+        ret[key] = child[key];
+      }
+      return ret;
+    };
+  }
+
+  /**
+   * Register or retrieve a global validator definition.
+   *
+   * @param {String} id
+   * @param {Function} definition
+   */
+
+  Vue.validator = function (id, definition) {
+    if (!definition) {
+      return Vue.options['validators'][id];
+    } else {
+      Vue.options['validators'][id] = definition;
+    }
+  };
+}
+
+function Override (Vue) {
+
+  // override _init
+  var init = Vue.prototype._init;
+  Vue.prototype._init = function (options) {
+    if (!this._validatorMaps) {
+      this._validatorMaps = Object.create(null);
+    }
+    init.call(this, options);
+  };
+
+  // override _destroy
+  var destroy = Vue.prototype._destroy;
+  Vue.prototype._destroy = function () {
+    destroy.apply(this, arguments);
+    this._validatorMaps = null;
+  };
+}
+
+function Validate (Vue) {
+
+  var _ = Vue.util;
+  var vIf = Vue.directive('if');
+  var FragmentFactory = Vue.FragmentFactory;
+
+  // register `v-validate` as terminal directive
+  Vue.compiler.terminalDirectives.push('validate');
+
+  /**
+   * `v-validate` directive
+   */
+
+  Vue.directive('validate', {
+    priority: vIf.priority + 1,
+    params: ['group', 'field', 'detect-blur', 'detect-change'],
+
+    paramWatchers: {
+      detectBlur: function detectBlur(val, old) {
+        this.validation.detectBlur = this.isDetectBlur(val);
+        this.validator.validate();
+      },
+      detectChange: function detectChange(val, old) {
+        this.validation.detectChange = this.isDetectChange(val);
+        this.validator.validate();
+      }
+    },
+
+    bind: function bind() {
+      if (this.el.__vue__) {
+        warn('v-validate="' + this.expression + '" cannot be ' + 'used on an instance root element.');
+        return;
+      }
+
+      var validatorName = this.vm.$options._validator;
+      if (!validatorName) {
+        warn('v-validate need to use into validator element directive: ' + '(e.g. <validator name="validator">' + '<input type="text" v-validate:field1="[\'required\']">' + '</validator>).');
+        return;
+      }
+
+      this.model = this.el.getAttribute('v-model');
+
+      this.setupFragment();
+      this.setupValidate(validatorName, this.model);
+      this.listen();
+    },
+    update: function update(value, old) {
+      if (!value) {
+        return;
+      }
+
+      if (_.isPlainObject(value)) {
+        this.handleObject(value);
+      } else if (Array.isArray(value)) {
+        this.handleArray(value);
+      }
+
+      this.validator.validate();
+    },
+    unbind: function unbind() {
+      this.unlisten();
+      this.teardownValidate();
+      this.teardownFragment();
+
+      this.model = null;
+    },
+    setupValidate: function setupValidate(name, model) {
+      var params = this.params;
+      var validator = this.validator = this.vm._validatorMaps[name];
+
+      this.field = _.camelize(this.arg ? this.arg : params.field);
+
+      this.validation = validator.manageValidation(this.field, model, this.vm, this.frag.node, this._scope, this.isDetectBlur(this.params.detectBlur), this.isDetectChange(this.params.detectChange));
+
+      if (params.group) {
+        validator.addGroupValidation(params.group, this.field);
+      }
+    },
+    listen: function listen() {
+      var model = this.model;
+      var validation = this.validation;
+      var el = this.frag.node;
+
+      this.onBlur = _.bind(validation.listener, validation);
+      _.on(el, 'blur', this.onBlur);
+      if ((el.type === 'radio' || el.tagName === 'SELECT') && !model) {
+        this.onChange = _.bind(validation.listener, validation);
+        _.on(el, 'change', this.onChange);
+      } else if (el.type === 'checkbox') {
+        if (!model) {
+          this.onChange = _.bind(validation.listener, validation);
+          _.on(el, 'change', this.onChange);
+        } else {
+          this.onClick = _.bind(validation.listener, validation);
+          _.on(el, 'click', this.onClick);
+        }
+      } else {
+        if (!model) {
+          this.onInput = _.bind(validation.listener, validation);
+          _.on(el, 'input', this.onInput);
+        }
+      }
+    },
+    unlisten: function unlisten() {
+      var el = this.frag.node;
+
+      if (this.onInput) {
+        _.off(el, 'input', this.onInput);
+        this.onInput = null;
+      }
+
+      if (this.onClick) {
+        _.off(el, 'click', this.onClick);
+        this.onClick = null;
+      }
+
+      if (this.onChange) {
+        _.off(el, 'change', this.onChange);
+        this.onChange = null;
+      }
+
+      if (this.onBlur) {
+        _.off(el, 'blur', this.onBlur);
+        this.onBlur = null;
+      }
+    },
+    teardownValidate: function teardownValidate() {
+      if (this.validator && this.validation) {
+        var el = this.frag.node;
+
+        if (this.params.group) {
+          this.validator.removeGroupValidation(this.params.group, this.field);
+        }
+
+        this.validator.unmanageValidation(this.field, el);
+
+        this.validator = null;
+        this.validation = null;
+        this.field = null;
+      }
+    },
+    setupFragment: function setupFragment() {
+      this.anchor = _.createAnchor('v-validate');
+      _.replace(this.el, this.anchor);
+
+      this.factory = new FragmentFactory(this.vm, this.el);
+      this.frag = this.factory.create(this._host, this._scope, this._frag);
+      this.frag.before(this.anchor);
+    },
+    teardownFragment: function teardownFragment() {
+      if (this.frag) {
+        this.frag.remove();
+        this.frag = null;
+        this.factory = null;
+      }
+
+      _.replace(this.anchor, this.el);
+      this.anchor = null;
+    },
+    handleArray: function handleArray(value) {
+      var _this = this;
+
+      each(value, function (val) {
+        _this.validation.setValidation(val);
+      }, this);
+    },
+    handleObject: function handleObject(value) {
+      var _this2 = this;
+
+      each(value, function (val, key) {
+        if (_.isPlainObject(val)) {
+          if ('rule' in val) {
+            var msg = 'message' in val ? val.message : null;
+            _this2.validation.setValidation(key, val.rule, msg);
+          }
+        } else {
+          _this2.validation.setValidation(key, val);
+        }
+      }, this);
+    },
+    isDetectBlur: function isDetectBlur(detectBlur) {
+      return detectBlur === undefined || detectBlur === 'on' || detectBlur === true;
+    },
+    isDetectChange: function isDetectChange(detectChange) {
+      return detectChange === undefined || detectChange === 'on' || detectChange === true;
+    }
+  });
+}
+
+/**
+ * BaseValidation class
+ */
+
+var BaseValidation = function () {
+  function BaseValidation(field, model, vm, el, scope, validator, detectBlur, detectChange) {
+    babelHelpers.classCallCheck(this, BaseValidation);
+
+    this.field = field;
+    this.touched = false;
+    this.dirty = false;
+    this.modified = false;
+
+    this._modified = false;
+    this._model = model;
+    this._validator = validator;
+    this._vm = vm;
+    this._el = el;
+    this._forScope = scope;
+    this._init = this._getValue(el);
+    this._validators = {};
+    this._detectBlur = detectBlur;
+    this._detectChange = detectChange;
+  }
+
+  babelHelpers.createClass(BaseValidation, [{
+    key: 'manageElement',
+    value: function manageElement(el) {
+      var _this = this;
+
+      var scope = this._getScope();
+      var model = this._model;
+      if (model) {
+        el.value = scope.$get(model) || '';
+        this._unwatch = scope.$watch(model, function (val, old) {
+          if (val !== old) {
+            if (_this.guardValidate(el, 'input')) {
+              return;
+            }
+            _this.handleValidate(el);
+          }
+        }, { deep: true });
+      }
+    }
+  }, {
+    key: 'unmanageElement',
+    value: function unmanageElement(el) {
+      if (this._unwatch) {
+        this._unwatch();
+      }
+    }
+  }, {
+    key: 'setValidation',
+    value: function setValidation(name, arg, msg) {
+      var validator = this._validators[name];
+      if (!validator) {
+        validator = this._validators[name] = {};
+        validator.name = name;
+      }
+
+      validator.arg = arg;
+      if (msg) {
+        validator.msg = msg;
+      }
+    }
+  }, {
+    key: 'willUpdateFlags',
+    value: function willUpdateFlags() {
+      var touched = arguments.length <= 0 || arguments[0] === undefined ? false : arguments[0];
+
+      if (touched) {
+        this.willUpdateTouched(this._el, 'blur');
+      }
+      this.willUpdateDirty(this._el);
+      this.willUpdateModified(this._el);
+    }
+  }, {
+    key: 'willUpdateTouched',
+    value: function willUpdateTouched(el, type) {
+      if (type && type === 'blur') {
+        this.touched = true;
+        this._fireEvent(el, 'touched');
+      }
+    }
+  }, {
+    key: 'willUpdateDirty',
+    value: function willUpdateDirty(el) {
+      if (!this.dirty && this._checkModified(el)) {
+        this.dirty = true;
+        this._fireEvent(el, 'dirty');
+      }
+    }
+  }, {
+    key: 'willUpdateModified',
+    value: function willUpdateModified(el) {
+      this.modified = this._checkModified(el);
+      if (this._modified !== this.modified) {
+        this._fireEvent(el, 'modified', { modified: this.modified });
+        this._modified = this.modified;
+      }
+    }
+  }, {
+    key: 'listener',
+    value: function listener(e) {
+      if (e.relatedTarget && (e.relatedTarget.tagName === 'A' || e.relatedTarget.tagName === 'BUTTON')) {
+        return;
+      }
+
+      if (this.guardValidate(e.target, e.type)) {
+        return;
+      }
+      this.handleValidate(e.target, e.type);
+    }
+  }, {
+    key: 'handleValidate',
+    value: function handleValidate(el, type) {
+      this.willUpdateTouched(el, type);
+      this.willUpdateDirty(el);
+      this.willUpdateModified(el);
+
+      this._validator.validate();
+    }
+  }, {
+    key: 'validate',
+    value: function validate() {
+      var _this2 = this;
+
+      var _ = exports$1.Vue.util;
+
+      var results = {};
+      var errors = [];
+      var valid = true;
+
+      each(this._validators, function (descriptor, name) {
+        var asset = _this2._resolveValidator(name);
+        var validator = null;
+        var msg = null;
+
+        if (_.isPlainObject(asset)) {
+          if (asset.check && typeof asset.check === 'function') {
+            validator = asset.check;
+          }
+          if (asset.message) {
+            msg = asset.message;
+          }
+        } else if (typeof asset === 'function') {
+          validator = asset;
+        }
+
+        if (descriptor.msg) {
+          msg = descriptor.msg;
+        }
+
+        if (validator) {
+          var ret = validator.call(_this2._vm, _this2._getValue(_this2._el), descriptor.arg);
+          if (!ret) {
+            valid = false;
+            if (msg) {
+              var error = { validator: name };
+              error.message = typeof msg === 'function' ? msg.call(_this2._vm, _this2.field, descriptor.arg) : msg;
+              errors.push(error);
+              results[name] = error.message;
+            } else {
+              results[name] = !ret;
+            }
+          } else {
+            results[name] = !ret;
+          }
+        }
+      }, this);
+
+      this._fireEvent(this._el, valid ? 'valid' : 'invalid');
+
+      var props = {
+        valid: valid,
+        invalid: !valid,
+        touched: this.touched,
+        untouched: !this.touched,
+        dirty: this.dirty,
+        pristine: !this.dirty,
+        modified: this.modified
+      };
+      if (!empty(errors)) {
+        props.errors = errors;
+      }
+      _.extend(results, props);
+
+      return results;
+    }
+  }, {
+    key: 'resetFlags',
+    value: function resetFlags() {
+      this.touched = false;
+      this.dirty = false;
+      this.modified = false;
+      this._modified = false;
+    }
+  }, {
+    key: 'reset',
+    value: function reset() {
+      this.resetFlags();
+      this._init = this._getValue(this._el);
+    }
+  }, {
+    key: 'guardValidate',
+    value: function guardValidate(el, type) {
+      if (type && type === 'blur' && !this.detectBlur) {
+        return true;
+      }
+
+      if (type && type === 'input' && !this.detectChange) {
+        return true;
+      }
+
+      if (type && type === 'change' && !this.detectChange) {
+        return true;
+      }
+
+      if (type && type === 'click' && !this.detectChange) {
+        return true;
+      }
+
+      return false;
+    }
+  }, {
+    key: '_getValue',
+    value: function _getValue(el) {
+      return el.value;
+    }
+  }, {
+    key: '_getScope',
+    value: function _getScope() {
+      return this._forScope || this._vm;
+    }
+  }, {
+    key: '_checkModified',
+    value: function _checkModified(target) {
+      return this._init !== this._getValue(target);
+    }
+  }, {
+    key: '_fireEvent',
+    value: function _fireEvent(el, type, args) {
+      trigger(el, type, args);
+    }
+  }, {
+    key: '_resolveValidator',
+    value: function _resolveValidator(name) {
+      var resolveAsset = exports$1.Vue.util.resolveAsset;
+      return resolveAsset(this._vm.$options, 'validators', name);
+    }
+  }, {
+    key: 'detectChange',
+    get: function get() {
+      return this._detectChange;
+    },
+    set: function set(val) {
+      this._detectChange = val;
+    }
+  }, {
+    key: 'detectBlur',
+    get: function get() {
+      return this._detectBlur;
+    },
+    set: function set(val) {
+      this._detectBlur = val;
+    }
+  }]);
+  return BaseValidation;
+}();
+
+/**
+ * CheckboxValidation class
+ */
+
+var CheckboxValidation = function (_BaseValidation) {
+  babelHelpers.inherits(CheckboxValidation, _BaseValidation);
+
+  function CheckboxValidation(field, model, vm, el, scope, validator, detectBlur, detectChange) {
+    babelHelpers.classCallCheck(this, CheckboxValidation);
+
+    var _this = babelHelpers.possibleConstructorReturn(this, Object.getPrototypeOf(CheckboxValidation).call(this, field, model, vm, el, scope, validator, detectBlur, detectChange));
+
+    _this._inits = [];
+    return _this;
+  }
+
+  babelHelpers.createClass(CheckboxValidation, [{
+    key: 'manageElement',
+    value: function manageElement(el) {
+      var _this2 = this;
+
+      var item = this._addItem(el);
+      var scope = this._getScope();
+      var model = item.model = this._model;
+      if (model) {
+        var value = scope.$get(model);
+        if (Array.isArray(value)) {
+          this._setChecked(value, item.el);
+          item.unwatch = scope.$watch(model, function (val, old) {
+            if (val !== old) {
+              if (_this2.guardValidate(item.el, 'change')) {
+                return;
+              }
+              _this2.handleValidate(item.el);
+            }
+          });
+        } else {
+          el.checked = value || false;
+          this._init = el.checked;
+          item.init = el.checked;
+          item.value = el.value;
+          item.unwatch = scope.$watch(model, function (val, old) {
+            if (val !== old) {
+              if (_this2.guardValidate(el, 'change')) {
+                return;
+              }
+              _this2.handleValidate(el);
+            }
+          });
+        }
+      } else {
+        this._validator.validate();
+      }
+    }
+  }, {
+    key: 'unmanageElement',
+    value: function unmanageElement(el) {
+      var found = -1;
+      each(this._inits, function (item, index) {
+        if (item.el === el) {
+          found = index;
+          if (item.unwatch && item.model) {
+            item.unwatch();
+            item.unwatch = null;
+            item.model = null;
+          }
+        }
+      });
+      if (found === -1) {
+        return;
+      }
+
+      this._inits.splice(found, 1);
+      this._validator.validate();
+    }
+  }, {
+    key: 'willUpdateFlags',
+    value: function willUpdateFlags() {
+      var _this3 = this;
+
+      each(this._inits, function (item, index) {
+        _this3.willUpdateDirty(item.el);
+        _this3.willUpdateModified(item.el);
+      }, this);
+    }
+  }, {
+    key: 'reset',
+    value: function reset() {
+      this.resetFlags();
+      each(this._inits, function (item, index) {
+        item.init = item.el.checked;
+        item.value = item.el.value;
+      });
+    }
+  }, {
+    key: '_addItem',
+    value: function _addItem(el) {
+      var item = {
+        el: el,
+        init: el.checked,
+        value: el.value
+      };
+      this._inits.push(item);
+      return item;
+    }
+  }, {
+    key: '_setChecked',
+    value: function _setChecked(values, el) {
+      for (var i = 0, l = values.length; i < l; i++) {
+        var value = values[i];
+        if (!el.disabled && el.value === value && !el.checked) {
+          el.checked = true;
+        }
+      }
+    }
+  }, {
+    key: '_getValue',
+    value: function _getValue(el) {
+      var _this4 = this;
+
+      if (!this._inits || this._inits.length === 0) {
+        return el.checked;
+      } else {
+        var _ret = function () {
+          var vals = [];
+          each(_this4._inits, function (item, index) {
+            if (item.el.checked) {
+              vals.push(item.el.value);
+            }
+          });
+          return {
+            v: vals
+          };
+        }();
+
+        if ((typeof _ret === 'undefined' ? 'undefined' : babelHelpers.typeof(_ret)) === "object") return _ret.v;
+      }
+    }
+  }, {
+    key: '_checkModified',
+    value: function _checkModified(target) {
+      var _this5 = this;
+
+      if (this._inits.length === 0) {
+        return this._init !== target.checked;
+      } else {
+        var _ret2 = function () {
+          var modified = false;
+          each(_this5._inits, function (item, index) {
+            if (!modified) {
+              modified = item.init !== item.el.checked;
+            }
+          });
+          return {
+            v: modified
+          };
+        }();
+
+        if ((typeof _ret2 === 'undefined' ? 'undefined' : babelHelpers.typeof(_ret2)) === "object") return _ret2.v;
+      }
+    }
+  }]);
+  return CheckboxValidation;
+}(BaseValidation);
+
+/**
+ * RadioValidation class
+ */
+
+var RadioValidation = function (_BaseValidation) {
+  babelHelpers.inherits(RadioValidation, _BaseValidation);
+
+  function RadioValidation(field, model, vm, el, scope, validator, detectBlur, detectChange) {
+    babelHelpers.classCallCheck(this, RadioValidation);
+
+    var _this = babelHelpers.possibleConstructorReturn(this, Object.getPrototypeOf(RadioValidation).call(this, field, model, vm, el, scope, validator, detectBlur, detectChange));
+
+    _this._inits = [];
+    return _this;
+  }
+
+  babelHelpers.createClass(RadioValidation, [{
+    key: 'manageElement',
+    value: function manageElement(el) {
+      var _this2 = this;
+
+      var item = this._addItem(el);
+      var scope = this._getScope();
+      var model = item.model = this._model;
+      if (model) {
+        var value = scope.$get(model);
+        this._setChecked(value, el, item);
+        item.unwatch = scope.$watch(model, function (val, old) {
+          if (val !== old) {
+            if (_this2.guardValidate(item.el, 'change')) {
+              return;
+            }
+            _this2.handleValidate(el);
+          }
+        });
+      } else {
+        this._validator.validate();
+      }
+    }
+  }, {
+    key: 'unmanageElement',
+    value: function unmanageElement(el) {
+      var found = -1;
+      each(this._inits, function (item, index) {
+        if (item.el === el) {
+          found = index;
+        }
+      });
+      if (found === -1) {
+        return;
+      }
+
+      this._inits.splice(found, 1);
+      this._validator.validate();
+    }
+  }, {
+    key: 'willUpdateFlags',
+    value: function willUpdateFlags() {
+      var _this3 = this;
+
+      each(this._inits, function (item, index) {
+        _this3.willUpdateDirty(item.el);
+        _this3.willUpdateModified(item.el);
+      }, this);
+    }
+  }, {
+    key: 'reset',
+    value: function reset() {
+      this.resetFlags();
+      each(this._inits, function (item, index) {
+        item.init = item.el.checked;
+        item.value = item.el.value;
+      });
+    }
+  }, {
+    key: '_addItem',
+    value: function _addItem(el) {
+      var item = {
+        el: el,
+        init: el.checked,
+        value: el.value
+      };
+      this._inits.push(item);
+      return item;
+    }
+  }, {
+    key: '_setChecked',
+    value: function _setChecked(value, el, item) {
+      if (el.value === value) {
+        el.checked = true;
+        this._init = el.checked;
+        item.init = el.checked;
+        item.value = value;
+      }
+    }
+  }, {
+    key: '_getValue',
+    value: function _getValue(el) {
+      var _this4 = this;
+
+      if (!this._inits || this._inits.length === 0) {
+        return el.checked;
+      } else {
+        var _ret = function () {
+          var vals = [];
+          each(_this4._inits, function (item, index) {
+            if (item.el.checked) {
+              vals.push(item.el.value);
+            }
+          });
+          return {
+            v: vals
+          };
+        }();
+
+        if ((typeof _ret === 'undefined' ? 'undefined' : babelHelpers.typeof(_ret)) === "object") return _ret.v;
+      }
+    }
+  }, {
+    key: '_checkModified',
+    value: function _checkModified(target) {
+      var _this5 = this;
+
+      if (this._inits.length === 0) {
+        return this._init !== target.checked;
+      } else {
+        var _ret2 = function () {
+          var modified = false;
+          each(_this5._inits, function (item, index) {
+            if (!modified) {
+              modified = item.init !== item.el.checked;
+            }
+          });
+          return {
+            v: modified
+          };
+        }();
+
+        if ((typeof _ret2 === 'undefined' ? 'undefined' : babelHelpers.typeof(_ret2)) === "object") return _ret2.v;
+      }
+    }
+  }]);
+  return RadioValidation;
+}(BaseValidation);
+
+/**
+ * SelectValidation class
+ */
+
+var SelectValidation = function (_BaseValidation) {
+  babelHelpers.inherits(SelectValidation, _BaseValidation);
+
+  function SelectValidation(field, model, vm, el, scope, validator, detectBlur, detectChange) {
+    babelHelpers.classCallCheck(this, SelectValidation);
+
+    var _this = babelHelpers.possibleConstructorReturn(this, Object.getPrototypeOf(SelectValidation).call(this, field, model, vm, el, scope, validator, detectBlur, detectChange));
+
+    _this._multiple = _this._el.hasAttribute('multiple');
+    return _this;
+  }
+
+  babelHelpers.createClass(SelectValidation, [{
+    key: 'manageElement',
+    value: function manageElement(el) {
+      var _this2 = this;
+
+      var scope = this._getScope();
+      var model = this._model;
+      if (model) {
+        var value = scope.$get(model);
+        var values = !Array.isArray(value) ? [value] : value;
+        this._setOption(values, el);
+        this._unwatch = scope.$watch(model, function (val, old) {
+          var values1 = !Array.isArray(val) ? [val] : val;
+          var values2 = !Array.isArray(old) ? [old] : old;
+          if (values1.slice().sort().toString() !== values2.slice().sort().toString()) {
+            if (_this2.guardValidate(el, 'change')) {
+              return;
+            }
+            _this2.handleValidate(el);
+          }
+        });
+      }
+    }
+  }, {
+    key: 'unmanageElement',
+    value: function unmanageElement(el) {
+      if (this._unwatch) {
+        this._unwatch();
+      }
+    }
+  }, {
+    key: 'reset',
+    value: function reset() {
+      this.resetFlags();
+    }
+  }, {
+    key: '_getValue',
+    value: function _getValue(el) {
+      var ret = [];
+
+      for (var i = 0, l = el.options.length; i < l; i++) {
+        var option = el.options[i];
+        if (!option.disabled && option.selected) {
+          ret.push(option.value);
+        }
+      }
+
+      return ret;
+    }
+  }, {
+    key: '_setOption',
+    value: function _setOption(values, el) {
+      for (var i = 0, l = values.length; i < l; i++) {
+        var value = values[i];
+        for (var j = 0, m = el.options.length; j < m; j++) {
+          var option = el.options[j];
+          if (!option.disabled && option.value === value && (!option.hasAttribute('selected') || !option.selected)) {
+            option.selected = true;
+          }
+        }
+      }
+    }
+  }, {
+    key: '_checkModified',
+    value: function _checkModified(target) {
+      var values = this._getValue(target).slice().sort();
+      if (this._init.length !== values.length) {
+        return true;
+      } else {
+        var inits = this._init.slice().sort();
+        return inits.toString() !== values.toString();
+      }
+    }
+  }]);
+  return SelectValidation;
+}(BaseValidation);
+
+var eventRE = /^v-on:|^@/;
+
+/**
+ * Validator class
+ */
+
+var Validator$1 = function () {
+  function Validator(name, dir, groups) {
+    var _this = this;
+
+    babelHelpers.classCallCheck(this, Validator);
+
+    this.name = name;
+
+    this._scope = {};
+    this._dir = dir;
+    this._validations = {};
+    this._checkboxValidations = {};
+    this._radioValidations = {};
+    this._groups = groups;
+    this._groupValidations = {};
+    this._events = {};
+    this._modified = false;
+
+    each(groups, function (group) {
+      _this._groupValidations[group] = [];
+    }, this);
+  }
+
+  babelHelpers.createClass(Validator, [{
+    key: 'enableReactive',
+    value: function enableReactive() {
+      var _this2 = this;
+
+      // define the validation scope
+      exports$1.Vue.util.defineReactive(this._dir.vm, this.name, this._scope);
+      this._dir.vm._validatorMaps[this.name] = this;
+
+      // define the validation resetting meta method to vue instance
+      this._dir.vm.$resetValidation = function () {
+        _this2.resetValidation();
+      };
+
+      // define the validate manually meta method to vue instance
+      this._dir.vm.$validate = function () {
+        var field = null;
+        var touched = false;
+
+        if (arguments.length === 1) {
+          if (typeof (arguments.length <= 0 ? undefined : arguments[0]) === 'string') {
+            field = arguments.length <= 0 ? undefined : arguments[0];
+          } else if (typeof (arguments.length <= 0 ? undefined : arguments[0]) === 'boolean') {
+            touched = arguments.length <= 0 ? undefined : arguments[0];
+          }
+        } else if (arguments.length === 2) {
+          field = arguments.length <= 0 ? undefined : arguments[0];
+          touched = arguments.length <= 1 ? undefined : arguments[1];
+        }
+
+        _this2._validate(field, touched);
+      };
+
+      // define manually the validation errors
+      this._dir.vm.$setValidationErrors = function (errors) {
+        _this2._setValidationErrors(errors);
+      };
+    }
+  }, {
+    key: 'disableReactive',
+    value: function disableReactive() {
+      this._dir.vm.$setValidationErrors = undefined;
+      this._dir.vm.$validate = undefined;
+      this._dir.vm.$validatorReset = undefined;
+      this._dir.vm._validatorMaps[this.name] = null;
+      this._dir.vm[this.name] = null;
+    }
+  }, {
+    key: 'registerEvents',
+    value: function registerEvents() {
+      var attrs = this._dir.el.attributes;
+      for (var i = 0, l = attrs.length; i < l; i++) {
+        var event = attrs[i].name;
+        if (eventRE.test(event)) {
+          event = event.replace(eventRE, '');
+          this._events[this._getEventName(event)] = this._dir.vm.$eval(attrs[i].value, true);
+        }
+      }
+    }
+  }, {
+    key: 'unregisterEvents',
+    value: function unregisterEvents() {
+      var _this3 = this;
+
+      each(this._events, function (handler, event) {
+        _this3._events[event] = null;
+        delete _this3._events[event];
+      }, this);
+    }
+  }, {
+    key: '_validate',
+    value: function _validate(field, touched) {
+      if (!field) {
+        // all
+        each(this.validations, function (validation, key) {
+          validation.willUpdateFlags(touched);
+        });
+        this.validate();
+      } else {
+        // each field
+        var validation = this._validations[field];
+        if (!validation && this._checkboxValidations[field]) {
+          validation = this._checkboxValidations[field].validation;
+        } else if (!validation && this._radioValidations[field]) {
+          validation = this._radioValidations[field].validation;
+        }
+
+        if (validation) {
+          validation.willUpdateFlags(touched);
+          var res = validation.validate();
+          exports$1.Vue.set(this._scope, field, res);
+
+          if (this._scope.dirty) {
+            this._fireEvent('dirty');
+          }
+
+          if (this._modified !== this._scope.modified) {
+            this._fireEvent('modified', this._scope.modified);
+            this._modified = this._scope.modified;
+          }
+
+          var valid = this._scope.valid;
+          this._fireEvent(valid ? 'valid' : 'invalid');
+        }
+      }
+    }
+  }, {
+    key: 'resetValidation',
+    value: function resetValidation() {
+      each(this._validations, function (validation, key) {
+        validation.reset();
+      }, this);
+
+      each(this._checkboxValidations, function (dataset, key) {
+        dataset.validation.reset();
+      }, this);
+
+      each(this._radioValidations, function (dataset, key) {
+        dataset.validation.reset();
+      }, this);
+
+      this.validate();
+    }
+  }, {
+    key: '_setValidationErrors',
+    value: function _setValidationErrors(errors) {
+      var _this4 = this;
+
+      var extend = exports$1.Vue.util.extend;
+
+      // make tempolaly errors
+      var temp = {};
+      each(errors, function (error, index) {
+        if (!temp[error.field]) {
+          temp[error.field] = [];
+        }
+        temp[error.field].push(error);
+      });
+
+      // set errors
+      each(temp, function (values, field) {
+        var validation = _this4._scope[field];
+        var newValidation = {};
+        each(values, function (error) {
+          if (error.validator) {
+            validation[error.validator] = error.message;
+          }
+        });
+        validation.valid = false;
+        validation.invalid = true;
+        validation.errors = values;
+        extend(newValidation, validation);
+        exports$1.Vue.set(_this4._scope, field, newValidation);
+      }, this);
+    }
+
+    // TODO: should be improved performance (use cache)
+
+  }, {
+    key: 'manageValidation',
+    value: function manageValidation(field, model, vm, el, scope, detectBlur, detectChange) {
+      var validation = null;
+
+      if (el.tagName === 'SELECT') {
+        validation = this._manageSelectValidation(field, model, vm, el, scope, detectBlur, detectChange);
+      } else if (el.type === 'checkbox') {
+        validation = this._manageCheckboxValidation(field, model, vm, el, scope, detectBlur, detectChange);
+      } else if (el.type === 'radio') {
+        validation = this._manageRadioValidation(field, model, vm, el, scope, detectBlur, detectChange);
+      } else {
+        validation = this._manageBaseValidation(field, model, vm, el, scope, detectBlur, detectChange);
+      }
+
+      return validation;
+    }
+  }, {
+    key: 'unmanageValidation',
+    value: function unmanageValidation(field, el) {
+      if (el.type === 'checkbox') {
+        this._unmanageCheckboxValidation(field, el);
+      } else if (el.type === 'radio') {
+        this._unmanageRadioValidation(field, el);
+      } else if (el.tagName === 'SELECT') {
+        this._unmanageSelectValidation(field, el);
+      } else {
+        this._unmanageBaseValidation(field, el);
+      }
+    }
+  }, {
+    key: '_manageBaseValidation',
+    value: function _manageBaseValidation(field, model, vm, el, scope, detectBlur, detectChange) {
+      var validation = this._validations[field] = new BaseValidation(field, model, vm, el, scope, this, detectBlur, detectChange);
+      validation.manageElement(el);
+      return validation;
+    }
+  }, {
+    key: '_unmanageBaseValidation',
+    value: function _unmanageBaseValidation(field, el) {
+      var validation = this._validations[field];
+      if (validation) {
+        validation.unmanageElement(el);
+        exports$1.Vue.delete(this._scope, field);
+        this._validations[field] = null;
+        delete this._validations[field];
+      }
+    }
+  }, {
+    key: '_manageCheckboxValidation',
+    value: function _manageCheckboxValidation(field, model, vm, el, scope, detectBlur, detectChange) {
+      var validationSet = this._checkboxValidations[field];
+      if (!validationSet) {
+        var validation = new CheckboxValidation(field, model, vm, el, scope, this, detectBlur, detectChange);
+        validationSet = { validation: validation, elements: 0 };
+        this._checkboxValidations[field] = validationSet;
+      }
+
+      validationSet.elements++;
+      validationSet.validation.manageElement(el);
+      return validationSet.validation;
+    }
+  }, {
+    key: '_unmanageCheckboxValidation',
+    value: function _unmanageCheckboxValidation(field, el) {
+      var validationSet = this._checkboxValidations[field];
+      if (validationSet) {
+        validationSet.elements--;
+        validationSet.validation.unmanageElement(el);
+        if (validationSet.elements === 0) {
+          exports$1.Vue.delete(this._scope, field);
+          this._checkboxValidations[field] = null;
+          delete this._checkboxValidations[field];
+        }
+      }
+    }
+  }, {
+    key: '_manageRadioValidation',
+    value: function _manageRadioValidation(field, model, vm, el, scope, detectBlur, detectChange) {
+      var validationSet = this._radioValidations[field];
+      if (!validationSet) {
+        var validation = new RadioValidation(field, model, vm, el, scope, this, detectBlur, detectChange);
+        validationSet = { validation: validation, elements: 0 };
+        this._radioValidations[field] = validationSet;
+      }
+
+      validationSet.elements++;
+      validationSet.validation.manageElement(el);
+      return validationSet.validation;
+    }
+  }, {
+    key: '_unmanageRadioValidation',
+    value: function _unmanageRadioValidation(field, el) {
+      var validationSet = this._radioValidations[field];
+      if (validationSet) {
+        validationSet.elements--;
+        validationSet.validation.unmanageElement(el);
+        if (validationSet.elements === 0) {
+          exports$1.Vue.delete(this._scope, field);
+          this._radioValidations[field] = null;
+          delete this._radioValidations[field];
+        }
+      }
+    }
+  }, {
+    key: '_manageSelectValidation',
+    value: function _manageSelectValidation(field, model, vm, el, scope, detectBlur, detectChange) {
+      var validation = this._validations[field] = new SelectValidation(field, model, vm, el, scope, this, detectBlur, detectChange);
+      validation.manageElement(el);
+      return validation;
+    }
+  }, {
+    key: '_unmanageSelectValidation',
+    value: function _unmanageSelectValidation(field, el) {
+      var validation = this._validations[field];
+      if (validation) {
+        validation.unmanageElement(el);
+        exports$1.Vue.delete(this._scope, field);
+        this._validations[field] = null;
+        delete this._validations[field];
+      }
+    }
+  }, {
+    key: 'addGroupValidation',
+    value: function addGroupValidation(group, field) {
+      var indexOf = exports$1.Vue.util.indexOf;
+
+      var validation = this._validations[field] || this._checkboxValidations[field].validation || this._radioValidations[field].validation;
+      var validations = this._groupValidations[group];
+      if (validations) {
+        if (! ~indexOf(validations, validation)) {
+          validations.push(validation);
+        }
+      }
+    }
+  }, {
+    key: 'removeGroupValidation',
+    value: function removeGroupValidation(group, field) {
+      var validation = this._validations[field] || this._checkboxValidations[field].validation || this._radioValidations[field].validation;
+      var validations = this._groupValidations[group];
+      if (validations) {
+        pull(validations, validation);
+      }
+    }
+  }, {
+    key: 'validate',
+    value: function validate() {
+      var _this5 = this;
+
+      each(this._validations, function (validation, key) {
+        var res = validation.validate();
+        exports$1.Vue.set(_this5._scope, key, res);
+      }, this);
+
+      each(this._checkboxValidations, function (dataset, key) {
+        var res = dataset.validation.validate();
+        exports$1.Vue.set(_this5._scope, key, res);
+      }, this);
+
+      each(this._radioValidations, function (dataset, key) {
+        var res = dataset.validation.validate();
+        exports$1.Vue.set(_this5._scope, key, res);
+      }, this);
+
+      if (this._scope.touched) {
+        this._fireEvent('touched');
+      }
+
+      if (this._scope.dirty) {
+        this._fireEvent('dirty');
+      }
+
+      if (this._modified !== this._scope.modified) {
+        this._fireEvent('modified', this._scope.modified);
+        this._modified = this._scope.modified;
+      }
+
+      var valid = this._scope.valid;
+      this._fireEvent(valid ? 'valid' : 'invalid');
+    }
+  }, {
+    key: 'setupScope',
+    value: function setupScope() {
+      var _this6 = this;
+
+      var validationsGetter = function validationsGetter() {
+        return _this6.validations;
+      };
+      var scopeGetter = function scopeGetter() {
+        return _this6._scope;
+      };
+      this._defineProperties(validationsGetter, scopeGetter);
+
+      each(this._groups, function (name) {
+        var validations = _this6._groupValidations[name];
+        var group = {};
+        exports$1.Vue.set(_this6._scope, name, group);
+        _this6._defineProperties(function () {
+          return validations;
+        }, function () {
+          return group;
+        });
+      }, this);
+    }
+  }, {
+    key: 'waitFor',
+    value: function waitFor(cb) {
+      var vm = this._dir.vm;
+      var method = '$activateValidator';
+
+      this._dir.vm[method] = function () {
+        cb();
+        vm[method] = null;
+      };
+    }
+  }, {
+    key: '_fireEvent',
+    value: function _fireEvent(type) {
+      var handler = this._events[this._getEventName(type)];
+
+      for (var _len = arguments.length, args = Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
+        args[_key - 1] = arguments[_key];
+      }
+
+      handler && handler.apply(null, args);
+    }
+  }, {
+    key: '_getEventName',
+    value: function _getEventName(type) {
+      return this.name + ':' + type;
+    }
+  }, {
+    key: '_defineProperties',
+    value: function _defineProperties(validationsGetter, targetGetter) {
+      var _this7 = this;
+
+      var bind = exports$1.Vue.util.bind;
+
+      each({
+        valid: { fn: this._defineValid, arg: validationsGetter },
+        invalid: { fn: this._defineInvalid, arg: targetGetter },
+        touched: { fn: this._defineTouched, arg: validationsGetter },
+        untouched: { fn: this._defineUntouched, arg: targetGetter },
+        modified: { fn: this._defineModified, arg: validationsGetter },
+        dirty: { fn: this._defineDirty, arg: validationsGetter },
+        pristine: { fn: this._definePristine, arg: targetGetter },
+        errors: { fn: this._defineErrors, arg: validationsGetter }
+      }, function (descriptor, name) {
+        Object.defineProperty(targetGetter(), name, {
+          enumerable: true,
+          configurable: true,
+          get: function get() {
+            return bind(descriptor.fn, _this7)(descriptor.arg);
+          }
+        });
+      }, this);
+    }
+  }, {
+    key: '_walkValidations',
+    value: function _walkValidations(validations, property, condition) {
+      var _this8 = this;
+
+      var hasOwn = exports$1.Vue.util.hasOwn;
+      var ret = condition;
+
+      each(validations, function (validation, key) {
+        if (ret === !condition) {
+          return;
+        }
+        if (hasOwn(_this8._scope, validation.field)) {
+          var target = _this8._scope[validation.field];
+          if (target && target[property] === !condition) {
+            ret = !condition;
+          }
+        }
+      }, this);
+
+      return ret;
+    }
+  }, {
+    key: '_defineValid',
+    value: function _defineValid(validationsGetter) {
+      return this._walkValidations(validationsGetter(), 'valid', true);
+    }
+  }, {
+    key: '_defineInvalid',
+    value: function _defineInvalid(scopeGetter) {
+      return !scopeGetter().valid;
+    }
+  }, {
+    key: '_defineTouched',
+    value: function _defineTouched(validationsGetter) {
+      return this._walkValidations(validationsGetter(), 'touched', false);
+    }
+  }, {
+    key: '_defineUntouched',
+    value: function _defineUntouched(scopeGetter) {
+      return !scopeGetter().touched;
+    }
+  }, {
+    key: '_defineModified',
+    value: function _defineModified(validationsGetter) {
+      return this._walkValidations(validationsGetter(), 'modified', false);
+    }
+  }, {
+    key: '_defineDirty',
+    value: function _defineDirty(validationsGetter) {
+      return this._walkValidations(validationsGetter(), 'dirty', false);
+    }
+  }, {
+    key: '_definePristine',
+    value: function _definePristine(scopeGetter) {
+      return !scopeGetter().dirty;
+    }
+  }, {
+    key: '_defineErrors',
+    value: function _defineErrors(validationsGetter) {
+      var _this9 = this;
+
+      var hasOwn = exports$1.Vue.util.hasOwn;
+      var isPlainObject = exports$1.Vue.util.isPlainObject;
+      var errors = [];
+
+      each(validationsGetter(), function (validation, key) {
+        if (hasOwn(_this9._scope, validation.field)) {
+          var target = _this9._scope[validation.field];
+          if (target && !empty(target.errors)) {
+            each(target.errors, function (err, index) {
+              var error = { field: validation.field };
+              if (isPlainObject(err)) {
+                if (err.validator) {
+                  error.validator = err.validator;
+                }
+                error.message = err.message;
+              } else if (typeof err === 'string') {
+                error.message = err;
+              }
+              errors.push(error);
+            }, _this9);
+          }
+        }
+      }, this);
+
+      return empty(errors) ? undefined : errors;
+    }
+  }, {
+    key: 'validations',
+    get: function get() {
+      var extend = exports$1.Vue.util.extend;
+
+      var ret = {};
+      extend(ret, this._validations);
+
+      each(this._checkboxValidations, function (dataset, key) {
+        ret[key] = dataset.validation;
+      }, this);
+
+      each(this._radioValidations, function (dataset, key) {
+        ret[key] = dataset.validation;
+      }, this);
+
+      return ret;
+    }
+  }]);
+  return Validator;
+}();
+
+function Validator (Vue) {
+  var _ = Vue.util;
+  var FragmentFactory = Vue.FragmentFactory;
+  var vIf = Vue.directive('if');
+  var camelize = Vue.util.camelize;
+
+  Vue.elementDirective('validator', {
+    params: ['name', 'groups', 'lazy'],
+
+    bind: function bind() {
+      if (!this.params.name) {
+        warn('validator element directive need to specify \'name\' param attribute: ' + '(e.g. <validator name="validator1">...</validator>)');
+        return;
+      }
+
+      this.validatorName = '$' + camelize(this.params.name);
+      if (!this.vm._validatorMaps) {
+        throw new Error('Invalid validator management error');
+      }
+
+      this.setupValidator();
+      this.setupFragment(this.params.lazy);
+    },
+    unbind: function unbind() {
+      this.teardownFragment();
+      this.teardownValidator();
+    },
+    getGroups: function getGroups() {
+      var groups = [];
+
+      if (this.params.groups) {
+        if (_.isArray(this.params.groups)) {
+          groups = this.params.groups;
+        } else if (!_.isPlainObject(this.params.groups) && typeof this.params.groups === 'string') {
+          groups.push(this.params.groups);
+        }
+      }
+
+      return groups;
+    },
+    setupValidator: function setupValidator() {
+      var validator = this.validator = new Validator$1(this.validatorName, this, this.getGroups());
+      validator.enableReactive();
+      validator.setupScope();
+      validator.registerEvents();
+    },
+    teardownValidator: function teardownValidator() {
+      this.validator.unregisterEvents();
+      this.validator.disableReactive();
+
+      if (this.validatorName) {
+        this.validatorName = null;
+        this.validator = null;
+      }
+    },
+    setupFragment: function setupFragment(lazy) {
+      var _this = this;
+
+      this.validator.waitFor(function () {
+        _this.anchor = _.createAnchor('vue-validator');
+        _.replace(_this.el, _this.anchor);
+        _.extend(_this.vm.$options, { _validator: _this.validatorName });
+        _this.factory = new FragmentFactory(_this.vm, _this.el.innerHTML);
+        vIf.insert.call(_this);
+
+        _this.validator.validate();
+      });
+
+      if (!lazy) {
+        this.vm.$activateValidator();
+      }
+    },
+    teardownFragment: function teardownFragment() {
+      vIf.unbind.call(this);
+    }
+  });
+}
+
+function ValidatorError (Vue) {
+
+  /**
+   * ValidatorError component
+   */
+
+  var error = {
+    name: 'validator-error',
+
+    props: {
+      field: {
+        type: String,
+        required: true
+      },
+      validator: {
+        type: String
+      },
+      message: {
+        type: String,
+        required: true
+      },
+      partial: {
+        type: String,
+        default: 'validator-error-default'
+      }
+    },
+
+    template: '<div><partial :name="partial"></partial></div>',
+
+    partials: {}
+  };
+
+  // only use ValidatorError component
+  error.partials['validator-error-default'] = '<p>{{field}}: {{message}}</p>';
+
+  return error;
+}
+
+function Errors (Vue) {
+
+  var _ = Vue.util;
+  var error = ValidatorError(Vue); // import ValidatorError component
+
+  /**
+   * ValidatorErrors component
+   */
+
+  var errors = {
+    name: 'validator-errors',
+
+    props: {
+      validation: {
+        type: Object,
+        required: true
+      },
+      group: {
+        type: String,
+        default: null
+      },
+      field: {
+        type: String,
+        default: null
+      },
+      component: {
+        type: String,
+        default: 'validator-error'
+      }
+    },
+
+    computed: {
+      errors: function errors() {
+        var _this = this;
+
+        if (this.group !== null) {
+          return this.validation[this.group].errors;
+        } else if (this.field !== null) {
+          var target = this.validation[this.field];
+          return target.errors.map(function (error) {
+            var err = { field: _this.field };
+            if (_.isPlainObject(error)) {
+              if (error.validator) {
+                err.validator = error.validator;
+              }
+              err.message = error.message;
+            } else if (typeof error === 'string') {
+              err.message = error;
+            }
+            return err;
+          });
+        } else {
+          return this.validation.errors;
+        }
+      }
+    },
+
+    template: '<template v-for="error in errors">' + '<component :is="component" :partial="partial" :field="error.field" :validator="error.validator" :message="error.message"></component>' + '</template>',
+
+    components: {}
+  };
+
+  // define 'partial' prop
+  errors.props['partial'] = error.props['partial'];
+
+  // only use ValidatorErrors component
+  errors.components[error.name] = error;
+
+  // install ValidatorErrors component
+  Vue.component(errors.name, errors);
+
+  return errors;
+}
+
+/**
+ * plugin
+ *
+ * @param {Function} Vue
+ * @param {Object} options
+ */
+
+function plugin(Vue) {
+  var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+
+  if (plugin.installed) {
+    warn('already installed.');
+    return;
+  }
+
+  exports$1.Vue = Vue;
+  Asset(Vue);
+  Errors(Vue);
+
+  Override(Vue);
+  Validator(Vue);
+  Validate(Vue);
+}
+
+plugin.version = '2.0.0-alpha.22';
+
+if (typeof window !== 'undefined' && window.Vue) {
+  window.Vue.use(plugin);
+}
+
+module.exports = plugin;
+}).apply(this, arguments);
+
+},{}],195:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue/dist/vue.common.js", module);
 (function(){
-(function (process){
+(function (process,global){
 /*!
- * Vue.js v1.0.13
- * (c) 2015 Evan You
+ * Vue.js v1.0.17
+ * (c) 2016 Evan You
  * Released under the MIT License.
  */
 'use strict';
@@ -28612,7 +34343,7 @@ function hasOwn(obj, key) {
  * @return {Boolean}
  */
 
-var literalValueRE = /^\s?(true|false|[\d\.]+|'[^']*'|"[^"]*")\s?$/;
+var literalValueRE = /^\s?(true|false|-?[\d\.]+|'[^']*'|"[^"]*")\s?$/;
 
 function isLiteral(exp) {
   return literalValueRE.test(exp);
@@ -28739,7 +34470,7 @@ function classify(str) {
  * @return {Function}
  */
 
-function bind$1(fn, ctx) {
+function bind(fn, ctx) {
   return function (a) {
     var l = arguments.length;
     return l ? l > 1 ? fn.apply(ctx, arguments) : fn.call(ctx, a) : fn.call(ctx);
@@ -28922,9 +34653,13 @@ var hasProto = ('__proto__' in {});
 // Browser environment sniffing
 var inBrowser = typeof window !== 'undefined' && Object.prototype.toString.call(window) !== '[object Object]';
 
-var isIE9 = inBrowser && navigator.userAgent.toLowerCase().indexOf('msie 9.0') > 0;
+// detect devtools
+var devtools = inBrowser && window.__VUE_DEVTOOLS_GLOBAL_HOOK__;
 
-var isAndroid = inBrowser && navigator.userAgent.toLowerCase().indexOf('android') > 0;
+// UA sniffing for working around browser-specific quirks
+var UA = inBrowser && window.navigator.userAgent.toLowerCase();
+var isIE9 = UA && UA.indexOf('msie 9.0') > 0;
+var isAndroid = UA && UA.indexOf('android') > 0;
 
 var transitionProp = undefined;
 var transitionEndEvent = undefined;
@@ -28963,6 +34698,7 @@ var nextTick = (function () {
       copies[i]();
     }
   }
+
   /* istanbul ignore if */
   if (typeof MutationObserver !== 'undefined') {
     var counter = 1;
@@ -28976,7 +34712,11 @@ var nextTick = (function () {
       textNode.data = counter;
     };
   } else {
-    timerFunc = setTimeout;
+    // webpack attempts to inject a shim for setImmediate
+    // if it is used as a global, so we have to work around that to
+    // avoid bundling unnecessary code.
+    var context = inBrowser ? window : typeof global !== 'undefined' ? global : {};
+    timerFunc = context.setImmediate || setTimeout;
   }
   return function (cb, ctx) {
     var func = ctx ? function () {
@@ -29010,23 +34750,29 @@ var p = Cache.prototype;
  */
 
 p.put = function (key, value) {
-  var entry = {
-    key: key,
-    value: value
-  };
-  this._keymap[key] = entry;
-  if (this.tail) {
-    this.tail.newer = entry;
-    entry.older = this.tail;
-  } else {
-    this.head = entry;
-  }
-  this.tail = entry;
+  var removed;
   if (this.size === this.limit) {
-    return this.shift();
-  } else {
+    removed = this.shift();
+  }
+
+  var entry = this.get(key, true);
+  if (!entry) {
+    entry = {
+      key: key
+    };
+    this._keymap[key] = entry;
+    if (this.tail) {
+      this.tail.newer = entry;
+      entry.older = this.tail;
+    } else {
+      this.head = entry;
+    }
+    this.tail = entry;
     this.size++;
   }
+  entry.value = value;
+
+  return removed;
 };
 
 /**
@@ -29042,6 +34788,7 @@ p.shift = function () {
     this.head.older = undefined;
     entry.newer = entry.older = undefined;
     this._keymap[entry.key] = undefined;
+    this.size--;
   }
   return entry;
 };
@@ -29166,7 +34913,6 @@ function processFilterArg(arg) {
  */
 
 function parseDirective(s) {
-
   var hit = cache$1.get(s);
   if (hit) {
     return hit;
@@ -29325,16 +35071,17 @@ function parseText(text) {
  * into one single expression as '"a " + b + " c"'.
  *
  * @param {Array} tokens
+ * @param {Vue} [vm]
  * @return {String}
  */
 
-function tokensToExp(tokens) {
+function tokensToExp(tokens, vm) {
   if (tokens.length > 1) {
     return tokens.map(function (token) {
-      return formatToken(token);
+      return formatToken(token, vm);
     }).join('+');
   } else {
-    return formatToken(tokens[0], true);
+    return formatToken(tokens[0], vm, true);
   }
 }
 
@@ -29342,12 +35089,13 @@ function tokensToExp(tokens) {
  * Format a single token.
  *
  * @param {Object} token
- * @param {Boolean} single
+ * @param {Vue} [vm]
+ * @param {Boolean} [single]
  * @return {String}
  */
 
-function formatToken(token, single) {
-  return token.tag ? inlineFilters(token.value, single) : '"' + token.value + '"';
+function formatToken(token, vm, single) {
+  return token.tag ? token.oneTime && vm ? '"' + vm.$eval(token.value) + '"' : inlineFilters(token.value, single) : '"' + token.value + '"';
 }
 
 /**
@@ -29363,9 +35111,9 @@ function formatToken(token, single) {
  * @return {String}
  */
 
-var filterRE$1 = /[^|]\|[^|]/;
+var filterRE = /[^|]\|[^|]/;
 function inlineFilters(exp, single) {
-  if (!filterRE$1.test(exp)) {
+  if (!filterRE.test(exp)) {
     return single ? exp : '(' + exp + ')';
   } else {
     var dir = parseDirective(exp);
@@ -29380,7 +35128,7 @@ function inlineFilters(exp, single) {
   }
 }
 
-var text$1 = Object.freeze({
+var text = Object.freeze({
   compileRegex: compileRegex,
   parseText: parseText,
   tokensToExp: tokensToExp
@@ -29420,14 +35168,6 @@ var config = Object.defineProperties({
    */
 
   warnExpressionErrors: true,
-
-  /**
-   * Whether or not to handle fully object properties which
-   * are already backed by getters and seters. Depending on
-   * use case and environment, this might introduce non-neglible
-   * performance penalties.
-   */
-  convertAllProperties: false,
 
   /**
    * Internal flag to indicate the delimiters have been
@@ -29590,6 +35330,13 @@ function applyTransition(el, direction, op, vm, cb) {
   transition[action](op, cb);
 }
 
+var transition = Object.freeze({
+  appendWithTransition: appendWithTransition,
+  beforeWithTransition: beforeWithTransition,
+  removeWithTransition: removeWithTransition,
+  applyTransition: applyTransition
+});
+
 /**
  * Query an element selector if it's not an element already.
  *
@@ -29740,10 +35487,11 @@ function replace(target, el) {
  * @param {Element} el
  * @param {String} event
  * @param {Function} cb
+ * @param {Boolean} [useCapture]
  */
 
-function on$1(el, event, cb) {
-  el.addEventListener(event, cb);
+function on(el, event, cb, useCapture) {
+  el.addEventListener(event, cb, useCapture);
 }
 
 /**
@@ -29770,7 +35518,7 @@ function off(el, event, cb) {
 
 function setClass(el, cls) {
   /* istanbul ignore if */
-  if (isIE9 && !(el instanceof SVGElement)) {
+  if (isIE9 && !/svg$/.test(el.namespaceURI)) {
     el.className = cls;
   } else {
     el.setAttribute('class', cls);
@@ -29824,14 +35572,14 @@ function removeClass(el, cls) {
  *
  * @param {Element} el
  * @param {Boolean} asFragment
- * @return {Element}
+ * @return {Element|DocumentFragment}
  */
 
 function extractContent(el, asFragment) {
   var child;
   var rawContent;
   /* istanbul ignore if */
-  if (isTemplate(el) && el.content instanceof DocumentFragment) {
+  if (isTemplate(el) && isFragment(el.content)) {
     el = el.content;
   }
   if (el.hasChildNodes()) {
@@ -29847,20 +35595,26 @@ function extractContent(el, asFragment) {
 }
 
 /**
- * Trim possible empty head/tail textNodes inside a parent.
+ * Trim possible empty head/tail text and comment
+ * nodes inside a parent.
  *
  * @param {Node} node
  */
 
 function trimNode(node) {
-  trim(node, node.firstChild);
-  trim(node, node.lastChild);
+  var child;
+  /* eslint-disable no-sequences */
+  while ((child = node.firstChild, isTrimmable(child))) {
+    node.removeChild(child);
+  }
+  while ((child = node.lastChild, isTrimmable(child))) {
+    node.removeChild(child);
+  }
+  /* eslint-enable no-sequences */
 }
 
-function trim(parent, node) {
-  if (node && node.nodeType === 3 && !node.data.trim()) {
-    parent.removeChild(node);
-  }
+function isTrimmable(node) {
+  return node && (node.nodeType === 3 && !node.data.trim() || node.nodeType === 8);
 }
 
 /**
@@ -29895,7 +35649,7 @@ function isTemplate(el) {
 
 function createAnchor(content, persist) {
   var anchor = config.debug ? document.createComment(content) : document.createTextNode(persist ? ' ' : '');
-  anchor.__vue_anchor = true;
+  anchor.__v_anchor = true;
   return anchor;
 }
 
@@ -29970,8 +35724,53 @@ function removeNodeRange(start, end, vm, frag, cb) {
   }
 }
 
+/**
+ * Check if a node is a DocumentFragment.
+ *
+ * @param {Node} node
+ * @return {Boolean}
+ */
+
+function isFragment(node) {
+  return node && node.nodeType === 11;
+}
+
+/**
+ * Get outerHTML of elements, taking care
+ * of SVG elements in IE as well.
+ *
+ * @param {Element} el
+ * @return {String}
+ */
+
+function getOuterHTML(el) {
+  if (el.outerHTML) {
+    return el.outerHTML;
+  } else {
+    var container = document.createElement('div');
+    container.appendChild(el.cloneNode(true));
+    return container.innerHTML;
+  }
+}
+
 var commonTagRE = /^(div|p|span|img|a|b|i|br|ul|ol|li|h1|h2|h3|h4|h5|h6|code|pre|table|th|td|tr|form|label|input|select|option|nav|article|section|header|footer)$/;
 var reservedTagRE = /^(slot|partial|component)$/;
+
+var isUnknownElement = undefined;
+if (process.env.NODE_ENV !== 'production') {
+  isUnknownElement = function (el, tag) {
+    if (tag.indexOf('-') > -1) {
+      // http://stackoverflow.com/a/28210364/1070244
+      return el.constructor === window.HTMLUnknownElement || el.constructor === window.HTMLElement;
+    } else {
+      return (/HTMLUnknownElement/.test(el.toString()) &&
+        // Chrome returns unknown for several HTML5 elements.
+        // https://code.google.com/p/chromium/issues/detail?id=540526
+        !/^(data|time|rtc|rb)$/.test(tag)
+      );
+    }
+  };
+}
 
 /**
  * Check if an element is a component, if yes return its
@@ -29993,11 +35792,11 @@ function checkComponentAttr(el, options) {
       if (is) {
         return is;
       } else if (process.env.NODE_ENV !== 'production') {
-        if (tag.indexOf('-') > -1 || /HTMLUnknownElement/.test(el.toString()) &&
-        // Chrome returns unknown for several HTML5 elements.
-        // https://code.google.com/p/chromium/issues/detail?id=540526
-        !/^(data|time|rtc|rb)$/.test(tag)) {
-          warn('Unknown custom element: <' + tag + '> - did you ' + 'register the component correctly?');
+        var expectedTag = options._componentNameMap && options._componentNameMap[tag];
+        if (expectedTag) {
+          warn('Unknown custom element: <' + tag + '> - ' + 'did you mean <' + expectedTag + '>? ' + 'HTML is case-insensitive, remember to use kebab-case in templates.');
+        } else if (isUnknownElement(el, tag)) {
+          warn('Unknown custom element: <' + tag + '> - did you ' + 'register the component correctly? For recursive components, ' + 'make sure to provide the "name" option.');
         }
       }
     }
@@ -30048,11 +35847,12 @@ function initProp(vm, prop, value) {
  */
 
 function assertProp(prop, value) {
-  // if a prop is not provided and is not required,
-  // skip the check.
-  if (prop.raw === null && !prop.required) {
-    return true;
-  }
+  if (!prop.options.required && ( // non-required
+  prop.raw === null || // abscent
+  value == null) // null or undefined
+  ) {
+      return true;
+    }
   var options = prop.options;
   var type = options.type;
   var valid = true;
@@ -30086,7 +35886,7 @@ function assertProp(prop, value) {
   }
   var validator = options.validator;
   if (validator) {
-    if (!validator.call(null, value)) {
+    if (!validator(value)) {
       process.env.NODE_ENV !== 'production' && warn('Invalid prop: custom validator check failed for ' + prop.path + '="' + prop.raw + '"');
       return false;
     }
@@ -30208,7 +36008,7 @@ strats.el = function (parentVal, childVal, vm) {
  * Hooks and param attributes are merged as arrays.
  */
 
-strats.init = strats.created = strats.ready = strats.attached = strats.detached = strats.beforeCompile = strats.compiled = strats.beforeDestroy = strats.destroyed = function (parentVal, childVal) {
+strats.init = strats.created = strats.ready = strats.attached = strats.detached = strats.beforeCompile = strats.compiled = strats.beforeDestroy = strats.destroyed = strats.activate = function (parentVal, childVal) {
   return childVal ? parentVal ? parentVal.concat(childVal) : isArray(childVal) ? childVal : [childVal] : parentVal;
 };
 
@@ -30292,13 +36092,21 @@ var defaultStrat = function defaultStrat(parentVal, childVal) {
 function guardComponents(options) {
   if (options.components) {
     var components = options.components = guardArrayAssets(options.components);
-    var def;
     var ids = Object.keys(components);
+    var def;
+    if (process.env.NODE_ENV !== 'production') {
+      var map = options._componentNameMap = {};
+    }
     for (var i = 0, l = ids.length; i < l; i++) {
       var key = ids[i];
       if (commonTagRE.test(key) || reservedTagRE.test(key)) {
         process.env.NODE_ENV !== 'production' && warn('Do not use built-in or reserved HTML elements as component ' + 'id: ' + key);
         continue;
+      }
+      // record a all lowercase <-> kebab-case mapping for
+      // possible custom element case error warning
+      if (process.env.NODE_ENV !== 'production') {
+        map[key.replace(/-/g, '').toLowerCase()] = hyphenate(key);
       }
       def = components[key];
       if (isPlainObject(def)) {
@@ -30415,6 +36223,10 @@ function mergeOptions(parent, child, vm) {
  */
 
 function resolveAsset(options, type, id) {
+  /* istanbul ignore if */
+  if (typeof id !== 'string') {
+    return;
+  }
   var assets = options[type];
   var camelizedId;
   return assets[id] ||
@@ -30433,6 +36245,64 @@ function assertAsset(val, type, id) {
     process.env.NODE_ENV !== 'production' && warn('Failed to resolve ' + type + ': ' + id);
   }
 }
+
+var uid$1 = 0;
+
+/**
+ * A dep is an observable that can have multiple
+ * directives subscribing to it.
+ *
+ * @constructor
+ */
+function Dep() {
+  this.id = uid$1++;
+  this.subs = [];
+}
+
+// the current target watcher being evaluated.
+// this is globally unique because there could be only one
+// watcher being evaluated at any time.
+Dep.target = null;
+
+/**
+ * Add a directive subscriber.
+ *
+ * @param {Directive} sub
+ */
+
+Dep.prototype.addSub = function (sub) {
+  this.subs.push(sub);
+};
+
+/**
+ * Remove a directive subscriber.
+ *
+ * @param {Directive} sub
+ */
+
+Dep.prototype.removeSub = function (sub) {
+  this.subs.$remove(sub);
+};
+
+/**
+ * Add self as a dependency to the target watcher.
+ */
+
+Dep.prototype.depend = function () {
+  Dep.target.addDep(this);
+};
+
+/**
+ * Notify all subscribers of a new value.
+ */
+
+Dep.prototype.notify = function () {
+  // stablize the subscriber list first
+  var subs = toArray(this.subs);
+  for (var i = 0, l = subs.length; i < l; i++) {
+    subs[i].update();
+  }
+};
 
 var arrayProto = Array.prototype;
 var arrayMethods = Object.create(arrayProto)
@@ -30504,64 +36374,6 @@ def(arrayProto, '$remove', function $remove(item) {
     return this.splice(index, 1);
   }
 });
-
-var uid$3 = 0;
-
-/**
- * A dep is an observable that can have multiple
- * directives subscribing to it.
- *
- * @constructor
- */
-function Dep() {
-  this.id = uid$3++;
-  this.subs = [];
-}
-
-// the current target watcher being evaluated.
-// this is globally unique because there could be only one
-// watcher being evaluated at any time.
-Dep.target = null;
-
-/**
- * Add a directive subscriber.
- *
- * @param {Directive} sub
- */
-
-Dep.prototype.addSub = function (sub) {
-  this.subs.push(sub);
-};
-
-/**
- * Remove a directive subscriber.
- *
- * @param {Directive} sub
- */
-
-Dep.prototype.removeSub = function (sub) {
-  this.subs.$remove(sub);
-};
-
-/**
- * Add self as a dependency to the target watcher.
- */
-
-Dep.prototype.depend = function () {
-  Dep.target.addDep(this);
-};
-
-/**
- * Notify all subscribers of a new value.
- */
-
-Dep.prototype.notify = function () {
-  // stablize the subscriber list first
-  var subs = toArray(this.subs);
-  for (var i = 0, l = subs.length; i < l; i++) {
-    subs[i].update();
-  }
-};
 
 var arrayKeys = Object.getOwnPropertyNames(arrayMethods);
 
@@ -30664,7 +36476,9 @@ Observer.prototype.removeVm = function (vm) {
  */
 
 function protoAugment(target, src) {
+  /* eslint-disable no-proto */
   target.__proto__ = src;
+  /* eslint-enable no-proto */
 }
 
 /**
@@ -30720,16 +36534,14 @@ function observe(value, vm) {
 function defineReactive(obj, key, val) {
   var dep = new Dep();
 
-  // cater for pre-defined getter/setters
-  var getter, setter;
-  if (config.convertAllProperties) {
-    var property = Object.getOwnPropertyDescriptor(obj, key);
-    if (property && property.configurable === false) {
-      return;
-    }
-    getter = property && property.get;
-    setter = property && property.set;
+  var property = Object.getOwnPropertyDescriptor(obj, key);
+  if (property && property.configurable === false) {
+    return;
   }
+
+  // cater for pre-defined getter/setters
+  var getter = property && property.get;
+  var setter = property && property.set;
 
   var childOb = observe(val);
   Object.defineProperty(obj, key, {
@@ -30767,6 +36579,8 @@ function defineReactive(obj, key, val) {
   });
 }
 
+
+
 var util = Object.freeze({
 	defineReactive: defineReactive,
 	set: set,
@@ -30781,7 +36595,7 @@ var util = Object.freeze({
 	camelize: camelize,
 	hyphenate: hyphenate,
 	classify: classify,
-	bind: bind$1,
+	bind: bind,
 	toArray: toArray,
 	extend: extend,
 	isObject: isObject,
@@ -30794,6 +36608,7 @@ var util = Object.freeze({
 	isArray: isArray,
 	hasProto: hasProto,
 	inBrowser: inBrowser,
+	devtools: devtools,
 	isIE9: isIE9,
 	isAndroid: isAndroid,
 	get transitionProp () { return transitionProp; },
@@ -30811,7 +36626,7 @@ var util = Object.freeze({
 	remove: remove,
 	prepend: prepend,
 	replace: replace,
-	on: on$1,
+	on: on,
 	off: off,
 	setClass: setClass,
 	addClass: addClass,
@@ -30823,6 +36638,8 @@ var util = Object.freeze({
 	findRef: findRef,
 	mapNodeRange: mapNodeRange,
 	removeNodeRange: removeNodeRange,
+	isFragment: isFragment,
+	getOuterHTML: getOuterHTML,
 	mergeOptions: mergeOptions,
 	resolveAsset: resolveAsset,
 	assertAsset: assertAsset,
@@ -30838,7 +36655,6 @@ var util = Object.freeze({
 var uid = 0;
 
 function initMixin (Vue) {
-
   /**
    * The main init sequence. This is called for every
    * instance, including ones that are created from extended
@@ -30851,7 +36667,6 @@ function initMixin (Vue) {
    */
 
   Vue.prototype._init = function (options) {
-
     options = options || {};
 
     this.$el = null;
@@ -30880,7 +36695,7 @@ function initMixin (Vue) {
     this._fragmentEnd = null; // @type {Text|Comment}
 
     // lifecycle state
-    this._isCompiled = this._isDestroyed = this._isReady = this._isAttached = this._isBeingDestroyed = false;
+    this._isCompiled = this._isDestroyed = this._isReady = this._isAttached = this._isBeingDestroyed = this._vForRemoving = false;
     this._unlinkFn = null;
 
     // context:
@@ -30908,6 +36723,13 @@ function initMixin (Vue) {
     // push self into parent / transclusion host
     if (this.$parent) {
       this.$parent.$children.push(this);
+    }
+
+    // save raw constructor data before merge
+    // so that we know which properties are provided at
+    // instantiation.
+    if (process.env.NODE_ENV !== 'production') {
+      this._runtimeData = options.data;
     }
 
     // merge options.
@@ -31282,7 +37104,7 @@ var improperKeywordsRE = new RegExp('^(' + improperKeywords.replace(/,/g, '\\b|'
 
 var wsRE = /\s/g;
 var newlineRE = /\n/g;
-var saveRE = /[\{,]\s*[\w\$_]+\s*:|('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")|new |typeof |void /g;
+var saveRE = /[\{,]\s*[\w\$_]+\s*:|('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|`(?:[^`\\]|\\.)*\$\{|\}(?:[^`\\]|\\.)*`|`(?:[^`\\]|\\.)*`)|new |typeof |void /g;
 var restoreRE = /"(\d+)"/g;
 var pathTestRE = /^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*|\['.*?'\]|\[".*?"\]|\[\d+\]|\[[A-Za-z_$][\w$]*\])*$/;
 var identRE = /[^\w$\.](?:[A-Za-z_$][\w$]*)/g;
@@ -31385,7 +37207,9 @@ function compileGetter(exp) {
 
 function makeGetterFn(body) {
   try {
+    /* eslint-disable no-new-func */
     return new Function('scope', 'return ' + body + ';');
+    /* eslint-enable no-new-func */
   } catch (e) {
     process.env.NODE_ENV !== 'production' && warn('Invalid expression. ' + 'Generated function body: ' + body);
   }
@@ -31495,10 +37319,8 @@ function flushBatcherQueue() {
   runBatcherQueue(userQueue);
   // dev tool hook
   /* istanbul ignore if */
-  if (process.env.NODE_ENV !== 'production') {
-    if (inBrowser && window.__VUE_DEVTOOLS_GLOBAL_HOOK__) {
-      window.__VUE_DEVTOOLS_GLOBAL_HOOK__.emit('flush');
-    }
+  if (devtools) {
+    devtools.emit('flush');
   }
   resetBatcherState();
 }
@@ -31823,9 +37645,10 @@ Watcher.prototype.depend = function () {
 Watcher.prototype.teardown = function () {
   if (this.active) {
     // remove self from vm's watcher list
-    // we can skip this if the vm if being destroyed
-    // which can improve teardown performance.
-    if (!this.vm._isBeingDestroyed) {
+    // this is a somewhat expensive operation so we skip it
+    // if the vm is being destroyed or is performing a v-for
+    // re-render (the watcher list is then filtered by v-for).
+    if (!this.vm._isBeingDestroyed && !this.vm._vForRemoving) {
       this.vm._watchers.$remove(this);
     }
     var depIds = Object.keys(this.deps);
@@ -31858,810 +37681,14 @@ function traverse(val) {
   }
 }
 
-var cloak = {
-  bind: function bind() {
-    var el = this.el;
-    this.vm.$once('pre-hook:compiled', function () {
-      el.removeAttribute('v-cloak');
-    });
-  }
-};
-
-var ref = {
-  bind: function bind() {
-    process.env.NODE_ENV !== 'production' && warn('v-ref:' + this.arg + ' must be used on a child ' + 'component. Found on <' + this.el.tagName.toLowerCase() + '>.');
-  }
-};
-
-var ON = 700;
-var MODEL = 800;
-var BIND = 850;
-var TRANSITION = 1100;
-var EL = 1500;
-var COMPONENT = 1500;
-var PARTIAL = 1750;
-var SLOT = 1750;
-var FOR = 2000;
-var IF = 2000;
-
-var el = {
-
-  priority: EL,
+var text$1 = {
 
   bind: function bind() {
-    /* istanbul ignore if */
-    if (!this.arg) {
-      return;
-    }
-    var id = this.id = camelize(this.arg);
-    var refs = (this._scope || this.vm).$els;
-    if (hasOwn(refs, id)) {
-      refs[id] = this.el;
-    } else {
-      defineReactive(refs, id, this.el);
-    }
-  },
-
-  unbind: function unbind() {
-    var refs = (this._scope || this.vm).$els;
-    if (refs[this.id] === this.el) {
-      refs[this.id] = null;
-    }
-  }
-};
-
-var prefixes = ['-webkit-', '-moz-', '-ms-'];
-var camelPrefixes = ['Webkit', 'Moz', 'ms'];
-var importantRE = /!important;?$/;
-var propCache = Object.create(null);
-
-var testEl = null;
-
-var style = {
-
-  deep: true,
-
-  update: function update(value) {
-    if (typeof value === 'string') {
-      this.el.style.cssText = value;
-    } else if (isArray(value)) {
-      this.handleObject(value.reduce(extend, {}));
-    } else {
-      this.handleObject(value || {});
-    }
-  },
-
-  handleObject: function handleObject(value) {
-    // cache object styles so that only changed props
-    // are actually updated.
-    var cache = this.cache || (this.cache = {});
-    var name, val;
-    for (name in cache) {
-      if (!(name in value)) {
-        this.handleSingle(name, null);
-        delete cache[name];
-      }
-    }
-    for (name in value) {
-      val = value[name];
-      if (val !== cache[name]) {
-        cache[name] = val;
-        this.handleSingle(name, val);
-      }
-    }
-  },
-
-  handleSingle: function handleSingle(prop, value) {
-    prop = normalize(prop);
-    if (!prop) return; // unsupported prop
-    // cast possible numbers/booleans into strings
-    if (value != null) value += '';
-    if (value) {
-      var isImportant = importantRE.test(value) ? 'important' : '';
-      if (isImportant) {
-        value = value.replace(importantRE, '').trim();
-      }
-      this.el.style.setProperty(prop, value, isImportant);
-    } else {
-      this.el.style.removeProperty(prop);
-    }
-  }
-
-};
-
-/**
- * Normalize a CSS property name.
- * - cache result
- * - auto prefix
- * - camelCase -> dash-case
- *
- * @param {String} prop
- * @return {String}
- */
-
-function normalize(prop) {
-  if (propCache[prop]) {
-    return propCache[prop];
-  }
-  var res = prefix(prop);
-  propCache[prop] = propCache[res] = res;
-  return res;
-}
-
-/**
- * Auto detect the appropriate prefix for a CSS property.
- * https://gist.github.com/paulirish/523692
- *
- * @param {String} prop
- * @return {String}
- */
-
-function prefix(prop) {
-  prop = hyphenate(prop);
-  var camel = camelize(prop);
-  var upper = camel.charAt(0).toUpperCase() + camel.slice(1);
-  if (!testEl) {
-    testEl = document.createElement('div');
-  }
-  if (camel in testEl.style) {
-    return prop;
-  }
-  var i = prefixes.length;
-  var prefixed;
-  while (i--) {
-    prefixed = camelPrefixes[i] + upper;
-    if (prefixed in testEl.style) {
-      return prefixes[i] + prop;
-    }
-  }
-}
-
-// xlink
-var xlinkNS = 'http://www.w3.org/1999/xlink';
-var xlinkRE = /^xlink:/;
-
-// check for attributes that prohibit interpolations
-var disallowedInterpAttrRE = /^v-|^:|^@|^(is|transition|transition-mode|debounce|track-by|stagger|enter-stagger|leave-stagger)$/;
-
-// these attributes should also set their corresponding properties
-// because they only affect the initial state of the element
-var attrWithPropsRE = /^(value|checked|selected|muted)$/;
-
-// these attributes should set a hidden property for
-// binding v-model to object values
-var modelProps = {
-  value: '_value',
-  'true-value': '_trueValue',
-  'false-value': '_falseValue'
-};
-
-var bind = {
-
-  priority: BIND,
-
-  bind: function bind() {
-    var attr = this.arg;
-    var tag = this.el.tagName;
-    // should be deep watch on object mode
-    if (!attr) {
-      this.deep = true;
-    }
-    // handle interpolation bindings
-    if (this.descriptor.interp) {
-      // only allow binding on native attributes
-      if (disallowedInterpAttrRE.test(attr) || attr === 'name' && (tag === 'PARTIAL' || tag === 'SLOT')) {
-        process.env.NODE_ENV !== 'production' && warn(attr + '="' + this.descriptor.raw + '": ' + 'attribute interpolation is not allowed in Vue.js ' + 'directives and special attributes.');
-        this.el.removeAttribute(attr);
-        this.invalid = true;
-      }
-
-      /* istanbul ignore if */
-      if (process.env.NODE_ENV !== 'production') {
-        var raw = attr + '="' + this.descriptor.raw + '": ';
-        // warn src
-        if (attr === 'src') {
-          warn(raw + 'interpolation in "src" attribute will cause ' + 'a 404 request. Use v-bind:src instead.');
-        }
-
-        // warn style
-        if (attr === 'style') {
-          warn(raw + 'interpolation in "style" attribute will cause ' + 'the attribute to be discarded in Internet Explorer. ' + 'Use v-bind:style instead.');
-        }
-      }
-    }
+    this.attr = this.el.nodeType === 3 ? 'data' : 'textContent';
   },
 
   update: function update(value) {
-    if (this.invalid) {
-      return;
-    }
-    var attr = this.arg;
-    if (this.arg) {
-      this.handleSingle(attr, value);
-    } else {
-      this.handleObject(value || {});
-    }
-  },
-
-  // share object handler with v-bind:class
-  handleObject: style.handleObject,
-
-  handleSingle: function handleSingle(attr, value) {
-    var el = this.el;
-    var interp = this.descriptor.interp;
-    if (!interp && attrWithPropsRE.test(attr) && attr in el) {
-      el[attr] = attr === 'value' ? value == null // IE9 will set input.value to "null" for null...
-      ? '' : value : value;
-    }
-    // set model props
-    var modelProp = modelProps[attr];
-    if (!interp && modelProp) {
-      el[modelProp] = value;
-      // update v-model if present
-      var model = el.__v_model;
-      if (model) {
-        model.listener();
-      }
-    }
-    // do not set value attribute for textarea
-    if (attr === 'value' && el.tagName === 'TEXTAREA') {
-      el.removeAttribute(attr);
-      return;
-    }
-    // update attribute
-    if (value != null && value !== false) {
-      if (attr === 'class') {
-        // handle edge case #1960:
-        // class interpolation should not overwrite Vue transition class
-        if (el.__v_trans) {
-          value += ' ' + el.__v_trans.id + '-transition';
-        }
-        setClass(el, value);
-      } else if (xlinkRE.test(attr)) {
-        el.setAttributeNS(xlinkNS, attr, value);
-      } else {
-        el.setAttribute(attr, value);
-      }
-    } else {
-      el.removeAttribute(attr);
-    }
-  }
-};
-
-// keyCode aliases
-var keyCodes = {
-  esc: 27,
-  tab: 9,
-  enter: 13,
-  space: 32,
-  'delete': 46,
-  up: 38,
-  left: 37,
-  right: 39,
-  down: 40
-};
-
-function keyFilter(handler, keys) {
-  var codes = keys.map(function (key) {
-    var charCode = key.charCodeAt(0);
-    if (charCode > 47 && charCode < 58) {
-      return parseInt(key, 10);
-    }
-    if (key.length === 1) {
-      charCode = key.toUpperCase().charCodeAt(0);
-      if (charCode > 64 && charCode < 91) {
-        return charCode;
-      }
-    }
-    return keyCodes[key];
-  });
-  return function keyHandler(e) {
-    if (codes.indexOf(e.keyCode) > -1) {
-      return handler.call(this, e);
-    }
-  };
-}
-
-function stopFilter(handler) {
-  return function stopHandler(e) {
-    e.stopPropagation();
-    return handler.call(this, e);
-  };
-}
-
-function preventFilter(handler) {
-  return function preventHandler(e) {
-    e.preventDefault();
-    return handler.call(this, e);
-  };
-}
-
-var on = {
-
-  acceptStatement: true,
-  priority: ON,
-
-  bind: function bind() {
-    // deal with iframes
-    if (this.el.tagName === 'IFRAME' && this.arg !== 'load') {
-      var self = this;
-      this.iframeBind = function () {
-        on$1(self.el.contentWindow, self.arg, self.handler);
-      };
-      this.on('load', this.iframeBind);
-    }
-  },
-
-  update: function update(handler) {
-    // stub a noop for v-on with no value,
-    // e.g. @mousedown.prevent
-    if (!this.descriptor.raw) {
-      handler = function () {};
-    }
-
-    if (typeof handler !== 'function') {
-      process.env.NODE_ENV !== 'production' && warn('v-on:' + this.arg + '="' + this.expression + '" expects a function value, ' + 'got ' + handler);
-      return;
-    }
-
-    // apply modifiers
-    if (this.modifiers.stop) {
-      handler = stopFilter(handler);
-    }
-    if (this.modifiers.prevent) {
-      handler = preventFilter(handler);
-    }
-    // key filter
-    var keys = Object.keys(this.modifiers).filter(function (key) {
-      return key !== 'stop' && key !== 'prevent';
-    });
-    if (keys.length) {
-      handler = keyFilter(handler, keys);
-    }
-
-    this.reset();
-    this.handler = handler;
-
-    if (this.iframeBind) {
-      this.iframeBind();
-    } else {
-      on$1(this.el, this.arg, this.handler);
-    }
-  },
-
-  reset: function reset() {
-    var el = this.iframeBind ? this.el.contentWindow : this.el;
-    if (this.handler) {
-      off(el, this.arg, this.handler);
-    }
-  },
-
-  unbind: function unbind() {
-    this.reset();
-  }
-};
-
-var checkbox = {
-
-  bind: function bind() {
-    var self = this;
-    var el = this.el;
-
-    this.getValue = function () {
-      return el.hasOwnProperty('_value') ? el._value : self.params.number ? toNumber(el.value) : el.value;
-    };
-
-    function getBooleanValue() {
-      var val = el.checked;
-      if (val && el.hasOwnProperty('_trueValue')) {
-        return el._trueValue;
-      }
-      if (!val && el.hasOwnProperty('_falseValue')) {
-        return el._falseValue;
-      }
-      return val;
-    }
-
-    this.listener = function () {
-      var model = self._watcher.value;
-      if (isArray(model)) {
-        var val = self.getValue();
-        if (el.checked) {
-          if (indexOf(model, val) < 0) {
-            model.push(val);
-          }
-        } else {
-          model.$remove(val);
-        }
-      } else {
-        self.set(getBooleanValue());
-      }
-    };
-
-    this.on('change', this.listener);
-    if (el.hasAttribute('checked')) {
-      this.afterBind = this.listener;
-    }
-  },
-
-  update: function update(value) {
-    var el = this.el;
-    if (isArray(value)) {
-      el.checked = indexOf(value, this.getValue()) > -1;
-    } else {
-      if (el.hasOwnProperty('_trueValue')) {
-        el.checked = looseEqual(value, el._trueValue);
-      } else {
-        el.checked = !!value;
-      }
-    }
-  }
-};
-
-var select = {
-
-  bind: function bind() {
-    var self = this;
-    var el = this.el;
-
-    // method to force update DOM using latest value.
-    this.forceUpdate = function () {
-      if (self._watcher) {
-        self.update(self._watcher.get());
-      }
-    };
-
-    // check if this is a multiple select
-    var multiple = this.multiple = el.hasAttribute('multiple');
-
-    // attach listener
-    this.listener = function () {
-      var value = getValue(el, multiple);
-      value = self.params.number ? isArray(value) ? value.map(toNumber) : toNumber(value) : value;
-      self.set(value);
-    };
-    this.on('change', this.listener);
-
-    // if has initial value, set afterBind
-    var initValue = getValue(el, multiple, true);
-    if (multiple && initValue.length || !multiple && initValue !== null) {
-      this.afterBind = this.listener;
-    }
-
-    // All major browsers except Firefox resets
-    // selectedIndex with value -1 to 0 when the element
-    // is appended to a new parent, therefore we have to
-    // force a DOM update whenever that happens...
-    this.vm.$on('hook:attached', this.forceUpdate);
-  },
-
-  update: function update(value) {
-    var el = this.el;
-    el.selectedIndex = -1;
-    var multi = this.multiple && isArray(value);
-    var options = el.options;
-    var i = options.length;
-    var op, val;
-    while (i--) {
-      op = options[i];
-      val = op.hasOwnProperty('_value') ? op._value : op.value;
-      /* eslint-disable eqeqeq */
-      op.selected = multi ? indexOf$1(value, val) > -1 : looseEqual(value, val);
-      /* eslint-enable eqeqeq */
-    }
-  },
-
-  unbind: function unbind() {
-    /* istanbul ignore next */
-    this.vm.$off('hook:attached', this.forceUpdate);
-  }
-};
-
-/**
- * Get select value
- *
- * @param {SelectElement} el
- * @param {Boolean} multi
- * @param {Boolean} init
- * @return {Array|*}
- */
-
-function getValue(el, multi, init) {
-  var res = multi ? [] : null;
-  var op, val, selected;
-  for (var i = 0, l = el.options.length; i < l; i++) {
-    op = el.options[i];
-    selected = init ? op.hasAttribute('selected') : op.selected;
-    if (selected) {
-      val = op.hasOwnProperty('_value') ? op._value : op.value;
-      if (multi) {
-        res.push(val);
-      } else {
-        return val;
-      }
-    }
-  }
-  return res;
-}
-
-/**
- * Native Array.indexOf uses strict equal, but in this
- * case we need to match string/numbers with custom equal.
- *
- * @param {Array} arr
- * @param {*} val
- */
-
-function indexOf$1(arr, val) {
-  var i = arr.length;
-  while (i--) {
-    if (looseEqual(arr[i], val)) {
-      return i;
-    }
-  }
-  return -1;
-}
-
-var radio = {
-
-  bind: function bind() {
-    var self = this;
-    var el = this.el;
-
-    this.getValue = function () {
-      // value overwrite via v-bind:value
-      if (el.hasOwnProperty('_value')) {
-        return el._value;
-      }
-      var val = el.value;
-      if (self.params.number) {
-        val = toNumber(val);
-      }
-      return val;
-    };
-
-    this.listener = function () {
-      self.set(self.getValue());
-    };
-    this.on('change', this.listener);
-
-    if (el.hasAttribute('checked')) {
-      this.afterBind = this.listener;
-    }
-  },
-
-  update: function update(value) {
-    this.el.checked = looseEqual(value, this.getValue());
-  }
-};
-
-var text$2 = {
-
-  bind: function bind() {
-    var self = this;
-    var el = this.el;
-    var isRange = el.type === 'range';
-    var lazy = this.params.lazy;
-    var number = this.params.number;
-    var debounce = this.params.debounce;
-
-    // handle composition events.
-    //   http://blog.evanyou.me/2014/01/03/composition-event/
-    // skip this for Android because it handles composition
-    // events quite differently. Android doesn't trigger
-    // composition events for language input methods e.g.
-    // Chinese, but instead triggers them for spelling
-    // suggestions... (see Discussion/#162)
-    var composing = false;
-    if (!isAndroid && !isRange) {
-      this.on('compositionstart', function () {
-        composing = true;
-      });
-      this.on('compositionend', function () {
-        composing = false;
-        // in IE11 the "compositionend" event fires AFTER
-        // the "input" event, so the input handler is blocked
-        // at the end... have to call it here.
-        //
-        // #1327: in lazy mode this is unecessary.
-        if (!lazy) {
-          self.listener();
-        }
-      });
-    }
-
-    // prevent messing with the input when user is typing,
-    // and force update on blur.
-    this.focused = false;
-    if (!isRange) {
-      this.on('focus', function () {
-        self.focused = true;
-      });
-      this.on('blur', function () {
-        self.focused = false;
-        // do not sync value after fragment removal (#2017)
-        if (!self._frag || self._frag.inserted) {
-          self.rawListener();
-        }
-      });
-    }
-
-    // Now attach the main listener
-    this.listener = this.rawListener = function () {
-      if (composing || !self._bound) {
-        return;
-      }
-      var val = number || isRange ? toNumber(el.value) : el.value;
-      self.set(val);
-      // force update on next tick to avoid lock & same value
-      // also only update when user is not typing
-      nextTick(function () {
-        if (self._bound && !self.focused) {
-          self.update(self._watcher.value);
-        }
-      });
-    };
-
-    // apply debounce
-    if (debounce) {
-      this.listener = _debounce(this.listener, debounce);
-    }
-
-    // Support jQuery events, since jQuery.trigger() doesn't
-    // trigger native events in some cases and some plugins
-    // rely on $.trigger()
-    //
-    // We want to make sure if a listener is attached using
-    // jQuery, it is also removed with jQuery, that's why
-    // we do the check for each directive instance and
-    // store that check result on itself. This also allows
-    // easier test coverage control by unsetting the global
-    // jQuery variable in tests.
-    this.hasjQuery = typeof jQuery === 'function';
-    if (this.hasjQuery) {
-      jQuery(el).on('change', this.listener);
-      if (!lazy) {
-        jQuery(el).on('input', this.listener);
-      }
-    } else {
-      this.on('change', this.listener);
-      if (!lazy) {
-        this.on('input', this.listener);
-      }
-    }
-
-    // IE9 doesn't fire input event on backspace/del/cut
-    if (!lazy && isIE9) {
-      this.on('cut', function () {
-        nextTick(self.listener);
-      });
-      this.on('keyup', function (e) {
-        if (e.keyCode === 46 || e.keyCode === 8) {
-          self.listener();
-        }
-      });
-    }
-
-    // set initial value if present
-    if (el.hasAttribute('value') || el.tagName === 'TEXTAREA' && el.value.trim()) {
-      this.afterBind = this.listener;
-    }
-  },
-
-  update: function update(value) {
-    this.el.value = _toString(value);
-  },
-
-  unbind: function unbind() {
-    var el = this.el;
-    if (this.hasjQuery) {
-      jQuery(el).off('change', this.listener);
-      jQuery(el).off('input', this.listener);
-    }
-  }
-};
-
-var handlers = {
-  text: text$2,
-  radio: radio,
-  select: select,
-  checkbox: checkbox
-};
-
-var model = {
-
-  priority: MODEL,
-  twoWay: true,
-  handlers: handlers,
-  params: ['lazy', 'number', 'debounce'],
-
-  /**
-   * Possible elements:
-   *   <select>
-   *   <textarea>
-   *   <input type="*">
-   *     - text
-   *     - checkbox
-   *     - radio
-   *     - number
-   */
-
-  bind: function bind() {
-    // friendly warning...
-    this.checkFilters();
-    if (this.hasRead && !this.hasWrite) {
-      process.env.NODE_ENV !== 'production' && warn('It seems you are using a read-only filter with ' + 'v-model. You might want to use a two-way filter ' + 'to ensure correct behavior.');
-    }
-    var el = this.el;
-    var tag = el.tagName;
-    var handler;
-    if (tag === 'INPUT') {
-      handler = handlers[el.type] || handlers.text;
-    } else if (tag === 'SELECT') {
-      handler = handlers.select;
-    } else if (tag === 'TEXTAREA') {
-      handler = handlers.text;
-    } else {
-      process.env.NODE_ENV !== 'production' && warn('v-model does not support element type: ' + tag);
-      return;
-    }
-    el.__v_model = this;
-    handler.bind.call(this);
-    this.update = handler.update;
-    this._unbind = handler.unbind;
-  },
-
-  /**
-   * Check read/write filter stats.
-   */
-
-  checkFilters: function checkFilters() {
-    var filters = this.filters;
-    if (!filters) return;
-    var i = filters.length;
-    while (i--) {
-      var filter = resolveAsset(this.vm.$options, 'filters', filters[i].name);
-      if (typeof filter === 'function' || filter.read) {
-        this.hasRead = true;
-      }
-      if (filter.write) {
-        this.hasWrite = true;
-      }
-    }
-  },
-
-  unbind: function unbind() {
-    this.el.__v_model = null;
-    this._unbind && this._unbind();
-  }
-};
-
-var show = {
-
-  bind: function bind() {
-    // check else block
-    var next = this.el.nextElementSibling;
-    if (next && getAttr(next, 'v-else') !== null) {
-      this.elseEl = next;
-    }
-  },
-
-  update: function update(value) {
-    this.apply(this.el, value);
-    if (this.elseEl) {
-      this.apply(this.elseEl, !value);
-    }
-  },
-
-  apply: function apply(el, value) {
-    if (inDoc(el)) {
-      applyTransition(el, value ? 1 : -1, toggle, this.vm);
-    } else {
-      toggle();
-    }
-    function toggle() {
-      el.style.display = value ? '' : 'none';
-    }
+    this.el[this.attr] = _toString(value);
   }
 };
 
@@ -32692,7 +37719,7 @@ map.g = map.defs = map.symbol = map.use = map.image = map.text = map.circle = ma
  */
 
 function isRealTemplate(node) {
-  return isTemplate(node) && node.content instanceof DocumentFragment;
+  return isTemplate(node) && isFragment(node.content);
 }
 
 var tagRE$1 = /<([\w:]+)/;
@@ -32710,7 +37737,8 @@ var entityRE = /&#?\w+?;/;
 
 function stringToFragment(templateString, raw) {
   // try a cache hit first
-  var hit = templateCache.get(templateString);
+  var cacheKey = raw ? templateString : templateString.trim();
+  var hit = templateCache.get(cacheKey);
   if (hit) {
     return hit;
   }
@@ -32723,7 +37751,6 @@ function stringToFragment(templateString, raw) {
     // text only, return a single text node.
     frag.appendChild(document.createTextNode(templateString));
   } else {
-
     var tag = tagMatch && tagMatch[1];
     var wrap = map[tag] || map.efault;
     var depth = wrap[0];
@@ -32731,9 +37758,6 @@ function stringToFragment(templateString, raw) {
     var suffix = wrap[2];
     var node = document.createElement('div');
 
-    if (!raw) {
-      templateString = templateString.trim();
-    }
     node.innerHTML = prefix + templateString + suffix;
     while (depth--) {
       node = node.lastChild;
@@ -32746,8 +37770,10 @@ function stringToFragment(templateString, raw) {
       frag.appendChild(child);
     }
   }
-
-  templateCache.put(templateString, frag);
+  if (!raw) {
+    trimNode(frag);
+  }
+  templateCache.put(cacheKey, frag);
   return frag;
 }
 
@@ -32880,7 +37906,7 @@ function parseTemplate(template, shouldClone, raw) {
 
   // if the template is already a document fragment,
   // do nothing
-  if (template instanceof DocumentFragment) {
+  if (isFragment(template)) {
     trimNode(template);
     return shouldClone ? cloneNode(template) : template;
   }
@@ -32915,6 +37941,44 @@ var template = Object.freeze({
   parseTemplate: parseTemplate
 });
 
+var html = {
+
+  bind: function bind() {
+    // a comment node means this is a binding for
+    // {{{ inline unescaped html }}}
+    if (this.el.nodeType === 8) {
+      // hold nodes
+      this.nodes = [];
+      // replace the placeholder with proper anchor
+      this.anchor = createAnchor('v-html');
+      replace(this.el, this.anchor);
+    }
+  },
+
+  update: function update(value) {
+    value = _toString(value);
+    if (this.nodes) {
+      this.swap(value);
+    } else {
+      this.el.innerHTML = value;
+    }
+  },
+
+  swap: function swap(value) {
+    // remove old nodes
+    var i = this.nodes.length;
+    while (i--) {
+      remove(this.nodes[i]);
+    }
+    // convert new value to a fragment
+    // do not attempt to retrieve from id selector
+    var frag = parseTemplate(value, true, true);
+    // save a reference to these nodes so we can remove later
+    this.nodes = toArray(frag.childNodes);
+    before(frag, this.anchor);
+  }
+};
+
 /**
  * Abstraction for a partially-compiled fragment.
  * Can optionally compile content with a child scope.
@@ -32938,7 +38002,7 @@ function Fragment(linker, vm, frag, host, scope, parentFrag) {
   this.unlink = linker(vm, frag, host, scope, this);
   var single = this.single = frag.childNodes.length === 1 &&
   // do not go single mode if the only node is an anchor
-  !frag.childNodes[0].__vue_anchor;
+  !frag.childNodes[0].__v_anchor;
   if (single) {
     this.node = frag.childNodes[0];
     this.before = singleBefore;
@@ -32952,7 +38016,7 @@ function Fragment(linker, vm, frag, host, scope, parentFrag) {
     this.before = multiBefore;
     this.remove = multiRemove;
   }
-  this.node.__vfrag__ = this;
+  this.node.__v_frag = this;
 }
 
 /**
@@ -32965,23 +38029,12 @@ function Fragment(linker, vm, frag, host, scope, parentFrag) {
 
 Fragment.prototype.callHook = function (hook) {
   var i, l;
-  for (i = 0, l = this.children.length; i < l; i++) {
-    hook(this.children[i]);
-  }
   for (i = 0, l = this.childFrags.length; i < l; i++) {
     this.childFrags[i].callHook(hook);
   }
-};
-
-/**
- * Destroy the fragment.
- */
-
-Fragment.prototype.destroy = function () {
-  if (this.parentFrag) {
-    this.parentFrag.childFrags.$remove(this);
+  for (i = 0, l = this.children.length; i < l; i++) {
+    hook(this.children[i]);
   }
-  this.unlink();
 };
 
 /**
@@ -33008,7 +38061,7 @@ function singleRemove() {
   this.inserted = false;
   var shouldCallRemove = inDoc(this.node);
   var self = this;
-  self.callHook(destroyChild);
+  this.beforeRemove();
   removeWithTransition(this.node, this.vm, function () {
     if (shouldCallRemove) {
       self.callHook(detach);
@@ -33044,7 +38097,7 @@ function multiRemove() {
   this.inserted = false;
   var self = this;
   var shouldCallRemove = inDoc(this.node);
-  self.callHook(destroyChild);
+  this.beforeRemove();
   removeNodeRange(this.node, this.end, this.vm, this.frag, function () {
     if (shouldCallRemove) {
       self.callHook(detach);
@@ -33052,6 +38105,46 @@ function multiRemove() {
     self.destroy();
   });
 }
+
+/**
+ * Prepare the fragment for removal.
+ */
+
+Fragment.prototype.beforeRemove = function () {
+  var i, l;
+  for (i = 0, l = this.childFrags.length; i < l; i++) {
+    // call the same method recursively on child
+    // fragments, depth-first
+    this.childFrags[i].beforeRemove(false);
+  }
+  for (i = 0, l = this.children.length; i < l; i++) {
+    // Call destroy for all contained instances,
+    // with remove:false and defer:true.
+    // Defer is necessary because we need to
+    // keep the children to call detach hooks
+    // on them.
+    this.children[i].$destroy(false, true);
+  }
+  var dirs = this.unlink.dirs;
+  for (i = 0, l = dirs.length; i < l; i++) {
+    // disable the watchers on all the directives
+    // so that the rendered content stays the same
+    // during removal.
+    dirs[i]._watcher && dirs[i]._watcher.teardown();
+  }
+};
+
+/**
+ * Destroy the fragment.
+ */
+
+Fragment.prototype.destroy = function () {
+  if (this.parentFrag) {
+    this.parentFrag.childFrags.$remove(this);
+  }
+  this.node.__v_frag = null;
+  this.unlink();
+};
 
 /**
  * Call attach hook for a Vue instance.
@@ -33063,20 +38156,6 @@ function attach(child) {
   if (!child._isAttached) {
     child._callHook('attached');
   }
-}
-
-/**
- * Call destroy for all contained instances,
- * with remove:false and defer:true.
- * Defer is necessary because we need to
- * keep the children to call detach hooks
- * on them.
- *
- * @param {Vue} child
- */
-
-function destroyChild(child) {
-  child.$destroy(false, true);
 }
 
 /**
@@ -33115,7 +38194,7 @@ function FragmentFactory(vm, el) {
   var linker;
   var cid = vm.constructor.cid;
   if (cid > 0) {
-    var cacheId = cid + (isString ? el : el.outerHTML);
+    var cacheId = cid + (isString ? el : getOuterHTML(el));
     linker = linkerCache.get(cacheId);
     if (!linker) {
       linker = compile(template, vm.$options, true);
@@ -33140,68 +38219,18 @@ FragmentFactory.prototype.create = function (host, scope, parentFrag) {
   return new Fragment(this.linker, this.vm, frag, host, scope, parentFrag);
 };
 
-var vIf = {
+var ON = 700;
+var MODEL = 800;
+var BIND = 850;
+var TRANSITION = 1100;
+var EL = 1500;
+var COMPONENT = 1500;
+var PARTIAL = 1750;
+var FOR = 2000;
+var IF = 2000;
+var SLOT = 2100;
 
-  priority: IF,
-
-  bind: function bind() {
-    var el = this.el;
-    if (!el.__vue__) {
-      // check else block
-      var next = el.nextElementSibling;
-      if (next && getAttr(next, 'v-else') !== null) {
-        remove(next);
-        this.elseFactory = new FragmentFactory(this.vm, next);
-      }
-      // check main block
-      this.anchor = createAnchor('v-if');
-      replace(el, this.anchor);
-      this.factory = new FragmentFactory(this.vm, el);
-    } else {
-      process.env.NODE_ENV !== 'production' && warn('v-if="' + this.expression + '" cannot be ' + 'used on an instance root element.');
-      this.invalid = true;
-    }
-  },
-
-  update: function update(value) {
-    if (this.invalid) return;
-    if (value) {
-      if (!this.frag) {
-        this.insert();
-      }
-    } else {
-      this.remove();
-    }
-  },
-
-  insert: function insert() {
-    if (this.elseFrag) {
-      this.elseFrag.remove();
-      this.elseFrag = null;
-    }
-    this.frag = this.factory.create(this._host, this._scope, this._frag);
-    this.frag.before(this.anchor);
-  },
-
-  remove: function remove() {
-    if (this.frag) {
-      this.frag.remove();
-      this.frag = null;
-    }
-    if (this.elseFactory && !this.elseFrag) {
-      this.elseFrag = this.elseFactory.create(this._host, this._scope, this._frag);
-      this.elseFrag.before(this.anchor);
-    }
-  },
-
-  unbind: function unbind() {
-    if (this.frag) {
-      this.frag.destroy();
-    }
-  }
-};
-
-var uid$1 = 0;
+var uid$3 = 0;
 
 var vFor = {
 
@@ -33210,8 +38239,8 @@ var vFor = {
   params: ['track-by', 'stagger', 'enter-stagger', 'leave-stagger'],
 
   bind: function bind() {
-    // support "item in items" syntax
-    var inMatch = this.expression.match(/(.*) in (.*)/);
+    // support "item in/of items" syntax
+    var inMatch = this.expression.match(/(.*) (?:in|of) (.*)/);
     if (inMatch) {
       var itMatch = inMatch[1].match(/\((.*),(.*)\)/);
       if (itMatch) {
@@ -33229,7 +38258,7 @@ var vFor = {
     }
 
     // uid as a cache identifier
-    this.id = '__v-for__' + ++uid$1;
+    this.id = '__v-for__' + ++uid$3;
 
     // check if this is an option list,
     // so that we know if we need to update the <select>'s
@@ -33338,12 +38367,22 @@ var vFor = {
     // from cache)
     var removalIndex = 0;
     var totalRemoved = oldFrags.length - frags.length;
+    // when removing a large number of fragments, watcher removal
+    // turns out to be a perf bottleneck, so we batch the watcher
+    // removals into a single filter call!
+    this.vm._vForRemoving = true;
     for (i = 0, l = oldFrags.length; i < l; i++) {
       frag = oldFrags[i];
       if (!frag.reused) {
         this.deleteCachedFrag(frag);
         this.remove(frag, removalIndex++, totalRemoved, inDocument);
       }
+    }
+    this.vm._vForRemoving = false;
+    if (removalIndex) {
+      this.vm._watchers = this.vm._watchers.filter(function (w) {
+        return w.active;
+      });
     }
 
     // Final pass, move/insert new fragments into the
@@ -33469,7 +38508,7 @@ var vFor = {
       var anchor = frag.staggerAnchor;
       if (!anchor) {
         anchor = frag.staggerAnchor = createAnchor('stagger-anchor');
-        anchor.__vfrag__ = frag;
+        anchor.__v_frag = frag;
       }
       after(anchor, prevEl);
       var op = frag.staggerCb = cancellable(function () {
@@ -33524,6 +38563,14 @@ var vFor = {
    */
 
   move: function move(frag, prevEl) {
+    // fix a common issue with Sortable:
+    // if prevEl doesn't have nextSibling, this means it's
+    // been dragged after the end anchor. Just re-position
+    // the end anchor to the end of the container.
+    /* istanbul ignore if */
+    if (!prevEl.nextSibling) {
+      this.end.parentNode.appendChild(this.end);
+    }
     frag.before(prevEl.nextSibling, false);
   },
 
@@ -33667,7 +38714,7 @@ var vFor = {
       }
       return res;
     } else {
-      if (typeof value === 'number') {
+      if (typeof value === 'number' && !isNaN(value)) {
         value = range(value);
       }
       return value || [];
@@ -33710,12 +38757,12 @@ function findPrevFrag(frag, anchor, id) {
   var el = frag.node.previousSibling;
   /* istanbul ignore if */
   if (!el) return;
-  frag = el.__vfrag__;
+  frag = el.__v_frag;
   while ((!frag || frag.forId !== id || !frag.inserted) && el !== anchor) {
     el = el.previousSibling;
     /* istanbul ignore if */
     if (!el) return;
-    frag = el.__vfrag__;
+    frag = el.__v_frag;
   }
   return frag;
 }
@@ -33747,7 +38794,7 @@ function findVmFromFrag(frag) {
 
 function range(n) {
   var i = -1;
-  var ret = new Array(n);
+  var ret = new Array(Math.floor(n));
   while (++i < n) {
     ret[i] = i;
   }
@@ -33760,517 +38807,971 @@ if (process.env.NODE_ENV !== 'production') {
   };
 }
 
-var html = {
+var vIf = {
+
+  priority: IF,
 
   bind: function bind() {
-    // a comment node means this is a binding for
-    // {{{ inline unescaped html }}}
-    if (this.el.nodeType === 8) {
-      // hold nodes
-      this.nodes = [];
-      // replace the placeholder with proper anchor
-      this.anchor = createAnchor('v-html');
-      replace(this.el, this.anchor);
+    var el = this.el;
+    if (!el.__vue__) {
+      // check else block
+      var next = el.nextElementSibling;
+      if (next && getAttr(next, 'v-else') !== null) {
+        remove(next);
+        this.elseFactory = new FragmentFactory(next._context || this.vm, next);
+      }
+      // check main block
+      this.anchor = createAnchor('v-if');
+      replace(el, this.anchor);
+      this.factory = new FragmentFactory(this.vm, el);
+    } else {
+      process.env.NODE_ENV !== 'production' && warn('v-if="' + this.expression + '" cannot be ' + 'used on an instance root element.');
+      this.invalid = true;
     }
   },
 
   update: function update(value) {
-    value = _toString(value);
-    if (this.nodes) {
-      this.swap(value);
+    if (this.invalid) return;
+    if (value) {
+      if (!this.frag) {
+        this.insert();
+      }
     } else {
-      this.el.innerHTML = value;
+      this.remove();
     }
   },
 
-  swap: function swap(value) {
-    // remove old nodes
-    var i = this.nodes.length;
-    while (i--) {
-      remove(this.nodes[i]);
+  insert: function insert() {
+    if (this.elseFrag) {
+      this.elseFrag.remove();
+      this.elseFrag = null;
     }
-    // convert new value to a fragment
-    // do not attempt to retrieve from id selector
-    var frag = parseTemplate(value, true, true);
-    // save a reference to these nodes so we can remove later
-    this.nodes = toArray(frag.childNodes);
-    before(frag, this.anchor);
+    this.frag = this.factory.create(this._host, this._scope, this._frag);
+    this.frag.before(this.anchor);
+  },
+
+  remove: function remove() {
+    if (this.frag) {
+      this.frag.remove();
+      this.frag = null;
+    }
+    if (this.elseFactory && !this.elseFrag) {
+      this.elseFrag = this.elseFactory.create(this._host, this._scope, this._frag);
+      this.elseFrag.before(this.anchor);
+    }
+  },
+
+  unbind: function unbind() {
+    if (this.frag) {
+      this.frag.destroy();
+    }
+    if (this.elseFrag) {
+      this.elseFrag.destroy();
+    }
   }
 };
 
-var text = {
+var show = {
 
   bind: function bind() {
-    this.attr = this.el.nodeType === 3 ? 'data' : 'textContent';
+    // check else block
+    var next = this.el.nextElementSibling;
+    if (next && getAttr(next, 'v-else') !== null) {
+      this.elseEl = next;
+    }
   },
 
   update: function update(value) {
-    this.el[this.attr] = _toString(value);
+    this.apply(this.el, value);
+    if (this.elseEl) {
+      this.apply(this.elseEl, !value);
+    }
+  },
+
+  apply: function apply(el, value) {
+    if (inDoc(el)) {
+      applyTransition(el, value ? 1 : -1, toggle, this.vm);
+    } else {
+      toggle();
+    }
+    function toggle() {
+      el.style.display = value ? '' : 'none';
+    }
+  }
+};
+
+var text$2 = {
+
+  bind: function bind() {
+    var self = this;
+    var el = this.el;
+    var isRange = el.type === 'range';
+    var lazy = this.params.lazy;
+    var number = this.params.number;
+    var debounce = this.params.debounce;
+
+    // handle composition events.
+    //   http://blog.evanyou.me/2014/01/03/composition-event/
+    // skip this for Android because it handles composition
+    // events quite differently. Android doesn't trigger
+    // composition events for language input methods e.g.
+    // Chinese, but instead triggers them for spelling
+    // suggestions... (see Discussion/#162)
+    var composing = false;
+    if (!isAndroid && !isRange) {
+      this.on('compositionstart', function () {
+        composing = true;
+      });
+      this.on('compositionend', function () {
+        composing = false;
+        // in IE11 the "compositionend" event fires AFTER
+        // the "input" event, so the input handler is blocked
+        // at the end... have to call it here.
+        //
+        // #1327: in lazy mode this is unecessary.
+        if (!lazy) {
+          self.listener();
+        }
+      });
+    }
+
+    // prevent messing with the input when user is typing,
+    // and force update on blur.
+    this.focused = false;
+    if (!isRange && !lazy) {
+      this.on('focus', function () {
+        self.focused = true;
+      });
+      this.on('blur', function () {
+        self.focused = false;
+      });
+    }
+
+    // Now attach the main listener
+    this.listener = this.rawListener = function () {
+      if (composing || !self._bound) {
+        return;
+      }
+      var val = number || isRange ? toNumber(el.value) : el.value;
+      self.set(val);
+      // force update on next tick to avoid lock & same value
+      // also only update when user is not typing
+      nextTick(function () {
+        if (self._bound && !self.focused) {
+          self.update(self._watcher.value);
+        }
+      });
+    };
+
+    // apply debounce
+    if (debounce) {
+      this.listener = _debounce(this.listener, debounce);
+    }
+
+    // Support jQuery events, since jQuery.trigger() doesn't
+    // trigger native events in some cases and some plugins
+    // rely on $.trigger()
+    //
+    // We want to make sure if a listener is attached using
+    // jQuery, it is also removed with jQuery, that's why
+    // we do the check for each directive instance and
+    // store that check result on itself. This also allows
+    // easier test coverage control by unsetting the global
+    // jQuery variable in tests.
+    this.hasjQuery = typeof jQuery === 'function';
+    if (this.hasjQuery) {
+      var method = jQuery.fn.on ? 'on' : 'bind';
+      jQuery(el)[method]('change', this.rawListener);
+      if (!lazy) {
+        jQuery(el)[method]('input', this.listener);
+      }
+    } else {
+      this.on('change', this.rawListener);
+      if (!lazy) {
+        this.on('input', this.listener);
+      }
+    }
+
+    // IE9 doesn't fire input event on backspace/del/cut
+    if (!lazy && isIE9) {
+      this.on('cut', function () {
+        nextTick(self.listener);
+      });
+      this.on('keyup', function (e) {
+        if (e.keyCode === 46 || e.keyCode === 8) {
+          self.listener();
+        }
+      });
+    }
+
+    // set initial value if present
+    if (el.hasAttribute('value') || el.tagName === 'TEXTAREA' && el.value.trim()) {
+      this.afterBind = this.listener;
+    }
+  },
+
+  update: function update(value) {
+    this.el.value = _toString(value);
+  },
+
+  unbind: function unbind() {
+    var el = this.el;
+    if (this.hasjQuery) {
+      var method = jQuery.fn.off ? 'off' : 'unbind';
+      jQuery(el)[method]('change', this.listener);
+      jQuery(el)[method]('input', this.listener);
+    }
+  }
+};
+
+var radio = {
+
+  bind: function bind() {
+    var self = this;
+    var el = this.el;
+
+    this.getValue = function () {
+      // value overwrite via v-bind:value
+      if (el.hasOwnProperty('_value')) {
+        return el._value;
+      }
+      var val = el.value;
+      if (self.params.number) {
+        val = toNumber(val);
+      }
+      return val;
+    };
+
+    this.listener = function () {
+      self.set(self.getValue());
+    };
+    this.on('change', this.listener);
+
+    if (el.hasAttribute('checked')) {
+      this.afterBind = this.listener;
+    }
+  },
+
+  update: function update(value) {
+    this.el.checked = looseEqual(value, this.getValue());
+  }
+};
+
+var select = {
+
+  bind: function bind() {
+    var self = this;
+    var el = this.el;
+
+    // method to force update DOM using latest value.
+    this.forceUpdate = function () {
+      if (self._watcher) {
+        self.update(self._watcher.get());
+      }
+    };
+
+    // check if this is a multiple select
+    var multiple = this.multiple = el.hasAttribute('multiple');
+
+    // attach listener
+    this.listener = function () {
+      var value = getValue(el, multiple);
+      value = self.params.number ? isArray(value) ? value.map(toNumber) : toNumber(value) : value;
+      self.set(value);
+    };
+    this.on('change', this.listener);
+
+    // if has initial value, set afterBind
+    var initValue = getValue(el, multiple, true);
+    if (multiple && initValue.length || !multiple && initValue !== null) {
+      this.afterBind = this.listener;
+    }
+
+    // All major browsers except Firefox resets
+    // selectedIndex with value -1 to 0 when the element
+    // is appended to a new parent, therefore we have to
+    // force a DOM update whenever that happens...
+    this.vm.$on('hook:attached', this.forceUpdate);
+  },
+
+  update: function update(value) {
+    var el = this.el;
+    el.selectedIndex = -1;
+    var multi = this.multiple && isArray(value);
+    var options = el.options;
+    var i = options.length;
+    var op, val;
+    while (i--) {
+      op = options[i];
+      val = op.hasOwnProperty('_value') ? op._value : op.value;
+      /* eslint-disable eqeqeq */
+      op.selected = multi ? indexOf$1(value, val) > -1 : looseEqual(value, val);
+      /* eslint-enable eqeqeq */
+    }
+  },
+
+  unbind: function unbind() {
+    /* istanbul ignore next */
+    this.vm.$off('hook:attached', this.forceUpdate);
+  }
+};
+
+/**
+ * Get select value
+ *
+ * @param {SelectElement} el
+ * @param {Boolean} multi
+ * @param {Boolean} init
+ * @return {Array|*}
+ */
+
+function getValue(el, multi, init) {
+  var res = multi ? [] : null;
+  var op, val, selected;
+  for (var i = 0, l = el.options.length; i < l; i++) {
+    op = el.options[i];
+    selected = init ? op.hasAttribute('selected') : op.selected;
+    if (selected) {
+      val = op.hasOwnProperty('_value') ? op._value : op.value;
+      if (multi) {
+        res.push(val);
+      } else {
+        return val;
+      }
+    }
+  }
+  return res;
+}
+
+/**
+ * Native Array.indexOf uses strict equal, but in this
+ * case we need to match string/numbers with custom equal.
+ *
+ * @param {Array} arr
+ * @param {*} val
+ */
+
+function indexOf$1(arr, val) {
+  var i = arr.length;
+  while (i--) {
+    if (looseEqual(arr[i], val)) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+var checkbox = {
+
+  bind: function bind() {
+    var self = this;
+    var el = this.el;
+
+    this.getValue = function () {
+      return el.hasOwnProperty('_value') ? el._value : self.params.number ? toNumber(el.value) : el.value;
+    };
+
+    function getBooleanValue() {
+      var val = el.checked;
+      if (val && el.hasOwnProperty('_trueValue')) {
+        return el._trueValue;
+      }
+      if (!val && el.hasOwnProperty('_falseValue')) {
+        return el._falseValue;
+      }
+      return val;
+    }
+
+    this.listener = function () {
+      var model = self._watcher.value;
+      if (isArray(model)) {
+        var val = self.getValue();
+        if (el.checked) {
+          if (indexOf(model, val) < 0) {
+            model.push(val);
+          }
+        } else {
+          model.$remove(val);
+        }
+      } else {
+        self.set(getBooleanValue());
+      }
+    };
+
+    this.on('change', this.listener);
+    if (el.hasAttribute('checked')) {
+      this.afterBind = this.listener;
+    }
+  },
+
+  update: function update(value) {
+    var el = this.el;
+    if (isArray(value)) {
+      el.checked = indexOf(value, this.getValue()) > -1;
+    } else {
+      if (el.hasOwnProperty('_trueValue')) {
+        el.checked = looseEqual(value, el._trueValue);
+      } else {
+        el.checked = !!value;
+      }
+    }
+  }
+};
+
+var handlers = {
+  text: text$2,
+  radio: radio,
+  select: select,
+  checkbox: checkbox
+};
+
+var model = {
+
+  priority: MODEL,
+  twoWay: true,
+  handlers: handlers,
+  params: ['lazy', 'number', 'debounce'],
+
+  /**
+   * Possible elements:
+   *   <select>
+   *   <textarea>
+   *   <input type="*">
+   *     - text
+   *     - checkbox
+   *     - radio
+   *     - number
+   */
+
+  bind: function bind() {
+    // friendly warning...
+    this.checkFilters();
+    if (this.hasRead && !this.hasWrite) {
+      process.env.NODE_ENV !== 'production' && warn('It seems you are using a read-only filter with ' + 'v-model. You might want to use a two-way filter ' + 'to ensure correct behavior.');
+    }
+    var el = this.el;
+    var tag = el.tagName;
+    var handler;
+    if (tag === 'INPUT') {
+      handler = handlers[el.type] || handlers.text;
+    } else if (tag === 'SELECT') {
+      handler = handlers.select;
+    } else if (tag === 'TEXTAREA') {
+      handler = handlers.text;
+    } else {
+      process.env.NODE_ENV !== 'production' && warn('v-model does not support element type: ' + tag);
+      return;
+    }
+    el.__v_model = this;
+    handler.bind.call(this);
+    this.update = handler.update;
+    this._unbind = handler.unbind;
+  },
+
+  /**
+   * Check read/write filter stats.
+   */
+
+  checkFilters: function checkFilters() {
+    var filters = this.filters;
+    if (!filters) return;
+    var i = filters.length;
+    while (i--) {
+      var filter = resolveAsset(this.vm.$options, 'filters', filters[i].name);
+      if (typeof filter === 'function' || filter.read) {
+        this.hasRead = true;
+      }
+      if (filter.write) {
+        this.hasWrite = true;
+      }
+    }
+  },
+
+  unbind: function unbind() {
+    this.el.__v_model = null;
+    this._unbind && this._unbind();
+  }
+};
+
+// keyCode aliases
+var keyCodes = {
+  esc: 27,
+  tab: 9,
+  enter: 13,
+  space: 32,
+  'delete': [8, 46],
+  up: 38,
+  left: 37,
+  right: 39,
+  down: 40
+};
+
+function keyFilter(handler, keys) {
+  var codes = keys.map(function (key) {
+    var charCode = key.charCodeAt(0);
+    if (charCode > 47 && charCode < 58) {
+      return parseInt(key, 10);
+    }
+    if (key.length === 1) {
+      charCode = key.toUpperCase().charCodeAt(0);
+      if (charCode > 64 && charCode < 91) {
+        return charCode;
+      }
+    }
+    return keyCodes[key];
+  });
+  codes = [].concat.apply([], codes);
+  return function keyHandler(e) {
+    if (codes.indexOf(e.keyCode) > -1) {
+      return handler.call(this, e);
+    }
+  };
+}
+
+function stopFilter(handler) {
+  return function stopHandler(e) {
+    e.stopPropagation();
+    return handler.call(this, e);
+  };
+}
+
+function preventFilter(handler) {
+  return function preventHandler(e) {
+    e.preventDefault();
+    return handler.call(this, e);
+  };
+}
+
+function selfFilter(handler) {
+  return function selfHandler(e) {
+    if (e.target === e.currentTarget) {
+      return handler.call(this, e);
+    }
+  };
+}
+
+var on$1 = {
+
+  priority: ON,
+  acceptStatement: true,
+  keyCodes: keyCodes,
+
+  bind: function bind() {
+    // deal with iframes
+    if (this.el.tagName === 'IFRAME' && this.arg !== 'load') {
+      var self = this;
+      this.iframeBind = function () {
+        on(self.el.contentWindow, self.arg, self.handler, self.modifiers.capture);
+      };
+      this.on('load', this.iframeBind);
+    }
+  },
+
+  update: function update(handler) {
+    // stub a noop for v-on with no value,
+    // e.g. @mousedown.prevent
+    if (!this.descriptor.raw) {
+      handler = function () {};
+    }
+
+    if (typeof handler !== 'function') {
+      process.env.NODE_ENV !== 'production' && warn('v-on:' + this.arg + '="' + this.expression + '" expects a function value, ' + 'got ' + handler);
+      return;
+    }
+
+    // apply modifiers
+    if (this.modifiers.stop) {
+      handler = stopFilter(handler);
+    }
+    if (this.modifiers.prevent) {
+      handler = preventFilter(handler);
+    }
+    if (this.modifiers.self) {
+      handler = selfFilter(handler);
+    }
+    // key filter
+    var keys = Object.keys(this.modifiers).filter(function (key) {
+      return key !== 'stop' && key !== 'prevent';
+    });
+    if (keys.length) {
+      handler = keyFilter(handler, keys);
+    }
+
+    this.reset();
+    this.handler = handler;
+
+    if (this.iframeBind) {
+      this.iframeBind();
+    } else {
+      on(this.el, this.arg, this.handler, this.modifiers.capture);
+    }
+  },
+
+  reset: function reset() {
+    var el = this.iframeBind ? this.el.contentWindow : this.el;
+    if (this.handler) {
+      off(el, this.arg, this.handler);
+    }
+  },
+
+  unbind: function unbind() {
+    this.reset();
+  }
+};
+
+var prefixes = ['-webkit-', '-moz-', '-ms-'];
+var camelPrefixes = ['Webkit', 'Moz', 'ms'];
+var importantRE = /!important;?$/;
+var propCache = Object.create(null);
+
+var testEl = null;
+
+var style = {
+
+  deep: true,
+
+  update: function update(value) {
+    if (typeof value === 'string') {
+      this.el.style.cssText = value;
+    } else if (isArray(value)) {
+      this.handleObject(value.reduce(extend, {}));
+    } else {
+      this.handleObject(value || {});
+    }
+  },
+
+  handleObject: function handleObject(value) {
+    // cache object styles so that only changed props
+    // are actually updated.
+    var cache = this.cache || (this.cache = {});
+    var name, val;
+    for (name in cache) {
+      if (!(name in value)) {
+        this.handleSingle(name, null);
+        delete cache[name];
+      }
+    }
+    for (name in value) {
+      val = value[name];
+      if (val !== cache[name]) {
+        cache[name] = val;
+        this.handleSingle(name, val);
+      }
+    }
+  },
+
+  handleSingle: function handleSingle(prop, value) {
+    prop = normalize(prop);
+    if (!prop) return; // unsupported prop
+    // cast possible numbers/booleans into strings
+    if (value != null) value += '';
+    if (value) {
+      var isImportant = importantRE.test(value) ? 'important' : '';
+      if (isImportant) {
+        value = value.replace(importantRE, '').trim();
+      }
+      this.el.style.setProperty(prop, value, isImportant);
+    } else {
+      this.el.style.removeProperty(prop);
+    }
+  }
+
+};
+
+/**
+ * Normalize a CSS property name.
+ * - cache result
+ * - auto prefix
+ * - camelCase -> dash-case
+ *
+ * @param {String} prop
+ * @return {String}
+ */
+
+function normalize(prop) {
+  if (propCache[prop]) {
+    return propCache[prop];
+  }
+  var res = prefix(prop);
+  propCache[prop] = propCache[res] = res;
+  return res;
+}
+
+/**
+ * Auto detect the appropriate prefix for a CSS property.
+ * https://gist.github.com/paulirish/523692
+ *
+ * @param {String} prop
+ * @return {String}
+ */
+
+function prefix(prop) {
+  prop = hyphenate(prop);
+  var camel = camelize(prop);
+  var upper = camel.charAt(0).toUpperCase() + camel.slice(1);
+  if (!testEl) {
+    testEl = document.createElement('div');
+  }
+  var i = prefixes.length;
+  var prefixed;
+  while (i--) {
+    prefixed = camelPrefixes[i] + upper;
+    if (prefixed in testEl.style) {
+      return prefixes[i] + prop;
+    }
+  }
+  if (camel in testEl.style) {
+    return prop;
+  }
+}
+
+// xlink
+var xlinkNS = 'http://www.w3.org/1999/xlink';
+var xlinkRE = /^xlink:/;
+
+// check for attributes that prohibit interpolations
+var disallowedInterpAttrRE = /^v-|^:|^@|^(?:is|transition|transition-mode|debounce|track-by|stagger|enter-stagger|leave-stagger)$/;
+// these attributes should also set their corresponding properties
+// because they only affect the initial state of the element
+var attrWithPropsRE = /^(?:value|checked|selected|muted)$/;
+// these attributes expect enumrated values of "true" or "false"
+// but are not boolean attributes
+var enumeratedAttrRE = /^(?:draggable|contenteditable|spellcheck)$/;
+
+// these attributes should set a hidden property for
+// binding v-model to object values
+var modelProps = {
+  value: '_value',
+  'true-value': '_trueValue',
+  'false-value': '_falseValue'
+};
+
+var bind$1 = {
+
+  priority: BIND,
+
+  bind: function bind() {
+    var attr = this.arg;
+    var tag = this.el.tagName;
+    // should be deep watch on object mode
+    if (!attr) {
+      this.deep = true;
+    }
+    // handle interpolation bindings
+    var descriptor = this.descriptor;
+    var tokens = descriptor.interp;
+    if (tokens) {
+      // handle interpolations with one-time tokens
+      if (descriptor.hasOneTime) {
+        this.expression = tokensToExp(tokens, this._scope || this.vm);
+      }
+
+      // only allow binding on native attributes
+      if (disallowedInterpAttrRE.test(attr) || attr === 'name' && (tag === 'PARTIAL' || tag === 'SLOT')) {
+        process.env.NODE_ENV !== 'production' && warn(attr + '="' + descriptor.raw + '": ' + 'attribute interpolation is not allowed in Vue.js ' + 'directives and special attributes.');
+        this.el.removeAttribute(attr);
+        this.invalid = true;
+      }
+
+      /* istanbul ignore if */
+      if (process.env.NODE_ENV !== 'production') {
+        var raw = attr + '="' + descriptor.raw + '": ';
+        // warn src
+        if (attr === 'src') {
+          warn(raw + 'interpolation in "src" attribute will cause ' + 'a 404 request. Use v-bind:src instead.');
+        }
+
+        // warn style
+        if (attr === 'style') {
+          warn(raw + 'interpolation in "style" attribute will cause ' + 'the attribute to be discarded in Internet Explorer. ' + 'Use v-bind:style instead.');
+        }
+      }
+    }
+  },
+
+  update: function update(value) {
+    if (this.invalid) {
+      return;
+    }
+    var attr = this.arg;
+    if (this.arg) {
+      this.handleSingle(attr, value);
+    } else {
+      this.handleObject(value || {});
+    }
+  },
+
+  // share object handler with v-bind:class
+  handleObject: style.handleObject,
+
+  handleSingle: function handleSingle(attr, value) {
+    var el = this.el;
+    var interp = this.descriptor.interp;
+    if (this.modifiers.camel) {
+      attr = camelize(attr);
+    }
+    if (!interp && attrWithPropsRE.test(attr) && attr in el) {
+      el[attr] = attr === 'value' ? value == null // IE9 will set input.value to "null" for null...
+      ? '' : value : value;
+    }
+    // set model props
+    var modelProp = modelProps[attr];
+    if (!interp && modelProp) {
+      el[modelProp] = value;
+      // update v-model if present
+      var model = el.__v_model;
+      if (model) {
+        model.listener();
+      }
+    }
+    // do not set value attribute for textarea
+    if (attr === 'value' && el.tagName === 'TEXTAREA') {
+      el.removeAttribute(attr);
+      return;
+    }
+    // update attribute
+    if (enumeratedAttrRE.test(attr)) {
+      el.setAttribute(attr, value ? 'true' : 'false');
+    } else if (value != null && value !== false) {
+      if (attr === 'class') {
+        // handle edge case #1960:
+        // class interpolation should not overwrite Vue transition class
+        if (el.__v_trans) {
+          value += ' ' + el.__v_trans.id + '-transition';
+        }
+        setClass(el, value);
+      } else if (xlinkRE.test(attr)) {
+        el.setAttributeNS(xlinkNS, attr, value === true ? '' : value);
+      } else {
+        el.setAttribute(attr, value === true ? '' : value);
+      }
+    } else {
+      el.removeAttribute(attr);
+    }
+  }
+};
+
+var el = {
+
+  priority: EL,
+
+  bind: function bind() {
+    /* istanbul ignore if */
+    if (!this.arg) {
+      return;
+    }
+    var id = this.id = camelize(this.arg);
+    var refs = (this._scope || this.vm).$els;
+    if (hasOwn(refs, id)) {
+      refs[id] = this.el;
+    } else {
+      defineReactive(refs, id, this.el);
+    }
+  },
+
+  unbind: function unbind() {
+    var refs = (this._scope || this.vm).$els;
+    if (refs[this.id] === this.el) {
+      refs[this.id] = null;
+    }
+  }
+};
+
+var ref = {
+  bind: function bind() {
+    process.env.NODE_ENV !== 'production' && warn('v-ref:' + this.arg + ' must be used on a child ' + 'component. Found on <' + this.el.tagName.toLowerCase() + '>.');
+  }
+};
+
+var cloak = {
+  bind: function bind() {
+    var el = this.el;
+    this.vm.$once('pre-hook:compiled', function () {
+      el.removeAttribute('v-cloak');
+    });
   }
 };
 
 // must export plain object
-var publicDirectives = {
-  text: text,
+var directives = {
+  text: text$1,
   html: html,
   'for': vFor,
   'if': vIf,
   show: show,
   model: model,
-  on: on,
-  bind: bind,
+  on: on$1,
+  bind: bind$1,
   el: el,
   ref: ref,
   cloak: cloak
 };
 
-var queue$1 = [];
-var queued = false;
+var vClass = {
 
-/**
- * Push a job into the queue.
- *
- * @param {Function} job
- */
+  deep: true,
 
-function pushJob(job) {
-  queue$1.push(job);
-  if (!queued) {
-    queued = true;
-    nextTick(flush);
-  }
-}
-
-/**
- * Flush the queue, and do one forced reflow before
- * triggering transitions.
- */
-
-function flush() {
-  // Force layout
-  var f = document.documentElement.offsetHeight;
-  for (var i = 0; i < queue$1.length; i++) {
-    queue$1[i]();
-  }
-  queue$1 = [];
-  queued = false;
-  // dummy return, so js linters don't complain about
-  // unused variable f
-  return f;
-}
-
-var TYPE_TRANSITION = 1;
-var TYPE_ANIMATION = 2;
-var transDurationProp = transitionProp + 'Duration';
-var animDurationProp = animationProp + 'Duration';
-
-/**
- * A Transition object that encapsulates the state and logic
- * of the transition.
- *
- * @param {Element} el
- * @param {String} id
- * @param {Object} hooks
- * @param {Vue} vm
- */
-function Transition(el, id, hooks, vm) {
-  this.id = id;
-  this.el = el;
-  this.enterClass = id + '-enter';
-  this.leaveClass = id + '-leave';
-  this.hooks = hooks;
-  this.vm = vm;
-  // async state
-  this.pendingCssEvent = this.pendingCssCb = this.cancel = this.pendingJsCb = this.op = this.cb = null;
-  this.justEntered = false;
-  this.entered = this.left = false;
-  this.typeCache = {};
-  // bind
-  var self = this;['enterNextTick', 'enterDone', 'leaveNextTick', 'leaveDone'].forEach(function (m) {
-    self[m] = bind$1(self[m], self);
-  });
-}
-
-var p$1 = Transition.prototype;
-
-/**
- * Start an entering transition.
- *
- * 1. enter transition triggered
- * 2. call beforeEnter hook
- * 3. add enter class
- * 4. insert/show element
- * 5. call enter hook (with possible explicit js callback)
- * 6. reflow
- * 7. based on transition type:
- *    - transition:
- *        remove class now, wait for transitionend,
- *        then done if there's no explicit js callback.
- *    - animation:
- *        wait for animationend, remove class,
- *        then done if there's no explicit js callback.
- *    - no css transition:
- *        done now if there's no explicit js callback.
- * 8. wait for either done or js callback, then call
- *    afterEnter hook.
- *
- * @param {Function} op - insert/show the element
- * @param {Function} [cb]
- */
-
-p$1.enter = function (op, cb) {
-  this.cancelPending();
-  this.callHook('beforeEnter');
-  this.cb = cb;
-  addClass(this.el, this.enterClass);
-  op();
-  this.entered = false;
-  this.callHookWithCb('enter');
-  if (this.entered) {
-    return; // user called done synchronously.
-  }
-  this.cancel = this.hooks && this.hooks.enterCancelled;
-  pushJob(this.enterNextTick);
-};
-
-/**
- * The "nextTick" phase of an entering transition, which is
- * to be pushed into a queue and executed after a reflow so
- * that removing the class can trigger a CSS transition.
- */
-
-p$1.enterNextTick = function () {
-
-  // Important hack:
-  // in Chrome, if a just-entered element is applied the
-  // leave class while its interpolated property still has
-  // a very small value (within one frame), Chrome will
-  // skip the leave transition entirely and not firing the
-  // transtionend event. Therefore we need to protected
-  // against such cases using a one-frame timeout.
-  this.justEntered = true;
-  var self = this;
-  setTimeout(function () {
-    self.justEntered = false;
-  }, 17);
-
-  var enterDone = this.enterDone;
-  var type = this.getCssTransitionType(this.enterClass);
-  if (!this.pendingJsCb) {
-    if (type === TYPE_TRANSITION) {
-      // trigger transition by removing enter class now
-      removeClass(this.el, this.enterClass);
-      this.setupCssCb(transitionEndEvent, enterDone);
-    } else if (type === TYPE_ANIMATION) {
-      this.setupCssCb(animationEndEvent, enterDone);
+  update: function update(value) {
+    if (value && typeof value === 'string') {
+      this.handleObject(stringToObject(value));
+    } else if (isPlainObject(value)) {
+      this.handleObject(value);
+    } else if (isArray(value)) {
+      this.handleArray(value);
     } else {
-      enterDone();
-    }
-  } else if (type === TYPE_TRANSITION) {
-    removeClass(this.el, this.enterClass);
-  }
-};
-
-/**
- * The "cleanup" phase of an entering transition.
- */
-
-p$1.enterDone = function () {
-  this.entered = true;
-  this.cancel = this.pendingJsCb = null;
-  removeClass(this.el, this.enterClass);
-  this.callHook('afterEnter');
-  if (this.cb) this.cb();
-};
-
-/**
- * Start a leaving transition.
- *
- * 1. leave transition triggered.
- * 2. call beforeLeave hook
- * 3. add leave class (trigger css transition)
- * 4. call leave hook (with possible explicit js callback)
- * 5. reflow if no explicit js callback is provided
- * 6. based on transition type:
- *    - transition or animation:
- *        wait for end event, remove class, then done if
- *        there's no explicit js callback.
- *    - no css transition:
- *        done if there's no explicit js callback.
- * 7. wait for either done or js callback, then call
- *    afterLeave hook.
- *
- * @param {Function} op - remove/hide the element
- * @param {Function} [cb]
- */
-
-p$1.leave = function (op, cb) {
-  this.cancelPending();
-  this.callHook('beforeLeave');
-  this.op = op;
-  this.cb = cb;
-  addClass(this.el, this.leaveClass);
-  this.left = false;
-  this.callHookWithCb('leave');
-  if (this.left) {
-    return; // user called done synchronously.
-  }
-  this.cancel = this.hooks && this.hooks.leaveCancelled;
-  // only need to handle leaveDone if
-  // 1. the transition is already done (synchronously called
-  //    by the user, which causes this.op set to null)
-  // 2. there's no explicit js callback
-  if (this.op && !this.pendingJsCb) {
-    // if a CSS transition leaves immediately after enter,
-    // the transitionend event never fires. therefore we
-    // detect such cases and end the leave immediately.
-    if (this.justEntered) {
-      this.leaveDone();
-    } else {
-      pushJob(this.leaveNextTick);
-    }
-  }
-};
-
-/**
- * The "nextTick" phase of a leaving transition.
- */
-
-p$1.leaveNextTick = function () {
-  var type = this.getCssTransitionType(this.leaveClass);
-  if (type) {
-    var event = type === TYPE_TRANSITION ? transitionEndEvent : animationEndEvent;
-    this.setupCssCb(event, this.leaveDone);
-  } else {
-    this.leaveDone();
-  }
-};
-
-/**
- * The "cleanup" phase of a leaving transition.
- */
-
-p$1.leaveDone = function () {
-  this.left = true;
-  this.cancel = this.pendingJsCb = null;
-  this.op();
-  removeClass(this.el, this.leaveClass);
-  this.callHook('afterLeave');
-  if (this.cb) this.cb();
-  this.op = null;
-};
-
-/**
- * Cancel any pending callbacks from a previously running
- * but not finished transition.
- */
-
-p$1.cancelPending = function () {
-  this.op = this.cb = null;
-  var hasPending = false;
-  if (this.pendingCssCb) {
-    hasPending = true;
-    off(this.el, this.pendingCssEvent, this.pendingCssCb);
-    this.pendingCssEvent = this.pendingCssCb = null;
-  }
-  if (this.pendingJsCb) {
-    hasPending = true;
-    this.pendingJsCb.cancel();
-    this.pendingJsCb = null;
-  }
-  if (hasPending) {
-    removeClass(this.el, this.enterClass);
-    removeClass(this.el, this.leaveClass);
-  }
-  if (this.cancel) {
-    this.cancel.call(this.vm, this.el);
-    this.cancel = null;
-  }
-};
-
-/**
- * Call a user-provided synchronous hook function.
- *
- * @param {String} type
- */
-
-p$1.callHook = function (type) {
-  if (this.hooks && this.hooks[type]) {
-    this.hooks[type].call(this.vm, this.el);
-  }
-};
-
-/**
- * Call a user-provided, potentially-async hook function.
- * We check for the length of arguments to see if the hook
- * expects a `done` callback. If true, the transition's end
- * will be determined by when the user calls that callback;
- * otherwise, the end is determined by the CSS transition or
- * animation.
- *
- * @param {String} type
- */
-
-p$1.callHookWithCb = function (type) {
-  var hook = this.hooks && this.hooks[type];
-  if (hook) {
-    if (hook.length > 1) {
-      this.pendingJsCb = cancellable(this[type + 'Done']);
-    }
-    hook.call(this.vm, this.el, this.pendingJsCb);
-  }
-};
-
-/**
- * Get an element's transition type based on the
- * calculated styles.
- *
- * @param {String} className
- * @return {Number}
- */
-
-p$1.getCssTransitionType = function (className) {
-  /* istanbul ignore if */
-  if (!transitionEndEvent ||
-  // skip CSS transitions if page is not visible -
-  // this solves the issue of transitionend events not
-  // firing until the page is visible again.
-  // pageVisibility API is supported in IE10+, same as
-  // CSS transitions.
-  document.hidden ||
-  // explicit js-only transition
-  this.hooks && this.hooks.css === false ||
-  // element is hidden
-  isHidden(this.el)) {
-    return;
-  }
-  var type = this.typeCache[className];
-  if (type) return type;
-  var inlineStyles = this.el.style;
-  var computedStyles = window.getComputedStyle(this.el);
-  var transDuration = inlineStyles[transDurationProp] || computedStyles[transDurationProp];
-  if (transDuration && transDuration !== '0s') {
-    type = TYPE_TRANSITION;
-  } else {
-    var animDuration = inlineStyles[animDurationProp] || computedStyles[animDurationProp];
-    if (animDuration && animDuration !== '0s') {
-      type = TYPE_ANIMATION;
-    }
-  }
-  if (type) {
-    this.typeCache[className] = type;
-  }
-  return type;
-};
-
-/**
- * Setup a CSS transitionend/animationend callback.
- *
- * @param {String} event
- * @param {Function} cb
- */
-
-p$1.setupCssCb = function (event, cb) {
-  this.pendingCssEvent = event;
-  var self = this;
-  var el = this.el;
-  var onEnd = this.pendingCssCb = function (e) {
-    if (e.target === el) {
-      off(el, event, onEnd);
-      self.pendingCssEvent = self.pendingCssCb = null;
-      if (!self.pendingJsCb && cb) {
-        cb();
-      }
-    }
-  };
-  on$1(el, event, onEnd);
-};
-
-/**
- * Check if an element is hidden - in that case we can just
- * skip the transition alltogether.
- *
- * @param {Element} el
- * @return {Boolean}
- */
-
-function isHidden(el) {
-  return !(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
-}
-
-var transition = {
-
-  priority: TRANSITION,
-
-  update: function update(id, oldId) {
-    var el = this.el;
-    // resolve on owner vm
-    var hooks = resolveAsset(this.vm.$options, 'transitions', id);
-    id = id || 'v';
-    // apply on closest vm
-    el.__v_trans = new Transition(el, id, hooks, this.el.__vue__ || this.vm);
-    if (oldId) {
-      removeClass(el, oldId + '-transition');
-    }
-    addClass(el, id + '-transition');
-  }
-};
-
-var bindingModes = config._propBindingModes;
-
-var propDef = {
-
-  bind: function bind() {
-
-    var child = this.vm;
-    var parent = child._context;
-    // passed in from compiler directly
-    var prop = this.descriptor.prop;
-    var childKey = prop.path;
-    var parentKey = prop.parentPath;
-    var twoWay = prop.mode === bindingModes.TWO_WAY;
-
-    var parentWatcher = this.parentWatcher = new Watcher(parent, parentKey, function (val) {
-      val = coerceProp(prop, val);
-      if (assertProp(prop, val)) {
-        child[childKey] = val;
-      }
-    }, {
-      twoWay: twoWay,
-      filters: prop.filters,
-      // important: props need to be observed on the
-      // v-for scope if present
-      scope: this._scope
-    });
-
-    // set the child initial value.
-    initProp(child, prop, parentWatcher.value);
-
-    // setup two-way binding
-    if (twoWay) {
-      // important: defer the child watcher creation until
-      // the created hook (after data observation)
-      var self = this;
-      child.$once('pre-hook:created', function () {
-        self.childWatcher = new Watcher(child, childKey, function (val) {
-          parentWatcher.set(val);
-        }, {
-          // ensure sync upward before parent sync down.
-          // this is necessary in cases e.g. the child
-          // mutates a prop array, then replaces it. (#1683)
-          sync: true
-        });
-      });
+      this.cleanup();
     }
   },
 
-  unbind: function unbind() {
-    this.parentWatcher.teardown();
-    if (this.childWatcher) {
-      this.childWatcher.teardown();
+  handleObject: function handleObject(value) {
+    this.cleanup(value);
+    var keys = this.prevKeys = Object.keys(value);
+    for (var i = 0, l = keys.length; i < l; i++) {
+      var key = keys[i];
+      if (value[key]) {
+        addClass(this.el, key);
+      } else {
+        removeClass(this.el, key);
+      }
+    }
+  },
+
+  handleArray: function handleArray(value) {
+    this.cleanup(value);
+    for (var i = 0, l = value.length; i < l; i++) {
+      if (value[i]) {
+        addClass(this.el, value[i]);
+      }
+    }
+    this.prevKeys = value.slice();
+  },
+
+  cleanup: function cleanup(value) {
+    if (this.prevKeys) {
+      var i = this.prevKeys.length;
+      while (i--) {
+        var key = this.prevKeys[i];
+        if (key && (!value || !contains(value, key))) {
+          removeClass(this.el, key);
+        }
+      }
     }
   }
 };
+
+function stringToObject(value) {
+  var res = {};
+  var keys = value.trim().split(/\s+/);
+  var i = keys.length;
+  while (i--) {
+    res[keys[i]] = true;
+  }
+  return res;
+}
+
+function contains(value, key) {
+  return isArray(value) ? value.indexOf(key) > -1 : hasOwn(value, key);
+}
 
 var component = {
 
@@ -34393,12 +39894,12 @@ var component = {
     // actual mount
     this.unbuild(true);
     var self = this;
-    var activateHook = this.Component.options.activate;
+    var activateHooks = this.Component.options.activate;
     var cached = this.getCached();
     var newComponent = this.build();
-    if (activateHook && !cached) {
+    if (activateHooks && !cached) {
       this.waitingFor = newComponent;
-      activateHook.call(newComponent, function () {
+      callActivateHooks(activateHooks, newComponent, function () {
         if (self.waitingFor !== newComponent) {
           return;
         }
@@ -34608,78 +40109,493 @@ var component = {
   }
 };
 
-var vClass = {
+/**
+ * Call activate hooks in order (asynchronous)
+ *
+ * @param {Array} hooks
+ * @param {Vue} vm
+ * @param {Function} cb
+ */
 
-  deep: true,
-
-  update: function update(value) {
-    if (value && typeof value === 'string') {
-      this.handleObject(stringToObject(value));
-    } else if (isPlainObject(value)) {
-      this.handleObject(value);
-    } else if (isArray(value)) {
-      this.handleArray(value);
+function callActivateHooks(hooks, vm, cb) {
+  var total = hooks.length;
+  var called = 0;
+  hooks[0].call(vm, next);
+  function next() {
+    if (++called >= total) {
+      cb();
     } else {
-      this.cleanup();
+      hooks[called].call(vm, next);
+    }
+  }
+}
+
+var bindingModes = config._propBindingModes;
+
+var propDef = {
+
+  bind: function bind() {
+    var child = this.vm;
+    var parent = child._context;
+    // passed in from compiler directly
+    var prop = this.descriptor.prop;
+    var childKey = prop.path;
+    var parentKey = prop.parentPath;
+    var twoWay = prop.mode === bindingModes.TWO_WAY;
+
+    var parentWatcher = this.parentWatcher = new Watcher(parent, parentKey, function (val) {
+      val = coerceProp(prop, val);
+      if (assertProp(prop, val)) {
+        child[childKey] = val;
+      }
+    }, {
+      twoWay: twoWay,
+      filters: prop.filters,
+      // important: props need to be observed on the
+      // v-for scope if present
+      scope: this._scope
+    });
+
+    // set the child initial value.
+    initProp(child, prop, parentWatcher.value);
+
+    // setup two-way binding
+    if (twoWay) {
+      // important: defer the child watcher creation until
+      // the created hook (after data observation)
+      var self = this;
+      child.$once('pre-hook:created', function () {
+        self.childWatcher = new Watcher(child, childKey, function (val) {
+          parentWatcher.set(val);
+        }, {
+          // ensure sync upward before parent sync down.
+          // this is necessary in cases e.g. the child
+          // mutates a prop array, then replaces it. (#1683)
+          sync: true
+        });
+      });
     }
   },
 
-  handleObject: function handleObject(value) {
-    this.cleanup(value);
-    var keys = this.prevKeys = Object.keys(value);
-    for (var i = 0, l = keys.length; i < l; i++) {
-      var key = keys[i];
-      if (value[key]) {
-        addClass(this.el, key);
-      } else {
-        removeClass(this.el, key);
-      }
-    }
-  },
-
-  handleArray: function handleArray(value) {
-    this.cleanup(value);
-    for (var i = 0, l = value.length; i < l; i++) {
-      if (value[i]) {
-        addClass(this.el, value[i]);
-      }
-    }
-    this.prevKeys = value.slice();
-  },
-
-  cleanup: function cleanup(value) {
-    if (this.prevKeys) {
-      var i = this.prevKeys.length;
-      while (i--) {
-        var key = this.prevKeys[i];
-        if (key && (!value || !contains$1(value, key))) {
-          removeClass(this.el, key);
-        }
-      }
+  unbind: function unbind() {
+    this.parentWatcher.teardown();
+    if (this.childWatcher) {
+      this.childWatcher.teardown();
     }
   }
 };
 
-function stringToObject(value) {
-  var res = {};
-  var keys = value.trim().split(/\s+/);
-  var i = keys.length;
-  while (i--) {
-    res[keys[i]] = true;
+var queue$1 = [];
+var queued = false;
+
+/**
+ * Push a job into the queue.
+ *
+ * @param {Function} job
+ */
+
+function pushJob(job) {
+  queue$1.push(job);
+  if (!queued) {
+    queued = true;
+    nextTick(flush);
   }
-  return res;
 }
 
-function contains$1(value, key) {
-  return isArray(value) ? value.indexOf(key) > -1 : hasOwn(value, key);
+/**
+ * Flush the queue, and do one forced reflow before
+ * triggering transitions.
+ */
+
+function flush() {
+  // Force layout
+  var f = document.documentElement.offsetHeight;
+  for (var i = 0; i < queue$1.length; i++) {
+    queue$1[i]();
+  }
+  queue$1 = [];
+  queued = false;
+  // dummy return, so js linters don't complain about
+  // unused variable f
+  return f;
 }
+
+var TYPE_TRANSITION = 'transition';
+var TYPE_ANIMATION = 'animation';
+var transDurationProp = transitionProp + 'Duration';
+var animDurationProp = animationProp + 'Duration';
+
+/**
+ * A Transition object that encapsulates the state and logic
+ * of the transition.
+ *
+ * @param {Element} el
+ * @param {String} id
+ * @param {Object} hooks
+ * @param {Vue} vm
+ */
+function Transition(el, id, hooks, vm) {
+  this.id = id;
+  this.el = el;
+  this.enterClass = hooks && hooks.enterClass || id + '-enter';
+  this.leaveClass = hooks && hooks.leaveClass || id + '-leave';
+  this.hooks = hooks;
+  this.vm = vm;
+  // async state
+  this.pendingCssEvent = this.pendingCssCb = this.cancel = this.pendingJsCb = this.op = this.cb = null;
+  this.justEntered = false;
+  this.entered = this.left = false;
+  this.typeCache = {};
+  // check css transition type
+  this.type = hooks && hooks.type;
+  /* istanbul ignore if */
+  if (process.env.NODE_ENV !== 'production') {
+    if (this.type && this.type !== TYPE_TRANSITION && this.type !== TYPE_ANIMATION) {
+      warn('invalid CSS transition type for transition="' + this.id + '": ' + this.type);
+    }
+  }
+  // bind
+  var self = this;['enterNextTick', 'enterDone', 'leaveNextTick', 'leaveDone'].forEach(function (m) {
+    self[m] = bind(self[m], self);
+  });
+}
+
+var p$1 = Transition.prototype;
+
+/**
+ * Start an entering transition.
+ *
+ * 1. enter transition triggered
+ * 2. call beforeEnter hook
+ * 3. add enter class
+ * 4. insert/show element
+ * 5. call enter hook (with possible explicit js callback)
+ * 6. reflow
+ * 7. based on transition type:
+ *    - transition:
+ *        remove class now, wait for transitionend,
+ *        then done if there's no explicit js callback.
+ *    - animation:
+ *        wait for animationend, remove class,
+ *        then done if there's no explicit js callback.
+ *    - no css transition:
+ *        done now if there's no explicit js callback.
+ * 8. wait for either done or js callback, then call
+ *    afterEnter hook.
+ *
+ * @param {Function} op - insert/show the element
+ * @param {Function} [cb]
+ */
+
+p$1.enter = function (op, cb) {
+  this.cancelPending();
+  this.callHook('beforeEnter');
+  this.cb = cb;
+  addClass(this.el, this.enterClass);
+  op();
+  this.entered = false;
+  this.callHookWithCb('enter');
+  if (this.entered) {
+    return; // user called done synchronously.
+  }
+  this.cancel = this.hooks && this.hooks.enterCancelled;
+  pushJob(this.enterNextTick);
+};
+
+/**
+ * The "nextTick" phase of an entering transition, which is
+ * to be pushed into a queue and executed after a reflow so
+ * that removing the class can trigger a CSS transition.
+ */
+
+p$1.enterNextTick = function () {
+  // Important hack:
+  // in Chrome, if a just-entered element is applied the
+  // leave class while its interpolated property still has
+  // a very small value (within one frame), Chrome will
+  // skip the leave transition entirely and not firing the
+  // transtionend event. Therefore we need to protected
+  // against such cases using a one-frame timeout.
+  this.justEntered = true;
+  var self = this;
+  setTimeout(function () {
+    self.justEntered = false;
+  }, 17);
+
+  var enterDone = this.enterDone;
+  var type = this.getCssTransitionType(this.enterClass);
+  if (!this.pendingJsCb) {
+    if (type === TYPE_TRANSITION) {
+      // trigger transition by removing enter class now
+      removeClass(this.el, this.enterClass);
+      this.setupCssCb(transitionEndEvent, enterDone);
+    } else if (type === TYPE_ANIMATION) {
+      this.setupCssCb(animationEndEvent, enterDone);
+    } else {
+      enterDone();
+    }
+  } else if (type === TYPE_TRANSITION) {
+    removeClass(this.el, this.enterClass);
+  }
+};
+
+/**
+ * The "cleanup" phase of an entering transition.
+ */
+
+p$1.enterDone = function () {
+  this.entered = true;
+  this.cancel = this.pendingJsCb = null;
+  removeClass(this.el, this.enterClass);
+  this.callHook('afterEnter');
+  if (this.cb) this.cb();
+};
+
+/**
+ * Start a leaving transition.
+ *
+ * 1. leave transition triggered.
+ * 2. call beforeLeave hook
+ * 3. add leave class (trigger css transition)
+ * 4. call leave hook (with possible explicit js callback)
+ * 5. reflow if no explicit js callback is provided
+ * 6. based on transition type:
+ *    - transition or animation:
+ *        wait for end event, remove class, then done if
+ *        there's no explicit js callback.
+ *    - no css transition:
+ *        done if there's no explicit js callback.
+ * 7. wait for either done or js callback, then call
+ *    afterLeave hook.
+ *
+ * @param {Function} op - remove/hide the element
+ * @param {Function} [cb]
+ */
+
+p$1.leave = function (op, cb) {
+  this.cancelPending();
+  this.callHook('beforeLeave');
+  this.op = op;
+  this.cb = cb;
+  addClass(this.el, this.leaveClass);
+  this.left = false;
+  this.callHookWithCb('leave');
+  if (this.left) {
+    return; // user called done synchronously.
+  }
+  this.cancel = this.hooks && this.hooks.leaveCancelled;
+  // only need to handle leaveDone if
+  // 1. the transition is already done (synchronously called
+  //    by the user, which causes this.op set to null)
+  // 2. there's no explicit js callback
+  if (this.op && !this.pendingJsCb) {
+    // if a CSS transition leaves immediately after enter,
+    // the transitionend event never fires. therefore we
+    // detect such cases and end the leave immediately.
+    if (this.justEntered) {
+      this.leaveDone();
+    } else {
+      pushJob(this.leaveNextTick);
+    }
+  }
+};
+
+/**
+ * The "nextTick" phase of a leaving transition.
+ */
+
+p$1.leaveNextTick = function () {
+  var type = this.getCssTransitionType(this.leaveClass);
+  if (type) {
+    var event = type === TYPE_TRANSITION ? transitionEndEvent : animationEndEvent;
+    this.setupCssCb(event, this.leaveDone);
+  } else {
+    this.leaveDone();
+  }
+};
+
+/**
+ * The "cleanup" phase of a leaving transition.
+ */
+
+p$1.leaveDone = function () {
+  this.left = true;
+  this.cancel = this.pendingJsCb = null;
+  this.op();
+  removeClass(this.el, this.leaveClass);
+  this.callHook('afterLeave');
+  if (this.cb) this.cb();
+  this.op = null;
+};
+
+/**
+ * Cancel any pending callbacks from a previously running
+ * but not finished transition.
+ */
+
+p$1.cancelPending = function () {
+  this.op = this.cb = null;
+  var hasPending = false;
+  if (this.pendingCssCb) {
+    hasPending = true;
+    off(this.el, this.pendingCssEvent, this.pendingCssCb);
+    this.pendingCssEvent = this.pendingCssCb = null;
+  }
+  if (this.pendingJsCb) {
+    hasPending = true;
+    this.pendingJsCb.cancel();
+    this.pendingJsCb = null;
+  }
+  if (hasPending) {
+    removeClass(this.el, this.enterClass);
+    removeClass(this.el, this.leaveClass);
+  }
+  if (this.cancel) {
+    this.cancel.call(this.vm, this.el);
+    this.cancel = null;
+  }
+};
+
+/**
+ * Call a user-provided synchronous hook function.
+ *
+ * @param {String} type
+ */
+
+p$1.callHook = function (type) {
+  if (this.hooks && this.hooks[type]) {
+    this.hooks[type].call(this.vm, this.el);
+  }
+};
+
+/**
+ * Call a user-provided, potentially-async hook function.
+ * We check for the length of arguments to see if the hook
+ * expects a `done` callback. If true, the transition's end
+ * will be determined by when the user calls that callback;
+ * otherwise, the end is determined by the CSS transition or
+ * animation.
+ *
+ * @param {String} type
+ */
+
+p$1.callHookWithCb = function (type) {
+  var hook = this.hooks && this.hooks[type];
+  if (hook) {
+    if (hook.length > 1) {
+      this.pendingJsCb = cancellable(this[type + 'Done']);
+    }
+    hook.call(this.vm, this.el, this.pendingJsCb);
+  }
+};
+
+/**
+ * Get an element's transition type based on the
+ * calculated styles.
+ *
+ * @param {String} className
+ * @return {Number}
+ */
+
+p$1.getCssTransitionType = function (className) {
+  /* istanbul ignore if */
+  if (!transitionEndEvent ||
+  // skip CSS transitions if page is not visible -
+  // this solves the issue of transitionend events not
+  // firing until the page is visible again.
+  // pageVisibility API is supported in IE10+, same as
+  // CSS transitions.
+  document.hidden ||
+  // explicit js-only transition
+  this.hooks && this.hooks.css === false ||
+  // element is hidden
+  isHidden(this.el)) {
+    return;
+  }
+  var type = this.type || this.typeCache[className];
+  if (type) return type;
+  var inlineStyles = this.el.style;
+  var computedStyles = window.getComputedStyle(this.el);
+  var transDuration = inlineStyles[transDurationProp] || computedStyles[transDurationProp];
+  if (transDuration && transDuration !== '0s') {
+    type = TYPE_TRANSITION;
+  } else {
+    var animDuration = inlineStyles[animDurationProp] || computedStyles[animDurationProp];
+    if (animDuration && animDuration !== '0s') {
+      type = TYPE_ANIMATION;
+    }
+  }
+  if (type) {
+    this.typeCache[className] = type;
+  }
+  return type;
+};
+
+/**
+ * Setup a CSS transitionend/animationend callback.
+ *
+ * @param {String} event
+ * @param {Function} cb
+ */
+
+p$1.setupCssCb = function (event, cb) {
+  this.pendingCssEvent = event;
+  var self = this;
+  var el = this.el;
+  var onEnd = this.pendingCssCb = function (e) {
+    if (e.target === el) {
+      off(el, event, onEnd);
+      self.pendingCssEvent = self.pendingCssCb = null;
+      if (!self.pendingJsCb && cb) {
+        cb();
+      }
+    }
+  };
+  on(el, event, onEnd);
+};
+
+/**
+ * Check if an element is hidden - in that case we can just
+ * skip the transition alltogether.
+ *
+ * @param {Element} el
+ * @return {Boolean}
+ */
+
+function isHidden(el) {
+  if (/svg$/.test(el.namespaceURI)) {
+    // SVG elements do not have offset(Width|Height)
+    // so we need to check the client rect
+    var rect = el.getBoundingClientRect();
+    return !(rect.width || rect.height);
+  } else {
+    return !(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+  }
+}
+
+var transition$1 = {
+
+  priority: TRANSITION,
+
+  update: function update(id, oldId) {
+    var el = this.el;
+    // resolve on owner vm
+    var hooks = resolveAsset(this.vm.$options, 'transitions', id);
+    id = id || 'v';
+    el.__v_trans = new Transition(el, id, hooks, this.vm);
+    if (oldId) {
+      removeClass(el, oldId + '-transition');
+    }
+    addClass(el, id + '-transition');
+  }
+};
 
 var internalDirectives = {
   style: style,
   'class': vClass,
   component: component,
   prop: propDef,
-  transition: transition
+  transition: transition$1
 };
 
 var propBindingModes = config._propBindingModes;
@@ -34745,7 +40661,7 @@ function compileProps(el, propOptions) {
       value = parsed.expression;
       prop.filters = parsed.filters;
       // check binding type
-      if (isLiteral(value)) {
+      if (isLiteral(value) && !parsed.filters) {
         // for expressions containing literal numbers and
         // booleans, there's no need to setup a prop binding,
         // so we can optimize them as a one-time set.
@@ -34767,9 +40683,16 @@ function compileProps(el, propOptions) {
     } else if ((value = getAttr(el, attr)) !== null) {
       // has literal binding!
       prop.raw = value;
-    } else if (options.required) {
-      // warn missing required
-      process.env.NODE_ENV !== 'production' && warn('Missing required prop: ' + name);
+    } else if (process.env.NODE_ENV !== 'production') {
+      // check possible camelCase prop usage
+      var lowerCaseName = path.toLowerCase();
+      value = /[A-Z\-]/.test(name) && (el.getAttribute(lowerCaseName) || el.getAttribute(':' + lowerCaseName) || el.getAttribute('v-bind:' + lowerCaseName) || el.getAttribute(':' + lowerCaseName + '.once') || el.getAttribute('v-bind:' + lowerCaseName + '.once') || el.getAttribute(':' + lowerCaseName + '.sync') || el.getAttribute('v-bind:' + lowerCaseName + '.sync'));
+      if (value) {
+        warn('Possible usage error for prop `' + lowerCaseName + '` - ' + 'did you mean `' + attr + '`? HTML is case-insensitive, remember to use ' + 'kebab-case for props in templates.');
+      } else if (options.required) {
+        // warn missing required
+        warn('Missing required prop: ' + name);
+      }
     }
     // push prop
     props.push(prop);
@@ -34801,22 +40724,23 @@ function makePropsLinkFn(props) {
         initProp(vm, prop, getDefault(vm, options));
       } else if (prop.dynamic) {
         // dynamic prop
-        if (vm._context) {
-          if (prop.mode === propBindingModes.ONE_TIME) {
-            // one time binding
-            value = (scope || vm._context).$get(prop.parentPath);
-            initProp(vm, prop, value);
-          } else {
+        if (prop.mode === propBindingModes.ONE_TIME) {
+          // one time binding
+          value = (scope || vm._context || vm).$get(prop.parentPath);
+          initProp(vm, prop, value);
+        } else {
+          if (vm._context) {
             // dynamic binding
             vm._bindDir({
               name: 'prop',
               def: propDef,
               prop: prop
             }, null, null, scope); // el, host, scope
-          }
-        } else {
-            process.env.NODE_ENV !== 'production' && warn('Cannot bind dynamic prop on a root instance' + ' with no parent: ' + prop.name + '="' + raw + '"');
-          }
+          } else {
+              // root instance
+              initProp(vm, prop, vm.$get(prop.parentPath));
+            }
+        }
       } else if (prop.optimizedLiteral) {
         // optimized literal, cast it and just set once
         var stripped = stripQuotes(raw);
@@ -34858,7 +40782,7 @@ function getDefault(vm, options) {
 // special binding prefixes
 var bindRE = /^v-bind:|^:/;
 var onRE = /^v-on:|^@/;
-var argRE = /:(.*)$/;
+var dirAttrRE = /^v-([^:]+)(?:$|:(.*)$)/;
 var modifierRE = /\.[^\.]+/g;
 var transitionRE = /^(v-bind:|:)?transition$/;
 
@@ -34925,6 +40849,15 @@ function compile(el, options, partial) {
  */
 
 function linkAndCapture(linker, vm) {
+  /* istanbul ignore if */
+  if (process.env.NODE_ENV === 'production') {
+    // reset directives before every capture in production
+    // mode, so that when unlinking we don't need to splice
+    // them out (which turns out to be a perf hit).
+    // they are kept in development mode because they are
+    // useful for Vue's own tests.
+    vm._directives = [];
+  }
   var originalDirCount = vm._directives.length;
   linker();
   var dirs = vm._directives.slice(originalDirCount);
@@ -34964,12 +40897,15 @@ function directiveComparator(a, b) {
  */
 
 function makeUnlinkFn(vm, dirs, context, contextDirs) {
-  return function unlink(destroying) {
+  function unlink(destroying) {
     teardownDirs(vm, dirs, destroying);
     if (context && contextDirs) {
       teardownDirs(context, contextDirs);
     }
-  };
+  }
+  // expose linked directives
+  unlink.dirs = dirs;
+  return unlink;
 }
 
 /**
@@ -34984,7 +40920,7 @@ function teardownDirs(vm, dirs, destroying) {
   var i = dirs.length;
   while (i--) {
     dirs[i]._teardown();
-    if (!destroying) {
+    if (process.env.NODE_ENV !== 'production' && !destroying) {
       vm._directives.$remove(dirs[i]);
     }
   }
@@ -35017,7 +40953,6 @@ function compileAndLinkProps(vm, el, props, scope) {
  *
  * If this is a fragment instance, we only need to compile 1.
  *
- * @param {Vue} vm
  * @param {Element} el
  * @param {Object} options
  * @param {Object} contextOptions
@@ -35065,6 +41000,7 @@ function compileRoot(el, options, contextOptions) {
     }
   }
 
+  options._containerAttrs = options._replacerAttrs = null;
   return function rootLinkFn(vm, el, scope) {
     // link context scope dirs
     var context = vm._context;
@@ -35226,7 +41162,7 @@ function processTextToken(token, options) {
     var parsed = parseDirective(token.value);
     token.descriptor = {
       name: type,
-      def: publicDirectives[type],
+      def: directives[type],
       expression: parsed.expression,
       filters: parsed.filters
     };
@@ -35323,11 +41259,8 @@ function makeChildLinkFn(linkFns) {
 
 function checkElementDirectives(el, options) {
   var tag = el.tagName.toLowerCase();
-  if (commonTagRE.test(tag)) return;
-  // special case: give named slot a higher priority
-  // than unnamed slots
-  if (tag === 'slot' && hasBindAttr(el, 'name')) {
-    tag = '_namedSlot';
+  if (commonTagRE.test(tag)) {
+    return;
   }
   var def = resolveAsset(options, 'elementDirectives', tag);
   if (def) {
@@ -35392,11 +41325,10 @@ function checkTerminalDirectives(el, options) {
   var value, dirName;
   for (var i = 0, l = terminalDirectives.length; i < l; i++) {
     dirName = terminalDirectives[i];
-    /* eslint-disable no-cond-assign */
-    if (value = el.getAttribute('v-' + dirName)) {
+    value = el.getAttribute('v-' + dirName);
+    if (value != null) {
       return makeTerminalNodeLinkFn(el, dirName, value, options);
     }
-    /* eslint-enable no-cond-assign */
   }
 }
 
@@ -35425,7 +41357,8 @@ function makeTerminalNodeLinkFn(el, dirName, value, options, def) {
     filters: parsed.filters,
     raw: value,
     // either an element directive, or if/for
-    def: def || publicDirectives[dirName]
+    // #2366 or custom terminal directive
+    def: def || resolveAsset(options, 'directives', dirName)
   };
   // check ref for v-for and router-view
   if (dirName === 'for' || dirName === 'router-view') {
@@ -35452,7 +41385,7 @@ function makeTerminalNodeLinkFn(el, dirName, value, options, def) {
 function compileDirectives(attrs, options) {
   var i = attrs.length;
   var dirs = [];
-  var attr, name, value, rawName, rawValue, dirName, arg, modifiers, dirDef, tokens;
+  var attr, name, value, rawName, rawValue, dirName, arg, modifiers, dirDef, tokens, matched;
   while (i--) {
     attr = attrs[i];
     name = rawName = attr.name;
@@ -35468,7 +41401,7 @@ function compileDirectives(attrs, options) {
     if (tokens) {
       value = tokensToExp(tokens);
       arg = name;
-      pushDir('bind', publicDirectives.bind, true);
+      pushDir('bind', directives.bind, tokens);
       // warn against mixing mustaches with v-bind
       if (process.env.NODE_ENV !== 'production') {
         if (name === 'class' && Array.prototype.some.call(attrs, function (attr) {
@@ -35488,7 +41421,7 @@ function compileDirectives(attrs, options) {
         // event handlers
         if (onRE.test(name)) {
           arg = name.replace(onRE, '');
-          pushDir('on', publicDirectives.on);
+          pushDir('on', directives.on);
         } else
 
           // attribute bindings
@@ -35498,19 +41431,14 @@ function compileDirectives(attrs, options) {
               pushDir(dirName, internalDirectives[dirName]);
             } else {
               arg = dirName;
-              pushDir('bind', publicDirectives.bind);
+              pushDir('bind', directives.bind);
             }
           } else
 
             // normal directives
-            if (name.indexOf('v-') === 0) {
-              // check arg
-              arg = (arg = name.match(argRE)) && arg[1];
-              if (arg) {
-                name = name.replace(argRE, '');
-              }
-              // extract directive name
-              dirName = name.slice(2);
+            if (matched = name.match(dirAttrRE)) {
+              dirName = matched[1];
+              arg = matched[2];
 
               // skip v-else (when used with v-show)
               if (dirName === 'else') {
@@ -35534,11 +41462,12 @@ function compileDirectives(attrs, options) {
    *
    * @param {String} dirName
    * @param {Object|Function} def
-   * @param {Boolean} [interp]
+   * @param {Array} [interpTokens]
    */
 
-  function pushDir(dirName, def, interp) {
-    var parsed = parseDirective(value);
+  function pushDir(dirName, def, interpTokens) {
+    var hasOneTimeToken = interpTokens && hasOneTime(interpTokens);
+    var parsed = !hasOneTimeToken && parseDirective(value);
     dirs.push({
       name: dirName,
       attr: rawName,
@@ -35546,9 +41475,13 @@ function compileDirectives(attrs, options) {
       def: def,
       arg: arg,
       modifiers: modifiers,
-      expression: parsed.expression,
-      filters: parsed.filters,
-      interp: interp
+      // conversion from interpolation strings with one-time token
+      // to expression is differed until directive bind time so that we
+      // have access to the actual vm context for one-time bindings.
+      expression: parsed && parsed.expression,
+      filters: parsed && parsed.filters,
+      interp: interpTokens,
+      hasOneTime: hasOneTimeToken
     });
   }
 
@@ -35593,6 +41526,20 @@ function makeNodeLinkFn(directives) {
   };
 }
 
+/**
+ * Check if an interpolation string contains one-time tokens.
+ *
+ * @param {Array} tokens
+ * @return {Boolean}
+ */
+
+function hasOneTime(tokens) {
+  var i = tokens.length;
+  while (i--) {
+    if (tokens[i].oneTime) return true;
+  }
+}
+
 var specialCharRE = /[^\w\-:\.]/;
 
 /**
@@ -35630,7 +41577,7 @@ function transclude(el, options) {
       el = transcludeTemplate(el, options);
     }
   }
-  if (el instanceof DocumentFragment) {
+  if (isFragment(el)) {
     // anchors for fragment instance
     // passing in `persist: true` to avoid them being
     // discarded by IE during template cloning
@@ -35722,7 +41669,7 @@ function mergeAttrs(from, to) {
     value = attrs[i].value;
     if (!to.hasAttribute(name) && !specialCharRE.test(name)) {
       to.setAttribute(name, value);
-    } else if (name === 'class') {
+    } else if (name === 'class' && !parseText(value)) {
       value.split(/\s+/).forEach(function (cls) {
         addClass(to, cls);
       });
@@ -35730,15 +41677,89 @@ function mergeAttrs(from, to) {
   }
 }
 
+/**
+ * Scan and determine slot content distribution.
+ * We do this during transclusion instead at compile time so that
+ * the distribution is decoupled from the compilation order of
+ * the slots.
+ *
+ * @param {Element|DocumentFragment} template
+ * @param {Element} content
+ * @param {Vue} vm
+ */
+
+function scanSlots(template, content, vm) {
+  if (!content) {
+    return;
+  }
+  var contents = vm._slotContents = {};
+  var slots = template.querySelectorAll('slot');
+  if (slots.length) {
+    var hasDefault, slot, name;
+    for (var i = 0, l = slots.length; i < l; i++) {
+      slot = slots[i];
+      /* eslint-disable no-cond-assign */
+      if (name = slot.getAttribute('name')) {
+        select(slot, name);
+      } else if (process.env.NODE_ENV !== 'production' && (name = getBindAttr(slot, 'name'))) {
+        warn('<slot :name="' + name + '">: slot names cannot be dynamic.');
+      } else {
+        // default slot
+        hasDefault = true;
+      }
+      /* eslint-enable no-cond-assign */
+    }
+    if (hasDefault) {
+      contents['default'] = extractFragment(content.childNodes, content);
+    }
+  }
+
+  function select(slot, name) {
+    // named slot
+    var selector = '[slot="' + name + '"]';
+    var nodes = content.querySelectorAll(selector);
+    if (nodes.length) {
+      contents[name] = extractFragment(nodes, content);
+    }
+  }
+}
+
+/**
+ * Extract qualified content nodes from a node list.
+ *
+ * @param {NodeList} nodes
+ * @param {Element} parent
+ * @return {DocumentFragment}
+ */
+
+function extractFragment(nodes, parent) {
+  var frag = document.createDocumentFragment();
+  nodes = toArray(nodes);
+  for (var i = 0, l = nodes.length; i < l; i++) {
+    var node = nodes[i];
+    if (node.parentNode === parent) {
+      if (isTemplate(node) && !node.hasAttribute('v-if') && !node.hasAttribute('v-for')) {
+        parent.removeChild(node);
+        node = parseTemplate(node);
+      }
+      frag.appendChild(node);
+    }
+  }
+  return frag;
+}
+
+
+
 var compiler = Object.freeze({
 	compile: compile,
 	compileAndLinkProps: compileAndLinkProps,
 	compileRoot: compileRoot,
-	transclude: transclude
+	terminalDirectives: terminalDirectives,
+	transclude: transclude,
+	scanSlots: scanSlots
 });
 
 function stateMixin (Vue) {
-
   /**
    * Accessor for `$data` property, since setting $data
    * requires observing the new object and updating
@@ -35798,10 +41819,15 @@ function stateMixin (Vue) {
     var propsData = this._data;
     var optionsDataFn = this.$options.data;
     var optionsData = optionsDataFn && optionsDataFn();
+    var runtimeData;
+    if (process.env.NODE_ENV !== 'production') {
+      runtimeData = (typeof this._runtimeData === 'function' ? this._runtimeData() : this._runtimeData) || {};
+      this._runtimeData = null;
+    }
     if (optionsData) {
       this._data = optionsData;
       for (var prop in propsData) {
-        if (process.env.NODE_ENV !== 'production' && hasOwn(optionsData, prop)) {
+        if (process.env.NODE_ENV !== 'production' && hasOwn(optionsData, prop) && !hasOwn(runtimeData, prop)) {
           warn('Data field "' + prop + '" is already defined ' + 'as a prop. Use prop default value instead.');
         }
         if (this._props[prop].raw !== null || !hasOwn(optionsData, prop)) {
@@ -35926,8 +41952,8 @@ function stateMixin (Vue) {
           def.get = makeComputedGetter(userDef, this);
           def.set = noop;
         } else {
-          def.get = userDef.get ? userDef.cache !== false ? makeComputedGetter(userDef.get, this) : bind$1(userDef.get, this) : noop;
-          def.set = userDef.set ? bind$1(userDef.set, this) : noop;
+          def.get = userDef.get ? userDef.cache !== false ? makeComputedGetter(userDef.get, this) : bind(userDef.get, this) : noop;
+          def.set = userDef.set ? bind(userDef.set, this) : noop;
         }
         Object.defineProperty(this, key, def);
       }
@@ -35959,7 +41985,7 @@ function stateMixin (Vue) {
     var methods = this.$options.methods;
     if (methods) {
       for (var key in methods) {
-        this[key] = bind$1(methods[key], this);
+        this[key] = bind(methods[key], this);
       }
     }
   };
@@ -35981,7 +42007,6 @@ function stateMixin (Vue) {
 var eventRE = /^v-on:|^@/;
 
 function eventsMixin (Vue) {
-
   /**
    * Setup the instance's option events & watchers.
    * If the value is a string, we pull it from the
@@ -36012,7 +42037,12 @@ function eventsMixin (Vue) {
       if (eventRE.test(name)) {
         name = name.replace(eventRE, '');
         handler = (vm._scope || vm._context).$eval(attrs[i].value, true);
-        vm.$on(name.replace(eventRE), handler);
+        if (typeof handler === 'function') {
+          handler._fromParent = true;
+          vm.$on(name.replace(eventRE), handler);
+        } else if (process.env.NODE_ENV !== 'production') {
+          warn('v-on:' + name + '="' + attrs[i].value + '"' + (vm.$options.name ? ' on component <' + vm.$options.name + '>' : '') + ' expects a function value, got ' + handler);
+        }
       }
     }
   }
@@ -36240,8 +42270,8 @@ Directive.prototype._bind = function () {
     } else {
       this._update = noop;
     }
-    var preProcess = this._preProcess ? bind$1(this._preProcess, this) : null;
-    var postProcess = this._postProcess ? bind$1(this._postProcess, this) : null;
+    var preProcess = this._preProcess ? bind(this._preProcess, this) : null;
+    var postProcess = this._postProcess ? bind(this._postProcess, this) : null;
     var watcher = this._watcher = new Watcher(this.vm, this.expression, this._update, // callback
     {
       filters: this.filters,
@@ -36393,10 +42423,11 @@ Directive.prototype._withLock = function (fn) {
  *
  * @param {String} event
  * @param {Function} handler
+ * @param {Boolean} [useCapture]
  */
 
-Directive.prototype.on = function (event, handler) {
-  on$1(this.el, event, handler);(this._listeners || (this._listeners = [])).push([event, handler]);
+Directive.prototype.on = function (event, handler, useCapture) {
+  on(this.el, event, handler, useCapture);(this._listeners || (this._listeners = [])).push([event, handler]);
 };
 
 /**
@@ -36435,7 +42466,6 @@ Directive.prototype._teardown = function () {
 };
 
 function lifecycleMixin (Vue) {
-
   /**
    * Update v-ref for component.
    *
@@ -36466,7 +42496,6 @@ function lifecycleMixin (Vue) {
    * Otherwise we need to call transclude/compile/link here.
    *
    * @param {Element} el
-   * @return {Element}
    */
 
   Vue.prototype._compile = function (el) {
@@ -36490,6 +42519,10 @@ function lifecycleMixin (Vue) {
     // container attrs and props can be different every time.
     var contextOptions = this._context && this._context.$options;
     var rootLinker = compileRoot(el, options, contextOptions);
+
+    // scan for slot distribution before compiling the content
+    // so that it's decoupeld from slot/directive compilation order
+    scanSlots(el, options._content, this);
 
     // compile and link the rest
     var contentLinkFn;
@@ -36524,7 +42557,6 @@ function lifecycleMixin (Vue) {
 
     this._isCompiled = true;
     this._callHook('compiled');
-    return el;
   };
 
   /**
@@ -36535,7 +42567,7 @@ function lifecycleMixin (Vue) {
    */
 
   Vue.prototype._initElement = function (el) {
-    if (el instanceof DocumentFragment) {
+    if (isFragment(el)) {
       this._isFragment = true;
       this.$el = this._fragmentStart = el.firstChild;
       this._fragmentEnd = el.lastChild;
@@ -36684,7 +42716,6 @@ function lifecycleMixin (Vue) {
 }
 
 function miscMixin (Vue) {
-
   /**
    * Apply a list of filter (descriptors) to a value.
    * Using plain for loops here because this will be called in
@@ -36752,7 +42783,7 @@ function miscMixin (Vue) {
       } else {
         factory.requested = true;
         var cbs = factory.pendingCallbacks = [cb];
-        factory(function resolve(res) {
+        factory.call(this, function resolve(res) {
           if (isPlainObject(res)) {
             res = Vue.extend(res);
           }
@@ -36773,165 +42804,9 @@ function miscMixin (Vue) {
   };
 }
 
-function globalAPI (Vue) {
-
-  /**
-   * Expose useful internals
-   */
-
-  Vue.util = util;
-  Vue.config = config;
-  Vue.set = set;
-  Vue['delete'] = del;
-  Vue.nextTick = nextTick;
-
-  /**
-   * The following are exposed for advanced usage / plugins
-   */
-
-  Vue.compiler = compiler;
-  Vue.FragmentFactory = FragmentFactory;
-  Vue.internalDirectives = internalDirectives;
-  Vue.parsers = {
-    path: path,
-    text: text$1,
-    template: template,
-    directive: directive,
-    expression: expression
-  };
-
-  /**
-   * Each instance constructor, including Vue, has a unique
-   * cid. This enables us to create wrapped "child
-   * constructors" for prototypal inheritance and cache them.
-   */
-
-  Vue.cid = 0;
-  var cid = 1;
-
-  /**
-   * Class inheritance
-   *
-   * @param {Object} extendOptions
-   */
-
-  Vue.extend = function (extendOptions) {
-    extendOptions = extendOptions || {};
-    var Super = this;
-    var isFirstExtend = Super.cid === 0;
-    if (isFirstExtend && extendOptions._Ctor) {
-      return extendOptions._Ctor;
-    }
-    var name = extendOptions.name || Super.options.name;
-    if (process.env.NODE_ENV !== 'production') {
-      if (!/^[a-zA-Z][\w-]+$/.test(name)) {
-        warn('Invalid component name: ' + name);
-        name = null;
-      }
-    }
-    var Sub = createClass(name || 'VueComponent');
-    Sub.prototype = Object.create(Super.prototype);
-    Sub.prototype.constructor = Sub;
-    Sub.cid = cid++;
-    Sub.options = mergeOptions(Super.options, extendOptions);
-    Sub['super'] = Super;
-    // allow further extension
-    Sub.extend = Super.extend;
-    // create asset registers, so extended classes
-    // can have their private assets too.
-    config._assetTypes.forEach(function (type) {
-      Sub[type] = Super[type];
-    });
-    // enable recursive self-lookup
-    if (name) {
-      Sub.options.components[name] = Sub;
-    }
-    // cache constructor
-    if (isFirstExtend) {
-      extendOptions._Ctor = Sub;
-    }
-    return Sub;
-  };
-
-  /**
-   * A function that returns a sub-class constructor with the
-   * given name. This gives us much nicer output when
-   * logging instances in the console.
-   *
-   * @param {String} name
-   * @return {Function}
-   */
-
-  function createClass(name) {
-    return new Function('return function ' + classify(name) + ' (options) { this._init(options) }')();
-  }
-
-  /**
-   * Plugin system
-   *
-   * @param {Object} plugin
-   */
-
-  Vue.use = function (plugin) {
-    /* istanbul ignore if */
-    if (plugin.installed) {
-      return;
-    }
-    // additional parameters
-    var args = toArray(arguments, 1);
-    args.unshift(this);
-    if (typeof plugin.install === 'function') {
-      plugin.install.apply(plugin, args);
-    } else {
-      plugin.apply(null, args);
-    }
-    plugin.installed = true;
-    return this;
-  };
-
-  /**
-   * Apply a global mixin by merging it into the default
-   * options.
-   */
-
-  Vue.mixin = function (mixin) {
-    Vue.options = mergeOptions(Vue.options, mixin);
-  };
-
-  /**
-   * Create asset registration methods with the following
-   * signature:
-   *
-   * @param {String} id
-   * @param {*} definition
-   */
-
-  config._assetTypes.forEach(function (type) {
-    Vue[type] = function (id, definition) {
-      if (!definition) {
-        return this.options[type + 's'][id];
-      } else {
-        /* istanbul ignore if */
-        if (process.env.NODE_ENV !== 'production') {
-          if (type === 'component' && (commonTagRE.test(id) || reservedTagRE.test(id))) {
-            warn('Do not use built-in or reserved HTML elements as component ' + 'id: ' + id);
-          }
-        }
-        if (type === 'component' && isPlainObject(definition)) {
-          definition.name = id;
-          definition = Vue.extend(definition);
-        }
-        this.options[type + 's'][id] = definition;
-        return definition;
-      }
-    };
-  });
-}
-
-var filterRE = /[^|]\|[^|]/;
+var filterRE$1 = /[^|]\|[^|]/;
 
 function dataAPI (Vue) {
-
   /**
    * Get the value from an expression on this vm.
    *
@@ -36947,8 +42822,9 @@ function dataAPI (Vue) {
         var self = this;
         return function statementHandler() {
           self.$arguments = toArray(arguments);
-          res.get.call(self, self);
+          var result = res.get.call(self, self);
           self.$arguments = null;
+          return result;
         };
       } else {
         try {
@@ -37027,7 +42903,7 @@ function dataAPI (Vue) {
 
   Vue.prototype.$eval = function (text, asStatement) {
     // check for filters.
-    if (filterRE.test(text)) {
+    if (filterRE$1.test(text)) {
       var dir = parseDirective(text);
       // the filter regex check might give false positive
       // for pipes inside strings, so it's possible that
@@ -37099,7 +42975,6 @@ function dataAPI (Vue) {
 }
 
 function domAPI (Vue) {
-
   /**
    * Convenience on-instance nextTick. The callback is
    * auto-bound to the instance, and this avoids component
@@ -37285,7 +43160,6 @@ function domAPI (Vue) {
 }
 
 function eventsAPI (Vue) {
-
   /**
    * Listen on the given `event` with `fn`.
    *
@@ -37368,19 +43242,32 @@ function eventsAPI (Vue) {
   /**
    * Trigger an event on self.
    *
-   * @param {String} event
+   * @param {String|Object} event
    * @return {Boolean} shouldPropagate
    */
 
   Vue.prototype.$emit = function (event) {
+    var isSource = typeof event === 'string';
+    event = isSource ? event : event.name;
     var cbs = this._events[event];
-    var shouldPropagate = !cbs;
+    var shouldPropagate = isSource || !cbs;
     if (cbs) {
       cbs = cbs.length > 1 ? toArray(cbs) : cbs;
+      // this is a somewhat hacky solution to the question raised
+      // in #2102: for an inline component listener like <comp @test="doThis">,
+      // the propagation handling is somewhat broken. Therefore we
+      // need to treat these inline callbacks differently.
+      var hasParentCbs = isSource && cbs.some(function (cb) {
+        return cb._fromParent;
+      });
+      if (hasParentCbs) {
+        shouldPropagate = false;
+      }
       var args = toArray(arguments, 1);
       for (var i = 0, l = cbs.length; i < l; i++) {
-        var res = cbs[i].apply(this, args);
-        if (res === true) {
+        var cb = cbs[i];
+        var res = cb.apply(this, args);
+        if (res === true && (!hasParentCbs || cb._fromParent)) {
           shouldPropagate = true;
         }
       }
@@ -37391,20 +43278,28 @@ function eventsAPI (Vue) {
   /**
    * Recursively broadcast an event to all children instances.
    *
-   * @param {String} event
+   * @param {String|Object} event
    * @param {...*} additional arguments
    */
 
   Vue.prototype.$broadcast = function (event) {
+    var isSource = typeof event === 'string';
+    event = isSource ? event : event.name;
     // if no child has registered for this event,
     // then there's no need to broadcast.
     if (!this._eventsCount[event]) return;
     var children = this.$children;
+    var args = toArray(arguments);
+    if (isSource) {
+      // use object event to indicate non-source emit
+      // on children
+      args[0] = { name: event, source: this };
+    }
     for (var i = 0, l = children.length; i < l; i++) {
       var child = children[i];
-      var shouldPropagate = child.$emit.apply(child, arguments);
+      var shouldPropagate = child.$emit.apply(child, args);
       if (shouldPropagate) {
-        child.$broadcast.apply(child, arguments);
+        child.$broadcast.apply(child, args);
       }
     }
     return this;
@@ -37417,11 +43312,16 @@ function eventsAPI (Vue) {
    * @param {...*} additional arguments
    */
 
-  Vue.prototype.$dispatch = function () {
-    this.$emit.apply(this, arguments);
+  Vue.prototype.$dispatch = function (event) {
+    var shouldPropagate = this.$emit.apply(this, arguments);
+    if (!shouldPropagate) return;
     var parent = this.$parent;
+    var args = toArray(arguments);
+    // use object event to indicate non-source emit
+    // on parents
+    args[0] = { name: event, source: this };
     while (parent) {
-      var shouldPropagate = parent.$emit.apply(parent, arguments);
+      shouldPropagate = parent.$emit.apply(parent, args);
       parent = shouldPropagate ? parent.$parent : null;
     }
     return this;
@@ -37451,7 +43351,6 @@ function eventsAPI (Vue) {
 }
 
 function lifecycleAPI (Vue) {
-
   /**
    * Set instance target element and kick off the compilation
    * process. The passed in `el` can be a selector string, an
@@ -37540,12 +43439,105 @@ eventsMixin(Vue);
 lifecycleMixin(Vue);
 miscMixin(Vue);
 
-// install APIs
-globalAPI(Vue);
+// install instance APIs
 dataAPI(Vue);
 domAPI(Vue);
 eventsAPI(Vue);
 lifecycleAPI(Vue);
+
+var slot = {
+
+  priority: SLOT,
+  params: ['name'],
+
+  bind: function bind() {
+    // this was resolved during component transclusion
+    var name = this.params.name || 'default';
+    var content = this.vm._slotContents && this.vm._slotContents[name];
+    if (!content || !content.hasChildNodes()) {
+      this.fallback();
+    } else {
+      this.compile(content.cloneNode(true), this.vm._context, this.vm);
+    }
+  },
+
+  compile: function compile(content, context, host) {
+    if (content && context) {
+      if (this.el.hasChildNodes() && content.childNodes.length === 1 && content.childNodes[0].nodeType === 1 && content.childNodes[0].hasAttribute('v-if')) {
+        // if the inserted slot has v-if
+        // inject fallback content as the v-else
+        var elseBlock = document.createElement('template');
+        elseBlock.setAttribute('v-else', '');
+        elseBlock.innerHTML = this.el.innerHTML;
+        // the else block should be compiled in child scope
+        elseBlock._context = this.vm;
+        content.appendChild(elseBlock);
+      }
+      var scope = host ? host._scope : this._scope;
+      this.unlink = context.$compile(content, host, scope, this._frag);
+    }
+    if (content) {
+      replace(this.el, content);
+    } else {
+      remove(this.el);
+    }
+  },
+
+  fallback: function fallback() {
+    this.compile(extractContent(this.el, true), this.vm);
+  },
+
+  unbind: function unbind() {
+    if (this.unlink) {
+      this.unlink();
+    }
+  }
+};
+
+var partial = {
+
+  priority: PARTIAL,
+
+  params: ['name'],
+
+  // watch changes to name for dynamic partials
+  paramWatchers: {
+    name: function name(value) {
+      vIf.remove.call(this);
+      if (value) {
+        this.insert(value);
+      }
+    }
+  },
+
+  bind: function bind() {
+    this.anchor = createAnchor('v-partial');
+    replace(this.el, this.anchor);
+    this.insert(this.params.name);
+  },
+
+  insert: function insert(id) {
+    var partial = resolveAsset(this.vm.$options, 'partials', id);
+    if (process.env.NODE_ENV !== 'production') {
+      assertAsset(partial, 'partial', id);
+    }
+    if (partial) {
+      this.factory = new FragmentFactory(this.vm, partial);
+      vIf.insert.call(this);
+    }
+  },
+
+  unbind: function unbind() {
+    if (this.frag) {
+      this.frag.destroy();
+    }
+  }
+};
+
+var elementDirectives = {
+  slot: slot,
+  partial: partial
+};
 
 var convertArray = vFor._postProcess;
 
@@ -37558,6 +43550,7 @@ var convertArray = vFor._postProcess;
 
 function limitBy(arr, n, offset) {
   offset = offset ? parseInt(offset, 10) : 0;
+  n = toNumber(n);
   return typeof n === 'number' ? arr.slice(offset, offset + n) : arr;
 }
 
@@ -37595,12 +43588,12 @@ function filterBy(arr, search, delimiter) {
     if (j) {
       while (j--) {
         key = keys[j];
-        if (key === '$key' && contains(item.$key, search) || contains(getPath(val, key), search)) {
+        if (key === '$key' && contains$1(item.$key, search) || contains$1(getPath(val, key), search)) {
           res.push(item);
           break;
         }
       }
-    } else if (contains(item, search)) {
+    } else if (contains$1(item, search)) {
       res.push(item);
     }
   }
@@ -37639,20 +43632,20 @@ function orderBy(arr, sortKey, reverse) {
  * @param {String} search
  */
 
-function contains(val, search) {
+function contains$1(val, search) {
   var i;
   if (isPlainObject(val)) {
     var keys = Object.keys(val);
     i = keys.length;
     while (i--) {
-      if (contains(val[keys[i]], search)) {
+      if (contains$1(val[keys[i]], search)) {
         return true;
       }
     }
   } else if (isArray(val)) {
     i = val.length;
     while (i--) {
-      if (contains(val[i], search)) {
+      if (contains$1(val[i], search)) {
         return true;
       }
     }
@@ -37731,7 +43724,7 @@ var filters = {
     var head = i > 0 ? _int.slice(0, i) + (_int.length > 3 ? ',' : '') : '';
     var _float = stringified.slice(-3);
     var sign = value < 0 ? '-' : '';
-    return _currency + sign + head + _int.slice(i).replace(digitsRE, '$1,') + _float;
+    return sign + _currency + head + _int.slice(i).replace(digitsRE, '$1,') + _float;
   },
 
   /**
@@ -37769,200 +43762,201 @@ var filters = {
   }
 };
 
-var partial = {
+function installGlobalAPI (Vue) {
+  /**
+   * Vue and every constructor that extends Vue has an
+   * associated options object, which can be accessed during
+   * compilation steps as `this.constructor.options`.
+   *
+   * These can be seen as the default options of every
+   * Vue instance.
+   */
 
-  priority: PARTIAL,
+  Vue.options = {
+    directives: directives,
+    elementDirectives: elementDirectives,
+    filters: filters,
+    transitions: {},
+    components: {},
+    partials: {},
+    replace: true
+  };
 
-  params: ['name'],
+  /**
+   * Expose useful internals
+   */
 
-  // watch changes to name for dynamic partials
-  paramWatchers: {
-    name: function name(value) {
-      vIf.remove.call(this);
-      if (value) {
-        this.insert(value);
+  Vue.util = util;
+  Vue.config = config;
+  Vue.set = set;
+  Vue['delete'] = del;
+  Vue.nextTick = nextTick;
+
+  /**
+   * The following are exposed for advanced usage / plugins
+   */
+
+  Vue.compiler = compiler;
+  Vue.FragmentFactory = FragmentFactory;
+  Vue.internalDirectives = internalDirectives;
+  Vue.parsers = {
+    path: path,
+    text: text,
+    template: template,
+    directive: directive,
+    expression: expression
+  };
+
+  /**
+   * Each instance constructor, including Vue, has a unique
+   * cid. This enables us to create wrapped "child
+   * constructors" for prototypal inheritance and cache them.
+   */
+
+  Vue.cid = 0;
+  var cid = 1;
+
+  /**
+   * Class inheritance
+   *
+   * @param {Object} extendOptions
+   */
+
+  Vue.extend = function (extendOptions) {
+    extendOptions = extendOptions || {};
+    var Super = this;
+    var isFirstExtend = Super.cid === 0;
+    if (isFirstExtend && extendOptions._Ctor) {
+      return extendOptions._Ctor;
+    }
+    var name = extendOptions.name || Super.options.name;
+    if (process.env.NODE_ENV !== 'production') {
+      if (!/^[a-zA-Z][\w-]*$/.test(name)) {
+        warn('Invalid component name: "' + name + '". Component names ' + 'can only contain alphanumeric characaters and the hyphen.');
+        name = null;
       }
     }
-  },
-
-  bind: function bind() {
-    this.anchor = createAnchor('v-partial');
-    replace(this.el, this.anchor);
-    this.insert(this.params.name);
-  },
-
-  insert: function insert(id) {
-    var partial = resolveAsset(this.vm.$options, 'partials', id);
-    if (process.env.NODE_ENV !== 'production') {
-      assertAsset(partial, 'partial', id);
+    var Sub = createClass(name || 'VueComponent');
+    Sub.prototype = Object.create(Super.prototype);
+    Sub.prototype.constructor = Sub;
+    Sub.cid = cid++;
+    Sub.options = mergeOptions(Super.options, extendOptions);
+    Sub['super'] = Super;
+    // allow further extension
+    Sub.extend = Super.extend;
+    // create asset registers, so extended classes
+    // can have their private assets too.
+    config._assetTypes.forEach(function (type) {
+      Sub[type] = Super[type];
+    });
+    // enable recursive self-lookup
+    if (name) {
+      Sub.options.components[name] = Sub;
     }
-    if (partial) {
-      this.factory = new FragmentFactory(this.vm, partial);
-      vIf.insert.call(this);
+    // cache constructor
+    if (isFirstExtend) {
+      extendOptions._Ctor = Sub;
     }
-  },
+    return Sub;
+  };
 
-  unbind: function unbind() {
-    if (this.frag) {
-      this.frag.destroy();
-    }
+  /**
+   * A function that returns a sub-class constructor with the
+   * given name. This gives us much nicer output when
+   * logging instances in the console.
+   *
+   * @param {String} name
+   * @return {Function}
+   */
+
+  function createClass(name) {
+    /* eslint-disable no-new-func */
+    return new Function('return function ' + classify(name) + ' (options) { this._init(options) }')();
+    /* eslint-enable no-new-func */
   }
-};
 
-// This is the elementDirective that handles <content>
-// transclusions. It relies on the raw content of an
-// instance being stored as `$options._content` during
-// the transclude phase.
+  /**
+   * Plugin system
+   *
+   * @param {Object} plugin
+   */
 
-// We are exporting two versions, one for named and one
-// for unnamed, because the unnamed slots must be compiled
-// AFTER all named slots have selected their content. So
-// we need to give them different priorities in the compilation
-// process. (See #1965)
-
-var slot = {
-
-  priority: SLOT,
-
-  bind: function bind() {
-    var host = this.vm;
-    var raw = host.$options._content;
-    if (!raw) {
-      this.fallback();
+  Vue.use = function (plugin) {
+    /* istanbul ignore if */
+    if (plugin.installed) {
       return;
     }
-    var context = host._context;
-    var slotName = this.params && this.params.name;
-    if (!slotName) {
-      // Default slot
-      this.tryCompile(extractFragment(raw.childNodes, raw, true), context, host);
+    // additional parameters
+    var args = toArray(arguments, 1);
+    args.unshift(this);
+    if (typeof plugin.install === 'function') {
+      plugin.install.apply(plugin, args);
     } else {
-      // Named slot
-      var selector = '[slot="' + slotName + '"]';
-      var nodes = raw.querySelectorAll(selector);
-      if (nodes.length) {
-        this.tryCompile(extractFragment(nodes, raw), context, host);
+      plugin.apply(null, args);
+    }
+    plugin.installed = true;
+    return this;
+  };
+
+  /**
+   * Apply a global mixin by merging it into the default
+   * options.
+   */
+
+  Vue.mixin = function (mixin) {
+    Vue.options = mergeOptions(Vue.options, mixin);
+  };
+
+  /**
+   * Create asset registration methods with the following
+   * signature:
+   *
+   * @param {String} id
+   * @param {*} definition
+   */
+
+  config._assetTypes.forEach(function (type) {
+    Vue[type] = function (id, definition) {
+      if (!definition) {
+        return this.options[type + 's'][id];
       } else {
-        this.fallback();
+        /* istanbul ignore if */
+        if (process.env.NODE_ENV !== 'production') {
+          if (type === 'component' && (commonTagRE.test(id) || reservedTagRE.test(id))) {
+            warn('Do not use built-in or reserved HTML elements as component ' + 'id: ' + id);
+          }
+        }
+        if (type === 'component' && isPlainObject(definition)) {
+          definition.name = id;
+          definition = Vue.extend(definition);
+        }
+        this.options[type + 's'][id] = definition;
+        return definition;
       }
-    }
-  },
+    };
+  });
 
-  tryCompile: function tryCompile(content, context, host) {
-    if (content.hasChildNodes()) {
-      this.compile(content, context, host);
-    } else {
-      this.fallback();
-    }
-  },
-
-  compile: function compile(content, context, host) {
-    if (content && context) {
-      var scope = host ? host._scope : this._scope;
-      this.unlink = context.$compile(content, host, scope, this._frag);
-    }
-    if (content) {
-      replace(this.el, content);
-    } else {
-      remove(this.el);
-    }
-  },
-
-  fallback: function fallback() {
-    this.compile(extractContent(this.el, true), this.vm);
-  },
-
-  unbind: function unbind() {
-    if (this.unlink) {
-      this.unlink();
-    }
-  }
-};
-
-var namedSlot = extend(extend({}, slot), {
-  priority: slot.priority + 1,
-  params: ['name']
-});
-
-/**
- * Extract qualified content nodes from a node list.
- *
- * @param {NodeList} nodes
- * @param {Element} parent
- * @param {Boolean} main
- * @return {DocumentFragment}
- */
-
-function extractFragment(nodes, parent, main) {
-  var frag = document.createDocumentFragment();
-  for (var i = 0, l = nodes.length; i < l; i++) {
-    var node = nodes[i];
-    // if this is the main outlet, we want to skip all
-    // previously selected nodes;
-    // otherwise, we want to mark the node as selected.
-    // clone the node so the original raw content remains
-    // intact. this ensures proper re-compilation in cases
-    // where the outlet is inside a conditional block
-    if (main && !node.__v_selected) {
-      append(node);
-    } else if (!main && node.parentNode === parent) {
-      node.__v_selected = true;
-      append(node);
-    }
-  }
-  return frag;
-
-  function append(node) {
-    if (isTemplate(node) && !node.hasAttribute('v-if') && !node.hasAttribute('v-for')) {
-      node = parseTemplate(node);
-    }
-    node = cloneNode(node);
-    frag.appendChild(node);
-  }
+  // expose internal transition API
+  extend(Vue.transition, transition);
 }
 
-var elementDirectives = {
-  slot: slot,
-  _namedSlot: namedSlot, // same as slot but with higher priority
-  partial: partial
-};
+installGlobalAPI(Vue);
 
-Vue.version = '1.0.13';
-
-/**
- * Vue and every constructor that extends Vue has an
- * associated options object, which can be accessed during
- * compilation steps as `this.constructor.options`.
- *
- * These can be seen as the default options of every
- * Vue instance.
- */
-
-Vue.options = {
-  directives: publicDirectives,
-  elementDirectives: elementDirectives,
-  filters: filters,
-  transitions: {},
-  components: {},
-  partials: {},
-  replace: true
-};
+Vue.version = '1.0.17';
 
 // devtools global hook
-/* istanbul ignore if */
-if (process.env.NODE_ENV !== 'production' && inBrowser) {
-  if (window.__VUE_DEVTOOLS_GLOBAL_HOOK__) {
-    window.__VUE_DEVTOOLS_GLOBAL_HOOK__.emit('init', Vue);
-  } else if (/Chrome\/\d+/.test(navigator.userAgent)) {
-    console.log('Download the Vue Devtools for a better development experience:\n' + 'https://github.com/vuejs/vue-devtools');
-  }
+/* istanbul ignore next */
+if (devtools) {
+  devtools.emit('init', Vue);
+} else if (process.env.NODE_ENV !== 'production' && inBrowser && /Chrome\/\d+/.test(window.navigator.userAgent)) {
+  console.log('Download the Vue Devtools for a better development experience:\n' + 'https://github.com/vuejs/vue-devtools');
 }
 
 module.exports = Vue;
-}).call(this,require('_process'))
+}).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 }).apply(this, arguments);
 
-},{"_process":154}],194:[function(require,module,exports){
+},{"_process":155}],196:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vueify-insert-css/index.js", module);
 (function(){
 var inserted = exports.cache = {}
@@ -37986,7 +43980,7 @@ exports.insert = function (css) {
 
 }).apply(this, arguments);
 
-},{}],195:[function(require,module,exports){
+},{}],197:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/ws/lib/browser.js", module);
 (function(){
 
@@ -38035,7 +44029,7 @@ if (WebSocket) ws.prototype = WebSocket.prototype;
 
 }).apply(this, arguments);
 
-},{}],196:[function(require,module,exports){
+},{}],198:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/app.vue", module);
 (function(){
 'use strict';
@@ -38156,7 +44150,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"./components/index.vue":204,"./components/shared/overlay.vue":235,"./components/sidebar.vue":240,"./stores/playlist":246,"./stores/setting":247,"./stores/shared":248,"jquery":80,"vue":193,"vue-hot-reload-api":170}],197:[function(require,module,exports){
+},{"./components/index.vue":206,"./components/shared/overlay.vue":237,"./components/sidebar.vue":242,"./stores/playlist":250,"./stores/setting":251,"./stores/shared":252,"jquery":80,"vue":195,"vue-hot-reload-api":171}],199:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/dashboard.vue", module);
 (function(){
 "use strict";
@@ -38164,8 +44158,23 @@ _hmr["websocket:null"].initModule("resources/assets/js/components/dashboard.vue"
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
+
+var _moment = require("moment");
+
+var _moment2 = _interopRequireDefault(_moment);
+
+var _weather = require("./widgets/weather.vue");
+
+var _weather2 = _interopRequireDefault(_weather);
+
+var _status = require("./widgets/status.vue");
+
+var _status2 = _interopRequireDefault(_status);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
 exports.default = {
-    components: {},
+    components: { WeatherWidget: _weather2.default, StatusWidget: _status2.default },
     props: [],
     data: function data() {
         return {};
@@ -38173,11 +44182,22 @@ exports.default = {
     ready: function ready() {},
 
     methods: {},
+    computed: {
+        date: function date() {
+            return (0, _moment2.default)().format('ddd, MMM Do YYYY');
+        },
+        time: function time() {
+            return (0, _moment2.default)().format('h:mm a');
+        },
+        next: function next() {
+            return (0, _moment2.default)().add(2, 'days').format('ddd, MMM Do YYYY');
+        }
+    },
     events: {}
 
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"dashboard\" class=\"container-fluid\">\n        <div class=\"row\">\n            <div class=\"col-md-4\">\n                <div class=\"box\">\n                    <div class=\"box-header\">\n                         <h4>FPPD Status</h4>\n                    </div>\n                   \n                   \n                </div>\n            </div>\n            <div class=\"col-md-4\">\n                <div class=\"box\">\n                     <div class=\"box-header\">\n                         <h4>FPPD Mode</h4>\n                    </div>\n                </div>\n            </div>\n            <div class=\"col-md-4\">\n                <div class=\"box widget p-a-1\">\n                    <div class=\"pull-xs-left m-r-1\">\n                        <span class=\"rounded bg-success widget-icon\">\n                            <i class=\"ion-clock\"></i>\n                        </span>\n                    </div>\n                    <div class=\"clear\">\n                        <h4 class=\"text-lg\">12:36 p.m.</h4>\n                        <small class=\"text-muted\">FPPD Time</small>\n                    </div>\n                    \n                </div>\n            </div>\n            \n        </div>\n        <div class=\"row\">\n            <div class=\"col-md-4\">\n                <div class=\"card\">\n                    <div class=\"card-header\">\n                        Player\n                    </div>\n                    <div class=\"card-block\">\n                        \n                    </div>\n                </div>\n            </div>\n        </div>\n        \n    </div>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"dashboard\" class=\"container-fluid\">\n        <div class=\"row\">\n            <div class=\"col-xs-12 col-lg-7\">\n                <status-widget></status-widget>\n            </div>\n           \n            <div class=\"col-xs-12 col-lg-5\">\n                <div class=\"row\">\n                    <div class=\"col-xs-12 col-md-6 col-lg-12\">\n                        \n                        <div class=\"panel box widget bg-azure\">\n                             <span class=\"widget-bg-icon\">\n                                    <i class=\"ion-clock fs-20\"></i>\n                                </span>\n                            <div class=\"panel-heading\">\n                                <div class=\"panel-title text-white hint-text\">FPP Time</div>\n                            </div>\n                            <div class=\"panel-body\">\n                                <h4 class=\"text-lg m-a-0 text-white\">{{ time }}</h4>\n                                <h6 class=\"hint-text m-a-0 text-white\">{{ date }}</h6>\n                               \n                            </div>\n                        </div>\n                      \n                    </div>\n                    <div class=\"col-xs-12 col-md-6 col-lg-12\">\n                        <div class=\"box widget p-a-1 col-xs-6 col-lg-12\">\n                           <!--  <div class=\"row\">\n                                <div class=\"col-xs-1\"> -->\n                                    <span class=\"pull-xs-left m-r-1 rounded bg-info widget-icon\">\n                                        <i class=\"ion-calendar\"></i>\n                                   </span>\n                                <!-- </div> --> \n                                <div class=\"clear\">\n\n                                    <h4 class=\"m-a-0\">Next <span class=\"semi-bold\">Playlist</span> <span class=\"pull-xs-right\">6:00 pm</span></h4>\n                                      \n                                    <h6 class=\"m-a-0 text-muted small-text \"><span class=\"all-caps ls-1\">Main Playlist</span> <span class=\"pull-xs-right\">{{ next }}</span></h6>\n                                </div>\n                            <!-- </div> -->\n                           \n                        </div>\n                    </div>\n                </div>\n                \n            </div>\n            \n        </div>\n        <div class=\"row\">\n            <div class=\"col-xs-12\">\n                <div class=\"box panel widget\">\n                    <div class=\"panel-heading separator\">\n                        <div class=\"panel-title\">Player</div>\n                        <div class=\"panel-controls\">\n                            <ul>\n                              <li><a href=\"#\" class=\"portlet-collapse\" data-toggle=\"collapse\"><i class=\"portlet-icon portlet-icon-collapse\"></i></a>\n                              </li>\n                              <li><a href=\"#\" class=\"portlet-refresh\" data-toggle=\"refresh\"><i class=\"portlet-icon portlet-icon-refresh\"></i></a>\n                              </li>\n                              <li><a href=\"#\" class=\"portlet-close\" data-toggle=\"close\"><i class=\"portlet-icon portlet-icon-close\"></i></a>\n                              </li>\n                            </ul>\n                      </div>\n                    </div>\n                    <div class=\"panel-body\">\n                    </div>\n                </div>\n            </div>\n        </div>\n        \n    </div>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
@@ -38191,7 +44211,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":193,"vue-hot-reload-api":170}],198:[function(require,module,exports){
+},{"./widgets/status.vue":244,"./widgets/weather.vue":245,"moment":150,"vue":195,"vue-hot-reload-api":171}],200:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/effects.vue", module);
 (function(){
 "use strict";
@@ -38226,7 +44246,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":193,"vue-hot-reload-api":170}],199:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171}],201:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/events.vue", module);
 (function(){
 "use strict";
@@ -38261,7 +44281,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":193,"vue-hot-reload-api":170}],200:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171}],202:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/files.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".file-manager .nav-tabs {\n  margin-bottom: 0 !important; }\n  .file-manager .nav-tabs ~ .tab-content {\n    padding-top: 0; }\n\n.file-manager .tab-pane .info {\n  text-align: center;\n  padding: 20px 20px 0;\n  color: #788B94;\n  border-top: 1px solid #eaeaea; }\n\n.file-manager .file-upload-form {\n  min-height: 250px;\n  padding: 25px;\n  border: 1px dashed #eaeaea;\n  border-radius: 2px;\n  background: #fafafa; }\n  .file-manager .file-upload-form h4 {\n    font-weight: 300;\n    margin-bottom: 0; }\n\n.file-manager .upload-message {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column;\n  -webkit-justify-content: center;\n      -ms-flex-pack: center;\n          justify-content: center;\n  -webkit-align-items: center;\n      -ms-flex-align: center;\n          align-items: center;\n  height: 195px; }\n  .file-manager .upload-message p {\n    margin: 0; }\n")
@@ -38316,7 +44336,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"./shared/Tab.vue":226,"./shared/Tabset.vue":227,"./shared/filelist.vue":232,"vue":193,"vue-hot-reload-api":170,"vueify-insert-css":194}],201:[function(require,module,exports){
+},{"./shared/Tab.vue":228,"./shared/Tabset.vue":229,"./shared/filelist.vue":234,"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],203:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/footer.vue", module);
 (function(){
 "use strict";
@@ -38351,7 +44371,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":193,"vue-hot-reload-api":170}],202:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171}],204:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/header/index.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("\n.navbar.header-menu {\n    padding: 10px 0 0;\n}\n")
@@ -38402,7 +44422,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../shared/control-buttons.vue":229,"../shared/header-menu.vue":233,"vue":193,"vue-hot-reload-api":170,"vueify-insert-css":194}],203:[function(require,module,exports){
+},{"../shared/control-buttons.vue":231,"../shared/header-menu.vue":235,"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],205:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/header/settings.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".settings-header {\n  -webkit-flex-flow: wrap;\n      -ms-flex-flow: wrap;\n          flex-flow: wrap;\n  padding: 20px 20px 0;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n  .settings-header .settings-menu {\n    width: 100%;\n    padding: 10px 0 0; }\n    .settings-header .settings-menu a {\n      display: block;\n      text-transform: uppercase;\n      letter-spacing: 0.1em;\n      font-size: 11px;\n      border-bottom: 3px solid transparent;\n      padding: 3px 5px;\n      margin-bottom: -1px; }\n      .settings-header .settings-menu a.active {\n        font-weight: 600;\n        border-color: #F04124; }\n  @media (min-width: 668px) {\n    .settings-header {\n      -webkit-flex-direction: row;\n          -ms-flex-direction: row;\n              flex-direction: row; } }\n")
@@ -38449,7 +44469,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../shared/control-buttons.vue":229,"vue":193,"vue-hot-reload-api":170,"vueify-insert-css":194}],204:[function(require,module,exports){
+},{"../shared/control-buttons.vue":231,"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],206:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/index.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("#main-wrapper {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n")
@@ -38492,7 +44512,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"./footer.vue":201,"./header/index.vue":202,"vue":193,"vue-hot-reload-api":170,"vueify-insert-css":194}],205:[function(require,module,exports){
+},{"./footer.vue":203,"./header/index.vue":204,"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],207:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/not-found.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".error-404 {\n  text-align: center; }\n")
@@ -38521,7 +44541,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":193,"vue-hot-reload-api":170,"vueify-insert-css":194}],206:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],208:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/outputs/dmx.vue", module);
 (function(){
 "use strict";
@@ -38557,28 +44577,30 @@ exports.default = {
             incrementStart: true,
             defStart: 1,
             defType: 'pixelnet',
+            defCount: 512,
             outputs: []
         };
     },
     ready: function ready() {},
 
     methods: {
-        assembleNewOutput: function assembleNewOutput() {
-            var last = arguments.length <= 0 || arguments[0] === undefined ? { start: 0 } : arguments[0];
+        assembleNewOutput: function assembleNewOutput(last) {
 
             return {
                 active: true,
-                start: this.incrementStart ? last.start + 1 : 1,
+                start: this.incrementStart && last ? last.start + last.count : 1,
+                count: this.defCount,
                 type: this.defType,
                 label: null
             };
         }
     },
+    computed: {},
     events: {}
 
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"dmx-settings\" class=\"outputs-container container-fluid box\">   \n      <div class=\"box-header\">\n         <h4 class=\"box-title\"><span class=\"semi-bold\">Pixelnet / DMX</span> Outputs</h4>     \n     </div>\n     <div class=\"box-tool\">\n         <div class=\"enable-output\">\n           <small>Enable Outputs </small>\n           <switch :model.sync=\"enable_pdmx\"></switch>\n         </div>\n     </div>\n      <div class=\"box-body\">\n        <form>\n            <div class=\"output-actions\">\n                <div class=\"filter-row align-end\">\n                    <div class=\"filter text-xs-center\">\n                        <span>Active</span>\n                        <switch :model.sync=\"defActive\" size=\"small\"></switch>\n                    </div>\n                     <div class=\"filter text-xs-center\">\n                        <span>Increment Start</span>\n                        <switch :model.sync=\"incrementStart\" size=\"small\"></switch>\n                    </div>\n                </div>\n                <div class=\"filter-row\">\n                    <div class=\"filter\">\n                         <form-input :model.sync=\"defStart\" type=\"number\" label=\"Start\" size=\"sm\" state-icon=\"\">\n                        </form-input>\n                    </div>\n                    <div class=\"filter\">\n                        <div class=\"form-group\">\n                            <label for=\"\" class=\"control-label\">Type</label>\n                            <div class=\"input\">\n                                <select v-model=\"defType\" class=\"c-select\" style=\"padding-top: 0.25rem; padding-bottom: 0.275rem;\">\n                                    <option value=\"pixelnet\">Pixelnet</option>\n                                    <option value=\"dmx\">DMX</option>\n                                </select>  \n                            </div>\n                        </div>\n                    </div>\n                    \n                    <div class=\"filter\">\n                         <form-input :model.sync=\"quantity\" type=\"number\" label=\"# of Outputs\" size=\"sm\" state-icon=\"\">\n                        </form-input>\n                    </div>\n                    <div class=\"filter\">\n                        <button @click=\"addOutput\" type=\"button\" class=\"button btn-primary pull-xs-right m-a-0\">{{ addOutputLabel }}</button>\n                    </div>\n                </div>\n              \n            </div>\n             <div class=\"pdmx-list output-list table-responsive\">\n                    <table class=\"table table-sm table-hover\">\n                        <thead>\n                        <tr>\n                            <th class=\"text-xs-center output-active\"></th>\n                            <th class=\"text-xs-center output-index\">#</th>\n                            <th class=\"text-xs-center output-number\">Type</th>\n                            <th class=\"text-xs-center output-start\">Start</th>\n                            <th class=\"text-xs-center output-label\">Label</th>\n                            <th class=\"text-xs-center output-action p-r-1\" style=\"width: 45px\"></th>\n                        </tr>\n                        </thead>\n                        <tbody>\n                            <tr is=\"output\" v-for=\"(index, output) in outputs\" :index=\"index\" :output.sync=\"output\"></tr>\n                        </tbody>\n                    </table>\n                </div>\n        </form>\n    </div>\n    </div>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"dmx-settings\" class=\"outputs-container container-fluid box\">   \n      <div class=\"box-header\">\n         <h4 class=\"box-title\"><span class=\"semi-bold\">Pixelnet / DMX</span> Outputs</h4>     \n     </div>\n     <div class=\"box-tool\">\n         <div class=\"enable-output\">\n           <small>Enable Outputs </small>\n           <switch :model.sync=\"enable_pdmx\"></switch>\n         </div>\n     </div>\n      <div class=\"box-body\">\n     \n        <form>\n            <div class=\"output-actions\">\n                <div class=\"filter-row align-end\">\n                    <div class=\"filter text-xs-center\">\n                        <span>Active</span>\n                        <switch :model.sync=\"defActive\" size=\"small\"></switch>\n                    </div>\n                     <div class=\"filter text-xs-center\">\n                        <span>Increment Start</span>\n                        <switch :model.sync=\"incrementStart\" size=\"small\"></switch>\n                    </div>\n                </div>\n                <div class=\"filter-row\">\n                    <div class=\"filter\">\n                         <form-input :model.sync=\"defStart\" type=\"number\" label=\"Start\" size=\"sm\" state-icon=\"\">\n                        </form-input>\n                    </div>\n                    <div class=\"filter\">\n                         <form-input :model.sync=\"defCount\" type=\"number\" label=\"Channel Count\" size=\"sm\" state-icon=\"\">\n                        </form-input>\n                    </div>\n                    <div class=\"filter\">\n                        <div class=\"form-group\">\n                            <label for=\"\" class=\"control-label\">Type</label>\n                            <div class=\"input\">\n                                <select v-model=\"defType\" class=\"c-select\" style=\"padding-top: 0.25rem; padding-bottom: 0.275rem;\">\n                                    <option value=\"pixelnet\">Pixelnet</option>\n                                    <option value=\"dmx\">DMX</option>\n                                </select>  \n                            </div>\n                        </div>\n                    </div>\n                    \n                    <div class=\"filter\">\n                         <form-input :model.sync=\"quantity\" type=\"number\" label=\"# of Outputs\" size=\"sm\" state-icon=\"\">\n                        </form-input>\n                    </div>\n                    <div class=\"filter\">\n                        <button @click=\"addOutput\" type=\"button\" class=\"button btn-primary pull-xs-right m-a-0\">{{ addOutputLabel }}</button>\n                    </div>\n                </div>\n              \n            </div>\n             <div class=\"pdmx-list output-list table-responsive\">\n                    <table class=\"table table-sm table-hover\">\n                        <thead>\n                        <tr>\n                            <th class=\"text-xs-center output-active\"></th>\n                            <th class=\"text-xs-center output-index\">#</th>\n                            <th class=\"text-xs-center output-number\">Type</th>\n                            <th class=\"text-xs-center output-start\">Start</th>\n                            <th class=\"text-xs-center output-count\">Count</th>\n                            <th class=\"text-xs-center output-label\">Label</th>\n                            <th class=\"text-xs-center output-action p-r-1\" style=\"width: 45px\"></th>\n                        </tr>\n                        </thead>\n                        <tbody>\n                            <tr is=\"output\" v-for=\"(index, output) in outputs\" :index=\"index\" :output.sync=\"output\"></tr>\n                        </tbody>\n                    </table>\n                </div>\n        </form>\n   \n    </div>\n    </div>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
@@ -38592,7 +44614,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../mixins/outputMixin":244,"../shared/input.vue":234,"../shared/switch.vue":237,"./pdmx.vue":212,"vue":193,"vue-hot-reload-api":170}],207:[function(require,module,exports){
+},{"../../mixins/outputMixin":248,"../shared/input.vue":236,"../shared/switch.vue":239,"./pdmx.vue":214,"vue":195,"vue-hot-reload-api":171}],209:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/outputs/e131.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".universe-list .form-control {\n  padding: .25rem .50rem;\n  line-height: 1.3; }\n\n.universe-list .c-select {\n  padding: .22rem 1.5rem .23rem .50rem; }\n\n.universe-list .universe-index {\n  min-width: 50px;\n  width: 50px;\n  text-align: center; }\n\n.universe-list .universe-active {\n  min-width: 50px;\n  width: 50px;\n  text-align: center; }\n\n.universe-list .universe-number {\n  min-width: 80px;\n  width: 80px;\n  text-align: center; }\n\n.universe-list .universe-start {\n  min-width: 80px;\n  width: 80px;\n  text-align: center; }\n\n.universe-list .universe-size {\n  min-width: 80px;\n  width: 80px;\n  text-align: center; }\n\n.universe-list .universe-type {\n  min-width: 115px;\n  width: 115px;\n  text-align: center; }\n\n.universe-list .universe-address {\n  min-width: 150px;\n  width: 150px;\n  text-align: center; }\n\n.universe-list .universe-action {\n  text-align: center; }\n\n.enable-output small, .enable-output .label-switch {\n  display: inline-block;\n  margin-bottom: 0;\n  vertical-align: middle; }\n")
@@ -38696,7 +44718,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../directives/ip":242,"../../mixins/outputMixin":244,"../shared/checkbox.vue":228,"../shared/dropdown-select.vue":230,"../shared/input.vue":234,"../shared/switch.vue":237,"./universe.vue":213,"vue":193,"vue-hot-reload-api":170,"vueify-insert-css":194}],208:[function(require,module,exports){
+},{"../../directives/ip":246,"../../mixins/outputMixin":248,"../shared/checkbox.vue":230,"../shared/dropdown-select.vue":232,"../shared/input.vue":236,"../shared/switch.vue":239,"./universe.vue":215,"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],210:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/outputs/index.vue", module);
 (function(){
 "use strict";
@@ -38731,10 +44753,10 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":193,"vue-hot-reload-api":170}],209:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171}],211:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/outputs/led-panel.vue", module);
 (function(){
-var __vueify_style__ = require("vueify-insert-css").insert(".led-panel {\n  position: relative;\n  background-color: #eaeaea;\n  border: 1px solid #ddd;\n  margin-bottom: 5px;\n  background-repeat: no-repeat;\n  background-position: center;\n  background-size: 15%; }\n  .led-panel:before {\n    display: block;\n    content: \"\";\n    width: 100%;\n    padding-top: 50%; }\n  .led-panel.left-orient:before, .led-panel.right-orient:before {\n    padding-top: 150%; }\n  .led-panel.left-orient {\n    background-image: url(\"/img/arrow-left.svg\"); }\n  .led-panel.right-orient {\n    background-image: url(\"/img/arrow-right.svg\"); }\n  .led-panel.up-orient {\n    background-image: url(\"/img/arrow-up.svg\"); }\n  .led-panel.down-orient {\n    background-image: url(\"/img/arrow-down.svg\"); }\n  .led-panel.panel32:before {\n    padding-top: 100%; }\n  .led-panel-content {\n    position: absolute;\n    top: 0;\n    left: 0;\n    right: 0;\n    bottom: 0;\n    padding: 10px;\n    overflow: hidden;\n    text-align: center; }\n  .led-panel .panel-info {\n    overflow: hidden;\n    line-height: 1.2;\n    text-transform: uppercase;\n    font-size: 12px;\n    color: #607179;\n    display: inline-block;\n    text-align: center;\n    margin: 2px 5px;\n    font-weight: bold; }\n    .led-panel .panel-info-label {\n      color: #788B94;\n      display: block;\n      font-size: 10px;\n      font-weight: normal; }\n  .led-panel.panel-col-2 {\n    width: calc(99.99% * 1/2 - (5px - 5px * 1/2));\n    height: calc(99.99% * 1/2 - (5px - 5px * 1/2)); }\n  .led-panel.panel-col-2:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-2:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-2:nth-child(2n) {\n  margin-right: 0; }\n  .led-panel.panel-col-2:nth-child(2n + 1) {\n  clear: left; }\n  .led-panel.panel-col-2:nth-last-child(-n + 2) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-3 {\n    width: calc(99.99% * 1/3 - (5px - 5px * 1/3));\n    height: calc(99.99% * 1/3 - (5px - 5px * 1/3)); }\n  .led-panel.panel-col-3:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-3:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-3:nth-child(3n) {\n  margin-right: 0; }\n  .led-panel.panel-col-3:nth-child(3n + 1) {\n  clear: left; }\n  .led-panel.panel-col-3:nth-last-child(-n + 3) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-4 {\n    width: calc(99.99% * 1/4 - (5px - 5px * 1/4));\n    height: calc(99.99% * 1/4 - (5px - 5px * 1/4)); }\n  .led-panel.panel-col-4:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-4:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-4:nth-child(4n) {\n  margin-right: 0; }\n  .led-panel.panel-col-4:nth-child(4n + 1) {\n  clear: left; }\n  .led-panel.panel-col-4:nth-last-child(-n + 4) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-5 {\n    width: calc(99.99% * 1/5 - (5px - 5px * 1/5));\n    height: calc(99.99% * 1/5 - (5px - 5px * 1/5)); }\n  .led-panel.panel-col-5:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-5:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-5:nth-child(5n) {\n  margin-right: 0; }\n  .led-panel.panel-col-5:nth-child(5n + 1) {\n  clear: left; }\n  .led-panel.panel-col-5:nth-last-child(-n + 5) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-6 {\n    width: calc(99.99% * 1/6 - (5px - 5px * 1/6));\n    height: calc(99.99% * 1/6 - (5px - 5px * 1/6)); }\n  .led-panel.panel-col-6:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-6:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-6:nth-child(6n) {\n  margin-right: 0; }\n  .led-panel.panel-col-6:nth-child(6n + 1) {\n  clear: left; }\n  .led-panel.panel-col-6:nth-last-child(-n + 6) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-7 {\n    width: calc(99.99% * 1/7 - (5px - 5px * 1/7));\n    height: calc(99.99% * 1/7 - (5px - 5px * 1/7)); }\n  .led-panel.panel-col-7:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-7:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-7:nth-child(7n) {\n  margin-right: 0; }\n  .led-panel.panel-col-7:nth-child(7n + 1) {\n  clear: left; }\n  .led-panel.panel-col-7:nth-last-child(-n + 7) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-8 {\n    width: calc(99.99% * 1/8 - (5px - 5px * 1/8));\n    height: calc(99.99% * 1/8 - (5px - 5px * 1/8)); }\n  .led-panel.panel-col-8:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-8:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-8:nth-child(8n) {\n  margin-right: 0; }\n  .led-panel.panel-col-8:nth-child(8n + 1) {\n  clear: left; }\n  .led-panel.panel-col-8:nth-last-child(-n + 8) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-9 {\n    width: calc(99.99% * 1/9 - (5px - 5px * 1/9));\n    height: calc(99.99% * 1/9 - (5px - 5px * 1/9)); }\n  .led-panel.panel-col-9:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-9:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-9:nth-child(9n) {\n  margin-right: 0; }\n  .led-panel.panel-col-9:nth-child(9n + 1) {\n  clear: left; }\n  .led-panel.panel-col-9:nth-last-child(-n + 9) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-9 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n  .led-panel.panel-col-10 {\n    width: calc(99.99% * 1/10 - (5px - 5px * 1/10));\n    height: calc(99.99% * 1/10 - (5px - 5px * 1/10)); }\n  .led-panel.panel-col-10:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-10:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-10:nth-child(10n) {\n  margin-right: 0; }\n  .led-panel.panel-col-10:nth-child(10n + 1) {\n  clear: left; }\n  .led-panel.panel-col-10:nth-last-child(-n + 10) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-10 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n  .led-panel.panel-col-11 {\n    width: calc(99.99% * 1/11 - (5px - 5px * 1/11));\n    height: calc(99.99% * 1/11 - (5px - 5px * 1/11)); }\n  .led-panel.panel-col-11:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-11:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-11:nth-child(11n) {\n  margin-right: 0; }\n  .led-panel.panel-col-11:nth-child(11n + 1) {\n  clear: left; }\n  .led-panel.panel-col-11:nth-last-child(-n + 11) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-11 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-11 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-11 .led-panel-content .panel-info.output, .led-panel.panel-col-11 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-12 {\n    width: calc(99.99% * 1/12 - (5px - 5px * 1/12));\n    height: calc(99.99% * 1/12 - (5px - 5px * 1/12)); }\n  .led-panel.panel-col-12:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-12:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-12:nth-child(12n) {\n  margin-right: 0; }\n  .led-panel.panel-col-12:nth-child(12n + 1) {\n  clear: left; }\n  .led-panel.panel-col-12:nth-last-child(-n + 12) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-12 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-12 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-12 .led-panel-content .panel-info.output, .led-panel.panel-col-12 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-13 {\n    width: calc(99.99% * 1/13 - (5px - 5px * 1/13));\n    height: calc(99.99% * 1/13 - (5px - 5px * 1/13)); }\n  .led-panel.panel-col-13:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-13:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-13:nth-child(13n) {\n  margin-right: 0; }\n  .led-panel.panel-col-13:nth-child(13n + 1) {\n  clear: left; }\n  .led-panel.panel-col-13:nth-last-child(-n + 13) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-13 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-13 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-13 .led-panel-content .panel-info.output, .led-panel.panel-col-13 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-14 {\n    width: calc(99.99% * 1/14 - (5px - 5px * 1/14));\n    height: calc(99.99% * 1/14 - (5px - 5px * 1/14)); }\n  .led-panel.panel-col-14:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-14:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-14:nth-child(14n) {\n  margin-right: 0; }\n  .led-panel.panel-col-14:nth-child(14n + 1) {\n  clear: left; }\n  .led-panel.panel-col-14:nth-last-child(-n + 14) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-14 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-14 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-14 .led-panel-content .panel-info.output, .led-panel.panel-col-14 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-15 {\n    width: calc(99.99% * 1/15 - (5px - 5px * 1/15));\n    height: calc(99.99% * 1/15 - (5px - 5px * 1/15)); }\n  .led-panel.panel-col-15:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-15:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-15:nth-child(15n) {\n  margin-right: 0; }\n  .led-panel.panel-col-15:nth-child(15n + 1) {\n  clear: left; }\n  .led-panel.panel-col-15:nth-last-child(-n + 15) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-15 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-15 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-15 .led-panel-content .panel-info.output, .led-panel.panel-col-15 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-16 {\n    width: calc(99.99% * 1/16 - (5px - 5px * 1/16));\n    height: calc(99.99% * 1/16 - (5px - 5px * 1/16)); }\n  .led-panel.panel-col-16:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-16:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-16:nth-child(16n) {\n  margin-right: 0; }\n  .led-panel.panel-col-16:nth-child(16n + 1) {\n  clear: left; }\n  .led-panel.panel-col-16:nth-last-child(-n + 16) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-16 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-16 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-16 .led-panel-content .panel-info.output, .led-panel.panel-col-16 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-17 {\n    width: calc(99.99% * 1/17 - (5px - 5px * 1/17));\n    height: calc(99.99% * 1/17 - (5px - 5px * 1/17)); }\n  .led-panel.panel-col-17:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-17:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-17:nth-child(17n) {\n  margin-right: 0; }\n  .led-panel.panel-col-17:nth-child(17n + 1) {\n  clear: left; }\n  .led-panel.panel-col-17:nth-last-child(-n + 17) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-17 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-17 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-17 .led-panel-content .panel-info.output, .led-panel.panel-col-17 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-18 {\n    width: calc(99.99% * 1/18 - (5px - 5px * 1/18));\n    height: calc(99.99% * 1/18 - (5px - 5px * 1/18)); }\n  .led-panel.panel-col-18:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-18:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-18:nth-child(18n) {\n  margin-right: 0; }\n  .led-panel.panel-col-18:nth-child(18n + 1) {\n  clear: left; }\n  .led-panel.panel-col-18:nth-last-child(-n + 18) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-18 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-18 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-18 .led-panel-content .panel-info.output, .led-panel.panel-col-18 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-19 {\n    width: calc(99.99% * 1/19 - (5px - 5px * 1/19));\n    height: calc(99.99% * 1/19 - (5px - 5px * 1/19)); }\n  .led-panel.panel-col-19:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-19:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-19:nth-child(19n) {\n  margin-right: 0; }\n  .led-panel.panel-col-19:nth-child(19n + 1) {\n  clear: left; }\n  .led-panel.panel-col-19:nth-last-child(-n + 19) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-19 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-19 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-19 .led-panel-content .panel-info.output, .led-panel.panel-col-19 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-20 {\n    width: calc(99.99% * 1/20 - (5px - 5px * 1/20));\n    height: calc(99.99% * 1/20 - (5px - 5px * 1/20)); }\n  .led-panel.panel-col-20:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-20:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-20:nth-child(20n) {\n  margin-right: 0; }\n  .led-panel.panel-col-20:nth-child(20n + 1) {\n  clear: left; }\n  .led-panel.panel-col-20:nth-last-child(-n + 20) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-20 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-20 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-20 .led-panel-content .panel-info.output, .led-panel.panel-col-20 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-21 {\n    width: calc(99.99% * 1/21 - (5px - 5px * 1/21));\n    height: calc(99.99% * 1/21 - (5px - 5px * 1/21)); }\n  .led-panel.panel-col-21:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-21:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-21:nth-child(21n) {\n  margin-right: 0; }\n  .led-panel.panel-col-21:nth-child(21n + 1) {\n  clear: left; }\n  .led-panel.panel-col-21:nth-last-child(-n + 21) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-21 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-21 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-21 .led-panel-content .panel-info.output, .led-panel.panel-col-21 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-22 {\n    width: calc(99.99% * 1/22 - (5px - 5px * 1/22));\n    height: calc(99.99% * 1/22 - (5px - 5px * 1/22)); }\n  .led-panel.panel-col-22:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-22:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-22:nth-child(22n) {\n  margin-right: 0; }\n  .led-panel.panel-col-22:nth-child(22n + 1) {\n  clear: left; }\n  .led-panel.panel-col-22:nth-last-child(-n + 22) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-22 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-22 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-22 .led-panel-content .panel-info.output, .led-panel.panel-col-22 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-23 {\n    width: calc(99.99% * 1/23 - (5px - 5px * 1/23));\n    height: calc(99.99% * 1/23 - (5px - 5px * 1/23)); }\n  .led-panel.panel-col-23:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-23:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-23:nth-child(23n) {\n  margin-right: 0; }\n  .led-panel.panel-col-23:nth-child(23n + 1) {\n  clear: left; }\n  .led-panel.panel-col-23:nth-last-child(-n + 23) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-23 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-23 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-23 .led-panel-content .panel-info.output, .led-panel.panel-col-23 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-24 {\n    width: calc(99.99% * 1/24 - (5px - 5px * 1/24));\n    height: calc(99.99% * 1/24 - (5px - 5px * 1/24)); }\n  .led-panel.panel-col-24:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-24:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-24:nth-child(24n) {\n  margin-right: 0; }\n  .led-panel.panel-col-24:nth-child(24n + 1) {\n  clear: left; }\n  .led-panel.panel-col-24:nth-last-child(-n + 24) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-24 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-24 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-24 .led-panel-content .panel-info.output, .led-panel.panel-col-24 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-25 {\n    width: calc(99.99% * 1/25 - (5px - 5px * 1/25));\n    height: calc(99.99% * 1/25 - (5px - 5px * 1/25)); }\n  .led-panel.panel-col-25:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-25:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-25:nth-child(25n) {\n  margin-right: 0; }\n  .led-panel.panel-col-25:nth-child(25n + 1) {\n  clear: left; }\n  .led-panel.panel-col-25:nth-last-child(-n + 25) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-25 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-25 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-25 .led-panel-content .panel-info.output, .led-panel.panel-col-25 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-26 {\n    width: calc(99.99% * 1/26 - (5px - 5px * 1/26));\n    height: calc(99.99% * 1/26 - (5px - 5px * 1/26)); }\n  .led-panel.panel-col-26:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-26:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-26:nth-child(26n) {\n  margin-right: 0; }\n  .led-panel.panel-col-26:nth-child(26n + 1) {\n  clear: left; }\n  .led-panel.panel-col-26:nth-last-child(-n + 26) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-26 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-26 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-26 .led-panel-content .panel-info.output, .led-panel.panel-col-26 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-27 {\n    width: calc(99.99% * 1/27 - (5px - 5px * 1/27));\n    height: calc(99.99% * 1/27 - (5px - 5px * 1/27)); }\n  .led-panel.panel-col-27:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-27:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-27:nth-child(27n) {\n  margin-right: 0; }\n  .led-panel.panel-col-27:nth-child(27n + 1) {\n  clear: left; }\n  .led-panel.panel-col-27:nth-last-child(-n + 27) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-27 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-27 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-27 .led-panel-content .panel-info.output, .led-panel.panel-col-27 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-28 {\n    width: calc(99.99% * 1/28 - (5px - 5px * 1/28));\n    height: calc(99.99% * 1/28 - (5px - 5px * 1/28)); }\n  .led-panel.panel-col-28:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-28:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-28:nth-child(28n) {\n  margin-right: 0; }\n  .led-panel.panel-col-28:nth-child(28n + 1) {\n  clear: left; }\n  .led-panel.panel-col-28:nth-last-child(-n + 28) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-28 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-28 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-28 .led-panel-content .panel-info.output, .led-panel.panel-col-28 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-29 {\n    width: calc(99.99% * 1/29 - (5px - 5px * 1/29));\n    height: calc(99.99% * 1/29 - (5px - 5px * 1/29)); }\n  .led-panel.panel-col-29:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-29:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-29:nth-child(29n) {\n  margin-right: 0; }\n  .led-panel.panel-col-29:nth-child(29n + 1) {\n  clear: left; }\n  .led-panel.panel-col-29:nth-last-child(-n + 29) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-29 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-29 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-29 .led-panel-content .panel-info.output, .led-panel.panel-col-29 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-30 {\n    width: calc(99.99% * 1/30 - (5px - 5px * 1/30));\n    height: calc(99.99% * 1/30 - (5px - 5px * 1/30)); }\n  .led-panel.panel-col-30:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-30:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-30:nth-child(30n) {\n  margin-right: 0; }\n  .led-panel.panel-col-30:nth-child(30n + 1) {\n  clear: left; }\n  .led-panel.panel-col-30:nth-last-child(-n + 30) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-30 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-30 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-30 .led-panel-content .panel-info.output, .led-panel.panel-col-30 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-31 {\n    width: calc(99.99% * 1/31 - (5px - 5px * 1/31));\n    height: calc(99.99% * 1/31 - (5px - 5px * 1/31)); }\n  .led-panel.panel-col-31:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-31:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-31:nth-child(31n) {\n  margin-right: 0; }\n  .led-panel.panel-col-31:nth-child(31n + 1) {\n  clear: left; }\n  .led-panel.panel-col-31:nth-last-child(-n + 31) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-31 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-31 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-31 .led-panel-content .panel-info.output, .led-panel.panel-col-31 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-32 {\n    width: calc(99.99% * 1/32 - (5px - 5px * 1/32));\n    height: calc(99.99% * 1/32 - (5px - 5px * 1/32)); }\n  .led-panel.panel-col-32:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-32:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-32:nth-child(32n) {\n  margin-right: 0; }\n  .led-panel.panel-col-32:nth-child(32n + 1) {\n  clear: left; }\n  .led-panel.panel-col-32:nth-last-child(-n + 32) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-32 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-32 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-32 .led-panel-content .panel-info.output, .led-panel.panel-col-32 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-33 {\n    width: calc(99.99% * 1/33 - (5px - 5px * 1/33));\n    height: calc(99.99% * 1/33 - (5px - 5px * 1/33)); }\n  .led-panel.panel-col-33:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-33:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-33:nth-child(33n) {\n  margin-right: 0; }\n  .led-panel.panel-col-33:nth-child(33n + 1) {\n  clear: left; }\n  .led-panel.panel-col-33:nth-last-child(-n + 33) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-33 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-33 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-33 .led-panel-content .panel-info.output, .led-panel.panel-col-33 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-34 {\n    width: calc(99.99% * 1/34 - (5px - 5px * 1/34));\n    height: calc(99.99% * 1/34 - (5px - 5px * 1/34)); }\n  .led-panel.panel-col-34:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-34:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-34:nth-child(34n) {\n  margin-right: 0; }\n  .led-panel.panel-col-34:nth-child(34n + 1) {\n  clear: left; }\n  .led-panel.panel-col-34:nth-last-child(-n + 34) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-34 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-34 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-34 .led-panel-content .panel-info.output, .led-panel.panel-col-34 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-35 {\n    width: calc(99.99% * 1/35 - (5px - 5px * 1/35));\n    height: calc(99.99% * 1/35 - (5px - 5px * 1/35)); }\n  .led-panel.panel-col-35:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-35:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-35:nth-child(35n) {\n  margin-right: 0; }\n  .led-panel.panel-col-35:nth-child(35n + 1) {\n  clear: left; }\n  .led-panel.panel-col-35:nth-last-child(-n + 35) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-35 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-35 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-35 .led-panel-content .panel-info.output, .led-panel.panel-col-35 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-36 {\n    width: calc(99.99% * 1/36 - (5px - 5px * 1/36));\n    height: calc(99.99% * 1/36 - (5px - 5px * 1/36)); }\n  .led-panel.panel-col-36:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-36:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-36:nth-child(36n) {\n  margin-right: 0; }\n  .led-panel.panel-col-36:nth-child(36n + 1) {\n  clear: left; }\n  .led-panel.panel-col-36:nth-last-child(-n + 36) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-36 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-36 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-36 .led-panel-content .panel-info.output, .led-panel.panel-col-36 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-37 {\n    width: calc(99.99% * 1/37 - (5px - 5px * 1/37));\n    height: calc(99.99% * 1/37 - (5px - 5px * 1/37)); }\n  .led-panel.panel-col-37:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-37:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-37:nth-child(37n) {\n  margin-right: 0; }\n  .led-panel.panel-col-37:nth-child(37n + 1) {\n  clear: left; }\n  .led-panel.panel-col-37:nth-last-child(-n + 37) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-37 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-37 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-37 .led-panel-content .panel-info.output, .led-panel.panel-col-37 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-38 {\n    width: calc(99.99% * 1/38 - (5px - 5px * 1/38));\n    height: calc(99.99% * 1/38 - (5px - 5px * 1/38)); }\n  .led-panel.panel-col-38:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-38:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-38:nth-child(38n) {\n  margin-right: 0; }\n  .led-panel.panel-col-38:nth-child(38n + 1) {\n  clear: left; }\n  .led-panel.panel-col-38:nth-last-child(-n + 38) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-38 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-38 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-38 .led-panel-content .panel-info.output, .led-panel.panel-col-38 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-39 {\n    width: calc(99.99% * 1/39 - (5px - 5px * 1/39));\n    height: calc(99.99% * 1/39 - (5px - 5px * 1/39)); }\n  .led-panel.panel-col-39:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-39:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-39:nth-child(39n) {\n  margin-right: 0; }\n  .led-panel.panel-col-39:nth-child(39n + 1) {\n  clear: left; }\n  .led-panel.panel-col-39:nth-last-child(-n + 39) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-39 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-39 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-39 .led-panel-content .panel-info.output, .led-panel.panel-col-39 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-40 {\n    width: calc(99.99% * 1/40 - (5px - 5px * 1/40));\n    height: calc(99.99% * 1/40 - (5px - 5px * 1/40)); }\n  .led-panel.panel-col-40:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-40:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-40:nth-child(40n) {\n  margin-right: 0; }\n  .led-panel.panel-col-40:nth-child(40n + 1) {\n  clear: left; }\n  .led-panel.panel-col-40:nth-last-child(-n + 40) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-40 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-40 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-40 .led-panel-content .panel-info.output, .led-panel.panel-col-40 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-41 {\n    width: calc(99.99% * 1/41 - (5px - 5px * 1/41));\n    height: calc(99.99% * 1/41 - (5px - 5px * 1/41)); }\n  .led-panel.panel-col-41:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-41:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-41:nth-child(41n) {\n  margin-right: 0; }\n  .led-panel.panel-col-41:nth-child(41n + 1) {\n  clear: left; }\n  .led-panel.panel-col-41:nth-last-child(-n + 41) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-41 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-41 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-41 .led-panel-content .panel-info.output, .led-panel.panel-col-41 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-42 {\n    width: calc(99.99% * 1/42 - (5px - 5px * 1/42));\n    height: calc(99.99% * 1/42 - (5px - 5px * 1/42)); }\n  .led-panel.panel-col-42:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-42:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-42:nth-child(42n) {\n  margin-right: 0; }\n  .led-panel.panel-col-42:nth-child(42n + 1) {\n  clear: left; }\n  .led-panel.panel-col-42:nth-last-child(-n + 42) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-42 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-42 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-42 .led-panel-content .panel-info.output, .led-panel.panel-col-42 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-43 {\n    width: calc(99.99% * 1/43 - (5px - 5px * 1/43));\n    height: calc(99.99% * 1/43 - (5px - 5px * 1/43)); }\n  .led-panel.panel-col-43:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-43:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-43:nth-child(43n) {\n  margin-right: 0; }\n  .led-panel.panel-col-43:nth-child(43n + 1) {\n  clear: left; }\n  .led-panel.panel-col-43:nth-last-child(-n + 43) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-43 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-43 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-43 .led-panel-content .panel-info.output, .led-panel.panel-col-43 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-44 {\n    width: calc(99.99% * 1/44 - (5px - 5px * 1/44));\n    height: calc(99.99% * 1/44 - (5px - 5px * 1/44)); }\n  .led-panel.panel-col-44:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-44:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-44:nth-child(44n) {\n  margin-right: 0; }\n  .led-panel.panel-col-44:nth-child(44n + 1) {\n  clear: left; }\n  .led-panel.panel-col-44:nth-last-child(-n + 44) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-44 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-44 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-44 .led-panel-content .panel-info.output, .led-panel.panel-col-44 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-45 {\n    width: calc(99.99% * 1/45 - (5px - 5px * 1/45));\n    height: calc(99.99% * 1/45 - (5px - 5px * 1/45)); }\n  .led-panel.panel-col-45:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-45:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-45:nth-child(45n) {\n  margin-right: 0; }\n  .led-panel.panel-col-45:nth-child(45n + 1) {\n  clear: left; }\n  .led-panel.panel-col-45:nth-last-child(-n + 45) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-45 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-45 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-45 .led-panel-content .panel-info.output, .led-panel.panel-col-45 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-46 {\n    width: calc(99.99% * 1/46 - (5px - 5px * 1/46));\n    height: calc(99.99% * 1/46 - (5px - 5px * 1/46)); }\n  .led-panel.panel-col-46:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-46:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-46:nth-child(46n) {\n  margin-right: 0; }\n  .led-panel.panel-col-46:nth-child(46n + 1) {\n  clear: left; }\n  .led-panel.panel-col-46:nth-last-child(-n + 46) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-46 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-46 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-46 .led-panel-content .panel-info.output, .led-panel.panel-col-46 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-47 {\n    width: calc(99.99% * 1/47 - (5px - 5px * 1/47));\n    height: calc(99.99% * 1/47 - (5px - 5px * 1/47)); }\n  .led-panel.panel-col-47:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-47:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-47:nth-child(47n) {\n  margin-right: 0; }\n  .led-panel.panel-col-47:nth-child(47n + 1) {\n  clear: left; }\n  .led-panel.panel-col-47:nth-last-child(-n + 47) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-47 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-47 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-47 .led-panel-content .panel-info.output, .led-panel.panel-col-47 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-48 {\n    width: calc(99.99% * 1/48 - (5px - 5px * 1/48));\n    height: calc(99.99% * 1/48 - (5px - 5px * 1/48)); }\n  .led-panel.panel-col-48:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-48:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-48:nth-child(48n) {\n  margin-right: 0; }\n  .led-panel.panel-col-48:nth-child(48n + 1) {\n  clear: left; }\n  .led-panel.panel-col-48:nth-last-child(-n + 48) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-48 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-48 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-48 .led-panel-content .panel-info.output, .led-panel.panel-col-48 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-49 {\n    width: calc(99.99% * 1/49 - (5px - 5px * 1/49));\n    height: calc(99.99% * 1/49 - (5px - 5px * 1/49)); }\n  .led-panel.panel-col-49:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-49:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-49:nth-child(49n) {\n  margin-right: 0; }\n  .led-panel.panel-col-49:nth-child(49n + 1) {\n  clear: left; }\n  .led-panel.panel-col-49:nth-last-child(-n + 49) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-49 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-49 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-49 .led-panel-content .panel-info.output, .led-panel.panel-col-49 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-50 {\n    width: calc(99.99% * 1/50 - (5px - 5px * 1/50));\n    height: calc(99.99% * 1/50 - (5px - 5px * 1/50)); }\n  .led-panel.panel-col-50:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-50:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-50:nth-child(50n) {\n  margin-right: 0; }\n  .led-panel.panel-col-50:nth-child(50n + 1) {\n  clear: left; }\n  .led-panel.panel-col-50:nth-last-child(-n + 50) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-50 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-50 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-50 .led-panel-content .panel-info.output, .led-panel.panel-col-50 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-51 {\n    width: calc(99.99% * 1/51 - (5px - 5px * 1/51));\n    height: calc(99.99% * 1/51 - (5px - 5px * 1/51)); }\n  .led-panel.panel-col-51:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-51:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-51:nth-child(51n) {\n  margin-right: 0; }\n  .led-panel.panel-col-51:nth-child(51n + 1) {\n  clear: left; }\n  .led-panel.panel-col-51:nth-last-child(-n + 51) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-51 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-51 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-51 .led-panel-content .panel-info.output, .led-panel.panel-col-51 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-52 {\n    width: calc(99.99% * 1/52 - (5px - 5px * 1/52));\n    height: calc(99.99% * 1/52 - (5px - 5px * 1/52)); }\n  .led-panel.panel-col-52:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-52:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-52:nth-child(52n) {\n  margin-right: 0; }\n  .led-panel.panel-col-52:nth-child(52n + 1) {\n  clear: left; }\n  .led-panel.panel-col-52:nth-last-child(-n + 52) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-52 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-52 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-52 .led-panel-content .panel-info.output, .led-panel.panel-col-52 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-53 {\n    width: calc(99.99% * 1/53 - (5px - 5px * 1/53));\n    height: calc(99.99% * 1/53 - (5px - 5px * 1/53)); }\n  .led-panel.panel-col-53:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-53:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-53:nth-child(53n) {\n  margin-right: 0; }\n  .led-panel.panel-col-53:nth-child(53n + 1) {\n  clear: left; }\n  .led-panel.panel-col-53:nth-last-child(-n + 53) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-53 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-53 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-53 .led-panel-content .panel-info.output, .led-panel.panel-col-53 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-54 {\n    width: calc(99.99% * 1/54 - (5px - 5px * 1/54));\n    height: calc(99.99% * 1/54 - (5px - 5px * 1/54)); }\n  .led-panel.panel-col-54:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-54:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-54:nth-child(54n) {\n  margin-right: 0; }\n  .led-panel.panel-col-54:nth-child(54n + 1) {\n  clear: left; }\n  .led-panel.panel-col-54:nth-last-child(-n + 54) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-54 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-54 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-54 .led-panel-content .panel-info.output, .led-panel.panel-col-54 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-55 {\n    width: calc(99.99% * 1/55 - (5px - 5px * 1/55));\n    height: calc(99.99% * 1/55 - (5px - 5px * 1/55)); }\n  .led-panel.panel-col-55:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-55:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-55:nth-child(55n) {\n  margin-right: 0; }\n  .led-panel.panel-col-55:nth-child(55n + 1) {\n  clear: left; }\n  .led-panel.panel-col-55:nth-last-child(-n + 55) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-55 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-55 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-55 .led-panel-content .panel-info.output, .led-panel.panel-col-55 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-56 {\n    width: calc(99.99% * 1/56 - (5px - 5px * 1/56));\n    height: calc(99.99% * 1/56 - (5px - 5px * 1/56)); }\n  .led-panel.panel-col-56:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-56:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-56:nth-child(56n) {\n  margin-right: 0; }\n  .led-panel.panel-col-56:nth-child(56n + 1) {\n  clear: left; }\n  .led-panel.panel-col-56:nth-last-child(-n + 56) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-56 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-56 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-56 .led-panel-content .panel-info.output, .led-panel.panel-col-56 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-57 {\n    width: calc(99.99% * 1/57 - (5px - 5px * 1/57));\n    height: calc(99.99% * 1/57 - (5px - 5px * 1/57)); }\n  .led-panel.panel-col-57:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-57:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-57:nth-child(57n) {\n  margin-right: 0; }\n  .led-panel.panel-col-57:nth-child(57n + 1) {\n  clear: left; }\n  .led-panel.panel-col-57:nth-last-child(-n + 57) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-57 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-57 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-57 .led-panel-content .panel-info.output, .led-panel.panel-col-57 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-58 {\n    width: calc(99.99% * 1/58 - (5px - 5px * 1/58));\n    height: calc(99.99% * 1/58 - (5px - 5px * 1/58)); }\n  .led-panel.panel-col-58:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-58:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-58:nth-child(58n) {\n  margin-right: 0; }\n  .led-panel.panel-col-58:nth-child(58n + 1) {\n  clear: left; }\n  .led-panel.panel-col-58:nth-last-child(-n + 58) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-58 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-58 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-58 .led-panel-content .panel-info.output, .led-panel.panel-col-58 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-59 {\n    width: calc(99.99% * 1/59 - (5px - 5px * 1/59));\n    height: calc(99.99% * 1/59 - (5px - 5px * 1/59)); }\n  .led-panel.panel-col-59:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-59:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-59:nth-child(59n) {\n  margin-right: 0; }\n  .led-panel.panel-col-59:nth-child(59n + 1) {\n  clear: left; }\n  .led-panel.panel-col-59:nth-last-child(-n + 59) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-59 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-59 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-59 .led-panel-content .panel-info.output, .led-panel.panel-col-59 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-60 {\n    width: calc(99.99% * 1/60 - (5px - 5px * 1/60));\n    height: calc(99.99% * 1/60 - (5px - 5px * 1/60)); }\n  .led-panel.panel-col-60:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-60:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-60:nth-child(60n) {\n  margin-right: 0; }\n  .led-panel.panel-col-60:nth-child(60n + 1) {\n  clear: left; }\n  .led-panel.panel-col-60:nth-last-child(-n + 60) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-60 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-60 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-60 .led-panel-content .panel-info.output, .led-panel.panel-col-60 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-61 {\n    width: calc(99.99% * 1/61 - (5px - 5px * 1/61));\n    height: calc(99.99% * 1/61 - (5px - 5px * 1/61)); }\n  .led-panel.panel-col-61:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-61:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-61:nth-child(61n) {\n  margin-right: 0; }\n  .led-panel.panel-col-61:nth-child(61n + 1) {\n  clear: left; }\n  .led-panel.panel-col-61:nth-last-child(-n + 61) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-61 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-61 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-61 .led-panel-content .panel-info.output, .led-panel.panel-col-61 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-62 {\n    width: calc(99.99% * 1/62 - (5px - 5px * 1/62));\n    height: calc(99.99% * 1/62 - (5px - 5px * 1/62)); }\n  .led-panel.panel-col-62:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-62:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-62:nth-child(62n) {\n  margin-right: 0; }\n  .led-panel.panel-col-62:nth-child(62n + 1) {\n  clear: left; }\n  .led-panel.panel-col-62:nth-last-child(-n + 62) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-62 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-62 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-62 .led-panel-content .panel-info.output, .led-panel.panel-col-62 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-63 {\n    width: calc(99.99% * 1/63 - (5px - 5px * 1/63));\n    height: calc(99.99% * 1/63 - (5px - 5px * 1/63)); }\n  .led-panel.panel-col-63:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-63:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-63:nth-child(63n) {\n  margin-right: 0; }\n  .led-panel.panel-col-63:nth-child(63n + 1) {\n  clear: left; }\n  .led-panel.panel-col-63:nth-last-child(-n + 63) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-63 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-63 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-63 .led-panel-content .panel-info.output, .led-panel.panel-col-63 .led-panel-content .panel-info.panel {\n      display: none; }\n")
+var __vueify_style__ = require("vueify-insert-css").insert(".led-panel {\n  position: relative;\n  background-color: #eaeaea;\n  border: 1px solid #ddd;\n  margin-bottom: 5px;\n  background-repeat: no-repeat;\n  background-position: center;\n  background-size: 15%; }\n  .led-panel:before {\n    display: block;\n    content: \"\";\n    width: 100%;\n    padding-top: 50%; }\n  .led-panel.left-orient:before, .led-panel.right-orient:before {\n    padding-top: 150%; }\n  .led-panel.left-orient {\n    background-image: url(\"/img/arrow-left.svg\"); }\n  .led-panel.right-orient {\n    background-image: url(\"/img/arrow-right.svg\"); }\n  .led-panel.up-orient {\n    background-image: url(\"/img/arrow-up.svg\"); }\n  .led-panel.down-orient {\n    background-image: url(\"/img/arrow-down.svg\"); }\n  .led-panel.panel32:before {\n    padding-top: 100%; }\n  .led-panel-content {\n    position: absolute;\n    top: 0;\n    left: 0;\n    right: 0;\n    bottom: 0;\n    padding: 10px;\n    overflow: hidden;\n    text-align: center; }\n  .led-panel .panel-info {\n    overflow: hidden;\n    line-height: 1.2;\n    text-transform: uppercase;\n    font-size: 12px;\n    color: #607179;\n    display: inline-block;\n    text-align: center;\n    margin: 2px 5px;\n    font-weight: bold; }\n    .led-panel .panel-info-label {\n      color: #788B94;\n      display: block;\n      font-size: 10px;\n      font-weight: normal; }\n  .led-panel.panel-col-2 {\n    width: calc(99.99% * 1/2 - (3px - 3px * 1/2));\n    height: calc(99.99% * 1/2 - (3px - 3px * 1/2)); }\n  .led-panel.panel-col-2:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-2:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-2:nth-child(2n) {\n  margin-right: 0; }\n  .led-panel.panel-col-2:nth-child(2n + 1) {\n  clear: left; }\n  .led-panel.panel-col-2:nth-last-child(-n + 2) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-3 {\n    width: calc(99.99% * 1/3 - (3px - 3px * 1/3));\n    height: calc(99.99% * 1/3 - (3px - 3px * 1/3)); }\n  .led-panel.panel-col-3:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-3:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-3:nth-child(3n) {\n  margin-right: 0; }\n  .led-panel.panel-col-3:nth-child(3n + 1) {\n  clear: left; }\n  .led-panel.panel-col-3:nth-last-child(-n + 3) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-4 {\n    width: calc(99.99% * 1/4 - (3px - 3px * 1/4));\n    height: calc(99.99% * 1/4 - (3px - 3px * 1/4)); }\n  .led-panel.panel-col-4:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-4:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-4:nth-child(4n) {\n  margin-right: 0; }\n  .led-panel.panel-col-4:nth-child(4n + 1) {\n  clear: left; }\n  .led-panel.panel-col-4:nth-last-child(-n + 4) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-5 {\n    width: calc(99.99% * 1/5 - (3px - 3px * 1/5));\n    height: calc(99.99% * 1/5 - (3px - 3px * 1/5)); }\n  .led-panel.panel-col-5:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-5:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-5:nth-child(5n) {\n  margin-right: 0; }\n  .led-panel.panel-col-5:nth-child(5n + 1) {\n  clear: left; }\n  .led-panel.panel-col-5:nth-last-child(-n + 5) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-6 {\n    width: calc(99.99% * 1/6 - (3px - 3px * 1/6));\n    height: calc(99.99% * 1/6 - (3px - 3px * 1/6)); }\n  .led-panel.panel-col-6:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-6:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-6:nth-child(6n) {\n  margin-right: 0; }\n  .led-panel.panel-col-6:nth-child(6n + 1) {\n  clear: left; }\n  .led-panel.panel-col-6:nth-last-child(-n + 6) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-7 {\n    width: calc(99.99% * 1/7 - (3px - 3px * 1/7));\n    height: calc(99.99% * 1/7 - (3px - 3px * 1/7)); }\n  .led-panel.panel-col-7:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-7:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-7:nth-child(7n) {\n  margin-right: 0; }\n  .led-panel.panel-col-7:nth-child(7n + 1) {\n  clear: left; }\n  .led-panel.panel-col-7:nth-last-child(-n + 7) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-8 {\n    width: calc(99.99% * 1/8 - (3px - 3px * 1/8));\n    height: calc(99.99% * 1/8 - (3px - 3px * 1/8)); }\n  .led-panel.panel-col-8:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-8:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-8:nth-child(8n) {\n  margin-right: 0; }\n  .led-panel.panel-col-8:nth-child(8n + 1) {\n  clear: left; }\n  .led-panel.panel-col-8:nth-last-child(-n + 8) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-9 {\n    width: calc(99.99% * 1/9 - (3px - 3px * 1/9));\n    height: calc(99.99% * 1/9 - (3px - 3px * 1/9)); }\n  .led-panel.panel-col-9:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-9:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-9:nth-child(9n) {\n  margin-right: 0; }\n  .led-panel.panel-col-9:nth-child(9n + 1) {\n  clear: left; }\n  .led-panel.panel-col-9:nth-last-child(-n + 9) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-9 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n  .led-panel.panel-col-10 {\n    width: calc(99.99% * 1/10 - (3px - 3px * 1/10));\n    height: calc(99.99% * 1/10 - (3px - 3px * 1/10)); }\n  .led-panel.panel-col-10:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-10:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-10:nth-child(10n) {\n  margin-right: 0; }\n  .led-panel.panel-col-10:nth-child(10n + 1) {\n  clear: left; }\n  .led-panel.panel-col-10:nth-last-child(-n + 10) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-10 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n  .led-panel.panel-col-11 {\n    width: calc(99.99% * 1/11 - (3px - 3px * 1/11));\n    height: calc(99.99% * 1/11 - (3px - 3px * 1/11)); }\n  .led-panel.panel-col-11:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-11:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-11:nth-child(11n) {\n  margin-right: 0; }\n  .led-panel.panel-col-11:nth-child(11n + 1) {\n  clear: left; }\n  .led-panel.panel-col-11:nth-last-child(-n + 11) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-11 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-11 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-11 .led-panel-content .panel-info.output, .led-panel.panel-col-11 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-12 {\n    width: calc(99.99% * 1/12 - (3px - 3px * 1/12));\n    height: calc(99.99% * 1/12 - (3px - 3px * 1/12)); }\n  .led-panel.panel-col-12:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-12:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-12:nth-child(12n) {\n  margin-right: 0; }\n  .led-panel.panel-col-12:nth-child(12n + 1) {\n  clear: left; }\n  .led-panel.panel-col-12:nth-last-child(-n + 12) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-12 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-12 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-12 .led-panel-content .panel-info.output, .led-panel.panel-col-12 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-13 {\n    width: calc(99.99% * 1/13 - (3px - 3px * 1/13));\n    height: calc(99.99% * 1/13 - (3px - 3px * 1/13)); }\n  .led-panel.panel-col-13:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-13:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-13:nth-child(13n) {\n  margin-right: 0; }\n  .led-panel.panel-col-13:nth-child(13n + 1) {\n  clear: left; }\n  .led-panel.panel-col-13:nth-last-child(-n + 13) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-13 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-13 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-13 .led-panel-content .panel-info.output, .led-panel.panel-col-13 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-14 {\n    width: calc(99.99% * 1/14 - (3px - 3px * 1/14));\n    height: calc(99.99% * 1/14 - (3px - 3px * 1/14)); }\n  .led-panel.panel-col-14:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-14:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-14:nth-child(14n) {\n  margin-right: 0; }\n  .led-panel.panel-col-14:nth-child(14n + 1) {\n  clear: left; }\n  .led-panel.panel-col-14:nth-last-child(-n + 14) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-14 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-14 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-14 .led-panel-content .panel-info.output, .led-panel.panel-col-14 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-15 {\n    width: calc(99.99% * 1/15 - (3px - 3px * 1/15));\n    height: calc(99.99% * 1/15 - (3px - 3px * 1/15)); }\n  .led-panel.panel-col-15:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-15:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-15:nth-child(15n) {\n  margin-right: 0; }\n  .led-panel.panel-col-15:nth-child(15n + 1) {\n  clear: left; }\n  .led-panel.panel-col-15:nth-last-child(-n + 15) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-15 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-15 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-15 .led-panel-content .panel-info.output, .led-panel.panel-col-15 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-16 {\n    width: calc(99.99% * 1/16 - (3px - 3px * 1/16));\n    height: calc(99.99% * 1/16 - (3px - 3px * 1/16)); }\n  .led-panel.panel-col-16:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-16:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-16:nth-child(16n) {\n  margin-right: 0; }\n  .led-panel.panel-col-16:nth-child(16n + 1) {\n  clear: left; }\n  .led-panel.panel-col-16:nth-last-child(-n + 16) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-16 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-16 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-16 .led-panel-content .panel-info.output, .led-panel.panel-col-16 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-17 {\n    width: calc(99.99% * 1/17 - (3px - 3px * 1/17));\n    height: calc(99.99% * 1/17 - (3px - 3px * 1/17)); }\n  .led-panel.panel-col-17:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-17:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-17:nth-child(17n) {\n  margin-right: 0; }\n  .led-panel.panel-col-17:nth-child(17n + 1) {\n  clear: left; }\n  .led-panel.panel-col-17:nth-last-child(-n + 17) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-17 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-17 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-17 .led-panel-content .panel-info.output, .led-panel.panel-col-17 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-18 {\n    width: calc(99.99% * 1/18 - (3px - 3px * 1/18));\n    height: calc(99.99% * 1/18 - (3px - 3px * 1/18)); }\n  .led-panel.panel-col-18:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-18:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-18:nth-child(18n) {\n  margin-right: 0; }\n  .led-panel.panel-col-18:nth-child(18n + 1) {\n  clear: left; }\n  .led-panel.panel-col-18:nth-last-child(-n + 18) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-18 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-18 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-18 .led-panel-content .panel-info.output, .led-panel.panel-col-18 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-19 {\n    width: calc(99.99% * 1/19 - (3px - 3px * 1/19));\n    height: calc(99.99% * 1/19 - (3px - 3px * 1/19)); }\n  .led-panel.panel-col-19:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-19:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-19:nth-child(19n) {\n  margin-right: 0; }\n  .led-panel.panel-col-19:nth-child(19n + 1) {\n  clear: left; }\n  .led-panel.panel-col-19:nth-last-child(-n + 19) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-19 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-19 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-19 .led-panel-content .panel-info.output, .led-panel.panel-col-19 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-20 {\n    width: calc(99.99% * 1/20 - (3px - 3px * 1/20));\n    height: calc(99.99% * 1/20 - (3px - 3px * 1/20)); }\n  .led-panel.panel-col-20:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-20:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-20:nth-child(20n) {\n  margin-right: 0; }\n  .led-panel.panel-col-20:nth-child(20n + 1) {\n  clear: left; }\n  .led-panel.panel-col-20:nth-last-child(-n + 20) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-20 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-20 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-20 .led-panel-content .panel-info.output, .led-panel.panel-col-20 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-21 {\n    width: calc(99.99% * 1/21 - (3px - 3px * 1/21));\n    height: calc(99.99% * 1/21 - (3px - 3px * 1/21)); }\n  .led-panel.panel-col-21:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-21:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-21:nth-child(21n) {\n  margin-right: 0; }\n  .led-panel.panel-col-21:nth-child(21n + 1) {\n  clear: left; }\n  .led-panel.panel-col-21:nth-last-child(-n + 21) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-21 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-21 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-21 .led-panel-content .panel-info.output, .led-panel.panel-col-21 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-22 {\n    width: calc(99.99% * 1/22 - (3px - 3px * 1/22));\n    height: calc(99.99% * 1/22 - (3px - 3px * 1/22)); }\n  .led-panel.panel-col-22:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-22:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-22:nth-child(22n) {\n  margin-right: 0; }\n  .led-panel.panel-col-22:nth-child(22n + 1) {\n  clear: left; }\n  .led-panel.panel-col-22:nth-last-child(-n + 22) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-22 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-22 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-22 .led-panel-content .panel-info.output, .led-panel.panel-col-22 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-23 {\n    width: calc(99.99% * 1/23 - (3px - 3px * 1/23));\n    height: calc(99.99% * 1/23 - (3px - 3px * 1/23)); }\n  .led-panel.panel-col-23:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-23:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-23:nth-child(23n) {\n  margin-right: 0; }\n  .led-panel.panel-col-23:nth-child(23n + 1) {\n  clear: left; }\n  .led-panel.panel-col-23:nth-last-child(-n + 23) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-23 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-23 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-23 .led-panel-content .panel-info.output, .led-panel.panel-col-23 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-24 {\n    width: calc(99.99% * 1/24 - (3px - 3px * 1/24));\n    height: calc(99.99% * 1/24 - (3px - 3px * 1/24)); }\n  .led-panel.panel-col-24:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-24:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-24:nth-child(24n) {\n  margin-right: 0; }\n  .led-panel.panel-col-24:nth-child(24n + 1) {\n  clear: left; }\n  .led-panel.panel-col-24:nth-last-child(-n + 24) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-24 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-24 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-24 .led-panel-content .panel-info.output, .led-panel.panel-col-24 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-25 {\n    width: calc(99.99% * 1/25 - (3px - 3px * 1/25));\n    height: calc(99.99% * 1/25 - (3px - 3px * 1/25)); }\n  .led-panel.panel-col-25:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-25:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-25:nth-child(25n) {\n  margin-right: 0; }\n  .led-panel.panel-col-25:nth-child(25n + 1) {\n  clear: left; }\n  .led-panel.panel-col-25:nth-last-child(-n + 25) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-25 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-25 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-25 .led-panel-content .panel-info.output, .led-panel.panel-col-25 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-26 {\n    width: calc(99.99% * 1/26 - (3px - 3px * 1/26));\n    height: calc(99.99% * 1/26 - (3px - 3px * 1/26)); }\n  .led-panel.panel-col-26:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-26:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-26:nth-child(26n) {\n  margin-right: 0; }\n  .led-panel.panel-col-26:nth-child(26n + 1) {\n  clear: left; }\n  .led-panel.panel-col-26:nth-last-child(-n + 26) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-26 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-26 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-26 .led-panel-content .panel-info.output, .led-panel.panel-col-26 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-27 {\n    width: calc(99.99% * 1/27 - (3px - 3px * 1/27));\n    height: calc(99.99% * 1/27 - (3px - 3px * 1/27)); }\n  .led-panel.panel-col-27:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-27:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-27:nth-child(27n) {\n  margin-right: 0; }\n  .led-panel.panel-col-27:nth-child(27n + 1) {\n  clear: left; }\n  .led-panel.panel-col-27:nth-last-child(-n + 27) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-27 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-27 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-27 .led-panel-content .panel-info.output, .led-panel.panel-col-27 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-28 {\n    width: calc(99.99% * 1/28 - (3px - 3px * 1/28));\n    height: calc(99.99% * 1/28 - (3px - 3px * 1/28)); }\n  .led-panel.panel-col-28:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-28:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-28:nth-child(28n) {\n  margin-right: 0; }\n  .led-panel.panel-col-28:nth-child(28n + 1) {\n  clear: left; }\n  .led-panel.panel-col-28:nth-last-child(-n + 28) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-28 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-28 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-28 .led-panel-content .panel-info.output, .led-panel.panel-col-28 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-29 {\n    width: calc(99.99% * 1/29 - (3px - 3px * 1/29));\n    height: calc(99.99% * 1/29 - (3px - 3px * 1/29)); }\n  .led-panel.panel-col-29:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-29:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-29:nth-child(29n) {\n  margin-right: 0; }\n  .led-panel.panel-col-29:nth-child(29n + 1) {\n  clear: left; }\n  .led-panel.panel-col-29:nth-last-child(-n + 29) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-29 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-29 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-29 .led-panel-content .panel-info.output, .led-panel.panel-col-29 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-30 {\n    width: calc(99.99% * 1/30 - (3px - 3px * 1/30));\n    height: calc(99.99% * 1/30 - (3px - 3px * 1/30)); }\n  .led-panel.panel-col-30:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-30:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-30:nth-child(30n) {\n  margin-right: 0; }\n  .led-panel.panel-col-30:nth-child(30n + 1) {\n  clear: left; }\n  .led-panel.panel-col-30:nth-last-child(-n + 30) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-30 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-30 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-30 .led-panel-content .panel-info.output, .led-panel.panel-col-30 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-31 {\n    width: calc(99.99% * 1/31 - (3px - 3px * 1/31));\n    height: calc(99.99% * 1/31 - (3px - 3px * 1/31)); }\n  .led-panel.panel-col-31:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-31:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-31:nth-child(31n) {\n  margin-right: 0; }\n  .led-panel.panel-col-31:nth-child(31n + 1) {\n  clear: left; }\n  .led-panel.panel-col-31:nth-last-child(-n + 31) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-31 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-31 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-31 .led-panel-content .panel-info.output, .led-panel.panel-col-31 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-32 {\n    width: calc(99.99% * 1/32 - (3px - 3px * 1/32));\n    height: calc(99.99% * 1/32 - (3px - 3px * 1/32)); }\n  .led-panel.panel-col-32:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-32:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-32:nth-child(32n) {\n  margin-right: 0; }\n  .led-panel.panel-col-32:nth-child(32n + 1) {\n  clear: left; }\n  .led-panel.panel-col-32:nth-last-child(-n + 32) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-32 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-32 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-32 .led-panel-content .panel-info.output, .led-panel.panel-col-32 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-33 {\n    width: calc(99.99% * 1/33 - (3px - 3px * 1/33));\n    height: calc(99.99% * 1/33 - (3px - 3px * 1/33)); }\n  .led-panel.panel-col-33:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-33:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-33:nth-child(33n) {\n  margin-right: 0; }\n  .led-panel.panel-col-33:nth-child(33n + 1) {\n  clear: left; }\n  .led-panel.panel-col-33:nth-last-child(-n + 33) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-33 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-33 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-33 .led-panel-content .panel-info.output, .led-panel.panel-col-33 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-34 {\n    width: calc(99.99% * 1/34 - (3px - 3px * 1/34));\n    height: calc(99.99% * 1/34 - (3px - 3px * 1/34)); }\n  .led-panel.panel-col-34:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-34:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-34:nth-child(34n) {\n  margin-right: 0; }\n  .led-panel.panel-col-34:nth-child(34n + 1) {\n  clear: left; }\n  .led-panel.panel-col-34:nth-last-child(-n + 34) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-34 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-34 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-34 .led-panel-content .panel-info.output, .led-panel.panel-col-34 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-35 {\n    width: calc(99.99% * 1/35 - (3px - 3px * 1/35));\n    height: calc(99.99% * 1/35 - (3px - 3px * 1/35)); }\n  .led-panel.panel-col-35:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-35:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-35:nth-child(35n) {\n  margin-right: 0; }\n  .led-panel.panel-col-35:nth-child(35n + 1) {\n  clear: left; }\n  .led-panel.panel-col-35:nth-last-child(-n + 35) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-35 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-35 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-35 .led-panel-content .panel-info.output, .led-panel.panel-col-35 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-36 {\n    width: calc(99.99% * 1/36 - (3px - 3px * 1/36));\n    height: calc(99.99% * 1/36 - (3px - 3px * 1/36)); }\n  .led-panel.panel-col-36:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-36:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-36:nth-child(36n) {\n  margin-right: 0; }\n  .led-panel.panel-col-36:nth-child(36n + 1) {\n  clear: left; }\n  .led-panel.panel-col-36:nth-last-child(-n + 36) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-36 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-36 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-36 .led-panel-content .panel-info.output, .led-panel.panel-col-36 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-37 {\n    width: calc(99.99% * 1/37 - (3px - 3px * 1/37));\n    height: calc(99.99% * 1/37 - (3px - 3px * 1/37)); }\n  .led-panel.panel-col-37:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-37:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-37:nth-child(37n) {\n  margin-right: 0; }\n  .led-panel.panel-col-37:nth-child(37n + 1) {\n  clear: left; }\n  .led-panel.panel-col-37:nth-last-child(-n + 37) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-37 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-37 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-37 .led-panel-content .panel-info.output, .led-panel.panel-col-37 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-38 {\n    width: calc(99.99% * 1/38 - (3px - 3px * 1/38));\n    height: calc(99.99% * 1/38 - (3px - 3px * 1/38)); }\n  .led-panel.panel-col-38:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-38:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-38:nth-child(38n) {\n  margin-right: 0; }\n  .led-panel.panel-col-38:nth-child(38n + 1) {\n  clear: left; }\n  .led-panel.panel-col-38:nth-last-child(-n + 38) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-38 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-38 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-38 .led-panel-content .panel-info.output, .led-panel.panel-col-38 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-39 {\n    width: calc(99.99% * 1/39 - (3px - 3px * 1/39));\n    height: calc(99.99% * 1/39 - (3px - 3px * 1/39)); }\n  .led-panel.panel-col-39:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-39:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-39:nth-child(39n) {\n  margin-right: 0; }\n  .led-panel.panel-col-39:nth-child(39n + 1) {\n  clear: left; }\n  .led-panel.panel-col-39:nth-last-child(-n + 39) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-39 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-39 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-39 .led-panel-content .panel-info.output, .led-panel.panel-col-39 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-40 {\n    width: calc(99.99% * 1/40 - (3px - 3px * 1/40));\n    height: calc(99.99% * 1/40 - (3px - 3px * 1/40)); }\n  .led-panel.panel-col-40:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-40:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-40:nth-child(40n) {\n  margin-right: 0; }\n  .led-panel.panel-col-40:nth-child(40n + 1) {\n  clear: left; }\n  .led-panel.panel-col-40:nth-last-child(-n + 40) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-40 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-40 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-40 .led-panel-content .panel-info.output, .led-panel.panel-col-40 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-41 {\n    width: calc(99.99% * 1/41 - (3px - 3px * 1/41));\n    height: calc(99.99% * 1/41 - (3px - 3px * 1/41)); }\n  .led-panel.panel-col-41:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-41:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-41:nth-child(41n) {\n  margin-right: 0; }\n  .led-panel.panel-col-41:nth-child(41n + 1) {\n  clear: left; }\n  .led-panel.panel-col-41:nth-last-child(-n + 41) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-41 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-41 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-41 .led-panel-content .panel-info.output, .led-panel.panel-col-41 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-42 {\n    width: calc(99.99% * 1/42 - (3px - 3px * 1/42));\n    height: calc(99.99% * 1/42 - (3px - 3px * 1/42)); }\n  .led-panel.panel-col-42:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-42:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-42:nth-child(42n) {\n  margin-right: 0; }\n  .led-panel.panel-col-42:nth-child(42n + 1) {\n  clear: left; }\n  .led-panel.panel-col-42:nth-last-child(-n + 42) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-42 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-42 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-42 .led-panel-content .panel-info.output, .led-panel.panel-col-42 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-43 {\n    width: calc(99.99% * 1/43 - (3px - 3px * 1/43));\n    height: calc(99.99% * 1/43 - (3px - 3px * 1/43)); }\n  .led-panel.panel-col-43:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-43:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-43:nth-child(43n) {\n  margin-right: 0; }\n  .led-panel.panel-col-43:nth-child(43n + 1) {\n  clear: left; }\n  .led-panel.panel-col-43:nth-last-child(-n + 43) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-43 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-43 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-43 .led-panel-content .panel-info.output, .led-panel.panel-col-43 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-44 {\n    width: calc(99.99% * 1/44 - (3px - 3px * 1/44));\n    height: calc(99.99% * 1/44 - (3px - 3px * 1/44)); }\n  .led-panel.panel-col-44:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-44:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-44:nth-child(44n) {\n  margin-right: 0; }\n  .led-panel.panel-col-44:nth-child(44n + 1) {\n  clear: left; }\n  .led-panel.panel-col-44:nth-last-child(-n + 44) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-44 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-44 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-44 .led-panel-content .panel-info.output, .led-panel.panel-col-44 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-45 {\n    width: calc(99.99% * 1/45 - (3px - 3px * 1/45));\n    height: calc(99.99% * 1/45 - (3px - 3px * 1/45)); }\n  .led-panel.panel-col-45:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-45:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-45:nth-child(45n) {\n  margin-right: 0; }\n  .led-panel.panel-col-45:nth-child(45n + 1) {\n  clear: left; }\n  .led-panel.panel-col-45:nth-last-child(-n + 45) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-45 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-45 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-45 .led-panel-content .panel-info.output, .led-panel.panel-col-45 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-46 {\n    width: calc(99.99% * 1/46 - (3px - 3px * 1/46));\n    height: calc(99.99% * 1/46 - (3px - 3px * 1/46)); }\n  .led-panel.panel-col-46:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-46:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-46:nth-child(46n) {\n  margin-right: 0; }\n  .led-panel.panel-col-46:nth-child(46n + 1) {\n  clear: left; }\n  .led-panel.panel-col-46:nth-last-child(-n + 46) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-46 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-46 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-46 .led-panel-content .panel-info.output, .led-panel.panel-col-46 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-47 {\n    width: calc(99.99% * 1/47 - (3px - 3px * 1/47));\n    height: calc(99.99% * 1/47 - (3px - 3px * 1/47)); }\n  .led-panel.panel-col-47:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-47:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-47:nth-child(47n) {\n  margin-right: 0; }\n  .led-panel.panel-col-47:nth-child(47n + 1) {\n  clear: left; }\n  .led-panel.panel-col-47:nth-last-child(-n + 47) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-47 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-47 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-47 .led-panel-content .panel-info.output, .led-panel.panel-col-47 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-48 {\n    width: calc(99.99% * 1/48 - (3px - 3px * 1/48));\n    height: calc(99.99% * 1/48 - (3px - 3px * 1/48)); }\n  .led-panel.panel-col-48:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-48:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-48:nth-child(48n) {\n  margin-right: 0; }\n  .led-panel.panel-col-48:nth-child(48n + 1) {\n  clear: left; }\n  .led-panel.panel-col-48:nth-last-child(-n + 48) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-48 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-48 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-48 .led-panel-content .panel-info.output, .led-panel.panel-col-48 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-49 {\n    width: calc(99.99% * 1/49 - (3px - 3px * 1/49));\n    height: calc(99.99% * 1/49 - (3px - 3px * 1/49)); }\n  .led-panel.panel-col-49:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-49:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-49:nth-child(49n) {\n  margin-right: 0; }\n  .led-panel.panel-col-49:nth-child(49n + 1) {\n  clear: left; }\n  .led-panel.panel-col-49:nth-last-child(-n + 49) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-49 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-49 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-49 .led-panel-content .panel-info.output, .led-panel.panel-col-49 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-50 {\n    width: calc(99.99% * 1/50 - (3px - 3px * 1/50));\n    height: calc(99.99% * 1/50 - (3px - 3px * 1/50)); }\n  .led-panel.panel-col-50:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-50:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-50:nth-child(50n) {\n  margin-right: 0; }\n  .led-panel.panel-col-50:nth-child(50n + 1) {\n  clear: left; }\n  .led-panel.panel-col-50:nth-last-child(-n + 50) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-50 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-50 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-50 .led-panel-content .panel-info.output, .led-panel.panel-col-50 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-51 {\n    width: calc(99.99% * 1/51 - (3px - 3px * 1/51));\n    height: calc(99.99% * 1/51 - (3px - 3px * 1/51)); }\n  .led-panel.panel-col-51:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-51:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-51:nth-child(51n) {\n  margin-right: 0; }\n  .led-panel.panel-col-51:nth-child(51n + 1) {\n  clear: left; }\n  .led-panel.panel-col-51:nth-last-child(-n + 51) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-51 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-51 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-51 .led-panel-content .panel-info.output, .led-panel.panel-col-51 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-52 {\n    width: calc(99.99% * 1/52 - (3px - 3px * 1/52));\n    height: calc(99.99% * 1/52 - (3px - 3px * 1/52)); }\n  .led-panel.panel-col-52:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-52:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-52:nth-child(52n) {\n  margin-right: 0; }\n  .led-panel.panel-col-52:nth-child(52n + 1) {\n  clear: left; }\n  .led-panel.panel-col-52:nth-last-child(-n + 52) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-52 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-52 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-52 .led-panel-content .panel-info.output, .led-panel.panel-col-52 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-53 {\n    width: calc(99.99% * 1/53 - (3px - 3px * 1/53));\n    height: calc(99.99% * 1/53 - (3px - 3px * 1/53)); }\n  .led-panel.panel-col-53:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-53:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-53:nth-child(53n) {\n  margin-right: 0; }\n  .led-panel.panel-col-53:nth-child(53n + 1) {\n  clear: left; }\n  .led-panel.panel-col-53:nth-last-child(-n + 53) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-53 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-53 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-53 .led-panel-content .panel-info.output, .led-panel.panel-col-53 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-54 {\n    width: calc(99.99% * 1/54 - (3px - 3px * 1/54));\n    height: calc(99.99% * 1/54 - (3px - 3px * 1/54)); }\n  .led-panel.panel-col-54:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-54:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-54:nth-child(54n) {\n  margin-right: 0; }\n  .led-panel.panel-col-54:nth-child(54n + 1) {\n  clear: left; }\n  .led-panel.panel-col-54:nth-last-child(-n + 54) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-54 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-54 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-54 .led-panel-content .panel-info.output, .led-panel.panel-col-54 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-55 {\n    width: calc(99.99% * 1/55 - (3px - 3px * 1/55));\n    height: calc(99.99% * 1/55 - (3px - 3px * 1/55)); }\n  .led-panel.panel-col-55:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-55:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-55:nth-child(55n) {\n  margin-right: 0; }\n  .led-panel.panel-col-55:nth-child(55n + 1) {\n  clear: left; }\n  .led-panel.panel-col-55:nth-last-child(-n + 55) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-55 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-55 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-55 .led-panel-content .panel-info.output, .led-panel.panel-col-55 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-56 {\n    width: calc(99.99% * 1/56 - (3px - 3px * 1/56));\n    height: calc(99.99% * 1/56 - (3px - 3px * 1/56)); }\n  .led-panel.panel-col-56:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-56:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-56:nth-child(56n) {\n  margin-right: 0; }\n  .led-panel.panel-col-56:nth-child(56n + 1) {\n  clear: left; }\n  .led-panel.panel-col-56:nth-last-child(-n + 56) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-56 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-56 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-56 .led-panel-content .panel-info.output, .led-panel.panel-col-56 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-57 {\n    width: calc(99.99% * 1/57 - (3px - 3px * 1/57));\n    height: calc(99.99% * 1/57 - (3px - 3px * 1/57)); }\n  .led-panel.panel-col-57:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-57:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-57:nth-child(57n) {\n  margin-right: 0; }\n  .led-panel.panel-col-57:nth-child(57n + 1) {\n  clear: left; }\n  .led-panel.panel-col-57:nth-last-child(-n + 57) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-57 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-57 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-57 .led-panel-content .panel-info.output, .led-panel.panel-col-57 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-58 {\n    width: calc(99.99% * 1/58 - (3px - 3px * 1/58));\n    height: calc(99.99% * 1/58 - (3px - 3px * 1/58)); }\n  .led-panel.panel-col-58:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-58:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-58:nth-child(58n) {\n  margin-right: 0; }\n  .led-panel.panel-col-58:nth-child(58n + 1) {\n  clear: left; }\n  .led-panel.panel-col-58:nth-last-child(-n + 58) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-58 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-58 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-58 .led-panel-content .panel-info.output, .led-panel.panel-col-58 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-59 {\n    width: calc(99.99% * 1/59 - (3px - 3px * 1/59));\n    height: calc(99.99% * 1/59 - (3px - 3px * 1/59)); }\n  .led-panel.panel-col-59:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-59:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-59:nth-child(59n) {\n  margin-right: 0; }\n  .led-panel.panel-col-59:nth-child(59n + 1) {\n  clear: left; }\n  .led-panel.panel-col-59:nth-last-child(-n + 59) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-59 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-59 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-59 .led-panel-content .panel-info.output, .led-panel.panel-col-59 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-60 {\n    width: calc(99.99% * 1/60 - (3px - 3px * 1/60));\n    height: calc(99.99% * 1/60 - (3px - 3px * 1/60)); }\n  .led-panel.panel-col-60:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-60:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-60:nth-child(60n) {\n  margin-right: 0; }\n  .led-panel.panel-col-60:nth-child(60n + 1) {\n  clear: left; }\n  .led-panel.panel-col-60:nth-last-child(-n + 60) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-60 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-60 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-60 .led-panel-content .panel-info.output, .led-panel.panel-col-60 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-61 {\n    width: calc(99.99% * 1/61 - (3px - 3px * 1/61));\n    height: calc(99.99% * 1/61 - (3px - 3px * 1/61)); }\n  .led-panel.panel-col-61:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-61:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-61:nth-child(61n) {\n  margin-right: 0; }\n  .led-panel.panel-col-61:nth-child(61n + 1) {\n  clear: left; }\n  .led-panel.panel-col-61:nth-last-child(-n + 61) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-61 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-61 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-61 .led-panel-content .panel-info.output, .led-panel.panel-col-61 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-62 {\n    width: calc(99.99% * 1/62 - (3px - 3px * 1/62));\n    height: calc(99.99% * 1/62 - (3px - 3px * 1/62)); }\n  .led-panel.panel-col-62:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-62:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-62:nth-child(62n) {\n  margin-right: 0; }\n  .led-panel.panel-col-62:nth-child(62n + 1) {\n  clear: left; }\n  .led-panel.panel-col-62:nth-last-child(-n + 62) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-62 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-62 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-62 .led-panel-content .panel-info.output, .led-panel.panel-col-62 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-63 {\n    width: calc(99.99% * 1/63 - (3px - 3px * 1/63));\n    height: calc(99.99% * 1/63 - (3px - 3px * 1/63)); }\n  .led-panel.panel-col-63:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-63:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-63:nth-child(63n) {\n  margin-right: 0; }\n  .led-panel.panel-col-63:nth-child(63n + 1) {\n  clear: left; }\n  .led-panel.panel-col-63:nth-last-child(-n + 63) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-63 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-63 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-63 .led-panel-content .panel-info.output, .led-panel.panel-col-63 .led-panel-content .panel-info.panel {\n      display: none; }\n")
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -38777,7 +44799,7 @@ if (module.hot) {(function () {  module.hot.accept()
   if (!hotAPI.compatible) return
   var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/outputs/led-panel.vue"
   module.hot.dispose(function () {
-    require("vueify-insert-css").cache[".led-panel {\n  position: relative;\n  background-color: #eaeaea;\n  border: 1px solid #ddd;\n  margin-bottom: 5px;\n  background-repeat: no-repeat;\n  background-position: center;\n  background-size: 15%; }\n  .led-panel:before {\n    display: block;\n    content: \"\";\n    width: 100%;\n    padding-top: 50%; }\n  .led-panel.left-orient:before, .led-panel.right-orient:before {\n    padding-top: 150%; }\n  .led-panel.left-orient {\n    background-image: url(\"/img/arrow-left.svg\"); }\n  .led-panel.right-orient {\n    background-image: url(\"/img/arrow-right.svg\"); }\n  .led-panel.up-orient {\n    background-image: url(\"/img/arrow-up.svg\"); }\n  .led-panel.down-orient {\n    background-image: url(\"/img/arrow-down.svg\"); }\n  .led-panel.panel32:before {\n    padding-top: 100%; }\n  .led-panel-content {\n    position: absolute;\n    top: 0;\n    left: 0;\n    right: 0;\n    bottom: 0;\n    padding: 10px;\n    overflow: hidden;\n    text-align: center; }\n  .led-panel .panel-info {\n    overflow: hidden;\n    line-height: 1.2;\n    text-transform: uppercase;\n    font-size: 12px;\n    color: #607179;\n    display: inline-block;\n    text-align: center;\n    margin: 2px 5px;\n    font-weight: bold; }\n    .led-panel .panel-info-label {\n      color: #788B94;\n      display: block;\n      font-size: 10px;\n      font-weight: normal; }\n  .led-panel.panel-col-2 {\n    width: calc(99.99% * 1/2 - (5px - 5px * 1/2));\n    height: calc(99.99% * 1/2 - (5px - 5px * 1/2)); }\n  .led-panel.panel-col-2:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-2:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-2:nth-child(2n) {\n  margin-right: 0; }\n  .led-panel.panel-col-2:nth-child(2n + 1) {\n  clear: left; }\n  .led-panel.panel-col-2:nth-last-child(-n + 2) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-3 {\n    width: calc(99.99% * 1/3 - (5px - 5px * 1/3));\n    height: calc(99.99% * 1/3 - (5px - 5px * 1/3)); }\n  .led-panel.panel-col-3:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-3:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-3:nth-child(3n) {\n  margin-right: 0; }\n  .led-panel.panel-col-3:nth-child(3n + 1) {\n  clear: left; }\n  .led-panel.panel-col-3:nth-last-child(-n + 3) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-4 {\n    width: calc(99.99% * 1/4 - (5px - 5px * 1/4));\n    height: calc(99.99% * 1/4 - (5px - 5px * 1/4)); }\n  .led-panel.panel-col-4:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-4:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-4:nth-child(4n) {\n  margin-right: 0; }\n  .led-panel.panel-col-4:nth-child(4n + 1) {\n  clear: left; }\n  .led-panel.panel-col-4:nth-last-child(-n + 4) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-5 {\n    width: calc(99.99% * 1/5 - (5px - 5px * 1/5));\n    height: calc(99.99% * 1/5 - (5px - 5px * 1/5)); }\n  .led-panel.panel-col-5:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-5:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-5:nth-child(5n) {\n  margin-right: 0; }\n  .led-panel.panel-col-5:nth-child(5n + 1) {\n  clear: left; }\n  .led-panel.panel-col-5:nth-last-child(-n + 5) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-6 {\n    width: calc(99.99% * 1/6 - (5px - 5px * 1/6));\n    height: calc(99.99% * 1/6 - (5px - 5px * 1/6)); }\n  .led-panel.panel-col-6:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-6:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-6:nth-child(6n) {\n  margin-right: 0; }\n  .led-panel.panel-col-6:nth-child(6n + 1) {\n  clear: left; }\n  .led-panel.panel-col-6:nth-last-child(-n + 6) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-7 {\n    width: calc(99.99% * 1/7 - (5px - 5px * 1/7));\n    height: calc(99.99% * 1/7 - (5px - 5px * 1/7)); }\n  .led-panel.panel-col-7:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-7:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-7:nth-child(7n) {\n  margin-right: 0; }\n  .led-panel.panel-col-7:nth-child(7n + 1) {\n  clear: left; }\n  .led-panel.panel-col-7:nth-last-child(-n + 7) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-8 {\n    width: calc(99.99% * 1/8 - (5px - 5px * 1/8));\n    height: calc(99.99% * 1/8 - (5px - 5px * 1/8)); }\n  .led-panel.panel-col-8:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-8:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-8:nth-child(8n) {\n  margin-right: 0; }\n  .led-panel.panel-col-8:nth-child(8n + 1) {\n  clear: left; }\n  .led-panel.panel-col-8:nth-last-child(-n + 8) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-9 {\n    width: calc(99.99% * 1/9 - (5px - 5px * 1/9));\n    height: calc(99.99% * 1/9 - (5px - 5px * 1/9)); }\n  .led-panel.panel-col-9:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-9:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-9:nth-child(9n) {\n  margin-right: 0; }\n  .led-panel.panel-col-9:nth-child(9n + 1) {\n  clear: left; }\n  .led-panel.panel-col-9:nth-last-child(-n + 9) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-9 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n  .led-panel.panel-col-10 {\n    width: calc(99.99% * 1/10 - (5px - 5px * 1/10));\n    height: calc(99.99% * 1/10 - (5px - 5px * 1/10)); }\n  .led-panel.panel-col-10:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-10:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-10:nth-child(10n) {\n  margin-right: 0; }\n  .led-panel.panel-col-10:nth-child(10n + 1) {\n  clear: left; }\n  .led-panel.panel-col-10:nth-last-child(-n + 10) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-10 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n  .led-panel.panel-col-11 {\n    width: calc(99.99% * 1/11 - (5px - 5px * 1/11));\n    height: calc(99.99% * 1/11 - (5px - 5px * 1/11)); }\n  .led-panel.panel-col-11:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-11:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-11:nth-child(11n) {\n  margin-right: 0; }\n  .led-panel.panel-col-11:nth-child(11n + 1) {\n  clear: left; }\n  .led-panel.panel-col-11:nth-last-child(-n + 11) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-11 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-11 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-11 .led-panel-content .panel-info.output, .led-panel.panel-col-11 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-12 {\n    width: calc(99.99% * 1/12 - (5px - 5px * 1/12));\n    height: calc(99.99% * 1/12 - (5px - 5px * 1/12)); }\n  .led-panel.panel-col-12:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-12:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-12:nth-child(12n) {\n  margin-right: 0; }\n  .led-panel.panel-col-12:nth-child(12n + 1) {\n  clear: left; }\n  .led-panel.panel-col-12:nth-last-child(-n + 12) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-12 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-12 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-12 .led-panel-content .panel-info.output, .led-panel.panel-col-12 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-13 {\n    width: calc(99.99% * 1/13 - (5px - 5px * 1/13));\n    height: calc(99.99% * 1/13 - (5px - 5px * 1/13)); }\n  .led-panel.panel-col-13:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-13:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-13:nth-child(13n) {\n  margin-right: 0; }\n  .led-panel.panel-col-13:nth-child(13n + 1) {\n  clear: left; }\n  .led-panel.panel-col-13:nth-last-child(-n + 13) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-13 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-13 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-13 .led-panel-content .panel-info.output, .led-panel.panel-col-13 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-14 {\n    width: calc(99.99% * 1/14 - (5px - 5px * 1/14));\n    height: calc(99.99% * 1/14 - (5px - 5px * 1/14)); }\n  .led-panel.panel-col-14:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-14:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-14:nth-child(14n) {\n  margin-right: 0; }\n  .led-panel.panel-col-14:nth-child(14n + 1) {\n  clear: left; }\n  .led-panel.panel-col-14:nth-last-child(-n + 14) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-14 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-14 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-14 .led-panel-content .panel-info.output, .led-panel.panel-col-14 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-15 {\n    width: calc(99.99% * 1/15 - (5px - 5px * 1/15));\n    height: calc(99.99% * 1/15 - (5px - 5px * 1/15)); }\n  .led-panel.panel-col-15:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-15:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-15:nth-child(15n) {\n  margin-right: 0; }\n  .led-panel.panel-col-15:nth-child(15n + 1) {\n  clear: left; }\n  .led-panel.panel-col-15:nth-last-child(-n + 15) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-15 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-15 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-15 .led-panel-content .panel-info.output, .led-panel.panel-col-15 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-16 {\n    width: calc(99.99% * 1/16 - (5px - 5px * 1/16));\n    height: calc(99.99% * 1/16 - (5px - 5px * 1/16)); }\n  .led-panel.panel-col-16:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-16:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-16:nth-child(16n) {\n  margin-right: 0; }\n  .led-panel.panel-col-16:nth-child(16n + 1) {\n  clear: left; }\n  .led-panel.panel-col-16:nth-last-child(-n + 16) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-16 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-16 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-16 .led-panel-content .panel-info.output, .led-panel.panel-col-16 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-17 {\n    width: calc(99.99% * 1/17 - (5px - 5px * 1/17));\n    height: calc(99.99% * 1/17 - (5px - 5px * 1/17)); }\n  .led-panel.panel-col-17:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-17:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-17:nth-child(17n) {\n  margin-right: 0; }\n  .led-panel.panel-col-17:nth-child(17n + 1) {\n  clear: left; }\n  .led-panel.panel-col-17:nth-last-child(-n + 17) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-17 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-17 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-17 .led-panel-content .panel-info.output, .led-panel.panel-col-17 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-18 {\n    width: calc(99.99% * 1/18 - (5px - 5px * 1/18));\n    height: calc(99.99% * 1/18 - (5px - 5px * 1/18)); }\n  .led-panel.panel-col-18:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-18:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-18:nth-child(18n) {\n  margin-right: 0; }\n  .led-panel.panel-col-18:nth-child(18n + 1) {\n  clear: left; }\n  .led-panel.panel-col-18:nth-last-child(-n + 18) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-18 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-18 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-18 .led-panel-content .panel-info.output, .led-panel.panel-col-18 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-19 {\n    width: calc(99.99% * 1/19 - (5px - 5px * 1/19));\n    height: calc(99.99% * 1/19 - (5px - 5px * 1/19)); }\n  .led-panel.panel-col-19:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-19:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-19:nth-child(19n) {\n  margin-right: 0; }\n  .led-panel.panel-col-19:nth-child(19n + 1) {\n  clear: left; }\n  .led-panel.panel-col-19:nth-last-child(-n + 19) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-19 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-19 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-19 .led-panel-content .panel-info.output, .led-panel.panel-col-19 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-20 {\n    width: calc(99.99% * 1/20 - (5px - 5px * 1/20));\n    height: calc(99.99% * 1/20 - (5px - 5px * 1/20)); }\n  .led-panel.panel-col-20:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-20:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-20:nth-child(20n) {\n  margin-right: 0; }\n  .led-panel.panel-col-20:nth-child(20n + 1) {\n  clear: left; }\n  .led-panel.panel-col-20:nth-last-child(-n + 20) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-20 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-20 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-20 .led-panel-content .panel-info.output, .led-panel.panel-col-20 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-21 {\n    width: calc(99.99% * 1/21 - (5px - 5px * 1/21));\n    height: calc(99.99% * 1/21 - (5px - 5px * 1/21)); }\n  .led-panel.panel-col-21:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-21:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-21:nth-child(21n) {\n  margin-right: 0; }\n  .led-panel.panel-col-21:nth-child(21n + 1) {\n  clear: left; }\n  .led-panel.panel-col-21:nth-last-child(-n + 21) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-21 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-21 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-21 .led-panel-content .panel-info.output, .led-panel.panel-col-21 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-22 {\n    width: calc(99.99% * 1/22 - (5px - 5px * 1/22));\n    height: calc(99.99% * 1/22 - (5px - 5px * 1/22)); }\n  .led-panel.panel-col-22:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-22:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-22:nth-child(22n) {\n  margin-right: 0; }\n  .led-panel.panel-col-22:nth-child(22n + 1) {\n  clear: left; }\n  .led-panel.panel-col-22:nth-last-child(-n + 22) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-22 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-22 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-22 .led-panel-content .panel-info.output, .led-panel.panel-col-22 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-23 {\n    width: calc(99.99% * 1/23 - (5px - 5px * 1/23));\n    height: calc(99.99% * 1/23 - (5px - 5px * 1/23)); }\n  .led-panel.panel-col-23:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-23:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-23:nth-child(23n) {\n  margin-right: 0; }\n  .led-panel.panel-col-23:nth-child(23n + 1) {\n  clear: left; }\n  .led-panel.panel-col-23:nth-last-child(-n + 23) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-23 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-23 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-23 .led-panel-content .panel-info.output, .led-panel.panel-col-23 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-24 {\n    width: calc(99.99% * 1/24 - (5px - 5px * 1/24));\n    height: calc(99.99% * 1/24 - (5px - 5px * 1/24)); }\n  .led-panel.panel-col-24:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-24:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-24:nth-child(24n) {\n  margin-right: 0; }\n  .led-panel.panel-col-24:nth-child(24n + 1) {\n  clear: left; }\n  .led-panel.panel-col-24:nth-last-child(-n + 24) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-24 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-24 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-24 .led-panel-content .panel-info.output, .led-panel.panel-col-24 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-25 {\n    width: calc(99.99% * 1/25 - (5px - 5px * 1/25));\n    height: calc(99.99% * 1/25 - (5px - 5px * 1/25)); }\n  .led-panel.panel-col-25:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-25:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-25:nth-child(25n) {\n  margin-right: 0; }\n  .led-panel.panel-col-25:nth-child(25n + 1) {\n  clear: left; }\n  .led-panel.panel-col-25:nth-last-child(-n + 25) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-25 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-25 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-25 .led-panel-content .panel-info.output, .led-panel.panel-col-25 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-26 {\n    width: calc(99.99% * 1/26 - (5px - 5px * 1/26));\n    height: calc(99.99% * 1/26 - (5px - 5px * 1/26)); }\n  .led-panel.panel-col-26:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-26:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-26:nth-child(26n) {\n  margin-right: 0; }\n  .led-panel.panel-col-26:nth-child(26n + 1) {\n  clear: left; }\n  .led-panel.panel-col-26:nth-last-child(-n + 26) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-26 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-26 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-26 .led-panel-content .panel-info.output, .led-panel.panel-col-26 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-27 {\n    width: calc(99.99% * 1/27 - (5px - 5px * 1/27));\n    height: calc(99.99% * 1/27 - (5px - 5px * 1/27)); }\n  .led-panel.panel-col-27:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-27:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-27:nth-child(27n) {\n  margin-right: 0; }\n  .led-panel.panel-col-27:nth-child(27n + 1) {\n  clear: left; }\n  .led-panel.panel-col-27:nth-last-child(-n + 27) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-27 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-27 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-27 .led-panel-content .panel-info.output, .led-panel.panel-col-27 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-28 {\n    width: calc(99.99% * 1/28 - (5px - 5px * 1/28));\n    height: calc(99.99% * 1/28 - (5px - 5px * 1/28)); }\n  .led-panel.panel-col-28:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-28:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-28:nth-child(28n) {\n  margin-right: 0; }\n  .led-panel.panel-col-28:nth-child(28n + 1) {\n  clear: left; }\n  .led-panel.panel-col-28:nth-last-child(-n + 28) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-28 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-28 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-28 .led-panel-content .panel-info.output, .led-panel.panel-col-28 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-29 {\n    width: calc(99.99% * 1/29 - (5px - 5px * 1/29));\n    height: calc(99.99% * 1/29 - (5px - 5px * 1/29)); }\n  .led-panel.panel-col-29:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-29:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-29:nth-child(29n) {\n  margin-right: 0; }\n  .led-panel.panel-col-29:nth-child(29n + 1) {\n  clear: left; }\n  .led-panel.panel-col-29:nth-last-child(-n + 29) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-29 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-29 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-29 .led-panel-content .panel-info.output, .led-panel.panel-col-29 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-30 {\n    width: calc(99.99% * 1/30 - (5px - 5px * 1/30));\n    height: calc(99.99% * 1/30 - (5px - 5px * 1/30)); }\n  .led-panel.panel-col-30:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-30:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-30:nth-child(30n) {\n  margin-right: 0; }\n  .led-panel.panel-col-30:nth-child(30n + 1) {\n  clear: left; }\n  .led-panel.panel-col-30:nth-last-child(-n + 30) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-30 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-30 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-30 .led-panel-content .panel-info.output, .led-panel.panel-col-30 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-31 {\n    width: calc(99.99% * 1/31 - (5px - 5px * 1/31));\n    height: calc(99.99% * 1/31 - (5px - 5px * 1/31)); }\n  .led-panel.panel-col-31:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-31:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-31:nth-child(31n) {\n  margin-right: 0; }\n  .led-panel.panel-col-31:nth-child(31n + 1) {\n  clear: left; }\n  .led-panel.panel-col-31:nth-last-child(-n + 31) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-31 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-31 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-31 .led-panel-content .panel-info.output, .led-panel.panel-col-31 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-32 {\n    width: calc(99.99% * 1/32 - (5px - 5px * 1/32));\n    height: calc(99.99% * 1/32 - (5px - 5px * 1/32)); }\n  .led-panel.panel-col-32:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-32:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-32:nth-child(32n) {\n  margin-right: 0; }\n  .led-panel.panel-col-32:nth-child(32n + 1) {\n  clear: left; }\n  .led-panel.panel-col-32:nth-last-child(-n + 32) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-32 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-32 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-32 .led-panel-content .panel-info.output, .led-panel.panel-col-32 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-33 {\n    width: calc(99.99% * 1/33 - (5px - 5px * 1/33));\n    height: calc(99.99% * 1/33 - (5px - 5px * 1/33)); }\n  .led-panel.panel-col-33:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-33:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-33:nth-child(33n) {\n  margin-right: 0; }\n  .led-panel.panel-col-33:nth-child(33n + 1) {\n  clear: left; }\n  .led-panel.panel-col-33:nth-last-child(-n + 33) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-33 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-33 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-33 .led-panel-content .panel-info.output, .led-panel.panel-col-33 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-34 {\n    width: calc(99.99% * 1/34 - (5px - 5px * 1/34));\n    height: calc(99.99% * 1/34 - (5px - 5px * 1/34)); }\n  .led-panel.panel-col-34:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-34:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-34:nth-child(34n) {\n  margin-right: 0; }\n  .led-panel.panel-col-34:nth-child(34n + 1) {\n  clear: left; }\n  .led-panel.panel-col-34:nth-last-child(-n + 34) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-34 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-34 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-34 .led-panel-content .panel-info.output, .led-panel.panel-col-34 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-35 {\n    width: calc(99.99% * 1/35 - (5px - 5px * 1/35));\n    height: calc(99.99% * 1/35 - (5px - 5px * 1/35)); }\n  .led-panel.panel-col-35:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-35:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-35:nth-child(35n) {\n  margin-right: 0; }\n  .led-panel.panel-col-35:nth-child(35n + 1) {\n  clear: left; }\n  .led-panel.panel-col-35:nth-last-child(-n + 35) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-35 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-35 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-35 .led-panel-content .panel-info.output, .led-panel.panel-col-35 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-36 {\n    width: calc(99.99% * 1/36 - (5px - 5px * 1/36));\n    height: calc(99.99% * 1/36 - (5px - 5px * 1/36)); }\n  .led-panel.panel-col-36:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-36:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-36:nth-child(36n) {\n  margin-right: 0; }\n  .led-panel.panel-col-36:nth-child(36n + 1) {\n  clear: left; }\n  .led-panel.panel-col-36:nth-last-child(-n + 36) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-36 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-36 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-36 .led-panel-content .panel-info.output, .led-panel.panel-col-36 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-37 {\n    width: calc(99.99% * 1/37 - (5px - 5px * 1/37));\n    height: calc(99.99% * 1/37 - (5px - 5px * 1/37)); }\n  .led-panel.panel-col-37:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-37:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-37:nth-child(37n) {\n  margin-right: 0; }\n  .led-panel.panel-col-37:nth-child(37n + 1) {\n  clear: left; }\n  .led-panel.panel-col-37:nth-last-child(-n + 37) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-37 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-37 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-37 .led-panel-content .panel-info.output, .led-panel.panel-col-37 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-38 {\n    width: calc(99.99% * 1/38 - (5px - 5px * 1/38));\n    height: calc(99.99% * 1/38 - (5px - 5px * 1/38)); }\n  .led-panel.panel-col-38:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-38:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-38:nth-child(38n) {\n  margin-right: 0; }\n  .led-panel.panel-col-38:nth-child(38n + 1) {\n  clear: left; }\n  .led-panel.panel-col-38:nth-last-child(-n + 38) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-38 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-38 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-38 .led-panel-content .panel-info.output, .led-panel.panel-col-38 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-39 {\n    width: calc(99.99% * 1/39 - (5px - 5px * 1/39));\n    height: calc(99.99% * 1/39 - (5px - 5px * 1/39)); }\n  .led-panel.panel-col-39:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-39:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-39:nth-child(39n) {\n  margin-right: 0; }\n  .led-panel.panel-col-39:nth-child(39n + 1) {\n  clear: left; }\n  .led-panel.panel-col-39:nth-last-child(-n + 39) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-39 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-39 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-39 .led-panel-content .panel-info.output, .led-panel.panel-col-39 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-40 {\n    width: calc(99.99% * 1/40 - (5px - 5px * 1/40));\n    height: calc(99.99% * 1/40 - (5px - 5px * 1/40)); }\n  .led-panel.panel-col-40:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-40:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-40:nth-child(40n) {\n  margin-right: 0; }\n  .led-panel.panel-col-40:nth-child(40n + 1) {\n  clear: left; }\n  .led-panel.panel-col-40:nth-last-child(-n + 40) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-40 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-40 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-40 .led-panel-content .panel-info.output, .led-panel.panel-col-40 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-41 {\n    width: calc(99.99% * 1/41 - (5px - 5px * 1/41));\n    height: calc(99.99% * 1/41 - (5px - 5px * 1/41)); }\n  .led-panel.panel-col-41:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-41:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-41:nth-child(41n) {\n  margin-right: 0; }\n  .led-panel.panel-col-41:nth-child(41n + 1) {\n  clear: left; }\n  .led-panel.panel-col-41:nth-last-child(-n + 41) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-41 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-41 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-41 .led-panel-content .panel-info.output, .led-panel.panel-col-41 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-42 {\n    width: calc(99.99% * 1/42 - (5px - 5px * 1/42));\n    height: calc(99.99% * 1/42 - (5px - 5px * 1/42)); }\n  .led-panel.panel-col-42:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-42:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-42:nth-child(42n) {\n  margin-right: 0; }\n  .led-panel.panel-col-42:nth-child(42n + 1) {\n  clear: left; }\n  .led-panel.panel-col-42:nth-last-child(-n + 42) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-42 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-42 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-42 .led-panel-content .panel-info.output, .led-panel.panel-col-42 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-43 {\n    width: calc(99.99% * 1/43 - (5px - 5px * 1/43));\n    height: calc(99.99% * 1/43 - (5px - 5px * 1/43)); }\n  .led-panel.panel-col-43:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-43:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-43:nth-child(43n) {\n  margin-right: 0; }\n  .led-panel.panel-col-43:nth-child(43n + 1) {\n  clear: left; }\n  .led-panel.panel-col-43:nth-last-child(-n + 43) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-43 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-43 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-43 .led-panel-content .panel-info.output, .led-panel.panel-col-43 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-44 {\n    width: calc(99.99% * 1/44 - (5px - 5px * 1/44));\n    height: calc(99.99% * 1/44 - (5px - 5px * 1/44)); }\n  .led-panel.panel-col-44:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-44:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-44:nth-child(44n) {\n  margin-right: 0; }\n  .led-panel.panel-col-44:nth-child(44n + 1) {\n  clear: left; }\n  .led-panel.panel-col-44:nth-last-child(-n + 44) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-44 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-44 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-44 .led-panel-content .panel-info.output, .led-panel.panel-col-44 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-45 {\n    width: calc(99.99% * 1/45 - (5px - 5px * 1/45));\n    height: calc(99.99% * 1/45 - (5px - 5px * 1/45)); }\n  .led-panel.panel-col-45:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-45:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-45:nth-child(45n) {\n  margin-right: 0; }\n  .led-panel.panel-col-45:nth-child(45n + 1) {\n  clear: left; }\n  .led-panel.panel-col-45:nth-last-child(-n + 45) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-45 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-45 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-45 .led-panel-content .panel-info.output, .led-panel.panel-col-45 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-46 {\n    width: calc(99.99% * 1/46 - (5px - 5px * 1/46));\n    height: calc(99.99% * 1/46 - (5px - 5px * 1/46)); }\n  .led-panel.panel-col-46:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-46:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-46:nth-child(46n) {\n  margin-right: 0; }\n  .led-panel.panel-col-46:nth-child(46n + 1) {\n  clear: left; }\n  .led-panel.panel-col-46:nth-last-child(-n + 46) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-46 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-46 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-46 .led-panel-content .panel-info.output, .led-panel.panel-col-46 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-47 {\n    width: calc(99.99% * 1/47 - (5px - 5px * 1/47));\n    height: calc(99.99% * 1/47 - (5px - 5px * 1/47)); }\n  .led-panel.panel-col-47:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-47:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-47:nth-child(47n) {\n  margin-right: 0; }\n  .led-panel.panel-col-47:nth-child(47n + 1) {\n  clear: left; }\n  .led-panel.panel-col-47:nth-last-child(-n + 47) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-47 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-47 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-47 .led-panel-content .panel-info.output, .led-panel.panel-col-47 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-48 {\n    width: calc(99.99% * 1/48 - (5px - 5px * 1/48));\n    height: calc(99.99% * 1/48 - (5px - 5px * 1/48)); }\n  .led-panel.panel-col-48:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-48:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-48:nth-child(48n) {\n  margin-right: 0; }\n  .led-panel.panel-col-48:nth-child(48n + 1) {\n  clear: left; }\n  .led-panel.panel-col-48:nth-last-child(-n + 48) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-48 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-48 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-48 .led-panel-content .panel-info.output, .led-panel.panel-col-48 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-49 {\n    width: calc(99.99% * 1/49 - (5px - 5px * 1/49));\n    height: calc(99.99% * 1/49 - (5px - 5px * 1/49)); }\n  .led-panel.panel-col-49:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-49:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-49:nth-child(49n) {\n  margin-right: 0; }\n  .led-panel.panel-col-49:nth-child(49n + 1) {\n  clear: left; }\n  .led-panel.panel-col-49:nth-last-child(-n + 49) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-49 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-49 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-49 .led-panel-content .panel-info.output, .led-panel.panel-col-49 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-50 {\n    width: calc(99.99% * 1/50 - (5px - 5px * 1/50));\n    height: calc(99.99% * 1/50 - (5px - 5px * 1/50)); }\n  .led-panel.panel-col-50:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-50:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-50:nth-child(50n) {\n  margin-right: 0; }\n  .led-panel.panel-col-50:nth-child(50n + 1) {\n  clear: left; }\n  .led-panel.panel-col-50:nth-last-child(-n + 50) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-50 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-50 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-50 .led-panel-content .panel-info.output, .led-panel.panel-col-50 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-51 {\n    width: calc(99.99% * 1/51 - (5px - 5px * 1/51));\n    height: calc(99.99% * 1/51 - (5px - 5px * 1/51)); }\n  .led-panel.panel-col-51:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-51:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-51:nth-child(51n) {\n  margin-right: 0; }\n  .led-panel.panel-col-51:nth-child(51n + 1) {\n  clear: left; }\n  .led-panel.panel-col-51:nth-last-child(-n + 51) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-51 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-51 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-51 .led-panel-content .panel-info.output, .led-panel.panel-col-51 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-52 {\n    width: calc(99.99% * 1/52 - (5px - 5px * 1/52));\n    height: calc(99.99% * 1/52 - (5px - 5px * 1/52)); }\n  .led-panel.panel-col-52:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-52:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-52:nth-child(52n) {\n  margin-right: 0; }\n  .led-panel.panel-col-52:nth-child(52n + 1) {\n  clear: left; }\n  .led-panel.panel-col-52:nth-last-child(-n + 52) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-52 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-52 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-52 .led-panel-content .panel-info.output, .led-panel.panel-col-52 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-53 {\n    width: calc(99.99% * 1/53 - (5px - 5px * 1/53));\n    height: calc(99.99% * 1/53 - (5px - 5px * 1/53)); }\n  .led-panel.panel-col-53:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-53:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-53:nth-child(53n) {\n  margin-right: 0; }\n  .led-panel.panel-col-53:nth-child(53n + 1) {\n  clear: left; }\n  .led-panel.panel-col-53:nth-last-child(-n + 53) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-53 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-53 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-53 .led-panel-content .panel-info.output, .led-panel.panel-col-53 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-54 {\n    width: calc(99.99% * 1/54 - (5px - 5px * 1/54));\n    height: calc(99.99% * 1/54 - (5px - 5px * 1/54)); }\n  .led-panel.panel-col-54:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-54:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-54:nth-child(54n) {\n  margin-right: 0; }\n  .led-panel.panel-col-54:nth-child(54n + 1) {\n  clear: left; }\n  .led-panel.panel-col-54:nth-last-child(-n + 54) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-54 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-54 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-54 .led-panel-content .panel-info.output, .led-panel.panel-col-54 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-55 {\n    width: calc(99.99% * 1/55 - (5px - 5px * 1/55));\n    height: calc(99.99% * 1/55 - (5px - 5px * 1/55)); }\n  .led-panel.panel-col-55:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-55:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-55:nth-child(55n) {\n  margin-right: 0; }\n  .led-panel.panel-col-55:nth-child(55n + 1) {\n  clear: left; }\n  .led-panel.panel-col-55:nth-last-child(-n + 55) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-55 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-55 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-55 .led-panel-content .panel-info.output, .led-panel.panel-col-55 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-56 {\n    width: calc(99.99% * 1/56 - (5px - 5px * 1/56));\n    height: calc(99.99% * 1/56 - (5px - 5px * 1/56)); }\n  .led-panel.panel-col-56:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-56:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-56:nth-child(56n) {\n  margin-right: 0; }\n  .led-panel.panel-col-56:nth-child(56n + 1) {\n  clear: left; }\n  .led-panel.panel-col-56:nth-last-child(-n + 56) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-56 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-56 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-56 .led-panel-content .panel-info.output, .led-panel.panel-col-56 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-57 {\n    width: calc(99.99% * 1/57 - (5px - 5px * 1/57));\n    height: calc(99.99% * 1/57 - (5px - 5px * 1/57)); }\n  .led-panel.panel-col-57:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-57:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-57:nth-child(57n) {\n  margin-right: 0; }\n  .led-panel.panel-col-57:nth-child(57n + 1) {\n  clear: left; }\n  .led-panel.panel-col-57:nth-last-child(-n + 57) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-57 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-57 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-57 .led-panel-content .panel-info.output, .led-panel.panel-col-57 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-58 {\n    width: calc(99.99% * 1/58 - (5px - 5px * 1/58));\n    height: calc(99.99% * 1/58 - (5px - 5px * 1/58)); }\n  .led-panel.panel-col-58:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-58:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-58:nth-child(58n) {\n  margin-right: 0; }\n  .led-panel.panel-col-58:nth-child(58n + 1) {\n  clear: left; }\n  .led-panel.panel-col-58:nth-last-child(-n + 58) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-58 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-58 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-58 .led-panel-content .panel-info.output, .led-panel.panel-col-58 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-59 {\n    width: calc(99.99% * 1/59 - (5px - 5px * 1/59));\n    height: calc(99.99% * 1/59 - (5px - 5px * 1/59)); }\n  .led-panel.panel-col-59:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-59:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-59:nth-child(59n) {\n  margin-right: 0; }\n  .led-panel.panel-col-59:nth-child(59n + 1) {\n  clear: left; }\n  .led-panel.panel-col-59:nth-last-child(-n + 59) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-59 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-59 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-59 .led-panel-content .panel-info.output, .led-panel.panel-col-59 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-60 {\n    width: calc(99.99% * 1/60 - (5px - 5px * 1/60));\n    height: calc(99.99% * 1/60 - (5px - 5px * 1/60)); }\n  .led-panel.panel-col-60:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-60:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-60:nth-child(60n) {\n  margin-right: 0; }\n  .led-panel.panel-col-60:nth-child(60n + 1) {\n  clear: left; }\n  .led-panel.panel-col-60:nth-last-child(-n + 60) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-60 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-60 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-60 .led-panel-content .panel-info.output, .led-panel.panel-col-60 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-61 {\n    width: calc(99.99% * 1/61 - (5px - 5px * 1/61));\n    height: calc(99.99% * 1/61 - (5px - 5px * 1/61)); }\n  .led-panel.panel-col-61:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-61:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-61:nth-child(61n) {\n  margin-right: 0; }\n  .led-panel.panel-col-61:nth-child(61n + 1) {\n  clear: left; }\n  .led-panel.panel-col-61:nth-last-child(-n + 61) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-61 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-61 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-61 .led-panel-content .panel-info.output, .led-panel.panel-col-61 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-62 {\n    width: calc(99.99% * 1/62 - (5px - 5px * 1/62));\n    height: calc(99.99% * 1/62 - (5px - 5px * 1/62)); }\n  .led-panel.panel-col-62:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-62:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-62:nth-child(62n) {\n  margin-right: 0; }\n  .led-panel.panel-col-62:nth-child(62n + 1) {\n  clear: left; }\n  .led-panel.panel-col-62:nth-last-child(-n + 62) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-62 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-62 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-62 .led-panel-content .panel-info.output, .led-panel.panel-col-62 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-63 {\n    width: calc(99.99% * 1/63 - (5px - 5px * 1/63));\n    height: calc(99.99% * 1/63 - (5px - 5px * 1/63)); }\n  .led-panel.panel-col-63:nth-child(n) {\n  float: left;\n  margin-right: 5px;\n  margin-bottom: 5px;\n  clear: none; }\n  .led-panel.panel-col-63:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-63:nth-child(63n) {\n  margin-right: 0; }\n  .led-panel.panel-col-63:nth-child(63n + 1) {\n  clear: left; }\n  .led-panel.panel-col-63:nth-last-child(-n + 63) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-63 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-63 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-63 .led-panel-content .panel-info.output, .led-panel.panel-col-63 .led-panel-content .panel-info.panel {\n      display: none; }\n"] = false
+    require("vueify-insert-css").cache[".led-panel {\n  position: relative;\n  background-color: #eaeaea;\n  border: 1px solid #ddd;\n  margin-bottom: 5px;\n  background-repeat: no-repeat;\n  background-position: center;\n  background-size: 15%; }\n  .led-panel:before {\n    display: block;\n    content: \"\";\n    width: 100%;\n    padding-top: 50%; }\n  .led-panel.left-orient:before, .led-panel.right-orient:before {\n    padding-top: 150%; }\n  .led-panel.left-orient {\n    background-image: url(\"/img/arrow-left.svg\"); }\n  .led-panel.right-orient {\n    background-image: url(\"/img/arrow-right.svg\"); }\n  .led-panel.up-orient {\n    background-image: url(\"/img/arrow-up.svg\"); }\n  .led-panel.down-orient {\n    background-image: url(\"/img/arrow-down.svg\"); }\n  .led-panel.panel32:before {\n    padding-top: 100%; }\n  .led-panel-content {\n    position: absolute;\n    top: 0;\n    left: 0;\n    right: 0;\n    bottom: 0;\n    padding: 10px;\n    overflow: hidden;\n    text-align: center; }\n  .led-panel .panel-info {\n    overflow: hidden;\n    line-height: 1.2;\n    text-transform: uppercase;\n    font-size: 12px;\n    color: #607179;\n    display: inline-block;\n    text-align: center;\n    margin: 2px 5px;\n    font-weight: bold; }\n    .led-panel .panel-info-label {\n      color: #788B94;\n      display: block;\n      font-size: 10px;\n      font-weight: normal; }\n  .led-panel.panel-col-2 {\n    width: calc(99.99% * 1/2 - (3px - 3px * 1/2));\n    height: calc(99.99% * 1/2 - (3px - 3px * 1/2)); }\n  .led-panel.panel-col-2:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-2:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-2:nth-child(2n) {\n  margin-right: 0; }\n  .led-panel.panel-col-2:nth-child(2n + 1) {\n  clear: left; }\n  .led-panel.panel-col-2:nth-last-child(-n + 2) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-3 {\n    width: calc(99.99% * 1/3 - (3px - 3px * 1/3));\n    height: calc(99.99% * 1/3 - (3px - 3px * 1/3)); }\n  .led-panel.panel-col-3:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-3:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-3:nth-child(3n) {\n  margin-right: 0; }\n  .led-panel.panel-col-3:nth-child(3n + 1) {\n  clear: left; }\n  .led-panel.panel-col-3:nth-last-child(-n + 3) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-4 {\n    width: calc(99.99% * 1/4 - (3px - 3px * 1/4));\n    height: calc(99.99% * 1/4 - (3px - 3px * 1/4)); }\n  .led-panel.panel-col-4:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-4:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-4:nth-child(4n) {\n  margin-right: 0; }\n  .led-panel.panel-col-4:nth-child(4n + 1) {\n  clear: left; }\n  .led-panel.panel-col-4:nth-last-child(-n + 4) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-5 {\n    width: calc(99.99% * 1/5 - (3px - 3px * 1/5));\n    height: calc(99.99% * 1/5 - (3px - 3px * 1/5)); }\n  .led-panel.panel-col-5:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-5:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-5:nth-child(5n) {\n  margin-right: 0; }\n  .led-panel.panel-col-5:nth-child(5n + 1) {\n  clear: left; }\n  .led-panel.panel-col-5:nth-last-child(-n + 5) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-6 {\n    width: calc(99.99% * 1/6 - (3px - 3px * 1/6));\n    height: calc(99.99% * 1/6 - (3px - 3px * 1/6)); }\n  .led-panel.panel-col-6:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-6:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-6:nth-child(6n) {\n  margin-right: 0; }\n  .led-panel.panel-col-6:nth-child(6n + 1) {\n  clear: left; }\n  .led-panel.panel-col-6:nth-last-child(-n + 6) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-7 {\n    width: calc(99.99% * 1/7 - (3px - 3px * 1/7));\n    height: calc(99.99% * 1/7 - (3px - 3px * 1/7)); }\n  .led-panel.panel-col-7:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-7:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-7:nth-child(7n) {\n  margin-right: 0; }\n  .led-panel.panel-col-7:nth-child(7n + 1) {\n  clear: left; }\n  .led-panel.panel-col-7:nth-last-child(-n + 7) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-8 {\n    width: calc(99.99% * 1/8 - (3px - 3px * 1/8));\n    height: calc(99.99% * 1/8 - (3px - 3px * 1/8)); }\n  .led-panel.panel-col-8:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-8:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-8:nth-child(8n) {\n  margin-right: 0; }\n  .led-panel.panel-col-8:nth-child(8n + 1) {\n  clear: left; }\n  .led-panel.panel-col-8:nth-last-child(-n + 8) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-9 {\n    width: calc(99.99% * 1/9 - (3px - 3px * 1/9));\n    height: calc(99.99% * 1/9 - (3px - 3px * 1/9)); }\n  .led-panel.panel-col-9:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-9:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-9:nth-child(9n) {\n  margin-right: 0; }\n  .led-panel.panel-col-9:nth-child(9n + 1) {\n  clear: left; }\n  .led-panel.panel-col-9:nth-last-child(-n + 9) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-9 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n  .led-panel.panel-col-10 {\n    width: calc(99.99% * 1/10 - (3px - 3px * 1/10));\n    height: calc(99.99% * 1/10 - (3px - 3px * 1/10)); }\n  .led-panel.panel-col-10:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-10:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-10:nth-child(10n) {\n  margin-right: 0; }\n  .led-panel.panel-col-10:nth-child(10n + 1) {\n  clear: left; }\n  .led-panel.panel-col-10:nth-last-child(-n + 10) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-10 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n  .led-panel.panel-col-11 {\n    width: calc(99.99% * 1/11 - (3px - 3px * 1/11));\n    height: calc(99.99% * 1/11 - (3px - 3px * 1/11)); }\n  .led-panel.panel-col-11:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-11:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-11:nth-child(11n) {\n  margin-right: 0; }\n  .led-panel.panel-col-11:nth-child(11n + 1) {\n  clear: left; }\n  .led-panel.panel-col-11:nth-last-child(-n + 11) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-11 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-11 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-11 .led-panel-content .panel-info.output, .led-panel.panel-col-11 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-12 {\n    width: calc(99.99% * 1/12 - (3px - 3px * 1/12));\n    height: calc(99.99% * 1/12 - (3px - 3px * 1/12)); }\n  .led-panel.panel-col-12:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-12:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-12:nth-child(12n) {\n  margin-right: 0; }\n  .led-panel.panel-col-12:nth-child(12n + 1) {\n  clear: left; }\n  .led-panel.panel-col-12:nth-last-child(-n + 12) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-12 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-12 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-12 .led-panel-content .panel-info.output, .led-panel.panel-col-12 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-13 {\n    width: calc(99.99% * 1/13 - (3px - 3px * 1/13));\n    height: calc(99.99% * 1/13 - (3px - 3px * 1/13)); }\n  .led-panel.panel-col-13:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-13:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-13:nth-child(13n) {\n  margin-right: 0; }\n  .led-panel.panel-col-13:nth-child(13n + 1) {\n  clear: left; }\n  .led-panel.panel-col-13:nth-last-child(-n + 13) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-13 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-13 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-13 .led-panel-content .panel-info.output, .led-panel.panel-col-13 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-14 {\n    width: calc(99.99% * 1/14 - (3px - 3px * 1/14));\n    height: calc(99.99% * 1/14 - (3px - 3px * 1/14)); }\n  .led-panel.panel-col-14:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-14:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-14:nth-child(14n) {\n  margin-right: 0; }\n  .led-panel.panel-col-14:nth-child(14n + 1) {\n  clear: left; }\n  .led-panel.panel-col-14:nth-last-child(-n + 14) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-14 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-14 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-14 .led-panel-content .panel-info.output, .led-panel.panel-col-14 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-15 {\n    width: calc(99.99% * 1/15 - (3px - 3px * 1/15));\n    height: calc(99.99% * 1/15 - (3px - 3px * 1/15)); }\n  .led-panel.panel-col-15:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-15:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-15:nth-child(15n) {\n  margin-right: 0; }\n  .led-panel.panel-col-15:nth-child(15n + 1) {\n  clear: left; }\n  .led-panel.panel-col-15:nth-last-child(-n + 15) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-15 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-15 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-15 .led-panel-content .panel-info.output, .led-panel.panel-col-15 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-16 {\n    width: calc(99.99% * 1/16 - (3px - 3px * 1/16));\n    height: calc(99.99% * 1/16 - (3px - 3px * 1/16)); }\n  .led-panel.panel-col-16:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-16:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-16:nth-child(16n) {\n  margin-right: 0; }\n  .led-panel.panel-col-16:nth-child(16n + 1) {\n  clear: left; }\n  .led-panel.panel-col-16:nth-last-child(-n + 16) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-16 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-16 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-16 .led-panel-content .panel-info.output, .led-panel.panel-col-16 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-17 {\n    width: calc(99.99% * 1/17 - (3px - 3px * 1/17));\n    height: calc(99.99% * 1/17 - (3px - 3px * 1/17)); }\n  .led-panel.panel-col-17:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-17:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-17:nth-child(17n) {\n  margin-right: 0; }\n  .led-panel.panel-col-17:nth-child(17n + 1) {\n  clear: left; }\n  .led-panel.panel-col-17:nth-last-child(-n + 17) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-17 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-17 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-17 .led-panel-content .panel-info.output, .led-panel.panel-col-17 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-18 {\n    width: calc(99.99% * 1/18 - (3px - 3px * 1/18));\n    height: calc(99.99% * 1/18 - (3px - 3px * 1/18)); }\n  .led-panel.panel-col-18:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-18:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-18:nth-child(18n) {\n  margin-right: 0; }\n  .led-panel.panel-col-18:nth-child(18n + 1) {\n  clear: left; }\n  .led-panel.panel-col-18:nth-last-child(-n + 18) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-18 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-18 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-18 .led-panel-content .panel-info.output, .led-panel.panel-col-18 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-19 {\n    width: calc(99.99% * 1/19 - (3px - 3px * 1/19));\n    height: calc(99.99% * 1/19 - (3px - 3px * 1/19)); }\n  .led-panel.panel-col-19:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-19:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-19:nth-child(19n) {\n  margin-right: 0; }\n  .led-panel.panel-col-19:nth-child(19n + 1) {\n  clear: left; }\n  .led-panel.panel-col-19:nth-last-child(-n + 19) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-19 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-19 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-19 .led-panel-content .panel-info.output, .led-panel.panel-col-19 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-20 {\n    width: calc(99.99% * 1/20 - (3px - 3px * 1/20));\n    height: calc(99.99% * 1/20 - (3px - 3px * 1/20)); }\n  .led-panel.panel-col-20:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-20:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-20:nth-child(20n) {\n  margin-right: 0; }\n  .led-panel.panel-col-20:nth-child(20n + 1) {\n  clear: left; }\n  .led-panel.panel-col-20:nth-last-child(-n + 20) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-20 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-20 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-20 .led-panel-content .panel-info.output, .led-panel.panel-col-20 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-21 {\n    width: calc(99.99% * 1/21 - (3px - 3px * 1/21));\n    height: calc(99.99% * 1/21 - (3px - 3px * 1/21)); }\n  .led-panel.panel-col-21:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-21:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-21:nth-child(21n) {\n  margin-right: 0; }\n  .led-panel.panel-col-21:nth-child(21n + 1) {\n  clear: left; }\n  .led-panel.panel-col-21:nth-last-child(-n + 21) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-21 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-21 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-21 .led-panel-content .panel-info.output, .led-panel.panel-col-21 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-22 {\n    width: calc(99.99% * 1/22 - (3px - 3px * 1/22));\n    height: calc(99.99% * 1/22 - (3px - 3px * 1/22)); }\n  .led-panel.panel-col-22:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-22:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-22:nth-child(22n) {\n  margin-right: 0; }\n  .led-panel.panel-col-22:nth-child(22n + 1) {\n  clear: left; }\n  .led-panel.panel-col-22:nth-last-child(-n + 22) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-22 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-22 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-22 .led-panel-content .panel-info.output, .led-panel.panel-col-22 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-23 {\n    width: calc(99.99% * 1/23 - (3px - 3px * 1/23));\n    height: calc(99.99% * 1/23 - (3px - 3px * 1/23)); }\n  .led-panel.panel-col-23:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-23:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-23:nth-child(23n) {\n  margin-right: 0; }\n  .led-panel.panel-col-23:nth-child(23n + 1) {\n  clear: left; }\n  .led-panel.panel-col-23:nth-last-child(-n + 23) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-23 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-23 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-23 .led-panel-content .panel-info.output, .led-panel.panel-col-23 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-24 {\n    width: calc(99.99% * 1/24 - (3px - 3px * 1/24));\n    height: calc(99.99% * 1/24 - (3px - 3px * 1/24)); }\n  .led-panel.panel-col-24:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-24:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-24:nth-child(24n) {\n  margin-right: 0; }\n  .led-panel.panel-col-24:nth-child(24n + 1) {\n  clear: left; }\n  .led-panel.panel-col-24:nth-last-child(-n + 24) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-24 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-24 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-24 .led-panel-content .panel-info.output, .led-panel.panel-col-24 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-25 {\n    width: calc(99.99% * 1/25 - (3px - 3px * 1/25));\n    height: calc(99.99% * 1/25 - (3px - 3px * 1/25)); }\n  .led-panel.panel-col-25:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-25:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-25:nth-child(25n) {\n  margin-right: 0; }\n  .led-panel.panel-col-25:nth-child(25n + 1) {\n  clear: left; }\n  .led-panel.panel-col-25:nth-last-child(-n + 25) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-25 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-25 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-25 .led-panel-content .panel-info.output, .led-panel.panel-col-25 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-26 {\n    width: calc(99.99% * 1/26 - (3px - 3px * 1/26));\n    height: calc(99.99% * 1/26 - (3px - 3px * 1/26)); }\n  .led-panel.panel-col-26:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-26:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-26:nth-child(26n) {\n  margin-right: 0; }\n  .led-panel.panel-col-26:nth-child(26n + 1) {\n  clear: left; }\n  .led-panel.panel-col-26:nth-last-child(-n + 26) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-26 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-26 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-26 .led-panel-content .panel-info.output, .led-panel.panel-col-26 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-27 {\n    width: calc(99.99% * 1/27 - (3px - 3px * 1/27));\n    height: calc(99.99% * 1/27 - (3px - 3px * 1/27)); }\n  .led-panel.panel-col-27:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-27:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-27:nth-child(27n) {\n  margin-right: 0; }\n  .led-panel.panel-col-27:nth-child(27n + 1) {\n  clear: left; }\n  .led-panel.panel-col-27:nth-last-child(-n + 27) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-27 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-27 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-27 .led-panel-content .panel-info.output, .led-panel.panel-col-27 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-28 {\n    width: calc(99.99% * 1/28 - (3px - 3px * 1/28));\n    height: calc(99.99% * 1/28 - (3px - 3px * 1/28)); }\n  .led-panel.panel-col-28:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-28:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-28:nth-child(28n) {\n  margin-right: 0; }\n  .led-panel.panel-col-28:nth-child(28n + 1) {\n  clear: left; }\n  .led-panel.panel-col-28:nth-last-child(-n + 28) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-28 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-28 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-28 .led-panel-content .panel-info.output, .led-panel.panel-col-28 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-29 {\n    width: calc(99.99% * 1/29 - (3px - 3px * 1/29));\n    height: calc(99.99% * 1/29 - (3px - 3px * 1/29)); }\n  .led-panel.panel-col-29:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-29:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-29:nth-child(29n) {\n  margin-right: 0; }\n  .led-panel.panel-col-29:nth-child(29n + 1) {\n  clear: left; }\n  .led-panel.panel-col-29:nth-last-child(-n + 29) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-29 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-29 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-29 .led-panel-content .panel-info.output, .led-panel.panel-col-29 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-30 {\n    width: calc(99.99% * 1/30 - (3px - 3px * 1/30));\n    height: calc(99.99% * 1/30 - (3px - 3px * 1/30)); }\n  .led-panel.panel-col-30:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-30:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-30:nth-child(30n) {\n  margin-right: 0; }\n  .led-panel.panel-col-30:nth-child(30n + 1) {\n  clear: left; }\n  .led-panel.panel-col-30:nth-last-child(-n + 30) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-30 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-30 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-30 .led-panel-content .panel-info.output, .led-panel.panel-col-30 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-31 {\n    width: calc(99.99% * 1/31 - (3px - 3px * 1/31));\n    height: calc(99.99% * 1/31 - (3px - 3px * 1/31)); }\n  .led-panel.panel-col-31:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-31:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-31:nth-child(31n) {\n  margin-right: 0; }\n  .led-panel.panel-col-31:nth-child(31n + 1) {\n  clear: left; }\n  .led-panel.panel-col-31:nth-last-child(-n + 31) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-31 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-31 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-31 .led-panel-content .panel-info.output, .led-panel.panel-col-31 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-32 {\n    width: calc(99.99% * 1/32 - (3px - 3px * 1/32));\n    height: calc(99.99% * 1/32 - (3px - 3px * 1/32)); }\n  .led-panel.panel-col-32:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-32:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-32:nth-child(32n) {\n  margin-right: 0; }\n  .led-panel.panel-col-32:nth-child(32n + 1) {\n  clear: left; }\n  .led-panel.panel-col-32:nth-last-child(-n + 32) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-32 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-32 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-32 .led-panel-content .panel-info.output, .led-panel.panel-col-32 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-33 {\n    width: calc(99.99% * 1/33 - (3px - 3px * 1/33));\n    height: calc(99.99% * 1/33 - (3px - 3px * 1/33)); }\n  .led-panel.panel-col-33:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-33:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-33:nth-child(33n) {\n  margin-right: 0; }\n  .led-panel.panel-col-33:nth-child(33n + 1) {\n  clear: left; }\n  .led-panel.panel-col-33:nth-last-child(-n + 33) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-33 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-33 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-33 .led-panel-content .panel-info.output, .led-panel.panel-col-33 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-34 {\n    width: calc(99.99% * 1/34 - (3px - 3px * 1/34));\n    height: calc(99.99% * 1/34 - (3px - 3px * 1/34)); }\n  .led-panel.panel-col-34:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-34:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-34:nth-child(34n) {\n  margin-right: 0; }\n  .led-panel.panel-col-34:nth-child(34n + 1) {\n  clear: left; }\n  .led-panel.panel-col-34:nth-last-child(-n + 34) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-34 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-34 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-34 .led-panel-content .panel-info.output, .led-panel.panel-col-34 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-35 {\n    width: calc(99.99% * 1/35 - (3px - 3px * 1/35));\n    height: calc(99.99% * 1/35 - (3px - 3px * 1/35)); }\n  .led-panel.panel-col-35:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-35:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-35:nth-child(35n) {\n  margin-right: 0; }\n  .led-panel.panel-col-35:nth-child(35n + 1) {\n  clear: left; }\n  .led-panel.panel-col-35:nth-last-child(-n + 35) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-35 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-35 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-35 .led-panel-content .panel-info.output, .led-panel.panel-col-35 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-36 {\n    width: calc(99.99% * 1/36 - (3px - 3px * 1/36));\n    height: calc(99.99% * 1/36 - (3px - 3px * 1/36)); }\n  .led-panel.panel-col-36:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-36:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-36:nth-child(36n) {\n  margin-right: 0; }\n  .led-panel.panel-col-36:nth-child(36n + 1) {\n  clear: left; }\n  .led-panel.panel-col-36:nth-last-child(-n + 36) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-36 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-36 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-36 .led-panel-content .panel-info.output, .led-panel.panel-col-36 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-37 {\n    width: calc(99.99% * 1/37 - (3px - 3px * 1/37));\n    height: calc(99.99% * 1/37 - (3px - 3px * 1/37)); }\n  .led-panel.panel-col-37:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-37:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-37:nth-child(37n) {\n  margin-right: 0; }\n  .led-panel.panel-col-37:nth-child(37n + 1) {\n  clear: left; }\n  .led-panel.panel-col-37:nth-last-child(-n + 37) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-37 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-37 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-37 .led-panel-content .panel-info.output, .led-panel.panel-col-37 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-38 {\n    width: calc(99.99% * 1/38 - (3px - 3px * 1/38));\n    height: calc(99.99% * 1/38 - (3px - 3px * 1/38)); }\n  .led-panel.panel-col-38:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-38:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-38:nth-child(38n) {\n  margin-right: 0; }\n  .led-panel.panel-col-38:nth-child(38n + 1) {\n  clear: left; }\n  .led-panel.panel-col-38:nth-last-child(-n + 38) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-38 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-38 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-38 .led-panel-content .panel-info.output, .led-panel.panel-col-38 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-39 {\n    width: calc(99.99% * 1/39 - (3px - 3px * 1/39));\n    height: calc(99.99% * 1/39 - (3px - 3px * 1/39)); }\n  .led-panel.panel-col-39:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-39:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-39:nth-child(39n) {\n  margin-right: 0; }\n  .led-panel.panel-col-39:nth-child(39n + 1) {\n  clear: left; }\n  .led-panel.panel-col-39:nth-last-child(-n + 39) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-39 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-39 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-39 .led-panel-content .panel-info.output, .led-panel.panel-col-39 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-40 {\n    width: calc(99.99% * 1/40 - (3px - 3px * 1/40));\n    height: calc(99.99% * 1/40 - (3px - 3px * 1/40)); }\n  .led-panel.panel-col-40:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-40:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-40:nth-child(40n) {\n  margin-right: 0; }\n  .led-panel.panel-col-40:nth-child(40n + 1) {\n  clear: left; }\n  .led-panel.panel-col-40:nth-last-child(-n + 40) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-40 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-40 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-40 .led-panel-content .panel-info.output, .led-panel.panel-col-40 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-41 {\n    width: calc(99.99% * 1/41 - (3px - 3px * 1/41));\n    height: calc(99.99% * 1/41 - (3px - 3px * 1/41)); }\n  .led-panel.panel-col-41:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-41:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-41:nth-child(41n) {\n  margin-right: 0; }\n  .led-panel.panel-col-41:nth-child(41n + 1) {\n  clear: left; }\n  .led-panel.panel-col-41:nth-last-child(-n + 41) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-41 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-41 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-41 .led-panel-content .panel-info.output, .led-panel.panel-col-41 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-42 {\n    width: calc(99.99% * 1/42 - (3px - 3px * 1/42));\n    height: calc(99.99% * 1/42 - (3px - 3px * 1/42)); }\n  .led-panel.panel-col-42:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-42:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-42:nth-child(42n) {\n  margin-right: 0; }\n  .led-panel.panel-col-42:nth-child(42n + 1) {\n  clear: left; }\n  .led-panel.panel-col-42:nth-last-child(-n + 42) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-42 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-42 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-42 .led-panel-content .panel-info.output, .led-panel.panel-col-42 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-43 {\n    width: calc(99.99% * 1/43 - (3px - 3px * 1/43));\n    height: calc(99.99% * 1/43 - (3px - 3px * 1/43)); }\n  .led-panel.panel-col-43:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-43:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-43:nth-child(43n) {\n  margin-right: 0; }\n  .led-panel.panel-col-43:nth-child(43n + 1) {\n  clear: left; }\n  .led-panel.panel-col-43:nth-last-child(-n + 43) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-43 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-43 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-43 .led-panel-content .panel-info.output, .led-panel.panel-col-43 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-44 {\n    width: calc(99.99% * 1/44 - (3px - 3px * 1/44));\n    height: calc(99.99% * 1/44 - (3px - 3px * 1/44)); }\n  .led-panel.panel-col-44:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-44:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-44:nth-child(44n) {\n  margin-right: 0; }\n  .led-panel.panel-col-44:nth-child(44n + 1) {\n  clear: left; }\n  .led-panel.panel-col-44:nth-last-child(-n + 44) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-44 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-44 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-44 .led-panel-content .panel-info.output, .led-panel.panel-col-44 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-45 {\n    width: calc(99.99% * 1/45 - (3px - 3px * 1/45));\n    height: calc(99.99% * 1/45 - (3px - 3px * 1/45)); }\n  .led-panel.panel-col-45:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-45:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-45:nth-child(45n) {\n  margin-right: 0; }\n  .led-panel.panel-col-45:nth-child(45n + 1) {\n  clear: left; }\n  .led-panel.panel-col-45:nth-last-child(-n + 45) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-45 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-45 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-45 .led-panel-content .panel-info.output, .led-panel.panel-col-45 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-46 {\n    width: calc(99.99% * 1/46 - (3px - 3px * 1/46));\n    height: calc(99.99% * 1/46 - (3px - 3px * 1/46)); }\n  .led-panel.panel-col-46:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-46:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-46:nth-child(46n) {\n  margin-right: 0; }\n  .led-panel.panel-col-46:nth-child(46n + 1) {\n  clear: left; }\n  .led-panel.panel-col-46:nth-last-child(-n + 46) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-46 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-46 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-46 .led-panel-content .panel-info.output, .led-panel.panel-col-46 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-47 {\n    width: calc(99.99% * 1/47 - (3px - 3px * 1/47));\n    height: calc(99.99% * 1/47 - (3px - 3px * 1/47)); }\n  .led-panel.panel-col-47:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-47:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-47:nth-child(47n) {\n  margin-right: 0; }\n  .led-panel.panel-col-47:nth-child(47n + 1) {\n  clear: left; }\n  .led-panel.panel-col-47:nth-last-child(-n + 47) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-47 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-47 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-47 .led-panel-content .panel-info.output, .led-panel.panel-col-47 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-48 {\n    width: calc(99.99% * 1/48 - (3px - 3px * 1/48));\n    height: calc(99.99% * 1/48 - (3px - 3px * 1/48)); }\n  .led-panel.panel-col-48:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-48:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-48:nth-child(48n) {\n  margin-right: 0; }\n  .led-panel.panel-col-48:nth-child(48n + 1) {\n  clear: left; }\n  .led-panel.panel-col-48:nth-last-child(-n + 48) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-48 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-48 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-48 .led-panel-content .panel-info.output, .led-panel.panel-col-48 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-49 {\n    width: calc(99.99% * 1/49 - (3px - 3px * 1/49));\n    height: calc(99.99% * 1/49 - (3px - 3px * 1/49)); }\n  .led-panel.panel-col-49:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-49:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-49:nth-child(49n) {\n  margin-right: 0; }\n  .led-panel.panel-col-49:nth-child(49n + 1) {\n  clear: left; }\n  .led-panel.panel-col-49:nth-last-child(-n + 49) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-49 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-49 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-49 .led-panel-content .panel-info.output, .led-panel.panel-col-49 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-50 {\n    width: calc(99.99% * 1/50 - (3px - 3px * 1/50));\n    height: calc(99.99% * 1/50 - (3px - 3px * 1/50)); }\n  .led-panel.panel-col-50:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-50:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-50:nth-child(50n) {\n  margin-right: 0; }\n  .led-panel.panel-col-50:nth-child(50n + 1) {\n  clear: left; }\n  .led-panel.panel-col-50:nth-last-child(-n + 50) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-50 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-50 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-50 .led-panel-content .panel-info.output, .led-panel.panel-col-50 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-51 {\n    width: calc(99.99% * 1/51 - (3px - 3px * 1/51));\n    height: calc(99.99% * 1/51 - (3px - 3px * 1/51)); }\n  .led-panel.panel-col-51:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-51:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-51:nth-child(51n) {\n  margin-right: 0; }\n  .led-panel.panel-col-51:nth-child(51n + 1) {\n  clear: left; }\n  .led-panel.panel-col-51:nth-last-child(-n + 51) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-51 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-51 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-51 .led-panel-content .panel-info.output, .led-panel.panel-col-51 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-52 {\n    width: calc(99.99% * 1/52 - (3px - 3px * 1/52));\n    height: calc(99.99% * 1/52 - (3px - 3px * 1/52)); }\n  .led-panel.panel-col-52:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-52:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-52:nth-child(52n) {\n  margin-right: 0; }\n  .led-panel.panel-col-52:nth-child(52n + 1) {\n  clear: left; }\n  .led-panel.panel-col-52:nth-last-child(-n + 52) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-52 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-52 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-52 .led-panel-content .panel-info.output, .led-panel.panel-col-52 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-53 {\n    width: calc(99.99% * 1/53 - (3px - 3px * 1/53));\n    height: calc(99.99% * 1/53 - (3px - 3px * 1/53)); }\n  .led-panel.panel-col-53:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-53:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-53:nth-child(53n) {\n  margin-right: 0; }\n  .led-panel.panel-col-53:nth-child(53n + 1) {\n  clear: left; }\n  .led-panel.panel-col-53:nth-last-child(-n + 53) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-53 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-53 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-53 .led-panel-content .panel-info.output, .led-panel.panel-col-53 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-54 {\n    width: calc(99.99% * 1/54 - (3px - 3px * 1/54));\n    height: calc(99.99% * 1/54 - (3px - 3px * 1/54)); }\n  .led-panel.panel-col-54:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-54:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-54:nth-child(54n) {\n  margin-right: 0; }\n  .led-panel.panel-col-54:nth-child(54n + 1) {\n  clear: left; }\n  .led-panel.panel-col-54:nth-last-child(-n + 54) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-54 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-54 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-54 .led-panel-content .panel-info.output, .led-panel.panel-col-54 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-55 {\n    width: calc(99.99% * 1/55 - (3px - 3px * 1/55));\n    height: calc(99.99% * 1/55 - (3px - 3px * 1/55)); }\n  .led-panel.panel-col-55:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-55:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-55:nth-child(55n) {\n  margin-right: 0; }\n  .led-panel.panel-col-55:nth-child(55n + 1) {\n  clear: left; }\n  .led-panel.panel-col-55:nth-last-child(-n + 55) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-55 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-55 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-55 .led-panel-content .panel-info.output, .led-panel.panel-col-55 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-56 {\n    width: calc(99.99% * 1/56 - (3px - 3px * 1/56));\n    height: calc(99.99% * 1/56 - (3px - 3px * 1/56)); }\n  .led-panel.panel-col-56:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-56:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-56:nth-child(56n) {\n  margin-right: 0; }\n  .led-panel.panel-col-56:nth-child(56n + 1) {\n  clear: left; }\n  .led-panel.panel-col-56:nth-last-child(-n + 56) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-56 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-56 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-56 .led-panel-content .panel-info.output, .led-panel.panel-col-56 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-57 {\n    width: calc(99.99% * 1/57 - (3px - 3px * 1/57));\n    height: calc(99.99% * 1/57 - (3px - 3px * 1/57)); }\n  .led-panel.panel-col-57:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-57:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-57:nth-child(57n) {\n  margin-right: 0; }\n  .led-panel.panel-col-57:nth-child(57n + 1) {\n  clear: left; }\n  .led-panel.panel-col-57:nth-last-child(-n + 57) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-57 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-57 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-57 .led-panel-content .panel-info.output, .led-panel.panel-col-57 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-58 {\n    width: calc(99.99% * 1/58 - (3px - 3px * 1/58));\n    height: calc(99.99% * 1/58 - (3px - 3px * 1/58)); }\n  .led-panel.panel-col-58:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-58:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-58:nth-child(58n) {\n  margin-right: 0; }\n  .led-panel.panel-col-58:nth-child(58n + 1) {\n  clear: left; }\n  .led-panel.panel-col-58:nth-last-child(-n + 58) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-58 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-58 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-58 .led-panel-content .panel-info.output, .led-panel.panel-col-58 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-59 {\n    width: calc(99.99% * 1/59 - (3px - 3px * 1/59));\n    height: calc(99.99% * 1/59 - (3px - 3px * 1/59)); }\n  .led-panel.panel-col-59:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-59:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-59:nth-child(59n) {\n  margin-right: 0; }\n  .led-panel.panel-col-59:nth-child(59n + 1) {\n  clear: left; }\n  .led-panel.panel-col-59:nth-last-child(-n + 59) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-59 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-59 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-59 .led-panel-content .panel-info.output, .led-panel.panel-col-59 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-60 {\n    width: calc(99.99% * 1/60 - (3px - 3px * 1/60));\n    height: calc(99.99% * 1/60 - (3px - 3px * 1/60)); }\n  .led-panel.panel-col-60:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-60:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-60:nth-child(60n) {\n  margin-right: 0; }\n  .led-panel.panel-col-60:nth-child(60n + 1) {\n  clear: left; }\n  .led-panel.panel-col-60:nth-last-child(-n + 60) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-60 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-60 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-60 .led-panel-content .panel-info.output, .led-panel.panel-col-60 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-61 {\n    width: calc(99.99% * 1/61 - (3px - 3px * 1/61));\n    height: calc(99.99% * 1/61 - (3px - 3px * 1/61)); }\n  .led-panel.panel-col-61:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-61:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-61:nth-child(61n) {\n  margin-right: 0; }\n  .led-panel.panel-col-61:nth-child(61n + 1) {\n  clear: left; }\n  .led-panel.panel-col-61:nth-last-child(-n + 61) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-61 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-61 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-61 .led-panel-content .panel-info.output, .led-panel.panel-col-61 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-62 {\n    width: calc(99.99% * 1/62 - (3px - 3px * 1/62));\n    height: calc(99.99% * 1/62 - (3px - 3px * 1/62)); }\n  .led-panel.panel-col-62:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-62:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-62:nth-child(62n) {\n  margin-right: 0; }\n  .led-panel.panel-col-62:nth-child(62n + 1) {\n  clear: left; }\n  .led-panel.panel-col-62:nth-last-child(-n + 62) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-62 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-62 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-62 .led-panel-content .panel-info.output, .led-panel.panel-col-62 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-63 {\n    width: calc(99.99% * 1/63 - (3px - 3px * 1/63));\n    height: calc(99.99% * 1/63 - (3px - 3px * 1/63)); }\n  .led-panel.panel-col-63:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-63:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-63:nth-child(63n) {\n  margin-right: 0; }\n  .led-panel.panel-col-63:nth-child(63n + 1) {\n  clear: left; }\n  .led-panel.panel-col-63:nth-last-child(-n + 63) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-63 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-63 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-63 .led-panel-content .panel-info.output, .led-panel.panel-col-63 .led-panel-content .panel-info.panel {\n      display: none; }\n"] = false
     document.head.removeChild(__vueify_style__)
   })
   if (!module.hot.data) {
@@ -38788,7 +44810,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../shared/popover.vue":236,"vue":193,"vue-hot-reload-api":170,"vueify-insert-css":194}],210:[function(require,module,exports){
+},{"../shared/popover.vue":238,"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],212:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/outputs/other.vue", module);
 (function(){
 "use strict";
@@ -38823,7 +44845,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":193,"vue-hot-reload-api":170}],211:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171}],213:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/outputs/panels.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".led-panels {\n  *zoom: 1;\n  margin: 0 auto; }\n.led-panels:before {\n  content: '';\n  display: table; }\n.led-panels:after {\n  content: '';\n  display: table;\n  clear: both; }\n")
@@ -38867,9 +44889,6 @@ var PANEL = {
     start: 1,
     end: 1536
 };
-
-//const LAYOUTS = ['1x1', '1x2', '1x3', '1x4', '2x1', '2x2', '3x1', '4x1'];
-var LAYOUTS = [{ name: '1x1', panels: 1 }, { name: '1x2', panels: 2 }, { name: '1x3', panels: 3 }, { name: '1x4', panels: 4 }, { name: '2x1', panels: 2 }, { name: '2x2', panels: 4 }, { name: '3x1', panels: 3 }, { name: '4x1', panels: 4 }];
 
 // Max outputs per device & max panels per output
 var MaxPanels = {
@@ -38926,9 +44945,7 @@ exports.default = {
 
         };
     },
-    ready: function ready() {
-        console.log(this.layouts);
-    },
+    ready: function ready() {},
 
     methods: {
         updatePanels: function updatePanels() {
@@ -38955,31 +44972,6 @@ exports.default = {
             }
 
             this.panels = panels;
-            // if(numPanels < count) {
-            //     let diff = count - numPanels;
-            //     this.panels.splice(numPanels, diff);
-            //     return;
-            // }
-            // if(numPanels > count) {
-            //     let diff = numPanels - count;
-
-            //     for(let i = 0; i <= diff; i++) {
-            //         let panel = Object.assign({}, PANEL);
-            //         panel.id = i == 0 ? count++ : count + i;
-            //         panel.start = PPP[this.size] * (count + i);
-            //         panel.end = PPP[this.size] * (count + i);
-
-            //         if(cols > 1) {
-            //             panel.position.x = diff;
-            //         }
-            //         if(rows > 1) {
-            //             panel.position.x = diff;
-            //         }
-            //        this.panels.push(panel);
-
-            //     }
-            // }
-            console.log(this.panels);
         }
     },
     computed: {
@@ -39009,7 +45001,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../mixins/outputMixin":244,"../shared/input.vue":234,"../shared/switch.vue":237,"./led-panel.vue":209,"babel-runtime/core-js/object/assign":5,"vue":193,"vue-hot-reload-api":170,"vueify-insert-css":194}],212:[function(require,module,exports){
+},{"../../mixins/outputMixin":248,"../shared/input.vue":236,"../shared/switch.vue":239,"./led-panel.vue":211,"babel-runtime/core-js/object/assign":5,"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],214:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/outputs/pdmx.vue", module);
 (function(){
 'use strict';
@@ -39041,7 +45033,7 @@ exports.default = {
 
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <tr class=\"pdmx output\" :class=\"{ 'disabled' : !output.active }\">\n        <td class=\"output-active text-xs-center\">\n            <switch :model.sync=\"output.active\" size=\"small\"></switch>\n           \n        </td>\n        <td class=\"output-index text-xs-center\">{{ index + 1 }}</td>\n         <td class=\"output-type text-xs-center\">\n            <select class=\"c-select transparent\" v-model=\"output.type\">\n                <option value=\"pixelnet\">Pixelnet</option>\n                <option value=\"dmx\">DMX</option>\n            </select>\n        </td>\n        <td class=\"output-start text-xs-center\">\n            <input type=\"number\" v-model=\"output.start\" class=\"form-control transparent text-xs-center\" number=\"\">\n        </td>\n        <td class=\"output-label text-xs-center\"><input type=\"text\" v-model=\"output.label\" class=\"form-control transparent\"></td>\n        <td class=\"output-action text-xs-center p-r-1\">\n            <button type=\"button\" class=\"close\" aria-label=\"Close\" @click=\"removeOutput\">\n                <span aria-hidden=\"true\">×</span>\n            </button>\n        </td>\n    </tr>\n    \n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <tr class=\"pdmx output\" :class=\"{ 'disabled' : !output.active }\" transition=\"fade\">\n        <td class=\"output-active text-xs-center\">\n            <switch :model.sync=\"output.active\" size=\"small\"></switch>\n           \n        </td>\n        <td class=\"output-index text-xs-center\">{{ index + 1 }}</td>\n         <td class=\"output-type text-xs-center\">\n            <select class=\"c-select transparent\" v-model=\"output.type\">\n                <option value=\"pixelnet\">Pixelnet</option>\n                <option value=\"dmx\">DMX</option>\n            </select>\n        </td>\n        <td class=\"output-start text-xs-center\">\n            <input type=\"number\" v-model=\"output.start\" class=\"form-control transparent text-xs-center\" number=\"\">\n        </td>\n          <td class=\"output-count text-xs-center\">\n            <input type=\"number\" v-model=\"output.count\" class=\"form-control transparent text-xs-center\" number=\"\">\n        </td>\n        <td class=\"output-label text-xs-center\"><input type=\"text\" v-model=\"output.label\" class=\"form-control transparent\"></td>\n        <td class=\"output-action text-xs-center p-r-1\">\n            <button type=\"button\" class=\"close\" aria-label=\"Close\" @click=\"removeOutput\">\n                <span aria-hidden=\"true\">×</span>\n            </button>\n        </td>\n    </tr>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
@@ -39055,7 +45047,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../shared/switch.vue":237,"vue":193,"vue-hot-reload-api":170}],213:[function(require,module,exports){
+},{"../shared/switch.vue":239,"vue":195,"vue-hot-reload-api":171}],215:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/outputs/universe.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".universe {\n  transition: opacity 0.35s;\n  opacity: 1; }\n  .universe.disabled {\n    opacity: .4; }\n  .universe-move {\n    transition: -webkit-transform 0.5s cubic-bezier(0.55, 0, 0.1, 1);\n    transition: transform 0.5s cubic-bezier(0.55, 0, 0.1, 1);\n    transition: transform 0.5s cubic-bezier(0.55, 0, 0.1, 1), -webkit-transform 0.5s cubic-bezier(0.55, 0, 0.1, 1); }\n\n.universe-active,\n.universe-action,\n.universe-index {\n  vertical-align: middle !important; }\n  .universe-active .checkbox,\n  .universe-action .checkbox,\n  .universe-index .checkbox {\n    margin-bottom: 0; }\n")
@@ -39106,7 +45098,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../shared/switch.vue":237,"vue":193,"vue-hot-reload-api":170,"vueify-insert-css":194}],214:[function(require,module,exports){
+},{"../shared/switch.vue":239,"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],216:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/overlays.vue", module);
 (function(){
 "use strict";
@@ -39141,7 +45133,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":193,"vue-hot-reload-api":170}],215:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171}],217:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/playlists.vue", module);
 (function(){
 "use strict";
@@ -39176,7 +45168,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":193,"vue-hot-reload-api":170}],216:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171}],218:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/plugins.vue", module);
 (function(){
 "use strict";
@@ -39211,7 +45203,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":193,"vue-hot-reload-api":170}],217:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171}],219:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/schedule.vue", module);
 (function(){
 "use strict";
@@ -39246,7 +45238,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":193,"vue-hot-reload-api":170}],218:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171}],220:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/settings.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("#main-wrapper {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n")
@@ -39292,7 +45284,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"./footer.vue":201,"./header/settings.vue":203,"./settings/index.vue":223,"vue":193,"vue-hot-reload-api":170,"vueify-insert-css":194}],219:[function(require,module,exports){
+},{"./footer.vue":203,"./header/settings.vue":205,"./settings/index.vue":225,"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],221:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/settings/advanced.vue", module);
 (function(){
 "use strict";
@@ -39327,7 +45319,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":193,"vue-hot-reload-api":170}],220:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171}],222:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/settings/date.vue", module);
 (function(){
 "use strict";
@@ -39377,7 +45369,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../shared/switch.vue":237,"vue":193,"vue-hot-reload-api":170}],221:[function(require,module,exports){
+},{"../shared/switch.vue":239,"vue":195,"vue-hot-reload-api":171}],223:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/settings/email.vue", module);
 (function(){
 "use strict";
@@ -39412,7 +45404,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":193,"vue-hot-reload-api":170}],222:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171}],224:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/settings/general.vue", module);
 (function(){
 "use strict";
@@ -39470,7 +45462,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../shared/switch.vue":237,"vue":193,"vue-hot-reload-api":170,"vue-strap/src/Option.vue":191,"vue-strap/src/Select.vue":192}],223:[function(require,module,exports){
+},{"../shared/switch.vue":239,"vue":195,"vue-hot-reload-api":171,"vue-strap/src/Option.vue":192,"vue-strap/src/Select.vue":193}],225:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/settings/index.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".content.settings {\n  padding: 20px;\n  position: relative; }\n")
@@ -39510,7 +45502,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":193,"vue-hot-reload-api":170,"vueify-insert-css":194}],224:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],226:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/settings/logs.vue", module);
 (function(){
 "use strict";
@@ -39545,7 +45537,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":193,"vue-hot-reload-api":170}],225:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171}],227:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/settings/network.vue", module);
 (function(){
 'use strict';
@@ -39591,7 +45583,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../shared/tab.vue":238,"../shared/tabset.vue":239,"vue":193,"vue-hot-reload-api":170}],226:[function(require,module,exports){
+},{"../shared/tab.vue":240,"../shared/tabset.vue":241,"vue":195,"vue-hot-reload-api":171}],228:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/Tab.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("\n  .tab-content > .tab-pane[_v-3eaa1a77] {\n    display: block;\n  }\n")
@@ -39659,7 +45651,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":193,"vue-hot-reload-api":170,"vueify-insert-css":194}],227:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],229:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/Tabset.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("\n  .nav-tabs[_v-7a0405bb] {\n    margin-bottom: 15px\n  }\n")
@@ -39711,7 +45703,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":193,"vue-hot-reload-api":170,"vueify-insert-css":194}],228:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],230:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/checkbox.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".c-checkbox .c-indicator {\n  border-radius: .25rem; }\n\n.c-checkbox input:checked ~ .c-indicator {\n  background-image: url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhLS0gR2VuZXJhdG9yOiBBZG9iZSBJbGx1c3RyYXRvciAxNy4xLjAsIFNWRyBFeHBvcnQgUGx1Zy1JbiAuIFNWRyBWZXJzaW9uOiA2LjAwIEJ1aWxkIDApICAtLT4NCjwhRE9DVFlQRSBzdmcgUFVCTElDICItLy9XM0MvL0RURCBTVkcgMS4xLy9FTiIgImh0dHA6Ly93d3cudzMub3JnL0dyYXBoaWNzL1NWRy8xLjEvRFREL3N2ZzExLmR0ZCI+DQo8c3ZnIHZlcnNpb249IjEuMSIgaWQ9IkxheWVyXzEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4Ig0KCSB2aWV3Qm94PSIwIDAgOCA4IiBlbmFibGUtYmFja2dyb3VuZD0ibmV3IDAgMCA4IDgiIHhtbDpzcGFjZT0icHJlc2VydmUiPg0KPHBhdGggZmlsbD0iI0ZGRkZGRiIgZD0iTTYuNCwxTDUuNywxLjdMMi45LDQuNUwyLjEsMy43TDEuNCwzTDAsNC40bDAuNywwLjdsMS41LDEuNWwwLjcsMC43bDAuNy0wLjdsMy41LTMuNWwwLjctMC43TDYuNCwxTDYuNCwxeiINCgkvPg0KPC9zdmc+DQo=); }\n\n.c-checkbox input:indeterminate ~ .c-indicator {\n  background-color: #0074d9;\n  background-image: url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhLS0gR2VuZXJhdG9yOiBBZG9iZSBJbGx1c3RyYXRvciAxNy4xLjAsIFNWRyBFeHBvcnQgUGx1Zy1JbiAuIFNWRyBWZXJzaW9uOiA2LjAwIEJ1aWxkIDApICAtLT4NCjwhRE9DVFlQRSBzdmcgUFVCTElDICItLy9XM0MvL0RURCBTVkcgMS4xLy9FTiIgImh0dHA6Ly93d3cudzMub3JnL0dyYXBoaWNzL1NWRy8xLjEvRFREL3N2ZzExLmR0ZCI+DQo8c3ZnIHZlcnNpb249IjEuMSIgaWQ9IkxheWVyXzEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4Ig0KCSB3aWR0aD0iOHB4IiBoZWlnaHQ9IjhweCIgdmlld0JveD0iMCAwIDggOCIgZW5hYmxlLWJhY2tncm91bmQ9Im5ldyAwIDAgOCA4IiB4bWw6c3BhY2U9InByZXNlcnZlIj4NCjxwYXRoIGZpbGw9IiNGRkZGRkYiIGQ9Ik0wLDN2Mmg4VjNIMHoiLz4NCjwvc3ZnPg0K);\n  box-shadow: none; }\n")
@@ -39816,7 +45808,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":193,"vue-hot-reload-api":170,"vueify-insert-css":194}],229:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],231:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/control-buttons.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".control-buttons {\n  margin-bottom: 1rem; }\n  .control-buttons .button {\n    border-radius: 2px;\n    transition: background 0.35s, box-shadow 0.15s;\n    border: 1px solid #c4c4c4;\n    color: #666;\n    background: linear-gradient(to bottom, #f8f8f8, #eaeaea 100%);\n    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }\n    .control-buttons .button:active {\n      box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125); }\n  @media (min-width: 668px) {\n    .control-buttons {\n      margin: 0; } }\n")
@@ -39853,7 +45845,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":193,"vue-hot-reload-api":170,"vueify-insert-css":194}],230:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],232:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/dropdown-select.vue", module);
 (function(){
 'use strict';
@@ -40002,7 +45994,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":193,"vue-hot-reload-api":170}],231:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171}],233:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/falcon-loading.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("@-webkit-keyframes grow {\n  0% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  33% {\n    opacity: 1;\n    -webkit-transform: scale(1);\n            transform: scale(1); }\n  66% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  100% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); } }\n\n@keyframes grow {\n  0% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  33% {\n    opacity: 1;\n    -webkit-transform: scale(1);\n            transform: scale(1); }\n  66% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  100% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); } }\n\n#load {\n  position: relative;\n  display: inline-block;\n  text-align: center; }\n  #load .letter {\n    display: inline-block;\n    margin: 0 2px;\n    color: white;\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9);\n    -webkit-animation: grow 2.5s ease-in infinite;\n            animation: grow 2.5s ease-in infinite; }\n  #load .letter:nth-child(1) {\n    -webkit-animation-delay: .1s;\n            animation-delay: .1s; }\n  #load .letter:nth-child(2) {\n    -webkit-animation-delay: .15s;\n            animation-delay: .15s; }\n  #load .letter:nth-child(3) {\n    -webkit-animation-delay: .2s;\n            animation-delay: .2s; }\n  #load .letter:nth-child(4) {\n    -webkit-animation-delay: .25s;\n            animation-delay: .25s; }\n  #load .letter:nth-child(5) {\n    -webkit-animation-delay: .3s;\n            animation-delay: .3s; }\n  #load .letter:nth-child(6) {\n    -webkit-animation-delay: .35s;\n            animation-delay: .35s; }\n  #load .letter:nth-child(7) {\n    margin-left: 8px;\n    -webkit-animation-delay: .4s;\n            animation-delay: .4s; }\n  #load .letter:nth-child(8) {\n    -webkit-animation-delay: .45s;\n            animation-delay: .45s; }\n  #load .letter:nth-child(9) {\n    -webkit-animation-delay: .5s;\n            animation-delay: .5s; }\n  #load .letter:nth-child(10) {\n    -webkit-animation-delay: .55s;\n            animation-delay: .55s; }\n  #load .letter:nth-child(11) {\n    -webkit-animation-delay: .6s;\n            animation-delay: .6s; }\n  #load .letter:nth-child(12) {\n    -webkit-animation-delay: .65s;\n            animation-delay: .65s; }\n")
@@ -40031,7 +46023,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":193,"vue-hot-reload-api":170,"vueify-insert-css":194}],232:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],234:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/filelist.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".file-list .table th {\n  border-top: 0; }\n")
@@ -40071,7 +46063,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":193,"vue-hot-reload-api":170,"vueify-insert-css":194}],233:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],235:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/header-menu.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".header-menu {\n  width: 100%;\n  padding-top: 10px; }\n  .header-menu a {\n    display: block;\n    text-transform: uppercase;\n    letter-spacing: 0.1em;\n    font-size: 11px;\n    border-bottom: 3px solid transparent;\n    padding: 3px 5px;\n    margin-bottom: -1px; }\n    .header-menu a.active {\n      font-weight: 600;\n      border-color: #F04124; }\n")
@@ -40110,7 +46102,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":193,"vue-hot-reload-api":170,"vueify-insert-css":194}],234:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],236:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/input.vue", module);
 (function(){
 'use strict';
@@ -40200,7 +46192,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../utils.js":249,"vue":193,"vue-hot-reload-api":170}],235:[function(require,module,exports){
+},{"../../utils.js":253,"vue":195,"vue-hot-reload-api":171}],237:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/overlay.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("#overlay {\n  position: fixed;\n  top: 0;\n  left: 0;\n  z-index: 9999;\n  width: 100%;\n  height: 100%;\n  background-color: #363C47;\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-align-items: center;\n      -ms-flex-align: center;\n          align-items: center;\n  -webkit-justify-content: center;\n      -ms-flex-pack: center;\n          justify-content: center;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n  #overlay .logo {\n    width: 220px;\n    height: 108px;\n    margin-bottom: 15px;\n    position: relative;\n    left: -25px; }\n")
@@ -40238,7 +46230,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"./falcon-loading.vue":231,"vue":193,"vue-hot-reload-api":170,"vueify-insert-css":194}],236:[function(require,module,exports){
+},{"./falcon-loading.vue":233,"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],238:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/popover.vue", module);
 (function(){
 'use strict';
@@ -40447,7 +46439,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"tether":166,"vue":193,"vue-hot-reload-api":170}],237:[function(require,module,exports){
+},{"tether":167,"vue":195,"vue-hot-reload-api":171}],239:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/switch.vue", module);
 (function(){
 'use strict';
@@ -40491,7 +46483,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":193,"vue-hot-reload-api":170}],238:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171}],240:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/tab.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("\n  .tab-content > .tab-pane[_v-491cfad2] {\n    display: block;\n  }\n")
@@ -40559,7 +46551,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":193,"vue-hot-reload-api":170,"vueify-insert-css":194}],239:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],241:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/tabset.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("\n  .nav-tabs[_v-0332299b] {\n    margin-bottom: 15px\n  }\n")
@@ -40611,7 +46603,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":193,"vue-hot-reload-api":170,"vueify-insert-css":194}],240:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],242:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/sidebar.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".sidebar {\n  width: 155px;\n  position: fixed;\n  height: 100%;\n  background: #363C47;\n  z-index: 10;\n  padding: 20px;\n  transition: all 0.25s;\n  left: -155px; }\n  @media (min-width: 769px) {\n    .sidebar {\n      left: 0;\n      width: 155px; } }\n  @media (min-width: 1281px) {\n    .sidebar {\n      width: 200px; } }\n  .sidebar .logo {\n    margin: 0 0 40px; }\n    .sidebar .logo img {\n      width: 100%;\n      height: auto; }\n  .sidebar h4 {\n    text-transform: uppercase;\n    color: #999;\n    font-size: 10px;\n    font-weight: 600;\n    letter-spacing: 1px;\n    margin: 20px 0 5px; }\n  .sidebar li {\n    padding: 3px 0; }\n  .sidebar a {\n    color: #eaeaea;\n    font-weight: 300;\n    font-size: 14px;\n    transition: all 0.25s; }\n    .sidebar a:hover {\n      color: #fff; }\n    .sidebar a.active {\n      color: #fff;\n      font-weight: 500; }\n")
@@ -40651,7 +46643,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":193,"vue-hot-reload-api":170,"vueify-insert-css":194}],241:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],243:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/testing.vue", module);
 (function(){
 "use strict";
@@ -40686,7 +46678,82 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":193,"vue-hot-reload-api":170}],242:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171}],244:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/components/widgets/status.vue", module);
+(function(){
+var __vueify_style__ = require("vueify-insert-css").insert(".fppd-status {\n  box-shadow: 0 0 1px rgba(0, 0, 0, 0.15); }\n  .fppd-status .panel-heading {\n    padding: 15px 20px 5px 20px; }\n  .fppd-status .panel-body {\n    margin-left: auto;\n    margin-right: auto;\n    padding: 0;\n    *zoom: 1; }\n  .fppd-status .panel-body:before {\n  content: '';\n  display: table; }\n  .fppd-status .panel-body:after {\n  content: '';\n  display: table;\n  clear: both; }\n  .fppd-status .widget {\n    color: #666;\n    letter-spacing: 1px;\n    text-transform: uppercase;\n    width: calc(99.999999% * 1/2); }\n  .fppd-status .widget:nth-child(n) {\n  float: left;\n  margin-right: 0;\n  clear: none; }\n  .fppd-status .widget:last-child {\n  margin-right: 0; }\n  .fppd-status .widget:nth-child(2n) {\n  margin-right: 0; }\n  .fppd-status .widget:nth-child(2n + 1) {\n  clear: left; }\n    .fppd-status .widget:first-child {\n      border-right: 1px solid #eaeaea; }\n    .fppd-status .widget-header {\n      font-size: 10px;\n      display: block;\n      text-transform: uppercase;\n      padding: 8px 5px 5px; }\n    .fppd-status .widget-icon {\n      font-size: 34px;\n      line-height: 28px;\n      height: 35px;\n      width: 35px; }\n      .fppd-status .widget-icon i {\n        font-size: 34px; }\n      .fppd-status .widget-icon img {\n        width: 31px; }\n    .fppd-status .widget-text {\n      display: block;\n      padding: 5px 5px 8px;\n      font-size: 12px;\n      letter-spacing: .1rem; }\n    .fppd-status .widget-buttons {\n      border-top: 1px solid #eaeaea;\n      background: #f9f9f9;\n      padding: 10px; }\n      .fppd-status .widget-buttons .button {\n        display: inline-block;\n        vertical-align: middle;\n        margin: 0 1%;\n        text-transform: uppercase;\n        letter-spacing: 1px;\n        font-size: 10px;\n        border-radius: 2px;\n        transition: background 0.35s, box-shadow 0.15s;\n        border: 1px solid #c4c4c4;\n        color: #666;\n        background: linear-gradient(to bottom, #f8f8f8, #eaeaea 100%);\n        text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }\n        .fppd-status .widget-buttons .button:active {\n          box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125); }\n        .fppd-status .widget-buttons .button i {\n          margin-right: 3px; }\n        .fppd-status .widget-buttons .button:focus {\n          outline: none; }\n      .fppd-status .widget-buttons .form-group {\n        margin: 0;\n        display: inline-block;\n        width: 60%; }\n        .fppd-status .widget-buttons .form-group > select {\n          width: 100%; }\n      .fppd-status .widget-buttons select {\n        width: 60%;\n        height: auto;\n        display: inline-block;\n        padding: .09rem .25rem;\n        margin-bottom: 0;\n        background-color: transparent;\n        border-color: #c4c4c4;\n        border-radius: 2px;\n        box-shadow: none;\n        line-height: inherit;\n        background: #fafafa url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\" width=\"32\" height=\"24\" viewBox=\"0 0 32 24\"><polygon points=\"0,0 32,0 16,24\" style=\"fill: #000\"></polygon></svg>') right 10px center no-repeat;\n        background-size: 8px 8px;\n        color: #888;\n        font-size: 13px; }\n  .fppd-status .mode-icon {\n    background: #788B94;\n    color: white;\n    padding: 3px 10px;\n    border-radius: 35px;\n    font-size: 20px;\n    vertical-align: top;\n    line-height: 35px; }\n")
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+exports.default = {
+    components: {},
+    props: [],
+    data: function data() {
+        return {};
+    },
+    ready: function ready() {},
+
+    methods: {},
+    events: {}
+
+};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div class=\"panel box fppd-status\" data-pages=\"portlet\">\n        <div class=\"panel-heading separator\">\n            <div class=\"panel-title\">FPPD</div>\n            <div class=\"panel-controls\">\n                <ul>\n                  <li><a href=\"#\" class=\"portlet-collapse\" data-toggle=\"collapse\"><i class=\"portlet-icon portlet-icon-collapse\"></i></a>\n                  </li>\n                  <li><a href=\"#\" class=\"portlet-refresh\" data-toggle=\"refresh\"><i class=\"portlet-icon portlet-icon-refresh\"></i></a>\n                  </li>\n                  <li><a href=\"#\" class=\"portlet-close\" data-toggle=\"close\"><i class=\"portlet-icon portlet-icon-close\"></i></a>\n                  </li>\n                </ul>\n          </div>\n        </div>\n        <div class=\"panel-body\">\n            \n            <div class=\"widget text-center current-status fppd-running\">\n                <span class=\"widget-header\">Status</span>\n                <span class=\"widget-icon\"><i class=\"icon ion-close-circled text-danger\"></i></span>\n                <span class=\"widget-text\">Stopped</span>\n                <div class=\"widget-buttons\">\n                    <a href=\"#\" class=\"button small secondary gradient fppd-stop\"><i class=\"icon ion-close\"></i> Stop</a>\n                    <a href=\"#\" class=\"button small secondary gradient fppd-restart\"><i class=\"icon ion-refresh\"></i> Restart</a>\n                </div>\n            </div>          \n\n            <div class=\"widget text-center current-status\">\n                <span class=\"widget-header\">Mode</span>\n                <span class=\"widget-icon\"><i class=\"icon ion-close-circled text-danger\"></i></span>\n                <span class=\"widget-text\">Stopped</span>\n                <div class=\"widget-buttons\">\n                    <select class=\"fppd-mode-select c-select\">\n                        <option value=\"standalone\" selected=\"selected\">Standalone</option>\n                        <option value=\"master\">Master</option>\n                        <option value=\"remote\">Remote</option>\n                        <option value=\"bridge\">Bridge</option>\n                    </select>\n                    <a class=\"button small secondary gradient fppd-mode-apply\">Apply</a>\n                </div>\n            </div>\n        </div>\n        \n    </div>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/widgets/status.vue"
+  module.hot.dispose(function () {
+    require("vueify-insert-css").cache[".fppd-status {\n  box-shadow: 0 0 1px rgba(0, 0, 0, 0.15); }\n  .fppd-status .panel-heading {\n    padding: 15px 20px 5px 20px; }\n  .fppd-status .panel-body {\n    margin-left: auto;\n    margin-right: auto;\n    padding: 0;\n    *zoom: 1; }\n  .fppd-status .panel-body:before {\n  content: '';\n  display: table; }\n  .fppd-status .panel-body:after {\n  content: '';\n  display: table;\n  clear: both; }\n  .fppd-status .widget {\n    color: #666;\n    letter-spacing: 1px;\n    text-transform: uppercase;\n    width: calc(99.999999% * 1/2); }\n  .fppd-status .widget:nth-child(n) {\n  float: left;\n  margin-right: 0;\n  clear: none; }\n  .fppd-status .widget:last-child {\n  margin-right: 0; }\n  .fppd-status .widget:nth-child(2n) {\n  margin-right: 0; }\n  .fppd-status .widget:nth-child(2n + 1) {\n  clear: left; }\n    .fppd-status .widget:first-child {\n      border-right: 1px solid #eaeaea; }\n    .fppd-status .widget-header {\n      font-size: 10px;\n      display: block;\n      text-transform: uppercase;\n      padding: 8px 5px 5px; }\n    .fppd-status .widget-icon {\n      font-size: 34px;\n      line-height: 28px;\n      height: 35px;\n      width: 35px; }\n      .fppd-status .widget-icon i {\n        font-size: 34px; }\n      .fppd-status .widget-icon img {\n        width: 31px; }\n    .fppd-status .widget-text {\n      display: block;\n      padding: 5px 5px 8px;\n      font-size: 12px;\n      letter-spacing: .1rem; }\n    .fppd-status .widget-buttons {\n      border-top: 1px solid #eaeaea;\n      background: #f9f9f9;\n      padding: 10px; }\n      .fppd-status .widget-buttons .button {\n        display: inline-block;\n        vertical-align: middle;\n        margin: 0 1%;\n        text-transform: uppercase;\n        letter-spacing: 1px;\n        font-size: 10px;\n        border-radius: 2px;\n        transition: background 0.35s, box-shadow 0.15s;\n        border: 1px solid #c4c4c4;\n        color: #666;\n        background: linear-gradient(to bottom, #f8f8f8, #eaeaea 100%);\n        text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }\n        .fppd-status .widget-buttons .button:active {\n          box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125); }\n        .fppd-status .widget-buttons .button i {\n          margin-right: 3px; }\n        .fppd-status .widget-buttons .button:focus {\n          outline: none; }\n      .fppd-status .widget-buttons .form-group {\n        margin: 0;\n        display: inline-block;\n        width: 60%; }\n        .fppd-status .widget-buttons .form-group > select {\n          width: 100%; }\n      .fppd-status .widget-buttons select {\n        width: 60%;\n        height: auto;\n        display: inline-block;\n        padding: .09rem .25rem;\n        margin-bottom: 0;\n        background-color: transparent;\n        border-color: #c4c4c4;\n        border-radius: 2px;\n        box-shadow: none;\n        line-height: inherit;\n        background: #fafafa url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\" width=\"32\" height=\"24\" viewBox=\"0 0 32 24\"><polygon points=\"0,0 32,0 16,24\" style=\"fill: #000\"></polygon></svg>') right 10px center no-repeat;\n        background-size: 8px 8px;\n        color: #888;\n        font-size: 13px; }\n  .fppd-status .mode-icon {\n    background: #788B94;\n    color: white;\n    padding: 3px 10px;\n    border-radius: 35px;\n    font-size: 20px;\n    vertical-align: top;\n    line-height: 35px; }\n"] = false
+    document.head.removeChild(__vueify_style__)
+  })
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+}).apply(this, arguments);
+
+},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],245:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/components/widgets/weather.vue", module);
+(function(){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+exports.default = {
+    components: {},
+    props: [],
+    data: function data() {
+        return {};
+    },
+    ready: function ready() {},
+
+    methods: {},
+    events: {}
+
+};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n<div class=\"widget-17 card panel no-border m-a-0 widget-loader-circle\">\n        <div class=\"panel-heading\">\n            <div class=\"panel-title\">\n                <i class=\"pg-map\"></i> Detroit, USA\n                <span class=\"caret\"></span>\n            </div>\n            <div class=\"panel-controls\">\n                <ul>\n                    <li class=\"\">\n                        <div class=\"dropdown\">\n                            <a data-target=\"#\" href=\"#\" data-toggle=\"dropdown\" aria-haspopup=\"true\" role=\"button\" aria-expanded=\"false\">\n                                <i class=\"portlet-icon portlet-icon-settings\"></i>\n                            </a>\n                            <ul class=\"dropdown-menu pull-xs-right\" role=\"menu\">\n                                <li><a href=\"#\">AAPL</a>\n                                </li>\n                                <li><a href=\"#\">YHOO</a>\n                                </li>\n                                <li><a href=\"#\">GOOG</a>\n                                </li>\n                            </ul>\n                        </div>\n                    </li>\n                    <li>\n                        <a data-toggle=\"refresh\" class=\"portlet-refresh text-black\" href=\"#\"><i class=\"portlet-icon portlet-icon-refresh\"></i></a>\n                    </li>\n                </ul>\n            </div>\n        </div>\n        <div class=\"panel-body\">\n            <div class=\"p-l-5\">\n                <div class=\"row\">\n                    <div class=\"col-md-12 col-xlg-6\">\n                        <div class=\"row m-t-20\">\n                            <div class=\"col-md-5\">\n                                <h4 class=\"m-a-0\">Monday</h4>\n\n                                <p class=\"small text-muted\">9th August 2014</p>\n                            </div>\n                            <div class=\"col-md-7\">\n                                <div class=\"pull-xs-left\">\n                                    <p class=\"small text-muted m-a-0\">Currently</p>\n                                    <h4 class=\"text-danger bold m-a-0\">32°\n                                        <span class=\"small\">/ 30F</span>\n                                    </h4>\n                                </div>\n                                <div class=\"pull-xs-right\">\n                                    <canvas height=\"64\" width=\"64\" class=\"clear-day\"></canvas>\n                                </div>\n                            </div>\n                        </div>\n                        <h5>Feels like\n                            <span class=\"semi-bold\">rainy</span>\n                        </h5>\n\n                        <p>Weather information</p>\n\n                        <div class=\"widget-17-weather\">\n                            <div class=\"row\">\n                                <div class=\"col-xs-6 p-r-10\">\n                                    <div class=\"row\">\n                                        <div class=\"col-md-12\">\n                                            <p class=\"pull-xs-left\">Wind</p>\n\n                                            <p class=\"pull-xs-right bold\">11km/h</p>\n                                        </div>\n                                    </div>\n                                    <div class=\"row\">\n                                        <div class=\"col-md-12\">\n                                            <p class=\"pull-xs-left\">Sunrise</p>\n\n                                            <p class=\"pull-xs-right bold\">05:20</p>\n                                        </div>\n                                    </div>\n                                    <div class=\"row\">\n                                        <div class=\"col-md-12\">\n                                            <p class=\"pull-xs-left\">Humidity</p>\n\n                                            <p class=\"pull-xs-right bold\">20%</p>\n                                        </div>\n                                    </div>\n                                    <div class=\"row\">\n                                        <div class=\"col-md-12\">\n                                            <p class=\"pull-xs-left\">Precipitation</p>\n\n                                            <p class=\"pull-xs-right bold\">60%</p>\n                                        </div>\n                                    </div>\n                                </div>\n                                <div class=\"col-xs-6 p-l-10\">\n                                    <div class=\"row\">\n                                        <div class=\"col-md-12\">\n                                            <p class=\"pull-xs-left\">Sunset</p>\n\n                                            <p class=\"pull-xs-right bold\">21:05</p>\n                                        </div>\n                                    </div>\n                                    <div class=\"row\">\n                                        <div class=\"col-md-12\">\n                                            <p class=\"pull-xs-left\">Visibility</p>\n\n                                            <p class=\"pull-xs-right bold\">21km</p>\n                                        </div>\n                                    </div>\n                                </div>\n                            </div>\n                        </div>\n                        <div class=\"row m-t-10 timeslot\">\n                            <div class=\"col-xs-2 p-t-10 text-center\">\n                                <p class=\"small\">13:30</p>\n                                <canvas height=\"25\" width=\"25\" class=\"partly-cloudy-day\"></canvas>\n                                <p class=\"text-danger bold\">30°C</p>\n                            </div>\n                            <div class=\"col-xs-2 p-t-10 text-center\">\n                                <p class=\"small\">14:00</p>\n                                <canvas height=\"25\" width=\"25\" class=\"cloudy\"></canvas>\n                                <p class=\"text-danger bold\">30°C</p>\n                            </div>\n                            <div class=\"col-xs-2 p-t-10 text-center\">\n                                <p class=\"small\">14:30</p>\n                                <canvas height=\"25\" width=\"25\" class=\"rain\"></canvas>\n                                <p class=\"text-danger bold\">30°C</p>\n                            </div>\n                            <div class=\"col-xs-2 p-t-10 text-center\">\n                                <p class=\"small\">15:00</p>\n                                <canvas height=\"25\" width=\"25\" class=\"sleet\"></canvas>\n                                <p class=\"text-danger bold\">30°C</p>\n                            </div>\n                            <div class=\"col-xs-2 p-t-10 text-center\">\n                                <p class=\"small\">15:30</p>\n                                <canvas height=\"25\" width=\"25\" class=\"snow\"></canvas>\n                                <p class=\"text-danger bold\">30°C</p>\n                            </div>\n                            <div class=\"col-xs-2 p-t-10 text-center\">\n                                <p class=\"small\">16:00</p>\n                                <canvas height=\"25\" width=\"25\" class=\"wind\"></canvas>\n                                <p class=\"text-danger bold\">30°C</p>\n                            </div>\n                        </div>\n                    </div>\n                    <div class=\"col-xl-6 hidden-xl-down\">\n                        <div class=\"row\">\n                            <div class=\"forecast-day col-md-6 text-center m-t-10 \">\n                                <div class=\"bg-master-lighter p-b-10 p-t-10\">\n                                    <h4 class=\"p-t-10 m-a-0\">Tuesday</h4>\n\n                                    <p class=\"small text-muted m-b-20\">11th Augest 2014</p>\n                                    <canvas class=\"rain\" width=\"64\" height=\"64\"></canvas>\n                                    <h5 class=\"text-danger\">32°</h5>\n\n                                    <p>Feels like\n                                        <span class=\"bold\">sunny</span>\n                                    </p>\n\n                                    <p class=\"small\">Wind\n                                        <span class=\"bold p-l-20\">11km/h</span>\n                                    </p>\n\n                                    <div class=\"m-t-20 block\">\n                                        <div class=\"padding-10\">\n                                            <div class=\"row\">\n                                                <div class=\"col-md-6 text-center\">\n                                                    <p class=\"small\">Noon</p>\n                                                    <canvas class=\"sleet\" width=\"25\" height=\"25\"></canvas>\n                                                    <p class=\"text-danger bold\">30°C</p>\n                                                </div>\n                                                <div class=\"col-md-6 text-center\">\n                                                    <p class=\"small\">Night</p>\n                                                    <canvas class=\"wind\" width=\"25\" height=\"25\"></canvas>\n                                                    <p class=\"text-danger bold\">30°C</p>\n                                                </div>\n                                            </div>\n                                        </div>\n                                    </div>\n                                </div>\n                            </div>\n                            <div class=\"col-md-6 text-center m-t-10 \">\n                                <div class=\"bg-master-lighter p-b-10 p-t-10\">\n                                    <h4 class=\"p-t-10 m-a-0\">Wednesday</h4>\n\n                                    <p class=\"small text-muted m-b-20\">11th Augest 2014</p>\n                                    <canvas class=\"rain\" width=\"64\" height=\"64\"></canvas>\n                                    <h5 class=\"text-danger\">32°</h5>\n\n                                    <p>Feels like\n                                        <span class=\"bold\">sunny</span>\n                                    </p>\n\n                                    <p class=\"small\">Wind\n                                        <span class=\"bold p-l-20\">11km/h</span>\n                                    </p>\n\n                                    <div class=\"m-t-20 block\">\n                                        <div class=\"padding-10\">\n                                            <div class=\"row\">\n                                                <div class=\"col-md-6 text-center\">\n                                                    <p class=\"small\">Noon</p>\n                                                    <canvas class=\"sleet\" width=\"25\" height=\"25\"></canvas>\n                                                    <p class=\"text-danger bold\">30°C</p>\n                                                </div>\n                                                <div class=\"col-md-6 text-center\">\n                                                    <p class=\"small\">Night</p>\n                                                    <canvas class=\"wind\" width=\"25\" height=\"25\"></canvas>\n                                                    <p class=\"text-danger bold\">30°C</p>\n                                                </div>\n                                            </div>\n                                        </div>\n                                    </div>\n                                </div>\n                            </div>\n                        </div>\n                    </div>\n                </div>\n            </div>\n        </div>\n    </div>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/widgets/weather.vue"
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+}).apply(this, arguments);
+
+},{"vue":195,"vue-hot-reload-api":171}],246:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/directives/ip.js", module);
 (function(){
 "use strict";
@@ -40728,18 +46795,20 @@ exports.default = {
 
 }).apply(this, arguments);
 
-},{"jquery":80,"jquery.inputmask":79}],243:[function(require,module,exports){
-_hmr["websocket:null"].initModule("resources/assets/build//js/main-f3c3f0d0f7.js", module);
+},{"jquery":80,"jquery.inputmask":79}],247:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/build//js/main-95aaa4e293.js", module);
 (function(){
 'use strict';
 
 var $ = require('jquery');
 var VueRouter = require('vue-router');
-
+var VueValidator = require('vue-validator');
 window.Vue = require('vue');
+Vue.use(VueValidator);
 Vue.use(VueRouter);
 Vue.use(require('vue-animated-list'));
 Vue.use(require('vue-resource'));
+
 Vue.http.options.root = '/api';
 Vue.http.headers.common['X-CSRF-TOKEN'] = $('meta[name="csrf-token"]').attr('content');
 Vue.config.debug = true;
@@ -40881,7 +46950,7 @@ router.start(App, 'body');
 
 }).apply(this, arguments);
 
-},{"./app.vue":196,"./components/dashboard.vue":197,"./components/effects.vue":198,"./components/events.vue":199,"./components/files.vue":200,"./components/index.vue":204,"./components/not-found.vue":205,"./components/outputs/dmx.vue":206,"./components/outputs/e131.vue":207,"./components/outputs/index.vue":208,"./components/outputs/other.vue":210,"./components/outputs/panels.vue":211,"./components/overlays.vue":214,"./components/playlists.vue":215,"./components/plugins.vue":216,"./components/schedule.vue":217,"./components/settings.vue":218,"./components/settings/advanced.vue":219,"./components/settings/date.vue":220,"./components/settings/email.vue":221,"./components/settings/general.vue":222,"./components/settings/logs.vue":224,"./components/settings/network.vue":225,"./components/testing.vue":241,"jquery":80,"vue":193,"vue-animated-list":169,"vue-resource":175,"vue-router":190}],244:[function(require,module,exports){
+},{"./app.vue":198,"./components/dashboard.vue":199,"./components/effects.vue":200,"./components/events.vue":201,"./components/files.vue":202,"./components/index.vue":206,"./components/not-found.vue":207,"./components/outputs/dmx.vue":208,"./components/outputs/e131.vue":209,"./components/outputs/index.vue":210,"./components/outputs/other.vue":212,"./components/outputs/panels.vue":213,"./components/overlays.vue":216,"./components/playlists.vue":217,"./components/plugins.vue":218,"./components/schedule.vue":219,"./components/settings.vue":220,"./components/settings/advanced.vue":221,"./components/settings/date.vue":222,"./components/settings/email.vue":223,"./components/settings/general.vue":224,"./components/settings/logs.vue":226,"./components/settings/network.vue":227,"./components/testing.vue":243,"jquery":80,"vue":195,"vue-animated-list":170,"vue-resource":176,"vue-router":191,"vue-validator":194}],248:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/mixins/outputMixin.js", module);
 (function(){
 'use strict';
@@ -40923,7 +46992,7 @@ exports.default = {
 
 }).apply(this, arguments);
 
-},{}],245:[function(require,module,exports){
+},{}],249:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/services/http.js", module);
 (function(){
 'use strict';
@@ -41001,14 +47070,14 @@ exports.default = {
 
 }).apply(this, arguments);
 
-},{}],246:[function(require,module,exports){
+},{}],250:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/stores/playlist.js", module);
 (function(){
 "use strict";
 
 }).apply(this, arguments);
 
-},{}],247:[function(require,module,exports){
+},{}],251:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/stores/setting.js", module);
 (function(){
 'use strict';
@@ -41058,7 +47127,7 @@ exports.default = {
 
 }).apply(this, arguments);
 
-},{"../services/http":245,"./shared":248}],248:[function(require,module,exports){
+},{"../services/http":249,"./shared":252}],252:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/stores/shared.js", module);
 (function(){
 'use strict';
@@ -41103,7 +47172,7 @@ exports.default = {
 
 }).apply(this, arguments);
 
-},{"../services/http":245}],249:[function(require,module,exports){
+},{"../services/http":249}],253:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/utils.js", module);
 (function(){
 'use strict';
@@ -41129,8 +47198,8 @@ function makeid() {
 (function(global, _main, moduleDefs, cachedModules, _entries) {
   'use strict';
 
-  var moduleMeta = {"node_modules/browserify-hmr/lib/has.js":{"index":10,"hash":"Hky4QYVrU1+kFHIEuxPy","parents":["node_modules/browserify-hmr/lib/str-set.js","node_modules/browserify-hmr/inc/index.js"]},"node_modules/browserify-hmr/lib/str-set.js":{"index":11,"hash":"lcrDmQK4uaqOqN+FV4/9","parents":["node_modules/browserify-hmr/inc/index.js"]},"resources/assets/js/stores/playlist.js":{"index":246,"hash":"k5Rph+tSzK7SzVYZrxbP","parents":["resources/assets/js/app.vue"]},"resources/assets/js/mixins/outputMixin.js":{"index":244,"hash":"gGCtCK8OXqFlnKkxkWU0","parents":["resources/assets/js/components/outputs/dmx.vue","resources/assets/js/components/outputs/e131.vue","resources/assets/js/components/outputs/panels.vue"]},"node_modules/socket.io-client/node_modules/debug/debug.js":{"index":161,"hash":"OtjmSmEbIU/8orJwFhDT","parents":["node_modules/socket.io-client/lib/url.js","node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/socket.io-client/lib/on.js":{"index":158,"hash":"y5MOoFpTKKBHwE8q8jae","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/vue-animated-list/vue-animated-list.js":{"index":169,"hash":"26lVl2CH82yXZ2XSjVFm","parents":["resources/assets/build//js/main-f3c3f0d0f7.js"]},"node_modules/vue-router/dist/vue-router.common.js":{"index":190,"hash":"V5DMsGGLcOqPAhx31psf","parents":["resources/assets/build//js/main-f3c3f0d0f7.js"]},"node_modules/jquery/dist/jquery.js":{"index":80,"hash":"siFczlgw4jULnUICcdm9","parents":["resources/assets/js/app.vue","node_modules/jquery.inputmask/dist/inputmask/inputmask.dependencyLib.jquery.js","node_modules/jquery.inputmask/dist/inputmask/jquery.inputmask.js","resources/assets/js/directives/ip.js","resources/assets/build//js/main-f3c3f0d0f7.js"]},"resources/assets/js/stores/setting.js":{"index":247,"hash":"coKfnj2hZTIg8YRT4JSn","parents":["resources/assets/js/app.vue"]},"resources/assets/js/services/http.js":{"index":245,"hash":"OqU5t4zvkjeUSpQJFLPI","parents":["resources/assets/js/stores/setting.js","resources/assets/js/stores/shared.js"]},"resources/assets/js/stores/shared.js":{"index":248,"hash":"dBZ6EHn2t9/PLCXa/Sej","parents":["resources/assets/js/stores/setting.js","resources/assets/js/app.vue"]},"resources/assets/js/utils.js":{"index":249,"hash":"YUBgAVFOtL2AfLdROM4O","parents":["resources/assets/js/components/shared/input.vue"]},"node_modules/vue-resource/src/resource.js":{"index":188,"hash":"4hFj5axF31CeVRePeF8o","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-hot-reload-api/index.js":{"index":170,"hash":"WuwmPSnCiynHpb+AfQBY","parents":["resources/assets/js/components/dashboard.vue","resources/assets/js/components/overlays.vue","resources/assets/js/components/playlists.vue","resources/assets/js/components/schedule.vue","resources/assets/js/components/plugins.vue","resources/assets/js/components/events.vue","resources/assets/js/components/effects.vue","resources/assets/js/components/testing.vue","resources/assets/js/components/not-found.vue","resources/assets/js/components/outputs/index.vue","resources/assets/js/components/outputs/other.vue","resources/assets/js/components/settings/date.vue","resources/assets/js/components/settings/email.vue","resources/assets/js/components/settings/advanced.vue","resources/assets/js/components/settings/logs.vue","resources/assets/js/components/sidebar.vue","resources/assets/js/components/footer.vue","resources/assets/js/components/shared/Tabset.vue","resources/assets/js/components/shared/Tab.vue","resources/assets/js/components/shared/filelist.vue","resources/assets/js/components/files.vue","resources/assets/js/components/shared/switch.vue","resources/assets/js/components/shared/dropdown-select.vue","resources/assets/js/components/shared/tabset.vue","resources/assets/js/components/shared/tab.vue","resources/assets/js/components/settings/network.vue","resources/assets/js/components/header/settings.vue","resources/assets/js/components/settings/index.vue","resources/assets/js/components/settings.vue","resources/assets/js/components/outputs/universe.vue","resources/assets/js/components/shared/checkbox.vue","resources/assets/js/components/shared/input.vue","resources/assets/js/components/outputs/pdmx.vue","resources/assets/js/components/outputs/dmx.vue","resources/assets/js/components/shared/falcon-loading.vue","resources/assets/js/components/shared/overlay.vue","resources/assets/js/app.vue","resources/assets/js/components/shared/control-buttons.vue","resources/assets/js/components/shared/header-menu.vue","resources/assets/js/components/header/index.vue","resources/assets/js/components/index.vue","resources/assets/js/components/shared/popover.vue","resources/assets/js/components/outputs/led-panel.vue","resources/assets/js/components/outputs/e131.vue","node_modules/vue-strap/src/Option.vue","resources/assets/js/components/outputs/panels.vue","node_modules/vue-strap/src/Select.vue","resources/assets/js/components/settings/general.vue"]},"node_modules/vue-resource/src/lib/util.js":{"index":186,"hash":"kipx22owioSurHN4RBYT","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/socket.io-parser/is-buffer.js":{"index":164,"hash":"UJBXKAfBg/BkigSZbc3Z","parents":["node_modules/socket.io-parser/binary.js","node_modules/socket.io-parser/index.js"]},"node_modules/component-emitter/index.js":{"index":13,"hash":"0uL1LSa/mOj+Llu+HTZ7","parents":["node_modules/socket.io-parser/index.js","node_modules/socket.io-client/lib/socket.js","node_modules/engine.io-client/lib/transport.js","node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/parseuri/index.js":{"index":153,"hash":"PsPou9y5yKmPMPJnjEkz","parents":["node_modules/socket.io-client/lib/url.js"]},"node_modules/socket.io-client/lib/url.js":{"index":160,"hash":"/WgdaMtSTLlxFoTxZTGl","parents":["node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/component-bind/index.js":{"index":12,"hash":"4yIcVw+afwUsnTQyI0a3","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/object-component/index.js":{"index":150,"hash":"zOYybxl/D7KsteH/xJyk","parents":["node_modules/socket.io-client/lib/manager.js"]},"node_modules/indexof/index.js":{"index":75,"hash":"8zMGV0j0ID5bUIeT7r+M","parents":["node_modules/engine.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/backo2/index.js":{"index":6,"hash":"L5ry3mfVEw1wgmx9Sa+q","parents":["node_modules/socket.io-client/lib/manager.js"]},"node_modules/to-array/index.js":{"index":167,"hash":"2EoggafxX+GLXkXiaGjm","parents":["node_modules/socket.io-client/lib/socket.js"]},"node_modules/lodash/array/zipObject.js":{"index":83,"hash":"fKfSwIzPo5SUx9d0DkgN","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/lang/isArray.js":{"index":137,"hash":"rpMiE1Z199/XZCjno4KN","parents":["node_modules/lodash/array/zipObject.js","node_modules/lodash/collection/map.js","node_modules/lodash/collection/filter.js","node_modules/lodash/internal/createForEach.js","node_modules/lodash/internal/isKey.js","node_modules/lodash/internal/toPath.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js","node_modules/lodash/internal/baseIsEqualDeep.js","node_modules/lodash/internal/baseMatchesProperty.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/arrayEach.js":{"index":89,"hash":"eLxUBVsb8vpFbu0VN4KL","parents":["node_modules/lodash/collection/forEach.js"]},"node_modules/lodash/internal/arraySome.js":{"index":92,"hash":"GxeJPxJj2jUg5TzV5gLv","parents":["node_modules/lodash/internal/equalArrays.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/arrayMap.js":{"index":91,"hash":"xdr8c0JsUFapIHTuM5VE","parents":["node_modules/lodash/collection/map.js"]},"node_modules/lodash/internal/arrayFilter.js":{"index":90,"hash":"BGunz0w1QzJXyqQSOdZb","parents":["node_modules/lodash/collection/filter.js"]},"resources/assets/js/components/dashboard.vue":{"index":197,"hash":"b4ZwMAdmlA2KQqb6p+JT","parents":["resources/assets/build//js/main-f3c3f0d0f7.js"]},"node_modules/vue/dist/vue.common.js":{"index":193,"hash":"2VyaBoUmGsVHuFohCYxK","parents":["resources/assets/js/components/dashboard.vue","resources/assets/js/components/overlays.vue","resources/assets/js/components/playlists.vue","resources/assets/js/components/schedule.vue","resources/assets/js/components/plugins.vue","resources/assets/js/components/events.vue","resources/assets/js/components/effects.vue","resources/assets/js/components/testing.vue","resources/assets/js/components/not-found.vue","resources/assets/js/components/outputs/index.vue","resources/assets/js/components/outputs/other.vue","resources/assets/js/components/settings/date.vue","resources/assets/js/components/settings/email.vue","resources/assets/js/components/settings/advanced.vue","resources/assets/js/components/settings/logs.vue","resources/assets/js/components/sidebar.vue","resources/assets/js/components/footer.vue","resources/assets/js/components/shared/Tabset.vue","resources/assets/js/components/shared/Tab.vue","resources/assets/js/components/shared/filelist.vue","resources/assets/js/components/files.vue","resources/assets/js/components/shared/switch.vue","resources/assets/js/components/shared/dropdown-select.vue","resources/assets/js/components/shared/tabset.vue","resources/assets/js/components/shared/tab.vue","resources/assets/js/components/settings/network.vue","resources/assets/js/components/header/settings.vue","resources/assets/js/components/settings/index.vue","resources/assets/js/components/settings.vue","resources/assets/js/components/outputs/universe.vue","resources/assets/js/components/shared/checkbox.vue","resources/assets/js/components/shared/input.vue","resources/assets/js/components/outputs/pdmx.vue","resources/assets/js/components/outputs/dmx.vue","resources/assets/js/components/shared/falcon-loading.vue","resources/assets/js/components/shared/overlay.vue","resources/assets/js/app.vue","resources/assets/js/components/shared/control-buttons.vue","resources/assets/js/components/shared/header-menu.vue","resources/assets/js/components/header/index.vue","resources/assets/js/components/index.vue","resources/assets/js/components/shared/popover.vue","resources/assets/js/components/outputs/led-panel.vue","resources/assets/js/components/outputs/e131.vue","node_modules/vue-strap/src/Option.vue","resources/assets/js/components/outputs/panels.vue","node_modules/vue-strap/src/Select.vue","resources/assets/js/components/settings/general.vue","resources/assets/build//js/main-f3c3f0d0f7.js"]},"resources/assets/js/components/overlays.vue":{"index":214,"hash":"wttUj90IjUTB21TqVn5A","parents":["resources/assets/build//js/main-f3c3f0d0f7.js"]},"resources/assets/js/components/playlists.vue":{"index":215,"hash":"vHG42AI/ctPZxYn2tvZT","parents":["resources/assets/build//js/main-f3c3f0d0f7.js"]},"resources/assets/js/components/schedule.vue":{"index":217,"hash":"w10dm2qLyWGPX+dNhHQr","parents":["resources/assets/build//js/main-f3c3f0d0f7.js"]},"resources/assets/js/components/plugins.vue":{"index":216,"hash":"aBWTwEC29+sEJX2/NcVw","parents":["resources/assets/build//js/main-f3c3f0d0f7.js"]},"resources/assets/js/components/events.vue":{"index":199,"hash":"Lmd0SzEjko8hAg0NQmxQ","parents":["resources/assets/build//js/main-f3c3f0d0f7.js"]},"resources/assets/js/components/effects.vue":{"index":198,"hash":"W8MkKtIaA7ck5eb1D3Us","parents":["resources/assets/build//js/main-f3c3f0d0f7.js"]},"resources/assets/js/components/testing.vue":{"index":241,"hash":"8w9/LeGCBJNLr09RTiXA","parents":["resources/assets/build//js/main-f3c3f0d0f7.js"]},"resources/assets/js/components/not-found.vue":{"index":205,"hash":"JnE9W3JgazmF+BYtHxgh","parents":["resources/assets/build//js/main-f3c3f0d0f7.js"]},"node_modules/vueify-insert-css/index.js":{"index":194,"hash":"fvTUijA6yyBpp68H+JX2","parents":["resources/assets/js/components/not-found.vue","resources/assets/js/components/sidebar.vue","resources/assets/js/components/shared/Tabset.vue","resources/assets/js/components/shared/Tab.vue","resources/assets/js/components/shared/filelist.vue","resources/assets/js/components/files.vue","resources/assets/js/components/shared/tabset.vue","resources/assets/js/components/shared/tab.vue","resources/assets/js/components/header/settings.vue","resources/assets/js/components/settings/index.vue","resources/assets/js/components/settings.vue","resources/assets/js/components/outputs/universe.vue","resources/assets/js/components/shared/checkbox.vue","resources/assets/js/components/shared/falcon-loading.vue","resources/assets/js/components/shared/overlay.vue","resources/assets/js/components/shared/control-buttons.vue","resources/assets/js/components/shared/header-menu.vue","resources/assets/js/components/header/index.vue","resources/assets/js/components/index.vue","resources/assets/js/components/outputs/led-panel.vue","resources/assets/js/components/outputs/e131.vue","node_modules/vue-strap/src/Option.vue","resources/assets/js/components/outputs/panels.vue","node_modules/vue-strap/src/Select.vue"]},"node_modules/socket.io-parser/node_modules/debug/debug.js":{"index":165,"hash":"OtjmSmEbIU/8orJwFhDT","parents":["node_modules/socket.io-parser/index.js"]},"node_modules/process/browser.js":{"index":154,"hash":"d/Dio43QDX3Xt7NYvbr6","parents":["node_modules/vue/dist/vue.common.js"]},"node_modules/vue-resource/src/lib/url-template.js":{"index":185,"hash":"KZagPKERmevU89wFVgEg","parents":["node_modules/vue-resource/src/url.js"]},"node_modules/vue-resource/src/url.js":{"index":189,"hash":"enlma6RiuDUq+g3+RYdS","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-resource/src/interceptor/before.js":{"index":176,"hash":"dzJ5VyAAgzvYOWxyyGVm","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/timeout.js":{"index":183,"hash":"r+N56i06KukH+ME8Mpnr","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/method.js":{"index":181,"hash":"DqLo0TxFAJSH0HWGo7wR","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/mime.js":{"index":182,"hash":"f6heFdNiVYVl4GIRJ2gN","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/header.js":{"index":178,"hash":"Ql+DdTpkgQsJb9HXQumF","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/lib/promise.js":{"index":184,"hash":"uhJ1aPn5MePstu6k3zZV","parents":["node_modules/vue-resource/src/promise.js"]},"node_modules/vue-resource/src/promise.js":{"index":187,"hash":"dayC7UqEuK1y+yEa6/bE","parents":["node_modules/vue-resource/src/interceptor/index.js","node_modules/vue-resource/src/client/xhr.js","node_modules/vue-resource/src/client/jsonp.js","node_modules/vue-resource/src/http.js","node_modules/vue-resource/src/index.js"]},"node_modules/isarray/index.js":{"index":76,"hash":"dKtews1S4sHvaZhZ+ceq","parents":["node_modules/socket.io-parser/binary.js","node_modules/socket.io-parser/index.js","node_modules/has-binary/index.js"]},"resources/assets/js/components/outputs/index.vue":{"index":208,"hash":"tF9ju2+vTr3ViQy6GtPB","parents":["resources/assets/build//js/main-f3c3f0d0f7.js"]},"resources/assets/js/components/outputs/other.vue":{"index":210,"hash":"q2uEEdYgJjD3nBtzgPjD","parents":["resources/assets/build//js/main-f3c3f0d0f7.js"]},"resources/assets/js/components/settings/date.vue":{"index":220,"hash":"52BPts98nvITx+HD9Ooc","parents":["resources/assets/build//js/main-f3c3f0d0f7.js"]},"resources/assets/js/components/shared/switch.vue":{"index":237,"hash":"YL63p5vHKkkZeMmCvrvm","parents":["resources/assets/js/components/settings/date.vue","resources/assets/js/components/outputs/universe.vue","resources/assets/js/components/outputs/pdmx.vue","resources/assets/js/components/outputs/dmx.vue","resources/assets/js/components/outputs/e131.vue","resources/assets/js/components/outputs/panels.vue","resources/assets/js/components/settings/general.vue"]},"resources/assets/js/components/settings/email.vue":{"index":221,"hash":"5oX1fK0HFWyf2L8sKj+z","parents":["resources/assets/build//js/main-f3c3f0d0f7.js"]},"node_modules/json3/lib/json3.js":{"index":81,"hash":"Z22TAqz9HSDSuQH535ZO","parents":["node_modules/socket.io-parser/index.js"]},"resources/assets/js/components/settings/advanced.vue":{"index":219,"hash":"r2wb/2T+G10rShqof/+O","parents":["resources/assets/build//js/main-f3c3f0d0f7.js"]},"resources/assets/js/components/settings/logs.vue":{"index":224,"hash":"1FhvCTB1kypk1tpNwaC7","parents":["resources/assets/build//js/main-f3c3f0d0f7.js"]},"node_modules/lodash/internal/baseSome.js":{"index":111,"hash":"lCW5AtHn9X2vSuPgS8pk","parents":["node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/baseEach.js":{"index":97,"hash":"Ji7NLCJhdzSBlpDI+qC3","parents":["node_modules/lodash/internal/baseSome.js","node_modules/lodash/internal/baseMap.js","node_modules/lodash/internal/baseFilter.js","node_modules/lodash/collection/forEach.js"]},"node_modules/lodash/internal/baseMap.js":{"index":105,"hash":"ofv2jCE5QlahpynG4rkN","parents":["node_modules/lodash/collection/map.js"]},"node_modules/lodash/internal/isArrayLike.js":{"index":126,"hash":"76Awthz8ChTgjGk0JZ6Y","parents":["node_modules/lodash/internal/baseMap.js","node_modules/lodash/internal/isIterateeCall.js","node_modules/lodash/lang/isArguments.js","node_modules/lodash/object/keys.js"]},"node_modules/lodash/collection/map.js":{"index":86,"hash":"63n5x8GTiWPuxiZzm9TM","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/baseCallback.js":{"index":95,"hash":"FDEmxoh1cXY/hddgPNGW","parents":["node_modules/lodash/collection/map.js","node_modules/lodash/collection/filter.js","node_modules/lodash/internal/createObjectMapper.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/baseFilter.js":{"index":98,"hash":"yyvQag4hw8sItBFf3/9T","parents":["node_modules/lodash/collection/filter.js"]},"node_modules/lodash/collection/filter.js":{"index":84,"hash":"XtU5zjCqSDlYcwOLUC13","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/createForOwn.js":{"index":118,"hash":"KJqijjvJO7d1nU17Sz3c","parents":["node_modules/lodash/object/forOwn.js"]},"node_modules/lodash/internal/bindCallback.js":{"index":113,"hash":"S6iy1I+53IEzDLSGuW0j","parents":["node_modules/lodash/internal/createForOwn.js","node_modules/lodash/internal/createAssigner.js","node_modules/lodash/internal/createForEach.js","node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/internal/assignWith.js":{"index":93,"hash":"aKBKyfIKqZsNOHAbJTAI","parents":["node_modules/lodash/object/assign.js"]},"node_modules/lodash/object/keys.js":{"index":144,"hash":"BbXGNIcfatSp32uWOBAV","parents":["node_modules/lodash/internal/assignWith.js","node_modules/lodash/internal/baseAssign.js","node_modules/lodash/object/pairs.js","node_modules/lodash/internal/baseForOwn.js","node_modules/lodash/internal/equalObjects.js"]},"node_modules/lodash/internal/createObjectMapper.js":{"index":119,"hash":"cp8s+Z6khiKdK5QCQ+Ms","parents":["node_modules/lodash/object/mapValues.js"]},"node_modules/lodash/internal/baseForOwn.js":{"index":100,"hash":"sOLmHH2OosmeW92YaLK/","parents":["node_modules/lodash/internal/createObjectMapper.js","node_modules/lodash/internal/baseEach.js","node_modules/lodash/object/forOwn.js"]},"node_modules/lodash/object/mapValues.js":{"index":146,"hash":"2HfAmVuaVGfc8pd5zIaC","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/utility/identity.js":{"index":148,"hash":"A/cz5O4nnho2x2e5KIWS","parents":["node_modules/lodash/internal/bindCallback.js","node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/internal/isLength.js":{"index":130,"hash":"DFIKI121VzeE+pBbx1Oa","parents":["node_modules/lodash/internal/isArrayLike.js","node_modules/lodash/internal/createBaseEach.js","node_modules/lodash/lang/isArray.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js","node_modules/lodash/lang/isTypedArray.js"]},"node_modules/lodash/internal/isObjectLike.js":{"index":131,"hash":"qEGnAWJNoAetOIJ7YKiV","parents":["node_modules/lodash/lang/isNative.js","node_modules/lodash/lang/isArray.js","node_modules/lodash/lang/isArguments.js","node_modules/lodash/lang/isTypedArray.js","node_modules/lodash/internal/baseIsEqual.js"]},"node_modules/lodash/internal/isIndex.js":{"index":127,"hash":"I8y5AsjL/lwDlORDOqqM","parents":["node_modules/lodash/internal/isIterateeCall.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js"]},"node_modules/lodash/lang/isObject.js":{"index":140,"hash":"Go+dTLFqO1KJN+uQLb8s","parents":["node_modules/lodash/internal/isIterateeCall.js","node_modules/lodash/internal/toObject.js","node_modules/lodash/internal/isStrictComparable.js","node_modules/lodash/lang/isFunction.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/object/keys.js","node_modules/lodash/internal/baseIsEqual.js"]},"node_modules/lodash/internal/baseCopy.js":{"index":96,"hash":"WvGi8IywM6u7ZNXvztwg","parents":["node_modules/lodash/internal/baseAssign.js"]},"node_modules/lodash/internal/baseAssign.js":{"index":94,"hash":"6VX87YoeNgDvMUyiAc/7","parents":["node_modules/lodash/object/assign.js"]},"node_modules/lodash/function/restParam.js":{"index":88,"hash":"/RRH9MCtjArr1p3Qeh63","parents":["node_modules/lodash/internal/createAssigner.js"]},"node_modules/lodash/internal/createAssigner.js":{"index":114,"hash":"X8R81jvRCofY1BnG+A/L","parents":["node_modules/lodash/object/assign.js"]},"node_modules/lodash/internal/isIterateeCall.js":{"index":128,"hash":"dXMnNRevAizOBisKCEes","parents":["node_modules/lodash/internal/createAssigner.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/object/assign.js":{"index":142,"hash":"9WOhJBREl8AO9Hs6Cr+Q","parents":["node_modules/browserify-hmr/inc/index.js"]},"resources/assets/js/components/sidebar.vue":{"index":240,"hash":"lOB+csmsf+OuVDkCt8sZ","parents":["resources/assets/js/app.vue"]},"resources/assets/js/components/footer.vue":{"index":201,"hash":"V/pa4T+7Xw1RugNiCrP+","parents":["resources/assets/js/components/settings.vue","resources/assets/js/components/index.vue"]},"node_modules/socket.io-parser/binary.js":{"index":162,"hash":"bAee8RukaXwuD/OeGN6F","parents":["node_modules/socket.io-parser/index.js"]},"node_modules/socket.io-parser/index.js":{"index":163,"hash":"BAgSAi2yJ1LAoE3Vw1D4","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/has-binary/index.js":{"index":73,"hash":"ZLLgu+QfLGB5FJs6P2Ow","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/engine.io-parser/lib/browser.js"]},"node_modules/socket.io-client/lib/socket.js":{"index":159,"hash":"mVenx7k8VFtvIejsDYOl","parents":["node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/vue-resource/src/interceptor/cors.js":{"index":177,"hash":"y/hrmr+lC4LVHKr98SRc","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/client/jsonp.js":{"index":172,"hash":"+Nk8UZxMFWMDrzR/Me13","parents":["node_modules/vue-resource/src/interceptor/cors.js","node_modules/vue-resource/src/interceptor/jsonp.js"]},"node_modules/vue-resource/src/interceptor/index.js":{"index":179,"hash":"5iWUKE5ElG+J957vOzOe","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/lodash/internal/createForEach.js":{"index":117,"hash":"iJtWBCzx+bzzSLwlaaRv","parents":["node_modules/lodash/collection/forEach.js"]},"node_modules/lodash/internal/getLength.js":{"index":123,"hash":"UiZ6F0+nXZ0fiKckTqnM","parents":["node_modules/lodash/internal/isArrayLike.js","node_modules/lodash/internal/createBaseEach.js"]},"resources/assets/js/components/shared/Tabset.vue":{"index":227,"hash":"gqqI8RvSTmfen5Ur4x8e","parents":["resources/assets/js/components/files.vue"]},"resources/assets/js/components/shared/Tab.vue":{"index":226,"hash":"cdUmReYmh0ydEtOAgdv5","parents":["resources/assets/js/components/files.vue"]},"resources/assets/js/components/shared/filelist.vue":{"index":232,"hash":"UcxvPNXyJimPoXghyR93","parents":["resources/assets/js/components/files.vue"]},"resources/assets/js/components/files.vue":{"index":200,"hash":"O/OPcgg+TUnlswbf4lVR","parents":["resources/assets/build//js/main-f3c3f0d0f7.js"]},"resources/assets/js/components/shared/dropdown-select.vue":{"index":230,"hash":"mFIoJVHY9dJVngym9xZP","parents":["resources/assets/js/components/outputs/e131.vue"]},"node_modules/lodash/internal/baseSlice.js":{"index":110,"hash":"OLgw9XVic1W0AKjehzHB","parents":["node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/array/last.js":{"index":82,"hash":"3oXXa2idWbKySVLcq3os","parents":["node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/baseProperty.js":{"index":108,"hash":"Yuk2tpof21q0Xl2sQg89","parents":["node_modules/lodash/internal/getLength.js","node_modules/lodash/utility/property.js"]},"resources/assets/js/components/shared/tabset.vue":{"index":239,"hash":"ni1YOVU6boQgduWMtPx9","parents":["resources/assets/js/components/settings/network.vue"]},"resources/assets/js/components/shared/tab.vue":{"index":238,"hash":"q+fOMn88tu7p6njNfcLf","parents":["resources/assets/js/components/settings/network.vue"]},"resources/assets/js/components/settings/network.vue":{"index":225,"hash":"Xt1AOrWp4ng2cAEaPAeD","parents":["resources/assets/build//js/main-f3c3f0d0f7.js"]},"resources/assets/js/components/header/settings.vue":{"index":203,"hash":"qTO6TJeGEcto0yfy4aS8","parents":["resources/assets/js/components/settings.vue"]},"resources/assets/js/components/shared/control-buttons.vue":{"index":229,"hash":"+9iOqEGv9nEOHue9HTT2","parents":["resources/assets/js/components/header/settings.vue","resources/assets/js/components/header/index.vue"]},"resources/assets/js/components/settings/index.vue":{"index":223,"hash":"3OEkMP0lykKjpifYr8Jo","parents":["resources/assets/js/components/settings.vue"]},"resources/assets/js/components/settings.vue":{"index":218,"hash":"8iDnk5fygW9EqF8Mtncs","parents":["resources/assets/build//js/main-f3c3f0d0f7.js"]},"resources/assets/js/components/outputs/universe.vue":{"index":213,"hash":"g5+vGvXKGEEyAVsRXrKI","parents":["resources/assets/js/components/outputs/e131.vue"]},"resources/assets/js/components/shared/checkbox.vue":{"index":228,"hash":"uZDy5Po/OgOkjVErDgUR","parents":["resources/assets/js/components/outputs/e131.vue"]},"resources/assets/js/components/shared/input.vue":{"index":234,"hash":"nzaLsXc4vVVsCPN3ns0t","parents":["resources/assets/js/components/outputs/dmx.vue","resources/assets/js/components/outputs/e131.vue","resources/assets/js/components/outputs/panels.vue"]},"resources/assets/js/components/outputs/pdmx.vue":{"index":212,"hash":"OOAJZz2HIY8lYRkKtmpp","parents":["resources/assets/js/components/outputs/dmx.vue"]},"resources/assets/js/components/outputs/dmx.vue":{"index":206,"hash":"zKV0dDOwAg+PWLud8ncl","parents":["resources/assets/build//js/main-f3c3f0d0f7.js"]},"node_modules/vue-resource/src/client/xhr.js":{"index":173,"hash":"u8PTCERIOeSAmYWFlrqC","parents":["node_modules/vue-resource/src/client/default.js"]},"node_modules/vue-resource/src/client/default.js":{"index":171,"hash":"+B0kSDe+gVY+/RkxYnil","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/jsonp.js":{"index":180,"hash":"EYhB3ryCUxKsSKwlYeME","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/http.js":{"index":174,"hash":"pcpl/SOKe3e7NS9rUOff","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-resource/src/index.js":{"index":175,"hash":"TZsp5Ua7CrOOvYCKsblD","parents":["resources/assets/build//js/main-f3c3f0d0f7.js"]},"node_modules/lodash/internal/toObject.js":{"index":134,"hash":"8f3eulB97DddBRdcU+7v","parents":["node_modules/lodash/internal/createBaseEach.js","node_modules/lodash/internal/baseIsMatch.js","node_modules/lodash/internal/baseGet.js","node_modules/lodash/internal/isKey.js","node_modules/lodash/internal/createBaseFor.js","node_modules/lodash/object/pairs.js","node_modules/lodash/internal/baseMatches.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/createBaseEach.js":{"index":115,"hash":"+5X3Ztm78NNPr9vQZ7fB","parents":["node_modules/lodash/internal/baseEach.js"]},"node_modules/lodash/collection/forEach.js":{"index":85,"hash":"0Lo1RNt18PMo/HAKbHEu","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/baseIsMatch.js":{"index":104,"hash":"EpuJzlg204aR35T4QKcS","parents":["node_modules/lodash/internal/baseMatches.js"]},"node_modules/lodash/internal/baseIsEqual.js":{"index":102,"hash":"dBgoFXnhj9KH6oX3dQwa","parents":["node_modules/lodash/internal/baseIsMatch.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/baseGet.js":{"index":101,"hash":"H9EiMd3ullQpRkvooLgz","parents":["node_modules/lodash/internal/basePropertyDeep.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/isKey.js":{"index":129,"hash":"lDpw5crcRmTRExTLVTKc","parents":["node_modules/lodash/utility/property.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/isStrictComparable.js":{"index":132,"hash":"ofNP4/nFrz5Rkb3kGOhn","parents":["node_modules/lodash/internal/getMatchData.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/basePropertyDeep.js":{"index":109,"hash":"mqX1OyYdndJ183lyl/sn","parents":["node_modules/lodash/utility/property.js"]},"node_modules/lodash/internal/toPath.js":{"index":135,"hash":"faVQvsb+LSLI4uaMgtrQ","parents":["node_modules/lodash/internal/basePropertyDeep.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/utility/property.js":{"index":149,"hash":"7IoOI/uGZCxbcY23uQDK","parents":["node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/internal/createBaseFor.js":{"index":116,"hash":"9RWlFaBOuelvwgkhYgPG","parents":["node_modules/lodash/internal/baseFor.js"]},"node_modules/lodash/internal/baseFor.js":{"index":99,"hash":"NGxcZ0n01+w2G1PzyBlY","parents":["node_modules/lodash/internal/baseForOwn.js"]},"node_modules/lodash/internal/baseToString.js":{"index":112,"hash":"ABFQFf14pRECi3sw8oKV","parents":["node_modules/lodash/internal/toPath.js"]},"resources/assets/js/components/shared/falcon-loading.vue":{"index":231,"hash":"nrISz6smCod0TjaIPHYA","parents":["resources/assets/js/components/shared/overlay.vue"]},"resources/assets/js/components/shared/overlay.vue":{"index":235,"hash":"JYZPaO3VyADALhB5HixN","parents":["resources/assets/js/app.vue"]},"resources/assets/js/app.vue":{"index":196,"hash":"Pkw8JlONMB8lI1iN9+Ar","parents":["resources/assets/build//js/main-f3c3f0d0f7.js"]},"resources/assets/js/components/index.vue":{"index":204,"hash":"dKhVhAfX1GLT+4oM8eCL","parents":["resources/assets/js/app.vue","resources/assets/build//js/main-f3c3f0d0f7.js"]},"resources/assets/js/components/shared/header-menu.vue":{"index":233,"hash":"phCAnSIecIl68MBC00Uo","parents":["resources/assets/js/components/header/index.vue"]},"resources/assets/js/components/header/index.vue":{"index":202,"hash":"tQNwfPYlIjPf3d+Cgxqf","parents":["resources/assets/js/components/index.vue"]},"node_modules/tether/dist/js/tether.js":{"index":166,"hash":"E4xLyEYuK5qxMv3jfy3v","parents":["resources/assets/js/components/shared/popover.vue"]},"resources/assets/js/components/shared/popover.vue":{"index":236,"hash":"ZPUs9I9S7R9RatQxz5dz","parents":["resources/assets/js/components/outputs/led-panel.vue"]},"resources/assets/js/components/outputs/led-panel.vue":{"index":209,"hash":"zij4dpRJ9G2atDTWABKI","parents":["resources/assets/js/components/outputs/panels.vue"]},"node_modules/lodash/object/pairs.js":{"index":147,"hash":"x6Ilwx8encvg/BW5API2","parents":["node_modules/lodash/internal/getMatchData.js"]},"node_modules/lodash/internal/getMatchData.js":{"index":124,"hash":"n0PHWhNs6YZ+DzgYMHPx","parents":["node_modules/lodash/internal/baseMatches.js"]},"node_modules/lodash/internal/baseMatches.js":{"index":106,"hash":"Cwj5GSiQv9/E8nSFBoX2","parents":["node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/lang/isFunction.js":{"index":138,"hash":"xkfzrZNZPGGOIf0kE8Y9","parents":["node_modules/lodash/lang/isNative.js"]},"node_modules/lodash/lang/isNative.js":{"index":139,"hash":"2rstaALy1DW0JSDdijps","parents":["node_modules/lodash/internal/getNative.js"]},"node_modules/lodash/internal/getNative.js":{"index":125,"hash":"7GRZ7115BSuoc/1bdaBK","parents":["node_modules/lodash/lang/isArray.js","node_modules/lodash/object/keys.js"]},"node_modules/lodash/lang/isArguments.js":{"index":136,"hash":"xQ4mqbsKQMCmtsPbfQc6","parents":["node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js"]},"node_modules/lodash/object/keysIn.js":{"index":145,"hash":"8POZiGR1fRHso579G46Z","parents":["node_modules/lodash/internal/shimKeys.js"]},"node_modules/lodash/internal/shimKeys.js":{"index":133,"hash":"oO4aKopmxRfPxyKgRX9F","parents":["node_modules/lodash/object/keys.js"]},"node_modules/lodash/object/forOwn.js":{"index":143,"hash":"LZ77PzuJW/wlgVPdvlGc","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/engine.io-client/node_modules/parseuri/index.js":{"index":69,"hash":"c/c7XftSI6ClFc9h2jOh","parents":["node_modules/engine.io-client/lib/socket.js"]},"node_modules/lodash/internal/equalByTag.js":{"index":121,"hash":"+y++gesJpPvyM+2E8aNB","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/parsejson/index.js":{"index":151,"hash":"3RLuznQNKZiQ/toCXNir","parents":["node_modules/engine.io-client/lib/socket.js"]},"node_modules/parseqs/index.js":{"index":152,"hash":"FI4tRELwI5Itz+ckwR+m","parents":["node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-parser/lib/keys.js":{"index":71,"hash":"oFyKNTA0twlyQVhVzp9n","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/lodash/internal/equalArrays.js":{"index":120,"hash":"OBJL6vuaOotu5flUeCnv","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/lodash/internal/equalObjects.js":{"index":122,"hash":"44Iy49kDcaAZsykEdaH3","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/lodash/lang/isTypedArray.js":{"index":141,"hash":"aVeZyIFGadrEh7EsaDRu","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/lodash/internal/baseIsEqualDeep.js":{"index":103,"hash":"ltZZaMHmzp6d9jBltV3Y","parents":["node_modules/lodash/internal/baseIsEqual.js"]},"node_modules/lodash/internal/baseMatchesProperty.js":{"index":107,"hash":"OudnSoeq2A4ql5lg51kc","parents":["node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/collection/some.js":{"index":87,"hash":"9JyJFfdCx56pmR6fwM9q","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/browserify-hmr/inc/index.js":{"index":9,"hash":"zTlNWZ14iIh89mO0UkaY","parents":[]},"node_modules/engine.io-client/lib/transport.js":{"index":59,"hash":"8Wg7zuMzQpa+AwOxaesw","parents":["node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-parser/lib/browser.js":{"index":70,"hash":"Xr2KhMDa3GjqERGsK7Lc","parents":["node_modules/engine.io-client/lib/transport.js","node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/socket.js","node_modules/engine.io-client/lib/index.js"]},"node_modules/utf8/utf8.js":{"index":168,"hash":"Mqm8G2xyYXmBOFrE+/6A","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/arraybuffer.slice/index.js":{"index":3,"hash":"RSb5Zx9CgX3adjzbvf/k","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/after/index.js":{"index":2,"hash":"NzPfXWECmM8rW/6fdkcj","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/blob/index.js":{"index":8,"hash":"q7L6uHK9eN9yEvDVNxJw","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/base64-arraybuffer/lib/base64-arraybuffer.js":{"index":7,"hash":"dW6cnktjBIyZ6bv9vRp2","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/jquery.inputmask/dist/inputmask/inputmask.dependencyLib.jquery.js":{"index":77,"hash":"LS63HHrbi9ZXkvlmIHs3","parents":["node_modules/jquery.inputmask/dist/inputmask/inputmask.js"]},"node_modules/jquery.inputmask/dist/inputmask/inputmask.js":{"index":78,"hash":"rOZH4H3sNvL9GZLSVZ/6","parents":["node_modules/jquery.inputmask/dist/inputmask/jquery.inputmask.js"]},"node_modules/jquery.inputmask/dist/inputmask/jquery.inputmask.js":{"index":79,"hash":"pSeOfS9ivQob0VH/xYAg","parents":["resources/assets/js/directives/ip.js"]},"resources/assets/js/directives/ip.js":{"index":242,"hash":"pPhO8+trVAzzTJ/Onj4q","parents":["resources/assets/js/components/outputs/e131.vue"]},"resources/assets/js/components/outputs/e131.vue":{"index":207,"hash":"oxoRhfagUQrlLzfrXrT5","parents":["resources/assets/build//js/main-f3c3f0d0f7.js"]},"node_modules/engine.io-client/node_modules/ms/index.js":{"index":68,"hash":"rzSu41c+6ZW8M4Say8X9","parents":["node_modules/engine.io-client/node_modules/debug/debug.js"]},"node_modules/engine.io-client/node_modules/debug/debug.js":{"index":67,"hash":"yqdR7nJc7wxIHzFDNzG+","parents":["node_modules/engine.io-client/node_modules/debug/browser.js"]},"node_modules/engine.io-client/node_modules/debug/browser.js":{"index":66,"hash":"PENVCHp3HppeRm/DiJMI","parents":["node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/socket.js"]},"node_modules/vue-strap/src/Option.vue":{"index":191,"hash":"C7Duog3xPNfziDO2oTHN","parents":["resources/assets/js/components/settings/general.vue"]},"node_modules/engine.io-client/lib/transports/polling-jsonp.js":{"index":61,"hash":"FAm1xe7I43tDMsakGLzq","parents":["node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/engine.io-client/lib/transports/polling.js":{"index":63,"hash":"m6eReXjm1pnBQHB07d2V","parents":["node_modules/engine.io-client/lib/transports/polling-jsonp.js","node_modules/engine.io-client/lib/transports/polling-xhr.js"]},"node_modules/component-inherit/index.js":{"index":14,"hash":"T0Fqch4d4akvlr8bh7lc","parents":["node_modules/engine.io-client/lib/transports/polling-jsonp.js","node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/transports/polling-xhr.js"]},"node_modules/ws/lib/browser.js":{"index":195,"hash":"vZRI95FVw46PPRoHDauJ","parents":["node_modules/engine.io-client/lib/transports/websocket.js"]},"node_modules/engine.io-client/lib/transports/websocket.js":{"index":64,"hash":"iZQQax7TKsS+8ZxUyrc3","parents":["node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/engine.io-client/lib/xmlhttprequest.js":{"index":65,"hash":"us0FsN5s7hiT3hqVV5lx","parents":["node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/engine.io-client/lib/transports/polling-xhr.js":{"index":62,"hash":"d89FOYRl9cirXzsJCjKg","parents":["node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/global/index.js":{"index":72,"hash":"tDIf5GqqdOcKnNHRh2Rc","parents":["node_modules/has-cors/index.js"]},"node_modules/has-cors/index.js":{"index":74,"hash":"uSUdzzwBDQd7qQNKEZ4o","parents":["node_modules/engine.io-client/lib/xmlhttprequest.js"]},"node_modules/engine.io-client/lib/transports/index.js":{"index":60,"hash":"kQ8FMfawL2PES7dsQgvD","parents":["node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-client/lib/socket.js":{"index":58,"hash":"1L37UZEnorYV+ld5c01T","parents":["node_modules/engine.io-client/lib/index.js"]},"node_modules/engine.io-client/lib/index.js":{"index":57,"hash":"G6QYuSNu0EcS+G5tR9NE","parents":["node_modules/engine.io-client/index.js"]},"node_modules/engine.io-client/index.js":{"index":56,"hash":"HQau4MkD4lAynB9tt0Wl","parents":["node_modules/socket.io-client/lib/manager.js"]},"node_modules/socket.io-client/lib/manager.js":{"index":157,"hash":"+TrOAqk4UlI3tKzIT6Dc","parents":["node_modules/socket.io-client/lib/index.js"]},"node_modules/socket.io-client/lib/index.js":{"index":156,"hash":"lWwRhzm83+Eq08s7Nht/","parents":["node_modules/socket.io-client/index.js"]},"node_modules/socket.io-client/index.js":{"index":155,"hash":"ccYBPsaIqMCtG5CHCdDd","parents":[]},"node_modules/core-js/library/modules/$.core.js":{"index":22,"hash":"jO6z5PVz8f6aTUjm5Hrx","parents":["node_modules/core-js/library/modules/$.export.js","node_modules/core-js/library/fn/object/assign.js","node_modules/core-js/library/modules/core.get-iterator-method.js","node_modules/core-js/library/modules/core.get-iterator.js"]},"node_modules/core-js/library/modules/$.iterators.js":{"index":36,"hash":"HPPh7u0tcX1NuooQHCi3","parents":["node_modules/core-js/library/modules/es6.array.iterator.js","node_modules/core-js/library/modules/web.dom.iterable.js","node_modules/core-js/library/modules/core.get-iterator-method.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.global.js":{"index":28,"hash":"t7QKkyeVEU+gGSy/l5Cc","parents":["node_modules/core-js/library/modules/$.export.js","node_modules/core-js/library/modules/$.shared.js","node_modules/core-js/library/modules/$.wks.js"]},"node_modules/core-js/library/modules/$.js":{"index":37,"hash":"UI1ymRgurU07soRpiobz","parents":["node_modules/core-js/library/modules/$.object-assign.js","node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.set-to-string-tag.js","node_modules/core-js/library/modules/$.hide.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.fails.js":{"index":27,"hash":"6G4+YXaRghTGQQnkm/qp","parents":["node_modules/core-js/library/modules/$.object-assign.js","node_modules/core-js/library/modules/$.descriptors.js"]},"node_modules/core-js/library/modules/$.add-to-unscopables.js":{"index":18,"hash":"aTtaK5OMoCOj8v16GPqC","parents":["node_modules/core-js/library/modules/es6.array.iterator.js"]},"node_modules/core-js/library/modules/$.iter-step.js":{"index":35,"hash":"LPWFVFxr7uzP25M4Teof","parents":["node_modules/core-js/library/modules/es6.array.iterator.js"]},"node_modules/core-js/library/modules/$.to-integer.js":{"index":45,"hash":"k18sZu8vTX3eiB+U6ofu","parents":["node_modules/core-js/library/modules/$.string-at.js"]},"node_modules/core-js/library/modules/$.defined.js":{"index":24,"hash":"RZr8uFl+WrrjvGzPSz3c","parents":["node_modules/core-js/library/modules/$.string-at.js","node_modules/core-js/library/modules/$.to-object.js","node_modules/core-js/library/modules/$.to-iobject.js"]},"node_modules/core-js/library/modules/$.string-at.js":{"index":44,"hash":"Zop3IqdJq32xa0qd4H0H","parents":["node_modules/core-js/library/modules/es6.string.iterator.js"]},"node_modules/core-js/library/modules/$.library.js":{"index":38,"hash":"Bhgn5RpO7pDcQnSVaI5C","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.has.js":{"index":29,"hash":"y4idiH2Sj/rmZqd39CHH","parents":["node_modules/core-js/library/modules/$.set-to-string-tag.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.is-object.js":{"index":32,"hash":"FkaOOMIm0uw4T/qUEXed","parents":["node_modules/core-js/library/modules/$.an-object.js"]},"node_modules/core-js/library/modules/$.an-object.js":{"index":19,"hash":"d7pCynXJhKpK2u1S0fph","parents":["node_modules/core-js/library/modules/core.get-iterator.js"]},"node_modules/core-js/library/modules/$.to-object.js":{"index":47,"hash":"XLB72m1cojvL0pIYCCFE","parents":["node_modules/core-js/library/modules/$.object-assign.js"]},"node_modules/core-js/library/modules/$.a-function.js":{"index":17,"hash":"vI7NBVNoKizw/T7ablYt","parents":["node_modules/core-js/library/modules/$.ctx.js"]},"node_modules/core-js/library/modules/$.ctx.js":{"index":23,"hash":"IBAqoysxf6uGe4qIslFW","parents":["node_modules/core-js/library/modules/$.export.js"]},"node_modules/core-js/library/modules/$.export.js":{"index":26,"hash":"tF6TuwqA3fLdeFKqSI9n","parents":["node_modules/core-js/library/modules/es6.object.assign.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.cof.js":{"index":21,"hash":"FY6tg0ymdCS/rEwpAa7R","parents":["node_modules/core-js/library/modules/$.iobject.js","node_modules/core-js/library/modules/$.classof.js"]},"node_modules/core-js/library/modules/$.iobject.js":{"index":31,"hash":"HvETp5p0zMBjh+wvjxSm","parents":["node_modules/core-js/library/modules/$.object-assign.js","node_modules/core-js/library/modules/$.to-iobject.js"]},"node_modules/core-js/library/modules/$.object-assign.js":{"index":39,"hash":"vlM4g8r36vFJivj1EOOp","parents":["node_modules/core-js/library/modules/es6.object.assign.js"]},"node_modules/core-js/library/modules/es6.object.assign.js":{"index":53,"hash":"O1TTCwEy8yCJjcDqCq0k","parents":["node_modules/core-js/library/fn/object/assign.js"]},"node_modules/core-js/library/fn/object/assign.js":{"index":16,"hash":"RKVv+8x7eGcEw+yVXhC5","parents":["node_modules/babel-runtime/core-js/object/assign.js"]},"node_modules/babel-runtime/core-js/object/assign.js":{"index":5,"hash":"8fJTx1/oL9wcIWyAqxHQ","parents":["resources/assets/js/components/outputs/panels.vue"]},"resources/assets/js/components/outputs/panels.vue":{"index":211,"hash":"2f/kfxeg6zk7IMZY9ndr","parents":["resources/assets/build//js/main-f3c3f0d0f7.js"]},"node_modules/core-js/library/modules/$.to-iobject.js":{"index":46,"hash":"yp4UOuCLRVO1tqlgppw5","parents":["node_modules/core-js/library/modules/es6.array.iterator.js"]},"node_modules/core-js/library/modules/es6.array.iterator.js":{"index":52,"hash":"Zw/NixWUIMjoGa2uWxe/","parents":["node_modules/core-js/library/modules/web.dom.iterable.js"]},"node_modules/core-js/library/modules/$.iter-define.js":{"index":34,"hash":"sR6jK5MoRN1zAKGNm2y4","parents":["node_modules/core-js/library/modules/es6.array.iterator.js","node_modules/core-js/library/modules/es6.string.iterator.js"]},"node_modules/core-js/library/modules/web.dom.iterable.js":{"index":55,"hash":"KisVT/JurPfFyjuYGWzf","parents":["node_modules/core-js/library/fn/get-iterator.js"]},"node_modules/core-js/library/modules/$.redefine.js":{"index":41,"hash":"v4z59Kie6WPVO1h+8oJP","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.hide.js":{"index":30,"hash":"2HBwvxEtbt4UpskOWy62","parents":["node_modules/core-js/library/modules/$.redefine.js","node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.iter-create.js":{"index":33,"hash":"aNVpOMS/fyyM1i4Aw4bY","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.property-desc.js":{"index":40,"hash":"iSs9jpAw1JT2ZWWLScSH","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.hide.js"]},"node_modules/core-js/library/modules/$.set-to-string-tag.js":{"index":42,"hash":"3G0pjz42ePfLP++caEH3","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.wks.js":{"index":49,"hash":"qMliszffX6kySHptJTIp","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.set-to-string-tag.js","node_modules/core-js/library/modules/$.classof.js","node_modules/core-js/library/modules/core.get-iterator-method.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.classof.js":{"index":20,"hash":"2vrlE4yJW7f/QT46fZjd","parents":["node_modules/core-js/library/modules/core.get-iterator-method.js"]},"node_modules/core-js/library/modules/core.get-iterator-method.js":{"index":50,"hash":"+qtmOjO/wxtOJEvpsv/b","parents":["node_modules/core-js/library/modules/core.get-iterator.js"]},"node_modules/core-js/library/modules/core.get-iterator.js":{"index":51,"hash":"Fpc5rJRGURor7FbHBYPn","parents":["node_modules/core-js/library/fn/get-iterator.js"]},"node_modules/core-js/library/modules/$.uid.js":{"index":48,"hash":"auy0a5KBxuU7QAdJ7we/","parents":["node_modules/core-js/library/modules/$.wks.js"]},"node_modules/core-js/library/modules/$.descriptors.js":{"index":25,"hash":"NJqnAOVs55bKea+gKIGt","parents":["node_modules/core-js/library/modules/$.hide.js"]},"node_modules/core-js/library/modules/$.shared.js":{"index":43,"hash":"ZK+Tn2LANbB4OqkscM3N","parents":["node_modules/core-js/library/modules/$.wks.js"]},"node_modules/core-js/library/modules/es6.string.iterator.js":{"index":54,"hash":"viRu85eLzJ68VCbwuHbl","parents":["node_modules/core-js/library/fn/get-iterator.js"]},"node_modules/core-js/library/fn/get-iterator.js":{"index":15,"hash":"V+nypfA8LA2WadFVp7u2","parents":["node_modules/babel-runtime/core-js/get-iterator.js"]},"node_modules/babel-runtime/core-js/get-iterator.js":{"index":4,"hash":"a8je4in/yfKL3pQIQJX9","parents":["node_modules/vue-strap/src/Select.vue"]},"node_modules/vue-strap/src/Select.vue":{"index":192,"hash":"7dhDxiNKuVRXmRHtif1f","parents":["resources/assets/js/components/settings/general.vue"]},"resources/assets/js/components/settings/general.vue":{"index":222,"hash":"z3oDp7DMMswZH4HODONA","parents":["resources/assets/build//js/main-f3c3f0d0f7.js"]},"resources/assets/build//js/main-f3c3f0d0f7.js":{"index":243,"hash":"yrlJZMkbMbO9PswoP40k","parents":[]}};
-  var originalEntries = ["/Users/Tim/Sites/FPP2/www/resources/assets/build//js/main-f3c3f0d0f7.js"];
+  var moduleMeta = {"node_modules/browserify-hmr/lib/has.js":{"index":10,"hash":"Hky4QYVrU1+kFHIEuxPy","parents":["node_modules/browserify-hmr/lib/str-set.js","node_modules/browserify-hmr/inc/index.js"]},"node_modules/browserify-hmr/lib/str-set.js":{"index":11,"hash":"lcrDmQK4uaqOqN+FV4/9","parents":["node_modules/browserify-hmr/inc/index.js"]},"resources/assets/js/stores/playlist.js":{"index":250,"hash":"k5Rph+tSzK7SzVYZrxbP","parents":["resources/assets/js/app.vue"]},"resources/assets/js/mixins/outputMixin.js":{"index":248,"hash":"gGCtCK8OXqFlnKkxkWU0","parents":["resources/assets/js/components/outputs/dmx.vue","resources/assets/js/components/outputs/e131.vue","resources/assets/js/components/outputs/panels.vue"]},"node_modules/socket.io-client/node_modules/debug/debug.js":{"index":162,"hash":"OtjmSmEbIU/8orJwFhDT","parents":["node_modules/socket.io-client/lib/url.js","node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/socket.io-client/lib/on.js":{"index":159,"hash":"y5MOoFpTKKBHwE8q8jae","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/vue-animated-list/vue-animated-list.js":{"index":170,"hash":"26lVl2CH82yXZ2XSjVFm","parents":["resources/assets/build//js/main-95aaa4e293.js"]},"node_modules/vue-validator/dist/vue-validator.common.js":{"index":194,"hash":"UC2NCeCJUHWKBvaDtYM2","parents":["resources/assets/build//js/main-95aaa4e293.js"]},"node_modules/vue-router/dist/vue-router.common.js":{"index":191,"hash":"V5DMsGGLcOqPAhx31psf","parents":["resources/assets/build//js/main-95aaa4e293.js"]},"node_modules/jquery/dist/jquery.js":{"index":80,"hash":"siFczlgw4jULnUICcdm9","parents":["resources/assets/js/app.vue","node_modules/jquery.inputmask/dist/inputmask/inputmask.dependencyLib.jquery.js","node_modules/jquery.inputmask/dist/inputmask/jquery.inputmask.js","resources/assets/js/directives/ip.js","resources/assets/build//js/main-95aaa4e293.js"]},"resources/assets/js/stores/shared.js":{"index":252,"hash":"dBZ6EHn2t9/PLCXa/Sej","parents":["resources/assets/js/stores/setting.js","resources/assets/js/app.vue"]},"resources/assets/js/services/http.js":{"index":249,"hash":"OqU5t4zvkjeUSpQJFLPI","parents":["resources/assets/js/stores/shared.js","resources/assets/js/stores/setting.js"]},"resources/assets/js/stores/setting.js":{"index":251,"hash":"coKfnj2hZTIg8YRT4JSn","parents":["resources/assets/js/app.vue"]},"resources/assets/js/utils.js":{"index":253,"hash":"YUBgAVFOtL2AfLdROM4O","parents":["resources/assets/js/components/shared/input.vue"]},"node_modules/vue-resource/src/resource.js":{"index":189,"hash":"4hFj5axF31CeVRePeF8o","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-hot-reload-api/index.js":{"index":171,"hash":"WuwmPSnCiynHpb+AfQBY","parents":["resources/assets/js/components/overlays.vue","resources/assets/js/components/playlists.vue","resources/assets/js/components/schedule.vue","resources/assets/js/components/plugins.vue","resources/assets/js/components/events.vue","resources/assets/js/components/effects.vue","resources/assets/js/components/testing.vue","resources/assets/js/components/not-found.vue","resources/assets/js/components/outputs/index.vue","resources/assets/js/components/outputs/other.vue","resources/assets/js/components/settings/date.vue","resources/assets/js/components/settings/email.vue","resources/assets/js/components/settings/logs.vue","resources/assets/js/components/settings/advanced.vue","resources/assets/js/components/sidebar.vue","resources/assets/js/components/footer.vue","resources/assets/js/components/shared/Tabset.vue","resources/assets/js/components/shared/Tab.vue","resources/assets/js/components/widgets/weather.vue","resources/assets/js/components/widgets/status.vue","resources/assets/js/components/dashboard.vue","resources/assets/js/components/shared/filelist.vue","resources/assets/js/components/files.vue","resources/assets/js/components/shared/switch.vue","resources/assets/js/components/shared/dropdown-select.vue","resources/assets/js/components/shared/tabset.vue","resources/assets/js/components/shared/tab.vue","resources/assets/js/components/settings/network.vue","resources/assets/js/components/header/settings.vue","resources/assets/js/components/settings/index.vue","resources/assets/js/components/settings.vue","resources/assets/js/components/outputs/universe.vue","resources/assets/js/components/shared/checkbox.vue","resources/assets/js/components/shared/input.vue","resources/assets/js/components/outputs/pdmx.vue","resources/assets/js/components/outputs/dmx.vue","resources/assets/js/components/shared/falcon-loading.vue","resources/assets/js/components/shared/overlay.vue","resources/assets/js/app.vue","resources/assets/js/components/shared/control-buttons.vue","resources/assets/js/components/shared/header-menu.vue","resources/assets/js/components/header/index.vue","resources/assets/js/components/index.vue","resources/assets/js/components/shared/popover.vue","resources/assets/js/components/outputs/led-panel.vue","resources/assets/js/components/outputs/e131.vue","node_modules/vue-strap/src/Option.vue","resources/assets/js/components/outputs/panels.vue","node_modules/vue-strap/src/Select.vue","resources/assets/js/components/settings/general.vue"]},"node_modules/vue-resource/src/lib/util.js":{"index":187,"hash":"kipx22owioSurHN4RBYT","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/socket.io-parser/is-buffer.js":{"index":165,"hash":"UJBXKAfBg/BkigSZbc3Z","parents":["node_modules/socket.io-parser/binary.js","node_modules/socket.io-parser/index.js"]},"node_modules/component-emitter/index.js":{"index":13,"hash":"0uL1LSa/mOj+Llu+HTZ7","parents":["node_modules/socket.io-parser/index.js","node_modules/socket.io-client/lib/socket.js","node_modules/engine.io-client/lib/transport.js","node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/parseuri/index.js":{"index":154,"hash":"PsPou9y5yKmPMPJnjEkz","parents":["node_modules/socket.io-client/lib/url.js"]},"node_modules/socket.io-client/lib/url.js":{"index":161,"hash":"/WgdaMtSTLlxFoTxZTGl","parents":["node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/component-bind/index.js":{"index":12,"hash":"4yIcVw+afwUsnTQyI0a3","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/object-component/index.js":{"index":151,"hash":"zOYybxl/D7KsteH/xJyk","parents":["node_modules/socket.io-client/lib/manager.js"]},"node_modules/indexof/index.js":{"index":75,"hash":"8zMGV0j0ID5bUIeT7r+M","parents":["node_modules/engine.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/backo2/index.js":{"index":6,"hash":"L5ry3mfVEw1wgmx9Sa+q","parents":["node_modules/socket.io-client/lib/manager.js"]},"node_modules/to-array/index.js":{"index":168,"hash":"2EoggafxX+GLXkXiaGjm","parents":["node_modules/socket.io-client/lib/socket.js"]},"node_modules/lodash/array/zipObject.js":{"index":83,"hash":"fKfSwIzPo5SUx9d0DkgN","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/lang/isArray.js":{"index":137,"hash":"rpMiE1Z199/XZCjno4KN","parents":["node_modules/lodash/array/zipObject.js","node_modules/lodash/collection/map.js","node_modules/lodash/collection/filter.js","node_modules/lodash/internal/createForEach.js","node_modules/lodash/internal/isKey.js","node_modules/lodash/internal/toPath.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js","node_modules/lodash/internal/baseIsEqualDeep.js","node_modules/lodash/internal/baseMatchesProperty.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/arrayEach.js":{"index":89,"hash":"eLxUBVsb8vpFbu0VN4KL","parents":["node_modules/lodash/collection/forEach.js"]},"node_modules/lodash/internal/arraySome.js":{"index":92,"hash":"GxeJPxJj2jUg5TzV5gLv","parents":["node_modules/lodash/internal/equalArrays.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/arrayMap.js":{"index":91,"hash":"xdr8c0JsUFapIHTuM5VE","parents":["node_modules/lodash/collection/map.js"]},"node_modules/lodash/internal/arrayFilter.js":{"index":90,"hash":"BGunz0w1QzJXyqQSOdZb","parents":["node_modules/lodash/collection/filter.js"]},"resources/assets/js/components/overlays.vue":{"index":216,"hash":"wttUj90IjUTB21TqVn5A","parents":["resources/assets/build//js/main-95aaa4e293.js"]},"node_modules/vue/dist/vue.common.js":{"index":195,"hash":"c6jVTEwxpfJvrcRARsRp","parents":["resources/assets/js/components/overlays.vue","resources/assets/js/components/playlists.vue","resources/assets/js/components/schedule.vue","resources/assets/js/components/plugins.vue","resources/assets/js/components/events.vue","resources/assets/js/components/effects.vue","resources/assets/js/components/testing.vue","resources/assets/js/components/not-found.vue","resources/assets/js/components/outputs/index.vue","resources/assets/js/components/outputs/other.vue","resources/assets/js/components/settings/date.vue","resources/assets/js/components/settings/email.vue","resources/assets/js/components/settings/logs.vue","resources/assets/js/components/settings/advanced.vue","resources/assets/js/components/sidebar.vue","resources/assets/js/components/footer.vue","resources/assets/js/components/shared/Tabset.vue","resources/assets/js/components/shared/Tab.vue","resources/assets/js/components/widgets/weather.vue","resources/assets/js/components/widgets/status.vue","resources/assets/js/components/dashboard.vue","resources/assets/js/components/shared/filelist.vue","resources/assets/js/components/files.vue","resources/assets/js/components/shared/switch.vue","resources/assets/js/components/shared/dropdown-select.vue","resources/assets/js/components/shared/tabset.vue","resources/assets/js/components/shared/tab.vue","resources/assets/js/components/settings/network.vue","resources/assets/js/components/header/settings.vue","resources/assets/js/components/settings/index.vue","resources/assets/js/components/settings.vue","resources/assets/js/components/outputs/universe.vue","resources/assets/js/components/shared/checkbox.vue","resources/assets/js/components/shared/input.vue","resources/assets/js/components/outputs/pdmx.vue","resources/assets/js/components/outputs/dmx.vue","resources/assets/js/components/shared/falcon-loading.vue","resources/assets/js/components/shared/overlay.vue","resources/assets/js/app.vue","resources/assets/js/components/shared/control-buttons.vue","resources/assets/js/components/shared/header-menu.vue","resources/assets/js/components/header/index.vue","resources/assets/js/components/index.vue","resources/assets/js/components/shared/popover.vue","resources/assets/js/components/outputs/led-panel.vue","resources/assets/js/components/outputs/e131.vue","node_modules/vue-strap/src/Option.vue","resources/assets/js/components/outputs/panels.vue","node_modules/vue-strap/src/Select.vue","resources/assets/js/components/settings/general.vue","resources/assets/build//js/main-95aaa4e293.js"]},"resources/assets/js/components/playlists.vue":{"index":217,"hash":"vHG42AI/ctPZxYn2tvZT","parents":["resources/assets/build//js/main-95aaa4e293.js"]},"resources/assets/js/components/schedule.vue":{"index":219,"hash":"w10dm2qLyWGPX+dNhHQr","parents":["resources/assets/build//js/main-95aaa4e293.js"]},"resources/assets/js/components/plugins.vue":{"index":218,"hash":"aBWTwEC29+sEJX2/NcVw","parents":["resources/assets/build//js/main-95aaa4e293.js"]},"resources/assets/js/components/events.vue":{"index":201,"hash":"Lmd0SzEjko8hAg0NQmxQ","parents":["resources/assets/build//js/main-95aaa4e293.js"]},"resources/assets/js/components/effects.vue":{"index":200,"hash":"W8MkKtIaA7ck5eb1D3Us","parents":["resources/assets/build//js/main-95aaa4e293.js"]},"resources/assets/js/components/testing.vue":{"index":243,"hash":"8w9/LeGCBJNLr09RTiXA","parents":["resources/assets/build//js/main-95aaa4e293.js"]},"resources/assets/js/components/not-found.vue":{"index":207,"hash":"JnE9W3JgazmF+BYtHxgh","parents":["resources/assets/build//js/main-95aaa4e293.js"]},"node_modules/vueify-insert-css/index.js":{"index":196,"hash":"fvTUijA6yyBpp68H+JX2","parents":["resources/assets/js/components/not-found.vue","resources/assets/js/components/sidebar.vue","resources/assets/js/components/shared/Tabset.vue","resources/assets/js/components/shared/Tab.vue","resources/assets/js/components/widgets/status.vue","resources/assets/js/components/shared/filelist.vue","resources/assets/js/components/files.vue","resources/assets/js/components/shared/tabset.vue","resources/assets/js/components/shared/tab.vue","resources/assets/js/components/header/settings.vue","resources/assets/js/components/settings/index.vue","resources/assets/js/components/settings.vue","resources/assets/js/components/outputs/universe.vue","resources/assets/js/components/shared/checkbox.vue","resources/assets/js/components/shared/falcon-loading.vue","resources/assets/js/components/shared/overlay.vue","resources/assets/js/components/shared/control-buttons.vue","resources/assets/js/components/shared/header-menu.vue","resources/assets/js/components/header/index.vue","resources/assets/js/components/index.vue","resources/assets/js/components/outputs/led-panel.vue","resources/assets/js/components/outputs/e131.vue","node_modules/vue-strap/src/Option.vue","resources/assets/js/components/outputs/panels.vue","node_modules/vue-strap/src/Select.vue"]},"node_modules/socket.io-parser/node_modules/debug/debug.js":{"index":166,"hash":"OtjmSmEbIU/8orJwFhDT","parents":["node_modules/socket.io-parser/index.js"]},"node_modules/moment/moment.js":{"index":150,"hash":"sSbAgdZ6+pfkEIPz6SMX","parents":["resources/assets/js/components/dashboard.vue"]},"node_modules/process/browser.js":{"index":155,"hash":"d/Dio43QDX3Xt7NYvbr6","parents":["node_modules/vue/dist/vue.common.js"]},"node_modules/vue-resource/src/lib/url-template.js":{"index":186,"hash":"KZagPKERmevU89wFVgEg","parents":["node_modules/vue-resource/src/url.js"]},"node_modules/vue-resource/src/url.js":{"index":190,"hash":"enlma6RiuDUq+g3+RYdS","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-resource/src/interceptor/before.js":{"index":177,"hash":"dzJ5VyAAgzvYOWxyyGVm","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/timeout.js":{"index":184,"hash":"r+N56i06KukH+ME8Mpnr","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/method.js":{"index":182,"hash":"DqLo0TxFAJSH0HWGo7wR","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/mime.js":{"index":183,"hash":"f6heFdNiVYVl4GIRJ2gN","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/header.js":{"index":179,"hash":"Ql+DdTpkgQsJb9HXQumF","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/lib/promise.js":{"index":185,"hash":"uhJ1aPn5MePstu6k3zZV","parents":["node_modules/vue-resource/src/promise.js"]},"node_modules/vue-resource/src/promise.js":{"index":188,"hash":"dayC7UqEuK1y+yEa6/bE","parents":["node_modules/vue-resource/src/interceptor/index.js","node_modules/vue-resource/src/client/xhr.js","node_modules/vue-resource/src/client/jsonp.js","node_modules/vue-resource/src/http.js","node_modules/vue-resource/src/index.js"]},"node_modules/isarray/index.js":{"index":76,"hash":"dKtews1S4sHvaZhZ+ceq","parents":["node_modules/socket.io-parser/binary.js","node_modules/socket.io-parser/index.js","node_modules/has-binary/index.js"]},"node_modules/json3/lib/json3.js":{"index":81,"hash":"Z22TAqz9HSDSuQH535ZO","parents":["node_modules/socket.io-parser/index.js"]},"resources/assets/js/components/outputs/index.vue":{"index":210,"hash":"tF9ju2+vTr3ViQy6GtPB","parents":["resources/assets/build//js/main-95aaa4e293.js"]},"resources/assets/js/components/outputs/other.vue":{"index":212,"hash":"q2uEEdYgJjD3nBtzgPjD","parents":["resources/assets/build//js/main-95aaa4e293.js"]},"resources/assets/js/components/settings/date.vue":{"index":222,"hash":"52BPts98nvITx+HD9Ooc","parents":["resources/assets/build//js/main-95aaa4e293.js"]},"resources/assets/js/components/shared/switch.vue":{"index":239,"hash":"YL63p5vHKkkZeMmCvrvm","parents":["resources/assets/js/components/settings/date.vue","resources/assets/js/components/outputs/universe.vue","resources/assets/js/components/outputs/pdmx.vue","resources/assets/js/components/outputs/dmx.vue","resources/assets/js/components/outputs/e131.vue","resources/assets/js/components/outputs/panels.vue","resources/assets/js/components/settings/general.vue"]},"resources/assets/js/components/settings/email.vue":{"index":223,"hash":"5oX1fK0HFWyf2L8sKj+z","parents":["resources/assets/build//js/main-95aaa4e293.js"]},"resources/assets/js/components/settings/logs.vue":{"index":226,"hash":"1FhvCTB1kypk1tpNwaC7","parents":["resources/assets/build//js/main-95aaa4e293.js"]},"resources/assets/js/components/settings/advanced.vue":{"index":221,"hash":"r2wb/2T+G10rShqof/+O","parents":["resources/assets/build//js/main-95aaa4e293.js"]},"node_modules/lodash/internal/baseSome.js":{"index":111,"hash":"lCW5AtHn9X2vSuPgS8pk","parents":["node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/baseEach.js":{"index":97,"hash":"Ji7NLCJhdzSBlpDI+qC3","parents":["node_modules/lodash/internal/baseSome.js","node_modules/lodash/internal/baseMap.js","node_modules/lodash/internal/baseFilter.js","node_modules/lodash/collection/forEach.js"]},"node_modules/lodash/internal/baseMap.js":{"index":105,"hash":"ofv2jCE5QlahpynG4rkN","parents":["node_modules/lodash/collection/map.js"]},"node_modules/lodash/internal/isArrayLike.js":{"index":126,"hash":"76Awthz8ChTgjGk0JZ6Y","parents":["node_modules/lodash/internal/baseMap.js","node_modules/lodash/internal/isIterateeCall.js","node_modules/lodash/lang/isArguments.js","node_modules/lodash/object/keys.js"]},"node_modules/lodash/collection/map.js":{"index":86,"hash":"63n5x8GTiWPuxiZzm9TM","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/baseCallback.js":{"index":95,"hash":"FDEmxoh1cXY/hddgPNGW","parents":["node_modules/lodash/collection/map.js","node_modules/lodash/collection/filter.js","node_modules/lodash/internal/createObjectMapper.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/baseFilter.js":{"index":98,"hash":"yyvQag4hw8sItBFf3/9T","parents":["node_modules/lodash/collection/filter.js"]},"node_modules/lodash/collection/filter.js":{"index":84,"hash":"XtU5zjCqSDlYcwOLUC13","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/createForOwn.js":{"index":118,"hash":"KJqijjvJO7d1nU17Sz3c","parents":["node_modules/lodash/object/forOwn.js"]},"node_modules/lodash/internal/bindCallback.js":{"index":113,"hash":"S6iy1I+53IEzDLSGuW0j","parents":["node_modules/lodash/internal/createForOwn.js","node_modules/lodash/internal/createAssigner.js","node_modules/lodash/internal/createForEach.js","node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/internal/createObjectMapper.js":{"index":119,"hash":"cp8s+Z6khiKdK5QCQ+Ms","parents":["node_modules/lodash/object/mapValues.js"]},"node_modules/lodash/internal/baseForOwn.js":{"index":100,"hash":"sOLmHH2OosmeW92YaLK/","parents":["node_modules/lodash/internal/createObjectMapper.js","node_modules/lodash/internal/baseEach.js","node_modules/lodash/object/forOwn.js"]},"node_modules/lodash/object/mapValues.js":{"index":146,"hash":"2HfAmVuaVGfc8pd5zIaC","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/assignWith.js":{"index":93,"hash":"aKBKyfIKqZsNOHAbJTAI","parents":["node_modules/lodash/object/assign.js"]},"node_modules/lodash/object/keys.js":{"index":144,"hash":"BbXGNIcfatSp32uWOBAV","parents":["node_modules/lodash/internal/assignWith.js","node_modules/lodash/internal/baseAssign.js","node_modules/lodash/object/pairs.js","node_modules/lodash/internal/baseForOwn.js","node_modules/lodash/internal/equalObjects.js"]},"node_modules/lodash/utility/identity.js":{"index":148,"hash":"A/cz5O4nnho2x2e5KIWS","parents":["node_modules/lodash/internal/bindCallback.js","node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/internal/isLength.js":{"index":130,"hash":"DFIKI121VzeE+pBbx1Oa","parents":["node_modules/lodash/internal/isArrayLike.js","node_modules/lodash/internal/createBaseEach.js","node_modules/lodash/lang/isArray.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js","node_modules/lodash/lang/isTypedArray.js"]},"node_modules/lodash/internal/isObjectLike.js":{"index":131,"hash":"qEGnAWJNoAetOIJ7YKiV","parents":["node_modules/lodash/lang/isNative.js","node_modules/lodash/lang/isArray.js","node_modules/lodash/lang/isArguments.js","node_modules/lodash/lang/isTypedArray.js","node_modules/lodash/internal/baseIsEqual.js"]},"node_modules/lodash/internal/isIndex.js":{"index":127,"hash":"I8y5AsjL/lwDlORDOqqM","parents":["node_modules/lodash/internal/isIterateeCall.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js"]},"node_modules/lodash/lang/isObject.js":{"index":140,"hash":"Go+dTLFqO1KJN+uQLb8s","parents":["node_modules/lodash/internal/isIterateeCall.js","node_modules/lodash/internal/toObject.js","node_modules/lodash/internal/isStrictComparable.js","node_modules/lodash/lang/isFunction.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/object/keys.js","node_modules/lodash/internal/baseIsEqual.js"]},"node_modules/lodash/function/restParam.js":{"index":88,"hash":"/RRH9MCtjArr1p3Qeh63","parents":["node_modules/lodash/internal/createAssigner.js"]},"node_modules/lodash/internal/createAssigner.js":{"index":114,"hash":"X8R81jvRCofY1BnG+A/L","parents":["node_modules/lodash/object/assign.js"]},"node_modules/lodash/internal/isIterateeCall.js":{"index":128,"hash":"dXMnNRevAizOBisKCEes","parents":["node_modules/lodash/internal/createAssigner.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/baseCopy.js":{"index":96,"hash":"WvGi8IywM6u7ZNXvztwg","parents":["node_modules/lodash/internal/baseAssign.js"]},"node_modules/lodash/internal/baseAssign.js":{"index":94,"hash":"6VX87YoeNgDvMUyiAc/7","parents":["node_modules/lodash/object/assign.js"]},"node_modules/lodash/object/assign.js":{"index":142,"hash":"9WOhJBREl8AO9Hs6Cr+Q","parents":["node_modules/browserify-hmr/inc/index.js"]},"resources/assets/js/components/sidebar.vue":{"index":242,"hash":"lOB+csmsf+OuVDkCt8sZ","parents":["resources/assets/js/app.vue"]},"resources/assets/js/components/footer.vue":{"index":203,"hash":"V/pa4T+7Xw1RugNiCrP+","parents":["resources/assets/js/components/settings.vue","resources/assets/js/components/index.vue"]},"node_modules/socket.io-parser/binary.js":{"index":163,"hash":"bAee8RukaXwuD/OeGN6F","parents":["node_modules/socket.io-parser/index.js"]},"node_modules/socket.io-parser/index.js":{"index":164,"hash":"BAgSAi2yJ1LAoE3Vw1D4","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/has-binary/index.js":{"index":73,"hash":"ZLLgu+QfLGB5FJs6P2Ow","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/engine.io-parser/lib/browser.js"]},"node_modules/socket.io-client/lib/socket.js":{"index":160,"hash":"mVenx7k8VFtvIejsDYOl","parents":["node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/vue-resource/src/interceptor/cors.js":{"index":178,"hash":"y/hrmr+lC4LVHKr98SRc","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/client/jsonp.js":{"index":173,"hash":"+Nk8UZxMFWMDrzR/Me13","parents":["node_modules/vue-resource/src/interceptor/cors.js","node_modules/vue-resource/src/interceptor/jsonp.js"]},"node_modules/vue-resource/src/interceptor/index.js":{"index":180,"hash":"5iWUKE5ElG+J957vOzOe","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/lodash/internal/createForEach.js":{"index":117,"hash":"iJtWBCzx+bzzSLwlaaRv","parents":["node_modules/lodash/collection/forEach.js"]},"node_modules/lodash/internal/getLength.js":{"index":123,"hash":"UiZ6F0+nXZ0fiKckTqnM","parents":["node_modules/lodash/internal/isArrayLike.js","node_modules/lodash/internal/createBaseEach.js"]},"resources/assets/js/components/shared/Tabset.vue":{"index":229,"hash":"gqqI8RvSTmfen5Ur4x8e","parents":["resources/assets/js/components/files.vue"]},"resources/assets/js/components/shared/Tab.vue":{"index":228,"hash":"cdUmReYmh0ydEtOAgdv5","parents":["resources/assets/js/components/files.vue"]},"resources/assets/js/components/widgets/weather.vue":{"index":245,"hash":"b613QbmxPeGOA+SdLRGA","parents":["resources/assets/js/components/dashboard.vue"]},"resources/assets/js/components/widgets/status.vue":{"index":244,"hash":"FePfFpQ2B80cV7d/FBDG","parents":["resources/assets/js/components/dashboard.vue"]},"resources/assets/js/components/dashboard.vue":{"index":199,"hash":"hTPf7CzsrDita7PBZEwl","parents":["resources/assets/build//js/main-95aaa4e293.js"]},"node_modules/lodash/internal/baseSlice.js":{"index":110,"hash":"OLgw9XVic1W0AKjehzHB","parents":["node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/array/last.js":{"index":82,"hash":"3oXXa2idWbKySVLcq3os","parents":["node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/baseProperty.js":{"index":108,"hash":"Yuk2tpof21q0Xl2sQg89","parents":["node_modules/lodash/internal/getLength.js","node_modules/lodash/utility/property.js"]},"resources/assets/js/components/shared/filelist.vue":{"index":234,"hash":"UcxvPNXyJimPoXghyR93","parents":["resources/assets/js/components/files.vue"]},"resources/assets/js/components/files.vue":{"index":202,"hash":"O/OPcgg+TUnlswbf4lVR","parents":["resources/assets/build//js/main-95aaa4e293.js"]},"resources/assets/js/components/shared/dropdown-select.vue":{"index":232,"hash":"mFIoJVHY9dJVngym9xZP","parents":["resources/assets/js/components/outputs/e131.vue"]},"resources/assets/js/components/shared/tabset.vue":{"index":241,"hash":"ni1YOVU6boQgduWMtPx9","parents":["resources/assets/js/components/settings/network.vue"]},"resources/assets/js/components/shared/tab.vue":{"index":240,"hash":"q+fOMn88tu7p6njNfcLf","parents":["resources/assets/js/components/settings/network.vue"]},"resources/assets/js/components/settings/network.vue":{"index":227,"hash":"Xt1AOrWp4ng2cAEaPAeD","parents":["resources/assets/build//js/main-95aaa4e293.js"]},"resources/assets/js/components/header/settings.vue":{"index":205,"hash":"qTO6TJeGEcto0yfy4aS8","parents":["resources/assets/js/components/settings.vue"]},"resources/assets/js/components/shared/control-buttons.vue":{"index":231,"hash":"+9iOqEGv9nEOHue9HTT2","parents":["resources/assets/js/components/header/settings.vue","resources/assets/js/components/header/index.vue"]},"resources/assets/js/components/settings/index.vue":{"index":225,"hash":"3OEkMP0lykKjpifYr8Jo","parents":["resources/assets/js/components/settings.vue"]},"resources/assets/js/components/settings.vue":{"index":220,"hash":"8iDnk5fygW9EqF8Mtncs","parents":["resources/assets/build//js/main-95aaa4e293.js"]},"resources/assets/js/components/outputs/universe.vue":{"index":215,"hash":"g5+vGvXKGEEyAVsRXrKI","parents":["resources/assets/js/components/outputs/e131.vue"]},"resources/assets/js/components/shared/checkbox.vue":{"index":230,"hash":"uZDy5Po/OgOkjVErDgUR","parents":["resources/assets/js/components/outputs/e131.vue"]},"resources/assets/js/components/shared/input.vue":{"index":236,"hash":"nzaLsXc4vVVsCPN3ns0t","parents":["resources/assets/js/components/outputs/dmx.vue","resources/assets/js/components/outputs/e131.vue","resources/assets/js/components/outputs/panels.vue"]},"resources/assets/js/components/outputs/pdmx.vue":{"index":214,"hash":"2ty3Aa7oir8Cq0DoB2dV","parents":["resources/assets/js/components/outputs/dmx.vue"]},"resources/assets/js/components/outputs/dmx.vue":{"index":208,"hash":"Ms2VxJVLnBjDdldyHe2I","parents":["resources/assets/build//js/main-95aaa4e293.js"]},"node_modules/vue-resource/src/client/xhr.js":{"index":174,"hash":"u8PTCERIOeSAmYWFlrqC","parents":["node_modules/vue-resource/src/client/default.js"]},"node_modules/vue-resource/src/client/default.js":{"index":172,"hash":"+B0kSDe+gVY+/RkxYnil","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/jsonp.js":{"index":181,"hash":"EYhB3ryCUxKsSKwlYeME","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/http.js":{"index":175,"hash":"pcpl/SOKe3e7NS9rUOff","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-resource/src/index.js":{"index":176,"hash":"TZsp5Ua7CrOOvYCKsblD","parents":["resources/assets/build//js/main-95aaa4e293.js"]},"node_modules/lodash/internal/toObject.js":{"index":134,"hash":"8f3eulB97DddBRdcU+7v","parents":["node_modules/lodash/internal/createBaseEach.js","node_modules/lodash/internal/baseIsMatch.js","node_modules/lodash/internal/baseGet.js","node_modules/lodash/internal/isKey.js","node_modules/lodash/internal/createBaseFor.js","node_modules/lodash/object/pairs.js","node_modules/lodash/internal/baseMatches.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/createBaseEach.js":{"index":115,"hash":"+5X3Ztm78NNPr9vQZ7fB","parents":["node_modules/lodash/internal/baseEach.js"]},"node_modules/lodash/collection/forEach.js":{"index":85,"hash":"0Lo1RNt18PMo/HAKbHEu","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/baseIsMatch.js":{"index":104,"hash":"EpuJzlg204aR35T4QKcS","parents":["node_modules/lodash/internal/baseMatches.js"]},"node_modules/lodash/internal/baseIsEqual.js":{"index":102,"hash":"dBgoFXnhj9KH6oX3dQwa","parents":["node_modules/lodash/internal/baseIsMatch.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/baseGet.js":{"index":101,"hash":"H9EiMd3ullQpRkvooLgz","parents":["node_modules/lodash/internal/basePropertyDeep.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/isKey.js":{"index":129,"hash":"lDpw5crcRmTRExTLVTKc","parents":["node_modules/lodash/utility/property.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/isStrictComparable.js":{"index":132,"hash":"ofNP4/nFrz5Rkb3kGOhn","parents":["node_modules/lodash/internal/getMatchData.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/basePropertyDeep.js":{"index":109,"hash":"mqX1OyYdndJ183lyl/sn","parents":["node_modules/lodash/utility/property.js"]},"node_modules/lodash/internal/toPath.js":{"index":135,"hash":"faVQvsb+LSLI4uaMgtrQ","parents":["node_modules/lodash/internal/basePropertyDeep.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/utility/property.js":{"index":149,"hash":"7IoOI/uGZCxbcY23uQDK","parents":["node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/internal/createBaseFor.js":{"index":116,"hash":"9RWlFaBOuelvwgkhYgPG","parents":["node_modules/lodash/internal/baseFor.js"]},"node_modules/lodash/internal/baseFor.js":{"index":99,"hash":"NGxcZ0n01+w2G1PzyBlY","parents":["node_modules/lodash/internal/baseForOwn.js"]},"node_modules/lodash/internal/baseToString.js":{"index":112,"hash":"ABFQFf14pRECi3sw8oKV","parents":["node_modules/lodash/internal/toPath.js"]},"resources/assets/js/components/shared/falcon-loading.vue":{"index":233,"hash":"nrISz6smCod0TjaIPHYA","parents":["resources/assets/js/components/shared/overlay.vue"]},"resources/assets/js/components/shared/overlay.vue":{"index":237,"hash":"JYZPaO3VyADALhB5HixN","parents":["resources/assets/js/app.vue"]},"resources/assets/js/app.vue":{"index":198,"hash":"Pkw8JlONMB8lI1iN9+Ar","parents":["resources/assets/build//js/main-95aaa4e293.js"]},"resources/assets/js/components/index.vue":{"index":206,"hash":"dKhVhAfX1GLT+4oM8eCL","parents":["resources/assets/js/app.vue","resources/assets/build//js/main-95aaa4e293.js"]},"resources/assets/js/components/shared/header-menu.vue":{"index":235,"hash":"phCAnSIecIl68MBC00Uo","parents":["resources/assets/js/components/header/index.vue"]},"resources/assets/js/components/header/index.vue":{"index":204,"hash":"tQNwfPYlIjPf3d+Cgxqf","parents":["resources/assets/js/components/index.vue"]},"node_modules/tether/dist/js/tether.js":{"index":167,"hash":"E4xLyEYuK5qxMv3jfy3v","parents":["resources/assets/js/components/shared/popover.vue"]},"resources/assets/js/components/shared/popover.vue":{"index":238,"hash":"ZPUs9I9S7R9RatQxz5dz","parents":["resources/assets/js/components/outputs/led-panel.vue"]},"resources/assets/js/components/outputs/led-panel.vue":{"index":211,"hash":"oeFziti9eCAe9axM41wE","parents":["resources/assets/js/components/outputs/panels.vue"]},"node_modules/lodash/object/pairs.js":{"index":147,"hash":"x6Ilwx8encvg/BW5API2","parents":["node_modules/lodash/internal/getMatchData.js"]},"node_modules/lodash/internal/getMatchData.js":{"index":124,"hash":"n0PHWhNs6YZ+DzgYMHPx","parents":["node_modules/lodash/internal/baseMatches.js"]},"node_modules/lodash/internal/baseMatches.js":{"index":106,"hash":"Cwj5GSiQv9/E8nSFBoX2","parents":["node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/lang/isFunction.js":{"index":138,"hash":"xkfzrZNZPGGOIf0kE8Y9","parents":["node_modules/lodash/lang/isNative.js"]},"node_modules/lodash/lang/isNative.js":{"index":139,"hash":"2rstaALy1DW0JSDdijps","parents":["node_modules/lodash/internal/getNative.js"]},"node_modules/lodash/internal/getNative.js":{"index":125,"hash":"7GRZ7115BSuoc/1bdaBK","parents":["node_modules/lodash/lang/isArray.js","node_modules/lodash/object/keys.js"]},"node_modules/lodash/lang/isArguments.js":{"index":136,"hash":"xQ4mqbsKQMCmtsPbfQc6","parents":["node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js"]},"node_modules/lodash/object/keysIn.js":{"index":145,"hash":"8POZiGR1fRHso579G46Z","parents":["node_modules/lodash/internal/shimKeys.js"]},"node_modules/lodash/internal/shimKeys.js":{"index":133,"hash":"oO4aKopmxRfPxyKgRX9F","parents":["node_modules/lodash/object/keys.js"]},"node_modules/lodash/object/forOwn.js":{"index":143,"hash":"LZ77PzuJW/wlgVPdvlGc","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/engine.io-client/node_modules/parseuri/index.js":{"index":69,"hash":"c/c7XftSI6ClFc9h2jOh","parents":["node_modules/engine.io-client/lib/socket.js"]},"node_modules/lodash/internal/equalByTag.js":{"index":121,"hash":"+y++gesJpPvyM+2E8aNB","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/parsejson/index.js":{"index":152,"hash":"3RLuznQNKZiQ/toCXNir","parents":["node_modules/engine.io-client/lib/socket.js"]},"node_modules/parseqs/index.js":{"index":153,"hash":"FI4tRELwI5Itz+ckwR+m","parents":["node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-parser/lib/keys.js":{"index":71,"hash":"oFyKNTA0twlyQVhVzp9n","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/lodash/internal/equalArrays.js":{"index":120,"hash":"OBJL6vuaOotu5flUeCnv","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/lodash/internal/equalObjects.js":{"index":122,"hash":"44Iy49kDcaAZsykEdaH3","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/lodash/lang/isTypedArray.js":{"index":141,"hash":"aVeZyIFGadrEh7EsaDRu","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/lodash/internal/baseIsEqualDeep.js":{"index":103,"hash":"ltZZaMHmzp6d9jBltV3Y","parents":["node_modules/lodash/internal/baseIsEqual.js"]},"node_modules/lodash/internal/baseMatchesProperty.js":{"index":107,"hash":"OudnSoeq2A4ql5lg51kc","parents":["node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/collection/some.js":{"index":87,"hash":"9JyJFfdCx56pmR6fwM9q","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/browserify-hmr/inc/index.js":{"index":9,"hash":"zTlNWZ14iIh89mO0UkaY","parents":[]},"node_modules/engine.io-client/lib/transport.js":{"index":59,"hash":"8Wg7zuMzQpa+AwOxaesw","parents":["node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-parser/lib/browser.js":{"index":70,"hash":"Xr2KhMDa3GjqERGsK7Lc","parents":["node_modules/engine.io-client/lib/transport.js","node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/socket.js","node_modules/engine.io-client/lib/index.js"]},"node_modules/utf8/utf8.js":{"index":169,"hash":"Mqm8G2xyYXmBOFrE+/6A","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/arraybuffer.slice/index.js":{"index":3,"hash":"RSb5Zx9CgX3adjzbvf/k","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/after/index.js":{"index":2,"hash":"NzPfXWECmM8rW/6fdkcj","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/blob/index.js":{"index":8,"hash":"q7L6uHK9eN9yEvDVNxJw","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/base64-arraybuffer/lib/base64-arraybuffer.js":{"index":7,"hash":"dW6cnktjBIyZ6bv9vRp2","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/jquery.inputmask/dist/inputmask/inputmask.dependencyLib.jquery.js":{"index":77,"hash":"LS63HHrbi9ZXkvlmIHs3","parents":["node_modules/jquery.inputmask/dist/inputmask/inputmask.js"]},"node_modules/jquery.inputmask/dist/inputmask/inputmask.js":{"index":78,"hash":"rOZH4H3sNvL9GZLSVZ/6","parents":["node_modules/jquery.inputmask/dist/inputmask/jquery.inputmask.js"]},"node_modules/jquery.inputmask/dist/inputmask/jquery.inputmask.js":{"index":79,"hash":"pSeOfS9ivQob0VH/xYAg","parents":["resources/assets/js/directives/ip.js"]},"resources/assets/js/directives/ip.js":{"index":246,"hash":"pPhO8+trVAzzTJ/Onj4q","parents":["resources/assets/js/components/outputs/e131.vue"]},"resources/assets/js/components/outputs/e131.vue":{"index":209,"hash":"oxoRhfagUQrlLzfrXrT5","parents":["resources/assets/build//js/main-95aaa4e293.js"]},"node_modules/engine.io-client/node_modules/ms/index.js":{"index":68,"hash":"rzSu41c+6ZW8M4Say8X9","parents":["node_modules/engine.io-client/node_modules/debug/debug.js"]},"node_modules/engine.io-client/node_modules/debug/debug.js":{"index":67,"hash":"yqdR7nJc7wxIHzFDNzG+","parents":["node_modules/engine.io-client/node_modules/debug/browser.js"]},"node_modules/engine.io-client/node_modules/debug/browser.js":{"index":66,"hash":"PENVCHp3HppeRm/DiJMI","parents":["node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-client/lib/transports/polling-jsonp.js":{"index":61,"hash":"FAm1xe7I43tDMsakGLzq","parents":["node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/engine.io-client/lib/transports/polling.js":{"index":63,"hash":"m6eReXjm1pnBQHB07d2V","parents":["node_modules/engine.io-client/lib/transports/polling-jsonp.js","node_modules/engine.io-client/lib/transports/polling-xhr.js"]},"node_modules/component-inherit/index.js":{"index":14,"hash":"T0Fqch4d4akvlr8bh7lc","parents":["node_modules/engine.io-client/lib/transports/polling-jsonp.js","node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/transports/polling-xhr.js"]},"node_modules/vue-strap/src/Option.vue":{"index":192,"hash":"C7Duog3xPNfziDO2oTHN","parents":["resources/assets/js/components/settings/general.vue"]},"node_modules/ws/lib/browser.js":{"index":197,"hash":"vZRI95FVw46PPRoHDauJ","parents":["node_modules/engine.io-client/lib/transports/websocket.js"]},"node_modules/engine.io-client/lib/transports/websocket.js":{"index":64,"hash":"iZQQax7TKsS+8ZxUyrc3","parents":["node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/engine.io-client/lib/xmlhttprequest.js":{"index":65,"hash":"us0FsN5s7hiT3hqVV5lx","parents":["node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/engine.io-client/lib/transports/polling-xhr.js":{"index":62,"hash":"d89FOYRl9cirXzsJCjKg","parents":["node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/global/index.js":{"index":72,"hash":"tDIf5GqqdOcKnNHRh2Rc","parents":["node_modules/has-cors/index.js"]},"node_modules/has-cors/index.js":{"index":74,"hash":"uSUdzzwBDQd7qQNKEZ4o","parents":["node_modules/engine.io-client/lib/xmlhttprequest.js"]},"node_modules/engine.io-client/lib/transports/index.js":{"index":60,"hash":"kQ8FMfawL2PES7dsQgvD","parents":["node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-client/lib/socket.js":{"index":58,"hash":"1L37UZEnorYV+ld5c01T","parents":["node_modules/engine.io-client/lib/index.js"]},"node_modules/engine.io-client/lib/index.js":{"index":57,"hash":"G6QYuSNu0EcS+G5tR9NE","parents":["node_modules/engine.io-client/index.js"]},"node_modules/engine.io-client/index.js":{"index":56,"hash":"HQau4MkD4lAynB9tt0Wl","parents":["node_modules/socket.io-client/lib/manager.js"]},"node_modules/socket.io-client/lib/manager.js":{"index":158,"hash":"+TrOAqk4UlI3tKzIT6Dc","parents":["node_modules/socket.io-client/lib/index.js"]},"node_modules/socket.io-client/lib/index.js":{"index":157,"hash":"lWwRhzm83+Eq08s7Nht/","parents":["node_modules/socket.io-client/index.js"]},"node_modules/socket.io-client/index.js":{"index":156,"hash":"ccYBPsaIqMCtG5CHCdDd","parents":[]},"node_modules/core-js/library/modules/$.core.js":{"index":22,"hash":"jO6z5PVz8f6aTUjm5Hrx","parents":["node_modules/core-js/library/modules/$.export.js","node_modules/core-js/library/fn/object/assign.js","node_modules/core-js/library/modules/core.get-iterator-method.js","node_modules/core-js/library/modules/core.get-iterator.js"]},"node_modules/core-js/library/modules/$.iterators.js":{"index":36,"hash":"HPPh7u0tcX1NuooQHCi3","parents":["node_modules/core-js/library/modules/es6.array.iterator.js","node_modules/core-js/library/modules/web.dom.iterable.js","node_modules/core-js/library/modules/core.get-iterator-method.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.global.js":{"index":28,"hash":"t7QKkyeVEU+gGSy/l5Cc","parents":["node_modules/core-js/library/modules/$.export.js","node_modules/core-js/library/modules/$.shared.js","node_modules/core-js/library/modules/$.wks.js"]},"node_modules/core-js/library/modules/$.js":{"index":37,"hash":"UI1ymRgurU07soRpiobz","parents":["node_modules/core-js/library/modules/$.object-assign.js","node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.set-to-string-tag.js","node_modules/core-js/library/modules/$.hide.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.fails.js":{"index":27,"hash":"6G4+YXaRghTGQQnkm/qp","parents":["node_modules/core-js/library/modules/$.object-assign.js","node_modules/core-js/library/modules/$.descriptors.js"]},"node_modules/core-js/library/modules/$.add-to-unscopables.js":{"index":18,"hash":"aTtaK5OMoCOj8v16GPqC","parents":["node_modules/core-js/library/modules/es6.array.iterator.js"]},"node_modules/core-js/library/modules/$.iter-step.js":{"index":35,"hash":"LPWFVFxr7uzP25M4Teof","parents":["node_modules/core-js/library/modules/es6.array.iterator.js"]},"node_modules/core-js/library/modules/$.to-integer.js":{"index":45,"hash":"k18sZu8vTX3eiB+U6ofu","parents":["node_modules/core-js/library/modules/$.string-at.js"]},"node_modules/core-js/library/modules/$.defined.js":{"index":24,"hash":"RZr8uFl+WrrjvGzPSz3c","parents":["node_modules/core-js/library/modules/$.string-at.js","node_modules/core-js/library/modules/$.to-object.js","node_modules/core-js/library/modules/$.to-iobject.js"]},"node_modules/core-js/library/modules/$.string-at.js":{"index":44,"hash":"Zop3IqdJq32xa0qd4H0H","parents":["node_modules/core-js/library/modules/es6.string.iterator.js"]},"node_modules/core-js/library/modules/$.library.js":{"index":38,"hash":"Bhgn5RpO7pDcQnSVaI5C","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.has.js":{"index":29,"hash":"y4idiH2Sj/rmZqd39CHH","parents":["node_modules/core-js/library/modules/$.set-to-string-tag.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.is-object.js":{"index":32,"hash":"FkaOOMIm0uw4T/qUEXed","parents":["node_modules/core-js/library/modules/$.an-object.js"]},"node_modules/core-js/library/modules/$.an-object.js":{"index":19,"hash":"d7pCynXJhKpK2u1S0fph","parents":["node_modules/core-js/library/modules/core.get-iterator.js"]},"node_modules/core-js/library/modules/$.to-object.js":{"index":47,"hash":"XLB72m1cojvL0pIYCCFE","parents":["node_modules/core-js/library/modules/$.object-assign.js"]},"node_modules/core-js/library/modules/$.cof.js":{"index":21,"hash":"FY6tg0ymdCS/rEwpAa7R","parents":["node_modules/core-js/library/modules/$.iobject.js","node_modules/core-js/library/modules/$.classof.js"]},"node_modules/core-js/library/modules/$.iobject.js":{"index":31,"hash":"HvETp5p0zMBjh+wvjxSm","parents":["node_modules/core-js/library/modules/$.object-assign.js","node_modules/core-js/library/modules/$.to-iobject.js"]},"node_modules/core-js/library/modules/$.object-assign.js":{"index":39,"hash":"vlM4g8r36vFJivj1EOOp","parents":["node_modules/core-js/library/modules/es6.object.assign.js"]},"node_modules/core-js/library/modules/$.a-function.js":{"index":17,"hash":"vI7NBVNoKizw/T7ablYt","parents":["node_modules/core-js/library/modules/$.ctx.js"]},"node_modules/core-js/library/modules/$.ctx.js":{"index":23,"hash":"IBAqoysxf6uGe4qIslFW","parents":["node_modules/core-js/library/modules/$.export.js"]},"node_modules/core-js/library/modules/$.export.js":{"index":26,"hash":"tF6TuwqA3fLdeFKqSI9n","parents":["node_modules/core-js/library/modules/es6.object.assign.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/es6.object.assign.js":{"index":53,"hash":"O1TTCwEy8yCJjcDqCq0k","parents":["node_modules/core-js/library/fn/object/assign.js"]},"node_modules/core-js/library/fn/object/assign.js":{"index":16,"hash":"RKVv+8x7eGcEw+yVXhC5","parents":["node_modules/babel-runtime/core-js/object/assign.js"]},"node_modules/babel-runtime/core-js/object/assign.js":{"index":5,"hash":"8fJTx1/oL9wcIWyAqxHQ","parents":["resources/assets/js/components/outputs/panels.vue"]},"resources/assets/js/components/outputs/panels.vue":{"index":213,"hash":"q6XkL4K+YoKGSpUymvLX","parents":["resources/assets/build//js/main-95aaa4e293.js"]},"node_modules/core-js/library/modules/$.to-iobject.js":{"index":46,"hash":"yp4UOuCLRVO1tqlgppw5","parents":["node_modules/core-js/library/modules/es6.array.iterator.js"]},"node_modules/core-js/library/modules/es6.array.iterator.js":{"index":52,"hash":"Zw/NixWUIMjoGa2uWxe/","parents":["node_modules/core-js/library/modules/web.dom.iterable.js"]},"node_modules/core-js/library/modules/$.iter-define.js":{"index":34,"hash":"sR6jK5MoRN1zAKGNm2y4","parents":["node_modules/core-js/library/modules/es6.array.iterator.js","node_modules/core-js/library/modules/es6.string.iterator.js"]},"node_modules/core-js/library/modules/web.dom.iterable.js":{"index":55,"hash":"KisVT/JurPfFyjuYGWzf","parents":["node_modules/core-js/library/fn/get-iterator.js"]},"node_modules/core-js/library/modules/$.redefine.js":{"index":41,"hash":"v4z59Kie6WPVO1h+8oJP","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.hide.js":{"index":30,"hash":"2HBwvxEtbt4UpskOWy62","parents":["node_modules/core-js/library/modules/$.redefine.js","node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.iter-create.js":{"index":33,"hash":"aNVpOMS/fyyM1i4Aw4bY","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.property-desc.js":{"index":40,"hash":"iSs9jpAw1JT2ZWWLScSH","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.hide.js"]},"node_modules/core-js/library/modules/$.set-to-string-tag.js":{"index":42,"hash":"3G0pjz42ePfLP++caEH3","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.wks.js":{"index":49,"hash":"qMliszffX6kySHptJTIp","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.set-to-string-tag.js","node_modules/core-js/library/modules/$.classof.js","node_modules/core-js/library/modules/core.get-iterator-method.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.classof.js":{"index":20,"hash":"2vrlE4yJW7f/QT46fZjd","parents":["node_modules/core-js/library/modules/core.get-iterator-method.js"]},"node_modules/core-js/library/modules/core.get-iterator-method.js":{"index":50,"hash":"+qtmOjO/wxtOJEvpsv/b","parents":["node_modules/core-js/library/modules/core.get-iterator.js"]},"node_modules/core-js/library/modules/core.get-iterator.js":{"index":51,"hash":"Fpc5rJRGURor7FbHBYPn","parents":["node_modules/core-js/library/fn/get-iterator.js"]},"node_modules/core-js/library/modules/$.uid.js":{"index":48,"hash":"auy0a5KBxuU7QAdJ7we/","parents":["node_modules/core-js/library/modules/$.wks.js"]},"node_modules/core-js/library/modules/$.shared.js":{"index":43,"hash":"ZK+Tn2LANbB4OqkscM3N","parents":["node_modules/core-js/library/modules/$.wks.js"]},"node_modules/core-js/library/modules/$.descriptors.js":{"index":25,"hash":"NJqnAOVs55bKea+gKIGt","parents":["node_modules/core-js/library/modules/$.hide.js"]},"node_modules/core-js/library/modules/es6.string.iterator.js":{"index":54,"hash":"viRu85eLzJ68VCbwuHbl","parents":["node_modules/core-js/library/fn/get-iterator.js"]},"node_modules/core-js/library/fn/get-iterator.js":{"index":15,"hash":"V+nypfA8LA2WadFVp7u2","parents":["node_modules/babel-runtime/core-js/get-iterator.js"]},"node_modules/babel-runtime/core-js/get-iterator.js":{"index":4,"hash":"a8je4in/yfKL3pQIQJX9","parents":["node_modules/vue-strap/src/Select.vue"]},"node_modules/vue-strap/src/Select.vue":{"index":193,"hash":"7dhDxiNKuVRXmRHtif1f","parents":["resources/assets/js/components/settings/general.vue"]},"resources/assets/js/components/settings/general.vue":{"index":224,"hash":"z3oDp7DMMswZH4HODONA","parents":["resources/assets/build//js/main-95aaa4e293.js"]},"resources/assets/build//js/main-95aaa4e293.js":{"index":247,"hash":"lFNIfEXagwxBD5Sl4d6B","parents":[]}};
+  var originalEntries = ["/Users/Tim/Sites/FPP2/www/resources/assets/build//js/main-95aaa4e293.js"];
   var updateUrl = null;
   var updateMode = "websocket";
   var supportModes = ["none","websocket"];
@@ -41173,6 +47242,6 @@ function makeid() {
   arguments[3], arguments[4], arguments[5], arguments[6]
 );
 
-},{"./node_modules/browserify-hmr/inc/index.js":9,"./node_modules/socket.io-client/index.js":155,"/Users/Tim/Sites/FPP2/www/resources/assets/build//js/main-f3c3f0d0f7.js":243}]},{},[1]);
+},{"./node_modules/browserify-hmr/inc/index.js":9,"./node_modules/socket.io-client/index.js":156,"/Users/Tim/Sites/FPP2/www/resources/assets/build//js/main-95aaa4e293.js":247}]},{},[1]);
 
 //# sourceMappingURL=main.js.map

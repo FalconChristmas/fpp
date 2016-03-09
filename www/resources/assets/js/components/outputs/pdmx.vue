@@ -1,5 +1,5 @@
 <template>
-    <tr class="pdmx output" :class="{ 'disabled' : !output.active }">
+    <tr class="pdmx output" :class="{ 'disabled' : !output.active }" transition="fade">
         <td class="output-active text-xs-center">
             <switch :model.sync="output.active" size="small"></switch>
            
@@ -14,6 +14,9 @@
         <td class="output-start text-xs-center">
             <input type="number" v-model="output.start" class="form-control transparent text-xs-center" number>
         </td>
+          <td class="output-count text-xs-center">
+            <input type="number" v-model="output.count" class="form-control transparent text-xs-center" number>
+        </td>
         <td class="output-label text-xs-center"><input type="text" v-model="output.label" class="form-control transparent"></td>
         <td class="output-action text-xs-center p-r-1">
             <button type="button" class="close" aria-label="Close" @click="removeOutput">
@@ -21,7 +24,6 @@
             </button>
         </td>
     </tr>
-    
 </template>
 
 <script>
@@ -38,7 +40,8 @@ export default {
             this.$dispatch('remove-output', this.index);
         }
     },
-    events: {}
+    events: {},
+
 
 }
 </script>

@@ -16,15 +16,18 @@
     "jquery.inputmask": "^3.2.7",
     "laravel-elixir": "^4.0.0",
     "lost": "^6.6.2",
+    "moment": "^2.12.0",
+    "moment-timezone": "^0.5.1",
     "normalize-scss": "^4.0.3",
     "rucksack": "^0.1.0",
     "tether": "^1.2.0",
+    "vue": "^1.0.17",
     "vue-animated-list": "^1.0.2",
     "vue-hot-reload-api": "^1.2.2",
     "vue-resource": "^0.5.1",
     "vue-router": "^0.7.7",
     "vue-strap": "^1.0.3",
-    "vue-validator": "^2.0.0-alpha.9",
+    "vue-validator": "^2.0.0-alpha.22",
     "vueify-insert-css": "^1.0.0"
   }
 }

@@ -1,3 +1,5 @@
+$base-img-url: "../img";
+$assets-url: '../';
 ///////////////////////////////////
 //  Colors
 ///////////////////////////////////
@@ -48,13 +50,23 @@ $color-success: #10cfbd;
 $color-complete : #48b0f7;
 $color-primary: #6d5cae;
 $color-warning: #f8d053;
-$color-danger: #f55753;
+$color-danger: #E5585E; //#f55753;
 $color-info: #3b4752;
 
 // Lighter Grey colors
 $color-master-light:mix($color-master, #fff, 30%);
 $color-master-lighter:mix($color-master, #fff, 9.5%);
 $color-master-lightest:mix($color-master, #fff, 3%);
+
+
+$color-menu :#2b303b;
+$color-menu-dark :mix($color-menu, #000, 77%);
+$color-menu-darker :mix($color-menu, #000, 90%);
+
+//Generating Menu font color
+$color-menu-light :mix($color-menu, #fff, 60%);
+//Menu Font Color
+$color-menu-link-hover:#fff;
 
 $body-background: $color-master-lightest;
 $body-color: $color-master;
@@ -102,7 +114,8 @@ $color-danger-darker: mix($color-danger, $color-black, $mix-percentage-darker);
 $color-info-dark: mix($color-info, $color-black, $mix-percentage-dark);
 $color-info-darker: mix($color-info, $color-black, $mix-percentage-darker);
 
-
+$color-azure: #5B9BD1;
+$color-green: #5A8770;
 
 ///////////////////////////////////
 //  Sizing
@@ -231,3 +244,49 @@ $knob-width-sm: $knob-size-sm;
 $switch-background: $base-background-color;
 $switch-border-background: darken($base-background-color, 9%);
 $switch-shadow: 0 2px 5px transparentize(black, 0.6);
+
+// z-index scale 
+$zIndex-1:   100;
+$zIndex-2:   200;
+$zIndex-3:   300;
+$zIndex-4:   400;
+$zIndex-5:   500;
+$zIndex-6:   600;
+$zIndex-7:   700;
+$zIndex-8:   800;
+$zIndex-9:   900;
+$zIndex-10: 1000;
+
+//TODO: add all components
+// z-index applications
+
+
+$zIndex-sidebar : $zIndex-10;
+$zIndex-tooltips : $zIndex-10;
+$zIndex-notifications : $zIndex-9;
+$zIndex-navbar : $zIndex-8;
+$zIndex-dropdown : $zIndex-7;
+$zIndex-dropdownMask : $zIndex-6;
+$zIndex-portlet : $zIndex-6;
+
+
+$layout-header-height:60px;
+$layout-mobile-header-height:48px;
+$layout-mobile-logo-scale:0.8;
+$layout-sidepanel-width-collapsed : 70px;
+$layout-sidepanel-width:280px;
+$layout-sidepanel-pin-width:250px;
+$layout-right-quickview-width: 285px;
+$layout-user-profile-margin:25px;
+$layout-container-fixed-lg: 1700px;
+
+$layout-gutter-sm : 5px;
+
+$panel-border-color: rgba(0, 0, 0, 0.07);
+$panel-padding: 20px;
+//$panel-heading-padding: $panel-padding $panel-padding 7px $panel-padding;
+$panel-heading-padding: 15px 20px 5px;
+$panel-heading-min-height: 48px;
+$panel-condensed-heading-padding: 13px 13px 0 13px;
+$panel-condensed-body-padding: 13px;
+$panel-condensed-heading-min-height: 48px;

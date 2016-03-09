@@ -105,17 +105,6 @@ const PANEL = {
     end: 1536
 };
 
-//const LAYOUTS = ['1x1', '1x2', '1x3', '1x4', '2x1', '2x2', '3x1', '4x1'];
-const LAYOUTS = [
-    {name:'1x1', panels: 1},
-    {name:'1x2', panels: 2},
-    {name:'1x3', panels: 3},
-    {name:'1x4', panels: 4},
-    {name:'2x1', panels: 2},
-    {name:'2x2', panels: 4},
-    {name:'3x1', panels: 3},
-    {name:'4x1', panels: 4},
-];
 
 // Max outputs per device & max panels per output
 const MaxPanels = {
@@ -172,7 +161,7 @@ export default {
         };
     },
     ready() {
-        console.log(this.layouts);
+       
     },
     methods: {
         updatePanels() {
@@ -182,7 +171,6 @@ export default {
             let cols = parseInt(layout.name.charAt(0), 10);
             let rows = parseInt(layout.name.charAt(2), 10);
             let panels = [];
-
 
             for(let i = 1; i <= numPanels; i++) {
                 let panel = Object.assign({}, PANEL);
@@ -200,31 +188,6 @@ export default {
             }
 
             this.panels = panels;
-            // if(numPanels < count) {
-            //     let diff = count - numPanels; 
-            //     this.panels.splice(numPanels, diff);
-            //     return;
-            // }
-            // if(numPanels > count) {
-            //     let diff = numPanels - count;
-                
-            //     for(let i = 0; i <= diff; i++) {
-            //         let panel = Object.assign({}, PANEL);
-            //         panel.id = i == 0 ? count++ : count + i;
-            //         panel.start = PPP[this.size] * (count + i);
-            //         panel.end = PPP[this.size] * (count + i);
-
-            //         if(cols > 1) {
-            //             panel.position.x = diff;
-            //         } 
-            //         if(rows > 1) {
-            //             panel.position.x = diff;
-            //         }
-            //        this.panels.push(panel);
-
-            //     } 
-            // }
-            console.log(this.panels);
         }      
     },
     computed: {
