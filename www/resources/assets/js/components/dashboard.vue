@@ -49,23 +49,7 @@
         </div>
         <div class="row">
             <div class="col-xs-12">
-                <div class="box panel widget">
-                    <div class="panel-heading separator">
-                        <div class="panel-title">Player</div>
-                        <div class="panel-controls">
-                            <ul>
-                              <li><a href="#" class="portlet-collapse" data-toggle="collapse"><i class="portlet-icon portlet-icon-collapse"></i></a>
-                              </li>
-                              <li><a href="#" class="portlet-refresh" data-toggle="refresh"><i class="portlet-icon portlet-icon-refresh"></i></a>
-                              </li>
-                              <li><a href="#" class="portlet-close" data-toggle="close"><i class="portlet-icon portlet-icon-close"></i></a>
-                              </li>
-                            </ul>
-                      </div>
-                    </div>
-                    <div class="panel-body">
-                    </div>
-                </div>
+                <player-widget></player-widget>
             </div>
         </div>
         
@@ -76,9 +60,10 @@
 import moment from "moment";
 import WeatherWidget from "./widgets/weather.vue";
 import StatusWidget from "./widgets/status.vue";
+import PlayerWidget from "./widgets/player.vue";
 
 export default {
-    components: { WeatherWidget,StatusWidget },
+    components: { WeatherWidget, StatusWidget, PlayerWidget },
     props: [],
     data() {
         return {};
