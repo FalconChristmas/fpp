@@ -363,7 +363,7 @@ case "${OSVER}" in
 						network-manager dhcp-helper hostapd parprouted bridge-utils \
 						firmware-atheros firmware-ralink firmware-brcm80211
 		do
-			apt-get -y install ${package}
+			apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" install ${package}
 			let packages=$((${packages}+1))
 			if [ $packages -gt 10 ]; then
 				let packages=0
@@ -409,12 +409,7 @@ case "${OSVER}" in
 	ubuntu_14.04)
 		echo "FPP - Updating package list"
 		apt-get update
-		echo "FPP - Installing required packages"
-		if [ "x${FPPPLATFORM}" = "xODROID" ]
-		then
-			echo "FPP - WARNING: This list may be incomplete, it needs to be updated to match the Pi/BBB Debian package install list"
-			apt-get -y install avahi-discover fbi flite gdebi-core i2c-tools imagemagick libboost-dev libconvert-binary-c-perl libjson-perl libjsoncpp-dev libnet-bonjour-perl libpam-smbpass mp3info mpg123 perlmagick php5 php5-cli php5-common php-apc python-daemon python-smbus samba samba-common-bin shellinabox sysstat vorbis-tools vsftpd
-		fi
+		echo "FPP - FIXME, should be installing required Ubuntu packages"
 		;;
 	*)
 		echo "FPP - Unknown distro"
@@ -547,8 +542,10 @@ EOF
 			wget -O- https://github.com/FalconChristmas/fpp-binaries/raw/master/Pi/omxplayer-dist.tgz | tar xzpv -C /
 		fi
 
-		echo "FPP - Disabling any stock 'pi' user, use the 'fpp' user instead"
+		echo "FPP - Disabling stock users (pi, odroid, debian), use the 'fpp' user instead"
 		sed -i -e "s/^pi:.*/pi:*:16372:0:99999:7:::/" /etc/shadow
+		sed -i -e "s/^odroid:.*/odroid:*:16372:0:99999:7:::/" /etc/shadow
+		sed -i -e "s/^debian:.*/debian:*:16372:0:99999:7:::/" /etc/shadow
 
 		echo "FPP - Disabling getty on onboard serial ttyAMA0"
 		if [ "x${OSVER}" == "xdebian_7" ]; then
