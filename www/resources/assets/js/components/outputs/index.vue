@@ -5,6 +5,8 @@
 </template>
 
 <script>
+import { getAllOutputs } from "../../state/actions";
+
 export default {
     components: {},
     props: [],
@@ -13,7 +15,16 @@ export default {
     },
     ready() {},
     methods: {},
-    events: {}
+    events: {},
+    created() {
+        this.getAllOutputs();
+    },
+    vuex: {
+       
+        actions: {
+            getAllOutputs
+        }
+    }
 
 }
 </script>

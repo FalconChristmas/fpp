@@ -28,6 +28,7 @@
     "vue-router": "^0.7.7",
     "vue-strap": "^1.0.3",
     "vue-validator": "^2.0.0-alpha.22",
-    "vueify-insert-css": "^1.0.0"
+    "vueify-insert-css": "^1.0.0",
+    "vuex": "^0.6.2"
   }
 }

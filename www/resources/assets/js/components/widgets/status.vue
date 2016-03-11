@@ -17,18 +17,22 @@
             
             <div class="widget text-center current-status fppd-running">
                 <span class="widget-header">Status</span>
-                <span class="widget-icon"><i class="icon ion-close-circled text-danger"></i></span>
-                <span class="widget-text">Stopped</span>
+                <span class="widget-icon"><i class="icon" :class="modeIconClass"></i></span>
+                <span class="widget-text">{{ fppd | capitalize }}</span>
                 <div class="widget-buttons">
-                    <a href="#" class="button small secondary gradient fppd-stop"><i class="icon ion-close"></i> Stop</a>
-                    <a href="#" class="button small secondary gradient fppd-restart"><i class="icon ion-refresh"></i> Restart</a>
+                    <a href="#" class="button small secondary gradient fppd-stop" v-if="fppd == 'running'" @click="stopFPPD"><i class="icon ion-close"></i> Stop</a>
+                    <a href="#" class="button small secondary gradient fppd-start" v-if="fppd == 'stopped'" @click="startFPPD"><i class="icon ion-checkmark"></i> Start</a>
+                    <a href="#" class="button small secondary gradient fppd-restart" @click="restartFPPD"><i class="icon ion-refresh"></i> Restart</a>
                 </div>
             </div>          
 
             <div class="widget text-center current-status">
                 <span class="widget-header">Mode</span>
-                <span class="widget-icon"><i class="icon ion-close-circled text-danger"></i></span>
-                <span class="widget-text">Stopped</span>
+                <span class="widget-icon">
+                    <span v-if="mode != 'stopped'" class="text-white rounded fs-18 bg-info-light p-t-5 p-b-5 p-l-10 p-r-10" style="vertical-align:middle">{{ mode.charAt(0) | capitalize }}</span>
+                    <i v-if="mode == 'stopped'" class="icon ion-close-circled text-danger"></i>
+                </span>
+                <span class="widget-text">{{ mode | capitalize }}</span>
                 <div class="widget-buttons">
                     <select class="fppd-mode-select c-select">
                         <option value="standalone" selected="selected">Standalone</option>
@@ -45,6 +49,12 @@
 </template>
 
 <script>
+import {
+    startFPPD,
+    stopFPPD,
+    restartFPPD,
+} from "../../state/actions";
+
 export default {
     components: {},
     props: [],
@@ -53,7 +63,24 @@ export default {
     },
     ready() {},
     methods: {},
-    events: {}
+    events: {},
+    computed: {
+        modeIconClass() {
+            return classes = this.fppd == 'running' ? ['ion-checkmark-circled', 'text-success'] : ['ion-close-circled', 'text-danger'];
+        }
+    },
+    vuex: {
+        getters: {
+            status: state => state.shared.status,
+            mode: state => state.shared.fppd == 'running' ? state.shared.mode : state.shared.fppd,
+            fppd: state => state.shared.fppd
+        },
+        actions: {
+            startFPPD,
+            stopFPPD,
+            restartFPPD,
+        }
+    }
 
 }
 </script>

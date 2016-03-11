@@ -61,6 +61,99 @@ Route::group(['middleware' => ['api'], 'namespace' => 'Api', 'prefix' => 'api'],
 	$router->get('/settings/{setting}', 'SettingController@getSetting');
 	$router->put('/settings/{setting}', 'SettingController@update');
 
+	$router->get('/outputs', function() {
+		return response()->json([
+    		'data' => [
+    			'e131' => [
+    				'enabled' => true,
+    				'outputs' => [
+	    					[
+	    						'active' => true,
+	    						'universe' => 1,
+	    						'start' => 1,
+	    						'size' => 150,
+	    						'type' => 'unicast',
+	    						'address' => '10.10.10.10'
+
+	    					],
+	    					[
+	    						'active' => true,
+	    						'universe' => 2,
+	    						'start' => 151,
+	    						'size' => 150,
+	    						'type' => 'unicast',
+	    						'address' => '10.10.10.10'
+
+	    					]
+	    				]
+    			],
+
+				'pdmx'     => [
+					'enabled' => false,
+					'outputs' => []
+				],
+				'panels'   => [
+					'enabled' => false,
+					'outputs' => []
+				],
+				'bbb'      => [
+					'enabled' => false,
+					'outputs' => []
+				],
+				'lor'      => [
+					'enabled' => false,
+					'outputs' => []
+				],
+				'serial'   => [
+					'enabled' => false,
+					'outputs' => []
+				],
+				'renard'   => [
+					'enabled' => false,
+					'outputs' => []
+				],
+				'pixelnet' => [
+					'enabled' => false,
+					'outputs' => []
+				],
+				'triks'    => [
+					'enabled' => false,
+					'outputs' => []
+				],
+				'virtual'  => [
+					'enabled' => false,
+					'outputs' => []
+				]
+
+
+    		]
+
+		]);
+	});
+	$router->get('/outputs/e131', function() {
+		return response()->json([
+    		'data' => [
+	    			[
+	    				'active' => true,
+	    				'universe' => 1,
+	    				'start' => 1,
+	    				'size' => 150,
+	    				'type' => 'unicast',
+	    				'address' => '10.10.10.10'
+
+	    			],
+	    			[
+	    				'active' => true,
+	    				'universe' => 2,
+	    				'start' => 151,
+	    				'size' => 150,
+	    				'type' => 'unicast',
+	    				'address' => '10.10.10.10'
+
+	    			]
+    			]
+    		]);
+	});
 });
 
 Route::group(['middleware' => []], function ($router) {

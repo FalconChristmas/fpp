@@ -14,16 +14,21 @@
     import sidebar from './components/sidebar.vue';
     import mainContent from './components/index.vue';
     import overlay from './components/shared/overlay.vue';
-
+    import store from "./state/store";
     import sharedStore from './stores/shared';
-    import playlistStore from './stores/playlist';
-    import settingStore from './stores/setting';
+    import { 
+        rebootDevice,
+        shutdownDevice,
+        startFPPD,
+        stopFPPD,
+        restartFPPD,
+        requestStatus
+    } from "./state/actions";   
    
     export default {
+        store,
         components: { sidebar, mainContent, overlay },
-
         replace: false,
-
         data() {
             return {
                 loading: false,
@@ -36,12 +41,9 @@
             // Make the most important HTTP request to get all necessary data from the server.
             // Afterwards, init all mandatory stores and services.
             sharedStore.init(() => {
-                this.initStores();
+              
                 // Hide the overlaying loading screen.
                 this.toggleOverlay();
-
-                // Ask for user's notificatio permission.
-                this.requestNotifPermission();
 
                 // Let all other components know we're ready.
                 this.$broadcast('fpp:ready');
@@ -49,34 +51,7 @@
         },
 
         methods: {
-            /**
-             * Initialize all stores to be used throughout the application.
-             */
-            initStores() {
-                // playlistStore.init();
-                // settingStore.init();
-            },
-          
 
-            /**
-             * Load (display) a main panel (view).
-             *
-             * @param string view The view, which can be found under components/main/main-content.
-             */
-            loadMainView(view) {
-                this.$broadcast('main-content-view:load', view);
-            },
-
-            /**
-             * Load a playlist into the main panel.
-             *
-             * @param object playlist The playlist object
-             */
-            loadPlaylist(playlist) {
-                this.$broadcast('playlist:load', playlist);
-                this.loadMainView('playlist');
-            },
-          
             /**
              * Show or hide the loading overlay.
              */
@@ -84,6 +59,16 @@
                 this.loading = !this.loading;
             }
         },
+        vuex: {
+            actions: {
+                rebootDevice,
+                shutdownDevice,
+                startFPPD,
+                stopFPPD,
+                restartFPPD,
+                requestStatus,
+            }
+        }
     };
 
 </script>

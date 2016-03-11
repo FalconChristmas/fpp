@@ -6,7 +6,7 @@
      <div class="box-tool">
          <div class="enable-output">
            <small>Enable Outputs </small>
-           <switch :model.sync="enable_e131"></switch>
+           <switch :model="enabled" :on-change="onToggle"></switch>
          </div>
      </div>
      <div class="box-body">
@@ -27,8 +27,6 @@
                     </div>
                 </div>
                 <div class="filter-row">
-                  
-                    
                     <div class="filter">
                          <form-input 
                           :model.sync="defStart"
@@ -123,6 +121,9 @@ import Checkbox from "../shared/checkbox.vue";
 import FormInput from "../shared/input.vue";
 import ip from "../../directives/ip";
 import outputMixin from "../../mixins/outputMixin";
+import {
+    toggleOutputs
+} from "../../state/actions";
 
 const universeStub =  {
         active: false, 
@@ -149,26 +150,33 @@ export default {
             incrementStart: true,
             incrementUniv: true,
             quantity: 1,
-            outputs: [
-                {active: true, number: 1, start: 1, type: 'unicast', size: 512, address: '10.10.10.10', label: 'The Label' },
-                {active: true, number: 2, start: 513, type: 'unicast', size: 512, address: '10.10.10.10', label: 'The Label' }
-            ],
-            
 
         };
     },
     ready() {},
     methods: {
+        onToggle(model) {
+            this.toggleOutputs('e131', model);
+        },
         assembleNewOutput(last) {
             return {
                 active: true,
-                number: this.incrementUniv ? last.number + 1 : 1,
+                universe: this.incrementUniv ? last.universe + 1 : 1,
                 start: this.incrementStart ? (last.start + last.size) + 1 : 1,
                 type: this.defType,
                 size: this.defSize,
                 address: this.defAddress,
                 label: null
             };
+        }
+    },
+    vuex: {
+        actions: {
+            toggleOutputs
+        },
+        getters: {
+            outputs: state => state.outputs.e131.outputs,
+            enabled: state => state.outputs.e131.enabled                
         }
     }
    

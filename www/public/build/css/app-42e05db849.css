@@ -623,7 +623,7 @@ hr {
   color: #48b0f7 !important; }
 
 .text-success {
-  color: #10cfbd !important; }
+  color: #43AC6A !important; }
 
 .text-info {
   color: #3b4752 !important; }
@@ -664,7 +664,7 @@ hr {
   color: #626262; }
 
 .label-success {
-  background-color: #10cfbd;
+  background-color: #43AC6A;
   color: #fff; }
 
 .label-warning {
@@ -710,6 +710,12 @@ hr {
 
 .fs-16 {
   font-size: 16px !important; }
+
+.fs-18 {
+  font-size: 18px !important; }
+
+.fs-20 {
+  font-size: 20px !important; }
 
 .fs-30 {
   font-size: 30px !important; }
@@ -1298,19 +1304,19 @@ hr {
 ------------------------------------
 */
 .bg-success {
-  background-color: #10cfbd; }
+  background-color: #43AC6A; }
 
 .bg-success-dark {
-  background-color: #0da899; }
+  background-color: #368b56; }
 
 .bg-success-darker {
-  background-color: #0a7c71; }
+  background-color: #286740; }
 
 .bg-success-light {
-  background-color: #40d9ca; }
+  background-color: #69bd88; }
 
 .bg-success-lighter {
-  background-color: #cff5f2; }
+  background-color: #d9eee1; }
 
 /* Info
 ------------------------------------
@@ -2579,7 +2585,7 @@ hr {
       .nav-tabs-primary .nav-tabs-simple > li:after {
         background-color: #6d5cae; }
       .nav-tabs-success .nav-tabs-simple > li:after {
-        background-color: #10cfbd; }
+        background-color: #43AC6A; }
       .nav-tabs-complete .nav-tabs-simple > li:after {
         background-color: #48b0f7; }
       .nav-tabs-danger .nav-tabs-simple > li:after {
@@ -2890,7 +2896,7 @@ hr {
         background: #48b0f7; }
       .panel.panel-featured .ribbon.blue,
       .card.panel-featured .ribbon.blue {
-        background: #10cfbd; }
+        background: #43AC6A; }
   .panel.hover-fill:hover,
   .card.hover-fill:hover {
     background: #f0f0f0; }

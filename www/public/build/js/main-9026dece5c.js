@@ -4020,7 +4020,7 @@ WS.prototype.check = function(){
 
 }).apply(this, arguments);
 
-},{"../transport":59,"component-inherit":14,"debug":66,"engine.io-parser":70,"parseqs":153,"ws":197}],65:[function(require,module,exports){
+},{"../transport":59,"component-inherit":14,"debug":66,"engine.io-parser":70,"parseqs":153,"ws":198}],65:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/engine.io-client/lib/xmlhttprequest.js", module);
 (function(){
 // browser shim for xmlhttprequest module
@@ -43981,6 +43981,587 @@ exports.insert = function (css) {
 }).apply(this, arguments);
 
 },{}],197:[function(require,module,exports){
+_hmr["websocket:null"].initModule("node_modules/vuex/dist/vuex.js", module);
+(function(){
+/*!
+ * Vuex v0.6.2
+ * (c) 2016 Evan You
+ * Released under the MIT License.
+ */
+(function (global, factory) {
+  typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
+  typeof define === 'function' && define.amd ? define(factory) :
+  (global.Vuex = factory());
+}(this, function () { 'use strict';
+
+  var babelHelpers = {};
+  babelHelpers.typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) {
+    return typeof obj;
+  } : function (obj) {
+    return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj;
+  };
+
+  babelHelpers.classCallCheck = function (instance, Constructor) {
+    if (!(instance instanceof Constructor)) {
+      throw new TypeError("Cannot call a class as a function");
+    }
+  };
+
+  babelHelpers.createClass = function () {
+    function defineProperties(target, props) {
+      for (var i = 0; i < props.length; i++) {
+        var descriptor = props[i];
+        descriptor.enumerable = descriptor.enumerable || false;
+        descriptor.configurable = true;
+        if ("value" in descriptor) descriptor.writable = true;
+        Object.defineProperty(target, descriptor.key, descriptor);
+      }
+    }
+
+    return function (Constructor, protoProps, staticProps) {
+      if (protoProps) defineProperties(Constructor.prototype, protoProps);
+      if (staticProps) defineProperties(Constructor, staticProps);
+      return Constructor;
+    };
+  }();
+
+  babelHelpers.toConsumableArray = function (arr) {
+    if (Array.isArray(arr)) {
+      for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) arr2[i] = arr[i];
+
+      return arr2;
+    } else {
+      return Array.from(arr);
+    }
+  };
+
+  babelHelpers;
+
+  /**
+   * Merge an array of objects into one.
+   *
+   * @param {Array<Object>} arr
+   * @return {Object}
+   */
+
+  function mergeObjects(arr) {
+    return arr.reduce(function (prev, obj) {
+      Object.keys(obj).forEach(function (key) {
+        var existing = prev[key];
+        if (existing) {
+          // allow multiple mutation objects to contain duplicate
+          // handlers for the same mutation type
+          if (Array.isArray(existing)) {
+            existing.push(obj[key]);
+          } else {
+            prev[key] = [prev[key], obj[key]];
+          }
+        } else {
+          prev[key] = obj[key];
+        }
+      });
+      return prev;
+    }, {});
+  }
+
+  /**
+   * Deep clone an object. Faster than JSON.parse(JSON.stringify()).
+   *
+   * @param {*} obj
+   * @return {*}
+   */
+
+  function deepClone(obj) {
+    if (Array.isArray(obj)) {
+      return obj.map(deepClone);
+    } else if (obj && (typeof obj === 'undefined' ? 'undefined' : babelHelpers.typeof(obj)) === 'object') {
+      var cloned = {};
+      var keys = Object.keys(obj);
+      for (var i = 0, l = keys.length; i < l; i++) {
+        var key = keys[i];
+        cloned[key] = deepClone(obj[key]);
+      }
+      return cloned;
+    } else {
+      return obj;
+    }
+  }
+
+  /**
+   * Hacks to get access to Vue internals.
+   * Maybe we should expose these...
+   */
+
+  var Watcher = void 0;
+  function getWatcher(vm) {
+    if (!Watcher) {
+      var unwatch = vm.$watch('__vuex__', function (a) {
+        return a;
+      });
+      Watcher = vm._watchers[0].constructor;
+      unwatch();
+    }
+    return Watcher;
+  }
+
+  var Dep = void 0;
+  function getDep(vm) {
+    if (!Dep) {
+      Dep = vm._data.__ob__.dep.constructor;
+    }
+    return Dep;
+  }
+
+  var hook = typeof window !== 'undefined' && window.__VUE_DEVTOOLS_GLOBAL_HOOK__;
+
+  var devtoolMiddleware = {
+    onInit: function onInit(state, store) {
+      if (!hook) return;
+      hook.emit('vuex:init', store);
+      hook.on('vuex:travel-to-state', function (targetState) {
+        var currentState = store._vm._data;
+        store._dispatching = true;
+        Object.keys(targetState).forEach(function (key) {
+          currentState[key] = targetState[key];
+        });
+        store._dispatching = false;
+      });
+    },
+    onMutation: function onMutation(mutation, state) {
+      if (!hook) return;
+      hook.emit('vuex:mutation', mutation, state);
+    }
+  };
+
+  function override (Vue) {
+    // override init and inject vuex init procedure
+    var _init = Vue.prototype._init;
+    Vue.prototype._init = function () {
+      var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+
+      options.init = options.init ? [vuexInit].concat(options.init) : vuexInit;
+      _init.call(this, options);
+    };
+
+    function vuexInit() {
+      var options = this.$options;
+      var store = options.store;
+      var vuex = options.vuex;
+      // store injection
+
+      if (store) {
+        this.$store = store;
+      } else if (options.parent && options.parent.$store) {
+        this.$store = options.parent.$store;
+      }
+      // vuex option handling
+      if (vuex) {
+        if (!this.$store) {
+          console.warn('[vuex] store not injected. make sure to ' + 'provide the store option in your root component.');
+        }
+        var state = vuex.state;
+        var getters = vuex.getters;
+        var actions = vuex.actions;
+        // handle deprecated state option
+
+        if (state && !getters) {
+          console.warn('[vuex] vuex.state option will been deprecated in 1.0. ' + 'Use vuex.getters instead.');
+          getters = state;
+        }
+        // getters
+        if (getters) {
+          options.computed = options.computed || {};
+          for (var key in getters) {
+            defineVuexGetter(this, key, getters[key]);
+          }
+        }
+        // actions
+        if (actions) {
+          options.methods = options.methods || {};
+          for (var _key in actions) {
+            options.methods[_key] = makeBoundAction(actions[_key], this.$store);
+          }
+        }
+      }
+    }
+
+    function setter() {
+      throw new Error('vuex getter properties are read-only.');
+    }
+
+    function defineVuexGetter(vm, key, getter) {
+      Object.defineProperty(vm, key, {
+        enumerable: true,
+        configurable: true,
+        get: makeComputedGetter(vm.$store, getter),
+        set: setter
+      });
+    }
+
+    function makeComputedGetter(store, getter) {
+      var id = store._getterCacheId;
+      // cached
+      if (getter[id]) {
+        return getter[id];
+      }
+      var vm = store._vm;
+      var Watcher = getWatcher(vm);
+      var Dep = getDep(vm);
+      var watcher = new Watcher(vm, function (state) {
+        return getter(state);
+      }, null, { lazy: true });
+      var computedGetter = function computedGetter() {
+        if (watcher.dirty) {
+          watcher.evaluate();
+        }
+        if (Dep.target) {
+          watcher.depend();
+        }
+        return watcher.value;
+      };
+      getter[id] = computedGetter;
+      return computedGetter;
+    }
+
+    function makeBoundAction(action, store) {
+      return function vuexBoundAction() {
+        for (var _len = arguments.length, args = Array(_len), _key2 = 0; _key2 < _len; _key2++) {
+          args[_key2] = arguments[_key2];
+        }
+
+        return action.call.apply(action, [this, store].concat(args));
+      };
+    }
+
+    // option merging
+    var merge = Vue.config.optionMergeStrategies.computed;
+    Vue.config.optionMergeStrategies.vuex = function (toVal, fromVal) {
+      if (!toVal) return fromVal;
+      if (!fromVal) return toVal;
+      return {
+        getters: merge(toVal.getters, fromVal.getters),
+        state: merge(toVal.state, fromVal.state),
+        actions: merge(toVal.actions, fromVal.actions)
+      };
+    };
+  }
+
+  var Vue = void 0;
+  var uid = 0;
+
+  var Store = function () {
+
+    /**
+     * @param {Object} options
+     *        - {Object} state
+     *        - {Object} actions
+     *        - {Object} mutations
+     *        - {Array} middlewares
+     *        - {Boolean} strict
+     */
+
+    function Store() {
+      var _this = this;
+
+      var _ref = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+
+      var _ref$state = _ref.state;
+      var state = _ref$state === undefined ? {} : _ref$state;
+      var _ref$mutations = _ref.mutations;
+      var mutations = _ref$mutations === undefined ? {} : _ref$mutations;
+      var _ref$modules = _ref.modules;
+      var modules = _ref$modules === undefined ? {} : _ref$modules;
+      var _ref$middlewares = _ref.middlewares;
+      var middlewares = _ref$middlewares === undefined ? [] : _ref$middlewares;
+      var _ref$strict = _ref.strict;
+      var strict = _ref$strict === undefined ? false : _ref$strict;
+      babelHelpers.classCallCheck(this, Store);
+
+      this._getterCacheId = 'vuex_store_' + uid++;
+      this._dispatching = false;
+      this._rootMutations = this._mutations = mutations;
+      this._modules = modules;
+      // bind dispatch to self
+      var dispatch = this.dispatch;
+      this.dispatch = function () {
+        for (var _len = arguments.length, args = Array(_len), _key = 0; _key < _len; _key++) {
+          args[_key] = arguments[_key];
+        }
+
+        dispatch.apply(_this, args);
+      };
+      // use a Vue instance to store the state tree
+      // suppress warnings just in case the user has added
+      // some funky global mixins
+      if (!Vue) {
+        throw new Error('[vuex] must call Vue.use(Vuex) before creating a store instance.');
+      }
+      var silent = Vue.config.silent;
+      Vue.config.silent = true;
+      this._vm = new Vue({
+        data: state
+      });
+      Vue.config.silent = silent;
+      this._setupModuleState(state, modules);
+      this._setupModuleMutations(modules);
+      this._setupMiddlewares(middlewares, state);
+      // add extra warnings in strict mode
+      if (strict) {
+        this._setupMutationCheck();
+      }
+    }
+
+    /**
+     * Getter for the entire state tree.
+     * Read only.
+     *
+     * @return {Object}
+     */
+
+    babelHelpers.createClass(Store, [{
+      key: 'dispatch',
+
+
+      /**
+       * Dispatch an action.
+       *
+       * @param {String} type
+       */
+
+      value: function dispatch(type) {
+        var _this2 = this;
+
+        for (var _len2 = arguments.length, payload = Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
+          payload[_key2 - 1] = arguments[_key2];
+        }
+
+        // compatibility for object actions, e.g. FSA
+        if ((typeof type === 'undefined' ? 'undefined' : babelHelpers.typeof(type)) === 'object' && type.type && arguments.length === 1) {
+          payload = [type];
+          type = type.type;
+        }
+        var mutation = this._mutations[type];
+        var prevSnapshot = this._prevSnapshot;
+        var state = this.state;
+        var snapshot = void 0,
+            clonedPayload = void 0;
+        if (mutation) {
+          this._dispatching = true;
+          // apply the mutation
+          if (Array.isArray(mutation)) {
+            mutation.forEach(function (m) {
+              return m.apply(undefined, [state].concat(babelHelpers.toConsumableArray(payload)));
+            });
+          } else {
+            mutation.apply(undefined, [state].concat(babelHelpers.toConsumableArray(payload)));
+          }
+          this._dispatching = false;
+          // invoke middlewares
+          if (this._needSnapshots) {
+            snapshot = this._prevSnapshot = deepClone(state);
+            clonedPayload = deepClone(payload);
+          }
+          this._middlewares.forEach(function (m) {
+            if (m.onMutation) {
+              if (m.snapshot) {
+                m.onMutation({ type: type, payload: clonedPayload }, snapshot, prevSnapshot, _this2);
+              } else {
+                m.onMutation({ type: type, payload: payload }, state, _this2);
+              }
+            }
+          });
+        } else {
+          console.warn('[vuex] Unknown mutation: ' + type);
+        }
+      }
+
+      /**
+       * Watch state changes on the store.
+       * Same API as Vue's $watch, except when watching a function,
+       * the function gets the state as the first argument.
+       *
+       * @param {String|Function} expOrFn
+       * @param {Function} cb
+       * @param {Object} [options]
+       */
+
+    }, {
+      key: 'watch',
+      value: function watch(expOrFn, cb, options) {
+        var _this3 = this;
+
+        return this._vm.$watch(function () {
+          return typeof expOrFn === 'function' ? expOrFn(_this3.state) : _this3._vm.$get(expOrFn);
+        }, cb, options);
+      }
+
+      /**
+       * Hot update mutations & modules.
+       *
+       * @param {Object} options
+       *        - {Object} [mutations]
+       *        - {Object} [modules]
+       */
+
+    }, {
+      key: 'hotUpdate',
+      value: function hotUpdate() {
+        var _ref2 = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+
+        var mutations = _ref2.mutations;
+        var modules = _ref2.modules;
+
+        this._rootMutations = this._mutations = mutations || this._rootMutations;
+        this._setupModuleMutations(modules || this._modules);
+      }
+
+      /**
+       * Attach sub state tree of each module to the root tree.
+       *
+       * @param {Object} state
+       * @param {Object} modules
+       */
+
+    }, {
+      key: '_setupModuleState',
+      value: function _setupModuleState(state, modules) {
+        var setPath = Vue.parsers.path.setPath;
+
+        Object.keys(modules).forEach(function (key) {
+          setPath(state, key, modules[key].state || {});
+        });
+      }
+
+      /**
+       * Bind mutations for each module to its sub tree and
+       * merge them all into one final mutations map.
+       *
+       * @param {Object} updatedModules
+       */
+
+    }, {
+      key: '_setupModuleMutations',
+      value: function _setupModuleMutations(updatedModules) {
+        var modules = this._modules;
+        var getPath = Vue.parsers.path.getPath;
+
+        var allMutations = [this._rootMutations];
+        Object.keys(updatedModules).forEach(function (key) {
+          modules[key] = updatedModules[key];
+        });
+        Object.keys(modules).forEach(function (key) {
+          var module = modules[key];
+          if (!module || !module.mutations) return;
+          // bind mutations to sub state tree
+          var mutations = {};
+          Object.keys(module.mutations).forEach(function (name) {
+            var original = module.mutations[name];
+            mutations[name] = function (state) {
+              for (var _len3 = arguments.length, args = Array(_len3 > 1 ? _len3 - 1 : 0), _key3 = 1; _key3 < _len3; _key3++) {
+                args[_key3 - 1] = arguments[_key3];
+              }
+
+              original.apply(undefined, [getPath(state, key)].concat(args));
+            };
+          });
+          allMutations.push(mutations);
+        });
+        this._mutations = mergeObjects(allMutations);
+      }
+
+      /**
+       * Setup mutation check: if the vuex instance's state is mutated
+       * outside of a mutation handler, we throw en error. This effectively
+       * enforces all mutations to the state to be trackable and hot-reloadble.
+       * However, this comes at a run time cost since we are doing a deep
+       * watch on the entire state tree, so it is only enalbed with the
+       * strict option is set to true.
+       */
+
+    }, {
+      key: '_setupMutationCheck',
+      value: function _setupMutationCheck() {
+        var _this4 = this;
+
+        var Watcher = getWatcher(this._vm);
+        /* eslint-disable no-new */
+        new Watcher(this._vm, '$data', function () {
+          if (!_this4._dispatching) {
+            throw new Error('[vuex] Do not mutate vuex store state outside mutation handlers.');
+          }
+        }, { deep: true, sync: true });
+        /* eslint-enable no-new */
+      }
+
+      /**
+       * Setup the middlewares. The devtools middleware is always
+       * included, since it does nothing if no devtool is detected.
+       *
+       * A middleware can demand the state it receives to be
+       * "snapshots", i.e. deep clones of the actual state tree.
+       *
+       * @param {Array} middlewares
+       * @param {Object} state
+       */
+
+    }, {
+      key: '_setupMiddlewares',
+      value: function _setupMiddlewares(middlewares, state) {
+        var _this5 = this;
+
+        this._middlewares = [devtoolMiddleware].concat(middlewares);
+        this._needSnapshots = middlewares.some(function (m) {
+          return m.snapshot;
+        });
+        if (this._needSnapshots) {
+          console.log('[vuex] One or more of your middlewares are taking state snapshots ' + 'for each mutation. Make sure to use them only during development.');
+        }
+        var initialSnapshot = this._prevSnapshot = this._needSnapshots ? deepClone(state) : null;
+        // call init hooks
+        this._middlewares.forEach(function (m) {
+          if (m.onInit) {
+            m.onInit(m.snapshot ? initialSnapshot : state, _this5);
+          }
+        });
+      }
+    }, {
+      key: 'state',
+      get: function get() {
+        return this._vm._data;
+      },
+      set: function set(v) {
+        throw new Error('[vuex] Vuex root state is read only.');
+      }
+    }]);
+    return Store;
+  }();
+
+  function install(_Vue) {
+    Vue = _Vue;
+    override(Vue);
+  }
+
+  // auto install in dist mode
+  if (typeof window !== 'undefined' && window.Vue) {
+    install(window.Vue);
+  }
+
+  function createLogger() {
+    console.warn('[vuex] Vuex.createLogger has been deprecated.' + 'Use `import createLogger from \'vuex/logger\' instead.');
+  }
+
+  var index = {
+    Store: Store,
+    install: install,
+    createLogger: createLogger
+  };
+
+  return index;
+
+}));
+}).apply(this, arguments);
+
+},{}],198:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/ws/lib/browser.js", module);
 (function(){
 
@@ -44029,7 +44610,7 @@ if (WebSocket) ws.prototype = WebSocket.prototype;
 
 }).apply(this, arguments);
 
-},{}],198:[function(require,module,exports){
+},{}],199:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/app.vue", module);
 (function(){
 'use strict';
@@ -44054,25 +44635,22 @@ var _overlay = require('./components/shared/overlay.vue');
 
 var _overlay2 = _interopRequireDefault(_overlay);
 
+var _store = require('./state/store');
+
+var _store2 = _interopRequireDefault(_store);
+
 var _shared = require('./stores/shared');
 
 var _shared2 = _interopRequireDefault(_shared);
 
-var _playlist = require('./stores/playlist');
-
-var _playlist2 = _interopRequireDefault(_playlist);
-
-var _setting = require('./stores/setting');
-
-var _setting2 = _interopRequireDefault(_setting);
+var _actions = require('./state/actions');
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 exports.default = {
+    store: _store2.default,
     components: { sidebar: _sidebar2.default, mainContent: _index2.default, overlay: _overlay2.default },
-
     replace: false,
-
     data: function data() {
         return {
             loading: false
@@ -44086,12 +44664,9 @@ exports.default = {
         // Make the most important HTTP request to get all necessary data from the server.
         // Afterwards, init all mandatory stores and services.
         _shared2.default.init(function () {
-            _this.initStores();
+
             // Hide the overlaying loading screen.
             _this.toggleOverlay();
-
-            // Ask for user's notificatio permission.
-            _this.requestNotifPermission();
 
             // Let all other components know we're ready.
             _this.$broadcast('fpp:ready');
@@ -44099,39 +44674,23 @@ exports.default = {
     },
 
     methods: {
-        /**
-         * Initialize all stores to be used throughout the application.
-         */
-
-        initStores: function initStores() {
-            // playlistStore.init();
-            // settingStore.init();
-        },
-
-        /**
-         * Load (display) a main panel (view).
-         *
-         * @param string view The view, which can be found under components/main/main-content.
-         */
-        loadMainView: function loadMainView(view) {
-            this.$broadcast('main-content-view:load', view);
-        },
-
-        /**
-         * Load a playlist into the main panel.
-         *
-         * @param object playlist The playlist object
-         */
-        loadPlaylist: function loadPlaylist(playlist) {
-            this.$broadcast('playlist:load', playlist);
-            this.loadMainView('playlist');
-        },
 
         /**
          * Show or hide the loading overlay.
          */
+
         toggleOverlay: function toggleOverlay() {
             this.loading = !this.loading;
+        }
+    },
+    vuex: {
+        actions: {
+            rebootDevice: _actions.rebootDevice,
+            shutdownDevice: _actions.shutdownDevice,
+            startFPPD: _actions.startFPPD,
+            stopFPPD: _actions.stopFPPD,
+            restartFPPD: _actions.restartFPPD,
+            requestStatus: _actions.requestStatus
         }
     }
 };
@@ -44150,7 +44709,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"./components/index.vue":206,"./components/shared/overlay.vue":237,"./components/sidebar.vue":242,"./stores/playlist":251,"./stores/setting":252,"./stores/shared":253,"jquery":80,"vue":195,"vue-hot-reload-api":171}],199:[function(require,module,exports){
+},{"./components/index.vue":207,"./components/shared/overlay.vue":238,"./components/sidebar.vue":243,"./state/actions":253,"./state/store":257,"./stores/shared":258,"jquery":80,"vue":195,"vue-hot-reload-api":171}],200:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/dashboard.vue", module);
 (function(){
 "use strict";
@@ -44201,7 +44760,7 @@ exports.default = {
 
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"dashboard\" class=\"container-fluid\">\n        <div class=\"row\">\n            <div class=\"col-xs-12 col-lg-7\">\n                <status-widget></status-widget>\n            </div>\n           \n            <div class=\"col-xs-12 col-lg-5\">\n                <div class=\"row\">\n                    <div class=\"col-xs-12 col-md-6 col-lg-12\">\n                        \n                        <div class=\"panel box widget bg-azure\">\n                             <span class=\"widget-bg-icon\">\n                                    <i class=\"ion-clock fs-20\"></i>\n                                </span>\n                            <div class=\"panel-heading\">\n                                <div class=\"panel-title text-white hint-text\">FPP Time</div>\n                            </div>\n                            <div class=\"panel-body\">\n                                <h4 class=\"text-lg m-a-0 text-white\">{{ time }}</h4>\n                                <h6 class=\"hint-text m-a-0 text-white\">{{ date }}</h6>\n                               \n                            </div>\n                        </div>\n                      \n                    </div>\n                    <div class=\"col-xs-12 col-md-6 col-lg-12\">\n                        <div class=\"box widget p-a-1 col-xs-6 col-lg-12\">\n                           <!--  <div class=\"row\">\n                                <div class=\"col-xs-1\"> -->\n                                    <span class=\"pull-xs-left m-r-1 rounded bg-info widget-icon\">\n                                        <i class=\"ion-calendar\"></i>\n                                   </span>\n                                <!-- </div> --> \n                                <div class=\"clear\">\n\n                                    <h4 class=\"m-a-0\">Next <span class=\"semi-bold\">Playlist</span> <span class=\"pull-xs-right\">6:00 pm</span></h4>\n                                      \n                                    <h6 class=\"m-a-0 text-muted small-text \"><span class=\"all-caps ls-1\">Main Playlist</span> <span class=\"pull-xs-right\">{{ next }}</span></h6>\n                                </div>\n                            <!-- </div> -->\n                           \n                        </div>\n                    </div>\n                </div>\n                \n            </div>\n            \n        </div>\n        <div class=\"row\">\n            <div class=\"col-xs-12\">\n                <player-widget></player-widget>\n            </div>\n        </div>\n        \n    </div>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"dashboard\" class=\"dashboard\">\n        \n            <div class=\"row\">\n                <div class=\"col-xs-12 col-lg-7\">\n                    <status-widget></status-widget>\n                </div>\n               \n                <div class=\"col-xs-12 col-lg-5\">\n                    <div class=\"row\">\n                        <div class=\"col-xs-12 col-md-6 col-lg-12\">\n                            \n                            <div class=\"panel box widget bg-azure\">\n                                 <span class=\"widget-bg-icon\">\n                                        <i class=\"ion-clock\"></i>\n                                    </span>\n                                <div class=\"panel-heading\">\n                                    <div class=\"panel-title text-white hint-text\">FPP Time</div>\n                                </div>\n                                <div class=\"panel-body\">\n                                    <h4 class=\"text-lg m-a-0 text-white\">{{ time }}</h4>\n                                    <h6 class=\"hint-text m-a-0 text-white\">{{ date }}</h6>\n                                   \n                                </div>\n                            </div>\n                          \n                        </div>\n                        <div class=\"col-xs-12 col-md-6 col-lg-12\">\n                            <div class=\"box widget p-a-1 col-xs-6 col-lg-12\">\n                               <!--  <div class=\"row\">\n                                    <div class=\"col-xs-1\"> -->\n                                        <span class=\"pull-xs-left m-r-1 rounded bg-info widget-icon\">\n                                            <i class=\"ion-calendar\"></i>\n                                       </span>\n                                    <!-- </div> --> \n                                    <div class=\"clear\">\n\n                                        <h4 class=\"m-a-0\">Next <span class=\"semi-bold\">Playlist</span> <span class=\"pull-xs-right\">6:00 pm</span></h4>\n                                          \n                                        <h6 class=\"m-a-0 text-muted small-text \"><span class=\"all-caps ls-1\">Main Playlist</span> <span class=\"pull-xs-right\">{{ next }}</span></h6>\n                                    </div>\n                                <!-- </div> -->\n                               \n                            </div>\n                        </div>\n                    </div>\n                    \n                </div>\n                \n            </div>\n            <div class=\"row\">\n                <div class=\"col-xs-12\">\n                    <player-widget></player-widget>\n                </div>\n            </div>\n            \n    </div>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
@@ -44215,7 +44774,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"./widgets/player.vue":244,"./widgets/status.vue":245,"./widgets/weather.vue":246,"moment":150,"vue":195,"vue-hot-reload-api":171}],200:[function(require,module,exports){
+},{"./widgets/player.vue":245,"./widgets/status.vue":246,"./widgets/weather.vue":247,"moment":150,"vue":195,"vue-hot-reload-api":171}],201:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/effects.vue", module);
 (function(){
 "use strict";
@@ -44250,7 +44809,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":195,"vue-hot-reload-api":171}],201:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171}],202:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/events.vue", module);
 (function(){
 "use strict";
@@ -44285,7 +44844,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":195,"vue-hot-reload-api":171}],202:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171}],203:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/files.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".file-manager .nav-tabs {\n  margin-bottom: 0 !important; }\n  .file-manager .nav-tabs ~ .tab-content {\n    padding-top: 0; }\n\n.file-manager .tab-pane .info {\n  text-align: center;\n  padding: 20px 20px 0;\n  color: #788B94;\n  border-top: 1px solid #eaeaea; }\n\n.file-manager .file-upload-form {\n  min-height: 250px;\n  padding: 25px;\n  border: 1px dashed #eaeaea;\n  border-radius: 2px;\n  background: #fafafa; }\n  .file-manager .file-upload-form h4 {\n    font-weight: 300;\n    margin-bottom: 0; }\n\n.file-manager .upload-message {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column;\n  -webkit-justify-content: center;\n      -ms-flex-pack: center;\n          justify-content: center;\n  -webkit-align-items: center;\n      -ms-flex-align: center;\n          align-items: center;\n  height: 195px; }\n  .file-manager .upload-message p {\n    margin: 0; }\n")
@@ -44340,7 +44899,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"./shared/Tab.vue":228,"./shared/Tabset.vue":229,"./shared/filelist.vue":234,"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],203:[function(require,module,exports){
+},{"./shared/Tab.vue":229,"./shared/Tabset.vue":230,"./shared/filelist.vue":235,"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],204:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/footer.vue", module);
 (function(){
 "use strict";
@@ -44375,7 +44934,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":195,"vue-hot-reload-api":171}],204:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171}],205:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/header/index.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("\n.navbar.header-menu {\n    padding: 10px 0 0;\n}\n")
@@ -44426,7 +44985,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../shared/control-buttons.vue":231,"../shared/header-menu.vue":235,"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],205:[function(require,module,exports){
+},{"../shared/control-buttons.vue":232,"../shared/header-menu.vue":236,"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],206:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/header/settings.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".settings-header {\n  -webkit-flex-flow: wrap;\n      -ms-flex-flow: wrap;\n          flex-flow: wrap;\n  padding: 20px 20px 0;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n  .settings-header .settings-menu {\n    width: 100%;\n    padding: 10px 0 0; }\n    .settings-header .settings-menu a {\n      display: block;\n      text-transform: uppercase;\n      letter-spacing: 0.1em;\n      font-size: 11px;\n      border-bottom: 3px solid transparent;\n      padding: 3px 5px;\n      margin-bottom: -1px; }\n      .settings-header .settings-menu a.active {\n        font-weight: 600;\n        border-color: #F04124; }\n  @media (min-width: 668px) {\n    .settings-header {\n      -webkit-flex-direction: row;\n          -ms-flex-direction: row;\n              flex-direction: row; } }\n")
@@ -44473,7 +45032,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../shared/control-buttons.vue":231,"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],206:[function(require,module,exports){
+},{"../shared/control-buttons.vue":232,"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],207:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/index.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("#main-wrapper {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n")
@@ -44516,7 +45075,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"./footer.vue":203,"./header/index.vue":204,"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],207:[function(require,module,exports){
+},{"./footer.vue":204,"./header/index.vue":205,"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],208:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/not-found.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".error-404 {\n  text-align: center; }\n")
@@ -44545,7 +45104,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],208:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],209:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/outputs/dmx.vue", module);
 (function(){
 "use strict";
@@ -44618,7 +45177,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../mixins/outputMixin":249,"../shared/input.vue":236,"../shared/switch.vue":239,"./pdmx.vue":214,"vue":195,"vue-hot-reload-api":171}],209:[function(require,module,exports){
+},{"../../mixins/outputMixin":250,"../shared/input.vue":237,"../shared/switch.vue":240,"./pdmx.vue":215,"vue":195,"vue-hot-reload-api":171}],210:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/outputs/e131.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".universe-list .form-control {\n  padding: .25rem .50rem;\n  line-height: 1.3; }\n\n.universe-list .c-select {\n  padding: .22rem 1.5rem .23rem .50rem; }\n\n.universe-list .universe-index {\n  min-width: 50px;\n  width: 50px;\n  text-align: center; }\n\n.universe-list .universe-active {\n  min-width: 50px;\n  width: 50px;\n  text-align: center; }\n\n.universe-list .universe-number {\n  min-width: 80px;\n  width: 80px;\n  text-align: center; }\n\n.universe-list .universe-start {\n  min-width: 80px;\n  width: 80px;\n  text-align: center; }\n\n.universe-list .universe-size {\n  min-width: 80px;\n  width: 80px;\n  text-align: center; }\n\n.universe-list .universe-type {\n  min-width: 115px;\n  width: 115px;\n  text-align: center; }\n\n.universe-list .universe-address {\n  min-width: 150px;\n  width: 150px;\n  text-align: center; }\n\n.universe-list .universe-action {\n  text-align: center; }\n\n.enable-output small, .enable-output .label-switch {\n  display: inline-block;\n  margin-bottom: 0;\n  vertical-align: middle; }\n")
@@ -44656,6 +45215,8 @@ var _outputMixin = require("../../mixins/outputMixin");
 
 var _outputMixin2 = _interopRequireDefault(_outputMixin);
 
+var _actions = require("../../state/actions");
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 var universeStub = {
@@ -44681,18 +45242,20 @@ exports.default = {
             defAddress: null,
             incrementStart: true,
             incrementUniv: true,
-            quantity: 1,
-            outputs: [{ active: true, number: 1, start: 1, type: 'unicast', size: 512, address: '10.10.10.10', label: 'The Label' }, { active: true, number: 2, start: 513, type: 'unicast', size: 512, address: '10.10.10.10', label: 'The Label' }]
+            quantity: 1
 
         };
     },
     ready: function ready() {},
 
     methods: {
+        onToggle: function onToggle(model) {
+            this.toggleOutputs('e131', model);
+        },
         assembleNewOutput: function assembleNewOutput(last) {
             return {
                 active: true,
-                number: this.incrementUniv ? last.number + 1 : 1,
+                universe: this.incrementUniv ? last.universe + 1 : 1,
                 start: this.incrementStart ? last.start + last.size + 1 : 1,
                 type: this.defType,
                 size: this.defSize,
@@ -44700,11 +45263,24 @@ exports.default = {
                 label: null
             };
         }
+    },
+    vuex: {
+        actions: {
+            toggleOutputs: _actions.toggleOutputs
+        },
+        getters: {
+            outputs: function outputs(state) {
+                return state.outputs.e131.outputs;
+            },
+            enabled: function enabled(state) {
+                return state.outputs.e131.enabled;
+            }
+        }
     }
 
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n     <div id=\"e131-settings\" class=\"outputs-container container-fluid box\">   \n     <div class=\"box-header\">\n         <h4 class=\"box-title\"><span class=\"semi-bold\">E131</span> Outputs</h4>     \n     </div>\n     <div class=\"box-tool\">\n         <div class=\"enable-output\">\n           <small>Enable Outputs </small>\n           <switch :model.sync=\"enable_e131\"></switch>\n         </div>\n     </div>\n     <div class=\"box-body\">\n        <form>\n            <div class=\"output-actions\">\n                <div class=\"filter-row align-end\">\n                    <div class=\"filter text-xs-center\">\n                        <span>Active</span>\n                        <switch :model.sync=\"defActive\" size=\"small\"></switch>\n                    </div>\n                     <div class=\"filter text-xs-center\">\n                        <span>Increment Universe</span>\n                        <switch :model.sync=\"incrementUniv\" size=\"small\"></switch>\n                    </div>\n                     <div class=\"filter text-xs-center\">\n                        <span>Increment Start</span>\n                        <switch :model.sync=\"incrementStart\" size=\"small\"></switch>\n                    </div>\n                </div>\n                <div class=\"filter-row\">\n                  \n                    \n                    <div class=\"filter\">\n                         <form-input :model.sync=\"defStart\" type=\"number\" label=\"Start\" size=\"sm\" state-icon=\"\">\n                        </form-input>\n                    </div>\n                    <div class=\"filter\">\n                         <form-input :model.sync=\"defSize\" type=\"number\" label=\"Size\" size=\"sm\" state-icon=\"\">\n                        </form-input>\n                    </div>\n\n                    <div class=\"filter\">\n                        <div class=\"form-group\">\n                            <label for=\"\" class=\"control-label\">Type</label>\n                            <div class=\"input\">\n                                <select v-model=\"defType\" class=\"c-select\" style=\"padding-top: 0.25rem; padding-bottom: 0.275rem;\">\n                                    <option value=\"unicast\">Unicast</option>\n                                    <option value=\"multicast\">Multicast</option>\n                                </select>  \n                            </div>\n                        </div>\n                    </div>\n                    <div class=\"filter\">\n                        <form-input :model.sync=\"defAddress\" type=\"text\" label=\"Address\" size=\"sm\" state-icon=\"\">\n                        </form-input>\n                       \n                    </div>\n                    <div class=\"filter\">\n                         <form-input :model.sync=\"quantity\" type=\"number\" label=\"# of Outputs\" size=\"sm\" state-icon=\"\">\n                        </form-input>\n                    </div>\n                </div>\n                <div class=\"filter-row\">\n\n                    <button @click=\"addOutput\" type=\"button\" class=\"button btn-primary pull-xs-right m-a-0\">{{ addOutputLabel }}</button>\n                </div>\n                    \n            </div>\n            <!-- <div id=\"universe-outputs\"> -->\n                <div class=\"universe-list output-list table-responsive\">\n                    <!-- <div class=\"table-responsive\"> -->\n                        <table class=\"table table-sm table-hover\">\n                            <thead>\n                            <tr>\n                                <th class=\"text-xs-center universe-active\"></th>\n                                <th class=\"text-xs-center universe-index\">#</th>\n                                <th class=\"text-xs-center universe-number\">Universe</th>\n                                <th class=\"text-xs-center universe-start\">Start</th>\n                                <th class=\"text-xs-center universe-size\">Size</th>\n                                <th class=\"text-xs-center universe-type\">Type</th>\n                                <th class=\"text-xs-center universe-address\" style=\"width: 150px\">Unicast Address</th>\n                                <th class=\"text-xs-center universe-label\">Label</th>\n                                <th class=\"text-xs-center universe-action p-r-1\" style=\"width: 45px\"></th>\n                            </tr>\n                            </thead>\n                            <tbody>\n                                <tr is=\"universe\" v-for=\"(index, universe) in outputs\" :index=\"index\" :universe.sync=\"universe\"></tr>\n                            </tbody>\n                        </table>\n                    <!-- </div> -->\n                    \n                </div>\n            <!-- </div> -->\n        </form>\n        </div>\n    </div>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n     <div id=\"e131-settings\" class=\"outputs-container container-fluid box\">   \n     <div class=\"box-header\">\n         <h4 class=\"box-title\"><span class=\"semi-bold\">E131</span> Outputs</h4>     \n     </div>\n     <div class=\"box-tool\">\n         <div class=\"enable-output\">\n           <small>Enable Outputs </small>\n           <switch :model=\"enabled\" :on-change=\"onToggle\"></switch>\n         </div>\n     </div>\n     <div class=\"box-body\">\n        <form>\n            <div class=\"output-actions\">\n                <div class=\"filter-row align-end\">\n                    <div class=\"filter text-xs-center\">\n                        <span>Active</span>\n                        <switch :model.sync=\"defActive\" size=\"small\"></switch>\n                    </div>\n                     <div class=\"filter text-xs-center\">\n                        <span>Increment Universe</span>\n                        <switch :model.sync=\"incrementUniv\" size=\"small\"></switch>\n                    </div>\n                     <div class=\"filter text-xs-center\">\n                        <span>Increment Start</span>\n                        <switch :model.sync=\"incrementStart\" size=\"small\"></switch>\n                    </div>\n                </div>\n                <div class=\"filter-row\">\n                    <div class=\"filter\">\n                         <form-input :model.sync=\"defStart\" type=\"number\" label=\"Start\" size=\"sm\" state-icon=\"\">\n                        </form-input>\n                    </div>\n                    <div class=\"filter\">\n                         <form-input :model.sync=\"defSize\" type=\"number\" label=\"Size\" size=\"sm\" state-icon=\"\">\n                        </form-input>\n                    </div>\n\n                    <div class=\"filter\">\n                        <div class=\"form-group\">\n                            <label for=\"\" class=\"control-label\">Type</label>\n                            <div class=\"input\">\n                                <select v-model=\"defType\" class=\"c-select\" style=\"padding-top: 0.25rem; padding-bottom: 0.275rem;\">\n                                    <option value=\"unicast\">Unicast</option>\n                                    <option value=\"multicast\">Multicast</option>\n                                </select>  \n                            </div>\n                        </div>\n                    </div>\n                    <div class=\"filter\">\n                        <form-input :model.sync=\"defAddress\" type=\"text\" label=\"Address\" size=\"sm\" state-icon=\"\">\n                        </form-input>\n                       \n                    </div>\n                    <div class=\"filter\">\n                         <form-input :model.sync=\"quantity\" type=\"number\" label=\"# of Outputs\" size=\"sm\" state-icon=\"\">\n                        </form-input>\n                    </div>\n                </div>\n                <div class=\"filter-row\">\n\n                    <button @click=\"addOutput\" type=\"button\" class=\"button btn-primary pull-xs-right m-a-0\">{{ addOutputLabel }}</button>\n                </div>\n                    \n            </div>\n            <!-- <div id=\"universe-outputs\"> -->\n                <div class=\"universe-list output-list table-responsive\">\n                    <!-- <div class=\"table-responsive\"> -->\n                        <table class=\"table table-sm table-hover\">\n                            <thead>\n                            <tr>\n                                <th class=\"text-xs-center universe-active\"></th>\n                                <th class=\"text-xs-center universe-index\">#</th>\n                                <th class=\"text-xs-center universe-number\">Universe</th>\n                                <th class=\"text-xs-center universe-start\">Start</th>\n                                <th class=\"text-xs-center universe-size\">Size</th>\n                                <th class=\"text-xs-center universe-type\">Type</th>\n                                <th class=\"text-xs-center universe-address\" style=\"width: 150px\">Unicast Address</th>\n                                <th class=\"text-xs-center universe-label\">Label</th>\n                                <th class=\"text-xs-center universe-action p-r-1\" style=\"width: 45px\"></th>\n                            </tr>\n                            </thead>\n                            <tbody>\n                                <tr is=\"universe\" v-for=\"(index, universe) in outputs\" :index=\"index\" :universe.sync=\"universe\"></tr>\n                            </tbody>\n                        </table>\n                    <!-- </div> -->\n                    \n                </div>\n            <!-- </div> -->\n        </form>\n        </div>\n    </div>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
@@ -44722,7 +45298,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../directives/ip":247,"../../mixins/outputMixin":249,"../shared/checkbox.vue":230,"../shared/dropdown-select.vue":232,"../shared/input.vue":236,"../shared/switch.vue":239,"./universe.vue":215,"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],210:[function(require,module,exports){
+},{"../../directives/ip":248,"../../mixins/outputMixin":250,"../../state/actions":253,"../shared/checkbox.vue":231,"../shared/dropdown-select.vue":233,"../shared/input.vue":237,"../shared/switch.vue":240,"./universe.vue":216,"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],211:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/outputs/index.vue", module);
 (function(){
 "use strict";
@@ -44730,6 +45306,9 @@ _hmr["websocket:null"].initModule("resources/assets/js/components/outputs/index.
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
+
+var _actions = require("../../state/actions");
+
 exports.default = {
     components: {},
     props: [],
@@ -44739,7 +45318,17 @@ exports.default = {
     ready: function ready() {},
 
     methods: {},
-    events: {}
+    events: {},
+    created: function created() {
+        this.getAllOutputs();
+    },
+
+    vuex: {
+
+        actions: {
+            getAllOutputs: _actions.getAllOutputs
+        }
+    }
 
 };
 if (module.exports.__esModule) module.exports = module.exports.default
@@ -44757,7 +45346,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":195,"vue-hot-reload-api":171}],211:[function(require,module,exports){
+},{"../../state/actions":253,"vue":195,"vue-hot-reload-api":171}],212:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/outputs/led-panel.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".led-panel {\n  position: relative;\n  background-color: #eaeaea;\n  border: 1px solid #ddd;\n  margin-bottom: 5px;\n  background-repeat: no-repeat;\n  background-position: center;\n  background-size: 15%; }\n  .led-panel:before {\n    display: block;\n    content: \"\";\n    width: 100%;\n    padding-top: 50%; }\n  .led-panel.left-orient:before, .led-panel.right-orient:before {\n    padding-top: 150%; }\n  .led-panel.left-orient {\n    background-image: url(\"/img/arrow-left.svg\"); }\n  .led-panel.right-orient {\n    background-image: url(\"/img/arrow-right.svg\"); }\n  .led-panel.up-orient {\n    background-image: url(\"/img/arrow-up.svg\"); }\n  .led-panel.down-orient {\n    background-image: url(\"/img/arrow-down.svg\"); }\n  .led-panel.panel32:before {\n    padding-top: 100%; }\n  .led-panel-content {\n    position: absolute;\n    top: 0;\n    left: 0;\n    right: 0;\n    bottom: 0;\n    padding: 10px;\n    overflow: hidden;\n    text-align: center; }\n  .led-panel .panel-info {\n    overflow: hidden;\n    line-height: 1.2;\n    text-transform: uppercase;\n    font-size: 12px;\n    color: #607179;\n    display: inline-block;\n    text-align: center;\n    margin: 2px 5px;\n    font-weight: bold; }\n    .led-panel .panel-info-label {\n      color: #788B94;\n      display: block;\n      font-size: 10px;\n      font-weight: normal; }\n  .led-panel.panel-col-2 {\n    width: calc(99.99% * 1/2 - (3px - 3px * 1/2));\n    height: calc(99.99% * 1/2 - (3px - 3px * 1/2)); }\n  .led-panel.panel-col-2:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-2:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-2:nth-child(2n) {\n  margin-right: 0; }\n  .led-panel.panel-col-2:nth-child(2n + 1) {\n  clear: left; }\n  .led-panel.panel-col-2:nth-last-child(-n + 2) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-3 {\n    width: calc(99.99% * 1/3 - (3px - 3px * 1/3));\n    height: calc(99.99% * 1/3 - (3px - 3px * 1/3)); }\n  .led-panel.panel-col-3:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-3:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-3:nth-child(3n) {\n  margin-right: 0; }\n  .led-panel.panel-col-3:nth-child(3n + 1) {\n  clear: left; }\n  .led-panel.panel-col-3:nth-last-child(-n + 3) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-4 {\n    width: calc(99.99% * 1/4 - (3px - 3px * 1/4));\n    height: calc(99.99% * 1/4 - (3px - 3px * 1/4)); }\n  .led-panel.panel-col-4:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-4:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-4:nth-child(4n) {\n  margin-right: 0; }\n  .led-panel.panel-col-4:nth-child(4n + 1) {\n  clear: left; }\n  .led-panel.panel-col-4:nth-last-child(-n + 4) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-5 {\n    width: calc(99.99% * 1/5 - (3px - 3px * 1/5));\n    height: calc(99.99% * 1/5 - (3px - 3px * 1/5)); }\n  .led-panel.panel-col-5:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-5:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-5:nth-child(5n) {\n  margin-right: 0; }\n  .led-panel.panel-col-5:nth-child(5n + 1) {\n  clear: left; }\n  .led-panel.panel-col-5:nth-last-child(-n + 5) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-6 {\n    width: calc(99.99% * 1/6 - (3px - 3px * 1/6));\n    height: calc(99.99% * 1/6 - (3px - 3px * 1/6)); }\n  .led-panel.panel-col-6:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-6:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-6:nth-child(6n) {\n  margin-right: 0; }\n  .led-panel.panel-col-6:nth-child(6n + 1) {\n  clear: left; }\n  .led-panel.panel-col-6:nth-last-child(-n + 6) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-7 {\n    width: calc(99.99% * 1/7 - (3px - 3px * 1/7));\n    height: calc(99.99% * 1/7 - (3px - 3px * 1/7)); }\n  .led-panel.panel-col-7:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-7:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-7:nth-child(7n) {\n  margin-right: 0; }\n  .led-panel.panel-col-7:nth-child(7n + 1) {\n  clear: left; }\n  .led-panel.panel-col-7:nth-last-child(-n + 7) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-8 {\n    width: calc(99.99% * 1/8 - (3px - 3px * 1/8));\n    height: calc(99.99% * 1/8 - (3px - 3px * 1/8)); }\n  .led-panel.panel-col-8:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-8:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-8:nth-child(8n) {\n  margin-right: 0; }\n  .led-panel.panel-col-8:nth-child(8n + 1) {\n  clear: left; }\n  .led-panel.panel-col-8:nth-last-child(-n + 8) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-9 {\n    width: calc(99.99% * 1/9 - (3px - 3px * 1/9));\n    height: calc(99.99% * 1/9 - (3px - 3px * 1/9)); }\n  .led-panel.panel-col-9:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-9:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-9:nth-child(9n) {\n  margin-right: 0; }\n  .led-panel.panel-col-9:nth-child(9n + 1) {\n  clear: left; }\n  .led-panel.panel-col-9:nth-last-child(-n + 9) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-9 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n  .led-panel.panel-col-10 {\n    width: calc(99.99% * 1/10 - (3px - 3px * 1/10));\n    height: calc(99.99% * 1/10 - (3px - 3px * 1/10)); }\n  .led-panel.panel-col-10:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-10:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-10:nth-child(10n) {\n  margin-right: 0; }\n  .led-panel.panel-col-10:nth-child(10n + 1) {\n  clear: left; }\n  .led-panel.panel-col-10:nth-last-child(-n + 10) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-10 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n  .led-panel.panel-col-11 {\n    width: calc(99.99% * 1/11 - (3px - 3px * 1/11));\n    height: calc(99.99% * 1/11 - (3px - 3px * 1/11)); }\n  .led-panel.panel-col-11:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-11:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-11:nth-child(11n) {\n  margin-right: 0; }\n  .led-panel.panel-col-11:nth-child(11n + 1) {\n  clear: left; }\n  .led-panel.panel-col-11:nth-last-child(-n + 11) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-11 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-11 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-11 .led-panel-content .panel-info.output, .led-panel.panel-col-11 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-12 {\n    width: calc(99.99% * 1/12 - (3px - 3px * 1/12));\n    height: calc(99.99% * 1/12 - (3px - 3px * 1/12)); }\n  .led-panel.panel-col-12:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-12:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-12:nth-child(12n) {\n  margin-right: 0; }\n  .led-panel.panel-col-12:nth-child(12n + 1) {\n  clear: left; }\n  .led-panel.panel-col-12:nth-last-child(-n + 12) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-12 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-12 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-12 .led-panel-content .panel-info.output, .led-panel.panel-col-12 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-13 {\n    width: calc(99.99% * 1/13 - (3px - 3px * 1/13));\n    height: calc(99.99% * 1/13 - (3px - 3px * 1/13)); }\n  .led-panel.panel-col-13:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-13:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-13:nth-child(13n) {\n  margin-right: 0; }\n  .led-panel.panel-col-13:nth-child(13n + 1) {\n  clear: left; }\n  .led-panel.panel-col-13:nth-last-child(-n + 13) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-13 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-13 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-13 .led-panel-content .panel-info.output, .led-panel.panel-col-13 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-14 {\n    width: calc(99.99% * 1/14 - (3px - 3px * 1/14));\n    height: calc(99.99% * 1/14 - (3px - 3px * 1/14)); }\n  .led-panel.panel-col-14:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-14:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-14:nth-child(14n) {\n  margin-right: 0; }\n  .led-panel.panel-col-14:nth-child(14n + 1) {\n  clear: left; }\n  .led-panel.panel-col-14:nth-last-child(-n + 14) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-14 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-14 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-14 .led-panel-content .panel-info.output, .led-panel.panel-col-14 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-15 {\n    width: calc(99.99% * 1/15 - (3px - 3px * 1/15));\n    height: calc(99.99% * 1/15 - (3px - 3px * 1/15)); }\n  .led-panel.panel-col-15:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-15:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-15:nth-child(15n) {\n  margin-right: 0; }\n  .led-panel.panel-col-15:nth-child(15n + 1) {\n  clear: left; }\n  .led-panel.panel-col-15:nth-last-child(-n + 15) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-15 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-15 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-15 .led-panel-content .panel-info.output, .led-panel.panel-col-15 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-16 {\n    width: calc(99.99% * 1/16 - (3px - 3px * 1/16));\n    height: calc(99.99% * 1/16 - (3px - 3px * 1/16)); }\n  .led-panel.panel-col-16:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-16:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-16:nth-child(16n) {\n  margin-right: 0; }\n  .led-panel.panel-col-16:nth-child(16n + 1) {\n  clear: left; }\n  .led-panel.panel-col-16:nth-last-child(-n + 16) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-16 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-16 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-16 .led-panel-content .panel-info.output, .led-panel.panel-col-16 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-17 {\n    width: calc(99.99% * 1/17 - (3px - 3px * 1/17));\n    height: calc(99.99% * 1/17 - (3px - 3px * 1/17)); }\n  .led-panel.panel-col-17:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-17:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-17:nth-child(17n) {\n  margin-right: 0; }\n  .led-panel.panel-col-17:nth-child(17n + 1) {\n  clear: left; }\n  .led-panel.panel-col-17:nth-last-child(-n + 17) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-17 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-17 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-17 .led-panel-content .panel-info.output, .led-panel.panel-col-17 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-18 {\n    width: calc(99.99% * 1/18 - (3px - 3px * 1/18));\n    height: calc(99.99% * 1/18 - (3px - 3px * 1/18)); }\n  .led-panel.panel-col-18:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-18:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-18:nth-child(18n) {\n  margin-right: 0; }\n  .led-panel.panel-col-18:nth-child(18n + 1) {\n  clear: left; }\n  .led-panel.panel-col-18:nth-last-child(-n + 18) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-18 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-18 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-18 .led-panel-content .panel-info.output, .led-panel.panel-col-18 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-19 {\n    width: calc(99.99% * 1/19 - (3px - 3px * 1/19));\n    height: calc(99.99% * 1/19 - (3px - 3px * 1/19)); }\n  .led-panel.panel-col-19:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-19:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-19:nth-child(19n) {\n  margin-right: 0; }\n  .led-panel.panel-col-19:nth-child(19n + 1) {\n  clear: left; }\n  .led-panel.panel-col-19:nth-last-child(-n + 19) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-19 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-19 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-19 .led-panel-content .panel-info.output, .led-panel.panel-col-19 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-20 {\n    width: calc(99.99% * 1/20 - (3px - 3px * 1/20));\n    height: calc(99.99% * 1/20 - (3px - 3px * 1/20)); }\n  .led-panel.panel-col-20:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-20:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-20:nth-child(20n) {\n  margin-right: 0; }\n  .led-panel.panel-col-20:nth-child(20n + 1) {\n  clear: left; }\n  .led-panel.panel-col-20:nth-last-child(-n + 20) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-20 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-20 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-20 .led-panel-content .panel-info.output, .led-panel.panel-col-20 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-21 {\n    width: calc(99.99% * 1/21 - (3px - 3px * 1/21));\n    height: calc(99.99% * 1/21 - (3px - 3px * 1/21)); }\n  .led-panel.panel-col-21:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-21:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-21:nth-child(21n) {\n  margin-right: 0; }\n  .led-panel.panel-col-21:nth-child(21n + 1) {\n  clear: left; }\n  .led-panel.panel-col-21:nth-last-child(-n + 21) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-21 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-21 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-21 .led-panel-content .panel-info.output, .led-panel.panel-col-21 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-22 {\n    width: calc(99.99% * 1/22 - (3px - 3px * 1/22));\n    height: calc(99.99% * 1/22 - (3px - 3px * 1/22)); }\n  .led-panel.panel-col-22:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-22:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-22:nth-child(22n) {\n  margin-right: 0; }\n  .led-panel.panel-col-22:nth-child(22n + 1) {\n  clear: left; }\n  .led-panel.panel-col-22:nth-last-child(-n + 22) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-22 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-22 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-22 .led-panel-content .panel-info.output, .led-panel.panel-col-22 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-23 {\n    width: calc(99.99% * 1/23 - (3px - 3px * 1/23));\n    height: calc(99.99% * 1/23 - (3px - 3px * 1/23)); }\n  .led-panel.panel-col-23:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-23:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-23:nth-child(23n) {\n  margin-right: 0; }\n  .led-panel.panel-col-23:nth-child(23n + 1) {\n  clear: left; }\n  .led-panel.panel-col-23:nth-last-child(-n + 23) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-23 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-23 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-23 .led-panel-content .panel-info.output, .led-panel.panel-col-23 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-24 {\n    width: calc(99.99% * 1/24 - (3px - 3px * 1/24));\n    height: calc(99.99% * 1/24 - (3px - 3px * 1/24)); }\n  .led-panel.panel-col-24:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-24:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-24:nth-child(24n) {\n  margin-right: 0; }\n  .led-panel.panel-col-24:nth-child(24n + 1) {\n  clear: left; }\n  .led-panel.panel-col-24:nth-last-child(-n + 24) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-24 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-24 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-24 .led-panel-content .panel-info.output, .led-panel.panel-col-24 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-25 {\n    width: calc(99.99% * 1/25 - (3px - 3px * 1/25));\n    height: calc(99.99% * 1/25 - (3px - 3px * 1/25)); }\n  .led-panel.panel-col-25:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-25:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-25:nth-child(25n) {\n  margin-right: 0; }\n  .led-panel.panel-col-25:nth-child(25n + 1) {\n  clear: left; }\n  .led-panel.panel-col-25:nth-last-child(-n + 25) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-25 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-25 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-25 .led-panel-content .panel-info.output, .led-panel.panel-col-25 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-26 {\n    width: calc(99.99% * 1/26 - (3px - 3px * 1/26));\n    height: calc(99.99% * 1/26 - (3px - 3px * 1/26)); }\n  .led-panel.panel-col-26:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-26:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-26:nth-child(26n) {\n  margin-right: 0; }\n  .led-panel.panel-col-26:nth-child(26n + 1) {\n  clear: left; }\n  .led-panel.panel-col-26:nth-last-child(-n + 26) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-26 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-26 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-26 .led-panel-content .panel-info.output, .led-panel.panel-col-26 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-27 {\n    width: calc(99.99% * 1/27 - (3px - 3px * 1/27));\n    height: calc(99.99% * 1/27 - (3px - 3px * 1/27)); }\n  .led-panel.panel-col-27:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-27:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-27:nth-child(27n) {\n  margin-right: 0; }\n  .led-panel.panel-col-27:nth-child(27n + 1) {\n  clear: left; }\n  .led-panel.panel-col-27:nth-last-child(-n + 27) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-27 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-27 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-27 .led-panel-content .panel-info.output, .led-panel.panel-col-27 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-28 {\n    width: calc(99.99% * 1/28 - (3px - 3px * 1/28));\n    height: calc(99.99% * 1/28 - (3px - 3px * 1/28)); }\n  .led-panel.panel-col-28:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-28:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-28:nth-child(28n) {\n  margin-right: 0; }\n  .led-panel.panel-col-28:nth-child(28n + 1) {\n  clear: left; }\n  .led-panel.panel-col-28:nth-last-child(-n + 28) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-28 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-28 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-28 .led-panel-content .panel-info.output, .led-panel.panel-col-28 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-29 {\n    width: calc(99.99% * 1/29 - (3px - 3px * 1/29));\n    height: calc(99.99% * 1/29 - (3px - 3px * 1/29)); }\n  .led-panel.panel-col-29:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-29:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-29:nth-child(29n) {\n  margin-right: 0; }\n  .led-panel.panel-col-29:nth-child(29n + 1) {\n  clear: left; }\n  .led-panel.panel-col-29:nth-last-child(-n + 29) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-29 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-29 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-29 .led-panel-content .panel-info.output, .led-panel.panel-col-29 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-30 {\n    width: calc(99.99% * 1/30 - (3px - 3px * 1/30));\n    height: calc(99.99% * 1/30 - (3px - 3px * 1/30)); }\n  .led-panel.panel-col-30:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-30:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-30:nth-child(30n) {\n  margin-right: 0; }\n  .led-panel.panel-col-30:nth-child(30n + 1) {\n  clear: left; }\n  .led-panel.panel-col-30:nth-last-child(-n + 30) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-30 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-30 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-30 .led-panel-content .panel-info.output, .led-panel.panel-col-30 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-31 {\n    width: calc(99.99% * 1/31 - (3px - 3px * 1/31));\n    height: calc(99.99% * 1/31 - (3px - 3px * 1/31)); }\n  .led-panel.panel-col-31:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-31:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-31:nth-child(31n) {\n  margin-right: 0; }\n  .led-panel.panel-col-31:nth-child(31n + 1) {\n  clear: left; }\n  .led-panel.panel-col-31:nth-last-child(-n + 31) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-31 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-31 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-31 .led-panel-content .panel-info.output, .led-panel.panel-col-31 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-32 {\n    width: calc(99.99% * 1/32 - (3px - 3px * 1/32));\n    height: calc(99.99% * 1/32 - (3px - 3px * 1/32)); }\n  .led-panel.panel-col-32:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-32:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-32:nth-child(32n) {\n  margin-right: 0; }\n  .led-panel.panel-col-32:nth-child(32n + 1) {\n  clear: left; }\n  .led-panel.panel-col-32:nth-last-child(-n + 32) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-32 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-32 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-32 .led-panel-content .panel-info.output, .led-panel.panel-col-32 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-33 {\n    width: calc(99.99% * 1/33 - (3px - 3px * 1/33));\n    height: calc(99.99% * 1/33 - (3px - 3px * 1/33)); }\n  .led-panel.panel-col-33:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-33:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-33:nth-child(33n) {\n  margin-right: 0; }\n  .led-panel.panel-col-33:nth-child(33n + 1) {\n  clear: left; }\n  .led-panel.panel-col-33:nth-last-child(-n + 33) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-33 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-33 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-33 .led-panel-content .panel-info.output, .led-panel.panel-col-33 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-34 {\n    width: calc(99.99% * 1/34 - (3px - 3px * 1/34));\n    height: calc(99.99% * 1/34 - (3px - 3px * 1/34)); }\n  .led-panel.panel-col-34:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-34:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-34:nth-child(34n) {\n  margin-right: 0; }\n  .led-panel.panel-col-34:nth-child(34n + 1) {\n  clear: left; }\n  .led-panel.panel-col-34:nth-last-child(-n + 34) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-34 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-34 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-34 .led-panel-content .panel-info.output, .led-panel.panel-col-34 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-35 {\n    width: calc(99.99% * 1/35 - (3px - 3px * 1/35));\n    height: calc(99.99% * 1/35 - (3px - 3px * 1/35)); }\n  .led-panel.panel-col-35:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-35:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-35:nth-child(35n) {\n  margin-right: 0; }\n  .led-panel.panel-col-35:nth-child(35n + 1) {\n  clear: left; }\n  .led-panel.panel-col-35:nth-last-child(-n + 35) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-35 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-35 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-35 .led-panel-content .panel-info.output, .led-panel.panel-col-35 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-36 {\n    width: calc(99.99% * 1/36 - (3px - 3px * 1/36));\n    height: calc(99.99% * 1/36 - (3px - 3px * 1/36)); }\n  .led-panel.panel-col-36:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-36:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-36:nth-child(36n) {\n  margin-right: 0; }\n  .led-panel.panel-col-36:nth-child(36n + 1) {\n  clear: left; }\n  .led-panel.panel-col-36:nth-last-child(-n + 36) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-36 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-36 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-36 .led-panel-content .panel-info.output, .led-panel.panel-col-36 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-37 {\n    width: calc(99.99% * 1/37 - (3px - 3px * 1/37));\n    height: calc(99.99% * 1/37 - (3px - 3px * 1/37)); }\n  .led-panel.panel-col-37:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-37:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-37:nth-child(37n) {\n  margin-right: 0; }\n  .led-panel.panel-col-37:nth-child(37n + 1) {\n  clear: left; }\n  .led-panel.panel-col-37:nth-last-child(-n + 37) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-37 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-37 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-37 .led-panel-content .panel-info.output, .led-panel.panel-col-37 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-38 {\n    width: calc(99.99% * 1/38 - (3px - 3px * 1/38));\n    height: calc(99.99% * 1/38 - (3px - 3px * 1/38)); }\n  .led-panel.panel-col-38:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-38:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-38:nth-child(38n) {\n  margin-right: 0; }\n  .led-panel.panel-col-38:nth-child(38n + 1) {\n  clear: left; }\n  .led-panel.panel-col-38:nth-last-child(-n + 38) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-38 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-38 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-38 .led-panel-content .panel-info.output, .led-panel.panel-col-38 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-39 {\n    width: calc(99.99% * 1/39 - (3px - 3px * 1/39));\n    height: calc(99.99% * 1/39 - (3px - 3px * 1/39)); }\n  .led-panel.panel-col-39:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-39:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-39:nth-child(39n) {\n  margin-right: 0; }\n  .led-panel.panel-col-39:nth-child(39n + 1) {\n  clear: left; }\n  .led-panel.panel-col-39:nth-last-child(-n + 39) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-39 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-39 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-39 .led-panel-content .panel-info.output, .led-panel.panel-col-39 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-40 {\n    width: calc(99.99% * 1/40 - (3px - 3px * 1/40));\n    height: calc(99.99% * 1/40 - (3px - 3px * 1/40)); }\n  .led-panel.panel-col-40:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-40:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-40:nth-child(40n) {\n  margin-right: 0; }\n  .led-panel.panel-col-40:nth-child(40n + 1) {\n  clear: left; }\n  .led-panel.panel-col-40:nth-last-child(-n + 40) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-40 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-40 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-40 .led-panel-content .panel-info.output, .led-panel.panel-col-40 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-41 {\n    width: calc(99.99% * 1/41 - (3px - 3px * 1/41));\n    height: calc(99.99% * 1/41 - (3px - 3px * 1/41)); }\n  .led-panel.panel-col-41:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-41:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-41:nth-child(41n) {\n  margin-right: 0; }\n  .led-panel.panel-col-41:nth-child(41n + 1) {\n  clear: left; }\n  .led-panel.panel-col-41:nth-last-child(-n + 41) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-41 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-41 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-41 .led-panel-content .panel-info.output, .led-panel.panel-col-41 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-42 {\n    width: calc(99.99% * 1/42 - (3px - 3px * 1/42));\n    height: calc(99.99% * 1/42 - (3px - 3px * 1/42)); }\n  .led-panel.panel-col-42:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-42:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-42:nth-child(42n) {\n  margin-right: 0; }\n  .led-panel.panel-col-42:nth-child(42n + 1) {\n  clear: left; }\n  .led-panel.panel-col-42:nth-last-child(-n + 42) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-42 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-42 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-42 .led-panel-content .panel-info.output, .led-panel.panel-col-42 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-43 {\n    width: calc(99.99% * 1/43 - (3px - 3px * 1/43));\n    height: calc(99.99% * 1/43 - (3px - 3px * 1/43)); }\n  .led-panel.panel-col-43:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-43:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-43:nth-child(43n) {\n  margin-right: 0; }\n  .led-panel.panel-col-43:nth-child(43n + 1) {\n  clear: left; }\n  .led-panel.panel-col-43:nth-last-child(-n + 43) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-43 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-43 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-43 .led-panel-content .panel-info.output, .led-panel.panel-col-43 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-44 {\n    width: calc(99.99% * 1/44 - (3px - 3px * 1/44));\n    height: calc(99.99% * 1/44 - (3px - 3px * 1/44)); }\n  .led-panel.panel-col-44:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-44:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-44:nth-child(44n) {\n  margin-right: 0; }\n  .led-panel.panel-col-44:nth-child(44n + 1) {\n  clear: left; }\n  .led-panel.panel-col-44:nth-last-child(-n + 44) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-44 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-44 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-44 .led-panel-content .panel-info.output, .led-panel.panel-col-44 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-45 {\n    width: calc(99.99% * 1/45 - (3px - 3px * 1/45));\n    height: calc(99.99% * 1/45 - (3px - 3px * 1/45)); }\n  .led-panel.panel-col-45:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-45:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-45:nth-child(45n) {\n  margin-right: 0; }\n  .led-panel.panel-col-45:nth-child(45n + 1) {\n  clear: left; }\n  .led-panel.panel-col-45:nth-last-child(-n + 45) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-45 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-45 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-45 .led-panel-content .panel-info.output, .led-panel.panel-col-45 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-46 {\n    width: calc(99.99% * 1/46 - (3px - 3px * 1/46));\n    height: calc(99.99% * 1/46 - (3px - 3px * 1/46)); }\n  .led-panel.panel-col-46:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-46:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-46:nth-child(46n) {\n  margin-right: 0; }\n  .led-panel.panel-col-46:nth-child(46n + 1) {\n  clear: left; }\n  .led-panel.panel-col-46:nth-last-child(-n + 46) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-46 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-46 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-46 .led-panel-content .panel-info.output, .led-panel.panel-col-46 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-47 {\n    width: calc(99.99% * 1/47 - (3px - 3px * 1/47));\n    height: calc(99.99% * 1/47 - (3px - 3px * 1/47)); }\n  .led-panel.panel-col-47:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-47:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-47:nth-child(47n) {\n  margin-right: 0; }\n  .led-panel.panel-col-47:nth-child(47n + 1) {\n  clear: left; }\n  .led-panel.panel-col-47:nth-last-child(-n + 47) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-47 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-47 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-47 .led-panel-content .panel-info.output, .led-panel.panel-col-47 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-48 {\n    width: calc(99.99% * 1/48 - (3px - 3px * 1/48));\n    height: calc(99.99% * 1/48 - (3px - 3px * 1/48)); }\n  .led-panel.panel-col-48:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-48:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-48:nth-child(48n) {\n  margin-right: 0; }\n  .led-panel.panel-col-48:nth-child(48n + 1) {\n  clear: left; }\n  .led-panel.panel-col-48:nth-last-child(-n + 48) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-48 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-48 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-48 .led-panel-content .panel-info.output, .led-panel.panel-col-48 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-49 {\n    width: calc(99.99% * 1/49 - (3px - 3px * 1/49));\n    height: calc(99.99% * 1/49 - (3px - 3px * 1/49)); }\n  .led-panel.panel-col-49:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-49:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-49:nth-child(49n) {\n  margin-right: 0; }\n  .led-panel.panel-col-49:nth-child(49n + 1) {\n  clear: left; }\n  .led-panel.panel-col-49:nth-last-child(-n + 49) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-49 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-49 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-49 .led-panel-content .panel-info.output, .led-panel.panel-col-49 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-50 {\n    width: calc(99.99% * 1/50 - (3px - 3px * 1/50));\n    height: calc(99.99% * 1/50 - (3px - 3px * 1/50)); }\n  .led-panel.panel-col-50:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-50:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-50:nth-child(50n) {\n  margin-right: 0; }\n  .led-panel.panel-col-50:nth-child(50n + 1) {\n  clear: left; }\n  .led-panel.panel-col-50:nth-last-child(-n + 50) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-50 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-50 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-50 .led-panel-content .panel-info.output, .led-panel.panel-col-50 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-51 {\n    width: calc(99.99% * 1/51 - (3px - 3px * 1/51));\n    height: calc(99.99% * 1/51 - (3px - 3px * 1/51)); }\n  .led-panel.panel-col-51:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-51:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-51:nth-child(51n) {\n  margin-right: 0; }\n  .led-panel.panel-col-51:nth-child(51n + 1) {\n  clear: left; }\n  .led-panel.panel-col-51:nth-last-child(-n + 51) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-51 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-51 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-51 .led-panel-content .panel-info.output, .led-panel.panel-col-51 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-52 {\n    width: calc(99.99% * 1/52 - (3px - 3px * 1/52));\n    height: calc(99.99% * 1/52 - (3px - 3px * 1/52)); }\n  .led-panel.panel-col-52:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-52:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-52:nth-child(52n) {\n  margin-right: 0; }\n  .led-panel.panel-col-52:nth-child(52n + 1) {\n  clear: left; }\n  .led-panel.panel-col-52:nth-last-child(-n + 52) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-52 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-52 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-52 .led-panel-content .panel-info.output, .led-panel.panel-col-52 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-53 {\n    width: calc(99.99% * 1/53 - (3px - 3px * 1/53));\n    height: calc(99.99% * 1/53 - (3px - 3px * 1/53)); }\n  .led-panel.panel-col-53:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-53:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-53:nth-child(53n) {\n  margin-right: 0; }\n  .led-panel.panel-col-53:nth-child(53n + 1) {\n  clear: left; }\n  .led-panel.panel-col-53:nth-last-child(-n + 53) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-53 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-53 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-53 .led-panel-content .panel-info.output, .led-panel.panel-col-53 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-54 {\n    width: calc(99.99% * 1/54 - (3px - 3px * 1/54));\n    height: calc(99.99% * 1/54 - (3px - 3px * 1/54)); }\n  .led-panel.panel-col-54:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-54:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-54:nth-child(54n) {\n  margin-right: 0; }\n  .led-panel.panel-col-54:nth-child(54n + 1) {\n  clear: left; }\n  .led-panel.panel-col-54:nth-last-child(-n + 54) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-54 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-54 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-54 .led-panel-content .panel-info.output, .led-panel.panel-col-54 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-55 {\n    width: calc(99.99% * 1/55 - (3px - 3px * 1/55));\n    height: calc(99.99% * 1/55 - (3px - 3px * 1/55)); }\n  .led-panel.panel-col-55:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-55:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-55:nth-child(55n) {\n  margin-right: 0; }\n  .led-panel.panel-col-55:nth-child(55n + 1) {\n  clear: left; }\n  .led-panel.panel-col-55:nth-last-child(-n + 55) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-55 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-55 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-55 .led-panel-content .panel-info.output, .led-panel.panel-col-55 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-56 {\n    width: calc(99.99% * 1/56 - (3px - 3px * 1/56));\n    height: calc(99.99% * 1/56 - (3px - 3px * 1/56)); }\n  .led-panel.panel-col-56:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-56:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-56:nth-child(56n) {\n  margin-right: 0; }\n  .led-panel.panel-col-56:nth-child(56n + 1) {\n  clear: left; }\n  .led-panel.panel-col-56:nth-last-child(-n + 56) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-56 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-56 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-56 .led-panel-content .panel-info.output, .led-panel.panel-col-56 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-57 {\n    width: calc(99.99% * 1/57 - (3px - 3px * 1/57));\n    height: calc(99.99% * 1/57 - (3px - 3px * 1/57)); }\n  .led-panel.panel-col-57:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-57:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-57:nth-child(57n) {\n  margin-right: 0; }\n  .led-panel.panel-col-57:nth-child(57n + 1) {\n  clear: left; }\n  .led-panel.panel-col-57:nth-last-child(-n + 57) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-57 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-57 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-57 .led-panel-content .panel-info.output, .led-panel.panel-col-57 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-58 {\n    width: calc(99.99% * 1/58 - (3px - 3px * 1/58));\n    height: calc(99.99% * 1/58 - (3px - 3px * 1/58)); }\n  .led-panel.panel-col-58:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-58:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-58:nth-child(58n) {\n  margin-right: 0; }\n  .led-panel.panel-col-58:nth-child(58n + 1) {\n  clear: left; }\n  .led-panel.panel-col-58:nth-last-child(-n + 58) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-58 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-58 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-58 .led-panel-content .panel-info.output, .led-panel.panel-col-58 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-59 {\n    width: calc(99.99% * 1/59 - (3px - 3px * 1/59));\n    height: calc(99.99% * 1/59 - (3px - 3px * 1/59)); }\n  .led-panel.panel-col-59:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-59:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-59:nth-child(59n) {\n  margin-right: 0; }\n  .led-panel.panel-col-59:nth-child(59n + 1) {\n  clear: left; }\n  .led-panel.panel-col-59:nth-last-child(-n + 59) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-59 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-59 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-59 .led-panel-content .panel-info.output, .led-panel.panel-col-59 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-60 {\n    width: calc(99.99% * 1/60 - (3px - 3px * 1/60));\n    height: calc(99.99% * 1/60 - (3px - 3px * 1/60)); }\n  .led-panel.panel-col-60:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-60:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-60:nth-child(60n) {\n  margin-right: 0; }\n  .led-panel.panel-col-60:nth-child(60n + 1) {\n  clear: left; }\n  .led-panel.panel-col-60:nth-last-child(-n + 60) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-60 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-60 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-60 .led-panel-content .panel-info.output, .led-panel.panel-col-60 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-61 {\n    width: calc(99.99% * 1/61 - (3px - 3px * 1/61));\n    height: calc(99.99% * 1/61 - (3px - 3px * 1/61)); }\n  .led-panel.panel-col-61:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-61:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-61:nth-child(61n) {\n  margin-right: 0; }\n  .led-panel.panel-col-61:nth-child(61n + 1) {\n  clear: left; }\n  .led-panel.panel-col-61:nth-last-child(-n + 61) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-61 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-61 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-61 .led-panel-content .panel-info.output, .led-panel.panel-col-61 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-62 {\n    width: calc(99.99% * 1/62 - (3px - 3px * 1/62));\n    height: calc(99.99% * 1/62 - (3px - 3px * 1/62)); }\n  .led-panel.panel-col-62:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-62:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-62:nth-child(62n) {\n  margin-right: 0; }\n  .led-panel.panel-col-62:nth-child(62n + 1) {\n  clear: left; }\n  .led-panel.panel-col-62:nth-last-child(-n + 62) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-62 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-62 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-62 .led-panel-content .panel-info.output, .led-panel.panel-col-62 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-63 {\n    width: calc(99.99% * 1/63 - (3px - 3px * 1/63));\n    height: calc(99.99% * 1/63 - (3px - 3px * 1/63)); }\n  .led-panel.panel-col-63:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-63:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-63:nth-child(63n) {\n  margin-right: 0; }\n  .led-panel.panel-col-63:nth-child(63n + 1) {\n  clear: left; }\n  .led-panel.panel-col-63:nth-last-child(-n + 63) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-63 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-63 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-63 .led-panel-content .panel-info.output, .led-panel.panel-col-63 .led-panel-content .panel-info.panel {\n      display: none; }\n")
@@ -44814,7 +45403,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../shared/popover.vue":238,"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],212:[function(require,module,exports){
+},{"../shared/popover.vue":239,"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],213:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/outputs/other.vue", module);
 (function(){
 "use strict";
@@ -44849,7 +45438,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":195,"vue-hot-reload-api":171}],213:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171}],214:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/outputs/panels.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".led-panels {\n  *zoom: 1;\n  margin: 0 auto; }\n.led-panels:before {\n  content: '';\n  display: table; }\n.led-panels:after {\n  content: '';\n  display: table;\n  clear: both; }\n")
@@ -45005,7 +45594,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../mixins/outputMixin":249,"../shared/input.vue":236,"../shared/switch.vue":239,"./led-panel.vue":211,"babel-runtime/core-js/object/assign":5,"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],214:[function(require,module,exports){
+},{"../../mixins/outputMixin":250,"../shared/input.vue":237,"../shared/switch.vue":240,"./led-panel.vue":212,"babel-runtime/core-js/object/assign":5,"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],215:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/outputs/pdmx.vue", module);
 (function(){
 'use strict';
@@ -45051,40 +45640,37 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../shared/switch.vue":239,"vue":195,"vue-hot-reload-api":171}],215:[function(require,module,exports){
+},{"../shared/switch.vue":240,"vue":195,"vue-hot-reload-api":171}],216:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/outputs/universe.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".universe {\n  transition: opacity 0.35s;\n  opacity: 1; }\n  .universe.disabled {\n    opacity: .4; }\n  .universe-move {\n    transition: -webkit-transform 0.5s cubic-bezier(0.55, 0, 0.1, 1);\n    transition: transform 0.5s cubic-bezier(0.55, 0, 0.1, 1);\n    transition: transform 0.5s cubic-bezier(0.55, 0, 0.1, 1), -webkit-transform 0.5s cubic-bezier(0.55, 0, 0.1, 1); }\n\n.universe-active,\n.universe-action,\n.universe-index {\n  vertical-align: middle !important; }\n  .universe-active .checkbox,\n  .universe-action .checkbox,\n  .universe-index .checkbox {\n    margin-bottom: 0; }\n")
-'use strict';
+"use strict";
 
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
 
-var _switch = require('../shared/switch.vue');
+var _switch = require("../shared/switch.vue");
 
 var _switch2 = _interopRequireDefault(_switch);
+
+var _actions = require("../../state/actions");
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 exports.default = {
     components: { Switch: _switch2.default },
     props: ['universe', 'index'],
-    data: function data() {
-        return {};
-    },
-    ready: function ready() {},
-
-    methods: {
-        removeOutput: function removeOutput() {
-            this.$dispatch('remove-output', this.index);
+    vuex: {
+        actions: {
+            removeOutput: _actions.removeOutput,
+            updateOutput: _actions.updateOutput
         }
-    },
-    events: {}
+    }
 
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <tr class=\"universe output\" :class=\"{ 'disabled' : !universe.active }\">\n        <td class=\"universe-active text-xs-center\">\n            <switch :model.sync=\"universe.active\" size=\"small\"></switch>\n           \n        </td>\n        <td class=\"universe-index text-xs-center\">{{ index + 1 }}</td>\n        <td class=\"universe-number\">\n            <input type=\"number\" v-model=\"universe.number\" class=\"form-control transparent text-xs-center\" number=\"\">\n        </td>\n        <td class=\"universe-start text-xs-center\">\n            <input type=\"number\" v-model=\"universe.start\" class=\"form-control transparent text-xs-center\" number=\"\">\n        </td>\n        <td class=\"universe-size text-xs-center\">\n            <input type=\"number\" v-model=\"universe.size\" max=\"512\" class=\"form-control transparent text-xs-center\" number=\"\">\n        </td>\n        <td class=\"universe-type text-xs-center\">\n            <select class=\"c-select transparent\" v-model=\"universe.type\">\n                <option value=\"unicast\">Unicast</option>\n                <option value=\"multicast\">Multicast</option>\n            </select>\n        </td>\n        <td class=\"universe-address text-xs-center\"><input type=\"text\" v-model=\"universe.address\" :disabled=\"universe.type == 'multicast'\" class=\"form-control transparent text-xs-center\"></td>\n        <td class=\"universe-label text-xs-center\"><input type=\"text\" v-model=\"universe.label\" class=\"form-control transparent\"></td>\n        <td class=\"universe-action text-xs-center p-r-1\">\n            <button type=\"button\" class=\"close\" aria-label=\"Close\" @click=\"removeOutput\">\n                <span aria-hidden=\"true\">×</span>\n            </button>\n        </td>\n    </tr>\n    \n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <tr class=\"universe output\" :class=\"{ 'disabled' : !universe.active }\">\n        <td class=\"universe-active text-xs-center\">\n            <switch :model.sync=\"universe.active\" size=\"small\"></switch>\n           \n        </td>\n        <td class=\"universe-index text-xs-center\">{{ index + 1 }}</td>\n        <td class=\"universe-number\">\n            <input type=\"number\" v-model=\"universe.universe\" class=\"form-control transparent text-xs-center\" number=\"\">\n        </td>\n        <td class=\"universe-start text-xs-center\">\n            <input type=\"number\" v-model=\"universe.start\" class=\"form-control transparent text-xs-center\" number=\"\">\n        </td>\n        <td class=\"universe-size text-xs-center\">\n            <input type=\"number\" v-model=\"universe.size\" max=\"512\" class=\"form-control transparent text-xs-center\" number=\"\">\n        </td>\n        <td class=\"universe-type text-xs-center\">\n            <select class=\"c-select transparent\" v-model=\"universe.type\">\n                <option value=\"unicast\">Unicast</option>\n                <option value=\"multicast\">Multicast</option>\n            </select>\n        </td>\n        <td class=\"universe-address text-xs-center\"><input type=\"text\" v-model=\"universe.address\" :disabled=\"universe.type == 'multicast'\" class=\"form-control transparent text-xs-center\"></td>\n        <td class=\"universe-label text-xs-center\"><input type=\"text\" v-model=\"universe.label\" class=\"form-control transparent\"></td>\n        <td class=\"universe-action text-xs-center p-r-1\">\n            <button type=\"button\" class=\"close\" aria-label=\"Close\" @click=\"removeOutput('e131', index)\">\n                <span aria-hidden=\"true\">×</span>\n            </button>\n        </td>\n    </tr>\n    \n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
@@ -45102,7 +45688,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../shared/switch.vue":239,"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],216:[function(require,module,exports){
+},{"../../state/actions":253,"../shared/switch.vue":240,"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],217:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/overlays.vue", module);
 (function(){
 "use strict";
@@ -45137,7 +45723,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":195,"vue-hot-reload-api":171}],217:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171}],218:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/playlists.vue", module);
 (function(){
 "use strict";
@@ -45172,7 +45758,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":195,"vue-hot-reload-api":171}],218:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171}],219:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/plugins.vue", module);
 (function(){
 "use strict";
@@ -45207,7 +45793,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":195,"vue-hot-reload-api":171}],219:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171}],220:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/schedule.vue", module);
 (function(){
 "use strict";
@@ -45242,7 +45828,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":195,"vue-hot-reload-api":171}],220:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171}],221:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/settings.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("#main-wrapper {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n")
@@ -45288,7 +45874,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"./footer.vue":203,"./header/settings.vue":205,"./settings/index.vue":225,"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],221:[function(require,module,exports){
+},{"./footer.vue":204,"./header/settings.vue":206,"./settings/index.vue":226,"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],222:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/settings/advanced.vue", module);
 (function(){
 "use strict";
@@ -45323,7 +45909,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":195,"vue-hot-reload-api":171}],222:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171}],223:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/settings/date.vue", module);
 (function(){
 "use strict";
@@ -45373,7 +45959,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../shared/switch.vue":239,"vue":195,"vue-hot-reload-api":171}],223:[function(require,module,exports){
+},{"../shared/switch.vue":240,"vue":195,"vue-hot-reload-api":171}],224:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/settings/email.vue", module);
 (function(){
 "use strict";
@@ -45408,7 +45994,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":195,"vue-hot-reload-api":171}],224:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171}],225:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/settings/general.vue", module);
 (function(){
 "use strict";
@@ -45466,7 +46052,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../shared/switch.vue":239,"vue":195,"vue-hot-reload-api":171,"vue-strap/src/Option.vue":192,"vue-strap/src/Select.vue":193}],225:[function(require,module,exports){
+},{"../shared/switch.vue":240,"vue":195,"vue-hot-reload-api":171,"vue-strap/src/Option.vue":192,"vue-strap/src/Select.vue":193}],226:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/settings/index.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".content.settings {\n  padding: 20px;\n  position: relative; }\n")
@@ -45506,7 +46092,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],226:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],227:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/settings/logs.vue", module);
 (function(){
 "use strict";
@@ -45541,7 +46127,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":195,"vue-hot-reload-api":171}],227:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171}],228:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/settings/network.vue", module);
 (function(){
 'use strict';
@@ -45587,7 +46173,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../shared/tab.vue":240,"../shared/tabset.vue":241,"vue":195,"vue-hot-reload-api":171}],228:[function(require,module,exports){
+},{"../shared/tab.vue":241,"../shared/tabset.vue":242,"vue":195,"vue-hot-reload-api":171}],229:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/Tab.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("\n  .tab-content > .tab-pane[_v-3eaa1a77] {\n    display: block;\n  }\n")
@@ -45655,7 +46241,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],229:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],230:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/Tabset.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("\n  .nav-tabs[_v-7a0405bb] {\n    margin-bottom: 15px\n  }\n")
@@ -45707,7 +46293,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],230:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],231:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/checkbox.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".c-checkbox .c-indicator {\n  border-radius: .25rem; }\n\n.c-checkbox input:checked ~ .c-indicator {\n  background-image: url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhLS0gR2VuZXJhdG9yOiBBZG9iZSBJbGx1c3RyYXRvciAxNy4xLjAsIFNWRyBFeHBvcnQgUGx1Zy1JbiAuIFNWRyBWZXJzaW9uOiA2LjAwIEJ1aWxkIDApICAtLT4NCjwhRE9DVFlQRSBzdmcgUFVCTElDICItLy9XM0MvL0RURCBTVkcgMS4xLy9FTiIgImh0dHA6Ly93d3cudzMub3JnL0dyYXBoaWNzL1NWRy8xLjEvRFREL3N2ZzExLmR0ZCI+DQo8c3ZnIHZlcnNpb249IjEuMSIgaWQ9IkxheWVyXzEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4Ig0KCSB2aWV3Qm94PSIwIDAgOCA4IiBlbmFibGUtYmFja2dyb3VuZD0ibmV3IDAgMCA4IDgiIHhtbDpzcGFjZT0icHJlc2VydmUiPg0KPHBhdGggZmlsbD0iI0ZGRkZGRiIgZD0iTTYuNCwxTDUuNywxLjdMMi45LDQuNUwyLjEsMy43TDEuNCwzTDAsNC40bDAuNywwLjdsMS41LDEuNWwwLjcsMC43bDAuNy0wLjdsMy41LTMuNWwwLjctMC43TDYuNCwxTDYuNCwxeiINCgkvPg0KPC9zdmc+DQo=); }\n\n.c-checkbox input:indeterminate ~ .c-indicator {\n  background-color: #0074d9;\n  background-image: url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhLS0gR2VuZXJhdG9yOiBBZG9iZSBJbGx1c3RyYXRvciAxNy4xLjAsIFNWRyBFeHBvcnQgUGx1Zy1JbiAuIFNWRyBWZXJzaW9uOiA2LjAwIEJ1aWxkIDApICAtLT4NCjwhRE9DVFlQRSBzdmcgUFVCTElDICItLy9XM0MvL0RURCBTVkcgMS4xLy9FTiIgImh0dHA6Ly93d3cudzMub3JnL0dyYXBoaWNzL1NWRy8xLjEvRFREL3N2ZzExLmR0ZCI+DQo8c3ZnIHZlcnNpb249IjEuMSIgaWQ9IkxheWVyXzEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4Ig0KCSB3aWR0aD0iOHB4IiBoZWlnaHQ9IjhweCIgdmlld0JveD0iMCAwIDggOCIgZW5hYmxlLWJhY2tncm91bmQ9Im5ldyAwIDAgOCA4IiB4bWw6c3BhY2U9InByZXNlcnZlIj4NCjxwYXRoIGZpbGw9IiNGRkZGRkYiIGQ9Ik0wLDN2Mmg4VjNIMHoiLz4NCjwvc3ZnPg0K);\n  box-shadow: none; }\n")
@@ -45812,7 +46398,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],231:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],232:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/control-buttons.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".control-buttons {\n  margin-bottom: 1rem; }\n  .control-buttons .button {\n    border-radius: 2px;\n    transition: background 0.35s, box-shadow 0.15s;\n    border: 1px solid #c4c4c4;\n    color: #666;\n    background: linear-gradient(to bottom, #f8f8f8, #eaeaea 100%);\n    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }\n    .control-buttons .button:active {\n      box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125); }\n  @media (min-width: 668px) {\n    .control-buttons {\n      margin: 0; } }\n")
@@ -45849,7 +46435,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],232:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],233:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/dropdown-select.vue", module);
 (function(){
 'use strict';
@@ -45998,7 +46584,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":195,"vue-hot-reload-api":171}],233:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171}],234:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/falcon-loading.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("@-webkit-keyframes grow {\n  0% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  33% {\n    opacity: 1;\n    -webkit-transform: scale(1);\n            transform: scale(1); }\n  66% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  100% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); } }\n\n@keyframes grow {\n  0% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  33% {\n    opacity: 1;\n    -webkit-transform: scale(1);\n            transform: scale(1); }\n  66% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  100% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); } }\n\n#load {\n  position: relative;\n  display: inline-block;\n  text-align: center; }\n  #load .letter {\n    display: inline-block;\n    margin: 0 2px;\n    color: white;\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9);\n    -webkit-animation: grow 2.5s ease-in infinite;\n            animation: grow 2.5s ease-in infinite; }\n  #load .letter:nth-child(1) {\n    -webkit-animation-delay: .1s;\n            animation-delay: .1s; }\n  #load .letter:nth-child(2) {\n    -webkit-animation-delay: .15s;\n            animation-delay: .15s; }\n  #load .letter:nth-child(3) {\n    -webkit-animation-delay: .2s;\n            animation-delay: .2s; }\n  #load .letter:nth-child(4) {\n    -webkit-animation-delay: .25s;\n            animation-delay: .25s; }\n  #load .letter:nth-child(5) {\n    -webkit-animation-delay: .3s;\n            animation-delay: .3s; }\n  #load .letter:nth-child(6) {\n    -webkit-animation-delay: .35s;\n            animation-delay: .35s; }\n  #load .letter:nth-child(7) {\n    margin-left: 8px;\n    -webkit-animation-delay: .4s;\n            animation-delay: .4s; }\n  #load .letter:nth-child(8) {\n    -webkit-animation-delay: .45s;\n            animation-delay: .45s; }\n  #load .letter:nth-child(9) {\n    -webkit-animation-delay: .5s;\n            animation-delay: .5s; }\n  #load .letter:nth-child(10) {\n    -webkit-animation-delay: .55s;\n            animation-delay: .55s; }\n  #load .letter:nth-child(11) {\n    -webkit-animation-delay: .6s;\n            animation-delay: .6s; }\n  #load .letter:nth-child(12) {\n    -webkit-animation-delay: .65s;\n            animation-delay: .65s; }\n")
@@ -46027,7 +46613,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],234:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],235:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/filelist.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".file-list .table th {\n  border-top: 0; }\n")
@@ -46067,7 +46653,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],235:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],236:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/header-menu.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".header-menu {\n  width: 100%;\n  padding-top: 10px; }\n  .header-menu a {\n    display: block;\n    text-transform: uppercase;\n    letter-spacing: 0.1em;\n    font-size: 11px;\n    border-bottom: 3px solid transparent;\n    padding: 3px 5px;\n    margin-bottom: -1px; }\n    .header-menu a.active {\n      font-weight: 600;\n      border-color: #F04124; }\n")
@@ -46106,7 +46692,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],236:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],237:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/input.vue", module);
 (function(){
 'use strict';
@@ -46196,7 +46782,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../utils.js":254,"vue":195,"vue-hot-reload-api":171}],237:[function(require,module,exports){
+},{"../../utils.js":259,"vue":195,"vue-hot-reload-api":171}],238:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/overlay.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("#overlay {\n  position: fixed;\n  top: 0;\n  left: 0;\n  z-index: 9999;\n  width: 100%;\n  height: 100%;\n  background-color: #363C47;\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-align-items: center;\n      -ms-flex-align: center;\n          align-items: center;\n  -webkit-justify-content: center;\n      -ms-flex-pack: center;\n          justify-content: center;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n  #overlay .logo {\n    width: 220px;\n    height: 108px;\n    margin-bottom: 15px;\n    position: relative;\n    left: -25px; }\n")
@@ -46234,7 +46820,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"./falcon-loading.vue":233,"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],238:[function(require,module,exports){
+},{"./falcon-loading.vue":234,"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],239:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/popover.vue", module);
 (function(){
 'use strict';
@@ -46443,7 +47029,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"tether":167,"vue":195,"vue-hot-reload-api":171}],239:[function(require,module,exports){
+},{"tether":167,"vue":195,"vue-hot-reload-api":171}],240:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/switch.vue", module);
 (function(){
 'use strict';
@@ -46452,28 +47038,22 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 exports.default = {
-    components: {},
     props: {
         model: {
-            required: true,
-            twoWay: true
+            required: true
         },
         size: {
             type: String,
             default: 'normal'
+        },
+        onChange: {
+            type: Function,
+            default: function _default() {}
         }
-    },
-    data: function data() {
-        return {};
-    },
-    ready: function ready() {},
-
-    methods: {},
-    events: {}
-
+    }
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <label class=\"label-switch\" :class=\"{ 'small' : size == 'small' }\">\n      <input type=\"checkbox\" v-model=\"model\">\n      <div class=\"checkbox\"></div>\n    </label>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <label class=\"label-switch\" :class=\"{ 'small' : size == 'small' }\">\n      <input type=\"checkbox\" v-model=\"model\" @change=\"onChange(model)\">\n      <div class=\"checkbox\"></div>\n    </label>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
@@ -46487,7 +47067,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":195,"vue-hot-reload-api":171}],240:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171}],241:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/tab.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("\n  .tab-content > .tab-pane[_v-491cfad2] {\n    display: block;\n  }\n")
@@ -46555,7 +47135,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],241:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],242:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/tabset.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("\n  .nav-tabs[_v-0332299b] {\n    margin-bottom: 15px\n  }\n")
@@ -46607,7 +47187,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],242:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],243:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/sidebar.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".sidebar {\n  width: 155px;\n  position: fixed;\n  height: 100%;\n  background: #363C47;\n  z-index: 10;\n  padding: 20px;\n  transition: all 0.25s;\n  left: -155px; }\n  @media (min-width: 769px) {\n    .sidebar {\n      left: 0;\n      width: 155px; } }\n  @media (min-width: 1281px) {\n    .sidebar {\n      width: 200px; } }\n  .sidebar .logo {\n    margin: 0 0 40px; }\n    .sidebar .logo img {\n      width: 100%;\n      height: auto; }\n  .sidebar h4 {\n    text-transform: uppercase;\n    color: #999;\n    font-size: 10px;\n    font-weight: 600;\n    letter-spacing: 1px;\n    margin: 20px 0 5px; }\n  .sidebar li {\n    padding: 3px 0; }\n  .sidebar a {\n    color: #eaeaea;\n    font-weight: 300;\n    font-size: 14px;\n    transition: all 0.25s; }\n    .sidebar a:hover {\n      color: #fff; }\n    .sidebar a.active {\n      color: #fff;\n      font-weight: 500; }\n")
@@ -46647,7 +47227,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],243:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],244:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/testing.vue", module);
 (function(){
 "use strict";
@@ -46682,7 +47262,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":195,"vue-hot-reload-api":171}],244:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171}],245:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/widgets/player.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".widget-player .table thead th {\n  font-size: 9px;\n  background: #e6e6e6;\n  font-weight: normal;\n  border-bottom: 0; }\n")
@@ -46722,15 +47302,18 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],245:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],246:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/widgets/status.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".fppd-status {\n  box-shadow: 0 0 1px rgba(0, 0, 0, 0.15); }\n  .fppd-status .panel-heading {\n    padding: 15px 20px 5px 20px; }\n  .fppd-status .panel-body {\n    margin-left: auto;\n    margin-right: auto;\n    padding: 0;\n    *zoom: 1; }\n  .fppd-status .panel-body:before {\n  content: '';\n  display: table; }\n  .fppd-status .panel-body:after {\n  content: '';\n  display: table;\n  clear: both; }\n  .fppd-status .widget {\n    color: #666;\n    letter-spacing: 1px;\n    text-transform: uppercase;\n    width: calc(99.999999% * 1/2); }\n  .fppd-status .widget:nth-child(n) {\n  float: left;\n  margin-right: 0;\n  clear: none; }\n  .fppd-status .widget:last-child {\n  margin-right: 0; }\n  .fppd-status .widget:nth-child(2n) {\n  margin-right: 0; }\n  .fppd-status .widget:nth-child(2n + 1) {\n  clear: left; }\n    .fppd-status .widget:first-child {\n      border-right: 1px solid #eaeaea; }\n    .fppd-status .widget-header {\n      font-size: 10px;\n      display: block;\n      text-transform: uppercase;\n      padding: 8px 5px 5px; }\n    .fppd-status .widget-icon {\n      font-size: 34px;\n      line-height: 28px;\n      height: 35px;\n      width: 35px; }\n      .fppd-status .widget-icon i {\n        font-size: 34px; }\n      .fppd-status .widget-icon img {\n        width: 31px; }\n    .fppd-status .widget-text {\n      display: block;\n      padding: 5px 5px 8px;\n      font-size: 12px;\n      letter-spacing: .1rem; }\n    .fppd-status .widget-buttons {\n      border-top: 1px solid #eaeaea;\n      background: #f9f9f9;\n      padding: 10px; }\n      .fppd-status .widget-buttons .button {\n        display: inline-block;\n        vertical-align: middle;\n        margin: 0 1%;\n        text-transform: uppercase;\n        letter-spacing: 1px;\n        font-size: 10px;\n        border-radius: 2px;\n        transition: background 0.35s, box-shadow 0.15s;\n        border: 1px solid #c4c4c4;\n        color: #666;\n        background: linear-gradient(to bottom, #f8f8f8, #eaeaea 100%);\n        text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }\n        .fppd-status .widget-buttons .button:active {\n          box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125); }\n        .fppd-status .widget-buttons .button i {\n          margin-right: 3px; }\n        .fppd-status .widget-buttons .button:focus {\n          outline: none; }\n      .fppd-status .widget-buttons .form-group {\n        margin: 0;\n        display: inline-block;\n        width: 60%; }\n        .fppd-status .widget-buttons .form-group > select {\n          width: 100%; }\n      .fppd-status .widget-buttons select {\n        width: 60%;\n        height: auto;\n        display: inline-block;\n        padding: .09rem .25rem;\n        margin-bottom: 0;\n        background-color: transparent;\n        border-color: #c4c4c4;\n        border-radius: 2px;\n        box-shadow: none;\n        line-height: inherit;\n        background: #fafafa url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\" width=\"32\" height=\"24\" viewBox=\"0 0 32 24\"><polygon points=\"0,0 32,0 16,24\" style=\"fill: #000\"></polygon></svg>') right 10px center no-repeat;\n        background-size: 8px 8px;\n        color: #888;\n        font-size: 13px; }\n  .fppd-status .mode-icon {\n    background: #788B94;\n    color: white;\n    padding: 3px 10px;\n    border-radius: 35px;\n    font-size: 20px;\n    vertical-align: top;\n    line-height: 35px; }\n")
-"use strict";
+'use strict';
 
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
+
+var _actions = require('../../state/actions');
+
 exports.default = {
     components: {},
     props: [],
@@ -46740,11 +47323,34 @@ exports.default = {
     ready: function ready() {},
 
     methods: {},
-    events: {}
+    events: {},
+    computed: {
+        modeIconClass: function modeIconClass() {
+            return classes = this.fppd == 'running' ? ['ion-checkmark-circled', 'text-success'] : ['ion-close-circled', 'text-danger'];
+        }
+    },
+    vuex: {
+        getters: {
+            status: function status(state) {
+                return state.shared.status;
+            },
+            mode: function mode(state) {
+                return state.shared.fppd == 'running' ? state.shared.mode : state.shared.fppd;
+            },
+            fppd: function fppd(state) {
+                return state.shared.fppd;
+            }
+        },
+        actions: {
+            startFPPD: _actions.startFPPD,
+            stopFPPD: _actions.stopFPPD,
+            restartFPPD: _actions.restartFPPD
+        }
+    }
 
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div class=\"panel box fppd-status\" data-pages=\"portlet\">\n        <div class=\"panel-heading separator\">\n            <div class=\"panel-title\">FPPD</div>\n            <div class=\"panel-controls\">\n                <ul>\n                  <li><a href=\"#\" class=\"portlet-collapse\" data-toggle=\"collapse\"><i class=\"portlet-icon portlet-icon-collapse\"></i></a>\n                  </li>\n                  <li><a href=\"#\" class=\"portlet-refresh\" data-toggle=\"refresh\"><i class=\"portlet-icon portlet-icon-refresh\"></i></a>\n                  </li>\n                  <li><a href=\"#\" class=\"portlet-close\" data-toggle=\"close\"><i class=\"portlet-icon portlet-icon-close\"></i></a>\n                  </li>\n                </ul>\n          </div>\n        </div>\n        <div class=\"panel-body\">\n            \n            <div class=\"widget text-center current-status fppd-running\">\n                <span class=\"widget-header\">Status</span>\n                <span class=\"widget-icon\"><i class=\"icon ion-close-circled text-danger\"></i></span>\n                <span class=\"widget-text\">Stopped</span>\n                <div class=\"widget-buttons\">\n                    <a href=\"#\" class=\"button small secondary gradient fppd-stop\"><i class=\"icon ion-close\"></i> Stop</a>\n                    <a href=\"#\" class=\"button small secondary gradient fppd-restart\"><i class=\"icon ion-refresh\"></i> Restart</a>\n                </div>\n            </div>          \n\n            <div class=\"widget text-center current-status\">\n                <span class=\"widget-header\">Mode</span>\n                <span class=\"widget-icon\"><i class=\"icon ion-close-circled text-danger\"></i></span>\n                <span class=\"widget-text\">Stopped</span>\n                <div class=\"widget-buttons\">\n                    <select class=\"fppd-mode-select c-select\">\n                        <option value=\"standalone\" selected=\"selected\">Standalone</option>\n                        <option value=\"master\">Master</option>\n                        <option value=\"remote\">Remote</option>\n                        <option value=\"bridge\">Bridge</option>\n                    </select>\n                    <a class=\"button small secondary gradient fppd-mode-apply\">Apply</a>\n                </div>\n            </div>\n        </div>\n        \n    </div>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div class=\"panel box fppd-status\" data-pages=\"portlet\">\n        <div class=\"panel-heading separator\">\n            <div class=\"panel-title\">FPPD</div>\n            <div class=\"panel-controls\">\n                <ul>\n                  <li><a href=\"#\" class=\"portlet-collapse\" data-toggle=\"collapse\"><i class=\"portlet-icon portlet-icon-collapse\"></i></a>\n                  </li>\n                  <li><a href=\"#\" class=\"portlet-refresh\" data-toggle=\"refresh\"><i class=\"portlet-icon portlet-icon-refresh\"></i></a>\n                  </li>\n                  <li><a href=\"#\" class=\"portlet-close\" data-toggle=\"close\"><i class=\"portlet-icon portlet-icon-close\"></i></a>\n                  </li>\n                </ul>\n          </div>\n        </div>\n        <div class=\"panel-body\">\n            \n            <div class=\"widget text-center current-status fppd-running\">\n                <span class=\"widget-header\">Status</span>\n                <span class=\"widget-icon\"><i class=\"icon\" :class=\"modeIconClass\"></i></span>\n                <span class=\"widget-text\">{{ fppd | capitalize }}</span>\n                <div class=\"widget-buttons\">\n                    <a href=\"#\" class=\"button small secondary gradient fppd-stop\" v-if=\"fppd == 'running'\" @click=\"stopFPPD\"><i class=\"icon ion-close\"></i> Stop</a>\n                    <a href=\"#\" class=\"button small secondary gradient fppd-start\" v-if=\"fppd == 'stopped'\" @click=\"startFPPD\"><i class=\"icon ion-checkmark\"></i> Start</a>\n                    <a href=\"#\" class=\"button small secondary gradient fppd-restart\" @click=\"restartFPPD\"><i class=\"icon ion-refresh\"></i> Restart</a>\n                </div>\n            </div>          \n\n            <div class=\"widget text-center current-status\">\n                <span class=\"widget-header\">Mode</span>\n                <span class=\"widget-icon\">\n                    <span v-if=\"mode != 'stopped'\" class=\"text-white rounded fs-18 bg-info-light p-t-5 p-b-5 p-l-10 p-r-10\" style=\"vertical-align:middle\">{{ mode.charAt(0) | capitalize }}</span>\n                    <i v-if=\"mode == 'stopped'\" class=\"icon ion-close-circled text-danger\"></i>\n                </span>\n                <span class=\"widget-text\">{{ mode | capitalize }}</span>\n                <div class=\"widget-buttons\">\n                    <select class=\"fppd-mode-select c-select\">\n                        <option value=\"standalone\" selected=\"selected\">Standalone</option>\n                        <option value=\"master\">Master</option>\n                        <option value=\"remote\">Remote</option>\n                        <option value=\"bridge\">Bridge</option>\n                    </select>\n                    <a class=\"button small secondary gradient fppd-mode-apply\">Apply</a>\n                </div>\n            </div>\n        </div>\n        \n    </div>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
@@ -46762,7 +47368,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],246:[function(require,module,exports){
+},{"../../state/actions":253,"vue":195,"vue-hot-reload-api":171,"vueify-insert-css":196}],247:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/widgets/weather.vue", module);
 (function(){
 "use strict";
@@ -46797,7 +47403,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":195,"vue-hot-reload-api":171}],247:[function(require,module,exports){
+},{"vue":195,"vue-hot-reload-api":171}],248:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/directives/ip.js", module);
 (function(){
 "use strict";
@@ -46839,162 +47445,36 @@ exports.default = {
 
 }).apply(this, arguments);
 
-},{"jquery":80,"jquery.inputmask":79}],248:[function(require,module,exports){
-_hmr["websocket:null"].initModule("resources/assets/build//js/main-1140a4b8c2.js", module);
+},{"jquery":80,"jquery.inputmask":79}],249:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/build//js/main-9026dece5c.js", module);
 (function(){
 'use strict';
 
-var $ = require('jquery');
-var VueRouter = require('vue-router');
-var VueValidator = require('vue-validator');
 window.Vue = require('vue');
+
+var $ = require('jquery');
+var VueValidator = require('vue-validator');
+
 Vue.use(VueValidator);
-Vue.use(VueRouter);
 Vue.use(require('vue-animated-list'));
 Vue.use(require('vue-resource'));
 
 Vue.http.options.root = '/api';
 Vue.http.headers.common['X-CSRF-TOKEN'] = $('meta[name="csrf-token"]').attr('content');
+
 Vue.config.debug = true;
 
-var router = new VueRouter({
-    hashBang: false,
-    history: true,
-    linkActiveClass: 'active'
-});
-
 var App = require('./app.vue');
-var MainContent = require('./components/index.vue');
+var router = require('./router');
 
-var Dashboard = require('./components/dashboard.vue');
-var Outputs = require('./components/outputs/index.vue');
-var Overlays = require('./components/overlays.vue');
-var Playlists = require('./components/playlists.vue');
-var Schedule = require('./components/schedule.vue');
-var Files = require('./components/files.vue');
-var Plugins = require('./components/plugins.vue');
-var Events = require('./components/events.vue');
-var Effects = require('./components/effects.vue');
-var Testing = require('./components/testing.vue');
-
-var E131Output = require('./components/outputs/e131.vue');
-var DMXOutput = require('./components/outputs/dmx.vue');
-var PanelOutput = require('./components/outputs/panels.vue');
-var OtherOutput = require('./components/outputs/other.vue');
-
-var SettingsContent = require('./components/settings.vue');
-var GeneralSettings = require('./components/settings/general.vue');
-var DateSettings = require('./components/settings/date.vue');
-var EmailSettings = require('./components/settings/email.vue');
-var NetworkSettings = require('./components/settings/network.vue');
-var LogSettings = require('./components/settings/logs.vue');
-var AdvancedSettings = require('./components/settings/advanced.vue');
-
-router.map({
-    '*': {
-        component: require('./components/not-found.vue')
-    },
-    '/': {
-        name: 'dashboard',
-        component: MainContent,
-        subRoutes: {
-            '/': {
-                name: 'dashboard',
-                component: Dashboard
-
-            },
-            '/outputs': {
-                name: 'outputs',
-                headerName: 'Channel Outputs',
-                component: Outputs,
-                headerMenu: true,
-                menuName: 'Outputs',
-                menu: [{ path: '/outputs', label: 'E131' }, { path: '/outputs/dmx', label: 'Pixelnet / DMX' }, { path: '/outputs/panels', label: 'LED Panels' }, { path: '/outputs/other', label: 'Other' }],
-                subRoutes: {
-                    '/': {
-                        component: E131Output
-                    },
-                    '/dmx': {
-                        component: DMXOutput
-                    },
-                    '/panels': {
-                        component: PanelOutput
-                    },
-                    '/other': {
-                        component: OtherOutput
-                    }
-
-                }
-            },
-            '/overlays': {
-                name: 'overlays',
-                component: Overlays
-            },
-            '/files': {
-                name: 'files',
-                headerName: 'File Manager',
-                component: Files
-            },
-            '/playlists': {
-                name: 'playlists',
-                component: Playlists
-            },
-            '/schedule': {
-                name: 'schedule',
-                component: Schedule
-            },
-            '/plugins': {
-                name: 'plugins',
-                component: Plugins
-            },
-            '/events': {
-                name: 'events',
-                component: Events
-            },
-            '/effects': {
-                name: 'effects',
-                component: Effects
-            },
-            '/testing': {
-                name: 'testing',
-                component: Testing
-            }
-
-        }
-    },
-
-    '/settings': {
-        name: 'settings',
-        component: SettingsContent,
-        subRoutes: {
-            '/': {
-                component: GeneralSettings
-            },
-            '/date': {
-                component: DateSettings
-            },
-            '/email': {
-                component: EmailSettings
-            },
-            '/network': {
-                component: NetworkSettings
-            },
-            '/logs': {
-                component: LogSettings
-            },
-            '/advanced': {
-                component: AdvancedSettings
-            }
-
-        }
-    }
-});
-
+/**
+ * Get After It..
+ */
 router.start(App, 'body');
 
 }).apply(this, arguments);
 
-},{"./app.vue":198,"./components/dashboard.vue":199,"./components/effects.vue":200,"./components/events.vue":201,"./components/files.vue":202,"./components/index.vue":206,"./components/not-found.vue":207,"./components/outputs/dmx.vue":208,"./components/outputs/e131.vue":209,"./components/outputs/index.vue":210,"./components/outputs/other.vue":212,"./components/outputs/panels.vue":213,"./components/overlays.vue":216,"./components/playlists.vue":217,"./components/plugins.vue":218,"./components/schedule.vue":219,"./components/settings.vue":220,"./components/settings/advanced.vue":221,"./components/settings/date.vue":222,"./components/settings/email.vue":223,"./components/settings/general.vue":224,"./components/settings/logs.vue":226,"./components/settings/network.vue":227,"./components/testing.vue":243,"jquery":80,"vue":195,"vue-animated-list":170,"vue-resource":176,"vue-router":191,"vue-validator":194}],249:[function(require,module,exports){
+},{"./app.vue":199,"./router":251,"jquery":80,"vue":195,"vue-animated-list":170,"vue-resource":176,"vue-validator":194}],250:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/mixins/outputMixin.js", module);
 (function(){
 'use strict';
@@ -47036,7 +47516,222 @@ exports.default = {
 
 }).apply(this, arguments);
 
-},{}],250:[function(require,module,exports){
+},{}],251:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/router.js", module);
+(function(){
+'use strict';
+
+var _vueRouter = require('vue-router');
+
+var _vueRouter2 = _interopRequireDefault(_vueRouter);
+
+var _index = require('./components/index.vue');
+
+var _index2 = _interopRequireDefault(_index);
+
+var _notFound = require('./components/not-found.vue');
+
+var _notFound2 = _interopRequireDefault(_notFound);
+
+var _dashboard = require('./components/dashboard.vue');
+
+var _dashboard2 = _interopRequireDefault(_dashboard);
+
+var _index3 = require('./components/outputs/index.vue');
+
+var _index4 = _interopRequireDefault(_index3);
+
+var _overlays = require('./components/overlays.vue');
+
+var _overlays2 = _interopRequireDefault(_overlays);
+
+var _playlists = require('./components/playlists.vue');
+
+var _playlists2 = _interopRequireDefault(_playlists);
+
+var _schedule = require('./components/schedule.vue');
+
+var _schedule2 = _interopRequireDefault(_schedule);
+
+var _files = require('./components/files.vue');
+
+var _files2 = _interopRequireDefault(_files);
+
+var _plugins = require('./components/plugins.vue');
+
+var _plugins2 = _interopRequireDefault(_plugins);
+
+var _events = require('./components/events.vue');
+
+var _events2 = _interopRequireDefault(_events);
+
+var _effects = require('./components/effects.vue');
+
+var _effects2 = _interopRequireDefault(_effects);
+
+var _testing = require('./components/testing.vue');
+
+var _testing2 = _interopRequireDefault(_testing);
+
+var _e = require('./components/outputs/e131.vue');
+
+var _e2 = _interopRequireDefault(_e);
+
+var _dmx = require('./components/outputs/dmx.vue');
+
+var _dmx2 = _interopRequireDefault(_dmx);
+
+var _panels = require('./components/outputs/panels.vue');
+
+var _panels2 = _interopRequireDefault(_panels);
+
+var _other = require('./components/outputs/other.vue');
+
+var _other2 = _interopRequireDefault(_other);
+
+var _settings = require('./components/settings.vue');
+
+var _settings2 = _interopRequireDefault(_settings);
+
+var _general = require('./components/settings/general.vue');
+
+var _general2 = _interopRequireDefault(_general);
+
+var _date = require('./components/settings/date.vue');
+
+var _date2 = _interopRequireDefault(_date);
+
+var _email = require('./components/settings/email.vue');
+
+var _email2 = _interopRequireDefault(_email);
+
+var _network = require('./components/settings/network.vue');
+
+var _network2 = _interopRequireDefault(_network);
+
+var _logs = require('./components/settings/logs.vue');
+
+var _logs2 = _interopRequireDefault(_logs);
+
+var _advanced = require('./components/settings/advanced.vue');
+
+var _advanced2 = _interopRequireDefault(_advanced);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+Vue.use(_vueRouter2.default);
+
+var router = new _vueRouter2.default({
+    hashBang: false,
+    history: true,
+    linkActiveClass: 'active'
+});
+
+router.map({
+    '*': {
+        component: _notFound2.default
+    },
+    '/': {
+        name: 'dashboard',
+        component: _index2.default,
+        subRoutes: {
+            '/': {
+                name: 'dashboard',
+                component: _dashboard2.default
+
+            },
+            '/outputs': {
+                name: 'outputs',
+                headerName: 'Channel Outputs',
+                component: _index4.default,
+                headerMenu: true,
+                menuName: 'Outputs',
+                menu: [{ path: '/outputs', label: 'E131' }, { path: '/outputs/dmx', label: 'Pixelnet / DMX' }, { path: '/outputs/panels', label: 'LED Panels' }, { path: '/outputs/other', label: 'Other' }],
+                subRoutes: {
+                    '/': {
+                        component: _e2.default
+                    },
+                    '/dmx': {
+                        component: _dmx2.default
+                    },
+                    '/panels': {
+                        component: _panels2.default
+                    },
+                    '/other': {
+                        component: _other2.default
+                    }
+
+                }
+            },
+            '/overlays': {
+                name: 'overlays',
+                component: _overlays2.default
+            },
+            '/files': {
+                name: 'files',
+                headerName: 'File Manager',
+                component: _files2.default
+            },
+            '/playlists': {
+                name: 'playlists',
+                component: _playlists2.default
+            },
+            '/schedule': {
+                name: 'schedule',
+                component: _schedule2.default
+            },
+            '/plugins': {
+                name: 'plugins',
+                component: _plugins2.default
+            },
+            '/events': {
+                name: 'events',
+                component: _events2.default
+            },
+            '/effects': {
+                name: 'effects',
+                component: _effects2.default
+            },
+            '/testing': {
+                name: 'testing',
+                component: _testing2.default
+            }
+
+        }
+    },
+
+    '/settings': {
+        name: 'settings',
+        component: _settings2.default,
+        subRoutes: {
+            '/': {
+                component: _general2.default
+            },
+            '/date': {
+                component: _date2.default
+            },
+            '/email': {
+                component: _email2.default
+            },
+            '/network': {
+                component: _network2.default
+            },
+            '/logs': {
+                component: _logs2.default
+            },
+            '/advanced': {
+                component: _advanced2.default
+            }
+
+        }
+    }
+});
+
+module.exports = router;
+
+}).apply(this, arguments);
+
+},{"./components/dashboard.vue":200,"./components/effects.vue":201,"./components/events.vue":202,"./components/files.vue":203,"./components/index.vue":207,"./components/not-found.vue":208,"./components/outputs/dmx.vue":209,"./components/outputs/e131.vue":210,"./components/outputs/index.vue":211,"./components/outputs/other.vue":213,"./components/outputs/panels.vue":214,"./components/overlays.vue":217,"./components/playlists.vue":218,"./components/plugins.vue":219,"./components/schedule.vue":220,"./components/settings.vue":221,"./components/settings/advanced.vue":222,"./components/settings/date.vue":223,"./components/settings/email.vue":224,"./components/settings/general.vue":225,"./components/settings/logs.vue":227,"./components/settings/network.vue":228,"./components/testing.vue":244,"vue-router":191}],252:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/services/http.js", module);
 (function(){
 'use strict';
@@ -47114,64 +47809,337 @@ exports.default = {
 
 }).apply(this, arguments);
 
-},{}],251:[function(require,module,exports){
-_hmr["websocket:null"].initModule("resources/assets/js/stores/playlist.js", module);
-(function(){
-"use strict";
-
-}).apply(this, arguments);
-
-},{}],252:[function(require,module,exports){
-_hmr["websocket:null"].initModule("resources/assets/js/stores/setting.js", module);
+},{}],253:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/state/actions.js", module);
 (function(){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
-    value: true
+  value: true
 });
+exports.getAllOutputs = exports.updateOutput = exports.removeOutput = exports.addOutput = exports.toggleOutputs = exports.updateStatus = exports.requestStatus = exports.restartFPPD = exports.stopFPPD = exports.startFPPD = exports.shutdownDevice = exports.rebootDevice = undefined;
 
 var _http = require('../services/http');
 
 var _http2 = _interopRequireDefault(_http);
 
-var _shared = require('./shared');
-
-var _shared2 = _interopRequireDefault(_shared);
-
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-exports.default = {
+/**
+ * Device Actions
+ */
+var rebootDevice = exports.rebootDevice = function rebootDevice(_ref) {
+  var dispatch = _ref.dispatch;
+  return dispatch('REBOOT_DEVICE');
+};
+var shutdownDevice = exports.shutdownDevice = function shutdownDevice(_ref2) {
+  var dispatch = _ref2.dispatch;
+  return dispatch('SHUTDOWN_DEVICE');
+};
 
-    state: {
-        settings: {
-            general: {},
-            date: {},
-            email: {},
-            logs: {},
-            advanced: {}
-        }
-    },
+/**
+ * FPPD Actions
+ */
+var startFPPD = exports.startFPPD = function startFPPD(_ref3) {
+  var dispatch = _ref3.dispatch;
+  return dispatch('START_FPPD');
+};
+var stopFPPD = exports.stopFPPD = function stopFPPD(_ref4) {
+  var dispatch = _ref4.dispatch;
+  return dispatch('STOP_FPPD');
+};
+var restartFPPD = exports.restartFPPD = function restartFPPD(_ref5) {
+  var dispatch = _ref5.dispatch;
+  return dispatch('RESTART_FPPD');
+};
 
-    init: function init() {
-        this.state.settings = _shared2.default.state.settings;
-    },
-    all: function all() {
-        return this.state.settings;
-    },
-    update: function update() {
-        var cb = arguments.length <= 0 || arguments[0] === undefined ? null : arguments[0];
+/**
+ * Status Actions
+ */
+var requestStatus = exports.requestStatus = function requestStatus(_ref6) {
+  var dispatch = _ref6.dispatch;
 
-        _http2.default.post('settings', this.all(), function (msg) {
-            if (cb) {
-                cb();
-            }
-        });
-    }
+  dispatch('STATUS_REQUEST');
+  _http2.default.get('status', {}, function (data) {
+    dispatch('STATUS_UPDATE', data.status);
+    dispatch('UPDATE_MODE', data.mode);
+    if (data.fppd != 'running') dispatch('STOP_FPPD');
+  });
+};
+
+var updateStatus = exports.updateStatus = function updateStatus(_ref7, status) {
+  var dispatch = _ref7.dispatch;
+  return dispatch('STATUS_UPDATE', status);
+};
+
+/**
+ * Output Actions
+ */
+var toggleOutputs = exports.toggleOutputs = function toggleOutputs(_ref8, type, value) {
+  var dispatch = _ref8.dispatch;
+  return dispatch('TOGGLE_OUTPUTS', type, value);
+};
+var addOutput = exports.addOutput = function addOutput(_ref9, type, output) {
+  var dispatch = _ref9.dispatch;
+  return dispatch('ADD_OUTPUT', type, output);
+};
+var removeOutput = exports.removeOutput = function removeOutput(_ref10, type, id) {
+  var dispatch = _ref10.dispatch;
+  return dispatch('REMOVE_OUTPUT', type, id);
+};
+var updateOutput = exports.updateOutput = function updateOutput(_ref11, type, output) {
+  var dispatch = _ref11.dispatch;
+  return dispatch('REMOVE_OUTPUT', type, output);
+};
+var getAllOutputs = exports.getAllOutputs = function getAllOutputs(_ref12) {
+  var dispatch = _ref12.dispatch;
+
+  _http2.default.get('outputs', {}, function (data) {
+    dispatch('RECEIVE_OUTPUTS', data.data);
+  });
 };
 
 }).apply(this, arguments);
 
-},{"../services/http":250,"./shared":253}],253:[function(require,module,exports){
+},{"../services/http":252}],254:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/state/modules/outputs.js", module);
+(function(){
+"use strict";
+
+var _mutations;
+
+var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _mutationTypes = require("../mutation-types.js");
+
+function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
+
+var state = {
+    e131: {
+        enabled: false,
+        outputs: []
+    },
+    pdmx: {
+        enabled: false,
+        outputs: []
+    },
+    panels: {
+        enabled: false,
+        outputs: []
+    },
+    bbb: {
+        enabled: false,
+        outputs: []
+    },
+    lor: {
+        enabled: false,
+        outputs: []
+    },
+    serial: {
+        enabled: false,
+        outputs: []
+    },
+    renard: {
+        enabled: false,
+        outputs: []
+    },
+    pixelnet: {
+        enabled: false,
+        outputs: []
+    },
+    triks: {
+        enabled: false,
+        outputs: []
+    },
+    virtual: {
+        enabled: false,
+        outputs: []
+
+    } };
+
+var mutations = (_mutations = {}, _defineProperty(_mutations, _mutationTypes.TOGGLE_OUTPUTS, function (state, type, value) {
+    state[type].enabled = value;
+}), _defineProperty(_mutations, _mutationTypes.ADD_OUTPUT, function (state, type, output) {
+    state[type].push(output);
+}), _defineProperty(_mutations, _mutationTypes.REMOVE_OUTPUT, function (state, type, id) {
+    state[type].splice(id, 1);
+}), _defineProperty(_mutations, _mutationTypes.UPDATE_OUTPUT, function (state, type, id, output) {
+    state[type][id] = output;
+}), _defineProperty(_mutations, _mutationTypes.RECEIVE_OUTPUTS, function (state, outputs) {
+
+    _extends(state, outputs);
+}), _mutations);
+
+exports.default = {
+    state: state,
+    mutations: mutations
+};
+
+}).apply(this, arguments);
+
+},{"../mutation-types.js":256}],255:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/state/modules/shared.js", module);
+(function(){
+"use strict";
+
+var _mutations;
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _mutationTypes = require("../mutation-types.js");
+
+function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
+
+var state = {
+    fppd: "running",
+    mode: "standalone",
+    status: 0,
+    volume: 0,
+    playlist: "No playlist scheduled.",
+    currentDate: {
+        date: "2016-03-10 19:06:47.000000",
+        timezone_type: 3,
+        timezone: "UTC"
+    },
+    repeatMode: 0,
+    deviceBooted: false,
+    restartFlag: false,
+    rebootFlag: false,
+    updateFlag: false,
+    rebooting: false,
+    shuttingDown: false
+};
+
+var mutations = (_mutations = {}, _defineProperty(_mutations, _mutationTypes.REQUIRE_REBOOT, function (state) {
+    state.rebootFlag = true;
+}), _defineProperty(_mutations, _mutationTypes.REQUIRE_RESTART, function (state) {
+    state.restartFlag = true;
+}), _defineProperty(_mutations, _mutationTypes.REBOOT_DEVICE, function (state) {
+    state.rebootFlag = false;
+    state.rebooting = true;
+}), _defineProperty(_mutations, _mutationTypes.DEVICE_BOOTED, function (state) {
+    state.deviceBooted = true;
+    state.rebooting = false;
+    state.shuttingDown = false;
+}), _defineProperty(_mutations, _mutationTypes.SHUTDOWN_DEVICE, function (state) {
+    state.rebootFlag = false;
+    state.shuttingDown = true;
+}), _defineProperty(_mutations, _mutationTypes.START_FPPD, function (state) {
+    state.fppd = 'running';
+}), _defineProperty(_mutations, _mutationTypes.STOP_FPPD, function (state) {
+    state.fppd = 'stopped';
+    state.restartFlag = false;
+}), _defineProperty(_mutations, _mutationTypes.UPDATE_MODE, function (state, mode) {
+    state.mode = mode;
+}), _defineProperty(_mutations, _mutationTypes.STATUS_UPDATE, function (state, status) {
+    state.status = status;
+}), _defineProperty(_mutations, _mutationTypes.UPDATE_VOLUME, function (state, volume) {
+    state.volume = volume;
+}), _defineProperty(_mutations, _mutationTypes.UPDATE_PLAYLIST, function (state, playlist) {
+    state.playlist = playlist;
+}), _mutations);
+
+exports.default = {
+    state: state,
+    mutations: mutations
+};
+
+}).apply(this, arguments);
+
+},{"../mutation-types.js":256}],256:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/state/mutation-types.js", module);
+(function(){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/*
+ * Device Mutations
+ */
+var REBOOT_DEVICE = exports.REBOOT_DEVICE = 'REBOOT_DEVICE';
+var SHUTDOWN_DEVICE = exports.SHUTDOWN_DEVICE = 'SHUTDOWN_DEVICE';
+var DEVICE_BOOTED = exports.DEVICE_BOOTED = 'DEVICE_BOOTED';
+var REQUIRE_REBOOT = exports.REQUIRE_REBOOT = 'REQUIRE_REBOOT';
+
+/*
+ * FPPD Mutations
+ */
+var START_FPPD = exports.START_FPPD = 'START_FPPD';
+var STOP_FPPD = exports.STOP_FPPD = 'STOP_FPPD';
+var RESTART_FPPD = exports.RESTART_FPPD = 'RESTART_FPPD';
+var REQUIRE_RESTART = exports.REQUIRE_RESTART = 'REQUIRE_RESTART';
+var UPDATE_MODE = exports.UPDATE_MODE = 'UPDATE_MODE';
+
+/**
+ * Status Mutations
+ */
+var STATUS_REQUEST = exports.STATUS_REQUEST = 'STATUS_REQUEST';
+var STATUS_UPDATE = exports.STATUS_UPDATE = 'STATUS_UPDATE';
+
+/**
+ * Player
+ */
+var UPDATE_VOLUME = exports.UPDATE_VOLUME = 'UPDATE_VOLUME';
+var LOAD_PLAYLIST = exports.LOAD_PLAYLIST = 'LOAD_PLAYLIST';
+var LOAD_PLAYLISTS = exports.LOAD_PLAYLISTS = 'LOAD_PLAYLISTS';
+
+/**
+ * Outputs
+ */
+var TOGGLE_OUTPUTS = exports.TOGGLE_OUTPUTS = 'TOGGLE_OUTPUTS';
+var RECEIVE_OUTPUTS = exports.RECEIVE_OUTPUTS = 'RECEIVE_OUTPUTS';
+var ADD_OUTPUT = exports.ADD_OUTPUT = 'ADD_OUTPUT';
+var REMOVE_OUTPUT = exports.REMOVE_OUTPUT = 'REMOVE_OUTPUT';
+var UPDATE_OUTPUT = exports.UPDATE_OUTPUT = 'UPDATE_OUTPUT';
+
+}).apply(this, arguments);
+
+},{}],257:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/state/store.js", module);
+(function(){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _vue = require('vue');
+
+var _vue2 = _interopRequireDefault(_vue);
+
+var _vuex = require('vuex');
+
+var _vuex2 = _interopRequireDefault(_vuex);
+
+var _shared = require('./modules/shared');
+
+var _shared2 = _interopRequireDefault(_shared);
+
+var _outputs = require('./modules/outputs');
+
+var _outputs2 = _interopRequireDefault(_outputs);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+_vue2.default.use(_vuex2.default);
+
+exports.default = new _vuex2.default.Store({
+  modules: {
+    shared: _shared2.default,
+    outputs: _outputs2.default
+  }
+});
+
+}).apply(this, arguments);
+
+},{"./modules/outputs":254,"./modules/shared":255,"vue":195,"vuex":197}],258:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/stores/shared.js", module);
 (function(){
 'use strict';
@@ -47216,7 +48184,7 @@ exports.default = {
 
 }).apply(this, arguments);
 
-},{"../services/http":250}],254:[function(require,module,exports){
+},{"../services/http":252}],259:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/utils.js", module);
 (function(){
 'use strict';
@@ -47242,8 +48210,8 @@ function makeid() {
 (function(global, _main, moduleDefs, cachedModules, _entries) {
   'use strict';
 
-  var moduleMeta = {"node_modules/browserify-hmr/lib/has.js":{"index":10,"hash":"Hky4QYVrU1+kFHIEuxPy","parents":["node_modules/browserify-hmr/lib/str-set.js","node_modules/browserify-hmr/inc/index.js"]},"node_modules/browserify-hmr/lib/str-set.js":{"index":11,"hash":"lcrDmQK4uaqOqN+FV4/9","parents":["node_modules/browserify-hmr/inc/index.js"]},"resources/assets/js/stores/playlist.js":{"index":251,"hash":"k5Rph+tSzK7SzVYZrxbP","parents":["resources/assets/js/app.vue"]},"resources/assets/js/mixins/outputMixin.js":{"index":249,"hash":"gGCtCK8OXqFlnKkxkWU0","parents":["resources/assets/js/components/outputs/dmx.vue","resources/assets/js/components/outputs/e131.vue","resources/assets/js/components/outputs/panels.vue"]},"node_modules/socket.io-client/node_modules/debug/debug.js":{"index":162,"hash":"OtjmSmEbIU/8orJwFhDT","parents":["node_modules/socket.io-client/lib/url.js","node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/socket.io-client/lib/on.js":{"index":159,"hash":"y5MOoFpTKKBHwE8q8jae","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/vue-animated-list/vue-animated-list.js":{"index":170,"hash":"26lVl2CH82yXZ2XSjVFm","parents":["resources/assets/build//js/main-1140a4b8c2.js"]},"node_modules/vue-validator/dist/vue-validator.common.js":{"index":194,"hash":"UC2NCeCJUHWKBvaDtYM2","parents":["resources/assets/build//js/main-1140a4b8c2.js"]},"node_modules/vue-router/dist/vue-router.common.js":{"index":191,"hash":"V5DMsGGLcOqPAhx31psf","parents":["resources/assets/build//js/main-1140a4b8c2.js"]},"node_modules/jquery/dist/jquery.js":{"index":80,"hash":"siFczlgw4jULnUICcdm9","parents":["resources/assets/js/app.vue","node_modules/jquery.inputmask/dist/inputmask/inputmask.dependencyLib.jquery.js","node_modules/jquery.inputmask/dist/inputmask/jquery.inputmask.js","resources/assets/js/directives/ip.js","resources/assets/build//js/main-1140a4b8c2.js"]},"resources/assets/js/stores/setting.js":{"index":252,"hash":"coKfnj2hZTIg8YRT4JSn","parents":["resources/assets/js/app.vue"]},"resources/assets/js/services/http.js":{"index":250,"hash":"OqU5t4zvkjeUSpQJFLPI","parents":["resources/assets/js/stores/setting.js","resources/assets/js/stores/shared.js"]},"resources/assets/js/stores/shared.js":{"index":253,"hash":"dBZ6EHn2t9/PLCXa/Sej","parents":["resources/assets/js/stores/setting.js","resources/assets/js/app.vue"]},"resources/assets/js/utils.js":{"index":254,"hash":"YUBgAVFOtL2AfLdROM4O","parents":["resources/assets/js/components/shared/input.vue"]},"node_modules/vue-resource/src/resource.js":{"index":189,"hash":"4hFj5axF31CeVRePeF8o","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-hot-reload-api/index.js":{"index":171,"hash":"WuwmPSnCiynHpb+AfQBY","parents":["resources/assets/js/components/overlays.vue","resources/assets/js/components/playlists.vue","resources/assets/js/components/schedule.vue","resources/assets/js/components/plugins.vue","resources/assets/js/components/events.vue","resources/assets/js/components/effects.vue","resources/assets/js/components/testing.vue","resources/assets/js/components/not-found.vue","resources/assets/js/components/outputs/index.vue","resources/assets/js/components/outputs/other.vue","resources/assets/js/components/settings/date.vue","resources/assets/js/components/settings/email.vue","resources/assets/js/components/settings/logs.vue","resources/assets/js/components/settings/advanced.vue","resources/assets/js/components/sidebar.vue","resources/assets/js/components/footer.vue","resources/assets/js/components/shared/Tabset.vue","resources/assets/js/components/shared/Tab.vue","resources/assets/js/components/widgets/weather.vue","resources/assets/js/components/widgets/status.vue","resources/assets/js/components/widgets/player.vue","resources/assets/js/components/dashboard.vue","resources/assets/js/components/shared/filelist.vue","resources/assets/js/components/files.vue","resources/assets/js/components/shared/switch.vue","resources/assets/js/components/shared/dropdown-select.vue","resources/assets/js/components/header/settings.vue","resources/assets/js/components/shared/tabset.vue","resources/assets/js/components/shared/tab.vue","resources/assets/js/components/settings/network.vue","resources/assets/js/components/settings/index.vue","resources/assets/js/components/settings.vue","resources/assets/js/components/outputs/universe.vue","resources/assets/js/components/shared/checkbox.vue","resources/assets/js/components/shared/input.vue","resources/assets/js/components/outputs/pdmx.vue","resources/assets/js/components/outputs/dmx.vue","resources/assets/js/components/shared/falcon-loading.vue","resources/assets/js/components/shared/overlay.vue","resources/assets/js/app.vue","resources/assets/js/components/shared/control-buttons.vue","resources/assets/js/components/shared/header-menu.vue","resources/assets/js/components/header/index.vue","resources/assets/js/components/index.vue","resources/assets/js/components/shared/popover.vue","resources/assets/js/components/outputs/led-panel.vue","resources/assets/js/components/outputs/e131.vue","node_modules/vue-strap/src/Option.vue","resources/assets/js/components/outputs/panels.vue","node_modules/vue-strap/src/Select.vue","resources/assets/js/components/settings/general.vue"]},"node_modules/vue-resource/src/lib/util.js":{"index":187,"hash":"kipx22owioSurHN4RBYT","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/socket.io-parser/is-buffer.js":{"index":165,"hash":"UJBXKAfBg/BkigSZbc3Z","parents":["node_modules/socket.io-parser/binary.js","node_modules/socket.io-parser/index.js"]},"node_modules/component-emitter/index.js":{"index":13,"hash":"0uL1LSa/mOj+Llu+HTZ7","parents":["node_modules/socket.io-parser/index.js","node_modules/socket.io-client/lib/socket.js","node_modules/engine.io-client/lib/transport.js","node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/parseuri/index.js":{"index":154,"hash":"PsPou9y5yKmPMPJnjEkz","parents":["node_modules/socket.io-client/lib/url.js"]},"node_modules/socket.io-client/lib/url.js":{"index":161,"hash":"/WgdaMtSTLlxFoTxZTGl","parents":["node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/component-bind/index.js":{"index":12,"hash":"4yIcVw+afwUsnTQyI0a3","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/object-component/index.js":{"index":151,"hash":"zOYybxl/D7KsteH/xJyk","parents":["node_modules/socket.io-client/lib/manager.js"]},"node_modules/indexof/index.js":{"index":75,"hash":"8zMGV0j0ID5bUIeT7r+M","parents":["node_modules/engine.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/backo2/index.js":{"index":6,"hash":"L5ry3mfVEw1wgmx9Sa+q","parents":["node_modules/socket.io-client/lib/manager.js"]},"node_modules/to-array/index.js":{"index":168,"hash":"2EoggafxX+GLXkXiaGjm","parents":["node_modules/socket.io-client/lib/socket.js"]},"node_modules/lodash/array/zipObject.js":{"index":83,"hash":"fKfSwIzPo5SUx9d0DkgN","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/lang/isArray.js":{"index":137,"hash":"rpMiE1Z199/XZCjno4KN","parents":["node_modules/lodash/array/zipObject.js","node_modules/lodash/collection/map.js","node_modules/lodash/collection/filter.js","node_modules/lodash/internal/createForEach.js","node_modules/lodash/internal/isKey.js","node_modules/lodash/internal/toPath.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js","node_modules/lodash/internal/baseIsEqualDeep.js","node_modules/lodash/internal/baseMatchesProperty.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/arrayEach.js":{"index":89,"hash":"eLxUBVsb8vpFbu0VN4KL","parents":["node_modules/lodash/collection/forEach.js"]},"node_modules/lodash/internal/arraySome.js":{"index":92,"hash":"GxeJPxJj2jUg5TzV5gLv","parents":["node_modules/lodash/internal/equalArrays.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/arrayMap.js":{"index":91,"hash":"xdr8c0JsUFapIHTuM5VE","parents":["node_modules/lodash/collection/map.js"]},"node_modules/lodash/internal/arrayFilter.js":{"index":90,"hash":"BGunz0w1QzJXyqQSOdZb","parents":["node_modules/lodash/collection/filter.js"]},"resources/assets/js/components/overlays.vue":{"index":216,"hash":"wttUj90IjUTB21TqVn5A","parents":["resources/assets/build//js/main-1140a4b8c2.js"]},"node_modules/vue/dist/vue.common.js":{"index":195,"hash":"c6jVTEwxpfJvrcRARsRp","parents":["resources/assets/js/components/overlays.vue","resources/assets/js/components/playlists.vue","resources/assets/js/components/schedule.vue","resources/assets/js/components/plugins.vue","resources/assets/js/components/events.vue","resources/assets/js/components/effects.vue","resources/assets/js/components/testing.vue","resources/assets/js/components/not-found.vue","resources/assets/js/components/outputs/index.vue","resources/assets/js/components/outputs/other.vue","resources/assets/js/components/settings/date.vue","resources/assets/js/components/settings/email.vue","resources/assets/js/components/settings/logs.vue","resources/assets/js/components/settings/advanced.vue","resources/assets/js/components/sidebar.vue","resources/assets/js/components/footer.vue","resources/assets/js/components/shared/Tabset.vue","resources/assets/js/components/shared/Tab.vue","resources/assets/js/components/widgets/weather.vue","resources/assets/js/components/widgets/status.vue","resources/assets/js/components/widgets/player.vue","resources/assets/js/components/dashboard.vue","resources/assets/js/components/shared/filelist.vue","resources/assets/js/components/files.vue","resources/assets/js/components/shared/switch.vue","resources/assets/js/components/shared/dropdown-select.vue","resources/assets/js/components/header/settings.vue","resources/assets/js/components/shared/tabset.vue","resources/assets/js/components/shared/tab.vue","resources/assets/js/components/settings/network.vue","resources/assets/js/components/settings/index.vue","resources/assets/js/components/settings.vue","resources/assets/js/components/outputs/universe.vue","resources/assets/js/components/shared/checkbox.vue","resources/assets/js/components/shared/input.vue","resources/assets/js/components/outputs/pdmx.vue","resources/assets/js/components/outputs/dmx.vue","resources/assets/js/components/shared/falcon-loading.vue","resources/assets/js/components/shared/overlay.vue","resources/assets/js/app.vue","resources/assets/js/components/shared/control-buttons.vue","resources/assets/js/components/shared/header-menu.vue","resources/assets/js/components/header/index.vue","resources/assets/js/components/index.vue","resources/assets/js/components/shared/popover.vue","resources/assets/js/components/outputs/led-panel.vue","resources/assets/js/components/outputs/e131.vue","node_modules/vue-strap/src/Option.vue","resources/assets/js/components/outputs/panels.vue","node_modules/vue-strap/src/Select.vue","resources/assets/js/components/settings/general.vue","resources/assets/build//js/main-1140a4b8c2.js"]},"resources/assets/js/components/playlists.vue":{"index":217,"hash":"vHG42AI/ctPZxYn2tvZT","parents":["resources/assets/build//js/main-1140a4b8c2.js"]},"resources/assets/js/components/schedule.vue":{"index":219,"hash":"w10dm2qLyWGPX+dNhHQr","parents":["resources/assets/build//js/main-1140a4b8c2.js"]},"resources/assets/js/components/plugins.vue":{"index":218,"hash":"aBWTwEC29+sEJX2/NcVw","parents":["resources/assets/build//js/main-1140a4b8c2.js"]},"resources/assets/js/components/events.vue":{"index":201,"hash":"Lmd0SzEjko8hAg0NQmxQ","parents":["resources/assets/build//js/main-1140a4b8c2.js"]},"resources/assets/js/components/effects.vue":{"index":200,"hash":"W8MkKtIaA7ck5eb1D3Us","parents":["resources/assets/build//js/main-1140a4b8c2.js"]},"resources/assets/js/components/testing.vue":{"index":243,"hash":"8w9/LeGCBJNLr09RTiXA","parents":["resources/assets/build//js/main-1140a4b8c2.js"]},"resources/assets/js/components/not-found.vue":{"index":207,"hash":"JnE9W3JgazmF+BYtHxgh","parents":["resources/assets/build//js/main-1140a4b8c2.js"]},"node_modules/vueify-insert-css/index.js":{"index":196,"hash":"fvTUijA6yyBpp68H+JX2","parents":["resources/assets/js/components/not-found.vue","resources/assets/js/components/sidebar.vue","resources/assets/js/components/shared/Tabset.vue","resources/assets/js/components/shared/Tab.vue","resources/assets/js/components/widgets/status.vue","resources/assets/js/components/widgets/player.vue","resources/assets/js/components/shared/filelist.vue","resources/assets/js/components/files.vue","resources/assets/js/components/header/settings.vue","resources/assets/js/components/shared/tabset.vue","resources/assets/js/components/shared/tab.vue","resources/assets/js/components/settings/index.vue","resources/assets/js/components/settings.vue","resources/assets/js/components/outputs/universe.vue","resources/assets/js/components/shared/checkbox.vue","resources/assets/js/components/shared/falcon-loading.vue","resources/assets/js/components/shared/overlay.vue","resources/assets/js/components/shared/control-buttons.vue","resources/assets/js/components/shared/header-menu.vue","resources/assets/js/components/header/index.vue","resources/assets/js/components/index.vue","resources/assets/js/components/outputs/led-panel.vue","resources/assets/js/components/outputs/e131.vue","node_modules/vue-strap/src/Option.vue","resources/assets/js/components/outputs/panels.vue","node_modules/vue-strap/src/Select.vue"]},"node_modules/socket.io-parser/node_modules/debug/debug.js":{"index":166,"hash":"OtjmSmEbIU/8orJwFhDT","parents":["node_modules/socket.io-parser/index.js"]},"node_modules/moment/moment.js":{"index":150,"hash":"sSbAgdZ6+pfkEIPz6SMX","parents":["resources/assets/js/components/dashboard.vue"]},"node_modules/process/browser.js":{"index":155,"hash":"d/Dio43QDX3Xt7NYvbr6","parents":["node_modules/vue/dist/vue.common.js"]},"node_modules/vue-resource/src/lib/url-template.js":{"index":186,"hash":"KZagPKERmevU89wFVgEg","parents":["node_modules/vue-resource/src/url.js"]},"node_modules/vue-resource/src/url.js":{"index":190,"hash":"enlma6RiuDUq+g3+RYdS","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-resource/src/interceptor/before.js":{"index":177,"hash":"dzJ5VyAAgzvYOWxyyGVm","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/timeout.js":{"index":184,"hash":"r+N56i06KukH+ME8Mpnr","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/method.js":{"index":182,"hash":"DqLo0TxFAJSH0HWGo7wR","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/mime.js":{"index":183,"hash":"f6heFdNiVYVl4GIRJ2gN","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/header.js":{"index":179,"hash":"Ql+DdTpkgQsJb9HXQumF","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/lib/promise.js":{"index":185,"hash":"uhJ1aPn5MePstu6k3zZV","parents":["node_modules/vue-resource/src/promise.js"]},"node_modules/vue-resource/src/promise.js":{"index":188,"hash":"dayC7UqEuK1y+yEa6/bE","parents":["node_modules/vue-resource/src/interceptor/index.js","node_modules/vue-resource/src/client/xhr.js","node_modules/vue-resource/src/client/jsonp.js","node_modules/vue-resource/src/http.js","node_modules/vue-resource/src/index.js"]},"node_modules/isarray/index.js":{"index":76,"hash":"dKtews1S4sHvaZhZ+ceq","parents":["node_modules/socket.io-parser/binary.js","node_modules/socket.io-parser/index.js","node_modules/has-binary/index.js"]},"node_modules/json3/lib/json3.js":{"index":81,"hash":"Z22TAqz9HSDSuQH535ZO","parents":["node_modules/socket.io-parser/index.js"]},"resources/assets/js/components/outputs/index.vue":{"index":210,"hash":"tF9ju2+vTr3ViQy6GtPB","parents":["resources/assets/build//js/main-1140a4b8c2.js"]},"resources/assets/js/components/outputs/other.vue":{"index":212,"hash":"q2uEEdYgJjD3nBtzgPjD","parents":["resources/assets/build//js/main-1140a4b8c2.js"]},"resources/assets/js/components/settings/date.vue":{"index":222,"hash":"52BPts98nvITx+HD9Ooc","parents":["resources/assets/build//js/main-1140a4b8c2.js"]},"resources/assets/js/components/shared/switch.vue":{"index":239,"hash":"YL63p5vHKkkZeMmCvrvm","parents":["resources/assets/js/components/settings/date.vue","resources/assets/js/components/outputs/universe.vue","resources/assets/js/components/outputs/pdmx.vue","resources/assets/js/components/outputs/dmx.vue","resources/assets/js/components/outputs/e131.vue","resources/assets/js/components/outputs/panels.vue","resources/assets/js/components/settings/general.vue"]},"resources/assets/js/components/settings/email.vue":{"index":223,"hash":"5oX1fK0HFWyf2L8sKj+z","parents":["resources/assets/build//js/main-1140a4b8c2.js"]},"resources/assets/js/components/settings/logs.vue":{"index":226,"hash":"1FhvCTB1kypk1tpNwaC7","parents":["resources/assets/build//js/main-1140a4b8c2.js"]},"resources/assets/js/components/settings/advanced.vue":{"index":221,"hash":"r2wb/2T+G10rShqof/+O","parents":["resources/assets/build//js/main-1140a4b8c2.js"]},"node_modules/lodash/internal/baseSome.js":{"index":111,"hash":"lCW5AtHn9X2vSuPgS8pk","parents":["node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/baseEach.js":{"index":97,"hash":"Ji7NLCJhdzSBlpDI+qC3","parents":["node_modules/lodash/internal/baseSome.js","node_modules/lodash/internal/baseMap.js","node_modules/lodash/internal/baseFilter.js","node_modules/lodash/collection/forEach.js"]},"node_modules/lodash/internal/baseMap.js":{"index":105,"hash":"ofv2jCE5QlahpynG4rkN","parents":["node_modules/lodash/collection/map.js"]},"node_modules/lodash/internal/isArrayLike.js":{"index":126,"hash":"76Awthz8ChTgjGk0JZ6Y","parents":["node_modules/lodash/internal/baseMap.js","node_modules/lodash/internal/isIterateeCall.js","node_modules/lodash/lang/isArguments.js","node_modules/lodash/object/keys.js"]},"node_modules/lodash/collection/map.js":{"index":86,"hash":"63n5x8GTiWPuxiZzm9TM","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/baseCallback.js":{"index":95,"hash":"FDEmxoh1cXY/hddgPNGW","parents":["node_modules/lodash/collection/map.js","node_modules/lodash/collection/filter.js","node_modules/lodash/internal/createObjectMapper.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/baseFilter.js":{"index":98,"hash":"yyvQag4hw8sItBFf3/9T","parents":["node_modules/lodash/collection/filter.js"]},"node_modules/lodash/collection/filter.js":{"index":84,"hash":"XtU5zjCqSDlYcwOLUC13","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/createObjectMapper.js":{"index":119,"hash":"cp8s+Z6khiKdK5QCQ+Ms","parents":["node_modules/lodash/object/mapValues.js"]},"node_modules/lodash/internal/baseForOwn.js":{"index":100,"hash":"sOLmHH2OosmeW92YaLK/","parents":["node_modules/lodash/internal/createObjectMapper.js","node_modules/lodash/internal/baseEach.js","node_modules/lodash/object/forOwn.js"]},"node_modules/lodash/object/mapValues.js":{"index":146,"hash":"2HfAmVuaVGfc8pd5zIaC","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/createForOwn.js":{"index":118,"hash":"KJqijjvJO7d1nU17Sz3c","parents":["node_modules/lodash/object/forOwn.js"]},"node_modules/lodash/internal/bindCallback.js":{"index":113,"hash":"S6iy1I+53IEzDLSGuW0j","parents":["node_modules/lodash/internal/createForOwn.js","node_modules/lodash/internal/createAssigner.js","node_modules/lodash/internal/createForEach.js","node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/internal/assignWith.js":{"index":93,"hash":"aKBKyfIKqZsNOHAbJTAI","parents":["node_modules/lodash/object/assign.js"]},"node_modules/lodash/object/keys.js":{"index":144,"hash":"BbXGNIcfatSp32uWOBAV","parents":["node_modules/lodash/internal/assignWith.js","node_modules/lodash/internal/baseAssign.js","node_modules/lodash/object/pairs.js","node_modules/lodash/internal/baseForOwn.js","node_modules/lodash/internal/equalObjects.js"]},"node_modules/lodash/utility/identity.js":{"index":148,"hash":"A/cz5O4nnho2x2e5KIWS","parents":["node_modules/lodash/internal/bindCallback.js","node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/internal/isLength.js":{"index":130,"hash":"DFIKI121VzeE+pBbx1Oa","parents":["node_modules/lodash/internal/isArrayLike.js","node_modules/lodash/internal/createBaseEach.js","node_modules/lodash/lang/isArray.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js","node_modules/lodash/lang/isTypedArray.js"]},"node_modules/lodash/internal/isObjectLike.js":{"index":131,"hash":"qEGnAWJNoAetOIJ7YKiV","parents":["node_modules/lodash/lang/isNative.js","node_modules/lodash/lang/isArray.js","node_modules/lodash/lang/isArguments.js","node_modules/lodash/lang/isTypedArray.js","node_modules/lodash/internal/baseIsEqual.js"]},"node_modules/lodash/internal/isIndex.js":{"index":127,"hash":"I8y5AsjL/lwDlORDOqqM","parents":["node_modules/lodash/internal/isIterateeCall.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js"]},"node_modules/lodash/lang/isObject.js":{"index":140,"hash":"Go+dTLFqO1KJN+uQLb8s","parents":["node_modules/lodash/internal/isIterateeCall.js","node_modules/lodash/internal/toObject.js","node_modules/lodash/internal/isStrictComparable.js","node_modules/lodash/lang/isFunction.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/object/keys.js","node_modules/lodash/internal/baseIsEqual.js"]},"node_modules/lodash/internal/baseCopy.js":{"index":96,"hash":"WvGi8IywM6u7ZNXvztwg","parents":["node_modules/lodash/internal/baseAssign.js"]},"node_modules/lodash/internal/baseAssign.js":{"index":94,"hash":"6VX87YoeNgDvMUyiAc/7","parents":["node_modules/lodash/object/assign.js"]},"node_modules/lodash/function/restParam.js":{"index":88,"hash":"/RRH9MCtjArr1p3Qeh63","parents":["node_modules/lodash/internal/createAssigner.js"]},"node_modules/lodash/internal/createAssigner.js":{"index":114,"hash":"X8R81jvRCofY1BnG+A/L","parents":["node_modules/lodash/object/assign.js"]},"node_modules/lodash/internal/isIterateeCall.js":{"index":128,"hash":"dXMnNRevAizOBisKCEes","parents":["node_modules/lodash/internal/createAssigner.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/object/assign.js":{"index":142,"hash":"9WOhJBREl8AO9Hs6Cr+Q","parents":["node_modules/browserify-hmr/inc/index.js"]},"resources/assets/js/components/sidebar.vue":{"index":242,"hash":"lOB+csmsf+OuVDkCt8sZ","parents":["resources/assets/js/app.vue"]},"resources/assets/js/components/footer.vue":{"index":203,"hash":"V/pa4T+7Xw1RugNiCrP+","parents":["resources/assets/js/components/settings.vue","resources/assets/js/components/index.vue"]},"node_modules/socket.io-parser/binary.js":{"index":163,"hash":"bAee8RukaXwuD/OeGN6F","parents":["node_modules/socket.io-parser/index.js"]},"node_modules/socket.io-parser/index.js":{"index":164,"hash":"BAgSAi2yJ1LAoE3Vw1D4","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/has-binary/index.js":{"index":73,"hash":"ZLLgu+QfLGB5FJs6P2Ow","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/engine.io-parser/lib/browser.js"]},"node_modules/socket.io-client/lib/socket.js":{"index":160,"hash":"mVenx7k8VFtvIejsDYOl","parents":["node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/vue-resource/src/interceptor/cors.js":{"index":178,"hash":"y/hrmr+lC4LVHKr98SRc","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/client/jsonp.js":{"index":173,"hash":"+Nk8UZxMFWMDrzR/Me13","parents":["node_modules/vue-resource/src/interceptor/cors.js","node_modules/vue-resource/src/interceptor/jsonp.js"]},"node_modules/vue-resource/src/interceptor/index.js":{"index":180,"hash":"5iWUKE5ElG+J957vOzOe","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/lodash/internal/createForEach.js":{"index":117,"hash":"iJtWBCzx+bzzSLwlaaRv","parents":["node_modules/lodash/collection/forEach.js"]},"node_modules/lodash/internal/getLength.js":{"index":123,"hash":"UiZ6F0+nXZ0fiKckTqnM","parents":["node_modules/lodash/internal/isArrayLike.js","node_modules/lodash/internal/createBaseEach.js"]},"resources/assets/js/components/shared/Tabset.vue":{"index":229,"hash":"gqqI8RvSTmfen5Ur4x8e","parents":["resources/assets/js/components/files.vue"]},"resources/assets/js/components/shared/Tab.vue":{"index":228,"hash":"cdUmReYmh0ydEtOAgdv5","parents":["resources/assets/js/components/files.vue"]},"resources/assets/js/components/widgets/weather.vue":{"index":246,"hash":"b613QbmxPeGOA+SdLRGA","parents":["resources/assets/js/components/dashboard.vue"]},"resources/assets/js/components/widgets/status.vue":{"index":245,"hash":"FePfFpQ2B80cV7d/FBDG","parents":["resources/assets/js/components/dashboard.vue"]},"resources/assets/js/components/widgets/player.vue":{"index":244,"hash":"Pt7RXr1KiZYHpj3FMtnv","parents":["resources/assets/js/components/dashboard.vue"]},"resources/assets/js/components/dashboard.vue":{"index":199,"hash":"EDf226NkNqj+BlZTvE6/","parents":["resources/assets/build//js/main-1140a4b8c2.js"]},"resources/assets/js/components/shared/filelist.vue":{"index":234,"hash":"UcxvPNXyJimPoXghyR93","parents":["resources/assets/js/components/files.vue"]},"resources/assets/js/components/files.vue":{"index":202,"hash":"O/OPcgg+TUnlswbf4lVR","parents":["resources/assets/build//js/main-1140a4b8c2.js"]},"node_modules/lodash/internal/baseSlice.js":{"index":110,"hash":"OLgw9XVic1W0AKjehzHB","parents":["node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/array/last.js":{"index":82,"hash":"3oXXa2idWbKySVLcq3os","parents":["node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/baseProperty.js":{"index":108,"hash":"Yuk2tpof21q0Xl2sQg89","parents":["node_modules/lodash/internal/getLength.js","node_modules/lodash/utility/property.js"]},"resources/assets/js/components/shared/dropdown-select.vue":{"index":232,"hash":"mFIoJVHY9dJVngym9xZP","parents":["resources/assets/js/components/outputs/e131.vue"]},"resources/assets/js/components/header/settings.vue":{"index":205,"hash":"qTO6TJeGEcto0yfy4aS8","parents":["resources/assets/js/components/settings.vue"]},"resources/assets/js/components/shared/control-buttons.vue":{"index":231,"hash":"+9iOqEGv9nEOHue9HTT2","parents":["resources/assets/js/components/header/settings.vue","resources/assets/js/components/header/index.vue"]},"resources/assets/js/components/shared/tabset.vue":{"index":241,"hash":"ni1YOVU6boQgduWMtPx9","parents":["resources/assets/js/components/settings/network.vue"]},"resources/assets/js/components/shared/tab.vue":{"index":240,"hash":"q+fOMn88tu7p6njNfcLf","parents":["resources/assets/js/components/settings/network.vue"]},"resources/assets/js/components/settings/network.vue":{"index":227,"hash":"Xt1AOrWp4ng2cAEaPAeD","parents":["resources/assets/build//js/main-1140a4b8c2.js"]},"resources/assets/js/components/settings/index.vue":{"index":225,"hash":"3OEkMP0lykKjpifYr8Jo","parents":["resources/assets/js/components/settings.vue"]},"resources/assets/js/components/settings.vue":{"index":220,"hash":"8iDnk5fygW9EqF8Mtncs","parents":["resources/assets/build//js/main-1140a4b8c2.js"]},"resources/assets/js/components/outputs/universe.vue":{"index":215,"hash":"g5+vGvXKGEEyAVsRXrKI","parents":["resources/assets/js/components/outputs/e131.vue"]},"resources/assets/js/components/shared/checkbox.vue":{"index":230,"hash":"uZDy5Po/OgOkjVErDgUR","parents":["resources/assets/js/components/outputs/e131.vue"]},"resources/assets/js/components/shared/input.vue":{"index":236,"hash":"nzaLsXc4vVVsCPN3ns0t","parents":["resources/assets/js/components/outputs/dmx.vue","resources/assets/js/components/outputs/e131.vue","resources/assets/js/components/outputs/panels.vue"]},"resources/assets/js/components/outputs/pdmx.vue":{"index":214,"hash":"2ty3Aa7oir8Cq0DoB2dV","parents":["resources/assets/js/components/outputs/dmx.vue"]},"resources/assets/js/components/outputs/dmx.vue":{"index":208,"hash":"Ms2VxJVLnBjDdldyHe2I","parents":["resources/assets/build//js/main-1140a4b8c2.js"]},"node_modules/vue-resource/src/client/xhr.js":{"index":174,"hash":"u8PTCERIOeSAmYWFlrqC","parents":["node_modules/vue-resource/src/client/default.js"]},"node_modules/vue-resource/src/client/default.js":{"index":172,"hash":"+B0kSDe+gVY+/RkxYnil","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/jsonp.js":{"index":181,"hash":"EYhB3ryCUxKsSKwlYeME","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/http.js":{"index":175,"hash":"pcpl/SOKe3e7NS9rUOff","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-resource/src/index.js":{"index":176,"hash":"TZsp5Ua7CrOOvYCKsblD","parents":["resources/assets/build//js/main-1140a4b8c2.js"]},"node_modules/lodash/internal/toObject.js":{"index":134,"hash":"8f3eulB97DddBRdcU+7v","parents":["node_modules/lodash/internal/createBaseEach.js","node_modules/lodash/internal/baseIsMatch.js","node_modules/lodash/internal/baseGet.js","node_modules/lodash/internal/isKey.js","node_modules/lodash/internal/createBaseFor.js","node_modules/lodash/object/pairs.js","node_modules/lodash/internal/baseMatches.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/createBaseEach.js":{"index":115,"hash":"+5X3Ztm78NNPr9vQZ7fB","parents":["node_modules/lodash/internal/baseEach.js"]},"node_modules/lodash/collection/forEach.js":{"index":85,"hash":"0Lo1RNt18PMo/HAKbHEu","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/baseIsMatch.js":{"index":104,"hash":"EpuJzlg204aR35T4QKcS","parents":["node_modules/lodash/internal/baseMatches.js"]},"node_modules/lodash/internal/baseIsEqual.js":{"index":102,"hash":"dBgoFXnhj9KH6oX3dQwa","parents":["node_modules/lodash/internal/baseIsMatch.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/baseGet.js":{"index":101,"hash":"H9EiMd3ullQpRkvooLgz","parents":["node_modules/lodash/internal/basePropertyDeep.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/isKey.js":{"index":129,"hash":"lDpw5crcRmTRExTLVTKc","parents":["node_modules/lodash/utility/property.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/isStrictComparable.js":{"index":132,"hash":"ofNP4/nFrz5Rkb3kGOhn","parents":["node_modules/lodash/internal/getMatchData.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/basePropertyDeep.js":{"index":109,"hash":"mqX1OyYdndJ183lyl/sn","parents":["node_modules/lodash/utility/property.js"]},"node_modules/lodash/internal/toPath.js":{"index":135,"hash":"faVQvsb+LSLI4uaMgtrQ","parents":["node_modules/lodash/internal/basePropertyDeep.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/utility/property.js":{"index":149,"hash":"7IoOI/uGZCxbcY23uQDK","parents":["node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/internal/createBaseFor.js":{"index":116,"hash":"9RWlFaBOuelvwgkhYgPG","parents":["node_modules/lodash/internal/baseFor.js"]},"node_modules/lodash/internal/baseFor.js":{"index":99,"hash":"NGxcZ0n01+w2G1PzyBlY","parents":["node_modules/lodash/internal/baseForOwn.js"]},"node_modules/lodash/internal/baseToString.js":{"index":112,"hash":"ABFQFf14pRECi3sw8oKV","parents":["node_modules/lodash/internal/toPath.js"]},"resources/assets/js/components/shared/falcon-loading.vue":{"index":233,"hash":"nrISz6smCod0TjaIPHYA","parents":["resources/assets/js/components/shared/overlay.vue"]},"resources/assets/js/components/shared/overlay.vue":{"index":237,"hash":"JYZPaO3VyADALhB5HixN","parents":["resources/assets/js/app.vue"]},"resources/assets/js/app.vue":{"index":198,"hash":"Pkw8JlONMB8lI1iN9+Ar","parents":["resources/assets/build//js/main-1140a4b8c2.js"]},"resources/assets/js/components/index.vue":{"index":206,"hash":"dKhVhAfX1GLT+4oM8eCL","parents":["resources/assets/js/app.vue","resources/assets/build//js/main-1140a4b8c2.js"]},"resources/assets/js/components/shared/header-menu.vue":{"index":235,"hash":"phCAnSIecIl68MBC00Uo","parents":["resources/assets/js/components/header/index.vue"]},"resources/assets/js/components/header/index.vue":{"index":204,"hash":"tQNwfPYlIjPf3d+Cgxqf","parents":["resources/assets/js/components/index.vue"]},"node_modules/tether/dist/js/tether.js":{"index":167,"hash":"E4xLyEYuK5qxMv3jfy3v","parents":["resources/assets/js/components/shared/popover.vue"]},"resources/assets/js/components/shared/popover.vue":{"index":238,"hash":"ZPUs9I9S7R9RatQxz5dz","parents":["resources/assets/js/components/outputs/led-panel.vue"]},"resources/assets/js/components/outputs/led-panel.vue":{"index":211,"hash":"oeFziti9eCAe9axM41wE","parents":["resources/assets/js/components/outputs/panels.vue"]},"node_modules/lodash/object/pairs.js":{"index":147,"hash":"x6Ilwx8encvg/BW5API2","parents":["node_modules/lodash/internal/getMatchData.js"]},"node_modules/lodash/internal/getMatchData.js":{"index":124,"hash":"n0PHWhNs6YZ+DzgYMHPx","parents":["node_modules/lodash/internal/baseMatches.js"]},"node_modules/lodash/internal/baseMatches.js":{"index":106,"hash":"Cwj5GSiQv9/E8nSFBoX2","parents":["node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/lang/isFunction.js":{"index":138,"hash":"xkfzrZNZPGGOIf0kE8Y9","parents":["node_modules/lodash/lang/isNative.js"]},"node_modules/lodash/lang/isNative.js":{"index":139,"hash":"2rstaALy1DW0JSDdijps","parents":["node_modules/lodash/internal/getNative.js"]},"node_modules/lodash/internal/getNative.js":{"index":125,"hash":"7GRZ7115BSuoc/1bdaBK","parents":["node_modules/lodash/lang/isArray.js","node_modules/lodash/object/keys.js"]},"node_modules/lodash/lang/isArguments.js":{"index":136,"hash":"xQ4mqbsKQMCmtsPbfQc6","parents":["node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js"]},"node_modules/lodash/object/keysIn.js":{"index":145,"hash":"8POZiGR1fRHso579G46Z","parents":["node_modules/lodash/internal/shimKeys.js"]},"node_modules/lodash/internal/shimKeys.js":{"index":133,"hash":"oO4aKopmxRfPxyKgRX9F","parents":["node_modules/lodash/object/keys.js"]},"node_modules/lodash/object/forOwn.js":{"index":143,"hash":"LZ77PzuJW/wlgVPdvlGc","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/engine.io-client/node_modules/parseuri/index.js":{"index":69,"hash":"c/c7XftSI6ClFc9h2jOh","parents":["node_modules/engine.io-client/lib/socket.js"]},"node_modules/lodash/internal/equalByTag.js":{"index":121,"hash":"+y++gesJpPvyM+2E8aNB","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/parsejson/index.js":{"index":152,"hash":"3RLuznQNKZiQ/toCXNir","parents":["node_modules/engine.io-client/lib/socket.js"]},"node_modules/parseqs/index.js":{"index":153,"hash":"FI4tRELwI5Itz+ckwR+m","parents":["node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-parser/lib/keys.js":{"index":71,"hash":"oFyKNTA0twlyQVhVzp9n","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/lodash/internal/equalArrays.js":{"index":120,"hash":"OBJL6vuaOotu5flUeCnv","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/lodash/internal/equalObjects.js":{"index":122,"hash":"44Iy49kDcaAZsykEdaH3","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/lodash/lang/isTypedArray.js":{"index":141,"hash":"aVeZyIFGadrEh7EsaDRu","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/lodash/internal/baseIsEqualDeep.js":{"index":103,"hash":"ltZZaMHmzp6d9jBltV3Y","parents":["node_modules/lodash/internal/baseIsEqual.js"]},"node_modules/lodash/internal/baseMatchesProperty.js":{"index":107,"hash":"OudnSoeq2A4ql5lg51kc","parents":["node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/collection/some.js":{"index":87,"hash":"9JyJFfdCx56pmR6fwM9q","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/browserify-hmr/inc/index.js":{"index":9,"hash":"zTlNWZ14iIh89mO0UkaY","parents":[]},"node_modules/engine.io-client/lib/transport.js":{"index":59,"hash":"8Wg7zuMzQpa+AwOxaesw","parents":["node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-parser/lib/browser.js":{"index":70,"hash":"Xr2KhMDa3GjqERGsK7Lc","parents":["node_modules/engine.io-client/lib/transport.js","node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/socket.js","node_modules/engine.io-client/lib/index.js"]},"node_modules/utf8/utf8.js":{"index":169,"hash":"Mqm8G2xyYXmBOFrE+/6A","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/arraybuffer.slice/index.js":{"index":3,"hash":"RSb5Zx9CgX3adjzbvf/k","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/after/index.js":{"index":2,"hash":"NzPfXWECmM8rW/6fdkcj","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/blob/index.js":{"index":8,"hash":"q7L6uHK9eN9yEvDVNxJw","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/base64-arraybuffer/lib/base64-arraybuffer.js":{"index":7,"hash":"dW6cnktjBIyZ6bv9vRp2","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/jquery.inputmask/dist/inputmask/inputmask.dependencyLib.jquery.js":{"index":77,"hash":"LS63HHrbi9ZXkvlmIHs3","parents":["node_modules/jquery.inputmask/dist/inputmask/inputmask.js"]},"node_modules/jquery.inputmask/dist/inputmask/inputmask.js":{"index":78,"hash":"rOZH4H3sNvL9GZLSVZ/6","parents":["node_modules/jquery.inputmask/dist/inputmask/jquery.inputmask.js"]},"node_modules/jquery.inputmask/dist/inputmask/jquery.inputmask.js":{"index":79,"hash":"pSeOfS9ivQob0VH/xYAg","parents":["resources/assets/js/directives/ip.js"]},"resources/assets/js/directives/ip.js":{"index":247,"hash":"pPhO8+trVAzzTJ/Onj4q","parents":["resources/assets/js/components/outputs/e131.vue"]},"resources/assets/js/components/outputs/e131.vue":{"index":209,"hash":"oxoRhfagUQrlLzfrXrT5","parents":["resources/assets/build//js/main-1140a4b8c2.js"]},"node_modules/engine.io-client/node_modules/ms/index.js":{"index":68,"hash":"rzSu41c+6ZW8M4Say8X9","parents":["node_modules/engine.io-client/node_modules/debug/debug.js"]},"node_modules/engine.io-client/node_modules/debug/debug.js":{"index":67,"hash":"yqdR7nJc7wxIHzFDNzG+","parents":["node_modules/engine.io-client/node_modules/debug/browser.js"]},"node_modules/engine.io-client/node_modules/debug/browser.js":{"index":66,"hash":"PENVCHp3HppeRm/DiJMI","parents":["node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-client/lib/transports/polling-xhr.js":{"index":62,"hash":"d89FOYRl9cirXzsJCjKg","parents":["node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/engine.io-client/lib/xmlhttprequest.js":{"index":65,"hash":"us0FsN5s7hiT3hqVV5lx","parents":["node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/engine.io-client/lib/transports/polling.js":{"index":63,"hash":"m6eReXjm1pnBQHB07d2V","parents":["node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/transports/polling-jsonp.js"]},"node_modules/component-inherit/index.js":{"index":14,"hash":"T0Fqch4d4akvlr8bh7lc","parents":["node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/transports/polling-jsonp.js"]},"node_modules/vue-strap/src/Option.vue":{"index":192,"hash":"C7Duog3xPNfziDO2oTHN","parents":["resources/assets/js/components/settings/general.vue"]},"node_modules/ws/lib/browser.js":{"index":197,"hash":"vZRI95FVw46PPRoHDauJ","parents":["node_modules/engine.io-client/lib/transports/websocket.js"]},"node_modules/engine.io-client/lib/transports/websocket.js":{"index":64,"hash":"iZQQax7TKsS+8ZxUyrc3","parents":["node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/engine.io-client/lib/transports/polling-jsonp.js":{"index":61,"hash":"FAm1xe7I43tDMsakGLzq","parents":["node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/global/index.js":{"index":72,"hash":"tDIf5GqqdOcKnNHRh2Rc","parents":["node_modules/has-cors/index.js"]},"node_modules/has-cors/index.js":{"index":74,"hash":"uSUdzzwBDQd7qQNKEZ4o","parents":["node_modules/engine.io-client/lib/xmlhttprequest.js"]},"node_modules/engine.io-client/lib/transports/index.js":{"index":60,"hash":"kQ8FMfawL2PES7dsQgvD","parents":["node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-client/lib/socket.js":{"index":58,"hash":"1L37UZEnorYV+ld5c01T","parents":["node_modules/engine.io-client/lib/index.js"]},"node_modules/engine.io-client/lib/index.js":{"index":57,"hash":"G6QYuSNu0EcS+G5tR9NE","parents":["node_modules/engine.io-client/index.js"]},"node_modules/engine.io-client/index.js":{"index":56,"hash":"HQau4MkD4lAynB9tt0Wl","parents":["node_modules/socket.io-client/lib/manager.js"]},"node_modules/socket.io-client/lib/manager.js":{"index":158,"hash":"+TrOAqk4UlI3tKzIT6Dc","parents":["node_modules/socket.io-client/lib/index.js"]},"node_modules/socket.io-client/lib/index.js":{"index":157,"hash":"lWwRhzm83+Eq08s7Nht/","parents":["node_modules/socket.io-client/index.js"]},"node_modules/socket.io-client/index.js":{"index":156,"hash":"ccYBPsaIqMCtG5CHCdDd","parents":[]},"node_modules/core-js/library/modules/$.core.js":{"index":22,"hash":"jO6z5PVz8f6aTUjm5Hrx","parents":["node_modules/core-js/library/modules/$.export.js","node_modules/core-js/library/fn/object/assign.js","node_modules/core-js/library/modules/core.get-iterator-method.js","node_modules/core-js/library/modules/core.get-iterator.js"]},"node_modules/core-js/library/modules/$.iterators.js":{"index":36,"hash":"HPPh7u0tcX1NuooQHCi3","parents":["node_modules/core-js/library/modules/es6.array.iterator.js","node_modules/core-js/library/modules/web.dom.iterable.js","node_modules/core-js/library/modules/core.get-iterator-method.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.global.js":{"index":28,"hash":"t7QKkyeVEU+gGSy/l5Cc","parents":["node_modules/core-js/library/modules/$.export.js","node_modules/core-js/library/modules/$.shared.js","node_modules/core-js/library/modules/$.wks.js"]},"node_modules/core-js/library/modules/$.js":{"index":37,"hash":"UI1ymRgurU07soRpiobz","parents":["node_modules/core-js/library/modules/$.object-assign.js","node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.set-to-string-tag.js","node_modules/core-js/library/modules/$.hide.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.fails.js":{"index":27,"hash":"6G4+YXaRghTGQQnkm/qp","parents":["node_modules/core-js/library/modules/$.object-assign.js","node_modules/core-js/library/modules/$.descriptors.js"]},"node_modules/core-js/library/modules/$.add-to-unscopables.js":{"index":18,"hash":"aTtaK5OMoCOj8v16GPqC","parents":["node_modules/core-js/library/modules/es6.array.iterator.js"]},"node_modules/core-js/library/modules/$.iter-step.js":{"index":35,"hash":"LPWFVFxr7uzP25M4Teof","parents":["node_modules/core-js/library/modules/es6.array.iterator.js"]},"node_modules/core-js/library/modules/$.to-integer.js":{"index":45,"hash":"k18sZu8vTX3eiB+U6ofu","parents":["node_modules/core-js/library/modules/$.string-at.js"]},"node_modules/core-js/library/modules/$.defined.js":{"index":24,"hash":"RZr8uFl+WrrjvGzPSz3c","parents":["node_modules/core-js/library/modules/$.string-at.js","node_modules/core-js/library/modules/$.to-object.js","node_modules/core-js/library/modules/$.to-iobject.js"]},"node_modules/core-js/library/modules/$.string-at.js":{"index":44,"hash":"Zop3IqdJq32xa0qd4H0H","parents":["node_modules/core-js/library/modules/es6.string.iterator.js"]},"node_modules/core-js/library/modules/$.library.js":{"index":38,"hash":"Bhgn5RpO7pDcQnSVaI5C","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.has.js":{"index":29,"hash":"y4idiH2Sj/rmZqd39CHH","parents":["node_modules/core-js/library/modules/$.set-to-string-tag.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.is-object.js":{"index":32,"hash":"FkaOOMIm0uw4T/qUEXed","parents":["node_modules/core-js/library/modules/$.an-object.js"]},"node_modules/core-js/library/modules/$.an-object.js":{"index":19,"hash":"d7pCynXJhKpK2u1S0fph","parents":["node_modules/core-js/library/modules/core.get-iterator.js"]},"node_modules/core-js/library/modules/$.to-object.js":{"index":47,"hash":"XLB72m1cojvL0pIYCCFE","parents":["node_modules/core-js/library/modules/$.object-assign.js"]},"node_modules/core-js/library/modules/$.a-function.js":{"index":17,"hash":"vI7NBVNoKizw/T7ablYt","parents":["node_modules/core-js/library/modules/$.ctx.js"]},"node_modules/core-js/library/modules/$.ctx.js":{"index":23,"hash":"IBAqoysxf6uGe4qIslFW","parents":["node_modules/core-js/library/modules/$.export.js"]},"node_modules/core-js/library/modules/$.export.js":{"index":26,"hash":"tF6TuwqA3fLdeFKqSI9n","parents":["node_modules/core-js/library/modules/es6.object.assign.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.cof.js":{"index":21,"hash":"FY6tg0ymdCS/rEwpAa7R","parents":["node_modules/core-js/library/modules/$.iobject.js","node_modules/core-js/library/modules/$.classof.js"]},"node_modules/core-js/library/modules/$.iobject.js":{"index":31,"hash":"HvETp5p0zMBjh+wvjxSm","parents":["node_modules/core-js/library/modules/$.object-assign.js","node_modules/core-js/library/modules/$.to-iobject.js"]},"node_modules/core-js/library/modules/$.object-assign.js":{"index":39,"hash":"vlM4g8r36vFJivj1EOOp","parents":["node_modules/core-js/library/modules/es6.object.assign.js"]},"node_modules/core-js/library/modules/es6.object.assign.js":{"index":53,"hash":"O1TTCwEy8yCJjcDqCq0k","parents":["node_modules/core-js/library/fn/object/assign.js"]},"node_modules/core-js/library/fn/object/assign.js":{"index":16,"hash":"RKVv+8x7eGcEw+yVXhC5","parents":["node_modules/babel-runtime/core-js/object/assign.js"]},"node_modules/babel-runtime/core-js/object/assign.js":{"index":5,"hash":"8fJTx1/oL9wcIWyAqxHQ","parents":["resources/assets/js/components/outputs/panels.vue"]},"resources/assets/js/components/outputs/panels.vue":{"index":213,"hash":"q6XkL4K+YoKGSpUymvLX","parents":["resources/assets/build//js/main-1140a4b8c2.js"]},"node_modules/core-js/library/modules/$.to-iobject.js":{"index":46,"hash":"yp4UOuCLRVO1tqlgppw5","parents":["node_modules/core-js/library/modules/es6.array.iterator.js"]},"node_modules/core-js/library/modules/es6.array.iterator.js":{"index":52,"hash":"Zw/NixWUIMjoGa2uWxe/","parents":["node_modules/core-js/library/modules/web.dom.iterable.js"]},"node_modules/core-js/library/modules/$.iter-define.js":{"index":34,"hash":"sR6jK5MoRN1zAKGNm2y4","parents":["node_modules/core-js/library/modules/es6.array.iterator.js","node_modules/core-js/library/modules/es6.string.iterator.js"]},"node_modules/core-js/library/modules/web.dom.iterable.js":{"index":55,"hash":"KisVT/JurPfFyjuYGWzf","parents":["node_modules/core-js/library/fn/get-iterator.js"]},"node_modules/core-js/library/modules/$.redefine.js":{"index":41,"hash":"v4z59Kie6WPVO1h+8oJP","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.hide.js":{"index":30,"hash":"2HBwvxEtbt4UpskOWy62","parents":["node_modules/core-js/library/modules/$.redefine.js","node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.iter-create.js":{"index":33,"hash":"aNVpOMS/fyyM1i4Aw4bY","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.property-desc.js":{"index":40,"hash":"iSs9jpAw1JT2ZWWLScSH","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.hide.js"]},"node_modules/core-js/library/modules/$.set-to-string-tag.js":{"index":42,"hash":"3G0pjz42ePfLP++caEH3","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.wks.js":{"index":49,"hash":"qMliszffX6kySHptJTIp","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.set-to-string-tag.js","node_modules/core-js/library/modules/$.classof.js","node_modules/core-js/library/modules/core.get-iterator-method.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.classof.js":{"index":20,"hash":"2vrlE4yJW7f/QT46fZjd","parents":["node_modules/core-js/library/modules/core.get-iterator-method.js"]},"node_modules/core-js/library/modules/core.get-iterator-method.js":{"index":50,"hash":"+qtmOjO/wxtOJEvpsv/b","parents":["node_modules/core-js/library/modules/core.get-iterator.js"]},"node_modules/core-js/library/modules/core.get-iterator.js":{"index":51,"hash":"Fpc5rJRGURor7FbHBYPn","parents":["node_modules/core-js/library/fn/get-iterator.js"]},"node_modules/core-js/library/modules/$.uid.js":{"index":48,"hash":"auy0a5KBxuU7QAdJ7we/","parents":["node_modules/core-js/library/modules/$.wks.js"]},"node_modules/core-js/library/modules/$.descriptors.js":{"index":25,"hash":"NJqnAOVs55bKea+gKIGt","parents":["node_modules/core-js/library/modules/$.hide.js"]},"node_modules/core-js/library/modules/$.shared.js":{"index":43,"hash":"ZK+Tn2LANbB4OqkscM3N","parents":["node_modules/core-js/library/modules/$.wks.js"]},"node_modules/core-js/library/modules/es6.string.iterator.js":{"index":54,"hash":"viRu85eLzJ68VCbwuHbl","parents":["node_modules/core-js/library/fn/get-iterator.js"]},"node_modules/core-js/library/fn/get-iterator.js":{"index":15,"hash":"V+nypfA8LA2WadFVp7u2","parents":["node_modules/babel-runtime/core-js/get-iterator.js"]},"node_modules/babel-runtime/core-js/get-iterator.js":{"index":4,"hash":"a8je4in/yfKL3pQIQJX9","parents":["node_modules/vue-strap/src/Select.vue"]},"node_modules/vue-strap/src/Select.vue":{"index":193,"hash":"7dhDxiNKuVRXmRHtif1f","parents":["resources/assets/js/components/settings/general.vue"]},"resources/assets/js/components/settings/general.vue":{"index":224,"hash":"z3oDp7DMMswZH4HODONA","parents":["resources/assets/build//js/main-1140a4b8c2.js"]},"resources/assets/build//js/main-1140a4b8c2.js":{"index":248,"hash":"lFNIfEXagwxBD5Sl4d6B","parents":[]}};
-  var originalEntries = ["/Users/Tim/Sites/FPP2/www/resources/assets/build//js/main-1140a4b8c2.js"];
+  var moduleMeta = {"node_modules/browserify-hmr/lib/has.js":{"index":10,"hash":"Hky4QYVrU1+kFHIEuxPy","parents":["node_modules/browserify-hmr/lib/str-set.js","node_modules/browserify-hmr/inc/index.js"]},"node_modules/browserify-hmr/lib/str-set.js":{"index":11,"hash":"lcrDmQK4uaqOqN+FV4/9","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/socket.io-client/node_modules/debug/debug.js":{"index":162,"hash":"OtjmSmEbIU/8orJwFhDT","parents":["node_modules/socket.io-client/lib/url.js","node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/socket.io-client/lib/on.js":{"index":159,"hash":"y5MOoFpTKKBHwE8q8jae","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/vue-animated-list/vue-animated-list.js":{"index":170,"hash":"26lVl2CH82yXZ2XSjVFm","parents":["resources/assets/build//js/main-9026dece5c.js"]},"node_modules/vue-validator/dist/vue-validator.common.js":{"index":194,"hash":"UC2NCeCJUHWKBvaDtYM2","parents":["resources/assets/build//js/main-9026dece5c.js"]},"node_modules/jquery/dist/jquery.js":{"index":80,"hash":"siFczlgw4jULnUICcdm9","parents":["resources/assets/js/app.vue","node_modules/jquery.inputmask/dist/inputmask/inputmask.dependencyLib.jquery.js","node_modules/jquery.inputmask/dist/inputmask/jquery.inputmask.js","resources/assets/js/directives/ip.js","resources/assets/build//js/main-9026dece5c.js"]},"resources/assets/js/state/actions.js":{"index":253,"hash":"Npj60b4O+RG53UN50rVT","parents":["resources/assets/js/components/outputs/index.vue","resources/assets/js/components/widgets/status.vue","resources/assets/js/components/outputs/universe.vue","resources/assets/js/app.vue","resources/assets/js/components/outputs/e131.vue"]},"resources/assets/js/services/http.js":{"index":252,"hash":"OqU5t4zvkjeUSpQJFLPI","parents":["resources/assets/js/state/actions.js","resources/assets/js/stores/shared.js"]},"resources/assets/js/stores/shared.js":{"index":258,"hash":"dBZ6EHn2t9/PLCXa/Sej","parents":["resources/assets/js/app.vue"]},"resources/assets/js/mixins/outputMixin.js":{"index":250,"hash":"gGCtCK8OXqFlnKkxkWU0","parents":["resources/assets/js/components/outputs/dmx.vue","resources/assets/js/components/outputs/e131.vue","resources/assets/js/components/outputs/panels.vue"]},"node_modules/vue-resource/src/resource.js":{"index":189,"hash":"4hFj5axF31CeVRePeF8o","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-hot-reload-api/index.js":{"index":171,"hash":"WuwmPSnCiynHpb+AfQBY","parents":["resources/assets/js/components/not-found.vue","resources/assets/js/components/overlays.vue","resources/assets/js/components/playlists.vue","resources/assets/js/components/plugins.vue","resources/assets/js/components/events.vue","resources/assets/js/components/effects.vue","resources/assets/js/components/testing.vue","resources/assets/js/components/schedule.vue","resources/assets/js/components/sidebar.vue","resources/assets/js/components/outputs/index.vue","resources/assets/js/components/outputs/other.vue","resources/assets/js/components/settings/date.vue","resources/assets/js/components/settings/email.vue","resources/assets/js/components/settings/logs.vue","resources/assets/js/components/settings/advanced.vue","resources/assets/js/components/footer.vue","resources/assets/js/components/shared/Tabset.vue","resources/assets/js/components/shared/Tab.vue","resources/assets/js/components/widgets/weather.vue","resources/assets/js/components/widgets/status.vue","resources/assets/js/components/widgets/player.vue","resources/assets/js/components/dashboard.vue","resources/assets/js/components/shared/falcon-loading.vue","resources/assets/js/components/shared/overlay.vue","resources/assets/js/components/shared/filelist.vue","resources/assets/js/components/files.vue","resources/assets/js/components/shared/switch.vue","resources/assets/js/components/shared/dropdown-select.vue","resources/assets/js/components/header/settings.vue","resources/assets/js/components/settings/index.vue","resources/assets/js/components/settings.vue","resources/assets/js/components/outputs/universe.vue","resources/assets/js/components/shared/checkbox.vue","resources/assets/js/components/shared/input.vue","resources/assets/js/components/shared/tabset.vue","resources/assets/js/components/shared/tab.vue","resources/assets/js/components/settings/network.vue","resources/assets/js/components/outputs/pdmx.vue","resources/assets/js/components/outputs/dmx.vue","resources/assets/js/components/shared/control-buttons.vue","resources/assets/js/components/shared/header-menu.vue","resources/assets/js/components/header/index.vue","resources/assets/js/components/index.vue","resources/assets/js/app.vue","resources/assets/js/components/shared/popover.vue","resources/assets/js/components/outputs/led-panel.vue","resources/assets/js/components/outputs/e131.vue","node_modules/vue-strap/src/Option.vue","resources/assets/js/components/outputs/panels.vue","node_modules/vue-strap/src/Select.vue","resources/assets/js/components/settings/general.vue"]},"node_modules/vue-resource/src/lib/util.js":{"index":187,"hash":"kipx22owioSurHN4RBYT","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-router/dist/vue-router.common.js":{"index":191,"hash":"V5DMsGGLcOqPAhx31psf","parents":["resources/assets/js/router.js"]},"node_modules/socket.io-parser/is-buffer.js":{"index":165,"hash":"UJBXKAfBg/BkigSZbc3Z","parents":["node_modules/socket.io-parser/binary.js","node_modules/socket.io-parser/index.js"]},"node_modules/component-emitter/index.js":{"index":13,"hash":"0uL1LSa/mOj+Llu+HTZ7","parents":["node_modules/socket.io-parser/index.js","node_modules/socket.io-client/lib/socket.js","node_modules/engine.io-client/lib/transport.js","node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/parseuri/index.js":{"index":154,"hash":"PsPou9y5yKmPMPJnjEkz","parents":["node_modules/socket.io-client/lib/url.js"]},"node_modules/socket.io-client/lib/url.js":{"index":161,"hash":"/WgdaMtSTLlxFoTxZTGl","parents":["node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/component-bind/index.js":{"index":12,"hash":"4yIcVw+afwUsnTQyI0a3","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/object-component/index.js":{"index":151,"hash":"zOYybxl/D7KsteH/xJyk","parents":["node_modules/socket.io-client/lib/manager.js"]},"node_modules/indexof/index.js":{"index":75,"hash":"8zMGV0j0ID5bUIeT7r+M","parents":["node_modules/engine.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/backo2/index.js":{"index":6,"hash":"L5ry3mfVEw1wgmx9Sa+q","parents":["node_modules/socket.io-client/lib/manager.js"]},"node_modules/to-array/index.js":{"index":168,"hash":"2EoggafxX+GLXkXiaGjm","parents":["node_modules/socket.io-client/lib/socket.js"]},"node_modules/lodash/array/zipObject.js":{"index":83,"hash":"fKfSwIzPo5SUx9d0DkgN","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/lang/isArray.js":{"index":137,"hash":"rpMiE1Z199/XZCjno4KN","parents":["node_modules/lodash/array/zipObject.js","node_modules/lodash/collection/map.js","node_modules/lodash/collection/filter.js","node_modules/lodash/internal/createForEach.js","node_modules/lodash/internal/isKey.js","node_modules/lodash/internal/toPath.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js","node_modules/lodash/internal/baseIsEqualDeep.js","node_modules/lodash/internal/baseMatchesProperty.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/arrayEach.js":{"index":89,"hash":"eLxUBVsb8vpFbu0VN4KL","parents":["node_modules/lodash/collection/forEach.js"]},"node_modules/lodash/internal/arraySome.js":{"index":92,"hash":"GxeJPxJj2jUg5TzV5gLv","parents":["node_modules/lodash/internal/equalArrays.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/arrayMap.js":{"index":91,"hash":"xdr8c0JsUFapIHTuM5VE","parents":["node_modules/lodash/collection/map.js"]},"node_modules/lodash/internal/arrayFilter.js":{"index":90,"hash":"BGunz0w1QzJXyqQSOdZb","parents":["node_modules/lodash/collection/filter.js"]},"resources/assets/js/state/modules/outputs.js":{"index":254,"hash":"Rh6zmEhy7CJ2ZgD5fvqP","parents":["resources/assets/js/state/store.js"]},"resources/assets/js/state/mutation-types.js":{"index":256,"hash":"9hyImdRRavj+nkl+mWZq","parents":["resources/assets/js/state/modules/outputs.js","resources/assets/js/state/modules/shared.js"]},"resources/assets/js/state/modules/shared.js":{"index":255,"hash":"gfPqKiVt88796h4eIZQy","parents":["resources/assets/js/state/store.js"]},"node_modules/socket.io-parser/node_modules/debug/debug.js":{"index":166,"hash":"OtjmSmEbIU/8orJwFhDT","parents":["node_modules/socket.io-parser/index.js"]},"resources/assets/js/utils.js":{"index":259,"hash":"YUBgAVFOtL2AfLdROM4O","parents":["resources/assets/js/components/shared/input.vue"]},"node_modules/process/browser.js":{"index":155,"hash":"d/Dio43QDX3Xt7NYvbr6","parents":["node_modules/vue/dist/vue.common.js"]},"node_modules/vue/dist/vue.common.js":{"index":195,"hash":"c6jVTEwxpfJvrcRARsRp","parents":["resources/assets/js/components/not-found.vue","resources/assets/js/components/overlays.vue","resources/assets/js/components/playlists.vue","resources/assets/js/components/plugins.vue","resources/assets/js/components/events.vue","resources/assets/js/components/effects.vue","resources/assets/js/components/testing.vue","resources/assets/js/components/schedule.vue","resources/assets/js/components/sidebar.vue","resources/assets/js/state/store.js","resources/assets/js/components/outputs/index.vue","resources/assets/js/components/outputs/other.vue","resources/assets/js/components/settings/date.vue","resources/assets/js/components/settings/email.vue","resources/assets/js/components/settings/logs.vue","resources/assets/js/components/settings/advanced.vue","resources/assets/js/components/footer.vue","resources/assets/js/components/shared/Tabset.vue","resources/assets/js/components/shared/Tab.vue","resources/assets/js/components/widgets/weather.vue","resources/assets/js/components/widgets/status.vue","resources/assets/js/components/widgets/player.vue","resources/assets/js/components/dashboard.vue","resources/assets/js/components/shared/falcon-loading.vue","resources/assets/js/components/shared/overlay.vue","resources/assets/js/components/shared/filelist.vue","resources/assets/js/components/files.vue","resources/assets/js/components/shared/switch.vue","resources/assets/js/components/shared/dropdown-select.vue","resources/assets/js/components/header/settings.vue","resources/assets/js/components/settings/index.vue","resources/assets/js/components/settings.vue","resources/assets/js/components/outputs/universe.vue","resources/assets/js/components/shared/checkbox.vue","resources/assets/js/components/shared/input.vue","resources/assets/js/components/shared/tabset.vue","resources/assets/js/components/shared/tab.vue","resources/assets/js/components/settings/network.vue","resources/assets/js/components/outputs/pdmx.vue","resources/assets/js/components/outputs/dmx.vue","resources/assets/js/components/shared/control-buttons.vue","resources/assets/js/components/shared/header-menu.vue","resources/assets/js/components/header/index.vue","resources/assets/js/components/index.vue","resources/assets/js/app.vue","resources/assets/js/components/shared/popover.vue","resources/assets/js/components/outputs/led-panel.vue","resources/assets/js/components/outputs/e131.vue","node_modules/vue-strap/src/Option.vue","resources/assets/js/components/outputs/panels.vue","node_modules/vue-strap/src/Select.vue","resources/assets/js/components/settings/general.vue","resources/assets/build//js/main-9026dece5c.js"]},"node_modules/vue-resource/src/lib/url-template.js":{"index":186,"hash":"KZagPKERmevU89wFVgEg","parents":["node_modules/vue-resource/src/url.js"]},"node_modules/vue-resource/src/url.js":{"index":190,"hash":"enlma6RiuDUq+g3+RYdS","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-resource/src/interceptor/before.js":{"index":177,"hash":"dzJ5VyAAgzvYOWxyyGVm","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/timeout.js":{"index":184,"hash":"r+N56i06KukH+ME8Mpnr","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/method.js":{"index":182,"hash":"DqLo0TxFAJSH0HWGo7wR","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/mime.js":{"index":183,"hash":"f6heFdNiVYVl4GIRJ2gN","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/header.js":{"index":179,"hash":"Ql+DdTpkgQsJb9HXQumF","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/lib/promise.js":{"index":185,"hash":"uhJ1aPn5MePstu6k3zZV","parents":["node_modules/vue-resource/src/promise.js"]},"node_modules/vue-resource/src/promise.js":{"index":188,"hash":"dayC7UqEuK1y+yEa6/bE","parents":["node_modules/vue-resource/src/interceptor/index.js","node_modules/vue-resource/src/client/xhr.js","node_modules/vue-resource/src/client/jsonp.js","node_modules/vue-resource/src/http.js","node_modules/vue-resource/src/index.js"]},"node_modules/isarray/index.js":{"index":76,"hash":"dKtews1S4sHvaZhZ+ceq","parents":["node_modules/socket.io-parser/binary.js","node_modules/socket.io-parser/index.js","node_modules/has-binary/index.js"]},"node_modules/json3/lib/json3.js":{"index":81,"hash":"Z22TAqz9HSDSuQH535ZO","parents":["node_modules/socket.io-parser/index.js"]},"node_modules/lodash/internal/baseSome.js":{"index":111,"hash":"lCW5AtHn9X2vSuPgS8pk","parents":["node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/baseEach.js":{"index":97,"hash":"Ji7NLCJhdzSBlpDI+qC3","parents":["node_modules/lodash/internal/baseSome.js","node_modules/lodash/internal/baseMap.js","node_modules/lodash/internal/baseFilter.js","node_modules/lodash/collection/forEach.js"]},"node_modules/lodash/internal/baseMap.js":{"index":105,"hash":"ofv2jCE5QlahpynG4rkN","parents":["node_modules/lodash/collection/map.js"]},"node_modules/lodash/internal/isArrayLike.js":{"index":126,"hash":"76Awthz8ChTgjGk0JZ6Y","parents":["node_modules/lodash/internal/baseMap.js","node_modules/lodash/internal/isIterateeCall.js","node_modules/lodash/lang/isArguments.js","node_modules/lodash/object/keys.js"]},"node_modules/lodash/collection/map.js":{"index":86,"hash":"63n5x8GTiWPuxiZzm9TM","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/baseCallback.js":{"index":95,"hash":"FDEmxoh1cXY/hddgPNGW","parents":["node_modules/lodash/collection/map.js","node_modules/lodash/collection/filter.js","node_modules/lodash/internal/createObjectMapper.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/baseFilter.js":{"index":98,"hash":"yyvQag4hw8sItBFf3/9T","parents":["node_modules/lodash/collection/filter.js"]},"node_modules/lodash/collection/filter.js":{"index":84,"hash":"XtU5zjCqSDlYcwOLUC13","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/createForOwn.js":{"index":118,"hash":"KJqijjvJO7d1nU17Sz3c","parents":["node_modules/lodash/object/forOwn.js"]},"node_modules/lodash/internal/bindCallback.js":{"index":113,"hash":"S6iy1I+53IEzDLSGuW0j","parents":["node_modules/lodash/internal/createForOwn.js","node_modules/lodash/internal/createAssigner.js","node_modules/lodash/internal/createForEach.js","node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/internal/createObjectMapper.js":{"index":119,"hash":"cp8s+Z6khiKdK5QCQ+Ms","parents":["node_modules/lodash/object/mapValues.js"]},"node_modules/lodash/internal/baseForOwn.js":{"index":100,"hash":"sOLmHH2OosmeW92YaLK/","parents":["node_modules/lodash/internal/createObjectMapper.js","node_modules/lodash/internal/baseEach.js","node_modules/lodash/object/forOwn.js"]},"node_modules/lodash/object/mapValues.js":{"index":146,"hash":"2HfAmVuaVGfc8pd5zIaC","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/assignWith.js":{"index":93,"hash":"aKBKyfIKqZsNOHAbJTAI","parents":["node_modules/lodash/object/assign.js"]},"node_modules/lodash/object/keys.js":{"index":144,"hash":"BbXGNIcfatSp32uWOBAV","parents":["node_modules/lodash/internal/assignWith.js","node_modules/lodash/internal/baseAssign.js","node_modules/lodash/object/pairs.js","node_modules/lodash/internal/baseForOwn.js","node_modules/lodash/internal/equalObjects.js"]},"node_modules/lodash/utility/identity.js":{"index":148,"hash":"A/cz5O4nnho2x2e5KIWS","parents":["node_modules/lodash/internal/bindCallback.js","node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/internal/isLength.js":{"index":130,"hash":"DFIKI121VzeE+pBbx1Oa","parents":["node_modules/lodash/internal/isArrayLike.js","node_modules/lodash/internal/createBaseEach.js","node_modules/lodash/lang/isArray.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js","node_modules/lodash/lang/isTypedArray.js"]},"node_modules/lodash/internal/isObjectLike.js":{"index":131,"hash":"qEGnAWJNoAetOIJ7YKiV","parents":["node_modules/lodash/lang/isNative.js","node_modules/lodash/lang/isArray.js","node_modules/lodash/lang/isArguments.js","node_modules/lodash/lang/isTypedArray.js","node_modules/lodash/internal/baseIsEqual.js"]},"node_modules/lodash/internal/isIndex.js":{"index":127,"hash":"I8y5AsjL/lwDlORDOqqM","parents":["node_modules/lodash/internal/isIterateeCall.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js"]},"node_modules/lodash/lang/isObject.js":{"index":140,"hash":"Go+dTLFqO1KJN+uQLb8s","parents":["node_modules/lodash/internal/isIterateeCall.js","node_modules/lodash/internal/toObject.js","node_modules/lodash/internal/isStrictComparable.js","node_modules/lodash/lang/isFunction.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/object/keys.js","node_modules/lodash/internal/baseIsEqual.js"]},"node_modules/lodash/internal/baseCopy.js":{"index":96,"hash":"WvGi8IywM6u7ZNXvztwg","parents":["node_modules/lodash/internal/baseAssign.js"]},"node_modules/lodash/internal/baseAssign.js":{"index":94,"hash":"6VX87YoeNgDvMUyiAc/7","parents":["node_modules/lodash/object/assign.js"]},"node_modules/lodash/function/restParam.js":{"index":88,"hash":"/RRH9MCtjArr1p3Qeh63","parents":["node_modules/lodash/internal/createAssigner.js"]},"node_modules/lodash/internal/createAssigner.js":{"index":114,"hash":"X8R81jvRCofY1BnG+A/L","parents":["node_modules/lodash/object/assign.js"]},"node_modules/lodash/internal/isIterateeCall.js":{"index":128,"hash":"dXMnNRevAizOBisKCEes","parents":["node_modules/lodash/internal/createAssigner.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/object/assign.js":{"index":142,"hash":"9WOhJBREl8AO9Hs6Cr+Q","parents":["node_modules/browserify-hmr/inc/index.js"]},"resources/assets/js/components/not-found.vue":{"index":208,"hash":"JnE9W3JgazmF+BYtHxgh","parents":["resources/assets/js/router.js"]},"node_modules/vueify-insert-css/index.js":{"index":196,"hash":"fvTUijA6yyBpp68H+JX2","parents":["resources/assets/js/components/not-found.vue","resources/assets/js/components/sidebar.vue","resources/assets/js/components/shared/Tabset.vue","resources/assets/js/components/shared/Tab.vue","resources/assets/js/components/widgets/status.vue","resources/assets/js/components/widgets/player.vue","resources/assets/js/components/shared/falcon-loading.vue","resources/assets/js/components/shared/overlay.vue","resources/assets/js/components/shared/filelist.vue","resources/assets/js/components/files.vue","resources/assets/js/components/header/settings.vue","resources/assets/js/components/settings/index.vue","resources/assets/js/components/settings.vue","resources/assets/js/components/outputs/universe.vue","resources/assets/js/components/shared/checkbox.vue","resources/assets/js/components/shared/tabset.vue","resources/assets/js/components/shared/tab.vue","resources/assets/js/components/shared/control-buttons.vue","resources/assets/js/components/shared/header-menu.vue","resources/assets/js/components/header/index.vue","resources/assets/js/components/index.vue","resources/assets/js/components/outputs/led-panel.vue","resources/assets/js/components/outputs/e131.vue","node_modules/vue-strap/src/Option.vue","resources/assets/js/components/outputs/panels.vue","node_modules/vue-strap/src/Select.vue"]},"resources/assets/js/components/overlays.vue":{"index":217,"hash":"wttUj90IjUTB21TqVn5A","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/playlists.vue":{"index":218,"hash":"vHG42AI/ctPZxYn2tvZT","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/plugins.vue":{"index":219,"hash":"aBWTwEC29+sEJX2/NcVw","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/events.vue":{"index":202,"hash":"Lmd0SzEjko8hAg0NQmxQ","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/effects.vue":{"index":201,"hash":"W8MkKtIaA7ck5eb1D3Us","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/testing.vue":{"index":244,"hash":"8w9/LeGCBJNLr09RTiXA","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/schedule.vue":{"index":220,"hash":"w10dm2qLyWGPX+dNhHQr","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/sidebar.vue":{"index":243,"hash":"lOB+csmsf+OuVDkCt8sZ","parents":["resources/assets/js/app.vue"]},"node_modules/vuex/dist/vuex.js":{"index":197,"hash":"gX//W6yHs/IFY/kkM/lI","parents":["resources/assets/js/state/store.js"]},"resources/assets/js/state/store.js":{"index":257,"hash":"JFe03zHKV77tu3sGfiNV","parents":["resources/assets/js/app.vue"]},"node_modules/socket.io-parser/binary.js":{"index":163,"hash":"bAee8RukaXwuD/OeGN6F","parents":["node_modules/socket.io-parser/index.js"]},"node_modules/socket.io-parser/index.js":{"index":164,"hash":"BAgSAi2yJ1LAoE3Vw1D4","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/moment/moment.js":{"index":150,"hash":"sSbAgdZ6+pfkEIPz6SMX","parents":["resources/assets/js/components/dashboard.vue"]},"node_modules/has-binary/index.js":{"index":73,"hash":"ZLLgu+QfLGB5FJs6P2Ow","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/engine.io-parser/lib/browser.js"]},"node_modules/socket.io-client/lib/socket.js":{"index":160,"hash":"mVenx7k8VFtvIejsDYOl","parents":["node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/vue-resource/src/interceptor/cors.js":{"index":178,"hash":"y/hrmr+lC4LVHKr98SRc","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/client/jsonp.js":{"index":173,"hash":"+Nk8UZxMFWMDrzR/Me13","parents":["node_modules/vue-resource/src/interceptor/cors.js","node_modules/vue-resource/src/interceptor/jsonp.js"]},"node_modules/vue-resource/src/interceptor/index.js":{"index":180,"hash":"5iWUKE5ElG+J957vOzOe","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/lodash/internal/createForEach.js":{"index":117,"hash":"iJtWBCzx+bzzSLwlaaRv","parents":["node_modules/lodash/collection/forEach.js"]},"node_modules/lodash/internal/getLength.js":{"index":123,"hash":"UiZ6F0+nXZ0fiKckTqnM","parents":["node_modules/lodash/internal/isArrayLike.js","node_modules/lodash/internal/createBaseEach.js"]},"resources/assets/js/components/outputs/index.vue":{"index":211,"hash":"OQxL5TLvM4FWVnFkPhor","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/outputs/other.vue":{"index":213,"hash":"q2uEEdYgJjD3nBtzgPjD","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/settings/date.vue":{"index":223,"hash":"52BPts98nvITx+HD9Ooc","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/shared/switch.vue":{"index":240,"hash":"GncMLylKE/vVyr4WuMrs","parents":["resources/assets/js/components/settings/date.vue","resources/assets/js/components/outputs/universe.vue","resources/assets/js/components/outputs/pdmx.vue","resources/assets/js/components/outputs/dmx.vue","resources/assets/js/components/outputs/e131.vue","resources/assets/js/components/outputs/panels.vue","resources/assets/js/components/settings/general.vue"]},"resources/assets/js/components/settings/email.vue":{"index":224,"hash":"5oX1fK0HFWyf2L8sKj+z","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/settings/logs.vue":{"index":227,"hash":"1FhvCTB1kypk1tpNwaC7","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/settings/advanced.vue":{"index":222,"hash":"r2wb/2T+G10rShqof/+O","parents":["resources/assets/js/router.js"]},"node_modules/lodash/internal/baseSlice.js":{"index":110,"hash":"OLgw9XVic1W0AKjehzHB","parents":["node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/array/last.js":{"index":82,"hash":"3oXXa2idWbKySVLcq3os","parents":["node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/baseProperty.js":{"index":108,"hash":"Yuk2tpof21q0Xl2sQg89","parents":["node_modules/lodash/internal/getLength.js","node_modules/lodash/utility/property.js"]},"resources/assets/js/components/footer.vue":{"index":204,"hash":"V/pa4T+7Xw1RugNiCrP+","parents":["resources/assets/js/components/settings.vue","resources/assets/js/components/index.vue"]},"node_modules/vue-resource/src/client/xhr.js":{"index":174,"hash":"u8PTCERIOeSAmYWFlrqC","parents":["node_modules/vue-resource/src/client/default.js"]},"node_modules/vue-resource/src/client/default.js":{"index":172,"hash":"+B0kSDe+gVY+/RkxYnil","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/jsonp.js":{"index":181,"hash":"EYhB3ryCUxKsSKwlYeME","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/http.js":{"index":175,"hash":"pcpl/SOKe3e7NS9rUOff","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-resource/src/index.js":{"index":176,"hash":"TZsp5Ua7CrOOvYCKsblD","parents":["resources/assets/build//js/main-9026dece5c.js"]},"node_modules/lodash/internal/toObject.js":{"index":134,"hash":"8f3eulB97DddBRdcU+7v","parents":["node_modules/lodash/internal/createBaseEach.js","node_modules/lodash/internal/baseIsMatch.js","node_modules/lodash/internal/baseGet.js","node_modules/lodash/internal/isKey.js","node_modules/lodash/internal/createBaseFor.js","node_modules/lodash/object/pairs.js","node_modules/lodash/internal/baseMatches.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/createBaseEach.js":{"index":115,"hash":"+5X3Ztm78NNPr9vQZ7fB","parents":["node_modules/lodash/internal/baseEach.js"]},"node_modules/lodash/collection/forEach.js":{"index":85,"hash":"0Lo1RNt18PMo/HAKbHEu","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/baseIsMatch.js":{"index":104,"hash":"EpuJzlg204aR35T4QKcS","parents":["node_modules/lodash/internal/baseMatches.js"]},"node_modules/lodash/internal/baseIsEqual.js":{"index":102,"hash":"dBgoFXnhj9KH6oX3dQwa","parents":["node_modules/lodash/internal/baseIsMatch.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/baseGet.js":{"index":101,"hash":"H9EiMd3ullQpRkvooLgz","parents":["node_modules/lodash/internal/basePropertyDeep.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/isKey.js":{"index":129,"hash":"lDpw5crcRmTRExTLVTKc","parents":["node_modules/lodash/utility/property.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/isStrictComparable.js":{"index":132,"hash":"ofNP4/nFrz5Rkb3kGOhn","parents":["node_modules/lodash/internal/getMatchData.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/basePropertyDeep.js":{"index":109,"hash":"mqX1OyYdndJ183lyl/sn","parents":["node_modules/lodash/utility/property.js"]},"node_modules/lodash/internal/toPath.js":{"index":135,"hash":"faVQvsb+LSLI4uaMgtrQ","parents":["node_modules/lodash/internal/basePropertyDeep.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/utility/property.js":{"index":149,"hash":"7IoOI/uGZCxbcY23uQDK","parents":["node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/internal/createBaseFor.js":{"index":116,"hash":"9RWlFaBOuelvwgkhYgPG","parents":["node_modules/lodash/internal/baseFor.js"]},"node_modules/lodash/internal/baseFor.js":{"index":99,"hash":"NGxcZ0n01+w2G1PzyBlY","parents":["node_modules/lodash/internal/baseForOwn.js"]},"node_modules/lodash/internal/baseToString.js":{"index":112,"hash":"ABFQFf14pRECi3sw8oKV","parents":["node_modules/lodash/internal/toPath.js"]},"resources/assets/js/components/shared/Tabset.vue":{"index":230,"hash":"gqqI8RvSTmfen5Ur4x8e","parents":["resources/assets/js/components/files.vue"]},"resources/assets/js/components/shared/Tab.vue":{"index":229,"hash":"cdUmReYmh0ydEtOAgdv5","parents":["resources/assets/js/components/files.vue"]},"resources/assets/js/components/widgets/weather.vue":{"index":247,"hash":"b613QbmxPeGOA+SdLRGA","parents":["resources/assets/js/components/dashboard.vue"]},"resources/assets/js/components/widgets/status.vue":{"index":246,"hash":"dx5Q0xdAzquNNd4/suOO","parents":["resources/assets/js/components/dashboard.vue"]},"resources/assets/js/components/widgets/player.vue":{"index":245,"hash":"Pt7RXr1KiZYHpj3FMtnv","parents":["resources/assets/js/components/dashboard.vue"]},"resources/assets/js/components/dashboard.vue":{"index":200,"hash":"Akp9ehD7OWCnRYmCuM7l","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/shared/falcon-loading.vue":{"index":234,"hash":"nrISz6smCod0TjaIPHYA","parents":["resources/assets/js/components/shared/overlay.vue"]},"resources/assets/js/components/shared/overlay.vue":{"index":238,"hash":"JYZPaO3VyADALhB5HixN","parents":["resources/assets/js/app.vue"]},"resources/assets/js/components/shared/filelist.vue":{"index":235,"hash":"UcxvPNXyJimPoXghyR93","parents":["resources/assets/js/components/files.vue"]},"resources/assets/js/components/files.vue":{"index":203,"hash":"O/OPcgg+TUnlswbf4lVR","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/shared/dropdown-select.vue":{"index":233,"hash":"mFIoJVHY9dJVngym9xZP","parents":["resources/assets/js/components/outputs/e131.vue"]},"resources/assets/js/components/header/settings.vue":{"index":206,"hash":"qTO6TJeGEcto0yfy4aS8","parents":["resources/assets/js/components/settings.vue"]},"resources/assets/js/components/shared/control-buttons.vue":{"index":232,"hash":"+9iOqEGv9nEOHue9HTT2","parents":["resources/assets/js/components/header/settings.vue","resources/assets/js/components/header/index.vue"]},"resources/assets/js/components/settings/index.vue":{"index":226,"hash":"3OEkMP0lykKjpifYr8Jo","parents":["resources/assets/js/components/settings.vue"]},"resources/assets/js/components/settings.vue":{"index":221,"hash":"8iDnk5fygW9EqF8Mtncs","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/outputs/universe.vue":{"index":216,"hash":"J45mAYqBFQEumAq3RIgy","parents":["resources/assets/js/components/outputs/e131.vue"]},"resources/assets/js/components/shared/checkbox.vue":{"index":231,"hash":"uZDy5Po/OgOkjVErDgUR","parents":["resources/assets/js/components/outputs/e131.vue"]},"resources/assets/js/components/shared/input.vue":{"index":237,"hash":"nzaLsXc4vVVsCPN3ns0t","parents":["resources/assets/js/components/outputs/dmx.vue","resources/assets/js/components/outputs/e131.vue","resources/assets/js/components/outputs/panels.vue"]},"resources/assets/js/components/shared/tabset.vue":{"index":242,"hash":"ni1YOVU6boQgduWMtPx9","parents":["resources/assets/js/components/settings/network.vue"]},"resources/assets/js/components/shared/tab.vue":{"index":241,"hash":"q+fOMn88tu7p6njNfcLf","parents":["resources/assets/js/components/settings/network.vue"]},"resources/assets/js/components/settings/network.vue":{"index":228,"hash":"Xt1AOrWp4ng2cAEaPAeD","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/outputs/pdmx.vue":{"index":215,"hash":"2ty3Aa7oir8Cq0DoB2dV","parents":["resources/assets/js/components/outputs/dmx.vue"]},"resources/assets/js/components/outputs/dmx.vue":{"index":209,"hash":"Ms2VxJVLnBjDdldyHe2I","parents":["resources/assets/js/router.js"]},"node_modules/lodash/object/pairs.js":{"index":147,"hash":"x6Ilwx8encvg/BW5API2","parents":["node_modules/lodash/internal/getMatchData.js"]},"node_modules/lodash/internal/getMatchData.js":{"index":124,"hash":"n0PHWhNs6YZ+DzgYMHPx","parents":["node_modules/lodash/internal/baseMatches.js"]},"node_modules/lodash/internal/baseMatches.js":{"index":106,"hash":"Cwj5GSiQv9/E8nSFBoX2","parents":["node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/lang/isFunction.js":{"index":138,"hash":"xkfzrZNZPGGOIf0kE8Y9","parents":["node_modules/lodash/lang/isNative.js"]},"node_modules/lodash/lang/isNative.js":{"index":139,"hash":"2rstaALy1DW0JSDdijps","parents":["node_modules/lodash/internal/getNative.js"]},"node_modules/lodash/internal/getNative.js":{"index":125,"hash":"7GRZ7115BSuoc/1bdaBK","parents":["node_modules/lodash/lang/isArray.js","node_modules/lodash/object/keys.js"]},"node_modules/lodash/lang/isArguments.js":{"index":136,"hash":"xQ4mqbsKQMCmtsPbfQc6","parents":["node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js"]},"node_modules/lodash/object/keysIn.js":{"index":145,"hash":"8POZiGR1fRHso579G46Z","parents":["node_modules/lodash/internal/shimKeys.js"]},"node_modules/lodash/internal/shimKeys.js":{"index":133,"hash":"oO4aKopmxRfPxyKgRX9F","parents":["node_modules/lodash/object/keys.js"]},"node_modules/lodash/object/forOwn.js":{"index":143,"hash":"LZ77PzuJW/wlgVPdvlGc","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/engine.io-client/node_modules/parseuri/index.js":{"index":69,"hash":"c/c7XftSI6ClFc9h2jOh","parents":["node_modules/engine.io-client/lib/socket.js"]},"node_modules/lodash/internal/equalByTag.js":{"index":121,"hash":"+y++gesJpPvyM+2E8aNB","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"resources/assets/js/components/shared/header-menu.vue":{"index":236,"hash":"phCAnSIecIl68MBC00Uo","parents":["resources/assets/js/components/header/index.vue"]},"resources/assets/js/components/header/index.vue":{"index":205,"hash":"tQNwfPYlIjPf3d+Cgxqf","parents":["resources/assets/js/components/index.vue"]},"resources/assets/js/components/index.vue":{"index":207,"hash":"dKhVhAfX1GLT+4oM8eCL","parents":["resources/assets/js/app.vue","resources/assets/js/router.js"]},"resources/assets/js/app.vue":{"index":199,"hash":"1aRpzKmuLE80iz+IQLwt","parents":["resources/assets/build//js/main-9026dece5c.js"]},"node_modules/parsejson/index.js":{"index":152,"hash":"3RLuznQNKZiQ/toCXNir","parents":["node_modules/engine.io-client/lib/socket.js"]},"node_modules/parseqs/index.js":{"index":153,"hash":"FI4tRELwI5Itz+ckwR+m","parents":["node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-parser/lib/keys.js":{"index":71,"hash":"oFyKNTA0twlyQVhVzp9n","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/tether/dist/js/tether.js":{"index":167,"hash":"E4xLyEYuK5qxMv3jfy3v","parents":["resources/assets/js/components/shared/popover.vue"]},"resources/assets/js/components/shared/popover.vue":{"index":239,"hash":"ZPUs9I9S7R9RatQxz5dz","parents":["resources/assets/js/components/outputs/led-panel.vue"]},"resources/assets/js/components/outputs/led-panel.vue":{"index":212,"hash":"oeFziti9eCAe9axM41wE","parents":["resources/assets/js/components/outputs/panels.vue"]},"node_modules/lodash/internal/equalArrays.js":{"index":120,"hash":"OBJL6vuaOotu5flUeCnv","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/lodash/internal/equalObjects.js":{"index":122,"hash":"44Iy49kDcaAZsykEdaH3","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/lodash/lang/isTypedArray.js":{"index":141,"hash":"aVeZyIFGadrEh7EsaDRu","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/lodash/internal/baseIsEqualDeep.js":{"index":103,"hash":"ltZZaMHmzp6d9jBltV3Y","parents":["node_modules/lodash/internal/baseIsEqual.js"]},"node_modules/lodash/internal/baseMatchesProperty.js":{"index":107,"hash":"OudnSoeq2A4ql5lg51kc","parents":["node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/collection/some.js":{"index":87,"hash":"9JyJFfdCx56pmR6fwM9q","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/browserify-hmr/inc/index.js":{"index":9,"hash":"zTlNWZ14iIh89mO0UkaY","parents":[]},"node_modules/engine.io-client/lib/transport.js":{"index":59,"hash":"8Wg7zuMzQpa+AwOxaesw","parents":["node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-parser/lib/browser.js":{"index":70,"hash":"Xr2KhMDa3GjqERGsK7Lc","parents":["node_modules/engine.io-client/lib/transport.js","node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/socket.js","node_modules/engine.io-client/lib/index.js"]},"node_modules/utf8/utf8.js":{"index":169,"hash":"Mqm8G2xyYXmBOFrE+/6A","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/arraybuffer.slice/index.js":{"index":3,"hash":"RSb5Zx9CgX3adjzbvf/k","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/after/index.js":{"index":2,"hash":"NzPfXWECmM8rW/6fdkcj","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/blob/index.js":{"index":8,"hash":"q7L6uHK9eN9yEvDVNxJw","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/base64-arraybuffer/lib/base64-arraybuffer.js":{"index":7,"hash":"dW6cnktjBIyZ6bv9vRp2","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/engine.io-client/node_modules/ms/index.js":{"index":68,"hash":"rzSu41c+6ZW8M4Say8X9","parents":["node_modules/engine.io-client/node_modules/debug/debug.js"]},"node_modules/engine.io-client/node_modules/debug/debug.js":{"index":67,"hash":"yqdR7nJc7wxIHzFDNzG+","parents":["node_modules/engine.io-client/node_modules/debug/browser.js"]},"node_modules/engine.io-client/node_modules/debug/browser.js":{"index":66,"hash":"PENVCHp3HppeRm/DiJMI","parents":["node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-client/lib/transports/polling-jsonp.js":{"index":61,"hash":"FAm1xe7I43tDMsakGLzq","parents":["node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/engine.io-client/lib/transports/polling.js":{"index":63,"hash":"m6eReXjm1pnBQHB07d2V","parents":["node_modules/engine.io-client/lib/transports/polling-jsonp.js","node_modules/engine.io-client/lib/transports/polling-xhr.js"]},"node_modules/component-inherit/index.js":{"index":14,"hash":"T0Fqch4d4akvlr8bh7lc","parents":["node_modules/engine.io-client/lib/transports/polling-jsonp.js","node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/transports/polling-xhr.js"]},"node_modules/ws/lib/browser.js":{"index":198,"hash":"vZRI95FVw46PPRoHDauJ","parents":["node_modules/engine.io-client/lib/transports/websocket.js"]},"node_modules/engine.io-client/lib/transports/websocket.js":{"index":64,"hash":"iZQQax7TKsS+8ZxUyrc3","parents":["node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/jquery.inputmask/dist/inputmask/inputmask.dependencyLib.jquery.js":{"index":77,"hash":"LS63HHrbi9ZXkvlmIHs3","parents":["node_modules/jquery.inputmask/dist/inputmask/inputmask.js"]},"node_modules/jquery.inputmask/dist/inputmask/inputmask.js":{"index":78,"hash":"rOZH4H3sNvL9GZLSVZ/6","parents":["node_modules/jquery.inputmask/dist/inputmask/jquery.inputmask.js"]},"node_modules/jquery.inputmask/dist/inputmask/jquery.inputmask.js":{"index":79,"hash":"pSeOfS9ivQob0VH/xYAg","parents":["resources/assets/js/directives/ip.js"]},"resources/assets/js/directives/ip.js":{"index":248,"hash":"pPhO8+trVAzzTJ/Onj4q","parents":["resources/assets/js/components/outputs/e131.vue"]},"resources/assets/js/components/outputs/e131.vue":{"index":210,"hash":"0XAM8PCoFo8SSbuHe4BE","parents":["resources/assets/js/router.js"]},"node_modules/engine.io-client/lib/xmlhttprequest.js":{"index":65,"hash":"us0FsN5s7hiT3hqVV5lx","parents":["node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/engine.io-client/lib/transports/polling-xhr.js":{"index":62,"hash":"d89FOYRl9cirXzsJCjKg","parents":["node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/vue-strap/src/Option.vue":{"index":192,"hash":"C7Duog3xPNfziDO2oTHN","parents":["resources/assets/js/components/settings/general.vue"]},"node_modules/global/index.js":{"index":72,"hash":"tDIf5GqqdOcKnNHRh2Rc","parents":["node_modules/has-cors/index.js"]},"node_modules/has-cors/index.js":{"index":74,"hash":"uSUdzzwBDQd7qQNKEZ4o","parents":["node_modules/engine.io-client/lib/xmlhttprequest.js"]},"node_modules/engine.io-client/lib/transports/index.js":{"index":60,"hash":"kQ8FMfawL2PES7dsQgvD","parents":["node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-client/lib/socket.js":{"index":58,"hash":"1L37UZEnorYV+ld5c01T","parents":["node_modules/engine.io-client/lib/index.js"]},"node_modules/engine.io-client/lib/index.js":{"index":57,"hash":"G6QYuSNu0EcS+G5tR9NE","parents":["node_modules/engine.io-client/index.js"]},"node_modules/engine.io-client/index.js":{"index":56,"hash":"HQau4MkD4lAynB9tt0Wl","parents":["node_modules/socket.io-client/lib/manager.js"]},"node_modules/socket.io-client/lib/manager.js":{"index":158,"hash":"+TrOAqk4UlI3tKzIT6Dc","parents":["node_modules/socket.io-client/lib/index.js"]},"node_modules/socket.io-client/lib/index.js":{"index":157,"hash":"lWwRhzm83+Eq08s7Nht/","parents":["node_modules/socket.io-client/index.js"]},"node_modules/socket.io-client/index.js":{"index":156,"hash":"ccYBPsaIqMCtG5CHCdDd","parents":[]},"node_modules/core-js/library/modules/$.core.js":{"index":22,"hash":"jO6z5PVz8f6aTUjm5Hrx","parents":["node_modules/core-js/library/modules/$.export.js","node_modules/core-js/library/fn/object/assign.js","node_modules/core-js/library/modules/core.get-iterator-method.js","node_modules/core-js/library/modules/core.get-iterator.js"]},"node_modules/core-js/library/modules/$.iterators.js":{"index":36,"hash":"HPPh7u0tcX1NuooQHCi3","parents":["node_modules/core-js/library/modules/es6.array.iterator.js","node_modules/core-js/library/modules/web.dom.iterable.js","node_modules/core-js/library/modules/core.get-iterator-method.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.global.js":{"index":28,"hash":"t7QKkyeVEU+gGSy/l5Cc","parents":["node_modules/core-js/library/modules/$.export.js","node_modules/core-js/library/modules/$.shared.js","node_modules/core-js/library/modules/$.wks.js"]},"node_modules/core-js/library/modules/$.js":{"index":37,"hash":"UI1ymRgurU07soRpiobz","parents":["node_modules/core-js/library/modules/$.object-assign.js","node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.set-to-string-tag.js","node_modules/core-js/library/modules/$.hide.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.fails.js":{"index":27,"hash":"6G4+YXaRghTGQQnkm/qp","parents":["node_modules/core-js/library/modules/$.object-assign.js","node_modules/core-js/library/modules/$.descriptors.js"]},"node_modules/core-js/library/modules/$.add-to-unscopables.js":{"index":18,"hash":"aTtaK5OMoCOj8v16GPqC","parents":["node_modules/core-js/library/modules/es6.array.iterator.js"]},"node_modules/core-js/library/modules/$.iter-step.js":{"index":35,"hash":"LPWFVFxr7uzP25M4Teof","parents":["node_modules/core-js/library/modules/es6.array.iterator.js"]},"node_modules/core-js/library/modules/$.to-integer.js":{"index":45,"hash":"k18sZu8vTX3eiB+U6ofu","parents":["node_modules/core-js/library/modules/$.string-at.js"]},"node_modules/core-js/library/modules/$.defined.js":{"index":24,"hash":"RZr8uFl+WrrjvGzPSz3c","parents":["node_modules/core-js/library/modules/$.string-at.js","node_modules/core-js/library/modules/$.to-object.js","node_modules/core-js/library/modules/$.to-iobject.js"]},"node_modules/core-js/library/modules/$.string-at.js":{"index":44,"hash":"Zop3IqdJq32xa0qd4H0H","parents":["node_modules/core-js/library/modules/es6.string.iterator.js"]},"node_modules/core-js/library/modules/$.library.js":{"index":38,"hash":"Bhgn5RpO7pDcQnSVaI5C","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.has.js":{"index":29,"hash":"y4idiH2Sj/rmZqd39CHH","parents":["node_modules/core-js/library/modules/$.set-to-string-tag.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.is-object.js":{"index":32,"hash":"FkaOOMIm0uw4T/qUEXed","parents":["node_modules/core-js/library/modules/$.an-object.js"]},"node_modules/core-js/library/modules/$.an-object.js":{"index":19,"hash":"d7pCynXJhKpK2u1S0fph","parents":["node_modules/core-js/library/modules/core.get-iterator.js"]},"node_modules/core-js/library/modules/$.to-object.js":{"index":47,"hash":"XLB72m1cojvL0pIYCCFE","parents":["node_modules/core-js/library/modules/$.object-assign.js"]},"node_modules/core-js/library/modules/$.a-function.js":{"index":17,"hash":"vI7NBVNoKizw/T7ablYt","parents":["node_modules/core-js/library/modules/$.ctx.js"]},"node_modules/core-js/library/modules/$.ctx.js":{"index":23,"hash":"IBAqoysxf6uGe4qIslFW","parents":["node_modules/core-js/library/modules/$.export.js"]},"node_modules/core-js/library/modules/$.export.js":{"index":26,"hash":"tF6TuwqA3fLdeFKqSI9n","parents":["node_modules/core-js/library/modules/es6.object.assign.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.cof.js":{"index":21,"hash":"FY6tg0ymdCS/rEwpAa7R","parents":["node_modules/core-js/library/modules/$.iobject.js","node_modules/core-js/library/modules/$.classof.js"]},"node_modules/core-js/library/modules/$.iobject.js":{"index":31,"hash":"HvETp5p0zMBjh+wvjxSm","parents":["node_modules/core-js/library/modules/$.object-assign.js","node_modules/core-js/library/modules/$.to-iobject.js"]},"node_modules/core-js/library/modules/$.object-assign.js":{"index":39,"hash":"vlM4g8r36vFJivj1EOOp","parents":["node_modules/core-js/library/modules/es6.object.assign.js"]},"node_modules/core-js/library/modules/es6.object.assign.js":{"index":53,"hash":"O1TTCwEy8yCJjcDqCq0k","parents":["node_modules/core-js/library/fn/object/assign.js"]},"node_modules/core-js/library/fn/object/assign.js":{"index":16,"hash":"RKVv+8x7eGcEw+yVXhC5","parents":["node_modules/babel-runtime/core-js/object/assign.js"]},"node_modules/babel-runtime/core-js/object/assign.js":{"index":5,"hash":"8fJTx1/oL9wcIWyAqxHQ","parents":["resources/assets/js/components/outputs/panels.vue"]},"resources/assets/js/components/outputs/panels.vue":{"index":214,"hash":"q6XkL4K+YoKGSpUymvLX","parents":["resources/assets/js/router.js"]},"node_modules/core-js/library/modules/$.to-iobject.js":{"index":46,"hash":"yp4UOuCLRVO1tqlgppw5","parents":["node_modules/core-js/library/modules/es6.array.iterator.js"]},"node_modules/core-js/library/modules/es6.array.iterator.js":{"index":52,"hash":"Zw/NixWUIMjoGa2uWxe/","parents":["node_modules/core-js/library/modules/web.dom.iterable.js"]},"node_modules/core-js/library/modules/$.iter-define.js":{"index":34,"hash":"sR6jK5MoRN1zAKGNm2y4","parents":["node_modules/core-js/library/modules/es6.array.iterator.js","node_modules/core-js/library/modules/es6.string.iterator.js"]},"node_modules/core-js/library/modules/web.dom.iterable.js":{"index":55,"hash":"KisVT/JurPfFyjuYGWzf","parents":["node_modules/core-js/library/fn/get-iterator.js"]},"node_modules/core-js/library/modules/$.redefine.js":{"index":41,"hash":"v4z59Kie6WPVO1h+8oJP","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.hide.js":{"index":30,"hash":"2HBwvxEtbt4UpskOWy62","parents":["node_modules/core-js/library/modules/$.redefine.js","node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.iter-create.js":{"index":33,"hash":"aNVpOMS/fyyM1i4Aw4bY","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.property-desc.js":{"index":40,"hash":"iSs9jpAw1JT2ZWWLScSH","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.hide.js"]},"node_modules/core-js/library/modules/$.set-to-string-tag.js":{"index":42,"hash":"3G0pjz42ePfLP++caEH3","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.wks.js":{"index":49,"hash":"qMliszffX6kySHptJTIp","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.set-to-string-tag.js","node_modules/core-js/library/modules/$.classof.js","node_modules/core-js/library/modules/core.get-iterator-method.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.classof.js":{"index":20,"hash":"2vrlE4yJW7f/QT46fZjd","parents":["node_modules/core-js/library/modules/core.get-iterator-method.js"]},"node_modules/core-js/library/modules/core.get-iterator-method.js":{"index":50,"hash":"+qtmOjO/wxtOJEvpsv/b","parents":["node_modules/core-js/library/modules/core.get-iterator.js"]},"node_modules/core-js/library/modules/core.get-iterator.js":{"index":51,"hash":"Fpc5rJRGURor7FbHBYPn","parents":["node_modules/core-js/library/fn/get-iterator.js"]},"node_modules/core-js/library/modules/$.uid.js":{"index":48,"hash":"auy0a5KBxuU7QAdJ7we/","parents":["node_modules/core-js/library/modules/$.wks.js"]},"node_modules/core-js/library/modules/$.descriptors.js":{"index":25,"hash":"NJqnAOVs55bKea+gKIGt","parents":["node_modules/core-js/library/modules/$.hide.js"]},"node_modules/core-js/library/modules/$.shared.js":{"index":43,"hash":"ZK+Tn2LANbB4OqkscM3N","parents":["node_modules/core-js/library/modules/$.wks.js"]},"node_modules/core-js/library/modules/es6.string.iterator.js":{"index":54,"hash":"viRu85eLzJ68VCbwuHbl","parents":["node_modules/core-js/library/fn/get-iterator.js"]},"node_modules/core-js/library/fn/get-iterator.js":{"index":15,"hash":"V+nypfA8LA2WadFVp7u2","parents":["node_modules/babel-runtime/core-js/get-iterator.js"]},"node_modules/babel-runtime/core-js/get-iterator.js":{"index":4,"hash":"a8je4in/yfKL3pQIQJX9","parents":["node_modules/vue-strap/src/Select.vue"]},"node_modules/vue-strap/src/Select.vue":{"index":193,"hash":"7dhDxiNKuVRXmRHtif1f","parents":["resources/assets/js/components/settings/general.vue"]},"resources/assets/js/components/settings/general.vue":{"index":225,"hash":"z3oDp7DMMswZH4HODONA","parents":["resources/assets/js/router.js"]},"resources/assets/js/router.js":{"index":251,"hash":"3VD473napME/z2440t7y","parents":["resources/assets/build//js/main-9026dece5c.js"]},"resources/assets/build//js/main-9026dece5c.js":{"index":249,"hash":"tzWIDOgrs6XuB2GTgPM8","parents":[]}};
+  var originalEntries = ["/Users/Tim/Sites/FPP2/www/resources/assets/build//js/main-9026dece5c.js"];
   var updateUrl = null;
   var updateMode = "websocket";
   var supportModes = ["none","websocket"];
@@ -47286,6 +48254,6 @@ function makeid() {
   arguments[3], arguments[4], arguments[5], arguments[6]
 );
 
-},{"./node_modules/browserify-hmr/inc/index.js":9,"./node_modules/socket.io-client/index.js":156,"/Users/Tim/Sites/FPP2/www/resources/assets/build//js/main-1140a4b8c2.js":248}]},{},[1]);
+},{"./node_modules/browserify-hmr/inc/index.js":9,"./node_modules/socket.io-client/index.js":156,"/Users/Tim/Sites/FPP2/www/resources/assets/build//js/main-9026dece5c.js":249}]},{},[1]);
 
 //# sourceMappingURL=main.js.map
