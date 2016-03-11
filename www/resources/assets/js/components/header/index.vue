@@ -23,9 +23,11 @@ export default {
     data() {
         return {};
     },
-    ready() {},
-    methods: {},
-    events: {}
+    vuex: {
+        getters: {
+            version: state => state.shared.version
+        }
+    }
 
 }
 </script>

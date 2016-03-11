@@ -1,3 +1,8 @@
+/**
+ * General
+ */
+export const CLEAR_ALL_FLAGS = 'CLEAR_ALL_FLAGS';
+
 /*
  * Device Mutations
  */
@@ -5,6 +10,8 @@ export const REBOOT_DEVICE   = 'REBOOT_DEVICE';
 export const SHUTDOWN_DEVICE = 'SHUTDOWN_DEVICE';
 export const DEVICE_BOOTED = 'DEVICE_BOOTED';
 export const REQUIRE_REBOOT = 'REQUIRE_REBOOT';
+export const UPDATE_DATETIME = 'UPDATE_DATETIME';
+export const UPDATE_VERSION = 'UPDATE_VERSION';
 
 /*
  * FPPD Mutations
@@ -25,6 +32,7 @@ export const STATUS_UPDATE = 'STATUS_UPDATE';
  * Player
  */
 export const UPDATE_VOLUME = 'UPDATE_VOLUME';
+export const UPDATE_PLAYLIST = 'UPDATE_PLAYLIST';
 export const LOAD_PLAYLIST = 'LOAD_PLAYLIST';
 export const LOAD_PLAYLISTS = 'LOAD_PLAYLISTS';
 

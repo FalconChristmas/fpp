@@ -34,12 +34,13 @@
                 </div>
             </div>
             <div class="row">
-                <div class="col-xs-12 col-lg-6">
+                <div class="col-xs-12 col-lg-6 col-xl-5">
                     <status-widget></status-widget>
                 </div>
                
-                <div class="col-xs-12 col-lg-6">
-                    <multisync-widget></multisync-widget>
+                <div class="col-xs-12 col-lg-6 col-xl-7">
+                    <player-widget></player-widget>
+                    
               <!--       <div class="row">
                         <div class="col-xs-12 col-md-6 col-lg-12">
                             <div class="panel box widget bg-azure">
@@ -72,8 +73,8 @@
                 
             </div>
             <div class="row">
-                <div class="col-xs-12">
-                    <player-widget></player-widget>
+                <div class="col-xs-12 col-lg-5">
+                    <multisync-widget></multisync-widget>
                 </div>
             </div>
             

@@ -13,19 +13,30 @@
         <div class="panel-body p-a-0">
             <div class="multisync-items">
                 <div class="table-responsive">
-                    <table class="table table-sm table-striped m-t-0">
+                    <table class="table table-sm table-striped m-t-0 m-b-0">
                         <thead>
                             <tr>
-                                <th></th>
-                                <th>System Name</th>
-                                <th>IP Address</th>
-                                <th>Platform</th>
-                                <th>Mode</th>
+                                <th class="">Local</th>
+                                <th class="">System Name</th>
+                                <th class="text-center">IP Address</th>
+                                <th class="text-center">Platform</th>
+                                <th class="text-center mode">Mode</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
-                            <td colspan="5" class="text-center all-caps fs-12 ls-2 text-muted p-a-1">No Systems Found</td>
+                                <td class="text-center"><i class="ion-checkmark text-success"></i></td>
+                                <td class="">FPP</td>
+                                <td class="text-center">192.168.1.1</td>
+                                <td class="text-center">Raspberry Pi</td>
+                                <td class="text-center">Player</td>
+                            </tr>
+                            <tr>
+                                <td class="text-center"><i class="ion-close text-danger"></i></td>
+                                <td class="">FPP2</td>
+                                <td class="text-center">192.168.1.2</td>
+                                <td class="text-center">Raspberry Pi</td>
+                                <td class="text-center">Player</td>
                             </tr>
                         </tbody>
                     </table>
@@ -61,6 +72,9 @@ export default {
                 font-weight: normal;
                 border-bottom: 0;
                 //color: white;
+                &.mode {
+                    padding-right: 0 !important;
+                }
             }
         }
     }

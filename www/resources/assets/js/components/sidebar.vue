@@ -11,7 +11,6 @@
             <ul class="nav">
                 <li><a v-link="{ name: 'dashboard', exact: true, activeClass: 'active' }">Dashboard</a></li>
                 <li><a v-link="{name: 'testing', activeClass: 'active'}">Display Testing</a></li>
-                <li><a v-link="{name: 'events', activeClass: 'active'}">Events</a></li>
                 <li><a v-link="{name: 'effects', activeClass: 'active'}">Effects</a></li>
             </ul>
         </div>
@@ -30,26 +29,26 @@
         <div class="menu-section">
             <h4>Configure</h4>
             <ul class="nav">
-                <li><a v-link="{name: 'outputs', activeClass: 'active'}">Channel Outputs</a></li>
+                <li><a v-link="{name: 'outputs', activeClass: 'active'}">Outputs</a></li>
+                <li><a v-link="{name: 'gpio', activeClass: 'active'}">GPIO</a></li>
                 <li><a v-link="{name: 'overlays', activeClass: 'active'}">Overlay Models</a></li>
+                <li><a v-link="{name: 'events', activeClass: 'active'}">Events</a></li>
                 <li><a v-link="{name: 'settings', activeClass: 'active'}">Settings</a></li>
             </ul>
         </div>
     </div>
+     <div class="device-version text-small text-muted m-a-0 fs-10"><div class="all-caps hint-text">FPP Version:</div> {{ version }}</div>
 </aside>
 
 </template>
 
 <script>
 export default {
-    components: {},
-    props: [],
-    data() {
-        return {};
-    },
-    ready() {},
-    methods: {},
-    events: {}
+    vuex: {
+        getters: {
+            version: state => state.shared.version
+        }
+    }
 
 }
 </script>
@@ -109,6 +108,13 @@ export default {
             color: $sidebar-a-color-active;
             font-weight: 500;
           }
+       }
+
+       .device-version {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            padding: 10px;
        }
 
     }

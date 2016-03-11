@@ -17,8 +17,10 @@
 </template>
 
 <script>
+import Switch from "../shared/switch.vue";
+
 export default {
-    components: {},
+    components: { Switch },
     props: [],
     data() {
         return {};

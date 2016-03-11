@@ -26,14 +26,25 @@
 
 
 Route::group(['middleware' => ['api'], 'namespace' => 'Api', 'prefix' => 'api'], function ($router) {
-   
-  
+    
 
     $router->get('status', function() {
+    	$status = [
+    		'fppd' => 'running',
+    		'mode' => 'standalone',
+    		'status' => 0,
+    		'volume' => 100,
+    		'playlist' => 'No playlist scheduled.',
+    		'currentDate' => Carbon\Carbon::now(),
+    		'repeatMode' => 0,
+    		'version' => fpp_version(),
+    		'repeatMode' => 0,
+    		'restartFlag' => false,
+    		'rebootFlag' => false,
+    		'updateFlag' => false,
+    	];
     	return response()->json([
-    		'data' => [
-    			'git_version' =>  fpp_version()
-    			]
+    		'data' => $status
     		]);
     });
 

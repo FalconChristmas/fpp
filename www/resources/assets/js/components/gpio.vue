@@ -1,6 +1,6 @@
 <template>
     <div>
-        <h2>Pixel Overlay Models</h2>
+        <h2>GPIO Inputs</h2>
     </div>
 </template>
 

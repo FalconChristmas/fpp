@@ -6,6 +6,7 @@ import MainContent from './components/index.vue';
 import NotFound from './components/not-found.vue';
 import Dashboard from './components/dashboard.vue';
 import Outputs from './components/outputs/index.vue';
+import GPIO from './components/gpio.vue';
 import Overlays from './components/overlays.vue';
 import Playlists from './components/playlists.vue';
 import Schedule from './components/schedule.vue';
@@ -81,6 +82,7 @@ router.map({
             },
             '/overlays' : {
                 name: 'overlays',
+                headerName: 'Pixel Overlay Models',
                 component: Overlays
             },
             '/files' : {
@@ -107,6 +109,11 @@ router.map({
             '/effects' : {
                 name: 'effects',
                 component: Effects
+            },
+             '/gpio' : {
+                name: 'gpio',
+                headerName: 'GPIO Inputs',
+                component: GPIO
             },
             '/testing' : {
                 name: 'testing',

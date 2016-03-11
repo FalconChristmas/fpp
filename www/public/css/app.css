@@ -1189,9 +1189,11 @@ hr {
   -ms-flex-align: center;
   align-items: center;
   width: 100%;
-  padding: 20px; }
+  padding: 15px 20px; }
+  .header .page-meta {
+    margin: 0 0 1rem; }
   .header .page-title {
-    margin: 0 0 1rem;
+    margin: 0;
     font-size: 2rem;
     font-weight: 300; }
   @media (max-width: 667px) {
@@ -1205,7 +1207,7 @@ hr {
       -webkit-justify-content: space-between;
       -ms-flex-pack: justify;
       justify-content: space-between; }
-      .header .page-title {
+      .header .page-meta {
         margin: 0; }
       .header .button {
         margin-bottom: 0; } }

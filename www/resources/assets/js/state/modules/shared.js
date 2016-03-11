@@ -11,13 +11,17 @@ import {
     STATUS_UPDATE,
     UPDATE_VOLUME,
     UPDATE_PLAYLIST,
-    UPDATE_MODE
+    UPDATE_MODE,
+    UPDATE_DATETIME,
+    UPDATE_VERSION,
+    CLEAR_ALL_FLAGS
 } from "../mutation-types.js"
 
 
 const state = {
     fppd: "running",
     mode: "standalone",
+    version: null,
     status: 0,
     volume: 0,
     playlist: "No playlist scheduled.",
@@ -71,6 +75,10 @@ const mutations = {
         state.restartFlag = false;
     },
 
+    UPDATE_FPPD (state, fppd) {
+        state.fppd = fppd;
+    },
+
     [UPDATE_MODE] (state, mode) {
         state.mode = mode;
     },
@@ -85,6 +93,20 @@ const mutations = {
 
     [UPDATE_PLAYLIST] (state, playlist) {
         state.playlist = playlist;
+    },
+
+    [UPDATE_DATETIME] (state, datetime) {
+        state.currentDate = datetime;
+    },
+
+    [UPDATE_VERSION] (state, version) {
+        state.version = version;
+    },
+
+    [CLEAR_ALL_FLAGS] (state) {
+        state.restartFlag = false;
+        state.rebootFlag = false;
+        state.updateFlag = false;
     },
 
 }

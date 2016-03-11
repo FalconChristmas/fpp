@@ -40,14 +40,13 @@
             
             // Make the most important HTTP request to get all necessary data from the server.
             // Afterwards, init all mandatory stores and services.
-            sharedStore.init(() => {
-              
+            this.initialize(() => {
                 // Hide the overlaying loading screen.
                 this.toggleOverlay();
-
                 // Let all other components know we're ready.
                 this.$broadcast('fpp:ready');
             });
+           
         },
 
         methods: {
@@ -61,6 +60,24 @@
         },
         vuex: {
             actions: {
+                initialize: ({ dispatch }, cb = null) => {
+                    Vue.http.get('status').then((response) => {
+                        let data = response.data.data;
+                        
+                        dispatch('DEVICE_BOOTED');
+                        dispatch('STATUS_UPDATE', data.status);
+                        dispatch('UPDATE_MODE', data.mode);
+                        dispatch('UPDATE_FPPD', data.fppd);
+                        dispatch('UPDATE_VOLUME', data.volume);
+                        dispatch('UPDATE_PLAYLIST', data.playlist);
+                        dispatch('UPDATE_DATETIME', data.currentDate);
+                        dispatch('UPDATE_VERSION', data.version);
+
+                        if(cb) {
+                            cb();
+                        }
+                    });
+                },
                 rebootDevice,
                 shutdownDevice,
                 startFPPD,
