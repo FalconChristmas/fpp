@@ -185,6 +185,10 @@ echo "FPP Branch       : ${FPPBRANCH}"
 echo "Operating System : ${PRETTY_NAME}"
 echo "Platform         : ${FPPPLATFORM}"
 echo "OS Version       : ${OSVER}"
+echo "Build OLA        : $build_ola"
+if [ "x${FPPPLATFORM}" = "xRaspberry Pi" ]; then
+echo "Build omxplayer  : $build_omxplayer"
+fi
 echo "============================================================"
 #############################################################################
 
@@ -487,7 +491,7 @@ EOF
 		echo "FPP - Updating firmware for Raspberry Pi install"
 		#https://raw.githubusercontent.com/Hexxeh/rpi-update/master/rpi-update
 		wget http://goo.gl/1BOfJ -O /usr/bin/rpi-update && chmod +x /usr/bin/rpi-update
-		SKIP_WARNING=1 rpi-update 12f0636cd11ebd7ec189534147ea23ce4f702e90
+		SKIP_WARNING=1 rpi-update 2a7eb4fc4cef07906c36e9adcf76f053daabe371
 
 		echo "FPP - Installing Pi-specific packages"
 		apt-get -y install raspi-config
@@ -525,7 +529,7 @@ EOF
 
 		if $build_omxplayer; then
 			echo "FPP - Building omxplayer from source with our patch"
-			apt-get -y install subversion libidn11-dev libboost1.50-dev libfreetype6-dev libusb-1.0-0-dev libssh-dev libsmbclient-dev g++-4.7
+			apt-get -y install subversion libidn11-dev libboost1.50-dev libfreetype6-dev libusb-1.0-0-dev libssh-dev libsmbclient-dev g++-4.7 git-core smbclient
 			git clone https://github.com/popcornmix/omxplayer.git
 			cd omxplayer
 			git reset --hard 4d8ffd13153bfef2966671cb4fb484afeaf792a8
