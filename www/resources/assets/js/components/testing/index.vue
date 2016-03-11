@@ -1,8 +1,8 @@
 <template>
-    <div>
+    <div class="outputs">
+        <router-view></router-view>
     </div>
 </template>
-
 <script>
 export default {
     components: {},
@@ -12,8 +12,7 @@ export default {
     },
     ready() {},
     methods: {},
-    events: {},
-    vuex: {}
+    events: {}
 
 }
 </script>

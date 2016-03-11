@@ -1,15 +1,47 @@
 <template>
     <div id="dashboard" class="dashboard">
-        
             <div class="row">
-                <div class="col-xs-12 col-lg-7">
+                <div class="col-xs-12 col-md-6 ">
+                    <div class="panel box widget bg-azure">
+                         <span class="widget-bg-icon">
+                                <i class="ion-clock"></i>
+                            </span>
+                        <div class="panel-heading">
+                            <div class="panel-title text-white hint-text">FPP Time</div>
+                        </div>
+                        <div class="panel-body">
+                            <h4 class="text-lg m-a-0 text-white">{{ time }}</h4>
+                            <h6 class="hint-text m-a-0 text-white">{{ date }}</h6>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xs-12 col-md-6 ">
+                    <div class="panel box widget bg-green">
+                         <span class="widget-bg-icon">
+                                <i class="ion-calendar"></i>
+                            </span>
+                        <div class="panel-heading">
+                            <div class="panel-title text-white hint-text">Schedule</div>
+                        </div>
+                        <div class="panel-body">
+                            <h6 class="m-a-0 text-muted small-text text-white" style="margin-top: -1em !important;"><span class="all-caps ls-1">Main Playlist</span></h6>
+                            <h4 class="text-lg m-a-0 text-white">6:00 pm</h4>
+                            <h6 class="hint-text m-a-0 text-white">{{ next }}</h6>
+
+                        </div>
+                    </div>
+                    
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-xs-12 col-lg-6">
                     <status-widget></status-widget>
                 </div>
                
-                <div class="col-xs-12 col-lg-5">
-                    <div class="row">
+                <div class="col-xs-12 col-lg-6">
+                    <multisync-widget></multisync-widget>
+              <!--       <div class="row">
                         <div class="col-xs-12 col-md-6 col-lg-12">
-                            
                             <div class="panel box widget bg-azure">
                                  <span class="widget-bg-icon">
                                         <i class="ion-clock"></i>
@@ -20,30 +52,21 @@
                                 <div class="panel-body">
                                     <h4 class="text-lg m-a-0 text-white">{{ time }}</h4>
                                     <h6 class="hint-text m-a-0 text-white">{{ date }}</h6>
-                                   
                                 </div>
                             </div>
-                          
                         </div>
                         <div class="col-xs-12 col-md-6 col-lg-12">
                             <div class="box widget p-a-1 col-xs-6 col-lg-12">
-                               <!--  <div class="row">
-                                    <div class="col-xs-1"> -->
-                                        <span class="pull-xs-left m-r-1 rounded bg-info widget-icon">
-                                            <i class="ion-calendar"></i>
-                                       </span>
-                                    <!-- </div> --> 
-                                    <div class="clear">
-
-                                        <h4 class="m-a-0">Next <span class="semi-bold">Playlist</span> <span class="pull-xs-right">6:00 pm</span></h4>
-                                          
-                                        <h6 class="m-a-0 text-muted small-text "><span class="all-caps ls-1">Main Playlist</span> <span class="pull-xs-right">{{ next }}</span></h6>
-                                    </div>
-                                <!-- </div> -->
-                               
+                                <span class="pull-xs-left m-r-1 rounded bg-info widget-icon">
+                                    <i class="ion-calendar"></i>
+                                </span>
+                                <div class="clear">
+                                    <h4 class="m-a-0">Next <span class="semi-bold">Playlist</span> <span class="pull-xs-right">6:00 pm</span></h4>
+                                    <h6 class="m-a-0 text-muted small-text "><span class="all-caps ls-1">Main Playlist</span> <span class="pull-xs-right">{{ next }}</span></h6>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    </div> -->
                     
                 </div>
                 
@@ -62,9 +85,10 @@ import moment from "moment";
 import WeatherWidget from "./widgets/weather.vue";
 import StatusWidget from "./widgets/status.vue";
 import PlayerWidget from "./widgets/player.vue";
+import MultisyncWidget from "./widgets/multisync.vue";
 
 export default {
-    components: { WeatherWidget, StatusWidget, PlayerWidget },
+    components: { WeatherWidget, StatusWidget, PlayerWidget, MultisyncWidget },
     props: [],
     data() {
         return {};

@@ -13,7 +13,10 @@ import Files from './components/files.vue';
 import Plugins from './components/plugins.vue';
 import Events from './components/events.vue';
 import Effects from './components/effects.vue';
-import Testing from './components/testing.vue';
+
+import Testing from './components/testing/index.vue';
+import ChannelTesting from "./components/testing/channels.vue";
+import SequenceTesting from "./components/testing/sequence.vue";
 
 import E131Output from './components/outputs/e131.vue';
 import DMXOutput from './components/outputs/dmx.vue';
@@ -107,7 +110,22 @@ router.map({
             },
             '/testing' : {
                 name: 'testing',
-                component: Testing
+                component: Testing,
+                headerName: 'Display Testing',
+                headerMenu: true,
+                menuName: 'Testing',
+                menu: [
+                    { path: '/testing', label: 'Channel' },
+                    { path: '/testing/sequence', label: 'Sequence' },
+                ],
+                subRoutes: {
+                    '/' : {
+                        component: ChannelTesting
+                    },
+                    '/sequence' : {
+                        component: SequenceTesting
+                    },
+                }
             },
 
         }

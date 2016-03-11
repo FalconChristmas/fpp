@@ -10,14 +10,13 @@ export default {
     },
 
     init(cb = null) {
-        http.get('status', {}, data => {
+        Vue.http.get('status').then(data => {
             this.state.fppd = data.fppd;
             this.state.settings = data.settings;
             this.state.playlists = data.playlists;
             this.state.schedule = data.schedule;
             this.state.currentUser = data.user;
          
-
             if (cb) {
                 cb();
             }
