@@ -442,10 +442,20 @@ case "${FPPPLATFORM}" in
 				dpkg-reconfigure --frontend=noninteractive locales
 				update-locale LANG=en_US.UTF-8
 
+				# Bind mount /tmp over /var/tmp because the default 10G /var/tmp is not
+				# big enough to rebuild the initrd when the kernel is updated
+				mount -o bind /tmp /var/tmp
+
+				# We need the 'bone' kernel so LEDscape PRU code can work
+				BBB_KERNEL_VER=4.1.19-bone-rt-r20
+				echo "FPP - Switching to Bone kernel"
+				cd /opt/scripts/tools && ./update_kernel.sh --bone-rt-kernel --lts-4_1 --kernel=${BBB_KERNEL_VER}
+
 				echo "FPP - Installing updated 8192cu module"
 				# FIXME, get this in github once kernel version is finalized
-				wget -O /lib/modules/4.1.17-ti-rt-r48/kernel/drivers/net/wireless/8192cu.ko http://fpp.bc2va.org/modules/8192cu-4.1.17-ti-rt-r48.ko
-				#wget -O /lib/modules/4.1.17-ti-rt-r48/kernel/drivers/net/wireless/8192cu.ko https://github.com/FalconChristmas/fpp/releases/download/1.5/8192cu.ko
+				wget -O /lib/modules/${BBB_KERNEL_VER}/kernel/drivers/net/wireless/8192cu.ko http://fpp.bc2va.org/modules/8192cu-${BBB_KERNEL_VER}.ko
+				sudo depmod ${BBB_KERNEL_VER}
+				#wget -O /lib/modules/${BBB_KERNEL_VER}/kernel/drivers/net/wireless/8192cu.ko https://github.com/FalconChristmas/fpp/releases/download/1.5/8192cu-${BBB_KERNEL_VER}.ko
 				;;
 
 			'debian_7')
