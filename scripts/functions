@@ -148,6 +148,7 @@ SetupFPPNetworkConfig () {
 			allow-hotplug wlan0
 			iface wlan0 inet manual
 			  wpa-roam /etc/wpa_supplicant/wpa_supplicant.conf
+			wireless-power off
 
 			iface FPP-wlan0 inet static
 			  address ${ADDRESS}
@@ -163,8 +164,6 @@ SetupFPPNetworkConfig () {
 			echo >> ${TMPFILE}
 			echo "iface default inet dhcp" >> ${TMPFILE}
 		fi
-		echo >> ${TMPFILE}
-		echo "wireless-power off" >> ${TMPFILE}
 		echo >> ${TMPFILE}
 
 		cat <<-EOF > /etc/wpa_supplicant/wpa_supplicant.conf.FPP
