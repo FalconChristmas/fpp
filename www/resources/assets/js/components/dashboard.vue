@@ -36,6 +36,7 @@
             <div class="row">
                 <div class="col-xs-12 col-lg-6 col-xl-5">
                     <status-widget></status-widget>
+                    <multisync-widget></multisync-widget>
                 </div>
                
                 <div class="col-xs-12 col-lg-6 col-xl-7">
@@ -74,7 +75,7 @@
             </div>
             <div class="row">
                 <div class="col-xs-12 col-lg-5">
-                    <multisync-widget></multisync-widget>
+                    <!-- <multisync-widget></multisync-widget> -->
                 </div>
             </div>
             

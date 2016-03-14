@@ -34,13 +34,14 @@
                 </span>
                 <span class="widget-text">{{ mode | capitalize }}</span>
                 <div class="widget-buttons">
-                    <select class="fppd-mode-select c-select">
-                        <option value="standalone" selected="selected">Standalone</option>
-                        <option value="master" >Master</option>
-                        <option value="remote" >Remote</option>
-                        <option value="bridge" >Bridge</option>
+                    <select v-model="newMode" class="fppd-mode-select c-select">
+                        <option value="">-- FPPD Mode --</option>
+                        <option value="standalone">Standalone</option>
+                        <option value="master">Master</option>
+                        <option value="remote">Remote</option>
+                        <option value="bridge">Bridge</option>
                     </select>
-                    <a class="button small secondary gradient fppd-mode-apply">Apply</a>
+                    <a class="button small secondary gradient fppd-mode-apply" @click="changeMode">Apply</a>
                 </div>
             </div>
         </div>
@@ -53,16 +54,25 @@ import {
     startFPPD,
     stopFPPD,
     restartFPPD,
+    updateMode,
 } from "../../state/actions";
 
 export default {
     components: {},
     props: [],
     data() {
-        return {};
+        return {
+            newMode: ''
+        };
     },
     ready() {},
-    methods: {},
+    methods: {
+        changeMode() {
+            if(this.newMode != '' && this.newMode != this.mode) {
+                this.updateMode(this.newMode);
+            }
+        }
+    },
     events: {},
     computed: {
         modeIconClass() {
@@ -79,6 +89,7 @@ export default {
             startFPPD,
             stopFPPD,
             restartFPPD,
+            updateMode
         }
     }
 

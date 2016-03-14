@@ -133,6 +133,8 @@ $button-gradient: linear-gradient(to bottom, #f8f8f8, #eaeaea 100%);
     &.info      { @include button-style($info-color) }
     &.dark      { @include button-style($dark-color) }
     
+    &.gradient { @include gradient-button }
+    
     @if $button-style != hollow {
       &.hollow { @include button-style($style: hollow);
         &.secondary { @include button-style($secondary-color, $style: hollow); }

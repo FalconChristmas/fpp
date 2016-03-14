@@ -6,6 +6,7 @@ import http from '../services/http';
  */
 export const rebootDevice = ({ dispatch }) => dispatch('REBOOT_DEVICE');
 export const shutdownDevice = ({ dispatch }) => dispatch('SHUTDOWN_DEVICE');
+export const requireRestart = ({ dispatch }) => dispatch('REQUIRE_RESTART');
 
 /**
  * FPPD Actions
@@ -13,6 +14,12 @@ export const shutdownDevice = ({ dispatch }) => dispatch('SHUTDOWN_DEVICE');
 export const startFPPD = ({ dispatch }) => dispatch('START_FPPD');
 export const stopFPPD = ({ dispatch }) => dispatch('STOP_FPPD');
 export const restartFPPD = ({ dispatch }) => dispatch('RESTART_FPPD');
+export const updateMode = ({ dispatch, state }, mode) => { 
+    if(state.mode !== mode) {
+        dispatch('UPDATE_MODE', mode);
+        dispatch('REQUIRE_RESTART');
+    }
+}
 
 /**
  * Status Actions

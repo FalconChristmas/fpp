@@ -966,6 +966,15 @@ hr {
       color: #fff; }
     .button.dark[data-popup-toggle]::after {
       border-top-color: #fff; }
+  .button.gradient {
+    border-radius: 2px;
+    transition: background 0.35s, box-shadow 0.15s;
+    border: 1px solid #c4c4c4;
+    color: #666;
+    background: linear-gradient(to bottom, #f8f8f8, #eaeaea 100%);
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }
+    .button.gradient:active {
+      box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125); }
   .button.hollow {
     border: 1px solid #788B94;
     background: transparent;
@@ -1189,7 +1198,7 @@ hr {
   -ms-flex-align: center;
   align-items: center;
   width: 100%;
-  padding: 15px 20px; }
+  padding: 10px 20px; }
   .header .page-meta {
     margin: 0 0 1rem; }
   .header .page-title {
