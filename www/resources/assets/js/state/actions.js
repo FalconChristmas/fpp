@@ -1,6 +1,3 @@
-import http from '../services/http';
-
-
 /**
  * Device Actions
  */
@@ -11,9 +8,21 @@ export const requireRestart = ({ dispatch }) => dispatch('REQUIRE_RESTART');
 /**
  * FPPD Actions
  */
-export const startFPPD = ({ dispatch }) => dispatch('START_FPPD');
-export const stopFPPD = ({ dispatch }) => dispatch('STOP_FPPD');
-export const restartFPPD = ({ dispatch }) => dispatch('RESTART_FPPD');
+export const startFPPD = ({ dispatch }) => {
+    // send ajax request to start
+    dispatch('START_FPPD');
+}
+
+export const stopFPPD = ({ dispatch }) => {
+    // send ajax request to stop
+    dispatch('STOP_FPPD');
+}
+
+export const restartFPPD = ({ dispatch }) => {
+    //send ajax request to restart
+    dispatch('RESTART_FPPD');
+}
+
 export const updateMode = ({ dispatch, state }, mode) => { 
     if(state.mode !== mode) {
         dispatch('UPDATE_MODE', mode);
@@ -48,4 +57,16 @@ export const getAllOutputs = ({ dispatch }) => {
     });
    
 }
+
+/**
+ * Playlist Actions
+ */
+export const getAllPlaylists = ({ dispatch }) => {
+    Vue.http.get('playlists').then(data => {
+        dispatch('RECEIVE_PLAYLISTS', data.data);
+    });
+}
+export const createPlaylist = ({ dispatch }, playlist) => dispatch('NEW_PLAYLIST', playlist);
+export const deletePlaylist = ({ dispatch }, playlist) => dispatch('DELETE_PLAYLIST', playlist);
+export const updatePlaylist = ({ dispatch }, playlist) => dispatch('UPDATE_PLAYLIST', playlist);
 

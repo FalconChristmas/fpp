@@ -6,7 +6,7 @@
      <div class="box-tool">
          <div class="enable-output">
            <small>Enable Test Mode </small>
-           <switch :model="enabled" :on-change="onToggle"></switch>
+           <switch :model="enabled" @toggle="toggleMode"></switch>
          </div>
      </div>
      <div class="box-body">
@@ -26,8 +26,11 @@ export default {
         return {};
     },
     ready() {},
-    methods: {},
-    events: {},
+    methods: {
+        toggleMode(val) {
+            console.log('Received Value:' + val);
+        }
+    },
     vuex: {}
 
 }

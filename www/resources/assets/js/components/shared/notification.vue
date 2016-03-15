@@ -11,7 +11,24 @@
 <script>
 export default {
     components: {},
-    props: ['close'],
+    props: {
+        close: {
+            type: Boolean,
+            default: true
+        },
+        text: {
+            type: String,
+            default: '',
+        },
+        position: {
+            type: String,
+            default: 'top center'
+        },
+        type: {
+            type: String,
+            default: 'bar'
+        }
+    },
     data() {
         return {};
     },

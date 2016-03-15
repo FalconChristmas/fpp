@@ -101,7 +101,6 @@ export default {
     @import "resources/assets/sass/_mixins.scss";
     
 .fppd-status {
-    box-shadow: 0 0 1px rgba(0, 0, 0, 0.15);
         .panel-heading {
             padding: 15px 20px 5px 20px;
         }

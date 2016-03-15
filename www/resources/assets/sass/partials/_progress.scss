@@ -1,0 +1,232 @@
+
+.progress {
+    height: 4px;
+    background-color: rgba(230, 230, 230, 0.30);
+    background-image: none;
+    color: rgba(230, 230, 230, 0.25);
+    box-shadow: none;
+    border-radius: 0;
+    &.transparent {
+        background-color: rgba(0, 0, 0, 0.28);
+    }
+    &.progress-small {
+        height: 4px;
+    }
+    &[value]::-webkit-progress-bar {
+        background-color: rgba(230, 230, 230, 0.25);
+    }
+   
+}
+.progress-bar-indeterminate{
+    background: url('../img/progress/progress-bar-master.svg') no-repeat top left;
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    &.progress-bar-primary{
+        background-image: url('../img/progress/progress-bar-primary.svg');
+         background-color: transparent;
+    }
+    &.progress-bar-complete{
+        background-image: url('../img/progress/progress-bar-complete.svg');
+         background-color: transparent;
+    }
+    &.progress-bar-success{
+        background-image: url('../img/progress/progress-bar-success.svg');
+         background-color: transparent;
+    }
+    &.progress-bar-info{
+        background-image: url('../img/progress/progress-bar-info.svg');
+         background-color: transparent;
+    }
+    &.progress-bar-warning{
+        background-image: url('../img/progress/progress-bar-warning.svg');
+         background-color: transparent;
+    }
+    &.progress-bar-danger{
+        background-image: url('../img/progress/progress-bar-danger.svg');
+         background-color: transparent;
+    }
+    &.progress-bar-master{
+        background-image: url('../img/progress/progress-bar-master.svg');
+         background-color: transparent;
+    }
+}
+.progress-bar {
+    box-shadow: none;
+    border-radius: 0;
+    background-color: $color-master;
+    background-image: none;
+    transition: all 1000ms cubic-bezier(0.785, 0.135, 0.150, 0.860)
+   
+}
+.progress-bar-primary {
+    background-color: $color-primary;
+    background-image: none;
+    &[value] {
+        color: $color-primary;
+    }
+}
+.progress-bar-complete {
+    background-color: $color-complete;
+    background-image: none;
+    &[value] {
+        color: $color-complete;
+    }
+}
+.progress-bar-success {
+    background-color: $color-success;
+    background-image: none;
+    &[value] {
+        color: $color-success;
+    }
+}
+.progress-bar-info {
+    background-color: $color-info;
+    background-image: none;
+    &[value] {
+        color: $color-info;
+    }
+}
+.progress-bar-warning {
+    background-color: $color-warning;
+    background-image: none;
+    &[value] {
+        color: $color-warning;
+    }
+}
+.progress-bar-danger {
+    background-color: $color-danger;
+    background-image: none;
+    &[value] {
+        color: $color-danger;
+    }
+}
+.progress-bar-white {
+    background-color:  $color-white ;
+    background-image: none;
+    &[value] {
+        color: $color-white;
+    }
+}
+.progress-bar-black {
+    background-color: $color-black;
+    background-image: none;
+    &[value] {
+        color: $color-black;
+    }
+}
+.progress-info .bar, .progress .bar-info {
+    background-color: $color-info-darker;
+    background-image: none;
+}
+.progress-warning .bar, .progress .bar-warning {
+    background-color: $color-warning-darker;
+    background-image: none;
+}
+.progress-danger .bar, .progress .bar-danger {
+    background-color: $color-danger-darker;
+    background-image: none;
+}
+.progress-white .bar, .progress .bar-white {
+    background-color: $color-white;
+    background-image: none;
+}
+.progress-success.progress-striped .bar, .progress-striped .bar-success {
+    background-color: $color-success;
+}
+.progress-info.progress-striped .bar, .progress-striped .bar-info {
+    background-color: $color-info;
+}
+
+.progress-circle-indeterminate{
+    background: url('../img/progress/progress-circle-master.svg') no-repeat top left;
+    width: 50px;
+    height: 50px;
+    background-size: 100% auto;
+    margin: 0 auto;
+    &.progress-circle-warning{
+        background-image: url('../img/progress/progress-circle-warning.svg');
+    }
+    &.progress-circle-danger{
+        background-image: url('../img/progress/progress-circle-danger.svg');
+    }
+    &.progress-circle-info{
+        background-image: url('../img/progress/progress-circle-info.svg');
+    }
+    &.progress-circle-primary{
+        background-image: url('../img/progress/progress-circle-primary.svg');
+    }
+    &.progress-circle-success{
+        background-image: url('../img/progress/progress-circle-success.svg');
+    }
+    &.progress-circle-complete{
+        background-image: url('../img/progress/progress-circle-complete.svg');
+    }
+}
+
+.progress-circle {
+    $size: 45px;
+    $border : 3px;
+    display: block;
+    height: $size;
+    margin: 0 auto;
+    position: relative;
+    width: $size;
+    &.progress-circle-warning{
+        .pie .half-circle{
+            border-color: $color-warning;
+        }
+    }
+    &.progress-circle-danger{
+        .pie .half-circle{
+            border-color: $color-danger;
+        }
+    }
+    &.progress-circle-info{
+        .pie .half-circle{
+            border-color: $color-info;
+        }
+    }
+    &.progress-circle-primary{
+        .pie .half-circle{
+            border-color: $color-primary;
+        }
+    }
+    &.progress-circle-success{
+        .pie .half-circle{
+            border-color: $color-success;
+        }
+    }
+    &.progress-circle-complete{
+        .pie .half-circle{
+            border-color: $color-complete;
+        }
+    }
+    &.progress-circle-thick{
+        .pie .half-circle, .shadow{
+            border-width: 5px;
+        }
+    }
+    .pie {
+        clip: rect(0, $size, $size, $size / 2);
+        height: $size;
+        position: absolute;
+        width: $size;
+        .half-circle {
+            border: $border solid $color-master;
+            border-radius: 50%;
+            clip: rect(0, $size / 2, $size, 0);
+            height: $size;
+            position: absolute;
+            width: $size;
+
+        }
+    }
+    .shadow {
+            border: $border solid fade(#000, 10%);
+            border-radius: 50%;
+            height: 100%;
+            width: 100%;
+    }
+
+}

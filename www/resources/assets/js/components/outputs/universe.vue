@@ -20,7 +20,7 @@
                 <option value="multicast">Multicast</option>
             </select>
         </td>
-        <td class="universe-address text-xs-center"><input type="text" v-model="universe.address" :disabled="universe.type == 'multicast'" class="form-control transparent text-xs-center"></td>
+        <td class="universe-address text-xs-center"><input type="text" v-model="universe.address" :disabled="universe.type == 'multicast'" placeholder="xxx.xxx.xxx.xxx" class="form-control transparent text-xs-center"></td>
         <td class="universe-label text-xs-center"><input type="text" v-model="universe.label" class="form-control transparent"></td>
         <td class="universe-action text-xs-center p-r-1">
             <button type="button" class="close" aria-label="Close" @click="removeOutput('e131', index)">

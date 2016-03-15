@@ -141,19 +141,19 @@ $letter-spacing: 0.1em;
 $mobile           : 321px !default;
 $mobile-pt        : $mobile;
 $mobile-ls        : max-width 480px !default;
-$mobile-ls-min    : 481px !default;
+$mobile-ls-min    : 480px !default;
 $iphone5-ls       : max-width 568px !default;
-$iphone5-ls-min   : 569px !default;
+$iphone5-ls-min   : 568px !default;
 $iphone6-pt       : max-width 375px !default;
-$phone6-pt-min    : 376px !default;
+$phone6-pt-min    : 375px !default;
 $iphone6-ls       : max-width 667px !default;
-$iphone6-ls-min    : 668px !default;
+$iphone6-ls-min    : 667px !default;
 $tablet-pt        : max-width 768px !default;
-$tablet-pt-min    : 769px !default;
+$tablet-pt-min    : 768px !default;
 $tablet-ls        : max-width 1024px !default;
-$tablet-ls-min    : 1025px !default;
+$tablet-ls-min    : 1024px !default;
 $desktop          : max-width 1280px !default;
-$desktop-min      : 1281px !default;
+$desktop-min      : 1280px !default;
 $desk-sm          : 980px !default;
 
 

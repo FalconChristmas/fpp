@@ -1,6 +1,6 @@
 <template>
     <label class="label-switch" :class="{ 'small' : size == 'small' }">
-      <input type="checkbox" v-model="model" @change="onChange(model)" />
+      <input type="checkbox" v-model="model" @change="handleChange(model)" />
       <div class="checkbox"></div>
     </label>
 </template>
@@ -15,10 +15,16 @@ export default {
             type: String,
             default: 'normal'
         },
-        onChange: {
-            type: Function,
-            default: function() {}
+        checked: {
+            type: Boolean,
+            default: false
+        }
+    },
+    methods: {
+        handleChange(model) {
+            this.$dispatch('toggle', [model]);
         }
     }
+    
 }
 </script>

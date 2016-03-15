@@ -9,7 +9,7 @@
                     <p class="text-muted  hidden-sm-down">Enable/Disable a screen blanker at FPP startup. If you are using a projector with your Pi to display video then you will want to enable this setting so that the text console does not show on your projector when you are not playing videos</p>
                 </div>
                 <div class="col-sm-2 col-sm-offset-1 text-xs-right">
-                    <switch :model.sync="blank_screen"></switch>
+                    <switch :model="screensaver"></switch>
                 </div>           
                 
             </div>
@@ -23,6 +23,15 @@
                 </div>
                 
                
+            </div>
+            <div class="form-group row">
+                <div class="col-sm-7">
+                    <label for="" class="form-control-label text-md">Force HDMI Display</label>
+                    <p class="text-muted  hidden-sm-down">Force video output via HDMI port</p>
+                </div>
+                <div class="col-sm-2 col-sm-offset-1 text-xs-right">
+                     <switch :model.sync="force_hdmi"></switch>
+                </div>
             </div>
             <div class="form-group row">
                 <div class="col-sm-7">
@@ -76,15 +85,12 @@
 
 <script>
 import Switch from "../shared/switch.vue";
-import vSelect from "vue-strap/src/Select.vue";
-import vOption from "vue-strap/src/Option.vue";
 
 export default {
-    components: { Switch, vSelect, vOption },
+    components: { Switch },
     props: [],
     data() {
         return {
-            blank_screen: true,
             always_transmit: false,
             force_analog: false,
             lcd_enabled: false,
@@ -93,9 +99,20 @@ export default {
             mixerDevices: ['DSP Program']
         };
     },
-    ready() {},
+    ready() {
+       
+    },
     methods: {},
-    events: {}
+    computed: {
+        // blank_screen() {
+        //     return this.$store.state.settings.general.screensaver;
+        // }
+    },
+    vuex: {
+        getters: {
+            screensaver: state => state.settings.general.screensaver
+        }
+    }
 
 }
 </script>

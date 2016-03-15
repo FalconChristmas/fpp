@@ -158,7 +158,7 @@ export default {
         onToggle(model) {
             this.toggleOutputs('e131', model);
         },
-        assembleNewOutput(last) {
+        assembleNewOutput(last = {universe: 0, start: 0, size: 0}) {
             return {
                 active: true,
                 universe: this.incrementUniv ? last.universe + 1 : 1,

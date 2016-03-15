@@ -1,0 +1,17 @@
+.modal {
+
+    .modal-dialog {
+        display: table;
+        height: 100%;
+        
+        @include breakpoint($tablet-pt-min) {
+            margin: 0 auto;
+        }
+        .modal-content-wrapper {
+            display: table-cell;
+            vertical-align: middle;
+        }
+    }
+    
+
+}

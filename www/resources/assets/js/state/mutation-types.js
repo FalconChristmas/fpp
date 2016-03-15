@@ -44,3 +44,8 @@ export const RECEIVE_OUTPUTS = 'RECEIVE_OUTPUTS';
 export const ADD_OUTPUT = 'ADD_OUTPUT';
 export const REMOVE_OUTPUT = 'REMOVE_OUTPUT';
 export const UPDATE_OUTPUT = 'UPDATE_OUTPUT';
+
+/**
+ * Settings
+ */
+export const RECEIVE_SETTINGS = 'RECEIVE_SETTINGS';

@@ -15,7 +15,6 @@
     import mainContent from './components/index.vue';
     import overlay from './components/shared/overlay.vue';
     import store from "./state/store";
-    import sharedStore from './stores/shared';
     import { 
         rebootDevice,
         shutdownDevice,

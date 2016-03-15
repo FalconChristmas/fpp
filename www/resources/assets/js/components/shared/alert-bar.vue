@@ -36,7 +36,9 @@ export default {
         },
         classes: {
             type: Array,
-            default: []
+            default: function() {
+                return [];
+            }
         }
     },
     data() {

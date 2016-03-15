@@ -46,12 +46,12 @@ export default {
     data() {
         return {
             items: [
-            {media: 'THX Intro.mp3', sequence: 'Intro-1.fseq', duration: '0:35'},
-            {media: 'Wizards in Winter.mp3', sequence: 'Wizards In Winder.fseq', duration: '3:13'},
-            {media: 'Sarajevo.mp3', sequence: 'Sarajevo.fseq', duration: '4:23'},
-            {media: 'Vacation.mp3', sequence: 'Chrismas Vacation.fseq', duration: '2:23'},
-            {media: 'Frosty.mp3', sequence: 'Frosty-New.fseq', duration: '3:40'},
-            {media: 'Nutrocker-Shortened.mp3', sequence: 'Nutrocker.fseq', duration: '4:23'},
+                {media: 'THX Intro.mp3', sequence: 'Intro-1.fseq', duration: '0:35'},
+                {media: 'Wizards in Winter.mp3', sequence: 'Wizards In Winder.fseq', duration: '3:13'},
+                {media: 'Sarajevo.mp3', sequence: 'Sarajevo.fseq', duration: '4:23'},
+                {media: 'Vacation.mp3', sequence: 'Chrismas Vacation.fseq', duration: '2:23'},
+                {media: 'Frosty.mp3', sequence: 'Frosty-New.fseq', duration: '3:40'},
+                {media: 'Nutrocker-Shortened.mp3', sequence: 'Nutrocker.fseq', duration: '4:23'},
             ]
         };
     },
