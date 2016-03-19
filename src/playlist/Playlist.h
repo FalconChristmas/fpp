@@ -23,8 +23,8 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _NEWPLAYLIST_H
-#define _NEWPLAYLIST_H
+#ifndef _PLAYLIST_H
+#define _PLAYLIST_H
 
 #include <string>
 #include <vector>
@@ -80,10 +80,10 @@ typedef struct {
 
 class Player;
 
-class NewPlaylist {
+class Playlist {
   public:
-	NewPlaylist(Player *parent);
-	~NewPlaylist();
+	Playlist(Player *parent);
+	~Playlist();
 
 	////////////////////////////////////////
 	// Stub out old Playlist class methods

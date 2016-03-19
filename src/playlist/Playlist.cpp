@@ -36,7 +36,7 @@
 #include "fpp.h"
 #include "log.h"
 #include "Player.h"
-#include "NewPlaylist.h"
+#include "Playlist.h"
 #include "settings.h"
 
 #include "PlaylistEntryBoth.h"
@@ -55,7 +55,7 @@
 /*
  *
  */
-NewPlaylist::NewPlaylist(Player *parent)
+Playlist::Playlist(Player *parent)
   : m_player(parent),
 	m_repeat(0),
 	m_loop(0),
@@ -75,7 +75,7 @@ NewPlaylist::NewPlaylist(Player *parent)
 /*
  *
  */
-NewPlaylist::~NewPlaylist()
+Playlist::~Playlist()
 {
 	while (m_leadIn.size())
 	{
@@ -102,7 +102,7 @@ NewPlaylist::~NewPlaylist()
 /*
  *
  */
-int NewPlaylist::LoadJSONIntoPlaylist(std::vector<PlaylistEntryBase*> &playlistPart, const Json::Value &entries)
+int Playlist::LoadJSONIntoPlaylist(std::vector<PlaylistEntryBase*> &playlistPart, const Json::Value &entries)
 {
 	PlaylistEntryBase *plEntry = NULL;
 
@@ -147,7 +147,7 @@ int NewPlaylist::LoadJSONIntoPlaylist(std::vector<PlaylistEntryBase*> &playlistP
 /*
  *
  */
-int NewPlaylist::Load(Json::Value &config)
+int Playlist::Load(Json::Value &config)
 {
 	LogDebug(VB_PLAYLIST, "Playlist::Load(JSON)\n");
 
@@ -193,7 +193,7 @@ int NewPlaylist::Load(Json::Value &config)
 /*
  *
  */
-Json::Value NewPlaylist::LoadJSON(const char *filename)
+Json::Value Playlist::LoadJSON(const char *filename)
 {
 	LogDebug(VB_PLAYLIST, "Playlist::LoadJSON(%s)\n", filename);
 
@@ -230,7 +230,7 @@ Json::Value NewPlaylist::LoadJSON(const char *filename)
 /*
  *
  */
-int NewPlaylist::Load(const char *filename)
+int Playlist::Load(const char *filename)
 {
 	LogDebug(VB_PLAYLIST, "Playlist::Load(%s)\n", filename);
 
@@ -242,7 +242,7 @@ int NewPlaylist::Load(const char *filename)
 /*
  *
  */
-PlaylistEntryBase* NewPlaylist::LoadPlaylistEntry(Json::Value entry)
+PlaylistEntryBase* Playlist::LoadPlaylistEntry(Json::Value entry)
 {
 	PlaylistEntryBase *result = NULL;
 
@@ -285,9 +285,9 @@ PlaylistEntryBase* NewPlaylist::LoadPlaylistEntry(Json::Value entry)
 /*
  *
  */
-int NewPlaylist::Start(void)
+int Playlist::Start(void)
 {
-	LogDebug(VB_PLAYLIST, "NewPlaylist::Start()\n");
+	LogDebug(VB_PLAYLIST, "Playlist::Start()\n");
 
 	if ((!m_leadIn.size()) &&
 		(!m_mainPlaylist.size()) &&
@@ -332,9 +332,9 @@ int NewPlaylist::Start(void)
 /*
  *
  */
-int NewPlaylist::StopNow(void)
+int Playlist::StopNow(void)
 {
-	LogDebug(VB_PLAYLIST, "NewPlaylist::StopNow()\n");
+	LogDebug(VB_PLAYLIST, "Playlist::StopNow()\n");
 
 	FPPstatus = FPP_STATUS_STOPPING_NOW;
 
@@ -344,9 +344,9 @@ int NewPlaylist::StopNow(void)
 /*
  *
  */
-int NewPlaylist::StopGracefully(int afterCurrentLoop)
+int Playlist::StopGracefully(int afterCurrentLoop)
 {
-	LogDebug(VB_PLAYLIST, "NewPlaylist::StopGracefully()\n");
+	LogDebug(VB_PLAYLIST, "Playlist::StopGracefully()\n");
 
 	// FIXME PLAYLIST, get rid of this
 	FPPstatus = FPP_STATUS_STOPPING_GRACEFULLY;
@@ -362,9 +362,9 @@ int NewPlaylist::StopGracefully(int afterCurrentLoop)
 /*
  *
  */
-int NewPlaylist::Process(void)
+int Playlist::Process(void)
 {
-	LogDebug(VB_PLAYLIST, "NewPlaylist::Process\n");
+	LogDebug(VB_PLAYLIST, "Playlist::Process\n");
 
 	if (m_sectionPosition >= m_currentSection->size())
 	{
@@ -485,7 +485,7 @@ int NewPlaylist::Process(void)
 /*
  *
  */
-void NewPlaylist::SetIdle(void)
+void Playlist::SetIdle(void)
 {
 	FPPstatus = FPP_STATUS_IDLE;
 	m_currentState = "idle";
@@ -495,7 +495,7 @@ void NewPlaylist::SetIdle(void)
 /*
  *
  */
-int NewPlaylist::Cleanup(void)
+int Playlist::Cleanup(void)
 {
 	SetIdle();
 	return 1;
@@ -504,7 +504,7 @@ int NewPlaylist::Cleanup(void)
 /*
  *
  */
-int NewPlaylist::Play(void)
+int Playlist::Play(void)
 {
 	LogDebug(VB_PLAYLIST, "Playlist::Play()\n");
 
@@ -555,7 +555,7 @@ int NewPlaylist::Play(void)
 /*
  *
  */
-void NewPlaylist::Dump(void)
+void Playlist::Dump(void)
 {
 	LogDebug(VB_PLAYLIST, "Playlist: %s\n", m_name.c_str());
 
@@ -601,7 +601,7 @@ void NewPlaylist::Dump(void)
 /*
  *
  */
-void NewPlaylist::NextItem(void)
+void Playlist::NextItem(void)
 {
 	if (m_currentState == "idle")
 		return;
@@ -612,7 +612,7 @@ void NewPlaylist::NextItem(void)
 /*
  *
  */
-void NewPlaylist::PrevItem(void)
+void Playlist::PrevItem(void)
 {
 	if (m_currentState == "idle")
 		return;
@@ -623,7 +623,7 @@ void NewPlaylist::PrevItem(void)
 /*
  *
  */
-int NewPlaylist::GetPosition(void)
+int Playlist::GetPosition(void)
 {
 	int result = 0;
 
@@ -645,7 +645,7 @@ int NewPlaylist::GetPosition(void)
 /*
  *
  */
-int NewPlaylist::GetSize(void)
+int Playlist::GetSize(void)
 {
 	if (m_currentState == "idle")
 		return 0;
@@ -656,7 +656,7 @@ int NewPlaylist::GetSize(void)
 /*
  *
  */
-Json::Value NewPlaylist::GetCurrentEntry(void)
+Json::Value Playlist::GetCurrentEntry(void)
 {
 	Json::Value result;
 
@@ -671,7 +671,7 @@ Json::Value NewPlaylist::GetCurrentEntry(void)
 /*
  *
  */
-Json::Value NewPlaylist::GetInfo(void)
+Json::Value Playlist::GetInfo(void)
 {
 	Json::Value result;
 
@@ -722,7 +722,7 @@ Json::Value NewPlaylist::GetInfo(void)
 /*
  *
  */
-std::string NewPlaylist::GetConfigStr(void)
+std::string Playlist::GetConfigStr(void)
 {
 	Json::FastWriter fastWriter;
 	Json::Value result = GetConfig();
@@ -733,7 +733,7 @@ std::string NewPlaylist::GetConfigStr(void)
 /*
  *
  */
-Json::Value NewPlaylist::GetConfig(void)
+Json::Value Playlist::GetConfig(void)
 {
 	Json::Value result = GetInfo();
 
@@ -767,33 +767,33 @@ Json::Value NewPlaylist::GetConfig(void)
 	return result;
 }
 
-void NewPlaylist::StopPlaylistGracefully(void)
+void Playlist::StopPlaylistGracefully(void)
 {
-	LogDebug(VB_PLAYLIST, "OLD CALL NewPlaylist::StopPlaylistGracefully()\n");
+	LogDebug(VB_PLAYLIST, "OLD CALL Playlist::StopPlaylistGracefully()\n");
 }
 
-void NewPlaylist::StopPlaylistNow(void)
+void Playlist::StopPlaylistNow(void)
 {
-	LogDebug(VB_PLAYLIST, "OLD CALL NewPlaylist::StopPlaylistNow()\n");
+	LogDebug(VB_PLAYLIST, "OLD CALL Playlist::StopPlaylistNow()\n");
 }
 
-void NewPlaylist::PlayListPlayingInit(void)
+void Playlist::PlayListPlayingInit(void)
 {
-	LogDebug(VB_PLAYLIST, "OLD CALL NewPlaylist::PlayListPlayingInit()\n");
+	LogDebug(VB_PLAYLIST, "OLD CALL Playlist::PlayListPlayingInit()\n");
 }
 
-void NewPlaylist::PlayListPlayingProcess(void)
+void Playlist::PlayListPlayingProcess(void)
 {
-	LogDebug(VB_PLAYLIST, "OLD CALL NewPlaylist::PlayListPlayingProcess()\n");
+	LogDebug(VB_PLAYLIST, "OLD CALL Playlist::PlayListPlayingProcess()\n");
 }
 
-void NewPlaylist::PlayListPlayingCleanup(void)
+void Playlist::PlayListPlayingCleanup(void)
 {
-	LogDebug(VB_PLAYLIST, "OLD CALL NewPlaylist::PlayListPlayingCleanup()\n");
+	LogDebug(VB_PLAYLIST, "OLD CALL Playlist::PlayListPlayingCleanup()\n");
 }
 
-void NewPlaylist::PlaylistProcessMediaData(void)
+void Playlist::PlaylistProcessMediaData(void)
 {
-	LogDebug(VB_PLAYLIST, "OLD CALL NewPlaylist::PlaylistProcessMediaData()\n");
+	LogDebug(VB_PLAYLIST, "OLD CALL Playlist::PlaylistProcessMediaData()\n");
 }
 

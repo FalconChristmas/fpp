@@ -5,7 +5,7 @@
 #include <vector>
 #include <string>
 
-#include "playlist/NewPlaylist.h"
+#include "playlist/Playlist.h"
 
 class Callback
 {

@@ -71,7 +71,7 @@ OBJECTS_fppd = \
 	mediaoutput/omxplayer.o \
 	PixelOverlay.o \
 	Player.o \
-	playlist/NewPlaylist.o \
+	playlist/Playlist.o \
 	playlist/PlaylistEntryBase.o \
 	playlist/PlaylistEntryBoth.o \
 	playlist/PlaylistEntryChannelTest.o \

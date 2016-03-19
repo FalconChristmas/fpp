@@ -118,9 +118,9 @@ void Player::MainLoop(void)
 			return;
 		}
 
-		m_newPlaylist = new NewPlaylist(this);
+		m_playlist = new Playlist(this);
 
-		if (!m_newPlaylist)
+		if (!m_playlist)
 		{
 			LogErr(VB_PLAYER, "Error creating Playlist\n");
 			return;
@@ -243,7 +243,7 @@ void Player::MainLoop(void)
 			{
 //				if (prevFPPstatus == FPP_STATUS_IDLE)
 //				{
-//					m_newPlaylist->Start();
+//					m_playlist->Start();
 //					sleepUs = 10000;
 // FIXME PLAYLIST
 // sleepUs = 500000;
@@ -256,7 +256,7 @@ void Player::MainLoop(void)
 					(FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP) ||
 					(FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY))
 				{
-					m_newPlaylist->Process();
+					m_playlist->Process();
 				}
 			}
 
@@ -268,7 +268,7 @@ void Player::MainLoop(void)
 					(prevFPPstatus == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP) ||
 					(prevFPPstatus == FPP_STATUS_STOPPING_GRACEFULLY))
 				{
-					m_newPlaylist->Cleanup();
+					m_playlist->Cleanup();
 
 					m_scheduler->ReLoadCurrentScheduleInfo();
 
@@ -310,7 +310,7 @@ LogDebug(VB_PLAYER, "FIXME PLAYLIST\n");
 	else if (getFPPmode() & PLAYER_MODE)
 	{
 		delete m_scheduler;
-		delete m_newPlaylist;
+		delete m_playlist;
 	}
 
 	LogInfo(VB_PLAYER, "Main Loop complete, shutting down.\n");
@@ -329,22 +329,22 @@ int Player::PlaylistStart(std::string playlistName, int position, int repeat)
 	LogDebug(VB_PLAYER, "Player::PlaylistStart(%s, %d, %d)\n",
 		playlistName.c_str(), position, repeat);
 
-	if (!m_newPlaylist)
+	if (!m_playlist)
 		return 0;
 
 	if (FPPstatus != FPP_STATUS_IDLE)
 	{
-		m_newPlaylist->StopNow();
+		m_playlist->StopNow();
 		usleep(500000);
 	}
 
-	if (!m_newPlaylist->Load(playlistName.c_str()))
+	if (!m_playlist->Load(playlistName.c_str()))
 		return 0;
 
-	m_newPlaylist->SetPosition(position);
-	m_newPlaylist->SetRepeat(repeat);
+	m_playlist->SetPosition(position);
+	m_playlist->SetRepeat(repeat);
 
-	if (!m_newPlaylist->Start())
+	if (!m_playlist->Start())
 		return 0;
 	
 	return 1;
@@ -355,10 +355,10 @@ int Player::PlaylistStart(std::string playlistName, int position, int repeat)
  */
 int Player::PlaylistStopNow(void)
 {
-	if (!m_newPlaylist)
+	if (!m_playlist)
 		return 0;
 
-	return m_newPlaylist->StopNow();
+	return m_playlist->StopNow();
 }
 
 /*
@@ -366,10 +366,10 @@ int Player::PlaylistStopNow(void)
  */
 int Player::PlaylistStopGracefully(int afterCurrentLoop)
 {
-	if (!m_newPlaylist)
+	if (!m_playlist)
 		return 0;
 
-	return m_newPlaylist->StopGracefully(afterCurrentLoop);
+	return m_playlist->StopGracefully(afterCurrentLoop);
 }
 
 void Player::GetNextScheduleStartText(char *txt)
@@ -966,7 +966,7 @@ void Player::SingleStepSequencesBack(void)
  */
 void Player::NextPlaylistItem(void)
 {
-	m_newPlaylist->NextItem();
+	m_playlist->NextItem();
 }
 
 /*
@@ -974,7 +974,7 @@ void Player::NextPlaylistItem(void)
  */
 void Player::PrevPlaylistItem(void)
 {
-	m_newPlaylist->PrevItem();
+	m_playlist->PrevItem();
 }
 
 /*
@@ -982,7 +982,7 @@ void Player::PrevPlaylistItem(void)
  */
 Json::Value Player::GetCurrentPlaylistInfo(void)
 {
-	return m_newPlaylist->GetInfo();
+	return m_playlist->GetInfo();
 }
 
 /*
@@ -990,7 +990,7 @@ Json::Value Player::GetCurrentPlaylistInfo(void)
  */
 Json::Value Player::GetCurrentPlaylistEntry(void)
 {
-	return m_newPlaylist->GetCurrentEntry();
+	return m_playlist->GetCurrentEntry();
 }
 
 /*
@@ -1087,12 +1087,12 @@ void Player::CalculateNewChannelOutputDelayForFrame(int expectedFramesSent)
  */
 Json::Value Player::GetCurrentPlaylist(void)
 {
-	if (!m_newPlaylist)
+	if (!m_playlist)
 	{
 		Json::Value result;
 		return result;
 	}
 
-	return m_newPlaylist->GetConfig();
+	return m_playlist->GetConfig();
 }
 

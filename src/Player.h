@@ -31,7 +31,7 @@
 
 #include <pthread.h>
 
-#include "playlist/NewPlaylist.h"
+#include "playlist/Playlist.h"
 #include "Scheduler.h"
 #include "Sequence.h"
 
@@ -100,7 +100,7 @@ class Player {
 
 	pthread_mutex_t         m_sequenceLock;
 	std::vector<Sequence *> m_sequence;
-	NewPlaylist            *m_newPlaylist;
+	Playlist               *m_playlist;
 
 	Scheduler    *m_scheduler;
 	int           m_runMainLoop;
