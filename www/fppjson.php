@@ -872,7 +872,10 @@ function SaveScript()
 	}
 	else
 	{
-		$result['saveStatus'] = "Error, missing info";
+		if (!isset($data['scriptName']))
+			$result['saveStatus'] = "Error, missing scriptName";
+		else if (!isset($data['scriptBody']))
+			$result['saveStatus'] = "Error, missing scriptBody";
 	}
 
 	returnJSON($result);

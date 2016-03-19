@@ -376,6 +376,8 @@ int InitializeChannelOutputs(void) {
 				LogErr(VB_CHANNELOUT, "ERROR Opening %s Channel Output\n", type);
 			}
 		}
+
+		fclose(fp);
 	}
 
 	channelOutputCount = i;
