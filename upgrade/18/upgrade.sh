@@ -3,6 +3,6 @@
 # Install exfat-fuse to allow users to use 64GB USB drives
 #
 
-apt-get install exfat-fuse
+apt-get -q -y install exfat-fuse
 
 
