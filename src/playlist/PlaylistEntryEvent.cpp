@@ -62,6 +62,7 @@ int PlaylistEntryEvent::Init(Json::Value &config)
 	if (config["minorID"].asInt())
 		m_minorID = config["minorID"].asInt();
 
+	// FIXME, blocking is not supported yet
 	if (config["blocking"].asInt())
 		m_blocking = config["blocking"].asInt();
 
@@ -95,15 +96,12 @@ int PlaylistEntryEvent::StartPlaying(void)
  */
 int PlaylistEntryEvent::Process(void)
 {
-	if (!m_blocking)
-	{
+	// FIXME, blocking is not supported yet
+//	if (!m_blocking)
+//	{
 		FinishPlay();
 		return PlaylistEntryBase::Process();
-	}
-
-	// FIXME PLAYLIST, check for blocking here
-	PlaylistEntryBase::Process();
-	return 0;
+//	}
 
 	return PlaylistEntryBase::Process();
 }
@@ -115,16 +113,12 @@ int PlaylistEntryEvent::Stop(void)
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntryEffect::Stop()\n");
 
-	if (!m_blocking)
-	{
+	// FIXME, blocking is not supported yet
+//	if (!m_blocking)
+//	{
 		FinishPlay();
 		return PlaylistEntryBase::Stop();
-	}
-
-	// FIXME PLAYLIST, need to kill process if we are blocking
-	// FIXME PLAYLIST, check for blocking here
-	PlaylistEntryBase::Stop();
-	return 0;
+//	}
 
 	return PlaylistEntryBase::Stop();
 }
@@ -138,7 +132,7 @@ void PlaylistEntryEvent::Dump(void)
 
 	LogDebug(VB_PLAYLIST, "Major ID: %d\n", m_majorID);
 	LogDebug(VB_PLAYLIST, "Minor ID: %d\n", m_minorID);
-	LogDebug(VB_PLAYLIST, "Blocking: %d\n", m_blocking);
+//	LogDebug(VB_PLAYLIST, "Blocking: %d\n", m_blocking);
 }
 
 /*
