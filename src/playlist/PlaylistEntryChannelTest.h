@@ -1,5 +1,5 @@
 /*
- *   Playlist Entry Sequence Class for Falcon Player (FPP)
+ *   Playlist Entry Channel Test Class for Falcon Player (FPP)
  *
  *   Copyright (C) 2016 the Falcon Player Developers
  *      Initial development by:
@@ -23,17 +23,17 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _PLAYLISTENTRYSEQUENCE_H
-#define _PLAYLISTENTRYSEQUENCE_H
+#ifndef _PLAYLISTENTRYCHANNELTEST_H
+#define _PLAYLISTENTRYCHANNELTEST_H
 
 #include <string>
 
 #include "PlaylistEntryBase.h"
 
-class PlaylistEntrySequence : public PlaylistEntryBase {
+class PlaylistEntryChannelTest : public PlaylistEntryBase {
   public:
-  	PlaylistEntrySequence();
-	~PlaylistEntrySequence();
+  	PlaylistEntryChannelTest();
+	~PlaylistEntryChannelTest();
 
 	int  Init(Json::Value &config);
 
@@ -45,15 +45,12 @@ class PlaylistEntrySequence : public PlaylistEntryBase {
 
 	Json::Value GetConfig(void);
 
-	std::string GetSequenceName(void) { return m_sequenceName; }
-
   private:
 	int                  m_duration;
-	long long            m_sequenceID;
-
-	std::string          m_sequenceName;
-	int                  m_priority;
-	int                  m_startSeconds;
+	long long            m_startTime;
+	long long            m_endTime;
+	long long            m_finishTime;
+	std::string          m_testConfig;
 };
 
 #endif

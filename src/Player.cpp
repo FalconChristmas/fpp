@@ -962,6 +962,38 @@ void Player::SingleStepSequencesBack(void)
 }
 
 /*
+ *
+ */
+void Player::NextPlaylistItem(void)
+{
+	m_newPlaylist->NextItem();
+}
+
+/*
+ *
+ */
+void Player::PrevPlaylistItem(void)
+{
+	m_newPlaylist->PrevItem();
+}
+
+/*
+ *
+ */
+Json::Value Player::GetCurrentPlaylistInfo(void)
+{
+	return m_newPlaylist->GetInfo();
+}
+
+/*
+ *
+ */
+Json::Value Player::GetCurrentPlaylistEntry(void)
+{
+	return m_newPlaylist->GetCurrentEntry();
+}
+
+/*
  * Reset the master frames played position
  */
 void Player::ResetMasterPosition(void)

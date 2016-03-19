@@ -68,8 +68,6 @@ int PlaylistEntryBranch::StartPlaying(void)
 		return 0;
 	}
 
-	// FIXME PLAYLIST, finish this
-
 	return PlaylistEntryBase::StartPlaying();
 }
 
@@ -105,7 +103,6 @@ void PlaylistEntryBranch::Dump(void)
 	LogDebug(VB_PLAYLIST, "Second: %d\n", m_second);
 	LogDebug(VB_PLAYLIST, "Loop Count: %d\n", m_loopCount);
 
-	// FIXME PLAYLIST, add some output for the branch here
 }
 
 /*

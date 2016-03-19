@@ -47,6 +47,9 @@ class PlaylistEntryBoth : public PlaylistEntryBase {
 
 	Json::Value GetConfig(void);
 
+	std::string GetSequenceName(void) { return m_sequenceName; }
+	std::string GetMediaName(void)    { return m_mediaName; }
+
   private:
 	int                  m_duration;
 

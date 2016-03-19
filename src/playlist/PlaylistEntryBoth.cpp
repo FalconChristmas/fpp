@@ -140,6 +140,7 @@ Json::Value PlaylistEntryBoth::GetConfig(void)
 	result["media"] = m_mediaEntry->GetConfig();
 	result["sequence"] = m_sequenceEntry->GetConfig();
 
+	// FIXME, need to get things like seconds elapsed/remaining ere
 	return result;
 }
 

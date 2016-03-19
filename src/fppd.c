@@ -40,7 +40,6 @@
 #include "mediaoutput.h"
 #include "PixelOverlay.h"
 #include "Player.h"
-#include "Playlist.h"
 #include "playlist/NewPlaylist.h"
 #include "Plugins.h"
 #include "Scheduler.h"

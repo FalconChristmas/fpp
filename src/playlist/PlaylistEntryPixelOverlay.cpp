@@ -41,7 +41,7 @@ PlaylistEntryPixelOverlay::PlaylistEntryPixelOverlay()
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntryPixelOverlay::PlaylistEntryPixelOverlay()\n");
 
-	m_type = "PixelOverlay";
+	m_type = "pixelOverlay";
 }
 
 /*

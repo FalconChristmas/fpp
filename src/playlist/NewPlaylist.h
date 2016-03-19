@@ -31,10 +31,52 @@
 
 #include <jsoncpp/json/json.h>
 
-// FIXME PLAYLIST
-#include "Playlist.h"
-
 #include "PlaylistEntryBase.h"
+
+// Use these to make code more readable
+#define PLAYLIST_STARTING				true
+#define PLAYLIST_STOPPING				false
+
+// FIXME PLAYLIST, get rid of this and use playlist/PlaylistEntryBase.h
+// temporarily copied from old Playlist.h during transition to new playlist
+#define PL_TYPE_BOTH            0
+#define PL_TYPE_MEDIA           1
+#define PL_TYPE_SEQUENCE        2
+#define PL_TYPE_PAUSE           3
+#define PL_TYPE_VIDEO           4 // deprecated, legacy v0.2.0 implementation
+#define PL_TYPE_EVENT           5
+#define PL_TYPE_PLUGIN_NEXT     6
+#define PL_MAX_ENTRIES        128
+
+
+// FIXME PLAYLIST, get rid of this and use playlist/PlaylistEntryBase.h
+// temporarily copied from old Playlist.h during transition to new playlist
+typedef struct {
+	unsigned char type;
+	char cType;
+	char seqName[256];
+	char songName[256];
+	char eventID[6];
+	unsigned int pauselength;
+	char data[256];
+} PlaylistEntry;
+
+// FIXME PLAYLIST, get rid of this and use playlist/PlaylistEntryBase.h
+// temporarily copied from old Playlist.h during transition to new playlist
+typedef struct {
+	PlaylistEntry playList[PL_MAX_ENTRIES];
+	char currentPlaylist[128];
+	char currentPlaylistFile[128];
+	int  playListCount;
+	int  currentPlaylistEntry;
+	int  StopPlaylist;
+	int  ForceStop;
+	int  playlistStarting;
+	int  first;
+	int  last;
+	int  repeat;
+} PlaylistDetails;
+
 
 class Player;
 
@@ -58,9 +100,11 @@ class NewPlaylist {
 	////////////////////////////////////////
 
 	// New methods
+	Json::Value        LoadJSON(const char *filename);
 	int                Load(Json::Value &config);
 	int                Load(const char *filename);
 	PlaylistEntryBase *LoadPlaylistEntry(Json::Value entry);
+	int                LoadJSONIntoPlaylist(std::vector<PlaylistEntryBase*> &playlistPart, const Json::Value &entries);
 
 	int                Start(void);
 	int                StopNow(void);
@@ -69,6 +113,8 @@ class NewPlaylist {
 	int                Process(void);
 	int                Cleanup(void);
 
+	void               SetIdle(void);
+
 	int                Play(void);
 
 	void               SetPosition(int position) {m_sectionPosition = position;}
@@ -76,6 +122,15 @@ class NewPlaylist {
 
 	void               Dump(void);
 
+	void               NextItem(void);
+	void               PrevItem(void);
+
+	Json::Value        GetCurrentEntry(void);
+	Json::Value        GetInfo(void);
+	std::string        GetPlaylistName(void) { return m_name; }
+	int                GetRepeat(void) { return m_repeat; }
+	int                GetPosition(void);
+	int                GetSize(void);
 	std::string        GetConfigStr(void);
 	Json::Value        GetConfig(void);
 
@@ -90,6 +145,7 @@ class NewPlaylist {
 	int                  m_blankBetweenIterations;
 	int                  m_blankAtEnd;
 	long long            m_startTime;
+	int                  m_subPlaylistDepth;
 
 	std::string          m_currentState;
 	std::string          m_currentSectionStr;

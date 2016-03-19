@@ -26,7 +26,7 @@
 #include "log.h"
 #include "PlaylistEntryBase.h"
 
-int PlaylistEntryBase::m_playlistEntryID = 0;
+int PlaylistEntryBase::m_playlistEntryCount = 0;
 
 /*
  *
@@ -39,8 +39,8 @@ PlaylistEntryBase::PlaylistEntryBase()
 	m_playOnce(0),
 	m_playCount(0)
 {
-	m_type = "Base";
-	m_playlistEntryID++;
+	m_type = "base";
+	m_playlistEntryID = m_playlistEntryCount++;
 }
 
 /*

@@ -79,6 +79,13 @@ class Player {
 	void SingleStepSequences(void);
 	void SingleStepSequencesBack(void);
 
+	void NextPlaylistItem(void);
+	void PrevPlaylistItem(void);
+
+	// Pass-through's to Playlist:: for now
+	Json::Value GetCurrentPlaylistInfo(void);
+	Json::Value GetCurrentPlaylistEntry(void);
+
 	// Pass-through's to Scheduler:: for now
 	void GetNextScheduleStartText(char *txt);
 	void GetNextPlaylistText(char *txt);

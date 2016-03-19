@@ -139,87 +139,68 @@ extern PluginCallbackManager pluginCallbackManager;
 		strcpy(CommandStr, s);
 		if (!strcmp(CommandStr, "s"))
 		{
+				Json::Value info = player->GetCurrentPlaylistInfo();
+				char currentEntryType = 'u'; // Unknown
+				const char *currentSequenceName = NULL;
+				const char *currentMediaName = NULL;
+
+				if (info["currentEntry"].isMember("sequenceName"))
+					currentSequenceName = info["currentEntry"]["sequenceName"].asString().c_str();
+
+				if (info["currentEntry"].isMember("mediaFilename"))
+					currentMediaName = info["currentEntry"]["mediaFilename"].asString().c_str();
+
+				if (info["currentEntry"].isMember("type"))
+				{
+					std::string type = info["currentEntry"]["type"].asString();
+					if (type == "both")
+						currentEntryType = 'b';
+					else if (type == "event")
+						currentEntryType = 'e';
+					else if (type == "media")
+						currentEntryType = 'm';
+					else if (type == "pause")
+						currentEntryType = 'p';
+					else if (type == "plugin")
+						currentEntryType = 'P';
+					else if (type == "sequence")
+						currentEntryType = 's';
+				}
+
 				player->GetNextScheduleStartText(NextScheduleStartText);
 				player->GetNextPlaylistText(NextPlaylist);
 				if(FPPstatus==FPP_STATUS_IDLE)
 				{
 					if (getFPPmode() == REMOTE_MODE)
 					{
-						int secsElapsed = 0;
-						int secsRemaining = 0;
-						char seqFilename[1024];
-						char mediaFilename[1024];
-
-						if (player->SequencesRunning())
-						{
-							// FIXME PLAYLIST, need to get this somehow
-							//strcpy(seqFilename, sequence->m_seqFilename);
-							//secsElapsed = sequence->m_seqSecondsElapsed;
-							//secsRemaining = sequence->m_seqSecondsRemaining;
-						}
-						else
-						{
-							strcpy(seqFilename, "");
-						}
-
-						if (mediaOutput)
-						{
-							strcpy(mediaFilename, mediaOutput->m_mediaFilename.c_str());
-							secsElapsed = mediaOutputStatus.secondsElapsed;
-							secsRemaining = mediaOutputStatus.secondsRemaining;
-						}
-						else
-						{
-							strcpy(mediaFilename, "");
-						}
-
 						sprintf(response,"%d,%d,%d,%s,%s,%d,%d\n",
-							getFPPmode(), 0, getVolume(), seqFilename,
-							mediaFilename, secsElapsed, secsRemaining);
+							getFPPmode(), 0, getVolume(),
+							currentSequenceName,
+							currentMediaName,
+							player->GetPlaybackSecondsElapsed(),
+							player->GetPlaybackSecondsRemaining());
 					}
 					else
 					{
-						sprintf(response,"%d,%d,%d,%s,%s\n",getFPPmode(),0,getVolume(),NextPlaylist,NextScheduleStartText);
+						sprintf(response,"%d,%d,%d,%s,%s\n",
+							getFPPmode(),0,getVolume(),
+							NextPlaylist,NextScheduleStartText);
 					}
 				}
 				else
 				{
-					if(playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].cType == 'b' || playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].cType == 'm')
-					{
-						sprintf(response,"%d,%d,%d,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s,%d\n",
-										getFPPmode(),FPPstatus,getVolume(),playlist->m_playlistDetails.currentPlaylist,
-										playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].cType,
-										playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].seqName,
-										playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].songName,
-										playlist->m_playlistDetails.currentPlaylistEntry+1,playlist->m_playlistDetails.playListCount,
-										mediaOutputStatus.secondsElapsed,
-										mediaOutputStatus.secondsRemaining,
-										NextPlaylist,NextScheduleStartText,
-										playlist->m_playlistDetails.repeat);
-					}
-					else if (playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].cType == 's')
-					{
-						sprintf(response,"%d,%d,%d,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s,%d\n",getFPPmode(),FPPstatus,getVolume(),
-										playlist->m_playlistDetails.currentPlaylist,playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].cType,
-										playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].seqName,playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].songName,
-										playlist->m_playlistDetails.currentPlaylistEntry+1,playlist->m_playlistDetails.playListCount,
-										player->GetPlaybackSecondsElapsed(),
-										player->GetPlaybackSecondsRemaining(),
-										NextPlaylist,NextScheduleStartText,
-										playlist->m_playlistDetails.repeat);
-					}
-					else
-					{			
-						sprintf(response,"%d,%d,%d,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s,%d\n",getFPPmode(),FPPstatus,getVolume(),playlist->m_playlistDetails.currentPlaylist,
-										playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].cType,
-										playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].seqName,
-										playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].songName,	
-										playlist->m_playlistDetails.currentPlaylistEntry+1,playlist->m_playlistDetails.playListCount,
-										playlist->m_numberOfSecondsPaused,
-										(int)playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].pauselength - playlist->m_numberOfSecondsPaused,
-										NextPlaylist,NextScheduleStartText,
-										playlist->m_playlistDetails.repeat);
-					}
+					sprintf(response,"%d,%d,%d,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s,%d\n",
+							getFPPmode(),FPPstatus,getVolume(),
+							info["name"].asString().c_str(),
+							currentEntryType,
+							currentSequenceName,
+							currentMediaName,
+							info["currentPosition"].asInt() + 1,
+							info["size"].asInt(),
+							info["currentEntry"]["secondsElapsed"].asInt(),
+							info["currentEntry"]["secondsRemaining"].asInt(),
+							NextPlaylist,NextScheduleStartText,
+							info["repeat"].asInt());
 				}
 		}
 		else if ((!strcmp(CommandStr, "p")) ||
@@ -487,8 +468,7 @@ extern PluginCallbackManager pluginCallbackManager;
 		{
 			if ((player->SequencesRunning()) &&
 				((FPPstatus == FPP_STATUS_IDLE) ||
-				 ((FPPstatus != FPP_STATUS_IDLE) &&
-				  (playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].cType == 's'))))
+				 (FPPstatus != FPP_STATUS_IDLE)))
 			{
 				player->ToggleSequencePause();
 			}
@@ -498,8 +478,7 @@ extern PluginCallbackManager pluginCallbackManager;
 			if ((player->SequencesRunning()) &&
 				(player->SequencesArePaused()) &&
 				((FPPstatus == FPP_STATUS_IDLE) ||
-				 ((FPPstatus != FPP_STATUS_IDLE) &&
-				  (playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].cType == 's'))))
+				 ((FPPstatus != FPP_STATUS_IDLE))))
 			{
 				player->SingleStepSequences();
 			}
@@ -509,8 +488,7 @@ extern PluginCallbackManager pluginCallbackManager;
 			if ((player->SequencesRunning()) &&
 				(player->SequencesArePaused()) &&
 				((FPPstatus == FPP_STATUS_IDLE) ||
-				 ((FPPstatus != FPP_STATUS_IDLE) &&
-				  (playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].cType == 's'))))
+				 ((FPPstatus != FPP_STATUS_IDLE))))
 			{
 				player->SingleStepSequencesBack();
 			}
@@ -524,7 +502,7 @@ extern PluginCallbackManager pluginCallbackManager;
 					break;
 				case FPP_STATUS_PLAYLIST_PLAYING:
 					sprintf(response,"%d,%d,Skipping to next playlist item\n",getFPPmode(),COMMAND_SUCCESS);
-					playlist->m_playlistAction = PL_ACTION_NEXT_ITEM;
+					player->NextPlaylistItem();
 					break;
 				case FPP_STATUS_STOPPING_GRACEFULLY:
 					sprintf(response,"%d,%d,Playlist is stopping gracefully\n",getFPPmode(),COMMAND_FAILED);
@@ -540,7 +518,7 @@ extern PluginCallbackManager pluginCallbackManager;
 					break;
 				case FPP_STATUS_PLAYLIST_PLAYING:
 					sprintf(response,"%d,%d,Skipping to previous playlist item\n",getFPPmode(),COMMAND_SUCCESS);
-					playlist->m_playlistAction = PL_ACTION_PREV_ITEM;
+					player->PrevPlaylistItem();
 					break;
 				case FPP_STATUS_STOPPING_GRACEFULLY:
 					sprintf(response,"%d,%d,Playlist is stopping gracefully\n",getFPPmode(),COMMAND_FAILED);

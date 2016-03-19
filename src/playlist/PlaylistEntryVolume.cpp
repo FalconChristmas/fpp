@@ -35,7 +35,7 @@ PlaylistEntryVolume::PlaylistEntryVolume()
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntryVolume::PlaylistEntryVolume()\n");
 
-	m_type = "Volume";
+	m_type = "volume";
 }
 
 /*

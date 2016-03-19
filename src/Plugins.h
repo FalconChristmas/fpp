@@ -5,13 +5,7 @@
 #include <vector>
 #include <string>
 
-#include "Playlist.h"
-
-
-// Use these to make code more readable
-#define PLAYLIST_STARTING				true
-#define PLAYLIST_STOPPING				false
-
+#include "playlist/NewPlaylist.h"
 
 class Callback
 {

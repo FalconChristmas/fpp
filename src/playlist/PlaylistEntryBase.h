@@ -55,19 +55,22 @@ class PlaylistEntryBase {
 
 	int          GetPlaylistEntryID(void) { return m_playlistEntryID; }
 
+	std::string  GetType(void) { return m_type; }
+
   protected:
 	int          CanPlay(void);
 	void         FinishPlay(void);
 
-  	std::string          m_type;
-	int                  m_enabled;
-	int                  m_isStarted;
-	int                  m_isPlaying;
-	int                  m_isFinished;
-	int                  m_playOnce;
-	int                  m_playCount;
+  	std::string  m_type;
+	int          m_enabled;
+	int          m_isStarted;
+	int          m_isPlaying;
+	int          m_isFinished;
+	int          m_playOnce;
+	int          m_playCount;
 
-	static int   m_playlistEntryID;
+	int          m_playlistEntryID;
+	static int   m_playlistEntryCount;
 
 };
 

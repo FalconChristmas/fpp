@@ -1,5 +1,5 @@
 /*
- *   Playlist Entry Pause Class for Falcon Player (FPP)
+ *   Playlist Entry Channel Test Class for Falcon Player (FPP)
  *
  *   Copyright (C) 2016 the Falcon Player Developers
  *      Initial development by:
@@ -24,39 +24,44 @@
  */
 
 #include "common.h"
+#include "fppd.h" // for channelTester
 #include "log.h"
-#include "PlaylistEntryPause.h"
+#include "PlaylistEntryChannelTest.h"
+
+#define STOP_CONFIG_JSON "{ \"enabled\": 0 }"
 
 /*
  *
  */
-PlaylistEntryPause::PlaylistEntryPause()
+PlaylistEntryChannelTest::PlaylistEntryChannelTest()
   : m_duration(0),
 	m_startTime(0),
 	m_endTime(0)
 {
-	LogDebug(VB_PLAYLIST, "PlaylistEntryPause::PlaylistEntryPause()\n");
+	LogDebug(VB_PLAYLIST, "PlaylistEntryChannelTest::PlaylistEntryChannelTest()\n");
 
-	m_type = "pause";
+	m_type = "channelTest";
 }
 
 /*
  *
  */
-PlaylistEntryPause::~PlaylistEntryPause()
+PlaylistEntryChannelTest::~PlaylistEntryChannelTest()
 {
 }
 
 /*
  *
  */
-int PlaylistEntryPause::Init(Json::Value &config)
+int PlaylistEntryChannelTest::Init(Json::Value &config)
 {
-	LogDebug(VB_PLAYLIST, "PlaylistEntryPause::Init()\n");
+	LogDebug(VB_PLAYLIST, "PlaylistEntryChannelTest::Init()\n");
 
 	m_duration = config["duration"].asInt();
 	m_endTime = 0;
 	m_finishTime = 0;
+
+	m_testConfig = config["testConfig"].asString();
 
 	return PlaylistEntryBase::Init(config);
 }
@@ -64,9 +69,9 @@ int PlaylistEntryPause::Init(Json::Value &config)
 /*
  *
  */
-int PlaylistEntryPause::StartPlaying(void)
+int PlaylistEntryChannelTest::StartPlaying(void)
 {
-	LogDebug(VB_PLAYLIST, "PlaylistEntryPause::StartPlaying()\n");
+	LogDebug(VB_PLAYLIST, "PlaylistEntryChannelTest::StartPlaying()\n");
 
 	if (!CanPlay())
 	{
@@ -78,20 +83,26 @@ int PlaylistEntryPause::StartPlaying(void)
 	m_startTime = GetTime();
 	m_endTime = m_startTime + (m_duration * 1000000);
 
+	channelTester->SetupTest(m_testConfig);
+
 	return PlaylistEntryBase::StartPlaying();
 }
 
 /*
  *
  */
-int PlaylistEntryPause::Process(void)
+int PlaylistEntryChannelTest::Process(void)
 {
 	if (!m_isStarted || !m_isPlaying || m_isFinished)
 		return 0;
 
 	if (m_isStarted && m_isPlaying && (GetTime() >= m_endTime))
 	{
+		std::string stopConfig(STOP_CONFIG_JSON);
+		channelTester->SetupTest(stopConfig);
+
 		m_finishTime = GetTime();
+
 		FinishPlay();
 	}
 
@@ -101,9 +112,12 @@ int PlaylistEntryPause::Process(void)
 /*
  *
  */
-int PlaylistEntryPause::Stop(void)
+int PlaylistEntryChannelTest::Stop(void)
 {
-	LogDebug(VB_PLAYLIST, "PlaylistEntryPause::Stop()\n");
+	LogDebug(VB_PLAYLIST, "PlaylistEntryChannelTest::Stop()\n");
+
+	std::string stopConfig(STOP_CONFIG_JSON);
+	channelTester->SetupTest(stopConfig);
 
 	m_finishTime = GetTime();
 
@@ -113,7 +127,7 @@ int PlaylistEntryPause::Stop(void)
 /*
  *
  */
-void PlaylistEntryPause::Dump(void)
+void PlaylistEntryChannelTest::Dump(void)
 {
 	PlaylistEntryBase::Dump();
 
@@ -122,12 +136,13 @@ void PlaylistEntryPause::Dump(void)
 	LogDebug(VB_PLAYLIST, "Start Time: %lld\n", m_startTime);
 	LogDebug(VB_PLAYLIST, "End Time: %lld\n", m_endTime);
 	LogDebug(VB_PLAYLIST, "Finish Time: %lld\n", m_finishTime);
+	LogDebug(VB_PLAYLIST, "Test Config: %s\n", m_testConfig.c_str());
 }
 
 /*
  *
  */
-Json::Value PlaylistEntryPause::GetConfig(void)
+Json::Value PlaylistEntryChannelTest::GetConfig(void)
 {
 	Json::Value result = PlaylistEntryBase::GetConfig();
 
@@ -135,6 +150,7 @@ Json::Value PlaylistEntryPause::GetConfig(void)
 	result["startTime"] = m_startTime;
 	result["endTime"] = m_endTime;
 	result["finishTime"] = m_finishTime;
+	result["testConfig"] = m_testConfig;
 
 	if (m_isPlaying)
 		result["remaining"] = (m_endTime - GetTime()) / 1000000;

@@ -38,7 +38,7 @@ PlaylistEntryEffect::PlaylistEntryEffect()
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntryEffect::PlaylistEntryEffect()\n");
 
-	m_type = "Effect";
+	m_type = "effect";
 }
 
 /*
