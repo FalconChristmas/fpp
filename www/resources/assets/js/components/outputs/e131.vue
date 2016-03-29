@@ -1,7 +1,7 @@
 <template>
-     <div id="e131-settings" class="outputs-container container-fluid box">   
+     <div id="e131-settings" class="outputs-container container-fluid box">
      <div class="box-header">
-         <h4 class="box-title"><span class="semi-bold">E131</span> Outputs</h4>     
+         <h4 class="box-title"><span class="semi-bold">E131</span> Outputs</h4>
      </div>
      <div class="box-tool">
          <div class="enable-output">
@@ -28,7 +28,7 @@
                 </div>
                 <div class="filter-row">
                     <div class="filter">
-                         <form-input 
+                         <form-input
                           :model.sync="defStart"
                           type="number"
                           label="Start"
@@ -37,7 +37,7 @@
                         </form-input>
                     </div>
                     <div class="filter">
-                         <form-input 
+                         <form-input
                           :model.sync="defSize"
                           type="number"
                           label="Size"
@@ -53,22 +53,22 @@
                                 <select v-model="defType" class="c-select" style="padding-top: 0.25rem; padding-bottom: 0.275rem;">
                                     <option value="unicast">Unicast</option>
                                     <option value="multicast">Multicast</option>
-                                </select>  
+                                </select>
                             </div>
                         </div>
                     </div>
                     <div class="filter">
-                        <form-input 
+                        <form-input
                           :model.sync="defAddress"
                           type="text"
                           label="Address"
                           size="sm"
                           state-icon>
                         </form-input>
-                       
+
                     </div>
                     <div class="filter">
-                         <form-input 
+                         <form-input
                           :model.sync="quantity"
                           type="number"
                           label="# of Outputs"
@@ -81,7 +81,7 @@
 
                     <button @click="addOutput" type="button" class="button btn-primary pull-xs-right m-a-0">{{ addOutputLabel }}</button>
                 </div>
-                    
+
             </div>
             <!-- <div id="universe-outputs"> -->
                 <div class="universe-list output-list table-responsive">
@@ -105,7 +105,7 @@
                             </tbody>
                         </table>
                     <!-- </div> -->
-                    
+
                 </div>
             <!-- </div> -->
         </form>
@@ -119,20 +119,19 @@ import Universe from "./universe.vue";
 import Dropdown from "../shared/dropdown-select.vue";
 import Checkbox from "../shared/checkbox.vue";
 import FormInput from "../shared/input.vue";
-import ip from "../../directives/ip";
 import outputMixin from "../../mixins/outputMixin";
 import {
     toggleOutputs
 } from "../../state/actions";
 
 const universeStub =  {
-        active: false, 
-        number: 1, 
-        start: 1, 
-        type: 'unicast', 
-        size: 512, 
-        address: null, 
-        label: null 
+        active: false,
+        number: 1,
+        start: 1,
+        type: 'unicast',
+        size: 512,
+        address: null,
+        label: null
     };
 
 
@@ -176,10 +175,10 @@ export default {
         },
         getters: {
             outputs: state => state.outputs.e131.outputs,
-            enabled: state => state.outputs.e131.enabled                
+            enabled: state => state.outputs.e131.enabled
         }
     }
-   
+
 
 }
 </script>
@@ -187,9 +186,9 @@ export default {
 <style lang="sass">
     @import "resources/assets/sass/_vars.scss";
     @import "resources/assets/sass/_mixins.scss";
-    
+
     .universe-list {
-        
+
         .form-control {
             padding: .25rem .50rem;
             line-height: 1.3;
@@ -197,7 +196,7 @@ export default {
         .c-select {
             padding: .22rem 1.5rem .23rem .50rem;
         }
-        
+
         .universe {
             &-index {
                 min-width: 50px;
@@ -235,14 +234,14 @@ export default {
                 text-align: center;
             }
             &-label {
-                
+
 
             }
             &-action {
                 text-align: center;
             }
         }
-      
+
     }
 
     .enable-output {

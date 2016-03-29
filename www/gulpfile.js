@@ -1,17 +1,26 @@
 var elixir = require('laravel-elixir');
 require('laravel-elixir-vueify');
 
+
+
 var gutils = require('gulp-util');
-var sassOpts = { 
+var sassOpts = {
         includePaths: [
             'node_modules/breakpoint-sass/stylesheets/',
             'node_modules/normalize-scss/sass/',
             'node_modules/support-for/sass/'
-            ] 
+            ]
         };
 
 if(elixir.config.production == true){
     process.env.NODE_ENV = 'production';
+
+    elixir.config.js.browserify.plugins.push({
+      name: 'vueify-extract-css',
+      options: {
+        out: 'public/css/bundle.css'
+      }
+   });
 }
 
 if(gutils.env._.indexOf('watch') > -1 && elixir.config.production != true){
@@ -19,12 +28,18 @@ if(gutils.env._.indexOf('watch') > -1 && elixir.config.production != true){
         name: "browserify-hmr",
         options : {}
     });
-}
 
+}
+// elixir.config.js.browserify.plugins.push({
+//       name: 'vueify-extract-css',
+//       options: {
+//         out: 'public/css/bundle.css'
+//       }
+//    });
 elixir(function(mix) {
     mix.sass('app.scss','public/css/app.css', sassOpts)
         .sass('vendor.scss', 'public/css/vendor.css', sassOpts);
-   
+
     mix.browserify('main.js');
 
     mix.copy('resources/assets/img', 'public/img')
@@ -33,8 +48,8 @@ elixir(function(mix) {
         .copy('resources/assets/fonts/Source_Sans_Pro/*.ttf', 'public/fonts');
 
     mix.version([
-        'css/app.css', 
-        'css/vendor.css', 
+        'css/app.css',
+        'css/vendor.css',
         'js/main.js'
     ]);
 
@@ -47,7 +62,7 @@ elixir(function(mix) {
                elixir.config.get('public.versioning.buildFolder') + '/rev-manifest.json',
                'resources/views/**/*.php'
            ],
-           
+
         });
     }
 

@@ -1,5 +1,5 @@
 <template>
-    <div id="app" tabindex="0">        
+    <div id="app" tabindex="0">
         <sidebar></sidebar>
         <div class="content-wrapper">
            <router-view></router-view>
@@ -10,20 +10,20 @@
 
 <script>
     import $ from 'jquery';
-    
+
     import sidebar from './components/sidebar.vue';
     import mainContent from './components/index.vue';
     import overlay from './components/shared/overlay.vue';
     import store from "./state/store";
-    import { 
+    import {
         rebootDevice,
         shutdownDevice,
         startFPPD,
         stopFPPD,
         restartFPPD,
         requestStatus
-    } from "./state/actions";   
-   
+    } from "./state/actions";
+
     export default {
         store,
         components: { sidebar, mainContent, overlay },
@@ -36,7 +36,7 @@
 
         ready() {
             this.toggleOverlay();
-            
+
             // Make the most important HTTP request to get all necessary data from the server.
             // Afterwards, init all mandatory stores and services.
             this.initialize(() => {
@@ -45,7 +45,7 @@
                 // Let all other components know we're ready.
                 this.$broadcast('fpp:ready');
             });
-           
+
         },
 
         methods: {
@@ -62,7 +62,7 @@
                 initialize: ({ dispatch }, cb = null) => {
                     Vue.http.get('status').then((response) => {
                         let data = response.data.data;
-                        
+
                         dispatch('DEVICE_BOOTED');
                         dispatch('STATUS_UPDATE', data.status);
                         dispatch('UPDATE_MODE', data.mode);

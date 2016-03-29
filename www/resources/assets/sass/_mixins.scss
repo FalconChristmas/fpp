@@ -23,7 +23,7 @@
 }
 
 @mixin gradient-button($start-color: #f8f8f8, $end-color: #eaeaea ) {
- 
+
       border-radius: 2px;
       transition: background 0.35s, box-shadow 0.15s;
       border: 1px solid darken($end-color, 15%);
@@ -33,5 +33,5 @@
       &:active {
         box-shadow: inset 0 3px 5px rgba(0,0,0,0.125);
       }
-    
+
 }

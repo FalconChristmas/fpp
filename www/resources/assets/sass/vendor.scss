@@ -1,6 +1,7 @@
 
 @import "node_modules/bootstrap/scss/bootstrap-flex";
 @import "vendor/ionicons";
+@import "node_modules/hint.css/src/hint";
 
 .nav > li {
     position: relative;
@@ -9,7 +10,7 @@
 
 
 .nav-tabs {
- 
+
   > li {
     float: left;
     // Make the list-items overlay the bottom border
@@ -18,7 +19,7 @@
     + li {
       margin-left: .2rem;
     }
-    
+
     a {
       display: block;
       padding: $nav-link-padding;
@@ -36,7 +37,7 @@
           border-color: transparent;
         }
       }
-   
+
         &.active,
         &.open .nav-link {
           @include plain-hover-focus {
@@ -49,7 +50,7 @@
 
   }
 
-  
 
- 
+
+
 }

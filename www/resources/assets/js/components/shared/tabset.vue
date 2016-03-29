@@ -9,8 +9,7 @@
                   'disabled': r.disabled
                 }"
                 @click.prevent="handleTabListClick($index, r)"
-                :disabled="r.disabled"
-            >
+                :disabled="r.disabled">
                 <a href="#">{{r.header}}</a>
             </li>
      </ul>

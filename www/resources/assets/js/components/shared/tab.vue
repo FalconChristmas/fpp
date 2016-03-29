@@ -2,8 +2,7 @@
   <div role="tabpanel" class="tab-pane"
       v-bind:class="{hide:!show}"
       v-show="show"
-      :transition="transition"
-  >
+      :transition="transition">
     <slot></slot>
   </div>
 </template>
@@ -19,35 +18,33 @@
         default: false
       }
     },
-    data() {
+    data () {
       return {
         index: 0,
         show: false
       }
     },
     computed: {
-      show() {
-        return (this.$parent.activeIndex == this.index);
+      show () {
+        return (Number(this.$parent.activeIndex) === Number(this.index))
       },
-      transition() {
+      transition () {
         return this.$parent.effect
       }
     },
-    created() {
+    created () {
       this.$parent.renderData.push({
         header: this.header,
         disabled: this.disabled
       })
     },
-    ready() {
-        for (var c in this.$parent.$children)
-        {
-            if (this.$parent.$children[c].$el == this.$el)
-            {
-                this.index= c;
-                break;
-            }
+    ready () {
+      for (var c in this.$parent.$children) {
+        if (this.$parent.$children[c].$el == this.$el) {
+          this.index = c
+          break
         }
+      }
     }
   }
 </script>

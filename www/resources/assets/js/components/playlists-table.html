@@ -1,0 +1,26 @@
+<div class="table-responsive">
+                                    <table class="table table-sm table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th></th>
+                                                <th>Type</th>
+                                                <th>Media / Event</th>
+                                                <th>Sequence / Delay / Data</th>
+                                                <th>Play Once</th>
+                                                
+                                                <th></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="playlist-entry-list">
+                                            <tr v-for="entry in activePlaylist.entries" id="entry-{{$index}}" data-index="{{$index}}" class="playlist-entry">
+                                                 <td class="p-l-10">{{ $index + 1 }}</td>
+                                                 <td>{{ getEntryType(entry.type) }}</td>
+                                                 <td>{{{ getMediaColumn(entry) }}}</td>
+                                                 <td>{{ getSequenceColumn(entry) }}</td>
+                                                 <td></td>
+                                                
+                                                 <td class="p-r-20"><a href="#" @click="removeEntry(entry)" title="Remove Entry" class="remove"><i class="ion-close"></i></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
