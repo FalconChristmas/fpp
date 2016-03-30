@@ -1,5 +1,6 @@
 /*
- *   librgbmatrix handler for Falcon Player (FPP)
+ *   Matrix class for the Falcon Player Daemon 
+ *   Falcon Player project (FPP) 
  *
  *   Copyright (C) 2013 the Falcon Player Developers
  *      Initial development by:
@@ -23,53 +24,35 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _RGBMATRIX_H
-#define _RGBMATRIX_H
+#ifndef _MATRIX_H
 
-#include <string>
+#include <vector>
 
-#include "Matrix.h"
-#include "PanelMatrix.h"
+typedef struct subMatrix {
+	int startChannel;
+	int width;
+	int height;
+	int xOffset;
+	int yOffset;
+} SubMatrix;
 
-#include "led-matrix.h"
-
-using rgb_matrix::GPIO;
-using rgb_matrix::RGBMatrix;
-using rgb_matrix::Canvas;
-
-#include "ChannelOutputBase.h"
-
-class RGBMatrixOutput : public ChannelOutputBase {
+class Matrix {
   public:
-	RGBMatrixOutput(unsigned int startChannel, unsigned int channelCount);
-	~RGBMatrixOutput();
+	Matrix(int startChannel, int width, int height);
+	~Matrix();
 
-	int Init(Json::Value config);
-	int Close(void);
+	void AddSubMatrix(int startChannel, int width, int height,
+		int xOffset, int yOffset);
 
-	void PrepData(unsigned char *channelData);
-
-	int RawSendData(unsigned char *channelData);
-
-	void DumpConfig(void);
+	void OverlaySubMatrix(unsigned char *channelData, int i);
+	void OverlaySubMatrices(unsigned char *channelData);
 
   private:
-	GPIO        *m_gpio;
-	Canvas      *m_canvas;
-	std::string  m_layout;
-	std::string  m_colorOrder;
+	int  m_startChannel;
+	int  m_width;
+	int  m_height;
 
-	int          m_panelWidth;
-	int          m_panelHeight;
-	int          m_panels;
-	int          m_width;
-	int          m_height;
-	int          m_rows;
-	int          m_outputs;
-	int          m_longestChain;
-
-	Matrix      *m_matrix;
-	PanelMatrix *m_panelMatrix;
+	std::vector<SubMatrix>  subMatrix;
 };
 
-#endif /* _RGBMATRIX_H */
+#endif

@@ -59,6 +59,8 @@ LEDscapeMatrixOutput::LEDscapeMatrixOutput(unsigned int startChannel,
 LEDscapeMatrixOutput::~LEDscapeMatrixOutput()
 {
 	LogDebug(VB_CHANNELOUT, "LEDscapeMatrixOutput::~LEDscapeMatrixOutput()\n");
+
+	delete m_matrix;
 }
 
 /*
@@ -180,6 +182,8 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
 		return 0;
 	}
 
+	m_matrix = new Matrix(m_startChannel, maxWidth, maxHeight);
+
 	return ChannelOutputBase::Init(config);
 }
 
@@ -199,6 +203,14 @@ int LEDscapeMatrixOutput::Close(void)
 	m_config = NULL;
 
 	return ChannelOutputBase::Close();
+}
+
+/*
+ *
+ */
+void LEDscapeMatrixOutput::PrepData(unsigned char *channelData)
+{
+	m_matrix->OverlaySubMatrices(channelData);
 }
 
 /*
