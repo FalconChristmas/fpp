@@ -309,7 +309,7 @@ void Playlist::PlaylistProcessMediaData(void)
 
 	pthread_mutex_lock(&mediaOutputLock);
 	if (mediaOutput)
-		mediaOutput->processData();
+		mediaOutput->Process();
 	pthread_mutex_unlock(&mediaOutputLock);
 
 	sigprocmask(SIG_UNBLOCK, &blockset, NULL);

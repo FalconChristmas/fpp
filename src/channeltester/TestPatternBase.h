@@ -46,12 +46,14 @@ class TestPatternBase {
 
 	int          SetChannelSet(std::string channelSetStr);
 	int          OverlayTestData(char *channelData);
+	void         DisableTest(void) { m_testEnabled = 0; }
 
 	virtual void DumpConfig(void);
 
   protected:
 	virtual void CycleData(void) {}
 
+	volatile int      m_testEnabled;
 	std::string       m_testPatternName;
 	int               m_minChannels;
 	char             *m_testData;

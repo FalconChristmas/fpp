@@ -112,9 +112,12 @@ int GenericSerialOutput::Init(char *configStr)
 		return 0;
 	}
 
-	memcpy(m_data, m_header.c_str(), m_headerSize);
-	memcpy(m_data + m_headerSize + m_channelCount,
-		m_footer.c_str(), m_footerSize);
+	if (m_headerSize)
+		memcpy(m_data, m_header.c_str(), m_headerSize);
+
+	if (m_footerSize)
+		memcpy(m_data + m_headerSize + m_channelCount,
+			m_footer.c_str(), m_footerSize);
 
 	m_deviceName.insert(0, "/dev/");
 
@@ -152,6 +155,9 @@ int GenericSerialOutput::RawSendData(unsigned char *channelData)
 	LogExcess(VB_CHANNELOUT, "GenericSerialOutput::RawSendData(%p)\n", channelData);
 
 	memcpy(m_data + m_headerSize, channelData, m_channelCount);
+
+	if ((logLevel & LOG_EXCESSIVE) && (logMask & VB_CHANNELDATA))
+		HexDump("Generic Serial", m_data, m_headerSize + 16);
 
 	write(m_fd, m_data, m_packetSize);
 
