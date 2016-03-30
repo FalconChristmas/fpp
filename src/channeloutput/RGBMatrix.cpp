@@ -63,6 +63,9 @@ RGBMatrixOutput::RGBMatrixOutput(unsigned int startChannel,
 RGBMatrixOutput::~RGBMatrixOutput()
 {
 	LogDebug(VB_CHANNELOUT, "RGBMatrixOutput::~RGBMatrixOutput()\n");
+
+	delete m_matrix;
+	delete m_panelMatrix;
 }
 
 /*
@@ -156,6 +159,8 @@ int RGBMatrixOutput::Init(Json::Value config)
 	RGBMatrix *rgbmatrix = reinterpret_cast<RGBMatrix*>(m_canvas);
 	rgbmatrix->SetPWMBits(8);
 
+	m_matrix = new Matrix(m_startChannel, m_width, m_height);
+
 	return ChannelOutputBase::Init(config);
 }
 
@@ -175,6 +180,14 @@ int RGBMatrixOutput::Close(void)
 	m_gpio = NULL;
 
 	return ChannelOutputBase::Close();
+}
+
+/*
+ *
+ */
+void RGBMatrixOutput::PrepData(unsigned char *channelData)
+{
+	m_matrix->OverlaySubMatrices(channelData);
 }
 
 /*

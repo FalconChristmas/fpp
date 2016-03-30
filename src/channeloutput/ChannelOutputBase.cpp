@@ -125,6 +125,10 @@ int ChannelOutputBase::RawSendData(unsigned char *channelData)
 		"the RawSendData(unsigned char *channelData) method.\n", channelData);
 }
 
+void ChannelOutputBase::PrepData(unsigned char *channelData)
+{
+}
+
 int ChannelOutputBase::SendData(unsigned char *channelData)
 {
 	LogExcess(VB_CHANNELOUT, "ChannelOutputBase::SendData(%p)\n", channelData);
