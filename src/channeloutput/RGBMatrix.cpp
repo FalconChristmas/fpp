@@ -161,6 +161,21 @@ int RGBMatrixOutput::Init(Json::Value config)
 
 	m_matrix = new Matrix(m_startChannel, m_width, m_height);
 
+	if (config.isMember("subMatrices"))
+	{
+		for (int i = 0; i < config["subMatrices"].size(); i++)
+		{
+			Json::Value sm = config["subMatrices"][i];
+
+			m_matrix->AddSubMatrix(
+				sm["startChannel"].asInt() - 1,
+				sm["width"].asInt(),
+				sm["height"].asInt(),
+				sm["xOffset"].asInt(),
+				sm["yOffset"].asInt());
+		}
+	}
+
 	return ChannelOutputBase::Init(config);
 }
 
