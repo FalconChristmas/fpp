@@ -25,6 +25,7 @@
  */
 
 #include <string.h>
+#include <strings.h>
 
 #include "Matrix.h"
 
@@ -36,6 +37,7 @@ Matrix::Matrix(int startChannel, int width, int height)
 	m_width(width),
 	m_height(height)
 {
+	m_buffer = new unsigned char[width * height * 3];
 }
 
 /*
@@ -43,6 +45,7 @@ Matrix::Matrix(int startChannel, int width, int height)
  */
 Matrix::~Matrix()
 {
+	delete m_buffer;
 }
 
 /*
@@ -80,7 +83,7 @@ void Matrix::OverlaySubMatrix(unsigned char *channelData, int i)
 	for (int y = 0; y < subMatrix[i].height; y++)
 	{
 		src = channelData + subMatrix[i].startChannel + (y * subMatrix[i].width * 3);
-		dest = channelData + m_startChannel + ((y + subMatrix[i].yOffset) * m_width * 3) + (subMatrix[i].xOffset * 3);
+		dest = m_buffer + ((y + subMatrix[i].yOffset) * m_width * 3) + (subMatrix[i].xOffset * 3);
 
 		memcpy(dest, src, subMatrix[i].width * 3);
 	}
@@ -91,9 +94,13 @@ void Matrix::OverlaySubMatrix(unsigned char *channelData, int i)
  */
 void Matrix::OverlaySubMatrices(unsigned char *channelData)
 {
+	bzero(m_buffer, m_width * m_height * 3);
+
 	for (int i = 0; i < subMatrix.size(); i++)
 	{
 		OverlaySubMatrix(channelData, i);
 	}
+
+	memcpy(channelData + m_startChannel, m_buffer, m_width * m_height * 3);
 }
 

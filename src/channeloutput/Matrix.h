@@ -52,6 +52,8 @@ class Matrix {
 	int  m_width;
 	int  m_height;
 
+	unsigned char *m_buffer;
+
 	std::vector<SubMatrix>  subMatrix;
 };
 
