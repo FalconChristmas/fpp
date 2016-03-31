@@ -48,7 +48,7 @@ class ChannelOutputBase {
 	virtual int   Init(Json::Value config);
 	virtual int   Init(char *configStr);
 	virtual int   Close(void);
-	void          PrepData(unsigned char *channelData);
+	virtual void  PrepData(unsigned char *channelData);
 	int           SendData(unsigned char *channelData);
 
 	void          OutputThread(void);

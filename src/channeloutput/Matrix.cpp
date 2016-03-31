@@ -79,8 +79,8 @@ void Matrix::OverlaySubMatrix(unsigned char *channelData, int i)
 
 	for (int y = 0; y < subMatrix[i].height; y++)
 	{
-		src = channelData + subMatrix[i].startChannel + (y * m_width * 3);
-		dest = channelData + m_startChannel + ((y + subMatrix[i].yOffset) * m_width) + (subMatrix[i].xOffset * 3);
+		src = channelData + subMatrix[i].startChannel + (y * subMatrix[i].width * 3);
+		dest = channelData + m_startChannel + ((y + subMatrix[i].yOffset) * m_width * 3) + (subMatrix[i].xOffset * 3);
 
 		memcpy(dest, src, subMatrix[i].width * 3);
 	}
