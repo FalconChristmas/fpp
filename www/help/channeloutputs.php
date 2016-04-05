@@ -39,7 +39,7 @@
 <tr><td>Pixel Power</td><td>Not Connected to Pi</td></tr>
 </table>
 </center>
-<p><b>RPIWS281X</b> - The RPIWS281X output can drive two independent strings of WS281x pixels directly off the Raspberry Pi's GPIO ports.  The data and ground lines attach directly to the Pi while power for the pixels is injected from another source.</p>
+<p><b>RPIWS281X</b> - The RPIWS281X output can drive two independent strings of WS281x pixels directly off the Raspberry Pi's GPIO ports.  The data and ground lines attach directly to the Pi while power for the pixels is injected from another source.  <b>NOTE: When you enable the RPIWS281X output, the onboard audio on the Pi will be disabled since both audio and RPIWS281X need to use the same PWM output.</b></p>
 <center>
 <b>RPIWS281x Output Connections</b><br>
 <table border='1' cellpadding='4' cellspacing='1'>

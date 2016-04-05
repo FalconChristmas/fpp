@@ -1496,7 +1496,7 @@ function RemovePlaylistEntry()	{
 				$('#selStartPlaylist').removeAttr("disabled");
 				UpdateCurrentEntryPlaying(0);
 			
-			} else {
+			} else if (currentPlaylist.playlist != "") {
 				var playerStatusText = "Playing <strong>'" + currentPlaylist.playlist + "'</strong>";
                 var repeatMode = jsonStatus.repeat_mode;
 				if(gblCurrentLoadedPlaylist != currentPlaylist.playlist)	{
@@ -2236,7 +2236,7 @@ function PopulateStatusPlaylistEntries(playselected,playList,reloadFile)
 					var xmlDoc=xmlhttp.responseXML; 
 					var entries = xmlDoc.getElementsByTagName('PlaylistEntries')[0];
 					
-					gblCurrentLoadedPlaylist = playList;
+					gblCurrentLoadedPlaylist = pl;
 					gblCurrentLoadedPlaylistCount = entries.childNodes.length;
 					if(entries.childNodes.length> 0)	
 					{

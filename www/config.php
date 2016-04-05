@@ -128,6 +128,11 @@ else if ($settings['Platform'] == "ODROID")
 	$settings['Logo'] = "odroid_logo.gif";
 	$settings['LogoLink'] = "";
 }
+else if ($settings['Platform'] == "Debian")
+{
+	$settings['Logo'] = "debian_logo.png";
+	$settings['LogoLink'] = "https://www.debian.org/";
+}
 else if ($settings['Platform'] == "Linux")
 {
 	$settings['Logo'] = "tux_logo.png";
@@ -169,6 +174,8 @@ if ( $fd )
 		$key   = trim($split[0]);
 		$value = trim($split[1]);
 
+		$value = preg_replace("/\"/", "", $value);
+
 		if ($key != "") {
 			// If we have a Directory setting that doesn't
 			// end in a slash, then add one
@@ -183,76 +190,76 @@ if ( $fd )
 		switch ($key)
 		{
 			case "fppMode":
-				$fppMode = trim($split[1]);
+				$fppMode = $value;
 				break;
 			case "volume":
-				$volume = trim($split[1]);
+				$volume = $value;
 				break;
 			case "settingsFile":
-				$settingsFile = trim($split[1]);
+				$settingsFile = $value;
 				break;
 			case "mediaDirectory":
-				$mediaDirectory = trim($split[1]) . "/";
+				$mediaDirectory = $value . "/";
 				break;
 			case "musicDirectory":
-				$musicDirectory = trim($split[1]) . "/";
+				$musicDirectory = $value . "/";
 				break;
 			case "eventDirectory":
-				$eventDirectory = trim($split[1]) . "/";
+				$eventDirectory = $value . "/";
 				break;
 			case "videoDirectory":
-				$videoDirectory = trim($split[1]) . "/";
+				$videoDirectory = $value . "/";
 				break;
 			case "sequenceDirectory":
-				$sequenceDirectory = trim($split[1]) . "/";
+				$sequenceDirectory = $value . "/";
 				break;
 			case "playlistDirectory":
-				$playlistDirectory = trim($split[1]) . "/";
+				$playlistDirectory = $value . "/";
 				break;
 			case "effectDirectory":
-				$effectDirectory = trim($split[1]) . "/";
+				$effectDirectory = $value . "/";
 				break;
 			case "logDirectory":
-				$logDirectory = trim($split[1]) . "/";
+				$logDirectory = $value . "/";
 				break;
 			case "uploadDirectory":
-				$uploadDirectory = trim($split[1]) . "/";
+				$uploadDirectory = $value . "/";
 				break;
 			case "pluginDirectory":
-				$pluginDirectory = trim($split[1]) . "/";
+				$pluginDirectory = $value . "/";
 				break;
 			case "scriptDirectory":
-				$scriptDirectory = trim($split[1]) . "/";
+				$scriptDirectory = $value . "/";
 				break;
 			case "universeFile":
-				$universeFile = trim($split[1]);
+				$universeFile = $value;
 				break;
 			case "pixelnetFile":
-				$pixelnetFile = trim($split[1]);
+				$pixelnetFile = $value;
 				break;
 			case "scheduleFile":
-				$scheduleFile = trim($split[1]);
+				$scheduleFile = $value;
 				break;
 			case "bytesFile":
-				$bytesFile = trim($split[1]);
+				$bytesFile = $value;
 				break;
 			case "remapFile":
-				$remapFile = trim($split[1]);
+				$remapFile = $value;
 				break;
 			case "exim4Directory":
-				$exim4Directory = trim($split[1]) . "/";
+				$exim4Directory = $value . "/";
 				break;
 			case "emailenable":
-				$emailenable = trim($split[1]);
+				$emailenable = $value;
 				break;
 			case "emailguser":
-				$emailguser = trim($split[1]);
+				$emailguser = $value;
 				break;
 			case "emailfromtext":
-				$emailfromtext = trim($split[1]);
+				$emailfromtext = $value;
 				break;
 			case "emailtoemail":
-				$emailtoemail = trim($split[1]);
+				$emailtoemail = $value;
 				break;
 		}
 	}

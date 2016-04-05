@@ -67,7 +67,7 @@ function ReadSettingFromFile($settingName, $plugin = "")
 //        error_log("The setting " . $settingName . " could not be found in " . $filename);
         return false;
       }
-      return trim($output_array[1]);
+      return trim($output_array[1], " \t\n\r\0\x0B\"");
 		}
 		else
 		{
@@ -96,7 +96,7 @@ function WriteSettingToFile($settingName, $setting, $plugin = "")
 	$tmpSettings = parse_ini_file($filename);
 	$tmpSettings[$settingName] = $setting;
 	foreach ($tmpSettings as $key => $value) {
-		$settingsStr .= $key . " = " . $value . "\n";
+		$settingsStr .= $key . " = \"" . $value . "\"\n";
 	}
 	file_put_contents($filename, $settingsStr);
 }
@@ -250,14 +250,14 @@ function PrintSettingText($setting, $restart = 1, $reboot = 0, $maxlength = 32, 
 	}
 
 	echo "
-<input type='text' id='$setting' maxlength='$maxlength' size='$size' value='";
+<input type='text' id='$setting' maxlength='$maxlength' size='$size' value=\"";
 
 	if (isset($settings[$setting]))
 		echo $settings[$setting];
 	elseif (isset($pluginSettings[$setting]))
 		echo $pluginSettings[$setting];
 
-	echo "'>\n";
+	echo "\">\n";
 }
 
 function PrintSettingSave($title, $setting, $restart = 1, $reboot = 0, $pluginName = "", $callbackName = "")

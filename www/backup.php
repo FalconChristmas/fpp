@@ -28,11 +28,19 @@ $system_config_areas = array(
     'settings' => array('friendly_name' => 'Settings', 'file' => $settingsFile),
     'timezone' => array('friendly_name' => 'Timezone', 'file' => $timezoneFile),
     'universes' => array('friendly_name' => 'Universes', 'file' => $universeFile),
+    'plugins' => array(
+        'friendly_name' => 'Plugins',
+        'file' => array(),
+        'special' => true),
+
 //    'wlan' => array('friendly_name' => 'WLAN', 'file' => $settings['configDirectory']. "/interface.wlan0")
 );
 
 //Array of plugins
 $system_active_plugins = array();
+
+//Populate plugins
+$system_config_areas['plugins']['file'] = retrievePluginList();
 
 //Preserve some existing settings by default
 $keepMasterSlaveSettings = true;
@@ -207,6 +215,7 @@ if (isset($_POST['btnDownloadConfig'])) {
     /////
     if (isset($_POST['restorearea']) && !empty($_POST['restorearea'])) {
         $restore_area = $_POST['restorearea'];
+        $restore_area_main = "";
 
         if (isset($_POST['keepExitingNetwork'])) {
             $keepNetworkSettings = true;
@@ -220,8 +229,17 @@ if (isset($_POST['btnDownloadConfig'])) {
             $keepMasterSlaveSettings = false;
         }
 
+        //if restore area contains a forward slash, then we want to restore into a sub-area
+        //split string to get the main area and sub-area
+        if (stripos($restore_area, "/") !== false) {
+            $restore_area_arr = explode("/", $restore_area);
+            $restore_area_main = $restore_area_arr[0];//main area is first
+        } else {
+            $restore_area_main = $restore_area;
+        }
+
         //this value *SHOULD* directly match a key in $system_config_aras
-        if (array_key_exists($restore_area, $system_config_areas)) {
+        if (array_key_exists($restore_area_main, $system_config_areas)) {
             //Do something with the uploaded file to restore it
             if (array_key_exists('conffile', $_FILES)) {
                 //data is stored by area and keyed the same as $system_config_aras
@@ -242,6 +260,8 @@ if (isset($_POST['btnDownloadConfig'])) {
                         $uploadDataProtected = $file_contents_decoded['protected'];
                         unset($file_contents_decoded['protected']);
                     }
+                    //Remove the platform key as it's not used for anything yet
+                    unset($file_contents_decoded['platform']);
 
                     if (strtolower($restore_area) == "all") {
                         // ALL SETTING RESTORE
@@ -268,7 +288,7 @@ if (isset($_POST['btnDownloadConfig'])) {
                     //All processed
                     $restore_done = true;
                 } else {
-                    error_log("The backup " . $rstfname . " could not be decoded properly. Is it a valid backup file?");
+                    error_log("The backup " . $rstfname . "data could not be decoded properly. Is it a valid backup file?");
                 }
             }
         }
@@ -278,11 +298,13 @@ if (isset($_POST['btnDownloadConfig'])) {
 /**
  * Looks in a directory and reads file contents of files within it
  * @param $directory String directory to search in
+ * @param $return_data Boolean switch to include file data
  * @return array Array of file names and respective data
  */
-function read_directory_files($directory)
+function read_directory_files($directory, $return_data = true)
 {
     $file_list = array();
+    $file_data = false;
 
     if ($handle = opendir($directory)) {
         while (false !== ($file = readdir($handle))) {
@@ -290,8 +312,12 @@ function read_directory_files($directory)
             // note that '.' and '..' is returned even
             // if file isn't this directory or its parent, add it to the results
             if ($file != "." && $file != "..") {
-                // collect the filenames
-                $file_list[$file] = explode("\n", file_get_contents($directory . '/' . $file));
+                // collect the filenames & data
+                if ($return_data == true) {
+                    $file_data = explode("\n", file_get_contents($directory . '/' . $file));
+                }
+
+                $file_list[$file] = $file_data;
             }
         }
         closedir($handle);
@@ -306,15 +332,25 @@ function read_directory_files($directory)
  */
 function process_restore_data($restore_area, $restore_area_data)
 {
-    global $system_config_areas, $keepMasterSlaveSettings, $keepNetworkSettings, $uploadDataProtected, $settings_restored;
+    global $settings, $system_config_areas, $keepMasterSlaveSettings, $keepNetworkSettings, $uploadDataProtected, $settings_restored;
     global $args;
 
     //Includes for API access
     require_once('fppjson.php');
     require_once('fppxml.php');
 
-    $restore_area_key = $restore_area;
+    $restore_area_key = $restore_area_sub_key = "";
     $save_result = false;
+
+    //if restore area contains a forward slash, then we want to restore into a sub-area
+    //split string to get the main area and sub-area
+    if (stripos($restore_area, "/") !== false) {
+        $restore_area_arr = explode("/", $restore_area);
+        $restore_area_key = $restore_area_arr[0];//main area is first
+        $restore_area_sub_key = $restore_area_arr[1];//sub-area is 2nd
+    } else {
+        $restore_area_key = $restore_area;
+    }
 
     if ($restore_area_key == "channelOutputsJSON") {
         $channel_outputs_json_filepath = $system_config_areas['channelOutputsJSON']['file'];
@@ -339,7 +375,6 @@ function process_restore_data($restore_area, $restore_area_data)
     }
 
     if ($restore_area_key == "show_setup") {
-        //TODO Script restoration install actions..
         $script_filenames = array();
         $show_setup_areas = $system_config_areas['show_setup']['file'];
 
@@ -350,36 +385,47 @@ function process_restore_data($restore_area, $restore_area_data)
             $restore_type = $show_setup_area_data['type'];
             $final_restore_data = "";
 
-            //if the restore key and the $show_setup_areas key match then restore data to whatever location it is
-            //eg. if we are on events, then look for events in the restore data, when found restore data to the events location
-            foreach ($restore_area_data as $restore_area_data_index => $restore_area_data_data) {
-                //$restore_area_data_data is an array representing the file contents
-                //$restore_area_data_index represents the filename (used to key the array)
-                if ($show_setup_area_index == $restore_area_data_index) {
-                    if (is_array($restore_area_data_data)) {
-                        //loop over all the files and their data and restore each
-                        //$add array will look like
-                        //array ('event'=> array('01_01.fevt' => array(data), '21_10.fevt' => array(data)))
-                        foreach ($restore_area_data_data as $fn_to_restore => $fn_data) {
-                            $restore_location = $show_setup_area_data['location']; //reset
-                            $final_restore_data = "";
+            //If $restore_area_sub_key is empty then no sub-area has been chosen -- restore as normal
+            //Or if $restore_area_sub_key is equal to the $show_setup_area_index we're on, then restore just this area
+            //and break the loop
+            if ($restore_area_sub_key == "" || ($restore_area_sub_key == $show_setup_area_index)) {
+                //if the restore key and the $show_setup_areas key match then restore data to whatever location it is
+                //eg. if we are on events, then look for events in the restore data, when found restore data to the events location
+                foreach ($restore_area_data as $restore_area_data_index => $restore_area_data_data) {
+                    $save_result = false;
+                    //$restore_area_data_data is an array representing the file contents
+                    //$restore_area_data_index represents the filename (used to key the array)
+                    if ($show_setup_area_index == $restore_area_data_index) {
+                        if (is_array($restore_area_data_data)) {
+                            //loop over all the files and their data and restore each
+                            //$add array will look like
+                            //array ('event'=> array('01_01.fevt' => array(data), '21_10.fevt' => array(data)))
+                            foreach ($restore_area_data_data as $fn_to_restore => $fn_data) {
+                                $restore_location = $show_setup_area_data['location']; //reset
+                                $final_restore_data = "";
 
-                            $final_restore_data = implode("\n", $fn_data);
+                                $final_restore_data = implode("\n", $fn_data);
 
-                            if(strtolower($show_setup_area_index) == "scripts"){
-                                $script_filenames[] = $fn_to_restore;
-                            }
+                                if (strtolower($show_setup_area_index) == "scripts") {
+                                    $script_filenames[] = $fn_to_restore;
+                                }
 
-                            if ($restore_type == "dir") {
-                                $restore_location .= "/" . $fn_to_restore;
-                            }
+                                if ($restore_type == "dir") {
+                                    $restore_location .= "/" . $fn_to_restore;
+                                }
 
-                            if (!empty($final_restore_data)) {
-                                $save_result = file_put_contents($restore_location, $final_restore_data);
+                                if (!empty($final_restore_data)) {
+                                    $save_result = file_put_contents($restore_location, $final_restore_data);
+                                }
                             }
                         }
+                        break;//break after data is restored for this section
                     }
-                    break;//break after data is restored for this section
+                }
+                //Don't break if area key is empty, because we want to process all the sub-areas
+                if ($restore_area_sub_key != "") {
+                    //we found the sub-area, stop looking
+                    break;
                 }
             }
         }
@@ -390,6 +436,21 @@ function process_restore_data($restore_area, $restore_area_data)
         //Restart FFPD so any changes can take effect
         RestartFPPD();
     }
+
+    if ($restore_area_key == "plugins") {
+        if (is_array($restore_area_data)) {
+            //Just overwrite the universes file
+            $plugin_settings_path = $settings['configDirectory'];
+
+            //loop over the data and get the plugin name and then write the settings out
+            foreach ($restore_area_data as $plugin_name => $plugin_data) {
+                $plugin_settings_path = $plugin_settings_path . "/plugin." . $plugin_name;
+                $data = implode("\n", $plugin_data[$plugin_name]);
+                $save_result = file_put_contents($plugin_settings_path, $data);
+            }
+        }
+    }
+
 
     if ($restore_area_key == "email") {
         //TODO rework this so it will work future email system implementation, were different providers are used
@@ -453,7 +514,7 @@ function process_restore_data($restore_area, $restore_area_data)
                     SetVolume();
                 } else if ($setting_name == "ntpServer") {
                     SetNtpServer($setting_value);
-                    SetNtpState(1);//Toggle NTP on
+//                    SetNtpState(1);//Toggle NTP on
                     NtpServiceRestart();//Restart NTP client so changes take effect
                 } else if ($setting_name == "NTP") {
                     SetNtpState($setting_value);
@@ -606,17 +667,53 @@ function doBackupDownlaod($settings_data, $area)
  * @param $area_name String Either 'backuparea' or 'restorearea' for either respective section
  * @return string HTML code for a dropdown selection list
  */
-function backup_gen_select($area_name = "backuparea")
+function genSelectList($area_name = "backuparea")
 {
     global $system_config_areas;
 
     $select_html = "<select name=\"$area_name\" id=\"$area_name\">";
     foreach ($system_config_areas as $item => $item_options) {
+        //print the main key first
         $select_html .= "<option value=" . $item . ">" . $item_options['friendly_name'] . "</option>";
+        //If we're restoring and there is a sub array of files, print them out as such they are nested
+        if (($area_name == "restorearea" && array_key_exists('file', $item_options)) || ($area_name == "backuparea" && $item == 'plugins')) {
+            foreach ($item_options['file'] as $sub_index => $sub_data) {
+                $disabled = '';
+                if ($area_name == "backuparea") {
+                    $disabled = "disabled";
+                }
+
+                $select_html .= "<option value=" . $item . "/" . $sub_index . " " . $disabled . " >--" . ucfirst($sub_index) . "</option>";
+            }
+        }
     }
     $select_html .= "</select>";
 
     return $select_html;
+}
+
+/**
+ * Returns a list of plugin Config files
+ */
+function retrievePluginList()
+{
+    global $settings;
+
+    $config_files = read_directory_files($settings['configDirectory'], false);
+    $plugin_names = array();
+
+    //find the plugin configs
+    foreach ($config_files as $fname => $fdata) {
+        if ((stripos(strtolower($fname), "plugin") !== false) && (stripos(strtolower($fname), ".json") == false)) {
+            //split the string to get jsut the plugin name
+            $plugin_name = explode(".", $fname);
+            $plugin_name = $plugin_name[1];
+            $plugin_names[$plugin_name] = array('type' => 'file', 'location' => $settings['configDirectory'] . "/" . $fname);
+            //array('name' => $plugin_name, 'config' => $fname);
+        }
+    }
+
+    return $plugin_names;
 }
 
 ?>
@@ -639,7 +736,7 @@ function backup_gen_select($area_name = "backuparea")
                 <legend>FPP Settings Backup</legend>
                 <?php if ($restore_done == true) {
                     ?>
-                    <div id="restoreSuccessFlag">Backup Restored, A Reboot May Be Required.</div>
+                    <div id="rebootFlag" style="display: block;">Backup Restored, A Reboot May Be Required.</div>
                     <div id="restoreSuccessFlag">What was
                         restored:
                         <?php
@@ -650,7 +747,7 @@ function backup_gen_select($area_name = "backuparea")
                             } else {
                                 $success_str = "Failed";
                             }
-                            echo ucfirst($area_restored) . " - " . $success_str . "<br/>";
+                            echo ucwords(str_replace("_", " ", $area_restored)) . " - " . $success_str . "<br/>";
                         }
                         ?>
                     </div>
@@ -672,7 +769,7 @@ function backup_gen_select($area_name = "backuparea")
                         </tr>
                         <tr>
                             <td width="25%">Backup Area</td>
-                            <td width="75%"><?php echo backup_gen_select('backuparea'); ?></td>
+                            <td width="75%"><?php echo genSelectList('backuparea'); ?></td>
                         </tr>
                         <tr>
                             <td width="25%"></td>
@@ -712,13 +809,14 @@ function backup_gen_select($area_name = "backuparea")
                         <tr>
                             <td width="25%">Restore Area</td>
                             <td width="75%">
-                                <?php echo backup_gen_select('restorearea'); ?></td>
+                                <?php echo genSelectList('restorearea'); ?></td>
                         </tr>
 
                         <tr>
                             <td width="25%"></td>
                             <td width="75%">
-                                <input name="conffile" type="file" class="formbtn" id="conffile" size="50"
+                                <input name="conffile" type="file" accept=".json" class="formbtn" id="conffile"
+                                       size="50"
                                        autocomplete="off"></td>
                         </tr>
 

@@ -199,22 +199,11 @@ var SerialDevices = new Array();
 	{
 		if ((preg_match("/^ttyS[0-9]+/", $fileName)) ||
 			(preg_match("/^ttyACM[0-9]+/", $fileName)) ||
-			(preg_match("/^ttyO0/", $fileName)) ||
+			(preg_match("/^ttyO[0-9]/", $fileName)) ||
+			(preg_match("/^ttyS[0-9]/", $fileName)) ||
 			(preg_match("/^ttyAMA[0-9]+/", $fileName)) ||
 			(preg_match("/^ttyUSB[0-9]+/", $fileName))) {
 			echo "SerialDevices['$fileName'] = '$fileName';\n";
-		}
-	}
-?>
-
-// USB Dongles /dev/ttyUSB*
-var USBDevices = new Array();
-<?
-	foreach(scandir("/dev/") as $fileName)
-	{
-		if ((preg_match("/^ttyUSB[0-9]+/", $fileName)) ||
-				(preg_match("/^ttyAMA[0-9]+/", $fileName))) {
-			echo "USBDevices['$fileName'] = '$fileName';\n";
 		}
 	}
 ?>
@@ -228,7 +217,7 @@ function USBDeviceConfig(config) {
 		var item = items[j].split("=");
 
 		if (item[0] == "device") {
-			result += DeviceSelect(USBDevices, item[1]);
+			result += DeviceSelect(SerialDevices, item[1]);
 		}
 	}
 
@@ -247,7 +236,7 @@ function GetUSBOutputConfig(cell) {
 
 function NewUSBConfig() {
 	var result = "";
-	result += DeviceSelect(USBDevices, "");
+	result += DeviceSelect(SerialDevices, "");
 	return result;
 }
 
@@ -548,7 +537,7 @@ function TriksLayoutChanged(item) {
 
 function NewTriksConfig() {
 	var result = "";
-	result += DeviceSelect(USBDevices, "");
+	result += DeviceSelect(SerialDevices, "");
 	result += TriksLayoutSelect("");
 	return result;
 }
@@ -561,7 +550,7 @@ function TriksDeviceConfig(config) {
 		var item = items[j].split("=");
 
 		if (item[0] == "device") {
-			result += DeviceSelect(USBDevices, item[1]);
+			result += DeviceSelect(SerialDevices, item[1]);
 		} else if (item[0] == "layout") {
 			result += TriksLayoutSelect(item[1]);
 		}
@@ -697,34 +686,69 @@ function RPIWS281XLayoutChanged(item) {
 	var string1Pixels = parseInt($(item).parent().parent().find("input.string1Pixels").val());
 	var string2Pixels = parseInt($(item).parent().parent().find("input.string2Pixels").val());
 
+	if (string1Pixels > 1000) {
+		DialogError("Invalid Pixel Count", "Invalid Pixel Count, max 1000");
+		$(item).parent().parent().find("input.string1Pixels").val("1000");
+		string1Pixels = 1000;
+	}
+
+	if (string2Pixels > 1000) {
+		DialogError("Invalid Pixel Count", "Invalid Pixel Count, max 1000");
+		$(item).parent().parent().find("input.string2Pixels").val("1000");
+		string2Pixels = 1000;
+	}
+
 	var channels = (string1Pixels + string2Pixels) * 3;
 
 	$(item).parent().parent().find("input.count").val(channels);
 }
 
+function RPIWS281XColorOrderSelect(id, colorOrder) {
+	var options = ["RGB", "RBG", "GRB", "GBR", "BRG", "BGR"];
+	var result = "";
+
+	result += " Color Order: <select class='" + id + "'>";
+
+    var i = 0;
+	for (i = 0; i < options.length; i++)
+	{
+		result += "<option value='" + options[i] + "'";
+
+		if (options[i] == colorOrder)
+			result += " selected='selected'";
+
+		result += ">" + options[i] + "</option>";
+	}
+
+	result += "</select>";
+
+	return result;
+}
+
 function RPIWS281XConfig(cfgStr) {
 	var result = "";
 	var items = cfgStr.split(";");
-
+	
+	var data = {};
+	
 	for (var j = 0; j < items.length; j++)
 	{
 		var item = items[j].split("=");
 
-		if (item[0] == "string1Pixels")
-		{
-			result += "String #1 Pixels: <input class='string1Pixels' size=3 maxlength=3 value='" + item[1] + "' onChange='RPIWS281XLayoutChanged(this);'> (GPIO 18)<br>";
-		}
-		else if (item[0] == "string2Pixels")
-		{
-			result += "String #2 Pixels: <input class='string2Pixels' size=3 maxlength=3 value='" + item[1] + "' onChange='RPIWS281XLayoutChanged(this);'> (GPIO 19)";
-		}
+   		data[item[0]] = item[1];
 	}
+	
+	result += "String #1 Pixels: <input class='string1Pixels' size='4' maxlength='4' value='" + data["string1Pixels"] + "' onChange='RPIWS281XLayoutChanged(this);'> ";
+	result += RPIWS281XColorOrderSelect("string1ColorOrder", data["string1ColorOrder"]) + " (GPIO 18)<br>";
+	
+	result += "String #2 Pixels: <input class='string2Pixels' size='4' maxlength='4' value='" + data["string2Pixels"] + "' onChange='RPIWS281XLayoutChanged(this);'> ";
+	result += RPIWS281XColorOrderSelect("string2ColorOrder", data["string2ColorOrder"]) + " (GPIO 19)<br>";
 
 	return result;
 }
 
 function NewRPIWS281XConfig() {
-	return RPIWS281XConfig("string1Pixels=1;string2Pixels=0");
+	return RPIWS281XConfig("string1Pixels=1;string1ColorOrder=RGB;string2Pixels=0;string2ColorOrder=RGB");
 }
 
 function GetRPIWS281XOutputConfig(cell) {
@@ -732,17 +756,37 @@ function GetRPIWS281XOutputConfig(cell) {
 	var result = "";
 	var value = $cell.find("input.string1Pixels").val();
 
+	if (parseInt(value) > 1000)
+		return "";
+
 	if (value == "")
 		return "";
 
 	result += "string1Pixels=" + value + ";";
+	
+	var colorOrder = $cell.find("select.string1ColorOrder").val();
 
+	if (colorOrder == "")
+		return "";
+	
+	result += "string1ColorOrder=" + colorOrder + ";";
+	
 	value = $cell.find("input.string2Pixels").val();
+
+	if (parseInt(value) > 1000)
+		return "";
 
 	if (value == "")
 		return "";
 
-	result += "string2Pixels=" + value;
+	result += "string2Pixels=" + value + ";";
+
+	colorOrder = $cell.find("select.string2ColorOrder").val();
+
+	if (colorOrder == "")
+		return "";
+	
+	result += "string2ColorOrder=" + colorOrder;
 
 	return result;
 }
@@ -1095,6 +1139,11 @@ function SPIDeviceConfig(config) {
 
 		if (item[0] == "device") {
 			result += DeviceSelect(SPIDevices, item[1]);
+		} else if (item[0] == "pi36") {
+			result += " PI36: <input type=checkbox class='pi36'";
+			if (item[1] == "1")
+				result += " checked='checked'";
+			result += ">";
 		}
 	}
 
@@ -1129,7 +1178,12 @@ function GetSPIOutputConfig(cell) {
 	if (value == "")
 		return "";
 
-	return "device=" + value;
+	var pi36 = 0;
+
+	if ($cell.find("input.pi36").is(":checked"))
+		pi36 = 1;
+
+	return "device=" + value + ";pi36=" + pi36;;
 }
 
 function GetnRFSpeedConfig(cell) {
@@ -1145,6 +1199,7 @@ function GetnRFSpeedConfig(cell) {
 function NewSPIConfig() {
 	var result = "";
 	result += DeviceSelect(SPIDevices, "");
+	result += " PI36: <input type='checkbox' class='pi36'>";
 	return result;
 }
 
@@ -1365,7 +1420,8 @@ function SetChannelOutputs() {
 				DialogError("Save Channel Outputs", "Invalid RPIWS281X Config");
 				return;
 			}
-			maxChannels = 1020;
+			// Two outputs with max 1000 pixels per output
+			maxChannels = 6000;
 		} else if (type == "VirtualMatrix") {
 			config += GetVirtualMatrixOutputConfig($this.find("td:nth-child(6)"));
 			if (config == "") {
@@ -1492,22 +1548,16 @@ function OtherTypeSelected(selectbox) {
 
 	var type = $(selectbox).val();
 
-	if ((Object.keys(USBDevices).length == 0) &&
+	if ((Object.keys(SerialDevices).length == 0) &&
 			((type == 'DMX-Pro') ||
 			 (type == 'DMX-Open') ||
+			 (type == 'LOR') ||
 			 (type == 'Pixelnet-Lynx') ||
 			 (type == 'Pixelnet-Open') ||
+			 (type == 'Renard') ||
 			 (type == 'Triks-C')))
 	{
 		DialogError("Add Output", "No available serial devices detected.  Do you have a USB Serial Dongle attached?");
-		$row.remove();
-		return;
-	}
-
-	if ((Object.keys(SerialDevices).length == 0) &&
-			((type == 'Renard') || (type == 'LOR')))
-	{
-		DialogError("Add Output", "No available serial devices detected.");
 		$row.remove();
 		return;
 	}
@@ -1531,8 +1581,7 @@ function OtherTypeSelected(selectbox) {
 }
 
 function AddOtherOutput() {
-	if ((Object.keys(USBDevices).length == 0) &&
-		(Object.keys(SerialDevices).length == 0) &&
+	if ((Object.keys(SerialDevices).length == 0) &&
 		(Object.keys(SPIDevices).length == 0)) {
 		DialogError("Add Output", "No available devices found for new outputs");
 		return;
@@ -1728,6 +1777,18 @@ function GetDirectionOptionsSelect(id, selected)
 	return html;
 }
 
+function UpdateBBBStringEndChannel(row)
+{
+	var p = parseInt($('#BBB48PixelCount\\[' + row + '\\]').val());
+	var sc = parseInt($('#BBB48StartChannel\\[' + row + '\\]').val());
+	var gc = parseInt($('#BBB48Grouping\\[' + row + '\\]').val());
+
+	if (gc == 0)
+		gc = 1;
+
+	$('#BBB48EndChannel\\[' + row + '\\]').val(sc - 1 + ((p / gc) * 3));
+}
+
 function DrawBBB48StringTable()
 {
 	var html = "";
@@ -1765,14 +1826,24 @@ function DrawBBB48StringTable()
 			channelOutputsLookup["BBB48String"].outputs[s].zigZag = 0;
 		}
 
+		var p = channelOutputsLookup["BBB48String"].outputs[s].pixelCount;
+		var sc = channelOutputsLookup["BBB48String"].outputs[s].startChannel;
+		var gc = channelOutputsLookup["BBB48String"].outputs[s].grouping;
+
+		if (gc == 0)
+			gc = 1;
+
+		var ec = sc - 1 + ((p / gc) * 3);
+
 		html += "<td class='center'><input id='BBB48PixelCount[" + s + "]' type='text' size='3' maxlength='3' value='"
-			+ channelOutputsLookup["BBB48String"].outputs[s].pixelCount + "'></td>";
+			+ channelOutputsLookup["BBB48String"].outputs[s].pixelCount + "' onChange='UpdateBBBStringEndChannel(" + s + ");'></td>";
 		html += "<td class='center'><input id='BBB48StartChannel[" + s + "]' type='text' size='6' maxlength='6' value='"
-			+ channelOutputsLookup["BBB48String"].outputs[s].startChannel + "'></td>";
+			+ channelOutputsLookup["BBB48String"].outputs[s].startChannel + "' onChange='UpdateBBBStringEndChannel(" + s + ");'></td>";
+		html += "<td class='center'><input id='BBB48EndChannel[" + s + "]' type='text' size='6' maxlength='6' value='" + ec + "' disabled=''></td>";
 		html += "<td class='center'>" + GetColorOptionsSelect("BBB48ColorOrder[" + s + "]", channelOutputsLookup["BBB48String"].outputs[s].colorOrder) + "</td>";
 		html += "<td class='center'>" + GetDirectionOptionsSelect("BBB48Direction[" + s + "]", channelOutputsLookup["BBB48String"].outputs[s].reverse) + "</td>";
 		html += "<td class='center'><input id='BBB48Grouping[" + s + "]' type='text' size='3' maxlength='3' value='"
-			+ channelOutputsLookup["BBB48String"].outputs[s].grouping + "'></td>";
+			+ channelOutputsLookup["BBB48String"].outputs[s].grouping + "' onChange='UpdateBBBStringEndChannel(" + s + ");'></td>";
 		html += "<td class='center'><input id='BBB48NullNodes[" + s + "]' type='text' size='3' maxlength='3' value='"
 			+ channelOutputsLookup["BBB48String"].outputs[s].nullNodes + "'></td>";
 
@@ -1828,8 +1899,8 @@ function InitializeBBB48String()
 // LED Panel Matrix support functions
 
 <?
-$LEDPanelOutputs = 1;         // Default for Pi
-$LEDPanelPanelsPerOutput = 4; // Default for Pi
+$LEDPanelOutputs = 3;          // Max for Pi w/ new library code
+$LEDPanelPanelsPerOutput = 12; // Max for Pi w/ new library code
 $LEDPanelRows = 1;
 $LEDPanelCols = 1;
 $LEDPanelWidth = 32;
@@ -1885,8 +1956,8 @@ function printLEDPanelSizeSelect()
 ?>
 
 var LEDPanelColorOrder = 'RGB';
-var LEDPanelOutputs = 8;
-var LEDPanelPanelsPerOutput = 8;
+var LEDPanelOutputs = <? echo $LEDPanelOutputs; ?>;
+var LEDPanelPanelsPerOutput = <? echo $LEDPanelPanelsPerOutput; ?>;
 var LEDPanelWidth = <? echo $LEDPanelWidth; ?>;
 var LEDPanelHeight = <? echo $LEDPanelHeight; ?>;
 var LEDPanelRows = <? echo $LEDPanelRows; ?>;
@@ -2503,6 +2574,7 @@ if ($settings['Platform'] == "BeagleBone Black")
 									<td width='5%'>#</td>
 									<td width='10%'>Node<br>Count</td>
 									<td width='10%'>Start<br>Channel</td>
+									<td width='10%'>End<br>Channel</td>
 									<td width='5%'>RGB<br>Order</td>
 									<td width='8%'>Direction</td>
 									<td width='10%'>Group<br>Count</td>

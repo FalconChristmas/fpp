@@ -26,8 +26,29 @@
 #ifndef _OGG123_H
 #define _OGG123_H
 
-#include "mediaoutput.h"
+#include "MediaOutputBase.h"
 
-extern MediaOutput ogg123Output;
+#define OGG123_BINARY "/usr/bin/ogg123"
+
+#define MAX_BYTES_OGG 1000
+#define TIME_STR_MAX  8
+
+class ogg123Output : public MediaOutputBase {
+  public:
+	ogg123Output(std::string mediaFilename, MediaOutputStatus *status);
+	~ogg123Output();
+
+	int  Start(void);
+	int  Stop(void);
+	int  Process(void);
+
+  private:
+	void PollMusicInfo(void);
+	void ProcessOGGData(int bytesRead);
+	void ParseTimes(void);
+
+	char m_oggBuffer[MAX_BYTES_OGG];
+	char m_ogg123_strTime[34];
+};
 
 #endif

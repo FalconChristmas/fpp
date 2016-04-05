@@ -41,7 +41,9 @@ $command_array = Array(
 	"setPluginSetting"    => 'SetPluginSetting',
 	"saveScript"          => 'SaveScript',
 	"setTestMode"         => 'SetTestMode',
-	"getTestMode"         => 'GetTestMode'
+	"getTestMode"         => 'GetTestMode',
+	"setupExtGPIO"        => 'SetupExtGPIO',
+	"extGPIO"             => 'ExtGPIO'
 );
 
 $command = "";
@@ -863,7 +865,10 @@ function SaveScript()
 	}
 	else
 	{
-		$result['saveStatus'] = "Error, missing info";
+		if (!isset($data['scriptName']))
+			$result['saveStatus'] = "Error, missing scriptName";
+		else if (!isset($data['scriptBody']))
+			$result['saveStatus'] = "Error, missing scriptBody";
 	}
 
 	returnJSON($result);
@@ -882,6 +887,60 @@ function GetTestMode()
 {
 	header( "Content-Type: application/json");
 	echo SendCommand("GetTestMode");
+}
+
+/////////////////////////////////////////////////////////////////////////////
+
+function SetupExtGPIO()
+{
+	global $args;
+	$result = Array();
+
+	$gpio = $args['gpio'];
+	$mode = $args['mode'];
+
+	check($gpio, "gpio", __FUNCTION__);
+	check($mode, "mode", __FUNCTION__);
+
+	$statuses = [
+		0 => 'failed',
+		1 => 'success'
+	];
+
+	$status = SendCommand(sprintf("SetupExtGPIO,%s,%s", $gpio, $mode));
+
+	$status = explode(',', $status, 14);
+	$result['status'] = $statuses[(int) $status[1]];
+
+	returnJSON($result);
+}
+
+/////////////////////////////////////////////////////////////////////////////
+function ExtGPIO()
+{
+	global $args;
+	$result = Array();
+
+	$gpio = $args['gpio'];
+	$mode = $args['mode'];
+	$val = $args['val'];
+
+	check($gpio, "gpio", __FUNCTION__);
+	check($mode, "mode", __FUNCTION__);
+	check($val, "val", __FUNCTION__);
+
+	$status = SendCommand(sprintf("ExtGPIO,%s,%s,%s", $gpio, $mode, $val));
+
+	$status = explode(',', $status, 14);
+
+	if ((int) $status[1] >= 0) {
+		$result['status'] = 'success';
+		$result['result'] = $status[6];
+	} else {
+		$result['status'] = 'failed';
+	}
+
+	returnJSON($result);
 }
 
 /////////////////////////////////////////////////////////////////////////////

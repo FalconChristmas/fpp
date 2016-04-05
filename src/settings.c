@@ -137,7 +137,8 @@ void initSettings(int argc, char **argv)
 }
 
 // Returns a string that's the white-space trimmed version
-// of the input string
+// of the input string.  Also trim double quotes now that the
+// settings file will have double quotes in it.
 char *trimwhitespace(const char *str)
 {
 	const char *end;
@@ -145,14 +146,14 @@ char *trimwhitespace(const char *str)
 	char *out;
 
 	// Trim leading space
-	while(isspace(*str)) str++;
+	while((isspace(*str)) || (*str == '"')) str++;
 
 	if(*str == 0)  // All spaces?
 		return strdup("");
 
 	// Trim trailing space
 	end = str + strlen(str) - 1;
-	while(end > str && (isspace(*end))) end--;
+	while(end > str && ((isspace(*end)) || (*end == '"'))) end--;
 	end++;
 
 	// Set output size to minimum of trimmed string length
@@ -970,8 +971,8 @@ void setVolume(int volume)
 	system(buffer);
 
 	pthread_mutex_lock(&mediaOutputLock);
-	if (mediaOutput && mediaOutput->setVolume)
-		mediaOutput->setVolume(settings.volume);
+	if (mediaOutput)
+		mediaOutput->SetVolume(settings.volume);
 
 	pthread_mutex_unlock(&mediaOutputLock);
 }

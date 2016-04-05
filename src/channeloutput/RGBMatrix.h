@@ -62,6 +62,8 @@ class RGBMatrixOutput : public ChannelOutputBase {
 	int          m_width;
 	int          m_height;
 	int          m_rows;
+	int          m_outputs;
+	int          m_longestChain;
 
 	PanelMatrix *m_panelMatrix;
 };

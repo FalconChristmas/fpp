@@ -1,12 +1,12 @@
 #!/usr/bin/awk -f
 
 BEGIN { start = 0;
- 
+
     if (ARGC < 3 || ARGC > 3) {
         print "awk -f readSetting.awk setting=<settingName>"
         exit 0;
     }
-    
+
     split(ARGV[2], arg, "=");
     if (arg[1] != "setting")
     {
@@ -18,23 +18,25 @@ BEGIN { start = 0;
     setting = arg[2];
     settingFound = 0;
 }
- 
+
 {
-    if ($1 == setting) 
+    if ($1 == setting)
     {
       settingFound = 1;
       split($0,arrSetting,"=");
       #Trim leading and trailing space
       gsub (/^ */, "", arrSetting[2]);
       gsub (/ *$/, "", arrSetting[2]);
+      gsub (/^"/, "", arrSetting[2]);
+      gsub (/"$/, "", arrSetting[2]);
       printf(arrSetting[2]);
       exit 0
     }
 }
- 
+
 END{
     if (settingFound != 1)
-    { 
+    {
       printf("Not Found");
     }
     exit 0;

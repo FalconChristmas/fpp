@@ -30,6 +30,7 @@
 #include <strings.h>
 #include <unistd.h>
 
+#include "common.h"
 #include "controlrecv.h"
 #include "controlsend.h"
 #include "effects.h"
@@ -72,6 +73,10 @@ FPPevent* LoadEvent(char *id)
 			filename);
 		return NULL;
 	}
+
+	if ((!FileExists(filename)) &&
+		(getFPPmode() == REMOTE_MODE))
+		return NULL;
 
 	file = fopen(filename, "r");
 	if (!file)
@@ -327,7 +332,9 @@ int TriggerEventByID(char *id)
 
 	if (!event)
 	{
-		LogWarn(VB_EVENT, "Unable to load event %s\n", id);
+		if (getFPPmode() != REMOTE_MODE)
+			LogWarn(VB_EVENT, "Unable to load event %s\n", id);
+
 		return 0;
 	}
 
