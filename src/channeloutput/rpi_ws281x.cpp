@@ -62,8 +62,10 @@ RPIWS281xOutput::RPIWS281xOutput(unsigned int startChannel, unsigned int channel
   : ChannelOutputBase(startChannel, channelCount),
 	m_string1GPIO(0),
 	m_string1Pixels(0),
+	m_string1ColorOrder("RGB"),
 	m_string2GPIO(0),
-	m_string2Pixels(0)
+	m_string2Pixels(0),
+	m_string2ColorOrder("RGB")
 {
 	LogDebug(VB_CHANNELOUT, "RPIWS281xOutput::RPIWS281xOutput(%u, %u)\n",
 		startChannel, channelCount);
@@ -105,6 +107,10 @@ int RPIWS281xOutput::Init(char *configStr)
 			if (m_string1Pixels)
 				m_string1GPIO = 18;
 		}
+		else if (elem[0] == "string1ColorOrder")
+		{
+			m_string1ColorOrder = elem[1].c_str();
+		}
 		else if (elem[0] == "string2GPIO")
 		{
 			m_string2GPIO = atoi(elem[1].c_str());
@@ -115,6 +121,10 @@ int RPIWS281xOutput::Init(char *configStr)
 
 			if (m_string2Pixels)
 				m_string2GPIO = 19;
+		}
+		else if (elem[0] == "string2ColorOrder")
+		{
+			m_string2ColorOrder = elem[1].c_str();
 		}
 	}
 
@@ -143,10 +153,63 @@ int RPIWS281xOutput::Init(char *configStr)
 
 	ledstring.channel[0].gpionum = m_string1GPIO;
 	ledstring.channel[0].count   = m_string1Pixels;
+
+	if (m_string1ColorOrder == "RGB")
+	{
+		ledstring.channel[0].strip_type = WS2811_STRIP_RGB;
+	}
+	else if (m_string1ColorOrder == "RBG")
+	{
+		ledstring.channel[0].strip_type = WS2811_STRIP_RBG;
+	}
+	else if (m_string1ColorOrder == "GRB")
+	{
+		ledstring.channel[0].strip_type = WS2811_STRIP_GRB;
+	}
+	else if (m_string1ColorOrder == "GBR")
+	{
+		ledstring.channel[0].strip_type = WS2811_STRIP_GBR;
+	}
+	else if (m_string1ColorOrder == "BRG")
+	{
+		ledstring.channel[0].strip_type = WS2811_STRIP_BRG;
+	}
+	else if (m_string1ColorOrder == "BGR")
+	{
+		ledstring.channel[0].strip_type = WS2811_STRIP_BGR;
+	}
+
 	ledstring.channel[0].invert  = 0;
 	ledstring.channel[0].brightness  = 255;
+
 	ledstring.channel[1].gpionum = m_string2GPIO;
 	ledstring.channel[1].count   = m_string2Pixels;
+
+	if (m_string2ColorOrder == "RGB")
+	{
+		ledstring.channel[1].strip_type = WS2811_STRIP_RGB;
+	}
+	else if (m_string2ColorOrder == "RBG")
+	{
+		ledstring.channel[1].strip_type = WS2811_STRIP_RBG;
+	}
+	else if (m_string2ColorOrder == "GRB")
+	{
+		ledstring.channel[1].strip_type = WS2811_STRIP_GRB;
+	}
+	else if (m_string2ColorOrder == "GBR")
+	{
+		ledstring.channel[1].strip_type = WS2811_STRIP_GBR;
+	}
+	else if (m_string2ColorOrder == "BRG")
+	{
+		ledstring.channel[1].strip_type = WS2811_STRIP_BRG;
+	}
+	else if (m_string2ColorOrder == "BGR")
+	{
+		ledstring.channel[1].strip_type = WS2811_STRIP_BGR;
+	}
+
 	ledstring.channel[1].invert  = 0;
 	ledstring.channel[1].brightness  = 255;
 
@@ -229,9 +292,10 @@ void RPIWS281xOutput::DumpConfig(void)
 	if (m_string1GPIO)
 	{
 		LogDebug(VB_CHANNELOUT, "    String #1\n");
-		LogDebug(VB_CHANNELOUT, "      GPIO    : %d\n", m_string1GPIO);
-		LogDebug(VB_CHANNELOUT, "      Pixels  : %d\n", m_string1Pixels);
-		LogDebug(VB_CHANNELOUT, "      Channels: %d\n", m_string1Pixels * 3);
+		LogDebug(VB_CHANNELOUT, "      GPIO       : %d\n", m_string1GPIO);
+		LogDebug(VB_CHANNELOUT, "      Pixels     : %d\n", m_string1Pixels);
+		LogDebug(VB_CHANNELOUT, "      Color Order: %s\n", m_string1ColorOrder.c_str());
+		LogDebug(VB_CHANNELOUT, "      Channels   : %d\n", m_string1Pixels * 3);
 	}
 	else
 	{
@@ -241,9 +305,10 @@ void RPIWS281xOutput::DumpConfig(void)
 	if (m_string2GPIO)
 	{
 		LogDebug(VB_CHANNELOUT, "    String #2\n");
-		LogDebug(VB_CHANNELOUT, "      GPIO    : %d\n", m_string2GPIO);
-		LogDebug(VB_CHANNELOUT, "      Pixels  : %d\n", m_string2Pixels);
-		LogDebug(VB_CHANNELOUT, "      Channels: %d\n", m_string2Pixels * 3);
+		LogDebug(VB_CHANNELOUT, "      GPIO       : %d\n", m_string2GPIO);
+		LogDebug(VB_CHANNELOUT, "      Pixels     : %d\n", m_string2Pixels);
+		LogDebug(VB_CHANNELOUT, "      Color Order: %s\n", m_string2ColorOrder.c_str());
+		LogDebug(VB_CHANNELOUT, "      Channels   : %d\n", m_string2Pixels * 3);
 	}
 	else
 	{

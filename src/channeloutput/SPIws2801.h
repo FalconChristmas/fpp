@@ -42,7 +42,10 @@ class SPIws2801Output : public ChannelOutputBase {
 	void DumpConfig(void);
 
   private:
-	int m_port;
+	int            m_port;
+	int            m_pi36;
+	unsigned char *m_pi36Data;
+	int            m_pi36DataSize;
 };
 
 #endif

@@ -1,4 +1,5 @@
 #!/bin/bash
+
 #############################################################################
 # FPP Install Script
 #
@@ -15,7 +16,8 @@
 #
 # wget -O ./FPP_Install.sh https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
 # chmod 700 ./FPP_Install.sh
-# sudo ./FPP_Install.sh
+# su
+# ./FPP_Install.sh
 #
 #############################################################################
 # NOTE: This script is used to build the SD images for FPP releases.  Its
@@ -57,10 +59,10 @@
 #             filesystem as per the information.txt file on recombi.net.
 #
 #############################################################################
-SCRIPTVER="0.8"
-FPPBRANCH="v1.6"
-FPPIMAGEVER="1.5"
-FPPCFGVER="17"
+SCRIPTVER="0.9"
+FPPBRANCH="master"
+FPPIMAGEVER="2.0alpha"
+FPPCFGVER="18"
 FPPPLATFORM="UNKNOWN"
 FPPDIR="/opt/fpp"
 OSVER="UNKNOWN"
@@ -131,18 +133,42 @@ then
 	exit
 fi
 
+# Parse build options as arguments
+build_ola=false
+build_omxplayer=false
+while [ -n "$1" ]; do
+	case $1 in
+		--build-ola)
+			build_ola=true
+			shift
+			;;
+		--build-omxplayer)
+			build_omxplayer=true
+			shift
+			;;
+		*)
+			echo "Unknown option $1" >&2
+			exit 1
+			;;
+	esac
+done
+
 # Attempt to detect the platform we are installing on
-ODROID=$(grep ODROIDC /proc/cpuinfo)
 if [ "x${OSID}" = "xraspbian" ]
 then
 	FPPPLATFORM="Raspberry Pi"
 	OSVER="debian_${VERSION_ID}"
+elif [ "x${VARIANT}" = "xDebian on C.H.I.P" ]; then
+	FPPPLATFORM="CHIP"
 elif [ -e "/sys/class/leds/beaglebone:green:usr0" ]
 then
 	FPPPLATFORM="BeagleBone Black"
-elif [ ! -z "${ODROID}" ]
+elif [ ! -z "$(grep ODROIDC /proc/cpuinfo)" ]
 then
 	FPPPLATFORM="ODROID"
+elif [ "x${OSID}" = "xdebian" ]
+then
+	FPPPLATFORM="Debian"
 else
 	FPPPLATFORM="UNKNOWN"
 fi
@@ -159,6 +185,10 @@ echo "FPP Branch       : ${FPPBRANCH}"
 echo "Operating System : ${PRETTY_NAME}"
 echo "Platform         : ${FPPPLATFORM}"
 echo "OS Version       : ${OSVER}"
+echo "Build OLA        : $build_ola"
+if [ "x${FPPPLATFORM}" = "xRaspberry Pi" ]; then
+echo "Build omxplayer  : $build_omxplayer"
+fi
 echo "============================================================"
 #############################################################################
 
@@ -263,76 +293,97 @@ fi
 export DEBIAN_FRONTEND=noninteractive
 
 case "${OSVER}" in
-	debian_7)
-		echo "FPP - Enabling non-free repo"
-		sed -i -e "s/^deb \(.*\)/deb \1 non-free/" /etc/apt/sources.list
-		sed -i -e "s/non-free\(.*\)non-free/non-free\1/" /etc/apt/sources.list
+	debian_7|debian_8)
+		case $FPPPLATFORM in
+			'CHIP'|'BeagleBone Black')
+				echo "FPP - Skipping non-free for $FPPPLATFORM"
+				;;
+			*)
+				echo "FPP - Enabling non-free repo"
+				sed -i -e "s/^deb \(.*\)/deb \1 non-free/" /etc/apt/sources.list
+				sed -i -e "s/non-free\(.*\)non-free/non-free\1/" /etc/apt/sources.list
+				;;
+		esac
 
-		echo "FPP - Updating package list"
-		apt-get update
+		echo "FPP - Marking unneeded packages for removal to save space"
+		for package in gnome-icon-theme gnome-accessibility-themes gnome-themes-standard \
+						apache2 apache2-doc apache2-mpm-prefork apache2-utils \
+						apache2.2-bin apache2.2-common libapache2-mod-php5 \
+						gnome-themes-standard-data libsoup-gnome2.4-1:armhf desktop-base \
+						xserver-xorg x11proto-composite-dev x11proto-core-dev \
+						x11proto-damage-dev x11proto-fixes-dev x11proto-input-dev \
+						x11proto-kb-dev x11proto-randr-dev x11proto-render-dev \
+						x11proto-xext-dev x11proto-xinerama-dev xchat xrdp xscreensaver \
+						xscreensaver-data desktop-file-utils dbus-x11 javascript-common \
+						ruby1.9.1 ruby libxxf86vm1:armhf libxxf86dga1:armhf \
+						libxvidcore4:armhf libxv1:armhf libxtst6:armhf libxslt1.1:armhf \
+						libxres1:armhf libxrender1:armhf libxrandr2:armhf libxml2-dev \
+						libxmuu1 xauth wvdial xserver-xorg-video-fbdev xfonts-utils \
+						xfonts-encodings libuniconf4.6 libwvstreams4.6-base \
+						libwvstreams4.6-extras poppler-data desktop-base libsane \
+						libsane-extras sane-utils freepats xserver-xorg-video-modesetting \
+						xserver-xorg-core xserver-xorg xserver-common x11-xserver-utils \
+						xscreensaver xrdp bluej greenfoot oracle-java7-jdk
+		do
+			echo "$package deinstall" | dpkg --set-selections
+		done
 
-		echo "FPP - Removing some unneeded packages"
-		apt-get -y remove gnome-icon-theme gnome-accessibility-themes gnome-themes-standard gnome-themes-standard-data libsoup-gnome2.4-1:armhf desktop-base xserver-xorg x11proto-composite-dev x11proto-core-dev x11proto-damage-dev x11proto-fixes-dev x11proto-input-dev x11proto-kb-dev x11proto-randr-dev x11proto-render-dev x11proto-xext-dev x11proto-xinerama-dev xchat xrdp xscreensaver xscreensaver-data desktop-file-utils dbus-x11 javascript-common ruby1.9.1 ruby libxxf86vm1:armhf libxxf86dga1:armhf libxvidcore4:armhf libxv1:armhf libxtst6:armhf libxslt1.1:armhf libxres1:armhf libxrender1:armhf  libxrandr2:armhf libxml2-dev libxmuu1 xauth wvdial xserver-xorg-video-fbdev xfonts-utils xfonts-encodings   libuniconf4.6 libwvstreams4.6-base libwvstreams4.6-extras 
-		# Should be able to add these as well:
-		# poppler-data desktop-base libsane libsane-extras sane-utils freepats xserver-xorg-video-modesetting xserver-xorg-core xserver-xorg xserver-common x11-xserver-utils xscreensaver xrdp
-		apt-get -y --purge autoremove
-		# remove gnome keyring module config which causes pkcs11 warnings
-		# when trying to do a git pull
-		rm /etc/pkcs11/modules/gnome-keyring-module
-
-		echo "FPP - Installing required packages (Set #1)"
-		# Install in more than one command to lower total disk space required
-		# Do a clean in between each iteration
-		apt-get -y install alsa-base alsa-utils apache2 apache2.2-bin apache2.2-common apache2-mpm-prefork apache2-utils arping avahi-daemon avahi-discover avahi-utils bash-completion bc build-essential bzip2 ca-certificates ccache curl device-tree-compiler dh-autoreconf
-		apt-get -y clean
-
-		# FIXME, newer debian has newer gcc, don't bother installing old version
-		# if newer version is already installed.
-		echo "FPP - Installing required packages (Set #2)"
-		apt-get -y install 'g++-4.7' gcc-4.7
-		apt-get -y clean
-
-		echo "FPP - Installing required packages (Set #3)"
-		apt-get -y install ethtool exfat-fuse fbi fbset file flite gdb gdebi-core git i2c-tools ifplugd imagemagick less libapache2-mod-php5 libboost-dev libconvert-binary-c-perl libdbus-glib-1-dev libdevice-serialport-perl libjs-jquery libjs-jquery-ui libjson-perl libjsoncpp-dev
-		apt-get -y clean
-
-		echo "FPP - Installing required packages (Set #4)"
-		apt-get -y install libnet-bonjour-perl libpam-smbpass libtagc0-dev libtest-nowarnings-perl locales mp3info mpg123 mpg321 mplayer nano nginx node ntp perlmagick php5 php5-cli php5-common php5-curl php5-fpm php5-mcrypt php5-sqlite php-apc python-daemon python-smbus samba samba-common-bin shellinabox sudo sysstat tcpdump usbmount vim vim-common vorbis-tools vsftpd
-		apt-get -y clean
-
-		echo "FPP - Installing wireless firmware packages"
-		apt-get -y install firmware-realtek
-
-		echo "FPP - Cleaning up after installing packages"
-		apt-get -y clean
-
-		echo "FPP - Make things cleaner by removing configuration from unnecessary packages"
+		echo "FPP - Make things cleaner by removing unneeded packages"
 		dpkg --get-selections | grep deinstall | while read package deinstall; do
 			apt-get -y purge $package
 		done
 
-		echo "FPP - Installing non-packaged Perl modules via CPAN"
-		echo "yes" | cpan -fi File::Map Net::WebSocket::Server
+		echo "FPP - Removing anything left that wasn't explicity removed"
+		apt-get -y --purge autoremove
 
-		# gcc/g++ v4.6 are pulled in as a dependency for something above so
-		# switch the system to use the 4.7 version
-		if [ -h /usr/bin/gcc -a -f /usr/bin/gcc-4.7 ]
-		then
-			rm /usr/bin/gcc
-			ln -s /usr/bin/gcc-4.7 /usr/bin/gcc
-		fi
+		echo "FPP - Updating package list"
+		apt-get update
 
-		if [ -h /usr/bin/g++ -a -f /usr/bin/g++-4.7 ]
-		then
-			rm /usr/bin/g++
-			ln -s /usr/bin/g++-4.7 /usr/bin/g++
-		fi
+		echo "FPP - Upgrading packages"
+		apt-get -y upgrade
+
+		# remove gnome keyring module config which causes pkcs11 warnings
+		# when trying to do a git pull
+		rm -f /etc/pkcs11/modules/gnome-keyring-module
+
+		echo "FPP - Installing required packages"
+		# Install 10 packages, then clean to lower total disk space required
+		let packages=0
+		for package in alsa-base alsa-utils arping avahi-daemon \
+						zlib1g-dev libpcre3 libpcre3-dev libbz2-dev libssl-dev \
+						avahi-discover avahi-utils bash-completion bc build-essential \
+						bzip2 ca-certificates ccache curl device-tree-compiler \
+						dh-autoreconf ethtool exfat-fuse fbi fbset file flite gdb \
+						gdebi-core git i2c-tools ifplugd imagemagick less \
+						libboost-dev libconvert-binary-c-perl \
+						libdbus-glib-1-dev libdevice-serialport-perl libjs-jquery \
+						libjs-jquery-ui libjson-perl libjsoncpp-dev libnet-bonjour-perl \
+						libpam-smbpass libtagc0-dev libtest-nowarnings-perl locales \
+						mp3info mpg123 mpg321 mplayer nano node ntp perlmagick \
+						php5-cli php5-common php5-curl php5-fpm php5-mcrypt \
+						php5-sqlite php-apc python-daemon python-smbus samba \
+						samba-common-bin shellinabox sudo sysstat tcpdump usbmount vim \
+						vim-common vorbis-tools vsftpd firmware-realtek gcc g++\
+						network-manager dhcp-helper hostapd parprouted bridge-utils \
+						firmware-atheros firmware-ralink firmware-brcm80211
+		do
+			apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" install ${package}
+			let packages=$((${packages}+1))
+			if [ $packages -gt 10 ]; then
+				let packages=0
+				apt-get -y clean
+			fi
+		done
+
+		echo "FPP - Cleaning up after installing packages"
+		apt-get -y clean
+
+		echo "FPP - Installing non-packaged Perl modules via App::cpanminus"
+		curl -L https://cpanmin.us | perl - --sudo App::cpanminus
+		echo "yes" | cpanm -fi Test::Tester File::Map Net::WebSocket::Server
 
 		echo "FPP - Disabling any stock 'debian' user, use the 'fpp' user instead"
 		sed -i -e "s/^debian:.*/debian:*:16372:0:99999:7:::/" /etc/shadow
-
-		echo "FPP - Disabling any stock 'pi' user, use the 'fpp' user instead"
-		sed -i -e "s/^pi:.*/pi:*:16372:0:99999:7:::/" /etc/shadow
 
 		if [ -f /bin/systemctl ]
 		then
@@ -341,10 +392,6 @@ case "${OSVER}" in
 			systemctl disable bonescript-autorun.service
 			systemctl disable console-kit-daemon.service
 			systemctl disable cloud9.socket
-
-			# Disabling nginx & php-fpm for now until new UI is in place
-			systemctl disable nginx.service
-			systemctl disable php5-fpm.service
 		fi
 
 		echo "FPP - Disabling GUI"
@@ -354,16 +401,22 @@ case "${OSVER}" in
 		update-rc.d -f wdm remove
 		update-rc.d -f xdm remove
 
+		echo "FPP - Disabling dhcp-helper and hostapd from automatically starting"
+		update-rc.d -f dhcp-helper remove
+		update-rc.d -f hostapd remove
+
+		if [ "x${OSVER}" == "xdebian_8" ]; then
+			systemctl disable display-manager.service
+		fi
+
 		;;
 	ubuntu_14.04)
 		echo "FPP - Updating package list"
 		apt-get update
-		echo "FPP - Installing required packages"
-		if [ "x${FPPPLATFORM}" = "xODROID" ]
-		then
-			echo "FPP - WARNING: This list may be incomplete, it needs to be updated to match the Pi/BBB Debian package install list"
-			apt-get -y install apache2 apache2-bin apache2-mpm-prefork apache2-utils avahi-discover fbi flite gdebi-core i2c-tools imagemagick libapache2-mod-php5 libboost-dev libconvert-binary-c-perl libjson-perl libjsoncpp-dev libnet-bonjour-perl libpam-smbpass mp3info mpg123 perlmagick php5 php5-cli php5-common php-apc python-daemon python-smbus samba samba-common-bin shellinabox sysstat vorbis-tools vsftpd
-		fi
+		echo "FPP - FIXME, should be installing required Ubuntu packages"
+		;;
+	*)
+		echo "FPP - Unknown distro"
 		;;
 esac
 
@@ -371,32 +424,65 @@ esac
 # Platform-specific config
 case "${FPPPLATFORM}" in
 	'BeagleBone Black')
-		echo "FPP - Disabling HDMI for Falcon and LEDscape cape support"
-		echo >> /boot/uboot/uEnv.txt
-		echo "# Disable HDMI for Falcon and LEDscape cape support" >> /boot/uboot/uEnv.txt
-		echo "cape_disable=capemgr.disable_partno=BB-BONELT-HDMI,BB-BONELT-HDMIN" >> /boot/uboot/uEnv.txt
-		echo >> /boot/uboot/uEnv.txt
 
-		echo "FPP - Installing OLA packages"
-		apt-get -y --force-yes install libcppunit-dev uuid-dev pkg-config libncurses5-dev libtool autoconf automake libmicrohttpd-dev protobuf-compiler python-protobuf libprotobuf-dev libprotoc-dev zlib1g-dev bison flex libftdi-dev libftdi1 libusb-1.0-0-dev liblo-dev
-		apt-get -y clean
+		case "${OSVER}" in
+			'debian_8')
+				echo "FPP - Disabling HDMI for Falcon and LEDscape cape support"
+				sed -i -e 's/#dtb=am335x-boneblack-emmc-overlay.dtb/dtb=am335x-boneblack-emmc-overlay.dtb/' /boot/uEnv.txt
 
-		mkdir /tmp/deb
-		cd /tmp/deb
-		FILES="libola-dev_0.9.7-1_armhf.deb libola1_0.9.7-1_armhf.deb ola-python_0.9.7-1_all.deb ola-rdm-tests_0.9.7-1_all.deb ola_0.9.7-1_armhf.deb"
-		for FILE in ${FILES}
-		do
-			# FIXME, get these from github after release is tagged
-			wget -nd http://www.bc2va.org/chris/tmp/fpp/deb/${FILE}
-		done
-		dpkg --unpack ${FILES}
-		rm -f ${FILES}
-#		apt-get -y --force-yes install libcppunit-dev libcppunit-1.12-1 uuid-dev pkg-config libncurses5-dev libtool autoconf automake  libmicrohttpd-dev protobuf-compiler python-protobuf libprotobuf-dev libprotoc-dev zlib1g-dev bison flex libftdi-dev libftdi1 libusb-1.0-0-dev liblo-dev
-#		git clone https://github.com/OpenLightingProject/ola.git /opt/ola
-#		(cd /opt/ola && autoreconf -i && ./configure --enable-python-libs && make && make install && ldconfig && cd /opt/ && rm -rf ola)
+				echo "FPP - Installing BeagleBone Overlays"
+				cd /opt/ && git clone https://github.com/beagleboard/bb.org-overlays && cd /opt/bb.org-overlays && make && make install && cd /opt/ && rm -rf bb.org-overlays
 
-		echo "FPP - Installing updated 8192cu module"
-		wget -O /lib/modules/3.8.13-bone50/kernel/drivers/net/wireless/8192cu.ko https://github.com/FalconChristmas/fpp/releases/download/1.5/8192cu.ko
+				echo "FPP - Installing OLA"
+				apt-get -y install ola ola-python libola-dev libola1 libprotobuf-dev libprotobuf9
+				update-rc.d olad remove
+
+				echo "FPP - Updating locale"
+				sed -i -e 's/# en_US.UTF-8/en_US.UTF-8/' /etc/locale.gen
+				dpkg-reconfigure --frontend=noninteractive locales
+				update-locale LANG=en_US.UTF-8
+
+				# Bind mount /tmp over /var/tmp because the default 10G /var/tmp is not
+				# big enough to rebuild the initrd when the kernel is updated
+				mount -o bind /tmp /var/tmp
+
+				# We need the 'bone' kernel so LEDscape PRU code can work
+				BBB_KERNEL_VER=4.1.19-bone-rt-r20
+				echo "FPP - Switching to Bone kernel"
+				cd /opt/scripts/tools && ./update_kernel.sh --bone-rt-kernel --lts-4_1 --kernel=${BBB_KERNEL_VER}
+
+				echo "FPP - Installing updated 8192cu module"
+				# FIXME, get this in github once kernel version is finalized
+				wget -O /lib/modules/${BBB_KERNEL_VER}/kernel/drivers/net/wireless/8192cu.ko http://fpp.bc2va.org/modules/8192cu-${BBB_KERNEL_VER}.ko
+				sudo depmod ${BBB_KERNEL_VER}
+				#wget -O /lib/modules/${BBB_KERNEL_VER}/kernel/drivers/net/wireless/8192cu.ko https://github.com/FalconChristmas/fpp/releases/download/1.5/8192cu-${BBB_KERNEL_VER}.ko
+				;;
+
+			'debian_7')
+				echo "FPP - Disabling HDMI for Falcon and LEDscape cape support"
+				echo >> /boot/uboot/uEnv.txt
+				echo "# Disable HDMI for Falcon and LEDscape cape support" >> /boot/uboot/uEnv.txt
+				echo "cape_disable=capemgr.disable_partno=BB-BONELT-HDMI,BB-BONELT-HDMIN" >> /boot/uboot/uEnv.txt
+				echo >> /boot/uboot/uEnv.txt
+
+				echo "FPP - Installing OLA packages"
+				apt-get -y --force-yes install libcppunit-dev libcppunit-1.12-1 uuid-dev pkg-config libncurses5-dev libtool autoconf automake libmicrohttpd-dev protobuf-compiler python-protobuf libprotobuf-dev libprotoc-dev bison flex libftdi-dev libftdi1 libusb-1.0-0-dev liblo-dev
+				apt-get -y clean
+				mkdir /tmp/deb
+				cd /tmp/deb
+				FILES="libola-dev_0.9.7-1_armhf.deb libola1_0.9.7-1_armhf.deb ola-python_0.9.7-1_all.deb ola-rdm-tests_0.9.7-1_all.deb ola_0.9.7-1_armhf.deb"
+				for FILE in ${FILES}
+				do
+					# FIXME, get these from github after release is tagged
+					wget -nd http://www.bc2va.org/chris/tmp/fpp/deb/${FILE}
+				done
+				dpkg --unpack ${FILES}
+				rm -f ${FILES}
+
+				echo "FPP - Installing updated 8192cu module"
+				wget -O /lib/modules/3.8.13-bone50/kernel/drivers/net/wireless/8192cu.ko https://github.com/FalconChristmas/fpp/releases/download/1.5/8192cu.ko
+				;;
+		esac
 
 		echo "FPP - Disabling power management for 8192cu wireless"
 cat <<-EOF >> /etc/modprobe.d/8192cu.conf
@@ -412,26 +498,48 @@ EOF
 		;;
 
 	'Raspberry Pi')
+		echo "FPP - Updating firmware for Raspberry Pi install"
+		#https://raw.githubusercontent.com/Hexxeh/rpi-update/master/rpi-update
 		wget http://goo.gl/1BOfJ -O /usr/bin/rpi-update && chmod +x /usr/bin/rpi-update
-		SKIP_WARNING=1 rpi-update d4945b3b77d29cc5bb3777734422c048c1f1d003
+		SKIP_WARNING=1 rpi-update 2a7eb4fc4cef07906c36e9adcf76f053daabe371
 
 		echo "FPP - Installing Pi-specific packages"
 		apt-get -y install raspi-config
 
-		echo "FPP - Installing OLA packages"
-		echo "deb http://apt.openlighting.org/raspbian wheezy main" > /etc/apt/sources.list.d/ola.list
-		apt-get update
-		apt-get -y --force-yes install ola ola-rdm-tests ola-conf-plugins ola-dev libprotobuf-dev
+		# TODO: Shouldn't this stuff go somewhere besides the Pi section?  I
+		# believe OLA is supported across most linux systems.  It can probably
+		# go in another location.
+		if $build_ola; then
+			echo "FPP - Installing OLA from source"
+			apt-get -y --force-yes install libcppunit-dev uuid-dev pkg-config libncurses5-dev libtool autoconf automake libmicrohttpd-dev protobuf-compiler python-protobuf libprotobuf-dev libprotoc-dev bison flex libftdi-dev libftdi1 libusb-1.0-0-dev liblo-dev
+			apt-get -y clean
+			git clone https://github.com/OpenLightingProject/ola.git /opt/ola
+			(cd /opt/ola && autoreconf -i && ./configure --enable-rdm-tests --enable-python-libs && make && make install && ldconfig)
+			rm -rf /opt/ola
+		else
+			echo "FPP - Installing OLA packages"
+			apt-get -y --force-yes install libcppunit-dev uuid-dev pkg-config libncurses5-dev libtool autoconf automake libmicrohttpd-dev protobuf-compiler python-protobuf libprotobuf-dev libprotoc-dev bison flex libftdi-dev libftdi1 libusb-1.0-0-dev liblo-dev
+			apt-get -y clean
 
-		echo "FPP - Updating packages"
-		apt-get -y upgrade
+			mkdir /tmp/deb
+			cd /tmp/deb
+			FILES="libola-dev_0.10.0-1_armhf.deb libola1_0.10.0-1_armhf.deb ola-python_0.0.10-1_all.deb ola-rdm-tests_0.0.10-1_all.deb ola_0.0.10-1_armhf.deb"
+			for FILE in ${FILES}
+			do
+				# TODO Host the debs I built so we can use our packages
+				# instaed of the broken ones in the OLA repo
+				wget -nd http://www.bc2va.org/chris/tmp/fpp/deb/pi/${OSVER}/${FILE}
+			done
+			dpkg --unpack ${FILES}
+			rm -f ${FILES}
+		fi
 
 		echo "FPP - Installing wiringPi"
 		cd /opt/ && git clone git://git.drogon.net/wiringPi && cd /opt/wiringPi && ./build
 
-		if [ "x$1" == "x--build-omxplayer" ]; then
+		if $build_omxplayer; then
 			echo "FPP - Building omxplayer from source with our patch"
-			apt-get -y install subversion libpcre3-dev libidn11-dev libboost1.50-dev libfreetype6-dev libusb-1.0-0-dev libssl-dev libssh-dev libsmbclient-dev g++-4.7
+			apt-get -y install subversion libidn11-dev libboost1.50-dev libfreetype6-dev libusb-1.0-0-dev libssh-dev libsmbclient-dev g++-4.7 git-core smbclient
 			git clone https://github.com/popcornmix/omxplayer.git
 			cd omxplayer
 			git reset --hard 4d8ffd13153bfef2966671cb4fb484afeaf792a8
@@ -442,13 +550,23 @@ EOF
 			tar xzpvf omxplayer-dist.tgz -C /
 			cd ..
 		else
+			# TODO: need to test this binary on jessie
 			echo "FPP - Installing patched omxplayer.bin for FPP MultiSync"
 			apt-get -y install libssh-4
 			wget -O- https://github.com/FalconChristmas/fpp-binaries/raw/master/Pi/omxplayer-dist.tgz | tar xzpv -C /
 		fi
 
+		echo "FPP - Disabling stock users (pi, odroid, debian), use the 'fpp' user instead"
+		sed -i -e "s/^pi:.*/pi:*:16372:0:99999:7:::/" /etc/shadow
+		sed -i -e "s/^odroid:.*/odroid:*:16372:0:99999:7:::/" /etc/shadow
+		sed -i -e "s/^debian:.*/debian:*:16372:0:99999:7:::/" /etc/shadow
+
 		echo "FPP - Disabling getty on onboard serial ttyAMA0"
-		sed -i "s@T0:23:respawn:/sbin/getty -L ttyAMA0@#T0:23:respawn:/sbin/getty -L ttyAMA0@" /etc/inittab
+		if [ "x${OSVER}" == "xdebian_7" ]; then
+			sed -i "s@T0:23:respawn:/sbin/getty -L ttyAMA0@#T0:23:respawn:/sbin/getty -L ttyAMA0@" /etc/inittab
+		elif [ "x${OSVER}" == "xdebian_8" ]; then
+			systemctl disable serial-getty@ttyAMA0.service
+		fi
 
 		echo "FPP - Disabling the hdmi force hotplug setting"
 		sed -i -e "s/hdmi_force_hotplug/#hdmi_force_hotplug/" /boot/config.txt
@@ -505,12 +623,21 @@ EOF
 		echo "FPP - Fix ifup/ifdown scripts for manual dns"
 		sed -i -n 'H;${x;s/^\n//;s/esac\n/&\nif grep -qc "Generated by fpp" \/etc\/resolv.conf\; then\n\texit 0\nfi\n/;p}' /etc/network/if-up.d/000resolvconf
 		sed -i -n 'H;${x;s/^\n//;s/esac\n/&\nif grep -qc "Generated by fpp" \/etc\/resolv.conf\; then\n\texit 0\nfi\n\n/;p}' /etc/network/if-down.d/resolvconf
-
-		echo "FPP - Disable nginx to avoid warning"
-		# Note, when we switch to the v2.0 UI we'll need to update this script to remove apache instead
-		update-rc.d -f nginx remove
 		;;
-
+	#TODO
+	'CHIP')
+		echo "FPP - Reinstall chip packages that were probably removed earlier from dependencies"
+		for package in chip-exit chip-metapackage chip-configs chip-hwtest \
+						chip-input-reset chip-power chip-theme
+		do
+			apt-get -y install ${package}
+			let packages=$((${packages}+1))
+			if [ $packages -gt 10 ]; then
+				let packages=0
+				apt-get -y clean
+			fi
+		done
+		;;
 	'ODROID')
 		echo "FPP - Installing wiringPi"
 		cd /opt/ && git clone https://github.com/hardkernel/wiringPi && cd /opt/wiringPi && ./build
@@ -519,8 +646,14 @@ EOF
 		cp /usr/bin/omxplayer.bin /usr/bin/omxplayer.bin.orig
 		wget -O /usr/bin/omxplayer.bin https://github.com/FalconChristmas/fpp-binaries/raw/master/Pi/omxplayer.bin
 		;;
+	'Debian')
+		echo "FPP - Debian"
+		;;
+	*)
+		echo "FPP - Unknown platform"
+		;;
 esac
-
+	
 #######################################
 # Clone git repository
 echo "FPP - Cloning git repository into /opt/fpp"
@@ -544,6 +677,14 @@ chmod 755 /usr/local/bin/composer
 echo "FPP - Setting up for UI"
 sed -i -e "s/^user =.*/user = fpp/" /etc/php5/fpm/pool.d/www.conf
 sed -i -e "s/^group =.*/group = fpp/" /etc/php5/fpm/pool.d/www.conf
+sed -i -e "s/.*listen.owner =.*/listen.owner = fpp/" /etc/php5/fpm/pool.d/www.conf
+sed -i -e "s/.*listen.group =.*/listen.group = fpp/" /etc/php5/fpm/pool.d/www.conf
+sed -i -e "s/.*listen.mode =.*/listen.mode = 0660/" /etc/php5/fpm/pool.d/www.conf
+
+#######################################
+echo "FPP - Allowing short tags in PHP"
+sed -i -e "s/^short_open_tag.*/short_open_tag = On/" /etc/php5/cli/php.ini
+sed -i -e "s/^short_open_tag.*/short_open_tag = On/" /etc/php5/fpm/php.ini
 
 #######################################
 # echo "FPP - Composing FPP UI"
@@ -556,7 +697,11 @@ addgroup --gid 500 fpp
 adduser --uid 500 --home /home/fpp --shell /bin/bash --ingroup fpp --gecos "Falcon Player" --disabled-password fpp
 adduser fpp adm
 adduser fpp sudo
-adduser fpp spi
+case "${FPPPLATFORM}" in
+	'Raspberry Pi'|'BeagleBone Black')
+		adduser fpp spi
+		;;
+esac
 adduser fpp video
 sed -i -e 's/^fpp:\*:/fpp:\$6\$rA953Jvd\$oOoLypAK8pAnRYgQQhcwl0jQs8y0zdx1Mh77f7EgKPFNk\/jGPlOiNQOtE.ZQXTK79Gfg.8e3VwtcCuwz2BOTR.:/' /etc/shadow
 
@@ -573,6 +718,10 @@ chmod 700 /home/fpp/.ssh
 mkdir /home/fpp/media
 chown fpp.fpp /home/fpp/media
 chmod 700 /home/fpp/media
+
+echo >> /home/fpp/.bashrc
+echo ". /opt/fpp/scripts/common" >> /home/fpp/.bashrc
+echo >> /home/fpp/.bashrc
 
 #######################################
 # Configure log rotation
@@ -607,8 +756,15 @@ cat <<-EOF >> /etc/samba/smb.conf
   force user = fpp
 
 EOF
-service samba restart
-
+case "${OSVER}" in
+	debian_7)
+		service samba restart
+		;;
+	debian_8)
+		systemctl restart smbd.service
+		systemctl restart nmbd.service
+		;;
+esac
 
 #######################################
 # Fix sudoers to not require password
@@ -646,41 +802,38 @@ cat <<-EOF >> /etc/sysctl.conf
 	EOF
 
 #######################################
-# Configure Apache run user/group
-echo "FPP - Configuring Apache"
-# environment variables
-sed -i -e "s/APACHE_RUN_USER=.*/APACHE_RUN_USER=fpp/" /etc/apache2/envvars
-sed -i -e "s/APACHE_RUN_GROUP=.*/APACHE_RUN_GROUP=fpp/" /etc/apache2/envvars
+# Building nginx
+echo "FPP - Building nginx webserver"
+git clone https://github.com/wandenberg/nginx-push-stream-module.git
+wget http://nginx.org/download/nginx-1.8.1.tar.gz
+tar xzvf nginx-1.8.1.tar.gz
+cd nginx-1.8.1/
+./configure --add-module=../nginx-push-stream-module
+make
+make install
 
-# main Apache/PHP config
-ISAPACHE24=$(dpkg -l | grep "^ii *apache2 *2\.4\.")
-if [ -z ${ISAPACHE24} ]
-then
-	cp ${FPPDIR}/etc/apache2.conf /etc/apache2/apache2.conf
-else
-	cp ${FPPDIR}/etc/apache2.conf.2.4 /etc/apache2/apache2.conf
-	rm /etc/apache2/sites-enabled/000-default.conf
-fi
-
-cp ${FPPDIR}/etc/php.ini /etc/php5/apache2/php.ini
-
-# site config file
-SITEFILE="/etc/apache2/sites-enabled/000-default"
-sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#/home/pi/#/home/fpp/#g" < ${FPPDIR}/etc/apache2.site > ${SITEFILE}
-# Disable Logging since there is no logs directory yet
-sed -i "s/ErrorLog/#ErrorLog/" ${SITEFILE}
+#######################################
+echo "FPP - Configuring nginx webserver"
+# Comment out the default server section
+sed -i.orig '/^\s*location/,/^\s*}/s/^/#/g;/^\s*server/,/^\s*}/s/^/#/g;s/##/#/g' /usr/local/nginx/conf/nginx.conf
+# Add an include of our server configuration
+sed -i -e '/^\s*http\s*{/a\    include /etc/fpp_nginx.conf;\n' /usr/local/nginx/conf/nginx.conf
+sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/nginx.conf > /etc/fpp_nginx.conf
+# Set user to fpp
+sed -i -e 's/^\s*\#\?\s*user\(\s*\)[^;]*/user\1fpp/' /usr/local/nginx/conf/nginx.conf
+# Ensure pid matches our systemd service file
+sed -i -e 's/^\s*\#\?\s*pid\(\s*\)[^;]*/pid\1logs\/nginx.pid/' /usr/local/nginx/conf/nginx.conf
 
 case "${OSVER}" in
 	debian_7)
-				rm /etc/apache2/conf.d/other-vhosts-access-log
-				sed -i -e "s/NameVirtualHost.*8080/NameVirtualHost *:80/" -e "s/Listen.*8080/Listen 80/" /etc/apache2/ports.conf
-				;;
+		cp ${FPPDIR}/scripts/nginx /etc/init.d/
+		update-rc.d nginx defaults
+		;;
+	debian_8)
+		cp ${FPPDIR}/scripts/nginx.service /lib/systemd/system/
+		systemctl enable nginx.service
+		;;
 esac
-
-update-rc.d apache2 defaults
-/etc/init.d/apache2 stop
-chown fpp /var/lock/apache2
-/etc/init.d/apache2 start
 
 #######################################
 echo "FPP - Configuring FPP startup"
@@ -715,4 +868,3 @@ echo "sudo rm -rf /etc/ssh/ssh_host*key*"
 echo "sudo shutdown -r now"
 echo "========================================================="
 echo ""
-

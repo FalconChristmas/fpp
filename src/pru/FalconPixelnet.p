@@ -235,7 +235,8 @@ _LOOP:
   WAIT_BIT:
     MOV	r13, GPIO3 | GPIO_CLEARDATAOUT
     MOV	r14, GPIO3 | GPIO_SETDATAOUT
-    WAITNS 990, wait_bit1
+    //WAITNS 990, wait_bit1
+    SLEEPNS 990, 20, wait_bit1
     RESET_COUNTER
      // Output zero bits
     SBBO	gpio3_zeros, r13, 0, 4

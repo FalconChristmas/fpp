@@ -218,7 +218,7 @@ html
 	float: left;
 }
 
-#divSeqData, #divMusicData, #divVideoData, #divEffectsData, #divScriptsData, #divLogsData {
+#divSeqData, #divMusicData, #divVideoData, #divEffectsData, #divScriptsData, #divLogsData, #divUploadsData {
 	overflow: auto;
 	min-height: 120px;
 	max-height: 120px;
