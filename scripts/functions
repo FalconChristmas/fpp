@@ -94,7 +94,7 @@ SetupFPPNetworkConfig () {
 	if [ "x${PROTO}" = "xdhcp" ]
 	then
 		cat <<-EOF >> ${TMPFILE}
-		auto eth0
+		allow-hotplug eth0
 		iface eth0 inet dhcp
 		EOF
 	else
@@ -106,7 +106,7 @@ SetupFPPNetworkConfig () {
 		NETWORK=$(netcalc ${ADDRESS} ${NETMASK})
 
 		cat <<-EOF >> ${TMPFILE}
-		auto eth0
+		allow-hotplug eth0
 		iface eth0 inet static
 		  address ${ADDRESS}
 		  netmask ${NETMASK}
@@ -203,7 +203,7 @@ SetupFPPNetworkConfig () {
 
 	cp ${TMPFILE} /etc/network/interfaces
 
-	if [ "x${INITETH0}" = "xyes" ]
+	if [ "x${INITETH0}" = "xyesXXXX" ]
 	then
 		echo "FPP - Taking eth0 down"
 		ifdown eth0 > /dev/null 2>&1
@@ -212,7 +212,7 @@ SetupFPPNetworkConfig () {
 		ifup eth0
 	fi
 
-	if [ "x${UPWLAN0}" = "xyes" ]
+	if [ "x${UPWLAN0}" = "xyesXXXX" ]
 	then
 		echo "FPP - Taking wlan0 down"
 		ifdown wlan0 > /dev/null 2>&1

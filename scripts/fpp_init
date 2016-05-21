@@ -53,3 +53,5 @@ sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/php.in
 
 ##############################################################################
 
+echo "FPP - Running ${BINDIR}/startup"
+${BINDIR}/startup
