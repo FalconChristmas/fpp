@@ -55,6 +55,7 @@ chown ${FPPUSER}.${FPPUSER} ${FPPHOME}/media/${DIR}
 fi
 done
 
+mkdir -p /var/log/samba
 
 # Configure Network and DNS
 #echo "FPP - Configuring Network"
