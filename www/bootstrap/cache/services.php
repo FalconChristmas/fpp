@@ -27,6 +27,7 @@
     23 => 'FPP\\Providers\\EventServiceProvider',
     24 => 'FPP\\Providers\\RouteServiceProvider',
     25 => 'FPP\\Providers\\MenuServiceProvider',
+    26 => 'FPP\\Providers\\CollectionServiceProvider',
   ),
   'eager' => 
   array (
@@ -44,6 +45,7 @@
     11 => 'FPP\\Providers\\EventServiceProvider',
     12 => 'FPP\\Providers\\RouteServiceProvider',
     13 => 'FPP\\Providers\\MenuServiceProvider',
+    14 => 'FPP\\Providers\\CollectionServiceProvider',
   ),
   'deferred' => 
   array (
@@ -58,6 +60,7 @@
     'memcached.connector' => 'Illuminate\\Cache\\CacheServiceProvider',
     'command.cache.clear' => 'Illuminate\\Cache\\CacheServiceProvider',
     'command.clear-compiled' => 'Illuminate\\Foundation\\Providers\\ConsoleSupportServiceProvider',
+    'command.auth.resets.clear' => 'Illuminate\\Foundation\\Providers\\ConsoleSupportServiceProvider',
     'command.config.cache' => 'Illuminate\\Foundation\\Providers\\ConsoleSupportServiceProvider',
     'command.config.clear' => 'Illuminate\\Foundation\\Providers\\ConsoleSupportServiceProvider',
     'command.down' => 'Illuminate\\Foundation\\Providers\\ConsoleSupportServiceProvider',

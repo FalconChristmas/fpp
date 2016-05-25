@@ -156,6 +156,7 @@ return [
         FPP\Providers\EventServiceProvider::class,
         FPP\Providers\RouteServiceProvider::class,
         FPP\Providers\MenuServiceProvider::class,
+        FPP\Providers\CollectionServiceProvider::class,
 
     ],
 

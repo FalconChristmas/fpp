@@ -33,3 +33,4 @@ www/storage
 www/.env
 www/access_log
 www/error_log
+oracle.sqlite
