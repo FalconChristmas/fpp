@@ -148,6 +148,7 @@ SetupFPPNetworkConfig () {
 			allow-hotplug wlan0
 			iface wlan0 inet manual
 			  wpa-roam /etc/wpa_supplicant/wpa_supplicant.conf
+			wireless-power off
 
 			iface FPP-wlan0 inet static
 			  address ${ADDRESS}
@@ -163,8 +164,6 @@ SetupFPPNetworkConfig () {
 			echo >> ${TMPFILE}
 			echo "iface default inet dhcp" >> ${TMPFILE}
 		fi
-		echo >> ${TMPFILE}
-		echo "wireless-power off" >> ${TMPFILE}
 		echo >> ${TMPFILE}
 
 		cat <<-EOF > /etc/wpa_supplicant/wpa_supplicant.conf.FPP
@@ -547,6 +546,8 @@ setupChannelOutputs() {
 		cat ${FPPHOME}/media/config/channeloutputs.json 2> /dev/null | tr -d "\r\n" | egrep -q '(LEDPanelMatrix|BBB48String|BBBSerial)",[ 	a-zA-Z0-9:",]*"enabled": 1'
 		if [ $? -eq 0 ]
 		then
+			echo "uio_pruss_enable" > ${CAPEMGR} 2> /dev/null
+
 			cp ${FPPDIR}/external/LEDscape/dts/${DTBO} /lib/firmware/CAPE-BONE-OCTO-00A0.dtbo
 			echo 'CAPE-BONE-OCTO' > ${CAPEMGR} 2> /dev/null
 		fi

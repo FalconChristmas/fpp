@@ -295,7 +295,7 @@ case "${OSVER}" in
 esac
 else
 echo "FPP - Copying nginx config into place and restarting nginx"
-sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/nginx.conf > ${SITEFILE}
+sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/nginx.conf > ${NGINX_SITEFILE}
 case "${OSVER}" in
 	debian_7)
 		/etc/init.d/nginx restart

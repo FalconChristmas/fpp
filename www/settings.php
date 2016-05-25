@@ -37,6 +37,8 @@ else
 
 		if ($values[1] == "bcm2835 ALSA")
 			$AlsaCards[$values[1] . " (Pi Onboard Audio)"] = $values[0];
+		else if ($values[1] == "CD002")
+			$AlsaCards[$values[1] . " (FM Transmitter)"] = $values[0];
 		else
 			$AlsaCards[$values[1]] = $values[0];
 	}

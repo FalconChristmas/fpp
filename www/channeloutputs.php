@@ -1777,6 +1777,18 @@ function GetDirectionOptionsSelect(id, selected)
 	return html;
 }
 
+function UpdateBBBStringEndChannel(row)
+{
+	var p = parseInt($('#BBB48PixelCount\\[' + row + '\\]').val());
+	var sc = parseInt($('#BBB48StartChannel\\[' + row + '\\]').val());
+	var gc = parseInt($('#BBB48Grouping\\[' + row + '\\]').val());
+
+	if (gc == 0)
+		gc = 1;
+
+	$('#BBB48EndChannel\\[' + row + '\\]').val(sc - 1 + ((p / gc) * 3));
+}
+
 function DrawBBB48StringTable()
 {
 	var html = "";
@@ -1814,14 +1826,24 @@ function DrawBBB48StringTable()
 			channelOutputsLookup["BBB48String"].outputs[s].zigZag = 0;
 		}
 
+		var p = channelOutputsLookup["BBB48String"].outputs[s].pixelCount;
+		var sc = channelOutputsLookup["BBB48String"].outputs[s].startChannel;
+		var gc = channelOutputsLookup["BBB48String"].outputs[s].grouping;
+
+		if (gc == 0)
+			gc = 1;
+
+		var ec = sc - 1 + ((p / gc) * 3);
+
 		html += "<td class='center'><input id='BBB48PixelCount[" + s + "]' type='text' size='3' maxlength='3' value='"
-			+ channelOutputsLookup["BBB48String"].outputs[s].pixelCount + "'></td>";
+			+ channelOutputsLookup["BBB48String"].outputs[s].pixelCount + "' onChange='UpdateBBBStringEndChannel(" + s + ");'></td>";
 		html += "<td class='center'><input id='BBB48StartChannel[" + s + "]' type='text' size='6' maxlength='6' value='"
-			+ channelOutputsLookup["BBB48String"].outputs[s].startChannel + "'></td>";
+			+ channelOutputsLookup["BBB48String"].outputs[s].startChannel + "' onChange='UpdateBBBStringEndChannel(" + s + ");'></td>";
+		html += "<td class='center'><input id='BBB48EndChannel[" + s + "]' type='text' size='6' maxlength='6' value='" + ec + "' disabled=''></td>";
 		html += "<td class='center'>" + GetColorOptionsSelect("BBB48ColorOrder[" + s + "]", channelOutputsLookup["BBB48String"].outputs[s].colorOrder) + "</td>";
 		html += "<td class='center'>" + GetDirectionOptionsSelect("BBB48Direction[" + s + "]", channelOutputsLookup["BBB48String"].outputs[s].reverse) + "</td>";
 		html += "<td class='center'><input id='BBB48Grouping[" + s + "]' type='text' size='3' maxlength='3' value='"
-			+ channelOutputsLookup["BBB48String"].outputs[s].grouping + "'></td>";
+			+ channelOutputsLookup["BBB48String"].outputs[s].grouping + "' onChange='UpdateBBBStringEndChannel(" + s + ");'></td>";
 		html += "<td class='center'><input id='BBB48NullNodes[" + s + "]' type='text' size='3' maxlength='3' value='"
 			+ channelOutputsLookup["BBB48String"].outputs[s].nullNodes + "'></td>";
 
@@ -1877,8 +1899,8 @@ function InitializeBBB48String()
 // LED Panel Matrix support functions
 
 <?
-$LEDPanelOutputs = 3;         // Max for Pi w/ new library code
-$LEDPanelPanelsPerOutput = 8; // Max for Pi w/ new library code
+$LEDPanelOutputs = 3;          // Max for Pi w/ new library code
+$LEDPanelPanelsPerOutput = 12; // Max for Pi w/ new library code
 $LEDPanelRows = 1;
 $LEDPanelCols = 1;
 $LEDPanelWidth = 32;
@@ -2552,6 +2574,7 @@ if ($settings['Platform'] == "BeagleBone Black")
 									<td width='5%'>#</td>
 									<td width='10%'>Node<br>Count</td>
 									<td width='10%'>Start<br>Channel</td>
+									<td width='10%'>End<br>Channel</td>
 									<td width='5%'>RGB<br>Order</td>
 									<td width='8%'>Direction</td>
 									<td width='10%'>Group<br>Count</td>
