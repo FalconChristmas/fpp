@@ -110,3 +110,15 @@ if ( ! function_exists('untrailingslashit')) {
         return rtrim($string, '/\\');
     }
 }
+
+
+/**
+ * Get the user
+ */
+function user()
+{
+    if (! isset($_SERVER['SUDO_USER'])) {
+        return $_SERVER['USER'];
+    }
+    return $_SERVER['SUDO_USER'];
+}
