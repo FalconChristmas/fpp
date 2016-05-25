@@ -17,7 +17,7 @@
                 <div class="entry-label">Pause</div>
             </div>
             <div v-if="entry.type == 'volume'" class="volume">
-                <div class="title">{{entry.volume}}</div>
+                <div class="title">{{entry.volume}} <sup>%</sup></div>
                 <div class="entry-label">Set Volume</div>
             </div>
             <div v-if="entry.type == 'effect'" class="effect">

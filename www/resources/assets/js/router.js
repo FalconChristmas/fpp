@@ -1,4 +1,4 @@
-import VueRouter from "vue-router"; 
+import VueRouter from "vue-router";
 
 Vue.use(VueRouter);
 
@@ -21,6 +21,7 @@ import SequenceTesting from "./components/testing/sequence.vue";
 
 import E131Output from './components/outputs/e131.vue';
 import DMXOutput from './components/outputs/dmx.vue';
+import FPDOutput from './components/outputs/fpd.vue';
 import PanelOutput from './components/outputs/panels.vue';
 import OtherOutput from './components/outputs/other.vue';
 
@@ -62,6 +63,7 @@ router.map({
                     { path: '/outputs', label: 'E131' },
                     { path: '/outputs/dmx', label: 'Pixelnet / DMX' },
                     { path: '/outputs/panels', label: 'LED Panels' },
+                    { path: '/outputs/fpd', label: 'FPD' },
                     { path: '/outputs/other', label: 'Other' },
                 ],
                 subRoutes: {
@@ -70,6 +72,9 @@ router.map({
                     },
                     '/dmx' : {
                         component: DMXOutput
+                    },
+                    '/fpd' : {
+                        component: FPDOutput
                     },
                     '/panels' : {
                         component: PanelOutput
@@ -137,7 +142,7 @@ router.map({
 
         }
     },
-   
+
     '/settings' : {
         name: 'settings',
         component: SettingsContent,

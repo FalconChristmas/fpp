@@ -29,7 +29,7 @@ $link-color: darken($text-color, 10%); //#666;
 $link-color-active: darken($link-color, 10%);
 $settings-sb-bg: #f4f4f4;
 
-// Global Color 
+// Global Color
 // --------------------------------------------------
 // Base Grey Guided Color * change only $base-light
 // --------------------------------------------------
@@ -116,6 +116,10 @@ $color-info-darker: mix($color-info, $color-black, $mix-percentage-darker);
 
 $color-azure: #5B9BD1;
 $color-green: #5A8770;
+
+$color-blue-gradient-start: #2999ef;
+$color-blue-gradient-stop: #1b90ea;
+$color-green-gradient-start: #1db835;
 
 ///////////////////////////////////
 //  Sizing
@@ -245,7 +249,7 @@ $switch-background: $base-background-color;
 $switch-border-background: darken($base-background-color, 9%);
 $switch-shadow: 0 2px 5px transparentize(black, 0.6);
 
-// z-index scale 
+// z-index scale
 $zIndex-1:   100;
 $zIndex-2:   200;
 $zIndex-3:   300;

@@ -132,9 +132,10 @@ $button-gradient: linear-gradient(to bottom, #f8f8f8, #eaeaea 100%);
     &.alert     { @include button-style($danger-color) }
     &.info      { @include button-style($info-color) }
     &.dark      { @include button-style($dark-color) }
-    
+
     &.gradient { @include gradient-button }
-    
+    &.gradient.submit { @include gradient-button($color-green-gradient-start, darken($color-green-gradient-start, 5%)) }
+
     @if $button-style != hollow {
       &.hollow { @include button-style($style: hollow);
         &.secondary { @include button-style($secondary-color, $style: hollow); }
@@ -153,5 +154,6 @@ $button-gradient: linear-gradient(to bottom, #f8f8f8, #eaeaea 100%);
       &.alert     { @include button-disabled; }
       &.info      { @include button-disabled; }
       &.dark      { @include button-disabled; }
+      &.gradient  { @include button-disabled; }
     }
   }

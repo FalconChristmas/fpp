@@ -1,9 +1,17 @@
 .modal {
 
+    .modal-header {
+      background: linear-gradient(to bottom, $color-blue-gradient-start, $color-blue-gradient-stop 100%);
+    }
+
+    .modal-title {
+      color: white;
+    }
+
     .modal-dialog {
         display: table;
         height: 100%;
-        
+
         @include breakpoint($tablet-pt-min) {
             margin: 0 auto;
         }
@@ -12,6 +20,14 @@
             vertical-align: middle;
         }
     }
-    
+
+    .button.gradient.submit {
+      color: white;
+      text-shadow: none;
+
+      &:disabled {
+        @include button-disabled;
+      }
+    }
 
 }

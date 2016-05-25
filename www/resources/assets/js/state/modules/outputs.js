@@ -15,6 +15,10 @@ const state = {
         enabled: false,
         outputs: [],
     },
+    fpd: {
+        enabled: false,
+        outputs: [],
+    },
     panels: {
         enabled: false,
         outputs: [],
@@ -63,9 +67,9 @@ const mutations = {
         state[type][id] = output;
     },
     [RECEIVE_OUTPUTS] (state, outputs) {
-      
+
         Object.assign(state, outputs);
-        
+
     },
 }
 

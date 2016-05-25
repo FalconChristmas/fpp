@@ -32118,8 +32118,9 @@ module.exports = Router;
 },{}],205:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue-validator/dist/vue-validator.common.js", module);
 (function(){
+(function (process){
 /*!
- * vue-validator v2.0.0-alpha.22
+ * vue-validator v2.1.2
  * (c) 2016 kazuya kawaguchi
  * Released under the MIT License.
  */
@@ -32297,6 +32298,38 @@ function trigger(el, event, args) {
 }
 
 /**
+ * Forgiving check for a promise
+ *
+ * @param {Object} p
+ * @return {Boolean}
+ */
+
+function isPromise(p) {
+  return p && typeof p.then === 'function';
+}
+
+/**
+ * Togging classes
+ *
+ * @param {Element} el
+ * @param {String} key
+ * @param {Function} fn
+ */
+
+function toggleClasses(el, key, fn) {
+  key = key.trim();
+  if (key.indexOf(' ') === -1) {
+    fn(el, key);
+    return;
+  }
+
+  var keys = key.split(/\s+/);
+  for (var i = 0, l = keys.length; i < l; i++) {
+    fn(el, keys[i]);
+  }
+}
+
+/**
  * Fundamental validate functions
  */
 
@@ -32323,7 +32356,6 @@ function required(val) {
     } else {
       return false;
     }
-    return val.length > 0;
   } else if (typeof val === 'number' || typeof val === 'function') {
     return true;
   } else if (typeof val === 'boolean') {
@@ -32496,7 +32528,6 @@ function Asset (Vue) {
 }
 
 function Override (Vue) {
-
   // override _init
   var init = Vue.prototype._init;
   Vue.prototype._init = function (options) {
@@ -32514,150 +32545,74 @@ function Override (Vue) {
   };
 }
 
-function Validate (Vue) {
+var VALIDATE_UPDATE = '__vue-validator-validate-update__';
+var PRIORITY_VALIDATE = 16;
+var PRIORITY_VALIDATE_CLASS = 32;
+var REGEX_FILTER = /[^|]\|[^|]/;
+var REGEX_VALIDATE_DIRECTIVE = /^v-validate(?:$|:(.*)$)/;
+var REGEX_EVENT = /^v-on:|^@/;
 
-  var _ = Vue.util;
+var classId = 0; // ID for validation class
+
+function ValidateClass (Vue) {
   var vIf = Vue.directive('if');
   var FragmentFactory = Vue.FragmentFactory;
-
-  // register `v-validate` as terminal directive
-  Vue.compiler.terminalDirectives.push('validate');
+  var _Vue$util = Vue.util;
+  var toArray = _Vue$util.toArray;
+  var replace = _Vue$util.replace;
+  var createAnchor = _Vue$util.createAnchor;
 
   /**
-   * `v-validate` directive
+   * `v-validate-class` directive
    */
 
-  Vue.directive('validate', {
-    priority: vIf.priority + 1,
-    params: ['group', 'field', 'detect-blur', 'detect-change'],
-
-    paramWatchers: {
-      detectBlur: function detectBlur(val, old) {
-        this.validation.detectBlur = this.isDetectBlur(val);
-        this.validator.validate();
-      },
-      detectChange: function detectChange(val, old) {
-        this.validation.detectChange = this.isDetectChange(val);
-        this.validator.validate();
-      }
-    },
+  Vue.directive('validate-class', {
+    terminal: true,
+    priority: vIf.priority + PRIORITY_VALIDATE_CLASS,
 
     bind: function bind() {
-      if (this.el.__vue__) {
-        warn('v-validate="' + this.expression + '" cannot be ' + 'used on an instance root element.');
-        return;
-      }
+      var _this = this;
 
-      var validatorName = this.vm.$options._validator;
-      if (!validatorName) {
-        warn('v-validate need to use into validator element directive: ' + '(e.g. <validator name="validator">' + '<input type="text" v-validate:field1="[\'required\']">' + '</validator>).');
-        return;
-      }
+      var id = String(classId++);
+      this.setClassIds(this.el, id);
 
-      this.model = this.el.getAttribute('v-model');
+      this.vm.$on(VALIDATE_UPDATE, this.cb = function (classIds, validation, results) {
+        if (classIds.indexOf(id) > -1) {
+          validation.updateClasses(results, _this.frag.node);
+        }
+      });
 
       this.setupFragment();
-      this.setupValidate(validatorName, this.model);
-      this.listen();
-    },
-    update: function update(value, old) {
-      if (!value) {
-        return;
-      }
-
-      if (_.isPlainObject(value)) {
-        this.handleObject(value);
-      } else if (Array.isArray(value)) {
-        this.handleArray(value);
-      }
-
-      this.validator.validate();
     },
     unbind: function unbind() {
-      this.unlisten();
-      this.teardownValidate();
+      this.vm.$off(VALIDATE_UPDATE, this.cb);
       this.teardownFragment();
-
-      this.model = null;
     },
-    setupValidate: function setupValidate(name, model) {
-      var params = this.params;
-      var validator = this.validator = this.vm._validatorMaps[name];
-
-      this.field = _.camelize(this.arg ? this.arg : params.field);
-
-      this.validation = validator.manageValidation(this.field, model, this.vm, this.frag.node, this._scope, this.isDetectBlur(this.params.detectBlur), this.isDetectChange(this.params.detectChange));
-
-      if (params.group) {
-        validator.addGroupValidation(params.group, this.field);
-      }
-    },
-    listen: function listen() {
-      var model = this.model;
-      var validation = this.validation;
-      var el = this.frag.node;
-
-      this.onBlur = _.bind(validation.listener, validation);
-      _.on(el, 'blur', this.onBlur);
-      if ((el.type === 'radio' || el.tagName === 'SELECT') && !model) {
-        this.onChange = _.bind(validation.listener, validation);
-        _.on(el, 'change', this.onChange);
-      } else if (el.type === 'checkbox') {
-        if (!model) {
-          this.onChange = _.bind(validation.listener, validation);
-          _.on(el, 'change', this.onChange);
-        } else {
-          this.onClick = _.bind(validation.listener, validation);
-          _.on(el, 'click', this.onClick);
-        }
-      } else {
-        if (!model) {
-          this.onInput = _.bind(validation.listener, validation);
-          _.on(el, 'input', this.onInput);
-        }
-      }
-    },
-    unlisten: function unlisten() {
-      var el = this.frag.node;
-
-      if (this.onInput) {
-        _.off(el, 'input', this.onInput);
-        this.onInput = null;
-      }
-
-      if (this.onClick) {
-        _.off(el, 'click', this.onClick);
-        this.onClick = null;
-      }
-
-      if (this.onChange) {
-        _.off(el, 'change', this.onChange);
-        this.onChange = null;
-      }
-
-      if (this.onBlur) {
-        _.off(el, 'blur', this.onBlur);
-        this.onBlur = null;
-      }
-    },
-    teardownValidate: function teardownValidate() {
-      if (this.validator && this.validation) {
-        var el = this.frag.node;
-
-        if (this.params.group) {
-          this.validator.removeGroupValidation(this.params.group, this.field);
+    setClassIds: function setClassIds(el, id) {
+      var childNodes = toArray(el.childNodes);
+      for (var i = 0, l = childNodes.length; i < l; i++) {
+        var element = childNodes[i];
+        if (element.nodeType === 1) {
+          var hasAttrs = element.hasAttributes();
+          var attrs = hasAttrs && toArray(element.attributes);
+          for (var k = 0, _l = attrs.length; k < _l; k++) {
+            var attr = attrs[k];
+            if (attr.name.match(REGEX_VALIDATE_DIRECTIVE)) {
+              var existingId = element.getAttribute(VALIDATE_UPDATE);
+              var value = existingId ? existingId + ',' + id : id;
+              element.setAttribute(VALIDATE_UPDATE, value);
+            }
+          }
         }
 
-        this.validator.unmanageValidation(this.field, el);
-
-        this.validator = null;
-        this.validation = null;
-        this.field = null;
+        if (element.hasChildNodes()) {
+          this.setClassIds(element, id);
+        }
       }
     },
     setupFragment: function setupFragment() {
-      this.anchor = _.createAnchor('v-validate');
-      _.replace(this.el, this.anchor);
+      this.anchor = createAnchor('v-validate-class');
+      replace(this.el, this.anchor);
 
       this.factory = new FragmentFactory(this.vm, this.el);
       this.frag = this.factory.create(this._host, this._scope, this._frag);
@@ -32670,7 +32625,237 @@ function Validate (Vue) {
         this.factory = null;
       }
 
-      _.replace(this.anchor, this.el);
+      replace(this.anchor, this.el);
+      this.anchor = null;
+    }
+  });
+}
+
+function Validate (Vue) {
+  var vIf = Vue.directive('if');
+  var FragmentFactory = Vue.FragmentFactory;
+  var parseDirective = Vue.parsers.directive.parseDirective;
+  var _Vue$util = Vue.util;
+  var inBrowser = _Vue$util.inBrowser;
+  var bind = _Vue$util.bind;
+  var on = _Vue$util.on;
+  var off = _Vue$util.off;
+  var createAnchor = _Vue$util.createAnchor;
+  var replace = _Vue$util.replace;
+  var camelize = _Vue$util.camelize;
+  var isPlainObject = _Vue$util.isPlainObject;
+
+  // Test for IE10/11 textarea placeholder clone bug
+
+  function checkTextareaCloneBug() {
+    if (inBrowser) {
+      var t = document.createElement('textarea');
+      t.placeholder = 't';
+      return t.cloneNode(true).value === 't';
+    } else {
+      return false;
+    }
+  }
+  var hasTextareaCloneBug = checkTextareaCloneBug();
+
+  /**
+   * `v-validate` directive
+   */
+
+  Vue.directive('validate', {
+    terminal: true,
+    priority: vIf.priority + PRIORITY_VALIDATE,
+    params: ['group', 'field', 'detect-blur', 'detect-change', 'initial', 'classes'],
+
+    paramWatchers: {
+      detectBlur: function detectBlur(val, old) {
+        if (this._invalid) {
+          return;
+        }
+        this.validation.detectBlur = this.isDetectBlur(val);
+        this.validator.validate(this.field);
+      },
+      detectChange: function detectChange(val, old) {
+        if (this._invalid) {
+          return;
+        }
+        this.validation.detectChange = this.isDetectChange(val);
+        this.validator.validate(this.field);
+      }
+    },
+
+    bind: function bind() {
+      var el = this.el;
+
+      if (process.env.NODE_ENV !== 'production' && el.__vue__) {
+        warn('v-validate="' + this.expression + '" cannot be used on an instance root element.');
+        this._invalid = true;
+        return;
+      }
+
+      if (process.env.NODE_ENV !== 'production' && (el.hasAttribute('v-if') || el.hasAttribute('v-for'))) {
+        warn('v-validate cannot be used `v-if` or `v-for` build-in terminal directive ' + 'on an element. these is wrapped with `<template>` or other tags: ' + '(e.g. <validator name="validator">' + '<template v-if="hidden">' + '<input type="text" v-validate:field1="[\'required\']">' + '</template>' + '</validator>).');
+        this._invalid = true;
+        return;
+      }
+
+      if (process.env.NODE_ENV !== 'production' && !(this.arg || this.params.field)) {
+        warn('you need specify field name for v-validate directive.');
+        this._invalid = true;
+        return;
+      }
+
+      var validatorName = this.vm.$options._validator;
+      if (process.env.NODE_ENV !== 'production' && !validatorName) {
+        warn('you need to wrap the elements to be validated in a <validator> element: ' + '(e.g. <validator name="validator">' + '<input type="text" v-validate:field1="[\'required\']">' + '</validator>).');
+        this._invalid = true;
+        return;
+      }
+
+      var raw = el.getAttribute('v-model');
+
+      var _parseModelRaw = this.parseModelRaw(raw);
+
+      var model = _parseModelRaw.model;
+      var filters = _parseModelRaw.filters;
+
+      this.model = model;
+
+      this.setupFragment();
+      this.setupValidate(validatorName, model, filters);
+      this.listen();
+    },
+    update: function update(value, old) {
+      if (!value || this._invalid) {
+        return;
+      }
+
+      if (isPlainObject(value)) {
+        this.handleObject(value);
+      } else if (Array.isArray(value)) {
+        this.handleArray(value);
+      }
+
+      var options = { field: this.field, noopable: this._initialNoopValidation };
+      if (this.frag) {
+        options.el = this.frag.node;
+      }
+      this.validator.validate(options);
+
+      if (this._initialNoopValidation) {
+        this._initialNoopValidation = null;
+      }
+    },
+    unbind: function unbind() {
+      if (this._invalid) {
+        return;
+      }
+
+      this.unlisten();
+      this.teardownValidate();
+      this.teardownFragment();
+
+      this.model = null;
+    },
+    parseModelRaw: function parseModelRaw(raw) {
+      if (REGEX_FILTER.test(raw)) {
+        var parsed = parseDirective(raw);
+        return { model: parsed.expression, filters: parsed.filters };
+      } else {
+        return { model: raw };
+      }
+    },
+    setupValidate: function setupValidate(name, model, filters) {
+      var params = this.params;
+      var validator = this.validator = this.vm._validatorMaps[name];
+
+      this.field = camelize(this.arg ? this.arg : params.field);
+
+      this.validation = validator.manageValidation(this.field, model, this.vm, this.frag.node, this._scope, filters, params.initial, this.isDetectBlur(params.detectBlur), this.isDetectChange(params.detectChange));
+
+      isPlainObject(params.classes) && this.validation.setValidationClasses(params.classes);
+
+      params.group && validator.addGroupValidation(params.group, this.field);
+
+      this._initialNoopValidation = this.isInitialNoopValidation(params.initial);
+    },
+    listen: function listen() {
+      var model = this.model;
+      var validation = this.validation;
+      var el = this.frag.node;
+
+      this.onBlur = bind(validation.listener, validation);
+      on(el, 'blur', this.onBlur);
+      if ((el.type === 'radio' || el.tagName === 'SELECT') && !model) {
+        this.onChange = bind(validation.listener, validation);
+        on(el, 'change', this.onChange);
+      } else if (el.type === 'checkbox') {
+        if (!model) {
+          this.onChange = bind(validation.listener, validation);
+          on(el, 'change', this.onChange);
+        } else {
+          this.onClick = bind(validation.listener, validation);
+          on(el, 'click', this.onClick);
+        }
+      } else {
+        if (!model) {
+          this.onInput = bind(validation.listener, validation);
+          on(el, 'input', this.onInput);
+        }
+      }
+    },
+    unlisten: function unlisten() {
+      var el = this.frag.node;
+
+      if (this.onInput) {
+        off(el, 'input', this.onInput);
+        this.onInput = null;
+      }
+
+      if (this.onClick) {
+        off(el, 'click', this.onClick);
+        this.onClick = null;
+      }
+
+      if (this.onChange) {
+        off(el, 'change', this.onChange);
+        this.onChange = null;
+      }
+
+      if (this.onBlur) {
+        off(el, 'blur', this.onBlur);
+        this.onBlur = null;
+      }
+    },
+    teardownValidate: function teardownValidate() {
+      if (this.validator && this.validation) {
+        var el = this.frag.node;
+
+        this.params.group && this.validator.removeGroupValidation(this.params.group, this.field);
+
+        this.validator.unmanageValidation(this.field, el);
+
+        this.validator = null;
+        this.validation = null;
+        this.field = null;
+      }
+    },
+    setupFragment: function setupFragment() {
+      this.anchor = createAnchor('v-validate');
+      replace(this.el, this.anchor);
+
+      this.factory = new FragmentFactory(this.vm, this.shimNode(this.el));
+      this.frag = this.factory.create(this._host, this._scope, this._frag);
+      this.frag.before(this.anchor);
+    },
+    teardownFragment: function teardownFragment() {
+      if (this.frag) {
+        this.frag.remove();
+        this.frag = null;
+        this.factory = null;
+      }
+
+      replace(this.anchor, this.el);
       this.anchor = null;
     },
     handleArray: function handleArray(value) {
@@ -32678,27 +32863,45 @@ function Validate (Vue) {
 
       each(value, function (val) {
         _this.validation.setValidation(val);
-      }, this);
+      });
     },
     handleObject: function handleObject(value) {
       var _this2 = this;
 
       each(value, function (val, key) {
-        if (_.isPlainObject(val)) {
+        if (isPlainObject(val)) {
           if ('rule' in val) {
             var msg = 'message' in val ? val.message : null;
-            _this2.validation.setValidation(key, val.rule, msg);
+            var initial = 'initial' in val ? val.initial : null;
+            _this2.validation.setValidation(key, val.rule, msg, initial);
           }
         } else {
           _this2.validation.setValidation(key, val);
         }
-      }, this);
+      });
     },
     isDetectBlur: function isDetectBlur(detectBlur) {
       return detectBlur === undefined || detectBlur === 'on' || detectBlur === true;
     },
     isDetectChange: function isDetectChange(detectChange) {
       return detectChange === undefined || detectChange === 'on' || detectChange === true;
+    },
+    isInitialNoopValidation: function isInitialNoopValidation(initial) {
+      return initial === 'off' || initial === false;
+    },
+    shimNode: function shimNode(node) {
+      var ret = node;
+      if (hasTextareaCloneBug) {
+        if (node.tagName === 'TEXTAREA') {
+          ret = node.cloneNode(true);
+          ret.value = node.value;
+          var i = ret.childNodes.length;
+          while (i--) {
+            ret.removeChild(ret.childNodes[i]);
+          }
+        }
+      }
+      return ret;
     }
   });
 }
@@ -32708,7 +32911,7 @@ function Validate (Vue) {
  */
 
 var BaseValidation = function () {
-  function BaseValidation(field, model, vm, el, scope, validator, detectBlur, detectChange) {
+  function BaseValidation(field, model, vm, el, scope, validator, filters, detectBlur, detectChange) {
     babelHelpers.classCallCheck(this, BaseValidation);
 
     this.field = field;
@@ -32718,6 +32921,7 @@ var BaseValidation = function () {
 
     this._modified = false;
     this._model = model;
+    this._filters = filters;
     this._validator = validator;
     this._vm = vm;
     this._el = el;
@@ -32726,143 +32930,178 @@ var BaseValidation = function () {
     this._validators = {};
     this._detectBlur = detectBlur;
     this._detectChange = detectChange;
+    this._classes = {};
   }
 
-  babelHelpers.createClass(BaseValidation, [{
-    key: 'manageElement',
-    value: function manageElement(el) {
-      var _this = this;
+  BaseValidation.prototype.manageElement = function manageElement(el, initial) {
+    var _this = this;
 
-      var scope = this._getScope();
-      var model = this._model;
-      if (model) {
-        el.value = scope.$get(model) || '';
-        this._unwatch = scope.$watch(model, function (val, old) {
-          if (val !== old) {
-            if (_this.guardValidate(el, 'input')) {
-              return;
-            }
-            _this.handleValidate(el);
+    var scope = this._getScope();
+    var model = this._model;
+
+    this._initial = initial;
+
+    var classIds = el.getAttribute(VALIDATE_UPDATE);
+    if (classIds) {
+      el.removeAttribute(VALIDATE_UPDATE);
+      this._classIds = classIds.split(',');
+    }
+
+    if (model) {
+      el.value = this._evalModel(model, this._filters);
+      this._unwatch = scope.$watch(model, function (val, old) {
+        if (val !== old) {
+          if (_this.guardValidate(el, 'input')) {
+            return;
           }
-        }, { deep: true });
-      }
-    }
-  }, {
-    key: 'unmanageElement',
-    value: function unmanageElement(el) {
-      if (this._unwatch) {
-        this._unwatch();
-      }
-    }
-  }, {
-    key: 'setValidation',
-    value: function setValidation(name, arg, msg) {
-      var validator = this._validators[name];
-      if (!validator) {
-        validator = this._validators[name] = {};
-        validator.name = name;
-      }
 
-      validator.arg = arg;
-      if (msg) {
-        validator.msg = msg;
-      }
-    }
-  }, {
-    key: 'willUpdateFlags',
-    value: function willUpdateFlags() {
-      var touched = arguments.length <= 0 || arguments[0] === undefined ? false : arguments[0];
-
-      if (touched) {
-        this.willUpdateTouched(this._el, 'blur');
-      }
-      this.willUpdateDirty(this._el);
-      this.willUpdateModified(this._el);
-    }
-  }, {
-    key: 'willUpdateTouched',
-    value: function willUpdateTouched(el, type) {
-      if (type && type === 'blur') {
-        this.touched = true;
-        this._fireEvent(el, 'touched');
-      }
-    }
-  }, {
-    key: 'willUpdateDirty',
-    value: function willUpdateDirty(el) {
-      if (!this.dirty && this._checkModified(el)) {
-        this.dirty = true;
-        this._fireEvent(el, 'dirty');
-      }
-    }
-  }, {
-    key: 'willUpdateModified',
-    value: function willUpdateModified(el) {
-      this.modified = this._checkModified(el);
-      if (this._modified !== this.modified) {
-        this._fireEvent(el, 'modified', { modified: this.modified });
-        this._modified = this.modified;
-      }
-    }
-  }, {
-    key: 'listener',
-    value: function listener(e) {
-      if (e.relatedTarget && (e.relatedTarget.tagName === 'A' || e.relatedTarget.tagName === 'BUTTON')) {
-        return;
-      }
-
-      if (this.guardValidate(e.target, e.type)) {
-        return;
-      }
-      this.handleValidate(e.target, e.type);
-    }
-  }, {
-    key: 'handleValidate',
-    value: function handleValidate(el, type) {
-      this.willUpdateTouched(el, type);
-      this.willUpdateDirty(el);
-      this.willUpdateModified(el);
-
-      this._validator.validate();
-    }
-  }, {
-    key: 'validate',
-    value: function validate() {
-      var _this2 = this;
-
-      var _ = exports$1.Vue.util;
-
-      var results = {};
-      var errors = [];
-      var valid = true;
-
-      each(this._validators, function (descriptor, name) {
-        var asset = _this2._resolveValidator(name);
-        var validator = null;
-        var msg = null;
-
-        if (_.isPlainObject(asset)) {
-          if (asset.check && typeof asset.check === 'function') {
-            validator = asset.check;
+          _this.handleValidate(el, { noopable: _this._initial });
+          if (_this._initial) {
+            _this._initial = null;
           }
-          if (asset.message) {
-            msg = asset.message;
-          }
-        } else if (typeof asset === 'function') {
-          validator = asset;
         }
+      }, { deep: true });
+    }
+  };
 
-        if (descriptor.msg) {
-          msg = descriptor.msg;
+  BaseValidation.prototype.unmanageElement = function unmanageElement(el) {
+    this._unwatch && this._unwatch();
+  };
+
+  BaseValidation.prototype.setValidation = function setValidation(name, arg, msg, initial) {
+    var validator = this._validators[name];
+    if (!validator) {
+      validator = this._validators[name] = {};
+      validator.name = name;
+    }
+
+    validator.arg = arg;
+    if (msg) {
+      validator.msg = msg;
+    }
+
+    if (initial) {
+      validator.initial = initial;
+      validator._isNoopable = true;
+    }
+  };
+
+  BaseValidation.prototype.setValidationClasses = function setValidationClasses(classes) {
+    var _this2 = this;
+
+    each(classes, function (value, key) {
+      _this2._classes[key] = value;
+    });
+  };
+
+  BaseValidation.prototype.willUpdateFlags = function willUpdateFlags() {
+    var touched = arguments.length <= 0 || arguments[0] === undefined ? false : arguments[0];
+
+    touched && this.willUpdateTouched(this._el, 'blur');
+    this.willUpdateDirty(this._el);
+    this.willUpdateModified(this._el);
+  };
+
+  BaseValidation.prototype.willUpdateTouched = function willUpdateTouched(el, type) {
+    if (type && type === 'blur') {
+      this.touched = true;
+      this._fireEvent(el, 'touched');
+    }
+  };
+
+  BaseValidation.prototype.willUpdateDirty = function willUpdateDirty(el) {
+    if (!this.dirty && this._checkModified(el)) {
+      this.dirty = true;
+      this._fireEvent(el, 'dirty');
+    }
+  };
+
+  BaseValidation.prototype.willUpdateModified = function willUpdateModified(el) {
+    this.modified = this._checkModified(el);
+    if (this._modified !== this.modified) {
+      this._fireEvent(el, 'modified', { modified: this.modified });
+      this._modified = this.modified;
+    }
+  };
+
+  BaseValidation.prototype.listener = function listener(e) {
+    if (this.guardValidate(e.target, e.type)) {
+      return;
+    }
+
+    this.handleValidate(e.target, { type: e.type });
+  };
+
+  BaseValidation.prototype.handleValidate = function handleValidate(el) {
+    var _ref = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+
+    var _ref$type = _ref.type;
+    var type = _ref$type === undefined ? null : _ref$type;
+    var _ref$noopable = _ref.noopable;
+    var noopable = _ref$noopable === undefined ? false : _ref$noopable;
+
+    this.willUpdateTouched(el, type);
+    this.willUpdateDirty(el);
+    this.willUpdateModified(el);
+
+    this._validator.validate({ field: this.field, el: el, noopable: noopable });
+  };
+
+  BaseValidation.prototype.validate = function validate(cb) {
+    var _this3 = this;
+
+    var noopable = arguments.length <= 1 || arguments[1] === undefined ? false : arguments[1];
+    var el = arguments.length <= 2 || arguments[2] === undefined ? null : arguments[2];
+
+    var _ = exports$1.Vue.util;
+
+    var results = {};
+    var errors = [];
+    var valid = true;
+
+    this._runValidators(function (descriptor, name, done) {
+      var asset = _this3._resolveValidator(name);
+      var validator = null;
+      var msg = null;
+
+      if (_.isPlainObject(asset)) {
+        if (asset.check && typeof asset.check === 'function') {
+          validator = asset.check;
         }
+        if (asset.message) {
+          msg = asset.message;
+        }
+      } else if (typeof asset === 'function') {
+        validator = asset;
+      }
 
-        if (validator) {
-          var ret = validator.call(_this2._vm, _this2._getValue(_this2._el), descriptor.arg);
+      if (descriptor.msg) {
+        msg = descriptor.msg;
+      }
+
+      if (noopable) {
+        results[name] = false;
+        return done();
+      }
+
+      if (descriptor._isNoopable) {
+        results[name] = false;
+        descriptor._isNoopable = null;
+        return done();
+      }
+
+      if (validator) {
+        var value = _this3._getValue(_this3._el);
+        _this3._invokeValidator(_this3._vm, validator, value, descriptor.arg, function (ret, err) {
           if (!ret) {
             valid = false;
-            if (msg) {
+            if (err) {
+              // async error message
+              errors.push({ validator: name, message: err });
+              results[name] = err;
+            } else if (msg) {
               var error = { validator: name };
-              error.message = typeof msg === 'function' ? msg.call(_this2._vm, _this2.field, descriptor.arg) : msg;
+              error.message = typeof msg === 'function' ? msg.call(_this3._vm, _this3.field, descriptor.arg) : msg;
               errors.push(error);
               results[name] = error.message;
             } else {
@@ -32871,87 +33110,300 @@ var BaseValidation = function () {
           } else {
             results[name] = !ret;
           }
-        }
-      }, this);
 
-      this._fireEvent(this._el, valid ? 'valid' : 'invalid');
+          done();
+        });
+      } else {
+        done();
+      }
+    }, function () {
+      // finished
+      _this3._fireEvent(_this3._el, valid ? 'valid' : 'invalid');
 
       var props = {
         valid: valid,
         invalid: !valid,
-        touched: this.touched,
-        untouched: !this.touched,
-        dirty: this.dirty,
-        pristine: !this.dirty,
-        modified: this.modified
+        touched: _this3.touched,
+        untouched: !_this3.touched,
+        dirty: _this3.dirty,
+        pristine: !_this3.dirty,
+        modified: _this3.modified
       };
       if (!empty(errors)) {
         props.errors = errors;
       }
       _.extend(results, props);
 
-      return results;
+      _this3.willUpdateClasses(results, el);
+
+      cb(results);
+    });
+  };
+
+  BaseValidation.prototype.resetFlags = function resetFlags() {
+    this.touched = false;
+    this.dirty = false;
+    this.modified = false;
+    this._modified = false;
+  };
+
+  BaseValidation.prototype.reset = function reset() {
+    each(this._validators, function (descriptor, key) {
+      if (descriptor.initial && !descriptor._isNoopable) {
+        descriptor._isNoopable = true;
+      }
+    });
+    this.resetFlags();
+    this._init = this._getValue(this._el);
+  };
+
+  BaseValidation.prototype.willUpdateClasses = function willUpdateClasses(results) {
+    var _this4 = this;
+
+    var el = arguments.length <= 1 || arguments[1] === undefined ? null : arguments[1];
+
+    if (this._checkClassIds(el)) {
+      (function () {
+        var classIds = _this4._getClassIds(el);
+        _this4.vm.$nextTick(function () {
+          _this4.vm.$emit(VALIDATE_UPDATE, classIds, _this4, results);
+        });
+      })();
+    } else {
+      this.updateClasses(results);
     }
-  }, {
-    key: 'resetFlags',
-    value: function resetFlags() {
-      this.touched = false;
-      this.dirty = false;
-      this.modified = false;
-      this._modified = false;
+  };
+
+  BaseValidation.prototype.updateClasses = function updateClasses(results) {
+    var el = arguments.length <= 1 || arguments[1] === undefined ? null : arguments[1];
+
+    this._updateClasses(el || this._el, results);
+  };
+
+  BaseValidation.prototype.guardValidate = function guardValidate(el, type) {
+    if (type && type === 'blur' && !this.detectBlur) {
+      return true;
     }
-  }, {
-    key: 'reset',
-    value: function reset() {
-      this.resetFlags();
-      this._init = this._getValue(this._el);
+
+    if (type && type === 'input' && !this.detectChange) {
+      return true;
     }
-  }, {
-    key: 'guardValidate',
-    value: function guardValidate(el, type) {
-      if (type && type === 'blur' && !this.detectBlur) {
-        return true;
+
+    if (type && type === 'change' && !this.detectChange) {
+      return true;
+    }
+
+    if (type && type === 'click' && !this.detectChange) {
+      return true;
+    }
+
+    return false;
+  };
+
+  BaseValidation.prototype._getValue = function _getValue(el) {
+    return el.value;
+  };
+
+  BaseValidation.prototype._getScope = function _getScope() {
+    return this._forScope || this._vm;
+  };
+
+  BaseValidation.prototype._getClassIds = function _getClassIds(el) {
+    return this._classIds;
+  };
+
+  BaseValidation.prototype._checkModified = function _checkModified(target) {
+    return this._init !== this._getValue(target);
+  };
+
+  BaseValidation.prototype._checkClassIds = function _checkClassIds(el) {
+    return this._getClassIds(el);
+  };
+
+  BaseValidation.prototype._fireEvent = function _fireEvent(el, type, args) {
+    trigger(el, type, args);
+  };
+
+  BaseValidation.prototype._evalModel = function _evalModel(model, filters) {
+    var scope = this._getScope();
+
+    var val = null;
+    if (filters) {
+      val = scope.$get(model);
+      return filters ? this._applyFilters(val, null, filters) : val;
+    } else {
+      val = scope.$get(model);
+      return val === undefined || val === null ? '' : val;
+    }
+  };
+
+  BaseValidation.prototype._updateClasses = function _updateClasses(el, results) {
+    this._toggleValid(el, results.valid);
+    this._toggleTouched(el, results.touched);
+    this._togglePristine(el, results.pristine);
+    this._toggleModfied(el, results.modified);
+  };
+
+  BaseValidation.prototype._toggleValid = function _toggleValid(el, valid) {
+    var _util$Vue$util = exports$1.Vue.util;
+    var addClass = _util$Vue$util.addClass;
+    var removeClass = _util$Vue$util.removeClass;
+
+    var validClass = this._classes.valid || 'valid';
+    var invalidClass = this._classes.invalid || 'invalid';
+
+    if (valid) {
+      toggleClasses(el, validClass, addClass);
+      toggleClasses(el, invalidClass, removeClass);
+    } else {
+      toggleClasses(el, validClass, removeClass);
+      toggleClasses(el, invalidClass, addClass);
+    }
+  };
+
+  BaseValidation.prototype._toggleTouched = function _toggleTouched(el, touched) {
+    var _util$Vue$util2 = exports$1.Vue.util;
+    var addClass = _util$Vue$util2.addClass;
+    var removeClass = _util$Vue$util2.removeClass;
+
+    var touchedClass = this._classes.touched || 'touched';
+    var untouchedClass = this._classes.untouched || 'untouched';
+
+    if (touched) {
+      toggleClasses(el, touchedClass, addClass);
+      toggleClasses(el, untouchedClass, removeClass);
+    } else {
+      toggleClasses(el, touchedClass, removeClass);
+      toggleClasses(el, untouchedClass, addClass);
+    }
+  };
+
+  BaseValidation.prototype._togglePristine = function _togglePristine(el, pristine) {
+    var _util$Vue$util3 = exports$1.Vue.util;
+    var addClass = _util$Vue$util3.addClass;
+    var removeClass = _util$Vue$util3.removeClass;
+
+    var pristineClass = this._classes.pristine || 'pristine';
+    var dirtyClass = this._classes.dirty || 'dirty';
+
+    if (pristine) {
+      toggleClasses(el, pristineClass, addClass);
+      toggleClasses(el, dirtyClass, removeClass);
+    } else {
+      toggleClasses(el, pristineClass, removeClass);
+      toggleClasses(el, dirtyClass, addClass);
+    }
+  };
+
+  BaseValidation.prototype._toggleModfied = function _toggleModfied(el, modified) {
+    var _util$Vue$util4 = exports$1.Vue.util;
+    var addClass = _util$Vue$util4.addClass;
+    var removeClass = _util$Vue$util4.removeClass;
+
+    var modifiedClass = this._classes.modified || 'modified';
+
+    if (modified) {
+      toggleClasses(el, modifiedClass, addClass);
+    } else {
+      toggleClasses(el, modifiedClass, removeClass);
+    }
+  };
+
+  BaseValidation.prototype._applyFilters = function _applyFilters(value, oldValue, filters, write) {
+    var resolveAsset = exports$1.Vue.util.resolveAsset;
+    var scope = this._getScope();
+
+    var filter = void 0,
+        fn = void 0,
+        args = void 0,
+        arg = void 0,
+        offset = void 0,
+        i = void 0,
+        l = void 0,
+        j = void 0,
+        k = void 0;
+    for (i = 0, l = filters.length; i < l; i++) {
+      filter = filters[i];
+      fn = resolveAsset(this._vm.$options, 'filters', filter.name);
+      if (!fn) {
+        continue;
       }
 
-      if (type && type === 'input' && !this.detectChange) {
-        return true;
+      fn = write ? fn.write : fn.read || fn;
+      if (typeof fn !== 'function') {
+        continue;
       }
 
-      if (type && type === 'change' && !this.detectChange) {
-        return true;
+      args = write ? [value, oldValue] : [value];
+      offset = write ? 2 : 1;
+      if (filter.args) {
+        for (j = 0, k = filter.args.length; j < k; j++) {
+          arg = filter.args[j];
+          args[j + offset] = arg.dynamic ? scope.$get(arg.value) : arg.value;
+        }
       }
 
-      if (type && type === 'click' && !this.detectChange) {
-        return true;
-      }
+      value = fn.apply(this._vm, args);
+    }
 
-      return false;
+    return value;
+  };
+
+  BaseValidation.prototype._runValidators = function _runValidators(fn, cb) {
+    var validators = this._validators;
+    var length = Object.keys(validators).length;
+
+    var count = 0;
+    each(validators, function (descriptor, name) {
+      fn(descriptor, name, function () {
+        ++count;
+        count >= length && cb();
+      });
+    });
+  };
+
+  BaseValidation.prototype._invokeValidator = function _invokeValidator(vm, validator, val, arg, cb) {
+    var future = validator.call(this, val, arg);
+    if (typeof future === 'function') {
+      // function
+      future(function () {
+        // resolve
+        cb(true);
+      }, function (msg) {
+        // reject
+        cb(false, msg);
+      });
+    } else if (isPromise(future)) {
+      // promise
+      future.then(function () {
+        // resolve
+        cb(true);
+      }, function (msg) {
+        // reject
+        cb(false, msg);
+      }).catch(function (err) {
+        cb(false, err.message);
+      });
+    } else {
+      // sync
+      cb(future);
+    }
+  };
+
+  BaseValidation.prototype._resolveValidator = function _resolveValidator(name) {
+    var resolveAsset = exports$1.Vue.util.resolveAsset;
+    return resolveAsset(this._vm.$options, 'validators', name);
+  };
+
+  babelHelpers.createClass(BaseValidation, [{
+    key: 'vm',
+    get: function get() {
+      return this._vm;
     }
   }, {
-    key: '_getValue',
-    value: function _getValue(el) {
-      return el.value;
-    }
-  }, {
-    key: '_getScope',
-    value: function _getScope() {
-      return this._forScope || this._vm;
-    }
-  }, {
-    key: '_checkModified',
-    value: function _checkModified(target) {
-      return this._init !== this._getValue(target);
-    }
-  }, {
-    key: '_fireEvent',
-    value: function _fireEvent(el, type, args) {
-      trigger(el, type, args);
-    }
-  }, {
-    key: '_resolveValidator',
-    value: function _resolveValidator(name) {
-      var resolveAsset = exports$1.Vue.util.resolveAsset;
-      return resolveAsset(this._vm.$options, 'validators', name);
+    key: 'el',
+    get: function get() {
+      return this._el;
     }
   }, {
     key: 'detectChange',
@@ -32980,161 +33432,199 @@ var BaseValidation = function () {
 var CheckboxValidation = function (_BaseValidation) {
   babelHelpers.inherits(CheckboxValidation, _BaseValidation);
 
-  function CheckboxValidation(field, model, vm, el, scope, validator, detectBlur, detectChange) {
+  function CheckboxValidation(field, model, vm, el, scope, validator, filters, detectBlur, detectChange) {
     babelHelpers.classCallCheck(this, CheckboxValidation);
 
-    var _this = babelHelpers.possibleConstructorReturn(this, Object.getPrototypeOf(CheckboxValidation).call(this, field, model, vm, el, scope, validator, detectBlur, detectChange));
+    var _this = babelHelpers.possibleConstructorReturn(this, _BaseValidation.call(this, field, model, vm, el, scope, validator, filters, detectBlur, detectChange));
 
     _this._inits = [];
     return _this;
   }
 
-  babelHelpers.createClass(CheckboxValidation, [{
-    key: 'manageElement',
-    value: function manageElement(el) {
-      var _this2 = this;
+  CheckboxValidation.prototype.manageElement = function manageElement(el, initial) {
+    var _this2 = this;
 
-      var item = this._addItem(el);
-      var scope = this._getScope();
-      var model = item.model = this._model;
-      if (model) {
-        var value = scope.$get(model);
-        if (Array.isArray(value)) {
-          this._setChecked(value, item.el);
-          item.unwatch = scope.$watch(model, function (val, old) {
-            if (val !== old) {
-              if (_this2.guardValidate(item.el, 'change')) {
-                return;
-              }
-              _this2.handleValidate(item.el);
+    var scope = this._getScope();
+    var item = this._addItem(el, initial);
+
+    var model = item.model = this._model;
+    if (model) {
+      var value = this._evalModel(model, this._filters);
+      if (Array.isArray(value)) {
+        this._setChecked(value, item.el);
+        item.unwatch = scope.$watch(model, function (val, old) {
+          if (val !== old) {
+            if (_this2.guardValidate(item.el, 'change')) {
+              return;
             }
-          });
-        } else {
-          el.checked = value || false;
-          this._init = el.checked;
-          item.init = el.checked;
-          item.value = el.value;
-          item.unwatch = scope.$watch(model, function (val, old) {
-            if (val !== old) {
-              if (_this2.guardValidate(el, 'change')) {
-                return;
-              }
-              _this2.handleValidate(el);
+
+            _this2.handleValidate(item.el, { noopable: item.initial });
+            if (item.initial) {
+              item.initial = null;
             }
-          });
-        }
-      } else {
-        this._validator.validate();
-      }
-    }
-  }, {
-    key: 'unmanageElement',
-    value: function unmanageElement(el) {
-      var found = -1;
-      each(this._inits, function (item, index) {
-        if (item.el === el) {
-          found = index;
-          if (item.unwatch && item.model) {
-            item.unwatch();
-            item.unwatch = null;
-            item.model = null;
           }
-        }
-      });
-      if (found === -1) {
-        return;
+        });
+      } else {
+        el.checked = value || false;
+        this._init = el.checked;
+        item.init = el.checked;
+        item.value = el.value;
+        item.unwatch = scope.$watch(model, function (val, old) {
+          if (val !== old) {
+            if (_this2.guardValidate(el, 'change')) {
+              return;
+            }
+
+            _this2.handleValidate(el, { noopable: item.initial });
+            if (item.initial) {
+              item.initial = null;
+            }
+          }
+        });
       }
+    } else {
+      var options = { field: this.field, noopable: initial };
+      if (this._checkClassIds(el)) {
+        options.el = el;
+      }
+      this._validator.validate(options);
+    }
+  };
 
-      this._inits.splice(found, 1);
-      this._validator.validate();
-    }
-  }, {
-    key: 'willUpdateFlags',
-    value: function willUpdateFlags() {
-      var _this3 = this;
-
-      each(this._inits, function (item, index) {
-        _this3.willUpdateDirty(item.el);
-        _this3.willUpdateModified(item.el);
-      }, this);
-    }
-  }, {
-    key: 'reset',
-    value: function reset() {
-      this.resetFlags();
-      each(this._inits, function (item, index) {
-        item.init = item.el.checked;
-        item.value = item.el.value;
-      });
-    }
-  }, {
-    key: '_addItem',
-    value: function _addItem(el) {
-      var item = {
-        el: el,
-        init: el.checked,
-        value: el.value
-      };
-      this._inits.push(item);
-      return item;
-    }
-  }, {
-    key: '_setChecked',
-    value: function _setChecked(values, el) {
-      for (var i = 0, l = values.length; i < l; i++) {
-        var value = values[i];
-        if (!el.disabled && el.value === value && !el.checked) {
-          el.checked = true;
+  CheckboxValidation.prototype.unmanageElement = function unmanageElement(el) {
+    var found = -1;
+    each(this._inits, function (item, index) {
+      if (item.el === el) {
+        found = index;
+        if (item.unwatch && item.model) {
+          item.unwatch();
+          item.unwatch = null;
+          item.model = null;
         }
       }
+    });
+    if (found === -1) {
+      return;
     }
-  }, {
-    key: '_getValue',
-    value: function _getValue(el) {
-      var _this4 = this;
 
-      if (!this._inits || this._inits.length === 0) {
-        return el.checked;
-      } else {
-        var _ret = function () {
-          var vals = [];
-          each(_this4._inits, function (item, index) {
-            if (item.el.checked) {
-              vals.push(item.el.value);
-            }
-          });
-          return {
-            v: vals
-          };
-        }();
+    this._inits.splice(found, 1);
+    this._validator.validate({ field: this.field });
+  };
 
-        if ((typeof _ret === 'undefined' ? 'undefined' : babelHelpers.typeof(_ret)) === "object") return _ret.v;
+  CheckboxValidation.prototype.willUpdateFlags = function willUpdateFlags() {
+    var _this3 = this;
+
+    var touched = arguments.length <= 0 || arguments[0] === undefined ? false : arguments[0];
+
+    each(this._inits, function (item, index) {
+      touched && _this3.willUpdateTouched(item.el, 'blur');
+      _this3.willUpdateDirty(item.el);
+      _this3.willUpdateModified(item.el);
+    });
+  };
+
+  CheckboxValidation.prototype.reset = function reset() {
+    this.resetFlags();
+    each(this._inits, function (item, index) {
+      item.init = item.el.checked;
+      item.value = item.el.value;
+    });
+  };
+
+  CheckboxValidation.prototype.updateClasses = function updateClasses(results) {
+    var _this4 = this;
+
+    var el = arguments.length <= 1 || arguments[1] === undefined ? null : arguments[1];
+
+    if (el) {
+      // for another element
+      this._updateClasses(el, results);
+    } else {
+      each(this._inits, function (item, index) {
+        _this4._updateClasses(item.el, results);
+      });
+    }
+  };
+
+  CheckboxValidation.prototype._addItem = function _addItem(el, initial) {
+    var item = {
+      el: el,
+      init: el.checked,
+      value: el.value,
+      initial: initial
+    };
+
+    var classIds = el.getAttribute(VALIDATE_UPDATE);
+    if (classIds) {
+      el.removeAttribute(VALIDATE_UPDATE);
+      item.classIds = classIds.split(',');
+    }
+
+    this._inits.push(item);
+    return item;
+  };
+
+  CheckboxValidation.prototype._setChecked = function _setChecked(values, el) {
+    for (var i = 0, l = values.length; i < l; i++) {
+      var value = values[i];
+      if (!el.disabled && el.value === value && !el.checked) {
+        el.checked = true;
       }
     }
-  }, {
-    key: '_checkModified',
-    value: function _checkModified(target) {
-      var _this5 = this;
+  };
 
-      if (this._inits.length === 0) {
-        return this._init !== target.checked;
-      } else {
-        var _ret2 = function () {
-          var modified = false;
-          each(_this5._inits, function (item, index) {
-            if (!modified) {
-              modified = item.init !== item.el.checked;
-            }
-          });
-          return {
-            v: modified
-          };
-        }();
+  CheckboxValidation.prototype._getValue = function _getValue(el) {
+    var _this5 = this;
 
-        if ((typeof _ret2 === 'undefined' ? 'undefined' : babelHelpers.typeof(_ret2)) === "object") return _ret2.v;
-      }
+    if (!this._inits || this._inits.length === 0) {
+      return el.checked;
+    } else {
+      var _ret = function () {
+        var vals = [];
+        each(_this5._inits, function (item, index) {
+          item.el.checked && vals.push(item.el.value);
+        });
+        return {
+          v: vals
+        };
+      }();
+
+      if ((typeof _ret === 'undefined' ? 'undefined' : babelHelpers.typeof(_ret)) === "object") return _ret.v;
     }
-  }]);
+  };
+
+  CheckboxValidation.prototype._getClassIds = function _getClassIds(el) {
+    var classIds = void 0;
+    each(this._inits, function (item, index) {
+      if (item.el === el) {
+        classIds = item.classIds;
+      }
+    });
+    return classIds;
+  };
+
+  CheckboxValidation.prototype._checkModified = function _checkModified(target) {
+    var _this6 = this;
+
+    if (this._inits.length === 0) {
+      return this._init !== target.checked;
+    } else {
+      var _ret2 = function () {
+        var modified = false;
+        each(_this6._inits, function (item, index) {
+          if (!modified) {
+            modified = item.init !== item.el.checked;
+          }
+        });
+        return {
+          v: modified
+        };
+      }();
+
+      if ((typeof _ret2 === 'undefined' ? 'undefined' : babelHelpers.typeof(_ret2)) === "object") return _ret2.v;
+    }
+  };
+
   return CheckboxValidation;
 }(BaseValidation);
 
@@ -33145,141 +33635,175 @@ var CheckboxValidation = function (_BaseValidation) {
 var RadioValidation = function (_BaseValidation) {
   babelHelpers.inherits(RadioValidation, _BaseValidation);
 
-  function RadioValidation(field, model, vm, el, scope, validator, detectBlur, detectChange) {
+  function RadioValidation(field, model, vm, el, scope, validator, filters, detectBlur, detectChange) {
     babelHelpers.classCallCheck(this, RadioValidation);
 
-    var _this = babelHelpers.possibleConstructorReturn(this, Object.getPrototypeOf(RadioValidation).call(this, field, model, vm, el, scope, validator, detectBlur, detectChange));
+    var _this = babelHelpers.possibleConstructorReturn(this, _BaseValidation.call(this, field, model, vm, el, scope, validator, filters, detectBlur, detectChange));
 
     _this._inits = [];
     return _this;
   }
 
-  babelHelpers.createClass(RadioValidation, [{
-    key: 'manageElement',
-    value: function manageElement(el) {
-      var _this2 = this;
+  RadioValidation.prototype.manageElement = function manageElement(el, initial) {
+    var _this2 = this;
 
-      var item = this._addItem(el);
-      var scope = this._getScope();
-      var model = item.model = this._model;
-      if (model) {
-        var value = scope.$get(model);
-        this._setChecked(value, el, item);
-        item.unwatch = scope.$watch(model, function (val, old) {
-          if (val !== old) {
-            if (_this2.guardValidate(item.el, 'change')) {
-              return;
-            }
-            _this2.handleValidate(el);
+    var scope = this._getScope();
+    var item = this._addItem(el, initial);
+
+    var model = item.model = this._model;
+    if (model) {
+      var value = this._evalModel(model, this._filters);
+      this._setChecked(value, el, item);
+      item.unwatch = scope.$watch(model, function (val, old) {
+        if (val !== old) {
+          if (_this2.guardValidate(item.el, 'change')) {
+            return;
           }
-        });
-      } else {
-        this._validator.validate();
-      }
-    }
-  }, {
-    key: 'unmanageElement',
-    value: function unmanageElement(el) {
-      var found = -1;
-      each(this._inits, function (item, index) {
-        if (item.el === el) {
-          found = index;
+
+          _this2.handleValidate(el, { noopable: item.initial });
+          if (item.initial) {
+            item.initial = null;
+          }
         }
       });
-      if (found === -1) {
-        return;
+    } else {
+      var options = { field: this.field, noopable: initial };
+      if (this._checkClassIds(el)) {
+        options.el = el;
       }
-
-      this._inits.splice(found, 1);
-      this._validator.validate();
+      this._validator.validate(options);
     }
-  }, {
-    key: 'willUpdateFlags',
-    value: function willUpdateFlags() {
-      var _this3 = this;
+  };
 
-      each(this._inits, function (item, index) {
-        _this3.willUpdateDirty(item.el);
-        _this3.willUpdateModified(item.el);
-      }, this);
+  RadioValidation.prototype.unmanageElement = function unmanageElement(el) {
+    var found = -1;
+    each(this._inits, function (item, index) {
+      if (item.el === el) {
+        found = index;
+      }
+    });
+    if (found === -1) {
+      return;
     }
-  }, {
-    key: 'reset',
-    value: function reset() {
-      this.resetFlags();
+
+    this._inits.splice(found, 1);
+    this._validator.validate({ field: this.field });
+  };
+
+  RadioValidation.prototype.willUpdateFlags = function willUpdateFlags() {
+    var _this3 = this;
+
+    var touched = arguments.length <= 0 || arguments[0] === undefined ? false : arguments[0];
+
+    each(this._inits, function (item, index) {
+      touched && _this3.willUpdateTouched(item.el, 'blur');
+      _this3.willUpdateDirty(item.el);
+      _this3.willUpdateModified(item.el);
+    });
+  };
+
+  RadioValidation.prototype.reset = function reset() {
+    this.resetFlags();
+    each(this._inits, function (item, index) {
+      item.init = item.el.checked;
+      item.value = item.el.value;
+    });
+  };
+
+  RadioValidation.prototype.updateClasses = function updateClasses(results) {
+    var _this4 = this;
+
+    var el = arguments.length <= 1 || arguments[1] === undefined ? null : arguments[1];
+
+    if (el) {
+      // for another element
+      this._updateClasses(el, results);
+    } else {
       each(this._inits, function (item, index) {
-        item.init = item.el.checked;
-        item.value = item.el.value;
+        _this4._updateClasses(item.el, results);
       });
     }
-  }, {
-    key: '_addItem',
-    value: function _addItem(el) {
-      var item = {
-        el: el,
-        init: el.checked,
-        value: el.value
-      };
-      this._inits.push(item);
-      return item;
+  };
+
+  RadioValidation.prototype._addItem = function _addItem(el, initial) {
+    var item = {
+      el: el,
+      init: el.checked,
+      value: el.value,
+      initial: initial
+    };
+
+    var classIds = el.getAttribute(VALIDATE_UPDATE);
+    if (classIds) {
+      el.removeAttribute(VALIDATE_UPDATE);
+      item.classIds = classIds.split(',');
     }
-  }, {
-    key: '_setChecked',
-    value: function _setChecked(value, el, item) {
-      if (el.value === value) {
-        el.checked = true;
-        this._init = el.checked;
-        item.init = el.checked;
-        item.value = value;
+
+    this._inits.push(item);
+    return item;
+  };
+
+  RadioValidation.prototype._setChecked = function _setChecked(value, el, item) {
+    if (el.value === value) {
+      el.checked = true;
+      this._init = el.checked;
+      item.init = el.checked;
+      item.value = value;
+    }
+  };
+
+  RadioValidation.prototype._getValue = function _getValue(el) {
+    var _this5 = this;
+
+    if (!this._inits || this._inits.length === 0) {
+      return el.checked;
+    } else {
+      var _ret = function () {
+        var vals = [];
+        each(_this5._inits, function (item, index) {
+          item.el.checked && vals.push(item.el.value);
+        });
+        return {
+          v: vals
+        };
+      }();
+
+      if ((typeof _ret === 'undefined' ? 'undefined' : babelHelpers.typeof(_ret)) === "object") return _ret.v;
+    }
+  };
+
+  RadioValidation.prototype._getClassIds = function _getClassIds(el) {
+    var classIds = void 0;
+    each(this._inits, function (item, index) {
+      if (item.el === el) {
+        classIds = item.classIds;
       }
+    });
+    return classIds;
+  };
+
+  RadioValidation.prototype._checkModified = function _checkModified(target) {
+    var _this6 = this;
+
+    if (this._inits.length === 0) {
+      return this._init !== target.checked;
+    } else {
+      var _ret2 = function () {
+        var modified = false;
+        each(_this6._inits, function (item, index) {
+          if (!modified) {
+            modified = item.init !== item.el.checked;
+          }
+        });
+        return {
+          v: modified
+        };
+      }();
+
+      if ((typeof _ret2 === 'undefined' ? 'undefined' : babelHelpers.typeof(_ret2)) === "object") return _ret2.v;
     }
-  }, {
-    key: '_getValue',
-    value: function _getValue(el) {
-      var _this4 = this;
+  };
 
-      if (!this._inits || this._inits.length === 0) {
-        return el.checked;
-      } else {
-        var _ret = function () {
-          var vals = [];
-          each(_this4._inits, function (item, index) {
-            if (item.el.checked) {
-              vals.push(item.el.value);
-            }
-          });
-          return {
-            v: vals
-          };
-        }();
-
-        if ((typeof _ret === 'undefined' ? 'undefined' : babelHelpers.typeof(_ret)) === "object") return _ret.v;
-      }
-    }
-  }, {
-    key: '_checkModified',
-    value: function _checkModified(target) {
-      var _this5 = this;
-
-      if (this._inits.length === 0) {
-        return this._init !== target.checked;
-      } else {
-        var _ret2 = function () {
-          var modified = false;
-          each(_this5._inits, function (item, index) {
-            if (!modified) {
-              modified = item.init !== item.el.checked;
-            }
-          });
-          return {
-            v: modified
-          };
-        }();
-
-        if ((typeof _ret2 === 'undefined' ? 'undefined' : babelHelpers.typeof(_ret2)) === "object") return _ret2.v;
-      }
-    }
-  }]);
   return RadioValidation;
 }(BaseValidation);
 
@@ -33290,100 +33814,102 @@ var RadioValidation = function (_BaseValidation) {
 var SelectValidation = function (_BaseValidation) {
   babelHelpers.inherits(SelectValidation, _BaseValidation);
 
-  function SelectValidation(field, model, vm, el, scope, validator, detectBlur, detectChange) {
+  function SelectValidation(field, model, vm, el, scope, validator, filters, detectBlur, detectChange) {
     babelHelpers.classCallCheck(this, SelectValidation);
 
-    var _this = babelHelpers.possibleConstructorReturn(this, Object.getPrototypeOf(SelectValidation).call(this, field, model, vm, el, scope, validator, detectBlur, detectChange));
+    var _this = babelHelpers.possibleConstructorReturn(this, _BaseValidation.call(this, field, model, vm, el, scope, validator, filters, detectBlur, detectChange));
 
     _this._multiple = _this._el.hasAttribute('multiple');
     return _this;
   }
 
-  babelHelpers.createClass(SelectValidation, [{
-    key: 'manageElement',
-    value: function manageElement(el) {
-      var _this2 = this;
+  SelectValidation.prototype.manageElement = function manageElement(el, initial) {
+    var _this2 = this;
 
-      var scope = this._getScope();
-      var model = this._model;
-      if (model) {
-        var value = scope.$get(model);
-        var values = !Array.isArray(value) ? [value] : value;
-        this._setOption(values, el);
-        this._unwatch = scope.$watch(model, function (val, old) {
-          var values1 = !Array.isArray(val) ? [val] : val;
-          var values2 = !Array.isArray(old) ? [old] : old;
-          if (values1.slice().sort().toString() !== values2.slice().sort().toString()) {
-            if (_this2.guardValidate(el, 'change')) {
-              return;
-            }
-            _this2.handleValidate(el);
+    var scope = this._getScope();
+    var model = this._model;
+
+    this._initial = initial;
+
+    var classIds = el.getAttribute(VALIDATE_UPDATE);
+    if (classIds) {
+      el.removeAttribute(VALIDATE_UPDATE);
+      this._classIds = classIds.split(',');
+    }
+
+    if (model) {
+      var value = this._evalModel(model, this._filters);
+      var values = !Array.isArray(value) ? [value] : value;
+      this._setOption(values, el);
+      this._unwatch = scope.$watch(model, function (val, old) {
+        var values1 = !Array.isArray(val) ? [val] : val;
+        var values2 = !Array.isArray(old) ? [old] : old;
+        if (values1.slice().sort().toString() !== values2.slice().sort().toString()) {
+          if (_this2.guardValidate(el, 'change')) {
+            return;
           }
-        });
-      }
-    }
-  }, {
-    key: 'unmanageElement',
-    value: function unmanageElement(el) {
-      if (this._unwatch) {
-        this._unwatch();
-      }
-    }
-  }, {
-    key: 'reset',
-    value: function reset() {
-      this.resetFlags();
-    }
-  }, {
-    key: '_getValue',
-    value: function _getValue(el) {
-      var ret = [];
 
-      for (var i = 0, l = el.options.length; i < l; i++) {
-        var option = el.options[i];
-        if (!option.disabled && option.selected) {
-          ret.push(option.value);
-        }
-      }
-
-      return ret;
-    }
-  }, {
-    key: '_setOption',
-    value: function _setOption(values, el) {
-      for (var i = 0, l = values.length; i < l; i++) {
-        var value = values[i];
-        for (var j = 0, m = el.options.length; j < m; j++) {
-          var option = el.options[j];
-          if (!option.disabled && option.value === value && (!option.hasAttribute('selected') || !option.selected)) {
-            option.selected = true;
+          _this2.handleValidate(el, { noopable: _this2._initial });
+          if (_this2._initial) {
+            _this2._initial = null;
           }
         }
+      });
+    }
+  };
+
+  SelectValidation.prototype.unmanageElement = function unmanageElement(el) {
+    this._unwatch && this._unwatch();
+  };
+
+  SelectValidation.prototype.reset = function reset() {
+    this.resetFlags();
+  };
+
+  SelectValidation.prototype._getValue = function _getValue(el) {
+    var ret = [];
+
+    for (var i = 0, l = el.options.length; i < l; i++) {
+      var option = el.options[i];
+      if (!option.disabled && option.selected) {
+        ret.push(option.value);
       }
     }
-  }, {
-    key: '_checkModified',
-    value: function _checkModified(target) {
-      var values = this._getValue(target).slice().sort();
-      if (this._init.length !== values.length) {
-        return true;
-      } else {
-        var inits = this._init.slice().sort();
-        return inits.toString() !== values.toString();
+
+    return ret;
+  };
+
+  SelectValidation.prototype._setOption = function _setOption(values, el) {
+    for (var i = 0, l = values.length; i < l; i++) {
+      var value = values[i];
+      for (var j = 0, m = el.options.length; j < m; j++) {
+        var option = el.options[j];
+        if (!option.disabled && option.value === value && (!option.hasAttribute('selected') || !option.selected)) {
+          option.selected = true;
+        }
       }
     }
-  }]);
+  };
+
+  SelectValidation.prototype._checkModified = function _checkModified(target) {
+    var values = this._getValue(target).slice().sort();
+    if (this._init.length !== values.length) {
+      return true;
+    } else {
+      var inits = this._init.slice().sort();
+      return inits.toString() !== values.toString();
+    }
+  };
+
   return SelectValidation;
 }(BaseValidation);
-
-var eventRE = /^v-on:|^@/;
 
 /**
  * Validator class
  */
 
 var Validator$1 = function () {
-  function Validator(name, dir, groups) {
+  function Validator(name, dir, groups, classes) {
     var _this = this;
 
     babelHelpers.classCallCheck(this, Validator);
@@ -33399,516 +33925,536 @@ var Validator$1 = function () {
     this._groupValidations = {};
     this._events = {};
     this._modified = false;
+    this._classes = classes;
 
     each(groups, function (group) {
       _this._groupValidations[group] = [];
-    }, this);
+    });
   }
 
-  babelHelpers.createClass(Validator, [{
-    key: 'enableReactive',
-    value: function enableReactive() {
-      var _this2 = this;
+  Validator.prototype.enableReactive = function enableReactive() {
+    var vm = this._dir.vm;
 
-      // define the validation scope
-      exports$1.Vue.util.defineReactive(this._dir.vm, this.name, this._scope);
-      this._dir.vm._validatorMaps[this.name] = this;
+    // define the validation scope
+    exports$1.Vue.util.defineReactive(vm, this.name, this._scope);
+    vm._validatorMaps[this.name] = this;
 
-      // define the validation resetting meta method to vue instance
-      this._dir.vm.$resetValidation = function () {
-        _this2.resetValidation();
-      };
+    // define the validation resetting meta method to vue instance
+    this._defineResetValidation();
 
-      // define the validate manually meta method to vue instance
-      this._dir.vm.$validate = function () {
-        var field = null;
-        var touched = false;
+    // define the validate manually meta method to vue instance
+    this._defineValidate();
 
-        if (arguments.length === 1) {
-          if (typeof (arguments.length <= 0 ? undefined : arguments[0]) === 'string') {
-            field = arguments.length <= 0 ? undefined : arguments[0];
-          } else if (typeof (arguments.length <= 0 ? undefined : arguments[0]) === 'boolean') {
-            touched = arguments.length <= 0 ? undefined : arguments[0];
-          }
-        } else if (arguments.length === 2) {
-          field = arguments.length <= 0 ? undefined : arguments[0];
-          touched = arguments.length <= 1 ? undefined : arguments[1];
+    // define manually the validation errors
+    this._defineSetValidationErrors();
+  };
+
+  Validator.prototype.disableReactive = function disableReactive() {
+    var vm = this._dir.vm;
+    vm.$setValidationErrors = null;
+    delete vm['$setValidationErrors'];
+    vm.$validate = null;
+    delete vm['$validate'];
+    vm.$validatorReset = null;
+    delete vm['$validatorReset'];
+    vm._validatorMaps[this.name] = null;
+    delete vm._validatorMaps[this.name];
+    vm[this.name] = null;
+    delete vm[this.name];
+  };
+
+  Validator.prototype.registerEvents = function registerEvents() {
+    var isSimplePath = exports$1.Vue.parsers.expression.isSimplePath;
+
+    var attrs = this._dir.el.attributes;
+    for (var i = 0, l = attrs.length; i < l; i++) {
+      var event = attrs[i].name;
+      if (REGEX_EVENT.test(event)) {
+        var value = attrs[i].value;
+        if (isSimplePath(value)) {
+          value += '.apply(this, $arguments)';
         }
-
-        _this2._validate(field, touched);
-      };
-
-      // define manually the validation errors
-      this._dir.vm.$setValidationErrors = function (errors) {
-        _this2._setValidationErrors(errors);
-      };
-    }
-  }, {
-    key: 'disableReactive',
-    value: function disableReactive() {
-      this._dir.vm.$setValidationErrors = undefined;
-      this._dir.vm.$validate = undefined;
-      this._dir.vm.$validatorReset = undefined;
-      this._dir.vm._validatorMaps[this.name] = null;
-      this._dir.vm[this.name] = null;
-    }
-  }, {
-    key: 'registerEvents',
-    value: function registerEvents() {
-      var attrs = this._dir.el.attributes;
-      for (var i = 0, l = attrs.length; i < l; i++) {
-        var event = attrs[i].name;
-        if (eventRE.test(event)) {
-          event = event.replace(eventRE, '');
-          this._events[this._getEventName(event)] = this._dir.vm.$eval(attrs[i].value, true);
-        }
+        event = event.replace(REGEX_EVENT, '');
+        this._events[this._getEventName(event)] = this._dir.vm.$eval(value, true);
       }
     }
-  }, {
-    key: 'unregisterEvents',
-    value: function unregisterEvents() {
-      var _this3 = this;
+  };
 
-      each(this._events, function (handler, event) {
-        _this3._events[event] = null;
-        delete _this3._events[event];
-      }, this);
+  Validator.prototype.unregisterEvents = function unregisterEvents() {
+    var _this2 = this;
+
+    each(this._events, function (handler, event) {
+      _this2._events[event] = null;
+      delete _this2._events[event];
+    });
+  };
+
+  Validator.prototype.manageValidation = function manageValidation(field, model, vm, el, scope, filters, initial, detectBlur, detectChange) {
+    var validation = null;
+
+    if (el.tagName === 'SELECT') {
+      validation = this._manageSelectValidation(field, model, vm, el, scope, filters, initial, detectBlur, detectChange);
+    } else if (el.type === 'checkbox') {
+      validation = this._manageCheckboxValidation(field, model, vm, el, scope, filters, initial, detectBlur, detectChange);
+    } else if (el.type === 'radio') {
+      validation = this._manageRadioValidation(field, model, vm, el, scope, filters, initial, detectBlur, detectChange);
+    } else {
+      validation = this._manageBaseValidation(field, model, vm, el, scope, filters, initial, detectBlur, detectChange);
     }
-  }, {
-    key: '_validate',
-    value: function _validate(field, touched) {
-      if (!field) {
-        // all
-        each(this.validations, function (validation, key) {
-          validation.willUpdateFlags(touched);
-        });
-        this.validate();
-      } else {
-        // each field
-        var validation = this._validations[field];
-        if (!validation && this._checkboxValidations[field]) {
-          validation = this._checkboxValidations[field].validation;
-        } else if (!validation && this._radioValidations[field]) {
-          validation = this._radioValidations[field].validation;
-        }
 
-        if (validation) {
-          validation.willUpdateFlags(touched);
-          var res = validation.validate();
-          exports$1.Vue.set(this._scope, field, res);
+    validation.setValidationClasses(this._classes);
 
-          if (this._scope.dirty) {
-            this._fireEvent('dirty');
-          }
+    return validation;
+  };
 
-          if (this._modified !== this._scope.modified) {
-            this._fireEvent('modified', this._scope.modified);
-            this._modified = this._scope.modified;
-          }
+  Validator.prototype.unmanageValidation = function unmanageValidation(field, el) {
+    if (el.type === 'checkbox') {
+      this._unmanageCheckboxValidation(field, el);
+    } else if (el.type === 'radio') {
+      this._unmanageRadioValidation(field, el);
+    } else if (el.tagName === 'SELECT') {
+      this._unmanageSelectValidation(field, el);
+    } else {
+      this._unmanageBaseValidation(field, el);
+    }
+  };
 
-          var valid = this._scope.valid;
-          this._fireEvent(valid ? 'valid' : 'invalid');
-        }
+  Validator.prototype.addGroupValidation = function addGroupValidation(group, field) {
+    var indexOf = exports$1.Vue.util.indexOf;
+
+    var validation = this._getValidationFrom(field);
+    var validations = this._groupValidations[group];
+
+    validations && ! ~indexOf(validations, validation) && validations.push(validation);
+  };
+
+  Validator.prototype.removeGroupValidation = function removeGroupValidation(group, field) {
+    var validation = this._getValidationFrom(field);
+    var validations = this._groupValidations[group];
+
+    validations && pull(validations, validation);
+  };
+
+  Validator.prototype.validate = function validate() {
+    var _ref = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+
+    var _ref$el = _ref.el;
+    var el = _ref$el === undefined ? null : _ref$el;
+    var _ref$field = _ref.field;
+    var field = _ref$field === undefined ? null : _ref$field;
+    var _ref$touched = _ref.touched;
+    var touched = _ref$touched === undefined ? false : _ref$touched;
+    var _ref$noopable = _ref.noopable;
+    var noopable = _ref$noopable === undefined ? false : _ref$noopable;
+    var _ref$cb = _ref.cb;
+    var cb = _ref$cb === undefined ? null : _ref$cb;
+
+    if (!field) {
+      // all
+      each(this.validations, function (validation, key) {
+        validation.willUpdateFlags(touched);
+      });
+      this._validates(cb);
+    } else {
+      // each field
+      this._validate(field, touched, noopable, el, cb);
+    }
+  };
+
+  Validator.prototype.setupScope = function setupScope() {
+    var _this3 = this;
+
+    this._defineProperties(function () {
+      return _this3.validations;
+    }, function () {
+      return _this3._scope;
+    });
+
+    each(this._groups, function (name) {
+      var validations = _this3._groupValidations[name];
+      var group = {};
+      exports$1.Vue.set(_this3._scope, name, group);
+      _this3._defineProperties(function () {
+        return validations;
+      }, function () {
+        return group;
+      });
+    });
+  };
+
+  Validator.prototype.waitFor = function waitFor(cb) {
+    var method = '$activateValidator';
+    var vm = this._dir.vm;
+
+    vm[method] = function () {
+      cb();
+      vm[method] = null;
+    };
+  };
+
+  Validator.prototype._defineResetValidation = function _defineResetValidation() {
+    var _this4 = this;
+
+    this._dir.vm.$resetValidation = function (cb) {
+      _this4._resetValidation(cb);
+    };
+  };
+
+  Validator.prototype._defineValidate = function _defineValidate() {
+    var _this5 = this;
+
+    this._dir.vm.$validate = function () {
+      for (var _len = arguments.length, args = Array(_len), _key = 0; _key < _len; _key++) {
+        args[_key] = arguments[_key];
       }
-    }
-  }, {
-    key: 'resetValidation',
-    value: function resetValidation() {
-      each(this._validations, function (validation, key) {
-        validation.reset();
-      }, this);
 
-      each(this._checkboxValidations, function (dataset, key) {
-        dataset.validation.reset();
-      }, this);
+      var field = null;
+      var touched = false;
+      var cb = null;
 
-      each(this._radioValidations, function (dataset, key) {
-        dataset.validation.reset();
-      }, this);
-
-      this.validate();
-    }
-  }, {
-    key: '_setValidationErrors',
-    value: function _setValidationErrors(errors) {
-      var _this4 = this;
-
-      var extend = exports$1.Vue.util.extend;
-
-      // make tempolaly errors
-      var temp = {};
-      each(errors, function (error, index) {
-        if (!temp[error.field]) {
-          temp[error.field] = [];
+      each(args, function (arg, index) {
+        if (typeof arg === 'string') {
+          field = arg;
+        } else if (typeof arg === 'boolean') {
+          touched = arg;
+        } else if (typeof arg === 'function') {
+          cb = arg;
         }
-        temp[error.field].push(error);
       });
 
-      // set errors
-      each(temp, function (values, field) {
-        var validation = _this4._scope[field];
-        var newValidation = {};
-        each(values, function (error) {
-          if (error.validator) {
-            validation[error.validator] = error.message;
-          }
-        });
-        validation.valid = false;
-        validation.invalid = true;
-        validation.errors = values;
-        extend(newValidation, validation);
-        exports$1.Vue.set(_this4._scope, field, newValidation);
-      }, this);
+      _this5.validate({ field: field, touched: touched, cb: cb });
+    };
+  };
+
+  Validator.prototype._defineSetValidationErrors = function _defineSetValidationErrors() {
+    var _this6 = this;
+
+    this._dir.vm.$setValidationErrors = function (errors) {
+      _this6._setValidationErrors(errors);
+    };
+  };
+
+  Validator.prototype._validate = function _validate(field) {
+    var touched = arguments.length <= 1 || arguments[1] === undefined ? false : arguments[1];
+    var noopable = arguments.length <= 2 || arguments[2] === undefined ? false : arguments[2];
+
+    var _this7 = this;
+
+    var el = arguments.length <= 3 || arguments[3] === undefined ? null : arguments[3];
+    var cb = arguments.length <= 4 || arguments[4] === undefined ? null : arguments[4];
+
+    var scope = this._scope;
+
+    var validation = this._getValidationFrom(field);
+    if (validation) {
+      validation.willUpdateFlags(touched);
+      validation.validate(function (results) {
+        exports$1.Vue.set(scope, field, results);
+        _this7._fireEvents();
+        cb && cb();
+      }, noopable, el);
     }
+  };
 
-    // TODO: should be improved performance (use cache)
+  Validator.prototype._validates = function _validates(cb) {
+    var _this8 = this;
 
-  }, {
-    key: 'manageValidation',
-    value: function manageValidation(field, model, vm, el, scope, detectBlur, detectChange) {
-      var validation = null;
+    var scope = this._scope;
 
-      if (el.tagName === 'SELECT') {
-        validation = this._manageSelectValidation(field, model, vm, el, scope, detectBlur, detectChange);
-      } else if (el.type === 'checkbox') {
-        validation = this._manageCheckboxValidation(field, model, vm, el, scope, detectBlur, detectChange);
-      } else if (el.type === 'radio') {
-        validation = this._manageRadioValidation(field, model, vm, el, scope, detectBlur, detectChange);
-      } else {
-        validation = this._manageBaseValidation(field, model, vm, el, scope, detectBlur, detectChange);
+    this._runValidates(function (validation, key, done) {
+      validation.validate(function (results) {
+        exports$1.Vue.set(scope, key, results);
+        done();
+      });
+    }, function () {
+      // finished
+      _this8._fireEvents();
+      cb && cb();
+    });
+  };
+
+  Validator.prototype._getValidationFrom = function _getValidationFrom(field) {
+    return this._validations[field] || this._checkboxValidations[field] && this._checkboxValidations[field].validation || this._radioValidations[field] && this._radioValidations[field].validation;
+  };
+
+  Validator.prototype._resetValidation = function _resetValidation(cb) {
+    each(this.validations, function (validation, key) {
+      validation.reset();
+    });
+    this._validates(cb);
+  };
+
+  Validator.prototype._setValidationErrors = function _setValidationErrors(errors) {
+    var _this9 = this;
+
+    var extend = exports$1.Vue.util.extend;
+
+    // make tempolaly errors
+
+    var temp = {};
+    each(errors, function (error, index) {
+      if (!temp[error.field]) {
+        temp[error.field] = [];
       }
+      temp[error.field].push(error);
+    });
 
-      return validation;
+    // set errors
+    each(temp, function (values, field) {
+      var results = _this9._scope[field];
+      var newResults = {};
+
+      each(values, function (error) {
+        if (error.validator) {
+          results[error.validator] = error.message;
+        }
+      });
+
+      results.valid = false;
+      results.invalid = true;
+      results.errors = values;
+      extend(newResults, results);
+
+      var validation = _this9._getValidationFrom(field);
+      validation.willUpdateClasses(newResults, validation.el);
+
+      exports$1.Vue.set(_this9._scope, field, newResults);
+    });
+  };
+
+  Validator.prototype._manageBaseValidation = function _manageBaseValidation(field, model, vm, el, scope, filters, initial, detectBlur, detectChange) {
+    var validation = this._validations[field] = new BaseValidation(field, model, vm, el, scope, this, filters, detectBlur, detectChange);
+    validation.manageElement(el, initial);
+    return validation;
+  };
+
+  Validator.prototype._unmanageBaseValidation = function _unmanageBaseValidation(field, el) {
+    var validation = this._validations[field];
+    if (validation) {
+      validation.unmanageElement(el);
+      exports$1.Vue.delete(this._scope, field);
+      this._validations[field] = null;
+      delete this._validations[field];
     }
-  }, {
-    key: 'unmanageValidation',
-    value: function unmanageValidation(field, el) {
-      if (el.type === 'checkbox') {
-        this._unmanageCheckboxValidation(field, el);
-      } else if (el.type === 'radio') {
-        this._unmanageRadioValidation(field, el);
-      } else if (el.tagName === 'SELECT') {
-        this._unmanageSelectValidation(field, el);
-      } else {
-        this._unmanageBaseValidation(field, el);
-      }
+  };
+
+  Validator.prototype._manageCheckboxValidation = function _manageCheckboxValidation(field, model, vm, el, scope, filters, initial, detectBlur, detectChange) {
+    var validationSet = this._checkboxValidations[field];
+    if (!validationSet) {
+      var validation = new CheckboxValidation(field, model, vm, el, scope, this, filters, detectBlur, detectChange);
+      validationSet = { validation: validation, elements: 0 };
+      this._checkboxValidations[field] = validationSet;
     }
-  }, {
-    key: '_manageBaseValidation',
-    value: function _manageBaseValidation(field, model, vm, el, scope, detectBlur, detectChange) {
-      var validation = this._validations[field] = new BaseValidation(field, model, vm, el, scope, this, detectBlur, detectChange);
-      validation.manageElement(el);
-      return validation;
-    }
-  }, {
-    key: '_unmanageBaseValidation',
-    value: function _unmanageBaseValidation(field, el) {
-      var validation = this._validations[field];
-      if (validation) {
-        validation.unmanageElement(el);
+
+    validationSet.elements++;
+    validationSet.validation.manageElement(el, initial);
+    return validationSet.validation;
+  };
+
+  Validator.prototype._unmanageCheckboxValidation = function _unmanageCheckboxValidation(field, el) {
+    var validationSet = this._checkboxValidations[field];
+    if (validationSet) {
+      validationSet.elements--;
+      validationSet.validation.unmanageElement(el);
+      if (validationSet.elements === 0) {
         exports$1.Vue.delete(this._scope, field);
-        this._validations[field] = null;
-        delete this._validations[field];
+        this._checkboxValidations[field] = null;
+        delete this._checkboxValidations[field];
       }
     }
-  }, {
-    key: '_manageCheckboxValidation',
-    value: function _manageCheckboxValidation(field, model, vm, el, scope, detectBlur, detectChange) {
-      var validationSet = this._checkboxValidations[field];
-      if (!validationSet) {
-        var validation = new CheckboxValidation(field, model, vm, el, scope, this, detectBlur, detectChange);
-        validationSet = { validation: validation, elements: 0 };
-        this._checkboxValidations[field] = validationSet;
-      }
+  };
 
-      validationSet.elements++;
-      validationSet.validation.manageElement(el);
-      return validationSet.validation;
+  Validator.prototype._manageRadioValidation = function _manageRadioValidation(field, model, vm, el, scope, filters, initial, detectBlur, detectChange) {
+    var validationSet = this._radioValidations[field];
+    if (!validationSet) {
+      var validation = new RadioValidation(field, model, vm, el, scope, this, filters, detectBlur, detectChange);
+      validationSet = { validation: validation, elements: 0 };
+      this._radioValidations[field] = validationSet;
     }
-  }, {
-    key: '_unmanageCheckboxValidation',
-    value: function _unmanageCheckboxValidation(field, el) {
-      var validationSet = this._checkboxValidations[field];
-      if (validationSet) {
-        validationSet.elements--;
-        validationSet.validation.unmanageElement(el);
-        if (validationSet.elements === 0) {
-          exports$1.Vue.delete(this._scope, field);
-          this._checkboxValidations[field] = null;
-          delete this._checkboxValidations[field];
-        }
-      }
-    }
-  }, {
-    key: '_manageRadioValidation',
-    value: function _manageRadioValidation(field, model, vm, el, scope, detectBlur, detectChange) {
-      var validationSet = this._radioValidations[field];
-      if (!validationSet) {
-        var validation = new RadioValidation(field, model, vm, el, scope, this, detectBlur, detectChange);
-        validationSet = { validation: validation, elements: 0 };
-        this._radioValidations[field] = validationSet;
-      }
 
-      validationSet.elements++;
-      validationSet.validation.manageElement(el);
-      return validationSet.validation;
-    }
-  }, {
-    key: '_unmanageRadioValidation',
-    value: function _unmanageRadioValidation(field, el) {
-      var validationSet = this._radioValidations[field];
-      if (validationSet) {
-        validationSet.elements--;
-        validationSet.validation.unmanageElement(el);
-        if (validationSet.elements === 0) {
-          exports$1.Vue.delete(this._scope, field);
-          this._radioValidations[field] = null;
-          delete this._radioValidations[field];
-        }
-      }
-    }
-  }, {
-    key: '_manageSelectValidation',
-    value: function _manageSelectValidation(field, model, vm, el, scope, detectBlur, detectChange) {
-      var validation = this._validations[field] = new SelectValidation(field, model, vm, el, scope, this, detectBlur, detectChange);
-      validation.manageElement(el);
-      return validation;
-    }
-  }, {
-    key: '_unmanageSelectValidation',
-    value: function _unmanageSelectValidation(field, el) {
-      var validation = this._validations[field];
-      if (validation) {
-        validation.unmanageElement(el);
+    validationSet.elements++;
+    validationSet.validation.manageElement(el, initial);
+    return validationSet.validation;
+  };
+
+  Validator.prototype._unmanageRadioValidation = function _unmanageRadioValidation(field, el) {
+    var validationSet = this._radioValidations[field];
+    if (validationSet) {
+      validationSet.elements--;
+      validationSet.validation.unmanageElement(el);
+      if (validationSet.elements === 0) {
         exports$1.Vue.delete(this._scope, field);
-        this._validations[field] = null;
-        delete this._validations[field];
+        this._radioValidations[field] = null;
+        delete this._radioValidations[field];
       }
     }
-  }, {
-    key: 'addGroupValidation',
-    value: function addGroupValidation(group, field) {
-      var indexOf = exports$1.Vue.util.indexOf;
+  };
 
-      var validation = this._validations[field] || this._checkboxValidations[field].validation || this._radioValidations[field].validation;
-      var validations = this._groupValidations[group];
-      if (validations) {
-        if (! ~indexOf(validations, validation)) {
-          validations.push(validation);
+  Validator.prototype._manageSelectValidation = function _manageSelectValidation(field, model, vm, el, scope, filters, initial, detectBlur, detectChange) {
+    var validation = this._validations[field] = new SelectValidation(field, model, vm, el, scope, this, filters, detectBlur, detectChange);
+    validation.manageElement(el, initial);
+    return validation;
+  };
+
+  Validator.prototype._unmanageSelectValidation = function _unmanageSelectValidation(field, el) {
+    var validation = this._validations[field];
+    if (validation) {
+      validation.unmanageElement(el);
+      exports$1.Vue.delete(this._scope, field);
+      this._validations[field] = null;
+      delete this._validations[field];
+    }
+  };
+
+  Validator.prototype._fireEvent = function _fireEvent(type) {
+    for (var _len2 = arguments.length, args = Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
+      args[_key2 - 1] = arguments[_key2];
+    }
+
+    var handler = this._events[this._getEventName(type)];
+    handler && this._dir.vm.$nextTick(function () {
+      handler.apply(null, args);
+    });
+  };
+
+  Validator.prototype._fireEvents = function _fireEvents() {
+    var scope = this._scope;
+
+    scope.touched && this._fireEvent('touched');
+    scope.dirty && this._fireEvent('dirty');
+
+    if (this._modified !== scope.modified) {
+      this._fireEvent('modified', scope.modified);
+      this._modified = scope.modified;
+    }
+
+    var valid = scope.valid;
+    this._fireEvent(valid ? 'valid' : 'invalid');
+  };
+
+  Validator.prototype._getEventName = function _getEventName(type) {
+    return this.name + ':' + type;
+  };
+
+  Validator.prototype._defineProperties = function _defineProperties(validationsGetter, targetGetter) {
+    var _this10 = this;
+
+    var bind = exports$1.Vue.util.bind;
+
+    each({
+      valid: { fn: this._defineValid, arg: validationsGetter },
+      invalid: { fn: this._defineInvalid, arg: targetGetter },
+      touched: { fn: this._defineTouched, arg: validationsGetter },
+      untouched: { fn: this._defineUntouched, arg: targetGetter },
+      modified: { fn: this._defineModified, arg: validationsGetter },
+      dirty: { fn: this._defineDirty, arg: validationsGetter },
+      pristine: { fn: this._definePristine, arg: targetGetter },
+      errors: { fn: this._defineErrors, arg: validationsGetter }
+    }, function (descriptor, name) {
+      Object.defineProperty(targetGetter(), name, {
+        enumerable: true,
+        configurable: true,
+        get: function get() {
+          return bind(descriptor.fn, _this10)(descriptor.arg);
+        }
+      });
+    });
+  };
+
+  Validator.prototype._runValidates = function _runValidates(fn, cb) {
+    var length = Object.keys(this.validations).length;
+
+    var count = 0;
+    each(this.validations, function (validation, key) {
+      fn(validation, key, function () {
+        ++count;
+        count >= length && cb();
+      });
+    });
+  };
+
+  Validator.prototype._walkValidations = function _walkValidations(validations, property, condition) {
+    var _this11 = this;
+
+    var hasOwn = exports$1.Vue.util.hasOwn;
+    var ret = condition;
+
+    each(validations, function (validation, key) {
+      if (ret === !condition) {
+        return;
+      }
+      if (hasOwn(_this11._scope, validation.field)) {
+        var target = _this11._scope[validation.field];
+        if (target && target[property] === !condition) {
+          ret = !condition;
         }
       }
-    }
-  }, {
-    key: 'removeGroupValidation',
-    value: function removeGroupValidation(group, field) {
-      var validation = this._validations[field] || this._checkboxValidations[field].validation || this._radioValidations[field].validation;
-      var validations = this._groupValidations[group];
-      if (validations) {
-        pull(validations, validation);
-      }
-    }
-  }, {
-    key: 'validate',
-    value: function validate() {
-      var _this5 = this;
+    });
 
-      each(this._validations, function (validation, key) {
-        var res = validation.validate();
-        exports$1.Vue.set(_this5._scope, key, res);
-      }, this);
+    return ret;
+  };
 
-      each(this._checkboxValidations, function (dataset, key) {
-        var res = dataset.validation.validate();
-        exports$1.Vue.set(_this5._scope, key, res);
-      }, this);
+  Validator.prototype._defineValid = function _defineValid(validationsGetter) {
+    return this._walkValidations(validationsGetter(), 'valid', true);
+  };
 
-      each(this._radioValidations, function (dataset, key) {
-        var res = dataset.validation.validate();
-        exports$1.Vue.set(_this5._scope, key, res);
-      }, this);
+  Validator.prototype._defineInvalid = function _defineInvalid(scopeGetter) {
+    return !scopeGetter().valid;
+  };
 
-      if (this._scope.touched) {
-        this._fireEvent('touched');
-      }
+  Validator.prototype._defineTouched = function _defineTouched(validationsGetter) {
+    return this._walkValidations(validationsGetter(), 'touched', false);
+  };
 
-      if (this._scope.dirty) {
-        this._fireEvent('dirty');
-      }
+  Validator.prototype._defineUntouched = function _defineUntouched(scopeGetter) {
+    return !scopeGetter().touched;
+  };
 
-      if (this._modified !== this._scope.modified) {
-        this._fireEvent('modified', this._scope.modified);
-        this._modified = this._scope.modified;
-      }
+  Validator.prototype._defineModified = function _defineModified(validationsGetter) {
+    return this._walkValidations(validationsGetter(), 'modified', false);
+  };
 
-      var valid = this._scope.valid;
-      this._fireEvent(valid ? 'valid' : 'invalid');
-    }
-  }, {
-    key: 'setupScope',
-    value: function setupScope() {
-      var _this6 = this;
+  Validator.prototype._defineDirty = function _defineDirty(validationsGetter) {
+    return this._walkValidations(validationsGetter(), 'dirty', false);
+  };
 
-      var validationsGetter = function validationsGetter() {
-        return _this6.validations;
-      };
-      var scopeGetter = function scopeGetter() {
-        return _this6._scope;
-      };
-      this._defineProperties(validationsGetter, scopeGetter);
+  Validator.prototype._definePristine = function _definePristine(scopeGetter) {
+    return !scopeGetter().dirty;
+  };
 
-      each(this._groups, function (name) {
-        var validations = _this6._groupValidations[name];
-        var group = {};
-        exports$1.Vue.set(_this6._scope, name, group);
-        _this6._defineProperties(function () {
-          return validations;
-        }, function () {
-          return group;
-        });
-      }, this);
-    }
-  }, {
-    key: 'waitFor',
-    value: function waitFor(cb) {
-      var vm = this._dir.vm;
-      var method = '$activateValidator';
+  Validator.prototype._defineErrors = function _defineErrors(validationsGetter) {
+    var _this12 = this;
 
-      this._dir.vm[method] = function () {
-        cb();
-        vm[method] = null;
-      };
-    }
-  }, {
-    key: '_fireEvent',
-    value: function _fireEvent(type) {
-      var handler = this._events[this._getEventName(type)];
+    var hasOwn = exports$1.Vue.util.hasOwn;
+    var isPlainObject = exports$1.Vue.util.isPlainObject;
+    var errors = [];
 
-      for (var _len = arguments.length, args = Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
-        args[_key - 1] = arguments[_key];
-      }
-
-      handler && handler.apply(null, args);
-    }
-  }, {
-    key: '_getEventName',
-    value: function _getEventName(type) {
-      return this.name + ':' + type;
-    }
-  }, {
-    key: '_defineProperties',
-    value: function _defineProperties(validationsGetter, targetGetter) {
-      var _this7 = this;
-
-      var bind = exports$1.Vue.util.bind;
-
-      each({
-        valid: { fn: this._defineValid, arg: validationsGetter },
-        invalid: { fn: this._defineInvalid, arg: targetGetter },
-        touched: { fn: this._defineTouched, arg: validationsGetter },
-        untouched: { fn: this._defineUntouched, arg: targetGetter },
-        modified: { fn: this._defineModified, arg: validationsGetter },
-        dirty: { fn: this._defineDirty, arg: validationsGetter },
-        pristine: { fn: this._definePristine, arg: targetGetter },
-        errors: { fn: this._defineErrors, arg: validationsGetter }
-      }, function (descriptor, name) {
-        Object.defineProperty(targetGetter(), name, {
-          enumerable: true,
-          configurable: true,
-          get: function get() {
-            return bind(descriptor.fn, _this7)(descriptor.arg);
-          }
-        });
-      }, this);
-    }
-  }, {
-    key: '_walkValidations',
-    value: function _walkValidations(validations, property, condition) {
-      var _this8 = this;
-
-      var hasOwn = exports$1.Vue.util.hasOwn;
-      var ret = condition;
-
-      each(validations, function (validation, key) {
-        if (ret === !condition) {
-          return;
-        }
-        if (hasOwn(_this8._scope, validation.field)) {
-          var target = _this8._scope[validation.field];
-          if (target && target[property] === !condition) {
-            ret = !condition;
-          }
-        }
-      }, this);
-
-      return ret;
-    }
-  }, {
-    key: '_defineValid',
-    value: function _defineValid(validationsGetter) {
-      return this._walkValidations(validationsGetter(), 'valid', true);
-    }
-  }, {
-    key: '_defineInvalid',
-    value: function _defineInvalid(scopeGetter) {
-      return !scopeGetter().valid;
-    }
-  }, {
-    key: '_defineTouched',
-    value: function _defineTouched(validationsGetter) {
-      return this._walkValidations(validationsGetter(), 'touched', false);
-    }
-  }, {
-    key: '_defineUntouched',
-    value: function _defineUntouched(scopeGetter) {
-      return !scopeGetter().touched;
-    }
-  }, {
-    key: '_defineModified',
-    value: function _defineModified(validationsGetter) {
-      return this._walkValidations(validationsGetter(), 'modified', false);
-    }
-  }, {
-    key: '_defineDirty',
-    value: function _defineDirty(validationsGetter) {
-      return this._walkValidations(validationsGetter(), 'dirty', false);
-    }
-  }, {
-    key: '_definePristine',
-    value: function _definePristine(scopeGetter) {
-      return !scopeGetter().dirty;
-    }
-  }, {
-    key: '_defineErrors',
-    value: function _defineErrors(validationsGetter) {
-      var _this9 = this;
-
-      var hasOwn = exports$1.Vue.util.hasOwn;
-      var isPlainObject = exports$1.Vue.util.isPlainObject;
-      var errors = [];
-
-      each(validationsGetter(), function (validation, key) {
-        if (hasOwn(_this9._scope, validation.field)) {
-          var target = _this9._scope[validation.field];
-          if (target && !empty(target.errors)) {
-            each(target.errors, function (err, index) {
-              var error = { field: validation.field };
-              if (isPlainObject(err)) {
-                if (err.validator) {
-                  error.validator = err.validator;
-                }
-                error.message = err.message;
-              } else if (typeof err === 'string') {
-                error.message = err;
+    each(validationsGetter(), function (validation, key) {
+      if (hasOwn(_this12._scope, validation.field)) {
+        var target = _this12._scope[validation.field];
+        if (target && !empty(target.errors)) {
+          each(target.errors, function (err, index) {
+            var error = { field: validation.field };
+            if (isPlainObject(err)) {
+              if (err.validator) {
+                error.validator = err.validator;
               }
-              errors.push(error);
-            }, _this9);
-          }
+              error.message = err.message;
+            } else if (typeof err === 'string') {
+              error.message = err;
+            }
+            errors.push(error);
+          });
         }
-      }, this);
+      }
+    });
 
-      return empty(errors) ? undefined : errors;
-    }
-  }, {
+    return empty(errors) ? undefined : errors.sort(function (a, b) {
+      return a.field < b.field ? -1 : 1;
+    });
+  };
+
+  babelHelpers.createClass(Validator, [{
     key: 'validations',
     get: function get() {
       var extend = exports$1.Vue.util.extend;
@@ -33918,11 +34464,11 @@ var Validator$1 = function () {
 
       each(this._checkboxValidations, function (dataset, key) {
         ret[key] = dataset.validation;
-      }, this);
+      });
 
       each(this._radioValidations, function (dataset, key) {
         ret[key] = dataset.validation;
-      }, this);
+      });
 
       return ret;
     }
@@ -33931,47 +34477,64 @@ var Validator$1 = function () {
 }();
 
 function Validator (Vue) {
-  var _ = Vue.util;
   var FragmentFactory = Vue.FragmentFactory;
   var vIf = Vue.directive('if');
-  var camelize = Vue.util.camelize;
+  var _Vue$util = Vue.util;
+  var isArray = _Vue$util.isArray;
+  var isPlainObject = _Vue$util.isPlainObject;
+  var createAnchor = _Vue$util.createAnchor;
+  var replace = _Vue$util.replace;
+  var extend = _Vue$util.extend;
+  var camelize = _Vue$util.camelize;
+
+  /**
+   * `validator` element directive
+   */
 
   Vue.elementDirective('validator', {
-    params: ['name', 'groups', 'lazy'],
+    params: ['name', 'groups', 'lazy', 'classes'],
 
     bind: function bind() {
-      if (!this.params.name) {
-        warn('validator element directive need to specify \'name\' param attribute: ' + '(e.g. <validator name="validator1">...</validator>)');
+      var params = this.params;
+
+      if (process.env.NODE_ENV !== 'production' && !params.name) {
+        warn('validator element requires a \'name\' attribute: ' + '(e.g. <validator name="validator1">...</validator>)');
         return;
       }
 
-      this.validatorName = '$' + camelize(this.params.name);
+      this.validatorName = '$' + camelize(params.name);
       if (!this.vm._validatorMaps) {
         throw new Error('Invalid validator management error');
       }
 
-      this.setupValidator();
-      this.setupFragment(this.params.lazy);
+      var classes = {};
+      if (isPlainObject(this.params.classes)) {
+        classes = this.params.classes;
+      }
+
+      this.setupValidator(classes);
+      this.setupFragment(params.lazy);
     },
     unbind: function unbind() {
       this.teardownFragment();
       this.teardownValidator();
     },
     getGroups: function getGroups() {
+      var params = this.params;
       var groups = [];
 
-      if (this.params.groups) {
-        if (_.isArray(this.params.groups)) {
-          groups = this.params.groups;
-        } else if (!_.isPlainObject(this.params.groups) && typeof this.params.groups === 'string') {
-          groups.push(this.params.groups);
+      if (params.groups) {
+        if (isArray(params.groups)) {
+          groups = params.groups;
+        } else if (!isPlainObject(params.groups) && typeof params.groups === 'string') {
+          groups.push(params.groups);
         }
       }
 
       return groups;
     },
-    setupValidator: function setupValidator() {
-      var validator = this.validator = new Validator$1(this.validatorName, this, this.getGroups());
+    setupValidator: function setupValidator(classes) {
+      var validator = this.validator = new Validator$1(this.validatorName, this, this.getGroups(), classes);
       validator.enableReactive();
       validator.setupScope();
       validator.registerEvents();
@@ -33988,19 +34551,17 @@ function Validator (Vue) {
     setupFragment: function setupFragment(lazy) {
       var _this = this;
 
-      this.validator.waitFor(function () {
-        _this.anchor = _.createAnchor('vue-validator');
-        _.replace(_this.el, _this.anchor);
-        _.extend(_this.vm.$options, { _validator: _this.validatorName });
-        _this.factory = new FragmentFactory(_this.vm, _this.el.innerHTML);
-        vIf.insert.call(_this);
+      var vm = this.vm;
 
-        _this.validator.validate();
+      this.validator.waitFor(function () {
+        _this.anchor = createAnchor('vue-validator');
+        replace(_this.el, _this.anchor);
+        extend(vm.$options, { _validator: _this.validatorName });
+        _this.factory = new FragmentFactory(vm, _this.el.innerHTML);
+        vIf.insert.call(_this);
       });
 
-      if (!lazy) {
-        this.vm.$activateValidator();
-      }
+      !lazy && vm.$activateValidator();
     },
     teardownFragment: function teardownFragment() {
       vIf.unbind.call(this);
@@ -34009,7 +34570,6 @@ function Validator (Vue) {
 }
 
 function ValidatorError (Vue) {
-
   /**
    * ValidatorError component
    */
@@ -34047,7 +34607,6 @@ function ValidatorError (Vue) {
 }
 
 function Errors (Vue) {
-
   var _ = Vue.util;
   var error = ValidatorError(Vue); // import ValidatorError component
 
@@ -34085,6 +34644,10 @@ function Errors (Vue) {
           return this.validation[this.group].errors;
         } else if (this.field !== null) {
           var target = this.validation[this.field];
+          if (!target.errors) {
+            return;
+          }
+
           return target.errors.map(function (error) {
             var err = { field: _this.field };
             if (_.isPlainObject(error)) {
@@ -34103,7 +34666,7 @@ function Errors (Vue) {
       }
     },
 
-    template: '<template v-for="error in errors">' + '<component :is="component" :partial="partial" :field="error.field" :validator="error.validator" :message="error.message"></component>' + '</template>',
+    template: '<template v-for="error in errors">' + '<component :is="component" :partial="partial" :field="error.field" :validator="error.validator" :message="error.message">' + '</component>' + '</template>',
 
     components: {}
   };
@@ -34141,19 +34704,21 @@ function plugin(Vue) {
 
   Override(Vue);
   Validator(Vue);
+  ValidateClass(Vue);
   Validate(Vue);
 }
 
-plugin.version = '2.0.0-alpha.22';
+plugin.version = '2.1.2';
 
 if (typeof window !== 'undefined' && window.Vue) {
   window.Vue.use(plugin);
 }
 
 module.exports = plugin;
+}).call(this,require('_process'))
 }).apply(this, arguments);
 
-},{}],206:[function(require,module,exports){
+},{"_process":167}],206:[function(require,module,exports){
 _hmr["websocket:null"].initModule("node_modules/vue/dist/vue.common.js", module);
 (function(){
 (function (process,global){
@@ -44619,7 +45184,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"./components/index.vue":219,"./components/shared/overlay.vue":254,"./components/sidebar.vue":260,"./state/actions":271,"./state/store":276,"jquery":92,"vue":206,"vue-hot-reload-api":184}],211:[function(require,module,exports){
+},{"./components/index.vue":219,"./components/shared/overlay.vue":256,"./components/sidebar.vue":262,"./state/actions":273,"./state/store":278,"jquery":92,"vue":206,"vue-hot-reload-api":184}],211:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/dashboard.vue", module);
 (function(){
 "use strict";
@@ -44688,7 +45253,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"./widgets/multisync.vue":264,"./widgets/player.vue":265,"./widgets/status.vue":266,"./widgets/weather.vue":267,"moment":162,"vue":206,"vue-hot-reload-api":184}],212:[function(require,module,exports){
+},{"./widgets/multisync.vue":266,"./widgets/player.vue":267,"./widgets/status.vue":268,"./widgets/weather.vue":269,"moment":162,"vue":206,"vue-hot-reload-api":184}],212:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/effects.vue", module);
 (function(){
 "use strict";
@@ -44813,7 +45378,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"./shared/Tab.vue":243,"./shared/Tabset.vue":244,"./shared/filelist.vue":250,"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],215:[function(require,module,exports){
+},{"./shared/Tab.vue":245,"./shared/Tabset.vue":246,"./shared/filelist.vue":252,"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],215:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/footer.vue", module);
 (function(){
 "use strict";
@@ -44938,7 +45503,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../shared/control-buttons.vue":247,"../shared/header-menu.vue":251,"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],218:[function(require,module,exports){
+},{"../shared/control-buttons.vue":249,"../shared/header-menu.vue":253,"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],218:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/header/settings.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".settings-header {\n  -webkit-flex-flow: wrap;\n      -ms-flex-flow: wrap;\n          flex-flow: wrap;\n  padding: 20px 20px 0;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n  .settings-header .settings-menu {\n    width: 100%;\n    padding: 10px 0 0; }\n    .settings-header .settings-menu a {\n      display: block;\n      text-transform: uppercase;\n      letter-spacing: 0.1em;\n      font-size: 11px;\n      border-bottom: 3px solid transparent;\n      padding: 3px 5px;\n      margin-bottom: -1px; }\n      .settings-header .settings-menu a.active {\n        font-weight: 600;\n        border-color: #F04124; }\n  @media (min-width: 667px) {\n    .settings-header {\n      -webkit-flex-direction: row;\n          -ms-flex-direction: row;\n              flex-direction: row; } }\n")
@@ -44985,7 +45550,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../shared/control-buttons.vue":247,"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],219:[function(require,module,exports){
+},{"../shared/control-buttons.vue":249,"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],219:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/index.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("#main-wrapper {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n")
@@ -45033,7 +45598,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"./footer.vue":215,"./header/index.vue":217,"./shared/alert-bar.vue":245,"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],220:[function(require,module,exports){
+},{"./footer.vue":215,"./header/index.vue":217,"./shared/alert-bar.vue":247,"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],220:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/not-found.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".error-404 {\n  text-align: center; }\n")
@@ -45135,7 +45700,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../mixins/outputMixin":269,"../shared/input.vue":252,"../shared/switch.vue":257,"./pdmx.vue":227,"vue":206,"vue-hot-reload-api":184}],222:[function(require,module,exports){
+},{"../../mixins/outputMixin":271,"../shared/input.vue":254,"../shared/switch.vue":259,"./pdmx.vue":229,"vue":206,"vue-hot-reload-api":184}],222:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/outputs/e131.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".universe-list .form-control {\n  padding: .25rem .50rem;\n  line-height: 1.3; }\n\n.universe-list .c-select {\n  padding: .22rem 1.5rem .23rem .50rem; }\n\n.universe-list .universe-index {\n  min-width: 50px;\n  width: 50px;\n  text-align: center; }\n\n.universe-list .universe-active {\n  min-width: 50px;\n  width: 50px;\n  text-align: center; }\n\n.universe-list .universe-number {\n  min-width: 80px;\n  width: 80px;\n  text-align: center; }\n\n.universe-list .universe-start {\n  min-width: 80px;\n  width: 80px;\n  text-align: center; }\n\n.universe-list .universe-size {\n  min-width: 80px;\n  width: 80px;\n  text-align: center; }\n\n.universe-list .universe-type {\n  min-width: 115px;\n  width: 115px;\n  text-align: center; }\n\n.universe-list .universe-address {\n  min-width: 150px;\n  width: 150px;\n  text-align: center; }\n\n.universe-list .universe-action {\n  text-align: center; }\n\n.enable-output small, .enable-output .label-switch {\n  display: inline-block;\n  margin-bottom: 0;\n  vertical-align: middle; }\n")
@@ -45254,7 +45819,126 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../mixins/outputMixin":269,"../../state/actions":271,"../shared/checkbox.vue":246,"../shared/dropdown-select.vue":248,"../shared/input.vue":252,"../shared/switch.vue":257,"./universe.vue":228,"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],223:[function(require,module,exports){
+},{"../../mixins/outputMixin":271,"../../state/actions":273,"../shared/checkbox.vue":248,"../shared/dropdown-select.vue":250,"../shared/input.vue":254,"../shared/switch.vue":259,"./universe.vue":230,"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],223:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/components/outputs/fpd-output.vue", module);
+(function(){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _switch = require('../shared/switch.vue');
+
+var _switch2 = _interopRequireDefault(_switch);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.default = {
+    components: { Switch: _switch2.default },
+    props: ['output', 'index'],
+    data: function data() {
+        return {};
+    },
+    ready: function ready() {},
+
+    methods: {
+        removeOutput: function removeOutput() {
+            this.$dispatch('remove-output', this.index);
+        }
+    },
+    events: {}
+
+};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <tr class=\"fpd output\" :class=\"{ 'disabled' : !output.active }\" transition=\"fade\">\n        <td class=\"output-active text-xs-center\">\n            <switch :model.sync=\"output.active\" size=\"small\"></switch>\n\n        </td>\n        <td class=\"output-index text-xs-center\">{{ index + 1 }}</td>\n         <td class=\"output-type text-xs-center\">\n            <select class=\"c-select transparent\" v-model=\"output.type\">\n                <option value=\"pixelnet\">Pixelnet</option>\n                <option value=\"dmx\">DMX</option>\n            </select>\n        </td>\n        <td class=\"output-start text-xs-center\">\n            <input type=\"number\" v-model=\"output.start\" class=\"form-control transparent text-xs-center\" number=\"\">\n        </td>\n          <td class=\"output-count text-xs-center\">\n            <input type=\"number\" v-model=\"output.count\" class=\"form-control transparent text-xs-center\" number=\"\">\n        </td>\n        <td class=\"output-label text-xs-center\"><input type=\"text\" v-model=\"output.label\" class=\"form-control transparent\"></td>\n        <td class=\"output-action text-xs-center p-r-1\">\n            <button type=\"button\" class=\"close\" aria-label=\"Close\" @click=\"removeOutput\">\n                <span aria-hidden=\"true\">×</span>\n            </button>\n        </td>\n    </tr>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/outputs/fpd-output.vue"
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+}).apply(this, arguments);
+
+},{"../shared/switch.vue":259,"vue":206,"vue-hot-reload-api":184}],224:[function(require,module,exports){
+_hmr["websocket:null"].initModule("resources/assets/js/components/outputs/fpd.vue", module);
+(function(){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _switch = require("../shared/switch.vue");
+
+var _switch2 = _interopRequireDefault(_switch);
+
+var _fpdOutput = require("./fpd-output.vue");
+
+var _fpdOutput2 = _interopRequireDefault(_fpdOutput);
+
+var _input = require("../shared/input.vue");
+
+var _input2 = _interopRequireDefault(_input);
+
+var _outputMixin = require("../../mixins/outputMixin");
+
+var _outputMixin2 = _interopRequireDefault(_outputMixin);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.default = {
+    mixins: [_outputMixin2.default],
+    components: { Switch: _switch2.default, Output: _fpdOutput2.default, FormInput: _input2.default },
+    props: [],
+    data: function data() {
+        return {
+            incrementStart: true,
+            defStart: 1,
+            defType: 'pixelnet',
+            defCount: 512,
+            outputs: []
+        };
+    },
+    ready: function ready() {},
+
+    methods: {
+        assembleNewOutput: function assembleNewOutput(last) {
+
+            return {
+                active: true,
+                start: this.incrementStart && last ? last.start + last.count : 1,
+                count: this.defCount,
+                type: this.defType,
+                label: null
+            };
+        }
+    },
+    computed: {},
+    events: {}
+
+};
+if (module.exports.__esModule) module.exports = module.exports.default
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n    <div id=\"fpd-settings\" class=\"outputs-container container-fluid box\">\n      <div class=\"box-header\">\n         <h4 class=\"box-title\"><span class=\"semi-bold\">FPD</span> Outputs</h4>\n     </div>\n     <div class=\"box-tool\">\n         <div class=\"enable-output\">\n           <small>Enable Outputs </small>\n           <switch :model.sync=\"enable_pdmx\"></switch>\n         </div>\n     </div>\n      <div class=\"box-body\">\n\n        <form>\n            <div class=\"output-actions\">\n                <div class=\"filter-row align-end\">\n                    <div class=\"filter text-xs-center\">\n                        <span>Active</span>\n                        <switch :model.sync=\"defActive\" size=\"small\"></switch>\n                    </div>\n                     <div class=\"filter text-xs-center\">\n                        <span>Increment Start</span>\n                        <switch :model.sync=\"incrementStart\" size=\"small\"></switch>\n                    </div>\n                </div>\n                <div class=\"filter-row\">\n                    <div class=\"filter\">\n                         <form-input :model.sync=\"defStart\" type=\"number\" label=\"Start\" size=\"sm\" state-icon=\"\">\n                        </form-input>\n                    </div>\n                    <div class=\"filter\">\n                         <form-input :model.sync=\"defCount\" type=\"number\" label=\"Channel Count\" size=\"sm\" state-icon=\"\">\n                        </form-input>\n                    </div>\n                    <div class=\"filter\">\n                        <div class=\"form-group\">\n                            <label for=\"\" class=\"control-label\">Type</label>\n                            <div class=\"input\">\n                                <select v-model=\"defType\" class=\"c-select\" style=\"padding-top: 0.25rem; padding-bottom: 0.275rem;\">\n                                    <option value=\"pixelnet\">Pixelnet</option>\n                                    <option value=\"dmx\">DMX</option>\n                                </select>\n                            </div>\n                        </div>\n                    </div>\n\n                    <div class=\"filter\">\n                         <form-input :model.sync=\"quantity\" type=\"number\" label=\"# of Outputs\" size=\"sm\" state-icon=\"\">\n                        </form-input>\n                    </div>\n                    <div class=\"filter\">\n                        <button @click=\"addOutput\" type=\"button\" class=\"button btn-primary pull-xs-right m-a-0\">{{ addOutputLabel }}</button>\n                    </div>\n                </div>\n\n            </div>\n             <div class=\"pdmx-list output-list table-responsive\">\n                    <table class=\"table table-sm table-hover\">\n                        <thead>\n                        <tr>\n                            <th class=\"text-xs-center output-active\"></th>\n                            <th class=\"text-xs-center output-index\">#</th>\n                            <th class=\"text-xs-center output-number\">Type</th>\n                            <th class=\"text-xs-center output-start\">Start</th>\n                            <th class=\"text-xs-center output-count\">Count</th>\n                            <th class=\"text-xs-center output-label\">Label</th>\n                            <th class=\"text-xs-center output-action p-r-1\" style=\"width: 45px\"></th>\n                        </tr>\n                        </thead>\n                        <tbody>\n                            <tr is=\"output\" v-for=\"(index, output) in outputs\" :index=\"index\" :output.sync=\"output\"></tr>\n                        </tbody>\n                    </table>\n                </div>\n        </form>\n\n    </div>\n    </div>\n"
+if (module.hot) {(function () {  module.hot.accept()
+  var hotAPI = require("vue-hot-reload-api")
+  hotAPI.install(require("vue"), true)
+  if (!hotAPI.compatible) return
+  var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/outputs/fpd.vue"
+  if (!module.hot.data) {
+    hotAPI.createRecord(id, module.exports)
+  } else {
+    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+  }
+})()}
+}).apply(this, arguments);
+
+},{"../../mixins/outputMixin":271,"../shared/input.vue":254,"../shared/switch.vue":259,"./fpd-output.vue":223,"vue":206,"vue-hot-reload-api":184}],225:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/outputs/index.vue", module);
 (function(){
 "use strict";
@@ -45302,7 +45986,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../state/actions":271,"vue":206,"vue-hot-reload-api":184}],224:[function(require,module,exports){
+},{"../../state/actions":273,"vue":206,"vue-hot-reload-api":184}],226:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/outputs/led-panel.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".led-panel {\n  position: relative;\n  background-color: #eaeaea;\n  border: 1px solid #ddd;\n  margin-bottom: 5px;\n  background-repeat: no-repeat;\n  background-position: center;\n  background-size: 15%; }\n  .led-panel:before {\n    display: block;\n    content: \"\";\n    width: 100%;\n    padding-top: 50%; }\n  .led-panel.left-orient:before, .led-panel.right-orient:before {\n    padding-top: 150%; }\n  .led-panel.left-orient {\n    background-image: url(\"/img/arrow-left.svg\"); }\n  .led-panel.right-orient {\n    background-image: url(\"/img/arrow-right.svg\"); }\n  .led-panel.up-orient {\n    background-image: url(\"/img/arrow-up.svg\"); }\n  .led-panel.down-orient {\n    background-image: url(\"/img/arrow-down.svg\"); }\n  .led-panel.panel32:before {\n    padding-top: 100%; }\n  .led-panel-content {\n    position: absolute;\n    top: 0;\n    left: 0;\n    right: 0;\n    bottom: 0;\n    padding: 10px;\n    overflow: hidden;\n    text-align: center; }\n  .led-panel .panel-info {\n    overflow: hidden;\n    line-height: 1.2;\n    text-transform: uppercase;\n    font-size: 12px;\n    color: #607179;\n    display: inline-block;\n    text-align: center;\n    margin: 2px 5px;\n    font-weight: bold; }\n    .led-panel .panel-info-label {\n      color: #788B94;\n      display: block;\n      font-size: 10px;\n      font-weight: normal; }\n  .led-panel.panel-col-2 {\n    width: calc(99.99% * 1/2 - (3px - 3px * 1/2));\n    height: calc(99.99% * 1/2 - (3px - 3px * 1/2)); }\n  .led-panel.panel-col-2:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-2:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-2:nth-child(2n) {\n  margin-right: 0; }\n  .led-panel.panel-col-2:nth-child(2n + 1) {\n  clear: left; }\n  .led-panel.panel-col-2:nth-last-child(-n + 2) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-3 {\n    width: calc(99.99% * 1/3 - (3px - 3px * 1/3));\n    height: calc(99.99% * 1/3 - (3px - 3px * 1/3)); }\n  .led-panel.panel-col-3:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-3:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-3:nth-child(3n) {\n  margin-right: 0; }\n  .led-panel.panel-col-3:nth-child(3n + 1) {\n  clear: left; }\n  .led-panel.panel-col-3:nth-last-child(-n + 3) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-4 {\n    width: calc(99.99% * 1/4 - (3px - 3px * 1/4));\n    height: calc(99.99% * 1/4 - (3px - 3px * 1/4)); }\n  .led-panel.panel-col-4:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-4:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-4:nth-child(4n) {\n  margin-right: 0; }\n  .led-panel.panel-col-4:nth-child(4n + 1) {\n  clear: left; }\n  .led-panel.panel-col-4:nth-last-child(-n + 4) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-5 {\n    width: calc(99.99% * 1/5 - (3px - 3px * 1/5));\n    height: calc(99.99% * 1/5 - (3px - 3px * 1/5)); }\n  .led-panel.panel-col-5:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-5:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-5:nth-child(5n) {\n  margin-right: 0; }\n  .led-panel.panel-col-5:nth-child(5n + 1) {\n  clear: left; }\n  .led-panel.panel-col-5:nth-last-child(-n + 5) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-6 {\n    width: calc(99.99% * 1/6 - (3px - 3px * 1/6));\n    height: calc(99.99% * 1/6 - (3px - 3px * 1/6)); }\n  .led-panel.panel-col-6:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-6:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-6:nth-child(6n) {\n  margin-right: 0; }\n  .led-panel.panel-col-6:nth-child(6n + 1) {\n  clear: left; }\n  .led-panel.panel-col-6:nth-last-child(-n + 6) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-7 {\n    width: calc(99.99% * 1/7 - (3px - 3px * 1/7));\n    height: calc(99.99% * 1/7 - (3px - 3px * 1/7)); }\n  .led-panel.panel-col-7:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-7:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-7:nth-child(7n) {\n  margin-right: 0; }\n  .led-panel.panel-col-7:nth-child(7n + 1) {\n  clear: left; }\n  .led-panel.panel-col-7:nth-last-child(-n + 7) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-8 {\n    width: calc(99.99% * 1/8 - (3px - 3px * 1/8));\n    height: calc(99.99% * 1/8 - (3px - 3px * 1/8)); }\n  .led-panel.panel-col-8:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-8:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-8:nth-child(8n) {\n  margin-right: 0; }\n  .led-panel.panel-col-8:nth-child(8n + 1) {\n  clear: left; }\n  .led-panel.panel-col-8:nth-last-child(-n + 8) {\n  margin-bottom: 0; }\n  .led-panel.panel-col-9 {\n    width: calc(99.99% * 1/9 - (3px - 3px * 1/9));\n    height: calc(99.99% * 1/9 - (3px - 3px * 1/9)); }\n  .led-panel.panel-col-9:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-9:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-9:nth-child(9n) {\n  margin-right: 0; }\n  .led-panel.panel-col-9:nth-child(9n + 1) {\n  clear: left; }\n  .led-panel.panel-col-9:nth-last-child(-n + 9) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-9 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n  .led-panel.panel-col-10 {\n    width: calc(99.99% * 1/10 - (3px - 3px * 1/10));\n    height: calc(99.99% * 1/10 - (3px - 3px * 1/10)); }\n  .led-panel.panel-col-10:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-10:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-10:nth-child(10n) {\n  margin-right: 0; }\n  .led-panel.panel-col-10:nth-child(10n + 1) {\n  clear: left; }\n  .led-panel.panel-col-10:nth-last-child(-n + 10) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-10 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n  .led-panel.panel-col-11 {\n    width: calc(99.99% * 1/11 - (3px - 3px * 1/11));\n    height: calc(99.99% * 1/11 - (3px - 3px * 1/11)); }\n  .led-panel.panel-col-11:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-11:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-11:nth-child(11n) {\n  margin-right: 0; }\n  .led-panel.panel-col-11:nth-child(11n + 1) {\n  clear: left; }\n  .led-panel.panel-col-11:nth-last-child(-n + 11) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-11 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-11 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-11 .led-panel-content .panel-info.output, .led-panel.panel-col-11 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-12 {\n    width: calc(99.99% * 1/12 - (3px - 3px * 1/12));\n    height: calc(99.99% * 1/12 - (3px - 3px * 1/12)); }\n  .led-panel.panel-col-12:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-12:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-12:nth-child(12n) {\n  margin-right: 0; }\n  .led-panel.panel-col-12:nth-child(12n + 1) {\n  clear: left; }\n  .led-panel.panel-col-12:nth-last-child(-n + 12) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-12 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-12 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-12 .led-panel-content .panel-info.output, .led-panel.panel-col-12 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-13 {\n    width: calc(99.99% * 1/13 - (3px - 3px * 1/13));\n    height: calc(99.99% * 1/13 - (3px - 3px * 1/13)); }\n  .led-panel.panel-col-13:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-13:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-13:nth-child(13n) {\n  margin-right: 0; }\n  .led-panel.panel-col-13:nth-child(13n + 1) {\n  clear: left; }\n  .led-panel.panel-col-13:nth-last-child(-n + 13) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-13 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-13 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-13 .led-panel-content .panel-info.output, .led-panel.panel-col-13 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-14 {\n    width: calc(99.99% * 1/14 - (3px - 3px * 1/14));\n    height: calc(99.99% * 1/14 - (3px - 3px * 1/14)); }\n  .led-panel.panel-col-14:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-14:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-14:nth-child(14n) {\n  margin-right: 0; }\n  .led-panel.panel-col-14:nth-child(14n + 1) {\n  clear: left; }\n  .led-panel.panel-col-14:nth-last-child(-n + 14) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-14 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-14 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-14 .led-panel-content .panel-info.output, .led-panel.panel-col-14 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-15 {\n    width: calc(99.99% * 1/15 - (3px - 3px * 1/15));\n    height: calc(99.99% * 1/15 - (3px - 3px * 1/15)); }\n  .led-panel.panel-col-15:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-15:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-15:nth-child(15n) {\n  margin-right: 0; }\n  .led-panel.panel-col-15:nth-child(15n + 1) {\n  clear: left; }\n  .led-panel.panel-col-15:nth-last-child(-n + 15) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-15 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-15 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-15 .led-panel-content .panel-info.output, .led-panel.panel-col-15 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-16 {\n    width: calc(99.99% * 1/16 - (3px - 3px * 1/16));\n    height: calc(99.99% * 1/16 - (3px - 3px * 1/16)); }\n  .led-panel.panel-col-16:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-16:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-16:nth-child(16n) {\n  margin-right: 0; }\n  .led-panel.panel-col-16:nth-child(16n + 1) {\n  clear: left; }\n  .led-panel.panel-col-16:nth-last-child(-n + 16) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-16 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-16 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-16 .led-panel-content .panel-info.output, .led-panel.panel-col-16 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-17 {\n    width: calc(99.99% * 1/17 - (3px - 3px * 1/17));\n    height: calc(99.99% * 1/17 - (3px - 3px * 1/17)); }\n  .led-panel.panel-col-17:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-17:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-17:nth-child(17n) {\n  margin-right: 0; }\n  .led-panel.panel-col-17:nth-child(17n + 1) {\n  clear: left; }\n  .led-panel.panel-col-17:nth-last-child(-n + 17) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-17 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-17 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-17 .led-panel-content .panel-info.output, .led-panel.panel-col-17 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-18 {\n    width: calc(99.99% * 1/18 - (3px - 3px * 1/18));\n    height: calc(99.99% * 1/18 - (3px - 3px * 1/18)); }\n  .led-panel.panel-col-18:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-18:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-18:nth-child(18n) {\n  margin-right: 0; }\n  .led-panel.panel-col-18:nth-child(18n + 1) {\n  clear: left; }\n  .led-panel.panel-col-18:nth-last-child(-n + 18) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-18 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-18 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-18 .led-panel-content .panel-info.output, .led-panel.panel-col-18 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-19 {\n    width: calc(99.99% * 1/19 - (3px - 3px * 1/19));\n    height: calc(99.99% * 1/19 - (3px - 3px * 1/19)); }\n  .led-panel.panel-col-19:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-19:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-19:nth-child(19n) {\n  margin-right: 0; }\n  .led-panel.panel-col-19:nth-child(19n + 1) {\n  clear: left; }\n  .led-panel.panel-col-19:nth-last-child(-n + 19) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-19 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-19 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-19 .led-panel-content .panel-info.output, .led-panel.panel-col-19 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-20 {\n    width: calc(99.99% * 1/20 - (3px - 3px * 1/20));\n    height: calc(99.99% * 1/20 - (3px - 3px * 1/20)); }\n  .led-panel.panel-col-20:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-20:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-20:nth-child(20n) {\n  margin-right: 0; }\n  .led-panel.panel-col-20:nth-child(20n + 1) {\n  clear: left; }\n  .led-panel.panel-col-20:nth-last-child(-n + 20) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-20 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-20 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-20 .led-panel-content .panel-info.output, .led-panel.panel-col-20 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-21 {\n    width: calc(99.99% * 1/21 - (3px - 3px * 1/21));\n    height: calc(99.99% * 1/21 - (3px - 3px * 1/21)); }\n  .led-panel.panel-col-21:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-21:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-21:nth-child(21n) {\n  margin-right: 0; }\n  .led-panel.panel-col-21:nth-child(21n + 1) {\n  clear: left; }\n  .led-panel.panel-col-21:nth-last-child(-n + 21) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-21 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-21 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-21 .led-panel-content .panel-info.output, .led-panel.panel-col-21 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-22 {\n    width: calc(99.99% * 1/22 - (3px - 3px * 1/22));\n    height: calc(99.99% * 1/22 - (3px - 3px * 1/22)); }\n  .led-panel.panel-col-22:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-22:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-22:nth-child(22n) {\n  margin-right: 0; }\n  .led-panel.panel-col-22:nth-child(22n + 1) {\n  clear: left; }\n  .led-panel.panel-col-22:nth-last-child(-n + 22) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-22 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-22 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-22 .led-panel-content .panel-info.output, .led-panel.panel-col-22 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-23 {\n    width: calc(99.99% * 1/23 - (3px - 3px * 1/23));\n    height: calc(99.99% * 1/23 - (3px - 3px * 1/23)); }\n  .led-panel.panel-col-23:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-23:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-23:nth-child(23n) {\n  margin-right: 0; }\n  .led-panel.panel-col-23:nth-child(23n + 1) {\n  clear: left; }\n  .led-panel.panel-col-23:nth-last-child(-n + 23) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-23 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-23 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-23 .led-panel-content .panel-info.output, .led-panel.panel-col-23 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-24 {\n    width: calc(99.99% * 1/24 - (3px - 3px * 1/24));\n    height: calc(99.99% * 1/24 - (3px - 3px * 1/24)); }\n  .led-panel.panel-col-24:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-24:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-24:nth-child(24n) {\n  margin-right: 0; }\n  .led-panel.panel-col-24:nth-child(24n + 1) {\n  clear: left; }\n  .led-panel.panel-col-24:nth-last-child(-n + 24) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-24 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-24 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-24 .led-panel-content .panel-info.output, .led-panel.panel-col-24 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-25 {\n    width: calc(99.99% * 1/25 - (3px - 3px * 1/25));\n    height: calc(99.99% * 1/25 - (3px - 3px * 1/25)); }\n  .led-panel.panel-col-25:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-25:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-25:nth-child(25n) {\n  margin-right: 0; }\n  .led-panel.panel-col-25:nth-child(25n + 1) {\n  clear: left; }\n  .led-panel.panel-col-25:nth-last-child(-n + 25) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-25 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-25 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-25 .led-panel-content .panel-info.output, .led-panel.panel-col-25 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-26 {\n    width: calc(99.99% * 1/26 - (3px - 3px * 1/26));\n    height: calc(99.99% * 1/26 - (3px - 3px * 1/26)); }\n  .led-panel.panel-col-26:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-26:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-26:nth-child(26n) {\n  margin-right: 0; }\n  .led-panel.panel-col-26:nth-child(26n + 1) {\n  clear: left; }\n  .led-panel.panel-col-26:nth-last-child(-n + 26) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-26 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-26 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-26 .led-panel-content .panel-info.output, .led-panel.panel-col-26 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-27 {\n    width: calc(99.99% * 1/27 - (3px - 3px * 1/27));\n    height: calc(99.99% * 1/27 - (3px - 3px * 1/27)); }\n  .led-panel.panel-col-27:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-27:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-27:nth-child(27n) {\n  margin-right: 0; }\n  .led-panel.panel-col-27:nth-child(27n + 1) {\n  clear: left; }\n  .led-panel.panel-col-27:nth-last-child(-n + 27) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-27 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-27 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-27 .led-panel-content .panel-info.output, .led-panel.panel-col-27 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-28 {\n    width: calc(99.99% * 1/28 - (3px - 3px * 1/28));\n    height: calc(99.99% * 1/28 - (3px - 3px * 1/28)); }\n  .led-panel.panel-col-28:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-28:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-28:nth-child(28n) {\n  margin-right: 0; }\n  .led-panel.panel-col-28:nth-child(28n + 1) {\n  clear: left; }\n  .led-panel.panel-col-28:nth-last-child(-n + 28) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-28 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-28 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-28 .led-panel-content .panel-info.output, .led-panel.panel-col-28 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-29 {\n    width: calc(99.99% * 1/29 - (3px - 3px * 1/29));\n    height: calc(99.99% * 1/29 - (3px - 3px * 1/29)); }\n  .led-panel.panel-col-29:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-29:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-29:nth-child(29n) {\n  margin-right: 0; }\n  .led-panel.panel-col-29:nth-child(29n + 1) {\n  clear: left; }\n  .led-panel.panel-col-29:nth-last-child(-n + 29) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-29 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-29 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-29 .led-panel-content .panel-info.output, .led-panel.panel-col-29 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-30 {\n    width: calc(99.99% * 1/30 - (3px - 3px * 1/30));\n    height: calc(99.99% * 1/30 - (3px - 3px * 1/30)); }\n  .led-panel.panel-col-30:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-30:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-30:nth-child(30n) {\n  margin-right: 0; }\n  .led-panel.panel-col-30:nth-child(30n + 1) {\n  clear: left; }\n  .led-panel.panel-col-30:nth-last-child(-n + 30) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-30 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-30 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-30 .led-panel-content .panel-info.output, .led-panel.panel-col-30 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-31 {\n    width: calc(99.99% * 1/31 - (3px - 3px * 1/31));\n    height: calc(99.99% * 1/31 - (3px - 3px * 1/31)); }\n  .led-panel.panel-col-31:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-31:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-31:nth-child(31n) {\n  margin-right: 0; }\n  .led-panel.panel-col-31:nth-child(31n + 1) {\n  clear: left; }\n  .led-panel.panel-col-31:nth-last-child(-n + 31) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-31 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-31 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-31 .led-panel-content .panel-info.output, .led-panel.panel-col-31 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-32 {\n    width: calc(99.99% * 1/32 - (3px - 3px * 1/32));\n    height: calc(99.99% * 1/32 - (3px - 3px * 1/32)); }\n  .led-panel.panel-col-32:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-32:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-32:nth-child(32n) {\n  margin-right: 0; }\n  .led-panel.panel-col-32:nth-child(32n + 1) {\n  clear: left; }\n  .led-panel.panel-col-32:nth-last-child(-n + 32) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-32 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-32 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-32 .led-panel-content .panel-info.output, .led-panel.panel-col-32 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-33 {\n    width: calc(99.99% * 1/33 - (3px - 3px * 1/33));\n    height: calc(99.99% * 1/33 - (3px - 3px * 1/33)); }\n  .led-panel.panel-col-33:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-33:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-33:nth-child(33n) {\n  margin-right: 0; }\n  .led-panel.panel-col-33:nth-child(33n + 1) {\n  clear: left; }\n  .led-panel.panel-col-33:nth-last-child(-n + 33) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-33 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-33 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-33 .led-panel-content .panel-info.output, .led-panel.panel-col-33 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-34 {\n    width: calc(99.99% * 1/34 - (3px - 3px * 1/34));\n    height: calc(99.99% * 1/34 - (3px - 3px * 1/34)); }\n  .led-panel.panel-col-34:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-34:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-34:nth-child(34n) {\n  margin-right: 0; }\n  .led-panel.panel-col-34:nth-child(34n + 1) {\n  clear: left; }\n  .led-panel.panel-col-34:nth-last-child(-n + 34) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-34 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-34 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-34 .led-panel-content .panel-info.output, .led-panel.panel-col-34 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-35 {\n    width: calc(99.99% * 1/35 - (3px - 3px * 1/35));\n    height: calc(99.99% * 1/35 - (3px - 3px * 1/35)); }\n  .led-panel.panel-col-35:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-35:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-35:nth-child(35n) {\n  margin-right: 0; }\n  .led-panel.panel-col-35:nth-child(35n + 1) {\n  clear: left; }\n  .led-panel.panel-col-35:nth-last-child(-n + 35) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-35 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-35 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-35 .led-panel-content .panel-info.output, .led-panel.panel-col-35 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-36 {\n    width: calc(99.99% * 1/36 - (3px - 3px * 1/36));\n    height: calc(99.99% * 1/36 - (3px - 3px * 1/36)); }\n  .led-panel.panel-col-36:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-36:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-36:nth-child(36n) {\n  margin-right: 0; }\n  .led-panel.panel-col-36:nth-child(36n + 1) {\n  clear: left; }\n  .led-panel.panel-col-36:nth-last-child(-n + 36) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-36 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-36 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-36 .led-panel-content .panel-info.output, .led-panel.panel-col-36 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-37 {\n    width: calc(99.99% * 1/37 - (3px - 3px * 1/37));\n    height: calc(99.99% * 1/37 - (3px - 3px * 1/37)); }\n  .led-panel.panel-col-37:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-37:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-37:nth-child(37n) {\n  margin-right: 0; }\n  .led-panel.panel-col-37:nth-child(37n + 1) {\n  clear: left; }\n  .led-panel.panel-col-37:nth-last-child(-n + 37) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-37 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-37 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-37 .led-panel-content .panel-info.output, .led-panel.panel-col-37 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-38 {\n    width: calc(99.99% * 1/38 - (3px - 3px * 1/38));\n    height: calc(99.99% * 1/38 - (3px - 3px * 1/38)); }\n  .led-panel.panel-col-38:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-38:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-38:nth-child(38n) {\n  margin-right: 0; }\n  .led-panel.panel-col-38:nth-child(38n + 1) {\n  clear: left; }\n  .led-panel.panel-col-38:nth-last-child(-n + 38) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-38 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-38 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-38 .led-panel-content .panel-info.output, .led-panel.panel-col-38 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-39 {\n    width: calc(99.99% * 1/39 - (3px - 3px * 1/39));\n    height: calc(99.99% * 1/39 - (3px - 3px * 1/39)); }\n  .led-panel.panel-col-39:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-39:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-39:nth-child(39n) {\n  margin-right: 0; }\n  .led-panel.panel-col-39:nth-child(39n + 1) {\n  clear: left; }\n  .led-panel.panel-col-39:nth-last-child(-n + 39) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-39 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-39 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-39 .led-panel-content .panel-info.output, .led-panel.panel-col-39 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-40 {\n    width: calc(99.99% * 1/40 - (3px - 3px * 1/40));\n    height: calc(99.99% * 1/40 - (3px - 3px * 1/40)); }\n  .led-panel.panel-col-40:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-40:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-40:nth-child(40n) {\n  margin-right: 0; }\n  .led-panel.panel-col-40:nth-child(40n + 1) {\n  clear: left; }\n  .led-panel.panel-col-40:nth-last-child(-n + 40) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-40 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-40 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-40 .led-panel-content .panel-info.output, .led-panel.panel-col-40 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-41 {\n    width: calc(99.99% * 1/41 - (3px - 3px * 1/41));\n    height: calc(99.99% * 1/41 - (3px - 3px * 1/41)); }\n  .led-panel.panel-col-41:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-41:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-41:nth-child(41n) {\n  margin-right: 0; }\n  .led-panel.panel-col-41:nth-child(41n + 1) {\n  clear: left; }\n  .led-panel.panel-col-41:nth-last-child(-n + 41) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-41 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-41 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-41 .led-panel-content .panel-info.output, .led-panel.panel-col-41 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-42 {\n    width: calc(99.99% * 1/42 - (3px - 3px * 1/42));\n    height: calc(99.99% * 1/42 - (3px - 3px * 1/42)); }\n  .led-panel.panel-col-42:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-42:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-42:nth-child(42n) {\n  margin-right: 0; }\n  .led-panel.panel-col-42:nth-child(42n + 1) {\n  clear: left; }\n  .led-panel.panel-col-42:nth-last-child(-n + 42) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-42 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-42 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-42 .led-panel-content .panel-info.output, .led-panel.panel-col-42 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-43 {\n    width: calc(99.99% * 1/43 - (3px - 3px * 1/43));\n    height: calc(99.99% * 1/43 - (3px - 3px * 1/43)); }\n  .led-panel.panel-col-43:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-43:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-43:nth-child(43n) {\n  margin-right: 0; }\n  .led-panel.panel-col-43:nth-child(43n + 1) {\n  clear: left; }\n  .led-panel.panel-col-43:nth-last-child(-n + 43) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-43 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-43 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-43 .led-panel-content .panel-info.output, .led-panel.panel-col-43 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-44 {\n    width: calc(99.99% * 1/44 - (3px - 3px * 1/44));\n    height: calc(99.99% * 1/44 - (3px - 3px * 1/44)); }\n  .led-panel.panel-col-44:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-44:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-44:nth-child(44n) {\n  margin-right: 0; }\n  .led-panel.panel-col-44:nth-child(44n + 1) {\n  clear: left; }\n  .led-panel.panel-col-44:nth-last-child(-n + 44) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-44 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-44 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-44 .led-panel-content .panel-info.output, .led-panel.panel-col-44 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-45 {\n    width: calc(99.99% * 1/45 - (3px - 3px * 1/45));\n    height: calc(99.99% * 1/45 - (3px - 3px * 1/45)); }\n  .led-panel.panel-col-45:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-45:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-45:nth-child(45n) {\n  margin-right: 0; }\n  .led-panel.panel-col-45:nth-child(45n + 1) {\n  clear: left; }\n  .led-panel.panel-col-45:nth-last-child(-n + 45) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-45 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-45 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-45 .led-panel-content .panel-info.output, .led-panel.panel-col-45 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-46 {\n    width: calc(99.99% * 1/46 - (3px - 3px * 1/46));\n    height: calc(99.99% * 1/46 - (3px - 3px * 1/46)); }\n  .led-panel.panel-col-46:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-46:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-46:nth-child(46n) {\n  margin-right: 0; }\n  .led-panel.panel-col-46:nth-child(46n + 1) {\n  clear: left; }\n  .led-panel.panel-col-46:nth-last-child(-n + 46) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-46 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-46 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-46 .led-panel-content .panel-info.output, .led-panel.panel-col-46 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-47 {\n    width: calc(99.99% * 1/47 - (3px - 3px * 1/47));\n    height: calc(99.99% * 1/47 - (3px - 3px * 1/47)); }\n  .led-panel.panel-col-47:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-47:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-47:nth-child(47n) {\n  margin-right: 0; }\n  .led-panel.panel-col-47:nth-child(47n + 1) {\n  clear: left; }\n  .led-panel.panel-col-47:nth-last-child(-n + 47) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-47 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-47 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-47 .led-panel-content .panel-info.output, .led-panel.panel-col-47 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-48 {\n    width: calc(99.99% * 1/48 - (3px - 3px * 1/48));\n    height: calc(99.99% * 1/48 - (3px - 3px * 1/48)); }\n  .led-panel.panel-col-48:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-48:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-48:nth-child(48n) {\n  margin-right: 0; }\n  .led-panel.panel-col-48:nth-child(48n + 1) {\n  clear: left; }\n  .led-panel.panel-col-48:nth-last-child(-n + 48) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-48 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-48 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-48 .led-panel-content .panel-info.output, .led-panel.panel-col-48 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-49 {\n    width: calc(99.99% * 1/49 - (3px - 3px * 1/49));\n    height: calc(99.99% * 1/49 - (3px - 3px * 1/49)); }\n  .led-panel.panel-col-49:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-49:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-49:nth-child(49n) {\n  margin-right: 0; }\n  .led-panel.panel-col-49:nth-child(49n + 1) {\n  clear: left; }\n  .led-panel.panel-col-49:nth-last-child(-n + 49) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-49 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-49 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-49 .led-panel-content .panel-info.output, .led-panel.panel-col-49 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-50 {\n    width: calc(99.99% * 1/50 - (3px - 3px * 1/50));\n    height: calc(99.99% * 1/50 - (3px - 3px * 1/50)); }\n  .led-panel.panel-col-50:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-50:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-50:nth-child(50n) {\n  margin-right: 0; }\n  .led-panel.panel-col-50:nth-child(50n + 1) {\n  clear: left; }\n  .led-panel.panel-col-50:nth-last-child(-n + 50) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-50 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-50 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-50 .led-panel-content .panel-info.output, .led-panel.panel-col-50 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-51 {\n    width: calc(99.99% * 1/51 - (3px - 3px * 1/51));\n    height: calc(99.99% * 1/51 - (3px - 3px * 1/51)); }\n  .led-panel.panel-col-51:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-51:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-51:nth-child(51n) {\n  margin-right: 0; }\n  .led-panel.panel-col-51:nth-child(51n + 1) {\n  clear: left; }\n  .led-panel.panel-col-51:nth-last-child(-n + 51) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-51 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-51 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-51 .led-panel-content .panel-info.output, .led-panel.panel-col-51 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-52 {\n    width: calc(99.99% * 1/52 - (3px - 3px * 1/52));\n    height: calc(99.99% * 1/52 - (3px - 3px * 1/52)); }\n  .led-panel.panel-col-52:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-52:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-52:nth-child(52n) {\n  margin-right: 0; }\n  .led-panel.panel-col-52:nth-child(52n + 1) {\n  clear: left; }\n  .led-panel.panel-col-52:nth-last-child(-n + 52) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-52 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-52 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-52 .led-panel-content .panel-info.output, .led-panel.panel-col-52 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-53 {\n    width: calc(99.99% * 1/53 - (3px - 3px * 1/53));\n    height: calc(99.99% * 1/53 - (3px - 3px * 1/53)); }\n  .led-panel.panel-col-53:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-53:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-53:nth-child(53n) {\n  margin-right: 0; }\n  .led-panel.panel-col-53:nth-child(53n + 1) {\n  clear: left; }\n  .led-panel.panel-col-53:nth-last-child(-n + 53) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-53 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-53 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-53 .led-panel-content .panel-info.output, .led-panel.panel-col-53 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-54 {\n    width: calc(99.99% * 1/54 - (3px - 3px * 1/54));\n    height: calc(99.99% * 1/54 - (3px - 3px * 1/54)); }\n  .led-panel.panel-col-54:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-54:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-54:nth-child(54n) {\n  margin-right: 0; }\n  .led-panel.panel-col-54:nth-child(54n + 1) {\n  clear: left; }\n  .led-panel.panel-col-54:nth-last-child(-n + 54) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-54 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-54 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-54 .led-panel-content .panel-info.output, .led-panel.panel-col-54 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-55 {\n    width: calc(99.99% * 1/55 - (3px - 3px * 1/55));\n    height: calc(99.99% * 1/55 - (3px - 3px * 1/55)); }\n  .led-panel.panel-col-55:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-55:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-55:nth-child(55n) {\n  margin-right: 0; }\n  .led-panel.panel-col-55:nth-child(55n + 1) {\n  clear: left; }\n  .led-panel.panel-col-55:nth-last-child(-n + 55) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-55 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-55 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-55 .led-panel-content .panel-info.output, .led-panel.panel-col-55 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-56 {\n    width: calc(99.99% * 1/56 - (3px - 3px * 1/56));\n    height: calc(99.99% * 1/56 - (3px - 3px * 1/56)); }\n  .led-panel.panel-col-56:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-56:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-56:nth-child(56n) {\n  margin-right: 0; }\n  .led-panel.panel-col-56:nth-child(56n + 1) {\n  clear: left; }\n  .led-panel.panel-col-56:nth-last-child(-n + 56) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-56 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-56 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-56 .led-panel-content .panel-info.output, .led-panel.panel-col-56 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-57 {\n    width: calc(99.99% * 1/57 - (3px - 3px * 1/57));\n    height: calc(99.99% * 1/57 - (3px - 3px * 1/57)); }\n  .led-panel.panel-col-57:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-57:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-57:nth-child(57n) {\n  margin-right: 0; }\n  .led-panel.panel-col-57:nth-child(57n + 1) {\n  clear: left; }\n  .led-panel.panel-col-57:nth-last-child(-n + 57) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-57 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-57 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-57 .led-panel-content .panel-info.output, .led-panel.panel-col-57 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-58 {\n    width: calc(99.99% * 1/58 - (3px - 3px * 1/58));\n    height: calc(99.99% * 1/58 - (3px - 3px * 1/58)); }\n  .led-panel.panel-col-58:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-58:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-58:nth-child(58n) {\n  margin-right: 0; }\n  .led-panel.panel-col-58:nth-child(58n + 1) {\n  clear: left; }\n  .led-panel.panel-col-58:nth-last-child(-n + 58) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-58 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-58 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-58 .led-panel-content .panel-info.output, .led-panel.panel-col-58 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-59 {\n    width: calc(99.99% * 1/59 - (3px - 3px * 1/59));\n    height: calc(99.99% * 1/59 - (3px - 3px * 1/59)); }\n  .led-panel.panel-col-59:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-59:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-59:nth-child(59n) {\n  margin-right: 0; }\n  .led-panel.panel-col-59:nth-child(59n + 1) {\n  clear: left; }\n  .led-panel.panel-col-59:nth-last-child(-n + 59) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-59 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-59 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-59 .led-panel-content .panel-info.output, .led-panel.panel-col-59 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-60 {\n    width: calc(99.99% * 1/60 - (3px - 3px * 1/60));\n    height: calc(99.99% * 1/60 - (3px - 3px * 1/60)); }\n  .led-panel.panel-col-60:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-60:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-60:nth-child(60n) {\n  margin-right: 0; }\n  .led-panel.panel-col-60:nth-child(60n + 1) {\n  clear: left; }\n  .led-panel.panel-col-60:nth-last-child(-n + 60) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-60 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-60 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-60 .led-panel-content .panel-info.output, .led-panel.panel-col-60 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-61 {\n    width: calc(99.99% * 1/61 - (3px - 3px * 1/61));\n    height: calc(99.99% * 1/61 - (3px - 3px * 1/61)); }\n  .led-panel.panel-col-61:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-61:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-61:nth-child(61n) {\n  margin-right: 0; }\n  .led-panel.panel-col-61:nth-child(61n + 1) {\n  clear: left; }\n  .led-panel.panel-col-61:nth-last-child(-n + 61) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-61 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-61 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-61 .led-panel-content .panel-info.output, .led-panel.panel-col-61 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-62 {\n    width: calc(99.99% * 1/62 - (3px - 3px * 1/62));\n    height: calc(99.99% * 1/62 - (3px - 3px * 1/62)); }\n  .led-panel.panel-col-62:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-62:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-62:nth-child(62n) {\n  margin-right: 0; }\n  .led-panel.panel-col-62:nth-child(62n + 1) {\n  clear: left; }\n  .led-panel.panel-col-62:nth-last-child(-n + 62) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-62 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-62 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-62 .led-panel-content .panel-info.output, .led-panel.panel-col-62 .led-panel-content .panel-info.panel {\n      display: none; }\n  .led-panel.panel-col-63 {\n    width: calc(99.99% * 1/63 - (3px - 3px * 1/63));\n    height: calc(99.99% * 1/63 - (3px - 3px * 1/63)); }\n  .led-panel.panel-col-63:nth-child(n) {\n  float: left;\n  margin-right: 3px;\n  margin-bottom: 3px;\n  clear: none; }\n  .led-panel.panel-col-63:last-child {\n  margin-right: 0;\n  margin-bottom: 0; }\n  .led-panel.panel-col-63:nth-child(63n) {\n  margin-right: 0; }\n  .led-panel.panel-col-63:nth-child(63n + 1) {\n  clear: left; }\n  .led-panel.panel-col-63:nth-last-child(-n + 63) {\n  margin-bottom: 0; }\n    .led-panel.panel-col-63 .led-panel-content {\n      padding: 3px 0;\n      text-align: center; }\n    .led-panel.panel-col-63 .led-panel-content .panel-info span {\n      display: none; }\n    .led-panel.panel-col-63 .led-panel-content .panel-info.output, .led-panel.panel-col-63 .led-panel-content .panel-info.panel {\n      display: none; }\n")
@@ -45359,7 +46043,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../shared/popover.vue":255,"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],225:[function(require,module,exports){
+},{"../shared/popover.vue":257,"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],227:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/outputs/other.vue", module);
 (function(){
 "use strict";
@@ -45394,7 +46078,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":206,"vue-hot-reload-api":184}],226:[function(require,module,exports){
+},{"vue":206,"vue-hot-reload-api":184}],228:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/outputs/panels.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".led-panels {\n  *zoom: 1;\n  margin: 0 auto; }\n.led-panels:before {\n  content: '';\n  display: table; }\n.led-panels:after {\n  content: '';\n  display: table;\n  clear: both; }\n")
@@ -45550,7 +46234,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../mixins/outputMixin":269,"../shared/input.vue":252,"../shared/switch.vue":257,"./led-panel.vue":224,"babel-runtime/core-js/object/assign":6,"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],227:[function(require,module,exports){
+},{"../../mixins/outputMixin":271,"../shared/input.vue":254,"../shared/switch.vue":259,"./led-panel.vue":226,"babel-runtime/core-js/object/assign":6,"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],229:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/outputs/pdmx.vue", module);
 (function(){
 'use strict';
@@ -45596,7 +46280,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../shared/switch.vue":257,"vue":206,"vue-hot-reload-api":184}],228:[function(require,module,exports){
+},{"../shared/switch.vue":259,"vue":206,"vue-hot-reload-api":184}],230:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/outputs/universe.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".universe {\n  transition: opacity 0.35s;\n  opacity: 1; }\n  .universe.disabled {\n    opacity: .4; }\n  .universe-move {\n    transition: -webkit-transform 0.5s cubic-bezier(0.55, 0, 0.1, 1);\n    transition: transform 0.5s cubic-bezier(0.55, 0, 0.1, 1);\n    transition: transform 0.5s cubic-bezier(0.55, 0, 0.1, 1), -webkit-transform 0.5s cubic-bezier(0.55, 0, 0.1, 1); }\n\n.universe-active,\n.universe-action,\n.universe-index {\n  vertical-align: middle !important; }\n  .universe-active .checkbox,\n  .universe-action .checkbox,\n  .universe-index .checkbox {\n    margin-bottom: 0; }\n")
@@ -45644,7 +46328,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../state/actions":271,"../shared/switch.vue":257,"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],229:[function(require,module,exports){
+},{"../../state/actions":273,"../shared/switch.vue":259,"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],231:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/overlays.vue", module);
 (function(){
 "use strict";
@@ -45679,7 +46363,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":206,"vue-hot-reload-api":184}],230:[function(require,module,exports){
+},{"vue":206,"vue-hot-reload-api":184}],232:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/playlists.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".pl-list tr {\n  cursor: pointer; }\n  .pl-list tr td:first-child {\n    padding-left: 18px; }\n  .pl-list tr td:last-child {\n    padding-right: 18px; }\n  .pl-list tr.active td {\n    background: #daeffd !important; }\n\n.playlist-entry {\n  cursor: move; }\n  .playlist-entry.sortable-ghost {\n    opacity: 0.6; }\n    .playlist-entry.sortable-ghost td {\n      background-color: #daeffd !important; }\n  .playlist-entry .remove:hover {\n    color: #E5585E; }\n\n.entry-section {\n  clear: both; }\n  .entry-section .entry-section-labels {\n    padding-right: 10px;\n    border-right: 2px solid #eaeaea; }\n  .entry-section .entry-items {\n    padding-left: 10px; }\n\n.items-wrapper .add-entry {\n  height: 57px;\n  max-width: 550px;\n  border: 1px dotted #d9d9d9;\n  text-align: center;\n  color: #788B94;\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-align-items: center;\n      -ms-flex-align: center;\n          align-items: center;\n  -webkit-justify-content: center;\n      -ms-flex-pack: center;\n          justify-content: center;\n  -webkit-flex-direction: row;\n      -ms-flex-direction: row;\n          flex-direction: row;\n  cursor: pointer;\n  font-weight: 300;\n  letter-spacing: 1px; }\n  .items-wrapper .add-entry i {\n    margin-right: 10px;\n    font-size: 24px; }\n\n.items-wrapper .playlist-entry {\n  display: block;\n  position: relative;\n  padding: 5px;\n  background: #F1F1F1;\n  border: 1px solid #d9d9d9;\n  max-width: 550px;\n  margin-bottom: 5px; }\n  .items-wrapper .playlist-entry:before {\n    position: absolute;\n    content: '';\n    width: 5px;\n    height: calc(100% - 10px);\n    top: 5px;\n    left: 5px; }\n  .items-wrapper .playlist-entry .meta-row {\n    font-size: 8px;\n    color: #788B94;\n    text-transform: uppercase;\n    letter-spacing: 2px;\n    text-align: right;\n    line-height: 1;\n    margin-bottom: 2px; }\n  .items-wrapper .playlist-entry .media {\n    display: block;\n    margin-bottom: 0; }\n  .items-wrapper .playlist-entry .main-row {\n    display: -webkit-flex;\n    display: -ms-flexbox;\n    display: flex;\n    -webkit-flex-direction: row;\n        -ms-flex-direction: row;\n            flex-direction: row;\n    -webkit-justify-content: space-between;\n        -ms-flex-pack: justify;\n            justify-content: space-between;\n    -webkit-align-items: center;\n        -ms-flex-align: center;\n            align-items: center;\n    padding-left: 20px; }\n    .items-wrapper .playlist-entry .main-row > div:first-child {\n      width: 45%; }\n    .items-wrapper .playlist-entry .main-row > div:last-child {\n      margin-left: auto; }\n    .items-wrapper .playlist-entry .main-row > div .title {\n      white-space: nowrap;\n      text-overflow: ellipsis;\n      max-width: 220px;\n      overflow: hidden; }\n  .items-wrapper .playlist-entry .title {\n    font-weight: bold;\n    font-size: 14px;\n    line-height: 1; }\n  .items-wrapper .playlist-entry .entry-label {\n    font-size: 12px;\n    color: #788B94; }\n  .items-wrapper .playlist-entry.type-event .main-row .major-id,\n  .items-wrapper .playlist-entry.type-event .main-row .minor-id,\n  .items-wrapper .playlist-entry.type-event .main-row .blocking {\n    width: 22.5%; }\n  .items-wrapper .playlist-entry.type-both:before {\n    background-color: #2b6a94; }\n  .items-wrapper .playlist-entry.type-media:before {\n    background-color: #3C93CE; }\n  .items-wrapper .playlist-entry.type-sequence:before {\n    background-color: #4A90E2; }\n  .items-wrapper .playlist-entry.type-pause:before {\n    background-color: #F8D053; }\n  .items-wrapper .playlist-entry.type-event:before {\n    background-color: #66AE12; }\n  .items-wrapper .playlist-entry.type-pixel-overlay:before {\n    background-color: #0DAD9E; }\n  .items-wrapper .playlist-entry.type-volume:before {\n    background-color: #F77975; }\n")
@@ -45949,7 +46633,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"./playlists/entry-modal.vue":231,"./playlists/playlist-entry.vue":232,"./shared/switch.vue":257,"babel-runtime/core-js/get-iterator":4,"babel-runtime/core-js/map":5,"moment":162,"sortablejs":179,"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],231:[function(require,module,exports){
+},{"./playlists/entry-modal.vue":233,"./playlists/playlist-entry.vue":234,"./shared/switch.vue":259,"babel-runtime/core-js/get-iterator":4,"babel-runtime/core-js/map":5,"moment":162,"sortablejs":179,"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],233:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/playlists/entry-modal.vue", module);
 (function(){
 "use strict";
@@ -45987,6 +46671,7 @@ exports.default = {
     },
     data: function data() {
         return {
+            isValid: false,
             type: null,
             plugin: null,
             event: null,
@@ -46014,7 +46699,7 @@ exports.default = {
     }
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n     <modal id=\"entry-modal\" size=\"md\" :fade=\"true\">\n          <div slot=\"modal-header\">\n             <h5>Add Playlist <span class=\"semi-bold\">Entry</span></h5>\n          </div>\n          <div slot=\"modal-body\">\n            <div class=\"entry-group\">\n                <div class=\"form-group-default\">\n                    <label>Entry Type</label>\n                    <select v-model=\"type\" class=\"c-select\" style=\"width: 100%;\">\n                        <option v-for=\"(key, val) in types\" :value=\"key\">{{val}}</option>\n                    </select>\n                </div>\n            </div>\n            <div class=\"form-group-default\" v-if=\"type == 'both' || type == 'media'\">\n                <label>Media</label>\n                <select v-model=\"media\" class=\"c-select\" style=\"width: 100%;\">\n                    <option v-if=\"!mediaFiles\" value=\"\">No media files found</option>\n                    <option v-if=\"mediaFiles\" v-for=\"song in mediaFiles\" :value=\"song\">{{song}}</option>\n                </select>\n            </div>\n            <div class=\"form-group-default\" v-if=\"type == 'both' || type == 'sequence'\">\n                <label>Sequence</label>\n                <select v-model=\"sequence\" class=\"c-select\" style=\"width: 100%;\">\n                    <option v-if=\"!sequenceFiles\" value=\"\">No sequences found</option>\n                    <option v-if=\"sequenceFiles\" v-for=\"sequence in sequenceFiles\" :value=\"sequence\">{{sequence}}</option>\n                </select>\n            </div>\n            <div class=\"form-group-default\" v-if=\"type == 'pause'\">\n                <label>Pause Length</label>\n                <span class=\"help\">(in seconds)</span>\n                <input type=\"number\" v-model=\"pause\" class=\"form-control\">\n            </div>\n            <div class=\"form-group-default\" v-if=\"type == 'event'\">\n                <label>Event</label>\n                 <select v-model=\"event\" class=\"c-select\" style=\"width: 100%;\">\n                    <option v-if=\"!events\" value=\"\">No events configured</option>\n                    <option v-if=\"events\" v-for=\"event in events\" :value=\"event\">{{event}}</option>\n                </select>\n            </div>\n            <div class=\"form-group-default\" v-if=\"type == 'effect'\">\n                <label>Effect</label>\n                 <select v-model=\"effect\" class=\"c-select\" style=\"width: 100%;\">\n                    <option v-if=\"!effects\" value=\"\">No effects found</option>\n                    <option v-if=\"effects\" v-for=\"effect in effects\" :value=\"event\">{{effect}}</option>\n                </select>\n            </div>\n            <div class=\"form-group-default\" v-if=\"type == 'volume'\">\n                <label>Volume</label>\n                <range-slider :min=\"0\" :max=\"100\" :step=\"1\" :value.sync=\"volume\"><span slot=\"right\">{{volume}}</span></range-slider>\n            </div>\n            <div class=\"form-group-default\" v-if=\"type == 'plugin'\">\n                <label>Plugin Data</label>\n                <input type=\"text\" v-model=\"plugin\" class=\"form-control\">\n            </div>\n            <div class=\"form-group-default\" v-if=\"type == 'pixelOverlay'\">\n                <label>Model Name</label>\n                <select v-model=\"overlayModelName\" class=\"c-select\" style=\"width: 100%;\">\n                    <option v-if=\"!models\" value=\"\">No Models found</option>\n                    <option v-if=\"models\" v-for=\"model in models\" :value=\"model\">{{model}}</option>\n                </select>\n            </div>\n            <div class=\"form-group-default\" v-if=\"type == 'pixelOverlay'\">\n                <label>Action</label>\n                <select v-model=\"overlayAction\" class=\"c-select\" style=\"width: 100%;\">\n                    <option value=\"enabled\">Enabled</option>\n                    <option value=\"disabled\">Disabled</option>\n                    <option value=\"value\">Value</option>\n                </select>\n            </div>\n            <div class=\"row\" v-if=\"type == 'pixelOverlay'\">\n                <div class=\"col-sm-4\" v-if=\"overlayAction == 'value'\">\n                    <div class=\"form-group-default\">\n                        <label>Start Channel</label>\n                        <input type=\"number\" v-model=\"startChannel\">\n                    </div>\n                </div>\n                <div class=\"col-sm-4\" v-if=\"overlayAction == 'value'\">\n                    <div class=\"form-group-default\">\n                        <label>End Channel</label>\n                        <input type=\"number\" v-model=\"endChannel\">\n                    </div>\n                </div>\n                <div class=\"col-sm-4\" v-if=\"overlayAction == 'value'\">\n                    <div class=\"form-group-default\">\n                        <label>Value</label>\n                        <input type=\"number\" v-model=\"modelValue\">\n                    </div>\n                </div>\n                \n            </div>\n            \n          </div>\n          <div slot=\"modal-footer\">\n            <button class=\"button alert m-b-0\" v-on:click=\"$broadcast('hide::modal', 'entry-modal')\">Cancel</button>\n            <button class=\"button primary m-b-0\" v-on:click=\"$dispatch('add')\">Add Entry</button>\n          </div>\n    </modal>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n  <validator name=\"entryvalidator\">\n     <modal id=\"entry-modal\" size=\"md\" :fade=\"true\">\n          <div slot=\"modal-header\">\n             <h6 class=\"modal-title\">Add Playlist <span class=\"semi-bold\">Entry</span></h6>\n          </div>\n          <div slot=\"modal-body\">\n            <div class=\"entry-group\">\n                <div class=\"form-group-default\">\n                    <label>Entry Type</label>\n                    <select v-model=\"type\" v-validate:type=\"{required: true}\" class=\"c-select\" style=\"width: 100%;\">\n                        <option v-for=\"(key, val) in types\" :value=\"key\">{{val}}</option>\n                    </select>\n                </div>\n            </div>\n            <div class=\"form-group-default\" v-if=\"type == 'both' || type == 'media'\">\n                <label>Media</label>\n                <select v-model=\"media\" class=\"c-select\" style=\"width: 100%;\">\n                    <option v-if=\"!mediaFiles\" value=\"\">No media files found</option>\n                    <option v-if=\"mediaFiles\" v-for=\"song in mediaFiles\" :value=\"song\">{{song}}</option>\n                </select>\n            </div>\n            <div class=\"form-group-default\" v-if=\"type == 'both' || type == 'sequence'\">\n                <label>Sequence</label>\n                <select v-model=\"sequence\" class=\"c-select\" style=\"width: 100%;\">\n                    <option v-if=\"!sequenceFiles\" value=\"\">No sequences found</option>\n                    <option v-if=\"sequenceFiles\" v-for=\"sequence in sequenceFiles\" :value=\"sequence\">{{sequence}}</option>\n                </select>\n            </div>\n            <div class=\"form-group-default\" v-if=\"type == 'pause'\">\n                <label>Pause Length</label>\n                <span class=\"help\">(in seconds)</span>\n                <input type=\"number\" v-model=\"pause\" class=\"form-control\">\n            </div>\n            <div class=\"form-group-default\" v-if=\"type == 'event'\">\n                <label>Event</label>\n                 <select v-model=\"event\" class=\"c-select\" style=\"width: 100%;\">\n                    <option v-if=\"!events\" value=\"\">No events configured</option>\n                    <option v-if=\"events\" v-for=\"event in events\" :value=\"event\">{{event}}</option>\n                </select>\n            </div>\n            <div class=\"form-group-default\" v-if=\"type == 'effect'\">\n                <label>Effect</label>\n                 <select v-model=\"effect\" class=\"c-select\" style=\"width: 100%;\">\n                    <option v-if=\"!effects\" value=\"\">No effects found</option>\n                    <option v-if=\"effects\" v-for=\"effect in effects\" :value=\"event\">{{effect}}</option>\n                </select>\n            </div>\n            <div class=\"form-group-default\" v-if=\"type == 'volume'\">\n                <label>Volume</label>\n                <range-slider :min=\"0\" :max=\"100\" :step=\"1\" :value.sync=\"volume\"><span slot=\"right\">{{volume}}</span></range-slider>\n            </div>\n            <div class=\"form-group-default\" v-if=\"type == 'plugin'\">\n                <label>Plugin Data</label>\n                <input type=\"text\" v-model=\"plugin\" class=\"form-control\">\n            </div>\n            <div class=\"form-group-default\" v-if=\"type == 'pixelOverlay'\">\n                <label>Model Name</label>\n                <select v-model=\"overlayModelName\" class=\"c-select\" style=\"width: 100%;\">\n                    <option v-if=\"!models\" value=\"\">No Models found</option>\n                    <option v-if=\"models\" v-for=\"model in models\" :value=\"model\">{{model}}</option>\n                </select>\n            </div>\n            <div class=\"form-group-default\" v-if=\"type == 'pixelOverlay'\">\n                <label>Action</label>\n                <select v-model=\"overlayAction\" class=\"c-select\" style=\"width: 100%;\">\n                    <option value=\"enabled\">Enabled</option>\n                    <option value=\"disabled\">Disabled</option>\n                    <option value=\"value\">Value</option>\n                </select>\n            </div>\n            <div class=\"row\" v-if=\"type == 'pixelOverlay'\">\n                <div class=\"col-sm-4\" v-if=\"overlayAction == 'value'\">\n                    <div class=\"form-group-default\">\n                        <label>Start Channel</label>\n                        <input type=\"number\" v-model=\"startChannel\">\n                    </div>\n                </div>\n                <div class=\"col-sm-4\" v-if=\"overlayAction == 'value'\">\n                    <div class=\"form-group-default\">\n                        <label>End Channel</label>\n                        <input type=\"number\" v-model=\"endChannel\">\n                    </div>\n                </div>\n                <div class=\"col-sm-4\" v-if=\"overlayAction == 'value'\">\n                    <div class=\"form-group-default\">\n                        <label>Value</label>\n                        <input type=\"number\" v-model=\"modelValue\">\n                    </div>\n                </div>\n\n            </div>\n\n          </div>\n          <div slot=\"modal-footer\">\n            <button class=\"button gradient m-b-0\" v-on:click=\"$broadcast('hide::modal', 'entry-modal')\">Cancel</button>\n            <button class=\"button gradient submit m-b-0\" :disabled=\"$entryvalidator.invalid\" v-on:click=\"$dispatch('add')\">Add Entry</button>\n          </div>\n    </modal>\n  </validator>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
@@ -46028,7 +46713,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../shared/modal.vue":253,"../shared/range-slider.vue":256,"vue":206,"vue-hot-reload-api":184}],232:[function(require,module,exports){
+},{"../shared/modal.vue":255,"../shared/range-slider.vue":258,"vue":206,"vue-hot-reload-api":184}],234:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/playlists/playlist-entry.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".playlist-entry {\n  background: black; }\n")
@@ -46058,7 +46743,7 @@ exports.default = {
 
 };
 if (module.exports.__esModule) module.exports = module.exports.default
-;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n   <div class=\"playlist-entry type-{{ entry.type }}\">\n        <div class=\"meta-row\">\n            <div class=\"entry-type\">{{ entry.type == 'both' ? 'Media &amp; Sequence' : entry.type }}</div>\n        </div>\n        <div class=\"main-row\">\n            <div v-if=\"entry.type == 'media' || entry.type == 'both'\" class=\"media\">\n                <div class=\"title\">{{entry.media}}</div>\n                <div class=\"entry-label\">Media</div>\n            </div>\n            <div v-if=\"entry.type == 'sequence' || entry.type == 'both'\" class=\"sequence\">\n                <div class=\"title\">{{entry.sequence}}</div>\n                <div class=\"entry-label\">Sequence</div>\n            </div>\n            <div v-if=\"entry.type == 'pause'\" class=\"pause\">\n                <div class=\"title\">{{entry.duration}} Seconds</div>\n                <div class=\"entry-label\">Pause</div>\n            </div>\n            <div v-if=\"entry.type == 'volume'\" class=\"volume\">\n                <div class=\"title\">{{entry.volume}}</div>\n                <div class=\"entry-label\">Set Volume</div>\n            </div>\n            <div v-if=\"entry.type == 'effect'\" class=\"effect\">\n                <div class=\"title\">{{entry.effect}}</div>\n                <div class=\"entry-label\">Effect</div>\n            </div>\n            <div v-if=\"entry.type == 'event'\" class=\"major-id\">\n                <div class=\"title\">{{entry.majorID}}</div>\n                <div class=\"entry-label\">Major ID</div>\n            </div>\n            <div v-if=\"entry.type == 'event'\" class=\"minor-id\">\n                <div class=\"title\">{{entry.minorID}}</div>\n                <div class=\"entry-label\">Minor ID</div>\n            </div>\n            <div v-if=\"entry.type == 'event'\" class=\"blocking\">\n                <div class=\"title\">{{entry.blocking ? 'Yes' : 'No'}}</div>\n                <div class=\"entry-label\">Blocking</div>\n            </div>\n            <div v-if=\"entry.type == 'pixelOverlay'\" class=\"pixelOverlay\">\n                <div class=\"title\">{{entry.sequence}}</div>\n                <div class=\"entry-label\">Sequence</div>\n            </div>\n            <div class=\"actions\">\n                <div class=\"edit-entry\"></div>\n                <div class=\"repeatable\"><i class=\"ion-refresh\" :class=\"{'text-danger' : entry.playOnce, 'text-success' : !entry.playOnce}\"></i></div>\n            </div>\n        </div>\n    </div>\n"
+;(typeof module.exports === "function"? module.exports.options: module.exports).template = "\n   <div class=\"playlist-entry type-{{ entry.type }}\">\n        <div class=\"meta-row\">\n            <div class=\"entry-type\">{{ entry.type == 'both' ? 'Media &amp; Sequence' : entry.type }}</div>\n        </div>\n        <div class=\"main-row\">\n            <div v-if=\"entry.type == 'media' || entry.type == 'both'\" class=\"media\">\n                <div class=\"title\">{{entry.media}}</div>\n                <div class=\"entry-label\">Media</div>\n            </div>\n            <div v-if=\"entry.type == 'sequence' || entry.type == 'both'\" class=\"sequence\">\n                <div class=\"title\">{{entry.sequence}}</div>\n                <div class=\"entry-label\">Sequence</div>\n            </div>\n            <div v-if=\"entry.type == 'pause'\" class=\"pause\">\n                <div class=\"title\">{{entry.duration}} Seconds</div>\n                <div class=\"entry-label\">Pause</div>\n            </div>\n            <div v-if=\"entry.type == 'volume'\" class=\"volume\">\n                <div class=\"title\">{{entry.volume}} <sup>%</sup></div>\n                <div class=\"entry-label\">Set Volume</div>\n            </div>\n            <div v-if=\"entry.type == 'effect'\" class=\"effect\">\n                <div class=\"title\">{{entry.effect}}</div>\n                <div class=\"entry-label\">Effect</div>\n            </div>\n            <div v-if=\"entry.type == 'event'\" class=\"major-id\">\n                <div class=\"title\">{{entry.majorID}}</div>\n                <div class=\"entry-label\">Major ID</div>\n            </div>\n            <div v-if=\"entry.type == 'event'\" class=\"minor-id\">\n                <div class=\"title\">{{entry.minorID}}</div>\n                <div class=\"entry-label\">Minor ID</div>\n            </div>\n            <div v-if=\"entry.type == 'event'\" class=\"blocking\">\n                <div class=\"title\">{{entry.blocking ? 'Yes' : 'No'}}</div>\n                <div class=\"entry-label\">Blocking</div>\n            </div>\n            <div v-if=\"entry.type == 'pixelOverlay'\" class=\"pixelOverlay\">\n                <div class=\"title\">{{entry.sequence}}</div>\n                <div class=\"entry-label\">Sequence</div>\n            </div>\n            <div class=\"actions\">\n                <div class=\"edit-entry\"></div>\n                <div class=\"repeatable\"><i class=\"ion-refresh\" :class=\"{'text-danger' : entry.playOnce, 'text-success' : !entry.playOnce}\"></i></div>\n            </div>\n        </div>\n    </div>\n"
 if (module.hot) {(function () {  module.hot.accept()
   var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
@@ -46076,7 +46761,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../shared/popover.vue":255,"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],233:[function(require,module,exports){
+},{"../shared/popover.vue":257,"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],235:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/plugins.vue", module);
 (function(){
 "use strict";
@@ -46111,7 +46796,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":206,"vue-hot-reload-api":184}],234:[function(require,module,exports){
+},{"vue":206,"vue-hot-reload-api":184}],236:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/schedule.vue", module);
 (function(){
 "use strict";
@@ -46146,7 +46831,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":206,"vue-hot-reload-api":184}],235:[function(require,module,exports){
+},{"vue":206,"vue-hot-reload-api":184}],237:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/settings.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("#main-wrapper {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n")
@@ -46192,7 +46877,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"./footer.vue":215,"./header/settings.vue":218,"./settings/index.vue":240,"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],236:[function(require,module,exports){
+},{"./footer.vue":215,"./header/settings.vue":218,"./settings/index.vue":242,"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],238:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/settings/advanced.vue", module);
 (function(){
 "use strict";
@@ -46227,7 +46912,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":206,"vue-hot-reload-api":184}],237:[function(require,module,exports){
+},{"vue":206,"vue-hot-reload-api":184}],239:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/settings/date.vue", module);
 (function(){
 "use strict";
@@ -46277,7 +46962,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../shared/switch.vue":257,"vue":206,"vue-hot-reload-api":184}],238:[function(require,module,exports){
+},{"../shared/switch.vue":259,"vue":206,"vue-hot-reload-api":184}],240:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/settings/email.vue", module);
 (function(){
 "use strict";
@@ -46312,7 +46997,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":206,"vue-hot-reload-api":184}],239:[function(require,module,exports){
+},{"vue":206,"vue-hot-reload-api":184}],241:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/settings/general.vue", module);
 (function(){
 'use strict';
@@ -46372,7 +47057,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../shared/switch.vue":257,"vue":206,"vue-hot-reload-api":184}],240:[function(require,module,exports){
+},{"../shared/switch.vue":259,"vue":206,"vue-hot-reload-api":184}],242:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/settings/index.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".content.settings {\n  padding: 20px;\n  position: relative; }\n")
@@ -46412,7 +47097,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],241:[function(require,module,exports){
+},{"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],243:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/settings/logs.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".label-help i {\n  cursor: pointer;\n  opacity: .5;\n  font-size: 16px;\n  margin-left: 5px; }\n")
@@ -46459,7 +47144,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../shared/switch.vue":257,"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],242:[function(require,module,exports){
+},{"../shared/switch.vue":259,"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],244:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/settings/network.vue", module);
 (function(){
 'use strict';
@@ -46505,7 +47190,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../shared/tab.vue":258,"../shared/tabset.vue":259,"vue":206,"vue-hot-reload-api":184}],243:[function(require,module,exports){
+},{"../shared/tab.vue":260,"../shared/tabset.vue":261,"vue":206,"vue-hot-reload-api":184}],245:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/Tab.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("\n  .tab-content > .tab-pane[_v-3eaa1a77] {\n    display: block;\n  }\n")
@@ -46573,7 +47258,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],244:[function(require,module,exports){
+},{"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],246:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/Tabset.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("\n  .nav-tabs[_v-7a0405bb] {\n    margin-bottom: 15px\n  }\n")
@@ -46625,7 +47310,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],245:[function(require,module,exports){
+},{"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],247:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/alert-bar.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".alert-bar {\n  display: block;\n  overflow: hidden; }\n  .alert-bar .alert-content {\n    padding: 10px;\n    background: #788B94;\n    text-align: center;\n    margin-bottom: 1px; }\n    .alert-bar .alert-content .button {\n      margin: 0 0 0 10px; }\n  .alert-bar .alert-message {\n    text-transform: uppercase;\n    letter-spacing: 1px;\n    color: white;\n    vertical-align: middle; }\n")
@@ -46701,7 +47386,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],246:[function(require,module,exports){
+},{"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],248:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/checkbox.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".c-checkbox .c-indicator {\n  border-radius: .25rem; }\n\n.c-checkbox input:checked ~ .c-indicator {\n  background-image: url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhLS0gR2VuZXJhdG9yOiBBZG9iZSBJbGx1c3RyYXRvciAxNy4xLjAsIFNWRyBFeHBvcnQgUGx1Zy1JbiAuIFNWRyBWZXJzaW9uOiA2LjAwIEJ1aWxkIDApICAtLT4NCjwhRE9DVFlQRSBzdmcgUFVCTElDICItLy9XM0MvL0RURCBTVkcgMS4xLy9FTiIgImh0dHA6Ly93d3cudzMub3JnL0dyYXBoaWNzL1NWRy8xLjEvRFREL3N2ZzExLmR0ZCI+DQo8c3ZnIHZlcnNpb249IjEuMSIgaWQ9IkxheWVyXzEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4Ig0KCSB2aWV3Qm94PSIwIDAgOCA4IiBlbmFibGUtYmFja2dyb3VuZD0ibmV3IDAgMCA4IDgiIHhtbDpzcGFjZT0icHJlc2VydmUiPg0KPHBhdGggZmlsbD0iI0ZGRkZGRiIgZD0iTTYuNCwxTDUuNywxLjdMMi45LDQuNUwyLjEsMy43TDEuNCwzTDAsNC40bDAuNywwLjdsMS41LDEuNWwwLjcsMC43bDAuNy0wLjdsMy41LTMuNWwwLjctMC43TDYuNCwxTDYuNCwxeiINCgkvPg0KPC9zdmc+DQo=); }\n\n.c-checkbox input:indeterminate ~ .c-indicator {\n  background-color: #0074d9;\n  background-image: url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhLS0gR2VuZXJhdG9yOiBBZG9iZSBJbGx1c3RyYXRvciAxNy4xLjAsIFNWRyBFeHBvcnQgUGx1Zy1JbiAuIFNWRyBWZXJzaW9uOiA2LjAwIEJ1aWxkIDApICAtLT4NCjwhRE9DVFlQRSBzdmcgUFVCTElDICItLy9XM0MvL0RURCBTVkcgMS4xLy9FTiIgImh0dHA6Ly93d3cudzMub3JnL0dyYXBoaWNzL1NWRy8xLjEvRFREL3N2ZzExLmR0ZCI+DQo8c3ZnIHZlcnNpb249IjEuMSIgaWQ9IkxheWVyXzEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4Ig0KCSB3aWR0aD0iOHB4IiBoZWlnaHQ9IjhweCIgdmlld0JveD0iMCAwIDggOCIgZW5hYmxlLWJhY2tncm91bmQ9Im5ldyAwIDAgOCA4IiB4bWw6c3BhY2U9InByZXNlcnZlIj4NCjxwYXRoIGZpbGw9IiNGRkZGRkYiIGQ9Ik0wLDN2Mmg4VjNIMHoiLz4NCjwvc3ZnPg0K);\n  box-shadow: none; }\n")
@@ -46806,10 +47491,10 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],247:[function(require,module,exports){
+},{"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],249:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/control-buttons.vue", module);
 (function(){
-var __vueify_style__ = require("vueify-insert-css").insert(".control-buttons {\n  margin-bottom: 1rem; }\n  .control-buttons .button {\n    border-radius: 2px;\n    transition: background 0.35s, box-shadow 0.15s;\n    border: 1px solid #c4c4c4;\n    color: #666;\n    background: linear-gradient(to bottom, #f8f8f8, #eaeaea 100%);\n    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }\n    .control-buttons .button:active {\n      box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125); }\n  @media (min-width: 667px) {\n    .control-buttons {\n      margin: 0; } }\n")
+var __vueify_style__ = require("vueify-insert-css").insert(".control-buttons {\n  margin-bottom: 1rem; }\n  .control-buttons .button {\n    border-radius: 2px;\n    transition: background 0.35s, box-shadow 0.15s;\n    border: 1px solid #dddddd;\n    color: #666;\n    background: linear-gradient(to bottom, #f8f8f8, #eaeaea 100%);\n    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }\n    .control-buttons .button:active {\n      box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125); }\n  @media (min-width: 667px) {\n    .control-buttons {\n      margin: 0; } }\n")
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -46832,7 +47517,7 @@ if (module.hot) {(function () {  module.hot.accept()
   if (!hotAPI.compatible) return
   var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/shared/control-buttons.vue"
   module.hot.dispose(function () {
-    require("vueify-insert-css").cache[".control-buttons {\n  margin-bottom: 1rem; }\n  .control-buttons .button {\n    border-radius: 2px;\n    transition: background 0.35s, box-shadow 0.15s;\n    border: 1px solid #c4c4c4;\n    color: #666;\n    background: linear-gradient(to bottom, #f8f8f8, #eaeaea 100%);\n    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }\n    .control-buttons .button:active {\n      box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125); }\n  @media (min-width: 667px) {\n    .control-buttons {\n      margin: 0; } }\n"] = false
+    require("vueify-insert-css").cache[".control-buttons {\n  margin-bottom: 1rem; }\n  .control-buttons .button {\n    border-radius: 2px;\n    transition: background 0.35s, box-shadow 0.15s;\n    border: 1px solid #dddddd;\n    color: #666;\n    background: linear-gradient(to bottom, #f8f8f8, #eaeaea 100%);\n    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }\n    .control-buttons .button:active {\n      box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125); }\n  @media (min-width: 667px) {\n    .control-buttons {\n      margin: 0; } }\n"] = false
     document.head.removeChild(__vueify_style__)
   })
   if (!module.hot.data) {
@@ -46843,7 +47528,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],248:[function(require,module,exports){
+},{"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],250:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/dropdown-select.vue", module);
 (function(){
 'use strict';
@@ -46992,7 +47677,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":206,"vue-hot-reload-api":184}],249:[function(require,module,exports){
+},{"vue":206,"vue-hot-reload-api":184}],251:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/falcon-loading.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("@-webkit-keyframes grow {\n  0% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  33% {\n    opacity: 1;\n    -webkit-transform: scale(1);\n            transform: scale(1); }\n  66% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  100% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); } }\n\n@keyframes grow {\n  0% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  33% {\n    opacity: 1;\n    -webkit-transform: scale(1);\n            transform: scale(1); }\n  66% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); }\n  100% {\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9); } }\n\n#load {\n  position: relative;\n  display: inline-block;\n  text-align: center; }\n  #load .letter {\n    display: inline-block;\n    margin: 0 2px;\n    color: white;\n    opacity: .25;\n    -webkit-transform: scale(0.9);\n            transform: scale(0.9);\n    -webkit-animation: grow 2.5s ease-in infinite;\n            animation: grow 2.5s ease-in infinite; }\n  #load .letter:nth-child(1) {\n    -webkit-animation-delay: .1s;\n            animation-delay: .1s; }\n  #load .letter:nth-child(2) {\n    -webkit-animation-delay: .15s;\n            animation-delay: .15s; }\n  #load .letter:nth-child(3) {\n    -webkit-animation-delay: .2s;\n            animation-delay: .2s; }\n  #load .letter:nth-child(4) {\n    -webkit-animation-delay: .25s;\n            animation-delay: .25s; }\n  #load .letter:nth-child(5) {\n    -webkit-animation-delay: .3s;\n            animation-delay: .3s; }\n  #load .letter:nth-child(6) {\n    -webkit-animation-delay: .35s;\n            animation-delay: .35s; }\n  #load .letter:nth-child(7) {\n    margin-left: 8px;\n    -webkit-animation-delay: .4s;\n            animation-delay: .4s; }\n  #load .letter:nth-child(8) {\n    -webkit-animation-delay: .45s;\n            animation-delay: .45s; }\n  #load .letter:nth-child(9) {\n    -webkit-animation-delay: .5s;\n            animation-delay: .5s; }\n  #load .letter:nth-child(10) {\n    -webkit-animation-delay: .55s;\n            animation-delay: .55s; }\n  #load .letter:nth-child(11) {\n    -webkit-animation-delay: .6s;\n            animation-delay: .6s; }\n  #load .letter:nth-child(12) {\n    -webkit-animation-delay: .65s;\n            animation-delay: .65s; }\n")
@@ -47021,7 +47706,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],250:[function(require,module,exports){
+},{"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],252:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/filelist.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".file-list .table th {\n  border-top: 0; }\n")
@@ -47061,7 +47746,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],251:[function(require,module,exports){
+},{"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],253:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/header-menu.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".header-menu {\n  width: 100%;\n  padding-top: 10px; }\n  .header-menu a {\n    display: block;\n    text-transform: uppercase;\n    letter-spacing: 0.1em;\n    font-size: 11px;\n    border-bottom: 3px solid transparent;\n    padding: 3px 5px;\n    margin-bottom: -1px; }\n    .header-menu a.active {\n      font-weight: 600;\n      border-color: #F04124; }\n")
@@ -47100,7 +47785,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],252:[function(require,module,exports){
+},{"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],254:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/input.vue", module);
 (function(){
 'use strict';
@@ -47190,7 +47875,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../utils.js":277,"vue":206,"vue-hot-reload-api":184}],253:[function(require,module,exports){
+},{"../../utils.js":279,"vue":206,"vue-hot-reload-api":184}],255:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/modal.vue", module);
 (function(){
 'use strict';
@@ -47318,7 +48003,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../utils":277,"vue":206,"vue-hot-reload-api":184}],254:[function(require,module,exports){
+},{"../../utils":279,"vue":206,"vue-hot-reload-api":184}],256:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/overlay.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("#overlay {\n  position: fixed;\n  top: 0;\n  left: 0;\n  z-index: 9999;\n  width: 100%;\n  height: 100%;\n  background-color: #363C47;\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-align-items: center;\n      -ms-flex-align: center;\n          align-items: center;\n  -webkit-justify-content: center;\n      -ms-flex-pack: center;\n          justify-content: center;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column; }\n  #overlay .logo {\n    width: 220px;\n    height: 108px;\n    margin-bottom: 15px;\n    position: relative;\n    left: -25px; }\n")
@@ -47356,7 +48041,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"./falcon-loading.vue":249,"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],255:[function(require,module,exports){
+},{"./falcon-loading.vue":251,"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],257:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/popover.vue", module);
 (function(){
 'use strict';
@@ -47565,7 +48250,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"tether":180,"vue":206,"vue-hot-reload-api":184}],256:[function(require,module,exports){
+},{"tether":180,"vue":206,"vue-hot-reload-api":184}],258:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/range-slider.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".v-range-slider {\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-align-items: center;\n      -ms-flex-align: center;\n          align-items: center;\n  padding: 2px 11px; }\n\n.v-range-slider input[type=range] {\n  -webkit-appearance: none;\n  -webkit-flex: 1;\n      -ms-flex: 1;\n          flex: 1;\n  display: block;\n  overflow: hidden;\n  margin: 5px 10px;\n  padding: 16px 1px 20px;\n  box-sizing: border-box;\n  outline: none;\n  -webkit-tap-highlight-color: transparent; }\n\n.v-range-slider input::-webkit-slider-runnable-track {\n  position: relative;\n  height: 3px;\n  background: #ddd;\n  border: none;\n  border-radius: 3px; }\n\n.v-range-slider input::-webkit-slider-thumb {\n  -webkit-appearance: none;\n  position: relative;\n  margin-top: -9px;\n  cursor: pointer;\n  width: 20px;\n  height: 20px;\n  border: 0;\n  border-radius: 50%;\n  background: white;\n  box-shadow: 0 0 2px rgba(0, 0, 0, 0.4); }\n  .v-range-slider input::-webkit-slider-thumb:before {\n    position: absolute;\n    display: inline-block;\n    content: ' ';\n    top: 9px;\n    left: -2001px;\n    width: 2000px;\n    height: 3px;\n    background: #43AC6A; }\n")
@@ -47612,7 +48297,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],257:[function(require,module,exports){
+},{"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],259:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/switch.vue", module);
 (function(){
 'use strict';
@@ -47656,7 +48341,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":206,"vue-hot-reload-api":184}],258:[function(require,module,exports){
+},{"vue":206,"vue-hot-reload-api":184}],260:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/tab.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("\n  .tab-content > .tab-pane[_v-491cfad2] {\n    display: block;\n  }\n")
@@ -47724,7 +48409,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],259:[function(require,module,exports){
+},{"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],261:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/shared/tabset.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert("\n  .nav-tabs[_v-0332299b] {\n    margin-bottom: 15px\n  }\n")
@@ -47776,7 +48461,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],260:[function(require,module,exports){
+},{"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],262:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/sidebar.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".sidebar {\n  width: 155px;\n  position: fixed;\n  height: 100%;\n  background: #363C47;\n  z-index: 10;\n  padding: 20px;\n  transition: all 0.25s;\n  left: -155px;\n  display: -webkit-flex;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-flex-direction: column;\n      -ms-flex-direction: column;\n          flex-direction: column;\n  -webkit-align-items: flex-start;\n      -ms-flex-align: start;\n          align-items: flex-start;\n  -webkit-justify-content: space-between;\n      -ms-flex-pack: justify;\n          justify-content: space-between;\n  overflow-y: auto; }\n  @media (min-width: 768px) {\n    .sidebar {\n      left: 0;\n      width: 155px; } }\n  @media (min-width: 1280px) {\n    .sidebar {\n      width: 200px; } }\n  .sidebar .logo {\n    margin: 0 0 20px; }\n    .sidebar .logo img {\n      width: 100%;\n      height: auto; }\n  .sidebar h4 {\n    text-transform: uppercase;\n    color: #999;\n    font-size: 10px;\n    font-weight: 600;\n    letter-spacing: 1px;\n    margin: 20px 0 0; }\n  .sidebar li {\n    padding: 3px 0; }\n  .sidebar a {\n    color: #eaeaea;\n    font-weight: 300;\n    font-size: 14px;\n    transition: all 0.25s; }\n    .sidebar a:hover {\n      color: #fff; }\n    .sidebar a.active {\n      color: #fff;\n      font-weight: 500; }\n  .sidebar .sidebar-menu {\n    margin-bottom: auto; }\n  .sidebar .device-version {\n    bottom: 0;\n    left: 0;\n    width: 100%; }\n  .sidebar .device-stats {\n    color: white;\n    width: 100%;\n    margin: 30px 0 20px; }\n    .sidebar .device-stats h6 {\n      color: #eaeaea;\n      font-weight: 500;\n      font-size: 12px; }\n")
@@ -47814,7 +48499,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],261:[function(require,module,exports){
+},{"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],263:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/testing/channels.vue", module);
 (function(){
 "use strict";
@@ -47861,7 +48546,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../shared/switch.vue":257,"vue":206,"vue-hot-reload-api":184}],262:[function(require,module,exports){
+},{"../shared/switch.vue":259,"vue":206,"vue-hot-reload-api":184}],264:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/testing/index.vue", module);
 (function(){
 "use strict";
@@ -47896,7 +48581,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":206,"vue-hot-reload-api":184}],263:[function(require,module,exports){
+},{"vue":206,"vue-hot-reload-api":184}],265:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/testing/sequence.vue", module);
 (function(){
 "use strict";
@@ -47942,7 +48627,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../shared/switch.vue":257,"vue":206,"vue-hot-reload-api":184}],264:[function(require,module,exports){
+},{"../shared/switch.vue":259,"vue":206,"vue-hot-reload-api":184}],266:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/widgets/multisync.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".widget-multisync .table thead th {\n  font-size: 9px;\n  background: #e6e6e6;\n  font-weight: normal;\n  border-bottom: 0; }\n  .widget-multisync .table thead th.mode {\n    padding-right: 0 !important; }\n")
@@ -47982,7 +48667,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],265:[function(require,module,exports){
+},{"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],267:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/widgets/player.vue", module);
 (function(){
 var __vueify_style__ = require("vueify-insert-css").insert(".widget-player .table thead th {\n  font-size: 9px;\n  background: #e6e6e6;\n  font-weight: normal;\n  border-bottom: 0; }\n\n.widget-player .player-items .table tr td {\n  vertical-align: middle; }\n  .widget-player .player-items .table tr td.play {\n    text-align: center;\n    padding-left: 10px;\n    padding-right: 10px; }\n\n.widget-player .player-items .play-once {\n  padding-right: 25px; }\n  .widget-player .player-items .play-once .po-block {\n    padding: 3px 8px;\n    border: 1px solid #ddd;\n    font-size: 12px;\n    display: inline-block;\n    margin: 0 3px;\n    color: #ddd; }\n")
@@ -48024,10 +48709,10 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],266:[function(require,module,exports){
+},{"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],268:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/widgets/status.vue", module);
 (function(){
-var __vueify_style__ = require("vueify-insert-css").insert(".fppd-status .panel-heading {\n  padding: 15px 20px 5px 20px; }\n\n.fppd-status .panel-body {\n  margin-left: auto;\n  margin-right: auto;\n  padding: 0;\n  *zoom: 1; }\n\n.fppd-status .panel-body:before {\n  content: '';\n  display: table; }\n\n.fppd-status .panel-body:after {\n  content: '';\n  display: table;\n  clear: both; }\n\n.fppd-status .widget {\n  color: #666;\n  letter-spacing: 1px;\n  text-transform: uppercase;\n  width: calc(99.999999% * 1/2); }\n\n.fppd-status .widget:nth-child(n) {\n  float: left;\n  margin-right: 0;\n  clear: none; }\n\n.fppd-status .widget:last-child {\n  margin-right: 0; }\n\n.fppd-status .widget:nth-child(2n) {\n  margin-right: 0; }\n\n.fppd-status .widget:nth-child(2n + 1) {\n  clear: left; }\n  .fppd-status .widget:first-child {\n    border-right: 1px solid #eaeaea; }\n  .fppd-status .widget-header {\n    font-size: 10px;\n    display: block;\n    text-transform: uppercase;\n    padding: 8px 5px 5px; }\n  .fppd-status .widget-icon {\n    font-size: 34px;\n    line-height: 28px;\n    height: 35px;\n    width: 35px; }\n    .fppd-status .widget-icon i {\n      font-size: 34px; }\n    .fppd-status .widget-icon img {\n      width: 31px; }\n  .fppd-status .widget-text {\n    display: block;\n    padding: 5px 5px 8px;\n    font-size: 12px;\n    letter-spacing: .1rem; }\n  .fppd-status .widget-buttons {\n    border-top: 1px solid #eaeaea;\n    background: #f9f9f9;\n    padding: 10px; }\n    .fppd-status .widget-buttons .button {\n      display: inline-block;\n      vertical-align: middle;\n      margin: 0 1%;\n      text-transform: uppercase;\n      letter-spacing: 1px;\n      font-size: 10px;\n      border-radius: 2px;\n      transition: background 0.35s, box-shadow 0.15s;\n      border: 1px solid #c4c4c4;\n      color: #666;\n      background: linear-gradient(to bottom, #f8f8f8, #eaeaea 100%);\n      text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }\n      .fppd-status .widget-buttons .button:active {\n        box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125); }\n      .fppd-status .widget-buttons .button i {\n        margin-right: 3px; }\n      .fppd-status .widget-buttons .button:focus {\n        outline: none; }\n    .fppd-status .widget-buttons .form-group {\n      margin: 0;\n      display: inline-block;\n      width: 60%; }\n      .fppd-status .widget-buttons .form-group > select {\n        width: 100%; }\n    .fppd-status .widget-buttons select {\n      width: 60%;\n      height: auto;\n      display: inline-block;\n      padding: .09rem .25rem;\n      margin-bottom: 0;\n      background-color: transparent;\n      border-color: #c4c4c4;\n      border-radius: 2px;\n      box-shadow: none;\n      line-height: inherit;\n      background: #fafafa url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\" width=\"32\" height=\"24\" viewBox=\"0 0 32 24\"><polygon points=\"0,0 32,0 16,24\" style=\"fill: #000\"></polygon></svg>') right 10px center no-repeat;\n      background-size: 8px 8px;\n      color: #888;\n      font-size: 13px; }\n\n.fppd-status .mode-icon {\n  background: #788B94;\n  color: white;\n  padding: 3px 10px;\n  border-radius: 35px;\n  font-size: 20px;\n  vertical-align: top;\n  line-height: 35px; }\n")
+var __vueify_style__ = require("vueify-insert-css").insert(".fppd-status .panel-heading {\n  padding: 15px 20px 5px 20px; }\n\n.fppd-status .panel-body {\n  margin-left: auto;\n  margin-right: auto;\n  padding: 0;\n  *zoom: 1; }\n\n.fppd-status .panel-body:before {\n  content: '';\n  display: table; }\n\n.fppd-status .panel-body:after {\n  content: '';\n  display: table;\n  clear: both; }\n\n.fppd-status .widget {\n  color: #666;\n  letter-spacing: 1px;\n  text-transform: uppercase;\n  width: calc(99.999999% * 1/2); }\n\n.fppd-status .widget:nth-child(n) {\n  float: left;\n  margin-right: 0;\n  clear: none; }\n\n.fppd-status .widget:last-child {\n  margin-right: 0; }\n\n.fppd-status .widget:nth-child(2n) {\n  margin-right: 0; }\n\n.fppd-status .widget:nth-child(2n + 1) {\n  clear: left; }\n  .fppd-status .widget:first-child {\n    border-right: 1px solid #eaeaea; }\n  .fppd-status .widget-header {\n    font-size: 10px;\n    display: block;\n    text-transform: uppercase;\n    padding: 8px 5px 5px; }\n  .fppd-status .widget-icon {\n    font-size: 34px;\n    line-height: 28px;\n    height: 35px;\n    width: 35px; }\n    .fppd-status .widget-icon i {\n      font-size: 34px; }\n    .fppd-status .widget-icon img {\n      width: 31px; }\n  .fppd-status .widget-text {\n    display: block;\n    padding: 5px 5px 8px;\n    font-size: 12px;\n    letter-spacing: .1rem; }\n  .fppd-status .widget-buttons {\n    border-top: 1px solid #eaeaea;\n    background: #f9f9f9;\n    padding: 10px; }\n    .fppd-status .widget-buttons .button {\n      display: inline-block;\n      vertical-align: middle;\n      margin: 0 1%;\n      text-transform: uppercase;\n      letter-spacing: 1px;\n      font-size: 10px;\n      border-radius: 2px;\n      transition: background 0.35s, box-shadow 0.15s;\n      border: 1px solid #dddddd;\n      color: #666;\n      background: linear-gradient(to bottom, #f8f8f8, #eaeaea 100%);\n      text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }\n      .fppd-status .widget-buttons .button:active {\n        box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125); }\n      .fppd-status .widget-buttons .button i {\n        margin-right: 3px; }\n      .fppd-status .widget-buttons .button:focus {\n        outline: none; }\n    .fppd-status .widget-buttons .form-group {\n      margin: 0;\n      display: inline-block;\n      width: 60%; }\n      .fppd-status .widget-buttons .form-group > select {\n        width: 100%; }\n    .fppd-status .widget-buttons select {\n      width: 60%;\n      height: auto;\n      display: inline-block;\n      padding: .09rem .25rem;\n      margin-bottom: 0;\n      background-color: transparent;\n      border-color: #c4c4c4;\n      border-radius: 2px;\n      box-shadow: none;\n      line-height: inherit;\n      background: #fafafa url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\" width=\"32\" height=\"24\" viewBox=\"0 0 32 24\"><polygon points=\"0,0 32,0 16,24\" style=\"fill: #000\"></polygon></svg>') right 10px center no-repeat;\n      background-size: 8px 8px;\n      color: #888;\n      font-size: 13px; }\n\n.fppd-status .mode-icon {\n  background: #788B94;\n  color: white;\n  padding: 3px 10px;\n  border-radius: 35px;\n  font-size: 20px;\n  vertical-align: top;\n  line-height: 35px; }\n")
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -48088,7 +48773,7 @@ if (module.hot) {(function () {  module.hot.accept()
   if (!hotAPI.compatible) return
   var id = "/Users/Tim/Sites/FPP2/www/resources/assets/js/components/widgets/status.vue"
   module.hot.dispose(function () {
-    require("vueify-insert-css").cache[".fppd-status .panel-heading {\n  padding: 15px 20px 5px 20px; }\n\n.fppd-status .panel-body {\n  margin-left: auto;\n  margin-right: auto;\n  padding: 0;\n  *zoom: 1; }\n\n.fppd-status .panel-body:before {\n  content: '';\n  display: table; }\n\n.fppd-status .panel-body:after {\n  content: '';\n  display: table;\n  clear: both; }\n\n.fppd-status .widget {\n  color: #666;\n  letter-spacing: 1px;\n  text-transform: uppercase;\n  width: calc(99.999999% * 1/2); }\n\n.fppd-status .widget:nth-child(n) {\n  float: left;\n  margin-right: 0;\n  clear: none; }\n\n.fppd-status .widget:last-child {\n  margin-right: 0; }\n\n.fppd-status .widget:nth-child(2n) {\n  margin-right: 0; }\n\n.fppd-status .widget:nth-child(2n + 1) {\n  clear: left; }\n  .fppd-status .widget:first-child {\n    border-right: 1px solid #eaeaea; }\n  .fppd-status .widget-header {\n    font-size: 10px;\n    display: block;\n    text-transform: uppercase;\n    padding: 8px 5px 5px; }\n  .fppd-status .widget-icon {\n    font-size: 34px;\n    line-height: 28px;\n    height: 35px;\n    width: 35px; }\n    .fppd-status .widget-icon i {\n      font-size: 34px; }\n    .fppd-status .widget-icon img {\n      width: 31px; }\n  .fppd-status .widget-text {\n    display: block;\n    padding: 5px 5px 8px;\n    font-size: 12px;\n    letter-spacing: .1rem; }\n  .fppd-status .widget-buttons {\n    border-top: 1px solid #eaeaea;\n    background: #f9f9f9;\n    padding: 10px; }\n    .fppd-status .widget-buttons .button {\n      display: inline-block;\n      vertical-align: middle;\n      margin: 0 1%;\n      text-transform: uppercase;\n      letter-spacing: 1px;\n      font-size: 10px;\n      border-radius: 2px;\n      transition: background 0.35s, box-shadow 0.15s;\n      border: 1px solid #c4c4c4;\n      color: #666;\n      background: linear-gradient(to bottom, #f8f8f8, #eaeaea 100%);\n      text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }\n      .fppd-status .widget-buttons .button:active {\n        box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125); }\n      .fppd-status .widget-buttons .button i {\n        margin-right: 3px; }\n      .fppd-status .widget-buttons .button:focus {\n        outline: none; }\n    .fppd-status .widget-buttons .form-group {\n      margin: 0;\n      display: inline-block;\n      width: 60%; }\n      .fppd-status .widget-buttons .form-group > select {\n        width: 100%; }\n    .fppd-status .widget-buttons select {\n      width: 60%;\n      height: auto;\n      display: inline-block;\n      padding: .09rem .25rem;\n      margin-bottom: 0;\n      background-color: transparent;\n      border-color: #c4c4c4;\n      border-radius: 2px;\n      box-shadow: none;\n      line-height: inherit;\n      background: #fafafa url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\" width=\"32\" height=\"24\" viewBox=\"0 0 32 24\"><polygon points=\"0,0 32,0 16,24\" style=\"fill: #000\"></polygon></svg>') right 10px center no-repeat;\n      background-size: 8px 8px;\n      color: #888;\n      font-size: 13px; }\n\n.fppd-status .mode-icon {\n  background: #788B94;\n  color: white;\n  padding: 3px 10px;\n  border-radius: 35px;\n  font-size: 20px;\n  vertical-align: top;\n  line-height: 35px; }\n"] = false
+    require("vueify-insert-css").cache[".fppd-status .panel-heading {\n  padding: 15px 20px 5px 20px; }\n\n.fppd-status .panel-body {\n  margin-left: auto;\n  margin-right: auto;\n  padding: 0;\n  *zoom: 1; }\n\n.fppd-status .panel-body:before {\n  content: '';\n  display: table; }\n\n.fppd-status .panel-body:after {\n  content: '';\n  display: table;\n  clear: both; }\n\n.fppd-status .widget {\n  color: #666;\n  letter-spacing: 1px;\n  text-transform: uppercase;\n  width: calc(99.999999% * 1/2); }\n\n.fppd-status .widget:nth-child(n) {\n  float: left;\n  margin-right: 0;\n  clear: none; }\n\n.fppd-status .widget:last-child {\n  margin-right: 0; }\n\n.fppd-status .widget:nth-child(2n) {\n  margin-right: 0; }\n\n.fppd-status .widget:nth-child(2n + 1) {\n  clear: left; }\n  .fppd-status .widget:first-child {\n    border-right: 1px solid #eaeaea; }\n  .fppd-status .widget-header {\n    font-size: 10px;\n    display: block;\n    text-transform: uppercase;\n    padding: 8px 5px 5px; }\n  .fppd-status .widget-icon {\n    font-size: 34px;\n    line-height: 28px;\n    height: 35px;\n    width: 35px; }\n    .fppd-status .widget-icon i {\n      font-size: 34px; }\n    .fppd-status .widget-icon img {\n      width: 31px; }\n  .fppd-status .widget-text {\n    display: block;\n    padding: 5px 5px 8px;\n    font-size: 12px;\n    letter-spacing: .1rem; }\n  .fppd-status .widget-buttons {\n    border-top: 1px solid #eaeaea;\n    background: #f9f9f9;\n    padding: 10px; }\n    .fppd-status .widget-buttons .button {\n      display: inline-block;\n      vertical-align: middle;\n      margin: 0 1%;\n      text-transform: uppercase;\n      letter-spacing: 1px;\n      font-size: 10px;\n      border-radius: 2px;\n      transition: background 0.35s, box-shadow 0.15s;\n      border: 1px solid #dddddd;\n      color: #666;\n      background: linear-gradient(to bottom, #f8f8f8, #eaeaea 100%);\n      text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }\n      .fppd-status .widget-buttons .button:active {\n        box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125); }\n      .fppd-status .widget-buttons .button i {\n        margin-right: 3px; }\n      .fppd-status .widget-buttons .button:focus {\n        outline: none; }\n    .fppd-status .widget-buttons .form-group {\n      margin: 0;\n      display: inline-block;\n      width: 60%; }\n      .fppd-status .widget-buttons .form-group > select {\n        width: 100%; }\n    .fppd-status .widget-buttons select {\n      width: 60%;\n      height: auto;\n      display: inline-block;\n      padding: .09rem .25rem;\n      margin-bottom: 0;\n      background-color: transparent;\n      border-color: #c4c4c4;\n      border-radius: 2px;\n      box-shadow: none;\n      line-height: inherit;\n      background: #fafafa url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\" width=\"32\" height=\"24\" viewBox=\"0 0 32 24\"><polygon points=\"0,0 32,0 16,24\" style=\"fill: #000\"></polygon></svg>') right 10px center no-repeat;\n      background-size: 8px 8px;\n      color: #888;\n      font-size: 13px; }\n\n.fppd-status .mode-icon {\n  background: #788B94;\n  color: white;\n  padding: 3px 10px;\n  border-radius: 35px;\n  font-size: 20px;\n  vertical-align: top;\n  line-height: 35px; }\n"] = false
     document.head.removeChild(__vueify_style__)
   })
   if (!module.hot.data) {
@@ -48099,7 +48784,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"../../state/actions":271,"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],267:[function(require,module,exports){
+},{"../../state/actions":273,"vue":206,"vue-hot-reload-api":184,"vueify-insert-css":207}],269:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/components/widgets/weather.vue", module);
 (function(){
 "use strict";
@@ -48134,7 +48819,7 @@ if (module.hot) {(function () {  module.hot.accept()
 })()}
 }).apply(this, arguments);
 
-},{"vue":206,"vue-hot-reload-api":184}],268:[function(require,module,exports){
+},{"vue":206,"vue-hot-reload-api":184}],270:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/main.js", module);
 (function(){
 'use strict';
@@ -48163,7 +48848,7 @@ router.start(App, 'body');
 
 }).apply(this, arguments);
 
-},{"./app.vue":210,"./router":270,"jquery":92,"vue":206,"vue-animated-list":183,"vue-resource":189,"vue-validator":205}],269:[function(require,module,exports){
+},{"./app.vue":210,"./router":272,"jquery":92,"vue":206,"vue-animated-list":183,"vue-resource":189,"vue-validator":205}],271:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/mixins/outputMixin.js", module);
 (function(){
 'use strict';
@@ -48205,7 +48890,7 @@ exports.default = {
 
 }).apply(this, arguments);
 
-},{}],270:[function(require,module,exports){
+},{}],272:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/router.js", module);
 (function(){
 'use strict';
@@ -48282,6 +48967,10 @@ var _dmx = require('./components/outputs/dmx.vue');
 
 var _dmx2 = _interopRequireDefault(_dmx);
 
+var _fpd = require('./components/outputs/fpd.vue');
+
+var _fpd2 = _interopRequireDefault(_fpd);
+
 var _panels = require('./components/outputs/panels.vue');
 
 var _panels2 = _interopRequireDefault(_panels);
@@ -48347,13 +49036,16 @@ router.map({
                 component: _index4.default,
                 headerMenu: true,
                 menuName: 'Outputs',
-                menu: [{ path: '/outputs', label: 'E131' }, { path: '/outputs/dmx', label: 'Pixelnet / DMX' }, { path: '/outputs/panels', label: 'LED Panels' }, { path: '/outputs/other', label: 'Other' }],
+                menu: [{ path: '/outputs', label: 'E131' }, { path: '/outputs/dmx', label: 'Pixelnet / DMX' }, { path: '/outputs/panels', label: 'LED Panels' }, { path: '/outputs/fpd', label: 'FPD' }, { path: '/outputs/other', label: 'Other' }],
                 subRoutes: {
                     '/': {
                         component: _e2.default
                     },
                     '/dmx': {
                         component: _dmx2.default
+                    },
+                    '/fpd': {
+                        component: _fpd2.default
                     },
                     '/panels': {
                         component: _panels2.default
@@ -48450,7 +49142,7 @@ module.exports = router;
 
 }).apply(this, arguments);
 
-},{"./components/dashboard.vue":211,"./components/effects.vue":212,"./components/events.vue":213,"./components/files.vue":214,"./components/gpio.vue":216,"./components/index.vue":219,"./components/not-found.vue":220,"./components/outputs/dmx.vue":221,"./components/outputs/e131.vue":222,"./components/outputs/index.vue":223,"./components/outputs/other.vue":225,"./components/outputs/panels.vue":226,"./components/overlays.vue":229,"./components/playlists.vue":230,"./components/plugins.vue":233,"./components/schedule.vue":234,"./components/settings.vue":235,"./components/settings/advanced.vue":236,"./components/settings/date.vue":237,"./components/settings/email.vue":238,"./components/settings/general.vue":239,"./components/settings/logs.vue":241,"./components/settings/network.vue":242,"./components/testing/channels.vue":261,"./components/testing/index.vue":262,"./components/testing/sequence.vue":263,"vue-router":204}],271:[function(require,module,exports){
+},{"./components/dashboard.vue":211,"./components/effects.vue":212,"./components/events.vue":213,"./components/files.vue":214,"./components/gpio.vue":216,"./components/index.vue":219,"./components/not-found.vue":220,"./components/outputs/dmx.vue":221,"./components/outputs/e131.vue":222,"./components/outputs/fpd.vue":224,"./components/outputs/index.vue":225,"./components/outputs/other.vue":227,"./components/outputs/panels.vue":228,"./components/overlays.vue":231,"./components/playlists.vue":232,"./components/plugins.vue":235,"./components/schedule.vue":236,"./components/settings.vue":237,"./components/settings/advanced.vue":238,"./components/settings/date.vue":239,"./components/settings/email.vue":240,"./components/settings/general.vue":241,"./components/settings/logs.vue":243,"./components/settings/network.vue":244,"./components/testing/channels.vue":263,"./components/testing/index.vue":264,"./components/testing/sequence.vue":265,"vue-router":204}],273:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/state/actions.js", module);
 (function(){
 'use strict';
@@ -48579,7 +49271,7 @@ var updatePlaylist = exports.updatePlaylist = function updatePlaylist(_ref18, pl
 
 }).apply(this, arguments);
 
-},{}],272:[function(require,module,exports){
+},{}],274:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/state/modules/outputs.js", module);
 (function(){
 "use strict";
@@ -48602,6 +49294,10 @@ var state = {
         outputs: []
     },
     pdmx: {
+        enabled: false,
+        outputs: []
+    },
+    fpd: {
         enabled: false,
         outputs: []
     },
@@ -48659,7 +49355,7 @@ exports.default = {
 
 }).apply(this, arguments);
 
-},{"../mutation-types.js":275}],273:[function(require,module,exports){
+},{"../mutation-types.js":277}],275:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/state/modules/settings.js", module);
 (function(){
 'use strict';
@@ -48704,7 +49400,7 @@ exports.default = {
 
 }).apply(this, arguments);
 
-},{"../mutation-types":275}],274:[function(require,module,exports){
+},{"../mutation-types":277}],276:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/state/modules/shared.js", module);
 (function(){
 "use strict";
@@ -48786,7 +49482,7 @@ exports.default = {
 
 }).apply(this, arguments);
 
-},{"../mutation-types.js":275}],275:[function(require,module,exports){
+},{"../mutation-types.js":277}],277:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/state/mutation-types.js", module);
 (function(){
 'use strict';
@@ -48848,7 +49544,7 @@ var RECEIVE_SETTINGS = exports.RECEIVE_SETTINGS = 'RECEIVE_SETTINGS';
 
 }).apply(this, arguments);
 
-},{}],276:[function(require,module,exports){
+},{}],278:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/state/store.js", module);
 (function(){
 'use strict';
@@ -48891,7 +49587,7 @@ exports.default = new _vuex2.default.Store({
 
 }).apply(this, arguments);
 
-},{"./modules/outputs":272,"./modules/settings":273,"./modules/shared":274,"vue":206,"vuex":208}],277:[function(require,module,exports){
+},{"./modules/outputs":274,"./modules/settings":275,"./modules/shared":276,"vue":206,"vuex":208}],279:[function(require,module,exports){
 _hmr["websocket:null"].initModule("resources/assets/js/utils.js", module);
 (function(){
 'use strict';
@@ -48924,7 +49620,7 @@ function csstransitions() {
 (function(global, _main, moduleDefs, cachedModules, _entries) {
   'use strict';
 
-  var moduleMeta = {"node_modules/browserify-hmr/lib/has.js":{"index":11,"hash":"Hky4QYVrU1+kFHIEuxPy","parents":["node_modules/browserify-hmr/lib/str-set.js","node_modules/browserify-hmr/inc/index.js"]},"node_modules/browserify-hmr/lib/str-set.js":{"index":12,"hash":"lcrDmQK4uaqOqN+FV4/9","parents":["node_modules/browserify-hmr/inc/index.js"]},"resources/assets/js/state/actions.js":{"index":271,"hash":"wRLCvY+LY4uwjGh5EpwB","parents":["resources/assets/js/components/outputs/index.vue","resources/assets/js/components/widgets/status.vue","resources/assets/js/components/outputs/universe.vue","resources/assets/js/components/outputs/e131.vue","resources/assets/js/app.vue"]},"node_modules/socket.io-client/node_modules/debug/debug.js":{"index":174,"hash":"OtjmSmEbIU/8orJwFhDT","parents":["node_modules/socket.io-client/lib/url.js","node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/socket.io-client/lib/on.js":{"index":171,"hash":"y5MOoFpTKKBHwE8q8jae","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/vue-animated-list/vue-animated-list.js":{"index":183,"hash":"26lVl2CH82yXZ2XSjVFm","parents":["resources/assets/js/main.js"]},"node_modules/vue-validator/dist/vue-validator.common.js":{"index":205,"hash":"UC2NCeCJUHWKBvaDtYM2","parents":["resources/assets/js/main.js"]},"node_modules/jquery/dist/jquery.js":{"index":92,"hash":"siFczlgw4jULnUICcdm9","parents":["resources/assets/js/app.vue","resources/assets/js/main.js"]},"resources/assets/js/mixins/outputMixin.js":{"index":269,"hash":"gGCtCK8OXqFlnKkxkWU0","parents":["resources/assets/js/components/outputs/e131.vue","resources/assets/js/components/outputs/dmx.vue","resources/assets/js/components/outputs/panels.vue"]},"node_modules/vue-resource/src/resource.js":{"index":202,"hash":"4hFj5axF31CeVRePeF8o","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-hot-reload-api/index.js":{"index":184,"hash":"WuwmPSnCiynHpb+AfQBY","parents":["resources/assets/js/components/not-found.vue","resources/assets/js/components/gpio.vue","resources/assets/js/components/overlays.vue","resources/assets/js/components/schedule.vue","resources/assets/js/components/plugins.vue","resources/assets/js/components/events.vue","resources/assets/js/components/effects.vue","resources/assets/js/components/sidebar.vue","resources/assets/js/components/outputs/index.vue","resources/assets/js/components/testing/channels.vue","resources/assets/js/components/testing/index.vue","resources/assets/js/components/testing/sequence.vue","resources/assets/js/components/outputs/other.vue","resources/assets/js/components/settings/date.vue","resources/assets/js/components/settings/general.vue","resources/assets/js/components/settings/email.vue","resources/assets/js/components/settings/logs.vue","resources/assets/js/components/settings/advanced.vue","resources/assets/js/components/footer.vue","resources/assets/js/components/shared/switch.vue","resources/assets/js/components/shared/Tabset.vue","resources/assets/js/components/shared/Tab.vue","resources/assets/js/components/shared/alert-bar.vue","resources/assets/js/components/widgets/weather.vue","resources/assets/js/components/widgets/status.vue","resources/assets/js/components/widgets/player.vue","resources/assets/js/components/widgets/multisync.vue","resources/assets/js/components/dashboard.vue","resources/assets/js/components/shared/filelist.vue","resources/assets/js/components/files.vue","resources/assets/js/components/shared/falcon-loading.vue","resources/assets/js/components/shared/overlay.vue","resources/assets/js/components/shared/dropdown-select.vue","resources/assets/js/components/shared/tab.vue","resources/assets/js/components/shared/tabset.vue","resources/assets/js/components/settings/network.vue","resources/assets/js/components/header/settings.vue","resources/assets/js/components/settings/index.vue","resources/assets/js/components/settings.vue","resources/assets/js/components/outputs/universe.vue","resources/assets/js/components/shared/checkbox.vue","resources/assets/js/components/shared/input.vue","resources/assets/js/components/outputs/e131.vue","resources/assets/js/components/outputs/pdmx.vue","resources/assets/js/components/outputs/dmx.vue","resources/assets/js/components/outputs/led-panel.vue","resources/assets/js/components/shared/modal.vue","resources/assets/js/components/shared/header-menu.vue","resources/assets/js/components/shared/control-buttons.vue","resources/assets/js/components/header/index.vue","resources/assets/js/components/index.vue","resources/assets/js/app.vue","resources/assets/js/components/shared/range-slider.vue","resources/assets/js/components/playlists/entry-modal.vue","resources/assets/js/components/shared/popover.vue","resources/assets/js/components/playlists/playlist-entry.vue","resources/assets/js/components/playlists.vue","resources/assets/js/components/outputs/panels.vue"]},"node_modules/vue-resource/src/lib/util.js":{"index":200,"hash":"kipx22owioSurHN4RBYT","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-router/dist/vue-router.common.js":{"index":204,"hash":"V5DMsGGLcOqPAhx31psf","parents":["resources/assets/js/router.js"]},"node_modules/socket.io-parser/is-buffer.js":{"index":177,"hash":"UJBXKAfBg/BkigSZbc3Z","parents":["node_modules/socket.io-parser/binary.js","node_modules/socket.io-parser/index.js"]},"node_modules/component-emitter/index.js":{"index":14,"hash":"0uL1LSa/mOj+Llu+HTZ7","parents":["node_modules/socket.io-parser/index.js","node_modules/socket.io-client/lib/socket.js","node_modules/engine.io-client/lib/transport.js","node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/parseuri/index.js":{"index":166,"hash":"PsPou9y5yKmPMPJnjEkz","parents":["node_modules/socket.io-client/lib/url.js"]},"node_modules/socket.io-client/lib/url.js":{"index":173,"hash":"/WgdaMtSTLlxFoTxZTGl","parents":["node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/component-bind/index.js":{"index":13,"hash":"4yIcVw+afwUsnTQyI0a3","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/object-component/index.js":{"index":163,"hash":"zOYybxl/D7KsteH/xJyk","parents":["node_modules/socket.io-client/lib/manager.js"]},"node_modules/indexof/index.js":{"index":90,"hash":"8zMGV0j0ID5bUIeT7r+M","parents":["node_modules/engine.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/backo2/index.js":{"index":7,"hash":"L5ry3mfVEw1wgmx9Sa+q","parents":["node_modules/socket.io-client/lib/manager.js"]},"node_modules/to-array/index.js":{"index":181,"hash":"2EoggafxX+GLXkXiaGjm","parents":["node_modules/socket.io-client/lib/socket.js"]},"node_modules/lodash/array/zipObject.js":{"index":95,"hash":"fKfSwIzPo5SUx9d0DkgN","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/lang/isArray.js":{"index":149,"hash":"rpMiE1Z199/XZCjno4KN","parents":["node_modules/lodash/array/zipObject.js","node_modules/lodash/collection/map.js","node_modules/lodash/collection/filter.js","node_modules/lodash/internal/createForEach.js","node_modules/lodash/internal/isKey.js","node_modules/lodash/internal/toPath.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js","node_modules/lodash/internal/baseIsEqualDeep.js","node_modules/lodash/internal/baseMatchesProperty.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/arrayEach.js":{"index":101,"hash":"eLxUBVsb8vpFbu0VN4KL","parents":["node_modules/lodash/collection/forEach.js"]},"node_modules/lodash/internal/arraySome.js":{"index":104,"hash":"GxeJPxJj2jUg5TzV5gLv","parents":["node_modules/lodash/internal/equalArrays.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/arrayMap.js":{"index":103,"hash":"xdr8c0JsUFapIHTuM5VE","parents":["node_modules/lodash/collection/map.js"]},"node_modules/lodash/internal/arrayFilter.js":{"index":102,"hash":"BGunz0w1QzJXyqQSOdZb","parents":["node_modules/lodash/collection/filter.js"]},"resources/assets/js/state/modules/outputs.js":{"index":272,"hash":"Rh6zmEhy7CJ2ZgD5fvqP","parents":["resources/assets/js/state/store.js"]},"resources/assets/js/state/mutation-types.js":{"index":275,"hash":"FW1GFIrpaWnsjvy5Nz3y","parents":["resources/assets/js/state/modules/outputs.js","resources/assets/js/state/modules/settings.js","resources/assets/js/state/modules/shared.js"]},"resources/assets/js/state/modules/settings.js":{"index":273,"hash":"sxdHFgh7C2tRqRRIKiId","parents":["resources/assets/js/state/store.js"]},"resources/assets/js/state/modules/shared.js":{"index":274,"hash":"ar2maETTS25HZpdouZAu","parents":["resources/assets/js/state/store.js"]},"node_modules/socket.io-parser/node_modules/debug/debug.js":{"index":178,"hash":"OtjmSmEbIU/8orJwFhDT","parents":["node_modules/socket.io-parser/index.js"]},"resources/assets/js/utils.js":{"index":277,"hash":"N08p1gNbb1jw7x4Hn9No","parents":["resources/assets/js/components/shared/input.vue","resources/assets/js/components/shared/modal.vue"]},"node_modules/process/browser.js":{"index":167,"hash":"d/Dio43QDX3Xt7NYvbr6","parents":["node_modules/vue/dist/vue.common.js"]},"node_modules/vue/dist/vue.common.js":{"index":206,"hash":"c6jVTEwxpfJvrcRARsRp","parents":["resources/assets/js/components/not-found.vue","resources/assets/js/components/gpio.vue","resources/assets/js/components/overlays.vue","resources/assets/js/components/schedule.vue","resources/assets/js/components/plugins.vue","resources/assets/js/components/events.vue","resources/assets/js/components/effects.vue","resources/assets/js/components/sidebar.vue","resources/assets/js/state/store.js","resources/assets/js/components/outputs/index.vue","resources/assets/js/components/testing/channels.vue","resources/assets/js/components/testing/index.vue","resources/assets/js/components/testing/sequence.vue","resources/assets/js/components/outputs/other.vue","resources/assets/js/components/settings/date.vue","resources/assets/js/components/settings/general.vue","resources/assets/js/components/settings/email.vue","resources/assets/js/components/settings/logs.vue","resources/assets/js/components/settings/advanced.vue","resources/assets/js/components/footer.vue","resources/assets/js/components/shared/switch.vue","resources/assets/js/components/shared/Tabset.vue","resources/assets/js/components/shared/Tab.vue","resources/assets/js/components/shared/alert-bar.vue","resources/assets/js/components/widgets/weather.vue","resources/assets/js/components/widgets/status.vue","resources/assets/js/components/widgets/player.vue","resources/assets/js/components/widgets/multisync.vue","resources/assets/js/components/dashboard.vue","resources/assets/js/components/shared/filelist.vue","resources/assets/js/components/files.vue","resources/assets/js/components/shared/falcon-loading.vue","resources/assets/js/components/shared/overlay.vue","resources/assets/js/components/shared/dropdown-select.vue","resources/assets/js/components/shared/tab.vue","resources/assets/js/components/shared/tabset.vue","resources/assets/js/components/settings/network.vue","resources/assets/js/components/header/settings.vue","resources/assets/js/components/settings/index.vue","resources/assets/js/components/settings.vue","resources/assets/js/components/outputs/universe.vue","resources/assets/js/components/shared/checkbox.vue","resources/assets/js/components/shared/input.vue","resources/assets/js/components/outputs/e131.vue","resources/assets/js/components/outputs/pdmx.vue","resources/assets/js/components/outputs/dmx.vue","resources/assets/js/components/outputs/led-panel.vue","resources/assets/js/components/shared/modal.vue","resources/assets/js/components/shared/header-menu.vue","resources/assets/js/components/shared/control-buttons.vue","resources/assets/js/components/header/index.vue","resources/assets/js/components/index.vue","resources/assets/js/app.vue","resources/assets/js/components/shared/range-slider.vue","resources/assets/js/components/playlists/entry-modal.vue","resources/assets/js/components/shared/popover.vue","resources/assets/js/components/playlists/playlist-entry.vue","resources/assets/js/components/playlists.vue","resources/assets/js/components/outputs/panels.vue","resources/assets/js/main.js"]},"node_modules/vue-resource/src/interceptor/before.js":{"index":190,"hash":"dzJ5VyAAgzvYOWxyyGVm","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/timeout.js":{"index":197,"hash":"r+N56i06KukH+ME8Mpnr","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/method.js":{"index":195,"hash":"DqLo0TxFAJSH0HWGo7wR","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/mime.js":{"index":196,"hash":"f6heFdNiVYVl4GIRJ2gN","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/header.js":{"index":192,"hash":"Ql+DdTpkgQsJb9HXQumF","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/lib/url-template.js":{"index":199,"hash":"KZagPKERmevU89wFVgEg","parents":["node_modules/vue-resource/src/url.js"]},"node_modules/vue-resource/src/url.js":{"index":203,"hash":"enlma6RiuDUq+g3+RYdS","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-resource/src/lib/promise.js":{"index":198,"hash":"uhJ1aPn5MePstu6k3zZV","parents":["node_modules/vue-resource/src/promise.js"]},"node_modules/vue-resource/src/promise.js":{"index":201,"hash":"dayC7UqEuK1y+yEa6/bE","parents":["node_modules/vue-resource/src/interceptor/index.js","node_modules/vue-resource/src/client/xhr.js","node_modules/vue-resource/src/client/jsonp.js","node_modules/vue-resource/src/http.js","node_modules/vue-resource/src/index.js"]},"node_modules/isarray/index.js":{"index":91,"hash":"dKtews1S4sHvaZhZ+ceq","parents":["node_modules/socket.io-parser/binary.js","node_modules/socket.io-parser/index.js","node_modules/has-binary/index.js"]},"node_modules/json3/lib/json3.js":{"index":93,"hash":"Z22TAqz9HSDSuQH535ZO","parents":["node_modules/socket.io-parser/index.js"]},"node_modules/lodash/internal/baseSome.js":{"index":123,"hash":"lCW5AtHn9X2vSuPgS8pk","parents":["node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/baseEach.js":{"index":109,"hash":"Ji7NLCJhdzSBlpDI+qC3","parents":["node_modules/lodash/internal/baseSome.js","node_modules/lodash/internal/baseMap.js","node_modules/lodash/internal/baseFilter.js","node_modules/lodash/collection/forEach.js"]},"node_modules/lodash/internal/baseMap.js":{"index":117,"hash":"ofv2jCE5QlahpynG4rkN","parents":["node_modules/lodash/collection/map.js"]},"node_modules/lodash/internal/isArrayLike.js":{"index":138,"hash":"76Awthz8ChTgjGk0JZ6Y","parents":["node_modules/lodash/internal/baseMap.js","node_modules/lodash/internal/isIterateeCall.js","node_modules/lodash/lang/isArguments.js","node_modules/lodash/object/keys.js"]},"node_modules/lodash/collection/map.js":{"index":98,"hash":"63n5x8GTiWPuxiZzm9TM","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/baseCallback.js":{"index":107,"hash":"FDEmxoh1cXY/hddgPNGW","parents":["node_modules/lodash/collection/map.js","node_modules/lodash/collection/filter.js","node_modules/lodash/internal/createObjectMapper.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/baseFilter.js":{"index":110,"hash":"yyvQag4hw8sItBFf3/9T","parents":["node_modules/lodash/collection/filter.js"]},"node_modules/lodash/collection/filter.js":{"index":96,"hash":"XtU5zjCqSDlYcwOLUC13","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/createForOwn.js":{"index":130,"hash":"KJqijjvJO7d1nU17Sz3c","parents":["node_modules/lodash/object/forOwn.js"]},"node_modules/lodash/internal/bindCallback.js":{"index":125,"hash":"S6iy1I+53IEzDLSGuW0j","parents":["node_modules/lodash/internal/createForOwn.js","node_modules/lodash/internal/createAssigner.js","node_modules/lodash/internal/createForEach.js","node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/internal/createObjectMapper.js":{"index":131,"hash":"cp8s+Z6khiKdK5QCQ+Ms","parents":["node_modules/lodash/object/mapValues.js"]},"node_modules/lodash/internal/baseForOwn.js":{"index":112,"hash":"sOLmHH2OosmeW92YaLK/","parents":["node_modules/lodash/internal/createObjectMapper.js","node_modules/lodash/internal/baseEach.js","node_modules/lodash/object/forOwn.js"]},"node_modules/lodash/object/mapValues.js":{"index":158,"hash":"2HfAmVuaVGfc8pd5zIaC","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/assignWith.js":{"index":105,"hash":"aKBKyfIKqZsNOHAbJTAI","parents":["node_modules/lodash/object/assign.js"]},"node_modules/lodash/object/keys.js":{"index":156,"hash":"BbXGNIcfatSp32uWOBAV","parents":["node_modules/lodash/internal/assignWith.js","node_modules/lodash/internal/baseAssign.js","node_modules/lodash/object/pairs.js","node_modules/lodash/internal/baseForOwn.js","node_modules/lodash/internal/equalObjects.js"]},"node_modules/lodash/utility/identity.js":{"index":160,"hash":"A/cz5O4nnho2x2e5KIWS","parents":["node_modules/lodash/internal/bindCallback.js","node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/internal/isLength.js":{"index":142,"hash":"DFIKI121VzeE+pBbx1Oa","parents":["node_modules/lodash/internal/isArrayLike.js","node_modules/lodash/internal/createBaseEach.js","node_modules/lodash/lang/isArray.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js","node_modules/lodash/lang/isTypedArray.js"]},"node_modules/lodash/internal/isObjectLike.js":{"index":143,"hash":"qEGnAWJNoAetOIJ7YKiV","parents":["node_modules/lodash/lang/isNative.js","node_modules/lodash/lang/isArray.js","node_modules/lodash/lang/isArguments.js","node_modules/lodash/lang/isTypedArray.js","node_modules/lodash/internal/baseIsEqual.js"]},"node_modules/lodash/internal/isIndex.js":{"index":139,"hash":"I8y5AsjL/lwDlORDOqqM","parents":["node_modules/lodash/internal/isIterateeCall.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js"]},"node_modules/lodash/lang/isObject.js":{"index":152,"hash":"Go+dTLFqO1KJN+uQLb8s","parents":["node_modules/lodash/internal/isIterateeCall.js","node_modules/lodash/internal/toObject.js","node_modules/lodash/internal/isStrictComparable.js","node_modules/lodash/lang/isFunction.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/object/keys.js","node_modules/lodash/internal/baseIsEqual.js"]},"node_modules/lodash/internal/baseCopy.js":{"index":108,"hash":"WvGi8IywM6u7ZNXvztwg","parents":["node_modules/lodash/internal/baseAssign.js"]},"node_modules/lodash/internal/baseAssign.js":{"index":106,"hash":"6VX87YoeNgDvMUyiAc/7","parents":["node_modules/lodash/object/assign.js"]},"node_modules/lodash/function/restParam.js":{"index":100,"hash":"/RRH9MCtjArr1p3Qeh63","parents":["node_modules/lodash/internal/createAssigner.js"]},"node_modules/lodash/internal/createAssigner.js":{"index":126,"hash":"X8R81jvRCofY1BnG+A/L","parents":["node_modules/lodash/object/assign.js"]},"node_modules/lodash/internal/isIterateeCall.js":{"index":140,"hash":"dXMnNRevAizOBisKCEes","parents":["node_modules/lodash/internal/createAssigner.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/object/assign.js":{"index":154,"hash":"9WOhJBREl8AO9Hs6Cr+Q","parents":["node_modules/browserify-hmr/inc/index.js"]},"resources/assets/js/components/not-found.vue":{"index":220,"hash":"JnE9W3JgazmF+BYtHxgh","parents":["resources/assets/js/router.js"]},"node_modules/vueify-insert-css/index.js":{"index":207,"hash":"fvTUijA6yyBpp68H+JX2","parents":["resources/assets/js/components/not-found.vue","resources/assets/js/components/sidebar.vue","resources/assets/js/components/settings/logs.vue","resources/assets/js/components/shared/Tabset.vue","resources/assets/js/components/shared/Tab.vue","resources/assets/js/components/shared/alert-bar.vue","resources/assets/js/components/widgets/status.vue","resources/assets/js/components/widgets/player.vue","resources/assets/js/components/widgets/multisync.vue","resources/assets/js/components/shared/filelist.vue","resources/assets/js/components/files.vue","resources/assets/js/components/shared/falcon-loading.vue","resources/assets/js/components/shared/overlay.vue","resources/assets/js/components/shared/tab.vue","resources/assets/js/components/shared/tabset.vue","resources/assets/js/components/header/settings.vue","resources/assets/js/components/settings/index.vue","resources/assets/js/components/settings.vue","resources/assets/js/components/outputs/universe.vue","resources/assets/js/components/shared/checkbox.vue","resources/assets/js/components/outputs/e131.vue","resources/assets/js/components/outputs/led-panel.vue","resources/assets/js/components/shared/header-menu.vue","resources/assets/js/components/shared/control-buttons.vue","resources/assets/js/components/header/index.vue","resources/assets/js/components/index.vue","resources/assets/js/components/shared/range-slider.vue","resources/assets/js/components/playlists/playlist-entry.vue","resources/assets/js/components/playlists.vue","resources/assets/js/components/outputs/panels.vue"]},"resources/assets/js/components/gpio.vue":{"index":216,"hash":"15qwrMvWfxtc10r2sCpe","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/overlays.vue":{"index":229,"hash":"Hdowzj3zE79NCSN5QTgB","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/schedule.vue":{"index":234,"hash":"w10dm2qLyWGPX+dNhHQr","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/plugins.vue":{"index":233,"hash":"aBWTwEC29+sEJX2/NcVw","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/events.vue":{"index":213,"hash":"Lmd0SzEjko8hAg0NQmxQ","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/effects.vue":{"index":212,"hash":"W8MkKtIaA7ck5eb1D3Us","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/sidebar.vue":{"index":260,"hash":"suBj4vI7vtWn7Gia4b1p","parents":["resources/assets/js/app.vue"]},"node_modules/vuex/dist/vuex.js":{"index":208,"hash":"gX//W6yHs/IFY/kkM/lI","parents":["resources/assets/js/state/store.js"]},"resources/assets/js/state/store.js":{"index":276,"hash":"o+ItkT8YEBoo74dpBWbo","parents":["resources/assets/js/app.vue"]},"node_modules/sortablejs/Sortable.js":{"index":179,"hash":"2QkxTYWtmuRQd1EH6qKb","parents":["resources/assets/js/components/playlists.vue"]},"node_modules/socket.io-parser/binary.js":{"index":175,"hash":"bAee8RukaXwuD/OeGN6F","parents":["node_modules/socket.io-parser/index.js"]},"node_modules/socket.io-parser/index.js":{"index":176,"hash":"BAgSAi2yJ1LAoE3Vw1D4","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/moment/moment.js":{"index":162,"hash":"sSbAgdZ6+pfkEIPz6SMX","parents":["resources/assets/js/components/dashboard.vue","resources/assets/js/components/playlists.vue"]},"node_modules/has-binary/index.js":{"index":88,"hash":"ZLLgu+QfLGB5FJs6P2Ow","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/engine.io-parser/lib/browser.js"]},"node_modules/socket.io-client/lib/socket.js":{"index":172,"hash":"mVenx7k8VFtvIejsDYOl","parents":["node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/vue-resource/src/interceptor/cors.js":{"index":191,"hash":"y/hrmr+lC4LVHKr98SRc","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/client/jsonp.js":{"index":186,"hash":"+Nk8UZxMFWMDrzR/Me13","parents":["node_modules/vue-resource/src/interceptor/cors.js","node_modules/vue-resource/src/interceptor/jsonp.js"]},"node_modules/vue-resource/src/interceptor/index.js":{"index":193,"hash":"5iWUKE5ElG+J957vOzOe","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/lodash/internal/createForEach.js":{"index":129,"hash":"iJtWBCzx+bzzSLwlaaRv","parents":["node_modules/lodash/collection/forEach.js"]},"node_modules/lodash/internal/getLength.js":{"index":135,"hash":"UiZ6F0+nXZ0fiKckTqnM","parents":["node_modules/lodash/internal/isArrayLike.js","node_modules/lodash/internal/createBaseEach.js"]},"resources/assets/js/components/outputs/index.vue":{"index":223,"hash":"OQxL5TLvM4FWVnFkPhor","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/testing/channels.vue":{"index":261,"hash":"rIR6bzqNERQcD8WBO8Md","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/shared/switch.vue":{"index":257,"hash":"t/T9yIbO4Lv+NddG0GVx","parents":["resources/assets/js/components/testing/channels.vue","resources/assets/js/components/testing/sequence.vue","resources/assets/js/components/settings/date.vue","resources/assets/js/components/settings/general.vue","resources/assets/js/components/settings/logs.vue","resources/assets/js/components/outputs/universe.vue","resources/assets/js/components/outputs/e131.vue","resources/assets/js/components/outputs/pdmx.vue","resources/assets/js/components/outputs/dmx.vue","resources/assets/js/components/playlists.vue","resources/assets/js/components/outputs/panels.vue"]},"resources/assets/js/components/testing/index.vue":{"index":262,"hash":"L2f7/8FXUFHm3f2/pt+J","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/testing/sequence.vue":{"index":263,"hash":"eI89qWWDJJc5nQHEByiG","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/outputs/other.vue":{"index":225,"hash":"q2uEEdYgJjD3nBtzgPjD","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/settings/date.vue":{"index":237,"hash":"52BPts98nvITx+HD9Ooc","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/settings/general.vue":{"index":239,"hash":"hAzIrcrJPaXEj0CIoB41","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/settings/email.vue":{"index":238,"hash":"5oX1fK0HFWyf2L8sKj+z","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/settings/logs.vue":{"index":241,"hash":"Bc+E+3Ccc0mYANPZn6Lt","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/settings/advanced.vue":{"index":236,"hash":"r2wb/2T+G10rShqof/+O","parents":["resources/assets/js/router.js"]},"node_modules/lodash/internal/baseSlice.js":{"index":122,"hash":"OLgw9XVic1W0AKjehzHB","parents":["node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/array/last.js":{"index":94,"hash":"3oXXa2idWbKySVLcq3os","parents":["node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/baseProperty.js":{"index":120,"hash":"Yuk2tpof21q0Xl2sQg89","parents":["node_modules/lodash/internal/getLength.js","node_modules/lodash/utility/property.js"]},"resources/assets/js/components/footer.vue":{"index":215,"hash":"V/pa4T+7Xw1RugNiCrP+","parents":["resources/assets/js/components/settings.vue","resources/assets/js/components/index.vue"]},"node_modules/vue-resource/src/client/xhr.js":{"index":187,"hash":"u8PTCERIOeSAmYWFlrqC","parents":["node_modules/vue-resource/src/client/default.js"]},"node_modules/vue-resource/src/client/default.js":{"index":185,"hash":"+B0kSDe+gVY+/RkxYnil","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/jsonp.js":{"index":194,"hash":"EYhB3ryCUxKsSKwlYeME","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/http.js":{"index":188,"hash":"pcpl/SOKe3e7NS9rUOff","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-resource/src/index.js":{"index":189,"hash":"TZsp5Ua7CrOOvYCKsblD","parents":["resources/assets/js/main.js"]},"node_modules/lodash/internal/toObject.js":{"index":146,"hash":"8f3eulB97DddBRdcU+7v","parents":["node_modules/lodash/internal/createBaseEach.js","node_modules/lodash/internal/baseIsMatch.js","node_modules/lodash/internal/baseGet.js","node_modules/lodash/internal/isKey.js","node_modules/lodash/internal/createBaseFor.js","node_modules/lodash/object/pairs.js","node_modules/lodash/internal/baseMatches.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/createBaseEach.js":{"index":127,"hash":"+5X3Ztm78NNPr9vQZ7fB","parents":["node_modules/lodash/internal/baseEach.js"]},"node_modules/lodash/collection/forEach.js":{"index":97,"hash":"0Lo1RNt18PMo/HAKbHEu","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/baseIsMatch.js":{"index":116,"hash":"EpuJzlg204aR35T4QKcS","parents":["node_modules/lodash/internal/baseMatches.js"]},"node_modules/lodash/internal/baseIsEqual.js":{"index":114,"hash":"dBgoFXnhj9KH6oX3dQwa","parents":["node_modules/lodash/internal/baseIsMatch.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/baseGet.js":{"index":113,"hash":"H9EiMd3ullQpRkvooLgz","parents":["node_modules/lodash/internal/basePropertyDeep.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/isKey.js":{"index":141,"hash":"lDpw5crcRmTRExTLVTKc","parents":["node_modules/lodash/utility/property.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/isStrictComparable.js":{"index":144,"hash":"ofNP4/nFrz5Rkb3kGOhn","parents":["node_modules/lodash/internal/getMatchData.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/basePropertyDeep.js":{"index":121,"hash":"mqX1OyYdndJ183lyl/sn","parents":["node_modules/lodash/utility/property.js"]},"node_modules/lodash/internal/toPath.js":{"index":147,"hash":"faVQvsb+LSLI4uaMgtrQ","parents":["node_modules/lodash/internal/basePropertyDeep.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/utility/property.js":{"index":161,"hash":"7IoOI/uGZCxbcY23uQDK","parents":["node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/internal/createBaseFor.js":{"index":128,"hash":"9RWlFaBOuelvwgkhYgPG","parents":["node_modules/lodash/internal/baseFor.js"]},"node_modules/lodash/internal/baseFor.js":{"index":111,"hash":"NGxcZ0n01+w2G1PzyBlY","parents":["node_modules/lodash/internal/baseForOwn.js"]},"node_modules/lodash/internal/baseToString.js":{"index":124,"hash":"ABFQFf14pRECi3sw8oKV","parents":["node_modules/lodash/internal/toPath.js"]},"resources/assets/js/components/shared/Tabset.vue":{"index":244,"hash":"gqqI8RvSTmfen5Ur4x8e","parents":["resources/assets/js/components/files.vue"]},"resources/assets/js/components/shared/Tab.vue":{"index":243,"hash":"3T5xz9/0SmC5KeUPYM89","parents":["resources/assets/js/components/files.vue"]},"resources/assets/js/components/shared/alert-bar.vue":{"index":245,"hash":"aJ0yfhoEGYPABfAEaKEE","parents":["resources/assets/js/components/index.vue"]},"resources/assets/js/components/widgets/weather.vue":{"index":267,"hash":"b613QbmxPeGOA+SdLRGA","parents":["resources/assets/js/components/dashboard.vue"]},"resources/assets/js/components/widgets/status.vue":{"index":266,"hash":"3/TFHaABj++G0cNHnGnZ","parents":["resources/assets/js/components/dashboard.vue"]},"resources/assets/js/components/widgets/player.vue":{"index":265,"hash":"sy0CiaEqObMbakxD3rEH","parents":["resources/assets/js/components/dashboard.vue"]},"resources/assets/js/components/widgets/multisync.vue":{"index":264,"hash":"vfXpUDrV3Q/fs2gz/I0h","parents":["resources/assets/js/components/dashboard.vue"]},"resources/assets/js/components/dashboard.vue":{"index":211,"hash":"YJi9W5MULFv5BPalT4Jo","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/shared/filelist.vue":{"index":250,"hash":"UcxvPNXyJimPoXghyR93","parents":["resources/assets/js/components/files.vue"]},"resources/assets/js/components/files.vue":{"index":214,"hash":"O/OPcgg+TUnlswbf4lVR","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/shared/falcon-loading.vue":{"index":249,"hash":"nrISz6smCod0TjaIPHYA","parents":["resources/assets/js/components/shared/overlay.vue"]},"resources/assets/js/components/shared/overlay.vue":{"index":254,"hash":"JYZPaO3VyADALhB5HixN","parents":["resources/assets/js/app.vue"]},"resources/assets/js/components/shared/dropdown-select.vue":{"index":248,"hash":"mFIoJVHY9dJVngym9xZP","parents":["resources/assets/js/components/outputs/e131.vue"]},"resources/assets/js/components/shared/tab.vue":{"index":258,"hash":"ioZOPM98/erGgkP7DVq8","parents":["resources/assets/js/components/settings/network.vue"]},"resources/assets/js/components/shared/tabset.vue":{"index":259,"hash":"ni1YOVU6boQgduWMtPx9","parents":["resources/assets/js/components/settings/network.vue"]},"resources/assets/js/components/settings/network.vue":{"index":242,"hash":"Xt1AOrWp4ng2cAEaPAeD","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/header/settings.vue":{"index":218,"hash":"6tU6AIk8Kebxk49e2Q9d","parents":["resources/assets/js/components/settings.vue"]},"resources/assets/js/components/shared/control-buttons.vue":{"index":247,"hash":"OjY41XisyzijXZdxoJ8C","parents":["resources/assets/js/components/header/settings.vue","resources/assets/js/components/header/index.vue"]},"resources/assets/js/components/settings/index.vue":{"index":240,"hash":"3OEkMP0lykKjpifYr8Jo","parents":["resources/assets/js/components/settings.vue"]},"resources/assets/js/components/settings.vue":{"index":235,"hash":"8iDnk5fygW9EqF8Mtncs","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/outputs/universe.vue":{"index":228,"hash":"I9HHiLYMTRr/4qDGJ1eR","parents":["resources/assets/js/components/outputs/e131.vue"]},"resources/assets/js/components/shared/checkbox.vue":{"index":246,"hash":"uZDy5Po/OgOkjVErDgUR","parents":["resources/assets/js/components/outputs/e131.vue"]},"resources/assets/js/components/shared/input.vue":{"index":252,"hash":"nzaLsXc4vVVsCPN3ns0t","parents":["resources/assets/js/components/outputs/e131.vue","resources/assets/js/components/outputs/dmx.vue","resources/assets/js/components/outputs/panels.vue"]},"resources/assets/js/components/outputs/e131.vue":{"index":222,"hash":"pzKXg8y3f3kSez1ksJN+","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/outputs/pdmx.vue":{"index":227,"hash":"2ty3Aa7oir8Cq0DoB2dV","parents":["resources/assets/js/components/outputs/dmx.vue"]},"resources/assets/js/components/outputs/dmx.vue":{"index":221,"hash":"Ms2VxJVLnBjDdldyHe2I","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/outputs/led-panel.vue":{"index":224,"hash":"oeFziti9eCAe9axM41wE","parents":["resources/assets/js/components/outputs/panels.vue"]},"resources/assets/js/components/shared/popover.vue":{"index":255,"hash":"ZPUs9I9S7R9RatQxz5dz","parents":["resources/assets/js/components/outputs/led-panel.vue","resources/assets/js/components/playlists/playlist-entry.vue"]},"node_modules/lodash/object/pairs.js":{"index":159,"hash":"x6Ilwx8encvg/BW5API2","parents":["node_modules/lodash/internal/getMatchData.js"]},"node_modules/lodash/internal/getMatchData.js":{"index":136,"hash":"n0PHWhNs6YZ+DzgYMHPx","parents":["node_modules/lodash/internal/baseMatches.js"]},"node_modules/lodash/internal/baseMatches.js":{"index":118,"hash":"Cwj5GSiQv9/E8nSFBoX2","parents":["node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/lang/isFunction.js":{"index":150,"hash":"xkfzrZNZPGGOIf0kE8Y9","parents":["node_modules/lodash/lang/isNative.js"]},"node_modules/lodash/lang/isNative.js":{"index":151,"hash":"2rstaALy1DW0JSDdijps","parents":["node_modules/lodash/internal/getNative.js"]},"node_modules/lodash/internal/getNative.js":{"index":137,"hash":"7GRZ7115BSuoc/1bdaBK","parents":["node_modules/lodash/lang/isArray.js","node_modules/lodash/object/keys.js"]},"node_modules/lodash/lang/isArguments.js":{"index":148,"hash":"xQ4mqbsKQMCmtsPbfQc6","parents":["node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js"]},"node_modules/lodash/object/keysIn.js":{"index":157,"hash":"8POZiGR1fRHso579G46Z","parents":["node_modules/lodash/internal/shimKeys.js"]},"node_modules/lodash/internal/shimKeys.js":{"index":145,"hash":"oO4aKopmxRfPxyKgRX9F","parents":["node_modules/lodash/object/keys.js"]},"node_modules/lodash/object/forOwn.js":{"index":155,"hash":"LZ77PzuJW/wlgVPdvlGc","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/engine.io-client/node_modules/parseuri/index.js":{"index":84,"hash":"c/c7XftSI6ClFc9h2jOh","parents":["node_modules/engine.io-client/lib/socket.js"]},"node_modules/lodash/internal/equalByTag.js":{"index":133,"hash":"+y++gesJpPvyM+2E8aNB","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"resources/assets/js/components/shared/modal.vue":{"index":253,"hash":"SZs4QqlMcEuVnRWO8aGr","parents":["resources/assets/js/components/playlists/entry-modal.vue"]},"resources/assets/js/components/shared/header-menu.vue":{"index":251,"hash":"phCAnSIecIl68MBC00Uo","parents":["resources/assets/js/components/header/index.vue"]},"resources/assets/js/components/header/index.vue":{"index":217,"hash":"KnNULTxanxvoZgqgfXX+","parents":["resources/assets/js/components/index.vue"]},"resources/assets/js/components/index.vue":{"index":219,"hash":"PLYshia9K/owV8mITt9y","parents":["resources/assets/js/app.vue","resources/assets/js/router.js"]},"resources/assets/js/app.vue":{"index":210,"hash":"ulS5MqaaFVeykPeTHvKT","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/shared/range-slider.vue":{"index":256,"hash":"9EX9qkAD0BoeEvE45Qbg","parents":["resources/assets/js/components/playlists/entry-modal.vue"]},"resources/assets/js/components/playlists/entry-modal.vue":{"index":231,"hash":"CEXEnYqlOJvoMXCMI7c/","parents":["resources/assets/js/components/playlists.vue"]},"node_modules/parseqs/index.js":{"index":165,"hash":"FI4tRELwI5Itz+ckwR+m","parents":["node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/socket.js"]},"node_modules/parsejson/index.js":{"index":164,"hash":"3RLuznQNKZiQ/toCXNir","parents":["node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-parser/lib/keys.js":{"index":86,"hash":"oFyKNTA0twlyQVhVzp9n","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/tether/dist/js/tether.js":{"index":180,"hash":"E4xLyEYuK5qxMv3jfy3v","parents":["resources/assets/js/components/shared/popover.vue"]},"resources/assets/js/components/playlists/playlist-entry.vue":{"index":232,"hash":"g4PPOkkPubUqxe/P9Rma","parents":["resources/assets/js/components/playlists.vue"]},"node_modules/lodash/internal/equalArrays.js":{"index":132,"hash":"OBJL6vuaOotu5flUeCnv","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/lodash/internal/equalObjects.js":{"index":134,"hash":"44Iy49kDcaAZsykEdaH3","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/lodash/lang/isTypedArray.js":{"index":153,"hash":"aVeZyIFGadrEh7EsaDRu","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/lodash/internal/baseIsEqualDeep.js":{"index":115,"hash":"ltZZaMHmzp6d9jBltV3Y","parents":["node_modules/lodash/internal/baseIsEqual.js"]},"node_modules/lodash/internal/baseMatchesProperty.js":{"index":119,"hash":"OudnSoeq2A4ql5lg51kc","parents":["node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/collection/some.js":{"index":99,"hash":"9JyJFfdCx56pmR6fwM9q","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/browserify-hmr/inc/index.js":{"index":10,"hash":"zTlNWZ14iIh89mO0UkaY","parents":[]},"node_modules/engine.io-client/lib/transport.js":{"index":74,"hash":"8Wg7zuMzQpa+AwOxaesw","parents":["node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-parser/lib/browser.js":{"index":85,"hash":"Xr2KhMDa3GjqERGsK7Lc","parents":["node_modules/engine.io-client/lib/transport.js","node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/socket.js","node_modules/engine.io-client/lib/index.js"]},"node_modules/utf8/utf8.js":{"index":182,"hash":"Mqm8G2xyYXmBOFrE+/6A","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/arraybuffer.slice/index.js":{"index":3,"hash":"RSb5Zx9CgX3adjzbvf/k","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/after/index.js":{"index":2,"hash":"NzPfXWECmM8rW/6fdkcj","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/blob/index.js":{"index":9,"hash":"q7L6uHK9eN9yEvDVNxJw","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/base64-arraybuffer/lib/base64-arraybuffer.js":{"index":8,"hash":"dW6cnktjBIyZ6bv9vRp2","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/engine.io-client/node_modules/ms/index.js":{"index":83,"hash":"rzSu41c+6ZW8M4Say8X9","parents":["node_modules/engine.io-client/node_modules/debug/debug.js"]},"node_modules/engine.io-client/node_modules/debug/debug.js":{"index":82,"hash":"yqdR7nJc7wxIHzFDNzG+","parents":["node_modules/engine.io-client/node_modules/debug/browser.js"]},"node_modules/engine.io-client/node_modules/debug/browser.js":{"index":81,"hash":"PENVCHp3HppeRm/DiJMI","parents":["node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-client/lib/transports/polling-jsonp.js":{"index":76,"hash":"FAm1xe7I43tDMsakGLzq","parents":["node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/engine.io-client/lib/transports/polling.js":{"index":78,"hash":"m6eReXjm1pnBQHB07d2V","parents":["node_modules/engine.io-client/lib/transports/polling-jsonp.js","node_modules/engine.io-client/lib/transports/polling-xhr.js"]},"node_modules/component-inherit/index.js":{"index":15,"hash":"T0Fqch4d4akvlr8bh7lc","parents":["node_modules/engine.io-client/lib/transports/polling-jsonp.js","node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/transports/polling-xhr.js"]},"node_modules/ws/lib/browser.js":{"index":209,"hash":"vZRI95FVw46PPRoHDauJ","parents":["node_modules/engine.io-client/lib/transports/websocket.js"]},"node_modules/engine.io-client/lib/transports/websocket.js":{"index":79,"hash":"iZQQax7TKsS+8ZxUyrc3","parents":["node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/engine.io-client/lib/xmlhttprequest.js":{"index":80,"hash":"us0FsN5s7hiT3hqVV5lx","parents":["node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/engine.io-client/lib/transports/polling-xhr.js":{"index":77,"hash":"d89FOYRl9cirXzsJCjKg","parents":["node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/global/index.js":{"index":87,"hash":"tDIf5GqqdOcKnNHRh2Rc","parents":["node_modules/has-cors/index.js"]},"node_modules/has-cors/index.js":{"index":89,"hash":"uSUdzzwBDQd7qQNKEZ4o","parents":["node_modules/engine.io-client/lib/xmlhttprequest.js"]},"node_modules/engine.io-client/lib/transports/index.js":{"index":75,"hash":"kQ8FMfawL2PES7dsQgvD","parents":["node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-client/lib/socket.js":{"index":73,"hash":"1L37UZEnorYV+ld5c01T","parents":["node_modules/engine.io-client/lib/index.js"]},"node_modules/engine.io-client/lib/index.js":{"index":72,"hash":"G6QYuSNu0EcS+G5tR9NE","parents":["node_modules/engine.io-client/index.js"]},"node_modules/engine.io-client/index.js":{"index":71,"hash":"HQau4MkD4lAynB9tt0Wl","parents":["node_modules/socket.io-client/lib/manager.js"]},"node_modules/socket.io-client/lib/manager.js":{"index":170,"hash":"+TrOAqk4UlI3tKzIT6Dc","parents":["node_modules/socket.io-client/lib/index.js"]},"node_modules/socket.io-client/lib/index.js":{"index":169,"hash":"lWwRhzm83+Eq08s7Nht/","parents":["node_modules/socket.io-client/index.js"]},"node_modules/socket.io-client/index.js":{"index":168,"hash":"ccYBPsaIqMCtG5CHCdDd","parents":[]},"node_modules/core-js/library/modules/es6.object.to-string.js":{"index":67,"hash":"47DEQpj8HBSa+/TImW+5","parents":["node_modules/core-js/library/fn/map.js"]},"node_modules/core-js/library/modules/$.core.js":{"index":27,"hash":"jO6z5PVz8f6aTUjm5Hrx","parents":["node_modules/core-js/library/modules/$.export.js","node_modules/core-js/library/modules/$.set-species.js","node_modules/core-js/library/modules/core.get-iterator-method.js","node_modules/core-js/library/modules/core.get-iterator.js","node_modules/core-js/library/fn/map.js","node_modules/core-js/library/fn/object/assign.js"]},"node_modules/core-js/library/modules/$.iterators.js":{"index":44,"hash":"HPPh7u0tcX1NuooQHCi3","parents":["node_modules/core-js/library/modules/core.get-iterator-method.js","node_modules/core-js/library/modules/es6.array.iterator.js","node_modules/core-js/library/modules/web.dom.iterable.js","node_modules/core-js/library/modules/$.iter-define.js","node_modules/core-js/library/modules/$.is-array-iter.js"]},"node_modules/core-js/library/modules/$.export.js":{"index":31,"hash":"tF6TuwqA3fLdeFKqSI9n","parents":["node_modules/core-js/library/modules/es7.map.to-json.js","node_modules/core-js/library/modules/$.collection.js","node_modules/core-js/library/modules/$.iter-define.js","node_modules/core-js/library/modules/es6.object.assign.js"]},"node_modules/core-js/library/modules/$.global.js":{"index":34,"hash":"t7QKkyeVEU+gGSy/l5Cc","parents":["node_modules/core-js/library/modules/$.export.js","node_modules/core-js/library/modules/$.collection.js","node_modules/core-js/library/modules/$.shared.js","node_modules/core-js/library/modules/$.wks.js"]},"node_modules/core-js/library/modules/$.ctx.js":{"index":28,"hash":"IBAqoysxf6uGe4qIslFW","parents":["node_modules/core-js/library/modules/$.export.js","node_modules/core-js/library/modules/$.for-of.js","node_modules/core-js/library/modules/$.collection-strong.js"]},"node_modules/core-js/library/modules/$.collection-to-json.js":{"index":25,"hash":"h4TEY/15rqQvWkoz+NB3","parents":["node_modules/core-js/library/modules/es7.map.to-json.js"]},"node_modules/core-js/library/modules/$.for-of.js":{"index":33,"hash":"lVoKOzOP/6hLkfWdCNuE","parents":["node_modules/core-js/library/modules/$.collection-to-json.js","node_modules/core-js/library/modules/$.collection.js","node_modules/core-js/library/modules/$.collection-strong.js"]},"node_modules/core-js/library/modules/$.classof.js":{"index":22,"hash":"2vrlE4yJW7f/QT46fZjd","parents":["node_modules/core-js/library/modules/$.collection-to-json.js","node_modules/core-js/library/modules/core.get-iterator-method.js"]},"node_modules/core-js/library/modules/es7.map.to-json.js":{"index":69,"hash":"B6MKWfFY/GQAH/IMXIaK","parents":["node_modules/core-js/library/fn/map.js"]},"node_modules/core-js/library/modules/$.iter-step.js":{"index":43,"hash":"LPWFVFxr7uzP25M4Teof","parents":["node_modules/core-js/library/modules/es6.array.iterator.js","node_modules/core-js/library/modules/$.collection-strong.js"]},"node_modules/core-js/library/modules/$.add-to-unscopables.js":{"index":20,"hash":"aTtaK5OMoCOj8v16GPqC","parents":["node_modules/core-js/library/modules/es6.array.iterator.js"]},"node_modules/core-js/library/modules/$.to-integer.js":{"index":56,"hash":"k18sZu8vTX3eiB+U6ofu","parents":["node_modules/core-js/library/modules/$.string-at.js","node_modules/core-js/library/modules/$.to-length.js"]},"node_modules/core-js/library/modules/$.defined.js":{"index":29,"hash":"RZr8uFl+WrrjvGzPSz3c","parents":["node_modules/core-js/library/modules/$.string-at.js","node_modules/core-js/library/modules/$.to-iobject.js","node_modules/core-js/library/modules/$.collection-strong.js","node_modules/core-js/library/modules/$.to-object.js"]},"node_modules/core-js/library/modules/$.string-at.js":{"index":55,"hash":"Zop3IqdJq32xa0qd4H0H","parents":["node_modules/core-js/library/modules/es6.string.iterator.js"]},"node_modules/core-js/library/modules/$.library.js":{"index":46,"hash":"Bhgn5RpO7pDcQnSVaI5C","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.has.js":{"index":35,"hash":"y4idiH2Sj/rmZqd39CHH","parents":["node_modules/core-js/library/modules/$.set-to-string-tag.js","node_modules/core-js/library/modules/$.iter-define.js","node_modules/core-js/library/modules/$.collection-strong.js"]},"node_modules/core-js/library/modules/$.js":{"index":45,"hash":"UI1ymRgurU07soRpiobz","parents":["node_modules/core-js/library/modules/$.collection.js","node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.set-to-string-tag.js","node_modules/core-js/library/modules/$.set-species.js","node_modules/core-js/library/modules/$.hide.js","node_modules/core-js/library/modules/$.iter-define.js","node_modules/core-js/library/modules/$.collection-strong.js","node_modules/core-js/library/modules/$.object-assign.js"]},"node_modules/core-js/library/modules/$.is-object.js":{"index":39,"hash":"FkaOOMIm0uw4T/qUEXed","parents":["node_modules/core-js/library/modules/$.an-object.js","node_modules/core-js/library/modules/$.collection.js","node_modules/core-js/library/modules/$.collection-strong.js"]},"node_modules/core-js/library/modules/$.an-object.js":{"index":21,"hash":"d7pCynXJhKpK2u1S0fph","parents":["node_modules/core-js/library/modules/core.get-iterator.js","node_modules/core-js/library/modules/$.iter-call.js","node_modules/core-js/library/modules/$.for-of.js"]},"node_modules/core-js/library/modules/$.strict-new.js":{"index":54,"hash":"oPOwOmkgVfPbRVFj8wGD","parents":["node_modules/core-js/library/modules/$.collection.js","node_modules/core-js/library/modules/$.collection-strong.js"]},"node_modules/core-js/library/modules/$.uid.js":{"index":60,"hash":"auy0a5KBxuU7QAdJ7we/","parents":["node_modules/core-js/library/modules/$.wks.js","node_modules/core-js/library/modules/$.collection-strong.js"]},"node_modules/core-js/library/modules/$.fails.js":{"index":32,"hash":"6G4+YXaRghTGQQnkm/qp","parents":["node_modules/core-js/library/modules/$.collection.js","node_modules/core-js/library/modules/$.descriptors.js","node_modules/core-js/library/modules/$.object-assign.js"]},"node_modules/core-js/library/modules/$.collection.js":{"index":26,"hash":"GjxwHaTukUMTjfNjq/Hz","parents":["node_modules/core-js/library/modules/es6.map.js"]},"node_modules/core-js/library/modules/$.hide.js":{"index":36,"hash":"2HBwvxEtbt4UpskOWy62","parents":["node_modules/core-js/library/modules/$.collection.js","node_modules/core-js/library/modules/$.redefine.js","node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.iter-define.js","node_modules/core-js/library/modules/$.collection-strong.js"]},"node_modules/core-js/library/modules/$.redefine-all.js":{"index":49,"hash":"Jiq2TB8FJC6T6YoP71/u","parents":["node_modules/core-js/library/modules/$.collection.js","node_modules/core-js/library/modules/$.collection-strong.js"]},"node_modules/core-js/library/modules/$.set-to-string-tag.js":{"index":52,"hash":"3G0pjz42ePfLP++caEH3","parents":["node_modules/core-js/library/modules/$.collection.js","node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.descriptors.js":{"index":30,"hash":"NJqnAOVs55bKea+gKIGt","parents":["node_modules/core-js/library/modules/$.collection.js","node_modules/core-js/library/modules/$.set-species.js","node_modules/core-js/library/modules/$.hide.js","node_modules/core-js/library/modules/$.collection-strong.js"]},"node_modules/core-js/library/modules/$.redefine.js":{"index":50,"hash":"v4z59Kie6WPVO1h+8oJP","parents":["node_modules/core-js/library/modules/$.redefine-all.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.iter-create.js":{"index":41,"hash":"aNVpOMS/fyyM1i4Aw4bY","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.property-desc.js":{"index":48,"hash":"iSs9jpAw1JT2ZWWLScSH","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.hide.js"]},"node_modules/core-js/library/modules/$.wks.js":{"index":61,"hash":"qMliszffX6kySHptJTIp","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.set-to-string-tag.js","node_modules/core-js/library/modules/$.set-species.js","node_modules/core-js/library/modules/$.classof.js","node_modules/core-js/library/modules/core.get-iterator-method.js","node_modules/core-js/library/modules/$.iter-define.js","node_modules/core-js/library/modules/$.is-array-iter.js"]},"node_modules/core-js/library/modules/$.set-species.js":{"index":51,"hash":"ro3HDmKb2qL8VnwCpdal","parents":["node_modules/core-js/library/modules/$.collection-strong.js"]},"node_modules/core-js/library/modules/$.cof.js":{"index":23,"hash":"FY6tg0ymdCS/rEwpAa7R","parents":["node_modules/core-js/library/modules/$.classof.js","node_modules/core-js/library/modules/$.iobject.js"]},"node_modules/core-js/library/modules/core.get-iterator-method.js":{"index":62,"hash":"+qtmOjO/wxtOJEvpsv/b","parents":["node_modules/core-js/library/modules/core.get-iterator.js","node_modules/core-js/library/modules/$.for-of.js"]},"node_modules/core-js/library/modules/core.get-iterator.js":{"index":63,"hash":"Fpc5rJRGURor7FbHBYPn","parents":["node_modules/core-js/library/fn/get-iterator.js"]},"node_modules/core-js/library/modules/$.a-function.js":{"index":19,"hash":"vI7NBVNoKizw/T7ablYt","parents":["node_modules/core-js/library/modules/$.ctx.js"]},"node_modules/core-js/library/modules/$.iobject.js":{"index":37,"hash":"HvETp5p0zMBjh+wvjxSm","parents":["node_modules/core-js/library/modules/$.to-iobject.js","node_modules/core-js/library/modules/$.object-assign.js"]},"node_modules/core-js/library/modules/$.to-iobject.js":{"index":57,"hash":"yp4UOuCLRVO1tqlgppw5","parents":["node_modules/core-js/library/modules/es6.array.iterator.js"]},"node_modules/core-js/library/modules/es6.array.iterator.js":{"index":64,"hash":"Zw/NixWUIMjoGa2uWxe/","parents":["node_modules/core-js/library/modules/web.dom.iterable.js"]},"node_modules/core-js/library/modules/$.iter-define.js":{"index":42,"hash":"sR6jK5MoRN1zAKGNm2y4","parents":["node_modules/core-js/library/modules/es6.array.iterator.js","node_modules/core-js/library/modules/es6.string.iterator.js","node_modules/core-js/library/modules/$.collection-strong.js"]},"node_modules/core-js/library/modules/web.dom.iterable.js":{"index":70,"hash":"KisVT/JurPfFyjuYGWzf","parents":["node_modules/core-js/library/fn/get-iterator.js","node_modules/core-js/library/fn/map.js"]},"node_modules/core-js/library/modules/$.shared.js":{"index":53,"hash":"ZK+Tn2LANbB4OqkscM3N","parents":["node_modules/core-js/library/modules/$.wks.js"]},"node_modules/core-js/library/modules/es6.string.iterator.js":{"index":68,"hash":"viRu85eLzJ68VCbwuHbl","parents":["node_modules/core-js/library/fn/get-iterator.js","node_modules/core-js/library/fn/map.js"]},"node_modules/core-js/library/fn/get-iterator.js":{"index":16,"hash":"V+nypfA8LA2WadFVp7u2","parents":["node_modules/babel-runtime/core-js/get-iterator.js"]},"node_modules/babel-runtime/core-js/get-iterator.js":{"index":4,"hash":"a8je4in/yfKL3pQIQJX9","parents":["resources/assets/js/components/playlists.vue"]},"node_modules/core-js/library/modules/$.iter-call.js":{"index":40,"hash":"1MKqUT/NTYj091vtQVmF","parents":["node_modules/core-js/library/modules/$.for-of.js"]},"node_modules/core-js/library/modules/$.is-array-iter.js":{"index":38,"hash":"3M/qEEmbCbZefVZOS8Ft","parents":["node_modules/core-js/library/modules/$.for-of.js"]},"node_modules/core-js/library/modules/$.to-length.js":{"index":58,"hash":"Hrf6eZg+uR5ERGzpNo5c","parents":["node_modules/core-js/library/modules/$.for-of.js"]},"node_modules/core-js/library/modules/$.collection-strong.js":{"index":24,"hash":"iFOlFEmid4yW6B1Wrzox","parents":["node_modules/core-js/library/modules/es6.map.js"]},"node_modules/core-js/library/modules/es6.map.js":{"index":65,"hash":"slui+Dhs1G3UWD3tyC22","parents":["node_modules/core-js/library/fn/map.js"]},"node_modules/core-js/library/fn/map.js":{"index":17,"hash":"EmVxMa3+XwrIT7INNqkT","parents":["node_modules/babel-runtime/core-js/map.js"]},"node_modules/babel-runtime/core-js/map.js":{"index":5,"hash":"xmq/B27Isi5xmy6ZguJ7","parents":["resources/assets/js/components/playlists.vue"]},"resources/assets/js/components/playlists.vue":{"index":230,"hash":"ZNWFyND3tT/xKtBUbbdY","parents":["resources/assets/js/router.js"]},"node_modules/core-js/library/modules/$.to-object.js":{"index":59,"hash":"XLB72m1cojvL0pIYCCFE","parents":["node_modules/core-js/library/modules/$.object-assign.js"]},"node_modules/core-js/library/modules/$.object-assign.js":{"index":47,"hash":"vlM4g8r36vFJivj1EOOp","parents":["node_modules/core-js/library/modules/es6.object.assign.js"]},"node_modules/core-js/library/modules/es6.object.assign.js":{"index":66,"hash":"O1TTCwEy8yCJjcDqCq0k","parents":["node_modules/core-js/library/fn/object/assign.js"]},"node_modules/core-js/library/fn/object/assign.js":{"index":18,"hash":"RKVv+8x7eGcEw+yVXhC5","parents":["node_modules/babel-runtime/core-js/object/assign.js"]},"node_modules/babel-runtime/core-js/object/assign.js":{"index":6,"hash":"8fJTx1/oL9wcIWyAqxHQ","parents":["resources/assets/js/components/outputs/panels.vue"]},"resources/assets/js/components/outputs/panels.vue":{"index":226,"hash":"q6XkL4K+YoKGSpUymvLX","parents":["resources/assets/js/router.js"]},"resources/assets/js/router.js":{"index":270,"hash":"uG+x9+ISQOxQlfLDEqwZ","parents":["resources/assets/js/main.js"]},"resources/assets/js/main.js":{"index":268,"hash":"tzWIDOgrs6XuB2GTgPM8","parents":[]}};
+  var moduleMeta = {"node_modules/browserify-hmr/lib/has.js":{"index":11,"hash":"Hky4QYVrU1+kFHIEuxPy","parents":["node_modules/browserify-hmr/lib/str-set.js","node_modules/browserify-hmr/inc/index.js"]},"resources/assets/js/state/actions.js":{"index":273,"hash":"wRLCvY+LY4uwjGh5EpwB","parents":["resources/assets/js/components/outputs/index.vue","resources/assets/js/components/widgets/status.vue","resources/assets/js/components/outputs/universe.vue","resources/assets/js/components/outputs/e131.vue","resources/assets/js/app.vue"]},"node_modules/browserify-hmr/lib/str-set.js":{"index":12,"hash":"lcrDmQK4uaqOqN+FV4/9","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/vue-animated-list/vue-animated-list.js":{"index":183,"hash":"26lVl2CH82yXZ2XSjVFm","parents":["resources/assets/js/main.js"]},"node_modules/jquery/dist/jquery.js":{"index":92,"hash":"siFczlgw4jULnUICcdm9","parents":["resources/assets/js/app.vue","resources/assets/js/main.js"]},"resources/assets/js/mixins/outputMixin.js":{"index":271,"hash":"gGCtCK8OXqFlnKkxkWU0","parents":["resources/assets/js/components/outputs/dmx.vue","resources/assets/js/components/outputs/fpd.vue","resources/assets/js/components/outputs/e131.vue","resources/assets/js/components/outputs/panels.vue"]},"node_modules/socket.io-client/node_modules/debug/debug.js":{"index":174,"hash":"OtjmSmEbIU/8orJwFhDT","parents":["node_modules/socket.io-client/lib/url.js","node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/socket.io-client/lib/on.js":{"index":171,"hash":"y5MOoFpTKKBHwE8q8jae","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/vue-resource/src/resource.js":{"index":202,"hash":"4hFj5axF31CeVRePeF8o","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-hot-reload-api/index.js":{"index":184,"hash":"WuwmPSnCiynHpb+AfQBY","parents":["resources/assets/js/components/sidebar.vue","resources/assets/js/components/not-found.vue","resources/assets/js/components/overlays.vue","resources/assets/js/components/gpio.vue","resources/assets/js/components/schedule.vue","resources/assets/js/components/plugins.vue","resources/assets/js/components/events.vue","resources/assets/js/components/effects.vue","resources/assets/js/components/outputs/index.vue","resources/assets/js/components/testing/index.vue","resources/assets/js/components/testing/channels.vue","resources/assets/js/components/testing/sequence.vue","resources/assets/js/components/outputs/other.vue","resources/assets/js/components/settings/general.vue","resources/assets/js/components/settings/date.vue","resources/assets/js/components/settings/email.vue","resources/assets/js/components/settings/logs.vue","resources/assets/js/components/settings/advanced.vue","resources/assets/js/components/footer.vue","resources/assets/js/components/shared/switch.vue","resources/assets/js/components/shared/alert-bar.vue","resources/assets/js/components/shared/Tabset.vue","resources/assets/js/components/shared/Tab.vue","resources/assets/js/components/widgets/status.vue","resources/assets/js/components/widgets/player.vue","resources/assets/js/components/widgets/weather.vue","resources/assets/js/components/widgets/multisync.vue","resources/assets/js/components/dashboard.vue","resources/assets/js/components/shared/falcon-loading.vue","resources/assets/js/components/shared/overlay.vue","resources/assets/js/components/shared/dropdown-select.vue","resources/assets/js/components/shared/filelist.vue","resources/assets/js/components/files.vue","resources/assets/js/components/settings/index.vue","resources/assets/js/components/header/settings.vue","resources/assets/js/components/settings.vue","resources/assets/js/components/outputs/universe.vue","resources/assets/js/components/shared/tabset.vue","resources/assets/js/components/shared/tab.vue","resources/assets/js/components/settings/network.vue","resources/assets/js/components/shared/input.vue","resources/assets/js/components/outputs/pdmx.vue","resources/assets/js/components/outputs/dmx.vue","resources/assets/js/components/outputs/fpd-output.vue","resources/assets/js/components/outputs/fpd.vue","resources/assets/js/components/shared/checkbox.vue","resources/assets/js/components/outputs/e131.vue","resources/assets/js/components/outputs/led-panel.vue","resources/assets/js/components/shared/modal.vue","resources/assets/js/components/shared/control-buttons.vue","resources/assets/js/components/shared/header-menu.vue","resources/assets/js/components/header/index.vue","resources/assets/js/components/index.vue","resources/assets/js/app.vue","resources/assets/js/components/shared/range-slider.vue","resources/assets/js/components/playlists/entry-modal.vue","resources/assets/js/components/shared/popover.vue","resources/assets/js/components/playlists/playlist-entry.vue","resources/assets/js/components/playlists.vue","resources/assets/js/components/outputs/panels.vue"]},"node_modules/vue-resource/src/lib/util.js":{"index":200,"hash":"kipx22owioSurHN4RBYT","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/process/browser.js":{"index":167,"hash":"d/Dio43QDX3Xt7NYvbr6","parents":["node_modules/vue-validator/dist/vue-validator.common.js","node_modules/vue/dist/vue.common.js"]},"node_modules/vue-validator/dist/vue-validator.common.js":{"index":205,"hash":"DH65EUX0spdMeGbpuMgP","parents":["resources/assets/js/main.js"]},"node_modules/vue-router/dist/vue-router.common.js":{"index":204,"hash":"V5DMsGGLcOqPAhx31psf","parents":["resources/assets/js/router.js"]},"resources/assets/js/state/modules/outputs.js":{"index":274,"hash":"6gdKa1O44dXCRdAQR2Rj","parents":["resources/assets/js/state/store.js"]},"resources/assets/js/state/mutation-types.js":{"index":277,"hash":"FW1GFIrpaWnsjvy5Nz3y","parents":["resources/assets/js/state/modules/outputs.js","resources/assets/js/state/modules/settings.js","resources/assets/js/state/modules/shared.js"]},"resources/assets/js/state/modules/settings.js":{"index":275,"hash":"sxdHFgh7C2tRqRRIKiId","parents":["resources/assets/js/state/store.js"]},"node_modules/vue/dist/vue.common.js":{"index":206,"hash":"c6jVTEwxpfJvrcRARsRp","parents":["resources/assets/js/components/sidebar.vue","resources/assets/js/components/not-found.vue","resources/assets/js/components/overlays.vue","resources/assets/js/components/gpio.vue","resources/assets/js/components/schedule.vue","resources/assets/js/components/plugins.vue","resources/assets/js/components/events.vue","resources/assets/js/components/effects.vue","resources/assets/js/state/store.js","resources/assets/js/components/outputs/index.vue","resources/assets/js/components/testing/index.vue","resources/assets/js/components/testing/channels.vue","resources/assets/js/components/testing/sequence.vue","resources/assets/js/components/outputs/other.vue","resources/assets/js/components/settings/general.vue","resources/assets/js/components/settings/date.vue","resources/assets/js/components/settings/email.vue","resources/assets/js/components/settings/logs.vue","resources/assets/js/components/settings/advanced.vue","resources/assets/js/components/footer.vue","resources/assets/js/components/shared/switch.vue","resources/assets/js/components/shared/alert-bar.vue","resources/assets/js/components/shared/Tabset.vue","resources/assets/js/components/shared/Tab.vue","resources/assets/js/components/widgets/status.vue","resources/assets/js/components/widgets/player.vue","resources/assets/js/components/widgets/weather.vue","resources/assets/js/components/widgets/multisync.vue","resources/assets/js/components/dashboard.vue","resources/assets/js/components/shared/falcon-loading.vue","resources/assets/js/components/shared/overlay.vue","resources/assets/js/components/shared/dropdown-select.vue","resources/assets/js/components/shared/filelist.vue","resources/assets/js/components/files.vue","resources/assets/js/components/settings/index.vue","resources/assets/js/components/header/settings.vue","resources/assets/js/components/settings.vue","resources/assets/js/components/outputs/universe.vue","resources/assets/js/components/shared/tabset.vue","resources/assets/js/components/shared/tab.vue","resources/assets/js/components/settings/network.vue","resources/assets/js/components/shared/input.vue","resources/assets/js/components/outputs/pdmx.vue","resources/assets/js/components/outputs/dmx.vue","resources/assets/js/components/outputs/fpd-output.vue","resources/assets/js/components/outputs/fpd.vue","resources/assets/js/components/shared/checkbox.vue","resources/assets/js/components/outputs/e131.vue","resources/assets/js/components/outputs/led-panel.vue","resources/assets/js/components/shared/modal.vue","resources/assets/js/components/shared/control-buttons.vue","resources/assets/js/components/shared/header-menu.vue","resources/assets/js/components/header/index.vue","resources/assets/js/components/index.vue","resources/assets/js/app.vue","resources/assets/js/components/shared/range-slider.vue","resources/assets/js/components/playlists/entry-modal.vue","resources/assets/js/components/shared/popover.vue","resources/assets/js/components/playlists/playlist-entry.vue","resources/assets/js/components/playlists.vue","resources/assets/js/components/outputs/panels.vue","resources/assets/js/main.js"]},"resources/assets/js/state/modules/shared.js":{"index":276,"hash":"ar2maETTS25HZpdouZAu","parents":["resources/assets/js/state/store.js"]},"resources/assets/js/utils.js":{"index":279,"hash":"N08p1gNbb1jw7x4Hn9No","parents":["resources/assets/js/components/shared/input.vue","resources/assets/js/components/shared/modal.vue"]},"node_modules/vue-resource/src/lib/url-template.js":{"index":199,"hash":"KZagPKERmevU89wFVgEg","parents":["node_modules/vue-resource/src/url.js"]},"node_modules/vue-resource/src/url.js":{"index":203,"hash":"enlma6RiuDUq+g3+RYdS","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-resource/src/interceptor/timeout.js":{"index":197,"hash":"r+N56i06KukH+ME8Mpnr","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/before.js":{"index":190,"hash":"dzJ5VyAAgzvYOWxyyGVm","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/mime.js":{"index":196,"hash":"f6heFdNiVYVl4GIRJ2gN","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/method.js":{"index":195,"hash":"DqLo0TxFAJSH0HWGo7wR","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/header.js":{"index":192,"hash":"Ql+DdTpkgQsJb9HXQumF","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/lib/promise.js":{"index":198,"hash":"uhJ1aPn5MePstu6k3zZV","parents":["node_modules/vue-resource/src/promise.js"]},"node_modules/vue-resource/src/promise.js":{"index":201,"hash":"dayC7UqEuK1y+yEa6/bE","parents":["node_modules/vue-resource/src/interceptor/index.js","node_modules/vue-resource/src/client/xhr.js","node_modules/vue-resource/src/client/jsonp.js","node_modules/vue-resource/src/http.js","node_modules/vue-resource/src/index.js"]},"node_modules/socket.io-parser/is-buffer.js":{"index":177,"hash":"UJBXKAfBg/BkigSZbc3Z","parents":["node_modules/socket.io-parser/binary.js","node_modules/socket.io-parser/index.js"]},"node_modules/component-emitter/index.js":{"index":14,"hash":"0uL1LSa/mOj+Llu+HTZ7","parents":["node_modules/socket.io-parser/index.js","node_modules/socket.io-client/lib/socket.js","node_modules/engine.io-client/lib/transport.js","node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/parseuri/index.js":{"index":166,"hash":"PsPou9y5yKmPMPJnjEkz","parents":["node_modules/socket.io-client/lib/url.js"]},"node_modules/socket.io-client/lib/url.js":{"index":173,"hash":"/WgdaMtSTLlxFoTxZTGl","parents":["node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/to-array/index.js":{"index":181,"hash":"2EoggafxX+GLXkXiaGjm","parents":["node_modules/socket.io-client/lib/socket.js"]},"node_modules/component-bind/index.js":{"index":13,"hash":"4yIcVw+afwUsnTQyI0a3","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/object-component/index.js":{"index":163,"hash":"zOYybxl/D7KsteH/xJyk","parents":["node_modules/socket.io-client/lib/manager.js"]},"node_modules/indexof/index.js":{"index":90,"hash":"8zMGV0j0ID5bUIeT7r+M","parents":["node_modules/engine.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js"]},"node_modules/backo2/index.js":{"index":7,"hash":"L5ry3mfVEw1wgmx9Sa+q","parents":["node_modules/socket.io-client/lib/manager.js"]},"node_modules/lodash/array/zipObject.js":{"index":95,"hash":"fKfSwIzPo5SUx9d0DkgN","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/lang/isArray.js":{"index":149,"hash":"rpMiE1Z199/XZCjno4KN","parents":["node_modules/lodash/array/zipObject.js","node_modules/lodash/collection/filter.js","node_modules/lodash/collection/some.js","node_modules/lodash/internal/createForEach.js","node_modules/lodash/internal/isKey.js","node_modules/lodash/internal/toPath.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js","node_modules/lodash/internal/baseIsEqualDeep.js","node_modules/lodash/internal/baseMatchesProperty.js","node_modules/lodash/collection/map.js"]},"node_modules/lodash/internal/arrayEach.js":{"index":101,"hash":"eLxUBVsb8vpFbu0VN4KL","parents":["node_modules/lodash/collection/forEach.js"]},"node_modules/lodash/internal/arrayMap.js":{"index":103,"hash":"xdr8c0JsUFapIHTuM5VE","parents":["node_modules/lodash/collection/map.js"]},"node_modules/lodash/internal/arraySome.js":{"index":104,"hash":"GxeJPxJj2jUg5TzV5gLv","parents":["node_modules/lodash/collection/some.js","node_modules/lodash/internal/equalArrays.js"]},"node_modules/lodash/internal/arrayFilter.js":{"index":102,"hash":"BGunz0w1QzJXyqQSOdZb","parents":["node_modules/lodash/collection/filter.js"]},"node_modules/socket.io-parser/node_modules/debug/debug.js":{"index":178,"hash":"OtjmSmEbIU/8orJwFhDT","parents":["node_modules/socket.io-parser/index.js"]},"resources/assets/js/components/sidebar.vue":{"index":262,"hash":"suBj4vI7vtWn7Gia4b1p","parents":["resources/assets/js/app.vue"]},"node_modules/vueify-insert-css/index.js":{"index":207,"hash":"fvTUijA6yyBpp68H+JX2","parents":["resources/assets/js/components/sidebar.vue","resources/assets/js/components/not-found.vue","resources/assets/js/components/settings/logs.vue","resources/assets/js/components/shared/alert-bar.vue","resources/assets/js/components/shared/Tabset.vue","resources/assets/js/components/shared/Tab.vue","resources/assets/js/components/widgets/status.vue","resources/assets/js/components/widgets/player.vue","resources/assets/js/components/widgets/multisync.vue","resources/assets/js/components/shared/falcon-loading.vue","resources/assets/js/components/shared/overlay.vue","resources/assets/js/components/shared/filelist.vue","resources/assets/js/components/files.vue","resources/assets/js/components/settings/index.vue","resources/assets/js/components/header/settings.vue","resources/assets/js/components/settings.vue","resources/assets/js/components/outputs/universe.vue","resources/assets/js/components/shared/tabset.vue","resources/assets/js/components/shared/tab.vue","resources/assets/js/components/shared/checkbox.vue","resources/assets/js/components/outputs/e131.vue","resources/assets/js/components/outputs/led-panel.vue","resources/assets/js/components/shared/control-buttons.vue","resources/assets/js/components/shared/header-menu.vue","resources/assets/js/components/header/index.vue","resources/assets/js/components/index.vue","resources/assets/js/components/shared/range-slider.vue","resources/assets/js/components/playlists/playlist-entry.vue","resources/assets/js/components/playlists.vue","resources/assets/js/components/outputs/panels.vue"]},"resources/assets/js/components/not-found.vue":{"index":220,"hash":"JnE9W3JgazmF+BYtHxgh","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/overlays.vue":{"index":231,"hash":"Hdowzj3zE79NCSN5QTgB","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/gpio.vue":{"index":216,"hash":"15qwrMvWfxtc10r2sCpe","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/schedule.vue":{"index":236,"hash":"w10dm2qLyWGPX+dNhHQr","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/plugins.vue":{"index":235,"hash":"aBWTwEC29+sEJX2/NcVw","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/events.vue":{"index":213,"hash":"Lmd0SzEjko8hAg0NQmxQ","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/effects.vue":{"index":212,"hash":"W8MkKtIaA7ck5eb1D3Us","parents":["resources/assets/js/router.js"]},"node_modules/vuex/dist/vuex.js":{"index":208,"hash":"gX//W6yHs/IFY/kkM/lI","parents":["resources/assets/js/state/store.js"]},"resources/assets/js/state/store.js":{"index":278,"hash":"o+ItkT8YEBoo74dpBWbo","parents":["resources/assets/js/app.vue"]},"node_modules/sortablejs/Sortable.js":{"index":179,"hash":"2QkxTYWtmuRQd1EH6qKb","parents":["resources/assets/js/components/playlists.vue"]},"node_modules/moment/moment.js":{"index":162,"hash":"sSbAgdZ6+pfkEIPz6SMX","parents":["resources/assets/js/components/dashboard.vue","resources/assets/js/components/playlists.vue"]},"node_modules/vue-resource/src/interceptor/cors.js":{"index":191,"hash":"y/hrmr+lC4LVHKr98SRc","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/client/jsonp.js":{"index":186,"hash":"+Nk8UZxMFWMDrzR/Me13","parents":["node_modules/vue-resource/src/interceptor/cors.js","node_modules/vue-resource/src/interceptor/jsonp.js"]},"node_modules/isarray/index.js":{"index":91,"hash":"dKtews1S4sHvaZhZ+ceq","parents":["node_modules/socket.io-parser/binary.js","node_modules/socket.io-parser/index.js","node_modules/has-binary/index.js"]},"node_modules/vue-resource/src/interceptor/index.js":{"index":193,"hash":"5iWUKE5ElG+J957vOzOe","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/json3/lib/json3.js":{"index":93,"hash":"Z22TAqz9HSDSuQH535ZO","parents":["node_modules/socket.io-parser/index.js"]},"node_modules/lodash/internal/baseFilter.js":{"index":110,"hash":"yyvQag4hw8sItBFf3/9T","parents":["node_modules/lodash/collection/filter.js"]},"node_modules/lodash/internal/baseEach.js":{"index":109,"hash":"Ji7NLCJhdzSBlpDI+qC3","parents":["node_modules/lodash/internal/baseFilter.js","node_modules/lodash/internal/baseSome.js","node_modules/lodash/collection/forEach.js","node_modules/lodash/internal/baseMap.js"]},"node_modules/lodash/collection/filter.js":{"index":96,"hash":"XtU5zjCqSDlYcwOLUC13","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/baseCallback.js":{"index":107,"hash":"FDEmxoh1cXY/hddgPNGW","parents":["node_modules/lodash/collection/filter.js","node_modules/lodash/internal/createObjectMapper.js","node_modules/lodash/collection/some.js","node_modules/lodash/collection/map.js"]},"node_modules/lodash/internal/baseSome.js":{"index":123,"hash":"lCW5AtHn9X2vSuPgS8pk","parents":["node_modules/lodash/collection/some.js"]},"node_modules/lodash/internal/createForOwn.js":{"index":130,"hash":"KJqijjvJO7d1nU17Sz3c","parents":["node_modules/lodash/object/forOwn.js"]},"node_modules/lodash/internal/bindCallback.js":{"index":125,"hash":"S6iy1I+53IEzDLSGuW0j","parents":["node_modules/lodash/internal/createForOwn.js","node_modules/lodash/internal/createAssigner.js","node_modules/lodash/internal/createForEach.js","node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/internal/createObjectMapper.js":{"index":131,"hash":"cp8s+Z6khiKdK5QCQ+Ms","parents":["node_modules/lodash/object/mapValues.js"]},"node_modules/lodash/internal/baseForOwn.js":{"index":112,"hash":"sOLmHH2OosmeW92YaLK/","parents":["node_modules/lodash/internal/createObjectMapper.js","node_modules/lodash/internal/baseEach.js","node_modules/lodash/object/forOwn.js"]},"node_modules/lodash/object/mapValues.js":{"index":158,"hash":"2HfAmVuaVGfc8pd5zIaC","parents":["node_modules/browserify-hmr/inc/index.js"]},"resources/assets/js/components/outputs/index.vue":{"index":225,"hash":"OQxL5TLvM4FWVnFkPhor","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/testing/index.vue":{"index":264,"hash":"L2f7/8FXUFHm3f2/pt+J","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/testing/channels.vue":{"index":263,"hash":"rIR6bzqNERQcD8WBO8Md","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/shared/switch.vue":{"index":259,"hash":"t/T9yIbO4Lv+NddG0GVx","parents":["resources/assets/js/components/testing/channels.vue","resources/assets/js/components/testing/sequence.vue","resources/assets/js/components/settings/general.vue","resources/assets/js/components/settings/date.vue","resources/assets/js/components/settings/logs.vue","resources/assets/js/components/outputs/universe.vue","resources/assets/js/components/outputs/pdmx.vue","resources/assets/js/components/outputs/dmx.vue","resources/assets/js/components/outputs/fpd-output.vue","resources/assets/js/components/outputs/fpd.vue","resources/assets/js/components/outputs/e131.vue","resources/assets/js/components/playlists.vue","resources/assets/js/components/outputs/panels.vue"]},"resources/assets/js/components/testing/sequence.vue":{"index":265,"hash":"eI89qWWDJJc5nQHEByiG","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/outputs/other.vue":{"index":227,"hash":"q2uEEdYgJjD3nBtzgPjD","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/settings/general.vue":{"index":241,"hash":"hAzIrcrJPaXEj0CIoB41","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/settings/date.vue":{"index":239,"hash":"52BPts98nvITx+HD9Ooc","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/settings/email.vue":{"index":240,"hash":"5oX1fK0HFWyf2L8sKj+z","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/settings/logs.vue":{"index":243,"hash":"Bc+E+3Ccc0mYANPZn6Lt","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/settings/advanced.vue":{"index":238,"hash":"r2wb/2T+G10rShqof/+O","parents":["resources/assets/js/router.js"]},"node_modules/lodash/internal/isObjectLike.js":{"index":143,"hash":"qEGnAWJNoAetOIJ7YKiV","parents":["node_modules/lodash/lang/isNative.js","node_modules/lodash/lang/isArray.js","node_modules/lodash/lang/isArguments.js","node_modules/lodash/lang/isTypedArray.js","node_modules/lodash/internal/baseIsEqual.js"]},"node_modules/lodash/internal/isLength.js":{"index":142,"hash":"DFIKI121VzeE+pBbx1Oa","parents":["node_modules/lodash/internal/createBaseEach.js","node_modules/lodash/internal/isArrayLike.js","node_modules/lodash/lang/isArray.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js","node_modules/lodash/lang/isTypedArray.js"]},"node_modules/lodash/utility/identity.js":{"index":160,"hash":"A/cz5O4nnho2x2e5KIWS","parents":["node_modules/lodash/internal/bindCallback.js","node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/internal/isIndex.js":{"index":139,"hash":"I8y5AsjL/lwDlORDOqqM","parents":["node_modules/lodash/internal/isIterateeCall.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js"]},"node_modules/lodash/function/restParam.js":{"index":100,"hash":"/RRH9MCtjArr1p3Qeh63","parents":["node_modules/lodash/internal/createAssigner.js"]},"node_modules/lodash/internal/createAssigner.js":{"index":126,"hash":"X8R81jvRCofY1BnG+A/L","parents":["node_modules/lodash/object/assign.js"]},"node_modules/lodash/internal/isIterateeCall.js":{"index":140,"hash":"dXMnNRevAizOBisKCEes","parents":["node_modules/lodash/internal/createAssigner.js","node_modules/lodash/collection/some.js"]},"node_modules/lodash/lang/isObject.js":{"index":152,"hash":"Go+dTLFqO1KJN+uQLb8s","parents":["node_modules/lodash/internal/isIterateeCall.js","node_modules/lodash/internal/isStrictComparable.js","node_modules/lodash/internal/toObject.js","node_modules/lodash/lang/isFunction.js","node_modules/lodash/object/keysIn.js","node_modules/lodash/object/keys.js","node_modules/lodash/internal/baseIsEqual.js"]},"node_modules/lodash/internal/isArrayLike.js":{"index":138,"hash":"76Awthz8ChTgjGk0JZ6Y","parents":["node_modules/lodash/internal/isIterateeCall.js","node_modules/lodash/internal/baseMap.js","node_modules/lodash/lang/isArguments.js","node_modules/lodash/object/keys.js"]},"node_modules/lodash/collection/some.js":{"index":99,"hash":"9JyJFfdCx56pmR6fwM9q","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/baseCopy.js":{"index":108,"hash":"WvGi8IywM6u7ZNXvztwg","parents":["node_modules/lodash/internal/baseAssign.js"]},"node_modules/lodash/internal/baseAssign.js":{"index":106,"hash":"6VX87YoeNgDvMUyiAc/7","parents":["node_modules/lodash/object/assign.js"]},"node_modules/lodash/object/keys.js":{"index":156,"hash":"BbXGNIcfatSp32uWOBAV","parents":["node_modules/lodash/internal/baseAssign.js","node_modules/lodash/internal/baseForOwn.js","node_modules/lodash/object/pairs.js","node_modules/lodash/internal/assignWith.js","node_modules/lodash/internal/equalObjects.js"]},"node_modules/socket.io-parser/binary.js":{"index":175,"hash":"bAee8RukaXwuD/OeGN6F","parents":["node_modules/socket.io-parser/index.js"]},"node_modules/socket.io-parser/index.js":{"index":176,"hash":"BAgSAi2yJ1LAoE3Vw1D4","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"node_modules/has-binary/index.js":{"index":88,"hash":"ZLLgu+QfLGB5FJs6P2Ow","parents":["node_modules/socket.io-client/lib/socket.js","node_modules/engine.io-parser/lib/browser.js"]},"node_modules/socket.io-client/lib/socket.js":{"index":172,"hash":"mVenx7k8VFtvIejsDYOl","parents":["node_modules/socket.io-client/lib/manager.js","node_modules/socket.io-client/lib/index.js"]},"resources/assets/js/components/footer.vue":{"index":215,"hash":"V/pa4T+7Xw1RugNiCrP+","parents":["resources/assets/js/components/settings.vue","resources/assets/js/components/index.vue"]},"node_modules/vue-resource/src/client/xhr.js":{"index":187,"hash":"u8PTCERIOeSAmYWFlrqC","parents":["node_modules/vue-resource/src/client/default.js"]},"node_modules/vue-resource/src/client/default.js":{"index":185,"hash":"+B0kSDe+gVY+/RkxYnil","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/interceptor/jsonp.js":{"index":194,"hash":"EYhB3ryCUxKsSKwlYeME","parents":["node_modules/vue-resource/src/http.js"]},"node_modules/vue-resource/src/http.js":{"index":188,"hash":"pcpl/SOKe3e7NS9rUOff","parents":["node_modules/vue-resource/src/index.js"]},"node_modules/vue-resource/src/index.js":{"index":189,"hash":"TZsp5Ua7CrOOvYCKsblD","parents":["resources/assets/js/main.js"]},"node_modules/lodash/internal/createForEach.js":{"index":129,"hash":"iJtWBCzx+bzzSLwlaaRv","parents":["node_modules/lodash/collection/forEach.js"]},"node_modules/lodash/internal/createBaseEach.js":{"index":127,"hash":"+5X3Ztm78NNPr9vQZ7fB","parents":["node_modules/lodash/internal/baseEach.js"]},"node_modules/lodash/internal/getLength.js":{"index":135,"hash":"UiZ6F0+nXZ0fiKckTqnM","parents":["node_modules/lodash/internal/createBaseEach.js","node_modules/lodash/internal/isArrayLike.js"]},"node_modules/lodash/internal/toObject.js":{"index":146,"hash":"8f3eulB97DddBRdcU+7v","parents":["node_modules/lodash/internal/createBaseEach.js","node_modules/lodash/internal/baseGet.js","node_modules/lodash/internal/isKey.js","node_modules/lodash/internal/baseIsMatch.js","node_modules/lodash/internal/createBaseFor.js","node_modules/lodash/object/pairs.js","node_modules/lodash/internal/baseMatches.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/collection/forEach.js":{"index":97,"hash":"0Lo1RNt18PMo/HAKbHEu","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/baseSlice.js":{"index":122,"hash":"OLgw9XVic1W0AKjehzHB","parents":["node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/array/last.js":{"index":94,"hash":"3oXXa2idWbKySVLcq3os","parents":["node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/baseProperty.js":{"index":120,"hash":"Yuk2tpof21q0Xl2sQg89","parents":["node_modules/lodash/internal/getLength.js","node_modules/lodash/utility/property.js"]},"resources/assets/js/components/shared/alert-bar.vue":{"index":247,"hash":"aJ0yfhoEGYPABfAEaKEE","parents":["resources/assets/js/components/index.vue"]},"resources/assets/js/components/shared/Tabset.vue":{"index":246,"hash":"gqqI8RvSTmfen5Ur4x8e","parents":["resources/assets/js/components/files.vue"]},"resources/assets/js/components/shared/Tab.vue":{"index":245,"hash":"3T5xz9/0SmC5KeUPYM89","parents":["resources/assets/js/components/files.vue"]},"resources/assets/js/components/widgets/status.vue":{"index":268,"hash":"5EYYi1zQPdKe7xxZwTzG","parents":["resources/assets/js/components/dashboard.vue"]},"resources/assets/js/components/widgets/player.vue":{"index":267,"hash":"sy0CiaEqObMbakxD3rEH","parents":["resources/assets/js/components/dashboard.vue"]},"resources/assets/js/components/widgets/weather.vue":{"index":269,"hash":"b613QbmxPeGOA+SdLRGA","parents":["resources/assets/js/components/dashboard.vue"]},"resources/assets/js/components/widgets/multisync.vue":{"index":266,"hash":"vfXpUDrV3Q/fs2gz/I0h","parents":["resources/assets/js/components/dashboard.vue"]},"resources/assets/js/components/dashboard.vue":{"index":211,"hash":"YJi9W5MULFv5BPalT4Jo","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/shared/falcon-loading.vue":{"index":251,"hash":"nrISz6smCod0TjaIPHYA","parents":["resources/assets/js/components/shared/overlay.vue"]},"resources/assets/js/components/shared/overlay.vue":{"index":256,"hash":"JYZPaO3VyADALhB5HixN","parents":["resources/assets/js/app.vue"]},"resources/assets/js/components/shared/dropdown-select.vue":{"index":250,"hash":"mFIoJVHY9dJVngym9xZP","parents":["resources/assets/js/components/outputs/e131.vue"]},"resources/assets/js/components/shared/filelist.vue":{"index":252,"hash":"UcxvPNXyJimPoXghyR93","parents":["resources/assets/js/components/files.vue"]},"resources/assets/js/components/files.vue":{"index":214,"hash":"O/OPcgg+TUnlswbf4lVR","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/settings/index.vue":{"index":242,"hash":"3OEkMP0lykKjpifYr8Jo","parents":["resources/assets/js/components/settings.vue"]},"resources/assets/js/components/header/settings.vue":{"index":218,"hash":"6tU6AIk8Kebxk49e2Q9d","parents":["resources/assets/js/components/settings.vue"]},"resources/assets/js/components/shared/control-buttons.vue":{"index":249,"hash":"gqw+C81EUDRrzPozY1K+","parents":["resources/assets/js/components/header/settings.vue","resources/assets/js/components/header/index.vue"]},"resources/assets/js/components/settings.vue":{"index":237,"hash":"8iDnk5fygW9EqF8Mtncs","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/outputs/universe.vue":{"index":230,"hash":"I9HHiLYMTRr/4qDGJ1eR","parents":["resources/assets/js/components/outputs/e131.vue"]},"resources/assets/js/components/shared/tabset.vue":{"index":261,"hash":"ni1YOVU6boQgduWMtPx9","parents":["resources/assets/js/components/settings/network.vue"]},"resources/assets/js/components/shared/tab.vue":{"index":260,"hash":"ioZOPM98/erGgkP7DVq8","parents":["resources/assets/js/components/settings/network.vue"]},"resources/assets/js/components/settings/network.vue":{"index":244,"hash":"Xt1AOrWp4ng2cAEaPAeD","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/shared/input.vue":{"index":254,"hash":"nzaLsXc4vVVsCPN3ns0t","parents":["resources/assets/js/components/outputs/dmx.vue","resources/assets/js/components/outputs/fpd.vue","resources/assets/js/components/outputs/e131.vue","resources/assets/js/components/outputs/panels.vue"]},"resources/assets/js/components/outputs/pdmx.vue":{"index":229,"hash":"2ty3Aa7oir8Cq0DoB2dV","parents":["resources/assets/js/components/outputs/dmx.vue"]},"resources/assets/js/components/outputs/dmx.vue":{"index":221,"hash":"Ms2VxJVLnBjDdldyHe2I","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/outputs/fpd-output.vue":{"index":223,"hash":"1+ZwyhDJpU8IVLE5PFUn","parents":["resources/assets/js/components/outputs/fpd.vue"]},"resources/assets/js/components/outputs/fpd.vue":{"index":224,"hash":"G+sE6MkTj4ikwWnXqHBj","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/shared/checkbox.vue":{"index":248,"hash":"uZDy5Po/OgOkjVErDgUR","parents":["resources/assets/js/components/outputs/e131.vue"]},"resources/assets/js/components/outputs/e131.vue":{"index":222,"hash":"pzKXg8y3f3kSez1ksJN+","parents":["resources/assets/js/router.js"]},"resources/assets/js/components/outputs/led-panel.vue":{"index":226,"hash":"oeFziti9eCAe9axM41wE","parents":["resources/assets/js/components/outputs/panels.vue"]},"resources/assets/js/components/shared/popover.vue":{"index":257,"hash":"ZPUs9I9S7R9RatQxz5dz","parents":["resources/assets/js/components/outputs/led-panel.vue","resources/assets/js/components/playlists/playlist-entry.vue"]},"node_modules/lodash/internal/baseGet.js":{"index":113,"hash":"H9EiMd3ullQpRkvooLgz","parents":["node_modules/lodash/internal/basePropertyDeep.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/baseMap.js":{"index":117,"hash":"ofv2jCE5QlahpynG4rkN","parents":["node_modules/lodash/collection/map.js"]},"node_modules/lodash/internal/isKey.js":{"index":141,"hash":"lDpw5crcRmTRExTLVTKc","parents":["node_modules/lodash/utility/property.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/isStrictComparable.js":{"index":144,"hash":"ofNP4/nFrz5Rkb3kGOhn","parents":["node_modules/lodash/internal/getMatchData.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/baseIsMatch.js":{"index":116,"hash":"EpuJzlg204aR35T4QKcS","parents":["node_modules/lodash/internal/baseMatches.js"]},"node_modules/lodash/internal/baseIsEqual.js":{"index":114,"hash":"dBgoFXnhj9KH6oX3dQwa","parents":["node_modules/lodash/internal/baseIsMatch.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/internal/basePropertyDeep.js":{"index":121,"hash":"mqX1OyYdndJ183lyl/sn","parents":["node_modules/lodash/utility/property.js"]},"node_modules/lodash/internal/toPath.js":{"index":147,"hash":"faVQvsb+LSLI4uaMgtrQ","parents":["node_modules/lodash/internal/basePropertyDeep.js","node_modules/lodash/internal/baseMatchesProperty.js"]},"node_modules/lodash/utility/property.js":{"index":161,"hash":"7IoOI/uGZCxbcY23uQDK","parents":["node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/internal/createBaseFor.js":{"index":128,"hash":"9RWlFaBOuelvwgkhYgPG","parents":["node_modules/lodash/internal/baseFor.js"]},"node_modules/lodash/internal/baseFor.js":{"index":111,"hash":"NGxcZ0n01+w2G1PzyBlY","parents":["node_modules/lodash/internal/baseForOwn.js"]},"node_modules/lodash/object/forOwn.js":{"index":155,"hash":"LZ77PzuJW/wlgVPdvlGc","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/baseToString.js":{"index":124,"hash":"ABFQFf14pRECi3sw8oKV","parents":["node_modules/lodash/internal/toPath.js"]},"resources/assets/js/components/shared/modal.vue":{"index":255,"hash":"SZs4QqlMcEuVnRWO8aGr","parents":["resources/assets/js/components/playlists/entry-modal.vue"]},"resources/assets/js/components/shared/header-menu.vue":{"index":253,"hash":"phCAnSIecIl68MBC00Uo","parents":["resources/assets/js/components/header/index.vue"]},"resources/assets/js/components/header/index.vue":{"index":217,"hash":"KnNULTxanxvoZgqgfXX+","parents":["resources/assets/js/components/index.vue"]},"resources/assets/js/components/index.vue":{"index":219,"hash":"PLYshia9K/owV8mITt9y","parents":["resources/assets/js/app.vue","resources/assets/js/router.js"]},"resources/assets/js/app.vue":{"index":210,"hash":"ulS5MqaaFVeykPeTHvKT","parents":["resources/assets/js/main.js"]},"resources/assets/js/components/shared/range-slider.vue":{"index":258,"hash":"9EX9qkAD0BoeEvE45Qbg","parents":["resources/assets/js/components/playlists/entry-modal.vue"]},"resources/assets/js/components/playlists/entry-modal.vue":{"index":233,"hash":"PnnJ5voOTEg783XEg/DQ","parents":["resources/assets/js/components/playlists.vue"]},"node_modules/tether/dist/js/tether.js":{"index":180,"hash":"E4xLyEYuK5qxMv3jfy3v","parents":["resources/assets/js/components/shared/popover.vue"]},"resources/assets/js/components/playlists/playlist-entry.vue":{"index":234,"hash":"yMAexEuorudDkTVWHNex","parents":["resources/assets/js/components/playlists.vue"]},"node_modules/lodash/object/pairs.js":{"index":159,"hash":"x6Ilwx8encvg/BW5API2","parents":["node_modules/lodash/internal/getMatchData.js"]},"node_modules/lodash/internal/getMatchData.js":{"index":136,"hash":"n0PHWhNs6YZ+DzgYMHPx","parents":["node_modules/lodash/internal/baseMatches.js"]},"node_modules/lodash/internal/baseMatches.js":{"index":118,"hash":"Cwj5GSiQv9/E8nSFBoX2","parents":["node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/lang/isFunction.js":{"index":150,"hash":"xkfzrZNZPGGOIf0kE8Y9","parents":["node_modules/lodash/lang/isNative.js"]},"node_modules/lodash/lang/isNative.js":{"index":151,"hash":"2rstaALy1DW0JSDdijps","parents":["node_modules/lodash/internal/getNative.js"]},"node_modules/lodash/internal/getNative.js":{"index":137,"hash":"7GRZ7115BSuoc/1bdaBK","parents":["node_modules/lodash/lang/isArray.js","node_modules/lodash/object/keys.js"]},"node_modules/lodash/lang/isArguments.js":{"index":148,"hash":"xQ4mqbsKQMCmtsPbfQc6","parents":["node_modules/lodash/object/keysIn.js","node_modules/lodash/internal/shimKeys.js"]},"node_modules/lodash/object/keysIn.js":{"index":157,"hash":"8POZiGR1fRHso579G46Z","parents":["node_modules/lodash/internal/shimKeys.js"]},"node_modules/lodash/internal/shimKeys.js":{"index":145,"hash":"oO4aKopmxRfPxyKgRX9F","parents":["node_modules/lodash/object/keys.js"]},"node_modules/lodash/internal/assignWith.js":{"index":105,"hash":"aKBKyfIKqZsNOHAbJTAI","parents":["node_modules/lodash/object/assign.js"]},"node_modules/lodash/object/assign.js":{"index":154,"hash":"9WOhJBREl8AO9Hs6Cr+Q","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/lodash/internal/equalByTag.js":{"index":133,"hash":"+y++gesJpPvyM+2E8aNB","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/engine.io-client/node_modules/parseuri/index.js":{"index":84,"hash":"c/c7XftSI6ClFc9h2jOh","parents":["node_modules/engine.io-client/lib/socket.js"]},"node_modules/parsejson/index.js":{"index":164,"hash":"3RLuznQNKZiQ/toCXNir","parents":["node_modules/engine.io-client/lib/socket.js"]},"node_modules/parseqs/index.js":{"index":165,"hash":"FI4tRELwI5Itz+ckwR+m","parents":["node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-parser/lib/keys.js":{"index":86,"hash":"oFyKNTA0twlyQVhVzp9n","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/lodash/internal/equalArrays.js":{"index":132,"hash":"OBJL6vuaOotu5flUeCnv","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/lodash/internal/equalObjects.js":{"index":134,"hash":"44Iy49kDcaAZsykEdaH3","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/lodash/lang/isTypedArray.js":{"index":153,"hash":"aVeZyIFGadrEh7EsaDRu","parents":["node_modules/lodash/internal/baseIsEqualDeep.js"]},"node_modules/lodash/internal/baseIsEqualDeep.js":{"index":115,"hash":"ltZZaMHmzp6d9jBltV3Y","parents":["node_modules/lodash/internal/baseIsEqual.js"]},"node_modules/lodash/internal/baseMatchesProperty.js":{"index":119,"hash":"OudnSoeq2A4ql5lg51kc","parents":["node_modules/lodash/internal/baseCallback.js"]},"node_modules/lodash/collection/map.js":{"index":98,"hash":"63n5x8GTiWPuxiZzm9TM","parents":["node_modules/browserify-hmr/inc/index.js"]},"node_modules/browserify-hmr/inc/index.js":{"index":10,"hash":"zTlNWZ14iIh89mO0UkaY","parents":[]},"node_modules/engine.io-client/lib/transport.js":{"index":74,"hash":"8Wg7zuMzQpa+AwOxaesw","parents":["node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-parser/lib/browser.js":{"index":85,"hash":"Xr2KhMDa3GjqERGsK7Lc","parents":["node_modules/engine.io-client/lib/transport.js","node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/socket.js","node_modules/engine.io-client/lib/index.js"]},"node_modules/arraybuffer.slice/index.js":{"index":3,"hash":"RSb5Zx9CgX3adjzbvf/k","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/utf8/utf8.js":{"index":182,"hash":"Mqm8G2xyYXmBOFrE+/6A","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/blob/index.js":{"index":9,"hash":"q7L6uHK9eN9yEvDVNxJw","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/after/index.js":{"index":2,"hash":"NzPfXWECmM8rW/6fdkcj","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/base64-arraybuffer/lib/base64-arraybuffer.js":{"index":8,"hash":"dW6cnktjBIyZ6bv9vRp2","parents":["node_modules/engine.io-parser/lib/browser.js"]},"node_modules/engine.io-client/node_modules/ms/index.js":{"index":83,"hash":"rzSu41c+6ZW8M4Say8X9","parents":["node_modules/engine.io-client/node_modules/debug/debug.js"]},"node_modules/engine.io-client/node_modules/debug/debug.js":{"index":82,"hash":"yqdR7nJc7wxIHzFDNzG+","parents":["node_modules/engine.io-client/node_modules/debug/browser.js"]},"node_modules/engine.io-client/node_modules/debug/browser.js":{"index":81,"hash":"PENVCHp3HppeRm/DiJMI","parents":["node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-client/lib/transports/polling-jsonp.js":{"index":76,"hash":"FAm1xe7I43tDMsakGLzq","parents":["node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/engine.io-client/lib/transports/polling.js":{"index":78,"hash":"m6eReXjm1pnBQHB07d2V","parents":["node_modules/engine.io-client/lib/transports/polling-jsonp.js","node_modules/engine.io-client/lib/transports/polling-xhr.js"]},"node_modules/component-inherit/index.js":{"index":15,"hash":"T0Fqch4d4akvlr8bh7lc","parents":["node_modules/engine.io-client/lib/transports/polling-jsonp.js","node_modules/engine.io-client/lib/transports/websocket.js","node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/transports/polling-xhr.js"]},"node_modules/ws/lib/browser.js":{"index":209,"hash":"vZRI95FVw46PPRoHDauJ","parents":["node_modules/engine.io-client/lib/transports/websocket.js"]},"node_modules/engine.io-client/lib/transports/websocket.js":{"index":79,"hash":"iZQQax7TKsS+8ZxUyrc3","parents":["node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/engine.io-client/lib/xmlhttprequest.js":{"index":80,"hash":"us0FsN5s7hiT3hqVV5lx","parents":["node_modules/engine.io-client/lib/transports/polling.js","node_modules/engine.io-client/lib/transports/polling-xhr.js","node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/engine.io-client/lib/transports/polling-xhr.js":{"index":77,"hash":"d89FOYRl9cirXzsJCjKg","parents":["node_modules/engine.io-client/lib/transports/index.js"]},"node_modules/core-js/library/modules/es6.object.to-string.js":{"index":67,"hash":"47DEQpj8HBSa+/TImW+5","parents":["node_modules/core-js/library/fn/map.js"]},"node_modules/global/index.js":{"index":87,"hash":"tDIf5GqqdOcKnNHRh2Rc","parents":["node_modules/has-cors/index.js"]},"node_modules/has-cors/index.js":{"index":89,"hash":"uSUdzzwBDQd7qQNKEZ4o","parents":["node_modules/engine.io-client/lib/xmlhttprequest.js"]},"node_modules/engine.io-client/lib/transports/index.js":{"index":75,"hash":"kQ8FMfawL2PES7dsQgvD","parents":["node_modules/engine.io-client/lib/socket.js"]},"node_modules/engine.io-client/lib/socket.js":{"index":73,"hash":"1L37UZEnorYV+ld5c01T","parents":["node_modules/engine.io-client/lib/index.js"]},"node_modules/engine.io-client/lib/index.js":{"index":72,"hash":"G6QYuSNu0EcS+G5tR9NE","parents":["node_modules/engine.io-client/index.js"]},"node_modules/engine.io-client/index.js":{"index":71,"hash":"HQau4MkD4lAynB9tt0Wl","parents":["node_modules/socket.io-client/lib/manager.js"]},"node_modules/socket.io-client/lib/manager.js":{"index":170,"hash":"+TrOAqk4UlI3tKzIT6Dc","parents":["node_modules/socket.io-client/lib/index.js"]},"node_modules/socket.io-client/lib/index.js":{"index":169,"hash":"lWwRhzm83+Eq08s7Nht/","parents":["node_modules/socket.io-client/index.js"]},"node_modules/socket.io-client/index.js":{"index":168,"hash":"ccYBPsaIqMCtG5CHCdDd","parents":[]},"node_modules/core-js/library/modules/$.core.js":{"index":27,"hash":"jO6z5PVz8f6aTUjm5Hrx","parents":["node_modules/core-js/library/modules/$.export.js","node_modules/core-js/library/modules/core.get-iterator-method.js","node_modules/core-js/library/modules/core.get-iterator.js","node_modules/core-js/library/modules/$.set-species.js","node_modules/core-js/library/fn/map.js","node_modules/core-js/library/fn/object/assign.js"]},"node_modules/core-js/library/modules/$.iterators.js":{"index":44,"hash":"HPPh7u0tcX1NuooQHCi3","parents":["node_modules/core-js/library/modules/core.get-iterator-method.js","node_modules/core-js/library/modules/$.is-array-iter.js","node_modules/core-js/library/modules/$.iter-define.js","node_modules/core-js/library/modules/es6.array.iterator.js","node_modules/core-js/library/modules/web.dom.iterable.js"]},"node_modules/core-js/library/modules/$.export.js":{"index":31,"hash":"tF6TuwqA3fLdeFKqSI9n","parents":["node_modules/core-js/library/modules/$.collection.js","node_modules/core-js/library/modules/es7.map.to-json.js","node_modules/core-js/library/modules/$.iter-define.js","node_modules/core-js/library/modules/es6.object.assign.js"]},"node_modules/core-js/library/modules/$.global.js":{"index":34,"hash":"t7QKkyeVEU+gGSy/l5Cc","parents":["node_modules/core-js/library/modules/$.export.js","node_modules/core-js/library/modules/$.collection.js","node_modules/core-js/library/modules/$.shared.js","node_modules/core-js/library/modules/$.wks.js"]},"node_modules/core-js/library/modules/$.ctx.js":{"index":28,"hash":"IBAqoysxf6uGe4qIslFW","parents":["node_modules/core-js/library/modules/$.export.js","node_modules/core-js/library/modules/$.for-of.js","node_modules/core-js/library/modules/$.collection-strong.js"]},"node_modules/core-js/library/modules/$.an-object.js":{"index":21,"hash":"d7pCynXJhKpK2u1S0fph","parents":["node_modules/core-js/library/modules/core.get-iterator.js","node_modules/core-js/library/modules/$.iter-call.js","node_modules/core-js/library/modules/$.for-of.js"]},"node_modules/core-js/library/modules/$.is-object.js":{"index":39,"hash":"FkaOOMIm0uw4T/qUEXed","parents":["node_modules/core-js/library/modules/$.an-object.js","node_modules/core-js/library/modules/$.collection.js","node_modules/core-js/library/modules/$.collection-strong.js"]},"node_modules/core-js/library/modules/core.get-iterator-method.js":{"index":62,"hash":"+qtmOjO/wxtOJEvpsv/b","parents":["node_modules/core-js/library/modules/core.get-iterator.js","node_modules/core-js/library/modules/$.for-of.js"]},"node_modules/core-js/library/modules/$.classof.js":{"index":22,"hash":"2vrlE4yJW7f/QT46fZjd","parents":["node_modules/core-js/library/modules/core.get-iterator-method.js","node_modules/core-js/library/modules/$.collection-to-json.js"]},"node_modules/core-js/library/modules/$.wks.js":{"index":61,"hash":"qMliszffX6kySHptJTIp","parents":["node_modules/core-js/library/modules/core.get-iterator-method.js","node_modules/core-js/library/modules/$.set-species.js","node_modules/core-js/library/modules/$.set-to-string-tag.js","node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.classof.js","node_modules/core-js/library/modules/$.is-array-iter.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/core.get-iterator.js":{"index":63,"hash":"Fpc5rJRGURor7FbHBYPn","parents":["node_modules/core-js/library/fn/get-iterator.js"]},"node_modules/core-js/library/fn/get-iterator.js":{"index":16,"hash":"V+nypfA8LA2WadFVp7u2","parents":["node_modules/babel-runtime/core-js/get-iterator.js"]},"node_modules/core-js/library/modules/es6.string.iterator.js":{"index":68,"hash":"viRu85eLzJ68VCbwuHbl","parents":["node_modules/core-js/library/fn/get-iterator.js","node_modules/core-js/library/fn/map.js"]},"node_modules/core-js/library/modules/web.dom.iterable.js":{"index":70,"hash":"KisVT/JurPfFyjuYGWzf","parents":["node_modules/core-js/library/fn/get-iterator.js","node_modules/core-js/library/fn/map.js"]},"node_modules/babel-runtime/core-js/get-iterator.js":{"index":4,"hash":"a8je4in/yfKL3pQIQJX9","parents":["resources/assets/js/components/playlists.vue"]},"node_modules/core-js/library/modules/$.js":{"index":45,"hash":"UI1ymRgurU07soRpiobz","parents":["node_modules/core-js/library/modules/$.set-species.js","node_modules/core-js/library/modules/$.set-to-string-tag.js","node_modules/core-js/library/modules/$.collection.js","node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.hide.js","node_modules/core-js/library/modules/$.collection-strong.js","node_modules/core-js/library/modules/$.iter-define.js","node_modules/core-js/library/modules/$.object-assign.js"]},"node_modules/core-js/library/modules/$.strict-new.js":{"index":54,"hash":"oPOwOmkgVfPbRVFj8wGD","parents":["node_modules/core-js/library/modules/$.collection.js","node_modules/core-js/library/modules/$.collection-strong.js"]},"node_modules/core-js/library/modules/$.defined.js":{"index":29,"hash":"RZr8uFl+WrrjvGzPSz3c","parents":["node_modules/core-js/library/modules/$.string-at.js","node_modules/core-js/library/modules/$.collection-strong.js","node_modules/core-js/library/modules/$.to-iobject.js","node_modules/core-js/library/modules/$.to-object.js"]},"node_modules/core-js/library/modules/$.iter-step.js":{"index":43,"hash":"LPWFVFxr7uzP25M4Teof","parents":["node_modules/core-js/library/modules/$.collection-strong.js","node_modules/core-js/library/modules/es6.array.iterator.js"]},"node_modules/core-js/library/modules/$.uid.js":{"index":60,"hash":"auy0a5KBxuU7QAdJ7we/","parents":["node_modules/core-js/library/modules/$.collection-strong.js","node_modules/core-js/library/modules/$.wks.js"]},"node_modules/core-js/library/modules/$.has.js":{"index":35,"hash":"y4idiH2Sj/rmZqd39CHH","parents":["node_modules/core-js/library/modules/$.set-to-string-tag.js","node_modules/core-js/library/modules/$.collection-strong.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.to-integer.js":{"index":56,"hash":"k18sZu8vTX3eiB+U6ofu","parents":["node_modules/core-js/library/modules/$.string-at.js","node_modules/core-js/library/modules/$.to-length.js"]},"node_modules/core-js/library/modules/$.string-at.js":{"index":55,"hash":"Zop3IqdJq32xa0qd4H0H","parents":["node_modules/core-js/library/modules/es6.string.iterator.js"]},"node_modules/core-js/library/modules/$.fails.js":{"index":32,"hash":"6G4+YXaRghTGQQnkm/qp","parents":["node_modules/core-js/library/modules/$.descriptors.js","node_modules/core-js/library/modules/$.collection.js","node_modules/core-js/library/modules/$.object-assign.js"]},"node_modules/core-js/library/modules/$.library.js":{"index":46,"hash":"Bhgn5RpO7pDcQnSVaI5C","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.add-to-unscopables.js":{"index":20,"hash":"aTtaK5OMoCOj8v16GPqC","parents":["node_modules/core-js/library/modules/es6.array.iterator.js"]},"node_modules/core-js/library/modules/$.redefine-all.js":{"index":49,"hash":"Jiq2TB8FJC6T6YoP71/u","parents":["node_modules/core-js/library/modules/$.collection.js","node_modules/core-js/library/modules/$.collection-strong.js"]},"node_modules/core-js/library/modules/$.redefine.js":{"index":50,"hash":"v4z59Kie6WPVO1h+8oJP","parents":["node_modules/core-js/library/modules/$.redefine-all.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.descriptors.js":{"index":30,"hash":"NJqnAOVs55bKea+gKIGt","parents":["node_modules/core-js/library/modules/$.set-species.js","node_modules/core-js/library/modules/$.collection.js","node_modules/core-js/library/modules/$.hide.js","node_modules/core-js/library/modules/$.collection-strong.js"]},"node_modules/core-js/library/modules/$.set-species.js":{"index":51,"hash":"ro3HDmKb2qL8VnwCpdal","parents":["node_modules/core-js/library/modules/$.collection-strong.js"]},"node_modules/core-js/library/modules/$.set-to-string-tag.js":{"index":52,"hash":"3G0pjz42ePfLP++caEH3","parents":["node_modules/core-js/library/modules/$.collection.js","node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.collection.js":{"index":26,"hash":"GjxwHaTukUMTjfNjq/Hz","parents":["node_modules/core-js/library/modules/es6.map.js"]},"node_modules/core-js/library/modules/$.hide.js":{"index":36,"hash":"2HBwvxEtbt4UpskOWy62","parents":["node_modules/core-js/library/modules/$.collection.js","node_modules/core-js/library/modules/$.redefine.js","node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.collection-strong.js","node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.for-of.js":{"index":33,"hash":"lVoKOzOP/6hLkfWdCNuE","parents":["node_modules/core-js/library/modules/$.collection.js","node_modules/core-js/library/modules/$.collection-to-json.js","node_modules/core-js/library/modules/$.collection-strong.js"]},"node_modules/core-js/library/modules/$.iter-create.js":{"index":41,"hash":"aNVpOMS/fyyM1i4Aw4bY","parents":["node_modules/core-js/library/modules/$.iter-define.js"]},"node_modules/core-js/library/modules/$.property-desc.js":{"index":48,"hash":"iSs9jpAw1JT2ZWWLScSH","parents":["node_modules/core-js/library/modules/$.iter-create.js","node_modules/core-js/library/modules/$.hide.js"]},"node_modules/core-js/library/modules/$.a-function.js":{"index":19,"hash":"vI7NBVNoKizw/T7ablYt","parents":["node_modules/core-js/library/modules/$.ctx.js"]},"node_modules/core-js/library/modules/$.cof.js":{"index":23,"hash":"FY6tg0ymdCS/rEwpAa7R","parents":["node_modules/core-js/library/modules/$.classof.js","node_modules/core-js/library/modules/$.iobject.js"]},"node_modules/core-js/library/modules/$.collection-to-json.js":{"index":25,"hash":"h4TEY/15rqQvWkoz+NB3","parents":["node_modules/core-js/library/modules/es7.map.to-json.js"]},"node_modules/core-js/library/modules/es7.map.to-json.js":{"index":69,"hash":"B6MKWfFY/GQAH/IMXIaK","parents":["node_modules/core-js/library/fn/map.js"]},"node_modules/core-js/library/modules/$.is-array-iter.js":{"index":38,"hash":"3M/qEEmbCbZefVZOS8Ft","parents":["node_modules/core-js/library/modules/$.for-of.js"]},"node_modules/core-js/library/modules/$.to-length.js":{"index":58,"hash":"Hrf6eZg+uR5ERGzpNo5c","parents":["node_modules/core-js/library/modules/$.for-of.js"]},"node_modules/core-js/library/modules/$.iter-call.js":{"index":40,"hash":"1MKqUT/NTYj091vtQVmF","parents":["node_modules/core-js/library/modules/$.for-of.js"]},"node_modules/core-js/library/modules/$.collection-strong.js":{"index":24,"hash":"iFOlFEmid4yW6B1Wrzox","parents":["node_modules/core-js/library/modules/es6.map.js"]},"node_modules/core-js/library/modules/$.iter-define.js":{"index":42,"hash":"sR6jK5MoRN1zAKGNm2y4","parents":["node_modules/core-js/library/modules/$.collection-strong.js","node_modules/core-js/library/modules/es6.string.iterator.js","node_modules/core-js/library/modules/es6.array.iterator.js"]},"node_modules/core-js/library/modules/es6.map.js":{"index":65,"hash":"slui+Dhs1G3UWD3tyC22","parents":["node_modules/core-js/library/fn/map.js"]},"node_modules/core-js/library/modules/$.shared.js":{"index":53,"hash":"ZK+Tn2LANbB4OqkscM3N","parents":["node_modules/core-js/library/modules/$.wks.js"]},"node_modules/core-js/library/modules/$.iobject.js":{"index":37,"hash":"HvETp5p0zMBjh+wvjxSm","parents":["node_modules/core-js/library/modules/$.to-iobject.js","node_modules/core-js/library/modules/$.object-assign.js"]},"node_modules/core-js/library/modules/$.to-iobject.js":{"index":57,"hash":"yp4UOuCLRVO1tqlgppw5","parents":["node_modules/core-js/library/modules/es6.array.iterator.js"]},"node_modules/core-js/library/modules/es6.array.iterator.js":{"index":64,"hash":"Zw/NixWUIMjoGa2uWxe/","parents":["node_modules/core-js/library/modules/web.dom.iterable.js"]},"node_modules/core-js/library/fn/map.js":{"index":17,"hash":"EmVxMa3+XwrIT7INNqkT","parents":["node_modules/babel-runtime/core-js/map.js"]},"node_modules/babel-runtime/core-js/map.js":{"index":5,"hash":"xmq/B27Isi5xmy6ZguJ7","parents":["resources/assets/js/components/playlists.vue"]},"resources/assets/js/components/playlists.vue":{"index":232,"hash":"ZNWFyND3tT/xKtBUbbdY","parents":["resources/assets/js/router.js"]},"node_modules/core-js/library/modules/$.to-object.js":{"index":59,"hash":"XLB72m1cojvL0pIYCCFE","parents":["node_modules/core-js/library/modules/$.object-assign.js"]},"node_modules/core-js/library/modules/$.object-assign.js":{"index":47,"hash":"vlM4g8r36vFJivj1EOOp","parents":["node_modules/core-js/library/modules/es6.object.assign.js"]},"node_modules/core-js/library/modules/es6.object.assign.js":{"index":66,"hash":"O1TTCwEy8yCJjcDqCq0k","parents":["node_modules/core-js/library/fn/object/assign.js"]},"node_modules/core-js/library/fn/object/assign.js":{"index":18,"hash":"RKVv+8x7eGcEw+yVXhC5","parents":["node_modules/babel-runtime/core-js/object/assign.js"]},"node_modules/babel-runtime/core-js/object/assign.js":{"index":6,"hash":"8fJTx1/oL9wcIWyAqxHQ","parents":["resources/assets/js/components/outputs/panels.vue"]},"resources/assets/js/components/outputs/panels.vue":{"index":228,"hash":"q6XkL4K+YoKGSpUymvLX","parents":["resources/assets/js/router.js"]},"resources/assets/js/router.js":{"index":272,"hash":"rz/huSBTj65C28gUJ5Qu","parents":["resources/assets/js/main.js"]},"resources/assets/js/main.js":{"index":270,"hash":"tzWIDOgrs6XuB2GTgPM8","parents":[]}};
   var originalEntries = ["/Users/Tim/Sites/FPP2/www/resources/assets/js/main.js"];
   var updateUrl = null;
   var updateMode = "websocket";
@@ -48968,6 +49664,6 @@ function csstransitions() {
   arguments[3], arguments[4], arguments[5], arguments[6]
 );
 
-},{"./node_modules/browserify-hmr/inc/index.js":10,"./node_modules/socket.io-client/index.js":168,"/Users/Tim/Sites/FPP2/www/resources/assets/js/main.js":268}]},{},[1]);
+},{"./node_modules/browserify-hmr/inc/index.js":10,"./node_modules/socket.io-client/index.js":168,"/Users/Tim/Sites/FPP2/www/resources/assets/js/main.js":270}]},{},[1]);
 
 //# sourceMappingURL=main.js.map

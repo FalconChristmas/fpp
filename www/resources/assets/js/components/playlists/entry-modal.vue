@@ -1,13 +1,14 @@
 <template>
+  <validator name="entryvalidator">
      <modal id="entry-modal" size="md" :fade="true">
           <div slot="modal-header">
-             <h5>Add Playlist <span class="semi-bold">Entry</span></h5>
+             <h6 class="modal-title">Add Playlist <span class="semi-bold">Entry</span></h6>
           </div>
           <div slot="modal-body">
             <div class="entry-group">
                 <div class="form-group-default">
                     <label>Entry Type</label>
-                    <select v-model="type" class="c-select" style="width: 100%;">
+                    <select v-model="type" v-validate:type="{required: true}" class="c-select" style="width: 100%;">
                         <option v-for="(key, val) in types" :value="key">{{val}}</option>
                     </select>
                 </div>
@@ -87,15 +88,16 @@
                         <input type="number" v-model="modelValue">
                     </div>
                 </div>
-                
+
             </div>
-            
+
           </div>
           <div slot="modal-footer">
-            <button class="button alert m-b-0" v-on:click="$broadcast('hide::modal', 'entry-modal')">Cancel</button>
-            <button class="button primary m-b-0" v-on:click="$dispatch('add')">Add Entry</button>
+            <button class="button gradient m-b-0" v-on:click="$broadcast('hide::modal', 'entry-modal')">Cancel</button>
+            <button class="button gradient submit m-b-0" :disabled="$entryvalidator.invalid" v-on:click="$dispatch('add')">Add Entry</button>
           </div>
     </modal>
+  </validator>
 </template>
 
 <script>
@@ -121,6 +123,7 @@ export default {
     },
     data() {
         return {
+            isValid: false,
             type: null,
             plugin: null,
             event: null,
