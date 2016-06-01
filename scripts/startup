@@ -281,3 +281,8 @@ else
 	echo "FPP - Turning OFF screen blanking"
 	setterm -blank 0
 fi
+
+if [ "$_IP" ]; then
+  echo "FPP - Found IP(s): $_IP"
+fi
+
