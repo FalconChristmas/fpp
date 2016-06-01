@@ -375,6 +375,9 @@ case "${OSVER}" in
 			fi
 		done
 
+		echo "FPP - Configuring shellinabox to use /var/tmp"
+		echo "SHELLINABOX_DATADIR=/var/tmp/" >> /etc/default/shellinabox
+
 		echo "FPP - Cleaning up after installing packages"
 		apt-get -y clean
 
