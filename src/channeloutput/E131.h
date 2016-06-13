@@ -38,6 +38,7 @@
 #define E131_UNIVERSE_INDEX   113
 #define E131_SEQUENCE_INDEX   111
 #define E131_COUNT_INDEX      123
+#define E131_PRIORITY_INDEX   108
 
 #define E131_RLP_COUNT_INDEX       16
 #define E131_FRAMING_COUNT_INDEX   38
@@ -54,6 +55,7 @@ typedef struct {
 	int           type;
 	char          unicastAddress[16];
 	unsigned long bytesReceived;
+	int           priority;
 } UniverseEntry;
 
 // FIXME, these should be in e131bridge.c, not here

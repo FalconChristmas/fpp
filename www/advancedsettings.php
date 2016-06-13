@@ -29,6 +29,19 @@
 				testing remote wireless-attached FPP systems.</td>
 		</tr>
 		<tr><td colspan='2'><hr></td></tr>
+		<tr><td valign='top'><? PrintSettingText("E131Priority", 1, 0, 3, 3, "", "0"); ?><br>
+				<? PrintSettingSave("E1.31 Priority", "E131Priority", 1, 0); ?></td>
+			<td valign='top'><b>E1.31 Priority</b> - The E1.31 priority allows
+				multiple players to send data to the same device at the same
+				time.  The packets with the highest priority are used.  This
+				functionality is not supported by all controllers, so changing
+				it may not have any effect with your controllers.
+				<font color='#ff0000'><b>WARNING</b></font> - Sending multiple
+				packets for the same universe to the same controller will
+				cause flicker if the controller does not support priority or
+				if both players send packets with the same priority.</td>
+		</tr>
+		<tr><td colspan='2'><hr></td></tr>
 		<tr><td valign='top'><? PrintSettingText("mediaOffset", 1, 0, 5, 5); ?> ms<br>
 				<? PrintSettingSave("Media Offset", "mediaOffset", 1, 0); ?></td>
 			<td valign='top'><b>Media/Sequence Offset</b> - The media offset value
