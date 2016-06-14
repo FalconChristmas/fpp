@@ -62,7 +62,7 @@
 SCRIPTVER="0.9"
 FPPBRANCH="master"
 FPPIMAGEVER="2.0alpha"
-FPPCFGVER="21"
+FPPCFGVER="22"
 FPPPLATFORM="UNKNOWN"
 FPPDIR="/opt/fpp"
 OSVER="UNKNOWN"
@@ -498,6 +498,9 @@ cat <<-EOF >> /etc/modprobe.d/8192cu.conf
 		# Disable power management on 8192cu module
 		options 8192cu rtw_power_mgnt=0 rtw_enusbss=0
 EOF
+
+		echo "FPP - Fixing potential ping issue"
+		chmod u+s /bin/ping
 
 		;;
 
