@@ -135,6 +135,7 @@ SetupFPPNetworkConfig () {
 			allow-hotplug wlan0
 			iface wlan0 inet manual
 			  wpa-roam /etc/wpa_supplicant/wpa_supplicant.conf
+			wireless-power off
 
 			iface FPP-wlan0 inet dhcp
 
