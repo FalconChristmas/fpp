@@ -94,6 +94,9 @@ void Matrix::OverlaySubMatrix(unsigned char *channelData, int i)
  */
 void Matrix::OverlaySubMatrices(unsigned char *channelData)
 {
+	if (!subMatrix.size())
+		return;
+
 	bzero(m_buffer, m_width * m_height * 3);
 
 	for (int i = 0; i < subMatrix.size(); i++)
