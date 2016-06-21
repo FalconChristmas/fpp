@@ -191,6 +191,7 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
 			Json::Value sm = config["subMatrices"][i];
 
 			m_matrix->AddSubMatrix(
+				sm["enabled"].asInt(),
 				sm["startChannel"].asInt() - 1,
 				sm["width"].asInt(),
 				sm["height"].asInt(),
