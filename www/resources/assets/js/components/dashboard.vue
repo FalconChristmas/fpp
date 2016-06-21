@@ -30,7 +30,7 @@
 
                         </div>
                     </div>
-                    
+
                 </div>
             </div>
             <div class="row">
@@ -38,10 +38,10 @@
                     <status-widget></status-widget>
                     <multisync-widget></multisync-widget>
                 </div>
-               
+
                 <div class="col-xs-12 col-lg-6 col-xl-7">
                     <player-widget></player-widget>
-                    
+
               <!--       <div class="row">
                         <div class="col-xs-12 col-md-6 col-lg-12">
                             <div class="panel box widget bg-azure">
@@ -69,16 +69,17 @@
                             </div>
                         </div>
                     </div> -->
-                    
+
                 </div>
-                
+
             </div>
             <div class="row">
-                <div class="col-xs-12 col-lg-5">
+                <div class="col-xs-12">
+                  <tabs-widget></tabs-widget>
                     <!-- <multisync-widget></multisync-widget> -->
                 </div>
             </div>
-            
+
     </div>
 </template>
 
@@ -88,9 +89,10 @@ import WeatherWidget from "./widgets/weather.vue";
 import StatusWidget from "./widgets/status.vue";
 import PlayerWidget from "./widgets/player.vue";
 import MultisyncWidget from "./widgets/multisync.vue";
+import TabsWidget from "./widgets/tabs.vue";
 
 export default {
-    components: { WeatherWidget, StatusWidget, PlayerWidget, MultisyncWidget },
+    components: { WeatherWidget, StatusWidget, PlayerWidget, MultisyncWidget, TabsWidget },
     props: [],
     data() {
         return {};

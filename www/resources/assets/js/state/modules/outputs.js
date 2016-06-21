@@ -61,6 +61,7 @@ const mutations = {
         state[type].push(output);
     },
     [REMOVE_OUTPUT] (state, type, id) {
+      console.log(state, type);
         state[type].splice(id, 1);
     },
     [UPDATE_OUTPUT] (state, type, id, output) {

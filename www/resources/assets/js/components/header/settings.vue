@@ -38,19 +38,17 @@ export default {
 <style lang="sass">
     @import "resources/assets/sass/_vars.scss";
     @import "resources/assets/sass/_mixins.scss";
-    
+
     .settings-header {
-        
+
         flex-flow: wrap;
         padding: 20px 20px 0;
         flex-direction: column;
-       
 
-       
         .settings-menu {
             width: 100%;
             padding: 10px 0 0;
-           
+
             a {
                 display: block;
                 text-transform: uppercase;
@@ -65,10 +63,10 @@ export default {
                 }
             }
         }
-       
+
         @include breakpoint($iphone6-ls-min) {
             flex-direction: row;
-            
+
         }
     }
 </style>

@@ -5,8 +5,9 @@ $assets-url: '../';
 ///////////////////////////////////
 $primary-color: #788B94;
 $secondary-color: #eaeaea;
+$highlight-color: #1A91EB;
 
-$bg-color: #f1f1f1;
+$bg-color: #f1f2f3; //#f1f1f1;
 $alert-color: #F04124;
 $info-color: #A0D3E8;
 $success-color: #43AC6A;
@@ -117,6 +118,7 @@ $color-info-darker: mix($color-info, $color-black, $mix-percentage-darker);
 $color-azure: #5B9BD1;
 $color-green: #5A8770;
 
+$color-blue: #1A91EB;
 $color-blue-gradient-start: #2999ef;
 $color-blue-gradient-stop: #1b90ea;
 $color-green-gradient-start: #1db835;
@@ -128,6 +130,7 @@ $sidebar-width: 155px;
 $sidebar-width-desktop: 200px;
 
 $global-padding: 1em;
+$radius: 3px !default;
 
 ///////////////////////////////////
 //  Fonts
@@ -160,6 +163,9 @@ $desktop          : max-width 1280px !default;
 $desktop-min      : 1280px !default;
 $desk-sm          : 980px !default;
 
+$tablet: 769px !default;
+$desktop: 980px !default;
+$widescreen: 1180px !default;
 
 ///////////////////////////////////
 //  Normalize vars

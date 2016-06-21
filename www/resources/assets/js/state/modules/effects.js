@@ -1,5 +1,5 @@
 const state = {
-
+  effects: []
 }
 
 const mutations = {

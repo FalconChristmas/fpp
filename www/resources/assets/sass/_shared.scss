@@ -16,7 +16,7 @@ a {
     text-decoration: none;
     color: $link-color;
     transition: color 0.35s;
-    
+
     &:hover,
     &:focus {
         color: $link-color-active;
@@ -28,14 +28,14 @@ a {
     display: flex;
     min-height: 100vh;
     flex-direction: column;
-    
+
     background: $bg-color;
     color: $text-color;
 
     font-family: $font-primary;
     font-size: $font-size;
     line-height: $font-size * 1.5;
-    
+
 }
 
 .content-wrapper {
@@ -54,4 +54,10 @@ a {
     .content {
         padding: 20px;
     }
+}
+
+.block {
+  &:not(:last-child) {
+    margin-bottom: 20px;
+  }
 }

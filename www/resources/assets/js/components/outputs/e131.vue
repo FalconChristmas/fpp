@@ -1,5 +1,5 @@
 <template>
-     <div id="e131-settings" class="outputs-container container-fluid box">
+     <div id="e131-settings" class="outputs-container box">
      <div class="box-header">
          <h4 class="box-title"><span class="semi-bold">E131</span> Outputs</h4>
      </div>
@@ -9,9 +9,27 @@
            <switch :model="enabled" :on-change="onToggle"></switch>
          </div>
      </div>
-     <div class="box-body">
-        <form>
-            <div class="output-actions">
+      <form>
+      <div class="box-actions level">
+        <div class="level-left">
+
+        </div>
+        <div class="level-right">
+          <div class="level-item">
+            <form-input
+                :model.sync="search"
+                type="text"
+                label="Search"
+                size="sm"
+                state-icon>
+              </form-input>
+          </div>
+          <div class="level-item">
+            <button class="button gradient submit bold m-a-0" @click.prevent="$broadcast('show::modal', 'output-modal')">Add Output</button>
+          </div>
+        </div>
+      </div>
+       <div class="output-actions">
                 <div class="filter-row align-end">
                     <div class="filter text-xs-center">
                         <span>Active</span>
@@ -79,10 +97,13 @@
                 </div>
                 <div class="filter-row">
 
-                    <button @click="addOutput" type="button" class="button btn-primary pull-xs-right m-a-0">{{ addOutputLabel }}</button>
+                    <button @click="addOutput" type="button" class="button gradient submit pull-xs-right m-a-0">{{ addOutputLabel }}</button>
                 </div>
 
             </div>
+     <div class="box-body">
+
+
             <!-- <div id="universe-outputs"> -->
                 <div class="universe-list output-list table-responsive">
                     <!-- <div class="table-responsive"> -->
@@ -108,8 +129,10 @@
 
                 </div>
             <!-- </div> -->
-        </form>
+
         </div>
+        </form>
+        <modal type="e131" :fields="getModalFields()"></modal>
     </div>
 </template>
 
@@ -120,6 +143,8 @@ import Dropdown from "../shared/dropdown-select.vue";
 import Checkbox from "../shared/checkbox.vue";
 import FormInput from "../shared/input.vue";
 import outputMixin from "../../mixins/outputMixin";
+import Modal from "./output-modal.vue";
+
 import {
     toggleOutputs
 } from "../../state/actions";
@@ -136,7 +161,7 @@ const universeStub =  {
 
 
 export default {
-    components: { Universe, Switch, Dropdown, Checkbox, FormInput  },
+    components: { Universe, Switch, Dropdown, Checkbox, FormInput, Modal  },
     mixins: [outputMixin],
     props: [],
     data() {
@@ -167,6 +192,17 @@ export default {
                 address: this.defAddress,
                 label: null
             };
+        },
+        getModalFields() {
+          return [
+            { type: 'number', name: 'Start Channel', model: this.defStart },
+            { type: 'number', name: 'Size', model: this.defSize },
+            { type: 'select', name: 'Type', model: this.defType, options: [ 'unicast', 'multicast' ] },
+            { type: 'text', name: 'Address', model: this.defAddress },
+            { type: 'number', name: '# of Outputs', model: this.quantity },
+          ];
+
+
         }
     },
     vuex: {

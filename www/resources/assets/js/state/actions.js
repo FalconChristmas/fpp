@@ -23,7 +23,7 @@ export const restartFPPD = ({ dispatch }) => {
     dispatch('RESTART_FPPD');
 }
 
-export const updateMode = ({ dispatch, state }, mode) => { 
+export const updateMode = ({ dispatch, state }, mode) => {
     if(state.mode !== mode) {
         dispatch('UPDATE_MODE', mode);
         dispatch('REQUIRE_RESTART');
@@ -55,7 +55,7 @@ export const getAllOutputs = ({ dispatch }) => {
     Vue.http.get('outputs').then(data => {
         dispatch('RECEIVE_OUTPUTS', data.data);
     });
-   
+
 }
 
 /**
@@ -70,3 +70,11 @@ export const createPlaylist = ({ dispatch }, playlist) => dispatch('NEW_PLAYLIST
 export const deletePlaylist = ({ dispatch }, playlist) => dispatch('DELETE_PLAYLIST', playlist);
 export const updatePlaylist = ({ dispatch }, playlist) => dispatch('UPDATE_PLAYLIST', playlist);
 
+/**
+ * Event Actions
+ */
+export const triggerEvent = ({ dispatch }, event) => dispatch('TRIGGER_EVENT', event);
+export const addEvent = ({ dispatch }, event) => dispatch('ADD_EVENT', event);
+export const saveEvent = ({ dispatch }, event) => dispatch('SAVE_EVENT', event);
+export const editEvent = ({ dispatch }, event) => dispatch('EDIT_EVENT', event);
+export const deleteEvent = ({ dispatch }, event) => dispatch('DELETE_EVENT', event);

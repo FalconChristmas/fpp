@@ -11,7 +11,7 @@
             <ul class="nav">
                 <li><a v-link="{ name: 'dashboard', exact: true, activeClass: 'active' }">Dashboard</a></li>
                 <li><a v-link="{name: 'testing', activeClass: 'active'}">Display Testing</a></li>
-                <li><a v-link="{name: 'effects', activeClass: 'active'}">Effects</a></li>
+
             </ul>
         </div>
 
@@ -23,7 +23,7 @@
                 <li><a v-link="{ name: 'schedule', activeClass: 'active' }">Schedule</a></li>
                 <li><a v-link="{ name: 'plugins', activeClass: 'active' }">Plugins</a></li>
             </ul>
-            
+
         </div>
 
         <div class="menu-section">
@@ -32,7 +32,7 @@
                 <li><a v-link="{name: 'outputs', activeClass: 'active'}">Outputs</a></li>
                 <li><a v-link="{name: 'gpio', activeClass: 'active'}">GPIO</a></li>
                 <li><a v-link="{name: 'overlays', activeClass: 'active'}">Overlay Models</a></li>
-                <li><a v-link="{name: 'events', activeClass: 'active'}">Events</a></li>
+
                 <li><a v-link="{name: 'settings', activeClass: 'active'}">Settings</a></li>
             </ul>
         </div>
@@ -70,7 +70,7 @@ export default {
 <style lang="sass">
     @import "resources/assets/sass/_vars.scss";
     @import "resources/assets/sass/_mixins.scss";
-    
+
     .sidebar {
       width: $sidebar-width;
       position: fixed;
@@ -111,7 +111,7 @@ export default {
         letter-spacing: 1px;
         margin: 20px 0 0;
       }
-     
+
       li {
         padding: 3px 0;
       }
@@ -129,7 +129,7 @@ export default {
             font-weight: 500;
           }
        }
-        
+
        .sidebar-menu {
             margin-bottom: auto;
        }

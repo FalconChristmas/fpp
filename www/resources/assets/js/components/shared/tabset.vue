@@ -2,16 +2,16 @@
   <div>
     <!-- Nav tabs -->
      <ul class="nav nav-tabs {{ classes }}" role="tablist">
-            <li
-                v-for="r in renderData"
-                v-bind:class="{
-                  'active': ($index === activeIndex),
-                  'disabled': r.disabled
-                }"
-                @click.prevent="handleTabListClick($index, r)"
-                :disabled="r.disabled">
-                <a href="#">{{r.header}}</a>
-            </li>
+        <li
+            v-for="r in renderData"
+            v-bind:class="{
+              'active': ($index === activeIndex),
+              'disabled': r.disabled
+            }"
+            @click.prevent="handleTabListClick($index, r)"
+            :disabled="r.disabled">
+            <a href="#">{{r.header}}</a>
+        </li>
      </ul>
 
      <!-- Tab panes -->
@@ -39,9 +39,16 @@
         activeIndex: 0
       }
     },
+    ready() {
+      let index = this.activeIndex;
+      this.$emit('tab-changed', this.renderData[index])
+    },
     methods: {
         handleTabListClick(index, el) {
-            if (!el.disabled) this.activeIndex = index
+          if (!el.disabled) {
+            this.activeIndex = index;
+            this.$emit('tab-changed', this.renderData[index])
+          }
         }
     }
   }

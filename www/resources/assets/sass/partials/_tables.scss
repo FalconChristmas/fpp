@@ -177,4 +177,29 @@
             }
         }
     }
+
+    /**
+     * Table Action Buttons
+     */
+    &-action {
+      -webkit-appearance: none;
+      border: 0;
+      outline: 0;
+      box-shadow: none;
+      background: none;
+      padding: 0 10px;
+      font-size: 1rem;
+      color: $primary-color;
+      opacity: .4;
+      transition: opacity 0.35s;
+
+      &:focus,
+      &:active {
+        outline: 0;
+        box-shadow: none;
+      }
+      &:hover {
+        opacity: 1;
+      }
+    }
 }

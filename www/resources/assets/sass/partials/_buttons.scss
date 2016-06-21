@@ -134,7 +134,8 @@ $button-gradient: linear-gradient(to bottom, #f8f8f8, #eaeaea 100%);
     &.dark      { @include button-style($dark-color) }
 
     &.gradient { @include gradient-button }
-    &.gradient.submit { @include gradient-button($color-green-gradient-start, darken($color-green-gradient-start, 5%)) }
+    &.gradient.submit { @include gradient-button($color-green-gradient-start, darken($color-green-gradient-start, 5%), #666, #fff) }
+    &.gradient.bold { font-weight: bold; }
 
     @if $button-style != hollow {
       &.hollow { @include button-style($style: hollow);

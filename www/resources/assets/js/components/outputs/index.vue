@@ -20,7 +20,7 @@ export default {
         this.getAllOutputs();
     },
     vuex: {
-       
+
         actions: {
             getAllOutputs
         }

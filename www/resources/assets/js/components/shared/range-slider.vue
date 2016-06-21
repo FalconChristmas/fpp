@@ -41,9 +41,10 @@ export default {
   display: block;
   overflow: hidden;
   margin: 5px 10px;
-  padding: 16px 1px 20px;
+  padding: 10px 1px;
   box-sizing: border-box;
   outline: none;
+  background-color: transparent;
   -webkit-tap-highlight-color: transparent;
 }
 .v-range-slider input::-webkit-slider-runnable-track {

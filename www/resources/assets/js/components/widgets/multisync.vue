@@ -6,7 +6,7 @@
                 <ul>
                   <li><a href="#" class="portlet-refresh" data-toggle="collapse"><i class="portlet-icon pg-refresh"></i></a>
                   </li>
-                  
+
                 </ul>
             </div>
         </div>
@@ -62,15 +62,17 @@ export default {
 <style lang="sass">
     @import "resources/assets/sass/_vars.scss";
     @import "resources/assets/sass/_mixins.scss";
-    
+
 .widget-multisync {
     .table {
         thead {
             th {
                 font-size: 9px;
-                background: #e6e6e6;//#b1b1b1;
+                background: #f1f1f1;//#b1b1b1;
                 font-weight: normal;
                 border-bottom: 0;
+                border-top: 1px solid #e6e6e6;
+                border-bottom: 1px solid #e6e6e6;
                 //color: white;
                 &.mode {
                     padding-right: 0 !important;

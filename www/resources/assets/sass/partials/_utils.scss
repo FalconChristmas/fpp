@@ -83,7 +83,7 @@
     background-color: $color-primary-lighter;
 }
 
-/* Complete 
+/* Complete
 ------------------------------------
 */
 .bg-complete {
@@ -102,7 +102,7 @@
     background-color: $color-complete-lighter;
 }
 
-/* Success 
+/* Success
 ------------------------------------
 */
 .bg-success {
@@ -140,7 +140,7 @@
     background-color: $color-info-lighter;
 }
 
-/* Danger 
+/* Danger
 ------------------------------------
 */
 .bg-danger {
@@ -182,7 +182,7 @@
 ------------------------------------
 */
 
-/* Menu 
+/* Menu
 ------------------------------------
 */
 .bg-menu-dark{
@@ -229,7 +229,7 @@
 @mixin generate-paddings-options($n, $j:0){
   @if $j <= $n {
     @for $i from $j through $n {
-      $step : $i*5; 
+      $step : $i*5;
 
       .p-t-#{$step} {
         padding-top: ($step*1px) !important;
@@ -258,7 +258,7 @@
 @mixin generate-margin-options($n, $j: 0) {
   @if $j <= $n {
     @for $i from $j through $n {
-      $step : $i*5;  
+      $step : $i*5;
       .m-t-#{$step} {
         margin-top: ($step*1px);
       }
@@ -276,3 +276,151 @@
 }
 
 @include generate-margin-options(20);
+
+
+// Display
+
+$displays: "block" "flex" "inline" "inline-block" "inline-flex";
+
+@each $display in $displays {
+  .is-#{$display} {
+    display: #{$display};
+  }
+  .is-#{$display}-mobile {
+    @include mobile {
+      display: #{$display} !important;
+    }
+  }
+  .is-#{$display}-tablet {
+    @include tablet {
+      display: #{$display} !important;
+    }
+  }
+  .is-#{$display}-tablet-only {
+    @include tablet-only {
+      display: #{$display} !important;
+    }
+  }
+  .is-#{$display}-touch {
+    @include touch {
+      display: #{$display} !important;
+    }
+  }
+  .is-#{$display}-desktop {
+    @include desktop {
+      display: #{$display} !important;
+    }
+  }
+  .is-#{$display}-desktop-only {
+    @include desktop-only {
+      display: #{$display} !important;
+    }
+  }
+  .is-#{$display}-widescreen {
+    @include widescreen {
+      display: #{$display} !important;
+    }
+  }
+}
+
+// Float
+
+.is-clearfix {
+  @include clearfix;
+}
+
+.is-pulled-left {
+  float: left;
+}
+
+.is-pulled-right {
+  float: right;
+}
+
+// Overflow
+
+.is-clipped {
+  overflow: hidden !important;
+}
+
+// Overlay
+
+.is-overlay {
+  @include overlay;
+}
+
+// Text
+
+.has-text-centered {
+  text-align: center;
+}
+
+.has-text-left {
+  text-align: left;
+}
+
+.has-text-right {
+  text-align: right;
+}
+
+// Visibility
+
+.is-hidden {
+  display: none !important;
+}
+
+.is-hidden-mobile {
+  @include mobile {
+    display: none !important;
+  }
+}
+
+.is-hidden-tablet {
+  @include tablet {
+    display: none !important;
+  }
+}
+
+.is-hidden-tablet-only {
+  @include tablet-only {
+    display: none !important;
+  }
+}
+
+.is-hidden-touch {
+  @include touch {
+    display: none !important;
+  }
+}
+
+.is-hidden-desktop {
+  @include desktop {
+    display: none !important;
+  }
+}
+
+.is-hidden-desktop-only {
+  @include desktop-only {
+    display: none !important;
+  }
+}
+
+.is-hidden-widescreen {
+  @include widescreen {
+    display: none !important;
+  }
+}
+
+// Other
+
+.is-disabled {
+  pointer-events: none;
+}
+
+.is-marginless {
+  margin: 0 !important;
+}
+
+.is-unselectable {
+  @extend .unselectable;
+}

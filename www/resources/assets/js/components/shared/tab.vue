@@ -1,56 +1,35 @@
-<template>
-  <div role="tabpanel" class="tab-pane"
-      v-bind:class="{hide:!show}"
-      v-show="show"
-      :transition="transition">
-    <slot></slot>
-  </div>
-</template>
-
 <script>
-  export default {
-    props: {
-      header: {
-        type: String
-      },
-      disabled: {
-        type: Boolean,
-        default: false
-      }
-    },
-    data () {
-      return {
-        index: 0,
-        show: false
-      }
-    },
-    computed: {
-      show () {
-        return (Number(this.$parent.activeIndex) === Number(this.index))
-      },
-      transition () {
-        return this.$parent.effect
-      }
-    },
-    created () {
-      this.$parent.renderData.push({
-        header: this.header,
-        disabled: this.disabled
-      })
-    },
-    ready () {
-      for (var c in this.$parent.$children) {
-        if (this.$parent.$children[c].$el == this.$el) {
-          this.index = c
-          break
-        }
-      }
+// export tab object
+export default {
+  template: '<div role="tabpanel" class="tab-pane" v-bind:class="{active: active, disabled: disabled, fade: fade, in: animate}"><slot></slot></div>',
+  replace: true,
+  data() {
+    return {
+      fade: this.$parent.fade,
+      animate: false,
     }
-  }
+  },
+  props: {
+    id: {
+      type: String,
+      default: ''
+    },
+    title: {
+      type: String,
+      default: ''
+    },
+    active: {
+      type: Boolean,
+      default: false
+    },
+    disabled: {
+      type: Boolean,
+      default: false
+    }
+  },
+  ready() {
+    const items = this.$parent.$get('items')
+    items.push({id: this.id, title: this.title, active: this.active, disabled: this.disabled})
+  },
+}
 </script>
-
-<style scoped>
-  .tab-content > .tab-pane {
-    display: block;
-  }
-</style>

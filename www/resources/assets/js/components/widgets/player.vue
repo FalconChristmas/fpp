@@ -22,7 +22,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="item in items"> 
+                            <tr v-for="item in items">
                                 <td class="play"><i class="ion-play"></i></td>
                                 <td class="media-name">{{item.media}}</td>
                                 <td class="sequence-name">{{item.sequence}}</td>
@@ -65,21 +65,22 @@ export default {
 <style lang="sass">
     @import "resources/assets/sass/_vars.scss";
     @import "resources/assets/sass/_mixins.scss";
-    
+
 .widget-player {
     .table {
         thead {
             th {
-                font-size: 9px;
-                background: #e6e6e6;//#b1b1b1;
-                font-weight: normal;
-                border-bottom: 0;
+              font-size: 9px;
+              background: #f1f1f1;//#b1b1b1;
+              font-weight: normal;
+              border-top: 1px solid #e6e6e6;
+              border-bottom: 1px solid #e6e6e6;
                 //color: white;
             }
         }
     }
     .player-items {
-        
+
         .table {
             tr {
                 td {

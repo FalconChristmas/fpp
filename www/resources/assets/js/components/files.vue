@@ -55,8 +55,8 @@
 </template>
 
 <script>
-import Tabs from "./shared/Tabset.vue";
-import Tab from "./shared/Tab.vue";
+import Tabs from "./shared/tabset.vue";
+import Tab from "./shared/tabset-tab.vue";
 import Filelist from "./shared/filelist.vue";
 
 export default {
@@ -75,7 +75,7 @@ export default {
 <style lang="sass">
     @import "resources/assets/sass/_vars.scss";
     @import "resources/assets/sass/_mixins.scss";
-    
+
     .file-manager {
         .nav-tabs {
             margin-bottom: 0 !important;
