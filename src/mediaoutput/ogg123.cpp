@@ -37,128 +37,138 @@
 #include "common.h"
 #include "controlsend.h"
 #include "log.h"
-#include "mediaoutput.h"
 #include "ogg123.h"
 #include "Sequence.h"
 #include "settings.h"
 
-#define MAX_BYTES_OGG 1000
-#define TIME_STR_MAX  8
 
-fd_set ogg123_active_fd_set, ogg123_read_fd_set;
-
-int   pipeFromOGG[2];
-
-char oggBuffer[MAX_BYTES_OGG];
-char ogg123_strTime[34];
-
-
-int ogg123_StartPlaying(const char *musicFile)
+/*
+ *
+ */
+ogg123Output::ogg123Output(std::string mediaFilename, MediaOutputStatus *status)
 {
-	char  fullAudioPath[1024];
+	LogDebug(VB_MEDIAOUT, "ogg123Output::ogg123Output(%s)\n",
+		mediaFilename.c_str());
 
-	LogDebug(VB_MEDIAOUT, "ogg123_StartPlaying(%s)\n", musicFile);
+	m_mediaFilename = mediaFilename;
+	m_mediaOutputStatus = status;
+}
 
-	bzero(&mediaOutputStatus, sizeof(mediaOutputStatus));
+/*
+ *
+ */
+ogg123Output::~ogg123Output()
+{
+}
 
-	if (snprintf(fullAudioPath, 1024, "%s/%s", getMusicDirectory(), musicFile)
-		>= 1024)
+/*
+ *
+ */
+int ogg123Output::Start(void)
+{
+	std::string fullAudioPath;
+
+	LogDebug(VB_MEDIAOUT, "ogg123Output::Start(%s)\n", m_mediaFilename.c_str());
+
+	bzero(m_mediaOutputStatus, sizeof(MediaOutputStatus));
+
+	fullAudioPath = getMusicDirectory();
+	fullAudioPath += "/";
+	fullAudioPath += m_mediaFilename;
+
+	if (!FileExists(fullAudioPath.c_str()))
 	{
-		LogErr(VB_MEDIAOUT, "Unable to play %s, full path name too long\n",
-			musicFile);
+		LogErr(VB_MEDIAOUT, "%s does not exist!\n", fullAudioPath.c_str());
 		return 0;
 	}
 
-	if (!FileExists(fullAudioPath))
+	std::string oggPlayer(getSetting("oggPlayer"));
+	if (!oggPlayer.length())
 	{
-		LogErr(VB_MEDIAOUT, "%s does not exist!\n", fullAudioPath);
-		return 0;
+		oggPlayer = OGG123_BINARY;
 	}
-
-	char oggPlayer[1024];
-	strcpy(oggPlayer, getSetting("oggPlayer"));
-	if (!oggPlayer[0])
-	{
-		strcpy(oggPlayer, "/usr/bin/ogg123");
-	}
-	else if (!FileExists(oggPlayer))
+	else if (!FileExists(oggPlayer.c_str()))
 	{
 		LogDebug(VB_MEDIAOUT, "Configured oggPlayer %s does not exist, "
-			"falling back to /usr/bin/ogg123\n", oggPlayer);
-		strcpy(oggPlayer, "/usr/bin/ogg123");
+			"falling back to %s\n", oggPlayer.c_str(), OGG123_BINARY);
+		oggPlayer = OGG123_BINARY;
 	}
 
-	LogDebug(VB_MEDIAOUT, "Spawning %s for OGG playback\n", oggPlayer);
+	LogDebug(VB_MEDIAOUT, "Spawning %s for OGG playback\n", oggPlayer.c_str());
 
 	// Create Pipes to/from ogg123
-	pipe(pipeFromOGG);
+	pipe(m_childPipe);
 
 	pid_t ogg123Pid = fork();
 	if (ogg123Pid == 0)			// ogg123 process
 	{
-	    dup2(pipeFromOGG[MEDIAOUTPUTPIPE_WRITE], STDERR_FILENO); //ogg123 uses stderr for output
-		close(pipeFromOGG[MEDIAOUTPUTPIPE_WRITE]);
-		pipeFromOGG[MEDIAOUTPUTPIPE_WRITE] = 0;
+		//ogg123 uses stderr for output
+	    dup2(m_childPipe[MEDIAOUTPUTPIPE_WRITE], STDERR_FILENO);
+		close(m_childPipe[MEDIAOUTPUTPIPE_WRITE]);
+		m_childPipe[MEDIAOUTPUTPIPE_WRITE] = 0;
 
-		execl(oggPlayer, oggPlayer, fullAudioPath, NULL);
+		execl(oggPlayer.c_str(), oggPlayer.c_str(), fullAudioPath.c_str(), NULL);
 	    exit(EXIT_FAILURE);
 	}
 	else							// Parent process
 	{
-		mediaOutput->childPID = ogg123Pid;
+		m_childPID = ogg123Pid;
 
 		// Close write side of pipe from ogg
-		close(pipeFromOGG[MEDIAOUTPUTPIPE_WRITE]);
-		pipeFromOGG[MEDIAOUTPUTPIPE_WRITE] = 0;
+		close(m_childPipe[MEDIAOUTPUTPIPE_WRITE]);
+		m_childPipe[MEDIAOUTPUTPIPE_WRITE] = 0;
 	}
 
-	// Clear active file descriptor sets
-	FD_ZERO (&ogg123_active_fd_set);
-	// Set description for reading from ogg
-	FD_SET (pipeFromOGG[MEDIAOUTPUTPIPE_READ], &ogg123_active_fd_set);
+	LogDebug(VB_MEDIAOUT, "%s PID: %d\n", oggPlayer.c_str(), m_childPID);
 
-	mediaOutputStatus.status = MEDIAOUTPUTSTATUS_PLAYING;
+	// Clear active file descriptor sets
+	FD_ZERO (&m_activeFDSet);
+	// Set description for reading from ogg
+	FD_SET (m_childPipe[MEDIAOUTPUTPIPE_READ], &m_activeFDSet);
+
+	m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_PLAYING;
 
 	return 1;
 }
 
-
-int ogg123_IsPlaying()
+/*
+ *
+ */
+int ogg123Output::Process(void)
 {
+	if (m_childPID > 0)
+	{
+		PollMusicInfo();
+	}
 
-	int result = 0;
-
-	pthread_mutex_lock(&mediaOutputLock);
-
-	if(mediaOutput->childPID > 0)
-		result = 1;
-
-	pthread_mutex_unlock(&mediaOutputLock);
-
-	return result;
+	return 1;
 }
 
-void ogg123_StopPlaying()
+/*
+ *
+ */
+int ogg123Output::Stop(void)
 {
-	LogDebug(VB_MEDIAOUT, "ogg123_StopPlaying()\n");
+	LogDebug(VB_MEDIAOUT, "ogg123Output::Stop()\n");
 
-	pthread_mutex_lock(&mediaOutputLock);
+	pthread_mutex_lock(&m_outputLock);
 
-	if(mediaOutput->childPID > 0)
+	if(m_childPID > 0)
 	{
-		pid_t childPID = mediaOutput->childPID;
+		pid_t childPID = m_childPID;
 
-		mediaOutput->childPID = 0;
+		m_childPID = 0;
 		kill(childPID, SIGKILL);
 	}
 
-	pthread_mutex_unlock(&mediaOutputLock);
+	pthread_mutex_unlock(&m_outputLock);
 
-	mediaOutputStatus.status = MEDIAOUTPUTSTATUS_IDLE;
-	usleep(1000000);
+	m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
+
+	return 1;
 }
 
-void ogg123_ParseTimes()
+void ogg123Output::ParseTimes()
 {
 	static int lastRemoteSync = 0;
 	int result;
@@ -169,76 +179,76 @@ void ogg123_ParseTimes()
 	tmp[2]= '\0';
 
 	// Mins
-	tmp[0]=ogg123_strTime[1];
-	tmp[1]=ogg123_strTime[2];
+	tmp[0] = m_ogg123_strTime[1];
+	tmp[1] = m_ogg123_strTime[2];
 	sscanf(tmp,"%d",&mins);
 
 	// Secs
-	tmp[0]=ogg123_strTime[4];
-	tmp[1]=ogg123_strTime[5];
+	tmp[0] = m_ogg123_strTime[4];
+	tmp[1] = m_ogg123_strTime[5];
 	sscanf(tmp,"%d",&secs);
-	mediaOutputStatus.secondsElapsed = 60*mins + secs;
+	m_mediaOutputStatus->secondsElapsed = 60*mins + secs;
 
 	// Subsecs
-	tmp[0]=ogg123_strTime[7];
-	tmp[1]=ogg123_strTime[8];
-	sscanf(tmp,"%d",&mediaOutputStatus.subSecondsElapsed);
+	tmp[0] = m_ogg123_strTime[7];
+	tmp[1] = m_ogg123_strTime[8];
+	sscanf(tmp,"%d",&m_mediaOutputStatus->subSecondsElapsed);
 
 	// Mins Remaining
-	tmp[0]=ogg123_strTime[11];
-	tmp[1]=ogg123_strTime[12];
+	tmp[0] = m_ogg123_strTime[11];
+	tmp[1] = m_ogg123_strTime[12];
 	sscanf(tmp,"%d",&mins);
 
 	// Secs Remaining
-	tmp[0]=ogg123_strTime[14];
-	tmp[1]=ogg123_strTime[15];
+	tmp[0] = m_ogg123_strTime[14];
+	tmp[1] = m_ogg123_strTime[15];
 	sscanf(tmp,"%d",&secs);
-	mediaOutputStatus.secondsRemaining = 60*mins + secs;
+	m_mediaOutputStatus->secondsRemaining = 60*mins + secs;
 
 	// Subsecs remaining
-	tmp[0]=ogg123_strTime[17];
-	tmp[1]=ogg123_strTime[18];
-	sscanf(tmp,"%d",&mediaOutputStatus.subSecondsRemaining);
+	tmp[0] = m_ogg123_strTime[17];
+	tmp[1] = m_ogg123_strTime[18];
+	sscanf(tmp,"%d",&m_mediaOutputStatus->subSecondsRemaining);
 
 	// Total Mins
-	tmp[0]=ogg123_strTime[24];
-	tmp[1]=ogg123_strTime[25];
-	sscanf(tmp,"%d",&mediaOutputStatus.minutesTotal);
+	tmp[0] = m_ogg123_strTime[24];
+	tmp[1] = m_ogg123_strTime[25];
+	sscanf(tmp,"%d",&m_mediaOutputStatus->minutesTotal);
 
 	// Total Secs
-	tmp[0]=ogg123_strTime[27];
-	tmp[1]=ogg123_strTime[28];
-	sscanf(tmp,"%d",&mediaOutputStatus.secondsTotal);
+	tmp[0] = m_ogg123_strTime[27];
+	tmp[1] = m_ogg123_strTime[28];
+	sscanf(tmp,"%d",&m_mediaOutputStatus->secondsTotal);
 
-	mediaOutputStatus.mediaSeconds = (float)((float)mediaOutputStatus.secondsElapsed + ((float)mediaOutputStatus.subSecondsElapsed/(float)100));
+	m_mediaOutputStatus->mediaSeconds = (float)((float)m_mediaOutputStatus->secondsElapsed + ((float)m_mediaOutputStatus->subSecondsElapsed/(float)100));
 
 	if (getFPPmode() == MASTER_MODE)
 	{
-		if ((mediaOutputStatus.secondsElapsed > 0) &&
-			(lastRemoteSync != mediaOutputStatus.secondsElapsed))
+		if ((m_mediaOutputStatus->secondsElapsed > 0) &&
+			(lastRemoteSync != m_mediaOutputStatus->secondsElapsed))
 		{
-			SendMediaSyncPacket(mediaOutput->filename, 0,
-				mediaOutputStatus.mediaSeconds);
-			lastRemoteSync = mediaOutputStatus.secondsElapsed;
+			SendMediaSyncPacket(m_mediaFilename.c_str(), 0,
+				m_mediaOutputStatus->mediaSeconds);
+			lastRemoteSync = m_mediaOutputStatus->secondsElapsed;
 		}
 	}
 
 	if ((sequence->IsSequenceRunning()) &&
-		(mediaOutputStatus.secondsElapsed > 0))
+		(m_mediaOutputStatus->secondsElapsed > 0))
 	{
 		LogExcess(VB_MEDIAOUT,
 			"Elapsed: %.2d.%.2d  Remaining: %.2d Total %.2d:%.2d.\n",
-			mediaOutputStatus.secondsElapsed,
-			mediaOutputStatus.subSecondsElapsed,
-			mediaOutputStatus.secondsRemaining,
-			mediaOutputStatus.minutesTotal,
-			mediaOutputStatus.secondsTotal);
+			m_mediaOutputStatus->secondsElapsed,
+			m_mediaOutputStatus->subSecondsElapsed,
+			m_mediaOutputStatus->secondsRemaining,
+			m_mediaOutputStatus->minutesTotal,
+			m_mediaOutputStatus->secondsTotal);
 
-		CalculateNewChannelOutputDelay(mediaOutputStatus.mediaSeconds);
+		CalculateNewChannelOutputDelay(m_mediaOutputStatus->mediaSeconds);
 	}
 }
 
-void ogg123_ProcessOGGData(int bytesRead)
+void ogg123Output::ProcessOGGData(int bytesRead)
 {
 	int  bufferPtr = 0;
 	char state = 0;
@@ -247,7 +257,7 @@ void ogg123_ProcessOGGData(int bytesRead)
 
 	for(i=0;i<bytesRead;i++)
 	{
-		switch(oggBuffer[i])
+		switch(m_oggBuffer[i])
 		{
 			case 'T':
 				state = 1;
@@ -277,7 +287,7 @@ void ogg123_ProcessOGGData(int bytesRead)
 				}
 				else if (bufferPtr)
 				{
-					ogg123_strTime[bufferPtr++]=oggBuffer[i];
+					m_ogg123_strTime[bufferPtr++] = m_oggBuffer[i];
 				}
 				break;
 			default:
@@ -289,10 +299,10 @@ void ogg123_ProcessOGGData(int bytesRead)
 
 				if (state >= 5)
 				{
-					ogg123_strTime[bufferPtr++]=oggBuffer[i];
+					m_ogg123_strTime[bufferPtr++] = m_oggBuffer[i];
 					if(bufferPtr==32)
 					{
-						ogg123_ParseTimes();
+						ParseTimes();
 						bufferPtr = 0;
 						state = 0;
 					}
@@ -306,67 +316,29 @@ void ogg123_ProcessOGGData(int bytesRead)
 	}
 }
 
-void ogg123_PollMusicInfo()
+void ogg123Output::PollMusicInfo()
 {
 	int bytesRead;
 	int result;
 	struct timeval ogg123_timeout;
 
-	ogg123_read_fd_set = ogg123_active_fd_set;
+	m_readFDSet = m_activeFDSet;
 
 	ogg123_timeout.tv_sec = 0;
 	ogg123_timeout.tv_usec = 5;
 
-	if(select(FD_SETSIZE, &ogg123_read_fd_set, NULL, NULL, &ogg123_timeout) < 0)
+	if(select(FD_SETSIZE, &m_readFDSet, NULL, NULL, &ogg123_timeout) < 0)
 	{
 	 	LogErr(VB_MEDIAOUT, "Error Select:%d\n",errno);
 	 	return; 
 	}
-	if(FD_ISSET(pipeFromOGG[MEDIAOUTPUTPIPE_READ], &ogg123_read_fd_set))
+	if(FD_ISSET(m_childPipe[MEDIAOUTPUTPIPE_READ], &m_readFDSet))
 	{
- 		bytesRead = read(pipeFromOGG[MEDIAOUTPUTPIPE_READ], oggBuffer, MAX_BYTES_OGG);
+		bytesRead = read(m_childPipe[MEDIAOUTPUTPIPE_READ], m_oggBuffer, MAX_BYTES_OGG);
 		if (bytesRead > 0) 
 		{
-		    ogg123_ProcessOGGData(bytesRead);
+		    ProcessOGGData(bytesRead);
 		} 
 	}
 }
 
-int ogg123_ProcessData()
-{
-	if(mediaOutput->childPID > 0)
-	{
-		ogg123_PollMusicInfo();
-	}
-}
-
-/*
- *
- */
-int ogg123_CanHandle(const char *filename) {
-	LogDebug(VB_MEDIAOUT, "ogg123_CanHandle(%s)\n", filename);
-	int len = strlen(filename);
-
-	if (len < 4)
-		return 0;
-
-	if (!strcasecmp(filename + len - 4, ".ogg"))
-		return 1;
-
-	return 0;
-}
-
-MediaOutput ogg123Output = {
-	NULL, //filename
-	0, //childPID
-	pipeFromOGG, //childPipe
-	ogg123_CanHandle, //canHandle
-	ogg123_StartPlaying, //startPlaying
-	ogg123_StopPlaying, //stopPlaying
-	ogg123_ProcessData, //processData
-	ogg123_IsPlaying, //isPlaying
-	NULL, //speedUp
-	NULL, //slowDown
-	NULL, //speedNormal
-	NULL, //setVolume
-};

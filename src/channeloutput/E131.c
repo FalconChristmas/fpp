@@ -165,6 +165,8 @@ int E131_SendData(void *data, char *channelData, int channelCount)
 	{
 		memcpy((void*)(E131packet+E131_HEADER_LENGTH),(void*)(channelData+universes[i].startAddress-1),universes[i].size);
 
+		E131packet[E131_PRIORITY_INDEX] = universes[i].priority;
+
 		E131packet[E131_SEQUENCE_INDEX] = E131sequenceNumber;
 		E131packet[E131_UNIVERSE_INDEX] = (char)(universes[i].universe/256);
 		E131packet[E131_UNIVERSE_INDEX+1]	= (char)(universes[i].universe%256);
@@ -256,6 +258,13 @@ void LoadUniversesFromFile()
 			{
 				strcpy(universes[UniverseCount].unicastAddress,"\0");
 			}
+
+			// FIXME, read this per-universe from config file later
+			if (getSettingInt("E131Priority"))
+				universes[UniverseCount].priority
+					= getSettingInt("E131Priority");
+			else
+				universes[UniverseCount].priority = 0;
 
 		    UniverseCount++;
 		}

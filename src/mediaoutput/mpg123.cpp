@@ -37,140 +37,146 @@
 #include "common.h"
 #include "controlsend.h"
 #include "log.h"
-#include "mediaoutput.h"
 #include "mpg123.h"
 #include "Sequence.h"
 #include "settings.h"
 
-#define MAX_BYTES_MP3 1000
-#define TIME_STR_MAX  8
-
-#ifdef PLATFORM_BBB
-#	define MPG123_BINARY "/usr/bin/mpg321"
-#else
-#	define MPG123_BINARY "/usr/bin/mpg123"
-#endif
-
-fd_set mpg123_active_fd_set, mpg123_read_fd_set;
-
-int   pipeFromMP3[2];
-
-char mp3Buffer[MAX_BYTES_MP3];
-char mpg123_strTime[34];
-
-
-int mpg123_StartPlaying(const char *musicFile)
+/*
+ *
+ */
+mpg123Output::mpg123Output(std::string mediaFilename, MediaOutputStatus *status)
 {
-	char  fullAudioPath[1024];
+	LogDebug(VB_MEDIAOUT, "mpg123Output::mpg123Output(%s)\n",
+		mediaFilename.c_str());
 
-	LogDebug(VB_MEDIAOUT, "mpg123_StartPlaying(%s)\n", musicFile);
+	m_mediaFilename = mediaFilename;
+	m_mediaOutputStatus = status;
+}
 
-	bzero(&mediaOutputStatus, sizeof(mediaOutputStatus));
+/*
+ *
+ */
+mpg123Output::~mpg123Output()
+{
+}
 
-	if (snprintf(fullAudioPath, 1024, "%s/%s", getMusicDirectory(), musicFile)
-		>= 1024)
+/*
+ *
+ */
+int mpg123Output::Start(void)
+{
+	std::string fullAudioPath;
+
+	LogDebug(VB_MEDIAOUT, "mpg123Output::Start()\n");
+
+	bzero(m_mediaOutputStatus, sizeof(MediaOutputStatus));
+
+	fullAudioPath = getMusicDirectory();
+	fullAudioPath += "/";
+	fullAudioPath += m_mediaFilename;
+
+	if (!FileExists(fullAudioPath.c_str()))
 	{
-		LogErr(VB_MEDIAOUT, "Unable to play %s, full path name too long\n",
-			musicFile);
+		LogErr(VB_MEDIAOUT, "%s does not exist!\n", fullAudioPath.c_str());
 		return 0;
 	}
 
-	if (!FileExists(fullAudioPath))
-	{
-		LogErr(VB_MEDIAOUT, "%s does not exist!\n", fullAudioPath);
-		return 0;
-	}
+	std::string mp3Player(getSetting("mp3Player"));
 
-	char mp3Player[1024];
-	strcpy(mp3Player, getSetting("mp3Player"));
-	if (!mp3Player[0])
+	if (!mp3Player.length())
 	{
-		strcpy(mp3Player, MPG123_BINARY);
+		mp3Player = MPG123_BINARY;
 	}
-	else if (!FileExists(mp3Player))
+	else if (!FileExists(mp3Player.c_str()))
 	{
 		LogDebug(VB_MEDIAOUT, "Configured mp3Player %s does not exist, "
-			"falling back to " MPG123_BINARY "\n", mp3Player);
-		strcpy(mp3Player, MPG123_BINARY);
+			"falling back to %s\n", mp3Player.c_str(), MPG123_BINARY);
+		mp3Player = MPG123_BINARY;
 	}
 
-	LogDebug(VB_MEDIAOUT, "Spawning %s for MP3 playback\n", mp3Player);
+	LogDebug(VB_MEDIAOUT, "Spawning %s for MP3 playback\n", mp3Player.c_str());
 
 	// Create Pipes to/from mpg123
-	pipe(pipeFromMP3);
+	pipe(m_childPipe);
 	
 	pid_t mpg123Pid = fork();
 	if (mpg123Pid == 0)			// mpg123 process
 	{
 		//mpg123 uses stderr for output
-	    dup2(pipeFromMP3[MEDIAOUTPUTPIPE_WRITE], STDERR_FILENO);
+		dup2(m_childPipe[MEDIAOUTPUTPIPE_WRITE], STDERR_FILENO);
 
-		close(pipeFromMP3[MEDIAOUTPUTPIPE_WRITE]);
-		pipeFromMP3[MEDIAOUTPUTPIPE_WRITE] = 0;
+		close(m_childPipe[MEDIAOUTPUTPIPE_WRITE]);
+		m_childPipe[MEDIAOUTPUTPIPE_WRITE] = 0;
 
-		if (!strcmp(mp3Player, MPG123_BINARY))
-			execl(mp3Player, mp3Player, "-v", fullAudioPath, NULL);
+		if (mp3Player == MPG123_BINARY)
+			execl(mp3Player.c_str(), mp3Player.c_str(), "-v",
+				fullAudioPath.c_str(), NULL);
 		else
-			execl(mp3Player, mp3Player, fullAudioPath, NULL);
+			execl(mp3Player.c_str(), mp3Player.c_str(),
+				fullAudioPath.c_str(), NULL);
 
 	    exit(EXIT_FAILURE);
 	}
 	else							// Parent process
 	{
-		mediaOutput->childPID = mpg123Pid;
+		m_childPID = mpg123Pid;
 
 		// Close write side of pipe from mpg123
-		close(pipeFromMP3[MEDIAOUTPUTPIPE_WRITE]);
-		pipeFromMP3[MEDIAOUTPUTPIPE_WRITE] = 0;
+		close(m_childPipe[MEDIAOUTPUTPIPE_WRITE]);
+		m_childPipe[MEDIAOUTPUTPIPE_WRITE] = 0;
 	}
 
 	// Clear active file descriptor sets
-	FD_ZERO (&mpg123_active_fd_set);
+	FD_ZERO (&m_activeFDSet);
 	// Set description for reading from mpg123
-	FD_SET (pipeFromMP3[MEDIAOUTPUTPIPE_READ], &mpg123_active_fd_set);
+	FD_SET (m_childPipe[MEDIAOUTPUTPIPE_READ], &m_activeFDSet);
 
-	mediaOutputStatus.status = MEDIAOUTPUTSTATUS_PLAYING;
+	m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_PLAYING;
 
 	return 1;
 }
 
-
-int mpg123_IsPlaying()
+/*
+ *
+ */
+int mpg123Output::Process(void)
 {
+	if(m_childPID > 0)
+	{
+		PollMusicInfo();
+	}
 
-	int result = 0;
-
-	pthread_mutex_lock(&mediaOutputLock);
-
-	if(mediaOutput->childPID > 0)
-		result = 1;
-
-	pthread_mutex_unlock(&mediaOutputLock);
-
-	return result;
+	return 1;
 }
 
-void mpg123_StopPlaying()
+/*
+ *
+ */
+int mpg123Output::Stop(void)
 {
-	LogDebug(VB_MEDIAOUT, "mpg123_StopPlaying()\n");
+	LogDebug(VB_MEDIAOUT, "mpg123Output::Stop()\n");
 
-	pthread_mutex_lock(&mediaOutputLock);
+	pthread_mutex_lock(&m_outputLock);
 
-	if(mediaOutput->childPID > 0)
+	if(m_childPID > 0)
 	{
-		pid_t childPID = mediaOutput->childPID;
+		pid_t childPID = m_childPID;
 
-		mediaOutput->childPID = 0;
+		m_childPID = 0;
 		kill(childPID, SIGKILL);
 	}
 
-	pthread_mutex_unlock(&mediaOutputLock);
+	pthread_mutex_unlock(&m_outputLock);
 
-	mediaOutputStatus.status = MEDIAOUTPUTSTATUS_IDLE;
-	usleep(1000000);
+	m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
+
+	return 1;
 }
 
-void mpg123_ParseTimes()
+/*
+ *
+ */
+void mpg123Output::ParseTimes(void)
 {
 	static int lastRemoteSync = 0;
 	int result;
@@ -183,75 +189,75 @@ void mpg123_ParseTimes()
 	tmp[2]= '\0';
 
 	// Mins
-	tmp[0]=mpg123_strTime[1];
-	tmp[1]=mpg123_strTime[2];
+	tmp[0] = m_mpg123_strTime[1];
+	tmp[1] = m_mpg123_strTime[2];
 	sscanf(tmp,"%d",&mins);
 	totalMins += mins;
 
 	// Secs
-	tmp[0]=mpg123_strTime[4];
-	tmp[1]=mpg123_strTime[5];
+	tmp[0] = m_mpg123_strTime[4];
+	tmp[1] = m_mpg123_strTime[5];
 	sscanf(tmp,"%d",&secs);
-	mediaOutputStatus.secondsElapsed = 60*mins + secs;
+	m_mediaOutputStatus->secondsElapsed = 60*mins + secs;
 	totalMinsExtraSecs += secs;
 
 	// Subsecs
-	tmp[0]=mpg123_strTime[7];
-	tmp[1]=mpg123_strTime[8];
-	sscanf(tmp,"%d",&mediaOutputStatus.subSecondsElapsed);
+	tmp[0] = m_mpg123_strTime[7];
+	tmp[1] = m_mpg123_strTime[8];
+	sscanf(tmp,"%d",&m_mediaOutputStatus->subSecondsElapsed);
 		
 	// Mins Remaining
-	tmp[0]=mpg123_strTime[11];
-	tmp[1]=mpg123_strTime[12];
+	tmp[0] = m_mpg123_strTime[11];
+	tmp[1] = m_mpg123_strTime[12];
 	sscanf(tmp,"%d",&mins);
 	totalMins += mins;
 	
 	// Secs Remaining
-	tmp[0]=mpg123_strTime[14];
-	tmp[1]=mpg123_strTime[15];
+	tmp[0] = m_mpg123_strTime[14];
+	tmp[1] = m_mpg123_strTime[15];
 	sscanf(tmp,"%d",&secs);
-	mediaOutputStatus.secondsRemaining = 60*mins + secs;
+	m_mediaOutputStatus->secondsRemaining = 60*mins + secs;
 	totalMinsExtraSecs += secs;
 
 	// Subsecs remaining
-	tmp[0]=mpg123_strTime[17];
-	tmp[1]=mpg123_strTime[18];
-	sscanf(tmp,"%d",&mediaOutputStatus.subSecondsRemaining);
+	tmp[0] = m_mpg123_strTime[17];
+	tmp[1] = m_mpg123_strTime[18];
+	sscanf(tmp,"%d",&m_mediaOutputStatus->subSecondsRemaining);
 
-	mediaOutputStatus.minutesTotal = totalMins + totalMinsExtraSecs / 60;
-	mediaOutputStatus.secondsTotal = totalMinsExtraSecs % 60;
+	m_mediaOutputStatus->minutesTotal = totalMins + totalMinsExtraSecs / 60;
+	m_mediaOutputStatus->secondsTotal = totalMinsExtraSecs % 60;
 
-	mediaOutputStatus.mediaSeconds = (float)((float)mediaOutputStatus.secondsElapsed + ((float)mediaOutputStatus.subSecondsElapsed/(float)100));
+	m_mediaOutputStatus->mediaSeconds = (float)((float)m_mediaOutputStatus->secondsElapsed + ((float)m_mediaOutputStatus->subSecondsElapsed/(float)100));
 
 	if (getFPPmode() == MASTER_MODE)
 	{
-		if ((mediaOutputStatus.secondsElapsed > 0) &&
-			(lastRemoteSync != mediaOutputStatus.secondsElapsed))
+		if ((m_mediaOutputStatus->secondsElapsed > 0) &&
+			(lastRemoteSync != m_mediaOutputStatus->secondsElapsed))
 		{
-			SendMediaSyncPacket(mediaOutput->filename, 0,
-				mediaOutputStatus.mediaSeconds);
-			lastRemoteSync = mediaOutputStatus.secondsElapsed;
+			SendMediaSyncPacket(m_mediaFilename.c_str(), 0,
+				m_mediaOutputStatus->mediaSeconds);
+			lastRemoteSync = m_mediaOutputStatus->secondsElapsed;
 		}
 	}
 
 	if ((sequence->IsSequenceRunning()) &&
-		(mediaOutputStatus.secondsElapsed > 0))
+		(m_mediaOutputStatus->secondsElapsed > 0))
 	{
 		LogExcess(VB_MEDIAOUT,
 			"Elapsed: %.2d.%.2d  Remaining: %.2d Total %.2d:%.2d.\n",
-			mediaOutputStatus.secondsElapsed,
-			mediaOutputStatus.subSecondsElapsed,
-			mediaOutputStatus.secondsRemaining,
-			mediaOutputStatus.minutesTotal,
-			mediaOutputStatus.secondsTotal);
+			m_mediaOutputStatus->secondsElapsed,
+			m_mediaOutputStatus->subSecondsElapsed,
+			m_mediaOutputStatus->secondsRemaining,
+			m_mediaOutputStatus->minutesTotal,
+			m_mediaOutputStatus->secondsTotal);
 
-		CalculateNewChannelOutputDelay(mediaOutputStatus.mediaSeconds);
+		CalculateNewChannelOutputDelay(m_mediaOutputStatus->mediaSeconds);
 	}
 }
 
 // Sample format
 // Frame#   149 [ 1842], Time: 00:03.89 [00:48.11], RVA:   off, Vol: 100(100)
-void mpg123_ProcessMP3Data(int bytesRead)
+void mpg123Output::ProcessMP3Data(int bytesRead)
 {
 	int  bufferPtr = 0;
 	char state = 0;
@@ -260,7 +266,7 @@ void mpg123_ProcessMP3Data(int bytesRead)
 
 	for(i=0;i<bytesRead;i++)
 	{
-		switch(mp3Buffer[i])
+		switch(m_mp3Buffer[i])
 		{
 			case 'T':
 				state = 1;
@@ -283,14 +289,14 @@ void mpg123_ProcessMP3Data(int bytesRead)
 				else
 					state = 0;
 				break;
-		 case ':':
+			case ':':
 				if(state==4)
 				{
 					state = 5;
 				}
 				else if (bufferPtr)
 				{
-					mpg123_strTime[bufferPtr++]=mp3Buffer[i];
+					m_mpg123_strTime[bufferPtr++] = m_mp3Buffer[i];
 				}
 				break;
 			default:
@@ -302,10 +308,10 @@ void mpg123_ProcessMP3Data(int bytesRead)
 
 				if (state >= 5)
 				{
-					mpg123_strTime[bufferPtr++] = mp3Buffer[i];
+					m_mpg123_strTime[bufferPtr++] = m_mp3Buffer[i];
 					if(bufferPtr == 19)
 					{
-						mpg123_ParseTimes();
+						ParseTimes();
 						bufferPtr = 0;
 						state = 0;
 					}
@@ -319,67 +325,29 @@ void mpg123_ProcessMP3Data(int bytesRead)
 	}
 }
 
-void mpg123_PollMusicInfo()
+void mpg123Output::PollMusicInfo(void)
 {
 	int bytesRead;
 	int result;
 	struct timeval mpg123_timeout;
 
-	mpg123_read_fd_set = mpg123_active_fd_set;
+	m_readFDSet = m_activeFDSet;
 
 	mpg123_timeout.tv_sec = 0;
 	mpg123_timeout.tv_usec = 5;
 
-	if(select(FD_SETSIZE, &mpg123_read_fd_set, NULL, NULL, &mpg123_timeout) < 0)
+	if(select(FD_SETSIZE, &m_readFDSet, NULL, NULL, &mpg123_timeout) < 0)
 	{
 	 	LogErr(VB_MEDIAOUT, "Error Select:%d\n",errno);
 	 	return; 
 	}
-	if(FD_ISSET(pipeFromMP3[MEDIAOUTPUTPIPE_READ], &mpg123_read_fd_set))
+	if(FD_ISSET(m_childPipe[MEDIAOUTPUTPIPE_READ], &m_readFDSet))
 	{
- 		bytesRead = read(pipeFromMP3[MEDIAOUTPUTPIPE_READ], mp3Buffer, MAX_BYTES_MP3);
+		bytesRead = read(m_childPipe[MEDIAOUTPUTPIPE_READ], m_mp3Buffer, MAX_BYTES_MP3);
 		if (bytesRead > 0) 
 		{
-		    mpg123_ProcessMP3Data(bytesRead);
+		    ProcessMP3Data(bytesRead);
 		} 
 	}
 }
 
-int mpg123_ProcessData()
-{
-	if(mediaOutput->childPID > 0)
-	{
-		mpg123_PollMusicInfo();
-	}
-}
-
-/*
- *
- */
-int mpg123_CanHandle(const char *filename) {
-	LogDebug(VB_MEDIAOUT, "mpg123_CanHandle(%s)\n", filename);
-	int len = strlen(filename);
-
-	if (len < 4)
-		return 0;
-
-	if (!strcasecmp(filename + len - 4, ".mp3"))
-		return 1;
-
-	return 0;
-}
-
-MediaOutput mpg123Output = {
-	NULL, //filename
-	0, //childPID
-	pipeFromMP3, //childPipe
-	mpg123_CanHandle, //canHandle
-	mpg123_StartPlaying, //startPlaying
-	mpg123_StopPlaying, //stopPlaying
-	mpg123_ProcessData, //processData
-	mpg123_IsPlaying, //isPlaying
-	NULL, //speedUp
-	NULL, //slowDown
-	NULL, //speedNormal
-	NULL, //setVolume
-};

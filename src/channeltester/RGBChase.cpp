@@ -120,20 +120,18 @@ int TestPatternRGBChase::SetupTest(void)
  */
 void TestPatternRGBChase::CycleData(void)
 {
-	memmove(m_testData, m_testData + 3, m_channelCount - 3);
+	memmove(m_testData + 3, m_testData, m_channelCount - 3);
 
-	m_patternOffset += 3;
+	m_patternOffset -= 3;
 
-	if (m_patternOffset >= m_colorPattern.size())
-		m_patternOffset = 0;
+	if (m_patternOffset < 0)
+		m_patternOffset = m_colorPattern.size() - 3;
 
-	int offset = m_patternOffset + m_lastPatternOffset;
-	if (offset >= m_colorPattern.size())
-		offset = offset % m_colorPattern.size();
+	int offset = m_patternOffset;
 
-	m_testData[m_lastTripletOffset    ] = m_colorPattern[offset++];
-	m_testData[m_lastTripletOffset + 1] = m_colorPattern[offset++];
-	m_testData[m_lastTripletOffset + 2] = m_colorPattern[offset];
+	m_testData[0] = m_colorPattern[offset++];
+	m_testData[1] = m_colorPattern[offset++];
+	m_testData[2] = m_colorPattern[offset];
 }
 
 /*

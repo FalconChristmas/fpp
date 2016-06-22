@@ -35,7 +35,8 @@
  *
  */
 TestPatternBase::TestPatternBase()
-  : m_testPatternName("basePattern"),
+  : m_testEnabled(0),
+	m_testPatternName("basePattern"),
 	m_minChannels(2),
 	m_testData(NULL),
 	m_nextCycleTime(0),
@@ -99,6 +100,8 @@ int TestPatternBase::Init(Json::Value config)
 
 	if (m_configChanged)
 		SetupTest();
+
+	m_testEnabled = 1;
 
 	DumpConfig();
 
@@ -164,6 +167,19 @@ int TestPatternBase::OverlayTestData(char *channelData)
 {
 	int count = 0;
 	int copied = 0;
+
+	if (!m_testEnabled)
+	{
+		// Clear channels being tested
+		for (int s = 0; s < m_channelSet.size(); s++)
+		{
+			count = m_channelSet[s].second - m_channelSet[s].first + 1;
+
+			bzero(channelData + m_channelSet[s].first, count);
+		}
+
+		return 1;
+	}
 
 	for (int s = 0; s < m_channelSet.size(); s++)
 	{

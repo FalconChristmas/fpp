@@ -5,6 +5,7 @@ ifneq ($(wildcard /usr/bin/ccache),)
 endif
 
 TARGETS = fpp fppmm fppd
+SUBMODULES =
 
 INSTALL_PROGRAM = install -m 755 -p
 
@@ -36,6 +37,7 @@ OBJECTS_fppd = \
 	channeloutput/GPIO.o \
 	channeloutput/GPIO595.o \
 	channeloutput/LOR.o \
+	channeloutput/Matrix.o \
 	channeloutput/PanelMatrix.o \
 	channeloutput/PixelString.o \
 	channeloutput/serialutil.o \
@@ -64,6 +66,7 @@ OBJECTS_fppd = \
 	gpio.o \
 	log.o \
 	mediadetails.o \
+	mediaoutput/MediaOutputBase.o \
 	mediaoutput/mediaoutput.o \
 	mediaoutput/mpg123.o \
 	mediaoutput/ogg123.o \
@@ -94,11 +97,17 @@ ifeq '$(ARCH)' ''
 endif
 $(shell echo "Building FPP on '$(ARCH)' platform" 1>&2)
 
-OLAFLAGS := $(shell pkg-config --cflags --libs libola 2> /dev/null)
-USEOLA = 
+HTTPFLAGS := $(shell pkg-config --cflags --libs libhttpserver 2> /dev/null)
+ifneq '$(HTTPFLAGS)' ''
+	CFLAGS += -DUSEHTTPAPI
+	LDFLAGS_fppd += $(HTTPFLAGS) -lhttpserver
+	OBJECTS_fppd += httpAPI.o
+endif
 
+OLAFLAGS := $(shell pkg-config --cflags --libs libola 2> /dev/null)
 ifneq '$(OLAFLAGS)' ''
-	USEOLA = "-DUSEOLA"
+	CFLAGS += -DUSEOLA
+	LDFLAGS_fppd += $(OLAFLAGS)
 	OBJECTS_fppd += channeloutput/OLAOutput.o
 endif
 
@@ -111,7 +120,6 @@ CFLAGS += \
 
 
 LDFLAGS_fppd += \
-	$(OLAFLAGS) \
 	$(NULL)
 
 DEPS_fppd += \
@@ -161,6 +169,11 @@ DEPS_fppd += \
 	../external/rpi-rgb-led-matrix/lib/librgbmatrix.a \
 	../external/rpi_ws281x/libws2811.a \
 	$(NULL)
+SUBMODULES += \
+	external/RF24 \
+	external/rpi-rgb-led-matrix \
+	external/rpi_ws281x \
+	$(NULL)
 else ifeq '$(ARCH)' 'ODROID'
 # do something for ODROID
 BINDIR = ../bin.pi
@@ -179,6 +192,11 @@ OBJECTS_fppd += \
 	$(NULL)
 DEPS_fppd += \
 	../external/rpi-rgb-led-matrix/lib/librgbmatrix.a \
+	$(NULL)
+SUBMODULES += \
+	external/RF24 \
+	external/rpi-rgb-led-matrix \
+	external/rpi_ws281x \
 	$(NULL)
 else ifeq '$(ARCH)' 'BeagleBone Black'
 # BeagleBone Black
@@ -204,6 +222,9 @@ DEPS_fppd += \
 	../external/LEDscape/lib/libledscape.a \
 	$(NULL)
 SUBDIRS += pru
+SUBMODULES += \
+	external/LEDscape \
+	$(NULL)
 else
 # do something Linux-y
 BINDIR = ../bin
@@ -239,9 +260,13 @@ FPP: $(TARGETS)
 .PHONY: gitsubmodules
 gitsubmodules:
 	@! ping -q -c 1 github.com > /dev/null 2>&1 || (cd ..; \
-		git submodule sync; \
+		for submodule in $(SUBMODULES); do \
+			git submodule sync $$submodule; \
+		done; \
 		git submodule foreach git fetch; \
-		git submodule update --init )
+		for submodule in $(SUBMODULES); do \
+			git submodule update --init $$submodule; \
+		done)
 
 force:
 
@@ -321,10 +346,12 @@ util: force
 ../external/rpi_ws281x/libws2811.a: ../external/rpi_ws281x/.git
 	@echo "Building libws2811"
 	@cd ../external/rpi_ws281x/ && \
+		gcc -c -o rpihw.o rpihw.c && \
+		gcc -c -o mailbox.o mailbox.c && \
 		gcc -c -o dma.o dma.c && \
 		gcc -c -o pwm.o pwm.c && \
 		gcc -c -o ws2811.o ws2811.c && \
-		ar rcs libws2811.a dma.o pwm.o ws2811.o
+		ar rcs libws2811.a rpihw.o mailbox.o dma.o pwm.o ws2811.o
 
 #############################################################################
 # LEDscape library and PRU code on the BBB
