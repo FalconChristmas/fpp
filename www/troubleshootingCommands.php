@@ -41,6 +41,9 @@ $commands = array(
 	'Sound Cards'        => $SUDO . ' aplay -l',
 	'Mixer Devices'      => '(/bin/ls -1d /proc/asound/card[0-9] | sed -e "s/.*\/card//" | while read ID; do echo "CardID: ${ID}"; ' . $SUDO . ' amixer -c ${ID} ; echo ; done)',
 
+	// GPIO
+	'GPIO'               => $SUDO . ' gpio readall',
+
 	// Kernel
 	'Kernel Version'     => 'uname -a',
 	'Kernel Modules'     => 'lsmod',

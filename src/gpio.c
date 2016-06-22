@@ -38,10 +38,14 @@
 
 #ifdef USEWIRINGPI
 #   include "wiringPi.h"
+#   include "softPwm.h"
 #else
 #   define pinMode(a, b)
 #   define digitalRead(a)        1
+#   define digitalWrite(a,b)     0
 #   define pullUpDnControl(a,b)
+#   define softPwmCreate(a,b,c)  0
+#   define softPwmWrite(a,b)     0
 #   define LOW                   0
 #   define PUD_UP                2
 #endif
@@ -138,5 +142,79 @@ void CheckGPIOInputs(void)
 			}
 		}
 	}
+}
+
+/*
+ * Setup given GPIO for external use
+ */
+int SetupExtGPIO(int gpio, char *mode)
+{
+	int retval = 0;
+
+	if (!strcmp(mode, "Output"))
+	{
+		if ((gpio >= 200) && (gpio <= 207))
+		{	
+			LogDebug(VB_GPIO, "Not setting GPIO %d to Output mode (PiFace outputs do not need this)\n", gpio);
+		}
+		else
+		{
+			LogDebug(VB_GPIO, "GPIO %d set to Output mode\n", gpio);
+			pinMode(gpio, OUTPUT);
+		}
+	}
+	else if (!strcmp(mode, "Input"))
+	{
+		if ((gpio >= 200) && (gpio <= 207))
+		{	
+			LogDebug(VB_GPIO, "GPIO %d (PiFace) set to Input mode\n", gpio);
+			// We might want to make enabling the internal pull-up optional
+			pullUpDnControl(gpio, PUD_UP);
+		}
+		else
+		{
+			LogDebug(VB_GPIO, "GPIO %d set to Input mode\n", gpio);
+			pinMode(gpio, INPUT);
+		}
+	}
+	else if (!strcmp(mode, "SoftPWM"))
+	{
+		LogDebug(VB_GPIO, "GPIO %d set to SoftPWM mode\n", gpio);
+		retval = softPwmCreate (gpio, 0, 100);
+	}
+	else {
+		LogDebug(VB_GPIO, "GPIO %d invalid mode %s\n", gpio, mode);
+		retval = 1;
+	}
+
+	return retval;
+}
+
+/*
+ * Set the given GPIO as requested
+ */
+int ExtGPIO(int gpio, char *mode, int value)
+{
+	int retval = 0;
+
+	if (!strcmp(mode, "Output"))
+	{
+		digitalWrite(gpio,value);
+	}
+	else if (!strcmp(mode, "Input"))
+	{
+		retval = digitalRead(gpio);
+	}
+	else if (!strcmp(mode, "SoftPWM"))
+	{
+		softPwmWrite(gpio, value);
+	}
+	else
+	{
+		LogDebug(VB_GPIO, "GPIO %d invalid mode %s\n", gpio, mode);
+		retval = -1;
+	}
+
+	return retval;
 }
 

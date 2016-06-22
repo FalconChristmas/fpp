@@ -103,7 +103,7 @@ getSetting() {
 	SETTING=$1
 	if [ -f "${CFGFILE}" ]
 	then
-		grep -i "^${SETTING}\s*=.*" ${CFGFILE} | sed -e "s/.*=\s*//"
+		grep -i "^${SETTING}\s*=.*" ${CFGFILE} | sed -e "s/.*=\s*//" -e 's/"//g'
 	fi
 }
 

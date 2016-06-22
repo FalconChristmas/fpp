@@ -31,6 +31,7 @@
 #include "ledscape.h"
 
 #include "ChannelOutputBase.h"
+#include "Matrix.h"
 
 class LEDscapeMatrixOutput : public ChannelOutputBase {
   public:
@@ -39,6 +40,8 @@ class LEDscapeMatrixOutput : public ChannelOutputBase {
 
 	int Init(Json::Value config);
 	int Close(void);
+
+	void PrepData(unsigned char *channelData);
 
 	int RawSendData(unsigned char *channelData);
 
@@ -53,6 +56,8 @@ class LEDscapeMatrixOutput : public ChannelOutputBase {
 	int                 m_dataSize;
 	uint8_t            *m_data;
 	uint8_t             m_invertedData;
+
+	Matrix             *m_matrix;
 };
 
 #endif /* _LEDSCAPEMATRIX_H */

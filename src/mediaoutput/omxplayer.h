@@ -26,8 +26,30 @@
 #ifndef _OMXPLAYER_H
 #define _OMXPLAYER_H
 
-#include "mediaoutput.h"
+#include "MediaOutputBase.h"
 
-extern MediaOutput omxplayerOutput;
+#define MAX_BYTES_OMX 1000
+#define TIME_STR_MAX  8
+
+class omxplayerOutput : public MediaOutputBase {
+  public:
+	omxplayerOutput(std::string mediaFilename, MediaOutputStatus *status);
+	~omxplayerOutput();
+
+	int  Start(void);
+	int  Stop(void);
+	int  Process(void);
+
+	int  AdjustSpeed(int delta);
+	void SetVolume(int volume);
+
+  private:
+	int  GetVolumeShift(int volume);
+	void ProcessPlayerData(int bytesRead);
+	void PollPlayerInfo(void);
+
+	char m_omxBuffer[MAX_BYTES_OMX];
+	int  m_volumeShift;
+};
 
 #endif

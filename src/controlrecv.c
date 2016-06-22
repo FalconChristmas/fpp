@@ -72,6 +72,15 @@ int InitControlSocket(void) {
 	crSrcAddr.sin_addr.s_addr = htonl(INADDR_ANY);
 	crSrcAddr.sin_port = htons(FPP_CTRL_PORT);
 
+	int optval = 1;
+#ifdef SO_REUSEPORT
+	if (setsockopt(ctrlRecvSock, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval)) < 0)
+	{
+		perror("control setsockopt SO_REUSEPORT");
+		exit(1);
+	}
+#endif
+
 	// Bind the socket to address/port
 	if (bind(ctrlRecvSock, (struct sockaddr *) &crSrcAddr, sizeof(crSrcAddr)) < 0) 
 	{
@@ -79,8 +88,7 @@ int InitControlSocket(void) {
 		exit(1);
 	}
 
-	int opt = 1;
-	if (setsockopt(ctrlRecvSock, IPPROTO_IP, IP_PKTINFO, &opt, sizeof(opt)) < 0)
+	if (setsockopt(ctrlRecvSock, IPPROTO_IP, IP_PKTINFO, &optval, sizeof(optval)) < 0)
 	{
 		perror("control setsockopt pktinfo");
 		exit(1);
@@ -145,9 +153,9 @@ void StopSyncedMedia(char *filename) {
 	if (!mediaOutput)
 		return;
 
-	if (!strcmp(mediaOutput->filename, filename))
+	if (!strcmp(mediaOutput->m_mediaFilename.c_str(), filename))
 	{
-		LogDebug(VB_SYNC, "Stopping synced media: %s\n", mediaOutput->filename);
+		LogDebug(VB_SYNC, "Stopping synced media: %s\n", mediaOutput->m_mediaFilename.c_str());
 		CloseMediaOutput();
 	}
 }
@@ -161,7 +169,7 @@ void StartSyncedMedia(char *filename) {
 	if (mediaOutput)
 	{
 		LogDebug(VB_SYNC, "Start media %s received while playing media %s\n",
-			filename, mediaOutput->filename);
+			filename, mediaOutput->m_mediaFilename.c_str());
 		CloseMediaOutput();
 	}
 
@@ -183,7 +191,7 @@ void SyncSyncedMedia(char *filename, int frameNumber, float secondsElapsed) {
 		return;
 	}
 
-	if (!strcmp(mediaOutput->filename, filename))
+	if (!strcmp(mediaOutput->m_mediaFilename.c_str(), filename))
 	{
 		UpdateMasterMediaPosition(secondsElapsed);
 	}

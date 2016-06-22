@@ -38,7 +38,7 @@
 
 
 /////////////////////////////////////////////////////////////////////////////
-MediaOutput     *mediaOutput = 0;
+MediaOutputBase *mediaOutput = 0;
 pthread_mutex_t  mediaOutputLock;
 float            masterMediaPosition = 0.0;
 
@@ -59,21 +59,12 @@ void MediaOutput_sigchld_handler(int signal)
 
 	LogDebug(VB_MEDIAOUT,
 		"MediaOutput_sigchld_handler(): pid: %d, waiting for %d\n",
-		p, mediaOutput->childPID);
+		p, mediaOutput->m_childPID);
 
-	if (p == mediaOutput->childPID)
+	if (p == mediaOutput->m_childPID)
 	{
-		mediaOutput->childPID =0;
-
-		if (mediaOutput->childPipe[MEDIAOUTPUTPIPE_READ]) {
-			close(mediaOutput->childPipe[MEDIAOUTPUTPIPE_READ]);
-			mediaOutput->childPipe[MEDIAOUTPUTPIPE_READ] = 0;
-		}
-
-		if (mediaOutput->childPipe[MEDIAOUTPUTPIPE_WRITE]) {
-			close(mediaOutput->childPipe[MEDIAOUTPUTPIPE_WRITE]);
-			mediaOutput->childPipe[MEDIAOUTPUTPIPE_WRITE] = 0;
-		}
+		mediaOutput->Close();
+		mediaOutput->m_childPID = 0;
 
 		pthread_mutex_unlock(&mediaOutputLock);
 
@@ -118,14 +109,13 @@ int OpenMediaOutput(char *filename) {
 	LogDebug(VB_MEDIAOUT, "OpenMediaOutput(%s)\n", filename);
 
 	pthread_mutex_lock(&mediaOutputLock);
-	if (!mediaOutput) {
+	if (mediaOutput) {
 		pthread_mutex_unlock(&mediaOutputLock);
 		CloseMediaOutput();
 	}
 	pthread_mutex_unlock(&mediaOutputLock);
 
 	pthread_mutex_lock(&mediaOutputLock);
-	mediaOutput = NULL;
 
 	char tmpFile[1024];
 	strcpy(tmpFile, filename);
@@ -151,29 +141,38 @@ int OpenMediaOutput(char *filename) {
 		}
 	}
 
-	if (mpg123Output.canHandle(tmpFile)) {
-		mediaOutput = &mpg123Output;
-	} else if (ogg123Output.canHandle(tmpFile)) {
-		mediaOutput = &ogg123Output;
-	} else if (omxplayerOutput.canHandle(tmpFile)) {
-		mediaOutput = &omxplayerOutput;
+	if (!strcasecmp(&tmpFile[filenameLen - 4], ".mp3")) {
+		mediaOutput = new mpg123Output(tmpFile, &mediaOutputStatus);
+	} else if (!strcasecmp(&tmpFile[filenameLen - 4], ".ogg")) {
+		mediaOutput = new ogg123Output(tmpFile, &mediaOutputStatus);
+#ifdef PLATFORM_PI
+	} else if ((!strcasecmp(&tmpFile[filenameLen - 4], ".mp4")) ||
+			   (!strcasecmp(&tmpFile[filenameLen - 4], ".mkv"))) {
+		mediaOutput = new omxplayerOutput(tmpFile, &mediaOutputStatus);
+#endif
 	} else {
 		pthread_mutex_unlock(&mediaOutputLock);
-		LogDebug(VB_MEDIAOUT, "ERROR: No Media Output handler for %s\n", tmpFile);
+		LogDebug(VB_MEDIAOUT, "No Media Output handler for %s\n", tmpFile);
+		return 0;
+	}
+
+	if (!mediaOutput)
+	{
+		pthread_mutex_unlock(&mediaOutputLock);
 		return 0;
 	}
 
 	if (getFPPmode() == MASTER_MODE)
-		SendMediaSyncStartPacket(filename);
+		SendMediaSyncStartPacket(mediaOutput->m_mediaFilename.c_str());
 
-	if ((!mediaOutput) || (!mediaOutput->startPlaying(tmpFile))) {
+	if (!mediaOutput->Start())
+	{
+		delete mediaOutput;
 		mediaOutput = 0;
 		pthread_mutex_unlock(&mediaOutputLock);
 		return 0;
 	}
 
-	mediaOutput->filename = strdup(filename);
-	mediaOutputStatus.status = MEDIAOUTPUTSTATUS_PLAYING;
 	mediaOutputStatus.speedDelta = 0;
 
 	pthread_mutex_unlock(&mediaOutputLock);
@@ -192,19 +191,19 @@ void CloseMediaOutput(void) {
 		return;
 	}
 
-	if (mediaOutput->childPID) {
+	if (mediaOutput->IsPlaying())
+	{
 		pthread_mutex_unlock(&mediaOutputLock);
-		mediaOutput->stopPlaying();
+		mediaOutput->Stop();
 		pthread_mutex_lock(&mediaOutputLock);
 	}
 
 	if (getFPPmode() == MASTER_MODE)
-		SendMediaSyncStopPacket(mediaOutput->filename);
+		SendMediaSyncStopPacket(mediaOutput->m_mediaFilename.c_str());
 
-	free(mediaOutput->filename);
-	mediaOutput->filename = NULL;
-
+	delete mediaOutput;
 	mediaOutput = 0;
+
 	pthread_mutex_unlock(&mediaOutputLock);
 }
 
@@ -248,7 +247,7 @@ void CheckCurrentPositionAgainstMaster(void)
 					pthread_mutex_unlock(&mediaOutputLock);
 					return;
 				}
-				mediaOutput->speedUp();
+				mediaOutput->AdjustSpeed(1);
 				pthread_mutex_unlock(&mediaOutputLock);
 				mediaOutputStatus.speedDelta++;
 
@@ -266,7 +265,7 @@ void CheckCurrentPositionAgainstMaster(void)
 					pthread_mutex_unlock(&mediaOutputLock);
 					return;
 				}
-				mediaOutput->slowDown();
+				mediaOutput->AdjustSpeed(-1);
 				pthread_mutex_unlock(&mediaOutputLock);
 				mediaOutputStatus.speedDelta--;
 
@@ -285,11 +284,11 @@ void CheckCurrentPositionAgainstMaster(void)
 		}
 
 		if (mediaOutputStatus.speedDelta == 1)
-			mediaOutput->slowDown();
+			mediaOutput->AdjustSpeed(-1);
 		else if (mediaOutputStatus.speedDelta == -1)
-			mediaOutput->speedUp();
+			mediaOutput->AdjustSpeed(1);
 		else if (mediaOutputStatus.speedDelta != 0)
-			mediaOutput->speedNormal();
+			mediaOutput->AdjustSpeed(0);
 
 		pthread_mutex_unlock(&mediaOutputLock);
 

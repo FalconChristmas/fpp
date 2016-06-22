@@ -99,7 +99,7 @@ else
   float: left;
 }
 
-#testModeColor1 {
+#testModeColorR {
   border-width: 1px;
   border-style: solid;
   border-color: #333 #333 #777 #333;
@@ -118,7 +118,7 @@ else
   float: left;
 }
 
-#testModeColor2 {
+#testModeColorG {
   border-width: 1px;
   border-style: solid;
   border-color: #333 #333 #777 #333;
@@ -137,7 +137,7 @@ else
   float: left;
 }
 
-#testModeColor3 {
+#testModeColorB {
   border-width: 1px;
   border-style: solid;
   border-color: #333 #333 #777 #333;
@@ -214,12 +214,12 @@ function GetTestMode()
 				else if (data.mode == "RGBFill")
 				{
 					$("input[name=testModeMode][value=RGBFill]").prop('checked', true);
-					$("#testModeColor1Text").html(data.color1);
-					$("#testModeColor2Text").html(data.color2);
-					$("#testModeColor3Text").html(data.color3);
-					$("#testModeColor1").slider("value", data.color1);
-					$("#testModeColor2").slider("value", data.color2);
-					$("#testModeColor3").slider("value", data.color3);
+					$("#testModeColorRText").html(data.color1);
+					$("#testModeColorGText").html(data.color2);
+					$("#testModeColorBText").html(data.color3);
+					$("#testModeColorR").slider("value", data.color1);
+					$("#testModeColorG").slider("value", data.color2);
+					$("#testModeColorB").slider("value", data.color3);
 				}
 			}
 			else
@@ -239,14 +239,65 @@ function SetTestMode()
 	var mode = "singleChase";
 	var cycleMS = parseInt($('#testModeCycleMSText').html());
 	var colorS = parseInt($('#testModeColorSText').html());
-	var color1 = parseInt($('#testModeColor1Text').html());
-	var color2 = parseInt($('#testModeColor2Text').html());
-	var color3 = parseInt($('#testModeColor3Text').html());
+	var colorR = parseInt($('#testModeColorRText').html());
+	var colorG = parseInt($('#testModeColorGText').html());
+	var colorB = parseInt($('#testModeColorBText').html());
+	var color1;
+	var color2;
+	var color3;
+	var strR = "FF0000";
+	var strG = "00FF00";
+	var strB = "0000FF";
 	var startChannel = parseInt($('#testModeStartChannel').val());
 	var endChannel = parseInt($('#testModeEndChannel').val());
 	var chaseSize = parseInt($('#testModeChaseSize').val());
 	var maxChannel = 524288;
 	var channelSetType = "channelRange";
+	var colorOrder = $('#colorOrder').val();
+
+	if (colorOrder == "RGB") {
+		color1 = colorR;
+		color2 = colorG;
+		color3 = colorB;
+		strR = "FF0000";
+		strG = "00FF00";
+		strB = "0000FF";
+	} else if (colorOrder == "RBG") {
+		color1 = colorR;
+		color3 = colorG;
+		color2 = colorB;
+		strR = "FF0000";
+		strG = "0000FF";
+		strB = "00FF00";
+	} else if (colorOrder == "GRB") {
+		color2 = colorR;
+		color1 = colorG;
+		color3 = colorB;
+		strR = "00FF00";
+		strG = "FF0000";
+		strB = "0000FF";
+	} else if (colorOrder == "GBR") {
+		color3 = colorR;
+		color1 = colorG;
+		color2 = colorB;
+		strR = "0000FF";
+		strG = "FF0000";
+		strB = "00FF00";
+	} else if (colorOrder == "BRG") {
+		color2 = colorR;
+		color3 = colorG;
+		color1 = colorB;
+		strR = "00FF00";
+		strG = "0000FF";
+		strB = "FF0000";
+	} else if (colorOrder == "BGR") {
+		color3 = colorR;
+		color2 = colorG;
+		color1 = colorB;
+		strR = "0000FF";
+		strG = "00FF00";
+		strB = "FF0000";
+	}
 
 	if (startChannel < 1 || startChannel > maxChannel || isNaN(startChannel))
 		startChannel = 1;
@@ -282,23 +333,23 @@ function SetTestMode()
 		}
 		else if (mode.substring(0,9) == "RGBChase-")
 		{
-			var colorPattern = "FF000000FF000000FF"; // R-G-B
+			var colorPattern = strR + strG + strB;
 
 			if (mode == "RGBChase-RGB")
 			{
-				colorPattern = "FF000000FF000000FF";
+				colorPattern = strR + strG + strB;
 			}
 			else if (mode == "RGBChase-RGBN")
 			{
-				colorPattern = "FF000000FF000000FF000000";
+				colorPattern = strR + strG + strB + "000000";
 			}
 			else if (mode == "RGBChase-RGBA")
 			{
-				colorPattern = "FF000000FF000000FFFFFFFF";
+				colorPattern = strR + strG + strB + "FFFFFF";
 			}
 			else if (mode == "RGBChase-RGBAN")
 			{
-				colorPattern = "FF000000FF000000FFFFFFFF000000";
+				colorPattern = strR + strG + strB + "FFFFFF000000";
 			}
 			else if (mode == "RGBChase-RGBCustom")
 			{
@@ -424,50 +475,50 @@ $(document).ready(function(){
 		}
 		});
 
-	$('#testModeColor1').slider({
+	$('#testModeColorR').slider({
 		min: 0,
 		max: 255,
 		value: 255,
 		step: 1,
 		slide: function( event, ui ) {
-			testModeColor1 = ui.value;
-			$('#testModeColor1Text').html(testModeColor1);
+			testModeColorR = ui.value;
+			$('#testModeColorRText').html(testModeColorR);
 		},
 		stop: function( event, ui ) {
-			testModeColor1 = $('#testModeColor1').slider('value');
-			$('#testModeColor1Text').html(testModeColor1);
+			testModeColorR = $('#testModeColorR').slider('value');
+			$('#testModeColorRText').html(testModeColorR);
 			SetTestMode();
 		}
 		});
 
-	$('#testModeColor2').slider({
+	$('#testModeColorG').slider({
 		min: 0,
 		max: 255,
 		value: 255,
 		step: 1,
 		slide: function( event, ui ) {
-			testModeColor2 = ui.value;
-			$('#testModeColor2Text').html(testModeColor2);
+			testModeColorG = ui.value;
+			$('#testModeColorGText').html(testModeColorG);
 		},
 		stop: function( event, ui ) {
-			testModeColor2 = $('#testModeColor2').slider('value');
-			$('#testModeColor2Text').html(testModeColor2);
+			testModeColorG = $('#testModeColorG').slider('value');
+			$('#testModeColorGText').html(testModeColorG);
 			SetTestMode();
 		}
 		});
 
-	$('#testModeColor3').slider({
+	$('#testModeColorB').slider({
 		min: 0,
 		max: 255,
 		value: 255,
 		step: 1,
 		slide: function( event, ui ) {
-			testModeColor3 = ui.value;
-			$('#testModeColor3Text').html(testModeColor3);
+			testModeColorB = ui.value;
+			$('#testModeColorBText').html(testModeColorB);
 		},
 		stop: function( event, ui ) {
-			testModeColor3 = $('#testModeColor3').slider('value');
-			$('#testModeColor3Text').html(testModeColor3);
+			testModeColorB = $('#testModeColorB').slider('value');
+			$('#testModeColorBText').html(testModeColorB);
 			SetTestMode();
 		}
 		});
@@ -534,7 +585,7 @@ $(document).ready(function(){
 				<table border=0 cellpadding=0 cellspacing=0>
 				<tr><td colspan=3><b>Single Channel Patterns:</b></td></tr>
 				<tr><td colspan=3><span style='float: left'><b>Test Value: </b></span><span id="testModeColorS"></span> <span style='float: left' id='testModeColorSText'>255</span><span style='float: left'></span></td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='SingleChase' checked onChange='SetTestMode();'></td><td><b>Chase:</b></td></tr>
+				<tr><td><input type='radio' name='testModeMode' value='SingleChase' onChange='SetTestMode();'></td><td><b>Chase:</b></td></tr>
 				<tr><td></td><td>Chase Size: <select id='testModeChaseSize' onChange='SetTestMode();'>
 						<option value='2'>2</option>
 						<option value='3'>3</option>
@@ -545,17 +596,27 @@ $(document).ready(function(){
 				<tr><td><input type='radio' name='testModeMode' value='SingleFill' onChange='SetTestMode();'></td><td><b>Fill</b></td></tr>
 				<tr><td>&nbsp;</td></tr>
 				<tr><td colspan=3><b>RGB Patterns:</b></td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGB' onChange='SetTestMode();'></td><td><b>Chase: A-B-C</b></td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGBA' onChange='SetTestMode();'></td><td><b>Chase: A-B-C-All</b></td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGBN' onChange='SetTestMode();'></td><td><b>Chase: A-B-C-None</b></td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGBAN' onChange='SetTestMode();'></td><td><b>Chase: A-B-C-All-None</b></td></tr>
+				<tr><td colspan=3>&nbsp;<b>Color Order:</b>
+					<select id='colorOrder' onChange='SetTestMode();'>
+						<option>RGB</option>
+						<option>RBG</option>
+						<option>GRB</option>
+						<option>GBR</option>
+						<option>BRG</option>
+						<option>BGR</option>
+					</select>
+					</td></tr>
+				<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGB' checked onChange='SetTestMode();'></td><td><b>Chase: R-G-B</b></td></tr>
+				<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGBA' onChange='SetTestMode();'></td><td><b>Chase: R-G-B-All</b></td></tr>
+				<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGBN' onChange='SetTestMode();'></td><td><b>Chase: R-G-B-None</b></td></tr>
+				<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGBAN' onChange='SetTestMode();'></td><td><b>Chase: R-G-B-All-None</b></td></tr>
 				<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGBCustom' onChange='SetTestMode();'></td><td><b>Chase: Custom Pattern: </b> <input id='testModeRGBCustomPattern' size='36' maxlength='72' value='FF000000FF000000FF' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (6 hex digits per RGB triplet)</td></tr>
 				<tr><td><input type='radio' name='testModeMode' value='RGBFill' onChange='SetTestMode();'></td><td><b>Fill:</b></td></tr>
 				<tr><td>&nbsp;</td><td>
 					<table border=0 cellspacing=10 cellpadding=0>
-						<tr><td><span style='float: left'>A: </span><span id="testModeColor1"></span> <span style='float: left' id='testModeColor1Text'>255</span><span style='float: left'></span></td></tr>
-						<tr><td><span style='float: left'>B: </span><span id="testModeColor2"></span> <span style='float: left' id='testModeColor2Text'>255</span><span style='float: left'></span></td></tr>
-						<tr><td><span style='float: left'>C: </span><span id="testModeColor3"></span> <span style='float: left' id='testModeColor3Text'>255</span><span style='float: left'></span></td></tr>
+						<tr><td><span style='float: left'>R: </span><span id="testModeColorR"></span> <span style='float: left' id='testModeColorRText'>255</span><span style='float: left'></span></td></tr>
+						<tr><td><span style='float: left'>G: </span><span id="testModeColorG"></span> <span style='float: left' id='testModeColorGText'>255</span><span style='float: left'></span></td></tr>
+						<tr><td><span style='float: left'>B: </span><span id="testModeColorB"></span> <span style='float: left' id='testModeColorBText'>255</span><span style='float: left'></span></td></tr>
 					</table>
 					</td></tr>
 				</table>

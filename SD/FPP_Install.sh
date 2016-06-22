@@ -574,6 +574,10 @@ mkdir /home/fpp/media
 chown fpp.fpp /home/fpp/media
 chmod 700 /home/fpp/media
 
+echo >> /home/fpp/.bashrc
+echo ". /opt/fpp/scripts/common" >> /home/fpp/.bashrc
+echo >> /home/fpp/.bashrc
+
 #######################################
 # Configure log rotation
 echo "FPP - Configuring log rotation"

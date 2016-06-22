@@ -194,6 +194,18 @@ int main (int argc, char *argv[])
       sprintf(command,"LogMask,%s,", newMask);
       SendCommand(command);
     }
+    // Configure the given GPIO to the given mode
+    else if((strncmp(argv[1],"-G",2) == 0) &&  argc > 2)
+    {
+      sprintf(command,"SetupExtGPIO,%s,%s,",argv[2],argv[3]);
+      SendCommand(command);
+    }
+    // Set the given GPIO to the given value
+    else if((strncmp(argv[1],"-g",2) == 0) &&  argc > 2)
+    {
+      sprintf(command,"ExtGPIO,%s,%s,%s",argv[2],argv[3],argv[4]);
+      SendCommand(command);
+    }
     else
     {
       Usage(argv[0]);
@@ -308,5 +320,11 @@ void Usage(char *appname)
 "                                 looping if LOOP is set to 1\n"
 "  -E EFFECTNAME                - Stop Effect EFFECTNAME\n"
 "  -t EVENTNAME                 - Trigger Event EVENTNAME\n"
+"  -G GPIO,MODE                 - Configure the given GPIO to MODE. MODEs include:\n"
+"                                 Input    - Set to Input. For PiFace inputs this only enables the pull-up\n"
+"                                 Output   - Set to Output. (This is not needed for PiFace outputs)\n"
+"                                 SoftPWM  - Set to Software PWM.\n"
+"  -g GPIO,MODE,VALUE           - Set the given GPIO to VALUE applicable to the given MODEs defined above\n"
+"                                 VALUE is ignored for Input mode\n"
 "\n", appname);
 }
