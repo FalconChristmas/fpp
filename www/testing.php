@@ -59,6 +59,7 @@ else
 <?php include 'common/menuHead.inc'; ?>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 <link rel="stylesheet" type="text/css" href="jquery/colpick/css/colpick.css">
+<link rel="stylesheet" type="text/css" href="css/jquery.colpick.css">
 <script type="text/javascript" src="jquery/colpick/js/colpick.js"></script>
 <title><? echo $pageTitle; ?></title>
 <style>
