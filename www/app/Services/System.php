@@ -134,4 +134,73 @@ class System
     {
         return $this->cli->runAsUser("top -bn 1 | awk '{print $9}' | tail -n +8 | awk '{s+=$1} END {print s}'");
     }
+
+    /**
+     * Get current CPU temp
+     * @return array
+     */
+    public function getTemperature()
+    {
+      $temp = $this->cli->runAsUser("cat /sys/class/thermal/thermal_zone*/temp");
+      return ['c' => round($temp/1000, 1), 'f' => ((($temp/1000) * 1.8) + 32) ];
+    }
+
+    /**
+     * Get current uptime
+     * @return string
+     */
+    public function getUptime()
+    {
+      return $this->secondsToString($this->cli->runAsUser("awk '{print $1}' /proc/uptime"));
+    }
+
+    /**
+     * Get current kernel version
+     * @return string
+     */
+    public function getKernelVersion()
+    {
+      return $this->cli->runAsUser('/bin/uname -r') ?: 'Unknown';
+    }
+
+    /**
+     * Get disk usage info for root and media directories
+     * @return array
+     */
+    public function getDiskUsage()
+    {
+      return [
+        'root' => $this->diskUsageFor('/'),
+        'media' => $this->diskUsageFor(fpp_media())
+      ];
+    }
+
+    /**
+     * Helper function to convert seconds to human
+     * readable format
+     * @param  string $time
+     * @return string
+     */
+    protected function secondsToString($time)
+    {
+      $seconds = $time%60;
+      $mins = floor($time/60)%60;
+      $hours = floor($time/60/60)%24;
+      $days = floor($time/60/60/24);
+      return $days > 0 ? $days . ' day'.($days > 1 ? 's' : '') : $hours.':'.$mins.':'.$seconds;
+    }
+
+    /**
+     * Retrieve total and free space for a disk/directory
+     * @param  string $directory
+     * @return array
+     */
+    protected function diskUsageFor($directory)
+    {
+      $total = disk_total_space($directory);
+      $free = disk_free_space($directory);
+      $pct = $free * 100 / $total;
+      return ['total' => get_size_symbol($total), 'free' => get_size_symbol($free), 'usage' => round($pct, 1).'%' ];
+    }
+
 }

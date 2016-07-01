@@ -122,3 +122,14 @@ function user()
     }
     return $_SERVER['SUDO_USER'];
 }
+
+/**
+ * Convert bytes to human readable format
+ * @param  int $bytes
+ * @return string
+ */
+function get_size_symbol($bytes) {
+  $symbols = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB'];
+  $exp = floor(log($bytes)/log(1024));
+  return sprintf('%.2f '. $symbols[$exp], ($bytes/pow(1024, floor($exp))));
+}

@@ -45,7 +45,7 @@ return [
     |
     |
     */
-    'media'     => env('PI_MEDIA') ? env('PI_MEDIA').'/media' : '/home/fpp/media',
+    'media'     => env('MEDIA_LOCATION', '/home/fpp/media'),
     'music'     => '/music',
     'sequences' => '/sequences',
     'playlists' => '/playlists',
@@ -62,7 +62,7 @@ return [
     'remap'     => '/channelremap',
     'exim'      => '/exim4',
     'docs'      => fpp_dir() . '/docs',
-  
+
     /*
     |--------------------------------------------------------------------------
     | FPP Email Settings
