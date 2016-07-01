@@ -30,7 +30,8 @@
 #include "log.h"
 #include "PanelMatrix.h"
 
-PanelMatrix::PanelMatrix(int panelWidth, int panelHeight, int channelsPerPixel)
+PanelMatrix::PanelMatrix(int panelWidth, int panelHeight, int channelsPerPixel,
+	int invertedData)
   : m_channelsPerPixel(channelsPerPixel),
 	m_width(0),
 	m_height(0),
@@ -38,7 +39,8 @@ PanelMatrix::PanelMatrix(int panelWidth, int panelHeight, int channelsPerPixel)
 	m_pixelCount(0),
 	m_panelCount(0),
 	m_panelWidth(panelWidth),
-	m_panelHeight(panelHeight)
+	m_panelHeight(panelHeight),
+	m_invertedData(invertedData)
 {
 }
 
@@ -175,7 +177,10 @@ int PanelMatrix::CalculateMaps(void)
 		{
 			for (int x = 0; x < pWidth; x++)
 			{
-				mOffset = (((yOffset + y) * m_width) + (xOffset + x));
+				if (m_invertedData)
+					mOffset = (((pHeight - (yOffset + y) - 1) * m_width) + (xOffset + x));
+				else
+					mOffset = (((yOffset + y) * m_width) + (xOffset + x));
 
 				switch (m_panels[panel].orientation)
 				{
