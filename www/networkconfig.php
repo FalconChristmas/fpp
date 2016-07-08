@@ -373,7 +373,8 @@ function setHostName() {
             </tr>
             <tr>
               <td>IP Address:</td>
-              <td><input type="text" name="eth_ip" id="eth_ip" size=15 maxlength=15 onChange="checkStaticIP();"></td>
+              <td><input type="text" name="eth_ip" id="eth_ip" size=15 maxlength=15 onChange="checkStaticIP();">
+								<input type="button" onClick='PingIP($("#eth_ip").val(), 3);' value='Ping'></td>
             </tr>
             <tr>
               <td>Netmask:</td>
@@ -381,7 +382,8 @@ function setHostName() {
             </tr>
             <tr>
               <td>Gateway:</td>
-              <td><input type="text" name="eth_gateway" id="eth_gateway" size="15" maxlength="15"></td>
+              <td><input type="text" name="eth_gateway" id="eth_gateway" size="15" maxlength="15">
+								<input type="button" onClick='PingIP($("#eth_gateway").val(), 3);' value='Ping'></td>
             </tr>
             <tr>
               <td colspan='2'><b><font color='#ff0000'><span id='dnsWarning'></span></font></b></td>
@@ -431,11 +433,14 @@ function setHostName() {
             <tr>
               <td width = "25%">DNS Server 1:</td>
               <td width = "25%"><input type="text" name="dns1" id="dns1"></td>
-              <td width = "50%">&nbsp;</td>
+              <td width = "50%">
+								<input type="button" onClick='PingIP($("#dns1").val(), 3);' value='Ping'></td>
             </tr>
             <tr>
               <td>DNS Server 2:</td>
               <td><input type="text" name="dns2" id="dns2"></td>
+							<td>
+								<input type="button" onClick='PingIP($("#dns2").val(), 3);' value='Ping'></td>
             </tr>
           </table>
           <br>
