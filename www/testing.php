@@ -423,6 +423,24 @@ function DisableTestMode()
 	SetTestMode();
 }
 
+function dec2hex(i) {
+	return (i+0x100).toString(16).substr(-2).toUpperCase();
+}
+
+function AppendFillToCustom()
+{
+	var colorR = dec2hex(parseInt($('#testModeColorRText').html()));
+	var colorG = dec2hex(parseInt($('#testModeColorGText').html()));
+	var colorB = dec2hex(parseInt($('#testModeColorBText').html()));
+
+	var newTriplet = colorR + colorG + colorB;
+
+	var currentValue = $('#testModeRGBCustomPattern').val();
+	$('#testModeRGBCustomPattern').val(currentValue + newTriplet);
+
+	SetTestMode();
+}
+
 /////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
 // Sequence Testing Functions
@@ -664,6 +682,7 @@ $(document).ready(function(){
 						<tr><td><span style='float: left'>G: </span><span id="testModeColorG"></span> <span style='float: left' id='testModeColorGText'>255</span><span style='float: left'></span></td></tr>
 						<tr><td><span style='float: left'>B: </span><span id="testModeColorB"></span> <span style='float: left' id='testModeColorBText'>255</span><span style='float: left'></span></td></tr>
 					</table>
+					<input type=button onClick='AppendFillToCustom();' value='Append Color To Custom Pattern'>
 					</td></tr>
 				</table>
 				</div>
