@@ -538,6 +538,7 @@ int DetectFalconHardware(int configureHardware)
 
 		switch (query[0])
 		{
+			// 0x01-0x7F == Falcon Controllers
 			case 0x01:	strcpy(model, "F16 v2.x");
 						strcpy(cfgFile, "Falcon.F16V2-alpha");
 						spiSpeed = 16000000;
@@ -550,6 +551,13 @@ int DetectFalconHardware(int configureHardware)
 						strcpy(cfgFile, "Falcon.FPDV2");
 						spiSpeed = 8000000;
 						break;
+
+			// 0x81-0xFF == Non-Falcon Controllers
+			case 0x81:	strcpy(model, "Ron's Holiday Lights - FPGA Pi Pixel");
+						strcpy(cfgFile, "");
+						spiSpeed = 16000000;
+						break;
+
 		}
 
 		LogInfo(VB_SETTING, "Falcon Hardware Detected on SPI port %d\n", spiPort);
@@ -579,7 +587,8 @@ int DetectFalconHardware(int configureHardware)
 				return 0;
 			}
 
-			FalconConfigureHardware(cfgFile, 0);
+			if (strlen(cfgFile))
+				FalconConfigureHardware(cfgFile, 0);
 		}
 
 		return 1;

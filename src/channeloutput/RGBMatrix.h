@@ -28,6 +28,7 @@
 
 #include <string>
 
+#include "Matrix.h"
 #include "PanelMatrix.h"
 
 #include "led-matrix.h"
@@ -45,6 +46,8 @@ class RGBMatrixOutput : public ChannelOutputBase {
 
 	int Init(Json::Value config);
 	int Close(void);
+
+	void PrepData(unsigned char *channelData);
 
 	int RawSendData(unsigned char *channelData);
 
@@ -64,7 +67,9 @@ class RGBMatrixOutput : public ChannelOutputBase {
 	int          m_rows;
 	int          m_outputs;
 	int          m_longestChain;
+	int          m_invertedData;
 
+	Matrix      *m_matrix;
 	PanelMatrix *m_panelMatrix;
 };
 

@@ -365,7 +365,8 @@ case "${OSVER}" in
 						samba-common-bin shellinabox sudo sysstat tcpdump usbmount vim \
 						vim-common vorbis-tools vsftpd firmware-realtek gcc g++\
 						network-manager dhcp-helper hostapd parprouted bridge-utils \
-						firmware-atheros firmware-ralink firmware-brcm80211
+						firmware-atheros firmware-ralink firmware-brcm80211 \
+						wireless-tools
 		do
 			apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" install ${package}
 			let packages=$((${packages}+1))
@@ -374,6 +375,9 @@ case "${OSVER}" in
 				apt-get -y clean
 			fi
 		done
+
+		echo "FPP - Configuring shellinabox to use /var/tmp"
+		echo "SHELLINABOX_DATADIR=/var/tmp/" >> /etc/default/shellinabox
 
 		echo "FPP - Cleaning up after installing packages"
 		apt-get -y clean
