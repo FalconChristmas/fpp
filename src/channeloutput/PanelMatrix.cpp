@@ -178,7 +178,7 @@ int PanelMatrix::CalculateMaps(void)
 			for (int x = 0; x < pWidth; x++)
 			{
 				if (m_invertedData)
-					mOffset = (((pHeight - (yOffset + y) - 1) * m_width) + (xOffset + x));
+					mOffset = (((m_height - (yOffset + y) - 1) * m_width) + (xOffset + x));
 				else
 					mOffset = (((yOffset + y) * m_width) + (xOffset + x));
 
