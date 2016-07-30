@@ -3,43 +3,40 @@
 /**
  * Returns the path to the fpp directory
  */
-if ( ! function_exists('fpp_dir')) {
+if (!function_exists('fpp_dir')) {
     function fpp_dir()
     {
         return dirname(base_path());
     }
 }
 
-
-if ( ! function_exists('fpp_media')) {
+if (!function_exists('fpp_media')) {
     function fpp_media($directory = false)
     {
         $conf = config('fpp.media');
 
-
         if ($directory) {
             $sub = config('fpp.' . $directory);
-            $conf = $conf.$sub;
+            $conf = $conf . $sub;
         }
 
         return $conf;
     }
 }
 
-if ( ! function_exists('fpp_config')) {
+if (!function_exists('fpp_config')) {
     function fpp_config($config)
     {
 
         if (env('APP_DEV')) {
-            return storage_path().getenv('FPP_'.strtoupper($config));
+            return storage_path() . getenv('FPP_' . strtoupper($config));
         }
 
-        return config('fpp.'.$config);
+        return config('fpp.' . $config);
     }
 }
 
-
-if ( ! function_exists('set_active')) {
+if (!function_exists('set_active')) {
 
     function set_active($path, $active = 'active')
     {
@@ -47,19 +44,18 @@ if ( ! function_exists('set_active')) {
     }
 }
 
-
-if ( ! function_exists('fpp_version')) {
+if (!function_exists('fpp_version')) {
 
     function fpp_version()
     {
 
-        $fpp_version = "v" . exec("git --git-dir=".dirname(base_path())."/.git/ describe --tags", $output, $return_val);
-        if ( $return_val != 0 ) {
+        $fpp_version = "v" . exec("git --git-dir=" . dirname(base_path()) . "/.git/ describe --tags", $output, $return_val);
+        if ($return_val != 0) {
             $fpp_version = "Unknown";
         }
 
-        $git_branch = exec("git --git-dir=".dirname(base_path())."/.git/ branch --list | grep '\\*' | awk '{print \$2}'", $output, $return_val);
-        if ( $return_val != 0 ) {
+        $git_branch = exec("git --git-dir=" . dirname(base_path()) . "/.git/ branch --list | grep '\\*' | awk '{print \$2}'", $output, $return_val);
+        if ($return_val != 0) {
             $git_branch = "Unknown";
         }
 
@@ -70,8 +66,6 @@ if ( ! function_exists('fpp_version')) {
         return $fpp_version;
     }
 }
-
-
 
 /**
  * Appends a trailing slash.
@@ -86,7 +80,7 @@ if ( ! function_exists('fpp_version')) {
  * @param string $string What to add the trailing slash to.
  * @return string String with trailing slash added.
  */
-if ( ! function_exists('trailingslashit')) {
+if (!function_exists('trailingslashit')) {
     function trailingslashit($string)
     {
         return untrailingslashit($string) . '/';
@@ -103,7 +97,7 @@ if ( ! function_exists('trailingslashit')) {
  * @param string $string What to remove the trailing slashes from.
  * @return string String without the trailing slashes.
  */
-if ( ! function_exists('untrailingslashit')) {
+if (!function_exists('untrailingslashit')) {
 
     function untrailingslashit($string)
     {
@@ -111,13 +105,12 @@ if ( ! function_exists('untrailingslashit')) {
     }
 }
 
-
 /**
  * Get the user
  */
 function user()
 {
-    if (! isset($_SERVER['SUDO_USER'])) {
+    if (!isset($_SERVER['SUDO_USER'])) {
         return $_SERVER['USER'];
     }
     return $_SERVER['SUDO_USER'];
@@ -128,8 +121,9 @@ function user()
  * @param  int $bytes
  * @return string
  */
-function get_size_symbol($bytes) {
-  $symbols = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB'];
-  $exp = floor(log($bytes)/log(1024));
-  return sprintf('%.2f '. $symbols[$exp], ($bytes/pow(1024, floor($exp))));
+function get_size_symbol($bytes)
+{
+    $symbols = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB'];
+    $exp = floor(log($bytes) / log(1024));
+    return sprintf('%.2f ' . $symbols[$exp], ($bytes / pow(1024, floor($exp))));
 }

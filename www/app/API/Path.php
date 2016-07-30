@@ -116,18 +116,6 @@ class Path
         return self::tidy('/' . join($args, '/'));
     }
 
-    /**
-     * Is a given $path a page?
-     *
-     * @param string $path  Path to check
-     * @return bool
-     */
-    public static function isPage($path)
-    {
-        $ext = pathinfo($path)['extension'];
-
-        return Pattern::endsWith($path, "index.$ext");
-    }
 
     /**
      * Is a given $path an entry?
@@ -157,22 +145,6 @@ class Path
         return 'live';
     }
 
-    /**
-     * Is a given $path a draft?
-     *
-     * @param string $path  Path to check
-     * @return bool
-     */
-    public static function isDraft($path)
-    {
-        $ext = pathinfo($path)['extension'];
-
-        $pattern = (self::isPage($path))
-            ? "#/__(?:\d+\.)?[\w-]+/(?:\w+\.)?index\.{$ext}$#"
-            : "#/__[\w\._-]+\.{$ext}$#";
-
-        return (bool) preg_match($pattern, $path);
-    }
 
     /**
      * Is a given $path hidden?

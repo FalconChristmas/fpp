@@ -15,93 +15,25 @@
 
         </div>
         <div class="level-right">
-          <div class="level-item">
+          <div class="level-item output-search-field">
             <form-input
                 :model.sync="search"
                 type="text"
-                label="Search"
+                label=""
+                placeholder="Search"
                 size="sm"
                 state-icon>
               </form-input>
           </div>
           <div class="level-item">
-            <button class="button gradient submit bold m-a-0" @click.prevent="$broadcast('show::modal', 'output-modal')">Add Output</button>
+            <button
+                class="button gradient submit bold m-a-0"
+                @click.prevent="$broadcast('show::modal', 'output-modal')">Add Output</button>
           </div>
         </div>
       </div>
-       <div class="output-actions">
-                <div class="filter-row align-end">
-                    <div class="filter text-xs-center">
-                        <span>Active</span>
-                        <switch :model.sync="defActive" size="small"></switch>
-                    </div>
-                     <div class="filter text-xs-center">
-                        <span>Increment Universe</span>
-                        <switch :model.sync="incrementUniv" size="small"></switch>
-                    </div>
-                     <div class="filter text-xs-center">
-                        <span>Increment Start</span>
-                        <switch :model.sync="incrementStart" size="small"></switch>
-                    </div>
-                </div>
-                <div class="filter-row">
-                    <div class="filter">
-                         <form-input
-                          :model.sync="defStart"
-                          type="number"
-                          label="Start"
-                          size="sm"
-                          state-icon>
-                        </form-input>
-                    </div>
-                    <div class="filter">
-                         <form-input
-                          :model.sync="defSize"
-                          type="number"
-                          label="Size"
-                          size="sm"
-                          state-icon>
-                        </form-input>
-                    </div>
 
-                    <div class="filter">
-                        <div class="form-group">
-                            <label for="" class="control-label">Type</label>
-                            <div class="input">
-                                <select v-model="defType" class="c-select" style="padding-top: 0.25rem; padding-bottom: 0.275rem;">
-                                    <option value="unicast">Unicast</option>
-                                    <option value="multicast">Multicast</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="filter">
-                        <form-input
-                          :model.sync="defAddress"
-                          type="text"
-                          label="Address"
-                          size="sm"
-                          state-icon>
-                        </form-input>
-
-                    </div>
-                    <div class="filter">
-                         <form-input
-                          :model.sync="quantity"
-                          type="number"
-                          label="# of Outputs"
-                          size="sm"
-                          state-icon>
-                        </form-input>
-                    </div>
-                </div>
-                <div class="filter-row">
-
-                    <button @click="addOutput" type="button" class="button gradient submit pull-xs-right m-a-0">{{ addOutputLabel }}</button>
-                </div>
-
-            </div>
-     <div class="box-body">
+      <div class="box-body p-t-0">
 
 
             <!-- <div id="universe-outputs"> -->
@@ -132,7 +64,7 @@
 
         </div>
         </form>
-        <modal type="e131" :fields="getModalFields()"></modal>
+        <modal type="e131" :fields="getModalFields()" :switches="getModalSwitches()" @add-output="addOutput()"></modal>
     </div>
 </template>
 
@@ -194,15 +126,20 @@ export default {
             };
         },
         getModalFields() {
-          return [
-            { type: 'number', name: 'Start Channel', model: this.defStart },
-            { type: 'number', name: 'Size', model: this.defSize },
-            { type: 'select', name: 'Type', model: this.defType, options: [ 'unicast', 'multicast' ] },
-            { type: 'text', name: 'Address', model: this.defAddress },
-            { type: 'number', name: '# of Outputs', model: this.quantity },
+            return [
+            { type: 'number', name: 'Start Channel', model: this.defStart, classes: 'col-xs-12 col-md-4' },
+            { type: 'number', name: 'Size', model: this.defSize, classes: 'col-xs-12 col-md-4' },
+            { type: 'select', name: 'Type', model: this.defType, options: [ 'unicast', 'multicast' ], classes: 'col-xs-12 col-md-4' },
+            { type: 'text', name: 'Address', model: this.defAddress, classes: 'col-xs-12 col-md-6' },
+            { type: 'number', name: '# of Outputs', model: this.quantity, classes: 'col-xs-12 col-md-6' },
           ];
-
-
+        },
+        getModalSwitches() {
+            return [
+                { name: 'Active', model: this.defActive },
+                { name: 'Increment Universe', model: this.incrementUniv },
+                { name: 'Increment Start', model: this.incrementStart },
+            ];
         }
     },
     vuex: {
@@ -222,6 +159,10 @@ export default {
 <style lang="sass">
     @import "resources/assets/sass/_vars.scss";
     @import "resources/assets/sass/_mixins.scss";
+
+    .output-search-field .form-group {
+        margin-bottom: 0;
+    }
 
     .universe-list {
 

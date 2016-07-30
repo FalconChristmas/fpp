@@ -4,18 +4,31 @@
              <h6 class="modal-title">Add {{ type | capitalize }} <span class="semi-bold">Outputs</span></h6>
           </div>
           <div slot="modal-body">
-            <div class="switches">
-
+            <div class="switches switch-row">
+              <div class="field text-xs-center" v-for="field in switches">
+                  <span>{{field.name}}</span>
+                  <switch :model.sync="field.model" size="small"></switch>
+              </div>
             </div>
-            <div class="fields">
-                <div class="field" v-for="field in fields">
+            <hr>
+            <div class="fields row">
+                <div :class="['field', field.classes]" v-for="field in fields">
                     <form-input
+                      v-if="field.type !== 'select'"
                       :model.sync="field.model"
                       :type="field.type"
                       :label="field.name"
                       size="sm"
                       state-icon>
                     </form-input>
+                    <div v-else class="form-group">
+                        <label for="" class="control-label">{{field.name}}</label>
+                        <div class="input">
+                          <select class="c-select" style="width: 100%;" v-model="field.model">
+                            <option v-for="option in field.options" value="{{option}}">{{option | capitalize}}</option>
+                          </select>
+                        </div>
+                    </div>
                 </div>
             </div>
           </div>
@@ -38,7 +51,8 @@ export default {
             type: String
         },
         switches: {
-            type: Object
+            type: Array,
+            required: true
         },
         fields: {
             type: Array,
@@ -68,3 +82,16 @@ export default {
     }
 }
 </script>
+<style lang="sass">
+.modal .switch-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  .field span {
+    display: inline-block;
+    vertical-align: middle;
+    margin-bottom: 10px;
+  }
+}
+</style>
