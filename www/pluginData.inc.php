@@ -113,6 +113,17 @@ $plugins = Array(
 	),
 
 	Array(
+		'shortName'   => 'TwilioControl',
+		'name'        => 'Twilio SMS Control',
+		'author'      => 'Ben Shaver (bshaver) & Pat Delaney (patdelaney)',
+		'description' => 'Control FPP with Twilio SMS',
+		'homeUrl'     => 'https://github.com/lightsonhudson/FPP-Plugin-TwilioControl',
+		'sourceUrl'   => 'https://github.com/lightsonhudson/FPP-Plugin-TwilioControl.git',
+		'bugUrl'      => 'https://github.com/lightsonhudson/FPP-Pluginn-TwilioControl/issues',
+		'sha'         => '7e6a06f63a5b607d18b2b3dc5ee275ed3a9fce7f',
+	),
+
+	Array(
 		'shortName'   => 'SMS',
 		'name'        => 'SMS Playlist Control',
 		'author'      => 'Ben Shaver (bshaver) and Pat Delaney (patdelaney)',
