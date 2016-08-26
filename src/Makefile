@@ -159,7 +159,7 @@ OBJECTS_fppd += \
 	$(NULL)
 DEPS_fppd += \
 	../external/RF24/librf24-bcm.so \
-	../external/rpi-rgb-led-matrix/lib/librgbmatrix.a \
+	../lib/librgbmatrix.so \
 	../external/rpi_ws281x/libws2811.a \
 	$(NULL)
 SUBMODULES += \
@@ -184,7 +184,7 @@ OBJECTS_fppd += \
 	channeloutput/RGBMatrix.o \
 	$(NULL)
 DEPS_fppd += \
-	../external/rpi-rgb-led-matrix/lib/librgbmatrix.a \
+	../lib/librgbmatrix.so \
 	$(NULL)
 SUBMODULES += \
 	external/RF24 \
@@ -327,7 +327,26 @@ util: force
 
 ../external/rpi-rgb-led-matrix/lib/librgbmatrix.a: ../external/rpi-rgb-led-matrix/.git
 	@echo "Building rpi-rgb-led-matrix library"
-	@make -C ../external/rpi-rgb-led-matrix/ lib/librgbmatrix.a
+	@make -C ../external/rpi-rgb-led-matrix/lib/ librgbmatrix.a
+
+../lib/librgbmatrix.so: ../external/rpi-rgb-led-matrix/.git
+	@echo "Building rpi-rgb-led-matrix library for Standard pinout"
+	@make -C ../external/rpi-rgb-led-matrix/lib/ clean
+	@make -C ../external/rpi-rgb-led-matrix/lib/ librgbmatrix.so \
+		DEFINES='-DRGB_SLOWDOWN_GPIO=1'
+	cp ../external/rpi-rgb-led-matrix/lib/librgbmatrix.so ../lib/librgbmatrix_Standard.so
+	ln -s ./librgbmatrix_Standard.so ../lib/librgbmatrix.so
+	@echo "Building rpi-rgb-led-matrix library for Adafruit pinout"
+	@make -C ../external/rpi-rgb-led-matrix/lib/ clean
+	@make -C ../external/rpi-rgb-led-matrix/lib/ librgbmatrix.so \
+		DEFINES='-DRGB_SLOWDOWN_GPIO=1 -DADAFRUIT_RGBMATRIX_HAT -DONLY_SINGLE_CHAIN'
+	cp ../external/rpi-rgb-led-matrix/lib/librgbmatrix.so ../lib/librgbmatrix_Adafruit.so
+	@echo "Building rpi-rgb-led-matrix library for Classic pinout"
+	@make -C ../external/rpi-rgb-led-matrix/lib/ clean
+	@make -C ../external/rpi-rgb-led-matrix/lib/ librgbmatrix.so \
+		DEFINES='-DRGB_SLOWDOWN_GPIO=1 -DRGB_CLASSIC_PINOUT -DONLY_SINGLE_CHAIN'
+	cp ../external/rpi-rgb-led-matrix/lib/librgbmatrix.so ../lib/librgbmatrix_Classic.so
+
 
 #############################################################################
 # libws2811 on the Pi
