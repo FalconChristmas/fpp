@@ -339,20 +339,20 @@ util: force
 ../lib/librgbmatrix.so: ../external/rpi-rgb-led-matrix/.git
 	@echo "Building rpi-rgb-led-matrix library for Standard pinout"
 	@make -C ../external/rpi-rgb-led-matrix/lib/ clean
-	@make -C ../external/rpi-rgb-led-matrix/lib/ librgbmatrix.so \
+	@make -C ../external/rpi-rgb-led-matrix/lib/ librgbmatrix.a \
 		DEFINES='-DRGB_SLOWDOWN_GPIO=1'
-	cp ../external/rpi-rgb-led-matrix/lib/librgbmatrix.so ../lib/librgbmatrix_Standard.so
+	gcc -shared -o ../lib/librgbmatrix_Standard.so ../external/rpi-rgb-led-matrix/lib/*.o
 	ln -s ./librgbmatrix_Standard.so ../lib/librgbmatrix.so
 	@echo "Building rpi-rgb-led-matrix library for Adafruit pinout"
 	@make -C ../external/rpi-rgb-led-matrix/lib/ clean
-	@make -C ../external/rpi-rgb-led-matrix/lib/ librgbmatrix.so \
+	@make -C ../external/rpi-rgb-led-matrix/lib/ librgbmatrix.a \
 		DEFINES='-DRGB_SLOWDOWN_GPIO=1 -DADAFRUIT_RGBMATRIX_HAT -DONLY_SINGLE_CHAIN'
-	cp ../external/rpi-rgb-led-matrix/lib/librgbmatrix.so ../lib/librgbmatrix_Adafruit.so
+	gcc -shared -o ../lib/librgbmatrix_Adafruit.so ../external/rpi-rgb-led-matrix/lib/*.o
 	@echo "Building rpi-rgb-led-matrix library for Classic pinout"
 	@make -C ../external/rpi-rgb-led-matrix/lib/ clean
-	@make -C ../external/rpi-rgb-led-matrix/lib/ librgbmatrix.so \
+	@make -C ../external/rpi-rgb-led-matrix/lib/ librgbmatrix.a \
 		DEFINES='-DRGB_SLOWDOWN_GPIO=1 -DRGB_CLASSIC_PINOUT -DONLY_SINGLE_CHAIN'
-	cp ../external/rpi-rgb-led-matrix/lib/librgbmatrix.so ../lib/librgbmatrix_Classic.so
+	gcc -shared -o ../lib/librgbmatrix_Classic.so ../external/rpi-rgb-led-matrix/lib/*.o
 
 
 #############################################################################
