@@ -342,6 +342,7 @@ util: force
 	@make -C ../external/rpi-rgb-led-matrix/lib/ librgbmatrix.a \
 		DEFINES='-DRGB_SLOWDOWN_GPIO=1'
 	gcc -shared -o ../lib/librgbmatrix_Standard.so ../external/rpi-rgb-led-matrix/lib/*.o
+	cp ../lib/librgbmatrix_Standard.so ../external/rpi-rgb-led-matrix/lib/librgbmatrix.so
 	ln -s ./librgbmatrix_Standard.so ../lib/librgbmatrix.so
 	@echo "Building rpi-rgb-led-matrix library for Adafruit pinout"
 	@make -C ../external/rpi-rgb-led-matrix/lib/ clean
