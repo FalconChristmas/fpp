@@ -2079,6 +2079,14 @@ function InitializeLEDPanels()
 		$('#LEDPanelsStartChannel').val(channelOutputsLookup["LEDPanelMatrix"].startChannel);
 		$('#LEDPanelsChannelCount').html(channelOutputsLookup["LEDPanelMatrix"].channelCount);
 		$('#LEDPanelsColorOrder').val(channelOutputsLookup["LEDPanelMatrix"].colorOrder);
+<?
+	if ($settings['Platform'] == "Raspberry Pi")
+	{
+?>
+		$('#LEDPanelsWiringPinout').val(channelOutputsLookup["LEDPanelMatrix"].wiringPinout);
+<?
+	}
+?>
 		$('#LEDPanelsStartCorner').val(channelOutputsLookup["LEDPanelMatrix"].invertedData);
 	}
 
@@ -2111,6 +2119,14 @@ function GetLEDPanelConfig()
 	config.startChannel = parseInt($('#LEDPanelsStartChannel').val());
 	config.channelCount = parseInt($('#LEDPanelsChannelCount').html());
 	config.colorOrder = $('#LEDPanelsColorOrder').val();
+<?
+	if ($settings['Platform'] == "Raspberry Pi")
+	{
+?>
+	config.wiringPinout = $('#LEDPanelsWiringPinout').val();
+<?
+	}
+?>
 	config.invertedData = parseInt($('#LEDPanelsStartCorner').val());
 	config.panelWidth = LEDPanelWidth;
 	config.panelHeight = LEDPanelHeight;
@@ -2509,6 +2525,22 @@ tr.rowUniverseDetails td
 									</select>
 									</td>
 							</tr>
+<?
+	if ($settings['Platform'] == "Raspberry Pi")
+	{
+?>
+							<tr>
+								<td><b>Wiring Pinout:</b></td><td>
+									<select id='LEDPanelsWiringPinout'>
+										<option value='Standard'>Standard</option>
+										<option value='Classic'>Classic</option>
+										<option value='Adafruit'>Adafruit</option>
+									</select>
+									</td>
+							</tr>
+<?
+	}
+?>
 							<tr>
 								<td width = '70 px' colspan=5><input id='btnSaveChannelOutputsJSON' class='buttons' type='button' value='Save' onClick='SaveChannelOutputsJSON();'/> <font size=-1><? if ($settings['Platform'] == "BeagleBone Black") { echo "(this will save changes to BBB tab &amp; LED Panels tab)"; } ?></font></td>
 							</tr>

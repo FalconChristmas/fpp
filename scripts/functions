@@ -607,6 +607,23 @@ setupChannelOutputs() {
 				fi
 			fi
 		fi
+
+		# Link in desired version of RGBMatrix library
+		PINOUT=$(cat ${FPPHOME}/media/config/channeloutputs.json | tr -d "\r\n" | sed -e 's/.*LEDPanelMatrix",[      a-zA-Z0-9:",]*"enabled": 1//' -e 's/.*"wiringPinout": "//' -e 's/".*//')
+		rm ${FPPDIR}/lib/librgbmatrix.so
+		case ${PINOUT} in
+			Standard)
+				ln -s ${FPPDIR}/lib/librgbmatrix_Standard.so ${FPPDIR}/lib/librgbmatrix.so
+				;;
+			Classic)
+				ln -s ${FPPDIR}/lib/librgbmatrix_Classic.so ${FPPDIR}/lib/librgbmatrix.so
+				;;
+			Adafruit)
+				ln -s ${FPPDIR}/lib/librgbmatrix_Adafruit.so ${FPPDIR}/lib/librgbmatrix.so
+				;;
+			*)
+				;;
+		esac
 	fi
 
 	startOLADaemonIfNecessary
