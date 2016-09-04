@@ -199,13 +199,18 @@ int BBBSerialOutput::RawSendData(unsigned char *channelData)
 
 	for (int i = 0; i < m_outputs; i++)
 	{
+		// Skip the headers (6 bytes per output for Pixelnet and 1 byte per output
+		// for DMX) and index into the proper position in the m_outputs number of
+		// bytes in each slice
 		if (m_pixelnet)
 			c = out + i + (m_outputs * 6);
 		else
 			c = out + i + (m_outputs);
 
+		// Get the start channel for this output
 		s = (uint8_t*)(channelData + m_startChannels[i]);
 
+		// Now copy the individual channel data into each slice
 		for (int ch = 0; ch < chCount; ch++)
 		{
 			*c = *(s++);
@@ -214,11 +219,8 @@ int BBBSerialOutput::RawSendData(unsigned char *channelData)
 		}
 	}
 
-HexDump("out data", out, 64);
-LogDebug(VB_CHANNELOUT, "Waiting for PRU code to be ready for more data\n");
 	// Wait for the previous draw to finish
 	while (m_leds->ws281x->command);
-LogDebug(VB_CHANNELOUT, "PRU code ready for more data\n");
 
 	// Map
 	m_leds->ws281x->pixels_dma = m_leds->pru->ddr_addr + m_leds->frame_size * frame + BBBSERIAL_DDR_OFFSET;
