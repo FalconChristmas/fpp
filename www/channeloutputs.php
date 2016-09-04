@@ -1667,11 +1667,15 @@ function GetBBB48StringRows()
 
 	if (subType == 'F16-B')
 		rows = 16;
+	else if (subType == 'F16-B-WS')
+		rows = 16;
 	else if (subType == 'F16-B-32')
 		rows = 32;
 	else if (subType == 'F16-B-48')
 		rows = 48;
 	else if (subType == 'F4-B')
+		rows = 4;
+	else if (subType == 'F4-B-WS')
 		rows = 4;
 	else if (subType == 'RGBCape48C')
 		rows = 48;
@@ -1696,8 +1700,8 @@ function GetBBB48StringConfig()
 	if ($('#BBB48StringEnabled').is(":checked"))
 		config.enabled = 1;
 
-	if (config.subType.substr(0, 5) == "F16-B")
-		config.subType = "F16-B";
+//	if (config.subType.substr(0, 5) == "F16-B")
+//		config.subType = "F16-B";
 
 	var i = 0;
 	for (i = 0; i < BBB48StringOutputs; i++)
@@ -1795,6 +1799,19 @@ function DrawBBB48StringTable()
 
 	BBB48StringOutputs = GetBBB48StringRows();
 
+	var subType = $('#BBB48StringSubType').val();
+
+	if ((subType == 'F4-B-WS') || (subType == 'F16-B-WS'))
+	{
+		$('#BBBSerialSelect').show();
+		$('#BBBSerialOutputs').show();
+	}
+	else
+	{
+		$('#BBBSerialSelect').hide();
+		$('#BBBSerialOutputs').hide();
+	}
+
 	var s = 0;
 	for (s = 0; s < BBB48StringOutputs; s++)
 	{
@@ -1881,6 +1898,8 @@ function InitializeBBB48String()
 		{
 			if (channelOutputsLookup["BBB48String"].outputCount == 32)
 				$('#BBB48StringSubType').val("F16-B-32");
+			else if (channelOutputsLookup["BBB48String"].outputCount == 40)
+				$('#BBB48StringSubType').val("F16-B-40");
 			else
 				$('#BBB48StringSubType').val("F16-B-48");
 		}
@@ -1893,6 +1912,74 @@ function InitializeBBB48String()
 
 	DrawBBB48StringTable();
 
+}
+
+function InitializeBBBSerial()
+{
+	if (("BBBSerial" in channelOutputsLookup) &&
+		(typeof channelOutputsLookup["BBBSerial"].subType != "undefined") &&
+		(channelOutputsLookup["BBBSerial"].subType != 'off'))
+	{
+		$('#BBBSerialMode').val(channelOutputsLookup["BBBSerial"].subType);
+
+		var outputs = channelOutputsLookup["BBBSerial"].outputs;
+
+		for (var i = 0; i < outputs.length; i++)
+		{
+			var outputNumber = outputs[i].outputNumber + 1;
+			$('#BBBSerialStartChannel' + outputNumber).val(outputs[i].startChannel);
+		}
+	}
+}
+
+function GetBBBSerialConfig()
+{
+	var config = new Object();
+	var startChannel = 999999;
+	var endChannel = 1;
+
+	config.type = "BBBSerial";
+	config.enabled = 0;
+	config.subType = $('#BBBSerialMode').val();
+	config.startChannel = 0;
+	config.channelCount = 0;
+	config.outputs = [];
+
+	if (config.subType != 'off')
+		config.enabled = 1;
+	else
+		config.subType = 'DMX';
+
+	var i = 1;
+	for (i = 1; i <= 8; i++)
+	{
+		var output = new Object();
+		var ai = '\\[' + i + '\\]';
+
+		output.outputNumber = i - 1;
+		output.startChannel = parseInt($('#BBBSerialStartChannel' + i).val());
+
+		if (output.startChannel < startChannel)
+			startChannel = output.startChannel;
+
+		output.outputType = config.subType;
+
+		if (output.subType == 'DMX')
+			output.channelCount = 512;
+		else
+			output.channelCount = 4096;
+
+		var maxOutputChannel = output.startChannel + output.channelCount - 1;
+		if (maxOutputChannel > endChannel)
+			endChannel = maxOutputChannel;
+
+		config.outputs.push(output);
+	}
+
+	config.startChannel = startChannel;
+	config.channelCount = endChannel - startChannel + 1;
+
+	return config;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -2220,6 +2307,10 @@ function UpdateChannelOutputLookup()
 		{
 			channelOutputsLookup["BBB48String"] = channelOutputs.channelOutputs[i];
 		}
+		else if (channelOutputs.channelOutputs[i].type == "BBBSerial")
+		{
+			channelOutputsLookup["BBBSerial"] = channelOutputs.channelOutputs[i];
+		}
 	}
 }
 
@@ -2241,6 +2332,7 @@ function GetChannelOutputConfig()
 	{
 		echo "// BBB 48 String output\n";
 		echo "config.channelOutputs.push(GetBBB48StringConfig());\n";
+		echo "config.channelOutputs.push(GetBBBSerialConfig());\n";
 	}
 ?>
 
@@ -2311,6 +2403,7 @@ $(document).ready(function(){
 	{
 		// BBB 48 String initialization
 		echo "InitializeBBB48String();\n";
+		echo "InitializeBBBSerial();\n";
 	}
 ?>
 
@@ -2587,12 +2680,26 @@ if ($settings['Platform'] == "BeagleBone Black")
 								<td><b>Cape Type:</b></td>
 								<td><select id='BBB48StringSubType' onChange='BBB48StringSubTypeChanged();'>
 									<option value='F16-B'>F16-B</option>
+									<option value='F16-B-WS'>F16-B with Serial</option>
 									<option value='F16-B-32'>F16-B w/ 32 outputs</option>
-									<option value='F16-B-48'>F16-B w/ 48 outputs</option>
+									<option value='F16-B-48'>F16-B w/ 48 outputs (No Serial)</option>
 									<option value='F4-B'>F4-B</option>
+									<option value='F4-B-WS'>F4-B with Serial</option>
 									<option value='RGBCape48C'>RGBCape48C</option>
 									</select>
 									</td>
+							</tr>
+							<tr id='BBBSerialSelect'>
+								<td><b>BBB Serial Cape Mode:</b></td>
+								<td><select id='BBBSerialMode'>
+										<option value='off'>Disabled</option>
+										<option value='DMX'>DMX</option>
+										<option value='Pixelnet'>Pixelnet</option>
+									</select>
+									</td>
+								<td width=20>&nbsp;</td>
+								<td width=20>&nbsp;</td>
+								<td width=20>&nbsp;</td>
 							</tr>
 							<tr>
 								<td width = '70 px' colspan=5><input id='btnSaveChannelOutputsJSON' class='buttons' type='button' value='Save' onClick='SaveChannelOutputsJSON();'/> <font size=-1>(this will save changes to BBB tab &amp; LED Panels tab)</font></td>
@@ -2618,6 +2725,44 @@ if ($settings['Platform'] == "BeagleBone Black")
 							<tbody>
 							</tbody>
 						</table>
+						<br>
+						<span id='BBBSerialOutputs'>
+						Serial Outputs:<br>
+
+						<table>
+							<thead>
+								<tr class='tblheader'>
+									<td width='30px'>#</td>
+									<td width='90px'>Start<br>Channel</td>
+								</tr>
+							</thead>
+							<tr id='BBBSerialOutputRow1'><td>1</td>
+								<td><input id='BBBSerialStartChannel1' size='6' maxlength='6' value='1'></td>
+								</tr>
+							<tr id='BBBSerialOutputRow2'><td>2</td>
+								<td><input id='BBBSerialStartChannel2' size='6' maxlength='6' value='1'></td>
+								</tr>
+							<tr id='BBBSerialOutputRow3'><td>3</td>
+								<td><input id='BBBSerialStartChannel3' size='6' maxlength='6' value='1'></td>
+								</tr>
+							<tr id='BBBSerialOutputRow4'><td>4</td>
+								<td><input id='BBBSerialStartChannel4' size='6' maxlength='6' value='1'></td>
+								</tr>
+							<tr id='BBBSerialOutputRow5'><td>5</td>
+								<td><input id='BBBSerialStartChannel5' size='6' maxlength='6' value='1'></td>
+								</tr>
+							<tr id='BBBSerialOutputRow6'><td>6</td>
+								<td><input id='BBBSerialStartChannel6' size='6' maxlength='6' value='1'></td>
+								</tr>
+							<tr id='BBBSerialOutputRow7'><td>7</td>
+								<td><input id='BBBSerialStartChannel7' size='6' maxlength='6' value='1'></td>
+								</tr>
+							<tr id='BBBSerialOutputRow8'><td>8</td>
+								<td><input id='BBBSerialStartChannel8' size='6' maxlength='6' value='1'></td>
+								</tr>
+						</table>
+						
+						</span>
 					</div>
 				</div>
 			</fieldset>
