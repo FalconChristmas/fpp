@@ -1882,6 +1882,7 @@ function DrawBBB48StringTable()
 function BBB48StringSubTypeChanged()
 {
 	DrawBBB48StringTable();
+	SetupBBBSerialStartChannels();
 }
 
 function InitializeBBB48String()
@@ -1916,6 +1917,16 @@ function InitializeBBB48String()
 
 function InitializeBBBSerial()
 {
+	var maxPorts = 8;
+
+	if (("BBB48String" in channelOutputsLookup) &&
+		(typeof channelOutputsLookup["BBB48String"].subType != "undefined"))
+	{
+		if ((channelOutputsLookup["BBB48String"].subType != 'F4-B-WS') &&
+			(channelOutputsLookup["BBB48String"].subType != 'F16-B-WS'))
+			return; // nothing to setup if non-serial cape
+	}
+
 	if (("BBBSerial" in channelOutputsLookup) &&
 		(typeof channelOutputsLookup["BBBSerial"].subType != "undefined") &&
 		(channelOutputsLookup["BBBSerial"].subType != 'off'))
@@ -1929,6 +1940,26 @@ function InitializeBBBSerial()
 			var outputNumber = outputs[i].outputNumber + 1;
 			$('#BBBSerialStartChannel' + outputNumber).val(outputs[i].startChannel);
 		}
+	}
+
+	SetupBBBSerialStartChannels();
+}
+
+function SetupBBBSerialStartChannels()
+{
+	var subType = $('#BBB48StringSubType').val();
+
+	if (subType == 'F4-B-WS')
+		maxPorts = 1;
+	else if (subType == 'F16-B-WS')
+		maxPorts = 8;
+
+	for (var i = 1; i <= 8; i++)
+	{
+		if (i <= maxPorts)
+			$('#BBBSerialOutputRow' + i).show();
+		else
+			$('#BBBSerialOutputRow' + i).hide();
 	}
 }
 
