@@ -1995,7 +1995,7 @@ function GetBBBSerialConfig()
 
 		output.outputType = config.subType;
 
-		if (output.subType == 'DMX')
+		if (config.subType == 'DMX')
 			output.channelCount = 512;
 		else
 			output.channelCount = 4096;
