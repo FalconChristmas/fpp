@@ -593,6 +593,7 @@ setupChannelOutputs() {
 				ln -s ${FPPDIR}/lib/librgbmatrix_Adafruit.so ${FPPDIR}/lib/librgbmatrix.so
 				;;
 			*)
+				ln -s ${FPPDIR}/lib/librgbmatrix_Standard.so ${FPPDIR}/lib/librgbmatrix.so
 				;;
 		esac
 	fi
