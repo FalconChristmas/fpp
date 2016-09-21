@@ -231,7 +231,7 @@ $plugins = Array(
 		'sourceUrl'   => 'https://github.com/LightsOnHudson/FPP-Plugin-Switcher.git',
 		'bugUrl'      => 'https://github.com/LightsOnHudson/FPP-Plugin-Switcher/issues',
 		'sha'         => '1819feea757afa369ae8c35a411847a50cb8c458',
-	),
+	)
 
 );
 
