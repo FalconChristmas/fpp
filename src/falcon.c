@@ -536,7 +536,7 @@ int DetectFalconHardware(int configureHardware)
 		strcpy(model, "UNKNOWN");
 		strcpy(cfgFile, "Falcon.FPD");
 
-		switch (query[0])
+		switch ((unsigned char)query[0])
 		{
 			// 0x01-0x7F == Falcon Controllers
 			case 0x01:	strcpy(model, "F16 v2.x");
