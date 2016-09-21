@@ -181,6 +181,11 @@ else if ($settings['Platform'] == "ODROID")
 	$settings['Logo'] = "odroid_logo.gif";
 	$settings['LogoLink'] = "";
 }
+else if ($settings['Platform'] == "CHIP")
+{
+	$settings['Logo'] = "chip_logo.png";
+	$settings['LogoLink'] = "http://www.getchip.com/";
+}
 else if ($settings['Platform'] == "Debian")
 {
 	$settings['Logo'] = "debian_logo.png";
