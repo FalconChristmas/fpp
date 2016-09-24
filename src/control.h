@@ -30,6 +30,7 @@
 #include <sys/types.h>
 
 #define FPP_CTRL_PORT 32320
+#define FPP_CTRL_CSV_PORT 32321
 
 #define CTRL_PKT_CMD   0
 #define CTRL_PKT_SYNC  1
