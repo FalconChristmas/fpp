@@ -1622,6 +1622,7 @@ function AddOtherOutput() {
 ?>
 				"<option value='VirtualMatrix'>Virtual Matrix</option>" +
 				"<option value='Triks-C'>Triks-C</option>" +
+				"<option value='USBRelay'>USBRelay</option>" +
 			"</select></td>" +
 			"<td><input class='start' type='text' size=6 maxlength=6 value='' style='display: none;'></td>" +
 			"<td><input class='count' type='text' size=6 maxlength=6 value='' style='display: none;'></td>" +
