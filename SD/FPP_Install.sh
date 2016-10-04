@@ -62,7 +62,7 @@
 SCRIPTVER="0.9"
 FPPBRANCH="master"
 FPPIMAGEVER="2.0alpha"
-FPPCFGVER="20"
+FPPCFGVER="21"
 FPPPLATFORM="UNKNOWN"
 FPPDIR="/opt/fpp"
 OSVER="UNKNOWN"
@@ -774,6 +774,21 @@ esac
 # Fix sudoers to not require password
 echo "FPP - Giving fpp user sudo"
 echo "fpp ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+#######################################
+# Print notice during login regarding console access
+cat <<-EOF >> /etc/motd
+[0;31m
+                   _______  ___
+                  / __/ _ \/ _ \
+                 / _// ___/ ___/ [0m FalconPiPlayer[0;31m
+                /_/ /_/  /_/
+[1m
+This FPP console is for advanced users, debugging, and developers.  If
+you aren't one of those, you're probably looking for the web-based GUI.
+
+You can access the UI by typing "http://fpp/" into a web browser.[0m
+	EOF
 
 #######################################
 # Config fstab to mount some filesystems as tmpfs
