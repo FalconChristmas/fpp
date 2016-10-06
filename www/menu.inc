@@ -122,6 +122,7 @@ function list_plugin_entries($menu)
         <ul>
           <li><a href="http://falconchristmas.com/wiki/index.php/Falcon_FPP" target="_blank">Wiki/Help</a></li>
           <li><a href="help.php">Help Index</a></li>
+          <li><a href="cliHelp.php">fpp &amp; fppmm Usage</a></li>
           <li><a href="troubleshooting.php">Troubleshooting Commands</a></li>
           <li><a href="http://<?php echo $_SERVER['SERVER_ADDR'] ?>:4200" target="_new">SSH Shell</a></li>
           <li><a href="about.php">About</a></li>

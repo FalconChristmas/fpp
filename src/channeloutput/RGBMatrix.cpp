@@ -51,7 +51,8 @@ RGBMatrixOutput::RGBMatrixOutput(unsigned int startChannel,
 	m_height(0),
 	m_rows(0),
 	m_outputs(0),
-	m_longestChain(0)
+	m_longestChain(0),
+	m_invertedData(0)
 {
 	LogDebug(VB_CHANNELOUT, "RGBMatrixOutput::RGBMatrixOutput(%u, %u)\n",
 		startChannel, channelCount);
@@ -63,6 +64,9 @@ RGBMatrixOutput::RGBMatrixOutput(unsigned int startChannel,
 RGBMatrixOutput::~RGBMatrixOutput()
 {
 	LogDebug(VB_CHANNELOUT, "RGBMatrixOutput::~RGBMatrixOutput()\n");
+
+	delete m_matrix;
+	delete m_panelMatrix;
 }
 
 /*
@@ -81,10 +85,11 @@ int RGBMatrixOutput::Init(Json::Value config)
 	if (!m_panelHeight)
 		m_panelHeight = 16;
 
+	m_invertedData = config["invertedData"].asInt();
 	m_colorOrder = config["colorOrder"].asString();
 
 	m_panelMatrix =
-		new PanelMatrix(m_panelWidth, m_panelHeight);
+		new PanelMatrix(m_panelWidth, m_panelHeight, 3, m_invertedData);
 
 	if (!m_panelMatrix)
 	{
@@ -156,6 +161,24 @@ int RGBMatrixOutput::Init(Json::Value config)
 	RGBMatrix *rgbmatrix = reinterpret_cast<RGBMatrix*>(m_canvas);
 	rgbmatrix->SetPWMBits(8);
 
+	m_matrix = new Matrix(m_startChannel, m_width, m_height);
+
+	if (config.isMember("subMatrices"))
+	{
+		for (int i = 0; i < config["subMatrices"].size(); i++)
+		{
+			Json::Value sm = config["subMatrices"][i];
+
+			m_matrix->AddSubMatrix(
+				sm["enabled"].asInt(),
+				sm["startChannel"].asInt() - 1,
+				sm["width"].asInt(),
+				sm["height"].asInt(),
+				sm["xOffset"].asInt(),
+				sm["yOffset"].asInt());
+		}
+	}
+
 	return ChannelOutputBase::Init(config);
 }
 
@@ -175,6 +198,14 @@ int RGBMatrixOutput::Close(void)
 	m_gpio = NULL;
 
 	return ChannelOutputBase::Close();
+}
+
+/*
+ *
+ */
+void RGBMatrixOutput::PrepData(unsigned char *channelData)
+{
+	m_matrix->OverlaySubMatrices(channelData);
 }
 
 /*

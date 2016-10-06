@@ -426,7 +426,10 @@ int SendChannelData(char *channelData) {
 				channelData + inst->startChannel,
 				inst->channelCount < (FPPD_MAX_CHANNELS - inst->startChannel) ? inst->channelCount : (FPPD_MAX_CHANNELS - inst->startChannel));
 		else if (inst->output)
+		{
+			inst->output->PrepData((unsigned char *)channelData);
 			inst->output->SendData((unsigned char *)(channelData + inst->startChannel));
+		}
 	}
 
 	channelOutputFrame++;

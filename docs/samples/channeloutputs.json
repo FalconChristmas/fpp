@@ -274,7 +274,18 @@
 					"row": 2,
 					"col": 2
 				}
+			],
+			"subMatrices": [
+				{
+					"enabled": 0,
+					"startChannel": 30001,
+					"width": 32,
+					"height": 16,
+					"xOffset": 16,
+					"yOffset": 8
+				}
 			]
+
 		},
 		{
 			"type": "OLA",
