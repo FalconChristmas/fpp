@@ -1,0 +1,41 @@
+{
+  "name": "jquery-colpick",
+  "homepage": "https://github.com/mrgrain/colpick",
+  "authors": [
+    "Moritz Kornher <mail@moritzkornher.de>",
+    "Jose Vargas <josedvq@gmail.com> (http://codeitdown.com)",
+    "Stefan Petre (http://www.eyecon.ro/colorpicker/)"
+  ],
+  "description": "Simple lightweight Photoshop-like color picker with touch support.",
+  "main": "js/colpick.js",
+  "moduleType": [
+    "amd",
+    "globals",
+    "node"
+  ],
+  "keywords": [
+    "colpick",
+    "color",
+    "picker",
+    "colorpicker",
+    "chooser",
+    "selector",
+    "form",
+    "jquery",
+    "input"
+  ],
+  "license": [
+    "MIT",
+    "GPL-2.0"
+  ],
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "jquery": ">=1.7.0 || ^2.1.4"
+  }
+}

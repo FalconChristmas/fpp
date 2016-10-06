@@ -29,6 +29,7 @@
 #include <vector>
 
 typedef struct subMatrix {
+	int enabled;
 	int startChannel;
 	int width;
 	int height;
@@ -41,7 +42,7 @@ class Matrix {
 	Matrix(int startChannel, int width, int height);
 	~Matrix();
 
-	void AddSubMatrix(int startChannel, int width, int height,
+	void AddSubMatrix(int enabled, int startChannel, int width, int height,
 		int xOffset, int yOffset);
 
 	void OverlaySubMatrix(unsigned char *channelData, int i);
@@ -51,6 +52,7 @@ class Matrix {
 	int  m_startChannel;
 	int  m_width;
 	int  m_height;
+	int  m_enableFlagOffset;
 
 	unsigned char *m_buffer;
 

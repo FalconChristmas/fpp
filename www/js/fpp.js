@@ -640,6 +640,30 @@ function RemovePlaylistEntry()	{
 			});
 		}
 
+		function PingIP(ip, count)
+		{
+			if (ip == "")
+				return;
+
+				$('#helpText').html("Pinging " + ip + "<br><br>This will take a few seconds to load");
+				$('#dialog-help').dialog({ height: 600, width: 800, position: { my: 'center', at: 'top', of: window}, title: "Ping " + ip });
+//				$('#dialog-help').dialog( "moveToTop" );
+
+				$.get("ping.php?ip=" + ip + "&count=" + count
+				).success(function(data) {
+						$('#helpText').html(data);
+				}).fail(function() {
+						$('#helpText').html("Error pinging " + ip);
+				});
+		}
+
+		function PingE131IP(id)
+		{
+			var ip = $("[name='txtIP\[" + id + "\]']").val();
+
+			PingIP(ip, 3);
+		}
+
 		function ViewReleaseNotes(version) {
 				$('#helpText').html("Retrieving Release Notes");
 				$('#dialog-help').dialog({ height: 800, width: 800, title: "Release Notes for FPP v" + version });
@@ -772,6 +796,7 @@ function RemovePlaylistEntry()	{
 												"<td width=\"10%\" align='left'>Universe<br>Size</td>" +
                         "<td width=\"20%\" align='left'>Universe<br>Type</td>" +
 												"<td width=\"20%\" align='left'>Unicast Address</td>" +
+												"<td width=\"5%\" align='left'>Ping</td>" +
 												"</tr>";
 												
 							UniverseCount = entries.childNodes.length;
@@ -801,6 +826,7 @@ function RemovePlaylistEntry()	{
 															      "<option value=\"0\" " + multicastChecked + ">Multicast</option>" +
 															      "<option value=\"1\" " + unicastChecked + ">Unicast</option></select></td>" + 
 															"<td><input name=\"txtIP[" + i.toString() + "]\" id=\"txtIP[" + i.toString() + "]\" type=\"text\"/ value=\"" + unicastAddress + "\" size=\"15\" maxlength=\"15\"></td>" +
+															"<td><input type=button onClick='PingE131IP(" + i.toString() + ");' value='Ping'></td>" +
 															"</tr>";
 
 							}
