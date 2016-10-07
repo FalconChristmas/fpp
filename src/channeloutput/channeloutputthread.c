@@ -132,7 +132,9 @@ void *RunChannelOutputThread(void *data)
 				// Send sync every 16 frames (use 16 to make the check simpler)
 				syncFrameCounter = 1;
 				SendSeqSyncPacket(
-					sequence->m_seqFilename, channelOutputFrame, mediaElapsedSeconds);
+					sequence->m_seqFilename, channelOutputFrame,
+					(mediaElapsedSeconds > 0) ? mediaElapsedSeconds
+						: 1.0 * channelOutputFrame / RefreshRate );
 			}
 			else
 			{
