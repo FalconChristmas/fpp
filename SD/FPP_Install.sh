@@ -384,7 +384,7 @@ case "${OSVER}" in
 
 		echo "FPP - Installing non-packaged Perl modules via App::cpanminus"
 		curl -L https://cpanmin.us | perl - --sudo App::cpanminus
-		echo "yes" | cpanm -fi Test::Tester File::Map Net::WebSocket::Server
+		echo "yes" | cpanm -fi Test::Tester File::Map Net::WebSocket::Server Net::PJLink
 
 		echo "FPP - Disabling any stock 'debian' user, use the 'fpp' user instead"
 		sed -i -e "s/^debian:.*/debian:*:16372:0:99999:7:::/" /etc/shadow
