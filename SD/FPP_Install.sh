@@ -783,7 +783,7 @@ echo "fpp ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers
 cat <<-EOF >> /etc/motd
 [0;31m
                    _______  ___
-                  / __/ _ \/ _ \
+                  / __/ _ \\/ _ \\
                  / _// ___/ ___/ [0m FalconPiPlayer[0;31m
                 /_/ /_/  /_/
 [1m
