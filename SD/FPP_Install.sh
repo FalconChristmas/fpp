@@ -62,7 +62,7 @@
 SCRIPTVER="0.9"
 FPPBRANCH="master"
 FPPIMAGEVER="2.0alpha"
-FPPCFGVER="18"
+FPPCFGVER="22"
 FPPPLATFORM="UNKNOWN"
 FPPDIR="/opt/fpp"
 OSVER="UNKNOWN"
@@ -384,7 +384,7 @@ case "${OSVER}" in
 
 		echo "FPP - Installing non-packaged Perl modules via App::cpanminus"
 		curl -L https://cpanmin.us | perl - --sudo App::cpanminus
-		echo "yes" | cpanm -fi Test::Tester File::Map Net::WebSocket::Server
+		echo "yes" | cpanm -fi Test::Tester File::Map Net::WebSocket::Server Net::PJLink
 
 		echo "FPP - Disabling any stock 'debian' user, use the 'fpp' user instead"
 		sed -i -e "s/^debian:.*/debian:*:16372:0:99999:7:::/" /etc/shadow
@@ -498,6 +498,9 @@ cat <<-EOF >> /etc/modprobe.d/8192cu.conf
 		# Disable power management on 8192cu module
 		options 8192cu rtw_power_mgnt=0 rtw_enusbss=0
 EOF
+
+		echo "FPP - Fixing potential ping issue"
+		chmod u+s /bin/ping
 
 		;;
 
@@ -774,6 +777,21 @@ esac
 # Fix sudoers to not require password
 echo "FPP - Giving fpp user sudo"
 echo "fpp ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+#######################################
+# Print notice during login regarding console access
+cat <<-EOF >> /etc/motd
+[0;31m
+                   _______  ___
+                  / __/ _ \\/ _ \\
+                 / _// ___/ ___/ [0m FalconPiPlayer[0;31m
+                /_/ /_/  /_/
+[1m
+This FPP console is for advanced users, debugging, and developers.  If
+you aren't one of those, you're probably looking for the web-based GUI.
+
+You can access the UI by typing "http://fpp/" into a web browser.[0m
+	EOF
 
 #######################################
 # Config fstab to mount some filesystems as tmpfs
