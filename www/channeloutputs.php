@@ -1235,6 +1235,9 @@ function PopulateChannelOutputTable(data) {
 		if ((type == "Triks-C") ||
 			(type == 'GPIO') ||
 			(type == 'USBRelay') ||
+			(type == 'RPIWS281X') ||
+			(type == 'Pixelnet-Lynx') ||
+			(type == 'Pixelnet-Open') ||
 			(type == 'VirtualMatrix'))
 			countDisabled = " disabled=''";
 
@@ -1496,6 +1499,7 @@ function AddOtherTypeOptions(row, type) {
 			   (type == "Pixelnet-Open")) {
 		config += NewUSBConfig();
 		row.find("td input.count").val("4096");
+		row.find("td input.count").prop('disabled', true);
 	} else if (type == "Renard") {
 		config += NewRenardConfig();
 		row.find("td input.count").val("286");
@@ -2464,6 +2468,10 @@ $(document).ready(function(){
     background-color:#CCC;
     text-align:center;
     }
+.tblheader td {
+    border: solid 2px #888888;
+    text-align:center;
+}
 tr.rowUniverseDetails
 {
     border:thin solid;
@@ -2495,7 +2503,7 @@ tr.rowUniverseDetails td
 		<div class='title'>Channel Outputs</div>
 		<div id="tabs">
 			<ul>
-				<li><a href="#tab-e131">E1.31</a></li>
+				<li><a href="#tab-e131">E1.31 / ArtNet</a></li>
 <?
 	if ($settings['Platform'] == "Raspberry Pi")
 	{
@@ -2529,12 +2537,12 @@ tr.rowUniverseDetails td
 			<div id='tab-e131'>
 				<div id='divE131'>
 					<fieldset class="fs">
-						<legend> E1.31 </legend>
+						<legend> E1.31 / ArtNet </legend>
 						<div id='divE131Data'>
 
   <div style="overflow: hidden; padding: 10px;">
-	<b>Enable E1.31 Output:</b> <? PrintSettingCheckbox("E1.31 Output", "E131Enabled", 1, 0, "1", "0"); ?><br><br>
-	E1.31 Interface: <select id="selE131interfaces" onChange="SetE131interface();"><? PopulateInterfaces(); ?></select>
+	<b>Enable E1.31 /ArtNet Output:</b> <? PrintSettingCheckbox("E1.31 / ArtNet Output", "E131Enabled", 1, 0, "1", "0"); ?><br><br>
+	E1.31 / ArtNet Interface: <select id="selE131interfaces" onChange="SetE131interface();"><? PopulateInterfaces(); ?></select>
 	<br><br>
 
     <div>
@@ -2824,7 +2832,7 @@ if ($settings['Platform'] == "BeagleBone Black")
 </table>
 <table id="tblOtherOutputs" class='channelOutputTable'>
 <thead>
-	<tr class='tblheader'><td>#</td><td>Act</td><td>Type</td><td>Start Ch.</td><td>Ch. Cnt</td><td>Output Config</td></tr>
+	<tr class='tblheader'><td>#</td><td>Act</td><td>Output Type</td><td>Start Ch.</td><td>Channel<br>Count</td><td>Output Config</td></tr>
 </thead>
 <tbody>
 </tbody>

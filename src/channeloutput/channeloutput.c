@@ -34,6 +34,7 @@
 
 #include "channeloutput.h"
 #include "DebugOutput.h"
+#include "ArtNet.h"
 #include "E131.h"
 #include "FBMatrix.h"
 #include "FPD.h"
@@ -161,7 +162,7 @@ int InitializeChannelOutputs(void) {
 
 	if (((getFPPmode() != BRIDGE_MODE) ||
 		 (getSettingInt("E131Bridging"))) &&
-		(E131Output.isConfigured()))
+		 (E131Output.isConfigured()))
 	{
 		channelOutputs[i].startChannel = 0;
 		channelOutputs[i].outputOld  = &E131Output;
@@ -172,6 +173,20 @@ int InitializeChannelOutputs(void) {
 			i++;
 		} else {
 			LogErr(VB_CHANNELOUT, "ERROR Opening E1.31 Channel Output\n");
+		}
+	}
+
+	if (ArtNetOutput.isConfigured())
+	{
+		channelOutputs[i].startChannel = 0;
+		channelOutputs[i].outputOld  = &ArtNetOutput;
+
+		if (ArtNetOutput.open("", &channelOutputs[i].privData)) {
+			channelOutputs[i].channelCount = channelOutputs[i].outputOld->maxChannels(channelOutputs[i].privData);
+
+			i++;
+		} else {
+			LogErr(VB_CHANNELOUT, "ERROR Opening ArtNet Channel Output\n");
 		}
 	}
 
