@@ -29,6 +29,7 @@ OBJECTS_fppd = \
 	channeloutput/ChannelOutputBase.o \
 	channeloutput/channeloutput.o \
 	channeloutput/channeloutputthread.o \
+	channeloutput/ArtNet.o \
 	channeloutput/DebugOutput.o \
 	channeloutput/E131.o \
 	channeloutput/FBMatrix.o \
@@ -133,7 +134,7 @@ CFLAGS += -Wimplicit
 else
 # we get lots of deprecated warnings currently with g++ since we're
 # normally compiling with gcc
-CFLAGS += -Wno-write-strings
+CFLAGS += -Wno-write-strings -Wno-narrowing
 endif
 
 ifeq '$(ARCH)' 'Raspberry Pi'
