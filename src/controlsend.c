@@ -41,8 +41,8 @@
 
 #define MAX_SYNC_REMOTES 64
 
-int ctrlSendSock    = 0;
-int ctrlSendCSVSock = 0;
+int ctrlSendSock    = -1;
+int ctrlSendCSVSock = -1;
 int remoteCount     = 0;
 
 char                cLocalAddress[16];
@@ -189,7 +189,8 @@ int InitSyncMaster(void) {
 
 	free(tmpRemotes);
 
-	InitSyncMasterCSV();
+	if (getSettingInt("MultiSyncCSVBroadcast"))
+		InitSyncMasterCSV();
 
 	return 1;
 }
@@ -246,10 +247,13 @@ void SendSeqSyncStartPacket(const char *filename) {
 
 	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + strlen(filename));
 
-	// Now send the Broadcast CSV version
-	sprintf(outBuf, "FPP,%d,%d,%d,%s",
-		CTRL_PKT_SYNC, SYNC_FILE_SEQ, SYNC_PKT_START, filename);
-	SendControlCSVPacket(outBuf, strlen(outBuf));
+	if (ctrlSendCSVSock >= 0)
+	{
+		// Now send the Broadcast CSV version
+		sprintf(outBuf, "FPP,%d,%d,%d,%s",
+			CTRL_PKT_SYNC, SYNC_FILE_SEQ, SYNC_PKT_START, filename);
+		SendControlCSVPacket(outBuf, strlen(outBuf));
+	}
 }
 
 /*
@@ -285,10 +289,13 @@ void SendSeqSyncStopPacket(const char *filename) {
 
 	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + strlen(filename));
 
-	// Now send the Broadcast CSV version
-	sprintf(outBuf, "FPP,%d,%d,%d,%s",
-		CTRL_PKT_SYNC, SYNC_FILE_SEQ, SYNC_PKT_STOP, filename);
-	SendControlCSVPacket(outBuf, strlen(outBuf));
+	if (ctrlSendCSVSock >= 0)
+	{
+		// Now send the Broadcast CSV version
+		sprintf(outBuf, "FPP,%d,%d,%d,%s",
+			CTRL_PKT_SYNC, SYNC_FILE_SEQ, SYNC_PKT_STOP, filename);
+		SendControlCSVPacket(outBuf, strlen(outBuf));
+	}
 }
 
 /*
@@ -325,11 +332,14 @@ void SendSeqSyncPacket(const char *filename, int frames, float seconds) {
 
 	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + strlen(filename));
 
-	// Now send the Broadcast CSV version
-	sprintf(outBuf, "FPP,%d,%d,%d,%s,%d,%d",
-		CTRL_PKT_SYNC, SYNC_FILE_SEQ, SYNC_PKT_SYNC, filename,
-		(int)seconds, (int)(seconds * 1000) % 1000);
-	SendControlCSVPacket(outBuf, strlen(outBuf));
+	if (ctrlSendCSVSock >= 0)
+	{
+		// Now send the Broadcast CSV version
+		sprintf(outBuf, "FPP,%d,%d,%d,%s,%d,%d",
+			CTRL_PKT_SYNC, SYNC_FILE_SEQ, SYNC_PKT_SYNC, filename,
+			(int)seconds, (int)(seconds * 1000) % 1000);
+		SendControlCSVPacket(outBuf, strlen(outBuf));
+	}
 }
 
 /*
@@ -365,10 +375,13 @@ void SendMediaSyncStartPacket(const char *filename) {
 
 	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + strlen(filename));
 
-	// Now send the Broadcast CSV version
-	sprintf(outBuf, "FPP,%d,%d,%d,%s",
-		CTRL_PKT_SYNC, SYNC_FILE_MEDIA, SYNC_PKT_START, filename);
-	SendControlCSVPacket(outBuf, strlen(outBuf));
+	if (ctrlSendCSVSock >= 0)
+	{
+		// Now send the Broadcast CSV version
+		sprintf(outBuf, "FPP,%d,%d,%d,%s",
+			CTRL_PKT_SYNC, SYNC_FILE_MEDIA, SYNC_PKT_START, filename);
+		SendControlCSVPacket(outBuf, strlen(outBuf));
+	}
 }
 
 /*
@@ -404,10 +417,13 @@ void SendMediaSyncStopPacket(const char *filename) {
 
 	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + strlen(filename));
 
-	// Now send the Broadcast CSV version
-	sprintf(outBuf, "FPP,%d,%d,%d,%s",
-		CTRL_PKT_SYNC, SYNC_FILE_MEDIA, SYNC_PKT_STOP, filename);
-	SendControlCSVPacket(outBuf, strlen(outBuf));
+	if (ctrlSendCSVSock >= 0)
+	{
+		// Now send the Broadcast CSV version
+		sprintf(outBuf, "FPP,%d,%d,%d,%s",
+			CTRL_PKT_SYNC, SYNC_FILE_MEDIA, SYNC_PKT_STOP, filename);
+		SendControlCSVPacket(outBuf, strlen(outBuf));
+	}
 }
 
 /*
@@ -444,11 +460,14 @@ void SendMediaSyncPacket(const char *filename, int frames, float seconds) {
 
 	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + strlen(filename));
 
-	// Now send the Broadcast CSV version
-	sprintf(outBuf, "FPP,%d,%d,%d,%s,%d,%d",
-		CTRL_PKT_SYNC, SYNC_FILE_MEDIA, SYNC_PKT_SYNC, filename,
-		(int)seconds, (int)(seconds * 1000) % 1000);
-	SendControlCSVPacket(outBuf, strlen(outBuf));
+	if (ctrlSendCSVSock >= 0)
+	{
+		// Now send the Broadcast CSV version
+		sprintf(outBuf, "FPP,%d,%d,%d,%s,%d,%d",
+			CTRL_PKT_SYNC, SYNC_FILE_MEDIA, SYNC_PKT_SYNC, filename,
+			(int)seconds, (int)(seconds * 1000) % 1000);
+		SendControlCSVPacket(outBuf, strlen(outBuf));
+	}
 }
 
 /*
@@ -505,8 +524,11 @@ void SendBlankingDataPacket(void)
 
 	SendControlPacket(outBuf, sizeof(ControlPkt));
 
-	// Now send the Broadcast CSV version
-	sprintf(outBuf, "FPP,%d", CTRL_PKT_BLANK);
-	SendControlCSVPacket(outBuf, strlen(outBuf));
+	if (ctrlSendCSVSock >= 0)
+	{
+		// Now send the Broadcast CSV version
+		sprintf(outBuf, "FPP,%d", CTRL_PKT_BLANK);
+		SendControlCSVPacket(outBuf, strlen(outBuf));
+	}
 }
 
