@@ -78,7 +78,11 @@ void Playlist::IncrementPlayListEntry(void)
 		}
 		else
 		{
-			maxEntryIndex = m_playlistDetails.last?m_playlistDetails.playListCount-1:m_playlistDetails.playListCount;
+			if (m_playlistDetails.repeat)
+				maxEntryIndex = m_playlistDetails.last?m_playlistDetails.playListCount-1:m_playlistDetails.playListCount;
+			else
+				maxEntryIndex = m_playlistDetails.playListCount;
+
 			m_playlistDetails.currentPlaylistEntry++;
 			LogDebug(VB_PLAYLIST, "currentPlaylistEntry = %d Last=%d maxEntryIndex=%d repeat=%d \n",m_playlistDetails.currentPlaylistEntry, m_playlistDetails.last,maxEntryIndex,m_playlistDetails.repeat);
 			if((m_playlistDetails.currentPlaylistEntry == maxEntryIndex) && !m_playlistDetails.repeat)
