@@ -140,6 +140,11 @@ SetupFPPNetworkConfig () {
         SetupFPPNetworkConfigViaConnMann
         return
     fi
+    if [ -f "/usr/bin/connmanctl" ]
+    then
+	SetupFPPNetworkConfigViaConnMann
+	return
+    fi
 
 
 

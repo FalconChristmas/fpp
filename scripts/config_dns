@@ -10,6 +10,11 @@ if [ -f "/usr/sbin/connmanctl" ]; then
     echo "Using Connection Manager, DNS setup with interfaces"
     exit 0
 fi
+if [ -f "/usr/sbin/connmanctl" ]; then
+    echo "Using Connection Manager, DNS setup with interfaces"
+    exit 0
+fi
+
 
 if [ -f "${CFGDIR}/dns" ]; then
   . ${CFGDIR}/dns
