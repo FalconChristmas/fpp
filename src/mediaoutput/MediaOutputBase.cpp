@@ -41,6 +41,9 @@ MediaOutputBase::MediaOutputBase(void)
 	LogDebug(VB_MEDIAOUT, "MediaOutputBase::MediaOutputBase()\n");
 
 	pthread_mutex_init(&m_outputLock, NULL);
+
+	m_childPipe[0] = 0;
+	m_childPipe[1] = 0;
 }
 
 MediaOutputBase::~MediaOutputBase()
