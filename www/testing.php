@@ -199,6 +199,33 @@ if ( ! window.console ) console = { log: function(){} };
 
 var lastEnabledState = 0;
 
+function UpdateStartEndFromModel()
+{
+	var range = $('#modelName').val().split(',');
+	$('#testModeStartChannel').val(range[0]);
+	$('#testModeEndChannel').val(range[1]);
+
+	if (lastEnabledState)
+	{
+		var data = {};
+
+		data.enabled = 0;
+
+		var postData = "command=setTestMode&data=" + JSON.stringify(data);
+
+		$.post("fppjson.php", postData).success(function(data) {
+			SetTestMode();
+//			$.jGrowl("Test Mode Disabled");
+		}).fail(function(data) {
+			DialogError("Failed to set Test Mode", "Setup failed");
+		});
+	}
+	else
+	{
+		SetTestMode();
+	}
+}
+
 function GetTestMode()
 {
 	$.ajax({ url: "fppjson.php?command=getTestMode",
@@ -623,21 +650,44 @@ $(document).ready(function(){
 <!--
 						<td>Universe Size:</td>
 						<td><input type='text' size=4 maxlength=4 value='512' id='testUniverseSize'></td>
-						<td>Model Name:</td>
 -->
+						<td width=40>&nbsp;</td>
+						<td>Model Name:</td>
+						<td>
+							<select onChange='UpdateStartEndFromModel();' id='modelName'>
+								<option value='1,524288'>-- All Channels --</option>
+<?
+
+$f = fopen($settings['channelMemoryMapsFile'], "r");
+if ($f == FALSE)
+{
+	fclose($f);
+}
+else
+{
+	while (!feof($f))
+	{
+		$line = fgets($f);
+		if ($line == "")
+			continue;
+
+		$entry = explode(",", $line, 7);
+		printf( "<option value='%d,%d'>%s</option>\n",
+			intval($entry[1]),
+			intval($entry[1]) + intval($entry[2] - 1), $entry[0]);
+	}
+	fclose($f);
+}
+
+?>
+							</select>
+							</td>
 						</tr>
 				<tr><td>End Channel:</td>
 						<td><input type='text' size='6' maxlength='6' value='524288' id='testModeEndChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (1-524288)</td>
 <!--
 						<td>Universe #:</td>
 						<td><input type='text' size=5 maxlength=5 value='1' id='testUniverseNumber'></td>
-						<td>
-							<select>
-								<option>Mega Tree</option>
-								<option>Matrix #1</option>
-								<option>Matrix #2</option>
-							</select>
-							</td>
 -->
 						</tr>
 				</table>
