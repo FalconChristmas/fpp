@@ -3,6 +3,7 @@
 <?php
 include 'common/menuHead.inc';
 require_once("config.php");
+require_once("common.php");
 ?>
 <title><? echo $pageTitle; ?></title>
 <script>
@@ -169,6 +170,8 @@ require_once("config.php");
 					<tr><td colspan=5 align='center'>Loading...</td></tr>
 				</tbody>
 			</table>
+			<hr>
+			<? PrintSettingCheckbox("Send F16v2 Sync Packets", "MultiSyncCSVBroadcast", 1, 0, "1", "0"); ?> Send F16v2 Sync Packets<br>
 			<hr>
 			<font size=-1>
 				<span id='legend'>
