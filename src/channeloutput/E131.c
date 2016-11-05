@@ -47,6 +47,7 @@
 #include "fpp.h"
 #include "log.h"
 #include "settings.h"
+#include "Universe.h"
 
 struct sockaddr_in    localAddress;
 struct sockaddr_in    E131address[MAX_UNIVERSE_COUNT];
@@ -248,15 +249,17 @@ void LoadUniversesFromFile()
 			// Type
 			s=strtok(NULL,",");
 			universes[UniverseCount].type = atoi(s);
-			if(universes[UniverseCount].type == 1)
-			{
-				//UnicastAddress
-				s=strtok(NULL,",");
-				strcpy(universes[UniverseCount].unicastAddress,s);
-			}
-			else
-			{
-				strcpy(universes[UniverseCount].unicastAddress,"\0");
+
+			switch (universes[UniverseCount].type) {
+				case 0: // Multicast
+						strcpy(universes[UniverseCount].unicastAddress,"\0");
+						break;
+				case 1: //UnicastAddress
+						s=strtok(NULL,",");
+						strcpy(universes[UniverseCount].unicastAddress,s);
+						break;
+				default: // ArtNet
+						continue;
 			}
 
 			// FIXME, read this per-universe from config file later

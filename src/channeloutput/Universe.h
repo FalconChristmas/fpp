@@ -1,5 +1,5 @@
 /*
- *   E131 output handler for Falcon Pi Player (FPP)
+ *   E131 / ArtNet Universe structure definition for Falcon Pi Player (FPP)
  *
  *   Copyright (C) 2013 the Falcon Pi Player Developers
  *      Initial development by:
@@ -23,38 +23,23 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _E131_H
-#define _E131_H
+#ifndef _UNIVERSE_H
+#define _UNIVERSE_H
 
-#include "channeloutput.h"
+#define E131_TYPE_MULTICAST   0
+#define E131_TYPE_UNICAST     1
+#define ARTNET_TYPE_BROADCAST 2
+#define ARTNET_TYPE_UNICAST   3
 
-#define MAX_UNIVERSE_COUNT    512
-#define E131_HEADER_LENGTH    126
-#define MAX_STEPS_OUT_OF_SYNC 2
+typedef struct {
+	int           active;
+	int           universe;
+	int           size;
+	int           startAddress;
+	int           type;
+	char          unicastAddress[16];
+	unsigned long bytesReceived;
+	int           priority;
+} UniverseEntry;
 
-#define E131_DEST_PORT        5568
-#define E131_SOURCE_PORT      58301
-
-#define E131_UNIVERSE_INDEX   113
-#define E131_SEQUENCE_INDEX   111
-#define E131_COUNT_INDEX      123
-#define E131_PRIORITY_INDEX   108
-
-#define E131_RLP_COUNT_INDEX       16
-#define E131_FRAMING_COUNT_INDEX   38
-#define E131_DMP_COUNT_INDEX       115
-
-// FIXME, these should be in e131bridge.c, not here
-void  ResetBytesReceived();
-void  WriteBytesReceivedFile();
-void LoadUniversesFromFile();
-
-/* Prototypes for helpers in E131.c */
-void ShowDiff(void);
-void LoadUniversesFromFile();
-void UniversesPrint();
-
-/* Expose our interface */
-extern FPPChannelOutput E131Output;
-
-#endif
+#endif /* _UNIVERSE_H */

@@ -124,17 +124,6 @@ $plugins = Array(
 	),
 
 	Array(
-		'shortName'   => 'SMS',
-		'name'        => 'SMS Playlist Control',
-		'author'      => 'Ben Shaver (bshaver) and Pat Delaney (patdelaney)',
-		'description' => 'Control Playslists via GOOGLE VOICE SMS',
-		'homeUrl'     => 'https://github.com/LightsOnHudson/FPP-Plugin-SMS',
-		'sourceUrl'   => 'https://github.com/LightsOnHudson/FPP-Plugin-SMS.git',
-		'bugUrl'      => 'https://github.com/LightsOnHudson/FPP-Plugin-SMS/issues',
-		'sha'         => '7c5fc5ebc91d90d41237dc8d6d87ad648a46d98b',
-	),
-
-	Array(
 		'shortName'   => 'MatrixMessage',
 		'name'        => 'Message Queue to Matrix Overlay',
 		'author'      => 'Ben Shaver (bshaver) and Pat Delaney (patdelaney)',
@@ -220,6 +209,50 @@ $plugins = Array(
 		'sourceUrl'   => 'https://github.com/LightsOnHudson/FPP-Plugin-ScoreBoard.git',
 		'bugUrl'      => 'https://github.com/LightsOnHudson/FPP-Plugin-ScoreBoard/issues',
 		'sha'         => 'a41c4d3ca7e214b8d08caadfcec33eba1546b82b',
+	),
+
+	Array(
+		'shortName'   => 'EventDate',
+		'name'        => 'Event Date',
+		'author'      => 'Ben Shaver (bshaver) and Steve Smock',
+		'description' => 'Dynamic Event Date countdown for display',
+		'homeUrl'     => 'https://github.com/LightsOnHudson/FPP-Plugin-EventDate',
+		'sourceUrl'   => 'https://github.com/LightsOnHudson/FPP-Plugin-EventDate.git',
+		'bugUrl'      => 'https://github.com/LightsOnHudson/FPP-Plugin-EventDate/issues',
+		'sha'         => 'd4f4daaf278b00314df72052a1aeca016437370f',
+	),
+
+	Array(
+		'shortName'   => 'Election',
+		'name'        => 'Election 2016',
+		'author'      => 'Ben Shaver (bshaver) and Pat Delaney (patdelaney)',
+		'description' => 'Election data for display',
+		'homeUrl'     => 'https://github.com/LightsOnHudson/FPP-Plugin-Election',
+		'sourceUrl'   => 'https://github.com/LightsOnHudson/FPP-Plugin-Election.git',
+		'bugUrl'      => 'https://github.com/LightsOnHudson/FPP-Plugin-Election/issues',
+		'sha'         => '007c44c8475058457a9d0d53f18dd9b9e6a3315f',
+	),
+
+	Array(
+		'shortName'   => 'RadioStation',
+		'name'        => 'Radio Station Type Plugin',
+		'author'      => 'Ben Shaver (bshaver) and Pat Delaney (patdelaney)',
+		'description' => 'Play randomized music playlist on FPP',
+		'homeUrl'     => 'https://github.com/LightsOnHudson/FPP-Plugin-RadioStation',
+		'sourceUrl'   => 'https://github.com/LightsOnHudson/FPP-Plugin-RadioStation.git',
+		'bugUrl'      => 'https://github.com/LightsOnHudson/FPP-Plugin-RadioStation/issues',
+		'sha'         => '48a665792f64f6f127735ed68a039b0ba0162703',
+	),
+
+	Array(
+		'shortName'   => 'model-testing',
+		'name'        => 'Model Testing',
+		'author'      => 'Chris Debenham (cjd)',
+		'description' => 'Quickly toggle pixel overlay models on/off for testing',
+		'homeUrl'     => 'https://github.com/cjd/model-testing',
+		'sourceUrl'   => 'https://github.com/cjd/model-testing.git',
+		'bugUrl'      => 'https://github.com/cjd/model-testing/issues',
+		'sha'         => 'ee71add63b1619a647dc7e93e2edff0a876e6870',
 	),
 
 	Array(
