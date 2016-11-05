@@ -245,6 +245,17 @@ $plugins = Array(
 	),
 
 	Array(
+		'shortName'   => 'model-testing',
+		'name'        => 'Model Testing',
+		'author'      => 'Chris Debenham (cjd)',
+		'description' => 'Quickly toggle pixel overlay models on/off for testing',
+		'homeUrl'     => 'https://github.com/cjd/model-testing',
+		'sourceUrl'   => 'https://github.com/cjd/model-testing.git',
+		'bugUrl'      => 'https://github.com/cjd/model-testing/issues',
+		'sha'         => 'ee71add63b1619a647dc7e93e2edff0a876e6870',
+	),
+
+	Array(
 		'shortName'   => 'Switcher',
 		'name'        => 'Switcher Control',
 		'author'      => 'Ben Shaver (bshaver) and Pat Delaney (patdelaney)',
