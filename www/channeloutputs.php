@@ -2206,6 +2206,7 @@ function InitializeLEDPanels()
 	if ($settings['Platform'] == "Raspberry Pi")
 	{
 ?>
+		$('#LEDPanelsBrightness').val(channelOutputsLookup["LEDPanelMatrix"].brightness);
 		$('#LEDPanelsWiringPinout').val(channelOutputsLookup["LEDPanelMatrix"].wiringPinout);
 <?
 	}
@@ -2247,6 +2248,7 @@ function GetLEDPanelConfig()
 	{
 ?>
 	config.wiringPinout = $('#LEDPanelsWiringPinout').val();
+	config.brightness = parseInt($('#LEDPanelsBrightness').val());
 <?
 	}
 ?>
@@ -2658,11 +2660,28 @@ tr.rowUniverseDetails td
 									</select>
 									</td>
 							</tr>
+							<tr>
 <?
 	if ($settings['Platform'] == "Raspberry Pi")
 	{
 ?>
-							<tr>
+								<td><b>Brightness:</b></td><td>
+									<select id='LEDPanelsBrightness'>
+<?
+	if ($settings['Platform'] == "Raspberry Pi")
+	{
+		for ($x = 100; $x >= 10; $x -= 5)
+			echo "<option value='$x'>$x%</option>\n";
+	}
+	else
+	{
+		for ($x = 7; $x >= 1; $x -= 1)
+			echo "<option value='$x'>$x%</option>\n";
+	}
+?>
+									</select>
+									</td>
+								<td>&nbsp;</td>
 								<td><b>Wiring Pinout:</b></td><td>
 									<select id='LEDPanelsWiringPinout'>
 										<option value='Standard'>Standard</option>
@@ -2670,10 +2689,10 @@ tr.rowUniverseDetails td
 										<option value='Adafruit'>Adafruit</option>
 									</select>
 									</td>
-							</tr>
 <?
 	}
 ?>
+							</tr>
 							<tr>
 								<td width = '70 px' colspan=5><input id='btnSaveChannelOutputsJSON' class='buttons' type='button' value='Save' onClick='SaveChannelOutputsJSON();'/> <font size=-1><? if ($settings['Platform'] == "BeagleBone Black") { echo "(this will save changes to BBB tab &amp; LED Panels tab)"; } ?></font></td>
 							</tr>
