@@ -17,7 +17,7 @@ if curl --silent --head https://github.com | grep "Content-Type: text/html; char
 	if [ "x${MOUNTSTATE}" = "xro" ]
 	then
 		echo "Remounting root filesystem Read-Write"
-		mount -o remount,rw /
+		sudo mount -o remount,rw /
 	fi
 
 	if [ "x${FPPDIR}" = "x/opt/fpp" ]
@@ -38,7 +38,7 @@ if curl --silent --head https://github.com | grep "Content-Type: text/html; char
 	if [ "x${MOUNTSTATE}" = "xro" ]
 	then
 		echo "Remounting root filesystem Read-Only"
-		mount -o remount,ro /
+		sudo mount -o remount,ro /
 	fi
 else
 	echo "Can not access github, unable to pull git updates"
