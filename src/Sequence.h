@@ -39,7 +39,7 @@ class Sequence {
 
 	int   IsSequenceRunning(void);
 	int   OpenSequenceFile(const char *filename, int startSeconds);
-	void  ProcessSequenceData(void);
+	void  ProcessSequenceData(int checkControlChannels = 1);
 	int   SeekSequenceFile(int frameNumber);
 	void  ReadSequenceData(void);
 	void  SendSequenceData(void);
