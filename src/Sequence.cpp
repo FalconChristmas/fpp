@@ -391,14 +391,14 @@ void Sequence::ReadSequenceData(void) {
 	}
 }
 
-void Sequence::ProcessSequenceData(void) {
+void Sequence::ProcessSequenceData(int checkControlChannels) {
 	if (IsEffectRunning())
 		OverlayEffects(m_seqData);
 
 	if (UsingMemoryMapInput())
 		OverlayMemoryMap(m_seqData);
 
-	if (getControlMajor() && getControlMinor())
+	if (checkControlChannels && getControlMajor() && getControlMinor())
 	{
 		char thisMajor = NormalizeControlValue(m_seqData[getControlMajor()-1]);
 		char thisMinor = NormalizeControlValue(m_seqData[getControlMinor()-1]);
@@ -430,6 +430,7 @@ void Sequence::SendBlankingData(void) {
 		SendBlankingDataPacket();
 
 	BlankSequenceData();
+	ProcessSequenceData(0);
 	SendSequenceData();
 }
 
