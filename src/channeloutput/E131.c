@@ -28,6 +28,7 @@
 #include <sys/time.h>
 #include <signal.h>
 #include <arpa/inet.h>
+#include <ctype.h>
 #include <netinet/in.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -38,6 +39,7 @@
 #include <strings.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
+#include <netdb.h>
 
 #include "channeloutput.h"
 #include "channeloutputthread.h"
@@ -127,7 +129,29 @@ int E131_InitializeNetwork()
 		}
 		else
 		{
-			E131address[i].sin_addr.s_addr = inet_addr(universes[i].unicastAddress);
+			char *c = universes[i].unicastAddress;
+			int isAlpha = 0;
+			for (; *c && !isAlpha; c++)
+				isAlpha = isalpha(*c);
+
+			if (isAlpha)
+			{
+				struct hostent* uhost = gethostbyname(universes[i].unicastAddress);
+				if (!uhost)
+				{
+					LogErr(VB_CHANNELOUT,
+						"Error looking up E1.31 hostname: %s\n",
+						universes[i].unicastAddress);
+					close(sendSocket);
+					return 0;
+				}
+
+				E131address[i].sin_addr.s_addr = *((unsigned long*)uhost->h_addr);
+			}
+			else
+			{
+				E131address[i].sin_addr.s_addr = inet_addr(universes[i].unicastAddress);
+			}
 		}
 	}
 
