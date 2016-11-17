@@ -3,6 +3,7 @@
 *.pyc
 .buildpath
 SD/*.xz
+lib/librgbmatrix.so
 src/fpp
 src/fppmm
 src/fppd

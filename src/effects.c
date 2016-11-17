@@ -46,6 +46,7 @@
 #define MAX_EFFECTS 100
 
 int        effectCount = 0;
+int        pauseBackgroundEffects = 0;
 FPPeffect *effects[MAX_EFFECTS];
 
 pthread_mutex_t effectsLock;
@@ -85,6 +86,8 @@ int InitEffects(void)
 			"background.eseq\n");
 		StartEffect("background", 0, 1);
 	}
+
+	pauseBackgroundEffects = getSettingInt("pauseBackgroundEffects");
 
 	return 1;
 }
@@ -263,6 +266,22 @@ int StartEffect(char *effectName, int startChannel, int loop)
 	effects[effectID]->loop = loop;
 	effects[effectID]->stepSize = stepSize;
 	effects[effectID]->modelSize = modelSize;
+	effects[effectID]->background = 0;
+
+	if (!strcmp(effectName, "background"))
+	{
+		effects[effectID]->background = 1;
+	}
+	else if ((getFPPmode() == REMOTE_MODE) &&
+			 (strstr(effectName, "background_") == effectName))
+	{
+		char localFilename[128];
+		strcpy(localFilename, "background_");
+		strcat(localFilename, getSetting("HostName"));
+
+		if (!strcmp(effectName, localFilename))
+			effects[effectID]->background = 1;
+	}
 
 	LogInfo(VB_EFFECT, "Effect %s step size %d, model size: %d\n",
 		effectName, stepSize, modelSize);
@@ -437,10 +456,18 @@ int OverlayEffects(char *channelData)
 		return 0;
 	}
 
+	int skipBackground = 0;
+	if (pauseBackgroundEffects && sequence->IsSequenceRunning())
+		skipBackground = 1;
+
 	for (i = 0; i < MAX_EFFECTS; i++)
 	{
 		if (effects[i])
-			dataRead |= OverlayEffect(i, channelData);
+		{
+			if ((!skipBackground) ||
+				(skipBackground && (!effects[i]->background)))
+				dataRead |= OverlayEffect(i, channelData);
+		}
 	}
 
 	pthread_mutex_unlock(&effectsLock);
