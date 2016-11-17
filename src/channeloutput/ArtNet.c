@@ -28,6 +28,7 @@
 #include <sys/time.h>
 #include <signal.h>
 #include <arpa/inet.h>
+#include <ctype.h>
 #include <netinet/in.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -38,6 +39,7 @@
 #include <strings.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
+#include <netdb.h>
 
 #include "channeloutput.h"
 #include "channeloutputthread.h"
@@ -130,7 +132,7 @@ int ArtNet_InitializeSyncSocket(void)
 	{
 		LogErr(VB_CHANNELOUT, "Error setting IP_MULTICAST_LOOP error\n");
 		close(ArtNetSyncSocket);
-		return 0;
+		exit(1);
 	}
 
 	/* Enable Broadcast */
@@ -206,7 +208,29 @@ int ArtNet_InitializeNetwork()
 		}
 		else
 		{
-			ArtNetAddress[i].sin_addr.s_addr = inet_addr(ArtNetUniverses[i].unicastAddress);
+			char *c = ArtNetUniverses[i].unicastAddress;
+			int isAlpha = 0;
+			for (; *c && !isAlpha; c++)
+				isAlpha = isalpha(*c);
+
+			if (isAlpha)
+			{
+				struct hostent* uhost = gethostbyname(ArtNetUniverses[i].unicastAddress);
+				if (!uhost)
+				{
+					LogErr(VB_CHANNELOUT,
+						"Error looking up ArtNet hostname: %s\n",
+						ArtNetUniverses[i].unicastAddress);
+					close(ArtNetSendSocket);
+					return 0;
+				}
+
+				ArtNetAddress[i].sin_addr.s_addr = *((unsigned long*)uhost->h_addr);
+			}
+			else
+			{
+				ArtNetAddress[i].sin_addr.s_addr = inet_addr(ArtNetUniverses[i].unicastAddress);
+			}
 		}
 	}
 
