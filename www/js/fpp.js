@@ -830,7 +830,7 @@ function RemovePlaylistEntry()	{
 															      "<option value=\"2\" " + typeBroadcastArtNet + ">ArtNet - Broadcast</option>" +
 															      "<option value=\"3\" " + typeUnicastArtNet + ">ArtNet - Unicast</option>" +
 																  "</select></td>" +
-															"<td><input name=\"txtIP[" + i.toString() + "]\" id=\"txtIP[" + i.toString() + "]\" type=\"text\"/ value=\"" + unicastAddress + "\" size=\"15\" maxlength=\"15\"></td>" +
+															"<td><input name=\"txtIP[" + i.toString() + "]\" id=\"txtIP[" + i.toString() + "]\" type=\"text\"/ value=\"" + unicastAddress + "\" size=\"15\" maxlength=\"32\"></td>" +
 															"<td><input type=button onClick='PingE131IP(" + i.toString() + ");' value='Ping'></td>" +
 															"</tr>";
 
@@ -1044,7 +1044,9 @@ function RemovePlaylistEntry()	{
 		{
 			var ipb = document.getElementById(id);
 			var ip = ipb.value;
-			if ((ip == "") || (/^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(ip)))
+			var isHostnameRegex = /[a-z]/i;
+			var isHostname = ip.match(isHostnameRegex);
+			if ((ip == "") || (isHostname.length > 0) || (/^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(ip)))
 			{
 				ipb.style.border = "#000 0px none";
 				return true;
