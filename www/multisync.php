@@ -170,9 +170,16 @@ require_once("common.php");
 					<tr><td colspan=5 align='center'>Loading...</td></tr>
 				</tbody>
 			</table>
+<?php
+if ($settings['fppMode'] == 'master')
+{
+?>
 			<hr>
 			<? PrintSettingCheckbox("Send F16v2 Sync Packets", "MultiSyncCSVBroadcast", 1, 0, "1", "0"); ?> Send F16v2 Sync Packets<br>
 			<? PrintSettingCheckbox("Compress FSEQ files for transfer", "CompressMultiSyncTransfers", 0, 0, "1", "0"); ?> Compress FSEQ files during copy to Remotes to speed up file sync process<br>
+<?php
+}
+?>
 			<hr>
 			<font size=-1>
 				<span id='legend'>
