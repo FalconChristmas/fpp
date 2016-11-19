@@ -786,3 +786,29 @@ setupBBBRTC () {
 }
 
 
+#############################################################################
+# Some fixups related to running the v1.x SD image read-only.  These are pure
+# hacks for now until we get a new SD image that is designed to be read-only
+# from the start.
+applyReadOnlySDFixups() {
+	if [ "x${MOUNTSTATE}" = "x" ]
+	then
+		export MOUNTSTATE=$(mount | grep "on / type" | cut -f2 -d\( | cut -f1 -d,)
+	fi
+
+	SDVER=$(cat /etc/fpp/rfs_version | cut -f1 -d\.)
+
+	if [ "x${SDVER}" = "xv1" -a "x${MOUNTSTATE}" = "xro" ]
+	then
+		echo "FPP: Root is mounted read-only on a v1.x SD image, applying read-only fixups."
+
+		# Samba's smbd won't start if it can't write to /var/lib/samba
+		cp -rp /var/lib/samba /tmp/
+		mkdir /var/log/samba
+		mount -o bind /tmp/samba /var/lib/samba
+		/etc/init.d/samba restart
+	fi
+}
+
+#############################################################################
+
