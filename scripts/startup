@@ -29,6 +29,8 @@ echo "FPP - Setting up for the Falcon Player on the ${FPPPLATFORM} platform"
 
 checkAudioConfig
 
+applyReadOnlySDFixups
+
 if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
 then
 	# Check fstab for our entries
