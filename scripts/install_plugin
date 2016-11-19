@@ -3,6 +3,7 @@
 BINDIR=$(cd $(dirname $0) && pwd)
 
 . ${BINDIR}/common
+. ${BINDIR}/functions
 
 if [ "x$1" = "x" ] || [ "x$2" = "x" ] || [ "x$3" = "x" ]
 then
@@ -29,6 +30,8 @@ fi
 
 if [ -x "${PLUGINDIR}/$1/fpp_install.sh" ]
 then
+	remountRootReadWrite
+
 	if [ "x${FPPDIR}" = "x/opt/fpp" ] && [ "x${SETTINGSFILE}" = "x${FPPHOME}/media/settings" ]
 	then
 		$SUDO ${PLUGINDIR}/$1/fpp_install.sh
@@ -38,4 +41,6 @@ then
 	else
 		${PLUGINDIR}/$1/fpp_install.sh
 	fi
+
+	remountRootReadOnlyIfNeeded
 fi
