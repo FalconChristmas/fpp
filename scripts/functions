@@ -785,6 +785,28 @@ setupBBBRTC () {
 	esac
 }
 
+#############################################################################
+# Functions to remount root read-write if read-only and switch back if necessary
+remountRootReadWrite() {
+	if [ "x${MOUNTSTATE}" = "x" ]
+	then
+		export MOUNTSTATE=$(mount | grep "on / type" | cut -f2 -d\( | cut -f1 -d,)
+	fi
+
+	if [ "x${MOUNTSTATE}" = "xro" ]
+	then
+		echo "Remounting root filesystem Read-Write"
+		sudo mount -o remount,rw /
+	fi
+}
+
+remountRootReadOnlyIfNeeded() {
+	if [ "x${MOUNTSTATE}" = "xro" ]
+	then
+		echo "Remounting root filesystem Read-Only"
+		sudo mount -o remount,ro /
+	fi
+}
 
 #############################################################################
 # Some fixups related to running the v1.x SD image read-only.  These are pure
