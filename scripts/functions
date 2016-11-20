@@ -847,6 +847,14 @@ applyReadOnlySDFixups() {
 		mkdir /var/log/samba
 		mount -o bind /tmp/samba /var/lib/samba
 		/etc/init.d/samba restart
+
+		remountRootReadWrite
+
+		# Our startup script can't copy php.ini into place if root is read-only
+		cp /opt/fpp/etc/php.ini /etc/
+		/etc/init.d/apache2 restart
+
+		remountRootReadOnlyIfNeeded
 	fi
 }
 
