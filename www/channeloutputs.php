@@ -2202,11 +2202,11 @@ function InitializeLEDPanels()
 		$('#LEDPanelsStartChannel').val(channelOutputsLookup["LEDPanelMatrix"].startChannel);
 		$('#LEDPanelsChannelCount').html(channelOutputsLookup["LEDPanelMatrix"].channelCount);
 		$('#LEDPanelsColorOrder').val(channelOutputsLookup["LEDPanelMatrix"].colorOrder);
+		$('#LEDPanelsBrightness').val(channelOutputsLookup["LEDPanelMatrix"].brightness);
 <?
 	if ($settings['Platform'] == "Raspberry Pi")
 	{
 ?>
-		$('#LEDPanelsBrightness').val(channelOutputsLookup["LEDPanelMatrix"].brightness);
 		$('#LEDPanelsWiringPinout').val(channelOutputsLookup["LEDPanelMatrix"].wiringPinout);
 <?
 	}
@@ -2243,12 +2243,12 @@ function GetLEDPanelConfig()
 	config.startChannel = parseInt($('#LEDPanelsStartChannel').val());
 	config.channelCount = parseInt($('#LEDPanelsChannelCount').html());
 	config.colorOrder = $('#LEDPanelsColorOrder').val();
+	config.brightness = parseInt($('#LEDPanelsBrightness').val());
 <?
 	if ($settings['Platform'] == "Raspberry Pi")
 	{
 ?>
 	config.wiringPinout = $('#LEDPanelsWiringPinout').val();
-	config.brightness = parseInt($('#LEDPanelsBrightness').val());
 <?
 	}
 ?>
@@ -2661,10 +2661,6 @@ tr.rowUniverseDetails td
 									</td>
 							</tr>
 							<tr>
-<?
-	if ($settings['Platform'] == "Raspberry Pi")
-	{
-?>
 								<td><b>Brightness:</b></td><td>
 									<select id='LEDPanelsBrightness'>
 <?
@@ -2676,11 +2672,15 @@ tr.rowUniverseDetails td
 	else
 	{
 		for ($x = 7; $x >= 1; $x -= 1)
-			echo "<option value='$x'>$x%</option>\n";
+			echo "<option value='$x'>$x</option>\n";
 	}
 ?>
 									</select>
 									</td>
+<?
+	if ($settings['Platform'] == "Raspberry Pi")
+	{
+?>
 								<td>&nbsp;</td>
 								<td><b>Wiring Pinout:</b></td><td>
 									<select id='LEDPanelsWiringPinout'>
