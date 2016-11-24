@@ -428,7 +428,8 @@ function GetFPPSystems()
 			}
 	 }
 
-		$result[] = $elem;
+		if (($elem['IP'] != "192.168.7.2") && ($elem['Platform'] != "Beaglebone Black"))
+			$result[] = $elem;
 	}
 
 	returnJSON($result);
