@@ -2851,7 +2851,7 @@ if ($settings['Platform'] == "BeagleBone Black")
 </table>
 <table id="tblOtherOutputs" class='channelOutputTable'>
 <thead>
-	<tr class='tblheader'><td>#</td><td>Act</td><td>Output Type</td><td>Start Ch.</td><td>Channel<br>Count</td><td>Output Config</td></tr>
+	<tr class='tblheader'><td>#</td><td>Active</td><td>Output Type</td><td>Start Ch.</td><td>Channel<br>Count</td><td>Output Config</td></tr>
 </thead>
 <tbody>
 </tbody>
