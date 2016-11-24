@@ -722,6 +722,8 @@ setupPiRTC () {
 
 	piRTC=$(awk -f ${FPPDIR}/scripts/readSetting.awk ${SETTINGSFILE} setting=piRTC)
 
+	remountRootReadWrite
+
 	# Remove PiFace RTC overlay from /boot/config.txt.  If a user
 	# is configuring it, the overlay will be re-added shortly
 	sed -i '/dtoverlay=i2c-rtc,mcp7941x/d' /boot/config.txt
@@ -762,6 +764,8 @@ setupPiRTC () {
 		echo "FPP - Configuring RTC, None Selected"
 	  ;;
 	esac
+
+	remountRootReadOnlyIfNeeded
 }
 
 #############################################################################
