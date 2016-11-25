@@ -299,6 +299,10 @@ function ToggleLCDNow()
       <td><? PrintSettingSelect("Audio Mixer Device", "AudioMixerDevice", 1, 0, $AudioMixerDevice, $MixerDevices, "", "SetMixerDevice"); ?></td>
     </tr>
     <tr>
+      <td>Disable IP announcement during boot:</td>
+      <td><? PrintSettingCheckbox("Disable IP announcement during boot", "disableIPAnnouncement", 0, 0, "1", "0"); ?></td>
+    </tr>
+    <tr>
       <td>External Storage Device:</td>
       <td><? PrintStorageDeviceSelect(); ?></td>
     </tr>
