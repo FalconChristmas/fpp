@@ -51,25 +51,24 @@ require_once("common.php");
 		).success(function(data) {
 			var status = 'Idle';
 			var statusInfo = "";
-			var time_elapsed = "";
-			var sequence = "";
-			var media = "";
+			var elapsed = "";
+			var files = "";
 
 			if (data.status_name == 'playing')
 			{
 				status = 'Playing';
 
-				statusInfo += data.time_elapsed + " of " + data.time_remaining + " - ";
+				elapsed = data.time_elapsed;
 
 				if (data.current_sequence != "")
 				{
-					statusInfo += data.current_sequence;
+					files += data.current_sequence;
 					if (data.current_song != "")
-						statusInfo += "<br>" + data.current_song;
+						files += "<br>" + data.current_song;
 				}
 				else
 				{
-					statusInfo += data.current_song;
+					files += data.current_song;
 				}
 			}
 			else if (data.status_name == 'updating')
@@ -89,17 +88,17 @@ require_once("common.php");
 					{
 						status = 'Syncing';
 
-						statusInfo += data.time_elapsed + " of " + data.time_remaining + " - ";
+						elapsed += data.time_elapsed;
 
 						if (data.sequence_filename != "")
 						{
-							statusInfo += data.sequence_filename;
+							files += data.sequence_filename;
 							if (data.media_filename != "")
-								statusInfo += "<br>" + data.media_filename;
+								files += "<br>" + data.media_filename;
 						}
 						else
 						{
-							statusInfo += data.media_filename;
+							files += data.media_filename;
 						}
 					}
 				}
@@ -108,7 +107,8 @@ require_once("common.php");
 			var rowID = "fpp_" + ip.replace(/\./g, '_');
 
 			$('#' + rowID + '_status').html(status);
-			$('#' + rowID + '_statusInfo').html(statusInfo);
+			$('#' + rowID + '_elapsed').html(elapsed);
+			$('#' + rowID + '_files').html(files);
 		}).fail(function() {
 			DialogError("Get FPP System Status", "Get Status Failed.");
 		}).complete(function() {
@@ -184,7 +184,8 @@ require_once("common.php");
 				"<td>" + data[i].Platform + "</td>" +
 				"<td>" + fppMode + "</td>" +
 				"<td id='" + rowID + "_status'></td>" +
-				"<td id='" + rowID + "_statusInfo'></td>" +
+				"<td id='" + rowID + "_elapsed'></td>" +
+				"<td id='" + rowID + "_files'></td>" +
 				"</tr>";
 			$('#fppSystems tbody').append(newRow);
 
@@ -240,12 +241,13 @@ require_once("common.php");
 				<thead>
 					<tr>
 						<th>&nbsp;</th>
-						<th>System Name</th>
+						<th>Hostname</th>
 						<th>IP Address</th>
 						<th>Platform</th>
 						<th>Mode</th>
 						<th>Status</th>
-						<th>Info</th>
+						<th>Elapsed</th>
+						<th>File(s)</th>
 					</tr>
 				</thead>
 				<tbody>
