@@ -43,6 +43,78 @@ require_once("common.php");
 		}).fail(function() {
 			DialogError("Save Remotes", "Save Failed");
 		});
+
+	}
+
+	function getFPPSystemStatus(ip) {
+		$.get("fppjson.php?command=getFPPstatus&ip=" + ip
+		).success(function(data) {
+			var status = 'Idle';
+			var statusInfo = "";
+			var time_elapsed = "";
+			var sequence = "";
+			var media = "";
+
+			if (data.status_name == 'playing')
+			{
+				status = 'Playing';
+
+				statusInfo += data.time_elapsed + " of " + data.time_remaining + " - ";
+
+				if (data.current_sequence != "")
+				{
+					statusInfo += data.current_sequence;
+					if (data.current_song != "")
+						statusInfo += "<br>" + data.current_song;
+				}
+				else
+				{
+					statusInfo += data.current_song;
+				}
+			}
+			else if (data.status_name == 'updating')
+			{
+				status = 'Updating';
+			}
+			else if (data.status_name == 'stopped')
+			{
+				status = 'Stopped';
+			}
+			else if (data.status_name == 'idle')
+			{
+				if (data.mode_name == 'remote')
+				{
+					if ((data.sequence_filename != "") ||
+						(data.media_filename != ""))
+					{
+						status = 'Syncing';
+
+						statusInfo += data.time_elapsed + " of " + data.time_remaining + " - ";
+
+						if (data.sequence_filename != "")
+						{
+							statusInfo += data.sequence_filename;
+							if (data.media_filename != "")
+								statusInfo += "<br>" + data.media_filename;
+						}
+						else
+						{
+							statusInfo += data.media_filename;
+						}
+					}
+				}
+			}
+
+			var rowID = "fpp_" + ip.replace(/\./g, '_');
+
+			$('#' + rowID + '_status').html(status);
+			$('#' + rowID + '_statusInfo').html(statusInfo);
+		}).fail(function() {
+			DialogError("Get FPP System Status", "Get Status Failed.");
+		}).complete(function() {
+			if ($('#MultiSyncRefreshStatus').is(":checked"))
+				setTimeout(function() {getFPPSystemStatus(ip);}, 1000);
+		});
 	}
 
 	function parseFPPSystems(data) {
@@ -77,6 +149,8 @@ require_once("common.php");
 		for (var i = 0; i < data.length; i++) {
 			var star = "";
 			var link = "";
+			var ip = data[i].IP;
+
 			if (data[i].Local)
 			{
 				link = data[i].HostName;
@@ -101,14 +175,20 @@ require_once("common.php");
 			else if (data[i].fppMode == 'remote')
 				fppMode = 'Remote';
 
-			var newRow = "<tr>" +
+			var rowID = "fpp_" + ip.replace(/\./g, '_');
+
+			var newRow = "<tr id='" + rowID + "'>" +
 				"<td align='center'>" + star + "</td>" +
 				"<td>" + link + "</td>" +
 				"<td>" + data[i].IP + "</td>" +
 				"<td>" + data[i].Platform + "</td>" +
 				"<td>" + fppMode + "</td>" +
+				"<td id='" + rowID + "_status'></td>" +
+				"<td id='" + rowID + "_statusInfo'></td>" +
 				"</tr>";
 			$('#fppSystems tbody').append(newRow);
+
+			getFPPSystemStatus(ip);
 		}
 	}
 
@@ -164,22 +244,25 @@ require_once("common.php");
 						<th>IP Address</th>
 						<th>Platform</th>
 						<th>Mode</th>
+						<th>Status</th>
+						<th>Info</th>
 					</tr>
 				</thead>
 				<tbody>
 					<tr><td colspan=5 align='center'>Loading...</td></tr>
 				</tbody>
 			</table>
+			<hr>
 <?php
 if ($settings['fppMode'] == 'master')
 {
 ?>
-			<hr>
 			<? PrintSettingCheckbox("Send F16v2 Sync Packets", "MultiSyncCSVBroadcast", 1, 0, "1", "0"); ?> Send F16v2 Sync Packets<br>
 			<? PrintSettingCheckbox("Compress FSEQ files for transfer", "CompressMultiSyncTransfers", 0, 0, "1", "0"); ?> Compress FSEQ files during copy to Remotes to speed up file sync process<br>
 <?php
 }
 ?>
+			<? PrintSettingCheckbox("Auto Refresh Systems Status", "MultiSyncRefreshStatus", 0, 0, "1", "0", "", "getFPPSystems"); ?> Auto Refresh status of FPP Systems<br>
 			<hr>
 			<font size=-1>
 				<span id='legend'>
