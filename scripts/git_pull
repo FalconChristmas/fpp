@@ -12,13 +12,7 @@ if curl --silent --head https://github.com | grep "Content-Type: text/html; char
 
 	echo "Upgrading git revision from branch ${GITBRANCH}"
 
-	MOUNTSTATE=$(mount | grep "on / type" | cut -f2 -d\( | cut -f1 -d,)
-
-	if [ "x${MOUNTSTATE}" = "xro" ]
-	then
-		echo "Remounting root filesystem Read-Write"
-		sudo mount -o remount,rw /
-	fi
+	remountRootReadWrite
 
 	if [ "x${FPPDIR}" = "x/opt/fpp" ]
 	then
@@ -35,11 +29,7 @@ if curl --silent --head https://github.com | grep "Content-Type: text/html; char
 		compileBinaries
 	fi
 
-	if [ "x${MOUNTSTATE}" = "xro" ]
-	then
-		echo "Remounting root filesystem Read-Only"
-		sudo mount -o remount,ro /
-	fi
+	remountRootReadOnlyIfNeeded
 else
 	echo "Can not access github, unable to pull git updates"
 fi
