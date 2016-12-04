@@ -127,12 +127,12 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
 			case 'N':
 				pconfig->rot = 0;
 				break;
-			case 'L':
+			case 'R':
 				pconfig->rot = 1;
 				pWidth = lmconfig->panel_height;
 				pHeight = lmconfig->panel_width;
 				break;
-			case 'R':
+			case 'L':
 				pconfig->rot = 2;
 				pWidth = lmconfig->panel_height;
 				pHeight = lmconfig->panel_width;
