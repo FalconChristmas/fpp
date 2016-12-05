@@ -536,7 +536,7 @@ $(document).ready(function(){
 				<table border=0 cellpadding=0 cellspacing=0>
 				<tr><td colspan=3><b>Single Channel Patterns:</b></td></tr>
 				<tr><td colspan=3><span style='float: left'><b>Test Value: </b></span><span id="testModeColorS"></span> <span style='float: left' id='testModeColorSText'>255</span><span style='float: left'></span></td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='SingleChase' checked onChange='SetTestMode();'></td><td><b>Chase:</b></td></tr>
+				<tr><td><input type='radio' name='testModeMode' value='SingleChase' onChange='SetTestMode();'></td><td><b>Chase:</b></td></tr>
 				<tr><td></td><td>Chase Size: <select id='testModeChaseSize' onChange='SetTestMode();'>
 						<option value='2'>2</option>
 						<option value='3'>3</option>
@@ -547,7 +547,7 @@ $(document).ready(function(){
 				<tr><td><input type='radio' name='testModeMode' value='SingleFill' onChange='SetTestMode();'></td><td><b>Fill</b></td></tr>
 				<tr><td>&nbsp;</td></tr>
 				<tr><td colspan=3><b>RGB Patterns:</b></td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGB' onChange='SetTestMode();'></td><td><b>Chase: A-B-C</b></td></tr>
+				<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGB' checked onChange='SetTestMode();'></td><td><b>Chase: A-B-C</b></td></tr>
 				<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGBA' onChange='SetTestMode();'></td><td><b>Chase: A-B-C-All</b></td></tr>
 				<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGBN' onChange='SetTestMode();'></td><td><b>Chase: A-B-C-None</b></td></tr>
 				<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGBAN' onChange='SetTestMode();'></td><td><b>Chase: A-B-C-All-None</b></td></tr>
