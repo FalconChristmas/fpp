@@ -30,7 +30,7 @@
 
 #include "ChannelOutputBase.h"
 
-#define GENERICSERIAL_MAX_CHANNELS 512
+#define GENERICSERIAL_MAX_CHANNELS 2048
 
 class GenericSerialOutput : public ChannelOutputBase {
   public:
