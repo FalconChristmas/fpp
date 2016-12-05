@@ -455,7 +455,7 @@ void Sequence::CloseSequenceFile(void) {
 //	if ((!IsEffectRunning()) &&
 //		((getFPPmode() != REMOTE_MODE) &&
 //		 (FPPstatus != FPP_STATUS_PLAYLIST_PLAYING)) ||
-//		(GetSettingInt("blankBetweenSequences")))
+//		(getSettingInt("blankBetweenSequences")))
 //		SendBlankingData();
 
 	pthread_mutex_unlock(&m_sequenceLock);
