@@ -452,9 +452,10 @@ void Sequence::CloseSequenceFile(void) {
 	m_seqPaused = 0;
 
 	// FIXME PLAYLIST, figure out how to do this in the player itself
-//	if ((getFPPmode() != REMOTE_MODE) &&
-//		(!IsEffectRunning()) &&
-//		(FPPstatus != FPP_STATUS_PLAYLIST_PLAYING))
+//	if ((!IsEffectRunning()) &&
+//		((getFPPmode() != REMOTE_MODE) &&
+//		 (FPPstatus != FPP_STATUS_PLAYLIST_PLAYING)) ||
+//		(GetSettingInt("blankBetweenSequences")))
 //		SendBlankingData();
 
 	pthread_mutex_unlock(&m_sequenceLock);
