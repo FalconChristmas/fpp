@@ -375,7 +375,7 @@ void Sequence::ReadSequenceData(void) {
 	if (IsSequenceRunning())
 	{
 		bytesRead = 0;
-		if(m_seqFilePosition < m_seqFileSize - m_seqStepSize)
+		if(m_seqFilePosition <= m_seqFileSize - m_seqStepSize)
 		{
 			bytesRead = fread(m_seqData, 1, m_seqStepSize, m_seqFile);
 			m_seqFilePosition += bytesRead;
