@@ -396,6 +396,11 @@ void Player::ReLoadNextScheduleInfo(void)
 		m_scheduler->ReLoadNextScheduleInfo();
 }
 
+void Player::SendData(void)
+{
+	SendChannelData(m_seqData);
+}
+
 void Player::SendBlankingData(void)
 {
 	usleep(100000); // FIXME, figure out a way to not need this delay
@@ -406,6 +411,7 @@ void Player::SendBlankingData(void)
 	if (getFPPmode() == MASTER_MODE)
 		SendBlankingDataPacket();
 
+	ProcessChannelData();
 	SendChannelData(m_seqData);
 }
 

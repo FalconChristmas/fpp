@@ -73,7 +73,7 @@ int omxplayerOutput::Start(void)
 
 	bzero(m_mediaOutputStatus, sizeof(MediaOutputStatus));
 
-	fullVideoPath = getMusicDirectory();
+	fullVideoPath = getVideoDirectory();
 	fullVideoPath += "/";
 	fullVideoPath += m_mediaFilename;
 

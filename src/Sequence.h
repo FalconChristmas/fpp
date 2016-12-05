@@ -26,9 +26,9 @@
 #ifndef _SEQUENCE_H
 #define _SEQUENCE_H
 
-#include <string>
-
+#include <pthread.h>
 #include <stdio.h>
+#include <string>
 
 #define FPPD_MAX_CHANNELS 524288
 #define DATA_DUMP_SIZE    28
@@ -38,7 +38,9 @@ class Sequence {
 	Sequence(int priority, int startChannel = 0, int blockSize = -1);
 	~Sequence();
 
+	int   IsSequenceRunning(void);
 	int   OpenSequenceFile(std::string filename, int startSeconds = 0);
+	void  ProcessSequenceData(int checkControlChannels = 1);
 	int   SeekSequenceFile(int frameNumber);
 	int   ReadSequenceData(void);
 	void  OverlayNextFrame(char *outputBuffer);
@@ -94,6 +96,8 @@ class Sequence {
 	int           m_seqColorEncoding;
 	char          m_seqLastControlMajor;
 	char          m_seqLastControlMinor;
+
+	pthread_mutex_t  m_sequenceLock;
 };
 
 #endif /* _SEQUENCE_H */

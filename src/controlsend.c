@@ -41,12 +41,14 @@
 
 #define MAX_SYNC_REMOTES 64
 
-int ctrlSendSock    = 0;
+int ctrlSendSock    = -1;
+int ctrlSendCSVSock = -1;
 int remoteCount     = 0;
 
 char                cLocalAddress[16];
 struct sockaddr_in  cSrcAddr;
 struct sockaddr_in  cDestAddr[MAX_SYNC_REMOTES];
+struct sockaddr_in  cDestAddrCSV;
 
 
 /*
@@ -68,6 +70,21 @@ void SendControlPacket(void *outBuf, int len) {
 /*
  *
  */
+void SendControlCSVPacket(void *outBuf, int len) {
+	LogExcess(VB_SYNC, "CSV Sync: '%s'\n", (char *)outBuf);
+
+	if (ctrlSendCSVSock < 0) {
+		LogErr(VB_SYNC, "ERROR: Tried to send CSV Sync packet but CSV sync socket is not open.\n");
+		return;
+	}
+
+	if (sendto(ctrlSendCSVSock, outBuf, len, 0, (struct sockaddr*)&cDestAddrCSV, sizeof(struct sockaddr_in)) < 0)
+		LogErr(VB_SYNC, "Error: Unable to send packet: %s\n", strerror(errno));
+}
+
+/*
+ *
+ */
 void InitControlPkt(ControlPkt *pkt) {
 	bzero(pkt, sizeof(ControlPkt));
 
@@ -82,6 +99,41 @@ void InitControlPkt(ControlPkt *pkt) {
 /*****************************************************************************
  * Master Functions
  *****************************************************************************/
+
+/*
+ *
+ */
+int InitSyncMasterCSV(void) {
+	LogDebug(VB_SYNC, "InitSyncMasterCSV()\n");
+
+	ctrlSendCSVSock = socket(AF_INET, SOCK_DGRAM, 0);
+
+	if (ctrlSendCSVSock < 0) {
+		LogErr(VB_SYNC, "Error opening Master/Remote CSV Sync socket\n");
+		exit(1);
+	}
+
+	char loopch = 0;
+	if(setsockopt(ctrlSendCSVSock, IPPROTO_IP, IP_MULTICAST_LOOP, (char *)&loopch, sizeof(loopch)) < 0) {
+		LogErr(VB_SYNC, "Error setting IP_MULTICAST_LOOP: \n",
+			strerror(errno));
+		exit(1);
+	}
+
+	int broadcast = 1;
+	if(setsockopt(ctrlSendCSVSock, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast)) < 0) {
+		LogErr(VB_SYNC, "Error setting SO_BROADCAST: \n", strerror(errno));
+		exit(1);
+	}
+
+	memset((void *)&cDestAddrCSV, 0, sizeof(struct sockaddr_in));
+
+	cDestAddrCSV.sin_family      = AF_INET;
+	cDestAddrCSV.sin_port        = htons(FPP_CTRL_CSV_PORT);
+	cDestAddrCSV.sin_addr.s_addr = inet_addr("255.255.255.255");
+
+	return 1;
+}
 
 /*
  *
@@ -137,6 +189,9 @@ int InitSyncMaster(void) {
 
 	free(tmpRemotes);
 
+	if (getSettingInt("MultiSyncCSVBroadcast"))
+		InitSyncMasterCSV();
+
 	return 1;
 }
 
@@ -150,6 +205,12 @@ void ShutdownSync(void) {
 	{
 		close(ctrlSendSock);
 		ctrlSendSock = -1;
+	}
+
+	if (ctrlSendCSVSock >= 0)
+	{
+		close(ctrlSendCSVSock);
+		ctrlSendCSVSock = -1;
 	}
 }
 
@@ -185,6 +246,14 @@ void SendSeqSyncStartPacket(const char *filename) {
 	strcpy(spkt->filename, filename);
 
 	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + strlen(filename));
+
+	if (ctrlSendCSVSock >= 0)
+	{
+		// Now send the Broadcast CSV version
+		sprintf(outBuf, "FPP,%d,%d,%d,%s",
+			CTRL_PKT_SYNC, SYNC_FILE_SEQ, SYNC_PKT_START, filename);
+		SendControlCSVPacket(outBuf, strlen(outBuf));
+	}
 }
 
 /*
@@ -219,6 +288,14 @@ void SendSeqSyncStopPacket(const char *filename) {
 	strcpy(spkt->filename, filename);
 
 	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + strlen(filename));
+
+	if (ctrlSendCSVSock >= 0)
+	{
+		// Now send the Broadcast CSV version
+		sprintf(outBuf, "FPP,%d,%d,%d,%s",
+			CTRL_PKT_SYNC, SYNC_FILE_SEQ, SYNC_PKT_STOP, filename);
+		SendControlCSVPacket(outBuf, strlen(outBuf));
+	}
 }
 
 /*
@@ -254,6 +331,15 @@ void SendSeqSyncPacket(const char *filename, int frames, float seconds) {
 	strcpy(spkt->filename, filename);
 
 	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + strlen(filename));
+
+	if (ctrlSendCSVSock >= 0)
+	{
+		// Now send the Broadcast CSV version
+		sprintf(outBuf, "FPP,%d,%d,%d,%s,%d,%d",
+			CTRL_PKT_SYNC, SYNC_FILE_SEQ, SYNC_PKT_SYNC, filename,
+			(int)seconds, (int)(seconds * 1000) % 1000);
+		SendControlCSVPacket(outBuf, strlen(outBuf));
+	}
 }
 
 /*
@@ -288,6 +374,14 @@ void SendMediaSyncStartPacket(const char *filename) {
 	strcpy(spkt->filename, filename);
 
 	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + strlen(filename));
+
+	if (ctrlSendCSVSock >= 0)
+	{
+		// Now send the Broadcast CSV version
+		sprintf(outBuf, "FPP,%d,%d,%d,%s",
+			CTRL_PKT_SYNC, SYNC_FILE_MEDIA, SYNC_PKT_START, filename);
+		SendControlCSVPacket(outBuf, strlen(outBuf));
+	}
 }
 
 /*
@@ -322,6 +416,14 @@ void SendMediaSyncStopPacket(const char *filename) {
 	strcpy(spkt->filename, filename);
 
 	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + strlen(filename));
+
+	if (ctrlSendCSVSock >= 0)
+	{
+		// Now send the Broadcast CSV version
+		sprintf(outBuf, "FPP,%d,%d,%d,%s",
+			CTRL_PKT_SYNC, SYNC_FILE_MEDIA, SYNC_PKT_STOP, filename);
+		SendControlCSVPacket(outBuf, strlen(outBuf));
+	}
 }
 
 /*
@@ -357,6 +459,15 @@ void SendMediaSyncPacket(const char *filename, int frames, float seconds) {
 	strcpy(spkt->filename, filename);
 
 	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + strlen(filename));
+
+	if (ctrlSendCSVSock >= 0)
+	{
+		// Now send the Broadcast CSV version
+		sprintf(outBuf, "FPP,%d,%d,%d,%s,%d,%d",
+			CTRL_PKT_SYNC, SYNC_FILE_MEDIA, SYNC_PKT_SYNC, filename,
+			(int)seconds, (int)(seconds * 1000) % 1000);
+		SendControlCSVPacket(outBuf, strlen(outBuf));
+	}
 }
 
 /*
@@ -412,5 +523,12 @@ void SendBlankingDataPacket(void)
 	cpkt->extraDataLen   = 0;
 
 	SendControlPacket(outBuf, sizeof(ControlPkt));
+
+	if (ctrlSendCSVSock >= 0)
+	{
+		// Now send the Broadcast CSV version
+		sprintf(outBuf, "FPP,%d", CTRL_PKT_BLANK);
+		SendControlCSVPacket(outBuf, strlen(outBuf));
+	}
 }
 

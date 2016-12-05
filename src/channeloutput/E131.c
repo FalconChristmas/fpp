@@ -28,6 +28,7 @@
 #include <sys/time.h>
 #include <signal.h>
 #include <arpa/inet.h>
+#include <ctype.h>
 #include <netinet/in.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -38,6 +39,7 @@
 #include <strings.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
+#include <netdb.h>
 
 #include "channeloutput.h"
 #include "common.h"
@@ -46,6 +48,7 @@
 #include "fpp.h"
 #include "log.h"
 #include "settings.h"
+#include "Universe.h"
 
 struct sockaddr_in    localAddress;
 struct sockaddr_in    E131address[MAX_UNIVERSE_COUNT];
@@ -125,7 +128,29 @@ int E131_InitializeNetwork()
 		}
 		else
 		{
-			E131address[i].sin_addr.s_addr = inet_addr(universes[i].unicastAddress);
+			char *c = universes[i].unicastAddress;
+			int isAlpha = 0;
+			for (; *c && !isAlpha; c++)
+				isAlpha = isalpha(*c);
+
+			if (isAlpha)
+			{
+				struct hostent* uhost = gethostbyname(universes[i].unicastAddress);
+				if (!uhost)
+				{
+					LogErr(VB_CHANNELOUT,
+						"Error looking up E1.31 hostname: %s\n",
+						universes[i].unicastAddress);
+					close(sendSocket);
+					return 0;
+				}
+
+				E131address[i].sin_addr.s_addr = *((unsigned long*)uhost->h_addr);
+			}
+			else
+			{
+				E131address[i].sin_addr.s_addr = inet_addr(universes[i].unicastAddress);
+			}
 		}
 	}
 
@@ -163,6 +188,8 @@ int E131_SendData(void *data, char *channelData, int channelCount)
 	for(i=0;i<UniverseCount;i++)
 	{
 		memcpy((void*)(E131packet+E131_HEADER_LENGTH),(void*)(channelData+universes[i].startAddress-1),universes[i].size);
+
+		E131packet[E131_PRIORITY_INDEX] = universes[i].priority;
 
 		E131packet[E131_SEQUENCE_INDEX] = E131sequenceNumber;
 		E131packet[E131_UNIVERSE_INDEX] = (char)(universes[i].universe/256);
@@ -245,16 +272,25 @@ void LoadUniversesFromFile()
 			// Type
 			s=strtok(NULL,",");
 			universes[UniverseCount].type = atoi(s);
-			if(universes[UniverseCount].type == 1)
-			{
-				//UnicastAddress
-				s=strtok(NULL,",");
-				strcpy(universes[UniverseCount].unicastAddress,s);
+
+			switch (universes[UniverseCount].type) {
+				case 0: // Multicast
+						strcpy(universes[UniverseCount].unicastAddress,"\0");
+						break;
+				case 1: //UnicastAddress
+						s=strtok(NULL,",");
+						strcpy(universes[UniverseCount].unicastAddress,s);
+						break;
+				default: // ArtNet
+						continue;
 			}
+
+			// FIXME, read this per-universe from config file later
+			if (getSettingInt("E131Priority"))
+				universes[UniverseCount].priority
+					= getSettingInt("E131Priority");
 			else
-			{
-				strcpy(universes[UniverseCount].unicastAddress,"\0");
-			}
+				universes[UniverseCount].priority = 0;
 
 		    UniverseCount++;
 		}

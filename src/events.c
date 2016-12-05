@@ -289,6 +289,17 @@ int RunEventScript(FPPevent *e)
 			exit(EXIT_FAILURE);
 		}
 
+		char majorID[3];
+		char minorID[3];
+
+		sprintf(majorID, "%d", e->majorID);
+		sprintf(minorID, "%d", e->minorID);
+
+		setenv("FPP_EVENT_MAJOR_ID", majorID, 0);
+		setenv("FPP_EVENT_MINOR_ID", minorID, 0);
+		setenv("FPP_EVENT_NAME", e->name, 0);
+		setenv("FPP_EVENT_SCRIPT", e->script, 0);
+
 		execvp(eventScript, args);
 
 		LogErr(VB_EVENT, "RunEventScript(), ERROR, we shouldn't be here, "

@@ -640,6 +640,30 @@ function RemovePlaylistEntry()	{
 			});
 		}
 
+		function PingIP(ip, count)
+		{
+			if (ip == "")
+				return;
+
+				$('#helpText').html("Pinging " + ip + "<br><br>This will take a few seconds to load");
+				$('#dialog-help').dialog({ height: 600, width: 800, position: { my: 'center', at: 'top', of: window}, title: "Ping " + ip });
+//				$('#dialog-help').dialog( "moveToTop" );
+
+				$.get("ping.php?ip=" + ip + "&count=" + count
+				).success(function(data) {
+						$('#helpText').html(data);
+				}).fail(function() {
+						$('#helpText').html("Error pinging " + ip);
+				});
+		}
+
+		function PingE131IP(id)
+		{
+			var ip = $("[name='txtIP\[" + id + "\]']").val();
+
+			PingIP(ip, 3);
+		}
+
 		function ViewReleaseNotes(version) {
 				$('#helpText').html("Retrieving Release Notes");
 				$('#dialog-help').dialog({ height: 800, width: 800, title: "Release Notes for FPP v" + version });
@@ -772,6 +796,7 @@ function RemovePlaylistEntry()	{
 												"<td width=\"10%\" align='left'>Universe<br>Size</td>" +
                         "<td width=\"20%\" align='left'>Universe<br>Type</td>" +
 												"<td width=\"20%\" align='left'>Unicast Address</td>" +
+												"<td width=\"5%\" align='left'>Ping</td>" +
 												"</tr>";
 												
 							UniverseCount = entries.childNodes.length;
@@ -787,8 +812,10 @@ function RemovePlaylistEntry()	{
 								unicastAddress = unicastAddress.trim();
 
 								var activeChecked = active == 1  ? "checked=\"checked\"" : "";
-								var multicastChecked = type == 0 ? "selected" : "";
-								var unicastChecked = type == 1   ? "selected": "";
+								var typeMulticastE131 = type == 0 ? "selected" : "";
+								var typeUnicastE131 = type == 1 ? "selected": "";
+								var typeBroadcastArtNet = type == 2 ? "selected" : "";
+								var typeUnicastArtNet = type == 3 ? "selected": "";
 								
 								innerHTML += 	"<tr class=\"rowUniverseDetails\">" +
 								              "<td>" + (i+1).toString() + "</td>" +
@@ -798,9 +825,13 @@ function RemovePlaylistEntry()	{
 															"<td><input name=\"txtSize[" + i.toString() + "]\" id=\"txtSize[" + i.toString() + "]\" type=\"text\"  size=\"3\"/  maxlength=\"3\"value=\"" + size.toString() + "\"></td>" +
 															
 															"<td><select id=\"universeType[" + i.toString() + "]\" name=\"universeType[" + i.toString() + "]\" style=\"width:150px\">" +
-															      "<option value=\"0\" " + multicastChecked + ">Multicast</option>" +
-															      "<option value=\"1\" " + unicastChecked + ">Unicast</option></select></td>" + 
-															"<td><input name=\"txtIP[" + i.toString() + "]\" id=\"txtIP[" + i.toString() + "]\" type=\"text\"/ value=\"" + unicastAddress + "\" size=\"15\" maxlength=\"15\"></td>" +
+															      "<option value=\"0\" " + typeMulticastE131 + ">E1.31 - Multicast</option>" +
+															      "<option value=\"1\" " + typeUnicastE131 + ">E1.31 - Unicast</option>" +
+															      "<option value=\"2\" " + typeBroadcastArtNet + ">ArtNet - Broadcast</option>" +
+															      "<option value=\"3\" " + typeUnicastArtNet + ">ArtNet - Unicast</option>" +
+																  "</select></td>" +
+															"<td><input name=\"txtIP[" + i.toString() + "]\" id=\"txtIP[" + i.toString() + "]\" type=\"text\"/ value=\"" + unicastAddress + "\" size=\"15\" maxlength=\"32\"></td>" +
+															"<td><input type=button onClick='PingE131IP(" + i.toString() + ");' value='Ping'></td>" +
 															"</tr>";
 
 							}
@@ -920,7 +951,7 @@ function RemovePlaylistEntry()	{
 						document.getElementById("chkActive[" + i + "]").value = active;
 						document.getElementById("txtSize[" + i + "]").value = size.toString();
 						document.getElementById("txtIP[" + i + "]").value = unicastAddress;
-						if(universeType == '1')
+						if((universeType == '1') || (universeType == '3'))
 						{
 							document.getElementById("txtIP[" + i + "]").disabled = false;
 						}
@@ -998,7 +1029,7 @@ function RemovePlaylistEntry()	{
 				}
 				// unicast address
 				universeType=document.getElementById("universeType[" + i + "]").value;
-				if(universeType == 1)
+				if(universeType == 1 || universeType == 3)
 				{
 					if(!validateIPaddress("txtIP[" + i + "]"))
 					{
@@ -1013,7 +1044,9 @@ function RemovePlaylistEntry()	{
 		{
 			var ipb = document.getElementById(id);
 			var ip = ipb.value;
-			if ((ip == "") || (/^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(ip)))
+			var isHostnameRegex = /[a-z]/i;
+			var isHostname = ip.match(isHostnameRegex);
+			if ((ip == "") || ((isHostname == null) || (isHostname.length > 0)) || (/^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(ip)))
 			{
 				ipb.style.border = "#000 0px none";
 				return true;

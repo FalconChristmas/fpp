@@ -277,6 +277,7 @@
 			],
 			"subMatrices": [
 				{
+					"enabled": 0,
 					"startChannel": 30001,
 					"width": 32,
 					"height": 16,

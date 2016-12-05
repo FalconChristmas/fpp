@@ -59,6 +59,7 @@ class Player {
 	void UpdateMasterPosition(int frameNumber);
 	void CalculateNewChannelOutputDelay(float mediaPosition);
 	void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent);
+	void SendData(void);
 	void SendBlankingData(void);
 
 	int  GetPlaybackSecondsElapsed(void);
@@ -94,6 +95,9 @@ class Player {
 
 	Json::Value GetCurrentPlaylist(void);
 
+	// FIXME, make this private???
+	char          m_seqData[FPPD_MAX_CHANNELS] __attribute__ ((aligned (__BIGGEST_ALIGNMENT__)));
+
   private:
 	void ProcessChannelData(void);
     char NormalizeControlValue(char in);
@@ -119,7 +123,6 @@ class Player {
 	int           m_runOutputThread;
 	int           m_outputThreadIsRunning;
 
-	char          m_seqData[FPPD_MAX_CHANNELS];
 	char          m_seqLastControlMajor;
 	char          m_seqLastControlMinor;
 };

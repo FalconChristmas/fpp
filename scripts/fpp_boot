@@ -3,6 +3,7 @@
 BINDIR=$(cd $(dirname $0) && pwd)
 
 . ${BINDIR}/common
+. ${BINDIR}/functions
 
 if [ ! -d ${LOGDIR} ]
 then
@@ -16,9 +17,13 @@ then
 	${SCRIPTDIR}/git_pull
 fi
 
+remountRootReadWrite
+
 ${SCRIPTDIR}/upgrade_config
 
 ${SCRIPTDIR}/timezone_sync
+
+remountRootReadOnlyIfNeeded
 
 ${SUDO} ${SCRIPTDIR}/fppd_start
 

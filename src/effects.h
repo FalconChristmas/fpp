@@ -39,6 +39,7 @@ typedef struct fppeffect {
 	int       modelSize;
 	int       startChannel;
 	int       loop;
+	int       background;
 } FPPeffect;
 
 extern FPPeffect *effects[];

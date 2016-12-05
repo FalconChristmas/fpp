@@ -503,6 +503,10 @@ int LoadChannelMemoryMapData(void) {
 			continue;
 		cb->strandsPerString = strtol(s, NULL, 10);
 
+		// Sanity check our string count
+		if (cb->stringCount > (cb->channelCount / 3))
+			cb->stringCount = cb->channelCount / 3;
+
 		SetupPixelMapForBlock(cb);
 
 		cb++;

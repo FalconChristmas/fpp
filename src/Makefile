@@ -4,7 +4,7 @@ ifneq ($(wildcard /usr/bin/ccache),)
 	CCACHE = ccache
 endif
 
-TARGETS = fpp fppmm fppd
+TARGETS = fpp fppmm fppd fsequtil
 SUBMODULES =
 
 INSTALL_PROGRAM = install -m 755 -p
@@ -25,9 +25,20 @@ OBJECTS_fppmm = \
 LIBS_fppmm = \
 	$(NULL)
 
+OBJECTS_fsequtil = \
+	common.o \
+	fppversion.o \
+	fsequtil.o \
+	log.o \
+	SequenceFile.o \
+	$(NULL)
+LIBS_fsequtil = \
+	$(NULL)
+
 OBJECTS_fppd = \
 	channeloutput/ChannelOutputBase.o \
 	channeloutput/channeloutput.o \
+	channeloutput/ArtNet.o \
 	channeloutput/DebugOutput.o \
 	channeloutput/E131.o \
 	channeloutput/FBMatrix.o \
@@ -144,7 +155,7 @@ CFLAGS += -Wimplicit
 else
 # we get lots of deprecated warnings currently with g++ since we're
 # normally compiling with gcc
-CFLAGS += -Wno-write-strings
+CFLAGS += -Wno-write-strings -Wno-narrowing
 endif
 
 ifeq '$(ARCH)' 'Raspberry Pi'
@@ -177,7 +188,7 @@ OBJECTS_fppd += \
 	$(NULL)
 DEPS_fppd += \
 	../external/RF24/librf24-bcm.so \
-	../external/rpi-rgb-led-matrix/lib/librgbmatrix.a \
+	../lib/librgbmatrix.so \
 	../external/rpi_ws281x/libws2811.a \
 	$(NULL)
 SUBMODULES += \
@@ -202,7 +213,7 @@ OBJECTS_fppd += \
 	channeloutput/RGBMatrix.o \
 	$(NULL)
 DEPS_fppd += \
-	../external/rpi-rgb-led-matrix/lib/librgbmatrix.a \
+	../lib/librgbmatrix.so \
 	$(NULL)
 SUBMODULES += \
 	external/RF24 \
@@ -288,6 +299,8 @@ release: $(TARGETS)
 	-$(INSTALL_PROGRAM) fppmm $(BINDIR)/fppmm
 	strip fppd
 	-$(INSTALL_PROGRAM) fppd $(BINDIR)/fppd
+	strip fsequtil
+	-$(INSTALL_PROGRAM) fsequtil $(BINDIR)/fsequtil
 	for dir in $(SUBDIRS); do \
 		$(MAKE) -C $$dir release || exit 1; \
 	done
@@ -296,6 +309,9 @@ fpp: $(OBJECTS_fpp)
 	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
 
 fppmm: $(OBJECTS_fppmm)
+	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
+
+fsequtil: $(OBJECTS_fsequtil)
 	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
 
 fppd: $(DEPS_fppd) $(OBJECTS_fppd)
@@ -311,7 +327,7 @@ fppversion.c: fppversion.sh force
 	$(CCACHE) $(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f fppversion.c $(OBJECTS_fpp) $(OBJECTS_fppmm) $(OBJECTS_fppd) fpp fppmm fppd
+	rm -f fppversion.c $(OBJECTS_fpp) $(OBJECTS_fppmm) $(OBJECTS_fppd) $(OBJECTS_fsequtil) fpp fppmm fppd fsequtil
 	@if [ -e ../external/RF24/.git ]; then make -C ../external/RF24 clean; fi
 	@if [ -e ../external/rpi-rgb-led-matrix/.git ]; then make -C ../external/rpi-rgb-led-matrix clean; fi
 	@if [ -e ../external/rpi_ws281x/libws2811.a ]; then rm ../external/rpi_ws281x/*.o ../external/rpi_ws281x/*.a 2> /dev/null; fi
@@ -345,7 +361,28 @@ util: force
 
 ../external/rpi-rgb-led-matrix/lib/librgbmatrix.a: ../external/rpi-rgb-led-matrix/.git
 	@echo "Building rpi-rgb-led-matrix library"
-	@make -C ../external/rpi-rgb-led-matrix/ lib/librgbmatrix.a
+	@make -C ../external/rpi-rgb-led-matrix/lib/ librgbmatrix.a
+
+../lib/librgbmatrix.so: ../external/rpi-rgb-led-matrix/.git
+	@echo "Building rpi-rgb-led-matrix library for Standard pinout"
+	@make -C ../external/rpi-rgb-led-matrix/lib/ clean
+	@make -C ../external/rpi-rgb-led-matrix/lib/ librgbmatrix.a \
+		DEFINES='-DRGB_SLOWDOWN_GPIO=1'
+	gcc -shared -o ../lib/librgbmatrix_Standard.so ../external/rpi-rgb-led-matrix/lib/*.o
+	@echo "Building rpi-rgb-led-matrix library for Adafruit pinout"
+	@make -C ../external/rpi-rgb-led-matrix/lib/ clean
+	@make -C ../external/rpi-rgb-led-matrix/lib/ librgbmatrix.a \
+		DEFINES='-DRGB_SLOWDOWN_GPIO=1 -DADAFRUIT_RGBMATRIX_HAT -DONLY_SINGLE_CHAIN'
+	gcc -shared -o ../lib/librgbmatrix_Adafruit.so ../external/rpi-rgb-led-matrix/lib/*.o
+	@echo "Building rpi-rgb-led-matrix library for Classic pinout"
+	@make -C ../external/rpi-rgb-led-matrix/lib/ clean
+	@make -C ../external/rpi-rgb-led-matrix/lib/ librgbmatrix.a \
+		DEFINES='-DRGB_SLOWDOWN_GPIO=1 -DRGB_CLASSIC_PINOUT -DONLY_SINGLE_CHAIN'
+	gcc -shared -o ../lib/librgbmatrix_Classic.so ../external/rpi-rgb-led-matrix/lib/*.o
+	strip ../lib/librgbmatrix_Standard.so ../lib/librgbmatrix_Adafruit.so ../lib/librgbmatrix_Classic.so
+	cp ../lib/librgbmatrix_Standard.so ../external/rpi-rgb-led-matrix/lib/librgbmatrix.so
+	ln -s ./librgbmatrix_Standard.so ../lib/librgbmatrix.so
+
 
 #############################################################################
 # libws2811 on the Pi

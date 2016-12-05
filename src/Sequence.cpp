@@ -79,10 +79,13 @@ Sequence::Sequence(int priority, int startChannel, int blockSize)
 	m_seqLastControlMinor(0)
 {
 	m_seqFilename[0] = 0;
+
+	pthread_mutex_init(&m_sequenceLock, NULL);
 }
 
 Sequence::~Sequence()
 {
+	pthread_mutex_destroy(&m_sequenceLock);
 }
 
 /*
@@ -438,6 +441,8 @@ void Sequence::CloseSequenceFile(void) {
 	if (getFPPmode() == MASTER_MODE)
 		SendSeqSyncStopPacket(m_seqFilename);
 
+	pthread_mutex_lock(&m_sequenceLock);
+
 	if (m_seqFile) {
 		fclose(m_seqFile);
 		m_seqFile = NULL;
@@ -451,5 +456,7 @@ void Sequence::CloseSequenceFile(void) {
 //		(!IsEffectRunning()) &&
 //		(FPPstatus != FPP_STATUS_PLAYLIST_PLAYING))
 //		SendBlankingData();
+
+	pthread_mutex_unlock(&m_sequenceLock);
 }
 

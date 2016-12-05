@@ -193,23 +193,35 @@ function GetFPPDUptime()
 
 function GetFPPStatus()
 {
-	
-    $status = SendCommand('s');
+	global $args;
+
+	if (isset($args['ip']))
+	{
+		header( "Content-Type: application/json");
+
+		echo file_get_contents("http://" . $args['ip'] . "/fppjson.php?command=getFPPstatus");
+
+		exit(0);
+	}
+	else
+	{
+		$status = SendCommand('s');
   
-    if($status == false || $status == 'false') { 
+		if($status == false || $status == 'false') {
      	
-		$status=exec("if ps cax | grep -q git_pull; then echo \"updating\"; else echo \"false\"; fi");
+			$status=exec("if ps cax | grep -q git_pull; then echo \"updating\"; else echo \"false\"; fi");
      
-     	returnJSON([
-     			'fppd' => 'Not Running',
-     			'status' => -1,
-     			'status_name' => $status == 'updating' ? $status : 'stopped',
-     		]);
-     }
+			returnJSON([
+					'fppd' => 'Not Running',
+					'status' => -1,
+					'status_name' => $status == 'updating' ? $status : 'stopped',
+				]);
+		}
 
-     $data = parseStatus($status);
+		$data = parseStatus($status);
 
-     returnJson($data);
+		returnJson($data);
+	}
 }
 
 function parseStatus($status) 
@@ -435,7 +447,10 @@ function GetFPPSystems()
 			}
 	 }
 
-		$result[] = $elem;
+		if (!(($elem['IP'] == "192.168.7.2") && ($elem['Platform'] == "BeagleBone Black")))
+		{
+			$result[] = $elem;
+		}
 	}
 
 	returnJSON($result);

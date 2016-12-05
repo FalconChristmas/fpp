@@ -148,12 +148,14 @@ int OpenMediaOutput(const char *filename) {
 		mediaOutput = new mpg123Output(tmpFile, &mediaOutputStatus);
 	} else if (!strcasecmp(&tmpFile[filenameLen - 4], ".ogg")) {
 		mediaOutput = new ogg123Output(tmpFile, &mediaOutputStatus);
+#ifdef PLATFORM_PI
 	} else if ((!strcasecmp(&tmpFile[filenameLen - 4], ".mp4")) ||
 			   (!strcasecmp(&tmpFile[filenameLen - 4], ".mkv"))) {
 		mediaOutput = new omxplayerOutput(tmpFile, &mediaOutputStatus);
+#endif
 	} else {
 		pthread_mutex_unlock(&mediaOutputLock);
-		LogDebug(VB_MEDIAOUT, "ERROR: No Media Output handler for %s\n", tmpFile);
+		LogDebug(VB_MEDIAOUT, "No Media Output handler for %s\n", tmpFile);
 		return 0;
 	}
 

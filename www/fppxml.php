@@ -2666,7 +2666,7 @@ function GetFile()
 	else
 	{
 		header('Content-type: application/binary');
-		header('Content-disposition: attachment;filename=' . $filename);
+		header('Content-disposition: attachment;filename="' . $filename . '"');
 	}
 
 	if (($_GET['dir'] == "Logs") &&

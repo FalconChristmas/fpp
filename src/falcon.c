@@ -33,6 +33,7 @@
 #include <strings.h>
 #include <unistd.h>
 
+#include "channeloutput/channeloutput.h"
 #include "common.h"
 #include "log.h"
 #include "Player.h"
@@ -289,49 +290,69 @@ void FalconQueryHardware(int sock, struct sockaddr_in *srcAddr,
 int FalconPassThroughData(int offset, unsigned char *inBuf, int size)
 {
 	LogDebug(VB_SETTING, "FalconPassThroughData(%p)\n", inBuf);
-	unsigned char *buf = (unsigned char *)malloc(FALCON_CFG_BUF_SIZE);
-	if (!buf)
-	{
-		LogErr(VB_SETTING,
-			"Unable to allocate %d byte buffer for passing through Falcon data: %s\n",
-			FALCON_CFG_BUF_SIZE, strerror(errno));
-		return -1;
-	}
- 	bzero(buf, FALCON_CFG_BUF_SIZE);
-	if(offset < (FALCON_CFG_BUF_SIZE - size))
-	{
-		LogDebug(VB_SETTING, "Offset = %d\n", offset);
-	}
-	else
-	{
-		LogErr(VB_SETTING,"Offset %d is invalid: %s\n",offset, strerror(errno));
-	}
-
-	buf[0] = 0xCC;
-	buf[1] = 0xCC;
-	buf[2] = 0xCC;
-	buf[3] = 0xCC;
-	buf[4] = 0xCC;
-	buf[5] = 0x55;
-
-	memcpy(buf+FALCON_CFG_HEADER_SIZE+offset, inBuf, size);
 
 	if ((logLevel & LOG_DEBUG) && (logMask & VB_SETTING))
-		HexDump("Falcon Pass-through data", buf+offset, size);
+		HexDump("Falcon Pass-through data", inBuf, size);
 
-	int bytesWritten;
-
+	// Disable channel outputs and let them quiesce before sending config info
 	player->DisableChannelOutput();
+
 	usleep(100000);
-	bytesWritten = wiringPiSPIDataRW (0, (unsigned char *)buf, FALCON_CFG_BUF_SIZE);
-	if (bytesWritten != FALCON_CFG_BUF_SIZE)
+
+	if (getSettingInt("FPDEnabled"))
 	{
-		LogErr(VB_SETTING,
-			"Error: wiringPiSPIDataRW returned %d, expecting %d\n",
-			bytesWritten, FALCON_CFG_BUF_SIZE);
+		unsigned char *buf = (unsigned char *)malloc(FALCON_CFG_BUF_SIZE);
+		if (!buf)
+		{
+			LogErr(VB_SETTING,
+				"Unable to allocate %d byte buffer for passing through Falcon data: %s\n",
+				FALCON_CFG_BUF_SIZE, strerror(errno));
+			return -1;
+		}
+
+		bzero(buf, FALCON_CFG_BUF_SIZE);
+
+		if(offset < (FALCON_CFG_BUF_SIZE - size))
+		{
+			LogDebug(VB_SETTING, "Offset = %d\n", offset);
+		}
+		else
+		{
+			LogErr(VB_SETTING,"Offset %d is invalid: %s\n",offset, strerror(errno));
+		}
+
+		buf[0] = 0xCC;
+		buf[1] = 0xCC;
+		buf[2] = 0xCC;
+		buf[3] = 0xCC;
+		buf[4] = 0xCC;
+		buf[5] = 0x55;
+
+		memcpy(buf+FALCON_CFG_HEADER_SIZE+offset, inBuf, size);
+
+		int bytesWritten;
+
+		bytesWritten = wiringPiSPIDataRW (0, (unsigned char *)buf, FALCON_CFG_BUF_SIZE);
+		if (bytesWritten != FALCON_CFG_BUF_SIZE)
+		{
+			LogErr(VB_SETTING,
+				"Error: wiringPiSPIDataRW returned %d, expecting %d\n",
+				bytesWritten, FALCON_CFG_BUF_SIZE);
+		}
+		free(buf);
+
+		usleep(100000);
 	}
+
+	// Pass data on to our regular channel outputs followed by blanking data
+	bzero(player->m_seqData + offset, 4096);
+	memcpy(player->m_seqData + offset, inBuf, FALCON_PASSTHROUGH_DATA_SIZE);
+	player->SendData();
+	player->SendBlankingData(); // reset data so we don't keep reprogramming
+
+	// Give changes time to take effect then turn back on channel outputs
 	usleep(100000);
-	free(buf);
+
 	player->EnableChannelOutput();
 }
 
@@ -504,7 +525,7 @@ void ProcessFalconPacket(int sock, struct sockaddr_in *srcAddr,
 			 (inBuf[5] == 0x55))
 	{
 		int offset = inBuf[6] + inBuf[7]*256;
-		FalconPassThroughData(offset,&inBuf[8],FALCON_PASSTHROUGH_DATA_SIZE);
+		FalconPassThroughData(offset, &inBuf[8], FALCON_PASSTHROUGH_DATA_SIZE);
 	}
 }
 
@@ -535,8 +556,9 @@ int DetectFalconHardware(int configureHardware)
 		strcpy(model, "UNKNOWN");
 		strcpy(cfgFile, "Falcon.FPD");
 
-		switch (query[0])
+		switch ((unsigned char)query[0])
 		{
+			// 0x01-0x7F == Falcon Controllers
 			case 0x01:	strcpy(model, "F16 v2.x");
 						strcpy(cfgFile, "Falcon.F16V2-alpha");
 						spiSpeed = 16000000;
@@ -549,6 +571,13 @@ int DetectFalconHardware(int configureHardware)
 						strcpy(cfgFile, "Falcon.FPDV2");
 						spiSpeed = 8000000;
 						break;
+
+			// 0x81-0xFF == Non-Falcon Controllers
+			case 0x81:	strcpy(model, "Ron's Holiday Lights - FPGA Pi Pixel");
+						strcpy(cfgFile, "");
+						spiSpeed = 16000000;
+						break;
+
 		}
 
 		LogInfo(VB_SETTING, "Falcon Hardware Detected on SPI port %d\n", spiPort);
@@ -578,7 +607,8 @@ int DetectFalconHardware(int configureHardware)
 				return 0;
 			}
 
-			FalconConfigureHardware(cfgFile, 0);
+			if (strlen(cfgFile))
+				FalconConfigureHardware(cfgFile, 0);
 		}
 
 		return 1;

@@ -30,7 +30,7 @@
 #include <vector>
 
 #define MAX_MATRIX_OUTPUTS    8
-#define MAX_PANELS_PER_OUTPUT 8
+#define MAX_PANELS_PER_OUTPUT 12
 #define MAX_MATRIX_PANELS    (MAX_MATRIX_OUTPUTS * MAX_PANELS_PER_OUTPUT)
 
 typedef struct ledPanel {
@@ -47,7 +47,8 @@ typedef struct ledPanel {
 
 class PanelMatrix {
   public:
-	PanelMatrix(int panelWidth, int panelHeight, int channelsPerPixel = 3);
+	PanelMatrix(int panelWidth, int panelHeight, int channelsPerPixel = 3,
+				int invertedData = 0);
 	~PanelMatrix();
 
 	int  AddPanel(int output, int chain, char orientation,
@@ -79,6 +80,7 @@ class PanelMatrix {
 	int  m_panelCount;
 	int  m_panelWidth;
 	int  m_panelHeight;
+	int  m_invertedData;
 
 };
 

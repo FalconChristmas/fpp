@@ -236,7 +236,7 @@ echo "
 	echo "</select>\n";
 }
 
-function PrintSettingText($setting, $restart = 1, $reboot = 0, $maxlength = 32, $size = 32, $pluginName = "")
+function PrintSettingText($setting, $restart = 1, $reboot = 0, $maxlength = 32, $size = 32, $pluginName = "", $defaultValue = "")
 {
 	global $settings;
 	global $pluginSettings;
@@ -256,6 +256,8 @@ function PrintSettingText($setting, $restart = 1, $reboot = 0, $maxlength = 32, 
 		echo $settings[$setting];
 	elseif (isset($pluginSettings[$setting]))
 		echo $pluginSettings[$setting];
+	else
+		echo $defaultValue;
 
 	echo "\">\n";
 }

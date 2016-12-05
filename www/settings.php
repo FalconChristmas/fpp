@@ -287,12 +287,20 @@ function ToggleLCDNow()
       <td><? PrintSettingCheckbox("Always Transmit", "alwaysTransmit", 1, 0, "1", "0"); ?></td>
     </tr>
     <tr>
+      <td>Pause Background Effect Sequence when playing a FSEQ file:</td>
+      <td><? PrintSettingCheckbox("Pause Background Effects", "pauseBackgroundEffects", 1, 0, "1", "0"); ?></td>
+    </tr>
+    <tr>
       <td>Audio Output Device:</td>
       <td><? PrintSettingSelect("Audio Output Device", "AudioOutput", 1, 0, "$CurrentCard", $AlsaCards, "", "SetAudio"); ?></td>
     </tr>
     <tr>
       <td>Audio Output Mixer Device:</td>
       <td><? PrintSettingSelect("Audio Mixer Device", "AudioMixerDevice", 1, 0, $AudioMixerDevice, $MixerDevices, "", "SetMixerDevice"); ?></td>
+    </tr>
+    <tr>
+      <td>Disable IP announcement during boot:</td>
+      <td><? PrintSettingCheckbox("Disable IP announcement during boot", "disableIPAnnouncement", 0, 0, "1", "0"); ?></td>
     </tr>
     <tr>
       <td>External Storage Device:</td>
