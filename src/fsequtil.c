@@ -92,8 +92,12 @@ int main (int argc, char *argv[])
 	{
 		for (int c = 1; c < argc; c++)
 		{
+			if(!strncmp(argv[c],"-h",2))
+			{
+				Usage(argv[0]);
+			}
 			// Info - example "fpp -i <FILENAME>"
-			if(!strncmp(argv[c],"-i",2))
+			else if(!strncmp(argv[c],"-i",2))
 			{
 				info = 1;
 			}
@@ -158,15 +162,16 @@ void Usage(char *appname)
 "manipulate FSEQ sequence files in various ways.\n"
 "\n"
 "Options:\n"
-"  -V                       - Print version information\n"
+//"  -V                       - Print version information\n"
+"  -h                       - This help text\n"
 "  -i                       - Get info on a sequence file\n"
 "  -o OUTPUT_FILENAME       - Specify output FSEQ filename\n"
-"  -f                       - Force overwrite of existing file\n"
+//"  -f                       - Force overwrite of existing file\n"
 "  -b PERCENT               - Scale output to PERCENT of input\n"
-"  -s RANGE[,RANGE2...]     - Create a Sparse FSEQ of given channel ranges\n"
-"  -d [START[-END]]         - Dump channel data (optional start/end range)\n"
-"  -S STARTFRAME            - Only copy data starting at STARTFRAME frame #\n"
-"  -E ENDFRAME              - Only copy data ending at ENDFRAME frame #\n"
+//"  -s RANGE[,RANGE2...]     - Create a Sparse FSEQ of given channel ranges\n"
+//"  -d [START[-END]]         - Dump channel data (optional start/end range)\n"
+//"  -S STARTFRAME            - Only copy data starting at STARTFRAME frame #\n"
+//"  -E ENDFRAME              - Only copy data ending at ENDFRAME frame #\n"
 "\n", appname);
 
 	exit(0);
