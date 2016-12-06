@@ -37,7 +37,7 @@ PlaylistEntryEvent::PlaylistEntryEvent()
 	m_minorID(0),
 	m_blocking(0)
 {
-	LogDebug(VB_PLAYLIST, "PlaylistEntryEffect::PlaylistEntryEvent()\n");
+	LogDebug(VB_PLAYLIST, "PlaylistEntryEvent::PlaylistEntryEvent()\n");
 
 	m_type = "event";
 }
@@ -54,7 +54,7 @@ PlaylistEntryEvent::~PlaylistEntryEvent()
  */
 int PlaylistEntryEvent::Init(Json::Value &config)
 {
-	LogDebug(VB_PLAYLIST, "PlaylistEntryEffect::Init()\n");
+	LogDebug(VB_PLAYLIST, "PlaylistEntryEvent::Init()\n");
 
 	if (config["majorID"].asInt())
 		m_majorID = config["majorID"].asInt();
@@ -74,7 +74,7 @@ int PlaylistEntryEvent::Init(Json::Value &config)
  */
 int PlaylistEntryEvent::StartPlaying(void)
 {
-	LogDebug(VB_PLAYLIST, "PlaylistEntryEffect::StartPlaying()\n");
+	LogDebug(VB_PLAYLIST, "PlaylistEntryEvent::StartPlaying()\n");
 
 	if (!CanPlay())
 	{
@@ -111,7 +111,7 @@ int PlaylistEntryEvent::Process(void)
  */
 int PlaylistEntryEvent::Stop(void)
 {
-	LogDebug(VB_PLAYLIST, "PlaylistEntryEffect::Stop()\n");
+	LogDebug(VB_PLAYLIST, "PlaylistEntryEvent::Stop()\n");
 
 	// FIXME, blocking is not supported yet
 //	if (!m_blocking)

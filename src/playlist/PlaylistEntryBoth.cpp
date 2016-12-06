@@ -47,6 +47,14 @@ int PlaylistEntryBoth::Init(Json::Value &config)
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntryBoth::Init()\n");
 
+	m_sequenceEntry = new PlaylistEntrySequence();
+	if (!m_sequenceEntry)
+		return 0;
+
+	m_mediaEntry = new PlaylistEntryMedia();
+	if (!m_mediaEntry)
+		return 0;
+
 	if (!m_mediaEntry->Init(config))
 		return 0;
 

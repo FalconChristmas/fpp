@@ -78,6 +78,8 @@ int PlaylistEntrySequence::StartPlaying(void)
 	if (!m_sequenceID)
 		return 0;
 
+	LogDebug(VB_PLAYLIST, "Started Sequence, ID: %d\n", m_sequenceID);
+
 	return PlaylistEntryBase::StartPlaying();
 }
 
