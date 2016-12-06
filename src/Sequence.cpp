@@ -450,9 +450,10 @@ void Sequence::CloseSequenceFile(void) {
 	m_seqFilename[0] = '\0';
 	m_seqPaused = 0;
 
-	if ((getFPPmode() != REMOTE_MODE) &&
-		(!IsEffectRunning()) &&
-		(FPPstatus != FPP_STATUS_PLAYLIST_PLAYING))
+	if ((!IsEffectRunning()) &&
+		((getFPPmode() != REMOTE_MODE) &&
+		 (FPPstatus != FPP_STATUS_PLAYLIST_PLAYING)) ||
+		(getSettingInt("blankBetweenSequences")))
 		SendBlankingData();
 
 	pthread_mutex_unlock(&m_sequenceLock);
