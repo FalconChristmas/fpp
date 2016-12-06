@@ -41,6 +41,7 @@
 
 #include "PlaylistEntryBoth.h"
 //#include "PlaylistEntryBranch.h"
+#include "PlaylistEntryBrightness.h"
 #include "PlaylistEntryChannelTest.h"
 #include "PlaylistEntryEffect.h"
 #include "PlaylistEntryEvent.h"
@@ -250,6 +251,8 @@ PlaylistEntryBase* Playlist::LoadPlaylistEntry(Json::Value entry)
 		result = new PlaylistEntryBoth();
 //	else if (entry["type"].asString() == "branch")
 //		result = new PlaylistEntryBranch();
+	else if (entry["type"].asString() == "brightness")
+		result = new PlaylistEntryBrightness();
 	else if (entry["type"].asString() == "channelTest")
 		result = new PlaylistEntryChannelTest();
 	else if (entry["type"].asString() == "effect")

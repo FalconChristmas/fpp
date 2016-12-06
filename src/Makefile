@@ -86,6 +86,7 @@ OBJECTS_fppd = \
 	playlist/Playlist.o \
 	playlist/PlaylistEntryBase.o \
 	playlist/PlaylistEntryBoth.o \
+	playlist/PlaylistEntryBrightness.o \
 	playlist/PlaylistEntryChannelTest.o \
 	playlist/PlaylistEntryEffect.o \
 	playlist/PlaylistEntryEvent.o \
