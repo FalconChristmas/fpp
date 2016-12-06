@@ -285,6 +285,9 @@ function parseStatus($status)
 			];
 		} else {
 
+			if ($status[4] == 's')
+				$status[6] = '';
+
 			$data = [
 				'current_playlist' => [
 					'playlist' => pathinfo($status[3])['filename'],
