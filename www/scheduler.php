@@ -1,4 +1,5 @@
 <?php
+require_once('auth.php');
 $a = session_id();
 
 if(empty($a))

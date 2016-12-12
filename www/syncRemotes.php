@@ -1,6 +1,7 @@
 <?php
 
 $skipJSsettings = 1;
+require_once('auth.php');
 require_once("common.php");
 
 DisableOutputBuffering();

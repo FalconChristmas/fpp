@@ -1,25 +1,21 @@
 <?php
+require_once('auth.php');
 
 require_once("config.php");
 
 $thisdir = dirname(__FILE__);
 
-// No other checking here, we're assuming that since they're able to POST apache has
-// already taken care of validating a user.
 if ( !empty($_POST) && $_POST["password"] == "disabled" )
 {
-  shell_exec($SUDO . " rm -f $mediaDirectory/htaccess $thisdir/.htpasswd $thisdir/.htaccess");
+  unlink("$mediaDirectory/uipasswd");
 }
 
 if ( isset($_POST['password1']) && isset($_POST['password2']))
 {
   if (($_POST['password1'] != "") && ($_POST['password1'] == $_POST['password2']))
   {
-    // true - setup .htaccess & save it
-    file_put_contents("/var/tmp/htaccess", "AuthUserFile $thisdir/.htpasswd\nAuthType Basic\nAuthName admin\nRequire valid-user\n");
-    shell_exec($SUDO . " mv /var/tmp/htaccess $mediaDirectory/htaccess");
-    shell_exec($SUDO . " ln -snf $mediaDirectory/htaccess $thisdir/.htaccess");
-    shell_exec($SUDO . " htpasswd -cbd $thisdir/.htpasswd admin " . $_POST['password1']);
+    // true - hash the password & save it
+    file_put_contents("$mediaDirectory/uipasswd", password_hash($_POST['password1'], PASSWORD_DEFAULT));
   }
 }
 
@@ -39,7 +35,7 @@ function hide_if_equal($value1, $value2)
   }
 }
 
-$pw = file_exists("$mediaDirectory/htaccess");
+$pw = file_exists("$mediaDirectory/uipasswd");
 
 ?>
 

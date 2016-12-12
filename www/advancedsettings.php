@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
-<?php require_once('common.php'); ?>
+<?php require_once('common.php');
+require_once('auth.php');
+?>
 <?php include 'common/menuHead.inc'; ?>
 <title><? echo $pageTitle; ?></title>
 </head>

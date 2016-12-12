@@ -1,4 +1,5 @@
 <?php
+require_once('auth.php');
 require_once('config.php');
 require_once('playlistentry.php');
 //require_once('pi_functions.php');

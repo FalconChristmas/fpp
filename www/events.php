@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-<?php	include 'common.php'; ?>
+<?php	include('common.php');
+require_once('auth.php'); ?>
 <?php	include 'common/menuHead.inc'; ?>
 <script>
 		var TriggerEventSelected = "";

@@ -2,6 +2,7 @@
 
 $skipJSsettings = 1;
 require_once('common.php');
+require_once('auth.php');
 
 require_once('playlistentry.php');
 require_once('universeentry.php');

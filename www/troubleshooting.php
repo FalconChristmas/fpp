@@ -1,4 +1,5 @@
 <?php
+require_once('auth.php');
 require_once('troubleshootingCommands.php');
 ?>
 

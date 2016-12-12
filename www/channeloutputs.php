@@ -2,6 +2,7 @@
 <head>
 <?php
 require_once("common.php");
+require_once('auth.php');
 require_once('universeentry.php');
 include 'common/menuHead.inc';
 ?>

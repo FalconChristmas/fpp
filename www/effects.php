@@ -4,6 +4,7 @@
 <?php
 include 'common/menuHead.inc';
 require_once('config.php');
+require_once('auth.php');
 ?>
 <script>
     $(function() {

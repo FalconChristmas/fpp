@@ -1,5 +1,7 @@
 <?php $skipJSsettings = 1; ?>
-<?php require_once('common.php'); ?>
+<?php require_once('common.php'); 
+require_once('auth.php');
+?>
 <?php
 //TODO Backup/Restore of plugin settings
 //TODO Backup/Restore of WLAN interface settings (could be useful for cloning devices)

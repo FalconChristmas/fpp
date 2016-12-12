@@ -18,6 +18,7 @@
 //////////////////////////////////////////////////////////////////////////////
 $skipJSsettings = 1; // need this so config doesn't print out JavaScrip arrays
 require_once('config.php');
+require_once('auth.php');
 
 $output_dir = $uploadDirectory . "/";
 

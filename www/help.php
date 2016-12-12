@@ -1,5 +1,6 @@
 <?php
 require_once('config.php');
+require_once('auth.php');
 require_once('common.php');
 
 $helpPages = array(

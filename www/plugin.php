@@ -2,6 +2,7 @@
 
 if ( !isset($_GET['nopage']) ):
 
+require_once('auth.php');
 require_once("config.php");
 require_once("common.php");
 
