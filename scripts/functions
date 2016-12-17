@@ -609,7 +609,7 @@ setupChannelOutputs() {
 		fi
 
 		# Link in desired version of RGBMatrix library
-		PINOUT=$(cat ${FPPHOME}/media/config/channeloutputs.json | tr -d "\r\n" | sed -e 's/.*LEDPanelMatrix",[      a-zA-Z0-9:",]*"enabled": 1//' -e 's/.*"wiringPinout": "//' -e 's/".*//')
+		PINOUT=$(cat ${FPPHOME}/media/config/channeloutputs.json 2> /dev/null | tr -d "\r\n" | sed -e 's/.*LEDPanelMatrix",[      a-zA-Z0-9:",]*"enabled": 1//' -e 's/.*"wiringPinout": "//' -e 's/".*//')
 		rm ${FPPDIR}/lib/librgbmatrix.so
 		case ${PINOUT} in
 			Standard)
