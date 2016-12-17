@@ -2660,6 +2660,22 @@ tr.rowUniverseDetails td
 									</select>
 									</td>
 							</tr>
+<?
+	if ($settings['Platform'] == "Raspberry Pi")
+	{
+?>
+							<tr>
+								<td><b>Wiring Pinout:</b></td><td>
+									<select id='LEDPanelsWiringPinout'>
+										<option value='Standard'>Standard</option>
+										<option value='Classic'>Classic</option>
+										<option value='Adafruit'>Adafruit</option>
+									</select>
+									</td>
+							</tr>
+<?
+	}
+?>
 							<tr>
 								<td><b>Brightness:</b></td><td>
 									<select id='LEDPanelsBrightness'>
