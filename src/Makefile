@@ -36,6 +36,7 @@ OBJECTS_fppd = \
 	channeloutput/DDP.o \
 	channeloutput/E131.o \
 	channeloutput/FBMatrix.o \
+	channeloutput/FBVirtualDisplay.o \
 	channeloutput/FPD.o \
 	channeloutput/GenericSerial.o \
 	channeloutput/GPIO.o \
@@ -54,6 +55,7 @@ OBJECTS_fppd = \
 	channeloutput/USBPixelnet.o \
 	channeloutput/USBRelay.o \
 	channeloutput/USBRenard.o \
+	channeloutput/VirtualDisplay.o \
 	channeltester/ChannelTester.o \
 	channeltester/TestPatternBase.o \
 	channeltester/RGBChase.o \
