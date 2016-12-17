@@ -151,6 +151,8 @@ int FBVirtualDisplayOutput::Init(Json::Value config)
 		return 0;
 	}
 
+	bzero(m_virtualDisplay, m_screenSize);
+
 	return 1;
 }
 
