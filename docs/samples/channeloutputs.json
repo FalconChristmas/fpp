@@ -288,6 +288,28 @@
 
 		},
 		{
+			"type": "X11VirtualDisplay",
+			"enabled": 0,
+			"startChannel": 1,
+			"channelCount": 25000,
+			"width": 1290,
+			"height": 600,
+			"colorOrder": "BGR",
+			"pixelSize": 2,
+			"backgroundFilename": "virtualdisplaybackground.jpg"
+		},
+		{
+			"type": "FBVirtualDisplay",
+			"enabled": 0,
+			"startChannel": 1,
+			"channelCount": 25000,
+			"width": 1280,
+			"height": 720,
+			"colorOrder": "BGR",
+			"pixelSize": 2,
+			"backgroundFilename": "virtualdisplaybackground.jpg"
+		},
+		{
 			"type": "OLA",
 			"enabled": 0,
 			"startChannel": 1,
