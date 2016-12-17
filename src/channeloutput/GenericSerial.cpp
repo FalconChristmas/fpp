@@ -82,7 +82,7 @@ int GenericSerialOutput::Init(char *configStr)
 
 		if (elem[0] == "device")
 		{
-			LogDebug(VB_CHANNELOUT, "Using %s for DMX output\n",
+			LogDebug(VB_CHANNELOUT, "Using %s for Generic Serial output\n",
 				elem[1].c_str());
 
 			m_deviceName = elem[1];
