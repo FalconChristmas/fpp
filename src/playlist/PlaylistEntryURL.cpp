@@ -1,5 +1,5 @@
 /*
- *   Playlist Entry Brightness Class for Falcon Player (FPP)
+ *   PlaylistEntryURL Class for Falcon Player (FPP)
  *
  *   Copyright (C) 2016 the Falcon Player Developers
  *      Initial development by:
@@ -24,36 +24,36 @@
  */
 
 #include "log.h"
-#include "PlaylistEntryBrightness.h"
-#include "Player.h"
+#include "PlaylistEntryURL.h"
 #include "settings.h"
 
 /*
  *
  */
-PlaylistEntryBrightness::PlaylistEntryBrightness()
-  : m_brightness(0)
+PlaylistEntryURL::PlaylistEntryURL()
+  : m_url(0)
 {
-	LogDebug(VB_PLAYLIST, "PlaylistEntryBrightness::PlaylistEntryBrightness()\n");
+	LogDebug(VB_PLAYLIST, "PlaylistEntryURL::PlaylistEntryURL()\n");
 
-	m_type = "brightness";
+	m_type = "url";
 }
 
 /*
  *
  */
-PlaylistEntryBrightness::~PlaylistEntryBrightness()
+PlaylistEntryURL::~PlaylistEntryURL()
 {
 }
 
 /*
  *
  */
-int PlaylistEntryBrightness::Init(Json::Value &config)
+int PlaylistEntryURL::Init(Json::Value &config)
 {
-	LogDebug(VB_PLAYLIST, "PlaylistEntryBrightness::Init()\n");
+	LogDebug(VB_PLAYLIST, "PlaylistEntryURL::Init()\n");
 
-	m_brightness = config["brightness"].asInt();
+	m_method = config["method"].asString();
+	m_url = config["url"].asString();
 
 	return PlaylistEntryBase::Init(config);
 }
@@ -61,9 +61,9 @@ int PlaylistEntryBrightness::Init(Json::Value &config)
 /*
  *
  */
-int PlaylistEntryBrightness::StartPlaying(void)
+int PlaylistEntryURL::StartPlaying(void)
 {
-	LogDebug(VB_PLAYLIST, "PlaylistEntryBrightness::StartPlaying()\n");
+	LogDebug(VB_PLAYLIST, "PlaylistEntryURL::StartPlaying()\n");
 
 	if (!CanPlay())
 	{
@@ -71,7 +71,7 @@ int PlaylistEntryBrightness::StartPlaying(void)
 		return 0;
 	}
 
-	player->SetBrightness(m_brightness);
+	// FIXME PLAYLIST, generate the full URL and call it
 
 	return PlaylistEntryBase::StartPlaying();;
 }
@@ -79,19 +79,21 @@ int PlaylistEntryBrightness::StartPlaying(void)
 /*
  *
  */
-void PlaylistEntryBrightness::Dump(void)
+void PlaylistEntryURL::Dump(void)
 {
-	LogDebug(VB_PLAYLIST, "Brightness: %d\n", m_brightness);
+	LogDebug(VB_PLAYLIST, "URL     : %d\n", m_method);
+	LogDebug(VB_PLAYLIST, "Method  : %d\n", m_url);
 }
 
 /*
  *
  */
-Json::Value PlaylistEntryBrightness::GetConfig(void)
+Json::Value PlaylistEntryURL::GetConfig(void)
 {
 	Json::Value result = PlaylistEntryBase::GetConfig();
 
-	result["brightness"] = m_brightness;
+	result["url"] = m_url;
+	result["method"] = m_method;
 
 	return result;
 }

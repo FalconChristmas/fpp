@@ -88,6 +88,7 @@ OBJECTS_fppd = \
 	playlist/Playlist.o \
 	playlist/PlaylistEntryBase.o \
 	playlist/PlaylistEntryBoth.o \
+	playlist/PlaylistEntryBranch.o \
 	playlist/PlaylistEntryBrightness.o \
 	playlist/PlaylistEntryChannelTest.o \
 	playlist/PlaylistEntryEffect.o \
@@ -95,8 +96,11 @@ OBJECTS_fppd = \
 	playlist/PlaylistEntryMedia.o \
 	playlist/PlaylistEntryPause.o \
 	playlist/PlaylistEntryPixelOverlay.o \
+	playlist/PlaylistEntryPlaylist.o \
 	playlist/PlaylistEntryPlugin.o \
+	playlist/PlaylistEntryScript.o \
 	playlist/PlaylistEntrySequence.o \
+	playlist/PlaylistEntryURL.o \
 	playlist/PlaylistEntryVolume.o \
 	Plugins.o \
 	Scheduler.o \

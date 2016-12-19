@@ -34,7 +34,8 @@ PlaylistEntryBranch::PlaylistEntryBranch()
 	m_minute(0),
 	m_second(0),
 	m_loopCount(0),
-	m_branch(NULL)
+	m_branchTrue(NULL),
+	m_branchFalse(NULL)
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntryBranch::PlaylistEntryBranch()\n");
 

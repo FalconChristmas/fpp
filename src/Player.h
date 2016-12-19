@@ -95,10 +95,13 @@ class Player {
 
 	Json::Value GetCurrentPlaylist(void);
 
+	void SetBrightness(int brightness);
+
 	// FIXME, make this private???
 	char          m_seqData[FPPD_MAX_CHANNELS] __attribute__ ((aligned (__BIGGEST_ALIGNMENT__)));
 
   private:
+	void AdjustBrightness(void);
 	void ProcessChannelData(void);
     char NormalizeControlValue(char in);
 
@@ -125,6 +128,9 @@ class Player {
 
 	char          m_seqLastControlMajor;
 	char          m_seqLastControlMinor;
+
+	int           m_brightness;
+	unsigned char m_brightnessLookup[256];
 };
 
 extern Player *player;

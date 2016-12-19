@@ -1,5 +1,5 @@
 /*
- *   Playlist Entry Playlist Class for Falcon Player (FPP)
+ *   PlaylistEntryURL Class for Falcon Player (FPP)
  *
  *   Copyright (C) 2016 the Falcon Player Developers
  *      Initial development by:
@@ -23,19 +23,29 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _PLAYLISTENTRYPLAYLIST_H
-#define _PLAYLISTENTRYPLAYLIST_H
+#ifndef _PLAYLISTENTRYURL_H
+#define _PLAYLISTENTRYURL_H
 
-#include "Playlist.h"
+#include <string>
+
 #include "PlaylistEntryBase.h"
 
-class PlaylistEntryPlaylist : public PlaylistEntryBase {
+class PlaylistEntryURL : public PlaylistEntryBase {
   public:
-  	PlaylistEntryPlaylist();
-	~PlaylistEntryPlaylist();
+  	PlaylistEntryURL();
+	~PlaylistEntryURL();
+
+	int  Init(Json::Value &config);
+
+	int  StartPlaying(void);
+
+	void Dump(void);
+
+	Json::Value GetConfig(void);
 
   private:
-	Playlist *m_playlist;
+	std::string            m_url;
+	std::string            m_method;
 };
 
 #endif

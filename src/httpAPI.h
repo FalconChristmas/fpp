@@ -28,7 +28,7 @@
 
 #include <httpserver.hpp>
 
-#define FPP_HTTP_PORT 32321
+#define FPP_HTTP_PORT 32322
 
 using namespace httpserver;
 

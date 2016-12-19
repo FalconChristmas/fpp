@@ -28,6 +28,7 @@
 
 #include <string>
 
+#include "Playlist.h"
 #include "PlaylistEntryBase.h"
 
 #define PE_BRANCH_TYPE_UNDEFINED      0
@@ -63,7 +64,8 @@ class PlaylistEntryBranch : public PlaylistEntryBase {
 	int  m_second;
 	int  m_loopCount;
 
-	PlaylistEntryBase *m_branch;
+	Playlist *m_branchTrue;
+	Playlist *m_branchFalse;
 };
 
 #endif

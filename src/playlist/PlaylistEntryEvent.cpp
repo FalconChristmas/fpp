@@ -62,7 +62,7 @@ int PlaylistEntryEvent::Init(Json::Value &config)
 	if (config["minorID"].asInt())
 		m_minorID = config["minorID"].asInt();
 
-	// FIXME, blocking is not supported yet
+	// FIXME PLAYLIST, blocking is not supported yet
 	if (config["blocking"].asInt())
 		m_blocking = config["blocking"].asInt();
 
@@ -96,7 +96,7 @@ int PlaylistEntryEvent::StartPlaying(void)
  */
 int PlaylistEntryEvent::Process(void)
 {
-	// FIXME, blocking is not supported yet
+	// FIXME PLAYLIST, blocking is not supported yet
 //	if (!m_blocking)
 //	{
 		FinishPlay();
@@ -113,7 +113,7 @@ int PlaylistEntryEvent::Stop(void)
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntryEvent::Stop()\n");
 
-	// FIXME, blocking is not supported yet
+	// FIXME PLAYLIST, blocking is not supported yet
 //	if (!m_blocking)
 //	{
 		FinishPlay();

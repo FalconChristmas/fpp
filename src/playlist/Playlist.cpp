@@ -40,7 +40,7 @@
 #include "settings.h"
 
 #include "PlaylistEntryBoth.h"
-//#include "PlaylistEntryBranch.h"
+#include "PlaylistEntryBranch.h"
 #include "PlaylistEntryBrightness.h"
 #include "PlaylistEntryChannelTest.h"
 #include "PlaylistEntryEffect.h"
@@ -48,9 +48,11 @@
 #include "PlaylistEntryMedia.h"
 #include "PlaylistEntryPause.h"
 #include "PlaylistEntryPixelOverlay.h"
-//#include "PlaylistEntryPlaylist.h"
+#include "PlaylistEntryPlaylist.h"
 #include "PlaylistEntryPlugin.h"
+#include "PlaylistEntryScript.h"
 #include "PlaylistEntrySequence.h"
+#include "PlaylistEntryURL.h"
 #include "PlaylistEntryVolume.h"
 
 /*
@@ -249,8 +251,8 @@ PlaylistEntryBase* Playlist::LoadPlaylistEntry(Json::Value entry)
 
 	if (entry["type"].asString() == "both")
 		result = new PlaylistEntryBoth();
-//	else if (entry["type"].asString() == "branch")
-//		result = new PlaylistEntryBranch();
+	else if (entry["type"].asString() == "branch")
+		result = new PlaylistEntryBranch();
 	else if (entry["type"].asString() == "brightness")
 		result = new PlaylistEntryBrightness();
 	else if (entry["type"].asString() == "channelTest")
@@ -265,12 +267,16 @@ PlaylistEntryBase* Playlist::LoadPlaylistEntry(Json::Value entry)
 		result = new PlaylistEntryPause();
 	else if (entry["type"].asString() == "pixelOverlay")
 		result = new PlaylistEntryPixelOverlay();
-//	else if (entry["type"].asString() == "playlist")
-//		result = new PlaylistEntryPlaylist();
+	else if (entry["type"].asString() == "playlist")
+		result = new PlaylistEntryPlaylist();
 	else if (entry["type"].asString() == "plugin")
 		result = new PlaylistEntryPlugin();
+	else if (entry["type"].asString() == "script")
+		result = new PlaylistEntryScript();
 	else if (entry["type"].asString() == "sequence")
 		result = new PlaylistEntrySequence();
+	else if (entry["type"].asString() == "url")
+		result = new PlaylistEntryURL();
 	else if (entry["type"].asString() == "volume")
 		result = new PlaylistEntryVolume();
 	else

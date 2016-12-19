@@ -290,7 +290,7 @@ void Player::MainLoop(void)
 		{
 			if(mediaOutputStatus.status == MEDIAOUTPUTSTATUS_PLAYING)
 			{
-// FIXME playlist
+// FIXME PLAYLIST
 // when in remote mode, who owns the sequences and mediaoutputs we are playing?
 //				playlist->PlaylistProcessMediaData();
 LogDebug(VB_PLAYER, "FIXME PLAYLIST\n");
@@ -775,6 +775,34 @@ void Player::RunChannelOutputThread(void)
 	pthread_exit(NULL);
 }
 
+
+/*
+ *
+ */
+void Player::SetBrightness(int brightness)
+{
+	for (int i = 0; i < 256; i++)
+		m_brightnessLookup[i] = (unsigned char)(i * 1.0 * brightness / 100.0);
+
+	m_brightness = brightness;
+}
+
+
+/*
+ *
+ */
+void Player::AdjustBrightness(void)
+{
+	// FIXME PLAYLIST, how do we know how many channels to adjust???
+	unsigned char *c = (unsigned char *)m_seqData;
+	for (int i = 0; i < FPPD_MAX_CHANNELS; i++)
+	{
+		*c = m_brightnessLookup[*c];
+		c++;
+	}
+}
+
+
 /*
  *
  */
@@ -804,6 +832,9 @@ void Player::ProcessChannelData(void)
 
 	if (channelTester->Testing())
 		channelTester->OverlayTestData(m_seqData);
+
+	if (m_brightness)
+		AdjustBrightness();
 }
 
 /*

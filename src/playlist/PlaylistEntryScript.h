@@ -1,5 +1,5 @@
 /*
- *   Playlist Entry Playlist Class for Falcon Player (FPP)
+ *   Playlist Entry Script Class for Falcon Player (FPP)
  *
  *   Copyright (C) 2016 the Falcon Player Developers
  *      Initial development by:
@@ -23,19 +23,34 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _PLAYLISTENTRYPLAYLIST_H
-#define _PLAYLISTENTRYPLAYLIST_H
+#ifndef _PLAYLISTENTRYSCRIPT_H
+#define _PLAYLISTENTRYSCRIPT_H
 
-#include "Playlist.h"
+#include <string>
+
 #include "PlaylistEntryBase.h"
 
-class PlaylistEntryPlaylist : public PlaylistEntryBase {
+class PlaylistEntryScript : public PlaylistEntryBase {
   public:
-  	PlaylistEntryPlaylist();
-	~PlaylistEntryPlaylist();
+  	PlaylistEntryScript();
+	~PlaylistEntryScript();
+
+	int  Init(Json::Value &config);
+
+	int  StartPlaying(void);
+	int  Stop(void);
+
+	int  HandleSigChild(pid_t pid);
+
+	void Dump(void);
+
+	Json::Value GetConfig(void);
+
+	std::string GetScriptName(void) { return m_scriptFilename; }
 
   private:
-	Playlist *m_playlist;
+	std::string        m_scriptFilename;
+	int                m_blocking;
 };
 
 #endif

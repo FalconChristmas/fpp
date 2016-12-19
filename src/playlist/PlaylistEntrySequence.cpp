@@ -126,7 +126,7 @@ Json::Value PlaylistEntrySequence::GetConfig(void)
 
 	result["sequenceName"]    = m_sequenceName;
 
-	// FIXME, need to get things like elapsed/remaining here
+	// FIXME PLAYLIST, need to get things like elapsed/remaining here
 
 	return result;
 }
