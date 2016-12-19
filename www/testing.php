@@ -58,6 +58,9 @@ else
 <head>
 <?php include 'common/menuHead.inc'; ?>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<link rel="stylesheet" type="text/css" href="jquery/colpick/css/colpick.css">
+<link rel="stylesheet" type="text/css" href="css/jquery.colpick.css">
+<script type="text/javascript" src="jquery/colpick/js/colpick.js"></script>
 <title><? echo $pageTitle; ?></title>
 <style>
 
@@ -99,7 +102,7 @@ else
   float: left;
 }
 
-#testModeColor1 {
+#testModeColorR {
   border-width: 1px;
   border-style: solid;
   border-color: #333 #333 #777 #333;
@@ -118,7 +121,7 @@ else
   float: left;
 }
 
-#testModeColor2 {
+#testModeColorG {
   border-width: 1px;
   border-style: solid;
   border-color: #333 #333 #777 #333;
@@ -137,7 +140,7 @@ else
   float: left;
 }
 
-#testModeColor3 {
+#testModeColorB {
   border-width: 1px;
   border-style: solid;
   border-color: #333 #333 #777 #333;
@@ -175,6 +178,18 @@ else
   float: left;
 }
 
+.color-box {
+  width:10px;
+  height:10px;
+  margin:5px;
+  border: 1px solid black;
+}
+
+.container div {
+  float: left;
+  height: 10px;
+}
+
 </style>
 </head>
 <body onunload='DisableTestMode();'>
@@ -183,6 +198,33 @@ else
 if ( ! window.console ) console = { log: function(){} };
 
 var lastEnabledState = 0;
+
+function UpdateStartEndFromModel()
+{
+	var range = $('#modelName').val().split(',');
+	$('#testModeStartChannel').val(range[0]);
+	$('#testModeEndChannel').val(range[1]);
+
+	if (lastEnabledState)
+	{
+		var data = {};
+
+		data.enabled = 0;
+
+		var postData = "command=setTestMode&data=" + JSON.stringify(data);
+
+		$.post("fppjson.php", postData).success(function(data) {
+			SetTestMode();
+//			$.jGrowl("Test Mode Disabled");
+		}).fail(function(data) {
+			DialogError("Failed to set Test Mode", "Setup failed");
+		});
+	}
+	else
+	{
+		SetTestMode();
+	}
+}
 
 function GetTestMode()
 {
@@ -214,12 +256,12 @@ function GetTestMode()
 				else if (data.mode == "RGBFill")
 				{
 					$("input[name=testModeMode][value=RGBFill]").prop('checked', true);
-					$("#testModeColor1Text").html(data.color1);
-					$("#testModeColor2Text").html(data.color2);
-					$("#testModeColor3Text").html(data.color3);
-					$("#testModeColor1").slider("value", data.color1);
-					$("#testModeColor2").slider("value", data.color2);
-					$("#testModeColor3").slider("value", data.color3);
+					$("#testModeColorRText").html(data.color1);
+					$("#testModeColorGText").html(data.color2);
+					$("#testModeColorBText").html(data.color3);
+					$("#testModeColorR").slider("value", data.color1);
+					$("#testModeColorG").slider("value", data.color2);
+					$("#testModeColorB").slider("value", data.color3);
 				}
 			}
 			else
@@ -239,14 +281,65 @@ function SetTestMode()
 	var mode = "singleChase";
 	var cycleMS = parseInt($('#testModeCycleMSText').html());
 	var colorS = parseInt($('#testModeColorSText').html());
-	var color1 = parseInt($('#testModeColor1Text').html());
-	var color2 = parseInt($('#testModeColor2Text').html());
-	var color3 = parseInt($('#testModeColor3Text').html());
+	var colorR = parseInt($('#testModeColorRText').html());
+	var colorG = parseInt($('#testModeColorGText').html());
+	var colorB = parseInt($('#testModeColorBText').html());
+	var color1;
+	var color2;
+	var color3;
+	var strR = "FF0000";
+	var strG = "00FF00";
+	var strB = "0000FF";
 	var startChannel = parseInt($('#testModeStartChannel').val());
 	var endChannel = parseInt($('#testModeEndChannel').val());
 	var chaseSize = parseInt($('#testModeChaseSize').val());
 	var maxChannel = 524288;
 	var channelSetType = "channelRange";
+	var colorOrder = $('#colorOrder').val();
+
+	if (colorOrder == "RGB") {
+		color1 = colorR;
+		color2 = colorG;
+		color3 = colorB;
+		strR = "FF0000";
+		strG = "00FF00";
+		strB = "0000FF";
+	} else if (colorOrder == "RBG") {
+		color1 = colorR;
+		color3 = colorG;
+		color2 = colorB;
+		strR = "FF0000";
+		strG = "0000FF";
+		strB = "00FF00";
+	} else if (colorOrder == "GRB") {
+		color2 = colorR;
+		color1 = colorG;
+		color3 = colorB;
+		strR = "00FF00";
+		strG = "FF0000";
+		strB = "0000FF";
+	} else if (colorOrder == "GBR") {
+		color3 = colorR;
+		color1 = colorG;
+		color2 = colorB;
+		strR = "0000FF";
+		strG = "FF0000";
+		strB = "00FF00";
+	} else if (colorOrder == "BRG") {
+		color2 = colorR;
+		color3 = colorG;
+		color1 = colorB;
+		strR = "00FF00";
+		strG = "0000FF";
+		strB = "FF0000";
+	} else if (colorOrder == "BGR") {
+		color3 = colorR;
+		color2 = colorG;
+		color1 = colorB;
+		strR = "0000FF";
+		strG = "00FF00";
+		strB = "FF0000";
+	}
 
 	if (startChannel < 1 || startChannel > maxChannel || isNaN(startChannel))
 		startChannel = 1;
@@ -282,23 +375,23 @@ function SetTestMode()
 		}
 		else if (mode.substring(0,9) == "RGBChase-")
 		{
-			var colorPattern = "FF000000FF000000FF"; // R-G-B
+			var colorPattern = strR + strG + strB;
 
 			if (mode == "RGBChase-RGB")
 			{
-				colorPattern = "FF000000FF000000FF";
+				colorPattern = strR + strG + strB;
 			}
 			else if (mode == "RGBChase-RGBN")
 			{
-				colorPattern = "FF000000FF000000FF000000";
+				colorPattern = strR + strG + strB + "000000";
 			}
 			else if (mode == "RGBChase-RGBA")
 			{
-				colorPattern = "FF000000FF000000FFFFFFFF";
+				colorPattern = strR + strG + strB + "FFFFFF";
 			}
 			else if (mode == "RGBChase-RGBAN")
 			{
-				colorPattern = "FF000000FF000000FFFFFFFF000000";
+				colorPattern = strR + strG + strB + "FFFFFF000000";
 			}
 			else if (mode == "RGBChase-RGBCustom")
 			{
@@ -354,6 +447,24 @@ function SetTestMode()
 function DisableTestMode()
 {
 	$('#testModeEnabled').prop('checked', false);
+	SetTestMode();
+}
+
+function dec2hex(i) {
+	return (i+0x100).toString(16).substr(-2).toUpperCase();
+}
+
+function AppendFillToCustom()
+{
+	var colorR = dec2hex(parseInt($('#testModeColorRText').html()));
+	var colorG = dec2hex(parseInt($('#testModeColorGText').html()));
+	var colorB = dec2hex(parseInt($('#testModeColorBText').html()));
+
+	var newTriplet = colorR + colorG + colorB;
+
+	var currentValue = $('#testModeRGBCustomPattern').val();
+	$('#testModeRGBCustomPattern').val(currentValue + newTriplet);
+
 	SetTestMode();
 }
 
@@ -424,53 +535,84 @@ $(document).ready(function(){
 		}
 		});
 
-	$('#testModeColor1').slider({
+	$('#testModeColorR').slider({
 		min: 0,
 		max: 255,
 		value: 255,
 		step: 1,
 		slide: function( event, ui ) {
-			testModeColor1 = ui.value;
-			$('#testModeColor1Text').html(testModeColor1);
+			testModeColorR = ui.value;
+			$('#testModeColorRText').html(testModeColorR);
+			$('.color-box').colpickSetColor($.colpick.rgbToHex({r:testModeColorR, g:$('#testModeColorG').slider('value'), b:$('#testModeColorB').slider('value')}));
 		},
 		stop: function( event, ui ) {
-			testModeColor1 = $('#testModeColor1').slider('value');
-			$('#testModeColor1Text').html(testModeColor1);
+			testModeColorR = $('#testModeColorR').slider('value');
+			$('#testModeColorRText').html(testModeColorR);
+			$('.color-box').colpickSetColor($.colpick.rgbToHex({r:testModeColorR, g:$('#testModeColorG').slider('value'), b:$('#testModeColorB').slider('value')}));
 			SetTestMode();
 		}
 		});
 
-	$('#testModeColor2').slider({
+	$('#testModeColorG').slider({
 		min: 0,
 		max: 255,
 		value: 255,
 		step: 1,
 		slide: function( event, ui ) {
-			testModeColor2 = ui.value;
-			$('#testModeColor2Text').html(testModeColor2);
+			testModeColorG = ui.value;
+			$('#testModeColorGText').html(testModeColorG);
+			$('.color-box').colpickSetColor($.colpick.rgbToHex({r:$('#testModeColorR').slider('value'), g:testModeColorG, b:$('#testModeColorB').slider('value')}));
 		},
 		stop: function( event, ui ) {
-			testModeColor2 = $('#testModeColor2').slider('value');
-			$('#testModeColor2Text').html(testModeColor2);
+			testModeColorG = $('#testModeColorG').slider('value');
+			$('#testModeColorGText').html(testModeColorG);
+			$('.color-box').colpickSetColor($.colpick.rgbToHex({r:$('#testModeColorR').slider('value'), g:testModeColorG, b:$('#testModeColorB').slider('value')}));
 			SetTestMode();
 		}
 		});
 
-	$('#testModeColor3').slider({
+	$('#testModeColorB').slider({
 		min: 0,
 		max: 255,
 		value: 255,
 		step: 1,
 		slide: function( event, ui ) {
-			testModeColor3 = ui.value;
-			$('#testModeColor3Text').html(testModeColor3);
+			testModeColorB = ui.value;
+			$('#testModeColorBText').html(testModeColorB);
+			$('.color-box').colpickSetColor($.colpick.rgbToHex({r:$('#testModeColorR').slider('value'), g:$('#testModeColorG').slider('value'), b:testModeColorB}));
 		},
 		stop: function( event, ui ) {
-			testModeColor3 = $('#testModeColor3').slider('value');
-			$('#testModeColor3Text').html(testModeColor3);
+			testModeColorB = $('#testModeColorB').slider('value');
+			$('#testModeColorBText').html(testModeColorB);
+			$('.color-box').colpickSetColor($.colpick.rgbToHex({r:$('#testModeColorR').slider('value'), g:$('#testModeColorG').slider('value'), b:testModeColorB}));
 			SetTestMode();
 		}
 		});
+
+	$('.color-box').colpick({
+		layout:'rgbhex',
+		color:'ffffff',
+		submit:false,
+		onChange:function(hsb,hex,rgb,el,bySetColor) {
+			$(el).css('background-color', '#'+hex);
+			if(!bySetColor) {
+				// Set each of the sliders and text to the new value
+				testModeColorR = rgb.r;
+				$('#testModeColorR').slider('value', testModeColorR);
+				$('#testModeColorRText').html(testModeColorR);
+				testModeColorG = rgb.g;
+				$('#testModeColorG').slider('value', testModeColorG);
+				$('#testModeColorGText').html(testModeColorG);
+				testModeColorB = rgb.b;
+				$('#testModeColorB').slider('value', testModeColorB);
+				$('#testModeColorBText').html(testModeColorB);
+				SetTestMode();
+			}
+		}
+	}).keyup(function(){
+		$(this).colpickSetColor(this.value);
+	})
+	.css('background-color', '#ffffff');	
 
 	GetTestMode();
 });
@@ -508,21 +650,44 @@ $(document).ready(function(){
 <!--
 						<td>Universe Size:</td>
 						<td><input type='text' size=4 maxlength=4 value='512' id='testUniverseSize'></td>
-						<td>Model Name:</td>
 -->
+						<td width=40>&nbsp;</td>
+						<td>Model Name:</td>
+						<td>
+							<select onChange='UpdateStartEndFromModel();' id='modelName'>
+								<option value='1,524288'>-- All Channels --</option>
+<?
+
+$f = fopen($settings['channelMemoryMapsFile'], "r");
+if ($f == FALSE)
+{
+	fclose($f);
+}
+else
+{
+	while (!feof($f))
+	{
+		$line = fgets($f);
+		if ($line == "")
+			continue;
+
+		$entry = explode(",", $line, 7);
+		printf( "<option value='%d,%d'>%s</option>\n",
+			intval($entry[1]),
+			intval($entry[1]) + intval($entry[2] - 1), $entry[0]);
+	}
+	fclose($f);
+}
+
+?>
+							</select>
+							</td>
 						</tr>
 				<tr><td>End Channel:</td>
 						<td><input type='text' size='6' maxlength='6' value='524288' id='testModeEndChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (1-524288)</td>
 <!--
 						<td>Universe #:</td>
 						<td><input type='text' size=5 maxlength=5 value='1' id='testUniverseNumber'></td>
-						<td>
-							<select>
-								<option>Mega Tree</option>
-								<option>Matrix #1</option>
-								<option>Matrix #2</option>
-							</select>
-							</td>
 -->
 						</tr>
 				</table>
@@ -545,18 +710,29 @@ $(document).ready(function(){
 				<tr><td><input type='radio' name='testModeMode' value='SingleFill' onChange='SetTestMode();'></td><td><b>Fill</b></td></tr>
 				<tr><td>&nbsp;</td></tr>
 				<tr><td colspan=3><b>RGB Patterns:</b></td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGB' checked onChange='SetTestMode();'></td><td><b>Chase: A-B-C</b></td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGBA' onChange='SetTestMode();'></td><td><b>Chase: A-B-C-All</b></td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGBN' onChange='SetTestMode();'></td><td><b>Chase: A-B-C-None</b></td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGBAN' onChange='SetTestMode();'></td><td><b>Chase: A-B-C-All-None</b></td></tr>
+				<tr><td colspan=3>&nbsp;<b>Color Order:</b>
+					<select id='colorOrder' onChange='SetTestMode();'>
+						<option>RGB</option>
+						<option>RBG</option>
+						<option>GRB</option>
+						<option>GBR</option>
+						<option>BRG</option>
+						<option>BGR</option>
+					</select>
+					</td></tr>
+				<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGB' checked onChange='SetTestMode();'></td><td><b>Chase: R-G-B</b></td></tr>
+				<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGBA' onChange='SetTestMode();'></td><td><b>Chase: R-G-B-All</b></td></tr>
+				<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGBN' onChange='SetTestMode();'></td><td><b>Chase: R-G-B-None</b></td></tr>
+				<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGBAN' onChange='SetTestMode();'></td><td><b>Chase: R-G-B-All-None</b></td></tr>
 				<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGBCustom' onChange='SetTestMode();'></td><td><b>Chase: Custom Pattern: </b> <input id='testModeRGBCustomPattern' size='36' maxlength='72' value='FF000000FF000000FF' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (6 hex digits per RGB triplet)</td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='RGBFill' onChange='SetTestMode();'></td><td><b>Fill:</b></td></tr>
+				<tr><td><input type='radio' name='testModeMode' value='RGBFill' onChange='SetTestMode();'></td><td><div class="container"><div><b>Fill:</b></div><div class="color-box"></div></div><div style='clear: both'></div></td></tr>
 				<tr><td>&nbsp;</td><td>
 					<table border=0 cellspacing=10 cellpadding=0>
-						<tr><td><span style='float: left'>A: </span><span id="testModeColor1"></span> <span style='float: left' id='testModeColor1Text'>255</span><span style='float: left'></span></td></tr>
-						<tr><td><span style='float: left'>B: </span><span id="testModeColor2"></span> <span style='float: left' id='testModeColor2Text'>255</span><span style='float: left'></span></td></tr>
-						<tr><td><span style='float: left'>C: </span><span id="testModeColor3"></span> <span style='float: left' id='testModeColor3Text'>255</span><span style='float: left'></span></td></tr>
+						<tr><td><span style='float: left'>R: </span><span id="testModeColorR"></span> <span style='float: left' id='testModeColorRText'>255</span><span style='float: left'></span></td></tr>
+						<tr><td><span style='float: left'>G: </span><span id="testModeColorG"></span> <span style='float: left' id='testModeColorGText'>255</span><span style='float: left'></span></td></tr>
+						<tr><td><span style='float: left'>B: </span><span id="testModeColorB"></span> <span style='float: left' id='testModeColorBText'>255</span><span style='float: left'></span></td></tr>
 					</table>
+					<input type=button onClick='AppendFillToCustom();' value='Append Color To Custom Pattern'>
 					</td></tr>
 				</table>
 				</div>

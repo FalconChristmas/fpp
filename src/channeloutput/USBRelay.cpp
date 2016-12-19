@@ -116,7 +116,8 @@ int USBRelayOutput::Init(Json::Value config)
 			m_relayCount = 2;
 		else
 		{
-			// Do we abort here or cross our fingers and continue?
+			LogWarn(VB_CHANNELOUT, "Warning: ICStation USB Relay response of 0x%02x doesn't match "
+				"known values.  Unable to detect number of relays.\n", c_reply);
 		}
 
 		write(m_fd, &c_open, 1);
@@ -153,9 +154,7 @@ int USBRelayOutput::RawSendData(unsigned char *channelData)
 		if ((i > 0) && ((i % 8) == 0))
 		{
 			// Write out previous byte
-HexDump("out", &out, 1);
 			write(m_fd, &out, 1);
-
 			out = 0x00;
 			shiftBits = 0;
 		}
@@ -166,10 +165,7 @@ HexDump("out", &out, 1);
 
 	// Write out any unwritten bits
 	if (m_relayCount)
-{
 		write(m_fd, &out, 1);
-HexDump("out", &out, 1);
-}
 
 	return m_relayCount;
 }

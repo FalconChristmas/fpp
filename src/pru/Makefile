@@ -4,7 +4,7 @@ PASM := $(PASM_DIR)/pasm
 
 # Add new .bin files here to compile/install their corresponding .p
 # files automatically
-BINARIES := FalconMatrix.bin FalconMatrix_32x32.bin FalconWS281x.bin RGBCape48C.bin FalconDMX.bin FalconWS281x_40.bin FalconPixelnet.bin
+BINARIES := FalconMatrix.bin FalconMatrix_32x32.bin FalconWS281x.bin RGBCape48C.bin FalconDMX.bin FalconWS281x_WS.bin FalconWS281x_40.bin FalconPixelnet.bin
 
 #
 all: $(BINARIES)

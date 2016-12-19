@@ -18,6 +18,8 @@ echo "$0 running to switch branches to $1"
 echo "Stopping fppd"
 ${SUDO} ${FPPDIR}/scripts/fppd_stop
 
+remountRootReadWrite
+
 echo "Cleaning up any compiled binaries"
 cleanCompiledBinaries
 
@@ -36,6 +38,8 @@ then
 	echo "Compiling Binaries"
 	compileBinaries
 fi
+
+remountRootReadOnlyIfNeeded
 
 echo "Restarting fppd"
 ${SUDO} ${FPPDIR}/scripts/fppd_start

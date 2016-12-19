@@ -26,6 +26,7 @@
 #ifndef _SEQUENCE_H
 #define _SEQUENCE_H
 
+#include <pthread.h>
 #include <stdio.h>
 
 #define FPPD_MAX_CHANNELS 524288
@@ -38,7 +39,7 @@ class Sequence {
 
 	int   IsSequenceRunning(void);
 	int   OpenSequenceFile(const char *filename, int startSeconds);
-	void  ProcessSequenceData(void);
+	void  ProcessSequenceData(int checkControlChannels = 1);
 	int   SeekSequenceFile(int frameNumber);
 	void  ReadSequenceData(void);
 	void  SendSequenceData(void);
@@ -82,6 +83,8 @@ class Sequence {
 	int           m_seqColorEncoding;
 	char          m_seqLastControlMajor;
 	char          m_seqLastControlMinor;
+
+	pthread_mutex_t  m_sequenceLock;
 };
 
 extern Sequence *sequence;

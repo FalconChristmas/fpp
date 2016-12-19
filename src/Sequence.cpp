@@ -76,10 +76,13 @@ Sequence::Sequence()
 	m_seqLastControlMinor(0)
 {
 	m_seqFilename[0] = 0;
+
+	pthread_mutex_init(&m_sequenceLock, NULL);
 }
 
 Sequence::~Sequence()
 {
+	pthread_mutex_destroy(&m_sequenceLock);
 }
 
 /*
@@ -388,14 +391,14 @@ void Sequence::ReadSequenceData(void) {
 	}
 }
 
-void Sequence::ProcessSequenceData(void) {
+void Sequence::ProcessSequenceData(int checkControlChannels) {
 	if (IsEffectRunning())
 		OverlayEffects(m_seqData);
 
 	if (UsingMemoryMapInput())
 		OverlayMemoryMap(m_seqData);
 
-	if (getControlMajor() && getControlMinor())
+	if (checkControlChannels && getControlMajor() && getControlMinor())
 	{
 		char thisMajor = NormalizeControlValue(m_seqData[getControlMajor()-1]);
 		char thisMinor = NormalizeControlValue(m_seqData[getControlMinor()-1]);
@@ -427,6 +430,7 @@ void Sequence::SendBlankingData(void) {
 		SendBlankingDataPacket();
 
 	BlankSequenceData();
+	ProcessSequenceData(0);
 	SendSequenceData();
 }
 
@@ -435,6 +439,8 @@ void Sequence::CloseSequenceFile(void) {
 
 	if (getFPPmode() == MASTER_MODE)
 		SendSeqSyncStopPacket(m_seqFilename);
+
+	pthread_mutex_lock(&m_sequenceLock);
 
 	if (m_seqFile) {
 		fclose(m_seqFile);
@@ -448,6 +454,8 @@ void Sequence::CloseSequenceFile(void) {
 		(!IsEffectRunning()) &&
 		(FPPstatus != FPP_STATUS_PLAYLIST_PLAYING))
 		SendBlankingData();
+
+	pthread_mutex_unlock(&m_sequenceLock);
 }
 
 /*

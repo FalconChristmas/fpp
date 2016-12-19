@@ -161,6 +161,11 @@ int RGBMatrixOutput::Init(Json::Value config)
 	RGBMatrix *rgbmatrix = reinterpret_cast<RGBMatrix*>(m_canvas);
 	rgbmatrix->SetPWMBits(8);
 
+	if (config.isMember("brightness"))
+		rgbmatrix->SetBrightness(config["brightness"].asInt());
+	else
+		rgbmatrix->SetBrightness(100);
+
 	m_matrix = new Matrix(m_startChannel, m_width, m_height);
 
 	if (config.isMember("subMatrices"))
@@ -170,6 +175,7 @@ int RGBMatrixOutput::Init(Json::Value config)
 			Json::Value sm = config["subMatrices"][i];
 
 			m_matrix->AddSubMatrix(
+				sm["enabled"].asInt(),
 				sm["startChannel"].asInt() - 1,
 				sm["width"].asInt(),
 				sm["height"].asInt(),

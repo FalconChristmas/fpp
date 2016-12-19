@@ -153,7 +153,32 @@ void StopSyncedMedia(char *filename) {
 	if (!mediaOutput)
 		return;
 
+	int stopSyncedMedia = 0;
+
 	if (!strcmp(mediaOutput->m_mediaFilename.c_str(), filename))
+	{
+		stopSyncedMedia = 1;
+	}
+	else
+	{
+		char tmpFile[1024];
+		strcpy(tmpFile, filename);
+
+		int filenameLen = strlen(filename);
+		if (filenameLen > 4)
+		{
+			if ((!strcmp(&tmpFile[filenameLen - 4], ".mp3")) ||
+				(!strcmp(&tmpFile[filenameLen - 4], ".ogg")))
+			{
+				strcpy(&tmpFile[filenameLen - 4], ".mp4");
+
+				if (!strcmp(mediaOutput->m_mediaFilename.c_str(), tmpFile))
+					stopSyncedMedia = 1;
+			}
+		}
+	}
+
+	if (stopSyncedMedia)
 	{
 		LogDebug(VB_SYNC, "Stopping synced media: %s\n", mediaOutput->m_mediaFilename.c_str());
 		CloseMediaOutput();

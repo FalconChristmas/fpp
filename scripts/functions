@@ -609,7 +609,7 @@ setupChannelOutputs() {
 		fi
 
 		# Link in desired version of RGBMatrix library
-		PINOUT=$(cat ${FPPHOME}/media/config/channeloutputs.json | tr -d "\r\n" | sed -e 's/.*LEDPanelMatrix",[      a-zA-Z0-9:",]*"enabled": 1//' -e 's/.*"wiringPinout": "//' -e 's/".*//')
+		PINOUT=$(cat ${FPPHOME}/media/config/channeloutputs.json 2> /dev/null | tr -d "\r\n" | sed -e 's/.*LEDPanelMatrix",[      a-zA-Z0-9:",]*"enabled": 1//' -e 's/.*"wiringPinout": "//' -e 's/".*//')
 		rm ${FPPDIR}/lib/librgbmatrix.so
 		case ${PINOUT} in
 			Standard)
@@ -622,6 +622,7 @@ setupChannelOutputs() {
 				ln -s ${FPPDIR}/lib/librgbmatrix_Adafruit.so ${FPPDIR}/lib/librgbmatrix.so
 				;;
 			*)
+				ln -s ${FPPDIR}/lib/librgbmatrix_Standard.so ${FPPDIR}/lib/librgbmatrix.so
 				;;
 		esac
 	fi
@@ -831,4 +832,60 @@ setupBBBRTC () {
 	esac
 }
 
+#############################################################################
+# Functions to remount root read-write if read-only and switch back if necessary
+remountRootReadWrite() {
+	if [ "x${MOUNTSTATE}" = "x" ]
+	then
+		export MOUNTSTATE=$(mount | grep "on / type" | cut -f2 -d\( | cut -f1 -d,)
+	fi
+
+	if [ "x${MOUNTSTATE}" = "xro" ]
+	then
+		echo "Remounting root filesystem Read-Write"
+		sudo mount -o remount,rw /
+	fi
+}
+
+remountRootReadOnlyIfNeeded() {
+	if [ "x${MOUNTSTATE}" = "xro" ]
+	then
+		echo "Remounting root filesystem Read-Only"
+		sudo mount -o remount,ro /
+	fi
+}
+
+#############################################################################
+# Some fixups related to running the v1.x SD image read-only.  These are pure
+# hacks for now until we get a new SD image that is designed to be read-only
+# from the start.
+applyReadOnlySDFixups() {
+	if [ "x${MOUNTSTATE}" = "x" ]
+	then
+		export MOUNTSTATE=$(mount | grep "on / type" | cut -f2 -d\( | cut -f1 -d,)
+	fi
+
+	SDVER=$(cat /etc/fpp/rfs_version | cut -f1 -d\.)
+
+	if [ "x${SDVER}" = "xv1" -a "x${MOUNTSTATE}" = "xro" ]
+	then
+		echo "FPP: Root is mounted read-only on a v1.x SD image, applying read-only fixups."
+
+		# Samba's smbd won't start if it can't write to /var/lib/samba
+		cp -rp /var/lib/samba /tmp/
+		mkdir /var/log/samba
+		mount -o bind /tmp/samba /var/lib/samba
+		/etc/init.d/samba restart
+
+		remountRootReadWrite
+
+		# Our startup script can't copy php.ini into place if root is read-only
+		cp /opt/fpp/etc/php.ini /etc/
+		/etc/init.d/apache2 restart
+
+		remountRootReadOnlyIfNeeded
+	fi
+}
+
+#############################################################################
 
