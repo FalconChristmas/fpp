@@ -37,6 +37,7 @@
 #include "ArtNet.h"
 #include "E131.h"
 #include "FBMatrix.h"
+#include "FBVirtualDisplay.h"
 #include "FPD.h"
 #include "GenericSerial.h"
 #include "log.h"
@@ -56,6 +57,7 @@
 
 #ifdef USE_X11Matrix
 #  include "X11Matrix.h"
+#  include "X11VirtualDisplay.h"
 #endif
 
 #if defined(PLATFORM_PI) || defined(PLATFORM_ODROID)
@@ -267,6 +269,8 @@ int InitializeChannelOutputs(void) {
 			} else if (type == "OLA") {
 				channelOutputs[i].output = new OLAOutput(start, count);
 #endif
+			} else if (type == "FBVirtualDisplay") {
+				channelOutputs[i].output = (ChannelOutputBase*)new FBVirtualDisplayOutput(0, FPPD_MAX_CHANNELS);
 			} else if (type == "USBRelay") {
 				channelOutputs[i].output = new USBRelayOutput(start, count);
 #if defined(PLATFORM_PI)
@@ -276,6 +280,8 @@ int InitializeChannelOutputs(void) {
 #ifdef USE_X11Matrix
 			} else if (type == "X11Matrix") {
 				channelOutputs[i].output = new X11MatrixOutput(start, count);
+			} else if (type == "X11VirtualDisplay") {
+				channelOutputs[i].output = (ChannelOutputBase*)new X11VirtualDisplayOutput(0, FPPD_MAX_CHANNELS);
 #endif
 			} else {
 				LogErr(VB_CHANNELOUT, "Unknown Channel Output type: %s\n", type.c_str());

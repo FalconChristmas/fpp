@@ -42,6 +42,7 @@ OBJECTS_fppd = \
 	channeloutput/DebugOutput.o \
 	channeloutput/E131.o \
 	channeloutput/FBMatrix.o \
+	channeloutput/FBVirtualDisplay.o \
 	channeloutput/FPD.o \
 	channeloutput/GenericSerial.o \
 	channeloutput/GPIO.o \
@@ -58,6 +59,7 @@ OBJECTS_fppd = \
 	channeloutput/USBPixelnet.o \
 	channeloutput/USBRelay.o \
 	channeloutput/USBRenard.o \
+	channeloutput/VirtualDisplay.o \
 	channeltester/ChannelTester.o \
 	channeltester/TestPatternBase.o \
 	channeltester/RGBChase.o \
@@ -383,7 +385,6 @@ util: force
 		DEFINES='-DRGB_SLOWDOWN_GPIO=1 -DRGB_CLASSIC_PINOUT -DONLY_SINGLE_CHAIN'
 	gcc -shared -o ../lib/librgbmatrix_Classic.so ../external/rpi-rgb-led-matrix/lib/*.o
 	strip ../lib/librgbmatrix_Standard.so ../lib/librgbmatrix_Adafruit.so ../lib/librgbmatrix_Classic.so
-	ln -s ./librgbmatrix_Standard.so ../lib/librgbmatrix.so
 
 
 #############################################################################
