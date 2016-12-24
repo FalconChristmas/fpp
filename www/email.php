@@ -7,39 +7,35 @@ require_once('common/menuHead.inc');
 
 function print_if_match($one, $two, $print)
 {
-  if ( $one == $two )
-    return $print;
+    if ($one == $two) {
+        return $print;
+    }
 }
-if ( isset($_POST['emailguser']) && !empty($_POST['emailguser']) )
-{
-  $emailguser = $_POST['emailguser'];
-  WriteSettingToFile("emailguser",$emailguser);
+if (isset($_POST['emailguser']) && !empty($_POST['emailguser'])) {
+    $emailguser = $_POST['emailguser'];
+    WriteSettingToFile("emailguser", $emailguser);
 }
-if ( isset($_POST['emailgpass']) && !empty($_POST['emailgpass']) )
-{
-  $emailgpass = $_POST['emailgpass'];
-  WriteSettingToFile("emailgpass",$emailgpass);
+if (isset($_POST['emailgpass']) && !empty($_POST['emailgpass'])) {
+    $emailgpass = $_POST['emailgpass'];
+    WriteSettingToFile("emailgpass", $emailgpass);
 }
-if ( isset($_POST['emailfromtext']) && !empty($_POST['emailfromtext']) )
-{
-  $emailfromtext = $_POST['emailfromtext'];
-  WriteSettingToFile("emailfromtext",$emailfromtext);
+if (isset($_POST['emailfromtext']) && !empty($_POST['emailfromtext'])) {
+    $emailfromtext = $_POST['emailfromtext'];
+    WriteSettingToFile("emailfromtext", $emailfromtext);
 }
-if ( isset($_POST['emailtoemail']) && !empty($_POST['emailtoemail']) )
-{
-  $emailtoemail = $_POST['emailtoemail'];
-  WriteSettingToFile("emailtoemail",$emailtoemail);
+if (isset($_POST['emailtoemail']) && !empty($_POST['emailtoemail'])) {
+    $emailtoemail = $_POST['emailtoemail'];
+    WriteSettingToFile("emailtoemail", $emailtoemail);
 }
-if ( ( isset($_POST['emailguser']) && !empty($_POST['emailguser']) ) &&
-   ( isset($_POST['emailgpass']) && !empty($_POST['emailgpass']) ) &&
-   ( isset($_POST['emailfromtext']) && !empty($_POST['emailfromtext']) ) &&
-   ( isset($_POST['emailtoemail']) && !empty($_POST['emailtoemail']) ))
-{
+if ((isset($_POST['emailguser']) && !empty($_POST['emailguser'])) &&
+   (isset($_POST['emailgpass']) && !empty($_POST['emailgpass'])) &&
+   (isset($_POST['emailfromtext']) && !empty($_POST['emailfromtext'])) &&
+   (isset($_POST['emailtoemail']) && !empty($_POST['emailtoemail']))) {
     SaveEmailConfig($emailguser, $emailgpass, $emailfromtext, $emailtoemail);
 }
 
 ?>
-<title><? echo $pageTitle; ?></title>
+<title><?php echo $pageTitle; ?></title>
 <script>
 </script>
 </head>

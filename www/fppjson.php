@@ -5,229 +5,222 @@ require_once('common.php');
 require_once('commandsocket.php');
 
 $a = session_id();
-if(empty($a))
-{
-	session_start();
+if (empty($a)) {
+    session_start();
 }
 $_SESSION['session_id'] = session_id();
 
 
-$command_array = Array(
-	"getChannelMemMaps"   => 'GetChannelMemMaps',
-	"setChannelMemMaps"   => 'SetChannelMemMaps',
-	"getChannelRemaps"    => 'GetChannelRemaps',
-	"setChannelRemaps"    => 'SetChannelRemaps',
-	"getChannelOutputs"   => 'GetChannelOutputs',
-	"setChannelOutputs"   => 'SetChannelOutputs',
-	"getChannelOutputsJSON" => 'GetChannelOutputsJSON',
-	"setChannelOutputsJSON" => 'SetChannelOutputsJSON',
-	"applyDNSInfo"        => 'ApplyDNSInfo',
-	"getDNSInfo"          => 'GetDNSInfo',
-	"setDNSInfo"          => 'SetDNSInfo',
-	"getFPPDUptime"       => 'GetFPPDUptime',
-	"applyInterfaceInfo"  => 'ApplyInterfaceInfo',
-	"getInterfaceInfo"    => 'GetInterfaceInfo',
-	"setInterfaceInfo"    => 'SetInterfaceInfo',
-	"getFPPSystems"       => 'GetFPPSystems',
-	"getFPPstatus"		  => 'GetFPPStatus',
-	"getSetting"          => 'GetSetting',
-	"setSetting"          => 'SetSetting',
-	"startSequence"       => 'StartSequence',
-	"stopSequence"        => 'StopSequence',
-	"toggleSequencePause" => 'ToggleSequencePause',
-	"singleStepSequence"  => 'SingleStepSequence',
-	"singleStepSequenceBack" => 'SingleStepSequenceBack',
-	"getPluginSetting"    => 'GetPluginSetting',
-	"setPluginSetting"    => 'SetPluginSetting',
-	"saveScript"          => 'SaveScript',
-	"setTestMode"         => 'SetTestMode',
-	"getTestMode"         => 'GetTestMode',
-	"setupExtGPIO"        => 'SetupExtGPIO',
-	"extGPIO"             => 'ExtGPIO'
+$command_array = array(
+    "getChannelMemMaps"   => 'GetChannelMemMaps',
+    "setChannelMemMaps"   => 'SetChannelMemMaps',
+    "getChannelRemaps"    => 'GetChannelRemaps',
+    "setChannelRemaps"    => 'SetChannelRemaps',
+    "getChannelOutputs"   => 'GetChannelOutputs',
+    "setChannelOutputs"   => 'SetChannelOutputs',
+    "getChannelOutputsJSON" => 'GetChannelOutputsJSON',
+    "setChannelOutputsJSON" => 'SetChannelOutputsJSON',
+    "applyDNSInfo"        => 'ApplyDNSInfo',
+    "getDNSInfo"          => 'GetDNSInfo',
+    "setDNSInfo"          => 'SetDNSInfo',
+    "getFPPDUptime"       => 'GetFPPDUptime',
+    "applyInterfaceInfo"  => 'ApplyInterfaceInfo',
+    "getInterfaceInfo"    => 'GetInterfaceInfo',
+    "setInterfaceInfo"    => 'SetInterfaceInfo',
+    "getFPPSystems"       => 'GetFPPSystems',
+    "getFPPstatus"          => 'GetFPPStatus',
+    "getSetting"          => 'GetSetting',
+    "setSetting"          => 'SetSetting',
+    "startSequence"       => 'StartSequence',
+    "stopSequence"        => 'StopSequence',
+    "toggleSequencePause" => 'ToggleSequencePause',
+    "singleStepSequence"  => 'SingleStepSequence',
+    "singleStepSequenceBack" => 'SingleStepSequenceBack',
+    "getPluginSetting"    => 'GetPluginSetting',
+    "setPluginSetting"    => 'SetPluginSetting',
+    "saveScript"          => 'SaveScript',
+    "setTestMode"         => 'SetTestMode',
+    "getTestMode"         => 'GetTestMode',
+    "setupExtGPIO"        => 'SetupExtGPIO',
+    "extGPIO"             => 'ExtGPIO'
 );
 
 $command = "";
-$args = Array();
+$args = array();
 
-if ( isset($_GET['command']) && !empty($_GET['command']) ) {
-	$command = $_GET['command'];
-	$args = $_GET;
-} else if ( isset($_POST['command']) && !empty($_POST['command']) ) {
-	$command = $_POST['command'];
-	$args = $_POST;
+if (isset($_GET['command']) && !empty($_GET['command'])) {
+    $command = $_GET['command'];
+    $args = $_GET;
+} elseif (isset($_POST['command']) && !empty($_POST['command'])) {
+    $command = $_POST['command'];
+    $args = $_POST;
 }
 
-if (array_key_exists($command,$command_array) )
-{
-	global $debug;
+if (array_key_exists($command, $command_array)) {
+    global $debug;
 
-	if ( $debug )
-		error_log("Calling " .$command);
+    if ($debug) {
+        error_log("Calling " .$command);
+    }
 
-	call_user_func($command_array[$command]);
+    call_user_func($command_array[$command]);
 }
 return;
 
 /////////////////////////////////////////////////////////////////////////////
 
-function returnJSON($arr) {
-	header( "Content-Type: application/json");
+function returnJSON($arr)
+{
+    header("Content-Type: application/json");
 
-	echo json_encode($arr);
+    echo json_encode($arr);
 
-	exit(0);
+    exit(0);
 }
 
 /////////////////////////////////////////////////////////////////////////////
 
 function GetSetting()
 {
-	global $args;
+    global $args;
 
-	$setting = $args['key'];
-	check($setting, "setting", __FUNCTION__);
+    $setting = $args['key'];
+    check($setting, "setting", __FUNCTION__);
 
-	$value = ReadSettingFromFile($setting);
+    $value = ReadSettingFromFile($setting);
 
-	$result = Array();
-	$result[$setting] = $value;
+    $result = array();
+    $result[$setting] = $value;
 
-	returnJSON($result);
+    returnJSON($result);
 }
 
 function SetSetting()
 {
-	global $args, $SUDO;
+    global $args, $SUDO;
 
-	$setting = $args['key'];
-	$value   = $args['value'];
+    $setting = $args['key'];
+    $value   = $args['value'];
 
-	check($setting, "setting", __FUNCTION__);
-	check($value, "value", __FUNCTION__);
+    check($setting, "setting", __FUNCTION__);
+    check($value, "value", __FUNCTION__);
 
-	WriteSettingToFile($setting, $value);
+    WriteSettingToFile($setting, $value);
 
-	if ($setting == "LogLevel") {
-		SendCommand("LogLevel,$value,");
-	} else if ($setting == "LogMask") {
-		$newValue = "";
-		if ($value != "")
-			$newValue = preg_replace("/,/", ";", $value);
-		SendCommand("LogMask,$newValue,");
-	} else if ($setting == "HostName") {
-		$value = preg_replace("/[^a-zA-Z0-9]/", "", $value);
-		exec(	$SUDO . " sed -i 's/^.*\$/$value/' /etc/hostname ; " .
-			$SUDO . " sed -i '/^127.0.1.1[^0-9]/d' /etc/hosts ; " .
-			$SUDO . " sed -i '\$a127.0.1.1 $value' /etc/hosts ; " .
-			$SUDO . " hostname $value ; " .
-			$SUDO . " /etc/init.d/avahi-daemon restart ;" .
-			$SUDO . " systemctl restart avahi-daemon.service",
-			$output, $return_val);
-		sleep(1); // Give Avahi time to restart before we return
-	} else if ($setting == "EnableRouting") {
-		if ($value != "1")
-		{
-			$value = "0";
-		}
-		exec(	$SUDO . " sed -i '/net.ipv4.ip_forward/d' /etc/sysctl.conf; " .
-			$SUDO . " sed -i '\$anet.ipv4.ip_forward = $value' /etc/sysctl.conf ; " .
-			$SUDO . " sysctl --system",
-			$output, $return_val);
-	} else if ($setting == "storageDevice") {
-		exec('mount | grep boot | cut -f1 -d" " | sed -e "s/\/dev\///" -e "s/p[0-9]$//"', $output, $return_val);
-		$bootDevice = $output[0];
-		unset($output);
+    if ($setting == "LogLevel") {
+        SendCommand("LogLevel,$value,");
+    } elseif ($setting == "LogMask") {
+        $newValue = "";
+        if ($value != "") {
+            $newValue = preg_replace("/,/", ";", $value);
+        }
+        SendCommand("LogMask,$newValue,");
+    } elseif ($setting == "HostName") {
+        $value = preg_replace("/[^a-zA-Z0-9]/", "", $value);
+        exec($SUDO . " sed -i 's/^.*\$/$value/' /etc/hostname ; " .
+            $SUDO . " sed -i '/^127.0.1.1[^0-9]/d' /etc/hosts ; " .
+            $SUDO . " sed -i '\$a127.0.1.1 $value' /etc/hosts ; " .
+            $SUDO . " hostname $value ; " .
+            $SUDO . " /etc/init.d/avahi-daemon restart ;" .
+            $SUDO . " systemctl restart avahi-daemon.service",
+            $output, $return_val);
+        sleep(1); // Give Avahi time to restart before we return
+    } elseif ($setting == "EnableRouting") {
+        if ($value != "1") {
+            $value = "0";
+        }
+        exec($SUDO . " sed -i '/net.ipv4.ip_forward/d' /etc/sysctl.conf; " .
+            $SUDO . " sed -i '\$anet.ipv4.ip_forward = $value' /etc/sysctl.conf ; " .
+            $SUDO . " sysctl --system",
+            $output, $return_val);
+    } elseif ($setting == "storageDevice") {
+        exec('mount | grep boot | cut -f1 -d" " | sed -e "s/\/dev\///" -e "s/p[0-9]$//"', $output, $return_val);
+        $bootDevice = $output[0];
+        unset($output);
 
-		if (preg_match("/$bootDevice/", $value)) {
-			exec(	$SUDO . " sed -i 's/.*home\/fpp\/media/#\/dev\/sda1    \/home\/fpp\/media/' /etc/fstab", $output, $return_val );
-		} else {
-			exec(	$SUDO . " sed -i 's/.*home\/fpp\/media/\/dev\/$value    \/home\/fpp\/media/' /etc/fstab", $output, $return_val );
-		}
-	} else if ($setting == "AudioOutput") {
-		SetAudioOutput($value);
-	} else if ($setting == "ForceHDMI") {
-		if ($value)
-		{
-			exec( $SUDO . " sed -i '/hdmi_force_hotplug/d' /boot/config.txt; " .
-				$SUDO . " sed -i '\$ahdmi_force_hotplug=1' /boot/config.txt",
-				$output, $return_val);
-		}
-		else
-		{
-			exec( $SUDO . " sed -i '/hdmi_force_hotplug/d' /boot/config.txt; " .
-				$SUDO . " sed -i '\$a#hdmi_force_hotplug=1' /boot/config.txt",
-				$output, $return_val);
-		}
-	} else {
-		SendCommand("SetSetting,$setting,$value,");
-	}
+        if (preg_match("/$bootDevice/", $value)) {
+            exec($SUDO . " sed -i 's/.*home\/fpp\/media/#\/dev\/sda1    \/home\/fpp\/media/' /etc/fstab", $output, $return_val);
+        } else {
+            exec($SUDO . " sed -i 's/.*home\/fpp\/media/\/dev\/$value    \/home\/fpp\/media/' /etc/fstab", $output, $return_val);
+        }
+    } elseif ($setting == "AudioOutput") {
+        SetAudioOutput($value);
+    } elseif ($setting == "ForceHDMI") {
+        if ($value) {
+            exec($SUDO . " sed -i '/hdmi_force_hotplug/d' /boot/config.txt; " .
+                $SUDO . " sed -i '\$ahdmi_force_hotplug=1' /boot/config.txt",
+                $output, $return_val);
+        } else {
+            exec($SUDO . " sed -i '/hdmi_force_hotplug/d' /boot/config.txt; " .
+                $SUDO . " sed -i '\$a#hdmi_force_hotplug=1' /boot/config.txt",
+                $output, $return_val);
+        }
+    } else {
+        SendCommand("SetSetting,$setting,$value,");
+    }
 
-	GetSetting();
+    GetSetting();
 }
 
 function GetFPPDUptime()
 {
-	$result = Array();
+    $result = array();
 
-	$uptimeStr = SendCommand("GetFPPDUptime");
-	$uptime = explode(',', $uptimeStr)[3];
+    $uptimeStr = SendCommand("GetFPPDUptime");
+    $uptime = explode(',', $uptimeStr)[3];
 
-	$days = $uptime / 86400;
-	$hours = $uptime % 86400 / 3600;
-	$seconds = $uptime % 86400 % 3600;
-	$minutes = $seconds / 60;
-	$seconds = $seconds % 60;
+    $days = $uptime / 86400;
+    $hours = $uptime % 86400 / 3600;
+    $seconds = $uptime % 86400 % 3600;
+    $minutes = $seconds / 60;
+    $seconds = $seconds % 60;
 
-	$result['uptime'] = $uptime;
-	$result['days'] = $days;
-	$result['hours'] = $hours;
-	$result['minutes'] = $minutes;
-	$result['seconds'] = $seconds;
+    $result['uptime'] = $uptime;
+    $result['days'] = $days;
+    $result['hours'] = $hours;
+    $result['minutes'] = $minutes;
+    $result['seconds'] = $seconds;
 
-	$result['uptimeStr'] = 
-		sprintf($f, "%d days, %d hours, %d minutes, %d seconds\n",
-		$days, $hours, $minutes, $seconds );
+    $result['uptimeStr'] =
+        sprintf($f, "%d days, %d hours, %d minutes, %d seconds\n",
+        $days, $hours, $minutes, $seconds);
 
-	returnJSON($result);
+    returnJSON($result);
 }
 
 function GetFPPStatus()
 {
-	global $args;
+    global $args;
 
-	if (isset($args['ip']))
-	{
-		header( "Content-Type: application/json");
+    if (isset($args['ip'])) {
+        header("Content-Type: application/json");
 
-		echo file_get_contents("http://" . $args['ip'] . "/fppjson.php?command=getFPPstatus");
+        echo file_get_contents("http://" . $args['ip'] . "/fppjson.php?command=getFPPstatus");
 
-		exit(0);
-	}
-	else
-	{
-		$status = SendCommand('s');
+        exit(0);
+    } else {
+        $status = SendCommand('s');
   
-		if($status == false || $status == 'false') {
-     	
-			$status=exec("if ps cax | grep -q git_pull; then echo \"updating\"; else echo \"false\"; fi");
+        if ($status == false || $status == 'false') {
+            $status=exec("if ps cax | grep -q git_pull; then echo \"updating\"; else echo \"false\"; fi");
      
-			returnJSON([
-					'fppd' => 'Not Running',
-					'status' => -1,
-					'status_name' => $status == 'updating' ? $status : 'stopped',
-				]);
-		}
+            returnJSON([
+                    'fppd' => 'Not Running',
+                    'status' => -1,
+                    'status_name' => $status == 'updating' ? $status : 'stopped',
+                ]);
+        }
 
-		$data = parseStatus($status);
+        $data = parseStatus($status);
 
-		returnJson($data);
-	}
+        returnJson($data);
+    }
 }
 
-function parseStatus($status) 
+function parseStatus($status)
 {
-	$modes = [
-		0 => 'unknown',
+    $modes = [
+        0 => 'unknown',
         1 => 'bridge',
         2 => 'player',
         6 => 'master',
@@ -235,730 +228,705 @@ function parseStatus($status)
         ];
 
     $statuses = [
-    	0 => 'idle',
-    	1 => 'playing',
-    	2 => 'stopping gracefully'
+        0 => 'idle',
+        1 => 'playing',
+        2 => 'stopping gracefully'
     ];
 
-	$status = explode(',', $status, 14);
-	$mode = (int) $status[0]; 
-	$fppStatus = (int) $status[1];
+    $status = explode(',', $status, 14);
+    $mode = (int) $status[0];
+    $fppStatus = (int) $status[1];
 
-	if($mode == 1) {
-		return [
-			'fppd'   => 'running',
-			'mode'   => $mode,
-			'mode_name' => $modes[$mode],
-			'status' => $fppStatus,
-		];
-	}
+    if ($mode == 1) {
+        return [
+            'fppd'   => 'running',
+            'mode'   => $mode,
+            'mode_name' => $modes[$mode],
+            'status' => $fppStatus,
+        ];
+    }
 
-	$baseData = [
-		'fppd'        => 'running',
-		'mode'        => $mode,
-		'mode_name'   => $modes[$mode],
-		'status'      => $fppStatus,
-		'status_name' => $statuses[$fppStatus],
-		'volume'      => (int) $status[2],
-		'time'        => exec('date'),
+    $baseData = [
+        'fppd'        => 'running',
+        'mode'        => $mode,
+        'mode_name'   => $modes[$mode],
+        'status'      => $fppStatus,
+        'status_name' => $statuses[$fppStatus],
+        'volume'      => (int) $status[2],
+        'time'        => exec('date'),
    ];
 
-	if($mode == 8) {
-		$data = [
-			'playlist'          => $status[3],
-			'sequence_filename' => $status[3],
-			'media_filename'    => $status[4],
-			'seconds_elapsed'   => $status[5],
-			'seconds_remaining' => $status[6],
-			'time_elapsed' 		=> parseTimeFromSeconds((int)$status[5]),
-			'time_remaining'	=> parseTimeFromSeconds((int)$status[6]),
-	    ];
+    if ($mode == 8) {
+        $data = [
+            'playlist'          => $status[3],
+            'sequence_filename' => $status[3],
+            'media_filename'    => $status[4],
+            'seconds_elapsed'   => $status[5],
+            'seconds_remaining' => $status[6],
+            'time_elapsed'        => parseTimeFromSeconds((int)$status[5]),
+            'time_remaining'    => parseTimeFromSeconds((int)$status[6]),
+        ];
+    } else {
+        if ($fppStatus == 0) {
+            $data = [
+                'next_playlist'     => [
+                    'playlist'   => $status[3],
+                    'start_time' => $status[4]
+                ],
+                'repeat_mode' => 0,
+            ];
+        } else {
+            $data = [
+                'current_playlist' => [
+                    'playlist' => pathinfo($status[3])['filename'],
+                    'type'     => $status[4],
+                    'index'    => $status[7],
+                    'count'    => $status[8]
+                    ],
+                'current_sequence'  => $status[5],
+                'current_song'      => $status[6],
+                'seconds_played'    => $status[9],
+                'seconds_remaining' => $status[10],
+                'time_elapsed'        => parseTimeFromSeconds((int)$status[9]),
+                'time_remaining'    => parseTimeFromSeconds((int)$status[10]),
+                'next_playlist'     => [
+                    'playlist'   => $status[11],
+                    'start_time' => $status[12]
+                ],
+                'repeat_mode' => (int)$status[13],
+            ];
+        }
+    }
 
-	} else {
-
-		if($fppStatus == 0) {
-			$data = [
-				'next_playlist'     => [
-					'playlist'   => $status[3],
-					'start_time' => $status[4]
-				],
-				'repeat_mode' => 0,
-			];
-		} else {
-
-			$data = [
-				'current_playlist' => [
-					'playlist' => pathinfo($status[3])['filename'],
-					'type'     => $status[4],
-					'index'    => $status[7],
-					'count'    => $status[8]
-					],
-				'current_sequence'  => $status[5],
-				'current_song'      => $status[6],
-				'seconds_played'    => $status[9],
-				'seconds_remaining' => $status[10],
-				'time_elapsed' 		=> parseTimeFromSeconds((int)$status[9]),
-				'time_remaining' 	=> parseTimeFromSeconds((int)$status[10]),
-				'next_playlist'     => [
-					'playlist'   => $status[11],
-					'start_time' => $status[12]
-				],
-				'repeat_mode' => (int)$status[13],
-			];
-		}
-	}
-
-	return array_merge($baseData, $data);
-
+    return array_merge($baseData, $data);
 }
 
-function parseTimeFromSeconds($seconds) {
-	
-	if(!is_numeric($seconds)) {
-		return;
-	}
-	
-	$minutes = (int) floor($seconds/60);
-	$seconds = (int) $seconds % 60;
+function parseTimeFromSeconds($seconds)
+{
+    if (!is_numeric($seconds)) {
+        return;
+    }
+    
+    $minutes = (int) floor($seconds/60);
+    $seconds = (int) $seconds % 60;
 
 
-	return sprintf('%s:%s', str_pad($minutes, 2, 0, STR_PAD_LEFT), str_pad($seconds, 2, 0, STR_PAD_LEFT));
+    return sprintf('%s:%s', str_pad($minutes, 2, 0, STR_PAD_LEFT), str_pad($seconds, 2, 0, STR_PAD_LEFT));
 }
 
-function getTimeRemaining($seconds) {
-
+function getTimeRemaining($seconds)
+{
 }
 
 
 function StartSequence()
 {
-	global $args;
+    global $args;
 
-	$sequence = $args['sequence'];
-	$startSecond = $args['startSecond'];
+    $sequence = $args['sequence'];
+    $startSecond = $args['startSecond'];
 
-	check($sequence, "sequence", __FUNCTION__);
-	check($startSecond, "startSecond", __FUNCTION__);
+    check($sequence, "sequence", __FUNCTION__);
+    check($startSecond, "startSecond", __FUNCTION__);
 
-	SendCommand(sprintf("StartSequence,%s,%d", $sequence, $startSecond));
+    SendCommand(sprintf("StartSequence,%s,%d", $sequence, $startSecond));
 }
 
 function StopSequence()
 {
-	SendCommand("StopSequence");
+    SendCommand("StopSequence");
 }
 
 function ToggleSequencePause()
 {
-	SendCommand("ToggleSequencePause");
+    SendCommand("ToggleSequencePause");
 }
 
 function SingleStepSequence()
 {
-	SendCommand("SingleStepSequence");
+    SendCommand("SingleStepSequence");
 }
 
 function SingleStepSequenceBack()
 {
-	SendCommand("SingleStepSequenceBack");
+    SendCommand("SingleStepSequenceBack");
 }
 
 function GetPluginSetting()
 {
-	global $args;
+    global $args;
 
-	$setting = $args['key'];
-	$plugin  = $args['plugin'];
-	check($setting, "setting", __FUNCTION__);
-	check($plugin, "plugin", __FUNCTION__);
+    $setting = $args['key'];
+    $plugin  = $args['plugin'];
+    check($setting, "setting", __FUNCTION__);
+    check($plugin, "plugin", __FUNCTION__);
 
-	$value = ReadSettingFromFile($setting, $plugin);
+    $value = ReadSettingFromFile($setting, $plugin);
 
-	$result = Array();
-	$result[$setting] = $value;
+    $result = array();
+    $result[$setting] = $value;
 
-	returnJSON($result);
+    returnJSON($result);
 }
 
 function SetPluginSetting()
 {
-	global $args;
+    global $args;
 
-	$setting = $args['key'];
-	$value   = $args['value'];
-	$plugin  = $args['plugin'];
+    $setting = $args['key'];
+    $value   = $args['value'];
+    $plugin  = $args['plugin'];
 
-	check($setting, "setting", __FUNCTION__);
-	check($value, "value", __FUNCTION__);
-	check($plugin, "plugin", __FUNCTION__);
+    check($setting, "setting", __FUNCTION__);
+    check($value, "value", __FUNCTION__);
+    check($plugin, "plugin", __FUNCTION__);
 
-	WriteSettingToFile($setting, $value, $plugin);
+    WriteSettingToFile($setting, $value, $plugin);
 
-	GetPluginSetting();
+    GetPluginSetting();
 }
 
 /////////////////////////////////////////////////////////////////////////////
 
 function GetFPPSystems()
 {
-	exec("ip addr show up | grep 'inet ' | awk '{print $2}' | cut -f1 -d/ | grep -v '^127'", $localIPs);
+    exec("ip addr show up | grep 'inet ' | awk '{print $2}' | cut -f1 -d/ | grep -v '^127'", $localIPs);
 
-	exec("avahi-browse -artp | sort", $rmtSysOut);
+    exec("avahi-browse -artp | sort", $rmtSysOut);
 
-	$result = Array();
+    $result = array();
 
-	foreach ($rmtSysOut as $system)
-	{
-		if (!preg_match("/^=.*fpp-fppd/", $system))
-			continue;
-		if (!preg_match("/fppMode/", $system))
-			continue;
+    foreach ($rmtSysOut as $system) {
+        if (!preg_match("/^=.*fpp-fppd/", $system)) {
+            continue;
+        }
+        if (!preg_match("/fppMode/", $system)) {
+            continue;
+        }
 
-		$parts = explode(';', $system);
+        $parts = explode(';', $system);
 
-		$elem = Array();
-		$elem['HostName']        = $parts[3];
-		$elem['IP']     = $parts[7];
-		$elem['fppMode'] = "Unknown";
-		$elem['Local'] = 0;
-		$elem['Platform'] = "Unknown";
+        $elem = array();
+        $elem['HostName']        = $parts[3];
+        $elem['IP']     = $parts[7];
+        $elem['fppMode'] = "Unknown";
+        $elem['Local'] = 0;
+        $elem['Platform'] = "Unknown";
 
-		$matches = preg_grep("/" . $elem['IP'] . "/", $localIPs);
-		if (count($matches))
-			$elem['Local'] = 1;
+        $matches = preg_grep("/" . $elem['IP'] . "/", $localIPs);
+        if (count($matches)) {
+            $elem['Local'] = 1;
+        }
 
-		if (count($parts) > 8)
-		{
-			$elem['txtRecord'] = $parts[9];
-			$txtParts = explode(',', preg_replace("/\"/", "", $parts[9]));
-			foreach ($txtParts as $txtPart)
-			{
-				$kvPair = explode('=', $txtPart);
-				if ($kvPair[0] == "fppMode")
-					$elem['fppMode'] = $kvPair[1];
-				else if ($kvPair[0] == "platform")
-					$elem['Platform'] = $kvPair[1];
-			}
-	 }
+        if (count($parts) > 8) {
+            $elem['txtRecord'] = $parts[9];
+            $txtParts = explode(',', preg_replace("/\"/", "", $parts[9]));
+            foreach ($txtParts as $txtPart) {
+                $kvPair = explode('=', $txtPart);
+                if ($kvPair[0] == "fppMode") {
+                    $elem['fppMode'] = $kvPair[1];
+                } elseif ($kvPair[0] == "platform") {
+                    $elem['Platform'] = $kvPair[1];
+                }
+            }
+        }
 
-		if (!(($elem['IP'] == "192.168.7.2") && ($elem['Platform'] == "BeagleBone Black")))
-		{
-			$result[] = $elem;
-		}
-	}
+        if (!(($elem['IP'] == "192.168.7.2") && ($elem['Platform'] == "BeagleBone Black"))) {
+            $result[] = $elem;
+        }
+    }
 
-	returnJSON($result);
+    returnJSON($result);
 }
 
 /////////////////////////////////////////////////////////////////////////////
 
 function SetAudioOutput($card)
 {
-	global $args, $SUDO, $debug;
+    global $args, $SUDO, $debug;
 
-	if ($card != 0 && file_exists("/proc/asound/card$card"))
-	{
-		exec($SUDO . " sed -i 's/card [0-9]/card ".$card."/' /root/.asoundrc", $output, $return_val);
-		unset($output);
-		if ($return_val)
-		{
-			error_log("Failed to set audio to card $card!");
-			return;
-		}
-		if ( $debug )
-			error_log("Setting to audio output $card");
-	}
-	else if ($card == 0)
-	{
-		exec($SUDO . " sed -i 's/card [0-9]/card ".$card."/' /root/.asoundrc", $output, $return_val);
-		unset($output);
-		if ($return_val)
-		{
-			error_log("Failed to set audio back to default!");
-			return;
-		}
-		if ( $debug )
-			error_log("Setting default audio");
-	}
+    if ($card != 0 && file_exists("/proc/asound/card$card")) {
+        exec($SUDO . " sed -i 's/card [0-9]/card ".$card."/' /root/.asoundrc", $output, $return_val);
+        unset($output);
+        if ($return_val) {
+            error_log("Failed to set audio to card $card!");
+            return;
+        }
+        if ($debug) {
+            error_log("Setting to audio output $card");
+        }
+    } elseif ($card == 0) {
+        exec($SUDO . " sed -i 's/card [0-9]/card ".$card."/' /root/.asoundrc", $output, $return_val);
+        unset($output);
+        if ($return_val) {
+            error_log("Failed to set audio back to default!");
+            return;
+        }
+        if ($debug) {
+            error_log("Setting default audio");
+        }
+    }
 
-	return $card;
+    return $card;
 }
 
 /////////////////////////////////////////////////////////////////////////////
 
 function GetChannelMemMaps()
 {
-	global $settings;
-	$memmapFile = $settings['channelMemoryMapsFile'];
+    global $settings;
+    $memmapFile = $settings['channelMemoryMapsFile'];
 
-	$result = Array();
+    $result = array();
 
-	$f = fopen($memmapFile, "r");
-	if($f == FALSE)
-	{
-		fclose($f);
-		returnJSON($result);
-	}
+    $f = fopen($memmapFile, "r");
+    if ($f == false) {
+        fclose($f);
+        returnJSON($result);
+    }
 
-	while (!feof($f))
-	{
-		$line = trim(fgets($f));
+    while (!feof($f)) {
+        $line = trim(fgets($f));
 
-		if ($line == "")
-			continue;
-		
-		if (substr($line, 0, 1) == "#")
-			continue;
+        if ($line == "") {
+            continue;
+        }
+        
+        if (substr($line, 0, 1) == "#") {
+            continue;
+        }
 
-		$memmap = explode(",",$line,10);
+        $memmap = explode(",", $line, 10);
 
-		$elem = Array();
-		$elem['BlockName']        = $memmap[0];
-		$elem['StartChannel']     = $memmap[1];
-		$elem['ChannelCount']     = $memmap[2];
-		$elem['Orientation']      = $memmap[3];
-		$elem['StartCorner']      = $memmap[4];
-		$elem['StringCount']      = $memmap[5];
-		$elem['StrandsPerString'] = $memmap[6];
+        $elem = array();
+        $elem['BlockName']        = $memmap[0];
+        $elem['StartChannel']     = $memmap[1];
+        $elem['ChannelCount']     = $memmap[2];
+        $elem['Orientation']      = $memmap[3];
+        $elem['StartCorner']      = $memmap[4];
+        $elem['StringCount']      = $memmap[5];
+        $elem['StrandsPerString'] = $memmap[6];
 
-		$result[] = $elem;
-	}
-	fclose($f);
+        $result[] = $elem;
+    }
+    fclose($f);
 
-	returnJSON($result);
+    returnJSON($result);
 }
 
 function SetChannelMemMaps()
 {
-	global $args;
-	global $settings;
+    global $args;
+    global $settings;
 
-	$memmapFile = $settings['channelMemoryMapsFile'];
+    $memmapFile = $settings['channelMemoryMapsFile'];
 
-	$data = json_decode($args['data'], true);
+    $data = json_decode($args['data'], true);
 
-	$f = fopen($memmapFile, "w");
-	if($f == FALSE)
-	{
-		fclose($f);
-		returnJSON($result);
-	}
+    $f = fopen($memmapFile, "w");
+    if ($f == false) {
+        fclose($f);
+        returnJSON($result);
+    }
 
-	foreach ($data as $memmap) {
-		fprintf($f, "%s,%d,%d,%s,%s,%d,%d\n",
-			$memmap['BlockName'], $memmap['StartChannel'],
-			$memmap['ChannelCount'], $memmap['Orientation'],
-			$memmap['StartCorner'], $memmap['StringCount'],
-			$memmap['StrandsPerString']);
-	}
-	fclose($f);
+    foreach ($data as $memmap) {
+        fprintf($f, "%s,%d,%d,%s,%s,%d,%d\n",
+            $memmap['BlockName'], $memmap['StartChannel'],
+            $memmap['ChannelCount'], $memmap['Orientation'],
+            $memmap['StartCorner'], $memmap['StringCount'],
+            $memmap['StrandsPerString']);
+    }
+    fclose($f);
 
-	GetChannelMemMaps();
+    GetChannelMemMaps();
 }
 
 /////////////////////////////////////////////////////////////////////////////
 
 function GetChannelRemaps()
 {
-	global $remapFile;
+    global $remapFile;
 
-	$result = Array();
+    $result = array();
 
-	$f = fopen($remapFile, "r");
-	if($f == FALSE)
-	{
-		fclose($f);
-		returnJSON($result);
-	}
+    $f = fopen($remapFile, "r");
+    if ($f == false) {
+        fclose($f);
+        returnJSON($result);
+    }
 
-	while (!feof($f))
-	{
-		$line = trim(fgets($f));
+    while (!feof($f)) {
+        $line = trim(fgets($f));
 
-		if ($line == "")
-			continue;
-		
-		if (substr($line, 0, 1) == "#")
-			continue;
+        if ($line == "") {
+            continue;
+        }
+        
+        if (substr($line, 0, 1) == "#") {
+            continue;
+        }
 
-		$remap = explode(",",$line,10);
+        $remap = explode(",", $line, 10);
 
-		$elem = Array();
-		$elem['Source'] = $remap[0];
-		$elem['Destination'] = $remap[1];
-		$elem['Count'] = $remap[2];
+        $elem = array();
+        $elem['Source'] = $remap[0];
+        $elem['Destination'] = $remap[1];
+        $elem['Count'] = $remap[2];
 
-		$result[] = $elem;
-	}
-	fclose($f);
+        $result[] = $elem;
+    }
+    fclose($f);
 
-	returnJSON($result);
+    returnJSON($result);
 }
 
 function SetChannelRemaps()
 {
-	global $remapFile;
-	global $args;
+    global $remapFile;
+    global $args;
 
-	$data = json_decode($args['data'], true);
+    $data = json_decode($args['data'], true);
 
-	$f = fopen($remapFile, "w");
-	if($f == FALSE)
-	{
-		fclose($f);
-		returnJSON($result);
-	}
+    $f = fopen($remapFile, "w");
+    if ($f == false) {
+        fclose($f);
+        returnJSON($result);
+    }
 
-	foreach ($data as $remap) {
-		fprintf($f, "%d,%d,%d\n",
-			$remap['Source'], $remap['Destination'], $remap['Count']);
-	}
-	fclose($f);
+    foreach ($data as $remap) {
+        fprintf($f, "%d,%d,%d\n",
+            $remap['Source'], $remap['Destination'], $remap['Count']);
+    }
+    fclose($f);
 
-	GetChannelRemaps();
+    GetChannelRemaps();
 }
 
 /////////////////////////////////////////////////////////////////////////////
 function GetChannelOutputsJSON()
 {
-	global $settings;
+    global $settings;
 
-	$jsonStr = "";
+    $jsonStr = "";
 
-	if (file_exists($settings['channelOutputsJSON'])) {
-		$jsonStr = file_get_contents($settings['channelOutputsJSON']);
-	}
+    if (file_exists($settings['channelOutputsJSON'])) {
+        $jsonStr = file_get_contents($settings['channelOutputsJSON']);
+    }
 
-	header( "Content-Type: application/json");
-	echo $jsonStr;
+    header("Content-Type: application/json");
+    echo $jsonStr;
 }
 
 function SetChannelOutputsJSON()
 {
-	global $settings;
-	global $args;
+    global $settings;
+    global $args;
 
-	$data = stripslashes($args['data']);
-	$data = prettyPrintJSON(substr($data, 1, strlen($data) - 2));
+    $data = stripslashes($args['data']);
+    $data = prettyPrintJSON(substr($data, 1, strlen($data) - 2));
 
-	file_put_contents($settings['channelOutputsJSON'], $data);
+    file_put_contents($settings['channelOutputsJSON'], $data);
 
-	GetChannelOutputsJSON();
+    GetChannelOutputsJSON();
 }
 
 /////////////////////////////////////////////////////////////////////////////
 function GetChannelOutputs()
 {
-	global $settings;
+    global $settings;
 
-	$result = Array();
-	$result['Outputs'] = Array();
+    $result = array();
+    $result['Outputs'] = array();
 
-	if (!file_exists($settings['channelOutputsFile']))
-		return returnJSON($result);
+    if (!file_exists($settings['channelOutputsFile'])) {
+        return returnJSON($result);
+    }
 
-	$f = fopen($settings['channelOutputsFile'], "r");
-	if($f == FALSE)
-	{
-		fclose($f);
-		returnJSON($result);
-	}
+    $f = fopen($settings['channelOutputsFile'], "r");
+    if ($f == false) {
+        fclose($f);
+        returnJSON($result);
+    }
 
-	while (!feof($f))
-	{
-		$line = trim(fgets($f));
+    while (!feof($f)) {
+        $line = trim(fgets($f));
 
-		if ($line == "")
-			continue;
+        if ($line == "") {
+            continue;
+        }
 
-		array_push($result['Outputs'], $line);
-	}
-	fclose($f);
+        array_push($result['Outputs'], $line);
+    }
+    fclose($f);
 
-	return returnJSON($result);
+    return returnJSON($result);
 }
 
 function SetChannelOutputs()
 {
-	global $settings;
-	global $args;
+    global $settings;
+    global $args;
 
-	$data = json_decode($args['data'], true);
+    $data = json_decode($args['data'], true);
 
-	$f = fopen($settings['channelOutputsFile'], "w");
-	if($f == FALSE)
-	{
-		fclose($f);
-		returnJSON($result);
-	}
+    $f = fopen($settings['channelOutputsFile'], "w");
+    if ($f == false) {
+        fclose($f);
+        returnJSON($result);
+    }
 
-	foreach ($data['Outputs'] as $output) {
-		fprintf($f, "%s\n", $output);
-	}
-	fclose($f);
+    foreach ($data['Outputs'] as $output) {
+        fprintf($f, "%s\n", $output);
+    }
+    fclose($f);
 
-	GetChannelOutputs();
+    GetChannelOutputs();
 }
 
 /////////////////////////////////////////////////////////////////////////////
 // Network Interface configuration
 function ApplyInterfaceInfo()
 {
-	global $settings, $args, $SUDO;
+    global $settings, $args, $SUDO;
 
-	$interface = $args['interface'];
+    $interface = $args['interface'];
 
-	exec($SUDO . " " . $settings['fppDir'] . "/scripts/config_network  $interface");
+    exec($SUDO . " " . $settings['fppDir'] . "/scripts/config_network  $interface");
 }
 
 
 function GetInterfaceInfo()
 {
-	global $settings;
-	global $args;
+    global $settings;
+    global $args;
 
-	$interface = $args['interface'];
+    $interface = $args['interface'];
 
-	check($interface);
+    check($interface);
 
-	$result = Array();
+    $result = array();
 
-	$cfgFile = $settings['configDirectory'] . "/interface." . $interface;
-	if (file_exists($cfgFile)) {
-		$result = parse_ini_file($cfgFile);
-	}
+    $cfgFile = $settings['configDirectory'] . "/interface." . $interface;
+    if (file_exists($cfgFile)) {
+        $result = parse_ini_file($cfgFile);
+    }
 
-	exec("/sbin/ifconfig $interface", $output);
-	foreach ($output as $line)
-	{
-		if (preg_match('/addr:/', $line))
-		{
-			$result['CurrentAddress'] = preg_replace('/.*addr:([0-9\.]+) .*/', '$1', $line);
-			$result['CurrentNetmask'] = preg_replace('/.*Mask:([0-9\.]+).*/', '$1', $line);
-		}
-	}
-	unset($output);
+    exec("/sbin/ifconfig $interface", $output);
+    foreach ($output as $line) {
+        if (preg_match('/addr:/', $line)) {
+            $result['CurrentAddress'] = preg_replace('/.*addr:([0-9\.]+) .*/', '$1', $line);
+            $result['CurrentNetmask'] = preg_replace('/.*Mask:([0-9\.]+).*/', '$1', $line);
+        }
+    }
+    unset($output);
 
-	if (substr($interface, 0, 4) == "wlan")
-	{
-		exec("/sbin/iwconfig $interface", $output);
-		foreach ($output as $line)
-		{
-			if (preg_match('/ESSID:/', $line))
-				$result['CurrentSSID'] = preg_replace('/.*ESSID:"([^"]+)".*/', '$1', $line);
+    if (substr($interface, 0, 4) == "wlan") {
+        exec("/sbin/iwconfig $interface", $output);
+        foreach ($output as $line) {
+            if (preg_match('/ESSID:/', $line)) {
+                $result['CurrentSSID'] = preg_replace('/.*ESSID:"([^"]+)".*/', '$1', $line);
+            }
 
-			if (preg_match('/Rate:/', $line))
-				$result['CurrentRate'] = preg_replace('/.*Bit Rate:([0-9\.]+) .*/', '$1', $line);
-		}
-		unset($output);
-	}
+            if (preg_match('/Rate:/', $line)) {
+                $result['CurrentRate'] = preg_replace('/.*Bit Rate:([0-9\.]+) .*/', '$1', $line);
+            }
+        }
+        unset($output);
+    }
 
-	returnJSON($result);
+    returnJSON($result);
 }
 
 function SetInterfaceInfo()
 {
-	global $settings;
-	global $args;
+    global $settings;
+    global $args;
 
-	$data = json_decode($args['data'], true);
+    $data = json_decode($args['data'], true);
 
-	$cfgFile = $settings['configDirectory'] . "/interface." . $data['INTERFACE'];
+    $cfgFile = $settings['configDirectory'] . "/interface." . $data['INTERFACE'];
 
-	$f = fopen($cfgFile, "w");
-	if ($f == FALSE) {
-		return;
-	}
+    $f = fopen($cfgFile, "w");
+    if ($f == false) {
+        return;
+    }
 
-	if ($data['PROTO'] == "static") {
-		fprintf($f,
-			"INTERFACE=\"%s\"\n" .
-			"PROTO=\"static\"\n" .
-			"ADDRESS=\"%s\"\n" .
-			"NETMASK=\"%s\"\n" .
-			"GATEWAY=\"%s\"\n",
-			$data['INTERFACE'], $data['ADDRESS'], $data['NETMASK'],
-			$data['GATEWAY']);
+    if ($data['PROTO'] == "static") {
+        fprintf($f,
+            "INTERFACE=\"%s\"\n" .
+            "PROTO=\"static\"\n" .
+            "ADDRESS=\"%s\"\n" .
+            "NETMASK=\"%s\"\n" .
+            "GATEWAY=\"%s\"\n",
+            $data['INTERFACE'], $data['ADDRESS'], $data['NETMASK'],
+            $data['GATEWAY']);
+    } elseif ($data['PROTO'] == "dhcp") {
+        fprintf($f,
+            "INTERFACE=%s\n" .
+            "PROTO=dhcp\n",
+            $data['INTERFACE']);
+    }
 
-	} else if ($data['PROTO'] == "dhcp") {
-		fprintf($f,
-			"INTERFACE=%s\n" .
-			"PROTO=dhcp\n",
-			$data['INTERFACE']);
-	}
+    if (substr($data['INTERFACE'], 0, 4) == "wlan") {
+        fprintf($f,
+            "SSID='%s'\n" .
+            "PSK='%s'\n",
+            $data['SSID'], $data['PSK']);
+    }
 
-	if (substr($data['INTERFACE'], 0, 4) == "wlan")
-	{
-		fprintf($f,
-			"SSID='%s'\n" .
-			"PSK='%s'\n",
-			$data['SSID'], $data['PSK']);
-	}
-
-	fclose($f);
+    fclose($f);
 }
 
 /////////////////////////////////////////////////////////////////////////////
 function ApplyDNSInfo()
 {
-	global $settings, $SUDO;
+    global $settings, $SUDO;
 
-	exec($SUDO . " " . $settings['fppDir'] . "/scripts/config_dns");
+    exec($SUDO . " " . $settings['fppDir'] . "/scripts/config_dns");
 }
 
 function GetDNSInfo()
 {
-	global $settings;
+    global $settings;
 
-	$cfgFile = $settings['configDirectory'] . "/dns";
-	if (file_exists($cfgFile)) {
-		returnJSON(parse_ini_file($cfgFile));
-	}
+    $cfgFile = $settings['configDirectory'] . "/dns";
+    if (file_exists($cfgFile)) {
+        returnJSON(parse_ini_file($cfgFile));
+    }
 
-	returnJSON(Array());
+    returnJSON(array());
 }
 
 function SetDNSInfo()
 {
-	global $settings;
-	global $args;
+    global $settings;
+    global $args;
 
-	$data = json_decode($args['data'], true);
+    $data = json_decode($args['data'], true);
 
-	$cfgFile = $settings['configDirectory'] . "/dns";
+    $cfgFile = $settings['configDirectory'] . "/dns";
 
-	$f = fopen($cfgFile, "w");
-	if ($f == FALSE) {
-		return;
-	}
+    $f = fopen($cfgFile, "w");
+    if ($f == false) {
+        return;
+    }
 
-	fprintf($f,
-		"DNS1=\"%s\"\n" .
-		"DNS2=\"%s\"\n",
-		$data['DNS1'], $data['DNS2']);
-	fclose($f);
+    fprintf($f,
+        "DNS1=\"%s\"\n" .
+        "DNS2=\"%s\"\n",
+        $data['DNS1'], $data['DNS2']);
+    fclose($f);
 }
 
 /////////////////////////////////////////////////////////////////////////////
 
 function SaveScript()
 {
-	global $args;
-	global $settings;
+    global $args;
+    global $settings;
 
-	$result = Array();
+    $result = array();
 
-	if (!isset($args['data']))
-	{
-		$result['saveStatus'] = "Error, incorrect info";
-		returnJSON($result);
-	}
+    if (!isset($args['data'])) {
+        $result['saveStatus'] = "Error, incorrect info";
+        returnJSON($result);
+    }
 
-	$data = json_decode($args['data'], true);
+    $data = json_decode($args['data'], true);
 
-	if (isset($data['scriptName']) && isset($data['scriptBody']))
-	{
-		$filename = $settings['scriptDirectory'] . '/' . $data['scriptName'];
-		$content = $data['scriptBody'];
+    if (isset($data['scriptName']) && isset($data['scriptBody'])) {
+        $filename = $settings['scriptDirectory'] . '/' . $data['scriptName'];
+        $content = $data['scriptBody'];
 
-		if (file_exists($filename))
-		{
-			if (@file_put_contents($filename, $content))
-			{
-				$result['saveStatus'] = "OK";
-				$result['scriptName'] = $data['scriptName'];
-				$result['scriptBody'] = $data['scriptBody'];
-			}
-			else
-			{
-				$result['saveStatus'] = "Error updating file";
-			}
-		}
-		else
-		{
-			$result['saveStatus'] = "Error, file does not exist";
-		}
-	}
-	else
-	{
-		if (!isset($data['scriptName']))
-			$result['saveStatus'] = "Error, missing scriptName";
-		else if (!isset($data['scriptBody']))
-			$result['saveStatus'] = "Error, missing scriptBody";
-	}
+        if (file_exists($filename)) {
+            if (@file_put_contents($filename, $content)) {
+                $result['saveStatus'] = "OK";
+                $result['scriptName'] = $data['scriptName'];
+                $result['scriptBody'] = $data['scriptBody'];
+            } else {
+                $result['saveStatus'] = "Error updating file";
+            }
+        } else {
+            $result['saveStatus'] = "Error, file does not exist";
+        }
+    } else {
+        if (!isset($data['scriptName'])) {
+            $result['saveStatus'] = "Error, missing scriptName";
+        } elseif (!isset($data['scriptBody'])) {
+            $result['saveStatus'] = "Error, missing scriptBody";
+        }
+    }
 
-	returnJSON($result);
+    returnJSON($result);
 }
 
 /////////////////////////////////////////////////////////////////////////////
 
 function SetTestMode()
 {
-	global $args;
+    global $args;
 
-	SendCommand(sprintf("SetTestMode,%s", $args['data']));
+    SendCommand(sprintf("SetTestMode,%s", $args['data']));
 }
 
 function GetTestMode()
 {
-	header( "Content-Type: application/json");
-	echo SendCommand("GetTestMode");
+    header("Content-Type: application/json");
+    echo SendCommand("GetTestMode");
 }
 
 /////////////////////////////////////////////////////////////////////////////
 
 function SetupExtGPIO()
 {
-	global $args;
-	$result = Array();
+    global $args;
+    $result = array();
 
-	$gpio = $args['gpio'];
-	$mode = $args['mode'];
+    $gpio = $args['gpio'];
+    $mode = $args['mode'];
 
-	check($gpio, "gpio", __FUNCTION__);
-	check($mode, "mode", __FUNCTION__);
+    check($gpio, "gpio", __FUNCTION__);
+    check($mode, "mode", __FUNCTION__);
 
-	$statuses = [
-		0 => 'failed',
-		1 => 'success'
-	];
+    $statuses = [
+        0 => 'failed',
+        1 => 'success'
+    ];
 
-	$status = SendCommand(sprintf("SetupExtGPIO,%s,%s", $gpio, $mode));
+    $status = SendCommand(sprintf("SetupExtGPIO,%s,%s", $gpio, $mode));
 
-	$status = explode(',', $status, 14);
-	$result['status'] = $statuses[(int) $status[1]];
+    $status = explode(',', $status, 14);
+    $result['status'] = $statuses[(int) $status[1]];
 
-	returnJSON($result);
+    returnJSON($result);
 }
 
 /////////////////////////////////////////////////////////////////////////////
 function ExtGPIO()
 {
-	global $args;
-	$result = Array();
+    global $args;
+    $result = array();
 
-	$gpio = $args['gpio'];
-	$mode = $args['mode'];
-	$val = $args['val'];
+    $gpio = $args['gpio'];
+    $mode = $args['mode'];
+    $val = $args['val'];
 
-	check($gpio, "gpio", __FUNCTION__);
-	check($mode, "mode", __FUNCTION__);
-	check($val, "val", __FUNCTION__);
+    check($gpio, "gpio", __FUNCTION__);
+    check($mode, "mode", __FUNCTION__);
+    check($val, "val", __FUNCTION__);
 
-	$status = SendCommand(sprintf("ExtGPIO,%s,%s,%s", $gpio, $mode, $val));
+    $status = SendCommand(sprintf("ExtGPIO,%s,%s,%s", $gpio, $mode, $val));
 
-	$status = explode(',', $status, 14);
+    $status = explode(',', $status, 14);
 
-	if ((int) $status[1] >= 0) {
-		$result['status'] = 'success';
-		$result['result'] = $status[6];
-	} else {
-		$result['status'] = 'failed';
-	}
+    if ((int) $status[1] >= 0) {
+        $result['status'] = 'success';
+        $result['result'] = $status[6];
+    } else {
+        $result['status'] = 'failed';
+    }
 
-	returnJSON($result);
+    returnJSON($result);
 }
 
-/////////////////////////////////////////////////////////////////////////////
-
-?>
+/////////////////////////////////////////////////////////////////////////////;

@@ -103,7 +103,7 @@ $(document).tooltip();
 
 </script>
 
-<title><? echo $pageTitle; ?></title>
+<title><?php echo $pageTitle; ?></title>
 </head>
 <body>
 	<div id="bodyWrapper">

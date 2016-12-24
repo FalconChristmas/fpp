@@ -4,38 +4,31 @@ require_once('playlistentry.php');
 //require_once('pi_functions.php');
 
 $a = session_id();
-if(empty($a))
-{
-	session_start();
+if (empty($a)) {
+    session_start();
 }
 $_SESSION['session_id'] = session_id();
 //ini_set('display_errors', 'On');
 error_reporting(E_ALL);
-SetSetting("settings.xml","mysetting","hellow2");
+SetSetting("settings.xml", "mysetting", "hellow2");
 
 
 
-function SetSetting($file,$varName,$varValue)
+function SetSetting($file, $varName, $varValue)
 {
-	if (file_exists($file)) 
-	{
-	
-		$xml = simplexml_load_file($file);
-		echo "Exists\n";
-		//print_r($xml);
-		if (property_exists($xml, $varName))
-		{	
-			echo "Netowrk Exist\n";
-			$xml->$varName = $varValue;	
-			print_r($xml);
-		}
-		else
-		{
-			$var_node = $xml->addchild($varName,$varValue);
-		}
-		$xml->asXML($file);
-	}
-	
+    if (file_exists($file)) {
+        $xml = simplexml_load_file($file);
+        echo "Exists\n";
+        //print_r($xml);
+        if (property_exists($xml, $varName)) {
+            echo "Netowrk Exist\n";
+            $xml->$varName = $varValue;
+            print_r($xml);
+        } else {
+            $var_node = $xml->addchild($varName, $varValue);
+        }
+        $xml->asXML($file);
+    }
 }
 
 
@@ -148,7 +141,7 @@ $(document).ready(function () {
             });
         });
     </script>
-    <title><? echo $pageTitle; ?></title>
+    <title><?php echo $pageTitle; ?></title>
     </head>
 
     <body onload="PopulateLists();">
@@ -157,82 +150,76 @@ $(document).ready(function () {
 <?php 
   function PrintMediaOptions()
   {
-	  global $musicDirectory;
-	  global $videoDirectory;
-		echo "<select id=\"selMedia\" size=\"1\" onChange='MediaChanged();'>";
+      global $musicDirectory;
+      global $videoDirectory;
+      echo "<select id=\"selMedia\" size=\"1\" onChange='MediaChanged();'>";
 
-	$mediaEntries = array_merge(scandir($musicDirectory),scandir($videoDirectory));
-	sort($mediaEntries);
-    foreach($mediaEntries as $mediaFile) 
-    {
-      if($mediaFile != '.' && $mediaFile != '..')
-      {
-        echo "<option value=\"" . $mediaFile . "\">" . $mediaFile . "</option>";
+      $mediaEntries = array_merge(scandir($musicDirectory), scandir($videoDirectory));
+      sort($mediaEntries);
+      foreach ($mediaEntries as $mediaFile) {
+          if ($mediaFile != '.' && $mediaFile != '..') {
+              echo "<option value=\"" . $mediaFile . "\">" . $mediaFile . "</option>";
+          }
       }
-    }
-		echo "</select>";
-  }			
+      echo "</select>";
+  }
  
   function PrintSequenceOptions()
   {
-	  global $sequenceDirectory;
-		echo "<select id=\"selSequence\" size=\"1\" onChange='SequenceChanged();'>";
-    foreach(scandir($sequenceDirectory) as $seqFile) 
-    {
-      if($seqFile != '.' && $seqFile != '..' && !preg_match('/.eseq$/', $seqFile))
-      {
-        echo "<option value=\"" . $seqFile . "\">" . $seqFile . "</option>";
+      global $sequenceDirectory;
+      echo "<select id=\"selSequence\" size=\"1\" onChange='SequenceChanged();'>";
+      foreach (scandir($sequenceDirectory) as $seqFile) {
+          if ($seqFile != '.' && $seqFile != '..' && !preg_match('/.eseq$/', $seqFile)) {
+              echo "<option value=\"" . $seqFile . "\">" . $seqFile . "</option>";
+          }
       }
-    }
-		echo "</select>";
-  }			
+      echo "</select>";
+  }
   
   function PrintVideoOptions()
   {
-    global $videoDirectory;
-    echo "<select id=\"selVideo\" size=\"1\">";
-    foreach(scandir($videoDirectory) as $videoFile)
-    {
-      if($videoFile != '.' && $videoFile != '..')
-      {
-        echo "<option value=\"" . $videoFile . "\">" . $videoFile . "</option>";
+      global $videoDirectory;
+      echo "<select id=\"selVideo\" size=\"1\">";
+      foreach (scandir($videoDirectory) as $videoFile) {
+          if ($videoFile != '.' && $videoFile != '..') {
+              echo "<option value=\"" . $videoFile . "\">" . $videoFile . "</option>";
+          }
       }
-    }
-    echo "</select>";
+      echo "</select>";
   }
 
   function PrintEventOptions()
   {
-    global $eventDirectory;
-    echo "<select id=\"selEvent\" size=\"1\">";
-    foreach(scandir($eventDirectory) as $eventFile)
-    {
-      if(preg_match('/\.fevt$/', $eventFile))
-      {
-        $f = fopen($eventDirectory . "/" . $eventFile, "r");
-        if ($f == FALSE)
-          die();
+      global $eventDirectory;
+      echo "<select id=\"selEvent\" size=\"1\">";
+      foreach (scandir($eventDirectory) as $eventFile) {
+          if (preg_match('/\.fevt$/', $eventFile)) {
+              $f = fopen($eventDirectory . "/" . $eventFile, "r");
+              if ($f == false) {
+                  die();
+              }
 
-        $eventName = "";
-        while (!feof($f))
-        {
-          $line = fgets($f);
-          $entry = explode("=", $line, 2);
-          if ($entry[0] == "name")
-            $eventName = $entry[1];
-        }
-        fclose($f);
+              $eventName = "";
+              while (!feof($f)) {
+                  $line = fgets($f);
+                  $entry = explode("=", $line, 2);
+                  if ($entry[0] == "name") {
+                      $eventName = $entry[1];
+                  }
+              }
+              fclose($f);
 
-        $eventFile = preg_replace("/.fevt$/", "", $eventFile);
-        $eventText = preg_replace("/_/", " / ", $eventFile);
+              $eventFile = preg_replace("/.fevt$/", "", $eventFile);
+              $eventText = preg_replace("/_/", " / ", $eventFile);
 
-        if ($eventName != "")
-          $eventText .= " - " . $eventName;
+              if ($eventName != "") {
+                  $eventText .= " - " . $eventName;
+              }
 
-        echo "<option value=\"" . $eventFile . "\">" . $eventText . "</option>";
+              echo "<option value=\"" . $eventFile . "\">" . $eventText . "</option>";
+          }
       }
-    }
-    echo "</select>";
+      echo "</select>";
   }
 
 ?>

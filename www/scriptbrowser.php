@@ -6,21 +6,22 @@ require_once("config.php");
 
 function normalize_version($version)
 {
-	$version = preg_replace('/0\.([0-9])\.0/', '0.$1', $version);
-	$version = preg_replace('/[\.v]/', '', $version);
-	$version = preg_replace('/-.*/', '', $version);
-	$number = intval(trim($version));
-	$number = ($number * 100) / (pow(10,(substr_count($version,'.'))));
+    $version = preg_replace('/0\.([0-9])\.0/', '0.$1', $version);
+    $version = preg_replace('/[\.v]/', '', $version);
+    $version = preg_replace('/-.*/', '', $version);
+    $number = intval(trim($version));
+    $number = ($number * 100) / (pow(10, (substr_count($version, '.'))));
 
-	return $number;
+    return $number;
 }
 
-if ($fppRfsVersion == "Unknown")
-	$fppRfsVersion = "9999";
+if ($fppRfsVersion == "Unknown") {
+    $fppRfsVersion = "9999";
+}
 $rfs_ver = normalize_version($fppRfsVersion);
 
 ?>
-<title><? echo $pageTitle; ?></title>
+<title><?php echo $pageTitle; ?></title>
 <script>
 
 	function ViewRemoteScript(category, filename) {
@@ -56,39 +57,40 @@ $rfs_ver = normalize_version($fppRfsVersion);
 			<legend>Script Repository</legend>
 			<table id='fppScripts' cellspacing='5'>
 				<tbody>
-<?
+<?php
 $indexCSV = file_get_contents("https://raw.githubusercontent.com/FalconChristmas/fpp-scripts/master/index.csv");
 $lines = explode("\n", $indexCSV);
 
 $count = 0;
 
-foreach ($lines as $line)
-{
-	if (preg_match("/^#/", $line))
-		continue;
+foreach ($lines as $line) {
+    if (preg_match("/^#/", $line)) {
+        continue;
+    }
 
-	$parts = explode(',', $line);
+    $parts = explode(',', $line);
 
-	if (count($parts) < 4)
-		continue;
+    if (count($parts) < 4) {
+        continue;
+    }
 
-	if (normalize_version($parts[3]) > $rfs_ver)
-		continue;
+    if (normalize_version($parts[3]) > $rfs_ver) {
+        continue;
+    }
 
-	if ($count > 0)
-	{
-?>
+    if ($count > 0) {
+        ?>
 				<tr><td colspan='3'><hr></td></tr>
-<?
-	}
-?>
-				<tr><td rowspan='3' valign='top'><input type='button' class='buttons' value='Install' onClick='InstallRemoteScript("<? echo $parts[0]; ?>", "<? echo $parts[1]; ?>");'><br />
-						<input type='button' class='buttons' value='View' onClick='ViewRemoteScript("<? echo $parts[0]; ?>", "<? echo $parts[1]; ?>");'></td>
-						<td><b>Category:</b></td><td><? echo $parts[0]; ?></td>
-				<tr><td><b>Filename:</b></td><td><? echo $parts[1]; ?></td></tr>
-				<tr><td valign='top'><b>Description:</b></td><td><? echo $parts[2]; ?></td></tr>
-<?
-	$count++;
+<?php
+
+    } ?>
+				<tr><td rowspan='3' valign='top'><input type='button' class='buttons' value='Install' onClick='InstallRemoteScript("<?php echo $parts[0]; ?>", "<?php echo $parts[1]; ?>");'><br />
+						<input type='button' class='buttons' value='View' onClick='ViewRemoteScript("<?php echo $parts[0]; ?>", "<?php echo $parts[1]; ?>");'></td>
+						<td><b>Category:</b></td><td><?php echo $parts[0]; ?></td>
+				<tr><td><b>Filename:</b></td><td><?php echo $parts[1]; ?></td></tr>
+				<tr><td valign='top'><b>Description:</b></td><td><?php echo $parts[2]; ?></td></tr>
+<?php
+    $count++;
 }
 ?>
 				</tbody>

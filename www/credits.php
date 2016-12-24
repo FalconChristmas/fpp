@@ -3,17 +3,17 @@ require_once('config.php');
 
 $a = session_id();
 
-if(empty($a))
-{
-  session_start();
+if (empty($a)) {
+    session_start();
 }
 $_SESSION['session_id'] = session_id();
 //ini_set('display_errors', 'On');
 error_reporting(E_ALL);
 
 $fpp_version = "v" . exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ describe --tags", $output, $return_val);
-if ( $return_val != 0 )
-	$fpp_version = "Unknown";
+if ($return_val != 0) {
+    $fpp_version = "Unknown";
+}
 unset($output);
 
 ?>

@@ -2,9 +2,8 @@
 require_once('universeentry.php');
 $a = session_id();
 
-if(empty($a))
-{
-	session_start();
+if (empty($a)) {
+    session_start();
 }
 $_SESSION['session_id'] = session_id();
 //ini_set('display_errors', 'On');
@@ -12,7 +11,7 @@ error_reporting(E_ALL);
 
 function PrintUniverses()
 {
-	echo "<tr><td><input ></td></tr>";	
+    echo "<tr><td><input ></td></tr>";
 }
 ?>
 

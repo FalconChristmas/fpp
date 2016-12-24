@@ -25,7 +25,7 @@ require_once('config.php');
   });
 </script>
 
-<title><? echo $pageTitle; ?></title>
+<title><?php echo $pageTitle; ?></title>
 </head>
 <body onLoad="GetFPPDmode();setInterval(updateFPPStatus,1000);GetRunningEffects();">
 <div id="bodyWrapper">
@@ -34,16 +34,14 @@ require_once('config.php');
 
   function PrintEffectRows()
   {
-    global $effectDirectory;
-    foreach(scandir($effectDirectory) as $seqFile)
-    {
-      if($seqFile != '.' && $seqFile != '..' && preg_match('/.eseq$/', $seqFile))
-      {
-        $seqFile = preg_replace('/.eseq$/', '', $seqFile);
+      global $effectDirectory;
+      foreach (scandir($effectDirectory) as $seqFile) {
+          if ($seqFile != '.' && $seqFile != '..' && preg_match('/.eseq$/', $seqFile)) {
+              $seqFile = preg_replace('/.eseq$/', '', $seqFile);
         
-        echo "<tr id='effect_" . $seqFile . "'><td width='1000%'>" . $seqFile . "</td></tr>\n";
+              echo "<tr id='effect_" . $seqFile . "'><td width='1000%'>" . $seqFile . "</td></tr>\n";
+          }
       }
-    }
   }
 
   ?>
@@ -81,7 +79,7 @@ require_once('config.php');
             </table>
             <div>
               <table id="tblEffectLibrary"   width="100%">
-<? PrintEffectRows(); ?>
+<?php PrintEffectRows(); ?>
               </table>
             </div>
           </div>

@@ -5,15 +5,17 @@ require_once('config.php');
 error_reporting(E_ALL);
 
 $fpp_version = "v" . exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ describe --tags", $output, $return_val);
-if ( $return_val != 0 )
-	$fpp_version = "Unknown";
+if ($return_val != 0) {
+    $fpp_version = "Unknown";
+}
 unset($output);
 
 $git_log = "";
 $cmd = "git --git-dir=".dirname(dirname(__FILE__))."/.git/ log --pretty=format:'%h - %an, %ar : %s' | cut -c1-100";
 exec($cmd, $output, $return_val);
-if ( $return_val == 0 )
-  $git_log = implode('<br>', $output);
+if ($return_val == 0) {
+    $git_log = implode('<br>', $output);
+}
 unset($output);
 
 ?>
@@ -32,7 +34,7 @@ unset($output);
   <div style="margin:0 auto;"> <br />
     <fieldset style="padding: 10px; border: 2px solid #000;">
       <legend>ChangeLog</legend>
-      <pre><? echo $git_log; ?></pre>
+      <pre><?php echo $git_log; ?></pre>
     </fieldset>
   </div>
 </div>

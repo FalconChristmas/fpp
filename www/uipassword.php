@@ -6,37 +6,32 @@ $thisdir = dirname(__FILE__);
 
 // No other checking here, we're assuming that since they're able to POST apache has
 // already taken care of validating a user.
-if ( !empty($_POST) && $_POST["password"] == "disabled" )
-{
-  shell_exec($SUDO . " rm -f $mediaDirectory/htaccess $thisdir/.htpasswd $thisdir/.htaccess");
+if (!empty($_POST) && $_POST["password"] == "disabled") {
+    shell_exec($SUDO . " rm -f $mediaDirectory/htaccess $thisdir/.htpasswd $thisdir/.htaccess");
 }
 
-if ( isset($_POST['password1']) && isset($_POST['password2']))
-{
-  if (($_POST['password1'] != "") && ($_POST['password1'] == $_POST['password2']))
-  {
-    // true - setup .htaccess & save it
+if (isset($_POST['password1']) && isset($_POST['password2'])) {
+    if (($_POST['password1'] != "") && ($_POST['password1'] == $_POST['password2'])) {
+        // true - setup .htaccess & save it
     file_put_contents("/var/tmp/htaccess", "AuthUserFile $thisdir/.htpasswd\nAuthType Basic\nAuthName admin\nRequire valid-user\n");
-    shell_exec($SUDO . " mv /var/tmp/htaccess $mediaDirectory/htaccess");
-    shell_exec($SUDO . " ln -snf $mediaDirectory/htaccess $thisdir/.htaccess");
-    shell_exec($SUDO . " htpasswd -cbd $thisdir/.htpasswd admin " . $_POST['password1']);
-  }
+        shell_exec($SUDO . " mv /var/tmp/htaccess $mediaDirectory/htaccess");
+        shell_exec($SUDO . " ln -snf $mediaDirectory/htaccess $thisdir/.htaccess");
+        shell_exec($SUDO . " htpasswd -cbd $thisdir/.htpasswd admin " . $_POST['password1']);
+    }
 }
 
 function checked_if_equal($value1, $value2)
 {
-  if ( $value1 == $value2 )
-  {
-    echo "checked=\"checked\"";
-  }
+    if ($value1 == $value2) {
+        echo "checked=\"checked\"";
+    }
 }
 
 function hide_if_equal($value1, $value2)
 {
-  if ( $value1 == $value2 )
-  {
-    echo "style=\"display: none\"";
-  }
+    if ($value1 == $value2) {
+        echo "style=\"display: none\"";
+    }
 }
 
 $pw = file_exists("$mediaDirectory/htaccess");
@@ -48,7 +43,7 @@ $pw = file_exists("$mediaDirectory/htaccess");
 <head>
 <?php include 'common/menuHead.inc'; ?>
 <script type="text/javascript" src="/js/validate.min.js"></script>
-<title><? echo $pageTitle; ?></title>
+<title><?php echo $pageTitle; ?></title>
 </head>
 <body>
 <div id="bodyWrapper">
