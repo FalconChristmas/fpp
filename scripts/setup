@@ -6,6 +6,40 @@
 #############################################################################
 # Support function(s)
 
+SetupDNS () {
+	DNS1=""
+	DNS2=""
+
+	CFGFILE="/home/pi/media/config/dns"
+	if [ "x${FPPHOME}" != "x" ]
+	then
+		CFGFILE="${FPPHOME}/media/config/dns"
+	fi
+
+	echo -n "Configure Static DNS? [y/N] "
+	read ANSWER
+	LCANSWER=$(echo ${ANSWER} | tr "A-Z" "a-z")
+
+	if [ "x${LCANSWER}" = "xy" ]
+	then
+		echo -n "DNS Server 1: (hit ENTER to leave blank) "
+		read DNS1
+
+		echo -n "DNS Server 2: (hit ENTER to leave blank) "
+		read DNS2
+
+		echo "################################################" > ${CFGFILE}
+		echo "# Created via FPP Command-Line Setup Utility" >> ${CFGFILE}
+		echo "# on $(date)" >> ${CFGFILE}
+		echo "################################################" >> ${CFGFILE}
+		echo "DNS1=\"${DNS1}\"" >> ${CFGFILE}
+		echo "DNS2=\"${DNS2}\"" >> ${CFGFILE}
+	else
+		rm -f ${CFGFILE}
+	fi
+
+}
+
 SetupNetworkInterface () {
 	INTERFACE=$1
 	PROTO="dhcp"
@@ -88,14 +122,12 @@ SetupNetworkInterface () {
 ###########################################################
 # TODO List for FPP v2.0
 #
-# - prompt for DNS info
-# - prompt to reload network config by running FPP setup
 # - ping gateway when done to confirm network is working
 # - test on a Pi A+ w/ only wireless
 # - test on a Pi A+ w/ only wired (optional, using USB NIC)
 ###########################################################
 
-echo "FPP Network Setup Utility v1.0"
+echo "FPP Network Setup Utility v1.9"
 
 INTERFACES=$(ifconfig -a | grep -v "^lo" | grep -v "^ " | grep -v "^$" | awk '{print $1}' | cut -f1 -d:)
 
@@ -103,5 +135,14 @@ for INTERFACE in ${INTERFACES}
 do
 	SetupNetworkInterface ${INTERFACE}
 done
+SetupDNS
 
-SetupFPPNetworkConfig
+echo -n "Restart Network ${INTERFACE}? [y/N] "
+read ANSWER
+LCANSWER=$(echo ${ANSWER} | tr "A-Z" "a-z")
+
+if [ "x${LCANSWER}" = "xy" ]
+then
+	SetupFPPNetworkConfig
+fi
+

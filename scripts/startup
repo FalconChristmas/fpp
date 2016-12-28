@@ -78,8 +78,9 @@ then
 	/etc/init.d/avahi-daemon restart
 fi
 
-echo "FPP - Configuring DNS"
-${BINDIR}/config_dns
+#echo "FPP - Configuring DNS"
+#${BINDIR}/config_dns
+#SetupFPPDNSConfig
 
 echo "FPP - Configuring Audio"
 
