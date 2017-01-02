@@ -1,7 +1,7 @@
 /*
- *   Generic Serial handler for Falcon Player (FPP)
+ *   VirtualDisplay Channel Output for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Player Developers
+ *   Copyright (C) 2015 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -23,38 +23,47 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _GENERICSERIAL_H
-#define _GENERICSERIAL_H
+#ifndef _VIRTUALDISPLAY_H
+#define _VIRTUALDISPLAY_H
 
+#include <linux/fb.h>
 #include <string>
+#include <vector>
 
 #include "ChannelOutputBase.h"
 
-#define GENERICSERIAL_MAX_CHANNELS 2048
+typedef struct virtualDisplayPixel {
+	int x;
+	int y;
+	int ch;
+	int r;
+	int g;
+	int b;
+} VirtualDisplayPixel;
 
-class GenericSerialOutput : public ChannelOutputBase {
+class VirtualDisplayOutput : public ChannelOutputBase {
   public:
-	GenericSerialOutput(unsigned int startChannel, unsigned int channelCount);
-	~GenericSerialOutput();
+	VirtualDisplayOutput(unsigned int startChannel, unsigned int channelCount);
+	~VirtualDisplayOutput();
 
-	int Init(char *configStr);
+	virtual int  Init(Json::Value config);
 
-	int Close(void);
-
-	int RawSendData(unsigned char *channelData);
+	void DrawPixels(unsigned char *channelData);
 
 	void DumpConfig(void);
 
-  private:
-	std::string m_deviceName;
-	int         m_fd;
-	int         m_speed;
-	int         m_headerSize;
-	std::string m_header;
-	int         m_footerSize;
-	std::string m_footer;
-	int         m_packetSize;
-	char       *m_data;
+	std::string  m_backgroundFilename;
+	int          m_width;
+	int          m_height;
+	int          m_bytesPerPixel;
+	float        m_scale;
+	int          m_previewWidth;
+	int          m_previewHeight;
+	std::string  m_colorOrder;
+	char        *m_virtualDisplay;
+	int          m_pixelSize;
+
+	std::vector<VirtualDisplayPixel> m_pixels;
 };
 
-#endif /* #ifdef _GENERICSERIAL_H */
+#endif /* _VIRTUALDISPLAY_H */

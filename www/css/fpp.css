@@ -307,7 +307,7 @@ fieldset
 
 
 .colPlaylistNumberDrag{
-	background-image: url(images/vertdrag.png);
+	background-image: url(../images/vertdrag.png);
 	background-repeat:no-repeat;
 	background-size:7px 14px;
 	background-position:0 2px;
