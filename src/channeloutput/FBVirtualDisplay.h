@@ -1,7 +1,7 @@
 /*
- *   Generic Serial handler for Falcon Player (FPP)
+ *   FBVirtualDisplay Channel Output for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Player Developers
+ *   Copyright (C) 2015 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -23,38 +23,32 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _GENERICSERIAL_H
-#define _GENERICSERIAL_H
+#ifndef _FBVIRTUALDISPLAY_H
+#define _FBVIRTUALDISPLAY_H
 
-#include <string>
+#include <linux/fb.h>
 
-#include "ChannelOutputBase.h"
+#include "VirtualDisplay.h"
 
-#define GENERICSERIAL_MAX_CHANNELS 2048
-
-class GenericSerialOutput : public ChannelOutputBase {
+class FBVirtualDisplayOutput : protected VirtualDisplayOutput {
   public:
-	GenericSerialOutput(unsigned int startChannel, unsigned int channelCount);
-	~GenericSerialOutput();
+	FBVirtualDisplayOutput(unsigned int startChannel, unsigned int channelCount);
+	~FBVirtualDisplayOutput();
 
-	int Init(char *configStr);
-
+	int Init(Json::Value config);
 	int Close(void);
 
 	int RawSendData(unsigned char *channelData);
 
-	void DumpConfig(void);
-
   private:
-	std::string m_deviceName;
-	int         m_fd;
-	int         m_speed;
-	int         m_headerSize;
-	std::string m_header;
-	int         m_footerSize;
-	std::string m_footer;
-	int         m_packetSize;
-	char       *m_data;
+	int     m_fbFd;
+	int     m_ttyFd;
+
+	int     m_screenSize;
+
+	struct fb_var_screeninfo m_vInfo;
+	struct fb_var_screeninfo m_vInfoOrig;
+	struct fb_fix_screeninfo m_fInfo;
 };
 
-#endif /* #ifdef _GENERICSERIAL_H */
+#endif /* _VIRTUALDISPLAY_H */

@@ -1,5 +1,5 @@
 /*
- *   Generic Serial handler for Falcon Player (FPP)
+ *   X11VirtualDisplay Channel Output for Falcon Player (FPP)
  *
  *   Copyright (C) 2013 the Falcon Player Developers
  *      Initial development by:
@@ -23,38 +23,33 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _GENERICSERIAL_H
-#define _GENERICSERIAL_H
+#ifndef _X11VIRTUALDISPLAY_H
+#define _X11VIRTUALDISPLAY_H
 
+#include <X11/Xlib.h>
 #include <string>
+#include <vector>
 
-#include "ChannelOutputBase.h"
+#include "VirtualDisplay.h"
 
-#define GENERICSERIAL_MAX_CHANNELS 2048
-
-class GenericSerialOutput : public ChannelOutputBase {
+class X11VirtualDisplayOutput : protected VirtualDisplayOutput {
   public:
-	GenericSerialOutput(unsigned int startChannel, unsigned int channelCount);
-	~GenericSerialOutput();
+	X11VirtualDisplayOutput(unsigned int startChannel, unsigned int channelCount);
+	~X11VirtualDisplayOutput();
 
-	int Init(char *configStr);
-
+	int Init(Json::Value config);
 	int Close(void);
 
 	int RawSendData(unsigned char *channelData);
 
-	void DumpConfig(void);
-
   private:
-	std::string m_deviceName;
-	int         m_fd;
-	int         m_speed;
-	int         m_headerSize;
-	std::string m_header;
-	int         m_footerSize;
-	std::string m_footer;
-	int         m_packetSize;
-	char       *m_data;
+	char       *m_imageData;
+	Display    *m_display;
+	int         m_screen;
+	Window      m_window;
+	GC          m_gc;
+	Pixmap      m_pixmap;
+	XImage     *m_image;
 };
 
-#endif /* #ifdef _GENERICSERIAL_H */
+#endif /* _X11VIRTUALDISPLAY_H */

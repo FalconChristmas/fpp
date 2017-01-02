@@ -189,29 +189,34 @@
 /** Register map */
 #define data_addr r0
 #define width r1
-#define row r2
-#define bright r3
-#define offset r4
-#define out_clr r5 // must be one less than out_set
-#define out_set r6
-#define gpio0_set r6 // overloaded with out_set
-#define gpio1_set r7
-#define gpio2_set r8
-#define gpio3_set r9
-#define gpio0_led_mask r10
-#define gpio1_led_mask r11
-#define gpio2_led_mask r13
-#define gpio3_led_mask r14
-#define bright_thresh r15
+#define command r2
+#define response r3
+#define bright_shift r4
+#define outputCount r5
+#define panelCount r6
+#define row r7
+#define bright r8
+#define offset r9
+#define out_clr r10 // must be one less than out_set
+#define out_set r11
+#define gpio0_set r11 // overloaded with out_set
+#define gpio1_set r12
+#define gpio2_set r13
+#define gpio3_set r14
+#define gpio0_led_mask r15
+#define gpio1_led_mask r16
+#define gpio2_led_mask r18
+#define gpio3_led_mask r19
+#define bright_thresh r20
 
 // the gpio2/3_base registers must be re-written after every
 // read loop since the data is loaded into the 12 registers starting at r18
 // don't overwrite r30/r31!
-#define gpio0_base r16
-#define gpio1_base r17
-#define gpio2_base r18
-#define gpio3_base r19
-#define pixel_data r18 // the next 12 registers, too; 
+#define gpio0_base r21
+#define gpio1_base r22
+#define gpio2_base r23
+#define gpio3_base r24
+#define pixel_data r23 // the next 6 registers, too; 
 
 #define CLOCK_LO \
 	MOV out_clr, 1 << gpio1_clock; \
@@ -282,6 +287,10 @@ START:
         MOV gpio2_led_mask, 0
         MOV gpio3_led_mask, 0
 
+        // Load the pointer to the buffer from PRU DRAM into r0 and the
+        // length (in pixels) into r1.
+        LBCO      data_addr, CONST_PRUDRAM, 0, 28
+
 #define GPIO_MASK(X) CAT3(gpio,X,_led_mask)
 	SET GPIO_MASK(r11_gpio), r11_pin
 	SET GPIO_MASK(g11_gpio), g11_pin
@@ -290,6 +299,7 @@ START:
 	SET GPIO_MASK(g12_gpio), g12_pin
 	SET GPIO_MASK(b12_gpio), b12_pin
 
+	QBGT OUTPUT_SETUP_END, outputCount, 2
 	SET GPIO_MASK(r21_gpio), r21_pin
 	SET GPIO_MASK(g21_gpio), g21_pin
 	SET GPIO_MASK(b21_gpio), b21_pin
@@ -297,6 +307,7 @@ START:
 	SET GPIO_MASK(g22_gpio), g22_pin
 	SET GPIO_MASK(b22_gpio), b22_pin
 
+	QBGT OUTPUT_SETUP_END, outputCount, 3
 	SET GPIO_MASK(r31_gpio), r31_pin
 	SET GPIO_MASK(g31_gpio), g31_pin
 	SET GPIO_MASK(b31_gpio), b31_pin
@@ -304,6 +315,7 @@ START:
 	SET GPIO_MASK(g32_gpio), g32_pin
 	SET GPIO_MASK(b32_gpio), b32_pin
 
+	QBGT OUTPUT_SETUP_END, outputCount, 4
 	SET GPIO_MASK(r41_gpio), r41_pin
 	SET GPIO_MASK(g41_gpio), g41_pin
 	SET GPIO_MASK(b41_gpio), b41_pin
@@ -311,6 +323,7 @@ START:
 	SET GPIO_MASK(g42_gpio), g42_pin
 	SET GPIO_MASK(b42_gpio), b42_pin
 
+	QBGT OUTPUT_SETUP_END, outputCount, 5
 	SET GPIO_MASK(r51_gpio), r51_pin
 	SET GPIO_MASK(g51_gpio), g51_pin
 	SET GPIO_MASK(b51_gpio), b51_pin
@@ -318,6 +331,7 @@ START:
 	SET GPIO_MASK(g52_gpio), g52_pin
 	SET GPIO_MASK(b52_gpio), b52_pin
 
+	QBGT OUTPUT_SETUP_END, outputCount, 6
 	SET GPIO_MASK(r61_gpio), r61_pin
 	SET GPIO_MASK(g61_gpio), g61_pin
 	SET GPIO_MASK(b61_gpio), b61_pin
@@ -325,6 +339,7 @@ START:
 	SET GPIO_MASK(g62_gpio), g62_pin
 	SET GPIO_MASK(b62_gpio), b62_pin
 
+	QBGT OUTPUT_SETUP_END, outputCount, 7
 	SET GPIO_MASK(r71_gpio), r71_pin
 	SET GPIO_MASK(g71_gpio), g71_pin
 	SET GPIO_MASK(b71_gpio), b71_pin
@@ -332,6 +347,7 @@ START:
 	SET GPIO_MASK(g72_gpio), g72_pin
 	SET GPIO_MASK(b72_gpio), b72_pin
 
+	QBGT OUTPUT_SETUP_END, outputCount, 8
 	SET GPIO_MASK(r81_gpio), r81_pin
 	SET GPIO_MASK(g81_gpio), g81_pin
 	SET GPIO_MASK(b81_gpio), b81_pin
@@ -339,12 +355,14 @@ START:
 	SET GPIO_MASK(g82_gpio), g82_pin
 	SET GPIO_MASK(b82_gpio), b82_pin
 
+OUTPUT_SETUP_END:
+
         //MOV clock_pin, 1 << gpio1_clock
 
 READ_LOOP:
         // Load the pointer to the buffer from PRU DRAM into r0 and the
         // length (in pixels) into r1.
-        LBCO      data_addr, CONST_PRUDRAM, 0, 8
+        LBCO      data_addr, CONST_PRUDRAM, 0, 28
 
         // Wait for a non-zero command
         QBEQ READ_LOOP, data_addr, #0
@@ -388,7 +406,7 @@ NEW_ROW_LOOP:
 			// Load the sixteen RGB outputs into
 			// consecutive registers, starting at pixel_data.
 			// This takes about 250 ns
-			LBBO pixel_data, data_addr, offset, 3*16
+			LBBO pixel_data, data_addr, offset, 3*8
 
 			// toggle the clock
 			CLOCK_HI
@@ -409,26 +427,46 @@ NEW_ROW_LOOP:
 	SET GPIO(b##N##_gpio), b##N##_pin; \
 	skip_b##N: \
 
-			OUTPUT_ROW(11, r18.b0, r18.b1, r18.b2)
-			OUTPUT_ROW(12, r18.b3, r19.b0, r19.b1)
+			OUTPUT_ROW(11, r23.b0, r23.b1, r23.b2)
+			OUTPUT_ROW(12, r23.b3, r24.b0, r24.b1)
 
-			OUTPUT_ROW(21, r19.b2, r19.b3, r20.b0)
-			OUTPUT_ROW(22, r20.b1, r20.b2, r20.b3)
+			QBGT OUTPUT_END, outputCount, 2
+			OUTPUT_ROW(21, r24.b2, r24.b3, r25.b0)
+			OUTPUT_ROW(22, r25.b1, r25.b2, r25.b3)
 
-			OUTPUT_ROW(31, r21.b0, r21.b1, r21.b2)
-			OUTPUT_ROW(32, r21.b3, r22.b0, r22.b1)
-			OUTPUT_ROW(41, r22.b2, r22.b3, r23.b0)
-			OUTPUT_ROW(42, r23.b1, r23.b2, r23.b3)
+			QBGT OUTPUT_END, outputCount, 3
+			OUTPUT_ROW(31, r26.b0, r26.b1, r26.b2)
+			OUTPUT_ROW(32, r26.b3, r27.b0, r27.b1)
 
-			OUTPUT_ROW(51, r24.b0, r24.b1, r24.b2)
-			OUTPUT_ROW(52, r24.b3, r25.b0, r25.b1)
-			OUTPUT_ROW(61, r25.b2, r25.b3, r26.b0)
-			OUTPUT_ROW(62, r26.b1, r26.b2, r26.b3)
+			QBGT OUTPUT_END, outputCount, 4
+			OUTPUT_ROW(41, r27.b2, r27.b3, r28.b0)
+			OUTPUT_ROW(42, r28.b1, r28.b2, r28.b3)
 
-			OUTPUT_ROW(71, r27.b0, r27.b1, r27.b2)
-			OUTPUT_ROW(72, r27.b3, r28.b0, r28.b1)
-			OUTPUT_ROW(81, r28.b2, r28.b3, r29.b0)
-			OUTPUT_ROW(82, r29.b1, r29.b2, r29.b3)
+			QBGT OUTPUT_END, outputCount, 5
+
+			// Load data for outputs 5-8
+			ADD offset, offset, 3*8
+			LBBO pixel_data, data_addr, offset, 3*8
+
+			OUTPUT_ROW(51, r23.b0, r23.b1, r23.b2)
+			OUTPUT_ROW(52, r23.b3, r24.b0, r24.b1)
+
+			QBGT HIGH_OUTPUT_END, outputCount, 6
+			OUTPUT_ROW(61, r24.b2, r24.b3, r25.b0)
+			OUTPUT_ROW(62, r25.b1, r25.b2, r25.b3)
+
+			QBGT HIGH_OUTPUT_END, outputCount, 7
+			OUTPUT_ROW(71, r26.b0, r26.b1, r26.b2)
+			OUTPUT_ROW(72, r26.b3, r27.b0, r27.b1)
+
+			QBGT HIGH_OUTPUT_END, outputCount, 8
+			OUTPUT_ROW(81, r27.b2, r27.b3, r28.b0)
+			OUTPUT_ROW(82, r28.b1, r28.b2, r28.b3)
+
+		HIGH_OUTPUT_END:
+			SUB offset, offset, 3*8
+
+		OUTPUT_END:
 
 			// reload the gpio*_base registers
 			// since we have overwritten them with our pixel data
@@ -486,7 +524,7 @@ NEW_ROW_LOOP:
 			//LSL out_clr, out_clr, 1
 			//MOV out_clr, 2048
 
-			LSL out_clr, bright_thresh, BRIGHT_SHIFT
+			LSL out_clr, bright_thresh, bright_shift
 			//LSL out_clr, bright_thresh, 10
 
 			//QBBS no_blank, out_set, bright
