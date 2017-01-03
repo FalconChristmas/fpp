@@ -106,13 +106,13 @@ SetupFPPNetworkConfig () {
 	declare -A INIT_IF
 	FOUND_CONFIGS=0
 
-	for PROCESS in quagga/ospfd quagga/zebra dnsmasq
+	for PROCESS in quagga/ospfd quagga/zebra dnsmasq pimd
 	do
-		if [ -f "/var/run/${PROCESS}.fpp.pid" ]
+		if [ -f "/var/run/${PROCESS}.pid" ]
 		then
 			echo "FPP - Shutting down ${PROCESS} daemon"
-			pkill -F /var/run/${PROCESS}.fpp.pid
-			rm -f /var/run/${PROCESS}.fpp.pid
+			pkill -F /var/run/${PROCESS}.pid
+			rm -f /var/run/${PROCESS}.pid
 		fi
 	done
 
@@ -224,9 +224,9 @@ SetupFPPNetworkConfig () {
 					cat <<-EOF >> ${TMPFILE}
 					allow-hotplug ${IFACE}
 					iface ${IFACE} inet static
-					  pre-up /usr/sbin/hostapd -B ${CFGDIR}/hostapd.${IFACE} -P /var/run/hostapd.${IFACE}.fpp.pid
-					  post-down /usr/bin/pkill -F /var/run/hostapd.${IFACE}.fpp.pid
-					  post-down rm -f /var/run/hostapd.${IFACE}.fpp.pid
+					  pre-up /usr/sbin/hostapd -B ${CFGDIR}/hostapd.${IFACE} -P /var/run/hostapd.${IFACE}.pid
+					  post-down /usr/bin/pkill -F /var/run/hostapd.${IFACE}.pid
+					  post-down rm -f /var/run/hostapd.${IFACE}.pid
 					  address ${ADDRESS}
 					  netmask ${NETMASK}
 					  network ${NETWORK}
@@ -260,7 +260,7 @@ SetupFPPNetworkConfig () {
 		
 					if [ "x${GATEWAY}" != "x" ]
 					then
-						MY_NETWORK=`ipcalc ${IPADDR} ${NETMASK} | grep Network`
+						MY_NETWORK=`ipcalc ${ADDRESS} ${NETMASK} | grep Network`
 						GW_NETWORK=`ipcalc ${GATEWAY} ${NETMASK} | grep Network`
 						if [ "${MY_NETWORK}" == "${GW_NETWORK}" ]
 						then
@@ -339,15 +339,21 @@ SetupFPPNetworkConfig () {
 			mkdir -p /var/run/quagga/
 			chown quagga:quagga /var/run/quagga
 			echo "FPP - Starting quagga/zebra daemon"
-			/usr/lib/quagga/zebra -d -f ${CFGDIR}/zebra.global -A 127.0.0.1 -i /var/run/quagga/zebra.fpp.pid
+			/usr/lib/quagga/zebra -d -f ${CFGDIR}/zebra.global -A 127.0.0.1 -i /var/run/quagga/zebra.pid
 			echo "FPP - Starting quagga/ospfd daemon"
-			/usr/lib/quagga/ospfd -d -f ${CFGDIR}/ospfd.global -A 127.0.0.1 -i /var/run/quagga/ospfd.fpp.pid
+			/usr/lib/quagga/ospfd -d -f ${CFGDIR}/ospfd.global -A 127.0.0.1 -i /var/run/quagga/ospfd.pid
+		fi
+
+		if [ -f "${CFGDIR}/pimd.global" ]
+		then
+			echo "FPP - Starting pimd daemon"
+			/usr/sbin/pimd -c ${CFGDIR}/pimd.global
 		fi
 	
 		if [ -f "${CFGDIR}/dnsmasq.global" ]
 		then
 			echo "FPP - Starting dnsmasq daemon"
-			/usr/sbin/dnsmasq -C ${CFGDIR}/dnsmasq.global -l ${CFGDIR}/leases.global -x /var/run/dnsmasq.fpp.pid
+			/usr/sbin/dnsmasq -C ${CFGDIR}/dnsmasq.global -l ${CFGDIR}/leases.global -x /var/run/dnsmasq.pid
 		fi
 	else
 		sed -i "/Enable Routing/d" /etc/sysctl.conf
