@@ -50,13 +50,21 @@
 # Other platforms which may be functioning with varying degrees:
 #
 #       ODROID C1
-#           http://recombi.net/odroid-c1_deb-7.8/
-#           - odroid-c1-debian-7.8-03-29-2014.img
+#           http://oph.mdrjr.net/meveric/images/
+#           - Jessie/Debian-Jessie-1.0-20160131-C1.img.xz
 #           - Login/Password
 #             - root/odroid
-#           - This image is very small and a lot of packages get installed
-#             by FPP_Install.sh, so make sure you resize/expand the root
-#             filesystem as per the information.txt file on recombi.net.
+#           - When building a FPP image from this stock image, we will need
+#             to do something about the image size so we don't bloat the
+#             the FPP download.
+#
+#       Pine64
+#           http://wiki.pine64.org/index.php/Pine_A64_Software_Release
+#           - "Debian Base (3.10.102 BSP 2)" image
+#           - Login/Password
+#             - debian/debian
+#           - This image has very little free space after installing FPP,
+#             so you may want to expand the root partition by a few hundred MB.
 #
 #############################################################################
 SCRIPTVER="0.9"
@@ -166,6 +174,9 @@ then
 elif [ ! -z "$(grep ODROIDC /proc/cpuinfo)" ]
 then
 	FPPPLATFORM="ODROID"
+elif [ ! -z "$(grep sun50iw1p1 /proc/cpuinfo)" ]
+then
+	FPPPLATFORM="Pine64"
 elif [ "x${OSID}" = "xdebian" ]
 then
 	FPPPLATFORM="Debian"
@@ -361,7 +372,7 @@ case "${OSVER}" in
 						libpam-smbpass libtagc0-dev libtest-nowarnings-perl locales \
 						mp3info mpg123 mpg321 mplayer nano node ntp perlmagick \
 						php5-cli php5-common php5-curl php5-fpm php5-mcrypt \
-						php5-sqlite php-apc python-daemon python-smbus samba \
+						php5-sqlite php-apc python-daemon python-smbus rsync samba \
 						samba-common-bin shellinabox sudo sysstat tcpdump usbmount vim \
 						vim-common vorbis-tools vsftpd firmware-realtek gcc g++\
 						network-manager dhcp-helper hostapd parprouted bridge-utils \
@@ -653,6 +664,9 @@ EOF
 		cp /usr/bin/omxplayer.bin /usr/bin/omxplayer.bin.orig
 		wget -O /usr/bin/omxplayer.bin https://github.com/FalconChristmas/fpp-binaries/raw/master/Pi/omxplayer.bin
 		;;
+	'Pine64')
+		echo "FPP - Pine64"
+		;;
 	'Debian')
 		echo "FPP - Debian"
 		;;
@@ -784,7 +798,7 @@ cat <<-EOF >> /etc/motd
 [0;31m
                    _______  ___
                   / __/ _ \\/ _ \\
-                 / _// ___/ ___/ [0m FalconPiPlayer[0;31m
+                 / _// ___/ ___/ [0m Falcon Player[0;31m
                 /_/ /_/  /_/
 [1m
 This FPP console is for advanced users, debugging, and developers.  If
