@@ -116,6 +116,12 @@ SetupFPPNetworkConfig () {
 		fi
 	done
 
+	echo "FPP - Clearing iptables rules"
+	for TABLE in filter nat mangle
+	do
+		/sbin/iptables -t ${TABLE} -F
+	done	
+
 	for IFACE in ${ETH_IF} ${WLAN_IF}
 	do
 		INIT_IF[${IFACE}]="no"
@@ -300,34 +306,44 @@ SetupFPPNetworkConfig () {
 
 	done
 
-	cat <<-EOF >> ${TMPFILE}
-	iface eth0:0 inet static
-	  address 192.168.0.10
-	  netmask 255.255.255.0
-	  network 192.168.0.0
-	EOF
+	ENABLEROUTING=$(getSetting EnableRouting)
+
+	if [ "${ENABLEROUTING}" != "1" ]
+	then
+		cat <<-EOF >> ${TMPFILE}
+		iface eth0:0 inet static
+		  address 192.168.0.10
+		  netmask 255.255.255.0
+		  network 192.168.0.0
+		EOF
+	fi
 
 	echo >> ${TMPFILE}
 
-	cp ${TMPFILE} /etc/network/interfaces
+	for IFACE in ${ETH_IF} ${WLAN_IF}
+	do
+		if [ "${INIT_IF[${IFACE}]}" == "yes" ]
+		then
+			echo "FPP - Taking ${IFACE} down"
+			ifdown --force ${IFACE} > /dev/null 2>&1
+		fi
+	done
 
+	cp ${TMPFILE} /etc/network/interfaces
 	SetupFPPDNSConfig
 
 	for IFACE in ${ETH_IF} ${WLAN_IF}
 	do
-		if [ "${INIT_IF[${IFACE}]}" = "yes" ]
+		if [ "${INIT_IF[${IFACE}]}" == "yes" ]
 		then
-			echo "FPP - Taking ${IFACE} down"
-			ifdown --force ${IFACE} > /dev/null 2>&1
-
-			echo "FPP - Bringing ${IFACE} back up"
+			echo "FPP - Bringing ${IFACE} up"
 			ifup ${IFACE}
 		fi
 	done
 
-	ENABLEROUTING=$(getSetting EnableRouting)
-	if [ "${ENABLEROUTING}" = "1" ]
+	if [ "${ENABLEROUTING}" == "1" ]
 	then
+		echo "FPP - Enabling IP forwarding"
 		sed -i "/Enable Routing/d" /etc/sysctl.conf
 		sed -i "/net.ipv4.ip_forward/d" /etc/sysctl.conf
 		echo "# Enable Routing" >> /etc/sysctl.conf
@@ -354,6 +370,12 @@ SetupFPPNetworkConfig () {
 		then
 			echo "FPP - Starting dnsmasq daemon"
 			/usr/sbin/dnsmasq -C ${CFGDIR}/dnsmasq.global -l ${CFGDIR}/leases.global -x /var/run/dnsmasq.pid
+		fi
+
+		if [ -f "${CFGDIR}/iptables.global" ]
+		then
+			echo "FPP - Setting iptables rules"
+			/sbin/iptables-restore < ${CFGDIR}/iptables.global
 		fi
 	else
 		sed -i "/Enable Routing/d" /etc/sysctl.conf
