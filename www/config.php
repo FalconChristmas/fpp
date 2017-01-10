@@ -179,7 +179,12 @@ else if ($settings['Platform'] == "PogoPlug")
 else if ($settings['Platform'] == "ODROID")
 {
 	$settings['Logo'] = "odroid_logo.gif";
-	$settings['LogoLink'] = "";
+	$settings['LogoLink'] = "http://www.hardkernel.com/main/main.php";
+}
+else if ($settings['Platform'] == "Pine64")
+{
+	$settings['Logo'] = "pine64_logo.png";
+	$settings['LogoLink'] = "https://www.pine64.org/";
 }
 else if ($settings['Platform'] == "CHIP")
 {
