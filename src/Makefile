@@ -41,6 +41,7 @@ OBJECTS_fppd = \
 	channeloutput/ChannelOutputBase.o \
 	channeloutput/channeloutput.o \
 	channeloutput/ArtNet.o \
+	channeloutput/ColorLight-5a-75.o \
 	channeloutput/DebugOutput.o \
 	channeloutput/E131.o \
 	channeloutput/FBMatrix.o \
@@ -53,6 +54,7 @@ OBJECTS_fppd = \
 	channeloutput/Matrix.o \
 	channeloutput/PanelMatrix.o \
 	channeloutput/PixelString.o \
+	channeloutput/RHL_DVI_E131.o \
 	channeloutput/serialutil.o \
 	channeloutput/SPInRF24L01.o \
 	channeloutput/SPIws2801.o \
