@@ -23,6 +23,7 @@ OBJECTS_fppmm = \
 	fppversion.o \
 	$(NULL)
 LIBS_fppmm = \
+	-ljsoncpp \
 	$(NULL)
 
 OBJECTS_fppd = \
