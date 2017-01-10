@@ -102,7 +102,6 @@ OBJECTS_fppd = \
 	playlist/PlaylistEntryPlugin.o \
 	playlist/PlaylistEntryScript.o \
 	playlist/PlaylistEntrySequence.o \
-	playlist/PlaylistEntryURL.o \
 	playlist/PlaylistEntryVolume.o \
 	Plugins.o \
 	Scheduler.o \
@@ -140,6 +139,13 @@ ifneq '$(OLAFLAGS)' ''
 	CFLAGS += -DUSEOLA
 	LDFLAGS_fppd += $(OLAFLAGS)
 	OBJECTS_fppd += channeloutput/OLAOutput.o
+endif
+
+CURLFLAGS := $(shell curl-config --libs)
+ifneq '$(CURLFLAGS)' ''
+	CFLAGS += -DUSECURL
+	LDFLAGS_fppd += $(CURLFLAGS)
+	OBJECTS_fppd += playlist/PlaylistEntryURL.o
 endif
 
 # Common CFLAGS
