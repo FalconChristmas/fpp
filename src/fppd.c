@@ -57,6 +57,10 @@
 #include <string.h>
 #include <sys/stat.h>
 
+#ifdef USECURL
+#  include <curl/curl.h>
+#endif
+
 pid_t pid, sid;
 int FPPstatus=FPP_STATUS_IDLE;
 
@@ -67,6 +71,10 @@ ChannelTester *channelTester = NULL;
  */
 int main(int argc, char *argv[])
 {
+#ifdef USECURL
+	curl_global_init(CURL_GLOBAL_ALL);
+#endif
+
 	initSettings(argc, argv);
 	initMediaDetails();
 

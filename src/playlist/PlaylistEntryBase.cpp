@@ -23,6 +23,8 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <boost/algorithm/string/replace.hpp>
+
 #include "log.h"
 #include "PlaylistEntryBase.h"
 
@@ -60,6 +62,9 @@ int PlaylistEntryBase::Init(Json::Value &config)
 
 	if (config.isMember("enabled"))
 		m_enabled = config["enabled"].asInt();
+
+	if (config.isMember("note"))
+		m_note = config["note"].asString();
 
 	m_isStarted = 0;
 	m_isPlaying = 0;
@@ -186,6 +191,7 @@ void PlaylistEntryBase::Dump(void)
 	LogDebug(VB_PLAYLIST, "---- Playlist Entry ----\n");
 	LogDebug(VB_PLAYLIST, "Entry Type: %s\n", m_type.c_str());
 	LogDebug(VB_PLAYLIST, "Entry ID  : %d\n", m_playlistEntryID);
+	LogDebug(VB_PLAYLIST, "Entry Note: %s\n", m_note.c_str());
 }
 
 /*
@@ -205,5 +211,21 @@ Json::Value PlaylistEntryBase::GetConfig(void)
 	result["entryID"]    = m_playlistEntryID;
 
 	return result;
+}
+
+/*
+ *
+ */
+std::string PlaylistEntryBase::ReplaceMatches(std::string in)
+{
+	std::string out = in;
+
+	LogDebug(VB_PLAYLIST, "In: '%s'\n", in.c_str());
+
+	boost::replace_all(out, "%t", m_type);
+
+	LogDebug(VB_PLAYLIST, "Out: '%s'\n", out.c_str());
+
+	return out;
 }
 

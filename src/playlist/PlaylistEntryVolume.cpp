@@ -72,7 +72,11 @@ int PlaylistEntryVolume::StartPlaying(void)
 
 	setVolume(m_volume);
 
-	return PlaylistEntryBase::StartPlaying();;
+	PlaylistEntryBase::StartPlaying();
+
+	FinishPlay();
+
+	return 1;
 }
 
 /*

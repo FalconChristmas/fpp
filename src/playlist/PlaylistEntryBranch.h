@@ -37,9 +37,9 @@
 #define PE_BRANCH_TYPE_LOOP_COUNT     3
 
 #define PE_BRANCH_COMP_MODE_UNDEFINED 0
-#define PE_BRANCH_COMP_MODE_LT        1
+#define PE_BRANCH_COMP_MODE_LTEQ      1
 #define PE_BRANCH_COMP_MODE_EQ        2
-#define PE_BRANCH_COMP_MODE_GT        3
+#define PE_BRANCH_COMP_MODE_GTEQ      3
 
 class PlaylistEntryBranch : public PlaylistEntryBase {
   public:
@@ -64,8 +64,15 @@ class PlaylistEntryBranch : public PlaylistEntryBase {
 	int  m_second;
 	int  m_loopCount;
 
-	Playlist *m_branchTrue;
-	Playlist *m_branchFalse;
+	std::string m_truePlaylistName;
+	std::string m_falsePlaylistName;
+
+	Playlist *m_truePlaylist;
+	Playlist *m_falsePlaylist;
+
+	int          m_conditionTrue;
+	Playlist    *m_livePlaylist;
+	std::string  m_livePlaylistName;
 };
 
 #endif

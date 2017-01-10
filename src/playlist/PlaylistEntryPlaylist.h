@@ -34,8 +34,19 @@ class PlaylistEntryPlaylist : public PlaylistEntryBase {
   	PlaylistEntryPlaylist();
 	~PlaylistEntryPlaylist();
 
+	int  Init(Json::Value &config);
+
+	int  StartPlaying(void);
+	int  Process(void);
+	int  Stop(void);
+
+	void Dump(void);
+	Json::Value GetConfig(void);
+
   private:
-	Playlist *m_playlist;
+	std::string    m_playlistName;
+
+	Playlist      *m_playlist;
 };
 
 #endif

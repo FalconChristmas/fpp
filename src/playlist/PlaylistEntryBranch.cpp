@@ -24,6 +24,7 @@
  */
 
 #include <log.h>
+#include <Player.h>
 
 #include "PlaylistEntryBranch.h"
 
@@ -34,8 +35,10 @@ PlaylistEntryBranch::PlaylistEntryBranch()
 	m_minute(0),
 	m_second(0),
 	m_loopCount(0),
-	m_branchTrue(NULL),
-	m_branchFalse(NULL)
+	m_truePlaylist(NULL),
+	m_falsePlaylist(NULL),
+	m_conditionTrue(0),
+	m_livePlaylist(NULL)
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntryBranch::PlaylistEntryBranch()\n");
 
@@ -44,6 +47,17 @@ PlaylistEntryBranch::PlaylistEntryBranch()
 
 PlaylistEntryBranch::~PlaylistEntryBranch()
 {
+	if (m_truePlaylist)
+	{
+		m_truePlaylist->Cleanup();
+		delete m_truePlaylist;
+	}
+
+	if (m_falsePlaylist)
+	{
+		m_falsePlaylist->Cleanup();
+		delete m_falsePlaylist;
+	}
 }
 
 /*
@@ -52,6 +66,61 @@ PlaylistEntryBranch::~PlaylistEntryBranch()
 int PlaylistEntryBranch::Init(Json::Value &config)
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntryBranch::Init()\n");
+
+	if (((config.isMember("truePlaylistName")) &&
+		 (!config["truePlaylistName"].asString().empty())) ||
+		(config.isMember("truePlaylist")))
+	{
+		m_truePlaylist = new Playlist(player, 1);
+
+		if (!m_truePlaylist)
+		{
+			LogErr(VB_PLAYLIST, "Error creating 'true' playlist\n");
+			return 0;
+		}
+
+		if (config.isMember("truePlaylist"))
+		{
+			m_truePlaylist->Load(config["truePlaylist"]);
+		}
+		else
+		{
+			m_truePlaylistName = config["truePlaylistName"].asString();
+		}
+	}
+
+	if (((config.isMember("truePlaylistName")) &&
+		 (!config["truePlaylistName"].asString().empty())) ||
+		(config.isMember("truePlaylist")))
+	{
+		m_falsePlaylist = new Playlist(player, 1);
+
+		if (!m_falsePlaylist)
+		{
+			LogErr(VB_PLAYLIST, "Error creating 'false' playlist\n");
+			return 0;
+		}
+
+		if (config.isMember("falsePlaylist"))
+		{
+			m_falsePlaylist->Load(config["falsePlaylist"]);
+		}
+		else
+		{
+			m_falsePlaylistName = config["falsePlaylistName"].asString();
+		}
+	}
+
+	m_branchType = config["branchType"].asInt();
+	m_comparisonMode = config["compMode"].asInt();
+
+	m_hour = config["compInfo"]["hour"].asInt();
+	m_minute = config["compInfo"]["minute"].asInt();
+	m_second = config["compInfo"]["second"].asInt();
+	m_loopCount = config["compInfo"]["loopCount"].asInt();
+
+	m_conditionTrue = 0;
+	m_livePlaylist = NULL;
 
 	return PlaylistEntryBase::Init(config);
 }
@@ -67,6 +136,58 @@ int PlaylistEntryBranch::StartPlaying(void)
 	{
 		FinishPlay();
 		return 0;
+	}
+
+	if (m_branchType == PE_BRANCH_TYPE_CLOCK_TIME)
+	{
+		time_t currTime = time(NULL);
+		struct tm now;
+
+		localtime_r(&currTime, &now);
+
+		// FIXME PLAYLIST, how do we handle passing midnight???
+		if ((m_hour <= now.tm_hour) &&
+			(m_minute <= now.tm_min) &&
+			(m_second <= now.tm_sec))
+		{
+			m_conditionTrue = 1;
+		}
+		else
+		{
+			m_conditionTrue = 0;
+		}
+LogDebug(VB_PLAYLIST, "Now: %02d:%02d:%02d, Test: %02d:%02d:%02d, Res: %d\n", now.tm_hour, now.tm_min, now.tm_sec, m_hour, m_minute, m_second, m_conditionTrue);
+	}
+	else if (m_branchType == PE_BRANCH_TYPE_PLAYLIST_TIME)
+	{
+		m_conditionTrue = 0;
+	}
+	else if (m_branchType == PE_BRANCH_TYPE_LOOP_COUNT)
+	{
+		m_conditionTrue = 0;
+	}
+
+	if ((m_conditionTrue) && (m_truePlaylist))
+	{
+		if (!m_truePlaylistName.empty())
+		{
+			if (!m_truePlaylist->Load(m_truePlaylistName.c_str()))
+				return 0;
+		}
+
+		if (!m_truePlaylist->Start())
+			return 0;
+	}
+	else if (m_falsePlaylist)
+	{
+		if (!m_falsePlaylistName.empty())
+		{
+			if (!m_falsePlaylist->Load(m_falsePlaylistName.c_str()))
+				return 0;
+		}
+
+		if (!m_falsePlaylist->Start())
+			return 0;
 	}
 
 	return PlaylistEntryBase::StartPlaying();

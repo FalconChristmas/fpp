@@ -28,6 +28,8 @@
 
 #include <string>
 
+#include <curl/curl.h>
+
 #include "PlaylistEntryBase.h"
 
 class PlaylistEntryURL : public PlaylistEntryBase {
@@ -38,14 +40,28 @@ class PlaylistEntryURL : public PlaylistEntryBase {
 	int  Init(Json::Value &config);
 
 	int  StartPlaying(void);
+	int  Process(void);
+	int  Stop(void);
+
+	std::string ReplaceMatches(std::string in);
 
 	void Dump(void);
 
 	Json::Value GetConfig(void);
 
   private:
+	int ProcessData(void *buffer, size_t size, size_t nmemb);
+
+	static size_t write_data(void *ptr, size_t size, size_t nmemb,
+	                             void *ourpointer);
+
 	std::string            m_url;
 	std::string            m_method;
+	std::string            m_data;
+	std::string            m_response;
+
+	CURL                  *m_curl;
+	CURLM                 *m_curlm;
 };
 
 #endif

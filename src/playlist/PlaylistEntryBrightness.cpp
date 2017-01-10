@@ -23,6 +23,7 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "channeloutput.h"
 #include "log.h"
 #include "PlaylistEntryBrightness.h"
 #include "Player.h"
@@ -73,7 +74,11 @@ int PlaylistEntryBrightness::StartPlaying(void)
 
 	player->SetBrightness(m_brightness);
 
-	return PlaylistEntryBase::StartPlaying();;
+	PlaylistEntryBase::StartPlaying();
+
+	FinishPlay();
+
+	return 1;
 }
 
 /*

@@ -53,6 +53,8 @@ class PlaylistEntryBase {
 
 	virtual Json::Value GetConfig(void);
 
+	virtual std::string ReplaceMatches(std::string in);
+
 	int          GetPlaylistEntryID(void) { return m_playlistEntryID; }
 
 	std::string  GetType(void) { return m_type; }
@@ -62,6 +64,7 @@ class PlaylistEntryBase {
 	void         FinishPlay(void);
 
   	std::string  m_type;
+	std::string  m_note;
 	int          m_enabled;
 	int          m_isStarted;
 	int          m_isPlaying;

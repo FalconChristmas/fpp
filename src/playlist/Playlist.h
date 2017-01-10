@@ -82,7 +82,7 @@ class Player;
 
 class Playlist {
   public:
-	Playlist(Player *parent);
+	Playlist(Player *parent, int subPlaylist = 0);
 	~Playlist();
 
 	////////////////////////////////////////
@@ -134,9 +134,12 @@ class Playlist {
 	std::string        GetConfigStr(void);
 	Json::Value        GetConfig(void);
 
+	std::string        ReplaceMatches(std::string in);
+
   private:
 	Player              *m_player;
   	std::string          m_name;
+	std::string          m_desc;
 	int                  m_repeat;
 	int                  m_loop;
 	int                  m_loopCount;
@@ -146,6 +149,7 @@ class Playlist {
 	int                  m_blankAtEnd;
 	long long            m_startTime;
 	int                  m_subPlaylistDepth;
+	int                  m_subPlaylist;
 
 	std::string          m_currentState;
 	std::string          m_currentSectionStr;
