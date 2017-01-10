@@ -5,17 +5,17 @@
 Download the Debian Jessie image for the ODROID-C1 (s805).  This is currently
 available from the following URL.
 
-http://oph.mdrjr.net/odrobian/images/s805/ODROBIAN-Jessie-2.0-vanilla-s805.img.xz
+http://oph.mdrjr.net/meveric/images/Jessie/Debian-Jessie-1.0-20160131-C1.img.xz
 
 	If the URL above is not working, check this odroid.com forum thread
 	for an updated URL:
 
-	http://forum.odroid.com/viewtopic.php?f=114&t=16520
+	http://forum.odroid.com/viewtopic.php?f=114&t=17569
 
 Install the .img file to a SD card (replace 'sdd' with your device):
 
 	SDDEVICE=sdd
-	xzcat ODROBIAN-Jessie-2.0-vanilla-s805.img.xz | sudo dd of=/dev/${SDDEVICE} bs=4M ; sync
+	xzcat Debian-Jessie-1.0-20160131-C1.img.xz | sudo dd of=/dev/${SDDEVICE} bs=4M ; sync
 
 # FIXME, need to handle auto resizing of the image here, otherwise the first
 # boot script will fill up the whole SD card bloating our download image.
@@ -33,8 +33,6 @@ Run the FPP install script:
 	chmod 700 ./FPP_Install.sh
 	sudo ./FPP_Install.sh
 
-	# FIXME, need to fix prompt about overwriting /etc/default/ntp
-
 This will install FPP and perform all required changes to the root filesystem
 and add the FPP user, install required packages, etc.
 
@@ -42,3 +40,4 @@ Follow the instructions printed at the end of the FPP_Install.sh output to
 reboot the system.
 
 =============================================================================
+
