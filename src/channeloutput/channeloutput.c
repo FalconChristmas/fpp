@@ -34,6 +34,11 @@
 
 #include "channeloutput.h"
 #include "DebugOutput.h"
+<<<<<<< HEAD
+=======
+#include "ArtNet.h"
+#include "ColorLight-5a-75.h"
+>>>>>>> 1e50473... [ChannelOutput] Add initial versions of two new Channel Outputs
 #include "E131.h"
 #include "FBMatrix.h"
 #include "FPD.h"
@@ -44,6 +49,7 @@
 #include "SPIws2801.h"
 #include "LOR.h"
 #include "SPInRF24L01.h"
+#include "RHL_DVI_E131.h"
 #include "USBDMX.h"
 #include "USBPixelnet.h"
 #include "USBRelay.h"
@@ -197,6 +203,7 @@ int InitializeChannelOutputs(void) {
 			channelOutputs[i].startChannel = start;
 			channelOutputs[i].channelCount = count;
 
+			// First some Channel Outputs enabled everythwere
 			if (type == "LEDPanelMatrix") {
 #if defined(PLATFORM_PI) || defined(PLATFORM_ODROID)
 				if (outputs[c]["subType"] == "RGBMatrix")
@@ -220,12 +227,26 @@ int InitializeChannelOutputs(void) {
 			} else if (type == "BBBSerial") {
 				channelOutputs[i].output = new BBBSerialOutput(start, count);
 #endif
+<<<<<<< HEAD
 #ifdef USEOLA
 			} else if (type == "OLA") {
 				channelOutputs[i].output = new OLAOutput(start, count);
 #endif
+=======
+			} else if (type == "ColorLight5a75") {
+				channelOutputs[i].output = new ColorLight5a75Output(start, count);
+			} else if (type == "FBVirtualDisplay") {
+				channelOutputs[i].output = (ChannelOutputBase*)new FBVirtualDisplayOutput(0, FPPD_MAX_CHANNELS);
+			} else if (type == "RHLDVIE131") {
+				channelOutputs[i].output = (ChannelOutputBase*)new RHLDVIE131Output(start, count);
+>>>>>>> 1e50473... [ChannelOutput] Add initial versions of two new Channel Outputs
 			} else if (type == "USBRelay") {
 				channelOutputs[i].output = new USBRelayOutput(start, count);
+			// NOW some platform or config specific Channel Outputs
+#ifdef USEOLA
+			} else if (type == "OLA") {
+				channelOutputs[i].output = new OLAOutput(start, count);
+#endif
 #if defined(PLATFORM_PI)
 			} else if (type == "Hill320") {
 				channelOutputs[i].output = new Hill320Output(start, count);

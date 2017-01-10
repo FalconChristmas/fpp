@@ -288,6 +288,58 @@
 
 		},
 		{
+<<<<<<< HEAD
+=======
+			"type": "X11VirtualDisplay",
+			"enabled": 0,
+			"startChannel": 1,
+			"channelCount": 25000,
+			"width": 1290,
+			"height": 600,
+			"colorOrder": "BGR",
+			"pixelSize": 2,
+			"backgroundFilename": "virtualdisplaybackground.jpg"
+		},
+		{
+			"type": "FBVirtualDisplay",
+			"enabled": 0,
+			"startChannel": 1,
+			"channelCount": 25000,
+			"width": 1280,
+			"height": 720,
+			"colorOrder": "BGR",
+			"pixelSize": 2,
+			"backgroundFilename": "virtualdisplaybackground.jpg"
+		},
+		{
+			"type": "RHLDVIE131",
+			"enabled": 0,
+			"startChannel": 1,
+			"channelCount": 48000,
+			"universes": [
+				{
+					"id": 1,
+					"startChannel": 1,
+					"channelCount": 480
+				},
+				{
+					"id": 2,
+					"startChannel": 481,
+					"channelCount": 480
+				}
+			]
+		},
+		{
+			"type": "ColorLight5a75",
+			"enabled": 0,
+			"startChannel": 1,
+			"channelCount": 6144,
+			"width": 64,
+			"height": 32,
+			"interface": "eth0"
+		},
+		{
+>>>>>>> 1e50473... [ChannelOutput] Add initial versions of two new Channel Outputs
 			"type": "OLA",
 			"enabled": 0,
 			"startChannel": 1,
