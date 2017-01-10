@@ -23,6 +23,7 @@ OBJECTS_fppmm = \
 	fppversion.o \
 	$(NULL)
 LIBS_fppmm = \
+	-ljsoncpp \
 	$(NULL)
 
 OBJECTS_fsequtil = \
@@ -33,6 +34,7 @@ OBJECTS_fsequtil = \
 	SequenceFile.o \
 	$(NULL)
 LIBS_fsequtil = \
+	-ljsoncpp \
 	$(NULL)
 
 OBJECTS_fppd = \
