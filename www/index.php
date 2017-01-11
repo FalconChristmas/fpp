@@ -18,7 +18,7 @@ include 'common/menuHead.inc';
 	});
 </script>
 
-<title><? echo $pageTitle; ?></title>
+<title><?php echo $pageTitle; ?></title>
 
 	<script>
 		$(function() {
@@ -97,7 +97,7 @@ include 'common/menuHead.inc';
 <body onLoad="GetFPPDmode();StatusPopulatePlaylists();GetFPPStatus();bindVisibilityListener();GetVolume();">
 <div id="bodyWrapper">
 <?php
-	include 'menu.inc';
+    include 'menu.inc';
   ?>
 <br/>
 <div id="programControl" class="settings">

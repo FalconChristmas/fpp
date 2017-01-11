@@ -6,7 +6,7 @@ require_once('config.php');
 <head>
 <?php	include 'common/menuHead.inc'; ?>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<title><? echo $pageTitle; ?></title>
+<title><?php echo $pageTitle; ?></title>
 
 <link  href="jquery/jQuery-Upload-File/css/uploadfile.min.css" rel="stylesheet">
 
@@ -372,10 +372,11 @@ h2 {
 <script>
 	var activeTabNumber = 
 <?php
-	if (isset($_GET['tab']))
-		print $_GET['tab'];
-	else
-		print "0";
+    if (isset($_GET['tab'])) {
+        print $_GET['tab'];
+    } else {
+        print "0";
+    }
 ?>;
 
     $("#tabs").tabs({cache: true, active: activeTabNumber, spinner: "", fx: { opacity: 'toggle', height: 'toggle' } });

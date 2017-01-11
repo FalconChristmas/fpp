@@ -3,7 +3,7 @@
 <head>
 <?php require_once('common.php'); ?>
 <?php include 'common/menuHead.inc'; ?>
-<title><? echo $pageTitle; ?></title>
+<title><?php echo $pageTitle; ?></title>
 </head>
 <body>
 <div id="bodyWrapper">

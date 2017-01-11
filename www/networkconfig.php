@@ -3,23 +3,22 @@
 <head>
 <?php require_once('common.php'); ?>
 <?php include 'common/menuHead.inc'; ?>
-<title><? echo $pageTitle; ?></title>
+<title><?php echo $pageTitle; ?></title>
 </head>
 <body>
 <?php
 
 function PopulateInterfaces()
 {
-  $first = 1;
-  $interfaces = explode("\n",trim(shell_exec("/sbin/ifconfig -a | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0 | grep -v usb0")));
-  $ifaceE131 = ReadSettingFromFile("E131interface");
-  foreach ($interfaces as $iface)
-  {
-    $iface = preg_replace("/:$/", "", $iface);
-    $ifaceChecked = $first ? " selected" : "";
-    echo "<option value='" . $iface . "'" . $ifaceChecked . ">" . $iface . "</option>";
-    $first = 0;
-  }
+    $first = 1;
+    $interfaces = explode("\n", trim(shell_exec("/sbin/ifconfig -a | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0 | grep -v usb0")));
+    $ifaceE131 = ReadSettingFromFile("E131interface");
+    foreach ($interfaces as $iface) {
+        $iface = preg_replace("/:$/", "", $iface);
+        $ifaceChecked = $first ? " selected" : "";
+        echo "<option value='" . $iface . "'" . $ifaceChecked . ">" . $iface . "</option>";
+        $first = 0;
+    }
 }
 
 
@@ -416,7 +415,11 @@ function setHostName() {
           <table width="100%" border="0" cellpadding="1" cellspacing="1">
             <tr>
               <td width = "25%">HostName:</td>
-              <td colspan='2'><input id='hostName' value='<? if (isset($settings['HostName'])) echo $settings['HostName']; else echo 'FPP'; ?>' size='30' maxlength='30'> <input type='button' class='buttons' value='Save' onClick='setHostName();'></td>
+              <td colspan='2'><input id='hostName' value='<?php if (isset($settings['HostName'])) {
+    echo $settings['HostName'];
+} else {
+    echo 'FPP';
+} ?>' size='30' maxlength='30'> <input type='button' class='buttons' value='Save' onClick='setHostName();'></td>
             </tr>
             <tr>
               <td>&nbsp;</td>
@@ -449,7 +452,7 @@ function setHostName() {
 
         </fieldset>
 				<br>
-				<? PrintSettingCheckbox("Enable Routing", "EnableRouting", 0, 0, "1", "0"); ?> Enable Routing between network interfaces
+				<?php PrintSettingCheckbox("Enable Routing", "EnableRouting", 0, 0, "1", "0"); ?> Enable Routing between network interfaces
         <br>
         </div>
         </fieldset>

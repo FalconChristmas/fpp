@@ -68,33 +68,32 @@ $(document).ready(function() {
 	});
 });
 
-<?
+<?php
 function PopulateInterfaces()
 {
-	global $settings;
+    global $settings;
 
-	$interfaces = explode("\n",trim(shell_exec("/sbin/ifconfig | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v usb0")));
-	$ifaceE131 = "";
-	if (isset($settings['E131interface'])) {
-		$ifaceE131 = $settings['E131interface'];
-	}
-	$found = 0;
-	if ($ifaceE131 == "") {
-		$ifaceE131 = "eth0";
-	}
-	foreach ($interfaces as $iface)
-	{
-		$iface = preg_replace("/:$/", "", $iface);
-		$ifaceChecked = "";
-		if ($iface == $ifaceE131) {
-			$ifaceChecked = " selected";
-			$found = 1;
-		}
-		echo "<option value='" . $iface . "'" . $ifaceChecked . ">" . $iface . "</option>";
-	}
-	if (!$found && ($ifaceE131 != "")) {
-		echo "<option value='" . $ifaceE131 . "' selected>" . $ifaceE131 . "</option>";
-	}
+    $interfaces = explode("\n", trim(shell_exec("/sbin/ifconfig | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v usb0")));
+    $ifaceE131 = "";
+    if (isset($settings['E131interface'])) {
+        $ifaceE131 = $settings['E131interface'];
+    }
+    $found = 0;
+    if ($ifaceE131 == "") {
+        $ifaceE131 = "eth0";
+    }
+    foreach ($interfaces as $iface) {
+        $iface = preg_replace("/:$/", "", $iface);
+        $ifaceChecked = "";
+        if ($iface == $ifaceE131) {
+            $ifaceChecked = " selected";
+            $found = 1;
+        }
+        echo "<option value='" . $iface . "'" . $ifaceChecked . ">" . $iface . "</option>";
+    }
+    if (!$found && ($ifaceE131 != "")) {
+        echo "<option value='" . $ifaceE131 . "' selected>" . $ifaceE131 . "</option>";
+    }
 }
 ?>
 
@@ -194,18 +193,17 @@ function nRFSpeedSelect(speedArray, currentValue) {
 /////////////////////////////////////////////////////////////////////////////
 // Serial Devices
 var SerialDevices = new Array();
-<?
-	foreach(scandir("/dev/") as $fileName)
-	{
-		if ((preg_match("/^ttyS[0-9]+/", $fileName)) ||
-			(preg_match("/^ttyACM[0-9]+/", $fileName)) ||
-			(preg_match("/^ttyO[0-9]/", $fileName)) ||
-			(preg_match("/^ttyS[0-9]/", $fileName)) ||
-			(preg_match("/^ttyAMA[0-9]+/", $fileName)) ||
-			(preg_match("/^ttyUSB[0-9]+/", $fileName))) {
-			echo "SerialDevices['$fileName'] = '$fileName';\n";
-		}
-	}
+<?php
+    foreach (scandir("/dev/") as $fileName) {
+        if ((preg_match("/^ttyS[0-9]+/", $fileName)) ||
+            (preg_match("/^ttyACM[0-9]+/", $fileName)) ||
+            (preg_match("/^ttyO[0-9]/", $fileName)) ||
+            (preg_match("/^ttyS[0-9]/", $fileName)) ||
+            (preg_match("/^ttyAMA[0-9]+/", $fileName)) ||
+            (preg_match("/^ttyUSB[0-9]+/", $fileName))) {
+            echo "SerialDevices['$fileName'] = '$fileName';\n";
+        }
+    }
 ?>
 
 /////////////////////////////////////////////////////////////////////////////
@@ -796,19 +794,18 @@ function GetRPIWS281XOutputConfig(cell) {
 
 function GPIOGPIOSelect(currentValue) {
 	var result = "";
-<?
-	if (isset($settings['PiFaceDetected']) && ($settings['PiFaceDetected'] == 1))
-	{
-?>
+<?php
+    if (isset($settings['PiFaceDetected']) && ($settings['PiFaceDetected'] == 1)) {
+        ?>
 	var options = "4,5,6,12,13,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,200,201,202,203,204,205,206,207".split(",");
-<?
-	}
-	else
-	{
-?>
+<?php
+
+    } else {
+        ?>
 	var options = "4,5,6,12,13,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31".split(",");
-<?
-	}
+<?php
+
+    }
 ?>
 
 	result += " BCM GPIO Output: <select class='gpio'>";
@@ -1121,13 +1118,12 @@ function NewLORConfig() {
 /////////////////////////////////////////////////////////////////////////////
 // SPI Devices (/dev/spidev*
 var SPIDevices = new Array();
-<?
-	foreach(scandir("/dev/") as $fileName)
-	{
-		if (preg_match("/^spidev[0-9]/", $fileName)) {
-			echo "SPIDevices['$fileName'] = '$fileName';\n";
-		}
-	}
+<?php
+    foreach (scandir("/dev/") as $fileName) {
+        if (preg_match("/^spidev[0-9]/", $fileName)) {
+            echo "SPIDevices['$fileName'] = '$fileName';\n";
+        }
+    }
 ?>
 
 function SPIDeviceConfig(config) {
@@ -1601,28 +1597,28 @@ function AddOtherOutput() {
 				"<option value='DMX-Pro'>DMX-Pro</option>" +
 				"<option value='DMX-Open'>DMX-Open</option>" +
 				"<option value='GenericSerial'>Generic Serial</option>" +
-<?
-	if ($settings['Platform'] == "Raspberry Pi")
-	{
-?>
+<?php
+    if ($settings['Platform'] == "Raspberry Pi") {
+        ?>
 				"<option value='GPIO'>GPIO</option>" +
 				"<option value='GPIO-595'>GPIO-595</option>" +
-<?
-	}
+<?php
+
+    }
 ?>
 				"<option value='LOR'>LOR</option>" +
 				"<option value='Pixelnet-Lynx'>Pixelnet-Lynx</option>" +
 				"<option value='Pixelnet-Open'>Pixelnet-Open</option>" +
 				"<option value='Renard'>Renard</option>" +
-<?
-	if ($settings['Platform'] == "Raspberry Pi")
-	{
-?>
+<?php
+    if ($settings['Platform'] == "Raspberry Pi") {
+        ?>
 				"<option value='SPI-WS2801'>SPI-WS2801</option>" +
 				"<option value='SPI-nRF24L01'>SPI-nRF24L01</option>" +
 				"<option value='RPIWS281X'>RPIWS281X</option>" +
-<?
-	}
+<?php
+
+    }
 ?>
 				"<option value='VirtualMatrix'>Virtual Matrix</option>" +
 				"<option value='Triks-C'>Triks-C</option>" +
@@ -2021,7 +2017,7 @@ function GetBBBSerialConfig()
 /////////////////////////////////////////////////////////////////////////////
 // LED Panel Matrix support functions
 
-<?
+<?php
 $LEDPanelOutputs = 3;          // Max for Pi w/ new library code
 $LEDPanelPanelsPerOutput = 12; // Max for Pi w/ new library code
 $LEDPanelRows = 1;
@@ -2029,62 +2025,56 @@ $LEDPanelCols = 1;
 $LEDPanelWidth = 32;
 $LEDPanelHeight = 16;
 
-if ($settings['Platform'] == "BeagleBone Black")
-{
-	$LEDPanelOutputs = 8;
-	$LEDPanelPanelsPerOutput = 8;
+if ($settings['Platform'] == "BeagleBone Black") {
+    $LEDPanelOutputs = 8;
+    $LEDPanelPanelsPerOutput = 8;
 }
 
 $maxLEDPanels = $LEDPanelOutputs * $LEDPanelPanelsPerOutput;
 
-if (isset($settings['LEDPanelsLayout']))
-{
-	$parts = explode('x', $settings['LEDPanelsLayout']);
-	if (count($parts) == 2)
-	{
-		$LEDPanelCols = $parts[0];
-		$LEDPanelRows = $parts[1];
-	}
+if (isset($settings['LEDPanelsLayout'])) {
+    $parts = explode('x', $settings['LEDPanelsLayout']);
+    if (count($parts) == 2) {
+        $LEDPanelCols = $parts[0];
+        $LEDPanelRows = $parts[1];
+    }
 }
 
 function printLEDPanelLayoutSelect()
 {
-	global $maxLEDPanels;
-	$values = array();
+    global $maxLEDPanels;
+    $values = array();
 
-	for ($r = 1; $r <= $maxLEDPanels; $r++)
-	{
-		for ($c = 1; $c <= $maxLEDPanels; $c++)
-		{
-			if (($r * $c) <= $maxLEDPanels)
-			{
-				$value = sprintf("%dx%d", $r, $c);
-				$values[$value] = $value;
-			}
-		}
-	}
+    for ($r = 1; $r <= $maxLEDPanels; $r++) {
+        for ($c = 1; $c <= $maxLEDPanels; $c++) {
+            if (($r * $c) <= $maxLEDPanels) {
+                $value = sprintf("%dx%d", $r, $c);
+                $values[$value] = $value;
+            }
+        }
+    }
 
-	PrintSettingSelect("Panel Layout", "LEDPanelsLayout", 1, 0, "1x1", $values, "", "LEDPanelLayoutChanged");
+    PrintSettingSelect("Panel Layout", "LEDPanelsLayout", 1, 0, "1x1", $values, "", "LEDPanelLayoutChanged");
 }
 
 function printLEDPanelSizeSelect()
 {
-	$values = array();
-	$values["32x16"] = "32x16";
-	$values["32x32"] = "32x32";
+    $values = array();
+    $values["32x16"] = "32x16";
+    $values["32x32"] = "32x32";
 
-	PrintSettingSelect("Panel Size", "LEDPanelsSize", 1, 0, "32x16", $values, "", "LEDPanelLayoutChanged");
+    PrintSettingSelect("Panel Size", "LEDPanelsSize", 1, 0, "32x16", $values, "", "LEDPanelLayoutChanged");
 }
 
 ?>
 
 var LEDPanelColorOrder = 'RGB';
-var LEDPanelOutputs = <? echo $LEDPanelOutputs; ?>;
-var LEDPanelPanelsPerOutput = <? echo $LEDPanelPanelsPerOutput; ?>;
-var LEDPanelWidth = <? echo $LEDPanelWidth; ?>;
-var LEDPanelHeight = <? echo $LEDPanelHeight; ?>;
-var LEDPanelRows = <? echo $LEDPanelRows; ?>;
-var LEDPanelCols = <? echo $LEDPanelCols; ?>;
+var LEDPanelOutputs = <?php echo $LEDPanelOutputs; ?>;
+var LEDPanelPanelsPerOutput = <?php echo $LEDPanelPanelsPerOutput; ?>;
+var LEDPanelWidth = <?php echo $LEDPanelWidth; ?>;
+var LEDPanelHeight = <?php echo $LEDPanelHeight; ?>;
+var LEDPanelRows = <?php echo $LEDPanelRows; ?>;
+var LEDPanelCols = <?php echo $LEDPanelCols; ?>;
 
 function UpdatePanelSize()
 {
@@ -2203,13 +2193,13 @@ function InitializeLEDPanels()
 		$('#LEDPanelsChannelCount').html(channelOutputsLookup["LEDPanelMatrix"].channelCount);
 		$('#LEDPanelsColorOrder').val(channelOutputsLookup["LEDPanelMatrix"].colorOrder);
 		$('#LEDPanelsBrightness').val(channelOutputsLookup["LEDPanelMatrix"].brightness);
-<?
-	if ($settings['Platform'] == "Raspberry Pi")
-	{
-?>
+<?php
+    if ($settings['Platform'] == "Raspberry Pi") {
+        ?>
 		$('#LEDPanelsWiringPinout').val(channelOutputsLookup["LEDPanelMatrix"].wiringPinout);
-<?
-	}
+<?php
+
+    }
 ?>
 		$('#LEDPanelsStartCorner').val(channelOutputsLookup["LEDPanelMatrix"].invertedData);
 	}
@@ -2226,15 +2216,12 @@ function GetLEDPanelConfig()
 	var yDiff = 0;
 
 	config.type = "LEDPanelMatrix";
-<?
-	if ($settings['Platform'] == "BeagleBone Black")
-	{
-		echo "config.subType = 'LEDscapeMatrix';\n";
-	}
-	else
-	{
-		echo "config.subType = 'RGBMatrix';\n";
-	}
+<?php
+    if ($settings['Platform'] == "BeagleBone Black") {
+        echo "config.subType = 'LEDscapeMatrix';\n";
+    } else {
+        echo "config.subType = 'RGBMatrix';\n";
+    }
 ?>
 
 	UpdatePanelSize();
@@ -2244,13 +2231,13 @@ function GetLEDPanelConfig()
 	config.channelCount = parseInt($('#LEDPanelsChannelCount').html());
 	config.colorOrder = $('#LEDPanelsColorOrder').val();
 	config.brightness = parseInt($('#LEDPanelsBrightness').val());
-<?
-	if ($settings['Platform'] == "Raspberry Pi")
-	{
-?>
+<?php
+    if ($settings['Platform'] == "Raspberry Pi") {
+        ?>
 	config.wiringPinout = $('#LEDPanelsWiringPinout').val();
-<?
-	}
+<?php
+
+    }
 ?>
 	config.invertedData = parseInt($('#LEDPanelsStartCorner').val());
 	config.panelWidth = LEDPanelWidth;
@@ -2358,20 +2345,18 @@ function GetChannelOutputConfig()
 
 	config.channelOutputs = [];
 
-<?
-	if (($settings['Platform'] == "BeagleBone Black") ||
-			($settings['Platform'] == "Raspberry Pi"))
-	{
-		// LED Panels
-		echo "config.channelOutputs.push(GetLEDPanelConfig());\n";
-	}
+<?php
+    if (($settings['Platform'] == "BeagleBone Black") ||
+            ($settings['Platform'] == "Raspberry Pi")) {
+        // LED Panels
+        echo "config.channelOutputs.push(GetLEDPanelConfig());\n";
+    }
 
-	if ($settings['Platform'] == "BeagleBone Black")
-	{
-		echo "// BBB 48 String output\n";
-		echo "config.channelOutputs.push(GetBBB48StringConfig());\n";
-		echo "config.channelOutputs.push(GetBBBSerialConfig());\n";
-	}
+    if ($settings['Platform'] == "BeagleBone Black") {
+        echo "// BBB 48 String output\n";
+        echo "config.channelOutputs.push(GetBBB48StringConfig());\n";
+        echo "config.channelOutputs.push(GetBBBSerialConfig());\n";
+    }
 ?>
 
   var result = JSON.stringify(config);
@@ -2395,22 +2380,21 @@ function SaveChannelOutputsJSON()
 
 /////////////////////////////////////////////////////////////////////////////
 
-<?
+<?php
 
 $channelOutputs = array();
 $channelOutputsJSON = "";
-if (file_exists($settings['channelOutputsJSON']))
-{
-	$channelOutputsJSON = file_get_contents($settings['channelOutputsJSON']);
-	$channelOutputsJSON = preg_replace("/\n|\r/", "", $channelOutputsJSON);
-	$channelOutputsJSON = preg_replace("/\"/", "\\\"", $channelOutputsJSON);
+if (file_exists($settings['channelOutputsJSON'])) {
+    $channelOutputsJSON = file_get_contents($settings['channelOutputsJSON']);
+    $channelOutputsJSON = preg_replace("/\n|\r/", "", $channelOutputsJSON);
+    $channelOutputsJSON = preg_replace("/\"/", "\\\"", $channelOutputsJSON);
 }
 
 ?>
 
 
 $(document).ready(function(){
-	var channelOutputsJSON = "<? echo $channelOutputsJSON; ?>";
+	var channelOutputsJSON = "<?php echo $channelOutputsJSON; ?>";
 
 	if (channelOutputsJSON != "")
 		channelOutputs = jQuery.parseJSON(channelOutputsJSON);
@@ -2424,25 +2408,22 @@ $(document).ready(function(){
 	getUniverses('TRUE');
 
 
-<?
-	if ($settings['Platform'] == "Raspberry Pi")
-	{
-		echo "getPixelnetDMXoutputs('TRUE');\n";
-	}
+<?php
+    if ($settings['Platform'] == "Raspberry Pi") {
+        echo "getPixelnetDMXoutputs('TRUE');\n";
+    }
 
-	if (($settings['Platform'] == "BeagleBone Black") ||
-			($settings['Platform'] == "Raspberry Pi"))
-	{
-		// LED Panel initialization
-		echo "InitializeLEDPanels();\n";
-	}
+    if (($settings['Platform'] == "BeagleBone Black") ||
+            ($settings['Platform'] == "Raspberry Pi")) {
+        // LED Panel initialization
+        echo "InitializeLEDPanels();\n";
+    }
 
-	if ($settings['Platform'] == "BeagleBone Black")
-	{
-		// BBB 48 String initialization
-		echo "InitializeBBB48String();\n";
-		echo "InitializeBBBSerial();\n";
-	}
+    if ($settings['Platform'] == "BeagleBone Black") {
+        // BBB 48 String initialization
+        echo "InitializeBBB48String();\n";
+        echo "InitializeBBBSerial();\n";
+    }
 ?>
 
 	// 'Other' Channel Outputs initialization
@@ -2494,7 +2475,7 @@ tr.rowUniverseDetails td
 
 </style>
 
-<title><? echo $pageTitle; ?></title>
+<title><?php echo $pageTitle; ?></title>
 </head>
 <body>
 	<div id="bodyWrapper">
@@ -2506,30 +2487,28 @@ tr.rowUniverseDetails td
 		<div id="tabs">
 			<ul>
 				<li><a href="#tab-e131">E1.31 / ArtNet</a></li>
-<?
-	if ($settings['Platform'] == "Raspberry Pi")
-	{
-?>
+<?php
+    if ($settings['Platform'] == "Raspberry Pi") {
+        ?>
 				<li><a href="#tab-fpd">Falcon Pixelnet/DMX</a></li>
-<?
-	}
+<?php
+
+    }
 ?>
 <!--
 				<li><a href="channeloutput_f16v2.php">F16 v2</a></li>
 -->
-<?
-	$LEDPanelType = "RGBMatrix";
-	if ($settings['Platform'] == "BeagleBone Black")
-	{
-		$LEDPanelType = "LEDscape/Octoscroller";
-		echo "<li><a href='#tab-BBB48String'>BBB</a></li>\n";
-	}
+<?php
+    $LEDPanelType = "RGBMatrix";
+    if ($settings['Platform'] == "BeagleBone Black") {
+        $LEDPanelType = "LEDscape/Octoscroller";
+        echo "<li><a href='#tab-BBB48String'>BBB</a></li>\n";
+    }
 
-	if (($settings['Platform'] == "BeagleBone Black") ||
-			($settings['Platform'] == "Raspberry Pi"))
-	{
-		echo "<li><a href='#tab-LEDPanels'>LED Panels</a></li>\n";
-	}
+    if (($settings['Platform'] == "BeagleBone Black") ||
+            ($settings['Platform'] == "Raspberry Pi")) {
+        echo "<li><a href='#tab-LEDPanels'>LED Panels</a></li>\n";
+    }
 ?>
 				<li><a href="#tab-other">Other</a></li>
 			</ul>
@@ -2543,8 +2522,8 @@ tr.rowUniverseDetails td
 						<div id='divE131Data'>
 
   <div style="overflow: hidden; padding: 10px;">
-	<b>Enable E1.31 /ArtNet Output:</b> <? PrintSettingCheckbox("E1.31 / ArtNet Output", "E131Enabled", 1, 0, "1", "0"); ?><br><br>
-	E1.31 / ArtNet Interface: <select id="selE131interfaces" onChange="SetE131interface();"><? PopulateInterfaces(); ?></select>
+	<b>Enable E1.31 /ArtNet Output:</b> <?php PrintSettingCheckbox("E1.31 / ArtNet Output", "E131Enabled", 1, 0, "1", "0"); ?><br><br>
+	E1.31 / ArtNet Interface: <select id="selE131interfaces" onChange="SetE131interface();"><?php PopulateInterfaces(); ?></select>
 	<br><br>
 
     <div>
@@ -2575,18 +2554,17 @@ tr.rowUniverseDetails td
 
 <!-- --------------------------------------------------------------------- -->
 
-<?
-	if ($settings['Platform'] == "Raspberry Pi")
-	{
-?>
+<?php
+    if ($settings['Platform'] == "Raspberry Pi") {
+        ?>
 			<div id='tab-fpd'>
 				<div id='divFPD'>
 					<fieldset class="fs">
 						<legend> Falcon Pixelnet/DMX (FPD) </legend>
 						<div id='divFPDData'>
 							<div style="overflow: hidden; padding: 10px;">
-								<b>Enable FPD Output:</b> <? PrintSettingCheckbox("FPD Output", "FPDEnabled", 1, 0, "1", "0"); ?><br>
-								<b>FPD Start Channel Offset:</b> <? PrintSettingText("FPDStartChannelOffset", 1, 0, 6, 6); ?> <font size=-1>(default is 0)</font><br>
+								<b>Enable FPD Output:</b> <?php PrintSettingCheckbox("FPD Output", "FPDEnabled", 1, 0, "1", "0"); ?><br>
+								<b>FPD Start Channel Offset:</b> <?php PrintSettingText("FPDStartChannelOffset", 1, 0, 6, 6); ?> <font size=-1>(default is 0)</font><br>
 								<br>
 								<form id="frmPixelnetDMX">
 									<input name="command" id="command"  type="hidden" value="saveHardwareConfig" />
@@ -2608,21 +2586,21 @@ tr.rowUniverseDetails td
 			</fieldset>
 		</div>
 	</div>
-<?
-	}
+<?php
+
+    }
 ?>
 
 <!-- --------------------------------------------------------------------- -->
 
-<?
-	if (($settings['Platform'] == "BeagleBone Black") ||
-			($settings['Platform'] == "Raspberry Pi"))
-	{
-?>
+<?php
+    if (($settings['Platform'] == "BeagleBone Black") ||
+            ($settings['Platform'] == "Raspberry Pi")) {
+        ?>
 	<div id='tab-LEDPanels'>
 		<div id='divLEDPanels'>
 			<fieldset class="fs">
-				<legend> <? echo $LEDPanelType; ?> LED Panels </legend>
+				<legend> <?php echo $LEDPanelType; ?> LED Panels </legend>
 				<div id='divLEDPanelsData'>
 					<div style="overflow: hidden; padding: 10px;">
 						<table border=0 cellspacing=3>
@@ -2632,12 +2610,12 @@ tr.rowUniverseDetails td
 								<td>&nbsp;</td>
 							</tr>
 							<tr>
-								<td><b>Panel Layout (WxH):</b></td><td><? printLEDPanelLayoutSelect(); ?></td>
+								<td><b>Panel Layout (WxH):</b></td><td><?php printLEDPanelLayoutSelect(); ?></td>
 								<td>&nbsp;</td>
 								<td><b>Start Channel:</b></td><td><input id='LEDPanelsStartChannel' type=text size=6 maxlength=6 value='1'></td>
 							</tr>
 							<tr>
-								<td><b>Single Panel Size (WxH):</b></td><td><? printLEDPanelSizeSelect(); ?></td>
+								<td><b>Single Panel Size (WxH):</b></td><td><?php printLEDPanelSizeSelect(); ?></td>
 								<td>&nbsp;</td>
 								<td><b>Channel Count:</b></td><td><span id='LEDPanelsChannelCount'>1536</span></td>
 							</tr>
@@ -2660,10 +2638,9 @@ tr.rowUniverseDetails td
 									</select>
 									</td>
 							</tr>
-<?
-	if ($settings['Platform'] == "Raspberry Pi")
-	{
-?>
+<?php
+    if ($settings['Platform'] == "Raspberry Pi") {
+        ?>
 							<tr>
 								<td><b>Wiring Pinout:</b></td><td>
 									<select id='LEDPanelsWiringPinout'>
@@ -2673,30 +2650,27 @@ tr.rowUniverseDetails td
 									</select>
 									</td>
 							</tr>
-<?
-	}
-?>
+<?php
+
+    } ?>
 							<tr>
 								<td><b>Brightness:</b></td><td>
 									<select id='LEDPanelsBrightness'>
-<?
-	if ($settings['Platform'] == "Raspberry Pi")
-	{
-		for ($x = 100; $x >= 10; $x -= 5)
-			echo "<option value='$x'>$x%</option>\n";
-	}
-	else
-	{
-		for ($x = 7; $x >= 1; $x -= 1)
-			echo "<option value='$x'>$x</option>\n";
-	}
-?>
+<?php
+    if ($settings['Platform'] == "Raspberry Pi") {
+        for ($x = 100; $x >= 10; $x -= 5) {
+            echo "<option value='$x'>$x%</option>\n";
+        }
+    } else {
+        for ($x = 7; $x >= 1; $x -= 1) {
+            echo "<option value='$x'>$x</option>\n";
+        }
+    } ?>
 									</select>
 									</td>
-<?
-	if ($settings['Platform'] == "Raspberry Pi")
-	{
-?>
+<?php
+    if ($settings['Platform'] == "Raspberry Pi") {
+        ?>
 								<td>&nbsp;</td>
 								<td><b>Wiring Pinout:</b></td><td>
 									<select id='LEDPanelsWiringPinout'>
@@ -2705,12 +2679,14 @@ tr.rowUniverseDetails td
 										<option value='Adafruit'>Adafruit</option>
 									</select>
 									</td>
-<?
-	}
-?>
+<?php
+
+    } ?>
 							</tr>
 							<tr>
-								<td width = '70 px' colspan=5><input id='btnSaveChannelOutputsJSON' class='buttons' type='button' value='Save' onClick='SaveChannelOutputsJSON();'/> <font size=-1><? if ($settings['Platform'] == "BeagleBone Black") { echo "(this will save changes to BBB tab &amp; LED Panels tab)"; } ?></font></td>
+								<td width = '70 px' colspan=5><input id='btnSaveChannelOutputsJSON' class='buttons' type='button' value='Save' onClick='SaveChannelOutputsJSON();'/> <font size=-1><?php if ($settings['Platform'] == "BeagleBone Black") {
+        echo "(this will save changes to BBB tab &amp; LED Panels tab)";
+    } ?></font></td>
 							</tr>
 						</table>
 						<br>
@@ -2727,16 +2703,16 @@ tr.rowUniverseDetails td
 			</fieldset>
 		</div>
 	</div>
-<?
-	}
+<?php
+
+    }
 ?>
 
 <!-- --------------------------------------------------------------------- -->
 
-<?
-if ($settings['Platform'] == "BeagleBone Black")
-{
-?>
+<?php
+if ($settings['Platform'] == "BeagleBone Black") {
+    ?>
 	<div id='tab-BBB48String'>
 		<div id='divBBB48String'>
 			<fieldset class="fs">
@@ -2843,7 +2819,8 @@ if ($settings['Platform'] == "BeagleBone Black")
 			</fieldset>
 		</div>
 	</div>
-<?
+<?php
+
 }
 ?>
 

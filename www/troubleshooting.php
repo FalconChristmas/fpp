@@ -7,7 +7,7 @@ require_once('troubleshootingCommands.php');
 <head>
 <?php include 'common/menuHead.inc'; ?>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-<title><? echo $pageTitle; ?></title>
+<title><?php echo $pageTitle; ?></title>
 </head>
 
 <body>
@@ -18,12 +18,12 @@ require_once('troubleshootingCommands.php');
       <legend>Troubleshooting Commands</legend>
       <div style="overflow: hidden; padding: 10px;">
     <div class="clear"></div>
-<?
-foreach ($commands as $title => $command)
-{
-?>
-				<h3><? echo $title . ':&nbsp;&nbsp;&nbsp;&nbsp;' . $command; ?></h3><pre><? echo $results[$command]; ?></pre><hr>
-<?
+<?php
+foreach ($commands as $title => $command) {
+    ?>
+				<h3><?php echo $title . ':&nbsp;&nbsp;&nbsp;&nbsp;' . $command; ?></h3><pre><?php echo $results[$command]; ?></pre><hr>
+<?php
+
 }
 ?>
     </fieldset>

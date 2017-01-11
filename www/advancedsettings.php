@@ -3,7 +3,7 @@
 <head>
 <?php require_once('common.php'); ?>
 <?php include 'common/menuHead.inc'; ?>
-<title><? echo $pageTitle; ?></title>
+<title><?php echo $pageTitle; ?></title>
 </head>
 <body>
 <div id="bodyWrapper">
@@ -13,7 +13,7 @@
 	<fieldset>
 	<legend>FPP Advanced Settings</legend>
 	<table table width = "100%">
-		<tr><td valign='top'><? PrintSettingSelect("E1.31 Bridging Transmit Interval", "E131BridgingInterval", 1, 0,"50", Array('10ms' => '10', '25ms' => '25', '40ms' => '40', '50ms' => '50', '100ms' => '100')); ?></td>
+		<tr><td valign='top'><?php PrintSettingSelect("E1.31 Bridging Transmit Interval", "E131BridgingInterval", 1, 0, "50", array('10ms' => '10', '25ms' => '25', '40ms' => '40', '50ms' => '50', '100ms' => '100')); ?></td>
 			<td valign='top'><b>E1.31 Bridge Mode Transmit Interval</b> - The
 				default Transmit Interval in E1.31 Bridge Mode is 50ms.  This
 				setting allows changing this to match the rate the player is
@@ -21,7 +21,7 @@
 				output devices such as the FPD do not support rates other than 50ms.</td>
 		</tr>
 		<tr><td colspan='2'><hr></td></tr>
-		<tr><td valign='top'><? PrintSettingCheckbox("E1.31 to E1.31 Bridging", "E131Bridging", 1, 0, "1", "0"); ?></td>
+		<tr><td valign='top'><?php PrintSettingCheckbox("E1.31 to E1.31 Bridging", "E131Bridging", 1, 0, "1", "0"); ?></td>
 			<td valign='top'><b>Enable E1.31 to E1.31 Bridging</b> - 
 				<font color='#ff0000'><b>WARNING</b></font> -
 				E1.31 to E1.31 bridging over wireless is not recommended for
@@ -29,8 +29,8 @@
 				testing remote wireless-attached FPP systems.</td>
 		</tr>
 		<tr><td colspan='2'><hr></td></tr>
-		<tr><td valign='top'><? PrintSettingText("E131Priority", 1, 0, 3, 3, "", "0"); ?><br>
-				<? PrintSettingSave("E1.31 Priority", "E131Priority", 1, 0); ?></td>
+		<tr><td valign='top'><?php PrintSettingText("E131Priority", 1, 0, 3, 3, "", "0"); ?><br>
+				<?php PrintSettingSave("E1.31 Priority", "E131Priority", 1, 0); ?></td>
 			<td valign='top'><b>E1.31 Priority</b> - The E1.31 priority allows
 				multiple players to send data to the same device at the same
 				time.  The packets with the highest priority are used.  This
@@ -42,8 +42,8 @@
 				if both players send packets with the same priority.</td>
 		</tr>
 		<tr><td colspan='2'><hr></td></tr>
-		<tr><td valign='top'><? PrintSettingText("mediaOffset", 1, 0, 5, 5); ?> ms<br>
-				<? PrintSettingSave("Media Offset", "mediaOffset", 1, 0); ?></td>
+		<tr><td valign='top'><?php PrintSettingText("mediaOffset", 1, 0, 5, 5); ?> ms<br>
+				<?php PrintSettingSave("Media Offset", "mediaOffset", 1, 0); ?></td>
 			<td valign='top'><b>Media/Sequence Offset</b> - The media offset value
 				allows adjusting the synchronization of the media and sequences being
 				played.  The value is specified in milliseconds.  A positive value

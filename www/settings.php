@@ -6,155 +6,139 @@
 <?php
 
 exec($SUDO . " grep card /root/.asoundrc | head -n 1 | awk '{print $2}'", $output, $return_val);
-if ( $return_val )
-{
-	error_log("Error getting currently selected alsa card used!");
-}
-else
-{
-	if (isset($output[0]))
-		$CurrentCard = $output[0];
-	else
-		$CurrentCard = "0";
+if ($return_val) {
+    error_log("Error getting currently selected alsa card used!");
+} else {
+    if (isset($output[0])) {
+        $CurrentCard = $output[0];
+    } else {
+        $CurrentCard = "0";
+    }
 }
 unset($output);
 
-$AlsaCards = Array();
+$AlsaCards = array();
 exec($SUDO . " aplay -l | grep '^card' | sed -e 's/^card //' -e 's/:[^\[]*\[/:/' -e 's/\].*\[.*\].*//' | uniq", $output, $return_val);
-if ( $return_val )
-{
-	error_log("Error getting alsa cards for output!");
-}
-else
-{
-	$foundOurCard = 0;
-	foreach($output as $card)
-	{
-		$values = explode(':', $card);
+if ($return_val) {
+    error_log("Error getting alsa cards for output!");
+} else {
+    $foundOurCard = 0;
+    foreach ($output as $card) {
+        $values = explode(':', $card);
 
-		if ($values[0] == $CurrentCard)
-			$foundOurCard = 1;
+        if ($values[0] == $CurrentCard) {
+            $foundOurCard = 1;
+        }
 
-		if ($values[1] == "bcm2835 ALSA")
-			$AlsaCards[$values[1] . " (Pi Onboard Audio)"] = $values[0];
-		else if ($values[1] == "CD002")
-			$AlsaCards[$values[1] . " (FM Transmitter)"] = $values[0];
-		else
-			$AlsaCards[$values[1]] = $values[0];
-	}
+        if ($values[1] == "bcm2835 ALSA") {
+            $AlsaCards[$values[1] . " (Pi Onboard Audio)"] = $values[0];
+        } elseif ($values[1] == "CD002") {
+            $AlsaCards[$values[1] . " (FM Transmitter)"] = $values[0];
+        } else {
+            $AlsaCards[$values[1]] = $values[0];
+        }
+    }
 
-	if (!$foundOurCard)
-		$AlsaCards['-- Select an Audio Device --'] = $CurrentCard;
+    if (!$foundOurCard) {
+        $AlsaCards['-- Select an Audio Device --'] = $CurrentCard;
+    }
 }
 unset($output);
 
 $AudioMixerDevice = "PCM";
-if (isset($settings['AudioMixerDevice']))
-{
-	$AudioMixerDevice = $settings['AudioMixerDevice'];
-}
-else if ($settings['Platform'] == "BeagleBone Black")
-{
-	$AudioMixerDevice = exec($SUDO . " amixer -c $CurrentCard scontrols | head -1 | cut -f2 -d\"'\"");
+if (isset($settings['AudioMixerDevice'])) {
+    $AudioMixerDevice = $settings['AudioMixerDevice'];
+} elseif ($settings['Platform'] == "BeagleBone Black") {
+    $AudioMixerDevice = exec($SUDO . " amixer -c $CurrentCard scontrols | head -1 | cut -f2 -d\"'\"");
 }
 
-$MixerDevices = Array();
+$MixerDevices = array();
 exec($SUDO . " amixer -c $CurrentCard scontrols | cut -f2 -d\"'\"", $output, $return_val);
-if ( $return_val )
-{
-	error_log("Error getting mixer devices!");
-}
-else
-{
-	foreach($output as $device)
-	{
-		$MixerDevices[$device] = $device;
-	}
+if ($return_val) {
+    error_log("Error getting mixer devices!");
+} else {
+    foreach ($output as $device) {
+        $MixerDevices[$device] = $device;
+    }
 }
 unset($output);
 
 function PrintStorageDeviceSelect()
 {
-	global $SUDO;
+    global $SUDO;
 
-	# FIXME, this would be much simpler by parsing "lsblk -l"
-	exec('lsblk -l | grep /boot | cut -f1 -d" " | sed -e "s/p[0-9]$//"', $output, $return_val);
-	$bootDevice = $output[0];
-	unset($output);
+    # FIXME, this would be much simpler by parsing "lsblk -l"
+    exec('lsblk -l | grep /boot | cut -f1 -d" " | sed -e "s/p[0-9]$//"', $output, $return_val);
+    $bootDevice = $output[0];
+    unset($output);
 
-	exec('lsblk -l | grep " /$" | cut -f1 -d" "', $output, $return_val);
-	$rootDevice = $output[0];
-	unset($output);
+    exec('lsblk -l | grep " /$" | cut -f1 -d" "', $output, $return_val);
+    $rootDevice = $output[0];
+    unset($output);
 
-	exec('grep "fpp/media" /etc/fstab | cut -f1 -d" " | sed -e "s/\/dev\///"', $output, $return_val);
-	$storageDevice = $output[0];
-	unset($output);
+    exec('grep "fpp/media" /etc/fstab | cut -f1 -d" " | sed -e "s/\/dev\///"', $output, $return_val);
+    $storageDevice = $output[0];
+    unset($output);
 
-	$found = 0;
-	$values = Array();
+    $found = 0;
+    $values = array();
 
-	foreach(scandir("/dev/") as $fileName)
-	{
-		if ((preg_match("/^sd[a-z][0-9]/", $fileName)) ||
-			(preg_match("/^mmcblk[0-9]p[0-9]/", $fileName)))
-		{
-			exec($SUDO . " sfdisk -s /dev/$fileName", $output, $return_val);
-			$GB = intval($output[0]) / 1024.0 / 1024.0;
-			unset($output);
+    foreach (scandir("/dev/") as $fileName) {
+        if ((preg_match("/^sd[a-z][0-9]/", $fileName)) ||
+            (preg_match("/^mmcblk[0-9]p[0-9]/", $fileName))) {
+            exec($SUDO . " sfdisk -s /dev/$fileName", $output, $return_val);
+            $GB = intval($output[0]) / 1024.0 / 1024.0;
+            unset($output);
 
-			if ($GB <= 0.1)
-				continue;
+            if ($GB <= 0.1) {
+                continue;
+            }
 
-			$FreeGB = "Not Mounted";
-			exec("df -k /dev/$fileName | grep $fileName | awk '{print $4}'", $output, $return_val);
-			if (count($output))
-			{
-				$FreeGB = sprintf("%.1fGB Free", intval($output[0]) / 1024.0 / 1024.0);
-				unset($output);
-			}
-			else
-			{
-				unset($output);
+            $FreeGB = "Not Mounted";
+            exec("df -k /dev/$fileName | grep $fileName | awk '{print $4}'", $output, $return_val);
+            if (count($output)) {
+                $FreeGB = sprintf("%.1fGB Free", intval($output[0]) / 1024.0 / 1024.0);
+                unset($output);
+            } else {
+                unset($output);
 
-				if (preg_match("/^$rootDevice/", $fileName))
-				{
-					exec("df -k / | grep ' /$' | awk '{print \$4}'", $output, $return_val);
-					if (count($output))
-						$FreeGB = sprintf("%.1fGB Free", intval($output[0]) / 1024.0 / 1024.0);
-					unset($output);
-				}
-			}
+                if (preg_match("/^$rootDevice/", $fileName)) {
+                    exec("df -k / | grep ' /$' | awk '{print \$4}'", $output, $return_val);
+                    if (count($output)) {
+                        $FreeGB = sprintf("%.1fGB Free", intval($output[0]) / 1024.0 / 1024.0);
+                    }
+                    unset($output);
+                }
+            }
 
-			$key = $fileName . " ";
-			$type = "";
+            $key = $fileName . " ";
+            $type = "";
 
-			if (preg_match("/^$bootDevice/", $fileName))
-			{
-				$type .= " (boot device)";
-			}
+            if (preg_match("/^$bootDevice/", $fileName)) {
+                $type .= " (boot device)";
+            }
 
-			if (preg_match("/^sd/", $fileName))
-			{
-				$type .= " (USB)";
-			}
+            if (preg_match("/^sd/", $fileName)) {
+                $type .= " (USB)";
+            }
 
-			$key = sprintf( "%s - %.1fGB (%s) %s", $fileName, $GB, $FreeGB, $type);
+            $key = sprintf("%s - %.1fGB (%s) %s", $fileName, $GB, $FreeGB, $type);
 
-			$values[$key] = $fileName;
+            $values[$key] = $fileName;
 
-			if ($storageDevice == $fileName)
-				$found = 1;
-		}
-	}
+            if ($storageDevice == $fileName) {
+                $found = 1;
+            }
+        }
+    }
 
-	if (!$found)
-	{
-		$arr = array_reverse($values, true);
-		$arr["-- Select a Storage Device --"] = "/dev/sda1";
-		$values = array_reverse($arr);
-	}
+    if (!$found) {
+        $arr = array_reverse($values, true);
+        $arr["-- Select a Storage Device --"] = "/dev/sda1";
+        $values = array_reverse($arr);
+    }
 
-	PrintSettingSelect('StorageDevice', 'storageDevice', 0, 1, $storageDevice, $values);
+    PrintSettingSelect('StorageDevice', 'storageDevice', 0, 1, $storageDevice, $values);
 }
 
 ?>
@@ -255,7 +239,7 @@ function ToggleLCDNow()
 }
 
 </script>
-<title><? echo $pageTitle; ?></title>
+<title><?php echo $pageTitle; ?></title>
 </head>
 <body>
 <div id="bodyWrapper">
@@ -268,43 +252,43 @@ function ToggleLCDNow()
   <table table width = "100%">
     <tr>
       <td width = "45%">Blank screen on startup:</td>
-      <td width = "55%"><? PrintSettingCheckbox("Screensaver", "screensaver", 0, 1, "1", "0"); ?></td>
+      <td width = "55%"><?php PrintSettingCheckbox("Screensaver", "screensaver", 0, 1, "1", "0"); ?></td>
     </tr>
     <tr>
       <td>Force HDMI Display:</td>
-      <td><? PrintSettingCheckbox("Force HDMI Display", "ForceHDMI", 0, 1, "1", "0"); ?></td>
+      <td><?php PrintSettingCheckbox("Force HDMI Display", "ForceHDMI", 0, 1, "1", "0"); ?></td>
     </tr>
     <tr>
       <td>Force analog audio output during video playback:</td>
-      <td><? PrintSettingCheckbox("Force Analog Audio Output", "forceLocalAudio", 0, 0, "1", "0"); ?></td>
+      <td><?php PrintSettingCheckbox("Force Analog Audio Output", "forceLocalAudio", 0, 0, "1", "0"); ?></td>
     </tr>
     <tr>
       <td>Pi 2x16 LCD Enabled:</td>
-      <td><? PrintSettingCheckbox("Enable LCD Display", "PI_LCD_Enabled", 0, 0, "1", "0", "", "ToggleLCDNow"); ?></td>
+      <td><?php PrintSettingCheckbox("Enable LCD Display", "PI_LCD_Enabled", 0, 0, "1", "0", "", "ToggleLCDNow"); ?></td>
     </tr>
     <tr>
       <td>Always transmit channel data:</td>
-      <td><? PrintSettingCheckbox("Always Transmit", "alwaysTransmit", 1, 0, "1", "0"); ?></td>
+      <td><?php PrintSettingCheckbox("Always Transmit", "alwaysTransmit", 1, 0, "1", "0"); ?></td>
     </tr>
     <tr>
       <td>Pause Background Effect Sequence when playing a FSEQ file:</td>
-      <td><? PrintSettingCheckbox("Pause Background Effects", "pauseBackgroundEffects", 1, 0, "1", "0"); ?></td>
+      <td><?php PrintSettingCheckbox("Pause Background Effects", "pauseBackgroundEffects", 1, 0, "1", "0"); ?></td>
     </tr>
     <tr>
       <td>Audio Output Device:</td>
-      <td><? PrintSettingSelect("Audio Output Device", "AudioOutput", 1, 0, "$CurrentCard", $AlsaCards, "", "SetAudio"); ?></td>
+      <td><?php PrintSettingSelect("Audio Output Device", "AudioOutput", 1, 0, "$CurrentCard", $AlsaCards, "", "SetAudio"); ?></td>
     </tr>
     <tr>
       <td>Audio Output Mixer Device:</td>
-      <td><? PrintSettingSelect("Audio Mixer Device", "AudioMixerDevice", 1, 0, $AudioMixerDevice, $MixerDevices, "", "SetMixerDevice"); ?></td>
+      <td><?php PrintSettingSelect("Audio Mixer Device", "AudioMixerDevice", 1, 0, $AudioMixerDevice, $MixerDevices, "", "SetMixerDevice"); ?></td>
     </tr>
     <tr>
       <td>Disable IP announcement during boot:</td>
-      <td><? PrintSettingCheckbox("Disable IP announcement during boot", "disableIPAnnouncement", 0, 0, "1", "0"); ?></td>
+      <td><?php PrintSettingCheckbox("Disable IP announcement during boot", "disableIPAnnouncement", 0, 0, "1", "0"); ?></td>
     </tr>
     <tr>
       <td>External Storage Device:</td>
-      <td><? PrintStorageDeviceSelect(); ?></td>
+      <td><?php PrintStorageDeviceSelect(); ?></td>
     </tr>
     <tr>
       <td>Log Level:</td>

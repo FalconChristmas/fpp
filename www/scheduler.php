@@ -1,9 +1,8 @@
 <?php
 $a = session_id();
 
-if(empty($a))
-{
-	session_start();
+if (empty($a)) {
+    session_start();
 }
 $_SESSION['session_id'] = session_id();
 //ini_set('display_errors', 'On');
@@ -71,7 +70,7 @@ $(document).ready(function(){
 			 }
 	});
 });</script>
-<title><? echo $pageTitle; ?></title>
+<title><?php echo $pageTitle; ?></title>
 <style>
 .clear {
 	clear: both;

@@ -5,7 +5,7 @@ include 'common/menuHead.inc';
 require_once("config.php");
 require_once("common.php");
 ?>
-<title><? echo $pageTitle; ?></title>
+<title><?php echo $pageTitle; ?></title>
 <script>
 	function updateMultiSyncRemotes(checkbox) {
 		var remotes = "";
@@ -256,15 +256,15 @@ require_once("common.php");
 			</table>
 			<hr>
 <?php
-if ($settings['fppMode'] == 'master')
-{
-?>
-			<? PrintSettingCheckbox("Send F16v2 Sync Packets", "MultiSyncCSVBroadcast", 1, 0, "1", "0"); ?> Send F16v2 Sync Packets<br>
-			<? PrintSettingCheckbox("Compress FSEQ files for transfer", "CompressMultiSyncTransfers", 0, 0, "1", "0"); ?> Compress FSEQ files during copy to Remotes to speed up file sync process<br>
+if ($settings['fppMode'] == 'master') {
+    ?>
+			<?php PrintSettingCheckbox("Send F16v2 Sync Packets", "MultiSyncCSVBroadcast", 1, 0, "1", "0"); ?> Send F16v2 Sync Packets<br>
+			<?php PrintSettingCheckbox("Compress FSEQ files for transfer", "CompressMultiSyncTransfers", 0, 0, "1", "0"); ?> Compress FSEQ files during copy to Remotes to speed up file sync process<br>
 <?php
+
 }
 ?>
-			<? PrintSettingCheckbox("Auto Refresh Systems Status", "MultiSyncRefreshStatus", 0, 0, "1", "0", "", "getFPPSystems"); ?> Auto Refresh status of FPP Systems<br>
+			<?php PrintSettingCheckbox("Auto Refresh Systems Status", "MultiSyncRefreshStatus", 0, 0, "1", "0", "", "getFPPSystems"); ?> Auto Refresh status of FPP Systems<br>
 			<hr>
 			<font size=-1>
 				<span id='legend'>
@@ -276,11 +276,11 @@ if ($settings['fppMode'] == 'master')
 			<input type='button' class='buttons' value='Refresh' onClick='getFPPSystems();'>
 
 <?php
-if ($settings['fppMode'] == 'master')
-{
-?>
+if ($settings['fppMode'] == 'master') {
+    ?>
 			<input type='button' class='buttons' value='Sync Files' onClick='location.href="syncRemotes.php";'>
 <?php
+
 }
 ?>
 		</fieldset>

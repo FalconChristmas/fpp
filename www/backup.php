@@ -100,7 +100,7 @@ if (isset($_POST['btnDownloadConfig'])) {
 
                     //if setting file value is an array then there are one or more setting files related to this backup
                     if (is_array($setting_file)) {
-//                    if (array_key_exists('special', $setting_file)) {
+                        //                    if (array_key_exists('special', $setting_file)) {
 //                        $special = $tmp_config_areas[$config_key]['file']['special'];
 //                    }
 
@@ -112,7 +112,7 @@ if (isset($_POST['btnDownloadConfig'])) {
                             if ($sfd['type'] == "dir") {
                                 //read all files in directory and read data
                                 $file_data = read_directory_files($sfd['location']);
-                            } else if ($sfd['type'] == "file") {
+                            } elseif ($sfd['type'] == "file") {
                                 //read setting file as normal
                                 $file_data = array($sfi => explode("\n", file_get_contents($sfd['location'])));
                             }
@@ -124,7 +124,7 @@ if (isset($_POST['btnDownloadConfig'])) {
                             if ($config_key == "settings") {
                                 //parse ini properly
                                 $file_data = parse_ini_string(file_get_contents($setting_file));
-                            } else if ($config_key == "channelOutputsJSON") {
+                            } elseif ($config_key == "channelOutputsJSON") {
                                 //channelOutputsJSON is a formatted (prettyPrint) JSON file, decode it into an assoc. array
                                 $file_data = json_decode(file_get_contents($setting_file), true);
                             } else {
@@ -136,7 +136,7 @@ if (isset($_POST['btnDownloadConfig'])) {
                         }
                     }
                 }
-            } else if (strtolower($area) == "email") {
+            } elseif (strtolower($area) == "email") {
                 $emailgpass = '';
                 //Do a quick work around to obtain the emailgpass
                 if ($tmp_config_areas['settings']['file'] !== false && file_exists($tmp_config_areas['settings']['file'])) {
@@ -164,14 +164,14 @@ if (isset($_POST['btnDownloadConfig'])) {
 
                 //if setting file value is an array then there are one or more setting files related to this backup
                 if (is_array($setting_file)) {
-//                    if (array_key_exists('special', $tmp_config_areas[$area]['file'])) {
+                    //                    if (array_key_exists('special', $tmp_config_areas[$area]['file'])) {
 //                        $special = $tmp_config_areas[$area]['file']['special'];
 //                    }
                     //loop over the array
                     foreach ($setting_file as $sfi => $sfd) {
                         if ($sfd['type'] == "dir") {
                             $file_data = read_directory_files($sfd['location']);
-                        } else if ($sfd['type'] == "file") {
+                        } elseif ($sfd['type'] == "file") {
                             $file_data = array($sfi => explode("\n", file_get_contents($sfd['location'])));
                         }
 
@@ -181,7 +181,7 @@ if (isset($_POST['btnDownloadConfig'])) {
                     if ($setting_file !== false && file_exists($setting_file)) {
                         if ($area == "settings") {
                             $file_data = parse_ini_string(file_get_contents($setting_file));
-                        } else if ($area == "channelOutputsJSON") {
+                        } elseif ($area == "channelOutputsJSON") {
                             $file_data = json_decode(file_get_contents($setting_file), true);
                         } else {
                             $file_data = explode("\n", file_get_contents($setting_file));
@@ -208,8 +208,7 @@ if (isset($_POST['btnDownloadConfig'])) {
             }
         }
     }
-
-} else if (isset($_POST['btnRestoreConfig'])) {
+} elseif (isset($_POST['btnRestoreConfig'])) {
     //////
     /// RESTORE
     /////
@@ -254,7 +253,7 @@ if (isset($_POST['btnDownloadConfig'])) {
                 $file_contents_decoded = json_decode($file_contents, true);
 
                 //successful decode
-                if ($file_contents_decoded !== FALSE && is_array($file_contents_decoded)) {
+                if ($file_contents_decoded !== false && is_array($file_contents_decoded)) {
                     //Get value of protected state and remove it from the array
                     if (array_key_exists('protected', $file_contents_decoded)) {
                         $uploadDataProtected = $file_contents_decoded['protected'];
@@ -269,7 +268,7 @@ if (isset($_POST['btnDownloadConfig'])) {
                         foreach ($file_contents_decoded as $restore_area_key => $area_data) {
                             process_restore_data($restore_area_key, $area_data);
                         }
-                    } else if (strtolower($restore_area) == "email") {
+                    } elseif (strtolower($restore_area) == "email") {
                         $area_data = $file_contents_decoded[$restore_area];
                         process_restore_data("email", $area_data);
                     } else {
@@ -497,7 +496,7 @@ function process_restore_data($restore_area, $restore_area_data)
                 //we'll also do this to keep consistency
                 if ($setting_name == 'piRTC') {
                     SetPiRTC($setting_value);
-                } else if ($setting_name == "PI_LCD_Enabled") {
+                } elseif ($setting_name == "PI_LCD_Enabled") {
                     //DO a weird work around and set our request params and then call
                     //the function to enable the LCD
                     if ($setting_value == 1) {
@@ -506,17 +505,17 @@ function process_restore_data($restore_area, $restore_area_data)
                         $_GET['enabled'] = "false";
                     }
                     SetPiLCDenabled();
-                } else if ($setting_name == "AudioOutput") {
+                } elseif ($setting_name == "AudioOutput") {
                     $args['value'] = $setting_value;
                     SetAudioOutput();
-                } else if ($setting_name == "volume") {
+                } elseif ($setting_name == "volume") {
                     $_GET['volume'] = trim($setting_value);
                     SetVolume();
-                } else if ($setting_name == "ntpServer") {
+                } elseif ($setting_name == "ntpServer") {
                     SetNtpServer($setting_value);
 //                    SetNtpState(1);//Toggle NTP on
                     NtpServiceRestart();//Restart NTP client so changes take effect
-                } else if ($setting_name == "NTP") {
+                } elseif ($setting_name == "NTP") {
                     SetNtpState($setting_value);
                 }
             }
@@ -722,7 +721,7 @@ function retrievePluginList()
 <html>
 <head>
     <?php include 'common/menuHead.inc'; ?>
-    <title><? echo $pageTitle; ?></title>
+    <title><?php echo $pageTitle; ?></title>
     <script>var helpPage = "help/backup.php";</script>
 </head>
 <body>
@@ -735,7 +734,7 @@ function retrievePluginList()
             <fieldset>
                 <legend>FPP Settings Backup</legend>
                 <?php if ($restore_done == true) {
-                    ?>
+    ?>
                     <div id="rebootFlag" style="display: block;">Backup Restored, A Reboot May Be Required.</div>
                     <div id="restoreSuccessFlag">What was
                         restored:
@@ -748,11 +747,11 @@ function retrievePluginList()
                                 $success_str = "Failed";
                             }
                             echo ucwords(str_replace("_", " ", $area_restored)) . " - " . $success_str . "<br/>";
-                        }
-                        ?>
+                        } ?>
                     </div>
                     <?php
-                }
+
+}
                 ?>
                 <fieldset>
                     <legend>Backup Configuration</legend>

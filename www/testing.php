@@ -4,52 +4,46 @@ require_once('common.php');
 
 function PrintSequenceOptions()
 {
-	global $sequenceDirectory;
-	$first = 1;
-	echo "<select id=\"selSequence\" size=\"1\">";
-	foreach(scandir($sequenceDirectory) as $seqFile) 
-	{
-		if($seqFile != '.' && $seqFile != '..' && !preg_match('/.eseq$/', $seqFile))
-		{
-			echo "<option value=\"" . $seqFile . "\"";
-			if ($first)
-			{
-				echo " selected";
-				$first = 0;
-			}
-			echo ">" . $seqFile . "</option>";
-		}
-	}
-	echo "</select>";
-}			
+    global $sequenceDirectory;
+    $first = 1;
+    echo "<select id=\"selSequence\" size=\"1\">";
+    foreach (scandir($sequenceDirectory) as $seqFile) {
+        if ($seqFile != '.' && $seqFile != '..' && !preg_match('/.eseq$/', $seqFile)) {
+            echo "<option value=\"" . $seqFile . "\"";
+            if ($first) {
+                echo " selected";
+                $first = 0;
+            }
+            echo ">" . $seqFile . "</option>";
+        }
+    }
+    echo "</select>";
+}
 
 $rgbLabels = array();
 $rgbColors = array();
 $rgbStr    = "RGB";
 $rgbColorList = "R-G-B";
 
-if (isset($settings['useRGBLabels']) && ($settings['useRGBLabels'] == '0'))
-{
-	$rgbLabels[0] = 'A';
-	$rgbLabels[1] = 'B';
-	$rgbLabels[2] = 'C';
-	$rgbColors[0] = 'A';
-	$rgbColors[1] = 'B';
-	$rgbColors[2] = 'C';
-	$rgbStr       = "ABC";
-	$rgbColorList = "A-B-C";
-}
-else
-{
-	$rgbLabels[0] = 'R';
-	$rgbLabels[1] = 'G';
-	$rgbLabels[2] = 'B';
-	$rgbColors[0] = 'Red';
-	$rgbColors[1] = 'Green';
-	$rgbColors[2] = 'Blue';
-	$rgbStr       = "RGB";
-	$rgbColorList = "R-G-B";
-	$settings['useRGBLabels'] = 1;
+if (isset($settings['useRGBLabels']) && ($settings['useRGBLabels'] == '0')) {
+    $rgbLabels[0] = 'A';
+    $rgbLabels[1] = 'B';
+    $rgbLabels[2] = 'C';
+    $rgbColors[0] = 'A';
+    $rgbColors[1] = 'B';
+    $rgbColors[2] = 'C';
+    $rgbStr       = "ABC";
+    $rgbColorList = "A-B-C";
+} else {
+    $rgbLabels[0] = 'R';
+    $rgbLabels[1] = 'G';
+    $rgbLabels[2] = 'B';
+    $rgbColors[0] = 'Red';
+    $rgbColors[1] = 'Green';
+    $rgbColors[2] = 'Blue';
+    $rgbStr       = "RGB";
+    $rgbColorList = "R-G-B";
+    $settings['useRGBLabels'] = 1;
 }
 
 ?>
@@ -61,7 +55,7 @@ else
 <link rel="stylesheet" type="text/css" href="jquery/colpick/css/colpick.css">
 <link rel="stylesheet" type="text/css" href="css/jquery.colpick.css">
 <script type="text/javascript" src="jquery/colpick/js/colpick.js"></script>
-<title><? echo $pageTitle; ?></title>
+<title><?php echo $pageTitle; ?></title>
 <style>
 
 #testModeCycleMS {
@@ -656,27 +650,24 @@ $(document).ready(function(){
 						<td>
 							<select onChange='UpdateStartEndFromModel();' id='modelName'>
 								<option value='1,524288'>-- All Channels --</option>
-<?
+<?php
 
 $f = fopen($settings['channelMemoryMapsFile'], "r");
-if ($f == FALSE)
-{
-	fclose($f);
-}
-else
-{
-	while (!feof($f))
-	{
-		$line = fgets($f);
-		if ($line == "")
-			continue;
+if ($f == false) {
+    fclose($f);
+} else {
+    while (!feof($f)) {
+        $line = fgets($f);
+        if ($line == "") {
+            continue;
+        }
 
-		$entry = explode(",", $line, 7);
-		printf( "<option value='%d,%d'>%s</option>\n",
-			intval($entry[1]),
-			intval($entry[1]) + intval($entry[2] - 1), $entry[0]);
-	}
-	fclose($f);
+        $entry = explode(",", $line, 7);
+        printf("<option value='%d,%d'>%s</option>\n",
+            intval($entry[1]),
+            intval($entry[1]) + intval($entry[2] - 1), $entry[0]);
+    }
+    fclose($f);
 }
 
 ?>

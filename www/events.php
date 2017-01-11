@@ -46,106 +46,95 @@ function SaveControlChannels()
 
 </script>
 
-<title><? echo $pageTitle; ?></title>
+<title><?php echo $pageTitle; ?></title>
 </head>
 <body onLoad="GetFPPDmode();StatusPopulatePlaylists();setInterval(updateFPPStatus,1000);">
 <div id="bodyWrapper">
 <?php
-	include 'menu.inc';
+    include 'menu.inc';
 
-	$eventIDoptions = "";
+    $eventIDoptions = "";
 
-	function PrintEventRows()
-	{
-		global $eventDirectory;
-		global $eventIDoptions;
+    function PrintEventRows()
+    {
+        global $eventDirectory;
+        global $eventIDoptions;
 
-		$usedIDs = array();
-		for ($i = 1; $i < 25; $i++)
-		{
-			$usedIDs[$i] = array();
-			for ($j = 1; $j < 25; $j++)
-			{
-				$usedIDs[$i][$j] = 0;
-			}
-		}
+        $usedIDs = array();
+        for ($i = 1; $i < 25; $i++) {
+            $usedIDs[$i] = array();
+            for ($j = 1; $j < 25; $j++) {
+                $usedIDs[$i][$j] = 0;
+            }
+        }
 
-		foreach (scandir($eventDirectory) as $eventFile)
-		{
-			if($eventFile != '.' && $eventFile != '..' && preg_match('/.fevt$/', $eventFile))
-			{
-				$info = parse_ini_file($eventDirectory . "/" . $eventFile);
+        foreach (scandir($eventDirectory) as $eventFile) {
+            if ($eventFile != '.' && $eventFile != '..' && preg_match('/.fevt$/', $eventFile)) {
+                $info = parse_ini_file($eventDirectory . "/" . $eventFile);
 
-		# probably can clean this up a bit
-				$eventFile = preg_replace('/^0/', '', $eventFile);
-				$eventFile = preg_replace('/_0/', '_', $eventFile);
-				$eventFile = preg_replace('/.fevt$/', '', $eventFile);
+        # probably can clean this up a bit
+                $eventFile = preg_replace('/^0/', '', $eventFile);
+                $eventFile = preg_replace('/_0/', '_', $eventFile);
+                $eventFile = preg_replace('/.fevt$/', '', $eventFile);
 
-				$info['effect'] = preg_replace('/.eseq$/', '', $info['effect']);
+                $info['effect'] = preg_replace('/.eseq$/', '', $info['effect']);
 
-				echo "<tr id='event_" . $eventFile . "'><td class='eventTblID'>" .
-						$info['majorID'] . ' / ' . $info['minorID'] .
-						"</td><td class='eventTblName'>" . $info['name'] .
-						"</td><td class='eventTblScript'>" . $info['script'] .
-						"</td><td class='eventTblEffect'>" . $info['effect'] .
-						"</td><td class='eventTblStartCh'>" . $info['startChannel'] .
-						"</td></tr>\n";
+                echo "<tr id='event_" . $eventFile . "'><td class='eventTblID'>" .
+                        $info['majorID'] . ' / ' . $info['minorID'] .
+                        "</td><td class='eventTblName'>" . $info['name'] .
+                        "</td><td class='eventTblScript'>" . $info['script'] .
+                        "</td><td class='eventTblEffect'>" . $info['effect'] .
+                        "</td><td class='eventTblStartCh'>" . $info['startChannel'] .
+                        "</td></tr>\n";
 
-				$usedIDs[$info['majorID']][$info['minorID']] = 1;
-			}
-		}
+                $usedIDs[$info['majorID']][$info['minorID']] = 1;
+            }
+        }
 
-		$eventIDoptions = "";
-		for ($i = 1; $i < 25; $i++)
-		{
-			for ($j = 1; $j < 25; $j++)
-			{
-				if ($usedIDs["$i"]["$j"] == 0)
-				{
-					$eventIDoptions .= sprintf("<option value='" .
-						sprintf( "%d_%d", $i, $j) .
-						"'>%d / %d</option>\n", $i, $j);
-				}
-			}
-		}
-	}
+        $eventIDoptions = "";
+        for ($i = 1; $i < 25; $i++) {
+            for ($j = 1; $j < 25; $j++) {
+                if ($usedIDs["$i"]["$j"] == 0) {
+                    $eventIDoptions .= sprintf("<option value='" .
+                        sprintf("%d_%d", $i, $j) .
+                        "'>%d / %d</option>\n", $i, $j);
+                }
+            }
+        }
+    }
 
-	function PrintEventIDoptions()
-	{
-		global $eventIDoptions;
+    function PrintEventIDoptions()
+    {
+        global $eventIDoptions;
 
-		echo $eventIDoptions;
-	}
+        echo $eventIDoptions;
+    }
 
-	function PrintEffectOptions()
-	{
-		global $effectDirectory;
+    function PrintEffectOptions()
+    {
+        global $effectDirectory;
 
-		foreach(scandir($effectDirectory) as $seqFile)
-		{
-			if($seqFile != '.' && $seqFile != '..' && preg_match('/.eseq$/', $seqFile))
-			{
-				$seqFile = preg_replace('/.eseq$/', '', $seqFile);
-				
-				echo "<option value='" . $seqFile . "'>" . $seqFile . "</option>\n";
-			}
-		}
-	}
+        foreach (scandir($effectDirectory) as $seqFile) {
+            if ($seqFile != '.' && $seqFile != '..' && preg_match('/.eseq$/', $seqFile)) {
+                $seqFile = preg_replace('/.eseq$/', '', $seqFile);
+                
+                echo "<option value='" . $seqFile . "'>" . $seqFile . "</option>\n";
+            }
+        }
+    }
 
-	function PrintScriptOptions()
-	{
-		global $scriptDirectory;
+    function PrintScriptOptions()
+    {
+        global $scriptDirectory;
 
-		foreach(scandir($scriptDirectory) as $scriptFile)
-		{
-			if($scriptFile != '.' && $scriptFile != '..')
-			{
-				echo "<option value='" . $scriptFile . "'>" . $scriptFile . "</option>\n";
-			}
-		}
-	}
+        foreach (scandir($scriptDirectory) as $scriptFile) {
+            if ($scriptFile != '.' && $scriptFile != '..') {
+                echo "<option value='" . $scriptFile . "'>" . $scriptFile . "</option>\n";
+            }
+        }
+    }
 
-	?>
+    ?>
 <br/>
 <div id="programControl" class="settings">
 	<fieldset>
@@ -175,9 +164,9 @@ function SaveControlChannels()
 		<table>
 			<tr><td colspan='5'>Event Control Channels: </td>
 					<td width='30'></td>
-					<td>Major:</td><td><? PrintSettingText("controlMajor", 1, 0, 6, 6); ?></td>
+					<td>Major:</td><td><?php PrintSettingText("controlMajor", 1, 0, 6, 6); ?></td>
 					<td width='20'></td>
-					<td>Minor:</td><td><? PrintSettingText("controlMinor", 1, 0, 6, 6); ?></td></tr>
+					<td>Minor:</td><td><?php PrintSettingText("controlMinor", 1, 0, 6, 6); ?></td></tr>
 		</table>
 		<input type='Submit' value='Save' onClick='SaveControlChannels();'>
 		<br>
@@ -195,7 +184,7 @@ function SaveControlChannels()
 				</table>
 				<div id= "eventListContents">
 				<table id="tblEventEntries" width="100%">
-<? PrintEventRows(); ?>
+<?php PrintEventRows(); ?>
 				 </table>
 			</div>
 			</div>
@@ -214,15 +203,15 @@ function SaveControlChannels()
 					</tr>
 				</table>
 				<table width="100%">
-					<tr><td width="20%">Event ID (Major/Minor):</td><td width="80%"><select id='newEventID'><? PrintEventIDoptions(); ?></select></td></tr>
+					<tr><td width="20%">Event ID (Major/Minor):</td><td width="80%"><select id='newEventID'><?php PrintEventIDoptions(); ?></select></td></tr>
 					<tr><td width="20%">Event Name:</td><td width="80%"><input id="newEventName" class="default-value" type="text" value="" size="30" maxlength="60" /></td></tr>
 					<tr><td width="20%">Effect Sequence:</td><td width="80%"><div style="float: left"><select id="newEventEffect" onChange="NewEventEffectChanged();">
 							<option value=''>--- NONE ---</option>
-<? PrintEffectOptions(); ?>
+<?php PrintEffectOptions(); ?>
 </select></div><div id='newEventStartChannelWrapper' style='display: none; float: left; margin-left:10px;'>Effect Start Channel: <input id="newEventStartChannel" class="default-value" type="text" value="" size="5" maxlength="5" /></div></td></tr>
 					<tr><td width="20%">Event Script:</td><td width="80%"><select id="newEventScript">
 							<option value=''>--- NONE ---</option>
-<? PrintScriptOptions(); ?>
+<?php PrintScriptOptions(); ?>
 </select></td></tr>
 				</table>
 				<input id= "btnSaveNewEvent" type="button" class ="buttons" value="Save Event" onClick="SaveEvent();">
