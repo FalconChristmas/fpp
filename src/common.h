@@ -29,6 +29,8 @@
 #include <vector>
 #include <string>
 
+#include <jsoncpp/json/json.h>
+
 long long GetTime(void);
 int       DirectoryExists(const char * Directory);
 int       FileExists(const char * File);
@@ -39,6 +41,8 @@ int       CheckForHostSpecificFile(const char *hostname, char *filename);
 int       DateStrToInt(const char *str);
 int       GetCurrentDateInt(int daysOffset = 0);
 int       CurrentDateInRange(int startDate, int endDate);
+
+void      MergeJsonValues(Json::Value &a, Json::Value &b);
 
 std::string tail(std::string const& source, size_t const length);
 std::vector<std::string> &split(const std::string &s, char delim, std::vector<std::string> &elems);

@@ -279,6 +279,10 @@ var xmlhttp=new XMLHttpRequest();
 								innerHTML += GetPlaylistRowHTML((i+1).toString(), "Seq.", "---", seqFile, i.toString());
 						else if(type == 'p')
 								innerHTML += GetPlaylistRowHTML((i+1).toString(), "Pause", "PAUSE - " + pause.toString(), "---", i.toString());
+						else if(type == 'v')
+								innerHTML += GetPlaylistRowHTML((i+1).toString(), "Volume", "VOLUME - " + pause.toString(), "---", i.toString());
+						else if(type == 'B')
+								innerHTML += GetPlaylistRowHTML((i+1).toString(), "Brightness", "BRIGHTNESS - " + pause.toString(), "---", i.toString());
 						else if(type == 'e')
 						{
 								innerHTML += GetPlaylistRowHTML((i+1).toString(), "Event", eventID + " - " + eventName, "---", i.toString());
@@ -346,6 +350,7 @@ function PlaylistTypeChanged() {
 			$("#eventOptions").hide();
 			$("#pauseTime").show();
 			$("#pauseText").show();
+			$("#pauseText").html("Pause Time");
 			$("#delayText").hide();
 			$("#pluginData").hide();
 			break;
@@ -370,6 +375,30 @@ function PlaylistTypeChanged() {
 			$("#pauseText").hide();
 			$("#delayText").hide();
 			$("#pluginData").show();
+			break;
+		case 6:	// Volume
+			$("#musicOptions").hide();
+			$("#sequenceOptions").hide();
+			$("#autoSelectWrapper").hide();
+			$("#videoOptions").hide();
+			$("#eventOptions").hide();
+			$("#pauseTime").show();
+			$("#pauseText").show();
+			$("#pauseText").html("Volume %");
+			$("#delayText").hide();
+			$("#pluginData").hide();
+			break;
+		case 7:	// Brightness
+			$("#musicOptions").hide();
+			$("#sequenceOptions").hide();
+			$("#autoSelectWrapper").hide();
+			$("#videoOptions").hide();
+			$("#eventOptions").hide();
+			$("#pauseTime").show();
+			$("#pauseText").show();
+			$("#pauseText").html("Brightness %");
+			$("#delayText").hide();
+			$("#pluginData").hide();
 			break;
 	}
 	
@@ -2314,6 +2343,24 @@ function PopulateStatusPlaylistEntries(playselected,playList,reloadFile)
 										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
 										innerHTML +=  "<td id = \"colEntryNumber" + (i+1).toString() + "\" width=\"6%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
 										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">PAUSE - " + pause.toString() + " seconds</td>";
+										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">---</td>"
+										innerHTML += "<td width=\"10%\" id=\"firstLast" + i.toString() + "\" class=\"textCenter\"></td>";
+									  innerHTML += "</tr>";
+								}
+								else if(type == 'v')
+								{
+										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
+										innerHTML +=  "<td id = \"colEntryNumber" + (i+1).toString() + "\" width=\"6%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
+										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">VOLUME - " + pause.toString() + " percent</td>";
+										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">---</td>"
+										innerHTML += "<td width=\"10%\" id=\"firstLast" + i.toString() + "\" class=\"textCenter\"></td>";
+									  innerHTML += "</tr>";
+								}
+								else if(type == 'B')
+								{
+										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
+										innerHTML +=  "<td id = \"colEntryNumber" + (i+1).toString() + "\" width=\"6%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
+										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">BRIGHTNESS - " + pause.toString() + " percent</td>";
 										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">---</td>"
 										innerHTML += "<td width=\"10%\" id=\"firstLast" + i.toString() + "\" class=\"textCenter\"></td>";
 									  innerHTML += "</tr>";

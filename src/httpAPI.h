@@ -28,7 +28,7 @@
 
 #include <httpserver.hpp>
 
-#define FPP_HTTP_PORT 32321
+#define FPP_HTTP_PORT 32322
 
 using namespace httpserver;
 
@@ -42,6 +42,11 @@ class HttpStopResource : public http_resource<HttpStopResource> {
 	void render_POST(const http_request&, http_response**);
 };
 
+class HttpCurrentPlaylistResource : public http_resource<HttpCurrentPlaylistResource> {
+  public:
+	void render(const http_request&, http_response**);
+};
+
 class APIServer {
   public:
   	APIServer();
@@ -53,8 +58,9 @@ class APIServer {
 	create_webserver params;
 	webserver   *ws;
 
-	HttpStatusResource        *hsr1;
-	HttpStopResource          *hsr2;
+	HttpStatusResource           *hsr1;
+	HttpStopResource             *hsr2;
+	HttpCurrentPlaylistResource  *hcpr1;
 };
 
 #endif

@@ -1,0 +1,73 @@
+
+FPPD Control Protocol Information
+
+Control Port: UDP 32320
+
+Base Packet Format:
+
+buf[0]     = 'F'
+buf[1]     = 'P'
+buf[2]     = 'P'
+buf[3]     = 'D'
+buf[4]     = PacketType
+buf[5-6]   = ExtraDataLen
+buf[7+]    = ExtraData
+
+Packet Types:
+0x00 - Command
+0x01 - MultiSync
+0x02 - Event
+0x03 - Send Blanking Data
+0x04 - Discovery
+
+=====================================
+Command Packet Extra Data Format:
+buf[7+] = Null Terminated string containing command to run.  NULL byte included in ExtraDataLen
+
+=====================================
+MultiSync Packet Extra Data Format:
+
+=====================================
+Event Packet Extra Data Format:
+
+=====================================
+Send Blanking Data Packet Extra Data Format:
+N/A - The blanking data packet does not include any extra data.
+
+=====================================
+Discovery Packet Extra Data Format: (UNIMPLEMENTED in FPP v1.0)
+buf[7]  = SubType
+buf[8+] = SubType Extra Data
+
+Discovery SubTypes:
+0x00 = Discover Query
+0x01 = Discover Reply
+
+Discover Query Extra Data Format:
+buf[8]    = Discovery Packet Version (0x01 for now)
+
+- app/hw type
+  - 0x01-0x3F = FPPD
+    - FPPD on Pi
+    - FPPD on BBB
+  - 0x40-0x7F = Falcon Hardware
+    - F16v2
+  - other??
+- major/minor version?
+FIXME
+
+Discover Reply Extra Data Format:
+buf[8]    = Discovery Packet Version (0x01 for now)
+buf[x-y] = IP Address
+- app/hw type
+  - 0x01-0x3F = FPPD
+    - FPPD on Pi
+    - FPPD on BBB
+  - 0x40-0x7F = Falcon Hardware
+    - F16v2
+  - other??
+- major/minor version?
+
+FIXME
+
+

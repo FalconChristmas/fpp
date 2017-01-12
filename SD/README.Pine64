@@ -1,0 +1,51 @@
+
+
+https://www.pine64.pro/downloads/#Debian-Linux
+"Debian Base (3.10.102 BSP 2)" image
+
+Username: debian
+Password: debian
+
+#####################################################
+
+
+=============================================================================
+(incomplete) Instructions for creating a new FPP image for the Pine64
+=============================================================================
+
+Download the Debian Jessie image for the Pine64.  This is currently
+available from the following URL.
+
+https://www.pine64.pro/downloads/#Debian-Linux
+
+Download the 'Debian Base (3.10.102 BSP 2)' image.
+
+Install the .img file to a SD card (replace 'sdd' with your device):
+
+	SDDEVICE=sdd
+	xzcat pine64-image-debianbase-310102bsp-2.img.xz | sudo dd of=/dev/${SDDEVICE} bs=4M ; sync
+
+# FIXME, need to handle auto resizing of the image here, otherwise the first
+# boot script could fill up the whole SD card bloating our download image.
+# See /.first_boot and /etc/init.d/aafirstboot script
+
+Boot the SD card on the Pine64
+
+Login to the Pine64:
+
+	Username: debian
+	Password: debian
+
+Run the FPP install script:
+	wget -O ./FPP_Install.sh http://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
+	chmod 700 ./FPP_Install.sh
+	sudo ./FPP_Install.sh
+
+This will install FPP and perform all required changes to the root filesystem
+and add the FPP user, install required packages, etc.
+
+Follow the instructions printed at the end of the FPP_Install.sh output to
+reboot the system.
+
+=============================================================================
+

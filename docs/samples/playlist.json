@@ -1,0 +1,64 @@
+{
+	"name": "TestPlaylist",
+	"repeat": 0,
+	"loopCount": 0,
+	"leadIn": [
+		{
+			"type": "pause",
+			"playOnce": 0,
+			"duration": 2
+		}
+	],
+	"mainPlaylist": [
+		{
+			"type": "both",
+			"playOnce": 0,
+			"sequenceName": "Christmas_Lights_2015_Intro.fseq",
+			"mediaName": "Christmas_Lights_2015_Intro.mp3"
+		},
+		{
+			"type": "media",
+			"playOnce": 0,
+			"mediaName": "Christmas_Lights_2015_Intro.mp3"
+		},
+		{
+			"type": "sequence",
+			"playOnce": 0,
+			"sequenceName": "Christmas_Lights_2015_Intro.fseq"
+		},
+		{
+			"type": "pause",
+			"playOnce": 0,
+			"duration": 2
+		},
+		{
+			"type": "event",
+			"enabled": 0,
+			"playOnce": 0,
+			"majorID": 3,
+			"minorID": 2,
+			"blocking": 0
+		},
+		{
+			"type": "effect",
+			"enabled": 0,
+			"playOnce": 0,
+			"effectName": "GarageSaleArrows.eseq",
+			"startChannel": 0,
+			"blocking": 1,
+			"loop": 0
+		},
+		{
+			"type": "pause",
+			"playOnce": 0,
+			"duration": 5
+		}
+	],
+	"leadOut": [
+		{
+			"type": "pause",
+			"playOnce": 0,
+			"duration": 2
+		}
+	]
+}

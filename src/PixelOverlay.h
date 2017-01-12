@@ -26,9 +26,14 @@
 #ifndef _PIXELOVERLAY_H
 #define _PIXELOVERLAY_H
 
+#include <string>
+
 int InitializeChannelDataMemoryMap(void);
 int UsingMemoryMapInput(void);
 void CloseChannelDataMemoryMap(void);
 void OverlayMemoryMap(char *channelData);
+
+int SetPixelOverlayState(std::string modelName, std::string newState);
+int SetPixelOverlayValue(std::string modelName, char value, int startChannel, int endChannel);
 
 #endif /* _PIXELOVERLAY_H */

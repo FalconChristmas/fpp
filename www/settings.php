@@ -287,6 +287,10 @@ function ToggleLCDNow()
       <td><? PrintSettingCheckbox("Always Transmit", "alwaysTransmit", 1, 0, "1", "0"); ?></td>
     </tr>
     <tr>
+      <td>Blank between sequences:</td>
+      <td><? PrintSettingCheckbox("Blank Between Sequences", "blankBetweenSequences", 1, 0, "1", "0"); ?></td>
+    </tr>
+    <tr>
       <td>Pause Background Effect Sequence when playing a FSEQ file:</td>
       <td><? PrintSettingCheckbox("Pause Background Effects", "pauseBackgroundEffects", 1, 0, "1", "0"); ?></td>
     </tr>

@@ -52,6 +52,7 @@ typedef enum {
 	VB_PLUGIN      = 0x00004000,
 	VB_GPIO        = 0x00008000,
 	VB_HTTP        = 0x00010000,
+	VB_PLAYER      = 0x00020000,
 	VB_ALL         = 0x7FFFFFFF,
 	VB_MOST        = 0x7FFFFFFB
 } LogFacility;
