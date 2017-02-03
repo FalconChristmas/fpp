@@ -853,7 +853,7 @@ echo "FPP - Configuring nginx webserver"
 # Comment out the default server section
 sed -i.orig '/^\s*location/,/^\s*}/s/^/#/g;/^\s*server/,/^\s*}/s/^/#/g;s/##/#/g' /usr/local/nginx/conf/nginx.conf
 # Add an include of our server configuration
-sed -i -e '/^\s*http\s*{/a\    include /etc/fpp_nginx.conf;\n' /usr/local/nginx/conf/nginx.conf
+sed -i -e '/^\s*http\s*{/a\    push_stream_shared_memory_size 32M;\n    include /etc/fpp_nginx.conf;\n' /usr/local/nginx/conf/nginx.conf
 sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/nginx.conf > /etc/fpp_nginx.conf
 # Set user to fpp
 sed -i -e 's/^\s*\#\?\s*user\(\s*\)[^;]*/user\1fpp/' /usr/local/nginx/conf/nginx.conf
