@@ -175,10 +175,13 @@ else ifeq '$(ARCH)' 'ODROID'
 BINDIR = ../bin.pi
 CFLAGS += \
 	-DPLATFORM_ODROID \
+	-DUSEWIRINGPI \
 	-I../external/rpi-rgb-led-matrix/include/ \
 	$(NULL)
 LIBS_fppd += \
 	-lrgbmatrix \
+	-lwiringPi \
+	-lwiringPiDev \
 	$(NULL)
 LDFLAGS_fppd += \
 	-L../external/rpi-rgb-led-matrix/lib/ \
