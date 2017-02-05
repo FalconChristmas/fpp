@@ -37,8 +37,7 @@
 #       BeagleBone Black
 #           - URL: https://rcn-ee.com/rootfs/bb.org/release/2014-05-14/
 #           - Images
-#             - bone-debian-7.5-2014-05-14-2gb.img
-#             - BBB-eMMC-flasher-debian-7.5-2014-05-14-2gb.img
+#             - FIXME for Debian Jessie images
 #           - Login
 #             - root (no password)
 #
@@ -47,7 +46,7 @@
 #       targetting for support.
 #
 #############################################################################
-# Other platforms which may be functioning with varying degrees:
+# Other platforms should be functioning:
 #
 #       ODROID C1
 #           http://oph.mdrjr.net/meveric/images/
@@ -70,7 +69,7 @@
 SCRIPTVER="0.9"
 FPPBRANCH="master"
 FPPIMAGEVER="2.0alpha"
-FPPCFGVER="22"
+FPPCFGVER="24"
 FPPPLATFORM="UNKNOWN"
 FPPDIR="/opt/fpp"
 OSVER="UNKNOWN"
@@ -378,7 +377,7 @@ case "${OSVER}" in
 						network-manager dhcp-helper hostapd parprouted bridge-utils \
 						firmware-atheros firmware-ralink firmware-brcm80211 \
 						wireless-tools \
-						libmicrohttpd-dev libmicrohttpd10
+						libmicrohttpd-dev libmicrohttpd10 libcurl4-openssl-dev
 		do
 			apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" install ${package}
 			let packages=$((${packages}+1))
