@@ -10,10 +10,10 @@ SetupDNS () {
 	DNS1=""
 	DNS2=""
 
-	CFGFILE="/home/pi/media/config/dns.global"
+	CFGFILE="/home/pi/media/config/dns"
 	if [ "x${FPPHOME}" != "x" ]
 	then
-		CFGFILE="${FPPHOME}/media/config/dns.global"
+		CFGFILE="${FPPHOME}/media/config/dns"
 	fi
 
 	echo -n "Configure Static DNS? [y/N] "

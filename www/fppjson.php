@@ -795,7 +795,7 @@ function GetDNSInfo()
 {
 	global $settings;
 
-	$cfgFile = $settings['configDirectory'] . "/dns.global";
+	$cfgFile = $settings['configDirectory'] . "/dns";
 	if (file_exists($cfgFile)) {
 		returnJSON(parse_ini_file($cfgFile));
 	}
@@ -810,7 +810,7 @@ function SetDNSInfo()
 
 	$data = json_decode($args['data'], true);
 
-	$cfgFile = $settings['configDirectory'] . "/dns.global";
+	$cfgFile = $settings['configDirectory'] . "/dns";
 
 	$f = fopen($cfgFile, "w");
 	if ($f == FALSE) {
