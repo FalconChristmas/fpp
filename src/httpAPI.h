@@ -27,40 +27,54 @@
 #ifndef _HTTPAPI_H
 
 #include <httpserver.hpp>
+#include <jsoncpp/json/json.h>
 
 #define FPP_HTTP_PORT 32322
 
+#define FPPD_API_VERSION "v1"
+
 using namespace httpserver;
 
-class HttpStatusResource : public http_resource<HttpStatusResource> {
+class PlayerResource : public http_resource<PlayerResource> {
   public:
-	void render(const http_request&, http_response**);
-};
-
-class HttpStopResource : public http_resource<HttpStopResource> {
-  public:
+	void render_GET(const http_request&, http_response**);
+	void render_DELETE(const http_request&, http_response**);
 	void render_POST(const http_request&, http_response**);
-};
+	void render_PUT(const http_request&, http_response**);
 
-class HttpCurrentPlaylistResource : public http_resource<HttpCurrentPlaylistResource> {
-  public:
-	void render(const http_request&, http_response**);
+  private:
+	void GetRunningEffects(Json::Value &result);
+	void GetRunningEvents(Json::Value &result);
+	void GetLogSettings(Json::Value &result);
+	void GetCurrentStatus(Json::Value &result);
+	void GetCurrentPlaylists(Json::Value &result);
+
+	void PostEffects(const std::string &effectName, const Json::Value &data,
+					Json::Value &result);
+	void PostEvents(const std::string &eventID, const Json::Value &data,
+					Json::Value &result);
+	void PostFalconHardware(Json::Value &result);
+	void PostGPIOExt(const Json::Value &data, Json::Value &result);
+	void PostOutputs(const Json::Value &data, Json::Value &result);
+	void PostOutputsRemap(const Json::Value &data, Json::Value &result);
+	void PostSchedule(const Json::Value data, Json::Value &result);
+	void PostTesting(const Json::Value data, Json::Value &result);
+
+	void SetOKResult(Json::Value &result, const std::string &msg);
+	void SetErrorResult(Json::Value &result, const int respCode, const std::string &msg);
 };
 
 class APIServer {
   public:
-  	APIServer();
+	APIServer();
 	~APIServer();
 
 	void Init();
 
   private:
-	create_webserver params;
-	webserver   *ws;
-
-	HttpStatusResource           *hsr1;
-	HttpStopResource             *hsr2;
-	HttpCurrentPlaylistResource  *hcpr1;
+	create_webserver   m_params;
+	webserver         *m_ws;
+	PlayerResource    *m_pr;
 };
 
 #endif
