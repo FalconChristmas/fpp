@@ -36,6 +36,7 @@
 #include "DebugOutput.h"
 #include "ArtNet.h"
 #include "ColorLight-5a-75.h"
+#include "DDP.h"
 #include "E131.h"
 #include "FBMatrix.h"
 #include "FBVirtualDisplay.h"
@@ -270,6 +271,8 @@ int InitializeChannelOutputs(void) {
 #endif
 			} else if (type == "ColorLight5a75") {
 				channelOutputs[i].output = new ColorLight5a75Output(start, count);
+			} else if (type == "DDP") {
+				channelOutputs[i].output = new DDPOutput(start, count);
 			} else if (type == "FBVirtualDisplay") {
 				channelOutputs[i].output = (ChannelOutputBase*)new FBVirtualDisplayOutput(0, FPPD_MAX_CHANNELS);
 			} else if (type == "RHLDVIE131") {
