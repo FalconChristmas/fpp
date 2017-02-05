@@ -33,6 +33,7 @@ OBJECTS_fppd = \
 	channeloutput/ColorOrder.o \
 	channeloutput/ColorLight-5a-75.o \
 	channeloutput/DebugOutput.o \
+	channeloutput/DDP.o \
 	channeloutput/E131.o \
 	channeloutput/FBMatrix.o \
 	channeloutput/FPD.o \

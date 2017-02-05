@@ -36,6 +36,7 @@
 #include "DebugOutput.h"
 #include "ArtNet.h"
 #include "ColorLight-5a-75.h"
+#include "DDP.h"
 #include "E131.h"
 #include "FBMatrix.h"
 #include "FPD.h"
