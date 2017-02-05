@@ -283,7 +283,7 @@ void PlayerResource::render_POST(const http_request &req, http_response **res)
 		{
 			// Start a playlist
 			boost::replace_last(url, "/start", "");
-			LogDebug(VB_HTTP, "API - Starting playlist '%s' w/ content '%s'\n", url.c_str(), req.get_content());
+			LogDebug(VB_HTTP, "API - Starting playlist '%s' w/ content '%s'\n", url.c_str(), req.get_content().c_str());
 		}
 		else if (boost::ends_with(url, "/nextItem"))
 		{
