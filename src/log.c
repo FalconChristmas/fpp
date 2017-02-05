@@ -114,7 +114,7 @@ void SetLogFile(char *filename)
 	strcpy(logFileName, filename);
 }
 
-int SetLogLevel(char *newLevel)
+int SetLogLevel(const char *newLevel)
 {
 	if (!strcmp(newLevel, "warn")) {
 		logLevel = LOG_WARN;
@@ -134,7 +134,7 @@ int SetLogLevel(char *newLevel)
 	return 1;
 }
 
-int SetLogMask(char *newMask)
+int SetLogMask(const char *newMask)
 {
 	char delim[2];
 
