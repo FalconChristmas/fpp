@@ -44,6 +44,8 @@ int       CurrentDateInRange(int startDate, int endDate);
 
 void      MergeJsonValues(Json::Value &a, Json::Value &b);
 
+Json::Value JSONStringToObject(const std::string &str);
+
 std::string tail(std::string const& source, size_t const length);
 std::vector<std::string> &split(const std::string &s, char delim, std::vector<std::string> &elems);
 std::vector<std::string> split(const std::string &s, char delim);

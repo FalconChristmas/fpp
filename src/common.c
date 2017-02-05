@@ -454,3 +454,17 @@ void MergeJsonValues(Json::Value &a, Json::Value &b)
 	}
 }
 
+/*
+ *
+ */
+Json::Value JSONStringToObject(const std::string &str)
+{
+	Json::Value result;
+	Json::Reader reader;
+
+	bool success = reader.parse(str.c_str(), result);
+	if (!success)
+		LogErr(VB_GENERAL, "Error parsing JSON string in JSONStringToObject()\n");
+
+	return result;
+}
