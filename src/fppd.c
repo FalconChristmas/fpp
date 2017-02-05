@@ -136,6 +136,7 @@ int main(int argc, char *argv[])
 
 void ShutdownFPPD(void)
 {
+	LogDebug(VB_GENERAL, "Shutting down fppd\n");
 	player->Shutdown();
 }
 
