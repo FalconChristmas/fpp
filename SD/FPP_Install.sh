@@ -377,7 +377,8 @@ case "${OSVER}" in
 						vim-common vorbis-tools vsftpd firmware-realtek gcc g++\
 						network-manager dhcp-helper hostapd parprouted bridge-utils \
 						firmware-atheros firmware-ralink firmware-brcm80211 \
-						wireless-tools
+						wireless-tools \
+						libmicrohttpd-dev libmicrohttpd10
 		do
 			apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" install ${package}
 			let packages=$((${packages}+1))
@@ -392,6 +393,9 @@ case "${OSVER}" in
 
 		echo "FPP - Cleaning up after installing packages"
 		apt-get -y clean
+
+		echo "FPP - Installing libhttpserver"
+		(cd /opt/ && git clone https://github.com/etr/libhttpserver && cd libhttpserver && git checkout 02df5e7 && ./bootstrap && mkdir build && cd build && ../configure --prefix=/usr && make && make install && cd /opt/ && rm -rf /opt/libhttpserver)
 
 		echo "FPP - Installing non-packaged Perl modules via App::cpanminus"
 		curl -L https://cpanmin.us | perl - --sudo App::cpanminus
