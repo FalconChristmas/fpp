@@ -9,12 +9,8 @@ SetupDefaultNetworkConfig () {
 		auto lo
 		iface lo inet loopback
 
-		allow-hotplug eth0
-
+		auto eth0
 		iface eth0 inet dhcp
-
-		iface wlan0 inet dhcp
-		  wpa-roam /etc/wpa_supplicant/wpa_supplicant.conf
 
 		iface eth0:0 inet static
 		  address 192.168.0.10
@@ -49,8 +45,8 @@ netcalc(){
 #############################################################################
 # Create our version of /etc/resolv.conf
 SetupFPPDNSConfig () {
-	ETH_IF="eth0 eth1"
-	WLAN_IF="wlan0 wlan1"
+	ETH_IF="eth0 eth1 eth2 eth3"
+	WLAN_IF="wlan0 wlan1 wlan2 wlan3"
 
 	if [ ! -f "${CFGDIR}/dns" ]
 	then
@@ -101,8 +97,8 @@ SetupFPPDNSConfig () {
 #############################################################################
 # Create our version of /etc/network/interfaces and wpa_supplicant.conf files
 SetupFPPNetworkConfig () {
-	ETH_IF="eth0 eth1"
-	WLAN_IF="wlan0 wlan1"
+	ETH_IF="eth0 eth1 eth2 eth3"
+	WLAN_IF="wlan0 wlan1 wlan2 wlan3"
 	declare -A INIT_IF
 	FOUND_CONFIGS=0
 	for IFACE in ${ETH_IF} ${WLAN_IF}
@@ -127,8 +123,8 @@ SetupFPPNetworkConfig () {
 	cat <<-EOF > ${TMPFILE}
 	auto lo
 	iface lo inet loopback
-
 	EOF
+	echo >> ${TMPFILE}
 
 	for IFACE in ${ETH_IF}
 	do
@@ -144,7 +140,7 @@ SetupFPPNetworkConfig () {
 	
 			kill -9 $(ps auxw | grep ifplugd | grep -v grep | grep ${IFACE} | awk '{print $2}') > /dev/null 2>&1
 		
-			if [ "x${PROTO}" = "xdhcp" ]
+			if [ "${PROTO}" == "dhcp" ]
 			then
 				cat <<-EOF >> ${TMPFILE}
 				auto ${IFACE}
@@ -154,21 +150,24 @@ SetupFPPNetworkConfig () {
 				INIT_IF[${IFACE}]="yes"
 		
 				kill -9 $(ps auxw | grep dhclient | grep -v grep | grep ${IFACE} | awk '{print $2}') > /dev/null 2>&1
-		
-				NETWORK=$(netcalc ${ADDRESS} ${NETMASK})
-		
-				cat <<-EOF >> ${TMPFILE}
-				auto ${IFACE}
-				iface ${IFACE} inet static
-				  address ${ADDRESS}
-				  netmask ${NETMASK}
-				  network ${NETWORK}
-				EOF
-		
-				if [ "x${GATEWAY}" != "x" ]
+	
+				if [ "${GATEWAY}" != "" ]
 				then
-					echo "  gateway ${GATEWAY}" >> ${TMPFILE}
-				fi
+					cat <<-EOF >> ${TMPFILE}
+					auto ${IFACE}
+					iface ${IFACE} inet static
+					  address ${ADDRESS}
+					  netmask ${NETMASK}
+					  gateway ${GATEWAY}
+					EOF
+				else
+					cat <<-EOF >> ${TMPFILE}
+					auto ${IFACE}
+					iface ${IFACE} inet static
+					  address ${ADDRESS}
+					  netmask ${NETMASK}
+					EOF
+				fi	
 			fi
 			echo >> ${TMPFILE}
 		fi
@@ -182,73 +181,146 @@ SetupFPPNetworkConfig () {
 			INIT_IF[${IFACE}]="yes"
 	
 			. ${FPPHOME}/media/config/interface.${IFACE}
+
+			if [ ${#PSK} -ge 8 -a ${#PSK} -le 63 ]
+			then
+				PSK=$(wpa_passphrase "${SSID}" "${PSK}" | grep "[[:space:]]psk" | cut -d= -f2)
+			fi	
 	
 			kill -9 $(ps auxw | grep ifplugd | grep -v grep | grep ${IFACE} | awk '{print $2}') > /dev/null 2>&1
 	
-			if [ "x${PROTO}" = "xdhcp" ]
+			if [ "${PROTO}" == "dhcp" ]
 			then
 				cat <<-EOF >> ${TMPFILE}
 				allow-hotplug ${IFACE}
-				iface ${IFACE} inet manual
-				  wpa-roam /etc/wpa_supplicant/${IFACE}.conf
+				iface ${IFACE} inet dhcp
 				  wireless-power off
-	
-				iface FPP-${IFACE} inet dhcp
-	
 				EOF
+				if [ "${PSK}" != "" ]
+				then
+					cat <<-EOF >> ${TMPFILE}
+					  wpa-ssid ${SSID}
+					  wpa-psk ${PSK}
+					EOF
+				else
+					cat <<-EOF >> ${TMPFILE}
+					  wpa-ssid ${SSID}
+					EOF
+				fi
+			elif [ "${PROTO}" == "master" ]
+			then
+				kill -9 $(ps auxw | grep dhclient | grep -v grep | grep ${IFACE} | awk '{print $2}') > /dev/null 2>&1
+
+				NETWORK=$(ipcalc ${ADDRESS} ${NETMASK} | grep Network | awk '{print $2}')
+				HOSTMIN=$(ipcalc ${ADDRESS} ${NETMASK} | grep HostMin | awk '{print $2}')
+				HOSTMAX=$(ipcalc ${ADDRESS} ${NETMASK} | grep HostMax | awk '{print $2}')
+				BASEADDR=$(echo $HOSTMIN | cut -d. -f1-3)
+				LSV=$(echo $HOSTMIN | cut -d. -f4)
+				HOSTNEXT=$(echo $BASEADDR.$((LSV+1)))
+
+				if [ "${CHANNEL}" == "" ]
+				then
+					CHANNEL=6
+				fi
+				if [ "${COUNTRY}" == "" ]
+				then
+					COUNTRY=US
+				fi
+				if [ "${DNSMASQ}" == "" ]
+				then
+					DNSMASQ="yes"
+				fi
+				cat <<-EOF > /etc/network/hostapd-${IFACE}-FPP.conf
+				auth_algs=1
+				beacon_int=50
+				channel=${CHANNEL}
+				country_code=${COUNTRY}
+				disassoc_low_ack=1
+				driver=nl80211
+				hw_mode=g
+				ht_capab=[HT40+][HT40-][SHORT-GI-40][RX-STBC1]
+				ieee80211d=1
+				ieee80211n=1
+				interface=${IFACE}
+				require_ht=0
+				rsn_pairwise=CCMP
+				ssid=${SSID}
+				wmm_enabled=1
+				EOF
+				if [ "${PSK}" != "" ]
+				then
+					cat <<-EOF >> /etc/network/hostapd-${IFACE}-FPP.conf
+					wpa=2
+					wpa_key_mgmt=WPA-PSK
+					wpa_psk=${PSK}
+					EOF
+				fi
+				cat <<-EOF >> ${TMPFILE}
+				allow-hotplug ${IFACE}
+				iface ${IFACE} inet static
+				  address ${HOSTMIN}
+				  netmask ${NETMASK}
+				  pre-up /usr/sbin/hostapd -B -P /var/run/hostapd-${IFACE}-FPP.pid /etc/network/hostapd-${IFACE}-FPP.conf
+				  post-down pkill -F /var/run/hostapd-${IFACE}-FPP.pid 
+				  post-down rm -f /var/run/hostapd-${IFACE}-FPP.pid
+				EOF
+				if [ "${DNSMASQ}" == "yes" ]
+				then
+					cat <<-EOF >> ${TMPFILE}
+					  post-up /usr/sbin/dnsmasq -C /etc/network/dnsmasq-${IFACE}-FPP.conf
+					  pre-down pkill -F /var/run/dnsmasq-${IFACE}-FPP.pid
+					  pre-down rm -f /var/run/dnsmasq-${IFACE}-FPP.pid
+					EOF
+					cat <<-EOF > /etc/network/dnsmasq-${IFACE}-FPP.conf
+					interface=${IFACE}
+					bind-interfaces
+					dhcp-range=${HOSTNEXT},${HOSTMAX},${NETMASK},24h
+					pid-file=/var/run/dnsmasq-${IFACE}-FPP.pid
+					EOF
+				fi
+				if [ "${NAT_IFACE}" != "" ]
+				then
+					cat <<-EOF >> ${TMPFILE}
+					  post-up /sbin/iptables -t nat -A POSTROUTING -o ${NAT_IFACE} -s ${NETWORK} -j MASQUERADE
+					  pre-down /sbin/iptables -t nat -D POSTROUTING -o ${NAT_IFACE} -s ${NETWORK} -j MASQUERADE
+					EOF
+				fi
 			else
-				NETWORK=$(netcalc ${ADDRESS} ${NETMASK})
-	
 				kill -9 $(ps auxw | grep dhclient | grep -v grep | grep ${IFACE} | awk '{print $2}') > /dev/null 2>&1
 	
-				cat <<-EOF >> ${TMPFILE}
-				allow-hotplug ${IFACE}
-				iface ${IFACE} inet manual
-				  wpa-roam /etc/wpa_supplicant/${IFACE}.conf
-				  wireless-power off
-	
-				iface FPP-${IFACE} inet static
-				  address ${ADDRESS}
-				  netmask ${NETMASK}
-				  network ${NETWORK}
-				EOF
-	
-				if [ "x${GATEWAY}" != "x" ]
+				if [ "${GATEWAY}" != "" ]
 				then
-					echo "  gateway ${GATEWAY}" >> ${TMPFILE}
+					cat <<-EOF >> ${TMPFILE}
+					allow-hotplug ${IFACE}
+					iface ${IFACE} inet static
+					  address ${ADDRESS}
+					  netmask ${NETMASK}
+					  gateway ${GATEWAY}
+					  wireless-power off
+					EOF
+				else
+					cat <<-EOF >> ${TMPFILE}
+					allow-hotplug ${IFACE}
+					iface ${IFACE} inet static
+					  address ${ADDRESS}
+					  netmask ${NETMASK}
+					  wireless-power off
+					EOF
 				fi
-	
-				echo >> ${TMPFILE}
-				echo "iface default inet dhcp" >> ${TMPFILE}
+				if [ "${PSK}" != "" ]
+				then
+					cat <<-EOF >> ${TMPFILE}
+					  wpa-ssid ${SSID}
+					  wpa-psk ${PSK}
+					EOF
+				else
+					cat <<-EOF >> ${TMPFILE}
+					  wpa-ssid ${SSID}
+					EOF
+				fi
 			fi
 			echo >> ${TMPFILE}
-	
-			cat <<-EOF > /etc/wpa_supplicant/${IFACE}.conf.FPP
-			ctrl_interface=DIR=/var/run/wpa_supplicant_${IFACE} GROUP=netdev
-			update_config=1
-	
-			network={
-			  ssid="${SSID}"
-			EOF
-	
-			if [ "x${PSK}" != "x" ]
-			then
-				echo "  psk=\"${PSK}\"" >> /etc/wpa_supplicant/${IFACE}.conf.FPP
-			else
-				echo "  key_mgmt=NONE" >> /etc/wpa_supplicant/${IFACE}.conf.FPP
-			fi
-	
-			cat <<-EOF >> /etc/wpa_supplicant/${IFACE}.conf.FPP
-			  scan_ssid=1
-			  id_str="FPP-${IFACE}"
-			}
-	
-			EOF
-	
-			cp /etc/wpa_supplicant/${IFACE}.conf.FPP /etc/wpa_supplicant/${IFACE}.conf
-
 		fi
-
 	done
 
 	cat <<-EOF >> ${TMPFILE}
@@ -257,7 +329,6 @@ SetupFPPNetworkConfig () {
 	  netmask 255.255.255.0
 	  network 192.168.0.0
 	EOF
-
 	echo >> ${TMPFILE}
 
 	cp ${TMPFILE} /etc/network/interfaces
