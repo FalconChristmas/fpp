@@ -21,6 +21,37 @@
  *
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
+ *
+ *   Packet Format: (info based on mplayer ColorLight 5a-75 video output patch)
+ *
+ *   0x0101 Packet: (send first)
+ *   	- Data Length:     98
+ *   	- Source MAC:      22:22:33:44:55:66
+ *   	- Destination MAC: 11:22:33:44:55:66
+ *   	- Ether Type:      0x0101
+ *
+ *   0x0AFF Packet: (send second)
+ *   	- Data Length:     63
+ *   	- Source MAC:      22:22:33:44:55:66
+ *   	- Destination MAC: 11:22:33:44:55:66
+ *   	- Ether Type:      0x0AFF
+ *   	- Data[0]:         0xFF
+ *   	- Data[1]:         0xFF
+ *   	- Data[2]:         0xFF
+ *
+ *   Row data packets: (send one packet for each row of display)
+ *      - Data Length:     (Row_Width * 3) + 7
+ *   	- Source MAC:      22:22:33:44:55:66
+ *   	- Destination MAC: 11:22:33:44:55:66
+ *   	- Ether Type:      0x5500
+ *   	- Data[0]:         Row Number (0-255)
+ *   	- Data[1]:         0x00
+ *   	- Data[2]:         0x00
+ *   	- Data[3]:         0x00
+ *   	- Data[4]:         0x80
+ *   	- Data[5]:         0x08
+ *   	- Data[6]:         0x80
+ *   	- Data[7-end]:     RGB order pixel data
  */
 
 #include <arpa/inet.h>
@@ -71,6 +102,12 @@ ColorLight5a75Output::~ColorLight5a75Output()
 
 	if (m_fd >= 0)
 		close(m_fd);
+
+	if (m_buffer_0101)
+		free(m_buffer_0101);
+
+	if (m_buffer_0AFF)
+		free(m_buffer_0AFF);
 }
 
 /*
