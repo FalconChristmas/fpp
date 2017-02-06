@@ -238,7 +238,6 @@ SetupFPPNetworkConfig () {
 				disassoc_low_ack=1
 				driver=nl80211
 				hw_mode=g
-				ht_capab=[HT40+][HT40-][SHORT-GI-40][RX-STBC1]
 				ieee80211d=1
 				ieee80211n=1
 				interface=${IFACE}
