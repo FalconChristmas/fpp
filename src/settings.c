@@ -244,6 +244,7 @@ printf("Usage: %s [OPTION...]\n"
 "                                    http        - HTTP API requests\n"
 #endif
 "                                    mediaout    - Media file handling\n"
+"                                    player      - Player code\n"
 "                                    playlist    - Playlist handling\n"
 "                                    plugin      - Plugin handling\n"
 "                                    schedule    - Playlist scheduling\n"

@@ -37,8 +37,7 @@
 #       BeagleBone Black
 #           - URL: https://rcn-ee.com/rootfs/bb.org/release/2014-05-14/
 #           - Images
-#             - bone-debian-7.5-2014-05-14-2gb.img
-#             - BBB-eMMC-flasher-debian-7.5-2014-05-14-2gb.img
+#             - FIXME for Debian Jessie images
 #           - Login
 #             - root (no password)
 #
@@ -47,22 +46,30 @@
 #       targetting for support.
 #
 #############################################################################
-# Other platforms which may be functioning with varying degrees:
+# Other platforms should be functioning:
 #
 #       ODROID C1
-#           http://recombi.net/odroid-c1_deb-7.8/
-#           - odroid-c1-debian-7.8-03-29-2014.img
+#           http://oph.mdrjr.net/meveric/images/
+#           - Jessie/Debian-Jessie-1.0-20160131-C1.img.xz
 #           - Login/Password
 #             - root/odroid
-#           - This image is very small and a lot of packages get installed
-#             by FPP_Install.sh, so make sure you resize/expand the root
-#             filesystem as per the information.txt file on recombi.net.
+#           - When building a FPP image from this stock image, we will need
+#             to do something about the image size so we don't bloat the
+#             the FPP download.
+#
+#       Pine64
+#           http://wiki.pine64.org/index.php/Pine_A64_Software_Release
+#           - "Debian Base (3.10.102 BSP 2)" image
+#           - Login/Password
+#             - debian/debian
+#           - This image has very little free space after installing FPP,
+#             so you may want to expand the root partition by a few hundred MB.
 #
 #############################################################################
 SCRIPTVER="0.9"
 FPPBRANCH="master"
 FPPIMAGEVER="2.0alpha"
-FPPCFGVER="22"
+FPPCFGVER="24"
 FPPPLATFORM="UNKNOWN"
 FPPDIR="/opt/fpp"
 OSVER="UNKNOWN"
@@ -166,6 +173,9 @@ then
 elif [ ! -z "$(grep ODROIDC /proc/cpuinfo)" ]
 then
 	FPPPLATFORM="ODROID"
+elif [ ! -z "$(grep sun50iw1p1 /proc/cpuinfo)" ]
+then
+	FPPPLATFORM="Pine64"
 elif [ "x${OSID}" = "xdebian" ]
 then
 	FPPPLATFORM="Debian"
@@ -361,12 +371,13 @@ case "${OSVER}" in
 						libpam-smbpass libtagc0-dev libtest-nowarnings-perl locales \
 						mp3info mpg123 mpg321 mplayer nano node ntp perlmagick \
 						php5-cli php5-common php5-curl php5-fpm php5-mcrypt \
-						php5-sqlite php-apc python-daemon python-smbus samba \
+						php5-sqlite php-apc python-daemon python-smbus rsync samba \
 						samba-common-bin shellinabox sudo sysstat tcpdump usbmount vim \
 						vim-common vorbis-tools vsftpd firmware-realtek gcc g++\
 						network-manager dhcp-helper hostapd parprouted bridge-utils \
 						firmware-atheros firmware-ralink firmware-brcm80211 \
-						wireless-tools
+						wireless-tools \
+						libmicrohttpd-dev libmicrohttpd10 libcurl4-openssl-dev
 		do
 			apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" install ${package}
 			let packages=$((${packages}+1))
@@ -381,6 +392,9 @@ case "${OSVER}" in
 
 		echo "FPP - Cleaning up after installing packages"
 		apt-get -y clean
+
+		echo "FPP - Installing libhttpserver"
+		(cd /opt/ && git clone https://github.com/etr/libhttpserver && cd libhttpserver && git checkout 02df5e7 && ./bootstrap && mkdir build && cd build && ../configure --prefix=/usr && make && make install && cd /opt/ && rm -rf /opt/libhttpserver)
 
 		echo "FPP - Installing non-packaged Perl modules via App::cpanminus"
 		curl -L https://cpanmin.us | perl - --sudo App::cpanminus
@@ -653,6 +667,9 @@ EOF
 		cp /usr/bin/omxplayer.bin /usr/bin/omxplayer.bin.orig
 		wget -O /usr/bin/omxplayer.bin https://github.com/FalconChristmas/fpp-binaries/raw/master/Pi/omxplayer.bin
 		;;
+	'Pine64')
+		echo "FPP - Pine64"
+		;;
 	'Debian')
 		echo "FPP - Debian"
 		;;
@@ -784,7 +801,7 @@ cat <<-EOF >> /etc/motd
 [0;31m
                    _______  ___
                   / __/ _ \\/ _ \\
-                 / _// ___/ ___/ [0m FalconPiPlayer[0;31m
+                 / _// ___/ ___/ [0m Falcon Player[0;31m
                 /_/ /_/  /_/
 [1m
 This FPP console is for advanced users, debugging, and developers.  If
@@ -839,7 +856,7 @@ echo "FPP - Configuring nginx webserver"
 # Comment out the default server section
 sed -i.orig '/^\s*location/,/^\s*}/s/^/#/g;/^\s*server/,/^\s*}/s/^/#/g;s/##/#/g' /usr/local/nginx/conf/nginx.conf
 # Add an include of our server configuration
-sed -i -e '/^\s*http\s*{/a\    include /etc/fpp_nginx.conf;\n' /usr/local/nginx/conf/nginx.conf
+sed -i -e '/^\s*http\s*{/a\    push_stream_shared_memory_size 32M;\n    include /etc/fpp_nginx.conf;\n' /usr/local/nginx/conf/nginx.conf
 sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/nginx.conf > /etc/fpp_nginx.conf
 # Set user to fpp
 sed -i -e 's/^\s*\#\?\s*user\(\s*\)[^;]*/user\1fpp/' /usr/local/nginx/conf/nginx.conf

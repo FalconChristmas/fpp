@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "Playlist.h"
+#include "playlist/Playlist.h"
 #include "mediadetails.h"
 #include "settings.h"
 #include "common.h"
@@ -58,7 +58,11 @@ void ParseMedia()
     char fullMediaPath[1024];
 	int seconds;
 	int minutes;
-	PlaylistEntry *plEntry = &playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry];
+//	PlaylistEntry *plEntry = &playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry];
+LogDebug(VB_PLAYLIST, "FIXME PLAYLIST\n");
+return;
+
+	PlaylistEntry *plEntry = NULL;
 
 	if (!plEntry->songName)
 		return;

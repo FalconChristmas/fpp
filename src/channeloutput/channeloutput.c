@@ -35,6 +35,8 @@
 #include "channeloutput.h"
 #include "DebugOutput.h"
 #include "ArtNet.h"
+#include "ColorLight-5a-75.h"
+#include "DDP.h"
 #include "E131.h"
 #include "FBMatrix.h"
 #include "FBVirtualDisplay.h"
@@ -46,6 +48,7 @@
 #include "SPIws2801.h"
 #include "LOR.h"
 #include "SPInRF24L01.h"
+#include "RHL_DVI_E131.h"
 #include "USBDMX.h"
 #include "USBPixelnet.h"
 #include "USBRelay.h"
@@ -242,6 +245,7 @@ int InitializeChannelOutputs(void) {
 			channelOutputs[i].startChannel = start;
 			channelOutputs[i].channelCount = count;
 
+			// First some Channel Outputs enabled everythwere
 			if (type == "LEDPanelMatrix") {
 #if defined(PLATFORM_PI) || defined(PLATFORM_ODROID)
 				if (outputs[c]["subType"] == "RGBMatrix")
@@ -265,14 +269,21 @@ int InitializeChannelOutputs(void) {
 			} else if (type == "BBBSerial") {
 				channelOutputs[i].output = new BBBSerialOutput(start, count);
 #endif
+			} else if (type == "ColorLight5a75") {
+				channelOutputs[i].output = new ColorLight5a75Output(start, count);
+			} else if (type == "DDP") {
+				channelOutputs[i].output = new DDPOutput(start, count);
+			} else if (type == "FBVirtualDisplay") {
+				channelOutputs[i].output = (ChannelOutputBase*)new FBVirtualDisplayOutput(0, FPPD_MAX_CHANNELS);
+			} else if (type == "RHLDVIE131") {
+				channelOutputs[i].output = (ChannelOutputBase*)new RHLDVIE131Output(start, count);
+			} else if (type == "USBRelay") {
+				channelOutputs[i].output = new USBRelayOutput(start, count);
+			// NOW some platform or config specific Channel Outputs
 #ifdef USEOLA
 			} else if (type == "OLA") {
 				channelOutputs[i].output = new OLAOutput(start, count);
 #endif
-			} else if (type == "FBVirtualDisplay") {
-				channelOutputs[i].output = (ChannelOutputBase*)new FBVirtualDisplayOutput(0, FPPD_MAX_CHANNELS);
-			} else if (type == "USBRelay") {
-				channelOutputs[i].output = new USBRelayOutput(start, count);
 #if defined(PLATFORM_PI)
 			} else if (type == "Hill320") {
 				channelOutputs[i].output = new Hill320Output(start, count);
@@ -492,6 +503,10 @@ int SendChannelData(char *channelData) {
 	}
 
 	channelOutputFrame++;
+
+	// Reset channelOutputFrame every week @ 50ms timing
+	if (channelOutputFrame > 12096000)
+		channelOutputFrame = 0;
 }
 
 /*

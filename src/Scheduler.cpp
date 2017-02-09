@@ -35,16 +35,15 @@
 #include "common.h"
 #include "fpp.h"
 #include "log.h"
-#include "Playlist.h"
+#include "Player.h"
 #include "Scheduler.h"
 #include "settings.h"
 
-Scheduler *scheduler = NULL;
-
 /////////////////////////////////////////////////////////////////////////////
 
-Scheduler::Scheduler()
-  : m_ScheduleEntryCount(0),
+Scheduler::Scheduler(Player *parent)
+  : m_player(parent),
+	m_ScheduleEntryCount(0),
 	m_CurrentScheduleHasbeenLoaded(0),
 	m_NextScheduleHasbeenLoaded(0),
 	m_nowWeeklySeconds2(0),
@@ -130,11 +129,8 @@ void Scheduler::CheckIfShouldBePlayingNow(void)
 
 					m_CurrentScheduleHasbeenLoaded = 1;
 					m_NextScheduleHasbeenLoaded = 0;
-		      strcpy(playlist->m_playlistDetails.currentPlaylistFile,m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playList);
-				  playlist->m_playlistDetails.currentPlaylistEntry=0;
-					playlist->m_playlistDetails.repeat = m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].repeat;
-		  		playlist->m_playlistDetails.playlistStarting=1;
-      		FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
+
+					StartScheduledPlaylist(m_currentSchedulePlaylist.ScheduleEntryIndex, nowWeeklySeconds);
 				}				
 			}
 		}
@@ -353,22 +349,7 @@ void Scheduler::PlayListLoadCheck(void)
     if(nowWeeklySeconds == m_currentSchedulePlaylist.startWeeklySeconds)
     {
       m_NextScheduleHasbeenLoaded = 0;
-      strcpy(playlist->m_playlistDetails.currentPlaylistFile,m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playList);
-		  playlist->m_playlistDetails.currentPlaylistEntry=0;
-			playlist->m_playlistDetails.repeat = m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].repeat;
-		  playlist->m_playlistDetails.playlistStarting=1;
-      LogInfo(VB_SCHEDULE, "Schedule Entry: %02d:%02d:%02d - %02d:%02d:%02d - Starting Playlist %s for %d seconds\n",
-        m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].startHour,
-        m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].startMinute,
-        m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].startSecond,
-        m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].endHour,
-        m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].endMinute,
-        m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].endSecond,
-        m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playList,
-        m_currentSchedulePlaylist.endWeeklySeconds - m_currentSchedulePlaylist.startWeeklySeconds);
-      LogInfo(VB_SCHEDULE, "NowSecs = %d, CurrStartSecs = %d, CurrEndSecs = %d (%d seconds away)\n",
-        nowWeeklySeconds, m_currentSchedulePlaylist.startWeeklySeconds, m_currentSchedulePlaylist.endWeeklySeconds, displayDiff);
-      FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
+	  StartScheduledPlaylist(m_currentSchedulePlaylist.ScheduleEntryIndex, nowWeeklySeconds);
     }
   }
 }
@@ -407,7 +388,8 @@ void Scheduler::PlayListStopCheck(void)
     // second the schedule should be ending.  The odds of us missing 2 in a row
     // are much lower, so this will suffice for v1.0.
     if((nowWeeklySeconds == m_currentSchedulePlaylist.endWeeklySeconds) ||
-       (nowWeeklySeconds == (m_currentSchedulePlaylist.endWeeklySeconds + 1)))
+       (nowWeeklySeconds == (m_currentSchedulePlaylist.endWeeklySeconds + 1)) ||
+       (nowWeeklySeconds == (m_currentSchedulePlaylist.endWeeklySeconds + 2)))
     {
       LogInfo(VB_SCHEDULE, "Schedule Entry: %02d:%02d:%02d - %02d:%02d:%02d - Stopping Playlist Gracefully\n",
         m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].startHour,
@@ -417,7 +399,7 @@ void Scheduler::PlayListStopCheck(void)
         m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].endMinute,
         m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].endSecond);
       m_CurrentScheduleHasbeenLoaded = 0;
-      playlist->StopPlaylistGracefully();
+      m_player->PlaylistStopGracefully();
     }
   }
 
@@ -630,7 +612,7 @@ void Scheduler::GetNextScheduleStartText(char * txt)
 		if (found >= 0)
 		{
 			GetDayTextFromDayIndex(m_Schedule[found].dayIndex,dayText);
-			sprintf(txt, "%04d-%02d-%02d @ %02d:%02d:%02d - (%s)\n",
+			sprintf(txt, "%04d-%02d-%02d @ %02d:%02d:%02d - (%s)",
 				(int)(m_Schedule[found].startDate / 10000),
 				(int)(m_Schedule[found].startDate % 10000 / 100),
 				(int)(m_Schedule[found].startDate % 100),
@@ -729,4 +711,26 @@ void Scheduler::GetDayTextFromDayIndex(int index,char * txt)
 			strcpy(txt, "Error\0");
 			break;	
 	}
+}
+
+int Scheduler::StartScheduledPlaylist(int index, int nowWeeklySeconds)
+{
+	if (index >= m_ScheduleEntryCount)
+		return 0;
+
+	if (!m_player->PlaylistStart(m_Schedule[index].playList, 0, m_Schedule[index].repeat))
+		return 0;
+
+	LogInfo(VB_SCHEDULE, "Schedule Entry: %02d:%02d:%02d - %02d:%02d:%02d - Starting Playlist %s for %d seconds, CurrEndSecs: %d\n",
+		m_Schedule[index].startHour,
+		m_Schedule[index].startMinute,
+		m_Schedule[index].startSecond,
+		m_Schedule[index].endHour,
+		m_Schedule[index].endMinute,
+		m_Schedule[index].endSecond,
+		m_Schedule[index].playList,
+		m_currentSchedulePlaylist.endWeeklySeconds - nowWeeklySeconds,
+		m_currentSchedulePlaylist.endWeeklySeconds);
+
+	return 1;
 }
