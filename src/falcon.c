@@ -33,10 +33,10 @@
 #include <strings.h>
 #include <unistd.h>
 
-#include "channeloutputthread.h"
+#include "channeloutput/channeloutput.h"
 #include "common.h"
 #include "log.h"
-#include "Playlist.h"
+#include "Player.h"
 #include "settings.h"
 #include "Sequence.h"
 
@@ -150,7 +150,7 @@ int FalconConfigureHardware(char *filename, int spiPort)
 
 	int bytesWritten;
 
-	DisableChannelOutput();
+	player->DisableChannelOutput();
 	usleep(100000);
 
 	if ((logLevel & LOG_DEBUG) && (logMask & VB_SETTING))
@@ -180,7 +180,7 @@ int FalconConfigureHardware(char *filename, int spiPort)
 			bytesWritten, FALCON_CFG_BUF_SIZE);
 		free(buf);
 		usleep(100000);
-		EnableChannelOutput();
+		player->EnableChannelOutput();
 		return -1;
 	}
 
@@ -189,7 +189,7 @@ int FalconConfigureHardware(char *filename, int spiPort)
 
 	free(buf);
 	usleep(100000);
-	EnableChannelOutput();
+	player->EnableChannelOutput();
 }
 
 /*
@@ -295,7 +295,8 @@ int FalconPassThroughData(int offset, unsigned char *inBuf, int size)
 		HexDump("Falcon Pass-through data", inBuf, size);
 
 	// Disable channel outputs and let them quiesce before sending config info
- 	DisableChannelOutput();
+	player->DisableChannelOutput();
+
 	usleep(100000);
 
 	if (getSettingInt("FPDEnabled"))
@@ -344,14 +345,15 @@ int FalconPassThroughData(int offset, unsigned char *inBuf, int size)
 	}
 
 	// Pass data on to our regular channel outputs followed by blanking data
-	bzero(sequence->m_seqData + offset, 4096);
-	memcpy(sequence->m_seqData + offset, inBuf, FALCON_PASSTHROUGH_DATA_SIZE);
-	sequence->SendSequenceData();
-	sequence->SendBlankingData(); // reset data so we don't keep reprogramming
+	bzero(player->m_seqData + offset, 4096);
+	memcpy(player->m_seqData + offset, inBuf, FALCON_PASSTHROUGH_DATA_SIZE);
+	player->SendData();
+	player->SendBlankingData(); // reset data so we don't keep reprogramming
 
 	// Give changes time to take effect then turn back on channel outputs
 	usleep(100000);
-	EnableChannelOutput();
+
+	player->EnableChannelOutput();
 }
 
 /*
@@ -389,11 +391,11 @@ void FalconSetData(int sock, struct sockaddr_in *srcAddr, unsigned char *inBuf)
 
 	FalconWriteConfig(filename, (char *)inBuf, len);
 
-	if (sequence->IsSequenceRunning())
+	if (player->SequencesRunning())
 	{
 		if (inBuf[7] == 0x01)
 		{
-			playlist->StopPlaylistNow(); // FIXME: Need to investigate this more
+			player->PlaylistStopNow();
 		}
 		else
 		{

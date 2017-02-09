@@ -23,6 +23,7 @@ OBJECTS_fppmm = \
 	fppversion.o \
 	$(NULL)
 LIBS_fppmm = \
+	-ljsoncpp \
 	$(NULL)
 
 OBJECTS_fsequtil = \
@@ -33,14 +34,16 @@ OBJECTS_fsequtil = \
 	SequenceFile.o \
 	$(NULL)
 LIBS_fsequtil = \
+	-ljsoncpp \
 	$(NULL)
 
 OBJECTS_fppd = \
 	channeloutput/ChannelOutputBase.o \
 	channeloutput/channeloutput.o \
-	channeloutput/channeloutputthread.o \
 	channeloutput/ArtNet.o \
+	channeloutput/ColorLight-5a-75.o \
 	channeloutput/DebugOutput.o \
+	channeloutput/DDP.o \
 	channeloutput/E131.o \
 	channeloutput/FBMatrix.o \
 	channeloutput/FBVirtualDisplay.o \
@@ -52,6 +55,7 @@ OBJECTS_fppd = \
 	channeloutput/Matrix.o \
 	channeloutput/PanelMatrix.o \
 	channeloutput/PixelString.o \
+	channeloutput/RHL_DVI_E131.o \
 	channeloutput/serialutil.o \
 	channeloutput/SPInRF24L01.o \
 	channeloutput/SPIws2801.o \
@@ -85,7 +89,23 @@ OBJECTS_fppd = \
 	mediaoutput/ogg123.o \
 	mediaoutput/omxplayer.o \
 	PixelOverlay.o \
-	Playlist.o \
+	Player.o \
+	playlist/Playlist.o \
+	playlist/PlaylistEntryBase.o \
+	playlist/PlaylistEntryBoth.o \
+	playlist/PlaylistEntryBranch.o \
+	playlist/PlaylistEntryBrightness.o \
+	playlist/PlaylistEntryChannelTest.o \
+	playlist/PlaylistEntryEffect.o \
+	playlist/PlaylistEntryEvent.o \
+	playlist/PlaylistEntryMedia.o \
+	playlist/PlaylistEntryPause.o \
+	playlist/PlaylistEntryPixelOverlay.o \
+	playlist/PlaylistEntryPlaylist.o \
+	playlist/PlaylistEntryPlugin.o \
+	playlist/PlaylistEntryScript.o \
+	playlist/PlaylistEntrySequence.o \
+	playlist/PlaylistEntryVolume.o \
 	Plugins.o \
 	Scheduler.o \
 	ScheduleEntry.o \
@@ -122,6 +142,13 @@ ifneq '$(OLAFLAGS)' ''
 	CFLAGS += -DUSEOLA
 	LDFLAGS_fppd += $(OLAFLAGS)
 	OBJECTS_fppd += channeloutput/OLAOutput.o
+endif
+
+CURLFLAGS := $(shell curl-config --libs)
+ifneq '$(CURLFLAGS)' ''
+	CFLAGS += -DUSECURL
+	LDFLAGS_fppd += $(CURLFLAGS)
+	OBJECTS_fppd += playlist/PlaylistEntryURL.o
 endif
 
 # Common CFLAGS
@@ -192,10 +219,13 @@ else ifeq '$(ARCH)' 'ODROID'
 BINDIR = ../bin.pi
 CFLAGS += \
 	-DPLATFORM_ODROID \
+	-DUSEWIRINGPI \
 	-I../external/rpi-rgb-led-matrix/include/ \
 	$(NULL)
 LIBS_fppd += \
 	-lrgbmatrix \
+	-lwiringPi \
+	-lwiringPiDev \
 	$(NULL)
 LDFLAGS_fppd += \
 	-L../external/rpi-rgb-led-matrix/lib/ \

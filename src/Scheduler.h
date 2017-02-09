@@ -80,10 +80,11 @@ typedef struct {
 	int endWeeklySeconds;
 } SchedulePlaylistDetails;
 
+class Player;
 
 class Scheduler {
   public:
-	Scheduler();
+	Scheduler(Player *parent);
 	~Scheduler();
 
 	void ScheduleProc(void);
@@ -108,8 +109,10 @@ class Scheduler {
 	int  FindNextStartingScheduleIndex(void);
 	void GetScheduleEntryStartText(int index,int weeklySecondIndex, char * txt);
 	void GetDayTextFromDayIndex(int index,char * txt);
+	int  StartScheduledPlaylist(int index, int nowWeeklySeconds);
 
 
+	Player       *m_player;
 	int           m_ScheduleEntryCount;
 	unsigned char m_CurrentScheduleHasbeenLoaded;
 	unsigned char m_NextScheduleHasbeenLoaded;
@@ -130,8 +133,6 @@ class Scheduler {
 	SchedulePlaylistDetails m_currentSchedulePlaylist;
 	SchedulePlaylistDetails m_nextSchedulePlaylist;
 };
-
-extern Scheduler *scheduler;
 
 #endif /* _SCHEDULER_H */
 

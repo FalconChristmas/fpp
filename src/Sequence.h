@@ -28,28 +28,39 @@
 
 #include <pthread.h>
 #include <stdio.h>
+#include <string>
 
 #define FPPD_MAX_CHANNELS 524288
 #define DATA_DUMP_SIZE    28
 
 class Sequence {
   public:
-	Sequence();
+	Sequence(int priority, int startChannel = 0, int blockSize = -1);
 	~Sequence();
 
 	int   IsSequenceRunning(void);
-	int   OpenSequenceFile(const char *filename, int startSeconds);
+	int   OpenSequenceFile(std::string filename, int startSeconds = 0);
 	void  ProcessSequenceData(int checkControlChannels = 1);
 	int   SeekSequenceFile(int frameNumber);
-	void  ReadSequenceData(void);
-	void  SendSequenceData(void);
-	void  SendBlankingData(void);
+	int   ReadSequenceData(void);
+	void  OverlayNextFrame(char *outputBuffer);
 	void  CloseSequenceFile(void);
 	void  ToggleSequencePause(void);
+	void  SetPauseState(int pause = 1);
 	void  SingleStepSequence(void);
 	void  SingleStepSequenceBack(void);
 	int   SequenceIsPaused(void);
 
+	int   SequenceFileOpen(void)        { return m_seqFile ? 1 : 0; }
+	int   GetPriority(void)             { return m_priority; }
+	void  SetAutoRepeat(void)           { m_autoRepeat = 1; }
+	int   GetAutoRepeat(void)           { return m_autoRepeat; }
+	int   GetRefreshRate(void)          { return m_seqRefreshRate; }
+
+	long long     GetSequenceID(void)         { return m_sequenceID; }
+	void          SetSequenceID(long long id) { m_sequenceID = id; }
+
+	long long     m_sequenceID;
 	unsigned long m_seqFileSize;
 	int           m_seqDuration;
 	int           m_seqSecondsElapsed;
@@ -58,12 +69,14 @@ class Sequence {
 	char          m_seqFilename[1024];
 
   private:
-	void  BlankSequenceData(void);
-	char  NormalizeControlValue(char in);
 	char *CurrentSequenceFilename(void);
 
 	FILE         *m_seqFile;
 	unsigned long m_seqFilePosition;
+	int           m_priority;
+	int           m_autoRepeat;
+	int           m_startChannel;
+	int           m_blockSize;
 	int           m_seqStarting;
 	int           m_seqPaused;
 	int           m_seqSingleStep;
@@ -86,7 +99,5 @@ class Sequence {
 
 	pthread_mutex_t  m_sequenceLock;
 };
-
-extern Sequence *sequence;
 
 #endif /* _SEQUENCE_H */

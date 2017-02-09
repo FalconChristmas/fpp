@@ -310,6 +310,33 @@
 			"backgroundFilename": "virtualdisplaybackground.jpg"
 		},
 		{
+			"type": "RHLDVIE131",
+			"enabled": 0,
+			"startChannel": 1,
+			"channelCount": 48000,
+			"universes": [
+				{
+					"id": 1,
+					"startChannel": 1,
+					"channelCount": 480
+				},
+				{
+					"id": 2,
+					"startChannel": 481,
+					"channelCount": 480
+				}
+			]
+		},
+		{
+			"type": "ColorLight5a75",
+			"enabled": 0,
+			"startChannel": 1,
+			"channelCount": 6144,
+			"width": 64,
+			"height": 32,
+			"interface": "eth0"
+		},
+		{
 			"type": "OLA",
 			"enabled": 0,
 			"startChannel": 1,

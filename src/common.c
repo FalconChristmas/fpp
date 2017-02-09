@@ -428,3 +428,43 @@ std::vector<std::string> split(const std::string &s, char delim) {
     return elems;
 }
 
+/*
+ * Merge the contens of Json::Value b into Json::Value a
+ */
+void MergeJsonValues(Json::Value &a, Json::Value &b)
+{
+	if (!a.isObject() || !b.isObject())
+		return;
+
+	Json::Value::Members memberNames = b.getMemberNames();
+
+	for (unsigned int i = 0; i < memberNames.size(); i++)
+	{
+		std::string key = memberNames[i];
+
+		if ((a[key].type() == Json::objectValue) &&
+			(b[key].type() == Json::objectValue))
+		{
+			MergeJsonValues(a[key], b[key]);
+		}
+		else
+		{
+			a[key] = b[key];
+		}
+	}
+}
+
+/*
+ *
+ */
+Json::Value JSONStringToObject(const std::string &str)
+{
+	Json::Value result;
+	Json::Reader reader;
+
+	bool success = reader.parse(str.c_str(), result);
+	if (!success)
+		LogErr(VB_GENERAL, "Error parsing JSON string in JSONStringToObject()\n");
+
+	return result;
+}

@@ -1,0 +1,27 @@
+
+
+
+
+
+
+Variable Length Headers in FSEQ v1.x spec
+- v1.1+
+  - 'mf' - Media Filename
+    vh[0] = low byte of variable header length
+    vh[1] = high byte of variable header length
+    vh[2] = 'm'
+    vh[3] = 'f'
+    vh[4-Len] = NULL terminated media filename
+  - 'si' - Sparse Index
+    vh[0] = low byte of variable header length
+    vh[1] = high byte of variable header length
+    vh[2] = 's'
+    vh[3] = 'i'
+    vh[4] = low byte of number of entries in index
+    vh[5] = high byte of number of entries in index
+
+    Repeating struct of sparse index entries
+    vh[6+(i*4)] = low byte of channel count
+    vh[7+(i*4)] = high byte of channel count
+    vh[8+(i*4)] = low byte of destination channel
+    vh[9+(i*4)] = high byte of destination channel

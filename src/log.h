@@ -52,6 +52,7 @@ typedef enum {
 	VB_PLUGIN      = 0x00004000,
 	VB_GPIO        = 0x00008000,
 	VB_HTTP        = 0x00010000,
+	VB_PLAYER      = 0x00020000,
 	VB_ALL         = 0x7FFFFFFF,
 	VB_MOST        = 0x7FFFFFFB
 } LogFacility;
@@ -78,8 +79,8 @@ extern char logMaskStr[1024];
 void _LogWrite(char *file, int line, int level, int facility, const char *format, ...);
 
 void SetLogFile(char *filename);
-int SetLogLevel(char *newLevel);
-int SetLogMask(char *newMask);
+int SetLogLevel(const char *newLevel);
+int SetLogMask(const char *newMask);
 int loggingToFile(void);
 void logVersionInfo(void);
 

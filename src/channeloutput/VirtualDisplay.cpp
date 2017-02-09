@@ -202,7 +202,8 @@ int VirtualDisplayOutput::Init(Json::Value config)
 				b = s + 0;
 			}
 
-			m_pixels.push_back({ x, y, ch, r, g, b });
+			VirtualDisplayPixel p = { x, y, ch, r, g, b };
+			m_pixels.push_back(p);
 		}
 	}
 
