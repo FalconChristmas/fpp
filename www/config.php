@@ -181,6 +181,11 @@ else if ($settings['Platform'] == "ODROID")
 	$settings['Logo'] = "odroid_logo.gif";
 	$settings['LogoLink'] = "http://www.hardkernel.com/main/main.php";
 }
+else if ($settings['Platform'] == "OrangePi")
+{
+	$settings['Logo'] = "orangepi_logo.png";
+	$settings['LogoLink'] = "http://www.orangepi.org/";
+}
 else if ($settings['Platform'] == "Pine64")
 {
 	$settings['Logo'] = "pine64_logo.png";
