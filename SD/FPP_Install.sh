@@ -176,6 +176,9 @@ then
 elif [ ! -z "$(grep sun50iw1p1 /proc/cpuinfo)" ]
 then
 	FPPPLATFORM="Pine64"
+elif uname -a | grep -q -i orangepi
+then
+	FPPPLATFORM="OrangePi"
 elif [ "x${OSID}" = "xdebian" ]
 then
 	FPPPLATFORM="Debian"
