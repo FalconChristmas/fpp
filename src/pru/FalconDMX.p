@@ -124,14 +124,14 @@ START:
 	CLR	r0, r0, 4
 	SBCO	r0, C4, 4, 4
 
-	// Configure the programmable pointer register for PRU0 by setting
+	// Configure the programmable pointer register for PRU1 by setting
 	// c28_pointer[15:0] field to 0x0120.  This will make C28 point to
 	// 0x00012000 (PRU shared RAM).
 	MOV	r0, 0x00000120
 	MOV	r1, CTPPR_0+0x2000
 	ST32	r0, r1
 
-	// Configure the programmable pointer register for PRU0 by setting
+	// Configure the programmable pointer register for PRU1 by setting
 	// c31_pointer[15:0] field to 0x0010.  This will make C31 point to
 	// 0x80001000 (DDR memory).
 	MOV	r0, 0x00100000
