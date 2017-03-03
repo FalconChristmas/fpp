@@ -152,16 +152,22 @@ int BBB48StringOutput::Init(Json::Value config)
 
     if ((m_subType == "F4-B") || (m_subType == "F4-B-WS"))
     {
-        pru_program += "FalconWS281x_F4B.bin";
+        pru_program += "FalconWS281x_4.bin";
         lsconfig->leds_height = 4;
     }
     else if (m_subType == "F16-B")
+    {
+        pru_program += "FalconWS281x_16.bin";
+        lsconfig->leds_height = 16;
+    }
+    else if (m_subType == "F16-B-32" || m_subType == "F16-B-WS")
+    {
+        pru_program += "FalconWS281x_40.bin";
+        lsconfig->leds_height = 40;
+    }
+    else if (m_subType == "F16-B-48")
 	{
-		pru_program += "FalconWS281x.bin";
-	}
-	else if (m_subType == "F16-B-WS")
-	{
-		pru_program += "FalconWS281x_WS.bin";
+		pru_program += "FalconWS281x_48.bin";
 	}
 	else
 	{
@@ -178,7 +184,6 @@ int BBB48StringOutput::Init(Json::Value config)
 
 		return 0;
 	}
-        LogDebug(VB_CHANNELOUT, "BB48 Memory %X   %d\n",  m_leds->pru->ddr, m_leds->pru->ddr_size);
 	return ChannelOutputBase::Init(config);
 }
 
@@ -309,7 +314,7 @@ void BBB48StringOutput::DumpConfig(void)
 	LogDebug(VB_CHANNELOUT, "BBB48StringOutput::DumpConfig()\n");
 
 	ledscape_strip_config_t *config = reinterpret_cast<ledscape_strip_config_t*>(m_config);
-	
+    LogDebug(VB_CHANNELOUT, "    type          : %s\n", m_subType.c_str());
 	LogDebug(VB_CHANNELOUT, "    strings       : %d\n", m_strings.size());
 	LogDebug(VB_CHANNELOUT, "    longest string: %d pixels\n", m_maxStringLen);
 

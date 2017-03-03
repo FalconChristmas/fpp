@@ -29,6 +29,8 @@
 #include <string>
 #include <vector>
 
+#define MAX_PIXEL_STRING_LENGTH  999
+
 class PixelString {
   public:
 	PixelString();
