@@ -142,7 +142,6 @@ int BBB48StringOutput::Init(Json::Value config)
 	// LEDscape always drives 48 ports, so use this instead of # of strings
 	lsconfig->leds_height = 48;
 
-	int LEDs = lsconfig->leds_width * lsconfig->leds_height;
 
 	std::string pru_program(getBinDirectory());
 
@@ -151,13 +150,16 @@ int BBB48StringOutput::Init(Json::Value config)
 	else
 		pru_program += "/../lib/";
 
-	if ((m_subType == "F4-B") ||
-		(m_subType == "F16-B"))
+    if ((m_subType == "F4-B") || (m_subType == "F4-B-WS"))
+    {
+        pru_program += "FalconWS281x_F4B.bin";
+        lsconfig->leds_height = 4;
+    }
+    else if (m_subType == "F16-B")
 	{
 		pru_program += "FalconWS281x.bin";
 	}
-	else if ((m_subType == "F4-B-WS") ||
-			 (m_subType == "F16-B-WS"))
+	else if (m_subType == "F16-B-WS")
 	{
 		pru_program += "FalconWS281x_WS.bin";
 	}
@@ -165,6 +167,8 @@ int BBB48StringOutput::Init(Json::Value config)
 	{
 		pru_program += m_subType + ".bin";
 	}
+
+    int LEDs = lsconfig->leds_width * lsconfig->leds_height;
 
 	m_leds = ledscape_strip_init(m_config, 0, pruNumber, pru_program.c_str());
 
@@ -174,7 +178,7 @@ int BBB48StringOutput::Init(Json::Value config)
 
 		return 0;
 	}
-
+        LogDebug(VB_CHANNELOUT, "BB48 Memory %X   %d\n",  m_leds->pru->ddr, m_leds->pru->ddr_size);
 	return ChannelOutputBase::Init(config);
 }
 
@@ -211,10 +215,11 @@ int BBB48StringOutput::RawSendData(unsigned char *channelData)
 	uint8_t *c = NULL;
 	int inCh;
 
+    int numStrings = m_config->strip_config.leds_height;
 	for (int s = 0; s < m_strings.size(); s++)
 	{
 		ps = m_strings[s];
-		c = out + (ps->m_nullNodes * 48 * 3) + ps->m_portNumber;
+		c = out + (ps->m_nullNodes * numStrings * 3) + ps->m_portNumber;
 
 		if ((ps->m_hybridMode) &&
 			((channelData[ps->m_outputMap[0]]) ||
@@ -224,13 +229,13 @@ int BBB48StringOutput::RawSendData(unsigned char *channelData)
 			for (int p = 0; p < ps->m_pixelCount; p++)
 			{
 				*c = channelData[ps->m_outputMap[0]];
-				c += 48;
+				c += numStrings;
 
 				*c = channelData[ps->m_outputMap[1]];
-				c += 48;
+				c += numStrings;
 
 				*c = channelData[ps->m_outputMap[2]];
-				c += 48;
+				c += numStrings;
 			}
 		}
 		else
@@ -243,13 +248,13 @@ int BBB48StringOutput::RawSendData(unsigned char *channelData)
 			for (int p = 0; p < ps->m_pixelCount; p++)
 			{
 				*c = channelData[ps->m_outputMap[inCh++]];
-				c += 48;
+				c += numStrings;
 
 				*c = channelData[ps->m_outputMap[inCh++]];
-				c += 48;
+				c += numStrings;
 
 				*c = channelData[ps->m_outputMap[inCh++]];
-				c += 48;
+				c += numStrings;
 			}
 		}
 		
