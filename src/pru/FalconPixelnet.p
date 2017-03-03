@@ -74,7 +74,7 @@ lab:
 
 .macro WAITNS
 .mparam ns,lab
-	MOV r6, 0x22000 // control register
+	MOV r6, 0x24000 // control register
 	// Instructions take 5ns and RESET_COUNTER takes about 20 instructions
 	// this value was found through trial and error on the DMX signal
 	// generation
@@ -86,7 +86,7 @@ lab:
 
 .macro RESET_COUNTER
 		// Disable the counter and clear it, then re-enable it
-		MOV r6, 0x22000 // control register
+		MOV r6, 0x24000 // control register
 		LBBO r9, r6, 0, 4
 		CLR r9, r9, 3 // disable counter bit
 		SBBO r9, r6, 0, 4 // write it back
@@ -124,18 +124,18 @@ START:
 	CLR	r0, r0, 4
 	SBCO	r0, C4, 4, 4
 
-	// Configure the programmable pointer register for PRU0 by setting
+	// Configure the programmable pointer register for PRU1 by setting
 	// c28_pointer[15:0] field to 0x0120.  This will make C28 point to
 	// 0x00012000 (PRU shared RAM).
 	MOV	r0, 0x00000120
-	MOV	r1, CTPPR_0
+	MOV	r1, CTPPR_0+0x2000
 	ST32	r0, r1
 
-	// Configure the programmable pointer register for PRU0 by setting
+	// Configure the programmable pointer register for PRU1 by setting
 	// c31_pointer[15:0] field to 0x0010.  This will make C31 point to
 	// 0x80001000 (DDR memory).
 	MOV	r0, 0x00100000
-	MOV	r1, CTPPR_1
+	MOV	r1, CTPPR_1+0x2000
 	ST32	r0, r1
 
 	// Write a 0x1 into the response field so that they know we have started
@@ -197,9 +197,9 @@ _LOOP:
     MOV gpio3_ones, #0                  // Set all bit data low to start with
     MOV r12,#10
     SUB r12,r12,bit_num
-  	//QBBC SET1, r10.b0, r12
-    //SET gpio3_ones,#ser1_pin
-  //SET1:
+  	QBBC SET1, r10.b0, r12
+    SET gpio3_ones,#ser1_pin
+  SET1:
   	QBBC SET2, r10.b1, r12
     SET gpio3_ones,#ser2_pin
   SET2:
@@ -251,7 +251,7 @@ _LOOP:
 
 	// Write out that we are done!
 	// Store a non-zero response in the buffer so that they know that we are done
-	MOV	r8, 0x22000 // control register
+	MOV	r8, 0x24000 // control register
 	LBBO	r2, r8, 0xC, 4
 	SBCO	r2, CONST_PRUDRAM, 12, 4
 
@@ -265,9 +265,9 @@ EXIT:
 
 #ifdef AM33XX
 	// Send notification to Host for program completion
-	MOV R31.b0, PRU0_ARM_INTERRUPT+16
+	MOV R31.b0, PRU1_ARM_INTERRUPT+16
 #else
-	MOV R31.b0, PRU0_ARM_INTERRUPT
+	MOV R31.b0, PRU1_ARM_INTERRUPT
 #endif
 
 	HALT
