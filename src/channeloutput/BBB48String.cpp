@@ -161,20 +161,14 @@ int BBB48StringOutput::Init(Json::Value config)
 
     if ((m_subType == "F4-B") || (m_subType == "F4-B-WS"))
     {
-        pru_program += "FalconWS281x_4.bin";
+        pru_program += "FalconWS281x_F4B.bin";
         lsconfig->leds_height = 4;
     }
     else if (m_subType == "F16-B")
-    {
-        pru_program += "FalconWS281x_16.bin";
-        lsconfig->leds_height = 16;
-    }
-    else if (m_subType == "F16-B-32" || m_subType == "F16-B-WS")
-    {
-        pru_program += "FalconWS281x_40.bin";
-        lsconfig->leds_height = 40;
-    }
-    else if (m_subType == "F16-B-48")
+	{
+		pru_program += "FalconWS281x.bin";
+	}
+	else if (m_subType == "F16-B-WS")
 	{
 		pru_program += "FalconWS281x_48.bin";
 	}
@@ -193,6 +187,8 @@ int BBB48StringOutput::Init(Json::Value config)
 
 		return 0;
 	}
+
+        LogDebug(VB_CHANNELOUT, "BB48 Memory %X   %d\n",  m_leds->pru->ddr, m_leds->pru->ddr_size);
 	return ChannelOutputBase::Init(config);
 }
 
