@@ -175,7 +175,7 @@ int OpenEffectFile(const char *filename)
 
 	if (!filename || !filename[0])
 	{
-		printf("Empty Effect Filename!\n", filename);
+		printf("Empty Effect Filename! (%s)\n", filename);
 		return 0;
 	}
 
@@ -290,7 +290,7 @@ int OpenSequenceFile(const char *filename) {
 
 	if (!filename || !filename[0])
 	{
-		printf("Empty Sequence Filename!\n", filename);
+		printf("Empty Sequence Filename! (%)\n", filename);
 		return 0;
 	}
 
@@ -326,7 +326,7 @@ int OpenSequenceFile(const char *filename) {
 	seqFormatID[4] = 0;
 	if ((bytesRead != 4) || (strcmp(seqFormatID, "PSEQ") && strcmp(seqFormatID, "FSEQ") && strcmp(seqFormatID, "ESEQ")))
 	{
-		printf("Error opening sequence file: %s. Incorrect File Format header: '%s', bytesRead: %d\n",
+		printf("Error opening sequence file: %s. Incorrect File Format header: '%s', bytesRead: %ld\n",
 			filename, seqFormatID, bytesRead);
 
 		fseek(seqFile, 0L, SEEK_SET);
