@@ -114,7 +114,7 @@ void HexDump(char *title, void *data, int len) {
 	char tmpStr[90];
 
 	sprintf( tmpStr, "%s: (%d bytes)\n", title, len);
-	printf(tmpStr);
+	printf("%s",tmpStr);
 
 	while (l < len) {
 		if ( x == 0 ) {
@@ -137,7 +137,7 @@ void HexDump(char *title, void *data, int len) {
 			}
 
 			sprintf( tmpStr + strlen(tmpStr), "\n" );
-			printf(tmpStr);
+			printf("%s",tmpStr);
 			x = 0;
 
 			sprintf( tmpStr, "       %06x: ", i );
@@ -163,7 +163,7 @@ void HexDump(char *title, void *data, int len) {
 	}
 
 	sprintf( tmpStr + strlen(tmpStr), "\n" );
-	printf(tmpStr);
+	printf("%s",tmpStr);
 }
 
 /*
@@ -483,7 +483,7 @@ void CloseSequenceFile(void) {
 
 void DumpChannelData(int startChannel, int endChannel)
 {
-	char tmpStr[32];
+	char tmpStr[90];
 	int bytesRead = 0;
 	int frameNumber = 0;
 	int firstNonBlank = 0;
