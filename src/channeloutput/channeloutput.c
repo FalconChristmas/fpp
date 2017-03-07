@@ -42,6 +42,7 @@
 #include "FBVirtualDisplay.h"
 #include "FPD.h"
 #include "GenericSerial.h"
+#include "Linsn-RV9.h"
 #include "log.h"
 #include "Sequence.h"
 #include "settings.h"
@@ -275,6 +276,8 @@ int InitializeChannelOutputs(void) {
 				channelOutputs[i].output = new DDPOutput(start, count);
 			} else if (type == "FBVirtualDisplay") {
 				channelOutputs[i].output = (ChannelOutputBase*)new FBVirtualDisplayOutput(0, FPPD_MAX_CHANNELS);
+			} else if (type == "LinsnRV9") {
+				channelOutputs[i].output = new LinsnRV9Output(start, count);
 			} else if (type == "RHLDVIE131") {
 				channelOutputs[i].output = (ChannelOutputBase*)new RHLDVIE131Output(start, count);
 			} else if (type == "USBRelay") {
@@ -497,6 +500,7 @@ int SendChannelData(char *channelData) {
 				inst->channelCount < (FPPD_MAX_CHANNELS - inst->startChannel) ? inst->channelCount : (FPPD_MAX_CHANNELS - inst->startChannel));
 		else if (inst->output)
 		{
+			// FIXME, get this call to PrepData into another thread
 			inst->output->PrepData((unsigned char *)channelData);
 			inst->output->SendData((unsigned char *)(channelData + inst->startChannel));
 		}

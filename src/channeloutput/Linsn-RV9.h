@@ -1,5 +1,5 @@
 /*
- *   ColorLight 5a-75 Channel Output driver for Falcon Player (FPP)
+ *   Linsn RV9 Channel Output driver for Falcon Player (FPP)
  *
  *   Copyright (C) 2013 the Falcon Player Developers
  *      Initial development by:
@@ -23,24 +23,27 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _COLORLIGHT5A75_H
-#define _COLORLIGHT5A75_H
+#ifndef _LINSNRV9_H
+#define _LINSNRV9_H
 
 #include <arpa/inet.h>
 #include <linux/if_packet.h>
 #include <net/if.h>
 #include <string>
+#include <vector>
 
 #include "ChannelOutputBase.h"
 #include "Matrix.h"
 #include "PanelMatrix.h"
 
-#define CL5A75_BUFFER_SIZE  1024
+#define LINSNRV9_BUFFER_SIZE  1486
+#define LINSNRV9_HEADER_SIZE  32
+#define LINSNRV9_DATA_SIZE    1440
 
-class ColorLight5a75Output : public ChannelOutputBase {
+class LinsnRV9Output : public ChannelOutputBase {
   public:
-	ColorLight5a75Output(unsigned int startChannel, unsigned int channelCount);
-	~ColorLight5a75Output();
+	LinsnRV9Output(unsigned int startChannel, unsigned int channelCount);
+	~LinsnRV9Output();
 
 	int  Init(Json::Value config);
 	int  Close(void);
@@ -52,25 +55,23 @@ class ColorLight5a75Output : public ChannelOutputBase {
 
   private:
 	void SetHostMACs(void *data);
+	void SetDiscoveryMACs(void *data);
 
 	int          m_width;
 	int          m_height;
-	std::string  m_layout;
-	std::string  m_colorOrder;
 	std::string  m_ifName;
+	std::string  m_colorOrder;
 
 	int   m_fd;
 
-	char *m_buffer_0101;
-	int   m_buffer_0101_len;
-	char *m_buffer_0AFF;
-	int   m_buffer_0AFF_len;
-	
-	char  m_buffer[CL5A75_BUFFER_SIZE];
+	char  m_buffer[LINSNRV9_BUFFER_SIZE];
+	char *m_header;
 	char *m_data;
 	char *m_rowData;
-	int   m_rowSize;
 	int   m_pktSize;
+	int   m_frameSize;
+	int   m_framePackets;
+	int   m_frameNumber;
 
 	struct ifreq          m_if_idx;
 	struct ifreq          m_if_mac;
@@ -85,8 +86,20 @@ class ColorLight5a75Output : public ChannelOutputBase {
 	int          m_longestChain;
 	int          m_invertedData;
 	char        *m_outputFrame;
+	int          m_outputFrameSize;
 	Matrix      *m_matrix;
 	PanelMatrix *m_panelMatrix;
+
+	struct FormatCode {
+		int code;
+		int width;
+		int height;
+	};
+
+	std::vector<struct FormatCode> m_formatCodes;
+	unsigned char m_formatCode;
+	int           m_formatWidth;
+	int           m_formatHeight;
 };
 
 #endif
