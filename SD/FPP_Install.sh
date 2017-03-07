@@ -673,6 +673,23 @@ EOF
 	'Pine64')
 		echo "FPP - Pine64"
 		;;
+	'Orange Pi')
+		echo "FPP - Orange Pi"
+
+		echo "FPP - Installing wiringOP (wiringPi port)"
+		cd /opt/ && git clone https://github.com/zhaolei/WiringOP && cd /opt/wiringOP && ./build
+
+		echo "FPP - Installing OLA from source"
+		apt-get -y --force-yes install libcppunit-dev uuid-dev pkg-config libncurses5-dev libtool autoconf automake libmicrohttpd-dev protobuf-compiler python-protobuf libprotobuf-dev libprotoc-dev bison flex libftdi-dev libftdi1 libusb-1.0-0-dev liblo-dev
+		apt-get -y clean
+		git clone https://github.com/OpenLightingProject/ola.git /opt/ola
+		(cd /opt/ola && autoreconf -i && ./configure --enable-rdm-tests --enable-python-libs && make && make install && ldconfig)
+		rm -rf /opt/ola
+
+		echo "FPP - Disabling stock users, use the 'fpp' user instead"
+		sed -i -e "s/^orangepi:.*/orangepi:*:16372:0:99999:7:::/" /etc/shadow
+
+		;;
 	'Debian')
 		echo "FPP - Debian"
 		;;
