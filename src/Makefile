@@ -38,6 +38,7 @@ OBJECTS_fppd = \
 	channeloutput/GenericSerial.o \
 	channeloutput/GPIO.o \
 	channeloutput/GPIO595.o \
+	channeloutput/Linsn-RV9.o \
 	channeloutput/LOR.o \
 	channeloutput/Matrix.o \
 	channeloutput/PanelMatrix.o \

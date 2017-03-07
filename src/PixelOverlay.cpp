@@ -296,13 +296,13 @@ void PrintChannelMapBlocks(void) {
 		ctrlHeader->totalBlocks);
 
 	for (i = 0; i < ctrlHeader->totalBlocks; i++, cb++) {
-		LogInfo(VB_CHANNELOUT, "Block %3d Name         : %s\n", i, cb->blockName);
-		LogInfo(VB_CHANNELOUT, "Block %3d Start Channel: %d\n", i, cb->startChannel);
-		LogInfo(VB_CHANNELOUT, "Block %3d Channel Count: %d\n", i, cb->channelCount);
-		LogInfo(VB_CHANNELOUT, "Block %3d Orientation  : %c\n", i, cb->orientation);
-		LogInfo(VB_CHANNELOUT, "Block %3d Start Corner : %s\n", i, cb->startCorner);
-		LogInfo(VB_CHANNELOUT, "Block %3d String Count : %d\n", i, cb->stringCount);
-		LogInfo(VB_CHANNELOUT, "Block %3d Strand Count : %d\n", i, cb->strandsPerString);
+		LogExcess(VB_CHANNELOUT, "Block %3d Name         : %s\n", i, cb->blockName);
+		LogExcess(VB_CHANNELOUT, "Block %3d Start Channel: %d\n", i, cb->startChannel);
+		LogExcess(VB_CHANNELOUT, "Block %3d Channel Count: %d\n", i, cb->channelCount);
+		LogExcess(VB_CHANNELOUT, "Block %3d Orientation  : %c\n", i, cb->orientation);
+		LogExcess(VB_CHANNELOUT, "Block %3d Start Corner : %s\n", i, cb->startCorner);
+		LogExcess(VB_CHANNELOUT, "Block %3d String Count : %d\n", i, cb->stringCount);
+		LogExcess(VB_CHANNELOUT, "Block %3d Strand Count : %d\n", i, cb->strandsPerString);
 	}
 }
 
