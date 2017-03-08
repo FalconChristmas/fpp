@@ -32,6 +32,7 @@
 #include <string>
 
 #include "ChannelOutputBase.h"
+#include "ColorOrder.h"
 #include "Matrix.h"
 #include "PanelMatrix.h"
 
@@ -56,8 +57,9 @@ class ColorLight5a75Output : public ChannelOutputBase {
 	int          m_width;
 	int          m_height;
 	std::string  m_layout;
-	std::string  m_colorOrder;
 	std::string  m_ifName;
+
+	FPPColorOrder m_colorOrder;
 
 	int   m_fd;
 

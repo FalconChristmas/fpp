@@ -30,6 +30,7 @@ OBJECTS_fppd = \
 	channeloutput/channeloutput.o \
 	channeloutput/channeloutputthread.o \
 	channeloutput/ArtNet.o \
+	channeloutput/ColorOrder.o \
 	channeloutput/ColorLight-5a-75.o \
 	channeloutput/DebugOutput.o \
 	channeloutput/E131.o \
