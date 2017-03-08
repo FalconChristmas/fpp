@@ -483,7 +483,7 @@ void LinsnRV9Output::SetHostMACs(void *ptr)
 
 // MAC of Gig-E USB NIC
 // FIXME
-if (1)
+if (0)
 {
 ifr.ifr_hwaddr.sa_data[0] = 0xd8;
 ifr.ifr_hwaddr.sa_data[1] = 0xeb;
@@ -536,7 +536,7 @@ void LinsnRV9Output::SetDiscoveryMACs(void *ptr)
 
 // MAC of Gig-E USB NIC
 // FIXME
-if (1)
+if (0)
 {
 ifr.ifr_hwaddr.sa_data[0] = 0xd8;
 ifr.ifr_hwaddr.sa_data[1] = 0xeb;
