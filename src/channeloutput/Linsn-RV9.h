@@ -33,6 +33,7 @@
 #include <vector>
 
 #include "ChannelOutputBase.h"
+#include "ColorOrder.h"
 #include "Matrix.h"
 #include "PanelMatrix.h"
 
@@ -60,7 +61,8 @@ class LinsnRV9Output : public ChannelOutputBase {
 	int          m_width;
 	int          m_height;
 	std::string  m_ifName;
-	std::string  m_colorOrder;
+
+	FPPColorOrder m_colorOrder;
 
 	int   m_fd;
 
@@ -69,7 +71,6 @@ class LinsnRV9Output : public ChannelOutputBase {
 	char *m_data;
 	char *m_rowData;
 	int   m_pktSize;
-	int   m_frameSize;
 	int   m_framePackets;
 	int   m_frameNumber;
 

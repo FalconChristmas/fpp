@@ -78,6 +78,7 @@ ColorLight5a75Output::ColorLight5a75Output(unsigned int startChannel, unsigned i
   : ChannelOutputBase(startChannel, channelCount),
 	m_width(0),
 	m_height(0),
+	m_colorOrder(kColorOrderRGB),
 	m_fd(-1),
 	m_buffer_0101(NULL),
 	m_buffer_0101_len(0),
@@ -139,7 +140,8 @@ int ColorLight5a75Output::Init(Json::Value config)
 		m_panelHeight = 16;
 
 	m_invertedData = config["invertedData"].asInt();
-	m_colorOrder = config["colorOrder"].asString();
+
+	m_colorOrder = ColorOrderFromString(config["colorOrder"].asString());
 
 	m_panelMatrix =
 		new PanelMatrix(m_panelWidth, m_panelHeight, 3, m_invertedData);
@@ -158,6 +160,19 @@ int ColorLight5a75Output::Init(Json::Value config)
 
 		if (o && *o)
 			orientation = o[0];
+
+		// FIXME, is the ColorLight receiver flipping the panels 180 degrees?
+		switch (orientation)
+		{
+			case 'N':	orientation = 'U';
+						break;
+			case 'U':	orientation = 'N';
+						break;
+			case 'R':	orientation = 'L';
+						break;
+			case 'L':	orientation = 'R';
+						break;
+		}
 
 		m_panelMatrix->AddPanel(p["outputNumber"].asInt(),
 			p["panelNumber"].asInt(), orientation,
@@ -306,7 +321,10 @@ void ColorLight5a75Output::PrepData(unsigned char *channelData)
 	unsigned char *r = NULL;
 	unsigned char *g = NULL;
 	unsigned char *b = NULL;
+	unsigned char *s = NULL;
 	unsigned char *dst = NULL;
+	int pw3 = m_panelWidth * 3;
+
 	channelData += m_startChannel; // FIXME, this function gets offset 0
 
 	for (int output = 0; output < m_outputs; output++)
@@ -323,66 +341,52 @@ void ColorLight5a75Output::PrepData(unsigned char *channelData)
 			{
 				int px = chain * m_panelWidth;
 				int yw = y * m_panelWidth * 3;
-				int pw3 = m_panelWidth * 3;
+
+				dst = (unsigned char*)(m_outputFrame + (((((output * m_panelHeight) + y) * m_panelWidth * m_longestChain) + px) * 3));
 
 				for (int x = 0; x < pw3; x += 3)
 				{
-					// FIXME, optimize this since it is called once per pixel
-					if (m_colorOrder == "RGB")
-					{
-						r = channelData + m_panelMatrix->m_panels[panel].pixelMap[yw + x];
-						g = r + 1;
-						b = r + 2;
-					}
-					else if (m_colorOrder == "RBG")
-					{
-						r = channelData + m_panelMatrix->m_panels[panel].pixelMap[yw + x];
-						b = r + 1;
-						g = r + 2;
-					}
-					else if (m_colorOrder == "GRB")
-					{
-						g = channelData + m_panelMatrix->m_panels[panel].pixelMap[yw + x];
-						r = g + 1;
-						b = g + 2;
-					}
-					else if (m_colorOrder == "GBR")
-					{
-						g = channelData + m_panelMatrix->m_panels[panel].pixelMap[yw + x];
-						b = g + 1;
-						r = g + 2;
-					}
-					else if (m_colorOrder == "BRG")
-					{
-						b = channelData + m_panelMatrix->m_panels[panel].pixelMap[yw + x];
-						r = b + 1;
-						g = b + 2;
-					}
-					else if (m_colorOrder == "BGR")
-					{
-						b = channelData + m_panelMatrix->m_panels[panel].pixelMap[yw + x];
-						g = b + 1;
-						r = b + 2;
-					}
-					else
-					{
-						r = channelData + m_panelMatrix->m_panels[panel].pixelMap[yw + x];
-						g = r + 1;
-						b = r + 2;
-					}
+					s = channelData + m_panelMatrix->m_panels[panel].pixelMap[yw + x];
 
-//					int offset = (((((output * m_panelHeight) + y) * m_panelWidth * m_longestChain) + px) * 3);
-//					LogDebug(VB_CHANNELOUT, "op: %d, ph: %d, y: %d, x: %d, pw: %d, ch: %d, p: %d, px: %d, o: %d\n", output, m_panelHeight, y, x, m_panelWidth, chain, panel, px, offset);
+					switch (m_colorOrder)
+					{
+						default:
+						case kColorOrderRGB:	r = s;
+												g = s + 1;
+												b = s + 2;
+												break;
 
-					dst = (unsigned char*)(m_outputFrame + (((((output * m_panelHeight) + y) * m_panelWidth * m_longestChain) + px) * 3));
+						case kColorOrderRBG:	r = s;
+												b = s + 1;
+												g = s + 2;
+												break;
+
+						case kColorOrderGRB:	g = s;
+												r = s + 1;
+												b = s + 2;
+												break;
+
+						case kColorOrderGBR:	g = s;
+												b = s + 1;
+												r = s + 2;
+												break;
+
+						case kColorOrderBRG:	b = s;
+												r = s + 1;
+												g = s + 2;
+												break;
+
+						case kColorOrderBGR:	b = s;
+												g = s + 1;
+												r = s + 2;
+												break;
+					}
 
 					*(dst++) = *r;
 					*(dst++) = *g;
 					*(dst++) = *b;
 
 					px++;
-
-//if (x > 5) x = m_panelWidth;
 				}
 			}
 		}

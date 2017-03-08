@@ -82,11 +82,11 @@ LinsnRV9Output::LinsnRV9Output(unsigned int startChannel, unsigned int channelCo
   : ChannelOutputBase(startChannel, channelCount),
 	m_width(0),
 	m_height(0),
+	m_colorOrder(kColorOrderRGB),
 	m_fd(-1),
 	m_header(NULL),
 	m_data(NULL),
 	m_pktSize(LINSNRV9_BUFFER_SIZE),
-	m_frameSize(0),
 	m_framePackets(0),
 	m_panelWidth(0),
 	m_panelHeight(0),
@@ -122,6 +122,7 @@ LinsnRV9Output::LinsnRV9Output(unsigned int startChannel, unsigned int channelCo
 	// the codes other than 0xd2.
 	m_formatCode = 0xd2;
 	m_formatWidth = 512;
+	m_formatHeight = 256;
 }
 
 /*
@@ -155,7 +156,8 @@ int LinsnRV9Output::Init(Json::Value config)
 		m_panelHeight = 16;
 
 	m_invertedData = config["invertedData"].asInt();
-	m_colorOrder = config["colorOrder"].asString();
+
+	m_colorOrder = ColorOrderFromString(config["colorOrder"].asString());
 
 	m_panelMatrix =
 		new PanelMatrix(m_panelWidth, m_panelHeight, 3, m_invertedData);
@@ -202,6 +204,7 @@ int LinsnRV9Output::Init(Json::Value config)
 	m_outputFrameSize = m_formatWidth * m_formatHeight * 3;
 	m_outputFrame = new char[m_outputFrameSize];
 
+	// Calculate the minimum number of packets to send our height frame
 	m_framePackets = (m_height * m_formatWidth / 480) + 1;
 
 	m_matrix = new Matrix(m_startChannel, m_width, m_height);
@@ -269,10 +272,13 @@ int LinsnRV9Output::Init(Json::Value config)
 	m_buffer[30] = 0xff; // something to do with brightness
 	m_buffer[31] = 0xff; // something to do with brightness
 
-	m_buffer[45] = m_formatCode; // format Code
+	m_buffer[45] = 0xc2; // Is this same as format code later?
 
-	m_buffer[47] = 0xfe;
-	m_buffer[48] = 0xff;
+	m_buffer[47] = 0xfe; // This was returned by receiver in byte offset 0x0a
+	m_buffer[48] = 0xff; // This was returned by reciever in byte offset 0x0b
+	                     // Have seen some cards return 0x00 and 0xe0 instead
+	m_buffer[47] = 0x00; // This was returned by receiver in byte offset 0x0a
+	m_buffer[48] = 0xe0; // This was returned by reciever in byte offset 0x0b
 
 	for (int i = 0; i < 2; i++)
 	{
@@ -311,7 +317,10 @@ void LinsnRV9Output::PrepData(unsigned char *channelData)
 	unsigned char *r = NULL;
 	unsigned char *g = NULL;
 	unsigned char *b = NULL;
+	unsigned char *s = NULL;
 	unsigned char *dst = NULL;
+	int pw3 = m_panelWidth * 3;
+
 	channelData += m_startChannel; // FIXME, this function gets offset 0
 
 	for (int output = 0; output < m_outputs; output++)
@@ -322,68 +331,51 @@ void LinsnRV9Output::PrepData(unsigned char *channelData)
 		{
 			int panel = m_panelMatrix->m_outputPanels[output][i];
 			int chain = (panelsOnOutput - 1) - m_panelMatrix->m_panels[panel].chain;
-			chain = m_panelMatrix->m_panels[panel].chain;
 
 			for (int y = 0; y < m_panelHeight; y++)
 			{
 				int px = chain * m_panelWidth;
 				int yw = y * m_panelWidth * 3;
-				int pw3 = m_panelWidth * 3;
+
+				dst = (unsigned char*)(m_outputFrame + (((((output * m_panelHeight) + y) * m_formatWidth) + px) * 3) + (m_panelWidth * 3));
 
 				for (int x = 0; x < pw3; x += 3)
 				{
-					// FIXME, optimize this since it is called once per pixel
-					if (m_colorOrder == "RGB")
-					{
-						r = channelData + m_panelMatrix->m_panels[panel].pixelMap[yw + x];
-						g = r + 1;
-						b = r + 2;
-					}
-					else if (m_colorOrder == "RBG")
-					{
-						r = channelData + m_panelMatrix->m_panels[panel].pixelMap[yw + x];
-						b = r + 1;
-						g = r + 2;
-					}
-					else if (m_colorOrder == "GRB")
-					{
-						g = channelData + m_panelMatrix->m_panels[panel].pixelMap[yw + x];
-						r = g + 1;
-						b = g + 2;
-					}
-					else if (m_colorOrder == "GBR")
-					{
-						g = channelData + m_panelMatrix->m_panels[panel].pixelMap[yw + x];
-						b = g + 1;
-						r = g + 2;
-					}
-					else if (m_colorOrder == "BRG")
-					{
-						b = channelData + m_panelMatrix->m_panels[panel].pixelMap[yw + x];
-						r = b + 1;
-						g = b + 2;
-					}
-					else if (m_colorOrder == "BGR")
-					{
-						b = channelData + m_panelMatrix->m_panels[panel].pixelMap[yw + x];
-						g = b + 1;
-						r = b + 2;
-					}
-					else
-					{
-						r = channelData + m_panelMatrix->m_panels[panel].pixelMap[yw + x];
-						g = r + 1;
-						b = r + 2;
-					}
+					s = channelData + m_panelMatrix->m_panels[panel].pixelMap[yw + x];
 
-if (0 && (y < 2) && (x < 12))
-{
-                  int offset = (((((output * m_panelHeight) + y) * m_formatWidth) + px) * 3);
-                  LogDebug(VB_CHANNELOUT, "op: %d, ph: %d, y: %d, x: %d, pw: %d, ch: %d, p: %d, px: %d, o: %d\n", output, m_panelHeight, y, x, m_panelWidth, chain, panel, px, offset);
-}
+					switch (m_colorOrder)
+					{
+						default:
+						case kColorOrderRGB:	r = s;
+												g = s + 1;
+												b = s + 2;
+												break;
 
-					//dst = (unsigned char*)(m_outputFrame + (((((output * m_panelHeight) + y) * m_panelWidth * m_longestChain) + px) * 3));
-					dst = (unsigned char*)(m_outputFrame + (((((output * m_panelHeight) + y) * m_formatWidth) + px) * 3));
+						case kColorOrderRBG:	r = s;
+												b = s + 1;
+												g = s + 2;
+												break;
+
+						case kColorOrderGRB:	g = s;
+												r = s + 1;
+												b = s + 2;
+												break;
+
+						case kColorOrderGBR:	g = s;
+												b = s + 1;
+												r = s + 2;
+												break;
+
+						case kColorOrderBRG:	b = s;
+												r = s + 1;
+												g = s + 2;
+												break;
+
+						case kColorOrderBGR:	b = s;
+												g = s + 1;
+												r = s + 2;
+												break;
+					}
 
 					*(dst++) = *r;
 					*(dst++) = *g;
@@ -406,13 +398,14 @@ int LinsnRV9Output::RawSendData(unsigned char *channelData)
 	SetHostMACs(m_buffer);
 	memset(m_data, 0, LINSNRV9_DATA_SIZE);
 
+	// Clear the frame number
 	m_buffer[14] = 0x00;
 	m_buffer[15] = 0x00;
 
 	m_buffer[22] = 0x96;
 
 	m_buffer[26] = 0x85;
-	m_buffer[27] = 0x0f;
+	m_buffer[27] = 0x0f; // Sometimes 0x1f, sometimes 0x00
 	m_buffer[28] = 0xff; // something to do with brightness
 	m_buffer[29] = 0xff; // something to do with brightness
 	m_buffer[30] = 0xff; // something to do with brightness
@@ -432,9 +425,11 @@ int LinsnRV9Output::RawSendData(unsigned char *channelData)
 	int bytesSent = 0;
 	int framesSent = 0;
 
+// FIXME
+//memset(m_outputFrame, 0x7f, 192*2);
+
 	memset(m_header, 0, LINSNRV9_HEADER_SIZE);
 
-	//while (bytesSent < m_outputFrameSize)
 	while (frameNumber < m_framePackets)
 	{
 		m_buffer[14] = (unsigned char)(frameNumber & 0x00FF);
@@ -467,7 +462,6 @@ void LinsnRV9Output::DumpConfig(void)
 	LogDebug(VB_CHANNELOUT, "    Height         : %d\n", m_height);
 	LogDebug(VB_CHANNELOUT, "    m_fd           : %d\n", m_fd);
 	LogDebug(VB_CHANNELOUT, "    m_pktSize      : %d\n", m_pktSize);
-	LogDebug(VB_CHANNELOUT, "    m_frameSize    : %d\n", m_frameSize);
 	LogDebug(VB_CHANNELOUT, "    m_framePackets : %d (0x%02x)\n",
 		m_framePackets, m_framePackets);
 
@@ -486,6 +480,18 @@ void LinsnRV9Output::SetHostMACs(void *ptr)
 	s = socket(AF_INET, SOCK_DGRAM, 0);
 	strcpy(ifr.ifr_name, m_ifName.c_str());
 	ioctl(s, SIOCGIFHWADDR, &ifr);
+
+// MAC of Gig-E USB NIC
+// FIXME
+if (1)
+{
+ifr.ifr_hwaddr.sa_data[0] = 0xd8;
+ifr.ifr_hwaddr.sa_data[1] = 0xeb;
+ifr.ifr_hwaddr.sa_data[2] = 0x97;
+ifr.ifr_hwaddr.sa_data[3] = 0xb7;
+ifr.ifr_hwaddr.sa_data[4] = 0xa9;
+ifr.ifr_hwaddr.sa_data[5] = 0x4e;
+}
 
 	// Set the source MAC address
 	// FIXME, needs to be the host's MAC, get from E1.31 channel output code
@@ -527,6 +533,18 @@ void LinsnRV9Output::SetDiscoveryMACs(void *ptr)
 	s = socket(AF_INET, SOCK_DGRAM, 0);
 	strcpy(ifr.ifr_name, m_ifName.c_str());
 	ioctl(s, SIOCGIFHWADDR, &ifr);
+
+// MAC of Gig-E USB NIC
+// FIXME
+if (1)
+{
+ifr.ifr_hwaddr.sa_data[0] = 0xd8;
+ifr.ifr_hwaddr.sa_data[1] = 0xeb;
+ifr.ifr_hwaddr.sa_data[2] = 0x97;
+ifr.ifr_hwaddr.sa_data[3] = 0xb7;
+ifr.ifr_hwaddr.sa_data[4] = 0xa9;
+ifr.ifr_hwaddr.sa_data[5] = 0x4e;
+}
 
 	// Set the source MAC address
 	// FIXME, needs to be the host's MAC, get from E1.31 channel output code

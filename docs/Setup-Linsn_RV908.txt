@@ -1,8 +1,13 @@
-NOTE: These instructions are a work in progress to go along with the new
-      Linsn receiver card Channel Output which is also a work in progress.
-
 Instructions for setting up a Linsn RV908* LED Panel Receiver card to work
 with FPP's LinsnRV9 Channel Output.
+
+NOTE: This has been tested with a Raspberry Pi with the TrendNet TU3-ETG
+      USB Gig-E Network adapter.  You can also use a 100Mbit Ethernet
+      adapter if you have a Gig-E switch between the Pi/BBB and the LED
+      receiver board.
+
+NOTE: These instructions are a work in progress to go along with the new
+      Linsn receiver card Channel Output which is also a work in progress.
 
 NOTE: These instructions are currently for supporting 32x16 1/8 scan LED
       panels and may need a modified .con file to support other panel

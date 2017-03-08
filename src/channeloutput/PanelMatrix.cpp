@@ -185,18 +185,12 @@ int PanelMatrix::CalculateMaps(void)
 				switch (m_panels[panel].orientation)
 				{
 					case 'N':	pOffset = (y * pWidth) + x;
-// Uncomment these for panels starting on the left, receiver seems to internally flip the panel 180 degrees
-//pOffset = (pWidth * pHeight) - ((y * pWidth) + x) - 1;
-
 								break;
 					case 'U':	pOffset = (pWidth * pHeight) - ((y * pWidth) + x) - 1;
-//pOffset = (y * pWidth) + x;
 								break;
 					case 'L':	pOffset = (x * pHeight) + (pHeight - y - 1);
-//pOffset = ((pWidth - x - 1) * pHeight) + y;
 								break;
 					case 'R':	pOffset = ((pWidth - x - 1) * pHeight) + y;
-//pOffset = (x * pHeight) + (pHeight - y - 1);
 								break;
 				}
 
