@@ -203,34 +203,33 @@ int InitializeChannelOutputs(void) {
 
 			// First some Channel Outputs enabled everythwere
 			if (type == "LEDPanelMatrix") {
+				if (outputs[c]["subType"] == "ColorLight5a75")
+					channelOutputs[i].output = new ColorLight5a75Output(start, count);
+				else if (outputs[c]["subType"] == "LinsnRV9")
+					channelOutputs[i].output = new LinsnRV9Output(start, count);
 #if defined(PLATFORM_PI) || defined(PLATFORM_ODROID)
-				if (outputs[c]["subType"] == "RGBMatrix")
+				else if (outputs[c]["subType"] == "RGBMatrix")
 					channelOutputs[i].output = new RGBMatrixOutput(start, count);
-				else
-				{
-					LogErr(VB_CHANNELOUT, "%s subType not valid on Pi\n", outputs[c]["subType"].asString().c_str());
-					continue;
-				}
 #endif
 #ifdef PLATFORM_BBB
-				if (outputs[c]["subType"] == "LEDscapeMatrix")
+				else if (outputs[c]["subType"] == "LEDscapeMatrix")
 					channelOutputs[i].output = new LEDscapeMatrixOutput(start, count);
+#endif
 				else
 				{
-					LogErr(VB_CHANNELOUT, "%s subType not valid on BBB\n", outputs[c]["subType"].asString().c_str());
+					LogErr(VB_CHANNELOUT, "LEDPanelmatrix subType '%s' not valid\n", outputs[c]["subType"].asString().c_str());
 					continue;
 				}
+#ifdef PLATFORM_BBB
 			} else if (type == "BBB48String") {
 				channelOutputs[i].output = new BBB48StringOutput(start, count);
 			} else if (type == "BBBSerial") {
 				channelOutputs[i].output = new BBBSerialOutput(start, count);
 #endif
-			} else if (type == "ColorLight5a75") {
-				channelOutputs[i].output = new ColorLight5a75Output(start, count);
+			} else if (type == "DDP") {
+				channelOutputs[i].output = new DDPOutput(start, count);
 			} else if (type == "FBVirtualDisplay") {
 				channelOutputs[i].output = (ChannelOutputBase*)new FBVirtualDisplayOutput(0, FPPD_MAX_CHANNELS);
-			} else if (type == "LinsnRV9") {
-				channelOutputs[i].output = new LinsnRV9Output(start, count);
 			} else if (type == "RHLDVIE131") {
 				channelOutputs[i].output = (ChannelOutputBase*)new RHLDVIE131Output(start, count);
 			} else if (type == "USBRelay") {
