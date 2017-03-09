@@ -379,7 +379,7 @@ case "${OSVER}" in
 						vim-common vorbis-tools vsftpd firmware-realtek gcc g++\
 						network-manager dhcp-helper hostapd parprouted bridge-utils \
 						firmware-atheros firmware-ralink firmware-brcm80211 \
-						wireless-tools \
+						wireless-tools resolvconf \
 						libmicrohttpd-dev libmicrohttpd10 libcurl4-openssl-dev
 		do
 			apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" install ${package}
