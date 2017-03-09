@@ -243,6 +243,17 @@ SUBMODULES += \
 	external/rpi-rgb-led-matrix \
 	external/rpi_ws281x \
 	$(NULL)
+else ifeq '$(ARCH)' 'OrangePi'
+# do something for Orange Pi
+BINDIR = ../bin.pi
+CFLAGS += \
+	-DPLATFORM_ORANGEPI \
+	-DUSEWIRINGPI \
+	$(NULL)
+LIBS_fppd += \
+	-lwiringPi \
+	-lwiringPiDev \
+	$(NULL)
 else ifeq '$(ARCH)' 'BeagleBone Black'
 # BeagleBone Black
 BINDIR = ../bin.bbb
