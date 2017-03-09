@@ -1,0 +1,47 @@
+
+The Orange Pi haa been tested with the Armbian images running Debian Jessie.
+These are available from https://www.armbian.com/
+Specific images names and versions are listed below.
+
+- Orange Pi Zero
+  - Armbian Debian Jessie image w/ 3.4.113 kernel
+    - Armbian_5.25_Orangepizero_Debian_jessie_default_3.4.113.7z
+
+- Orange Pi PC
+  - ??
+
+=============================================================================
+Commands to run after boot:
+
+#######################
+# Resize root partition to 1.8GB to give room to update packages and install FPP
+------
+# Armbian (Debian Jessie)
+#
+# NOTE: Armbian includes an auto-resize script, so this step may not be
+#       needed, although we don't want the resize on official FPP SD images
+#       to keep them smaller for user downloads.
+((echo d; echo 1; echo n; echo p; echo ; echo 2048; echo "+1800M"; echo w;) | fdisk /dev/mmcblk0)
+rm /etc/*.d/*resize2fs
+
+# Reboot the Orange Pi to allow the filesystem resize to take effect.
+shutdown -r now
+
+#######################
+# After reboot
+# check root filesystem size (should be ~1.8GB)
+df -k
+# update packages
+apt-get -y update
+apt-get -y upgrade
+shutdown -r now
+
+# After reboot
+wget --no-check-certificate -O ./FPP_Install.sh https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
+chmod 700 ./FPP_Install.sh
+./FPP_Install.sh --build-ola
+
+edit /opt/fpp/src/controlrecv.c to comment out SO_REUSEPORT usage and recompile
+
+shutdown -r now
+
