@@ -254,6 +254,9 @@ LIBS_fppd += \
 	-lwiringPi \
 	-lwiringPiDev \
 	$(NULL)
+OBJECTS_fppd += \
+	channeloutput/Hill320.o \
+	$(NULL)
 else ifeq '$(ARCH)' 'BeagleBone Black'
 # BeagleBone Black
 BINDIR = ../bin.bbb
