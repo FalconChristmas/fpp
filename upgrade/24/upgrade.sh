@@ -3,7 +3,7 @@
 # Install libmicrohttpd and libhttpserver
 #
 
-apt-get -y upgrade
+apt-get -y update
 apt-get -y install libmicrohttpd-dev libmicrohttpd10
 
 cd /opt/ \
