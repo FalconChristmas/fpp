@@ -55,6 +55,8 @@ class LinsnRV9Output : public ChannelOutputBase {
 	void DumpConfig(void);
 
   private:
+	void HandShake(void);
+
 	void SetHostMACs(void *data);
 	void SetDiscoveryMACs(void *data);
 
@@ -90,17 +92,17 @@ class LinsnRV9Output : public ChannelOutputBase {
 	int          m_outputFrameSize;
 	Matrix      *m_matrix;
 	PanelMatrix *m_panelMatrix;
+	int          m_formatIndex;
 
 	struct FormatCode {
-		int code;
-		int width;
-		int height;
+		unsigned char code;
+		int           width;
+		int           height;
+		int           dataOffset;
+		int           d27;
 	};
 
 	std::vector<struct FormatCode> m_formatCodes;
-	unsigned char m_formatCode;
-	int           m_formatWidth;
-	int           m_formatHeight;
 };
 
 #endif
