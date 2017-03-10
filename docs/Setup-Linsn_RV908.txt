@@ -119,6 +119,6 @@ NOTE: These instuctions currently require a second wired ethernet adapter
   but you will see better performance if you do not skip any output numbers.
 
 - Hand-edit /home/fpp/media/config/channeloutputs.json and search for the
-  "LEDPanelMatrix" or "RGBMatrix" Channel Output.  Change the type value to
+  "LEDscapeMatrix" or "RGBMatrix" Channel Output.  Change the type value to
   "LinsnRV9" and save the file and restart fppd.
 

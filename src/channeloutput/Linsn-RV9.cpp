@@ -97,32 +97,30 @@ LinsnRV9Output::LinsnRV9Output(unsigned int startChannel, unsigned int channelCo
 	m_invertedData(0),
 	m_matrix(NULL),
 	m_panelMatrix(NULL),
-	m_formatCode(0xd2),
-	m_formatWidth(512),
-	m_formatHeight(256)
+	m_formatIndex(-1)
 {
 	LogDebug(VB_CHANNELOUT, "LinsnRV9Output::LinsnRV9Output(%u, %u)\n",
 		startChannel, channelCount);
 
-	m_maxChannels = m_formatWidth * m_formatHeight * 3;
 
-	struct FormatCode fc_e0 = { 0xe0, 32, 32 };
-	m_formatCodes.push_back(fc_e0);
+	// NOTE: These must be ordered smallest to largest
+	//struct FormatCode fc_e0 = { 0xe0, 32, 32, 96, 0x01 };
+	//m_formatCodes.push_back(fc_e0);
 
-	struct FormatCode fc_e1 = { 0xe1, 64, 32 };
-	m_formatCodes.push_back(fc_e1);
+	//struct FormatCode fc_e1 = { 0xe1, 64, 32, 96, 0x03 );
+	//m_formatCodes.push_back(fc_e1);
 
-	struct FormatCode fc_d2 = { 0xd2, 512, 256 };
+	// maybe some unknown range here
+	//struct FormatCode fc_eX = { 0xeX, ??, ??, ??, 0x07 };
+	//m_formatCodes.push_back(fc_eX);
+
+	struct FormatCode fc_d2 = { 0xd2, 512, 256, 96, 0x0f };
 	m_formatCodes.push_back(fc_d2);
 
-	struct FormatCode fc_c2 = { 0xc2, 1024, 512 };
+	struct FormatCode fc_c2 = { 0xc2, 1024, 512, 1632, 0x1f };
 	m_formatCodes.push_back(fc_c2);
 
-	// FIXME, don't hardcode these, set based on m_width once we figureo ut
-	// the codes other than 0xd2.
-	m_formatCode = 0xd2;
-	m_formatWidth = 512;
-	m_formatHeight = 256;
+	m_maxChannels = m_formatCodes[m_formatCodes.size()-1].width * m_formatCodes[m_formatCodes.size()-1].height * 3;
 }
 
 /*
@@ -199,13 +197,30 @@ int LinsnRV9Output::Init(Json::Value config)
 	m_width  = m_panelMatrix->Width();
 	m_height = m_panelMatrix->Height();
 
+	m_formatIndex = -1;
+	for (int i = 0; i < m_formatCodes.size() && (m_formatIndex == -1); i++)
+	{
+		if ((m_formatCodes[i].width >= m_width) &&
+			(m_formatCodes[i].height >= m_height))
+		{
+			m_formatIndex = i;
+		}
+	}
+
+	if (m_formatIndex == -1)
+	{
+		LogErr(VB_CHANNELOUT, "Error finding valid format code for width: %d\n", m_width);
+		return 0;
+	}
+
 	m_channelCount = m_width * m_height * 3;
 
-	m_outputFrameSize = m_formatWidth * m_formatHeight * 3;
+	// Calculate max frame size and allocate
+	m_outputFrameSize = m_formatCodes[m_formatIndex].width * m_formatCodes[m_formatIndex].height * 3 + m_formatCodes[m_formatIndex].dataOffset;
 	m_outputFrame = new char[m_outputFrameSize];
 
-	// Calculate the minimum number of packets to send our height frame
-	m_framePackets = (m_height * m_formatWidth / 480) + 1;
+	// Calculate the minimum number of packets to send the height we need
+	m_framePackets = ((m_height * m_formatCodes[m_formatIndex].width + m_formatCodes[m_formatIndex].dataOffset) / 480) + 1;
 
 	m_matrix = new Matrix(m_startChannel, m_width, m_height);
 
@@ -266,19 +281,19 @@ int LinsnRV9Output::Init(Json::Value config)
 	m_buffer[22] = 0x96;
 
 	m_buffer[26] = 0x85;
-	m_buffer[27] = 0x1f;
+	m_buffer[27] = m_formatCodes[m_formatIndex].d27;
 	m_buffer[28] = 0xff; // something to do with brightness
 	m_buffer[29] = 0xff; // something to do with brightness
 	m_buffer[30] = 0xff; // something to do with brightness
 	m_buffer[31] = 0xff; // something to do with brightness
 
-	m_buffer[45] = 0xc2; // Is this same as format code later?
+	m_buffer[45] = m_formatCodes[m_formatIndex].code;
 
-	m_buffer[47] = 0xfe; // This was returned by receiver in byte offset 0x0a
-	m_buffer[48] = 0xff; // This was returned by reciever in byte offset 0x0b
+//	m_buffer[47] = 0xfe; // This was returned by receiver in byte offset 0x0a
+//	m_buffer[48] = 0xff; // This was returned by reciever in byte offset 0x0b
 	                     // Have seen some cards return 0x00 and 0xe0 instead
-	m_buffer[47] = 0x00; // This was returned by receiver in byte offset 0x0a
-	m_buffer[48] = 0xe0; // This was returned by reciever in byte offset 0x0b
+//	m_buffer[47] = 0x00; // This was returned by receiver in byte offset 0x0a
+//	m_buffer[48] = 0x00; // This was returned by reciever in byte offset 0x0b
 
 	for (int i = 0; i < 2; i++)
 	{
@@ -287,6 +302,9 @@ int LinsnRV9Output::Init(Json::Value config)
 			LogErr(VB_CHANNELOUT, "Error sending row data packet: %s\n", strerror(errno));
 			return 0;
 		}
+
+		m_buffer[47] = 0xfe; // This value is returned by receiver in byte offset 0x0a
+		m_buffer[48] = 0xff; // This value is returned by reciever in byte offset 0x0b
 
 //		usleep(200000);
 		sleep(1);
@@ -337,7 +355,7 @@ void LinsnRV9Output::PrepData(unsigned char *channelData)
 				int px = chain * m_panelWidth;
 				int yw = y * m_panelWidth * 3;
 
-				dst = (unsigned char*)(m_outputFrame + (((((output * m_panelHeight) + y) * m_formatWidth) + px) * 3) + (m_panelWidth * 3));
+				dst = (unsigned char*)(m_outputFrame + (((((output * m_panelHeight) + y) * m_formatCodes[m_formatIndex].width) + px) * 3) + m_formatCodes[m_formatIndex].dataOffset);
 
 				for (int x = 0; x < pw3; x += 3)
 				{
@@ -405,14 +423,13 @@ int LinsnRV9Output::RawSendData(unsigned char *channelData)
 	m_buffer[22] = 0x96;
 
 	m_buffer[26] = 0x85;
-	m_buffer[27] = 0x0f; // Sometimes 0x1f, sometimes 0x00
+	m_buffer[27] = m_formatCodes[m_formatIndex].d27;
 	m_buffer[28] = 0xff; // something to do with brightness
 	m_buffer[29] = 0xff; // something to do with brightness
 	m_buffer[30] = 0xff; // something to do with brightness
 	m_buffer[31] = 0xff; // something to do with brightness
 
-	// FIXME, this seems to be related to the matrix size
-	m_buffer[45] = m_formatCode;
+	m_buffer[45] = m_formatCodes[m_formatIndex].code;
 
 	if (sendto(m_fd, m_buffer, LINSNRV9_BUFFER_SIZE, 0, (struct sockaddr*)&m_sock_addr, sizeof(struct sockaddr_ll)) < 0)
 	{
@@ -425,10 +442,9 @@ int LinsnRV9Output::RawSendData(unsigned char *channelData)
 	int bytesSent = 0;
 	int framesSent = 0;
 
-// FIXME
-//memset(m_outputFrame, 0x7f, 192*2);
-
 	memset(m_header, 0, LINSNRV9_HEADER_SIZE);
+// FIXME
+//memset(m_outputFrame, 0x7f, m_outputFrameSize);
 
 	while (frameNumber < m_framePackets)
 	{
@@ -436,6 +452,7 @@ int LinsnRV9Output::RawSendData(unsigned char *channelData)
 		m_buffer[15] = (unsigned char)(frameNumber >> 8);
 
 		memcpy(m_data, m_outputFrame + bytesSent, LINSNRV9_DATA_SIZE);
+
 
 		if (sendto(m_fd, m_buffer, LINSNRV9_BUFFER_SIZE, 0, (struct sockaddr*)&m_sock_addr, sizeof(struct sockaddr_ll)) < 0)
 		{
@@ -464,8 +481,38 @@ void LinsnRV9Output::DumpConfig(void)
 	LogDebug(VB_CHANNELOUT, "    m_pktSize      : %d\n", m_pktSize);
 	LogDebug(VB_CHANNELOUT, "    m_framePackets : %d (0x%02x)\n",
 		m_framePackets, m_framePackets);
+	LogDebug(VB_CHANNELOUT, "    m_formatIndex  : %d\n", m_formatIndex);
+	LogDebug(VB_CHANNELOUT, "    Fmt Code       : 0x%02x\n",
+		m_formatCodes[m_formatIndex].code);
+	LogDebug(VB_CHANNELOUT, "    Fmt Width      : %d\n",
+		 m_formatCodes[m_formatIndex].width);
+	LogDebug(VB_CHANNELOUT, "    Fmt Height     : %d\n",
+		 m_formatCodes[m_formatIndex].height);
+	LogDebug(VB_CHANNELOUT, "    Fmt Data Offset: %d\n",
+		 m_formatCodes[m_formatIndex].dataOffset);
+	LogDebug(VB_CHANNELOUT, "    Fmt D27        : 0x%02x\n",
+		 m_formatCodes[m_formatIndex].d27);
 
 	ChannelOutputBase::DumpConfig();
+}
+
+/*
+ *
+ */
+void LinsnRV9Output::HandShake(void)
+{
+	// Send a packet with 0x00, 0x00 bytes
+
+	// Receive packet from receiver with its 2 bytes
+
+	// Loop for 'X' times??  (or is each iteration adding another reciever possibly, need to test)
+	// Send a packet with receiver's 2 bytes
+
+	// Receive packet from receiver with its 2 bytes
+
+	// Send a packet with receiver's 2 bytes
+
+	// Receive packet from receiver with its 2 bytes
 }
 
 /*
