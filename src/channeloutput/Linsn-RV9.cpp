@@ -245,6 +245,21 @@ int LinsnRV9Output::Init(Json::Value config)
 	else
 		m_ifName = "eth1";
 
+	GetSrcMAC();
+
+	if (config.isMember("sourceMAC"))
+	{
+		std::string srcMAC = config["sourceMAC"].asString();
+		std::vector<std::string> macParts = split(srcMAC, ':');
+
+		m_srcMAC[0] = (unsigned char)(strtol(macParts[0].c_str(), NULL, 16));
+		m_srcMAC[1] = (unsigned char)(strtol(macParts[1].c_str(), NULL, 16));
+		m_srcMAC[2] = (unsigned char)(strtol(macParts[2].c_str(), NULL, 16));
+		m_srcMAC[3] = (unsigned char)(strtol(macParts[3].c_str(), NULL, 16));
+		m_srcMAC[4] = (unsigned char)(strtol(macParts[4].c_str(), NULL, 16));
+		m_srcMAC[5] = (unsigned char)(strtol(macParts[5].c_str(), NULL, 16));
+	}
+
 	////////////////////////////
 	// Set main data packet
 	memset(m_buffer, 0, LINSNRV9_BUFFER_SIZE);
@@ -518,36 +533,39 @@ void LinsnRV9Output::HandShake(void)
 /*
  *
  */
-void LinsnRV9Output::SetHostMACs(void *ptr)
+void LinsnRV9Output::GetSrcMAC(void)
 {
 	struct ifreq ifr;
 	int s;
-	struct ether_header *eh = (struct ether_header *)ptr;
 
 	s = socket(AF_INET, SOCK_DGRAM, 0);
 	strcpy(ifr.ifr_name, m_ifName.c_str());
 	ioctl(s, SIOCGIFHWADDR, &ifr);
 
-// MAC of Gig-E USB NIC
-// FIXME
-if (0)
-{
-ifr.ifr_hwaddr.sa_data[0] = 0xd8;
-ifr.ifr_hwaddr.sa_data[1] = 0xeb;
-ifr.ifr_hwaddr.sa_data[2] = 0x97;
-ifr.ifr_hwaddr.sa_data[3] = 0xb7;
-ifr.ifr_hwaddr.sa_data[4] = 0xa9;
-ifr.ifr_hwaddr.sa_data[5] = 0x4e;
+	m_srcMAC[0] = ifr.ifr_hwaddr.sa_data[0];
+	m_srcMAC[1] = ifr.ifr_hwaddr.sa_data[1];
+	m_srcMAC[2] = ifr.ifr_hwaddr.sa_data[2];
+	m_srcMAC[3] = ifr.ifr_hwaddr.sa_data[3];
+	m_srcMAC[4] = ifr.ifr_hwaddr.sa_data[4];
+	m_srcMAC[5] = ifr.ifr_hwaddr.sa_data[5];
+
+	close(s);
 }
 
+/*
+ *
+ */
+void LinsnRV9Output::SetHostMACs(void *ptr)
+{
+	struct ether_header *eh = (struct ether_header *)ptr;
+
 	// Set the source MAC address
-	// FIXME, needs to be the host's MAC, get from E1.31 channel output code
-	eh->ether_shost[0] = ifr.ifr_hwaddr.sa_data[0];
-	eh->ether_shost[1] = ifr.ifr_hwaddr.sa_data[1];
-	eh->ether_shost[2] = ifr.ifr_hwaddr.sa_data[2];
-	eh->ether_shost[3] = ifr.ifr_hwaddr.sa_data[3];
-	eh->ether_shost[4] = ifr.ifr_hwaddr.sa_data[4];
-	eh->ether_shost[5] = ifr.ifr_hwaddr.sa_data[5];
+	eh->ether_shost[0] = m_srcMAC[0];
+	eh->ether_shost[1] = m_srcMAC[1];
+	eh->ether_shost[2] = m_srcMAC[2];
+	eh->ether_shost[3] = m_srcMAC[3];
+	eh->ether_shost[4] = m_srcMAC[4];
+	eh->ether_shost[5] = m_srcMAC[5];
 
 	// Set the dest MAC address
 	eh->ether_dhost[0] = 0x00;
@@ -558,14 +576,12 @@ ifr.ifr_hwaddr.sa_data[5] = 0x4e;
 	eh->ether_dhost[5] = 0xfe;
 
 	// Linsn also embed's sender MAC in its header
-	((unsigned char *)ptr)[39] = ((unsigned char *)ifr.ifr_hwaddr.sa_data)[0];
-	((unsigned char *)ptr)[40] = ((unsigned char *)ifr.ifr_hwaddr.sa_data)[1];
-	((unsigned char *)ptr)[41] = ((unsigned char *)ifr.ifr_hwaddr.sa_data)[2];
-	((unsigned char *)ptr)[42] = ((unsigned char *)ifr.ifr_hwaddr.sa_data)[3];
-	((unsigned char *)ptr)[43] = ((unsigned char *)ifr.ifr_hwaddr.sa_data)[4];
-	((unsigned char *)ptr)[44] = ((unsigned char *)ifr.ifr_hwaddr.sa_data)[5];
-
-	close(s);
+	((unsigned char *)ptr)[39] = m_srcMAC[0];
+	((unsigned char *)ptr)[40] = m_srcMAC[1];
+	((unsigned char *)ptr)[41] = m_srcMAC[2];
+	((unsigned char *)ptr)[42] = m_srcMAC[3];
+	((unsigned char *)ptr)[43] = m_srcMAC[4];
+	((unsigned char *)ptr)[44] = m_srcMAC[5];
 }
 
 /*
@@ -573,34 +589,15 @@ ifr.ifr_hwaddr.sa_data[5] = 0x4e;
  */
 void LinsnRV9Output::SetDiscoveryMACs(void *ptr)
 {
-	struct ifreq ifr;
-	int s;
 	struct ether_header *eh = (struct ether_header *)ptr;
 
-	s = socket(AF_INET, SOCK_DGRAM, 0);
-	strcpy(ifr.ifr_name, m_ifName.c_str());
-	ioctl(s, SIOCGIFHWADDR, &ifr);
-
-// MAC of Gig-E USB NIC
-// FIXME
-if (0)
-{
-ifr.ifr_hwaddr.sa_data[0] = 0xd8;
-ifr.ifr_hwaddr.sa_data[1] = 0xeb;
-ifr.ifr_hwaddr.sa_data[2] = 0x97;
-ifr.ifr_hwaddr.sa_data[3] = 0xb7;
-ifr.ifr_hwaddr.sa_data[4] = 0xa9;
-ifr.ifr_hwaddr.sa_data[5] = 0x4e;
-}
-
 	// Set the source MAC address
-	// FIXME, needs to be the host's MAC, get from E1.31 channel output code
-	eh->ether_shost[0] = ifr.ifr_hwaddr.sa_data[0];
-	eh->ether_shost[1] = ifr.ifr_hwaddr.sa_data[1];
-	eh->ether_shost[2] = ifr.ifr_hwaddr.sa_data[2];
-	eh->ether_shost[3] = ifr.ifr_hwaddr.sa_data[3];
-	eh->ether_shost[4] = ifr.ifr_hwaddr.sa_data[4];
-	eh->ether_shost[5] = ifr.ifr_hwaddr.sa_data[5];
+	eh->ether_shost[0] = m_srcMAC[0];
+	eh->ether_shost[1] = m_srcMAC[1];
+	eh->ether_shost[2] = m_srcMAC[2];
+	eh->ether_shost[3] = m_srcMAC[3];
+	eh->ether_shost[4] = m_srcMAC[4];
+	eh->ether_shost[5] = m_srcMAC[5];
 
 	// Set the dest MAC address
 	eh->ether_dhost[0] = 0xff;
@@ -611,13 +608,11 @@ ifr.ifr_hwaddr.sa_data[5] = 0x4e;
 	eh->ether_dhost[5] = 0xff;
 
 	// Linsn also embed's sender MAC in its header
-	((unsigned char *)ptr)[39] = ((unsigned char *)ifr.ifr_hwaddr.sa_data)[0];
-	((unsigned char *)ptr)[40] = ((unsigned char *)ifr.ifr_hwaddr.sa_data)[1];
-	((unsigned char *)ptr)[41] = ((unsigned char *)ifr.ifr_hwaddr.sa_data)[2];
-	((unsigned char *)ptr)[42] = ((unsigned char *)ifr.ifr_hwaddr.sa_data)[3];
-	((unsigned char *)ptr)[43] = ((unsigned char *)ifr.ifr_hwaddr.sa_data)[4];
-	((unsigned char *)ptr)[44] = ((unsigned char *)ifr.ifr_hwaddr.sa_data)[5];
-
-	close(s);
+	((unsigned char *)ptr)[39] = m_srcMAC[0];
+	((unsigned char *)ptr)[40] = m_srcMAC[1];
+	((unsigned char *)ptr)[41] = m_srcMAC[2];
+	((unsigned char *)ptr)[42] = m_srcMAC[3];
+	((unsigned char *)ptr)[43] = m_srcMAC[4];
+	((unsigned char *)ptr)[44] = m_srcMAC[5];
 }
 

@@ -57,6 +57,7 @@ class LinsnRV9Output : public ChannelOutputBase {
   private:
 	void HandShake(void);
 
+	void GetSrcMAC(void);
 	void SetHostMACs(void *data);
 	void SetDiscoveryMACs(void *data);
 
@@ -103,6 +104,9 @@ class LinsnRV9Output : public ChannelOutputBase {
 	};
 
 	std::vector<struct FormatCode> m_formatCodes;
+
+	unsigned char m_srcMAC[6];
+	unsigned char m_dstMAC[6];
 };
 
 #endif
