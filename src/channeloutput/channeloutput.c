@@ -47,6 +47,7 @@
 #include "Sequence.h"
 #include "settings.h"
 #include "SPIws2801.h"
+#include "SPIws281x.h"
 #include "LOR.h"
 #include "SPInRF24L01.h"
 #include "RHL_DVI_E131.h"
