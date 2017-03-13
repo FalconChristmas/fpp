@@ -27,6 +27,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
@@ -39,6 +40,20 @@
 
 #include "SPIws281x.h"
 
+#define SPIWS281x_SPEED 2857142  //May need to be 3,800,000 for some models
+#define SPIWS281x_MAX_CHANNELS  341
+
+// each pair of WS2812 bits is sent as 1 spi byte
+// looks up 2 bits of led data to get the spi pattern to send
+// A ws281x '0' is sent as 1000
+// A ws281x '1' is sent as 1100
+// A ws281x 'reset/latch' is sent as 3 bytes of 00000000
+uint8_t bitpair_to_byte[] = {
+    0b10001000,
+    0b10001100,
+    0b11001000,
+    0b11001100,
+};
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -53,7 +68,7 @@ SPIws281xOutput::SPIws281xOutput(unsigned int startChannel, unsigned int channel
 	LogDebug(VB_CHANNELOUT, "SPIws281xOutput::SPIws281xOutput(%u, %u)\n",
 		startChannel, channelCount);
 
-	m_maxChannels = SPIws281x_MAX_CHANNELS;
+	m_maxChannels = SPIWS281x_MAX_CHANNELS;
 }
 
 /*
@@ -105,7 +120,7 @@ int SPIws281xOutput::Init(char *configStr)
 
 	if (m_port == -1)
 	{
-		LogErr(VB_CHANNELOUT, "Invalid Config String: %s\n", configStr);
+		LogDebug(VB_CHANNELOUT, "Invalid Config String: %s\n", configStr);
 		return 0;
 	}
 
@@ -115,7 +130,7 @@ int SPIws281xOutput::Init(char *configStr)
   
 	if (m_fd < 0)
 	{
-		LogErr(VB_CHANNELOUT, "Unable to open SPI device\n") ;
+		LogDebug(VB_CHANNELOUT, "Unable to open SPI device\n") ;
 		return 0;
 	}
 
@@ -151,7 +166,7 @@ int SPIws281xOutput::RawSendData(unsigned char *channelData)
   uint8_t* bufq = (uint8_t *)(malloc(s_size));
   
   if(!bufq){
-    LogErr(VB_CHANNELOUT, "SPI Buffer Creation Fail"");
+    LogErr(VB_CHANNELOUT, "SPI Buffer Creation Fail");
 		return 0;
   }
   
@@ -174,12 +189,18 @@ int SPIws281xOutput::RawSendData(unsigned char *channelData)
   //load SPI buffer
   int ret;
  
-  struct spi_ioc_transfer tr = {
-      .tx_buf = (unsigned long)bufq,
-      .rx_buf = 0,
-      .len = s_size,
-      .speed_hz = SPIWS281x_SPEED,
-      .bits_per_word = 8,
+  struct spi_ioc_transfer tr = 
+  {
+      tx_buf: (unsigned long)bufq,
+      rx_buf: 0,
+      len: s_size,
+      speed_hz: SPIWS281x_SPEED,
+      delay_usecs: 0,
+      bits_per_word: 8,
+      cs_change: 0,
+      tx_nbits: 0,
+      rx_nbits: 0,
+      pad: 0
   };
 
   ret = ioctl(m_fd, SPI_IOC_MESSAGE(1), &tr);
@@ -187,7 +208,7 @@ int SPIws281xOutput::RawSendData(unsigned char *channelData)
   free(bufq);
   
   if (ret < 1){
-    LogErr(VB_CHANNELOUT, "SPI Data Send Fail"");
+    LogDebug(VB_CHANNELOUT, "SPI Data Send Fail");
     return 0;
   }
   
