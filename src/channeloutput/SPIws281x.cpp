@@ -48,7 +48,7 @@
 // A ws281x '0' is sent as 1000
 // A ws281x '1' is sent as 1100
 // A ws281x 'reset/latch' is sent as 3 bytes of 00000000
-uint8_t bitpair_to_byte[] = {
+const uint8_t bitpair_to_byte[] = {
     0b10001000,
     0b10001100,
     0b11001000,

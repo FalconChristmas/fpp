@@ -1258,7 +1258,8 @@ function PopulateChannelOutputTable(data) {
 			newRow += RenardOutputConfig(output[4]);
 		} else if (type == "LOR") {
 			newRow += LOROutputConfig(output[4]);
-		} else if (type == "SPI-WS2801") {
+		} else if ((type == "SPI-WS2801") ||
+      (type == "SPI-WS281x")){
 			newRow += SPIDeviceConfig(output[4]);
 		} else if (type == "SPI-nRF24L01") {
 			newRow += SPInRFDeviceConfig(output[4]);
@@ -1361,7 +1362,15 @@ function SetChannelOutputs() {
 				return;
 			}
 			maxChannels = 1530;
-		} else if (type == "SPI-nRF24L01") {
+		} else if (type == "SPI-WS281x") {
+			config += GetSPIOutputConfig($this.find("td:nth-child(6)"));
+			if (config == "") {
+				dataError = 1;
+				DialogError("Save Channel Outputs", "Invalid SPI-WS281x Config");
+				return;
+			}
+			maxChannels = 1023;
+		}else if (type == "SPI-nRF24L01") {
 			config += GetnRFSpeedConfig($this.find("td:nth-child(6)"));
 			if (config == "") {
 				dataError = 1;
@@ -1510,7 +1519,10 @@ function AddOtherTypeOptions(row, type) {
 	} else if (type == "SPI-WS2801") {
 		config += NewSPIConfig();
 		row.find("td input.count").val("1530");
-	} else if (type == "SPI-nRF24L01") {
+	} else if (type == "SPI-WS281x") {
+		config += NewSPIConfig();
+		row.find("td input.count").val("1023");
+	}else if (type == "SPI-nRF24L01") {
 		config += NewnRFSPIConfig();
 		row.find("td input.count").val("512");
 	} else if (type == "Triks-C") {
@@ -1567,7 +1579,8 @@ function OtherTypeSelected(selectbox) {
 	}
 
 	if ((Object.keys(SPIDevices).length == 0) &&
-			(type == 'SPI-WS2801'))
+			((type == 'SPI-WS2801') ||
+      (type == 'SPI-WS281x')))
 	{
 		DialogError("Add Output", "No available SPI devices detected.");
 		$row.remove();
@@ -1614,6 +1627,7 @@ function AddOtherOutput() {
 				"<option value='Pixelnet-Lynx'>Pixelnet-Lynx</option>" +
 				"<option value='Pixelnet-Open'>Pixelnet-Open</option>" +
 				"<option value='Renard'>Renard</option>" +
+        "<option value='SPI-WS281x'>SPI-WS281x</option>" +
 <?
 	if ($settings['Platform'] == "Raspberry Pi")
 	{

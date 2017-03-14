@@ -407,6 +407,8 @@ int InitializeChannelOutputs(void) {
 #endif
 			} else if (!strcmp(type, "SPI-WS2801")) {
 				channelOutputs[i].output = new SPIws2801Output(start, count);
+			} else if (!strcmp(type, "SPI-WS281x")) {
+				channelOutputs[i].output = new SPIws281xOutput(start, count);
 			} else if (!strcmp(type, "SPI-nRF24L01")) {
 				channelOutputs[i].outputOld = &SPInRF24L01Output;
 			} else if (!strcmp(type, "Triks-C")) {
