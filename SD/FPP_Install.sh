@@ -677,7 +677,7 @@ EOF
 		echo "FPP - Orange Pi"
 
 		echo "FPP - Installing wiringOP (wiringPi port)"
-		cd /opt/ && git clone https://github.com/zhaolei/WiringOP && cd /opt/WiringOP && ./build
+		cd /opt/ && git clone https://github.com/madsci1016/WiringOP && cd /opt/WiringOP && ./build
 
 		echo "FPP - Installing OLA from source"
 		apt-get -y --force-yes install libcppunit-dev uuid-dev pkg-config libncurses5-dev libtool autoconf automake libmicrohttpd-dev protobuf-compiler python-protobuf libprotobuf-dev libprotoc-dev bison flex libftdi-dev libftdi1 libusb-1.0-0-dev liblo-dev

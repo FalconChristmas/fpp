@@ -215,6 +215,21 @@ then
 	detectFalconHardware
 fi
 
+f [ "${FPPPLATFORM}" = "OrangePi" ]
+then
+	echo "FPP - Setting up SPI"
+	chmod u+w /sys/module/spidev/parameters/bufsiz
+  echo 102400 > /sys/module/spidev/parameters/bufsiz
+
+	# See if we have a PiFace connected
+	echo "FPP - Checking for PiFace"
+	detectPiFace
+
+	# See if we have any Falcon hardware on the SPI port
+	echo "FPP - Checking for Falcon hardware on SPI port"
+	detectFalconHardware
+fi
+
 # Make sure our DHCP IPs are up before we log/announce them.
 WaitForDHCPIPs
 

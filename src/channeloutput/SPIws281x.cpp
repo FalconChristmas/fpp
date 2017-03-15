@@ -1,5 +1,7 @@
 /*
  *   WS281x SPI handler for Falcon Player (FPP)
+ *      Developed by Bill Porter (madsci1016)  www.billporter.info
+ *        Using example by penfold42
  *
  *   Copyright (C) 2013 the Falcon Player Developers
  *      Initial development by:
@@ -30,18 +32,26 @@
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/ioctl.h>
 #include <linux/types.h>
 #include <linux/spi/spidev.h>
-
 #include "common.h"
 #include "log.h"
 #include "settings.h"
 
+/******   SPI Access mode. Pick one  ********/
+//#define SPIWS281x_USE_WIRINGPI
+#define SPIWS281x_USE_IOCTL
+/********************************************/
+
+#if defined(SPIWS281x_USE_WIRINGPI)
+#include <wiringPiSPI.h>
+#elif defined(SPIWS281x_USE_IOCTL)
+#include <sys/ioctl.h>
+#endif
 #include "SPIws281x.h"
 
-#define SPIWS281x_SPEED 2857142  //May need to be 3,800,000 for some models
-#define SPIWS281x_MAX_CHANNELS  341
+#define SPIWS281x_SPEED 3333333  //May need to be 3,800,000 for some models or 2857142 But Bill's optimization says Lucky 3's
+#define SPIWS281x_MAX_CHANNELS  3000
 
 // each pair of WS2812 bits is sent as 1 spi byte
 // looks up 2 bits of led data to get the spi pattern to send
@@ -54,9 +64,6 @@ const uint8_t bitpair_to_byte[] = {
     0b11001000,
     0b11001100,
 };
-
-
-/////////////////////////////////////////////////////////////////////////////
 
 /*
  *
@@ -84,7 +91,12 @@ SPIws281xOutput::~SPIws281xOutput()
  */
 int SPIws281xOutput::Init(char *configStr)
 {
-	LogDebug(VB_CHANNELOUT, "SPIws281xOutput::Init('%s')\n", configStr);
+  
+#if defined(SPIWS281x_USE_WIRINGPI)
+  LogDebug(VB_CHANNELOUT, "SPIws281xOutput::Init('%s') WiringPi\n", configStr);
+#elif defined(SPIWS281x_USE_IOCTL)
+	LogDebug(VB_CHANNELOUT, "SPIws281xOutput::Init('%s') IOCTL\n", configStr);
+#endif
 
 	std::vector<std::string> configElems = split(configStr, ';');
 
@@ -101,21 +113,26 @@ int SPIws281xOutput::Init(char *configStr)
 
 			if (elem[1] == "spidev0.0"){
 				m_port = 0;
+#if defined(SPIWS281x_USE_IOCTL)        
         //create stream, open device
         m_fd = open("/dev/spidev0.0", O_RDWR);
+#endif
       }
 			else if (elem[1] == "spidev0.1"){
 				m_port = 1;
+#if defined(SPIWS281x_USE_IOCTL)        
         //create stream, open device
         m_fd = open("/dev/spidev0.1", O_RDWR);
+#endif
       }
       else if (elem[1] == "spidev1.0"){
-				m_port = 2;
+				m_port = 1;
+#if defined(SPIWS281x_USE_IOCTL)        
         //create stream, open device
         m_fd = open("/dev/spidev1.0", O_RDWR);
+#endif
       }
 		}
-		
 	}
 
 	if (m_port == -1)
@@ -126,13 +143,29 @@ int SPIws281xOutput::Init(char *configStr)
 
 	LogDebug(VB_CHANNELOUT, "Using SPI Port %d\n", m_port);
 
-  
-  
-	if (m_fd < 0)
+#if defined(SPIWS281x_USE_WIRINGPI)
+	if (wiringPiSPISetup(m_port, SPIWS281x_SPEED) < 0)
+#elif defined(SPIWS281x_USE_IOCTL)        
+  if (m_fd < 0)
+#endif
 	{
-		LogDebug(VB_CHANNELOUT, "Unable to open SPI device\n") ;
+		LogErr(VB_CHANNELOUT, "Unable to open SPI device\n") ;
 		return 0;
 	}
+  
+  // create SPI buffer
+  // each channel byte needs 4 SPI bytes
+  // +3 for the reset/latch pulse
+  // +1 leading byte to clear start glitch
+  m_size = m_channelCount*4+4;
+  bufq = (uint8_t *)(malloc(m_size));
+  
+  if(!bufq){
+    LogErr(VB_CHANNELOUT, "SPI Buffer Creation Fail");
+		return 0;
+  }
+  
+   bufq[0] = 0; //clear pad byte
 
 	return ChannelOutputBase::Init(configStr);
 }
@@ -145,7 +178,7 @@ int SPIws281xOutput::Close(void)
 {
 	LogDebug(VB_CHANNELOUT, "SPIws281xOutput::Close()\n");
   
-  close(m_fd);
+  free(bufq);
 
 	return ChannelOutputBase::Close();
 }
@@ -156,22 +189,9 @@ int SPIws281xOutput::Close(void)
 int SPIws281xOutput::RawSendData(unsigned char *channelData)
 {
 	LogDebug(VB_CHANNELOUT, "SPIws281xOutput::RawSendData(%p)\n", channelData);
-  
-  // create SPI buffer
-  // each channel byte needs 4 SPI bytes
-  // +3 for the reset/latch pulse
-  // +1 leading byte to clear start glitch
-  uint16_t s_size = m_channelCount*4+4;
-  
-  uint8_t* bufq = (uint8_t *)(malloc(s_size));
-  
-  if(!bufq){
-    LogErr(VB_CHANNELOUT, "SPI Buffer Creation Fail");
-		return 0;
-  }
-  
+
    uint16_t spi_ptr = 1; //leading byte will be x00 to avoid start glitch
-   bufq[0] = 0;
+  
   
   for(int i = 0; i< m_channelCount; i++ ){
     
@@ -185,15 +205,22 @@ int SPIws281xOutput::RawSendData(unsigned char *channelData)
   bufq[spi_ptr++] = 0;
   bufq[spi_ptr++] = 0;
   bufq[spi_ptr++] = 0;
+  /*
+
   
-  //load SPI buffer
+  */
+  
+#if defined(SPIWS281x_USE_WIRINGPI)
+  wiringPiSPIDataRW(m_port, (unsigned char *)bufq, m_size);
+#elif defined(SPIWS281x_USE_IOCTL)
+    //load SPI buffer
   int ret;
  
   struct spi_ioc_transfer tr = 
   {
       tx_buf: (unsigned long)bufq,
       rx_buf: 0,
-      len: s_size,
+      len:  m_size,
       speed_hz: SPIWS281x_SPEED,
       delay_usecs: 0,
       bits_per_word: 8,
@@ -204,17 +231,7 @@ int SPIws281xOutput::RawSendData(unsigned char *channelData)
   };
 
   ret = ioctl(m_fd, SPI_IOC_MESSAGE(1), &tr);
-  
-  free(bufq);
-  
-  if (ret < 1){
-    LogDebug(VB_CHANNELOUT, "SPI Data Send Fail");
-    return 0;
-  }
-  
-  
-	//wiringPiSPIDataRW(m_port, (unsigned char *)channelData, m_channelCount);
-	
+#endif	
 
 	return m_channelCount;
 }

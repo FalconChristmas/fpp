@@ -1,5 +1,7 @@
 /*
  *   WS281x SPI handler for Falcon Player (FPP)
+ *      Developed by Bill Porter (madsci1016)  www.billporter.info
+ *        Using example by penfold42
  *
  *   Copyright (C) 2013 the Falcon Player Developers
  *      Initial development by:
@@ -42,8 +44,12 @@ class SPIws281xOutput : public ChannelOutputBase {
 	void DumpConfig(void);
 
   private:
+#if defined(SPIWS281x_USE_IOCTL)        
   int            m_fd;
+#endif
 	int            m_port;
+  int            m_size;
+  uint8_t*       bufq;
 };
 
 #endif
