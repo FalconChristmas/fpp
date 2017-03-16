@@ -225,9 +225,9 @@ int SPIws281xOutput::RawSendData(unsigned char *channelData)
       delay_usecs: 0,
       bits_per_word: 8,
       cs_change: 0,
-      tx_nbits: 0,
-      rx_nbits: 0,
-      pad: 0
+//      tx_nbits: 0,
+//      rx_nbits: 0,
+//      pad: 0
   };
 
   ret = ioctl(m_fd, SPI_IOC_MESSAGE(1), &tr);
