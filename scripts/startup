@@ -215,7 +215,7 @@ then
 	detectFalconHardware
 fi
 
-f [ "${FPPPLATFORM}" = "OrangePi" ]
+if [ "${FPPPLATFORM}" = "OrangePi" ]
 then
 	echo "FPP - Setting up SPI"
 	chmod u+w /sys/module/spidev/parameters/bufsiz
