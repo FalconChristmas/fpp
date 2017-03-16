@@ -58,6 +58,9 @@
 // r10 - r22 are used for temp storage and bitmap processing
 #define gpio3_serial_mask	  r26
 
+// each loop is 4 instructions, one is an LBCO of 12 bytes which takes 45 cycles so 48 cycles total
+// 200ms * 5ns/cycle * 200mhz
+#define CONST_MAX_BETWEEN_FRAME 0xC0000
 
 /** Sleep a given number of nanoseconds with 10 ns resolution.
  *
@@ -151,11 +154,18 @@ START:
 	SET	GPIO_MASK(ser7_gpio), ser7_pin
 	SET	GPIO_MASK(ser8_gpio), ser8_pin
 
+    MOV sleep_counter, CONST_MAX_BETWEEN_FRAME
+
 	// Wait for the start condition from the main program to indicate
 	// that we have a rendered frame ready to clock out.  This also
 	// handles the exit case if an invalid value is written to the start
 	// start position.
 _LOOP:
+    // more than 200ms since last out, need to re-output or signal
+    // will be lost
+    SUB     sleep_counter, sleep_counter, 1
+    QBEQ    _OUTPUTANYWAY, sleep_counter, #0
+
 	// Load the pointer to the buffer from PRU DRAM into r0 and the
 	// length (in bytes-bit words) into r1.
 	// start command into r2
@@ -163,6 +173,8 @@ _LOOP:
 
 	// Wait for a non-zero command
 	QBEQ	_LOOP, r2, #0
+
+_OUTPUTANYWAY:
 
 	// Zero out the start command so that they know we have received it
 	// This allows maximum speed frame drawing since they know that they
@@ -271,6 +283,7 @@ _LOOP:
 	SBCO	r2, CONST_PRUDRAM, 12, 4
 
 	// Go back to waiting for the next frame buffer
+    MOV sleep_counter, CONST_MAX_BETWEEN_FRAME
 	QBA	_LOOP
 
 EXIT:
