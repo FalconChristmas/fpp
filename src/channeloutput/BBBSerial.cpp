@@ -121,10 +121,17 @@ int BBBSerialOutput::Init(Json::Value config)
 		pru_program += "/../lib/";
 
 	if (m_pixelnet)
-		pru_program += "FalconPixelnet.bin";
-	else
-		pru_program += "FalconDMX.bin";
-
+		pru_program += "FalconPixelnet";
+    else
+        pru_program += "FalconDMX";
+    
+    if (config["device"] == "F4-B") {
+        pru_program += "-4a.bin";
+    } else if (config["device"] == "F8-B-16") {
+        pru_program += "-4b.bin";
+    } else {
+        pru_program += ".bin";
+    }
 	if (!FileExists(pru_program.c_str()))
 	{
 		LogErr(VB_CHANNELOUT, "%s does not exist!\n", pru_program.c_str());

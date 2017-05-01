@@ -1,0 +1,100 @@
+#ifndef _ws281x_F8B_
+#define _ws281x_F8B_
+
+//first 12 are common
+
+// Output 1
+#define o1_gpio  	2
+#define o1_pin		3
+#define o1_dreg  r10.b0
+// Output 2
+#define o2_gpio		2
+#define o2_pin		4
+#define o2_dreg  r10.b1
+// Output 3
+#define o3_gpio		0
+#define o3_pin		26
+#define o3_dreg  r10.b2
+// Output 4
+#define o4_gpio		2
+#define o4_pin		1
+#define o4_dreg  r10.b3
+// Output 5
+#define o5_gpio		2
+#define o5_pin		24
+#define o5_dreg  r11.b0
+// Output 6
+#define o6_gpio		2
+#define o6_pin		25
+#define o6_dreg  r11.b1
+// Output 7
+#define o7_gpio		0
+#define o7_pin		11
+#define o7_dreg  r11.b2
+// Output 8
+#define o8_gpio		2
+#define o8_pin		17
+#define o8_dreg  r11.b3
+// Output 9
+#define o9_gpio		2
+#define o9_pin		16
+#define o9_dreg  r12.b0
+// Output 10
+#define o10_gpio	2
+#define o10_pin		15
+#define o10_dreg  r12.b1
+// Output 11
+#define o11_gpio	2
+#define o11_pin		13
+#define o11_dreg  r12.b2
+// Output 12
+#define o12_gpio	2
+#define o12_pin		11
+#define o12_dreg  r12.b3
+
+
+#if OUTPUTS >= 16
+#define USES_GPIO3
+
+// Output 13
+#define o13_gpio	3
+#define o13_pin		21
+#define o13_dreg  r13.b0
+// Output 14
+#define o14_gpio	3
+#define o14_pin		19
+#define o14_dreg  r13.b1
+// Output 15
+#define o15_gpio	3
+#define o15_pin		17
+#define o15_dreg  r13.b2
+// Output 16
+#define o16_gpio	3
+#define o16_pin		15
+#define o16_dreg  r13.b3
+
+#endif
+
+#if OUTPUTS >= 20
+
+// Output 17
+#define o17_gpio	3
+#define o17_pin		16
+#define o17_dreg  r14.b0
+// Output 18
+#define o18_gpio	3
+#define o18_pin		14
+#define o18_dreg  r14.b1
+// Output 19
+#define o19_gpio	3
+#define o19_pin		20
+#define o19_dreg  r14.b2
+// Output 20
+#define o20_gpio	3
+#define o20_pin		18
+#define o20_dreg  r14.b3
+
+#endif
+
+
+#endif

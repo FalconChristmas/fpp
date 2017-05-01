@@ -1672,16 +1672,20 @@ function GetBBB48StringRows()
 
 	if (subType == 'F16-B')
 		rows = 16;
-	else if (subType == 'F16-B-WS')
-		rows = 16;
 	else if (subType == 'F16-B-32')
 		rows = 32;
+    else if (subType == 'F16-B-40')
+        rows = 40;
 	else if (subType == 'F16-B-48')
 		rows = 48;
 	else if (subType == 'F4-B')
 		rows = 4;
-	else if (subType == 'F4-B-WS')
-		rows = 4;
+    else if (subType == 'F8-B')
+        rows = 12;
+    else if (subType == 'F8-B-16')
+        rows = 16;
+    else if (subType == 'F8-B-20')
+        rows = 20;
 	else if (subType == 'RGBCape48C')
 		rows = 48;
 
@@ -1704,9 +1708,6 @@ function GetBBB48StringConfig()
 
 	if ($('#BBB48StringEnabled').is(":checked"))
 		config.enabled = 1;
-
-//	if (config.subType.substr(0, 5) == "F16-B")
-//		config.subType = "F16-B";
 
 	var i = 0;
 	for (i = 0; i < BBB48StringOutputs; i++)
@@ -1806,23 +1807,28 @@ function DrawBBB48StringTable()
 
 	var subType = $('#BBB48StringSubType').val();
 
-	if ((subType == 'F4-B-WS') || (subType == 'F16-B-WS'))
-	{
-		$('#BBBSerialSelect').show();
-		$('#BBBSerialOutputs').show();
-	}
-	else
+	if ((subType == 'F16-B-48') || (subType == 'F8-B-20'))
 	{
 		$('#BBBSerialSelect').hide();
 		$('#BBBSerialOutputs').hide();
+	}
+	else
+	{
+		$('#BBBSerialSelect').show();
+		$('#BBBSerialOutputs').show();
 	}
 
 	var s = 0;
 	for (s = 0; s < BBB48StringOutputs; s++)
 	{
-		if (s && ((s % 16) == 0))
-		{
-			html += "<tr><td colspan='9'><hr></td></tr>\n";
+        if (subType == 'F8-B-20' && (s == 16 || s == 12 || s == 8)) {
+            html += "<tr><td colspan='10'><hr></td></tr>\n";
+        } else if (subType == 'F8-B-16' && (s == 12 || s == 8)) {
+            html += "<tr><td colspan='10'><hr></td></tr>\n";
+        } else if (subType == 'F8-B' && s == 8) {
+            html += "<tr><td colspan='10'><hr></td></tr>\n";
+        } else if (s && ((s % 16) == 0)) {
+    		html += "<tr><td colspan='10'><hr></td></tr>\n";
 		}
 
 		html += "<tr id='BBB48StringRow" + s + "'>";
@@ -1927,8 +1933,8 @@ function InitializeBBBSerial()
 	if (("BBB48String" in channelOutputsLookup) &&
 		(typeof channelOutputsLookup["BBB48String"].subType != "undefined"))
 	{
-		if ((channelOutputsLookup["BBB48String"].subType != 'F4-B-WS') &&
-			(channelOutputsLookup["BBB48String"].subType != 'F16-B-WS'))
+		if ((channelOutputsLookup["BBB48String"].subType == 'F16-B-48') ||
+			(channelOutputsLookup["BBB48String"].subType == 'F8-B-20'))
 			return; // nothing to setup if non-serial cape
 	}
 
@@ -1954,9 +1960,11 @@ function SetupBBBSerialStartChannels()
 {
 	var subType = $('#BBB48StringSubType').val();
 
-	if (subType == 'F4-B-WS')
+	if (subType == 'F4-B')
 		maxPorts = 1;
-	else if (subType == 'F16-B-WS')
+    else if (subType == 'F8-B-16')
+        maxPorts = 4;
+	else
 		maxPorts = 8;
 
 	for (var i = 1; i <= 8; i++)
@@ -1979,6 +1987,7 @@ function GetBBBSerialConfig()
 	config.subType = $('#BBBSerialMode').val();
 	config.startChannel = 0;
 	config.channelCount = 0;
+    config.device = $('#BBB48StringSubType').val();
 	config.outputs = [];
 
 	if (config.subType != 'off')
@@ -2739,11 +2748,12 @@ if ($settings['Platform'] == "BeagleBone Black")
 								<td><b>Cape Type:</b></td>
 								<td><select id='BBB48StringSubType' onChange='BBB48StringSubTypeChanged();'>
 									<option value='F16-B'>F16-B</option>
-									<option value='F16-B-WS'>F16-B with Serial</option>
 									<option value='F16-B-32'>F16-B w/ 32 outputs</option>
 									<option value='F16-B-48'>F16-B w/ 48 outputs (No Serial)</option>
 									<option value='F4-B'>F4-B</option>
-									<option value='F4-B-WS'>F4-B with Serial</option>
+                                    <option value='F8-B'>F8-B (8 serial)</option>
+                                    <option value='F8-B-16'>F8-B (4 serial)</option>
+                                    <option value='F8-B-20'>F8-B (No serial)</option>
 									<option value='RGBCape48C'>RGBCape48C</option>
 									</select>
 									</td>
