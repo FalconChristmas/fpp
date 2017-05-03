@@ -440,9 +440,9 @@ _LOOP:
 		SUB	data_len, data_len, 1
 		QBNE	WORD_LOOP, data_len, #0
 
-	// Delay at least 50 usec; this is the required reset
+	// Delay at least 300 usec; this is the required reset
 	// time for the LED strip to update with the new pixels.
-	SLEEPNS	50000, 1, reset_time
+	SLEEPNS	300000, 1, reset_time
 
 	// Write out that we are done!
 	// Store a non-zero response in the buffer so that they know that we are done
