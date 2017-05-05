@@ -73,6 +73,7 @@
 #endif
 
 #ifdef PLATFORM_PI
+#  include "ILI9488.h"
 #  include "rpi_ws281x.h"
 #endif
 
@@ -290,6 +291,10 @@ int InitializeChannelOutputs(void) {
 #ifdef USEWIRINGPI
 			} else if (type == "Hill320") {
 				channelOutputs[i].output = new Hill320Output(start, count);
+#endif
+#ifdef PLATFORM_PI
+			} else if (type == "ILI9488") {
+				channelOutputs[i].output = new ILI9488Output(start, count);
 #endif
 #ifdef USE_X11Matrix
 			} else if (type == "X11Matrix") {

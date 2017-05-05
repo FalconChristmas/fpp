@@ -203,6 +203,7 @@ LDFLAGS_fppd += \
 	$(NULL)
 OBJECTS_fppd += \
 	channeloutput/Hill320.o \
+	channeloutput/ILI9488.o \
 	channeloutput/RGBMatrix.o \
 	channeloutput/rpi_ws281x.o \
 	$(NULL)
