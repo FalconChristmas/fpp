@@ -277,6 +277,18 @@ function parseStatus($status)
 
 		if($fppStatus == 0) {
 			$data = [
+				'current_playlist' => [
+					'playlist' => '',
+					'type'     => '',
+					'index'    => '0',
+					'count'    => '0'
+				],
+				'current_sequence'  => '',
+				'current_song'      => '',
+				'seconds_played'    => '0',
+				'seconds_remaining' => '0',
+				'time_elapsed'      => '00:00',
+				'time_remaining'    => '00:00',
 				'next_playlist'     => [
 					'playlist'   => $status[3],
 					'start_time' => $status[4]
