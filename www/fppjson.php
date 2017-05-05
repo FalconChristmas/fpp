@@ -214,6 +214,18 @@ function GetFPPStatus()
 					'fppd' => 'Not Running',
 					'status' => -1,
 					'status_name' => $status == 'updating' ? $status : 'stopped',
+					'current_playlist' => [
+						'playlist' => '',
+						'type'     => '',
+						'index'    => '0',
+						'count'    => '0'
+					],
+					'current_sequence'  => '',
+					'current_song'      => '',
+					'seconds_played'    => '0',
+					'seconds_remaining' => '0',
+					'time_elapsed'      => '00:00',
+					'time_remaining'    => '00:00',
 				]);
 		}
 
@@ -260,6 +272,18 @@ function parseStatus($status)
 		'status_name' => $statuses[$fppStatus],
 		'volume'      => (int) $status[2],
 		'time'        => exec('date'),
+		'current_playlist' => [
+			'playlist' => '',
+			'type'     => '',
+			'index'    => '0',
+			'count'    => '0'
+		],
+		'current_sequence'  => '',
+		'current_song'      => '',
+		'seconds_played'    => '0',
+		'seconds_remaining' => '0',
+		'time_elapsed'      => '00:00',
+		'time_remaining'    => '00:00',
    ];
 
 	if($mode == 8) {
@@ -277,18 +301,6 @@ function parseStatus($status)
 
 		if($fppStatus == 0) {
 			$data = [
-				'current_playlist' => [
-					'playlist' => '',
-					'type'     => '',
-					'index'    => '0',
-					'count'    => '0'
-				],
-				'current_sequence'  => '',
-				'current_song'      => '',
-				'seconds_played'    => '0',
-				'seconds_remaining' => '0',
-				'time_elapsed'      => '00:00',
-				'time_remaining'    => '00:00',
 				'next_playlist'     => [
 					'playlist'   => $status[3],
 					'start_time' => $status[4]
