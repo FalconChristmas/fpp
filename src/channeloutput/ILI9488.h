@@ -41,15 +41,20 @@ class ILI9488Output : public ChannelOutputBase {
 	void DumpConfig(void);
 
   private:
+	int   m_initialized;
 	int   m_rows;
 	int   m_cols;
 	int   m_pixels;
 	void *m_gpio_map;
 
+	unsigned int m_clearWRXDataBits;
+	unsigned int m_bitDCX;
+	unsigned int m_bitWRX;
+
 	volatile unsigned int *m_gpio;
 
 	void ILI9488_Init(void);
-	void ILI9488_SendByte(unsigned int cs, unsigned char byte);
+	void ILI9488_SendByte(unsigned char byte);
 	void ILI9488_Command(unsigned char cmd);
 	void ILI9488_Data(unsigned char cmd);
 	void ILI9488_Cleanup(void);

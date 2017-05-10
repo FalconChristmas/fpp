@@ -33,7 +33,10 @@
 #include "ILI9488.h"
 #include "log.h"
 
+// Base for Pi v1
 #define BCM2708_PERI_BASE        0x20000000
+// Base for Pi v2 and up
+//#define BCM2708_PERI_BASE        0x3F000000
 #define GPIO_BASE                (BCM2708_PERI_BASE + 0x200000) /* GPIO controller */
 
 #define PAGE_SIZE (4*1024)
@@ -87,11 +90,15 @@ const int ILI_dataPins[8] = { ILI_PIN_D1, ILI_PIN_D2, ILI_PIN_D3, ILI_PIN_D4, IL
  */
 ILI9488Output::ILI9488Output(unsigned int startChannel, unsigned int channelCount)
   : ChannelOutputBase(startChannel, channelCount),
+	m_initialized(0),
 	m_rows(320),
 	m_cols(480),
 	m_pixels(0),
 	m_gpio_map(NULL),
-	m_gpio(NULL)
+	m_gpio(NULL),
+	m_clearWRXDataBits(0),
+	m_bitDCX(0),
+	m_bitWRX(0)
 {
 	LogDebug(VB_CHANNELOUT, "ILI9488Output::ILI9488Output(%u, %u)\n",
 		startChannel, channelCount);
@@ -139,32 +146,22 @@ int ILI9488Output::RawSendData(unsigned char *channelData)
 {
 	LogExcess(VB_CHANNELOUT, "ILI9488Output::RawSendData(%p)\n", channelData);
 
-	if (!m_gpio)
+	if (!m_initialized)
 		return 0;
 
-	unsigned char *color24c = channelData;
-	unsigned int *color24 = (unsigned int*)color24c;
-	int i = 0;
-	int x = 0;
-	int y = 0;
-	unsigned int color16 = 0x00;
+	unsigned char *c = channelData;
 
 	ILI9488_Command(0x2c); // Write_memory_start
+
+	GPIO_SET = m_bitDCX; // Set the 'data mode' bit
 
 	for (int y = 0; y < m_rows; y++)
 	{
 		for (int x = 0; x < m_cols; x++)
 		{
-			// Use only the upper 3 bytes of color24 for RGB
-			color16  = (*color24 >> 16) & 0b1111100000000000;
-			color16 |= (*color24 >> 13) & 0b0000011111100000;
-			color16 |= (*color24 >> 11) & 0b0000000000011111;
-
-       			ILI9488_Data(color16 & 0x00FF);  // low part of word
-		        ILI9488_Data(color16 >> 8);      // height part of word
-
-			color24c += 3;
-			color24 = (unsigned int*)color24c;
+			ILI9488_SendByte(*c++);
+			ILI9488_SendByte(*c++);
+			ILI9488_SendByte(*c++);
 		}
 	}
 
@@ -258,12 +255,12 @@ void ILI9488Output::ILI9488_Init(void)
 	ILI9488_Data(0x00);    //     VRH
 
 	ILI9488_Command(0x36); // Set_addressing_mode
-	ILI9488_Data(0b00110000);
+	ILI9488_Data(0b00101000);
 	//ILI9488_Data(0x48);
 	// 0x48 = 0b01001000
 	// 0 - top to bottom
 	// 1 - right to left
-	// 0 - normal mode of columns order
+	// 0 - row/column exchange
 	// 0 - refresh top to bottom
 	// 1 - RGB or BGR  (here BGR order)
 	// 0 - <skip>
@@ -304,12 +301,13 @@ void ILI9488Output::ILI9488_Init(void)
 	ILI9488_Data(0x37);
 	ILI9488_Data(0x0F);
 
-	ILI9488_Command(0xB1);
-	ILI9488_Data(0xB0);
+	ILI9488_Command(0xB1);       // Set the frame rate
+	ILI9488_Data(0xB0);          // 68.36hz (tear off, 65.65 tear on)
 	ILI9488_Data(0x11);
 
-	ILI9488_Command(0xB4);
-	ILI9488_Data(0x02);
+	ILI9488_Command(0xB4);       // Display Inversion Control (bitmask)
+	ILI9488_Data(0x02);          // 2-dot inversion
+	//ILI9488_Data(0x01);          // 1-dot inversion
 
 	ILI9488_Command(0xF7);
 	ILI9488_Data(0xA9);
@@ -317,23 +315,29 @@ void ILI9488Output::ILI9488_Init(void)
 	ILI9488_Data(0x2C);
 	ILI9488_Data(0x82);
 
-	ILI9488_Command(0XB0);
+	// Are we even using this in DBI B mode??
+	ILI9488_Command(0xB0);       // Interface mode control
 	ILI9488_Data(0x00);
 
 	ILI9488_Command( 0x3A );     // Set pixel format
-	ILI9488_Data( 0x55 );
-	ILI9488_Command( 0xC1 );     // Display timing setting for normal/partial mode
-	ILI9488_Data( 0x41 );
-	ILI9488_Command( 0xC0 );     // Set Default Gamma
+	ILI9488_Data( 0x66 );        // 18bpp (sent as 24bpp)
+
+	ILI9488_Command( 0xC0 );     // Power Control 1
 	ILI9488_Data( 0x18 );
 	ILI9488_Data( 0x16 );
-	ILI9488_Command( 0xC5 );     // Set frame rate
+
+	ILI9488_Command( 0xC1 );     // Power Control 2
+	ILI9488_Data( 0x41 );
+
+	ILI9488_Command( 0xC5 );     // Set VCOM voltage
 	ILI9488_Data( 0x00 );
 	ILI9488_Data( 0x1E );
 	ILI9488_Data( 0x80 );
+
 	ILI9488_Command( 0xD2 );     // Power setting
 	ILI9488_Data( 0x01 );
 	ILI9488_Data( 0x44 );
+
 	ILI9488_Command( 0xC8 );     // Set Gamma
 	ILI9488_Data( 0x04 );
 	ILI9488_Data( 0x67 );
@@ -350,36 +354,30 @@ void ILI9488Output::ILI9488_Init(void)
 	ILI9488_Data( 0x08 );
 	ILI9488_Data( 0x80 );
 	ILI9488_Data( 0x00 );
-	ILI9488_Command( 0x2A );
-	ILI9488_Data( 0x00 );
-	ILI9488_Data( 0x00 );
-	ILI9488_Data( 0x01 );
-	ILI9488_Data( 0x3F );
-	ILI9488_Command( 0x2B );
-	ILI9488_Data( 0x00 );
-	ILI9488_Data( 0x00 );
-	ILI9488_Data( 0x01 );
-	ILI9488_Data( 0xDF );
-	ILI9488_Command( 0x29 ); //display on
-	ILI9488_Command( 0x2C ); //display on
 
-	// Setup the range area we want to write to
-	int x1 = 0;
-	int x2 = 479;
-	int y1 = 0;
-	int y2 = 319;
+	ILI9488_Command( 0x2A );        // Set min/max Column count
+	ILI9488_Data( 0x00 );
+	ILI9488_Data( 0x00 );
+	ILI9488_Data( (m_cols-1) >> 8 );
+	ILI9488_Data( (m_cols-1) & 0x00FF );
 
-	ILI9488_Command(0x2a); // Set_column_address
-	ILI9488_Data(x1>>8);
-	ILI9488_Data(x1);
-	ILI9488_Data(x2>>8);
-	ILI9488_Data(x2);
+	ILI9488_Command( 0x2B );        // Set min/max Row count
+	ILI9488_Data( 0x00 );
+	ILI9488_Data( 0x00 );
+	ILI9488_Data( (m_rows-1) >> 8 );
+	ILI9488_Data( (m_rows-1) & 0x00FF );
 
-	ILI9488_Command(0x2b); // Set_page_address
-	ILI9488_Data(y1>>8);
-	ILI9488_Data(y1);
-	ILI9488_Data(y2>>8);
-	ILI9488_Data(y2);
+	ILI9488_Command( 0x29 );        // Display on
+
+	ILI9488_Command( 0x2C );        // Turn on Memory Write mode
+
+	m_clearWRXDataBits = (1 << ILI_PIN_WRX) | ILI_dataBits;
+	m_bitWRX = 1 << ILI_PIN_WRX;
+	m_bitDCX = 1 << ILI_PIN_DCX;
+
+	GPIO_CLR = m_bitDCX;
+
+	m_initialized = 1;
 
 	LogDebug(VB_CHANNELOUT, "Initialization complete\n");
 }
@@ -387,18 +385,14 @@ void ILI9488Output::ILI9488_Init(void)
 /*
  *
  */
-void ILI9488Output::ILI9488_SendByte(unsigned int cs, unsigned char byte)
+inline
+void ILI9488Output::ILI9488_SendByte(unsigned char byte)
 {
-	if (cs)
-		GPIO_SET = 1 << ILI_PIN_DCX;
-	else
-		GPIO_CLR = 1 << ILI_PIN_DCX;
-
-	GPIO_CLR = (1 << ILI_PIN_WRX) | ILI_dataBits;
+	GPIO_CLR = m_clearWRXDataBits;
 
 	GPIO_SET = ILI_dataValues[byte];
 
-	GPIO_SET = 1 << ILI_PIN_WRX;
+	GPIO_SET = m_bitWRX;
 }
 
 /*
@@ -407,7 +401,9 @@ void ILI9488Output::ILI9488_SendByte(unsigned int cs, unsigned char byte)
 void ILI9488Output::ILI9488_Command(unsigned char cmd)
 {
 	LogExcess(VB_CHANNELOUT, "ILI9488_Command(0x%02x)\n", cmd);
-	ILI9488_SendByte(0, cmd);
+
+	GPIO_CLR = m_bitDCX;
+	ILI9488_SendByte(cmd);
 }
 
 /*
@@ -416,7 +412,9 @@ void ILI9488Output::ILI9488_Command(unsigned char cmd)
 void ILI9488Output::ILI9488_Data(unsigned char data)
 {
 	LogExcess(VB_CHANNELOUT, "ILI9488_Data(0x%02x)\n", data);
-	ILI9488_SendByte(1, data);
+
+	GPIO_SET = m_bitDCX;
+	ILI9488_SendByte(data);
 }
 
 /*
