@@ -15,7 +15,9 @@ echo "Stopping fppd"
 # Stop any running playlist
 ${FPPBINDIR}/fpp -q > /dev/null 2>&1
 sleep 1
-# make sure fppd is dead
+# sleep for a second to allow all the outputs to be cleanly shutdown
+# before killing the process
+sleep 1
 killall -9 fppd
 
 runPostStopScripts

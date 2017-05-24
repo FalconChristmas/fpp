@@ -28,6 +28,14 @@
 #include <strings.h>
 #include <unistd.h>
 
+#include <pruss_intc_mapping.h>
+extern "C" {
+    extern int prussdrv_pru_clear_event(unsigned int eventnum);
+    extern int prussdrv_pru_wait_event(unsigned int pru_evtout_num);
+    extern int prussdrv_pru_disable(unsigned int prunum);
+    extern int prussdrv_exit();
+}
+
 // LEDscape includes
 #include "pru.h"
 
@@ -72,6 +80,7 @@ BBB48StringOutput::BBB48StringOutput(unsigned int startChannel,
 {
 	LogDebug(VB_CHANNELOUT, "BBB48StringOutput::BBB48StringOutput(%u, %u)\n",
 		startChannel, channelCount);
+    m_useOutputThread = 0;
 }
 
 /*
@@ -80,8 +89,8 @@ BBB48StringOutput::BBB48StringOutput(unsigned int startChannel,
 BBB48StringOutput::~BBB48StringOutput()
 {
 	LogDebug(VB_CHANNELOUT, "BBB48StringOutput::~BBB48StringOutput()\n");
-
 	m_strings.clear();
+    prussdrv_exit();
 }
 
 /*
@@ -178,6 +187,7 @@ int BBB48StringOutput::Init(Json::Value config)
 	return ChannelOutputBase::Init(config);
 }
 
+
 /*
  *
  */
@@ -185,7 +195,16 @@ int BBB48StringOutput::Close(void)
 {
 	LogDebug(VB_CHANNELOUT, "BBB48StringOutput::Close()\n");
 
-	ledscape_close(m_leds);
+    // Send the stop command
+    m_leds->ws281x->command = 0xFF;
+    
+    prussdrv_pru_wait_event(0); //PRU_EVTOUT_0);
+    prussdrv_pru_clear_event(PRU0_ARM_INTERRUPT);
+    prussdrv_pru_disable(m_leds->pru->pru_num);
+    
+    //ledscape_close only checks PRU0 events and then unmaps the memory that
+    //may be used by the other pru
+    //ledscape_close(m_leds);
 
 	free(m_config);
 	m_config = NULL;
