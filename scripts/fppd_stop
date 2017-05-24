@@ -12,6 +12,9 @@ stopWebSocketServer
 runPreStopScripts
 
 echo "Stopping fppd"
+# sleep for a second to allow all the outputs to be cleanly shutdown
+# before killing the process
+sleep 1
 killall -9 fppd
 
 runPostStopScripts
