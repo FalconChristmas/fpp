@@ -68,7 +68,7 @@
 
 pid_t pid, sid;
 int FPPstatus=FPP_STATUS_IDLE;
-int runMainFPPDLoop = 1;
+volatile int runMainFPPDLoop = 1;
 extern PluginCallbackManager pluginCallbackManager;
 
 ChannelTester *channelTester = NULL;
@@ -162,12 +162,14 @@ int main(int argc, char *argv[])
 	delete scheduler;
 	delete playlist;
 	delete sequence;
+    runMainFPPDLoop = -1;
 
 	return 0;
 }
 
 void ShutdownFPPD(void)
 {
+    LogInfo(VB_GENERAL, "Shutting down main loop.\n");
 	runMainFPPDLoop = 0;
 }
 
@@ -310,7 +312,9 @@ void MainLoop(void)
 		CheckGPIOInputs();
 	}
 
+    LogInfo(VB_GENERAL, "Stopping channel output thread.\n");
 	StopChannelOutputThread();
+    LogInfo(VB_GENERAL, "Shutting down control socket.\n");
 	ShutdownControlSocket();
 
 	if (getFPPmode() == BRIDGE_MODE)
