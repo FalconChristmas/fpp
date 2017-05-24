@@ -545,7 +545,6 @@ void StopOutputThreads(void) {
  *
  */
 int CloseChannelOutputs(void) {
-	FPPChannelOutputInstance *output;
 	int i = 0;
 
 	for (i = 0; i < channelOutputCount; i++) {
@@ -557,6 +556,13 @@ int CloseChannelOutputs(void) {
 		if (channelOutputs[i].privData)
 			free(channelOutputs[i].privData);
 	}
+    
+    for (i = 0; i < channelOutputCount; i++) {
+        if (channelOutputs[i].output) {
+            delete channelOutputs[i].output;
+            channelOutputs[i].output = NULL;
+        }
+    }
 }
 
 /*
