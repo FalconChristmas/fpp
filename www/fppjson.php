@@ -137,11 +137,20 @@ function SetSetting()
 		$rootDevice = $output[0];
 		unset($output);
 
-		if (preg_match("/$rootDevice/", $value)) {
-			exec(	$SUDO . " sed -i 's/.*home\/fpp\/media/#\/dev\/sda1    \/home\/fpp\/media/' /etc/fstab", $output, $return_val );
-		} else {
-			exec(	$SUDO . " sed -i 's/.*home\/fpp\/media/\/dev\/$value    \/home\/fpp\/media/' /etc/fstab", $output, $return_val );
-		}
+		exec( $SUDO . " file -sL /dev/$value | grep FAT", $output, $return_val );
+                if ($output[0] == "") {
+                    # probably ext4
+                    $options = "defaults,noatime,nodiratime";
+                } else {
+                    # FAT filesystem
+                    $options = "defaults,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500";
+                }
+                if (preg_match("/$rootDevice/", $value)) {
+                        exec(   $SUDO . " sed -i 's/.*home\/fpp\/media/#\/dev\/sda1    \/home\/fpp\/media/' /etc/fstab", $output, $return_val );
+                } else {
+                        exec(   $SUDO . " sed -i 's/.*home\/fpp\/media.*/\/dev\/$value	\/home\/fpp\/media	auto	$options	0	0 /' /etc/fstab", $output, $return_val );
+                }
+                unset($output);
 	} else if ($setting == "AudioOutput") {
 		SetAudioOutput($value);
 	} else if ($setting == "ForceHDMI") {

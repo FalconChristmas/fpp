@@ -90,7 +90,6 @@ function PrintStorageDeviceSelect()
             exec('findmnt -n -o SOURCE / | colrm 1 5 | sed -e "s/p[0-9]$//"', $output, $return_val);
             $bootDevice = $output[0];
             unset($output);
-#           $bootDevice = $rootDevice;
         }  
 
 	exec('grep "fpp/media" /etc/fstab | cut -f1 -d" " | sed -e "s/\/dev\///"', $output, $return_val);
