@@ -133,11 +133,11 @@ function SetSetting()
 			$SUDO . " sysctl --system",
 			$output, $return_val);
 	} else if ($setting == "storageDevice") {
-		exec('mount | grep boot | cut -f1 -d" " | sed -e "s/\/dev\///" -e "s/p[0-9]$//"', $output, $return_val);
-		$bootDevice = $output[0];
+		exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
+		$rootDevice = $output[0];
 		unset($output);
 
-		if (preg_match("/$bootDevice/", $value)) {
+		if (preg_match("/$rootDevice/", $value)) {
 			exec(	$SUDO . " sed -i 's/.*home\/fpp\/media/#\/dev\/sda1    \/home\/fpp\/media/' /etc/fstab", $output, $return_val );
 		} else {
 			exec(	$SUDO . " sed -i 's/.*home\/fpp\/media/\/dev\/$value    \/home\/fpp\/media/' /etc/fstab", $output, $return_val );
