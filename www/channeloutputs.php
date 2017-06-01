@@ -1994,6 +1994,10 @@ function GetBBBSerialConfig()
 		config.enabled = 1;
 	else
 		config.subType = 'DMX';
+    
+    if (!$('#BBB48StringEnabled').is(":checked"))
+        config.enabled = 0;
+
 
 	var i = 1;
 	for (i = 1; i <= 8; i++)
@@ -2211,11 +2215,11 @@ function InitializeLEDPanels()
 		$('#LEDPanelsStartChannel').val(channelOutputsLookup["LEDPanelMatrix"].startChannel);
 		$('#LEDPanelsChannelCount').html(channelOutputsLookup["LEDPanelMatrix"].channelCount);
 		$('#LEDPanelsColorOrder').val(channelOutputsLookup["LEDPanelMatrix"].colorOrder);
+        $('#LEDPanelsBrightness').val(channelOutputsLookup["LEDPanelMatrix"].brightness);
 <?
 	if ($settings['Platform'] == "Raspberry Pi")
 	{
 ?>
-		$('#LEDPanelsBrightness').val(channelOutputsLookup["LEDPanelMatrix"].brightness);
 		$('#LEDPanelsWiringPinout').val(channelOutputsLookup["LEDPanelMatrix"].wiringPinout);
 <?
 	}
@@ -2257,10 +2261,10 @@ function GetLEDPanelConfig()
 	{
 ?>
 	config.wiringPinout = $('#LEDPanelsWiringPinout').val();
-	config.brightness = parseInt($('#LEDPanelsBrightness').val());
 <?
 	}
 ?>
+    config.brightness = parseInt($('#LEDPanelsBrightness').val());
 	config.invertedData = parseInt($('#LEDPanelsStartCorner').val());
 	config.panelWidth = LEDPanelWidth;
 	config.panelHeight = LEDPanelHeight;
@@ -2670,10 +2674,6 @@ tr.rowUniverseDetails td
 									</td>
 							</tr>
 							<tr>
-<?
-	if ($settings['Platform'] == "Raspberry Pi")
-	{
-?>
 								<td><b>Brightness:</b></td><td>
 									<select id='LEDPanelsBrightness'>
 <?
@@ -2684,13 +2684,17 @@ tr.rowUniverseDetails td
 	}
 	else
 	{
-		for ($x = 7; $x >= 1; $x -= 1)
-			echo "<option value='$x'>$x%</option>\n";
+		for ($x = 10; $x >= 1; $x -= 1)
+			echo "<option value='$x'>$x</option>\n";
 	}
 ?>
 									</select>
 									</td>
 								<td>&nbsp;</td>
+<?
+    if ($settings['Platform'] == "Raspberry Pi")
+    {
+?>
 								<td><b>Wiring Pinout:</b></td><td>
 									<select id='LEDPanelsWiringPinout'>
 										<option value='Standard'>Standard</option>

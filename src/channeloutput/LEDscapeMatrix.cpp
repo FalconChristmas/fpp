@@ -168,11 +168,23 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
 		pru_program += "/pru/";
 	else
 		pru_program += "/../lib/";
+    
+    int brightness = config["brightness"].asInt();
+    if (brightness < 1 || brightness > 10) {
+        brightness = 6;
+    }
 
 	if (lmconfig->panel_height == 32)
 		pru_program += "FalconMatrix_32x32.bin";
-	else
-		pru_program += "FalconMatrix.bin";
+    else {
+        pru_program += "FalconMatrix_";
+        char buffer[10] = {0};
+        sprintf(buffer, "%d", brightness);
+        pru_program += buffer;
+        pru_program += ".bin";
+    }
+
+    LogDebug(VB_CHANNELOUT, "Using program %s\n", pru_program.c_str());
 
 	m_leds = ledscape_matrix_init(m_config, 0, 0, pru_program.c_str());
 

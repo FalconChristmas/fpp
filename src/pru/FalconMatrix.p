@@ -1,4 +1,4 @@
-// \file
+// 
  /* PRU based 16x32 LED Matrix driver.
  *
  * Drives up to sixteen 16x32 matrices using the PRU hardware.
@@ -24,7 +24,9 @@
 
 // higher constants == brighter.
 // 4 is a ok brightness, 5 is bright, 6 is powerful
-#define BRIGHT_SHIFT 7
+#ifndef BRIGHT_SHIFT
+#define BRIGHT_SHIFT 5
+#endif
 
 
 #define r11_gpio 2
@@ -375,7 +377,8 @@ NEW_ROW_LOOP:
 		SBBO out_clr, gpio1_base, GPIO_CLRDATAOUT, 8 // set both
 
 		MOV bright, 7
-		MOV bright_thresh, 255
+		MOV bright_thresh, 63
+        //LSL bright_thresh, bright_thresh, 10
 	ROW_LOOP:
 		// Re-start reading at the same row
 		MOV offset, 0
@@ -458,42 +461,16 @@ NEW_ROW_LOOP:
 			SBBO out_clr, gpio3_base, GPIO_CLRDATAOUT, 8
 
 			CLOCK_LO
-#if 0
-			NOP; NOP; NOP; NOP;
-			NOP; NOP; NOP; NOP;
-			NOP; NOP; NOP; NOP;
-			NOP; NOP; NOP; NOP;
-			NOP; NOP; NOP; NOP;
-			NOP; NOP; NOP; NOP;
-			NOP; NOP; NOP; NOP;
-			NOP; NOP; NOP; NOP;
-			NOP; NOP; NOP; NOP;
-			NOP; NOP; NOP; NOP;
-			NOP; NOP; NOP; NOP;
-			NOP; NOP; NOP; NOP;
-			NOP; NOP; NOP; NOP;
-			NOP; NOP; NOP; NOP;
-			NOP; NOP; NOP; NOP;
-			NOP; NOP; NOP; NOP;
-#endif
 
-#if 1
+
 			// If the brightness is less than the pixel, turn off
 			// but keep in mind that this is the brightness of
 			// the previous row, not this one.
-			LSL out_set, offset, 0
-			//LSL out_clr, 1, bright
-			//LSL out_clr, out_clr, 1
-			//MOV out_clr, 2048
-
 			LSL out_clr, bright_thresh, BRIGHT_SHIFT
-			//LSL out_clr, bright_thresh, 10
 
-			//QBBS no_blank, out_set, bright
-			QBGT no_blank, out_set, out_clr
+			QBGT no_blank, offset, out_clr
 			DISPLAY_OFF
 			no_blank:
-#endif
 
 
 			ADD offset, offset, 3*16
