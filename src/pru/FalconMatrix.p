@@ -16,16 +16,8 @@
  * To pause the redraw loop, write a NULL to the buffer pointer.
  * To shut down the PRU, write -1 to the buffer pointer.
  */
-#if 1
+#ifndef MATRIX_HEIGHT
 #define MATRIX_HEIGHT 8		// 32x16 matrices
-#else
-#define MATRIX_HEIGHT 16	// 32x32 matrices
-#endif
-
-// higher constants == brighter.
-// 4 is a ok brightness, 5 is bright, 6 is powerful
-#ifndef BRIGHT_SHIFT
-#define BRIGHT_SHIFT 5
 #endif
 
 
@@ -190,16 +182,20 @@
 #define data_addr r0
 #define width r1
 #define row r2
-#define bright r3
-#define offset r4
-#define out_clr r5 // must be one less than out_set
-#define out_set r6
-#define gpio0_set r6 // overloaded with out_set
-#define gpio1_set r7
-#define gpio2_set r8
-#define gpio3_set r9
-#define gpio0_led_mask r10
-#define gpio1_led_mask r11
+#define outputCount r3.b0
+#define brightShift r3.b1
+#define panelCount r3.b2
+#define bright  r3.b3
+#define firstOffset r4
+#define offset  r5
+#define out_clr r6 // must be one less than out_set
+#define out_set r7
+#define gpio0_set r7 // overloaded with out_set
+#define gpio1_set r8
+#define gpio2_set r9
+#define gpio3_set r10
+#define gpio0_led_mask r11
+#define gpio1_led_mask r12
 #define gpio2_led_mask r13
 #define gpio3_led_mask r14
 #define bright_thresh r15
@@ -265,10 +261,41 @@ START:
     MOV r2, #0x1
     SBCO r2, CONST_PRUDRAM, 12, 4
 
-    // Wait for the start condition from the main program to indicate
-    // that we have a rendered frame ready to clock out.  This also
-    // handles the exit case if an invalid value is written to the start
-    // start position.
+    //load the configuration, temporarily use the _set registers
+    LBCO      gpio0_set, CONST_PRUDRAM, 16, 12
+    MOV brightShift, gpio0_set
+    MOV outputCount, gpio1_set
+    MOV panelCount, gpio2_set
+
+
+    //LDI brightShift, 10
+    //LDI outputCount, 8
+/*
+LDI panelCount, 8
+
+    LDI firstOffset, 0
+    LDI offset, 1536
+
+    QBEQ PANEL_OFFSET_END, panelCount, 8
+    ADD firstOffset, firstOffset, offset
+    QBEQ PANEL_OFFSET_END, panelCount, 7
+    ADD firstOffset, firstOffset, offset
+    QBEQ PANEL_OFFSET_END, panelCount, 6
+    ADD firstOffset, firstOffset, offset
+    QBEQ PANEL_OFFSET_END, panelCount, 5
+    ADD firstOffset, firstOffset, offset
+    // with less panels, we read things much faster and
+    // the brightness dims, compensate a bit
+    ADD brightShift, brightShift, 1
+    QBEQ PANEL_OFFSET_END, panelCount, 4
+    ADD firstOffset, firstOffset, offset
+    QBEQ PANEL_OFFSET_END, panelCount, 3
+    ADD firstOffset, firstOffset, offset
+    ADD brightShift, brightShift, 1
+    QBEQ PANEL_OFFSET_END, panelCount, 2
+    ADD firstOffset, firstOffset, offset
+PANEL_OFFSET_END:
+*/
 
         MOV gpio1_base, GPIO1
 
@@ -278,61 +305,71 @@ START:
         LDI gpio3_led_mask, 0
 
 #define GPIO_MASK(X) CAT3(gpio,X,_led_mask)
-	SET GPIO_MASK(r11_gpio), r11_pin
-	SET GPIO_MASK(g11_gpio), g11_pin
-	SET GPIO_MASK(b11_gpio), b11_pin
-	SET GPIO_MASK(r12_gpio), r12_pin
-	SET GPIO_MASK(g12_gpio), g12_pin
-	SET GPIO_MASK(b12_gpio), b12_pin
+    SET GPIO_MASK(r11_gpio), r11_pin
+    SET GPIO_MASK(g11_gpio), g11_pin
+    SET GPIO_MASK(b11_gpio), b11_pin
+    SET GPIO_MASK(r12_gpio), r12_pin
+    SET GPIO_MASK(g12_gpio), g12_pin
+    SET GPIO_MASK(b12_gpio), b12_pin
 
-	SET GPIO_MASK(r21_gpio), r21_pin
-	SET GPIO_MASK(g21_gpio), g21_pin
-	SET GPIO_MASK(b21_gpio), b21_pin
-	SET GPIO_MASK(r22_gpio), r22_pin
-	SET GPIO_MASK(g22_gpio), g22_pin
-	SET GPIO_MASK(b22_gpio), b22_pin
+    QBGT OUTPUT_SETUP_END, outputCount, 2
+    SET GPIO_MASK(r21_gpio), r21_pin
+    SET GPIO_MASK(g21_gpio), g21_pin
+    SET GPIO_MASK(b21_gpio), b21_pin
+    SET GPIO_MASK(r22_gpio), r22_pin
+    SET GPIO_MASK(g22_gpio), g22_pin
+    SET GPIO_MASK(b22_gpio), b22_pin
 
-	SET GPIO_MASK(r31_gpio), r31_pin
-	SET GPIO_MASK(g31_gpio), g31_pin
-	SET GPIO_MASK(b31_gpio), b31_pin
-	SET GPIO_MASK(r32_gpio), r32_pin
-	SET GPIO_MASK(g32_gpio), g32_pin
-	SET GPIO_MASK(b32_gpio), b32_pin
+    QBGT OUTPUT_SETUP_END, outputCount, 3
+    SET GPIO_MASK(r31_gpio), r31_pin
+    SET GPIO_MASK(g31_gpio), g31_pin
+    SET GPIO_MASK(b31_gpio), b31_pin
+    SET GPIO_MASK(r32_gpio), r32_pin
+    SET GPIO_MASK(g32_gpio), g32_pin
+    SET GPIO_MASK(b32_gpio), b32_pin
 
-	SET GPIO_MASK(r41_gpio), r41_pin
-	SET GPIO_MASK(g41_gpio), g41_pin
-	SET GPIO_MASK(b41_gpio), b41_pin
-	SET GPIO_MASK(r42_gpio), r42_pin
-	SET GPIO_MASK(g42_gpio), g42_pin
-	SET GPIO_MASK(b42_gpio), b42_pin
+    QBGT OUTPUT_SETUP_END, outputCount, 4
+    SET GPIO_MASK(r41_gpio), r41_pin
+    SET GPIO_MASK(g41_gpio), g41_pin
+    SET GPIO_MASK(b41_gpio), b41_pin
+    SET GPIO_MASK(r42_gpio), r42_pin
+    SET GPIO_MASK(g42_gpio), g42_pin
+    SET GPIO_MASK(b42_gpio), b42_pin
 
-	SET GPIO_MASK(r51_gpio), r51_pin
-	SET GPIO_MASK(g51_gpio), g51_pin
-	SET GPIO_MASK(b51_gpio), b51_pin
-	SET GPIO_MASK(r52_gpio), r52_pin
-	SET GPIO_MASK(g52_gpio), g52_pin
-	SET GPIO_MASK(b52_gpio), b52_pin
 
-	SET GPIO_MASK(r61_gpio), r61_pin
-	SET GPIO_MASK(g61_gpio), g61_pin
-	SET GPIO_MASK(b61_gpio), b61_pin
-	SET GPIO_MASK(r62_gpio), r62_pin
-	SET GPIO_MASK(g62_gpio), g62_pin
-	SET GPIO_MASK(b62_gpio), b62_pin
+    QBGT OUTPUT_SETUP_END, outputCount, 5
+    SET GPIO_MASK(r51_gpio), r51_pin
+    SET GPIO_MASK(g51_gpio), g51_pin
+    SET GPIO_MASK(b51_gpio), b51_pin
+    SET GPIO_MASK(r52_gpio), r52_pin
+    SET GPIO_MASK(g52_gpio), g52_pin
+    SET GPIO_MASK(b52_gpio), b52_pin
 
-	SET GPIO_MASK(r71_gpio), r71_pin
-	SET GPIO_MASK(g71_gpio), g71_pin
-	SET GPIO_MASK(b71_gpio), b71_pin
-	SET GPIO_MASK(r72_gpio), r72_pin
-	SET GPIO_MASK(g72_gpio), g72_pin
-	SET GPIO_MASK(b72_gpio), b72_pin
+    QBGT OUTPUT_SETUP_END, outputCount, 6
+    SET GPIO_MASK(r61_gpio), r61_pin
+    SET GPIO_MASK(g61_gpio), g61_pin
+    SET GPIO_MASK(b61_gpio), b61_pin
+    SET GPIO_MASK(r62_gpio), r62_pin
+    SET GPIO_MASK(g62_gpio), g62_pin
+    SET GPIO_MASK(b62_gpio), b62_pin
 
-	SET GPIO_MASK(r81_gpio), r81_pin
-	SET GPIO_MASK(g81_gpio), g81_pin
-	SET GPIO_MASK(b81_gpio), b81_pin
-	SET GPIO_MASK(r82_gpio), r82_pin
-	SET GPIO_MASK(g82_gpio), g82_pin
-	SET GPIO_MASK(b82_gpio), b82_pin
+    QBGT OUTPUT_SETUP_END, outputCount, 7
+    SET GPIO_MASK(r71_gpio), r71_pin
+    SET GPIO_MASK(g71_gpio), g71_pin
+    SET GPIO_MASK(b71_gpio), b71_pin
+    SET GPIO_MASK(r72_gpio), r72_pin
+    SET GPIO_MASK(g72_gpio), g72_pin
+    SET GPIO_MASK(b72_gpio), b72_pin
+
+    QBGT OUTPUT_SETUP_END, outputCount, 8
+    SET GPIO_MASK(r81_gpio), r81_pin
+    SET GPIO_MASK(g81_gpio), g81_pin
+    SET GPIO_MASK(b81_gpio), b81_pin
+    SET GPIO_MASK(r82_gpio), r82_pin
+    SET GPIO_MASK(g82_gpio), g82_pin
+    SET GPIO_MASK(b82_gpio), b82_pin
+
+OUTPUT_SETUP_END:
 
     //we're going to control the clock along with the pixel data
     SET  gpio1_led_mask, gpio1_led_mask, gpio1_clock
@@ -347,14 +384,6 @@ READ_LOOP:
 
         // Command of 0xFF is the signal to exit
         QBEQ EXIT, data_addr, #0xFF
-
-	// scale the width into number of bytes that we will read
-	// 16 outputs * 3 bytes per output
-/********
-	ADD offset, width, width
-	ADD offset, offset, width
-	LSL width, offset, 4
-*/
 
         LDI row, 0
 
@@ -372,11 +401,11 @@ NEW_ROW_LOOP:
 
 		LDI bright, 7
 		LDI bright_thresh, 63
-        LSL bright_thresh, bright_thresh, BRIGHT_SHIFT
+        LSL bright_thresh, bright_thresh, brightShift
 
 	ROW_LOOP:
 		// Re-start reading at the same row
-		LDI offset, 0
+		MOV offset, firstOffset
 
 		// Reset the latch pin; will be toggled at the end of the row
 		LATCH_LO
@@ -386,7 +415,12 @@ NEW_ROW_LOOP:
 			// Load the sixteen RGB outputs into
 			// consecutive registers, starting at pixel_data.
 			// This takes about 250 ns
-			LBBO pixel_data, data_addr, offset, 3*16
+            QBGT ONLY_HALF, outputCount, 5
+            LBBO pixel_data, data_addr, offset, 3*16
+            JMP DATA_READ
+            ONLY_HALF:
+            LBBO pixel_data, data_addr, offset, 3*8
+            DATA_READ:
 
 			// toggle the clock
 			CLOCK_LO
@@ -410,23 +444,35 @@ NEW_ROW_LOOP:
 			OUTPUT_ROW(11, r18.b0, r18.b1, r18.b2)
 			OUTPUT_ROW(12, r18.b3, r19.b0, r19.b1)
 
-			OUTPUT_ROW(21, r19.b2, r19.b3, r20.b0)
-			OUTPUT_ROW(22, r20.b1, r20.b2, r20.b3)
+            QBGT OUTPUT_END, outputCount, 2
+            OUTPUT_ROW(21, r19.b2, r19.b3, r20.b0)
+            OUTPUT_ROW(22, r20.b1, r20.b2, r20.b3)
 
-			OUTPUT_ROW(31, r21.b0, r21.b1, r21.b2)
-			OUTPUT_ROW(32, r21.b3, r22.b0, r22.b1)
-			OUTPUT_ROW(41, r22.b2, r22.b3, r23.b0)
-			OUTPUT_ROW(42, r23.b1, r23.b2, r23.b3)
+            QBGT OUTPUT_END, outputCount, 3
+            OUTPUT_ROW(31, r21.b0, r21.b1, r21.b2)
+            OUTPUT_ROW(32, r21.b3, r22.b0, r22.b1)
 
-			OUTPUT_ROW(51, r24.b0, r24.b1, r24.b2)
-			OUTPUT_ROW(52, r24.b3, r25.b0, r25.b1)
-			OUTPUT_ROW(61, r25.b2, r25.b3, r26.b0)
-			OUTPUT_ROW(62, r26.b1, r26.b2, r26.b3)
+            QBGT OUTPUT_END, outputCount, 4
+            OUTPUT_ROW(41, r22.b2, r22.b3, r23.b0)
+            OUTPUT_ROW(42, r23.b1, r23.b2, r23.b3)
 
-			OUTPUT_ROW(71, r27.b0, r27.b1, r27.b2)
-			OUTPUT_ROW(72, r27.b3, r28.b0, r28.b1)
-			OUTPUT_ROW(81, r28.b2, r28.b3, r29.b0)
-			OUTPUT_ROW(82, r29.b1, r29.b2, r29.b3)
+            QBGT OUTPUT_END, outputCount, 5
+            OUTPUT_ROW(51, r24.b0, r24.b1, r24.b2)
+            OUTPUT_ROW(52, r24.b3, r25.b0, r25.b1)
+
+            QBGT OUTPUT_END, outputCount, 6
+            OUTPUT_ROW(61, r25.b2, r25.b3, r26.b0)
+            OUTPUT_ROW(62, r26.b1, r26.b2, r26.b3)
+
+            QBGT OUTPUT_END, outputCount, 7
+            OUTPUT_ROW(71, r27.b0, r27.b1, r27.b2)
+            OUTPUT_ROW(72, r27.b3, r28.b0, r28.b1)
+
+            QBGT OUTPUT_END, outputCount, 8
+            OUTPUT_ROW(81, r28.b2, r28.b3, r29.b0)
+            OUTPUT_ROW(82, r29.b1, r29.b2, r29.b3)
+
+OUTPUT_END:
 
 			// All bits are configured;
 			// the non-set ones will be cleared
@@ -443,10 +489,13 @@ NEW_ROW_LOOP:
             MOV gpio_base, GPIO2
 			SBBO out_clr, gpio_base, GPIO_CLRDATAOUT, 8
 
+            // Don't need gpio3 for outputs 1-3
+            QBGT SKIP_GPIO3, outputCount, 4
 			AND out_set, gpio3_set, gpio3_led_mask
 			XOR out_clr, out_set, gpio3_led_mask
             MOV gpio_base, GPIO3
 			SBBO out_clr, gpio_base, GPIO_CLRDATAOUT, 8
+SKIP_GPIO3:
 
             // Do gpio1 last as we can add the clock bit to it
             // and set that at the same time.  We can also do

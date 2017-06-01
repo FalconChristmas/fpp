@@ -79,6 +79,8 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
 
 	int maxWidth = 0;
 	int maxHeight = 0;
+    int maxOutput = 0;
+    int maxPanel = 0;
 
 	ledscape_matrix_config_t * const lmconfig = &m_config->matrix_config;
 
@@ -110,7 +112,13 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
 		int  chain   = 7 - p["panelNumber"].asInt(); // 7 is first in chain, 0 is last
 		int  xOffset = p["xOffset"].asInt();
 		int  yOffset = p["yOffset"].asInt();
+        
+        if (output > maxOutput)
+            maxOutput = output;
 
+        if (p["panelNumber"].asInt() > maxPanel)
+            maxPanel = p["panelNumber"].asInt();
+        
 		ledscape_matrix_panel_t * const pconfig =
 			&lmconfig->panels[output][chain];
 
@@ -151,6 +159,14 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
 
 	lmconfig->width = maxWidth;
 	lmconfig->height = maxHeight;
+    
+    if (config.isMember("brightness"))
+        lmconfig->bright_shift = config["brightness"].asInt();
+    else
+        lmconfig->bright_shift = 7;
+
+    lmconfig->outputCount = maxOutput + 1;
+    lmconfig->panelCount = maxPanel + 1;
 
 	m_dataSize = lmconfig->width * lmconfig->height * 4;
 	m_data = (uint8_t *)malloc(m_dataSize);
@@ -177,11 +193,7 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
 	if (lmconfig->panel_height == 32)
 		pru_program += "FalconMatrix_32x32.bin";
     else {
-        pru_program += "FalconMatrix_";
-        char buffer[10] = {0};
-        sprintf(buffer, "%d", brightness);
-        pru_program += buffer;
-        pru_program += ".bin";
+        pru_program += "FalconMatrix.bin";
     }
 
     LogDebug(VB_CHANNELOUT, "Using program %s\n", pru_program.c_str());
@@ -193,7 +205,9 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
 		LogErr(VB_CHANNELOUT, "Unable to initialize LEDscape\n");
 		return 0;
 	}
+    LogDebug(VB_CHANNELOUT, "Program started %s\n", pru_program.c_str());
 
+    
 	m_matrix = new Matrix(m_startChannel, maxWidth, maxHeight);
 
 	if (config.isMember("subMatrices"))
