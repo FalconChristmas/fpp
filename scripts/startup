@@ -44,13 +44,26 @@ then
 tmpfs         /var/log    tmpfs   nodev,nosuid,size=10M 0 0
 tmpfs         /var/tmp    tmpfs   nodev,nosuid,size=10M 0 0
 #####################################
-/dev/sda1     /home/fpp/media  auto    defaults,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500  0  0
+#/dev/sda1     /home/fpp/media  auto    defaults,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500  0  0
 #####################################
 EOF
 		mount /var/log
 		mount /var/tmp
 	fi
 fi
+
+grep -q "/home/fpp/media" /etc/fstab
+if [ $? -eq 1 ]
+then
+    cat <<-EOF >> /etc/fstab
+#####################################
+#/dev/sda1     /home/fpp/media  auto    defaults,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500  0  0
+#####################################
+EOF
+
+fi
+
+
 
 SITEFILE="/etc/apache2/sites-enabled/000-default"
 
