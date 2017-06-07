@@ -63,7 +63,7 @@ if ( $return_val != 0 )
 unset($output);
 
 $git_remote_version = "Unknown";
-$git_remote_version = exec("git ls-remote --heads https://github.com/FalconChristmas/fpp | grep 'refs/heads/$git_branch\$' | awk '$1 > 0 { print substr($1,1,7)}'", $output, $return_val);
+$git_remote_version = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ ls-remote --heads | grep 'refs/heads/$git_branch\$' | awk '$1 > 0 { print substr($1,1,7)}'", $output, $return_val);
 if ( $return_val != 0 )
   $git_remote_version = "Unknown";
 unset($output);

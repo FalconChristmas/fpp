@@ -27,9 +27,9 @@ then
 			echo "Configuring ${DNS2} as nameserver"
 			echo "nameserver ${DNS2}" >> /etc/resolv.conf
 		fi
-	else
-		ifdown wlan0
-		ifup wlan0
+#	else
+#		ifdown wlan0
+#		ifup wlan0
 	fi
 fi
 

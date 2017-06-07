@@ -25,5 +25,11 @@ ${SCRIPTDIR}/timezone_sync
 
 remountRootReadOnlyIfNeeded
 
+if [ -f "/usr/bin/config-pin" ]
+then
+   /usr/bin/config-pin -f ${BINDIR}/bbb-pins.txt
+fi
+
+
 ${SUDO} ${SCRIPTDIR}/fppd_start
 

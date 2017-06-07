@@ -24,7 +24,7 @@ BINDIR=$(cd $(dirname $0) && pwd)
 # For now, just call our existing startup script
 
 echo "FPP - Running ${BINDIR}/startup"
-${BINDIR}/startup
+${BINDIR}/startup_fppd
 
 exit 0
 

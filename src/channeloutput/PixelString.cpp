@@ -32,6 +32,7 @@
 
 /////////////////////////////////////////////////////////////////////////////
 
+
 /*
  *
  */
@@ -94,9 +95,9 @@ int PixelString::Init(int portNumber, int channelOffset, int startChannel,
 	m_zigZag = zigZag;
 
 	if ((m_startChannel < 0) || (m_startChannel > FPPD_MAX_CHANNELS) ||
-		(m_pixelCount < 0) || (m_pixelCount > 600) ||
-		(m_nullNodes < 0) || (m_nullNodes > 600) ||
-		((m_nullNodes + m_pixelCount) > 600) ||
+		(m_pixelCount < 0) || (m_pixelCount > MAX_PIXEL_STRING_LENGTH) ||
+		(m_nullNodes < 0) || (m_nullNodes > MAX_PIXEL_STRING_LENGTH) ||
+		((m_nullNodes + m_pixelCount) > MAX_PIXEL_STRING_LENGTH) ||
 		(m_hybridMode < 0) || (m_hybridMode > 1) ||
 		(m_reverseDirection < 0) || (m_reverseDirection > 1) ||
 		(m_grouping < 0) || (m_grouping > m_pixelCount) ||

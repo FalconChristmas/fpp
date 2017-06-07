@@ -28,6 +28,14 @@
 #include <strings.h>
 #include <unistd.h>
 
+#include <pruss_intc_mapping.h>
+extern "C" {
+    extern int prussdrv_pru_clear_event(unsigned int eventnum);
+    extern int prussdrv_pru_wait_event(unsigned int pru_evtout_num);
+    extern int prussdrv_pru_disable(unsigned int prunum);
+    extern int prussdrv_exit();
+}
+
 // LEDscape includes
 #include "pru.h"
 
@@ -72,6 +80,7 @@ BBB48StringOutput::BBB48StringOutput(unsigned int startChannel,
 {
 	LogDebug(VB_CHANNELOUT, "BBB48StringOutput::BBB48StringOutput(%u, %u)\n",
 		startChannel, channelCount);
+    m_useOutputThread = 0;
 }
 
 /*
@@ -80,8 +89,8 @@ BBB48StringOutput::BBB48StringOutput(unsigned int startChannel,
 BBB48StringOutput::~BBB48StringOutput()
 {
 	LogDebug(VB_CHANNELOUT, "BBB48StringOutput::~BBB48StringOutput()\n");
-
 	m_strings.clear();
+    prussdrv_exit();
 }
 
 /*
@@ -142,7 +151,6 @@ int BBB48StringOutput::Init(Json::Value config)
 	// LEDscape always drives 48 ports, so use this instead of # of strings
 	lsconfig->leds_height = 48;
 
-	int LEDs = lsconfig->leds_width * lsconfig->leds_height;
 
 	std::string pru_program(getBinDirectory());
 
@@ -151,21 +159,48 @@ int BBB48StringOutput::Init(Json::Value config)
 	else
 		pru_program += "/../lib/";
 
-	if ((m_subType == "F4-B") ||
-		(m_subType == "F16-B"))
+    if (m_subType == "F4-B")
+    {
+        pru_program += "FalconWS281x_F4.bin";
+        lsconfig->leds_height = 4;
+    }
+    else if (m_subType == "F16-B")
+    {
+        pru_program += "FalconWS281x_16.bin";
+        lsconfig->leds_height = 16;
+    }
+    else if (m_subType == "F16-B-32" || m_subType == "F16-B-40")
+    {
+        pru_program += "FalconWS281x_40.bin";
+        lsconfig->leds_height = 40;
+    }
+    else if (m_subType == "F16-B-48")
 	{
-		pru_program += "FalconWS281x.bin";
+		pru_program += "FalconWS281x_48.bin";
 	}
-	else if ((m_subType == "F4-B-WS") ||
-			 (m_subType == "F16-B-WS"))
-	{
-		pru_program += "FalconWS281x_WS.bin";
-	}
+    else if (m_subType == "F8-B")
+    {
+        pru_program += "FalconWS281x_F8_12.bin";
+        lsconfig->leds_height = 12;
+    }
+    else if (m_subType == "F8-B-16")
+    {
+        pru_program += "FalconWS281x_F8_16.bin";
+        lsconfig->leds_height = 16;
+    }
+    else if (m_subType == "F8-B-20")
+    {
+        pru_program += "FalconWS281x_F8_20.bin";
+        lsconfig->leds_height = 20;
+    }
 	else
 	{
 		pru_program += m_subType + ".bin";
 	}
 
+    int LEDs = lsconfig->leds_width * lsconfig->leds_height;
+
+    LogDebug(VB_CHANNELOUT, "Num strings: %d    Using program %s\n", lsconfig->leds_height, pru_program.c_str());
 	m_leds = ledscape_strip_init(m_config, 0, pruNumber, pru_program.c_str());
 
 	if (!m_leds)
@@ -174,9 +209,9 @@ int BBB48StringOutput::Init(Json::Value config)
 
 		return 0;
 	}
-
 	return ChannelOutputBase::Init(config);
 }
+
 
 /*
  *
@@ -185,7 +220,16 @@ int BBB48StringOutput::Close(void)
 {
 	LogDebug(VB_CHANNELOUT, "BBB48StringOutput::Close()\n");
 
-	ledscape_close(m_leds);
+    // Send the stop command
+    m_leds->ws281x->command = 0xFF;
+    
+    prussdrv_pru_wait_event(0); //PRU_EVTOUT_0);
+    prussdrv_pru_clear_event(PRU0_ARM_INTERRUPT);
+    prussdrv_pru_disable(m_leds->pru->pru_num);
+    
+    //ledscape_close only checks PRU0 events and then unmaps the memory that
+    //may be used by the other pru
+    //ledscape_close(m_leds);
 
 	free(m_config);
 	m_config = NULL;
@@ -211,10 +255,11 @@ int BBB48StringOutput::RawSendData(unsigned char *channelData)
 	uint8_t *c = NULL;
 	int inCh;
 
+    int numStrings = m_config->strip_config.leds_height;
 	for (int s = 0; s < m_strings.size(); s++)
 	{
 		ps = m_strings[s];
-		c = out + (ps->m_nullNodes * 48 * 3) + ps->m_portNumber;
+		c = out + (ps->m_nullNodes * numStrings * 3) + ps->m_portNumber;
 
 		if ((ps->m_hybridMode) &&
 			((channelData[ps->m_outputMap[0]]) ||
@@ -224,13 +269,13 @@ int BBB48StringOutput::RawSendData(unsigned char *channelData)
 			for (int p = 0; p < ps->m_pixelCount; p++)
 			{
 				*c = channelData[ps->m_outputMap[0]];
-				c += 48;
+				c += numStrings;
 
 				*c = channelData[ps->m_outputMap[1]];
-				c += 48;
+				c += numStrings;
 
 				*c = channelData[ps->m_outputMap[2]];
-				c += 48;
+				c += numStrings;
 			}
 		}
 		else
@@ -243,13 +288,13 @@ int BBB48StringOutput::RawSendData(unsigned char *channelData)
 			for (int p = 0; p < ps->m_pixelCount; p++)
 			{
 				*c = channelData[ps->m_outputMap[inCh++]];
-				c += 48;
+				c += numStrings;
 
 				*c = channelData[ps->m_outputMap[inCh++]];
-				c += 48;
+				c += numStrings;
 
 				*c = channelData[ps->m_outputMap[inCh++]];
-				c += 48;
+				c += numStrings;
 			}
 		}
 		
@@ -304,7 +349,7 @@ void BBB48StringOutput::DumpConfig(void)
 	LogDebug(VB_CHANNELOUT, "BBB48StringOutput::DumpConfig()\n");
 
 	ledscape_strip_config_t *config = reinterpret_cast<ledscape_strip_config_t*>(m_config);
-	
+    LogDebug(VB_CHANNELOUT, "    type          : %s\n", m_subType.c_str());
 	LogDebug(VB_CHANNELOUT, "    strings       : %d\n", m_strings.size());
 	LogDebug(VB_CHANNELOUT, "    longest string: %d pixels\n", m_maxStringLen);
 

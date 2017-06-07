@@ -28,6 +28,14 @@
 #include <strings.h>
 #include <unistd.h>
 
+#include <pruss_intc_mapping.h>
+extern "C" {
+    extern int prussdrv_pru_clear_event(unsigned int eventnum);
+    extern int prussdrv_pru_wait_event(unsigned int pru_evtout_num);
+    extern int prussdrv_pru_disable(unsigned int prunum);
+    extern int prussdrv_exit();
+}
+
 // LEDscape includes
 #include "pru.h"
 
@@ -37,7 +45,9 @@
 #include "BBBSerial.h"
 #include "settings.h"
 
-#define BBBSERIAL_DDR_OFFSET 100000
+
+//THis MUST be greater than 48*MAX_PIXEL_STRING_LENGTH*3
+#define BBBSERIAL_DDR_OFFSET 150000
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -53,6 +63,7 @@ BBBSerialOutput::BBBSerialOutput(unsigned int startChannel,
 {
 	LogDebug(VB_CHANNELOUT, "BBBSerialOutput::BBBSerialOutput(%u, %u)\n",
 		startChannel, channelCount);
+    m_useOutputThread = 0;
 }
 
 /*
@@ -61,6 +72,7 @@ BBBSerialOutput::BBBSerialOutput(unsigned int startChannel,
 BBBSerialOutput::~BBBSerialOutput()
 {
 	LogDebug(VB_CHANNELOUT, "BBBSerialOutput::~BBBSerialOutput()\n");
+    prussdrv_exit();
 }
 
 /*
@@ -119,10 +131,17 @@ int BBBSerialOutput::Init(Json::Value config)
 		pru_program += "/../lib/";
 
 	if (m_pixelnet)
-		pru_program += "FalconPixelnet.bin";
-	else
-		pru_program += "FalconDMX.bin";
-
+		pru_program += "FalconPixelnet";
+    else
+        pru_program += "FalconDMX";
+    
+    if (config["device"] == "F4-B") {
+        pru_program += "_4a.bin";
+    } else if (config["device"] == "F8-B-16") {
+        pru_program += "_4b.bin";
+    } else {
+        pru_program += ".bin";
+    }
 	if (!FileExists(pru_program.c_str()))
 	{
 		LogErr(VB_CHANNELOUT, "%s does not exist!\n", pru_program.c_str());
@@ -131,7 +150,7 @@ int BBBSerialOutput::Init(Json::Value config)
 
 		return 0;
 	}
-
+    LogDebug(VB_CHANNELOUT, "Using program %s\n", pru_program.c_str());
 	m_leds = ledscape_strip_init(m_config, 0, pruNumber, pru_program.c_str());
 
 	if (!m_leds)
@@ -171,10 +190,20 @@ int BBBSerialOutput::Close(void)
 {
 	LogDebug(VB_CHANNELOUT, "BBBSerialOutput::Close()\n");
 
-	ledscape_close(m_leds);
+    // Send the stop command
+    m_leds->ws281x->command = 0xFF;
+    
+    prussdrv_pru_wait_event(1); //PRU_EVTOUT_1);
+    prussdrv_pru_clear_event(PRU1_ARM_INTERRUPT);
+    prussdrv_pru_disable(m_leds->pru->pru_num);
+    
+    //ledscape_close only checks PRU0 events and then unmaps the memory that
+    //may be used by the other pru
+	//ledscape_close(m_leds);
 
 	free(m_config);
 	m_config = NULL;
+    LogDebug(VB_CHANNELOUT, "BBBSerialOutput::Close() done\n");
 
 	return ChannelOutputBase::Close();
 }
@@ -190,8 +219,7 @@ int BBBSerialOutput::RawSendData(unsigned char *channelData)
 	ledscape_strip_config_t *config = reinterpret_cast<ledscape_strip_config_t*>(m_config);
 
 	// Bypass LEDscape draw routine and format data for PRU ourselves
-	static unsigned frame = 0;
-	uint8_t * const out = (uint8_t *)m_leds->pru->ddr + m_leds->frame_size * frame + BBBSERIAL_DDR_OFFSET;
+	uint8_t * const out = (uint8_t *)m_leds->pru->ddr + BBBSERIAL_DDR_OFFSET;
 
 	uint8_t *c = out;
 	uint8_t *s = (uint8_t*)channelData;
@@ -208,13 +236,13 @@ int BBBSerialOutput::RawSendData(unsigned char *channelData)
 			c = out + i + (m_outputs);
 
 		// Get the start channel for this output
-		s = (uint8_t*)(channelData + m_startChannels[i]);
-
+        s = (uint8_t*)(channelData + m_startChannels[i] - (m_useOutputThread ? m_startChannel : 0));
+        
 		// Now copy the individual channel data into each slice
 		for (int ch = 0; ch < chCount; ch++)
 		{
-			*c = *(s++);
-
+			*c = *s;
+            s++;
 			c += m_outputs;
 		}
 	}
@@ -223,9 +251,7 @@ int BBBSerialOutput::RawSendData(unsigned char *channelData)
 	while (m_leds->ws281x->command);
 
 	// Map
-	m_leds->ws281x->pixels_dma = m_leds->pru->ddr_addr + m_leds->frame_size * frame + BBBSERIAL_DDR_OFFSET;
-	// alternate frames every other draw
-	// frame = (frame + 1) & 1;
+	m_leds->ws281x->pixels_dma = m_leds->pru->ddr_addr + BBBSERIAL_DDR_OFFSET;
 
 	// Send the start command
 	m_leds->ws281x->command = 1;

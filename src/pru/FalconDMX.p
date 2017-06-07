@@ -8,31 +8,8 @@
  *  each pixel is stored in 4 bytes in the order GRBA (4th byte is ignored)
  * 
  */
- 
-// Output 40
-#define ser1_gpio	3
-#define ser1_pin	21
-// Output 42
-#define ser2_gpio	3
-#define ser2_pin	19
-// Output 43
-#define ser3_gpio	3
-#define ser3_pin	17
-// Output 44
-#define ser4_gpio	3
-#define ser4_pin	15
-// Output 45
-#define ser5_gpio	3
-#define ser5_pin	16
-// Output 46
-#define ser6_gpio	3
-#define ser6_pin	14
-// Output 47
-#define ser7_gpio	3
-#define ser7_pin	20
-// Output 48
-#define ser8_gpio	3
-#define ser8_pin	18
+
+#include "FalconSerial.hp"
 
 
 .origin 0
@@ -58,6 +35,9 @@
 // r10 - r22 are used for temp storage and bitmap processing
 #define gpio3_serial_mask	  r26
 
+// each loop is 4 instructions, one is an LBCO of 12 bytes which takes 45 cycles so 48 cycles total
+// 200ms * 5ns/cycle * 200mhz
+#define CONST_MAX_BETWEEN_FRAME 0xC0000
 
 /** Sleep a given number of nanoseconds with 10 ns resolution.
  *
@@ -74,7 +54,7 @@ lab:
 
 .macro WAITNS
 .mparam ns,lab
-	MOV r6, 0x22000 // control register
+	MOV r6, 0x24000 // control register
 	// Instructions take 5ns and RESET_COUNTER takes about 20 instructions
 	// this value was found through trial and error on the DMX signal
 	// generation
@@ -86,7 +66,7 @@ lab:
 
 .macro RESET_COUNTER
 		// Disable the counter and clear it, then re-enable it
-		MOV r6, 0x22000 // control register
+		MOV r6, 0x24000 // control register
 		LBBO r9, r6, 0, 4
 		CLR r9, r9, 3 // disable counter bit
 		SBBO r9, r6, 0, 4 // write it back
@@ -100,20 +80,7 @@ lab:
 
 #define CAT3(X,Y,Z) X##Y##Z
 #define GPIO_MASK(X) CAT3(gpio,X,_serial_mask)
-#define GPIO(R)	CAT3(gpio,R,_zeros)
-
-// Parameters from the environment:
-// bit_num: current bit we're reading from
-#define OUTPUT_ROW(N,reg_r,reg_g,reg_b)		\
-	QBBS	skip_r##N, reg_r, bit_num;	\
-	SET	GPIO(r##N##_gpio), r##N##_pin;	\
-	skip_r##N:				\
-	QBBS	skip_g##N, reg_g, bit_num;	\
-	SET	GPIO(g##N##_gpio), g##N##_pin;	\
-	skip_g##N:				\
-	QBBS	skip_b##N, reg_b, bit_num;	\
-	SET	GPIO(b##N##_gpio), b##N##_pin;	\
-	skip_b##N:				\
+#define GPIO(R)	CAT3(gpio,R,_zeros)			\
 
 START:
 	// Enable OCP master port
@@ -124,18 +91,18 @@ START:
 	CLR	r0, r0, 4
 	SBCO	r0, C4, 4, 4
 
-	// Configure the programmable pointer register for PRU0 by setting
+	// Configure the programmable pointer register for PRU1 by setting
 	// c28_pointer[15:0] field to 0x0120.  This will make C28 point to
 	// 0x00012000 (PRU shared RAM).
 	MOV	r0, 0x00000120
-	MOV	r1, CTPPR_0
+	MOV	r1, CTPPR_0+0x2000
 	ST32	r0, r1
 
-	// Configure the programmable pointer register for PRU0 by setting
+	// Configure the programmable pointer register for PRU1 by setting
 	// c31_pointer[15:0] field to 0x0010.  This will make C31 point to
 	// 0x80001000 (DDR memory).
 	MOV	r0, 0x00100000
-	MOV	r1, CTPPR_1
+	MOV	r1, CTPPR_1+0x2000
 	ST32	r0, r1
 
 	// Write a 0x1 into the response field so that they know we have started
@@ -146,16 +113,25 @@ START:
 	SET	GPIO_MASK(ser2_gpio), ser2_pin
 	SET	GPIO_MASK(ser3_gpio), ser3_pin
 	SET	GPIO_MASK(ser4_gpio), ser4_pin
+#if NUMOUT == 8
 	SET	GPIO_MASK(ser5_gpio), ser5_pin
 	SET	GPIO_MASK(ser6_gpio), ser6_pin
 	SET	GPIO_MASK(ser7_gpio), ser7_pin
 	SET	GPIO_MASK(ser8_gpio), ser8_pin
+#endif
+
+    MOV sleep_counter, CONST_MAX_BETWEEN_FRAME
 
 	// Wait for the start condition from the main program to indicate
 	// that we have a rendered frame ready to clock out.  This also
 	// handles the exit case if an invalid value is written to the start
 	// start position.
 _LOOP:
+    // more than 200ms since last out, need to re-output or signal
+    // will be lost
+    SUB     sleep_counter, sleep_counter, 1
+    QBEQ    _OUTPUTANYWAY, sleep_counter, #0
+
 	// Load the pointer to the buffer from PRU DRAM into r0 and the
 	// length (in bytes-bit words) into r1.
 	// start command into r2
@@ -163,6 +139,8 @@ _LOOP:
 
 	// Wait for a non-zero command
 	QBEQ	_LOOP, r2, #0
+
+_OUTPUTANYWAY:
 
 	// Zero out the start command so that they know we have received it
 	// This allows maximum speed frame drawing since they know that they
@@ -203,7 +181,7 @@ _LOOP:
 		MOV	bit_num, 11
     // Load 8 bytes of data, starting at r10
 		// one byte for each of the outputs
-		LBBO	r10, data_addr, 0, 8
+		LBBO	r10, data_addr, 0, NUMOUT
     RESET_COUNTER
   BIT_LOOP:
     QBEQ IS_START_BIT, bit_num, #11     // bit_num = 0 or 1 (Start bit)
@@ -211,9 +189,10 @@ _LOOP:
     MOV gpio3_ones, #0                  // Set all bit data low to start with
     MOV r12,#10
     SUB r12,r12,bit_num
-  	//QBBC SET1, r10.b0, r12
-    //SET gpio3_ones,#ser1_pin
-  //SET1:
+
+    QBBC SET1, r10.b0, r12
+    SET gpio3_ones,#ser1_pin
+  SET1:
   	QBBC SET2, r10.b1, r12
     SET gpio3_ones,#ser2_pin
   SET2:
@@ -223,6 +202,7 @@ _LOOP:
   	QBBC SET4, r10.b3, r12
     SET gpio3_ones,#ser4_pin
   SET4:
+#if NUMOUT == 8
   	QBBC SET5, r11.b0, r12
     SET gpio3_ones,#ser5_pin
   SET5:
@@ -234,8 +214,9 @@ _LOOP:
   SET7:
   	QBBC SET8, r11.b3, r12  
     SET gpio3_ones,#ser8_pin
-
   SET8:
+#endif
+
     XOR gpio3_zeros, gpio3_ones, gpio3_serial_mask
     JMP WAIT_BIT    
   IS_START_BIT:
@@ -265,11 +246,12 @@ _LOOP:
 
 	// Write out that we are done!
 	// Store a non-zero response in the buffer so that they know that we are done
-	MOV	r8, 0x22000 // control register
+	MOV	r8, 0x24000 // control register
 	LBBO	r2, r8, 0xC, 4
 	SBCO	r2, CONST_PRUDRAM, 12, 4
 
 	// Go back to waiting for the next frame buffer
+    MOV sleep_counter, CONST_MAX_BETWEEN_FRAME
 	QBA	_LOOP
 
 EXIT:
@@ -279,9 +261,9 @@ EXIT:
 
 #ifdef AM33XX
 	// Send notification to Host for program completion
-	MOV R31.b0, PRU0_ARM_INTERRUPT+16
+	MOV R31.b0, PRU1_ARM_INTERRUPT+16
 #else
-	MOV R31.b0, PRU0_ARM_INTERRUPT
+	MOV R31.b0, PRU1_ARM_INTERRUPT
 #endif
 
 	HALT
