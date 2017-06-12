@@ -1,0 +1,15 @@
+[Unit]
+Description=Inialization routines for FPP
+After=connman.target
+Before=network.target multi-user.target apache2.target
+Wants=connman.target network-pre.target
+DefaultDependencies=no
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/opt/fpp/scripts/fpp_init start
+
+
+[Install]
+WantedBy=network.target multi-user.target

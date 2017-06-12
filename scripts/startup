@@ -31,26 +31,6 @@ checkAudioConfig
 
 applyReadOnlySDFixups
 
-if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
-then
-	# Check fstab for our entries
-	grep -q "beaglebone-black-eMMC-flasher.sh" /etc/fstab
-	if [ $? -eq 0 ]
-	then
-		sed -i "/.*beaglebone-black-eMMC-flasher.sh.*/d" /etc/fstab
-
-		cat <<-EOF >> /etc/fstab
-#####################################
-tmpfs         /var/log    tmpfs   nodev,nosuid,size=10M 0 0
-tmpfs         /var/tmp    tmpfs   nodev,nosuid,size=10M 0 0
-#####################################
-#/dev/sda1     /home/fpp/media  auto    defaults,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500  0  0
-#####################################
-EOF
-		mount /var/log
-		mount /var/tmp
-	fi
-fi
 
 grep -q "/home/fpp/media" /etc/fstab
 if [ $? -eq 1 ]
@@ -63,17 +43,18 @@ EOF
 
 fi
 
-
-
-SITEFILE="/etc/apache2/sites-enabled/000-default"
-
-# If the flash drive is not mounted yet, then fix Apache so it can at least start up
-if [ ! -d "${FPPHOME}/media/logs" ]
+DIRS="config effects events logs music playlists scripts sequences upload videos plugins plugindata exim4"
+echo "FPP - Checking for required directories"
+for DIR in ${DIRS}
+do
+if [ ! -d ${FPPHOME}/media/${DIR} ]
 then
-	echo "FPP - Reconfiguring Apache to disable logging since flash is not mounted"
-	sed -i -e "s/ErrorLog/#ErrorLog/" ${SITEFILE}
-	/etc/init.d/apache2 restart
+echo "      Creating ${DIR}"
+mkdir -p ${FPPHOME}/media/${DIR}
+chown ${FPPUSER}.${FPPUSER} ${FPPHOME}/media/${DIR}
 fi
+done
+
 
 # Configure Network and DNS
 #echo "FPP - Configuring Network"
@@ -193,4 +174,13 @@ then
 	# See if we have any Falcon hardware on the SPI port
 	echo "FPP - Checking for Falcon hardware on SPI port"
 	detectFalconHardware
+fi
+
+
+if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
+then
+    if [ -f "/usr/bin/config-pin" ]
+    then
+        /usr/bin/config-pin -f ${BINDIR}/bbb-pins.txt
+    fi
 fi

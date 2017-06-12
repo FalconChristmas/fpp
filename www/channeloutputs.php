@@ -73,7 +73,7 @@ function PopulateInterfaces()
 {
 	global $settings;
 
-	$interfaces = explode("\n",trim(shell_exec("/sbin/ifconfig | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v usb0")));
+	$interfaces = explode("\n",trim(shell_exec("/sbin/ifconfig | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v usb | grep -v SoftAp | grep -v 'can.'")));
 	$ifaceE131 = "";
 	if (isset($settings['E131interface'])) {
 		$ifaceE131 = $settings['E131interface'];

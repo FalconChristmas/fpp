@@ -1,0 +1,28 @@
+<VirtualHost *:80>
+	ServerAdmin webmaster@localhost
+
+	DocumentRoot FPPDIR/www
+
+	<Directory />
+		Options FollowSymLinks
+		AllowOverride All
+	</Directory>
+
+	<Directory FPPDIR/www/>
+		Options Indexes FollowSymLinks
+		AllowOverride All
+		Require all granted
+	</Directory>
+
+	ErrorLog FPPHOME/media/logs/apache2-error.log
+#	ErrorLog ${APACHE_LOG_DIR}/error.log
+
+	# Possible values include: debug, info, notice, warn, error, crit,
+	# alert, emerg.
+	LogLevel warn
+
+#	CustomLog FPPHOME/media/logs/apache2-access.log combined
+#	CustomLog ${APACHE_LOG_DIR}/access.log combined
+	Include conf-available/serve-cgi-bin.conf
+</VirtualHost>
+

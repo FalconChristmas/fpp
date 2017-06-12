@@ -62,14 +62,91 @@ netcalc(){
 	echo "${ip[*]}"
 }
 
+SetupFPPNetworkConfigViaConnMann() {
+    CONFIGS=`ls ${FPPHOME}/media/config/interface.*`
+
+    DNS1=""
+    DNS2=""
+    if [ -f "${FPPHOME}/media/config/dns" ]
+    then
+        . ${FPPHOME}/media/config/dns
+    fi
+    DNS=""
+    if [ "x$DNS1" != "x" ]
+    then
+        DNS="$DNS1"
+    fi
+    if [ "x$DNS2" != "x" ]
+    then
+        DNS="$DNS,$DNS1"
+    fi
+
+    TMPFILE="/tmp/fpp.config"
+    rm -f ${TMPFILE}
+
+    for f in $CONFIGS; do
+        . ${f}
+
+        MAC=`cat /sys/class/net/${INTERFACE}/address`
+        echo "Need to configure $f  with   $PROTO  $NETMASK  $ADDRESS"
+        echo "[service_$INTERFACE]" >> ${TMPFILE}
+        if [ "x$SSID" != "x" ]
+        then
+            echo "Name=${SSID}" >> $TMPFILE
+        fi
+        if [ "x$PSK" != "x" ]
+        then
+            echo "Security=psk" >> $TMPFILE
+            echo "Passphrase=${PSK}" >> $TMPFILE
+        fi
+        echo "MAC=${MAC}" >> $TMPFILE
+        if [ "x$DNS" != "x" ]
+        then
+            echo "Nameservers=${DNS}" >> $TMPFILE
+        fi
+        if [[ "$INTERFACE" == "wlan"* ]] ; then
+            echo "Type=wifi"  >> $TMPFILE
+        else
+            echo "Type=ethernet"  >> $TMPFILE
+        fi
+        if [ "$PROTO" = "dhcp" ]; then
+            echo "IPv4=dhcp"  >> $TMPFILE
+        else
+            echo "IPv4=$ADDRESS/$NETMASK/$GATEWAY" >> $TMPFILE
+        fi
+
+
+        echo ""  >> $TMPFILE
+        echo ""  >> $TMPFILE
+    done
+    rm -f /var/lib/connman/fpp.config
+    if [ -f "$TMPFILE" ]; then
+        cp $TMPFILE /var/lib/connman/fpp.config
+    fi
+
+    connmanctl services > /tmp/services.txt
+}
+
+
 #############################################################################
 # Create our version of /etc/network/interfaces and wpa_supplicant.conf files
 SetupFPPNetworkConfig () {
+    if [ -f "/usr/sbin/connmanctl" ]
+    then
+        SetupFPPNetworkConfigViaConnMann
+        return
+    fi
+
+
+
 	if [ ! -f "${FPPHOME}/media/config/interface.eth0" -a ! -f "${FPPHOME}/media/config/interface.wlan0" ]
 	then
 		echo "FPP - Using default network config"
 		return
 	fi
+
+
+
 
 	echo "FPP - Configuring Network"
 
