@@ -87,8 +87,6 @@ SetupFPPNetworkConfigViaConnMann() {
     for f in $CONFIGS; do
         . ${f}
 
-        MAC=`cat /sys/class/net/${INTERFACE}/address`
-        echo "Need to configure $f  with   $PROTO  $NETMASK  $ADDRESS"
         echo "[service_$INTERFACE]" >> ${TMPFILE}
         if [ "x$SSID" != "x" ]
         then
@@ -99,7 +97,11 @@ SetupFPPNetworkConfigViaConnMann() {
             echo "Security=psk" >> $TMPFILE
             echo "Passphrase=${PSK}" >> $TMPFILE
         fi
-        echo "MAC=${MAC}" >> $TMPFILE
+
+        if [ -f "/sys/class/net/${INTERFACE}/address" ]; then
+            MAC=`cat /sys/class/net/${INTERFACE}/address`
+            echo "MAC=${MAC}" >> $TMPFILE
+        fi
         if [ "x$DNS" != "x" ]
         then
             echo "Nameservers=${DNS}" >> $TMPFILE
@@ -119,6 +121,8 @@ SetupFPPNetworkConfigViaConnMann() {
         echo ""  >> $TMPFILE
         echo ""  >> $TMPFILE
     done
+    rm -rf /var/lib/connman/wifi_*
+    rm -rf /var/lib/connman/ethernet_*
     rm -f /var/lib/connman/fpp.config
     if [ -f "$TMPFILE" ]; then
         cp $TMPFILE /var/lib/connman/fpp.config
