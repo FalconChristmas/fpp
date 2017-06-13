@@ -260,6 +260,13 @@ function ToggleLCDNow()
 		+ enabled).fail(function() { alert("Failed to enable LCD!") });
 }
 
+function ToggleTetherMode()
+{
+    var enabled = $('#BBB_Tethering').is(":checked");
+    $.get("fppxml.php?command=setBBBTether&enabled="
+          + enabled).fail(function() { alert("Failed to disable Tethering!") });
+}
+
 </script>
 <title><? echo $pageTitle; ?></title>
 </head>
@@ -272,6 +279,17 @@ function ToggleLCDNow()
 <fieldset>
 <legend>FPP Global Settings</legend>
   <table table width = "100%">
+<?php
+    if ($settings['Platform'] == "BeagleBone Black")
+    {
+?>
+    <tr>
+        <td width = "45%">BBB Tethering:</td>
+        <td width = "55%"><? PrintSettingCheckbox("BBB Tethering", "BBB_Tethering", 0, 1, "1", "0", "", "ToggleTetherMode"); ?></td>
+    </tr>
+<?php
+    } else {
+?>
     <tr>
       <td width = "45%">Blank screen on startup:</td>
       <td width = "55%"><? PrintSettingCheckbox("Screensaver", "screensaver", 0, 1, "1", "0"); ?></td>
@@ -288,6 +306,9 @@ function ToggleLCDNow()
       <td>Pi 2x16 LCD Enabled:</td>
       <td><? PrintSettingCheckbox("Enable LCD Display", "PI_LCD_Enabled", 0, 0, "1", "0", "", "ToggleLCDNow"); ?></td>
     </tr>
+<?php
+}
+?>
     <tr>
       <td>Always transmit channel data:</td>
       <td><? PrintSettingCheckbox("Always Transmit", "alwaysTransmit", 1, 0, "1", "0"); ?></td>
