@@ -758,22 +758,25 @@ function StopNow()
 	EchoStatusXML('true');
 }
 
-function StopFPPD()
+function StopFPPDNoStatus()
 {
-	global $SUDO;
-
+    global $SUDO;
+    
     // Stop Playing
     SendCommand('d');
-
+    
     // Shutdown
-	$status=SendCommand('q'); // Ignore return and just kill if 'q' doesn't work...
+    SendCommand('q'); // Ignore return and just kill if 'q' doesn't work...
     // wait half a second for shutdown and outputs to close
     usleep(500000);
     // kill it if it's still running
-	$status=exec($SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_stop");
-	EchoStatusXML('true');
+    exec($SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_stop");
 }
-
+function StopFPPD()
+{
+    StopFPPDNoStatus();
+    EchoStatusXML('true');
+}
 
 function StartFPPD()
 {
@@ -789,7 +792,7 @@ function StartFPPD()
 
 function RestartFPPD()
 {
-    StopFPPD();
+    StopFPPDNoStatus();
 	StartFPPD();
 }
 
