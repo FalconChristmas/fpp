@@ -1,8 +1,10 @@
 [Unit]
 Description=FPPd
-After=network.target apache2.target
-Requires=network.target
+After=network.target apache2.target generic-board-startup.service
+Requires=network.target 
+Want=generic-board-startup.service
 DefaultDependencies=no
+
 
 [Service]
 Type=oneshot
