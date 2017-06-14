@@ -26,6 +26,8 @@
 #include <stdlib.h>
 #include <strings.h>
 #include <unistd.h>
+#include <stdio.h>
+
 
 #include "pru.h"
 
@@ -160,11 +162,14 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
 	lmconfig->width = maxWidth;
 	lmconfig->height = maxHeight;
     
+    
+    int brightness = 7;
     if (config.isMember("brightness"))
-        lmconfig->bright_shift = config["brightness"].asInt();
-    else
-        lmconfig->bright_shift = 7;
-
+        brightness = config["brightness"].asInt();
+    if (brightness < 1 || brightness > 10) {
+        brightness = 7;
+    }
+    lmconfig->bright_shift = brightness;
     lmconfig->outputCount = maxOutput + 1;
     lmconfig->panelCount = maxPanel + 1;
 
@@ -185,18 +190,16 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
 	else
 		pru_program += "/../lib/";
     
-    int brightness = config["brightness"].asInt();
-    if (brightness < 1 || brightness > 10) {
-        brightness = 6;
-    }
-
 	if (lmconfig->panel_height == 32)
-		pru_program += "FalconMatrix_32x32.bin";
+		pru_program += "FalconMatrix_32x32_";
     else {
-        pru_program += "FalconMatrix.bin";
+        pru_program += "FalconMatrix_";
     }
-
-    LogDebug(VB_CHANNELOUT, "Using program %s\n", pru_program.c_str());
+    char outputString[10];
+    sprintf(outputString, "%d", (maxOutput + 1));
+    pru_program += outputString;
+    pru_program += ".bin";
+    LogDebug(VB_CHANNELOUT, "Using program %s with brightness %d\n", pru_program.c_str(), brightness);
 
 	m_leds = ledscape_matrix_init(m_config, 0, 0, pru_program.c_str());
 
