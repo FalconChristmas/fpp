@@ -282,12 +282,16 @@ function ToggleTetherMode()
 <?php
     if ($settings['Platform'] == "BeagleBone Black")
     {
+        exec('cat /proc/device-tree/model', $output, $return_val);
+        if (in_array('Wireless', $output))
+        {
 ?>
     <tr>
         <td width = "45%">BBB Tethering:</td>
         <td width = "55%"><? PrintSettingCheckbox("BBB Tethering", "BBB_Tethering", 0, 1, "1", "0", "", "ToggleTetherMode"); ?></td>
     </tr>
 <?php
+        }
     } else {
 ?>
     <tr>
