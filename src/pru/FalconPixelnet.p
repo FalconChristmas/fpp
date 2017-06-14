@@ -9,31 +9,7 @@
  * 
  */
  
-// Output 40
-#define ser1_gpio	3
-#define ser1_pin	21
-// Output 42
-#define ser2_gpio	3
-#define ser2_pin	19
-// Output 43
-#define ser3_gpio	3
-#define ser3_pin	17
-// Output 44
-#define ser4_gpio	3
-#define ser4_pin	15
-// Output 45
-#define ser5_gpio	3
-#define ser5_pin	16
-// Output 46
-#define ser6_gpio	3
-#define ser6_pin	14
-// Output 47
-#define ser7_gpio	3
-#define ser7_pin	20
-// Output 48
-#define ser8_gpio	3
-#define ser8_pin	18
-
+#include "FalconSerial.hp"
 
 .origin 0
 .entrypoint START
@@ -102,18 +78,6 @@ lab:
 #define GPIO_MASK(X) CAT3(gpio,X,_serial_mask)
 #define GPIO(R)	CAT3(gpio,R,_zeros)
 
-// Parameters from the environment:
-// bit_num: current bit we're reading from
-#define OUTPUT_ROW(N,reg_r,reg_g,reg_b)		\
-	QBBS	skip_r##N, reg_r, bit_num;	\
-	SET	GPIO(r##N##_gpio), r##N##_pin;	\
-	skip_r##N:				\
-	QBBS	skip_g##N, reg_g, bit_num;	\
-	SET	GPIO(g##N##_gpio), g##N##_pin;	\
-	skip_g##N:				\
-	QBBS	skip_b##N, reg_b, bit_num;	\
-	SET	GPIO(b##N##_gpio), b##N##_pin;	\
-	skip_b##N:				\
 
 START:
 	// Enable OCP master port
@@ -146,10 +110,12 @@ START:
 	SET	GPIO_MASK(ser2_gpio), ser2_pin
 	SET	GPIO_MASK(ser3_gpio), ser3_pin
 	SET	GPIO_MASK(ser4_gpio), ser4_pin
+#if NUMOUT == 8
 	SET	GPIO_MASK(ser5_gpio), ser5_pin
 	SET	GPIO_MASK(ser6_gpio), ser6_pin
 	SET	GPIO_MASK(ser7_gpio), ser7_pin
 	SET	GPIO_MASK(ser8_gpio), ser8_pin
+#endif
 
 	// Wait for the start condition from the main program to indicate
 	// that we have a rendered frame ready to clock out.  This also
@@ -189,7 +155,7 @@ _LOOP:
     MOV	bit_num, 11
     // Load 8 bytes of data, starting at r10
 		// one byte for each of the outputs
-		LBBO	r10, data_addr, 0, 8
+		LBBO	r10, data_addr, 0, NUMOUT
     RESET_COUNTER
   BIT_LOOP:
     QBEQ IS_START_BIT, bit_num, #11     // bit_num = 0 or 1 (Start bit)
@@ -209,6 +175,7 @@ _LOOP:
   	QBBC SET4, r10.b3, r12
     SET gpio3_ones,#ser4_pin
   SET4:
+#if NUMOUT == 8
   	QBBC SET5, r11.b0, r12
     SET gpio3_ones,#ser5_pin
   SET5:
@@ -220,8 +187,8 @@ _LOOP:
   SET7:
   	QBBC SET8, r11.b3, r12  
     SET gpio3_ones,#ser8_pin
-
   SET8:
+#endif
     XOR gpio3_zeros, gpio3_ones, gpio3_serial_mask
     JMP WAIT_BIT    
   IS_START_BIT:

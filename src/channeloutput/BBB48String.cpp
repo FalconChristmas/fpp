@@ -159,19 +159,40 @@ int BBB48StringOutput::Init(Json::Value config)
 	else
 		pru_program += "/../lib/";
 
-    if ((m_subType == "F4-B") || (m_subType == "F4-B-WS"))
+    if (m_subType == "F4-B")
     {
-        pru_program += "FalconWS281x_F4B.bin";
+        pru_program += "FalconWS281x_F4.bin";
         lsconfig->leds_height = 4;
     }
     else if (m_subType == "F16-B")
-	{
-		pru_program += "FalconWS281x.bin";
-	}
-	else if (m_subType == "F16-B-WS")
+    {
+        pru_program += "FalconWS281x_16.bin";
+        lsconfig->leds_height = 16;
+    }
+    else if (m_subType == "F16-B-32" || m_subType == "F16-B-40")
+    {
+        pru_program += "FalconWS281x_40.bin";
+        lsconfig->leds_height = 40;
+    }
+    else if (m_subType == "F16-B-48")
 	{
 		pru_program += "FalconWS281x_48.bin";
 	}
+    else if (m_subType == "F8-B")
+    {
+        pru_program += "FalconWS281x_F8_12.bin";
+        lsconfig->leds_height = 12;
+    }
+    else if (m_subType == "F8-B-16")
+    {
+        pru_program += "FalconWS281x_F8_16.bin";
+        lsconfig->leds_height = 16;
+    }
+    else if (m_subType == "F8-B-20")
+    {
+        pru_program += "FalconWS281x_F8_20.bin";
+        lsconfig->leds_height = 20;
+    }
 	else
 	{
 		pru_program += m_subType + ".bin";
@@ -179,6 +200,7 @@ int BBB48StringOutput::Init(Json::Value config)
 
     int LEDs = lsconfig->leds_width * lsconfig->leds_height;
 
+    LogDebug(VB_CHANNELOUT, "Num strings: %d    Using program %s\n", lsconfig->leds_height, pru_program.c_str());
 	m_leds = ledscape_strip_init(m_config, 0, pruNumber, pru_program.c_str());
 
 	if (!m_leds)
@@ -187,8 +209,6 @@ int BBB48StringOutput::Init(Json::Value config)
 
 		return 0;
 	}
-
-        LogDebug(VB_CHANNELOUT, "BB48 Memory %X   %d\n",  m_leds->pru->ddr, m_leds->pru->ddr_size);
 	return ChannelOutputBase::Init(config);
 }
 
