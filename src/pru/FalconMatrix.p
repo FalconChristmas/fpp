@@ -65,7 +65,7 @@
 #define r32_pin 16
 #define g32_gpio 0
 #define g32_pin 3
-#define b32_gpio 0 // not working?
+#define b32_gpio 0 
 #define b32_pin 5
 
 #define r41_gpio 0
@@ -236,13 +236,6 @@
     MOV out_set, 1 << gpio1_latch; \
     MOV out_clr, 1 << gpio1_oe; \
     SBBO out_clr, gpio1_base, GPIO_CLRDATAOUT, 8; \
-
-
-
-#define ADDWAIT(X) \
-    LDI gpio0_set, X; \
-    LSL gpio0_set, gpio0_set, 3; \
-    ADD sleep_counter, sleep_counter, gpio0_set
 
 
 START:
@@ -477,13 +470,6 @@ NEW_ROW_LOOP:
                 OUTPUT_ROW(71, r27.b0, r27.b1, r27.b2)
                 OUTPUT_ROW(72, r27.b3, r28.b0, r28.b1)
     #endif
-
-                // output 8 doesn't use gpio2 so we can start output these early and avoid some stalls
-                AND out_set, gpio2_set, gpio2_led_mask
-                XOR out_clr, out_set, gpio2_led_mask
-                MOV gpio_base, GPIO2
-                SBBO out_clr, gpio_base, GPIO_CLRDATAOUT, 8
-
     #if OUTPUTS > 7
                 OUTPUT_ROW(81, r28.b2, r28.b3, r29.b0)
                 OUTPUT_ROW(82, r29.b1, r29.b2, r29.b3)
@@ -497,6 +483,11 @@ NEW_ROW_LOOP:
                 AND out_set, gpio0_set, gpio0_led_mask
                 XOR out_clr, out_set, gpio0_led_mask
                 MOV gpio_base, GPIO0
+                SBBO out_clr, gpio_base, GPIO_CLRDATAOUT, 8
+
+                AND out_set, gpio2_set, gpio2_led_mask
+                XOR out_clr, out_set, gpio2_led_mask
+                MOV gpio_base, GPIO2
                 SBBO out_clr, gpio_base, GPIO_CLRDATAOUT, 8
 
                 #if OUTPUT2 > 3
