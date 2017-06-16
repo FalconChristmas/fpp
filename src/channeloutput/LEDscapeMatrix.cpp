@@ -348,7 +348,7 @@ int LEDscapeMatrixOutput::RawSendData(unsigned char *channelData)
 
 	ledscape_draw(m_leds, m_data);
 	//drawTime = GetTime();
-	usleep(5000);
+	//usleep(5000);
 	//waitStartTime = GetTime();
 	//const uint32_t response = ledscape_wait(m_leds);
 	//waitTime = GetTime();

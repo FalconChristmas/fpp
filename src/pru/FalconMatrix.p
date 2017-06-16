@@ -24,10 +24,7 @@
 #define OUTPUTS 8
 #endif
 
-// higher constants == brighter.
-// 4 is a ok brightness, 5 is bright, 6 is powerful
-#define BRIGHT_SHIFT 7
-
+#define MAX_SLICE_LENGTH 0x8000
 
 #define r11_gpio 2
 #define r11_pin 2
@@ -188,12 +185,11 @@
 
 /** Register map */
 #define data_addr r0
-#define width r1
-#define row r2
-#define brightShift r3.b0
-#define panelCount r3.b1
+#define initialOffset r2
+#define row     r3.b0
 #define bright  r3.b2
-#define firstOffset r4
+#define bit     r3.b3
+#define sleep_counter r4
 #define offset  r5
 #define out_clr r6 // must be one less than out_set
 #define out_set r7
@@ -205,7 +201,7 @@
 #define gpio1_led_mask r12
 #define gpio2_led_mask r13
 #define gpio3_led_mask r14
-#define bright_thresh r15
+#define brightShift r15
 #define gpio_base r16
 #define gpio1_base r17 // keep gpio1_base handy as it's used for clocks
 #define pixel_data r18 // the next 12 registers, too;
@@ -241,6 +237,14 @@
     MOV out_clr, 1 << gpio1_oe; \
     SBBO out_clr, gpio1_base, GPIO_CLRDATAOUT, 8; \
 
+
+
+#define ADDWAIT(X) \
+    LDI gpio0_set, X; \
+    LSL gpio0_set, gpio0_set, 3; \
+    ADD sleep_counter, sleep_counter, gpio0_set
+
+
 START:
     // Enable OCP master port
     // clear the STANDBY_INIT bit in the SYSCFG register,
@@ -253,16 +257,16 @@ START:
     // Configure the programmable pointer register for PRU0 by setting
     // c28_pointer[15:0] field to 0x0120.  This will make C28 point to
     // 0x00012000 (PRU shared RAM).
-    MOV		r0, 0x00000120
-    MOV		r1, CTPPR_0
-    ST32	r0, r1
+    MOV		r8, 0x00000120
+    MOV		r9, CTPPR_0
+    ST32	r8, r9
 
     // Configure the programmable pointer register for PRU0 by setting
     // c31_pointer[15:0] field to 0x0010.  This will make C31 point to
     // 0x80001000 (DDR memory).
-    MOV		r0, 0x00100000
-    MOV		r1, CTPPR_1
-    ST32	r0, r1
+    MOV		r8, 0x00100000
+    MOV		r9, CTPPR_1
+    ST32	r8, r9
 
     // Write a 0x1 into the response field so that they know we have started
     MOV r2, #0x1
@@ -270,37 +274,47 @@ START:
 
     //load the configuration, temporarily use the _set registers
     LBCO      gpio0_set, CONST_PRUDRAM, 16, 12
-    MOV brightShift, gpio0_set
-    //LDI brightShift, 10
+    MOV bright, gpio0_set
     //MOV outputCount, gpio1_set
-    MOV panelCount, gpio2_set
+
+    LDI initialOffset, 8
+    SUB gpio2_set, initialOffset, gpio2_set
+    LDI initialOffset, 0
+
+    QBEQ NO_OFFSET, gpio2_set, 0
+        CALC_OFFSETT:
+        ADD initialOffset, initialOffset, 3*2*8*4 //192 bytes per panel
+        SUB gpio2_set, gpio2_set, 1
+        QBNE CALC_OFFSETT, gpio2_set, 0
+    NO_OFFSET:
 
 
-    LDI firstOffset, 0
-    /*
-    LDI panelCount, 8
-    LDI offset, 1536
+    LDI gpio0_set, 0x500
+    MOV brightShift, 0
+    QBEQ BRIGHT10, bright, 10
+    ADD brightShift, brightShift, gpio0_set
+    QBEQ BRIGHT10, bright, 9
+    ADD brightShift, brightShift, gpio0_set
+    QBEQ BRIGHT10, bright, 8
+    ADD brightShift, brightShift, gpio0_set
+    QBEQ BRIGHT10, bright, 7
+    ADD brightShift, brightShift, gpio0_set
+    QBEQ BRIGHT10, bright, 6
+    ADD brightShift, brightShift, gpio0_set
+    QBEQ BRIGHT10, bright, 5
+    ADD brightShift, brightShift, gpio0_set
+    QBEQ BRIGHT10, bright, 4
+    ADD brightShift, brightShift, gpio0_set
+    QBEQ BRIGHT10, bright, 3
+    ADD brightShift, brightShift, gpio0_set
+    QBEQ BRIGHT10, bright, 2
+    ADD brightShift, brightShift, gpio0_set
+    QBEQ BRIGHT10, bright, 1
+    ADD brightShift, brightShift, gpio0_set
+    BRIGHT10:
 
-    QBEQ PANEL_OFFSET_END, panelCount, 8
-    ADD firstOffset, firstOffset, offset
-    QBEQ PANEL_OFFSET_END, panelCount, 7
-    ADD firstOffset, firstOffset, offset
-    QBEQ PANEL_OFFSET_END, panelCount, 6
-    ADD firstOffset, firstOffset, offset
-    QBEQ PANEL_OFFSET_END, panelCount, 5
-    ADD firstOffset, firstOffset, offset
-    // with less panels, we read things much faster and
-    // the brightness dims, compensate a bit
-    ADD brightShift, brightShift, 1
-    QBEQ PANEL_OFFSET_END, panelCount, 4
-    ADD firstOffset, firstOffset, offset
-    QBEQ PANEL_OFFSET_END, panelCount, 3
-    ADD firstOffset, firstOffset, offset
-    ADD brightShift, brightShift, 1
-    QBEQ PANEL_OFFSET_END, panelCount, 2
-    ADD firstOffset, firstOffset, offset
-    PANEL_OFFSET_END:
-    */
+    //LDI brightShift, 0x0000
+
 
         MOV gpio1_base, GPIO1
 
@@ -378,157 +392,218 @@ START:
     //we're going to control the clock along with the pixel data
     SET  gpio1_led_mask, gpio1_led_mask, gpio1_clock
 
+    LATCH_LO
+    DISPLAY_ON
+    LDI sleep_counter, 0
+
+    MOV    r8, CTPPR_0
+    MOV    r9, 0x00000220      // C28 = 00_0220_00h = PRU0 CFG Registers
+    SBBO   &r9, r8, 0, 4
+
+    LBCO   &r8, C28, 0, 4      // Enable CYCLE counter
+    SET    r8, 3
+    SBCO   &r8, C28, 0, 4
+
 READ_LOOP:
         // Load the pointer to the buffer from PRU DRAM into r0 and the
         // length (in pixels) into r1.
-        LBCO      data_addr, CONST_PRUDRAM, 0, 8
+        LBCO      data_addr, CONST_PRUDRAM, 0, 4
 
         // Wait for a non-zero command
         QBEQ READ_LOOP, data_addr, #0
 
         // Command of 0xFF is the signal to exit
         QBEQ EXIT, data_addr, #0xFF
-
-        MOV row, 0
+        MOV offset, 0
+        LDI row, 0
 
 NEW_ROW_LOOP:
-		// Disable output while we set the address
-		DISPLAY_OFF
+    LDI bright, 8
 
-		// set address; select pins in gpio1 are sequential
-		// xor with the select bit mask to set which ones should
-		LSL out_set, row, gpio1_sel0
-		MOV out_clr, GPIO1_SEL_MASK
-		AND out_set, out_set, out_clr // ensure no extra bits
-		XOR out_clr, out_clr, out_set // complement the bits into clr
-		SBBO out_clr, gpio1_base, GPIO_CLRDATAOUT, 8 // set both
+    ROW_LOOP:
+        LOOP DONE_PIXELS, 32
+            // Load the sixteen RGB outputs into
+            // consecutive registers, starting at pixel_data.
+            // This takes about 250 ns
+            QBLT SKIP_DATA, initialOffset, offset
+            LBBO pixel_data, data_addr, offset, 3*2*OUTPUTS
 
-        LDI bright, 7
-        LDI bright_thresh, 63
-        LSL bright_thresh, bright_thresh, brightShift
-	ROW_LOOP:
-		// Re-start reading at the same row
-        MOV offset, firstOffset
+            MOV bit, 0
+            BIT_LOOP:
 
-		// Reset the latch pin; will be toggled at the end of the row
-		LATCH_LO
+                LDI gpio0_set, 0
+                LDI gpio1_set, 0
+                LDI gpio2_set, 0
+                LDI gpio3_set, 0
 
-		// compute where we are in the image
-		PIXEL_LOOP:
-			// Load the sixteen RGB outputs into
-			// consecutive registers, starting at pixel_data.
-			// This takes about 250 ns
-			LBBO pixel_data, data_addr, offset, 3*2*OUTPUTS
+                // toggle the clock
+                CLOCK_LO
 
-			// toggle the clock
-			CLOCK_LO
+                #define GPIO(R) CAT3(gpio,R,_set)
+                #define OUTPUT_ROW(N,reg_r,reg_g,reg_b) \
+                    QBBC skip_r##N, reg_r, bit; \
+                    SET GPIO(r##N##_gpio), r##N##_pin; \
+                    skip_r##N: \
+                    QBBC skip_g##N, reg_g, bit; \
+                    SET GPIO(g##N##_gpio), g##N##_pin; \
+                    skip_g##N: \
+                    QBBC skip_b##N, reg_b, bit; \
+                    SET GPIO(b##N##_gpio), b##N##_pin; \
+                    skip_b##N: \
 
-			LDI gpio0_set, 0
-			LDI gpio1_set, 0
-			LDI gpio2_set, 0
-			LDI gpio3_set, 0
-#define GPIO(R) CAT3(gpio,R,_set)
-#define OUTPUT_ROW(N,reg_r,reg_g,reg_b) \
-	QBBC skip_r##N, reg_r, bright; \
-	SET GPIO(r##N##_gpio), r##N##_pin; \
-	skip_r##N: \
-	QBBC skip_g##N, reg_g, bright; \
-	SET GPIO(g##N##_gpio), g##N##_pin; \
-	skip_g##N: \
-	QBBC skip_b##N, reg_b, bright; \
-	SET GPIO(b##N##_gpio), b##N##_pin; \
-	skip_b##N: \
+                OUTPUT_ROW(11, r18.b0, r18.b1, r18.b2)
+                OUTPUT_ROW(12, r18.b3, r19.b0, r19.b1)
+    #if OUTPUTS > 1
+                OUTPUT_ROW(21, r19.b2, r19.b3, r20.b0)
+                OUTPUT_ROW(22, r20.b1, r20.b2, r20.b3)
+    #endif
+    #if OUTPUTS > 2
+                OUTPUT_ROW(31, r21.b0, r21.b1, r21.b2)
+                OUTPUT_ROW(32, r21.b3, r22.b0, r22.b1)
+    #endif
+    #if OUTPUTS > 3
+                OUTPUT_ROW(41, r22.b2, r22.b3, r23.b0)
+                OUTPUT_ROW(42, r23.b1, r23.b2, r23.b3)
+    #endif
+    #if OUTPUTS > 4
+                OUTPUT_ROW(51, r24.b0, r24.b1, r24.b2)
+                OUTPUT_ROW(52, r24.b3, r25.b0, r25.b1)
+    #endif
+    #if OUTPUTS > 5
+                OUTPUT_ROW(61, r25.b2, r25.b3, r26.b0)
+                OUTPUT_ROW(62, r26.b1, r26.b2, r26.b3)
+    #endif
+    #if OUTPUTS > 6
+                OUTPUT_ROW(71, r27.b0, r27.b1, r27.b2)
+                OUTPUT_ROW(72, r27.b3, r28.b0, r28.b1)
+    #endif
 
-			OUTPUT_ROW(11, r18.b0, r18.b1, r18.b2)
-			OUTPUT_ROW(12, r18.b3, r19.b0, r19.b1)
-#if OUTPUTS > 1
-			OUTPUT_ROW(21, r19.b2, r19.b3, r20.b0)
-			OUTPUT_ROW(22, r20.b1, r20.b2, r20.b3)
-#endif
-#if OUTPUTS > 2
-			OUTPUT_ROW(31, r21.b0, r21.b1, r21.b2)
-			OUTPUT_ROW(32, r21.b3, r22.b0, r22.b1)
-#endif
-#if OUTPUTS > 3
-            OUTPUT_ROW(41, r22.b2, r22.b3, r23.b0)
-			OUTPUT_ROW(42, r23.b1, r23.b2, r23.b3)
-#endif
-#if OUTPUTS > 4
-			OUTPUT_ROW(51, r24.b0, r24.b1, r24.b2)
-			OUTPUT_ROW(52, r24.b3, r25.b0, r25.b1)
-#endif
-#if OUTPUTS > 5
-            OUTPUT_ROW(61, r25.b2, r25.b3, r26.b0)
-			OUTPUT_ROW(62, r26.b1, r26.b2, r26.b3)
-#endif
-#if OUTPUTS > 6
-			OUTPUT_ROW(71, r27.b0, r27.b1, r27.b2)
-			OUTPUT_ROW(72, r27.b3, r28.b0, r28.b1)
-#endif
-#if OUTPUTS > 7
-			OUTPUT_ROW(81, r28.b2, r28.b3, r29.b0)
-			OUTPUT_ROW(82, r29.b1, r29.b2, r29.b3)
-#endif
+                // output 8 doesn't use gpio2 so we can start output these early and avoid some stalls
+                AND out_set, gpio2_set, gpio2_led_mask
+                XOR out_clr, out_set, gpio2_led_mask
+                MOV gpio_base, GPIO2
+                SBBO out_clr, gpio_base, GPIO_CLRDATAOUT, 8
 
-            // All bits are configured;
-            // the non-set ones will be cleared
-            // We write 8 bytes since CLR and DATA are contiguous,
-            // which will write both the 0 and 1 bits in the
-            // same instruction.
-            AND out_set, gpio0_set, gpio0_led_mask
-            XOR out_clr, out_set, gpio0_led_mask
-            MOV gpio_base, GPIO0
-            SBBO out_clr, gpio_base, GPIO_CLRDATAOUT, 8
+    #if OUTPUTS > 7
+                OUTPUT_ROW(81, r28.b2, r28.b3, r29.b0)
+                OUTPUT_ROW(82, r29.b1, r29.b2, r29.b3)
+    #endif
 
-            AND out_set, gpio2_set, gpio2_led_mask
-            XOR out_clr, out_set, gpio2_led_mask
-            MOV gpio_base, GPIO2
-            SBBO out_clr, gpio_base, GPIO_CLRDATAOUT, 8
+                // All bits are configured;
+                // the non-set ones will be cleared
+                // We write 8 bytes since CLR and DATA are contiguous,
+                // which will write both the 0 and 1 bits in the
+                // same instruction.
+                AND out_set, gpio0_set, gpio0_led_mask
+                XOR out_clr, out_set, gpio0_led_mask
+                MOV gpio_base, GPIO0
+                SBBO out_clr, gpio_base, GPIO_CLRDATAOUT, 8
 
-            #if OUTPUT2 > 3
-            // Don't need gpio3 for outputs 1-3
-            AND out_set, gpio3_set, gpio3_led_mask
-            XOR out_clr, out_set, gpio3_led_mask
-            MOV gpio_base, GPIO3
-            SBBO out_clr, gpio_base, GPIO_CLRDATAOUT, 8
-            #endif
+                #if OUTPUT2 > 3
+                // Don't need gpio3 for outputs 1-3
+                AND out_set, gpio3_set, gpio3_led_mask
+                XOR out_clr, out_set, gpio3_led_mask
+                MOV gpio_base, GPIO3
+                SBBO out_clr, gpio_base, GPIO_CLRDATAOUT, 8
+                #endif
 
-            // Do gpio1 last as we can add the clock bit to it
-            // and set that at the same time.  We can also do
-            // the brightness check and turn off the display
-            // if needed
-            AND out_set, gpio1_set, gpio1_led_mask
-            SET  out_set, out_set, gpio1_clock   //add the clock bit so the clock is set at the same time
-            XOR out_clr, out_set, gpio1_led_mask
+                // Do gpio1 last as we can add the clock bit to it
+                // and set that at the same time.  We can also do
+                // the brightness check and turn off the display
+                // if needed
+                AND out_set, gpio1_set, gpio1_led_mask
+                SET out_set, out_set, gpio1_clock        //add the clock bit so the clock is set at the same time
+                XOR out_clr, out_set, gpio1_led_mask
+                SBBO out_clr, gpio1_base, GPIO_CLRDATAOUT, 8
 
-            QBGT no_blank, offset, bright_thresh
-            SET out_set, out_set, gpio1_oe
-            CLR out_clr, out_clr, gpio1_oe
-            no_blank:
+                //CLOCK_HI
 
-            SBBO out_clr, gpio1_base, GPIO_CLRDATAOUT, 8
+                ADD bit, bit, 1
+                QBNE BIT_LOOP, bit, 8
 
-			ADD offset, offset, 3*16
-			QBNE PIXEL_LOOP, offset, width
+            SKIP_DATA:
+            ADD offset, offset, 3*16
 
-		// Full data has been clocked out; latch it
+            QBEQ NO_BLANK, sleep_counter, 0
+            LBCO   gpio0_set, C28, 0xC, 4
+            QBGT NO_BLANK, gpio0_set, sleep_counter
+            DISPLAY_OFF
+            LDI sleep_counter, 0
+            NO_BLANK:
+
+        DONE_PIXELS:
+
+
+        /*
+        //write some debug data into data stream to read in c code
+        LBCO   gpio0_set, C28, 0xC, 4
+        SBBO gpio0_set, data_addr, 0, 4
+        MOV gpio0_set, brightShift
+        SBBO gpio0_set, data_addr, 4, 4
+        SBBO sleep_counter, data_addr, 8, 4
+        */
+
+
+        WAIT_FOR_TIMER:
+            LBCO   gpio0_set, C28, 0xC, 4
+            QBGT WAIT_FOR_TIMER, gpio0_set, sleep_counter
+
+        DISPLAY_OFF
+
+
+        // set address; select pins in gpio1 are sequential
+        // xor with the select bit mask to set which ones should
+        QBNE NO_SET_ROW, bright, 8
+        LSL out_set, row, gpio1_sel0
+        MOV out_clr, GPIO1_SEL_MASK
+        AND out_set, out_set, out_clr // ensure no extra bits
+        XOR out_clr, out_clr, out_set // complement the bits into clr
+        SBBO out_clr, gpio1_base, GPIO_CLRDATAOUT, 8 // set both
+        NO_SET_ROW:
+
+        //LATCH_HI
+
+        MOV out_set, brightShift
+        ADD out_set, out_set, 1
+        DELAY_ON:
+            SUB out_set, out_set, 1
+            QBNE DELAY_ON, out_set, 0
+
+
+        LBCO   &r8, C28, 0, 4      // Reset CYCLE counter
+        CLR    r8, 3
+        SBCO   &r8, C28, 0, 4
+        LDI    sleep_counter, 0
+        SBCO   sleep_counter, C28, 0xC, 4
+        SET    r8, 3
+        SBCO   &r8, C28, 0, 4
+
+
+        //DISPLAY_ON
         LATCH_AND_DISPLAY_ON
+
+        LDI sleep_counter, MAX_SLICE_LENGTH
+        LDI r8, 8;
+        SUB r8, r8, bright;
+        SUB sleep_counter, sleep_counter, brightShift
+        LSR sleep_counter, sleep_counter, r8
 
 		// Update the brightness, and then give the row another scan
 		SUB bright, bright, 1
-		LSR bright_thresh, bright_thresh, 1
+        // Increment our data_offset to point to the next row
+        ADD data_addr, data_addr, offset
+
+        LATCH_LO
+
+        LDI offset, 0
 		QBLT ROW_LOOP, bright, 0
 
 		// We have just done all eight brightness levels for this
 		// row.  Time to move to the new row
+        ADD row, row, 1
+        QBEQ READ_LOOP, row, MATRIX_HEIGHT
 
-		// Increment our data_offset to point to the next row
-		ADD data_addr, data_addr, offset
-
-                ADD row, row, 1
-                QBEQ READ_LOOP, row, MATRIX_HEIGHT
-
-		QBA NEW_ROW_LOOP
+    QBA NEW_ROW_LOOP
 	
 EXIT:
 #ifdef AM33XX
@@ -539,3 +614,4 @@ EXIT:
 #endif
 
     HALT
+
