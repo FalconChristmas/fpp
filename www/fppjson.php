@@ -148,7 +148,7 @@ function SetSetting()
                 if (preg_match("/$rootDevice/", $value)) {
                         exec(   $SUDO . " sed -i 's/.*home\/fpp\/media/#\/dev\/sda1    \/home\/fpp\/media/' /etc/fstab", $output, $return_val );
                 } else {
-                        exec(   $SUDO . " sed -i 's/.*home\/fpp\/media.*/\/dev\/$value	\/home\/fpp\/media	auto	$options	0	0 /' /etc/fstab", $output, $return_val );
+                        exec(   $SUDO . " sed -i 's/.*home\/fpp\/media.*/\/dev\/$value	\/home\/fpp\/media	auto	$options	0	2 /' /etc/fstab", $output, $return_val );
                 }
                 unset($output);
 	} else if ($setting == "AudioOutput") {
