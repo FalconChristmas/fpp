@@ -429,7 +429,7 @@ function GetFPPSystems()
 {
 	exec("ip addr show up | grep 'inet ' | awk '{print $2}' | cut -f1 -d/ | grep -v '^127'", $localIPs);
 
-	exec("avahi-browse -artp | sort", $rmtSysOut);
+	exec("avahi-browse -artp | grep -v 'IPv6' | sort", $rmtSysOut);
 
 	$result = Array();
 
@@ -467,7 +467,7 @@ function GetFPPSystems()
 			}
 	 }
 
-		if (!(($elem['IP'] == "192.168.7.2") && ($elem['Platform'] == "BeagleBone Black")))
+		if (!((($elem['IP'] == "192.168.7.2") || ($elem['IP'] == "192.168.6.2")) && ($elem['Platform'] == "BeagleBone Black")))
 		{
 			$result[] = $elem;
 		}
