@@ -124,8 +124,8 @@
 
 #define r72_gpio 2
 #define r72_pin 6
-#define g72_gpio 0
-#define g72_pin 7
+#define g72_gpio 3
+#define g72_pin 18
 #define b72_gpio 2
 #define b72_pin 7
 
@@ -140,7 +140,7 @@
 #define r82_pin 14
 #define g82_gpio 0
 #define g82_pin 14
-#define b82_gpio 0
+#define b82_gpio 3
 #define b82_pin 20
 
 #define CAT3(X,Y,Z) X##Y##Z

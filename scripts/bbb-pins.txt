@@ -52,6 +52,9 @@ P9.28 out
 P9.29 out
 P9.30 out
 P9.31 out
-P9.41 out
-P9.42 out
+P9.41 in
+P9.42 in
+P9.91 out
+P9.92 out
+
 

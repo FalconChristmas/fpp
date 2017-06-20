@@ -1,8 +1,7 @@
 [Unit]
 Description=FPPd
-After=network.target apache2.target generic-board-startup.service
+After=network.target getty.target apache2.target generic-board-startup.service
 Requires=network.target 
-Want=generic-board-startup.service
 DefaultDependencies=no
 
 
@@ -14,4 +13,4 @@ ExecStop=/opt/fpp/scripts/fppd_stop
 
 
 [Install]
-WantedBy=network.target multi-user.target
+WantedBy=multi-user.target
