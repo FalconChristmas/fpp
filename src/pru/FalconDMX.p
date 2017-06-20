@@ -108,7 +108,8 @@ START:
 	// Write a 0x1 into the response field so that they know we have started
 	MOV	r2, #0x1
 	SBCO	r2, CONST_PRUDRAM, 12, 4
-//  MOV gpio3_serial_mask, #0
+
+    LDI gpio3_serial_mask, 0
 	SET	GPIO_MASK(ser1_gpio), ser1_pin
 	SET	GPIO_MASK(ser2_gpio), ser2_pin
 	SET	GPIO_MASK(ser3_gpio), ser3_pin

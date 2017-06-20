@@ -183,6 +183,10 @@ START:
 	MOV	r2, #0x1
 	SBCO	r2, CONST_PRUDRAM, 12, 4
 
+    LDI gpio0_led_mask, 0
+    LDI gpio1_led_mask, 0
+    LDI gpio2_led_mask, 0
+    LDI gpio3_led_mask, 0
 
     SET	GPIO_MASK(o1_gpio), o1_pin
     SET	GPIO_MASK(o2_gpio), o2_pin
