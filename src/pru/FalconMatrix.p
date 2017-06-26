@@ -26,10 +26,7 @@
 
 #define RECORD_STATS
 
-// higher constants == brighter.
-// 4 is a ok brightness, 5 is bright, 6 is powerful
-#define BRIGHT_SHIFT 7
-
+#define MAX_SLICE_LENGTH 0x8000
 
 #define r11_gpio 2
 #define r11_pin 2
@@ -192,7 +189,6 @@
 /** Register map */
 #define data_addr r0
 #define width r1
-#define bright_shift r2.b0
 #define row r2.b1
 #define bright r2.b2
 #define sleep_counter r3
@@ -208,7 +204,6 @@
 #define gpio1_led_mask r12
 #define gpio2_led_mask r13
 #define gpio3_led_mask r14
-#define bright_thresh r15
 #define gpio_base r16
 #define gpio1_base r17    // keep gpio1_base handy as it's used for clocks
 #define pixel_data r18 // the next 12 registers, too;
@@ -356,6 +351,13 @@ START:
     //we're going to clear the clock along with the pixel data
     SET  gpio1_led_mask, gpio1_led_mask, gpio1_clock
 
+    LDI sleep_counter, 0
+
+#ifdef RECORD_STATS
+    RESET_PRU0_CLOCK gpio0_set, gpio1_set
+    LDI statOffset, 0
+#endif
+
 READ_LOOP:
         // Load the pointer to the buffer from PRU DRAM into r0 and the
         // length (in pixels) into r1.
@@ -368,14 +370,7 @@ READ_LOOP:
         QBEQ EXIT, data_addr, #0xFF
 
         MOV row, 0
-        LDI bright_shift, 5
-
-
-#ifdef RECORD_STATS
-        RESET_PRU0_CLOCK gpio0_set, gpio1_set
         LDI statOffset, 0
-#endif
-
 
 NEW_ROW_LOOP:
 		// Disable output while we set the address
@@ -390,7 +385,6 @@ NEW_ROW_LOOP:
 		SBBO out_clr, gpio1_base, GPIO_CLRDATAOUT, 8 // set both
 
 		MOV bright, 7
-		MOV bright_thresh, 255
 	ROW_LOOP:
 		// Re-start reading at the same row
 		MOV offset, 0
@@ -480,47 +474,46 @@ NEW_ROW_LOOP:
 
 			CLOCK_HI
 
-#if 1
-			// If the brightness is less than the pixel, turn off
-			// but keep in mind that this is the brightness of
-			// the previous row, not this one.
-			LSL out_set, offset, 0
-			//LSL out_clr, 1, bright
-			//LSL out_clr, out_clr, 1
-			//MOV out_clr, 2048
 
-			LSL out_clr, bright_thresh, bright_shift
-			//LSL out_clr, bright_thresh, 10
-
-			//QBBS no_blank, out_set, bright
-			QBGT no_blank, out_set, out_clr
-			DISPLAY_OFF
-			no_blank:
-#endif
-
+            QBEQ NO_BLANK, sleep_counter, 0
+                GET_PRU0_CLOCK gpio0_set, gpio1_set
+                QBGT NO_BLANK, gpio0_set, sleep_counter
+                DISPLAY_OFF
+                LDI sleep_counter, 0
+            NO_BLANK:
 
 			ADD offset, offset, 3*16
 			QBNE PIXEL_LOOP, offset, width
 
-		// Full data has been clocked out; latch it
-		LATCH_AND_DISPLAY_ON
 
 #ifdef RECORD_STATS
         //write some debug data into sram to read in c code
         GET_PRU0_CLOCK gpio0_set, gpio1_set
-        LDI gpio1_set, 0
+        MOV gpio1_set, sleep_counter
         MOV gpio3_set, statOffset
         LSL gpio3_set, gpio3_set, 2
         ADD gpio3_set, gpio3_set, 48
         SBCO gpio0_set, C24, gpio3_set, 8
         ADD statOffset, statOffset, 2
+#endif
+        WAIT_FOR_TIMER:
+            GET_PRU0_CLOCK gpio0_set, gpio1_set
+            QBGT WAIT_FOR_TIMER, gpio0_set, sleep_counter
+
+        DISPLAY_OFF
+
 
         RESET_PRU0_CLOCK gpio0_set, gpio1_set
-#endif
+        LDI sleep_counter, MAX_SLICE_LENGTH
+        LDI gpio0_set, 7;
+        SUB gpio0_set, gpio0_set, bright
+        LSR sleep_counter, sleep_counter, gpio0_set
+
+		// Full data has been clocked out; latch it
+		LATCH_AND_DISPLAY_ON
 
 		// Update the brightness, and then give the row another scan
 		SUB bright, bright, 1
-		LSR bright_thresh, bright_thresh, 1
 		QBLT ROW_LOOP, bright, 0
 
 		// We have just done all eight brightness levels for this
@@ -529,11 +522,10 @@ NEW_ROW_LOOP:
 		// Increment our data_offset to point to the next row
 		ADD data_addr, data_addr, offset
 
-                ADD row, row, 1
-                QBEQ READ_LOOP, row, MATRIX_HEIGHT
+        ADD row, row, 1
+        QBEQ READ_LOOP, row, MATRIX_HEIGHT
 
 		QBA NEW_ROW_LOOP
-	
 EXIT:
 #ifdef AM33XX
     // Send notification to Host for program completion
