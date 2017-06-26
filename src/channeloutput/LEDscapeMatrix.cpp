@@ -65,6 +65,27 @@ LEDscapeMatrixOutput::~LEDscapeMatrixOutput()
 	delete m_matrix;
 }
 
+static void calcBrightness(ledscape_t *leds, int brightness, int maxPanel, int maxOutput) {
+    uint32_t max = 0xE000;
+
+    /*
+    if (maxPanel < 4 && maxOutput < 4) {
+        max = 0x5000;
+    } else if (maxPanel < 4 || maxOutput < 4) {
+        max = 0x6000;
+    }
+    */
+    uint32_t delay = (10 - brightness) * 0x500;
+    max -= delay;
+    
+    for (int x = 0; x < 8; x++) {
+        leds->ws281x->brightInfo[2*x] = max;
+        leds->ws281x->brightInfo[2*x + 1] = delay;
+        max >>= 1;
+    }
+}
+
+
 /*
  *
  */
@@ -169,8 +190,6 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
     if (brightness < 1 || brightness > 10) {
         brightness = 7;
     }
-    lmconfig->bright_shift = brightness;
-    lmconfig->outputCount = maxOutput + 1;
     lmconfig->panelCount = maxPanel + 1;
 
 	m_dataSize = lmconfig->width * lmconfig->height * 4;
@@ -202,6 +221,8 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
     LogDebug(VB_CHANNELOUT, "Using program %s with brightness %d\n", pru_program.c_str(), brightness);
 
 	m_leds = ledscape_matrix_init(m_config, 0, 0, pru_program.c_str());
+    
+    calcBrightness(m_leds, brightness, maxPanel, maxOutput);
 
 	if (!m_leds)
 	{
