@@ -209,8 +209,8 @@
 #define pixel_data r18 // the next 12 registers, too;
 
 #define CLOCK_HI \
-	MOV out_clr, 1 << gpio1_clock; \
-	SBBO out_clr, gpio1_base, GPIO_SETDATAOUT, 4; \
+	MOV out_set, 1 << gpio1_clock; \
+	SBBO out_set, gpio1_base, GPIO_SETDATAOUT, 4; \
 	//CLR r30,7
 
 #define CLOCK_LO \
@@ -220,19 +220,25 @@
 
 #define LATCH_HI \
 	MOV out_set, 1 << gpio1_latch; \
-        SBBO out_set, gpio1_base, GPIO_SETDATAOUT, 4; \
+    SBBO out_set, gpio1_base, GPIO_SETDATAOUT, 4; \
 
 #define LATCH_LO \
 	MOV out_clr, 1 << gpio1_latch; \
-        SBBO out_clr, gpio1_base, GPIO_CLRDATAOUT, 4; \
+    SBBO out_clr, gpio1_base, GPIO_CLRDATAOUT, 4; \
 
 #define DISPLAY_OFF \
 	MOV out_set, 1 << gpio1_oe; \
 	SBBO out_set, gpio1_base, GPIO_SETDATAOUT, 4; \
 
+#define CLOCK_HI_AND_DISPLAY_OFF \
+    MOV out_set, 1 << gpio1_clock; \
+    MOV out_set, 1 << gpio1_oe; \
+    SBBO out_set, gpio1_base, GPIO_SETDATAOUT, 4; \
+
+
 #define DISPLAY_ON \
-	MOV out_set, 1 << gpio1_oe; \
-	SBBO out_set, gpio1_base, GPIO_CLRDATAOUT, 4; \
+	MOV out_clr, 1 << gpio1_oe; \
+	SBBO out_clr, gpio1_base, GPIO_CLRDATAOUT, 4; \
 
 #define LATCH_AND_DISPLAY_ON \
     MOV out_set, 1 << gpio1_latch; \
@@ -278,9 +284,8 @@ START:
         MOV gpio2_led_mask, 0
         MOV gpio3_led_mask, 0
 
-        // Load the pointer to the buffer from PRU DRAM into r0 and the
-        // length (in pixels) into r1.
-        LBCO      data_addr, CONST_PRUDRAM, 0, 28
+        // Load the pointer to the buffer from PRU DRAM into r0.
+        LBCO      data_addr, CONST_PRUDRAM, 0, 8
 
 #define GPIO_MASK(X) CAT3(gpio,X,_led_mask)
 	SET GPIO_MASK(r11_gpio), r11_pin
@@ -361,7 +366,7 @@ START:
 READ_LOOP:
         // Load the pointer to the buffer from PRU DRAM into r0 and the
         // length (in pixels) into r1.
-        LBCO      data_addr, CONST_PRUDRAM, 0, 28
+        LBCO data_addr, CONST_PRUDRAM, 0, 8
 
         // Wait for a non-zero command
         QBEQ READ_LOOP, data_addr, #0
@@ -472,15 +477,15 @@ NEW_ROW_LOOP:
                 SBBO out_clr, gpio_base, GPIO_CLRDATAOUT, 8
             #endif
 
-			CLOCK_HI
-
-
             QBEQ NO_BLANK, sleep_counter, 0
                 GET_PRU0_CLOCK gpio0_set, gpio1_set
                 QBGT NO_BLANK, gpio0_set, sleep_counter
-                DISPLAY_OFF
+                CLOCK_HI_AND_DISPLAY_OFF
                 LDI sleep_counter, 0
+                JMP NEXT_PIXEL
             NO_BLANK:
+                CLOCK_HI
+            NEXT_PIXEL:
 
 			ADD offset, offset, 3*16
 			QBNE PIXEL_LOOP, offset, width
@@ -492,7 +497,7 @@ NEW_ROW_LOOP:
         MOV gpio1_set, sleep_counter
         MOV gpio3_set, statOffset
         LSL gpio3_set, gpio3_set, 2
-        ADD gpio3_set, gpio3_set, 48
+        ADD gpio3_set, gpio3_set, 88
         SBCO gpio0_set, C24, gpio3_set, 8
         ADD statOffset, statOffset, 2
 #endif
@@ -502,12 +507,18 @@ NEW_ROW_LOOP:
 
         DISPLAY_OFF
 
-
-        RESET_PRU0_CLOCK gpio0_set, gpio1_set
-        LDI sleep_counter, MAX_SLICE_LENGTH
-        LDI gpio0_set, 7;
+        LDI gpio0_set, 7
         SUB gpio0_set, gpio0_set, bright
-        LSR sleep_counter, sleep_counter, gpio0_set
+        LSL gpio0_set, gpio0_set, 3
+        ADD gpio0_set, gpio0_set, 24
+        LBCO gpio0_set, CONST_PRUDRAM, gpio0_set, 8
+
+        RESET_PRU0_CLOCK gpio1_set, gpio2_set
+        MOV sleep_counter, gpio1_set
+        WAIT_FOR_EXTRA_OFF_TIME:
+            GET_PRU0_CLOCK gpio1_set, gpio2_set
+            QBGT WAIT_FOR_EXTRA_OFF_TIME, gpio1_set, sleep_counter
+        MOV sleep_counter, gpio0_set
 
 		// Full data has been clocked out; latch it
 		LATCH_AND_DISPLAY_ON

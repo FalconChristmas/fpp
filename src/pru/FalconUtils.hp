@@ -1,0 +1,31 @@
+#ifndef __falcon_utils__
+#define __falcon_utils__
+
+#define PRU0_CONTROL_REG    0x00022000
+#define PRU2_CONTROL_REG    0x00024000
+
+
+/* needs two temporary registers that can be cleared out */
+.macro RESET_PRU0_CLOCK
+.mparam reg1, reg2
+    MOV    reg2, PRU0_CONTROL_REG
+    LBBO   &reg1, reg2, 0, 4
+    CLR    reg1, 3
+    SBBO   &reg1, reg2, 0, 4
+    SET    reg1, 3
+    SBBO   &reg1, reg2, 0, 4
+    LDI    reg1, 0
+    SBBO   reg1, reg2, 0xC, 4
+.endm
+
+.macro GET_PRU0_CLOCK
+.mparam reg, treg = tmp
+    MOV   treg, PRU0_CONTROL_REG
+    LBBO  reg, treg, 0xC, 4
+.endm
+
+
+
+
+
+#endif
