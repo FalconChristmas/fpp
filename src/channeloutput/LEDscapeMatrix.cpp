@@ -66,22 +66,61 @@ LEDscapeMatrixOutput::~LEDscapeMatrixOutput()
 }
 
 static void calcBrightness(ledscape_t *leds, int brightness, int maxPanel, int maxOutput) {
-    uint32_t max = 0xE000;
-
-    /*
+    uint32_t max = 0x7000;
+    int subMax = 0x700;
     if (maxPanel < 4 && maxOutput < 4) {
-        max = 0x5000;
-    } else if (maxPanel < 4 || maxOutput < 4) {
+        max = 0x4400;
+        subMax = 0x600;
+    } else if (maxPanel < 4) {
+        max = 0x5400;
+        subMax = 0x600;
+    } else if (maxOutput < 3) {
         max = 0x6000;
+        subMax = 0x650;
     }
-    */
-    uint32_t delay = (10 - brightness) * 0x500;
-    max -= delay;
+    uint32_t delay = 0;
+    max -= (10 - brightness) * subMax;
+    if (brightness < 5) {
+        //insert some extra "off" time
+        delay = (5-brightness) * 0x500;
+    }
     
     for (int x = 0; x < 8; x++) {
         leds->ws281x->brightInfo[2*x] = max;
         leds->ws281x->brightInfo[2*x + 1] = delay;
         max >>= 1;
+    }
+    
+    if (FileExists("/home/fpp/media/config/ledscape_dimming")) {
+        FILE *file = fopen("/home/fpp/media/config/ledscape_dimming", "r");
+        
+        if (file != NULL) {
+            char buf[100];
+            char *line = buf;
+            size_t len = 100;
+            ssize_t read;
+            int count = 0;
+            
+            while ((read = getline(&line, &len, file)) != -1)
+            {
+                if (( ! line ) || ( ! read ) || ( read == 1 ))
+                    continue;
+                
+                if (count == 0) {
+                    leds->ws281x->statEnable = atoi(line);
+                    count++;
+                } else {
+                    uint32_t d1, d2;
+                    sscanf(line, "%X %X", &d1, &d2);
+                    leds->ws281x->brightInfo[2 * ( count - 1)] = d1;
+                    leds->ws281x->brightInfo[2 * ( count - 1) + 1] = d2;
+                    count++;
+                }
+                line = buf;
+                len = 100;
+            }
+            fclose(file);
+        }
     }
 }
 
@@ -222,6 +261,7 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
 
 	m_leds = ledscape_matrix_init(m_config, 0, 0, pru_program.c_str());
     
+    m_leds->ws281x->statEnable = 0;
     calcBrightness(m_leds, brightness, maxPanel, maxOutput);
 
 	if (!m_leds)

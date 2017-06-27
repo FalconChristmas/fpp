@@ -18,10 +18,11 @@
     SBBO   reg1, reg2, 0xC, 4
 .endm
 
+/* if size = 8, then the reg beyond teh passed in will contain the stall count */
 .macro GET_PRU0_CLOCK
-.mparam reg, treg = tmp
+.mparam reg, treg = tmp, size = 4
     MOV   treg, PRU0_CONTROL_REG
-    LBBO  reg, treg, 0xC, 4
+    LBBO  reg, treg, 0xC, size
 .endm
 
 
