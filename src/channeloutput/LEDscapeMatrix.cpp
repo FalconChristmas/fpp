@@ -68,15 +68,16 @@ LEDscapeMatrixOutput::~LEDscapeMatrixOutput()
 static void calcBrightness(ledscape_t *leds, int brightness, int maxPanel, int maxOutput) {
     uint32_t max = 0x7000;
     int subMax = 0x700;
-    if (maxPanel < 4 && maxOutput < 4) {
-        max = 0x4400;
-        subMax = 0x600;
-    } else if (maxPanel < 4) {
-        max = 0x5400;
-        subMax = 0x600;
-    } else if (maxOutput < 3) {
-        max = 0x6000;
+    if (maxOutput < 4) {
+        max = 0xB00 * maxPanel;
         subMax = 0x650;
+    } else {
+        max = 0xD00 * maxPanel;
+    }
+    max += maxOutput * 0x200;
+    if (maxOutput > 3) {
+        //jumping above output 3 adds increased delay
+        max += 0x300;
     }
     uint32_t delay = 0;
     max -= (10 - brightness) * subMax;
@@ -101,11 +102,12 @@ static void calcBrightness(ledscape_t *leds, int brightness, int maxPanel, int m
             ssize_t read;
             int count = 0;
             
-            while ((read = getline(&line, &len, file)) != -1)
+            while (((read = getline(&line, &len, file)) != -1) && (count < 10))
             {
                 if (( ! line ) || ( ! read ) || ( read == 1 ))
                     continue;
                 
+                LogDebug(VB_CHANNELOUT, "Line %d: %s\n", count, line);
                 if (count == 0) {
                     leds->ws281x->statEnable = atoi(line);
                     count++;
@@ -159,7 +161,7 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
 	if (!lmconfig->panel_height)
 		lmconfig->panel_height = 16;
 
-	lmconfig->leds_width   = lmconfig->panel_width * 8;
+	lmconfig->leds_width   = lmconfig->panel_width * LEDSCAPE_MATRIX_PANELS;
 	lmconfig->leds_height  = lmconfig->panel_height * 8;
 
 	for (int i = 0; i < config["panels"].size(); i++)
@@ -171,7 +173,7 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
 		Json::Value p = config["panels"][i];
 
 		int  output  = p["outputNumber"].asInt();
-		int  chain   = 7 - p["panelNumber"].asInt(); // 7 is first in chain, 0 is last
+		int  chain   = LEDSCAPE_MATRIX_PANELS - 1 - p["panelNumber"].asInt(); // 0 is last
 		int  xOffset = p["xOffset"].asInt();
 		int  yOffset = p["yOffset"].asInt();
         
@@ -262,7 +264,7 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
 	m_leds = ledscape_matrix_init(m_config, 0, 0, pru_program.c_str());
     
     m_leds->ws281x->statEnable = 0;
-    calcBrightness(m_leds, brightness, maxPanel, maxOutput);
+    calcBrightness(m_leds, brightness, maxPanel + 1, maxOutput + 1);
 
 	if (!m_leds)
 	{

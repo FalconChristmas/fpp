@@ -23,6 +23,10 @@
 #define OUTPUTS 8
 #endif
 
+// number of panels chained per output
+// this needs to match the similar define found in the ledscape.h
+#define LEDSCAPE_MATRIX_PANELS 12
+
 #define r11_gpio 2
 #define r11_pin 2
 #define g11_gpio 2
@@ -72,13 +76,8 @@
 #define b41_gpio 1
 #define b41_pin 17
 
-#if 0
-#define r42_gpio 1 // if we want to use PRU r30 output on clock
-#define r42_pin 19
-#else
 #define r42_gpio 3 // if we use the boards as built
 #define r42_pin 21
-#endif
 #define g42_gpio 3
 #define g42_pin 19
 #define b42_gpio 0
@@ -404,7 +403,7 @@ READ_LOOP:
             SET      bitFlags, statsBit
         NO_STATS_FLAG:
 
-        LDI initialOffset, 8
+        LDI initialOffset, LEDSCAPE_MATRIX_PANELS
         SUB gpio0_set, initialOffset, gpio0_set
         LDI initialOffset, 0
 
@@ -430,7 +429,7 @@ NEW_ROW_LOOP:
 		LATCH_LO
 
 		// compute where we are in the image
-        LOOP DONE_PIXELS, 32    //8 panels worth of pixels, if we support more than 8 panels, this needs to change
+        LOOP DONE_PIXELS, (LEDSCAPE_MATRIX_PANELS * 4)
             QBLT SKIP_DATA, initialOffset, offset
 
 			// Load the sixteen RGB outputs into
@@ -518,7 +517,7 @@ NEW_ROW_LOOP:
             MOV gpio2_set, sleep_counter
             MOV gpio3_set, statOffset
             LSL gpio3_set, gpio3_set, 2
-            ADD gpio3_set, gpio3_set, 88
+            ADD gpio3_set, gpio3_set, 88   // move past all the config at the beginning
             SBCO gpio0_set, C24, gpio3_set, 12
             ADD statOffset, statOffset, 3
         NO_STATS:

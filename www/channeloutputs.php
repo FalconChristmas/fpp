@@ -1,3 +1,4 @@
+
 <html>
 <head>
 <?php
@@ -2045,7 +2046,7 @@ $LEDPanelHeight = 16;
 if ($settings['Platform'] == "BeagleBone Black")
 {
 	$LEDPanelOutputs = 8;
-	$LEDPanelPanelsPerOutput = 8;
+	$LEDPanelPanelsPerOutput = 12;
 }
 
 $maxLEDPanels = $LEDPanelOutputs * $LEDPanelPanelsPerOutput;
