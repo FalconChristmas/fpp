@@ -139,8 +139,16 @@ function SetSetting()
 
 		exec( $SUDO . " file -sL /dev/$value | grep FAT", $output, $return_val );
                 if ($output[0] == "") {
-                    # probably ext4
-                    $options = "defaults,noatime,nodiratime";
+                    unset($output);
+                    exec( $SUDO . " file -sL /dev/$value | grep BTRFS", $output, $return_val );
+
+                    if ($output[0] == "") {
+                        # probably ext4
+                        $options = "defaults,noatime,nodiratime";
+                    } else {
+                        # BTRFS, turn on compression since fseq files are very compressible
+                        $options = "defaults,noatime,nodiratime,compress-force=lzo";
+                    }
                 } else {
                     # FAT filesystem
                     $options = "defaults,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500";
