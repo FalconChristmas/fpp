@@ -232,6 +232,7 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
         brightness = 7;
     }
     lmconfig->panelCount = maxPanel + 1;
+    lmconfig->rowsPerOutput = lmconfig->panel_height / 2;
 
 	m_dataSize = lmconfig->width * lmconfig->height * 4;
 	m_data = (uint8_t *)malloc(m_dataSize);
@@ -250,18 +251,15 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
 	else
 		pru_program += "/../lib/";
     
-	if (lmconfig->panel_height == 32)
-		pru_program += "FalconMatrix_32x32_";
-    else {
-        pru_program += "FalconMatrix_";
-    }
+    pru_program += "FalconMatrix_";
+    
     char outputString[10];
     sprintf(outputString, "%d", (maxOutput + 1));
     pru_program += outputString;
     pru_program += ".bin";
     LogDebug(VB_CHANNELOUT, "Using program %s with brightness %d\n", pru_program.c_str(), brightness);
 
-	m_leds = ledscape_matrix_init(m_config, 0, 0, pru_program.c_str());
+	m_leds = ledscape_matrix_init(m_config, 0, 1, pru_program.c_str());
     
     m_leds->ws281x->statEnable = 0;
     calcBrightness(m_leds, brightness, maxPanel + 1, maxOutput + 1);

@@ -2,13 +2,22 @@
 #define __falcon_utils__
 
 #define PRU0_CONTROL_REG    0x00022000
-#define PRU2_CONTROL_REG    0x00024000
+#define PRU1_CONTROL_REG    0x00024000
 
+#ifndef RUNNING_ON_PRU1
+#define PRU_CONTROL_REG PRU0_CONTROL_REG
+#define PRU_MEMORY_OFFSET 0
+#define PRU_ARM_INTERRUPT PRU0_ARM_INTERRUPT
+#else
+#define PRU_CONTROL_REG PRU1_CONTROL_REG
+#define PRU_MEMORY_OFFSET 0x2000
+#define PRU_ARM_INTERRUPT PRU1_ARM_INTERRUPT
+#endif
 
 /* needs two temporary registers that can be cleared out */
-.macro RESET_PRU0_CLOCK
+.macro RESET_PRU_CLOCK
 .mparam reg1, reg2
-    MOV    reg2, PRU0_CONTROL_REG
+    MOV    reg2, PRU_CONTROL_REG
     LBBO   &reg1, reg2, 0, 4
     CLR    reg1, 3
     SBBO   &reg1, reg2, 0, 4
@@ -18,15 +27,12 @@
     SBBO   reg1, reg2, 0xC, 4
 .endm
 
-/* if size = 8, then the reg beyond teh passed in will contain the stall count */
-.macro GET_PRU0_CLOCK
+/* if size = 8, then the reg beyond the passed in will contain the stall count */
+.macro GET_PRU_CLOCK
 .mparam reg, treg = tmp, size = 4
-    MOV   treg, PRU0_CONTROL_REG
+    MOV   treg, PRU_CONTROL_REG
     LBBO  reg, treg, 0xC, size
 .endm
-
-
-
 
 
 #endif
