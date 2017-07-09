@@ -176,7 +176,7 @@ then
 elif [ ! -z "$(grep sun50iw1p1 /proc/cpuinfo)" ]
 then
 	FPPPLATFORM="Pine64"
-elif uname -a | grep -q -i orangepi
+elif [ ! -z "$(grep sun8i /proc/cpuinfo)" ]
 then
 	FPPPLATFORM="OrangePi"
 elif [ "x${OSID}" = "xdebian" ]
@@ -379,7 +379,7 @@ case "${OSVER}" in
 						vim-common vorbis-tools vsftpd firmware-realtek gcc g++\
 						network-manager dhcp-helper hostapd parprouted bridge-utils \
 						firmware-atheros firmware-ralink firmware-brcm80211 \
-						wireless-tools \
+						wireless-tools resolvconf \
 						libmicrohttpd-dev libmicrohttpd10 libcurl4-openssl-dev
 		do
 			apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" install ${package}
@@ -673,6 +673,23 @@ EOF
 	'Pine64')
 		echo "FPP - Pine64"
 		;;
+	'Orange Pi')
+		echo "FPP - Orange Pi"
+
+		echo "FPP - Installing wiringOP (wiringPi port)"
+		cd /opt/ && git clone https://github.com/zhaolei/WiringOP && cd /opt/WiringOP && ./build
+
+		echo "FPP - Installing OLA from source"
+		apt-get -y --force-yes install libcppunit-dev uuid-dev pkg-config libncurses5-dev libtool autoconf automake libmicrohttpd-dev protobuf-compiler python-protobuf libprotobuf-dev libprotoc-dev bison flex libftdi-dev libftdi1 libusb-1.0-0-dev liblo-dev
+		apt-get -y clean
+		git clone https://github.com/OpenLightingProject/ola.git /opt/ola
+		(cd /opt/ola && autoreconf -i && ./configure --enable-rdm-tests --enable-python-libs && make && make install && ldconfig)
+		rm -rf /opt/ola
+
+		echo "FPP - Disabling stock users, use the 'fpp' user instead"
+		sed -i -e "s/^orangepi:.*/orangepi:*:16372:0:99999:7:::/" /etc/shadow
+
+		;;
 	'Debian')
 		echo "FPP - Debian"
 		;;
@@ -810,7 +827,7 @@ cat <<-EOF >> /etc/motd
 This FPP console is for advanced users, debugging, and developers.  If
 you aren't one of those, you're probably looking for the web-based GUI.
 
-You can access the UI by typing "http://fpp/" into a web browser.[0m
+You can access the UI by typing "http://fpp.local/" into a web browser.[0m
 	EOF
 
 #######################################

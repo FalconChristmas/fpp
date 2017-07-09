@@ -78,6 +78,7 @@ ColorLight5a75Output::ColorLight5a75Output(unsigned int startChannel, unsigned i
   : ChannelOutputBase(startChannel, channelCount),
 	m_width(0),
 	m_height(0),
+	m_colorOrder(kColorOrderRGB),
 	m_fd(-1),
 	m_buffer_0101(NULL),
 	m_buffer_0101_len(0),
@@ -85,7 +86,16 @@ ColorLight5a75Output::ColorLight5a75Output(unsigned int startChannel, unsigned i
 	m_buffer_0AFF_len(0),
 	m_data(NULL),
 	m_rowSize(0),
-	m_pktSize(0)
+	m_pktSize(0),
+	m_panelWidth(0),
+	m_panelHeight(0),
+	m_panels(0),
+	m_rows(0),
+	m_outputs(0),
+	m_longestChain(0),
+	m_invertedData(0),
+	m_matrix(NULL),
+	m_panelMatrix(NULL)
 {
 	LogDebug(VB_CHANNELOUT, "ColorLight5a75Output::ColorLight5a75Output(%u, %u)\n",
 		startChannel, channelCount);
@@ -103,6 +113,9 @@ ColorLight5a75Output::~ColorLight5a75Output()
 	if (m_fd >= 0)
 		close(m_fd);
 
+	if (m_outputFrame)
+		delete [] m_outputFrame;
+
 	if (m_buffer_0101)
 		free(m_buffer_0101);
 
@@ -117,31 +130,99 @@ int ColorLight5a75Output::Init(Json::Value config)
 {
 	LogDebug(VB_CHANNELOUT, "ColorLight5a75Output::Init(JSON)\n");
 
-	// FIXME, don't hardcode this
+	m_panelWidth  = config["panelWidth"].asInt();
+	m_panelHeight = config["panelHeight"].asInt();
+
+	if (!m_panelWidth)
+		m_panelWidth = 32;
+
+	if (!m_panelHeight)
+		m_panelHeight = 16;
+
+	m_invertedData = config["invertedData"].asInt();
+
+	m_colorOrder = ColorOrderFromString(config["colorOrder"].asString());
+
+	m_panelMatrix =
+		new PanelMatrix(m_panelWidth, m_panelHeight, 3, m_invertedData);
+
+	if (!m_panelMatrix)
+	{
+		LogErr(VB_CHANNELOUT, "Unable to create PanelMatrix\n");
+		return 0;
+	}
+
+	for (int i = 0; i < config["panels"].size(); i++)
+	{
+		Json::Value p = config["panels"][i];
+		char orientation = 'N';
+		const char *o = p["orientation"].asString().c_str();
+
+		if (o && *o)
+			orientation = o[0];
+
+		// FIXME, is the ColorLight receiver flipping the panels 180 degrees?
+		switch (orientation)
+		{
+			case 'N':	orientation = 'U';
+						break;
+			case 'U':	orientation = 'N';
+						break;
+			case 'R':	orientation = 'L';
+						break;
+			case 'L':	orientation = 'R';
+						break;
+		}
+
+		m_panelMatrix->AddPanel(p["outputNumber"].asInt(),
+			p["panelNumber"].asInt(), orientation,
+			p["xOffset"].asInt(), p["yOffset"].asInt());
+
+		if (p["outputNumber"].asInt() > m_outputs)
+			m_outputs = p["outputNumber"].asInt();
+
+		if (p["panelNumber"].asInt() > m_longestChain)
+			m_longestChain = p["panelNumber"].asInt();
+	}
+
+	// Both of these are 0-based, so bump them up by 1 for comparisons
+	m_outputs++;
+	m_longestChain++;
+
+	m_panels = m_panelMatrix->PanelCount();
+
+	m_rows = m_outputs * m_panelHeight;
+
+	m_width  = m_panelMatrix->Width();
+	m_height = m_panelMatrix->Height();
+
+	m_channelCount = m_width * m_height * 3;
+
+	m_outputFrame = new char[m_outputs * m_longestChain * m_panelHeight * m_panelWidth * 3];
+
+	m_matrix = new Matrix(m_startChannel, m_width, m_height);
+
+	if (config.isMember("subMatrices"))
+	{
+		for (int i = 0; i < config["subMatrices"].size(); i++)
+		{
+			Json::Value sm = config["subMatrices"][i];
+
+			m_matrix->AddSubMatrix(
+				sm["enabled"].asInt(),
+				sm["startChannel"].asInt() - 1,
+				sm["width"].asInt(),
+				sm["height"].asInt(),
+				sm["xOffset"].asInt(),
+				sm["yOffset"].asInt());
+		}
+	}
+
 	if (config.isMember("interface"))
 		m_ifName = config["interface"].asString();
 	else
-		m_ifName = "eth0";
+		m_ifName = "eth1";
 
-	if (config.isMember("width"))
-	{
-		m_width = config["width"].asInt();
-	}
-	else
-	{
-		LogErr(VB_CHANNELOUT, "width attribute is not defined!\n");
-		return 0;
-	}
-
-	if (config.isMember("height"))
-	{
-		m_height = config["height"].asInt();
-	}
-	else
-	{
-		LogErr(VB_CHANNELOUT, "height attribute is not defined!\n");
-		return 0;
-	}
 
 	////////////////////////////
 	// Setup 0x0101 packet data
@@ -185,7 +266,7 @@ int ColorLight5a75Output::Init(Json::Value config)
 	m_eh->ether_type = htons(0x5500);
 	SetHostMACs(m_buffer);
 
-	m_rowSize = m_width * 3;
+	m_rowSize = m_longestChain * m_panelWidth * 3;
 	m_pktSize = sizeof(struct ether_header) + 7 + m_rowSize;
 
 
@@ -212,8 +293,8 @@ int ColorLight5a75Output::Init(Json::Value config)
 	m_data[0] = 0x00; // row #
 	m_data[1] = 0x00; // ??
 	m_data[2] = 0x00; // ??
-	m_data[3] = 0x00; // ??, mplayer code had 0x01 here
-	m_data[4] = 0x80; // ??, mplayer code had 0x00 here
+	m_data[3] = 0x01; // ??
+	m_data[4] = 0x00; // ??, mplayer code had 0x00 here
 	m_data[5] = 0x08; // ??
 	m_data[6] = 0x88; // ??
 
@@ -235,6 +316,86 @@ int ColorLight5a75Output::Close(void)
 /*
  *
  */
+void ColorLight5a75Output::PrepData(unsigned char *channelData)
+{
+	unsigned char *r = NULL;
+	unsigned char *g = NULL;
+	unsigned char *b = NULL;
+	unsigned char *s = NULL;
+	unsigned char *dst = NULL;
+	int pw3 = m_panelWidth * 3;
+
+	channelData += m_startChannel; // FIXME, this function gets offset 0
+
+	for (int output = 0; output < m_outputs; output++)
+	{
+		int panelsOnOutput = m_panelMatrix->m_outputPanels[output].size();
+
+		for (int i = 0; i < panelsOnOutput; i++)
+		{
+			int panel = m_panelMatrix->m_outputPanels[output][i];
+			int chain = (panelsOnOutput - 1) - m_panelMatrix->m_panels[panel].chain;
+			chain = m_panelMatrix->m_panels[panel].chain;
+
+			for (int y = 0; y < m_panelHeight; y++)
+			{
+				int px = chain * m_panelWidth;
+				int yw = y * m_panelWidth * 3;
+
+				dst = (unsigned char*)(m_outputFrame + (((((output * m_panelHeight) + y) * m_panelWidth * m_longestChain) + px) * 3));
+
+				for (int x = 0; x < pw3; x += 3)
+				{
+					s = channelData + m_panelMatrix->m_panels[panel].pixelMap[yw + x];
+
+					switch (m_colorOrder)
+					{
+						default:
+						case kColorOrderRGB:	r = s;
+												g = s + 1;
+												b = s + 2;
+												break;
+
+						case kColorOrderRBG:	r = s;
+												b = s + 1;
+												g = s + 2;
+												break;
+
+						case kColorOrderGRB:	g = s;
+												r = s + 1;
+												b = s + 2;
+												break;
+
+						case kColorOrderGBR:	g = s;
+												b = s + 1;
+												r = s + 2;
+												break;
+
+						case kColorOrderBRG:	b = s;
+												r = s + 1;
+												g = s + 2;
+												break;
+
+						case kColorOrderBGR:	b = s;
+												g = s + 1;
+												r = s + 2;
+												break;
+					}
+
+					*(dst++) = *r;
+					*(dst++) = *g;
+					*(dst++) = *b;
+
+					px++;
+				}
+			}
+		}
+	}
+}
+
+/*
+ *
+ */
 int ColorLight5a75Output::RawSendData(unsigned char *channelData)
 {
 	LogExcess(VB_CHANNELOUT, "ColorLight5a75Output::RawSendData(%p)\n", channelData);
@@ -251,9 +412,9 @@ int ColorLight5a75Output::RawSendData(unsigned char *channelData)
 		return 0;
 	}
 
-	char *rowPtr = (char *)channelData;
+	char *rowPtr = (char *)m_outputFrame;
 	int row = 0;
-	for (row = 0; row < m_height; row++)
+	for (row = 0; row < m_rows; row++)
 	{
 		m_data[0] = row;
 		memcpy(m_rowData, rowPtr, m_rowSize);
@@ -279,9 +440,13 @@ void ColorLight5a75Output::DumpConfig(void)
 
 	LogDebug(VB_CHANNELOUT, "    Width          : %d\n", m_width);
 	LogDebug(VB_CHANNELOUT, "    Height         : %d\n", m_height);
+	LogDebug(VB_CHANNELOUT, "    Rows           : %d\n", m_rows);
 	LogDebug(VB_CHANNELOUT, "    Row Size       : %d\n", m_rowSize);
 	LogDebug(VB_CHANNELOUT, "    m_fd           : %d\n", m_fd);
 	LogDebug(VB_CHANNELOUT, "    Data Pkt Size  : %d\n", m_pktSize);
+	LogDebug(VB_CHANNELOUT, "    Outputs        : %d\n", m_outputs);
+	LogDebug(VB_CHANNELOUT, "    Longest Chain  : %d\n", m_longestChain);
+	LogDebug(VB_CHANNELOUT, "    Inverted Data  : %d\n", m_invertedData);
 
 	ChannelOutputBase::DumpConfig();
 }

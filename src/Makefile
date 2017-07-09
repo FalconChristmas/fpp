@@ -41,6 +41,7 @@ OBJECTS_fppd = \
 	channeloutput/ChannelOutputBase.o \
 	channeloutput/channeloutput.o \
 	channeloutput/ArtNet.o \
+	channeloutput/ColorOrder.o \
 	channeloutput/ColorLight-5a-75.o \
 	channeloutput/DebugOutput.o \
 	channeloutput/DDP.o \
@@ -51,6 +52,7 @@ OBJECTS_fppd = \
 	channeloutput/GenericSerial.o \
 	channeloutput/GPIO.o \
 	channeloutput/GPIO595.o \
+	channeloutput/Linsn-RV9.o \
 	channeloutput/LOR.o \
 	channeloutput/Matrix.o \
 	channeloutput/PanelMatrix.o \
@@ -201,6 +203,7 @@ LDFLAGS_fppd += \
 	$(NULL)
 OBJECTS_fppd += \
 	channeloutput/Hill320.o \
+	channeloutput/ILI9488.o \
 	channeloutput/RGBMatrix.o \
 	channeloutput/rpi_ws281x.o \
 	$(NULL)
@@ -240,6 +243,20 @@ SUBMODULES += \
 	external/RF24 \
 	external/rpi-rgb-led-matrix \
 	external/rpi_ws281x \
+	$(NULL)
+else ifeq '$(ARCH)' 'OrangePi'
+# do something for Orange Pi
+BINDIR = ../bin.pi
+CFLAGS += \
+	-DPLATFORM_ORANGEPI \
+	-DUSEWIRINGPI \
+	$(NULL)
+LIBS_fppd += \
+	-lwiringPi \
+	-lwiringPiDev \
+	$(NULL)
+OBJECTS_fppd += \
+	channeloutput/Hill320.o \
 	$(NULL)
 else ifeq '$(ARCH)' 'BeagleBone Black'
 # BeagleBone Black

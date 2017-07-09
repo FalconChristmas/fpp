@@ -1,0 +1,124 @@
+Instructions for setting up a Linsn RV908* LED Panel Receiver card to work
+with FPP's LinsnRV9 Channel Output.
+
+NOTE: This has been tested with a Raspberry Pi with the TrendNet TU3-ETG
+      USB Gig-E Network adapter.  You can also use a 100Mbit Ethernet
+      adapter if you have a Gig-E switch between the Pi/BBB and the LED
+      receiver board.
+
+NOTE: These instructions are a work in progress to go along with the new
+      Linsn receiver card Channel Output which is also a work in progress.
+
+NOTE: These instructions are currently for supporting 32x16 1/8 scan LED
+      panels and may need a modified .con file to support other panel
+      scan rates.
+
+- Install the latest version of LED Studio 12.x from
+
+  http://www.linsnled.com/download.html
+
+- Download the following two files and copy to your
+  c:\program files\LEDSoft\LEDStudeio\SetData\ directory
+
+  - 32x16 1/8 scan panel config
+    http://fpp.bc2va.org/linsn/Linsn-P10_32x16_1-8_scan.rcg
+
+  - Sample 32x16 matrix config (a single 32x16 panel)
+    http://fpp.bc2va.org/linsn/Linsn-32x16.con
+
+- Start LED Studio
+
+- Ignore any "Serial port not available" messages unless you are actually
+  using a Linsn sender card connected to the PC via the USB port.
+
+- Load the 32x16 matrix config
+  - Select the "Hardware Setup" menu entry under the "Option" menu.
+  - Enter "168" as the password
+  - Click the "Load" button on the popup window and use the file browser to
+    locate the previously downloaded Linsn-32x16.con and load it.  This will
+	configure LED Studio for a 32x16 display.
+  - Click the "Exit" button.
+
+- Enter the software setup screen by selecting the "Software Setup" menu
+  entry under the "Option" menu.
+
+- The Width field needs to be set to the length of your longest chain in
+  pixels.  If you are using 32x16 panels and have 5 panels on your longest
+  chain, then the Width would be 80.
+
+- The Height field needs to be set to the number of outputs in use times the
+  height of a single panel.  If you are using 2 outputs of 32x16 panels, then
+  the Height would be 32.  You must start at the first output on the board
+  and populate them in order.
+
+- Click the "Save Setup" button.
+
+- Go back into the "Software Setup" screen again, but do not enter any fields
+  or click any buttons.
+
+- Immediately after entering the Software Setup screen, type the word "linsn"
+  on the keyboard.  There will not be any indicator that anything is happening
+  until you type the last "n".  As soon as you type the last "n", a password
+  prompt will appear.
+
+- Enter the "168" password.
+
+- Ignore any "Serial port not available" and "LED screen system not found"
+  messages unless you are actually using a Linsn sender card connected to
+  the PC via the USB port.  Click "Cancel" on the "LED screen system not
+  found" error popup.
+
+- Click the "Check Hardware" button.  This should scan the network and
+  change the "Model" value in the upper right corner to "NetCard" if
+  LED Studio can talk to the RV9* receiver card over the network.
+
+- Click the "Custom" button and in the popup box, set the Width and Height
+  to the values previously supplied on the Software Setup screen.  Click "OK".
+
+- Click the "Receiver 1" tab.
+
+- Click the "Load from file" button and select the Linsn-P10_32x16_1-8_scan.rcg
+  file previously downloaded.
+
+- Change the "Actual Width" and "Actual Height" fields to match the Width and
+  Height previously supplied on the Software Setup screen.
+
+- Click the "Send to Receiver" button to send the config to the receiver card.
+  After this, you should see a portion of your desktop on the attached LED
+  panels.  Note that unless your matrix is configured using one output per
+  row, the display may appear jumbled.  This will be corrected by FPP once
+  you configure the panel layout in FPP.
+
+- Click the "Save to receiver" button to save the config to the receiver
+  card's EEPROM.
+
+- Click "Exit" to exit the Hardware setup screen.
+
+- Click "Close" to exit the Software setup screen.
+
+- Select the "Exit" menu option under the "File" menu to exit LED Studio.
+
+- Your LED Panels should go black after exiting LED Studio.
+
+- You may now disconnect the receiver card from the Windows PC and attach it
+  to the FPP system via a USB Gig-E network interface card.
+
+===================
+
+FPP Configuration
+
+NOTE: This is a temporary config method until the UI is updated.
+
+NOTE: These instuctions currently require a second wired ethernet adapter
+      to be present in the FPP system.  This interface will be used to talk
+      to the Linsn receiver card.
+
+- Configure a LED Panel Matrix via the normal Channel Output UI and save
+  the config.  You must use outputs in numerical order, do not skip any
+  output numbers for simplicity.  This restriction may be lifted later,
+  but you will see better performance if you do not skip any output numbers.
+
+- Hand-edit /home/fpp/media/config/channeloutputs.json and search for the
+  "LEDscapeMatrix" or "RGBMatrix" Channel Output.  Change the subType value to
+  "LinsnRV9" and save the file and restart fppd.
+

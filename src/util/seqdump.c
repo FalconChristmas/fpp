@@ -114,7 +114,7 @@ void HexDump(char *title, void *data, int len) {
 	char tmpStr[90];
 
 	sprintf( tmpStr, "%s: (%d bytes)\n", title, len);
-	printf(tmpStr);
+	printf("%s",tmpStr);
 
 	while (l < len) {
 		if ( x == 0 ) {
@@ -137,7 +137,7 @@ void HexDump(char *title, void *data, int len) {
 			}
 
 			sprintf( tmpStr + strlen(tmpStr), "\n" );
-			printf(tmpStr);
+			printf("%s",tmpStr);
 			x = 0;
 
 			sprintf( tmpStr, "       %06x: ", i );
@@ -163,7 +163,7 @@ void HexDump(char *title, void *data, int len) {
 	}
 
 	sprintf( tmpStr + strlen(tmpStr), "\n" );
-	printf(tmpStr);
+	printf("%s",tmpStr);
 }
 
 /*
@@ -175,7 +175,7 @@ int OpenEffectFile(const char *filename)
 
 	if (!filename || !filename[0])
 	{
-		printf("Empty Effect Filename!\n", filename);
+		printf("Empty Effect Filename! (%s)\n", filename);
 		return 0;
 	}
 
@@ -290,7 +290,7 @@ int OpenSequenceFile(const char *filename) {
 
 	if (!filename || !filename[0])
 	{
-		printf("Empty Sequence Filename!\n", filename);
+		printf("Empty Sequence Filename! (%)\n", filename);
 		return 0;
 	}
 
@@ -326,7 +326,7 @@ int OpenSequenceFile(const char *filename) {
 	seqFormatID[4] = 0;
 	if ((bytesRead != 4) || (strcmp(seqFormatID, "PSEQ") && strcmp(seqFormatID, "FSEQ") && strcmp(seqFormatID, "ESEQ")))
 	{
-		printf("Error opening sequence file: %s. Incorrect File Format header: '%s', bytesRead: %d\n",
+		printf("Error opening sequence file: %s. Incorrect File Format header: '%s', bytesRead: %ld\n",
 			filename, seqFormatID, bytesRead);
 
 		fseek(seqFile, 0L, SEEK_SET);
@@ -483,7 +483,7 @@ void CloseSequenceFile(void) {
 
 void DumpChannelData(int startChannel, int endChannel)
 {
-	char tmpStr[32];
+	char tmpStr[90];
 	int bytesRead = 0;
 	int frameNumber = 0;
 	int firstNonBlank = 0;
