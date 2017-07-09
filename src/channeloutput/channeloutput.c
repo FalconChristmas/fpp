@@ -42,6 +42,7 @@
 #include "FBVirtualDisplay.h"
 #include "FPD.h"
 #include "GenericSerial.h"
+#include "Linsn-RV9.h"
 #include "log.h"
 #include "Sequence.h"
 #include "settings.h"
@@ -67,8 +68,12 @@
 #  include "RGBMatrix.h"
 #endif
 
-#ifdef PLATFORM_PI
+#ifdef USEWIRINGPI
 #  include "Hill320.h"
+#endif
+
+#ifdef PLATFORM_PI
+#  include "ILI9488.h"
 #  include "rpi_ws281x.h"
 #endif
 
@@ -247,30 +252,29 @@ int InitializeChannelOutputs(void) {
 
 			// First some Channel Outputs enabled everythwere
 			if (type == "LEDPanelMatrix") {
+				if (outputs[c]["subType"] == "ColorLight5a75")
+					channelOutputs[i].output = new ColorLight5a75Output(start, count);
+				else if (outputs[c]["subType"] == "LinsnRV9")
+					channelOutputs[i].output = new LinsnRV9Output(start, count);
 #if defined(PLATFORM_PI) || defined(PLATFORM_ODROID)
-				if (outputs[c]["subType"] == "RGBMatrix")
+				else if (outputs[c]["subType"] == "RGBMatrix")
 					channelOutputs[i].output = new RGBMatrixOutput(start, count);
-				else
-				{
-					LogErr(VB_CHANNELOUT, "%s subType not valid on Pi\n", outputs[c]["subType"].asString().c_str());
-					continue;
-				}
 #endif
 #ifdef PLATFORM_BBB
-				if (outputs[c]["subType"] == "LEDscapeMatrix")
+				else if (outputs[c]["subType"] == "LEDscapeMatrix")
 					channelOutputs[i].output = new LEDscapeMatrixOutput(start, count);
+#endif
 				else
 				{
-					LogErr(VB_CHANNELOUT, "%s subType not valid on BBB\n", outputs[c]["subType"].asString().c_str());
+					LogErr(VB_CHANNELOUT, "LEDPanelmatrix subType '%s' not valid\n", outputs[c]["subType"].asString().c_str());
 					continue;
 				}
+#ifdef PLATFORM_BBB
 			} else if (type == "BBB48String") {
 				channelOutputs[i].output = new BBB48StringOutput(start, count);
 			} else if (type == "BBBSerial") {
 				channelOutputs[i].output = new BBBSerialOutput(start, count);
 #endif
-			} else if (type == "ColorLight5a75") {
-				channelOutputs[i].output = new ColorLight5a75Output(start, count);
 			} else if (type == "DDP") {
 				channelOutputs[i].output = new DDPOutput(start, count);
 			} else if (type == "FBVirtualDisplay") {
@@ -284,9 +288,13 @@ int InitializeChannelOutputs(void) {
 			} else if (type == "OLA") {
 				channelOutputs[i].output = new OLAOutput(start, count);
 #endif
-#if defined(PLATFORM_PI)
+#ifdef USEWIRINGPI
 			} else if (type == "Hill320") {
 				channelOutputs[i].output = new Hill320Output(start, count);
+#endif
+#ifdef PLATFORM_PI
+			} else if (type == "ILI9488") {
+				channelOutputs[i].output = new ILI9488Output(start, count);
 #endif
 #ifdef USE_X11Matrix
 			} else if (type == "X11Matrix") {
@@ -497,6 +505,7 @@ int SendChannelData(char *channelData) {
 				inst->channelCount < (FPPD_MAX_CHANNELS - inst->startChannel) ? inst->channelCount : (FPPD_MAX_CHANNELS - inst->startChannel));
 		else if (inst->output)
 		{
+			// FIXME, get this call to PrepData into another thread
 			inst->output->PrepData((unsigned char *)channelData);
 			inst->output->SendData((unsigned char *)(channelData + inst->startChannel));
 		}

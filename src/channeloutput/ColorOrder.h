@@ -1,6 +1,5 @@
 /*
- *   Matrix class for the Falcon Player Daemon 
- *   Falcon Player project (FPP) 
+ *   ColorOrder definitions for Falcon Player (FPP)
  *
  *   Copyright (C) 2013 the Falcon Player Developers
  *      Initial development by:
@@ -24,40 +23,21 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _MATRIX_H
-#define _MATRIX_H
+#ifndef _COLORORDER_H
+#define _COLORORDER_H
 
-#include <vector>
+#include <string>
 
-typedef struct subMatrix {
-	int enabled;
-	int startChannel;
-	int width;
-	int height;
-	int xOffset;
-	int yOffset;
-} SubMatrix;
+typedef enum FPPColorOrder
+{
+	kColorOrderRGB = 0,
+	kColorOrderRBG,
+	kColorOrderGRB,
+	kColorOrderGBR,
+	kColorOrderBRG,
+	kColorOrderBGR
+} FPPColorOrder;
 
-class Matrix {
-  public:
-	Matrix(int startChannel, int width, int height);
-	~Matrix();
-
-	void AddSubMatrix(int enabled, int startChannel, int width, int height,
-		int xOffset, int yOffset);
-
-	void OverlaySubMatrix(unsigned char *channelData, int i);
-	void OverlaySubMatrices(unsigned char *channelData);
-
-  private:
-	int  m_startChannel;
-	int  m_width;
-	int  m_height;
-	int  m_enableFlagOffset;
-
-	unsigned char *m_buffer;
-
-	std::vector<SubMatrix>  subMatrix;
-};
+FPPColorOrder ColorOrderFromString(std::string colorOrderStr);
 
 #endif

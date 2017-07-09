@@ -1,6 +1,5 @@
 /*
- *   Matrix class for the Falcon Player Daemon 
- *   Falcon Player project (FPP) 
+ *   ILI9488 Channel Output driver for Falcon Player (FPP)
  *
  *   Copyright (C) 2013 the Falcon Player Developers
  *      Initial development by:
@@ -24,40 +23,41 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _MATRIX_H
-#define _MATRIX_H
+#ifndef _ILI9488_H
+#define _ILI9488_H
 
-#include <vector>
+#include "ChannelOutputBase.h"
 
-typedef struct subMatrix {
-	int enabled;
-	int startChannel;
-	int width;
-	int height;
-	int xOffset;
-	int yOffset;
-} SubMatrix;
-
-class Matrix {
+class ILI9488Output : public ChannelOutputBase {
   public:
-	Matrix(int startChannel, int width, int height);
-	~Matrix();
+	ILI9488Output(unsigned int startChannel, unsigned int channelCount);
+	~ILI9488Output();
 
-	void AddSubMatrix(int enabled, int startChannel, int width, int height,
-		int xOffset, int yOffset);
+	int Init(Json::Value config);
+	int Close(void);
 
-	void OverlaySubMatrix(unsigned char *channelData, int i);
-	void OverlaySubMatrices(unsigned char *channelData);
+	int RawSendData(unsigned char *channelData);
+
+	void DumpConfig(void);
 
   private:
-	int  m_startChannel;
-	int  m_width;
-	int  m_height;
-	int  m_enableFlagOffset;
+	int   m_initialized;
+	int   m_rows;
+	int   m_cols;
+	int   m_pixels;
+	void *m_gpio_map;
 
-	unsigned char *m_buffer;
+	unsigned int m_clearWRXDataBits;
+	unsigned int m_bitDCX;
+	unsigned int m_bitWRX;
 
-	std::vector<SubMatrix>  subMatrix;
+	volatile unsigned int *m_gpio;
+
+	void ILI9488_Init(void);
+	void ILI9488_SendByte(unsigned char byte);
+	void ILI9488_Command(unsigned char cmd);
+	void ILI9488_Data(unsigned char cmd);
+	void ILI9488_Cleanup(void);
 };
 
 #endif
