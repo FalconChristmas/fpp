@@ -131,7 +131,7 @@
 |(1<<gpio_sel3)\
 )
 
-#define PRU_R30_BITS
+//   #define PRU_R30_BITS
 
 #ifndef PRU_R30_BITS
 

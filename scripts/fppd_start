@@ -37,6 +37,10 @@ if [ -z "$IPS" ]; then
         break
     done
 fi
+
+#turn off power management on wireless... not all adapters
+# support this so just /dev/null any output
+iwconfig wlan0 power off 2>/dev/null >/dev/null
 }
 
 WaitForInterfacesUp

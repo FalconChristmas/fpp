@@ -184,4 +184,12 @@ then
     then
         /usr/bin/config-pin -f ${BINDIR}/bbb-pins.txt
     fi
+
+    uboot=$(dd if=/dev/mmcblk1 count=32 skip=393248 bs=1 2>/dev/null || true)
+    if [[ $uboot != *"U-Boot 2017."* ]]; then
+       cd /opt/backup/uboot
+       dd if=MLO of=/dev/mmcblk1 seek=1 bs=128k
+       dd if=u-boot.img of=/dev/mmcblk1 seek=1 bs=384k
+       echo 'rebootFlag = "1"' >> /home/fpp/media/settings
+    fi
 fi

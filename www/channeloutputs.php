@@ -2218,7 +2218,7 @@ function InitializeLEDPanels()
 		$('#LEDPanelsColorOrder').val(channelOutputsLookup["LEDPanelMatrix"].colorOrder);
         $('#LEDPanelsBrightness').val(channelOutputsLookup["LEDPanelMatrix"].brightness);
 <?
-	if ($settings['Platform'] == "Raspberry Pi")
+	if ($settings['Platform'] == "Raspberry Pi" || $settings['Platform'] == "BeagleBone Black")
 	{
 ?>
 		$('#LEDPanelsWiringPinout').val(channelOutputsLookup["LEDPanelMatrix"].wiringPinout);
@@ -2258,7 +2258,7 @@ function GetLEDPanelConfig()
 	config.channelCount = parseInt($('#LEDPanelsChannelCount').html());
 	config.colorOrder = $('#LEDPanelsColorOrder').val();
 <?
-	if ($settings['Platform'] == "Raspberry Pi")
+	if ($settings['Platform'] == "Raspberry Pi" || $settings['Platform'] == "BeagleBone Black")
 	{
 ?>
 	config.wiringPinout = $('#LEDPanelsWiringPinout').val();
@@ -2692,20 +2692,25 @@ tr.rowUniverseDetails td
 									</select>
 									</td>
 								<td>&nbsp;</td>
+								<td><b>Wiring Pinout:</b></td><td>
+									<select id='LEDPanelsWiringPinout'>
 <?
     if ($settings['Platform'] == "Raspberry Pi")
     {
 ?>
-								<td><b>Wiring Pinout:</b></td><td>
-									<select id='LEDPanelsWiringPinout'>
 										<option value='Standard'>Standard</option>
 										<option value='Classic'>Classic</option>
 										<option value='Adafruit'>Adafruit</option>
+<?
+    } else if ($settings['Platform'] == "BeagleBone Black") {
+?>
+                                                                                <option value='v1'>Standard v1.x</option>
+                                                                                <option value='v2'>v2.x</option>
+<?
+        }
+?>
 									</select>
 									</td>
-<?
-	}
-?>
 							</tr>
 							<tr>
 								<td width = '70 px' colspan=5><input id='btnSaveChannelOutputsJSON' class='buttons' type='button' value='Save' onClick='SaveChannelOutputsJSON();'/> <font size=-1><? if ($settings['Platform'] == "BeagleBone Black") { echo "(this will save changes to BBB tab &amp; LED Panels tab)"; } ?></font></td>

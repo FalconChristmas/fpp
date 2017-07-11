@@ -252,7 +252,11 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
 		pru_program += "/../lib/";
     
     pru_program += "FalconMatrix_";
-    
+    if (config["wiringPinout"] == "v2") {
+        pru_program += "v2_";
+    }
+
+ 
     char outputString[10];
     sprintf(outputString, "%d", (maxOutput + 1));
     pru_program += outputString;
