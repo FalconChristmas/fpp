@@ -51,17 +51,18 @@
 
 /** Register map */
 #define data_addr       r0
-#define row             r1.b0
-#define bright          r1.b1
-#define bit             r1.b2
-#define bitFlags        r1.b3
+#define initialOffset   r1.w0
+#define pixelsPerRow    r1.w2
+#define row             r2.b0
+#define bright          r2.b1
+#define bit             r2.b2
+#define bitFlags        r2.b3
 #define statsBit        0
-#define sleep_counter   r2
-#define statOffset      r3.w0
-#define numRows         r3.b2
-//unused                r3.b3
-#define offset r4
-#define initialOffset r5
+#define sleep_counter   r3
+#define statOffset      r4.w0
+#define numRows         r4.b2
+//unused                r4.b3
+#define offset r5
 #define out_clr r6 // must be one less than out_set
 #define out_set r7
 #define gpio0_set r8
@@ -296,7 +297,7 @@ START:
 READ_LOOP:
         // Load the pointer to the buffer from PRU DRAM into r0 and the
         // length (in pixels) into r1.
-        LBCO data_addr, CONST_PRUDRAM, 0, 4
+        LBCO data_addr, CONST_PRUDRAM, 0, 8
 
         // Wait for a non-zero command
         QBEQ READ_LOOP, data_addr, #0
@@ -304,6 +305,7 @@ READ_LOOP:
         // Command of 0xFF is the signal to exit
         QBEQ EXIT, data_addr, #0xFF
 
+        MOV pixelsPerRow, r1
         LDI bitFlags, 0
 
         //load the configuration, temporarily use the _set registers
@@ -322,6 +324,11 @@ READ_LOOP:
         LDI gpio1_set, 3*2*8*4 //192 bytes per panel
         CALC_OFFSETT:
             ADD initialOffset, initialOffset, gpio1_set
+            QBNE NOTQUARTERSCAN, numRows, 4
+                //quarter scan is double the pixels per row out
+                ADD initialOffset, initialOffset, gpio1_set
+            NOTQUARTERSCAN:
+
             SUB gpio0_set, gpio0_set, 1
             QBNE CALC_OFFSETT, gpio0_set, 0
         NO_OFFSET:
@@ -340,7 +347,7 @@ NEW_ROW_LOOP:
 		LATCH_LO
 
 		// compute where we are in the image
-        LOOP DONE_PIXELS, (LEDSCAPE_MATRIX_PANELS * 4)
+        LOOP DONE_PIXELS, pixelsPerRow
             QBLT SKIP_DATA, initialOffset, offset
 
 			// Load the sixteen RGB outputs into

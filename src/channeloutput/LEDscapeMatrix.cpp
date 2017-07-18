@@ -65,28 +65,31 @@ LEDscapeMatrixOutput::~LEDscapeMatrixOutput()
 	delete m_matrix;
 }
 
-static void calcBrightness(ledscape_t *leds, int brightness, int maxPanel, int maxOutput) {
-    uint32_t max = 0x7000;
-    int subMax = 0x700;
-    if (maxOutput < 4) {
-        max = 0xB00 * maxPanel;
-        subMax = 0x650;
-    } else {
-        max = 0xD00 * maxPanel;
-    }
+static void calcBrightness(ledscape_t *leds, int brightness, int maxPanel, int maxOutput, int rowsPerOutput, int panelHeight) {
+    LogDebug(VB_CHANNELOUT, "Calc Brightness:   maxPanel:  %d    maxOutput: %d     Brightness: %d    rpo: %d    ph:  %d\n", maxPanel, maxOutput, brightness, rowsPerOutput, panelHeight);
+    uint32_t max = (maxOutput < 4) ? 0xB00 : 0xD00;
+    max *= maxPanel;
     max += maxOutput * 0x200;
     if (maxOutput > 3) {
         //jumping above output 3 adds increased delay
         max += 0x300;
     }
     uint32_t delay = 0;
-    max -= (10 - brightness) * subMax;
     if (brightness < 5) {
         //insert some extra "off" time
-        delay = (5-brightness) * 0x500;
+        delay =  max * 5 / 100 * (5-brightness);
     }
     
+    max *= brightness;
+    max /= 10;
+    
+    // 1/4 scan we need to double the time since we have twice the number of pixels to clock out
+    max *=  panelHeight;
+    max /= (rowsPerOutput * 2);
+    
+    
     for (int x = 0; x < 8; x++) {
+        LogDebug(VB_CHANNELOUT, "Brightness %d:  %X\n", x, max);
         leds->ws281x->brightInfo[2*x] = max;
         leds->ws281x->brightInfo[2*x + 1] = delay;
         max >>= 1;
@@ -124,6 +127,7 @@ static void calcBrightness(ledscape_t *leds, int brightness, int maxPanel, int m
             fclose(file);
         }
     }
+    //leds->ws281x->statEnable = 1;
 }
 
 
@@ -232,7 +236,10 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
         brightness = 7;
     }
     lmconfig->panelCount = maxPanel + 1;
-    lmconfig->rowsPerOutput = lmconfig->panel_height / 2;
+    lmconfig->rowsPerOutput = config["panelScan"].asInt();
+    if (lmconfig->rowsPerOutput == 0) {
+        lmconfig->rowsPerOutput = 8;
+    }
 
 	m_dataSize = lmconfig->width * lmconfig->height * 4;
 	m_data = (uint8_t *)malloc(m_dataSize);
@@ -266,7 +273,14 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
 	m_leds = ledscape_matrix_init(m_config, 0, 1, pru_program.c_str());
     
     m_leds->ws281x->statEnable = 0;
-    calcBrightness(m_leds, brightness, maxPanel + 1, maxOutput + 1);
+    calcBrightness(m_leds, brightness, maxPanel + 1, maxOutput + 1, lmconfig->rowsPerOutput, lmconfig->panel_height);
+    
+    m_leds->ws281x->num_pixels = LEDSCAPE_MATRIX_PANELS * 32 / 8;
+    if ((lmconfig->rowsPerOutput * 2) !=  lmconfig->panel_height) {
+        // 1/4 scan output 2 rows at once in a strange 8 then 8 then 8 then 8... pattern
+        m_leds->ws281x->num_pixels *= 2;
+    }
+    LogDebug(VB_CHANNELOUT, "Pixels per row %d,    rowsPerOutput: %d     panelHeight: %d\n", m_leds->ws281x->num_pixels, lmconfig->rowsPerOutput, lmconfig->panel_height);
 
 	if (!m_leds)
 	{
