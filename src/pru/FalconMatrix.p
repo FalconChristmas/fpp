@@ -348,6 +348,7 @@ NEW_ROW_LOOP:
 
 		// compute where we are in the image
         LOOP DONE_PIXELS, pixelsPerRow
+            CHECK_FOR_DISPLAY_OFF
             QBLT SKIP_DATA, initialOffset, offset
 
 			// Load the sixteen RGB outputs into
@@ -357,7 +358,6 @@ NEW_ROW_LOOP:
             LDI bit, 0
             BIT_LOOP:
                 CHECK_FOR_DISPLAY_OFF
-
                 ZERO &gpio0_set, 16
 
                 CLOCK_LO
@@ -403,8 +403,6 @@ NEW_ROW_LOOP:
             QBNE BIT_LOOP, bit, 8
 
             SKIP_DATA:
-            CHECK_FOR_DISPLAY_OFF
-
 			ADD offset, offset, 3*16
         DONE_PIXELS:
 
