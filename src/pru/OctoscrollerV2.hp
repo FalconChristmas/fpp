@@ -131,22 +131,17 @@
 |(1<<gpio_sel3)\
 )
 
-//   #define PRU_R30_BITS
-
-#ifndef PRU_R30_BITS
-
 // if using GPIO2 for these
 #define gpio_latch 7
 #define gpio_oe    6
 #define gpio_clock 8
-
-#else
 
 // if using r30
 #define pru_r30_bit_latch 1
 #define pru_r30_bit_oe    0
 #define pru_r30_bit_clock 2
 
+#ifndef gpio_clock
 .macro CLOCK_HI
     SET r30, pru_r30_bit_clock
 .endm
@@ -154,7 +149,9 @@
 .macro CLOCK_LO
     CLR r30, pru_r30_bit_clock
 .endm
+#endif
 
+#ifndef gpio_latch
 .macro LATCH_HI
     SET r30, pru_r30_bit_latch
 .endm
@@ -162,7 +159,9 @@
 .macro LATCH_LO
     CLR r30, pru_r30_bit_latch
 .endm
+#endif
 
+#ifndef gpio_oe
 .macro DISPLAY_OFF
     SET r30, pru_r30_bit_oe
 .endm

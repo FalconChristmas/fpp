@@ -2046,7 +2046,12 @@ $LEDPanelScan = 8;
 
 if ($settings['Platform'] == "BeagleBone Black")
 {
-	$LEDPanelOutputs = 8;
+    if (strpos($settings['SubPlatform'], 'Green Wireless') !== FALSE) {
+        $LEDPanelOutputs = 5;
+    } else {
+        $LEDPanelOutputs = 8;
+    }
+    
 	$LEDPanelPanelsPerOutput = 12;
 }
 
@@ -2089,7 +2094,6 @@ function printLEDPanelSizeSelect($platform, $def)
         $values["32x16 1/8 Scan"] = "32x16x8";
         $values["32x16 1/4 Scan"] = "32x16x4";
         $values["32x32 1/16 Scan"] = "32x32x16";
-        //$values["64x64"] = "64x64";
     } else {
         $values["32x16"] = "32x16x8";
         $values["32x32"] = "32x32x16";
@@ -2714,11 +2718,17 @@ tr.rowUniverseDetails td
 										<option value='Adafruit'>Adafruit</option>
 <?
     } else if ($settings['Platform'] == "BeagleBone Black") {
+        if (strpos($settings['SubPlatform'], 'Green Wireless') !== FALSE) {
 ?>
-                                                                                <option value='v1'>Standard v1.x</option>
-                                                                                <option value='v2'>v2.x</option>
+                                        <option value='v2'>v2.x</option>
+<?
+        } else {
+?>
+                                        <option value='v1'>Standard v1.x</option>
+                                        <option value='v2'>v2.x</option>
 <?
         }
+    }
 ?>
 									</select>
 									</td>

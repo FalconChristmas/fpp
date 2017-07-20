@@ -171,6 +171,7 @@ else if ($settings['Platform'] == "BeagleBone Black")
 	$settings['LogoLink'] = "http://beagleboard.org/";
 	$settings['fppBinDir'] = '/opt/fpp/bin.bbb';
     $settings['BBB_Tethering'] = "1";
+    $settings['SubPlatform'] = trim(file_get_contents("/proc/device-tree/model"));
 }
 else if ($settings['Platform'] == "PogoPlug")
 {
