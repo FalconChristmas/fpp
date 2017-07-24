@@ -2094,6 +2094,8 @@ function printLEDPanelSizeSelect($platform, $def)
         $values["32x16 1/8 Scan"] = "32x16x8";
         $values["32x16 1/4 Scan"] = "32x16x4";
         $values["32x32 1/16 Scan"] = "32x32x16";
+        $values["32x32 1/8 Scan"] = "32x32x8";
+        $values["40x20 1/5 Scan"] = "40x20x5";
     } else {
         $values["32x16"] = "32x16x8";
         $values["32x32"] = "32x32x16";

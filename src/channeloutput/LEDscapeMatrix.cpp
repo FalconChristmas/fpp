@@ -65,14 +65,43 @@ LEDscapeMatrixOutput::~LEDscapeMatrixOutput()
 	delete m_matrix;
 }
 
-static void calcBrightness(ledscape_t *leds, int brightness, int maxPanel, int maxOutput, int rowsPerOutput, int panelHeight) {
-    LogDebug(VB_CHANNELOUT, "Calc Brightness:   maxPanel:  %d    maxOutput: %d     Brightness: %d    rpo: %d    ph:  %d\n", maxPanel, maxOutput, brightness, rowsPerOutput, panelHeight);
+static void calcBrightness(ledscape_t *leds, int brightness, int maxPanel, int maxOutput, int rowsPerOutput,
+                           int panelHeight, int panelWidth, int ver) {
+    LogDebug(VB_CHANNELOUT, "Calc Brightness:   maxPanel:  %d    maxOutput: %d     Brightness: %d    rpo: %d    ph:  %d    pw:  %d\n", maxPanel, maxOutput, brightness, rowsPerOutput, panelHeight, panelWidth);
     uint32_t max = (maxOutput < 4) ? 0xB00 : 0xD00;
+    if (ver == 2) {
+        if (maxOutput == 1) {
+            max = 0x500;
+        } else if (maxOutput < 4) {
+            max = 0xA00;
+        } else if (maxOutput < 6) {
+            max = 0xB00;
+        } else {
+            max = 0xD00;
+        }
+    }
     max *= maxPanel;
+    max *= panelWidth;
+    max /= 32;
     max += maxOutput * 0x200;
-    if (maxOutput > 3) {
-        //jumping above output 3 adds increased delay
-        max += 0x300;
+    if (ver == 1) {
+        if (maxOutput > 3) {
+            //jumping above output 3 adds increased delay
+            max += 0x300;
+        }
+    } else if (ver == 2) {
+        if (maxOutput > 1) {
+            //jumping above output 1 adds increased delay
+            max += 0x300;
+        }
+        if (maxOutput > 3) {
+            //jumping above output 3 adds increased delay
+            max += 0x300;
+        }
+        if (maxOutput > 5) {
+            //jumping above output 3 adds increased delay
+            max += 0x300;
+        }
     }
     uint32_t delay = 0;
     if (brightness < 5) {
@@ -86,7 +115,6 @@ static void calcBrightness(ledscape_t *leds, int brightness, int maxPanel, int m
     // 1/4 scan we need to double the time since we have twice the number of pixels to clock out
     max *=  panelHeight;
     max /= (rowsPerOutput * 2);
-    
     
     for (int x = 0; x < 8; x++) {
         LogDebug(VB_CHANNELOUT, "Brightness %d:  %X\n", x, max);
@@ -235,10 +263,13 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
     if (brightness < 1 || brightness > 10) {
         brightness = 7;
     }
-    lmconfig->panelCount = maxPanel + 1;
     lmconfig->rowsPerOutput = config["panelScan"].asInt();
+    lmconfig->initialSkip = (LEDSCAPE_MATRIX_PANELS - maxPanel - 1) * 6 * lmconfig->panel_width;
     if (lmconfig->rowsPerOutput == 0) {
         lmconfig->rowsPerOutput = 8;
+    }
+    if ((lmconfig->rowsPerOutput * 2) != lmconfig->panel_height) {
+        lmconfig->initialSkip *= 2;
     }
 
 	m_dataSize = lmconfig->width * lmconfig->height * 4;
@@ -273,9 +304,11 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
 	m_leds = ledscape_matrix_init(m_config, 0, 1, pru_program.c_str());
     
     m_leds->ws281x->statEnable = 0;
-    calcBrightness(m_leds, brightness, maxPanel + 1, maxOutput + 1, lmconfig->rowsPerOutput, lmconfig->panel_height);
+    calcBrightness(m_leds, brightness, maxPanel + 1, maxOutput + 1, lmconfig->rowsPerOutput,
+                   lmconfig->panel_height, lmconfig->panel_width,
+                   config["wiringPinout"] == "v2" ? 2 : 1);
     
-    m_leds->ws281x->num_pixels = LEDSCAPE_MATRIX_PANELS * 32 / 8;
+    m_leds->ws281x->num_pixels = LEDSCAPE_MATRIX_PANELS * lmconfig->panel_width / 8;
     if ((lmconfig->rowsPerOutput * 2) !=  lmconfig->panel_height) {
         // 1/4 scan output 2 rows at once in a strange 8 then 8 then 8 then 8... pattern
         m_leds->ws281x->num_pixels *= 2;

@@ -21,13 +21,8 @@
 
 #define RUNNING_ON_PRU1
 
-// number of panels chained per output
-// this needs to match the similar define found in the ledscape.h
-#define LEDSCAPE_MATRIX_PANELS 12
-
 
 #define CAT3(X,Y,Z) X##Y##Z
-
 
 
 
@@ -181,6 +176,51 @@
 .endm
 
 
+#define GPIO_MASK(X) CAT3(gpio,X,_led_mask)
+#define CONFIGURE_PIN(a) SET GPIO_MASK(a##_gpio), a##_pin
+#define CONFIGURE_OUTPUT(a) CONFIGURE_PIN( r##a##1 ) ; \
+    CONFIGURE_PIN( g##a##1 ) ; \
+    CONFIGURE_PIN( b##a##1 ) ; \
+    CONFIGURE_PIN( r##a##2 ) ; \
+    CONFIGURE_PIN( g##a##2 ) ; \
+    CONFIGURE_PIN( b##a##2 ) ;
+
+
+.macro DISABLE_GPIO_PIN_INTERRUPTS
+.mparam ledMask, gpio
+    MOV gpio0_set, ledMask
+    MOV gpio1_set, ledMask
+    MOV gpio2_set, gpio
+    MOV gpio3_set, 0x100
+    SUB gpio2_set, gpio2_set, gpio3_set
+    SBBO gpio0_set, gpio2_set, 0x3C, 8    //0x3c is the GPIO_IRQSTATUS_CLR_0 register
+            // by doing 8 and using both gpio0_set and gpio1_set, we can clear
+            // both the 0 and 1 IRQ status
+.endm
+.macro DISABLE_PIN_INTERRUPTS
+    DISABLE_GPIO_PIN_INTERRUPTS gpio0_led_mask, GPIO0
+    DISABLE_GPIO_PIN_INTERRUPTS gpio1_led_mask, GPIO1
+    DISABLE_GPIO_PIN_INTERRUPTS gpio2_led_mask, GPIO2
+    DISABLE_GPIO_PIN_INTERRUPTS gpio3_led_mask, GPIO3
+
+    ZERO &gpio3_set, 4
+    SET gpio3_set, gpio_sel0
+    SET gpio3_set, gpio_sel1
+    SET gpio3_set, gpio_sel2
+    SET gpio3_set, gpio_sel3
+    #ifdef gpio_clock
+        SET gpio3_set, gpio_clock
+    #endif
+    #ifdef gpio_oe
+        SET gpio3_set, gpio_oe
+    #endif
+    #ifdef gpio_latch
+        SET gpio3_set, gpio_latch
+    #endif
+    DISABLE_GPIO_PIN_INTERRUPTS gpio3_set, gpio_base_cache
+.endm
+
+
 START:
     // Enable OCP master port
     // clear the STANDBY_INIT bit in the SYSCFG register,
@@ -221,73 +261,70 @@ START:
     // Load the pointer to the buffer from PRU DRAM into r0.
     LBCO      data_addr, CONST_PRUDRAM, 0, 4
 
-#define GPIO_MASK(X) CAT3(gpio,X,_led_mask)
-	SET GPIO_MASK(r11_gpio), r11_pin
-	SET GPIO_MASK(g11_gpio), g11_pin
-	SET GPIO_MASK(b11_gpio), b11_pin
-	SET GPIO_MASK(r12_gpio), r12_pin
-	SET GPIO_MASK(g12_gpio), g12_pin
-	SET GPIO_MASK(b12_gpio), b12_pin
+
+    CONFIGURE_OUTPUT(1)
 
 #if OUTPUTS > 1
-    SET GPIO_MASK(r21_gpio), r21_pin
-    SET GPIO_MASK(g21_gpio), g21_pin
-    SET GPIO_MASK(b21_gpio), b21_pin
-    SET GPIO_MASK(r22_gpio), r22_pin
-    SET GPIO_MASK(g22_gpio), g22_pin
-    SET GPIO_MASK(b22_gpio), b22_pin
+    CONFIGURE_PIN(r21)
+    CONFIGURE_PIN(g21)
+    CONFIGURE_PIN(b21)
+    CONFIGURE_PIN(r22)
+    CONFIGURE_PIN(g22)
+    CONFIGURE_PIN(b22)
 #endif
 #if OUTPUTS > 2
-    SET GPIO_MASK(r31_gpio), r31_pin
-    SET GPIO_MASK(g31_gpio), g31_pin
-    SET GPIO_MASK(b31_gpio), b31_pin
-    SET GPIO_MASK(r32_gpio), r32_pin
-    SET GPIO_MASK(g32_gpio), g32_pin
-    SET GPIO_MASK(b32_gpio), b32_pin
+    CONFIGURE_PIN(r31)
+    CONFIGURE_PIN(g31)
+    CONFIGURE_PIN(b31)
+    CONFIGURE_PIN(r32)
+    CONFIGURE_PIN(g32)
+    CONFIGURE_PIN(b32)
 #endif
 #if OUTPUTS > 3
-    SET GPIO_MASK(r41_gpio), r41_pin
-    SET GPIO_MASK(g41_gpio), g41_pin
-    SET GPIO_MASK(b41_gpio), b41_pin
-    SET GPIO_MASK(r42_gpio), r42_pin
-    SET GPIO_MASK(g42_gpio), g42_pin
-    SET GPIO_MASK(b42_gpio), b42_pin
+    CONFIGURE_PIN(r41)
+    CONFIGURE_PIN(g41)
+    CONFIGURE_PIN(b41)
+    CONFIGURE_PIN(r42)
+    CONFIGURE_PIN(g42)
+    CONFIGURE_PIN(b42)
 #endif
 #if OUTPUTS > 4
-    SET GPIO_MASK(r51_gpio), r51_pin
-    SET GPIO_MASK(g51_gpio), g51_pin
-    SET GPIO_MASK(b51_gpio), b51_pin
-    SET GPIO_MASK(r52_gpio), r52_pin
-    SET GPIO_MASK(g52_gpio), g52_pin
-    SET GPIO_MASK(b52_gpio), b52_pin
+    CONFIGURE_PIN(r51)
+    CONFIGURE_PIN(g51)
+    CONFIGURE_PIN(b51)
+    CONFIGURE_PIN(r52)
+    CONFIGURE_PIN(g52)
+    CONFIGURE_PIN(b52)
 #endif
 #if OUTPUTS > 5
-    SET GPIO_MASK(r61_gpio), r61_pin
-    SET GPIO_MASK(g61_gpio), g61_pin
-    SET GPIO_MASK(b61_gpio), b61_pin
-    SET GPIO_MASK(r62_gpio), r62_pin
-    SET GPIO_MASK(g62_gpio), g62_pin
-    SET GPIO_MASK(b62_gpio), b62_pin
+    CONFIGURE_PIN(r61)
+    CONFIGURE_PIN(g61)
+    CONFIGURE_PIN(b61)
+    CONFIGURE_PIN(r62)
+    CONFIGURE_PIN(g62)
+    CONFIGURE_PIN(b62)
 #endif
 #if OUTPUTS > 6
-    SET GPIO_MASK(r71_gpio), r71_pin
-    SET GPIO_MASK(g71_gpio), g71_pin
-    SET GPIO_MASK(b71_gpio), b71_pin
-    SET GPIO_MASK(r72_gpio), r72_pin
-    SET GPIO_MASK(g72_gpio), g72_pin
-    SET GPIO_MASK(b72_gpio), b72_pin
+    CONFIGURE_PIN(r71)
+    CONFIGURE_PIN(g71)
+    CONFIGURE_PIN(b71)
+    CONFIGURE_PIN(r72)
+    CONFIGURE_PIN(g72)
+    CONFIGURE_PIN(b72)
 #endif
 #if OUTPUTS > 7
-    SET GPIO_MASK(r81_gpio), r81_pin
-    SET GPIO_MASK(g81_gpio), g81_pin
-    SET GPIO_MASK(b81_gpio), b81_pin
-    SET GPIO_MASK(r82_gpio), r82_pin
-    SET GPIO_MASK(g82_gpio), g82_pin
-    SET GPIO_MASK(b82_gpio), b82_pin
+    CONFIGURE_PIN(r81)
+    CONFIGURE_PIN(g81)
+    CONFIGURE_PIN(b81)
+    CONFIGURE_PIN(r82)
+    CONFIGURE_PIN(g82)
+    CONFIGURE_PIN(b82)
 #endif
 
 
     ADJUST_SETTINGS
+
+    DISABLE_PIN_INTERRUPTS
 
     LDI sleep_counter, 0
 
@@ -315,24 +352,7 @@ READ_LOOP:
         NO_STATS_FLAG:
 
         MOV numRows, gpio0_set.w2
-
-        LDI initialOffset, LEDSCAPE_MATRIX_PANELS
-        SUB gpio0_set, initialOffset, gpio0_set.w0
-        LDI initialOffset, 0
-
-        QBEQ NO_OFFSET, gpio0_set, 0
-        LDI gpio1_set, 3*2*8*4 //192 bytes per panel
-        CALC_OFFSETT:
-            ADD initialOffset, initialOffset, gpio1_set
-            QBNE NOTQUARTERSCAN, numRows, 4
-                //quarter scan is double the pixels per row out
-                ADD initialOffset, initialOffset, gpio1_set
-            NOTQUARTERSCAN:
-
-            SUB gpio0_set, gpio0_set, 1
-            QBNE CALC_OFFSETT, gpio0_set, 0
-        NO_OFFSET:
-
+        MOV initialOffset, gpio0_set.w0
 
 
         MOV row, 0
