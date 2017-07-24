@@ -4,6 +4,53 @@
 <?php require_once('common.php'); ?>
 <?php include 'common/menuHead.inc'; ?>
 <title><? echo $pageTitle; ?></title>
+
+<script>
+<?php
+    if ($settings['Platform'] == "BeagleBone Black") {
+?>
+function growSDCardFS() {
+    $('#dialog-confirm')
+        .dialog({
+            resizeable: false,
+            height: 300,
+            width: 500,
+            modal: true,
+            buttons: {
+            "Yes" : function() {
+                $(this).dialog("close");
+                window.location.href="growbbbsd.php";
+            },
+            "No" : function() {
+                $(this).dialog("close");
+             }
+        }
+    });
+}
+
+function flashEMMC() {
+    $('#dialog-confirm-emmc')
+        .dialog({
+            resizeable: false,
+            height: 300,
+            width: 500,
+            modal: true,
+            buttons: {
+                "Yes" : function() {
+                $(this).dialog("close");
+                window.location.href="flashbbbemmc.php";
+            },
+            "No" : function() {
+                $(this).dialog("close");
+            }
+        }
+    });
+}
+<?php
+    }
+?>
+</script>
+
 </head>
 <body>
 <div id="bodyWrapper">
@@ -78,9 +125,37 @@
 		</tr>
 <?
 	}
+    if ($settings['Platform'] == "BeagleBone Black") {
+        exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
+        $rootDevice = $output[0];
+        if ($rootDevice == 'mmcblk0p1') {
+            ?>
+            <tr><td colspan='2'><hr></td></tr>
+            <tr><td>
+                    <input type='button' class='buttons' value='Grow Filesystem' onClick='growSDCardFS();'>
+                </td>
+                <td><b>Grow filsystem on SD card</b> - This will grow the filesystem on the SD card to use
+                    the entire size of the SD card.</td>
+            </tr>
+            <tr><td colspan='2'><hr></td></tr>
+            <tr><td>
+                <input type='button' class='buttons' value='Flash to eMMC' onClick='flashEMMC();'>
+                </td>
+                <td><b>Flash to eMMC</b> - This will copy FPP to the internal eMMC.</td>
+            </tr>
+            <tr><td colspan='2'><hr></td></tr>
+            <?php
+        }
+    }
 ?>
 	</table>
 	</fieldset>
+</div>
+<div id="dialog-confirm" style="display: none">
+<p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Growing the filesystem will sometimes require a reboot to take effect.  Do you wish to proceed?</p>
+</div>
+<div id="dialog-confirm-emmc" style="display: none">
+<p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Flashing the eMMC can take a long time.  Do you wish to proceed?</p>
 </div>
 <?php	include 'common/footer.inc'; ?>
 </div>
