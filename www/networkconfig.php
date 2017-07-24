@@ -444,7 +444,7 @@ function setHostName() {
             </tr>
           </table>
           <br>
-          <input name="btnSetDNS" type="" style="margin-left:190px; width:135px;" class = "buttons" value="Update DNS" onClick="SaveDNSConfig();">        
+          <input name="btnSetDNS" type="" style="margin-left:190px; width:135px;" class = "buttons" value="Update DNS" onClick="SaveDNSConfig();">
           <input id="btnConfigDNS" type="" style="width:135px; display: none;" class = "buttons" value="Restart DNS" onClick="ApplyDNSConfig();">
 
         </fieldset>
