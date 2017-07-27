@@ -110,7 +110,7 @@ require_once("common.php");
 			$('#' + rowID + '_elapsed').html(elapsed);
 			$('#' + rowID + '_files').html(files);
 		}).fail(function() {
-			DialogError("Get FPP System Status", "Get Status Failed.");
+			DialogError("Get FPP System Status", "Get Status Failed for " + ip);
 		}).complete(function() {
 			if ($('#MultiSyncRefreshStatus').is(":checked"))
 				setTimeout(function() {getFPPSystemStatus(ip);}, 1000);
@@ -259,6 +259,8 @@ require_once("common.php");
 if ($settings['fppMode'] == 'master')
 {
 ?>
+			MultiSync CSV Remote IP List:
+			<? PrintSettingText("MultiSyncCSVRemotes", 1, 0, 255, 80, "", $settings["MultiSyncCSVRemotes"]); ?><br>
 			<? PrintSettingCheckbox("Send F16v2 Sync Packets", "MultiSyncCSVBroadcast", 1, 0, "1", "0"); ?> Send F16v2 Sync Packets<br>
 			<? PrintSettingCheckbox("Compress FSEQ files for transfer", "CompressMultiSyncTransfers", 0, 0, "1", "0"); ?> Compress FSEQ files during copy to Remotes to speed up file sync process<br>
 <?php
@@ -289,6 +291,17 @@ if ($settings['fppMode'] == 'master')
 <?php include 'common/footer.inc'; ?>
 
 <script>
+
+$('#MultiSyncCSVRemotes').on('change keydown paste input', function()
+	{
+		var key = 'MultiSyncCSVRemotes';
+		var desc = $('#' + key).val();
+		if (settings[key] != desc)
+		{
+			$.get('fppjson.php?command=setSetting&key=' + key + '&value=' + desc);
+			settings[key] = desc;
+		}
+	});
 
 $(document).ready(function() {
 	getFPPSystems();
