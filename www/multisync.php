@@ -259,9 +259,8 @@ require_once("common.php");
 if ($settings['fppMode'] == 'master')
 {
 ?>
-			MultiSync CSV Remote IP List:
-			<? PrintSettingText("MultiSyncCSVRemotes", 1, 0, 255, 80, "", $settings["MultiSyncCSVRemotes"]); ?><br>
-			<? PrintSettingCheckbox("Send F16v2 Sync Packets", "MultiSyncCSVBroadcast", 1, 0, "1", "0"); ?> Send F16v2 Sync Packets<br>
+			CSV MultiSync Remote IP List (comma separated):
+			<? PrintSettingText("MultiSyncCSVRemotes", 1, 0, 255, 60, "", $settings["MultiSyncCSVRemotes"]); ?><br>
 			<? PrintSettingCheckbox("Compress FSEQ files for transfer", "CompressMultiSyncTransfers", 0, 0, "1", "0"); ?> Compress FSEQ files during copy to Remotes to speed up file sync process<br>
 <?php
 }
