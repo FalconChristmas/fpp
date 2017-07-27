@@ -56,7 +56,7 @@
 #define sleep_counter   r3
 #define statOffset      r4.w0
 #define numRows         r4.b2
-//unused                r4.b3
+#define bitsToSkip      r4.b3
 #define offset r5
 #define out_clr r6 // must be one less than out_set
 #define out_set r7
@@ -351,7 +351,9 @@ READ_LOOP:
             SET      bitFlags, statsBit
         NO_STATS_FLAG:
 
-        MOV numRows, gpio0_set.w2
+        MOV numRows, gpio0_set.b2
+        LDI bitsToSkip, 8
+        SUB bitsToSkip, bitsToSkip, gpio0_set.b3
         MOV initialOffset, gpio0_set.w0
 
 
@@ -444,14 +446,14 @@ NEW_ROW_LOOP:
             DISPLAY_OFF
         DISPLAY_ALREADY_OFF:
 
-        LDI gpio0_set, 8
+        MOV gpio0_set, 8 //maxBitsToOutput
         SUB gpio0_set, gpio0_set, bright
         LSL gpio0_set, gpio0_set, 3
         ADD gpio0_set, gpio0_set, 24
         LBCO gpio0_set, CONST_PRUDRAM, gpio0_set, 8
 
 
-        QBNE NO_SET_ROW, bright, 8
+        QBNE NO_SET_ROW, bright, 8 //maxBitsToOutput
             OUTPUT_ROW_ADDRESS
         NO_SET_ROW:
 
@@ -471,6 +473,13 @@ NEW_ROW_LOOP:
 		SUB bright, bright, 1
         // Increment our data_offset to point to the next row
         ADD data_addr, data_addr, offset
+
+        QBNE NOSKIPROW, bitsToSkip, bright
+        LOOP NOSKIPROW, bitsToSkip
+            ADD data_addr, data_addr, offset
+            LDI bright, 0
+        NOSKIPROW:
+
         LDI offset, 0
 
 		QBLT ROW_LOOP, bright, 0

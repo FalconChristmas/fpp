@@ -263,6 +263,15 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
     if (brightness < 1 || brightness > 10) {
         brightness = 7;
     }
+    lmconfig->bitsToOutput = 8;
+    if (config.isMember("panelColorDepth")) {
+        LogDebug(VB_CHANNELOUT, "LEDscapeMatrixOutput::Init(JSON) has cd\n");
+        lmconfig->bitsToOutput = config["panelColorDepth"].asInt();
+        LogDebug(VB_CHANNELOUT, "LEDscapeMatrixOutput::Init(JSON)  cd: %d\n", lmconfig->bitsToOutput);
+    }
+    if (lmconfig->bitsToOutput > 8 || lmconfig->bitsToOutput < 6) {
+        lmconfig->bitsToOutput = 8;
+    }
     lmconfig->rowsPerOutput = config["panelScan"].asInt();
     lmconfig->initialSkip = (LEDSCAPE_MATRIX_PANELS - maxPanel - 1) * 6 * lmconfig->panel_width;
     if (lmconfig->rowsPerOutput == 0) {
@@ -313,7 +322,8 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
         // 1/4 scan output 2 rows at once in a strange 8 then 8 then 8 then 8... pattern
         m_leds->ws281x->num_pixels *= 2;
     }
-    LogDebug(VB_CHANNELOUT, "Pixels per row %d,    rowsPerOutput: %d     panelHeight: %d\n", m_leds->ws281x->num_pixels, lmconfig->rowsPerOutput, lmconfig->panel_height);
+    LogDebug(VB_CHANNELOUT, "Pixels per row %d,    rowsPerOutput: %d     panelHeight: %d    colorDepth: %d\n",
+             m_leds->ws281x->num_pixels, lmconfig->rowsPerOutput, lmconfig->panel_height, lmconfig->bitsToOutput);
 
 	if (!m_leds)
 	{

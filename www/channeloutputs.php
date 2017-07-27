@@ -2094,6 +2094,7 @@ function printLEDPanelSizeSelect($platform, $def)
         $values["32x16 1/8 Scan"] = "32x16x8";
         $values["32x16 1/4 Scan"] = "32x16x4";
         $values["32x32 1/16 Scan"] = "32x32x16";
+        $values["64x32 1/16 Scan"] = "64x32x16";
         $values["32x32 1/8 Scan"] = "32x32x8";
         $values["40x20 1/5 Scan"] = "40x20x5";
     } else {
@@ -2240,6 +2241,12 @@ function InitializeLEDPanels()
 		$('#LEDPanelsWiringPinout').val(channelOutputsLookup["LEDPanelMatrix"].wiringPinout);
 <?
 	}
+    if ($settings['Platform'] == "BeagleBone Black")
+    {
+?>
+        $('#LEDPanelsColorDepth').val(channelOutputsLookup["LEDPanelMatrix"].panelColorDepth);
+<?
+    }
 ?>
 		$('#LEDPanelsStartCorner').val(channelOutputsLookup["LEDPanelMatrix"].invertedData);
 	}
@@ -2280,6 +2287,14 @@ function GetLEDPanelConfig()
 	config.wiringPinout = $('#LEDPanelsWiringPinout').val();
 <?
 	}
+?>
+<?
+    if ($settings['Platform'] == "BeagleBone Black")
+    {
+?>
+        config.panelColorDepth = parseInt($('#LEDPanelsColorDepth').val());
+<?
+    }
 ?>
     config.brightness = parseInt($('#LEDPanelsBrightness').val());
 	config.invertedData = parseInt($('#LEDPanelsStartCorner').val());
@@ -2735,6 +2750,23 @@ tr.rowUniverseDetails td
 									</select>
 									</td>
 							</tr>
+<?
+    if ($settings['Platform'] == "BeagleBone Black") {
+?>
+        <tr><td><b>Color Depth:</b></td><td>
+        <select id='LEDPanelsColorDepth'>
+        <option value='8'>8 Bit</option>
+        <option value='7'>7 Bit</option>
+        <option value='6'>6 Bit</option>
+        </select>
+        </td></tr>
+<?
+    }
+?>
+        
+        
+        
+        
 							<tr>
 								<td width = '70 px' colspan=5><input id='btnSaveChannelOutputsJSON' class='buttons' type='button' value='Save' onClick='SaveChannelOutputsJSON();'/> <font size=-1><? if ($settings['Platform'] == "BeagleBone Black") { echo "(this will save changes to BBB tab &amp; LED Panels tab)"; } ?></font></td>
 							</tr>
