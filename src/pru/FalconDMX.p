@@ -9,6 +9,8 @@
  * 
  */
 
+#define RUNNING_ON_PRU0
+
 #include "FalconSerial.hp"
 
 
@@ -16,6 +18,9 @@
 .entrypoint START
 
 #include "FalconWS281x.hp"
+
+#include "FalconUtils.hp"
+
 
 /** Mappings of the GPIO devices */
 #define GPIO3		0x481AE000
@@ -27,8 +32,8 @@
 /** Register map */
 #define data_addr	          r0
 #define data_len	          r1
-#define gpio3_ones	        r2
-#define gpio3_zeros   	    r3
+#define gpio3_zeros   	      r2
+#define gpio3_ones            r3
 #define bit_num		          r4
 #define sleep_counter	      r5
 
@@ -54,7 +59,7 @@ lab:
 
 .macro WAITNS
 .mparam ns,lab
-	MOV r6, 0x24000 // control register
+	MOV r6, PRU_CONTROL_REG // control register
 	// Instructions take 5ns and RESET_COUNTER takes about 20 instructions
 	// this value was found through trial and error on the DMX signal
 	// generation
@@ -66,7 +71,7 @@ lab:
 
 .macro RESET_COUNTER
 		// Disable the counter and clear it, then re-enable it
-		MOV r6, 0x24000 // control register
+		MOV r6, PRU_CONTROL_REG // control register
 		LBBO r9, r6, 0, 4
 		CLR r9, r9, 3 // disable counter bit
 		SBBO r9, r6, 0, 4 // write it back
@@ -77,6 +82,17 @@ lab:
 		SET r9, r9, 3 // enable counter bit
 		SBBO r9, r6, 0, 4 // write it back
 .endm
+
+
+.macro DO_SET_BIT
+.mparam pin, reg, bit
+    QBBC NOT_SET, reg, bit
+    SET gpio3_ones, #pin
+    NOT_SET:
+.endm
+
+#define SET_BIT(out, reg, bit)  DO_SET_BIT ser##out##_pin, reg, bit
+
 
 #define CAT3(X,Y,Z) X##Y##Z
 #define GPIO_MASK(X) CAT3(gpio,X,_serial_mask)
@@ -91,18 +107,18 @@ START:
 	CLR	r0, r0, 4
 	SBCO	r0, C4, 4, 4
 
-	// Configure the programmable pointer register for PRU1 by setting
+	// Configure the programmable pointer register for PRU by setting
 	// c28_pointer[15:0] field to 0x0120.  This will make C28 point to
 	// 0x00012000 (PRU shared RAM).
 	MOV	r0, 0x00000120
-	MOV	r1, CTPPR_0+0x2000
+	MOV	r1, CTPPR_0 + PRU_MEMORY_OFFSET
 	ST32	r0, r1
 
-	// Configure the programmable pointer register for PRU1 by setting
+	// Configure the programmable pointer register for PRU by setting
 	// c31_pointer[15:0] field to 0x0010.  This will make C31 point to
 	// 0x80001000 (DDR memory).
 	MOV	r0, 0x00100000
-	MOV	r1, CTPPR_1+0x2000
+	MOV	r1, CTPPR_1 + PRU_MEMORY_OFFSET
 	ST32	r0, r1
 
 	// Write a 0x1 into the response field so that they know we have started
@@ -191,32 +207,45 @@ _OUTPUTANYWAY:
     MOV r12,#10
     SUB r12,r12,bit_num
 
-    QBBC SET1, r10.b0, r12
-    SET gpio3_ones,#ser1_pin
-  SET1:
-  	QBBC SET2, r10.b1, r12
-    SET gpio3_ones,#ser2_pin
-  SET2:
-  	QBBC SET3, r10.b2, r12
-    SET gpio3_ones,#ser3_pin
-  SET3:
-  	QBBC SET4, r10.b3, r12
-    SET gpio3_ones,#ser4_pin
-  SET4:
+QBBC SET1, r10.b0, r12
+SET gpio3_ones,#ser1_pin
+SET1:
+QBBC SET2, r10.b1, r12
+SET gpio3_ones,#ser2_pin
+SET2:
+QBBC SET3, r10.b2, r12
+SET gpio3_ones,#ser3_pin
+SET3:
+QBBC SET4, r10.b3, r12
+SET gpio3_ones,#ser4_pin
+SET4:
 #if NUMOUT == 8
-  	QBBC SET5, r11.b0, r12
-    SET gpio3_ones,#ser5_pin
-  SET5:
-  	QBBC SET6, r11.b1, r12
-    SET gpio3_ones,#ser6_pin
-  SET6:
-  	QBBC SET7, r11.b2, r12
-    SET gpio3_ones,#ser7_pin
-  SET7:
-  	QBBC SET8, r11.b3, r12  
-    SET gpio3_ones,#ser8_pin
-  SET8:
+QBBC SET5, r11.b0, r12
+SET gpio3_ones,#ser5_pin
+SET5:
+QBBC SET6, r11.b1, r12
+SET gpio3_ones,#ser6_pin
+SET6:
+QBBC SET7, r11.b2, r12
+SET gpio3_ones,#ser7_pin
+SET7:
+QBBC SET8, r11.b3, r12
+SET gpio3_ones,#ser8_pin
+SET8:
 #endif
+
+/*
+    SET_BIT(1, r10.b0, r12)
+    SET_BIT(2, r10.b1, r12)
+    SET_BIT(2, r10.b2, r12)
+    SET_BIT(4, r10.b3, r12)
+#if NUMOUT == 8
+    SET_BIT(5, r11.b0, r12)
+    SET_BIT(6, r11.b1, r12)
+    SET_BIT(7, r11.b2, r12)
+    SET_BIT(8, r11.b3, r12)
+#endif
+*/
 
     XOR gpio3_zeros, gpio3_ones, gpio3_serial_mask
     JMP WAIT_BIT    
@@ -247,7 +276,7 @@ _OUTPUTANYWAY:
 
 	// Write out that we are done!
 	// Store a non-zero response in the buffer so that they know that we are done
-	MOV	r8, 0x24000 // control register
+	MOV     r8, PRU_CONTROL_REG // control register
 	LBBO	r2, r8, 0xC, 4
 	SBCO	r2, CONST_PRUDRAM, 12, 4
 
@@ -262,9 +291,9 @@ EXIT:
 
 #ifdef AM33XX
 	// Send notification to Host for program completion
-	MOV R31.b0, PRU1_ARM_INTERRUPT+16
+	MOV R31.b0, PRU_ARM_INTERRUPT+16
 #else
-	MOV R31.b0, PRU1_ARM_INTERRUPT
+	MOV R31.b0, PRU_ARM_INTERRUPT
 #endif
 
 	HALT

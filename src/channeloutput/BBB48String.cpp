@@ -142,7 +142,7 @@ int BBB48StringOutput::Init(Json::Value config)
 
 	ledscape_strip_config_t * const lsconfig = &m_config->strip_config;
 
-	int pruNumber = 0;
+	int pruNumber = 1;
 
 	lsconfig->type         = LEDSCAPE_STRIP;
 	lsconfig->leds_width   = m_maxStringLen;
@@ -233,8 +233,8 @@ int BBB48StringOutput::Close(void)
     // Send the stop command
     m_leds->ws281x->command = 0xFF;
     
-    prussdrv_pru_wait_event(0); //PRU_EVTOUT_0);
-    prussdrv_pru_clear_event(PRU0_ARM_INTERRUPT);
+    prussdrv_pru_wait_event(1); //PRU_EVTOUT_1;
+    prussdrv_pru_clear_event(PRU1_ARM_INTERRUPT);
     prussdrv_pru_disable(m_leds->pru->pru_num);
     
     //ledscape_close only checks PRU0 events and then unmaps the memory that

@@ -43,6 +43,7 @@ extern "C" {
 #include "common.h"
 #include "log.h"
 #include "BBBSerial.h"
+#include "BBBUtils.h"
 #include "settings.h"
 
 
@@ -73,6 +74,24 @@ BBBSerialOutput::~BBBSerialOutput()
 {
 	LogDebug(VB_CHANNELOUT, "BBBSerialOutput::~BBBSerialOutput()\n");
     prussdrv_exit();
+}
+
+static int pinGPIOs[] {
+    3, 21,
+    3, 19,
+    3, 17,
+    3, 15,
+    3, 16,
+    3, 14,
+    3, 20,
+    3, 18
+};
+
+
+static void configurePRUPins(int start, int end, const char *direction) {
+    for (int x = start; x < end; x++) {
+        configBBBPin(pinGPIOs[x * 2], pinGPIOs[x * 2 + 1], direction);
+    }
 }
 
 /*
@@ -117,7 +136,7 @@ int BBBSerialOutput::Init(Json::Value config)
 
 	ledscape_strip_config_t * const lsconfig = &m_config->strip_config;
 
-	int pruNumber = 1;
+	int pruNumber = 0;
 
 	lsconfig->type         = LEDSCAPE_STRIP;
 	lsconfig->leds_width   = (int)((m_pixelnet != 0 ? 4102 : 513) / 3) + 1;
@@ -130,17 +149,23 @@ int BBBSerialOutput::Init(Json::Value config)
 	else
 		pru_program += "/../lib/";
 
-	if (m_pixelnet)
+    const char *direction = "out";
+    if (m_pixelnet) {
 		pru_program += "FalconPixelnet";
-    else
+    } else {
         pru_program += "FalconDMX";
+        direction = "pruout";
+    }
     
     if (config["device"] == "F4-B") {
         pru_program += "_4a.bin";
+        configurePRUPins(0, 4, direction);
     } else if (config["device"] == "F8-B-16") {
         pru_program += "_4b.bin";
+        configurePRUPins(4, 8, direction);
     } else {
         pru_program += ".bin";
+        configurePRUPins(0, 8, direction);
     }
 	if (!FileExists(pru_program.c_str()))
 	{
@@ -193,8 +218,8 @@ int BBBSerialOutput::Close(void)
     // Send the stop command
     m_leds->ws281x->command = 0xFF;
     
-    prussdrv_pru_wait_event(1); //PRU_EVTOUT_1);
-    prussdrv_pru_clear_event(PRU1_ARM_INTERRUPT);
+    prussdrv_pru_wait_event(0); //PRU_EVTOUT_0;
+    prussdrv_pru_clear_event(PRU0_ARM_INTERRUPT);
     prussdrv_pru_disable(m_leds->pru->pru_num);
     
     //ledscape_close only checks PRU0 events and then unmaps the memory that

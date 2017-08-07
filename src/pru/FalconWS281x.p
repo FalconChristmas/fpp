@@ -46,6 +46,7 @@
  //* 
  //*/
 
+#define RUNNING_ON_PRU1
 
 #if defined F4B
 #include "F4B.hp"
@@ -59,6 +60,7 @@
 #include "F16B.hp"
 #endif
 
+#include "FalconUtils.hp"
 
 
 .origin 0
@@ -121,7 +123,7 @@ lab:
 /** Wait for the cycle counter to reach a given value */
 .macro WAITNS
 .mparam ns,lab
-	MOV r8, 0x22000 // control register
+	MOV r8, PRU_CONTROL_REG // control register
 lab:
 	LBBO r9, r8, 0xC, 4 // read the cycle counter
 	SUB r9, r9, sleep_counter 
@@ -169,18 +171,18 @@ START:
 	CLR	r0, r0, 4
 	SBCO	r0, C4, 4, 4
 
-	// Configure the programmable pointer register for PRU0 by setting
+	// Configure the programmable pointer register for PRU by setting
 	// c28_pointer[15:0] field to 0x0120.  This will make C28 point to
 	// 0x00012000 (PRU shared RAM).
 	MOV	r0, 0x00000120
-	MOV	r1, CTPPR_0
+	MOV	r1, CTPPR_0 + PRU_MEMORY_OFFSET
 	ST32	r0, r1
 
-	// Configure the programmable pointer register for PRU0 by setting
+	// Configure the programmable pointer register for PRU by setting
 	// c31_pointer[15:0] field to 0x0010.  This will make C31 point to
 	// 0x80001000 (DDR memory).
 	MOV	r0, 0x00100000
-	MOV	r1, CTPPR_1
+	MOV	r1, CTPPR_1 + PRU_MEMORY_OFFSET
 	ST32	r0, r1
 
 	// Write a 0x1 into the response field so that they know we have started
@@ -295,7 +297,7 @@ _LOOP:
 			// and then wait until 650 ns have passed once we complete
 			// our work.
 			// Disable the counter and clear it, then re-enable it
-			MOV     r8, 0x22000 // control register
+			MOV     r8, PRU_CONTROL_REG // control register
 			LBBO	r9, r8, 0, 4
 			CLR     r9, r9, 3 // disable counter bit
 			SBBO	r9, r8, 0, 4 // write it back
@@ -456,7 +458,7 @@ _LOOP:
 	// Store a non-zero response in the buffer so that they know that we are done
 	// aso a quick hack, we write the counter so that we know how
 	// long it took to write out.
-	MOV	r8, 0x22000 // control register
+	MOV	r8, PRU_CONTROL_REG // control register
 	LBBO	r2, r8, 0xC, 4
 	SBCO	r2, CONST_PRUDRAM, 12, 4
 
@@ -470,9 +472,9 @@ EXIT:
 
 #ifdef AM33XX
 	// Send notification to Host for program completion
-	MOV R31.b0, PRU0_ARM_INTERRUPT+16
+	MOV R31.b0, PRU_ARM_INTERRUPT+16
 #else
-	MOV R31.b0, PRU0_ARM_INTERRUPT
+	MOV R31.b0, PRU_ARM_INTERRUPT
 #endif
 
 	HALT

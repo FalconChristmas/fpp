@@ -8,13 +8,18 @@
  *  each pixel is stored in 4 bytes in the order GRBA (4th byte is ignored)
  * 
  */
- 
+#define RUNNING_ON_PRU0
+
+
 #include "FalconSerial.hp"
 
 .origin 0
 .entrypoint START
 
 #include "FalconWS281x.hp"
+
+#include "FalconUtils.hp"
+
 
 /** Mappings of the GPIO devices */
 #define GPIO3		0x481AE000
@@ -50,7 +55,7 @@ lab:
 
 .macro WAITNS
 .mparam ns,lab
-	MOV r6, 0x24000 // control register
+	MOV r6, PRU_CONTROL_REG // control register
 	// Instructions take 5ns and RESET_COUNTER takes about 20 instructions
 	// this value was found through trial and error on the DMX signal
 	// generation
@@ -62,7 +67,7 @@ lab:
 
 .macro RESET_COUNTER
 		// Disable the counter and clear it, then re-enable it
-		MOV r6, 0x24000 // control register
+		MOV r6, PRU_CONTROL_REG // control register
 		LBBO r9, r6, 0, 4
 		CLR r9, r9, 3 // disable counter bit
 		SBBO r9, r6, 0, 4 // write it back
@@ -88,18 +93,18 @@ START:
 	CLR	r0, r0, 4
 	SBCO	r0, C4, 4, 4
 
-	// Configure the programmable pointer register for PRU1 by setting
+	// Configure the programmable pointer register for PRU by setting
 	// c28_pointer[15:0] field to 0x0120.  This will make C28 point to
 	// 0x00012000 (PRU shared RAM).
 	MOV	r0, 0x00000120
-	MOV	r1, CTPPR_0+0x2000
+	MOV	r1, CTPPR_0 + PRU_MEMORY_OFFSET
 	ST32	r0, r1
 
-	// Configure the programmable pointer register for PRU1 by setting
+	// Configure the programmable pointer register for PRU by setting
 	// c31_pointer[15:0] field to 0x0010.  This will make C31 point to
 	// 0x80001000 (DDR memory).
 	MOV	r0, 0x00100000
-	MOV	r1, CTPPR_1+0x2000
+	MOV	r1, CTPPR_1 + PRU_MEMORY_OFFSET
 	ST32	r0, r1
 
 	// Write a 0x1 into the response field so that they know we have started
@@ -218,7 +223,7 @@ _LOOP:
 
 	// Write out that we are done!
 	// Store a non-zero response in the buffer so that they know that we are done
-	MOV	r8, 0x24000 // control register
+	MOV	    r8, PRU_CONTROL_REG
 	LBBO	r2, r8, 0xC, 4
 	SBCO	r2, CONST_PRUDRAM, 12, 4
 
@@ -232,9 +237,9 @@ EXIT:
 
 #ifdef AM33XX
 	// Send notification to Host for program completion
-	MOV R31.b0, PRU1_ARM_INTERRUPT+16
+	MOV R31.b0, PRU_ARM_INTERRUPT+16
 #else
-	MOV R31.b0, PRU1_ARM_INTERRUPT
+	MOV R31.b0, PRU_ARM_INTERRUPT
 #endif
 
 	HALT
