@@ -9,10 +9,11 @@ BINARIES :=  \
 	FalconMatrix_5.bin FalconMatrix_6.bin FalconMatrix_7.bin FalconMatrix_8.bin \
 	FalconMatrix_v2_1.bin FalconMatrix_v2_2.bin FalconMatrix_v2_3.bin FalconMatrix_v2_4.bin \
 	FalconMatrix_v2_5.bin FalconMatrix_v2_6.bin FalconMatrix_v2_7.bin FalconMatrix_v2_8.bin \
-	RGBCape48C.bin FalconDMX.bin FalconDMX_4a.bin FalconDMX_4b.bin \
+	FalconDMX.bin FalconDMX_4a.bin FalconDMX_4b.bin \
 	FalconPixelnet.bin FalconPixelnet_4a.bin FalconPixelnet_4b.bin\
 	FalconWS281x_48.bin FalconWS281x_40.bin FalconWS281x_16.bin FalconWS281x_F4.bin \
-	FalconWS281x_F8_12.bin FalconWS281x_F8_16.bin FalconWS281x_F8_20.bin
+	FalconWS281x_F8_12.bin FalconWS281x_F8_16.bin FalconWS281x_F8_20.bin \
+	FalconWS281x_RGBCape48C.bin FalconWS281x_RGBCape48F.bin
 
 
 #
@@ -52,6 +53,17 @@ FalconWS281x_48.bin: FalconWS281x.p F16B.hp $(PASM)
 	$(CPP) -DOUTPUTS=48 - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i
 	$(PASM) -V3 -b /tmp/$(basename $<).i $(basename $@)
 	@$(RM) /tmp/$(basename $<).i
+
+FalconWS281x_RGBCape48C.bin: FalconWS281x.p RGBCape48C.hp $(PASM)
+	$(CPP) -DOUTPUTS=48 -DRGBCape48C=1 - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i
+	$(PASM) -V3 -b /tmp/$(basename $<).i $(basename $@)
+	@$(RM) /tmp/$(basename $<).i
+
+FalconWS281x_RGBCape48F.bin: FalconWS281x.p RGBCape48F.hp $(PASM)
+	$(CPP) -DOUTPUTS=48 -DRGBCape48F=1 - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i
+	$(PASM) -V3 -b /tmp/$(basename $<).i $(basename $@)
+	@$(RM) /tmp/$(basename $<).i
+
 
 FalconDMX_4a.bin: FalconDMX.p FalconSerial.hp $(PASM)
 	$(CPP) -DONLYA - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i

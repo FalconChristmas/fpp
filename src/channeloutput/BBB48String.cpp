@@ -193,6 +193,16 @@ int BBB48StringOutput::Init(Json::Value config)
         pru_program += "FalconWS281x_F8_20.bin";
         lsconfig->leds_height = 20;
     }
+    else if (m_subType == "RGBCape48C")
+    {
+        pru_program += "FalconWS281x_RGBCape48C.bin";
+        lsconfig->leds_height = 48;
+    }
+    else if (m_subType == "RGBCape48F")
+    {
+        pru_program += "FalconWS281x_RGBCape48F.bin";
+        lsconfig->leds_height = 48;
+    }
 	else
 	{
 		pru_program += m_subType + ".bin";

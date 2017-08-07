@@ -51,6 +51,10 @@
 #include "F4B.hp"
 #elif defined F8B
 #include "F8B.hp"
+#elif defined RGBCape48C
+#include "RGBCape48C.hp"
+#elif defined RGBCape48F
+#include "RGBCape48F.hp"
 #else
 #include "F16B.hp"
 #endif

@@ -1689,6 +1689,8 @@ function GetBBB48StringRows()
         rows = 20;
 	else if (subType == 'RGBCape48C')
 		rows = 48;
+    else if (subType == 'RGBCape48F')
+        rows = 48;
 
 	return rows;
 }
@@ -2820,6 +2822,7 @@ if ($settings['Platform'] == "BeagleBone Black")
                                     <option value='F8-B-16'>F8-B (4 serial)</option>
                                     <option value='F8-B-20'>F8-B (No serial)</option>
 									<option value='RGBCape48C'>RGBCape48C</option>
+                                    <option value='RGBCape48F'>RGBCape48F</option>
 									</select>
 									</td>
 							</tr>
