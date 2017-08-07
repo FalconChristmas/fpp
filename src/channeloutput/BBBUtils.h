@@ -2,7 +2,7 @@
 #define __BBB_UTILS__
 
 
-int configBBBPin(int gpio, int pin, const char *direction);
+int configBBBPin(const char *name, int gpio, int pin, const char *mode);
 
 
 #endif

@@ -76,21 +76,31 @@ BBBSerialOutput::~BBBSerialOutput()
     prussdrv_exit();
 }
 
-static int pinGPIOs[] {
-    3, 21,
-    3, 19,
-    3, 17,
-    3, 15,
-    3, 16,
-    3, 14,
-    3, 20,
-    3, 18
+static int pinGPIOs[] = {
+    21,
+    19,
+    17,
+    15,
+    16,
+    14,
+    20,
+    18
+};
+static const char * pinNames[] = {
+    "P9_25",
+    "P9_27",
+    "P9_28",
+    "P9_29",
+    "P9_30",
+    "P9_31",
+    "P9_91",
+    "P9_92",
 };
 
 
-static void configurePRUPins(int start, int end, const char *direction) {
+static void configurePRUPins(int start, int end, const char *mode) {
     for (int x = start; x < end; x++) {
-        configBBBPin(pinGPIOs[x * 2], pinGPIOs[x * 2 + 1], direction);
+        configBBBPin(pinNames[x], 3, pinGPIOs[x], mode);
     }
 }
 
@@ -149,23 +159,23 @@ int BBBSerialOutput::Init(Json::Value config)
 	else
 		pru_program += "/../lib/";
 
-    const char *direction = "out";
+    const char *mode = "gpio";
     if (m_pixelnet) {
 		pru_program += "FalconPixelnet";
     } else {
         pru_program += "FalconDMX";
-        direction = "pruout";
+        mode = "pruout";
     }
     
     if (config["device"] == "F4-B") {
         pru_program += "_4a.bin";
-        configurePRUPins(0, 4, direction);
+        configurePRUPins(0, 4, mode);
     } else if (config["device"] == "F8-B-16") {
         pru_program += "_4b.bin";
-        configurePRUPins(4, 8, direction);
+        configurePRUPins(4, 8, mode);
     } else {
         pru_program += ".bin";
-        configurePRUPins(0, 8, direction);
+        configurePRUPins(0, 8, mode);
     }
 	if (!FileExists(pru_program.c_str()))
 	{
@@ -228,6 +238,9 @@ int BBBSerialOutput::Close(void)
 
 	free(m_config);
 	m_config = NULL;
+    
+    configurePRUPins(0, 8, "gpio");
+
     LogDebug(VB_CHANNELOUT, "BBBSerialOutput::Close() done\n");
 
 	return ChannelOutputBase::Close();

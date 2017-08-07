@@ -33,9 +33,13 @@
 #define data_addr	          r0
 #define data_len	          r1
 #define gpio3_zeros   	      r2
-#define gpio3_ones            r3
+#define gpio3_ones            r3   //must be right after _zeros
 #define bit_num		          r4
 #define sleep_counter	      r5
+
+#define clearDataOffset       r13
+#define setDataOffset         r14
+
 
 // r10 - r22 are used for temp storage and bitmap processing
 #define gpio3_serial_mask	  r26
@@ -84,14 +88,103 @@ lab:
 .endm
 
 
+#ifdef NO_USE_PRU_GPIO
+.macro CLEAR_ALL_BITS
+    SBBO    gpio3_serial_mask, clearDataOffset, 0, 4
+.endm
+.macro SET_ALL_BITS
+    SBBO	gpio3_serial_mask, setDataOffset, 0, 4
+.endm
+.macro BEFORE_SET_BITS
+    MOV gpio3_ones, #0       // Set all bit data low to start with
+.endm
+.macro AFTER_SET_BITS
+    XOR gpio3_zeros, gpio3_ones, gpio3_serial_mask   // create the 0 bits
+.endm
+.macro WAIT_BEFORE_SET_BITS
+.endm
+.macro WAIT_AFTER_SET_BITS
+    //WAITNS 3900, wait_bit1
+    SLEEPNS 3900, 20, wait_bit1
+.endm
+.macro OUTPUT_GPIO_BITS
+    // Output bits, write both 0's and 1's
+    SBBO	gpio3_zeros, clearDataOffset, 0, 8
+.endm
+.macro OUTPUT_START_BIT
+    MOV	gpio3_zeros, gpio3_serial_mask
+    MOV	gpio3_ones, #0
+.endm
+.macro OUTPUT_END_BIT
+    MOV	gpio3_zeros, #0
+    MOV	gpio3_ones, gpio3_serial_mask
+.endm
 .macro DO_SET_BIT
 .mparam pin, reg, bit
     QBBC NOT_SET, reg, bit
     SET gpio3_ones, #pin
     NOT_SET:
 .endm
-
 #define SET_BIT(out, reg, bit)  DO_SET_BIT ser##out##_pin, reg, bit
+#else
+
+.macro CLEAR_ALL_BITS
+    CLR r30, ser1_pru30
+    CLR r30, ser2_pru30
+    CLR r30, ser3_pru30
+    CLR r30, ser4_pru30
+#if NUMOUT == 8
+    CLR r30, ser5_pru30
+    CLR r30, ser6_pru30
+    CLR r30, ser7_pru30
+    CLR r30, ser8_pru30
+#endif
+.endm
+.macro SET_ALL_BITS
+    SET r30, ser1_pru30
+    SET r30, ser2_pru30
+    SET r30, ser3_pru30
+    SET r30, ser4_pru30
+#if NUMOUT == 8
+    SET r30, ser5_pru30
+    SET r30, ser6_pru30
+    SET r30, ser7_pru30
+    SET r30, ser8_pru30
+#endif
+.endm
+.macro BEFORE_SET_BITS
+.endm
+.macro AFTER_SET_BITS
+.endm
+.macro WAIT_BEFORE_SET_BITS
+    //WAITNS 3900, wait_bit1
+    SLEEPNS 3900, 20, wait_bit1
+.endm
+.macro WAIT_AFTER_SET_BITS
+.endm
+.macro OUTPUT_GPIO_BITS
+.endm
+.macro OUTPUT_START_BIT
+    CLEAR_ALL_BITS
+.endm
+.macro OUTPUT_END_BIT
+    SET_ALL_BITS
+.endm
+
+.macro DO_SET_BIT
+.mparam pin, reg, bit
+    QBBC NOT_SET, reg, bit
+        SET r30, #pin
+        JMP DONE
+    NOT_SET:
+        CLR r30, #pin
+    DONE:
+.endm
+#define SET_BIT(out, reg, bit)  DO_SET_BIT ser##out##_pru30, reg, bit
+
+
+#endif
+
 
 
 #define CAT3(X,Y,Z) X##Y##Z
@@ -137,6 +230,9 @@ START:
 	SET	GPIO_MASK(ser8_gpio), ser8_pin
 #endif
 
+    MOV clearDataOffset, GPIO3 | GPIO_CLEARDATAOUT
+    MOV setDataOffset, GPIO3 | GPIO_SETDATAOUT
+
     MOV sleep_counter, CONST_MAX_BETWEEN_FRAME
 
 	// Wait for the start condition from the main program to indicate
@@ -168,111 +264,69 @@ _OUTPUTANYWAY:
 	// Command of 0xFF is the signal to exit
 	QBEQ	EXIT, r2, #0xFF
 
-  MOV data_len, #513
+    MOV data_len, #513
 
-  // Debug
-  MOV	r13, GPIO3 | GPIO_CLEARDATAOUT
-  MOV	r14, GPIO3 | GPIO_SETDATAOUT
-  MOV r15, #0
-  SET r15, #21
-  SBBO	r15, r14, 0, 4
-  SBBO	r15, r13, 0, 4
-  
-  MOV	r13, GPIO3 | GPIO_CLEARDATAOUT
-  SBBO	gpio3_serial_mask, r13, 0, 4
-  // Break Send Low for > 88us
-  RESET_COUNTER
-  //WAITNS	90000, wait_break_low
-  SLEEPNS 90000, 20, wait_break_low
+    CLEAR_ALL_BITS
+    // Break Send Low for > 88us
+    RESET_COUNTER
+    //WAITNS	90000, wait_break_low
+    SLEEPNS 90000, 20, wait_break_low
 
- // End Break/Start MAB Send High for > 8us
-  MOV	r13, GPIO3 | GPIO_SETDATAOUT
-  SBBO	gpio3_serial_mask, r13, 0, 4
-  RESET_COUNTER
-  //WAITNS	15000, wait_mab_high
-  SLEEPNS 15000, 20, wait_mab_high
+    // End Break/Start MAB Send High for > 8us
+    SET_ALL_BITS
+    RESET_COUNTER
+    //WAITNS	15000, wait_mab_high
+    SLEEPNS 15000, 20, wait_mab_high
  
   
  WORD_LOOP:
-		// 11 bits (1 start, 8 data, 2 stop) 
-		MOV	bit_num, 11
+	// 11 bits (1 start, 8 data, 2 stop)
+	MOV	bit_num, 11
     // Load 8 bytes of data, starting at r10
-		// one byte for each of the outputs
-		LBBO	r10, data_addr, 0, NUMOUT
+	// one byte for each of the outputs
+	LBBO	r10, data_addr, 0, NUMOUT
     RESET_COUNTER
-  BIT_LOOP:
-    QBEQ IS_START_BIT, bit_num, #11     // bit_num = 0 or 1 (Start bit)
-    QBGT IS_STOP_BIT, bit_num, #3       // bit_num = 1 or 2 (Stop bits)
-    MOV gpio3_ones, #0                  // Set all bit data low to start with
-    MOV r12,#10
-    SUB r12,r12,bit_num
+    BIT_LOOP:
+        WAIT_BEFORE_SET_BITS
+        QBEQ IS_START_BIT, bit_num, #11     // bit_num = 0 or 1 (Start bit)
+        QBGT IS_STOP_BIT, bit_num, #3       // bit_num = 1 or 2 (Stop bits)
+        MOV r12,#10
+        SUB r12,r12,bit_num
 
-QBBC SET1, r10.b0, r12
-SET gpio3_ones,#ser1_pin
-SET1:
-QBBC SET2, r10.b1, r12
-SET gpio3_ones,#ser2_pin
-SET2:
-QBBC SET3, r10.b2, r12
-SET gpio3_ones,#ser3_pin
-SET3:
-QBBC SET4, r10.b3, r12
-SET gpio3_ones,#ser4_pin
-SET4:
-#if NUMOUT == 8
-QBBC SET5, r11.b0, r12
-SET gpio3_ones,#ser5_pin
-SET5:
-QBBC SET6, r11.b1, r12
-SET gpio3_ones,#ser6_pin
-SET6:
-QBBC SET7, r11.b2, r12
-SET gpio3_ones,#ser7_pin
-SET7:
-QBBC SET8, r11.b3, r12
-SET gpio3_ones,#ser8_pin
-SET8:
-#endif
+        BEFORE_SET_BITS
 
-/*
-    SET_BIT(1, r10.b0, r12)
-    SET_BIT(2, r10.b1, r12)
-    SET_BIT(2, r10.b2, r12)
-    SET_BIT(4, r10.b3, r12)
-#if NUMOUT == 8
-    SET_BIT(5, r11.b0, r12)
-    SET_BIT(6, r11.b1, r12)
-    SET_BIT(7, r11.b2, r12)
-    SET_BIT(8, r11.b3, r12)
-#endif
-*/
+        SET_BIT(1, r10.b0, r12)
+        SET_BIT(2, r10.b1, r12)
+        SET_BIT(3, r10.b2, r12)
+        SET_BIT(4, r10.b3, r12)
+        #if NUMOUT == 8
+            SET_BIT(5, r11.b0, r12)
+            SET_BIT(6, r11.b1, r12)
+            SET_BIT(7, r11.b2, r12)
+            SET_BIT(8, r11.b3, r12)
+        #endif
 
-    XOR gpio3_zeros, gpio3_ones, gpio3_serial_mask
-    JMP WAIT_BIT    
-  IS_START_BIT:
-    MOV	gpio3_zeros, gpio3_serial_mask
-    MOV	gpio3_ones, #0
-    JMP WAIT_BIT    
-  IS_STOP_BIT:
-    MOV	gpio3_zeros, #0
-    MOV	gpio3_ones, gpio3_serial_mask
-    JMP WAIT_BIT    
-  WAIT_BIT:
-    MOV	r13, GPIO3 | GPIO_CLEARDATAOUT
-    MOV	r14, GPIO3 | GPIO_SETDATAOUT
-    //WAITNS 3900, wait_bit1
-    SLEEPNS 3900, 20, wait_bit1
-    RESET_COUNTER
-     // Output zero bits
-    SBBO	gpio3_zeros, r13, 0, 4
-    SBBO	gpio3_ones, r14, 0, 4
+        AFTER_SET_BITS
 
-    SUB	bit_num, bit_num, 1
-	  QBNE	BIT_LOOP, bit_num, 0
+        JMP WAIT_BIT
+      IS_START_BIT:
+        OUTPUT_START_BIT
+        JMP WAIT_BIT
+      IS_STOP_BIT:
+        OUTPUT_END_BIT
+        JMP WAIT_BIT
+      WAIT_BIT:
+        WAIT_AFTER_SET_BITS
+        RESET_COUNTER
 
-		ADD	data_addr, data_addr, 8
-		SUB	data_len, data_len, 1
-		QBNE	WORD_LOOP, data_len, #0
+        OUTPUT_GPIO_BITS
+
+        SUB     bit_num, bit_num, 1
+        QBNE	BIT_LOOP, bit_num, 0
+
+    ADD     data_addr, data_addr, 8
+    SUB     data_len, data_len, 1
+    QBNE    WORD_LOOP, data_len, #0
 
 	// Write out that we are done!
 	// Store a non-zero response in the buffer so that they know that we are done
