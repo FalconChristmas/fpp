@@ -18,8 +18,24 @@
 .entrypoint START
 
 #include "FalconWS281x.hp"
-
 #include "FalconUtils.hp"
+
+#ifdef PIXELNET
+//PixelNet
+#define DELAYCOUNT 990
+#define DATALEN    #4102
+
+#else
+#define DELAYCOUNT 3900
+#define DATALEN    #513
+
+// DMX has to send SOMETHING out at least every 250ms (we'll do slightly faster) or
+// some controllers lose the signal and go into a test loop
+// each loop is 4 instructions, one is an LBCO of 12 bytes which takes 45 cycles so 48 cycles total
+// 200ms * 5ns/cycle * 200mhz
+#define CONST_MAX_BETWEEN_FRAME 0xC0000
+
+#endif
 
 
 /** Mappings of the GPIO devices */
@@ -32,21 +48,13 @@
 /** Register map */
 #define data_addr	          r0
 #define data_len	          r1
-#define gpio3_zeros   	      r2
-#define gpio3_ones            r3   //must be right after _zeros
-#define bit_num		          r4
-#define sleep_counter	      r5
-
-#define clearDataOffset       r13
-#define setDataOffset         r14
-
+#define bit_num		          r2
+#define sleep_counter	      r3
 
 // r10 - r22 are used for temp storage and bitmap processing
-#define gpio3_serial_mask	  r26
 
-// each loop is 4 instructions, one is an LBCO of 12 bytes which takes 45 cycles so 48 cycles total
-// 200ms * 5ns/cycle * 200mhz
-#define CONST_MAX_BETWEEN_FRAME 0xC0000
+
+
 
 /** Sleep a given number of nanoseconds with 10 ns resolution.
  *
@@ -88,7 +96,14 @@ lab:
 .endm
 
 
-#ifdef NO_USE_PRU_GPIO
+#ifdef USE_SLOW_GPIO
+#define gpio3_zeros   	      r4
+#define gpio3_ones            r5   //must be right after _zeros
+
+#define clearDataOffset       r13
+#define setDataOffset         r14
+#define gpio3_serial_mask	  r26
+
 .macro CLEAR_ALL_BITS
     SBBO    gpio3_serial_mask, clearDataOffset, 0, 4
 .endm
@@ -104,8 +119,8 @@ lab:
 .macro WAIT_BEFORE_SET_BITS
 .endm
 .macro WAIT_AFTER_SET_BITS
-    //WAITNS 3900, wait_bit1
-    SLEEPNS 3900, 20, wait_bit1
+    //WAITNS DELAYCOUNT, wait_bit1
+    SLEEPNS DELAYCOUNT, 20, wait_bit1
 .endm
 .macro OUTPUT_GPIO_BITS
     // Output bits, write both 0's and 1's
@@ -115,7 +130,7 @@ lab:
     MOV	gpio3_zeros, gpio3_serial_mask
     MOV	gpio3_ones, #0
 .endm
-.macro OUTPUT_END_BIT
+.macro OUTPUT_STOP_BIT
     MOV	gpio3_zeros, #0
     MOV	gpio3_ones, gpio3_serial_mask
 .endm
@@ -157,8 +172,8 @@ lab:
 .macro AFTER_SET_BITS
 .endm
 .macro WAIT_BEFORE_SET_BITS
-    //WAITNS 3900, wait_bit1
-    SLEEPNS 3900, 20, wait_bit1
+    //WAITNS DELAYCOUNT, wait_bit1
+    SLEEPNS DELAYCOUNT, 20, wait_bit1
 .endm
 .macro WAIT_AFTER_SET_BITS
 .endm
@@ -167,7 +182,7 @@ lab:
 .macro OUTPUT_START_BIT
     CLEAR_ALL_BITS
 .endm
-.macro OUTPUT_END_BIT
+.macro OUTPUT_STOP_BIT
     SET_ALL_BITS
 .endm
 
@@ -218,6 +233,7 @@ START:
 	MOV	r2, #0x1
 	SBCO	r2, CONST_PRUDRAM, 12, 4
 
+#ifdef USE_SLOW_GPIO
     LDI gpio3_serial_mask, 0
 	SET	GPIO_MASK(ser1_gpio), ser1_pin
 	SET	GPIO_MASK(ser2_gpio), ser2_pin
@@ -232,18 +248,23 @@ START:
 
     MOV clearDataOffset, GPIO3 | GPIO_CLEARDATAOUT
     MOV setDataOffset, GPIO3 | GPIO_SETDATAOUT
+#endif
 
+#ifdef CONST_MAX_BETWEEN_FRAME
     MOV sleep_counter, CONST_MAX_BETWEEN_FRAME
+#endif
 
 	// Wait for the start condition from the main program to indicate
 	// that we have a rendered frame ready to clock out.  This also
 	// handles the exit case if an invalid value is written to the start
 	// start position.
 _LOOP:
+#ifdef CONST_MAX_BETWEEN_FRAME
     // more than 200ms since last out, need to re-output or signal
     // will be lost
     SUB     sleep_counter, sleep_counter, 1
     QBEQ    _OUTPUTANYWAY, sleep_counter, #0
+#endif
 
 	// Load the pointer to the buffer from PRU DRAM into r0 and the
 	// length (in bytes-bit words) into r1.
@@ -264,8 +285,10 @@ _OUTPUTANYWAY:
 	// Command of 0xFF is the signal to exit
 	QBEQ	EXIT, r2, #0xFF
 
-    MOV data_len, #513
+    MOV data_len, DATALEN
 
+#ifndef PIXELNET
+    //DMX needs to sent a long 0
     CLEAR_ALL_BITS
     // Break Send Low for > 88us
     RESET_COUNTER
@@ -277,7 +300,7 @@ _OUTPUTANYWAY:
     RESET_COUNTER
     //WAITNS	15000, wait_mab_high
     SLEEPNS 15000, 20, wait_mab_high
- 
+#endif
   
  WORD_LOOP:
 	// 11 bits (1 start, 8 data, 2 stop)
@@ -313,7 +336,7 @@ _OUTPUTANYWAY:
         OUTPUT_START_BIT
         JMP WAIT_BIT
       IS_STOP_BIT:
-        OUTPUT_END_BIT
+        OUTPUT_STOP_BIT
         JMP WAIT_BIT
       WAIT_BIT:
         WAIT_AFTER_SET_BITS
@@ -335,7 +358,9 @@ _OUTPUTANYWAY:
 	SBCO	r2, CONST_PRUDRAM, 12, 4
 
 	// Go back to waiting for the next frame buffer
+#ifdef CONST_MAX_BETWEEN_FRAME
     MOV sleep_counter, CONST_MAX_BETWEEN_FRAME
+#endif
 	QBA	_LOOP
 
 EXIT:

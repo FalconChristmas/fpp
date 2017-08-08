@@ -159,12 +159,11 @@ int BBBSerialOutput::Init(Json::Value config)
 	else
 		pru_program += "/../lib/";
 
-    const char *mode = "gpio";
+    const char *mode = "pruout";
     if (m_pixelnet) {
 		pru_program += "FalconPixelnet";
     } else {
         pru_program += "FalconDMX";
-        mode = "pruout";
     }
     
     if (config["device"] == "F4-B") {

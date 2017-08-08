@@ -64,24 +64,33 @@ FalconWS281x_RGBCape48F.bin: FalconWS281x.p RGBCape48F.hp $(PASM)
 	$(PASM) -V3 -b /tmp/$(basename $<).i $(basename $@)
 	@$(RM) /tmp/$(basename $<).i
 
-
-FalconDMX_4a.bin: FalconDMX.p FalconSerial.hp $(PASM)
-	$(CPP) -DONLYA - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i
+FalconDMX.bin: FalconSerial.p FalconSerial.hp $(PASM)
+	$(CPP) -DDMX - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i
 	$(PASM) -V3 -b /tmp/$(basename $<).i $(basename $@)
 	@$(RM) /tmp/$(basename $<).i
 
-FalconDMX_4b.bin: FalconDMX.p FalconSerial.hp $(PASM)
-	$(CPP) -DONLYB - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i
+FalconDMX_4a.bin: FalconSerial.p FalconSerial.hp $(PASM)
+	$(CPP) -DONLYA -DDMX - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i
 	$(PASM) -V3 -b /tmp/$(basename $<).i $(basename $@)
 	@$(RM) /tmp/$(basename $<).i
 
-FalconPixelnet_4a.bin: FalconPixelnet.p FalconSerial.hp $(PASM)
-	$(CPP) -DONLYA - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i
+FalconDMX_4b.bin: FalconSerial.p FalconSerial.hp $(PASM)
+	$(CPP) -DONLYB -DDMX - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i
 	$(PASM) -V3 -b /tmp/$(basename $<).i $(basename $@)
 	@$(RM) /tmp/$(basename $<).i
 
-FalconPixelnet_4b.bin: FalconPixelnet.p FalconSerial.hp $(PASM)
-	$(CPP) -DONLYB - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i
+FalconPixelnet.bin: FalconSerial.p FalconSerial.hp $(PASM)
+	$(CPP) -DPIXELNET - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i
+	$(PASM) -V3 -b /tmp/$(basename $<).i $(basename $@)
+	@$(RM) /tmp/$(basename $<).i
+
+FalconPixelnet_4a.bin: FalconSerial.p FalconSerial.hp $(PASM)
+	$(CPP) -DONLYA -DPIXELNET - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i
+	$(PASM) -V3 -b /tmp/$(basename $<).i $(basename $@)
+	@$(RM) /tmp/$(basename $<).i
+
+FalconPixelnet_4b.bin: FalconSerial.p FalconSerial.hp $(PASM)
+	$(CPP) -DONLYB -DPIXELNET - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i
 	$(PASM) -V3 -b /tmp/$(basename $<).i $(basename $@)
 	@$(RM) /tmp/$(basename $<).i
 

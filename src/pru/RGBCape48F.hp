@@ -167,12 +167,12 @@
 #define o38_pin		14
 #define o38_dreg  r19.b1
 // Output 39
-#define o39_gpio	0
+#define o39_gpio	3
 #define o39_pin		20
 #define o39_dreg  r19.b2
 // Output 40
-#define o40_gpio	0
-#define o40_pin		7
+#define o40_gpio	3
+#define o40_pin		18
 #define o40_dreg  r19.b3
 // Output 41
 #define o41_gpio	0
