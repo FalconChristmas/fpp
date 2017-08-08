@@ -277,8 +277,10 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
     if (lmconfig->rowsPerOutput == 0) {
         lmconfig->rowsPerOutput = 8;
     }
-    if ((lmconfig->rowsPerOutput * 2) != lmconfig->panel_height) {
+    if ((lmconfig->rowsPerOutput * 4) == lmconfig->panel_height) {
         lmconfig->initialSkip *= 2;
+    } else if ((lmconfig->rowsPerOutput * 8) == lmconfig->panel_height) {
+        lmconfig->initialSkip *= 4;
     }
 
 	m_dataSize = lmconfig->width * lmconfig->height * 4;
@@ -318,12 +320,17 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
                    config["wiringPinout"] == "v2" ? 2 : 1);
     
     m_leds->ws281x->num_pixels = LEDSCAPE_MATRIX_PANELS * lmconfig->panel_width / 8;
-    if ((lmconfig->rowsPerOutput * 2) !=  lmconfig->panel_height) {
+    if ((lmconfig->rowsPerOutput * 4) ==  lmconfig->panel_height) {
         // 1/4 scan output 2 rows at once in a strange 8 then 8 then 8 then 8... pattern
         m_leds->ws281x->num_pixels *= 2;
+    } else if ((lmconfig->rowsPerOutput * 8) ==  lmconfig->panel_height) {
+        // 1/2 scan output 4 rows at once in a strange 8 then 8 then 8 then 8... pattern
+        m_leds->ws281x->num_pixels *= 4;
     }
-    LogDebug(VB_CHANNELOUT, "Pixels per row %d,    rowsPerOutput: %d     panelHeight: %d    colorDepth: %d\n",
-             m_leds->ws281x->num_pixels, lmconfig->rowsPerOutput, lmconfig->panel_height, lmconfig->bitsToOutput);
+
+    LogDebug(VB_CHANNELOUT, "Pixels per row %d,    rowsPerOutput: %d     panelHeight: %d    colorDepth: %d   initialSkip: %d\n",
+             m_leds->ws281x->num_pixels, lmconfig->rowsPerOutput, lmconfig->panel_height,
+             lmconfig->bitsToOutput, lmconfig->initialSkip);
 
 	if (!m_leds)
 	{
