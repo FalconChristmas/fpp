@@ -1687,6 +1687,8 @@ function GetBBB48StringRows()
         rows = 16;
     else if (subType == 'F8-B-20')
         rows = 20;
+    else if (subType == 'F8-B-EXP')
+        rows = 28;
 	else if (subType == 'RGBCape48C')
 		rows = 48;
     else if (subType == 'RGBCape48F')
@@ -1810,7 +1812,7 @@ function DrawBBB48StringTable()
 
 	var subType = $('#BBB48StringSubType').val();
 
-	if ((subType == 'F16-B-48') || (subType == 'F8-B-20'))
+	if ((subType == 'F16-B-48') || (subType == 'F8-B-20') || (subType == 'RGBCape48C') || (subType == 'RGBCape48F'))
 	{
 		$('#BBBSerialSelect').hide();
 		$('#BBBSerialOutputs').hide();
@@ -1824,7 +1826,11 @@ function DrawBBB48StringTable()
 	var s = 0;
 	for (s = 0; s < BBB48StringOutputs; s++)
 	{
-        if (subType == 'F8-B-20' && (s == 16 || s == 12 || s == 8)) {
+        if (subType == 'F8-B-EXP') {
+            if (s == 12 || s == 8) {
+                html += "<tr><td colspan='10'><hr></td></tr>\n";
+            }
+        } else if (subType == 'F8-B-20' && (s == 16 || s == 12 || s == 8)) {
             html += "<tr><td colspan='10'><hr></td></tr>\n";
         } else if (subType == 'F8-B-16' && (s == 12 || s == 8)) {
             html += "<tr><td colspan='10'><hr></td></tr>\n";
@@ -1937,7 +1943,9 @@ function InitializeBBBSerial()
 		(typeof channelOutputsLookup["BBB48String"].subType != "undefined"))
 	{
 		if ((channelOutputsLookup["BBB48String"].subType == 'F16-B-48') ||
-			(channelOutputsLookup["BBB48String"].subType == 'F8-B-20'))
+			(channelOutputsLookup["BBB48String"].subType == 'F8-B-20') ||
+            (channelOutputsLookup["BBB48String"].subType == 'RGBCape48C') ||
+            (channelOutputsLookup["BBB48String"].subType == 'RGBCape48F'))
 			return; // nothing to setup if non-serial cape
 	}
 
@@ -2822,6 +2830,7 @@ if ($settings['Platform'] == "BeagleBone Black")
                                     <option value='F8-B'>F8-B (8 serial)</option>
                                     <option value='F8-B-16'>F8-B (4 serial)</option>
                                     <option value='F8-B-20'>F8-B (No serial)</option>
+                                    <option value='F8-B-EXP'>F8-B w/ Expansion</option>
 									<option value='RGBCape48C'>RGBCape48C</option>
                                     <option value='RGBCape48F'>RGBCape48F</option>
 									</select>

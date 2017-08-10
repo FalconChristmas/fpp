@@ -231,6 +231,8 @@ START:
     SET	GPIO_MASK(o26_gpio), o26_pin
     SET	GPIO_MASK(o27_gpio), o27_pin
     SET	GPIO_MASK(o28_gpio), o28_pin
+#endif
+#if OUTPUTS > 28
     SET	GPIO_MASK(o29_gpio), o29_pin
     SET	GPIO_MASK(o30_gpio), o30_pin
     SET	GPIO_MASK(o31_gpio), o31_pin
@@ -355,8 +357,9 @@ _LOOP:
             OUTPUT_STRIP(26)
             OUTPUT_STRIP(27)
             OUTPUT_STRIP(28)
+#endif
+#if OUTPUTS > 28
             OUTPUT_STRIP(29)
-
             OUTPUT_STRIP(30)
             OUTPUT_STRIP(31)
             OUTPUT_STRIP(32)
@@ -367,7 +370,6 @@ _LOOP:
             OUTPUT_STRIP(37)
             OUTPUT_STRIP(38)
             OUTPUT_STRIP(39)
-
             OUTPUT_STRIP(40)
 #endif
 #if OUTPUTS > 40

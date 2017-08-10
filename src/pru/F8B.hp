@@ -53,6 +53,85 @@
 #define o12_dreg  r12.b3
 
 
+
+#ifdef F8B_EXP
+#define OUTPUTS 28
+#define USES_GPIO1
+#define USES_GPIO3
+
+
+// Output 13
+#define o13_gpio	0
+#define o13_pin		30
+#define o13_dreg  r13.b0
+// Output 14
+#define o14_gpio	0
+#define o14_pin		31
+#define o14_dreg  r13.b1
+// Output 15
+#define o15_gpio	1
+#define o15_pin		18
+#define o15_dreg  r13.b2
+// Output 16
+#define o16_gpio	1
+#define o16_pin		16
+#define o16_dreg  r13.b3
+
+// Output 17
+#define o17_gpio	0
+#define o17_pin		5
+#define o17_dreg  r14.b0
+// Output 18
+#define o18_gpio	0
+#define o18_pin		4
+#define o18_dreg  r14.b1
+// Output 19
+#define o19_gpio	0
+#define o19_pin		3
+#define o19_dreg  r14.b2
+// Output 20
+#define o20_gpio	0
+#define o20_pin		2
+#define o20_dreg  r14.b3
+
+// Output 21
+#define o21_gpio	0
+#define o21_pin		15
+#define o21_dreg  r15.b0
+// Output 22
+#define o22_gpio	0
+#define o22_pin		23
+#define o22_dreg  r15.b1
+// Output 23
+#define o23_gpio	0
+#define o23_pin		27
+#define o23_dreg  r15.b2
+// Output 24
+#define o24_gpio	0
+#define o24_pin		22
+#define o24_dreg  r15.b3
+
+// Output 25
+#define o25_gpio	2
+#define o25_pin		22
+#define o25_dreg  r16.b0
+// Output 26
+#define o26_gpio	2
+#define o26_pin		23
+#define o26_dreg  r16.b1
+// Output 27
+#define o27_gpio	1
+#define o27_pin		17
+#define o27_dreg  r16.b2
+// Output 28
+#define o28_gpio	0
+#define o28_pin		14
+#define o28_dreg  r16.b3
+
+
+#else
+
+
 #if OUTPUTS >= 16
 #define USES_GPIO3
 
@@ -95,6 +174,10 @@
 #define o20_dreg  r14.b3
 
 #endif
+
+
+#endif
+
 
 
 #endif
