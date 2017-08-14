@@ -14,35 +14,10 @@ fi
 
 
 
-WaitForInterfacesUp() {
-IPS="$(ip -o -4 addr | grep -v usb | grep -v 127.0)"
-   #echo "x:  $IPS" >> /tmp/ips.txt
-if [ -z "$IPS" ]; then
-    # Loop up to 8 times, so max wait time is 8 * 2
-    for i in {1..8}
-    do
-	sleep 2
-        IPS="$(ip -o -4 addr | grep -v usb | grep -v 127.0)"
-	#echo "y:  $IPS" >> /tmp/ips.txt
-        if [ -z "$IPS" ]
-        then
-            continue
-        fi
-
-        break
-    done
-fi
-
-#turn off power management on wireless... not all adapters
-# support this so just /dev/null any output
-iwconfig wlan0 power off 2>/dev/null >/dev/null
-}
-
-WaitForInterfacesUp
-
 
 if [ ! -f "${MEDIADIR}/.auto_update_disabled" ]
 then
+    WaitForInterfacesUp
 	${SCRIPTDIR}/git_pull
 fi
 

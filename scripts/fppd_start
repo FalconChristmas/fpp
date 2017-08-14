@@ -16,6 +16,9 @@ updateAvahiConfig
 
 setupChannelOutputs
 
+WaitForInterfacesUp
+
+
 runPreStartScripts
 
 
