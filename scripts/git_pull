@@ -10,15 +10,15 @@ teeOutput
 if curl --silent --head https://github.com | grep "Content-Type: text/html; charset=utf-8" >/dev/null; then
 	GITBRANCH=$(cd ${FPPDIR} && git branch | grep "^\*" | sed -e "s/\*\s//")
 
-	echo "Upgrading git revision from branch ${GITBRANCH}"
+	echo "Upgrading git revision from branch ${GITBRANCH}" > /tmp/output.txt
 
 	remountRootReadWrite
 
 	if [ "x${FPPDIR}" = "x/opt/fpp" ]
 	then
-		cd ${FPPDIR} && $SUDO git pull && $SUDO git fetch --tags && $SUDO git submodule sync && $SUDO git submodule update --init
+		cd ${FPPDIR} && $SUDO git pull --rebase && $SUDO git fetch --tags && $SUDO git submodule sync && $SUDO git submodule update --init
 	else
-		cd ${FPPDIR} && sudo -u ${FPPUSER} git pull && sudo -u ${FPPUSER} git fetch --tags && sudo -u ${FPPUSER} git submodule sync && sudo -u ${FPPUSER} git submodule update --init
+		cd ${FPPDIR} && sudo -u ${FPPUSER} git pull --rebase  && sudo -u ${FPPUSER} git fetch --tags && sudo -u ${FPPUSER} git submodule sync && sudo -u ${FPPUSER} git submodule update --init
 	fi
 
 	RELEASEBRANCH=$(echo ${GITBRANCH} | egrep "v[0-9]+\.[0-9]+")
@@ -31,6 +31,6 @@ if curl --silent --head https://github.com | grep "Content-Type: text/html; char
 
 	remountRootReadOnlyIfNeeded
 else
-	echo "Can not access github, unable to pull git updates"
+	echo "Can not access github, unable to pull git updates" > /tmp/output.txt
 fi
 
