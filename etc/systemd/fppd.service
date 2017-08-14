@@ -8,7 +8,7 @@ DefaultDependencies=no
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/opt/fpp/scripts/fppd_boot
+ExecStart=/opt/fpp/scripts/fpp_boot
 ExecStop=/opt/fpp/scripts/fppd_stop
 
 
