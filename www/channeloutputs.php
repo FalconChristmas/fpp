@@ -1689,6 +1689,8 @@ function GetBBB48StringRows()
         rows = 20;
     else if (subType == 'F8-B-EXP')
         rows = 28;
+    else if (subType == 'F32-B')
+        rows = 40;
 	else if (subType == 'RGBCape48C')
 		rows = 48;
     else if (subType == 'RGBCape48F')
@@ -1835,6 +1837,8 @@ function DrawBBB48StringTable()
         } else if (subType == 'F8-B-16' && (s == 12 || s == 8)) {
             html += "<tr><td colspan='10'><hr></td></tr>\n";
         } else if (subType == 'F8-B' && s == 8) {
+            html += "<tr><td colspan='10'><hr></td></tr>\n";
+        } else if (subType == 'F32-B' && s == 36) {
             html += "<tr><td colspan='10'><hr></td></tr>\n";
         } else if (s && ((s % 16) == 0)) {
     		html += "<tr><td colspan='10'><hr></td></tr>\n";
@@ -2831,6 +2835,7 @@ if ($settings['Platform'] == "BeagleBone Black")
                                     <option value='F8-B-16'>F8-B (4 serial)</option>
                                     <option value='F8-B-20'>F8-B (No serial)</option>
                                     <option value='F8-B-EXP'>F8-B w/ Expansion</option>
+                                    <option value='F32-B'>F32-B</option>
 									<option value='RGBCape48C'>RGBCape48C</option>
                                     <option value='RGBCape48F'>RGBCape48F</option>
 									</select>

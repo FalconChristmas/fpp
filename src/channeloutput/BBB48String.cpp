@@ -169,7 +169,7 @@ int BBB48StringOutput::Init(Json::Value config)
         pru_program += "FalconWS281x_16.bin";
         lsconfig->leds_height = 16;
     }
-    else if (m_subType == "F16-B-32" || m_subType == "F16-B-40")
+    else if (m_subType == "F16-B-32" || m_subType == "F16-B-40" || m_subType == "F32-B")
     {
         pru_program += "FalconWS281x_40.bin";
         lsconfig->leds_height = 40;
