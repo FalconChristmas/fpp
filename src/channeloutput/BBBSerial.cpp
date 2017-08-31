@@ -47,9 +47,6 @@ extern "C" {
 #include "settings.h"
 
 
-//THis MUST be greater than 48*MAX_PIXEL_STRING_LENGTH*3
-#define BBBSERIAL_DDR_OFFSET 150000
-
 /////////////////////////////////////////////////////////////////////////////
 
 /*
@@ -196,7 +193,9 @@ int BBBSerialOutput::Init(Json::Value config)
 		return 0;
 	}
 
-	uint8_t *out = (uint8_t *)m_leds->pru->ddr + BBBSERIAL_DDR_OFFSET;
+    size_t offset = m_leds->pru->ddr_size - 84*1024;
+    
+	uint8_t *out = (uint8_t *)m_leds->pru->ddr + offset;
 	for (int i = 0; i < m_outputs; i++)
 	{
 		if (m_pixelnet)
@@ -256,7 +255,8 @@ int BBBSerialOutput::RawSendData(unsigned char *channelData)
 	ledscape_strip_config_t *config = reinterpret_cast<ledscape_strip_config_t*>(m_config);
 
 	// Bypass LEDscape draw routine and format data for PRU ourselves
-	uint8_t * const out = (uint8_t *)m_leds->pru->ddr + BBBSERIAL_DDR_OFFSET;
+    size_t offset = m_leds->pru->ddr_size - 84*1024;
+	uint8_t * const out = (uint8_t *)m_leds->pru->ddr + offset;
 
 	uint8_t *c = out;
 	uint8_t *s = (uint8_t*)channelData;
@@ -288,7 +288,7 @@ int BBBSerialOutput::RawSendData(unsigned char *channelData)
 	while (m_leds->ws281x->command);
 
 	// Map
-	m_leds->ws281x->pixels_dma = m_leds->pru->ddr_addr + BBBSERIAL_DDR_OFFSET;
+	m_leds->ws281x->pixels_dma = m_leds->pru->ddr_addr + offset;
 
 	// Send the start command
 	m_leds->ws281x->command = 1;
