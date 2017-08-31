@@ -2012,6 +2012,10 @@ function GetBBBSerialConfig()
     
     if (!$('#BBB48StringEnabled').is(":checked"))
         config.enabled = 0;
+  
+    if ($('#BBBSerialSelect').is(":hidden"))
+        config.enabled = 0;
+
 
 
 	var i = 1;
