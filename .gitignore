@@ -29,3 +29,4 @@ external/rasclock/.tmp_versions/*
 plugins/
 .idea/
 ._*
+.DS_Store

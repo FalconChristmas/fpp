@@ -1689,6 +1689,10 @@ function GetBBB48StringRows()
         rows = 20;
     else if (subType == 'F8-B-EXP')
         rows = 28;
+    else if (subType == 'F8-B-EXP-32')
+        rows = 32;
+    else if (subType == 'F8-B-EXP-36')
+        rows = 36;
     else if (subType == 'F32-B')
         rows = 40;
 	else if (subType == 'RGBCape48C')
@@ -1814,7 +1818,9 @@ function DrawBBB48StringTable()
 
 	var subType = $('#BBB48StringSubType').val();
 
-	if ((subType == 'F16-B-48') || (subType == 'F8-B-20') || (subType == 'RGBCape48C') || (subType == 'RGBCape48F'))
+	if ((subType == 'F16-B-48') || (subType == 'F8-B-20')
+        || (subType == 'F8-B-EXP-36')
+        || (subType == 'RGBCape48C') || (subType == 'RGBCape48F'))
 	{
 		$('#BBBSerialSelect').hide();
 		$('#BBBSerialOutputs').hide();
@@ -1830,6 +1836,12 @@ function DrawBBB48StringTable()
 	{
         if (subType == 'F8-B-EXP') {
             if (s == 12 || s == 8) {
+                html += "<tr><td colspan='10'><hr></td></tr>\n";
+            }
+        } else if (subType == 'F8-B-EXP-32' && (s == 16 || s == 12 || s == 8)) {
+            html += "<tr><td colspan='10'><hr></td></tr>\n";
+        } else if (subType == 'F8-B-EXP-36') {
+            if (s == 20 || s == 16 || s == 12 || s == 8) {
                 html += "<tr><td colspan='10'><hr></td></tr>\n";
             }
         } else if (subType == 'F8-B-20' && (s == 16 || s == 12 || s == 8)) {
@@ -1948,6 +1960,7 @@ function InitializeBBBSerial()
 	{
 		if ((channelOutputsLookup["BBB48String"].subType == 'F16-B-48') ||
 			(channelOutputsLookup["BBB48String"].subType == 'F8-B-20') ||
+            (channelOutputsLookup["BBB48String"].subType == 'F8-B-EXP-36') ||
             (channelOutputsLookup["BBB48String"].subType == 'RGBCape48C') ||
             (channelOutputsLookup["BBB48String"].subType == 'RGBCape48F'))
 			return; // nothing to setup if non-serial cape
@@ -1977,7 +1990,7 @@ function SetupBBBSerialStartChannels()
 
 	if (subType == 'F4-B')
 		maxPorts = 1;
-    else if (subType == 'F8-B-16')
+    else if ((subType == 'F8-B-16') || (subType == 'F8-B-EXP-32'))
         maxPorts = 4;
 	else
 		maxPorts = 8;
@@ -2838,7 +2851,9 @@ if ($settings['Platform'] == "BeagleBone Black")
                                     <option value='F8-B'>F8-B (8 serial)</option>
                                     <option value='F8-B-16'>F8-B (4 serial)</option>
                                     <option value='F8-B-20'>F8-B (No serial)</option>
-                                    <option value='F8-B-EXP'>F8-B w/ Expansion</option>
+                                    <option value='F8-B-EXP'>F8-B w/ Expansion (8 serial)</option>
+                                    <option value='F8-B-EXP-32'>F8-B w/ Expansion (4 serial)</option>
+                                    <option value='F8-B-EXP-36'>F8-B w/ Expansion (No serial)</option>
                                     <option value='F32-B'>F32-B</option>
 									<option value='RGBCape48C'>RGBCape48C</option>
                                     <option value='RGBCape48F'>RGBCape48F</option>

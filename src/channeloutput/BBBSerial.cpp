@@ -166,7 +166,7 @@ int BBBSerialOutput::Init(Json::Value config)
     if (config["device"] == "F4-B") {
         pru_program += "_4a.bin";
         configurePRUPins(0, 4, mode);
-    } else if (config["device"] == "F8-B-16") {
+    } else if (config["device"] == "F8-B-16" || config["device"] == "F8-B-EXP-32") {
         pru_program += "_4b.bin";
         configurePRUPins(4, 8, mode);
     } else {

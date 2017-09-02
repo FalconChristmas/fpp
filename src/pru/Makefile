@@ -12,7 +12,8 @@ BINARIES :=  \
 	FalconDMX.bin FalconDMX_4a.bin FalconDMX_4b.bin \
 	FalconPixelnet.bin FalconPixelnet_4a.bin FalconPixelnet_4b.bin\
 	FalconWS281x_48.bin FalconWS281x_40.bin FalconWS281x_16.bin FalconWS281x_F4.bin \
-	FalconWS281x_F8_12.bin FalconWS281x_F8_16.bin FalconWS281x_F8_20.bin FalconWS281x_F8_EXP.bin \
+	FalconWS281x_F8_12.bin FalconWS281x_F8_16.bin FalconWS281x_F8_20.bin \
+	FalconWS281x_F8_EXP.bin FalconWS281x_F8_EXP_32.bin FalconWS281x_F8_EXP_36.bin \
 	FalconWS281x_RGBCape48C.bin FalconWS281x_RGBCape48F.bin
 
 
@@ -30,17 +31,27 @@ FalconWS281x_F8_12.bin: FalconWS281x.p F8B.hp $(PASM)
 	@$(RM) /tmp/$(basename $<).i
 
 FalconWS281x_F8_16.bin: FalconWS281x.p F8B.hp $(PASM)
-	$(CPP) -DF8B -DOUTPUTS=16 - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i
+	$(CPP) -DF8B -DOUTPUTS=16 -DPORTA  - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i
 	$(PASM) -V3 -b /tmp/$(basename $<).i $(basename $@)
 	@$(RM) /tmp/$(basename $<).i
 
 FalconWS281x_F8_20.bin: FalconWS281x.p F8B.hp $(PASM)
-	$(CPP) -DF8B -DOUTPUTS=20 - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i
+	$(CPP) -DF8B -DOUTPUTS=20 -DPORTA -DPORTB - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i
 	$(PASM) -V3 -b /tmp/$(basename $<).i $(basename $@)
 	@$(RM) /tmp/$(basename $<).i
 
 FalconWS281x_F8_EXP.bin: FalconWS281x.p F8B.hp $(PASM)
-	$(CPP) -DF8B -DF8B_EXP=1 - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i
+	$(CPP) -DF8B -DF8B_EXP=1 -DOUTPUTS=28 - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i
+	$(PASM) -V3 -b /tmp/$(basename $<).i $(basename $@)
+	@$(RM) /tmp/$(basename $<).i
+
+FalconWS281x_F8_EXP_32.bin: FalconWS281x.p F8B.hp $(PASM)
+	$(CPP) -DF8B -DF8B_EXP=1 -DPORTA -DOUTPUTS=32 - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i
+	$(PASM) -V3 -b /tmp/$(basename $<).i $(basename $@)
+	@$(RM) /tmp/$(basename $<).i
+
+FalconWS281x_F8_EXP_36.bin: FalconWS281x.p F8B.hp $(PASM)
+	$(CPP) -DF8B -DF8B_EXP=1 -DPORTA -DPORTB -DOUTPUTS=36 - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i
 	$(PASM) -V3 -b /tmp/$(basename $<).i $(basename $@)
 	@$(RM) /tmp/$(basename $<).i
 

@@ -6,19 +6,15 @@
 // Output 1
 #define o1_gpio  2
 #define o1_pin		3
-#define o1_dreg  r10.b0
 // Output 2
 #define o2_gpio	2
 #define o2_pin		4
-#define o2_dreg  r10.b1
 // Output 3
 #define o3_gpio	0
 #define o3_pin		26
-#define o3_dreg  r10.b2
 // Output 4
 #define o4_gpio	2
 #define o4_pin		1
-#define o4_dreg  r10.b3
 
 
 

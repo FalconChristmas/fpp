@@ -63,6 +63,58 @@
 #include "FalconUtils.hp"
 
 
+//register allocations for data
+#define o1_dreg  r10.b0
+#define o2_dreg  r10.b1
+#define o3_dreg  r10.b2
+#define o4_dreg  r10.b3
+#define o5_dreg  r11.b0
+#define o6_dreg  r11.b1
+#define o7_dreg  r11.b2
+#define o8_dreg  r11.b3
+#define o9_dreg  r12.b0
+#define o10_dreg  r12.b1
+#define o11_dreg  r12.b2
+#define o12_dreg  r12.b3
+#define o13_dreg  r13.b0
+#define o14_dreg  r13.b1
+#define o15_dreg  r13.b2
+#define o16_dreg  r13.b3
+#define o17_dreg  r14.b0
+#define o18_dreg  r14.b1
+#define o19_dreg  r14.b2
+#define o20_dreg  r14.b3
+#define o21_dreg  r15.b0
+#define o22_dreg  r15.b1
+#define o23_dreg  r15.b2
+#define o24_dreg  r15.b3
+#define o25_dreg  r16.b0
+#define o26_dreg  r16.b1
+#define o27_dreg  r16.b2
+#define o28_dreg  r16.b3
+#define o29_dreg  r17.b0
+#define o30_dreg  r17.b1
+#define o31_dreg  r17.b2
+#define o32_dreg  r17.b3
+#define o33_dreg  r18.b0
+#define o34_dreg  r18.b1
+#define o35_dreg  r18.b2
+#define o36_dreg  r18.b3
+#define o37_dreg  r19.b0
+#define o38_dreg  r19.b1
+#define o39_dreg  r19.b2
+#define o40_dreg  r19.b3
+#define o41_dreg  r20.b0
+#define o42_dreg  r20.b1
+#define o43_dreg  r20.b2
+#define o44_dreg  r20.b3
+#define o45_dreg  r21.b0
+#define o46_dreg  r21.b1
+#define o47_dreg  r21.b2
+#define o48_dreg  r21.b3
+
+
+
 .origin 0
 .entrypoint START
 
@@ -144,10 +196,8 @@ lab:
 //	SET	gpioN##_zeros, gpioN##_zeros, gpioN##_##bitN ; \
 //	gpioN##_##regN##_skip: ; \
 
-#define CAT3(X,Y,Z) X##Y##Z
-
+#define CAT3(a,b,c) a##b##c
 #define GPIO_MASK(X) CAT3(gpio,X,_led_mask)
-
 #define GPIO(R)	CAT3(gpio,R,_zeros)
 
 
@@ -237,10 +287,14 @@ START:
     SET	GPIO_MASK(o30_gpio), o30_pin
     SET	GPIO_MASK(o31_gpio), o31_pin
     SET	GPIO_MASK(o32_gpio), o32_pin
+#endif
+#if OUTPUTS > 32
     SET	GPIO_MASK(o33_gpio), o33_pin
     SET	GPIO_MASK(o34_gpio), o34_pin
     SET	GPIO_MASK(o35_gpio), o35_pin
     SET	GPIO_MASK(o36_gpio), o36_pin
+#endif
+#if OUTPUTS > 36
     SET	GPIO_MASK(o37_gpio), o37_pin
     SET	GPIO_MASK(o38_gpio), o38_pin
     SET	GPIO_MASK(o39_gpio), o39_pin
@@ -363,10 +417,14 @@ _LOOP:
             OUTPUT_STRIP(30)
             OUTPUT_STRIP(31)
             OUTPUT_STRIP(32)
+#endif
+#if OUTPUTS > 32
             OUTPUT_STRIP(33)
             OUTPUT_STRIP(34)
             OUTPUT_STRIP(35)
             OUTPUT_STRIP(36)
+#endif
+#if OUTPUTS > 36
             OUTPUT_STRIP(37)
             OUTPUT_STRIP(38)
             OUTPUT_STRIP(39)
