@@ -53,7 +53,8 @@
 #define bit             r2.b2
 #define bitFlags        r2.b3
 #define statsBit        0
-#define sleep_counter   r3
+#define sleep_counter   r3.w0
+#define sleepDone       r3.w2
 #define statOffset      r4.w0
 #define numRows         r4.b2
 #define bitsToSkip      r4.b3
@@ -92,6 +93,7 @@
     QBEQ NO_BLANK, sleep_counter, 0
         GET_PRU_CLOCK reg1, reg2
         QBGT NO_BLANK, reg1, sleep_counter
+        MOV sleepDone, reg1
         DISPLAY_OFF
         LDI sleep_counter, 0
     NO_BLANK:
@@ -327,6 +329,7 @@ START:
     DISABLE_PIN_INTERRUPTS
 
     LDI sleep_counter, 0
+    LDI sleepDone, 0
 
     RESET_PRU_CLOCK gpio0_set, gpio1_set
     LDI statOffset, 0
@@ -377,9 +380,10 @@ NEW_ROW_LOOP:
 			// consecutive registers, starting at pixel_data.
             LBBO pixel_data, data_addr, offset, 3*2*OUTPUTS
 
+            CHECK_FOR_DISPLAY_OFF
+
             LDI bit, 0
             BIT_LOOP:
-                CHECK_FOR_DISPLAY_OFF
                 ZERO &gpio0_set, 16
 
                 CLOCK_LO
@@ -432,6 +436,9 @@ NEW_ROW_LOOP:
             //write some debug data into sram to read in c code
             GET_PRU_CLOCK gpio0_set, gpio2_set, 8
             MOV gpio2_set, sleep_counter
+            QBNE STILLON, sleep_counter, 0
+                MOV gpio2_set, sleepDone
+            STILLON:
             MOV gpio3_set, statOffset
             LSL gpio3_set, gpio3_set, 2
             ADD gpio3_set, gpio3_set, 88   // move past all the config at the beginning
@@ -461,11 +468,14 @@ NEW_ROW_LOOP:
 		LATCH_HI
 
         RESET_PRU_CLOCK gpio2_set, gpio3_set
-        MOV sleep_counter, gpio1_set
-        WAIT_FOR_EXTRA_OFF_TIME:
-            GET_PRU_CLOCK gpio1_set, gpio2_set
-            QBGT WAIT_FOR_EXTRA_OFF_TIME, gpio1_set, sleep_counter
+        QBEQ NO_EXTRA_DELAY, gpio1_set, 0
+            MOV sleep_counter, gpio1_set
+            WAIT_FOR_EXTRA_OFF_TIME:
+                GET_PRU_CLOCK gpio1_set, gpio2_set
+                QBGT WAIT_FOR_EXTRA_OFF_TIME, gpio1_set, sleep_counter
+        NO_EXTRA_DELAY:
         MOV sleep_counter, gpio0_set
+        MOV sleepDone, 0
 
         DISPLAY_ON
 

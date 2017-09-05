@@ -22,6 +22,7 @@ OBJECTS_fppmm = \
 	fppmm.o \
 	fppversion.o \
 	$(NULL)
+
 LIBS_fppmm = \
 	$(NULL)
 
@@ -381,7 +382,7 @@ util: force
 		git submodule init && \
 		git submodule update
 
-../external/LEDscape/lib/libledscape.a: ../external/LEDscape/.git
+../external/LEDscape/lib/libledscape.a: ../external/LEDscape/.git  ../external/LEDscape/src/ledscape/ledscape.c ../external/LEDscape/src/ledscape/ledscape.h
 	@echo "Building LEDscape library"
 	@make -C ../external/LEDscape/src/ledscape
 

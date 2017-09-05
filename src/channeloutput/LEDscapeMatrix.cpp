@@ -68,6 +68,8 @@ LEDscapeMatrixOutput::~LEDscapeMatrixOutput()
 static void calcBrightness(ledscape_t *leds, int brightness, int maxPanel, int maxOutput, int rowsPerOutput,
                            int panelHeight, int panelWidth, int ver) {
     LogDebug(VB_CHANNELOUT, "Calc Brightness:   maxPanel:  %d    maxOutput: %d     Brightness: %d    rpo: %d    ph:  %d    pw:  %d\n", maxPanel, maxOutput, brightness, rowsPerOutput, panelHeight, panelWidth);
+    
+    
     uint32_t max = (maxOutput < 4) ? 0xB00 : 0xD00;
     if (ver == 2) {
         if (maxOutput == 1) {
@@ -103,24 +105,35 @@ static void calcBrightness(ledscape_t *leds, int brightness, int maxPanel, int m
             max += 0x300;
         }
     }
-    uint32_t delay = 0;
-    if (brightness < 5) {
-        //insert some extra "off" time
-        delay =  max * 5 / 100 * (5-brightness);
+
+    // 1/4 scan we need to double the time since we have twice the number of pixels to clock out
+    max *= panelHeight;
+    max /= (rowsPerOutput * 2);
+    uint32_t origMax = max * 90 / 100; //max's are calced at roughly 10% over needed
+
+    if (max < 0x2000) {
+        //if max is too low, the low bit time is too short and
+        //extra ghosting occurs
+        // At this point, framerate will be supper high anyway >100fps
+        max = 0x2000;
     }
+    uint32_t origMax2 = max;
     
     max *= brightness;
     max /= 10;
     
-    // 1/4 scan we need to double the time since we have twice the number of pixels to clock out
-    max *=  panelHeight;
-    max /= (rowsPerOutput * 2);
+    uint32_t delay = origMax2 - max;
+    if (max < origMax) {
+        delay = origMax2 - origMax;
+    }
     
     for (int x = 0; x < 8; x++) {
         LogDebug(VB_CHANNELOUT, "Brightness %d:  %X\n", x, max);
-        leds->ws281x->brightInfo[2*x] = max;
+        
         leds->ws281x->brightInfo[2*x + 1] = delay;
+        leds->ws281x->brightInfo[2*x] = max + delay;
         max >>= 1;
+        origMax >>= 1;
     }
     
     if (FileExists("/home/fpp/media/config/ledscape_dimming")) {
