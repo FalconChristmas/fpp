@@ -383,6 +383,5 @@ util: force
 
 ../external/LEDscape/lib/libledscape.a: ../external/LEDscape/.git
 	@echo "Building LEDscape library"
-	@cd ../external/LEDscape/ && git checkout master && git pull
-	@make -C ../external/LEDscape
+	@make -C ../external/LEDscape/src/ledscape
 

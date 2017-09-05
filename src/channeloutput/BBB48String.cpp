@@ -133,6 +133,10 @@ int BBB48StringOutput::Init(Json::Value config)
 		return 0;
 	}
 
+    if (m_maxStringLen == 0) {
+        LogErr(VB_CHANNELOUT, "No pixels configured in any string\n");
+        return 0;
+    }
 	m_config = reinterpret_cast<ledscape_config_t*>(calloc(1, sizeof(ledscape_config_t)));
 	if (!m_config)
 	{
@@ -201,7 +205,7 @@ int BBB48StringOutput::Init(Json::Value config)
     else if (m_subType == "F8-B-EXP-32")
     {
         pru_program += "FalconWS281x_F8_EXP_32.bin";
-        lsconfig->leds_height = 36;
+        lsconfig->leds_height = 32;
     }
     else if (m_subType == "F8-B-EXP-36")
     {
@@ -281,6 +285,7 @@ int BBB48StringOutput::RawSendData(unsigned char *channelData)
 	int inCh;
 
     int numStrings = m_config->strip_config.leds_height;
+    
 	for (int s = 0; s < m_strings.size(); s++)
 	{
 		ps = m_strings[s];
@@ -324,7 +329,6 @@ int BBB48StringOutput::RawSendData(unsigned char *channelData)
 		}
 		
 	}
-
 	// Wait for the previous draw to finish
 	while (m_leds->ws281x->command);
 
