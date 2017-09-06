@@ -133,40 +133,47 @@ function SetSetting()
 			$SUDO . " sysctl --system",
 			$output, $return_val);
 	} else if ($setting == "storageDevice") {
-		exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
-		$rootDevice = $output[0];
-		unset($output);
+        exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
+        $rootDevice = $output[0];
+        unset($output);
+        if ($value == "--none--") {
+            $value = $rootDevice;
+        } else {
+            $fsckOrder = "0";
+            exec( $SUDO . " file -sL /dev/$value | grep FAT", $output, $return_val );
+            if ($output[0] == "") {
+                unset($output);
+                exec( $SUDO . " file -sL /dev/$value | grep BTRFS", $output, $return_val );
 
-		exec( $SUDO . " file -sL /dev/$value | grep FAT", $output, $return_val );
                 if ($output[0] == "") {
                     unset($output);
-                    exec( $SUDO . " file -sL /dev/$value | grep BTRFS", $output, $return_val );
-
+                    exec( $SUDO . " file -sL /dev/$value | grep DOS", $output, $return_val );
                     if ($output[0] == "") {
-			unset($output);
-                        exec( $SUDO . " file -sL /dev/$value | grep DOS", $output, $return_val );
-			if ($output[0] == "") {
-
-	                        # probably ext4
-        	                $options = "defaults,noatime,nodiratime";
-			} else {
-				# exFAT probably
-                                $options = "defaults,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500,nonempty";
-			}
+                        # probably ext4
+                        $options = "defaults,noatime,nodiratime,nofail";
+                        $fsckOrder = "2";
                     } else {
-                        # BTRFS, turn on compression since fseq files are very compressible
-                        $options = "defaults,noatime,nodiratime,compress-force=lzo";
+                        # exFAT probably
+                        $options = "defaults,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500,nonempty";
+                        $fsckOrder = "2";
                     }
                 } else {
-                    # FAT filesystem
-                    $options = "defaults,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500";
+                    # BTRFS, turn on compression since fseq files are very compressible
+                    $options = "defaults,noatime,nodiratime,compress-force=lzo,nofail";
+                    $fsckOrder = "0";
                 }
-                if (preg_match("/$rootDevice/", $value)) {
-                        exec(   $SUDO . " sed -i 's/.*home\/fpp\/media/#\/dev\/sda1    \/home\/fpp\/media/' /etc/fstab", $output, $return_val );
-                } else {
-                        exec(   $SUDO . " sed -i 's/.*home\/fpp\/media.*/\/dev\/$value	\/home\/fpp\/media	auto	$options	0	0 /' /etc/fstab", $output, $return_val );
-                }
-                unset($output);
+            } else {
+                # FAT filesystem
+                $options = "defaults,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500";
+                $fsckOrder = "2";
+            }
+        }
+        if (preg_match("/$rootDevice/", $value)) {
+            exec(   $SUDO . " sed -i 's/.*home\/fpp\/media/#\/dev\/sda1    \/home\/fpp\/media/' /etc/fstab", $output, $return_val );
+        } else {
+            exec(   $SUDO . " sed -i 's/.*home\/fpp\/media.*/\/dev\/$value	\/home\/fpp\/media	auto	$options	0	$fsckOrder /' /etc/fstab", $output, $return_val );
+        }
+        unset($output);
 	} else if ($setting == "AudioOutput") {
 		SetAudioOutput($value);
 	} else if ($setting == "ForceHDMI") {

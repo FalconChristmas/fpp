@@ -156,7 +156,7 @@ function PrintStorageDeviceSelect()
 	if (!$found)
 	{
 		$arr = array_reverse($values, true);
-		$arr["-- Select a Storage Device --"] = "/dev/sda1";
+		$arr["-- Select a Storage Device --"] = "--none--";
 		$values = array_reverse($arr);
 	}
 
