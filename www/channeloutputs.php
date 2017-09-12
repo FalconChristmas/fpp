@@ -1856,24 +1856,24 @@ function DrawBBB48StringTable()
 	{
         if (subType == 'F8-B-EXP') {
             if (s == 12 || s == 8) {
-                html += "<tr><td colspan='10'><hr></td></tr>\n";
+                html += "<tr><td colspan='11'><hr></td></tr>\n";
             }
         } else if (subType == 'F8-B-EXP-32' && (s == 16 || s == 12 || s == 8)) {
-            html += "<tr><td colspan='10'><hr></td></tr>\n";
+            html += "<tr><td colspan='11'><hr></td></tr>\n";
         } else if (subType == 'F8-B-EXP-36') {
             if (s == 20 || s == 16 || s == 12 || s == 8) {
-                html += "<tr><td colspan='10'><hr></td></tr>\n";
+                html += "<tr><td colspan='11'><hr></td></tr>\n";
             }
         } else if (subType == 'F8-B-20' && (s == 16 || s == 12 || s == 8)) {
-            html += "<tr><td colspan='10'><hr></td></tr>\n";
+            html += "<tr><td colspan='11'><hr></td></tr>\n";
         } else if (subType == 'F8-B-16' && (s == 12 || s == 8)) {
-            html += "<tr><td colspan='10'><hr></td></tr>\n";
+            html += "<tr><td colspan='11'><hr></td></tr>\n";
         } else if (subType == 'F8-B' && s == 8) {
-            html += "<tr><td colspan='10'><hr></td></tr>\n";
+            html += "<tr><td colspan='11'><hr></td></tr>\n";
         } else if (subType == 'F32-B' && s == 36) {
-            html += "<tr><td colspan='10'><hr></td></tr>\n";
+            html += "<tr><td colspan='11'><hr></td></tr>\n";
         } else if (s && ((s % 16) == 0)) {
-    		html += "<tr><td colspan='10'><hr></td></tr>\n";
+    		html += "<tr><td colspan='11'><hr></td></tr>\n";
 		}
 
 		html += "<tr id='BBB48StringRow" + s + "'>";
