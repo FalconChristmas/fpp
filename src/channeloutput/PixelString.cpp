@@ -24,6 +24,7 @@
  */
 
 #include <stdlib.h>
+#include <cmath>
 
 #include "common.h"
 #include "log.h"
@@ -48,7 +49,8 @@ PixelString::PixelString()
 	m_grouping(0),
 	m_zigZag(0),
 	m_inputChannels(0),
-	m_outputChannels(0)
+	m_outputChannels(0),
+    m_brightness(100)
 {
 }
 
@@ -76,12 +78,12 @@ int PixelString::Init(std::string configStr)
 	return Init(atoi(elems[0].c_str()), 0, atoi(elems[1].c_str()),
 		atoi(elems[2].c_str()), elems[3], atoi(elems[4].c_str()),
 		atoi(elems[5].c_str()), atoi(elems[6].c_str()),
-		atoi(elems[7].c_str()), atoi(elems[8].c_str()));
+		atoi(elems[7].c_str()), atoi(elems[8].c_str()), 100);
 }
 
 int PixelString::Init(int portNumber, int channelOffset, int startChannel,
 		int pixelCount, std::string colorOrder, int nullNodes,
-		int hybridMode, int reverse, int grouping, int zigZag)
+		int hybridMode, int reverse, int grouping, int zigZag, int brightness)
 {
 	m_portNumber = portNumber;
 	m_channelOffset = channelOffset;
@@ -93,6 +95,10 @@ int PixelString::Init(int portNumber, int channelOffset, int startChannel,
 	m_reverseDirection = reverse;
 	m_grouping = grouping;
 	m_zigZag = zigZag;
+    m_brightness = brightness;
+    if (m_brightness > 100 || m_brightness < 0) {
+        m_brightness = 100;
+    }
 
 	if ((m_startChannel < 0) || (m_startChannel > FPPD_MAX_CHANNELS) ||
 		(m_pixelCount < 0) || (m_pixelCount > MAX_PIXEL_STRING_LENGTH) ||
@@ -131,6 +137,14 @@ int PixelString::Init(int portNumber, int channelOffset, int startChannel,
 
 	SetupMap();
 
+    float bf = m_brightness;
+    for (int x = 0; x < 256; x++) {
+        float f = x;
+        f *= bf;
+        f /= 100.0f;
+        m_brightnessMap[x] = std::round(f);
+    }
+    
 	return 1;
 }
 

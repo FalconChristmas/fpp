@@ -109,6 +109,11 @@ int BBB48StringOutput::Init(Json::Value config)
 		Json::Value s = config["outputs"][i];
 		PixelString *newString = new PixelString;
 
+        int brightness = 100;
+        if (!s["brightness"].isNull()) {
+            brightness = s["brightness"].asInt();
+        }
+        
 		if (!newString->Init(s["portNumber"].asInt(),
 			m_startChannel,
 			s["startChannel"].asInt() - 1,
@@ -118,7 +123,8 @@ int BBB48StringOutput::Init(Json::Value config)
 			s["hybridMode"].asInt(),
 			s["reverse"].asInt(),
 			s["grouping"].asInt(),
-			s["zigZag"].asInt()))
+			s["zigZag"].asInt(),
+            brightness))
 			return 0;
 
 		if ((newString->m_pixelCount + newString->m_nullNodes) > m_maxStringLen)
@@ -289,6 +295,7 @@ int BBB48StringOutput::RawSendData(unsigned char *channelData)
 	for (int s = 0; s < m_strings.size(); s++)
 	{
 		ps = m_strings[s];
+        uint8_t *brightness = ps->m_brightnessMap;
 		c = out + (ps->m_nullNodes * numStrings * 3) + ps->m_portNumber;
 
 		if ((ps->m_hybridMode) &&
@@ -298,13 +305,13 @@ int BBB48StringOutput::RawSendData(unsigned char *channelData)
 		{
 			for (int p = 0; p < ps->m_pixelCount; p++)
 			{
-				*c = channelData[ps->m_outputMap[0]];
+				*c = brightness[channelData[ps->m_outputMap[0]]];
 				c += numStrings;
 
-				*c = channelData[ps->m_outputMap[1]];
+				*c = brightness[channelData[ps->m_outputMap[1]]];
 				c += numStrings;
 
-				*c = channelData[ps->m_outputMap[2]];
+				*c = brightness[channelData[ps->m_outputMap[2]]];
 				c += numStrings;
 			}
 		}
@@ -317,13 +324,13 @@ int BBB48StringOutput::RawSendData(unsigned char *channelData)
 
 			for (int p = 0; p < ps->m_pixelCount; p++)
 			{
-				*c = channelData[ps->m_outputMap[inCh++]];
+				*c = brightness[channelData[ps->m_outputMap[inCh++]]];
 				c += numStrings;
 
-				*c = channelData[ps->m_outputMap[inCh++]];
+				*c = brightness[channelData[ps->m_outputMap[inCh++]]];
 				c += numStrings;
 
-				*c = channelData[ps->m_outputMap[inCh++]];
+				*c = brightness[channelData[ps->m_outputMap[inCh++]]];
 				c += numStrings;
 			}
 		}
