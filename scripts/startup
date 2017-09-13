@@ -55,6 +55,8 @@ chown ${FPPUSER}.${FPPUSER} ${FPPHOME}/media/${DIR}
 fi
 done
 
+chown -R ${FPPUSER}.${FPPUSER} ${FPPHOME}/media
+
 mkdir -p /var/log/samba
 
 # Configure Network and DNS
