@@ -73,16 +73,16 @@
 #define b52_pin 2
 
 #define r61_gpio 1
-#define r61_pin 19
+#define r61_pin 17
 #define g61_gpio 1
-#define g61_pin 17
+#define g61_pin 19
 #define b61_gpio 1
-#define b61_pin 18
+#define b61_pin 16
 
 #define r62_gpio 2
 #define r62_pin 17
 #define g62_gpio 1
-#define g62_pin 16
+#define g62_pin 18
 #define b62_gpio 1
 #define b62_pin 29
 
