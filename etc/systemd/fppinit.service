@@ -1,8 +1,8 @@
 [Unit]
 Description=Inialization routines for FPP
-After=connman.target home-fpp-media.mount
-Before=network.target multi-user.target apache2.target
-Wants=connman.target network-pre.target home-fpp-media.mount
+After=home-fpp-media.mount
+Before=connman.target network.target multi-user.target apache2.target
+Wants=network-pre.target home-fpp-media.mount
 DefaultDependencies=no
 
 [Service]
