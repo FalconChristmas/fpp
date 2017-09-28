@@ -204,6 +204,14 @@
     DISABLE_GPIO_PIN_INTERRUPTS gpio3_led_mask, GPIO3
 .endm
 
+.macro CLEAR_IF_NOT_EQUAL
+.mparam  val, gpioAdd, equ
+QBEQ skip, val, equ
+    SBBO    val, gpioAdd, GPIO_CLRDATAOUT, 4
+skip:
+.endm
+
+
 START:
 	// Enable OCP master port
 	// clear the STANDBY_INIT bit in the SYSCFG register,
@@ -498,16 +506,15 @@ _LOOP:
             WAITNS    LOW_TIME, r8, r9
 
 			// turn off all the zero bits
-            SBBO    gpio2_zeros, gpio2_address, GPIO_CLRDATAOUT, 4
+            // if gpio_zeros is 0, nothing will be turned off, skip
+            CLEAR_IF_NOT_EQUAL  gpio2_zeros, gpio2_address, 0
 #ifdef USES_GPIO1
-			SBBO	gpio1_zeros, gpio1_address, GPIO_CLRDATAOUT, 4
+            CLEAR_IF_NOT_EQUAL  gpio1_zeros, gpio1_address, 0
 #endif
 #ifdef USES_GPIO3
-			SBBO	gpio3_zeros, gpio3_address, GPIO_CLRDATAOUT, 4
+            CLEAR_IF_NOT_EQUAL  gpio3_zeros, gpio3_address, 0
 #endif
-            SBBO    gpio0_zeros, gpio0_address, GPIO_CLRDATAOUT, 4
-
-
+            CLEAR_IF_NOT_EQUAL  gpio0_zeros, gpio0_address, 0
 
 			// Wait until the length of the one bits
 			WAITNS	HIGH_TIME, r8, r9
@@ -515,14 +522,16 @@ _LOOP:
             RESET_PRU_CLOCK r8, r9
 
             // Turn all the bits off
-            SBBO    gpio2_led_mask, gpio2_address, GPIO_CLRDATAOUT, 4
+            // if gpio#_zeros is equal to the led mask, then everythin was
+            // already shut off, don't output
+            CLEAR_IF_NOT_EQUAL gpio2_led_mask, gpio2_address, gpio0_zeros
 #ifdef USES_GPIO1
-			SBBO	gpio1_led_mask, gpio1_address, GPIO_CLRDATAOUT, 4
+            CLEAR_IF_NOT_EQUAL gpio1_led_mask, gpio1_address, gpio1_zeros
 #endif
 #ifdef USES_GPIO3
-			SBBO	gpio3_led_mask, gpio3_address, GPIO_CLRDATAOUT, 4
+            CLEAR_IF_NOT_EQUAL gpio3_led_mask, gpio3_address, gpio3_zeros
 #endif
-            SBBO    gpio0_led_mask, gpio0_address, GPIO_CLRDATAOUT, 4
+            CLEAR_IF_NOT_EQUAL gpio0_led_mask, gpio0_address, gpio0_zeros
 
 			QBNE	BIT_LOOP, bit_num, 0
 
