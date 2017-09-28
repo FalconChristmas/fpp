@@ -34,7 +34,7 @@
 #define BBB_PRU  1
 #define PRU_ARM_INTERRUPT PRU1_ARM_INTERRUPT
 
-#define PRINT_STATS
+//   #define PRINT_STATS
 
 
 #include <pruss_intc_mapping.h>

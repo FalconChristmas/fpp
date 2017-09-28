@@ -46,7 +46,7 @@
 
 #define RUNNING_ON_PRU1
 
-#define RECORD_STATS
+//   #define RECORD_STATS
 
 #if defined F4B
 #include "F4B.hp"
