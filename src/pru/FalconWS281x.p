@@ -46,7 +46,7 @@
 
 #define RUNNING_ON_PRU1
 
-// #define RECORD_STATS
+#define RECORD_STATS
 
 #if defined F4B
 #include "F4B.hp"
@@ -341,28 +341,40 @@ _LOOP:
     RESET_PRU_CLOCK r8, r9
 
 	WORD_LOOP:
-        // Load 48 bytes of data, starting at r10
+        // Load OUTPUTS bytes of data, starting at r10
         // one byte for each of the outputs
-        QBBS USEDDR, bit_flags, 2
+        QBBS USEDDR, bit_flags.t3
+        QBBS USESHAREDRAM,  bit_flags.t2
 
-        MOV r8, 8142 //8k - 50
-        QBBS USERAM2, bit_flags, 1
+        QBBS USERAM2, bit_flags.t1
             LBCO    r10, CONST_PRUDRAM, sram_offset, OUTPUTS
             ADD     sram_offset, sram_offset, OUTPUTS
-            QBLT LOADEDFROMSRAM, r8, sram_offset
+            MOV     r8, 8142 //8k - 50
+            QBLT DATALOADED, r8, sram_offset
                 //reached the end of what we have in our sram, flip to other SRAM
                 MOV r8, 7630
                 SUB sram_offset, sram_offset, r8
-                SET bit_flags, 1
-                QBA LOADEDFROMSRAM
+                SET bit_flags.t1
+                QBA DATALOADED
         USERAM2:
             LBCO    r10, CONST_OTHERPRUDRAM, sram_offset, OUTPUTS
             ADD     sram_offset, sram_offset, OUTPUTS
-            QBLT LOADEDFROMSRAM, r8, sram_offset
+            MOV     r8, 8142 //8k - 50
+            QBLT    DATALOADED, r8, sram_offset
+                //reached the end of what we have in other sram, flip to sharedram
+                MOV r8, (7630 + 512)
+                SUB sram_offset, sram_offset, r8
+                SET bit_flags.t2
+            QBA     DATALOADED
+        USESHAREDRAM:
+            MOV     r9, 0x0001000
+            LBBO    r10, r9, sram_offset, OUTPUTS
+            ADD     sram_offset, sram_offset, OUTPUTS
+            MOV     r8, 12188
+            QBLT DATALOADED, r8, sram_offset
                 //reached the end of what we have in other sram, flip to DDR
-                SET bit_flags, 2
-        LOADEDFROMSRAM:
-        QBA     DATALOADED
+                SET bit_flags.t3
+                QBA     DATALOADED
         USEDDR:
             LBBO    r10, data_addr, 0, OUTPUTS
         DATALOADED:

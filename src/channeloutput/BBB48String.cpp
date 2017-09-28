@@ -34,12 +34,13 @@
 #define BBB_PRU  1
 #define PRU_ARM_INTERRUPT PRU1_ARM_INTERRUPT
 
-//  #define PRINT_STATS
+#define PRINT_STATS
 
 
 #include <pruss_intc_mapping.h>
 #define PRUSS0_PRU0_DATARAM     0
 #define PRUSS0_PRU1_DATARAM     1
+#define PRUSS0_SHARED_DATARAM   4
 extern "C" {
     extern int prussdrv_pru_clear_event(unsigned int eventnum);
     extern int prussdrv_pru_wait_event(unsigned int pru_evtout_num);
@@ -92,7 +93,8 @@ BBB48StringOutput::BBB48StringOutput(unsigned int startChannel,
     m_lastData(NULL),
     m_curData(NULL),
     m_curFrame(0),
-    m_otherPruRam(NULL)
+    m_otherPruRam(NULL),
+    m_sharedPruRam(NULL)
 {
 	LogDebug(VB_CHANNELOUT, "BBB48StringOutput::BBB48StringOutput(%u, %u)\n",
 		startChannel, channelCount);
@@ -113,7 +115,6 @@ BBB48StringOutput::~BBB48StringOutput()
 
 
 inline std::string mapF8Size(int max, int maxString, int &newHeight) {
-    printf("%d  %d\n", max, maxString);
     if (maxString > max) {
         maxString = max;
     }
@@ -292,6 +293,11 @@ int BBB48StringOutput::Init(Json::Value config)
     m_lastData = (uint8_t*)calloc(1, m_leds->frame_size);
     m_curData = (uint8_t*)calloc(1, m_leds->frame_size);
     
+    uint32_t *timings = (uint32_t *)m_leds->ws281x;
+    for (int x = 0; x < 60*3; x++) {
+        timings[x + 17] = 0;
+    }
+
     return retVal;
 }
 
@@ -313,14 +319,13 @@ int BBB48StringOutput::StartPRU()
     //get the other PRU's sram pointer as well
     void *other = nullptr;
     prussdrv_map_prumem(pruNumber == 0 ? PRUSS0_PRU1_DATARAM :PRUSS0_PRU0_DATARAM,
-                        &other
-                        );
+                        &other);
     m_otherPruRam = (uint8_t*)other;
-    uint32_t *timings = (uint32_t *)m_leds->ws281x;
-    for (int x = 0; x < 30*3; x++) {
-        timings[x + 17] = 0;
-    }
-
+    
+    other = nullptr;
+    prussdrv_map_prumem(PRUSS0_SHARED_DATARAM,
+                        &other);
+    m_sharedPruRam = (uint8_t*)other;
     return 1;
 }
 void BBB48StringOutput::StopPRU(bool wait)
@@ -366,6 +371,9 @@ int BBB48StringOutput::RawSendData(unsigned char *channelData)
     
     m_curFrame++;
 
+    
+    uint8_t *data = (uint8_t *)m_leds->ws281x;
+    
 #ifdef PRINT_STATS
     uint16_t *timings = (uint16_t *)m_leds->ws281x;
     int max = 0;
@@ -466,20 +474,30 @@ int BBB48StringOutput::RawSendData(unsigned char *channelData)
         }
         
         //first 7.5K to main PRU ram
-        uint8_t * const pruMem = (uint8_t *)m_leds->ws281x + 512;
-        memcpy(pruMem, m_curData, mx);
+        uint8_t * const pruMem = (uint8_t *)m_leds->ws281x;
+        memcpy(pruMem + 512, m_curData, mx);
         if (fullsize > 7630) {
             fullsize -= 7630;
-            if (fullsize > (8*1024 - 512)) {
-                fullsize = 8*1024 - 512;
+            int outsize = fullsize;
+            if (outsize > (8*1024 - 512)) {
+                outsize = 8*1024 - 512;
             }
             // second 7.5K to other PRU ram
-            memcpy(m_otherPruRam + 512, m_curData + 7630, fullsize);
+            memcpy(m_otherPruRam + 512, m_curData + 7630, outsize);
+            fullsize -= outsize;
         }
-        if ((7630 * 2) < frameSize) {
+        if (fullsize > 0) {
+            int outsize = fullsize;
+            if (outsize > (12*1024)) {
+                outsize = 12*1024;
+            }
+            memcpy(m_sharedPruRam, m_curData + 7630 + 7630, outsize);
+        }
+        int off = 7630 * 2 + 12188;
+        if (off < frameSize) {
             // more than what fits in the SRAMs
             //don't need to copy the first part as that's in sram, just copy the last parts
-            int off = 7630 * 2 - 50;
+            off -= 100;
             uint8_t * const realout = (uint8_t *)m_leds->pru->ddr + m_leds->frame_size * frame + off;
             memcpy(realout, m_curData + off, frameSize - off);
         }
