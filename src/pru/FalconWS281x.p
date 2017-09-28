@@ -345,12 +345,13 @@ _LOOP:
         // one byte for each of the outputs
         QBBS USEDDR, bit_flags, 2
 
-        MOV r8, 7630 //7.5k - 50
+        MOV r8, 8142 //8k - 50
         QBBS USERAM2, bit_flags, 1
             LBCO    r10, CONST_PRUDRAM, sram_offset, OUTPUTS
             ADD     sram_offset, sram_offset, OUTPUTS
             QBLT LOADEDFROMSRAM, r8, sram_offset
                 //reached the end of what we have in our sram, flip to other SRAM
+                MOV r8, 7630
                 SUB sram_offset, sram_offset, r8
                 SET bit_flags, 1
                 QBA LOADEDFROMSRAM

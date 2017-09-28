@@ -292,7 +292,6 @@ int BBB48StringOutput::Init(Json::Value config)
     m_lastData = (uint8_t*)calloc(1, m_leds->frame_size);
     m_curData = (uint8_t*)calloc(1, m_leds->frame_size);
     
-
     return retVal;
 }
 
@@ -395,7 +394,7 @@ int BBB48StringOutput::RawSendData(unsigned char *channelData)
 	int inCh;
 
     int numStrings = m_config->strip_config.leds_height;
-    
+
 	for (int s = 0; s < m_strings.size(); s++)
 	{
 		ps = m_strings[s];
@@ -475,7 +474,7 @@ int BBB48StringOutput::RawSendData(unsigned char *channelData)
                 fullsize = 8*1024 - 512;
             }
             // second 7.5K to other PRU ram
-            memcpy(m_otherPruRam, m_curData + 7630, fullsize);
+            memcpy(m_otherPruRam + 512, m_curData + 7630, fullsize);
         }
         if ((7630 * 2) < frameSize) {
             // more than what fits in the SRAMs
