@@ -315,7 +315,7 @@ char *Sequence::CurrentSequenceFilename(void) {
 	return m_seqFilename;
 }
 
-inline int Sequence::IsSequenceRunning(void) {
+int Sequence::IsSequenceRunning(void) {
 	if (m_seqFile)
 		return 1;
 

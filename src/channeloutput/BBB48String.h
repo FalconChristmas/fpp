@@ -47,15 +47,22 @@ class BBB48StringOutput : public ChannelOutputBase {
 	void DumpConfig(void);
 
   private:
+    void StopPRU(bool wait = true);
+    int StartPRU();
+    
 	ledscape_config_t   *m_config;
 	ledscape_t          *m_leds;
 
 	std::string                m_subType;
 	int                        m_maxStringLen;
 	std::vector<PixelString*>  m_strings;
-
+    std::string                m_pruProgram;
 	void ApplyPinMap(const int *map);
 	int MapPins(void);
+    
+    uint8_t            *m_lastData;
+    uint8_t            *m_curData;
+    uint32_t           m_curFrame;
 };
 
 #endif /* _BBB48STRING_H */

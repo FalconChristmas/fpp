@@ -27,6 +27,15 @@
 #include <string.h>
 #include <strings.h>
 #include <unistd.h>
+#include <ctime>
+#include <thread>
+#include <chrono>
+
+#define BBB_PRU  1
+#define PRU_ARM_INTERRUPT PRU1_ARM_INTERRUPT
+
+//   #define PRINT_STATS
+
 
 #include <pruss_intc_mapping.h>
 extern "C" {
@@ -76,7 +85,10 @@ BBB48StringOutput::BBB48StringOutput(unsigned int startChannel,
   : ChannelOutputBase(startChannel, channelCount),
 	m_config(NULL),
 	m_leds(NULL),
-	m_maxStringLen(0)
+	m_maxStringLen(0),
+    m_lastData(NULL),
+    m_curData(NULL),
+    m_curFrame(0)
 {
 	LogDebug(VB_CHANNELOUT, "BBB48StringOutput::BBB48StringOutput(%u, %u)\n",
 		startChannel, channelCount);
@@ -91,7 +103,36 @@ BBB48StringOutput::~BBB48StringOutput()
 	LogDebug(VB_CHANNELOUT, "BBB48StringOutput::~BBB48StringOutput()\n");
 	m_strings.clear();
     prussdrv_exit();
+    if (m_lastData) free(m_lastData);
+    if (m_curData) free(m_curData);
 }
+
+
+inline std::string mapF8Size(int max, int maxString, int &newHeight) {
+    printf("%d  %d\n", max, maxString);
+    if (maxString > max) {
+        maxString = max;
+    }
+    if (maxString <= 4) {
+        newHeight = 4;
+        return "FalconWS281x_F4.bin";
+    } else if (maxString <= 6) {
+        newHeight = 6;
+        return "FalconWS281x_F8_6.bin";
+    } else if (maxString <= 8) {
+        newHeight = 8;
+        return "FalconWS281x_F8_8.bin";
+    } else if (maxString <= 12) {
+        newHeight = 12;
+        return "FalconWS281x_F8_12.bin";
+    } else if (maxString <= 16) {
+        newHeight = 16;
+        return "FalconWS281x_F8_16.bin";
+    }
+    newHeight = 20;
+    return "FalconWS281x_F8_20.bin";
+}
+
 
 /*
  *
@@ -152,8 +193,6 @@ int BBB48StringOutput::Init(Json::Value config)
 
 	ledscape_strip_config_t * const lsconfig = &m_config->strip_config;
 
-	int pruNumber = 1;
-
 	lsconfig->type         = LEDSCAPE_STRIP;
 	lsconfig->leds_width   = m_maxStringLen;
 
@@ -162,6 +201,19 @@ int BBB48StringOutput::Init(Json::Value config)
 	lsconfig->leds_height = 48;
 
 
+    int retVal = ChannelOutputBase::Init(config);
+    if (retVal == 0) {
+        return 0;
+    }
+    int maxString = -1;
+    for (int s = 0; s < m_strings.size(); s++) {
+        PixelString *ps = m_strings[s];
+        if (ps->m_pixelCount != 0) {
+            maxString = s;
+        }
+    }
+    maxString++;
+    
 	std::string pru_program(getBinDirectory());
 
 	if (tail(pru_program, 4) == "/src")
@@ -190,18 +242,15 @@ int BBB48StringOutput::Init(Json::Value config)
 	}
     else if (m_subType == "F8-B")
     {
-        pru_program += "FalconWS281x_F8_12.bin";
-        lsconfig->leds_height = 12;
+        pru_program += mapF8Size(12, maxString, lsconfig->leds_height);
     }
     else if (m_subType == "F8-B-16")
     {
-        pru_program += "FalconWS281x_F8_16.bin";
-        lsconfig->leds_height = 16;
+        pru_program += mapF8Size(16, maxString, lsconfig->leds_height);
     }
     else if (m_subType == "F8-B-20")
     {
-        pru_program += "FalconWS281x_F8_20.bin";
-        lsconfig->leds_height = 20;
+        pru_program += mapF8Size(20, maxString, lsconfig->leds_height);
     }
     else if (m_subType == "F8-B-EXP")
     {
@@ -232,22 +281,52 @@ int BBB48StringOutput::Init(Json::Value config)
 	{
 		pru_program += m_subType + ".bin";
 	}
-
-    int LEDs = lsconfig->leds_width * lsconfig->leds_height;
-
-    LogDebug(VB_CHANNELOUT, "Num strings: %d    Using program %s\n", lsconfig->leds_height, pru_program.c_str());
-	m_leds = ledscape_strip_init(m_config, 0, pruNumber, pru_program.c_str());
-
-	if (!m_leds)
-	{
-		LogErr(VB_CHANNELOUT, "Unable to initialize LEDscape\n");
-
-		return 0;
-	}
-	return ChannelOutputBase::Init(config);
+    m_pruProgram = pru_program;
+    if (!StartPRU()) {
+        return 0;
+    }
+    m_lastData = (uint8_t*)calloc(1, m_leds->frame_size);
+    m_curData = (uint8_t*)calloc(1, m_leds->frame_size);
+    return retVal;
 }
 
+int BBB48StringOutput::StartPRU()
+{
+    m_curFrame = 0;
+    int pruNumber = BBB_PRU;
+    ledscape_strip_config_t * const lsconfig = &m_config->strip_config;
 
+    LogInfo(VB_CHANNELOUT, "Initializing PRU: %d     Num strings: %d    Using program %s\n", pruNumber, lsconfig->leds_height, m_pruProgram.c_str());
+    m_leds = ledscape_strip_init(m_config, 0, pruNumber, m_pruProgram.c_str());
+    LogDebug(VB_CHANNELOUT, "Init Command: %d      Data:   %X\n", m_leds->ws281x->command, m_leds->pru->ddr);
+    if (!m_leds)
+    {
+        LogErr(VB_CHANNELOUT, "Unable to initialize LEDscape\n");
+        
+        return 0;
+    }
+    uint32_t *timings = (uint32_t *)m_leds->ws281x;
+    for (int x = 0; x < 30*3; x++) {
+        timings[x + 17] = 0;
+    }
+    return 1;
+}
+void BBB48StringOutput::StopPRU(bool wait)
+{
+    // Send the stop command
+    m_leds->ws281x->command = 0xFF;
+    
+    if (wait) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    }
+    //prussdrv_pru_wait_event(BBB_PRU); //PRU_EVTOUT_1;
+    prussdrv_pru_clear_event(PRU_ARM_INTERRUPT);
+    prussdrv_pru_disable(m_leds->pru->pru_num);
+
+    //ledscape_close only checks PRU0 events and then unmaps the memory that
+    //may be used by the other pru
+    //ledscape_close(m_leds);
+}
 /*
  *
  */
@@ -255,16 +334,7 @@ int BBB48StringOutput::Close(void)
 {
 	LogDebug(VB_CHANNELOUT, "BBB48StringOutput::Close()\n");
 
-    // Send the stop command
-    m_leds->ws281x->command = 0xFF;
-    
-    prussdrv_pru_wait_event(1); //PRU_EVTOUT_1;
-    prussdrv_pru_clear_event(PRU1_ARM_INTERRUPT);
-    prussdrv_pru_disable(m_leds->pru->pru_num);
-    
-    //ledscape_close only checks PRU0 events and then unmaps the memory that
-    //may be used by the other pru
-    //ledscape_close(m_leds);
+    StopPRU();
 
 	free(m_config);
 	m_config = NULL;
@@ -281,10 +351,31 @@ int BBB48StringOutput::RawSendData(unsigned char *channelData)
 		channelData);
 
 	ledscape_strip_config_t *config = reinterpret_cast<ledscape_strip_config_t*>(m_config);
+    
+    m_curFrame++;
+
+#ifdef PRINT_STATS
+    uint16_t *timings = (uint16_t *)m_leds->ws281x;
+    int max = 0;
+    for (int x = 0; x < 30*3; x++) {
+        if (max < timings[x + 33]) {
+            max = timings[x + 33];
+        }
+    }
+    if (max > 300 || (m_curFrame % 10) == 1) {
+        for (int x = 33; x < 208; ) {
+            printf("%d ", timings[x]);
+            ++x;
+            if ((x - 33) % 30 == 0) {
+                printf("\n");
+            }
+        }
+        printf("\n%d:  max %d\n", m_curFrame,  max);
+    }
+#endif
 
 	// Bypass LEDscape draw routine and format data for PRU ourselves
-	static unsigned frame = 0;
-	uint8_t * const out = (uint8_t *)m_leds->pru->ddr + m_leds->frame_size * frame;
+    uint8_t * out = m_curData;
 
 	PixelString *ps = NULL;
 	uint8_t *c = NULL;
@@ -337,12 +428,41 @@ int BBB48StringOutput::RawSendData(unsigned char *channelData)
 		
 	}
 	// Wait for the previous draw to finish
-	while (m_leds->ws281x->command);
+    std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<float, std::milli> duration = std::chrono::high_resolution_clock::now() - t1;
+    while (m_leds->ws281x->command && duration.count() < 20) {
+        pthread_yield();
+        duration = std::chrono::high_resolution_clock::now() - t1;
+    }
+    if (m_leds->ws281x->command) {
+        StopPRU(false);
+        StartPRU();
+    }
+    unsigned frame = 0;
+    //unsigned frame = m_curFrame & 1;
+    if (m_curFrame == 1 || memcmp(m_lastData, m_curData, m_leds->frame_size)) {
+        //don't copy to DMA memory unless really needed to avoid bus contention on the DMA bus
 
+        //copy first 7.5K into PRU mem directly
+        int mx = m_leds->frame_size;
+        if (mx > (8*1024 - 512)) {
+            mx = 8*1024 - 512;
+        }
+        uint8_t * const pruMem = (uint8_t *)m_leds->ws281x + 512;
+        memcpy(pruMem, m_curData, mx);
+
+
+        uint8_t * const realout = (uint8_t *)m_leds->pru->ddr + m_leds->frame_size * frame;
+        memcpy(realout, m_curData, m_leds->frame_size);
+        
+
+        uint8_t *tmp = m_lastData;
+        m_lastData = m_curData;
+        m_curData = tmp;
+    }
+    
 	// Map
 	m_leds->ws281x->pixels_dma = m_leds->pru->ddr_addr + m_leds->frame_size * frame;
-	// alternate frames every other draw
-	// frame = (frame + 1) & 1;
 
 	// Send the start command
 	m_leds->ws281x->command = 1;

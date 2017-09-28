@@ -235,6 +235,9 @@ CFLAGS += \
 	$(NULL)
 endif
 
+# doesn't work yet as  several .c files are actually cxx files
+# CXXFLAGS += -std=gnu++11
+
 ##############################################################################
 # Include a local Makefile if one exists to modify any of the above
 -include Makefile.local
@@ -271,7 +274,13 @@ gitsubmodules:
 
 force:
 
-release: $(TARGETS)
+debug: CFLAGS+=-g
+debug: $(TARGETS)
+
+optimized: CFLAGS+=-O1
+optimized: $(TARGETS)
+
+release: optimized
 	strip fpp
 	-$(INSTALL_PROGRAM) fpp $(BINDIR)/fpp
 	strip fppmm
@@ -295,7 +304,7 @@ fppversion.c: fppversion.sh force
 	@sh fppversion.sh $(PWD)
 
 %.o: %.cpp %.h Makefile
-	$(CCACHE) $(CC) $(CFLAGS) -c $< -o $@
+	$(CCACHE) $(CC) $(CFLAGS) $(CXXFLAGS) -c $< -o $@
 
 %.o: %.c %.h Makefile
 	$(CCACHE) $(CC) $(CFLAGS) -c $< -o $@

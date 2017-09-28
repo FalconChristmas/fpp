@@ -28,6 +28,9 @@
 #include <strings.h>
 #include <unistd.h>
 
+#define BBB_PRU  0
+#define PRU_ARM_INTERRUPT PRU0_ARM_INTERRUPT
+
 #include <pruss_intc_mapping.h>
 extern "C" {
     extern int prussdrv_pru_clear_event(unsigned int eventnum);
@@ -57,7 +60,10 @@ BBBSerialOutput::BBBSerialOutput(unsigned int startChannel,
   : ChannelOutputBase(startChannel, channelCount),
 	m_config(NULL),
 	m_leds(NULL),
-	m_pixelnet(0)
+    m_pixelnet(0),
+    m_lastData(NULL),
+    m_curData(NULL),
+    m_curFrame(0)
 {
 	LogDebug(VB_CHANNELOUT, "BBBSerialOutput::BBBSerialOutput(%u, %u)\n",
 		startChannel, channelCount);
@@ -71,6 +77,9 @@ BBBSerialOutput::~BBBSerialOutput()
 {
 	LogDebug(VB_CHANNELOUT, "BBBSerialOutput::~BBBSerialOutput()\n");
     prussdrv_exit();
+    
+    if (m_lastData) free(m_lastData);
+    if (m_curData) free(m_curData);
 }
 
 static int pinGPIOs[] = {
@@ -143,7 +152,7 @@ int BBBSerialOutput::Init(Json::Value config)
 
 	ledscape_strip_config_t * const lsconfig = &m_config->strip_config;
 
-	int pruNumber = 0;
+	int pruNumber = BBB_PRU;
 
 	lsconfig->type         = LEDSCAPE_STRIP;
 	lsconfig->leds_width   = (int)((m_pixelnet != 0 ? 4102 : 513) / 3) + 1;
@@ -156,7 +165,7 @@ int BBBSerialOutput::Init(Json::Value config)
 	else
 		pru_program += "/../lib/";
 
-    const char *mode = "pruout";
+    const char *mode = BBB_PRU ? "gpio" : "pruout";
     if (m_pixelnet) {
 		pru_program += "FalconPixelnet";
     } else {
@@ -193,26 +202,28 @@ int BBBSerialOutput::Init(Json::Value config)
 		return 0;
 	}
 
-    size_t offset = m_leds->pru->ddr_size - 84*1024;
+    int sz = m_pixelnet ? (4096 + 6): (512 + 1);
     
-	uint8_t *out = (uint8_t *)m_leds->pru->ddr + offset;
+    m_lastData = (uint8_t*)malloc(m_outputs * sz);
+    m_curData = (uint8_t*)malloc(m_outputs * sz);
+    
 	for (int i = 0; i < m_outputs; i++)
 	{
 		if (m_pixelnet)
 		{
-			out[i + (0 * m_outputs)] = '\xAA';
-			out[i + (1 * m_outputs)] = '\x55';
-			out[i + (2 * m_outputs)] = '\x55';
-			out[i + (3 * m_outputs)] = '\xAA';
-			out[i + (4 * m_outputs)] = '\x15';
-			out[i + (5 * m_outputs)] = '\x5D';
+			m_curData[i + (0 * m_outputs)] = '\xAA';
+			m_curData[i + (1 * m_outputs)] = '\x55';
+			m_curData[i + (2 * m_outputs)] = '\x55';
+			m_curData[i + (3 * m_outputs)] = '\xAA';
+			m_curData[i + (4 * m_outputs)] = '\x15';
+			m_curData[i + (5 * m_outputs)] = '\x5D';
 		}
 		else
 		{
-			out[i] = '\x00';
+			m_curData[i] = '\x00';
 		}
 	}
-
+    memcpy(m_lastData, m_curData, m_outputs * sz);
 	return ChannelOutputBase::Init(config);
 }
 
@@ -226,8 +237,8 @@ int BBBSerialOutput::Close(void)
     // Send the stop command
     m_leds->ws281x->command = 0xFF;
     
-    prussdrv_pru_wait_event(0); //PRU_EVTOUT_0;
-    prussdrv_pru_clear_event(PRU0_ARM_INTERRUPT);
+    prussdrv_pru_wait_event(BBB_PRU); //PRU_EVTOUT_0;
+    prussdrv_pru_clear_event(PRU_ARM_INTERRUPT);
     prussdrv_pru_disable(m_leds->pru->pru_num);
     
     //ledscape_close only checks PRU0 events and then unmaps the memory that
@@ -253,11 +264,11 @@ int BBBSerialOutput::RawSendData(unsigned char *channelData)
 		channelData);
 
 	ledscape_strip_config_t *config = reinterpret_cast<ledscape_strip_config_t*>(m_config);
-
+    m_curFrame++;
+    
 	// Bypass LEDscape draw routine and format data for PRU ourselves
-    size_t offset = m_leds->pru->ddr_size - 84*1024;
-	uint8_t * const out = (uint8_t *)m_leds->pru->ddr + offset;
-
+    
+    uint8_t * const out = m_curData;
 	uint8_t *c = out;
 	uint8_t *s = (uint8_t*)channelData;
 	int chCount = m_pixelnet ? 4096 : 512;
@@ -287,8 +298,29 @@ int BBBSerialOutput::RawSendData(unsigned char *channelData)
 	// Wait for the previous draw to finish
 	while (m_leds->ws281x->command);
 
-	// Map
-	m_leds->ws281x->pixels_dma = m_leds->pru->ddr_addr + offset;
+    unsigned frame = 0;
+    //unsigned frame = m_curFrame & 1;
+    if (m_curFrame == 1 || memcmp(m_lastData, m_curData, m_leds->frame_size)) {
+        //don't copy to DMA memory unless really needed to avoid bus contention on the DMA bus
+        int sz = m_pixelnet ? (4096 + 6): (512 + 1);
+        sz *= m_outputs;
+        
+        if (m_pixelnet) {
+            size_t offset = m_leds->pru->ddr_size - 84*1024;
+            uint8_t * const realout = (uint8_t *)m_leds->pru->ddr + offset;
+            memcpy(realout, m_curData, sz);
+
+            // Map
+            m_leds->ws281x->pixels_dma = m_leds->pru->ddr_addr + offset;
+        } else {
+            uint8_t * const realout = (uint8_t *)m_leds->pru->data_ram + 512;
+            memcpy(realout, m_curData, sz);
+        }
+        
+        uint8_t *tmp = m_lastData;
+        m_lastData = m_curData;
+        m_curData = tmp;
+    }
 
 	// Send the start command
 	m_leds->ws281x->command = 1;

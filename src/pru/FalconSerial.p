@@ -53,34 +53,6 @@
 
 // r10 - r22 are used for temp storage and bitmap processing
 
-
-
-
-/** Sleep a given number of nanoseconds with 10 ns resolution.
- *
- * This busy waits for a given number of cycles.  Not for use
- * with things that must happen on a tight schedule.
- */
-.macro SLEEPNS
-.mparam ns,inst,lab
-MOV sleep_counter, (ns/10)-1-inst // ws2811 -- high speed
-lab:
-	SUB sleep_counter, sleep_counter, 1
-	QBNE lab, sleep_counter, 0
-.endm
-
-.macro WAITNS
-.mparam ns,lab
-	MOV r6, PRU_CONTROL_REG // control register
-	// Instructions take 5ns and RESET_COUNTER takes about 20 instructions
-	// this value was found through trial and error on the DMX signal
-	// generation
-	MOV r8, (ns)/5 - 20
-lab:
-	LBBO r7, r6, 0xC, 4 // read the cycle counter
-	QBGT lab, r7, r8
-.endm
-
 .macro RESET_COUNTER
 		// Disable the counter and clear it, then re-enable it
 		MOV r6, PRU_CONTROL_REG // control register
@@ -95,6 +67,9 @@ lab:
 		SBBO r9, r6, 0, 4 // write it back
 .endm
 
+#ifdef RUNNING_ON_PRU1
+#define USE_SLOW_GPIO
+#endif
 
 #ifdef USE_SLOW_GPIO
 #define gpio3_zeros   	      r4
@@ -119,8 +94,7 @@ lab:
 .macro WAIT_BEFORE_SET_BITS
 .endm
 .macro WAIT_AFTER_SET_BITS
-    //WAITNS DELAYCOUNT, wait_bit1
-    SLEEPNS DELAYCOUNT, 20, wait_bit1
+    SLEEPNS DELAYCOUNT, sleep_counter, 20
 .endm
 .macro OUTPUT_GPIO_BITS
     // Output bits, write both 0's and 1's
@@ -172,8 +146,7 @@ lab:
 .macro AFTER_SET_BITS
 .endm
 .macro WAIT_BEFORE_SET_BITS
-    //WAITNS DELAYCOUNT, wait_bit1
-    SLEEPNS DELAYCOUNT, 20, wait_bit1
+    SLEEPNS DELAYCOUNT, sleep_counter, 20
 .endm
 .macro WAIT_AFTER_SET_BITS
 .endm
@@ -292,14 +265,15 @@ _OUTPUTANYWAY:
     CLEAR_ALL_BITS
     // Break Send Low for > 88us
     RESET_COUNTER
-    //WAITNS	90000, wait_break_low
-    SLEEPNS 90000, 20, wait_break_low
+    SLEEPNS 90000, sleep_counter, 20
 
     // End Break/Start MAB Send High for > 8us
     SET_ALL_BITS
     RESET_COUNTER
-    //WAITNS	15000, wait_mab_high
-    SLEEPNS 15000, 20, wait_mab_high
+    SLEEPNS 15000, sleep_counter, 20
+
+    //DMX will use pru ram and not DDR
+    MOV data_addr, 512
 #endif
   
  WORD_LOOP:
@@ -307,7 +281,11 @@ _OUTPUTANYWAY:
 	MOV	bit_num, 11
     // Load 8 bytes of data, starting at r10
 	// one byte for each of the outputs
+#ifndef PIXELNET
 	LBBO	r10, data_addr, 0, NUMOUT
+#else
+    LBCO    r10, CONST_PRUDRAM, data_addr, NUMOUT
+#endif
     RESET_COUNTER
     BIT_LOOP:
         WAIT_BEFORE_SET_BITS

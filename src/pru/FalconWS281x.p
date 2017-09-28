@@ -1,4 +1,3 @@
-// \file
  /* WS281x LED strip driver for the BeagleBone Black.
  *
  * Drives up to 48 strips using the PRU hardware.  The ARM writes
@@ -12,17 +11,10 @@
  * At 800 KHz:
  *  0 is 0.25 usec high, 1 usec low
  *  1 is 0.60 usec high, 0.65 usec low
- *  Reset is 50 usec
- *
- *  Pins are not contiguous.
- *  18 pins on GPIO0:   2  3  4  5  7  8  9 10 11 14 15 20 22 23 26 27 30 31
- *   3 pins on GPIO01: 16 17 18
- *  21 pins on GPIO02:  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 22 23 24 25
- *   6 pins on GPIO03: 14 15 16 17 19 21
- *  each pixel is stored in 4 bytes in the order GRBA (4th byte is ignored)
- * 
+ *  Reset is 300 usec
  */
- 
+
+
 // while len > 0:
 // for bit# = 24 down to 0:
 // delay 600 ns
@@ -30,7 +22,7 @@
 // read 10 registers of data, build zero map for gpio1
 // read  5 registers of data, build zero map for gpio3
 //
-// Send start pulse on all pins on gpio0, gpio1 and gpio3
+// Send start pulse on all pins on gpio's
 // delay 250 ns
 // bring zero pins low
 // delay 300 ns
@@ -46,7 +38,15 @@
  //* 
  //*/
 
+// defines are slightly lower as
+// there is overhead in resetting the clocks
+#define LOW_TIME    200
+#define HIGH_TIME   600
+#define TOTAL_TIME  1100
+
 #define RUNNING_ON_PRU1
+
+//   #define RECORD_STATS
 
 #if defined F4B
 #include "F4B.hp"
@@ -114,21 +114,24 @@
 #define o48_dreg  r21.b3
 
 
-
 .origin 0
 .entrypoint START
 
 #include "FalconWS281x.hp"
 
-/** Mappings of the GPIO devices */
-#define GPIO0		0x44E07000
-#define GPIO1		0x4804c000
-#define GPIO2		0x481AC000
-#define GPIO3		0x481AE000
 
-/** Offsets for the clear and set registers in the devices */
-#define GPIO_CLEARDATAOUT	0x190
-#define GPIO_SETDATAOUT		0x194
+/** Mappings of the GPIO devices */
+#define GPIO0 (0x44E07000 + 0x100)
+#define GPIO1 (0x4804c000 + 0x100)
+#define GPIO2 (0x481AC000 + 0x100)
+#define GPIO3 (0x481AE000 + 0x100)
+
+/** Offsets for the clear and set registers in the devices.
+* Since the offsets can only be 0xFF, we deliberately add offsets
+*/
+#define GPIO_CLRDATAOUT (0x190 - 0x100)
+#define GPIO_SETDATAOUT (0x194 - 0x100)
+
 
 /** Register map */
 #define data_addr	r0
@@ -137,54 +140,24 @@
 #define gpio1_zeros	r3
 #define gpio2_zeros	r4
 #define gpio3_zeros	r5
-#define bit_num		r6
-#define sleep_counter	r7
+#define bit_num     r6.b0
+#define bit_flags   r6.b1
+#define stats_time  r6.w2
+#define sram_offset r7
 //r8 and r9 are used in WAITNS, can be used for other outside of that
-//r10 - r11 are used for data storage and bitmap processing
+//r10 - r21 are used for data storage and bitmap processing
 
-//tmp registers, mostly used for preparing output
-#define tmp0            r22
-#define tmp1            r23
-#define tmp2            r24
-#define tmp3            r25
+//gpio address registers
+#define gpio0_address   r22
+#define gpio1_address   r23
+#define gpio2_address   r24
+#define gpio3_address   r25
 
 #define gpio0_led_mask	r26
 #define gpio1_led_mask	r27
 #define gpio2_led_mask	r28
 #define gpio3_led_mask	r29
 
-
-/** Sleep a given number of nanoseconds with 10 ns resolution.
- *
- * This busy waits for a given number of cycles.  Not for use
- * with things that must happen on a tight schedule.
- */
-.macro SLEEPNS
-.mparam ns,inst,lab
-#ifdef CONFIG_WS2812
-	MOV sleep_counter, (ns/5)-1-inst // ws2812 -- low speed
-#else
-	MOV sleep_counter, (ns/10)-1-inst // ws2811 -- high speed
-#endif
-lab:
-	SUB sleep_counter, sleep_counter, 1
-	QBNE lab, sleep_counter, 0
-.endm
-
-
-/** Wait for the cycle counter to reach a given value */
-.macro WAITNS
-.mparam ns,lab
-	MOV r8, PRU_CONTROL_REG // control register
-lab:
-	LBBO r9, r8, 0xC, 4 // read the cycle counter
-	SUB r9, r9, sleep_counter 
-#ifdef CONFIG_WS2812
-	QBGT lab, r9, 2*(ns)/5
-#else
-	QBGT lab, r9, (ns)/5
-#endif
-.endm
 
 ///** Macro to generate the mask of which bits are zero.
 // * For each of these registers, set the
@@ -196,7 +169,7 @@ lab:
 //	SET	gpioN##_zeros, gpioN##_zeros, gpioN##_##bitN ; \
 //	gpioN##_##regN##_skip: ; \
 
-#define CAT3(a,b,c) a##b##c
+#define CAT3(x,y,z) x##y##z
 #define GPIO_MASK(X) CAT3(gpio,X,_led_mask)
 #define GPIO(R)	CAT3(gpio,R,_zeros)
 
@@ -208,9 +181,28 @@ lab:
 // Parameters from the environment:
 // bit_num: current bit we're reading from
 #define OUTPUT_STRIP(N)		\
-    QBBS	skip_o##N, o##N##_dreg, bit_num;	\
-    SET     GPIO(o##N##_gpio), o##N##_pin;	\
+    QBBC	skip_o##N, o##N##_dreg, bit_num;	\
+    CLR     GPIO(o##N##_gpio), o##N##_pin;	\
     skip_o##N:
+
+
+.macro DISABLE_GPIO_PIN_INTERRUPTS
+.mparam ledMask, gpio
+    MOV r10, ledMask
+    MOV r11, ledMask
+    MOV r12, gpio
+    MOV r13, 0x100
+    SUB r12, r12, r13
+    SBBO r10, r12, 0x3C, 8    //0x3c is the GPIO_IRQSTATUS_CLR_0 register
+    // by doing 8 and using both r10 and r11, we can clear
+    // both the 0 and 1 IRQ status
+.endm
+.macro DISABLE_PIN_INTERRUPTS
+    DISABLE_GPIO_PIN_INTERRUPTS gpio0_led_mask, GPIO0
+    DISABLE_GPIO_PIN_INTERRUPTS gpio1_led_mask, GPIO1
+    DISABLE_GPIO_PIN_INTERRUPTS gpio2_led_mask, GPIO2
+    DISABLE_GPIO_PIN_INTERRUPTS gpio3_led_mask, GPIO3
+.endm
 
 START:
 	// Enable OCP master port
@@ -224,9 +216,9 @@ START:
 	// Configure the programmable pointer register for PRU by setting
 	// c28_pointer[15:0] field to 0x0120.  This will make C28 point to
 	// 0x00012000 (PRU shared RAM).
-	MOV	r0, 0x00000120
-	MOV	r1, CTPPR_0 + PRU_MEMORY_OFFSET
-	ST32	r0, r1
+	//MOV	r0, 0x00000120
+	//MOV	r1, CTPPR_0 + PRU_MEMORY_OFFSET
+	//ST32	r0, r1
 
 	// Configure the programmable pointer register for PRU by setting
 	// c31_pointer[15:0] field to 0x0010.  This will make C31 point to
@@ -238,6 +230,11 @@ START:
 	// Write a 0x1 into the response field so that they know we have started
 	MOV	r2, #0x1
 	SBCO	r2, CONST_PRUDRAM, 12, 4
+
+    MOV gpio0_address, GPIO0
+    MOV gpio1_address, GPIO1
+    MOV gpio2_address, GPIO2
+    MOV gpio3_address, GPIO3
 
     LDI gpio0_led_mask, 0
     LDI gpio1_led_mask, 0
@@ -251,8 +248,12 @@ START:
 #if OUTPUTS > 4
     SET	GPIO_MASK(o5_gpio), o5_pin
     SET	GPIO_MASK(o6_gpio), o6_pin
+#endif
+#if OUTPUTS > 6
     SET	GPIO_MASK(o7_gpio), o7_pin
     SET	GPIO_MASK(o8_gpio), o8_pin
+#endif
+#if OUTPUTS > 8
     SET	GPIO_MASK(o9_gpio), o9_pin
     SET	GPIO_MASK(o10_gpio), o10_pin
     SET	GPIO_MASK(o11_gpio), o11_pin
@@ -310,12 +311,16 @@ START:
     SET	GPIO_MASK(o47_gpio), o47_pin
     SET	GPIO_MASK(o48_gpio), o48_pin
 #endif
+    DISABLE_PIN_INTERRUPTS
 
 	// Wait for the start condition from the main program to indicate
 	// that we have a rendered frame ready to clock out.  This also
 	// handles the exit case if an invalid value is written to the start
 	// start position.
 _LOOP:
+    //make sure the clock starts
+    RESET_PRU_CLOCK r8, r9
+
 	// Load the pointer to the buffer from PRU DRAM into r0 and the
 	// length (in bytes-bit words) into r1.
 	// start command into r2
@@ -324,12 +329,6 @@ _LOOP:
 	// Wait for a non-zero command
 	QBEQ	_LOOP, r2, #0
 
-	// Zero out the start command so that they know we have received it
-	// This allows maximum speed frame drawing since they know that they
-	// can now swap the frame buffer pointer and write a new start command.
-	MOV	r3, 0
-	SBCO	r3, CONST_PRUDRAM, 8, 4
-
 	// Command of 0xFF is the signal to exit
 	QBEQ	EXIT, r2, #0xFF
 
@@ -337,13 +336,27 @@ _LOOP:
 	ADD	r2, data_len, data_len
 	ADD	data_len, data_len, r2
 
-	WORD_LOOP:
-		// for bit in 8 to 0; one color at a time
-		MOV	bit_num, 8
+    MOV sram_offset, 512
 
+    RESET_PRU_CLOCK r8, r9
+
+	WORD_LOOP:
         // Load 48 bytes of data, starting at r10
         // one byte for each of the outputs
-        LBBO	r10, r0, 0, OUTPUTS
+
+        MOV r8, 7630 //7.5k - 50
+        QBGT USEDDR, r8, sram_offset
+            LBCO    r10, CONST_PRUDRAM, sram_offset, OUTPUTS
+            ADD     sram_offset, sram_offset, OUTPUTS
+            QBA     DATALOADED
+        USEDDR:
+            LBBO    r10, data_addr, 0, OUTPUTS
+        DATALOADED:
+        ADD data_addr, data_addr, OUTPUTS
+
+		// for bit in 8 to 0; one color at a time
+		MOV	bit_num, 8
+        LDI stats_time, 0
 
 		BIT_LOOP:
 			SUB     bit_num, bit_num, 1
@@ -352,26 +365,11 @@ _LOOP:
 			// repack it into bit slices.  Read the current counter
 			// and then wait until 650 ns have passed once we complete
 			// our work.
-			// Disable the counter and clear it, then re-enable it
-			MOV     r8, PRU_CONTROL_REG // control register
-			LBBO	r9, r8, 0, 4
-			CLR     r9, r9, 3 // disable counter bit
-			SBBO	r9, r8, 0, 4 // write it back
 
-			MOV     tmp0, 0
-			SBBO	tmp0, r8, 0xC, 4 // clear the timer
-
-			SET     r9, r9, 3 // enable counter bit
-			SBBO	r9, r8, 0, 4 // write it back
-
-			// Read the current counter value
-			// Should be zero.
-			LBBO	sleep_counter, r8, 0xC, 4
-
-			MOV	gpio0_zeros, 0
-			MOV	gpio1_zeros, 0
-			MOV	gpio2_zeros, 0
-			MOV	gpio3_zeros, 0
+            MOV gpio0_zeros, gpio0_led_mask
+            MOV gpio1_zeros, gpio1_led_mask
+            MOV gpio2_zeros, gpio2_led_mask
+            MOV gpio3_zeros, gpio3_led_mask
 
 			OUTPUT_STRIP(1)
             OUTPUT_STRIP(2)
@@ -380,10 +378,13 @@ _LOOP:
 #if OUTPUTS > 4
             OUTPUT_STRIP(5)
             OUTPUT_STRIP(6)
+#endif
+#if OUTPUTS > 6
             OUTPUT_STRIP(7)
             OUTPUT_STRIP(8)
+#endif
+#if OUTPUTS > 8
             OUTPUT_STRIP(9)
-
             OUTPUT_STRIP(10)
             OUTPUT_STRIP(11)
             OUTPUT_STRIP(12)
@@ -441,86 +442,79 @@ _LOOP:
             OUTPUT_STRIP(48)
 #endif
 
-			MOV	tmp0, GPIO0 | GPIO_SETDATAOUT
-#ifdef USES_GPIO1
-			MOV	tmp1, GPIO1 | GPIO_SETDATAOUT
-#endif
-			MOV	tmp2, GPIO2 | GPIO_SETDATAOUT
-#ifdef USES_GPIO3
-			MOV	tmp3, GPIO3 | GPIO_SETDATAOUT
+#ifdef RECORD_STATS
+    QBLT NOTMORE, data_len, 160
+    GET_PRU_CLOCK r8, r9
+    QBLT NOTMORE, stats_time, r8
+        MOV stats_time, r8
+        ADD r8, data_len, data_len
+        ADD r8, r8, 64
+        SBCO stats_time, CONST_PRUDRAM, r8, 2
+    NOTMORE:
 #endif
 
-			// Wait for 650 ns to have passed
-			WAITNS	650, wait_start_time
+            //wait for the full cycle to complete
+            WAITNS    (TOTAL_TIME - HIGH_TIME), r8, r9
+
+            RESET_PRU_CLOCK r8, r9
 
 			// Send all the start bits
-			SBBO	gpio0_led_mask, tmp0, 0, 4
+            SBBO    gpio2_led_mask, gpio2_address, GPIO_SETDATAOUT, 4
 #ifdef USES_GPIO1
-			SBBO	gpio1_led_mask, tmp1, 0, 4
+			SBBO	gpio1_led_mask, gpio1_address, GPIO_SETDATAOUT, 4
 #endif
-			SBBO	gpio2_led_mask, tmp2, 0, 4
 #ifdef USES_GPIO3
-			SBBO	gpio3_led_mask, tmp3, 0, 4
+			SBBO	gpio3_led_mask, gpio3_address, GPIO_SETDATAOUT, 4
 #endif
+            SBBO    gpio0_led_mask, gpio0_address, GPIO_SETDATAOUT, 4
 
-			// Reconfigure tmps for clearing the bits
-			MOV	tmp0, GPIO0 | GPIO_CLEARDATAOUT
-#ifdef USES_GPIO1
-			MOV	tmp1, GPIO1 | GPIO_CLEARDATAOUT
-#endif
-			MOV	tmp2, GPIO2 | GPIO_CLEARDATAOUT
-#ifdef USES_GPIO3
-			MOV	tmp3, GPIO3 | GPIO_CLEARDATAOUT
-#endif
-
-			// wait for the length of the zero bits (250 ns)
-			WAITNS	650+250, wait_zero_time
-			//SLEEPNS 250, 1, wait_zero_time
+			// wait for the length of the zero bits
+            WAITNS    LOW_TIME, r8, r9
 
 			// turn off all the zero bits
-			SBBO	gpio0_zeros, tmp0, 0, 4
+            SBBO    gpio2_zeros, gpio2_address, GPIO_CLRDATAOUT, 4
 #ifdef USES_GPIO1
-			SBBO	gpio1_zeros, tmp1, 0, 4
+			SBBO	gpio1_zeros, gpio1_address, GPIO_CLRDATAOUT, 4
 #endif
-			SBBO	gpio2_zeros, tmp2, 0, 4
 #ifdef USES_GPIO3
-			SBBO	gpio3_zeros, tmp3, 0, 4
+			SBBO	gpio3_zeros, gpio3_address, GPIO_CLRDATAOUT, 4
 #endif
+            SBBO    gpio0_zeros, gpio0_address, GPIO_CLRDATAOUT, 4
+
+
 
 			// Wait until the length of the one bits
-			// TODO: Fix WAITNS so it can incorporate both delays?
-			WAITNS	650+600, wait_one_time
-			SLEEPNS	500, 1, sleep_one_time  // Wait a little longer to fix the timing
+			WAITNS	HIGH_TIME, r8, r9
 
-			// Turn all the bits off
-			SBBO	gpio0_led_mask, tmp0, 0, 4
+            RESET_PRU_CLOCK r8, r9
+
+            // Turn all the bits off
+            SBBO    gpio2_led_mask, gpio2_address, GPIO_CLRDATAOUT, 4
 #ifdef USES_GPIO1
-			SBBO	gpio1_led_mask, tmp1, 0, 4
+			SBBO	gpio1_led_mask, gpio1_address, GPIO_CLRDATAOUT, 4
 #endif
-			SBBO	gpio2_led_mask, tmp2, 0, 4
 #ifdef USES_GPIO3
-			SBBO	gpio3_led_mask, tmp3, 0, 4
+			SBBO	gpio3_led_mask, gpio3_address, GPIO_CLRDATAOUT, 4
 #endif
+            SBBO    gpio0_led_mask, gpio0_address, GPIO_CLRDATAOUT, 4
 
 			QBNE	BIT_LOOP, bit_num, 0
 
-		// The 48 RGB streams have been clocked out
+		// The RGB streams have been clocked out
 		// Move to the next color component for each pixel
-		ADD	data_addr, data_addr, OUTPUTS
-		SUB	data_len, data_len, 1
+		SUB	    data_len, data_len, 1
 		QBNE	WORD_LOOP, data_len, #0
 
 	// Delay at least 300 usec; this is the required reset
 	// time for the LED strip to update with the new pixels.
-	SLEEPNS	300000, 1, reset_time
+	SLEEPNS	300000, r8
 
 	// Write out that we are done!
 	// Store a non-zero response in the buffer so that they know that we are done
-	// aso a quick hack, we write the counter so that we know how
-	// long it took to write out.
-	MOV	r8, PRU_CONTROL_REG // control register
-	LBBO	r2, r8, 0xC, 4
-	SBCO	r2, CONST_PRUDRAM, 12, 4
+    // and zero out the command
+	LDI	    r2, 0
+    MOV     r3, 1
+	SBCO	r2, CONST_PRUDRAM, 8, 8
 
 	// Go back to waiting for the next frame buffer
 	QBA	_LOOP
