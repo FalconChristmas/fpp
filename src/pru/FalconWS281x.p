@@ -46,7 +46,7 @@
 
 #define RUNNING_ON_PRU1
 
-//   #define RECORD_STATS
+// #define RECORD_STATS
 
 #if defined F4B
 #include "F4B.hp"
@@ -337,18 +337,31 @@ _LOOP:
 	ADD	data_len, data_len, r2
 
     MOV sram_offset, 512
-
+    LDI bit_flags, 0
     RESET_PRU_CLOCK r8, r9
 
 	WORD_LOOP:
         // Load 48 bytes of data, starting at r10
         // one byte for each of the outputs
+        QBBS USEDDR, bit_flags, 2
 
         MOV r8, 7630 //7.5k - 50
-        QBGT USEDDR, r8, sram_offset
+        QBBS USERAM2, bit_flags, 1
             LBCO    r10, CONST_PRUDRAM, sram_offset, OUTPUTS
             ADD     sram_offset, sram_offset, OUTPUTS
-            QBA     DATALOADED
+            QBLT LOADEDFROMSRAM, r8, sram_offset
+                //reached the end of what we have in our sram, flip to other SRAM
+                SUB sram_offset, sram_offset, r8
+                SET bit_flags, 1
+                QBA LOADEDFROMSRAM
+        USERAM2:
+            LBCO    r10, CONST_OTHERPRUDRAM, sram_offset, OUTPUTS
+            ADD     sram_offset, sram_offset, OUTPUTS
+            QBLT LOADEDFROMSRAM, r8, sram_offset
+                //reached the end of what we have in other sram, flip to DDR
+                SET bit_flags, 2
+        LOADEDFROMSRAM:
+        QBA     DATALOADED
         USEDDR:
             LBBO    r10, data_addr, 0, OUTPUTS
         DATALOADED:

@@ -27,6 +27,8 @@ cd ${GITTREEDIR}
 git status > /dev/null 2>&1
 SOURCE_VERSION=$(git describe --dirty || git describe || echo Unknown)
 
+SOURCE_VERSION=$(echo "${SOURCE_VERSION}" | cut -f1-3 -d'-')
+
 case "${SOURCE_VERSION}" in
     exported|Unknown)
         if ! grep -q Format $GITTREEDIR/EXPORTED_VERSION; then

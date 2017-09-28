@@ -34,7 +34,7 @@
 #define BBB_PRU  1
 #define PRU_ARM_INTERRUPT PRU1_ARM_INTERRUPT
 
-//   #define PRINT_STATS
+//  #define PRINT_STATS
 
 
 #include <pruss_intc_mapping.h>
@@ -119,7 +119,7 @@ inline std::string mapF8Size(int max, int maxString, int &newHeight) {
     }
     if (maxString <= 4) {
         newHeight = 4;
-        return "FalconWS281x_F4.bin";
+        return "FalconWS281x_F8_4.bin";
     } else if (maxString <= 6) {
         newHeight = 6;
         return "FalconWS281x_F8_6.bin";
@@ -291,6 +291,8 @@ int BBB48StringOutput::Init(Json::Value config)
     }
     m_lastData = (uint8_t*)calloc(1, m_leds->frame_size);
     m_curData = (uint8_t*)calloc(1, m_leds->frame_size);
+    
+
     return retVal;
 }
 
@@ -319,6 +321,7 @@ int BBB48StringOutput::StartPRU()
     for (int x = 0; x < 30*3; x++) {
         timings[x + 17] = 0;
     }
+
     return 1;
 }
 void BBB48StringOutput::StopPRU(bool wait)
@@ -448,17 +451,21 @@ int BBB48StringOutput::RawSendData(unsigned char *channelData)
         StopPRU(false);
         StartPRU();
     }
+    
+    int frameSize = numStrings * m_leds->ws281x->num_pixels * 3;
+
     unsigned frame = 0;
     //unsigned frame = m_curFrame & 1;
-    if (m_curFrame == 1 || memcmp(m_lastData, m_curData, m_leds->frame_size)) {
+    if (m_curFrame == 1 || memcmp(m_lastData, m_curData, frameSize)) {
         //don't copy to DMA memory unless really needed to avoid bus contention on the DMA bus
 
         //copy first 7.5K into PRU mem directly
-        int fullsize = m_leds->frame_size;
-        int mx = m_leds->frame_size;
+        int fullsize = frameSize;
+        int mx = frameSize;
         if (mx > (8*1024 - 512)) {
             mx = 8*1024 - 512;
         }
+        
         //first 7.5K to main PRU ram
         uint8_t * const pruMem = (uint8_t *)m_leds->ws281x + 512;
         memcpy(pruMem, m_curData, mx);
@@ -470,10 +477,13 @@ int BBB48StringOutput::RawSendData(unsigned char *channelData)
             // second 7.5K to other PRU ram
             memcpy(m_otherPruRam, m_curData + 7630, fullsize);
         }
-
-        uint8_t * const realout = (uint8_t *)m_leds->pru->ddr + m_leds->frame_size * frame;
-        memcpy(realout, m_curData, m_leds->frame_size);
-        
+        if ((7630 * 2) < frameSize) {
+            // more than what fits in the SRAMs
+            //don't need to copy the first part as that's in sram, just copy the last parts
+            int off = 7630 * 2 - 50;
+            uint8_t * const realout = (uint8_t *)m_leds->pru->ddr + m_leds->frame_size * frame + off;
+            memcpy(realout, m_curData + off, frameSize - off);
+        }
 
         uint8_t *tmp = m_lastData;
         m_lastData = m_curData;
