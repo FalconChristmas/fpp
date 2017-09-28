@@ -1,5 +1,4 @@
-// \file
- /* WS281x LED strip driver for the BeagleBone Black.
+/* WS281x LED strip driver for the BeagleBone Black.
  *
  * To stop, the ARM can write a 0xFF to the command, which will
  * cause the PRU code to exit.
@@ -35,6 +34,9 @@
 // 200ms * 5ns/cycle * 200mhz
 #define CONST_MAX_BETWEEN_FRAME 0xC0000
 
+/// There is 8K of ram which COULD be used for DMX, but dmx has plenty of time to go
+/// off to main ram so we'll let the ws2811 code use the ram
+///  #define USING_PRU_RAM
 #endif
 
 
@@ -257,7 +259,6 @@ _OUTPUTANYWAY:
 
 	// Command of 0xFF is the signal to exit
 	QBEQ	EXIT, r2, #0xFF
-
     MOV data_len, DATALEN
 
 #ifndef PIXELNET
@@ -273,7 +274,9 @@ _OUTPUTANYWAY:
     SLEEPNS 15000, sleep_counter, 20
 
     //DMX will use pru ram and not DDR
+#ifdef USING_PRU_RAM
     MOV data_addr, 512
+#endif
 #endif
   
  WORD_LOOP:
@@ -281,10 +284,11 @@ _OUTPUTANYWAY:
 	MOV	bit_num, 11
     // Load 8 bytes of data, starting at r10
 	// one byte for each of the outputs
-#ifndef PIXELNET
-	LBBO	r10, data_addr, 0, NUMOUT
-#else
+
+#ifdef USING_PRU_RAM
     LBCO    r10, CONST_PRUDRAM, data_addr, NUMOUT
+#else
+    LBBO    r10, data_addr, 0, NUMOUT
 #endif
     RESET_COUNTER
     BIT_LOOP:

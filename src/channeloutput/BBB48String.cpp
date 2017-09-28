@@ -38,10 +38,13 @@
 
 
 #include <pruss_intc_mapping.h>
+#define PRUSS0_PRU0_DATARAM     0
+#define PRUSS0_PRU1_DATARAM     1
 extern "C" {
     extern int prussdrv_pru_clear_event(unsigned int eventnum);
     extern int prussdrv_pru_wait_event(unsigned int pru_evtout_num);
     extern int prussdrv_pru_disable(unsigned int prunum);
+    extern int prussdrv_map_prumem(unsigned int pru_ram_id, void **address);
     extern int prussdrv_exit();
 }
 
@@ -88,7 +91,8 @@ BBB48StringOutput::BBB48StringOutput(unsigned int startChannel,
 	m_maxStringLen(0),
     m_lastData(NULL),
     m_curData(NULL),
-    m_curFrame(0)
+    m_curFrame(0),
+    m_otherPruRam(NULL)
 {
 	LogDebug(VB_CHANNELOUT, "BBB48StringOutput::BBB48StringOutput(%u, %u)\n",
 		startChannel, channelCount);
@@ -305,6 +309,12 @@ int BBB48StringOutput::StartPRU()
         
         return 0;
     }
+    //get the other PRU's sram pointer as well
+    void *other = nullptr;
+    prussdrv_map_prumem(pruNumber == 0 ? PRUSS0_PRU1_DATARAM :PRUSS0_PRU0_DATARAM,
+                        &other
+                        );
+    m_otherPruRam = (uint8_t*)other;
     uint32_t *timings = (uint32_t *)m_leds->ws281x;
     for (int x = 0; x < 30*3; x++) {
         timings[x + 17] = 0;
@@ -317,7 +327,7 @@ void BBB48StringOutput::StopPRU(bool wait)
     m_leds->ws281x->command = 0xFF;
     
     if (wait) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        std::this_thread::sleep_for(std::chrono::milliseconds(25));
     }
     //prussdrv_pru_wait_event(BBB_PRU); //PRU_EVTOUT_1;
     prussdrv_pru_clear_event(PRU_ARM_INTERRUPT);
@@ -444,13 +454,22 @@ int BBB48StringOutput::RawSendData(unsigned char *channelData)
         //don't copy to DMA memory unless really needed to avoid bus contention on the DMA bus
 
         //copy first 7.5K into PRU mem directly
+        int fullsize = m_leds->frame_size;
         int mx = m_leds->frame_size;
         if (mx > (8*1024 - 512)) {
             mx = 8*1024 - 512;
         }
+        //first 7.5K to main PRU ram
         uint8_t * const pruMem = (uint8_t *)m_leds->ws281x + 512;
         memcpy(pruMem, m_curData, mx);
-
+        if (fullsize > 7630) {
+            fullsize -= 7630;
+            if (fullsize > (8*1024 - 512)) {
+                fullsize = 8*1024 - 512;
+            }
+            // second 7.5K to other PRU ram
+            memcpy(m_otherPruRam, m_curData + 7630, fullsize);
+        }
 
         uint8_t * const realout = (uint8_t *)m_leds->pru->ddr + m_leds->frame_size * frame;
         memcpy(realout, m_curData, m_leds->frame_size);

@@ -63,6 +63,8 @@ class BBB48StringOutput : public ChannelOutputBase {
     uint8_t            *m_lastData;
     uint8_t            *m_curData;
     uint32_t           m_curFrame;
+ 
+    uint8_t            *m_otherPruRam;
 };
 
 #endif /* _BBB48STRING_H */

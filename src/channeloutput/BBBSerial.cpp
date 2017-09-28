@@ -30,6 +30,7 @@
 
 #define BBB_PRU  0
 #define PRU_ARM_INTERRUPT PRU0_ARM_INTERRUPT
+//  #define USING_PRU_RAM
 
 #include <pruss_intc_mapping.h>
 extern "C" {
@@ -304,18 +305,17 @@ int BBBSerialOutput::RawSendData(unsigned char *channelData)
         //don't copy to DMA memory unless really needed to avoid bus contention on the DMA bus
         int sz = m_pixelnet ? (4096 + 6): (512 + 1);
         sz *= m_outputs;
-        
-        if (m_pixelnet) {
-            size_t offset = m_leds->pru->ddr_size - 84*1024;
-            uint8_t * const realout = (uint8_t *)m_leds->pru->ddr + offset;
-            memcpy(realout, m_curData, sz);
+#ifdef USING_PRU_RAM
+        uint8_t * const realout = (uint8_t *)m_leds->pru->data_ram + 512;
+        memcpy(realout, m_curData, sz);
+#else
+        size_t offset = m_leds->pru->ddr_size - 84*1024;
+        uint8_t * const realout = (uint8_t *)m_leds->pru->ddr + offset;
+        memcpy(realout, m_curData, sz);
 
-            // Map
-            m_leds->ws281x->pixels_dma = m_leds->pru->ddr_addr + offset;
-        } else {
-            uint8_t * const realout = (uint8_t *)m_leds->pru->data_ram + 512;
-            memcpy(realout, m_curData, sz);
-        }
+        // Map
+        m_leds->ws281x->pixels_dma = m_leds->pru->ddr_addr + offset;
+#endif
         
         uint8_t *tmp = m_lastData;
         m_lastData = m_curData;
