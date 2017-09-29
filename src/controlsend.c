@@ -400,6 +400,7 @@ void SendMediaSyncStartPacket(const char *filename) {
 
 	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + strlen(filename));
 
+#if 0
 	if (remoteCSVCount > 0)
 	{
 		// Now send the Broadcast CSV version
@@ -407,6 +408,7 @@ void SendMediaSyncStartPacket(const char *filename) {
 			CTRL_PKT_SYNC, SYNC_FILE_MEDIA, SYNC_PKT_START, filename);
 		SendControlCSVPacket(outBuf, strlen(outBuf));
 	}
+#endif
 }
 
 /*
@@ -442,6 +444,7 @@ void SendMediaSyncStopPacket(const char *filename) {
 
 	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + strlen(filename));
 
+#if 0
 	if (remoteCSVCount > 0)
 	{
 		// Now send the Broadcast CSV version
@@ -449,6 +452,7 @@ void SendMediaSyncStopPacket(const char *filename) {
 			CTRL_PKT_SYNC, SYNC_FILE_MEDIA, SYNC_PKT_STOP, filename);
 		SendControlCSVPacket(outBuf, strlen(outBuf));
 	}
+#endif
 }
 
 /*
@@ -485,6 +489,7 @@ void SendMediaSyncPacket(const char *filename, int frames, float seconds) {
 
 	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + strlen(filename));
 
+#if 0
 	if (remoteCSVCount > 0)
 	{
 		// Now send the Broadcast CSV version
@@ -493,6 +498,7 @@ void SendMediaSyncPacket(const char *filename, int frames, float seconds) {
 			(int)seconds, (int)(seconds * 1000) % 1000);
 		SendControlCSVPacket(outBuf, strlen(outBuf));
 	}
+#endif
 }
 
 /*
