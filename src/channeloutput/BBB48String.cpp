@@ -27,14 +27,19 @@
 #include <string.h>
 #include <strings.h>
 #include <unistd.h>
+#include <sys/wait.h>
+
 #include <ctime>
+#include <set>
 #include <thread>
 #include <chrono>
+#include <iostream>
+#include <fstream>
 
 #define BBB_PRU  1
 #define PRU_ARM_INTERRUPT PRU1_ARM_INTERRUPT
 
-//   #define PRINT_STATS
+//  #define PRINT_STATS
 
 
 #include <pruss_intc_mapping.h>
@@ -114,28 +119,119 @@ BBB48StringOutput::~BBB48StringOutput()
 }
 
 
-inline std::string mapF8Size(int max, int maxString, int &newHeight) {
+static void compilePRUCode(std::vector<std::string> &sargs) {
+    pid_t compilePid = fork();
+    if (compilePid == 0) {
+        char * args[sargs.size() + 3];
+        args[0] = "/bin/bash";
+        args[1] = "/opt/fpp/src/pru/compileWS2811x.sh";
+        
+        for (int x = 0; x < sargs.size(); x++) {
+            args[x + 2] = (char*)sargs[x].c_str();
+        }
+        args[sargs.size() + 2] = NULL;
+
+        execvp("/bin/bash", args);
+    } else {
+        wait(NULL);
+    }
+}
+
+inline void mapSize(int max, int maxString, int &newHeight, std::vector<std::string> &args) {
     if (maxString > max) {
         maxString = max;
     }
+    //make sure it's a multiple of 4 to keep things aligned in memory
     if (maxString <= 4) {
         newHeight = 4;
-        return "FalconWS281x_F8_4.bin";
-    } else if (maxString <= 6) {
-        newHeight = 6;
-        return "FalconWS281x_F8_6.bin";
     } else if (maxString <= 8) {
         newHeight = 8;
-        return "FalconWS281x_F8_8.bin";
     } else if (maxString <= 12) {
         newHeight = 12;
-        return "FalconWS281x_F8_12.bin";
     } else if (maxString <= 16) {
         newHeight = 16;
-        return "FalconWS281x_F8_16.bin";
+    } else if (maxString <= 20) {
+        newHeight = 20;
+    } else if (maxString <= 24) {
+        newHeight = 24;
+    } else if (maxString <= 28) {
+        newHeight = 28;
+    } else if (maxString <= 32) {
+        newHeight = 32;
+    } else if (maxString <= 36) {
+        newHeight = 36;
+    } else if (maxString <= 40) {
+        newHeight = 40;
+    } else if (maxString <= 44) {
+        newHeight = 44;
+    } else {
+        newHeight = 48;
     }
-    newHeight = 20;
-    return "FalconWS281x_F8_20.bin";
+    args.push_back("-DOUTPUTS=" + std::to_string(newHeight));
+}
+static void createOutputLengths(std::vector<PixelString*> &m_strings,
+                                int maxStringLen) {
+    std::ofstream outputFile;
+    outputFile.open("/tmp/OutputLengths.hp", std::ofstream::out | std::ofstream::trunc);
+    
+#ifdef PRINT_STATS
+    outputFile << "#define RECORD_STATS\n\n";
+#endif
+    std::set<int> sizes;
+    for (int x = 0; x < m_strings.size(); x++) {
+        int pc = m_strings[x]->m_pixelCount + m_strings[x]->m_nullNodes;
+        if (pc != 0) {
+            sizes.insert(pc);
+        }
+    }
+    
+    outputFile << ".macro CheckOutputLengths\n";
+    outputFile << "    QBNE skip_end, cur_data, next_check\n";
+    auto i = sizes.begin();
+    while (i != sizes.end()) {
+        int min = *i;
+        if (min != maxStringLen) {
+            if (min <= 255) {
+                outputFile << "    QBNE skip_"
+                << std::to_string(min)
+                << ", cur_data, "
+                << std::to_string(min * 3)
+                << "\n";
+            } else {
+                outputFile << "    LDI r8, " << std::to_string(min * 3) << "\n";
+                outputFile << "    QBNE skip_"
+                << std::to_string(min)
+                << ", cur_data, r8\n";
+            }
+            
+            for (int y = 0; y < m_strings.size(); y++) {
+                int pc = m_strings[y]->m_pixelCount + m_strings[y]->m_nullNodes;
+                if (pc == min) {
+                    std::string o = std::to_string(y + 1);
+                    outputFile << "        CLR GPIO_MASK(o" << o << "_gpio), o" << o << "_pin\n";
+                }
+            }
+            i++;
+            int next = *i;
+            next *= 3;
+            outputFile << "    LDI next_check, " << std::to_string(next) << "\n";
+            outputFile << "    skip_"
+            << std::to_string(min)
+            << ":\n";
+        } else {
+            i++;
+        }
+    }
+    outputFile << "    skip_end:\n";
+    outputFile << ".endm\n";
+    if (sizes.empty()) {
+        outputFile << "#define SET_FIRST_CHECK \\\n    LDI next_check, 10000\n";
+    } else {
+        int sz = *sizes.begin();
+        outputFile << "#define SET_FIRST_CHECK \\\n    LDI next_check, " << std::to_string(sz*3) << "\n";
+    }
+
+    outputFile.close();
 }
 
 
@@ -219,74 +315,66 @@ int BBB48StringOutput::Init(Json::Value config)
     }
     maxString++;
     
-	std::string pru_program(getBinDirectory());
-
-	if (tail(pru_program, 4) == "/src")
-		pru_program += "/pru/";
-	else
-		pru_program += "/../lib/";
-
-    if (m_subType == "F4-B")
-    {
-        pru_program += "FalconWS281x_F4.bin";
-        lsconfig->leds_height = 4;
-    }
-    else if (m_subType == "F16-B")
-    {
-        pru_program += "FalconWS281x_16.bin";
-        lsconfig->leds_height = 16;
-    }
-    else if (m_subType == "F16-B-32" || m_subType == "F16-B-40" || m_subType == "F32-B")
-    {
-        pru_program += "FalconWS281x_40.bin";
-        lsconfig->leds_height = 40;
-    }
-    else if (m_subType == "F16-B-48")
-	{
-		pru_program += "FalconWS281x_48.bin";
+    std::vector<std::string> args;
+    
+    if (m_subType == "F4-B") {
+        args.push_back("-DF4B");
+        mapSize(4, maxString, lsconfig->leds_height, args);
+    } else if (m_subType == "F16-B") {
+        args.push_back("-DF16B");
+        mapSize(16, maxString, lsconfig->leds_height, args);
+    } else if (m_subType == "F16-B-32" || m_subType == "F16-B-40" || m_subType == "F32-B") {
+        args.push_back("-DF16B");
+        mapSize(40, maxString, lsconfig->leds_height, args);
+    } else if (m_subType == "F16-B-48") {
+        args.push_back("-DF16B");
+        mapSize(48, maxString, lsconfig->leds_height, args);
+	} else if (m_subType == "F8-B") {
+        args.push_back("-DF8B");
+        mapSize(12, maxString, lsconfig->leds_height, args);
+    } else if (m_subType == "F8-B-16") {
+        args.push_back("-DF8B");
+        args.push_back("-DPORTA");
+        mapSize(16, maxString, lsconfig->leds_height, args);
+    } else if (m_subType == "F8-B-20") {
+        args.push_back("-DF8B");
+        args.push_back("-DPORTA");
+        args.push_back("-DPORTB");
+        mapSize(20, maxString, lsconfig->leds_height, args);
+    } else if (m_subType == "F8-B-EXP") {
+        args.push_back("-DF8B");
+        args.push_back("-DF8B_EXP=1");
+        mapSize(28, maxString, lsconfig->leds_height, args);
+    } else if (m_subType == "F8-B-EXP-32") {
+        args.push_back("-DF8B");
+        args.push_back("-DF8B_EXP=1");
+        args.push_back("-DPORTA");
+        mapSize(32, maxString, lsconfig->leds_height, args);
+    } else if (m_subType == "F8-B-EXP-36") {
+        args.push_back("-DF8B");
+        args.push_back("-DF8B_EXP=1");
+        args.push_back("-DPORTA");
+        args.push_back("-DPORTB");
+        mapSize(36, maxString, lsconfig->leds_height, args);
+    } else if (m_subType == "RGBCape48C") {
+        args.push_back("-DRGBCape48C=1");
+        mapSize(48, maxString, lsconfig->leds_height, args);
+    } else if (m_subType == "RGBCape48F") {
+        args.push_back("-DRGBCape48F=1");
+        mapSize(48, maxString, lsconfig->leds_height, args);
 	}
-    else if (m_subType == "F8-B")
-    {
-        pru_program += mapF8Size(12, maxString, lsconfig->leds_height);
+    
+    for (int x = 0; x < lsconfig->leds_height; x++) {
+        if (x >= m_strings.size() || m_strings[x]->m_pixelCount == 0) {
+            std::string v = "-DNOOUT";
+            v += std::to_string(x+1);
+            args.push_back(v);
+        }
     }
-    else if (m_subType == "F8-B-16")
-    {
-        pru_program += mapF8Size(16, maxString, lsconfig->leds_height);
-    }
-    else if (m_subType == "F8-B-20")
-    {
-        pru_program += mapF8Size(20, maxString, lsconfig->leds_height);
-    }
-    else if (m_subType == "F8-B-EXP")
-    {
-        pru_program += "FalconWS281x_F8_EXP.bin";
-        lsconfig->leds_height = 28;
-    }
-    else if (m_subType == "F8-B-EXP-32")
-    {
-        pru_program += "FalconWS281x_F8_EXP_32.bin";
-        lsconfig->leds_height = 32;
-    }
-    else if (m_subType == "F8-B-EXP-36")
-    {
-        pru_program += "FalconWS281x_F8_EXP_36.bin";
-        lsconfig->leds_height = 36;
-    }
-    else if (m_subType == "RGBCape48C")
-    {
-        pru_program += "FalconWS281x_RGBCape48C.bin";
-        lsconfig->leds_height = 48;
-    }
-    else if (m_subType == "RGBCape48F")
-    {
-        pru_program += "FalconWS281x_RGBCape48F.bin";
-        lsconfig->leds_height = 48;
-    }
-	else
-	{
-		pru_program += m_subType + ".bin";
-	}
-    m_pruProgram = pru_program;
+    createOutputLengths(m_strings, m_maxStringLen);
+    
+    compilePRUCode(args);
+    m_pruProgram = "/tmp/FalconWS281x.bin";
     if (!StartPRU()) {
         return 0;
     }
@@ -375,18 +463,18 @@ int BBB48StringOutput::RawSendData(unsigned char *channelData)
     uint8_t *data = (uint8_t *)m_leds->ws281x;
     
 #ifdef PRINT_STATS
-    uint16_t *timings = (uint16_t *)m_leds->ws281x;
+    uint32_t *timings = (uint32_t *)(data + 64);
     int max = 0;
     for (int x = 0; x < 30*3; x++) {
-        if (max < timings[x + 33]) {
-            max = timings[x + 33];
+        if (max < timings[x]) {
+            max = timings[x];
         }
     }
     if (max > 300 || (m_curFrame % 10) == 1) {
-        for (int x = 33; x < 208; ) {
-            printf("%d ", timings[x]);
+        for (int x = 0; x < 48; ) {
+            printf("%8X ", timings[x]);
             ++x;
-            if ((x - 33) % 30 == 0) {
+            if ((x) % 16 == 0) {
                 printf("\n");
             }
         }
@@ -476,14 +564,14 @@ int BBB48StringOutput::RawSendData(unsigned char *channelData)
         //first 7.5K to main PRU ram
         uint8_t * const pruMem = (uint8_t *)m_leds->ws281x;
         memcpy(pruMem + 512, m_curData, mx);
-        if (fullsize > 7630) {
-            fullsize -= 7630;
+        if (fullsize > 7628) {
+            fullsize -= 7628;
             int outsize = fullsize;
             if (outsize > (8*1024 - 512)) {
                 outsize = 8*1024 - 512;
             }
             // second 7.5K to other PRU ram
-            memcpy(m_otherPruRam + 512, m_curData + 7630, outsize);
+            memcpy(m_otherPruRam + 512, m_curData + 7628, outsize);
             fullsize -= outsize;
         }
         if (fullsize > 0) {
@@ -491,9 +579,9 @@ int BBB48StringOutput::RawSendData(unsigned char *channelData)
             if (outsize > (12*1024)) {
                 outsize = 12*1024;
             }
-            memcpy(m_sharedPruRam, m_curData + 7630 + 7630, outsize);
+            memcpy(m_sharedPruRam, m_curData + 7628 + 7628, outsize);
         }
-        int off = 7630 * 2 + 12188;
+        int off = 7628 * 2 + 12188;
         if (off < frameSize) {
             // more than what fits in the SRAMs
             //don't need to copy the first part as that's in sram, just copy the last parts

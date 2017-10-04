@@ -10,90 +10,13 @@ BINARIES :=  \
 	FalconMatrix_v2_1.bin FalconMatrix_v2_2.bin FalconMatrix_v2_3.bin FalconMatrix_v2_4.bin \
 	FalconMatrix_v2_5.bin FalconMatrix_v2_6.bin FalconMatrix_v2_7.bin FalconMatrix_v2_8.bin \
 	FalconDMX.bin FalconDMX_4a.bin FalconDMX_4b.bin \
-	FalconPixelnet.bin FalconPixelnet_4a.bin FalconPixelnet_4b.bin\
-	FalconWS281x_48.bin FalconWS281x_40.bin FalconWS281x_16.bin FalconWS281x_F4.bin \
-	FalconWS281x_F8_4.bin FalconWS281x_F8_6.bin FalconWS281x_F8_8.bin FalconWS281x_F8_12.bin FalconWS281x_F8_16.bin FalconWS281x_F8_20.bin \
-	FalconWS281x_F8_EXP.bin FalconWS281x_F8_EXP_32.bin FalconWS281x_F8_EXP_36.bin \
-	FalconWS281x_RGBCape48C.bin FalconWS281x_RGBCape48F.bin
+	FalconPixelnet.bin FalconPixelnet_4a.bin FalconPixelnet_4b.bin
+
 
 
 #
 all: $(BINARIES)
 
-FalconWS281x_F4.bin: FalconWS281x.p F4B.hp $(PASM)
-	$(CPP) -DF4B - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i
-	$(PASM) -V3 -b /tmp/$(basename $<).i $(basename $@)
-	@$(RM) /tmp/$(basename $<).i
-
-FalconWS281x_F8_6.bin: FalconWS281x.p F8B.hp $(PASM)
-	$(CPP) -DF8B -DOUTPUTS=6 - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i
-	$(PASM) -V3 -b /tmp/$(basename $<).i $(basename $@)
-	@$(RM) /tmp/$(basename $<).i
-
-FalconWS281x_F8_4.bin: FalconWS281x.p F8B.hp $(PASM)
-	$(CPP) -DF8B -DOUTPUTS=4 - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i
-	$(PASM) -V3 -b /tmp/$(basename $<).i $(basename $@)
-	@$(RM) /tmp/$(basename $<).i
-
-FalconWS281x_F8_8.bin: FalconWS281x.p F8B.hp $(PASM)
-	$(CPP) -DF8B -DOUTPUTS=8 - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i
-	$(PASM) -V3 -b /tmp/$(basename $<).i $(basename $@)
-	@$(RM) /tmp/$(basename $<).i
-
-FalconWS281x_F8_12.bin: FalconWS281x.p F8B.hp $(PASM)
-	$(CPP) -DF8B -DOUTPUTS=12 - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i
-	$(PASM) -V3 -b /tmp/$(basename $<).i $(basename $@)
-	@$(RM) /tmp/$(basename $<).i
-
-FalconWS281x_F8_16.bin: FalconWS281x.p F8B.hp $(PASM)
-	$(CPP) -DF8B -DOUTPUTS=16 -DPORTA  - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i
-	$(PASM) -V3 -b /tmp/$(basename $<).i $(basename $@)
-	@$(RM) /tmp/$(basename $<).i
-
-FalconWS281x_F8_20.bin: FalconWS281x.p F8B.hp $(PASM)
-	$(CPP) -DF8B -DOUTPUTS=20 -DPORTA -DPORTB - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i
-	$(PASM) -V3 -b /tmp/$(basename $<).i $(basename $@)
-	@$(RM) /tmp/$(basename $<).i
-
-FalconWS281x_F8_EXP.bin: FalconWS281x.p F8B.hp $(PASM)
-	$(CPP) -DF8B -DF8B_EXP=1 -DOUTPUTS=28 - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i
-	$(PASM) -V3 -b /tmp/$(basename $<).i $(basename $@)
-	@$(RM) /tmp/$(basename $<).i
-
-FalconWS281x_F8_EXP_32.bin: FalconWS281x.p F8B.hp $(PASM)
-	$(CPP) -DF8B -DF8B_EXP=1 -DPORTA -DOUTPUTS=32 - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i
-	$(PASM) -V3 -b /tmp/$(basename $<).i $(basename $@)
-	@$(RM) /tmp/$(basename $<).i
-
-FalconWS281x_F8_EXP_36.bin: FalconWS281x.p F8B.hp $(PASM)
-	$(CPP) -DF8B -DF8B_EXP=1 -DPORTA -DPORTB -DOUTPUTS=36 - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i
-	$(PASM) -V3 -b /tmp/$(basename $<).i $(basename $@)
-	@$(RM) /tmp/$(basename $<).i
-
-FalconWS281x_16.bin: FalconWS281x.p F16B.hp $(PASM)
-	$(CPP) -DOUTPUTS=16 - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i
-	$(PASM) -V3 -b /tmp/$(basename $<).i $(basename $@)
-	@$(RM) /tmp/$(basename $<).i
-
-FalconWS281x_40.bin: FalconWS281x.p F16B.hp $(PASM)
-	$(CPP) -DOUTPUTS=40 - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i
-	$(PASM) -V3 -b /tmp/$(basename $<).i $(basename $@)
-	@$(RM) /tmp/$(basename $<).i
-
-FalconWS281x_48.bin: FalconWS281x.p F16B.hp $(PASM)
-	$(CPP) -DOUTPUTS=48 - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i
-	$(PASM) -V3 -b /tmp/$(basename $<).i $(basename $@)
-	@$(RM) /tmp/$(basename $<).i
-
-FalconWS281x_RGBCape48C.bin: FalconWS281x.p RGBCape48C.hp $(PASM)
-	$(CPP) -DOUTPUTS=48 -DRGBCape48C=1 - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i
-	$(PASM) -V3 -b /tmp/$(basename $<).i $(basename $@)
-	@$(RM) /tmp/$(basename $<).i
-
-FalconWS281x_RGBCape48F.bin: FalconWS281x.p RGBCape48F.hp $(PASM)
-	$(CPP) -DOUTPUTS=48 -DRGBCape48F=1 - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i
-	$(PASM) -V3 -b /tmp/$(basename $<).i $(basename $@)
-	@$(RM) /tmp/$(basename $<).i
 
 FalconDMX.bin: FalconSerial.p FalconSerial.hp $(PASM)
 	$(CPP) -DDMX - < $< | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/$(basename $<).i

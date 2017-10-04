@@ -41,25 +41,6 @@
 #define o12_pin		11
 
 
-//other physicals
-#define PORTA_1_gpio	3
-#define PORTA_1_pin		21
-#define PORTA_2_gpio	3
-#define PORTA_2_pin		19
-#define PORTA_3_gpio	3
-#define PORTA_3_pin		17
-#define PORTA_4_gpio	3
-#define PORTA_4_pin		15
-
-#define PORTB_1_gpio	3
-#define PORTB_1_pin		16
-#define PORTB_2_gpio	3
-#define PORTB_2_pin		14
-#define PORTB_3_gpio	3
-#define PORTB_3_pin		20
-#define PORTB_4_gpio	3
-#define PORTB_4_pin		18
-
 #define EXP_1_gpio	0
 #define EXP_1_pin	30
 #define EXP_2_gpio	0
@@ -95,30 +76,33 @@
 
 
 #ifdef PORTA
-#define USES_GPIO3
-#define F8_OUTPUT13 PORTA_1
-#define F8_OUTPUT14 PORTA_2
-#define F8_OUTPUT15 PORTA_3
-#define F8_OUTPUT16 PORTA_4
-
+#define o13_gpio    3
+#define o13_pin        21
+#define o14_gpio    3
+#define o14_pin        19
+#define o15_gpio    3
+#define o15_pin        17
+#define o16_gpio    3
+#define o16_pin        15
 #endif
 
 #ifdef PORTB
-#ifndef USES_GPIO3
-#define USES_GPIO3
+#define o17_gpio    3
+#define o17_pin        16
+#define o18_gpio    3
+#define o18_pin        14
+#define o19_gpio    3
+#define o19_pin        20
+#define o20_gpio    3
+#define o20_pin        18
 #endif
 
-#define F8_OUTPUT17 PORTB_1
-#define F8_OUTPUT18 PORTB_2
-#define F8_OUTPUT19 PORTB_3
-#define F8_OUTPUT20 PORTB_4
 
-#endif
 
 
 
 #ifdef F8B_EXP
-#define USES_GPIO1
+
 
 #if defined(PORTA) && defined(PORTB)
 
@@ -184,7 +168,7 @@
 #define O_GPIO(N)  PRIMITIVE_CAT(N,_gpio)
 #define O_PIN(N)   PRIMITIVE_CAT(N,_pin)
 
-
+#ifndef o13_gpio
 #define o13_gpio  O_GPIO(F8_OUTPUT13)
 #define o13_pin   O_PIN(F8_OUTPUT13)
 #define o14_gpio  O_GPIO(F8_OUTPUT14)
@@ -193,6 +177,8 @@
 #define o15_pin   O_PIN(F8_OUTPUT15)
 #define o16_gpio  O_GPIO(F8_OUTPUT16)
 #define o16_pin   O_PIN(F8_OUTPUT16)
+#endif
+#ifndef o17_gpio
 #define o17_gpio  O_GPIO(F8_OUTPUT17)
 #define o17_pin   O_PIN(F8_OUTPUT17)
 #define o18_gpio  O_GPIO(F8_OUTPUT18)
@@ -201,6 +187,7 @@
 #define o19_pin   O_PIN(F8_OUTPUT19)
 #define o20_gpio  O_GPIO(F8_OUTPUT20)
 #define o20_pin   O_PIN(F8_OUTPUT20)
+#endif
 #define o21_gpio  O_GPIO(F8_OUTPUT21)
 #define o21_pin   O_PIN(F8_OUTPUT21)
 #define o22_gpio  O_GPIO(F8_OUTPUT22)

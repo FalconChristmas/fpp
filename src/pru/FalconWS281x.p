@@ -41,12 +41,10 @@
 // defines are slightly lower as
 // there is overhead in resetting the clocks
 #define LOW_TIME    200
-#define HIGH_TIME   600
-#define TOTAL_TIME  1100
+#define HIGH_TIME   650
+#define TOTAL_TIME  1250
 
 #define RUNNING_ON_PRU1
-
-//   #define RECORD_STATS
 
 #if defined F4B
 #include "F4B.hp"
@@ -61,7 +59,6 @@
 #endif
 
 #include "FalconUtils.hp"
-
 
 //register allocations for data
 #define o1_dreg  r10.b0
@@ -118,7 +115,7 @@
 .entrypoint START
 
 #include "FalconWS281x.hp"
-
+#include "FalconWS281xOutputs.hp"
 
 /** Mappings of the GPIO devices */
 #define GPIO0 (0x44E07000 + 0x100)
@@ -133,9 +130,11 @@
 #define GPIO_SETDATAOUT (0x194 - 0x100)
 
 
+
 /** Register map */
 #define data_addr	r0
-#define data_len	r1
+#define data_len	r1.w0
+#define cur_data    r1.w2
 #define gpio0_zeros	r2
 #define gpio1_zeros	r3
 #define gpio2_zeros	r4
@@ -143,7 +142,8 @@
 #define bit_num     r6.b0
 #define bit_flags   r6.b1
 #define stats_time  r6.w2
-#define sram_offset r7
+#define sram_offset r7.w0
+#define next_check  r7.w2
 //r8 and r9 are used in WAITNS, can be used for other outside of that
 //r10 - r21 are used for data storage and bitmap processing
 
@@ -158,16 +158,6 @@
 #define gpio2_led_mask	r28
 #define gpio3_led_mask	r29
 
-
-///** Macro to generate the mask of which bits are zero.
-// * For each of these registers, set the
-// * corresponding bit in the gpio0_zeros register if
-// * the current bit is set in the strided register.
-// */
-//#define TEST_BIT(regN,gpioN,bitN) \
-//	QBBS	gpioN##_##regN##_skip, regN, bit_num; \
-//	SET	gpioN##_zeros, gpioN##_zeros, gpioN##_##bitN ; \
-//	gpioN##_##regN##_skip: ; \
 
 #define CAT3(x,y,z) x##y##z
 #define GPIO_MASK(X) CAT3(gpio,X,_led_mask)
@@ -196,12 +186,33 @@
     SBBO r10, r12, 0x3C, 8    //0x3c is the GPIO_IRQSTATUS_CLR_0 register
     // by doing 8 and using both r10 and r11, we can clear
     // both the 0 and 1 IRQ status
+    MOV r10, 0
+    ADD r12, r12, r13         // set clock to highest speed
+    SBBO r10, r12, 0x30, 4    //0x30 is the GPIO_CTRL register
 .endm
 .macro DISABLE_PIN_INTERRUPTS
     DISABLE_GPIO_PIN_INTERRUPTS gpio0_led_mask, GPIO0
     DISABLE_GPIO_PIN_INTERRUPTS gpio1_led_mask, GPIO1
     DISABLE_GPIO_PIN_INTERRUPTS gpio2_led_mask, GPIO2
     DISABLE_GPIO_PIN_INTERRUPTS gpio3_led_mask, GPIO3
+
+#ifdef USES_GPIO0
+    // also need to turn off the GPIO0 idle and wakeup domain stuff
+    MOV r12, GPIO0
+    MOV r13, 0x100
+    SUB r12, r12, r13
+    LBBO r10, r12, 0x10, 4    //0x10 is the GPIO_SYSCONFIG register
+    CLR r10, 0     //AUTOIDLE
+    CLR r10, 2     //ENAWAKEUP
+    SET r10, 3     //No-Idle
+    CLR r10, 4     //
+    SBBO r10, r12, 0x10, 4    //0x10 is the GPIO_SYSCONFIG register
+
+
+    MOV r9, 0x44E00500
+    LDI r10, 2
+    SBBO r10, r9, 0x3c, 4     //use the accurate clock
+#endif
 .endm
 
 .macro CLEAR_IF_NOT_EQUAL
@@ -211,6 +222,17 @@ QBEQ skip, val, equ
 skip:
 .endm
 
+.macro SET_IF_NOT_EQUAL
+.mparam  val, gpioAdd, equ
+QBEQ skip, val, equ
+SBBO    val, gpioAdd, GPIO_SETDATAOUT, 4
+skip:
+.endm
+
+
+#if __has_include("/tmp/OutputLengths.hp")
+# include "/tmp/OutputLengths.hp"
+#endif
 
 START:
 	// Enable OCP master port
@@ -249,76 +271,58 @@ START:
     LDI gpio2_led_mask, 0
     LDI gpio3_led_mask, 0
 
-    SET	GPIO_MASK(o1_gpio), o1_pin
-    SET	GPIO_MASK(o2_gpio), o2_pin
-    SET	GPIO_MASK(o3_gpio), o3_pin
-    SET	GPIO_MASK(o4_gpio), o4_pin
-#if OUTPUTS > 4
-    SET	GPIO_MASK(o5_gpio), o5_pin
-    SET	GPIO_MASK(o6_gpio), o6_pin
-#endif
-#if OUTPUTS > 6
-    SET	GPIO_MASK(o7_gpio), o7_pin
-    SET	GPIO_MASK(o8_gpio), o8_pin
-#endif
-#if OUTPUTS > 8
-    SET	GPIO_MASK(o9_gpio), o9_pin
-    SET	GPIO_MASK(o10_gpio), o10_pin
-    SET	GPIO_MASK(o11_gpio), o11_pin
-    SET	GPIO_MASK(o12_gpio), o12_pin
-#endif
-#if OUTPUTS > 12
-    SET	GPIO_MASK(o13_gpio), o13_pin
-    SET	GPIO_MASK(o14_gpio), o14_pin
-    SET	GPIO_MASK(o15_gpio), o15_pin
-    SET	GPIO_MASK(o16_gpio), o16_pin
-#endif
-#if OUTPUTS > 16
-    SET	GPIO_MASK(o17_gpio), o17_pin
-    SET	GPIO_MASK(o18_gpio), o18_pin
-    SET	GPIO_MASK(o19_gpio), o19_pin
-    SET	GPIO_MASK(o20_gpio), o20_pin
-#endif
-#if OUTPUTS > 20
-    SET	GPIO_MASK(o21_gpio), o21_pin
-    SET	GPIO_MASK(o22_gpio), o22_pin
-    SET	GPIO_MASK(o23_gpio), o23_pin
-    SET	GPIO_MASK(o24_gpio), o24_pin
-#endif
-#if OUTPUTS > 24
-    SET	GPIO_MASK(o25_gpio), o25_pin
-    SET	GPIO_MASK(o26_gpio), o26_pin
-    SET	GPIO_MASK(o27_gpio), o27_pin
-    SET	GPIO_MASK(o28_gpio), o28_pin
-#endif
-#if OUTPUTS > 28
-    SET	GPIO_MASK(o29_gpio), o29_pin
-    SET	GPIO_MASK(o30_gpio), o30_pin
-    SET	GPIO_MASK(o31_gpio), o31_pin
-    SET	GPIO_MASK(o32_gpio), o32_pin
-#endif
-#if OUTPUTS > 32
-    SET	GPIO_MASK(o33_gpio), o33_pin
-    SET	GPIO_MASK(o34_gpio), o34_pin
-    SET	GPIO_MASK(o35_gpio), o35_pin
-    SET	GPIO_MASK(o36_gpio), o36_pin
-#endif
-#if OUTPUTS > 36
-    SET	GPIO_MASK(o37_gpio), o37_pin
-    SET	GPIO_MASK(o38_gpio), o38_pin
-    SET	GPIO_MASK(o39_gpio), o39_pin
-    SET	GPIO_MASK(o40_gpio), o40_pin
-#endif
-#if OUTPUTS > 40
-    SET	GPIO_MASK(o41_gpio), o41_pin
-    SET	GPIO_MASK(o42_gpio), o42_pin
-    SET	GPIO_MASK(o43_gpio), o43_pin
-    SET	GPIO_MASK(o44_gpio), o44_pin
-    SET	GPIO_MASK(o45_gpio), o45_pin
-    SET	GPIO_MASK(o46_gpio), o46_pin
-    SET	GPIO_MASK(o47_gpio), o47_pin
-    SET	GPIO_MASK(o48_gpio), o48_pin
-#endif
+    SETOUTPUT1MASK
+    SETOUTPUT2MASK
+    SETOUTPUT3MASK
+    SETOUTPUT4MASK
+    SETOUTPUT5MASK
+    SETOUTPUT6MASK
+    SETOUTPUT7MASK
+    SETOUTPUT8MASK
+    SETOUTPUT9MASK
+    SETOUTPUT10MASK
+    SETOUTPUT11MASK
+    SETOUTPUT12MASK
+    SETOUTPUT13MASK
+    SETOUTPUT14MASK
+    SETOUTPUT15MASK
+    SETOUTPUT16MASK
+    SETOUTPUT17MASK
+    SETOUTPUT18MASK
+    SETOUTPUT19MASK
+    SETOUTPUT20MASK
+    SETOUTPUT21MASK
+    SETOUTPUT22MASK
+    SETOUTPUT23MASK
+    SETOUTPUT24MASK
+    SETOUTPUT25MASK
+    SETOUTPUT26MASK
+    SETOUTPUT27MASK
+    SETOUTPUT28MASK
+    SETOUTPUT29MASK
+    SETOUTPUT30MASK
+    SETOUTPUT31MASK
+    SETOUTPUT32MASK
+    SETOUTPUT33MASK
+    SETOUTPUT34MASK
+    SETOUTPUT35MASK
+    SETOUTPUT36MASK
+    SETOUTPUT37MASK
+    SETOUTPUT38MASK
+    SETOUTPUT39MASK
+    SETOUTPUT40MASK
+    SETOUTPUT41MASK
+    SETOUTPUT42MASK
+    SETOUTPUT43MASK
+    SETOUTPUT44MASK
+    SETOUTPUT45MASK
+    SETOUTPUT46MASK
+    SETOUTPUT47MASK
+    SETOUTPUT48MASK
+
+    // save the led masks to the scratch pad as we'll modify these during output
+    XOUT 12, gpio0_led_mask, 16
+
     DISABLE_PIN_INTERRUPTS
 
 	// Wait for the start condition from the main program to indicate
@@ -340,15 +344,22 @@ _LOOP:
 	// Command of 0xFF is the signal to exit
 	QBEQ	EXIT, r2, #0xFF
 
+    RESET_PRU_CLOCK r8, r9
+
 	// The data len is in pixels; convert it to 3 channels * pixels
-	ADD	r2, data_len, data_len
-	ADD	data_len, data_len, r2
+	ADD	r2, r1, r1
+	ADD	data_len, r1, r2
 
     MOV sram_offset, 512
     LDI bit_flags, 0
-    RESET_PRU_CLOCK r8, r9
+    LDI cur_data, 0
+    SET_FIRST_CHECK
+
+    //restore the led masks
+    XIN 12, gpio0_led_mask, 16
 
 	WORD_LOOP:
+    LOOP WORD_LOOP_DONE, data_len
         // Load OUTPUTS bytes of data, starting at r10
         // one byte for each of the outputs
         QBBS USEDDR, bit_flags.t3
@@ -360,7 +371,7 @@ _LOOP:
             MOV     r8, 8142 //8k - 50
             QBLT DATALOADED, r8, sram_offset
                 //reached the end of what we have in our sram, flip to other SRAM
-                MOV r8, 7630
+                MOV r8, 7628
                 SUB sram_offset, sram_offset, r8
                 SET bit_flags.t1
                 QBA DATALOADED
@@ -370,7 +381,7 @@ _LOOP:
             MOV     r8, 8142 //8k - 50
             QBLT    DATALOADED, r8, sram_offset
                 //reached the end of what we have in other sram, flip to sharedram
-                MOV r8, (7630 + 512)
+                MOV r8, (7628 + 512)
                 SUB sram_offset, sram_offset, r8
                 SET bit_flags.t2
             QBA     DATALOADED
@@ -390,7 +401,9 @@ _LOOP:
 
 		// for bit in 8 to 0; one color at a time
 		MOV	bit_num, 8
+#ifdef RECORD_STATS
         LDI stats_time, 0
+#endif
 
 		BIT_LOOP:
 			SUB     bit_num, bit_num, 1
@@ -405,78 +418,57 @@ _LOOP:
             MOV gpio2_zeros, gpio2_led_mask
             MOV gpio3_zeros, gpio3_led_mask
 
-			OUTPUT_STRIP(1)
-            OUTPUT_STRIP(2)
-            OUTPUT_STRIP(3)
-            OUTPUT_STRIP(4)
-#if OUTPUTS > 4
-            OUTPUT_STRIP(5)
-            OUTPUT_STRIP(6)
-#endif
-#if OUTPUTS > 6
-            OUTPUT_STRIP(7)
-            OUTPUT_STRIP(8)
-#endif
-#if OUTPUTS > 8
-            OUTPUT_STRIP(9)
-            OUTPUT_STRIP(10)
-            OUTPUT_STRIP(11)
-            OUTPUT_STRIP(12)
-#endif
-#if OUTPUTS > 12
-            OUTPUT_STRIP(13)
-            OUTPUT_STRIP(14)
-            OUTPUT_STRIP(15)
-            OUTPUT_STRIP(16)
-#endif
-#if OUTPUTS > 16
-            OUTPUT_STRIP(17)
-            OUTPUT_STRIP(18)
-            OUTPUT_STRIP(19)
-            OUTPUT_STRIP(20)
-#endif
-#if OUTPUTS > 20
-            OUTPUT_STRIP(21)
-            OUTPUT_STRIP(22)
-            OUTPUT_STRIP(23)
-            OUTPUT_STRIP(24)
-#endif
-#if OUTPUTS > 24
-            OUTPUT_STRIP(25)
-            OUTPUT_STRIP(26)
-            OUTPUT_STRIP(27)
-            OUTPUT_STRIP(28)
-#endif
-#if OUTPUTS > 28
-            OUTPUT_STRIP(29)
-            OUTPUT_STRIP(30)
-            OUTPUT_STRIP(31)
-            OUTPUT_STRIP(32)
-#endif
-#if OUTPUTS > 32
-            OUTPUT_STRIP(33)
-            OUTPUT_STRIP(34)
-            OUTPUT_STRIP(35)
-            OUTPUT_STRIP(36)
-#endif
-#if OUTPUTS > 36
-            OUTPUT_STRIP(37)
-            OUTPUT_STRIP(38)
-            OUTPUT_STRIP(39)
-            OUTPUT_STRIP(40)
-#endif
-#if OUTPUTS > 40
-            OUTPUT_STRIP(41)
-            OUTPUT_STRIP(42)
-            OUTPUT_STRIP(43)
-            OUTPUT_STRIP(44)
-            OUTPUT_STRIP(45)
-            OUTPUT_STRIP(46)
-            OUTPUT_STRIP(47)
-            OUTPUT_STRIP(48)
-#endif
+			DOOUTPUT1
+            DOOUTPUT2
+            DOOUTPUT3
+            DOOUTPUT4
+            DOOUTPUT5
+            DOOUTPUT6
+            DOOUTPUT7
+            DOOUTPUT8
+            DOOUTPUT9
+            DOOUTPUT10
+            DOOUTPUT11
+            DOOUTPUT12
+            DOOUTPUT13
+            DOOUTPUT14
+            DOOUTPUT15
+            DOOUTPUT16
+            DOOUTPUT17
+            DOOUTPUT18
+            DOOUTPUT19
+            DOOUTPUT20
+            DOOUTPUT21
+            DOOUTPUT22
+            DOOUTPUT23
+            DOOUTPUT24
+            DOOUTPUT25
+            DOOUTPUT26
+            DOOUTPUT27
+            DOOUTPUT28
+            DOOUTPUT29
+            DOOUTPUT30
+            DOOUTPUT31
+            DOOUTPUT32
+            DOOUTPUT33
+            DOOUTPUT34
+            DOOUTPUT35
+            DOOUTPUT36
+            DOOUTPUT37
+            DOOUTPUT38
+            DOOUTPUT39
+            DOOUTPUT40
+            DOOUTPUT41
+            DOOUTPUT42
+            DOOUTPUT43
+            DOOUTPUT44
+            DOOUTPUT45
+            DOOUTPUT46
+            DOOUTPUT47
+            DOOUTPUT48
 
 #ifdef RECORD_STATS
+
     QBLT NOTMORE, data_len, 160
     GET_PRU_CLOCK r8, r9
     QBLT NOTMORE, stats_time, r8
@@ -484,62 +476,90 @@ _LOOP:
         ADD r8, data_len, data_len
         ADD r8, r8, 64
         SBCO stats_time, CONST_PRUDRAM, r8, 2
+
     NOTMORE:
 #endif
 
             //wait for the full cycle to complete
-            WAITNS    (TOTAL_TIME - HIGH_TIME), r8, r9
+            WAITNS    TOTAL_TIME, r8, r9
 
             RESET_PRU_CLOCK r8, r9
 
 			// Send all the start bits
-            SBBO    gpio2_led_mask, gpio2_address, GPIO_SETDATAOUT, 4
 #ifdef USES_GPIO1
-			SBBO	gpio1_led_mask, gpio1_address, GPIO_SETDATAOUT, 4
+            SET_IF_NOT_EQUAL gpio1_led_mask, gpio1_address, 0
+#endif
+#ifdef USES_GPIO2
+            SET_IF_NOT_EQUAL gpio2_led_mask, gpio2_address, 0
 #endif
 #ifdef USES_GPIO3
-			SBBO	gpio3_led_mask, gpio3_address, GPIO_SETDATAOUT, 4
+            SET_IF_NOT_EQUAL gpio3_led_mask, gpio3_address, 0
 #endif
-            SBBO    gpio0_led_mask, gpio0_address, GPIO_SETDATAOUT, 4
+#ifdef USES_GPIO0
+            SET_IF_NOT_EQUAL gpio0_led_mask, gpio0_address, 0
+#endif
+
+#ifdef USES_GPIO1
+            AND gpio1_zeros, gpio1_zeros, gpio1_led_mask
+#endif
+#ifdef USES_GPIO2
+            AND gpio2_zeros, gpio2_zeros, gpio2_led_mask
+#endif
+#ifdef USES_GPIO3
+            AND gpio3_zeros, gpio3_zeros, gpio3_led_mask
+#endif
+#ifdef USES_GPIO0
+            AND gpio0_zeros, gpio0_zeros, gpio0_led_mask
+#endif
 
 			// wait for the length of the zero bits
             WAITNS    LOW_TIME, r8, r9
 
 			// turn off all the zero bits
             // if gpio_zeros is 0, nothing will be turned off, skip
-            CLEAR_IF_NOT_EQUAL  gpio2_zeros, gpio2_address, 0
 #ifdef USES_GPIO1
             CLEAR_IF_NOT_EQUAL  gpio1_zeros, gpio1_address, 0
+#endif
+#ifdef USES_GPIO2
+            CLEAR_IF_NOT_EQUAL  gpio2_zeros, gpio2_address, 0
 #endif
 #ifdef USES_GPIO3
             CLEAR_IF_NOT_EQUAL  gpio3_zeros, gpio3_address, 0
 #endif
+#ifdef USES_GPIO0
             CLEAR_IF_NOT_EQUAL  gpio0_zeros, gpio0_address, 0
+#endif
 
 			// Wait until the length of the one bits
 			WAITNS	HIGH_TIME, r8, r9
 
-            RESET_PRU_CLOCK r8, r9
-
             // Turn all the bits off
             // if gpio#_zeros is equal to the led mask, then everythin was
             // already shut off, don't output
-            CLEAR_IF_NOT_EQUAL gpio2_led_mask, gpio2_address, gpio0_zeros
 #ifdef USES_GPIO1
             CLEAR_IF_NOT_EQUAL gpio1_led_mask, gpio1_address, gpio1_zeros
+#endif
+#ifdef USES_GPIO2
+            CLEAR_IF_NOT_EQUAL gpio2_led_mask, gpio2_address, gpio0_zeros
 #endif
 #ifdef USES_GPIO3
             CLEAR_IF_NOT_EQUAL gpio3_led_mask, gpio3_address, gpio3_zeros
 #endif
+#ifdef USES_GPIO0
             CLEAR_IF_NOT_EQUAL gpio0_led_mask, gpio0_address, gpio0_zeros
+#endif
 
 			QBNE	BIT_LOOP, bit_num, 0
 
 		// The RGB streams have been clocked out
 		// Move to the next color component for each pixel
-		SUB	    data_len, data_len, 1
-		QBNE	WORD_LOOP, data_len, #0
-
+        ADD     cur_data, cur_data, 1
+        CheckOutputLengths
+#ifdef RECORD_STATS
+        SUB        data_len, data_len, 1
+#endif
+		//  QBNE	WORD_LOOP, data_len, #0
+    WORD_LOOP_DONE:
 	// Delay at least 300 usec; this is the required reset
 	// time for the LED strip to update with the new pixels.
 	SLEEPNS	300000, r8
@@ -567,3 +587,4 @@ EXIT:
 #endif
 
 	HALT
+
