@@ -191,7 +191,7 @@ static void createOutputLengths(std::vector<PixelString*> &m_strings,
     while (i != sizes.end()) {
         int min = *i;
         if (min != maxStringLen) {
-            if (min <= 255) {
+            if ((min*3) <= 255) {
                 outputFile << "    QBNE skip_"
                 << std::to_string(min)
                 << ", cur_data, "
