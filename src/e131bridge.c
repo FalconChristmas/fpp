@@ -35,20 +35,23 @@
 #include <unistd.h>
 
 #include "channeloutput.h"
-#include "channeloutputthread.h"
 #include "common.h"
 #include "E131.h"
 #include "e131bridge.h"
 #include "log.h"
 #include "PixelOverlay.h"
+#include "Player.h"
 #include "Sequence.h"
 #include "command.h"
+#include "Universe.h"
 
 #define BRIDGE_INVALID_UNIVERSE_INDEX 0xFFFFFF
 
 struct sockaddr_in addr;
 socklen_t addrlen;
 int bridgeSock = -1;
+
+char e131Data[FPPD_MAX_CHANNELS];
 
 unsigned int   UniverseCache[65536];
 unsigned char  rawBridgeBuffer[10000] __attribute__ ((aligned (__BIGGEST_ALIGNMENT__)));
@@ -112,9 +115,6 @@ int Bridge_Initialize(void)
 		LogDebug(VB_E131BRIDGE, "e131bridge socket failed: %s", strerror(errno));
 		exit(1);
 	}
-
-	// FIXME, move this to /etc/sysctl.conf or our startup script
-	system("sudo sysctl net/ipv4/igmp_max_memberships=512");
 
 	bzero((char *)&addr, sizeof(addr));
 	addr.sin_family = AF_INET;
@@ -184,8 +184,6 @@ int Bridge_Initialize(void)
 		}
 	}
 
-	StartChannelOutputThread();
-
 	return bridgeSock;
 }
 
@@ -198,12 +196,12 @@ void Bridge_Shutdown(void)
 void Bridge_StoreData(int universe, char *bridgeBuffer)
 {
 	int universeIndex = Bridge_GetIndexFromUniverseNumber(universe);
-	if(universeIndex!=BRIDGE_INVALID_UNIVERSE_INDEX)
+	if(universeIndex != BRIDGE_INVALID_UNIVERSE_INDEX)
 	{
-		memcpy((void*)(sequence->m_seqData+universes[universeIndex].startAddress-1),
-			   (void*)(bridgeBuffer+E131_HEADER_LENGTH),
+		memcpy((void*)(e131Data + universes[universeIndex].startAddress - 1),
+			   (void*)(bridgeBuffer + E131_HEADER_LENGTH),
 			   universes[universeIndex].size);
-		universes[universeIndex].bytesReceived+=universes[universeIndex].size;
+		universes[universeIndex].bytesReceived += universes[universeIndex].size;
 	}
 }
 

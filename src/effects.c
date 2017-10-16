@@ -32,8 +32,8 @@
 
 #include "common.h"
 #include "effects.h"
-#include "channeloutputthread.h"
 #include "log.h"
+#include "Player.h"
 #include "Sequence.h"
 #include "settings.h"
 
@@ -46,6 +46,7 @@
 #define MAX_EFFECTS 100
 
 int        effectCount = 0;
+int        pauseBackgroundEffects = 0;
 FPPeffect *effects[MAX_EFFECTS];
 
 pthread_mutex_t effectsLock;
@@ -85,6 +86,8 @@ int InitEffects(void)
 			"background.eseq\n");
 		StartEffect("background", 0, 1);
 	}
+
+	pauseBackgroundEffects = getSettingInt("pauseBackgroundEffects");
 
 	return 1;
 }
@@ -130,9 +133,46 @@ inline int IsEffectRunning(void)
 }
 
 /*
+ * Check if a specific effect ID is still running
+ */
+int IsEffectRunning(int effectID)
+{
+	int result = 0;
+
+	pthread_mutex_lock(&effectsLock);
+
+	if (effects[effectID])
+		result = 1;
+
+	pthread_mutex_unlock(&effectsLock);
+
+	return result;
+}
+
+/*
+ * Check to see if a specific named effect is running
+ */
+int IsEffectRunning(const char *effectName)
+{
+	int result = 0;
+
+	pthread_mutex_lock(&effectsLock);
+
+	for (int i = 0; i < MAX_EFFECTS && result == 0; i++)
+	{
+		if (effects[i] && !strcmp(effects[i]->name, effectName))
+			result = 1;
+	}
+
+	pthread_mutex_unlock(&effectsLock);
+
+	return result;
+}
+
+/*
  * Start a new effect offset at the specified channel number
  */
-int StartEffect(char *effectName, int startChannel, int loop)
+int StartEffect(const char *effectName, int startChannel, int loop)
 {
 	int   effectID = -1;
 	FILE *fp = NULL;
@@ -154,12 +194,22 @@ int StartEffect(char *effectName, int startChannel, int loop)
 		return effectID;
 	}
 
-	if (snprintf(filename, 1024, "%s/%s.eseq", getEffectDirectory(), effectName) >= 1024)
+	if (snprintf(filename, 1024 - 5, "%s/%s", getEffectDirectory(), effectName) >= 1024)
 	{
 		LogErr(VB_EFFECT, "Unable to open effects file: %s, filename too long\n",
 			filename);
 		pthread_mutex_unlock(&effectsLock);
 		return effectID;
+	}
+
+	if (!FileExists(filename))
+	{
+		strcat(filename, ".eseq");
+		if (!FileExists(filename))
+		{
+			LogErr(VB_EFFECT, "Unable to find effects file: %s\n", effectName);
+			return effectID;
+		}
 	}
 
 	fp = fopen(filename, "r");
@@ -263,6 +313,22 @@ int StartEffect(char *effectName, int startChannel, int loop)
 	effects[effectID]->loop = loop;
 	effects[effectID]->stepSize = stepSize;
 	effects[effectID]->modelSize = modelSize;
+	effects[effectID]->background = 0;
+
+	if (!strcmp(effectName, "background"))
+	{
+		effects[effectID]->background = 1;
+	}
+	else if ((getFPPmode() == REMOTE_MODE) &&
+			 (strstr(effectName, "background_") == effectName))
+	{
+		char localFilename[128];
+		strcpy(localFilename, "background_");
+		strcat(localFilename, getSetting("HostName"));
+
+		if (!strcmp(effectName, localFilename))
+			effects[effectID]->background = 1;
+	}
 
 	LogInfo(VB_EFFECT, "Effect %s step size %d, model size: %d\n",
 		effectName, stepSize, modelSize);
@@ -271,7 +337,7 @@ int StartEffect(char *effectName, int startChannel, int loop)
 
 	pthread_mutex_unlock(&effectsLock);
 
-	StartChannelOutputThread();
+	player->StartChannelOutputThread();
 
 	return effectID;
 }
@@ -296,7 +362,7 @@ void StopEffectHelper(int effectID)
 /*
  * Stop all effects named effectName
  */
-int StopEffect(char *effectName)
+int StopEffect(const char *effectName)
 {
 	LogDebug(VB_EFFECT, "StopEffect(%s)\n", effectName);
 
@@ -311,8 +377,8 @@ int StopEffect(char *effectName)
 	pthread_mutex_unlock(&effectsLock);
 
 	if ((!IsEffectRunning()) &&
-		(!sequence->IsSequenceRunning()))
-		sequence->SendBlankingData();
+		(!player->SequencesRunning()))
+		player->SendBlankingData();
 
 	return 1;
 }
@@ -339,8 +405,8 @@ int StopEffect(int effectID)
 	pthread_mutex_unlock(&effectsLock);
 
 	if ((!IsEffectRunning()) &&
-		(!sequence->IsSequenceRunning()))
-		sequence->SendBlankingData();
+		(!player->SequencesRunning()))
+		player->SendBlankingData();
 
 	return 1;
 }
@@ -437,18 +503,26 @@ int OverlayEffects(char *channelData)
 		return 0;
 	}
 
+	int skipBackground = 0;
+	if (pauseBackgroundEffects && player->SequencesRunning())
+		skipBackground = 1;
+
 	for (i = 0; i < MAX_EFFECTS; i++)
 	{
 		if (effects[i])
-			dataRead |= OverlayEffect(i, channelData);
+		{
+			if ((!skipBackground) ||
+				(skipBackground && (!effects[i]->background)))
+				dataRead |= OverlayEffect(i, channelData);
+		}
 	}
 
 	pthread_mutex_unlock(&effectsLock);
 
 	if ((dataRead == 0) &&
 		(!IsEffectRunning()) &&
-		(!sequence->IsSequenceRunning()))
-		sequence->SendBlankingData();
+		(!player->SequencesRunning()))
+		player->SendBlankingData();
 
 	return 1;
 }

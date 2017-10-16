@@ -36,14 +36,13 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
-#include "channeloutputthread.h"
 #include "common.h"
 #include "controlrecv.h"
 #include "controlsend.h"
 #include "log.h"
 #include "omxplayer.h"
+#include "Player.h"
 #include "settings.h"
-#include "Sequence.h"
 
 /*
  *
@@ -264,7 +263,7 @@ void omxplayerOutput::ProcessPlayerData(int bytesRead)
 		}
 	}
 
-	if ((sequence->IsSequenceRunning()) &&
+	if ((player->SequencesRunning()) &&
 		(m_mediaOutputStatus->secondsElapsed > 0))
 	{
 		LogExcess(VB_MEDIAOUT,
@@ -275,7 +274,7 @@ void omxplayerOutput::ProcessPlayerData(int bytesRead)
 			m_mediaOutputStatus->minutesTotal,
 			m_mediaOutputStatus->secondsTotal);
 
-		CalculateNewChannelOutputDelay(m_mediaOutputStatus->mediaSeconds);
+		player->CalculateNewChannelOutputDelay(m_mediaOutputStatus->mediaSeconds);
 	}
 }
 

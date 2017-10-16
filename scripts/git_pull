@@ -11,6 +11,9 @@ if curl --silent --head https://github.com | grep "Content-Type: text/html; char
 	GITBRANCH=$(cd ${FPPDIR} && git branch | grep "^\*" | sed -e "s/\*\s//")
 
 	echo "Upgrading git revision from branch ${GITBRANCH}"
+
+	remountRootReadWrite
+
 	if [ "x${FPPDIR}" = "x/opt/fpp" ]
 	then
 		cd ${FPPDIR} && $SUDO git pull && $SUDO git fetch --tags && $SUDO git submodule sync && $SUDO git submodule update --init
@@ -25,6 +28,8 @@ if curl --silent --head https://github.com | grep "Content-Type: text/html; char
 
 		compileBinaries
 	fi
+
+	remountRootReadOnlyIfNeeded
 else
 	echo "Can not access github, unable to pull git updates"
 fi

@@ -79,6 +79,8 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
 
 	int maxWidth = 0;
 	int maxHeight = 0;
+	int maxOutput = 0;
+	int maxPanel = 0;
 
 	ledscape_matrix_config_t * const lmconfig = &m_config->matrix_config;
 
@@ -111,6 +113,12 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
 		int  xOffset = p["xOffset"].asInt();
 		int  yOffset = p["yOffset"].asInt();
 
+		if (output > maxOutput)
+			maxOutput = output;
+
+		if (p["panelNumber"].asInt() > maxPanel)
+			maxPanel = p["panelNumber"].asInt();
+
 		ledscape_matrix_panel_t * const pconfig =
 			&lmconfig->panels[output][chain];
 
@@ -127,12 +135,12 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
 			case 'N':
 				pconfig->rot = 0;
 				break;
-			case 'L':
+			case 'R':
 				pconfig->rot = 1;
 				pWidth = lmconfig->panel_height;
 				pHeight = lmconfig->panel_width;
 				break;
-			case 'R':
+			case 'L':
 				pconfig->rot = 2;
 				pWidth = lmconfig->panel_height;
 				pHeight = lmconfig->panel_width;
@@ -151,6 +159,14 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
 
 	lmconfig->width = maxWidth;
 	lmconfig->height = maxHeight;
+
+	if (config.isMember("brightness"))
+		lmconfig->bright_shift = config["brightness"].asInt();
+	else
+		lmconfig->bright_shift = 7;
+
+	lmconfig->outputCount = maxOutput + 1;
+	lmconfig->panelCount = maxPanel + 1;
 
 	m_dataSize = lmconfig->width * lmconfig->height * 4;
 	m_data = (uint8_t *)malloc(m_dataSize);
@@ -191,6 +207,7 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
 			Json::Value sm = config["subMatrices"][i];
 
 			m_matrix->AddSubMatrix(
+				sm["enabled"].asInt(),
 				sm["startChannel"].asInt() - 1,
 				sm["width"].asInt(),
 				sm["height"].asInt(),

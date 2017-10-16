@@ -34,16 +34,22 @@
 
 #include "channeloutput.h"
 #include "DebugOutput.h"
+#include "ArtNet.h"
+#include "ColorLight-5a-75.h"
+#include "DDP.h"
 #include "E131.h"
 #include "FBMatrix.h"
+#include "FBVirtualDisplay.h"
 #include "FPD.h"
 #include "GenericSerial.h"
+#include "Linsn-RV9.h"
 #include "log.h"
 #include "Sequence.h"
 #include "settings.h"
 #include "SPIws2801.h"
 #include "LOR.h"
 #include "SPInRF24L01.h"
+#include "RHL_DVI_E131.h"
 #include "USBDMX.h"
 #include "USBPixelnet.h"
 #include "USBRelay.h"
@@ -55,14 +61,19 @@
 
 #ifdef USE_X11Matrix
 #  include "X11Matrix.h"
+#  include "X11VirtualDisplay.h"
 #endif
 
 #if defined(PLATFORM_PI) || defined(PLATFORM_ODROID)
 #  include "RGBMatrix.h"
 #endif
 
-#ifdef PLATFORM_PI
+#ifdef USEWIRINGPI
 #  include "Hill320.h"
+#endif
+
+#ifdef PLATFORM_PI
+#  include "ILI9488.h"
 #  include "rpi_ws281x.h"
 #endif
 
@@ -100,6 +111,34 @@ void PrintRemappedChannels(void);
 
 /////////////////////////////////////////////////////////////////////////////
 
+Json::Value ChannelOutputCSV2JSON(char *deviceConfig)
+{
+	Json::Value result;
+
+	char *s = strtok(deviceConfig, ";");
+
+	while (s)
+	{
+		char tmp[128];
+		char *div = NULL;
+
+		strcpy(tmp, s);
+		div = strchr(tmp, '=');
+
+		if (div)
+		{
+			*div = '\0';
+			div++;
+
+			result[tmp] = div;
+		}
+
+		s = strtok(NULL, ";");
+	}
+
+	return result;
+}
+
 /*
  *
  */
@@ -133,7 +172,7 @@ int InitializeChannelOutputs(void) {
 
 	if (((getFPPmode() != BRIDGE_MODE) ||
 		 (getSettingInt("E131Bridging"))) &&
-		(E131Output.isConfigured()))
+		 (E131Output.isConfigured()))
 	{
 		channelOutputs[i].startChannel = 0;
 		channelOutputs[i].outputOld  = &E131Output;
@@ -144,6 +183,20 @@ int InitializeChannelOutputs(void) {
 			i++;
 		} else {
 			LogErr(VB_CHANNELOUT, "ERROR Opening E1.31 Channel Output\n");
+		}
+	}
+
+	if (ArtNetOutput.isConfigured())
+	{
+		channelOutputs[i].startChannel = 0;
+		channelOutputs[i].outputOld  = &ArtNetOutput;
+
+		if (ArtNetOutput.open("", &channelOutputs[i].privData)) {
+			channelOutputs[i].channelCount = channelOutputs[i].outputOld->maxChannels(channelOutputs[i].privData);
+
+			i++;
+		} else {
+			LogErr(VB_CHANNELOUT, "ERROR Opening ArtNet Channel Output\n");
 		}
 	}
 
@@ -197,42 +250,57 @@ int InitializeChannelOutputs(void) {
 			channelOutputs[i].startChannel = start;
 			channelOutputs[i].channelCount = count;
 
+			// First some Channel Outputs enabled everythwere
 			if (type == "LEDPanelMatrix") {
+				if (outputs[c]["subType"] == "ColorLight5a75")
+					channelOutputs[i].output = new ColorLight5a75Output(start, count);
+				else if (outputs[c]["subType"] == "LinsnRV9")
+					channelOutputs[i].output = new LinsnRV9Output(start, count);
 #if defined(PLATFORM_PI) || defined(PLATFORM_ODROID)
-				if (outputs[c]["subType"] == "RGBMatrix")
+				else if (outputs[c]["subType"] == "RGBMatrix")
 					channelOutputs[i].output = new RGBMatrixOutput(start, count);
-				else
-				{
-					LogErr(VB_CHANNELOUT, "%s subType not valid on Pi\n", outputs[c]["subType"].asString().c_str());
-					continue;
-				}
 #endif
 #ifdef PLATFORM_BBB
-				if (outputs[c]["subType"] == "LEDscapeMatrix")
+				else if (outputs[c]["subType"] == "LEDscapeMatrix")
 					channelOutputs[i].output = new LEDscapeMatrixOutput(start, count);
+#endif
 				else
 				{
-					LogErr(VB_CHANNELOUT, "%s subType not valid on BBB\n", outputs[c]["subType"].asString().c_str());
+					LogErr(VB_CHANNELOUT, "LEDPanelmatrix subType '%s' not valid\n", outputs[c]["subType"].asString().c_str());
 					continue;
 				}
+#ifdef PLATFORM_BBB
 			} else if (type == "BBB48String") {
 				channelOutputs[i].output = new BBB48StringOutput(start, count);
 			} else if (type == "BBBSerial") {
 				channelOutputs[i].output = new BBBSerialOutput(start, count);
 #endif
+			} else if (type == "DDP") {
+				channelOutputs[i].output = new DDPOutput(start, count);
+			} else if (type == "FBVirtualDisplay") {
+				channelOutputs[i].output = (ChannelOutputBase*)new FBVirtualDisplayOutput(0, FPPD_MAX_CHANNELS);
+			} else if (type == "RHLDVIE131") {
+				channelOutputs[i].output = (ChannelOutputBase*)new RHLDVIE131Output(start, count);
+			} else if (type == "USBRelay") {
+				channelOutputs[i].output = new USBRelayOutput(start, count);
+			// NOW some platform or config specific Channel Outputs
 #ifdef USEOLA
 			} else if (type == "OLA") {
 				channelOutputs[i].output = new OLAOutput(start, count);
 #endif
-			} else if (type == "USBRelay") {
-				channelOutputs[i].output = new USBRelayOutput(start, count);
-#if defined(PLATFORM_PI)
+#ifdef USEWIRINGPI
 			} else if (type == "Hill320") {
 				channelOutputs[i].output = new Hill320Output(start, count);
+#endif
+#ifdef PLATFORM_PI
+			} else if (type == "ILI9488") {
+				channelOutputs[i].output = new ILI9488Output(start, count);
 #endif
 #ifdef USE_X11Matrix
 			} else if (type == "X11Matrix") {
 				channelOutputs[i].output = new X11MatrixOutput(start, count);
+			} else if (type == "X11VirtualDisplay") {
+				channelOutputs[i].output = (ChannelOutputBase*)new X11VirtualDisplayOutput(0, FPPD_MAX_CHANNELS);
 #endif
 			} else {
 				LogErr(VB_CHANNELOUT, "Unknown Channel Output type: %s\n", type.c_str());
@@ -269,11 +337,13 @@ int InitializeChannelOutputs(void) {
 
 		while(fgets(buf, 2048, fp) != NULL)
 		{
+			Json::Value jsonConfig;
+			int  useJSON = 0;
 			int  enabled = 0;
 			char type[32];
 			int  start = 0;
 			int  count = 0;
-			char deviceConfig[160];
+			char deviceConfig[256];
 
 			if (buf[0] == '#') // Allow # comments for testing
 				continue;
@@ -317,7 +387,6 @@ int InitializeChannelOutputs(void) {
 			channelOutputs[i].startChannel = start;
 			channelOutputs[i].channelCount = count;
 
-
 			if ((!strcmp(type, "Pixelnet-Lynx")) ||
 				(!strcmp(type, "Pixelnet-Open")))
 			{
@@ -350,10 +419,18 @@ int InitializeChannelOutputs(void) {
 				channelOutputs[i].output = new GPIO595Output(start, count);
 			} else if (!strcmp(type, "Debug")) {
 				channelOutputs[i].output = new DebugOutput(start, count);
+			} else if (!strcmp(type, "USBRelay")) {
+				channelOutputs[i].output = new USBRelayOutput(start, count);
+				useJSON = 1;
+				jsonConfig = ChannelOutputCSV2JSON(deviceConfig);
 			} else {
 				LogErr(VB_CHANNELOUT, "Unknown Channel Output type: %s\n", type);
 				continue;
 			}
+
+			jsonConfig["type"] = type;
+			jsonConfig["startChannel"] = start;
+			jsonConfig["channelCount"] = count;
 
 			if ((channelOutputs[i].outputOld) &&
 				(channelOutputs[i].outputOld->open(deviceConfig, &channelOutputs[i].privData)))
@@ -370,7 +447,8 @@ int InitializeChannelOutputs(void) {
 				}
 				i++;
 			} else if ((channelOutputs[i].output) &&
-					   (channelOutputs[i].output->Init(deviceConfig))) {
+					   (((useJSON) && (channelOutputs[i].output->Init(jsonConfig))) ||
+						((!useJSON) && (channelOutputs[i].output->Init(deviceConfig))))) {
 				i++;
 			} else {
 				LogErr(VB_CHANNELOUT, "ERROR Opening %s Channel Output\n", type);
@@ -427,12 +505,17 @@ int SendChannelData(char *channelData) {
 				inst->channelCount < (FPPD_MAX_CHANNELS - inst->startChannel) ? inst->channelCount : (FPPD_MAX_CHANNELS - inst->startChannel));
 		else if (inst->output)
 		{
+			// FIXME, get this call to PrepData into another thread
 			inst->output->PrepData((unsigned char *)channelData);
 			inst->output->SendData((unsigned char *)(channelData + inst->startChannel));
 		}
 	}
 
 	channelOutputFrame++;
+
+	// Reset channelOutputFrame every week @ 50ms timing
+	if (channelOutputFrame > 12096000)
+		channelOutputFrame = 0;
 }
 
 /*

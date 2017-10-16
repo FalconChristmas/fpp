@@ -33,12 +33,11 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "channeloutputthread.h"
 #include "common.h"
 #include "controlsend.h"
 #include "log.h"
 #include "mpg123.h"
-#include "Sequence.h"
+#include "Player.h"
 #include "settings.h"
 
 /*
@@ -240,7 +239,7 @@ void mpg123Output::ParseTimes(void)
 		}
 	}
 
-	if ((sequence->IsSequenceRunning()) &&
+	if ((player->SequencesRunning()) &&
 		(m_mediaOutputStatus->secondsElapsed > 0))
 	{
 		LogExcess(VB_MEDIAOUT,
@@ -251,7 +250,7 @@ void mpg123Output::ParseTimes(void)
 			m_mediaOutputStatus->minutesTotal,
 			m_mediaOutputStatus->secondsTotal);
 
-		CalculateNewChannelOutputDelay(m_mediaOutputStatus->mediaSeconds);
+		player->CalculateNewChannelOutputDelay(m_mediaOutputStatus->mediaSeconds);
 	}
 }
 

@@ -5,13 +5,7 @@
 #include <vector>
 #include <string>
 
-#include "Playlist.h"
-
-
-// Use these to make code more readable
-#define PLAYLIST_STARTING				true
-#define PLAYLIST_STOPPING				false
-
+#include "playlist/Playlist.h"
 
 class Callback
 {
@@ -82,5 +76,7 @@ public:
 private:
 	std::vector<Callback *> mCallbacks;
 };
+
+extern PluginCallbackManager pluginCallbackManager;
 
 #endif //__PLUGINS_H__

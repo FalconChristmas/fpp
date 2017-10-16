@@ -193,23 +193,47 @@ function GetFPPDUptime()
 
 function GetFPPStatus()
 {
-	
-    $status = SendCommand('s');
+	global $args;
+
+	if (isset($args['ip']))
+	{
+		header( "Content-Type: application/json");
+
+		echo file_get_contents("http://" . $args['ip'] . "/fppjson.php?command=getFPPstatus");
+
+		exit(0);
+	}
+	else
+	{
+		$status = SendCommand('s');
   
-    if($status == false || $status == 'false') { 
+		if($status == false || $status == 'false') {
      	
-		$status=exec("if ps cax | grep -q git_pull; then echo \"updating\"; else echo \"false\"; fi");
+			$status=exec("if ps cax | grep -q git_pull; then echo \"updating\"; else echo \"false\"; fi");
      
-     	returnJSON([
-     			'fppd' => 'Not Running',
-     			'status' => -1,
-     			'status_name' => $status == 'updating' ? $status : 'stopped',
-     		]);
-     }
+			returnJSON([
+					'fppd' => 'Not Running',
+					'status' => -1,
+					'status_name' => $status == 'updating' ? $status : 'stopped',
+					'current_playlist' => [
+						'playlist' => '',
+						'type'     => '',
+						'index'    => '0',
+						'count'    => '0'
+					],
+					'current_sequence'  => '',
+					'current_song'      => '',
+					'seconds_played'    => '0',
+					'seconds_remaining' => '0',
+					'time_elapsed'      => '00:00',
+					'time_remaining'    => '00:00',
+				]);
+		}
 
-     $data = parseStatus($status);
+		$data = parseStatus($status);
 
-     returnJson($data);
+		returnJson($data);
+	}
 }
 
 function parseStatus($status) 
@@ -249,6 +273,18 @@ function parseStatus($status)
 		'status_name' => $statuses[$fppStatus],
 		'volume'      => (int) $status[2],
 		'time'        => exec('date'),
+		'current_playlist' => [
+			'playlist' => '',
+			'type'     => '',
+			'index'    => '0',
+			'count'    => '0'
+		],
+		'current_sequence'  => '',
+		'current_song'      => '',
+		'seconds_played'    => '0',
+		'seconds_remaining' => '0',
+		'time_elapsed'      => '00:00',
+		'time_remaining'    => '00:00',
    ];
 
 	if($mode == 8) {
@@ -333,7 +369,13 @@ function StartSequence()
 
 function StopSequence()
 {
-	SendCommand("StopSequence");
+	global $args;
+
+	$sequence = $args['sequence'];
+
+	check($sequence, "sequence", __FUNCTION__);
+
+	SendCommand(sprintf("StopSequence,%s", $sequence));
 }
 
 function ToggleSequencePause()
@@ -429,7 +471,10 @@ function GetFPPSystems()
 			}
 	 }
 
-		$result[] = $elem;
+		if (!(($elem['IP'] == "192.168.7.2") && ($elem['Platform'] == "BeagleBone Black")))
+		{
+			$result[] = $elem;
+		}
 	}
 
 	returnJSON($result);

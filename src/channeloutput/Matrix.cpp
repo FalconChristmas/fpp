@@ -27,6 +27,8 @@
 #include <string.h>
 #include <strings.h>
 
+#include "log.h"
+#include "common.h"
 #include "Matrix.h"
 
 /*
@@ -37,7 +39,11 @@ Matrix::Matrix(int startChannel, int width, int height)
 	m_width(width),
 	m_height(height)
 {
+	LogDebug(VB_CHANNELOUT, "New Matrix: %dx%d\n", width, height);
+
 	m_buffer = new unsigned char[width * height * 3];
+
+	m_enableFlagOffset = startChannel + (width * height * 3);
 }
 
 /*
@@ -51,11 +57,15 @@ Matrix::~Matrix()
 /*
  *
  */
-void Matrix::AddSubMatrix(int startChannel, int width, int height,
+void Matrix::AddSubMatrix(int enabled, int startChannel, int width, int height,
 	int xOffset, int yOffset)
 {
+	LogDebug(VB_CHANNELOUT,
+		"New SubMatrix: %dx%d+%d+%d @ channel %d, enabled: %d\n",
+		 width, height, xOffset, yOffset, startChannel, enabled);
 	SubMatrix newSub;
 
+	newSub.enabled = enabled;
 	newSub.startChannel = startChannel;
 	newSub.width = width;
 	newSub.height = height;
@@ -71,6 +81,11 @@ void Matrix::AddSubMatrix(int startChannel, int width, int height,
 void Matrix::OverlaySubMatrix(unsigned char *channelData, int i)
 {
 	if (subMatrix.size() < i)
+		return;
+
+	// Check to see if this submatrix is enabled
+	if ((!subMatrix[i].enabled) &&
+		(!channelData[m_enableFlagOffset + i]))
 		return;
 
 	int startChannel = subMatrix[i].startChannel;
@@ -97,7 +112,11 @@ void Matrix::OverlaySubMatrices(unsigned char *channelData)
 	if (!subMatrix.size())
 		return;
 
-	bzero(m_buffer, m_width * m_height * 3);
+	// Clear the matrix before applying submatrices
+	// bzero(m_buffer, m_width * m_height * 3);
+
+	// Instead, just populate our temp buffer with the contents of the matrix
+	memcpy(m_buffer, channelData + m_startChannel, m_width * m_height * 3);
 
 	for (int i = 0; i < subMatrix.size(); i++)
 	{
