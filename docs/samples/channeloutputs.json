@@ -288,8 +288,6 @@
 
 		},
 		{
-<<<<<<< HEAD
-=======
 			"type": "X11VirtualDisplay",
 			"enabled": 0,
 			"startChannel": 1,
@@ -339,7 +337,6 @@
 			"interface": "eth0"
 		},
 		{
->>>>>>> 1e50473... [ChannelOutput] Add initial versions of two new Channel Outputs
 			"type": "OLA",
 			"enabled": 0,
 			"startChannel": 1,
