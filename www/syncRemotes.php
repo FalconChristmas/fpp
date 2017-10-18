@@ -41,7 +41,16 @@ foreach ( $remotes as $remote ) {
 	foreach ( $dirs as $dir ) {
 		echo "==================================================================================\n";
 		printf( "Syncing %s dir to %s\n", $dir, $remote );
-		$command = "rsync -av --stats $fppHome/media/$dir/ $remote::media/$dir/ 2>&1";
+		$compress = "";
+		if (($dir == "sequences") &&
+			(isset($settings['CompressMultiSyncTransfers'])) &&
+			($settings['CompressMultiSyncTransfers'] == "1"))
+		{
+			$compress = "-z";
+		}
+
+		$command = "rsync -av $compress --stats $fppHome/media/$dir/ $remote::media/$dir/ 2>&1";
+
 		echo "Command: $command\n";
 		echo "----------------------------------------------------------------------------------\n";
 		system($command);

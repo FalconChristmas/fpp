@@ -29,6 +29,8 @@ echo "FPP - Setting up for the Falcon Player on the ${FPPPLATFORM} platform"
 
 checkAudioConfig
 
+applyReadOnlySDFixups
+
 if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
 then
 	# Check fstab for our entries
@@ -191,15 +193,20 @@ ConfigureFallbackIP
 # Print/Say the IP address
 _IP=$(hostname -I) || true
 if [ "$_IP" ]; then
-  echo "FPP - Found IP(s): $_IP"
-  arrHost=(${_IP// / })
-  FLITESTR="I Have Found The Following I P Addresses, ${arrHost[0]}, ${arrHost[1]},  ${arrHost[2]}"
-  if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
-  then
-    (flite -voice awb -o /var/tmp/flite.wav "${FLITESTR}" && mplayer -ao alsa /var/tmp/flite.wav) &
-  else
-    flite -voice awb "${FLITESTR}" &
-  fi
+	echo "FPP - Found IP(s): $_IP"
+
+	DISABLEIPANN=$(getSetting disableIPAnnouncement)
+	if [ "x${DISABLEIPANN}" != "x1" ]
+	then
+		arrHost=(${_IP// / })
+		FLITESTR="I Have Found The Following I P Addresses, ${arrHost[0]}, ${arrHost[1]},  ${arrHost[2]}"
+		if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
+		then
+			(flite -voice awb -o /var/tmp/flite.wav "${FLITESTR}" && mplayer -ao alsa /var/tmp/flite.wav) &
+		else
+			flite -voice awb "${FLITESTR}" &
+		fi
+	fi
 else
   echo "FPP - No IP(s) found"
 fi

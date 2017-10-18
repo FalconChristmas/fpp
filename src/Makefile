@@ -30,8 +30,11 @@ OBJECTS_fppd = \
 	channeloutput/channeloutput.o \
 	channeloutput/channeloutputthread.o \
 	channeloutput/ArtNet.o \
+<<<<<<< HEAD
 	channeloutput/ColorOrder.o \
 	channeloutput/ColorLight-5a-75.o \
+=======
+>>>>>>> FalconChristmas/master-v1.x
 	channeloutput/DebugOutput.o \
 	channeloutput/DDP.o \
 	channeloutput/E131.o \
@@ -134,7 +137,7 @@ CFLAGS += -Wimplicit
 else
 # we get lots of deprecated warnings currently with g++ since we're
 # normally compiling with gcc
-CFLAGS += -Wno-write-strings
+CFLAGS += -Wno-write-strings -Wno-narrowing
 endif
 
 ifeq '$(ARCH)' 'Raspberry Pi'
@@ -167,7 +170,7 @@ OBJECTS_fppd += \
 	$(NULL)
 DEPS_fppd += \
 	../external/RF24/librf24-bcm.so \
-	../external/rpi-rgb-led-matrix/lib/librgbmatrix.a \
+	../lib/librgbmatrix.so \
 	../external/rpi_ws281x/libws2811.a \
 	$(NULL)
 SUBMODULES += \
@@ -180,10 +183,13 @@ else ifeq '$(ARCH)' 'ODROID'
 BINDIR = ../bin.pi
 CFLAGS += \
 	-DPLATFORM_ODROID \
+	-DUSEWIRINGPI \
 	-I../external/rpi-rgb-led-matrix/include/ \
 	$(NULL)
 LIBS_fppd += \
 	-lrgbmatrix \
+	-lwiringPi \
+	-lwiringPiDev \
 	$(NULL)
 LDFLAGS_fppd += \
 	-L../external/rpi-rgb-led-matrix/lib/ \
@@ -192,7 +198,7 @@ OBJECTS_fppd += \
 	channeloutput/RGBMatrix.o \
 	$(NULL)
 DEPS_fppd += \
-	../external/rpi-rgb-led-matrix/lib/librgbmatrix.a \
+	../lib/librgbmatrix.so \
 	$(NULL)
 SUBMODULES += \
 	external/RF24 \
@@ -335,7 +341,28 @@ util: force
 
 ../external/rpi-rgb-led-matrix/lib/librgbmatrix.a: ../external/rpi-rgb-led-matrix/.git
 	@echo "Building rpi-rgb-led-matrix library"
-	@make -C ../external/rpi-rgb-led-matrix/ lib/librgbmatrix.a
+	@make -C ../external/rpi-rgb-led-matrix/lib/ librgbmatrix.a
+
+../lib/librgbmatrix.so: ../external/rpi-rgb-led-matrix/.git
+	@echo "Building rpi-rgb-led-matrix library for Standard pinout"
+	@make -C ../external/rpi-rgb-led-matrix/lib/ clean
+	@make -C ../external/rpi-rgb-led-matrix/lib/ librgbmatrix.a \
+		DEFINES='-DRGB_SLOWDOWN_GPIO=1'
+	gcc -shared -o ../lib/librgbmatrix_Standard.so ../external/rpi-rgb-led-matrix/lib/*.o
+	@echo "Building rpi-rgb-led-matrix library for Adafruit pinout"
+	@make -C ../external/rpi-rgb-led-matrix/lib/ clean
+	@make -C ../external/rpi-rgb-led-matrix/lib/ librgbmatrix.a \
+		DEFINES='-DRGB_SLOWDOWN_GPIO=1 -DADAFRUIT_RGBMATRIX_HAT -DONLY_SINGLE_CHAIN'
+	gcc -shared -o ../lib/librgbmatrix_Adafruit.so ../external/rpi-rgb-led-matrix/lib/*.o
+	@echo "Building rpi-rgb-led-matrix library for Classic pinout"
+	@make -C ../external/rpi-rgb-led-matrix/lib/ clean
+	@make -C ../external/rpi-rgb-led-matrix/lib/ librgbmatrix.a \
+		DEFINES='-DRGB_SLOWDOWN_GPIO=1 -DRGB_CLASSIC_PINOUT -DONLY_SINGLE_CHAIN'
+	gcc -shared -o ../lib/librgbmatrix_Classic.so ../external/rpi-rgb-led-matrix/lib/*.o
+	strip ../lib/librgbmatrix_Standard.so ../lib/librgbmatrix_Adafruit.so ../lib/librgbmatrix_Classic.so
+	cp ../lib/librgbmatrix_Standard.so ../external/rpi-rgb-led-matrix/lib/librgbmatrix.so
+	ln -s ./librgbmatrix_Standard.so ../lib/librgbmatrix.so
+
 
 #############################################################################
 # libws2811 on the Pi

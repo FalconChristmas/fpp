@@ -30,11 +30,14 @@
 #include <sys/types.h>
 
 #define FPP_CTRL_PORT 32320
+#define FPP_CTRL_CSV_PORT 32321
 
-#define CTRL_PKT_CMD   0
-#define CTRL_PKT_SYNC  1
-#define CTRL_PKT_EVENT 2
-#define CTRL_PKT_BLANK 3
+#define CTRL_PKT_CMD    0
+#define CTRL_PKT_SYNC   1
+#define CTRL_PKT_EVENT  2
+#define CTRL_PKT_BLANK  3
+#define CTRL_PKT_DISCRQ 4 // Discovery Request
+#define CTRL_PKT_DISCRP 5 // Discovery Reply
 
 typedef struct __attribute__((packed)) {
 	char     fppd[4];        // 'FPPD'

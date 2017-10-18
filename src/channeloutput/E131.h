@@ -44,20 +44,6 @@
 #define E131_FRAMING_COUNT_INDEX   38
 #define E131_DMP_COUNT_INDEX       115
 
-#define E131_TYPE_MULTICAST   0
-#define E131_TYPE_UNICAST     1
-
-typedef struct {
-	int           active;
-	int           universe;
-	int           size;
-	int           startAddress;
-	int           type;
-	char          unicastAddress[16];
-	unsigned long bytesReceived;
-	int           priority;
-} UniverseEntry;
-
 // FIXME, these should be in e131bridge.c, not here
 void  ResetBytesReceived();
 void  WriteBytesReceivedFile();

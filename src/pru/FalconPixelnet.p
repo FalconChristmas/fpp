@@ -11,7 +11,7 @@
  
 // Output 40
 #define ser1_gpio	3
-#define ser1_pin  21
+#define ser1_pin	21
 // Output 42
 #define ser2_gpio	3
 #define ser2_pin	19
@@ -141,8 +141,8 @@ START:
 	// Write a 0x1 into the response field so that they know we have started
 	MOV	r2, #0x1
 	SBCO	r2, CONST_PRUDRAM, 12, 4
-  MOV gpio3_serial_mask, #0
-	//SET	GPIO_MASK(ser1_gpio), ser1_pin
+//  MOV gpio3_serial_mask, #0
+	SET	GPIO_MASK(ser1_gpio), ser1_pin
 	SET	GPIO_MASK(ser2_gpio), ser2_pin
 	SET	GPIO_MASK(ser3_gpio), ser3_pin
 	SET	GPIO_MASK(ser4_gpio), ser4_pin
@@ -235,7 +235,8 @@ _LOOP:
   WAIT_BIT:
     MOV	r13, GPIO3 | GPIO_CLEARDATAOUT
     MOV	r14, GPIO3 | GPIO_SETDATAOUT
-    WAITNS 990, wait_bit1
+    //WAITNS 990, wait_bit1
+    SLEEPNS 990, 20, wait_bit1
     RESET_COUNTER
      // Output zero bits
     SBBO	gpio3_zeros, r13, 0, 4

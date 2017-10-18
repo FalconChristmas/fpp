@@ -151,6 +151,11 @@ int FBVirtualDisplayOutput::Init(Json::Value config)
 		return 0;
 	}
 
+<<<<<<< HEAD
+=======
+	bzero(m_virtualDisplay, m_screenSize);
+
+>>>>>>> FalconChristmas/master-v1.x
 	return 1;
 }
 

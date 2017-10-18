@@ -310,6 +310,7 @@
 			"backgroundFilename": "virtualdisplaybackground.jpg"
 		},
 		{
+<<<<<<< HEAD
 			"type": "RHLDVIE131",
 			"enabled": 0,
 			"startChannel": 1,
@@ -337,6 +338,8 @@
 			"interface": "eth0"
 		},
 		{
+=======
+>>>>>>> FalconChristmas/master-v1.x
 			"type": "OLA",
 			"enabled": 0,
 			"startChannel": 1,

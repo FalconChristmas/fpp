@@ -42,6 +42,7 @@
 #include "PixelOverlay.h"
 #include "Sequence.h"
 #include "command.h"
+#include "Universe.h"
 
 #define BRIDGE_INVALID_UNIVERSE_INDEX 0xFFFFFF
 
