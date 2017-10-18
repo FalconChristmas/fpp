@@ -30,11 +30,8 @@ OBJECTS_fppd = \
 	channeloutput/channeloutput.o \
 	channeloutput/channeloutputthread.o \
 	channeloutput/ArtNet.o \
-<<<<<<< HEAD
 	channeloutput/ColorOrder.o \
 	channeloutput/ColorLight-5a-75.o \
-=======
->>>>>>> FalconChristmas/master-v1.x
 	channeloutput/DebugOutput.o \
 	channeloutput/DDP.o \
 	channeloutput/E131.o \

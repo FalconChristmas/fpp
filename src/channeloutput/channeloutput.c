@@ -35,11 +35,8 @@
 #include "channeloutput.h"
 #include "DebugOutput.h"
 #include "ArtNet.h"
-<<<<<<< HEAD
 #include "ColorLight-5a-75.h"
 #include "DDP.h"
-=======
->>>>>>> FalconChristmas/master-v1.x
 #include "E131.h"
 #include "FBMatrix.h"
 #include "FBVirtualDisplay.h"
