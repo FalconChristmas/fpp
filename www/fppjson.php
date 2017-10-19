@@ -26,10 +26,10 @@ $command_array = Array(
 	"setDNSInfo"          => 'SetDNSInfo',
 	"getFPPDUptime"       => 'GetFPPDUptime',
 	"applyInterfaceInfo"  => 'ApplyInterfaceInfo',
-	"getInterfaceInfo"    => 'GetInterfaceInfo',
+	"getInterfaceInfo"    => 'GetInterfaceInfoJson',
 	"setInterfaceInfo"    => 'SetInterfaceInfo',
 	"getFPPSystems"       => 'GetFPPSystems',
-	"getFPPstatus"		  => 'GetFPPStatus',
+	"getFPPstatus"		  => 'GetFPPStatusJson',
 	"getSetting"          => 'GetSetting',
 	"setSetting"          => 'SetSetting',
 	"startSequence"       => 'StartSequence',
@@ -42,8 +42,8 @@ $command_array = Array(
 	"saveScript"          => 'SaveScript',
 	"setTestMode"         => 'SetTestMode',
 	"getTestMode"         => 'GetTestMode',
-	"setupExtGPIO"        => 'SetupExtGPIO',
-	"extGPIO"             => 'ExtGPIO'
+	"setupExtGPIO"        => 'SetupExtGPIOJson',
+	"extGPIO"             => 'ExtGPIOJson'
 );
 
 $command = "";
@@ -222,7 +222,7 @@ function GetFPPDUptime()
 	returnJSON($result);
 }
 
-function GetFPPStatus()
+function GetFPPStatusJson()
 {
 	global $args;
 
@@ -770,7 +770,7 @@ function ApplyInterfaceInfo()
 }
 
 
-function GetInterfaceInfo()
+function GetInterfaceInfoJson()
 {
 	global $settings;
 	global $args;
@@ -965,7 +965,7 @@ function GetTestMode()
 
 /////////////////////////////////////////////////////////////////////////////
 
-function SetupExtGPIO()
+function SetupExtGPIOJson()
 {
 	global $args;
 	$result = Array();
@@ -990,7 +990,7 @@ function SetupExtGPIO()
 }
 
 /////////////////////////////////////////////////////////////////////////////
-function ExtGPIO()
+function ExtGPIOJson()
 {
 	global $args;
 	$result = Array();
