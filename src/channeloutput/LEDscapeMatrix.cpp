@@ -311,6 +311,13 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
         lmconfig->bitsToOutput = 8;
     }
     lmconfig->rowsPerOutput = config["panelScan"].asInt();
+    
+    if (config.isMember("panelInterleave")) {
+        lmconfig->interleavePixels = config["panelInterleave"].asInt();
+    } else {
+        lmconfig->interleavePixels = 0;
+    }
+    
     lmconfig->initialSkip = (lmconfig->maxPanel - maxPanel - 1) * 6 * lmconfig->panel_width;
     if (lmconfig->rowsPerOutput == 0) {
         lmconfig->rowsPerOutput = 8;
