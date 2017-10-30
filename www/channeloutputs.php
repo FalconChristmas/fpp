@@ -2072,6 +2072,7 @@ function printLEDPanelSizeSelect()
 	$values = array();
 	$values["32x16"] = "32x16";
 	$values["32x32"] = "32x32";
+	$values["64x32"] = "64x32";
 
 	PrintSettingSelect("Panel Size", "LEDPanelsSize", 1, 0, "32x16", $values, "", "LEDPanelLayoutChanged");
 }
@@ -2085,6 +2086,8 @@ var LEDPanelWidth = <? echo $LEDPanelWidth; ?>;
 var LEDPanelHeight = <? echo $LEDPanelHeight; ?>;
 var LEDPanelRows = <? echo $LEDPanelRows; ?>;
 var LEDPanelCols = <? echo $LEDPanelCols; ?>;
+// var LEDPanelConnection = <? echo $LEDPanelConnection; ?>;
+// var LEDPanelInterface = <? echo $LEDPanelInterface; ?>;
 
 function UpdatePanelSize()
 {
@@ -2203,6 +2206,8 @@ function InitializeLEDPanels()
 		$('#LEDPanelsChannelCount').html(channelOutputsLookup["LEDPanelMatrix"].channelCount);
 		$('#LEDPanelsColorOrder').val(channelOutputsLookup["LEDPanelMatrix"].colorOrder);
 		$('#LEDPanelsBrightness').val(channelOutputsLookup["LEDPanelMatrix"].brightness);
+		$('#LEDPanelsConnection').val(channelOutputsLookup["LEDPanelMatrix"].subType);
+		$('#LEDPanelsInterface').val(channelOutputsLookup["LEDPanelMatrix"].interface);
 <?
 	if ($settings['Platform'] == "Raspberry Pi")
 	{
@@ -2244,6 +2249,15 @@ function GetLEDPanelConfig()
 	config.channelCount = parseInt($('#LEDPanelsChannelCount').html());
 	config.colorOrder = $('#LEDPanelsColorOrder').val();
 	config.brightness = parseInt($('#LEDPanelsBrightness').val());
+	if ($('#LEDPanelsConnection').val() === "ColorLight5a75")
+	{
+		config.subType = $('#LEDPanelsConnection').val();
+	}
+	if ($('#LEDPanelsConnection').val() === "LinsnRV9")
+	{
+		config.subType = $('#LEDPanelsConnection').val();
+	}
+	config.interface = $('#LEDPanelsInterface').val();
 <?
 	if ($settings['Platform'] == "Raspberry Pi")
 	{
@@ -2693,6 +2707,21 @@ tr.rowUniverseDetails td
 	}
 ?>
 							</tr>
+							<tr>
+								<td><b>Connection:</b></td><td>
+									<select id='LEDPanelsConnection'>
+										<option value='Hat-Cap-Cape'>Hat/Cap/Cape</option>
+										<option value='ColorLight5a75'>ColorLight</option>
+										<option value='LinsnRV9'>Linsn</option>
+									</select>
+								<td>&nbsp;</td>
+								<td><b>Interface:</b></td><td>
+									<select id='LEDPanelsInterface'>
+										<option value='eth0'>eth0</option>
+										<option value='eth1'>eth1</option>
+									</select>
+									</td>
+							</tr> 	
 							<tr>
 								<td width = '70 px' colspan=5><input id='btnSaveChannelOutputsJSON' class='buttons' type='button' value='Save' onClick='SaveChannelOutputsJSON();'/> <font size=-1><? if ($settings['Platform'] == "BeagleBone Black") { echo "(this will save changes to BBB tab &amp; LED Panels tab)"; } ?></font></td>
 							</tr>
