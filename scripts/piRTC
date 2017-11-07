@@ -23,6 +23,10 @@ else
 	fi
 fi
 
+#sleep and wait for things to settle after setting creating the i2c device
+#without this the system date isn't changed, presumably because the RTC isn't ready
+sleep 10
+
 if [[ $1 == "set" ]]
 then
   hwclock -w -f ${RTCDEVICE} &>/dev/null
@@ -32,4 +36,3 @@ else
 fi
 
 sleep 2
-
