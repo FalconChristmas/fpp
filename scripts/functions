@@ -911,11 +911,11 @@ setupBBBRTC () {
 			# BBB has onboard clock as rtc0 so we need to use rtc1
 			echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-2/new_device
 			
-			# i2c busss have swapped around or even by design since the last image
-			# i2c-1 was where the RTC before, nothing can be found on i2c-1 now
+			# i2c buses have swapped around or even by design since the last image
+			# i2c-1 was where the RTC sat before, nothing can be found on i2c-1 now
 			# devices now show on i2c-2
 
-			##if result is anything but 0, then it filed. try the 1st i2c bus
+			##if result is anything but 0, then command failed. try the load RTC on 1st i2c bus
 			if [ $? -ne 0 ]
 			then
 				echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device
