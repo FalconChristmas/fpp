@@ -2336,7 +2336,10 @@ function InitializeLEDPanels()
 		$('#LEDPanelsStartChannel').val(channelOutputsLookup["LEDPanelMatrix"].startChannel);
 		$('#LEDPanelsChannelCount').html(channelOutputsLookup["LEDPanelMatrix"].channelCount);
 		$('#LEDPanelsColorOrder').val(channelOutputsLookup["LEDPanelMatrix"].colorOrder);
-        $('#LEDPanelsBrightness').val(channelOutputsLookup["LEDPanelMatrix"].brightness);
+		$('#LEDPanelsBrightness').val(channelOutputsLookup["LEDPanelMatrix"].brightness);
+		$('#LEDPanelsConnection').val(channelOutputsLookup["LEDPanelMatrix"].subType);
+		$('#LEDPanelsInterface').val(channelOutputsLookup["LEDPanelMatrix"].interface);
+		$('#LEDPanelsSourceMacInput').val(channelOutputsLookup["LEDPanelMatrix"].sourceMAC);
 <?
 	if ($settings['Platform'] == "Raspberry Pi" || $settings['Platform'] == "BeagleBone Black")
 	{
@@ -2383,6 +2386,16 @@ function GetLEDPanelConfig()
 	config.startChannel = parseInt($('#LEDPanelsStartChannel').val());
 	config.channelCount = parseInt($('#LEDPanelsChannelCount').html());
 	config.colorOrder = $('#LEDPanelsColorOrder').val();
+	config.brightness = parseInt($('#LEDPanelsBrightness').val());
+	if (($('#LEDPanelsConnection').val() === "ColorLight5a75") || ($('#LEDPanelsConnection').val() === "LinsnRV9"))
+	{
+		config.subType = $('#LEDPanelsConnection').val();
+		config.interface = $('#LEDPanelsInterface').val();
+		if (($('#LEDPanelsConnection').val() === "LinsnRV9") && $('#LEDPanelsSourceMacInput').val() !== "00:00:00:00:00:00" && $('#LEDPanelsSourceMacInput').val() !== "")
+		{
+			config.sourceMAC = $('#LEDPanelsSourceMacInput').val();
+		}
+	}
 <?
 	if ($settings['Platform'] == "Raspberry Pi" || $settings['Platform'] == "BeagleBone Black")
 	{
@@ -2467,6 +2480,40 @@ function GetLEDPanelConfig()
 	}
 
 	return config;
+}
+
+
+<?
+function PopulateEthernetInterfaces()
+{
+	$interfaces = explode("\n",trim(shell_exec("/sbin/ifconfig | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v usb0 | grep -v wlan")));
+	foreach ($interfaces as $iface)
+	{
+		$iface = preg_replace("/:$/", "", $iface);
+		echo "<option value='" . $iface . "'>" . $iface . "</option>";
+	}
+}
+?>
+
+function LEDPannelsConnectionChanged()
+{
+	if (($('#LEDPanelsConnection').val() === "ColorLight5a75") || ($('#LEDPanelsConnection').val() === "LinsnRV9")) {
+		$('#LEDPanelsConnectionInterface').show();
+		$('#LEDPanelsInterface').show();
+		if ($('#LEDPanelsConnection').val() === "LinsnRV9") {
+			$('#LEDPanelsSourceMac').show();
+		}
+		else
+		{
+			$('#LEDPanelsSourceMac').hide();
+		}
+	}
+	else 
+	{
+		$('#LEDPanelsConnectionInterface').hide();
+		$('#LEDPanelsInterface').hide();
+		$('#LEDPanelsSourceMac').hide();
+	}
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -2600,6 +2647,8 @@ $(document).ready(function(){
 	// 'Other' Channel Outputs initialization
 	SetupSelectableTableRow(otherTableInfo);
 	GetChannelOutputs();
+
+	LEDPannelsConnectionChanged();
 
 	// Init tabs
   $tabs = $("#tabs").tabs({cache: true, spinner: "", fx: { opacity: 'toggle', height: 'toggle' } });
@@ -2844,6 +2893,19 @@ tr.rowUniverseDetails td
     }
 ?>
 							</tr>
+<?
+if ($settings['Platform'] == "BeagleBone Black") {
+    ?>
+    <tr><td><b>Color Depth:</b></td><td>
+    <select id='LEDPanelsColorDepth'>
+    <option value='8'>8 Bit</option>
+    <option value='7'>7 Bit</option>
+    <option value='6'>6 Bit</option>
+    </select>
+    </td></tr>
+    <?
+}
+?>
 							<tr>
 								<td><b>Connection:</b></td><td>
 									<select id='LEDPanelsConnection' onChange='LEDPannelsConnectionChanged();'>
@@ -2866,23 +2928,15 @@ tr.rowUniverseDetails td
 									</select>
 									</td>
 							</tr>
-<?
-    if ($settings['Platform'] == "BeagleBone Black") {
-?>
-        <tr><td><b>Color Depth:</b></td><td>
-        <select id='LEDPanelsColorDepth'>
-        <option value='8'>8 Bit</option>
-        <option value='7'>7 Bit</option>
-        <option value='6'>6 Bit</option>
-        </select>
-        </td></tr>
-<?
-    }
-?>
+
         
         
         
-        
+							<tr id='LEDPanelsSourceMac'>
+								<td><b>Source Mac:</b></td><td>
+								<input id='LEDPanelsSourceMacInput' type=text size=16 maxlength=17 value='00:00:00:00:00:00'>
+								<td>&nbsp;</td>
+							</tr>
 							<tr>
 								<td width = '70 px' colspan=5><input id='btnSaveChannelOutputsJSON' class='buttons' type='button' value='Save' onClick='SaveChannelOutputsJSON();'/> <font size=-1><? if ($settings['Platform'] == "BeagleBone Black") { echo "(this will save changes to BBB tab &amp; LED Panels tab)"; } ?></font></td>
 							</tr>
