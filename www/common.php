@@ -179,7 +179,7 @@ echo "
 	echo " onChange='" . $setting . "Changed();'>\n";
 }
 
-function PrintSettingSelect($title, $setting, $restart = 1, $reboot = 0, $defaultValue, $values, $pluginName = "", $callbackName = "")
+function PrintSettingSelect($title, $setting, $restart = 1, $reboot = 0, $defaultValue, $values, $pluginName = "", $callbackName = "", $changedFunction = "")
 {
 	global $settings;
 	global $pluginSettings;
@@ -194,6 +194,9 @@ function PrintSettingSelect($title, $setting, $restart = 1, $reboot = 0, $defaul
 
 	if ($callbackName != "")
 		$callbackName = $callbackName . "();";
+
+    if ($changedFunction == "")
+        $changedFunction = $setting . "Changed";
 
 	echo "
 <script>
@@ -219,7 +222,7 @@ echo "
 }
 </script>
 
-<select id='$setting' onChange='" . $setting . "Changed();'>\n";
+<select id='$setting' onChange='" . $changedFunction . "();'>\n";
 
 	foreach ( $values as $key => $value )
 	{
