@@ -207,3 +207,6 @@ then
        echo 'rebootFlag = "1"' >> /home/fpp/media/settings
     fi
 fi
+
+#make sure the entire media dir and subdirs is writable by fpp user
+chown -R ${FPPUSER}.${FPPUSER} ${FPPHOME}/media
