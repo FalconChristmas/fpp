@@ -185,6 +185,18 @@ fi
 echo "FPP - Clearing reboot flags"
 sed -i -e "s/^rebootFlag .*/rebootFlag = 0/" ${FPPHOME}/media/settings
 
+
+MEDIADEV=`findmnt -n -o SOURCE /home/fpp/media | colrm 1 5`
+if [ "$MEDIADEV" = "" ]; then
+    MEDIADEV=`findmnt -n -o SOURCE / | colrm 1 5`
+fi
+if grep -q storageDevice "${FPPHOME}/media/settings"; then
+    sed -i -e "s/^storageDevice .*/storageDevice = $MEDIADEV/" ${FPPHOME}/media/settings
+else
+    echo "storageDevice = $MEDIADEV" >> ${FPPHOME}/media/settings
+fi
+
+
 echo "FPP - Setting max IGMP memberships"
 sysctl net/ipv4/igmp_max_memberships=512 > /dev/null 2>&1
 

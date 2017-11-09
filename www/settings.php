@@ -98,9 +98,21 @@ function PrintStorageDeviceSelect()
 	$bootDevice = $output[0];
 	unset($output);
 
-	exec('lsblk -l | grep " /$" | cut -f1 -d" "', $output, $return_val);
-	$rootDevice = $output[0];
-	unset($output);
+    if ($settings['Platform'] == "BeagleBone Black") {
+        exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
+        $rootDevice = $output[0];
+        unset($output);
+        
+        if ($bootDevice == "") {
+            exec('findmnt -n -o SOURCE / | colrm 1 5 | sed -e "s/p[0-9]$//"', $output, $return_val);
+            $bootDevice = $output[0];
+            unset($output);
+        }
+    } else {
+        exec('lsblk -l | grep " /$" | cut -f1 -d" "', $output, $return_val);
+        $rootDevice = $output[0];
+        unset($output);
+    }
 
 	exec('grep "fpp/media" /etc/fstab | cut -f1 -d" " | sed -e "s/\/dev\///"', $output, $return_val);
 	$storageDevice = $output[0];
@@ -166,15 +178,60 @@ function PrintStorageDeviceSelect()
 	if (!$found)
 	{
 		$arr = array_reverse($values, true);
-		$arr["-- Select a Storage Device --"] = "/dev/sda1";
 		$values = array_reverse($arr);
 	}
+    if ($storageDevice == "") {
+        $storageDevice = $rootDevice;
+    }
 
-	PrintSettingSelect('StorageDevice', 'storageDevice', 0, 1, $storageDevice, $values);
+	PrintSettingSelect('StorageDevice', 'storageDevice', 0, 1, $storageDevice, $values, "", "", "checkFormatStorage");
 }
 
 ?>
+
+
+<script type="text/javascript" src="jquery/jQuery.msgBox/scripts/jquery.msgBox.js"></script>
+<link href="jquery/jQuery.msgBox/styles/msgBoxLight.css" rel="stylesheet" type="text/css">
 <script>
+
+function checkFormatStorage()
+{
+    var value = $('#storageDevice').val();
+    
+    var e = document.getElementById("storageDevice");
+    var name = e.options[e.selectedIndex].text;
+    if (name.includes("Not Mounted")) {
+        var btitle = "Format Storage Location (" + value + ")" + name;
+        $.msgBox({ type: "prompt",
+                 title: btitle,
+                 inputs: [
+                 { header: "Don't Format", type: "radio", name: "formatType", checked:"", value: "none" },
+                 { header: "FAT (Compatible with Windows/OSX)", type: "radio", name: "formatType", value: "FAT"},
+                 { header: "ext4 (Most stable)", type: "radio", name: "formatType", value: "ext4" },
+                 { header: "btrfs (Compression, Fastest)", type: "radio", name: "formatType", value: "btrfs" }],
+                 buttons: [ { value: "OK" } ],
+                 opacity: 0.5,
+                 success: function (result, values) {
+                 var v = $('input[name=formatType]:checked').val();
+                 if (v != "none") {
+                    $.ajax({ url: "formatstorage.php?fs=" + v + "&storageLocation=" + $('#storageDevice').val(),
+                        async: false,
+                        success: function(data) {
+                           storageDeviceChanged();
+                        },
+                        failure: function(data) {
+                        DialogError("Formate Storage", "Error formatting storage.");
+                        }
+                        });
+                    } else {
+                        storageDeviceChanged();
+                    }
+                 }
+                 });
+    } else {
+        storageDeviceChanged();
+    }
+}
 
 	var queuedChanges = 0;
 	function MaskChanged(cbox)
