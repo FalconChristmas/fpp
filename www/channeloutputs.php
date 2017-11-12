@@ -2049,8 +2049,6 @@ function GetBBBSerialConfig()
 
 	if (config.subType != 'off')
 		config.enabled = 1;
-	else
-		config.subType = 'DMX';
     
     if (!$('#BBB48StringEnabled').is(":checked"))
         config.enabled = 0;
