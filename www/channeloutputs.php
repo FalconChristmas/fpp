@@ -1736,7 +1736,8 @@ function GetBBB48StringConfig()
 		output.grouping = parseInt($('#BBB48Grouping' + ai).val());
 		output.zigZag = parseInt($('#BBB48ZigZag' + ai).val());
         output.brightness = parseInt($('#BBB48Brightness' + ai).val());
-
+        output.gamma = parseFloat($('#BBB48Gamma' + ai).val());
+        
 		if ($('#BBB48HybridMode' + ai).is(":checked"))
 			output.hybridMode = 1;
 
@@ -1856,24 +1857,24 @@ function DrawBBB48StringTable()
 	{
         if (subType == 'F8-B-EXP') {
             if (s == 12 || s == 8) {
-                html += "<tr><td colspan='11'><hr></td></tr>\n";
+                html += "<tr><td colspan='12'><hr></td></tr>\n";
             }
         } else if (subType == 'F8-B-EXP-32' && (s == 16 || s == 12 || s == 8)) {
-            html += "<tr><td colspan='11'><hr></td></tr>\n";
+            html += "<tr><td colspan='12'><hr></td></tr>\n";
         } else if (subType == 'F8-B-EXP-36') {
             if (s == 20 || s == 16 || s == 12 || s == 8) {
-                html += "<tr><td colspan='11'><hr></td></tr>\n";
+                html += "<tr><td colspan='12'><hr></td></tr>\n";
             }
         } else if (subType == 'F8-B-20' && (s == 16 || s == 12 || s == 8)) {
-            html += "<tr><td colspan='11'><hr></td></tr>\n";
+            html += "<tr><td colspan='12'><hr></td></tr>\n";
         } else if (subType == 'F8-B-16' && (s == 12 || s == 8)) {
-            html += "<tr><td colspan='11'><hr></td></tr>\n";
+            html += "<tr><td colspan='12'><hr></td></tr>\n";
         } else if (subType == 'F8-B' && s == 8) {
-            html += "<tr><td colspan='11'><hr></td></tr>\n";
+            html += "<tr><td colspan='12'><hr></td></tr>\n";
         } else if (subType == 'F32-B' && s == 36) {
-            html += "<tr><td colspan='11'><hr></td></tr>\n";
+            html += "<tr><td colspan='12'><hr></td></tr>\n";
         } else if (s && ((s % 16) == 0)) {
-    		html += "<tr><td colspan='11'><hr></td></tr>\n";
+    		html += "<tr><td colspan='12'><hr></td></tr>\n";
 		}
 
 		html += "<tr id='BBB48StringRow" + s + "'>";
@@ -1898,15 +1899,20 @@ function DrawBBB48StringTable()
 			channelOutputsLookup["BBB48String"].outputs[s].grouping = 0;
 			channelOutputsLookup["BBB48String"].outputs[s].zigZag = 0;
             channelOutputsLookup["BBB48String"].outputs[s].brightness = 100;
+            channelOutputsLookup["BBB48String"].outputs[s].gamma = 1.0;
 		}
 
 		var p = channelOutputsLookup["BBB48String"].outputs[s].pixelCount;
 		var sc = channelOutputsLookup["BBB48String"].outputs[s].startChannel;
 		var gc = channelOutputsLookup["BBB48String"].outputs[s].grouping;
         var bright = channelOutputsLookup["BBB48String"].outputs[s].brightness;
-        
-        if (bright == 'undefined') {
+        var gamma = channelOutputsLookup["BBB48String"].outputs[s].gamma;
+
+        if (bright == undefined) {
             bright = 100;
+        }
+        if (gamma == undefined) {
+            gamma = 1.0;
         }
 
 		if (gc == 0)
@@ -1936,6 +1942,7 @@ function DrawBBB48StringTable()
         
         
         html += "<td class='center'>" + GetBrightnessOptionsSelect("BBB48Brightness[" + s + "]", bright) + "</td>";
+        html += "<td class='center'><input id='BBB48Gamma[" + s + "]' type='text' size='4' maxlength='4' value='" + gamma + "'></td>";
 
 
 		html += "</tr>";
@@ -2927,11 +2934,12 @@ if ($settings['Platform'] == "BeagleBone Black")
 									<td width='10%'>End<br>Channel</td>
 									<td width='5%'>RGB<br>Order</td>
 									<td width='8%'>Direction</td>
-									<td width='10%'>Group<br>Count</td>
-									<td width='10%'>Null<br>Nodes</td>
-									<td width='10%'>Hybrid</td>
+									<td width='8%'>Group<br>Count</td>
+									<td width='8%'>Null<br>Nodes</td>
+									<td width='8%'>Hybrid</td>
 									<td width='10%'>Zig<br>Zag</td>
-                                    <td width='10%'>Brightness</td>
+                                    <td width='8%'>Brightness</td>
+                                    <td width='8%'>Gamma</td>
 									</tr>
 							</thead>
 							<tbody>

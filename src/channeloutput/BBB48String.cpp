@@ -252,10 +252,14 @@ int BBB48StringOutput::Init(Json::Value config)
 		PixelString *newString = new PixelString;
 
         int brightness = 100;
+        float gamma = 1.0f;
         if (!s["brightness"].isNull()) {
             brightness = s["brightness"].asInt();
         }
-        
+        if (!s["gamma"].isNull()) {
+            gamma = s["gamma"].asFloat();
+        }
+
 		if (!newString->Init(s["portNumber"].asInt(),
 			m_startChannel,
 			s["startChannel"].asInt() - 1,
@@ -266,7 +270,8 @@ int BBB48StringOutput::Init(Json::Value config)
 			s["reverse"].asInt(),
 			s["grouping"].asInt(),
 			s["zigZag"].asInt(),
-            brightness))
+            brightness,
+            gamma))
 			return 0;
 
 		if ((newString->m_pixelCount + newString->m_nullNodes) > m_maxStringLen)

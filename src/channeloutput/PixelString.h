@@ -40,7 +40,7 @@ class PixelString {
 	int  Init(int portNumber, int channelOffset, int startChannel,
 		int pixelCount, std::string colorOrder, int nullNodes,
 		int hybridMode, int reverse, int grouping, int zigZag,
-        int brightness);
+        int brightness, float gamma);
 	void DumpConfig(void);
 
 	int               m_portNumber;
@@ -54,6 +54,7 @@ class PixelString {
 	int               m_grouping;
 	int               m_zigZag;
     int               m_brightness;
+    float             m_gamma;
 
 	int               m_inputChannels;
 	int               m_outputChannels;
