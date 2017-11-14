@@ -40,7 +40,7 @@
 
 // defines are slightly lower as
 // there is overhead in resetting the clocks
-#define LOW_TIME    200
+#define LOW_TIME    180
 #define HIGH_TIME   650
 #define TOTAL_TIME  1250
 
@@ -483,9 +483,13 @@ _LOOP:
             //wait for the full cycle to complete
             WAITNS    TOTAL_TIME, r8, r9
 
+            //start the clock
             RESET_PRU_CLOCK r8, r9
 
 			// Send all the start bits
+#ifdef USES_GPIO0
+            SET_IF_NOT_EQUAL gpio0_led_mask, gpio0_address, 0
+#endif
 #ifdef USES_GPIO1
             SET_IF_NOT_EQUAL gpio1_led_mask, gpio1_address, 0
 #endif
@@ -494,9 +498,6 @@ _LOOP:
 #endif
 #ifdef USES_GPIO3
             SET_IF_NOT_EQUAL gpio3_led_mask, gpio3_address, 0
-#endif
-#ifdef USES_GPIO0
-            SET_IF_NOT_EQUAL gpio0_led_mask, gpio0_address, 0
 #endif
 
 #ifdef USES_GPIO1
@@ -515,7 +516,7 @@ _LOOP:
 			// wait for the length of the zero bits
             WAITNS    LOW_TIME, r8, r9
 
-			// turn off all the zero bits
+            // turn off all the zero bits
             // if gpio_zeros is 0, nothing will be turned off, skip
 #ifdef USES_GPIO1
             CLEAR_IF_NOT_EQUAL  gpio1_zeros, gpio1_address, 0
@@ -536,6 +537,9 @@ _LOOP:
             // Turn all the bits off
             // if gpio#_zeros is equal to the led mask, then everythin was
             // already shut off, don't output
+#ifdef USES_GPIO0
+            CLEAR_IF_NOT_EQUAL gpio0_led_mask, gpio0_address, gpio0_zeros
+#endif
 #ifdef USES_GPIO1
             CLEAR_IF_NOT_EQUAL gpio1_led_mask, gpio1_address, gpio1_zeros
 #endif
@@ -544,9 +548,6 @@ _LOOP:
 #endif
 #ifdef USES_GPIO3
             CLEAR_IF_NOT_EQUAL gpio3_led_mask, gpio3_address, gpio3_zeros
-#endif
-#ifdef USES_GPIO0
-            CLEAR_IF_NOT_EQUAL gpio0_led_mask, gpio0_address, gpio0_zeros
 #endif
 
 			QBNE	BIT_LOOP, bit_num, 0

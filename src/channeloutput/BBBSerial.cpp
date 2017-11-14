@@ -58,7 +58,7 @@ extern "C" {
  */
 BBBSerialOutput::BBBSerialOutput(unsigned int startChannel,
 	unsigned int channelCount)
-  : ChannelOutputBase(startChannel, channelCount),
+  : ChannelOutputBase(0, startChannel + channelCount + 1),
 	m_config(NULL),
 	m_leds(NULL),
     m_pixelnet(0),
@@ -121,13 +121,19 @@ int BBBSerialOutput::Init(Json::Value config)
 	// Always send 8 outputs worth of data to PRU for now
 	m_outputs = 8;
 
-	m_channelCount = config["channelCount"].asInt();
 	m_config = &ledscape_matrix_default;
 
 	if (config["subType"].asString() == "Pixelnet")
 		m_pixelnet = 1;
 	else
 		m_pixelnet = 0;
+    
+    if (m_pixelnet) {
+        //pixelnet takes 45ms to send so we need to
+        //use a background thread just in case we have a 25ms
+        //sequence.   The main thread would get blocked.
+        m_useOutputThread = 1;
+    }
 
 	m_startChannels.resize(config["outputs"].size());
 
@@ -137,6 +143,7 @@ int BBBSerialOutput::Init(Json::Value config)
 		m_startChannels[i] = 0;
 	}
 
+    int maxChannel = 0;
 	for (int i = 0; i < config["outputs"].size(); i++)
 	{
 		Json::Value s = config["outputs"][i];
@@ -144,6 +151,16 @@ int BBBSerialOutput::Init(Json::Value config)
 		m_startChannels[s["outputNumber"].asInt()] = s["startChannel"].asInt() - 1;
 	}
 
+    m_channelCount = 0;
+    for (int i = 0; i < m_outputs; i++)
+    {
+        if (m_channelCount < m_startChannels[i]) {
+            m_channelCount = m_startChannels[i];
+        }
+    }
+    m_channelCount += (m_pixelnet ? 4096 : 512) + 1;
+    m_startChannel = 1;
+    
 	m_config = reinterpret_cast<ledscape_config_t*>(calloc(1, sizeof(ledscape_config_t)));
 	if (!m_config)
 	{
@@ -285,7 +302,7 @@ int BBBSerialOutput::RawSendData(unsigned char *channelData)
 			c = out + i + (m_outputs);
 
 		// Get the start channel for this output
-        s = (uint8_t*)(channelData + m_startChannels[i] - (m_useOutputThread ? m_startChannel : 0));
+        s = (uint8_t*)(channelData + m_startChannels[i]);
         
 		// Now copy the individual channel data into each slice
 		for (int ch = 0; ch < chCount; ch++)
