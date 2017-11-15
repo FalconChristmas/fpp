@@ -199,6 +199,11 @@ then
         /usr/bin/config-pin -f ${BINDIR}/bbb-pins.txt
     fi
 
+    # need to disable the slower idle state as it takes 130ns to get 
+    # out of that state which can disrupt the ws2811 timing enough
+    # to get extra strobing
+    cpupower idle-set -d 1
+
     uboot=$(dd if=/dev/mmcblk1 count=32 skip=393248 bs=1 2>/dev/null || true)
     if [[ $uboot != *"U-Boot 2017."* ]]; then
        cd /opt/backup/uboot
