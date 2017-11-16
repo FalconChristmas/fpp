@@ -171,6 +171,8 @@ inline void mapSize(int max, int maxString, int &newHeight, std::vector<std::str
 }
 static void createOutputLengths(std::vector<PixelString*> &m_strings,
                                 int maxStringLen) {
+    
+    printf("createOutputLengths   %d\n", maxStringLen);
     std::ofstream outputFile;
     outputFile.open("/tmp/OutputLengths.hp", std::ofstream::out | std::ofstream::trunc);
     
@@ -328,9 +330,15 @@ int BBB48StringOutput::Init(Json::Value config)
     } else if (m_subType == "F16-B") {
         args.push_back("-DF16B");
         mapSize(16, maxString, lsconfig->leds_height, args);
-    } else if (m_subType == "F16-B-32" || m_subType == "F16-B-40" || m_subType == "F32-B") {
+    } else if (m_subType == "F16-B-32" || m_subType == "F16-B-40") {
         args.push_back("-DF16B");
         mapSize(40, maxString, lsconfig->leds_height, args);
+    } else if (m_subType == "F32-B") {
+        args.push_back("-DF32B");
+        mapSize(40, maxString, lsconfig->leds_height, args);
+    } else if (m_subType == "F32-B-48") {
+        args.push_back("-DF32B");
+        mapSize(48, maxString, lsconfig->leds_height, args);
     } else if (m_subType == "F16-B-48") {
         args.push_back("-DF16B");
         mapSize(48, maxString, lsconfig->leds_height, args);

@@ -8,8 +8,6 @@
  * 
  */
 
-#define RUNNING_ON_PRU0
-
 #include "FalconSerial.hp"
 
 

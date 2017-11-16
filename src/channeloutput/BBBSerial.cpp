@@ -27,6 +27,8 @@
 #include <string.h>
 #include <strings.h>
 #include <unistd.h>
+#include <sys/wait.h>
+
 
 #define BBB_PRU  0
 #define PRU_ARM_INTERRUPT PRU0_ARM_INTERRUPT
@@ -58,7 +60,7 @@ extern "C" {
  */
 BBBSerialOutput::BBBSerialOutput(unsigned int startChannel,
 	unsigned int channelCount)
-  : ChannelOutputBase(0, startChannel + channelCount + 1),
+    : ChannelOutputBase(startChannel, channelCount),
 	m_config(NULL),
 	m_leds(NULL),
     m_pixelnet(0),
@@ -111,6 +113,24 @@ static void configurePRUPins(int start, int end, const char *mode) {
     }
 }
 
+static void compileSerialPRUCode(std::vector<std::string> &sargs) {
+    pid_t compilePid = fork();
+    if (compilePid == 0) {
+        char * args[sargs.size() + 3];
+        args[0] = "/bin/bash";
+        args[1] = "/opt/fpp/src/pru/compileSerial.sh";
+        
+        for (int x = 0; x < sargs.size(); x++) {
+            args[x + 2] = (char*)sargs[x].c_str();
+        }
+        args[sargs.size() + 2] = NULL;
+        
+        execvp("/bin/bash", args);
+    } else {
+        wait(NULL);
+    }
+}
+
 /*
  *
  */
@@ -118,15 +138,20 @@ int BBBSerialOutput::Init(Json::Value config)
 {
 	LogDebug(VB_CHANNELOUT, "BBBSerialOutput::Init(JSON)\n");
 
+    std::vector<std::string> args;
+
 	// Always send 8 outputs worth of data to PRU for now
 	m_outputs = 8;
 
 	m_config = &ledscape_matrix_default;
 
-	if (config["subType"].asString() == "Pixelnet")
+    if (config["subType"].asString() == "Pixelnet") {
+        args.push_back("-DPIXELNET");
 		m_pixelnet = 1;
-	else
+    } else {
 		m_pixelnet = 0;
+        args.push_back("-DDMX");
+    }
     
     if (m_pixelnet) {
         //pixelnet takes 45ms to send so we need to
@@ -158,9 +183,11 @@ int BBBSerialOutput::Init(Json::Value config)
             m_channelCount = m_startChannels[i];
         }
     }
-    m_channelCount += (m_pixelnet ? 4096 : 512) + 1;
-    m_startChannel = 1;
+    m_channelCount += (m_pixelnet ? 4096 : 512);
+    m_channelCount -= m_startChannel;
     
+    m_channelCount = config["channelCount"].asInt();
+
 	m_config = reinterpret_cast<ledscape_config_t*>(calloc(1, sizeof(ledscape_config_t)));
 	if (!m_config)
 	{
@@ -176,30 +203,30 @@ int BBBSerialOutput::Init(Json::Value config)
 	lsconfig->leds_width   = (int)((m_pixelnet != 0 ? 4102 : 513) / 3) + 1;
 	lsconfig->leds_height  = m_outputs;
 
-	string pru_program(getBinDirectory());
-
-	if (tail(pru_program, 4) == "/src")
-		pru_program += "/pru/";
-	else
-		pru_program += "/../lib/";
+	string pru_program = "/tmp/FalconSerial.bin";
 
     const char *mode = BBB_PRU ? "gpio" : "pruout";
-    if (m_pixelnet) {
-		pru_program += "FalconPixelnet";
+    
+    if (BBB_PRU) {
+        args.push_back("-DRUNNING_ON_PRU1");
     } else {
-        pru_program += "FalconDMX";
+        args.push_back("-DRUNNING_ON_PRU0");
     }
     
     if (config["device"] == "F4-B") {
-        pru_program += "_4a.bin";
+        args.push_back("-DONLYA");
         configurePRUPins(0, 4, mode);
     } else if (config["device"] == "F8-B-16" || config["device"] == "F8-B-EXP-32") {
-        pru_program += "_4b.bin";
+        args.push_back("-DONLYB");
         configurePRUPins(4, 8, mode);
+    } else if (config["device"] == "F32-B") {
+        args.push_back("-DF32B");
+        configurePRUPins(0, 8, mode);
     } else {
-        pru_program += ".bin";
         configurePRUPins(0, 8, mode);
     }
+    
+    compileSerialPRUCode(args);
 	if (!FileExists(pru_program.c_str()))
 	{
 		LogErr(VB_CHANNELOUT, "%s does not exist!\n", pru_program.c_str());
@@ -302,7 +329,7 @@ int BBBSerialOutput::RawSendData(unsigned char *channelData)
 			c = out + i + (m_outputs);
 
 		// Get the start channel for this output
-        s = (uint8_t*)(channelData + m_startChannels[i]);
+        s = (uint8_t*)(channelData + m_startChannels[i] - m_startChannel);
         
 		// Now copy the individual channel data into each slice
 		for (int ch = 0; ch < chCount; ch++)

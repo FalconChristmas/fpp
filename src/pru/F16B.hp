@@ -1,12 +1,6 @@
 #ifndef _ws281x_F16B_
 #define _ws281x_F16B_
 
-#if OUTPUTS > 16
-#define USES_GPIO1
-#endif
-#if OUTPUTS > 40
-#define USES_GPIO3
-#endif
 
 // Output 1
 #define o1_gpio     2
@@ -107,24 +101,46 @@
 #define o32_gpio    2
 #define o32_pin		10
 
+
 // Output 33
 #define o33_gpio	0
 #define o33_pin		5
 // Output 34
 #define o34_gpio	0
 #define o34_pin		4
+
+
+
+#ifdef F32B
+// Output 35
+#define o35_gpio    0
+#define o35_pin     2
+// Output 36
+#define o36_gpio    0
+#define o36_pin     3
+#else
 // Output 35
 #define o35_gpio	0
 #define o35_pin		3
 // Output 36
 #define o36_gpio	0
 #define o36_pin		2
+#endif
+
+
 // Output 37
 #define o37_gpio	1
 #define o37_pin		16
 // Output 38
 #define o38_gpio	1
 #define o38_pin		17
+
+#ifdef F32B
+#define o39_gpio    0
+#define o39_pin        14
+#define o40_gpio    0
+#define o40_pin        15
+#else
 // Output 39
 #define o39_gpio	0
 #define o39_pin		15
@@ -136,6 +152,35 @@
 #define o40_gpio	0
 #define o40_pin		14
 #endif
+#endif
+
+#ifdef F32B
+// Output 41
+#define o41_gpio    3
+#define o41_pin        21
+// Output 42
+#define o42_gpio    3
+#define o42_pin        19
+// Output 43
+#define o43_gpio    3
+#define o43_pin        15
+// Output 44
+#define o44_gpio    3
+#define o44_pin        17
+// Output 45
+#define o45_gpio    3
+#define o45_pin        16
+// Output 46
+#define o46_gpio    3
+#define o46_pin        14
+// Output 47
+#define o47_gpio    3
+#define o47_pin        18
+// Output 48
+#define o48_gpio    3
+#define o48_pin        20
+
+#else
 // Output 41
 #define o41_gpio	0
 #define o41_pin		14
@@ -160,6 +205,7 @@
 // Output 48
 #define o48_gpio	3
 #define o48_pin		18
+#endif
 
 
 #endif
