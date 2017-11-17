@@ -310,6 +310,215 @@
 			"backgroundFilename": "virtualdisplaybackground.jpg"
 		},
 		{
+			"type": "RHLDVIE131",
+			"enabled": 0,
+			"startChannel": 1,
+			"channelCount": 48000,
+			"universes": [
+				{
+					"id": 1,
+					"startChannel": 1,
+					"channelCount": 480
+				},
+				{
+					"id": 2,
+					"startChannel": 481,
+					"channelCount": 480
+				}
+			]
+		},
+		{
+			"type": "LEDPanelMatrix",
+			"subType": "ColorLight5a75",
+			"enabled": 0,
+			"startChannel": 33793,
+			"channelCount": 21504,
+			"interface": "eth1",
+			"invertedData": 0,
+			"colorOrder": "BRG",
+			"panelWidth": 32,
+			"panelHeight": 16,
+            "panels": [
+                {
+                    "outputNumber": 1,
+                    "panelNumber": 0,
+                    "xOffset": 16,
+                    "yOffset": 16,
+                    "orientation": "U",
+                    "row": 0,
+                    "col": 0
+                },
+                {
+                    "outputNumber": 1,
+                    "panelNumber": 1,
+                    "xOffset": 48,
+                    "yOffset": 16,
+                    "orientation": "U",
+                    "row": 0,
+                    "col": 1
+                },
+                {
+                    "outputNumber": 1,
+                    "panelNumber": 2,
+                    "xOffset": 80,
+                    "yOffset": 16,
+                    "orientation": "U",
+                    "row": 0,
+                    "col": 2
+                },
+                {
+                    "outputNumber": 1,
+                    "panelNumber": 3,
+                    "xOffset": 80,
+                    "yOffset": 0,
+                    "orientation": "N",
+                    "row": 1,
+                    "col": 2
+                },
+                {
+                    "outputNumber": 1,
+                    "panelNumber": 4,
+                    "xOffset": 48,
+                    "yOffset": 0,
+                    "orientation": "N",
+                    "row": 1,
+                    "col": 1
+                },
+                {
+                    "outputNumber": 1,
+                    "panelNumber": 5,
+                    "xOffset": 16,
+                    "yOffset": 0,
+                    "orientation": "N",
+                    "row": 1,
+                    "col": 1
+                },
+                {
+                    "outputNumber": 1,
+                    "panelNumber": 6,
+                    "xOffset": 0,
+                    "yOffset": 0,
+                    "orientation": "L",
+                    "row": 1,
+                    "col": 1
+                },
+                {
+                    "outputNumber": 0,
+                    "panelNumber": 0,
+                    "xOffset": 16,
+                    "yOffset": 48,
+                    "orientation": "U",
+                    "row": 2,
+                    "col": 0
+                },
+                {
+                    "outputNumber": 0,
+                    "panelNumber": 1,
+                    "xOffset": 48,
+                    "yOffset": 48,
+                    "orientation": "U",
+                    "row": 2,
+                    "col": 1
+                },
+                {
+                    "outputNumber": 0,
+                    "panelNumber": 2,
+                    "xOffset": 80,
+                    "yOffset": 48,
+                    "orientation": "U",
+                    "row": 2,
+                    "col": 2
+                },
+                {
+                    "outputNumber": 0,
+                    "panelNumber": 3,
+                    "xOffset": 80,
+                    "yOffset": 32,
+                    "orientation": "N",
+                    "row": 1,
+                    "col": 2
+                },
+                {
+                    "outputNumber": 0,
+                    "panelNumber": 4,
+                    "xOffset": 48,
+                    "yOffset": 32,
+                    "orientation": "N",
+                    "row": 1,
+                    "col": 1
+                },
+                {
+                    "outputNumber": 0,
+                    "panelNumber": 5,
+                    "xOffset": 16,
+                    "yOffset": 32,
+                    "orientation": "N",
+                    "row": 1,
+                    "col": 1
+                },
+                {
+                    "outputNumber": 0,
+                    "panelNumber": 6,
+                    "xOffset": 0,
+                    "yOffset": 32,
+                    "orientation": "L",
+                    "row": 1,
+                    "col": 1
+                }
+			]
+		},
+		{
+			"type": "LEDPanelMatrix",
+			"subType": "LinsnRV9",
+			"enabled": 0,
+			"startChannel": 33793,
+			"channelCount": 6144,
+			"interface": "eth1",
+			"sourceMAC": "d8:eb:97:b7:a9:4e",
+			"invertedData": 0,
+			"colorOrder": "GBR",
+			"panelWidth": 32,
+			"panelHeight": 16,
+            "panels": [
+                {
+                    "outputNumber": 0,
+                    "panelNumber": 0,
+                    "xOffset": 32,
+                    "yOffset": 0,
+                    "orientation": "N",
+                    "row": 0,
+                    "col": 1
+                },
+                {
+                    "outputNumber": 0,
+                    "panelNumber": 1,
+                    "xOffset": 0,
+                    "yOffset": 0,
+                    "orientation": "N",
+                    "row": 0,
+                    "col": 0
+                },
+                {
+                    "outputNumber": 1,
+                    "panelNumber": 0,
+                    "xOffset": 32,
+                    "yOffset": 16,
+                    "orientation": "N",
+                    "row": 1,
+                    "col": 1
+                },
+                {
+                    "outputNumber": 1,
+                    "panelNumber": 1,
+                    "xOffset": 0,
+                    "yOffset": 16,
+                    "orientation": "N",
+                    "row": 1,
+                    "col": 0
+                }
+			]
+		},
+		{
 			"type": "OLA",
 			"enabled": 0,
 			"startChannel": 1,
