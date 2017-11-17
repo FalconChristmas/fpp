@@ -1,14 +1,50 @@
 =============================================================================
-Instructions for creating a new FPP NOOBS SD image package
+Instructions for creating a new FPP SD image package for the Raspberry Pi
 =============================================================================
 
-Install the latest raspbian image to the SD card using NOOBS.
+Install the latest Raspbian Stretch Lite image to the SD card.
 
-Run our installer:
+Resize the root partition to 2.4GiB using fdisk (substitute the proper device
+for your SD card).
+
+    fdisk /dev/sdg
+    p
+	(Note the original start block of partition 2, you will need this later)
+    d
+    2
+    n
+    p
+    2
+	(Replace 94208 with the original start block of partition 2 noted earlier)
+    94208
+	(FIXME, downsize this value once install is tested)
+    +3000M
+    p
+    w
+
+FSCK and resize the root partition (again, use your device name.
+
+    e2fsck -f /dev/sdg2
+    resize2fs /dev/sdg2
+
+Disable the auto partition resize script on the SD and enable the SSH server while
+we have the partition mounted:
+
+	mkdir /mnt/tmp
+	mount /dev/sdg1 /mnt/tmp
+	cp /mnt/tmp/cmdline.txt /mnt/tmp/cmdline.org
+	sed -i -e "s# init=/usr/lib/raspi-config/init_resize.sh##" /mnt/tmp/cmdline.txt
+	touch /mnt/tmp/ssh
+	umount /mnt/tmp
+	sync
+
+Remove the SD card and boot it up in a Pi.
+
+On the Pi, run the FPP installer:
 	wget -O ./FPP_Install.sh \
 		http://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
 	chmod 700 ./FPP_Install.sh
-	sudo ./FPP_Install.sh
+	sudo ./FPP_Install.sh --build-omxplayer
 
 This will install FPP and perform all required changes to the root filesystem
 and add the FPP user, install required packages, etc.
