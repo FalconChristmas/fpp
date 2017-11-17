@@ -53,13 +53,39 @@ EOF
 fi
 
 SITEFILE="/etc/apache2/sites-enabled/000-default"
+NGINX_SITEFILE="/etc/fpp_nginx.conf"
 
+if dpkg --get-selections | grep -qc -e ^apache2\    ; then
 # If the flash drive is not mounted yet, then fix Apache so it can at least start up
 if [ ! -d "${FPPHOME}/media/logs" ]
 then
 	echo "FPP - Reconfiguring Apache to disable logging since flash is not mounted"
 	sed -i -e "s/ErrorLog/#ErrorLog/" ${SITEFILE}
-	/etc/init.d/apache2 restart
+	case "${OSVER}" in
+		debian_7)
+			/etc/init.d/apache2 restart
+			;;
+		debian_8|debian_9)
+			systemctl restart apache2.service
+			;;
+	esac
+fi
+else
+if [ ! -d "${FPPHOME}/media/logs" ]
+then
+	echo "FPP - Reconfiguring nginx to disable logging since flash is not mounted"
+	sed -i -e "s/\(\w*\)access_log/\1#access_log/" ${NGINX_SITEFILE}
+	sed -i -e "s/\(\w*\)error_log/\1#error_log/" ${NGINX_SITEFILE}
+
+	case "${OSVER}" in
+		debian_7)
+			/etc/init.d/nginx restart
+			;;
+		debian_8|debian_9)
+			systemctl restart nginx.service
+			;;
+	esac
+fi
 fi
 
 # Configure Network and DNS
@@ -249,9 +275,29 @@ sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" -e "s#FPPUSER#${FPPUSE
 sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" -e "s#FPPUSER#${FPPUSER}#g" < ${FPPDIR}/etc/rsyncd.conf > /etc/rsyncd.conf
 /etc/init.d/rsync restart
 
+if dpkg --get-selections | grep -qc -e ^apache2\    ; then
 echo "FPP - Copying Apache config into place and restarting Apache"
 sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/apache2.site > ${SITEFILE}
-/etc/init.d/apache2 restart
+case "${OSVER}" in
+	debian_7)
+		/etc/init.d/apache2 restart
+		;;
+	debian_8|debian_9)
+		systemctl restart nginx.service
+		;;
+esac
+else
+echo "FPP - Copying nginx config into place and restarting nginx"
+sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/nginx.conf > ${NGINX_SITEFILE}
+case "${OSVER}" in
+	debian_7)
+		/etc/init.d/nginx restart
+		;;
+	debian_8|debian_9)
+		systemctl restart nginx.service
+		;;
+esac
+fi
 
 #echo "FPP - Copying Nginx config into place and restarting Nginx"
 #mkdir /var/log/nginx
