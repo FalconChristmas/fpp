@@ -457,7 +457,7 @@ int OverlayEffects(char *channelData)
 	}
 
 	int skipBackground = 0;
-	if (pauseBackgroundEffects && player->SequencesRunning())
+	if (pauseBackgroundEffects && sequence->IsSequenceRunning())
 		skipBackground = 1;
 
 	for (i = 0; i < MAX_EFFECTS; i++)

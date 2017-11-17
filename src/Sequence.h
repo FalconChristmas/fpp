@@ -26,10 +26,7 @@
 #ifndef _SEQUENCE_H
 #define _SEQUENCE_H
 
-<<<<<<< HEAD
 #include <pthread.h>
-=======
->>>>>>> parent of dc6feff... [Player] Additional Player/Playlist Enhancements (see full log)
 #include <stdio.h>
 #include <string>
 

@@ -33,11 +33,7 @@
 #include <strings.h>
 #include <unistd.h>
 
-<<<<<<< HEAD
-#include "channeloutput/channeloutput.h"
-=======
 #include "channeloutputthread.h"
->>>>>>> parent of dc6feff... [Player] Additional Player/Playlist Enhancements (see full log)
 #include "common.h"
 #include "log.h"
 #include "Playlist.h"
@@ -299,7 +295,7 @@ int FalconPassThroughData(int offset, unsigned char *inBuf, int size)
 		HexDump("Falcon Pass-through data", inBuf, size);
 
 	// Disable channel outputs and let them quiesce before sending config info
-	player->DisableChannelOutput();
+	DisableChannelOutput();
 
 	usleep(100000);
 
@@ -349,10 +345,10 @@ int FalconPassThroughData(int offset, unsigned char *inBuf, int size)
 	}
 
 	// Pass data on to our regular channel outputs followed by blanking data
-	bzero(player->m_seqData + offset, 4096);
-	memcpy(player->m_seqData + offset, inBuf, FALCON_PASSTHROUGH_DATA_SIZE);
-	player->SendData();
-	player->SendBlankingData(); // reset data so we don't keep reprogramming
+	bzero(sequence->m_seqData + offset, 4096);
+	memcpy(sequence->m_seqData + offset, inBuf, FALCON_PASSTHROUGH_DATA_SIZE);
+	sequence->SendSequenceData();
+	sequence->SendBlankingData(); // reset data so we don't keep reprogramming
 
 	// Give changes time to take effect then turn back on channel outputs
 	usleep(100000);
