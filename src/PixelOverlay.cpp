@@ -40,6 +40,7 @@
 #include "PixelOverlayControl.h"
 #include "Sequence.h"
 #include "settings.h"
+#include "channeloutputthread.h"
 
 char         *chanDataMap;
 int           chanDataMapFD = -1;
@@ -164,6 +165,9 @@ int InitializeChannelDataMemoryMap(void) {
 
 	// Load the config
 	LoadChannelMemoryMapData();
+
+	if (ctrlHeader->totalBlocks)
+		StartChannelOutputThread();
 
 	return 1;
 }

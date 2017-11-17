@@ -1,7 +1,7 @@
 /*
- *   Playlist Entry Sequence Class for Falcon Player (FPP)
+ *   output channel thread for Falcon Pi Player (FPP)
  *
- *   Copyright (C) 2016 the Falcon Player Developers
+ *   Copyright (C) 2013 the Falcon Pi Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -23,14 +23,20 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "PlaylistEntrySequence.h"
+#ifndef _CHANNELOUTPUTTHREAD_H
+#define _CHANNELOUTPUTTHREAD_H
 
-PlaylistEntrySequence::PlaylistEntrySequence()
-  : m_duration(0)
-{
-}
+void DisableChannelOutput(void);
+void EnableChannelOutput(void);
+void InitChannelOutputSyncVars(void);
+void DestroyChannelOutputSyncVars(void);
 
-PlaylistEntrySequence::~PlaylistEntrySequence()
-{
-}
+int  ChannelOutputThreadIsRunning(void);
+void SetChannelOutputRefreshRate(int rate);
+int  StartChannelOutputThread(void);
+int  StopChannelOutputThread(void);
+void ResetMasterPosition(void);
+void UpdateMasterPosition(int frameNumber);
+void CalculateNewChannelOutputDelay(float mediaPosition);
 
+#endif

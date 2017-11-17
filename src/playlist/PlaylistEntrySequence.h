@@ -35,23 +35,8 @@ class PlaylistEntrySequence : public PlaylistEntryBase {
   	PlaylistEntrySequence();
 	~PlaylistEntrySequence();
 
-	int  Init(Json::Value &config);
-
-	int  StartPlaying(void);
-	int  Process(void);
-	int  Stop(void);
-
-	void Dump(void);
-
-	Json::Value GetConfig(void);
-
   private:
 	int                  m_duration;
-	long long            m_sequenceID;
-
-	std::string          m_sequenceName;
-	int                  m_priority;
-	int                  m_startSeconds;
 };
 
 #endif

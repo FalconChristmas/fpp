@@ -32,8 +32,8 @@
 
 #include "common.h"
 #include "effects.h"
+#include "channeloutputthread.h"
 #include "log.h"
-#include "Player.h"
 #include "Sequence.h"
 #include "settings.h"
 
@@ -337,7 +337,7 @@ int StartEffect(const char *effectName, int startChannel, int loop)
 
 	pthread_mutex_unlock(&effectsLock);
 
-	player->StartChannelOutputThread();
+	StartChannelOutputThread();
 
 	return effectID;
 }
@@ -377,8 +377,8 @@ int StopEffect(const char *effectName)
 	pthread_mutex_unlock(&effectsLock);
 
 	if ((!IsEffectRunning()) &&
-		(!player->SequencesRunning()))
-		player->SendBlankingData();
+		(!sequence->IsSequenceRunning()))
+		sequence->SendBlankingData();
 
 	return 1;
 }
@@ -405,8 +405,8 @@ int StopEffect(int effectID)
 	pthread_mutex_unlock(&effectsLock);
 
 	if ((!IsEffectRunning()) &&
-		(!player->SequencesRunning()))
-		player->SendBlankingData();
+		(!sequence->IsSequenceRunning()))
+		sequence->SendBlankingData();
 
 	return 1;
 }
@@ -521,8 +521,8 @@ int OverlayEffects(char *channelData)
 
 	if ((dataRead == 0) &&
 		(!IsEffectRunning()) &&
-		(!player->SequencesRunning()))
-		player->SendBlankingData();
+		(!sequence->IsSequenceRunning()))
+		sequence->SendBlankingData();
 
 	return 1;
 }

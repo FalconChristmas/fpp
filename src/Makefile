@@ -31,6 +31,7 @@ OBJECTS_fppd = \
 	channeloutput/ArtNet.o \
 	channeloutput/ColorOrder.o \
 	channeloutput/ColorLight-5a-75.o \
+	channeloutput/channeloutputthread.o \
 	channeloutput/DebugOutput.o \
 	channeloutput/DDP.o \
 	channeloutput/E131.o \
@@ -79,7 +80,6 @@ OBJECTS_fppd = \
 	mediaoutput/ogg123.o \
 	mediaoutput/omxplayer.o \
 	PixelOverlay.o \
-	Player.o \
 	Playlist.o \
 	playlist/NewPlaylist.o \
 	playlist/PlaylistEntryBase.o \

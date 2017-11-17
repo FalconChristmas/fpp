@@ -30,7 +30,6 @@
 #include "log.h"
 #include "mediadetails.h"
 #include "mediaoutput.h"
-#include "Player.h"
 #include "Playlist.h"
 #include "Plugins.h"
 #include "Scheduler.h"
@@ -52,11 +51,10 @@ extern PluginCallbackManager pluginCallbackManager;
 
 Playlist *playlist = NULL;
 
-Playlist::Playlist(Player *parent)
+Playlist::Playlist()
   : m_playlistAction(PL_ACTION_NOOP),
 	m_numberOfSecondsPaused(0),
-	m_pauseStatus(PAUSE_STATUS_IDLE),
-	m_player(parent)
+	m_pauseStatus(PAUSE_STATUS_IDLE)
 {
 }
 
@@ -356,19 +354,18 @@ void Playlist::PlayListPlayingProcess(void)
 		{
 			case PL_ACTION_NEXT_ITEM:
 			case PL_ACTION_PREV_ITEM:
-					if ((m_player->SequencesRunning()) &&
+					if ((sequence->IsSequenceRunning()) &&
 						((playlistEntryType == PL_TYPE_BOTH) ||
 						 (playlistEntryType == PL_TYPE_SEQUENCE)))
 					{
-						// FIXME??
-						m_player->StopAllSequences();
+						sequence->CloseSequenceFile();
 					}
 
 					if ((mediaOutputStatus.status == MEDIAOUTPUTSTATUS_PLAYING) &&
 						((playlistEntryType == PL_TYPE_BOTH) ||
 						 (playlistEntryType == PL_TYPE_MEDIA)))
 					{
-						m_player->StopMedia();
+						CloseMediaOutput();
 					}
 
 					if (playlistEntryType == PL_TYPE_PAUSE)
@@ -425,7 +422,7 @@ void Playlist::PlayListPlayingProcess(void)
 			}
 			break;
 		case PL_TYPE_SEQUENCE:
-			if(!m_player->SequencesRunning())
+			if(!sequence->IsSequenceRunning())
 			{
 				PlayPlaylistEntry(calculateNext);
 			}
@@ -461,7 +458,13 @@ void Playlist::PlayListPlayingCleanup(void)
 	pluginCallbackManager.playlistCallback(&m_playlistDetails, PLAYLIST_STOPPING);
 
 	FPPstatus = FPP_STATUS_IDLE;
-	m_player->SendBlankingData();
+	sequence->SendBlankingData();
+	scheduler->ReLoadCurrentScheduleInfo();
+
+	if(!m_playlistDetails.ForceStop)
+	{
+		scheduler->CheckIfShouldBePlayingNow();
+	}
 }
 
 void Playlist::PauseProcess(void)
@@ -511,9 +514,9 @@ void Playlist::PlayPlaylistEntry(bool calculateNext)
 	switch(plEntry->type)
 	{
 		case PL_TYPE_BOTH:
-			if (m_player->StartSequence(plEntry->seqName, 0) > 0)
+			if (sequence->OpenSequenceFile(plEntry->seqName, 0) > 0)
 			{
-				m_player->StartMedia(m_playlistDetails.playList[m_playlistDetails.currentPlaylistEntry].songName);
+				OpenMediaOutput(m_playlistDetails.playList[m_playlistDetails.currentPlaylistEntry].songName);
 			}
 			else
 			{
@@ -521,10 +524,10 @@ void Playlist::PlayPlaylistEntry(bool calculateNext)
 			}
 			break;
 		case PL_TYPE_MEDIA:
-			m_player->StartMedia(m_playlistDetails.playList[m_playlistDetails.currentPlaylistEntry].songName);
+			OpenMediaOutput(m_playlistDetails.playList[m_playlistDetails.currentPlaylistEntry].songName);
 			break;
 		case PL_TYPE_SEQUENCE:
-			m_player->StartSequence(plEntry->seqName, 0);
+			sequence->OpenSequenceFile(plEntry->seqName, 0);
 			break;
 		case PL_TYPE_PAUSE:
 			break;
@@ -560,8 +563,8 @@ void Playlist::StopPlaylistNow(void)
 {
 	LogInfo(VB_PLAYLIST, "StopPlaylistNow()\n");
 	FPPstatus = FPP_STATUS_IDLE;
-	m_player->StopAllSequences();
-	m_player->StopMedia();
+	sequence->CloseSequenceFile();
+	CloseMediaOutput();
 	m_playlistDetails.StopPlaylist = 1;
 }
 

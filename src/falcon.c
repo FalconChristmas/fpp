@@ -33,10 +33,13 @@
 #include <strings.h>
 #include <unistd.h>
 
+<<<<<<< HEAD
 #include "channeloutput/channeloutput.h"
+=======
+#include "channeloutputthread.h"
+>>>>>>> parent of dc6feff... [Player] Additional Player/Playlist Enhancements (see full log)
 #include "common.h"
 #include "log.h"
-#include "Player.h"
 #include "playlist/NewPlaylist.h"
 #include "settings.h"
 #include "Sequence.h"
@@ -151,7 +154,7 @@ int FalconConfigureHardware(char *filename, int spiPort)
 
 	int bytesWritten;
 
-	player->DisableChannelOutput();
+	DisableChannelOutput();
 	usleep(100000);
 
 	if ((logLevel & LOG_DEBUG) && (logMask & VB_SETTING))
@@ -181,7 +184,7 @@ int FalconConfigureHardware(char *filename, int spiPort)
 			bytesWritten, FALCON_CFG_BUF_SIZE);
 		free(buf);
 		usleep(100000);
-		player->EnableChannelOutput();
+		EnableChannelOutput();
 		return -1;
 	}
 
@@ -190,7 +193,7 @@ int FalconConfigureHardware(char *filename, int spiPort)
 
 	free(buf);
 	usleep(100000);
-	player->EnableChannelOutput();
+	EnableChannelOutput();
 }
 
 /*
@@ -353,8 +356,7 @@ int FalconPassThroughData(int offset, unsigned char *inBuf, int size)
 
 	// Give changes time to take effect then turn back on channel outputs
 	usleep(100000);
-
-	player->EnableChannelOutput();
+	EnableChannelOutput();
 }
 
 /*
@@ -392,7 +394,7 @@ void FalconSetData(int sock, struct sockaddr_in *srcAddr, unsigned char *inBuf)
 
 	FalconWriteConfig(filename, (char *)inBuf, len);
 
-	if (player->SequencesRunning())
+	if (sequence->IsSequenceRunning())
 	{
 		if (inBuf[7] == 0x01)
 		{

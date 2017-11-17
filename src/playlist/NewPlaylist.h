@@ -36,22 +36,19 @@
 
 #include "PlaylistEntryBase.h"
 
-class Player;
-
 class NewPlaylist {
   public:
-	NewPlaylist(Player *parent);
+  	NewPlaylist();
 	~NewPlaylist();
 
 	////////////////////////////////////////
 	// Stub out old Playlist class methods
-	void StopPlaylistGracefully(void);
-	void StopPlaylistNow(void);
-	void PlayListPlayingInit(void);
-	void PlayListPlayingProcess(void);
-	void PlayListPlayingCleanup(void);
-	void PlaylistProcessMediaData(void);
-
+    void StopPlaylistGracefully(void);
+    void StopPlaylistNow(void);
+    void PlayListPlayingInit(void);
+    void PlayListPlayingProcess(void);
+    void PlayListPlayingCleanup(void);
+    void PlaylistProcessMediaData(void);
 	int m_playlistAction;
 	PlaylistDetails m_playlistDetails;
 	int m_numberOfSecondsPaused;
@@ -80,7 +77,6 @@ class NewPlaylist {
 	Json::Value        GetConfig(void);
 
   private:
-	Player              *m_player;
   	std::string          m_name;
 	int                  m_repeat;
 	int                  m_loop;
