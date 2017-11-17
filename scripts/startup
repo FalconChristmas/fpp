@@ -293,7 +293,11 @@ case "${OSVER}" in
 	debian_7)
 		/etc/init.d/nginx restart
 		;;
-	debian_8|debian_9)
+	debian_8)
+		systemctl restart nginx.service
+		;;
+	debian_9)
+		sed -i "s#php5-fpm#php/php7.0-fpm#" ${NGINX_SITEFILE}
 		systemctl restart nginx.service
 		;;
 esac
