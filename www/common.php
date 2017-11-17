@@ -383,7 +383,8 @@ function SaveEmailConfig($emailguser, $emailgpass, $emailfromtext, $emailtoemail
     exec("sudo cp " . $exim4Directory . "/passwd.client /etc/exim4/");
     exec("sudo update-exim4.conf");
     exec ("sudo /etc/init.d/exim4 restart");
-    $cmd="sudo chfn -f \"" . $emailfromtext . "\" pi";
+    exec ("sudo systemctl restart exim4.service");
+    $cmd="sudo chfn -f \"" . $emailfromtext . "\" fpp";
     exec($cmd);
     $fp = fopen($exim4Directory . '/aliases', 'w');
     fwrite($fp, "mailer-daemon: postmaster\npostmaster: root\nnobody: root\nhostmaster: root\nusenet: root\nnews: root\nwebmaster: root\nwww: root\nftp: root\nabuse: root\nnoc: root\nsecurity: root\nroot: pi\n");
