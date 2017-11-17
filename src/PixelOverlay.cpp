@@ -40,6 +40,7 @@
 #include "PixelOverlayControl.h"
 #include "Sequence.h"
 #include "settings.h"
+#include "channeloutputthread.h"
 
 char         *chanDataMap;
 int           chanDataMapFD = -1;
@@ -90,7 +91,7 @@ int InitializeChannelDataMemoryMap(void) {
 		return -1;
 	}
 
-	chanDataMap = (char *)mmap(0, FPPD_MAX_CHANNELS, PROT_READ|PROT_WRITE, MAP_SHARED, chanDataMapFD, 0);
+	chanDataMap = (char *)mmap(0, FPPD_MAX_CHANNELS, PROT_READ, MAP_SHARED, chanDataMapFD, 0);
 
 	if (!chanDataMap) {
 		LogErr(VB_CHANNELOUT, "Error mapping %s memory map file: %s\n",
@@ -164,6 +165,9 @@ int InitializeChannelDataMemoryMap(void) {
 
 	// Load the config
 	LoadChannelMemoryMapData();
+
+	if (ctrlHeader->totalBlocks)
+		StartChannelOutputThread();
 
 	return 1;
 }
@@ -520,84 +524,5 @@ int LoadChannelMemoryMapData(void) {
 		PrintChannelMapBlocks();
 
 	return 1;
-}
-
-/*
- * Turn a Pixel Overlay model on/off/transparent
- */
-int SetPixelOverlayState(std::string modelName, std::string newState)
-{
-	if ((!ctrlHeader) || (!ctrlHeader->totalBlocks))
-		return 0;
-
-	FPPChannelMemoryMapControlBlock *cb =
-		(FPPChannelMemoryMapControlBlock*)(ctrlMap +
-			sizeof(FPPChannelMemoryMapControlHeader));
-
-	for (int i = 0; i < ctrlHeader->totalBlocks; i++, cb++) {
-		if (!strcmp(cb->blockName, modelName.c_str()))
-		{
-			if (newState == "Disabled")
-			{
-				cb->isActive = 0;
-				return 1;
-			}
-			else if (newState == "Enabled")
-			{
-				cb->isActive = 1;
-				return 1;
-			}
-			else if (newState == "Transparent")
-			{
-				cb->isActive = 2;
-				return 1;
-			}
-			else if (newState == "TransparentRGB")
-			{
-				cb->isActive = 3;
-				return 1;
-			}
-			else
-				return 0;
-		}
-	}
-
-	return 0;
-}
-
-/*
- * Set the value for channels in a Pixel Overlay model
- */
-int SetPixelOverlayValue(std::string modelName, char value, int startChannel,
-	int endChannel)
-{
-	if ((!ctrlHeader) || (!ctrlHeader->totalBlocks))
-		return 0;
-
-	FPPChannelMemoryMapControlBlock *cb =
-		(FPPChannelMemoryMapControlBlock*)(ctrlMap +
-			sizeof(FPPChannelMemoryMapControlHeader));
-
-	for (int i = 0; i < ctrlHeader->totalBlocks; i++, cb++) {
-		if (!strcmp(cb->blockName, modelName.c_str()))
-		{
-			int modelEnd = cb->startChannel + cb->channelCount - 1;
-			int start = startChannel >= cb->startChannel ? startChannel : cb->startChannel;
-			int end = endChannel <= modelEnd ? endChannel : modelEnd;
-
-			// Offset for zero-based arrays
-			start--;
-			end--;
-
-			for (int c = start; c <= end; c++)
-			{
-				chanDataMap[c] = value;
-			}
-
-			return 1;
-		}
-	}
-
-	return 0;
 }
 

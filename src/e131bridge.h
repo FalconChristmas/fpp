@@ -26,8 +26,6 @@
 #ifndef _E131_BRIDGE_H
 #define _E131_BRIDGE_H
 
-extern char e131Data[];
-
 int Bridge_Initialize(void);
 void Bridge_ReceiveData(void);
 void Bridge_Shutdown(void);

@@ -1,7 +1,7 @@
 /*
- *   Playlist Entry Sequence Class for Falcon Player (FPP)
+ *   output channel thread for Falcon Pi Player (FPP)
  *
- *   Copyright (C) 2016 the Falcon Player Developers
+ *   Copyright (C) 2013 the Falcon Pi Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -23,37 +23,20 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _PLAYLISTENTRYSEQUENCE_H
-#define _PLAYLISTENTRYSEQUENCE_H
+#ifndef _CHANNELOUTPUTTHREAD_H
+#define _CHANNELOUTPUTTHREAD_H
 
-#include <string>
+void DisableChannelOutput(void);
+void EnableChannelOutput(void);
+void InitChannelOutputSyncVars(void);
+void DestroyChannelOutputSyncVars(void);
 
-#include "PlaylistEntryBase.h"
-
-class PlaylistEntrySequence : public PlaylistEntryBase {
-  public:
-  	PlaylistEntrySequence();
-	~PlaylistEntrySequence();
-
-	int  Init(Json::Value &config);
-
-	int  StartPlaying(void);
-	int  Process(void);
-	int  Stop(void);
-
-	void Dump(void);
-
-	Json::Value GetConfig(void);
-
-	std::string GetSequenceName(void) { return m_sequenceName; }
-
-  private:
-	int                  m_duration;
-	long long            m_sequenceID;
-
-	std::string          m_sequenceName;
-	int                  m_priority;
-	int                  m_startSeconds;
-};
+int  ChannelOutputThreadIsRunning(void);
+void SetChannelOutputRefreshRate(int rate);
+int  StartChannelOutputThread(void);
+int  StopChannelOutputThread(void);
+void ResetMasterPosition(void);
+void UpdateMasterPosition(int frameNumber);
+void CalculateNewChannelOutputDelay(float mediaPosition);
 
 #endif

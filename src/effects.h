@@ -46,12 +46,10 @@ extern FPPeffect *effects[];
 
 int  GetRunningEffects(char *msg, char **result);
 int  IsEffectRunning(void);
-int  IsEffectRunning(int effectID);
-int  IsEffectRunning(const char *effectName);
 int  InitEffects(void);
 void CloseEffects(void);
-int  StartEffect(const char *effectName, int startChannel, int loop = 0);
-int  StopEffect(const char *effectName);
+int  StartEffect(char *effectName, int startChannel, int loop = 0);
+int  StopEffect(char *effectName);
 int  StopEffect(int effectID);
 void StopEffects(void);
 void StopAllEffects(void);

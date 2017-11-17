@@ -193,12 +193,6 @@ int SetLogMask(const char *newMask)
 			logMask |= VB_PLUGIN;
 		} else if (!strcmp(s, "gpio")) {
 			logMask |= VB_GPIO;
-#ifdef USEHTTPAPI
-		} else if (!strcmp(s, "http")) {
-			logMask |= VB_HTTP;
-#endif
-		} else if (!strcmp(s, "player")) {
-			logMask |= VB_PLAYER;
 		} else {
 			fprintf(stderr, "Unknown Log Mask: %s\n", s);
 		}

@@ -35,7 +35,8 @@ SetupDefaultNetworkConfig () {
 
 	cp /etc/wpa_supplicant/wpa_supplicant.conf.default /etc/wpa_supplicant/wpa_supplicant.conf
 
-	sed -i '/ NAME="wlan/d' /etc/udev/rules.d/70-persistent-net.rules
+	persistent_net_rules="/etc/udev/rules.d/70-persistent-net.rules"
+	[ $persistent_net_rules ] && sed -i '/ NAME="wlan/d' $persistent_net_rules
 
 	if [ ! -f "/etc/resolv.conf.default" ]
 	then

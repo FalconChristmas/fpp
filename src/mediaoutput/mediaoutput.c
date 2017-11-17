@@ -69,10 +69,7 @@ void MediaOutput_sigchld_handler(int signal)
 		pthread_mutex_unlock(&mediaOutputLock);
 
 		mediaOutputStatus.status = MEDIAOUTPUTSTATUS_IDLE;
-
-		// FIXME PLAYLIST, how do we know what file to close?
-		// sequence->CloseSequenceFile();
-
+		sequence->CloseSequenceFile();
 		CloseMediaOutput();
 		usleep(1000000);
 	} else {
@@ -108,7 +105,7 @@ void CleanupMediaOutput(void)
 /*
  *
  */
-int OpenMediaOutput(const char *filename) {
+int OpenMediaOutput(char *filename) {
 	LogDebug(VB_MEDIAOUT, "OpenMediaOutput(%s)\n", filename);
 
 	pthread_mutex_lock(&mediaOutputLock);

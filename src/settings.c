@@ -240,11 +240,7 @@ printf("Usage: %s [OPTION...]\n"
 "                                    event       - Event handling\n"
 "                                    general     - general messages\n"
 "                                    gpio        - GPIO Input handling\n"
-#ifdef USEHTTPAPI
-"                                    http        - HTTP API requests\n"
-#endif
 "                                    mediaout    - Media file handling\n"
-"                                    player      - Player code\n"
 "                                    playlist    - Playlist handling\n"
 "                                    plugin      - Plugin handling\n"
 "                                    schedule    - Playlist scheduling\n"
@@ -829,23 +825,6 @@ inline
 int getFPPmode(void)
 {
 	return settings.fppMode;
-}
-
-#ifndef __GNUG__
-inline
-#endif
-char *getFPPmodeStr(void)
-{
-	if (settings.fppMode == BRIDGE_MODE)
-		return "bridge";
-	else if (settings.fppMode == PLAYER_MODE)
-		return "player";
-	else if (settings.fppMode == MASTER_MODE)
-		return "master";
-	else if (settings.fppMode == REMOTE_MODE)
-		return "remote";
-
-	return "UNKNOWN";
 }
 
 int getVolume(void)
