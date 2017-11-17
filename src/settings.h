@@ -93,7 +93,6 @@ int   getSettingInt(char *setting);
 
 int getDaemonize(void);
 int  getFPPmode(void);
-char *getFPPmodeStr(void);
 int  getVolume(void);
 int  getAlwaysTransmit(void);
 char *getBinDirectory(void);

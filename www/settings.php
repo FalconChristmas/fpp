@@ -335,13 +335,12 @@ function ToggleLCDNow()
               <input type='checkbox' id='mask_effect' class='mask_most' onChange='MaskChanged(this);'>Effects<br>
               <input type='checkbox' id='mask_event' class='mask_most' onChange='MaskChanged(this);'>Events<br>
               <input type='checkbox' id='mask_general' class='mask_most' onChange='MaskChanged(this);'>General<br>
-              <input type='checkbox' id='mask_gpio' class='mask_most' onChange='MaskChanged(this);'>GPIO<br>
               </td>
             <td width='10px'></td>
             <td valign=top>
               <input type='checkbox' id='mask_most' class='mask_most' onChange='MaskChanged(this);'>Most (default)<br>
               <br>
-              <input type='checkbox' id='mask_http' class='mask_most' onChange='MaskChanged(this);'>HTTP API<br>
+              <input type='checkbox' id='mask_gpio' class='mask_most' onChange='MaskChanged(this);'>GPIO<br>
               <input type='checkbox' id='mask_mediaout' class='mask_most' onChange='MaskChanged(this);'>Media Outputs<br>
               <input type='checkbox' id='mask_sync' class='mask_most' onChange='MaskChanged(this);'>MultiSync<br>
               <input type='checkbox' id='mask_playlist' class='mask_most' onChange='MaskChanged(this);'>Playlists<br>

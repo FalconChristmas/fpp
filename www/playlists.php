@@ -281,8 +281,6 @@ $(document).ready(function () {
             <option value = 'p'>Pause</option>
             <option value = 'e'>Event</option>
             <option value = 'P'>Plugin</option>
-            <option value = 'v'>Volume</option>
-            <option value = 'B'>Brightness</option>
           </select>
           <span id='autoSelectWrapper'><input type='checkbox' id='autoSelectMatches' checked> Auto-Select Matching Media/Sequence</span>
 				</td></tr>
@@ -292,9 +290,9 @@ $(document).ready(function () {
             <td><?php PrintSequenceOptions();?></td></tr>
         <tr id="eventOptions" style="display:none;"><td>Event:</td>
             <td><?php PrintEventOptions();?></td></tr>
-        <tr id="pauseTime" style="display:none;"><td><div><div id='pauseText'>Pause Seconds:</div><div id='delayText'>Delayed By:</div></div></td>
+        <tr id="pauseTime" style="display:none;"><td><div><div id='pauseText'>Pause Time:</div><div id='delayText'>Delayed By:</div></div></td>
             <td><input id="txtPause" name="txtPause" type="text" size="10" maxlength="10"/>
-              </td></tr>
+              (Seconds)</td></tr>
         <tr id="pluginData" style="display:none;"><td><div><div id='pluginDataText'>Plugin Data:</div></div></td>
             <td><input id="txtData" name="txtData" type="text" size="80" maxlength="255"/></td></tr>
         <tr><td colspan='2'>

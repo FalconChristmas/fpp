@@ -34,6 +34,7 @@
 #include <unistd.h>
 #include <linux/version.h>
 
+#include "channeloutputthread.h"
 #include "command.h"
 #include "common.h"
 #include "control.h"
@@ -41,7 +42,6 @@
 #include "falcon.h"
 #include "log.h"
 #include "mediaoutput.h"
-#include "Player.h"
 #include "Plugins.h"
 #include "Sequence.h"
 #include "settings.h"
@@ -115,8 +115,8 @@ void ShutdownControlSocket(void) {
  */
 void StartSyncedSequence(char *filename) {
 	LogDebug(VB_SYNC, "StartSyncedSequence(%s)\n", filename);
-	player->StartSequence(filename);
-	player->ResetMasterPosition();
+	sequence->OpenSequenceFile(filename, 0);
+	ResetMasterPosition();
 }
 
 /*
@@ -125,7 +125,8 @@ void StartSyncedSequence(char *filename) {
 void StopSyncedSequence(char *filename) {
 	LogDebug(VB_SYNC, "StopSyncedSequence(%s)\n", filename);
 
-	player->StopSequence(filename);
+	if (!strcmp(sequence->m_seqFilename, filename))
+		sequence->CloseSequenceFile();
 }
 
 /*
@@ -135,12 +136,15 @@ void SyncSyncedSequence(char *filename, int frameNumber, float secondsElapsed) {
 	LogExcess(VB_SYNC, "SyncSyncedSequence('%s', %d, %.2f)\n",
 		filename, frameNumber, secondsElapsed);
 
-	player->StartSequence(filename);
-	player->SeekSequence(filename, frameNumber);
+	if (!sequence->m_seqFilename[0])
+	{
+		sequence->OpenSequenceFile(filename, 0);
+		sequence->SeekSequenceFile(frameNumber);
+	}
 
-// FIXME PLAYLIST, need to handle MultiSync w/ multiple sequences playing
-//	if (!strcmp(sequence->m_seqFilename, filename))
-//		UpdateMasterPosition(frameNumber);
+
+	if (!strcmp(sequence->m_seqFilename, filename))
+		UpdateMasterPosition(frameNumber);
 }
 
 /*
@@ -149,7 +153,6 @@ void SyncSyncedSequence(char *filename, int frameNumber, float secondsElapsed) {
 void StopSyncedMedia(char *filename) {
 	LogDebug(VB_SYNC, "StopSyncedMedia(%s)\n", filename);
 
-// FIXME PLAYLIST, is all this code working??
 	if (!mediaOutput)
 		return;
 
@@ -181,7 +184,7 @@ void StopSyncedMedia(char *filename) {
 	if (stopSyncedMedia)
 	{
 		LogDebug(VB_SYNC, "Stopping synced media: %s\n", mediaOutput->m_mediaFilename.c_str());
-		player->StopMedia();
+		CloseMediaOutput();
 	}
 }
 
@@ -195,11 +198,11 @@ void StartSyncedMedia(char *filename) {
 	{
 		LogDebug(VB_SYNC, "Start media %s received while playing media %s\n",
 			filename, mediaOutput->m_mediaFilename.c_str());
-		player->StopMedia();
+		CloseMediaOutput();
 	}
 
-	player->StartMedia(filename);
-	player->ResetMasterPosition();
+	OpenMediaOutput(filename);
+	ResetMasterPosition();
 }
 
 /*
@@ -403,7 +406,7 @@ void ProcessControlPacket(void) {
 							break;
 		case CTRL_PKT_BLANK:
 							if (getFPPmode() == REMOTE_MODE)
-								player->SendBlankingData();
+								sequence->SendBlankingData();
 							break;
 	}
 }

@@ -280,11 +280,7 @@ void MediaCallback::run(void)
 		LogDebug(VB_PLUGIN, "Child process, calling %s callback for media : %s\n", this->getName().c_str(), this->getFilename().c_str());
 
 		std::string eventScript = std::string(getFPPDirectory()) + "/scripts/eventScript";
-// FIXME PLAYLIST
-//		PlaylistEntry *plEntry = &playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry];
-LogDebug(VB_PLAYLIST, "FIXME PLAYLIST\n");
-return;
-		PlaylistEntry *plEntry = NULL;
+		PlaylistEntry *plEntry = &playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry];
 		Json::Value root;
 		Json::FastWriter writer;
 
@@ -478,9 +474,7 @@ int NextPlaylistEntryCallback::run(const char *plugin_data, int currentPlaylistE
 		read(output_pipe[0], &playlist_entry, sizeof(playlist_entry));
 
 		LogExcess(VB_PLUGIN, "Parsed playlist entry: %s\n", playlist_entry);
-
-// FIXME PLAYLIST
-//		ret_val = playlist->ParsePlaylistEntry(playlist_entry, pe);
+		ret_val = playlist->ParsePlaylistEntry(playlist_entry, pe);
 		//Set our type back to 'P' so we re-parse it next time we pass it in the playlist
 		pe->cType = 'P';
 
