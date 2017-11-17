@@ -40,7 +40,7 @@
 >>>>>>> parent of dc6feff... [Player] Additional Player/Playlist Enhancements (see full log)
 #include "common.h"
 #include "log.h"
-#include "playlist/NewPlaylist.h"
+#include "Playlist.h"
 #include "settings.h"
 #include "Sequence.h"
 
@@ -398,7 +398,7 @@ void FalconSetData(int sock, struct sockaddr_in *srcAddr, unsigned char *inBuf)
 	{
 		if (inBuf[7] == 0x01)
 		{
-			newPlaylist->StopNow(); // FIXME: Need to investigate this more
+			playlist->StopPlaylistNow(); // FIXME: Need to investigate this more
 		}
 		else
 		{
