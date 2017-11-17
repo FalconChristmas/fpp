@@ -39,9 +39,7 @@ PlaylistEntryPixelOverlay::PlaylistEntryPixelOverlay()
 	m_endChannel(FPPD_MAX_CHANNELS),
 	m_value(0)
 {
-	LogDebug(VB_PLAYLIST, "PlaylistEntryPixelOverlay::PlaylistEntryPixelOverlay()\n");
-
-	m_type = "pixelOverlay";
+	m_type = "PixelOverlay";
 }
 
 /*
@@ -56,8 +54,6 @@ PlaylistEntryPixelOverlay::~PlaylistEntryPixelOverlay()
  */
 int PlaylistEntryPixelOverlay::Init(Json::Value &config)
 {
-	LogDebug(VB_PLAYLIST, "PlaylistEntryPixelOverlay::Init()\n");
-
 	if (!config.isMember("action"))
 	{
 		LogErr(VB_PLAYLIST, "No Action specified\n");
@@ -84,14 +80,6 @@ int PlaylistEntryPixelOverlay::Init(Json::Value &config)
  */
 int PlaylistEntryPixelOverlay::StartPlaying(void)
 {
-	LogDebug(VB_PLAYLIST, "PlaylistEntryPixelOverlay::StartPlaying()\n");
-
-	if (!CanPlay())
-	{
-		FinishPlay();
-		return 0;
-	}
-
 	if ((m_action == "Disabled") ||
 		(m_action == "Enabled") ||
 		(m_action == "Transparent") ||
@@ -101,16 +89,6 @@ int PlaylistEntryPixelOverlay::StartPlaying(void)
 		return SetPixelOverlayValue(m_modelName, m_value, m_startChannel, m_endChannel);
 
 	return 0;
-}
-
-/*
- *
- */
-int PlaylistEntryPixelOverlay::Process(void)
-{
-	FinishPlay();
-
-	return PlaylistEntryBase::Process();
 }
 
 /*
@@ -129,18 +107,3 @@ void PlaylistEntryPixelOverlay::Dump(void)
 	}
 }
 
-/*
- *
- */
-Json::Value PlaylistEntryPixelOverlay::GetConfig(void)
-{
-	Json::Value result = PlaylistEntryBase::GetConfig();
-
-	result["modelName"]    = m_modelName;
-	result["action"]       = m_action;
-	result["startChannel"] = m_startChannel;
-	result["endChannel"]   = m_endChannel;
-	result["value"]        = m_value;
-
-	return result;
-}

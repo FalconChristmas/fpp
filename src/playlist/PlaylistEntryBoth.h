@@ -29,35 +29,17 @@
 #include <string>
 
 #include "PlaylistEntryBase.h"
-#include "PlaylistEntryMedia.h"
-#include "PlaylistEntrySequence.h"
 
 class PlaylistEntryBoth : public PlaylistEntryBase {
   public:
   	PlaylistEntryBoth();
 	~PlaylistEntryBoth();
 
-	int  Init(Json::Value &config);
-
-	int  StartPlaying(void);
-	int  Process(void);
-	int  Stop(void);
-
-	void Dump(void);
-
-	Json::Value GetConfig(void);
-
-	std::string GetSequenceName(void) { return m_sequenceName; }
-	std::string GetMediaName(void)    { return m_mediaName; }
-
   private:
 	int                  m_duration;
 
 	std::string          m_sequenceName;
 	std::string          m_mediaName;
-
-	PlaylistEntryMedia     *m_mediaEntry;
-	PlaylistEntrySequence  *m_sequenceEntry;
 };
 
 #endif

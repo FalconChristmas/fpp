@@ -23,12 +23,8 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <boost/algorithm/string/replace.hpp>
-
 #include "log.h"
 #include "PlaylistEntryBase.h"
-
-int PlaylistEntryBase::m_playlistEntryCount = 0;
 
 /*
  *
@@ -41,8 +37,7 @@ PlaylistEntryBase::PlaylistEntryBase()
 	m_playOnce(0),
 	m_playCount(0)
 {
-	m_type = "base";
-	m_playlistEntryID = m_playlistEntryCount++;
+	m_type = "Base";
 }
 
 /*
@@ -57,14 +52,10 @@ PlaylistEntryBase::~PlaylistEntryBase()
  */
 int PlaylistEntryBase::Init(Json::Value &config)
 {
-	LogDebug(VB_PLAYLIST, "PlaylistEntryBase::Init(): '%s'\n",
-		config["type"].asString().c_str());
+	LogDebug(VB_PLAYLIST, "PlaylistEntryBase::Init(): '%s'\n", config["type"].asString().c_str());
 
 	if (config.isMember("enabled"))
 		m_enabled = config["enabled"].asInt();
-
-	if (config.isMember("note"))
-		m_note = config["note"].asString();
 
 	m_isStarted = 0;
 	m_isPlaying = 0;
@@ -116,8 +107,6 @@ int PlaylistEntryBase::StartPlaying(void)
  */
 void PlaylistEntryBase::FinishPlay(void)
 {
-	LogDebug(VB_PLAYLIST, "PlaylistEntryBase::FinishPlay()\n");
-	
 	m_isStarted = 1;
 	m_isPlaying = 0;
 	m_isFinished = 1;
@@ -166,9 +155,8 @@ int PlaylistEntryBase::Process(void)
  */
 int PlaylistEntryBase::Stop(void)
 {
-	LogDebug(VB_PLAYLIST, "PlaylistEntryBase::Stop()\n");
-
-	FinishPlay();
+	m_isPlaying = 0;
+	m_isFinished = 1;
 
 	return 1;
 }
@@ -178,8 +166,6 @@ int PlaylistEntryBase::Stop(void)
  */
 int PlaylistEntryBase::HandleSigChild(pid_t pid)
 {
-	LogDebug(VB_PLAYLIST, "PlaylistEntryBase::HandleSigChild()\n");
-
 	return 0;
 }
 
@@ -190,8 +176,6 @@ void PlaylistEntryBase::Dump(void)
 {
 	LogDebug(VB_PLAYLIST, "---- Playlist Entry ----\n");
 	LogDebug(VB_PLAYLIST, "Entry Type: %s\n", m_type.c_str());
-	LogDebug(VB_PLAYLIST, "Entry ID  : %d\n", m_playlistEntryID);
-	LogDebug(VB_PLAYLIST, "Entry Note: %s\n", m_note.c_str());
 }
 
 /*
@@ -208,24 +192,6 @@ Json::Value PlaylistEntryBase::GetConfig(void)
 	result["isFinished"] = m_isFinished;
 	result["playOnce"]   = m_playOnce;
 	result["playCount"]  = m_playCount;
-	result["entryID"]    = m_playlistEntryID;
 
 	return result;
 }
-
-/*
- *
- */
-std::string PlaylistEntryBase::ReplaceMatches(std::string in)
-{
-	std::string out = in;
-
-	LogDebug(VB_PLAYLIST, "In: '%s'\n", in.c_str());
-
-	boost::replace_all(out, "%t", m_type);
-
-	LogDebug(VB_PLAYLIST, "Out: '%s'\n", out.c_str());
-
-	return out;
-}
-

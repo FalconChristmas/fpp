@@ -31,7 +31,7 @@
 
 #include <pthread.h>
 
-#include "playlist/Playlist.h"
+#include "playlist/NewPlaylist.h"
 #include "Scheduler.h"
 #include "Sequence.h"
 
@@ -80,34 +80,19 @@ class Player {
 	void SingleStepSequences(void);
 	void SingleStepSequencesBack(void);
 
-	void NextPlaylistItem(void);
-	void PrevPlaylistItem(void);
-
-	// Pass-through's to Playlist:: for now
-	Json::Value GetCurrentPlaylistInfo(void);
-	Json::Value GetCurrentPlaylistEntry(void);
-
 	// Pass-through's to Scheduler:: for now
 	void GetNextScheduleStartText(char *txt);
 	void GetNextPlaylistText(char *txt);
 	void ReLoadCurrentScheduleInfo(void);
 	void ReLoadNextScheduleInfo(void);
 
-	Json::Value GetCurrentPlaylist(void);
-
-	void SetBrightness(int brightness);
-
-	// FIXME, make this private???
-	char          m_seqData[FPPD_MAX_CHANNELS] __attribute__ ((aligned (__BIGGEST_ALIGNMENT__)));
-
   private:
-	void AdjustBrightness(void);
 	void ProcessChannelData(void);
     char NormalizeControlValue(char in);
 
 	pthread_mutex_t         m_sequenceLock;
 	std::vector<Sequence *> m_sequence;
-	Playlist               *m_playlist;
+	NewPlaylist            *m_newPlaylist;
 
 	Scheduler    *m_scheduler;
 	int           m_runMainLoop;
@@ -128,9 +113,6 @@ class Player {
 
 	char          m_seqLastControlMajor;
 	char          m_seqLastControlMinor;
-
-	int           m_brightness;
-	unsigned char m_brightnessLookup[256];
 };
 
 extern Player *player;

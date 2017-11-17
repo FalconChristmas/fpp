@@ -37,6 +37,7 @@
 #include "common.h"
 #include "log.h"
 #include "Player.h"
+#include "playlist/NewPlaylist.h"
 #include "settings.h"
 #include "Sequence.h"
 
@@ -395,7 +396,7 @@ void FalconSetData(int sock, struct sockaddr_in *srcAddr, unsigned char *inBuf)
 	{
 		if (inBuf[7] == 0x01)
 		{
-			player->PlaylistStopNow();
+			newPlaylist->StopNow(); // FIXME: Need to investigate this more
 		}
 		else
 		{

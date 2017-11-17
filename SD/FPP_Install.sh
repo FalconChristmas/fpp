@@ -37,7 +37,8 @@
 #       BeagleBone Black
 #           - URL: https://rcn-ee.com/rootfs/bb.org/release/2014-05-14/
 #           - Images
-#             - FIXME for Debian Jessie images
+#             - bone-debian-7.5-2014-05-14-2gb.img
+#             - BBB-eMMC-flasher-debian-7.5-2014-05-14-2gb.img
 #           - Login
 #             - root (no password)
 #
@@ -46,7 +47,7 @@
 #       targetting for support.
 #
 #############################################################################
-# Other platforms should be functioning:
+# Other platforms which may be functioning with varying degrees:
 #
 #       ODROID C1
 #           http://oph.mdrjr.net/meveric/images/
@@ -69,7 +70,7 @@
 SCRIPTVER="0.9"
 FPPBRANCH="master"
 FPPIMAGEVER="2.0alpha"
-FPPCFGVER="24"
+FPPCFGVER="22"
 FPPPLATFORM="UNKNOWN"
 FPPDIR="/opt/fpp"
 OSVER="UNKNOWN"
@@ -379,8 +380,7 @@ case "${OSVER}" in
 						vim-common vorbis-tools vsftpd firmware-realtek gcc g++\
 						network-manager dhcp-helper hostapd parprouted bridge-utils \
 						firmware-atheros firmware-ralink firmware-brcm80211 \
-						wireless-tools resolvconf \
-						libmicrohttpd-dev libmicrohttpd10 libcurl4-openssl-dev
+						wireless-tools
 		do
 			apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" install ${package}
 			let packages=$((${packages}+1))
@@ -395,9 +395,6 @@ case "${OSVER}" in
 
 		echo "FPP - Cleaning up after installing packages"
 		apt-get -y clean
-
-		echo "FPP - Installing libhttpserver"
-		(cd /opt/ && git clone https://github.com/etr/libhttpserver && cd libhttpserver && git checkout 02df5e7 && ./bootstrap && mkdir build && cd build && ../configure --prefix=/usr && make && make install && cd /opt/ && rm -rf /opt/libhttpserver)
 
 		echo "FPP - Installing non-packaged Perl modules via App::cpanminus"
 		curl -L https://cpanmin.us | perl - --sudo App::cpanminus

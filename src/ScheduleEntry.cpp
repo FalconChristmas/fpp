@@ -34,6 +34,7 @@
 ScheduleEntry::ScheduleEntry()
   : m_enabled(0),
 	m_playlistName(""),
+	m_playlist(NULL),
 	m_priority(0),
 	m_repeating(0),
 	m_dayIndex(0),

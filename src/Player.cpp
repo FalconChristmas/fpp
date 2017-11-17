@@ -56,6 +56,7 @@
 #include "mediaoutput.h"
 #include "PixelOverlay.h"
 #include "Player.h"
+#include "playlist/NewPlaylist.h"
 #include "Plugins.h"
 #include "Scheduler.h"
 #include "Sequence.h"
@@ -110,7 +111,7 @@ void Player::MainLoop(void)
 
 	if (getFPPmode() & PLAYER_MODE)
 	{
-		m_scheduler = new Scheduler(this);
+		m_scheduler = new Scheduler();
 
 		if (!m_scheduler)
 		{
@@ -118,9 +119,9 @@ void Player::MainLoop(void)
 			return;
 		}
 
-		m_playlist = new Playlist(this);
+		m_newPlaylist = new NewPlaylist(this);
 
-		if (!m_playlist)
+		if (!m_newPlaylist)
 		{
 			LogErr(VB_PLAYER, "Error creating Playlist\n");
 			return;
@@ -243,7 +244,7 @@ void Player::MainLoop(void)
 			{
 //				if (prevFPPstatus == FPP_STATUS_IDLE)
 //				{
-//					m_playlist->Start();
+//					m_newPlaylist->Start();
 //					sleepUs = 10000;
 // FIXME PLAYLIST
 // sleepUs = 500000;
@@ -256,7 +257,7 @@ void Player::MainLoop(void)
 					(FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP) ||
 					(FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY))
 				{
-					m_playlist->Process();
+					m_newPlaylist->Process();
 				}
 			}
 
@@ -268,9 +269,10 @@ void Player::MainLoop(void)
 					(prevFPPstatus == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP) ||
 					(prevFPPstatus == FPP_STATUS_STOPPING_GRACEFULLY))
 				{
-					m_playlist->Cleanup();
+					m_newPlaylist->Cleanup();
 
-					m_scheduler->ReLoadCurrentScheduleInfo();
+// FIXME, do we still need this?
+//					m_scheduler->ReLoadCurrentScheduleInfo();
 
 					if (FPPstatus != FPP_STATUS_IDLE)
 						reactivated = 1;
@@ -290,8 +292,7 @@ void Player::MainLoop(void)
 		{
 			if(mediaOutputStatus.status == MEDIAOUTPUTSTATUS_PLAYING)
 			{
-// FIXME PLAYLIST
-// when in remote mode, who owns the sequences and mediaoutputs we are playing?
+// FIXME playlist
 //				playlist->PlaylistProcessMediaData();
 LogDebug(VB_PLAYER, "FIXME PLAYLIST\n");
 			}
@@ -310,7 +311,7 @@ LogDebug(VB_PLAYER, "FIXME PLAYLIST\n");
 	else if (getFPPmode() & PLAYER_MODE)
 	{
 		delete m_scheduler;
-		delete m_playlist;
+		delete m_newPlaylist;
 	}
 
 	LogInfo(VB_PLAYER, "Main Loop complete, shutting down.\n");
@@ -326,25 +327,22 @@ void Player::Shutdown(void)
  */
 int Player::PlaylistStart(std::string playlistName, int position, int repeat)
 {
-	LogDebug(VB_PLAYER, "Player::PlaylistStart(%s, %d, %d)\n",
-		playlistName.c_str(), position, repeat);
-
-	if (!m_playlist)
+	if (!m_newPlaylist)
 		return 0;
 
 	if (FPPstatus != FPP_STATUS_IDLE)
 	{
-		m_playlist->StopNow();
+		m_newPlaylist->StopNow();
 		usleep(500000);
 	}
 
-	if (!m_playlist->Load(playlistName.c_str()))
+	if (!m_newPlaylist->Load(playlistName.c_str()))
 		return 0;
 
-	m_playlist->SetPosition(position);
-	m_playlist->SetRepeat(repeat);
+	m_newPlaylist->SetPosition(position);
+	m_newPlaylist->SetRepeat(repeat);
 
-	if (!m_playlist->Start())
+	if (!m_newPlaylist->Start())
 		return 0;
 	
 	return 1;
@@ -355,10 +353,10 @@ int Player::PlaylistStart(std::string playlistName, int position, int repeat)
  */
 int Player::PlaylistStopNow(void)
 {
-	if (!m_playlist)
+	if (!m_newPlaylist)
 		return 0;
 
-	return m_playlist->StopNow();
+	return m_newPlaylist->StopNow();
 }
 
 /*
@@ -366,10 +364,10 @@ int Player::PlaylistStopNow(void)
  */
 int Player::PlaylistStopGracefully(int afterCurrentLoop)
 {
-	if (!m_playlist)
+	if (!m_newPlaylist)
 		return 0;
 
-	return m_playlist->StopGracefully(afterCurrentLoop);
+	return m_newPlaylist->StopGracefully(afterCurrentLoop);
 }
 
 void Player::GetNextScheduleStartText(char *txt)
@@ -775,34 +773,6 @@ void Player::RunChannelOutputThread(void)
 	pthread_exit(NULL);
 }
 
-
-/*
- *
- */
-void Player::SetBrightness(int brightness)
-{
-	for (int i = 0; i < 256; i++)
-		m_brightnessLookup[i] = (unsigned char)(i * 1.0 * brightness / 100.0);
-
-	m_brightness = brightness;
-}
-
-
-/*
- *
- */
-void Player::AdjustBrightness(void)
-{
-	// FIXME PLAYLIST, how do we know how many channels to adjust???
-	unsigned char *c = (unsigned char *)m_seqData;
-	for (int i = 0; i < FPPD_MAX_CHANNELS; i++)
-	{
-		*c = m_brightnessLookup[*c];
-		c++;
-	}
-}
-
-
 /*
  *
  */
@@ -832,9 +802,6 @@ void Player::ProcessChannelData(void)
 
 	if (channelTester->Testing())
 		channelTester->OverlayTestData(m_seqData);
-
-	if (m_brightness)
-		AdjustBrightness();
 }
 
 /*
@@ -999,38 +966,6 @@ void Player::SingleStepSequencesBack(void)
 }
 
 /*
- *
- */
-void Player::NextPlaylistItem(void)
-{
-	m_playlist->NextItem();
-}
-
-/*
- *
- */
-void Player::PrevPlaylistItem(void)
-{
-	m_playlist->PrevItem();
-}
-
-/*
- *
- */
-Json::Value Player::GetCurrentPlaylistInfo(void)
-{
-	return m_playlist->GetInfo();
-}
-
-/*
- *
- */
-Json::Value Player::GetCurrentPlaylistEntry(void)
-{
-	return m_playlist->GetCurrentEntry();
-}
-
-/*
  * Reset the master frames played position
  */
 void Player::ResetMasterPosition(void)
@@ -1117,19 +1052,5 @@ void Player::CalculateNewChannelOutputDelayForFrame(int expectedFramesSent)
 	{
 		m_lightDelay = m_defaultLightDelay;
 	}
-}
-
-/*
- *
- */
-Json::Value Player::GetCurrentPlaylist(void)
-{
-	if (!m_playlist)
-	{
-		Json::Value result;
-		return result;
-	}
-
-	return m_playlist->GetConfig();
 }
 

@@ -48,8 +48,6 @@ class PlaylistEntryMedia : public PlaylistEntryBase {
 
 	Json::Value GetConfig(void);
 
-	std::string GetMediaName(void) { return m_mediaFilename; }
-
 	int   m_status;
 	int   m_secondsElapsed;
 	int   m_subSecondsElapsed;

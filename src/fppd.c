@@ -40,7 +40,8 @@
 #include "mediaoutput.h"
 #include "PixelOverlay.h"
 #include "Player.h"
-#include "playlist/Playlist.h"
+#include "Playlist.h"
+#include "playlist/NewPlaylist.h"
 #include "Plugins.h"
 #include "Scheduler.h"
 #include "Sequence.h"
@@ -57,10 +58,6 @@
 #include <string.h>
 #include <sys/stat.h>
 
-#ifdef USECURL
-#  include <curl/curl.h>
-#endif
-
 pid_t pid, sid;
 int FPPstatus=FPP_STATUS_IDLE;
 
@@ -71,10 +68,6 @@ ChannelTester *channelTester = NULL;
  */
 int main(int argc, char *argv[])
 {
-#ifdef USECURL
-	curl_global_init(CURL_GLOBAL_ALL);
-#endif
-
 	initSettings(argc, argv);
 	initMediaDetails();
 

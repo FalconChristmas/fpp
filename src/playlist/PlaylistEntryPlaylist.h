@@ -26,7 +26,7 @@
 #ifndef _PLAYLISTENTRYPLAYLIST_H
 #define _PLAYLISTENTRYPLAYLIST_H
 
-#include "Playlist.h"
+#include "NewPlaylist.h"
 #include "PlaylistEntryBase.h"
 
 class PlaylistEntryPlaylist : public PlaylistEntryBase {
@@ -34,19 +34,8 @@ class PlaylistEntryPlaylist : public PlaylistEntryBase {
   	PlaylistEntryPlaylist();
 	~PlaylistEntryPlaylist();
 
-	int  Init(Json::Value &config);
-
-	int  StartPlaying(void);
-	int  Process(void);
-	int  Stop(void);
-
-	void Dump(void);
-	Json::Value GetConfig(void);
-
   private:
-	std::string    m_playlistName;
-
-	Playlist      *m_playlist;
+	NewPlaylist *m_playlist;
 };
 
 #endif

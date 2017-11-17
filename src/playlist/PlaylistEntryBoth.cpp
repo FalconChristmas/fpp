@@ -23,132 +23,14 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "log.h"
 #include "PlaylistEntryBoth.h"
 
 PlaylistEntryBoth::PlaylistEntryBoth()
-  : m_duration(0),
-	m_mediaEntry(NULL),
-	m_sequenceEntry(NULL)
+  : m_duration(0)
 {
-	LogDebug(VB_PLAYLIST, "PlaylistEntryBoth::PlaylistEntryBoth()\n");
-
-	m_type = "both";
 }
 
 PlaylistEntryBoth::~PlaylistEntryBoth()
 {
-}
-
-/*
- *
- */
-int PlaylistEntryBoth::Init(Json::Value &config)
-{
-	LogDebug(VB_PLAYLIST, "PlaylistEntryBoth::Init()\n");
-
-	m_sequenceEntry = new PlaylistEntrySequence();
-	if (!m_sequenceEntry)
-		return 0;
-
-	m_mediaEntry = new PlaylistEntryMedia();
-	if (!m_mediaEntry)
-		return 0;
-
-	if (!m_mediaEntry->Init(config))
-		return 0;
-
-	if (!m_sequenceEntry->Init(config))
-		return 0;
-
-	return PlaylistEntryBase::Init(config);
-}
-
-/*
- *
- */
-int PlaylistEntryBoth::StartPlaying(void)
-{
-	LogDebug(VB_PLAYLIST, "PlaylistEntryBoth::StartPlaying()\n");
-
-	if (!CanPlay())
-	{
-		FinishPlay();
-		return 0;
-	}
-
-	if (!m_mediaEntry->StartPlaying())
-		return 0;
-
-	if (!m_sequenceEntry->StartPlaying())
-	{
-		m_mediaEntry->Stop();
-		return 0;
-	}
-
-	return PlaylistEntryBase::StartPlaying();
-}
-
-/*
- *
- */
-int PlaylistEntryBoth::Process(void)
-{
-	m_mediaEntry->Process();
-	m_sequenceEntry->Process();
-
-	if (m_mediaEntry->IsFinished())
-	{
-		FinishPlay();
-		m_sequenceEntry->Stop();
-	}
-
-	if (m_sequenceEntry->IsFinished())
-	{
-		FinishPlay();
-		m_mediaEntry->Stop();
-	}
-
-	// FIXME PLAYLIST, handle sync in here somehow
-
-	return PlaylistEntryBase::Process();
-}
-
-/*
- *
- */
-int PlaylistEntryBoth::Stop(void)
-{
-	LogDebug(VB_PLAYLIST, "PlaylistEntryBoth::Stop()\n");
-
-	m_mediaEntry->Stop();
-	m_sequenceEntry->Stop();
-
-	return PlaylistEntryBase::Stop();
-}
-
-/*
- *
- */
-void PlaylistEntryBoth::Dump(void)
-{
-	PlaylistEntryBase::Dump();
-
-	m_mediaEntry->Dump();
-	m_sequenceEntry->Dump();
-}
-
-/*
- *
- */
-Json::Value PlaylistEntryBoth::GetConfig(void)
-{
-	Json::Value result = PlaylistEntryBase::GetConfig();
-
-	result["media"] = m_mediaEntry->GetConfig();
-	result["sequence"] = m_sequenceEntry->GetConfig();
-
-	// FIXME PLAYLIST, need to get things like seconds elapsed/remaining ere
-	return result;
 }
 

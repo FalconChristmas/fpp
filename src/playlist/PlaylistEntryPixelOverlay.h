@@ -38,11 +38,8 @@ class PlaylistEntryPixelOverlay : public PlaylistEntryBase {
 	int  Init(Json::Value &config);
 
 	int  StartPlaying(void);
-	int  Process(void);
 
 	void Dump(void);
-
-	Json::Value GetConfig(void);
 
   private:
 	std::string          m_action;

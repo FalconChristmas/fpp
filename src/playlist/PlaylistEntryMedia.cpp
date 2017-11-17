@@ -49,8 +49,6 @@ PlaylistEntryMedia::PlaylistEntryMedia()
 	m_speedDelta(0),
 	m_mediaOutput(NULL)
 {
-    LogDebug(VB_PLAYLIST, "PlaylistEntryMedia::PlaylistEntryMedia()\n");
-
 	m_type = "media";
 
 	pthread_mutex_init(&m_mediaOutputLock, NULL);
@@ -69,15 +67,14 @@ PlaylistEntryMedia::~PlaylistEntryMedia()
  */
 int PlaylistEntryMedia::Init(Json::Value &config)
 {
-    LogDebug(VB_PLAYLIST, "PlaylistEntryMedia::Init()\n");
-
-	if (!config.isMember("mediaName"))
+	if (!config.isMember("mediaFilename"))
 	{
-		LogErr(VB_PLAYLIST, "Missing mediaName entry\n");
+		LogErr(VB_PLAYLIST, "Missing mediaFilename entry\n");
+
 		return 0;
 	}
 
-	m_mediaFilename = config["mediaName"].asString();
+	m_mediaFilename = config["mediaFilename"].asString();
 
 	return PlaylistEntryBase::Init(config);
 }
@@ -87,18 +84,9 @@ int PlaylistEntryMedia::Init(Json::Value &config)
  */
 int PlaylistEntryMedia::StartPlaying(void)
 {
-    LogDebug(VB_PLAYLIST, "PlaylistEntryMedia::StartPlaying()\n");
+	OpenMediaOutput();
 
-	if (!CanPlay())
-	{
-		FinishPlay();
-		return 0;
-	}
-
-	if (!OpenMediaOutput())
-		return 0;
-
-	return PlaylistEntryBase::StartPlaying();
+	return 0;
 }
 
 /*
@@ -121,7 +109,7 @@ int PlaylistEntryMedia::Process(void)
 
 	sigprocmask(SIG_UNBLOCK, &blockset, NULL);
 
-	return PlaylistEntryBase::Process();
+	return 1;
 }
 
 /*
@@ -129,11 +117,9 @@ int PlaylistEntryMedia::Process(void)
  */
 int PlaylistEntryMedia::Stop(void)
 {
-    LogDebug(VB_PLAYLIST, "PlaylistEntryMedia::Stop()\n");
-
 	CloseMediaOutput();
 
-	return PlaylistEntryBase::Stop();
+	return 1;
 }
 
 /*
@@ -141,8 +127,6 @@ int PlaylistEntryMedia::Stop(void)
  */
 int PlaylistEntryMedia::HandleSigChild(pid_t pid)
 {
-    LogDebug(VB_PLAYLIST, "PlaylistEntryMedia::HandleSigChild(%d)\n", pid);
-
 	pthread_mutex_lock(&m_mediaOutputLock);
 
 	if (pid != m_mediaOutput->m_childPID)
@@ -157,7 +141,7 @@ int PlaylistEntryMedia::HandleSigChild(pid_t pid)
 	delete m_mediaOutput;
 	m_mediaOutput = NULL;
 
-	FinishPlay();
+	// FIXME PLAYLIST, do some more stuff here??
 
 	pthread_mutex_unlock(&m_mediaOutputLock);
 
@@ -171,7 +155,7 @@ void PlaylistEntryMedia::Dump(void)
 {
 	PlaylistEntryBase::Dump();
 
-	LogDebug(VB_PLAYLIST, "Media Filename: %s\n", m_mediaFilename.c_str());
+	LogDebug(VB_PLAYLIST, "Media Filename: %s", m_mediaFilename.c_str());
 }
 
 /*
@@ -179,7 +163,7 @@ void PlaylistEntryMedia::Dump(void)
  */
 int PlaylistEntryMedia::OpenMediaOutput(void)
 {
-	LogDebug(VB_PLAYLIST, "PlaylistEntryMedia::OpenMediaOutput() - Starting\n");
+	LogDebug(VB_PLAYLIST, "OpenMediaOutput()\n");
 
 	pthread_mutex_lock(&m_mediaOutputLock);
 	if (m_mediaOutput) {
@@ -247,8 +231,6 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 
 	pthread_mutex_unlock(&m_mediaOutputLock);
 
-	LogDebug(VB_PLAYLIST, "PlaylistEntryMedia::OpenMediaOutput() - Complete\n");
-
 	return 1;
 }
 
@@ -257,7 +239,7 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
  */
 int PlaylistEntryMedia::CloseMediaOutput(void)
 {
-	LogDebug(VB_PLAYLIST, "PlaylistEntryMedia::CloseMediaOutput()\n");
+	LogDebug(VB_PLAYLIST, "CloseMediaOutput()\n");
 
 	mediaOutputStatus.status = MEDIAOUTPUTSTATUS_IDLE;
 

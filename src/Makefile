@@ -4,7 +4,7 @@ ifneq ($(wildcard /usr/bin/ccache),)
 	CCACHE = ccache
 endif
 
-TARGETS = fpp fppmm fppd fsequtil
+TARGETS = fpp fppmm fppd
 SUBMODULES =
 
 INSTALL_PROGRAM = install -m 755 -p
@@ -23,18 +23,6 @@ OBJECTS_fppmm = \
 	fppversion.o \
 	$(NULL)
 LIBS_fppmm = \
-	-ljsoncpp \
-	$(NULL)
-
-OBJECTS_fsequtil = \
-	common.o \
-	fppversion.o \
-	fsequtil.o \
-	log.o \
-	SequenceFile.o \
-	$(NULL)
-LIBS_fsequtil = \
-	-ljsoncpp \
 	$(NULL)
 
 OBJECTS_fppd = \
@@ -92,12 +80,11 @@ OBJECTS_fppd = \
 	mediaoutput/omxplayer.o \
 	PixelOverlay.o \
 	Player.o \
-	playlist/Playlist.o \
+	Playlist.o \
+	playlist/NewPlaylist.o \
 	playlist/PlaylistEntryBase.o \
 	playlist/PlaylistEntryBoth.o \
 	playlist/PlaylistEntryBranch.o \
-	playlist/PlaylistEntryBrightness.o \
-	playlist/PlaylistEntryChannelTest.o \
 	playlist/PlaylistEntryEffect.o \
 	playlist/PlaylistEntryEvent.o \
 	playlist/PlaylistEntryMedia.o \
@@ -105,7 +92,6 @@ OBJECTS_fppd = \
 	playlist/PlaylistEntryPixelOverlay.o \
 	playlist/PlaylistEntryPlaylist.o \
 	playlist/PlaylistEntryPlugin.o \
-	playlist/PlaylistEntryScript.o \
 	playlist/PlaylistEntrySequence.o \
 	playlist/PlaylistEntryVolume.o \
 	Plugins.o \
@@ -144,13 +130,6 @@ ifneq '$(OLAFLAGS)' ''
 	CFLAGS += -DUSEOLA
 	LDFLAGS_fppd += $(OLAFLAGS)
 	OBJECTS_fppd += channeloutput/OLAOutput.o
-endif
-
-CURLFLAGS := $(shell curl-config --libs)
-ifneq '$(CURLFLAGS)' ''
-	CFLAGS += -DUSECURL
-	LDFLAGS_fppd += $(CURLFLAGS)
-	OBJECTS_fppd += playlist/PlaylistEntryURL.o
 endif
 
 # Common CFLAGS
@@ -337,8 +316,6 @@ release: $(TARGETS)
 	-$(INSTALL_PROGRAM) fppmm $(BINDIR)/fppmm
 	strip fppd
 	-$(INSTALL_PROGRAM) fppd $(BINDIR)/fppd
-	strip fsequtil
-	-$(INSTALL_PROGRAM) fsequtil $(BINDIR)/fsequtil
 	for dir in $(SUBDIRS); do \
 		$(MAKE) -C $$dir release || exit 1; \
 	done
@@ -347,9 +324,6 @@ fpp: $(OBJECTS_fpp)
 	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
 
 fppmm: $(OBJECTS_fppmm)
-	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
-
-fsequtil: $(OBJECTS_fsequtil)
 	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
 
 fppd: $(DEPS_fppd) $(OBJECTS_fppd)
@@ -365,7 +339,7 @@ fppversion.c: fppversion.sh force
 	$(CCACHE) $(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f fppversion.c $(OBJECTS_fpp) $(OBJECTS_fppmm) $(OBJECTS_fppd) $(OBJECTS_fsequtil) fpp fppmm fppd fsequtil
+	rm -f fppversion.c $(OBJECTS_fpp) $(OBJECTS_fppmm) $(OBJECTS_fppd) fpp fppmm fppd
 	@if [ -e ../external/RF24/.git ]; then make -C ../external/RF24 clean; fi
 	@if [ -e ../external/rpi-rgb-led-matrix/.git ]; then make -C ../external/rpi-rgb-led-matrix clean; fi
 	@if [ -e ../external/rpi_ws281x/libws2811.a ]; then rm ../external/rpi_ws281x/*.o ../external/rpi_ws281x/*.a 2> /dev/null; fi

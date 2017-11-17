@@ -45,8 +45,6 @@ class PlaylistEntrySequence : public PlaylistEntryBase {
 
 	Json::Value GetConfig(void);
 
-	std::string GetSequenceName(void) { return m_sequenceName; }
-
   private:
 	int                  m_duration;
 	long long            m_sequenceID;

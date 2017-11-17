@@ -41,8 +41,6 @@ class PlaylistEntryVolume : public PlaylistEntryBase {
 
 	void Dump(void);
 
-	Json::Value GetConfig(void);
-
   private:
 	int                  m_volume;
 };
