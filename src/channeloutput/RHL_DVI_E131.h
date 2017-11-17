@@ -1,8 +1,7 @@
 /*
- *   Matrix class for the Falcon Player Daemon 
- *   Falcon Player project (FPP) 
+ *   Ron's Holiday Lights DVI to E1.31 Channel Output for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Player Developers
+ *   Copyright (C) 2015 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -24,40 +23,38 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _MATRIX_H
-#define _MATRIX_H
+#ifndef _RHL_DVI_E131_H
+#define _RHL_DVI_E131_H
 
-#include <vector>
+#include <linux/fb.h>
 
-typedef struct subMatrix {
-	int enabled;
-	int startChannel;
-	int width;
-	int height;
-	int xOffset;
-	int yOffset;
-} SubMatrix;
+#include "ChannelOutputBase.h"
 
-class Matrix {
+class RHLDVIE131Output : public ChannelOutputBase {
   public:
-	Matrix(int startChannel, int width, int height);
-	~Matrix();
+	RHLDVIE131Output(unsigned int startChannel, unsigned int channelCount);
+	~RHLDVIE131Output();
 
-	void AddSubMatrix(int enabled, int startChannel, int width, int height,
-		int xOffset, int yOffset);
+	int Init(Json::Value config);
+	int Close(void);
 
-	void OverlaySubMatrix(unsigned char *channelData, int i);
-	void OverlaySubMatrices(unsigned char *channelData);
+	int RawSendData(unsigned char *channelData);
+
+	void DumpConfig(void);
 
   private:
-	int  m_startChannel;
-	int  m_width;
-	int  m_height;
-	int  m_enableFlagOffset;
+	int     m_fbFd;
+	int     m_ttyFd;
 
-	unsigned char *m_buffer;
+	int     m_width;
+	int     m_height;
+	int     m_bytesPerPixel;
+	int     m_screenSize;
+	char   *m_data;
 
-	std::vector<SubMatrix>  subMatrix;
+	struct fb_var_screeninfo m_vInfo;
+	struct fb_var_screeninfo m_vInfoOrig;
+	struct fb_fix_screeninfo m_fInfo;
 };
 
-#endif
+#endif /* _RHL_DVI_E131_H */

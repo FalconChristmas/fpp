@@ -1,8 +1,7 @@
 /*
- *   Matrix class for the Falcon Player Daemon 
- *   Falcon Player project (FPP) 
+ *   DDP Channel Output driver for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Player Developers
+ *   Copyright (C) 2017 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -24,40 +23,22 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _MATRIX_H
-#define _MATRIX_H
+#ifndef _DDPOUTPUT_H
+#define _DDPOUTPUT_H
 
-#include <vector>
+#include "ChannelOutputBase.h"
 
-typedef struct subMatrix {
-	int enabled;
-	int startChannel;
-	int width;
-	int height;
-	int xOffset;
-	int yOffset;
-} SubMatrix;
-
-class Matrix {
+class DDPOutput : public ChannelOutputBase {
   public:
-	Matrix(int startChannel, int width, int height);
-	~Matrix();
+	DDPOutput(unsigned int startChannel, unsigned int channelCount);
+	~DDPOutput();
 
-	void AddSubMatrix(int enabled, int startChannel, int width, int height,
-		int xOffset, int yOffset);
+	int  Init(Json::Value config);
+	int  Close(void);
 
-	void OverlaySubMatrix(unsigned char *channelData, int i);
-	void OverlaySubMatrices(unsigned char *channelData);
+	int  RawSendData(unsigned char *channelData);
 
-  private:
-	int  m_startChannel;
-	int  m_width;
-	int  m_height;
-	int  m_enableFlagOffset;
-
-	unsigned char *m_buffer;
-
-	std::vector<SubMatrix>  subMatrix;
+	void DumpConfig(void);
 };
 
 #endif

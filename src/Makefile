@@ -30,7 +30,10 @@ OBJECTS_fppd = \
 	channeloutput/channeloutput.o \
 	channeloutput/channeloutputthread.o \
 	channeloutput/ArtNet.o \
+	channeloutput/ColorOrder.o \
+	channeloutput/ColorLight-5a-75.o \
 	channeloutput/DebugOutput.o \
+	channeloutput/DDP.o \
 	channeloutput/E131.o \
 	channeloutput/FBMatrix.o \
 	channeloutput/FBVirtualDisplay.o \
@@ -38,10 +41,12 @@ OBJECTS_fppd = \
 	channeloutput/GenericSerial.o \
 	channeloutput/GPIO.o \
 	channeloutput/GPIO595.o \
+	channeloutput/Linsn-RV9.o \
 	channeloutput/LOR.o \
 	channeloutput/Matrix.o \
 	channeloutput/PanelMatrix.o \
 	channeloutput/PixelString.o \
+	channeloutput/RHL_DVI_E131.o \
 	channeloutput/serialutil.o \
 	channeloutput/SPInRF24L01.o \
 	channeloutput/SPIws2801.o \
