@@ -28,9 +28,9 @@
 #       following OS images for the Raspberry Pi and BeagleBone Black:
 #
 #       Raspberry Pi
-#           - URL: FIXME
+#           - URL: https://www.raspberrypi.org/downloads/
 #           - Image
-#             - 
+#             - 2017-09-07-raspbian-stretch-lite.zip
 #           - Login/Password
 #             - pi/raspberry
 #
@@ -67,8 +67,8 @@
 #
 #############################################################################
 SCRIPTVER="0.9"
-FPPBRANCH="master"
-FPPIMAGEVER="2.0alpha"
+FPPBRANCH="master-v1.x"
+FPPIMAGEVER="1.10"
 FPPCFGVER="24"
 FPPPLATFORM="UNKNOWN"
 FPPDIR="/opt/fpp"
@@ -306,7 +306,7 @@ fi
 export DEBIAN_FRONTEND=noninteractive
 
 case "${OSVER}" in
-	debian_7|debian_8)
+	debian_7|debian_8|debian_9)
 		case $FPPPLATFORM in
 			'CHIP'|'BeagleBone Black')
 				echo "FPP - Skipping non-free for $FPPPLATFORM"
@@ -422,7 +422,7 @@ case "${OSVER}" in
 		update-rc.d -f dhcp-helper remove
 		update-rc.d -f hostapd remove
 
-		if [ "x${OSVER}" == "xdebian_8" ]; then
+		if [ "x${OSVER}" == "xdebian_8" -o "x${OSVER}" == "xdebian_9" ]; then
 			systemctl disable display-manager.service
 		fi
 
@@ -443,7 +443,7 @@ case "${FPPPLATFORM}" in
 	'BeagleBone Black')
 
 		case "${OSVER}" in
-			'debian_8')
+			debian_8|debian_9)
 				echo "FPP - Disabling HDMI for Falcon and LEDscape cape support"
 				sed -i -e 's/#dtb=am335x-boneblack-emmc-overlay.dtb/dtb=am335x-boneblack-emmc-overlay.dtb/' /boot/uEnv.txt
 
@@ -537,21 +537,28 @@ EOF
 			(cd /opt/ola && autoreconf -i && ./configure --enable-rdm-tests --enable-python-libs && make && make install && ldconfig)
 			rm -rf /opt/ola
 		else
-			echo "FPP - Installing OLA packages"
-			apt-get -y --force-yes install libcppunit-dev uuid-dev pkg-config libncurses5-dev libtool autoconf automake libmicrohttpd-dev protobuf-compiler python-protobuf libprotobuf-dev libprotoc-dev bison flex libftdi-dev libftdi1 libusb-1.0-0-dev liblo-dev
-			apt-get -y clean
+			echo "FPP - Installing OLA"
+			case "${OSVER}" in
+				debian_8)
+					apt-get -y --force-yes install libcppunit-dev uuid-dev pkg-config libncurses5-dev libtool autoconf automake libmicrohttpd-dev protobuf-compiler python-protobuf libprotobuf-dev libprotoc-dev bison flex libftdi-dev libftdi1 libusb-1.0-0-dev liblo-dev
+					apt-get -y clean
 
-			mkdir /tmp/deb
-			cd /tmp/deb
-			FILES="libola-dev_0.10.0-1_armhf.deb libola1_0.10.0-1_armhf.deb ola-python_0.0.10-1_all.deb ola-rdm-tests_0.0.10-1_all.deb ola_0.0.10-1_armhf.deb"
-			for FILE in ${FILES}
-			do
-				# TODO Host the debs I built so we can use our packages
-				# instaed of the broken ones in the OLA repo
-				wget -nd http://www.bc2va.org/chris/tmp/fpp/deb/pi/${OSVER}/${FILE}
-			done
-			dpkg --unpack ${FILES}
-			rm -f ${FILES}
+					mkdir /tmp/deb
+					cd /tmp/deb
+					FILES="libola-dev_0.10.0-1_armhf.deb libola1_0.10.0-1_armhf.deb ola-python_0.0.10-1_all.deb ola-rdm-tests_0.0.10-1_all.deb ola_0.0.10-1_armhf.deb"
+					for FILE in ${FILES}
+					do
+						# TODO Host the debs I built so we can use our packages
+						# instaed of the broken ones in the OLA repo
+						wget -nd http://www.bc2va.org/chris/tmp/fpp/deb/pi/${OSVER}/${FILE}
+					done
+					dpkg --unpack ${FILES}
+					rm -f ${FILES}
+				;;
+				debian_9)
+					apt-get -y install ola ola-python libola-dev libola1
+				;;
+			esac
 		fi
 
 		echo "FPP - Installing wiringPi"
@@ -584,7 +591,7 @@ EOF
 		echo "FPP - Disabling getty on onboard serial ttyAMA0"
 		if [ "x${OSVER}" == "xdebian_7" ]; then
 			sed -i "s@T0:23:respawn:/sbin/getty -L ttyAMA0@#T0:23:respawn:/sbin/getty -L ttyAMA0@" /etc/inittab
-		elif [ "x${OSVER}" == "xdebian_8" ]; then
+		elif [ "x${OSVER}" == "xdebian_8" -o "x${OSVER}" == "xdebian_9" ]; then
 			systemctl disable serial-getty@ttyAMA0.service
 		fi
 
@@ -800,7 +807,7 @@ case "${OSVER}" in
 	debian_7)
 		service samba restart
 		;;
-	debian_8)
+	debian_8|debian_9)
 		systemctl restart smbd.service
 		systemctl restart nmbd.service
 		;;
@@ -843,7 +850,6 @@ fi
 echo "${COMMENTED}/dev/sda1     /home/fpp/media  auto    defaults,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500  0  0" >> /etc/fstab
 echo "#####################################" >> /etc/fstab
 
-
 #######################################
 # Disable IPv6
 echo "FPP - Disabling IPv6"
@@ -884,7 +890,7 @@ case "${OSVER}" in
 		cp ${FPPDIR}/scripts/nginx /etc/init.d/
 		update-rc.d nginx defaults
 		;;
-	debian_8)
+	debian_8|debian_9)
 		cp ${FPPDIR}/scripts/nginx.service /lib/systemd/system/
 		systemctl enable nginx.service
 		;;
