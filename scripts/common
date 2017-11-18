@@ -62,6 +62,15 @@ CFGVERSIONFILE="${CFGVERSIONFILE:-/etc/fpp/config_version}"
 CFGVERSION="${CFGVERSION:-0}"
 [ -f $CFGVERSIONFILE ] && CFGVERSION="$(cat ${CFGVERSIONFILE})"
 
+. /etc/os-release
+OSID=${ID}
+OSVER="${ID}_${VERSION_ID}"
+if [ "x${OSID}" = "xraspbian" ]
+then
+    OSVER="debian_${VERSION_ID}"
+fi
+
+
 #############################################################################
 makeLogDir() {
 	if [ ! -d ${LOGDIR} ]
