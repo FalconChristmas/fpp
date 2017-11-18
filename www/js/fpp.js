@@ -821,7 +821,7 @@ function RemovePlaylistEntry()	{
 								              "<td>" + (i+1).toString() + "</td>" +
 															"<td><input name=\"chkActive[" + i.toString() + "]\" id=\"chkActive[" + i.toString() + "]\" type=\"checkbox\" " + activeChecked +"/></td>" +
 															"<td><input name=\"txtStartAddress[" + i.toString() + "]\" id=\"txtStartAddress[" + i.toString() + "]\" type=\"text\" size=\"6\" maxlength=\"6\" value=\"" + startAddress.toString() + "\"/></td>" +
-															"<td><input name=\"txtUniverse[" + i.toString() + "]\" id=\"txtUniverse[" + i.toString() + "]\" type=\"text\" size=\"3\" maxlength=\"3\" value=\"" + universe.toString() + "\"/></td>" +
+															"<td><input name=\"txtUniverse[" + i.toString() + "]\" id=\"txtUniverse[" + i.toString() + "]\" type=\"text\" size=\"5\" maxlength=\"5\" value=\"" + universe.toString() + "\"/></td>" +
 															"<td><input name=\"txtSize[" + i.toString() + "]\" id=\"txtSize[" + i.toString() + "]\" type=\"text\"  size=\"3\"/  maxlength=\"3\"value=\"" + size.toString() + "\"></td>" +
 															
 															"<td><select id=\"universeType[" + i.toString() + "]\" name=\"universeType[" + i.toString() + "]\" style=\"width:150px\">" +
