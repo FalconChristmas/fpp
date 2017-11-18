@@ -2484,7 +2484,7 @@ function GetVideoInfo()
 
 	global $settings;
 	$videoInfo = "";
-	exec("omxplayer -i " . $settings['videoDirectory'] . "/" . $filename . " 2>&1", $info);
+	exec("omxplayer -i '" . $settings['videoDirectory'] . "/" . $filename . "' 2>&1", $info);
 	$videoInfo .= implode("\n", $info);
 
 	echo $videoInfo;
