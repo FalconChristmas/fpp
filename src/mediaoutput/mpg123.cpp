@@ -263,7 +263,7 @@ void mpg123Output::ProcessMP3Data(int bytesRead)
 	bool commandNext=false;
 
 //#define NEW_MPG123
-#ifdef NEW_MPG123
+#if defined(NEW_MPG123) && !defined(USE_MPG321)
 	// New verbose output format in v1.??, we key off the > at the beginning
 	// > 0008+3784  00:00.18+01:38.84 --- 100=100 160 kb/s  522 B acc    0 clip p+0.000
 	// States:

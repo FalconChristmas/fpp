@@ -31,7 +31,7 @@
 #define MAX_BYTES_MP3 1000
 #define TIME_STR_MAX  8
 
-#ifdef PLATFORM_BBB
+#if defined(PLATFORM_BBB) || defined(USE_MPG321)
 #   define MPG123_BINARY "/usr/bin/mpg321"
 #else
 #   define MPG123_BINARY "/usr/bin/mpg123"
