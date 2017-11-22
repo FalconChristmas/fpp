@@ -54,6 +54,8 @@
 #include "RGBCape48C.hp"
 #elif defined RGBCape48F
 #include "RGBCape48F.hp"
+#elif defined RGBCape24
+#include "RGBCape24.hp"
 #else
 #include "F16B.hp"
 #endif

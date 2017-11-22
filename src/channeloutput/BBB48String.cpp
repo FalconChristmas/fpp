@@ -369,6 +369,9 @@ int BBB48StringOutput::Init(Json::Value config)
         args.push_back("-DPORTA");
         args.push_back("-DPORTB");
         mapSize(36, maxString, lsconfig->leds_height, args);
+    } else if (m_subType == "RGBCape24") {
+        args.push_back("-DRGBCape24=1");
+        mapSize(24, maxString, lsconfig->leds_height, args);
     } else if (m_subType == "RGBCape48C") {
         args.push_back("-DRGBCape48C=1");
         mapSize(48, maxString, lsconfig->leds_height, args);

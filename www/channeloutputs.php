@@ -1697,6 +1697,8 @@ function GetBBB48StringRows()
         rows = 40;
     else if (subType == 'F32-B-48')
         rows = 48;
+    else if (subType == 'RGBCape24')
+        rows = 24;
 	else if (subType == 'RGBCape48C')
 		rows = 48;
     else if (subType == 'RGBCape48F')
@@ -1845,6 +1847,7 @@ function DrawBBB48StringTable()
         || (subType == 'F8-B-20')
         || (subType == 'F8-B-EXP-36')
         || (subType == 'F32-B-48')
+        || (subType == 'RGBCape24')
         || (subType == 'RGBCape48C')
         || (subType == 'RGBCape48F'))
 	{
@@ -2005,6 +2008,7 @@ function InitializeBBBSerial()
 			(channelOutputsLookup["BBB48String"].subType == 'F8-B-20') ||
             (channelOutputsLookup["BBB48String"].subType == 'F8-B-EXP-36') ||
             (channelOutputsLookup["BBB48String"].subType == 'F32-B-48') ||
+            (channelOutputsLookup["BBB48String"].subType == 'RGBCape24') ||
             (channelOutputsLookup["BBB48String"].subType == 'RGBCape48C') ||
             (channelOutputsLookup["BBB48String"].subType == 'RGBCape48F'))
 			return; // nothing to setup if non-serial cape
@@ -2911,6 +2915,7 @@ if ($settings['Platform'] == "BeagleBone Black")
                                     <option value='F8-B-EXP-36'>F8-B w/ Expansion (No serial)</option>
                                     <option value='F32-B'>F32-B</option>
                                     <option value='F32-B-48'>F32-B (No Serial)</option>
+                                    <option value='RGBCape24'>RGBCape24</option>
 									<option value='RGBCape48C'>RGBCape48C</option>
                                     <option value='RGBCape48F'>RGBCape48F</option>
 									</select>
