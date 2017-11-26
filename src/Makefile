@@ -311,6 +311,10 @@ clean:
 util: force
 	$(MAKE) -C util
 
+restart: fppd
+	sudo ../scripts/fppd_stop
+	sudo ../scripts/fppd_start
+
 #############################################################################
 # RF24 library on the Pi
 ../external/RF24/.git:
