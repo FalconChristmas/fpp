@@ -68,7 +68,7 @@
 #############################################################################
 SCRIPTVER="0.9"
 FPPBRANCH="master-v1.x"
-FPPIMAGEVER="1.10"
+FPPIMAGEVER="1.9"
 FPPCFGVER="24"
 FPPPLATFORM="UNKNOWN"
 FPPDIR="/opt/fpp"
@@ -361,25 +361,52 @@ case "${OSVER}" in
 
 		echo "FPP - Installing required packages"
 		# Install 10 packages, then clean to lower total disk space required
+		PACKAGE_LIST=""
+		case "${OSVER}" in
+			debian_7|debian_8)
+				PACKAGE_LIST="alsa-base alsa-utils arping avahi-daemon \
+								zlib1g-dev libpcre3 libpcre3-dev libbz2-dev libssl-dev \
+								avahi-discover avahi-utils bash-completion bc build-essential \
+								bzip2 ca-certificates ccache curl device-tree-compiler \
+								dh-autoreconf ethtool exfat-fuse fbi fbset file flite gdb \
+								gdebi-core git i2c-tools ifplugd imagemagick less \
+								libboost-dev libconvert-binary-c-perl \
+								libdbus-glib-1-dev libdevice-serialport-perl libjs-jquery \
+								libjs-jquery-ui libjson-perl libjsoncpp-dev libnet-bonjour-perl \
+								libpam-smbpass libtagc0-dev libtest-nowarnings-perl locales \
+								mp3info mailutils mpg123 mpg321 mplayer nano node ntp perlmagick \
+								php5-cli php5-common php5-curl php5-fpm php5-mcrypt \
+								php5-sqlite php-apc python-daemon python-smbus rsync samba \
+								samba-common-bin shellinabox sudo sysstat tcpdump usbmount vim \
+								vim-common vorbis-tools vsftpd firmware-realtek gcc g++\
+								network-manager dhcp-helper hostapd parprouted bridge-utils \
+								firmware-atheros firmware-ralink firmware-brcm80211 \
+								wireless-tools libcurl4-openssl-dev resolvconf"
+				;;
+			debian_9)
+				PACKAGE_LIST="alsa-base alsa-utils arping avahi-daemon \
+								zlib1g-dev libpcre3 libpcre3-dev libbz2-dev libssl-dev \
+								avahi-discover avahi-utils bash-completion bc build-essential \
+								bzip2 ca-certificates ccache curl device-tree-compiler \
+								dh-autoreconf ethtool exfat-fuse fbi fbset file flite gdb \
+								gdebi-core git i2c-tools ifplugd imagemagick less \
+								libboost-dev libconvert-binary-c-perl \
+								libdbus-glib-1-dev libdevice-serialport-perl libjs-jquery \
+								libjs-jquery-ui libjson-perl libjsoncpp-dev libnet-bonjour-perl \
+								libpam-smbpass libtagc0-dev libtest-nowarnings-perl locales \
+								mp3info mailutils mpg123 mpg321 mplayer nano node ntp perlmagick \
+								php-cli php-common php-curl php-dom php-fpm php-mcrypt \
+								php-sqlite3 python-daemon python-smbus rsync samba \
+								samba-common-bin shellinabox sudo sysstat tcpdump usbmount vim \
+								vim-common vorbis-tools vsftpd firmware-realtek gcc g++\
+								network-manager dhcp-helper hostapd parprouted bridge-utils \
+								firmware-atheros firmware-ralink firmware-brcm80211 \
+								wireless-tools libcurl4-openssl-dev resolvconf"
+				;;
+		esac
+
 		let packages=0
-		for package in alsa-base alsa-utils arping avahi-daemon \
-						zlib1g-dev libpcre3 libpcre3-dev libbz2-dev libssl-dev \
-						avahi-discover avahi-utils bash-completion bc build-essential \
-						bzip2 ca-certificates ccache curl device-tree-compiler \
-						dh-autoreconf ethtool exfat-fuse fbi fbset file flite gdb \
-						gdebi-core git i2c-tools ifplugd imagemagick less \
-						libboost-dev libconvert-binary-c-perl \
-						libdbus-glib-1-dev libdevice-serialport-perl libjs-jquery \
-						libjs-jquery-ui libjson-perl libjsoncpp-dev libnet-bonjour-perl \
-						libpam-smbpass libtagc0-dev libtest-nowarnings-perl locales \
-						mp3info mpg123 mpg321 mplayer nano node ntp perlmagick \
-						php5-cli php5-common php5-curl php5-fpm php5-mcrypt \
-						php5-sqlite php-apc python-daemon python-smbus rsync samba \
-						samba-common-bin shellinabox sudo sysstat tcpdump usbmount vim \
-						vim-common vorbis-tools vsftpd firmware-realtek gcc g++\
-						network-manager dhcp-helper hostapd parprouted bridge-utils \
-						firmware-atheros firmware-ralink firmware-brcm80211 \
-						wireless-tools libcurl4-openssl-dev resolvconf
+		for package in ${PACKAGE_LIST}
 		do
 			apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" install ${package}
 			let packages=$((${packages}+1))
@@ -721,17 +748,26 @@ mv ./composer.phar /usr/local/bin/composer
 chmod 755 /usr/local/bin/composer
 
 #######################################
-echo "FPP - Setting up for UI"
-sed -i -e "s/^user =.*/user = fpp/" /etc/php5/fpm/pool.d/www.conf
-sed -i -e "s/^group =.*/group = fpp/" /etc/php5/fpm/pool.d/www.conf
-sed -i -e "s/.*listen.owner =.*/listen.owner = fpp/" /etc/php5/fpm/pool.d/www.conf
-sed -i -e "s/.*listen.group =.*/listen.group = fpp/" /etc/php5/fpm/pool.d/www.conf
-sed -i -e "s/.*listen.mode =.*/listen.mode = 0660/" /etc/php5/fpm/pool.d/www.conf
+PHPDIR="/etc/php5"
+case "${OSVER}" in
+	debian_7|debian_8)
+		PHPDIR="/etc/php5"
+		;;
+	debian_9)
+		PHPDIR="/etc/php/7.0"
+		;;
+esac
 
-#######################################
+echo "FPP - Setting up for UI"
+sed -i -e "s/^user =.*/user = fpp/" ${PHPDIR}/fpm/pool.d/www.conf
+sed -i -e "s/^group =.*/group = fpp/" ${PHPDIR}/fpm/pool.d/www.conf
+sed -i -e "s/.*listen.owner =.*/listen.owner = fpp/" ${PHPDIR}/fpm/pool.d/www.conf
+sed -i -e "s/.*listen.group =.*/listen.group = fpp/" ${PHPDIR}/fpm/pool.d/www.conf
+sed -i -e "s/.*listen.mode =.*/listen.mode = 0660/" ${PHPDIR}/fpm/pool.d/www.conf
+
 echo "FPP - Allowing short tags in PHP"
-sed -i -e "s/^short_open_tag.*/short_open_tag = On/" /etc/php5/cli/php.ini
-sed -i -e "s/^short_open_tag.*/short_open_tag = On/" /etc/php5/fpm/php.ini
+sed -i -e "s/^short_open_tag.*/short_open_tag = On/" ${PHPDIR}/cli/php.ini
+sed -i -e "s/^short_open_tag.*/short_open_tag = On/" ${PHPDIR}/fpm/php.ini
 
 #######################################
 # echo "FPP - Composing FPP UI"
