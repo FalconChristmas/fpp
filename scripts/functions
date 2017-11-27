@@ -114,7 +114,11 @@ SetupFPPNetworkConfigViaConnMann() {
         if [ "$PROTO" = "dhcp" ]; then
             echo "IPv4=dhcp"  >> $TMPFILE
         else
-            echo "IPv4=$ADDRESS/$NETMASK/$GATEWAY" >> $TMPFILE
+            if [ "x$GATEWAY" != "x" ]; then
+                echo "IPv4=$ADDRESS/$NETMASK/$GATEWAY" >> $TMPFILE
+            else
+                echo "IPv4=$ADDRESS/$NETMASK" >> $TMPFILE
+            fi
         fi
 
 
