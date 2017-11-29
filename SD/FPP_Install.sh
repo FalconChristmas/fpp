@@ -30,7 +30,7 @@
 #       Raspberry Pi
 #           - URL: https://www.raspberrypi.org/downloads/
 #           - Image
-#             - 2017-09-07-raspbian-stretch-lite.zip
+#             - 2017-11-29-raspbian-stretch-lite.zip
 #           - Login/Password
 #             - pi/raspberry
 #
@@ -319,27 +319,39 @@ case "${OSVER}" in
 		esac
 
 		echo "FPP - Marking unneeded packages for removal to save space"
-		for package in gnome-icon-theme gnome-accessibility-themes gnome-themes-standard \
-						apache2 apache2-doc apache2-mpm-prefork apache2-utils \
-						apache2.2-bin apache2.2-common libapache2-mod-php5 \
-						gnome-themes-standard-data libsoup-gnome2.4-1:armhf desktop-base \
-						xserver-xorg x11proto-composite-dev x11proto-core-dev \
-						x11proto-damage-dev x11proto-fixes-dev x11proto-input-dev \
-						x11proto-kb-dev x11proto-randr-dev x11proto-render-dev \
-						x11proto-xext-dev x11proto-xinerama-dev xchat xrdp xscreensaver \
-						xscreensaver-data desktop-file-utils dbus-x11 javascript-common \
-						ruby1.9.1 ruby libxxf86vm1:armhf libxxf86dga1:armhf \
-						libxvidcore4:armhf libxv1:armhf libxtst6:armhf libxslt1.1:armhf \
-						libxres1:armhf libxrender1:armhf libxrandr2:armhf libxml2-dev \
-						libxmuu1 xauth wvdial xserver-xorg-video-fbdev xfonts-utils \
-						xfonts-encodings libuniconf4.6 libwvstreams4.6-base \
-						libwvstreams4.6-extras poppler-data desktop-base libsane \
-						libsane-extras sane-utils freepats xserver-xorg-video-modesetting \
-						xserver-xorg-core xserver-xorg xserver-common x11-xserver-utils \
-						xscreensaver xrdp bluej greenfoot oracle-java7-jdk
-		do
-			echo "$package deinstall" | dpkg --set-selections
-		done
+		case "${OSVER}" in
+			debian_9)
+				# This list is based on the Stretch Lite SD image which we base our image on
+				for package in libxmuu1 xauth
+				do
+					echo "$package deinstall" | dpkg --set-selections
+				done
+				;;
+			*)
+				for package in gnome-icon-theme gnome-accessibility-themes \
+					gnome-themes-standard \
+					apache2 apache2-doc apache2-mpm-prefork apache2-utils \
+					apache2.2-bin apache2.2-common libapache2-mod-php5 \
+					gnome-themes-standard-data libsoup-gnome2.4-1:armhf desktop-base \
+					xserver-xorg x11proto-composite-dev x11proto-core-dev \
+					x11proto-damage-dev x11proto-fixes-dev x11proto-input-dev \
+					x11proto-kb-dev x11proto-randr-dev x11proto-render-dev \
+					x11proto-xext-dev x11proto-xinerama-dev xchat xrdp xscreensaver \
+					xscreensaver-data desktop-file-utils dbus-x11 javascript-common \
+					ruby1.9.1 ruby libxxf86vm1:armhf libxxf86dga1:armhf \
+					libxvidcore4:armhf libxv1:armhf libxtst6:armhf libxslt1.1:armhf \
+					libxres1:armhf libxrender1:armhf libxrandr2:armhf libxml2-dev \
+					libxmuu1 xauth wvdial xserver-xorg-video-fbdev xfonts-utils \
+					xfonts-encodings libuniconf4.6 libwvstreams4.6-base \
+					libwvstreams4.6-extras poppler-data desktop-base libsane \
+					libsane-extras sane-utils freepats xserver-xorg-video-modesetting \
+					xserver-xorg-core xserver-xorg xserver-common x11-xserver-utils \
+					xscreensaver xrdp bluej greenfoot oracle-java7-jdk
+				do
+					echo "$package deinstall" | dpkg --set-selections
+				done
+				;;
+		esac
 
 		echo "FPP - Make things cleaner by removing unneeded packages"
 		dpkg --get-selections | grep deinstall | while read package deinstall; do
@@ -352,7 +364,13 @@ case "${OSVER}" in
 		echo "FPP - Updating package list"
 		apt-get update
 
-		echo "FPP - Upgrading packages"
+		echo "FPP - Upgrading apt if necessary"
+		apt-get install --only-upgrade apt
+
+		echo "FPP - Sleeping 60 seconds to make sure any apt upgrade is quiesced"
+		sleep 60
+
+		echo "FPP - Upgrading other installed packages"
 		apt-get -y upgrade
 
 		# remove gnome keyring module config which causes pkcs11 warnings
@@ -393,7 +411,7 @@ case "${OSVER}" in
 								libboost-dev libconvert-binary-c-perl \
 								libdbus-glib-1-dev libdevice-serialport-perl libjs-jquery \
 								libjs-jquery-ui libjson-perl libjsoncpp-dev libnet-bonjour-perl \
-								libpam-smbpass libtagc0-dev libtest-nowarnings-perl locales \
+								libpam-smbpass libssh-4 libtagc0-dev libtest-nowarnings-perl locales \
 								mp3info mailutils mpg123 mpg321 mplayer nano node ntp perlmagick \
 								php-cli php-common php-curl php-dom php-fpm php-mcrypt \
 								php-sqlite3 python-daemon python-smbus rsync samba \
@@ -401,7 +419,7 @@ case "${OSVER}" in
 								vim-common vorbis-tools vsftpd firmware-realtek gcc g++\
 								network-manager dhcp-helper hostapd parprouted bridge-utils \
 								firmware-atheros firmware-ralink firmware-brcm80211 \
-								wireless-tools libcurl4-openssl-dev resolvconf"
+								wireless-tools libcurl4-openssl-dev resolvconf sqlite3"
 				;;
 		esac
 
@@ -554,7 +572,7 @@ EOF
 		echo "FPP - Updating firmware for Raspberry Pi install"
 		#https://raw.githubusercontent.com/Hexxeh/rpi-update/master/rpi-update
 		wget http://goo.gl/1BOfJ -O /usr/bin/rpi-update && chmod +x /usr/bin/rpi-update
-		SKIP_WARNING=1 rpi-update 2a7eb4fc4cef07906c36e9adcf76f053daabe371
+		SKIP_WARNING=1 rpi-update
 
 		echo "FPP - Installing Pi-specific packages"
 		apt-get -y install raspi-config
@@ -599,21 +617,34 @@ EOF
 
 		if $build_omxplayer; then
 			echo "FPP - Building omxplayer from source with our patch"
-			apt-get -y install subversion libidn11-dev libboost1.50-dev libfreetype6-dev libusb-1.0-0-dev libssh-dev libsmbclient-dev g++-4.7 git-core smbclient
+			apt-get -y install subversion libpcre3-dev libboost-dev libfreetype6-dev libusb-1.0-0-dev
+			apt-get -y install git-core libidn11-dev libssl1.0-dev libssh-dev libsmbclient-dev libasound2-dev
 			git clone https://github.com/popcornmix/omxplayer.git
 			cd omxplayer
-			git reset --hard 4d8ffd13153bfef2966671cb4fb484afeaf792a8
-			wget -O- https://raw.githubusercontent.com/FalconChristmas/fpp/stage/external/omxplayer/FPP_omxplayer.diff | patch -p1
+			# get the latest and greatest to support ALSA
+			#git reset --hard 4d8ffd13153bfef2966671cb4fb484afeaf792a8
+			wget -O- https://raw.githubusercontent.com/FalconChristmas/fpp/master-v1.x/external/omxplayer/FPP_omxplayer.diff | patch -p1
 			./prepare-native-raspbian.sh
+			sed -i -e "s/PWD/shell pwd/" Makefile.ffmpeg
 			make ffmpeg
 			make
 			tar xzpvf omxplayer-dist.tgz -C /
 			cd ..
+			rm -rf /opt/omxplayer
 		else
 			# TODO: need to test this binary on jessie
 			echo "FPP - Installing patched omxplayer.bin for FPP MultiSync"
-			apt-get -y install libssh-4
-			wget -O- https://github.com/FalconChristmas/fpp-binaries/raw/master/Pi/omxplayer-dist.tgz | tar xzpv -C /
+			case "${OSVER}" in
+				debian_9)
+					wget -O- https://github.com/FalconChristmas/fpp-binaries/raw/master/Pi/omxplayer-dist-stretch.tgz | tar xzpv -C /
+					;;
+				debian_7)
+					wget -O- https://github.com/FalconChristmas/fpp-binaries/raw/master/Pi/omxplayer-dist.tgz | tar xzpv -C /
+					;;
+				*)
+					echo "WARNING: Unable to install patched omxplayer for this release"
+					;;
+			esac
 		fi
 
 		echo "FPP - Disabling stock users (pi, odroid, debian), use the 'fpp' user instead"
@@ -821,6 +852,12 @@ cp /opt/fpp/etc/logrotate.d/* /etc/logrotate.d/
 # Configure ccache
 echo "FPP - Configuring ccache"
 ccache -M 50M
+
+#######################################
+# Configure log rotation
+echo "FPP - Configuring Log Rotation"
+sed -i -e "s/#compress/compress/" /etc/logrotate.conf
+sed -i -e "s/rotate .*/rotate 2/" /etc/logrotate.conf
 
 #######################################
 echo "FPP - Configuring FTP server"
