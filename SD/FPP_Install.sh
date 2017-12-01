@@ -847,17 +847,13 @@ echo >> /home/fpp/.bashrc
 # Configure log rotation
 echo "FPP - Configuring log rotation"
 cp /opt/fpp/etc/logrotate.d/* /etc/logrotate.d/
+sed -i -e "s/#compress/compress/" /etc/logrotate.conf
+sed -i -e "s/rotate .*/rotate 2/" /etc/logrotate.conf
 
 #######################################
 # Configure ccache
 echo "FPP - Configuring ccache"
 ccache -M 50M
-
-#######################################
-# Configure log rotation
-echo "FPP - Configuring Log Rotation"
-sed -i -e "s/#compress/compress/" /etc/logrotate.conf
-sed -i -e "s/rotate .*/rotate 2/" /etc/logrotate.conf
 
 #######################################
 echo "FPP - Configuring FTP server"
