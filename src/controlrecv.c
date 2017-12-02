@@ -211,7 +211,7 @@ void SyncSyncedMedia(char *filename, int frameNumber, float secondsElapsed) {
 
 	if (!mediaOutput)
 	{
-		LogDebug(VB_SYNC, "Received sync for media %s but no media playing\n",
+		LogExcess(VB_SYNC, "Received sync for media %s but no media playing\n",
 			filename);
 		return;
 	}
