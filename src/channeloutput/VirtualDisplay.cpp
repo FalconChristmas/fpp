@@ -126,11 +126,18 @@ int VirtualDisplayOutput::Init(Json::Value config)
 	int g = 0;
 	int b = 0;
 	int first = 1;
+	VirtualPixelColor vpc = kVPC_RGB;
 
 	while ((read = getline(&line, &len, file)) != -1)
 	{
 		if (( ! line ) || ( ! read ) || ( read == 1 ))
 			continue;
+
+		if (line[0] == '#')
+			continue;
+
+		// Strip the line feed
+		line[strlen(line) - 1] = '\0';
 
 		pixel = line;
 		parts = split(pixel, ',');
@@ -156,7 +163,7 @@ int VirtualDisplayOutput::Init(Json::Value config)
 			continue;
 		}
 
-		if (parts.size() == 3)
+		if (parts.size() >= 3)
 		{
 			x  = atoi(parts[0].c_str());
 			y  = atoi(parts[1].c_str());
@@ -202,7 +209,30 @@ int VirtualDisplayOutput::Init(Json::Value config)
 				b = s + 0;
 			}
 
-			m_pixels.push_back({ x, y, ch, r, g, b });
+			if (parts[4] == "RGB")
+				vpc = kVPC_RGB;
+			else if (parts[4] == "RBG")
+				vpc = kVPC_RBG;
+			else if (parts[4] == "GRB")
+				vpc = kVPC_GRB;
+			else if (parts[4] == "GBR")
+				vpc = kVPC_GBR;
+			else if (parts[4] == "BRG")
+				vpc = kVPC_BRG;
+			else if (parts[4] == "BGR")
+				vpc = kVPC_BGR;
+			else if (parts[4] == "RGBW")
+				vpc = kVPC_RGBW;
+			else if (parts[4] == "Red")
+				vpc = kVPC_Red;
+			else if (parts[4] == "Green")
+				vpc = kVPC_Green;
+			else if (parts[4] == "Blue")
+				vpc = kVPC_Blue;
+			else if (parts[4] == "White")
+				vpc = kVPC_White;
+
+			m_pixels.push_back({ x, y, ch, r, g, b, atoi(parts[3].c_str()), vpc });
 		}
 	}
 
@@ -213,12 +243,23 @@ int VirtualDisplayOutput::Init(Json::Value config)
 /*
  *
  */
+void VirtualDisplayOutput::DrawPixel(int rOffset, int gOffset, int bOffset,
+	unsigned char r, unsigned char g, unsigned char b)
+{
+	m_virtualDisplay[rOffset] = r;
+	m_virtualDisplay[gOffset] = g;
+	m_virtualDisplay[bOffset] = b;
+}
+
+
+/*
+ *
+ */
 void VirtualDisplayOutput::DrawPixels(unsigned char *channelData)
 {
-	char *c = (char *)channelData;
-	char r = 0;
-	char g = 0;
-	char b = 0;
+	unsigned char r = 0;
+	unsigned char g = 0;
+	unsigned char b = 0;
 	int stride = m_width * m_bytesPerPixel;
 	VirtualDisplayPixel pixel;
 
@@ -226,41 +267,108 @@ void VirtualDisplayOutput::DrawPixels(unsigned char *channelData)
 	{
 		pixel = m_pixels[i];
 
+		if ((pixel.cpp == 3) ||
+			((pixel.cpp == 4) && (channelData[pixel.ch + 3] == 0)))
+		{
+			if (pixel.vpc == kVPC_RGB)
+			{
+				r = channelData[pixel.ch    ];
+				g = channelData[pixel.ch + 1];
+				b = channelData[pixel.ch + 2];
+			}
+			else if (pixel.vpc == kVPC_RBG)
+			{
+				r = channelData[pixel.ch    ];
+				g = channelData[pixel.ch + 2];
+				b = channelData[pixel.ch + 1];
+			}
+			else if (pixel.vpc == kVPC_GRB)
+			{
+				r = channelData[pixel.ch + 1];
+				g = channelData[pixel.ch    ];
+				b = channelData[pixel.ch + 2];
+			}
+			else if (pixel.vpc == kVPC_GBR)
+			{
+				r = channelData[pixel.ch + 2];
+				g = channelData[pixel.ch    ];
+				b = channelData[pixel.ch + 1];
+			}
+			else if (pixel.vpc == kVPC_BRG)
+			{
+				r = channelData[pixel.ch + 1];
+				g = channelData[pixel.ch + 2];
+				b = channelData[pixel.ch    ];
+			}
+			else if (pixel.vpc == kVPC_BGR)
+			{
+				r = channelData[pixel.ch + 2];
+				g = channelData[pixel.ch + 1];
+				b = channelData[pixel.ch    ];
+			}
+		}
+		else if (pixel.cpp == 4)
+		{
+			r = channelData[pixel.ch + 3];
+			g = channelData[pixel.ch + 3];
+			b = channelData[pixel.ch + 3];
+		}
+		else if (pixel.cpp == 1)
+		{
+			if (pixel.vpc == kVPC_Red)
+			{
+				r = channelData[pixel.ch];
+				g = 0;
+				b = 0;
+			}
+			else if (pixel.vpc == kVPC_Green)
+			{
+				r = 0;
+				g = channelData[pixel.ch];
+				b = 0;
+			}
+			else if (pixel.vpc == kVPC_Blue)
+			{
+				r = 0;
+				g = 0;
+				b = channelData[pixel.ch];
+			}
+			else if (pixel.vpc == kVPC_White)
+			{
+				r = channelData[pixel.ch];
+				g = channelData[pixel.ch];
+				b = channelData[pixel.ch];
+			}
+		}
+
 		if (m_pixelSize == 2)
 		{
-			r = channelData[pixel.ch    ];
-			g = channelData[pixel.ch + 1];
-			b = channelData[pixel.ch + 2];
-
-			m_virtualDisplay[pixel.r] = r;
-			m_virtualDisplay[pixel.g] = g;
-			m_virtualDisplay[pixel.b] = b;
+			DrawPixel(pixel.r, pixel.g, pixel.b, r, g, b);
 
 			r /= 2;
 			g /= 2;
 			b /= 2;
 
-			m_virtualDisplay[pixel.r + m_bytesPerPixel] = r;
-			m_virtualDisplay[pixel.g + m_bytesPerPixel] = g;
-			m_virtualDisplay[pixel.b + m_bytesPerPixel] = b;
-
-			m_virtualDisplay[pixel.r - m_bytesPerPixel] = r;
-			m_virtualDisplay[pixel.g - m_bytesPerPixel] = g;
-			m_virtualDisplay[pixel.b - m_bytesPerPixel] = b;
-
-			m_virtualDisplay[pixel.r + stride] = r;
-			m_virtualDisplay[pixel.g + stride] = g;
-			m_virtualDisplay[pixel.b + stride] = b;
-
-			m_virtualDisplay[pixel.r - stride] = r;
-			m_virtualDisplay[pixel.g - stride] = g;
-			m_virtualDisplay[pixel.b - stride] = b;
+			DrawPixel(pixel.r + m_bytesPerPixel,
+					  pixel.g + m_bytesPerPixel,
+					  pixel.b + m_bytesPerPixel,
+					  r, g, b);
+			DrawPixel(pixel.r - m_bytesPerPixel,
+					  pixel.g - m_bytesPerPixel,
+					  pixel.b - m_bytesPerPixel,
+					  r, g, b);
+			DrawPixel(pixel.r + stride,
+					  pixel.g + stride,
+					  pixel.b + stride,
+					  r, g, b);
+			DrawPixel(pixel.r - stride,
+					  pixel.g - stride,
+					  pixel.b - stride,
+					  r, g, b);
 		}
 		else
 		{
-			m_virtualDisplay[pixel.r] = channelData[pixel.ch    ];
-			m_virtualDisplay[pixel.g] = channelData[pixel.ch + 1];
-			m_virtualDisplay[pixel.b] = channelData[pixel.ch + 2];
+			DrawPixel(pixel.r, pixel.g, pixel.b, r, g, b);
 		}
 	}
 }
