@@ -389,6 +389,12 @@ int BBB48StringOutput::Init(Json::Value config)
     }
     createOutputLengths(m_strings, m_maxStringLen);
     
+    if (m_maxStringLen < 321) {
+        //if there is plenty of time to output the GPIO0 stuff
+        //after the other GPIO's, let's do that
+        args.push_back("-DSPLIT_GPIO0");
+    }
+    
     compilePRUCode(args);
     m_pruProgram = "/tmp/FalconWS281x.bin";
     if (!StartPRU()) {

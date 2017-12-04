@@ -173,23 +173,6 @@
 #endif
 #endif
 
-#if defined(NOOUT10) || OUTPUTS < 10
-#define SETOUTPUT10MASK
-#define DOOUTPUT10
-#else
-#define SETOUTPUT10MASK    SET GPIO_MASK(o10_gpio), o10_pin
-#define DOOUTPUT10         OUTPUT_STRIP(10)
-#if o10_gpio == 0 && !defined(USES_GPIO0)
-#define USES_GPIO0
-#elif o10_gpio == 1 && !defined(USES_GPIO1)
-#define USES_GPIO1
-#elif o10_gpio == 2 && !defined(USES_GPIO2)
-#define USES_GPIO2
-#elif o10_gpio == 3 && !defined(USES_GPIO3)
-#define USES_GPIO3
-#endif
-#endif
-
 #if defined(NOOUT11) || OUTPUTS < 11
 #define SETOUTPUT11MASK
 #define DOOUTPUT11
@@ -836,6 +819,614 @@
 #define USES_GPIO3
 #endif
 #endif
+
+
+
+#define CAT3(x,y,z) x##y##z
+#define GPIO_MASK(X) CAT3(gpio,X,_led_mask)
+#define GPIO(R)    CAT3(gpio,R,_zeros)
+
+
+// Output the current bit for a LED strip output
+// Parameters:
+// N: Output group to consider (11, 12, 21, ... 82)
+//
+// Parameters from the environment:
+// bit_num: current bit we're reading from
+#define OUTPUT_STRIP(N)        \
+QBBC    skip_o##N, o##N##_dreg, bit_num;    \
+CLR     GPIO(o##N##_gpio), o##N##_pin;    \
+skip_o##N:
+
+
+.macro DO_OUTPUT_GPIO0
+#if o1_gpio == 0
+    DOOUTPUT1
+#endif
+#if o2_gpio == 0
+    DOOUTPUT2
+#endif
+#if o3_gpio == 0
+    DOOUTPUT3
+#endif
+#if o4_gpio == 0
+    DOOUTPUT4
+#endif
+#if o5_gpio == 0
+    DOOUTPUT5
+#endif
+#if o6_gpio == 0
+    DOOUTPUT6
+#endif
+#if o7_gpio == 0
+    DOOUTPUT7
+#endif
+#if o8_gpio == 0
+    DOOUTPUT8
+#endif
+#if o9_gpio == 0
+    DOOUTPUT9
+#endif
+#if o10_gpio == 0
+    DOOUTPUT10
+#endif
+#if o11_gpio == 0
+    DOOUTPUT11
+#endif
+#if o12_gpio == 0
+    DOOUTPUT12
+#endif
+#if o13_gpio == 0
+    DOOUTPUT13
+#endif
+#if o14_gpio == 0
+    DOOUTPUT14
+#endif
+#if o15_gpio == 0
+    DOOUTPUT15
+#endif
+#if o16_gpio == 0
+    DOOUTPUT16
+#endif
+#if o17_gpio == 0
+    DOOUTPUT17
+#endif
+#if o18_gpio == 0
+    DOOUTPUT18
+#endif
+#if o19_gpio == 0
+    DOOUTPUT19
+#endif
+#if o20_gpio == 0
+    DOOUTPUT20
+#endif
+#if o21_gpio == 0
+    DOOUTPUT21
+#endif
+#if o22_gpio == 0
+    DOOUTPUT22
+#endif
+#if o23_gpio == 0
+    DOOUTPUT23
+#endif
+#if o24_gpio == 0
+    DOOUTPUT24
+#endif
+#if o25_gpio == 0
+    DOOUTPUT25
+#endif
+#if o26_gpio == 0
+    DOOUTPUT26
+#endif
+#if o27_gpio == 0
+    DOOUTPUT27
+#endif
+#if o28_gpio == 0
+    DOOUTPUT28
+#endif
+#if o29_gpio == 0
+    DOOUTPUT29
+#endif
+#if o30_gpio == 0
+    DOOUTPUT30
+#endif
+#if o31_gpio == 0
+    DOOUTPUT31
+#endif
+#if o32_gpio == 0
+    DOOUTPUT32
+#endif
+#if o33_gpio == 0
+    DOOUTPUT33
+#endif
+#if o34_gpio == 0
+    DOOUTPUT34
+#endif
+#if o35_gpio == 0
+    DOOUTPUT35
+#endif
+#if o36_gpio == 0
+    DOOUTPUT36
+#endif
+#if o37_gpio == 0
+    DOOUTPUT37
+#endif
+#if o38_gpio == 0
+    DOOUTPUT38
+#endif
+#if o39_gpio == 0
+    DOOUTPUT39
+#endif
+#if o40_gpio == 0
+    DOOUTPUT40
+#endif
+#if o41_gpio == 0
+    DOOUTPUT41
+#endif
+#if o42_gpio == 0
+    DOOUTPUT42
+#endif
+#if o43_gpio == 0
+    DOOUTPUT43
+#endif
+#if o44_gpio == 0
+    DOOUTPUT44
+#endif
+#if o45_gpio == 0
+    DOOUTPUT45
+#endif
+#if o46_gpio == 0
+    DOOUTPUT46
+#endif
+#if o47_gpio == 0
+    DOOUTPUT47
+#endif
+#if o48_gpio == 0
+    DOOUTPUT48
+#endif
+.endm
+
+
+.macro DO_OUTPUT_GPIO1
+#if o1_gpio == 1
+    DOOUTPUT1
+#endif
+#if o2_gpio == 1
+    DOOUTPUT2
+#endif
+#if o3_gpio == 1
+    DOOUTPUT3
+#endif
+#if o4_gpio == 1
+    DOOUTPUT4
+#endif
+#if o5_gpio == 1
+    DOOUTPUT5
+#endif
+#if o6_gpio == 1
+    DOOUTPUT6
+#endif
+#if o7_gpio == 1
+    DOOUTPUT7
+#endif
+#if o8_gpio == 1
+    DOOUTPUT8
+#endif
+#if o9_gpio == 1
+    DOOUTPUT9
+#endif
+#if o10_gpio == 1
+    DOOUTPUT10
+#endif
+#if o11_gpio == 1
+    DOOUTPUT11
+#endif
+#if o12_gpio == 1
+    DOOUTPUT12
+#endif
+#if o13_gpio == 1
+    DOOUTPUT13
+#endif
+#if o14_gpio == 1
+    DOOUTPUT14
+#endif
+#if o15_gpio == 1
+    DOOUTPUT15
+#endif
+#if o16_gpio == 1
+    DOOUTPUT16
+#endif
+#if o17_gpio == 1
+    DOOUTPUT17
+#endif
+#if o18_gpio == 1
+    DOOUTPUT18
+#endif
+#if o19_gpio == 1
+    DOOUTPUT19
+#endif
+#if o20_gpio == 1
+    DOOUTPUT20
+#endif
+#if o21_gpio == 1
+    DOOUTPUT21
+#endif
+#if o22_gpio == 1
+    DOOUTPUT22
+#endif
+#if o23_gpio == 1
+    DOOUTPUT23
+#endif
+#if o24_gpio == 1
+    DOOUTPUT24
+#endif
+#if o25_gpio == 1
+    DOOUTPUT25
+#endif
+#if o26_gpio == 1
+    DOOUTPUT26
+#endif
+#if o27_gpio == 1
+    DOOUTPUT27
+#endif
+#if o28_gpio == 1
+    DOOUTPUT28
+#endif
+#if o29_gpio == 1
+    DOOUTPUT29
+#endif
+#if o30_gpio == 1
+    DOOUTPUT30
+#endif
+#if o31_gpio == 1
+    DOOUTPUT31
+#endif
+#if o32_gpio == 1
+    DOOUTPUT32
+#endif
+#if o33_gpio == 1
+    DOOUTPUT33
+#endif
+#if o34_gpio == 1
+    DOOUTPUT34
+#endif
+#if o35_gpio == 1
+    DOOUTPUT35
+#endif
+#if o36_gpio == 1
+    DOOUTPUT36
+#endif
+#if o37_gpio == 1
+    DOOUTPUT37
+#endif
+#if o38_gpio == 1
+    DOOUTPUT38
+#endif
+#if o39_gpio == 1
+    DOOUTPUT39
+#endif
+#if o40_gpio == 1
+    DOOUTPUT40
+#endif
+#if o41_gpio == 1
+    DOOUTPUT41
+#endif
+#if o42_gpio == 1
+    DOOUTPUT42
+#endif
+#if o43_gpio == 1
+    DOOUTPUT43
+#endif
+#if o44_gpio == 1
+    DOOUTPUT44
+#endif
+#if o45_gpio == 1
+    DOOUTPUT45
+#endif
+#if o46_gpio == 1
+    DOOUTPUT46
+#endif
+#if o47_gpio == 1
+    DOOUTPUT47
+#endif
+#if o48_gpio == 1
+    DOOUTPUT48
+#endif
+.endm
+
+.macro DO_OUTPUT_GPIO2
+#if o1_gpio == 2
+    DOOUTPUT1
+#endif
+#if o2_gpio == 2
+    DOOUTPUT2
+#endif
+#if o3_gpio == 2
+    DOOUTPUT3
+#endif
+#if o4_gpio == 2
+    DOOUTPUT4
+#endif
+#if o5_gpio == 2
+    DOOUTPUT5
+#endif
+#if o6_gpio == 2
+    DOOUTPUT6
+#endif
+#if o7_gpio == 2
+    DOOUTPUT7
+#endif
+#if o8_gpio == 2
+    DOOUTPUT8
+#endif
+#if o9_gpio == 2
+    DOOUTPUT9
+#endif
+#if o10_gpio == 2
+    DOOUTPUT10
+#endif
+#if o11_gpio == 2
+    DOOUTPUT11
+#endif
+#if o12_gpio == 2
+    DOOUTPUT12
+#endif
+#if o13_gpio == 2
+    DOOUTPUT13
+#endif
+#if o14_gpio == 2
+    DOOUTPUT14
+#endif
+#if o15_gpio == 2
+    DOOUTPUT15
+#endif
+#if o16_gpio == 2
+    DOOUTPUT16
+#endif
+#if o17_gpio == 2
+    DOOUTPUT17
+#endif
+#if o18_gpio == 2
+    DOOUTPUT18
+#endif
+#if o19_gpio == 2
+    DOOUTPUT19
+#endif
+#if o20_gpio == 2
+    DOOUTPUT20
+#endif
+#if o21_gpio == 2
+    DOOUTPUT21
+#endif
+#if o22_gpio == 2
+    DOOUTPUT22
+#endif
+#if o23_gpio == 2
+    DOOUTPUT23
+#endif
+#if o24_gpio == 2
+    DOOUTPUT24
+#endif
+#if o25_gpio == 2
+    DOOUTPUT25
+#endif
+#if o26_gpio == 2
+    DOOUTPUT26
+#endif
+#if o27_gpio == 2
+    DOOUTPUT27
+#endif
+#if o28_gpio == 2
+    DOOUTPUT28
+#endif
+#if o29_gpio == 2
+    DOOUTPUT29
+#endif
+#if o30_gpio == 2
+    DOOUTPUT30
+#endif
+#if o31_gpio == 2
+    DOOUTPUT31
+#endif
+#if o32_gpio == 2
+    DOOUTPUT32
+#endif
+#if o33_gpio == 2
+    DOOUTPUT33
+#endif
+#if o34_gpio == 2
+    DOOUTPUT34
+#endif
+#if o35_gpio == 2
+    DOOUTPUT35
+#endif
+#if o36_gpio == 2
+    DOOUTPUT36
+#endif
+#if o37_gpio == 2
+    DOOUTPUT37
+#endif
+#if o38_gpio == 2
+    DOOUTPUT38
+#endif
+#if o39_gpio == 2
+    DOOUTPUT39
+#endif
+#if o40_gpio == 2
+    DOOUTPUT40
+#endif
+#if o41_gpio == 2
+    DOOUTPUT41
+#endif
+#if o42_gpio == 2
+    DOOUTPUT42
+#endif
+#if o43_gpio == 2
+    DOOUTPUT43
+#endif
+#if o44_gpio == 2
+    DOOUTPUT44
+#endif
+#if o45_gpio == 2
+    DOOUTPUT45
+#endif
+#if o46_gpio == 2
+    DOOUTPUT46
+#endif
+#if o47_gpio == 2
+    DOOUTPUT47
+#endif
+#if o48_gpio == 2
+    DOOUTPUT48
+#endif
+.endm
+
+.macro DO_OUTPUT_GPIO3
+#if o1_gpio == 3
+    DOOUTPUT1
+#endif
+#if o2_gpio == 3
+    DOOUTPUT2
+#endif
+#if o3_gpio == 3
+    DOOUTPUT3
+#endif
+#if o4_gpio == 3
+    DOOUTPUT4
+#endif
+#if o5_gpio == 3
+    DOOUTPUT5
+#endif
+#if o6_gpio == 3
+    DOOUTPUT6
+#endif
+#if o7_gpio == 3
+    DOOUTPUT7
+#endif
+#if o8_gpio == 3
+    DOOUTPUT8
+#endif
+#if o9_gpio == 3
+    DOOUTPUT9
+#endif
+#if o10_gpio == 3
+    DOOUTPUT10
+#endif
+#if o11_gpio == 3
+    DOOUTPUT11
+#endif
+#if o12_gpio == 3
+    DOOUTPUT12
+#endif
+#if o13_gpio == 3
+    DOOUTPUT13
+#endif
+#if o14_gpio == 3
+    DOOUTPUT14
+#endif
+#if o15_gpio == 3
+    DOOUTPUT15
+#endif
+#if o16_gpio == 3
+    DOOUTPUT16
+#endif
+#if o17_gpio == 3
+    DOOUTPUT17
+#endif
+#if o18_gpio == 3
+    DOOUTPUT18
+#endif
+#if o19_gpio == 3
+    DOOUTPUT19
+#endif
+#if o20_gpio == 3
+    DOOUTPUT20
+#endif
+#if o21_gpio == 3
+    DOOUTPUT21
+#endif
+#if o22_gpio == 3
+    DOOUTPUT22
+#endif
+#if o23_gpio == 3
+    DOOUTPUT23
+#endif
+#if o24_gpio == 3
+    DOOUTPUT24
+#endif
+#if o25_gpio == 3
+    DOOUTPUT25
+#endif
+#if o26_gpio == 3
+    DOOUTPUT26
+#endif
+#if o27_gpio == 3
+    DOOUTPUT27
+#endif
+#if o28_gpio == 3
+    DOOUTPUT28
+#endif
+#if o29_gpio == 3
+    DOOUTPUT29
+#endif
+#if o30_gpio == 3
+    DOOUTPUT30
+#endif
+#if o31_gpio == 3
+    DOOUTPUT31
+#endif
+#if o32_gpio == 3
+    DOOUTPUT32
+#endif
+#if o33_gpio == 3
+    DOOUTPUT33
+#endif
+#if o34_gpio == 3
+    DOOUTPUT34
+#endif
+#if o35_gpio == 3
+    DOOUTPUT35
+#endif
+#if o36_gpio == 3
+    DOOUTPUT36
+#endif
+#if o37_gpio == 3
+    DOOUTPUT37
+#endif
+#if o38_gpio == 3
+    DOOUTPUT38
+#endif
+#if o39_gpio == 3
+    DOOUTPUT39
+#endif
+#if o40_gpio == 3
+    DOOUTPUT40
+#endif
+#if o41_gpio == 3
+    DOOUTPUT41
+#endif
+#if o42_gpio == 3
+    DOOUTPUT42
+#endif
+#if o43_gpio == 3
+    DOOUTPUT43
+#endif
+#if o44_gpio == 3
+    DOOUTPUT44
+#endif
+#if o45_gpio == 3
+    DOOUTPUT45
+#endif
+#if o46_gpio == 3
+    DOOUTPUT46
+#endif
+#if o47_gpio == 3
+    DOOUTPUT47
+#endif
+#if o48_gpio == 3
+    DOOUTPUT48
+#endif
+.endm
 
 
 #endif

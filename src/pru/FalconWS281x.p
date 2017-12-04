@@ -40,9 +40,16 @@
 
 // defines are slightly lower as
 // there is overhead in resetting the clocks
-#define LOW_TIME    180
+#define LOW_TIME    230
 #define HIGH_TIME   650
 #define TOTAL_TIME  1250
+
+// GPIO0 sometimes takes a while to come out of sleep or
+// something so use an lower "low" time
+#define LOW_TIME_GPIO0      180
+#define HIGH_TIME_GPIO0     HIGH_TIME
+#define TOTAL_TIME_GPIO0    TOTAL_TIME
+
 
 #define RUNNING_ON_PRU1
 
@@ -117,7 +124,6 @@
 .entrypoint START
 
 #include "FalconWS281x.hp"
-#include "FalconWS281xOutputs.hp"
 
 /** Mappings of the GPIO devices */
 #define GPIO0 (0x44E07000 + 0x100)
@@ -161,21 +167,7 @@
 #define gpio3_led_mask	r29
 
 
-#define CAT3(x,y,z) x##y##z
-#define GPIO_MASK(X) CAT3(gpio,X,_led_mask)
-#define GPIO(R)	CAT3(gpio,R,_zeros)
-
-
-// Output the current bit for a LED strip output
-// Parameters:
-// N: Output group to consider (11, 12, 21, ... 82)
-//
-// Parameters from the environment:
-// bit_num: current bit we're reading from
-#define OUTPUT_STRIP(N)		\
-    QBBC	skip_o##N, o##N##_dreg, bit_num;	\
-    CLR     GPIO(o##N##_gpio), o##N##_pin;	\
-    skip_o##N:
+#include "FalconWS281xOutputs.hp"
 
 
 .macro DISABLE_GPIO_PIN_INTERRUPTS
@@ -230,6 +222,50 @@ QBEQ skip, val, equ
 SBBO    val, gpioAdd, GPIO_SETDATAOUT, 4
 skip:
 .endm
+
+
+.macro READ_DATA
+    // Load OUTPUTS bytes of data, starting at r10
+    // one byte for each of the outputs
+    QBBS USEDDR, bit_flags.t3
+    QBBS USESHAREDRAM,  bit_flags.t2
+
+    QBBS USERAM2, bit_flags.t1
+        LBCO    r10, CONST_PRUDRAM, sram_offset, OUTPUTS
+        ADD     sram_offset, sram_offset, OUTPUTS
+        MOV     r8, 8142 //8k - 50
+        QBLT DATALOADED, r8, sram_offset
+            //reached the end of what we have in our sram, flip to other SRAM
+            MOV r8, 7628
+            SUB sram_offset, sram_offset, r8
+            SET bit_flags.t1
+            QBA DATALOADED
+    USERAM2:
+        LBCO    r10, CONST_OTHERPRUDRAM, sram_offset, OUTPUTS
+        ADD     sram_offset, sram_offset, OUTPUTS
+        MOV     r8, 8142 //8k - 50
+        QBLT    DATALOADED, r8, sram_offset
+            //reached the end of what we have in other sram, flip to sharedram
+            MOV r8, (7628 + 512)
+            SUB sram_offset, sram_offset, r8
+            SET bit_flags.t2
+        QBA     DATALOADED
+    USESHAREDRAM:
+        MOV     r9, 0x0001000
+        LBBO    r10, r9, sram_offset, OUTPUTS
+        ADD     sram_offset, sram_offset, OUTPUTS
+        MOV     r8, 12188
+        QBLT DATALOADED, r8, sram_offset
+            //reached the end of what we have in other sram, flip to DDR
+            SET bit_flags.t3
+            QBA     DATALOADED
+    USEDDR:
+        LBBO    r10, data_addr, 0, OUTPUTS
+    DATALOADED:
+    ADD data_addr, data_addr, OUTPUTS
+.endm
+
+
 
 
 #if __has_include("/tmp/OutputLengths.hp")
@@ -346,6 +382,9 @@ _LOOP:
 	// Command of 0xFF is the signal to exit
 	QBEQ	EXIT, r2, #0xFF
 
+    // store the address and such
+    XOUT    10, data_addr, 12
+
     RESET_PRU_CLOCK r8, r9
 
 	// The data len is in pixels; convert it to 3 channels * pixels
@@ -362,44 +401,7 @@ _LOOP:
 
 	WORD_LOOP:
     LOOP WORD_LOOP_DONE, data_len
-        // Load OUTPUTS bytes of data, starting at r10
-        // one byte for each of the outputs
-        QBBS USEDDR, bit_flags.t3
-        QBBS USESHAREDRAM,  bit_flags.t2
-
-        QBBS USERAM2, bit_flags.t1
-            LBCO    r10, CONST_PRUDRAM, sram_offset, OUTPUTS
-            ADD     sram_offset, sram_offset, OUTPUTS
-            MOV     r8, 8142 //8k - 50
-            QBLT DATALOADED, r8, sram_offset
-                //reached the end of what we have in our sram, flip to other SRAM
-                MOV r8, 7628
-                SUB sram_offset, sram_offset, r8
-                SET bit_flags.t1
-                QBA DATALOADED
-        USERAM2:
-            LBCO    r10, CONST_OTHERPRUDRAM, sram_offset, OUTPUTS
-            ADD     sram_offset, sram_offset, OUTPUTS
-            MOV     r8, 8142 //8k - 50
-            QBLT    DATALOADED, r8, sram_offset
-                //reached the end of what we have in other sram, flip to sharedram
-                MOV r8, (7628 + 512)
-                SUB sram_offset, sram_offset, r8
-                SET bit_flags.t2
-            QBA     DATALOADED
-        USESHAREDRAM:
-            MOV     r9, 0x0001000
-            LBBO    r10, r9, sram_offset, OUTPUTS
-            ADD     sram_offset, sram_offset, OUTPUTS
-            MOV     r8, 12188
-            QBLT DATALOADED, r8, sram_offset
-                //reached the end of what we have in other sram, flip to DDR
-                SET bit_flags.t3
-                QBA     DATALOADED
-        USEDDR:
-            LBBO    r10, data_addr, 0, OUTPUTS
-        DATALOADED:
-        ADD data_addr, data_addr, OUTPUTS
+        READ_DATA
 
 		// for bit in 8 to 0; one color at a time
 		MOV	bit_num, 8
@@ -420,54 +422,12 @@ _LOOP:
             MOV gpio2_zeros, gpio2_led_mask
             MOV gpio3_zeros, gpio3_led_mask
 
-			DOOUTPUT1
-            DOOUTPUT2
-            DOOUTPUT3
-            DOOUTPUT4
-            DOOUTPUT5
-            DOOUTPUT6
-            DOOUTPUT7
-            DOOUTPUT8
-            DOOUTPUT9
-            DOOUTPUT10
-            DOOUTPUT11
-            DOOUTPUT12
-            DOOUTPUT13
-            DOOUTPUT14
-            DOOUTPUT15
-            DOOUTPUT16
-            DOOUTPUT17
-            DOOUTPUT18
-            DOOUTPUT19
-            DOOUTPUT20
-            DOOUTPUT21
-            DOOUTPUT22
-            DOOUTPUT23
-            DOOUTPUT24
-            DOOUTPUT25
-            DOOUTPUT26
-            DOOUTPUT27
-            DOOUTPUT28
-            DOOUTPUT29
-            DOOUTPUT30
-            DOOUTPUT31
-            DOOUTPUT32
-            DOOUTPUT33
-            DOOUTPUT34
-            DOOUTPUT35
-            DOOUTPUT36
-            DOOUTPUT37
-            DOOUTPUT38
-            DOOUTPUT39
-            DOOUTPUT40
-            DOOUTPUT41
-            DOOUTPUT42
-            DOOUTPUT43
-            DOOUTPUT44
-            DOOUTPUT45
-            DOOUTPUT46
-            DOOUTPUT47
-            DOOUTPUT48
+#if !defined(SPLIT_GPIO0) && defined(USES_GPIO0)
+            DO_OUTPUT_GPIO0
+#endif
+            DO_OUTPUT_GPIO1
+            DO_OUTPUT_GPIO2
+            DO_OUTPUT_GPIO3
 
 #ifdef RECORD_STATS
 
@@ -489,7 +449,7 @@ _LOOP:
             RESET_PRU_CLOCK r8, r9
 
 			// Send all the start bits
-#ifdef USES_GPIO0
+#if !defined(SPLIT_GPIO0) && defined(USES_GPIO0)
             SET_IF_NOT_EQUAL gpio0_led_mask, gpio0_address, 0
 #endif
 #ifdef USES_GPIO1
@@ -511,7 +471,7 @@ _LOOP:
 #ifdef USES_GPIO3
             AND gpio3_zeros, gpio3_zeros, gpio3_led_mask
 #endif
-#ifdef USES_GPIO0
+#if !defined(SPLIT_GPIO0) && defined(USES_GPIO0)
             AND gpio0_zeros, gpio0_zeros, gpio0_led_mask
 #endif
 
@@ -529,7 +489,7 @@ _LOOP:
 #ifdef USES_GPIO3
             CLEAR_IF_NOT_EQUAL  gpio3_zeros, gpio3_address, 0
 #endif
-#ifdef USES_GPIO0
+#if !defined(SPLIT_GPIO0) && defined(USES_GPIO0)
             CLEAR_IF_NOT_EQUAL  gpio0_zeros, gpio0_address, 0
 #endif
 
@@ -539,7 +499,7 @@ _LOOP:
             // Turn all the bits off
             // if gpio#_zeros is equal to the led mask, then everythin was
             // already shut off, don't output
-#ifdef USES_GPIO0
+#if !defined(SPLIT_GPIO0) && defined(USES_GPIO0)
             CLEAR_IF_NOT_EQUAL gpio0_led_mask, gpio0_address, gpio0_zeros
 #endif
 #ifdef USES_GPIO1
@@ -563,6 +523,78 @@ _LOOP:
 #endif
 		//  QBNE	WORD_LOOP, data_len, #0
     WORD_LOOP_DONE:
+
+#if defined(SPLIT_GPIO0) && defined(USES_GPIO0)
+    // do a second pass for GPIO0 only
+
+    // restore the address and such
+    XIN    10, data_addr, 12
+
+    RESET_PRU_CLOCK r8, r9
+
+	// The data len is in pixels; convert it to 3 channels * pixels
+	ADD	r2, r1, r1
+	ADD	data_len, r1, r2
+
+    MOV sram_offset, 512
+    LDI bit_flags, 0
+    LDI cur_data, 0
+    SET_FIRST_CHECK
+
+    //restore the led masks
+    XIN 12, gpio0_led_mask, 16
+
+	WORD_LOOP_PASS2:
+    LOOP WORD_LOOP_DONE_PASS2, data_len
+        READ_DATA
+
+		// for bit in 8 to 0; one color at a time
+		MOV	bit_num, 8
+		BIT_LOOP_PASS2:
+			SUB     bit_num, bit_num, 1
+			// The idle period is 650 ns, but this is where
+			// we do all of our work to read the RGB data and
+			// repack it into bit slices.  Read the current counter
+			// and then wait until 650 ns have passed once we complete
+			// our work.
+
+            MOV gpio0_zeros, gpio0_led_mask
+            DO_OUTPUT_GPIO0
+
+            //wait for the full cycle to complete
+            WAITNS    TOTAL_TIME_GPIO0, r8, r9
+
+            //start the clock
+            RESET_PRU_CLOCK r8, r9
+
+            SET_IF_NOT_EQUAL gpio0_led_mask, gpio0_address, 0
+            AND gpio0_zeros, gpio0_zeros, gpio0_led_mask
+
+			// wait for the length of the zero bits
+            WAITNS    LOW_TIME_GPIO0, r8, r9
+
+            // turn off all the zero bits
+            // if gpio_zeros is 0, nothing will be turned off, skip
+            CLEAR_IF_NOT_EQUAL  gpio0_zeros, gpio0_address, 0
+
+			// Wait until the length of the one bits
+			WAITNS	HIGH_TIME_GPIO0, r8, r9
+
+            // Turn all the bits off
+            // if gpio#_zeros is equal to the led mask, then everythin was
+            // already shut off, don't output
+            CLEAR_IF_NOT_EQUAL gpio0_led_mask, gpio0_address, gpio0_zeros
+
+			QBNE	BIT_LOOP_PASS2, bit_num, 0
+
+		// The RGB streams have been clocked out
+		// Move to the next color component for each pixel
+        ADD     cur_data, cur_data, 1
+        CheckOutputLengths
+		//  QBNE	WORD_LOOP_PASS2, data_len, #0
+    WORD_LOOP_DONE_PASS2:
+#endif   // GPIO0 second pass
+
 	// Delay at least 300 usec; this is the required reset
 	// time for the LED strip to update with the new pixels.
 	SLEEPNS	300000, r8
