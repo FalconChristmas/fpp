@@ -171,11 +171,16 @@ int BBBSerialOutput::Init(Json::Value config)
 	}
 
     int maxChannel = 0;
+    int maxLen = 0;
 	for (int i = 0; i < config["outputs"].size(); i++)
 	{
 		Json::Value s = config["outputs"][i];
 
 		m_startChannels[s["outputNumber"].asInt()] = s["startChannel"].asInt() - 1;
+        int l = s["channelCount"].asInt();
+        if (l > maxLen) {
+            maxLen = l;
+        }
 	}
 
     m_channelCount = 0;
@@ -227,6 +232,16 @@ int BBBSerialOutput::Init(Json::Value config)
     } else {
         configurePRUPins(0, 8, mode);
     }
+    
+    if (!m_pixelnet) {
+        char buf[256];
+        if (maxLen < 1 || maxLen > 512) {
+            maxLen = 512;
+        }
+        sprintf(buf,"-DDATALEN=%d", (maxLen + 1));
+        args.push_back(buf);
+    }
+
     
     compileSerialPRUCode(args);
 	if (!FileExists(pru_program.c_str()))

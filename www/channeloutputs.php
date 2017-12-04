@@ -1966,6 +1966,13 @@ function BBB48StringSubTypeChanged()
 	DrawBBB48StringTable();
 	SetupBBBSerialStartChannels();
 }
+function BBB48SerialTypeChanged() {
+    if ($('#BBBSerialMode').val() == 'DMX') {
+        $('#DMXNumChannelOutput').show();
+    } else {
+        $('#DMXNumChannelOutput').hide();
+    }
+}
 
 function InitializeBBB48String()
 {
@@ -1994,7 +2001,6 @@ function InitializeBBB48String()
 	}
 
 	DrawBBB48StringTable();
-
 }
 
 function InitializeBBBSerial()
@@ -2019,8 +2025,16 @@ function InitializeBBBSerial()
 		(channelOutputsLookup["BBBSerial"].subType != 'off'))
 	{
 		$('#BBBSerialMode').val(channelOutputsLookup["BBBSerial"].subType);
-
 		var outputs = channelOutputsLookup["BBBSerial"].outputs;
+        if (channelOutputsLookup["BBBSerial"].subType == 'DMX') {
+            if (outputs[0].channelCount > 0 && outputs[0].channelCount < 513) {
+                $('#BBBSerialNumDMXChannels').val(outputs[0].channelCount);
+            } else {
+                $('#BBBSerialNumDMXChannels').val("512");
+            }
+        } else {
+            $('#BBBSerialNumDMXChannels').val("512");
+        }
 
 		for (var i = 0; i < outputs.length; i++)
 		{
@@ -2030,6 +2044,7 @@ function InitializeBBBSerial()
 	}
 
 	SetupBBBSerialStartChannels();
+    BBB48SerialTypeChanged();
 }
 
 function SetupBBBSerialStartChannels()
@@ -2092,7 +2107,7 @@ function GetBBBSerialConfig()
 		output.outputType = config.subType;
 
 		if (config.subType == 'DMX')
-			output.channelCount = 512;
+            output.channelCount = parseInt($('#BBBSerialNumDMXChannels').val());
 		else
 			output.channelCount = 4096;
 
@@ -2902,7 +2917,7 @@ if ($settings['Platform'] == "BeagleBone Black")
 							</tr>
 							<tr>
 								<td><b>Cape Type:</b></td>
-								<td><select id='BBB48StringSubType' onChange='BBB48StringSubTypeChanged();'>
+								<td colspan="3"><select id='BBB48StringSubType' onChange='BBB48StringSubTypeChanged();'>
 									<option value='F16-B'>F16-B</option>
 									<option value='F16-B-32'>F16-B w/ 32 outputs</option>
 									<option value='F16-B-48'>F16-B w/ 48 outputs (No Serial)</option>
@@ -2923,15 +2938,14 @@ if ($settings['Platform'] == "BeagleBone Black")
 							</tr>
 							<tr id='BBBSerialSelect'>
 								<td><b>BBB Serial Cape Mode:</b></td>
-								<td><select id='BBBSerialMode'>
+								<td><select id='BBBSerialMode' onChange='BBB48SerialTypeChanged();'>
 										<option value='off'>Disabled</option>
 										<option value='DMX'>DMX</option>
 										<option value='Pixelnet'>Pixelnet</option>
 									</select>
 									</td>
 								<td width=20>&nbsp;</td>
-								<td width=20>&nbsp;</td>
-								<td width=20>&nbsp;</td>
+                                <td><div id="DMXNumChannelOutput">Num&nbsp;DMX&nbsp;Channels:&nbsp;<input id='BBBSerialNumDMXChannels' size='6' maxlength='6' value='512'></div></td>
 							</tr>
 							<tr>
 								<td width = '70 px' colspan=5><input id='btnSaveChannelOutputsJSON' class='buttons' type='button' value='Save' onClick='SaveChannelOutputsJSON();'/> <font size=-1>(this will save changes to BBB tab &amp; LED Panels tab)</font></td>

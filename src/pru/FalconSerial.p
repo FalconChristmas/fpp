@@ -24,7 +24,10 @@
 
 #else
 #define DELAYCOUNT 3900
+
+#ifndef DATALEN
 #define DATALEN    #513
+#endif
 
 // DMX has to send SOMETHING out at least every 250ms (we'll do slightly faster) or
 // some controllers lose the signal and go into a test loop
