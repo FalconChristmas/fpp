@@ -586,8 +586,8 @@ int BBB48StringOutput::RawSendData(unsigned char *channelData)
         //first 7.5K to main PRU ram
         uint8_t * const pruMem = (uint8_t *)m_leds->ws281x;
         memcpy(pruMem + 512, m_curData, mx);
-        if (fullsize > 7628) {
-            fullsize -= 7628;
+        fullsize -= 7628;
+        if (fullsize > 0) {
             int outsize = fullsize;
             if (outsize > (8*1024 - 512)) {
                 outsize = 8*1024 - 512;
