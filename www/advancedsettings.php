@@ -46,6 +46,24 @@ function flashEMMC() {
         }
     });
 }
+function flashEMMCBtrfs() {
+    $('#dialog-confirm-emmc')
+    .dialog({
+            resizeable: false,
+            height: 300,
+            width: 500,
+            modal: true,
+            buttons: {
+            "Yes" : function() {
+            $(this).dialog("close");
+            window.location.href="flashbbbemmc-btrfs.php";
+            },
+            "No" : function() {
+            $(this).dialog("close");
+            }
+            }
+            });
+}
 <?php
     }
 ?>
@@ -138,13 +156,23 @@ function flashEMMC() {
                     the entire size of the SD card.</td>
             </tr>
             <tr><td colspan='2'><hr></td></tr>
+<?php
+    if (strpos($settings['SubPlatform'], 'PocketBeagle') === FALSE) {
+?>
             <tr><td>
                 <input type='button' class='buttons' value='Flash to eMMC' onClick='flashEMMC();'>
                 </td>
                 <td><b>Flash to eMMC</b> - This will copy FPP to the internal eMMC.</td>
             </tr>
             <tr><td colspan='2'><hr></td></tr>
+            <tr><td>
+                <input type='button' class='buttons' value='Flash to eMMC' onClick='flashEMMCBtrfs();'>
+                </td>
+<td><b>Flash to eMMC - BTRFS root</b> - This will copy FPP to the internal eMMC, but use BTRFS for the root filesystem.  BTRFS uses compression to save a lot of space on the eMMC.  WARNING:  this is highly experimental.</td>
+            </tr>
+            <tr><td colspan='2'><hr></td></tr>
             <?php
+            }
         }
     }
 ?>

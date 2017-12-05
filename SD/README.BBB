@@ -1,217 +1,145 @@
-FPP BBB Images creation notes (work in progress)
-
-FPP images are currently based on the following Debian BeagleBone images:
-
-- bone-debian-7.5-2014-05-14-2gb.img
-- BBB-eMMC-flasher-debian-7.5-2014-05-14-2gb.img
-
-Only the 7.5 2014-05-14 version is tested as known working.  There have
-been some reports about LEDscape not working on newer versions due to
-device tree changes, but we have not tested or investigated the changes
-necessary to work on the newer debian versions.  It is expected that
-once upstream LEDscape supports newer debian that we can update our
-install to use the newer version.  We use the 2GB SD version so that
-the eMMC image can be used on the Rev B boards with 2GB eMMC.
-
-Below are the instructions used to build the initial BBB images for FPP v1.5.
-This is a work in progress doc and it is expected that we will script these
-commands for building future images.
-
-#############################################################################
-# Prepping the SD image
-#######################
-# Setup some vars
-SDDEVICE="sdd"
-ORIGIMG="bone-debian-7.5-2014-05-14-2gb.img"
-EMMCIMG="BBB-eMMC-flasher-debian-7.5-2014-05-14-2gb.img"
-IMGFILE="FPP-v1.5-BBB-SD.img"
-MMCFILE="FPP-v1.5-BBB-eMMC.img"
-ADDSIZEMB=100
-
-# Get our starting image
-cp ${ORIGIMG} ${IMGFILE}
-
-SIZE=$(/bin/ls -al ${ORIGIMG} | awk '{print $5}')
-SIZEMB=$(expr ${SIZE} / 1024 / 1024)
-NEWSIZEMB=$(expr ${SIZEMB} + ${ADDSIZEMB})
-NEWSIZEMBMINUS1=$(expr ${NEWSIZEMB} - 1)
-
-echo "Current Image Size: ${SIZEMB} MB"
-echo "Desired Image Size: ${NEWSIZEMB} MB"
-
-# Grow the raw image file to new size
-dd if=/dev/zero of=${IMGFILE} seek=${NEWSIZEMBMINUS1} bs=1M count=1
-
-# Expand the second partition to fill the new size
-sfdisk --force --no-reread --in-order --Linux --unit M ${IMGFILE} <<-__EOF__
-1,96,0xE,*
-,,,-
-__EOF__
-
-# Expand the filesystem to fill out the partition
-sudo losetup /dev/loop0 ${IMGFILE}
-sudo kpartx -av /dev/loop0
-sleep 3
-sudo e2fsck -f /dev/mapper/loop0p2
-sudo resize2fs /dev/mapper/loop0p2
-sudo kpartx -d /dev/loop0
-sudo losetup -d /dev/loop0
-
-# Copy the image to our SD card in preparation for FPP install
-sudo dd if=${IMGFILE} of=/dev/${SDDEVICE} bs=4M
-sync
-
-###############################################################
-###############################################################
-# Copy SD image to SD card and install FPP using FPP_Install.sh
-# then bring SD card back
-###############################################################
-###############################################################
-
-# Some vars in case we forgot or put this in a second script
-# Make sure these match the ones used above
-SDDEVICE="sdd"
-ORIGIMG="bone-debian-7.5-2014-05-14-2gb.img"
-EMMCIMG="BBB-eMMC-flasher-debian-7.5-2014-05-14-2gb.img"
-IMGFILE="FPP-v1.5-BBB-SD.img"
-MMCFILE="FPP-v1.5-BBB-eMMC.img"
-ADDSIZEMB=100
-
-SIZE=$(/bin/ls -al ${ORIGIMG} | awk '{print $5}')
-SIZEMB=$(expr ${SIZE} / 1024 / 1024)
-NEWSIZEMB=$(expr ${SIZEMB} + ${ADDSIZEMB})
-NEWSIZEMBMINUS1=$(expr ${NEWSIZEMB} - 1)
-
-echo "Current Image Size: ${SIZEMB} MB"
-echo "Desired Image Size: ${NEWSIZEMB} MB"
-
-# Copy the SD card to SD image (using size from earlier)
-sudo dd if=/dev/${SDDEVICE} of=${IMGFILE} bs=1M count=${NEWSIZEMB}
-
-# Zero out free space in SD image to help compression later
-sudo losetup /dev/loop0 ${IMGFILE}
-sudo kpartx -av /dev/loop0
-sleep 3
-sudo zerofree /dev/mapper/loop0p2
-sudo kpartx -d /dev/loop0
-sudo losetup -d /dev/loop0
-
-# Prep the eMMC image
-# Get our starting image
-cp ${EMMCIMG} ${MMCFILE}
-
-# Grow the eMMC image file to desired size
-dd if=/dev/zero of=${MMCFILE} seek=${NEWSIZEMBMINUS1} bs=1M count=1
-
-# Expand the second partition to fill the new size
-sfdisk --force --no-reread --in-order --Linux --unit M ${MMCFILE} <<-__EOF__
-1,96,0xE,*
-,,,-
-__EOF__
-
-# Copy the SD rootfs to eMMC rootfs
-sudo losetup /dev/loop0 ${IMGFILE}
-sudo losetup /dev/loop1 ${MMCFILE}
-sudo kpartx -av /dev/loop0
-sudo kpartx -av /dev/loop1
-sleep 3
-sudo dd if=/dev/mapper/loop0p2 of=/dev/mapper/loop1p2 bs=4M
-sync
-mkdir /tmp/uboot
-sudo mount /dev/mapper/loop1p1 /tmp/uboot
-# need to run these as root!
-echo >> /tmp/uboot/uEnv.txt
-echo "# Disable HDMI for Falcon and LEDscape cape support" >> /tmp/uboot/uEnv.txt
-echo "cape_disable=capemgr.disable_partno=BB-BONELT-HDMI,BB-BONELT-HDMIN" >> /tmp/uboot/uEnv.txt
-echo >> /tmp/uboot/uEnv.txt
-sudo umount /tmp/uboot
-sudo kpartx -d /dev/loop0
-sudo kpartx -d /dev/loop1
-sudo losetup -d /dev/loop0
-sudo losetup -d /dev/loop1
-
-# Copy the eMMC image to SD card to test eMMC install
-sudo dd if=${MMCFILE} of=/dev/${SDDEVICE} bs=4M
-sync
-
-NOTE; Still need to setup SD image to grow partition and zip images.
-      Instructions are below
-
-######################################################################
-Setup the SD Image to auto grow on first boot and reboot automatically
-
-sudo losetup /dev/loop0 ${IMGFILE}
-sudo kpartx -av /dev/loop0
-sleep 3
-sudo mount /dev/mapper/loop0p2 /mnt/tmp
-sudo sed -i "s#^exit 0#/opt/fpp/scripts/growPartition > /home/fpp/growPartition.log 2>\&1\n\nexit 0#" /mnt/tmp/etc/rc.local
-sudo umount /mnt/tmp
-sudo kpartx -d /dev/loop0
-sudo losetup -d /dev/loop0
-
-######################################################################
-zip the images
-
-rm -f ${IMGFILE}.zip ${MMCFILE}.zip
-zip -9 ${IMGFILE}.zip ${IMGFILE}
-zip -9 ${MMCFILE}.zip ${MMCFILE}
-
-######################################################################
-Git pull in any last minute changes
-
-sudo losetup /dev/loop0 ${IMGFILE}
-sudo losetup /dev/loop1 ${MMCFILE}
-sudo kpartx -av /dev/loop0
-sudo kpartx -av /dev/loop1
-sleep 3
-sudo mount /dev/mapper/loop0p2 /mnt/tmp
-(cd /mnt/tmp/opt/fpp && sudo git pull)
-sudo umount /mnt/tmp
-sudo mount /dev/mapper/loop1p2 /mnt/tmp
-(cd /mnt/tmp/opt/fpp && sudo git pull)
-sudo umount /mnt/tmp
-sudo kpartx -d /dev/loop0
-sudo kpartx -d /dev/loop1
-sudo losetup -d /dev/loop0
-sudo losetup -d /dev/loop1
-
-#############################################################################
-
-Notes for compiling the newer 8192cu.ko kernel module for the Edimax on BBB
-
-Info is from both of the following:
-http://dumb-looks-free.blogspot.fr/2014/06/beaglebone-black-bbb-kernal-headers.html
-http://wiesel.ece.utah.edu/redmine/projects/hacks/wiki/BeagleBone_Black_AP
+# FPP BBB Images creation notes (work in progress)
+#
+# FPP images are currently based on the following Debian BeagleBone images:
+# bone-debian-9.2-iot-armhf-2017-10-10-4gb.img
+#
+# The below steps (much can be run via copy/paste into a terminal) will
+# prepare the "clean image" from above to have the appropriate 
+# dependencies installed, kernel updated, bootloaders, etc... ready
+# to run the FPP_Install script.    At this point, parts of it
+# require editing of text files with vim/nano.  In particular the
+# /boot/uEnv.txt file and the various files in /lib/systemd/system
+#
+# Make sure you read all the comment in this file and follow 
+# any instructions they may specify.
+#
+# After all the steps in this file is compile, reboot and then run
+# the FPP_Install_BBB.sh script
 
 
-* Install kernel headers and source
+sudo apt-get update
+sudo apt-get upgrade
+cd /opt/scripts
+git pull
+cd /opt/scripts/tools
+sudo ./update_kernel.sh
 
-wget https://raw.github.com/gkaindl/beaglebone-ubuntu-scripts/master/bb-get-rcn-kernel-source.sh
-chmod +x bb-get-rcn-kernel-source.sh
-sudo ./bb-get-rcn-kernel-source.sh
+# delete old kernels and modules in /boot and /lib/modules
+# and in /boot/dtbs
 
-* Then get the 8192cu source
+cd /opt/scripts/tools/developers/
+sudo ./update_bootloader.sh
 
-cd /home/fpp
-mkdir src
-cd ./src
-git clone https://github.com/pvaret/rtl8192cu-fixes.git
-cd ./rtl8192cu-fixes
-cd /usr/src/linux-3.8.13-bone50/arch
-sudo ln -s arm armv7l
-cd /home/fpp/src/rtl8192cu-fixes
-make ARCH=armv7l CROSS_COMPILE= -C /lib/modules/3.8.13-bone50/build M=/home/fpp/src/rtl8192cu-fixes modules
-sudo cp 8192cu.ko /lib/modules/3.8.13-bone50/kernel/drivers/net/wireless/8192cu.ko
-sudo depmod
 
-Then need to put the following in /etc/modprobe.d/8192cu.conf on the BBB:
-#############################################
-# Blacklist native RealTek 8188CUs drivers 
-blacklist rtl8192cu
-blacklist rtl8192c_common
-blacklist rtlwifi
+cd ~
+vim /boot/uEnv.txt
+#     enable_uboot_overlays=1
+#     disable_uboot_overlay_video=1
+#     disable_uboot_overlay_audio=1
+#     disable_uboot_overlay_adc=1
+#     uboot_overlay_pru=/lib/firmware/AM335X-PRU-UIO-00A0.dtbo
 
-# Disable power management on 8192cu module
-options 8192cu rtw_power_mgnt=0 rtw_enusbss=0
-#############################################
+
+cd /opt/backup/uboot
+wget https://rcn-ee.com/repos/bootloader/am335x_evm/MLO-am335x_evm-v2017.11-r5
+wget https://rcn-ee.com/repos/bootloader/am335x_evm/u-boot-am335x_evm-v2017.11-r5.img
+mv -f MLO-am335x_evm-v2017.11-r5 MLO
+mv -f u-boot-am335x_evm-v2017.11-r5.img u-boot.img
+
+## need the latest version for the PocketBeagle pins
+cd /opt/source/bb.org-overlays
+git pull
+cp tools/beaglebone-universal-io/config-pin /usr/bin/config-pin
+
+
+apt-get -y --purge autoremove
+
+apt-get install alsa-utils ccache bzip2 samba rsync vsftpd shellinabox vorbis-tools \
+    bash-completion exfat-fuse btrfs-tools ntp ethtool sysstat tcpdump \
+    php php-cli php-common php-curl php-fpm php-mcrypt php-pear \
+    python-daemon python-smbus \
+    ola ola-python libola-dev libola1 libboost-dev libjsoncpp-dev libtag1-dev \
+    libconvert-binary-c-perl libjson-perl perlmagick \
+    libavcodec-dev libavformat-dev libswresample-dev libsdl2-dev
+
+
+#remove a bunch of modules that aren't neeeded, free's up space
+apt-get remove --purge roboticscape nodejs c9-core-installer \
+    doc-beaglebone-getting-started doc-beaglebonegreen-getting-started doc-seeed-bbgw-getting-started \
+    bonescript bone101 bb-node-red-installer \
+    ardupilot-copter-bbbmini ardupilot-copter-blue ardupilot-plane-bbbmini ardupilot-plane-blue ardupilot-rover-bbbmini ardupilot-rover-blue
+rm /etc/modules-load.d/roboticscape_modules.conf
+# remove a bunch of source that is not needed, free's up space
+rm -rf /usr/local/lib/node_modules
+rm -rf /var/lib/cloud9
+rm -rf /opt/source/Robotics_Cape_Installer
+rm -rf /opt/source/dtb*
+rm -rf /opt/source/u-boot*
+rm -rf /opt/source/rcpy
+rm -rf /opt/source/pyctrl
+rm -rf /opt/source/fb-test-app*
+rm -rf /opt/source/beagle-tester*
+rm -rf /opt/source/dtb*
+rm -rf /opt/source/BB*
+rm -rf /opt/source/adafruit*
+rm -rf /opt/source/Userspace*
+rm /usr/local/bin/node-red*
+rm -rf /var/cache/doc-beaglebone-getting-started
+rm -rf /usr/share/beagle-tester
+rm -rf /usr/sbin/beagle-tester*
+rm -rf /lib/systemd/system/beagle-tester.service
+rm -rf /etc/udev/rules.d/beagle-tester.rules
+curl -L https://cpanmin.us | perl - --sudo App::cpanminus
+echo "yes" | cpanm -fin Test::Tester File::Map Net::WebSocket::Server Net::PJLink
+
+apt-get -y clean
+apt-get -y --purge autoremove
+apt-get -y clean
+
+
+echo "blacklist spidev" > /etc/modprobe.d/blacklist-spidev.conf
+echo "# allocate 768K instead of the default 256K" > /etc/modprobe.d/uio_pruss.conf
+echo "options uio_pruss extram_pool_sz=786432" >> /etc/modprobe.d/uio_pruss.conf
+
+
+#need to reboot to pickup new kernel so install of headers will work
+reboot
+
+
+apt-get install linux-headers-4.4.91-ti-r137
+apt-get install dkms firmware-ti-connectivity
+# the above installs the 4.9 headers which we don't use
+rm -rf /usr/src/linux-headers-4.9*
+
+cd /opt
+git clone https://github.com/pvaret/rtl8192cu-fixes
+dkms add ./rtl8192cu-fixes
+dkms install 8192cu/1.10
+depmod -a
+cp ./rtl8192cu-fixes/blacklist-native-rtl8192.conf /etc/modprobe.d/
+cp ./rtl8192cu-fixes/8192cu-disable-power-management.conf /etc/modprobe.d/
+
+
+#prefer ipv4
+echo "precedence ::ffff:0:0/96  100" >>  /etc/gai.conf
+
+
+cd /opt
+git clone https://github.com/beagleboard/am335x_pru_package
+cd am335x_pru_package
+make
+make install
+
+# need to edit some files... sed/awk/perl can do this automatically?
+#vim /lib/systemd/system/apache2.service
+#    PrivateTmp=false
+#vim /etc/default/shellinabox
+#    add -t to args
+#vim /etc/connman/main.conf
+#    PreferredTechnologies=wifi,ethernet
+
+
+#INvestigate:
+#a2enmod proxy_fcgi setenvif
+#a2enconf php7.0-fpm
 
