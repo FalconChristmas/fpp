@@ -171,7 +171,7 @@ require_once("common.php");
 				</tbody>
 			</table>
 			<hr>
-			<? PrintSettingCheckbox("Send F16v2 Sync Packets", "MultiSyncCSVBroadcast", 1, 0, "1", "0"); ?> Send F16v2 Sync Packets<br>
+			<? PrintSettingCheckbox("Send CSV Sync Packets", "MultiSyncCSVBroadcast", 1, 0, "1", "0"); ?> Send F16v2 Sync Packets (NOTE: Only for F16v3 running in Remote FPP Mode)<br>
 			<? PrintSettingCheckbox("Compress FSEQ files for transfer", "CompressMultiSyncTransfers", 0, 0, "1", "0"); ?> Compress FSEQ files during copy to Remotes to speed up file sync process<br>
 			<hr>
 			<font size=-1>
