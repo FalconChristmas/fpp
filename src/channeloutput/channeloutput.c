@@ -70,6 +70,7 @@
 
 #ifdef PLATFORM_PI
 #  include "Hill320.h"
+#  include "MCP23017.h"
 #  include "rpi_ws281x.h"
 #endif
 
@@ -291,6 +292,8 @@ int InitializeChannelOutputs(void) {
 #if defined(PLATFORM_PI)
 			} else if (type == "Hill320") {
 				channelOutputs[i].output = new Hill320Output(start, count);
+			} else if (type == "MCP23017") {
+				channelOutputs[i].output = new MCP23017Output(start, count);
 #endif
 #ifdef USE_X11Matrix
 			} else if (type == "X11Matrix") {
