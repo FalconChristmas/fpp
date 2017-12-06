@@ -206,7 +206,10 @@ a:visited {
           <table class='tblAbout'>
             <tr><td>Git Branch:</td><td><select id='gitBranch' onChange="ChangeGitBranch($('#gitBranch').val());">
 <? PrintGitBranchOptions(); ?>
-                </select><br><b>Note: Changing branches may take a couple minutes to recompile<br>and may not work if you have any modified source files.</b></td></tr>
+                </select>
+				<br><b>Note: Changing branches may take a couple minutes to recompile<br>and may not work if you have any modified source files.</b>
+				<br><font color='red'><b>WARNING: Switching branches will run a "git clean -df" which will remove any untracked files.  If you are doing development, you may want to backup the source directory before switching branches using the this page.</b></font>
+				</td></tr>
             <tr><td>Local Git Version:</td><td>
 <?
   echo $git_version;
