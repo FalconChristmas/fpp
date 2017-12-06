@@ -146,6 +146,17 @@ $plugins = Array(
 	),
 
 	Array(
+		'shortName'   => 'FalconSystemMonitor',
+		'name'        => 'Falcon Hardware System Monitor',
+		'author'      => 'Ben Shaver (bshaver)',
+		'description' => 'Monitor status items of Falcon Hardware (F4, F16, V2 & V3)',
+		'homeUrl'     => 'https://github.com/LightsOnHudson/FPP-Plugin-Falcon-System-Monitor',
+		'sourceUrl'   => 'https://github.com/LightsOnHudson/FPP-Plugin-Falcon-System-Monitor.git',
+		'bugUrl'      => 'https://github.com/LightsOnHudson/FPP-Plugin-Falcon-System-Monitor/issues',
+		'sha'         => '484f8d384109dce73485a1adb4496d625a624988',
+	),
+
+	Array(
 		'shortName'   => 'CronEditor',
 		'name'        => 'Crontab Editor',
 		'author'      => 'Ben Shaver (bshaver) and Pat Delaney (patdelaney)',
@@ -188,7 +199,18 @@ $plugins = Array(
 		'bugUrl'      => 'https://github.com/LightsOnHudson/FPP-Plugin-Mail/issues',
 		'sha'         => '9aa5cdac784e0b42f155fcd26bf67791f44d51f9',
 	),
-		
+
+	Array(
+		'shortName'   => 'Thingspeak',
+		'name'        => 'Post to Thingspeak',
+		'author'      => 'Ben Shaver (bshaver)',
+		'description' => 'Post fields from running playlist to Thingspeak',
+		'homeUrl'     => 'https://github.com/LightsOnHudson/FPP-Plugin-Thingspeak',
+		'sourceUrl'   => 'https://github.com/LightsOnHudson/FPP-Plugin-Thingspeak.git',
+		'bugUrl'      => 'https://github.com/LightsOnHudson/FPP-Plugin-Thingspeak/issues',
+		'sha'         => '452beedfe9b9edffd0fe84de91783e5bb69bb5eb',
+	),
+
 	Array(
 		'shortName'   => 'StockTicker',
 		'name'        => 'Stock Ticker',
