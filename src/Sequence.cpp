@@ -373,7 +373,7 @@ int Sequence::IsSequenceRunning(char *filename) {
 
 	pthread_mutex_unlock(&m_sequenceLock);
 
-	return 0;
+	return result;
 }
 
 void Sequence::BlankSequenceData(void) {
