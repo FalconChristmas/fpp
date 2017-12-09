@@ -831,7 +831,7 @@ function GPIOGPIOSelect(currentValue) {
 function NewGPIOConfig() {
 	var result = "";
 	result += GPIOGPIOSelect("");
-	result += " Invert: <input type=checkbox class='invert'>";
+	result += " Invert: <input type=checkbox class='invert'>&nbsp;&nbsp;SoftPWM: <input type=checkbox class='softPWM'>";
 	return result;
 }
 
@@ -849,6 +849,11 @@ function GPIODeviceConfig(config) {
 			if (item[1] == "1")
 				result += " checked='checked'";
 			result += ">";
+		} else if (item[0] == "softPWM") {
+			result += " SoftPWM: <input type=checkbox class='softPWM'";
+			if (item[1] == "1")
+				result += " checked='checked'";
+			result += ">";
 		}
 	}
 
@@ -863,11 +868,15 @@ function GetGPIOOutputConfig(cell) {
 		return "";
 
 	var invert = 0;
+	var softPWM = 0;
 
 	if ($cell.find("input.invert").is(":checked"))
 		invert = 1;
 
-	return "gpio=" + gpio + ";invert=" + invert;
+	if ($cell.find("input.softPWM").is(":checked"))
+		softPWM = 1;
+
+	return "gpio=" + gpio + ";invert=" + invert + ";softPWM=" + softPWM;
 }
 
 /////////////////////////////////////////////////////////////////////////////
