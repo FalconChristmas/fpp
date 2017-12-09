@@ -39,8 +39,10 @@
 #include "log.h"
 #include "mediadetails.h"
 #include "mediaoutput.h"
+#include "mqtt.h"
 #include "PixelOverlay.h"
 #include "Playlist.h"
+#include "playlist/Playlist.h"
 #include "Plugins.h"
 #include "Scheduler.h"
 #include "Sequence.h"
@@ -100,8 +102,20 @@ int main(int argc, char *argv[])
 	if (getDaemonize())
 		CreateDaemon();
 
+	if (strcmp(getSetting("MQTTHost"),""))
+	{
+		mqtt = new MosquittoClient(getSetting("MQTTHost"), getSettingInt("MQTTPort"), getSetting("MQTTPrefix"));
+
+		if (!mqtt || !mqtt->Init())
+			exit(EXIT_FAILURE);
+
+		mqtt->Publish("version", getFPPVersion());
+		mqtt->Publish("branch", getFPPBranch());
+	}
+
 	scheduler = new Scheduler();
-	playlist  = new Playlist();
+	oldPlaylist = new OldPlaylist();
+	playlist = new Playlist();
 	sequence  = new Sequence();
 	channelTester = new ChannelTester();
 
@@ -160,8 +174,12 @@ int main(int argc, char *argv[])
 
 	delete channelTester;
 	delete scheduler;
+	delete oldPlaylist;
 	delete playlist;
 	delete sequence;
+
+	if (mqtt)
+		delete mqtt;
 
 	return 0;
 }
@@ -264,7 +282,8 @@ void MainLoop(void)
 			{
 				if (prevFPPstatus == FPP_STATUS_IDLE)
 				{
-					playlist->PlayListPlayingInit();
+					//oldPlaylist->PlayListPlayingInit();
+					playlist->Start();
 					sleepms = 10000;
 				}
 
@@ -273,7 +292,8 @@ void MainLoop(void)
 				if ((FPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||
 					(FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY))
 				{
-					playlist->PlayListPlayingProcess();
+					//oldPlaylist->PlayListPlayingProcess();
+					playlist->Process();
 				}
 			}
 
@@ -283,7 +303,8 @@ void MainLoop(void)
 				if ((prevFPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||
 					(prevFPPstatus == FPP_STATUS_STOPPING_GRACEFULLY))
 				{
-					playlist->PlayListPlayingCleanup();
+					//oldPlaylist->PlayListPlayingCleanup();
+					playlist->Cleanup();
 
 					if (FPPstatus != FPP_STATUS_IDLE)
 						reactivated = 1;
@@ -303,7 +324,8 @@ void MainLoop(void)
 		{
 			if(mediaOutputStatus.status == MEDIAOUTPUTSTATUS_PLAYING)
 			{
-				playlist->PlaylistProcessMediaData();
+				oldPlaylist->PlaylistProcessMediaData();
+				// FIXME for new playlist
 			}
 		}
 

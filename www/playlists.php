@@ -48,6 +48,8 @@ function SetSetting($file,$varName,$varValue)
     <head>
     <?php	include 'common/menuHead.inc'; ?>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<link rel="stylesheet" type="text/css" href="css/jquery.timepicker.css">
+	<script type="text/javascript" src="js/jquery.timepicker.min.js"></script>
     <script language="Javascript">
 $(document).ready(function() {
 $('.default-value').each(function() {
@@ -70,16 +72,33 @@ this.value = default_value;
     <script>
 $(document).ready(function () {
     //make table rows sortable
-    $('#tblCreatePlaylistEntries_tbody').sortable({
+    $('.tblCreatePlaylistEntries_tbody').sortable({
         start: function (event, ui) {
 	          start_pos = ui.item.index();
-            
+
+            start_parent = $(ui.item).parent().attr('id');
+            start_id = start_parent.replace(/tblPlaylist/i, "");
         },
 				update: function(event, ui) {
-            var end_pos = ui.item.index();
-						PlaylistEntryIndexChanged(end_pos,start_pos);
-						var pl = document.getElementById("txtPlaylistName").value;
-						PopulatePlayListEntries(pl,false,end_pos);
+				    if (this === ui.item.parent()[0]) {
+              var end_pos = ui.item.index();
+              var parent = $(ui.item).parent().attr('id');
+              var end_id = parent.replace(/tblPlaylist/i, "");
+
+			  var rowsInNew = $('#' + start_parent + ' >tr').length;
+			  if (rowsInNew > 1)
+			  	$('#' + parent + 'PlaceHolder').remove();
+
+			  var rowsLeft = $('#' + start_parent + ' >tr').length;
+			  if (rowsLeft == 0)
+			  	$('#' + start_parent).html('<tr id="' + parent + 'PlaceHolder"><td colspan=4>&nbsp;</td></tr>');
+
+              if ((end_id != start_id) || (end_pos != start_pos)) {
+  	  					PlaylistEntryPositionChanged(end_id,end_pos,start_id,start_pos);
+  	  					var pl = document.getElementById("txtPlaylistName").value;
+  	  					PopulatePlayListEntries(pl,false,end_pos);
+              }
+            }
         },
         beforeStop: function (event, ui) {
             //undo the firefox fix.
@@ -94,11 +113,15 @@ $(document).ready(function () {
             });
             return ui;
         },
+        item: 'tr',
+        connectWith: '.tblCreatePlaylistEntries_tbody',
         scroll: true,
         stop: function (event, ui) {
             //SAVE YOUR SORT ORDER                    
         }
     }).disableSelection();
+
+	$('.time').timepicker({'timeFormat': 'H:i:s', 'typeaheadHighlight': false});
 });
 
 	function MediaChanged()
@@ -132,12 +155,12 @@ $(document).ready(function () {
 </script>
     <script>
     $(function() {
-		$('#tblCreatePlaylistEntries').on('mousedown', 'tr', function(event,ui){
-					$('#tblCreatePlaylistEntries tr').removeClass('selectedEntry');
+		$('#tblCreatePlaylist tbody').on('mousedown', 'tr', function(event,ui){
+					$('#tblCreatePlaylist tbody tr').removeClass('selectedEntry');
           $(this).addClass('selectedEntry');
-					var items = $('#tblCreatePlaylistEntries tr');
-					lastPlaylistEntry  = items.index(this);
-					
+					var items = $('#tblCreatePlaylist tbody tr');
+					lastPlaylistEntry = parseInt($(this).attr('id').substr(11));
+					lastPlaylistSection = $(this).parent().attr('id').substr(11);
 		});
 	});
 </script>
@@ -201,6 +224,23 @@ $(document).ready(function () {
     echo "</select>";
   }
 
+function PrintScriptOptions()
+{
+	global $scriptDirectory;
+	echo "<select id=\"selScript\" size=\"1\">";
+
+	$mediaEntries = array_merge(scandir($musicDirectory),scandir($videoDirectory));
+	sort($mediaEntries);
+	foreach(scandir($scriptDirectory) as $scriptFile)
+	{
+		if($scriptFile != '.' && $scriptFile != '..')
+		{
+			echo "<option value=\"" . $scriptFile . "\">" . $scriptFile . "</option>";
+		}
+	}
+	echo "</select>";
+}
+
   function PrintEventOptions()
   {
     global $eventDirectory;
@@ -255,14 +295,9 @@ $(document).ready(function () {
     <legend>Playlist Details</legend>
     <div style="border-bottom:solid 1px #000; padding-bottom:10px;">
       <div style="float:left">
-            <input type="text" id="txtPlaylistName" class="pl_title" />
+            <input type="text" id="txtPlaylistName" size='40' class="pl_title" />
             <br />
             <span style="font-size:10px; padding-top:10px; font-family:Arial">(To rename edit name and click 'Save') </span> </div>
-      <div style="float:left">
-            <input id="chkFirst" name="chkFirst" type="checkbox" value="first" style="margin-left:20px" onclick="SetPlayListFirst();"/>
-            Play first entry only once<br />
-            <input id="chkLast"  name="chkLast" type="checkbox" value="last" style="margin-left:20px"  onclick="SetPlayListLast();"/>
-            Play last entry only once </div>
       <div style="float:left">
             <input name="" type="button" value="Save" onclick="SavePlaylist();" class="buttons" style="margin-left:50px"/>
             <input name="" type="button" value="Delete" onclick="DeletePlaylist();"  class="buttons" />
@@ -275,25 +310,62 @@ $(document).ready(function () {
 				<tr><td colspan='2'><b>New Playlist Entry</b></td></tr>
         <tr><td>Type:</td>
 						<td><select id="selType" size="1" onchange="PlaylistTypeChanged()">
-            <option value = 'b'>Media and Sequence</option>
-            <option value = 'm'>Media Only</option>
-            <option value = 's'>Sequence Only</option>
-            <option value = 'p'>Pause</option>
-            <option value = 'e'>Event</option>
-            <option value = 'P'>Plugin</option>
+            <option value = 'both'>Media and Sequence</option>
+            <option value = 'media'>Media Only</option>
+            <option value = 'sequence'>Sequence Only</option>
+            <option value = 'pause'>Pause</option>
+            <option value = 'script'>Script</option>
+            <option value = 'event'>Event</option>
+            <option value = 'plugin'>Plugin</option>
+            <option value = 'branch'>Branch</option>
+            <option value = 'mqtt'>MQTT</option>
           </select>
-          <span id='autoSelectWrapper'><input type='checkbox' id='autoSelectMatches' checked> Auto-Select Matching Media/Sequence</span>
+          <span id='autoSelectWrapper' class='playlistOptions'><input type='checkbox' id='autoSelectMatches' checked> Auto-Select Matching Media/Sequence</span>
 				</td></tr>
-        <tr id="musicOptions"><td>Media:</td>
+        <tr id="musicOptions" class='playlistOptions'><td>Media:</td>
             <td><?php PrintMediaOptions();?></td></tr>
-        <tr id="sequenceOptions"><td>Sequence:</td>
+        <tr id="sequenceOptions" class='playlistOptions'><td>Sequence:</td>
             <td><?php PrintSequenceOptions();?></td></tr>
-        <tr id="eventOptions" style="display:none;"><td>Event:</td>
+        <tr id="scriptOptions" style="display:none;" class='playlistOptions'><td>Script:</td>
+            <td><?php PrintScriptOptions();?></td></tr>
+        <tr id="eventOptions" style="display:none;" class='playlistOptions'><td>Event:</td>
             <td><?php PrintEventOptions();?></td></tr>
-        <tr id="pauseTime" style="display:none;"><td><div><div id='pauseText'>Pause Time:</div><div id='delayText'>Delayed By:</div></div></td>
+        <tr id="pauseTime" style="display:none;" class='playlistOptions'><td><div><div id='pauseText' class='playlistOptions'>Pause Time:</div><div id='delayText' class='playlistOptions'>Delayed By:</div></div></td>
             <td><input id="txtPause" name="txtPause" type="text" size="10" maxlength="10"/>
               (Seconds)</td></tr>
-        <tr id="pluginData" style="display:none;"><td><div><div id='pluginDataText'>Plugin Data:</div></div></td>
+		<tr id="branchOptions" class='playlistOptions'><td valign='top'>Branch:</td>
+			<td><table border=0 cellpadding=0 cellspacing=2>
+				<tr><td>True:</td><td>Section: <select id='branchTrueSection'>
+						<option value=''>** Same **</option>
+						<option value='leadIn'>Lead In</option>
+						<option value='mainPlaylist'>Main Playlist</option>
+						<option value='leadOut'>Lead Out</option>
+					</select>
+					<input id='branchTrueItem' type='text' size='3' maxlength='3' value='1'></td></tr>
+				<tr><td>False:</td><td>Section: <select id='branchFalseSection'>
+						<option value=''>** Same **</option>
+						<option value='leadIn'>Lead In</option>
+						<option value='mainPlaylist'>Main Playlist</option>
+						<option value='leadOut'>Lead Out</option>
+					</select>
+					<input id='branchFalseItem' type='text' size='3' maxlength='3' value='2'></td></tr>
+				<tr><td>Type:</td><td><select id='branchType'><option>Time</option></select></td></tr>
+				<tr><td></td>
+					<td><table border=0 cellpadding=0 cellspacing=2>
+						<tr><td>Start Time:</td><td><input class='time center'  name='branchStartTime' id='branchStartTime' type='text' size='8' value='00:00:00'/></td></tr>
+						<tr><td>End Time:</td><td><input class='time center'  name='branchEndTime' id='branchEndTime' type='text' size='8' value='00:00:00'/></td></tr></table>
+					</td></tr>
+				</table>
+			</td>
+			</tr>
+		<tr id="mqttOptions" class='playlistOptions'><td>MQTT:</td>
+			<td><table border=0 cellpadding=0 cellspacing=2>
+				<tr><td>Topic:</td><td><input id='mqttTopic' type='text' size='60' maxlength='60'></td></tr>
+				<tr><td>Message:</td><td><input id='mqttMessage' type='text' size='60' maxlength='255'></td></tr>
+				</table>
+			</td>
+			</tr>
+        <tr id="pluginData" style="display:none;" class='playlistOptions'><td><div><div id='pluginDataText'>Plugin Data:</div></div></td>
             <td><input id="txtData" name="txtData" type="text" size="80" maxlength="255"/></td></tr>
         <tr><td colspan='2'>
             <input id='btnAddPlaylistEntry'  width="200px"  onclick="AddPlaylistEntry();" class="buttons" type="button" value="Add" />
@@ -304,16 +376,34 @@ $(document).ready(function () {
         </div>
     <div id="createPlaylistItems">
           <table id="tblCreatePlaylist">
+            <colgroup>
+                <col class='colPlaylistNumber'></col>
+                <col class='colPlaylistType'></col>
+                <col class='colPlaylistData1'></col>
+                <col class='colPlaylistData2'></col>
+            </colgroup>
+			<thead>
         <tr id="rowCreatePlaylistHeader">
-              <td class="colPlaylistNumber">#</td>
-              <td class="colPlaylistType">Type</td>
-              <td class="colPlaylistData1">Media File / Event / Pause</td>
-              <td class="colPlaylistData2">Sequence / Delay / Data</td>
-              <td class="colPlaylistFlags">First/Last</td>
+              <th class="colPlaylistNumber">#</td>
+              <th class="colPlaylistType">Type</td>
+              <th class="colPlaylistData1">Media File / Script / Event / Pause</td>
+              <th class="colPlaylistData2">Sequence / Delay / Data</td>
             </tr>
-      </table>
-          <table id="tblCreatePlaylistEntries" width="100%">
-            <tbody id="tblCreatePlaylistEntries_tbody">
+			</thead>
+						<tbody>
+							<tr><th colspan=5>-- Lead In --</th></tr>
+						</tbody>
+            <tbody id="tblPlaylistLeadIn" class='tblCreatePlaylistEntries_tbody'>
+            </tbody>
+						<tbody>
+							<tr><th colspan=5>-- Main Playlist --</th></tr>
+						</tbody>
+            <tbody id="tblPlaylistMainPlaylist" class='tblCreatePlaylistEntries_tbody'>
+            </tbody>
+						<tbody>
+							<tr><th colspan=5>-- Lead Out --</th></tr>
+						</tbody>
+            <tbody id="tblPlaylistLeadOut" class='tblCreatePlaylistEntries_tbody'>
             </tbody>
       </table>
         </div>

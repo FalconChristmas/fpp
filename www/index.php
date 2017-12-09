@@ -7,13 +7,17 @@ include 'common/menuHead.inc';
 ?>
 <script>
     PlayEntrySelected = 0;
-    $(function() {
-		$('#tblStatusPlaylistEntries').on('mousedown', 'tr', function(event,ui){
-					$('#tblStatusPlaylistEntries tr').removeClass('playlistSelectedEntry');
-          $(this).addClass('playlistSelectedEntry');
-					var items = $('#tblStatusPlaylistEntries tr');
-					PlayEntrySelected  = items.index(this);
+    PlaySectionSelected = '';
 
+    $(function() {
+		$('#tblStatusPlaylist tbody').on('mousedown', 'tr', function(event,ui){
+					$('#tblStatusPlaylist tbody tr').removeClass('playlistSelectedEntry');
+// FIXME, may need to check each tbody individually
+          $(this).addClass('playlistSelectedEntry');
+					var items = $('#tblStatusPlaylistEntries tbody tr');
+					PlayEntrySelected = parseInt($(this).attr('id').substr(11)) - 1;
+					PlaySectionSelected = $(this).parent().attr('id').substr(11);
+alert('id: ' + $(this).attr('id') + ', id#: ' + parseInt($(this).attr('id').substr(11)) + ', PES: ' + PlayEntrySelected);
 		});
 	});
 </script>
@@ -195,16 +199,34 @@ include 'common/menuHead.inc';
 
     	<div id="playerStatusBottom">
       <div id="statusPlaylist"  class="unselectable">
-        <table id="tblStatusPlaylistHeader" width="100%">
-          <tr class="playlistHeader">
-            <td width="6%">#</td>
-            <td  width="42%">Media File / Event / Pause </td>
-            <td  width="42%">Sequence / Delay</td>
-            <td  width="10%">First/Last</td>
-          </tr>
-        </table>
         <div id= "statusPlaylistContents">
-          <table id="tblStatusPlaylistEntries"   width="100%">
+        <table id="tblStatusPlaylist" width="100%">
+			<colgroup>
+				<col class='colPlaylistNumber'></col>
+				<col class='colPlaylistData1'></col>
+				<col class='colPlaylistData2'></col>
+			</colgroup>
+          <thead>
+          <tr class="playlistHeader">
+            <th class='colPlaylistNumber'>#</th>
+            <th class='colPlaylistData1'>Media File / Script / Event / Pause </th>
+            <th class='colPlaylistData2'>Sequence / Delay</th>
+          </tr>
+						<tbody id='tblPlaylistLeadInHeader' style='display: none;'>
+							<tr><th colspan=3>-- Lead In --</th></tr>
+						</tbody>
+            <tbody id="tblPlaylistLeadIn">
+            </tbody>
+						<tbody id='tblPlaylistMainPlaylistHeader' style='display: none;'>
+							<tr><th colspan=3>-- Main Playlist --</th></tr>
+						</tbody>
+            <tbody id="tblPlaylistMainPlaylist">
+            </tbody>
+						<tbody id='tblPlaylistLeadOutHeader' style='display: none;'>
+							<tr><th colspan=3>-- Lead Out --</th></tr>
+						</tbody>
+            <tbody id="tblPlaylistLeadOut">
+            </tbody>
           </table>
         </div>
       </div>

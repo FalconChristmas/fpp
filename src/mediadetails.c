@@ -58,7 +58,7 @@ void ParseMedia()
     char fullMediaPath[1024];
 	int seconds;
 	int minutes;
-	PlaylistEntry *plEntry = &playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry];
+	OldPlaylistEntry *plEntry = &oldPlaylist->m_playlistDetails.playList[oldPlaylist->m_playlistDetails.currentPlaylistEntry];
 
 	if (!plEntry->songName)
 		return;

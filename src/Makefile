@@ -23,6 +23,7 @@ OBJECTS_fppmm = \
 	fppversion.o \
 	$(NULL)
 LIBS_fppmm = \
+	-ljsoncpp \
 	$(NULL)
 
 OBJECTS_fppd = \
@@ -79,8 +80,26 @@ OBJECTS_fppd = \
 	mediaoutput/mpg123.o \
 	mediaoutput/ogg123.o \
 	mediaoutput/omxplayer.o \
+	mqtt.o \
 	PixelOverlay.o \
 	Playlist.o \
+	playlist/Playlist.o \
+	playlist/PlaylistEntryBase.o \
+	playlist/PlaylistEntryBoth.o \
+	playlist/PlaylistEntryBranch.o \
+	playlist/PlaylistEntryBrightness.o \
+	playlist/PlaylistEntryChannelTest.o \
+	playlist/PlaylistEntryEffect.o \
+	playlist/PlaylistEntryEvent.o \
+	playlist/PlaylistEntryMedia.o \
+	playlist/PlaylistEntryMQTT.o \
+	playlist/PlaylistEntryPause.o \
+	playlist/PlaylistEntryPixelOverlay.o \
+	playlist/PlaylistEntryPlaylist.o \
+	playlist/PlaylistEntryPlugin.o \
+	playlist/PlaylistEntryScript.o \
+	playlist/PlaylistEntrySequence.o \
+	playlist/PlaylistEntryVolume.o \
 	Plugins.o \
 	Scheduler.o \
 	ScheduleEntry.o \
@@ -91,6 +110,7 @@ LIBS_fppd = \
 	-lpthread \
 	-ljsoncpp \
 	-lm \
+	-lmosquitto \
 	-lutil \
 	-ltag \
 	$(NULL)

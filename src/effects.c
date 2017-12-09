@@ -135,7 +135,7 @@ inline int IsEffectRunning(void)
 /*
  * Start a new effect offset at the specified channel number
  */
-int StartEffect(char *effectName, int startChannel, int loop)
+int StartEffect(const char *effectName, int startChannel, int loop)
 {
 	int   effectID = -1;
 	FILE *fp = NULL;
@@ -315,7 +315,7 @@ void StopEffectHelper(int effectID)
 /*
  * Stop all effects named effectName
  */
-int StopEffect(char *effectName)
+int StopEffect(const char *effectName)
 {
 	LogDebug(VB_EFFECT, "StopEffect(%s)\n", effectName);
 

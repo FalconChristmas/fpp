@@ -346,7 +346,7 @@ void Sequence::SingleStepSequenceBack(void) {
 }
 
 void Sequence::ReadSequenceData(void) {
-	LogDebug(VB_SEQUENCE, "ReadSequenceData()\n");
+	LogExcess(VB_SEQUENCE, "ReadSequenceData()\n");
 	size_t  bytesRead = 0;
 
 	if (m_seqStarting)

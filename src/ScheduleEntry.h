@@ -50,7 +50,7 @@ class ScheduleEntry {
 
 	int          m_enabled;
 	std::string  m_playlistName;
-	Playlist    *m_playlist;
+	OldPlaylist    *m_playlist;
 	int          m_priority;
 	int          m_repeating;
 	int          m_dayIndex;

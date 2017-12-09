@@ -3,6 +3,7 @@
 $skipJSsettings = 1;
 require_once('common.php');
 require_once('commandsocket.php');
+require_once('playlistentry.php');
 
 $a = session_id();
 if(empty($a))
@@ -37,6 +38,9 @@ $command_array = Array(
 	"toggleSequencePause" => 'ToggleSequencePause',
 	"singleStepSequence"  => 'SingleStepSequence',
 	"singleStepSequenceBack" => 'SingleStepSequenceBack',
+	"addPlaylistEntry"    => 'AddPlayListEntry',
+	"getPlayListEntries"  => 'GetPlayListEntries',
+	"savePlaylist"        => 'SavePlaylist',
 	"getPluginSetting"    => 'GetPluginSetting',
 	"setPluginSetting"    => 'SetPluginSetting',
 	"saveScript"          => 'SaveScript',
@@ -387,6 +391,484 @@ function SingleStepSequence()
 function SingleStepSequenceBack()
 {
 	SendCommand("SingleStepSequenceBack");
+}
+
+function GetJSONPlaylistEntry($entry, $index)
+{
+	if ($entry->type == 'both')
+		return new PlaylistEntry($entry->type,$entry->mediaName,$entry->sequenceName,0,'','','','', $entry, $index);
+	else if ($entry->type == 'media')
+		return new PlaylistEntry($entry->type,$entry->mediaName,'',0,'','','','', $entry, $index);
+	else if ($entry->type == 'sequence')
+		return new PlaylistEntry($entry->type,'',$entry->sequenceName,0,'','','','', $entry, $index);
+	else if ($entry->type == 'pause')
+		return new PlaylistEntry($entry->type,'', '',$entry->duration,'','','','', $entry, $index);
+	else if ($entry->type == 'script')
+		return new PlaylistEntry($entry->type,'', '', 0, $entry->scriptName,'','','', $entry, $index);
+	else if ($entry->type == 'event')
+	{
+		$majorID = $entry->majorID;
+		if ($majorID < 10)
+			$majorID = '0' . $majorID;
+
+		$minorID = $entry->minorID;
+		if ($minorID < 10)
+			$minorID = '0' . $minorID;
+
+		$id = $majorID . '_' . $minorID;
+
+		AddEventDesc($entry);
+
+		return new PlaylistEntry($entry->type,'', '', 0, '', $id, $entry->desc, '', $entry, $index);
+	}
+	else if ($entry->type == 'plugin')
+		return new PlaylistEntry($entry->type, '', '', 0, '', '', '', $entry->data, $entry, $index);
+	else
+		return new PlaylistEntry($entry->type,'', '', 0, '','','','', $entry, $index);
+}
+
+function AddEventDesc(&$entry)
+{
+	global $settings;
+
+	if ($entry->type != 'event')
+		return;
+
+	$majorID = $entry->majorID;
+	if ($majorID < 10)
+		$majorID = '0' . $majorID;
+
+	$minorID = $entry->minorID;
+	if ($minorID < 10)
+		$minorID = '0' . $minorID;
+
+	$id = $majorID . '_' . $minorID;
+
+	$eventFile = $settings['eventDirectory'] . "/" . $id . ".fevt";
+	if ( file_exists($eventFile)) {
+		$eventInfo = parse_ini_file($eventFile);
+		$entry->desc = $eventInfo['name'];
+	} else {
+		$entry->desc = "ERROR: Undefined Event: " . $id;
+	}
+}
+
+function LoadCSVPlayListDetails($file)
+{
+	global $settings;
+
+	$playListEntriesLeadIn = NULL;
+	$playListEntriesMainPlaylist = NULL;
+	$playListEntriesLeadOut = NULL;
+	$_SESSION['playListEntriesLeadIn']=NULL;
+	$_SESSION['playListEntriesMainPlaylist']=NULL;
+	$_SESSION['playListEntriesLeadOut']=NULL;
+
+	$f = fopen($settings['playlistDirectory'] . '/' . $file, "rx")
+		or exit("Unable to open file! : " . $settings['playlistDirectory'] . '/' . $file);
+
+	$firstIsLeadIn = 0;
+	$lastIsLeadOut = 0;
+	$index = 0;
+	$sectionIndex = 0;
+	$i=0;
+
+	$line = fgets($f);
+	if(strlen($line)) {
+		$entry = explode(",",$line,50);
+		$firstIsLeadIn = $entry[0];
+		$lastIsLeadOut = $entry[1];
+	}
+
+	while (!feof($f))
+	{
+		$line=fgets($f);
+		$entry = explode(",",$line,50);
+		if ($entry[0] == 'v')
+			$entry[0] = 'm';
+		$type = $entry[0];
+		if(strlen($line)==0)
+			break;
+
+		$e = new \stdClass;
+		$e->playOnce = 0;
+
+		switch($entry[0])
+		{
+			case 'b':
+				$e->type = 'both';
+				$e->sequenceName = $entry[1];
+				$e->mediaName = $entry[2];
+				break;
+			case 'm':
+				$e->type = 'media';
+				$e->mediaName = $entry[1];
+				break;
+			case 's':
+				$e->type = 'sequence';
+				$e->sequenceName = $entry[1];
+				break;
+			case 'p':
+				$e->type = 'pause';
+				$e->duration = (int)$entry[1];
+				break;
+			case 'P':
+				$e->type = 'plugin';
+				$e->data = $entry[1];
+				break;
+			case 'e':
+				$e->type = 'event';
+				$e->majorID = (int)substr($entry[1],0,2);
+				$e->minorID = (int)substr($entry[1],3,2);
+
+				break;
+			default:
+				break;
+		}
+
+		if (($index == 0) && ($firstIsLeadIn))
+		{
+			$playListEntriesLeadIn[0] = GetJSONPlaylistEntry($e, $sectionIndex);
+			$sectionIndex = 0;
+		}
+		else
+		{
+			$playListEntriesMainPlaylist[$sectionIndex]
+				= GetJSONPlaylistEntry($e, $sectionIndex);
+		}
+
+		$sectionIndex++;
+		$index++;
+	}
+	fclose($f);
+
+	if ($lastIsLeadOut)
+	{
+		$e = array_pop($playlistEntriesMainPlaylist);
+		$playlistEntriesLeadOut[0] = $e;
+	}
+
+	$_SESSION['playListEntriesLeadIn'] = $playListEntriesLeadIn;
+	$_SESSION['playListEntriesMainPlaylist'] = $playListEntriesMainPlaylist;
+	$_SESSION['playListEntriesLeadOut'] = $playListEntriesLeadOut;
+}
+
+function LoadPlayListDetails($file)
+{
+	global $settings;
+
+	$playListEntriesLeadIn = NULL;
+	$playListEntriesMainPlaylist = NULL;
+	$playListEntriesLeadOut = NULL;
+	$_SESSION['playListEntriesLeadIn']=NULL;
+	$_SESSION['playListEntriesMainPlaylist']=NULL;
+	$_SESSION['playListEntriesLeadOut']=NULL;
+
+	$jsonStr = "";
+
+	if (!file_exists($settings['playlistDirectory'] . '/' . $file . ".json"))
+	{
+		if (file_exists($settings['playlistDirectory'] . '/' . $file))
+			LoadCSVPlaylistDetails($file);
+
+		return;
+	}
+
+	$jsonStr = file_get_contents($settings['playlistDirectory'] . '/' . $file . ".json");
+
+	$data = json_decode($jsonStr);
+
+	if (isset($data->leadIn))
+	{
+		$i = 0;
+		foreach ($data->leadIn as $entry)
+		{
+			$playListEntriesLeadIn[$i] = GetJSONPlaylistEntry($entry, $i);
+			$i++;
+		}
+	}
+
+	if (isset($data->mainPlaylist))
+	{
+		$i = 0;
+		foreach ($data->mainPlaylist as $entry)
+		{
+			$playListEntriesMainPlaylist[$i] = GetJSONPlaylistEntry($entry, $i);
+			$i++;
+		}
+	}
+
+	if (isset($data->leadOut))
+	{
+		$i = 0;
+		foreach ($data->leadOut as $entry)
+		{
+			$playListEntriesLeadOut[$i] = GetJSONPlaylistEntry($entry, $i);
+			$i++;
+		}
+	}
+
+	$_SESSION['playListEntriesLeadIn'] = $playListEntriesLeadIn;
+	$_SESSION['playListEntriesMainPlaylist'] = $playListEntriesMainPlaylist;
+	$_SESSION['playListEntriesLeadOut'] = $playListEntriesLeadOut;
+}
+
+function AddPlayListEntry()
+{
+	$entry = json_decode($_POST['data']);
+
+	$_SESSION['playListEntriesMainPlaylist'][] =
+		new PlaylistEntry($entry->type,'', '', 0, '','','','', $entry,
+			count($_SESSION['playListEntriesMainPlaylist']));
+
+	$result = Array();
+	$result['status'] = 'success';
+	$result['json'] = $_POST['data'];
+
+	returnJSON($result);
+}
+
+
+function GetPlayListEntries()
+{
+	global $args;
+	global $settings;
+
+	$playlist = $args['pl'];
+	check($playlist, "playlist", __FUNCTION__);
+	$reload = $args['reload'];
+	check($playlist, "reload", __FUNCTION__);
+
+	if ($reload == 'true')
+		LoadPlaylistDetails($playlist);
+
+	$jsonStr = GenerateJSONPlaylist($playlist);
+
+	header( "Content-Type: application/json");
+	echo $jsonStr;
+}
+
+function GenerateJSONPlaylistEntry($entry)
+{
+	$result = json_encode($entry->entry, JSON_PRETTY_PRINT);
+	return $result;
+
+	$result = "";
+
+	// FIXME Playlist, delete this stuff below here
+	if ($entry->type == 'both')
+	{
+		$result = sprintf(
+			'		{' . "\n" .
+			'			"type": "both",' . "\n" .
+			'			"enabled": 1,' . "\n" .
+			'			"playOnce": %d,' . "\n" .
+			'			"sequenceName": "%s",' . "\n" .
+			'			"mediaName": "%s"' . "\n" .
+			'		}',
+			0, // Play Once
+			$entry->seqFile, $entry->songFile
+			);
+	}
+	else if ($entry->type == 'sequence')
+	{
+		$result = sprintf(
+			'		{' . "\n" .
+			'			"type": "sequence",' . "\n" .
+			'			"enabled": 1,' . "\n" .
+			'			"playOnce": %d,' . "\n" .
+			'			"sequenceName": "%s"' . "\n" .
+			'		}',
+			0, // Play Once
+			$entry->seqFile
+			);
+	}
+	else if ($entry->type == 'media')
+	{
+		$result = sprintf(
+			'		{' . "\n" .
+			'			"type": "media",' . "\n" .
+			'			"enabled": 1,' . "\n" .
+			'			"playOnce": %d,' . "\n" .
+			'			"mediaName": "%s"' . "\n" .
+			'		}',
+			0, // Play Once
+			$entry->songFile
+			);
+	}
+	else if ($entry->type == 'pause')
+	{
+		$result = sprintf(
+			'		{' . "\n" .
+			'			"type": "pause",' . "\n" .
+			'			"enabled": 1,' . "\n" .
+			'			"playOnce": %d,' . "\n" .
+			'			"duration": %d' . "\n" .
+			'		}',
+			0, // Play Once
+			$entry->pause
+			);
+	}
+	else if ($entry->type == 'script')
+	{
+		$result = sprintf(
+			'		{' . "\n" .
+			'			"type": "script",' . "\n" .
+			'			"enabled": 1,' . "\n" .
+			'			"playOnce": %d,' . "\n" .
+			'			"scriptName": "%s",' . "\n" .
+			'			"blocking": %d' . "\n" .
+			'		}',
+			0, // Play Once
+			$entry->scriptName,
+			0  // Blocking
+			);
+	}
+	else if ($entry->type == 'volume')
+	{
+		$result = sprintf(
+			'		{' . "\n" .
+			'			"type": "volume",' . "\n" .
+			'			"enabled": 1,' . "\n" .
+			'			"playOnce": %d,' . "\n" .
+			'			"volume": %d' . "\n" .
+			'		}',
+			0, // Play Once
+			$entry->pause
+			);
+	}
+	else if ($entry->type == 'brightness')
+	{
+		$result = sprintf(
+			'		{' . "\n" .
+			'			"type": "brightness",' . "\n" .
+			'			"enabled": 1,' . "\n" .
+			'			"playOnce": %d,' . "\n" .
+			'			"brightness": %d' . "\n" .
+			'		}',
+			0, // Play Once
+			$entry->pause
+			);
+	}
+	else if ($entry->type == 'event')
+	{
+		$majorID = intval(preg_replace('/_.*/', '', $entry->eventID));
+		$minorID = intval(preg_replace('/.*_/', '', $entry->eventID));
+
+		$result = sprintf(
+			'		{' . "\n" .
+			'			"type": "event",' . "\n" .
+			'			"enabled": 1,' . "\n" .
+			'			"playOnce": %d,' . "\n" .
+			'			"majorID": %d,' . "\n" .
+			'			"minorID": %d,' . "\n" .
+			'			"blocking": %d' . "\n" .
+			'		}',
+			0, // Play Once
+			$majorID, $minorID,
+			0  // Blocking
+			);
+	}
+	else if ($entry->type == 'plugin')
+	{
+		$result = sprintf(
+			'		{' . "\n" .
+			'			"type": "plugin",' . "\n" .
+			'			"enabled": 1,' . "\n" .
+			'			"data": "%s"' . "\n" .
+			'		}',
+			0, // Play Once
+			$entry->pluginData
+			);
+	}
+	else
+	{
+		$result = json_encode($entry->entry);
+	}
+
+	return $result;
+}
+
+function GenerateJSONPlaylistSection($section, $list)
+{
+	if (!count($_SESSION[$list]))
+		return "";
+
+	$result = sprintf(',' . "\n" .
+		'	"' . $section . '": [' . "\n"
+		);
+
+	$i = 0;
+	$firstEntry = 1;
+	while ($i < count($_SESSION[$list]))
+	{
+		if ($firstEntry)
+		{
+			$firstEntry = 0;
+		}
+		else
+		{
+			$result .= sprintf(",\n");
+		}
+		$result .= GenerateJSONPlaylistEntry($_SESSION[$list][$i++]);
+	}
+
+	$result .= sprintf("\n" .
+		'	]'
+		);
+
+	return $result;
+}
+
+function GenerateJSONPlaylist($name)
+{
+	$result = "";
+
+	$result .= sprintf(
+		'{' . "\n" .
+		'	"name": "%s",' . "\n" .
+		'	"repeat": %d,' . "\n" .
+		'	"loopCount": %d',
+		preg_replace('/_/', ' ', $name),
+		0, // Repeat
+		0  // Loop Count
+		);
+
+	$result .= GenerateJSONPlaylistSection('leadIn', 'playListEntriesLeadIn');
+	$result .= GenerateJSONPlaylistSection('mainPlaylist', 'playListEntriesMainPlaylist');
+	$result .= GenerateJSONPlaylistSection('leadOut', 'playListEntriesLeadOut');
+
+	$result .= sprintf("\n}\n");
+
+	return $result;
+}
+
+function SavePlaylist()
+{
+	global $playlistDirectory;
+
+	$name = $_GET['name'];
+	check($name, "name", __FUNCTION__);
+
+	$json = GenerateJSONPlaylist($name);
+
+	// Rename any old CSV style playlist if it exists
+	if (file_exists($playlistDirectory . '/' . $name))
+		rename($playlistDirectory . '/' . $name, $playlistDirectory . '/' . $name . '-CSV');
+
+	$f = fopen($playlistDirectory . '/' . $name . ".json","w") or exit("Unable to open file! : " . $playlistDirectory . '/' . $name . ".json");
+	fprintf($f, $json);
+	fclose($f);
+
+	if(isset($_SESSION['currentPlaylist']) && $name != $_SESSION['currentPlaylist'])
+	{
+		 unlink($playlistDirectory . '/' . $_SESSION['currentPlaylist'] . ".json");
+	}
+	$_SESSION['currentPlaylist'] = $name;
+
+	$result = Array();
+	$result['status'] = 'Ok';
+	returnJSON($result);
 }
 
 function GetPluginSetting()
