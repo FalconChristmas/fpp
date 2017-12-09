@@ -23,6 +23,7 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 
