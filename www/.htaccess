@@ -1,0 +1,3 @@
+php_value max_input_vars 5000
+php_value upload_max_filesize 3G
+

@@ -18,7 +18,6 @@ schedule
 universes
 fppdLog.txt
 _notes
-www/.htaccess
 www/.htpasswd
 www/.config.php
 external/rasclock/modules.order
