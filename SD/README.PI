@@ -52,7 +52,7 @@ On the Pi, run the FPP installer:
 	wget -O ./FPP_Install.sh \
 		http://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
 	chmod 700 ./FPP_Install.sh
-	sudo ./FPP_Install.sh --build-omxplayer
+	sudo ./FPP_Install.sh
 
 This will install FPP and perform all required changes to the root filesystem
 and add the FPP user, install required packages, etc.
@@ -66,8 +66,6 @@ up.
 If you are installing to create a SD image zip, run the following commands:
 
 	su - fpp
-	# Update the kernel and firmware to the latest versions
-	sudo rpi-update
 	# Reboot to make sure things take
 	sudo shutdown -r now
 
@@ -89,7 +87,7 @@ the proper device name for your SD card in place of '/dev/sdg'):
 	      second partition created at the top of this document using fdisk.
 
 	VERSION=v1.x
-	BLOCKS=$(echo "(60 + 3000) / 4" | bc)
+	BLOCKS=$(echo "(50 + 3000) / 4" | bc)
 	sudo dd if=/dev/sdg bs=4M count=${BLOCKS} > FPP-${VERSION}-Pi.img
 	zip -9 FPP-$VERSION-Pi.zip FPP-${VERSION}-Pi.img
 	unzip -v FPP-$VERSION-Pi.zip

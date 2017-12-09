@@ -26,9 +26,9 @@ cleanCompiledBinaries
 echo "Switching git branch to $1"
 if [ "x${FPPDIR}" = "x/opt/fpp" ]
 then
-	cd ${FPPDIR} && $SUDO git checkout $1 && $SUDO git pull && $SUDO git submodule sync && $SUDO git submodule update --init
+	cd ${FPPDIR} && $SUDO git clean -df && $SUDO git checkout $1 && $SUDO git pull && $SUDO git submodule sync && $SUDO git submodule update --init
 else
-	cd ${FPPDIR} && sudo -u ${FPPUSER} git checkout $1 && sudo -u ${FPPUSER} git pull && sudo -u ${FPPUSER} git submodule sync && sudo git submodule update --init
+	cd ${FPPDIR} && sudo git clean -df && sudo -u ${FPPUSER} git checkout $1 && sudo -u ${FPPUSER} git pull && sudo -u ${FPPUSER} git submodule sync && sudo git submodule update --init
 fi
 
 # Compile binaries if not running a release branch

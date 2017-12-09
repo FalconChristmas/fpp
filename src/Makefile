@@ -45,6 +45,7 @@ OBJECTS_fppd = \
 	channeloutput/Linsn-RV9.o \
 	channeloutput/LOR.o \
 	channeloutput/Matrix.o \
+	channeloutput/MCP23017.o \
 	channeloutput/PanelMatrix.o \
 	channeloutput/PixelString.o \
 	channeloutput/RHL_DVI_E131.o \
