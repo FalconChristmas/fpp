@@ -28,6 +28,7 @@
 #include "settings.h"
 #include "playlist/Playlist.h"
 
+#include <sstream>
 #include <string.h>
 #include <unistd.h>
 
@@ -164,7 +165,12 @@ int MosquittoClient::Publish(const std::string &subTopic, const std::string &msg
 int MosquittoClient::Publish(const std::string &subTopic, const int value)
 {
 	std::string topic = m_baseTopic + "/" + subTopic;
-	std::string msg = std::to_string(value);
+
+	// FIXME, use to_string on Squeeze
+	//std::string msg = std::to_string(value);
+	std::stringstream ss;
+	ss << value;
+	std::string msg = ss.str();
 
 	return PublishRaw(topic, msg);
 }
