@@ -44,7 +44,7 @@ if ( $return_val != 0 )
 	$kernel_version = "Unknown";
 unset($output);
 
-$git_version = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ rev-parse --short HEAD", $output, $return_val);
+$git_version = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ rev-parse --short=7 HEAD", $output, $return_val);
 if ( $return_val != 0 )
   $git_version = "Unknown";
 unset($output);

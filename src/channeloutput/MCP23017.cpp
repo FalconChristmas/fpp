@@ -46,7 +46,7 @@
  *       "channelOutputs": [
  *               {
  *                       "type": "MCP23017",
- *                       "enabled": 0,
+ *                       "enabled": 1,
  *                       "deviceID": 32,
  *                       "startChannel": 1,
  *                       "channelCount": 16
