@@ -1118,6 +1118,24 @@ function SaveSchedule()
 		$_SESSION['ScheduleEntries'][$i]->playlist = 	$_POST['selPlaylist'][$i];
 		$_SESSION['ScheduleEntries'][$i]->startDay = intval($_POST['selDay'][$i]);
 
+		$dayMask = 0;
+		if (isset($_POST['maskSunday'][$i]))
+			$dayMask |= 0x4000;
+		if (isset($_POST['maskMonday'][$i]))
+			$dayMask |= 0x2000;
+		if (isset($_POST['maskTuesday'][$i]))
+			$dayMask |= 0x1000;
+		if (isset($_POST['maskWednesday'][$i]))
+			$dayMask |= 0x0800;
+		if (isset($_POST['maskThursday'][$i]))
+			$dayMask |= 0x0400;
+		if (isset($_POST['maskFriday'][$i]))
+			$dayMask |= 0x0200;
+		if (isset($_POST['maskSaturday'][$i]))
+			$dayMask |= 0x0100;
+
+		$_SESSION['ScheduleEntries'][$i]->startDay |= $dayMask;
+
 		$startTime = 		$entry = explode(":",$_POST['txtStartTime'][$i],3);
 		$_SESSION['ScheduleEntries'][$i]->startHour = $startTime[0];
 		$_SESSION['ScheduleEntries'][$i]->startMinute = $startTime[1];

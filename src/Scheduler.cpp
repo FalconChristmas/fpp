@@ -218,6 +218,62 @@ void Scheduler::LoadNextScheduleInfo(void)
 
 void Scheduler::SetScheduleEntrysWeeklyStartAndEndSeconds(ScheduleEntryStruct * entry)
 {
+	if (entry->dayIndex & INX_DAY_MASK)
+	{
+		int count = 0;
+		if (entry->dayIndex & INX_DAY_MASK_SUNDAY)
+		{
+			entry->weeklyStartSeconds[count] = GetWeeklySeconds(INX_SUN,entry->startHour,entry->startMinute,entry->startSecond);
+			entry->weeklyEndSeconds[count]   = GetWeeklySeconds(INX_SUN,entry->endHour,entry->endMinute,entry->endSecond);
+			count++;
+		}
+
+		if (entry->dayIndex & INX_DAY_MASK_MONDAY)
+		{
+			entry->weeklyStartSeconds[count] = GetWeeklySeconds(INX_MON,entry->startHour,entry->startMinute,entry->startSecond);
+			entry->weeklyEndSeconds[count]   = GetWeeklySeconds(INX_MON,entry->endHour,entry->endMinute,entry->endSecond);
+			count++;
+		}
+
+		if (entry->dayIndex & INX_DAY_MASK_TUESDAY)
+		{
+			entry->weeklyStartSeconds[count] = GetWeeklySeconds(INX_TUE,entry->startHour,entry->startMinute,entry->startSecond);
+			entry->weeklyEndSeconds[count]   = GetWeeklySeconds(INX_TUE,entry->endHour,entry->endMinute,entry->endSecond);
+			count++;
+		}
+
+		if (entry->dayIndex & INX_DAY_MASK_WEDNESDAY)
+		{
+			entry->weeklyStartSeconds[count] = GetWeeklySeconds(INX_WED,entry->startHour,entry->startMinute,entry->startSecond);
+			entry->weeklyEndSeconds[count]   = GetWeeklySeconds(INX_WED,entry->endHour,entry->endMinute,entry->endSecond);
+			count++;
+		}
+
+		if (entry->dayIndex & INX_DAY_MASK_THURSDAY)
+		{
+			entry->weeklyStartSeconds[count] = GetWeeklySeconds(INX_THU,entry->startHour,entry->startMinute,entry->startSecond);
+			entry->weeklyEndSeconds[count]   = GetWeeklySeconds(INX_THU,entry->endHour,entry->endMinute,entry->endSecond);
+			count++;
+		}
+
+		if (entry->dayIndex & INX_DAY_MASK_FRIDAY)
+		{
+			entry->weeklyStartSeconds[count] = GetWeeklySeconds(INX_FRI,entry->startHour,entry->startMinute,entry->startSecond);
+			entry->weeklyEndSeconds[count]   = GetWeeklySeconds(INX_FRI,entry->endHour,entry->endMinute,entry->endSecond);
+			count++;
+		}
+
+		if (entry->dayIndex & INX_DAY_MASK_SATURDAY)
+		{
+			entry->weeklyStartSeconds[count] = GetWeeklySeconds(INX_SAT,entry->startHour,entry->startMinute,entry->startSecond);
+			entry->weeklyEndSeconds[count]   = GetWeeklySeconds(INX_SAT,entry->endHour,entry->endMinute,entry->endSecond);
+			count++;
+		}
+
+		entry->weeklySecondCount = count;
+		return;
+	}
+
 	switch(entry->dayIndex)
   {
 		case INX_SUN:
@@ -681,6 +737,12 @@ void Scheduler::GetScheduleEntryStartText(int index,int weeklySecondIndex, char 
 
 void Scheduler::GetDayTextFromDayIndex(int index,char * txt)
 {
+	if (index & INX_DAY_MASK)
+	{
+		strcpy(txt,"Day Mask");
+		return;
+	}
+
 	switch(index)
 	{
 		case 0:
