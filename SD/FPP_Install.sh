@@ -803,8 +803,13 @@ sed -i -e "s/.*listen.group =.*/listen.group = fpp/" ${PHPDIR}/fpm/pool.d/www.co
 sed -i -e "s/.*listen.mode =.*/listen.mode = 0660/" ${PHPDIR}/fpm/pool.d/www.conf
 
 echo "FPP - Allowing short tags in PHP"
-sed -i -e "s/^short_open_tag.*/short_open_tag = On/" ${PHPDIR}/cli/php.ini
-sed -i -e "s/^short_open_tag.*/short_open_tag = On/" ${PHPDIR}/fpm/php.ini
+FILES="cli/php.ini fpm/php.ini"
+for FILE in ${FILES}
+do
+	sed -i -e "s/^short_open_tag.*/short_open_tag = On/" ${PHPDIR}/${FILE}
+	sed -i -e "s/^; max_input_vars.*/max_input_vars = 5000/" ${PHPDIR}/${FILE}
+	sed -i -e "s/upload_max_filesize.*/upload_max_filesize = 4G/" ${PHPDIR}/${FILE}
+done
 
 #######################################
 # echo "FPP - Composing FPP UI"
