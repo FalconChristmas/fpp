@@ -809,6 +809,7 @@ do
 	sed -i -e "s/^short_open_tag.*/short_open_tag = On/" ${PHPDIR}/${FILE}
 	sed -i -e "s/^; max_input_vars.*/max_input_vars = 5000/" ${PHPDIR}/${FILE}
 	sed -i -e "s/upload_max_filesize.*/upload_max_filesize = 4G/" ${PHPDIR}/${FILE}
+	sed -i -e "s/post_max_filesize.*/post_max_filesize = 4G/" ${PHPDIR}/${FILE}
 done
 
 #######################################
