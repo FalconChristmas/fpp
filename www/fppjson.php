@@ -640,7 +640,7 @@ function GetPlayListEntries()
 	check($playlist, "reload", __FUNCTION__);
 
 	if ($reload == 'true')
-		LoadPlaylistDetails($playlist);
+		LoadPlayListDetails($playlist);
 
 	$jsonStr = GenerateJSONPlaylist($playlist);
 
