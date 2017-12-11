@@ -853,6 +853,9 @@ function SavePlaylist()
 
 	$json = GenerateJSONPlaylist($name);
 
+	// Make sure the whole string is pretty
+	$json = json_encode(json_decode($json), JSON_PRETTY_PRINT);
+
 	// Rename any old CSV style playlist if it exists
 	if (file_exists($playlistDirectory . '/' . $name))
 		rename($playlistDirectory . '/' . $name, $playlistDirectory . '/' . $name . '-CSV');
