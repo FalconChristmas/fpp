@@ -1099,7 +1099,7 @@ function DeleteScheduleEntry()
 
 function AddScheduleEntry()
 {
-	$_SESSION['ScheduleEntries'][] = new ScheduleEntry(1,'',7,0,0,0,0,0,0,1,"2014-01-01","2099-12-31");
+	$_SESSION['ScheduleEntries'][] = new ScheduleEntry(1,'',7,0,0,0,24,0,0,1,"2014-01-01","2099-12-31");
 	EchoStatusXML('Success');
 }
 
