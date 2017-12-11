@@ -104,6 +104,7 @@ tr.rowScheduleDetails td {
 	padding: 1px 5px;
 }
 #tblSchedule {
+	width: 100%;
 	border: thin;
 	border-color: #333;
 	border-collapse: collapse;
@@ -114,9 +115,6 @@ a:active {
 a:visited {
 	color: blue;
 }
-.time {
-	width: 100%;
-}
 .center {
 	text-align: center;
 }
@@ -126,7 +124,7 @@ a:visited {
 <body onload="getSchedule('TRUE');">
 <div id="bodyWrapper">
   <?php	include 'menu.inc'; ?>
-  <div style="width:800px;margin:0 auto;"> <br />
+  <div style="width:1100px;margin:0 auto;"> <br />
     <fieldset style="padding: 10px; border: 2px solid #000;">
       <legend>Schedule</legend>
       <div style="overflow: hidden; padding: 10px;">
