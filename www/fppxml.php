@@ -2050,7 +2050,7 @@ function PlaylistEntryPositionChanged()
 			$_SESSION['playListEntries' . $oldSection][$oldIndex]->eventName,
 			$_SESSION['playListEntries' . $oldSection][$oldIndex]->eventID,
 			$_SESSION['playListEntries' . $oldSection][$oldIndex]->pluginData,
-			0, // FIXME PLAYLIST
+			$_SESSION['playListEntries' . $oldSection][$oldIndex]->entry,
 			$newIndex);
 
 		// Backup the entry
