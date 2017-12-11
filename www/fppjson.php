@@ -829,7 +829,7 @@ function GenerateJSONPlaylist($name)
 		'	"name": "%s",' . "\n" .
 		'	"repeat": %d,' . "\n" .
 		'	"loopCount": %d',
-		preg_replace('/_/', ' ', $name),
+		$name,
 		0, // Repeat
 		0  // Loop Count
 		);
