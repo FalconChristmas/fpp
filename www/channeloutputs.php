@@ -2676,13 +2676,8 @@ tr.rowUniverseDetails td
 		$LEDPanelType = "LEDscape/Octoscroller";
 		echo "<li><a href='#tab-BBB48String'>BBB</a></li>\n";
 	}
-
-	if (($settings['Platform'] == "BeagleBone Black") ||
-			($settings['Platform'] == "Raspberry Pi"))
-	{
-		echo "<li><a href='#tab-LEDPanels'>LED Panels</a></li>\n";
-	}
 ?>
+				<li><a href='#tab-LEDPanels'>LED Panels</a></li>
 				<li><a href="#tab-other">Other</a></li>
 			</ul>
 
@@ -2766,11 +2761,6 @@ tr.rowUniverseDetails td
 
 <!-- --------------------------------------------------------------------- -->
 
-<?
-	if (($settings['Platform'] == "BeagleBone Black") ||
-			($settings['Platform'] == "Raspberry Pi"))
-	{
-?>
 	<div id='tab-LEDPanels'>
 		<div id='divLEDPanels'>
 			<fieldset class="fs">
@@ -2853,6 +2843,25 @@ tr.rowUniverseDetails td
         }
     }
 ?>
+							</tr>
+							<tr>
+								<td><b>Connection:</b></td><td>
+									<select id='LEDPanelsConnection' onChange='LEDPannelsConnectionChanged();'>
+<?
+	if ($settings['Platform'] == "Raspberry Pi")
+	{
+?>
+										<option value='Hat-Cap-Cape'>Hat/Cap/Cape</option>
+<?
+	}
+?>
+										<option value='ColorLight5a75'>ColorLight</option>
+										<option value='LinsnRV9'>Linsn</option>
+									</select>
+								<td>&nbsp;</td>
+								<td id='LEDPanelsConnectionInterface'><b>Interface:</b></td><td>
+									<select id='LEDPanelsInterface' type='hidden'>
+									<? PopulateEthernetInterfaces(); ?>
 									</select>
 									</td>
 							</tr>
@@ -2891,9 +2900,6 @@ tr.rowUniverseDetails td
 			</fieldset>
 		</div>
 	</div>
-<?
-	}
-?>
 
 <!-- --------------------------------------------------------------------- -->
 
