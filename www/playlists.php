@@ -229,8 +229,6 @@ function PrintScriptOptions()
 	global $scriptDirectory;
 	echo "<select id=\"selScript\" size=\"1\">";
 
-	$mediaEntries = array_merge(scandir($musicDirectory),scandir($videoDirectory));
-	sort($mediaEntries);
 	foreach(scandir($scriptDirectory) as $scriptFile)
 	{
 		if($scriptFile != '.' && $scriptFile != '..')
