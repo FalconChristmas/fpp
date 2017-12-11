@@ -491,6 +491,7 @@ function LoadCSVPlayListDetails($file)
 			break;
 
 		$e = new \stdClass;
+		$e->enabled = 1;
 		$e->playOnce = 0;
 
 		switch($entry[0])
