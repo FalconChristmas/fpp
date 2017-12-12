@@ -274,7 +274,7 @@ function PrintScriptOptions()
   }
 
 ?>
-<div style="width:800px;margin:0 auto;"> <br/>
+<div style="width:1100px;margin:0 auto;"> <br/>
       <fieldset style="padding: 10px; border: 2px solid #000;">
     <legend>Playlists</legend>
     <!--    <div style="overflow: hidden; padding: 5px;">

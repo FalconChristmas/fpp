@@ -2744,7 +2744,14 @@ tr.rowUniverseDetails td
 							<tr>
 								<td><b>Connection:</b></td><td>
 									<select id='LEDPanelsConnection' onChange='LEDPannelsConnectionChanged();'>
+<?
+	if ($settings['Platform'] == "Raspberry Pi")
+	{
+?>
 										<option value='Hat-Cap-Cape'>Hat/Cap/Cape</option>
+<?
+	}
+?>
 										<option value='ColorLight5a75'>ColorLight</option>
 										<option value='LinsnRV9'>Linsn</option>
 									</select>
