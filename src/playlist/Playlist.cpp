@@ -615,6 +615,7 @@ void Playlist::SetIdle(void)
 	m_desc = "";
 	m_absolutePosition = 0;
 	m_sectionPosition = 0;
+	m_repeat = 0;
 
 	if (mqtt)
 	{
@@ -622,6 +623,7 @@ void Playlist::SetIdle(void)
 		mqtt->Publish("playlist/name/status", "");
 		mqtt->Publish("playlist/section/status", "");
 		mqtt->Publish("playlist/sectionPosition/status", 0);
+		mqtt->Publish("playlist/repeat/status", 0);
 	}
 }
 
@@ -630,8 +632,6 @@ void Playlist::SetIdle(void)
  */
 int Playlist::Cleanup(void)
 {
-	SetIdle();
-
 	while (m_leadIn.size())
 	{
 		PlaylistEntryBase *entry = m_leadIn.back();
@@ -653,6 +653,11 @@ int Playlist::Cleanup(void)
 		delete entry;
 	}
 
+	m_name = "";
+	m_desc = "";
+	m_absolutePosition = 0;
+	m_sectionPosition = 0;
+	m_repeat = 0;
 	m_loopCount = 0;
 	m_startTime = 0;
 	m_currentSectionStr = "New";
@@ -947,7 +952,7 @@ int Playlist::MQTTHandler(std::string topic, std::string msg)
 		topic.c_str(), msg.c_str());
 
 	if (topic == "playlist/name/set")
-		Play(msg.c_str());
+		Play(msg.c_str(), m_sectionPosition, m_repeat);
 
 	if (topic == "playlist/repeat/set")
 		SetRepeat(atoi(msg.c_str()));

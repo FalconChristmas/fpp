@@ -34,7 +34,6 @@
 #include "settings.h"
 #include "Sequence.h"
 #include "effects.h"
-#include "Playlist.h"
 #include "playlist/Playlist.h"
 #include "Plugins.h"
 #include "FPD.h"
@@ -266,8 +265,6 @@ extern PluginCallbackManager pluginCallbackManager;
 		{
 				if(FPPstatus==FPP_STATUS_PLAYLIST_PLAYING)
 				{
-//					oldPlaylist->m_playlistDetails.ForceStop = 1;
-//					oldPlaylist->StopPlaylistGracefully();
 					playlist->StopGracefully();
 					scheduler->ReLoadCurrentScheduleInfo();
 					sprintf(response,"%d,%d,Playlist Stopping Gracefully,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
@@ -281,8 +278,6 @@ extern PluginCallbackManager pluginCallbackManager;
 		{
 				if(FPPstatus==FPP_STATUS_PLAYLIST_PLAYING || FPPstatus==FPP_STATUS_STOPPING_GRACEFULLY)
 				{
-//					oldPlaylist->m_playlistDetails.ForceStop = 1;
-//					oldPlaylist->StopPlaylistNow();
 					playlist->StopNow();
 					scheduler->ReLoadCurrentScheduleInfo();
 					sprintf(response,"%d,%d,Playlist Stopping Now,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
@@ -535,7 +530,6 @@ extern PluginCallbackManager pluginCallbackManager;
 					break;
 				case FPP_STATUS_PLAYLIST_PLAYING:
 					sprintf(response,"%d,%d,Skipping to next playlist item\n",getFPPmode(),COMMAND_SUCCESS);
-//					oldPlaylist->m_playlistAction = PL_ACTION_NEXT_ITEM;
 					playlist->NextItem();
 					break;
 				case FPP_STATUS_STOPPING_GRACEFULLY:
@@ -552,7 +546,6 @@ extern PluginCallbackManager pluginCallbackManager;
 					break;
 				case FPP_STATUS_PLAYLIST_PLAYING:
 					sprintf(response,"%d,%d,Skipping to previous playlist item\n",getFPPmode(),COMMAND_SUCCESS);
-//					oldPlaylist->m_playlistAction = PL_ACTION_PREV_ITEM;
 					playlist->PrevItem();
 					break;
 				case FPP_STATUS_STOPPING_GRACEFULLY:

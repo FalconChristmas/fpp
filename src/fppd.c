@@ -283,7 +283,6 @@ void MainLoop(void)
 			{
 				if (prevFPPstatus == FPP_STATUS_IDLE)
 				{
-					//oldPlaylist->PlayListPlayingInit();
 					playlist->Start();
 					sleepms = 10000;
 				}
@@ -293,7 +292,6 @@ void MainLoop(void)
 				if ((FPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||
 					(FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY))
 				{
-					//oldPlaylist->PlayListPlayingProcess();
 					playlist->Process();
 				}
 			}
@@ -304,7 +302,6 @@ void MainLoop(void)
 				if ((prevFPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||
 					(prevFPPstatus == FPP_STATUS_STOPPING_GRACEFULLY))
 				{
-					//oldPlaylist->PlayListPlayingCleanup();
 					playlist->Cleanup();
 
 					if (FPPstatus != FPP_STATUS_IDLE)
