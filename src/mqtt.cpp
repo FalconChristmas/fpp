@@ -134,9 +134,11 @@ int MosquittoClient::Init(void)
  */
 int MosquittoClient::PublishRaw(const std::string &topic, const std::string &msg)
 {
+	LogDebug(VB_CONTROL, "Publishing message '%s' on topic '%s'\n", msg.c_str(), topic.c_str());
+
 	pthread_mutex_lock(&m_mosqLock);
 
-	int result = mosquitto_publish(m_mosq, NULL, topic.c_str(), msg.size(), msg.c_str(), 0, 0);
+	int result = mosquitto_publish(m_mosq, NULL, topic.c_str(), msg.size(), msg.c_str(), 1, 1);
 
 	pthread_mutex_unlock(&m_mosqLock);
 
