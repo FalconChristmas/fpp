@@ -33,7 +33,7 @@
 
 class PlaylistEntryMedia : public PlaylistEntryBase {
   public:
-  	PlaylistEntryMedia();
+	PlaylistEntryMedia(PlaylistEntryBase *parent = NULL);
 	~PlaylistEntryMedia();
 
 	int  Init(Json::Value &config);

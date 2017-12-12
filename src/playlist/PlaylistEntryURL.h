@@ -34,7 +34,7 @@
 
 class PlaylistEntryURL : public PlaylistEntryBase {
   public:
-  	PlaylistEntryURL();
+	PlaylistEntryURL(PlaylistEntryBase *parent = NULL);
 	~PlaylistEntryURL();
 
 	int  Init(Json::Value &config);

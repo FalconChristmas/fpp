@@ -43,7 +43,7 @@
 
 class PlaylistEntryBranch : public PlaylistEntryBase {
   public:
-  	PlaylistEntryBranch();
+	PlaylistEntryBranch(PlaylistEntryBase *parent = NULL);
 	~PlaylistEntryBranch();
 
 	int  Init(Json::Value &config);

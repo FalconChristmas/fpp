@@ -32,7 +32,7 @@
 
 class PlaylistEntryPause : public PlaylistEntryBase {
   public:
-  	PlaylistEntryPause();
+	PlaylistEntryPause(PlaylistEntryBase *parent = NULL);
 	~PlaylistEntryPause();
 
 	int  Init(Json::Value &config);

@@ -32,7 +32,7 @@
 
 class PlaylistEntryPixelOverlay : public PlaylistEntryBase {
   public:
-  	PlaylistEntryPixelOverlay();
+	PlaylistEntryPixelOverlay(PlaylistEntryBase *parent = NULL);
 	~PlaylistEntryPixelOverlay();
 
 	int  Init(Json::Value &config);

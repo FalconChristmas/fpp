@@ -31,7 +31,7 @@
 
 class PlaylistEntryPlaylist : public PlaylistEntryBase {
   public:
-  	PlaylistEntryPlaylist();
+	PlaylistEntryPlaylist(PlaylistEntryBase *parent = NULL);
 	~PlaylistEntryPlaylist();
 
 	int  Init(Json::Value &config);

@@ -32,8 +32,9 @@
 /*
  *
  */
-PlaylistEntryPixelOverlay::PlaylistEntryPixelOverlay()
-  : m_action("NoOp"),
+PlaylistEntryPixelOverlay::PlaylistEntryPixelOverlay(PlaylistEntryBase *parent)
+  : PlaylistEntryBase(parent),
+	m_action("NoOp"),
 	m_modelName("None Specified"),
 	m_startChannel(1),
 	m_endChannel(FPPD_MAX_CHANNELS),

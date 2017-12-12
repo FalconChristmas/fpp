@@ -33,8 +33,9 @@
 /*
  *
  */
-PlaylistEntryChannelTest::PlaylistEntryChannelTest()
-  : m_duration(0),
+PlaylistEntryChannelTest::PlaylistEntryChannelTest(PlaylistEntryBase *parent)
+  : PlaylistEntryBase(parent),
+	m_duration(0),
 	m_startTime(0),
 	m_endTime(0)
 {

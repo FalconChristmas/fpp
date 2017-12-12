@@ -32,7 +32,7 @@
 
 class PlaylistEntrySequence : public PlaylistEntryBase {
   public:
-  	PlaylistEntrySequence();
+	PlaylistEntrySequence(PlaylistEntryBase *parent = NULL);
 	~PlaylistEntrySequence();
 
 	int  Init(Json::Value &config);

@@ -39,8 +39,9 @@
 /*
  *
  */
-PlaylistEntryScript::PlaylistEntryScript()
-  : m_blocking(0)
+PlaylistEntryScript::PlaylistEntryScript(PlaylistEntryBase *parent)
+  : PlaylistEntryBase(parent),
+	m_blocking(0)
 {
     LogDebug(VB_PLAYLIST, "PlaylistEntryScript::PlaylistEntryScript()\n");
 

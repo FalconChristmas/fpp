@@ -32,7 +32,7 @@
 
 class PlaylistEntryBrightness : public PlaylistEntryBase {
   public:
-  	PlaylistEntryBrightness();
+	PlaylistEntryBrightness(PlaylistEntryBase *parent = NULL);
 	~PlaylistEntryBrightness();
 
 	int  Init(Json::Value &config);

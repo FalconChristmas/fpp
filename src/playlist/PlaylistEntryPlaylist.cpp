@@ -28,8 +28,9 @@
 //#include "Player.h"
 #include "PlaylistEntryPlaylist.h"
 
-PlaylistEntryPlaylist::PlaylistEntryPlaylist()
-  : m_playlist(NULL)
+PlaylistEntryPlaylist::PlaylistEntryPlaylist(PlaylistEntryBase *parent)
+  : PlaylistEntryBase(parent),
+	m_playlist(NULL)
 {
 	m_type = "playlist";
 }

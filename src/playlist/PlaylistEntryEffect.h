@@ -32,7 +32,7 @@
 
 class PlaylistEntryEffect : public PlaylistEntryBase {
   public:
-  	PlaylistEntryEffect();
+	PlaylistEntryEffect(PlaylistEntryBase *parent = NULL);
 	~PlaylistEntryEffect();
 
 	int  Init(Json::Value &config);

@@ -32,7 +32,7 @@
 
 class PlaylistEntryVolume : public PlaylistEntryBase {
   public:
-  	PlaylistEntryVolume();
+	PlaylistEntryVolume(PlaylistEntryBase *parent = NULL);
 	~PlaylistEntryVolume();
 
 	int  Init(Json::Value &config);

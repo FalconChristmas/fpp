@@ -33,14 +33,15 @@ int PlaylistEntryBase::m_playlistEntryCount = 0;
 /*
  *
  */
-PlaylistEntryBase::PlaylistEntryBase()
+PlaylistEntryBase::PlaylistEntryBase(PlaylistEntryBase *parent)
   : m_enabled(1),
 	m_isStarted(0),
 	m_isPlaying(0),
 	m_isFinished(0),
 	m_playOnce(0),
 	m_playCount(0),
-	m_nextItem(-1)
+	m_nextItem(-1),
+	m_parent(parent)
 {
 	m_type = "base";
 	m_playlistEntryID = m_playlistEntryCount++;

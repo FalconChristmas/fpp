@@ -32,8 +32,9 @@
 /*
  *
  */
-PlaylistEntryEvent::PlaylistEntryEvent()
-  : m_majorID(0),
+PlaylistEntryEvent::PlaylistEntryEvent(PlaylistEntryBase *parent)
+  : PlaylistEntryBase(parent),
+	m_majorID(0),
 	m_minorID(0),
 	m_blocking(0)
 {

@@ -34,7 +34,7 @@
 
 class PlaylistEntryBoth : public PlaylistEntryBase {
   public:
-  	PlaylistEntryBoth();
+	PlaylistEntryBoth(PlaylistEntryBase *parent = NULL);
 	~PlaylistEntryBoth();
 
 	int  Init(Json::Value &config);

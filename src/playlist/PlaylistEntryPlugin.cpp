@@ -25,7 +25,8 @@
 
 #include "PlaylistEntryPlugin.h"
 
-PlaylistEntryPlugin::PlaylistEntryPlugin()
+PlaylistEntryPlugin::PlaylistEntryPlugin(PlaylistEntryBase *parent)
+  : PlaylistEntryBase(parent)
 {
 }
 

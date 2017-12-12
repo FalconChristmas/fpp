@@ -28,8 +28,9 @@
 
 #include "PlaylistEntryBranch.h"
 
-PlaylistEntryBranch::PlaylistEntryBranch()
-  : m_branchType(PE_BRANCH_TYPE_UNDEFINED),
+PlaylistEntryBranch::PlaylistEntryBranch(PlaylistEntryBase *parent)
+  : PlaylistEntryBase(parent),
+	m_branchType(PE_BRANCH_TYPE_UNDEFINED),
 	m_comparisonMode(PE_BRANCH_COMP_MODE_UNDEFINED),
 	m_sHour(0),
 	m_sMinute(0),

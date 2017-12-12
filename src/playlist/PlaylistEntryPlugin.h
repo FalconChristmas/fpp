@@ -32,7 +32,7 @@
 
 class PlaylistEntryPlugin : public PlaylistEntryBase {
   public:
-  	PlaylistEntryPlugin();
+	PlaylistEntryPlugin(PlaylistEntryBase *parent = NULL);
 	~PlaylistEntryPlugin();
 
   private:

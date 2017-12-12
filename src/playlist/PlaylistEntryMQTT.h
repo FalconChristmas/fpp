@@ -32,7 +32,7 @@
 
 class PlaylistEntryMQTT : public PlaylistEntryBase {
   public:
-  	PlaylistEntryMQTT();
+	PlaylistEntryMQTT(PlaylistEntryBase *parent = NULL);
 	~PlaylistEntryMQTT();
 
 	int  Init(Json::Value &config);

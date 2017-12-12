@@ -30,8 +30,9 @@
 /*
  *
  */
-PlaylistEntryPause::PlaylistEntryPause()
-  : m_duration(0),
+PlaylistEntryPause::PlaylistEntryPause(PlaylistEntryBase *parent)
+  : PlaylistEntryBase(parent),
+	m_duration(0),
 	m_startTime(0),
 	m_endTime(0)
 {

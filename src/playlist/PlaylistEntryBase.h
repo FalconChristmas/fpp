@@ -34,7 +34,7 @@
 
 class PlaylistEntryBase {
   public:
-  	PlaylistEntryBase();
+	PlaylistEntryBase(PlaylistEntryBase *parent = NULL);
 	~PlaylistEntryBase();
 
 	virtual int  Init(Json::Value &config);
@@ -67,7 +67,7 @@ class PlaylistEntryBase {
 	int          CanPlay(void);
 	void         FinishPlay(void);
 
-  	std::string  m_type;
+	std::string  m_type;
 	std::string  m_note;
 	int          m_enabled;
 	int          m_isStarted;
@@ -79,6 +79,8 @@ class PlaylistEntryBase {
 	int          m_nextItem;
 
 	int          m_playlistEntryID;
+
+	PlaylistEntryBase *m_parent;
 };
 
 #endif

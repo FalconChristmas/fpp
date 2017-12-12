@@ -32,7 +32,7 @@
 
 class PlaylistEntryEvent : public PlaylistEntryBase {
   public:
-  	PlaylistEntryEvent();
+	PlaylistEntryEvent(PlaylistEntryBase *parent = NULL);
 	~PlaylistEntryEvent();
 
 	int  Init(Json::Value &config);

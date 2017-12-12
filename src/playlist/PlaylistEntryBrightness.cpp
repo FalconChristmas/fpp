@@ -32,8 +32,9 @@
 /*
  *
  */
-PlaylistEntryBrightness::PlaylistEntryBrightness()
-  : m_brightness(0)
+PlaylistEntryBrightness::PlaylistEntryBrightness(PlaylistEntryBase *parent)
+  : PlaylistEntryBase(parent),
+	m_brightness(0)
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntryBrightness::PlaylistEntryBrightness()\n");
 

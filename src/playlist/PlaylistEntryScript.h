@@ -32,7 +32,7 @@
 
 class PlaylistEntryScript : public PlaylistEntryBase {
   public:
-  	PlaylistEntryScript();
+	PlaylistEntryScript(PlaylistEntryBase *parent = NULL);
 	~PlaylistEntryScript();
 
 	int  Init(Json::Value &config);
@@ -49,7 +49,7 @@ class PlaylistEntryScript : public PlaylistEntryBase {
 	std::string GetScriptName(void) { return m_scriptFilename; }
 
   private:
-  	void RunScript(void);
+	void RunScript(void);
 
 	std::string        m_scriptFilename;
 	int                m_blocking;

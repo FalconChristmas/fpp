@@ -24,12 +24,14 @@
  */
 
 #include "log.h"
+#include "mqtt.h"
 //#include "Player.h"
 #include "Sequence.h"
 #include "PlaylistEntrySequence.h"
 
-PlaylistEntrySequence::PlaylistEntrySequence()
-  : m_duration(0),
+PlaylistEntrySequence::PlaylistEntrySequence(PlaylistEntryBase *parent)
+  : PlaylistEntryBase(parent),
+	m_duration(0),
 	m_sequenceID(0),
 	m_priority(0),
 	m_startSeconds(0)
@@ -88,6 +90,9 @@ int PlaylistEntrySequence::StartPlaying(void)
 
 	LogDebug(VB_PLAYLIST, "Started Sequence, ID: %d\n", m_sequenceID);
 
+	if (mqtt)
+		mqtt->Publish("playlist/sequence/status", m_sequenceName);
+
 	return PlaylistEntryBase::StartPlaying();
 }
 
@@ -101,7 +106,12 @@ int PlaylistEntrySequence::Process(void)
 //		FinishPlay();
 
 	if (!sequence->IsSequenceRunning())
+	{
 		FinishPlay();
+
+		if (mqtt)
+			mqtt->Publish("playlist/sequence/status", "");
+	}
 
 	return PlaylistEntryBase::Process();
 }
@@ -118,6 +128,9 @@ int PlaylistEntrySequence::Stop(void)
 //		return 0;
 
 	sequence->CloseSequenceFile();
+
+	if (mqtt)
+		mqtt->Publish("playlist/sequence/status", "");
 
 	return PlaylistEntryBase::Stop();
 }

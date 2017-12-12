@@ -29,6 +29,7 @@
 #include "controlsend.h"
 #include "log.h"
 #include "mpg123.h"
+#include "mqtt.h"
 #include "ogg123.h"
 #include "omxplayer.h"
 #include "PlaylistEntryMedia.h"
@@ -37,8 +38,9 @@
 /*
  *
  */
-PlaylistEntryMedia::PlaylistEntryMedia()
-  : m_status(0),
+PlaylistEntryMedia::PlaylistEntryMedia(PlaylistEntryBase *parent)
+  : PlaylistEntryBase(parent),
+	m_status(0),
 	m_secondsElapsed(0),
 	m_subSecondsElapsed(0),
 	m_secondsRemaining(0),
@@ -98,6 +100,9 @@ int PlaylistEntryMedia::StartPlaying(void)
 	if (!OpenMediaOutput())
 		return 0;
 
+	if (mqtt)
+		mqtt->Publish("playlist/media/status", m_mediaFilename);
+
 	return PlaylistEntryBase::StartPlaying();
 }
 
@@ -133,6 +138,9 @@ int PlaylistEntryMedia::Stop(void)
 
 	CloseMediaOutput();
 
+	if (mqtt)
+		mqtt->Publish("playlist/media/status", "");
+
 	return PlaylistEntryBase::Stop();
 }
 
@@ -160,6 +168,9 @@ int PlaylistEntryMedia::HandleSigChild(pid_t pid)
 	FinishPlay();
 
 	pthread_mutex_unlock(&m_mediaOutputLock);
+
+	if (mqtt)
+		mqtt->Publish("playlist/media/status", "");
 
 	return 1;
 }

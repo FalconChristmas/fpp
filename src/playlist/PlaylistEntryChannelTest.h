@@ -32,7 +32,7 @@
 
 class PlaylistEntryChannelTest : public PlaylistEntryBase {
   public:
-  	PlaylistEntryChannelTest();
+	PlaylistEntryChannelTest(PlaylistEntryBase *parent = NULL);
 	~PlaylistEntryChannelTest();
 
 	int  Init(Json::Value &config);
