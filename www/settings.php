@@ -74,7 +74,7 @@ else
 unset($output);
 
 $backgroundColors = Array();
-$backgroundColors['Default']   = '';
+$backgroundColors['No Border']   = '';
 $backgroundColors['Red']       = "ff0000";
 $backgroundColors['Green']     = "008000";
 $backgroundColors['Blue']      = "0000ff";
@@ -398,7 +398,7 @@ function ToggleTetherMode()
       <td><? PrintSettingCheckbox("Disable IP announcement during boot", "disableIPAnnouncement", 0, 0, "1", "0"); ?></td>
     </tr>
     <tr>
-      <td>UI Background Color:</td>
+      <td>UI Border Color:</td>
       <td><? PrintSettingSelect("UI Background Color", "backgroundColor", 0, 0, isset($settings['backgroundColor']) ? $settings['backgroundColor'] : "", $backgroundColors, "", "reloadPage"); ?></td>
     </tr>
     <tr>
