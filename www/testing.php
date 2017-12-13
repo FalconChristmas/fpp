@@ -620,7 +620,7 @@ $(document).ready(function(){
 </script>
 <div id="bodyWrapper">
   <?php include 'menu.inc'; ?>
-  <div>
+  <div id='channelTester'>
 		<br>
 		<div class='title'>Display Testing</div>
 		<div id="tabs">
