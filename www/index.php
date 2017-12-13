@@ -17,7 +17,6 @@ include 'common/menuHead.inc';
 					var items = $('#tblStatusPlaylistEntries tbody tr');
 					PlayEntrySelected = parseInt($(this).attr('id').substr(11)) - 1;
 					PlaySectionSelected = $(this).parent().attr('id').substr(11);
-alert('id: ' + $(this).attr('id') + ', id#: ' + parseInt($(this).attr('id').substr(11)) + ', PES: ' + PlayEntrySelected);
 		});
 	});
 </script>
@@ -253,5 +252,6 @@ alert('id: ' + $(this).attr('id') + ', id#: ' + parseInt($(this).attr('id').subs
   </fieldset>
 </div>
 <?php	include 'common/footer.inc'; ?>
+</div>
 </body>
 </html>
