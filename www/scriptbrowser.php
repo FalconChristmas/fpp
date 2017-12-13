@@ -1,8 +1,8 @@
 <html>
 <head>
 <?php
-include 'common/menuHead.inc';
 require_once("config.php");
+include 'common/menuHead.inc';
 
 function normalize_version($version)
 {
@@ -99,8 +99,8 @@ foreach ($lines as $line)
 			the script from the Scripts tab in the <a href='uploadfile.php'>File Manager</a> screen.
 		</fieldset>
 	</div>
+	<?php include 'common/footer.inc'; ?>
 </div>
-<?php include 'common/footer.inc'; ?>
 
 </body>
 </html>

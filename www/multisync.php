@@ -1,9 +1,9 @@
 <html>
 <head>
 <?php
-include 'common/menuHead.inc';
 require_once("config.php");
 require_once("common.php");
+include 'common/menuHead.inc';
 ?>
 <title><? echo $pageTitle; ?></title>
 <script>
@@ -286,8 +286,8 @@ if ($settings['fppMode'] == 'master')
 ?>
 		</fieldset>
 	</div>
+	<?php include 'common/footer.inc'; ?>
 </div>
-<?php include 'common/footer.inc'; ?>
 
 <script>
 

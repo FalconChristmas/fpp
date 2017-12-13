@@ -35,7 +35,7 @@ unset($output);
       <pre><? echo $git_log; ?></pre>
     </fieldset>
   </div>
-</div>
   <?php include 'common/footer.inc'; ?>
+</div>
 </body>
 </html>

@@ -257,7 +257,7 @@ a:visited {
       </pre>
     </div>
   </div>
-</div>
   <?php include 'common/footer.inc'; ?>
+</div>
 </body>
 </html>
