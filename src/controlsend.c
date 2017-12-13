@@ -27,6 +27,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <netinet/in.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -51,6 +52,7 @@ struct sockaddr_in  cSrcAddr;
 struct sockaddr_in  cDestAddr[MAX_SYNC_REMOTES];
 struct sockaddr_in  cDestAddrCSV[MAX_SYNC_REMOTES];
 
+pthread_mutex_t      syncSocketLock;
 
 /*
  * Send a Control Packet
@@ -61,11 +63,15 @@ void SendControlPacket(void *outBuf, int len) {
 		HexDump("Sending Control packet with contents:", outBuf, len);
 	}
 
+	pthread_mutex_lock(&syncSocketLock);
+
 	int i = 0;
 	for (i = 0; i < remoteCount; i++) {
 		if (sendto(ctrlSendSock, outBuf, len, 0, (struct sockaddr*)&cDestAddr[i], sizeof(struct sockaddr_in)) < 0)
 			LogErr(VB_SYNC, "Error: Unable to send packet: %s\n", strerror(errno));
 	}
+
+	pthread_mutex_unlock(&syncSocketLock);
 }
 
 /*
@@ -79,11 +85,15 @@ void SendControlCSVPacket(void *outBuf, int len) {
 		return;
 	}
 
+	pthread_mutex_lock(&syncSocketLock);
+
 	int i = 0;
 	for (i = 0; i < remoteCSVCount; i++) {
 		if (sendto(ctrlSendCSVSock, outBuf, len, 0, (struct sockaddr*)&cDestAddrCSV[i], sizeof(struct sockaddr_in)) < 0)
 			LogErr(VB_SYNC, "Error: Unable to send packet: %s\n", strerror(errno));
 	}
+
+	pthread_mutex_unlock(&syncSocketLock);
 }
 
 /*
@@ -215,6 +225,8 @@ int InitSyncMaster(void) {
 
 	free(tmpRemotes);
 
+	pthread_mutex_init(&syncSocketLock, NULL);
+
 	InitSyncMasterCSV();
 
 	return 1;
@@ -225,6 +237,8 @@ int InitSyncMaster(void) {
  */
 void ShutdownSync(void) {
 	LogDebug(VB_SYNC, "ShutdownMSSync()\n");
+
+	pthread_mutex_lock(&syncSocketLock);
 
 	if (ctrlSendSock >= 0)
 	{
@@ -237,6 +251,10 @@ void ShutdownSync(void) {
 		close(ctrlSendCSVSock);
 		ctrlSendCSVSock = -1;
 	}
+
+	pthread_mutex_unlock(&syncSocketLock);
+
+	pthread_mutex_destroy(&syncSocketLock);
 }
 
 /*
