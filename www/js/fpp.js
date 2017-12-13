@@ -542,6 +542,11 @@ function RemovePlaylistEntry()	{
 			xmlhttp.send();
 		}
 
+		function reloadPage()
+		{
+			location.reload(true);
+		}
+
 		function updatePlugin(pluginName)
 		{
 			var xmlhttp=new XMLHttpRequest();

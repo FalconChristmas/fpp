@@ -144,6 +144,7 @@ if ( !isset($_GET['nopage']) ): ?>
 
 </div>
 <?php	include 'common/footer.inc'; ?>
+</div>
 </body>
 </html>
 <?php endif; ?>

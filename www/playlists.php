@@ -408,7 +408,7 @@ function PrintScriptOptions()
     <span style="font-size:12px; font-family:Arial; margin-left:15px;">(Drag entry to reposition) </span>
   </fieldset>
     </div>
+  <?php include 'common/footer.inc'; ?>
 </div>
-<?php include 'common/footer.inc'; ?>
 </body>
 </html>
