@@ -354,7 +354,7 @@ function VirtualMatrixLayoutChanged(item) {
 function VirtualMatrixColorOrderSelect(colorOrder) {
 	var result = "";
 
-	result += "<br>Color Order: <select class='colorOrder'>";
+	result += " Color Order: <select class='colorOrder'>";
 	result += "<option value='RGB'";
 
 	if (colorOrder == 'RGB')
@@ -470,7 +470,7 @@ function GenericSerialConfig(config) {
 		} else if (item[0] == "speed") {
 			result += GenericSerialSpeedSelect(item[1]);
 		} else if (item[0] == "header") {
-			result += "<br>Header: <input type='text' size=10 maxlength=20 class='serialheader' value='" + item[1] + "'>";
+			result += " Header: <input type='text' size=10 maxlength=20 class='serialheader' value='" + item[1] + "'>";
 		} else if (item[0] == "footer") {
 			result += " Footer: <input type='text' size=10 maxlength=20 class='serialfooter' value='" + item[1] + "'>";
 		}
@@ -3057,8 +3057,6 @@ if ($settings['Platform'] == "BeagleBone Black")
 </div>
 </div>
 
-	</div>
-
 <div id='debugOutput'>
 </div>
 
@@ -3068,5 +3066,6 @@ if ($settings['Platform'] == "BeagleBone Black")
 </div>
 
 	<?php	include 'common/footer.inc'; ?>
+</div>
 </body>
 </html>
