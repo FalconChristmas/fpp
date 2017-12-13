@@ -412,7 +412,7 @@ void Sequence::ReadSequenceData(void) {
 		return;
 	}
 
-	if (m_seqPaused)
+	if ((IsSequenceRunning()) && (m_seqPaused))
 	{
 		if (m_seqSingleStep)
 		{
