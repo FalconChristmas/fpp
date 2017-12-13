@@ -2,8 +2,8 @@
 <html>
 <head>
 <?php
-include 'common/menuHead.inc';
 require_once('config.php');
+include 'common/menuHead.inc';
 ?>
 <script>
     $(function() {
@@ -114,5 +114,6 @@ require_once('config.php');
    </fieldset>
 </div>
 <?php include 'common/footer.inc'; ?>
+</div>
 </body>
 </html>

@@ -87,7 +87,7 @@ a:visited {
     </div>
     </fieldset>
   </div>
-</div>
   <?php include 'common/footer.inc'; ?>
+</div>
 </body>
 </html>

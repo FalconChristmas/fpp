@@ -1,8 +1,8 @@
 <html>
 <head>
 <?php
-include 'common/menuHead.inc';
 require_once("config.php");
+include 'common/menuHead.inc';
 ?>
 <title><? echo $pageTitle; ?></title>
 <script>
@@ -146,7 +146,7 @@ Cron jobs allow you to automate certain commands or scripts on your Pi to comple
 </table>
 </fieldset>
 </div>
-</div>
 <?php include 'common/footer.inc'; ?>
+</div>
 </body>
 </html>

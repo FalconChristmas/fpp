@@ -203,9 +203,9 @@ $(document).tooltip();
 				</font>
 			</fieldset>
 		</div>
-	</div>
 
-	<?php	include 'common/footer.inc'; ?>
+		<?php	include 'common/footer.inc'; ?>
+	</div>
 
 <script language="Javascript">
 	$('#channelMemMaps').tooltip({
