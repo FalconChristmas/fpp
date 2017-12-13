@@ -28,12 +28,14 @@
 	</script>
 
 <?
-	if (isset($settings['backgroundColor']))
+	if (isset($settings['backgroundColor']) && $settings['backgroundColor'] != "")
 	{
 ?>
 		<style>
 			#bodyWrapper {
-				background-color: #<? echo $settings['backgroundColor'] ?>;
+				border: 50px;
+				border-style: solid;
+				border-color: #<? echo $settings['backgroundColor'] ?>;
 			}
 		</style>
 <?
