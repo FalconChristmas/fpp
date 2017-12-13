@@ -242,9 +242,6 @@ void ProcessCommandPacket(ControlPkt *pkt, int len) {
  *
  */
 void ProcessEventPacket(ControlPkt *pkt, int len) {
-	if (getFPPmode() != REMOTE_MODE)
-		return;
-
 	LogDebug(VB_CONTROL, "ProcessEventPacket()\n");
 
 	if (pkt->extraDataLen < sizeof(EventPkt)) {
@@ -263,9 +260,6 @@ void ProcessEventPacket(ControlPkt *pkt, int len) {
  *
  */
 void ProcessSyncPacket(ControlPkt *pkt, int len) {
-	if (getFPPmode() != REMOTE_MODE)
-		return;
-
 	LogDebug(VB_CONTROL, "ProcessSyncPacket()\n");
 
 	if (pkt->extraDataLen < sizeof(SyncPkt)) {
@@ -395,10 +389,12 @@ void ProcessControlPacket(void) {
 	switch (pkt->pktType) {
 		case CTRL_PKT_CMD:	ProcessCommandPacket(pkt, len);
 							break;
-		case CTRL_PKT_SYNC: ProcessSyncPacket(pkt, len);
+		case CTRL_PKT_SYNC: if (getFPPmode() == REMOTE_MODE)
+								ProcessSyncPacket(pkt, len);
 							break;
 		case CTRL_PKT_EVENT:
-							ProcessEventPacket(pkt, len);
+							if (getFPPmode() == REMOTE_MODE)
+								ProcessEventPacket(pkt, len);
 							break;
 		case CTRL_PKT_BLANK:
 							if (getFPPmode() == REMOTE_MODE)
