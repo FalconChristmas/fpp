@@ -144,7 +144,7 @@ a:visited {
       </form>
     </fieldset>
   </div>
-</div>
   <?php	include 'common/footer.inc'; ?>
+</div>
 </body>
 </html>

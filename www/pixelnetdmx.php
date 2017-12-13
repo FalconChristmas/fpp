@@ -1,4 +1,5 @@
 <?php
+require_once('config.php');
 require_once('universeentry.php');
 $a = session_id();
 

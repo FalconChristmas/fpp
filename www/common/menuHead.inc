@@ -26,3 +26,16 @@
 		});
 	});
 	</script>
+
+<?
+	if (isset($settings['backgroundColor']))
+	{
+?>
+		<style>
+			#bodyWrapper {
+				background-color: #<? echo $settings['backgroundColor'] ?>;
+			}
+		</style>
+<?
+	}
+?>

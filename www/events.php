@@ -230,7 +230,8 @@ function SaveControlChannels()
 			</div>
 		</div>
 	</fieldset>
+  </div>
+  <?php	include 'common/footer.inc'; ?>
 </div>
-<?php	include 'common/footer.inc'; ?>
 </body>
 </html>

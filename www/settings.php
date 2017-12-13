@@ -72,8 +72,23 @@ else
 	}
 }
 unset($output);
-    
-    
+
+$backgroundColors = Array();
+$backgroundColors['Default']   = '';
+$backgroundColors['Red']       = "ff0000";
+$backgroundColors['Green']     = "008000";
+$backgroundColors['Blue']      = "0000ff";
+$backgroundColors['Aqua']      = "00ffff";
+$backgroundColors['Black']     = "000000";
+$backgroundColors['Gray']      = "808080";
+$backgroundColors['Lime']      = "00FF00";
+$backgroundColors['Navy']      = "000080";
+$backgroundColors['Olive']     = "808000";
+$backgroundColors['Purple']    = "800080";
+$backgroundColors['Silver']    = "C0C0C0";
+$backgroundColors['Teal']      = "008080";
+$backgroundColors['White']     = "FFFFFF";
+
 function PrintStorageDeviceSelect()
 {
 	global $SUDO;
@@ -381,6 +396,10 @@ function ToggleTetherMode()
     <tr>
       <td>Disable IP announcement during boot:</td>
       <td><? PrintSettingCheckbox("Disable IP announcement during boot", "disableIPAnnouncement", 0, 0, "1", "0"); ?></td>
+    </tr>
+    <tr>
+      <td>UI Background Color:</td>
+      <td><? PrintSettingSelect("UI Background Color", "backgroundColor", 0, 0, isset($settings['backgroundColor']) ? $settings['backgroundColor'] : "", $backgroundColors, "", "reloadPage"); ?></td>
     </tr>
     <tr>
       <td>External Storage Device:</td>
