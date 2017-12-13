@@ -610,9 +610,13 @@ fieldset
 	height: 60px;
 }
 
-#fileManager, #channelOutputManager, .fppTabs {
-	min-width: 768px;
-	width: 860px;
+.channelOutputTable {
+	width: 100%;
+}
+
+#fileManager, #channelOutputManager, #channelTester, .fppTabs {
+	min-width: 1068px;
+	width: 1160px;
 	margin-left: auto;
 	margin-right: auto;
 }
