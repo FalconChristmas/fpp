@@ -462,8 +462,27 @@ void Scheduler::PlayListStopCheck(void)
     // patch to handle the race condition if we miss this check on the exact
     // second the schedule should be ending.  The odds of us missing 2 in a row
     // are much lower, so this will suffice for v1.0.
-    if((nowWeeklySeconds == m_currentSchedulePlaylist.endWeeklySeconds) ||
-       (nowWeeklySeconds == (m_currentSchedulePlaylist.endWeeklySeconds + 1)))
+	int stopPlaying = 0;
+
+	if (m_currentSchedulePlaylist.startWeeklySeconds <= m_currentSchedulePlaylist.endWeeklySeconds)
+	{
+		if (nowWeeklySeconds >= m_currentSchedulePlaylist.endWeeklySeconds)
+			stopPlaying = 1;
+	}
+	else if ((m_currentSchedulePlaylist.endWeeklySeconds < (24 * 60 * 60)) &&
+			 (m_currentSchedulePlaylist.startWeeklySeconds > (6 * 24 * 60 * 60)) &&
+			 (nowWeeklySeconds >= m_currentSchedulePlaylist.endWeeklySeconds) &&
+			 (nowWeeklySeconds < m_currentSchedulePlaylist.startWeeklySeconds))
+	{
+		stopPlaying = 1;
+	}
+	else if ((nowWeeklySeconds == m_currentSchedulePlaylist.endWeeklySeconds) ||
+			 (nowWeeklySeconds == (m_currentSchedulePlaylist.endWeeklySeconds + 1)))
+	{
+		stopPlaying = 1;
+	}
+
+	if (stopPlaying)
     {
       LogInfo(VB_SCHEDULE, "Schedule Entry: %02d:%02d:%02d - %02d:%02d:%02d - Stopping Playlist Gracefully\n",
         m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].startHour,
