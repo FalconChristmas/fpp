@@ -312,6 +312,12 @@ SetupFPPNetworkConfig () {
 		# in here just in case for now.
 		#echo "FPP - Disabling power management on wlan0"
 		#iwconfig wlan0 power off > /dev/null 2>&1
+	else
+		if [ "x${SSID}" = "x" ]
+		then
+			echo "FPP - Empty SSID, taking wlan0 down"
+			ifdown wlan0 > /dev/null 2>&1
+		fi
 	fi
 
 	ENABLEROUTING=$(getSetting EnableRouting)
