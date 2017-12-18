@@ -296,6 +296,8 @@ void omxplayerOutput::PollPlayerInfo(void)
 	if(select(FD_SETSIZE, &m_readFDSet, NULL, NULL, &omx_timeout) < 0)
 	{
 	 	LogErr(VB_MEDIAOUT, "Error Select:%d\n", errno);
+
+		Stop(); // Kill the child if we can't read from the pipe
 	 	return; 
 	}
 	if(FD_ISSET(m_childPipe[0], &m_readFDSet))
