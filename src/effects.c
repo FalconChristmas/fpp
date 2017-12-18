@@ -121,7 +121,7 @@ int GetNextEffectID(void)
 /*
  * Check to see if any effects are running
  */
-inline int IsEffectRunning(void)
+int IsEffectRunning(void)
 {
 	int result = 0;
 
