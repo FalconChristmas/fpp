@@ -130,11 +130,10 @@ void *RunChannelOutputThread(void *data)
             // Send sync every 16 frames (use 16 to make the check simpler)
             int rate = 0x10;
             if (channelOutputFrame < 32) {
-                //send for the first 32 frames, send every 4 frames
-                //
+                //for the first 32 frames, send every 4 frames
                 rate = 0x02;
             }
-			if (syncFrameCounter & 0x10 || channelOutputFrame < 32)
+			if (syncFrameCounter & rate)
 			{
 				syncFrameCounter = 1;
 				SendSeqSyncPacket(
