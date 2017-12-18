@@ -130,7 +130,11 @@ int Sequence::OpenSequenceFile(const char *filename, int startSeconds) {
 
 	if (!FileExists(tmpFilename))
 	{
-		LogErr(VB_SEQUENCE, "Sequence file %s does not exist\n", tmpFilename);
+		if (getFPPmode() == REMOTE_MODE)
+			LogDebug(VB_SEQUENCE, "Sequence file %s does not exist\n", tmpFilename);
+		else
+			LogErr(VB_SEQUENCE, "Sequence file %s does not exist\n", tmpFilename);
+
 		m_seqStarting = 0;
 
 		pthread_mutex_unlock(&m_sequenceLock);
