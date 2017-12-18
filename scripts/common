@@ -26,6 +26,8 @@ else
 	if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]
 	then
 		FPPBINDIR="${FPPDIR}/bin.bbb"
+		BBBMODEL=$(cut -d' ' -f3- /proc/device-tree/model | tr '\0' '\n')
+		export BBBMODEL
 	fi
 fi
 
