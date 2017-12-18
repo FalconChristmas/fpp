@@ -88,10 +88,14 @@ function flashEMMC() {
 				cause flicker if the controller does not support priority or
 				if both players send packets with the same priority.</td>
 		</tr>
+<?
+	if ($settings['fppMode'] != 'remote')
+	{
+?>
 		<tr><td colspan='2'><hr></td></tr>
 		<tr><td valign='top'><? PrintSettingText("mediaOffset", 1, 0, 5, 5); ?> ms<br>
 				<? PrintSettingSave("Media Offset", "mediaOffset", 1, 0); ?></td>
-			<td valign='top'><b>Media/Sequence Offset</b> - The media offset value
+			<td valign='top'><b>Media/Sequence Offset</b> - The Media Offset value
 				allows adjusting the synchronization of the media and sequences being
 				played.  The value is specified in milliseconds.  A positive value
 				moves the media ahead, a negative value moves the media back.
@@ -101,7 +105,26 @@ function flashEMMC() {
 				offsets per file then you will have to edit the audio files or
 				sequences to bring them into sync.</td>
 		</tr>
-<?php
+<?
+	}
+	else
+	{
+?>
+		<tr><td colspan='2'><hr></td></tr>
+		<tr><td valign='top'><? PrintSettingText("remoteOffset", 1, 0, 5, 5); ?> ms<br>
+				<? PrintSettingSave("Remote Offset", "remoteOffset", 1, 0); ?></td>
+			<td valign='top'><b>Remote Media/Sequence Offset</b> - The Remote Offset value
+				allows adjusting the synchronization of a FPP Remote.
+				The value is specified in milliseconds.  A positive value
+				moves the remove ahead, a negative value moves the remote back.
+				Changing this value requires a FPPD restart on the Remote.
+				<font color='#ff0000'><b>WARNING</b></font> - This offset applies
+				to both sequence and media files.  If your media files require different
+				offsets per file then you will need to edit the media files
+				to bring them into sync.</td>
+		</tr>
+<?
+	}
     if ($settings['Platform'] == "BeagleBone Black") {
         exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
         $rootDevice = $output[0];
