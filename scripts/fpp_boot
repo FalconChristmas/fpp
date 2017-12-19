@@ -25,5 +25,7 @@ ${SCRIPTDIR}/timezone_sync
 
 remountRootReadOnlyIfNeeded
 
+configureGPIOPins
+
 ${SUDO} ${SCRIPTDIR}/fppd_start
 
