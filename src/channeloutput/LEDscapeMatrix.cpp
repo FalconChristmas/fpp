@@ -26,6 +26,9 @@
 #include <stdlib.h>
 #include <strings.h>
 #include <unistd.h>
+#include <stdio.h>
+#include <vector>
+#include <sys/wait.h>
 
 #include "pru.h"
 
@@ -36,6 +39,12 @@
 
 /////////////////////////////////////////////////////////////////////////////
 
+enum ScollerPinout {
+    V1 = 1,
+    V2,
+    POCKETSCROLLERv1
+};
+
 /*
  *
  */
@@ -44,7 +53,7 @@ LEDscapeMatrixOutput::LEDscapeMatrixOutput(unsigned int startChannel,
   : ChannelOutputBase(startChannel, channelCount),
 	m_config(NULL),
 	m_leds(NULL),
-	m_colorOrder("RGB"),
+	m_colorOrder(RGB),
 	m_dataSize(0),
 	m_data(NULL),
 	m_invertedData(0)
@@ -63,6 +72,133 @@ LEDscapeMatrixOutput::~LEDscapeMatrixOutput()
 	delete m_matrix;
 }
 
+
+static void compilePRUMatrixCode(std::vector<std::string> &sargs) {
+    pid_t compilePid = fork();
+    if (compilePid == 0) {
+        char * args[sargs.size() + 3];
+        args[0] = "/bin/bash";
+        args[1] = "/opt/fpp/src/pru/compileMatrix.sh";
+        
+        for (int x = 0; x < sargs.size(); x++) {
+            args[x + 2] = (char*)sargs[x].c_str();
+        }
+        args[sargs.size() + 2] = NULL;
+        
+        execvp("/bin/bash", args);
+    } else {
+        wait(NULL);
+    }
+}
+
+
+static void calcBrightness(ledscape_t *leds, int brightness, int maxPanel, int maxOutput, int rowsPerOutput,
+                           int panelHeight, int panelWidth, ScollerPinout ver) {
+    LogDebug(VB_CHANNELOUT, "Calc Brightness:   maxPanel:  %d    maxOutput: %d     Brightness: %d    rpo: %d    ph:  %d    pw:  %d\n", maxPanel, maxOutput, brightness, rowsPerOutput, panelHeight, panelWidth);
+    
+    
+    uint32_t max = (maxOutput < 4) ? 0xB00 : 0xD00;
+    if (ver == V1) {
+        if (maxOutput == 1) {
+            max = 0x500;
+        } else if (maxOutput < 4) {
+            max = 0xA00;
+        } else if (maxOutput < 6) {
+            max = 0xB00;
+        } else {
+            max = 0xD00;
+        }
+    }
+    max *= maxPanel;
+    max *= panelWidth;
+    max /= 32;
+    max += maxOutput * 0x200;
+    if (ver == V1) {
+        if (maxOutput > 3) {
+            //jumping above output 3 adds increased delay
+            max += 0x300;
+        }
+    } else if (ver == V2 || ver == POCKETSCROLLERv1) {
+        if (maxOutput > 1) {
+            //jumping above output 1 adds increased delay
+            max += 0x300;
+        }
+        if (maxOutput > 3) {
+            //jumping above output 3 adds increased delay
+            max += 0x300;
+        }
+        if (maxOutput > 5) {
+            //jumping above output 3 adds increased delay
+            max += 0x300;
+        }
+    }
+
+    // 1/4 scan we need to double the time since we have twice the number of pixels to clock out
+    max *= panelHeight;
+    max /= (rowsPerOutput * 2);
+    uint32_t origMax = max * 90 / 100; //max's are calced at roughly 10% over needed
+
+    if (max < 0x2000) {
+        //if max is too low, the low bit time is too short and
+        //extra ghosting occurs
+        // At this point, framerate will be supper high anyway >100fps
+        max = 0x2000;
+    }
+    uint32_t origMax2 = max;
+    
+    max *= brightness;
+    max /= 10;
+    
+    uint32_t delay = origMax2 - max;
+    if (max < origMax) {
+        delay = origMax2 - origMax;
+    }
+    
+    for (int x = 0; x < 8; x++) {
+        LogDebug(VB_CHANNELOUT, "Brightness %d:  %X\n", x, max);
+        
+        leds->ws281x->brightInfo[2*x + 1] = delay;
+        leds->ws281x->brightInfo[2*x] = max + delay;
+        max >>= 1;
+        origMax >>= 1;
+    }
+    
+    if (FileExists("/home/fpp/media/config/ledscape_dimming")) {
+        FILE *file = fopen("/home/fpp/media/config/ledscape_dimming", "r");
+        
+        if (file != NULL) {
+            char buf[100];
+            char *line = buf;
+            size_t len = 100;
+            ssize_t read;
+            int count = 0;
+            
+            while (((read = getline(&line, &len, file)) != -1) && (count < 10))
+            {
+                if (( ! line ) || ( ! read ) || ( read == 1 ))
+                    continue;
+                
+                LogDebug(VB_CHANNELOUT, "Line %d: %s\n", count, line);
+                if (count == 0) {
+                    leds->ws281x->statEnable = atoi(line);
+                    count++;
+                } else {
+                    uint32_t d1, d2;
+                    sscanf(line, "%X %X", &d1, &d2);
+                    leds->ws281x->brightInfo[2 * ( count - 1)] = d1;
+                    leds->ws281x->brightInfo[2 * ( count - 1) + 1] = d2;
+                    count++;
+                }
+                line = buf;
+                len = 100;
+            }
+            fclose(file);
+        }
+    }
+    //leds->ws281x->statEnable = 1;
+}
+
+
 /*
  *
  */
@@ -79,17 +215,24 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
 
 	int maxWidth = 0;
 	int maxHeight = 0;
-	int maxOutput = 0;
-	int maxPanel = 0;
+    int maxOutput = 0;
+    int maxPanel = 0;
 
 	ledscape_matrix_config_t * const lmconfig = &m_config->matrix_config;
+    for (int chain = 0; chain < LEDSCAPE_MATRIX_PANELS; chain++) {
+        for (int output = 0; output < LEDSCAPE_MATRIX_OUTPUTS; output++) {
+            ledscape_matrix_panel_t * const pconfig =
+                &lmconfig->panels[output][chain];
+            pconfig->enabled = 0;
+        }
+    }
 
 	lmconfig->type         = LEDSCAPE_MATRIX;
 	lmconfig->panel_width  = config["panelWidth"].asInt();
 	lmconfig->panel_height = config["panelHeight"].asInt();
 
 	m_invertedData = config["invertedData"].asInt();
-	m_colorOrder = config["colorOrder"].asString();
+	m_colorOrder = mapColorOrder(config["colorOrder"].asString());
 
 	if (!lmconfig->panel_width)
 		lmconfig->panel_width = 32;
@@ -97,9 +240,27 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
 	if (!lmconfig->panel_height)
 		lmconfig->panel_height = 16;
 
-	lmconfig->leds_width   = lmconfig->panel_width * 8;
 	lmconfig->leds_height  = lmconfig->panel_height * 8;
+    
+    for (int i = 0; i < config["panels"].size(); i++)
+    {
+        Json::Value p = config["panels"][i];
+        if (p["panelNumber"].asInt() > maxPanel)
+            maxPanel = p["panelNumber"].asInt();
+    }
+    if (maxPanel >= LEDSCAPE_MATRIX_PANELS) {
+        lmconfig->maxPanel = LEDSCAPE_MATRIX_PANELS;
+        maxPanel = LEDSCAPE_MATRIX_PANELS - 1;
+    } else if (maxPanel < LEDSCAPE_MATRIX_PANELS) {
+        lmconfig->maxPanel = maxPanel + 1;
+        if (lmconfig->maxPanel < LEDSCAPE_MATRIX_PANELS) {
+            // have one blank panel if possible, helps with the low bits
+            lmconfig->maxPanel++;
+        }
+    }
+    lmconfig->leds_width = lmconfig->panel_width * lmconfig->maxPanel;
 
+    maxPanel = 0;
 	for (int i = 0; i < config["panels"].size(); i++)
 	{
 		char orientation = 'N';
@@ -109,15 +270,15 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
 		Json::Value p = config["panels"][i];
 
 		int  output  = p["outputNumber"].asInt();
-		int  chain   = 7 - p["panelNumber"].asInt(); // 7 is first in chain, 0 is last
+		int  chain   = lmconfig->maxPanel - 1 - p["panelNumber"].asInt(); // 0 is last
 		int  xOffset = p["xOffset"].asInt();
 		int  yOffset = p["yOffset"].asInt();
+        
+        if (output > maxOutput)
+            maxOutput = output;
 
-		if (output > maxOutput)
-			maxOutput = output;
-
-		if (p["panelNumber"].asInt() > maxPanel)
-			maxPanel = p["panelNumber"].asInt();
+        if (p["panelNumber"].asInt() > maxPanel)
+            maxPanel = p["panelNumber"].asInt();
 
 		ledscape_matrix_panel_t * const pconfig =
 			&lmconfig->panels[output][chain];
@@ -125,6 +286,7 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
 		pconfig->x   = xOffset;
 		pconfig->y   = yOffset;
 		pconfig->rot = 0; // Default, normal rotation
+        pconfig->enabled = true;
 
 		const char *o = p["orientation"].asString().c_str();
 		if (o && *o)
@@ -159,14 +321,39 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
 
 	lmconfig->width = maxWidth;
 	lmconfig->height = maxHeight;
-
-	if (config.isMember("brightness"))
-		lmconfig->bright_shift = config["brightness"].asInt();
-	else
-		lmconfig->bright_shift = 7;
-
-	lmconfig->outputCount = maxOutput + 1;
-	lmconfig->panelCount = maxPanel + 1;
+    
+    int brightness = 7;
+    if (config.isMember("brightness"))
+        brightness = config["brightness"].asInt();
+    if (brightness < 1 || brightness > 10) {
+        brightness = 7;
+    }
+    lmconfig->bitsToOutput = 8;
+    if (config.isMember("panelColorDepth")) {
+        LogDebug(VB_CHANNELOUT, "LEDscapeMatrixOutput::Init(JSON) has cd\n");
+        lmconfig->bitsToOutput = config["panelColorDepth"].asInt();
+        LogDebug(VB_CHANNELOUT, "LEDscapeMatrixOutput::Init(JSON)  cd: %d\n", lmconfig->bitsToOutput);
+    }
+    if (lmconfig->bitsToOutput > 8 || lmconfig->bitsToOutput < 6) {
+        lmconfig->bitsToOutput = 8;
+    }
+    lmconfig->rowsPerOutput = config["panelScan"].asInt();
+    
+    if (config.isMember("panelInterleave")) {
+        lmconfig->interleavePixels = config["panelInterleave"].asInt();
+    } else {
+        lmconfig->interleavePixels = 0;
+    }
+    
+    lmconfig->initialSkip = (lmconfig->maxPanel - maxPanel - 1) * 6 * lmconfig->panel_width;
+    if (lmconfig->rowsPerOutput == 0) {
+        lmconfig->rowsPerOutput = 8;
+    }
+    if ((lmconfig->rowsPerOutput * 4) == lmconfig->panel_height) {
+        lmconfig->initialSkip *= 2;
+    } else if ((lmconfig->rowsPerOutput * 8) == lmconfig->panel_height) {
+        lmconfig->initialSkip *= 4;
+    }
 
 	m_dataSize = lmconfig->width * lmconfig->height * 4;
 	m_data = (uint8_t *)malloc(m_dataSize);
@@ -178,26 +365,67 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
 		return 0;
 	}
 
-	std::string pru_program(getBinDirectory());
+    
+    std::vector<std::string> compileArgs;
+    
+    ScollerPinout ver = V1;
+    if (config["wiringPinout"] == "v2") {
+        ver = V2;
+        compileArgs.push_back("-DOCTO_V2");
+    } else if (config["wiringPinout"] == "PocketScroller1x") {
+        ver = POCKETSCROLLERv1;
+        compileArgs.push_back("-DPOCKETSCROLLER_V1");
+    } else {
+        compileArgs.push_back("-DOCTO_V1");
+    }
 
-	if (tail(pru_program, 4) == "/src")
-		pru_program += "/pru/";
-	else
-		pru_program += "/../lib/";
+ 
+    char outputString[10];
+    sprintf(outputString, "%d", (maxOutput + 1));
 
-	if (lmconfig->panel_height == 32)
-		pru_program += "FalconMatrix_32x32.bin";
-	else
-		pru_program += "FalconMatrix.bin";
+    char outputStringCompiler[200];
+    sprintf(outputStringCompiler, "-DOUTPUTS=%d", (maxOutput + 1));
+    compileArgs.push_back(outputStringCompiler);
 
-	m_leds = ledscape_matrix_init(m_config, 0, 0, pru_program.c_str());
+    compilePRUMatrixCode(compileArgs);
+
+    std::string pru_program = "/tmp/FalconMatrix.bin";
+
+    LogDebug(VB_CHANNELOUT, "Using program %s with brightness %d\n", pru_program.c_str(), brightness);
+
+	m_leds = ledscape_matrix_init(m_config, 0, 1, pru_program.c_str());
+
+    LogDebug(VB_CHANNELOUT, "   pru dram:  %X  %d       %X   %d      %d\n",
+             m_leds->pru->data_ram, m_leds->pru->data_ram_size,
+             m_leds->pru->ddr, m_leds->pru->ddr_size,
+             m_leds->frame_size);
+
+    m_leds->ws281x->statEnable = 0;
+    calcBrightness(m_leds, brightness, maxPanel + 1, maxOutput + 1, lmconfig->rowsPerOutput,
+                   lmconfig->panel_height, lmconfig->panel_width,
+                   ver);
+    
+    m_leds->ws281x->num_pixels = lmconfig->maxPanel * lmconfig->panel_width / 8;
+    if ((lmconfig->rowsPerOutput * 4) ==  lmconfig->panel_height) {
+        // 1/4 scan output 2 rows at once in a strange 8 then 8 then 8 then 8... pattern
+        m_leds->ws281x->num_pixels *= 2;
+    } else if ((lmconfig->rowsPerOutput * 8) ==  lmconfig->panel_height) {
+        // 1/2 scan output 4 rows at once in a strange 8 then 8 then 8 then 8... pattern
+        m_leds->ws281x->num_pixels *= 4;
+    }
+
+    LogDebug(VB_CHANNELOUT, "Pixels per row %d,    rowsPerOutput: %d     panelHeight: %d    colorDepth: %d   initialSkip: %d\n",
+             m_leds->ws281x->num_pixels, lmconfig->rowsPerOutput, lmconfig->panel_height,
+             lmconfig->bitsToOutput, lmconfig->initialSkip);
 
 	if (!m_leds)
 	{
 		LogErr(VB_CHANNELOUT, "Unable to initialize LEDscape\n");
 		return 0;
 	}
+    LogDebug(VB_CHANNELOUT, "Program started %s\n", pru_program.c_str());
 
+    
 	m_matrix = new Matrix(m_startChannel, maxWidth, maxHeight);
 
 	if (config.isMember("subMatrices"))
@@ -245,6 +473,26 @@ void LEDscapeMatrixOutput::PrepData(unsigned char *channelData)
 	m_matrix->OverlaySubMatrices(channelData);
 }
 
+
+LEDscapeMatrixOutput::ColorOrder LEDscapeMatrixOutput::mapColorOrder(const std::string &colorOrder) {
+    if (colorOrder == "RGB")
+        return RGB;
+    if (colorOrder == "RBG")
+        return RBG;
+    if (colorOrder == "GRB")
+        return GRB;
+    if (colorOrder == "GBR")
+        return GBR;
+    if (colorOrder == "BRG")
+        return BRG;
+    if (colorOrder == "BGR")
+        return BGR;
+    if (colorOrder == "BRG")
+        return BRG;
+    return RGB;
+}
+
+
 /*
  *
  */
@@ -278,48 +526,43 @@ int LEDscapeMatrixOutput::RawSendData(unsigned char *channelData)
 
 		for (int x = 0; x < config->width; x++)
 		{
-			if (m_colorOrder == "RGB")
-			{
-				*(c++) = *b;
-				*(c++) = *g;
-				*(c++) = *r;
-			}
-			else if (m_colorOrder == "RBG")
-			{
-				*(c++) = *g;
-				*(c++) = *b;
-				*(c++) = *r;
-			}
-			else if (m_colorOrder == "GRB")
-			{
-				*(c++) = *b;
-				*(c++) = *r;
-				*(c++) = *g;
-			}
-			else if (m_colorOrder == "GBR")
-			{
-				*(c++) = *r;
-				*(c++) = *b;
-				*(c++) = *g;
-			}
-			else if (m_colorOrder == "BRG")
-			{
-				*(c++) = *g;
-				*(c++) = *r;
-				*(c++) = *b;
-			}
-			else if (m_colorOrder == "BGR")
-			{
-				*(c++) = *r;
-				*(c++) = *g;
-				*(c++) = *b;
-			}
-			else
-			{
-				*(c++) = *b;
-				*(c++) = *g;
-				*(c++) = *r;
-			}
+            switch (m_colorOrder) {
+                case RGB:
+                    *(c++) = *b;
+                    *(c++) = *g;
+                    *(c++) = *r;
+                    break;
+                case RBG:
+                    *(c++) = *g;
+                    *(c++) = *b;
+                    *(c++) = *r;
+                    break;
+                case GRB:
+                    *(c++) = *b;
+                    *(c++) = *r;
+                    *(c++) = *g;
+                    break;
+                case GBR:
+                    *(c++) = *r;
+                    *(c++) = *b;
+                    *(c++) = *g;
+                    break;
+                case BRG:
+                    *(c++) = *g;
+                    *(c++) = *r;
+                    *(c++) = *b;
+                    break;
+                case BGR:
+                    *(c++) = *r;
+                    *(c++) = *g;
+                    *(c++) = *b;
+                    break;
+                default:
+                    *(c++) = *b;
+                    *(c++) = *g;
+                    *(c++) = *r;
+                    break;
+            }
 
 			c++;
 			r += 3;
@@ -335,7 +578,7 @@ int LEDscapeMatrixOutput::RawSendData(unsigned char *channelData)
 
 	ledscape_draw(m_leds, m_data);
 	//drawTime = GetTime();
-	usleep(5000);
+	//usleep(5000);
 	//waitStartTime = GetTime();
 	//const uint32_t response = ledscape_wait(m_leds);
 	//waitTime = GetTime();
