@@ -30,6 +30,7 @@
 #include <cmath>
 #include <string>
 #include <vector>
+#include <stdint.h>
 
 typedef enum {
 	vsColorOrderRGB,
