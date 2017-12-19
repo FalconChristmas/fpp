@@ -6,6 +6,11 @@ BINDIR=$(cd $(dirname $0) && pwd)
 
 logOutput
 
+if [ -f "/usr/bin/connmanctl" ]; then
+    echo "Using Connection Manager, DNS setup with interfaces"
+    exit 0
+fi
+
 if [ -f "${CFGDIR}/dns" ]
 then
 	. ${CFGDIR}/dns

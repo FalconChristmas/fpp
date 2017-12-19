@@ -63,9 +63,87 @@ netcalc(){
 	echo "${ip[*]}"
 }
 
+
+SetupFPPNetworkConfigViaConnMann() {
+    CONFIGS=`ls ${FPPHOME}/media/config/interface.*`
+
+    DNS1=""
+    DNS2=""
+    if [ -f "${FPPHOME}/media/config/dns" ]
+    then
+        . ${FPPHOME}/media/config/dns
+    fi
+    DNS=""
+    if [ "x$DNS1" != "x" ]
+    then
+        DNS="$DNS1"
+    fi
+    if [ "x$DNS2" != "x" ]
+    then
+        DNS="$DNS,$DNS1"
+    fi
+
+    TMPFILE="/tmp/fpp.config"
+    rm -f ${TMPFILE}
+
+    for f in $CONFIGS; do
+        . ${f}
+
+        echo "[service_$INTERFACE]" >> ${TMPFILE}
+        if [ "x$SSID" != "x" ]
+        then
+            echo "Name=${SSID}" >> $TMPFILE
+        fi
+        if [ "x$PSK" != "x" ]
+        then
+            echo "Security=psk" >> $TMPFILE
+            echo "Passphrase=${PSK}" >> $TMPFILE
+        fi
+
+        if [ -f "/sys/class/net/${INTERFACE}/address" ]; then
+            MAC=`cat /sys/class/net/${INTERFACE}/address`
+            echo "MAC=${MAC}" >> $TMPFILE
+        fi
+        if [ "x$DNS" != "x" ]
+        then
+            echo "Nameservers=${DNS}" >> $TMPFILE
+        fi
+        if [[ "$INTERFACE" == "wlan"* ]] ; then
+            echo "Type=wifi"  >> $TMPFILE
+        else
+            echo "Type=ethernet"  >> $TMPFILE
+        fi
+        if [ "$PROTO" = "dhcp" ]; then
+            echo "IPv4=dhcp"  >> $TMPFILE
+        else
+            echo "IPv4=$ADDRESS/$NETMASK/$GATEWAY" >> $TMPFILE
+        fi
+
+
+        echo ""  >> $TMPFILE
+        echo ""  >> $TMPFILE
+    done
+    rm -rf /var/lib/connman/wifi_*
+    rm -rf /var/lib/connman/ethernet_*
+    rm -f /var/lib/connman/fpp.config
+    if [ -f "$TMPFILE" ]; then
+        cp $TMPFILE /var/lib/connman/fpp.config
+    fi
+
+    connmanctl services > /tmp/services.txt
+}
+
+
 #############################################################################
 # Create our version of /etc/network/interfaces and wpa_supplicant.conf files
 SetupFPPNetworkConfig () {
+    if [ -f "/usr/bin/connmanctl" ]
+    then
+        SetupFPPNetworkConfigViaConnMann
+        return
+    fi
+
+
 	if [ ! -f "${FPPHOME}/media/config/interface.eth0" -a ! -f "${FPPHOME}/media/config/interface.wlan0" ]
 	then
 		echo "FPP - Using default network config"
@@ -381,6 +459,56 @@ WaitForDHCPIPs() {
 		break
 	done
 }
+
+
+WaitForInterfacesUp() {
+    IPS="$(ip -o -4 addr | grep -v usb | grep -v 127.0)"
+    if [ -z "$IPS" ]; then
+        # Loop up to 4 times, so max wait time is 4 * 2
+        for i in {1..4}
+        do
+            sleep 2
+            IPS="$(ip -o -4 addr | grep -v usb | grep -v 127.0)"
+            #echo "y:  $IPS" >> /tmp/ips.txt
+            if [ -z "$IPS" ]
+            then
+                continue
+            fi
+
+            break
+        done
+	    if [ -z "$IPS" ]; then
+            #on some adapters, we need to down/up in order for connman to be able
+            #to detect the link on it and attach to wifi
+            ifconfig wlan0 down
+            ifconfig wlan0 up
+            if [ -f "/usr/bin/connmanctl" ]
+            then
+                connmanctl scan wifi
+            fi
+            # Loop up to 8 times, so max wait time is 8 * 2
+            for i in {1..8}
+            do
+               sleep 2
+               IPS="$(ip -o -4 addr | grep -v usb | grep -v 127.0)"
+                   if [ -z "$IPS" ]; then
+               continue
+               fi
+               break
+            done
+        fi
+    fi
+
+    if [ -f "/usr/bin/connmanctl" ]
+    then
+        connmanctl services >> /tmp/services.txt
+    fi
+
+    #turn off power management on wireless... not all adapters
+    # support this so just /dev/null any output
+    iwconfig wlan0 power off 2>/dev/null >/dev/null
+}
+
 
 #############################################################################
 # Functions for compiling and cleaning up compiled binaries
