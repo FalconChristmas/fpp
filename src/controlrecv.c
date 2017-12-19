@@ -174,7 +174,8 @@ void StopSyncedMedia(char *filename) {
 		if (filenameLen > 4)
 		{
 			if ((!strcmp(&tmpFile[filenameLen - 4], ".mp3")) ||
-				(!strcmp(&tmpFile[filenameLen - 4], ".ogg")))
+				(!strcmp(&tmpFile[filenameLen - 4], ".ogg")) ||
+				(!strcmp(&tmpFile[filenameLen - 4], ".m4a")))
 			{
 				strcpy(&tmpFile[filenameLen - 4], ".mp4");
 

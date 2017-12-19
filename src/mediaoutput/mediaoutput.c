@@ -36,6 +36,10 @@
 #include "Sequence.h"
 #include "settings.h"
 
+#if HAS_SDL
+#include "SDLOut.h"
+#endif
+
 
 /////////////////////////////////////////////////////////////////////////////
 MediaOutputBase *mediaOutput = 0;
@@ -156,9 +160,16 @@ int OpenMediaOutput(char *filename) {
 	}
 
 	if (!strcasecmp(&tmpFile[filenameLen - 4], ".mp3")) {
+#ifndef HAS_SDL
 		mediaOutput = new mpg123Output(tmpFile, &mediaOutputStatus);
 	} else if (!strcasecmp(&tmpFile[filenameLen - 4], ".ogg")) {
 		mediaOutput = new ogg123Output(tmpFile, &mediaOutputStatus);
+#else
+        mediaOutput = new SDLOutput(tmpFile, &mediaOutputStatus);
+    } else if (!strcasecmp(&tmpFile[filenameLen - 4], ".m4a")
+               || !strcasecmp(&tmpFile[filenameLen - 4], ".ogg")) {
+        mediaOutput = new SDLOutput(tmpFile, &mediaOutputStatus);
+#endif
 #ifdef PLATFORM_PI
 	} else if ((!strcasecmp(&tmpFile[filenameLen - 4], ".mp4")) ||
 			   (!strcasecmp(&tmpFile[filenameLen - 4], ".mkv"))) {
