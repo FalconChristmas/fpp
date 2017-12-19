@@ -49,6 +49,7 @@ struct sockaddr_in  crSrcAddr;
 
 int ctrlRecvSock = 0;
 extern PluginCallbackManager pluginCallbackManager;
+float multiSyncRemoteOffset = 0.0;
 
 /*
  *
@@ -93,6 +94,12 @@ int InitControlSocket(void) {
 		perror("control setsockopt pktinfo");
 		exit(1);
 	}
+
+	int multiSyncRemoteOffsetInt = getSettingInt("remoteOffset");
+	if (multiSyncRemoteOffsetInt)
+		multiSyncRemoteOffset = (float)multiSyncRemoteOffsetInt * -0.001;
+	else
+		multiSyncRemoteOffset = 0.0;
 
 	return ctrlRecvSock;
 }
@@ -273,6 +280,8 @@ void ProcessSyncPacket(ControlPkt *pkt, int len) {
 	spkt->pktType     = spkt->pktType;
 	spkt->frameNumber = spkt->frameNumber;
 
+	float secondsElapsed = 0.0;
+
 	if (spkt->fileType == SYNC_FILE_SEQ)
 	{
 		switch (spkt->pktType) {
@@ -280,8 +289,12 @@ void ProcessSyncPacket(ControlPkt *pkt, int len) {
 								 break;
 			case SYNC_PKT_STOP:  StopSyncedSequence(spkt->filename);
 								 break;
-			case SYNC_PKT_SYNC:  SyncSyncedSequence(spkt->filename,
-									spkt->frameNumber, spkt->secondsElapsed);
+			case SYNC_PKT_SYNC:  secondsElapsed = spkt->secondsElapsed - multiSyncRemoteOffset;
+								 if (secondsElapsed < 0)
+									secondsElapsed = 0.0;
+
+								 SyncSyncedSequence(spkt->filename,
+									spkt->frameNumber, secondsElapsed);
 								 break;
 		}
 	}
@@ -292,8 +305,12 @@ void ProcessSyncPacket(ControlPkt *pkt, int len) {
 								 break;
 			case SYNC_PKT_STOP:  StopSyncedMedia(spkt->filename);
 								 break;
-			case SYNC_PKT_SYNC:  SyncSyncedMedia(spkt->filename,
-									spkt->frameNumber, spkt->secondsElapsed);
+			case SYNC_PKT_SYNC:  secondsElapsed = spkt->secondsElapsed - multiSyncRemoteOffset;
+								 if (secondsElapsed < 0)
+									secondsElapsed = 0.0;
+
+								 SyncSyncedMedia(spkt->filename,
+									spkt->frameNumber, secondsElapsed);
 								 break;
 		}
 	}

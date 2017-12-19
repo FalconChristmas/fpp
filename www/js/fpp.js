@@ -547,6 +547,11 @@ function RemovePlaylistEntry()	{
 			location.reload(true);
 		}
 
+		function reloadPage()
+		{
+			location.reload(true);
+		}
+
 		function updatePlugin(pluginName)
 		{
 			var xmlhttp=new XMLHttpRequest();
