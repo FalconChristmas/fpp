@@ -871,3 +871,24 @@ applyReadOnlySDFixups() {
 
 #############################################################################
 
+configureBBBGPIOPins() {
+    if [ -f "/usr/bin/config-pin" ]
+    then
+        if [ "${BBBMODEL}" = "PocketBeagle" ]; then
+            /usr/bin/config-pin -f ${BINDIR}/bbb-pins-pocketbeagle.txt
+        else
+            /usr/bin/config-pin -f ${BINDIR}/bbb-pins.txt
+        fi
+    fi
+}
+
+
+configureGPIOPins() {
+    if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
+    then
+        configureBBBGPIOPins
+    fi
+}
+
+#############################################################################
+

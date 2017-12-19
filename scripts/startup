@@ -220,6 +220,10 @@ then
 	detectFalconHardware
 fi
 
+# configure any GPIO pins as output
+configureGPIOPins
+
+
 # Make sure our DHCP IPs are up before we log/announce them.
 WaitForDHCPIPs
 
