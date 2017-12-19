@@ -1,0 +1,16 @@
+[Unit]
+Description=FPPd
+After=network.target getty.target apache2.target generic-board-startup.service
+Requires=network.target 
+DefaultDependencies=no
+
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/opt/fpp/scripts/fpp_boot
+ExecStop=/opt/fpp/scripts/fppd_stop
+
+
+[Install]
+WantedBy=multi-user.target
