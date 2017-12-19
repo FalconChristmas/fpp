@@ -932,8 +932,9 @@ setupBBBRTC () {
 		2)
 			# DS1307 chip
 			# BBB has onboard clock as rtc0 so we need to use rtc1
-			echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device
-			echo "FPP - Configuring RTC, Setting to DS1307/i2c-1"
+            modprobe rtc_ds1307
+			echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-2/new_device
+			echo "FPP - Configuring RTC, Setting to DS1307/i2c-2"
 			;;
 		*)
 			# None
