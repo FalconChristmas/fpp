@@ -166,7 +166,7 @@ int PixelString::Init(int portNumber, int channelOffset, int startChannel,
         if (f < 0.0) {
             f = 0.0;
         }
-        m_brightnessMap[x] = std::round(f);
+        m_brightnessMap[x] = round(f);
     }
     
 	return 1;
