@@ -38,7 +38,7 @@ echo ""
 
 #mount
 mkdir /tmp/rootfs
-mount -t btrfs -o noatime,nodiratime,compress-force=lzo ${DEVICE}p2 /tmp/rootfs
+mount -t btrfs -o noatime,nodiratime,compress-force=zlib ${DEVICE}p2 /tmp/rootfs
 mkdir /tmp/rootfs/boot
 mount -t ext4 -o noatime ${DEVICE}p1 /tmp/rootfs/boot
 
@@ -47,7 +47,7 @@ echo "Copy files rootfs"
 echo ""
 
 #copy files
-rsync -aAx --human-readable --info=name0,progress2 /ID.txt /bbb-uEnv.txt /bin /boot /dev /etc /home /lib /lost+found /media /mnt /nfs-uEnv.txt /opt /proc /root /run /sbin /srv /sys /tmp /usr /var /tmp/rootfs --exclude=/dev/* --exclude=/proc/* --exclude=/sys/* --exclude=/tmp/* --exclude=/run/* --exclude=/mnt/* --exclude=/media/* --exclude=/lost+found --exclude=/uEnv.txt
+rsync -aAx --human-readable --info=name0,progress2 /ID.txt /bin /boot /dev /etc /home /lib /lost+found /media /mnt /opt /proc /root /run /sbin /srv /sys /tmp /usr /var /tmp/rootfs --exclude=/dev/* --exclude=/proc/* --exclude=/sys/* --exclude=/tmp/* --exclude=/run/* --exclude=/mnt/* --exclude=/media/* --exclude=/lost+found --exclude=/uEnv.txt
 
 echo "---------------------------------------"
 echo "Configure /boot"
@@ -78,6 +78,7 @@ echo ""
 
 #configure fstab
 echo "/dev/mmcblk1p2  /  btrfs  noatime,nodiratime,compress-force=lzo  0  1" > /tmp/rootfs/etc/fstab
+echo "/dev/mmcblk1p1  /boot  ext4  defaults,noatime,nodiratime  0  2" >> /tmp/rootfs/etc/fstab
 echo "debugfs  /sys/kernel/debug  debugfs  defaults  0  0" >> /tmp/rootfs/etc/fstab
 echo "#####################################" >> /tmp/rootfs/etc/fstab
 echo "#/dev/sda1     /home/fpp/media  auto    defaults,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500  0  0" >> /tmp/rootfs/etc/fstab
