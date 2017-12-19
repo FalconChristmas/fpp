@@ -34,6 +34,16 @@
 #include "Matrix.h"
 
 class LEDscapeMatrixOutput : public ChannelOutputBase {
+    enum ColorOrder {
+        RGB,
+        RBG,
+        GRB,
+        GBR,
+        BGR,
+        BRG
+    };
+    
+    
   public:
 	LEDscapeMatrixOutput(unsigned int startChannel, unsigned int channelCount);
 	~LEDscapeMatrixOutput();
@@ -48,10 +58,11 @@ class LEDscapeMatrixOutput : public ChannelOutputBase {
 	void DumpConfig(void);
 
   private:
+    static ColorOrder mapColorOrder(const std::string &v);
 	ledscape_config_t  *m_config;
 	ledscape_t         *m_leds;
 
-	std::string         m_colorOrder;
+    ColorOrder          m_colorOrder;
 
 	int                 m_dataSize;
 	uint8_t            *m_data;

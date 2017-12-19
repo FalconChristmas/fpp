@@ -24,6 +24,7 @@
  */
 
 #include <stdlib.h>
+#include <cmath>
 
 #include "common.h"
 #include "log.h"
@@ -31,6 +32,9 @@
 #include "Sequence.h" // for FPPD_MAX_CHANNELS
 
 /////////////////////////////////////////////////////////////////////////////
+
+#define MAX_PIXEL_STRING_LENGTH  999
+
 
 /*
  *
@@ -47,7 +51,9 @@ PixelString::PixelString()
 	m_grouping(0),
 	m_zigZag(0),
 	m_inputChannels(0),
-	m_outputChannels(0)
+	m_outputChannels(0),
+    m_brightness(100),
+    m_gamma(1.0f)
 {
 }
 
@@ -75,12 +81,18 @@ int PixelString::Init(std::string configStr)
 	return Init(atoi(elems[0].c_str()), 0, atoi(elems[1].c_str()),
 		atoi(elems[2].c_str()), elems[3], atoi(elems[4].c_str()),
 		atoi(elems[5].c_str()), atoi(elems[6].c_str()),
-		atoi(elems[7].c_str()), atoi(elems[8].c_str()));
+		atoi(elems[7].c_str()), atoi(elems[8].c_str()), 100, 1.0f);
 }
+
+#define CHECKPS_SETTING(SETTING) if (SETTING) { \
+LogErr(VB_CHANNELOUT, "Invalid PixelString Config %s\n", #SETTING); \
+return 0; \
+}\
 
 int PixelString::Init(int portNumber, int channelOffset, int startChannel,
 		int pixelCount, std::string colorOrder, int nullNodes,
-		int hybridMode, int reverse, int grouping, int zigZag)
+		int hybridMode, int reverse, int grouping, int zigZag,
+        int brightness, float gamma)
 {
 	m_portNumber = portNumber;
 	m_channelOffset = channelOffset;
@@ -92,19 +104,32 @@ int PixelString::Init(int portNumber, int channelOffset, int startChannel,
 	m_reverseDirection = reverse;
 	m_grouping = grouping;
 	m_zigZag = zigZag;
-
-	if ((m_startChannel < 0) || (m_startChannel > FPPD_MAX_CHANNELS) ||
-		(m_pixelCount < 0) || (m_pixelCount > 600) ||
-		(m_nullNodes < 0) || (m_nullNodes > 600) ||
-		((m_nullNodes + m_pixelCount) > 600) ||
-		(m_hybridMode < 0) || (m_hybridMode > 1) ||
-		(m_reverseDirection < 0) || (m_reverseDirection > 1) ||
-		(m_grouping < 0) || (m_grouping > m_pixelCount) ||
-		(m_zigZag < 0) || (m_zigZag > m_pixelCount))
-	{
-		LogErr(VB_CHANNELOUT, "Invalid PixelString Config\n");
-		return 0;
-	}
+    m_brightness = brightness;
+    m_gamma = gamma;
+    if (m_brightness > 100 || m_brightness < 0) {
+        m_brightness = 100;
+    }
+    if (m_gamma < 0.01) {
+        m_gamma = 0.01;
+    }
+    if (m_gamma > 50.0f) {
+        m_gamma = 50.0f;
+    }
+    CHECKPS_SETTING(m_startChannel < 0);
+    CHECKPS_SETTING(m_startChannel > FPPD_MAX_CHANNELS);
+    CHECKPS_SETTING(m_pixelCount < 0);
+    CHECKPS_SETTING(m_pixelCount > MAX_PIXEL_STRING_LENGTH);
+    CHECKPS_SETTING(m_nullNodes < 0);
+    CHECKPS_SETTING(m_nullNodes > MAX_PIXEL_STRING_LENGTH);
+    CHECKPS_SETTING((m_nullNodes + m_pixelCount) > MAX_PIXEL_STRING_LENGTH);
+    CHECKPS_SETTING(m_hybridMode < 0);
+    CHECKPS_SETTING(m_hybridMode > 1);
+    CHECKPS_SETTING(m_reverseDirection < 0);
+    CHECKPS_SETTING(m_reverseDirection > 1);
+    CHECKPS_SETTING(m_grouping < 0);
+    CHECKPS_SETTING(m_grouping > m_pixelCount);
+    CHECKPS_SETTING(m_zigZag < 0);
+    CHECKPS_SETTING(m_zigZag > m_pixelCount);
 
 	if (m_grouping == 1)
 		m_grouping = 0;
@@ -130,6 +155,20 @@ int PixelString::Init(int portNumber, int channelOffset, int startChannel,
 
 	SetupMap();
 
+    float bf = m_brightness;
+    float maxB = bf * 2.55f;
+    for (int x = 0; x < 256; x++) {
+        float f = x;
+        f = maxB * pow(f / 255.0f, gamma);
+        if (f > 255.0) {
+            f = 255.0;
+        }
+        if (f < 0.0) {
+            f = 0.0;
+        }
+        m_brightnessMap[x] = std::round(f);
+    }
+    
 	return 1;
 }
 

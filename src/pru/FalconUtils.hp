@@ -1,0 +1,57 @@
+#ifndef __falcon_utils__
+#define __falcon_utils__
+
+#define PRU0_CONTROL_REG    0x00022000
+#define PRU1_CONTROL_REG    0x00024000
+
+#ifndef RUNNING_ON_PRU1
+#define PRU_CONTROL_REG PRU0_CONTROL_REG
+#define PRU_MEMORY_OFFSET 0
+#define PRU_ARM_INTERRUPT PRU0_ARM_INTERRUPT
+#else
+#define PRU_CONTROL_REG PRU1_CONTROL_REG
+#define PRU_MEMORY_OFFSET 0x2000
+#define PRU_ARM_INTERRUPT PRU1_ARM_INTERRUPT
+#endif
+
+/* needs two temporary registers that can be cleared out */
+.macro RESET_PRU_CLOCK
+.mparam reg1, reg2
+    MOV    reg2, PRU_CONTROL_REG
+    LBBO   &reg1, reg2, 0, 4
+    CLR    reg1, 3
+    SBBO   &reg1, reg2, 0, 4
+    SET    reg1, 3
+    SBBO   &reg1, reg2, 0, 4
+    LDI    reg1, 0
+    SBBO   reg1, reg2, 0xC, 4
+.endm
+
+/* if size = 8, then the reg beyond the passed in will contain the stall count */
+.macro GET_PRU_CLOCK
+.mparam reg, treg = tmp, size = 4
+    MOV   treg, PRU_CONTROL_REG
+    LBBO  reg, treg, 0xC, size
+.endm
+
+/* Wait until the clock has incremented a given number of nanoseconds with 10 ns resolution.
+   Based on the clock.   User RESET_PRU_CLOCK to set to 0 first. */
+.macro WAITNS
+.mparam ns, treg1, treg2
+    MOV treg1, PRU_CONTROL_REG
+waitloop:
+    LBBO treg2, treg1, 0xC, 4 // read the cycle counter
+    QBGT waitloop, treg2, (ns)/5
+.endm
+
+/* Busy sleep for the given number of ns */
+.macro SLEEPNS
+.mparam ns, treg, extra = 0
+       MOV treg, (ns/10) - 1 - extra
+sleeploop:
+       SUB treg, treg, 1
+       QBNE sleeploop, treg, 0
+.endm
+
+
+#endif

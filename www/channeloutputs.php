@@ -1,3 +1,4 @@
+
 <html>
 <head>
 <?php
@@ -73,7 +74,7 @@ function PopulateInterfaces()
 {
 	global $settings;
 
-	$interfaces = explode("\n",trim(shell_exec("/sbin/ifconfig | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v usb0")));
+	$interfaces = explode("\n",trim(shell_exec("/sbin/ifconfig | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v usb | grep -v SoftAp | grep -v 'can.'")));
 	$ifaceE131 = "";
 	if (isset($settings['E131interface'])) {
 		$ifaceE131 = $settings['E131interface'];
@@ -1681,18 +1682,36 @@ function GetBBB48StringRows()
 
 	if (subType == 'F16-B')
 		rows = 16;
-	else if (subType == 'F16-B-WS')
-		rows = 16;
 	else if (subType == 'F16-B-32')
 		rows = 32;
+    else if (subType == 'F16-B-40')
+        rows = 40;
 	else if (subType == 'F16-B-48')
 		rows = 48;
 	else if (subType == 'F4-B')
 		rows = 4;
-	else if (subType == 'F4-B-WS')
-		rows = 4;
+    else if (subType == 'F8-B')
+        rows = 12;
+    else if (subType == 'F8-B-16')
+        rows = 16;
+    else if (subType == 'F8-B-20')
+        rows = 20;
+    else if (subType == 'F8-B-EXP')
+        rows = 28;
+    else if (subType == 'F8-B-EXP-32')
+        rows = 32;
+    else if (subType == 'F8-B-EXP-36')
+        rows = 36;
+    else if (subType == 'F32-B')
+        rows = 40;
+    else if (subType == 'F32-B-48')
+        rows = 48;
+    else if (subType == 'RGBCape24')
+        rows = 24;
 	else if (subType == 'RGBCape48C')
 		rows = 48;
+    else if (subType == 'RGBCape48F')
+        rows = 48;
 
 	return rows;
 }
@@ -1714,9 +1733,6 @@ function GetBBB48StringConfig()
 	if ($('#BBB48StringEnabled').is(":checked"))
 		config.enabled = 1;
 
-//	if (config.subType.substr(0, 5) == "F16-B")
-//		config.subType = "F16-B";
-
 	var i = 0;
 	for (i = 0; i < BBB48StringOutputs; i++)
 	{
@@ -1732,7 +1748,9 @@ function GetBBB48StringConfig()
 		output.reverse = parseInt($('#BBB48Direction' + ai).val());
 		output.grouping = parseInt($('#BBB48Grouping' + ai).val());
 		output.zigZag = parseInt($('#BBB48ZigZag' + ai).val());
-
+        output.brightness = parseInt($('#BBB48Brightness' + ai).val());
+        output.gamma = parseFloat($('#BBB48Gamma' + ai).val());
+        
 		if ($('#BBB48HybridMode' + ai).is(":checked"))
 			output.hybridMode = 1;
 
@@ -1776,23 +1794,42 @@ function GetColorOptionsSelect(id, selected)
 function GetDirectionOptionsSelect(id, selected)
 {
 	var html = "";
-	html += "<select id='" + id + "'>";
 
-	html += "<option value='0'";
-	if (selected == 0)
-		html += " selected";
+    html += "<select id='" + id + "'>";
+    
+    html += "<option value='0'";
+    if (selected == 0)
+        html += " selected";
 
-	html += ">Forward</option>";
+    html += ">Forward</option>";
 
-	html += "<option value='1'";
-	if (selected == 1)
-		html += " selected";
+    html += "<option value='1'";
+    if (selected == 1)
+        html += " selected";
+    
+    html += ">Reverse</option>";
 
-	html += ">Reverse</option>";
-
-	html += "</select>";
-
+    html += "</select>";
 	return html;
+}
+function GetBrightnessOptionsSelect(id, selected)
+{
+    var html = "";
+    html += "<select id='" + id + "'>";
+    
+    var i = 0;
+    for (i = 100; i >= 0; )
+    {
+        html += "<option value='" + i + "'";
+        if (selected == i)
+            html += " selected";
+        html += ">" + i + "%</option>";
+        i = i - 5;
+    }
+    
+    
+    html += "</select>";
+    return html;
 }
 
 function UpdateBBBStringEndChannel(row)
@@ -1815,23 +1852,48 @@ function DrawBBB48StringTable()
 
 	var subType = $('#BBB48StringSubType').val();
 
-	if ((subType == 'F4-B-WS') || (subType == 'F16-B-WS'))
-	{
-		$('#BBBSerialSelect').show();
-		$('#BBBSerialOutputs').show();
-	}
-	else
+	if ((subType == 'F16-B-48')
+        || (subType == 'F8-B-20')
+        || (subType == 'F8-B-EXP-36')
+        || (subType == 'F32-B-48')
+        || (subType == 'RGBCape24')
+        || (subType == 'RGBCape48C')
+        || (subType == 'RGBCape48F'))
 	{
 		$('#BBBSerialSelect').hide();
 		$('#BBBSerialOutputs').hide();
+	}
+	else
+	{
+		$('#BBBSerialSelect').show();
+		$('#BBBSerialOutputs').show();
 	}
 
 	var s = 0;
 	for (s = 0; s < BBB48StringOutputs; s++)
 	{
-		if (s && ((s % 16) == 0))
-		{
-			html += "<tr><td colspan='9'><hr></td></tr>\n";
+        if (subType == 'F8-B-EXP') {
+            if (s == 12 || s == 8) {
+                html += "<tr><td colspan='12'><hr></td></tr>\n";
+            }
+        } else if (subType == 'F8-B-EXP-32' && (s == 16 || s == 12 || s == 8)) {
+            html += "<tr><td colspan='12'><hr></td></tr>\n";
+        } else if (subType == 'F8-B-EXP-36') {
+            if (s == 20 || s == 16 || s == 12 || s == 8) {
+                html += "<tr><td colspan='12'><hr></td></tr>\n";
+            }
+        } else if (subType == 'F8-B-20' && (s == 16 || s == 12 || s == 8)) {
+            html += "<tr><td colspan='12'><hr></td></tr>\n";
+        } else if (subType == 'F8-B-16' && (s == 12 || s == 8)) {
+            html += "<tr><td colspan='12'><hr></td></tr>\n";
+        } else if (subType == 'F8-B' && s == 8) {
+            html += "<tr><td colspan='12'><hr></td></tr>\n";
+        } else if (subType == 'F32-B' && s == 36) {
+            html += "<tr><td colspan='12'><hr></td></tr>\n";
+        } else if (subType == 'F32-B-48' && (s == 36 || s == 40 || s == 44) ) {
+            html += "<tr><td colspan='12'><hr></td></tr>\n";
+        } else if (s && ((s % 16) == 0)) {
+    		html += "<tr><td colspan='12'><hr></td></tr>\n";
 		}
 
 		html += "<tr id='BBB48StringRow" + s + "'>";
@@ -1855,11 +1917,22 @@ function DrawBBB48StringTable()
 			channelOutputsLookup["BBB48String"].outputs[s].reverse = 0;
 			channelOutputsLookup["BBB48String"].outputs[s].grouping = 0;
 			channelOutputsLookup["BBB48String"].outputs[s].zigZag = 0;
+            channelOutputsLookup["BBB48String"].outputs[s].brightness = 100;
+            channelOutputsLookup["BBB48String"].outputs[s].gamma = 1.0;
 		}
 
 		var p = channelOutputsLookup["BBB48String"].outputs[s].pixelCount;
 		var sc = channelOutputsLookup["BBB48String"].outputs[s].startChannel;
 		var gc = channelOutputsLookup["BBB48String"].outputs[s].grouping;
+        var bright = channelOutputsLookup["BBB48String"].outputs[s].brightness;
+        var gamma = channelOutputsLookup["BBB48String"].outputs[s].gamma;
+
+        if (bright == undefined) {
+            bright = 100;
+        }
+        if (gamma == undefined) {
+            gamma = 1.0;
+        }
 
 		if (gc == 0)
 			gc = 1;
@@ -1885,6 +1958,10 @@ function DrawBBB48StringTable()
 
 		html += "<td class='center'><input id='BBB48ZigZag[" + s + "]' type='text' size='3' maxlength='3' value='"
 			+ channelOutputsLookup["BBB48String"].outputs[s].zigZag + "'></td>";
+        
+        
+        html += "<td class='center'>" + GetBrightnessOptionsSelect("BBB48Brightness[" + s + "]", bright) + "</td>";
+        html += "<td class='center'><input id='BBB48Gamma[" + s + "]' type='text' size='4' maxlength='4' value='" + gamma + "'></td>";
 
 
 		html += "</tr>";
@@ -1897,6 +1974,13 @@ function BBB48StringSubTypeChanged()
 {
 	DrawBBB48StringTable();
 	SetupBBBSerialStartChannels();
+}
+function BBB48SerialTypeChanged() {
+    if ($('#BBBSerialMode').val() == 'DMX') {
+        $('#DMXNumChannelOutput').show();
+    } else {
+        $('#DMXNumChannelOutput').hide();
+    }
 }
 
 function InitializeBBB48String()
@@ -1926,7 +2010,6 @@ function InitializeBBB48String()
 	}
 
 	DrawBBB48StringTable();
-
 }
 
 function InitializeBBBSerial()
@@ -1936,8 +2019,13 @@ function InitializeBBBSerial()
 	if (("BBB48String" in channelOutputsLookup) &&
 		(typeof channelOutputsLookup["BBB48String"].subType != "undefined"))
 	{
-		if ((channelOutputsLookup["BBB48String"].subType != 'F4-B-WS') &&
-			(channelOutputsLookup["BBB48String"].subType != 'F16-B-WS'))
+		if ((channelOutputsLookup["BBB48String"].subType == 'F16-B-48') ||
+			(channelOutputsLookup["BBB48String"].subType == 'F8-B-20') ||
+            (channelOutputsLookup["BBB48String"].subType == 'F8-B-EXP-36') ||
+            (channelOutputsLookup["BBB48String"].subType == 'F32-B-48') ||
+            (channelOutputsLookup["BBB48String"].subType == 'RGBCape24') ||
+            (channelOutputsLookup["BBB48String"].subType == 'RGBCape48C') ||
+            (channelOutputsLookup["BBB48String"].subType == 'RGBCape48F'))
 			return; // nothing to setup if non-serial cape
 	}
 
@@ -1946,8 +2034,16 @@ function InitializeBBBSerial()
 		(channelOutputsLookup["BBBSerial"].subType != 'off'))
 	{
 		$('#BBBSerialMode').val(channelOutputsLookup["BBBSerial"].subType);
-
 		var outputs = channelOutputsLookup["BBBSerial"].outputs;
+        if (channelOutputsLookup["BBBSerial"].subType == 'DMX') {
+            if (outputs[0].channelCount > 0 && outputs[0].channelCount < 513) {
+                $('#BBBSerialNumDMXChannels').val(outputs[0].channelCount);
+            } else {
+                $('#BBBSerialNumDMXChannels').val("512");
+            }
+        } else {
+            $('#BBBSerialNumDMXChannels').val("512");
+        }
 
 		for (var i = 0; i < outputs.length; i++)
 		{
@@ -1957,15 +2053,18 @@ function InitializeBBBSerial()
 	}
 
 	SetupBBBSerialStartChannels();
+    BBB48SerialTypeChanged();
 }
 
 function SetupBBBSerialStartChannels()
 {
 	var subType = $('#BBB48StringSubType').val();
 
-	if (subType == 'F4-B-WS')
+	if (subType == 'F4-B')
 		maxPorts = 1;
-	else if (subType == 'F16-B-WS')
+    else if ((subType == 'F8-B-16') || (subType == 'F8-B-EXP-32'))
+        maxPorts = 4;
+	else
 		maxPorts = 8;
 
 	for (var i = 1; i <= 8; i++)
@@ -1988,12 +2087,19 @@ function GetBBBSerialConfig()
 	config.subType = $('#BBBSerialMode').val();
 	config.startChannel = 0;
 	config.channelCount = 0;
+    config.device = $('#BBB48StringSubType').val();
 	config.outputs = [];
 
 	if (config.subType != 'off')
 		config.enabled = 1;
-	else
-		config.subType = 'DMX';
+    
+    if (!$('#BBB48StringEnabled').is(":checked"))
+        config.enabled = 0;
+  
+    if ($('#BBBSerialSelect').is(":hidden"))
+        config.enabled = 0;
+
+
 
 	var i = 1;
 	for (i = 1; i <= 8; i++)
@@ -2010,7 +2116,7 @@ function GetBBBSerialConfig()
 		output.outputType = config.subType;
 
 		if (config.subType == 'DMX')
-			output.channelCount = 512;
+            output.channelCount = parseInt($('#BBBSerialNumDMXChannels').val());
 		else
 			output.channelCount = 4096;
 
@@ -2037,11 +2143,20 @@ $LEDPanelRows = 1;
 $LEDPanelCols = 1;
 $LEDPanelWidth = 32;
 $LEDPanelHeight = 16;
+$LEDPanelScan = 8;
+$LEDPanelInterleave = 0;
 
 if ($settings['Platform'] == "BeagleBone Black")
 {
-	$LEDPanelOutputs = 8;
-	$LEDPanelPanelsPerOutput = 8;
+    if (strpos($settings['SubPlatform'], 'Green Wireless') !== FALSE) {
+        $LEDPanelOutputs = 5;
+    } else if (strpos($settings['SubPlatform'], 'PocketBeagle') !== FALSE) {
+        $LEDPanelOutputs = 6;
+    } else {
+        $LEDPanelOutputs = 8;
+    }
+    
+	$LEDPanelPanelsPerOutput = 12;
 }
 
 $maxLEDPanels = $LEDPanelOutputs * $LEDPanelPanelsPerOutput;
@@ -2077,14 +2192,28 @@ function printLEDPanelLayoutSelect()
 	PrintSettingSelect("Panel Layout", "LEDPanelsLayout", 1, 0, "1x1", $values, "", "LEDPanelLayoutChanged");
 }
 
-function printLEDPanelSizeSelect()
+function printLEDPanelSizeSelect($platform, $def, $interleave)
 {
 	$values = array();
-	$values["32x16"] = "32x16";
-	$values["32x32"] = "32x32";
-	$values["64x32"] = "64x32";
-
-	PrintSettingSelect("Panel Size", "LEDPanelsSize", 1, 0, "32x16", $values, "", "LEDPanelLayoutChanged");
+    if ($platform == "BeagleBone Black") {
+        $values["32x16 1/8 Scan"] = "32x16x8";
+        $values["32x16 1/4 Scan"] = "32x16x4";
+        $values["32x16 1/2 Scan"] = "32x16x2";
+        $values["32x32 1/16 Scan"] = "32x32x16";
+        $values["64x32 1/16 Scan"] = "64x32x16";
+        
+        $values["64x32 1/8 Scan"] = "64x32x8x64";
+        $values["32x32 1/8 Scan"] = "32x32x8x32";
+        $values["40x20 1/5 Scan"] = "40x20x5";
+    } else {
+        $values["32x16"] = "32x16x8";
+        $values["32x32"] = "32x32x16";
+    }
+    if ($interleave != "0" && $interleave != "") {
+        PrintSettingSelect("Panel Size", "LEDPanelsSize", 1, 0, $def + "x" + $interleave, $values, "", "LEDPanelLayoutChanged");
+    } else {
+        PrintSettingSelect("Panel Size", "LEDPanelsSize", 1, 0, $def, $values, "", "LEDPanelLayoutChanged");
+    }
 }
 
 ?>
@@ -2094,6 +2223,8 @@ var LEDPanelOutputs = <? echo $LEDPanelOutputs; ?>;
 var LEDPanelPanelsPerOutput = <? echo $LEDPanelPanelsPerOutput; ?>;
 var LEDPanelWidth = <? echo $LEDPanelWidth; ?>;
 var LEDPanelHeight = <? echo $LEDPanelHeight; ?>;
+var LEDPanelScan = <? echo $LEDPanelScan; ?>;
+var LEDPanelInterleave = <? echo $LEDPanelInterleave; ?>;
 var LEDPanelRows = <? echo $LEDPanelRows; ?>;
 var LEDPanelCols = <? echo $LEDPanelCols; ?>;
 
@@ -2103,6 +2234,8 @@ function UpdatePanelSize()
 	var sizeparts = size.split("x");
 	LEDPanelWidth = parseInt(sizeparts[0]);
 	LEDPanelHeight = parseInt(sizeparts[1]);
+    LEDPanelScan = parseInt(sizeparts[2]);
+    LEDPanelInterleave = parseInt(sizeparts[3]);
 }
 
 function LEDPanelOrientationClicked(id)
@@ -2147,6 +2280,8 @@ function LEDPanelLayoutChanged()
 	var parts = layout.split("x");
 	LEDPanelCols = parseInt(parts[0]);
 	LEDPanelRows = parseInt(parts[1]);
+    LEDPanelScan = parseInt(parts[2]);
+    LEDPanelInterleave = parseInt(parts[3]);
 
 	UpdatePanelSize();
 
@@ -2218,12 +2353,18 @@ function InitializeLEDPanels()
 		$('#LEDPanelsInterface').val(channelOutputsLookup["LEDPanelMatrix"].interface);
 		$('#LEDPanelsSourceMacInput').val(channelOutputsLookup["LEDPanelMatrix"].sourceMAC);
 <?
-	if ($settings['Platform'] == "Raspberry Pi")
+	if ($settings['Platform'] == "Raspberry Pi" || $settings['Platform'] == "BeagleBone Black")
 	{
 ?>
 		$('#LEDPanelsWiringPinout').val(channelOutputsLookup["LEDPanelMatrix"].wiringPinout);
 <?
 	}
+    if ($settings['Platform'] == "BeagleBone Black")
+    {
+?>
+        $('#LEDPanelsColorDepth').val(channelOutputsLookup["LEDPanelMatrix"].panelColorDepth);
+<?
+    }
 ?>
 		$('#LEDPanelsStartCorner').val(channelOutputsLookup["LEDPanelMatrix"].invertedData);
 
@@ -2274,16 +2415,29 @@ function GetLEDPanelConfig()
 		}
 	}
 <?
-	if ($settings['Platform'] == "Raspberry Pi")
+	if ($settings['Platform'] == "Raspberry Pi" || $settings['Platform'] == "BeagleBone Black")
 	{
 ?>
 	config.wiringPinout = $('#LEDPanelsWiringPinout').val();
 <?
 	}
 ?>
+<?
+    if ($settings['Platform'] == "BeagleBone Black")
+    {
+?>
+        config.panelColorDepth = parseInt($('#LEDPanelsColorDepth').val());
+<?
+    }
+?>
+    config.brightness = parseInt($('#LEDPanelsBrightness').val());
 	config.invertedData = parseInt($('#LEDPanelsStartCorner').val());
 	config.panelWidth = LEDPanelWidth;
 	config.panelHeight = LEDPanelHeight;
+    config.panelScan = LEDPanelScan;
+    if (LEDPanelInterleave) {
+        config.panelInterleave = LEDPanelInterleave;
+    }
 	config.panels = [];
 
 	if ($('#LEDPanelsEnabled').is(":checked"))
@@ -2691,7 +2845,7 @@ tr.rowUniverseDetails td
 								<td><b>Start Channel:</b></td><td><input id='LEDPanelsStartChannel' type=text size=6 maxlength=6 value='1'></td>
 							</tr>
 							<tr>
-								<td><b>Single Panel Size (WxH):</b></td><td><? printLEDPanelSizeSelect(); ?></td>
+								<td><b>Single Panel Size (WxH):</b></td><td><? printLEDPanelSizeSelect($settings['Platform'], $LEDPanelWidth + "x" + $$LEDPanelHeigth + "x" + $LEDPanelScan, $LEDPanelInterleave); ?></td>
 								<td>&nbsp;</td>
 								<td><b>Channel Count:</b></td><td><span id='LEDPanelsChannelCount'>1536</span></td>
 							</tr>
@@ -2725,28 +2879,54 @@ tr.rowUniverseDetails td
 	}
 	else
 	{
-		for ($x = 7; $x >= 1; $x -= 1)
+		for ($x = 10; $x >= 1; $x -= 1)
 			echo "<option value='$x'>$x</option>\n";
 	}
 ?>
 									</select>
 									</td>
-<?
-	if ($settings['Platform'] == "Raspberry Pi")
-	{
-?>
 								<td>&nbsp;</td>
 								<td><b>Wiring Pinout:</b></td><td>
 									<select id='LEDPanelsWiringPinout'>
+<?
+    if ($settings['Platform'] == "Raspberry Pi")
+    {
+?>
 										<option value='Standard'>Standard</option>
 										<option value='Classic'>Classic</option>
 										<option value='Adafruit'>Adafruit</option>
-									</select>
-									</td>
 <?
-	}
+    } else if ($settings['Platform'] == "BeagleBone Black") {
+        if (strpos($settings['SubPlatform'], 'Green Wireless') !== FALSE) {
+?>
+                                        <option value='v2'>v2.x</option>
+<?
+        } else if (strpos($settings['SubPlatform'], 'PocketBeagle') !== FALSE) {
+?>
+            <option value='PocketScroller1x'>PocketScroller</option>
+<?
+        } else {
+?>
+                                        <option value='v1'>Standard v1.x</option>
+                                        <option value='v2'>v2.x</option>
+<?
+        }
+    }
 ?>
 							</tr>
+<?
+if ($settings['Platform'] == "BeagleBone Black") {
+    ?>
+    <tr><td><b>Color Depth:</b></td><td>
+    <select id='LEDPanelsColorDepth'>
+    <option value='8'>8 Bit</option>
+    <option value='7'>7 Bit</option>
+    <option value='6'>6 Bit</option>
+    </select>
+    </td></tr>
+    <?
+}
+?>
 							<tr>
 								<td><b>Connection:</b></td><td>
 									<select id='LEDPanelsConnection' onChange='LEDPannelsConnectionChanged();'>
@@ -2769,6 +2949,10 @@ tr.rowUniverseDetails td
 									</select>
 									</td>
 							</tr>
+
+        
+        
+        
 							<tr id='LEDPanelsSourceMac'>
 								<td><b>Source Mac:</b></td><td>
 								<input id='LEDPanelsSourceMacInput' type=text size=16 maxlength=17 value='00:00:00:00:00:00'>
@@ -2815,28 +2999,35 @@ if ($settings['Platform'] == "BeagleBone Black")
 							</tr>
 							<tr>
 								<td><b>Cape Type:</b></td>
-								<td><select id='BBB48StringSubType' onChange='BBB48StringSubTypeChanged();'>
+								<td colspan="3"><select id='BBB48StringSubType' onChange='BBB48StringSubTypeChanged();'>
 									<option value='F16-B'>F16-B</option>
-									<option value='F16-B-WS'>F16-B with Serial</option>
 									<option value='F16-B-32'>F16-B w/ 32 outputs</option>
 									<option value='F16-B-48'>F16-B w/ 48 outputs (No Serial)</option>
 									<option value='F4-B'>F4-B</option>
-									<option value='F4-B-WS'>F4-B with Serial</option>
+                                    <option value='F8-B'>F8-B (8 serial)</option>
+                                    <option value='F8-B-16'>F8-B (4 serial)</option>
+                                    <option value='F8-B-20'>F8-B (No serial)</option>
+                                    <option value='F8-B-EXP'>F8-B w/ Expansion (8 serial)</option>
+                                    <option value='F8-B-EXP-32'>F8-B w/ Expansion (4 serial)</option>
+                                    <option value='F8-B-EXP-36'>F8-B w/ Expansion (No serial)</option>
+                                    <option value='F32-B'>F32-B</option>
+                                    <option value='F32-B-48'>F32-B (No Serial)</option>
+                                    <option value='RGBCape24'>RGBCape24</option>
 									<option value='RGBCape48C'>RGBCape48C</option>
+                                    <option value='RGBCape48F'>RGBCape48F</option>
 									</select>
 									</td>
 							</tr>
 							<tr id='BBBSerialSelect'>
 								<td><b>BBB Serial Cape Mode:</b></td>
-								<td><select id='BBBSerialMode'>
+								<td><select id='BBBSerialMode' onChange='BBB48SerialTypeChanged();'>
 										<option value='off'>Disabled</option>
 										<option value='DMX'>DMX</option>
 										<option value='Pixelnet'>Pixelnet</option>
 									</select>
 									</td>
 								<td width=20>&nbsp;</td>
-								<td width=20>&nbsp;</td>
-								<td width=20>&nbsp;</td>
+                                <td><div id="DMXNumChannelOutput">Num&nbsp;DMX&nbsp;Channels:&nbsp;<input id='BBBSerialNumDMXChannels' size='6' maxlength='6' value='512'></div></td>
 							</tr>
 							<tr>
 								<td width = '70 px' colspan=5><input id='btnSaveChannelOutputsJSON' class='buttons' type='button' value='Save' onClick='SaveChannelOutputsJSON();'/> <font size=-1>(this will save changes to BBB tab &amp; LED Panels tab)</font></td>
@@ -2853,10 +3044,12 @@ if ($settings['Platform'] == "BeagleBone Black")
 									<td width='10%'>End<br>Channel</td>
 									<td width='5%'>RGB<br>Order</td>
 									<td width='8%'>Direction</td>
-									<td width='10%'>Group<br>Count</td>
-									<td width='10%'>Null<br>Nodes</td>
-									<td width='10%'>Hybrid</td>
+									<td width='8%'>Group<br>Count</td>
+									<td width='8%'>Null<br>Nodes</td>
+									<td width='8%'>Hybrid</td>
 									<td width='10%'>Zig<br>Zag</td>
+                                    <td width='8%'>Brightness</td>
+                                    <td width='8%'>Gamma</td>
 									</tr>
 							</thead>
 							<tbody>

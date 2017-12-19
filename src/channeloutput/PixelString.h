@@ -37,7 +37,8 @@ class PixelString {
 	int  Init(std::string configStr);
 	int  Init(int portNumber, int channelOffset, int startChannel,
 		int pixelCount, std::string colorOrder, int nullNodes,
-		int hybridMode, int reverse, int grouping, int zigZag);
+		int hybridMode, int reverse, int grouping, int zigZag,
+        int brightness, float gamma);
 	void DumpConfig(void);
 
 	int               m_portNumber;
@@ -50,12 +51,14 @@ class PixelString {
 	int               m_reverseDirection;
 	int               m_grouping;
 	int               m_zigZag;
+    int               m_brightness;
+    float             m_gamma;
 
 	int               m_inputChannels;
 	int               m_outputChannels;
 
 	std::vector<int>  m_outputMap;
-
+    uint8_t           m_brightnessMap[256];
   private:
 	void SetupMap(void);
 	void FlipPixels(int offset1, int offset2);
