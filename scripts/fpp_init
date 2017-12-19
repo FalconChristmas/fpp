@@ -62,3 +62,11 @@ fi
 
 ##############################################################################
 
+
+# On BBB running Stretch, the fpp_init is called prior to network
+# so we can use the opportunity to configure the network adapapters
+# and DNS and other hardware
+if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
+then
+    .  ${BINDIR}/init_pre_network
+fi
