@@ -2414,14 +2414,9 @@ function GetChannelOutputConfig()
 
 	config.channelOutputs = [];
 
-<?
-	if (($settings['Platform'] == "BeagleBone Black") ||
-			($settings['Platform'] == "Raspberry Pi"))
-	{
-		// LED Panels
-		echo "config.channelOutputs.push(GetLEDPanelConfig());\n";
-	}
+	config.channelOutputs.push(GetLEDPanelConfig());
 
+<?
 	if ($settings['Platform'] == "BeagleBone Black")
 	{
 		echo "// BBB 48 String output\n";
