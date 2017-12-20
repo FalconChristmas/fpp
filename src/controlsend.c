@@ -99,21 +99,6 @@ void SendControlCSVPacket(void *outBuf, int len) {
 /*
  *
  */
-void SendControlCSVPacket(void *outBuf, int len) {
-	LogExcess(VB_SYNC, "CSV Sync: '%s'\n", (char *)outBuf);
-
-	if (ctrlSendCSVSock < 0) {
-		LogErr(VB_SYNC, "ERROR: Tried to send CSV Sync packet but CSV sync socket is not open.\n");
-		return;
-	}
-
-	if (sendto(ctrlSendCSVSock, outBuf, len, 0, (struct sockaddr*)&cDestAddrCSV, sizeof(struct sockaddr_in)) < 0)
-		LogErr(VB_SYNC, "Error: Unable to send packet: %s\n", strerror(errno));
-}
-
-/*
- *
- */
 void InitControlPkt(ControlPkt *pkt) {
 	bzero(pkt, sizeof(ControlPkt));
 

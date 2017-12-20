@@ -106,7 +106,7 @@ then
 		debian_7)
 			/etc/init.d/avahi-daemon restart
 			;;
-		debian_8)
+		debian_8|debian_9)
 			systemctl restart avahi-daemon.service
 			;;
 	esac

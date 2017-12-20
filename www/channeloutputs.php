@@ -2708,55 +2708,6 @@ tr.rowUniverseDetails td
 									</select>
 									</td>
 							</tr>
-<?
-	if ($settings['Platform'] == "Raspberry Pi")
-	{
-?>
-							<tr>
-								<td><b>Wiring Pinout:</b></td><td>
-									<select id='LEDPanelsWiringPinout'>
-										<option value='Standard'>Standard</option>
-										<option value='Classic'>Classic</option>
-										<option value='Adafruit'>Adafruit</option>
-									</select>
-									</td>
-							</tr>
-<?
-	}
-?>
-							<tr>
-								<td><b>Brightness:</b></td><td>
-									<select id='LEDPanelsBrightness'>
-<?
-	if ($settings['Platform'] == "Raspberry Pi")
-	{
-		for ($x = 100; $x >= 10; $x -= 5)
-			echo "<option value='$x'>$x%</option>\n";
-	}
-	else
-	{
-		for ($x = 7; $x >= 1; $x -= 1)
-			echo "<option value='$x'>$x</option>\n";
-	}
-?>
-									</select>
-									</td>
-<?
-	if ($settings['Platform'] == "Raspberry Pi")
-	{
-?>
-								<td>&nbsp;</td>
-								<td><b>Wiring Pinout:</b></td><td>
-									<select id='LEDPanelsWiringPinout'>
-										<option value='Standard'>Standard</option>
-										<option value='Classic'>Classic</option>
-										<option value='Adafruit'>Adafruit</option>
-									</select>
-									</td>
-<?
-	}
-?>
-							</tr>
 							<tr>
 								<td><b>Brightness:</b></td><td>
 									<select id='LEDPanelsBrightness'>

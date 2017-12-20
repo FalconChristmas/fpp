@@ -106,6 +106,31 @@ int main(int argc, char *argv[])
 	sequence  = new Sequence();
 	channelTester = new ChannelTester();
 
+	piFaceSetup(200); // PiFace inputs 1-8 == wiringPi 200-207
+
+	SetupGPIOInput();
+
+	pluginCallbackManager.init();
+
+	CheckExistanceOfDirectoriesAndFiles();
+
+	if (getFPPmode() != BRIDGE_MODE)
+	{
+		InitMediaOutput();
+	}
+
+	if (getFPPmode() & PLAYER_MODE)
+	{
+		if (getFPPmode() == MASTER_MODE)
+			InitSyncMaster();
+	}
+
+	InitializeChannelOutputs();
+	sequence->SendBlankingData();
+
+	InitEffects();
+	InitializeChannelDataMemoryMap();
+
 #ifndef NOROOT
 	struct sched_param param;
 	param.sched_priority = 99;
@@ -144,7 +169,6 @@ int main(int argc, char *argv[])
 
 void ShutdownFPPD(void)
 {
-	LogDebug(VB_GENERAL, "Shutting down fppd\n");
 	runMainFPPDLoop = 0;
 }
 
@@ -164,48 +188,25 @@ void MainLoop(void)
 
 	FD_ZERO (&active_fd_set);
 
-	CheckExistanceOfDirectoriesAndFiles();
+	commandSock = Command_Initialize();
+	if (commandSock)
+		FD_SET (commandSock, &active_fd_set);
 
-	piFaceSetup(200); // PiFace inputs 1-8 == wiringPi 200-207
-
-	if (getFPPmode() == BRIDGE_MODE)
+	if (getFPPmode() & PLAYER_MODE)
+	{
+		scheduler->CheckIfShouldBePlayingNow();
+		if (getAlwaysTransmit())
+			StartChannelOutputThread();
+	}
+	else if (getFPPmode() == BRIDGE_MODE)
 	{
 		bridgeSock = Bridge_Initialize();
 		if (bridgeSock)
 			FD_SET (bridgeSock, &active_fd_set);
 	}
-	else
-	{
-		InitMediaOutput();
-	}
-
-	pluginCallbackManager.init();
-
-	InitializeChannelOutputs();
-	sequence->SendBlankingData();
-
-	InitEffects();
-	InitializeChannelDataMemoryMap();
-
-	commandSock = Command_Initialize();
-	if (commandSock)
-		FD_SET (commandSock, &active_fd_set);
 
 	controlSock = InitControlSocket();
 	FD_SET (controlSock, &active_fd_set);
-
-	SetupGPIOInput();
-
-	if (getFPPmode() & PLAYER_MODE)
-	{
-		if (getFPPmode() == MASTER_MODE)
-			InitSyncMaster();
-
-		scheduler->CheckIfShouldBePlayingNow();
-
-		if (getAlwaysTransmit())
-			StartChannelOutputThread();
-	}
 
 	LogInfo(VB_GENERAL, "Starting main processing loop\n");
 

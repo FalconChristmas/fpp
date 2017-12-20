@@ -705,7 +705,7 @@ void Scheduler::GetNextScheduleStartText(char * txt)
 		if (found >= 0)
 		{
 			GetDayTextFromDayIndex(m_Schedule[found].dayIndex,dayText);
-			sprintf(txt, "%04d-%02d-%02d @ %02d:%02d:%02d - (%s)",
+			sprintf(txt, "%04d-%02d-%02d @ %02d:%02d:%02d - (%s)\n",
 				(int)(m_Schedule[found].startDate / 10000),
 				(int)(m_Schedule[found].startDate % 10000 / 100),
 				(int)(m_Schedule[found].startDate % 100),

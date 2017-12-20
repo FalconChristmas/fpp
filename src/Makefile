@@ -29,9 +29,6 @@ LIBS_fppmm = \
 OBJECTS_fppd = \
 	channeloutput/ChannelOutputBase.o \
 	channeloutput/channeloutput.o \
-	channeloutput/ArtNet.o \
-	channeloutput/ColorOrder.o \
-	channeloutput/ColorLight-5a-75.o \
 	channeloutput/channeloutputthread.o \
 	channeloutput/ArtNet.o \
 	channeloutput/ColorOrder.o \

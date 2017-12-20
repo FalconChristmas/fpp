@@ -519,15 +519,6 @@
 			]
 		},
 		{
-			"type": "ColorLight5a75",
-			"enabled": 0,
-			"startChannel": 1,
-			"channelCount": 6144,
-			"width": 64,
-			"height": 32,
-			"interface": "eth0"
-		},
-		{
 			"type": "OLA",
 			"enabled": 0,
 			"startChannel": 1,
