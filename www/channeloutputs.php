@@ -2474,18 +2474,10 @@ $(document).ready(function(){
 	InitializeUniverses();
 	getUniverses('TRUE');
 
-
 <?
 	if ($settings['Platform'] == "Raspberry Pi")
 	{
 		echo "getPixelnetDMXoutputs('TRUE');\n";
-	}
-
-	if (($settings['Platform'] == "BeagleBone Black") ||
-			($settings['Platform'] == "Raspberry Pi"))
-	{
-		// LED Panel initialization
-		echo "InitializeLEDPanels();\n";
 	}
 
 	if ($settings['Platform'] == "BeagleBone Black")
@@ -2500,6 +2492,7 @@ $(document).ready(function(){
 	SetupSelectableTableRow(otherTableInfo);
 	GetChannelOutputs();
 
+	InitializeLEDPanels();
 	LEDPannelsConnectionChanged();
 
 	// Init tabs
