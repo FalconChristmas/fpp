@@ -132,7 +132,9 @@ void *RunChannelOutputThread(void *data)
 				// Send sync every 16 frames (use 16 to make the check simpler)
 				syncFrameCounter = 1;
 				SendSeqSyncPacket(
-					sequence->m_seqFilename, channelOutputFrame, mediaElapsedSeconds);
+					sequence->m_seqFilename, channelOutputFrame,
+					(mediaElapsedSeconds > 0) ? mediaElapsedSeconds
+						: 1.0 * channelOutputFrame / RefreshRate );
 			}
 			else
 			{
@@ -212,6 +214,16 @@ void SetChannelOutputRefreshRate(int rate)
 int StartChannelOutputThread(void)
 {
 	LogDebug(VB_CHANNELOUT, "StartChannelOutputThread()\n");
+
+	int E131BridgingInterval = getSettingInt("E131BridgingInterval");
+
+	if ((getFPPmode() == BRIDGE_MODE) && (E131BridgingInterval))
+		DefaultLightDelay = E131BridgingInterval * 1000;
+	else
+		DefaultLightDelay = 1000000 / RefreshRate;
+
+	LightDelay = DefaultLightDelay;
+
 	if (ChannelOutputThreadIsRunning())
 	{
 		// Give a little time in case we were shutting down
@@ -230,15 +242,6 @@ int StartChannelOutputThread(void)
 		mediaOffset = 0.0;
 
 	LogDebug(VB_MEDIAOUT, "Using mediaOffset of %.3f\n", mediaOffset);
-
-	int E131BridgingInterval = getSettingInt("E131BridgingInterval");
-
-	if ((getFPPmode() == BRIDGE_MODE) && (E131BridgingInterval))
-		DefaultLightDelay = E131BridgingInterval * 1000;
-	else
-		DefaultLightDelay = 1000000 / RefreshRate;
-
-	LightDelay = DefaultLightDelay;
 
 	RunThread = 1;
 	int result = pthread_create(&ChannelOutputThreadID, NULL, &RunChannelOutputThread, NULL);

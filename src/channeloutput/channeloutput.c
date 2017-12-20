@@ -70,10 +70,8 @@
 
 #ifdef USEWIRINGPI
 #  include "Hill320.h"
-#endif
-
-#ifdef PLATFORM_PI
 #  include "ILI9488.h"
+#  include "MCP23017.h"
 #  include "rpi_ws281x.h"
 #endif
 
@@ -288,9 +286,15 @@ int InitializeChannelOutputs(void) {
 			} else if (type == "OLA") {
 				channelOutputs[i].output = new OLAOutput(start, count);
 #endif
-#ifdef USEWIRINGPI
+			} else if (type == "FBVirtualDisplay") {
+				channelOutputs[i].output = (ChannelOutputBase*)new FBVirtualDisplayOutput(0, FPPD_MAX_CHANNELS);
+			} else if (type == "USBRelay") {
+				channelOutputs[i].output = new USBRelayOutput(start, count);
+#if defined(PLATFORM_PI)
 			} else if (type == "Hill320") {
 				channelOutputs[i].output = new Hill320Output(start, count);
+			} else if (type == "MCP23017") {
+				channelOutputs[i].output = new MCP23017Output(start, count);
 #endif
 #ifdef PLATFORM_PI
 			} else if (type == "ILI9488") {

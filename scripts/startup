@@ -55,7 +55,7 @@ fi
 SITEFILE="/etc/apache2/sites-enabled/000-default"
 NGINX_SITEFILE="/etc/fpp_nginx.conf"
 
-if dpkg --get-selections | grep -qc -e ^apache2\	; then
+if dpkg --get-selections | grep -qc -e "^apache2\	" ; then
 # If the flash drive is not mounted yet, then fix Apache so it can at least start up
 if [ ! -d "${FPPHOME}/media/logs" ]
 then
@@ -65,7 +65,7 @@ then
 		debian_7)
 			/etc/init.d/apache2 restart
 			;;
-		debian_8)
+		debian_8|debian_9)
 			systemctl restart apache2.service
 			;;
 	esac
@@ -77,11 +77,12 @@ then
 	echo "FPP - Reconfiguring nginx to disable logging since flash is not mounted"
 	sed -i -e "s/\(\w*\)access_log/\1#access_log/" ${NGINX_SITEFILE}
 	sed -i -e "s/\(\w*\)error_log/\1#error_log/" ${NGINX_SITEFILE}
+
 	case "${OSVER}" in
 		debian_7)
 			/etc/init.d/nginx restart
 			;;
-		debuan_8)
+		debian_8|debian_9)
 			systemctl restart nginx.service
 			;;
 	esac
@@ -284,19 +285,19 @@ case "${OSVER}" in
 	debian_7)
 		/etc/init.d/rsync restart
 		;;
-	debian_8)
+	debian_8|debian_9)
 		systemct restart rsync.service
 		;;
 esac
 
-if dpkg --get-selections | grep -qc -e ^apache2\	; then
+if dpkg --get-selections | grep -qc -e "^apache2\	" ; then
 echo "FPP - Copying Apache config into place and restarting Apache"
 sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/apache2.site > ${SITEFILE}
 case "${OSVER}" in
 	debian_7)
 		/etc/init.d/apache2 restart
 		;;
-	debian_8)
+	debian_8|debian_9)
 		systemctl restart nginx.service
 		;;
 esac
@@ -307,7 +308,11 @@ case "${OSVER}" in
 	debian_7)
 		/etc/init.d/nginx restart
 		;;
-	debuan_8)
+	debian_8)
+		systemctl restart nginx.service
+		;;
+	debian_9)
+		sed -i "s#php5-fpm#php/php7.0-fpm#" ${NGINX_SITEFILE}
 		systemctl restart nginx.service
 		;;
 esac

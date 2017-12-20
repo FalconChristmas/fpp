@@ -547,6 +547,11 @@ function RemovePlaylistEntry()	{
 			CheckFirstLastOptions();
 		}
 
+		function reloadPage()
+		{
+			location.reload(true);
+		}
+
 		function updatePlugin(pluginName)
 		{
 			var xmlhttp=new XMLHttpRequest();
@@ -821,7 +826,7 @@ function RemovePlaylistEntry()	{
 								              "<td>" + (i+1).toString() + "</td>" +
 															"<td><input name=\"chkActive[" + i.toString() + "]\" id=\"chkActive[" + i.toString() + "]\" type=\"checkbox\" " + activeChecked +"/></td>" +
 															"<td><input name=\"txtStartAddress[" + i.toString() + "]\" id=\"txtStartAddress[" + i.toString() + "]\" type=\"text\" size=\"6\" maxlength=\"6\" value=\"" + startAddress.toString() + "\"/></td>" +
-															"<td><input name=\"txtUniverse[" + i.toString() + "]\" id=\"txtUniverse[" + i.toString() + "]\" type=\"text\" size=\"3\" maxlength=\"3\" value=\"" + universe.toString() + "\"/></td>" +
+															"<td><input name=\"txtUniverse[" + i.toString() + "]\" id=\"txtUniverse[" + i.toString() + "]\" type=\"text\" size=\"5\" maxlength=\"5\" value=\"" + universe.toString() + "\"/></td>" +
 															"<td><input name=\"txtSize[" + i.toString() + "]\" id=\"txtSize[" + i.toString() + "]\" type=\"text\"  size=\"3\"/  maxlength=\"3\"value=\"" + size.toString() + "\"></td>" +
 															
 															"<td><select id=\"universeType[" + i.toString() + "]\" name=\"universeType[" + i.toString() + "]\" style=\"width:150px\">" +
@@ -1093,6 +1098,19 @@ function RemovePlaylistEntry()	{
 			getSchedule("TRUE");	
 		}  
 
+		function ScheduleDaysSelectChanged(item)
+		{
+			var name = $(item).attr('name');
+			var maskSpan = name.replace('selDay', 'dayMask');
+			maskSpan = maskSpan.replace('[', '\\[');
+			maskSpan = maskSpan.replace(']', '\\]');
+
+			if ($(item).find('option:selected').text() == 'Day Mask')
+				$('#' + maskSpan).show();
+			else
+				$('#' + maskSpan).hide();
+		}
+
 		function getSchedule(reload)
 		{
     	var xmlhttp=new XMLHttpRequest();
@@ -1109,14 +1127,18 @@ function RemovePlaylistEntry()	{
 					{
 						GetPlaylistArray();
 						headerHTML = "<tr class=\"tblheader\">" +  
-                        "<td width=\"3%\">#</td>" +
-                        "<td width=\"7%\">Enable</td>" +
-                        "<td width=\"10%\">First &amp; Last<br>Run Dates</td>" +
-												"<td width=\"42%\">Playlist</td>" +
-												"<td width=\"15%\">Day(s)</td>" +
-												"<td width=\"15%\">Start &amp; End<br>Times</td>" +
-                        "<td width=\"8%\">Repeat</td>" +
-												"</tr>";
+							"<td>#</td>" +
+							"<td>Enable</td>" +
+							"<td>Start Date</td>" +
+							"<td>End Date</td>" +
+							"<td>Playlist</td>" +
+							"<td>Day(s)</td>" +
+							"<td>Start Time</td>" +
+							"<td>End Time</td>" +
+							"<td>Repeat</td>" +
+							"</tr>";
+
+
 							
 						$('#tblSchedule').append(headerHTML);					
 							ScheduleCount = entries.childNodes.length;
@@ -1147,6 +1169,8 @@ function RemovePlaylistEntry()	{
 									var dayChecked_11 =  day == 11  ? "selected" : "";
 									var dayChecked_12 =  day == 12  ? "selected" : "";
 									var dayChecked_13 =  day == 13  ? "selected" : "";
+									var dayChecked_0x10000 = day >= 0x10000 ? "selected" : "";
+									var dayMaskStyle = day >= 0x10000 ? "" : "display: none;";
 
 									playlistOptionsText = ""
 									for(j=0;j<PlaylistCount;j++)
@@ -1157,12 +1181,12 @@ function RemovePlaylistEntry()	{
 									var tableRow = 	"<tr class=\"rowScheduleDetails\">" +
 								              "<td class='center'>" + (i+1).toString() + "</td>" +
 															"<td class='center' ><input  name=\"chkEnable[" + i.toString() + "]\" id=\"chkEnable[" + i.toString() + "]\" type=\"checkbox\" " + enableChecked +"/></td>" +
-															"<td><input class='date center'  name=\"txtStartDate[" + i.toString() + "]\" id=\"txtStartDate[" + i.toString() + "]\" type=\"text\" size=\"10\" value=\"" + startDate + "\"/><br/>" +
+															"<td><input class='date center'  name=\"txtStartDate[" + i.toString() + "]\" id=\"txtStartDate[" + i.toString() + "]\" type=\"text\" size=\"10\" value=\"" + startDate + "\"/></td><td>" +
 																"<input class='date center'  name=\"txtEndDate[" + i.toString() + "]\" id=\"txtEndDate[" + i.toString() + "]\" type=\"text\" size=\"10\" value=\"" + endDate + "\"/></td>" +
 
 															"<td><select id=\"selPlaylist[" + i.toString() + "]\" name=\"selPlaylist[" + i.toString() + "]\">" +
-															playlistOptionsText + "</select></td>" + 
-															"<td><select id=\"selDay[" + i.toString() + "]\" name=\"selDay[" + i.toString() + "]\">" +
+															playlistOptionsText + "</select></td>" +
+															"<td><select id=\"selDay[" + i.toString() + "]\" name=\"selDay[" + i.toString() + "]\" onChange='ScheduleDaysSelectChanged(this);'>" +
 															      "<option value=\"7\" " + dayChecked_7 + ">Everyday</option>" +
 															      "<option value=\"0\" " + dayChecked_0 + ">Sunday</option>" +
 															      "<option value=\"1\" " + dayChecked_1 + ">Monday</option>" +
@@ -1176,8 +1200,25 @@ function RemovePlaylistEntry()	{
 															      "<option value=\"10\" " + dayChecked_10 + ">Mon/Wed/Fri</option>" +
 															      "<option value=\"11\" " + dayChecked_11 + ">Tues/Thurs</option>" +
 															      "<option value=\"12\" " + dayChecked_12 + ">Sun-Thurs</option>" +
-															      "<option value=\"13\" " + dayChecked_13 + ">Fri/Sat</option></select></td>" +
-															"<td><input class='time center'  name=\"txtStartTime[" + i.toString() + "]\" id=\"txtStartTime[" + i.toString() + "]\" type=\"text\" size=\"8\" value=\"" + startTime + "\"/><br/>" +
+															      "<option value=\"13\" " + dayChecked_13 + ">Fri/Sat</option>" +
+															      "<option value=\"65536\" " + dayChecked_0x10000 + ">Day Mask</option></select><br>" +
+																  "<span id='dayMask[" + i + "]' style='" + dayMaskStyle + "'>" +
+																  "S:<input type='checkbox' name='maskSunday[" + i + "]'" +
+																	((day & 0x04000) ? " checked" : "") + "> " +
+																  "M:<input type='checkbox' name='maskMonday[" + i + "]'" +
+																	((day & 0x02000) ? " checked" : "") + "> " +
+																  "T:<input type='checkbox' name='maskTuesday[" + i + "]'" +
+																	((day & 0x01000) ? " checked" : "") + "> " +
+																  "W:<input type='checkbox' name='maskWednesday[" + i + "]'" +
+																	((day & 0x00800) ? " checked" : "") + "> " +
+																  "T:<input type='checkbox' name='maskThursday[" + i + "]'" +
+																	((day & 0x00400) ? " checked" : "") + "> " +
+																  "F:<input type='checkbox' name='maskFriday[" + i + "]'" +
+																	((day & 0x00200) ? " checked" : "") + "> " +
+																  "S:<input type='checkbox' name='maskSaturday[" + i + "]'" +
+																	((day & 0x00100) ? " checked" : "") + "> " +
+																  "</span></td>" +
+															"<td><input class='time center'  name=\"txtStartTime[" + i.toString() + "]\" id=\"txtStartTime[" + i.toString() + "]\" type=\"text\" size=\"8\" value=\"" + startTime + "\"/></td><td>" +
 															"<input class='time center' name=\"txtEndTime[" + i.toString() + "]\" id=\"txtEndTime[" + i.toString() + "]\" type=\"text\" size=\"8\" value=\"" + endTime + "\"/></td>" +
 															"<td class='center' ><input name=\"chkRepeat[" + i.toString() + "]\" id=\"chkEnable[" + i.toString() + "]\" type=\"checkbox\" " + repeatChecked +"/></td>" +
 															"</tr>";

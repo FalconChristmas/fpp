@@ -353,7 +353,7 @@ function VirtualMatrixLayoutChanged(item) {
 function VirtualMatrixColorOrderSelect(colorOrder) {
 	var result = "";
 
-	result += "<br>Color Order: <select class='colorOrder'>";
+	result += " Color Order: <select class='colorOrder'>";
 	result += "<option value='RGB'";
 
 	if (colorOrder == 'RGB')
@@ -469,7 +469,7 @@ function GenericSerialConfig(config) {
 		} else if (item[0] == "speed") {
 			result += GenericSerialSpeedSelect(item[1]);
 		} else if (item[0] == "header") {
-			result += "<br>Header: <input type='text' size=10 maxlength=20 class='serialheader' value='" + item[1] + "'>";
+			result += " Header: <input type='text' size=10 maxlength=20 class='serialheader' value='" + item[1] + "'>";
 		} else if (item[0] == "footer") {
 			result += " Footer: <input type='text' size=10 maxlength=20 class='serialfooter' value='" + item[1] + "'>";
 		}
@@ -831,7 +831,7 @@ function GPIOGPIOSelect(currentValue) {
 function NewGPIOConfig() {
 	var result = "";
 	result += GPIOGPIOSelect("");
-	result += " Invert: <input type=checkbox class='invert'>";
+	result += " Invert: <input type=checkbox class='invert'>&nbsp;&nbsp;SoftPWM: <input type=checkbox class='softPWM'>";
 	return result;
 }
 
@@ -849,6 +849,11 @@ function GPIODeviceConfig(config) {
 			if (item[1] == "1")
 				result += " checked='checked'";
 			result += ">";
+		} else if (item[0] == "softPWM") {
+			result += " SoftPWM: <input type=checkbox class='softPWM'";
+			if (item[1] == "1")
+				result += " checked='checked'";
+			result += ">";
 		}
 	}
 
@@ -863,11 +868,15 @@ function GetGPIOOutputConfig(cell) {
 		return "";
 
 	var invert = 0;
+	var softPWM = 0;
 
 	if ($cell.find("input.invert").is(":checked"))
 		invert = 1;
 
-	return "gpio=" + gpio + ";invert=" + invert;
+	if ($cell.find("input.softPWM").is(":checked"))
+		softPWM = 1;
+
+	return "gpio=" + gpio + ";invert=" + invert + ";softPWM=" + softPWM;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -2072,6 +2081,7 @@ function printLEDPanelSizeSelect()
 	$values = array();
 	$values["32x16"] = "32x16";
 	$values["32x32"] = "32x32";
+	$values["64x32"] = "64x32";
 
 	PrintSettingSelect("Panel Size", "LEDPanelsSize", 1, 0, "32x16", $values, "", "LEDPanelLayoutChanged");
 }
@@ -2203,6 +2213,9 @@ function InitializeLEDPanels()
 		$('#LEDPanelsChannelCount').html(channelOutputsLookup["LEDPanelMatrix"].channelCount);
 		$('#LEDPanelsColorOrder').val(channelOutputsLookup["LEDPanelMatrix"].colorOrder);
 		$('#LEDPanelsBrightness').val(channelOutputsLookup["LEDPanelMatrix"].brightness);
+		$('#LEDPanelsConnection').val(channelOutputsLookup["LEDPanelMatrix"].subType);
+		$('#LEDPanelsInterface').val(channelOutputsLookup["LEDPanelMatrix"].interface);
+		$('#LEDPanelsSourceMacInput').val(channelOutputsLookup["LEDPanelMatrix"].sourceMAC);
 <?
 	if ($settings['Platform'] == "Raspberry Pi")
 	{
@@ -2244,6 +2257,15 @@ function GetLEDPanelConfig()
 	config.channelCount = parseInt($('#LEDPanelsChannelCount').html());
 	config.colorOrder = $('#LEDPanelsColorOrder').val();
 	config.brightness = parseInt($('#LEDPanelsBrightness').val());
+	if (($('#LEDPanelsConnection').val() === "ColorLight5a75") || ($('#LEDPanelsConnection').val() === "LinsnRV9"))
+	{
+		config.subType = $('#LEDPanelsConnection').val();
+		config.interface = $('#LEDPanelsInterface').val();
+		if (($('#LEDPanelsConnection').val() === "LinsnRV9") && $('#LEDPanelsSourceMacInput').val() !== "00:00:00:00:00:00" && $('#LEDPanelsSourceMacInput').val() !== "")
+		{
+			config.sourceMAC = $('#LEDPanelsSourceMacInput').val();
+		}
+	}
 <?
 	if ($settings['Platform'] == "Raspberry Pi")
 	{
@@ -2315,6 +2337,40 @@ function GetLEDPanelConfig()
 	}
 
 	return config;
+}
+
+
+<?
+function PopulateEthernetInterfaces()
+{
+	$interfaces = explode("\n",trim(shell_exec("/sbin/ifconfig | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v usb0 | grep -v wlan")));
+	foreach ($interfaces as $iface)
+	{
+		$iface = preg_replace("/:$/", "", $iface);
+		echo "<option value='" . $iface . "'>" . $iface . "</option>";
+	}
+}
+?>
+
+function LEDPannelsConnectionChanged()
+{
+	if (($('#LEDPanelsConnection').val() === "ColorLight5a75") || ($('#LEDPanelsConnection').val() === "LinsnRV9")) {
+		$('#LEDPanelsConnectionInterface').show();
+		$('#LEDPanelsInterface').show();
+		if ($('#LEDPanelsConnection').val() === "LinsnRV9") {
+			$('#LEDPanelsSourceMac').show();
+		}
+		else
+		{
+			$('#LEDPanelsSourceMac').hide();
+		}
+	}
+	else 
+	{
+		$('#LEDPanelsConnectionInterface').hide();
+		$('#LEDPanelsInterface').hide();
+		$('#LEDPanelsSourceMac').hide();
+	}
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -2449,6 +2505,8 @@ $(document).ready(function(){
 	SetupSelectableTableRow(otherTableInfo);
 	GetChannelOutputs();
 
+	LEDPannelsConnectionChanged();
+
 	// Init tabs
   $tabs = $("#tabs").tabs({cache: true, spinner: "", fx: { opacity: 'toggle', height: 'toggle' } });
 	var total = $tabs.find('.ui-tabs-nav li').length;
@@ -2524,13 +2582,8 @@ tr.rowUniverseDetails td
 		$LEDPanelType = "LEDscape/Octoscroller";
 		echo "<li><a href='#tab-BBB48String'>BBB</a></li>\n";
 	}
-
-	if (($settings['Platform'] == "BeagleBone Black") ||
-			($settings['Platform'] == "Raspberry Pi"))
-	{
-		echo "<li><a href='#tab-LEDPanels'>LED Panels</a></li>\n";
-	}
 ?>
+				<li><a href='#tab-LEDPanels'>LED Panels</a></li>
 				<li><a href="#tab-other">Other</a></li>
 			</ul>
 
@@ -2614,11 +2667,6 @@ tr.rowUniverseDetails td
 
 <!-- --------------------------------------------------------------------- -->
 
-<?
-	if (($settings['Platform'] == "BeagleBone Black") ||
-			($settings['Platform'] == "Raspberry Pi"))
-	{
-?>
 	<div id='tab-LEDPanels'>
 		<div id='divLEDPanels'>
 			<fieldset class="fs">
@@ -2710,6 +2758,66 @@ tr.rowUniverseDetails td
 ?>
 							</tr>
 							<tr>
+								<td><b>Brightness:</b></td><td>
+									<select id='LEDPanelsBrightness'>
+<?
+	if ($settings['Platform'] == "Raspberry Pi")
+	{
+		for ($x = 100; $x >= 10; $x -= 5)
+			echo "<option value='$x'>$x%</option>\n";
+	}
+	else
+	{
+		for ($x = 7; $x >= 1; $x -= 1)
+			echo "<option value='$x'>$x</option>\n";
+	}
+?>
+									</select>
+									</td>
+<?
+	if ($settings['Platform'] == "Raspberry Pi")
+	{
+?>
+								<td>&nbsp;</td>
+								<td><b>Wiring Pinout:</b></td><td>
+									<select id='LEDPanelsWiringPinout'>
+										<option value='Standard'>Standard</option>
+										<option value='Classic'>Classic</option>
+										<option value='Adafruit'>Adafruit</option>
+									</select>
+									</td>
+<?
+	}
+?>
+							</tr>
+							<tr>
+								<td><b>Connection:</b></td><td>
+									<select id='LEDPanelsConnection' onChange='LEDPannelsConnectionChanged();'>
+<?
+	if (($settings['Platform'] == "Raspberry Pi") ||
+		($settings['Platform'] == "BeagleBone Black"))
+	{
+?>
+										<option value='Hat-Cap-Cape'>Hat/Cap/Cape</option>
+<?
+	}
+?>
+										<option value='ColorLight5a75'>ColorLight</option>
+										<option value='LinsnRV9'>Linsn</option>
+									</select>
+								<td>&nbsp;</td>
+								<td id='LEDPanelsConnectionInterface'><b>Interface:</b></td><td>
+									<select id='LEDPanelsInterface' type='hidden'>
+									<? PopulateEthernetInterfaces(); ?>
+									</select>
+									</td>
+							</tr>
+							<tr id='LEDPanelsSourceMac'>
+								<td><b>Source Mac:</b></td><td>
+								<input id='LEDPanelsSourceMacInput' type=text size=16 maxlength=17 value='00:00:00:00:00:00'>
+								<td>&nbsp;</td>
+							</tr>
+							<tr>
 								<td width = '70 px' colspan=5><input id='btnSaveChannelOutputsJSON' class='buttons' type='button' value='Save' onClick='SaveChannelOutputsJSON();'/> <font size=-1><? if ($settings['Platform'] == "BeagleBone Black") { echo "(this will save changes to BBB tab &amp; LED Panels tab)"; } ?></font></td>
 							</tr>
 						</table>
@@ -2727,9 +2835,6 @@ tr.rowUniverseDetails td
 			</fieldset>
 		</div>
 	</div>
-<?
-	}
-?>
 
 <!-- --------------------------------------------------------------------- -->
 
@@ -2884,8 +2989,6 @@ if ($settings['Platform'] == "BeagleBone Black")
 </div>
 </div>
 
-	</div>
-
 <div id='debugOutput'>
 </div>
 
@@ -2895,5 +2998,6 @@ if ($settings['Platform'] == "BeagleBone Black")
 </div>
 
 	<?php	include 'common/footer.inc'; ?>
+</div>
 </body>
 </html>

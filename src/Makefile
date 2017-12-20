@@ -33,6 +33,9 @@ OBJECTS_fppd = \
 	channeloutput/ColorOrder.o \
 	channeloutput/ColorLight-5a-75.o \
 	channeloutput/channeloutputthread.o \
+	channeloutput/ArtNet.o \
+	channeloutput/ColorOrder.o \
+	channeloutput/ColorLight-5a-75.o \
 	channeloutput/DebugOutput.o \
 	channeloutput/DDP.o \
 	channeloutput/E131.o \
@@ -45,6 +48,7 @@ OBJECTS_fppd = \
 	channeloutput/Linsn-RV9.o \
 	channeloutput/LOR.o \
 	channeloutput/Matrix.o \
+	channeloutput/MCP23017.o \
 	channeloutput/PanelMatrix.o \
 	channeloutput/PixelString.o \
 	channeloutput/RHL_DVI_E131.o \
@@ -332,6 +336,10 @@ clean:
 util: force
 	$(MAKE) -C util
 
+restart: fppd
+	sudo ../scripts/fppd_stop
+	sudo ../scripts/fppd_start
+
 #############################################################################
 # RF24 library on the Pi
 ../external/RF24/.git:
@@ -362,8 +370,6 @@ util: force
 	@make -C ../external/rpi-rgb-led-matrix/lib/ librgbmatrix.a \
 		DEFINES='-DRGB_SLOWDOWN_GPIO=1'
 	gcc -shared -o ../lib/librgbmatrix_Standard.so ../external/rpi-rgb-led-matrix/lib/*.o
-	cp ../lib/librgbmatrix_Standard.so ../external/rpi-rgb-led-matrix/lib/librgbmatrix.so
-	ln -s ./librgbmatrix_Standard.so ../lib/librgbmatrix.so
 	@echo "Building rpi-rgb-led-matrix library for Adafruit pinout"
 	@make -C ../external/rpi-rgb-led-matrix/lib/ clean
 	@make -C ../external/rpi-rgb-led-matrix/lib/ librgbmatrix.a \
@@ -375,6 +381,8 @@ util: force
 		DEFINES='-DRGB_SLOWDOWN_GPIO=1 -DRGB_CLASSIC_PINOUT -DONLY_SINGLE_CHAIN'
 	gcc -shared -o ../lib/librgbmatrix_Classic.so ../external/rpi-rgb-led-matrix/lib/*.o
 	strip ../lib/librgbmatrix_Standard.so ../lib/librgbmatrix_Adafruit.so ../lib/librgbmatrix_Classic.so
+	cp ../lib/librgbmatrix_Standard.so ../external/rpi-rgb-led-matrix/lib/librgbmatrix.so
+	ln -s ./librgbmatrix_Standard.so ../lib/librgbmatrix.so
 
 
 #############################################################################

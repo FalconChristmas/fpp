@@ -218,6 +218,62 @@ void Scheduler::LoadNextScheduleInfo(void)
 
 void Scheduler::SetScheduleEntrysWeeklyStartAndEndSeconds(ScheduleEntryStruct * entry)
 {
+	if (entry->dayIndex & INX_DAY_MASK)
+	{
+		int count = 0;
+		if (entry->dayIndex & INX_DAY_MASK_SUNDAY)
+		{
+			entry->weeklyStartSeconds[count] = GetWeeklySeconds(INX_SUN,entry->startHour,entry->startMinute,entry->startSecond);
+			entry->weeklyEndSeconds[count]   = GetWeeklySeconds(INX_SUN,entry->endHour,entry->endMinute,entry->endSecond);
+			count++;
+		}
+
+		if (entry->dayIndex & INX_DAY_MASK_MONDAY)
+		{
+			entry->weeklyStartSeconds[count] = GetWeeklySeconds(INX_MON,entry->startHour,entry->startMinute,entry->startSecond);
+			entry->weeklyEndSeconds[count]   = GetWeeklySeconds(INX_MON,entry->endHour,entry->endMinute,entry->endSecond);
+			count++;
+		}
+
+		if (entry->dayIndex & INX_DAY_MASK_TUESDAY)
+		{
+			entry->weeklyStartSeconds[count] = GetWeeklySeconds(INX_TUE,entry->startHour,entry->startMinute,entry->startSecond);
+			entry->weeklyEndSeconds[count]   = GetWeeklySeconds(INX_TUE,entry->endHour,entry->endMinute,entry->endSecond);
+			count++;
+		}
+
+		if (entry->dayIndex & INX_DAY_MASK_WEDNESDAY)
+		{
+			entry->weeklyStartSeconds[count] = GetWeeklySeconds(INX_WED,entry->startHour,entry->startMinute,entry->startSecond);
+			entry->weeklyEndSeconds[count]   = GetWeeklySeconds(INX_WED,entry->endHour,entry->endMinute,entry->endSecond);
+			count++;
+		}
+
+		if (entry->dayIndex & INX_DAY_MASK_THURSDAY)
+		{
+			entry->weeklyStartSeconds[count] = GetWeeklySeconds(INX_THU,entry->startHour,entry->startMinute,entry->startSecond);
+			entry->weeklyEndSeconds[count]   = GetWeeklySeconds(INX_THU,entry->endHour,entry->endMinute,entry->endSecond);
+			count++;
+		}
+
+		if (entry->dayIndex & INX_DAY_MASK_FRIDAY)
+		{
+			entry->weeklyStartSeconds[count] = GetWeeklySeconds(INX_FRI,entry->startHour,entry->startMinute,entry->startSecond);
+			entry->weeklyEndSeconds[count]   = GetWeeklySeconds(INX_FRI,entry->endHour,entry->endMinute,entry->endSecond);
+			count++;
+		}
+
+		if (entry->dayIndex & INX_DAY_MASK_SATURDAY)
+		{
+			entry->weeklyStartSeconds[count] = GetWeeklySeconds(INX_SAT,entry->startHour,entry->startMinute,entry->startSecond);
+			entry->weeklyEndSeconds[count]   = GetWeeklySeconds(INX_SAT,entry->endHour,entry->endMinute,entry->endSecond);
+			count++;
+		}
+
+		entry->weeklySecondCount = count;
+		return;
+	}
+
 	switch(entry->dayIndex)
   {
 		case INX_SUN:
@@ -406,8 +462,27 @@ void Scheduler::PlayListStopCheck(void)
     // patch to handle the race condition if we miss this check on the exact
     // second the schedule should be ending.  The odds of us missing 2 in a row
     // are much lower, so this will suffice for v1.0.
-    if((nowWeeklySeconds == m_currentSchedulePlaylist.endWeeklySeconds) ||
-       (nowWeeklySeconds == (m_currentSchedulePlaylist.endWeeklySeconds + 1)))
+	int stopPlaying = 0;
+
+	if (m_currentSchedulePlaylist.startWeeklySeconds <= m_currentSchedulePlaylist.endWeeklySeconds)
+	{
+		if (nowWeeklySeconds >= m_currentSchedulePlaylist.endWeeklySeconds)
+			stopPlaying = 1;
+	}
+	else if ((m_currentSchedulePlaylist.endWeeklySeconds < (24 * 60 * 60)) &&
+			 (m_currentSchedulePlaylist.startWeeklySeconds > (6 * 24 * 60 * 60)) &&
+			 (nowWeeklySeconds >= m_currentSchedulePlaylist.endWeeklySeconds) &&
+			 (nowWeeklySeconds < m_currentSchedulePlaylist.startWeeklySeconds))
+	{
+		stopPlaying = 1;
+	}
+	else if ((nowWeeklySeconds == m_currentSchedulePlaylist.endWeeklySeconds) ||
+			 (nowWeeklySeconds == (m_currentSchedulePlaylist.endWeeklySeconds + 1)))
+	{
+		stopPlaying = 1;
+	}
+
+	if (stopPlaying)
     {
       LogInfo(VB_SCHEDULE, "Schedule Entry: %02d:%02d:%02d - %02d:%02d:%02d - Stopping Playlist Gracefully\n",
         m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].startHour,
@@ -681,6 +756,12 @@ void Scheduler::GetScheduleEntryStartText(int index,int weeklySecondIndex, char 
 
 void Scheduler::GetDayTextFromDayIndex(int index,char * txt)
 {
+	if (index & INX_DAY_MASK)
+	{
+		strcpy(txt,"Day Mask");
+		return;
+	}
+
 	switch(index)
 	{
 		case 0:

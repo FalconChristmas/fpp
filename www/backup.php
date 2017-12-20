@@ -856,5 +856,6 @@ function retrievePluginList()
     </script>
 
     <?php include 'common/footer.inc'; ?>
+</div>
 </body>
 </html>

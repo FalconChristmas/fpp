@@ -2,6 +2,7 @@
 	<!-- jquery -->
 	<script type="text/javascript" src="js/jquery-1.9.1.js"></script>
 	<script type="text/javascript" src="js/jquery-ui.js"></script>
+	<script type="text/javascript" src="js/jquery.ui.touch-punch.min.js"></script>
 	<script type="text/javascript" src="js/jquery.jgrowl.min.js"></script>
 	<link rel="stylesheet" href="css/jquery-ui.css" />
 	<link rel="stylesheet" href="css/jquery.jgrowl.min.css" />
@@ -25,3 +26,18 @@
 		});
 	});
 	</script>
+
+<?
+	if (isset($settings['backgroundColor']) && $settings['backgroundColor'] != "")
+	{
+?>
+		<style>
+			#bodyWrapper {
+				border: 50px;
+				border-style: solid;
+				border-color: #<? echo $settings['backgroundColor'] ?>;
+			}
+		</style>
+<?
+	}
+?>

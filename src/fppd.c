@@ -87,6 +87,7 @@ int main(int argc, char *argv[])
 		loadSettings("/home/pi/media/settings");
 
 	wiringPiSetupGpio(); // would prefer wiringPiSetupSys();
+	// NOTE: wiringPISetupSys() is not fast enough for SoftPWM on GPIO output
 
 	// Parse our arguments first, override any defaults
 	parseArguments(argc, argv);

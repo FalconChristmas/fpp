@@ -295,8 +295,7 @@ int FalconPassThroughData(int offset, unsigned char *inBuf, int size)
 		HexDump("Falcon Pass-through data", inBuf, size);
 
 	// Disable channel outputs and let them quiesce before sending config info
-	DisableChannelOutput();
-
+ 	DisableChannelOutput();
 	usleep(100000);
 
 	if (getSettingInt("FPDEnabled"))
