@@ -18,7 +18,7 @@ then
 fi
 
 FPPPLATFORM=$(cat /etc/fpp/platform 2> /dev/null)
-FPPBINDIR="${FPPDIR}/bin"
+FPPBINDIR="${FPPDIR}/src"
 if [ "x${FPPPLATFORM}" = "xRaspberry Pi" ]
 then
 	FPPBINDIR="${FPPDIR}/bin.pi"
