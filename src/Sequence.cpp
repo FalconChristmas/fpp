@@ -314,7 +314,6 @@ int Sequence::OpenSequenceFile(const char *filename, int startSeconds) {
 		m_seqMSRemaining -= (startSeconds * 1000);
 	}
 
-	BlankSequenceData();
 	ReadSequenceData();
 
 	SetChannelOutputFrameNumber(frameNumber);
@@ -530,6 +529,9 @@ void Sequence::CloseSequenceFile(void) {
 
 	m_seqFilename[0] = '\0';
 	m_seqPaused = 0;
+
+	// Clear out the part of the channel data array we were reading into
+	bzero(m_seqData, m_seqStepSize);
 
 	if ((!IsEffectRunning()) &&
 		((getFPPmode() != REMOTE_MODE) &&
