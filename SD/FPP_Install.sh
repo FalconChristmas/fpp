@@ -420,7 +420,7 @@ case "${OSVER}" in
 								vim-common vorbis-tools vsftpd firmware-realtek gcc g++\
 								network-manager dhcp-helper hostapd parprouted bridge-utils \
 								firmware-atheros firmware-ralink firmware-brcm80211 \
-								dos2unix \
+								dos2unix libmosquitto-dev mosquitto-clients \
 								wireless-tools libcurl4-openssl-dev resolvconf sqlite3"
 				;;
 		esac
