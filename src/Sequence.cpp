@@ -314,6 +314,7 @@ int Sequence::OpenSequenceFile(const char *filename, int startSeconds) {
 		m_seqMSRemaining -= (startSeconds * 1000);
 	}
 
+	BlankSequenceData();
 	ReadSequenceData();
 
 	SetChannelOutputFrameNumber(frameNumber);
