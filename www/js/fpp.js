@@ -40,14 +40,25 @@ function PopulatePlaylists(element) {
 			var innerHTML = "<ol>";
 			if(productList.childNodes.length> 0)
 			{
+				innerHTML += "<table border=0 cellspacing=0 cellpadding=0><tr><td valign='top'>";
+				var rowsPerCol = 10;
+				if (productList.childNodes.length > 45)
+				{
+					rowsPerCol = Math.ceil(productList.childNodes.length / 4);
+				}
+				else if (productList.childNodes.length > 30)
+					rowsPerCol = 15;
+
 				for(i=0;i<productList.childNodes.length;i++)
 					{
+						if ((i != 0) && ((i % rowsPerCol) == 0))
+							innerHTML += "</td><td width='50px'>&nbsp;</td><td valign='top'>";
 						Filename = productList.childNodes[i].textContent;
 						// Remove extension
 						//Filename = Filename.substr(0, x.lastIndexOf('.'));	
 						innerHTML += "<li><a href='#' id=playlist" + i.toString() + " onclick=\"PopulatePlayListEntries('" + Filename + "',true)\">" + Filename + "</a></li>";
 					}
-					innerHTML += "</ol>";
+					innerHTML += "</tr></table></ol>";
 			}
 			else
 			{
@@ -166,7 +177,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow) {
 
 		var innerHTML="";
 		innerHTML +=  "<tr class=\"playlistPlayingEntry\">";
-		innerHTML +=  "<td>No entries in playlist.</td>";
+		innerHTML +=  "<td>No playlist loaded.</td>";
 		innerHTML += "</tr>";
 		$('.tblCreatePlaylistEntries_tbody').html(innerHTML);
 
@@ -227,23 +238,25 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow) {
 				if (entries == 0)
 				{
 					innerHTML  =  "<tr class=\"playlistPlayingEntry\">";
-					innerHTML +=  "<td>No entries in playlist.</td>";
+					innerHTML +=  "<td colspan='4'>No entries in playlist section.</td>";
 					innerHTML += "</tr>";
 					$('.tblCreatePlaylistEntries_tbody').html(innerHTML);
 				}
-				else
-				{
-					gblCurrentLoadedPlaylist = playList;
-					gblCurrentLoadedPlaylistCount = entries;
-					$('#txtPlaylistName').val(playList);
-				}
+
+				gblCurrentLoadedPlaylist = playList;
+				gblCurrentLoadedPlaylistCount = entries;
+				$('#txtPlaylistName').val(playList);
 			}
 			else
 			{
 				innerHTML  =  "<tr class=\"playlistPlayingEntry\">";
-				innerHTML +=  "<td>No entries in playlist.</td>";
+				innerHTML +=  "<td>No entries in playlist section.</td>";
 				innerHTML += "</tr>";
 				$('.tblCreatePlaylistEntries_tbody').html(innerHTML);
+
+				gblCurrentLoadedPlaylist = playList;
+				gblCurrentLoadedPlaylistCount = 0;
+				$('#txtPlaylistName').val(playList);
 			}
 		}
 	});
@@ -2367,21 +2380,19 @@ function PopulateStatusPlaylistEntries(playselected,playList,reloadFile)
 				if (entries == 0)
 				{
 					innerHTML  =  "<tr class=\"playlistPlayingEntry\">";
-					innerHTML +=  "<td>No entries in playlist.</td>";
+					innerHTML +=  "<td>No entries in playlist section.</td>";
 					innerHTML += "</tr>";
 					$('.tblCreatePlaylistEntries_tbody').html(innerHTML);
 				}
-				else
-				{
-					gblCurrentLoadedPlaylist = playList;
-					gblCurrentLoadedPlaylistCount = entries;
-					$('#txtPlaylistName').val(playList);
-				}
+
+				gblCurrentLoadedPlaylist = playList;
+				gblCurrentLoadedPlaylistCount = entries;
+				$('#txtPlaylistName').val(playList);
 			}
 			else
 			{
 				innerHTML  =  "<tr class=\"playlistPlayingEntry\">";
-				innerHTML +=  "<td>No entries in playlist.</td>";
+				innerHTML +=  "<td>No entries in playlist section.</td>";
 				innerHTML += "</tr>";
 				$('.tblCreatePlaylistEntries_tbody').html(innerHTML);
 			}

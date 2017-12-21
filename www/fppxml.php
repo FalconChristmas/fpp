@@ -1985,9 +1985,22 @@ function AddPlaylist()
 		$successAttribute = $response->appendChild($successAttribute);
 
 		//$_SESSION['currentPlaylist']	= $pl;
-		$filename = $playlistDirectory . '/' . $name;
+		$filename = $playlistDirectory . '/' . $name . ".json";
 		$file = fopen($filename, "w");
-		fwrite($file, "");
+		$emptyPlaylist = <<<EOT
+{
+	"name": "$name",
+	"repeat": 0,
+	"loopCount": 0,
+	"leadIn": [
+	],
+	"mainPlaylist": [
+	],
+	"leadOut": [
+	]
+}
+EOT;
+		fwrite($file, $emptyPlaylist);
 		fclose($file);
 
 		$playList = $doc->createElement('Playlist');

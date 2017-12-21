@@ -279,7 +279,7 @@ function PrintScriptOptions()
     <legend>Playlists</legend>
     <!--    <div style="overflow: hidden; padding: 5px;">
 -->
-    <div id = "playList" style="float: left;"> </div>
+	<table><tr><td>
     <div style="float: left; width: 400px; padding: 5px; background: #f9f9f9; ; margin-left: 60px; border: 1px solid #ccc;  margin-top: 5px;">
           <form>
         New Playlist: <br/>
@@ -287,6 +287,9 @@ function PrintScriptOptions()
         <input id="btnNew" onclick="AddNewPlaylist();" type="button" class="buttons" value="Add" />
       </form>
         </div>
+	</td></tr>
+	<tr><td><div id = "playList" style="float: left;"> </div></td></tr>
+	</table>
   </fieldset>
       <br/>
       <fieldset style="padding: 10px; border: 2px solid #000;">
