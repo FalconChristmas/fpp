@@ -55,7 +55,7 @@ fi
 SITEFILE="/etc/apache2/sites-enabled/000-default"
 NGINX_SITEFILE="/etc/fpp_nginx.conf"
 
-if dpkg --get-selections | grep -qc -e ^apache2\    ; then
+if dpkg --get-selections | grep -qc -e "^apache2\	" ; then
 # If the flash drive is not mounted yet, then fix Apache so it can at least start up
 if [ ! -d "${FPPHOME}/media/logs" ]
 then
@@ -275,7 +275,7 @@ sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" -e "s#FPPUSER#${FPPUSE
 sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" -e "s#FPPUSER#${FPPUSER}#g" < ${FPPDIR}/etc/rsyncd.conf > /etc/rsyncd.conf
 /etc/init.d/rsync restart
 
-if dpkg --get-selections | grep -qc -e ^apache2\    ; then
+if dpkg --get-selections | grep -qc -e "^apache2\	" ; then
 echo "FPP - Copying Apache config into place and restarting Apache"
 sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/apache2.site > ${SITEFILE}
 case "${OSVER}" in
