@@ -52,7 +52,7 @@ if ( $return_val != 0 )
 	$kernel_version = "Unknown";
 unset($output);
 
-$git_version = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ rev-parse --short HEAD", $output, $return_val);
+$git_version = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ rev-parse --short=7 HEAD", $output, $return_val);
 if ( $return_val != 0 )
   $git_version = "Unknown";
 unset($output);
@@ -63,7 +63,7 @@ if ( $return_val != 0 )
 unset($output);
 
 $git_remote_version = "Unknown";
-$git_remote_version = exec("git ls-remote --heads https://github.com/FalconChristmas/fpp | grep 'refs/heads/$git_branch\$' | awk '$1 > 0 { print substr($1,1,7)}'", $output, $return_val);
+$git_remote_version = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ ls-remote --heads | grep 'refs/heads/$git_branch\$' | awk '$1 > 0 { print substr($1,1,7)}'", $output, $return_val);
 if ( $return_val != 0 )
   $git_remote_version = "Unknown";
 unset($output);
@@ -206,7 +206,10 @@ a:visited {
           <table class='tblAbout'>
             <tr><td>Git Branch:</td><td><select id='gitBranch' onChange="ChangeGitBranch($('#gitBranch').val());">
 <? PrintGitBranchOptions(); ?>
-                </select><br><b>Note: Changing branches may take a couple minutes to recompile<br>and may not work if you have any modified source files.</b></td></tr>
+                </select>
+				<br><b>Note: Changing branches may take a couple minutes to recompile<br>and may not work if you have any modified source files.</b>
+				<br><font color='red'><b>WARNING: Switching branches will run a "git clean -df" which will remove any untracked files.  If you are doing development, you may want to backup the source directory before switching branches using the this page.</b></font>
+				</td></tr>
             <tr><td>Local Git Version:</td><td>
 <?
   echo $git_version;
@@ -254,7 +257,7 @@ a:visited {
       </pre>
     </div>
   </div>
-</div>
   <?php include 'common/footer.inc'; ?>
+</div>
 </body>
 </html>

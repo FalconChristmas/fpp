@@ -204,29 +204,6 @@ make ARCH=armv7l CROSS_COMPILE= -C /lib/modules/3.8.13-bone50/build M=/home/fpp/
 sudo cp 8192cu.ko /lib/modules/3.8.13-bone50/kernel/drivers/net/wireless/8192cu.ko
 sudo depmod
 
-
-##########################################################################
-BBB Debian Jessie install notes
-
-export KERNEL_VER=4.1.19-bone-rt-r20
-sudo apt-get update
-sudo apt-get install git linux-headers-${KERNEL_VER} build-essential
-
-cd /home/fpp
-mkdir src
-cd src
-git clone https://github.com/pvaret/rtl8192cu-fixes.git
-cd /usr/src/linux-headers-${KERNEL_VER}/arch/
-sudo ln -s arm armv7l
-cd /home/fpp/src/rtl8192cu-fixes
-make ARCH=armv7l CROSS_COMPILE= -C /lib/modules/${KERNEL_VER}/build M=/home/fpp/src/rtl8192cu-fixes modules
-sudo cp 8192cu.ko /lib/modules/${KERNEL_VER}/kernel/drivers/net/wireless/8192cu.ko
-sudo depmod
-
-##########################################################################
-
-
-
 Then need to put the following in /etc/modprobe.d/8192cu.conf on the BBB:
 #############################################
 # Blacklist native RealTek 8188CUs drivers 

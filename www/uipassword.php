@@ -87,8 +87,8 @@ $pw = file_exists("$mediaDirectory/htaccess");
       </form>
     </fieldset>
   </div>
+  <?php  include 'common/footer.inc'; ?>
 </div>
-<?php  include 'common/footer.inc'; ?>
 
 <script>
 

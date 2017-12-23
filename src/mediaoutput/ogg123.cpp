@@ -330,6 +330,8 @@ void ogg123Output::PollMusicInfo()
 	if(select(FD_SETSIZE, &m_readFDSet, NULL, NULL, &ogg123_timeout) < 0)
 	{
 	 	LogErr(VB_MEDIAOUT, "Error Select:%d\n",errno);
+
+		Stop(); // Kill the child if we can't read from the pipe
 	 	return; 
 	}
 	if(FD_ISSET(m_childPipe[MEDIAOUTPUTPIPE_READ], &m_readFDSet))

@@ -32,6 +32,20 @@
 
 #include "ChannelOutputBase.h"
 
+typedef enum virtualPixelColor {
+	kVPC_RGB,
+	kVPC_RBG,
+	kVPC_GRB,
+	kVPC_GBR,
+	kVPC_BRG,
+	kVPC_BGR,
+	kVPC_RGBW,
+	kVPC_Red,
+	kVPC_White,
+	kVPC_Blue,
+	kVPC_Green,
+} VirtualPixelColor;
+
 typedef struct virtualDisplayPixel {
 	int x;
 	int y;
@@ -39,6 +53,9 @@ typedef struct virtualDisplayPixel {
 	int r;
 	int g;
 	int b;
+	int cpp;
+
+	VirtualPixelColor vpc;
 } VirtualDisplayPixel;
 
 class VirtualDisplayOutput : public ChannelOutputBase {
@@ -48,6 +65,8 @@ class VirtualDisplayOutput : public ChannelOutputBase {
 
 	virtual int  Init(Json::Value config);
 
+	void DrawPixel(int rOffset, int gOffset, int bOffset,
+		unsigned char r, unsigned char g, unsigned char b);
 	void DrawPixels(unsigned char *channelData);
 
 	void DumpConfig(void);

@@ -50,6 +50,7 @@ struct sockaddr_in  crSrcAddr;
 
 int ctrlRecvSock = 0;
 extern PluginCallbackManager pluginCallbackManager;
+float multiSyncRemoteOffset = 0.0;
 
 /*
  *
@@ -97,6 +98,12 @@ int InitControlSocket(void) {
 		exit(1);
 	}
 
+	int multiSyncRemoteOffsetInt = getSettingInt("remoteOffset");
+	if (multiSyncRemoteOffsetInt)
+		multiSyncRemoteOffset = (float)multiSyncRemoteOffsetInt * -0.001;
+	else
+		multiSyncRemoteOffset = 0.0;
+
 	return ctrlRecvSock;
 }
 
@@ -115,7 +122,8 @@ void ShutdownControlSocket(void) {
  */
 void StartSyncedSequence(char *filename) {
 	LogDebug(VB_SYNC, "StartSyncedSequence(%s)\n", filename);
-	sequence->OpenSequenceFile(filename, 0);
+
+	sequence->OpenSequenceFile(filename);
 	ResetMasterPosition();
 }
 
@@ -125,8 +133,7 @@ void StartSyncedSequence(char *filename) {
 void StopSyncedSequence(char *filename) {
 	LogDebug(VB_SYNC, "StopSyncedSequence(%s)\n", filename);
 
-	if (!strcmp(sequence->m_seqFilename, filename))
-		sequence->CloseSequenceFile();
+	sequence->CloseIfOpen(filename);
 }
 
 /*
@@ -136,14 +143,13 @@ void SyncSyncedSequence(char *filename, int frameNumber, float secondsElapsed) {
 	LogExcess(VB_SYNC, "SyncSyncedSequence('%s', %d, %.2f)\n",
 		filename, frameNumber, secondsElapsed);
 
-	if (!sequence->m_seqFilename[0])
+	if (!sequence->IsSequenceRunning(filename))
 	{
-		sequence->OpenSequenceFile(filename, 0);
-		sequence->SeekSequenceFile(frameNumber);
+		if (sequence->OpenSequenceFile(filename))
+			sequence->SeekSequenceFile(frameNumber);
 	}
 
-
-	if (!strcmp(sequence->m_seqFilename, filename))
+	if (sequence->IsSequenceRunning(filename))
 		UpdateMasterPosition(frameNumber);
 }
 
@@ -214,7 +220,7 @@ void SyncSyncedMedia(char *filename, int frameNumber, float secondsElapsed) {
 
 	if (!mediaOutput)
 	{
-		LogDebug(VB_SYNC, "Received sync for media %s but no media playing\n",
+		LogExcess(VB_SYNC, "Received sync for media %s but no media playing\n",
 			filename);
 		return;
 	}
@@ -246,9 +252,6 @@ void ProcessCommandPacket(ControlPkt *pkt, int len) {
  *
  */
 void ProcessEventPacket(ControlPkt *pkt, int len) {
-	if (getFPPmode() != REMOTE_MODE)
-		return;
-
 	LogDebug(VB_CONTROL, "ProcessEventPacket()\n");
 
 	if (pkt->extraDataLen < sizeof(EventPkt)) {
@@ -267,9 +270,6 @@ void ProcessEventPacket(ControlPkt *pkt, int len) {
  *
  */
 void ProcessSyncPacket(ControlPkt *pkt, int len) {
-	if (getFPPmode() != REMOTE_MODE)
-		return;
-
 	LogDebug(VB_CONTROL, "ProcessSyncPacket()\n");
 
 	if (pkt->extraDataLen < sizeof(SyncPkt)) {
@@ -283,6 +283,8 @@ void ProcessSyncPacket(ControlPkt *pkt, int len) {
 	spkt->pktType     = spkt->pktType;
 	spkt->frameNumber = spkt->frameNumber;
 
+	float secondsElapsed = 0.0;
+
 	if (spkt->fileType == SYNC_FILE_SEQ)
 	{
 		switch (spkt->pktType) {
@@ -290,8 +292,12 @@ void ProcessSyncPacket(ControlPkt *pkt, int len) {
 								 break;
 			case SYNC_PKT_STOP:  StopSyncedSequence(spkt->filename);
 								 break;
-			case SYNC_PKT_SYNC:  SyncSyncedSequence(spkt->filename,
-									spkt->frameNumber, spkt->secondsElapsed);
+			case SYNC_PKT_SYNC:  secondsElapsed = spkt->secondsElapsed - multiSyncRemoteOffset;
+								 if (secondsElapsed < 0)
+									secondsElapsed = 0.0;
+
+								 SyncSyncedSequence(spkt->filename,
+									spkt->frameNumber, secondsElapsed);
 								 break;
 		}
 	}
@@ -302,8 +308,12 @@ void ProcessSyncPacket(ControlPkt *pkt, int len) {
 								 break;
 			case SYNC_PKT_STOP:  StopSyncedMedia(spkt->filename);
 								 break;
-			case SYNC_PKT_SYNC:  SyncSyncedMedia(spkt->filename,
-									spkt->frameNumber, spkt->secondsElapsed);
+			case SYNC_PKT_SYNC:  secondsElapsed = spkt->secondsElapsed - multiSyncRemoteOffset;
+								 if (secondsElapsed < 0)
+									secondsElapsed = 0.0;
+
+								 SyncSyncedMedia(spkt->filename,
+									spkt->frameNumber, secondsElapsed);
 								 break;
 		}
 	}
@@ -399,10 +409,12 @@ void ProcessControlPacket(void) {
 	switch (pkt->pktType) {
 		case CTRL_PKT_CMD:	ProcessCommandPacket(pkt, len);
 							break;
-		case CTRL_PKT_SYNC: ProcessSyncPacket(pkt, len);
+		case CTRL_PKT_SYNC: if (getFPPmode() == REMOTE_MODE)
+								ProcessSyncPacket(pkt, len);
 							break;
 		case CTRL_PKT_EVENT:
-							ProcessEventPacket(pkt, len);
+							if (getFPPmode() == REMOTE_MODE)
+								ProcessEventPacket(pkt, len);
 							break;
 		case CTRL_PKT_BLANK:
 							if (getFPPmode() == REMOTE_MODE)

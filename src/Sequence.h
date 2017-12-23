@@ -39,12 +39,14 @@ class Sequence {
 	~Sequence();
 
 	int   IsSequenceRunning(void);
-	int   OpenSequenceFile(const char *filename, int startSeconds);
-	void  ProcessSequenceData(void);
+	int   IsSequenceRunning(char *filename);
+	int   OpenSequenceFile(const char *filename, int startSeconds = 0);
+	void  ProcessSequenceData(int checkControlChannels = 1);
 	int   SeekSequenceFile(int frameNumber);
 	void  ReadSequenceData(void);
 	void  SendSequenceData(void);
 	void  SendBlankingData(void);
+	void  CloseIfOpen(char *filename);
 	void  CloseSequenceFile(void);
 	void  ToggleSequencePause(void);
 	void  SingleStepSequence(void);
@@ -55,6 +57,7 @@ class Sequence {
 	int           m_seqDuration;
 	int           m_seqSecondsElapsed;
 	int           m_seqSecondsRemaining;
+	int           m_seqMSRemaining;
 	char          m_seqData[FPPD_MAX_CHANNELS] __attribute__ ((aligned (__BIGGEST_ALIGNMENT__)));
 	char          m_seqFilename[1024];
 
@@ -85,7 +88,8 @@ class Sequence {
 	char          m_seqLastControlMajor;
 	char          m_seqLastControlMinor;
 
-	pthread_mutex_t  m_sequenceLock;
+	pthread_mutex_t      m_sequenceLock;
+	pthread_mutexattr_t  m_sequenceLock_attr;
 };
 
 extern Sequence *sequence;

@@ -54,6 +54,14 @@
 #define INX_T_TH                        11
 #define INX_SUN_TO_THURS        12
 #define INX_FRI_SAT                 13
+#define INX_DAY_MASK                0x10000
+#define INX_DAY_MASK_SUNDAY         0x04000
+#define INX_DAY_MASK_MONDAY         0x02000
+#define INX_DAY_MASK_TUESDAY        0x01000
+#define INX_DAY_MASK_WEDNESDAY      0x00800
+#define INX_DAY_MASK_THURSDAY       0x00400
+#define INX_DAY_MASK_FRIDAY         0x00200
+#define INX_DAY_MASK_SATURDAY       0x00100
 
 typedef struct{
 	char enable;

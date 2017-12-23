@@ -91,7 +91,7 @@ if ( ( isset($_POST['emailguser']) && !empty($_POST['emailguser']) ) &&
       </form>
     </fieldset>
   </div>
+  <?php require_once 'common/footer.inc'; ?>
 </div>
-<?php require_once 'common/footer.inc'; ?>
 </body>
 </html>

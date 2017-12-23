@@ -1,4 +1,5 @@
 <?php
+require_once('config.php');
 require_once('universeentry.php');
 $a = session_id();
 
@@ -133,7 +134,7 @@ a:visited{
 <div id="bodyWrapper">
 <?php	include 'menu.inc'; ?>
 
-<div style="width:800px;margin:0 auto;">
+<div style="width:1100px;margin:0 auto;">
 <br \>
   <fieldset style="padding: 10px; border: 2px solid #000;">
 <legend>Pixelnet/DMX Outputs</legend>
