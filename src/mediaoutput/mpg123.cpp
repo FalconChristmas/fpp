@@ -255,8 +255,6 @@ void mpg123Output::ParseTimes(void)
 	}
 }
 
-// Sample format
-// Frame#   149 [ 1842], Time: 00:03.89 [00:48.11], RVA:   off, Vol: 100(100)
 void mpg123Output::ProcessMP3Data(int bytesRead)
 {
 	int  bufferPtr = 0;
@@ -264,6 +262,117 @@ void mpg123Output::ProcessMP3Data(int bytesRead)
 	int  i = 0;
 	bool commandNext=false;
 
+//#define NEW_MPG123
+#if defined(NEW_MPG123) && !defined(USE_MPG321)
+	// New verbose output format in v1.??, we key off the > at the beginning
+	// > 0008+3784  00:00.18+01:38.84 --- 100=100 160 kb/s  522 B acc    0 clip p+0.000
+	// States:
+	// 123333455556677777777899999999
+	m_mpg123_strTime[bufferPtr++] = ' ';
+	m_mpg123_strTime[bufferPtr] = 0;
+	for(i=0;i<bytesRead;i++)
+	{
+		switch(m_mp3Buffer[i])
+		{
+			case '-':
+				state = 0;
+				break;
+			case '>':
+				state = 1;
+				break;
+			case ' ':
+				if (state == 1)
+				{
+					state = 2;
+				}
+				else if (state == 5)
+				{
+					state = 6;
+				}
+				else if (state == 6)
+				{
+					// Do nothing
+				}
+				else if (state == 9)
+				{
+					// Parse Times here
+					m_mpg123_strTime[bufferPtr++] = ']';
+					m_mpg123_strTime[bufferPtr] = 0;
+					ParseTimes();
+					bufferPtr = 1;
+					state = 0;
+					m_mpg123_strTime[bufferPtr] = 0;
+				}
+				else
+				{
+					state = 0;
+				}
+				break;
+			case '+':
+				if (state == 3)
+				{
+					state = 4;
+				}
+				else if (state == 7)
+				{
+					state = 8;
+					m_mpg123_strTime[bufferPtr++] = ' ';
+					m_mpg123_strTime[bufferPtr++] = '[';
+					m_mpg123_strTime[bufferPtr] = 0;
+				}
+				else
+				{
+					state = 0;
+				}
+				break;
+			case '0':
+			case '1':
+			case '2':
+			case '3':
+			case '4':
+			case '5':
+			case '6':
+			case '7':
+			case '8':
+			case '9':
+			case ':':
+			case '.':
+				if (state == 2)
+				{
+					state = 3;
+				}
+				else if (state == 3)
+				{
+					// Do nothing
+				}
+				else if (state == 4)
+				{
+					state = 5;
+				}
+				else if (state == 5)
+				{
+					// Do nothing
+				}
+				else if ((state == 6) || (state == 7) || (state == 8) || (state == 9))
+				{
+					if (state == 6)
+						state = 7;
+					else if (state == 8)
+						state = 9;
+
+					m_mpg123_strTime[bufferPtr++] = m_mp3Buffer[i];
+					m_mpg123_strTime[bufferPtr] = 0;
+				}
+				else
+				{
+					state = 0;
+				}
+				break;
+		}
+	}
+#else
+	// Older mpg123 output format, we key off the capital T in Time.
+	// Frame#   149 [ 1842], Time: 00:03.89 [00:48.11], RVA:   off, Vol: 100(100)
 	for(i=0;i<bytesRead;i++)
 	{
 		switch(m_mp3Buffer[i])
@@ -323,6 +432,7 @@ void mpg123Output::ProcessMP3Data(int bytesRead)
 				break;
 		}
 	}
+#endif
 }
 
 void mpg123Output::PollMusicInfo(void)
@@ -339,6 +449,8 @@ void mpg123Output::PollMusicInfo(void)
 	if(select(FD_SETSIZE, &m_readFDSet, NULL, NULL, &mpg123_timeout) < 0)
 	{
 	 	LogErr(VB_MEDIAOUT, "Error Select:%d\n",errno);
+
+		Stop(); // Kill the child if we can't read from the pipe
 	 	return; 
 	}
 	if(FD_ISSET(m_childPipe[MEDIAOUTPUTPIPE_READ], &m_readFDSet))

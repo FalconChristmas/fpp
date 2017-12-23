@@ -1,7 +1,7 @@
 /*
- *   mpg123 player driver for Falcon Pi Player (FPP)
+ *   MCP23017 Channel Output driver for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Pi Player Developers
+ *   Copyright (C) 2013 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -9,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -23,36 +23,26 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _MPG123_H
-#define _MPG123_H
+#ifndef _MCP23017_H
+#define _MCP23017_H
 
-#include "MediaOutputBase.h"
+#include "ChannelOutputBase.h"
 
-#define MAX_BYTES_MP3 1000
-#define TIME_STR_MAX  8
-
-#if defined(PLATFORM_BBB) || defined(USE_MPG321)
-#   define MPG123_BINARY "/usr/bin/mpg321"
-#else
-#   define MPG123_BINARY "/usr/bin/mpg123"
-#endif
-
-class mpg123Output : public MediaOutputBase {
+class MCP23017Output : public ChannelOutputBase {
   public:
-	mpg123Output(std::string mediaFilename, MediaOutputStatus *status);
-	~mpg123Output();
+	MCP23017Output(unsigned int startChannel, unsigned int channelCount);
+	~MCP23017Output();
 
-	int  Start(void);
-	int  Stop(void);
-	int  Process(void);
+	int Init(Json::Value config);
+	int Close(void);
+
+	int RawSendData(unsigned char *channelData);
+
+	void DumpConfig(void);
 
   private:
-	void PollMusicInfo(void);
-	void ProcessMP3Data(int bytesRead);
-	void ParseTimes(void);
-
-	char m_mp3Buffer[MAX_BYTES_MP3];
-	char m_mpg123_strTime[34];
+	int m_fd;
+	int m_deviceID;
 };
 
 #endif

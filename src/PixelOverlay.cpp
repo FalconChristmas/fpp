@@ -91,7 +91,7 @@ int InitializeChannelDataMemoryMap(void) {
 		return -1;
 	}
 
-	chanDataMap = (char *)mmap(0, FPPD_MAX_CHANNELS, PROT_READ, MAP_SHARED, chanDataMapFD, 0);
+	chanDataMap = (char *)mmap(0, FPPD_MAX_CHANNELS, PROT_READ|PROT_WRITE, MAP_SHARED, chanDataMapFD, 0);
 
 	if (!chanDataMap) {
 		LogErr(VB_CHANNELOUT, "Error mapping %s memory map file: %s\n",
@@ -524,5 +524,139 @@ int LoadChannelMemoryMapData(void) {
 		PrintChannelMapBlocks();
 
 	return 1;
+}
+
+/*
+ * Turn a Pixel Overlay model on/off/transparent
+ */
+int SetPixelOverlayState(std::string modelName, std::string newState)
+{
+	if ((!ctrlHeader) || (!ctrlHeader->totalBlocks))
+		return 0;
+
+	FPPChannelMemoryMapControlBlock *cb =
+		(FPPChannelMemoryMapControlBlock*)(ctrlMap +
+			sizeof(FPPChannelMemoryMapControlHeader));
+
+	for (int i = 0; i < ctrlHeader->totalBlocks; i++, cb++) {
+		if (!strcmp(cb->blockName, modelName.c_str()))
+		{
+			if (newState == "Disabled")
+				cb->isActive = 0;
+			else if (newState == "Enabled")
+				cb->isActive = 1;
+			else if (newState == "Transparent")
+				cb->isActive = 2;
+			else if (newState == "TransparentRGB")
+				cb->isActive = 3;
+			else
+				return -1;
+
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+/*
+ * Set the value for channels in a Pixel Overlay model
+ */
+int SetPixelOverlayValue(int index, char value,
+	int startChannel, int endChannel)
+{
+	if ((!ctrlHeader) || (!ctrlHeader->totalBlocks))
+		return 0;
+
+	FPPChannelMemoryMapControlBlock *cb =
+		(FPPChannelMemoryMapControlBlock*)(ctrlMap +
+			sizeof(FPPChannelMemoryMapControlHeader));
+
+	int start;
+	int end;
+
+	if (startChannel != -1)
+		start = startChannel >= cb[index].startChannel ? startChannel : cb[index].startChannel;
+	else
+		start = cb[index].startChannel;
+
+	int modelEnd = cb[index].startChannel + cb[index].channelCount - 1;
+	if (endChannel != -1)
+		end = endChannel <= modelEnd ? endChannel : modelEnd;
+	else
+		end = modelEnd;
+
+	// Offset for zero-based arrays
+	start--;
+	end--;
+
+	for (int c = start; c <= end; c++)
+		chanDataMap[c] = value;
+
+	return 1;
+}
+
+/*
+ * Set the value for channels in a Pixel Overlay model
+ */
+int SetPixelOverlayValue(std::string modelName, char value, int startChannel,
+	int endChannel)
+{
+	if ((!ctrlHeader) || (!ctrlHeader->totalBlocks))
+		return 0;
+
+	FPPChannelMemoryMapControlBlock *cb =
+		(FPPChannelMemoryMapControlBlock*)(ctrlMap +
+			sizeof(FPPChannelMemoryMapControlHeader));
+
+	for (int i = 0; i < ctrlHeader->totalBlocks; i++, cb++) {
+		if (!strcmp(cb->blockName, modelName.c_str()))
+			return SetPixelOverlayValue(i, value, startChannel, endChannel);
+	}
+
+	return -1;
+}
+
+/*
+ *
+ */
+int FillPixelOverlayModel(int index, unsigned char r, unsigned char g, unsigned char b)
+{
+	if ((!ctrlHeader) || (!ctrlHeader->totalBlocks))
+		return 0;
+
+	FPPChannelMemoryMapControlBlock *cb =
+		(FPPChannelMemoryMapControlBlock*)(ctrlMap +
+			sizeof(FPPChannelMemoryMapControlHeader));
+
+	int start = cb[index].startChannel - 1;
+	int end = cb[index].startChannel + cb[index].channelCount - 2;
+
+	for (int c = start; c <= end;)
+	{
+		chanDataMap[c++] = r;
+		chanDataMap[c++] = g;
+		chanDataMap[c++] = b;
+	}
+
+	return 1;
+}
+
+/*
+ *
+ */
+int FillPixelOverlayModel(std::string modelName, unsigned char r, unsigned char g, unsigned char b)
+{
+	if ((!ctrlHeader) || (!ctrlHeader->totalBlocks))
+		return 0;
+
+	FPPChannelMemoryMapControlBlock *cb =
+		(FPPChannelMemoryMapControlBlock*)(ctrlMap +
+			sizeof(FPPChannelMemoryMapControlHeader));
+
+	for (int i = 0; i < ctrlHeader->totalBlocks; i++, cb++) {
+		if (!strcmp(cb->blockName, modelName.c_str()))
+			return FillPixelOverlayModel(i, r, g, b);
+	}
 }
 

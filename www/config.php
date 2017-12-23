@@ -56,7 +56,7 @@ $scheduleFile      = $mediaDirectory . "/schedule";
 $bytesFile         = $mediaDirectory . "/bytesReceived";
 $remapFile         = $mediaDirectory . "/channelremap";
 $exim4Directory    = $mediaDirectory . "/exim4";
-$timezoneFile      = $mediaDirectory. "/timezone";
+$timezoneFile      = $mediaDirectory . "/timezone";
 $volume            = 0;
 $emailenable       = "0";
 $emailguser		   = "";
@@ -190,6 +190,16 @@ else if ($settings['Platform'] == "Pine64")
 {
 	$settings['Logo'] = "pine64_logo.png";
 	$settings['LogoLink'] = "https://www.pine64.org/";
+}
+else if ($settings['Platform'] == "CHIP")
+{
+	$settings['Logo'] = "chip_logo.png";
+	$settings['LogoLink'] = "http://www.getchip.com/";
+}
+else if ($settings['Platform'] == "Debian")
+{
+	$settings['Logo'] = "debian_logo.png";
+	$settings['LogoLink'] = "https://www.debian.org/";
 }
 else if ($settings['Platform'] == "CHIP")
 {

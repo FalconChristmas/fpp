@@ -44,7 +44,7 @@ if ( $return_val != 0 )
 	$kernel_version = "Unknown";
 unset($output);
 
-$git_version = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ rev-parse --short HEAD", $output, $return_val);
+$git_version = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ rev-parse --short=7 HEAD", $output, $return_val);
 if ( $return_val != 0 )
   $git_version = "Unknown";
 unset($output);
@@ -55,7 +55,7 @@ if ( $return_val != 0 )
 unset($output);
 
 $git_remote_version = "Unknown";
-$git_remote_version = exec("ping -q -c 1 github.com > /dev/null && (git ls-remote --heads https://github.com/FalconChristmas/fpp | grep 'refs/heads/$git_branch\$' | awk '$1 > 0 { print substr($1,1,7)}')", $output, $return_val);
+$git_remote_version = exec("ping -q -c 1 github.com > /dev/null && (git --git-dir=/opt/fpp/.git/ ls-remote --heads | grep 'refs/heads/$git_branch\$' | awk '$1 > 0 { print substr($1,1,7)}')", $output, $return_val);
 if ( $return_val != 0 )
   $git_remote_version = "Unknown";
 unset($output);
@@ -380,7 +380,7 @@ a:visited {
       </pre>
     </div>
   </div>
-</div>
   <?php include 'common/footer.inc'; ?>
+</div>
 </body>
 </html>

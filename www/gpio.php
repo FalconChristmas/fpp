@@ -209,11 +209,9 @@ $(document).ready(function(){
 					</fieldset>
 				</div>
 			</div>
-</div>
-</div>
 
-	</div>
 
 	<?php	include 'common/footer.inc'; ?>
+</div>
 </body>
 </html>

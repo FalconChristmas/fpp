@@ -68,9 +68,23 @@ void MediaOutput_sigchld_handler(int signal)
 
 		pthread_mutex_unlock(&mediaOutputLock);
 
+		if ((sequence->m_seqMSRemaining > 0) &&
+			(sequence->m_seqMSRemaining < 2000))
+		{
+			usleep(sequence->m_seqMSRemaining * 1000);
+		}
+
+		// Always sleep an extra 100ms to let the sequence finish since playlist watches the media output
+		if (sequence->IsSequenceRunning())
+			usleep(100000);
+
 		mediaOutputStatus.status = MEDIAOUTPUTSTATUS_IDLE;
-		sequence->CloseSequenceFile();
 		CloseMediaOutput();
+
+		if (sequence->IsSequenceRunning())
+			sequence->CloseSequenceFile();
+
+		// Do we really need this??
 		usleep(1000000);
 	} else {
 		pthread_mutex_unlock(&mediaOutputLock);

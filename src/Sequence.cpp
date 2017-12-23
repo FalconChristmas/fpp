@@ -53,6 +53,7 @@ Sequence::Sequence()
 	m_seqDuration(0),
 	m_seqSecondsElapsed(0),
 	m_seqSecondsRemaining(0),
+	m_seqMSRemaining(0),
 	m_seqFile(NULL),
 	m_seqFilePosition(0),
 	m_seqStarting(0),
@@ -77,7 +78,10 @@ Sequence::Sequence()
 {
 	m_seqFilename[0] = 0;
 
-	pthread_mutex_init(&m_sequenceLock, NULL);
+	pthread_mutexattr_init(&m_sequenceLock_attr);
+	pthread_mutexattr_settype(&m_sequenceLock_attr, PTHREAD_MUTEX_RECURSIVE);
+
+	pthread_mutex_init(&m_sequenceLock, &m_sequenceLock_attr);
 }
 
 Sequence::~Sequence()
@@ -99,6 +103,8 @@ int Sequence::OpenSequenceFile(const char *filename, int startSeconds) {
 	}
 
 	size_t bytesRead = 0;
+
+	pthread_mutex_lock(&m_sequenceLock);
 
 	m_seqFileSize = 0;
 
@@ -124,8 +130,15 @@ int Sequence::OpenSequenceFile(const char *filename, int startSeconds) {
 
 	if (!FileExists(tmpFilename))
 	{
-		LogErr(VB_SEQUENCE, "Sequence file %s does not exist\n", tmpFilename);
+		if (getFPPmode() == REMOTE_MODE)
+			LogDebug(VB_SEQUENCE, "Sequence file %s does not exist\n", tmpFilename);
+		else
+			LogErr(VB_SEQUENCE, "Sequence file %s does not exist\n", tmpFilename);
+
 		m_seqStarting = 0;
+
+		pthread_mutex_unlock(&m_sequenceLock);
+
 		return 0;
 	}
 
@@ -135,8 +148,13 @@ int Sequence::OpenSequenceFile(const char *filename, int startSeconds) {
 		LogErr(VB_SEQUENCE, "Error opening sequence file: %s. fopen returned NULL\n",
 			tmpFilename);
 		m_seqStarting = 0;
+
+		pthread_mutex_unlock(&m_sequenceLock);
+
 		return 0;
 	}
+
+	posix_fadvise(fileno(m_seqFile), 0, 0, POSIX_FADV_SEQUENTIAL);
 
 	if (getFPPmode() == MASTER_MODE)
 	{
@@ -164,6 +182,9 @@ int Sequence::OpenSequenceFile(const char *filename, int startSeconds) {
 		fclose(m_seqFile);
 		m_seqFile = NULL;
 		m_seqStarting = 0;
+
+		pthread_mutex_unlock(&m_sequenceLock);
+
 		return 0;
 	}
 
@@ -181,6 +202,9 @@ int Sequence::OpenSequenceFile(const char *filename, int startSeconds) {
 		fclose(m_seqFile);
 		m_seqFile = NULL;
 		m_seqStarting = 0;
+
+		pthread_mutex_unlock(&m_sequenceLock);
+
 		return 0;
 	}
 	m_seqChanDataOffset = tmpData[0] + (tmpData[1] << 8);
@@ -200,6 +224,9 @@ int Sequence::OpenSequenceFile(const char *filename, int startSeconds) {
 		fclose(m_seqFile);
 		m_seqFile = NULL;
 		m_seqStarting = 0;
+
+		pthread_mutex_unlock(&m_sequenceLock);
+
 		return 0;
 	}
 
@@ -239,8 +266,13 @@ int Sequence::OpenSequenceFile(const char *filename, int startSeconds) {
 
 	fseek(m_seqFile, 0L, SEEK_END);
 	m_seqFileSize = ftell(m_seqFile);
+
+	// Calculate actual duration based on file size, not m_seqNumPeriods
+	m_seqMSRemaining = (int)(((float)(m_seqFileSize - m_seqChanDataOffset)
+		/ (float)m_seqStepSize) * m_seqStepTime);
 	m_seqDuration = (int)((float)(m_seqFileSize - m_seqChanDataOffset)
 		/ ((float)m_seqStepSize * (float)m_seqRefreshRate));
+
 	m_seqSecondsRemaining = m_seqDuration;
 	fseek(m_seqFile, m_seqChanDataOffset, SEEK_SET);
 	m_seqFilePosition = m_seqChanDataOffset;
@@ -262,6 +294,7 @@ int Sequence::OpenSequenceFile(const char *filename, int startSeconds) {
 	LogDebug(VB_SEQUENCE, "seqRefreshRate        : %d\n", m_seqRefreshRate);
 	LogDebug(VB_SEQUENCE, "seqFileSize           : %lu\n", m_seqFileSize);
 	LogDebug(VB_SEQUENCE, "seqDuration           : %d\n", m_seqDuration);
+	LogDebug(VB_SEQUENCE, "seqMSRemaining        : %d\n", m_seqMSRemaining);
 	LogDebug(VB_SEQUENCE, "'*' denotes field is currently ignored by FPP\n");
 
 	m_seqPaused = 0;
@@ -277,8 +310,11 @@ int Sequence::OpenSequenceFile(const char *filename, int startSeconds) {
 		LogDebug(VB_SEQUENCE, "Seeking to byte %d in %s\n", newPos, m_seqFilename);
 
 		fseek(m_seqFile, newPos, SEEK_SET);
+
+		m_seqMSRemaining -= (startSeconds * 1000);
 	}
 
+	BlankSequenceData();
 	ReadSequenceData();
 
 	SetChannelOutputFrameNumber(frameNumber);
@@ -288,15 +324,20 @@ int Sequence::OpenSequenceFile(const char *filename, int startSeconds) {
 
 	m_seqStarting = 0;
 
-	return m_seqFileSize;
+	pthread_mutex_unlock(&m_sequenceLock);
+
+	return 1;
 }
 
 int Sequence::SeekSequenceFile(int frameNumber) {
 	LogDebug(VB_SEQUENCE, "SeekSequenceFile(%d)\n", frameNumber);
 
+	pthread_mutex_lock(&m_sequenceLock);
+
 	if (!IsSequenceRunning())
 	{
 		LogErr(VB_SEQUENCE, "No sequence is running\n");
+		pthread_mutex_unlock(&m_sequenceLock);
 		return 0;
 	}
 
@@ -305,9 +346,14 @@ int Sequence::SeekSequenceFile(int frameNumber) {
 
 	fseek(m_seqFile, newPos, SEEK_SET);
 
+	m_seqMSRemaining = (int)(((float)(m_seqFileSize - newPos)
+		/ (float)m_seqStepSize) * m_seqStepTime);
+
 	ReadSequenceData();
 
 	SetChannelOutputFrameNumber(frameNumber);
+
+	pthread_mutex_unlock(&m_sequenceLock);
 }
 
 
@@ -320,6 +366,19 @@ inline int Sequence::IsSequenceRunning(void) {
 		return 1;
 
 	return 0;
+}
+
+int Sequence::IsSequenceRunning(char *filename) {
+	int result = 0;
+
+	pthread_mutex_lock(&m_sequenceLock);
+
+	if ((!strcmp(sequence->m_seqFilename, filename)) && m_seqFile)
+		result = 1;
+
+	pthread_mutex_unlock(&m_sequenceLock);
+
+	return result;
 }
 
 void Sequence::BlankSequenceData(void) {
@@ -346,13 +405,19 @@ void Sequence::SingleStepSequenceBack(void) {
 }
 
 void Sequence::ReadSequenceData(void) {
-	LogDebug(VB_SEQUENCE, "ReadSequenceData()\n");
+	LogExcess(VB_SEQUENCE, "ReadSequenceData()\n");
 	size_t  bytesRead = 0;
 
-	if (m_seqStarting)
-		return;
+	pthread_mutex_lock(&m_sequenceLock);
 
-	if (m_seqPaused)
+	if (m_seqStarting)
+	{
+		pthread_mutex_unlock(&m_sequenceLock);
+
+		return;
+	}
+
+	if ((IsSequenceRunning()) && (m_seqPaused))
 	{
 		if (m_seqSingleStep)
 		{
@@ -364,10 +429,15 @@ void Sequence::ReadSequenceData(void) {
 
 			int offset = m_seqStepSize * 2;
 			if (m_seqFilePosition > offset)
+			{
 				fseek(m_seqFile, 0 - offset, SEEK_CUR);
+				m_seqMSRemaining += m_seqStepTime;
+			}
 		}
 		else
 		{
+			pthread_mutex_unlock(&m_sequenceLock);
+
 			return;
 		}
 	}
@@ -375,30 +445,32 @@ void Sequence::ReadSequenceData(void) {
 	if (IsSequenceRunning())
 	{
 		bytesRead = 0;
-		if(m_seqFilePosition < m_seqFileSize - m_seqStepSize)
+		if(m_seqFilePosition <= m_seqFileSize - m_seqStepSize)
 		{
 			bytesRead = fread(m_seqData, 1, m_seqStepSize, m_seqFile);
 			m_seqFilePosition += bytesRead;
 		}
 
 		if (bytesRead != m_seqStepSize)
-		{
 			CloseSequenceFile();
-		}
+		else
+			m_seqMSRemaining -= m_seqStepTime;
 
 		m_seqSecondsElapsed = (int)((float)(m_seqFilePosition - m_seqChanDataOffset)/((float)m_seqStepSize*(float)m_seqRefreshRate));
 		m_seqSecondsRemaining = m_seqDuration - m_seqSecondsElapsed;
 	}
+
+	pthread_mutex_unlock(&m_sequenceLock);
 }
 
-void Sequence::ProcessSequenceData(void) {
+void Sequence::ProcessSequenceData(int checkControlChannels) {
 	if (IsEffectRunning())
 		OverlayEffects(m_seqData);
 
 	if (UsingMemoryMapInput())
 		OverlayMemoryMap(m_seqData);
 
-	if (getControlMajor() && getControlMinor())
+	if (checkControlChannels && getControlMajor() && getControlMinor())
 	{
 		char thisMajor = NormalizeControlValue(m_seqData[getControlMajor()-1]);
 		char thisMinor = NormalizeControlValue(m_seqData[getControlMinor()-1]);
@@ -430,7 +502,17 @@ void Sequence::SendBlankingData(void) {
 		SendBlankingDataPacket();
 
 	BlankSequenceData();
+	ProcessSequenceData(0);
 	SendSequenceData();
+}
+
+void Sequence::CloseIfOpen(char *filename) {
+	pthread_mutex_lock(&m_sequenceLock);
+
+	if (!strcmp(m_seqFilename, filename))
+		CloseSequenceFile();
+
+	pthread_mutex_unlock(&m_sequenceLock);
 }
 
 void Sequence::CloseSequenceFile(void) {
@@ -449,9 +531,10 @@ void Sequence::CloseSequenceFile(void) {
 	m_seqFilename[0] = '\0';
 	m_seqPaused = 0;
 
-	if ((getFPPmode() != REMOTE_MODE) &&
-		(!IsEffectRunning()) &&
-		(FPPstatus != FPP_STATUS_PLAYLIST_PLAYING))
+	if ((!IsEffectRunning()) &&
+		((getFPPmode() != REMOTE_MODE) &&
+		 (FPPstatus != FPP_STATUS_PLAYLIST_PLAYING)) ||
+		(getSettingInt("blankBetweenSequences")))
 		SendBlankingData();
 
 	pthread_mutex_unlock(&m_sequenceLock);

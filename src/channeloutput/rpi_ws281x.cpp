@@ -215,9 +215,10 @@ int RPIWS281xOutput::Init(char *configStr)
 
 	SetupCtrlCHandler();
 
-	if (ws2811_init(&ledstring))
+	int res = ws2811_init(&ledstring);
+	if (res)
 	{
-		LogErr(VB_CHANNELOUT, "ws2811_init() failed\n");
+		LogErr(VB_CHANNELOUT, "ws2811_init() failed with error: %d\n", res);
 		return 0;
 	}
 

@@ -1,6 +1,10 @@
 #!/bin/bash
 #
-# Configure shellinabox to use /var/tmp
+# Install php5-curl
 #
 
-sudo bash -c "echo 'SHELLINABOX_DATADIR=/var/tmp/' >> /etc/default/shellinabox"
+apt-get update
+
+apt-get -q -y install php5-curl
+
+

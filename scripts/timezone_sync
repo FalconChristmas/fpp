@@ -20,6 +20,11 @@ fi
 
 if [ "x$(cat /etc/timezone)" != "x$(cat ${MEDIADIR}/timezone)" ]
 then
-	${SUDO} cp ${MEDIADIR}/timezone /etc/timezone
-	${SUDO} dpkg-reconfigure -f noninteractive tzdata
+    if [ -f "/usr/bin/timedatectl" ]
+    then
+        ${SUDO} timedatectl set-timezone `cat ${MEDIADIR}/timezone`
+    else
+        ${SUDO} cp ${MEDIADIR}/timezone /etc/timezone
+        ${SUDO} dpkg-reconfigure -f noninteractive tzdata
+    fi
 fi
