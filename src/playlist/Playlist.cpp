@@ -471,8 +471,23 @@ int Playlist::Process(void)
 
 		if (FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY)
 		{
-			LogDebug(VB_PLAYLIST, "Current state is stopping gracefully, switching to idle\n");
-			SetIdle();
+			if ((m_currentSectionStr == "LeadIn") ||
+				(m_currentSectionStr == "MainPlaylist"))
+			{
+				if (m_leadOut.size())
+				{
+					LogDebug(VB_PLAYLIST, "Stopping Gracefully, Switching to leadOut\n");
+					m_currentSectionStr = "LeadOut";
+					m_currentSection    = &m_leadOut;
+					m_sectionPosition   = 0;
+					m_leadOut[0]->StartPlaying();
+				}
+				else
+				{
+					LogDebug(VB_PLAYLIST, "Stopping Gracefully, empty leadOut, setting to Idle state\n");
+					SetIdle();
+				}
+			}
 			return 1;
 		}
 
