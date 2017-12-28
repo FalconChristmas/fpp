@@ -24,6 +24,7 @@
  */
 
 #include <errno.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -92,17 +93,19 @@ typedef struct {
 	int src;
 	int count;
 	int dest;
+	int loops;
+	int active;
 } ChannelRemap;
 
+pthread_mutex_t          remappedChannelsLock;
 ChannelRemap             remappedChannels[MAX_CHANNEL_REMAPS];
-int                      channelRemaps       = 0;
+volatile int             channelRemaps       = 0;
 int                      channelOutputCount  = 0;
 unsigned long            channelOutputFrame  = 0;
 float                    mediaElapsedSeconds = 0.0;
 FPPChannelOutputInstance channelOutputs[FPPD_MAX_CHANNEL_OUTPUTS];
 
 /* Some prototypes for helpers below */
-int LoadChannelRemapData(void);
 void RemapChannels(char *channelData);
 void PrintRemappedChannels(void);
 
@@ -145,6 +148,8 @@ int InitializeChannelOutputs(void) {
 	int i = 0;
 
 	channelOutputFrame = 0;
+
+	pthread_mutex_init(&remappedChannelsLock, NULL);
 
 	for (i = 0; i < FPPD_MAX_CHANNEL_OUTPUTS; i++) {
 		bzero(&channelOutputs[i], sizeof(channelOutputs[i]));
@@ -623,12 +628,81 @@ int LoadChannelRemapData(void) {
 		} else if ((dest + count - 1) > FPPD_MAX_CHANNELS) {
 			LogErr(VB_CHANNELOUT, "ERROR: Destination + Count exceeds max channel count in: %s\n", buf );
 		} else {
-		    channelRemaps++;
+			remappedChannels[channelRemaps].loops = 1;
+			remappedChannels[channelRemaps].active = 1;
+			channelRemaps++;
 		}
 	}
 	fclose(fp);
 
 	PrintRemappedChannels();
+
+	return 1;
+}
+
+/*
+ *
+ */
+int  AddChannelRemap(int src, int dest, int count, int loops)
+{
+	pthread_mutex_lock(&remappedChannelsLock);
+
+	int found = 0;
+
+	// Account for our zero-based array
+	src--;
+	dest--;
+
+	for (int i = 0; i < channelRemaps; i++)
+	{
+		if ((remappedChannels[channelRemaps].src == src) &&
+			(remappedChannels[channelRemaps].dest == dest) &&
+			(remappedChannels[channelRemaps].count == count) &&
+			(remappedChannels[channelRemaps].loops == loops))
+		{
+			remappedChannels[channelRemaps].active = 1;
+			found = 1;
+		}
+	}
+
+	if (!found)
+	{
+		remappedChannels[channelRemaps].src = src;
+		remappedChannels[channelRemaps].dest = dest;
+		remappedChannels[channelRemaps].count = count;
+		remappedChannels[channelRemaps].loops = loops;
+		remappedChannels[channelRemaps].active = 1;
+		channelRemaps++;
+	}
+
+	pthread_mutex_unlock(&remappedChannelsLock);
+
+	return 1;
+}
+
+/*
+ *
+ */
+int  RemoveChannelRemap(int src, int dest, int count, int loops)
+{
+	pthread_mutex_lock(&remappedChannelsLock);
+
+	// Account for our zero-based array
+	src--;
+	dest--;
+
+	for (int i = 0; i < channelRemaps; i++)
+	{
+		if ((remappedChannels[channelRemaps].src == src) &&
+			(remappedChannels[channelRemaps].dest == dest) &&
+			(remappedChannels[channelRemaps].count == count) &&
+			(remappedChannels[channelRemaps].loops == loops))
+		{
+			remappedChannels[channelRemaps].active = 0;
+		}
+	}
+
+	pthread_mutex_unlock(&remappedChannelsLock);
 
 	return 1;
 }
@@ -643,15 +717,24 @@ inline void RemapChannels(char *channelData) {
 	if (!channelRemaps)
 		return;
 
+	pthread_mutex_lock(&remappedChannelsLock);
+
 	for (i = 0, mptr = &remappedChannels[0]; i < channelRemaps; i++, mptr++) {
-		if (mptr->count > 1) {
-			memcpy(channelData + mptr->dest,
-				   channelData + mptr->src,
-				   mptr->count);
-		} else {
-			channelData[mptr->dest] = channelData[mptr->src];
+		if (mptr->active) {
+			for (int l = 0; l < mptr->loops; l++)
+			{
+				if (mptr->count > 1) {
+					memcpy(channelData + mptr->dest + (l * mptr->count),
+						   channelData + mptr->src,
+						   mptr->count);
+				} else {
+					channelData[mptr->dest + l] = channelData[mptr->src];
+				}
+			}
 		}
 	}
+
+	pthread_mutex_unlock(&remappedChannelsLock);
 }
 
 /*

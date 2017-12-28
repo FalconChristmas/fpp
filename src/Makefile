@@ -98,6 +98,7 @@ OBJECTS_fppd = \
 	playlist/PlaylistEntryPixelOverlay.o \
 	playlist/PlaylistEntryPlaylist.o \
 	playlist/PlaylistEntryPlugin.o \
+	playlist/PlaylistEntryRemap.o \
 	playlist/PlaylistEntryScript.o \
 	playlist/PlaylistEntrySequence.o \
 	playlist/PlaylistEntryVolume.o \

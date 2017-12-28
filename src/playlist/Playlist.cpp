@@ -52,6 +52,7 @@
 #include "PlaylistEntryPixelOverlay.h"
 #include "PlaylistEntryPlaylist.h"
 #include "PlaylistEntryPlugin.h"
+#include "PlaylistEntryRemap.h"
 #include "PlaylistEntryScript.h"
 #include "PlaylistEntrySequence.h"
 #include "PlaylistEntryVolume.h"
@@ -281,6 +282,8 @@ PlaylistEntryBase* Playlist::LoadPlaylistEntry(Json::Value entry)
 		result = new PlaylistEntryPlaylist();
 	else if (entry["type"].asString() == "plugin")
 		result = new PlaylistEntryPlugin();
+	else if (entry["type"].asString() == "remap")
+		result = new PlaylistEntryRemap();
 	else if (entry["type"].asString() == "script")
 		result = new PlaylistEntryScript();
 	else if (entry["type"].asString() == "sequence")

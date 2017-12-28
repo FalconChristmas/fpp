@@ -320,6 +320,7 @@ function PrintScriptOptions()
             <option value = 'plugin'>Plugin</option>
             <option value = 'branch'>Branch</option>
             <option value = 'mqtt'>MQTT</option>
+            <option value = 'remap'>Channel Remap</option>
           </select>
           <span id='autoSelectWrapper' class='playlistOptions'><input type='checkbox' id='autoSelectMatches' checked> Auto-Select Matching Media/Sequence</span>
 				</td></tr>
@@ -359,10 +360,13 @@ function PrintScriptOptions()
 				</table>
 			</td>
 			</tr>
-		<tr id="mqttOptions" class='playlistOptions'><td>MQTT:</td>
+		<tr id="remapOptions" class='playlistOptions'><td valign='top'>Remap:</td>
 			<td><table border=0 cellpadding=0 cellspacing=2>
-				<tr><td>Topic:</td><td><input id='mqttTopic' type='text' size='60' maxlength='60'></td></tr>
-				<tr><td>Message:</td><td><input id='mqttMessage' type='text' size='60' maxlength='255'></td></tr>
+				<tr><td>Action:</td><td><select id='remapAction'><option value='add'>Add</option><option value='remove'>Remove</option></select></td></tr>
+				<tr><td>Source Channel:</td><td><input id='srcChannel' type='text' size='6' maxlength='6'></td></tr>
+				<tr><td>Destination Channel:</td><td><input id='dstChannel' type='text' size='6' maxlength='6'></td></tr>
+				<tr><td>Channel Count:</td><td><input id='channelCount' type='text' size='6' maxlength='6'></td></tr>
+				<tr><td>Loops:</td><td><input id='remapLoops' type='text' size='6' maxlength='6'></td></tr>
 				</table>
 			</td>
 			</tr>

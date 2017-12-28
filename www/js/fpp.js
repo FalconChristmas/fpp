@@ -149,6 +149,15 @@ function PlaylistEntryToTR(i, entry, editMode)
 	}
 	else if(entry.type == 'mqtt')
 		HTML += GetPlaylistRowHTML((i+1).toString(), "MQTT", entry.topic, entry.message, i.toString(), editMode);
+	else if(entry.type == 'remap')
+	{
+		var desc = "Add ";
+		if (entry.action == "remove")
+			desc = "Remove ";
+
+		desc += "remap for " + entry.count + " channels from " + entry.source + " to " + entry.destination + " " + entry.loops + " times";
+		HTML += GetPlaylistRowHTML((i+1).toString(), "Remap", desc, "", i.toString(), editMode);
+	}
 	else if(entry.type == 'event')
 	{
 		majorID = parseInt(entry.majorID);
@@ -300,6 +309,8 @@ function PlaylistTypeChanged() {
 			break;
 		case 8: // MQTT
 			$('#mqttOptions').show();
+		case 9: // Channel Remap
+			$('#remapOptions').show();
 			break;
 	}
 	
@@ -445,6 +456,14 @@ function AddPlaylistEntry() {
 			{
 				entry.topic = $('#mqttTopic').val();
 				entry.message = $('#mqttMessage').val();
+			}
+			else if (entry.type == 'remap')
+			{
+				entry.action = $('#remapAction').val();
+				entry.source = parseInt($('#srcChannel').val());
+				entry.destination = parseInt($('#dstChannel').val());
+				entry.count = parseInt($('#channelCount').val());
+				entry.loops = parseInt($('#remapLoops').val());
 			}
 			else if (entry.type == 'plugin')
 			{
