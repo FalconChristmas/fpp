@@ -36,6 +36,11 @@
 
 MosquittoClient *mqtt = NULL;
 
+void mosq_disc_callback(struct mosquitto *mosq, void *userdata, int level)
+{
+	mosquitto_reconnect(mosq);
+}
+
 void mosq_log_callback(struct mosquitto *mosq, void *userdata, int level, const char *str)
 {
 	mqtt->LogCallback(userdata, level, str);
@@ -107,6 +112,7 @@ int MosquittoClient::Init(void)
 
 	mosquitto_log_callback_set(m_mosq, mosq_log_callback);
 	mosquitto_message_callback_set(m_mosq, mosq_msg_callback);
+	mosquitto_disconnect_callback_set(m_mosq, mosq_disc_callback);
 
 	int result = mosquitto_connect(m_mosq, m_host.c_str(), m_port, m_keepalive);
 
