@@ -487,8 +487,8 @@ int Playlist::Process(void)
 					LogDebug(VB_PLAYLIST, "Stopping Gracefully, empty leadOut, setting to Idle state\n");
 					SetIdle();
 				}
+				return 1;
 			}
-			return 1;
 		}
 
 		if (m_currentSection->at(m_sectionPosition)->GetNextSection() != "")
