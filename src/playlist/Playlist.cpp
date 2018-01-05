@@ -566,9 +566,20 @@ int Playlist::Process(void)
 				{
 					if (FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP)
 					{
-						LogDebug(VB_PLAYLIST, "Current state is stopping gracefully after loop, switching to idle\n");
-						// FIXME PLAYLIST, do we want to run the leadout here??
-						SetIdle();
+						if (m_leadOut.size())
+						{
+							LogDebug(VB_PLAYLIST, "Stopping Gracefully after loop, Switching to leadOut\n");
+							m_currentSectionStr = "LeadOut";
+							m_currentSection    = &m_leadOut;
+							m_sectionPosition   = 0;
+							m_leadOut[0]->StartPlaying();
+						}
+						else
+						{
+							LogDebug(VB_PLAYLIST, "Stopping Gracefully after loop. Empty leadOut, setting to Idle state\n");
+							SetIdle();
+						}
+
 						return 1;
 					}
 
