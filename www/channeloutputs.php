@@ -2045,6 +2045,7 @@ if ($settings['Platform'] == "BeagleBone Black")
 }
 
 $maxLEDPanels = $LEDPanelOutputs * $LEDPanelPanelsPerOutput;
+$maxLEDPanels = 64; // Override to allow different panel configs using Linsn/ColorLight cards
 
 if (isset($settings['LEDPanelsLayout']))
 {
