@@ -2111,6 +2111,13 @@ function DeleteEntry()
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('Status');
 	$root = $doc->appendChild($root);
+
+	if ($section == 'LeadOut')
+		$index -= count($_SESSION['playListEntriesMainPlaylist']);
+
+	if ($section != 'LeadIn')
+		$index -= count($_SESSION['playListEntriesLeadIn']);
+
 	// Delete from array.
 	if($index < count($_SESSION['playListEntries' . $section]))
 	{
