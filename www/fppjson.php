@@ -521,7 +521,6 @@ function LoadCSVPlayListDetails($file)
 				$e->type = 'event';
 				$e->majorID = (int)substr($entry[1],0,2);
 				$e->minorID = (int)substr($entry[1],3,2);
-
 				break;
 			default:
 				break;
@@ -536,17 +535,17 @@ function LoadCSVPlayListDetails($file)
 		{
 			$playListEntriesMainPlaylist[$sectionIndex]
 				= GetJSONPlaylistEntry($e, $sectionIndex);
+			$sectionIndex++;
 		}
 
-		$sectionIndex++;
 		$index++;
 	}
 	fclose($f);
 
 	if ($lastIsLeadOut)
 	{
-		$e = array_pop($playlistEntriesMainPlaylist);
-		$playlistEntriesLeadOut[0] = $e;
+		$e = array_pop($playListEntriesMainPlaylist);
+		$playListEntriesLeadOut[0] = $e;
 	}
 
 	$_SESSION['playListEntriesLeadIn'] = $playListEntriesLeadIn;
@@ -644,6 +643,8 @@ function GetPlayListEntries()
 		LoadPlayListDetails($playlist);
 
 	$jsonStr = GenerateJSONPlaylist($playlist);
+
+	$jsonStr = json_encode(json_decode($jsonStr), JSON_PRETTY_PRINT);
 
 	header( "Content-Type: application/json");
 	echo $jsonStr;
