@@ -212,24 +212,6 @@ Json::Value PlaylistEntryBase::GetConfig(void)
 	result["playCount"]  = m_playCount;
 	result["entryID"]    = m_playlistEntryID;
 
-	// FIXME, legacy character type values. delete when not needed anymore
-	if (m_type == "both")
-		result["ctype"] = "b";
-	else if (m_type == "media")
-		result["ctype"] = "m";
-	else if (m_type == "sequence")
-		result["ctype"] = "s";
-	else if (m_type == "event")
-		result["ctype"] = "e";
-	else if (m_type == "pause")
-		result["ctype"] = "p";
-	else if (m_type == "Plugin")
-		result["ctype"] = "P";
-	else if (m_type == "script")
-		result["ctype"] = "S";
-	else
-		result["ctype"] = "x";
-
 	return result;
 }
 
