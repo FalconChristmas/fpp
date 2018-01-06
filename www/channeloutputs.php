@@ -2031,8 +2031,8 @@ function GetBBBSerialConfig()
 // LED Panel Matrix support functions
 
 <?
-$LEDPanelOutputs = 3;          // Max for Pi w/ new library code
-$LEDPanelPanelsPerOutput = 12; // Max for Pi w/ new library code
+$LEDPanelOutputs = 12;
+$LEDPanelPanelsPerOutput = 12;
 $LEDPanelRows = 1;
 $LEDPanelCols = 1;
 $LEDPanelWidth = 32;
@@ -2226,6 +2226,12 @@ function InitializeLEDPanels()
 	}
 ?>
 		$('#LEDPanelsStartCorner').val(channelOutputsLookup["LEDPanelMatrix"].invertedData);
+
+		if ((channelOutputsLookup["LEDPanelMatrix"].subType == 'ColorLight5a75') ||
+			(channelOutputsLookup["LEDPanelMatrix"].subType == 'LinsnRv9'))
+		{
+			LEDPanelOutputs = 12;
+		}
 	}
 
 	DrawLEDPanelTable();
@@ -2365,13 +2371,24 @@ function LEDPannelsConnectionChanged()
 		{
 			$('#LEDPanelsSourceMac').hide();
 		}
+
+		LEDPanelOutputs = 12;
 	}
 	else 
 	{
 		$('#LEDPanelsConnectionInterface').hide();
 		$('#LEDPanelsInterface').hide();
 		$('#LEDPanelsSourceMac').hide();
+
+<?
+if ($settings['Platform'] == "BeagleBone Black")
+	echo "		LEDPanelOutputs = 8;\n";
+else
+	echo "		LEDPanelOutputs = 3;\n";
+?>
 	}
+
+	DrawLEDPanelTable();
 }
 
 /////////////////////////////////////////////////////////////////////////////
