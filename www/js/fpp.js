@@ -518,6 +518,7 @@ function ConvertPlaylistsToJSON() {
 				{
 					$('#playlistConverterText').append(data.playlists[i] + '<br>');
 				}
+				PopulatePlaylists('playList');
 			}
 		}
 	});
