@@ -41,6 +41,7 @@ $command_array = Array(
 	"addPlaylistEntry"    => 'AddPlayListEntry',
 	"getPlayListEntries"  => 'GetPlayListEntries',
 	"savePlaylist"        => 'SavePlaylist',
+	"convertPlaylists"    => 'ConvertPlaylistsToJSON',
 	"getPluginSetting"    => 'GetPluginSetting',
 	"setPluginSetting"    => 'SetPluginSetting',
 	"saveScript"          => 'SaveScript',
@@ -628,6 +629,48 @@ function AddPlayListEntry()
 	returnJSON($result);
 }
 
+function ConvertPlaylistsToJSON()
+{
+	global $settings;
+
+	$result = Array();
+	$playlistDirectory = $settings['playlistDirectory'];
+
+	if (!file_exists($playlistDirectory))
+	{
+		$result['status'] = 'Error';
+		$result['msg'] = 'Playlist Directory ' + $playlistDirectory + ' does not exist.';
+
+		returnJSON($result);
+		return;
+	}
+
+	$result['status'] = 'Ok';
+	$result['playlists'] = Array();
+
+	foreach(scandir($playlistDirectory) as $playlist)
+	{
+		if ($playlist != "." && $playlist != "..")
+		{
+			if ((!preg_match("/-CSV$/", $playlist)) &&
+				(!preg_match("/\.json$/", $playlist)))
+			{
+				$playlist = preg_replace("/\.json/", "", $playlist);
+
+				$_SESSION['currentPlaylist'] = $playlist;
+				LoadPlayListDetails($playlist);
+
+				SavePlaylistRaw($playlist);
+
+				$result['playlists'][] = $playlist;
+			}
+		}
+	}
+
+	$_SESSION['currentPlaylist'] = '';
+
+	returnJSON($result);
+}
 
 function GetPlayListEntries()
 {
@@ -845,12 +888,9 @@ function GenerateJSONPlaylist($name)
 	return $result;
 }
 
-function SavePlaylist()
+function SavePlaylistRaw($name)
 {
 	global $playlistDirectory;
-
-	$name = $_GET['name'];
-	check($name, "name", __FUNCTION__);
 
 	$json = GenerateJSONPlaylist($name);
 
@@ -870,6 +910,14 @@ function SavePlaylist()
 		 unlink($playlistDirectory . '/' . $_SESSION['currentPlaylist'] . ".json");
 	}
 	$_SESSION['currentPlaylist'] = $name;
+}
+
+function SavePlaylist()
+{
+	$name = $_GET['name'];
+	check($name, "name", __FUNCTION__);
+
+	SavePlaylistRaw($name);
 
 	$result = Array();
 	$result['status'] = 'Ok';

@@ -290,6 +290,7 @@ function PrintScriptOptions()
 	</td></tr>
 	<tr><td><div id = "playList" style="float: left;"> </div></td></tr>
 	</table>
+	<input type='button' onClick='ConvertPlaylistsToJSON();' value='Convert FPP v1.x CSV Playlists to JSON'><br>
   </fieldset>
       <br/>
       <fieldset style="padding: 10px; border: 2px solid #000;">
@@ -416,6 +417,10 @@ function PrintScriptOptions()
   </fieldset>
     </div>
   <?php include 'common/footer.inc'; ?>
+</div>
+<div id="playlistConverter" title="Playlist Converter" style="display: none">
+  <div id="playlistConverterText">
+  </div>
 </div>
 </body>
 </html>

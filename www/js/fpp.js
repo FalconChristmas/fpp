@@ -503,7 +503,26 @@ function AddPlaylistEntry() {
 			xmlhttp.send();
 
 		}
-		
+
+function ConvertPlaylistsToJSON() {
+	$('#playlistConvertText').html("Converting");
+	$('#playlistConverter').dialog({ height: 600, width: 800, title: "Playlist Converter" });
+	$('#playlistConverter').dialog( "moveToTop" );
+
+	$.ajax({
+		url: 'fppjson.php?command=convertPlaylists',
+		dataType: 'json',
+		success: function(data, reqStatus, xhr) {
+			if(data && typeof data === 'object') {
+				for (i = 0; i < data.playlists.length; i++)
+				{
+					$('#playlistConverterText').append(data.playlists[i] + '<br>');
+				}
+			}
+		}
+	});
+}
+
 function SavePlaylist()	{
 	var name=document.getElementById("txtPlaylistName");
     var xmlhttp=new XMLHttpRequest();
