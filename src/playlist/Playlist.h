@@ -105,8 +105,8 @@ class Playlist {
 	int                LoadJSONIntoPlaylist(std::vector<PlaylistEntryBase*> &playlistPart, const Json::Value &entries);
 
 	int                Start(void);
-	int                StopNow(void);
-	int                StopGracefully(int afterCurrentLoop = 0);
+	int                StopNow(int forceStop = 0);
+	int                StopGracefully(int forceStop = 0, int afterCurrentLoop = 0);
 
 	int                IsPlaying(void);
 
@@ -133,6 +133,7 @@ class Playlist {
 	int                GetSize(void);
 	std::string        GetConfigStr(void);
 	Json::Value        GetConfig(void);
+	int                GetForceStop(void) { return m_forceStop; }
 
 	int                MQTTHandler(std::string topic, std::string msg);
 
@@ -152,6 +153,7 @@ class Playlist {
 	long long            m_startTime;
 	int                  m_subPlaylistDepth;
 	int                  m_subPlaylist;
+	int                  m_forceStop;
 
 	std::string          m_currentState;
 	std::string          m_currentSectionStr;

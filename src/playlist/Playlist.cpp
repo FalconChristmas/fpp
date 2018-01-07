@@ -78,6 +78,7 @@ Playlist::Playlist(void *parent, int subPlaylist)
 	m_startTime(0),
 	m_subPlaylistDepth(0),
 	m_subPlaylist(subPlaylist),
+	m_forceStop(0),
 	m_currentState("idle"),
 	m_currentSectionStr("New"),
 	m_sectionPosition(0),
@@ -330,6 +331,7 @@ int Playlist::Start(void)
 
 	m_startTime = GetTime();
 	m_loop = 0;
+	m_forceStop = 0;
 
 	LogDebug(VB_PLAYLIST, "============================================================================\n");
 
@@ -391,7 +393,7 @@ int Playlist::Start(void)
 /*
  *
  */
-int Playlist::StopNow(void)
+int Playlist::StopNow(int forceStop)
 {
 	LogDebug(VB_PLAYLIST, "Playlist::StopNow()\n");
 
@@ -404,13 +406,15 @@ int Playlist::StopNow(void)
 
 	SetIdle();
 
+	m_forceStop = forceStop;
+
 	return 1;
 }
 
 /*
  *
  */
-int Playlist::StopGracefully(int afterCurrentLoop)
+int Playlist::StopGracefully(int forceStop, int afterCurrentLoop)
 {
 	LogDebug(VB_PLAYLIST, "Playlist::StopGracefully()\n");
 
@@ -422,6 +426,8 @@ int Playlist::StopGracefully(int afterCurrentLoop)
 		m_currentState = "stoppingAfterLoop";
 	else
 		m_currentState = "stoppingGracefully";
+
+	m_forceStop = forceStop;
 
 	return 1;
 }
@@ -715,6 +721,8 @@ int Playlist::Play(const char *filename, const int position, const int repeat)
 
 		sleep(1);
 	}
+
+	m_forceStop = 0;
 
 	Load(filename);
 

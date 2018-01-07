@@ -304,6 +304,11 @@ void MainLoop(void)
 				{
 					playlist->Cleanup();
 
+					scheduler->ReLoadCurrentScheduleInfo();
+
+					if (!playlist->GetForceStop())
+						scheduler->CheckIfShouldBePlayingNow();
+
 					if (FPPstatus != FPP_STATUS_IDLE)
 						reactivated = 1;
 					else
