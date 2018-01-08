@@ -564,6 +564,7 @@ function LoadPlayListDetails($file)
 	$_SESSION['playListEntriesLeadIn']=NULL;
 	$_SESSION['playListEntriesMainPlaylist']=NULL;
 	$_SESSION['playListEntriesLeadOut']=NULL;
+	$_SESSION['currentPlaylist'] = '';
 
 	$jsonStr = "";
 
@@ -612,6 +613,7 @@ function LoadPlayListDetails($file)
 	$_SESSION['playListEntriesLeadIn'] = $playListEntriesLeadIn;
 	$_SESSION['playListEntriesMainPlaylist'] = $playListEntriesMainPlaylist;
 	$_SESSION['playListEntriesLeadOut'] = $playListEntriesLeadOut;
+	$_SESSION['currentPlaylist'] = $file;
 }
 
 function AddPlayListEntry()
