@@ -361,6 +361,13 @@ function PrintScriptOptions()
 				</table>
 			</td>
 			</tr>
+		<tr id="mqttOptions" class='playlistOptions'><td>MQTT:</td>
+			<td><table border=0 cellpadding=0 cellspacing=2>
+				<tr><td>Topic:</td><td><input id='mqttTopic' type='text' size='60' maxlength='60'></td></tr>
+				<tr><td>Message:</td><td><input id='mqttMessage' type='text' size='60' maxlength='255'></td></tr>
+				</table>
+			</td>
+			</tr>
 		<tr id="remapOptions" class='playlistOptions'><td valign='top'>Remap:</td>
 			<td><table border=0 cellpadding=0 cellspacing=2>
 				<tr><td>Action:</td><td><select id='remapAction'><option value='add'>Add</option><option value='remove'>Remove</option></select></td></tr>
