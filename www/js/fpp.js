@@ -309,6 +309,7 @@ function PlaylistTypeChanged() {
 			break;
 		case 8: // MQTT
 			$('#mqttOptions').show();
+			break;
 		case 9: // Channel Remap
 			$('#remapOptions').show();
 			break;
