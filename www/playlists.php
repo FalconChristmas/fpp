@@ -152,6 +152,31 @@ $(document).ready(function () {
 		}
 	}
 
+	function DynamicSubTypeChanged()
+	{
+		var subType = $('#dynamicSubType').val();
+		var inputStr = "Invalid Dynamic Sub Type: " + subType;
+
+		if (subType == 'file')
+		{
+			inputStr = "<input id='dynamicData' type='text' size='60' maxlength='255' placeholder='Full File Name of JSON file'>";
+		}
+		else if (subType == 'plugin')
+		{
+			inputStr = '<? PrintDynamicJSONPluginOptions(); ?>';
+		}
+		else if (subType == 'url')
+		{
+			inputStr = "<input id='dynamicData' type='text' size='60' maxlength='255' placeholder='URL to JSON data'>";
+		}
+		else if (subType == 'command')
+		{
+			inputStr = '<? PrintScriptOptions('dynamicData'); ?>';
+		}
+
+		$('#dynamicDataWrapper').html(inputStr);
+	}
+
 </script>
     <script>
     $(function() {
@@ -224,10 +249,34 @@ $(document).ready(function () {
     echo "</select>";
   }
 
-function PrintScriptOptions()
+function PrintDynamicJSONPluginOptions()
+{
+	global $settings;
+	
+	echo "<select id=\"dynamicData\" size=\"1\">";
+
+	$dir = $settings['pluginDirectory'];
+	if ($dh = opendir($dir))
+	{
+		while (($file = readdir($dh)) !== false)
+		{
+			if ((!in_array($file, array('.', '..'))) &&
+				(is_dir($dir . '/' . $file)) &&
+				(file_exists($dir . '/' . $file . '/dynamicPlaylistEntryJSON.php')))
+			{
+				echo "<option value=\"" . $file . "\">" . $file . "</option>";
+			}
+
+		}
+		closedir($dh);
+	}
+	echo "</select>";
+}
+
+function PrintScriptOptions($id)
 {
 	global $scriptDirectory;
-	echo "<select id=\"selScript\" size=\"1\">";
+	echo "<select id=\"" . $id . "\" size=\"1\">";
 
 	foreach(scandir($scriptDirectory) as $scriptFile)
 	{
@@ -311,17 +360,18 @@ function PrintScriptOptions()
           <table border='0'>
 				<tr><td colspan='2'><b>New Playlist Entry</b></td></tr>
         <tr><td>Type:</td>
-						<td><select id="selType" size="1" onchange="PlaylistTypeChanged()">
+						<td><select id="selType" size="1" onchange="PlaylistTypeChanged();">
             <option value = 'both'>Media and Sequence</option>
             <option value = 'media'>Media Only</option>
             <option value = 'sequence'>Sequence Only</option>
-            <option value = 'pause'>Pause</option>
-            <option value = 'script'>Script</option>
-            <option value = 'event'>Event</option>
-            <option value = 'plugin'>Plugin</option>
             <option value = 'branch'>Branch</option>
-            <option value = 'mqtt'>MQTT</option>
             <option value = 'remap'>Channel Remap</option>
+            <option value = 'dynamic'>Dynamic</option>
+            <option value = 'event'>Event</option>
+            <option value = 'mqtt'>MQTT</option>
+            <option value = 'pause'>Pause</option>
+            <option value = 'plugin'>Plugin</option>
+            <option value = 'script'>Script</option>
           </select>
           <span id='autoSelectWrapper' class='playlistOptions'><input type='checkbox' id='autoSelectMatches' checked> Auto-Select Matching Media/Sequence</span>
 				</td></tr>
@@ -330,7 +380,7 @@ function PrintScriptOptions()
         <tr id="sequenceOptions" class='playlistOptions'><td>Sequence:</td>
             <td><?php PrintSequenceOptions();?></td></tr>
         <tr id="scriptOptions" style="display:none;" class='playlistOptions'><td>Script:</td>
-            <td><?php PrintScriptOptions();?></td></tr>
+            <td><?php PrintScriptOptions('selScript');?></td></tr>
         <tr id="eventOptions" style="display:none;" class='playlistOptions'><td>Event:</td>
             <td><?php PrintEventOptions();?></td></tr>
         <tr id="pauseTime" style="display:none;" class='playlistOptions'><td><div><div id='pauseText' class='playlistOptions'>Pause Time:</div><div id='delayText' class='playlistOptions'>Delayed By:</div></div></td>
@@ -375,6 +425,20 @@ function PrintScriptOptions()
 				<tr><td>Destination Channel:</td><td><input id='dstChannel' type='text' size='6' maxlength='6'></td></tr>
 				<tr><td>Channel Count:</td><td><input id='channelCount' type='text' size='6' maxlength='6'></td></tr>
 				<tr><td>Loops:</td><td><input id='remapLoops' type='text' size='6' maxlength='6'></td></tr>
+				</table>
+			</td>
+			</tr>
+		<tr id="dynamicOptions" class='playlistOptions'><td>Dynamic:</td>
+			<td><table border=0 cellpadding=0 cellspacing=2>
+				<tr><td>Data Source Type:</td><td><select id='dynamicSubType' onChange='DynamicSubTypeChanged();'>
+						<option value='file'>File</option>
+						<option value='plugin'>Plugin</option>
+						<!--
+						<option value='command'>Script</option>
+						-->
+						<option value='url'>URL</option>
+					</select></td></tr>
+				<tr><td>Data Source:</td><td id='dynamicDataWrapper'><input id='dynamicData' type='text' size='60' maxlength='255' placeholder='Full File Name of JSON file'></td></tr>
 				</table>
 			</td>
 			</tr>

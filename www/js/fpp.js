@@ -149,6 +149,8 @@ function PlaylistEntryToTR(i, entry, editMode)
 	}
 	else if(entry.type == 'mqtt')
 		HTML += GetPlaylistRowHTML((i+1).toString(), "MQTT", entry.topic, entry.message, i.toString(), editMode);
+	else if(entry.type == 'dynamic')
+		HTML += GetPlaylistRowHTML((i+1).toString(), "Dynamic", entry.subType, entry.data, i.toString(), editMode);
 	else if(entry.type == 'remap')
 	{
 		var desc = "Add ";
@@ -273,6 +275,61 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow) {
 
 
 function PlaylistTypeChanged() {
+	var type = $('#selType').val();
+
+	$('.playlistOptions').hide();
+
+	if (type == 'both')
+	{
+		$("#musicOptions").show();
+		$("#sequenceOptions").show();
+		$("#autoSelectWrapper").show();
+		$("#autoSelectMatches").prop('checked', true);
+	}
+	else if (type == 'media')
+	{
+		$("#musicOptions").show();
+	}
+	else if (type == 'sequence')
+	{
+		$("#sequenceOptions").show();
+	}
+	else if (type == 'pause')
+	{
+		$("#pauseTime").show();
+		$("#pauseText").show();
+	}
+	else if (type == 'script')
+	{
+		$("#scriptOptions").show();
+	}
+	else if (type == 'event')
+	{
+		$("#eventOptions").show();
+	}
+	else if (type == 'plugin')
+	{
+		$("#pluginData").show();
+	}
+	else if (type == 'branch')
+	{
+		$('#branchOptions').show();
+	}
+	else if (type == 'mqtt')
+	{
+		$('#mqttOptions').show();
+	}
+	else if (type == 'remap')
+	{
+		$('#remapOptions').show();
+	}
+	else if (type == 'dynamic')
+	{
+		$('#dynamicOptions').show();
+	}
+}
+
+function OldPlaylistTypeChanged() {
 	var type=document.getElementById("selType").selectedIndex;
 
 	$('.playlistOptions').hide();
@@ -312,6 +369,9 @@ function PlaylistTypeChanged() {
 			break;
 		case 9: // Channel Remap
 			$('#remapOptions').show();
+			break;
+		case 10: // Dynamic
+			$('#dynamicOptions').show();
 			break;
 	}
 	
@@ -465,6 +525,11 @@ function AddPlaylistEntry() {
 				entry.destination = parseInt($('#dstChannel').val());
 				entry.count = parseInt($('#channelCount').val());
 				entry.loops = parseInt($('#remapLoops').val());
+			}
+			else if (entry.type == 'dynamic')
+			{
+				entry.subType = $('#dynamicSubType').val();
+				entry.data = $('#dynamicData').val();
 			}
 			else if (entry.type == 'plugin')
 			{

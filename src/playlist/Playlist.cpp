@@ -44,6 +44,7 @@
 #include "PlaylistEntryBranch.h"
 #include "PlaylistEntryBrightness.h"
 #include "PlaylistEntryChannelTest.h"
+#include "PlaylistEntryDynamic.h"
 #include "PlaylistEntryEffect.h"
 #include "PlaylistEntryEvent.h"
 #include "PlaylistEntryMedia.h"
@@ -55,11 +56,8 @@
 #include "PlaylistEntryRemap.h"
 #include "PlaylistEntryScript.h"
 #include "PlaylistEntrySequence.h"
+#include "PlaylistEntryURL.h"
 #include "PlaylistEntryVolume.h"
-
-#ifdef USECURL
-#  include "PlaylistEntryURL.h"
-#endif
 
 Playlist *playlist = NULL;
 
@@ -267,6 +265,8 @@ PlaylistEntryBase* Playlist::LoadPlaylistEntry(Json::Value entry)
 		result = new PlaylistEntryBrightness();
 	else if (entry["type"].asString() == "channelTest")
 		result = new PlaylistEntryChannelTest();
+	else if (entry["type"].asString() == "dynamic")
+		result = new PlaylistEntryDynamic();
 	else if (entry["type"].asString() == "effect")
 		result = new PlaylistEntryEffect();
 	else if (entry["type"].asString() == "event")
@@ -289,10 +289,8 @@ PlaylistEntryBase* Playlist::LoadPlaylistEntry(Json::Value entry)
 		result = new PlaylistEntryScript();
 	else if (entry["type"].asString() == "sequence")
 		result = new PlaylistEntrySequence();
-#ifdef USECURL
 	else if (entry["type"].asString() == "url")
 		result = new PlaylistEntryURL();
-#endif
 	else if (entry["type"].asString() == "volume")
 		result = new PlaylistEntryVolume();
 	else
@@ -304,7 +302,7 @@ PlaylistEntryBase* Playlist::LoadPlaylistEntry(Json::Value entry)
 	if (result->Init(entry))
 		return result;
 
-	return result;
+	return NULL;
 }
 
 /*

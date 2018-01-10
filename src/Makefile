@@ -90,6 +90,7 @@ OBJECTS_fppd = \
 	playlist/PlaylistEntryBranch.o \
 	playlist/PlaylistEntryBrightness.o \
 	playlist/PlaylistEntryChannelTest.o \
+	playlist/PlaylistEntryDynamic.o \
 	playlist/PlaylistEntryEffect.o \
 	playlist/PlaylistEntryEvent.o \
 	playlist/PlaylistEntryMedia.o \
@@ -101,6 +102,7 @@ OBJECTS_fppd = \
 	playlist/PlaylistEntryRemap.o \
 	playlist/PlaylistEntryScript.o \
 	playlist/PlaylistEntrySequence.o \
+	playlist/PlaylistEntryURL.o \
 	playlist/PlaylistEntryVolume.o \
 	Plugins.o \
 	Scheduler.o \
@@ -134,6 +136,8 @@ ifneq '$(OLAFLAGS)' ''
 	OBJECTS_fppd += channeloutput/OLAOutput.o
 endif
 
+CURLFLAGS := $(shell curl-config --libs)
+
 # Common CFLAGS
 CFLAGS += \
 	-I . \
@@ -142,7 +146,7 @@ CFLAGS += \
 	$(NULL)
 
 
-LDFLAGS_fppd += \
+LDFLAGS_fppd += $(CURLFLAGS) \
 	$(NULL)
 
 DEPS_fppd += \
