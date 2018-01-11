@@ -80,7 +80,7 @@ echo ""
 echo "/dev/mmcblk1p2  /  btrfs  noatime,nodiratime,compress-force=zlib  0  1" > /tmp/rootfs/etc/fstab
 echo "/dev/mmcblk1p1  /boot  ext4  defaults,noatime,nodiratime  0  2" >> /tmp/rootfs/etc/fstab
 echo "debugfs  /sys/kernel/debug  debugfs  defaults  0  0" >> /tmp/rootfs/etc/fstab
-echo "tmpfs         /tmp        tmpfs   nodev,nosuid,size=10M 0 0" >> /tmp/rootfs/etc/fstab"
+echo "tmpfs         /tmp        tmpfs   nodev,nosuid,size=10M 0 0" >> /tmp/rootfs/etc/fstab
 echo "tmpfs         /var/tmp    tmpfs   nodev,nosuid,size=50M 0 0" >> /tmp/rootfs/etc/fstab
 echo "#####################################" >> /tmp/rootfs/etc/fstab
 echo "#/dev/sda1     /home/fpp/media  auto    defaults,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500  0  0" >> /tmp/rootfs/etc/fstab
