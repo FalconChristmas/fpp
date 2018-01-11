@@ -527,9 +527,9 @@ compileBinaries() {
 
 	if [ "x${FPPDIR}" = "x/opt/fpp" ]
 	then
-		cd ${FPPDIR}/src && ${SUDO} make clean && ${SUDO} make
+		cd ${FPPDIR}/src && ${SUDO} make clean && ${SUDO} make optimized
 	else
-		cd ${FPPDIR}/src && ${SUDO} -u ${FPPUSER} make clean && sudo -u ${FPPUSER} make
+		cd ${FPPDIR}/src && ${SUDO} -u ${FPPUSER} make clean && sudo -u ${FPPUSER} make optimized
 	fi
 
 	if [ "x${FPPBINDIR}" != "x${FPPDIR}/src" ]
