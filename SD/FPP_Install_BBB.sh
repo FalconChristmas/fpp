@@ -451,7 +451,6 @@ You can access the UI by typing "http://fpp.local/" into a web browser.[0m
 # Config fstab to mount some filesystems as tmpfs
 echo "FPP - Configuring tmpfs filesystems"
 echo "#####################################" >> /etc/fstab
-echo "tmpfs         /var/log    tmpfs   nodev,nosuid,size=10M 0 0" >> /etc/fstab
 echo "tmpfs         /var/tmp    tmpfs   nodev,nosuid,size=50M 0 0" >> /etc/fstab
 echo "#####################################" >> /etc/fstab
 
