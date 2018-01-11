@@ -22,7 +22,7 @@ sudo apt-get upgrade
 cd /opt/scripts
 git pull
 cd /opt/scripts/tools
-sudo ./update_kernel.sh
+sudo ./update_kernel.sh --lts-4_14
 
 # delete old kernels and modules in /boot and /lib/modules
 # and in /boot/dtbs
@@ -30,6 +30,8 @@ sudo ./update_kernel.sh
 cd /opt/scripts/tools/developers/
 sudo ./update_bootloader.sh
 
+
+echo "vm.min_free_kbytes=16384" >> /etc/sysctl.conf
 
 cd ~
 vim /boot/uEnv.txt
@@ -41,10 +43,11 @@ vim /boot/uEnv.txt
 
 
 cd /opt/backup/uboot
-wget https://rcn-ee.com/repos/bootloader/am335x_evm/MLO-am335x_evm-v2017.11-r5
-wget https://rcn-ee.com/repos/bootloader/am335x_evm/u-boot-am335x_evm-v2017.11-r5.img
-mv -f MLO-am335x_evm-v2017.11-r5 MLO
-mv -f u-boot-am335x_evm-v2017.11-r5.img u-boot.img
+export BOOTLOADERVER=v2018.01-r8
+wget https://rcn-ee.com/repos/bootloader/am335x_evm/MLO-am335x_evm-${BOOTLOADERVER}
+wget https://rcn-ee.com/repos/bootloader/am335x_evm/u-boot-am335x_evm-${BOOTLOADERVER}.img
+mv -f MLO-am335x_evm-${BOOTLOADERVER} MLO
+mv -f u-boot-am335x_evm-${BOOTLOADERVER}.img u-boot.img
 
 ## need the latest version for the PocketBeagle pins
 cd /opt/source/bb.org-overlays
@@ -55,12 +58,14 @@ cp tools/beaglebone-universal-io/config-pin /usr/bin/config-pin
 apt-get -y --purge autoremove
 
 apt-get install alsa-utils ccache bzip2 samba rsync vsftpd shellinabox vorbis-tools \
-    bash-completion exfat-fuse btrfs-tools ntp ethtool sysstat tcpdump \
+    bash-completion exfat-fuse btrfs-tools ntp ethtool sysstat tcpdump  \
     php php-cli php-common php-curl php-fpm php-mcrypt php-pear \
     python-daemon python-smbus \
     ola ola-python libola-dev libola1 libboost-dev libjsoncpp-dev libtag1-dev \
     libconvert-binary-c-perl libjson-perl perlmagick \
-    libavcodec-dev libavformat-dev libswresample-dev libsdl2-dev
+    libavcodec-dev libavformat-dev libswresample-dev libsdl2-dev \
+    sqlite3 php-sqlite3 php-zip zip unzip \
+    mailutils librtmidi-dev libcurl4-openssl-dev
 
 
 #remove a bunch of modules that aren't neeeded, free's up space
@@ -106,7 +111,7 @@ echo "options uio_pruss extram_pool_sz=786432" >> /etc/modprobe.d/uio_pruss.conf
 reboot
 
 
-apt-get install linux-headers-4.4.91-ti-r137
+apt-get install linux-headers-4.14.12-ti-r24
 apt-get install dkms firmware-ti-connectivity
 # the above installs the 4.9 headers which we don't use
 rm -rf /usr/src/linux-headers-4.9*
@@ -119,6 +124,16 @@ depmod -a
 cp ./rtl8192cu-fixes/blacklist-native-rtl8192.conf /etc/modprobe.d/
 cp ./rtl8192cu-fixes/8192cu-disable-power-management.conf /etc/modprobe.d/
 
+cd /opt
+git clone https://github.com/zebulon2/rtl8812au-driver-5.2.9
+ln -s /opt/rtl8812au-driver-5.2.9 /usr/src/rtl8812au-5.2.9
+cd rtl8812au-driver-5.2.9
+#wget rtl8812au /tmp/rtl8812au
+patch -p1 < /tmp/rtl8812au
+dkms add -m rtl8812au -v 5.2.9
+dkms install rtl8812au/5.2.9
+
+echo "options 8812au rtw_power_mgnt=0" > /etc/modprobe.d/8812au-disable-power-management.conf
 
 #prefer ipv4
 echo "precedence ::ffff:0:0/96  100" >>  /etc/gai.conf
