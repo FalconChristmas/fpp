@@ -165,7 +165,7 @@ function SetSetting()
                     }
                 } else {
                     # BTRFS, turn on compression since fseq files are very compressible
-                    $options = "defaults,noatime,nodiratime,compress-force=lzo,nofail";
+                    $options = "defaults,noatime,nodiratime,compress=zstd,nofail";
                     $fsckOrder = "0";
                 }
             } else {

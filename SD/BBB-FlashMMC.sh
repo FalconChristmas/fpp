@@ -38,7 +38,7 @@ echo ""
 
 #mount
 mkdir /tmp/rootfs
-mount -t btrfs -o noatime,nodiratime,compress-force=zlib ${DEVICE}p2 /tmp/rootfs
+mount -t btrfs -o noatime,nodiratime,compress-force=zstd ${DEVICE}p2 /tmp/rootfs
 mkdir /tmp/rootfs/boot
 mount -t ext4 -o noatime ${DEVICE}p1 /tmp/rootfs/boot
 
@@ -77,7 +77,7 @@ echo "Configure /etc/fstab"
 echo ""
 
 #configure fstab
-echo "/dev/mmcblk1p2  /  btrfs  noatime,nodiratime,compress-force=zlib  0  1" > /tmp/rootfs/etc/fstab
+echo "/dev/mmcblk1p2  /  btrfs  noatime,nodiratime,compress=zstd  0  1" > /tmp/rootfs/etc/fstab
 echo "/dev/mmcblk1p1  /boot  ext4  defaults,noatime,nodiratime  0  2" >> /tmp/rootfs/etc/fstab
 echo "debugfs  /sys/kernel/debug  debugfs  defaults  0  0" >> /tmp/rootfs/etc/fstab
 echo "tmpfs         /tmp        tmpfs   nodev,nosuid,size=10M 0 0" >> /tmp/rootfs/etc/fstab
