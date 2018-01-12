@@ -108,14 +108,10 @@
 #define gpio_clock 15
 
 
+#define NEED_CLOCK_LO
 
 .macro ADJUST_SETTINGS
     MOV gpio_base_cache, GPIO3
-
-#ifdef gpio_clock
-    //we're going to clear the clock along with the pixel data
-    SET  gpio3_led_mask, gpio3_led_mask, gpio_clock
-#endif
 
 #ifdef gpio_latch
     //also clear the latch along with the pixel data
@@ -126,8 +122,10 @@
 
 .macro OUTPUT_GPIOS
 .mparam d0, d1, d2, d3
-    OUTPUT_GPIO_WITH_BASE_REG d3, gpio3_led_mask, gpio_base_cache
     OUTPUT_GPIO d1, gpio1_led_mask, GPIO1
+    #if OUTPUTS > 1
+        OUTPUT_GPIO_WITH_BASE_REG d3, gpio3_led_mask, gpio_base_cache
+    #endif
     #if OUTPUTS > 2
         // output 3 is the first to use GPIO2
         OUTPUT_GPIO d2, gpio2_led_mask, GPIO2
