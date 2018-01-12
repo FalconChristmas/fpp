@@ -135,11 +135,14 @@
 .endm
 
 .macro CLOCK_LO
-    // we can lower the clock line at the same time as outputing the
-    // gpio1 data so this doesn't need to be implemented
+    // we normally can lower the clock line at the same time as outputing the
+    // gpio data so this doesn't need to be implemented, however, the PocketBeagle
+    // has issues as this occurs to quick so we need to do it independently
 
-    //MOV out_clr, 1 << gpio_clock
-    //SBBO out_clr, gpio_base_cache, GPIO_CLRDATAOUT, 4
+#ifdef NEED_CLOCK_LO
+    MOV out_clr, 1 << gpio_clock
+    SBBO out_clr, gpio_base_cache, GPIO_CLRDATAOUT, 4
+#endif
 .endm
 #endif
 
@@ -151,7 +154,7 @@
 
 .macro LATCH_LO
     // we can lower the latch line at the same time as outputing the
-    // gpio1 data so this doesn't need to be implemented
+    // gpio data so this doesn't need to be implemented
     //MOV out_clr, 1 << gpio_latch
     //SBBO out_clr, gpio_base_cache, GPIO_CLRDATAOUT, 4
 .endm
