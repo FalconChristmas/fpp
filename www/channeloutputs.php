@@ -2845,7 +2845,7 @@ tr.rowUniverseDetails td
 								<td><b>Start Channel:</b></td><td><input id='LEDPanelsStartChannel' type=text size=6 maxlength=6 value='1'></td>
 							</tr>
 							<tr>
-								<td><b>Single Panel Size (WxH):</b></td><td><? printLEDPanelSizeSelect($settings['Platform'], $LEDPanelWidth + "x" + $$LEDPanelHeigth + "x" + $LEDPanelScan, $LEDPanelInterleave); ?></td>
+								<td><b>Single Panel Size (WxH):</b></td><td><? printLEDPanelSizeSelect($settings['Platform'], $LEDPanelWidth + "x" + $LEDPanelHeight + "x" + $LEDPanelScan, $LEDPanelInterleave); ?></td>
 								<td>&nbsp;</td>
 								<td><b>Channel Count:</b></td><td><span id='LEDPanelsChannelCount'>1536</span></td>
 							</tr>
