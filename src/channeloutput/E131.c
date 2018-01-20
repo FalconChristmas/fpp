@@ -101,7 +101,7 @@ int E131_InitializeNetwork()
 
 	if(bind(sendSocket, (struct sockaddr *) &localAddress, sizeof(struct sockaddr_in)) == -1)
 	{
-		LogErr(VB_CHANNELOUT, "Error in bind:errno=%d\n",errno);
+		LogErr(VB_CHANNELOUT, "Error in bind:errno=%d, %s\n", errno, strerror(errno));
 	} 
 
 	/* Disable loopback so I do not receive my own datagrams. */
