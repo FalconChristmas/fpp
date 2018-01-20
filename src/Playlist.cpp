@@ -512,7 +512,7 @@ void OldPlaylist::PlayPlaylistEntry(bool calculateNext)
 
 	plEntry = &m_playlistDetails.playList[m_playlistDetails.currentPlaylistEntry];
 
-	ParseMedia();
+	ParseMedia(NULL);
 	pluginCallbackManager.mediaCallback();
 
 	switch(plEntry->type)

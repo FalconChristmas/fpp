@@ -28,11 +28,13 @@
 
 #include "controlsend.h"
 #include "log.h"
+#include "mediadetails.h"
 #include "mpg123.h"
 #include "mqtt.h"
 #include "ogg123.h"
 #include "omxplayer.h"
 #include "PlaylistEntryMedia.h"
+#include "Plugins.h"
 #include "settings.h"
 
 /*
@@ -102,6 +104,9 @@ int PlaylistEntryMedia::StartPlaying(void)
 
 	if (mqtt)
 		mqtt->Publish("playlist/media/status", m_mediaFilename);
+
+	ParseMedia(m_mediaFilename.c_str());
+	pluginCallbackManager.mediaCallback();
 
 	return PlaylistEntryBase::StartPlaying();
 }

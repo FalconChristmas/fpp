@@ -12,7 +12,6 @@
 #define PLAYLIST_STARTING				true
 #define PLAYLIST_STOPPING				false
 
-
 class Callback
 {
 public:
@@ -82,5 +81,7 @@ public:
 private:
 	std::vector<Callback *> mCallbacks;
 };
+
+extern PluginCallbackManager pluginCallbackManager;
 
 #endif //__PLUGINS_H__

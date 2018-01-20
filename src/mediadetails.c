@@ -53,39 +53,38 @@ void clearPreviousMedia()
 	mediaDetails.channels = 0;
 }
 
-void ParseMedia()
+void ParseMedia(const char *mediaFilename)
 {
     char fullMediaPath[1024];
 	int seconds;
 	int minutes;
-	OldPlaylistEntry *plEntry = &oldPlaylist->m_playlistDetails.playList[oldPlaylist->m_playlistDetails.currentPlaylistEntry];
 
-	if (!plEntry->songName)
+	if (!mediaFilename)
 		return;
 
-    LogDebug(VB_MEDIAOUT, "ParseMedia(%s)\n", plEntry->songName);
+    LogDebug(VB_MEDIAOUT, "ParseMedia(%s)\n", mediaFilename);
 
-    if (snprintf(fullMediaPath, 1024, "%s/%s", getMusicDirectory(), plEntry->songName)
+    if (snprintf(fullMediaPath, 1024, "%s/%s", getMusicDirectory(), mediaFilename)
         >= 1024)
     {
         LogErr(VB_MEDIAOUT, "Unable to parse media details for %s, full path name too long\n",
-            plEntry->songName);
+            mediaFilename);
         return;
     }
 
     if (!FileExists(fullMediaPath))
     {
-    	if (snprintf(fullMediaPath, 1024, "%s/%s", getVideoDirectory(), plEntry->songName)
+		if (snprintf(fullMediaPath, 1024, "%s/%s", getVideoDirectory(), mediaFilename)
 	        >= 1024)
 		{
 			LogErr(VB_MEDIAOUT, "Unable to parse media details for %s, full path name too long\n",
-				plEntry->songName);
+				mediaFilename);
 			return;
 		}
 
 		if (!FileExists(fullMediaPath))
 		{
-			LogErr(VB_MEDIAOUT, "Unable to find %s media file to parse meta data\n", plEntry->songName);
+			LogErr(VB_MEDIAOUT, "Unable to find %s media file to parse meta data\n", mediaFilename);
 			return;
 		}
     }

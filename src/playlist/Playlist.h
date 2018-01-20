@@ -48,7 +48,6 @@
 #define PL_TYPE_PLUGIN_NEXT     6
 #define PL_MAX_ENTRIES        128
 
-
 // FIXME PLAYLIST, get rid of this and use playlist/PlaylistEntryBase.h
 // temporarily copied from old Playlist.h during transition to new playlist
 typedef struct {
@@ -111,6 +110,7 @@ class Playlist {
 	int                IsPlaying(void);
 
 	int                Process(void);
+	void               ProcessMedia(void);
 	int                Cleanup(void);
 
 	void               SetIdle(void);
@@ -134,6 +134,7 @@ class Playlist {
 	std::string        GetConfigStr(void);
 	Json::Value        GetConfig(void);
 	int                GetForceStop(void) { return m_forceStop; }
+	int                WasScheduled(void) { return m_scheduled; }
 
 	int                MQTTHandler(std::string topic, std::string msg);
 
@@ -153,6 +154,7 @@ class Playlist {
 	long long            m_startTime;
 	int                  m_subPlaylistDepth;
 	int                  m_subPlaylist;
+	int                  m_scheduled;
 	int                  m_forceStop;
 
 	std::string          m_currentState;
