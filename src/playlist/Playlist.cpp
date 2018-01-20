@@ -637,6 +637,26 @@ int Playlist::Process(void)
 /*
  *
  */
+void Playlist::ProcessMedia(void)
+{
+	// FIXME, find a better way to do this
+	sigset_t blockset;
+
+	sigemptyset(&blockset);
+	sigaddset(&blockset, SIGCHLD);
+	sigprocmask(SIG_BLOCK, &blockset, NULL);
+
+	pthread_mutex_lock(&mediaOutputLock);
+	if (mediaOutput)
+		mediaOutput->Process();
+	pthread_mutex_unlock(&mediaOutputLock);
+
+	sigprocmask(SIG_UNBLOCK, &blockset, NULL);
+}
+
+/*
+ *
+ */
 void Playlist::SetIdle(void)
 {
 	// FIXME PLAYLIST, get rid of this

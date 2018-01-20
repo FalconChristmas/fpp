@@ -115,7 +115,6 @@ int main(int argc, char *argv[])
 	}
 
 	scheduler = new Scheduler();
-	oldPlaylist = new OldPlaylist();
 	playlist = new Playlist();
 	sequence  = new Sequence();
 	channelTester = new ChannelTester();
@@ -175,7 +174,6 @@ int main(int argc, char *argv[])
 
 	delete channelTester;
 	delete scheduler;
-	delete oldPlaylist;
 	delete playlist;
 	delete sequence;
 
@@ -327,8 +325,7 @@ void MainLoop(void)
 		{
 			if(mediaOutputStatus.status == MEDIAOUTPUTSTATUS_PLAYING)
 			{
-				oldPlaylist->PlaylistProcessMediaData();
-				// FIXME for new playlist
+				playlist->ProcessMedia();
 			}
 		}
 
