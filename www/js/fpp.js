@@ -151,6 +151,8 @@ function PlaylistEntryToTR(i, entry, editMode)
 		HTML += GetPlaylistRowHTML((i+1).toString(), "MQTT", entry.topic, entry.message, i.toString(), editMode);
 	else if(entry.type == 'dynamic')
 		HTML += GetPlaylistRowHTML((i+1).toString(), "Dynamic", entry.subType, entry.data, i.toString(), editMode);
+	else if(entry.type == 'url')
+		HTML += GetPlaylistRowHTML((i+1).toString(), "URL", entry.method + ' - ' + entry.url, entry.data, i.toString(), editMode);
 	else if(entry.type == 'remap')
 	{
 		var desc = "Add ";
@@ -327,57 +329,12 @@ function PlaylistTypeChanged() {
 	{
 		$('#dynamicOptions').show();
 	}
-}
-
-function OldPlaylistTypeChanged() {
-	var type=document.getElementById("selType").selectedIndex;
-
-	$('.playlistOptions').hide();
-	switch(type)
+	else if (type == 'url')
 	{
-		case 0: // Music and Sequence
-			$("#musicOptions").show();
-			$("#sequenceOptions").show();
-			$("#autoSelectWrapper").show();
-			$("#autoSelectMatches").prop('checked', true);
-			break;
-		case 1:	// Media Only
-			$("#musicOptions").show();
-			break;
-		case 2:	// Sequence Only
-			$("#sequenceOptions").show();
-			$("#pauseText").show();
-			break;
-		case 3:	// Pause
-			$("#pauseTime").show();
-			$("#pauseText").show();
-			break;
-		case 4: // Script
-			$("#scriptOptions").show();
-			break;
-		case 5: // Event
-			$("#eventOptions").show();
-			break;
-		case 6: // Plugin
-			$("#pluginData").show();
-			break;
-		case 7: // Branch
-			$('#branchOptions').show();
-			break;
-		case 8: // MQTT
-			$('#mqttOptions').show();
-			break;
-		case 9: // Channel Remap
-			$('#remapOptions').show();
-			break;
-		case 10: // Dynamic
-			$('#dynamicOptions').show();
-			break;
+		$('#urlOptions').show();
 	}
-	
 }
 
-	
 function AddNewPlaylist() {
 	var name=document.getElementById("txtNewPlaylistName");
 	var plName = name.value.replace(/ /,'_');
@@ -530,6 +487,12 @@ function AddPlaylistEntry() {
 			{
 				entry.subType = $('#dynamicSubType').val();
 				entry.data = $('#dynamicData').val();
+			}
+			else if (entry.type == 'url')
+			{
+				entry.url = $('#url').val();
+				entry.method = $('#urlMethod').val();
+				entry.data = $('#urlData').val();
 			}
 			else if (entry.type == 'plugin')
 			{

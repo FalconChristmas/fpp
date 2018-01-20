@@ -372,6 +372,7 @@ function PrintScriptOptions($id)
             <option value = 'pause'>Pause</option>
             <option value = 'plugin'>Plugin</option>
             <option value = 'script'>Script</option>
+            <option value = 'url'>URL</option>
           </select>
           <span id='autoSelectWrapper' class='playlistOptions'><input type='checkbox' id='autoSelectMatches' checked> Auto-Select Matching Media/Sequence</span>
 				</td></tr>
@@ -439,6 +440,14 @@ function PrintScriptOptions($id)
 						<option value='url'>URL</option>
 					</select></td></tr>
 				<tr><td>Data Source:</td><td id='dynamicDataWrapper'><input id='dynamicData' type='text' size='60' maxlength='255' placeholder='Full File Name of JSON file'></td></tr>
+				</table>
+			</td>
+			</tr>
+		<tr id="urlOptions" class='playlistOptions'><td>Dynamic:</td>
+			<td><table border=0 cellpadding=0 cellspacing=2>
+				<tr><td>URL:</td><td><input id='url' type='text' size='60' maxlength='255' placeholder='http://hostname/path'></td></tr>
+				<tr><td>Method:</td><td><select id='urlMethod'><option value='GET'>GET</option><option value='POST'>POST</option></select></td></tr>
+				<tr><td>Post Data:</td><td><input id='urlData' type='text' size='60' maxlength='1024' placeholder='POST Data'></td></tr>
 				</table>
 			</td>
 			</tr>
