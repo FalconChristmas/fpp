@@ -352,6 +352,7 @@ if ($settings['HostName'] == "FPP")
 
 $settings['fppMode'] = $fppMode;
 $settings['fppDir'] = $fppDir;
+$settings['playlistDirectory'] = $playlistDirectory;
 $settings['pluginDirectory'] = $pluginDirectory;
 $settings['mediaDirectory'] = $mediaDirectory;
 $settings['configDirectory'] = $mediaDirectory . "/config";
