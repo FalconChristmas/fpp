@@ -168,7 +168,6 @@ int E131_InitializeNetwork()
         
         e131Buffers[x][E131_PRIORITY_INDEX] = universes[x].priority;
         
-        e131Buffers[x][E131_SEQUENCE_INDEX] = E131sequenceNumber;
         e131Buffers[x][E131_UNIVERSE_INDEX] = (char)(universes[x].universe/256);
         e131Buffers[x][E131_UNIVERSE_INDEX+1] = (char)(universes[x].universe%256);
         
@@ -234,6 +233,8 @@ int E131_SendData(void *data, char *channelData, int channelCount)
 	for(i=0; i<UniverseCount; i++)
 	{
         unsigned char *E131packet = e131Buffers[i];
+        E131packet[E131_SEQUENCE_INDEX] = E131sequenceNumber;
+
 		memcpy((void*)(E131packet+E131_HEADER_LENGTH),(void*)(channelData+universes[i].startAddress-1),universes[i].size);
 
 		LogExcess(VB_CHANNELDATA, "  %d) E1.31 universe #%d, %d channels\n",
