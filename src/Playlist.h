@@ -1,5 +1,5 @@
 /*
- *   Playlist Class for Falcon Pi Player (FPP)
+ *   (OLD) Playlist Class for Falcon Pi Player (FPP)
  *
  *   Copyright (C) 2013 the Falcon Pi Player Developers
  *      Initial development by:
@@ -23,8 +23,8 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _PLAYLIST_H
-#define _PLAYLIST_H
+#ifndef _OLDPLAYLIST_H
+#define _OLDPLAYLIST_H
 
 #include <stdbool.h>
 #include <sys/time.h>
@@ -61,10 +61,10 @@ typedef struct {
 	char eventID[6];
 	unsigned int pauselength;
 	char data[256];
-} PlaylistEntry;
+} OldPlaylistEntry;
 
 typedef struct {
-	PlaylistEntry playList[PL_MAX_ENTRIES];
+	OldPlaylistEntry playList[PL_MAX_ENTRIES];
 	char currentPlaylist[128];
 	char currentPlaylistFile[128];
 	int  playListCount;
@@ -75,12 +75,12 @@ typedef struct {
 	int  first;
 	int  last;
 	int  repeat;
-} PlaylistDetails;
+} OldPlaylistDetails;
 
-class Playlist {
+class OldPlaylist {
   public:
-	Playlist();
-	~Playlist();
+	OldPlaylist();
+	~OldPlaylist();
 
 	void StopPlaylistGracefully(void);
 	void StopPlaylistNow(void);
@@ -88,10 +88,10 @@ class Playlist {
 	void PlayListPlayingProcess(void);
 	void PlayListPlayingCleanup(void);
 	void PlaylistProcessMediaData(void);
-	int  ParsePlaylistEntry(char *buf, PlaylistEntry *pe);
+	int  ParsePlaylistEntry(char *buf, OldPlaylistEntry *pe);
 
 	int               m_playlistAction;
-	PlaylistDetails   m_playlistDetails;
+	OldPlaylistDetails   m_playlistDetails;
 	int               m_numberOfSecondsPaused;
 
   private:
@@ -110,6 +110,6 @@ class Playlist {
 	int                    m_pauseStatus;
 };
 
-extern Playlist         *playlist;
+extern OldPlaylist         *oldPlaylist;
 
 #endif

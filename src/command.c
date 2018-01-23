@@ -34,7 +34,7 @@
 #include "settings.h"
 #include "Sequence.h"
 #include "effects.h"
-#include "Playlist.h"
+#include "playlist/Playlist.h"
 #include "Plugins.h"
 #include "FPD.h"
 #include "events.h"
@@ -53,6 +53,8 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+
+#include <jsoncpp/json/json.h>
 
 extern PluginCallbackManager pluginCallbackManager;
 
@@ -183,90 +185,74 @@ extern PluginCallbackManager pluginCallbackManager;
 				}
 				else
 				{
-					if(playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].cType == 'b' || playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].cType == 'm')
+					Json::Value pl = playlist->GetInfo();
+					if ((pl["currentEntry"]["type"] == "both") ||
+						(pl["currentEntry"]["type"] == "media"))
 					{
-						sprintf(response,"%d,%d,%d,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s,%d\n",
-										getFPPmode(),FPPstatus,getVolume(),playlist->m_playlistDetails.currentPlaylist,
-										playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].cType,
-										playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].seqName,
-										playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].songName,
-										playlist->m_playlistDetails.currentPlaylistEntry+1,playlist->m_playlistDetails.playListCount,
-										mediaOutputStatus.secondsElapsed,
-										mediaOutputStatus.secondsRemaining,
-										NextPlaylist,NextScheduleStartText,
-										playlist->m_playlistDetails.repeat);
+						sprintf(response,"%d,%d,%d,%s,%s,%s,%s,%d,%d,%d,%d,%s,%s,%d\n",
+							getFPPmode(),
+							FPPstatus,
+							getVolume(),
+							pl["name"].asString().c_str(),
+							pl["currentEntry"]["type"].asString().c_str(),
+							pl["currentEntry"]["type"].asString() == "both" ? pl["currentEntry"]["sequence"]["sequenceName"].asString().c_str() : "",
+							pl["currentEntry"]["media"]["mediaFilename"].asString().c_str(),
+//							pl["currentEntry"]["entryID"].asInt() + 1,
+							playlist->GetPosition(),
+							pl["size"].asInt(),
+							pl["currentEntry"]["media"]["secondsElapsed"].asInt(),
+							pl["currentEntry"]["media"]["secondsRemaining"].asInt(),
+							NextPlaylist,
+							NextScheduleStartText,
+							pl["repeat"].asInt());
 					}
-					else if (playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].cType == 's')
+					else if (pl["currentEntry"]["type"] == "sequence")
 					{
-						sprintf(response,"%d,%d,%d,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s,%d\n",getFPPmode(),FPPstatus,getVolume(),
-										playlist->m_playlistDetails.currentPlaylist,playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].cType,
-										playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].seqName,playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].songName,
-										playlist->m_playlistDetails.currentPlaylistEntry+1,playlist->m_playlistDetails.playListCount,
-										sequence->m_seqSecondsElapsed,
-										sequence->m_seqSecondsRemaining,
-										NextPlaylist,NextScheduleStartText,
-										playlist->m_playlistDetails.repeat);
+						sprintf(response,"%d,%d,%d,%s,%s,%s,%s,%d,%d,%d,%d,%s,%s,%d\n",
+							getFPPmode(),
+							FPPstatus,
+							getVolume(),
+							pl["name"].asString().c_str(),
+							pl["currentEntry"]["type"].asString().c_str(),
+							pl["currentEntry"]["sequence"]["sequenceName"].asString().c_str(),
+							"",
+//							pl["currentEntry"]["entryID"].asInt() + 1,
+							playlist->GetPosition(),
+							pl["size"].asInt(),
+							sequence->m_seqSecondsElapsed,
+							sequence->m_seqSecondsRemaining,
+							NextPlaylist,
+							NextScheduleStartText,
+							pl["repeat"].asInt());
 					}
 					else
 					{			
-						sprintf(response,"%d,%d,%d,%s,%c,%s,%s,%d,%d,%d,%d,%s,%s,%d\n",getFPPmode(),FPPstatus,getVolume(),playlist->m_playlistDetails.currentPlaylist,
-										playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].cType,
-										playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].seqName,
-										playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].songName,	
-										playlist->m_playlistDetails.currentPlaylistEntry+1,playlist->m_playlistDetails.playListCount,
-										playlist->m_numberOfSecondsPaused,
-										(int)playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].pauselength - playlist->m_numberOfSecondsPaused,
-										NextPlaylist,NextScheduleStartText,
-										playlist->m_playlistDetails.repeat);
+						sprintf(response,"%d,%d,%d,%s,%s,%s,%s,%d,%d,%d,%d,%s,%s,%d\n",
+							getFPPmode(),
+							FPPstatus,
+							getVolume(),
+							pl["name"].asString().c_str(),
+							pl["currentEntry"]["type"].asString().c_str(),
+							"",
+							"",
+//							pl["currentEntry"]["entryID"].asInt() + 1,
+							playlist->GetPosition(),
+							pl["size"].asInt(),
+							pl["currentEntry"]["type"].asString() == "pause" ? pl["currentEntry"]["duration"].asInt() - pl["currentEntry"]["remaining"].asInt() : 0,
+							pl["currentEntry"]["type"].asString() == "pause" ? pl["currentEntry"]["remaining"].asInt() : 0,
+							NextPlaylist,
+							NextScheduleStartText,
+							pl["repeat"].asInt());
 					}
 				}
 		}
-		else if (!strcmp(CommandStr, "p"))
+		else if ((!strcmp(CommandStr, "P")) || (!strcmp(CommandStr, "p")))
 		{
-				if(FPPstatus==FPP_STATUS_PLAYLIST_PLAYING || FPPstatus==FPP_STATUS_STOPPING_GRACEFULLY)
-				{
-					playlist->StopPlaylistNow();
-				}
-				sleep(1);
-	
 				s = strtok(NULL,",");
-				if (s)
+				s2 = strtok(NULL,",");
+
+				if (s && playlist->Play(s, atoi(s2), strcmp(CommandStr, "p") ? 0 : 1))
 				{
-					strcpy(playlist->m_playlistDetails.currentPlaylistFile,s);
-					s = strtok(NULL,",");
-					if (s)
-						playlist->m_playlistDetails.currentPlaylistEntry = atoi(s);
-					else
-						playlist->m_playlistDetails.currentPlaylistEntry = 0;
-					playlist->m_playlistDetails.repeat = 1 ;
-					playlist->m_playlistDetails.playlistStarting=1;
-					FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
-					sprintf(response,"%d,%d,Playlist Started,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
-				}
-				else
-				{
-					sprintf(response,"%d,%d,Unknown Playlist,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
-				}
-		}
-		else if (!strcmp(CommandStr, "P"))
-		{
-				if(FPPstatus==FPP_STATUS_PLAYLIST_PLAYING || FPPstatus==FPP_STATUS_STOPPING_GRACEFULLY)
-				{
-					playlist->StopPlaylistNow();
-				}
-				sleep(1);
-	
-				s = strtok(NULL,",");
-				if (s)
-				{
-					strcpy(playlist->m_playlistDetails.currentPlaylistFile,s);
-					s = strtok(NULL,",");
-					if (s)
-						playlist->m_playlistDetails.currentPlaylistEntry = atoi(s);
-					else
-						playlist->m_playlistDetails.currentPlaylistEntry = 0;
-					playlist->m_playlistDetails.repeat = 0;
-					playlist->m_playlistDetails.playlistStarting=1;
 					FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
 					sprintf(response,"%d,%d,Playlist Started,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
 				}
@@ -279,8 +265,7 @@ extern PluginCallbackManager pluginCallbackManager;
 		{
 				if(FPPstatus==FPP_STATUS_PLAYLIST_PLAYING)
 				{
-					playlist->m_playlistDetails.ForceStop = 1;
-					playlist->StopPlaylistGracefully();
+					playlist->StopGracefully(1);
 					scheduler->ReLoadCurrentScheduleInfo();
 					sprintf(response,"%d,%d,Playlist Stopping Gracefully,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
 				}
@@ -293,8 +278,7 @@ extern PluginCallbackManager pluginCallbackManager;
 		{
 				if(FPPstatus==FPP_STATUS_PLAYLIST_PLAYING || FPPstatus==FPP_STATUS_STOPPING_GRACEFULLY)
 				{
-					playlist->m_playlistDetails.ForceStop = 1;
-					playlist->StopPlaylistNow();
+					playlist->StopNow(1);
 					scheduler->ReLoadCurrentScheduleInfo();
 					sprintf(response,"%d,%d,Playlist Stopping Now,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
 				}
@@ -510,7 +494,7 @@ extern PluginCallbackManager pluginCallbackManager;
 			if ((sequence->IsSequenceRunning()) &&
 				((FPPstatus == FPP_STATUS_IDLE) ||
 				 ((FPPstatus != FPP_STATUS_IDLE) &&
-				  (playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].cType == 's'))))
+				  (playlist->GetInfo()["currentEntry"]["type"] == "sequence"))))
 			{
 				sequence->ToggleSequencePause();
 			}
@@ -521,7 +505,7 @@ extern PluginCallbackManager pluginCallbackManager;
 				(sequence->SequenceIsPaused()) &&
 				((FPPstatus == FPP_STATUS_IDLE) ||
 				 ((FPPstatus != FPP_STATUS_IDLE) &&
-				  (playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].cType == 's'))))
+				  (playlist->GetInfo()["currentEntry"]["type"] == "sequence"))))
 			{
 				sequence->SingleStepSequence();
 			}
@@ -532,7 +516,7 @@ extern PluginCallbackManager pluginCallbackManager;
 				(sequence->SequenceIsPaused()) &&
 				((FPPstatus == FPP_STATUS_IDLE) ||
 				 ((FPPstatus != FPP_STATUS_IDLE) &&
-				  (playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry].cType == 's'))))
+				  (playlist->GetInfo()["currentEntry"]["type"] == "sequence"))))
 			{
 				sequence->SingleStepSequenceBack();
 			}
@@ -546,7 +530,7 @@ extern PluginCallbackManager pluginCallbackManager;
 					break;
 				case FPP_STATUS_PLAYLIST_PLAYING:
 					sprintf(response,"%d,%d,Skipping to next playlist item\n",getFPPmode(),COMMAND_SUCCESS);
-					playlist->m_playlistAction = PL_ACTION_NEXT_ITEM;
+					playlist->NextItem();
 					break;
 				case FPP_STATUS_STOPPING_GRACEFULLY:
 					sprintf(response,"%d,%d,Playlist is stopping gracefully\n",getFPPmode(),COMMAND_FAILED);
@@ -562,7 +546,7 @@ extern PluginCallbackManager pluginCallbackManager;
 					break;
 				case FPP_STATUS_PLAYLIST_PLAYING:
 					sprintf(response,"%d,%d,Skipping to previous playlist item\n",getFPPmode(),COMMAND_SUCCESS);
-					playlist->m_playlistAction = PL_ACTION_PREV_ITEM;
+					playlist->PrevItem();
 					break;
 				case FPP_STATUS_STOPPING_GRACEFULLY:
 					sprintf(response,"%d,%d,Playlist is stopping gracefully\n",getFPPmode(),COMMAND_FAILED);

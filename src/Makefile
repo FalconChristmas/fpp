@@ -81,8 +81,29 @@ OBJECTS_fppd = \
 	mediaoutput/mpg123.o \
 	mediaoutput/ogg123.o \
 	mediaoutput/omxplayer.o \
+	mqtt.o \
 	PixelOverlay.o \
 	Playlist.o \
+	playlist/Playlist.o \
+	playlist/PlaylistEntryBase.o \
+	playlist/PlaylistEntryBoth.o \
+	playlist/PlaylistEntryBranch.o \
+	playlist/PlaylistEntryBrightness.o \
+	playlist/PlaylistEntryChannelTest.o \
+	playlist/PlaylistEntryDynamic.o \
+	playlist/PlaylistEntryEffect.o \
+	playlist/PlaylistEntryEvent.o \
+	playlist/PlaylistEntryMedia.o \
+	playlist/PlaylistEntryMQTT.o \
+	playlist/PlaylistEntryPause.o \
+	playlist/PlaylistEntryPixelOverlay.o \
+	playlist/PlaylistEntryPlaylist.o \
+	playlist/PlaylistEntryPlugin.o \
+	playlist/PlaylistEntryRemap.o \
+	playlist/PlaylistEntryScript.o \
+	playlist/PlaylistEntrySequence.o \
+	playlist/PlaylistEntryURL.o \
+	playlist/PlaylistEntryVolume.o \
 	Plugins.o \
 	Scheduler.o \
 	ScheduleEntry.o \
@@ -93,6 +114,7 @@ LIBS_fppd = \
 	-lpthread \
 	-ljsoncpp \
 	-lm \
+	-lmosquitto \
 	-lutil \
 	-ltag \
 	$(NULL)
@@ -114,6 +136,8 @@ ifneq '$(OLAFLAGS)' ''
 	OBJECTS_fppd += channeloutput/OLAOutput.o
 endif
 
+CURLFLAGS := $(shell curl-config --libs)
+
 # Common CFLAGS
 CFLAGS += \
 	-I . \
@@ -122,7 +146,7 @@ CFLAGS += \
 	$(NULL)
 
 
-LDFLAGS_fppd += \
+LDFLAGS_fppd += $(CURLFLAGS) \
 	$(NULL)
 
 DEPS_fppd += \

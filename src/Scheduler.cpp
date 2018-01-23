@@ -35,7 +35,7 @@
 #include "common.h"
 #include "fpp.h"
 #include "log.h"
-#include "Playlist.h"
+#include "playlist/Playlist.h"
 #include "Scheduler.h"
 #include "settings.h"
 
@@ -130,11 +130,9 @@ void Scheduler::CheckIfShouldBePlayingNow(void)
 
 					m_CurrentScheduleHasbeenLoaded = 1;
 					m_NextScheduleHasbeenLoaded = 0;
-		      strcpy(playlist->m_playlistDetails.currentPlaylistFile,m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playList);
-				  playlist->m_playlistDetails.currentPlaylistEntry=0;
-					playlist->m_playlistDetails.repeat = m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].repeat;
-		  		playlist->m_playlistDetails.playlistStarting=1;
-      		FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
+
+					playlist->Play(m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playList,
+						0, m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].repeat);
 				}				
 			}
 		}
@@ -409,10 +407,6 @@ void Scheduler::PlayListLoadCheck(void)
     if(nowWeeklySeconds == m_currentSchedulePlaylist.startWeeklySeconds)
     {
       m_NextScheduleHasbeenLoaded = 0;
-      strcpy(playlist->m_playlistDetails.currentPlaylistFile,m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playList);
-		  playlist->m_playlistDetails.currentPlaylistEntry=0;
-			playlist->m_playlistDetails.repeat = m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].repeat;
-		  playlist->m_playlistDetails.playlistStarting=1;
       LogInfo(VB_SCHEDULE, "Schedule Entry: %02d:%02d:%02d - %02d:%02d:%02d - Starting Playlist %s for %d seconds\n",
         m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].startHour,
         m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].startMinute,
@@ -424,7 +418,9 @@ void Scheduler::PlayListLoadCheck(void)
         m_currentSchedulePlaylist.endWeeklySeconds - m_currentSchedulePlaylist.startWeeklySeconds);
       LogInfo(VB_SCHEDULE, "NowSecs = %d, CurrStartSecs = %d, CurrEndSecs = %d (%d seconds away)\n",
         nowWeeklySeconds, m_currentSchedulePlaylist.startWeeklySeconds, m_currentSchedulePlaylist.endWeeklySeconds, displayDiff);
-      FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
+
+      playlist->Play(m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playList,
+        0, m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].repeat);
     }
   }
 }
@@ -492,10 +488,9 @@ void Scheduler::PlayListStopCheck(void)
         m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].endMinute,
         m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].endSecond);
       m_CurrentScheduleHasbeenLoaded = 0;
-      playlist->StopPlaylistGracefully();
+      playlist->StopGracefully();
     }
   }
-
 }
 
 void Scheduler::LoadScheduleFromFile(void)

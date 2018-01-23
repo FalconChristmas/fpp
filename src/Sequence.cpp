@@ -447,6 +447,7 @@ void Sequence::ReadSequenceData(void) {
 		if(m_seqFilePosition <= m_seqFileSize - m_seqStepSize)
 		{
 			bytesRead = fread(m_seqData, 1, m_seqStepSize, m_seqFile);
+			posix_fadvise(fileno(m_seqFile), 0, 0, POSIX_FADV_DONTNEED);
 			m_seqFilePosition += bytesRead;
 		}
 

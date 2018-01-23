@@ -140,6 +140,11 @@
 	width: 100%;
 }
 
+.center
+{
+	text-align: center;
+}
+
 .ui-front
 {
 	z-index: 1001;
@@ -307,37 +312,32 @@ fieldset
 .siteName{font-size: 200%; padding-top: 13px; }
 
 
-.colPlaylistNumberDrag{
+.colPlaylistNumberDrag {
 	background-image: url(../images/vertdrag.png);
 	background-repeat:no-repeat;
 	background-size:7px 14px;
 	background-position:0 2px;
 	padding-left:20px;
 }
-.colPlaylistNumber{
+.colPlaylistNumber {
 	text-align:right;
 	padding-right:0px;
-	width: 5%;
+//	width: 5%;
 }
-.colPlaylistType{
+.colPlaylistType {
 	text-align:left;
 	padding-left:5px;
-	width: 6%;
+//	width: 10%;
 }
-.colPlaylistData1{
+.colPlaylistData1 {
 	text-align:left;
 	padding-left:5px;
-	width: 42%;
+//	width: 40%;
 }
-.colPlaylistData2{
+.colPlaylistData2 {
 	text-align:left;
 	padding-left:5px;
-	width: 41%;
-}
-.colPlaylistFlags{
-	text-align:left;
-	padding-left:5px;
-	width: 6%;
+//	width: 40%;
 }
 
 .volumeButton {
@@ -407,6 +407,10 @@ fieldset
 	overflow:auto
 }
 
+#statusPlaylistContents table {
+	border-collapse:collapse;
+} 
+
 #eventListContents, #effectListContents{
 	height:120px;
 	min-height:120px;
@@ -416,7 +420,6 @@ fieldset
 
 #statusPlaylist, #eventList, #effectList, #effectLibrary, #runningEffects{
 	border:thin solid;	
-	font-size:12px;
 	margin-top: 5px;
 	-moz-border-radius: 5px;
 	border-radius: 5px;
@@ -439,13 +442,26 @@ fieldset
 	float: left;
 }
 
-#tblStatusPlaylist{
+#tblStatusPlaylist {
 	 width:100%;
+}
+
+#tblStatusPlaylist tbody tr th{
+	background: #aaaaaa;
 }
 
 #tblStatusPlaylistEntries{
 	 width:100%;
 	 border-collapse:collapse;
+}
+
+#tblCreatePlaylist {
+	 width:100%;
+	 border-collapse:collapse;
+}
+
+#tblCreatePlaylist tbody tr th{
+	background: #aaaaaa;
 }
 
 
@@ -471,10 +487,6 @@ fieldset
 .playlistSelectedEntry, .eventSelectedEntry, .effectSelectedEntry{
 	background:#CCC;
 }
-
-#statusPlaylistContents table {
-	border-collapse:collapse;
-} 
 
 .unselectable {
    -moz-user-select: -moz-none;
@@ -572,6 +584,11 @@ fieldset
 
 .selectedEntry {
 	background: #CCC;
+}
+
+.tblCreatePlaylistEntries_tbody {
+	height: auto;
+	min-height: 20px;
 }
 
 .pl_title {

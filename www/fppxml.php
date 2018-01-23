@@ -33,16 +33,13 @@ $_SESSION['session_id'] = session_id();
 $command_array = Array(
 	"getMusicFiles" => 'GetMusicFiles',
 	"getPlayLists" => 'GetPlaylists',
-	"getPlayListSettings" => 'GetPlayListSettings',
 	"getFiles" => 'GetFiles',
 	"getZip" => 'GetZip',
 	"getSequences" => 'GetSequenceFiles',
-	"getPlayListEntries" => 'GetPlaylistEntries',
 	"setPlayListFirstLast" => 'SetPlayListFirstLast',
 	"addPlayList" => 'AddPlaylist',
 	"getUniverseReceivedBytes" => 'GetUniverseReceivedBytes',
-	"sort" => 'PlaylistEntryPositionChanged',
-	"savePlaylist" => 'SavePlaylist',
+	"playlistEntryPositionChanged" => 'PlaylistEntryPositionChanged',
 	"deletePlaylist" => 'DeletePlaylist',
 	"deleteEntry" => 'DeleteEntry',
 	"deleteFile" => 'DeleteFile',
@@ -1778,20 +1775,28 @@ function AddPlayListEntry()
 	$seqFile = $_GET['seqFile'];
 	$songFile = $_GET['mediaFile'];
 	$pause = $_GET['pause'];
+	$scriptName = $_GET['scriptName'];
 	$eventName = $_GET['eventName'];
 	$eventID = $_GET['eventID'];
 	$pluginData = $_GET['pluginData'];
+	check($section, "section", __FUNCTION__);
 	check($type, "type", __FUNCTION__);
 	check($seqFile, "seqFile", __FUNCTION__);
 	check($songFile, "songFile", __FUNCTION__);
 	check($pause, "pause", __FUNCTION__);
+	check($scriptName, "scriptName", __FUNCTION__);
 	check($eventName, "eventName", __FUNCTION__);
 	check($eventID, "eventID", __FUNCTION__);
 	check($pluginData, "pluginData", __FUNCTION__);
 	$index = 0;
 
-	$_SESSION['playListEntries'][] = new PlaylistEntry($type,$songFile,$seqFile,$pause,$eventName,$eventID,$pluginData,count($_SESSION['playListEntries']));
-	EchoStatusXML($_GET['mediaFile']);
+	// Always insert new entries into the main playlist section
+	$section = "MainPlaylist";
+
+	$_SESSION['playListEntries' . $section][] = new PlaylistEntry($type,$songFile,$seqFile,$pause,$scriptName,$eventName,$eventID,$pluginData,
+		0, // FIXME PLAYLIST
+		count($_SESSION['playListEntries' . $section]));
+	EchoStatusXML(sprintf("Playlist Entry added with ID #%d, playlist now has %d entries", count($_SESSION['playListEntries' . $section]) - 1, count($_SESSION['playListEntries' . $section])));
 }
 
 function GetPlaylists()
@@ -1813,14 +1818,11 @@ function GetPlaylists()
 	{
 		if ($pFile != "." && $pFile != "..")
 		{
+			$pFile = preg_replace("/\.json/", "", $pFile);
 			$playList = $doc->createElement('Playlist');
 			$playList = $root->appendChild($playList);
 			$value = $doc->createTextNode(utf8_encode($pFile));
 			$value = $playList->appendChild($value);
-	//		if($showFirst == "true")
-	//		{
-				//LoadPlayListDetails($pFile);
-	//		}
 		}
 	}
 	echo $doc->saveHTML();
@@ -1983,9 +1985,22 @@ function AddPlaylist()
 		$successAttribute = $response->appendChild($successAttribute);
 
 		//$_SESSION['currentPlaylist']	= $pl;
-		$filename = $playlistDirectory . '/' . $name;
+		$filename = $playlistDirectory . '/' . $name . ".json";
 		$file = fopen($filename, "w");
-		fwrite($file, "");
+		$emptyPlaylist = <<<EOT
+{
+	"name": "$name",
+	"repeat": 0,
+	"loopCount": 0,
+	"leadIn": [
+	],
+	"mainPlaylist": [
+	],
+	"leadOut": [
+	]
+}
+EOT;
+		fwrite($file, $emptyPlaylist);
 		fclose($file);
 
 		$playList = $doc->createElement('Playlist');
@@ -1997,291 +2012,82 @@ function AddPlaylist()
 	{
 		//$successAttribute->value = 'false';
 	}
-	$_SESSION['playListEntries'] = NULL;
-	echo $doc->saveHTML();
-}
-
-function SetPlayListFirstLast()
-{
-	$first = $_GET['first'];
-	$last = $_GET['last'];
-	check($first, "first", __FUNCTION__);
-	check($last, "last", __FUNCTION__);
-
-	$_SESSION['playlist_first'] = $first;
-	$_SESSION['playlist_last'] = $last;
-	EchoStatusXML('Success');
-}
-
-function LoadPlayListDetails($file)
-{
-	global $playlistDirectory;
-	global $eventDirectory;
-
-	$playListEntries = NULL;
-	$_SESSION['playListEntries']=NULL;
-
-	$f=fopen($playlistDirectory . '/' . $file, "rx") or exit("Unable to open file! : " . $playlistDirectory . '/' . $file);
-	$i=0;
-	$line=fgets($f);
-	if(strlen($line)) {
-		$entry = explode(",",$line,50);
-		$_SESSION['playlist_first']=$entry[0];
-		$_SESSION['playlist_last']=$entry[1];
-	}
-	while (!feof($f))
-	{
-		$line=fgets($f);
-		$entry = explode(",",$line,50);
-		if ($entry[0] == 'v')
-			$entry[0] = 'm';
-		$type = $entry[0];
-		if(strlen($line)==0)
-			break;
-		switch($entry[0])
-		{
-			case 'b':
-				$seqFile = $entry[1];
-				$songFile = $entry[2];
-				$pause = 0;
-				$index = $i;
-				$eventName = "";
-				$eventID = "";
-				$pluginData = "";
-				break;
-			default:
-				break;
-			case 'm':
-				$songFile = $entry[1];
-				$seqFile = "";
-				$pause = 0;
-				$index = $i;
-				$eventName = "";
-				$eventID = "";
-				$pluginData = "";
-				break;
-			case 's':
-				$songFile = "";
-				$seqFile = $entry[1];
-				$pause = 0;
-				$index = $i;
-				$eventName = "";
-				$eventID = "";
-				$pluginData = "";
-				break;
-			case 'p':
-				$songFile = "";
-				$seqFile = "";
-				$pause = $entry[1];
-				$index = $i;
-				$eventName = "";
-				$eventID = "";
-				$pluginData = "";
-				break;
-			case 'P':
-				$songFile = "";
-				$seqFile = "";
-				$pause = 0;
-				$index = $i;
-				$eventName = "";
-				$eventID = "";
-				$pluginData = $entry[1];
-				break;
-			case 'e':
-				$seqFile = "";
-				$songFile = "";
-				$pause = 0;
-				$index = $i;
-				$eventID = $entry[1];
-				$pluginData = "";
-
-				$eventFile = $eventDirectory . "/" . $eventID . ".fevt";
-				if ( file_exists($eventFile)) {
-					$eventInfo = parse_ini_file($eventFile);
-					$eventName = $eventInfo['name'];
-				} else {
-					$eventName = "ERROR: Event undefined";
-				}
-				break;
-		}
-		$playListEntries[$i] = new PlaylistEntry($type,$songFile,$seqFile,$pause,$eventName,$eventID,$pluginData,$index);
-		$i++;
-	}
-	fclose($f);
-	$_SESSION['playListEntries'] = $playListEntries;
-//	Print_r($_SESSION['playListEntries']);
-}
-
-function GetPlayListSettings()
-{
-	$file = $_GET['pl'];
-	check($file, "file", __FUNCTION__);
-
-	$doc = new DomDocument('1.0');
-	// Playlist Entries
-	$root = $doc->createElement('playlist_settings');
-	$root = $doc->appendChild($root);
-	// First setting
-	$first = $doc->createElement('playlist_first');
-	$first = $root->appendChild($first);
-	$value = $doc->createTextNode($_SESSION['playlist_first']);
-	$value = $first->appendChild($value);
-	// Last setting
-	$last = $doc->createElement('playlist_last');
-	$last = $root->appendChild($last);
-	$value = $doc->createTextNode($_SESSION['playlist_last']);
-	$value = $last->appendChild($value);
-
-	echo $doc->saveHTML();
-}
-
-function GetPlaylistEntries()
-{
-	$file = $_GET['pl'];
-	$reloadFile = $_GET['reload'];
-	check($file, "file", __FUNCTION__);
-	check($reloadFile, "reloadFile", __FUNCTION__);
-
-	$_SESSION['currentPlaylist'] = $file;
-	if($reloadFile=='true')
-	{
-		LoadPlayListDetails($file);
-	}
-	$doc = new DomDocument('1.0');
-	// Playlist Entries
-	$root = $doc->createElement('PlaylistEntries');
-	$root = $doc->appendChild($root);
-//	Print_r($_SESSION['playListEntries']);
-	for($i=0;$i<count($_SESSION['playListEntries']);$i++)
-	{
-		$playListEntry = $doc->createElement('playListEntry');
-		$playListEntry = $root->appendChild($playListEntry);
-		// type
-		$type = $doc->createElement('type');
-		$type = $playListEntry->appendChild($type);
-		$value = $doc->createTextNode($_SESSION['playListEntries'][$i]->type);
-		$value = $type->appendChild($value);
-		// seqFile
-		$seqFile = $doc->createElement('seqFile');
-		$seqFile = $playListEntry->appendChild($seqFile);
-		$value = $doc->createTextNode($_SESSION['playListEntries'][$i]->seqFile);
-		$value = $seqFile->appendChild($value);
-		// songFile
-		$songFile = $doc->createElement('songFile');
-		$songFile = $playListEntry->appendChild($songFile);
-		$value = $doc->createTextNode($_SESSION['playListEntries'][$i]->songFile);
-		$value = $songFile->appendChild($value);
-		// pause
-		$pause = $doc->createElement('pause');
-		$pause = $playListEntry->appendChild($pause);
-		$value = $doc->createTextNode($_SESSION['playListEntries'][$i]->pause);
-		$value = $pause->appendChild($value);
-		// index
-		$index = $doc->createElement('index');
-		$index = $playListEntry->appendChild($index);
-		$value = $doc->createTextNode($_SESSION['playListEntries'][$i]->index);
-		$value = $index->appendChild($value);
-		// eventName
-		$eventName = $doc->createElement('eventName');
-		$eventName = $playListEntry->appendChild($eventName);
-		$value = $doc->createTextNode($_SESSION['playListEntries'][$i]->eventName);
-		$value = $eventName->appendChild($value);
-		// eventID
-		$eventID = $doc->createElement('eventID');
-		$eventID = $playListEntry->appendChild($eventID);
-		$value = $doc->createTextNode($_SESSION['playListEntries'][$i]->eventID);
-		$value = $eventID->appendChild($value);
-		// plugin data
-		$pluginData = $doc->createElement('pluginData');
-		$pluginData = $playListEntry->appendChild($pluginData);
-		$value = $doc->createTextNode($_SESSION['playListEntries'][$i]->pluginData);
-		$value = $pluginData->appendChild($value);
-	}
+	$_SESSION['playListEntriesLeadIn'] = NULL;
+	$_SESSION['playListEntriesMainPlaylist'] = NULL;
+	$_SESSION['playListEntriesLeadOut'] = NULL;
 	echo $doc->saveHTML();
 }
 
 function PlaylistEntryPositionChanged()
 {
+	$newSection = $_GET['newSection'];
 	$newIndex = $_GET['newIndex'];
+	$oldSection = $_GET['oldSection'];
 	$oldIndex = $_GET['oldIndex'];
+	check($newSection, "newSection", __FUNCTION__);
 	check($newIndex, "newIndex", __FUNCTION__);
+	check($oldSection, "oldSection", __FUNCTION__);
 	check($oldIndex, "oldIndex", __FUNCTION__);
 
-	if(count($_SESSION['playListEntries']) > $oldIndex && count($_SESSION['playListEntries']) > $newIndex)
+	if ($newSection == $oldSection)
 	{
-		$_SESSION['playListEntries'][$oldIndex]->index = $newIndex;
-		if($newIndex < 	$oldIndex)
+		if(count($_SESSION['playListEntries' . $newSection]) > $oldIndex && count($_SESSION['playListEntries' . $newSection]) > $newIndex)
 		{
-			for($index=$newIndex;$index<$oldIndex;$index++)
+			$_SESSION['playListEntries' . $newSection][$oldIndex]->index = $newIndex;
+			if($newIndex < 	$oldIndex)
 			{
-				$_SESSION['playListEntries'][$index]->index++;
+				for($index=$newIndex;$index<$oldIndex;$index++)
+				{
+					$_SESSION['playListEntries' . $newSection][$index]->index++;
+				}
 			}
-		}
-		if ($oldIndex < $newIndex)
-		{
-			for($index=$oldIndex+1;$index<=$newIndex;$index++)
+			if ($oldIndex < $newIndex)
 			{
-				$_SESSION['playListEntries'][$index]->index--;
+				for($index=$oldIndex+1;$index<=$newIndex;$index++)
+				{
+					$_SESSION['playListEntries' . $newSection][$index]->index--;
+				}
 			}
+			usort($_SESSION['playListEntries' . $newSection],"cmp_index");
 		}
-		usort($_SESSION['playListEntries'],cmp_index);
-
 	}
-}
-
-
-function SavePlaylist()
-{
-	global $playlistDirectory;
-
-	$name = $_GET['name'];
-	$first = $_GET['first'];
-	$last = $_GET['last'];
-	check($name, "name", __FUNCTION__);
-	check($first, "first", __FUNCTION__);
-	check($last, "last", __FUNCTION__);
-
-	$f=fopen($playlistDirectory . '/' . $name,"w") or exit("Unable to open file! : " . $playlistDirectory . '/' . $name);
-	$entries = sprintf("%s,%s,\n",$first,$last);
-	for($i=0;$i<count($_SESSION['playListEntries']);$i++)
+	else
 	{
-		if($_SESSION['playListEntries'][$i]->type == 'b')
+		// Insert the new entry
+		$_SESSION['playListEntries' . $newSection][] = new PlaylistEntry(
+			$_SESSION['playListEntries' . $oldSection][$oldIndex]->type,
+			$_SESSION['playListEntries' . $oldSection][$oldIndex]->songFile,
+			$_SESSION['playListEntries' . $oldSection][$oldIndex]->seqFile,
+			$_SESSION['playListEntries' . $oldSection][$oldIndex]->pause,
+			$_SESSION['playListEntries' . $oldSection][$oldIndex]->scriptName,
+			$_SESSION['playListEntries' . $oldSection][$oldIndex]->eventName,
+			$_SESSION['playListEntries' . $oldSection][$oldIndex]->eventID,
+			$_SESSION['playListEntries' . $oldSection][$oldIndex]->pluginData,
+			$_SESSION['playListEntries' . $oldSection][$oldIndex]->entry,
+			$newIndex);
+
+		// Backup the entry
+		unset($_SESSION['playListEntries' . $oldSection][$oldIndex]);
+
+		// Delete from the old section
+		for($index = $oldIndex+1; $index < count($_SESSION['playListEntries' . $oldSection]); $index++)
 		{
-			$entries .= sprintf("%s,%s,%s,\n",$_SESSION['playListEntries'][$i]->type,$_SESSION['playListEntries'][$i]->seqFile,
-								$_SESSION['playListEntries'][$i]->songFile);
+			$_SESSION['playListEntries' . $oldSection][$index]->index--;
 		}
-		else if($_SESSION['playListEntries'][$i]->type == 's')
+		usort($_SESSION['playListEntries' . $oldSection],"cmp_index");
+
+		// Insert into the new section
+		if ($newIndex < (count($_SESSION['playListEntries' . $newSection]) - 1))
 		{
-			$entries .= sprintf("%s,%s,\n",$_SESSION['playListEntries'][$i]->type,$_SESSION['playListEntries'][$i]->seqFile);
-		}
-		else if($_SESSION['playListEntries'][$i]->type == 'm')
-		{
-			$entries .= sprintf("%s,%s,\n",$_SESSION['playListEntries'][$i]->type,$_SESSION['playListEntries'][$i]->songFile);
-		}
-		else if($_SESSION['playListEntries'][$i]->type == 'p')
-		{
-			$entries .= sprintf("%s,%s,\n",$_SESSION['playListEntries'][$i]->type,$_SESSION['playListEntries'][$i]->pause);
-		}
-		else if($_SESSION['playListEntries'][$i]->type == 'e')
-		{
-			$entries .= sprintf("%s,%s,\n",$_SESSION['playListEntries'][$i]->type,
-				$_SESSION['playListEntries'][$i]->eventID);
-		}
-		else if($_SESSION['playListEntries'][$i]->type == 'P')
-		{
-			$entries .= sprintf("%s,%s,\n",$_SESSION['playListEntries'][$i]->type,$_SESSION['playListEntries'][$i]->pluginData);
+			for($index = $newIndex; $index < (count($_SESSION['playListEntries' . $newSection]) - 1); $index++)
+			{
+				$_SESSION['playListEntries' . $newSection][$index]->index++;
+			}
+			usort($_SESSION['playListEntries' . $newSection],"cmp_index");
 		}
 	}
-	fwrite($f,$entries);
-	fclose($f);
 
-	EchoStatusXML('Success');
-
-	if($name != $_SESSION['currentPlaylist'])
-	{
-		 unlink($playlistDirectory . '/' . $_SESSION['currentPlaylist']);
-		 $_SESSION['currentPlaylist'] = $name;
-	}
+	EchoStatusXML('NewSectionCount: ' . count($_SESSION['playListEntries' . $newSection]));
 }
 
 function DeletePlaylist()
@@ -2297,20 +2103,29 @@ function DeletePlaylist()
 
 function DeleteEntry()
 {
+	$section = $_GET['section'];
 	$index = $_GET['index'];
+	check($section, "section", __FUNCTION__);
 	check($index, "index", __FUNCTION__);
 
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('Status');
 	$root = $doc->appendChild($root);
+
+	if ($section == 'LeadOut')
+		$index -= count($_SESSION['playListEntriesMainPlaylist']);
+
+	if ($section != 'LeadIn')
+		$index -= count($_SESSION['playListEntriesLeadIn']);
+
 	// Delete from array.
-	if($index < count($_SESSION['playListEntries']))
+	if($index < count($_SESSION['playListEntries' . $section]))
 	{
-		unset($_SESSION['playListEntries'][$index]);
-		$_SESSION['playListEntries'] = array_values($_SESSION['playListEntries']);
-		for($i=0;$i<count($_SESSION['playListEntries']);$i++)
+		unset($_SESSION['playListEntries' . $section][$index]);
+		$_SESSION['playListEntries' . $section] = array_values($_SESSION['playListEntries' . $section]);
+		for($i=0;$i<count($_SESSION['playListEntries' . $section]);$i++)
 		{
-			$_SESSION['playListEntries'][$i]->index = $i;
+			$_SESSION['playListEntries' . $section][$i]->index = $i;
 		}
 		$value = $doc->createTextNode(("Success"));
 	}
@@ -2323,8 +2138,6 @@ function DeleteEntry()
 	echo $doc->saveHTML();
 
 }
-
-
 
 function cmp_index($a, $b)
 {
