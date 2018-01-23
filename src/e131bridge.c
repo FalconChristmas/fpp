@@ -50,11 +50,16 @@ struct sockaddr_in addr;
 socklen_t addrlen;
 int bridgeSock = -1;
 
+
+#define MAX_MSG 48
+//DMX packet is under 700 bytes
+#define BUFSIZE 700
+struct mmsghdr msgs[MAX_MSG];
+struct iovec iovecs[MAX_MSG];
+unsigned char buffers[MAX_MSG][BUFSIZE+1];
+
 unsigned int   UniverseCache[65536];
-unsigned char  rawBridgeBuffer[10000] __attribute__ ((aligned (__BIGGEST_ALIGNMENT__)));
-unsigned char *bridgeBuffer       = rawBridgeBuffer + 2;
-unsigned char *bridgeHighUniverse = rawBridgeBuffer + 2 + E131_UNIVERSE_INDEX;
-unsigned char *bridgeLowUniverse  = rawBridgeBuffer + 2 + E131_UNIVERSE_INDEX + 1;
+
 
 extern UniverseEntry universes[MAX_UNIVERSE_COUNT];
 extern int UniverseCount;
@@ -72,19 +77,29 @@ void Bridge_ReceiveData(void)
 
 	int universe;
 
-	int cnt = recvfrom(bridgeSock, bridgeBuffer, sizeof(rawBridgeBuffer)-2, 0, (struct sockaddr *) &addr, &addrlen);
-	if (cnt >= 0) 
-	{
-//		universe = ((int)bridgeBuffer[E131_UNIVERSE_INDEX] >> 8) + bridgeBuffer[E131_UNIVERSE_INDEX+1];
-		universe = ((int)*bridgeHighUniverse << 8) + *bridgeLowUniverse;
-		Bridge_StoreData(universe, (char*)bridgeBuffer);
-	} 
+    int msgcnt = recvmmsg(bridgeSock, msgs, MAX_MSG, 0, nullptr);
+    while (msgcnt > 0) {
+        for (int x = 0; x < msgcnt; x++) {
+            universe = ((int)buffers[x][E131_UNIVERSE_INDEX] << 8) + buffers[x][E131_UNIVERSE_INDEX + 1];
+            Bridge_StoreData(universe, (char*)buffers[x]);
+        }
+        msgcnt = recvmmsg(bridgeSock, msgs, MAX_MSG, 0, nullptr);
+    }
 }
 
 int Bridge_Initialize(void)
 {
 	LogExcess(VB_E131BRIDGE, "Bridge_Initialize()\n");
 
+    // prepare the msg receive buffers
+    memset(msgs, 0, sizeof(msgs));
+    for (int i = 0; i < MAX_MSG; i++) {
+        iovecs[i].iov_base         = buffers[i];
+        iovecs[i].iov_len          = BUFSIZE;
+        msgs[i].msg_hdr.msg_iov    = &iovecs[i];
+        msgs[i].msg_hdr.msg_iovlen = 1;
+    }
+    
 	/* Initialize our Universe Index lookup cache */
 	for (int i = 0; i < 65536; i++)
 		UniverseCache[i] = BRIDGE_INVALID_UNIVERSE_INDEX;
@@ -99,7 +114,7 @@ int Bridge_Initialize(void)
 	char           strMulticastGroup[16];
 
 	/* set up socket */
-	bridgeSock = socket(AF_INET, SOCK_DGRAM, 0);
+	bridgeSock = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
 	if (bridgeSock < 0) {
 		perror("e131bridge socket");
 		exit(1);

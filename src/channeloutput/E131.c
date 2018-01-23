@@ -65,7 +65,6 @@ const char  E131header[] = {
 	'P','L','A','Y','E','R',0x00,0x00,0x00,0x00,0x00,0x00,0x64,0x00,0x00,0x00,
 	0x00,0x00,0x01,0x72,0x0b,0x02,0xa1,0x00,0x00,0x00,0x01,0x02,0x01,0x00
 	};
-char E131packet[638];
 
 UniverseEntry universes[MAX_UNIVERSE_COUNT];
 int UniverseCount = 0;
@@ -75,13 +74,16 @@ char E131LocalAddress[16];
 char E131sequenceNumber=1;
 
 
+struct mmsghdr *e131Msgs = nullptr;
+struct iovec *e131Iovecs = nullptr;
+unsigned char **e131Buffers = nullptr;
+
 int E131_InitializeNetwork()
 {
 	int UniverseOctet[2];
 	char sOctet1[4];
 	char sOctet2[4];
 	char sAddress[32];
-	int i = 0;
 
 	sendSocket = socket(AF_INET, SOCK_DGRAM, 0);
 
@@ -114,7 +116,7 @@ int E131_InitializeNetwork()
 	}
 
 	/* Initialize the sockaddr structure. */
-	for(i=0;i<UniverseCount;i++)
+	for(int i=0;i<UniverseCount;i++)
 	{
 		memset((char *) &E131address[i], 0, sizeof(E131address[0]));
 		E131address[i].sin_family = AF_INET;
@@ -154,9 +156,52 @@ int E131_InitializeNetwork()
 			}
 		}
 	}
+    
+    
+    e131Msgs = (struct mmsghdr *)calloc(UniverseCount, sizeof(struct mmsghdr));
+    e131Iovecs = (struct iovec *)calloc(UniverseCount, sizeof(struct iovec));
+    e131Buffers = (unsigned char **)calloc(UniverseCount, sizeof(unsigned char*));
+    for (int x = 0; x < UniverseCount; x++) {
+        e131Buffers[x] = (unsigned char *)malloc(universes[x].size + E131_HEADER_LENGTH);
+        memcpy(e131Buffers[x], E131header, E131_HEADER_LENGTH);
+        
+        
+        e131Buffers[x][E131_PRIORITY_INDEX] = universes[x].priority;
+        
+        e131Buffers[x][E131_SEQUENCE_INDEX] = E131sequenceNumber;
+        e131Buffers[x][E131_UNIVERSE_INDEX] = (char)(universes[x].universe/256);
+        e131Buffers[x][E131_UNIVERSE_INDEX+1] = (char)(universes[x].universe%256);
+        
+        // Property Value Count
+        e131Buffers[x][E131_COUNT_INDEX] = ((universes[x].size+1)/256);
+        e131Buffers[x][E131_COUNT_INDEX+1] = ((universes[x].size+1)%256);
+        
+        // RLP Protocol flags and length
+        int count = 638 - 16 - (512 - (universes[x].size));
+        e131Buffers[x][E131_RLP_COUNT_INDEX] = (count/256)+0x70;
+        e131Buffers[x][E131_RLP_COUNT_INDEX+1] = count%256;
+        
+        // Framing Protocol flags and length
+        count = 638 - 38 - (512 - (universes[x].size));
+        e131Buffers[x][E131_FRAMING_COUNT_INDEX] = (count/256)+0x70;
+        e131Buffers[x][E131_FRAMING_COUNT_INDEX+1] = count%256;
+        
+        // DMP Protocol flags and length
+        count = 638 - 115 - (512 - (universes[x].size));
+        e131Buffers[x][E131_DMP_COUNT_INDEX] = (count/256)+0x70;
+        e131Buffers[x][E131_DMP_COUNT_INDEX+1] = count%256;
+
+        e131Iovecs[x].iov_base = e131Buffers[x];
+        e131Iovecs[x].iov_len = universes[x].size + E131_HEADER_LENGTH;
+
+        e131Msgs[x].msg_hdr.msg_name = &E131address[x];
+        e131Msgs[x].msg_hdr.msg_namelen = sizeof(sockaddr_in);
+        e131Msgs[x].msg_hdr.msg_iov = &e131Iovecs[x];
+        e131Msgs[x].msg_hdr.msg_iovlen = 1;
+        e131Msgs[x].msg_len = universes[x].size + E131_HEADER_LENGTH;
+    }
 
 	// Set E131 header Data 
-	memcpy((void*)E131packet,E131header,E131_HEADER_LENGTH);
 
 	return 1;
 }
@@ -186,45 +231,20 @@ int E131_SendData(void *data, char *channelData, int channelCount)
 	LogExcess(VB_CHANNELDATA, "Sending %d E1.31 universes\n",
 		UniverseCount);
 
-	for(i=0;i<UniverseCount;i++)
+	for(i=0; i<UniverseCount; i++)
 	{
+        unsigned char *E131packet = e131Buffers[i];
 		memcpy((void*)(E131packet+E131_HEADER_LENGTH),(void*)(channelData+universes[i].startAddress-1),universes[i].size);
-
-		E131packet[E131_PRIORITY_INDEX] = universes[i].priority;
-
-		E131packet[E131_SEQUENCE_INDEX] = E131sequenceNumber;
-		E131packet[E131_UNIVERSE_INDEX] = (char)(universes[i].universe/256);
-		E131packet[E131_UNIVERSE_INDEX+1]	= (char)(universes[i].universe%256);
-
-		// Property Value Count
-		E131packet[E131_COUNT_INDEX] = ((universes[i].size+1)/256);
-		E131packet[E131_COUNT_INDEX+1] = ((universes[i].size+1)%256);
-
-		// RLP Protocol flags and length
-		int count = 638 - 16 - (512 - (universes[i].size));
-		E131packet[E131_RLP_COUNT_INDEX] = (count/256)+0x70;
-		E131packet[E131_RLP_COUNT_INDEX+1] = count%256;
-
-		// Framing Protocol flags and length
-		count = 638 - 38 - (512 - (universes[i].size));
-		E131packet[E131_FRAMING_COUNT_INDEX] = (count/256)+0x70;
-		E131packet[E131_FRAMING_COUNT_INDEX+1] = count%256;
-
-		// DMP Protocol flags and length
-		count = 638 - 115 - (512 - (universes[i].size));
-		E131packet[E131_DMP_COUNT_INDEX] = (count/256)+0x70;
-		E131packet[E131_DMP_COUNT_INDEX+1] = count%256;
 
 		LogExcess(VB_CHANNELDATA, "  %d) E1.31 universe #%d, %d channels\n",
 			i + 1, universes[i].universe, universes[i].size);
-
-		if(sendto(sendSocket, E131packet, universes[i].size + E131_HEADER_LENGTH, 0, (struct sockaddr*)&E131address[i], sizeof(E131address[i])) < 0)
-		{
-			LogErr(VB_CHANNELOUT, "sendto() failed for E1.31 Universe %d with error: %s\n",
-				universes[i].universe, strerror(errno));
-			return 0;
-		}
 	}
+    if(sendmmsg(sendSocket, e131Msgs, UniverseCount, 0) != UniverseCount)
+    {
+        LogErr(VB_CHANNELOUT, "sendto() failed for E1.31 Universe %d with error: %s\n",
+               universes[i].universe, strerror(errno));
+        return 0;
+    }
 
 	E131sequenceNumber++;
 
@@ -367,6 +387,23 @@ int E131_Open(char *configStr, void **privDataPtr) {
  */
 int E131_Close(void *data) {
 	LogDebug(VB_CHANNELOUT, "E131_Close(%p)\n", data);
+    
+    
+    if (e131Msgs)  {
+        free(e131Msgs);
+        e131Msgs = nullptr;
+    }
+    if (e131Iovecs)  {
+        free(e131Iovecs);
+        e131Iovecs = nullptr;
+    }
+    if (e131Buffers)  {
+        for (int x = 0; x < UniverseCount; x++) {
+            free(e131Buffers[x]);
+        }
+        free(e131Buffers);
+        e131Buffers = nullptr;
+    }
 }
 
 /*
