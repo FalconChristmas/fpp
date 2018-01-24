@@ -419,9 +419,10 @@ restart: fppd
 		gcc -c -o rpihw.o rpihw.c && \
 		gcc -c -o mailbox.o mailbox.c && \
 		gcc -c -o dma.o dma.c && \
+		gcc -c -o pcm.o pcm.c && \
 		gcc -c -o pwm.o pwm.c && \
 		gcc -c -o ws2811.o ws2811.c && \
-		ar rcs libws2811.a rpihw.o mailbox.o dma.o pwm.o ws2811.o
+		ar rcs libws2811.a rpihw.o mailbox.o dma.o pwm.o pcm.o ws2811.o
 
 #############################################################################
 # LEDscape library and PRU code on the BBB
