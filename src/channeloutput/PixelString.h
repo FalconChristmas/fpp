@@ -26,14 +26,38 @@
 #ifndef _PIXELSTRING_H
 #define _PIXELSTRING_H
 
+#include <jsoncpp/json/json.h>
+#include <cmath>
 #include <string>
 #include <vector>
+
+typedef enum {
+	vsColorOrderRGB,
+	vsColorOrderRBG,
+	vsColorOrderGBR,
+	vsColorOrderGRB,
+	vsColorOrderBGR,
+	vsColorOrderBRG
+} vsColorOrder;
+
+typedef struct virtualString {
+	int            startChannel;
+	int            pixelCount;
+	int            groupCount;
+	int            reverse;
+	vsColorOrder   colorOrder;
+	int            nullNodes;
+	int            zigZag;
+	int            brightness;
+	float          gamma;
+} VirtualString;
 
 class PixelString {
   public:
 	PixelString();
 	~PixelString();
 
+	int  Init(Json::Value config);
 	int  Init(std::string configStr);
 	int  Init(int portNumber, int channelOffset, int startChannel,
 		int pixelCount, std::string colorOrder, int nullNodes,
@@ -54,11 +78,17 @@ class PixelString {
 	int               m_inputChannels;
 	int               m_outputChannels;
 
+	int               m_pixels;
+
+	std::vector<VirtualString>  m_virtualStrings;
+
 	std::vector<int>  m_outputMap;
 
   private:
+	void SetupMap(int vsOffset, VirtualString vs);
 	void SetupMap(void);
 	void FlipPixels(int offset1, int offset2);
+	void DumpMap(char *msg);
 
 };
 

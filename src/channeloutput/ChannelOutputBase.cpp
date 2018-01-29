@@ -66,6 +66,9 @@ int ChannelOutputBase::Init(void)
 {
 	LogDebug(VB_CHANNELOUT, "ChannelOutputBase::Init()\n");
 
+	if (m_channelCount == -1)
+		m_channelCount = m_maxChannels;
+
 	m_inBuf = new unsigned char[m_channelCount];
 	m_outBuf = new unsigned char[m_channelCount];
 

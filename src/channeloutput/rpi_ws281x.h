@@ -34,17 +34,17 @@ extern "C" {
 #include "../../external/rpi_ws281x/ws2811.h"
 }
 
-#include "ChannelOutputBase.h"
+#include <vector>
 
-#define RPIWS281X_MAX_CHANNELS  1200
+#include "ChannelOutputBase.h"
+#include "PixelString.h"
 
 class RPIWS281xOutput : public ChannelOutputBase {
   public:
 	RPIWS281xOutput(unsigned int startChannel, unsigned int channelCount);
 	~RPIWS281xOutput();
 
-	int Init(char *configStr);
-
+	int Init(Json::Value config);
 	int Close(void);
 
 	int RawSendData(unsigned char *channelData);
@@ -55,11 +55,10 @@ class RPIWS281xOutput : public ChannelOutputBase {
 	void SetupCtrlCHandler(void);
 
 	int          m_string1GPIO;
-	int          m_string1Pixels;
-	std::string  m_string1ColorOrder;
 	int          m_string2GPIO;
-	int          m_string2Pixels;
-	std::string  m_string2ColorOrder;
+	int          m_pixels;
+
+	std::vector<PixelString*> m_strings;
 };
 
 #endif

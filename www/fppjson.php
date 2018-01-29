@@ -22,6 +22,8 @@ $command_array = Array(
 	"setChannelOutputs"   => 'SetChannelOutputs',
 	"getChannelOutputsJSON" => 'GetChannelOutputsJSON',
 	"setChannelOutputsJSON" => 'SetChannelOutputsJSON',
+	"getPixelStringOutputs" => 'GetPixelStringOutputs',
+	"setPixelStringOutputs" => 'SetPixelStringOutputs',
 	"applyDNSInfo"        => 'ApplyDNSInfo',
 	"getDNSInfo"          => 'GetDNSInfo',
 	"setDNSInfo"          => 'SetDNSInfo',
@@ -1208,6 +1210,33 @@ function SetChannelOutputsJSON()
 	file_put_contents($settings['channelOutputsJSON'], $data);
 
 	GetChannelOutputsJSON();
+}
+
+function GetPixelStringOutputs()
+{
+	global $settings;
+
+	$jsonStr = "";
+
+	if (file_exists($settings['pixelStringOutputs'])) {
+		$jsonStr = file_get_contents($settings['pixelStringOutputs']);
+	}
+
+	header( "Content-Type: application/json");
+	echo $jsonStr;
+}
+
+function SetPixelStringOutputs()
+{
+	global $settings;
+	global $args;
+
+	$data = stripslashes($args['data']);
+	$data = prettyPrintJSON(substr($data, 1, strlen($data) - 2));
+
+	file_put_contents($settings['pixelStringOutputs'], $data);
+
+	GetPixelStringOutputs();
 }
 
 /////////////////////////////////////////////////////////////////////////////

@@ -681,117 +681,6 @@ function GetUSBRelayOutputConfig(cell) {
 }
 
 /////////////////////////////////////////////////////////////////////////////
-// Raspberry Pi WS281x output
-function RPIWS281XLayoutChanged(item) {
-	var string1Pixels = parseInt($(item).parent().parent().find("input.string1Pixels").val());
-	var string2Pixels = parseInt($(item).parent().parent().find("input.string2Pixels").val());
-
-	if (string1Pixels > 1000) {
-		DialogError("Invalid Pixel Count", "Invalid Pixel Count, max 1000");
-		$(item).parent().parent().find("input.string1Pixels").val("1000");
-		string1Pixels = 1000;
-	}
-
-	if (string2Pixels > 1000) {
-		DialogError("Invalid Pixel Count", "Invalid Pixel Count, max 1000");
-		$(item).parent().parent().find("input.string2Pixels").val("1000");
-		string2Pixels = 1000;
-	}
-
-	var channels = (string1Pixels + string2Pixels) * 3;
-
-	$(item).parent().parent().find("input.count").val(channels);
-}
-
-function RPIWS281XColorOrderSelect(id, colorOrder) {
-	var options = ["RGB", "RBG", "GRB", "GBR", "BRG", "BGR"];
-	var result = "";
-
-	result += " Color Order: <select class='" + id + "'>";
-
-    var i = 0;
-	for (i = 0; i < options.length; i++)
-	{
-		result += "<option value='" + options[i] + "'";
-
-		if (options[i] == colorOrder)
-			result += " selected='selected'";
-
-		result += ">" + options[i] + "</option>";
-	}
-
-	result += "</select>";
-
-	return result;
-}
-
-function RPIWS281XConfig(cfgStr) {
-	var result = "";
-	var items = cfgStr.split(";");
-	
-	var data = {};
-	
-	for (var j = 0; j < items.length; j++)
-	{
-		var item = items[j].split("=");
-
-   		data[item[0]] = item[1];
-	}
-	
-	result += "String #1 Pixels: <input class='string1Pixels' size='4' maxlength='4' value='" + data["string1Pixels"] + "' onChange='RPIWS281XLayoutChanged(this);'> ";
-	result += RPIWS281XColorOrderSelect("string1ColorOrder", data["string1ColorOrder"]) + " (GPIO 18)<br>";
-	
-	result += "String #2 Pixels: <input class='string2Pixels' size='4' maxlength='4' value='" + data["string2Pixels"] + "' onChange='RPIWS281XLayoutChanged(this);'> ";
-	result += RPIWS281XColorOrderSelect("string2ColorOrder", data["string2ColorOrder"]) + " (GPIO 19)<br>";
-
-	return result;
-}
-
-function NewRPIWS281XConfig() {
-	return RPIWS281XConfig("string1Pixels=1;string1ColorOrder=RGB;string2Pixels=0;string2ColorOrder=RGB");
-}
-
-function GetRPIWS281XOutputConfig(cell) {
-	$cell = $(cell);
-	var result = "";
-	var value = $cell.find("input.string1Pixels").val();
-
-	if (parseInt(value) > 1000)
-		return "";
-
-	if (value == "")
-		return "";
-
-	result += "string1Pixels=" + value + ";";
-	
-	var colorOrder = $cell.find("select.string1ColorOrder").val();
-
-	if (colorOrder == "")
-		return "";
-	
-	result += "string1ColorOrder=" + colorOrder + ";";
-	
-	value = $cell.find("input.string2Pixels").val();
-
-	if (parseInt(value) > 1000)
-		return "";
-
-	if (value == "")
-		return "";
-
-	result += "string2Pixels=" + value + ";";
-
-	colorOrder = $cell.find("select.string2ColorOrder").val();
-
-	if (colorOrder == "")
-		return "";
-	
-	result += "string2ColorOrder=" + colorOrder;
-
-	return result;
-}
-
-/////////////////////////////////////////////////////////////////////////////
 // GPIO Pin direct high/low output
 
 function GPIOGPIOSelect(currentValue) {
@@ -1234,17 +1123,11 @@ function PopulateChannelOutputTable(data) {
 		if (output[0] == "1")
 			newRow += " checked";
 
-		if (type == "RPIWS281X")
-		{
-			newRow += " onChange='alert(\"(Re)Enabling the RPIWS281x output may require an automatic reboot when the config is saved.\");'";
-		}
-
 		var countDisabled = "";
 
 		if ((type == "Triks-C") ||
 			(type == 'GPIO') ||
 			(type == 'USBRelay') ||
-			(type == 'RPIWS281X') ||
 			(type == 'Pixelnet-Lynx') ||
 			(type == 'Pixelnet-Open') ||
 			(type == 'VirtualMatrix'))
@@ -1279,8 +1162,6 @@ function PopulateChannelOutputTable(data) {
 			newRow += GPIO595DeviceConfig(output[4]);
 		} else if (type == "USBRelay") {
 			newRow += USBRelayConfig(output[4]);
-		} else if (type == "RPIWS281X") {
-			newRow += RPIWS281XConfig(output[4]);
 		} else if (type == "VirtualMatrix") {
 			newRow += VirtualMatrixConfig(output[4]);
 		}
@@ -1425,15 +1306,6 @@ function SetChannelOutputs() {
 				return;
 			}
 			maxChannels = 8;
-		} else if (type == "RPIWS281X") {
-			config += GetRPIWS281XOutputConfig($this.find("td:nth-child(6)"));
-			if (config == "") {
-				dataError = 1;
-				DialogError("Save Channel Outputs", "Invalid RPIWS281X Config");
-				return;
-			}
-			// Two outputs with max 1000 pixels per output
-			maxChannels = 6000;
 		} else if (type == "VirtualMatrix") {
 			config += GetVirtualMatrixOutputConfig($this.find("td:nth-child(6)"));
 			if (config == "") {
@@ -1540,13 +1412,6 @@ function AddOtherTypeOptions(row, type) {
 		config += NewUSBRelayConfig();
 		row.find("td input.count").val("2");
 		row.find("td input.count").prop('disabled', true);
-	} else if (type == "RPIWS281X") {
-		config += NewRPIWS281XConfig();
-		row.find("td input.act").change(function() {
-			alert("(Re)Enabling the RPIWS281x output may require an automatic reboot when the config is saved.");
-			});
-		row.find("td input.count").val("3");
-		row.find("td input.count").prop('disabled', true);
 	} else if ((type == "VirtualMatrix") || (type == "FBMatrix")) {
 		config += NewVirtualMatrixConfig();
 		row.find("td input.count").val("1536");
@@ -1629,7 +1494,6 @@ function AddOtherOutput() {
 ?>
 				"<option value='SPI-WS2801'>SPI-WS2801</option>" +
 				"<option value='SPI-nRF24L01'>SPI-nRF24L01</option>" +
-				"<option value='RPIWS281X'>RPIWS281X</option>" +
 <?
 	}
 ?>
@@ -2462,6 +2326,25 @@ function SaveChannelOutputsJSON()
 	});
 }
 
+function inputsAreSane()
+{
+	var result = 1;
+
+	result &= pixelStringInputsAreSane();
+
+	return result;
+}
+
+function okToAddNewInput(type)
+{
+	var result = 1;
+
+	result &= okToAddNewPixelStringInput(type);
+
+	return result;
+}
+
+
 /////////////////////////////////////////////////////////////////////////////
 
 <?
@@ -2588,6 +2471,11 @@ tr.rowUniverseDetails td
 		$LEDPanelType = "LEDscape/Octoscroller";
 		echo "<li><a href='#tab-BBB48String'>BBB</a></li>\n";
 	}
+
+	if ($settings['Platform'] == "Raspberry Pi")
+	{
+		echo "<li><a href='#tab-PixelStrings'>Pi Pixel Strings</a></li>\n";
+	}
 ?>
 				<li><a href='#tab-LEDPanels'>LED Panels</a></li>
 				<li><a href="#tab-other">Other</a></li>
@@ -2671,6 +2559,12 @@ tr.rowUniverseDetails td
 	}
 ?>
 
+<!-- --------------------------------------------------------------------- -->
+	<div id='tab-PixelStrings'>
+<?
+include_once('co-pixelStrings.php');
+?>
+	</div>
 <!-- --------------------------------------------------------------------- -->
 
 	<div id='tab-LEDPanels'>
