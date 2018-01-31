@@ -2560,11 +2560,18 @@ tr.rowUniverseDetails td
 ?>
 
 <!-- --------------------------------------------------------------------- -->
+<?
+	if ($settings['Platform'] == "Raspberry Pi")
+	{
+?>
 	<div id='tab-PixelStrings'>
 <?
 include_once('co-pixelStrings.php');
 ?>
 	</div>
+<?
+	}
+?>
 <!-- --------------------------------------------------------------------- -->
 
 	<div id='tab-LEDPanels'>
