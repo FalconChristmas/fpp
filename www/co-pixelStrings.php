@@ -531,6 +531,7 @@ $(document).ready(function() {
 
 </script>
 
+<div id='divPixelStrings'>
 <b>New Type:</b>
 <select id='pixelOutputType'>
 	<option value='RPIWS281X'>RPIWS281X</option>
@@ -552,4 +553,6 @@ Press F2 to auto set the start channel on the next row.
 </td></tr></table>
 
 <div id='pixelOutputs'>
+</div>
+
 </div>
