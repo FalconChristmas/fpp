@@ -20,8 +20,8 @@
 #define r21_pin  8
 #define g21_gpio 1
 #define g21_pin  9
-#define b21_gpio 3
-#define b21_pin  20
+#define b21_gpio 0
+#define b21_pin  30
 
 #define r22_gpio 1
 #define r22_pin  12
@@ -109,14 +109,10 @@
 
 
 #define NEED_CLOCK_LO
+#define NEED_LATCH_LO
 
 .macro ADJUST_SETTINGS
     MOV gpio_base_cache, GPIO3
-
-#ifdef gpio_latch
-    //also clear the latch along with the pixel data
-    SET  gpio3_led_mask, gpio3_led_mask, gpio_latch
-#endif
 .endm
 
 
@@ -124,15 +120,12 @@
 .mparam d0, d1, d2, d3
     OUTPUT_GPIO d1, gpio1_led_mask, GPIO1
     #if OUTPUTS > 1
-        OUTPUT_GPIO_WITH_BASE_REG d3, gpio3_led_mask, gpio_base_cache
+      // output 2 is the first to use GPIO0
+      OUTPUT_GPIO d0, gpio0_led_mask, GPIO0
     #endif
     #if OUTPUTS > 2
         // output 3 is the first to use GPIO2
         OUTPUT_GPIO d2, gpio2_led_mask, GPIO2
-    #endif
-    #if OUTPUTS > 3
-        // output 4 is the first to use GPIO0
-        OUTPUT_GPIO d0, gpio0_led_mask, GPIO0
     #endif
 .endm
 

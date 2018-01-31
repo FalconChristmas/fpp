@@ -155,8 +155,10 @@
 .macro LATCH_LO
     // we can lower the latch line at the same time as outputing the
     // gpio data so this doesn't need to be implemented
-    //MOV out_clr, 1 << gpio_latch
-    //SBBO out_clr, gpio_base_cache, GPIO_CLRDATAOUT, 4
+#ifdef NEED_LATCH_LO 
+   MOV out_clr, 1 << gpio_latch
+   SBBO out_clr, gpio_base_cache, GPIO_CLRDATAOUT, 4
+#endif
 .endm
 #endif
 
