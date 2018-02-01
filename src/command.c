@@ -325,6 +325,13 @@ extern PluginCallbackManager pluginCallbackManager;
 		else if (!strcmp(CommandStr, "q"))
 		{
 			// Quit/Shutdown fppd
+			if ((FPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||
+				(FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY))
+			{
+				playlist->StopNow(1);
+				sleep(2);
+			}
+
 			ShutdownFPPD();
 		}
 		else if (!strcmp(CommandStr, "e"))

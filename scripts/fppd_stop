@@ -12,6 +12,10 @@ stopWebSocketServer
 runPreStopScripts
 
 echo "Stopping fppd"
+# Stop any running playlist
+${FPPBINDIR}/fpp -q > /dev/null 2>&1
+sleep 1
+# make sure fppd is dead
 killall -9 fppd
 
 runPostStopScripts
