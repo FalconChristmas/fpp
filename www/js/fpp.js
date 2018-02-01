@@ -2591,6 +2591,38 @@ function PlayFileInBrowser(dir, file)
 	location.href="fppxml.php?command=getFile&play=1&dir=" + dir + "&filename=" + file;
 }
 
+function CopyFile(dir, file)
+{
+	var newFile = prompt("New Filename:", file);
+
+	var postData = "command=copyFile&dir=" + dir + "&filename=" + encodeURIComponent(file) + "&newfilename=" + encodeURIComponent(newFile);
+
+	$.post("fppjson.php", postData).success(function(data) {
+		if (data.status == 'success')
+			GetFiles(dir);
+		else
+			$.jGrowl("Error: File Copy failed.");
+	}).fail(function() {
+		$.jGrowl("Error: File Copy failed.");
+	});
+}
+
+function RenameFile(dir, file)
+{
+	var newFile = prompt("New Filename:", file);
+
+	var postData = "command=renameFile&dir=" + dir + "&filename=" + encodeURIComponent(file) + "&newfilename=" + encodeURIComponent(newFile);
+
+	$.post("fppjson.php", postData).success(function(data) {
+		if (data.status == 'success')
+			GetFiles(dir);
+		else
+			$.jGrowl("Error: File Rename failed.");
+	}).fail(function() {
+		$.jGrowl("Error: File Rename failed.");
+	});
+}
+
 function DownloadFile(dir, file)
 {
 	location.href="fppxml.php?command=getFile&dir=" + dir + "&filename=" + file;

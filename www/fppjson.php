@@ -43,6 +43,8 @@ $command_array = Array(
 	"addPlaylistEntry"    => 'AddPlayListEntry',
 	"getPlayListEntries"  => 'GetPlayListEntries',
 	"savePlaylist"        => 'SavePlaylist',
+	"copyFile"            => 'CopyFile',
+	"renameFile"          => 'RenameFile',
 	"convertPlaylists"    => 'ConvertPlaylistsToJSON',
 	"getPluginSetting"    => 'GetPluginSetting',
 	"setPluginSetting"    => 'SetPluginSetting',
@@ -630,6 +632,64 @@ function AddPlayListEntry()
 	$result = Array();
 	$result['status'] = 'success';
 	$result['json'] = $_POST['data'];
+
+	returnJSON($result);
+}
+
+function CopyFile()
+{
+	$filename = $_POST['filename'];
+	check($filename, "filename", __FUNCTION__);
+
+	$newfilename = $_POST['newfilename'];
+	check($newfilename, "newfilename", __FUNCTION__);
+
+	$dir = $_POST['dir'];
+	check($dir, "dir", __FUNCTION__);
+
+	$dir = GetDirSetting($dir);
+
+	if ($dir == "")
+		return;
+
+	$result = Array();
+
+	if (copy($dir . '/' . $filename, $dir . '/' . $newfilename))
+		$result['status'] = 'success';
+	else
+		$result['status'] = 'failure';
+
+	$result['original'] = $_POST['filename'];
+	$result['new'] = $_POST['newfilename'];
+
+	returnJSON($result);
+}
+
+function RenameFile()
+{
+	$filename = $_POST['filename'];
+	check($filename, "filename", __FUNCTION__);
+
+	$newfilename = $_POST['newfilename'];
+	check($newfilename, "newfilename", __FUNCTION__);
+
+	$dir = $_POST['dir'];
+	check($dir, "dir", __FUNCTION__);
+
+	$dir = GetDirSetting($dir);
+
+	if ($dir == "")
+		return;
+
+	$result = Array();
+
+	if (rename($dir . '/' . $filename, $dir . '/' . $newfilename))
+		$result['status'] = 'success';
+	else
+		$result['status'] = 'failure';
+
+	$result['original'] = $_POST['filename'];
+	$result['new'] = $_POST['newfilename'];
 
 	returnJSON($result);
 }
