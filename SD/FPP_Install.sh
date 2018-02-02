@@ -874,8 +874,8 @@ echo "FPP - Configuring Samba"
 cat <<-EOF >> /etc/samba/smb.conf
 
 [FPP]
-  comment = FPP Home Share
-  path = /home/fpp
+  comment = FPP Media Share
+  path = /home/fpp/media
   writeable = Yes
   only guest = Yes
   create mask = 0777

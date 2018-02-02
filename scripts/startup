@@ -263,6 +263,9 @@ else
 fi
 done
 
+echo "FPP - Restarting Samba to pickup correct media directory"
+service samba restart
+
 DIRS="config effects events logs music playlists scripts sequences upload videos plugins plugindata exim4"
 echo "FPP - Checking for required directories"
 for DIR in ${DIRS}
