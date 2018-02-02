@@ -411,7 +411,7 @@ case "${OSVER}" in
 								gdebi-core git i2c-tools ifplugd imagemagick less \
 								libboost-dev libconvert-binary-c-perl \
 								libdbus-glib-1-dev libdevice-serialport-perl libjs-jquery \
-								libjs-jquery-ui libjson-perl libjsoncpp-dev libnet-bonjour-perl \
+								libjs-jquery-ui libjson-perl libjsoncpp-dev libmicrohttpd-dev libnet-bonjour-perl \
 								libpam-smbpass libssh-4 libtagc0-dev libtest-nowarnings-perl locales \
 								mp3info mailutils mpg123 mpg321 mplayer nano node ntp perlmagick \
 								php-cli php-common php-curl php-dom php-fpm php-mcrypt \
@@ -442,11 +442,8 @@ case "${OSVER}" in
 		echo "FPP - Cleaning up after installing packages"
 		apt-get -y clean
 
-#		echo "FPP - Installing libhttpserver SHA 02df5e7"
-#		(cd /opt/ && git clone https://github.com/etr/libhttpserver && cd libhttpserver && git checkout 02df5e7 && ./bootstrap && mkdir build && cd build && ../configure --prefix=/usr && make && make install && cd /opt/ && rm -rf /opt/libhttpserver)
-
-#		echo "FPP - Installing libhttpserver"
-#		(cd /opt/ && git clone https://github.com/etr/libhttpserver && cd libhttpserver && ./bootstrap && mkdir build && cd build && ../configure --prefix=/usr && make && make install && cd /opt/ && rm -rf /opt/libhttpserver)
+		echo "FPP - Installing libhttpserver SHA bd08772"
+		(cd /opt/ && git clone https://github.com/etr/libhttpserver && cd libhttpserver && git checkout bd08772 && ./bootstrap && mkdir build && cd build && CXXFLAGS=-std=c++98 ../configure --prefix=/usr && make && make install && cd /opt/ && rm -rf /opt/libhttpserver)
 
 		echo "FPP - Installing non-packaged Perl modules via App::cpanminus"
 		curl -L https://cpanmin.us | perl - --sudo App::cpanminus
