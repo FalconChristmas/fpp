@@ -36,6 +36,7 @@
 #include "fppversion.h"
 #include "fpp.h"
 #include "gpio.h"
+#include "httpAPI.h"
 #include "log.h"
 #include "mediadetails.h"
 #include "mediaoutput.h"
@@ -223,6 +224,9 @@ void MainLoop(void)
 
 	controlSock = InitControlSocket();
 	FD_SET (controlSock, &active_fd_set);
+
+	APIServer apiServer;
+	apiServer.Init();
 
 	LogInfo(VB_GENERAL, "Starting main processing loop\n");
 
