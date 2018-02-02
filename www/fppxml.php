@@ -117,10 +117,6 @@ if ( isset($_GET['command']) && !empty($_GET['command']) )
 	}
 	return;
 }
-else if(!empty($_POST['command']) && $_POST['command'] == "saveUniverses")
-{
-	SetUniverses();
-}
 else if(!empty($_POST['command']) && $_POST['command'] == "saveSchedule")
 {
 	SaveSchedule();
@@ -1445,19 +1441,23 @@ function CloneUniverse()
 
 	if($index < count($_SESSION['UniverseEntries']) && ($index + $numberToClone) < count($_SESSION['UniverseEntries']))
 	{
+			$desc = $_SESSION['UniverseEntries'][$index]->desc;
 			$universe = $_SESSION['UniverseEntries'][$index]->universe+1;
 			$size = $_SESSION['UniverseEntries'][$index]->size;
 			$startAddress = $_SESSION['UniverseEntries'][$index]->startAddress+$size;
 			$type = $_SESSION['UniverseEntries'][$index]->type;
 			$unicastAddress = $_SESSION['UniverseEntries'][$index]->unicastAddress;
+			$priority = $_SESSION['UniverseEntries'][$index]->priority;
 
 			for($i=$index+1;$i<$index+1+$numberToClone;$i++,$universe++)
 			{
+				 	$_SESSION['UniverseEntries'][$i]->desc	= $desc;
 				 	$_SESSION['UniverseEntries'][$i]->universe	= $universe;
 				 	$_SESSION['UniverseEntries'][$i]->size	= $size;
 				 	$_SESSION['UniverseEntries'][$i]->startAddress	= $startAddress;
 				 	$_SESSION['UniverseEntries'][$i]->type	= $type;
 					$_SESSION['UniverseEntries'][$i]->unicastAddress	= $unicastAddress;
+				 	$_SESSION['UniverseEntries'][$i]->priority	= $priority;
 					$startAddress += $size;
  			}
 	}
@@ -1478,62 +1478,44 @@ function DeleteUniverse()
 	EchoStatusXML('Success');
 }
 
-function SetUniverses()
+function LoadUniverseFile($input)
 {
-	for($i=0;$i<count($_SESSION['UniverseEntries']);$i++)
-	{
-		if( isset($_POST['chkActive'][$i]))
-		{
-			$_SESSION['UniverseEntries'][$i]->active = 1;
-		}
-		else
-		{
-			$_SESSION['UniverseEntries'][$i]->active = 0;
-		}
-		$_SESSION['UniverseEntries'][$i]->universe = 	intval($_POST['txtUniverse'][$i]);
-		$_SESSION['UniverseEntries'][$i]->size = 	intval($_POST['txtSize'][$i]);
-		$_SESSION['UniverseEntries'][$i]->startAddress = 	intval($_POST['txtStartAddress'][$i]);
-		$_SESSION['UniverseEntries'][$i]->type = 	intval($_POST['universeType'][$i]);
-		$_SESSION['UniverseEntries'][$i]->unicastAddress = 	trim($_POST['txtIP'][$i]);
-	}
-
-	SaveUniversesToFile();
-
-	EchoStatusXML('Success');
-}
-
-function LoadUniverseFile()
-{
-	global $universeFile;
+	global $settings;
 
 	$_SESSION['UniverseEntries']=NULL;
 
-	$f=fopen($universeFile,"r");
-	if($f == FALSE)
+	$filename = $settings['universeOutputs'];
+	if ($input)
+		$filename = $settings['universeInputs'];
+
+	if(!file_exists($filename))
 	{
-		fclose($f);
-		//No file exists add one universe and save to new file.
-		$_SESSION['UniverseEntries'][] = new UniverseEntry(1,1,1,512,0,"",0);
-		SaveUniversesToFile();
+		$_SESSION['UniverseEntries'][] = new UniverseEntry(1,"",1,1,512,0,"",0);
 		return;
 	}
 
-	while (!feof($f))
-	{
-		$line=fgets($f);
-		if ($line == "")
-			continue;
+	$jsonStr = file_get_contents($filename);
 
-		$entry = explode(",",$line,10);
-		$active = $entry[0];
-		$universe = $entry[1];
-		$startAddress = $entry[2];
-		$size = $entry[3];
-		$type = $entry[4];
-		$unicastAddress = $entry[5];
-		$_SESSION['UniverseEntries'][] = new UniverseEntry($active,$universe,$startAddress,$size,$type,$unicastAddress,0);
+	$data = json_decode($jsonStr);
+	$universes = 0;
+	
+	if ($input)
+		$universes = $data->channelInputs[0]->universes;
+	else
+		$universes = $data->channelOutputs[0]->universes;
+
+	foreach ($universes as $univ)
+	{
+		$active = $univ->active;
+		$desc = $univ->description;
+		$universe = $univ->id;
+		$startAddress = $univ->startChannel;
+		$size = $univ->channelCount;
+		$type = $univ->type;
+		$unicastAddress = $univ->address;
+		$priority = $univ->priority;
+		$_SESSION['UniverseEntries'][] = new UniverseEntry($active,$desc,$universe,$startAddress,$size,$type,$unicastAddress,$priority,0);
 	}
-	fclose($f);
 }
 
 function LoadPixelnetDMXFile()
@@ -1574,29 +1556,6 @@ function LoadPixelnetDMXFile()
   }
 }
 
-function SaveUniversesToFile()
-{
-	global $universeFile;
-
-	$entries = "";
-	$f=fopen($universeFile,"w") or exit("Unable to open file! : " . $universeFile);
-	for($i=0;$i<count($_SESSION['UniverseEntries']);$i++)
-	{
-		$entries .= sprintf("%s,%s,%s,%s,%s,%s,\n",
-					$_SESSION['UniverseEntries'][$i]->active,
-					$_SESSION['UniverseEntries'][$i]->universe,
-					$_SESSION['UniverseEntries'][$i]->startAddress,
-					$_SESSION['UniverseEntries'][$i]->size,
-					$_SESSION['UniverseEntries'][$i]->type,
-					$_SESSION['UniverseEntries'][$i]->unicastAddress);
-	}
-	fwrite($f,$entries);
-	fclose($f);
-
-	EchoStatusXML('Success');
-}
-
-
 function SavePixelnetDMXoutputsToFile()
 {
 	global $pixelnetFile;
@@ -1632,10 +1591,12 @@ function GetUniverses()
 {
 	$reload = $_GET['reload'];
 	check($reload, "reload", __FUNCTION__);
+	$input = $_GET['input'];
+	check($input, "input", __FUNCTION__);
 
 	if($reload == "TRUE")
 	{
-		LoadUniverseFile();
+		LoadUniverseFile($input);
 	}
 
 	$doc = new DomDocument('1.0');
@@ -1650,6 +1611,11 @@ function GetUniverses()
 		$active = $UniverseEntry->appendChild($active);
 		$value = $doc->createTextNode($_SESSION['UniverseEntries'][$i]->active);
 		$value = $active->appendChild($value);
+		// description
+		$desc = $doc->createElement('desc');
+		$desc = $UniverseEntry->appendChild($desc);
+		$value = $doc->createTextNode($_SESSION['UniverseEntries'][$i]->desc);
+		$value = $desc->appendChild($value);
 		// universe
 		$universe = $doc->createElement('universe');
 		$universe = $UniverseEntry->appendChild($universe);
@@ -1675,6 +1641,11 @@ function GetUniverses()
 		$unicastAddress = $UniverseEntry->appendChild($unicastAddress);
 		$value = $doc->createTextNode($_SESSION['UniverseEntries'][$i]->unicastAddress);
 		$value = $unicastAddress->appendChild($value);
+		// priority
+		$priority = $doc->createElement('priority');
+		$priority = $UniverseEntry->appendChild($priority);
+		$value = $doc->createTextNode($_SESSION['UniverseEntries'][$i]->priority);
+		$value = $priority->appendChild($value);
 
 	}
 	echo $doc->saveHTML();
@@ -1728,11 +1699,13 @@ function SetUniverseCount()
 		if($universeCount < $count)
 		{
 			$active = 1;
+			$desc = "";
 				$universe = 1;
 				$startAddress = 1;
 				$size = 512;
 				$type = 0;	//Multicast
 				$unicastAddress = "";
+				$priority = 0;
 			if($universeCount == 0)
 			{
 				$universe = 1;
@@ -1740,6 +1713,7 @@ function SetUniverseCount()
 				$size = 512;
 				$type = 0;	//Multicast
 				$unicastAddress = "";
+				$priority = 0;
 
 			}
 			else
@@ -1749,11 +1723,12 @@ function SetUniverseCount()
 				$startAddress = $_SESSION['UniverseEntries'][$universeCount-1]->startAddress+$size;
 				$type = $_SESSION['UniverseEntries'][$universeCount-1]->type;
 				$unicastAddress = $_SESSION['UniverseEntries'][$universeCount-1]->unicastAddress;
+				$priority = $_SESSION['UniverseEntries'][$universeCount-1]->priority;
 			}
 
 			for($i=$universeCount;$i<$count;$i++,$universe++)
 			{
-				$_SESSION['UniverseEntries'][] = new UniverseEntry($active,$universe,$startAddress,$size,$type,$unicastAddress,0);
+				$_SESSION['UniverseEntries'][] = new UniverseEntry($active,$desc,$universe,$startAddress,$size,$type,$unicastAddress,$priority,0);
 				$startAddress += $size;
 			}
 		}
@@ -2195,7 +2170,7 @@ function ConvertFile()
 
 	if (preg_match("/\.(vix|xseq|lms|las|gled|seq|hlsidata)$/i", $file))
 	{
-        LoadUniverseFile();
+        LoadUniverseFile(0);
         
         usort($_SESSION['UniverseEntries'], "universe_cmp");
         $universeString = "-";

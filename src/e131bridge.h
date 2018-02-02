@@ -26,8 +26,13 @@
 #ifndef _E131_BRIDGE_H
 #define _E131_BRIDGE_H
 
+#include "e131defs.h"
+
 int Bridge_Initialize(void);
 void Bridge_ReceiveData(void);
 void Bridge_Shutdown(void);
+
+void  ResetBytesReceived();
+void  WriteBytesReceivedFile();
 
 #endif

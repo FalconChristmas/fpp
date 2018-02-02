@@ -1,5 +1,5 @@
 /*
- *   E131 output handler for Falcon Pi Player (FPP)
+ *   E131 Defines for Falcon Pi Player (FPP)
  *
  *   Copyright (C) 2013 the Falcon Pi Player Developers
  *      Initial development by:
@@ -23,11 +23,23 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _E131_H
-#define _E131_H
+#ifndef _E131_DEFS_H
+#define _E131_DEFS_H
 
-#include "channeloutput.h"
+#define MAX_UNIVERSE_COUNT    512
+#define E131_HEADER_LENGTH    126
+#define MAX_STEPS_OUT_OF_SYNC 2
 
-extern FPPChannelOutput E131Output;
+#define E131_DEST_PORT        5568
+#define E131_SOURCE_PORT      58301
+
+#define E131_UNIVERSE_INDEX   113
+#define E131_SEQUENCE_INDEX   111
+#define E131_COUNT_INDEX      123
+#define E131_PRIORITY_INDEX   108
+
+#define E131_RLP_COUNT_INDEX       16
+#define E131_FRAMING_COUNT_INDEX   38
+#define E131_DMP_COUNT_INDEX       115
 
 #endif

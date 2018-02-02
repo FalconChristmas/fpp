@@ -3,6 +3,7 @@
 $skipJSsettings = 1;
 require_once('common.php');
 require_once('commandsocket.php');
+require_once('universeentry.php');
 require_once('playlistentry.php');
 
 $a = session_id();
@@ -24,6 +25,8 @@ $command_array = Array(
 	"setChannelOutputsJSON" => 'SetChannelOutputsJSON',
 	"getPixelStringOutputs" => 'GetPixelStringOutputs',
 	"setPixelStringOutputs" => 'SetPixelStringOutputs',
+	"getUniverses"        => 'GetUniverses',
+	"setUniverses"        => 'SetUniverses',
 	"applyDNSInfo"        => 'ApplyDNSInfo',
 	"getDNSInfo"          => 'GetDNSInfo',
 	"setDNSInfo"          => 'SetDNSInfo',
@@ -1299,6 +1302,94 @@ function SetPixelStringOutputs()
 	GetPixelStringOutputs();
 }
 
+/////////////////////////////////////////////////////////////////////////////
+function SaveUniversesToFile($enabled, $input)
+{
+	global $settings;
+
+	$universeJSON = sprintf(
+		"{\n" .
+		"	\"%s\": [\n" .
+		"		{\n" .
+		"			\"type\": \"universes\",\n" .
+		"			\"enabled\": %d,\n" .
+		"			\"startChannel\": 1,\n" .
+		"			\"channelCount\": -1,\n" .
+		"			\"universes\": [\n",
+		$input ? "channelInputs" : "channelOutputs", $enabled);
+
+	for($i=0;$i<count($_SESSION['UniverseEntries']);$i++)
+	{
+		if ($i > 0)
+			$universeJSON .= ",\n";
+
+		$universeJSON .= sprintf(
+		"				{\n" .
+		"					\"active\": %d,\n" .
+		"					\"description\": \"%s\",\n" .
+		"					\"id\": %d,\n" .
+		"					\"startChannel\": %d,\n" .
+		"					\"channelCount\": %d,\n" .
+		"					\"type\": %d,\n" .
+		"					\"address\": \"%s\",\n" .
+		"					\"priority\": %d\n" .
+		"				}",
+			$_SESSION['UniverseEntries'][$i]->active,
+			$_SESSION['UniverseEntries'][$i]->desc,
+			$_SESSION['UniverseEntries'][$i]->universe,
+			$_SESSION['UniverseEntries'][$i]->startAddress,
+			$_SESSION['UniverseEntries'][$i]->size,
+			$_SESSION['UniverseEntries'][$i]->type,
+			$_SESSION['UniverseEntries'][$i]->unicastAddress,
+			$_SESSION['UniverseEntries'][$i]->priority);
+	}
+
+	$universeJSON .=
+		"\n" .
+		"			]\n" .
+		"		}\n" .
+		"	]\n" .
+		"}\n";
+
+    $filename = $settings['universeOutputs'];
+    if ($input)
+        $filename = $settings['universeInputs'];
+
+	$f = fopen($filename,"w") or exit("Unable to open file! : " . $filename);
+	fwrite($f, $universeJSON);
+	fclose($f);
+
+	return $universeJSON;
+}
+
+function SetUniverses()
+{
+	$enabled = $_POST['enabled'];
+	check($enabled);
+	$input = $_POST['input'];
+	check($input);
+
+	for($i=0;$i<count($_SESSION['UniverseEntries']);$i++)
+	{
+		if( isset($_POST['chkActive'][$i]))
+		{
+			$_SESSION['UniverseEntries'][$i]->active = 1;
+		}
+		else
+		{
+			$_SESSION['UniverseEntries'][$i]->active = 0;
+		}
+		$_SESSION['UniverseEntries'][$i]->desc = 	$_POST['txtDesc'][$i];
+		$_SESSION['UniverseEntries'][$i]->universe = 	intval($_POST['txtUniverse'][$i]);
+		$_SESSION['UniverseEntries'][$i]->size = 	intval($_POST['txtSize'][$i]);
+		$_SESSION['UniverseEntries'][$i]->startAddress = 	intval($_POST['txtStartAddress'][$i]);
+		$_SESSION['UniverseEntries'][$i]->type = 	intval($_POST['universeType'][$i]);
+		$_SESSION['UniverseEntries'][$i]->unicastAddress = 	trim($_POST['txtIP'][$i]);
+		$_SESSION['UniverseEntries'][$i]->priority = 	intval($_POST['txtPriority'][$i]);
+	}
+
+	return(SaveUniversesToFile($enabled, $input));
+}
 /////////////////////////////////////////////////////////////////////////////
 function GetChannelOutputs()
 {

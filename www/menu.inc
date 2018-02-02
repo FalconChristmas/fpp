@@ -113,6 +113,7 @@ function list_plugin_entries($menu)
       </li>
       <li><a>Input/Output Setup</a>
         <ul>
+          <li><a href="channelinputs.php">Channel Inputs</a></li>
           <li><a href="channeloutputs.php">Channel Outputs</a></li>
           <li><a href="channelremaps.php">Remap Channels</a></li>
           <li><a href="pixeloverlaymodels.php">Pixel Overlay Models</a></li>

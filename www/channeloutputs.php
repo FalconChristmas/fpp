@@ -9,6 +9,7 @@ include 'common/menuHead.inc';
 
 var channelOutputs = [];
 var channelOutputsLookup = [];
+var currentTabTitle = "E1.31 / ArtNet";
 
 /////////////////////////////////////////////////////////////////////////////
 // E1.31 support functions here
@@ -46,13 +47,24 @@ $(document).ready(function() {
 			 if(success == true)
 			 {
 				 dataString = $("#frmUniverses").serializeArray();
+
+				 enabled = {};
+				 enabled.name = "enabled";
+
+				 if ($("#E131Enabled").is(':checked'))
+				 	enabled.value = 1;
+				 else
+				 	enabled.value = 0;
+
+				 dataString.push(enabled);
+
 				 $.ajax({
 						type: "post",
-						url: "fppxml.php",
+						url: "fppjson.php",
 						dataType:"text",
 						data: dataString,
 						success: function (response) {
-								getUniverses();
+								getUniverses('FALSE', 0);
 								$.jGrowl("E1.31 Universes Saved");
 								SetRestartFlag();
 						}
@@ -2360,8 +2372,18 @@ if (file_exists($settings['channelOutputsJSON']))
 
 ?>
 
+function handleCOKeypress(e)
+{
+	if (e.keyCode == 113) {
+		if (currentTabTitle == "Pi Pixel Strings")
+			setPixelStringsStartChannelOnNextRow();
+	}
+}
+
 
 $(document).ready(function(){
+	$(document).on('keydown', handleCOKeypress);
+
 	var channelOutputsJSON = "<? echo $channelOutputsJSON; ?>";
 
 	if (channelOutputsJSON != "")
@@ -2373,7 +2395,7 @@ $(document).ready(function(){
 
 	// E1.31 initialization
 	InitializeUniverses();
-	getUniverses('TRUE');
+	getUniverses('TRUE', 0);
 
 <?
 	if ($settings['Platform'] == "Raspberry Pi")
@@ -2397,7 +2419,18 @@ $(document).ready(function(){
 	LEDPannelsConnectionChanged();
 
 	// Init tabs
-  $tabs = $("#tabs").tabs({cache: true, spinner: "", fx: { opacity: 'toggle', height: 'toggle' } });
+  $tabs = $("#tabs").tabs({
+  		activate: function(e, ui) {
+			currentTabTitle = $(ui.newTab).text();
+		},
+  		cache: true,
+		spinner: "",
+		fx: {
+			opacity: 'toggle',
+			height: 'toggle'
+		}
+	});
+
 	var total = $tabs.find('.ui-tabs-nav li').length;
 	var currentLoadingTab = 1;
 	$tabs.bind('tabsload',function(){
@@ -2437,6 +2470,21 @@ tr.rowUniverseDetails td
     border:thin;
     border-color:#333;
     border-collapse: collapse;
+}
+
+#tblUniverses th {
+	vertical-align: bottom;
+	text-align: center;
+	border: solid 2px #888888;
+}
+
+#tblUniverses td {
+	text-align: center;
+}
+
+#tblUniverses input[type=text] {
+	text-align: center;
+	width: 100%;
 }
 
 </style>
@@ -2496,17 +2544,18 @@ tr.rowUniverseDetails td
 
     <div>
       <form>
-        Universe Count: <input id="txtUniverseCount" class="default-value" type="text" value="Enter Universe Count" size="3" maxlength="3" /><input id="btnUniverseCount" onclick="SetUniverseCount();" type="button"  class="buttons" value="Set" />
+        Universe Count: <input id="txtUniverseCount" class="default-value" type="text" value="Enter Universe Count" size="3" maxlength="3" /><input id="btnUniverseCount" onclick="SetUniverseCount(0);" type="button"  class="buttons" value="Set" />
       </form>
     </div>
     <form id="frmUniverses">
-    <input name="command" type="hidden" value="saveUniverses" />
+    <input name="command" type="hidden" value="setUniverses" />
+    <input name="input" type="hidden" value="0" />
     <table>
     	<tr>
       	<td width = "70 px"><input id="btnSaveUniverses" class="buttons" type="submit" value = "Save" /></td>
       	<td width = "70 px"><input id="btnCloneUniverses" class="buttons" type="button" value = "Clone" onClick="CloneUniverse();" /></td>
       	<td width = "40 px">&nbsp;</td>
-      	<td width = "70 px"><input id="btnDeleteUniverses" class="buttons" type="button" value = "Delete" onClick="DeleteUniverse();" /></td>
+      	<td width = "70 px"><input id="btnDeleteUniverses" class="buttons" type="button" value = "Delete" onClick="DeleteUniverse(0);" /></td>
       </tr>
     </table>
     

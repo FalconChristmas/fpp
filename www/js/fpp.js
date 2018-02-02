@@ -832,7 +832,7 @@ function RemovePlaylistEntry()	{
 			lastPlaylistEntry = index;
 		}
 		
-		function SetUniverseCount()
+		function SetUniverseCount(input)
 		{
 			var txtCount=document.getElementById("txtUniverseCount");
 			var count = Number(txtCount.value);
@@ -843,7 +843,7 @@ function RemovePlaylistEntry()	{
 			UniverseCount = count;
 			
     	var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=setUniverseCount&count=" + count;
+			var url = "fppxml.php?command=setUniverseCount&count=" + count + "&input=" + input;
 			xmlhttp.open("GET",url,false);
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
 	 
@@ -851,17 +851,21 @@ function RemovePlaylistEntry()	{
 				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
 				{
 					var xmlDoc=xmlhttp.responseXML; 
-          getUniverses("FALSE");
+          getUniverses("FALSE", input);
 				}
 			};
 			
 			xmlhttp.send();
 		}
 		
-		function getUniverses(reload)
+		function getUniverses(reload, input)
 		{
+			var inputStyle = "";
+			if (input)
+				inputStyle = "style='display: none;'";
+
     	var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=getUniverses&reload=" + reload;
+			var url = "fppxml.php?command=getUniverses&reload=" + reload + "&input=" + input;
 			xmlhttp.open("GET",url,false);
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
  			var innerHTML="";
@@ -875,26 +879,30 @@ function RemovePlaylistEntry()	{
 					if(entries.childNodes.length> 0)
 					{
 						innerHTML = "<tr class=\"tblheader\">" +  
-												"<td width=\"5%\" align='left'>Line<br>#</td>" +
-												"<td width=\"10%\" align='left'>Universe Active</td>" +
-												"<td width=\"10%\" align='left'>FPP Start<br>Channel</td>" +
-												"<td width=\"10%\" align='left'>Universe<br>#</td>" +
-												"<td width=\"10%\" align='left'>Universe<br>Size</td>" +
-                        "<td width=\"20%\" align='left'>Universe<br>Type</td>" +
-												"<td width=\"20%\" align='left'>Unicast Address</td>" +
-												"<td width=\"5%\" align='left'>Ping</td>" +
-												"</tr>";
+							"<th width=\"5%\" align='left'>Line<br>#</th>" +
+							"<th width=\"5%\" align='left'>Active</th>" +
+							"<th width=\"30%\" align='left'>Description</th>" +
+							"<th width=\"8%\" align='left'>FPP Start<br>Channel</th>" +
+							"<th width=\"8%\" align='left'>Universe<br>#</th>" +
+							"<th width=\"8%\" align='left'>Universe<br>Size</th>" +
+                        	"<th width=\"15%\" align='left'>Universe Type</th>" +
+							"<th width=\"12%\" align='left' " + inputStyle + ">Unicast<br>Address</th>" +
+							"<th width=\"8%\" align='left' " + inputStyle + ">Priority</th>" +
+							"<th width=\"12%\" align='left'>Ping</th>" +
+							"</tr>";
 												
 							UniverseCount = entries.childNodes.length;
 							document.getElementById("txtUniverseCount").value = UniverseCount.toString();
 							for(i=0;i<UniverseCount;i++)
 							{
 								var active = entries.childNodes[i].childNodes[0].textContent;
-								var universe = entries.childNodes[i].childNodes[1].textContent;
-								var startAddress = entries.childNodes[i].childNodes[2].textContent;
-								var size = entries.childNodes[i].childNodes[3].textContent;
-								var type = entries.childNodes[i].childNodes[4].textContent;
-								var unicastAddress =  entries.childNodes[i].childNodes[5].textContent;
+								var desc = entries.childNodes[i].childNodes[1].textContent;
+								var universe = entries.childNodes[i].childNodes[2].textContent;
+								var startAddress = entries.childNodes[i].childNodes[3].textContent;
+								var size = entries.childNodes[i].childNodes[4].textContent;
+								var type = entries.childNodes[i].childNodes[5].textContent;
+								var unicastAddress =  entries.childNodes[i].childNodes[6].textContent;
+								var priority =  entries.childNodes[i].childNodes[7].textContent;
 								unicastAddress = unicastAddress.trim();
 
 								var activeChecked = active == 1  ? "checked=\"checked\"" : "";
@@ -906,17 +914,32 @@ function RemovePlaylistEntry()	{
 								innerHTML += 	"<tr class=\"rowUniverseDetails\">" +
 								              "<td>" + (i+1).toString() + "</td>" +
 															"<td><input name=\"chkActive[" + i.toString() + "]\" id=\"chkActive[" + i.toString() + "]\" type=\"checkbox\" " + activeChecked +"/></td>" +
+															"<td><input name=\"txtDesc[" + i.toString() + "]\" id=\"txtDesc[" + i.toString() + "]\" type=\"text\" size=\"24\" maxlength=\"64\" value=\"" + desc + "\"/></td>" +
 															"<td><input name=\"txtStartAddress[" + i.toString() + "]\" id=\"txtStartAddress[" + i.toString() + "]\" type=\"text\" size=\"6\" maxlength=\"6\" value=\"" + startAddress.toString() + "\"/></td>" +
 															"<td><input name=\"txtUniverse[" + i.toString() + "]\" id=\"txtUniverse[" + i.toString() + "]\" type=\"text\" size=\"5\" maxlength=\"5\" value=\"" + universe.toString() + "\"/></td>" +
 															"<td><input name=\"txtSize[" + i.toString() + "]\" id=\"txtSize[" + i.toString() + "]\" type=\"text\"  size=\"3\"/  maxlength=\"3\"value=\"" + size.toString() + "\"></td>" +
 															
-															"<td><select id=\"universeType[" + i.toString() + "]\" name=\"universeType[" + i.toString() + "]\" style=\"width:150px\">" +
+															"<td><select id=\"universeType[" + i.toString() + "]\" name=\"universeType[" + i.toString() + "]\" style=\"width:150px\">";
+
+								if (input)
+								{
+									innerHTML +=
+															      "<option value=\"0\" " + typeMulticastE131 + ">E1.31 - Multicast</option>" +
+															      "<option value=\"1\" " + typeUnicastE131 + ">E1.31 - Unicast</option>";
+								}
+								else
+								{
+									innerHTML +=
 															      "<option value=\"0\" " + typeMulticastE131 + ">E1.31 - Multicast</option>" +
 															      "<option value=\"1\" " + typeUnicastE131 + ">E1.31 - Unicast</option>" +
 															      "<option value=\"2\" " + typeBroadcastArtNet + ">ArtNet - Broadcast</option>" +
-															      "<option value=\"3\" " + typeUnicastArtNet + ">ArtNet - Unicast</option>" +
+															      "<option value=\"3\" " + typeUnicastArtNet + ">ArtNet - Unicast</option>";
+								}
+
+								innerHTML +=
 																  "</select></td>" +
-															"<td><input name=\"txtIP[" + i.toString() + "]\" id=\"txtIP[" + i.toString() + "]\" type=\"text\"/ value=\"" + unicastAddress + "\" size=\"15\" maxlength=\"32\"></td>" +
+															"<td " + inputStyle + "><input name=\"txtIP[" + i.toString() + "]\" id=\"txtIP[" + i.toString() + "]\" type=\"text\"/ value=\"" + unicastAddress + "\" size=\"15\" maxlength=\"32\"></td>" +
+															"<td " + inputStyle + "><input name=\"txtPriority[" + i.toString() + "]\" id=\"txtPriority[" + i.toString() + "]\" type=\"text\" size=\"4\" maxlength=\"4\" value=\"" + priority.toString() + "\"/></td>" +
 															"<td><input type=button onClick='PingE131IP(" + i.toString() + ");' value='Ping'></td>" +
 															"</tr>";
 
@@ -928,6 +951,8 @@ function RemovePlaylistEntry()	{
 					}
 					var results = document.getElementById("tblUniverses");
 					results.innerHTML = innerHTML;	
+
+					$('#txtUniverseCount').val(UniverseCount);
 				}
 			};
 			
@@ -995,10 +1020,10 @@ function RemovePlaylistEntry()	{
 			UniverseCount=0;	
 		}
 		
-		function DeleteUniverse()
+		function DeleteUniverse(input)
 		{
     	var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=deleteUniverse&index=" + (UniverseSelected-1).toString();
+			var url = "fppxml.php?command=deleteUniverse&index=" + (UniverseSelected-1).toString() + "&input=" + input;
 			xmlhttp.open("GET",url,false);
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
 	 
@@ -1006,7 +1031,7 @@ function RemovePlaylistEntry()	{
 				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
 				{
 					var xmlDoc=xmlhttp.responseXML; 
-          getUniverses("FALSE");
+          getUniverses("FALSE", input);
 				}
 			};
 			
@@ -1028,6 +1053,7 @@ function RemovePlaylistEntry()	{
 					var size=Number(document.getElementById("txtSize[" + selectIndex + "]").value);
 					var startAddress=Number(document.getElementById("txtStartAddress[" + selectIndex + "]").value)+ size;
 					var active=document.getElementById("chkActive[" + selectIndex + "]").value;
+					var priority=Number(document.getElementById("txtPriority[" + selectIndex + "]").value);
 
 					for(i=UniverseSelected;i<UniverseSelected+cloneNumber;i++,universe++)
 					{
@@ -1037,6 +1063,7 @@ function RemovePlaylistEntry()	{
 						document.getElementById("chkActive[" + i + "]").value = active;
 						document.getElementById("txtSize[" + i + "]").value = size.toString();
 						document.getElementById("txtIP[" + i + "]").value = unicastAddress;
+						document.getElementById("txtPriority[" + i + "]").value = priority;
 						if((universeType == '1') || (universeType == '3'))
 						{
 							document.getElementById("txtIP[" + i + "]").disabled = false;
@@ -1090,6 +1117,7 @@ function RemovePlaylistEntry()	{
 			var txtStartAddress;
 			var txtSize;
 			var universeType;
+			var txtPriority;
 			var result;
 			var returnValue=true;
 			for(i=0;i<UniverseCount;i++)
@@ -1121,6 +1149,13 @@ function RemovePlaylistEntry()	{
 					{
 						returnValue = false;
 					}
+				}
+
+				// priority
+				txtPriority=document.getElementById("txtPriority[" + i + "]");
+				if(!validateNumber(txtPriority,0,9999))
+				{
+					returnValue = false;
 				}
 			}
 			return returnValue;
@@ -1161,13 +1196,9 @@ function RemovePlaylistEntry()	{
 				textbox.style.border="red solid 1px";
 				textbox.value = ""; 
 				result = false;
+			alert(textbox.value + ' is not between ' + minimum + ' and ' + maximum);
 			}
 		}
-		
-		function ReloadUniverses()
-		{
-			getUniverses("TRUE");	
-		} 
 		
 		function ReloadPixelnetDMX()
 		{

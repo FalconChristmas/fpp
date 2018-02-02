@@ -287,7 +287,7 @@ function addPixelOutput()
 	});
 }
 
-function setStartChannelOnNextRow()
+function setPixelStringsStartChannelOnNextRow()
 {
 	if ($('#' + selectedPixelStringRowId).length)
 	{
@@ -304,12 +304,6 @@ function setStartChannelOnNextRow()
 		nextRow.find('.vsEndChannel').html(nextEnd);
 		nextRow.addClass('selectedEntry');
 		selectedPixelStringRowId = nextRow.attr('id');
-	}
-}
-
-function handleF2Keypress(e) {
-	if (e.keyCode == 113) {
-		setStartChannelOnNextRow();
 	}
 }
 
@@ -524,8 +518,6 @@ function savePixelStringOutputs()
 }
 
 $(document).ready(function() {
-	$(document).on('keydown', handleF2Keypress);
-
 	loadPixelStringOutputs();
 });
 
