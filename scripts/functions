@@ -80,7 +80,7 @@ SetupFPPNetworkConfigViaConnMann() {
     fi
     if [ "x$DNS2" != "x" ]
     then
-        DNS="$DNS,$DNS1"
+        DNS="$DNS1,$DNS2"
     fi
 
     TMPFILE="/tmp/fpp.config"
