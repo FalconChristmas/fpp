@@ -173,6 +173,7 @@ endif
 ifeq '$(ARCH)' 'Raspberry Pi'
 # do something RaspPi-y
 BINDIR = ../bin.pi
+CXXFLAGS += -std=gnu++11
 CFLAGS += \
 	-DPLATFORM_PI \
 	-DUSEWIRINGPI \
