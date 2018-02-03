@@ -240,13 +240,25 @@ int E131_SendData(void *data, char *channelData, int channelCount)
 		LogExcess(VB_CHANNELDATA, "  %d) E1.31 universe #%d, %d channels\n",
 			i + 1, universes[i].universe, universes[i].size);
 	}
+
+#ifndef sendmmsg
+    for (i = 0; i < UniverseCount; i++) {
+        if(sendmsg(sendSocket, &e131Msgs[i].msg_hdr, 0) < 0)
+        {
+            LogErr(VB_CHANNELOUT, "sendto() failed for E1.31 Universe %d with error: %s\n",
+               universes[i].universe, strerror(errno));
+            return 0;
+        }
+    }
+#else
+
     if(sendmmsg(sendSocket, e131Msgs, UniverseCount, 0) != UniverseCount)
     {
         LogErr(VB_CHANNELOUT, "sendto() failed for E1.31 Universe %d with error: %s\n",
                universes[i].universe, strerror(errno));
         return 0;
     }
-
+#endif
 	E131sequenceNumber++;
 
 	return 1;
