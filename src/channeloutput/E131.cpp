@@ -241,7 +241,7 @@ int E131_SendData(void *data, char *channelData, int channelCount)
 			i + 1, universes[i].universe, universes[i].size);
 	}
 
-#ifndef sendmmsg
+#if (__GLIBC__ == 2) && (__GLIBC_MINOR__ < 14)
     for (i = 0; i < UniverseCount; i++) {
         if(sendmsg(sendSocket, &e131Msgs[i].msg_hdr, 0) < 0)
         {
