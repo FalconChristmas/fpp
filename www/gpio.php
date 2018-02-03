@@ -133,7 +133,9 @@ $(document).ready(function(){
 		"BCM 22:22:3:P1 - Pin 15",
 		"BCM 23:23:4:P1 - Pin 16",
 		"BCM 24:24:5:P1 - Pin 18",
-		"BCM&nbsp;25&nbsp;**:25:6:P1 - Pin 22",
+		$piFaceStyle == ""
+			? "BCM&nbsp;25&nbsp;**:25:6:P1 - Pin 22"
+			: "BCM 25:25:6:P1 - Pin 22",
 		"BCM 5:5:0:P1 - Pin 29",
 		"BCM 6:6:0:P1 - Pin 31",
 		"BCM 12:12:0:P1 - Pin 32",

@@ -20,6 +20,6 @@ typedef struct mediaDetails {
 } MediaDetails;
 
 void initMediaDetails(void);
-void ParseMedia(void);
+void ParseMedia(const char *mediaFilename);
 
 #endif //__MEDIADETAILS_H__

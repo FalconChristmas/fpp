@@ -69,7 +69,7 @@
 SCRIPTVER="0.9"
 FPPBRANCH="master-v1.x"
 FPPIMAGEVER="1.9"
-FPPCFGVER="24"
+FPPCFGVER="26"
 FPPPLATFORM="UNKNOWN"
 FPPDIR="/opt/fpp"
 OSVER="UNKNOWN"
@@ -411,7 +411,7 @@ case "${OSVER}" in
 								gdebi-core git i2c-tools ifplugd imagemagick less \
 								libboost-dev libconvert-binary-c-perl \
 								libdbus-glib-1-dev libdevice-serialport-perl libjs-jquery \
-								libjs-jquery-ui libjson-perl libjsoncpp-dev libnet-bonjour-perl \
+								libjs-jquery-ui libjson-perl libjsoncpp-dev libmicrohttpd-dev libnet-bonjour-perl \
 								libpam-smbpass libssh-4 libtagc0-dev libtest-nowarnings-perl locales \
 								mp3info mailutils mpg123 mpg321 mplayer nano node ntp perlmagick \
 								php-cli php-common php-curl php-dom php-fpm php-mcrypt \
@@ -420,7 +420,7 @@ case "${OSVER}" in
 								vim-common vorbis-tools vsftpd firmware-realtek gcc g++\
 								network-manager dhcp-helper hostapd parprouted bridge-utils \
 								firmware-atheros firmware-ralink firmware-brcm80211 \
-								dos2unix libmosquitto-dev mosquitto-clients \
+								dos2unix libmosquitto-dev mosquitto-clients librtmidi-dev \
 								wireless-tools libcurl4-openssl-dev resolvconf sqlite3"
 				;;
 		esac
@@ -442,11 +442,8 @@ case "${OSVER}" in
 		echo "FPP - Cleaning up after installing packages"
 		apt-get -y clean
 
-#		echo "FPP - Installing libhttpserver SHA 02df5e7"
-#		(cd /opt/ && git clone https://github.com/etr/libhttpserver && cd libhttpserver && git checkout 02df5e7 && ./bootstrap && mkdir build && cd build && ../configure --prefix=/usr && make && make install && cd /opt/ && rm -rf /opt/libhttpserver)
-
-#		echo "FPP - Installing libhttpserver"
-#		(cd /opt/ && git clone https://github.com/etr/libhttpserver && cd libhttpserver && ./bootstrap && mkdir build && cd build && ../configure --prefix=/usr && make && make install && cd /opt/ && rm -rf /opt/libhttpserver)
+		echo "FPP - Installing libhttpserver SHA bd08772"
+		(cd /opt/ && git clone https://github.com/etr/libhttpserver && cd libhttpserver && git checkout bd08772 && ./bootstrap && mkdir build && cd build && CXXFLAGS=-std=c++98 ../configure --prefix=/usr && make && make install && cd /opt/ && rm -rf /opt/libhttpserver)
 
 		echo "FPP - Installing non-packaged Perl modules via App::cpanminus"
 		curl -L https://cpanmin.us | perl - --sudo App::cpanminus
@@ -659,6 +656,8 @@ EOF
 			sed -i "s@T0:23:respawn:/sbin/getty -L ttyAMA0@#T0:23:respawn:/sbin/getty -L ttyAMA0@" /etc/inittab
 		elif [ "x${OSVER}" == "xdebian_8" -o "x${OSVER}" == "xdebian_9" ]; then
 			systemctl disable serial-getty@ttyAMA0.service
+			sed -i -e "s/console=serial0,115200 //" /boot/cmdline.txt
+			sed -i -e "s/autologin pi/autologin fpp/" /etc/systemd/system/autologin@.service
 		fi
 
 		echo "FPP - Disabling the hdmi force hotplug setting"
@@ -875,8 +874,8 @@ echo "FPP - Configuring Samba"
 cat <<-EOF >> /etc/samba/smb.conf
 
 [FPP]
-  comment = FPP Home Share
-  path = /home/fpp
+  comment = FPP Media Share
+  path = /home/fpp/media
   writeable = Yes
   only guest = Yes
   create mask = 0777
@@ -895,6 +894,48 @@ case "${OSVER}" in
 		systemctl restart nmbd.service
 		;;
 esac
+
+#######################################
+# Setup mail
+echo "FPP - Updating exim4 config file"
+cat <<-EOF > /etc/exim4/update-exim4.conf.conf
+# /etc/exim4/update-exim4.conf.conf
+#
+# Edit this file and /etc/mailname by hand and execute update-exim4.conf
+# yourself or use 'dpkg-reconfigure exim4-config'
+#
+# Please note that this is _not_ a dpkg-conffile and that automatic changes
+# to this file might happen. The code handling this will honor your local
+# changes, so this is usually fine, but will break local schemes that mess
+# around with multiple versions of the file.
+#
+# update-exim4.conf uses this file to determine variable values to generate
+# exim configuration macros for the configuration file.
+#
+# Most settings found in here do have corresponding questions in the
+# Debconf configuration, but not all of them.
+#
+# This is a Debian specific file
+dc_eximconfig_configtype='smarthost'
+dc_other_hostnames='fpp'
+dc_local_interfaces='127.0.0.1'
+dc_readhost=''
+dc_relay_domains=''
+dc_minimaldns='false'
+dc_relay_nets=''
+dc_smarthost='smtp.gmail.com::587'
+CFILEMODE='644'
+dc_use_split_config='true'
+dc_hide_mailname='false'
+dc_mailname_in_oh='true'
+dc_localdelivery='mail_spool'
+EOF
+
+# remove exim4 panic log so exim4 doesn't throw an alert about a non-zero log
+# file due to some odd error thrown during inital setup
+rm /var/log/exim4/paniclog
+#update config and restart exim
+update-exim4.conf
 
 #######################################
 # Fix sudoers to not require password

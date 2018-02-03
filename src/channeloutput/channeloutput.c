@@ -24,6 +24,7 @@
  */
 
 #include <errno.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -93,17 +94,19 @@ typedef struct {
 	int src;
 	int count;
 	int dest;
+	int loops;
+	int active;
 } ChannelRemap;
 
+pthread_mutex_t          remappedChannelsLock;
 ChannelRemap             remappedChannels[MAX_CHANNEL_REMAPS];
-int                      channelRemaps       = 0;
+volatile int             channelRemaps       = 0;
 int                      channelOutputCount  = 0;
 unsigned long            channelOutputFrame  = 0;
 float                    mediaElapsedSeconds = 0.0;
 FPPChannelOutputInstance channelOutputs[FPPD_MAX_CHANNEL_OUTPUTS];
 
 /* Some prototypes for helpers below */
-int LoadChannelRemapData(void);
 void RemapChannels(char *channelData);
 void PrintRemappedChannels(void);
 
@@ -146,6 +149,8 @@ int InitializeChannelOutputs(void) {
 	int i = 0;
 
 	channelOutputFrame = 0;
+
+	pthread_mutex_init(&remappedChannelsLock, NULL);
 
 	for (i = 0; i < FPPD_MAX_CHANNEL_OUTPUTS; i++) {
 		bzero(&channelOutputs[i], sizeof(channelOutputs[i]));
@@ -198,128 +203,140 @@ int InitializeChannelOutputs(void) {
 		}
 	}
 
+	// FIXME, build this list dynamically
+	char *configFiles[] = {
+		"/config/channeloutputs.json",
+		"/config/co-pixelStrings.json",
+		NULL
+		};
+
 	FILE *fp;
 	char filename[1024];
 	char buf[2048];
 
-	// Parse the channeloutputs.json config file
-	strcpy(filename, getMediaDirectory());
-	strcat(filename, "/config/channeloutputs.json");
-
-	LogDebug(VB_CHANNELOUT, "Loading %s\n", filename);
-
-	if (FileExists(filename))
+	// Parse the JSON channel outputs config files
+	for (int f = 0; configFiles[f]; f++)
 	{
-		std::ifstream t(filename);
-		std::stringstream buffer;
+		strcpy(filename, getMediaDirectory());
+		strcat(filename, configFiles[f]);
 
-		buffer << t.rdbuf();
+		LogDebug(VB_CHANNELOUT, "Loading %s\n", filename);
 
-		std::string config = buffer.str();
-
-		bool success = reader.parse(buffer.str(), root);
-		if (!success)
+		if (FileExists(filename))
 		{
-			LogErr(VB_CHANNELOUT, "Error parsing %s\n", filename);
-			return 0;
-		}
+			std::ifstream t(filename);
+			std::stringstream buffer;
 
-		const Json::Value outputs = root["channelOutputs"];
-		std::string type;
-		int start = 0;
-		int count = 0;
+			buffer << t.rdbuf();
 
-		for (int c = 0; c < outputs.size(); c++)
-		{
-			type = outputs[c]["type"].asString();
+			std::string config = buffer.str();
 
-			if (!outputs[c]["enabled"].asInt())
+			bool success = reader.parse(buffer.str(), root);
+			if (!success)
 			{
-				LogDebug(VB_CHANNELOUT, "Skipping Disabled Channel Output: %s\n", type.c_str());
-				continue;
+				LogErr(VB_CHANNELOUT, "Error parsing %s\n", filename);
+				return 0;
 			}
 
-			start = outputs[c]["startChannel"].asInt();
-			count = outputs[c]["channelCount"].asInt();
+			const Json::Value outputs = root["channelOutputs"];
+			std::string type;
+			int start = 0;
+			int count = 0;
 
-			// internally we start channel counts at zero
-			start -= 1;
+			for (int c = 0; c < outputs.size(); c++)
+			{
+				type = outputs[c]["type"].asString();
 
-			channelOutputs[i].startChannel = start;
-			channelOutputs[i].channelCount = count;
-
-			// First some Channel Outputs enabled everythwere
-			if (type == "LEDPanelMatrix") {
-				if (outputs[c]["subType"] == "ColorLight5a75")
-					channelOutputs[i].output = new ColorLight5a75Output(start, count);
-				else if (outputs[c]["subType"] == "LinsnRV9")
-					channelOutputs[i].output = new LinsnRV9Output(start, count);
-#if defined(PLATFORM_PI) || defined(PLATFORM_ODROID)
-				else if (outputs[c]["subType"] == "RGBMatrix")
-					channelOutputs[i].output = new RGBMatrixOutput(start, count);
-#endif
-#ifdef PLATFORM_BBB
-				else if (outputs[c]["subType"] == "LEDscapeMatrix")
-					channelOutputs[i].output = new LEDscapeMatrixOutput(start, count);
-#endif
-				else
+				if (!outputs[c]["enabled"].asInt())
 				{
-					LogErr(VB_CHANNELOUT, "LEDPanelmatrix subType '%s' not valid\n", outputs[c]["subType"].asString().c_str());
+					LogDebug(VB_CHANNELOUT, "Skipping Disabled Channel Output: %s\n", type.c_str());
 					continue;
 				}
+
+				start = outputs[c]["startChannel"].asInt();
+				count = outputs[c]["channelCount"].asInt();
+
+				// internally we start channel counts at zero
+				start -= 1;
+
+				channelOutputs[i].startChannel = start;
+				channelOutputs[i].channelCount = count;
+
+				// First some Channel Outputs enabled everythwere
+				if (type == "LEDPanelMatrix") {
+					if (outputs[c]["subType"] == "ColorLight5a75")
+						channelOutputs[i].output = new ColorLight5a75Output(start, count);
+					else if (outputs[c]["subType"] == "LinsnRV9")
+						channelOutputs[i].output = new LinsnRV9Output(start, count);
+#if defined(PLATFORM_PI) || defined(PLATFORM_ODROID)
+					else if (outputs[c]["subType"] == "RGBMatrix")
+						channelOutputs[i].output = new RGBMatrixOutput(start, count);
+#endif
 #ifdef PLATFORM_BBB
-			} else if (type == "BBB48String") {
-				channelOutputs[i].output = new BBB48StringOutput(start, count);
-			} else if (type == "BBBSerial") {
-				channelOutputs[i].output = new BBBSerialOutput(start, count);
+					else if (outputs[c]["subType"] == "LEDscapeMatrix")
+						channelOutputs[i].output = new LEDscapeMatrixOutput(start, count);
 #endif
-			} else if (type == "DDP") {
-				channelOutputs[i].output = new DDPOutput(start, count);
-			} else if (type == "FBVirtualDisplay") {
-				channelOutputs[i].output = (ChannelOutputBase*)new FBVirtualDisplayOutput(0, FPPD_MAX_CHANNELS);
-			} else if (type == "RHLDVIE131") {
-				channelOutputs[i].output = (ChannelOutputBase*)new RHLDVIE131Output(start, count);
-			} else if (type == "USBRelay") {
-				channelOutputs[i].output = new USBRelayOutput(start, count);
-			// NOW some platform or config specific Channel Outputs
+					else
+					{
+						LogErr(VB_CHANNELOUT, "LEDPanelmatrix subType '%s' not valid\n", outputs[c]["subType"].asString().c_str());
+						continue;
+					}
+#ifdef PLATFORM_BBB
+				} else if (type == "BBB48String") {
+					channelOutputs[i].output = new BBB48StringOutput(start, count);
+				} else if (type == "BBBSerial") {
+					channelOutputs[i].output = new BBBSerialOutput(start, count);
+#endif
+				} else if (type == "DDP") {
+					channelOutputs[i].output = new DDPOutput(start, count);
+				} else if (type == "FBVirtualDisplay") {
+					channelOutputs[i].output = (ChannelOutputBase*)new FBVirtualDisplayOutput(0, FPPD_MAX_CHANNELS);
+				} else if (type == "RHLDVIE131") {
+					channelOutputs[i].output = (ChannelOutputBase*)new RHLDVIE131Output(start, count);
+				} else if (type == "USBRelay") {
+					channelOutputs[i].output = new USBRelayOutput(start, count);
+				// NOW some platform or config specific Channel Outputs
 #ifdef USEOLA
-			} else if (type == "OLA") {
-				channelOutputs[i].output = new OLAOutput(start, count);
+				} else if (type == "OLA") {
+					channelOutputs[i].output = new OLAOutput(start, count);
 #endif
-			} else if (type == "FBVirtualDisplay") {
-				channelOutputs[i].output = (ChannelOutputBase*)new FBVirtualDisplayOutput(0, FPPD_MAX_CHANNELS);
-			} else if (type == "USBRelay") {
-				channelOutputs[i].output = new USBRelayOutput(start, count);
+				} else if (type == "FBVirtualDisplay") {
+					channelOutputs[i].output = (ChannelOutputBase*)new FBVirtualDisplayOutput(0, FPPD_MAX_CHANNELS);
+				} else if (type == "USBRelay") {
+					channelOutputs[i].output = new USBRelayOutput(start, count);
 #if defined(PLATFORM_PI)
-			} else if (type == "Hill320") {
-				channelOutputs[i].output = new Hill320Output(start, count);
-			} else if (type == "MCP23017") {
-				channelOutputs[i].output = new MCP23017Output(start, count);
+				} else if (type == "Hill320") {
+					channelOutputs[i].output = new Hill320Output(start, count);
+				} else if (type == "MCP23017") {
+					channelOutputs[i].output = new MCP23017Output(start, count);
 #endif
 #ifdef PLATFORM_PI
-			} else if (type == "ILI9488") {
-				channelOutputs[i].output = new ILI9488Output(start, count);
+				} else if (type == "ILI9488") {
+					channelOutputs[i].output = new ILI9488Output(start, count);
+				} else if (type == "RPIWS281X") {
+					channelOutputs[i].output = new RPIWS281xOutput(start, count);
 #endif
 #ifdef USE_X11Matrix
-			} else if (type == "X11Matrix") {
-				channelOutputs[i].output = new X11MatrixOutput(start, count);
-			} else if (type == "X11VirtualDisplay") {
-				channelOutputs[i].output = (ChannelOutputBase*)new X11VirtualDisplayOutput(0, FPPD_MAX_CHANNELS);
+				} else if (type == "X11Matrix") {
+					channelOutputs[i].output = new X11MatrixOutput(start, count);
+				} else if (type == "X11VirtualDisplay") {
+					channelOutputs[i].output = (ChannelOutputBase*)new X11VirtualDisplayOutput(0, FPPD_MAX_CHANNELS);
 #endif
-			} else {
-				LogErr(VB_CHANNELOUT, "Unknown Channel Output type: %s\n", type.c_str());
-				continue;
-			}
+				} else {
+					LogErr(VB_CHANNELOUT, "Unknown Channel Output type: %s\n", type.c_str());
+					continue;
+				}
 
-			if (channelOutputs[i].output->Init(outputs[c])) {
-				i++;
-			} else {
-				LogErr(VB_CHANNELOUT, "ERROR Opening %s Channel Output\n", type.c_str());
+				if (channelOutputs[i].output->Init(outputs[c])) {
+					i++;
+				} else {
+					LogErr(VB_CHANNELOUT, "ERROR Opening %s Channel Output\n", type.c_str());
+				}
 			}
 		}
 	}
 
-	// Parse the channeloutputs config file
+	// Parse the CSV channeloutputs config file
 	strcpy(filename, getMediaDirectory());
 	strcat(filename, "/channeloutputs");
 
@@ -554,7 +571,6 @@ void StopOutputThreads(void) {
  *
  */
 int CloseChannelOutputs(void) {
-	FPPChannelOutputInstance *output;
 	int i = 0;
 
 	for (i = 0; i < channelOutputCount; i++) {
@@ -566,6 +582,13 @@ int CloseChannelOutputs(void) {
 		if (channelOutputs[i].privData)
 			free(channelOutputs[i].privData);
 	}
+    
+    for (i = 0; i < channelOutputCount; i++) {
+        if (channelOutputs[i].output) {
+            delete channelOutputs[i].output;
+            channelOutputs[i].output = NULL;
+        }
+    }
 }
 
 /*
@@ -632,12 +655,81 @@ int LoadChannelRemapData(void) {
 		} else if ((dest + count - 1) > FPPD_MAX_CHANNELS) {
 			LogErr(VB_CHANNELOUT, "ERROR: Destination + Count exceeds max channel count in: %s\n", buf );
 		} else {
-		    channelRemaps++;
+			remappedChannels[channelRemaps].loops = 1;
+			remappedChannels[channelRemaps].active = 1;
+			channelRemaps++;
 		}
 	}
 	fclose(fp);
 
 	PrintRemappedChannels();
+
+	return 1;
+}
+
+/*
+ *
+ */
+int  AddChannelRemap(int src, int dest, int count, int loops)
+{
+	pthread_mutex_lock(&remappedChannelsLock);
+
+	int found = 0;
+
+	// Account for our zero-based array
+	src--;
+	dest--;
+
+	for (int i = 0; i < channelRemaps; i++)
+	{
+		if ((remappedChannels[channelRemaps].src == src) &&
+			(remappedChannels[channelRemaps].dest == dest) &&
+			(remappedChannels[channelRemaps].count == count) &&
+			(remappedChannels[channelRemaps].loops == loops))
+		{
+			remappedChannels[channelRemaps].active = 1;
+			found = 1;
+		}
+	}
+
+	if (!found)
+	{
+		remappedChannels[channelRemaps].src = src;
+		remappedChannels[channelRemaps].dest = dest;
+		remappedChannels[channelRemaps].count = count;
+		remappedChannels[channelRemaps].loops = loops;
+		remappedChannels[channelRemaps].active = 1;
+		channelRemaps++;
+	}
+
+	pthread_mutex_unlock(&remappedChannelsLock);
+
+	return 1;
+}
+
+/*
+ *
+ */
+int  RemoveChannelRemap(int src, int dest, int count, int loops)
+{
+	pthread_mutex_lock(&remappedChannelsLock);
+
+	// Account for our zero-based array
+	src--;
+	dest--;
+
+	for (int i = 0; i < channelRemaps; i++)
+	{
+		if ((remappedChannels[channelRemaps].src == src) &&
+			(remappedChannels[channelRemaps].dest == dest) &&
+			(remappedChannels[channelRemaps].count == count) &&
+			(remappedChannels[channelRemaps].loops == loops))
+		{
+			remappedChannels[channelRemaps].active = 0;
+		}
+	}
+
+	pthread_mutex_unlock(&remappedChannelsLock);
 
 	return 1;
 }
@@ -652,15 +744,24 @@ inline void RemapChannels(char *channelData) {
 	if (!channelRemaps)
 		return;
 
+	pthread_mutex_lock(&remappedChannelsLock);
+
 	for (i = 0, mptr = &remappedChannels[0]; i < channelRemaps; i++, mptr++) {
-		if (mptr->count > 1) {
-			memcpy(channelData + mptr->dest,
-				   channelData + mptr->src,
-				   mptr->count);
-		} else {
-			channelData[mptr->dest] = channelData[mptr->src];
+		if (mptr->active) {
+			for (int l = 0; l < mptr->loops; l++)
+			{
+				if (mptr->count > 1) {
+					memcpy(channelData + mptr->dest + (l * mptr->count),
+						   channelData + mptr->src,
+						   mptr->count);
+				} else {
+					channelData[mptr->dest + l] = channelData[mptr->src];
+				}
+			}
 		}
 	}
+
+	pthread_mutex_unlock(&remappedChannelsLock);
 }
 
 /*

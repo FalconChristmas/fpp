@@ -1,0 +1,160 @@
+#ifndef __octoscoller_v1_h__
+#define __octoscoller_v1_h__
+
+
+#define r11_gpio 2
+#define r11_pin 2
+#define g11_gpio 2
+#define g11_pin 3
+#define b11_gpio 2
+#define b11_pin 5
+
+#define r12_gpio 0
+#define r12_pin 23
+#define g12_gpio 2
+#define g12_pin 4
+#define b12_gpio 0
+#define b12_pin 26
+
+#define r21_gpio 0
+#define r21_pin 27
+#define g21_gpio 2
+#define g21_pin 1
+#define b21_gpio 0
+#define b21_pin 22
+
+#define r22_gpio 2
+#define r22_pin 22
+#define g22_gpio 2
+#define g22_pin 23
+#define b22_gpio 2
+#define b22_pin 24
+
+#define r31_gpio 0
+#define r31_pin 30
+#define g31_gpio 1
+#define g31_pin 18
+#define b31_gpio 0
+#define b31_pin 31
+
+#define r32_gpio 1
+#define r32_pin 16
+#define g32_gpio 0
+#define g32_pin 3
+#define b32_gpio 0
+#define b32_pin 5
+
+#define r41_gpio 0
+#define r41_pin 2
+#define g41_gpio 0
+#define g41_pin 15
+#define b41_gpio 1
+#define b41_pin 17
+
+#define r42_gpio 3
+#define r42_pin 21
+#define g42_gpio 3
+#define g42_pin 19
+#define b42_gpio 0
+#define b42_pin 4
+
+#define r51_gpio 2
+#define r51_pin 25
+#define g51_gpio 0
+#define g51_pin 11
+#define b51_gpio 0
+#define b51_pin 10
+
+#define r52_gpio 0
+#define r52_pin 9
+#define g52_gpio 0
+#define g52_pin 8
+#define b52_gpio 2
+#define b52_pin 17
+
+#define r61_gpio 2
+#define r61_pin 16
+#define g61_gpio 2
+#define g61_pin 15
+#define b61_gpio 2
+#define b61_pin 14
+
+#define r62_gpio 2
+#define r62_pin 13
+#define g62_gpio 2
+#define g62_pin 10
+#define b62_gpio 2
+#define b62_pin 12
+
+#define r71_gpio 2
+#define r71_pin 11
+#define g71_gpio 2
+#define g71_pin 9
+#define b71_gpio 2
+#define b71_pin 8
+
+#define r72_gpio 2
+#define r72_pin 6
+#define g72_gpio 3
+#define g72_pin 18
+#define b72_gpio 2
+#define b72_pin 7
+
+#define r81_gpio 3
+#define r81_pin 17
+#define g81_gpio 3
+#define g81_pin 16
+#define b81_gpio 3
+#define b81_pin 15
+
+#define r82_gpio 3
+#define r82_pin 14
+#define g82_gpio 0
+#define g82_pin 14
+#define b82_gpio 3
+#define b82_pin 20
+
+
+// Control pins are all in GPIO1
+#define gpio_sel0 12 /* must be sequential with sel1 and sel2 */
+#define gpio_sel1 13
+#define gpio_sel2 14
+#define gpio_sel3 15
+#define gpio_latch 28
+#define gpio_oe 29
+#define gpio_clock 19
+
+
+#define GPIO_SEL_MASK (0\
+|(1<<gpio_sel0)\
+|(1<<gpio_sel1)\
+|(1<<gpio_sel2)\
+|(1<<gpio_sel3)\
+)
+
+
+
+.macro ADJUST_SETTINGS
+    MOV gpio_base_cache, GPIO1
+
+    //we're going to clear the clock along with the pixel data
+    SET  gpio1_led_mask, gpio1_led_mask, gpio_clock
+
+    //also clear the latch along with the pixel data
+    SET  gpio1_led_mask, gpio1_led_mask, gpio_latch
+.endm
+
+
+.macro OUTPUT_GPIOS
+.mparam d0, d1, d2, d3
+    OUTPUT_GPIO d0, gpio0_led_mask, GPIO0
+    OUTPUT_GPIO_WITH_BASE_REG d1, gpio1_led_mask, gpio_base_cache
+    OUTPUT_GPIO d2, gpio2_led_mask, GPIO2
+    #if OUTPUTS > 3
+        OUTPUT_GPIO d3, gpio3_led_mask, GPIO3
+    #endif
+.endm
+
+
+#endif
+

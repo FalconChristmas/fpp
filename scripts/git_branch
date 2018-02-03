@@ -31,6 +31,8 @@ else
 	cd ${FPPDIR} && sudo git clean -df && sudo -u ${FPPUSER} git checkout $1 && sudo -u ${FPPUSER} git pull && sudo -u ${FPPUSER} git submodule sync && sudo git submodule update --init
 fi
 
+${SUDO} ${SCRIPTDIR}/upgrade_config
+
 # Compile binaries if not running a release branch
 RELEASEBRANCH=$(echo $1 | egrep "v[0-9]+\.[0-9]+")
 if [ -z "${RELEASEBRANCH}" ] || [ "x${FPPPLATFORM}" == "xLinux" ]

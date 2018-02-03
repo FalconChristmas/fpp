@@ -41,6 +41,12 @@
 #include <net/if.h>
 #include <netdb.h>
 
+#include <fstream>
+#include <sstream>
+#include <string>
+
+#include <jsoncpp/json/json.h>
+
 #include "channeloutput.h"
 #include "channeloutputthread.h"
 #include "common.h"
@@ -313,6 +319,7 @@ int ArtNet_SendData(void *data, char *channelData, int channelCount)
 	return 1;
 }
 
+
 /*
  *
  */
@@ -323,60 +330,85 @@ void LoadArtNetUniversesFromFile()
 	char *s;
 	ArtNetUniverseCount=0;
 	char active =0;
+	char filename[1024];
 
-	LogDebug(VB_CHANNELOUT, "Opening File Now %s\n", getUniverseFile());
-	fp = fopen((const char *)getUniverseFile(), "r");
+	strcpy(filename, getMediaDirectory());
+	strcat(filename, "/config/co-universes.json");
 
-	if (fp == NULL) 
+	LogDebug(VB_CHANNELOUT, "Opening File Now %s\n", filename);
+
+	if (!FileExists(filename))
 	{
-		LogErr(VB_CHANNELOUT, "Could not open universe file %s\n",getUniverseFile());
+		LogErr(VB_CHANNELOUT, "Universe file %s does not exist\n",
+			filename);
 		return;
 	}
 
-	while(fgets(buf, 512, fp) != NULL)
+	Json::Value root;
+    Json::Reader reader;
+	std::ifstream t(filename);
+	std::stringstream buffer;
+
+	buffer << t.rdbuf();
+
+	std::string config = buffer.str();
+
+	bool success = reader.parse(buffer.str(), root);
+	if (!success)
 	{
-		// Enable
-		s = strtok(buf,",");
-		active = atoi(s);
+		LogErr(VB_CHANNELOUT, "Error parsing %s\n", filename);
+		return;
+	}
 
-		if(active)
+	Json::Value outputs = root["channelOutputs"];
+
+	std::string type;
+	int start = 0;
+	int count = 0;
+
+	for (int c = 0; c < outputs.size(); c++)
+	{
+		if (outputs[c]["type"].asString() != "universes")
+			continue;
+
+		if (outputs[c]["enabled"].asInt() == 0)
+			continue;
+
+		Json::Value univs = outputs[c]["universes"];
+
+		for (int i = 0; i < univs.size(); i++)
 		{
-			// Active
-			ArtNetUniverses[ArtNetUniverseCount].active = active;
-			// Universe
-			s=strtok(NULL,",");
-			ArtNetUniverses[ArtNetUniverseCount].universe = atoi(s);
-			// StartAddress
-			s=strtok(NULL,",");
-			ArtNetUniverses[ArtNetUniverseCount].startAddress = atoi(s);
-			// Size
-			s=strtok(NULL,",");
-			ArtNetUniverses[ArtNetUniverseCount].size = atoi(s);
+			Json::Value u = univs[i];
 
-			// ArtNet DMX packets must contain an even number of bytes
-			if (ArtNetUniverses[ArtNetUniverseCount].size % 2)
-				ArtNetUniverses[ArtNetUniverseCount].size += 1;
+			if(u["active"].asInt())
+			{
+				ArtNetUniverses[ArtNetUniverseCount].active = u["active"].asInt();
+				ArtNetUniverses[ArtNetUniverseCount].universe = u["id"].asInt();
+				ArtNetUniverses[ArtNetUniverseCount].startAddress = u["startChannel"].asInt() - 1;
+				ArtNetUniverses[ArtNetUniverseCount].size = u["channelCount"].asInt();
+				// ArtNet DMX packets must contain an even number of bytes
+				if (ArtNetUniverses[ArtNetUniverseCount].size % 2)
+					ArtNetUniverses[ArtNetUniverseCount].size += 1;
 
-			// Type
-			s=strtok(NULL,",");
-			ArtNetUniverses[ArtNetUniverseCount].type = atoi(s);
+				ArtNetUniverses[ArtNetUniverseCount].type = u["type"].asInt();
 
-			switch (ArtNetUniverses[ArtNetUniverseCount].type) {
-				case 2: // Broadcast
-						strcpy(ArtNetUniverses[ArtNetUniverseCount].unicastAddress,"\0");
-						break;
-				case 3: //UnicastAddress
-						s=strtok(NULL,",");
-						strcpy(ArtNetUniverses[ArtNetUniverseCount].unicastAddress,s);
-						break;
-				default: // ArtNet
-						continue;
+				switch (ArtNetUniverses[ArtNetUniverseCount].type) {
+					case 2: // Broadcast
+							strcpy(ArtNetUniverses[ArtNetUniverseCount].unicastAddress,"\0");
+							break;
+					case 3: //UnicastAddress
+							strcpy(ArtNetUniverses[ArtNetUniverseCount].unicastAddress,
+								u["address"].asString().c_str());
+							break;
+					default: // E1.31
+							continue;
+				}
+	
+			    ArtNetUniverseCount++;
 			}
-
-		    ArtNetUniverseCount++;
 		}
 	}
-	fclose(fp);
+
 	PrintArtNetUniverses();
 }
 

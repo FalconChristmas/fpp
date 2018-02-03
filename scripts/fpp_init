@@ -34,8 +34,14 @@ BINDIR=$(cd $(dirname $0) && pwd)
 ##############################################################################
 echo "FPP - Performing initial pre-start setup"
 ##############################################################################
-echo "    - Setting default network config"
-SetupDefaultNetworkConfig
+if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
+then
+    echo "Skipping default network config, was done at image creation time"
+else
+    echo "    - Setting default network config"
+    SetupDefaultNetworkConfig
+fi
+
 
 ##############################################################################
 echo "    - Checking SSH keys"
@@ -48,8 +54,19 @@ fi
 
 ##############################################################################
 # Copy our php.ini script into place for when we restart apache
-echo "    - Copying php.ini into place"
-sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/php.ini > /etc/php5/apache2/php.ini
+if [ -f "/etc/php5/apache2/php.ini" ]
+then
+    echo "    - Copying php.ini into place"
+    sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/php.ini > /etc/php5/apache2/php.ini
+fi
 
 ##############################################################################
 
+
+# On BBB running Stretch, the fpp_init is called prior to network
+# so we can use the opportunity to configure the network adapapters
+# and DNS and other hardware
+if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
+then
+    .  ${BINDIR}/init_pre_network
+fi

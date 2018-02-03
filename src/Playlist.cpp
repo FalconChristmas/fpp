@@ -1,5 +1,5 @@
 /*
- *   Playlist Class for Falcon Pi Player (FPP)
+ *   (Old) Playlist Class for Falcon Pi Player (FPP)
  *
  *   Copyright (C) 2013 the Falcon Pi Player Developers
  *      Initial development by:
@@ -49,20 +49,20 @@
 
 extern PluginCallbackManager pluginCallbackManager;
 
-Playlist *playlist = NULL;
+OldPlaylist *oldPlaylist = NULL;
 
-Playlist::Playlist()
+OldPlaylist::OldPlaylist()
   : m_playlistAction(PL_ACTION_NOOP),
 	m_numberOfSecondsPaused(0),
 	m_pauseStatus(PAUSE_STATUS_IDLE)
 {
 }
 
-Playlist::~Playlist()
+OldPlaylist::~OldPlaylist()
 {
 }
 
-void Playlist::IncrementPlayListEntry(void)
+void OldPlaylist::IncrementPlayListEntry(void)
 {
 	int maxEntryIndex;
 	int firstEntryIndex;
@@ -100,7 +100,7 @@ void Playlist::IncrementPlayListEntry(void)
 	}
 }
 
-void Playlist::DecrementPlayListEntry(void)
+void OldPlaylist::DecrementPlayListEntry(void)
 {
 	int maxEntryIndex;
 	int firstEntryIndex;
@@ -122,7 +122,7 @@ void Playlist::DecrementPlayListEntry(void)
 	}
 }
 
-void Playlist::CalculateNextPlayListEntry(void)
+void OldPlaylist::CalculateNextPlayListEntry(void)
 {
 	IncrementPlayListEntry();
 
@@ -161,7 +161,7 @@ void Playlist::CalculateNextPlayListEntry(void)
 
 }
 
-int Playlist::ParsePlaylistEntry(char *buf, PlaylistEntry *pe)
+int OldPlaylist::ParsePlaylistEntry(char *buf, OldPlaylistEntry *pe)
 {
 	char *s;
 	s=strtok(buf,",");
@@ -215,7 +215,7 @@ int Playlist::ParsePlaylistEntry(char *buf, PlaylistEntry *pe)
 	return 0;
 }
 
-int Playlist::ReadPlaylist(char const * file)
+int OldPlaylist::ReadPlaylist(char const * file)
 {
 	FILE *fp;
 	int listIndex=0;
@@ -278,7 +278,7 @@ int Playlist::ReadPlaylist(char const * file)
 	return listIndex;
 }
 
-void Playlist::PlayListPlayingInit(void)
+void OldPlaylist::PlayListPlayingInit(void)
 {
 	LogDebug(VB_PLAYLIST, "PlayListPlayingInit() playing %s %s.\n",
 		m_playlistDetails.currentPlaylistFile,
@@ -303,7 +303,7 @@ void Playlist::PlayListPlayingInit(void)
 	}
 }
 
-void Playlist::PlaylistProcessMediaData(void)
+void OldPlaylist::PlaylistProcessMediaData(void)
 {
 	sigset_t blockset;
 
@@ -319,7 +319,7 @@ void Playlist::PlaylistProcessMediaData(void)
 	sigprocmask(SIG_UNBLOCK, &blockset, NULL);
 }
 
-void Playlist::PlayListPlayingProcess(void)
+void OldPlaylist::PlayListPlayingProcess(void)
 {
 	bool calculateNext = true;
 
@@ -455,7 +455,7 @@ void Playlist::PlayListPlayingProcess(void)
 	}
 }
 
-void Playlist::PlayListPlayingCleanup(void)
+void OldPlaylist::PlayListPlayingCleanup(void)
 {
 	LogDebug(VB_PLAYLIST, "PlayListPlayingCleanup()\n");
 
@@ -471,7 +471,7 @@ void Playlist::PlayListPlayingCleanup(void)
 	}
 }
 
-void Playlist::PauseProcess(void)
+void OldPlaylist::PauseProcess(void)
 {
 	switch(m_pauseStatus)
 	{
@@ -494,9 +494,9 @@ void Playlist::PauseProcess(void)
 }
 
 
-void Playlist::PlayPlaylistEntry(bool calculateNext)
+void OldPlaylist::PlayPlaylistEntry(bool calculateNext)
 {
-	PlaylistEntry *plEntry = NULL;
+	OldPlaylistEntry *plEntry = NULL;
 
 	if (calculateNext)
 		CalculateNextPlayListEntry();
@@ -512,7 +512,7 @@ void Playlist::PlayPlaylistEntry(bool calculateNext)
 
 	plEntry = &m_playlistDetails.playList[m_playlistDetails.currentPlaylistEntry];
 
-	ParseMedia();
+	ParseMedia(NULL);
 	pluginCallbackManager.mediaCallback();
 
 	switch(plEntry->type)
@@ -545,7 +545,7 @@ void Playlist::PlayPlaylistEntry(bool calculateNext)
 	}
 }
 
-void Playlist::PlaylistPrint(void)
+void OldPlaylist::PlaylistPrint(void)
 {
 	int i=0;
 	LogDebug(VB_PLAYLIST, "playListCount=%d\n",m_playlistDetails.playListCount);
@@ -558,12 +558,12 @@ void Playlist::PlaylistPrint(void)
 	}
 }
 
-void Playlist::StopPlaylistGracefully(void)
+void OldPlaylist::StopPlaylistGracefully(void)
 {
 	FPPstatus = FPP_STATUS_STOPPING_GRACEFULLY;
 }
 
-void Playlist::StopPlaylistNow(void)
+void OldPlaylist::StopPlaylistNow(void)
 {
 	LogInfo(VB_PLAYLIST, "StopPlaylistNow()\n");
 	FPPstatus = FPP_STATUS_IDLE;

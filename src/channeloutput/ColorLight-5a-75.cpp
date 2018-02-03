@@ -48,7 +48,7 @@
  *   	- Data[1]:         0x00
  *   	- Data[2]:         0x00
  *   	- Data[3]:         0x00
- *   	- Data[4]:         0x80
+ *   	- Data[4]:         0x80 (sometimes 0x20, sometimes 0x00)
  *   	- Data[5]:         0x08
  *   	- Data[6]:         0x80
  *   	- Data[7-end]:     RGB order pixel data

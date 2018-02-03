@@ -1,0 +1,238 @@
+#!/bin/bash
+#
+# Called from fpp_init or fpp_start to configure stuff
+# needed prior to network init
+#
+#
+
+BINDIR=$(cd $(dirname $0) && pwd)
+
+# See if we should be running from /home/fpp/fpp
+if [ "x${BINDIR}" == "x/opt/fpp/scripts" -a -f "/home/fpp/fpp/scripts/init" ]
+then
+	exec /home/fpp/fpp/scripts/init
+fi
+
+. ${BINDIR}/common
+. ${BINDIR}/functions
+
+teeOutput
+
+echo "FPP - Setting up for the Falcon Player on the ${FPPPLATFORM} platform"
+
+checkAudioConfig
+
+applyReadOnlySDFixups
+
+
+grep -q "/home/fpp/media" /etc/fstab
+if [ $? -eq 1 ]
+then
+    cat <<-EOF >> /etc/fstab
+#####################################
+#/dev/sda1     /home/fpp/media  auto    defaults,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500  0  0
+#####################################
+EOF
+
+fi
+
+# Check to make sure media is mounted
+grep -q "^[^#].*${FPPHOME}/media" /etc/fstab
+MOUNTMEDIA=$?
+COUNTER=10
+while [ ${MOUNTMEDIA} -eq 0 ]
+do
+    let COUNTER+=1
+
+    # max of 60 seconds
+    if [ $COUNTER -gt 12]; then
+        break;
+    fi
+
+    if [ "$(df -h ${MEDIADIR} | tail -n 1 | awk '{print $1}')" == "$(df -h / | tail -n 1 | awk '{print $1}')" ];
+    then
+	    echo "FPP - Checking for mounted flash drive, Flash Media Is Missing.  Please Insert.";
+        if [ -f "/usr/bin/flite" ]; then
+	        flite -voice kal "Boot Stalled, Flash Media Is Missing.  Please Insert."
+        fi
+	    sleep 5;
+	    mount -a;
+    else
+	    echo "FPP - Checking for mounted flash drive, Flash Media mounted.";
+	    break
+    fi
+done
+
+
+DIRS="config effects events logs music playlists scripts sequences upload videos plugins plugindata exim4"
+echo "FPP - Checking for required directories"
+for DIR in ${DIRS}
+do
+    if [ ! -d ${FPPHOME}/media/${DIR} ]
+    then
+        echo "      Creating ${DIR}"
+        mkdir -p ${FPPHOME}/media/${DIR}
+        chown ${FPPUSER}.${FPPUSER} ${FPPHOME}/media/${DIR}
+    fi
+done
+
+# Fixup ownership when mounted on an non-FAT filesystem
+chown -R ${FPPUSER}.${FPPUSER} ${FPPHOME}/media
+
+# need to make samba log dir or samba may not start
+mkdir -p /var/log/samba
+
+# Configure Network and DNS
+#echo "FPP - Configuring Network"
+#${BINDIR}/config_network
+SetupFPPNetworkConfig
+
+HOSTNAME=$(getSetting HostName)
+if [ "x${HOSTNAME}" != "x" -a "x$(hostname)" != "x${HOSTNAME}" ]
+then
+	echo "FPP - Setting hostname to ${HOSTNAME}"
+	echo ${HOSTNAME} > /etc/hostname
+	sed -i '/^127.0.1.1[^0-9]/d' /etc/hosts
+	sed -i "\$a127.0.1.1 ${HOSTNAME}" /etc/hosts
+	hostname ${HOSTNAME}
+	/etc/init.d/avahi-daemon restart
+fi
+
+echo "FPP - Configuring DNS"
+${BINDIR}/config_dns
+
+echo "FPP - Configuring Audio"
+if [ "${FPPPLATFORM}" = "Raspberry Pi" ]
+then
+	#######################################################################
+	# Part #1 workaround for https://github.com/raspberrypi/linux/issues/570
+	# Play some silence while we set the volume so the new value will stick
+	aplay /opt/fpp/media/silence_5sec.wav > /dev/null 2>&1 &
+	SILENCEPID=$!
+	#######################################################################
+fi
+
+CARDID=0
+if [ -e /root/.asoundrc ]
+then
+	CARDID=$(sed -n '/card [0-9]*/p' /root/.asoundrc | head -n 1 | awk '{print $2}')
+fi
+
+if [ "x" = "y" ]
+then
+# Let's check that our .asoundrc is as valid as we care about right now
+if [ ! -e /proc/asound/card${CARDID} ]; then
+	CARDID=$(/bin/ls -1d /proc/asound/card[0-9] | sed -e 's/.*\([0-9]\)$/\1/' | head -1)
+	if [ -n ${CARDID} ]
+	then
+		echo "Configured sound card might not exist, setting to card ID ${CARDID} which does exist."
+		sed -i "s/card [0-9]/card $CARDID/" /root/.asoundrc
+	else
+		CARDID=0
+		echo "Configured sound card might not exist, let's set it to 0 as a default."
+		sed -i 's/card [0-9]/card 0/' /root/.asoundrc
+	fi
+fi
+else
+	AUDIOOUTPUT=$(getSetting AudioOutput)
+	if [ "x${AUDIOOUTPUT}" != "x${CARDID}" -a -n "${AUDIOOUTPUT}" ]
+	then
+		echo "Resetting /root/.asoundrc to use card id ${AUDIOOUTPUT}"
+		sed -i "s/card [0-9]/card ${AUDIOOUTPUT}/" /root/.asoundrc
+	fi
+fi
+
+amixer -c ${CARDID} cset numid=3 1 > /dev/null 2>&1
+VOLUME=$(getSetting volume)
+if [ "x${VOLUME}" = "x" ]
+then
+	VOLUME=75
+fi
+
+# Pi needs a volume adjustment, in reality a lot of sound cards do, but we
+# don't want to put in a lot of special cases here so only handle the Pi
+if [ "$CARDID" = "0" ]
+then
+	# Switch to this more accurate setting for or after v0.3.0
+	VOLUME=$(echo "scale=2 ; ${VOLUME} / 2.0 + 50" | bc)
+fi
+
+MIXERDEVICE=$(getSetting AudioMixerDevice)
+if [ -z ${MIXERDEVICE} ]
+then
+	MIXERDEVICE=$(amixer -c $card scontrols | head -1 | cut -f2 -d"'")
+fi
+
+amixer -c ${CARDID} set ${MIXERDEVICE} ${VOLUME}% > /dev/null 2>&1
+
+if [ "${FPPPLATFORM}" = "Raspberry Pi" ]
+then
+	#######################################################################
+	# Part #2 workaround for https://github.com/raspberrypi/linux/issues/570
+	sleep 1
+	kill -9 ${SILENCEPID} > /dev/null 2>&1
+	#######################################################################
+fi
+
+# Clear any restart/reboot flags
+echo "FPP - Clearing reboot flags"
+sed -i -e "s/^rebootFlag .*/rebootFlag = 0/" ${FPPHOME}/media/settings
+
+# make sure the media directory in the settings matches what we used at boot
+MEDIADEV=`findmnt -n -o SOURCE /home/fpp/media | colrm 1 5`
+if [ "$MEDIADEV" = "" ]; then
+    MEDIADEV=`findmnt -n -o SOURCE / | colrm 1 5`
+fi
+if grep -q storageDevice "${FPPHOME}/media/settings"; then
+    sed -i -e "s/^storageDevice .*/storageDevice = $MEDIADEV/" ${FPPHOME}/media/settings
+else
+    echo "storageDevice = $MEDIADEV" >> ${FPPHOME}/media/settings
+fi
+
+
+echo "FPP - Setting max IGMP memberships"
+sysctl net/ipv4/igmp_max_memberships=512 > /dev/null 2>&1
+
+if [ "${FPPPLATFORM}" = "BeagleBone Black" -o "${FPPPLATFORM}" = "Raspberry Pi" ]
+then
+	# echo "FPP - Configuring RTC"
+	${BINDIR}/piRTC
+fi
+
+if [ "${FPPPLATFORM}" = "Raspberry Pi" ]
+then
+	echo "FPP - Setting up SPI"
+	/usr/local/bin/gpio load spi 100 &>/dev/null
+
+	# See if we have a PiFace connected
+	echo "FPP - Checking for PiFace"
+	detectPiFace
+
+	# See if we have any Falcon hardware on the SPI port
+	echo "FPP - Checking for Falcon hardware on SPI port"
+	detectFalconHardware
+fi
+
+
+if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
+then
+    configureGPIOPins
+
+    # need to disable the slower idle state as it takes 130ns to get 
+    # out of that state which can disrupt the ws2811 timing enough
+    # to get extra strobing
+    cpupower idle-set -d 1
+
+    if [ "${BBBMODEL}" != "PocketBeagle" ]; then
+        uboot=$(dd if=/dev/mmcblk1 count=32 skip=393248 bs=1 2>/dev/null || true)
+        if [[ $uboot != *"U-Boot 2018"* ]]; then
+            cd /opt/backup/uboot
+            dd if=MLO of=/dev/mmcblk1 seek=1 bs=128k
+            dd if=u-boot.img of=/dev/mmcblk1 seek=1 bs=384k
+            echo 'rebootFlag = "1"' >> /home/fpp/media/settings
+        fi
+    fi
+fi
+
+#make sure the entire media dir and subdirs is writable by fpp user
+chown -R ${FPPUSER}.${FPPUSER} ${FPPHOME}/media

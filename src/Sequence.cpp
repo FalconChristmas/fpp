@@ -314,7 +314,6 @@ int Sequence::OpenSequenceFile(const char *filename, int startSeconds) {
 		m_seqMSRemaining -= (startSeconds * 1000);
 	}
 
-	BlankSequenceData();
 	ReadSequenceData();
 
 	SetChannelOutputFrameNumber(frameNumber);
@@ -361,7 +360,7 @@ char *Sequence::CurrentSequenceFilename(void) {
 	return m_seqFilename;
 }
 
-inline int Sequence::IsSequenceRunning(void) {
+int Sequence::IsSequenceRunning(void) {
 	if (m_seqFile)
 		return 1;
 
@@ -448,6 +447,7 @@ void Sequence::ReadSequenceData(void) {
 		if(m_seqFilePosition <= m_seqFileSize - m_seqStepSize)
 		{
 			bytesRead = fread(m_seqData, 1, m_seqStepSize, m_seqFile);
+			posix_fadvise(fileno(m_seqFile), 0, 0, POSIX_FADV_DONTNEED);
 			m_seqFilePosition += bytesRead;
 		}
 

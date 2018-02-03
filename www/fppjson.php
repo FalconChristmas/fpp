@@ -3,6 +3,8 @@
 $skipJSsettings = 1;
 require_once('common.php');
 require_once('commandsocket.php');
+require_once('universeentry.php');
+require_once('playlistentry.php');
 
 $a = session_id();
 if(empty($a))
@@ -21,6 +23,10 @@ $command_array = Array(
 	"setChannelOutputs"   => 'SetChannelOutputs',
 	"getChannelOutputsJSON" => 'GetChannelOutputsJSON',
 	"setChannelOutputsJSON" => 'SetChannelOutputsJSON',
+	"getPixelStringOutputs" => 'GetPixelStringOutputs',
+	"setPixelStringOutputs" => 'SetPixelStringOutputs',
+	"getUniverses"        => 'GetUniverses',
+	"setUniverses"        => 'SetUniverses',
 	"applyDNSInfo"        => 'ApplyDNSInfo',
 	"getDNSInfo"          => 'GetDNSInfo',
 	"setDNSInfo"          => 'SetDNSInfo',
@@ -37,6 +43,12 @@ $command_array = Array(
 	"toggleSequencePause" => 'ToggleSequencePause',
 	"singleStepSequence"  => 'SingleStepSequence',
 	"singleStepSequenceBack" => 'SingleStepSequenceBack',
+	"addPlaylistEntry"    => 'AddPlayListEntry',
+	"getPlayListEntries"  => 'GetPlayListEntries',
+	"savePlaylist"        => 'SavePlaylist',
+	"copyFile"            => 'CopyFile',
+	"renameFile"          => 'RenameFile',
+	"convertPlaylists"    => 'ConvertPlaylistsToJSON',
 	"getPluginSetting"    => 'GetPluginSetting',
 	"setPluginSetting"    => 'SetPluginSetting',
 	"saveScript"          => 'SaveScript',
@@ -134,15 +146,53 @@ function SetSetting()
 			$SUDO . " sysctl --system",
 			$output, $return_val);
 	} else if ($setting == "storageDevice") {
-		exec('mount | grep boot | cut -f1 -d" " | sed -e "s/\/dev\///" -e "s/p[0-9]$//"', $output, $return_val);
-		$bootDevice = $output[0];
-		unset($output);
+        if ($settings['Platform'] == "BeagleBone Black") {
+            exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
+            $rootDevice = $output[0];
+            unset($output);
+        } else {
+            exec('lsblk -l | grep " /$" | cut -f1 -d" "', $output, $return_val);
+            $rootDevice = $output[0];
+            unset($output);
+        }
+        if ($value == "--none--") {
+            $value = $rootDevice;
+        } else {
+            $fsckOrder = "0";
+            exec( $SUDO . " file -sL /dev/$value | grep FAT", $output, $return_val );
+            if ($output[0] == "") {
+                unset($output);
+                exec( $SUDO . " file -sL /dev/$value | grep BTRFS", $output, $return_val );
 
-		if (preg_match("/$bootDevice/", $value)) {
-			exec(	$SUDO . " sed -i 's/.*home\/fpp\/media/#\/dev\/sda1    \/home\/fpp\/media/' /etc/fstab", $output, $return_val );
-		} else {
-			exec(	$SUDO . " sed -i 's/.*home\/fpp\/media/\/dev\/$value    \/home\/fpp\/media/' /etc/fstab", $output, $return_val );
-		}
+                if ($output[0] == "") {
+                    unset($output);
+                    exec( $SUDO . " file -sL /dev/$value | grep DOS", $output, $return_val );
+                    if ($output[0] == "") {
+                        # probably ext4
+                        $options = "defaults,noatime,nodiratime,nofail";
+                        $fsckOrder = "2";
+                    } else {
+                        # exFAT probably
+                        $options = "defaults,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500,nonempty";
+                        $fsckOrder = "2";
+                    }
+                } else {
+                    # BTRFS, turn on compression since fseq files are very compressible
+                    $options = "defaults,noatime,nodiratime,compress=zstd,nofail";
+                    $fsckOrder = "0";
+                }
+            } else {
+                # FAT filesystem
+                $options = "defaults,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500";
+                $fsckOrder = "2";
+            }
+        }
+        if (preg_match("/$rootDevice/", $value)) {
+            exec(   $SUDO . " sed -i 's/.*home\/fpp\/media/#\/dev\/sda1    \/home\/fpp\/media/' /etc/fstab", $output, $return_val );
+        } else {
+            exec(   $SUDO . " sed -i 's/.*home\/fpp\/media.*/\/dev\/$value	\/home\/fpp\/media	auto	$options	0	$fsckOrder /' /etc/fstab", $output, $return_val );
+        }
+        unset($output);
 	} else if ($setting == "AudioOutput") {
 		SetAudioOutput($value);
 	} else if ($setting == "ForceHDMI") {
@@ -388,6 +438,596 @@ function SingleStepSequence()
 function SingleStepSequenceBack()
 {
 	SendCommand("SingleStepSequenceBack");
+}
+
+function GetJSONPlaylistEntry($entry, $index)
+{
+	if ($entry->type == 'both')
+		return new PlaylistEntry($entry->type,$entry->mediaName,$entry->sequenceName,0,'','','','', $entry, $index);
+	else if ($entry->type == 'media')
+		return new PlaylistEntry($entry->type,$entry->mediaName,'',0,'','','','', $entry, $index);
+	else if ($entry->type == 'sequence')
+		return new PlaylistEntry($entry->type,'',$entry->sequenceName,0,'','','','', $entry, $index);
+	else if ($entry->type == 'pause')
+		return new PlaylistEntry($entry->type,'', '',$entry->duration,'','','','', $entry, $index);
+	else if ($entry->type == 'script')
+		return new PlaylistEntry($entry->type,'', '', 0, $entry->scriptName,'','','', $entry, $index);
+	else if ($entry->type == 'event')
+	{
+		$majorID = $entry->majorID;
+		if ($majorID < 10)
+			$majorID = '0' . $majorID;
+
+		$minorID = $entry->minorID;
+		if ($minorID < 10)
+			$minorID = '0' . $minorID;
+
+		$id = $majorID . '_' . $minorID;
+
+		AddEventDesc($entry);
+
+		return new PlaylistEntry($entry->type,'', '', 0, '', $id, $entry->desc, '', $entry, $index);
+	}
+	else if ($entry->type == 'plugin')
+		return new PlaylistEntry($entry->type, '', '', 0, '', '', '', $entry->data, $entry, $index);
+	else
+		return new PlaylistEntry($entry->type,'', '', 0, '','','','', $entry, $index);
+}
+
+function AddEventDesc(&$entry)
+{
+	global $settings;
+
+	if ($entry->type != 'event')
+		return;
+
+	$majorID = $entry->majorID;
+	if ($majorID < 10)
+		$majorID = '0' . $majorID;
+
+	$minorID = $entry->minorID;
+	if ($minorID < 10)
+		$minorID = '0' . $minorID;
+
+	$id = $majorID . '_' . $minorID;
+
+	$eventFile = $settings['eventDirectory'] . "/" . $id . ".fevt";
+	if ( file_exists($eventFile)) {
+		$eventInfo = parse_ini_file($eventFile);
+		$entry->desc = $eventInfo['name'];
+	} else {
+		$entry->desc = "ERROR: Undefined Event: " . $id;
+	}
+}
+
+function LoadCSVPlayListDetails($file)
+{
+	global $settings;
+
+	$playListEntriesLeadIn = NULL;
+	$playListEntriesMainPlaylist = NULL;
+	$playListEntriesLeadOut = NULL;
+	$_SESSION['playListEntriesLeadIn']=NULL;
+	$_SESSION['playListEntriesMainPlaylist']=NULL;
+	$_SESSION['playListEntriesLeadOut']=NULL;
+
+	$f = fopen($settings['playlistDirectory'] . '/' . $file, "rx")
+		or exit("Unable to open file! : " . $settings['playlistDirectory'] . '/' . $file);
+
+	$firstIsLeadIn = 0;
+	$lastIsLeadOut = 0;
+	$index = 0;
+	$sectionIndex = 0;
+	$i=0;
+
+	$line = fgets($f);
+	if(strlen($line)) {
+		$entry = explode(",",$line,50);
+		$firstIsLeadIn = $entry[0];
+		$lastIsLeadOut = $entry[1];
+	}
+
+	while (!feof($f))
+	{
+		$line=fgets($f);
+		$entry = explode(",",$line,50);
+		if ($entry[0] == 'v')
+			$entry[0] = 'm';
+		$type = $entry[0];
+		if(strlen($line)==0)
+			break;
+
+		$e = new \stdClass;
+		$e->enabled = 1;
+		$e->playOnce = 0;
+
+		switch($entry[0])
+		{
+			case 'b':
+				$e->type = 'both';
+				$e->sequenceName = $entry[1];
+				$e->mediaName = $entry[2];
+				break;
+			case 'm':
+				$e->type = 'media';
+				$e->mediaName = $entry[1];
+				break;
+			case 's':
+				$e->type = 'sequence';
+				$e->sequenceName = $entry[1];
+				break;
+			case 'p':
+				$e->type = 'pause';
+				$e->duration = (int)$entry[1];
+				break;
+			case 'P':
+				$e->type = 'plugin';
+				$e->data = $entry[1];
+				break;
+			case 'e':
+				$e->type = 'event';
+				$e->majorID = (int)substr($entry[1],0,2);
+				$e->minorID = (int)substr($entry[1],3,2);
+				break;
+			default:
+				break;
+		}
+
+		if (($index == 0) && ($firstIsLeadIn))
+		{
+			$playListEntriesLeadIn[0] = GetJSONPlaylistEntry($e, $sectionIndex);
+			$sectionIndex = 0;
+		}
+		else
+		{
+			$playListEntriesMainPlaylist[$sectionIndex]
+				= GetJSONPlaylistEntry($e, $sectionIndex);
+			$sectionIndex++;
+		}
+
+		$index++;
+	}
+	fclose($f);
+
+	if ($lastIsLeadOut)
+	{
+		$e = array_pop($playListEntriesMainPlaylist);
+		$playListEntriesLeadOut[0] = $e;
+	}
+
+	$_SESSION['playListEntriesLeadIn'] = $playListEntriesLeadIn;
+	$_SESSION['playListEntriesMainPlaylist'] = $playListEntriesMainPlaylist;
+	$_SESSION['playListEntriesLeadOut'] = $playListEntriesLeadOut;
+}
+
+function LoadPlayListDetails($file)
+{
+	global $settings;
+
+	$playListEntriesLeadIn = NULL;
+	$playListEntriesMainPlaylist = NULL;
+	$playListEntriesLeadOut = NULL;
+	$_SESSION['playListEntriesLeadIn']=NULL;
+	$_SESSION['playListEntriesMainPlaylist']=NULL;
+	$_SESSION['playListEntriesLeadOut']=NULL;
+	$_SESSION['currentPlaylist'] = '';
+
+	$jsonStr = "";
+
+	if (!file_exists($settings['playlistDirectory'] . '/' . $file . ".json"))
+	{
+		if (file_exists($settings['playlistDirectory'] . '/' . $file))
+			LoadCSVPlaylistDetails($file);
+
+		return;
+	}
+
+	$jsonStr = file_get_contents($settings['playlistDirectory'] . '/' . $file . ".json");
+
+	$data = json_decode($jsonStr);
+
+	if (isset($data->leadIn))
+	{
+		$i = 0;
+		foreach ($data->leadIn as $entry)
+		{
+			$playListEntriesLeadIn[$i] = GetJSONPlaylistEntry($entry, $i);
+			$i++;
+		}
+	}
+
+	if (isset($data->mainPlaylist))
+	{
+		$i = 0;
+		foreach ($data->mainPlaylist as $entry)
+		{
+			$playListEntriesMainPlaylist[$i] = GetJSONPlaylistEntry($entry, $i);
+			$i++;
+		}
+	}
+
+	if (isset($data->leadOut))
+	{
+		$i = 0;
+		foreach ($data->leadOut as $entry)
+		{
+			$playListEntriesLeadOut[$i] = GetJSONPlaylistEntry($entry, $i);
+			$i++;
+		}
+	}
+
+	$_SESSION['playListEntriesLeadIn'] = $playListEntriesLeadIn;
+	$_SESSION['playListEntriesMainPlaylist'] = $playListEntriesMainPlaylist;
+	$_SESSION['playListEntriesLeadOut'] = $playListEntriesLeadOut;
+	$_SESSION['currentPlaylist'] = $file;
+}
+
+function AddPlayListEntry()
+{
+	$entry = json_decode($_POST['data']);
+
+	$_SESSION['playListEntriesMainPlaylist'][] =
+		new PlaylistEntry($entry->type,'', '', 0, '','','','', $entry,
+			count($_SESSION['playListEntriesMainPlaylist']));
+
+	$result = Array();
+	$result['status'] = 'success';
+	$result['json'] = $_POST['data'];
+
+	returnJSON($result);
+}
+
+function CopyFile()
+{
+	$filename = $_POST['filename'];
+	check($filename, "filename", __FUNCTION__);
+
+	$newfilename = $_POST['newfilename'];
+	check($newfilename, "newfilename", __FUNCTION__);
+
+	$dir = $_POST['dir'];
+	check($dir, "dir", __FUNCTION__);
+
+	$dir = GetDirSetting($dir);
+
+	if ($dir == "")
+		return;
+
+	$result = Array();
+
+	if (copy($dir . '/' . $filename, $dir . '/' . $newfilename))
+		$result['status'] = 'success';
+	else
+		$result['status'] = 'failure';
+
+	$result['original'] = $_POST['filename'];
+	$result['new'] = $_POST['newfilename'];
+
+	returnJSON($result);
+}
+
+function RenameFile()
+{
+	$filename = $_POST['filename'];
+	check($filename, "filename", __FUNCTION__);
+
+	$newfilename = $_POST['newfilename'];
+	check($newfilename, "newfilename", __FUNCTION__);
+
+	$dir = $_POST['dir'];
+	check($dir, "dir", __FUNCTION__);
+
+	$dir = GetDirSetting($dir);
+
+	if ($dir == "")
+		return;
+
+	$result = Array();
+
+	if (rename($dir . '/' . $filename, $dir . '/' . $newfilename))
+		$result['status'] = 'success';
+	else
+		$result['status'] = 'failure';
+
+	$result['original'] = $_POST['filename'];
+	$result['new'] = $_POST['newfilename'];
+
+	returnJSON($result);
+}
+
+function ConvertPlaylistsToJSON()
+{
+	global $settings;
+
+	$result = Array();
+	$playlistDirectory = $settings['playlistDirectory'];
+
+	if (!file_exists($playlistDirectory))
+	{
+		$result['status'] = 'Error';
+		$result['msg'] = 'Playlist Directory ' + $playlistDirectory + ' does not exist.';
+
+		returnJSON($result);
+		return;
+	}
+
+	$result['status'] = 'Ok';
+	$result['playlists'] = Array();
+
+	foreach(scandir($playlistDirectory) as $playlist)
+	{
+		if ($playlist != "." && $playlist != "..")
+		{
+			if ((!preg_match("/-CSV$/", $playlist)) &&
+				(!preg_match("/\.json$/", $playlist)))
+			{
+				$playlist = preg_replace("/\.json/", "", $playlist);
+
+				$_SESSION['currentPlaylist'] = $playlist;
+				LoadPlayListDetails($playlist);
+
+				SavePlaylistRaw($playlist);
+
+				$result['playlists'][] = $playlist;
+			}
+		}
+	}
+
+	$_SESSION['currentPlaylist'] = '';
+
+	returnJSON($result);
+}
+
+function GetPlayListEntries()
+{
+	global $args;
+	global $settings;
+
+	$playlist = $args['pl'];
+	check($playlist, "playlist", __FUNCTION__);
+	$reload = $args['reload'];
+	check($playlist, "reload", __FUNCTION__);
+
+	if ($reload == 'true')
+		LoadPlayListDetails($playlist);
+
+	$jsonStr = GenerateJSONPlaylist($playlist);
+
+	$jsonStr = json_encode(json_decode($jsonStr), JSON_PRETTY_PRINT);
+
+	header( "Content-Type: application/json");
+	echo $jsonStr;
+}
+
+function GenerateJSONPlaylistEntry($entry)
+{
+	$result = json_encode($entry->entry, JSON_PRETTY_PRINT);
+	return $result;
+
+	$result = "";
+
+	// FIXME Playlist, delete this stuff below here
+	if ($entry->type == 'both')
+	{
+		$result = sprintf(
+			'		{' . "\n" .
+			'			"type": "both",' . "\n" .
+			'			"enabled": 1,' . "\n" .
+			'			"playOnce": %d,' . "\n" .
+			'			"sequenceName": "%s",' . "\n" .
+			'			"mediaName": "%s"' . "\n" .
+			'		}',
+			0, // Play Once
+			$entry->seqFile, $entry->songFile
+			);
+	}
+	else if ($entry->type == 'sequence')
+	{
+		$result = sprintf(
+			'		{' . "\n" .
+			'			"type": "sequence",' . "\n" .
+			'			"enabled": 1,' . "\n" .
+			'			"playOnce": %d,' . "\n" .
+			'			"sequenceName": "%s"' . "\n" .
+			'		}',
+			0, // Play Once
+			$entry->seqFile
+			);
+	}
+	else if ($entry->type == 'media')
+	{
+		$result = sprintf(
+			'		{' . "\n" .
+			'			"type": "media",' . "\n" .
+			'			"enabled": 1,' . "\n" .
+			'			"playOnce": %d,' . "\n" .
+			'			"mediaName": "%s"' . "\n" .
+			'		}',
+			0, // Play Once
+			$entry->songFile
+			);
+	}
+	else if ($entry->type == 'pause')
+	{
+		$result = sprintf(
+			'		{' . "\n" .
+			'			"type": "pause",' . "\n" .
+			'			"enabled": 1,' . "\n" .
+			'			"playOnce": %d,' . "\n" .
+			'			"duration": %d' . "\n" .
+			'		}',
+			0, // Play Once
+			$entry->pause
+			);
+	}
+	else if ($entry->type == 'script')
+	{
+		$result = sprintf(
+			'		{' . "\n" .
+			'			"type": "script",' . "\n" .
+			'			"enabled": 1,' . "\n" .
+			'			"playOnce": %d,' . "\n" .
+			'			"scriptName": "%s",' . "\n" .
+			'			"blocking": %d' . "\n" .
+			'		}',
+			0, // Play Once
+			$entry->scriptName,
+			0  // Blocking
+			);
+	}
+	else if ($entry->type == 'volume')
+	{
+		$result = sprintf(
+			'		{' . "\n" .
+			'			"type": "volume",' . "\n" .
+			'			"enabled": 1,' . "\n" .
+			'			"playOnce": %d,' . "\n" .
+			'			"volume": %d' . "\n" .
+			'		}',
+			0, // Play Once
+			$entry->pause
+			);
+	}
+	else if ($entry->type == 'brightness')
+	{
+		$result = sprintf(
+			'		{' . "\n" .
+			'			"type": "brightness",' . "\n" .
+			'			"enabled": 1,' . "\n" .
+			'			"playOnce": %d,' . "\n" .
+			'			"brightness": %d' . "\n" .
+			'		}',
+			0, // Play Once
+			$entry->pause
+			);
+	}
+	else if ($entry->type == 'event')
+	{
+		$majorID = intval(preg_replace('/_.*/', '', $entry->eventID));
+		$minorID = intval(preg_replace('/.*_/', '', $entry->eventID));
+
+		$result = sprintf(
+			'		{' . "\n" .
+			'			"type": "event",' . "\n" .
+			'			"enabled": 1,' . "\n" .
+			'			"playOnce": %d,' . "\n" .
+			'			"majorID": %d,' . "\n" .
+			'			"minorID": %d,' . "\n" .
+			'			"blocking": %d' . "\n" .
+			'		}',
+			0, // Play Once
+			$majorID, $minorID,
+			0  // Blocking
+			);
+	}
+	else if ($entry->type == 'plugin')
+	{
+		$result = sprintf(
+			'		{' . "\n" .
+			'			"type": "plugin",' . "\n" .
+			'			"enabled": 1,' . "\n" .
+			'			"data": "%s"' . "\n" .
+			'		}',
+			0, // Play Once
+			$entry->pluginData
+			);
+	}
+	else
+	{
+		$result = json_encode($entry->entry);
+	}
+
+	return $result;
+}
+
+function GenerateJSONPlaylistSection($section, $list)
+{
+	if (!count($_SESSION[$list]))
+		return "";
+
+	$result = sprintf(',' . "\n" .
+		'	"' . $section . '": [' . "\n"
+		);
+
+	$i = 0;
+	$firstEntry = 1;
+	while ($i < count($_SESSION[$list]))
+	{
+		if ($firstEntry)
+		{
+			$firstEntry = 0;
+		}
+		else
+		{
+			$result .= sprintf(",\n");
+		}
+		$result .= GenerateJSONPlaylistEntry($_SESSION[$list][$i++]);
+	}
+
+	$result .= sprintf("\n" .
+		'	]'
+		);
+
+	return $result;
+}
+
+function GenerateJSONPlaylist($name)
+{
+	$result = "";
+
+	$result .= sprintf(
+		'{' . "\n" .
+		'	"name": "%s",' . "\n" .
+		'	"repeat": %d,' . "\n" .
+		'	"loopCount": %d',
+		$name,
+		0, // Repeat
+		0  // Loop Count
+		);
+
+	$result .= GenerateJSONPlaylistSection('leadIn', 'playListEntriesLeadIn');
+	$result .= GenerateJSONPlaylistSection('mainPlaylist', 'playListEntriesMainPlaylist');
+	$result .= GenerateJSONPlaylistSection('leadOut', 'playListEntriesLeadOut');
+
+	$result .= sprintf("\n}\n");
+
+	return $result;
+}
+
+function SavePlaylistRaw($name)
+{
+	global $playlistDirectory;
+
+	$json = GenerateJSONPlaylist($name);
+
+	// Make sure the whole string is pretty
+	$json = json_encode(json_decode($json), JSON_PRETTY_PRINT);
+
+	// Rename any old CSV style playlist if it exists
+	if (file_exists($playlistDirectory . '/' . $name))
+		rename($playlistDirectory . '/' . $name, $playlistDirectory . '/' . $name . '-CSV');
+
+	$f = fopen($playlistDirectory . '/' . $name . ".json","w") or exit("Unable to open file! : " . $playlistDirectory . '/' . $name . ".json");
+	fprintf($f, $json);
+	fclose($f);
+
+	if(isset($_SESSION['currentPlaylist']) && $name != $_SESSION['currentPlaylist'])
+	{
+		 unlink($playlistDirectory . '/' . $_SESSION['currentPlaylist'] . ".json");
+	}
+	$_SESSION['currentPlaylist'] = $name;
+}
+
+function SavePlaylist()
+{
+	$name = $_GET['name'];
+	check($name, "name", __FUNCTION__);
+
+	SavePlaylistRaw($name);
+
+	$result = Array();
+	$result['status'] = 'Ok';
+	returnJSON($result);
 }
 
 function GetPluginSetting()
@@ -673,6 +1313,121 @@ function SetChannelOutputsJSON()
 	GetChannelOutputsJSON();
 }
 
+function GetPixelStringOutputs()
+{
+	global $settings;
+
+	$jsonStr = "";
+
+	if (file_exists($settings['pixelStringOutputs'])) {
+		$jsonStr = file_get_contents($settings['pixelStringOutputs']);
+	}
+
+	header( "Content-Type: application/json");
+	echo $jsonStr;
+}
+
+function SetPixelStringOutputs()
+{
+	global $settings;
+	global $args;
+
+	$data = stripslashes($args['data']);
+	$data = prettyPrintJSON(substr($data, 1, strlen($data) - 2));
+
+	file_put_contents($settings['pixelStringOutputs'], $data);
+
+	GetPixelStringOutputs();
+}
+
+/////////////////////////////////////////////////////////////////////////////
+function SaveUniversesToFile($enabled, $input)
+{
+	global $settings;
+
+	$universeJSON = sprintf(
+		"{\n" .
+		"	\"%s\": [\n" .
+		"		{\n" .
+		"			\"type\": \"universes\",\n" .
+		"			\"enabled\": %d,\n" .
+		"			\"startChannel\": 1,\n" .
+		"			\"channelCount\": -1,\n" .
+		"			\"universes\": [\n",
+		$input ? "channelInputs" : "channelOutputs", $enabled);
+
+	for($i=0;$i<count($_SESSION['UniverseEntries']);$i++)
+	{
+		if ($i > 0)
+			$universeJSON .= ",\n";
+
+		$universeJSON .= sprintf(
+		"				{\n" .
+		"					\"active\": %d,\n" .
+		"					\"description\": \"%s\",\n" .
+		"					\"id\": %d,\n" .
+		"					\"startChannel\": %d,\n" .
+		"					\"channelCount\": %d,\n" .
+		"					\"type\": %d,\n" .
+		"					\"address\": \"%s\",\n" .
+		"					\"priority\": %d\n" .
+		"				}",
+			$_SESSION['UniverseEntries'][$i]->active,
+			$_SESSION['UniverseEntries'][$i]->desc,
+			$_SESSION['UniverseEntries'][$i]->universe,
+			$_SESSION['UniverseEntries'][$i]->startAddress,
+			$_SESSION['UniverseEntries'][$i]->size,
+			$_SESSION['UniverseEntries'][$i]->type,
+			$_SESSION['UniverseEntries'][$i]->unicastAddress,
+			$_SESSION['UniverseEntries'][$i]->priority);
+	}
+
+	$universeJSON .=
+		"\n" .
+		"			]\n" .
+		"		}\n" .
+		"	]\n" .
+		"}\n";
+
+    $filename = $settings['universeOutputs'];
+    if ($input)
+        $filename = $settings['universeInputs'];
+
+	$f = fopen($filename,"w") or exit("Unable to open file! : " . $filename);
+	fwrite($f, $universeJSON);
+	fclose($f);
+
+	return $universeJSON;
+}
+
+function SetUniverses()
+{
+	$enabled = $_POST['enabled'];
+	check($enabled);
+	$input = $_POST['input'];
+	check($input);
+
+	for($i=0;$i<count($_SESSION['UniverseEntries']);$i++)
+	{
+		if( isset($_POST['chkActive'][$i]))
+		{
+			$_SESSION['UniverseEntries'][$i]->active = 1;
+		}
+		else
+		{
+			$_SESSION['UniverseEntries'][$i]->active = 0;
+		}
+		$_SESSION['UniverseEntries'][$i]->desc = 	$_POST['txtDesc'][$i];
+		$_SESSION['UniverseEntries'][$i]->universe = 	intval($_POST['txtUniverse'][$i]);
+		$_SESSION['UniverseEntries'][$i]->size = 	intval($_POST['txtSize'][$i]);
+		$_SESSION['UniverseEntries'][$i]->startAddress = 	intval($_POST['txtStartAddress'][$i]);
+		$_SESSION['UniverseEntries'][$i]->type = 	intval($_POST['universeType'][$i]);
+		$_SESSION['UniverseEntries'][$i]->unicastAddress = 	trim($_POST['txtIP'][$i]);
+		$_SESSION['UniverseEntries'][$i]->priority = 	intval($_POST['txtPriority'][$i]);
+	}
+
+	return(SaveUniversesToFile($enabled, $input));
+}
 /////////////////////////////////////////////////////////////////////////////
 function GetChannelOutputs()
 {

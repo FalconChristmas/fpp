@@ -1,0 +1,211 @@
+#ifndef _ws281x_F16B_
+#define _ws281x_F16B_
+
+
+// Output 1
+#define o1_gpio     2
+#define o1_pin		3
+// Output 2
+#define o2_gpio     2
+#define o2_pin		4
+// Output 3
+#define o3_gpio     0
+#define o3_pin		26
+// Output 4
+#define o4_gpio     2
+#define o4_pin		1
+// Output 5
+#define o5_gpio     2
+#define o5_pin		24
+// Output 6
+#define o6_gpio     2
+#define o6_pin		25
+// Output 7
+#define o7_gpio     0
+#define o7_pin		11
+// Output 8
+#define o8_gpio     2
+#define o8_pin		17
+// Output 9
+#define o9_gpio     2
+#define o9_pin		16
+// Output 10
+#define o10_gpio	2
+#define o10_pin		15
+// Output 11
+#define o11_gpio	2
+#define o11_pin		13
+// Output 12
+#define o12_gpio	2
+#define o12_pin		11
+// Output 13
+#define o13_gpio	2
+#define o13_pin		9
+// Output 14
+#define o14_gpio	2
+#define o14_pin		8
+// Output 15
+#define o15_gpio	2
+#define o15_pin		7
+// Output 16
+#define o16_gpio	2
+#define o16_pin		6
+
+
+// Output 17
+#define o17_gpio	0
+#define o17_pin		31
+// Output 18
+#define o18_gpio	0
+#define o18_pin		30
+// Output 19
+#define o19_gpio	1
+#define o19_pin		18
+// Output 20
+#define o20_gpio	2
+#define o20_pin		2
+// Output 21
+#define o21_gpio	2
+#define o21_pin		5
+// Output 22
+#define o22_gpio	0
+#define o22_pin		23
+// Output 23
+#define o23_gpio	0
+#define o23_pin		27
+// Output 24
+#define o24_gpio	0
+#define o24_pin		22
+// Output 25
+#define o25_gpio	2
+#define o25_pin		22
+// Output 26
+#define o26_gpio	2
+#define o26_pin		23
+// Output 27
+#define o27_gpio	0
+#define o27_pin		10
+// Output 28
+#define o28_gpio	0
+#define o28_pin		9
+// Output 29
+#define o29_gpio	0
+#define o29_pin		8
+// Output 30
+#define o30_gpio	2
+#define o30_pin		14
+// Output 31
+#define o31_gpio	2
+#define o31_pin		12
+// Output 32
+#define o32_gpio    2
+#define o32_pin		10
+
+
+// Output 33
+#define o33_gpio	0
+#define o33_pin		5
+// Output 34
+#define o34_gpio	0
+#define o34_pin		4
+
+
+
+#ifdef F32B
+// Output 35
+#define o35_gpio    0
+#define o35_pin     2
+// Output 36
+#define o36_gpio    0
+#define o36_pin     3
+#else
+// Output 35
+#define o35_gpio	0
+#define o35_pin		3
+// Output 36
+#define o36_gpio	0
+#define o36_pin		2
+#endif
+
+
+// Output 37
+#define o37_gpio	1
+#define o37_pin		16
+// Output 38
+#define o38_gpio	1
+#define o38_pin		17
+
+#ifdef F32B
+#define o39_gpio    0
+#define o39_pin        14
+#define o40_gpio    0
+#define o40_pin        15
+#else
+// Output 39
+#define o39_gpio	0
+#define o39_pin		15
+#if OUTPUTS == 48
+// Output 40
+#define o40_gpio	3
+#define o40_pin		21
+#else
+#define o40_gpio	0
+#define o40_pin		14
+#endif
+#endif
+
+#ifdef F32B
+// Output 41
+#define o41_gpio    3
+#define o41_pin        21
+// Output 42
+#define o42_gpio    3
+#define o42_pin        19
+// Output 43
+#define o43_gpio    3
+#define o43_pin        15
+// Output 44
+#define o44_gpio    3
+#define o44_pin        17
+// Output 45
+#define o45_gpio    3
+#define o45_pin        16
+// Output 46
+#define o46_gpio    3
+#define o46_pin        14
+// Output 47
+#define o47_gpio    3
+#define o47_pin        18
+// Output 48
+#define o48_gpio    3
+#define o48_pin        20
+
+#else
+// Output 41
+#define o41_gpio	0
+#define o41_pin		14
+// Output 42
+#define o42_gpio	3
+#define o42_pin		19
+// Output 43
+#define o43_gpio	3
+#define o43_pin		17
+// Output 44
+#define o44_gpio	3
+#define o44_pin		15
+// Output 45
+#define o45_gpio	3
+#define o45_pin		16
+// Output 46
+#define o46_gpio	3
+#define o46_pin		14
+// Output 47
+#define o47_gpio	3
+#define o47_pin		20
+// Output 48
+#define o48_gpio	3
+#define o48_pin		18
+#endif
+
+
+#endif

@@ -36,11 +36,14 @@
 #include "fppversion.h"
 #include "fpp.h"
 #include "gpio.h"
+#include "httpAPI.h"
 #include "log.h"
 #include "mediadetails.h"
 #include "mediaoutput.h"
+#include "mqtt.h"
 #include "PixelOverlay.h"
 #include "Playlist.h"
+#include "playlist/Playlist.h"
 #include "Plugins.h"
 #include "Scheduler.h"
 #include "Sequence.h"
@@ -68,7 +71,7 @@
 
 pid_t pid, sid;
 int FPPstatus=FPP_STATUS_IDLE;
-int runMainFPPDLoop = 1;
+volatile int runMainFPPDLoop = 1;
 extern PluginCallbackManager pluginCallbackManager;
 
 ChannelTester *channelTester = NULL;
@@ -101,8 +104,19 @@ int main(int argc, char *argv[])
 	if (getDaemonize())
 		CreateDaemon();
 
+	if (strcmp(getSetting("MQTTHost"),""))
+	{
+		mqtt = new MosquittoClient(getSetting("MQTTHost"), getSettingInt("MQTTPort"), getSetting("MQTTPrefix"));
+
+		if (!mqtt || !mqtt->Init())
+			exit(EXIT_FAILURE);
+
+		mqtt->Publish("version", getFPPVersion());
+		mqtt->Publish("branch", getFPPBranch());
+	}
+
 	scheduler = new Scheduler();
-	playlist  = new Playlist();
+	playlist = new Playlist();
 	sequence  = new Sequence();
 	channelTester = new ChannelTester();
 
@@ -163,12 +177,17 @@ int main(int argc, char *argv[])
 	delete scheduler;
 	delete playlist;
 	delete sequence;
+    runMainFPPDLoop = -1;
+
+	if (mqtt)
+		delete mqtt;
 
 	return 0;
 }
 
 void ShutdownFPPD(void)
 {
+    LogInfo(VB_GENERAL, "Shutting down main loop.\n");
 	runMainFPPDLoop = 0;
 }
 
@@ -207,6 +226,9 @@ void MainLoop(void)
 
 	controlSock = InitControlSocket();
 	FD_SET (controlSock, &active_fd_set);
+
+	APIServer apiServer;
+	apiServer.Init();
 
 	LogInfo(VB_GENERAL, "Starting main processing loop\n");
 
@@ -265,7 +287,7 @@ void MainLoop(void)
 			{
 				if (prevFPPstatus == FPP_STATUS_IDLE)
 				{
-					playlist->PlayListPlayingInit();
+					playlist->Start();
 					sleepms = 10000;
 				}
 
@@ -274,7 +296,7 @@ void MainLoop(void)
 				if ((FPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||
 					(FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY))
 				{
-					playlist->PlayListPlayingProcess();
+					playlist->Process();
 				}
 			}
 
@@ -284,7 +306,12 @@ void MainLoop(void)
 				if ((prevFPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||
 					(prevFPPstatus == FPP_STATUS_STOPPING_GRACEFULLY))
 				{
-					playlist->PlayListPlayingCleanup();
+					playlist->Cleanup();
+
+					scheduler->ReLoadCurrentScheduleInfo();
+
+					if (!playlist->GetForceStop())
+						scheduler->CheckIfShouldBePlayingNow();
 
 					if (FPPstatus != FPP_STATUS_IDLE)
 						reactivated = 1;
@@ -304,14 +331,16 @@ void MainLoop(void)
 		{
 			if(mediaOutputStatus.status == MEDIAOUTPUTSTATUS_PLAYING)
 			{
-				playlist->PlaylistProcessMediaData();
+				playlist->ProcessMedia();
 			}
 		}
 
 		CheckGPIOInputs();
 	}
 
+    LogInfo(VB_GENERAL, "Stopping channel output thread.\n");
 	StopChannelOutputThread();
+    LogInfo(VB_GENERAL, "Shutting down control socket.\n");
 	ShutdownControlSocket();
 
 	if (getFPPmode() == BRIDGE_MODE)

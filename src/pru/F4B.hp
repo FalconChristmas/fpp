@@ -1,0 +1,21 @@
+#ifndef _ws281x_F4B_
+#define _ws281x_F4B_
+
+#define OUTPUTS 4
+
+// Output 1
+#define o1_gpio  2
+#define o1_pin		3
+// Output 2
+#define o2_gpio	2
+#define o2_pin		4
+// Output 3
+#define o3_gpio	0
+#define o3_pin		26
+// Output 4
+#define o4_gpio	2
+#define o4_pin		1
+
+
+
+#endif
