@@ -63,9 +63,87 @@ netcalc(){
 	echo "${ip[*]}"
 }
 
+
+SetupFPPNetworkConfigViaConnMann() {
+    CONFIGS=`ls ${FPPHOME}/media/config/interface.*`
+
+    DNS1=""
+    DNS2=""
+    if [ -f "${FPPHOME}/media/config/dns" ]
+    then
+        . ${FPPHOME}/media/config/dns
+    fi
+    DNS=""
+    if [ "x$DNS1" != "x" ]
+    then
+        DNS="$DNS1"
+    fi
+    if [ "x$DNS2" != "x" ]
+    then
+        DNS="$DNS1,$DNS2"
+    fi
+
+    TMPFILE="/tmp/fpp.config"
+    rm -f ${TMPFILE}
+
+    for f in $CONFIGS; do
+        . ${f}
+
+        echo "[service_$INTERFACE]" >> ${TMPFILE}
+        if [ "x$SSID" != "x" ]
+        then
+            echo "Name=${SSID}" >> $TMPFILE
+        fi
+        if [ "x$PSK" != "x" ]
+        then
+            echo "Security=psk" >> $TMPFILE
+            echo "Passphrase=${PSK}" >> $TMPFILE
+        fi
+
+        if [ -f "/sys/class/net/${INTERFACE}/address" ]; then
+            MAC=`cat /sys/class/net/${INTERFACE}/address`
+            echo "MAC=${MAC}" >> $TMPFILE
+        fi
+        if [ "x$DNS" != "x" ]
+        then
+            echo "Nameservers=${DNS}" >> $TMPFILE
+        fi
+        if [[ "$INTERFACE" == "wlan"* ]] ; then
+            echo "Type=wifi"  >> $TMPFILE
+        else
+            echo "Type=ethernet"  >> $TMPFILE
+        fi
+        if [ "$PROTO" = "dhcp" ]; then
+            echo "IPv4=dhcp"  >> $TMPFILE
+        else
+            echo "IPv4=$ADDRESS/$NETMASK/$GATEWAY" >> $TMPFILE
+        fi
+
+
+        echo ""  >> $TMPFILE
+        echo ""  >> $TMPFILE
+    done
+    rm -rf /var/lib/connman/wifi_*
+    rm -rf /var/lib/connman/ethernet_*
+    rm -f /var/lib/connman/fpp.config
+    if [ -f "$TMPFILE" ]; then
+        cp $TMPFILE /var/lib/connman/fpp.config
+    fi
+
+    connmanctl services > /tmp/services.txt
+}
+
+
 #############################################################################
 # Create our version of /etc/network/interfaces and wpa_supplicant.conf files
 SetupFPPNetworkConfig () {
+    if [ -f "/usr/bin/connmanctl" ]
+    then
+        SetupFPPNetworkConfigViaConnMann
+        return
+    fi
+
+
 	if [ ! -f "${FPPHOME}/media/config/interface.eth0" -a ! -f "${FPPHOME}/media/config/interface.wlan0" ]
 	then
 		echo "FPP - Using default network config"
@@ -382,6 +460,56 @@ WaitForDHCPIPs() {
 	done
 }
 
+
+WaitForInterfacesUp() {
+    IPS="$(ip -o -4 addr | grep -v usb | grep -v 127.0)"
+    if [ -z "$IPS" ]; then
+        # Loop up to 4 times, so max wait time is 4 * 2
+        for i in {1..4}
+        do
+            sleep 2
+            IPS="$(ip -o -4 addr | grep -v usb | grep -v 127.0)"
+            #echo "y:  $IPS" >> /tmp/ips.txt
+            if [ -z "$IPS" ]
+            then
+                continue
+            fi
+
+            break
+        done
+	    if [ -z "$IPS" ]; then
+            #on some adapters, we need to down/up in order for connman to be able
+            #to detect the link on it and attach to wifi
+            ifconfig wlan0 down
+            ifconfig wlan0 up
+            if [ -f "/usr/bin/connmanctl" ]
+            then
+                connmanctl scan wifi
+            fi
+            # Loop up to 8 times, so max wait time is 8 * 2
+            for i in {1..8}
+            do
+               sleep 2
+               IPS="$(ip -o -4 addr | grep -v usb | grep -v 127.0)"
+                   if [ -z "$IPS" ]; then
+               continue
+               fi
+               break
+            done
+        fi
+    fi
+
+    if [ -f "/usr/bin/connmanctl" ]
+    then
+        connmanctl services >> /tmp/services.txt
+    fi
+
+    #turn off power management on wireless... not all adapters
+    # support this so just /dev/null any output
+    iwconfig wlan0 power off 2>/dev/null >/dev/null
+}
+
+
 #############################################################################
 # Functions for compiling and cleaning up compiled binaries
 BINARIES="fppd fpp fppmm"
@@ -399,9 +527,9 @@ compileBinaries() {
 
 	if [ "x${FPPDIR}" = "x/opt/fpp" ]
 	then
-		cd ${FPPDIR}/src && ${SUDO} make clean && ${SUDO} make
+		cd ${FPPDIR}/src && ${SUDO} make clean && ${SUDO} make optimized
 	else
-		cd ${FPPDIR}/src && ${SUDO} -u ${FPPUSER} make clean && sudo -u ${FPPUSER} make
+		cd ${FPPDIR}/src && ${SUDO} -u ${FPPUSER} make clean && sudo -u ${FPPUSER} make optimized
 	fi
 
 	if [ "x${FPPBINDIR}" != "x${FPPDIR}/src" ]
@@ -556,33 +684,24 @@ setupChannelOutputs() {
 		RGBMatrix=$?
 
 		# RPIWS281X and onboard sound are incompatible
-		grep -q "^1,RPIWS281X" ${FPPHOME}/media/channeloutputs 2> /dev/null
+		cat ${FPPHOME}/media/config/co-pixelStrings.json 2> /dev/null | tr -d "\r\n" | egrep -q 'RPIWS281X",[ 	a-zA-Z0-9:",]*"enabled": 1'
 		RPIWS281X=$?
 
 		if [ ${RGBMatrix} -eq 0 -o ${RPIWS281X} -eq 0 ]
 		then
 			# Make sure onboard sound is disabled
-			grep -q "^snd-bcm2835" /etc/modules 2> /dev/null
-			if [ $? -eq 0 ]
+			if [ ! -f /etc/modprobe.d/blacklist-bcm2835.conf ]
 			then
-				# Disable onboard sound and reboot to take effect
-				sed -i "s/^snd-bcm2835/#snd-bcm2835/" /etc/modules
+				echo "blacklist snd_bcm2835" | sudo tee /etc/modprobe.d/blacklist-bcm2835.conf > /dev/null
 				shutdown -r now
 			fi
 		else
 			# Re-enable onboard sound if it is disabled
-			grep -q "snd-bcm2835" /etc/modules 2> /dev/null
-			if [ $? -eq 0 ]
+			if [ -f /etc/modprobe.d/blacklist-bcm2835.conf ]
 			then
-				# Check to see if onboard sound is enabled
-				grep -q "^snd-bcm2835" /etc/modules 2> /dev/null
-				if [ $? -ne 0 ]
-				then
-					# Re-enable sound
-					sed -i "/^#snd-bcm2835/d" /etc/modules
-					echo "snd-bcm2835" >> /etc/modules
-					modprobe snd-bcm2835
-				fi
+				# Re-enable sound
+				rm /etc/modprobe.d/blacklist-bcm2835.conf
+				modprobe snd-bcm2835
 			fi
 		fi
 
@@ -804,8 +923,9 @@ setupBBBRTC () {
 		2)
 			# DS1307 chip
 			# BBB has onboard clock as rtc0 so we need to use rtc1
-			echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device
-			echo "FPP - Configuring RTC, Setting to DS1307/i2c-1"
+            modprobe rtc_ds1307
+			echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-2/new_device
+			echo "FPP - Configuring RTC, Setting to DS1307/i2c-2"
 			;;
 		*)
 			# None
@@ -867,6 +987,27 @@ applyReadOnlySDFixups() {
 
 		remountRootReadOnlyIfNeeded
 	fi
+}
+
+#############################################################################
+
+configureBBBGPIOPins() {
+    if [ -f "/usr/bin/config-pin" ]
+    then
+        if [ "${BBBMODEL}" = "PocketBeagle" ]; then
+            /usr/bin/config-pin -f ${BINDIR}/bbb-pins-pocketbeagle.txt
+        else
+            /usr/bin/config-pin -f ${BINDIR}/bbb-pins.txt
+        fi
+    fi
+}
+
+
+configureGPIOPins() {
+    if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
+    then
+        configureBBBGPIOPins
+    fi
 }
 
 #############################################################################

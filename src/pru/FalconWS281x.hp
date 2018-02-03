@@ -19,6 +19,7 @@
 #define ARM_PRU1_INTERRUPT      22
 
 #define CONST_PRUDRAM   C24
+#define CONST_OTHERPRUDRAM   C25
 #define CONST_SHAREDRAM C28
 #define CONST_L3RAM     C30
 #define CONST_DDR       C31

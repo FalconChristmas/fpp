@@ -175,7 +175,7 @@ int OpenEffectFile(const char *filename)
 
 	if (!filename || !filename[0])
 	{
-		printf("Empty Effect Filename! (%s)\n", filename);
+		printf("Empty Effect Filename!\n");
 		return 0;
 	}
 
@@ -290,7 +290,7 @@ int OpenSequenceFile(const char *filename) {
 
 	if (!filename || !filename[0])
 	{
-		printf("Empty Sequence Filename! (%)\n", filename);
+		printf("Empty Sequence Filename!\n");
 		return 0;
 	}
 

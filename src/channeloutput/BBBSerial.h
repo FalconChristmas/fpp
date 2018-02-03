@@ -54,7 +54,10 @@ class BBBSerialOutput : public ChannelOutputBase {
 	int                  m_outputs;
 	int                  m_pixelnet;
 	vector<int>          m_startChannels;
-
+    
+    uint8_t            *m_lastData;
+    uint8_t            *m_curData;
+    uint32_t           m_curFrame;
 };
 
 #endif /* _BBBSERIAL_H */

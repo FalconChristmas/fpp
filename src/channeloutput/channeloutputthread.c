@@ -60,7 +60,7 @@ void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent);
 /*
  * Check to see if the channel output thread is running
  */
-inline int ChannelOutputThreadIsRunning(void) {
+int ChannelOutputThreadIsRunning(void) {
 	return ThreadIsRunning;
 }
 

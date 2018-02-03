@@ -9,6 +9,7 @@
 [submodule "external/LEDscape"]
 	path = external/LEDscape
 	url = https://github.com/FalconChristmas/LEDscape.git
+	branch = bbb-stretch-v1.x
 	ignore = dirty
 [submodule "external/rpi_ws281x"]
 	path = external/rpi_ws281x

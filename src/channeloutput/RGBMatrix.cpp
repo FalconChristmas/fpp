@@ -132,7 +132,8 @@ int RGBMatrixOutput::Init(Json::Value config)
 		return 0;
 	}
 
-	if (!m_gpio->Init())
+	// 0 for slower systems, possibly 2 for faster systems or slower panels
+	if (!m_gpio->Init(1))
 	{
 		LogErr(VB_CHANNELOUT, "GPIO->Init() failed\n");
 

@@ -14,6 +14,7 @@ fi
 
 if [ ! -f "${MEDIADIR}/.auto_update_disabled" ]
 then
+    WaitForInterfacesUp
 	${SCRIPTDIR}/git_pull
 fi
 
@@ -24,6 +25,8 @@ ${SCRIPTDIR}/upgrade_config
 ${SCRIPTDIR}/timezone_sync
 
 remountRootReadOnlyIfNeeded
+
+configureGPIOPins
 
 ${SUDO} ${SCRIPTDIR}/fppd_start
 

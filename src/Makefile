@@ -81,8 +81,29 @@ OBJECTS_fppd = \
 	mediaoutput/mpg123.o \
 	mediaoutput/ogg123.o \
 	mediaoutput/omxplayer.o \
+	mqtt.o \
 	PixelOverlay.o \
 	Playlist.o \
+	playlist/Playlist.o \
+	playlist/PlaylistEntryBase.o \
+	playlist/PlaylistEntryBoth.o \
+	playlist/PlaylistEntryBranch.o \
+	playlist/PlaylistEntryBrightness.o \
+	playlist/PlaylistEntryChannelTest.o \
+	playlist/PlaylistEntryDynamic.o \
+	playlist/PlaylistEntryEffect.o \
+	playlist/PlaylistEntryEvent.o \
+	playlist/PlaylistEntryMedia.o \
+	playlist/PlaylistEntryMQTT.o \
+	playlist/PlaylistEntryPause.o \
+	playlist/PlaylistEntryPixelOverlay.o \
+	playlist/PlaylistEntryPlaylist.o \
+	playlist/PlaylistEntryPlugin.o \
+	playlist/PlaylistEntryRemap.o \
+	playlist/PlaylistEntryScript.o \
+	playlist/PlaylistEntrySequence.o \
+	playlist/PlaylistEntryURL.o \
+	playlist/PlaylistEntryVolume.o \
 	Plugins.o \
 	Scheduler.o \
 	ScheduleEntry.o \
@@ -93,6 +114,7 @@ LIBS_fppd = \
 	-lpthread \
 	-ljsoncpp \
 	-lm \
+	-lmosquitto \
 	-lutil \
 	-ltag \
 	$(NULL)
@@ -107,12 +129,21 @@ ifeq '$(ARCH)' ''
 endif
 $(shell echo "Building FPP on '$(ARCH)' platform" 1>&2)
 
+HTTPFLAGS := $(shell pkg-config --cflags --libs libhttpserver 2> /dev/null)
+ifneq '$(HTTPFLAGS)' ''
+    CFLAGS += -DUSEHTTPAPI
+    LDFLAGS_fppd += $(HTTPFLAGS) -lhttpserver
+    OBJECTS_fppd += httpAPI.o
+endif
+
 OLAFLAGS := $(shell pkg-config --cflags --libs libola 2> /dev/null)
 ifneq '$(OLAFLAGS)' ''
 	CFLAGS += -DUSEOLA
 	LDFLAGS_fppd += $(OLAFLAGS)
 	OBJECTS_fppd += channeloutput/OLAOutput.o
 endif
+
+CURLFLAGS := $(shell curl-config --libs)
 
 # Common CFLAGS
 CFLAGS += \
@@ -122,7 +153,7 @@ CFLAGS += \
 	$(NULL)
 
 
-LDFLAGS_fppd += \
+LDFLAGS_fppd += $(CURLFLAGS) \
 	$(NULL)
 
 DEPS_fppd += \
@@ -221,14 +252,22 @@ OBJECTS_fppd += \
 	$(NULL)
 else ifeq '$(ARCH)' 'BeagleBone Black'
 # BeagleBone Black
+CXXFLAGS += -std=gnu++14
 BINDIR = ../bin.bbb
 CFLAGS += \
+    -DNOROOT \
 	-DPLATFORM_BBB \
+    -DHAS_SDL \
 	-I../external/LEDscape/src/ledscape/ \
 	$(NULL)
 LIBS_fppd += \
 	-lledscape \
 	-lprussdrv \
+    -lSDL2 \
+    -lavformat \
+    -lavcodec \
+    -lavutil \
+    -lswresample \
 	$(NULL)
 LDFLAGS_fppd += \
 	-L../external/LEDscape/lib/ \
@@ -238,11 +277,12 @@ OBJECTS_fppd += \
 	channeloutput/LEDscapeMatrix.o \
 	channeloutput/BBB48String.o \
 	channeloutput/BBBSerial.o \
+    channeloutput/BBBUtils.o \
+    mediaoutput/SDLOut.o \
 	$(NULL)
 DEPS_fppd += \
 	../external/LEDscape/lib/libledscape.a \
 	$(NULL)
-SUBDIRS += pru
 SUBMODULES += \
 	external/LEDscape \
 	$(NULL)
@@ -291,7 +331,13 @@ gitsubmodules:
 
 force:
 
-release: $(TARGETS)
+debug: CFLAGS+=-g
+debug: $(TARGETS)
+
+optimized: CFLAGS+=-O1
+optimized: $(TARGETS)
+
+release: optimized
 	strip fpp
 	-$(INSTALL_PROGRAM) fpp $(BINDIR)/fpp
 	strip fppmm
@@ -315,7 +361,7 @@ fppversion.c: fppversion.sh force
 	@sh fppversion.sh $(PWD)
 
 %.o: %.cpp %.h Makefile
-	$(CCACHE) $(CC) $(CFLAGS) -c $< -o $@
+	$(CCACHE) $(CC) $(CFLAGS) $(CXXFLAGS) -c $< -o $@
 
 %.o: %.c %.h Makefile
 	$(CCACHE) $(CC) $(CFLAGS) -c $< -o $@
@@ -395,9 +441,10 @@ restart: fppd
 		gcc -c -o rpihw.o rpihw.c && \
 		gcc -c -o mailbox.o mailbox.c && \
 		gcc -c -o dma.o dma.c && \
+		gcc -c -o pcm.o pcm.c && \
 		gcc -c -o pwm.o pwm.c && \
 		gcc -c -o ws2811.o ws2811.c && \
-		ar rcs libws2811.a rpihw.o mailbox.o dma.o pwm.o ws2811.o
+		ar rcs libws2811.a rpihw.o mailbox.o dma.o pwm.o pcm.o ws2811.o
 
 #############################################################################
 # LEDscape library and PRU code on the BBB
@@ -406,8 +453,8 @@ restart: fppd
 		git submodule init && \
 		git submodule update
 
-../external/LEDscape/lib/libledscape.a: ../external/LEDscape/.git
+../external/LEDscape/lib/libledscape.a: ../external/LEDscape/.git  ../external/LEDscape/src/ledscape/ledscape.c ../external/LEDscape/src/ledscape/ledscape.h
 	@echo "Building LEDscape library"
-	@cd ../external/LEDscape/ && git checkout master && git pull
-	@make -C ../external/LEDscape
+	@make -C ../external/LEDscape/src/ledscape
+
 

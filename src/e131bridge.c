@@ -34,14 +34,20 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <fstream>
+#include <sstream>
+#include <string>
+
+#include <jsoncpp/json/json.h>
+
 #include "channeloutput.h"
 #include "channeloutputthread.h"
 #include "common.h"
-#include "E131.h"
 #include "e131bridge.h"
 #include "log.h"
 #include "PixelOverlay.h"
 #include "Sequence.h"
+#include "settings.h"
 #include "command.h"
 #include "Universe.h"
 
@@ -51,18 +57,115 @@ struct sockaddr_in addr;
 socklen_t addrlen;
 int bridgeSock = -1;
 
-unsigned int   UniverseCache[65536];
-unsigned char  rawBridgeBuffer[10000] __attribute__ ((aligned (__BIGGEST_ALIGNMENT__)));
-unsigned char *bridgeBuffer       = rawBridgeBuffer + 2;
-unsigned char *bridgeHighUniverse = rawBridgeBuffer + 2 + E131_UNIVERSE_INDEX;
-unsigned char *bridgeLowUniverse  = rawBridgeBuffer + 2 + E131_UNIVERSE_INDEX + 1;
 
-extern UniverseEntry universes[MAX_UNIVERSE_COUNT];
-extern int UniverseCount;
+#define MAX_MSG 48
+//DMX packet is under 700 bytes
+#define BUFSIZE 700
+struct mmsghdr msgs[MAX_MSG];
+struct iovec iovecs[MAX_MSG];
+unsigned char buffers[MAX_MSG][BUFSIZE+1];
+
+unsigned int   UniverseCache[65536];
+
+
+UniverseEntry InputUniverses[MAX_UNIVERSE_COUNT];
+int InputUniverseCount;
 
 // prototypes for functions below
 void Bridge_StoreData(int universe, char *bridgeBuffer);
 int Bridge_GetIndexFromUniverseNumber(int universe);
+void InputUniversesPrint();
+
+
+/*
+ *
+ */
+void LoadInputUniversesFromFile(void)
+{
+	FILE *fp;
+	char buf[512];
+	char *s;
+	InputUniverseCount=0;
+	char active =0;
+	char filename[1024];
+
+	strcpy(filename, getMediaDirectory());
+	strcat(filename, "/config/ci-universes.json");
+
+	LogDebug(VB_CHANNELOUT, "Opening File Now %s\n", filename);
+
+	if (!FileExists(filename))
+	{
+		LogErr(VB_CHANNELOUT, "Universe file %s does not exist\n",
+			filename);
+		return;
+	}
+
+	Json::Value root;
+    Json::Reader reader;
+	std::ifstream t(filename);
+	std::stringstream buffer;
+
+	buffer << t.rdbuf();
+
+	std::string config = buffer.str();
+
+	bool success = reader.parse(buffer.str(), root);
+	if (!success)
+	{
+		LogErr(VB_CHANNELOUT, "Error parsing %s\n", filename);
+		return;
+	}
+
+	Json::Value outputs = root["channelInputs"];
+
+	std::string type;
+	int start = 0;
+	int count = 0;
+
+	for (int c = 0; c < outputs.size(); c++)
+	{
+		if (outputs[c]["type"].asString() != "universes")
+			continue;
+
+		if (outputs[c]["enabled"].asInt() == 0)
+			continue;
+
+		Json::Value univs = outputs[c]["universes"];
+
+		for (int i = 0; i < univs.size(); i++)
+		{
+			Json::Value u = univs[i];
+
+			if(u["active"].asInt())
+			{
+				InputUniverses[InputUniverseCount].active = u["active"].asInt();
+				InputUniverses[InputUniverseCount].universe = u["id"].asInt();
+				InputUniverses[InputUniverseCount].startAddress = u["startChannel"].asInt() - 1;
+				InputUniverses[InputUniverseCount].size = u["channelCount"].asInt();
+				InputUniverses[InputUniverseCount].type = u["type"].asInt();
+
+				switch (InputUniverses[InputUniverseCount].type) {
+					case 0: // Multicast
+							strcpy(InputUniverses[InputUniverseCount].unicastAddress,"\0");
+							break;
+					case 1: //UnicastAddress
+							strcpy(InputUniverses[InputUniverseCount].unicastAddress,
+								u["address"].asString().c_str());
+							break;
+					default: // ArtNet
+							continue;
+				}
+	
+				InputUniverses[InputUniverseCount].priority = u["priority"].asInt();
+
+			    InputUniverseCount++;
+			}
+		}
+	}
+
+	InputUniversesPrint();
+}
 
 /*
  * Read data waiting for us
@@ -73,26 +176,36 @@ void Bridge_ReceiveData(void)
 
 	int universe;
 
-	int cnt = recvfrom(bridgeSock, bridgeBuffer, sizeof(rawBridgeBuffer)-2, 0, (struct sockaddr *) &addr, &addrlen);
-	if (cnt >= 0) 
-	{
-//		universe = ((int)bridgeBuffer[E131_UNIVERSE_INDEX] >> 8) + bridgeBuffer[E131_UNIVERSE_INDEX+1];
-		universe = ((int)*bridgeHighUniverse << 8) + *bridgeLowUniverse;
-		Bridge_StoreData(universe, (char*)bridgeBuffer);
-	} 
+    int msgcnt = recvmmsg(bridgeSock, msgs, MAX_MSG, 0, nullptr);
+    while (msgcnt > 0) {
+        for (int x = 0; x < msgcnt; x++) {
+            universe = ((int)buffers[x][E131_UNIVERSE_INDEX] << 8) + buffers[x][E131_UNIVERSE_INDEX + 1];
+            Bridge_StoreData(universe, (char*)buffers[x]);
+        }
+        msgcnt = recvmmsg(bridgeSock, msgs, MAX_MSG, 0, nullptr);
+    }
 }
 
 int Bridge_Initialize(void)
 {
 	LogExcess(VB_E131BRIDGE, "Bridge_Initialize()\n");
 
+    // prepare the msg receive buffers
+    memset(msgs, 0, sizeof(msgs));
+    for (int i = 0; i < MAX_MSG; i++) {
+        iovecs[i].iov_base         = buffers[i];
+        iovecs[i].iov_len          = BUFSIZE;
+        msgs[i].msg_hdr.msg_iov    = &iovecs[i];
+        msgs[i].msg_hdr.msg_iovlen = 1;
+    }
+    
 	/* Initialize our Universe Index lookup cache */
 	for (int i = 0; i < 65536; i++)
 		UniverseCache[i] = BRIDGE_INVALID_UNIVERSE_INDEX;
 
-	LoadUniversesFromFile();
-	LogInfo(VB_E131BRIDGE, "Universe Count = %d\n",UniverseCount);
-	UniversesPrint();
+	LoadInputUniversesFromFile();
+	LogInfo(VB_E131BRIDGE, "Universe Count = %d\n",InputUniverseCount);
+	InputUniversesPrint();
 
 	int            UniverseOctet[2];
 	int            i;
@@ -108,7 +221,7 @@ int Bridge_Initialize(void)
 	i = socket(AF_INET, SOCK_DGRAM, 0);
 
 	/* set up socket */
-	bridgeSock = socket(AF_INET, SOCK_DGRAM, 0);
+	bridgeSock = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
 	if (bridgeSock < 0) {
 		LogDebug(VB_E131BRIDGE, "e131bridge socket failed: %s", strerror(errno));
 		exit(1);
@@ -131,12 +244,12 @@ int Bridge_Initialize(void)
 
 	char address[16];
 	// Join the multicast groups
-	for(i=0;i<UniverseCount;i++)
+	for(i=0;i<InputUniverseCount;i++)
 	{
-		if(universes[i].type == E131_TYPE_MULTICAST)
+		if(InputUniverses[i].type == E131_TYPE_MULTICAST)
 		{
-			UniverseOctet[0] = universes[i].universe/256;
-			UniverseOctet[1] = universes[i].universe%256;
+			UniverseOctet[0] = InputUniverses[i].universe/256;
+			UniverseOctet[1] = InputUniverses[i].universe%256;
 			sprintf(strMulticastGroup, "239.255.%d.%d", UniverseOctet[0],UniverseOctet[1]);
 			mreq.imr_multiaddr.s_addr = inet_addr(strMulticastGroup);
 
@@ -201,10 +314,10 @@ void Bridge_StoreData(int universe, char *bridgeBuffer)
 	int universeIndex = Bridge_GetIndexFromUniverseNumber(universe);
 	if(universeIndex!=BRIDGE_INVALID_UNIVERSE_INDEX)
 	{
-		memcpy((void*)(sequence->m_seqData+universes[universeIndex].startAddress-1),
+		memcpy((void*)(sequence->m_seqData+InputUniverses[universeIndex].startAddress-1),
 			   (void*)(bridgeBuffer+E131_HEADER_LENGTH),
-			   universes[universeIndex].size);
-		universes[universeIndex].bytesReceived+=universes[universeIndex].size;
+			   InputUniverses[universeIndex].size);
+		InputUniverses[universeIndex].bytesReceived+=InputUniverses[universeIndex].size;
 	}
 }
 
@@ -216,9 +329,9 @@ inline int Bridge_GetIndexFromUniverseNumber(int universe)
 	if (UniverseCache[universe] != BRIDGE_INVALID_UNIVERSE_INDEX)
 		return UniverseCache[universe];
 
-	for(index=0;index<UniverseCount;index++)
+	for(index=0;index<InputUniverseCount;index++)
 	{
-		if(universe == universes[index].universe)
+		if(universe == InputUniverses[index].universe)
 		{
 			val = index;
 			UniverseCache[universe] = index;
@@ -227,5 +340,52 @@ inline int Bridge_GetIndexFromUniverseNumber(int universe)
 	}
 
 	return val;
+}
+
+
+void ResetBytesReceived()
+{
+	int i;
+
+	for(i=0;i<InputUniverseCount;i++)
+	{
+		InputUniverses[i].bytesReceived = 0;
+	}
+}
+
+void WriteBytesReceivedFile()
+{
+	int i;
+	FILE *file;
+	file = fopen((const char *)getBytesFile(), "w");
+	for(i=0;i<InputUniverseCount;i++)
+	{
+		if(i==InputUniverseCount-1)
+		{
+			fprintf(file, "%d,%d,%d,",InputUniverses[i].universe,InputUniverses[i].startAddress,InputUniverses[i].bytesReceived);
+		}
+		else
+		{
+			fprintf(file, "%d,%d,%d,\n",InputUniverses[i].universe,InputUniverses[i].startAddress,InputUniverses[i].bytesReceived);
+		}
+	}
+	fclose(file);
+}
+
+void InputUniversesPrint()
+{
+	int i=0;
+	int h;
+
+	for(i=0;i<InputUniverseCount;i++)
+	{
+		LogDebug(VB_CHANNELOUT, "E1.31 Universe: %d:%d:%d:%d:%d  %s\n",
+				  InputUniverses[i].active,
+				  InputUniverses[i].universe,
+				  InputUniverses[i].startAddress,
+				  InputUniverses[i].size,
+				  InputUniverses[i].type,
+				  InputUniverses[i].unicastAddress);
+	}
 }
 

@@ -170,6 +170,8 @@ else if ($settings['Platform'] == "BeagleBone Black")
 	$settings['Logo'] = "beagle_logo.png";
 	$settings['LogoLink'] = "http://beagleboard.org/";
 	$settings['fppBinDir'] = '/opt/fpp/bin.bbb';
+	$settings['BBB_Tethering'] = "1";
+	$settings['SubPlatform'] = trim(file_get_contents("/proc/device-tree/model"));
 }
 else if ($settings['Platform'] == "PogoPlug")
 {
@@ -352,19 +354,25 @@ if ($settings['HostName'] == "FPP")
 
 $settings['fppMode'] = $fppMode;
 $settings['fppDir'] = $fppDir;
+$settings['playlistDirectory'] = $playlistDirectory;
 $settings['pluginDirectory'] = $pluginDirectory;
 $settings['mediaDirectory'] = $mediaDirectory;
 $settings['configDirectory'] = $mediaDirectory . "/config";
 $settings['channelOutputsFile'] = $mediaDirectory . "/channeloutputs";
 $settings['channelOutputsJSON'] = $mediaDirectory . "/config/channeloutputs.json";
+$settings['pixelStringOutputs'] = $mediaDirectory . "/config/co-pixelStrings.json";
+$settings['universeOutputs'] = $mediaDirectory . "/config/co-universes.json";
+$settings['universeInputs'] = $mediaDirectory . "/config/ci-universes.json";
 $settings['channelMemoryMapsFile'] = $mediaDirectory . "/channelmemorymaps";
 $settings['scriptDirectory'] = $scriptDirectory;
 $settings['sequenceDirectory'] = $sequenceDirectory;
 $settings['musicDirectory'] = $musicDirectory;
 $settings['videoDirectory'] = $videoDirectory;
 $settings['effectDirectory'] = $effectDirectory;
+$settings['eventDirectory'] = $eventDirectory;
 $settings['logDirectory'] = $logDirectory;
 $settings['uploadDirectory'] = $uploadDirectory;
+$settings['playlistDirectory'] = $playlistDirectory;
 $settings['pluginDirectory'] = $pluginDirectory;
 $settings['docsDirectory'] = $docsDirectory;
 $settings['fppRfsVersion'] = $fppRfsVersion;

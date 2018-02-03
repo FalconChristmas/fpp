@@ -1,0 +1,134 @@
+#ifndef __pocketscoller_v1_h__
+#define __pocketscoller_v1_h__
+
+
+#define r11_gpio 1
+#define r11_pin 20
+#define g11_gpio 1
+#define g11_pin 28
+#define b11_gpio 1
+#define b11_pin 25
+
+#define r12_gpio 1
+#define r12_pin 26
+#define g12_gpio 1
+#define g12_pin 27
+#define b12_gpio 1
+#define b12_pin 18
+
+#define r21_gpio 1
+#define r21_pin  8
+#define g21_gpio 1
+#define g21_pin  9
+#define b21_gpio 0
+#define b21_pin  30
+
+#define r22_gpio 1
+#define r22_pin  12
+#define g22_gpio 1
+#define g22_pin  14
+#define b22_gpio 1
+#define b22_pin  15
+
+#define r31_gpio 2
+#define r31_pin  0
+#define g31_gpio 2
+#define g31_pin  1
+#define b31_gpio 1
+#define b31_pin  13
+
+#define r32_gpio 2
+#define r32_pin  22
+#define g32_gpio 2
+#define g32_pin  23
+#define b32_gpio 2
+#define b32_pin  25
+
+#define r41_gpio 0
+#define r41_pin  23
+#define g41_gpio 0
+#define g41_pin  4
+#define b41_gpio 0
+#define b41_pin  3
+
+#define r42_gpio 0
+#define r42_pin  2
+#define g42_gpio 0
+#define g42_pin  5
+#define b42_gpio 0
+#define b42_pin  20
+
+#define r51_gpio 2
+#define r51_pin  24
+#define g51_gpio 1
+#define g51_pin  10
+#define b51_gpio 0
+#define b51_pin  26
+
+#define r52_gpio 0
+#define r52_pin  13
+#define g52_gpio 0
+#define g52_pin  12
+#define b52_gpio 1
+#define b52_pin  11
+
+#define r61_gpio 0
+#define r61_pin  31
+#define g61_gpio 0
+#define g61_pin  15
+#define b61_gpio 0
+#define b61_pin  14
+
+#define r62_gpio 0
+#define r62_pin  27
+#define g62_gpio 0
+#define g62_pin  7
+#define b62_gpio 0
+#define b62_pin  19
+
+
+// Control pins are all in GPIO3
+#define gpio_sel0 16 /* must be sequential with sel1 and sel2 */
+#define gpio_sel1 17
+#define gpio_sel2 18
+#define gpio_sel3 19
+
+
+
+#define GPIO_SEL_MASK (0\
+|(1<<gpio_sel0)\
+|(1<<gpio_sel1)\
+|(1<<gpio_sel2)\
+|(1<<gpio_sel3)\
+)
+
+// if using GPIO3 for these
+#define gpio_latch 14
+#define gpio_oe    21
+#define gpio_clock 15
+
+
+#define NEED_CLOCK_LO
+#define NEED_LATCH_LO
+
+.macro ADJUST_SETTINGS
+    MOV gpio_base_cache, GPIO3
+.endm
+
+
+.macro OUTPUT_GPIOS
+.mparam d0, d1, d2, d3
+    OUTPUT_GPIO d1, gpio1_led_mask, GPIO1
+    #if OUTPUTS > 1
+      // output 2 is the first to use GPIO0
+      OUTPUT_GPIO d0, gpio0_led_mask, GPIO0
+    #endif
+    #if OUTPUTS > 2
+        // output 3 is the first to use GPIO2
+        OUTPUT_GPIO d2, gpio2_led_mask, GPIO2
+    #endif
+.endm
+
+
+#endif
+

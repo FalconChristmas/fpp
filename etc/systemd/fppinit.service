@@ -1,0 +1,15 @@
+[Unit]
+Description=Inialization routines for FPP
+After=home-fpp-media.mount
+Before=connman.target network.target multi-user.target apache2.target
+Wants=network-pre.target home-fpp-media.mount
+DefaultDependencies=no
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/opt/fpp/scripts/fpp_init start
+
+
+[Install]
+WantedBy=network.target multi-user.target
