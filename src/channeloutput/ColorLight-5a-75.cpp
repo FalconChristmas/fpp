@@ -237,7 +237,7 @@ int ColorLight5a75Output::Init(Json::Value config)
 	memset(m_buffer_0101, 0, m_buffer_0101_len);
 	SetHostMACs(m_buffer_0101);
 	m_eh = (struct ether_header *)m_buffer_0101;
-	m_eh->ether_type = htons(0x0101);
+	m_eh->ether_type = htons(0x0104);
 
 	////////////////////////////
 	// Setup 0x0AFF packet data
