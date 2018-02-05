@@ -1,0 +1,60 @@
+
+#ifndef __octoscoller_common__
+#define __octoscoller_common__
+
+#ifdef gpio_clock
+.macro CLOCK_HI
+    MOV out_set, 1 << gpio_clock
+    SBBO out_set, gpio_base_cache, GPIO_SETDATAOUT, 4
+.endm
+
+.macro CLOCK_LO
+    // we normally can lower the clock line at the same time as outputing the
+    // gpio data so this doesn't need to be implemented
+
+    //MOV out_clr, 1 << gpio_clock
+    //SBBO out_clr, gpio_base_cache, GPIO_CLRDATAOUT, 4
+.endm
+#endif
+
+#ifdef gpio_latch
+.macro LATCH_HI
+    MOV out_set, 1 << gpio_latch
+    SBBO out_set, gpio_base_cache, GPIO_SETDATAOUT, 4
+.endm
+
+.macro LATCH_LO
+    // we can lower the latch line at the same time as outputing the
+    // gpio data so this doesn't need to be implemented
+
+   //MOV out_clr, 1 << gpio_latch
+   //SBBO out_clr, gpio_base_cache, GPIO_CLRDATAOUT, 4
+.endm
+#endif
+
+#ifdef gpio_oe
+.macro DISPLAY_OFF
+    MOV out_set, 1 << gpio_oe
+    SBBO out_set, gpio_base_cache, GPIO_SETDATAOUT, 4
+.endm
+
+.macro DISPLAY_ON
+    MOV out_clr, 1 << gpio_oe
+    SBBO out_clr, gpio_base_cache, GPIO_CLRDATAOUT, 4
+.endm
+#endif
+
+
+
+.macro OUTPUT_ROW_ADDRESS
+    // set address; select pins in gpio1 are sequential
+    // xor with the select bit mask to set which ones should
+    LSL out_set, row, gpio_sel0
+    MOV out_clr, GPIO_SEL_MASK
+    AND out_set, out_set, out_clr // ensure no extra bits
+    XOR out_clr, out_clr, out_set // complement the bits into clr
+    SBBO out_clr, gpio_base_cache, GPIO_CLRDATAOUT, 8 // set both
+.endm
+
+
+#endif

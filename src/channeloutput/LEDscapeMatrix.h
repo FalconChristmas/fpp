@@ -45,6 +45,12 @@ class LEDscapeMatrixOutput : public ChannelOutputBase {
     
     
   public:
+    enum ScollerPinout {
+        V1 = 1,
+        V2,
+        POCKETSCROLLERv1
+    };
+
 	LEDscapeMatrixOutput(unsigned int startChannel, unsigned int channelCount);
 	~LEDscapeMatrixOutput();
 
@@ -63,6 +69,7 @@ class LEDscapeMatrixOutput : public ChannelOutputBase {
 	ledscape_t         *m_leds;
 
     ColorOrder          m_colorOrder;
+    ScollerPinout       m_pinout;
 
 	int                 m_dataSize;
 	uint8_t            *m_data;

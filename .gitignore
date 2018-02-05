@@ -27,3 +27,4 @@ external/rasclock/.rtc-pcf2127a.*
 external/rasclock/.tmp_versions/*
 plugins/
 .idea/
+._*
