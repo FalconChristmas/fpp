@@ -19,7 +19,7 @@
 #define OUTPUTS 8
 #endif
 
-#define RUNNING_ON_PRU1
+#define RUNNING_ON_PRU0
 
 
 #define CAT3(X,Y,Z) X##Y##Z
@@ -41,6 +41,7 @@
 /** Offsets for the clear and set registers in the devices.
  * Since the offsets can only be 0xFF, we deliberately add offsets
  */
+#define GPIO_DATAOUT    (0x13C - 0x100)
 #define GPIO_CLRDATAOUT (0x190 - 0x100)
 #define GPIO_SETDATAOUT (0x194 - 0x100)
 
@@ -120,71 +121,17 @@
 
 #if defined OCTO_V1
 #include "OctoscrollerV1.hp"
+#include "OctoscrollerCommon.hp"
 #elif defined OCTO_V2
 #include "OctoscrollerV2.hp"
+#include "OctoscrollerCommon.hp"
 #elif defined POCKETSCROLLER_V1
 #include "PocketScrollerV1.hp"
 #else
 #include "OctoscrollerV1.hp"
+#include "OctoscrollerCommon.hp"
 #endif
 
-#ifdef gpio_clock
-.macro CLOCK_HI
-    MOV out_set, 1 << gpio_clock
-    SBBO out_set, gpio_base_cache, GPIO_SETDATAOUT, 4
-.endm
-
-.macro CLOCK_LO
-    // we normally can lower the clock line at the same time as outputing the
-    // gpio data so this doesn't need to be implemented, however, the PocketBeagle
-    // has issues as this occurs to quick so we need to do it independently
-
-#ifdef NEED_CLOCK_LO
-    MOV out_clr, 1 << gpio_clock
-    SBBO out_clr, gpio_base_cache, GPIO_CLRDATAOUT, 4
-#endif
-.endm
-#endif
-
-#ifdef gpio_latch
-.macro LATCH_HI
-    MOV out_set, 1 << gpio_latch
-    SBBO out_set, gpio_base_cache, GPIO_SETDATAOUT, 4
-.endm
-
-.macro LATCH_LO
-    // we can lower the latch line at the same time as outputing the
-    // gpio data so this doesn't need to be implemented
-#ifdef NEED_LATCH_LO 
-   MOV out_clr, 1 << gpio_latch
-   SBBO out_clr, gpio_base_cache, GPIO_CLRDATAOUT, 4
-#endif
-.endm
-#endif
-
-#ifdef gpio_oe
-.macro DISPLAY_OFF
-    MOV out_set, 1 << gpio_oe
-    SBBO out_set, gpio_base_cache, GPIO_SETDATAOUT, 4
-.endm
-
-.macro DISPLAY_ON
-    MOV out_clr, 1 << gpio_oe
-    SBBO out_clr, gpio_base_cache, GPIO_CLRDATAOUT, 4
-.endm
-#endif
-
-
-
-.macro OUTPUT_ROW_ADDRESS
-    // set address; select pins in gpio1 are sequential
-    // xor with the select bit mask to set which ones should
-    LSL out_set, row, gpio_sel0
-    MOV out_clr, GPIO_SEL_MASK
-    AND out_set, out_set, out_clr // ensure no extra bits
-    XOR out_clr, out_clr, out_set // complement the bits into clr
-    SBBO out_clr, gpio_base_cache, GPIO_CLRDATAOUT, 8 // set both
-.endm
 
 
 #define GPIO_MASK(X) CAT3(gpio,X,_led_mask)
@@ -389,10 +336,10 @@ NEW_ROW_LOOP:
 			// consecutive registers, starting at pixel_data.
             LBBO pixel_data, data_addr, offset, 3*2*OUTPUTS
 
-            CHECK_FOR_DISPLAY_OFF
 
             LDI bit, 0
             BIT_LOOP:
+                CHECK_FOR_DISPLAY_OFF
                 ZERO &gpio0_set, 16
 
                 CLOCK_LO
@@ -473,8 +420,9 @@ NEW_ROW_LOOP:
             OUTPUT_ROW_ADDRESS
         NO_SET_ROW:
 
-		// Full data has been clocked out; latch it
-		LATCH_HI
+	// Full data has been clocked out; latch it
+	LATCH_HI
+
 
         RESET_PRU_CLOCK gpio2_set, gpio3_set
         QBEQ NO_EXTRA_DELAY, gpio1_set, 0

@@ -188,11 +188,11 @@
 
 .macro OUTPUT_GPIOS
 .mparam d0, d1, d2, d3
-    OUTPUT_GPIO_WITH_BASE_REG d2, gpio2_led_mask, gpio_base_cache
     #if OUTPUTS > 1
         // output 2 is the first to use GPIO0
         OUTPUT_GPIO d0, gpio0_led_mask, GPIO0
     #endif
+    OUTPUT_GPIO_WITH_BASE_REG d2, gpio2_led_mask, gpio_base_cache
     #if OUTPUTS > 5
         // output 6 is the first to use GPIO1
         OUTPUT_GPIO d1, gpio1_led_mask, GPIO1

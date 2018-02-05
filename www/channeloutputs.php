@@ -2412,10 +2412,17 @@ function LEDPannelsConnectionChanged()
 		$('#LEDPanelsSourceMac').hide();
 
 <?
-if ($settings['Platform'] == "BeagleBone Black")
-	echo "		LEDPanelOutputs = 8;\n";
-else
+if ($settings['Platform'] == "BeagleBone Black") {
+    if (strpos($settings['SubPlatform'], 'Green Wireless') !== FALSE) {
+        echo "        LEDPanelOutputs = 5;\n";
+    } else if (strpos($settings['SubPlatform'], 'PocketBeagle') !== FALSE) {
+        echo "        LEDPanelOutputs = 6;\n";
+    } else {
+        echo "        LEDPanelOutputs = 8;\n";
+    }
+} else {
 	echo "		LEDPanelOutputs = 3;\n";
+}
 ?>
 	}
 

@@ -36,14 +36,10 @@
 #include "log.h"
 #include "LEDscapeMatrix.h"
 #include "settings.h"
+#include "BBBUtils.h"
 
 /////////////////////////////////////////////////////////////////////////////
 
-enum ScollerPinout {
-    V1 = 1,
-    V2,
-    POCKETSCROLLERv1
-};
 
 /*
  *
@@ -56,7 +52,8 @@ LEDscapeMatrixOutput::LEDscapeMatrixOutput(unsigned int startChannel,
 	m_colorOrder(RGB),
 	m_dataSize(0),
 	m_data(NULL),
-	m_invertedData(0)
+	m_invertedData(0),
+        m_pinout(V1)
 {
 	LogDebug(VB_CHANNELOUT, "LEDscapeMatrixOutput::LEDscapeMatrixOutput(%u, %u)\n",
 		startChannel, channelCount);
@@ -91,14 +88,32 @@ static void compilePRUMatrixCode(std::vector<std::string> &sargs) {
     }
 }
 
+static void configurePSPins() {
+    configBBBPin("P1_29", 3, 21, "pruout");  //OE
+    configBBBPin("P1_36", 3, 14, "pruout");  //LATCH
+    configBBBPin("P1_33", 3, 15, "gpio");  //CLOCK
 
+    configBBBPin("P2_32", 3, 16, "pruout");  //SEL0
+    configBBBPin("P2_30", 3, 17, "pruout");  //SEL1
+    configBBBPin("P1_31", 3, 18, "pruout");  //SEL2
+    configBBBPin("P2_34", 3, 19, "pruout");  //SEL3
+}
+static void resetPSPins() {
+    configBBBPin("P1_29", 3, 21, "gpio");  //OE
+    configBBBPin("P1_36", 3, 14, "gpio");  //LATCH
+    configBBBPin("P1_33", 3, 15, "gpio");  //CLOCK
+    configBBBPin("P2_32", 3, 16, "gpio");  //SEL0
+    configBBBPin("P2_30", 3, 17, "gpio");  //SEL1
+    configBBBPin("P1_31", 3, 18, "gpio");  //SEL2
+    configBBBPin("P2_34", 3, 19, "gpio");  //SEL3
+}
 static void calcBrightness(ledscape_t *leds, int brightness, int maxPanel, int maxOutput, int rowsPerOutput,
-                           int panelHeight, int panelWidth, ScollerPinout ver) {
+                           int panelHeight, int panelWidth, LEDscapeMatrixOutput::ScollerPinout ver) {
     LogDebug(VB_CHANNELOUT, "Calc Brightness:   maxPanel:  %d    maxOutput: %d     Brightness: %d    rpo: %d    ph:  %d    pw:  %d\n", maxPanel, maxOutput, brightness, rowsPerOutput, panelHeight, panelWidth);
     
     
-    uint32_t max = (maxOutput < 4) ? 0xB00 : 0xD00;
-    if (ver == V1) {
+    uint32_t max = 0xB00;
+    if (ver == LEDscapeMatrixOutput::V1) {
         if (maxOutput == 1) {
             max = 0x500;
         } else if (maxOutput < 4) {
@@ -108,17 +123,21 @@ static void calcBrightness(ledscape_t *leds, int brightness, int maxPanel, int m
         } else {
             max = 0xD00;
         }
+    } else if (ver == LEDscapeMatrixOutput::V2) {
+        max = (maxOutput < 4) ? 0xB00 : 0xD00;
+    } else if (ver == LEDscapeMatrixOutput::POCKETSCROLLERv1) {
+        max = 0xB00;
     }
     max *= maxPanel;
     max *= panelWidth;
     max /= 32;
     max += maxOutput * 0x200;
-    if (ver == V1) {
+    if (ver == LEDscapeMatrixOutput::V1) {
         if (maxOutput > 3) {
             //jumping above output 3 adds increased delay
             max += 0x300;
         }
-    } else if (ver == V2 || ver == POCKETSCROLLERv1) {
+    } else if (ver == LEDscapeMatrixOutput::V2) {
         if (maxOutput > 1) {
             //jumping above output 1 adds increased delay
             max += 0x300;
@@ -129,6 +148,18 @@ static void calcBrightness(ledscape_t *leds, int brightness, int maxPanel, int m
         }
         if (maxOutput > 5) {
             //jumping above output 3 adds increased delay
+            max += 0x300;
+        }
+    } else if (ver == LEDscapeMatrixOutput::POCKETSCROLLERv1) {
+        if (maxOutput == 1) {
+            max /= 2;
+        }
+        if (maxOutput > 1) {
+            //jumping above output 1 adds increased delay
+            max += 0x300;
+        }
+        if (maxOutput > 2) {
+            //jumping above output 2 adds increased delay
             max += 0x300;
         }
     }
@@ -368,13 +399,14 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
     
     std::vector<std::string> compileArgs;
     
-    ScollerPinout ver = V1;
+    m_pinout = V1;
     if (config["wiringPinout"] == "v2") {
-        ver = V2;
+        m_pinout = V2;
         compileArgs.push_back("-DOCTO_V2");
     } else if (config["wiringPinout"] == "PocketScroller1x") {
-        ver = POCKETSCROLLERv1;
+        m_pinout = POCKETSCROLLERv1;
         compileArgs.push_back("-DPOCKETSCROLLER_V1");
+        configurePSPins();
     } else {
         compileArgs.push_back("-DOCTO_V1");
     }
@@ -393,7 +425,7 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
 
     LogDebug(VB_CHANNELOUT, "Using program %s with brightness %d\n", pru_program.c_str(), brightness);
 
-	m_leds = ledscape_matrix_init(m_config, 0, 1, pru_program.c_str());
+	m_leds = ledscape_matrix_init(m_config, 0, 0, pru_program.c_str());
 
     LogDebug(VB_CHANNELOUT, "   pru dram:  %X  %d       %X   %d      %d\n",
              m_leds->pru->data_ram, m_leds->pru->data_ram_size,
@@ -403,7 +435,7 @@ int LEDscapeMatrixOutput::Init(Json::Value config)
     m_leds->ws281x->statEnable = 0;
     calcBrightness(m_leds, brightness, maxPanel + 1, maxOutput + 1, lmconfig->rowsPerOutput,
                    lmconfig->panel_height, lmconfig->panel_width,
-                   ver);
+                   m_pinout);
     
     m_leds->ws281x->num_pixels = lmconfig->maxPanel * lmconfig->panel_width / 8;
     if ((lmconfig->rowsPerOutput * 4) ==  lmconfig->panel_height) {
@@ -456,6 +488,9 @@ int LEDscapeMatrixOutput::Close(void)
 
 	ledscape_close(m_leds);
 
+        if (m_pinout == POCKETSCROLLERv1) {
+            resetPSPins();
+        }
 	free(m_data);
 	m_data = NULL;
 
