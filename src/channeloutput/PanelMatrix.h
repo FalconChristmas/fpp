@@ -29,8 +29,8 @@
 #include <string>
 #include <vector>
 
-#define MAX_MATRIX_OUTPUTS    8
-#define MAX_PANELS_PER_OUTPUT 12
+#define MAX_MATRIX_OUTPUTS    12
+#define MAX_PANELS_PER_OUTPUT 16
 #define MAX_MATRIX_PANELS    (MAX_MATRIX_OUTPUTS * MAX_PANELS_PER_OUTPUT)
 
 typedef struct ledPanel {

@@ -28,13 +28,13 @@
  *   	- Data Length:     98
  *   	- Source MAC:      22:22:33:44:55:66
  *   	- Destination MAC: 11:22:33:44:55:66
- *   	- Ether Type:      0x0101
+ *   	- Ether Type:      0x0101 (have also seen 0x0100, 0x0104, 0x0107.
  *
- *   0x0AFF Packet: (send second)
+ *   0x0AFF Packet: (send second, but not at all in some captures)
  *   	- Data Length:     63
  *   	- Source MAC:      22:22:33:44:55:66
  *   	- Destination MAC: 11:22:33:44:55:66
- *   	- Ether Type:      0x0AFF
+ *   	- Ether Type:      0x0AFF 
  *   	- Data[0]:         0xFF
  *   	- Data[1]:         0xFF
  *   	- Data[2]:         0xFF
@@ -45,7 +45,7 @@
  *   	- Destination MAC: 11:22:33:44:55:66
  *   	- Ether Type:      0x5500
  *   	- Data[0]:         Row Number (0-255)
- *   	- Data[1]:         0x00
+ *   	- Data[1]:         0x00 (Possibly MSB of Row Number when > 256 rows)
  *   	- Data[2]:         0x00
  *   	- Data[3]:         0x00
  *   	- Data[4]:         0x80
@@ -290,13 +290,13 @@ int ColorLight5a75Output::Init(Json::Value config)
 	m_sock_addr.sll_halen = ETH_ALEN;
 	memcpy(m_sock_addr.sll_addr, m_eh->ether_dhost, 6);
 
-	m_data[0] = 0x00; // row #
-	m_data[1] = 0x00; // ??
-	m_data[2] = 0x00; // ??
-	m_data[3] = 0x01; // ??
-	m_data[4] = 0x00; // ??, mplayer code had 0x00 here
-	m_data[5] = 0x08; // ??
-	m_data[6] = 0x88; // ??
+	m_data[0] = 0x00; // row # LSB
+	m_data[1] = 0x00; // row # MSB??
+	m_data[2] = 0x00; // ?? 0x00
+	m_data[3] = 0x01; // ?? 0x01
+	m_data[4] = 0xC0; // ??,0xC0, mplayer code had 0x00, have seen 0x20 and 0x80
+	m_data[5] = 0x08; // ?? 0x08
+	m_data[6] = 0x88; // ?? 0x88
 
 	m_rowData = m_data + 7;
 

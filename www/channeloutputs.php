@@ -2138,7 +2138,7 @@ function GetBBBSerialConfig()
 
 <?
 $LEDPanelOutputs = 12;
-$LEDPanelPanelsPerOutput = 12;
+$LEDPanelPanelsPerOutput = 16;
 $LEDPanelRows = 1;
 $LEDPanelCols = 1;
 $LEDPanelWidth = 32;
@@ -2372,6 +2372,7 @@ function InitializeLEDPanels()
 			(channelOutputsLookup["LEDPanelMatrix"].subType == 'LinsnRv9'))
 		{
 			LEDPanelOutputs = 12;
+			LEDPanelPanelsPerOutput = 16;
 		}
 	}
 
