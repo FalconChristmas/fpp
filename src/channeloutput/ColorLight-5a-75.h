@@ -36,7 +36,7 @@
 #include "Matrix.h"
 #include "PanelMatrix.h"
 
-#define CL5A75_BUFFER_SIZE  1024
+#define CL5A75_BUFFER_SIZE  1536
 
 class ColorLight5a75Output : public ChannelOutputBase {
   public:
