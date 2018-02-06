@@ -43,15 +43,25 @@
  *      - Data Length:     (Row_Width * 3) + 7
  *   	- Source MAC:      22:22:33:44:55:66
  *   	- Destination MAC: 11:22:33:44:55:66
- *   	- Ether Type:      0x5500
- *   	- Data[0]:         Row Number (0-255)
- *   	- Data[1]:         0x00 (Possibly MSB of Row Number when > 256 rows)
- *   	- Data[2]:         0x00
- *   	- Data[3]:         0x00
- *   	- Data[4]:         0x80
- *   	- Data[5]:         0x08
- *   	- Data[6]:         0x80
+ *   	- Ether Type:      0x5500 + MSB of Row Number
+ *   	                     0x5500 for rows 0-255
+ *   	                     0x5501 for rows 256-511
+ *   	- Data[0]:         Row Number LSB
+ *   	- Data[1]:         MSB of pixel offset for this packet
+ *   	- Data[2]:         LSB of pixel offset for this packet
+ *   	- Data[3]:         MSB of pixel count in packet
+ *   	- Data[4]:         LSB of pixel count in packet
+ *   	- Data[5]:         0x08 - ?? unsure what this is
+ *   	- Data[6]:         0x80 - ?? unsure what this is
  *   	- Data[7-end]:     RGB order pixel data
+ *
+ *   Sample data packets seen in captures:
+ *           0  1  2  3  4  5  6
+ *     55 00 00 00 00 01 F1 00 00 (first 497 pixels on a 512 wide display)
+ *     55 00 00 01 F1 00 0F 00 00 (last 15 pixels on a 512 wide display)
+ *     55 00 00 00 00 01 20 08 88 (288 pixel wide display)
+ *     55 00 00 00 00 00 80 08 88 (128 pixel wide display)
+ *
  */
 
 #include <arpa/inet.h>
@@ -86,7 +96,6 @@ ColorLight5a75Output::ColorLight5a75Output(unsigned int startChannel, unsigned i
 	m_buffer_0AFF_len(0),
 	m_data(NULL),
 	m_rowSize(0),
-	m_pktSize(0),
 	m_panelWidth(0),
 	m_panelHeight(0),
 	m_panels(0),
@@ -237,7 +246,7 @@ int ColorLight5a75Output::Init(Json::Value config)
 	memset(m_buffer_0101, 0, m_buffer_0101_len);
 	SetHostMACs(m_buffer_0101);
 	m_eh = (struct ether_header *)m_buffer_0101;
-	m_eh->ether_type = htons(0x0104);
+	m_eh->ether_type = htons(0x0101);
 
 	////////////////////////////
 	// Setup 0x0AFF packet data
@@ -267,7 +276,6 @@ int ColorLight5a75Output::Init(Json::Value config)
 	SetHostMACs(m_buffer);
 
 	m_rowSize = m_longestChain * m_panelWidth * 3;
-	m_pktSize = sizeof(struct ether_header) + 7 + m_rowSize;
 
 
 	// Open our raw socket
@@ -289,14 +297,6 @@ int ColorLight5a75Output::Init(Json::Value config)
 	m_sock_addr.sll_ifindex = m_if_idx.ifr_ifindex;
 	m_sock_addr.sll_halen = ETH_ALEN;
 	memcpy(m_sock_addr.sll_addr, m_eh->ether_dhost, 6);
-
-	m_data[0] = 0x00; // row # LSB
-	m_data[1] = 0x00; // row # MSB??
-	m_data[2] = 0x00; // ?? 0x00
-	m_data[3] = 0x01; // ?? 0x01
-	m_data[4] = 0xC0; // ??,0xC0, mplayer code had 0x00, have seen 0x20 and 0x80
-	m_data[5] = 0x08; // ?? 0x08
-	m_data[6] = 0x88; // ?? 0x88
 
 	m_rowData = m_data + 7;
 
@@ -414,15 +414,56 @@ int ColorLight5a75Output::RawSendData(unsigned char *channelData)
 
 	char *rowPtr = (char *)m_outputFrame;
 	int row = 0;
+	int offset = 0;
+	int pixelOffset = 0;
+	int maxPixelsPerPacket = 497;
+	int maxBytesPerPacket = maxPixelsPerPacket * 3;
+	int bytesInPacket = 0;
+	int pixelsInPacket = 0;
+	int pktSize = 0;
 	for (row = 0; row < m_rows; row++)
 	{
-		m_data[0] = row;
-		memcpy(m_rowData, rowPtr, m_rowSize);
-
-		if (sendto(m_fd, m_buffer, m_pktSize, 0, (struct sockaddr*)&m_sock_addr, sizeof(struct sockaddr_ll)) < 0)
+		if (row < 256)
 		{
-			LogErr(VB_CHANNELOUT, "Error sending row data packet: %s\n", strerror(errno));
-			return 0;
+			m_eh->ether_type = htons(0x5500);
+			m_data[0] = row;
+		}
+		else
+		{
+			m_eh->ether_type = htons(0x5501);
+			m_data[0] = row % 256;
+		}
+
+		m_data[5] = 0x08; // ?? still not sure what this value is
+		m_data[6] = 0x80; // ?? still not sure what this value is
+
+		offset = 0;
+		while (offset < m_rowSize)
+		{
+			if ((offset + maxBytesPerPacket) > m_rowSize)
+				bytesInPacket = m_rowSize - offset;
+			else
+				bytesInPacket = maxBytesPerPacket;
+
+			memcpy(m_rowData, rowPtr + offset, bytesInPacket);
+
+			pixelOffset = offset / 3;
+			pixelsInPacket = bytesInPacket / 3;
+
+			m_data[1] = pixelOffset >> 8;      // Pixel Offset MSB
+			m_data[2] = pixelOffset & 0xFF;    // Pixel Offset LSB
+			m_data[3] = pixelsInPacket >> 8;   // Pixels In Packet MSB
+			m_data[4] = pixelsInPacket & 0xFF; // Pixels In Packet LSB
+
+			offset += bytesInPacket;
+
+			pktSize = sizeof(struct ether_header) + 7 + bytesInPacket;
+
+			if (sendto(m_fd, m_buffer, pktSize, 0, (struct sockaddr*)&m_sock_addr, sizeof(struct sockaddr_ll)) < 0)
+			{
+				LogErr(VB_CHANNELOUT, "Error sending row data packet: %s\n", strerror(errno));
+				return 0;
+			}
 		}
 
 		rowPtr += m_rowSize;
@@ -443,7 +484,6 @@ void ColorLight5a75Output::DumpConfig(void)
 	LogDebug(VB_CHANNELOUT, "    Rows           : %d\n", m_rows);
 	LogDebug(VB_CHANNELOUT, "    Row Size       : %d\n", m_rowSize);
 	LogDebug(VB_CHANNELOUT, "    m_fd           : %d\n", m_fd);
-	LogDebug(VB_CHANNELOUT, "    Data Pkt Size  : %d\n", m_pktSize);
 	LogDebug(VB_CHANNELOUT, "    Outputs        : %d\n", m_outputs);
 	LogDebug(VB_CHANNELOUT, "    Longest Chain  : %d\n", m_longestChain);
 	LogDebug(VB_CHANNELOUT, "    Inverted Data  : %d\n", m_invertedData);
