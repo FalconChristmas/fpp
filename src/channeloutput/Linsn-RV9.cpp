@@ -28,7 +28,7 @@
  *
  *   First packet of data frame
  *   - bytes  0 -  5 = Dst MAC (00:00:00:00:00:fe)
- *   - bytes  6 - 11 = Src MAC (PC's MAC)
+ *   - bytes  6 - 11 = Src MAC (PC's MAC) (must be same as used to configure)
  *   - bytes 12 - 13 = Protocol (0xAA55)
  *   - bytes 14 - 15 = 2-byte packet number for frame (LSB first)
  *   - byte  16      = 0x00
@@ -54,7 +54,7 @@
  *   - byte  36      = 0x00
  *   - byte  37      = 0x00
  *   - byte  38      = 0x00
- *   - bytes 39 - 44 = Src MAC (PC's MAC)
+ *   - bytes 39 - 44 = Src MAC (PC's MAC) (see note above)
  *   - byte  45      = 0xd2 = (210)
  *   - bytes 46 - 1485 = RGB Data
  */
@@ -467,7 +467,6 @@ int LinsnRV9Output::RawSendData(unsigned char *channelData)
 		m_buffer[15] = (unsigned char)(frameNumber >> 8);
 
 		memcpy(m_data, m_outputFrame + bytesSent, LINSNRV9_DATA_SIZE);
-
 
 		if (sendto(m_fd, m_buffer, LINSNRV9_BUFFER_SIZE, 0, (struct sockaddr*)&m_sock_addr, sizeof(struct sockaddr_ll)) < 0)
 		{
