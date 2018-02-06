@@ -182,7 +182,7 @@ char *trimwhitespace(const char *str)
 char *modeToString(int mode)
 {
 	if ( mode == PLAYER_MODE )
-		return strdup("fppMode");
+		return strdup("player");
 	else if ( mode == BRIDGE_MODE )
 		return strdup("bridge");
 	else if ( mode == MASTER_MODE )
