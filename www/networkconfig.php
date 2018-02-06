@@ -335,6 +335,17 @@ function DisableDNSFields(disabled)
 }
 
 function setHostName() {
+	var newHostname = $('#hostName').val();
+
+	var regExpHostname = new RegExp(/^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])$/);
+	var regResultHostname = regExpHostname.exec(newHostname);
+
+	if (regResultHostname === null)
+	{
+		alert("Invalid hostname.  Hostname may contain only letters, numbers, and hyphens and may not begin or end with a hyphen.");
+		return;
+	}
+
 	$.get("fppjson.php?command=setSetting&key=HostName&value="
 		+ $('#hostName').val()
 	).success(function() {
