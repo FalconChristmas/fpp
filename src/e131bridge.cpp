@@ -141,7 +141,7 @@ void LoadInputUniversesFromFile(void)
 			{
 				InputUniverses[InputUniverseCount].active = u["active"].asInt();
 				InputUniverses[InputUniverseCount].universe = u["id"].asInt();
-				InputUniverses[InputUniverseCount].startAddress = u["startChannel"].asInt() - 1;
+				InputUniverses[InputUniverseCount].startAddress = u["startChannel"].asInt();
 				InputUniverses[InputUniverseCount].size = u["channelCount"].asInt();
 				InputUniverses[InputUniverseCount].type = u["type"].asInt();
 
