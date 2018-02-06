@@ -33,6 +33,6 @@ void Bridge_ReceiveData(void);
 void Bridge_Shutdown(void);
 
 void  ResetBytesReceived();
-void  WriteBytesReceivedFile();
+Json::Value GetE131UniverseBytesReceived();
 
 #endif

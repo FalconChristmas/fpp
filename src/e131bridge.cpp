@@ -317,7 +317,8 @@ void Bridge_StoreData(int universe, char *bridgeBuffer)
 		memcpy((void*)(sequence->m_seqData+InputUniverses[universeIndex].startAddress-1),
 			   (void*)(bridgeBuffer+E131_HEADER_LENGTH),
 			   InputUniverses[universeIndex].size);
-		InputUniverses[universeIndex].bytesReceived+=InputUniverses[universeIndex].size;
+		InputUniverses[universeIndex].bytesReceived += InputUniverses[universeIndex].size;
+		InputUniverses[universeIndex].packetsReceived++;
 	}
 }
 
@@ -350,26 +351,44 @@ void ResetBytesReceived()
 	for(i=0;i<InputUniverseCount;i++)
 	{
 		InputUniverses[i].bytesReceived = 0;
+		InputUniverses[i].packetsReceived = 0;
 	}
 }
 
-void WriteBytesReceivedFile()
+Json::Value GetE131UniverseBytesReceived()
 {
+	Json::Value result;
+	Json::Value universes(Json::arrayValue);
+
 	int i;
-	FILE *file;
-	file = fopen((const char *)getBytesFile(), "w");
-	for(i=0;i<InputUniverseCount;i++)
+
+	for(i = 0; i < InputUniverseCount; i++)
 	{
-		if(i==InputUniverseCount-1)
-		{
-			fprintf(file, "%d,%d,%d,",InputUniverses[i].universe,InputUniverses[i].startAddress,InputUniverses[i].bytesReceived);
-		}
-		else
-		{
-			fprintf(file, "%d,%d,%d,\n",InputUniverses[i].universe,InputUniverses[i].startAddress,InputUniverses[i].bytesReceived);
-		}
+		Json::Value universe;
+
+		universe["id"] = InputUniverses[i].universe;
+		universe["startChannel"] = InputUniverses[i].startAddress;
+
+		// FIXME, use to_string on Squeeze
+		//universe["bytesReceived"] = std::to_string(InputUniverses[i].bytesReceived);
+		std::stringstream ss;
+		ss << InputUniverses[i].bytesReceived;
+		std::string bytesReceived = ss.str();
+		universe["bytesReceived"] = bytesReceived;
+
+		// FIXME, use to_string on Squeeze
+		//universe["packetsReceived"] = std::to_string(InputUniverses[i].packetsReceived);
+		std::stringstream pr;
+		pr << InputUniverses[i].packetsReceived;
+		std::string packetsReceived = pr.str();
+		universe["packetsReceived"] = packetsReceived;
+
+		universes.append(universe);
 	}
-	fclose(file);
+
+	result["universes"] = universes;
+
+	return result;
 }
 
 void InputUniversesPrint()

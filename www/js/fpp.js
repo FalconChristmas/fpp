@@ -1633,6 +1633,7 @@ function RemovePlaylistEntry()	{
 		})
 	}
 
+	var firstStatusLoad = 1;
 	function parseStatus(jsonStatus) {
 		var fppStatus = jsonStatus.status;
 		var fppMode = jsonStatus.mode;
@@ -1650,7 +1651,10 @@ function RemovePlaylistEntry()	{
 
 		if (fppMode == 1) {
 			// Bridge Mode
-			GetUniverseBytesReceived();
+			$('#fppTime').html(jsonStatus.time);
+
+			if (firstStatusLoad || $('#e131statsLiveUpdate').is(':checked'))
+				GetUniverseBytesReceived();
 		} else if (fppMode == 8) {
 			$('#fppTime').html(jsonStatus.time);
 
@@ -1730,7 +1734,8 @@ if (1) {
 			$('#fppTime').html(jsonStatus.time);
 
 		}
-	
+
+		firstStatusLoad = 0;
 	}
 
 	function GetUniverseBytesReceived()
@@ -1749,7 +1754,7 @@ if (1) {
 					if(receivedBytes.childNodes.length> 0)
 					{
 						html =  "<table>";
-						html += "<tr id=\"rowReceivedBytesHeader\"><td>Universe</td><td>Start Address</td><td>Bytes Transferred</td>";
+						html += "<tr id=\"rowReceivedBytesHeader\"><td>Universe</td><td>Start Address</td><td>Packets</td><td>Bytes</td>";
 
 						var i;	
 						for(i=0;i<receivedBytes.childNodes.length;i++)
@@ -1759,13 +1764,14 @@ if (1) {
 									html += "</table>";
 									html1 = html;
 									html =  "<table>";
-									html += "<tr id=\"rowReceivedBytesHeader\"><td>Universe</td><td>Start Address</td><td>Bytes Transferred</td>";
+									html += "<tr id=\"rowReceivedBytesHeader\"><td>Universe</td><td>Start Address</td><td>Packets</td><td>Bytes</td>";
 								}
 								var universe = receivedBytes.childNodes[i].childNodes[0].textContent;
 								var startChannel = receivedBytes.childNodes[i].childNodes[1].textContent;
 								var bytes = receivedBytes.childNodes[i].childNodes[2].textContent;
+								var packets = receivedBytes.childNodes[i].childNodes[3].textContent;
 								html += "<tr><td>" + universe + "</td>";
-								html += "<td>" + startChannel + "</td><td>" + bytes + "</td></tr>";
+								html += "<td>" + startChannel + "</td><td>" + packets + "</td><td>" + bytes + "</td></tr>";
 						}
 						html += "</table>";
 					}

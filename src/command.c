@@ -317,11 +317,6 @@ extern PluginCallbackManager pluginCallbackManager;
 				if (!DetectFalconHardware(1))
 					SendFPDConfig();
 		}
-		else if (!strcmp(CommandStr, "r"))
-		{
-				WriteBytesReceivedFile();
-				sprintf(response,"true\n");
-		}
 		else if (!strcmp(CommandStr, "q"))
 		{
 			// Quit/Shutdown fppd

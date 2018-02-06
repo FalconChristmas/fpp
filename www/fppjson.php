@@ -312,6 +312,7 @@ function parseStatus($status)
 			'mode'   => $mode,
 			'mode_name' => $modes[$mode],
 			'status' => $fppStatus,
+			'time'   => exec('date'),
 		];
 	}
 

@@ -39,6 +39,7 @@ typedef struct {
 	int           type;
 	char          unicastAddress[16];
 	unsigned long bytesReceived;
+	unsigned long packetsReceived;
 	int           priority;
 } UniverseEntry;
 
