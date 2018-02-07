@@ -12,6 +12,7 @@ $socketError = "";
 
 function SendCommand($command)
 {
+	$socketDebug = 0;
 	$socketError = "";
 	$cpath = "/tmp/FPP." . getmypid();
 	$spath = "/tmp/FPPD";
@@ -21,14 +22,20 @@ function SendCommand($command)
 	$socket = socket_create(AF_UNIX, SOCK_DGRAM, 0);
 	if ( !@socket_set_nonblock($socket) ) {
 		$socketError = 'Unable to set nonblocking mode for ' . $spath . ' socket';
-		printf("SE: '$socketError'\n");
+
+		if ($socketDebug)
+			printf("SE: '$socketError'\n");
+
 		CleanupSocket($cpath, $socket);
 		return false;
 	}
 
 	if ( !@socket_bind($socket, $cpath) ) {
 		$socketError = 'socket_bind() failed for ' . $cpath . ' socket';
-		printf("SE: '$socketError'\n");
+
+		if ($socketDebug)
+			printf("SE: '$socketError'\n");
+
 		CleanupSocket($cpath, $socket);
 		return false;
 	}
@@ -36,7 +43,10 @@ function SendCommand($command)
 	if ( @socket_connect($socket, $spath) === false)
 	{
 		$socketError = 'socket_connect() failed for ' . $spath . ' socket';
-		printf("SE: '$socketError'\n");
+
+		if ($socketDebug)
+			printf("SE: '$socketError'\n");
+
 		CleanupSocket($cpath, $socket);
 		return false;
 	}
@@ -44,7 +54,10 @@ function SendCommand($command)
 	if ( @socket_send($socket, $command, strLen($command), 0) == FALSE )
 	{
 		$socketError = 'socket_send() failed for ' . $spath . ' socket';
-		printf("SE: '$socketError'\n");
+
+		if ($socketDebug)
+			printf("SE: '$socketError'\n");
+
 		CleanupSocket($cpath, $socket);
 		return false;
 	}
@@ -59,7 +72,10 @@ function SendCommand($command)
 		if ($bytes_received == -1)
 		{
 			$socketError = 'An error occured while receiving from the socket';
-			printf("SE: '$socketError'\n");
+
+			if ($socketDebug)
+				printf("SE: '$socketError'\n");
+
 			CleanupSocket($cpath, $socket);
 			return false;
 		}
