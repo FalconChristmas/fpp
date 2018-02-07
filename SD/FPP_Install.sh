@@ -681,8 +681,20 @@ EOF
 		echo "scaling_kernel=8" >> /boot/config.txt
 		echo >> /boot/config.txt
 
+		echo "# Enable audio" >> /boot/config.txt
+		echo "dtparam=audio=on" >> /boot/config.txt
+		echo >> /boot/config.txt
+
 		echo "# Allow more current through USB" >> /boot/config.txt
 		echo "max_usb_current=1" >> /boot/config.txt
+		echo >> /boot/config.txt
+
+		echo "# Setup UART clock to allow DMX output" >> /boot/config.txt
+		echo "init_uart_clock=16000000" >> /boot/config.txt
+		echo >> /boot/config.txt
+
+		echo "# Swap Pi 3 and Zero W UARTs with BT" >> /boot/config.txt
+		echo "dtoverlay=pi3-miniuart-bt" >> /boot/config.txt
 		echo >> /boot/config.txt
 
 		echo "FPP - Freeing up more space by removing unnecessary packages"
