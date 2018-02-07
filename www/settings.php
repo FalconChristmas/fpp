@@ -368,10 +368,6 @@ function ToggleTetherMode()
       <td>Force HDMI Display:</td>
       <td><? PrintSettingCheckbox("Force HDMI Display", "ForceHDMI", 0, 1, "1", "0"); ?></td>
     </tr>
-    <tr>
-      <td>Force analog audio output during video playback:</td>
-      <td><? PrintSettingCheckbox("Force Analog Audio Output", "forceLocalAudio", 0, 0, "1", "0"); ?></td>
-    </tr>
 <!--
     <tr>
       <td>Force Legacy audio outputs (mpg123/ogg123):</td>
