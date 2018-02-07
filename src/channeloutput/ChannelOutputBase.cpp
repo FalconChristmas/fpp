@@ -57,9 +57,9 @@ ChannelOutputBase::~ChannelOutputBase()
 {
 	LogDebug(VB_CHANNELOUT, "ChannelOutputBase::~ChannelOutputBase()\n");
 
+        pthread_cond_destroy(&m_sendCond);
 	pthread_mutex_destroy(&m_bufLock);
 	pthread_mutex_destroy(&m_sendLock);
-	pthread_cond_destroy(&m_sendCond);
 }
 
 int ChannelOutputBase::Init(void)
@@ -194,8 +194,6 @@ int ChannelOutputBase::StartOutputThread(void)
 
 	m_runThread = 1;
 
-	pthread_cond_init(&m_sendCond, NULL);
-
 	int result = pthread_create(&m_threadID, NULL, &RunChannelOutputBaseThread, this);
 
 	if (result)
@@ -250,8 +248,6 @@ int ChannelOutputBase::StopOutputThread(void)
 	pthread_join(m_threadID, NULL);
 	m_threadID = 0;
 	pthread_mutex_unlock(&m_bufLock);
-
-	pthread_cond_destroy(&m_sendCond);
 
 	return 0;
 }
