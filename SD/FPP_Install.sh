@@ -983,7 +983,7 @@ if [ -n ${SDA1} ]
 then
 	COMMENTED="#"
 fi
-echo "${COMMENTED}/dev/sda1     /home/fpp/media  auto    defaults,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500  0  0" >> /etc/fstab
+echo "${COMMENTED}/dev/sda1     /home/fpp/media  auto    defaults,nonempty,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500  0  0" >> /etc/fstab
 echo "#####################################" >> /etc/fstab
 
 #######################################
