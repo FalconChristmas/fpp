@@ -368,10 +368,12 @@ function ToggleTetherMode()
       <td>Force HDMI Display:</td>
       <td><? PrintSettingCheckbox("Force HDMI Display", "ForceHDMI", 0, 1, "1", "0"); ?></td>
     </tr>
+<!--
     <tr>
-      <td>Force analog audio output during video playback:</td>
-      <td><? PrintSettingCheckbox("Force Analog Audio Output", "forceLocalAudio", 0, 0, "1", "0"); ?></td>
+      <td>Force Legacy audio outputs (mpg123/ogg123):</td>
+      <td><? PrintSettingCheckbox("Force Legacy Audio Outputs", "LegacyMediaOutputs", 0, 0, "1", "0"); ?></td>
     </tr>
+-->
     <tr>
       <td>Pi 2x16 LCD Enabled:</td>
       <td><? PrintSettingCheckbox("Enable LCD Display", "PI_LCD_Enabled", 0, 0, "1", "0", "", "ToggleLCDNow"); ?></td>
