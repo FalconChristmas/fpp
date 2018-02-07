@@ -429,6 +429,12 @@ int parseArguments(int argc, char **argv)
 
 int parseSetting(char *key, char *value)
 {
+	int sIndex = findSettingIndex(key);
+	if (sIndex >= 0) {
+		free(settings.values[sIndex]);
+		settings.values[sIndex] = strdup(value);
+	}
+
 	if ( strcmp(key, "daemonize") == 0 )
 	{
 		if ( strcmp(value, "false") == 0 )
@@ -725,10 +731,7 @@ int loadSettings(const char *filename)
 			parseSetting(key, value);
 
 			sIndex = findSettingIndex(key);
-			if (sIndex >= 0) {
-				free(settings.values[sIndex]);
-				settings.values[sIndex] = strdup(value);
-			} else {
+			if (sIndex < 0) {
 				settings.keys[count] = strdup(key);
 				settings.values[count] = strdup(value);
 				count++;
