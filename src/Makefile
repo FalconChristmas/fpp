@@ -81,6 +81,7 @@ OBJECTS_fppd = \
 	mediaoutput/mpg123.o \
 	mediaoutput/ogg123.o \
 	mediaoutput/omxplayer.o \
+	mediaoutput/SDLOut.o \
 	mqtt.o \
 	PixelOverlay.o \
 	Playlist.o \
@@ -117,6 +118,11 @@ LIBS_fppd = \
 	-lmosquitto \
 	-lutil \
 	-ltag \
+	-lSDL2 \
+	-lavformat \
+	-lavcodec \
+	-lavutil \
+	-lswresample \
 	$(NULL)
 
 SUBDIRS = 
@@ -258,17 +264,11 @@ BINDIR = ../bin.bbb
 CFLAGS += \
     -DNOROOT \
 	-DPLATFORM_BBB \
-    -DHAS_SDL \
 	-I../external/LEDscape/src/ledscape/ \
 	$(NULL)
 LIBS_fppd += \
 	-lledscape \
 	-lprussdrv \
-    -lSDL2 \
-    -lavformat \
-    -lavcodec \
-    -lavutil \
-    -lswresample \
 	$(NULL)
 LDFLAGS_fppd += \
 	-L../external/LEDscape/lib/ \
@@ -279,7 +279,6 @@ OBJECTS_fppd += \
 	channeloutput/BBB48String.o \
 	channeloutput/BBBSerial.o \
     channeloutput/BBBUtils.o \
-    mediaoutput/SDLOut.o \
 	$(NULL)
 DEPS_fppd += \
 	../external/LEDscape/lib/libledscape.a \
