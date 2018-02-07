@@ -10,12 +10,23 @@ require_once("common.php");
 function PopulateChannelRemapTable(data) {
 	$('#channelRemaps tbody').html("");
 
-	for (var i = 0; i < data.length; i++) {
-		$('#channelRemaps tbody').append("<tr id='row'" + i + " class='fppTableRow'>" +
-			"<td><input class='src' type='text' size='6' maxlength='6' value='" + data[i].Source + "'></td>" +
-			"<td><input class='dst' type='text' size='6' maxlength='6' value='" + data[i].Destination + "'></td>" +
-			"<td><input class='cnt' type='text' size='6' maxlength='6' value='" + data[i].Count + "'></td>" +
-			"</tr>");
+	for (var i = 0; i < data.remaps.length; i++) {
+		var html =
+			"<tr id='row'" + i + " class='fppTableRow'>" +
+			"<td><input class='active' type='checkbox'";
+
+		if (data.remaps[i].active)
+			html += " checked";
+
+		html += "></td>" +
+			"<td><input class='description' type='text' size='32' maxlength='64' value='" + data.remaps[i].description + "'></td>" +
+			"<td><input class='source' type='text' size='6' maxlength='6' value='" + data.remaps[i].source + "'></td>" +
+			"<td><input class='destination' type='text' size='6' maxlength='6' value='" + data.remaps[i].destination + "'></td>" +
+			"<td><input class='count' type='text' size='6' maxlength='6' value='" + data.remaps[i].count + "'></td>" +
+			"<td><input class='loops' type='text' size='6' maxlength='6' value='" + data.remaps[i].loops + "'></td>" +
+			"</tr>";
+
+		$('#channelRemaps tbody').append(html);
 	}
 }
 
@@ -28,28 +39,30 @@ function GetChannelRemaps() {
 function SetChannelRemaps() {
 	var postData = "";
 	var dataError = 0;
+	var data = {};
+	var remaps = [];
 
 	$('#channelRemaps tbody tr').each(function() {
 		$this = $(this);
 
 		var remap = {
-			Source: $this.find("input.src").val(),
-			Destination: $this.find("input.dst").val(),
-			Count: $this.find("input.cnt").val()
+			active: $this.find("input.active").is(':checked') ? 1 : 0,
+			description: $this.find("input.description").val(),
+			source: parseInt($this.find("input.source").val()),
+			destination: parseInt($this.find("input.destination").val()),
+			count: parseInt($this.find("input.count").val()),
+			loops: parseInt($this.find("input.loops").val())
 			};
 
-		if ((parseInt(remap.Source) > 0) &&
-			(parseInt(remap.Destination) > 0) &&
-			(parseInt(remap.Count) > 0))
+		if ((remap.source > 0) &&
+			(remap.destination > 0) &&
+			(remap.count > 0) &&
+			(remap.loops > 0))
 		{
-			if (postData != "") {
-				postData += ", ";
-			}
-
-			postData += JSON.stringify(remap);
+			remaps.push(remap);
 		} else {
 			dataError = 1;
-			alert("Remap " + remap.Count + " channel(s) from " + remap.Source + " to " + remap.Destination + " is not valid.");
+			alert("Remap '" + remap.count + "' channel(s) from '" + remap.source + "' to '" + remap.destination + "' is not valid.");
 			return;
 		}
 	});
@@ -57,7 +70,8 @@ function SetChannelRemaps() {
 	if (dataError != 0)
 		return;
 
-	postData = "command=setChannelRemaps&data=[ " + postData + " ]";
+	data.remaps = remaps;
+	postData = "command=setChannelRemaps&data={ " + JSON.stringify(data) + " }";
 
 	$.post("fppjson.php", postData).success(function(data) {
 		$.jGrowl("Channel Remap Table saved");
@@ -73,9 +87,12 @@ function AddNewRemap() {
 
 	$('#channelRemaps tbody').append(
 		"<tr id='row'" + currentRows + " class='fppTableRow'>" +
-			"<td><input class='src' type='text' size='6' maxlength='6' value=''></td>" +
-			"<td><input class='dst' type='text' size='6' maxlength='6' value=''></td>" +
-			"<td><input class='cnt' type='text' size='6' maxlength='6' value=''></td>" +
+			"<td><input class='active' type='checkbox' checked>" +
+			"<td><input class='description' type='text' size='32' maxlength='64' value=''></td>" +
+			"<td><input class='source' type='text' size='6' maxlength='6' value=''></td>" +
+			"<td><input class='destination' type='text' size='6' maxlength='6' value=''></td>" +
+			"<td><input class='count' type='text' size='6' maxlength='6' value=''></td>" +
+			"<td><input class='loops' type='text' size='6' maxlength='6' value='1'></td>" +
 			"</tr>");
 }
 
@@ -125,9 +142,12 @@ $(document).tooltip();
 					<table id="channelRemaps">
 						<thead>
 							<tr class="fppTableHeader">
+								<th>Active</td>
+								<th>Description</td>
 								<th>Source</td>
 								<th>Destination</td>
-								<th>Count</td>
+								<th>Channel Count</td>
+								<th>Loops</td>
 							</tr>
 						</thead>
 						<tbody>
@@ -139,6 +159,7 @@ $(document).tooltip();
 					You may remap one or more blocks of channels to different output channel
 					numbers by specifying the source and destination
 					channel numbers along with the count of the number of channels to remap.
+					The Loops count allows you to copy the same set of source channels multiple times to the destination, similar to grouping on a pixel controller output.
 				</font>
 			</fieldset>
 		</div>
