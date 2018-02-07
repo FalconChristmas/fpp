@@ -600,7 +600,7 @@ extern PluginCallbackManager pluginCallbackManager;
 		{
 			bytes_sent = sendto(socket_fd, response2, strlen(response2), 0,
                           (struct sockaddr *) &(client_address), sizeof(struct sockaddr_un));
-			LogDebug(VB_COMMAND, "%s %s", CommandStr, response2);
+			LogDebug(VB_COMMAND, "%s %s\n", CommandStr, response2);
 			free(response2);
 			response2 = NULL;
 		}
@@ -608,7 +608,7 @@ extern PluginCallbackManager pluginCallbackManager;
 		{
 			bytes_sent = sendto(socket_fd, response, strlen(response), 0,
                           (struct sockaddr *) &(client_address), sizeof(struct sockaddr_un));
-			LogDebug(VB_COMMAND, "%s %s", CommandStr, response);
+			LogDebug(VB_COMMAND, "%s %s\n", CommandStr, response);
 		}
   }
 
