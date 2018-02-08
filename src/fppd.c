@@ -195,6 +195,7 @@ void MainLoop(void)
 	int            commandSock = 0;
 	int            controlSock = 0;
 	int            bridgeSock = 0;
+        int            ddpSock = 0;
 	int            prevFPPstatus = FPPstatus;
 	int            sleepms = 50000;
 	fd_set         active_fd_set;
@@ -218,9 +219,11 @@ void MainLoop(void)
 	}
 	else if (getFPPmode() == BRIDGE_MODE)
 	{
-		bridgeSock = Bridge_Initialize();
+		Bridge_Initialize(bridgeSock, ddpSock);
 		if (bridgeSock)
 			FD_SET (bridgeSock, &active_fd_set);
+                if (ddpSock)
+                    FD_SET (ddpSock, &active_fd_set);
 	}
 
 	controlSock = InitControlSocket();
@@ -260,7 +263,9 @@ void MainLoop(void)
 			CommandProc();
 
 		if (bridgeSock && FD_ISSET(bridgeSock, &read_fd_set))
-			Bridge_ReceiveData();
+ 			Bridge_ReceiveE131Data();
+                if (ddpSock && FD_ISSET(ddpSock, &read_fd_set))
+                    Bridge_ReceiveDDPData();
 
 		if (controlSock && FD_ISSET(controlSock, &read_fd_set))
 			ProcessControlPacket();

@@ -28,8 +28,9 @@
 
 #include "e131defs.h"
 
-int Bridge_Initialize(void);
-void Bridge_ReceiveData(void);
+void Bridge_Initialize(int &e131Socket, int &ddpSocket);
+void Bridge_ReceiveE131Data(void);
+void Bridge_ReceiveDDPData(void);
 void Bridge_Shutdown(void);
 
 void  ResetBytesReceived();

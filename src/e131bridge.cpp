@@ -43,6 +43,7 @@
 #include "channeloutput.h"
 #include "channeloutputthread.h"
 #include "common.h"
+#include "DDP.h"
 #include "e131bridge.h"
 #include "log.h"
 #include "PixelOverlay.h"
@@ -56,23 +57,27 @@
 struct sockaddr_in addr;
 socklen_t addrlen;
 int bridgeSock = -1;
+int ddpSock = -1;
 
 
 #define MAX_MSG 48
-//DMX packet is under 700 bytes
-#define BUFSIZE 700
+#define BUFSIZE 1500
 struct mmsghdr msgs[MAX_MSG];
 struct iovec iovecs[MAX_MSG];
 unsigned char buffers[MAX_MSG][BUFSIZE+1];
 
-unsigned int   UniverseCache[65536];
+unsigned int UniverseCache[65536];
 
 
 UniverseEntry InputUniverses[MAX_UNIVERSE_COUNT];
 int InputUniverseCount;
 
+static unsigned long ddpBytesReceived = 0;
+static unsigned long ddpPacketsReceived = 0;
+
 // prototypes for functions below
 void Bridge_StoreData(int universe, char *bridgeBuffer);
+void Bridge_StoreDDPData(char *bridgeBuffer);
 int Bridge_GetIndexFromUniverseNumber(int universe);
 void InputUniversesPrint();
 
@@ -170,11 +175,11 @@ void LoadInputUniversesFromFile(void)
 /*
  * Read data waiting for us
  */
-void Bridge_ReceiveData(void)
+void Bridge_ReceiveE131Data(void)
 {
 //	LogExcess(VB_E131BRIDGE, "Bridge_ReceiveData()\n");
 
-	int universe;
+    int universe;
 
     int msgcnt = recvmmsg(bridgeSock, msgs, MAX_MSG, 0, nullptr);
     while (msgcnt > 0) {
@@ -185,8 +190,19 @@ void Bridge_ReceiveData(void)
         msgcnt = recvmmsg(bridgeSock, msgs, MAX_MSG, 0, nullptr);
     }
 }
+void Bridge_ReceiveDDPData(void)
+{
+    //    LogExcess(VB_E131BRIDGE, "Bridge_ReceiveData()\n");
+    int msgcnt = recvmmsg(ddpSock, msgs, MAX_MSG, 0, nullptr);
+    while (msgcnt > 0) {
+        for (int x = 0; x < msgcnt; x++) {
+            Bridge_StoreDDPData((char*)buffers[x]);
+        }
+        msgcnt = recvmmsg(ddpSock, msgs, MAX_MSG, 0, nullptr);
+    }
+}
 
-int Bridge_Initialize(void)
+void Bridge_Initialize(int &eSock, int &dSock)
 {
 	LogExcess(VB_E131BRIDGE, "Bridge_Initialize()\n");
 
@@ -206,6 +222,23 @@ int Bridge_Initialize(void)
 	LoadInputUniversesFromFile();
 	LogInfo(VB_E131BRIDGE, "Universe Count = %d\n",InputUniverseCount);
 	InputUniversesPrint();
+    
+    ddpSock = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
+    if (ddpSock < 0) {
+        LogDebug(VB_E131BRIDGE, "e131bridge DDP socket failed: %s", strerror(errno));
+        exit(1);
+    }
+    bzero((char *)&addr, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    addr.sin_port = htons(DDP_PORT);
+    addrlen = sizeof(addr);
+    // Bind the socket to address/port
+    if (bind(ddpSock, (struct sockaddr *) &addr, sizeof(addr)) < 0)
+    {
+        LogDebug(VB_E131BRIDGE, "e131bridge DDP bind failed: %s", strerror(errno));
+        exit(1);
+    }
 
 	int            UniverseOctet[2];
 	int            i;
@@ -241,7 +274,7 @@ int Bridge_Initialize(void)
 		LogDebug(VB_E131BRIDGE, "e131bridge bind failed: %s", strerror(errno));
 		exit(1);
 	}
-
+    
 	char address[16];
 	// Join the multicast groups
 	for(i=0;i<InputUniverseCount;i++)
@@ -300,13 +333,16 @@ int Bridge_Initialize(void)
 
 	StartChannelOutputThread();
 
-	return bridgeSock;
+    eSock = bridgeSock;
+    dSock = ddpSock;
 }
 
 void Bridge_Shutdown(void)
 {
-	close(bridgeSock);
-	bridgeSock = -1;
+    close(bridgeSock);
+    close(ddpSock);
+    bridgeSock = -1;
+    ddpSock = -1;
 }
 
 void Bridge_StoreData(int universe, char *bridgeBuffer)
@@ -321,6 +357,31 @@ void Bridge_StoreData(int universe, char *bridgeBuffer)
 		InputUniverses[universeIndex].packetsReceived++;
 	}
 }
+
+void Bridge_StoreDDPData(char *bridgeBuffer)  {
+    if (bridgeBuffer[3] == 1) {
+        ddpPacketsReceived++;
+        bool tc = bridgeBuffer[0] & DDP_TIMECODE_FLAG;
+        //bool push = bridgeBuffer[0] & DDP_PUSH_FLAG;
+
+        int chan = bridgeBuffer[4];
+        chan <<= 8;
+        chan += bridgeBuffer[5];
+        chan <<= 8;
+        chan += bridgeBuffer[6];
+        chan <<= 8;
+        chan += bridgeBuffer[7];
+
+        int len = bridgeBuffer[8] << 8;
+        len += bridgeBuffer[9];
+        
+        int offset = tc ? 14 : 10;
+        memcpy(sequence->m_seqData + chan, &bridgeBuffer[offset], len);
+        
+        ddpBytesReceived += len;
+    }
+}
+
 
 inline int Bridge_GetIndexFromUniverseNumber(int universe)
 {
@@ -343,7 +404,6 @@ inline int Bridge_GetIndexFromUniverseNumber(int universe)
 	return val;
 }
 
-
 void ResetBytesReceived()
 {
 	int i;
@@ -353,14 +413,32 @@ void ResetBytesReceived()
 		InputUniverses[i].bytesReceived = 0;
 		InputUniverses[i].packetsReceived = 0;
 	}
+    ddpBytesReceived = 0;
+    ddpPacketsReceived = 0;
 }
 
 Json::Value GetE131UniverseBytesReceived()
 {
-	Json::Value result;
-	Json::Value universes(Json::arrayValue);
+    Json::Value result;
+    Json::Value universes(Json::arrayValue);
 
-	int i;
+    int i;
+
+    if (ddpBytesReceived) {
+        Json::Value ddpUniverse;
+        ddpUniverse["id"] = "DDP";
+        ddpUniverse["startChannel"] = "-";
+        std::stringstream ss;
+        ss << ddpBytesReceived;
+        std::string bytesReceived = ss.str();
+        ddpUniverse["bytesReceived"] = bytesReceived;
+        
+        std::stringstream pr;
+        pr << ddpPacketsReceived;
+        std::string packetsReceived = pr.str();
+        ddpUniverse["packetsReceived"] = packetsReceived;
+        universes.append(ddpUniverse);
+    }
 
 	for(i = 0; i < InputUniverseCount; i++)
 	{
