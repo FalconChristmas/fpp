@@ -26,8 +26,11 @@
 #ifndef _E131_BRIDGE_H
 #define _E131_BRIDGE_H
 
-int Bridge_Initialize(void);
-void Bridge_ReceiveData(void);
+void Bridge_Initialize(int &e131Socket, int &ddpSocket);
+void Bridge_ReceiveE131Data(void);
+void Bridge_ReceiveDDPData(void);
 void Bridge_Shutdown(void);
+void Bridge_ResetBytesReceived();
+void Bridge_WriteBytesReceivedFile();
 
 #endif

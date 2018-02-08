@@ -44,9 +44,6 @@
 #define E131_FRAMING_COUNT_INDEX   38
 #define E131_DMP_COUNT_INDEX       115
 
-// FIXME, these should be in e131bridge.c, not here
-void  ResetBytesReceived();
-void  WriteBytesReceivedFile();
 void LoadUniversesFromFile();
 
 /* Prototypes for helpers in E131.c */

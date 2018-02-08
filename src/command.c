@@ -335,7 +335,7 @@ extern PluginCallbackManager pluginCallbackManager;
 		}
 		else if (!strcmp(CommandStr, "r"))
 		{
-				WriteBytesReceivedFile();
+				Bridge_WriteBytesReceivedFile();
 				sprintf(response,"true\n");
 		}
 		else if (!strcmp(CommandStr, "q"))

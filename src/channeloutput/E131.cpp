@@ -333,36 +333,6 @@ void LoadUniversesFromFile()
 	UniversesPrint();
 }
 
-void ResetBytesReceived()
-{
-	int i;
-
-	for(i=0;i<UniverseCount;i++)
-	{
-		universes[i].bytesReceived = 0;
-	}
-}
-
-void WriteBytesReceivedFile()
-{
-	int i;
-	FILE *file;
-	file = fopen((const char *)getBytesFile(), "w");
-	for(i=0;i<UniverseCount;i++)
-	{
-		if(i==UniverseCount-1)
-		{
-			fprintf(file, "%d,%d,%d,",universes[i].universe,universes[i].startAddress,universes[i].bytesReceived);
-		}
-		else
-		{
-			fprintf(file, "%d,%d,%d,\n",universes[i].universe,universes[i].startAddress,universes[i].bytesReceived);
-		}
-	}
-	fclose(file);
-}
-
-
 void UniversesPrint()
 {
 	int i=0;

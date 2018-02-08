@@ -36,7 +36,9 @@
 #include "channeloutput.h"
 #include "channeloutputthread.h"
 #include "common.h"
+#include "settings.h"
 #include "E131.h"
+#include "DDP.h"
 #include "e131bridge.h"
 #include "log.h"
 #include "PixelOverlay.h"
@@ -49,33 +51,35 @@
 struct sockaddr_in addr;
 socklen_t addrlen;
 int bridgeSock = -1;
+int ddpSock = -1;
 
 
 #define MAX_MSG 48
-//DMX packet is under 700 bytes
-#define BUFSIZE 700
+#define BUFSIZE 1500
 struct mmsghdr msgs[MAX_MSG];
 struct iovec iovecs[MAX_MSG];
 unsigned char buffers[MAX_MSG][BUFSIZE+1];
 
-unsigned int   UniverseCache[65536];
+unsigned int UniverseCache[65536];
 
 
 extern UniverseEntry universes[MAX_UNIVERSE_COUNT];
 extern int UniverseCount;
+static unsigned long ddpBytesReceived;
 
 // prototypes for functions below
 void Bridge_StoreData(int universe, char *bridgeBuffer);
+void Bridge_StoreDDPData(char *bridgeBuffer);
 int Bridge_GetIndexFromUniverseNumber(int universe);
 
 /*
  * Read data waiting for us
  */
-void Bridge_ReceiveData(void)
+void Bridge_ReceiveE131Data(void)
 {
 //	LogExcess(VB_E131BRIDGE, "Bridge_ReceiveData()\n");
 
-	int universe;
+    int universe;
 
     int msgcnt = recvmmsg(bridgeSock, msgs, MAX_MSG, 0, nullptr);
     while (msgcnt > 0) {
@@ -86,8 +90,19 @@ void Bridge_ReceiveData(void)
         msgcnt = recvmmsg(bridgeSock, msgs, MAX_MSG, 0, nullptr);
     }
 }
+void Bridge_ReceiveDDPData(void)
+{
+    //    LogExcess(VB_E131BRIDGE, "Bridge_ReceiveData()\n");
+    int msgcnt = recvmmsg(ddpSock, msgs, MAX_MSG, 0, nullptr);
+    while (msgcnt > 0) {
+        for (int x = 0; x < msgcnt; x++) {
+            Bridge_StoreDDPData((char*)buffers[x]);
+        }
+        msgcnt = recvmmsg(ddpSock, msgs, MAX_MSG, 0, nullptr);
+    }
+}
 
-int Bridge_Initialize(void)
+void Bridge_Initialize(int &eSock, int &dSock)
 {
 	LogExcess(VB_E131BRIDGE, "Bridge_Initialize()\n");
 
@@ -107,6 +122,24 @@ int Bridge_Initialize(void)
 	LoadUniversesFromFile();
 	LogInfo(VB_E131BRIDGE, "Universe Count = %d\n",UniverseCount);
 	UniversesPrint();
+    
+    
+    ddpSock = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
+    if (ddpSock < 0) {
+        perror("ddpbridge socket");
+        exit(1);
+    }
+    bzero((char *)&addr, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    addr.sin_port = htons(DDP_PORT);
+    addrlen = sizeof(addr);
+    // Bind the socket to address/port
+    if (bind(ddpSock, (struct sockaddr *) &addr, sizeof(addr)) < 0)
+    {
+        perror("e131bridge DDP bind");
+        exit(1);
+    }
 
 	int            UniverseOctet[2];
 	int            i;
@@ -131,10 +164,10 @@ int Bridge_Initialize(void)
 	// Bind the socket to address/port
 	if (bind(bridgeSock, (struct sockaddr *) &addr, sizeof(addr)) < 0) 
 	{
-		perror("e131bridge bind");
+		perror("e131bridge e1.31 unicast bind");
 		exit(1);
 	}
-
+    
 	char address[16];
 	// Join the multicast groups
 	for(i=0;i<UniverseCount;i++)
@@ -193,13 +226,16 @@ int Bridge_Initialize(void)
 
 	StartChannelOutputThread();
 
-	return bridgeSock;
+	eSock = bridgeSock;
+    dSock = ddpSock;
 }
 
 void Bridge_Shutdown(void)
 {
-	close(bridgeSock);
-	bridgeSock = -1;
+    close(bridgeSock);
+    close(ddpSock);
+    bridgeSock = -1;
+    ddpSock = -1;
 }
 
 void Bridge_StoreData(int universe, char *bridgeBuffer)
@@ -213,6 +249,30 @@ void Bridge_StoreData(int universe, char *bridgeBuffer)
 		universes[universeIndex].bytesReceived+=universes[universeIndex].size;
 	}
 }
+
+void Bridge_StoreDDPData(char *bridgeBuffer)  {
+    if (bridgeBuffer[3] == 1) {
+        bool tc = bridgeBuffer[0] & DDP_TIMECODE_FLAG;
+        //bool push = bridgeBuffer[0] & DDP_PUSH_FLAG;
+
+        int chan = bridgeBuffer[4];
+        chan <<= 8;
+        chan += bridgeBuffer[5];
+        chan <<= 8;
+        chan += bridgeBuffer[6];
+        chan <<= 8;
+        chan += bridgeBuffer[7];
+
+        int len = bridgeBuffer[8] << 8;
+        len += bridgeBuffer[9];
+        
+        int offset = tc ? 14 : 10;
+        memcpy(sequence->m_seqData + chan, &bridgeBuffer[offset], len);
+        
+        ddpBytesReceived += len;
+    }
+}
+
 
 inline int Bridge_GetIndexFromUniverseNumber(int universe)
 {
@@ -235,3 +295,34 @@ inline int Bridge_GetIndexFromUniverseNumber(int universe)
 	return val;
 }
 
+void Bridge_ResetBytesReceived()
+{
+    int i;
+    
+    for(i=0;i<UniverseCount;i++)
+    {
+        universes[i].bytesReceived = 0;
+    }
+    ddpBytesReceived = 0;
+}
+
+void Bridge_WriteBytesReceivedFile()
+{
+    int i;
+    FILE *file;
+    file = fopen((const char *)getBytesFile(), "w");
+    fprintf(file, "DDP,,%ld,\n",ddpBytesReceived);
+
+    for(i=0;i<UniverseCount;i++)
+    {
+        if(i==UniverseCount-1)
+        {
+            fprintf(file, "%d,%d,%d,",universes[i].universe,universes[i].startAddress,universes[i].bytesReceived);
+        }
+        else
+        {
+            fprintf(file, "%d,%d,%d,\n",universes[i].universe,universes[i].startAddress,universes[i].bytesReceived);
+        }
+    }
+    fclose(file);
+}
