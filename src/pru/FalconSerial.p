@@ -57,17 +57,17 @@
 // r10 - r22 are used for temp storage and bitmap processing
 
 .macro RESET_COUNTER
-		// Disable the counter and clear it, then re-enable it
-		MOV r6, PRU_CONTROL_REG // control register
-		LBBO r9, r6, 0, 4
-		CLR r9, r9, 3 // disable counter bit
-		SBBO r9, r6, 0, 4 // write it back
+    // Disable the counter and clear it, then re-enable it
+    MOV r6, PRU_CONTROL_REG // control register
+    LBBO r9, r6, 0, 4
+    CLR r9, r9, 3 // disable counter bit
+    SBBO r9, r6, 0, 4 // write it back
 
-		MOV r8, 0
-		SBBO r8, r6, 0xC, 4 // clear the timer
+    MOV r8, 0
+    SBBO r8, r6, 0xC, 4 // clear the timer
 
-		SET r9, r9, 3 // enable counter bit
-		SBBO r9, r6, 0, 4 // write it back
+    SET r9, r9, 3 // enable counter bit
+    SBBO r9, r6, 0, 4 // write it back
 .endm
 
 #ifdef RUNNING_ON_PRU1
@@ -80,13 +80,13 @@
 
 #define clearDataOffset       r13
 #define setDataOffset         r14
-#define gpio3_serial_mask	  r26
+#define gpio3_serial_mask     r26
 
 .macro CLEAR_ALL_BITS
     SBBO    gpio3_serial_mask, clearDataOffset, 0, 4
 .endm
 .macro SET_ALL_BITS
-    SBBO	gpio3_serial_mask, setDataOffset, 0, 4
+    SBBO    gpio3_serial_mask, setDataOffset, 0, 4
 .endm
 .macro BEFORE_SET_BITS
     MOV gpio3_ones, #0       // Set all bit data low to start with
@@ -207,7 +207,7 @@ START:
 
 	// Write a 0x1 into the response field so that they know we have started
 	MOV	r2, #0x1
-	SBCO	r2, CONST_PRUDRAM, 12, 4
+	SBCO	r2, CONST_PRUDRAM, 8, 4
 
 #ifdef USE_SLOW_GPIO
     LDI gpio3_serial_mask, 0
@@ -243,12 +243,11 @@ _LOOP:
 #endif
 
 	// Load the pointer to the buffer from PRU DRAM into r0 and the
-	// length (in bytes-bit words) into r1.
-	// start command into r2
-	LBCO	data_addr, CONST_PRUDRAM, 0, 12
+	// start command into r1
+	LBCO	data_addr, CONST_PRUDRAM, 0, 8
 
 	// Wait for a non-zero command
-	QBEQ	_LOOP, r2, #0
+	QBEQ	_LOOP, r1, #0
 
 _OUTPUTANYWAY:
 
@@ -256,10 +255,10 @@ _OUTPUTANYWAY:
 	// This allows maximum speed frame drawing since they know that they
 	// can now swap the frame buffer pointer and write a new start command.
 	MOV	r3, 0
-	SBCO	r3, CONST_PRUDRAM, 8, 4
+	SBCO	r3, CONST_PRUDRAM, 4, 4
 
 	// Command of 0xFF is the signal to exit
-	QBEQ	EXIT, r2, #0xFF
+	QBEQ	EXIT, r1, #0xFF
     MOV data_len, DATALEN
 
 #ifndef PIXELNET
@@ -338,7 +337,7 @@ _OUTPUTANYWAY:
 	// Store a non-zero response in the buffer so that they know that we are done
 	MOV     r8, PRU_CONTROL_REG // control register
 	LBBO	r2, r8, 0xC, 4
-	SBCO	r2, CONST_PRUDRAM, 12, 4
+	SBCO	r2, CONST_PRUDRAM, 8, 4
 
 	// Go back to waiting for the next frame buffer
 #ifdef CONST_MAX_BETWEEN_FRAME
@@ -349,7 +348,7 @@ _OUTPUTANYWAY:
 EXIT:
 	// Write a 0xFF into the response field so that they know we're done
 	MOV r2, #0xFF
-	SBCO r2, CONST_PRUDRAM, 12, 4
+	SBCO r2, CONST_PRUDRAM, 8, 4
 
 #ifdef AM33XX
 	// Send notification to Host for program completion

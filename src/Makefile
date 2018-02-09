@@ -264,6 +264,7 @@ BINDIR = ../bin.bbb
 CFLAGS += \
     -DNOROOT \
 	-DPLATFORM_BBB \
+    -I/usr/local/include \
 	-I../external/LEDscape/src/ledscape/ \
 	$(NULL)
 LIBS_fppd += \
@@ -271,14 +272,15 @@ LIBS_fppd += \
 	-lprussdrv \
 	$(NULL)
 LDFLAGS_fppd += \
+    -L/usr/local/lib/ \
 	-L../external/LEDscape/lib/ \
-	-L../external/LEDscape/am335x/app_loader/lib/ \
 	$(NULL)
 OBJECTS_fppd += \
 	channeloutput/LEDscapeMatrix.o \
 	channeloutput/BBB48String.o \
 	channeloutput/BBBSerial.o \
     channeloutput/BBBUtils.o \
+    channeloutput/BBBPruUtils.o \
 	$(NULL)
 DEPS_fppd += \
 	../external/LEDscape/lib/libledscape.a \

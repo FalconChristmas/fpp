@@ -31,33 +31,43 @@
 
 using namespace::std;
 
-#include "ledscape.h"
-
+#include "BBBUtils.h"
 #include "ChannelOutputBase.h"
+
+// structure of the data at the start of the PRU ram
+// that the pru program expects to see
+typedef struct {
+    // in the DDR shared with the PRU
+    uintptr_t address_dma;
+    
+    // write 1 to start, 0xFF to abort. will be cleared when started
+    volatile unsigned command;
+    volatile unsigned response;
+} __attribute__((__packed__)) BBBSerialData;
 
 class BBBSerialOutput : public ChannelOutputBase {
   public:
-	BBBSerialOutput(unsigned int startChannel, unsigned int channelCount);
-	~BBBSerialOutput();
+    BBBSerialOutput(unsigned int startChannel, unsigned int channelCount);
+    ~BBBSerialOutput();
 
-	int Init(Json::Value config);
-	int Close(void);
+    int Init(Json::Value config);
+    int Close(void);
 
-	int RawSendData(unsigned char *channelData);
+    int RawSendData(unsigned char *channelData);
 
-	void DumpConfig(void);
+    void DumpConfig(void);
 
   private:
-	ledscape_config_t   *m_config;
-	ledscape_t          *m_leds;
-
-	int                  m_outputs;
-	int                  m_pixelnet;
-	vector<int>          m_startChannels;
+    int                m_outputs;
+    int                m_pixelnet;
+    vector<int>        m_startChannels;
     
     uint8_t            *m_lastData;
     uint8_t            *m_curData;
     uint32_t           m_curFrame;
+    
+    BBBPru             *m_pru;
+    BBBSerialData      *m_serialData;
 };
 
 #endif /* _BBBSERIAL_H */
