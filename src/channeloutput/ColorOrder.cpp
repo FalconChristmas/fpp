@@ -48,3 +48,18 @@ FPPColorOrder ColorOrderFromString(std::string colorOrderStr)
 	return kColorOrderRGB;
 }
 
+const std::string ColorOrderToString(FPPColorOrder colorOrder)
+{
+	switch (colorOrder)
+	{
+		case kColorOrderRGB: return std::string("RGB");
+		case kColorOrderRBG: return std::string("RBG");
+		case kColorOrderGBR: return std::string("GBR");
+		case kColorOrderGRB: return std::string("GRB");
+		case kColorOrderBGR: return std::string("BGR");
+		case kColorOrderBRG: return std::string("BRG");
+
+	}
+
+	return std::string("UNKNOWN");
+}

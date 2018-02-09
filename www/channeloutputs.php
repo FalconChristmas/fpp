@@ -2150,6 +2150,29 @@ function GetLEDPanelNumberSetting(id, key, maxItems, selectedItem)
 	return html;
 }
 
+function GetLEDPanelColorOrder(key, selectedItem)
+{
+	var colorOrders = [ "RGB", "RBG", "GBR", "GRB", "BGR", "BRG" ];
+	var html = "";
+	var selected = "";
+	var i = 0;
+
+	html += "<select id='" + key + "'>";
+	html += "<option value=''>C-Default</option>";
+	for (i = 0; i < colorOrders.length; i++)
+	{
+		selected = "";
+
+		if (colorOrders[i] == selectedItem)
+			selected = "selected";
+
+		html += "<option value='" + colorOrders[i] + "' " + selected + ">C-" + colorOrders[i] + "</option>";
+	}
+	html += "</select>";
+
+	return html;
+}
+
 function LEDPanelLayoutChanged()
 {
 	var layout = $('#LEDPanelsLayout').val();
@@ -2203,6 +2226,14 @@ function DrawLEDPanelTable()
 				html += GetLEDPanelNumberSetting("P", key, LEDPanelPanelsPerOutput, channelOutputsLookup[key].panelNumber);
 			} else {
 				html += GetLEDPanelNumberSetting("P", key, LEDPanelPanelsPerOutput, 0);
+			}
+			html += "<br>";
+
+			key = "LEDPanelColorOrder_" + r + "_" + c;
+			if (typeof channelOutputsLookup[key] !== 'undefined') {
+				html += GetLEDPanelColorOrder(key, channelOutputsLookup[key].colorOrder);
+			} else {
+				html += GetLEDPanelColorOrder(key, "");
 			}
 
 			html += "</td></tr></table></td>\n";
@@ -2335,6 +2366,9 @@ function GetLEDPanelConfig()
 			id = "#LEDPanelPanelNumber_" + r + "_" + c;
 			panel.panelNumber = parseInt($(id).val());
 
+			id = "#LEDPanelColorOrder_" + r + "_" + c;
+			panel.colorOrder = $(id).val();
+
 			id = "#LEDPanelOrientation_" + r + "_" + c;
 			var src = $(id).attr('src');
 
@@ -2450,6 +2484,8 @@ function UpdateChannelOutputLookup()
 				channelOutputsLookup["LEDPanelOutputNumber_" + r + "_" + c]
 					= channelOutputs.channelOutputs[i].panels[p];
 				channelOutputsLookup["LEDPanelPanelNumber_" + r + "_" + c]
+					= channelOutputs.channelOutputs[i].panels[p];
+				channelOutputsLookup["LEDPanelColorOrder_" + r + "_" + c]
 					= channelOutputs.channelOutputs[i].panels[p];
 			}
 		}
@@ -2815,7 +2851,7 @@ include_once('co-pixelStrings.php');
 									</select>
 								</td>
 								<td>&nbsp;</td>
-								<td><b>Panel Color Order:</b></td><td>
+								<td><b>Default Panel Color Order:</b></td><td>
 									<select id='LEDPanelsColorOrder'>
 										<option value='RGB'>RGB</option>
 										<option value='RBG'>RBG</option>
@@ -2928,6 +2964,7 @@ if ($settings['Platform'] == "BeagleBone Black") {
 						</table>
 						- O-# is physical output number.<br>
 						- P-# is panel number on physical output.<br>
+						- C-(color) is color order if panel has different color order than default.<br>
 						- Arrow <img src='images/arrow_N.png' height=17 width=17> indicates panel orientation, click arrow to rotate.<br>
 					</div>
 				</div>

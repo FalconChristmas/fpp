@@ -39,5 +39,6 @@ typedef enum FPPColorOrder
 } FPPColorOrder;
 
 FPPColorOrder ColorOrderFromString(std::string colorOrderStr);
+const std::string ColorOrderToString(FPPColorOrder colorOrder);
 
 #endif
