@@ -429,10 +429,6 @@ int InitializeChannelOutputs(void) {
 				channelOutputs[i].outputOld = &LOROutput;
 			} else if (!strcmp(type, "Renard")) {
 				channelOutputs[i].outputOld = &USBRenardOutput;
-#ifdef PLATFORM_PI
-			} else if (!strcmp(type, "RPIWS281X")) {
-				channelOutputs[i].output = new RPIWS281xOutput(start, count);
-#endif
 			} else if (!strcmp(type, "SPI-WS2801")) {
 				channelOutputs[i].output = new SPIws2801Output(start, count);
 			} else if (!strcmp(type, "SPI-nRF24L01")) {
