@@ -24,10 +24,10 @@
  */
 
 /*
- * FIXME, put pinout here for
- */
-
-/*
+ * This Channel Output is for SPI-attached MAX7219 chips connected to
+ * 8x8 LED panels.  The chips/panels may be daisy-chained to provide
+ * wider displays.
+ *
  * Sample channeloutputs.json config
  *
  * {
@@ -106,14 +106,7 @@ int MAX7219MatrixOutput::Init(Json::Value config)
 
 	m_panels = config["panels"].asInt();
 
-//	bcm2835_spi_begin();
-//	bcm2835_spi_setBitOrder(BCM2835_SPI_BIT_ORDER_MSBFIRST);  // The default
-//	bcm2835_spi_setDataMode(BCM2835_SPI_MODE0); // The default
-//	bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_256); // The default
-
 	pinMode(m_pinCS, OUTPUT);
-
-//	bcm2835_gpio_write(disp1[j][i], HIGH); // What is this??  undefined indexes
 
 	usleep(50000);
 
@@ -132,9 +125,6 @@ int MAX7219MatrixOutput::Init(Json::Value config)
 int MAX7219MatrixOutput::Close(void)
 {
 	LogDebug(VB_CHANNELOUT, "MAX7219MatrixOutput::Close()\n");
-
-//	bcm2835_spi_end();
-//	bcm2835_close();
 
 	return ChannelOutputBase::Close();
 }
@@ -170,10 +160,13 @@ int MAX7219MatrixOutput::RawSendData(unsigned char *channelData)
 
 	uint8_t data[256];
 
-	int c = (m_panels * 8) - 1;
+	int c = 0;
 	for (int i = 1; i < 9; i++)
 	{
 		int bytes = 0;
+
+		c = (i * m_panels) - 1;
+
 		for (int p = 0; p < m_panels; p++)
 		{
 			data[bytes++] = i;
@@ -194,9 +187,6 @@ int MAX7219MatrixOutput::RawSendData(unsigned char *channelData)
 void MAX7219MatrixOutput::DumpConfig(void)
 {
 	LogDebug(VB_CHANNELOUT, "MAX7219MatrixOutput::DumpConfig()\n");
-
-//	LogDebug(VB_CHANNELOUT, "    deviceID: %d\n", m_deviceID);
-//	LogDebug(VB_CHANNELOUT, "    fd      : %d\n", m_fd);
 
 	ChannelOutputBase::DumpConfig();
 }
