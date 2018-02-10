@@ -1,29 +1,17 @@
-/* PRU based 16x32 LED Matrix driver.
- *
- * Drives up to sixteen 16x32 matrices using the PRU hardware.
- *
- * Uses sixteen data pins in GPIO0 (one for each data line on each
- * matrix) and six control pins in GPIO1 shared between all the matrices.
- *
- * The ARM writes a 24-bit color 512x16 into the shared RAM, sets the
- * frame buffer pointer in the command structure and the PRU clocks it out
- * to the sixteen matrices.  Since there is no PWM in the matrix hardware,
- * the PRU will cycle through various brightness levels. After each PWM
- * cycle it rechecks the frame buffer pointer, allowing a glitch-free
- * transition to a new frame.
- *
- * To pause the redraw loop, write a NULL to the buffer pointer.
- * To shut down the PRU, write -1 to the buffer pointer.
+/*
+ *PRU based LED Matrix driver.
  */
 #ifndef OUTPUTS
 #define OUTPUTS 8
 #endif
 
+#ifndef RUNNING_ON_PRU1
+#ifndef RUNNING_ON_PRU0
 #define RUNNING_ON_PRU0
-
+#endif
+#endif
 
 #define CAT3(X,Y,Z) X##Y##Z
-
 
 
 .origin 0
@@ -52,13 +40,9 @@
 #define row             r2.b0
 #define bright          r2.b1
 #define bit             r2.b2
-#define bitFlags        r2.b3
-#define statsBit        0
 #define sleep_counter   r3.w0
 #define sleepDone       r3.w2
 #define statOffset      r4.w0
-#define numRows         r4.b2
-#define bitsToSkip      r4.b3
 #define offset r5
 #define out_clr r6 // must be one less than out_set
 #define out_set r7
@@ -178,6 +162,60 @@
     DISABLE_GPIO_PIN_INTERRUPTS gpio3_set, gpio_base_cache
 .endm
 
+.macro GET_ON_DELAY_TIMES
+.mparam brightlevel
+#ifdef BRIGHTNESS8
+    QBEQ DO8, brightlevel, 8
+#endif
+#ifdef BRIGHTNESS7
+    QBEQ DO7, brightlevel, 7
+#endif
+    QBEQ DO6, brightlevel, 6
+    QBEQ DO5, brightlevel, 5
+    QBEQ DO4, brightlevel, 4
+    QBEQ DO3, brightlevel, 3
+    QBEQ DO2, brightlevel, 2
+
+    MOV gpio0_set, BRIGHTNESS1
+    MOV gpio1_set, DELAY1
+
+    JMP DONETIMES
+#ifdef BRIGHTNESS8
+    DO8:
+        MOV gpio0_set, BRIGHTNESS8
+        MOV gpio1_set, DELAY8
+        JMP DONETIMES
+#endif
+#ifdef BRIGHTNESS7
+    DO7:
+        MOV gpio0_set, BRIGHTNESS7
+        MOV gpio1_set, DELAY7
+        JMP DONETIMES
+#endif
+    DO6:
+        MOV gpio0_set, BRIGHTNESS6
+        MOV gpio1_set, DELAY6
+        JMP DONETIMES
+    DO5:
+        MOV gpio0_set, BRIGHTNESS5
+        MOV gpio1_set, DELAY5
+        JMP DONETIMES
+    DO4:
+        MOV gpio0_set, BRIGHTNESS4
+        MOV gpio1_set, DELAY4
+        JMP DONETIMES
+    DO3:
+        MOV gpio0_set, BRIGHTNESS3
+        MOV gpio1_set, DELAY3
+        JMP DONETIMES
+    DO2:
+        MOV gpio0_set, BRIGHTNESS2
+        MOV gpio1_set, DELAY2
+        JMP DONETIMES
+
+    DONETIMES:
+.endm
+
 
 START:
     // Enable OCP master port
@@ -204,7 +242,7 @@ START:
 
     // Write a 0x1 into the response field so that they know we have started
     MOV r2, #0x1
-    SBCO r2, CONST_PRUDRAM, 12, 4
+    SBCO r2, CONST_PRUDRAM, 8, 4
 
     // Wait for the start condition from the main program to indicate
     // that we have a rendered frame ready to clock out.  This also
@@ -217,7 +255,7 @@ START:
     MOV gpio3_led_mask, 0
 
     // Load the pointer to the buffer from PRU DRAM into r0.
-    LBCO      data_addr, CONST_PRUDRAM, 0, 4
+    LBCO  data_addr, CONST_PRUDRAM, 0, 4
 
 
     CONFIGURE_OUTPUT(1)
@@ -291,51 +329,34 @@ START:
     LDI statOffset, 0
 
 READ_LOOP:
-        // Load the pointer to the buffer from PRU DRAM into r0 and the
-        // length (in pixels) into r1.
-        LBCO data_addr, CONST_PRUDRAM, 0, 8
+    // Load the pointer to the buffer from PRU DRAM into r0
+    // command into r1
+    LBCO data_addr, CONST_PRUDRAM, 0, 8
 
-        // Wait for a non-zero command
-        QBEQ READ_LOOP, data_addr, #0
+    // Wait for a non-zero command
+    QBEQ READ_LOOP, r1, #0
 
-        // Command of 0xFF is the signal to exit
-        QBEQ EXIT, data_addr, #0xFF
+    // Command of 0xFF is the signal to exit
+    QBEQ EXIT, r1, #0xFF
 
-        MOV pixelsPerRow, r1
-        LDI bitFlags, 0
-
-        //load the configuration, temporarily use the _set registers
-        LBCO      gpio0_set, CONST_PRUDRAM, 16, 8
-        QBEQ      NO_STATS_FLAG, gpio1_set, 0
-            SET      bitFlags, statsBit
-        NO_STATS_FLAG:
-
-        MOV numRows, gpio0_set.b2
-        LDI bitsToSkip, 8
-        SUB bitsToSkip, bitsToSkip, gpio0_set.b3
-        MOV initialOffset, gpio0_set.w0
-
-
-        MOV row, 0
-        LDI statOffset, 0
-        LDI offset, 0
+    MOV row, 0
+    LDI statOffset, 0
+    LDI offset, 0
 
 NEW_ROW_LOOP:
-    MOV bright, 8
+    MOV bright, BITS
 
 	ROW_LOOP:
 		// Reset the latch pin; will be toggled at the end of the row
 		LATCH_LO
 
 		// compute where we are in the image
-        LOOP DONE_PIXELS, pixelsPerRow
+        LOOP DONE_PIXELS, ROW_LEN
             CHECK_FOR_DISPLAY_OFF
-            QBLT SKIP_DATA, initialOffset, offset
 
 			// Load the sixteen RGB outputs into
 			// consecutive registers, starting at pixel_data.
             LBBO pixel_data, data_addr, offset, 3*2*OUTPUTS
-
 
             LDI bit, 0
             BIT_LOOP:
@@ -384,23 +405,22 @@ NEW_ROW_LOOP:
             ADD bit, bit, 1
             QBNE BIT_LOOP, bit, 8
 
-            SKIP_DATA:
-			ADD offset, offset, 3*16
+			ADD offset, offset, 3*2*OUTPUTS
         DONE_PIXELS:
 
-        QBBC NO_STATS, bitFlags, statsBit
-            //write some debug data into sram to read in c code
-            GET_PRU_CLOCK gpio0_set, gpio2_set, 8
-            MOV gpio2_set, sleep_counter
-            QBNE STILLON, sleep_counter, 0
-                MOV gpio2_set, sleepDone
-            STILLON:
-            MOV gpio3_set, statOffset
-            LSL gpio3_set, gpio3_set, 2
-            ADD gpio3_set, gpio3_set, 88   // move past all the config at the beginning
-            SBCO gpio0_set, C24, gpio3_set, 12
-            ADD statOffset, statOffset, 3
-        NO_STATS:
+#ifdef ENABLESTATS
+        //write some debug data into sram to read in c code
+        GET_PRU_CLOCK gpio0_set, gpio2_set, 8
+        MOV gpio2_set, sleep_counter
+        QBNE STILLON, sleep_counter, 0
+            MOV gpio2_set, sleepDone
+        STILLON:
+        MOV gpio3_set, statOffset
+        LSL gpio3_set, gpio3_set, 2
+        ADD gpio3_set, gpio3_set, 12
+        SBCO gpio0_set, CONST_PRUDRAM, gpio3_set, 12
+        ADD statOffset, statOffset, 3
+#endif
 
         QBEQ DISPLAY_ALREADY_OFF, sleep_counter, 0
         WAIT_FOR_TIMER:
@@ -409,19 +429,15 @@ NEW_ROW_LOOP:
             DISPLAY_OFF
         DISPLAY_ALREADY_OFF:
 
-        MOV gpio0_set, 8 //maxBitsToOutput
-        SUB gpio0_set, gpio0_set, bright
-        LSL gpio0_set, gpio0_set, 3
-        ADD gpio0_set, gpio0_set, 24
-        LBCO gpio0_set, CONST_PRUDRAM, gpio0_set, 8
+        // determine on time (gpio0_set) and delay time (gpio1_set)
+        GET_ON_DELAY_TIMES bright
 
-
-        QBNE NO_SET_ROW, bright, 8 //maxBitsToOutput
+        QBNE NO_SET_ROW, bright, BITS //maxBitsToOutput
             OUTPUT_ROW_ADDRESS
         NO_SET_ROW:
 
-	// Full data has been clocked out; latch it
-	LATCH_HI
+	    // Full data has been clocked out; latch it
+	    LATCH_HI
 
 
         RESET_PRU_CLOCK gpio2_set, gpio3_set
@@ -441,12 +457,6 @@ NEW_ROW_LOOP:
         // Increment our data_offset to point to the next row
         ADD data_addr, data_addr, offset
 
-        QBNE NOSKIPROW, bitsToSkip, bright
-        LOOP NOSKIPROW, bitsToSkip
-            ADD data_addr, data_addr, offset
-            LDI bright, 0
-        NOSKIPROW:
-
         LDI offset, 0
 
 		QBLT ROW_LOOP, bright, 0
@@ -454,7 +464,7 @@ NEW_ROW_LOOP:
 		// We have just done all eight brightness levels for this
 		// row.  Time to move to the new row
         ADD row, row, 1
-        QBEQ READ_LOOP, row, numRows
+        QBEQ READ_LOOP, row, ROWS
 
 		QBA NEW_ROW_LOOP
 EXIT:

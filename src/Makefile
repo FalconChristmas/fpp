@@ -265,28 +265,23 @@ CFLAGS += \
     -DNOROOT \
 	-DPLATFORM_BBB \
     -I/usr/local/include \
-	-I../external/LEDscape/src/ledscape/ \
 	$(NULL)
 LIBS_fppd += \
-	-lledscape \
 	-lprussdrv \
 	$(NULL)
 LDFLAGS_fppd += \
     -L/usr/local/lib/ \
-	-L../external/LEDscape/lib/ \
 	$(NULL)
 OBJECTS_fppd += \
-	channeloutput/LEDscapeMatrix.o \
 	channeloutput/BBB48String.o \
 	channeloutput/BBBSerial.o \
     channeloutput/BBBUtils.o \
     channeloutput/BBBPruUtils.o \
+    channeloutput/BBBMatrix.o \
 	$(NULL)
 DEPS_fppd += \
-	../external/LEDscape/lib/libledscape.a \
 	$(NULL)
 SUBMODULES += \
-	external/LEDscape \
 	$(NULL)
 else
 # do something Linux-y
@@ -373,7 +368,6 @@ clean:
 	@if [ -e ../external/RF24/.git ]; then make -C ../external/RF24 clean; fi
 	@if [ -e ../external/rpi-rgb-led-matrix/.git ]; then make -C ../external/rpi-rgb-led-matrix clean; fi
 	@if [ -e ../external/rpi_ws281x/libws2811.a ]; then rm ../external/rpi_ws281x/*.o ../external/rpi_ws281x/*.a 2> /dev/null; fi
-	@if [ -e ../external/LEDscape/.git ]; then make -C ../external/LEDscape clean; fi
 	for dir in $(SUBDIRS); do \
 		$(MAKE) -C $$dir clean || exit 1; \
 	done
@@ -447,16 +441,4 @@ restart: fppd
 		gcc -c -o pwm.o pwm.c && \
 		gcc -c -o ws2811.o ws2811.c && \
 		ar rcs libws2811.a rpihw.o mailbox.o dma.o pwm.o pcm.o ws2811.o
-
-#############################################################################
-# LEDscape library and PRU code on the BBB
-../external/LEDscape/.git:
-	@cd ../ && \
-		git submodule init && \
-		git submodule update
-
-../external/LEDscape/lib/libledscape.a: ../external/LEDscape/.git  ../external/LEDscape/src/ledscape/ledscape.c ../external/LEDscape/src/ledscape/ledscape.h
-	@echo "Building LEDscape library"
-	@make -C ../external/LEDscape/src/ledscape
-
 

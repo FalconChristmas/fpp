@@ -79,7 +79,7 @@
 #ifdef PLATFORM_BBB
 #  include "BBB48String.h"
 #  include "BBBSerial.h"
-#  include "LEDscapeMatrix.h"
+#  include "BBBMatrix.h"
 #endif
 
 #ifdef USEOLA
@@ -274,7 +274,7 @@ int InitializeChannelOutputs(void) {
 #endif
 #ifdef PLATFORM_BBB
 					else if (outputs[c]["subType"] == "LEDscapeMatrix")
-						channelOutputs[i].output = new LEDscapeMatrixOutput(start, count);
+						channelOutputs[i].output = new BBBMatrix(start, count);
 #endif
 					else
 					{
