@@ -108,7 +108,7 @@ int RGBMatrixOutput::Init(Json::Value config)
 			orientation = o[0];
 
 		if (p["colorOrder"].asString() == "")
-			p["colorOrder"] = ColorOrderToString(m_colorOrder);
+			p["colorOrder"] = m_colorOrder;
 
 		m_panelMatrix->AddPanel(p["outputNumber"].asInt(),
 			p["panelNumber"].asInt(), orientation,
