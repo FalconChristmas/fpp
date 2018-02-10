@@ -32,25 +32,19 @@
 #include <vector>
 #include <stdint.h>
 
-typedef enum {
-	vsColorOrderRGB,
-	vsColorOrderRBG,
-	vsColorOrderGBR,
-	vsColorOrderGRB,
-	vsColorOrderBGR,
-	vsColorOrderBRG
-} vsColorOrder;
+#include "ColorOrder.h"
 
 typedef struct virtualString {
 	int            startChannel;
 	int            pixelCount;
 	int            groupCount;
 	int            reverse;
-	vsColorOrder   colorOrder;
+	FPPColorOrder  colorOrder;
 	int            nullNodes;
 	int            zigZag;
 	int            brightness;
 	float          gamma;
+	uint8_t        brightnessMap[256];
 } VirtualString;
 
 class PixelString {
@@ -88,6 +82,7 @@ class PixelString {
 
 	std::vector<int>  m_outputMap;
     uint8_t           m_brightnessMap[256];
+	uint8_t         **m_brightnessMaps;
   private:
 	void SetupMap(int vsOffset, VirtualString vs);
 	void SetupMap(void);

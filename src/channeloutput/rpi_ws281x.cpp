@@ -142,13 +142,8 @@ int RPIWS281xOutput::Close(void)
 	return ChannelOutputBase::Close();
 }
 
-/*
- *
- */
-int RPIWS281xOutput::RawSendData(unsigned char *channelData)
+void RPIWS281xOutput::PrepData(unsigned char *channelData)
 {
-	LogDebug(VB_CHANNELOUT, "RPIWS281xOutput::RawSendData(%p)\n", channelData);
-
 	unsigned char *c = channelData;
 	unsigned int r = 0;
 	unsigned int g = 0;
@@ -164,14 +159,22 @@ int RPIWS281xOutput::RawSendData(unsigned char *channelData)
 
 		for (int p = 0; p < ps->m_pixels; p++)
 		{
-			r = channelData[ps->m_outputMap[inCh++]];
-			g = channelData[ps->m_outputMap[inCh++]];
-			b = channelData[ps->m_outputMap[inCh++]];
+			r = ps->m_brightnessMaps[p][channelData[ps->m_outputMap[inCh++]]];
+			g = ps->m_brightnessMaps[p][channelData[ps->m_outputMap[inCh++]]];
+			b = ps->m_brightnessMaps[p][channelData[ps->m_outputMap[inCh++]]];
 
 			ledstring.channel[s].leds[p] =
 				(r << 16) | (g <<  8) | (b);
 		}
 	}
+}
+
+/*
+ *
+ */
+int RPIWS281xOutput::RawSendData(unsigned char *channelData)
+{
+	LogDebug(VB_CHANNELOUT, "RPIWS281xOutput::RawSendData(%p)\n", channelData);
 
 	if (ws2811_render(&ledstring))
 	{

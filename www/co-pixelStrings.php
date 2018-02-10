@@ -127,15 +127,7 @@ function pixelOutputTableInputBrightness(brightness)
 	result += "<select class='vsBrightness'>";
 
 	var i = 100;
-	for (i = 100; i >= 60; i -= 5)
-	{
-		result += "<option value='" + i + "'";
-		if (brightness == i)
-			result += " selected";
-		result += ">" + i + "%</option>";
-	}
-
-	for (i = 50; i >= 10; i -= 10)
+	for (i = 100; i >= 5; i -= 5)
 	{
 		result += "<option value='" + i + "'";
 		if (brightness == i)

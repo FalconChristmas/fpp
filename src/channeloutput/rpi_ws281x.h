@@ -47,7 +47,8 @@ class RPIWS281xOutput : public ChannelOutputBase {
 	int Init(Json::Value config);
 	int Close(void);
 
-	int RawSendData(unsigned char *channelData);
+	void PrepData(unsigned char *channelData);
+	int  RawSendData(unsigned char *channelData);
 
 	void DumpConfig(void);
 
