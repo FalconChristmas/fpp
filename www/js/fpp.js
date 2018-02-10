@@ -1754,7 +1754,7 @@ if (1) {
 					if(receivedBytes.childNodes.length> 0)
 					{
 						html =  "<table>";
-						html += "<tr id=\"rowReceivedBytesHeader\"><td>Universe</td><td>Start Address</td><td>Packets</td><td>Bytes</td>";
+						html += "<tr id=\"rowReceivedBytesHeader\"><td>Universe</td><td>Start Address</td><td>Packets</td><td>Bytes</td><td>Errors</td></tr>";
 
 						var i;	
 						for(i=0;i<receivedBytes.childNodes.length;i++)
@@ -1764,14 +1764,15 @@ if (1) {
 									html += "</table>";
 									html1 = html;
 									html =  "<table>";
-									html += "<tr id=\"rowReceivedBytesHeader\"><td>Universe</td><td>Start Address</td><td>Packets</td><td>Bytes</td>";
+									html += "<tr id=\"rowReceivedBytesHeader\"><td>Universe</td><td>Start Address</td><td>Packets</td><td>Bytes</td><td>Errors</td></tr>";
 								}
 								var universe = receivedBytes.childNodes[i].childNodes[0].textContent;
 								var startChannel = receivedBytes.childNodes[i].childNodes[1].textContent;
 								var bytes = receivedBytes.childNodes[i].childNodes[2].textContent;
 								var packets = receivedBytes.childNodes[i].childNodes[3].textContent;
+                                var errors = receivedBytes.childNodes[i].childNodes[4].textContent;
 								html += "<tr><td>" + universe + "</td>";
-								html += "<td>" + startChannel + "</td><td>" + packets + "</td><td>" + bytes + "</td></tr>";
+								html += "<td>" + startChannel + "</td><td>" + packets + "</td><td>" + bytes + "</td><td>" + errors + "</td></tr>";
 						}
 						html += "</table>";
 					}

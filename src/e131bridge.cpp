@@ -74,6 +74,10 @@ int InputUniverseCount;
 
 static unsigned long ddpBytesReceived = 0;
 static unsigned long ddpPacketsReceived = 0;
+static unsigned long ddpErrors = 0;
+
+static long ddpLastSequence = 0;
+static long ddpLastChannel = 0;
 
 // prototypes for functions below
 void Bridge_StoreData(int universe, char *bridgeBuffer);
@@ -363,7 +367,7 @@ void Bridge_StoreDDPData(char *bridgeBuffer)  {
         ddpPacketsReceived++;
         bool tc = bridgeBuffer[0] & DDP_TIMECODE_FLAG;
         //bool push = bridgeBuffer[0] & DDP_PUSH_FLAG;
-
+        
         int chan = bridgeBuffer[4];
         chan <<= 8;
         chan += bridgeBuffer[5];
@@ -371,9 +375,31 @@ void Bridge_StoreDDPData(char *bridgeBuffer)  {
         chan += bridgeBuffer[6];
         chan <<= 8;
         chan += bridgeBuffer[7];
-
+        
         int len = bridgeBuffer[8] << 8;
         len += bridgeBuffer[9];
+        
+        int sn = bridgeBuffer[1] & 0xF;
+        if (sn) {
+            bool isErr = false;
+            if (ddpLastSequence) {
+                if (sn == 1) {
+                    if (ddpLastSequence != 15) {
+                        isErr = true;
+                    }
+                } else if ((sn - 1) != ddpLastSequence) {
+                    isErr = true;
+                }
+            }
+            if (isErr) {
+                ddpErrors++;
+                //printf("%d   %d    %d  %d\n", sn, ddpLastSequence, chan, ddpLastChannel);
+            }
+            ddpLastSequence = sn;
+            ddpLastChannel = chan + len;
+        }
+
+
         
         int offset = tc ? 14 : 10;
         memcpy(sequence->m_seqData + chan, &bridgeBuffer[offset], len);
@@ -437,6 +463,11 @@ Json::Value GetE131UniverseBytesReceived()
         pr << ddpPacketsReceived;
         std::string packetsReceived = pr.str();
         ddpUniverse["packetsReceived"] = packetsReceived;
+        
+        std::stringstream er;
+        er << ddpErrors;
+        std::string errors = er.str();
+        ddpUniverse["errors"] = errors;
         universes.append(ddpUniverse);
     }
 
