@@ -503,29 +503,31 @@ void BBBMatrix::PrepData(unsigned char *channelData)
             }
         }
     }
+    
     if ((m_panelScan * 2) != m_panelHeight) {
         //need to interleave the data, we'll do it by copying blocks to tmpFrame
         //as needed then swap.  This only supports interleaves that are divisible by 8
         //due to the bit packing
-        size_t totalSize = m_outputs * m_longestChain * m_panelHeight * m_panelWidth * 3;
-        size_t fullRowSize = m_outputs * m_longestChain * m_panelWidth * 3;
-        size_t offsetToNextBlock = fullRowSize * m_panelScan / 2;
-        
-        memcpy(m_tmpFrame, m_outputFrame, totalSize);
         int blockSize = m_interleave * m_outputs * 3 * 2 / 8;
+        size_t totalSize = m_outputs * m_longestChain * m_panelHeight * m_panelWidth * 3;
+        size_t fullRowSize = m_outputs * m_longestChain * m_panelWidth * 3 * 2 * m_colorDepth / 8;
+        size_t offsetToNextBlock = fullRowSize * m_panelScan;
+        
+        //printf("%d  %d  %d  %d\n", blockSize, fullRowSize, offsetToNextBlock, totalSize);
+        
+        memset(m_tmpFrame, 0, totalSize);
         int curOut = 0;
         int curIn = 0;
         while (curOut < totalSize) {
-            memcpy(&m_tmpFrame[curOut], &m_outputFrame[curIn], blockSize);
-            curOut += blockSize;
             memcpy(&m_tmpFrame[curOut], &m_outputFrame[curIn + offsetToNextBlock], blockSize);
+            curOut += blockSize;
+            memcpy(&m_tmpFrame[curOut], &m_outputFrame[curIn], blockSize);
             curIn += blockSize;
             curOut += blockSize;
         }
         
         std::swap(m_tmpFrame, m_outputFrame);
     }
-    
 }
 int BBBMatrix::RawSendData(unsigned char *channelData)
 {
