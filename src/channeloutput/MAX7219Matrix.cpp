@@ -170,7 +170,7 @@ int MAX7219MatrixOutput::RawSendData(unsigned char *channelData)
 
 	uint8_t data[256];
 
-	int c = m_panels - 1;
+	int c = (m_panels * 8) - 1;
 	for (int i = 1; i < 9; i++)
 	{
 		int bytes = 0;
