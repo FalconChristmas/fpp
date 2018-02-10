@@ -72,7 +72,8 @@ class ChannelOutputBase {
 	unsigned int     m_useOutputThread;
 	unsigned int     m_threadIsRunning;
 	unsigned int     m_runThread;
-	unsigned int     m_dataWaiting;
+	volatile unsigned int     m_dataWaiting;
+	unsigned int     m_useDoubleBuffer;
 
 	pthread_t        m_threadID;
 	pthread_mutex_t  m_bufLock;

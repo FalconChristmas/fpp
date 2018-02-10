@@ -50,6 +50,7 @@ USBPixelnetOutput::USBPixelnetOutput(unsigned int startChannel,
 		startChannel, channelCount);
 
 	m_maxChannels = 4096;
+	m_useDoubleBuffer = 1;
 }
 
 /*

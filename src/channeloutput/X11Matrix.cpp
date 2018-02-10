@@ -53,6 +53,7 @@ X11MatrixOutput::X11MatrixOutput(unsigned int startChannel,
 		startChannel, channelCount);
 
 	m_maxChannels = FPPD_MAX_CHANNELS;
+	m_useDoubleBuffer = 1;
 }
 
 /*

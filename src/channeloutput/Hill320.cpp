@@ -108,6 +108,7 @@ Hill320Output::Hill320Output(unsigned int startChannel, unsigned int channelCoun
 		startChannel, channelCount);
 
 	m_maxChannels = 320;
+	m_useDoubleBuffer = 1;
 
 	m_boxCount = m_channelCount / 8;
 }

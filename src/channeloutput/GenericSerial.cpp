@@ -55,6 +55,7 @@ GenericSerialOutput::GenericSerialOutput(unsigned int startChannel, unsigned int
 		startChannel, channelCount);
 
 	m_maxChannels = GENERICSERIAL_MAX_CHANNELS;
+	m_useDoubleBuffer = 1;
 }
 
 /*

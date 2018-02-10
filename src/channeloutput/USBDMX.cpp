@@ -53,6 +53,7 @@ USBDMXOutput::USBDMXOutput(unsigned int startChannel, unsigned int channelCount)
 		startChannel, channelCount);
 
 	m_maxChannels = DMX_MAX_CHANNELS;
+	m_useDoubleBuffer = 1;
 }
 
 /*
