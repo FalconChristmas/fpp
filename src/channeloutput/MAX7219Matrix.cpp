@@ -155,7 +155,6 @@ int MAX7219MatrixOutput::WriteCommand(uint8_t cmd, uint8_t value)
 		data[bytes++] = value;
 	}
 
-HexDump("Command Data", data, bytes);
 	digitalWrite(m_pinCS, 0);
 	wiringPiSPIDataRW(0, data, bytes);
 	digitalWrite(m_pinCS, 1);
@@ -171,16 +170,16 @@ int MAX7219MatrixOutput::RawSendData(unsigned char *channelData)
 
 	uint8_t data[256];
 
-	int c = 0;
+	int c = m_panels - 1;
 	for (int i = 1; i < 9; i++)
 	{
 		int bytes = 0;
 		for (int p = 0; p < m_panels; p++)
 		{
 			data[bytes++] = i;
-			data[bytes++] = channelData[c++];
+			data[bytes++] = ReverseBitsInByte(channelData[c--]);
 		}
-HexDump("Channel Data", data, bytes);
+
 		digitalWrite(m_pinCS, 0);
 		wiringPiSPIDataRW(0, data, bytes);
 		digitalWrite(m_pinCS, 1);
