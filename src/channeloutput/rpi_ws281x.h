@@ -1,7 +1,7 @@
 /*
  *   Raspberry Pi rpi_ws281x handler for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -47,7 +47,8 @@ class RPIWS281xOutput : public ChannelOutputBase {
 	int Init(Json::Value config);
 	int Close(void);
 
-	int RawSendData(unsigned char *channelData);
+	void PrepData(unsigned char *channelData);
+	int  RawSendData(unsigned char *channelData);
 
 	void DumpConfig(void);
 

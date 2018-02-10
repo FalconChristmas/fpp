@@ -1,7 +1,7 @@
 /*
  *   DDP Channel Output driver for Falcon Player (FPP)
  *
- *   Copyright (C) 2017 the Falcon Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -27,6 +27,11 @@
 #define _DDPOUTPUT_H
 
 #include "ChannelOutputBase.h"
+
+#define DDP_PORT 4048
+
+#define DDP_PUSH_FLAG 0x01
+#define DDP_TIMECODE_FLAG 0x10
 
 class DDPOutput : public ChannelOutputBase {
   public:

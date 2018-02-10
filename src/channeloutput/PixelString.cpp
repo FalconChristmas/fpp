@@ -1,7 +1,7 @@
 /*
- *   PixelString Class for Falcon Pi Player (FPP)
+ *   PixelString Class for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Pi Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -9,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -33,8 +33,13 @@
 
 /////////////////////////////////////////////////////////////////////////////
 
-char *vsColorOrderStr[] = { "RGB", "RBG", "GBR", "GRB", "BGR", "BRG" };
 #define MAX_PIXEL_STRING_LENGTH  999
+
+#define CHECKPS_SETTING(SETTING) if (SETTING) { \
+LogErr(VB_CHANNELOUT, "Invalid PixelString Config %s\n", #SETTING); \
+return 0; \
+}\
+
 
 /*
  *
@@ -86,18 +91,42 @@ int PixelString::Init(Json::Value config)
 		vs.brightness = vsc["brightness"].asInt();
 		vs.gamma = atof(vsc["gamma"].asString().c_str());
 
+		if (vs.brightness > 100 || vs.brightness < 0) {
+			vs.brightness = 100;
+		}
+		if (vs.gamma < 0.01) {
+			vs.gamma = 0.01;
+		}
+		if (vs.gamma > 50.0f) {
+			vs.gamma = 50.0f;
+		}
+
+		CHECKPS_SETTING(vs.startChannel < 0);
+		CHECKPS_SETTING(vs.startChannel > FPPD_MAX_CHANNELS);
+		CHECKPS_SETTING(vs.pixelCount < 0);
+		CHECKPS_SETTING(vs.pixelCount > MAX_PIXEL_STRING_LENGTH);
+		CHECKPS_SETTING(vs.nullNodes < 0);
+		CHECKPS_SETTING(vs.nullNodes > MAX_PIXEL_STRING_LENGTH);
+		CHECKPS_SETTING((vs.nullNodes + vs.pixelCount) > MAX_PIXEL_STRING_LENGTH);
+		CHECKPS_SETTING(vs.reverse < 0);
+		CHECKPS_SETTING(vs.reverse > 1);
+		CHECKPS_SETTING(vs.groupCount < 0);
+		CHECKPS_SETTING(vs.groupCount > vs.pixelCount);
+		CHECKPS_SETTING(vs.zigZag < 0);
+		CHECKPS_SETTING(vs.zigZag > vs.pixelCount);
+
 		if (vsc["colorOrder"].asString() == "RGB")
-			vs.colorOrder = vsColorOrderRGB;
+			vs.colorOrder = kColorOrderRGB;
 		else if (vsc["colorOrder"].asString() == "RBG")
-			vs.colorOrder = vsColorOrderRBG;
+			vs.colorOrder = kColorOrderRBG;
 		else if (vsc["colorOrder"].asString() == "GBR")
-			vs.colorOrder = vsColorOrderGBR;
+			vs.colorOrder = kColorOrderGBR;
 		else if (vsc["colorOrder"].asString() == "GRB")
-			vs.colorOrder = vsColorOrderGRB;
+			vs.colorOrder = kColorOrderGRB;
 		else if (vsc["colorOrder"].asString() == "BGR")
-			vs.colorOrder = vsColorOrderBGR;
+			vs.colorOrder = kColorOrderBGR;
 		else if (vsc["colorOrder"].asString() == "BRG")
-			vs.colorOrder = vsColorOrderBRG;
+			vs.colorOrder = kColorOrderBRG;
 
 		if (vs.groupCount == 1)
 			vs.groupCount = 0;
@@ -110,9 +139,23 @@ int PixelString::Init(Json::Value config)
 		if ((vs.zigZag == vs.pixelCount) || (vs.zigZag == 1))
 			vs.zigZag = 0;
 
-		m_virtualStrings.push_back(vs);
-
 		m_pixels += vs.pixelCount + vs.nullNodes;
+
+		float bf = vs.brightness;
+		float maxB = bf * 2.55f;
+		for (int x = 0; x < 256; x++) {
+			float f = x;
+			f = maxB * pow(f / 255.0f, vs.gamma);
+			if (f > 255.0) {
+				f = 255.0;
+			}
+			if (f < 0.0) {
+				f = 0.0;
+			}
+			vs.brightnessMap[x] = round(f);
+		}
+
+		m_virtualStrings.push_back(vs);
 	}
 
 	m_outputChannels = m_pixels * 3;
@@ -126,12 +169,19 @@ int PixelString::Init(Json::Value config)
 		m_outputMap[i] = FPPD_MAX_CHANNELS - 2;
 
 	int offset = 0;
+	int mapIndex = 0;
+
+	m_brightnessMaps = (uint8_t **)malloc(sizeof(uint8_t*) * m_pixels);
+
 	for (int i = 0; i < m_virtualStrings.size(); i++)
 	{
 		offset += m_virtualStrings[i].nullNodes * 3;
 
 		SetupMap(offset, m_virtualStrings[i]);
 		offset += m_virtualStrings[i].pixelCount * 3;
+
+		for (int j = 0; j < (m_virtualStrings[i].nullNodes + m_virtualStrings[i].pixelCount); j++)
+			m_brightnessMaps[mapIndex++] = m_virtualStrings[i].brightnessMap;
 	}
 
 	return 1;
@@ -156,11 +206,6 @@ int PixelString::Init(std::string configStr)
 		atoi(elems[5].c_str()), atoi(elems[6].c_str()),
 		atoi(elems[7].c_str()), atoi(elems[8].c_str()), 100, 1.0f);
 }
-
-#define CHECKPS_SETTING(SETTING) if (SETTING) { \
-LogErr(VB_CHANNELOUT, "Invalid PixelString Config %s\n", #SETTING); \
-return 0; \
-}\
 
 int PixelString::Init(int portNumber, int channelOffset, int startChannel,
 		int pixelCount, std::string colorOrder, int nullNodes,
@@ -275,37 +320,37 @@ void PixelString::SetupMap(int vsOffset, VirtualString vs)
 			ch = vs.startChannel + (p * 3);
 		}
 
-		if (vs.colorOrder == vsColorOrderRGB)
+		if (vs.colorOrder == kColorOrderRGB)
 		{
 			ch1 = ch;
 			ch2 = ch + 1;
 			ch3 = ch + 2;
 		}
-		else if (vs.colorOrder == vsColorOrderRBG)
+		else if (vs.colorOrder == kColorOrderRBG)
 		{
 			ch1 = ch;
 			ch2 = ch + 2;
 			ch3 = ch + 1;
 		}
-		else if (vs.colorOrder == vsColorOrderGRB)
+		else if (vs.colorOrder == kColorOrderGRB)
 		{
 			ch1 = ch + 1;
 			ch2 = ch;
 			ch3 = ch + 2;
 		}
-		else if (vs.colorOrder == vsColorOrderGBR)
+		else if (vs.colorOrder == kColorOrderGBR)
 		{
 			ch1 = ch + 1;
 			ch2 = ch + 2;
 			ch3 = ch;
 		}
-		else if (vs.colorOrder == vsColorOrderBRG)
+		else if (vs.colorOrder == kColorOrderBRG)
 		{
 			ch1 = ch + 2;
 			ch2 = ch;
 			ch3 = ch + 1;
 		}
-		else if (vs.colorOrder == vsColorOrderBGR)
+		else if (vs.colorOrder == kColorOrderBGR)
 		{
 			ch1 = ch + 2;
 			ch2 = ch + 1;
@@ -318,9 +363,7 @@ void PixelString::SetupMap(int vsOffset, VirtualString vs)
 
 		ch += 3;
 
-LogExcess(VB_CHANNELOUT, "offset: %d (loop bottom), iig: %d\n", offset, itemsInGroup);
 	}
-LogExcess(VB_CHANNELOUT, "offset: %d (after loop)\n", offset++);
 
 	DumpMap("BEFORE ZIGZAG");
 
@@ -443,9 +486,7 @@ void PixelString::SetupMap(void)
 
 		ch += 3;
 
-LogExcess(VB_CHANNELOUT, "offset: %d (loop bottom), iig: %d\n", offset, itemsInGroup);
 	}
-LogExcess(VB_CHANNELOUT, "offset: %d (after loop)\n", offset++);
 
 	DumpMap("BEFORE ZIGZAG");
 
@@ -550,7 +591,7 @@ void PixelString::DumpConfig(void)
 			LogDebug(VB_CHANNELOUT, "        reverse       : %d\n",
 				vs.reverse);
 			LogDebug(VB_CHANNELOUT, "        color order   : %s\n",
-				vsColorOrderStr[vs.colorOrder]);
+				ColorOrderToString(vs.colorOrder).c_str());
 			LogDebug(VB_CHANNELOUT, "        null nodes    : %d\n",
 				vs.nullNodes);
 			LogDebug(VB_CHANNELOUT, "        zig zag       : %d\n",

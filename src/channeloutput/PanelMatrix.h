@@ -1,7 +1,7 @@
 /*
- *   Panel Matrix handler for Falcon Pi Player (FPP)
+ *   Panel Matrix handler for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Pi Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -9,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -29,8 +29,10 @@
 #include <string>
 #include <vector>
 
-#define MAX_MATRIX_OUTPUTS    8
-#define MAX_PANELS_PER_OUTPUT 12
+#include "ColorOrder.h"
+
+#define MAX_MATRIX_OUTPUTS    12
+#define MAX_PANELS_PER_OUTPUT 16
 #define MAX_MATRIX_PANELS    (MAX_MATRIX_OUTPUTS * MAX_PANELS_PER_OUTPUT)
 
 typedef struct ledPanel {
@@ -42,17 +44,18 @@ typedef struct ledPanel {
 	int    xOffset;
 	int    yOffset;
 
+	FPPColorOrder colorOrder;
+
 	std::vector<int> pixelMap;
 } LEDPanel;
 
 class PanelMatrix {
   public:
-	PanelMatrix(int panelWidth, int panelHeight, int channelsPerPixel = 3,
-				int invertedData = 0);
+	PanelMatrix(int panelWidth, int panelHeight, int invertedData = 0);
 	~PanelMatrix();
 
 	int  AddPanel(int output, int chain, char orientation,
-		int xOffset, int yOffset);
+		int xOffset, int yOffset, FPPColorOrder colorOrder = kColorOrderRGB);
 
 	int  ConfigurePanels(std::string layout);
 
@@ -72,7 +75,6 @@ class PanelMatrix {
 
 	int CalculateMaps(void);
 
-	int  m_channelsPerPixel;
 	int  m_width;
 	int  m_height;
 	int  m_outputCount;

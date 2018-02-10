@@ -69,7 +69,7 @@
 SCRIPTVER="0.9"
 FPPBRANCH="master-v1.x"
 FPPIMAGEVER="1.9"
-FPPCFGVER="26"
+FPPCFGVER="28"
 FPPPLATFORM="UNKNOWN"
 FPPDIR="/opt/fpp"
 OSVER="UNKNOWN"
@@ -412,7 +412,7 @@ case "${OSVER}" in
 								libboost-dev libconvert-binary-c-perl \
 								libdbus-glib-1-dev libdevice-serialport-perl libjs-jquery \
 								libjs-jquery-ui libjson-perl libjsoncpp-dev libmicrohttpd-dev libnet-bonjour-perl \
-								libpam-smbpass libssh-4 libtagc0-dev libtest-nowarnings-perl locales \
+								libpam-smbpass libsdl2-dev libssh-4 libtagc0-dev libtest-nowarnings-perl locales \
 								mp3info mailutils mpg123 mpg321 mplayer nano node ntp perlmagick \
 								php-cli php-common php-curl php-dom php-fpm php-mcrypt \
 								php-sqlite3 python-daemon python-smbus rsync samba \
@@ -681,8 +681,20 @@ EOF
 		echo "scaling_kernel=8" >> /boot/config.txt
 		echo >> /boot/config.txt
 
+		echo "# Enable audio" >> /boot/config.txt
+		echo "dtparam=audio=on" >> /boot/config.txt
+		echo >> /boot/config.txt
+
 		echo "# Allow more current through USB" >> /boot/config.txt
 		echo "max_usb_current=1" >> /boot/config.txt
+		echo >> /boot/config.txt
+
+		echo "# Setup UART clock to allow DMX output" >> /boot/config.txt
+		echo "init_uart_clock=16000000" >> /boot/config.txt
+		echo >> /boot/config.txt
+
+		echo "# Swap Pi 3 and Zero W UARTs with BT" >> /boot/config.txt
+		echo "dtoverlay=pi3-miniuart-bt" >> /boot/config.txt
 		echo >> /boot/config.txt
 
 		echo "FPP - Freeing up more space by removing unnecessary packages"
@@ -971,7 +983,7 @@ if [ -n ${SDA1} ]
 then
 	COMMENTED="#"
 fi
-echo "${COMMENTED}/dev/sda1     /home/fpp/media  auto    defaults,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500  0  0" >> /etc/fstab
+echo "${COMMENTED}/dev/sda1     /home/fpp/media  auto    defaults,nonempty,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500  0  0" >> /etc/fstab
 echo "#####################################" >> /etc/fstab
 
 #######################################

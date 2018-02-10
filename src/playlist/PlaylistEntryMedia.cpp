@@ -1,7 +1,7 @@
 /*
  *   Playlist Entry Media Class for Falcon Player (FPP)
  *
- *   Copyright (C) 2016 the Falcon Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -9,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -35,6 +35,7 @@
 #include "omxplayer.h"
 #include "PlaylistEntryMedia.h"
 #include "Plugins.h"
+#include "SDLOut.h"
 #include "settings.h"
 
 /*
@@ -206,40 +207,51 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 
 	pthread_mutex_lock(&m_mediaOutputLock);
 
-	char tmpFile[1024];
-	strcpy(tmpFile, m_mediaFilename.c_str());
+	std::string tmpFile = m_mediaFilename;
+	std::size_t found = tmpFile.find_last_of(".");
 
-	int filenameLen = strlen(tmpFile);
-	if ((getFPPmode() == REMOTE_MODE) && (filenameLen > 4))
+	if (found == std::string::npos)
+	{
+		LogDebug(VB_MEDIAOUT, "Unable to determine extension of media file %s\n",
+			m_mediaFilename.c_str());
+		return 0;
+	}
+
+	std::string ext = tmpFile.substr(found + 1);
+
+	int filenameLen = tmpFile.length();
+	if (getFPPmode() == REMOTE_MODE)
 	{
 		// For v1.0 MultiSync, we can't sync audio to audio, so check for
 		// a video file if the master is playing an audio file
-		if (!strcmp(&tmpFile[filenameLen - 4], ".mp3"))
+		if ((ext == "mp3") || (ext == "ogg") || (ext == "m4a"))
 		{
-			strcpy(&tmpFile[filenameLen - 4], ".mp4");
+			tmpFile.replace(filenameLen - ext.length(), 3, "mp4");
 			LogDebug(VB_MEDIAOUT,
-				"Master is playing MP3 %s, remote will try %s Video\n",
-				m_mediaFilename.c_str(), tmpFile);
-		}
-		else if (!strcmp(&tmpFile[filenameLen - 4], ".ogg"))
-		{
-			strcpy(&tmpFile[filenameLen - 4], ".mp4");
-			LogDebug(VB_MEDIAOUT,
-				"Master is playing OGG %s, remote will try %s Video\n",
+				"Master is playing %s audio, remote will try %s Video\n",
 				m_mediaFilename.c_str(), tmpFile);
 		}
 	}
 
-	if (!strcasecmp(&tmpFile[filenameLen - 4], ".mp3")) {
-		m_mediaOutput = new mpg123Output(tmpFile, &mediaOutputStatus);
-	} else if (!strcasecmp(&tmpFile[filenameLen - 4], ".ogg")) {
-		m_mediaOutput = new ogg123Output(tmpFile, &mediaOutputStatus);
-	} else if ((!strcasecmp(&tmpFile[filenameLen - 4], ".mp4")) ||
-			   (!strcasecmp(&tmpFile[filenameLen - 4], ".mkv"))) {
+    // FIXME remove ForceSDL for v2.0
+	if (!getSettingInt("ForceSDL") || getSettingInt("LegacyMediaOutputs")) {
+		if (ext == "mp3") {
+			m_mediaOutput = new mpg123Output(tmpFile, &mediaOutputStatus);
+		} else if (ext == "ogg") {
+			m_mediaOutput = new ogg123Output(tmpFile, &mediaOutputStatus);
+		}
+    } else if ((ext == "mp3") ||
+               (ext == "m4a") ||
+               (ext == "ogg")) {
+        m_mediaOutput = new SDLOutput(tmpFile, &mediaOutputStatus);
+#ifdef PLATFORM_PI
+	} else if ((ext == "mp4") ||
+			   (ext == "mkv")) {
 		m_mediaOutput = new omxplayerOutput(tmpFile, &mediaOutputStatus);
+#endif
 	} else {
-		pthread_mutex_unlock(&m_mediaOutputLock);
-		LogDebug(VB_MEDIAOUT, "ERROR: No Media Output handler for %s\n", tmpFile);
+		pthread_mutex_unlock(&mediaOutputLock);
+		LogDebug(VB_MEDIAOUT, "No Media Output handler for %s\n", tmpFile);
 		return 0;
 	}
 

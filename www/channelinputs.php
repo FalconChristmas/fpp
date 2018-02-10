@@ -48,11 +48,7 @@ $(document).ready(function() {
 
 				 enabled = {};
 				 enabled.name = "enabled";
-
-				 if ($("#E131Enabled").is(':checked'))
-				 	enabled.value = 1;
-				 else
-				 	enabled.value = 0;
+				 enabled.value = 1;
 
 				 dataString.push(enabled);
 

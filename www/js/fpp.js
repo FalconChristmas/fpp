@@ -1633,6 +1633,7 @@ function RemovePlaylistEntry()	{
 		})
 	}
 
+	var firstStatusLoad = 1;
 	function parseStatus(jsonStatus) {
 		var fppStatus = jsonStatus.status;
 		var fppMode = jsonStatus.mode;
@@ -1650,7 +1651,10 @@ function RemovePlaylistEntry()	{
 
 		if (fppMode == 1) {
 			// Bridge Mode
-			GetUniverseBytesReceived();
+			$('#fppTime').html(jsonStatus.time);
+
+			if (firstStatusLoad || $('#e131statsLiveUpdate').is(':checked'))
+				GetUniverseBytesReceived();
 		} else if (fppMode == 8) {
 			$('#fppTime').html(jsonStatus.time);
 
@@ -1730,176 +1734,10 @@ if (1) {
 			$('#fppTime').html(jsonStatus.time);
 
 		}
-	
+
+		firstStatusLoad = 0;
 	}
 
-	function OrigGetFPPStatus()
-	{
-    	var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=getFPPstatus";
-			xmlhttp.open("GET",url,true);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-	 
-			xmlhttp.onreadystatechange = function () {
-				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
-				{
-					var xmlDoc=xmlhttp.responseXML; 
-					var status = xmlDoc.getElementsByTagName('Status')[0];
-					if(status.childNodes.length> 1)
-					{
-						var fppStatus = status.childNodes[1].textContent;
-
-						if (fppStatus == STATUS_IDLE ||
-							fppStatus == STATUS_PLAYING ||
-							fppStatus == STATUS_STOPPING_GRACEFULLY )
-						{
-							$("#btnDaemonControl").attr('value', 'Stop FPPD');
-							$('#daemonStatus').html("FPPD is running.");
-						}
-
-						var fppMode = parseInt(status.childNodes[0].textContent);
-						SetupUIForMode(fppMode);
-						if (fppMode == 1)
-						{
-							// Bridge Mode
-							GetUniverseBytesReceived();
-						}
-						else if (fppMode == 8)
-						{
-							// Remote Mode
-							var Volume = status.childNodes[2].textContent;
-							var seqFilename = status.childNodes[3].textContent;
-							var mediaFilename = status.childNodes[4].textContent;
-							var secsElapsed = parseInt(status.childNodes[5].textContent);
-							var secsRemaining = parseInt(status.childNodes[6].textContent);
-							var fppTime = status.childNodes[7].textContent;
-
-							$('#fppTime').html(fppTime);
-
-							var status = "Idle";
-							if (secsElapsed)
-							{
-								var minsPlayed = Math.floor(secsElapsed/60);
-								minsPlayed = isNaN(minsPlayed)?0:minsPlayed;
-								var secsPlayed = secsElapsed%60;
-								secsPlayed = isNaN(secsPlayed)?0:secsPlayed;
-
-								var minsRemaining = Math.floor(secsRemaining/60);
-								minsRemaining = isNaN(minsRemaining)?0:minsRemaining;
-								var secsRemaining = secsRemaining%60;
-								secsRemaining = isNaN(secsRemaining)?0:secsRemaining;
-								status = "Syncing to Master: Elapsed: " + zeroPad(minsPlayed,2) + ":" + zeroPad(secsPlayed,2) + "&nbsp;&nbsp;&nbsp;&nbsp;Remaining: " + zeroPad(minsRemaining,2) + ":" + zeroPad(secsRemaining,2);
-							}
-							$('#txtRemoteStatus').html(status);
-							$('#txtRemoteSeqFilename').html(seqFilename);
-							$('#txtRemoteMediaFilename').html(mediaFilename);
-						}
-						else
-						{
-							// Player or Standalone Mode
-							if(fppStatus == STATUS_IDLE)
-							{
-								gblCurrentPlaylistIndex =0;
-								var Volume = status.childNodes[2].textContent;
-								var NextPlaylist = status.childNodes[3].textContent;
-								var NextPlaylistTime = status.childNodes[4].textContent;
-								var fppTime = status.childNodes[5].textContent;
-	
-								$('#txtPlayerStatus').html("Idle");
-								$('#txtTimePlayed').html("");								
-								$('#txtTimeRemaining').html("");	
-								$('#txtNextPlaylist').html(NextPlaylist);
-								$('#nextPlaylistTime').html(NextPlaylistTime);
-								$('#fppTime').html(fppTime);
-								
-								// Enable Play
-								SetButtonState('#btnPlay','enable');
-								SetButtonState('#btnStopNow','disable');
-								SetButtonState('#btnStopGracefully','disable');
-								$('#selStartPlaylist').removeAttr("disabled");
-								UpdateCurrentEntryPlaying(0);
-							}
-							else
-							{
-								var Volume = status.childNodes[2].textContent;
-								var CurrentPlaylist = status.childNodes[3].textContent;
-								var CurrentPlaylistType = status.childNodes[4].textContent;
-								var CurrentSeqName = status.childNodes[5].textContent;
-								var CurrentSongName = status.childNodes[6].textContent;
-								var CurrentPlaylistIndex = status.childNodes[7].textContent;
-								var CurrentPlaylistCount = status.childNodes[8].textContent;
-								var SecondsPlayed = parseInt(status.childNodes[9].textContent,10);
-								var SecondsRemaining = parseInt(status.childNodes[10].textContent,10);
-								var NextPlaylist = status.childNodes[11].textContent;
-								var NextPlaylistTime = status.childNodes[12].textContent;
-								var fppTime = status.childNodes[13].textContent;
-								var repeatMode = parseInt(status.childNodes[14].textContent,10);
-								if(gblCurrentLoadedPlaylist != CurrentPlaylist)
-								{
-									$('#selStartPlaylist').val(CurrentPlaylist);
-									PopulateStatusPlaylistEntries(false,CurrentPlaylist,true);
-								}
-								// Disable Play
-								SetButtonState('#btnPlay','disable');
-								SetButtonState('#btnStopNow','enable');
-								SetButtonState('#btnStopGracefully','enable');
-								$('#selStartPlaylist').attr("disabled");
-	
-								$('#txtNextPlaylist').html(NextPlaylist);
-								$('#nextPlaylistTime').html(NextPlaylistTime);
-								$('#fppTime').html(fppTime);
-								
-								var minsPlayed = Math.floor(SecondsPlayed/60);
-								minsPlayed = isNaN(minsPlayed)?0:minsPlayed;
-								var secsPlayed = SecondsPlayed%60;
-								secsPlayed = isNaN(secsPlayed)?0:secsPlayed;
-								
-								var minsRemaining = Math.floor(SecondsRemaining/60);
-								minsRemaining = isNaN(minsRemaining)?0:minsRemaining;
-								var secsRemaining = SecondsRemaining%60;
-								secsRemaining = isNaN(secsRemaining)?0:secsRemaining;
-								if(fppStatus == STATUS_PLAYING)
-								{
-									$('#txtPlayerStatus').html("Playing <strong>'" + CurrentPlaylist + "'</strong>");
-									$('#txtTimePlayed').html("Elapsed: " + zeroPad(minsPlayed,2) + ":" + zeroPad(secsPlayed,2));								
-									$('#txtTimeRemaining').html("Remaining: " + zeroPad(minsRemaining,2) + ":" + zeroPad(secsRemaining,2));						
-									
-								}
-								else if(fppStatus == STATUS_STOPPING_GRACEFULLY)
-								{
-									$('#txtPlayerStatus').html("Playing <strong>'" + CurrentPlaylist + "'</strong> - Stopping Gracefully");
-									$('#txtTimePlayed').html("Elapsed: " + zeroPad(minsPlayed,2) + ":" + zeroPad(secsPlayed,2));								
-									$('#txtTimeRemaining').html("Remaining: " + zeroPad(minsRemaining,2) + ":" + zeroPad(secsRemaining,2));								
-								}
-	
-								if(CurrentPlaylistIndex != gblCurrentPlaylistIndex && CurrentPlaylistIndex <= gblCurrentLoadedPlaylistCount)
-								{
-										UpdateCurrentEntryPlaying(CurrentPlaylistIndex);
-										gblCurrentPlaylistIndex = CurrentPlaylistIndex;
-										if(CurrentPlaylistIndex != 1)
-										{
-											var j=0;	
-										}
-								}
-
-								if (repeatMode)
-									$("#chkRepeat").prop( "checked", true );
-								else
-									$("#chkRepeat").prop( "checked", false );
-							}
-						}
-					}
-					else
-					{
-						$('#fppTime').html('');
-						IsFPPDrunning();
-					}
-				}
-			};
-			
-			xmlhttp.send();
-	}
-	
 	function GetUniverseBytesReceived()
 	{	
 		var html='';
@@ -1916,7 +1754,7 @@ if (1) {
 					if(receivedBytes.childNodes.length> 0)
 					{
 						html =  "<table>";
-						html += "<tr id=\"rowReceivedBytesHeader\"><td>Universe</td><td>Start Address</td><td>Bytes Transferred</td>";
+						html += "<tr id=\"rowReceivedBytesHeader\"><td>Universe</td><td>Start Address</td><td>Packets</td><td>Bytes</td>";
 
 						var i;	
 						for(i=0;i<receivedBytes.childNodes.length;i++)
@@ -1926,13 +1764,14 @@ if (1) {
 									html += "</table>";
 									html1 = html;
 									html =  "<table>";
-									html += "<tr id=\"rowReceivedBytesHeader\"><td>Universe</td><td>Start Address</td><td>Bytes Transferred</td>";
+									html += "<tr id=\"rowReceivedBytesHeader\"><td>Universe</td><td>Start Address</td><td>Packets</td><td>Bytes</td>";
 								}
 								var universe = receivedBytes.childNodes[i].childNodes[0].textContent;
 								var startChannel = receivedBytes.childNodes[i].childNodes[1].textContent;
 								var bytes = receivedBytes.childNodes[i].childNodes[2].textContent;
+								var packets = receivedBytes.childNodes[i].childNodes[3].textContent;
 								html += "<tr><td>" + universe + "</td>";
-								html += "<td>" + startChannel + "</td><td>" + bytes + "</td></tr>";
+								html += "<td>" + startChannel + "</td><td>" + packets + "</td><td>" + bytes + "</td></tr>";
 						}
 						html += "</table>";
 					}

@@ -54,7 +54,7 @@ $universeFile      = $mediaDirectory . "/universes";
 $pixelnetFile      = $mediaDirectory . "/pixelnetDMX";
 $scheduleFile      = $mediaDirectory . "/schedule";
 $bytesFile         = $mediaDirectory . "/bytesReceived";
-$remapFile         = $mediaDirectory . "/channelremap";
+$remapFile         = $mediaDirectory . "/config/channelremap.json";
 $exim4Directory    = $mediaDirectory . "/exim4";
 $timezoneFile      = $mediaDirectory . "/timezone";
 $volume            = 0;
@@ -381,6 +381,7 @@ $settings['emailenable'] = $emailenable;
 $settings['emailguser'] = $emailguser;
 $settings['emailfromtext'] = $emailfromtext;
 $settings['emailtoemail'] = $emailtoemail;
+$settings['remapFile'] = $remapFile;
 
 if (!isset($settings['restartFlag']))
 	$settings['restartFlag'] = 0;

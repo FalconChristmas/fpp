@@ -2,7 +2,7 @@
  *   HTTP API for the Falcon Player Daemon 
  *   Falcon Player project (FPP) 
  *
- *   Copyright (C) 2013 the Falcon Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -48,6 +48,7 @@ class PlayerResource : public http_resource {
 	void GetLogSettings(Json::Value &result);
 	void GetCurrentStatus(Json::Value &result);
 	void GetCurrentPlaylists(Json::Value &result);
+	void GetE131BytesReceived(Json::Value &result);
 
 	void PostEffects(const std::string &effectName, const Json::Value &data,
 					Json::Value &result);

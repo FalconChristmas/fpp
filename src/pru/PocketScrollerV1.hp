@@ -88,10 +88,15 @@
 
 
 // Control pins are all in GPIO3
+#define gpio_latch 14
+#define gpio_oe    21
+#define gpio_clock 15
+
 #define gpio_sel0 16 /* must be sequential with sel1 and sel2 */
 #define gpio_sel1 17
 #define gpio_sel2 18
 #define gpio_sel3 19
+
 
 
 
@@ -102,11 +107,22 @@
 |(1<<gpio_sel3)\
 )
 
-// if using GPIO3 for these
-#define gpio_latch 14
-#define gpio_oe    21
-#define gpio_clock 15
 
+#define pru_latch  0
+#define pru_oe     7
+#define pru_clock  1
+
+#define pru_sel0   2
+#define pru_sel1   3
+#define pru_sel2   4
+#define pru_sel3   5
+
+#define PRU_SEL_MASK (0\
+|(1<<pru_sel0)\
+|(1<<pru_sel1)\
+|(1<<pru_sel2)\
+|(1<<pru_sel3)\
+)
 
 #define NEED_CLOCK_LO
 #define NEED_LATCH_LO
@@ -118,15 +134,72 @@
 
 .macro OUTPUT_GPIOS
 .mparam d0, d1, d2, d3
-    OUTPUT_GPIO d1, gpio1_led_mask, GPIO1
     #if OUTPUTS > 1
-      // output 2 is the first to use GPIO0
-      OUTPUT_GPIO d0, gpio0_led_mask, GPIO0
+        // output 2 is the first to use GPIO0
+        OUTPUT_GPIO d0, gpio0_led_mask, GPIO0
     #endif
+    OUTPUT_GPIO d1, gpio1_led_mask, GPIO1
     #if OUTPUTS > 2
         // output 3 is the first to use GPIO2
         OUTPUT_GPIO d2, gpio2_led_mask, GPIO2
     #endif
+.endm
+
+.macro READ_TO_FLUSH
+    //read the base line to make sure all SET/CLR are
+    //flushed and out
+    LBBO out_clr, gpio_base_cache, GPIO_DATAOUT, 4
+.endm
+
+.macro DISPLAY_OFF
+    //MOV out_set, 1 << gpio_oe
+    //SBBO out_set, gpio_base_cache, GPIO_SETDATAOUT, 4
+    SET r30, pru_oe
+.endm
+.macro DISPLAY_ON
+    //MOV out_clr, 1 << gpio_oe
+    //SBBO out_clr, gpio_base_cache, GPIO_CLRDATAOUT, 4
+    CLR r30, pru_oe
+.endm
+
+.macro LATCH_HI
+    //MOV out_set, 1 << gpio_latch
+    //SBBO out_set, gpio_base_cache, GPIO_SETDATAOUT, 4
+    READ_TO_FLUSH
+    SET r30, pru_latch
+.endm
+.macro LATCH_LO
+    // we can clear the latch with the CLOCK_LO
+    //MOV out_clr, 1 << gpio_latch
+    //SBBO out_clr, gpio_base_cache, GPIO_CLRDATAOUT, 4
+    CLR r30, pru_latch
+.endm
+
+.macro CLOCK_HI
+    MOV out_set, 1 << gpio_clock
+    SBBO out_set, gpio_base_cache, GPIO_SETDATAOUT, 4
+    //SET r30, pru_clock
+.endm
+.macro CLOCK_LO
+    MOV out_clr, (1 << gpio_clock)// | (1 << gpio_latch)
+    SBBO out_clr, gpio_base_cache, GPIO_CLRDATAOUT, 4
+    //CLR r30, pru_clock
+.endm
+
+.macro OUTPUT_ROW_ADDRESS
+/*
+    LSL out_set, row, gpio_sel0
+    MOV out_clr, GPIO_SEL_MASK
+    AND out_set, out_set, out_clr // ensure no extra bits
+    XOR out_clr, out_clr, out_set // complement the bits into clr
+    SBBO out_clr, gpio_base_cache, GPIO_CLRDATAOUT, 8 // set both
+*/
+
+    LSL out_set, row, pru_sel0
+    MOV out_clr, PRU_SEL_MASK
+    NOT out_clr, out_clr
+    AND r30, r30, out_clr // clear the address bits
+    OR  r30, r30, out_set // set the address bits
 .endm
 
 

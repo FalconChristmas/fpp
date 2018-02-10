@@ -1,7 +1,7 @@
 /*
  *   ChannelOutputBase class for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -44,6 +44,7 @@ ChannelOutputBase::ChannelOutputBase(unsigned int startChannel,
 	m_threadIsRunning(0),
 	m_runThread(0),
 	m_dataWaiting(0),
+	m_useDoubleBuffer(0),
 	m_threadID(0),
 	m_inBuf(NULL),
 	m_outBuf(NULL)
@@ -57,9 +58,9 @@ ChannelOutputBase::~ChannelOutputBase()
 {
 	LogDebug(VB_CHANNELOUT, "ChannelOutputBase::~ChannelOutputBase()\n");
 
+        pthread_cond_destroy(&m_sendCond);
 	pthread_mutex_destroy(&m_bufLock);
 	pthread_mutex_destroy(&m_sendLock);
-	pthread_cond_destroy(&m_sendCond);
 }
 
 int ChannelOutputBase::Init(void)
@@ -69,8 +70,11 @@ int ChannelOutputBase::Init(void)
 	if (m_channelCount == -1)
 		m_channelCount = m_maxChannels;
 
-	m_inBuf = new unsigned char[m_channelCount];
-	m_outBuf = new unsigned char[m_channelCount];
+	if (m_useDoubleBuffer)
+	{
+		m_inBuf = new unsigned char[m_channelCount];
+		m_outBuf = new unsigned char[m_channelCount];
+	}
 
 	if (m_useOutputThread)
 		StartOutputThread();
@@ -115,8 +119,11 @@ int ChannelOutputBase::Close(void)
 	if (m_useOutputThread)
 		StopOutputThread();
 
-	delete [] m_inBuf;
-	delete [] m_outBuf;
+	if (m_useDoubleBuffer)
+	{
+		delete [] m_inBuf;
+		delete [] m_outBuf;
+	}
 
 	return 1;
 }
@@ -138,10 +145,19 @@ int ChannelOutputBase::SendData(unsigned char *channelData)
 
 	if (m_useOutputThread)
 	{
-		pthread_mutex_lock(&m_bufLock);
-		memcpy(m_inBuf, channelData, m_channelCount);
-		m_dataWaiting = 1;
-		pthread_mutex_unlock(&m_bufLock);
+		if (m_useDoubleBuffer)
+		{
+			pthread_mutex_lock(&m_bufLock);
+			memcpy(m_inBuf, channelData, m_channelCount);
+			m_dataWaiting = 1;
+			pthread_mutex_unlock(&m_bufLock);
+		}
+		else
+		{
+			m_outBuf = channelData;
+			m_dataWaiting = 1;
+		}
+
 		pthread_cond_signal(&m_sendCond);
 	}
 	else
@@ -154,10 +170,17 @@ int ChannelOutputBase::SendOutputBuffer(void)
 {
 	LogExcess(VB_CHANNELOUT, "ChannelOutputBase::SendOutputBuffer()\n");
 
-	pthread_mutex_lock(&m_bufLock);
-	memcpy(m_outBuf, m_inBuf, m_channelCount);
-	m_dataWaiting = 0;
-	pthread_mutex_unlock(&m_bufLock);
+	if (m_useDoubleBuffer)
+	{
+		pthread_mutex_lock(&m_bufLock);
+		memcpy(m_outBuf, m_inBuf, m_channelCount);
+		m_dataWaiting = 0;
+		pthread_mutex_unlock(&m_bufLock);
+	}
+	else
+	{
+		m_dataWaiting = 0;
+	}
 
 	RawSendData(m_outBuf);
 }
@@ -193,8 +216,6 @@ int ChannelOutputBase::StartOutputThread(void)
 	LogDebug(VB_CHANNELOUT, "ChannelOutputBase::StartOutputThread()\n");
 
 	m_runThread = 1;
-
-	pthread_cond_init(&m_sendCond, NULL);
 
 	int result = pthread_create(&m_threadID, NULL, &RunChannelOutputBaseThread, this);
 
@@ -251,8 +272,6 @@ int ChannelOutputBase::StopOutputThread(void)
 	m_threadID = 0;
 	pthread_mutex_unlock(&m_bufLock);
 
-	pthread_cond_destroy(&m_sendCond);
-
 	return 0;
 }
 
@@ -274,10 +293,13 @@ void ChannelOutputBase::OutputThread(void)
 		LogExcess(VB_CHANNELOUT, "ChannelOutputBase thread: sent: %lld, elapsed: %lld\n",
 			GetTime(), GetTime() - wakeTime);
 
-		pthread_mutex_lock(&m_bufLock);
+		if (m_useDoubleBuffer)
+			pthread_mutex_lock(&m_bufLock);
+
 		if (m_dataWaiting)
 		{
-			pthread_mutex_unlock(&m_bufLock);
+			if (m_useDoubleBuffer)
+				pthread_mutex_unlock(&m_bufLock);
 
 			gettimeofday(&tv, NULL);
 			ts.tv_sec = tv.tv_sec;
@@ -293,7 +315,9 @@ void ChannelOutputBase::OutputThread(void)
 		}
 		else
 		{
-			pthread_mutex_unlock(&m_bufLock);
+			if (m_useDoubleBuffer)
+				pthread_mutex_unlock(&m_bufLock);
+
 			pthread_cond_wait(&m_sendCond, &m_sendLock);
 		}
 
@@ -305,16 +329,20 @@ void ChannelOutputBase::OutputThread(void)
 			continue;
 
 		// See if there is any data waiting to process or if we timed out
-		pthread_mutex_lock(&m_bufLock);
+		if (m_useDoubleBuffer)
+			pthread_mutex_lock(&m_bufLock);
+
 		if (m_dataWaiting)
 		{
-			pthread_mutex_unlock(&m_bufLock);
+			if (m_useDoubleBuffer)
+				pthread_mutex_unlock(&m_bufLock);
 
 			SendOutputBuffer();
 		}
 		else
 		{
-			pthread_mutex_unlock(&m_bufLock);
+			if (m_useDoubleBuffer)
+				pthread_mutex_unlock(&m_bufLock);
 		}
 	}
 

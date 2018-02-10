@@ -1,7 +1,7 @@
 /*
- *   generic output channel handler for Falcon Pi Player (FPP)
+ *   generic output channel handler for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Pi Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -9,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -79,7 +79,7 @@
 #ifdef PLATFORM_BBB
 #  include "BBB48String.h"
 #  include "BBBSerial.h"
-#  include "LEDscapeMatrix.h"
+#  include "BBBMatrix.h"
 #endif
 
 #ifdef USEOLA
@@ -274,7 +274,7 @@ int InitializeChannelOutputs(void) {
 #endif
 #ifdef PLATFORM_BBB
 					else if (outputs[c]["subType"] == "LEDscapeMatrix")
-						channelOutputs[i].output = new LEDscapeMatrixOutput(start, count);
+						channelOutputs[i].output = new BBBMatrix(start, count);
 #endif
 					else
 					{
@@ -597,16 +597,12 @@ int CloseChannelOutputs(void) {
  *       because our array is 0-based and the channel numbers start at 1.
  */
 int LoadChannelRemapData(void) {
-	FILE *fp;
 	char filename[1024];
-	char buf[32];
-	char *s;
-	int src;
-	int dest;
-	int count;
+	Json::Value root;
+	Json::Reader reader;
 
 	strcpy(filename, getMediaDirectory());
-	strcat(filename, "/channelremap");
+	strcat(filename, "/config/channelremap.json");
 
 	if (!FileExists(filename))
 		return 0;
@@ -614,53 +610,45 @@ int LoadChannelRemapData(void) {
 	channelRemaps = 0;
 
 	LogDebug(VB_CHANNELOUT, "Loading Channel Remap data.\n");
-	fp = fopen(filename, "r");
-	if (fp == NULL) 
+
+	std::ifstream t(filename);
+	std::stringstream buffer;
+
+	buffer << t.rdbuf();
+
+	std::string config = buffer.str();
+
+	bool success = reader.parse(buffer.str(), root);
+	if (!success)
 	{
-		LogErr(VB_CHANNELOUT, "Could not open Channel Remap file %s\n", filename);
+		LogErr(VB_CHANNELOUT, "Error parsing %s\n", filename);
 		return 0;
 	}
 
-	while(fgets(buf, 32, fp) != NULL)
+	const Json::Value remaps = root["remaps"];
+
+	for (int i = 0; i < remaps.size(); i++)
 	{
-		if (buf[0] == '#') // Allow # comments for testing
-			continue;
+		remappedChannels[channelRemaps].active = remaps[i]["active"].asInt();
+		remappedChannels[channelRemaps].src = remaps[i]["source"].asInt();
+		remappedChannels[channelRemaps].dest = remaps[i]["destination"].asInt();
+		remappedChannels[channelRemaps].count = remaps[i]["count"].asInt();
+		remappedChannels[channelRemaps].loops = remaps[i]["loops"].asInt();
 
-		// Source
-		s = strtok(buf, ",");
-		src = strtol(s, NULL, 10);
-		if (src <= 0)
-			continue;
-
-		remappedChannels[channelRemaps].src = src - 1;
-
-		// Destination
-		s = strtok(NULL, ",");
-		dest = strtol(s, NULL, 10);
-		if (dest <= 0)
-			continue;
-
-		remappedChannels[channelRemaps].dest = dest - 1;
-
-		// Count
-		s=strtok(NULL,",");
-		count = strtol(s, NULL, 10);
-		if (count <= 0)
-			continue;
-
-		remappedChannels[channelRemaps].count = count;
-
-		if ((src + count - 1) > FPPD_MAX_CHANNELS) {
-			LogErr(VB_CHANNELOUT, "ERROR: Source + Count exceeds max channel count in: %s\n", buf );
-		} else if ((dest + count - 1) > FPPD_MAX_CHANNELS) {
-			LogErr(VB_CHANNELOUT, "ERROR: Destination + Count exceeds max channel count in: %s\n", buf );
+		if ((remappedChannels[channelRemaps].src + remappedChannels[channelRemaps].count - 1) > FPPD_MAX_CHANNELS) {
+			LogErr(VB_CHANNELOUT, "ERROR: Source (%d) + Count (%d) exceeds max channel count\n",
+				remappedChannels[channelRemaps].src,
+				remappedChannels[channelRemaps].count );
+		} else if ((remappedChannels[channelRemaps].dest + (remappedChannels[channelRemaps].count * remappedChannels[channelRemaps].loops) - 1) > FPPD_MAX_CHANNELS) {
+			LogErr(VB_CHANNELOUT, "ERROR: Source (%d), Destination (%d), Count (%d), and Loops (%d) exceeds max channel count\n",
+				remappedChannels[channelRemaps].src,
+				remappedChannels[channelRemaps].dest,
+				remappedChannels[channelRemaps].count,
+				remappedChannels[channelRemaps].loops);
 		} else {
-			remappedChannels[channelRemaps].loops = 1;
-			remappedChannels[channelRemaps].active = 1;
 			channelRemaps++;
 		}
 	}
-	fclose(fp);
 
 	PrintRemappedChannels();
 
@@ -779,9 +767,9 @@ void PrintRemappedChannels(void) {
 	LogDebug(VB_CHANNELOUT, "Remapped Channels:\n");
 	for (i = 0, mptr = &remappedChannels[0]; i < channelRemaps; i++, mptr++) {
 		if (mptr->count > 1) {
-			LogDebug(VB_CHANNELOUT, "  %d-%d => %d-%d (%d channels)\n",
+			LogDebug(VB_CHANNELOUT, "  %d-%d => %d-%d (%d total channels copied in %d loop(s))\n",
 				mptr->src, mptr->src + mptr->count - 1,
-				mptr->dest, mptr->dest + mptr->count - 1, mptr->count);
+				mptr->dest, mptr->dest + (mptr->count * mptr->loops) - 1, (mptr->count * mptr->loops), mptr->loops);
 		} else {
 			LogDebug(VB_CHANNELOUT, "  %d => %d\n",
 				mptr->src + 1, mptr->dest + 1);

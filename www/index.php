@@ -3,6 +3,7 @@
 <head>
 <?php
 require_once('config.php');
+require_once('common.php');
 include 'common/menuHead.inc';
 ?>
 <script>
@@ -130,7 +131,14 @@ include 'common/menuHead.inc';
         </tr>
       </table>
     </div>
-    <div id="bytesTransferred"><H3>Bytes Transferred</H3>
+    <div id="bytesTransferred"><H3>E1.31 Packets and Bytes Received</H3>
+      <table style='width: 100%'>
+        <tr><td align='left'>
+          <input type='button' onClick='GetUniverseBytesReceived();' value='Update'>
+        </td><td align='right'>
+		  <? PrintSettingCheckbox("E1.31 Live Update", "e131statsLiveUpdate", 0, 0, "1", "0"); ?> Live Update E1.31 Stats
+        </td></tr>
+	  </table>
       <hr>
       <div id="bridgeStatistics1"></div>
       <div id="bridgeStatistics2"></div>

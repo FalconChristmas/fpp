@@ -1,7 +1,7 @@
 /*
- *   BeagleBone Black PRU Serial DMX/Pixelnet handler for Falcon Pi Player (FPP)
+ *   BeagleBone Black PRU Serial DMX/Pixelnet handler for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Pi Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -9,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -31,19 +31,10 @@
 
 
 #define BBB_PRU  0
-#define PRU_ARM_INTERRUPT PRU0_ARM_INTERRUPT
 //  #define USING_PRU_RAM
 
 #include <pruss_intc_mapping.h>
-extern "C" {
-    extern int prussdrv_pru_clear_event(unsigned int eventnum);
-    extern int prussdrv_pru_wait_event(unsigned int pru_evtout_num);
-    extern int prussdrv_pru_disable(unsigned int prunum);
-    extern int prussdrv_exit();
-}
-
-// LEDscape includes
-#include "pru.h"
+#include <prussdrv.h>
 
 // FPP includes
 #include "common.h"
@@ -51,6 +42,9 @@ extern "C" {
 #include "BBBSerial.h"
 #include "BBBUtils.h"
 #include "settings.h"
+
+//reserve the TOP 84K for DMX/PixelNet data
+#define DDR_RESERVED 84*1024
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -61,15 +55,15 @@ extern "C" {
 BBBSerialOutput::BBBSerialOutput(unsigned int startChannel,
 	unsigned int channelCount)
     : ChannelOutputBase(startChannel, channelCount),
-	m_config(NULL),
-	m_leds(NULL),
     m_pixelnet(0),
     m_lastData(NULL),
     m_curData(NULL),
-    m_curFrame(0)
+    m_curFrame(0),
+    m_pru(NULL),
+    m_serialData(NULL)
 {
-	LogDebug(VB_CHANNELOUT, "BBBSerialOutput::BBBSerialOutput(%u, %u)\n",
-		startChannel, channelCount);
+    LogDebug(VB_CHANNELOUT, "BBBSerialOutput::BBBSerialOutput(%u, %u)\n",
+            startChannel, channelCount);
     m_useOutputThread = 1;
 }
 
@@ -78,11 +72,11 @@ BBBSerialOutput::BBBSerialOutput(unsigned int startChannel,
  */
 BBBSerialOutput::~BBBSerialOutput()
 {
-	LogDebug(VB_CHANNELOUT, "BBBSerialOutput::~BBBSerialOutput()\n");
-    prussdrv_exit();
+    LogDebug(VB_CHANNELOUT, "BBBSerialOutput::~BBBSerialOutput()\n");
     
     if (m_lastData) free(m_lastData);
     if (m_curData) free(m_curData);
+    if (m_pru) delete m_pru;
 }
 
 static int pinGPIOs[] = {
@@ -136,20 +130,18 @@ static void compileSerialPRUCode(std::vector<std::string> &sargs) {
  */
 int BBBSerialOutput::Init(Json::Value config)
 {
-	LogDebug(VB_CHANNELOUT, "BBBSerialOutput::Init(JSON)\n");
+    LogDebug(VB_CHANNELOUT, "BBBSerialOutput::Init(JSON)\n");
 
     std::vector<std::string> args;
 
-	// Always send 8 outputs worth of data to PRU for now
-	m_outputs = 8;
-
-	m_config = &ledscape_matrix_default;
+    // Always send 8 outputs worth of data to PRU for now
+    m_outputs = 8;
 
     if (config["subType"].asString() == "Pixelnet") {
         args.push_back("-DPIXELNET");
-		m_pixelnet = 1;
+        m_pixelnet = 1;
     } else {
-		m_pixelnet = 0;
+        m_pixelnet = 0;
         args.push_back("-DDMX");
     }
 #ifdef USING_PRU_RAM
@@ -162,30 +154,27 @@ int BBBSerialOutput::Init(Json::Value config)
         m_useOutputThread = 1;
     }
 
-	m_startChannels.resize(config["outputs"].size());
+    m_startChannels.resize(config["outputs"].size());
 
-	// Initialize the ouputs
-	for (int i = 0; i < m_outputs; i++)
-	{
-		m_startChannels[i] = 0;
-	}
+    // Initialize the ouputs
+    for (int i = 0; i < m_outputs; i++) {
+        m_startChannels[i] = 0;
+    }
 
     int maxChannel = 0;
     int maxLen = 0;
-	for (int i = 0; i < config["outputs"].size(); i++)
-	{
-		Json::Value s = config["outputs"][i];
+    for (int i = 0; i < config["outputs"].size(); i++) {
+	Json::Value s = config["outputs"][i];
 
-		m_startChannels[s["outputNumber"].asInt()] = s["startChannel"].asInt() - 1;
+        m_startChannels[s["outputNumber"].asInt()] = s["startChannel"].asInt() - 1;
         int l = s["channelCount"].asInt();
         if (l > maxLen) {
             maxLen = l;
         }
-	}
+    }
 
     m_channelCount = 0;
-    for (int i = 0; i < m_outputs; i++)
-    {
+    for (int i = 0; i < m_outputs; i++) {
         if (m_channelCount < m_startChannels[i]) {
             m_channelCount = m_startChannels[i];
         }
@@ -195,25 +184,11 @@ int BBBSerialOutput::Init(Json::Value config)
     
     m_channelCount = config["channelCount"].asInt();
 
-	m_config = reinterpret_cast<ledscape_config_t*>(calloc(1, sizeof(ledscape_config_t)));
-	if (!m_config)
-	{
-		LogErr(VB_CHANNELOUT, "Unable to allocate LEDscape config\n");
-		return 0;
-	}
+    int pruNumber = BBB_PRU;
 
-	ledscape_strip_config_t * const lsconfig = &m_config->strip_config;
-
-	int pruNumber = BBB_PRU;
-
-	lsconfig->type         = LEDSCAPE_STRIP;
-	lsconfig->leds_width   = (int)((m_pixelnet != 0 ? 4102 : 513) / 3) + 1;
-	lsconfig->leds_height  = m_outputs;
-
-	string pru_program = "/tmp/FalconSerial.bin";
+    string pru_program = "/tmp/FalconSerial.bin";
 
     const char *mode = BBB_PRU ? "gpio" : "pruout";
-    
     if (BBB_PRU) {
         args.push_back("-DRUNNING_ON_PRU1");
     } else {
@@ -244,49 +219,39 @@ int BBBSerialOutput::Init(Json::Value config)
 
     
     compileSerialPRUCode(args);
-	if (!FileExists(pru_program.c_str()))
-	{
-		LogErr(VB_CHANNELOUT, "%s does not exist!\n", pru_program.c_str());
-		free(m_config);
-		m_config = NULL;
-
-		return 0;
-	}
+    if (!FileExists(pru_program.c_str())) {
+        LogErr(VB_CHANNELOUT, "%s does not exist!\n", pru_program.c_str());
+        return 0;
+    }
     LogDebug(VB_CHANNELOUT, "Using program %s\n", pru_program.c_str());
-	m_leds = ledscape_strip_init(m_config, 0, pruNumber, pru_program.c_str());
-
-	if (!m_leds)
-	{
-		LogErr(VB_CHANNELOUT, "Unable to initialize LEDscape\n");
-		free(m_config);
-		m_config = NULL;
-
-		return 0;
-	}
+    
+    m_pru = new BBBPru(BBB_PRU);
+    m_serialData = (BBBSerialData*)m_pru->data_ram;
+    size_t offset = m_pru->ddr_size - DDR_RESERVED;
+    m_serialData->address_dma = m_pru->ddr_addr + offset;
+    m_serialData->command = 0;
+    m_serialData->response = 0;
+    m_pru->run(pru_program);
 
     int sz = m_pixelnet ? (4096 + 6): (512 + 1);
     
     m_lastData = (uint8_t*)malloc(m_outputs * sz);
     m_curData = (uint8_t*)malloc(m_outputs * sz);
     
-	for (int i = 0; i < m_outputs; i++)
-	{
-		if (m_pixelnet)
-		{
-			m_curData[i + (0 * m_outputs)] = '\xAA';
-			m_curData[i + (1 * m_outputs)] = '\x55';
-			m_curData[i + (2 * m_outputs)] = '\x55';
-			m_curData[i + (3 * m_outputs)] = '\xAA';
-			m_curData[i + (4 * m_outputs)] = '\x15';
-			m_curData[i + (5 * m_outputs)] = '\x5D';
-		}
-		else
-		{
-			m_curData[i] = '\x00';
-		}
-	}
+    for (int i = 0; i < m_outputs; i++) {
+        if (m_pixelnet) {
+            m_curData[i + (0 * m_outputs)] = '\xAA';
+            m_curData[i + (1 * m_outputs)] = '\x55';
+            m_curData[i + (2 * m_outputs)] = '\x55';
+            m_curData[i + (3 * m_outputs)] = '\xAA';
+            m_curData[i + (4 * m_outputs)] = '\x15';
+            m_curData[i + (5 * m_outputs)] = '\x5D';
+        } else {
+            m_curData[i] = '\x00';
+        }
+    }
     memcpy(m_lastData, m_curData, m_outputs * sz);
-	return ChannelOutputBase::Init(config);
+    return ChannelOutputBase::Init(config);
 }
 
 /*
@@ -294,27 +259,20 @@ int BBBSerialOutput::Init(Json::Value config)
  */
 int BBBSerialOutput::Close(void)
 {
-	LogDebug(VB_CHANNELOUT, "BBBSerialOutput::Close()\n");
+    LogDebug(VB_CHANNELOUT, "BBBSerialOutput::Close()\n");
 
     // Send the stop command
-    m_leds->ws281x->command = 0xFF;
+    m_serialData->command = 0xFF;
     
-    prussdrv_pru_wait_event(BBB_PRU); //PRU_EVTOUT_0;
-    prussdrv_pru_clear_event(PRU_ARM_INTERRUPT);
-    prussdrv_pru_disable(m_leds->pru->pru_num);
+    m_pru->stop();
     
-    //ledscape_close only checks PRU0 events and then unmaps the memory that
-    //may be used by the other pru
-	//ledscape_close(m_leds);
-
-	free(m_config);
-	m_config = NULL;
+    delete m_pru;
+    m_pru = NULL;
     
     configurePRUPins(0, 8, "gpio");
 
     LogDebug(VB_CHANNELOUT, "BBBSerialOutput::Close() done\n");
-
-	return ChannelOutputBase::Close();
+    return ChannelOutputBase::Close();
 }
 
 /*
@@ -322,60 +280,65 @@ int BBBSerialOutput::Close(void)
  */
 int BBBSerialOutput::RawSendData(unsigned char *channelData)
 {
-	LogExcess(VB_CHANNELOUT, "BBBSerialOutput::RawSendData(%p)\n",
-		channelData);
+    LogExcess(VB_CHANNELOUT, "BBBSerialOutput::RawSendData(%p)\n",
+            channelData);
 
-	ledscape_strip_config_t *config = reinterpret_cast<ledscape_strip_config_t*>(m_config);
-    m_curFrame++;
+     m_curFrame++;
     
-	// Bypass LEDscape draw routine and format data for PRU ourselves
+    // Bypass LEDscape draw routine and format data for PRU ourselves
     
     uint8_t * const out = m_curData;
-	uint8_t *c = out;
-	uint8_t *s = (uint8_t*)channelData;
-	int chCount = m_pixelnet ? 4096 : 512;
+    uint8_t *c = out;
+    uint8_t *s = (uint8_t*)channelData;
+    int chCount = m_pixelnet ? 4096 : 512;
 
-	for (int i = 0; i < m_outputs; i++)
-	{
-		// Skip the headers (6 bytes per output for Pixelnet and 1 byte per output
-		// for DMX) and index into the proper position in the m_outputs number of
-		// bytes in each slice
-		if (m_pixelnet)
-			c = out + i + (m_outputs * 6);
-		else
-			c = out + i + (m_outputs);
+    for (int i = 0; i < m_outputs; i++) {
+        // Skip the headers (6 bytes per output for Pixelnet and 1 byte per output
+        // for DMX) and index into the proper position in the m_outputs number of
+        // bytes in each slice
+        if (m_pixelnet)
+            c = out + i + (m_outputs * 6);
+        else
+            c = out + i + (m_outputs);
 
-		// Get the start channel for this output
+        // Get the start channel for this output
         s = (uint8_t*)(channelData + m_startChannels[i] - m_startChannel);
         
-		// Now copy the individual channel data into each slice
-		for (int ch = 0; ch < chCount; ch++)
-		{
-			*c = *s;
+        // Now copy the individual channel data into each slice
+        for (int ch = 0; ch < chCount; ch++) {
+            *c = *s;
             s++;
-			c += m_outputs;
-		}
-	}
+            c += m_outputs;
+        }
+    }
 
-	// Wait for the previous draw to finish
-	while (m_leds->ws281x->command);
+    // Wait for the previous draw to finish
+    while (m_serialData->command);
 
+    int frame_size = m_pixelnet ? (4096 + 6): (512 + 1);
+    frame_size *= m_outputs;
+    
     unsigned frame = 0;
     //unsigned frame = m_curFrame & 1;
-    if (m_curFrame == 1 || memcmp(m_lastData, m_curData, m_leds->frame_size)) {
+    if (m_curFrame == 1 || memcmp(m_lastData, m_curData, frame_size)) {
         //don't copy to DMA memory unless really needed to avoid bus contention on the DMA bus
         int sz = m_pixelnet ? (4096 + 6): (512 + 1);
         sz *= m_outputs;
 #ifdef USING_PRU_RAM
-        uint8_t * const realout = (uint8_t *)m_leds->pru->data_ram + 512;
+        uint8_t * const realout = (uint8_t *)m_pru->data_ram + 512;
         memcpy(realout, m_curData, sz);
 #else
-        size_t offset = m_leds->pru->ddr_size - 84*1024;
-        uint8_t * const realout = (uint8_t *)m_leds->pru->ddr + offset;
+        size_t offset = m_pru->ddr_size - DDR_RESERVED;
+        uint8_t * const realout = (uint8_t *)m_pru->ddr + offset;
         memcpy(realout, m_curData, sz);
 
         // Map
-        m_leds->ws281x->pixels_dma = m_leds->pru->ddr_addr + offset;
+        printf("%d   %d:   ", m_pru->ddr_size, offset);
+        for (int x = 0; x < 16; x++) {
+            printf("%2X ", m_curData[x * m_outputs]);
+        }
+        printf("\n");
+        m_serialData->address_dma = m_pru->ddr_addr + offset;
 #endif
         
         uint8_t *tmp = m_lastData;
@@ -383,10 +346,10 @@ int BBBSerialOutput::RawSendData(unsigned char *channelData)
         m_curData = tmp;
     }
 
-	// Send the start command
-	m_leds->ws281x->command = 1;
+    // Send the start command
+    m_serialData->command = 1;
 
-	return m_channelCount;
+    return m_channelCount;
 }
 
 /*
@@ -394,22 +357,19 @@ int BBBSerialOutput::RawSendData(unsigned char *channelData)
  */
 void BBBSerialOutput::DumpConfig(void)
 {
-	LogDebug(VB_CHANNELOUT, "BBBSerialOutput::DumpConfig()\n");
+    LogDebug(VB_CHANNELOUT, "BBBSerialOutput::DumpConfig()\n");
 
-	ledscape_strip_config_t *config = reinterpret_cast<ledscape_strip_config_t*>(m_config);
-	
-	LogDebug(VB_CHANNELOUT, "    Pixelnet      : %d\n", m_pixelnet);
-	LogDebug(VB_CHANNELOUT, "    Outputs       :\n" );
+    LogDebug(VB_CHANNELOUT, "    Pixelnet      : %d\n", m_pixelnet);
+    LogDebug(VB_CHANNELOUT, "    Outputs       :\n" );
 
-	for (int i = 0; i < m_outputs; i++)
-	{
-		LogDebug(VB_CHANNELOUT, "        #%d: %d-%d (%d Ch)\n",
-			i + 1,
-			m_startChannels[i] + 1,
-			m_pixelnet ? m_startChannels[i] + 4096 : m_startChannels[i] + 512,
-			m_pixelnet ? 4096 : 512);
-	}
+    for (int i = 0; i < m_outputs; i++) {
+        LogDebug(VB_CHANNELOUT, "        #%d: %d-%d (%d Ch)\n",
+                 i + 1,
+                 m_startChannels[i] + 1,
+                 m_pixelnet ? m_startChannels[i] + 4096 : m_startChannels[i] + 512,
+                 m_pixelnet ? 4096 : 512);
+    }
 
-	ChannelOutputBase::DumpConfig();
+    ChannelOutputBase::DumpConfig();
 }
 
