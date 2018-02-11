@@ -2024,12 +2024,11 @@ $LEDPanelInterleave = 0;
 
 if ($settings['Platform'] == "BeagleBone Black")
 {
-    $LEDPanelPanelsPerOutput = 12;
+    $LEDPanelPanelsPerOutput = 16;
     if (strpos($settings['SubPlatform'], 'Green Wireless') !== FALSE) {
         $LEDPanelOutputs = 5;
     } else if (strpos($settings['SubPlatform'], 'PocketBeagle') !== FALSE) {
         $LEDPanelOutputs = 6;
-        $LEDPanelPanelsPerOutput = 16;
     } else {
         $LEDPanelOutputs = 8;
     }
