@@ -35,15 +35,13 @@
 
 /** Register map */
 #define data_addr       r0
-#define initialOffset   r1.w0
-#define pixelsPerRow    r1.w2
+#define offset          r1
 #define row             r2.b0
 #define bright          r2.b1
 #define bit             r2.b2
 #define sleep_counter   r3.w0
 #define sleepDone       r3.w2
 #define statOffset      r4.w0
-#define offset r5
 #define out_clr r6 // must be one less than out_set
 #define out_set r7
 #define gpio0_set r8
@@ -54,9 +52,9 @@
 #define gpio1_led_mask r13
 #define gpio2_led_mask r14
 #define gpio3_led_mask r15
-#define gpio_base r16
-#define gpio_base_cache r17    // register to keep a base address cached.  handy if it's used for clocks
-#define pixel_data r18 // the next 12 registers, too;
+#define gpio_base_cache r16    // register to keep a base address cached.  handy if it's used for clocks
+#define gpio_base       r17
+#define pixel_data      r18 // the next 12 registers, too;
 
 
 
@@ -339,9 +337,11 @@ READ_LOOP:
     // Command of 0xFF is the signal to exit
     QBEQ EXIT, r1, #0xFF
 
+
     MOV row, 0
     LDI statOffset, 0
     LDI offset, 0
+    XOUT 10, data_addr, 8
 
 NEW_ROW_LOOP:
     MOV bright, BITS
@@ -352,18 +352,21 @@ NEW_ROW_LOOP:
 
 		// compute where we are in the image
         LOOP DONE_PIXELS, ROW_LEN
-            CHECK_FOR_DISPLAY_OFF
 
 			// Load the sixteen RGB outputs into
 			// consecutive registers, starting at pixel_data.
-            LBBO pixel_data, data_addr, offset, 3*2*OUTPUTS
+            REREAD:
+                XIN 11, gpio_base, 3*2*OUTPUTS + 4
+                QBNE REREAD, gpio_base, offset
+
+            //LBBO pixel_data, data_addr, offset, 3*2*OUTPUTS
+            ADD offset, offset, 3*2*OUTPUTS
+            XOUT 10, data_addr, 8
 
             LDI bit, 0
             BIT_LOOP:
                 CHECK_FOR_DISPLAY_OFF
                 ZERO &gpio0_set, 16
-
-                CLOCK_LO
 
                 OUTPUT_ROW(11, r18.b0, r18.b1, r18.b2)
                 OUTPUT_ROW(12, r18.b3, r19.b0, r19.b1)
@@ -395,6 +398,7 @@ NEW_ROW_LOOP:
                 OUTPUT_ROW(81, r28.b2, r28.b3, r29.b0)
                 OUTPUT_ROW(82, r29.b1, r29.b2, r29.b3)
     #endif
+                CLOCK_LO
 
                 // All bits are configured;
                 // the non-set ones will be cleared
@@ -405,7 +409,6 @@ NEW_ROW_LOOP:
             ADD bit, bit, 1
             QBNE BIT_LOOP, bit, 8
 
-			ADD offset, offset, 3*2*OUTPUTS
         DONE_PIXELS:
 
 #ifdef ENABLESTATS
@@ -456,8 +459,9 @@ NEW_ROW_LOOP:
 		SUB bright, bright, 1
         // Increment our data_offset to point to the next row
         ADD data_addr, data_addr, offset
-
         LDI offset, 0
+        XOUT 10, data_addr, 8
+
 
 		QBLT ROW_LOOP, bright, 0
 
@@ -468,6 +472,9 @@ NEW_ROW_LOOP:
 
 		QBA NEW_ROW_LOOP
 EXIT:
+    MOV data_addr, 0xFFFFFFF
+    MOV offset, 0
+    XOUT 10, data_addr, 8
 #ifdef AM33XX
     // Send notification to Host for program completion
     MOV R31.b0, PRU_ARM_INTERRUPT+16

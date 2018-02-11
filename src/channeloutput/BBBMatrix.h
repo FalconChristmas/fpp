@@ -71,6 +71,7 @@ class BBBMatrix : public ChannelOutputBase {
     void printStats();
     
     BBBPru      *m_pru;
+    BBBPru      *m_pruCopy;
     BBBPruMatrixData *m_pruData;
     Matrix      *m_matrix;
     PanelMatrix *m_panelMatrix;
