@@ -704,9 +704,10 @@ function GetUniverseReceivedBytes()
 	if(count($stats->universes))
 	{
 		$root = $doc->createElement('receivedBytes');
+        $root->setAttribute('size', count($stats->universes));
 		$root = $doc->appendChild($root);
 
-		for ($i = 0; $i < $stats->universes && $i < 8; $i++)
+		for ($i = 0; $i < count($stats->universes); $i++)
 		{
 			$receivedInfo = $doc->createElement('receivedInfo');
 			$receivedInfo = $root->appendChild($receivedInfo); 

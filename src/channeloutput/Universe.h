@@ -40,6 +40,8 @@ typedef struct {
 	char          unicastAddress[16];
 	unsigned long bytesReceived;
 	unsigned long packetsReceived;
+    unsigned long errorPackets;
+    int           lastSequenceNumber;
 	int           priority;
 } UniverseEntry;
 

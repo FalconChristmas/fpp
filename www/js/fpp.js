@@ -1756,10 +1756,14 @@ if (1) {
 						html =  "<table>";
 						html += "<tr id=\"rowReceivedBytesHeader\"><td>Universe</td><td>Start Address</td><td>Packets</td><td>Bytes</td><td>Errors</td></tr>";
 
-						var i;	
+                        var i;
+                        var maxRows = receivedBytes.childNodes.length / 2;
+                        if (maxRows < 32) {
+                            maxRows = 32;
+                        }
 						for(i=0;i<receivedBytes.childNodes.length;i++)
 						{
-								if(i==32)
+								if(i==maxRows)
 								{
 									html += "</table>";
 									html1 = html;

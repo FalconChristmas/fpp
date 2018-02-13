@@ -170,10 +170,10 @@ int E131_InitializeNetwork()
     
     
     e131Msgs = (struct mmsghdr *)calloc(UniverseCount, sizeof(struct mmsghdr));
-    e131Iovecs = (struct iovec *)calloc(UniverseCount, sizeof(struct iovec));
+    e131Iovecs = (struct iovec *)calloc(UniverseCount * 2, sizeof(struct iovec));
     e131Buffers = (unsigned char **)calloc(UniverseCount, sizeof(unsigned char*));
     for (int x = 0; x < UniverseCount; x++) {
-        e131Buffers[x] = (unsigned char *)malloc(universes[x].size + E131_HEADER_LENGTH);
+        e131Buffers[x] = (unsigned char *)malloc(E131_HEADER_LENGTH);
         memcpy(e131Buffers[x], E131header, E131_HEADER_LENGTH);
         
         
@@ -201,13 +201,18 @@ int E131_InitializeNetwork()
         e131Buffers[x][E131_DMP_COUNT_INDEX] = (count/256)+0x70;
         e131Buffers[x][E131_DMP_COUNT_INDEX+1] = count%256;
 
-        e131Iovecs[x].iov_base = e131Buffers[x];
-        e131Iovecs[x].iov_len = universes[x].size + E131_HEADER_LENGTH;
+        // use scatter/gather for the packet.   One IOV will contain
+        // the header, the second will point into the raw channel data
+        // and will be set at output time.   This avoids any memcpy.
+        e131Iovecs[x * 2].iov_base = e131Buffers[x];
+        e131Iovecs[x * 2].iov_len = E131_HEADER_LENGTH;
+        e131Iovecs[x * 2 + 1].iov_base = nullptr;
+        e131Iovecs[x * 2 + 1].iov_len = universes[x].size;
 
         e131Msgs[x].msg_hdr.msg_name = &E131address[x];
         e131Msgs[x].msg_hdr.msg_namelen = sizeof(sockaddr_in);
-        e131Msgs[x].msg_hdr.msg_iov = &e131Iovecs[x];
-        e131Msgs[x].msg_hdr.msg_iovlen = 1;
+        e131Msgs[x].msg_hdr.msg_iov = &e131Iovecs[x * 2];
+        e131Msgs[x].msg_hdr.msg_iovlen = 2;
         e131Msgs[x].msg_len = universes[x].size + E131_HEADER_LENGTH;
     }
 
@@ -246,7 +251,8 @@ int E131_SendData(void *data, char *channelData, int channelCount)
         unsigned char *E131packet = e131Buffers[i];
         E131packet[E131_SEQUENCE_INDEX] = E131sequenceNumber;
 
-		memcpy((void*)(E131packet+E131_HEADER_LENGTH),(void*)(channelData+universes[i].startAddress-1),universes[i].size);
+        // set the pointer to the channelData for the universe
+        e131Msgs[i].msg_hdr.msg_iov[1].iov_base = (void*)(channelData+universes[i].startAddress-1);
 
 		LogExcess(VB_CHANNELDATA, "  %d) E1.31 universe #%d, %d channels\n",
 			i + 1, universes[i].universe, universes[i].size);
@@ -263,14 +269,16 @@ int E131_SendData(void *data, char *channelData, int channelCount)
     }
 #else
 
-    if(sendmmsg(sendSocket, e131Msgs, UniverseCount, 0) != UniverseCount)
+    int outputCount = sendmmsg(sendSocket, e131Msgs, UniverseCount, 0);
+    if(outputCount != UniverseCount)
     {
-        LogErr(VB_CHANNELOUT, "sendto() failed for E1.31 Universe %d with error: %s\n",
-               universes[i].universe, strerror(errno));
+        LogErr(VB_CHANNELOUT, "sendto() failed for E1.31 (output count: %d) with error: %s\n",
+               outputCount,
+               strerror(errno));
         return 0;
     }
 #endif
-	E131sequenceNumber++;
+	++E131sequenceNumber;
 
 	return 1;
 }

@@ -354,6 +354,19 @@ void Bridge_StoreData(int universe, char *bridgeBuffer)
 	int universeIndex = Bridge_GetIndexFromUniverseNumber(universe);
 	if(universeIndex!=BRIDGE_INVALID_UNIVERSE_INDEX)
 	{
+        int sn = bridgeBuffer[E131_SEQUENCE_INDEX];
+        if (InputUniverses[universeIndex].packetsReceived != 0) {
+            if (InputUniverses[universeIndex].lastSequenceNumber == 255) {
+                // some wrap from 255 -> 1 and some from 255 -> 0, spec doesn't say which
+                if (sn != 0 && sn != 1) {
+                    ++InputUniverses[universeIndex].errorPackets;
+                }
+            } else if ((InputUniverses[universeIndex].lastSequenceNumber + 1) != sn) {
+                ++InputUniverses[universeIndex].errorPackets;
+            }
+        }
+        InputUniverses[universeIndex].lastSequenceNumber = sn;
+        
 		memcpy((void*)(sequence->m_seqData+InputUniverses[universeIndex].startAddress-1),
 			   (void*)(bridgeBuffer+E131_HEADER_LENGTH),
 			   InputUniverses[universeIndex].size);
@@ -438,9 +451,12 @@ void ResetBytesReceived()
 	{
 		InputUniverses[i].bytesReceived = 0;
 		InputUniverses[i].packetsReceived = 0;
+        InputUniverses[i].errorPackets = 0;
+        InputUniverses[i].lastSequenceNumber = 0;
 	}
     ddpBytesReceived = 0;
     ddpPacketsReceived = 0;
+    ddpErrors = 0;
 }
 
 Json::Value GetE131UniverseBytesReceived()
@@ -491,10 +507,15 @@ Json::Value GetE131UniverseBytesReceived()
 		pr << InputUniverses[i].packetsReceived;
 		std::string packetsReceived = pr.str();
 		universe["packetsReceived"] = packetsReceived;
+        
+        std::stringstream er;
+        er << InputUniverses[i].errorPackets;
+        std::string errors = er.str();
+        universe["errors"] = errors;
 
 		universes.append(universe);
 	}
-
+    
 	result["universes"] = universes;
 
 	return result;
