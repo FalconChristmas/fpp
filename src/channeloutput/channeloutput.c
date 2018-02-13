@@ -60,7 +60,7 @@
 #include "GPIO595.h"
 #include "common.h"
 
-#ifdef USE_X11Matrix
+#ifdef USE_X11ChannelOutputs
 #  include "X11Matrix.h"
 #  include "X11VirtualDisplay.h"
 #endif
@@ -113,11 +113,112 @@ void PrintRemappedChannels(void);
 
 /////////////////////////////////////////////////////////////////////////////
 
+void ChannelOutputJSON2CSV(Json::Value config, char *configStr)
+{
+	Json::Value::Members memberNames = config.getMemberNames();
+
+	configStr[0] = '\0';
+
+	if (!config.isMember("type"))
+	{
+		strcpy(configStr, "");
+		return;
+	}
+
+	if (config.isMember("enabled"))
+		strcat(configStr, config["enabled"].asString().c_str());
+	else
+		strcat(configStr, "0");
+
+	strcat(configStr, ",");
+
+	strcat(configStr, config["type"].asString().c_str());
+	strcat(configStr, ",");
+
+	if (config.isMember("startChannel"))
+		strcat(configStr, config["startChannel"].asString().c_str());
+	else
+		strcat(configStr, "1");
+
+	strcat(configStr, ",");
+
+	if (config.isMember("channelCount"))
+		strcat(configStr, config["channelCount"].asString().c_str());
+	else
+		strcat(configStr, "1");
+
+	std::string key;
+	int first = 1;
+	for (int i = 0; i < memberNames.size(); i++)
+	{
+		key = memberNames[i];
+
+		if (first)
+		{
+			strcat(configStr, ",");
+			first = 0;
+		}
+		else
+			strcat(configStr, ";");
+
+		strcat(configStr, key.c_str());
+		strcat(configStr, "=");
+		strcat(configStr, config[key].asString().c_str());
+	}
+}
+
 Json::Value ChannelOutputCSV2JSON(char *deviceConfig)
 {
 	Json::Value result;
 
-	char *s = strtok(deviceConfig, ";");
+	char *s;
+
+	s = strtok(deviceConfig, ",");
+	if (!s)
+	{
+		LogErr(VB_CHANNELOUT, "Error parsing CSV, empty string??");
+		return result;
+	}
+
+	result["enabled"] = atoi(s);
+
+	s = strtok(NULL, ",");
+	if (!s)
+	{
+		LogErr(VB_CHANNELOUT,
+			"Error parsing CSV '%s', could not determine type",
+			deviceConfig);
+		result["enabled"] = 0;
+		return result;
+	}
+
+	result["type"] = s;
+
+	s = strtok(NULL, ",");
+	if (!s)
+	{
+		LogErr(VB_CHANNELOUT,
+			"Error parsing CSV '%s', could not determine startChannel",
+			deviceConfig);
+		result["enabled"] = 0;
+		return result;
+	}
+
+	result["startChannel"] = atoi(s);
+
+	s = strtok(NULL, ",");
+	if (!s)
+	{
+		LogErr(VB_CHANNELOUT,
+			"Error parsing CSV '%s', could not determine channelCount",
+			deviceConfig);
+		result["enabled"] = 0;
+		return result;
+	}
+
+	result["channelCount"] = atoi(s);
+
+	s = strtok(NULL, ";");
 
 	while (s)
 	{
@@ -169,6 +270,7 @@ int InitializeChannelOutputs(void) {
 			channelOutputs[i].channelCount = channelOutputs[i].outputOld->maxChannels(channelOutputs[i].privData);
 
 			i++;
+			LogDebug(VB_CHANNELOUT, "Configured FPD Channel Output\n");
 		} else {
 			LogErr(VB_CHANNELOUT, "ERROR Opening FPD Channel Output\n");
 		}
@@ -185,6 +287,7 @@ int InitializeChannelOutputs(void) {
 			channelOutputs[i].channelCount = channelOutputs[i].outputOld->maxChannels(channelOutputs[i].privData);
 
 			i++;
+			LogDebug(VB_CHANNELOUT, "Configured E1.31 Channel Output\n");
 		} else {
 			LogErr(VB_CHANNELOUT, "ERROR Opening E1.31 Channel Output\n");
 		}
@@ -199,6 +302,7 @@ int InitializeChannelOutputs(void) {
 			channelOutputs[i].channelCount = channelOutputs[i].outputOld->maxChannels(channelOutputs[i].privData);
 
 			i++;
+			LogDebug(VB_CHANNELOUT, "Configured ArtNet Channel Output\n");
 		} else {
 			LogErr(VB_CHANNELOUT, "ERROR Opening ArtNet Channel Output\n");
 		}
@@ -207,13 +311,14 @@ int InitializeChannelOutputs(void) {
 	// FIXME, build this list dynamically
 	char *configFiles[] = {
 		"/config/channeloutputs.json",
+		"/config/co-other.json",
 		"/config/co-pixelStrings.json",
 		NULL
 		};
 
 	FILE *fp;
 	char filename[1024];
-	char buf[2048];
+	char csvConfig[2048];
 
 	// Parse the JSON channel outputs config files
 	for (int f = 0; configFiles[f]; f++)
@@ -246,6 +351,8 @@ int InitializeChannelOutputs(void) {
 
 			for (int c = 0; c < outputs.size(); c++)
 			{
+				csvConfig[0] = '\0';
+
 				type = outputs[c]["type"].asString();
 
 				if (!outputs[c]["enabled"].asInt())
@@ -301,7 +408,7 @@ int InitializeChannelOutputs(void) {
 				} else if (type == "OLA") {
 					channelOutputs[i].output = new OLAOutput(start, count);
 #endif
-				} else if (type == "FBVirtualDisplay") {
+				} else if (type == "VirtualDisplay") {
 					channelOutputs[i].output = (ChannelOutputBase*)new FBVirtualDisplayOutput(0, FPPD_MAX_CHANNELS);
 				} else if (type == "USBRelay") {
 					channelOutputs[i].output = new USBRelayOutput(start, count);
@@ -318,164 +425,84 @@ int InitializeChannelOutputs(void) {
 					channelOutputs[i].output = new ILI9488Output(start, count);
 				} else if (type == "RPIWS281X") {
 					channelOutputs[i].output = new RPIWS281xOutput(start, count);
+				} else if (type == "SPI-WS2801") {
+					channelOutputs[i].output = new SPIws2801Output(start, count);
+					ChannelOutputJSON2CSV(outputs[c], csvConfig);
+				} else if (type == "SPI-nRF24L01") {
+					channelOutputs[i].outputOld = &SPInRF24L01Output;
+					ChannelOutputJSON2CSV(outputs[c], csvConfig);
 #endif
-#ifdef USE_X11Matrix
+#ifdef USE_X11ChannelOutputs
 				} else if (type == "X11Matrix") {
 					channelOutputs[i].output = new X11MatrixOutput(start, count);
 				} else if (type == "X11VirtualDisplay") {
 					channelOutputs[i].output = (ChannelOutputBase*)new X11VirtualDisplayOutput(0, FPPD_MAX_CHANNELS);
 #endif
+				}else if ((type == "Pixelnet-Lynx") ||
+						  (type == "Pixelnet-Open"))
+				{
+					channelOutputs[i].output = new USBPixelnetOutput(start, count);
+					ChannelOutputJSON2CSV(outputs[c], csvConfig);
+				} else if ((type == "DMX-Pro") ||
+						   (type == "DMX-Open")) {
+					channelOutputs[i].output = new USBDMXOutput(start, count);
+					ChannelOutputJSON2CSV(outputs[c], csvConfig);
+				} else if ((type == "VirtualMatrix") ||
+						   (type == "FBMatrix")) {
+					channelOutputs[i].output = new FBMatrixOutput(start, count);
+					ChannelOutputJSON2CSV(outputs[c], csvConfig);
+				} else if (type == "GPIO") {
+					channelOutputs[i].output = new GPIOOutput(start, count);
+					ChannelOutputJSON2CSV(outputs[c], csvConfig);
+				} else if (type == "GPIO-595") {
+					channelOutputs[i].output = new GPIO595Output(start, count);
+					ChannelOutputJSON2CSV(outputs[c], csvConfig);
+				} else if (type == "GenericSerial") {
+					channelOutputs[i].output = new GenericSerialOutput(start, count);
+					ChannelOutputJSON2CSV(outputs[c], csvConfig);
+				} else if (type == "LOR") {
+					channelOutputs[i].outputOld = &LOROutput;
+					ChannelOutputJSON2CSV(outputs[c], csvConfig);
+				} else if (type == "Renard") {
+					channelOutputs[i].outputOld = &USBRenardOutput;
+					ChannelOutputJSON2CSV(outputs[c], csvConfig);
+				} else if (type == "Triks-C") {
+					channelOutputs[i].outputOld = &TriksCOutput;
+					ChannelOutputJSON2CSV(outputs[c], csvConfig);
+				} else if (type == "Debug") {
+					channelOutputs[i].output = new DebugOutput(start, count);
+					ChannelOutputJSON2CSV(outputs[c], csvConfig);
 				} else {
 					LogErr(VB_CHANNELOUT, "Unknown Channel Output type: %s\n", type.c_str());
 					continue;
 				}
 
-				if (channelOutputs[i].output->Init(outputs[c])) {
+				if ((channelOutputs[i].outputOld) &&
+					(channelOutputs[i].outputOld->open(csvConfig, &channelOutputs[i].privData)))
+				{
+					if (channelOutputs[i].channelCount > channelOutputs[i].outputOld->maxChannels(channelOutputs[i].privData)) {
+						LogWarn(VB_CHANNELOUT,
+							"Channel Output config, count (%d) exceeds max (%d) channel for configured output\n",
+							channelOutputs[i].channelCount, channelOutputs[i].outputOld->maxChannels(channelOutputs[i].privData));
+
+						channelOutputs[i].channelCount = channelOutputs[i].outputOld->maxChannels(channelOutputs[i].privData);
+
+						LogWarn(VB_CHANNELOUT,
+							"Count suppressed to %d for config: %s\n", channelOutputs[i].channelCount, csvConfig);
+					}
+					i++;
+				} else if ((channelOutputs[i].output) &&
+						   (((!csvConfig[0]) && (channelOutputs[i].output->Init(outputs[c]))) ||
+							((csvConfig[0]) && (channelOutputs[i].output->Init(csvConfig))))) {
 					i++;
 				} else {
 					LogErr(VB_CHANNELOUT, "ERROR Opening %s Channel Output\n", type.c_str());
+					continue;
 				}
+
+				LogDebug(VB_CHANNELOUT, "Configured %s Channel Output\n", type.c_str());
 			}
 		}
-	}
-
-	// Parse the CSV channeloutputs config file
-	strcpy(filename, getMediaDirectory());
-	strcat(filename, "/channeloutputs");
-
-	if (FileExists(filename))
-	{
-		LogDebug(VB_CHANNELOUT, "Loading %s\n", filename);
-
-		fp = fopen(filename, "r");
-
-		if (fp == NULL)
-		{
-			LogErr(VB_CHANNELOUT,
-				"Could not open Channel Outputs config file %s: %s\n",
-				filename, strerror(errno));
-			channelOutputCount = 0;
-
-			return 0;
-		}
-
-		while(fgets(buf, 2048, fp) != NULL)
-		{
-			Json::Value jsonConfig;
-			int  useJSON = 0;
-			int  enabled = 0;
-			char type[32];
-			int  start = 0;
-			int  count = 0;
-			char deviceConfig[256];
-
-			if (buf[0] == '#') // Allow # comments for testing
-				continue;
-
-			int fields = sscanf(buf, "%d,%[^,],%d,%d,%s",
-				&enabled, type, &start, &count, deviceConfig);
-
-			if (fields != 5) {
-				LogErr(VB_CHANNELOUT,
-					"Invalid line in channeloutputs config file: %s\n", buf);
-				continue;
-			}
-
-			if (!enabled) {
-				LogDebug(VB_CHANNELOUT, "Skipping disabled channel output: %s", buf);
-				continue;
-			}
-
-			if (count > (FPPD_MAX_CHANNELS - start)) {
-				LogWarn(VB_CHANNELOUT,
-					"Channel Output config, start (%d) + count (%d) exceeds max (%d) channel\n",
-					start, count, FPPD_MAX_CHANNELS);
-
-				count = FPPD_MAX_CHANNELS - start;
-
-				LogWarn(VB_CHANNELOUT,
-					"Count suppressed to %d for config line: %s\n", count, buf);
-			}
-
-			if (strlen(deviceConfig))
-				strcat(deviceConfig, ";");
-
-			strcat(deviceConfig, "type=");
-			strcat(deviceConfig, type);
-
-			LogDebug(VB_CHANNELOUT, "ChannelOutput: %d %s %d %d %s\n", enabled, type, start, count, deviceConfig);
-
-			// internally we start channel counts at zero
-			start -= 1;
-
-			channelOutputs[i].startChannel = start;
-			channelOutputs[i].channelCount = count;
-
-			if ((!strcmp(type, "Pixelnet-Lynx")) ||
-				(!strcmp(type, "Pixelnet-Open")))
-			{
-				channelOutputs[i].output = new USBPixelnetOutput(start, count);
-			} else if ((!strcmp(type, "DMX-Pro")) ||
-					   (!strcmp(type, "DMX-Open"))) {
-				channelOutputs[i].output = new USBDMXOutput(start, count);
-			} else if ((!strcmp(type, "VirtualMatrix")) ||
-						(!strcmp(type, "FBMatrix"))) {
-				channelOutputs[i].output = new FBMatrixOutput(start, count);
-			} else if (!strcmp(type, "GPIO")) {
-				channelOutputs[i].output = new GPIOOutput(start, count);
-			} else if (!strcmp(type, "GenericSerial")) {
-				channelOutputs[i].output = new GenericSerialOutput(start, count);
-			} else if (!strcmp(type, "LOR")) {
-				channelOutputs[i].outputOld = &LOROutput;
-			} else if (!strcmp(type, "Renard")) {
-				channelOutputs[i].outputOld = &USBRenardOutput;
-			} else if (!strcmp(type, "SPI-WS2801")) {
-				channelOutputs[i].output = new SPIws2801Output(start, count);
-			} else if (!strcmp(type, "SPI-nRF24L01")) {
-				channelOutputs[i].outputOld = &SPInRF24L01Output;
-			} else if (!strcmp(type, "Triks-C")) {
-				channelOutputs[i].outputOld = &TriksCOutput;
-			} else if (!strcmp(type, "GPIO-595")) {
-				channelOutputs[i].output = new GPIO595Output(start, count);
-			} else if (!strcmp(type, "Debug")) {
-				channelOutputs[i].output = new DebugOutput(start, count);
-			} else if (!strcmp(type, "USBRelay")) {
-				channelOutputs[i].output = new USBRelayOutput(start, count);
-				useJSON = 1;
-				jsonConfig = ChannelOutputCSV2JSON(deviceConfig);
-			} else {
-				LogErr(VB_CHANNELOUT, "Unknown Channel Output type: %s\n", type);
-				continue;
-			}
-
-			jsonConfig["type"] = type;
-			jsonConfig["startChannel"] = start;
-			jsonConfig["channelCount"] = count;
-
-			if ((channelOutputs[i].outputOld) &&
-				(channelOutputs[i].outputOld->open(deviceConfig, &channelOutputs[i].privData)))
-			{
-				if (channelOutputs[i].channelCount > channelOutputs[i].outputOld->maxChannels(channelOutputs[i].privData)) {
-					LogWarn(VB_CHANNELOUT,
-						"Channel Output config, count (%d) exceeds max (%d) channel for configured output\n",
-						channelOutputs[i].channelCount, channelOutputs[i].outputOld->maxChannels(channelOutputs[i].privData));
-
-					channelOutputs[i].channelCount = channelOutputs[i].outputOld->maxChannels(channelOutputs[i].privData);
-
-					LogWarn(VB_CHANNELOUT,
-						"Count suppressed to %d for config: %s\n", channelOutputs[i].channelCount, buf);
-				}
-				i++;
-			} else if ((channelOutputs[i].output) &&
-					   (((useJSON) && (channelOutputs[i].output->Init(jsonConfig))) ||
-						((!useJSON) && (channelOutputs[i].output->Init(deviceConfig))))) {
-				i++;
-			} else {
-				LogErr(VB_CHANNELOUT, "ERROR Opening %s Channel Output\n", type);
-			}
-		}
-
-		fclose(fp);
 	}
 
 	channelOutputCount = i;

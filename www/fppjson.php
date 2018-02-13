@@ -21,11 +21,6 @@ $command_array = Array(
 	"setChannelRemaps"    => 'SetChannelRemaps',
 	"getChannelOutputs"   => 'GetChannelOutputs',
 	"setChannelOutputs"   => 'SetChannelOutputs',
-	"getChannelOutputsJSON" => 'GetChannelOutputsJSON',
-	"setChannelOutputsJSON" => 'SetChannelOutputsJSON',
-	"getPixelStringOutputs" => 'GetPixelStringOutputs',
-	"setPixelStringOutputs" => 'SetPixelStringOutputs',
-	"getUniverses"        => 'GetUniverses',
 	"setUniverses"        => 'SetUniverses',
 	"applyDNSInfo"        => 'ApplyDNSInfo',
 	"getDNSInfo"          => 'GetDNSInfo',
@@ -1268,46 +1263,6 @@ function GetChannelOutputsJSON()
 	echo $jsonStr;
 }
 
-function SetChannelOutputsJSON()
-{
-	global $settings;
-	global $args;
-
-	$data = stripslashes($args['data']);
-	$data = prettyPrintJSON(substr($data, 1, strlen($data) - 2));
-
-	file_put_contents($settings['channelOutputsJSON'], $data);
-
-	GetChannelOutputsJSON();
-}
-
-function GetPixelStringOutputs()
-{
-	global $settings;
-
-	$jsonStr = "";
-
-	if (file_exists($settings['pixelStringOutputs'])) {
-		$jsonStr = file_get_contents($settings['pixelStringOutputs']);
-	}
-
-	header( "Content-Type: application/json");
-	echo $jsonStr;
-}
-
-function SetPixelStringOutputs()
-{
-	global $settings;
-	global $args;
-
-	$data = stripslashes($args['data']);
-	$data = prettyPrintJSON(substr($data, 1, strlen($data) - 2));
-
-	file_put_contents($settings['pixelStringOutputs'], $data);
-
-	GetPixelStringOutputs();
-}
-
 /////////////////////////////////////////////////////////////////////////////
 function SaveUniversesToFile($enabled, $input)
 {
@@ -1400,32 +1355,18 @@ function SetUniverses()
 function GetChannelOutputs()
 {
 	global $settings;
+	global $args;
 
-	$result = Array();
-	$result['Outputs'] = Array();
+	$file = $args['file'];
 
-	if (!file_exists($settings['channelOutputsFile']))
-		return returnJSON($result);
+	$jsonStr = "";
 
-	$f = fopen($settings['channelOutputsFile'], "r");
-	if($f == FALSE)
-	{
-		fclose($f);
-		returnJSON($result);
+	if (file_exists($settings[$file])) {
+		$jsonStr = file_get_contents($settings[$file]);
 	}
 
-	while (!feof($f))
-	{
-		$line = trim(fgets($f));
-
-		if ($line == "")
-			continue;
-
-		array_push($result['Outputs'], $line);
-	}
-	fclose($f);
-
-	return returnJSON($result);
+	header( "Content-Type: application/json");
+	echo $jsonStr;
 }
 
 function SetChannelOutputs()
@@ -1433,19 +1374,12 @@ function SetChannelOutputs()
 	global $settings;
 	global $args;
 
-	$data = json_decode($args['data'], true);
+	$file = $args['file'];
 
-	$f = fopen($settings['channelOutputsFile'], "w");
-	if($f == FALSE)
-	{
-		fclose($f);
-		returnJSON($result);
-	}
+	$data = stripslashes($args['data']);
+	$data = prettyPrintJSON(substr($data, 1, strlen($data) - 2));
 
-	foreach ($data['Outputs'] as $output) {
-		fprintf($f, "%s\n", $output);
-	}
-	fclose($f);
+	file_put_contents($settings[$file], $data);
 
 	GetChannelOutputs();
 }
