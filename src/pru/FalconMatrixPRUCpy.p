@@ -11,25 +11,25 @@
 #include "FalconUtils.hp"
 #include "FalconWS281x.hp"
 
-#define data_addr       r0
-#define offset          r1
-
+#define data_addr       r1
 #define endVal          r2
 
-#define lastData        r8
-
-#define lastOffset      r17
+#define lastData        r17
 #define pixel_data      r18 // the next 12 registers, too;
 
 
 
 START:
     MOV endVal, 0xFFFFFFF
-    MOV lastOffset, 0xFFFFFF
     MOV data_addr, 0
+    ZERO &lastData, 32
+
+    LDI r3, 1
+    SBCO r3, C24, 0, 4
+    SBCO lastData, C24, 4, 32
 
 READ_LOOP:
-    XIN 10, data_addr, 8
+    XIN 10, data_addr, 4
 
     // Wait for a non-zero address
     QBEQ READ_LOOP, data_addr, #0
@@ -38,16 +38,17 @@ READ_LOOP:
     QBEQ EXIT, data_addr, endVal
 
     QBNE DO_DATA, lastData, data_addr
-    QBNE DO_DATA, lastOffset, offset
     //nothing changed
     JMP READ_LOOP
 
-    DO_DATA:
-        LBBO pixel_data, data_addr, offset, 48
-        MOV lastOffset, offset
-        XOUT 11, lastOffset, 52
-        MOV lastData, data_addr
+    SBCO data_addr, C24, 4, 4
 
+
+    DO_DATA:
+        LBBO pixel_data, data_addr, 0, 3*2*OUTPUTS
+        MOV lastData, data_addr
+        XOUT 11, lastData, (3*2*OUTPUTS + 4)
+        SBCO lastData, C24, 8, (3*2*OUTPUTS + 4)
 
     JMP READ_LOOP
 

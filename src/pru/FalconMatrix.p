@@ -34,8 +34,7 @@
 #define GPIO_SETDATAOUT (0x194 - 0x100)
 
 /** Register map */
-#define data_addr       r0
-#define offset          r1
+#define data_addr       r1
 #define row             r2.b0
 #define bright          r2.b1
 #define bit             r2.b2
@@ -327,21 +326,22 @@ START:
     LDI statOffset, 0
 
 READ_LOOP:
-    // Load the pointer to the buffer from PRU DRAM into r0
-    // command into r1
+
+
+    // Load the pointer to the buffer from PRU DRAM into r1
+    // command into r2
     LBCO data_addr, CONST_PRUDRAM, 0, 8
 
     // Wait for a non-zero command
-    QBEQ READ_LOOP, r1, #0
+    QBEQ READ_LOOP, r2, #0
 
     // Command of 0xFF is the signal to exit
-    QBEQ EXIT, r1, #0xFF
+    QBEQ EXIT, r2, #0xFF
 
 
     MOV row, 0
     LDI statOffset, 0
-    LDI offset, 0
-    XOUT 10, data_addr, 8
+    XOUT 10, data_addr, 4
 
 NEW_ROW_LOOP:
     MOV bright, BITS
@@ -354,14 +354,16 @@ NEW_ROW_LOOP:
         LOOP DONE_PIXELS, ROW_LEN
 
 			// Load the sixteen RGB outputs into
-			// consecutive registers, starting at pixel_data.
+			// consecutive registers, starting at pixel_data
+            // we do this by transfering the data_addr to the other PRU via XOUT
+            // which will LBBO the data and then transfer it back via XIN
             REREAD:
-                XIN 11, gpio_base, 3*2*OUTPUTS + 4
-                QBNE REREAD, gpio_base, offset
-
-            //LBBO pixel_data, data_addr, offset, 3*2*OUTPUTS
-            ADD offset, offset, 3*2*OUTPUTS
-            XOUT 10, data_addr, 8
+               XIN 11, gpio_base, 3*2*OUTPUTS + 4
+               QBNE REREAD, gpio_base, data_addr
+            ADD data_addr, data_addr, 3*2*OUTPUTS
+            // XOUT the new data_addr so the other RPU can start working
+            // on loading it while we process this data
+            XOUT 10, data_addr, 4
 
             LDI bit, 0
             BIT_LOOP:
@@ -398,6 +400,7 @@ NEW_ROW_LOOP:
                 OUTPUT_ROW(81, r28.b2, r28.b3, r29.b0)
                 OUTPUT_ROW(82, r29.b1, r29.b2, r29.b3)
     #endif
+
                 CLOCK_LO
 
                 // All bits are configured;
@@ -457,24 +460,19 @@ NEW_ROW_LOOP:
 
 		// Update the brightness, and then give the row another scan
 		SUB bright, bright, 1
-        // Increment our data_offset to point to the next row
-        ADD data_addr, data_addr, offset
-        LDI offset, 0
-        XOUT 10, data_addr, 8
-
 
 		QBLT ROW_LOOP, bright, 0
 
 		// We have just done all eight brightness levels for this
 		// row.  Time to move to the new row
         ADD row, row, 1
+
         QBEQ READ_LOOP, row, ROWS
 
 		QBA NEW_ROW_LOOP
 EXIT:
     MOV data_addr, 0xFFFFFFF
-    MOV offset, 0
-    XOUT 10, data_addr, 8
+    XOUT 10, data_addr, 4
 #ifdef AM33XX
     // Send notification to Host for program completion
     MOV R31.b0, PRU_ARM_INTERRUPT+16

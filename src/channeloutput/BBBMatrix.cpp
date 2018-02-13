@@ -432,7 +432,7 @@ void BBBMatrix::printStats() {
             off += 3;
         }
     }
-    fprintf(rfile, "Average Per Row/Bit:   0x%8X\n", (total / count));
+    fprintf(rfile, "Average Per Row/Bit:   %8X\n", (total / count));
     //printf("0x%X\n", (total / count));
     fclose(rfile);
 }
@@ -552,8 +552,20 @@ int BBBMatrix::RawSendData(unsigned char *channelData)
     }
     m_pruData->command = 1;
     
-    //uint32_t *t = (uint32_t*)m_pruCopy->data_ram;
-    //printf("%d  %d\n", t[0], t[1]);
+    /*
+    if (fcount == 0) {
+        printf("%x %x %x %x %x %x %x %x %x %x %x %x %x %x %x \n",
+           m_outputFrame[0], m_outputFrame[1], m_outputFrame[2],
+           m_outputFrame[3], m_outputFrame[4], m_outputFrame[5],
+           m_outputFrame[6], m_outputFrame[7], m_outputFrame[8],
+           m_outputFrame[9], m_outputFrame[10], m_outputFrame[11],
+           m_outputFrame[12], m_outputFrame[13], m_outputFrame[15]
+           );
+        
+        uint32_t *t = (uint32_t *)m_pruCopy->data_ram;
+        printf("     %d   %X   %X    %X %X %X\n", t[0], t[1], t[2], t[3], t[4], t[5]);
+    }
+    */
     
     return m_channelCount;
 }
