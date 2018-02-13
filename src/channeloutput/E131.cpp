@@ -432,7 +432,7 @@ int E131_IsConfigured(void) {
 
 	LoadUniversesFromFile();
 
-	if (UniverseCount > 0);
+	if (UniverseCount > 0)
 		return 1;
 
 	return 0;
@@ -444,7 +444,7 @@ int E131_IsConfigured(void) {
 int E131_IsActive(void *data) {
 	LogDebug(VB_CHANNELOUT, "E131_IsActive(%p)\n", data);
 
-	if (UniverseCount > 0);
+	if (UniverseCount > 0)
 		return 1;
 
 	return 0;
