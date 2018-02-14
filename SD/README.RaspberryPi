@@ -3,7 +3,7 @@ Instructions for creating a new FPP SD image package for the Raspberry Pi
 =============================================================================
 
 Install the latest Raspbian Stretch Lite image to the SD card.  The last
-version tested is 2017-09-07-raspbian-stretch-lite.zip
+version tested is 2017-11-29-raspbian-stretch-lite.zip
 
 Resize the root partition to 2.4GiB using fdisk (substitute the proper device
 for your SD card).

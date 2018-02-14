@@ -46,11 +46,14 @@
 #       targetting for support.
 #
 #############################################################################
-# Other platforms should be functioning:
+# Other platforms which may be functioning:
+#
+# NOTE: FPP Development is based on the latest *bian Stretch images, so
+#       hardware which does not support Stretch may have issues.
 #
 #       ODROID C1
 #           http://oph.mdrjr.net/meveric/images/
-#           - Jessie/Debian-Jessie-1.0-20160131-C1.img.xz
+#           - Jessie/Debian-Jessie-1.1-20170526-C1.img.xz
 #           - Login/Password
 #             - root/odroid
 #           - When building a FPP image from this stock image, we will need
@@ -68,15 +71,12 @@
 #############################################################################
 SCRIPTVER="0.9"
 FPPBRANCH="master-v1.x"
-FPPIMAGEVER="1.9"
+FPPIMAGEVER="1.11beta"
 FPPCFGVER="28"
 FPPPLATFORM="UNKNOWN"
 FPPDIR="/opt/fpp"
+FPPHOME="/home/fpp"
 OSVER="UNKNOWN"
-
-# FIXME, need to handle config version 14 to fix force HDMI on the Pi
-# can we do this at install time or does it need to be at first boot?
-# do we need a FPP "first boot" script for this and other things?
 
 #############################################################################
 # Some Helper Functions
@@ -820,10 +820,18 @@ FILES="cli/php.ini fpm/php.ini"
 for FILE in ${FILES}
 do
 	sed -i -e "s/^short_open_tag.*/short_open_tag = On/" ${PHPDIR}/${FILE}
-	sed -i -e "s/^; max_input_vars.*/max_input_vars = 5000/" ${PHPDIR}/${FILE}
+	sed -i -e "s/max_execution_time.*/max_execution_time = 300/" ${PHPDIR}/${FILE}
+	sed -i -e "s/max_input_time.*/max_input_time = 300/" ${PHPDIR}/${FILE}
+	sed -i -e "s/default_socket_timeout.*/default_socket_timeout = 300/" ${PHPDIR}/${FILE}
+	sed -i -e "s/post_max_size.*/post_max_size = 4G/" ${PHPDIR}/${FILE}
 	sed -i -e "s/upload_max_filesize.*/upload_max_filesize = 4G/" ${PHPDIR}/${FILE}
-	sed -i -e "s/post_max_filesize.*/post_max_filesize = 4G/" ${PHPDIR}/${FILE}
+	sed -i -e "s/;upload_tmp_dir =.*/upload_tmp_dir = \/home\/fpp\/media\/upload/" ${PHPDIR}/${FILE}
+	sed -i -e "s/^; max_input_vars.*/max_input_vars = 5000/" ${PHPDIR}/${FILE}
 done
+
+echo "FPP - Copying rsync daemon config files into place"
+sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" -e "s#FPPUSER#${FPPUSER}#g" < ${FPPDIR}/etc/rsync > /etc/default/rsync
+sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" -e "s#FPPUSER#${FPPUSER}#g" < ${FPPDIR}/etc/rsyncd.conf > /etc/rsyncd.conf
 
 #######################################
 # echo "FPP - Composing FPP UI"
@@ -844,6 +852,7 @@ esac
 adduser fpp video
 sed -i -e 's/^fpp:\*:/fpp:\$6\$rA953Jvd\$oOoLypAK8pAnRYgQQhcwl0jQs8y0zdx1Mh77f7EgKPFNk\/jGPlOiNQOtE.ZQXTK79Gfg.8e3VwtcCuwz2BOTR.:/' /etc/shadow
 
+
 #######################################
 echo "FPP - Fixing empty root passwd"
 sed -i -e 's/root::/root:*:/' /etc/shadow
@@ -857,6 +866,9 @@ chmod 700 /home/fpp/.ssh
 mkdir /home/fpp/media
 chown fpp.fpp /home/fpp/media
 chmod 700 /home/fpp/media
+
+echo "set mouse=r" > /home/fpp/.vimrc
+chown fpp.fpp /home/fpp/.vimrc
 
 echo >> /home/fpp/.bashrc
 echo ". /opt/fpp/scripts/common" >> /home/fpp/.bashrc
@@ -973,8 +985,8 @@ You can access the UI by typing "http://fpp.local/" into a web browser.[0m
 # Config fstab to mount some filesystems as tmpfs
 echo "FPP - Configuring tmpfs filesystems"
 echo "#####################################" >> /etc/fstab
-echo "tmpfs         /var/log    tmpfs   nodev,nosuid,size=10M 0 0" >> /etc/fstab
-echo "tmpfs         /var/tmp    tmpfs   nodev,nosuid,size=10M 0 0" >> /etc/fstab
+#echo "tmpfs         /var/log    tmpfs   nodev,nosuid,size=10M 0 0" >> /etc/fstab
+echo "tmpfs         /var/tmp    tmpfs   nodev,nosuid,size=50M 0 0" >> /etc/fstab
 echo "#####################################" >> /etc/fstab
 
 COMMENTED=""
@@ -1034,10 +1046,15 @@ esac
 
 #######################################
 echo "FPP - Configuring FPP startup"
-cp /opt/fpp/etc/init.d/fppinit /etc/init.d/
-update-rc.d fppinit defaults
-cp /opt/fpp/etc/init.d/fppstart /etc/init.d/
-update-rc.d fppstart defaults
+cp /opt/fpp/etc/systemd/fppinit.service /lib/systemd/system/
+systemctl enable fppinit.service
+cp /opt/fpp/etc/systemd/fppd.service /lib/systemd/system/
+systemctl enable fppd.service
+
+systemctl enable rsync
+
+echo "FPP - Disabling services not needed/used"
+systemctl disable olad
 
 echo "FPP - Compiling binaries"
 cd /opt/fpp/src/
