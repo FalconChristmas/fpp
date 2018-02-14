@@ -20,6 +20,14 @@ teeOutput
 
 echo "FPP - Setting up for the Falcon Player on the ${FPPPLATFORM} platform"
 
+NGINXCONF=/etc/nginx/sites-enabled/fpp_nginx.conf
+if [ -d "/home/fpp/fpp/www" ]
+then
+	grep -q "/opt/fpp/www" ${NGINXCONF} && sed -i -e "s#/opt/fpp/www#/home/fpp/fpp/www#" ${NGINXCONF}
+else
+	grep -q "/home/fpp/fpp/www" ${NGINXCONF} && sed -i -e "s#/home/fpp/fpp/www#/opt/fpp/www#" ${NGINXCONF}
+fi
+
 checkAudioConfig
 
 applyReadOnlySDFixups
