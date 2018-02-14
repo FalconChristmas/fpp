@@ -392,7 +392,7 @@ case "${OSVER}" in
 								libdbus-glib-1-dev libdevice-serialport-perl libjs-jquery \
 								libjs-jquery-ui libjson-perl libjsoncpp-dev libnet-bonjour-perl \
 								libpam-smbpass libtagc0-dev libtest-nowarnings-perl locales \
-								mp3info mailutils mpg123 mpg321 mplayer nano node ntp perlmagick \
+								mp3info mailutils mpg123 mpg321 mplayer nano nginx node ntp perlmagick \
 								php5-cli php5-common php5-curl php5-fpm php5-mcrypt \
 								php5-sqlite php-apc python-daemon python-smbus rsync samba \
 								samba-common-bin shellinabox sudo sysstat tcpdump usbmount vim \
@@ -413,7 +413,7 @@ case "${OSVER}" in
 								libdbus-glib-1-dev libdevice-serialport-perl libjs-jquery \
 								libjs-jquery-ui libjson-perl libjsoncpp-dev libmicrohttpd-dev libnet-bonjour-perl \
 								libpam-smbpass libsdl2-dev libssh-4 libtagc0-dev libtest-nowarnings-perl locales \
-								mp3info mailutils mpg123 mpg321 mplayer nano node ntp perlmagick \
+								mp3info mailutils mpg123 mpg321 mplayer nano nginx node ntp perlmagick \
 								php-cli php-common php-curl php-dom php-fpm php-mcrypt \
 								php-sqlite3 python-daemon python-smbus rsync samba \
 								samba-common-bin shellinabox sudo sysstat tcpdump usbmount vim \
@@ -438,6 +438,7 @@ case "${OSVER}" in
 
 		echo "FPP - Configuring shellinabox to use /var/tmp"
 		echo "SHELLINABOX_DATADIR=/var/tmp/" >> /etc/default/shellinabox
+		sed -i -e "s/SHELLINABOX_ARGS.*/SHELLINABOX_ARGS=\"--no-beep -t\"/" /etc/default/shellinabox
 
 		echo "FPP - Cleaning up after installing packages"
 		apt-get -y clean
@@ -1011,27 +1012,14 @@ cat <<-EOF >> /etc/sysctl.conf
 	EOF
 
 #######################################
-# Building nginx
-echo "FPP - Building nginx webserver"
-git clone https://github.com/wandenberg/nginx-push-stream-module.git
-wget http://nginx.org/download/nginx-1.8.1.tar.gz
-tar xzvf nginx-1.8.1.tar.gz
-cd nginx-1.8.1/
-./configure --add-module=../nginx-push-stream-module
-make
-make install
-
-#######################################
 echo "FPP - Configuring nginx webserver"
-# Comment out the default server section
-sed -i.orig '/^\s*location/,/^\s*}/s/^/#/g;/^\s*server/,/^\s*}/s/^/#/g;s/##/#/g' /usr/local/nginx/conf/nginx.conf
-# Add an include of our server configuration
-sed -i -e '/^\s*http\s*{/a\    push_stream_shared_memory_size 32M;\n    include /etc/fpp_nginx.conf;\n' /usr/local/nginx/conf/nginx.conf
-sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/nginx.conf > /etc/fpp_nginx.conf
+
+# Disable default site
+rm /etc/nginx/sites-enabled/default
 # Set user to fpp
-sed -i -e 's/^\s*\#\?\s*user\(\s*\)[^;]*/user\1fpp/' /usr/local/nginx/conf/nginx.conf
-# Ensure pid matches our systemd service file
-sed -i -e 's/^\s*\#\?\s*pid\(\s*\)[^;]*/pid\1logs\/nginx.pid/' /usr/local/nginx/conf/nginx.conf
+sed -i -e 's/^\s*\#\?\s*user\(\s*\)[^;]*/user\1fpp/' /etc/nginx/nginx.conf
+# Install the fpp site
+sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/nginx.conf > /etc/nginx/sites-enabled/fpp_nginx.conf
 
 case "${OSVER}" in
 	debian_7)
@@ -1039,7 +1027,6 @@ case "${OSVER}" in
 		update-rc.d nginx defaults
 		;;
 	debian_8|debian_9)
-		cp ${FPPDIR}/scripts/nginx.service /lib/systemd/system/
 		systemctl enable nginx.service
 		;;
 esac

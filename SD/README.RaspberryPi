@@ -71,6 +71,8 @@ If you are installing to create a SD image zip, run the following commands:
 
 	Once the Pi reboots, login as the fpp user again and run the following:
 
+	# Reset the SSH keys
+	sudo rm -rf /etc/ssh/ssh_host*key*
 	# Remove old pi user's home directory
 	sudo rm -rf /home/pi
 	# Zero out free space so the SD image will compress better
