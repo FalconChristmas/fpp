@@ -89,7 +89,7 @@ static int pinGPIOs[] = {
     20,
     18
 };
-static const char * pinNames[] = {
+static const char * bbPinNames[] = {
     "P9_25",
     "P9_27",
     "P9_28",
@@ -100,8 +100,23 @@ static const char * pinNames[] = {
     "P9_92",
 };
 
+static const char * pbPinNames[] = {
+    "P1_29",
+    "P2_34",
+    "P2_30",
+    "P1_33",
+    "P2_32",
+    "P1_36",
+    "P2_28",
+    "P1_31",
+};
+
 
 static void configurePRUPins(int start, int end, const char *mode) {
+    const char ** pinNames = bbPinNames;
+    if (getBeagleBoneType() == PocketBeagle) {
+        pinNames = pbPinNames;
+    }
     for (int x = start; x < end; x++) {
         configBBBPin(pinNames[x], 3, pinGPIOs[x], mode);
     }
