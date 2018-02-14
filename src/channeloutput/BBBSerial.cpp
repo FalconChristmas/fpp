@@ -68,7 +68,7 @@ BBBSerialOutput::BBBSerialOutput(unsigned int startChannel,
     m_curData(NULL),
     m_curFrame(0)
 {
-	LogDebug(VB_CHANNELOUT, "BBBSerialOutput::BBBSerialOutput(%u, %u)\n",
+    LogDebug(VB_CHANNELOUT, "BBBSerialOutput::BBBSerialOutput(%u, %u)\n",
 		startChannel, channelCount);
     m_useOutputThread = 1;
 }
@@ -78,7 +78,7 @@ BBBSerialOutput::BBBSerialOutput(unsigned int startChannel,
  */
 BBBSerialOutput::~BBBSerialOutput()
 {
-	LogDebug(VB_CHANNELOUT, "BBBSerialOutput::~BBBSerialOutput()\n");
+    LogDebug(VB_CHANNELOUT, "BBBSerialOutput::~BBBSerialOutput()\n");
     prussdrv_exit();
     
     if (m_lastData) free(m_lastData);
@@ -95,7 +95,7 @@ static int pinGPIOs[] = {
     20,
     18
 };
-static const char * pinNames[] = {
+static const char * bbPinNames[] = {
     "P9_25",
     "P9_27",
     "P9_28",
@@ -106,8 +106,23 @@ static const char * pinNames[] = {
     "P9_92",
 };
 
+static const char * pbPinNames[] = {
+    "P1_29",
+    "P2_34",
+    "P2_30",
+    "P1_33",
+    "P2_32",
+    "P1_36",
+    "P2_28",
+    "P1_31",
+};
+
 
 static void configurePRUPins(int start, int end, const char *mode) {
+    const char ** pinNames = bbPinNames;
+    if (getBeagleBoneType() == PocketBeagle) {
+        pinNames = pbPinNames;
+    }
     for (int x = start; x < end; x++) {
         configBBBPin(pinNames[x], 3, pinGPIOs[x], mode);
     }
@@ -136,20 +151,20 @@ static void compileSerialPRUCode(std::vector<std::string> &sargs) {
  */
 int BBBSerialOutput::Init(Json::Value config)
 {
-	LogDebug(VB_CHANNELOUT, "BBBSerialOutput::Init(JSON)\n");
+    LogDebug(VB_CHANNELOUT, "BBBSerialOutput::Init(JSON)\n");
 
     std::vector<std::string> args;
 
-	// Always send 8 outputs worth of data to PRU for now
-	m_outputs = 8;
+    // Always send 8 outputs worth of data to PRU for now
+    m_outputs = 8;
 
-	m_config = &ledscape_matrix_default;
+    m_config = &ledscape_matrix_default;
 
     if (config["subType"].asString() == "Pixelnet") {
         args.push_back("-DPIXELNET");
-		m_pixelnet = 1;
+        m_pixelnet = 1;
     } else {
-		m_pixelnet = 0;
+        m_pixelnet = 0;
         args.push_back("-DDMX");
     }
 #ifdef USING_PRU_RAM

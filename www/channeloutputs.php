@@ -3008,23 +3008,38 @@ if ($settings['Platform'] == "BeagleBone Black")
 							<tr>
 								<td><b>Cape Type:</b></td>
 								<td colspan="3"><select id='BBB48StringSubType' onChange='BBB48StringSubTypeChanged();'>
+<?
+    if (strpos($settings['SubPlatform'], 'PocketBeagle') == FALSE)
+    {
+?>
 									<option value='F16-B'>F16-B</option>
 									<option value='F16-B-32'>F16-B w/ 32 outputs</option>
 									<option value='F16-B-48'>F16-B w/ 48 outputs (No Serial)</option>
 									<option value='F4-B'>F4-B</option>
-                                    <option value='F8-B'>F8-B (8 serial)</option>
-                                    <option value='F8-B-16'>F8-B (4 serial)</option>
-                                    <option value='F8-B-20'>F8-B (No serial)</option>
-                                    <option value='F8-B-EXP'>F8-B w/ Expansion (8 serial)</option>
-                                    <option value='F8-B-EXP-32'>F8-B w/ Expansion (4 serial)</option>
-                                    <option value='F8-B-EXP-36'>F8-B w/ Expansion (No serial)</option>
-                                    <option value='F32-B'>F32-B</option>
-                                    <option value='F32-B-48'>F32-B (No Serial)</option>
-                                    <option value='RGBCape24'>RGBCape24</option>
+<?
+    }
+?>
+
+                                                                        <option value='F8-B'>F8-B (8 serial)</option>
+                                                                        <option value='F8-B-16'>F8-B (4 serial)</option>
+                                                                        <option value='F8-B-20'>F8-B (No serial)</option>
+                                                                        <option value='F8-B-EXP'>F8-B w/ Expansion (8 serial)</option>
+                                                                        <option value='F8-B-EXP-32'>F8-B w/ Expansion (4 serial)</option>
+                                                                        <option value='F8-B-EXP-36'>F8-B w/ Expansion (No serial)</option>
+<?
+    if (strpos($settings['SubPlatform'], 'PocketBeagle') == FALSE)
+    {
+?>
+                                                                        <option value='F32-B'>F32-B</option>
+                                                                        <option value='F32-B-48'>F32-B (No Serial)</option>
+                                                                        <option value='RGBCape24'>RGBCape24</option>
 									<option value='RGBCape48C'>RGBCape48C</option>
-                                    <option value='RGBCape48F'>RGBCape48F</option>
+                                                                        <option value='RGBCape48F'>RGBCape48F</option>
+<?
+    }
+?>
 									</select>
-									</td>
+                                                                </td>
 							</tr>
 							<tr id='BBBSerialSelect'>
 								<td><b>BBB Serial Cape Mode:</b></td>

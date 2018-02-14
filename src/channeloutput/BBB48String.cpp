@@ -60,6 +60,7 @@ extern "C" {
 // FPP includes
 #include "common.h"
 #include "log.h"
+#include "BBBUtils.h"
 #include "BBB48String.h"
 #include "settings.h"
 
@@ -172,7 +173,6 @@ inline void mapSize(int max, int maxString, int &newHeight, std::vector<std::str
 static void createOutputLengths(std::vector<PixelString*> &m_strings,
                                 int maxStringLen) {
     
-    printf("createOutputLengths   %d\n", maxStringLen);
     std::ofstream outputFile;
     outputFile.open("/tmp/OutputLengths.hp", std::ofstream::out | std::ofstream::trunc);
     
@@ -323,6 +323,10 @@ int BBB48StringOutput::Init(Json::Value config)
     maxString++;
     
     std::vector<std::string> args;
+    std::string postf = "B";
+    if (getBeagleBoneType() == PocketBeagle) {
+        postf = "PB";
+    }
     
     if (m_subType == "F4-B") {
         args.push_back("-DF4B");
@@ -342,29 +346,29 @@ int BBB48StringOutput::Init(Json::Value config)
     } else if (m_subType == "F16-B-48") {
         args.push_back("-DF16B");
         mapSize(48, maxString, lsconfig->leds_height, args);
-	} else if (m_subType == "F8-B") {
-        args.push_back("-DF8B");
+    } else if (m_subType == "F8-B") {
+        args.push_back("-DF8" + postf);
         mapSize(12, maxString, lsconfig->leds_height, args);
     } else if (m_subType == "F8-B-16") {
-        args.push_back("-DF8B");
+        args.push_back("-DF8" + postf);
         args.push_back("-DPORTA");
         mapSize(16, maxString, lsconfig->leds_height, args);
     } else if (m_subType == "F8-B-20") {
-        args.push_back("-DF8B");
+        args.push_back("-DF8" + postf);
         args.push_back("-DPORTA");
         args.push_back("-DPORTB");
         mapSize(20, maxString, lsconfig->leds_height, args);
     } else if (m_subType == "F8-B-EXP") {
-        args.push_back("-DF8B");
+        args.push_back("-DF8" + postf);
         args.push_back("-DF8B_EXP=1");
         mapSize(28, maxString, lsconfig->leds_height, args);
     } else if (m_subType == "F8-B-EXP-32") {
-        args.push_back("-DF8B");
+        args.push_back("-DF8" + postf);
         args.push_back("-DF8B_EXP=1");
         args.push_back("-DPORTA");
         mapSize(32, maxString, lsconfig->leds_height, args);
     } else if (m_subType == "F8-B-EXP-36") {
-        args.push_back("-DF8B");
+        args.push_back("-DF8" + postf);
         args.push_back("-DF8B_EXP=1");
         args.push_back("-DPORTA");
         args.push_back("-DPORTB");
@@ -378,7 +382,7 @@ int BBB48StringOutput::Init(Json::Value config)
     } else if (m_subType == "RGBCape48F") {
         args.push_back("-DRGBCape48F=1");
         mapSize(48, maxString, lsconfig->leds_height, args);
-	}
+    }
     
     for (int x = 0; x < lsconfig->leds_height; x++) {
         if (x >= m_strings.size() || m_strings[x]->m_pixelCount == 0) {
