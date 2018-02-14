@@ -347,12 +347,6 @@ int BBBSerialOutput::RawSendData(unsigned char *channelData)
         uint8_t * const realout = (uint8_t *)m_pru->ddr + offset;
         memcpy(realout, m_curData, sz);
 
-        // Map
-        printf("%d   %d:   ", m_pru->ddr_size, offset);
-        for (int x = 0; x < 16; x++) {
-            printf("%2X ", m_curData[x * m_outputs]);
-        }
-        printf("\n");
         m_serialData->address_dma = m_pru->ddr_addr + offset;
 #endif
         
