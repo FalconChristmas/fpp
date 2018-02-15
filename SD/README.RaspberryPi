@@ -99,3 +99,60 @@ for testing/release.
 
 =============================================================================
 
+ALPHA set of instructions for switching Pi root file system to btrfs
+
+# update /boot/cmdline.txt to change root location to "root=/dev/mmcblk0p2"
+
+sudo apt-get update
+sudo apt-get -y install btrfs-tools btrfs-progs
+
+# append "btrfs" to /etc/initramfs-tools/modules
+
+sudo rpi-update
+
+sudo update-initramfs -c -k `uname -r`
+
+# update /boot/config.txt to add 'initramfs initrd.img-4.14.18+' (or correct
+# kernel version) to the end of the file
+
+# reboot to make sure system still boots correctly
+
+# now copy /dev/mmcblk0p2, reformat as btfs, mount with compress option,
+# and copy data back.  NOTE: This should be done on a newer system so that
+# 'zstd' compression is used instead of zlib or lzo
+
+sudo mkfs.btrfs -L root -f /dev/sdg2
+sudo mount -o compress /dev/sdg2 /mnt/tmp
+
+sudo losetup /dev/loop0 ${IMGFILE}
+sudo kpartx -av /dev/loop0
+sudo mount /dev/mapper/loop0p2 /mnt/tmp2
+sudo rsync -avxHW /mnt/tmp2/ /mnt/tmp/
+sudo umount /mnt/tmp2
+sudo kpartx -d /dev/loop0
+sudo losetup -d /dev/loop0
+
+# update /mnt/tmp/etc/fstab to set btrfs filesystem and compress mount option
+/dev/mmcblk0p2  /               btrfs   compress=zstd,noatime  0    1
+
+# also update /boot to read-only at the same time.
+
+sudo umount /mnt/tmp
+
+# boot the SD up in the Pi
+
+TODO
+- setup something to rebuild the initrd and update /boot/config.txt whenever a
+  new kernel is installed.
+
+
+Attempt to expand root filesystem to fill SD card
+sudo sfdisk --force --no-reread /dev/mmcblk0 <<-EOF
+8192,85045,0x0C,*
+94208,,,-
+EOF
+
+sudo partprobe /dev/mmcblk0
+
+sudo btrfs filesystem resize max /
+
