@@ -1,4 +1,4 @@
-Falcon Pi Player configuration file formats
+Falcon Player configuration file formats
 ==============================================================================
 /home/pi/media/settings
 

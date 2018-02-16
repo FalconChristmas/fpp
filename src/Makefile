@@ -81,6 +81,7 @@ OBJECTS_fppd = \
 	mediaoutput/mpg123.o \
 	mediaoutput/ogg123.o \
 	mediaoutput/omxplayer.o \
+	mediaoutput/SDLOut.o \
 	mqtt.o \
 	PixelOverlay.o \
 	Playlist.o \
@@ -117,6 +118,11 @@ LIBS_fppd = \
 	-lmosquitto \
 	-lutil \
 	-ltag \
+	-lSDL2 \
+	-lavformat \
+	-lavcodec \
+	-lavutil \
+	-lswresample \
 	$(NULL)
 
 SUBDIRS = 
@@ -173,6 +179,7 @@ endif
 ifeq '$(ARCH)' 'Raspberry Pi'
 # do something RaspPi-y
 BINDIR = ../bin.pi
+CXXFLAGS += -std=gnu++11
 CFLAGS += \
 	-DPLATFORM_PI \
 	-DUSEWIRINGPI \
@@ -257,34 +264,24 @@ BINDIR = ../bin.bbb
 CFLAGS += \
     -DNOROOT \
 	-DPLATFORM_BBB \
-    -DHAS_SDL \
-	-I../external/LEDscape/src/ledscape/ \
+    -I/usr/local/include \
 	$(NULL)
 LIBS_fppd += \
-	-lledscape \
 	-lprussdrv \
-    -lSDL2 \
-    -lavformat \
-    -lavcodec \
-    -lavutil \
-    -lswresample \
 	$(NULL)
 LDFLAGS_fppd += \
-	-L../external/LEDscape/lib/ \
-	-L../external/LEDscape/am335x/app_loader/lib/ \
+    -L/usr/local/lib/ \
 	$(NULL)
 OBJECTS_fppd += \
-	channeloutput/LEDscapeMatrix.o \
 	channeloutput/BBB48String.o \
 	channeloutput/BBBSerial.o \
     channeloutput/BBBUtils.o \
-    mediaoutput/SDLOut.o \
+    channeloutput/BBBPruUtils.o \
+    channeloutput/BBBMatrix.o \
 	$(NULL)
 DEPS_fppd += \
-	../external/LEDscape/lib/libledscape.a \
 	$(NULL)
 SUBMODULES += \
-	external/LEDscape \
 	$(NULL)
 else
 # do something Linux-y
@@ -371,7 +368,6 @@ clean:
 	@if [ -e ../external/RF24/.git ]; then make -C ../external/RF24 clean; fi
 	@if [ -e ../external/rpi-rgb-led-matrix/.git ]; then make -C ../external/rpi-rgb-led-matrix clean; fi
 	@if [ -e ../external/rpi_ws281x/libws2811.a ]; then rm ../external/rpi_ws281x/*.o ../external/rpi_ws281x/*.a 2> /dev/null; fi
-	@if [ -e ../external/LEDscape/.git ]; then make -C ../external/LEDscape clean; fi
 	for dir in $(SUBDIRS); do \
 		$(MAKE) -C $$dir clean || exit 1; \
 	done
@@ -445,16 +441,4 @@ restart: fppd
 		gcc -c -o pwm.o pwm.c && \
 		gcc -c -o ws2811.o ws2811.c && \
 		ar rcs libws2811.a rpihw.o mailbox.o dma.o pwm.o pcm.o ws2811.o
-
-#############################################################################
-# LEDscape library and PRU code on the BBB
-../external/LEDscape/.git:
-	@cd ../ && \
-		git submodule init && \
-		git submodule update
-
-../external/LEDscape/lib/libledscape.a: ../external/LEDscape/.git  ../external/LEDscape/src/ledscape/ledscape.c ../external/LEDscape/src/ledscape/ledscape.h
-	@echo "Building LEDscape library"
-	@make -C ../external/LEDscape/src/ledscape
-
 

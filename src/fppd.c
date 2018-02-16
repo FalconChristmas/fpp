@@ -1,8 +1,7 @@
 /*
- *   Falcon Pi Player Daemon 
- *   Falcon Pi Player project (FPP) 
+ *   Falcon Player Daemon
  *
- *   Copyright (C) 2013 the Falcon Pi Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -10,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -196,6 +195,7 @@ void MainLoop(void)
 	int            commandSock = 0;
 	int            controlSock = 0;
 	int            bridgeSock = 0;
+        int            ddpSock = 0;
 	int            prevFPPstatus = FPPstatus;
 	int            sleepms = 50000;
 	fd_set         active_fd_set;
@@ -219,9 +219,11 @@ void MainLoop(void)
 	}
 	else if (getFPPmode() == BRIDGE_MODE)
 	{
-		bridgeSock = Bridge_Initialize();
+		Bridge_Initialize(bridgeSock, ddpSock);
 		if (bridgeSock)
 			FD_SET (bridgeSock, &active_fd_set);
+                if (ddpSock)
+                    FD_SET (ddpSock, &active_fd_set);
 	}
 
 	controlSock = InitControlSocket();
@@ -261,7 +263,9 @@ void MainLoop(void)
 			CommandProc();
 
 		if (bridgeSock && FD_ISSET(bridgeSock, &read_fd_set))
-			Bridge_ReceiveData();
+ 			Bridge_ReceiveE131Data();
+                if (ddpSock && FD_ISSET(ddpSock, &read_fd_set))
+                    Bridge_ReceiveDDPData();
 
 		if (controlSock && FD_ISSET(controlSock, &read_fd_set))
 			ProcessControlPacket();

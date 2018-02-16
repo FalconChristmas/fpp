@@ -1,7 +1,7 @@
 /*
- *   E131 output handler for Falcon Pi Player (FPP)
+ *   E131 output handler for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Pi Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -9,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -251,13 +251,25 @@ int E131_SendData(void *data, char *channelData, int channelCount)
 		LogExcess(VB_CHANNELDATA, "  %d) E1.31 universe #%d, %d channels\n",
 			i + 1, universes[i].universe, universes[i].size);
 	}
+
+#if (__GLIBC__ == 2) && (__GLIBC_MINOR__ < 14)
+    for (i = 0; i < UniverseCount; i++) {
+        if(sendmsg(sendSocket, &e131Msgs[i].msg_hdr, 0) < 0)
+        {
+            LogErr(VB_CHANNELOUT, "sendto() failed for E1.31 Universe %d with error: %s\n",
+               universes[i].universe, strerror(errno));
+            return 0;
+        }
+    }
+#else
+
     if(sendmmsg(sendSocket, e131Msgs, UniverseCount, 0) != UniverseCount)
     {
         LogErr(VB_CHANNELOUT, "sendto() failed for E1.31 Universe %d with error: %s\n",
                universes[i].universe, strerror(errno));
         return 0;
     }
-
+#endif
 	E131sequenceNumber++;
 
 	return 1;
@@ -327,7 +339,7 @@ void LoadUniversesFromFile()
 			{
 				universes[UniverseCount].active = u["active"].asInt();
 				universes[UniverseCount].universe = u["id"].asInt();
-				universes[UniverseCount].startAddress = u["startChannel"].asInt() - 1;
+				universes[UniverseCount].startAddress = u["startChannel"].asInt();
 				universes[UniverseCount].size = u["channelCount"].asInt();
 				universes[UniverseCount].type = u["type"].asInt();
 

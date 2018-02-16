@@ -1,7 +1,7 @@
 /*
  *   Linsn RV9 Channel Output driver for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -28,7 +28,7 @@
  *
  *   First packet of data frame
  *   - bytes  0 -  5 = Dst MAC (00:00:00:00:00:fe)
- *   - bytes  6 - 11 = Src MAC (PC's MAC)
+ *   - bytes  6 - 11 = Src MAC (PC's MAC) (must be same as used to configure)
  *   - bytes 12 - 13 = Protocol (0xAA55)
  *   - bytes 14 - 15 = 2-byte packet number for frame (LSB first)
  *   - byte  16      = 0x00
@@ -54,7 +54,7 @@
  *   - byte  36      = 0x00
  *   - byte  37      = 0x00
  *   - byte  38      = 0x00
- *   - bytes 39 - 44 = Src MAC (PC's MAC)
+ *   - bytes 39 - 44 = Src MAC (PC's MAC) (see note above)
  *   - byte  45      = 0xd2 = (210)
  *   - bytes 46 - 1485 = RGB Data
  */
@@ -158,7 +158,7 @@ int LinsnRV9Output::Init(Json::Value config)
 	m_colorOrder = ColorOrderFromString(config["colorOrder"].asString());
 
 	m_panelMatrix =
-		new PanelMatrix(m_panelWidth, m_panelHeight, 3, m_invertedData);
+		new PanelMatrix(m_panelWidth, m_panelHeight, m_invertedData);
 
 	if (!m_panelMatrix)
 	{
@@ -175,9 +175,13 @@ int LinsnRV9Output::Init(Json::Value config)
 		if (o && *o)
 			orientation = o[0];
 
+		if (p["colorOrder"].asString() == "")
+			p["colorOrder"] = ColorOrderToString(m_colorOrder);
+
 		m_panelMatrix->AddPanel(p["outputNumber"].asInt(),
 			p["panelNumber"].asInt(), orientation,
-			p["xOffset"].asInt(), p["yOffset"].asInt());
+			p["xOffset"].asInt(), p["yOffset"].asInt(),
+			ColorOrderFromString(p["colorOrder"].asString()));
 
 		if (p["outputNumber"].asInt() > m_outputs)
 			m_outputs = p["outputNumber"].asInt();
@@ -374,45 +378,9 @@ void LinsnRV9Output::PrepData(unsigned char *channelData)
 
 				for (int x = 0; x < pw3; x += 3)
 				{
-					s = channelData + m_panelMatrix->m_panels[panel].pixelMap[yw + x];
-
-					switch (m_colorOrder)
-					{
-						default:
-						case kColorOrderRGB:	r = s;
-												g = s + 1;
-												b = s + 2;
-												break;
-
-						case kColorOrderRBG:	r = s;
-												b = s + 1;
-												g = s + 2;
-												break;
-
-						case kColorOrderGRB:	g = s;
-												r = s + 1;
-												b = s + 2;
-												break;
-
-						case kColorOrderGBR:	g = s;
-												b = s + 1;
-												r = s + 2;
-												break;
-
-						case kColorOrderBRG:	b = s;
-												r = s + 1;
-												g = s + 2;
-												break;
-
-						case kColorOrderBGR:	b = s;
-												g = s + 1;
-												r = s + 2;
-												break;
-					}
-
-					*(dst++) = *r;
-					*(dst++) = *g;
-					*(dst++) = *b;
+					*(dst++) = channelData[m_panelMatrix->m_panels[panel].pixelMap[yw + x]];
+					*(dst++) = channelData[m_panelMatrix->m_panels[panel].pixelMap[yw + x + 1]];
+					*(dst++) = channelData[m_panelMatrix->m_panels[panel].pixelMap[yw + x + 2]];
 
 					px++;
 				}
@@ -467,7 +435,6 @@ int LinsnRV9Output::RawSendData(unsigned char *channelData)
 		m_buffer[15] = (unsigned char)(frameNumber >> 8);
 
 		memcpy(m_data, m_outputFrame + bytesSent, LINSNRV9_DATA_SIZE);
-
 
 		if (sendto(m_fd, m_buffer, LINSNRV9_BUFFER_SIZE, 0, (struct sockaddr*)&m_sock_addr, sizeof(struct sockaddr_ll)) < 0)
 		{

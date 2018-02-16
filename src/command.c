@@ -1,7 +1,7 @@
 /*
- *   Command handler for Falcon Pi Player (FPP)
+ *   Command handler for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Pi Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -9,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -317,11 +317,6 @@ extern PluginCallbackManager pluginCallbackManager;
 				if (!DetectFalconHardware(1))
 					SendFPDConfig();
 		}
-		else if (!strcmp(CommandStr, "r"))
-		{
-				WriteBytesReceivedFile();
-				sprintf(response,"true\n");
-		}
 		else if (!strcmp(CommandStr, "q"))
 		{
 			// Quit/Shutdown fppd
@@ -605,7 +600,7 @@ extern PluginCallbackManager pluginCallbackManager;
 		{
 			bytes_sent = sendto(socket_fd, response2, strlen(response2), 0,
                           (struct sockaddr *) &(client_address), sizeof(struct sockaddr_un));
-			LogDebug(VB_COMMAND, "%s %s", CommandStr, response2);
+			LogDebug(VB_COMMAND, "%s %s\n", CommandStr, response2);
 			free(response2);
 			response2 = NULL;
 		}
@@ -613,7 +608,7 @@ extern PluginCallbackManager pluginCallbackManager;
 		{
 			bytes_sent = sendto(socket_fd, response, strlen(response), 0,
                           (struct sockaddr *) &(client_address), sizeof(struct sockaddr_un));
-			LogDebug(VB_COMMAND, "%s %s", CommandStr, response);
+			LogDebug(VB_COMMAND, "%s %s\n", CommandStr, response);
 		}
   }
 

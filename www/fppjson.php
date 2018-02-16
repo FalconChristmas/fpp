@@ -312,6 +312,7 @@ function parseStatus($status)
 			'mode'   => $mode,
 			'mode_name' => $modes[$mode],
 			'status' => $fppStatus,
+			'time'   => exec('date'),
 		];
 	}
 
@@ -1227,60 +1228,27 @@ function SetChannelMemMaps()
 
 function GetChannelRemaps()
 {
-	global $remapFile;
+	global $settings;
 
-	$result = Array();
+	$jsonStr = "";
 
-	$f = fopen($remapFile, "r");
-	if($f == FALSE)
-	{
-		fclose($f);
-		returnJSON($result);
+	if (file_exists($settings['remapFile'])) {
+		$jsonStr = file_get_contents($settings['remapFile']);
 	}
 
-	while (!feof($f))
-	{
-		$line = trim(fgets($f));
-
-		if ($line == "")
-			continue;
-		
-		if (substr($line, 0, 1) == "#")
-			continue;
-
-		$remap = explode(",",$line,10);
-
-		$elem = Array();
-		$elem['Source'] = $remap[0];
-		$elem['Destination'] = $remap[1];
-		$elem['Count'] = $remap[2];
-
-		$result[] = $elem;
-	}
-	fclose($f);
-
-	returnJSON($result);
+	header( "Content-Type: application/json");
+	echo $jsonStr;
 }
 
 function SetChannelRemaps()
 {
-	global $remapFile;
+	global $settings;
 	global $args;
 
-	$data = json_decode($args['data'], true);
+	$data = stripslashes($args['data']);
+	$data = prettyPrintJSON(substr($data, 1, strlen($data) - 2));
 
-	$f = fopen($remapFile, "w");
-	if($f == FALSE)
-	{
-		fclose($f);
-		returnJSON($result);
-	}
-
-	foreach ($data as $remap) {
-		fprintf($f, "%d,%d,%d\n",
-			$remap['Source'], $remap['Destination'], $remap['Count']);
-	}
-	fclose($f);
+	file_put_contents($settings['remapFile'], $data);
 
 	GetChannelRemaps();
 }

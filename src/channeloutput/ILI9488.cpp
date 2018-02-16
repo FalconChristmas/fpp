@@ -1,7 +1,7 @@
 /*
  *   ILI9488 Channel Output driver for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -105,6 +105,7 @@ ILI9488Output::ILI9488Output(unsigned int startChannel, unsigned int channelCoun
 
 	m_pixels = m_rows * m_cols;
 	m_maxChannels = m_pixels * 3;
+	m_useDoubleBuffer = 1;
 }
 
 /*

@@ -297,7 +297,7 @@ START:
 
 	// Write a 0x1 into the response field so that they know we have started
 	MOV	r2, #0x1
-	SBCO	r2, CONST_PRUDRAM, 12, 4
+	SBCO	r2, CONST_PRUDRAM, 8, 4
 
     MOV gpio0_address, GPIO0
     MOV gpio1_address, GPIO1
@@ -372,24 +372,21 @@ _LOOP:
     RESET_PRU_CLOCK r8, r9
 
 	// Load the pointer to the buffer from PRU DRAM into r0 and the
-	// length (in bytes-bit words) into r1.
-	// start command into r2
-	LBCO	data_addr, CONST_PRUDRAM, 0, 12
+	// start command into r1
+	LBCO	data_addr, CONST_PRUDRAM, 0, 8
 
 	// Wait for a non-zero command
-	QBEQ	_LOOP, r2, #0
+	QBEQ	_LOOP, r1, #0
 
 	// Command of 0xFF is the signal to exit
-	QBEQ	EXIT, r2, #0xFF
+	QBEQ	EXIT, r1, #0xFF
 
     // store the address and such
     XOUT    10, data_addr, 12
 
     RESET_PRU_CLOCK r8, r9
 
-	// The data len is in pixels; convert it to 3 channels * pixels
-	ADD	r2, r1, r1
-	ADD	data_len, r1, r2
+	MOV	data_len, DATA_LEN
 
     MOV sram_offset, 512
     LDI bit_flags, 0
@@ -431,12 +428,12 @@ _LOOP:
 
 #ifdef RECORD_STATS
 
-    QBLT NOTMORE, data_len, 160
+    QBLT NOTMORE, data_len, 128
     GET_PRU_CLOCK r8, r9
     QBLT NOTMORE, stats_time, r8
         MOV stats_time, r8
         ADD r8, data_len, data_len
-        ADD r8, r8, 64
+        ADD r8, r8, 12
         SBCO stats_time, CONST_PRUDRAM, r8, 2
 
     NOTMORE:
@@ -604,7 +601,7 @@ _LOOP:
     // and zero out the command
 	LDI	    r2, 0
     MOV     r3, 1
-	SBCO	r2, CONST_PRUDRAM, 8, 8
+	SBCO	r2, CONST_PRUDRAM, 4, 8
 
 	// Go back to waiting for the next frame buffer
 	QBA	_LOOP
@@ -612,7 +609,7 @@ _LOOP:
 EXIT:
 	// Write a 0xFF into the response field so that they know we're done
 	MOV r2, #0xFF
-	SBCO r2, CONST_PRUDRAM, 12, 4
+	SBCO r2, CONST_PRUDRAM, 8, 4
 
 #ifdef AM33XX
 	// Send notification to Host for program completion

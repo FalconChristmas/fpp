@@ -2,7 +2,7 @@
  *   HTTP API for the Falcon Player Daemon 
  *   Falcon Player project (FPP) 
  *
- *   Copyright (C) 2013 the Falcon Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -27,6 +27,7 @@
 #include "channeloutput/channeloutput.h"
 #include "channeloutput/channeloutputthread.h"
 #include "common.h"
+#include "e131bridge.h"
 #include "fpp.h"
 #include "fppd.h"
 #include "fppversion.h"
@@ -140,6 +141,10 @@ const http_response PlayerResource::render_GET(const http_request &req)
 	else if (url == "playlists")
 	{
 		GetCurrentPlaylists(result);
+	}
+	else if (url == "e131stats")
+	{
+		GetE131BytesReceived(result);
 	}
 	else if (boost::starts_with(url, "playlists/"))
 	{
@@ -597,6 +602,19 @@ void PlayerResource::GetCurrentPlaylists(Json::Value &result)
 	SetOKResult(result, "");
 // FIXME API
 //	result["playlists"] = player->GetCurrentPlaylist();
+}
+
+/*
+ *
+ */
+void PlayerResource::GetE131BytesReceived(Json::Value &result)
+{
+	result = GetE131UniverseBytesReceived(); // e131bridge.cpp
+
+	if (result.isMember("universes"))
+		SetOKResult(result, "");
+	else
+		SetErrorResult(result, 400, "GetE131UniverseBytesReceived() did not return any universes.");
 }
 
 /*

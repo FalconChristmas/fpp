@@ -1,7 +1,7 @@
 /*
- *   BeagleBone Black PRU Serial DMX/Pixelnet handler for Falcon Pi Player (FPP)
+ *   BeagleBone Black PRU Serial DMX/Pixelnet handler for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Pi Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -9,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -31,33 +31,43 @@
 
 using namespace::std;
 
-#include "ledscape.h"
-
+#include "BBBUtils.h"
 #include "ChannelOutputBase.h"
+
+// structure of the data at the start of the PRU ram
+// that the pru program expects to see
+typedef struct {
+    // in the DDR shared with the PRU
+    uintptr_t address_dma;
+    
+    // write 1 to start, 0xFF to abort. will be cleared when started
+    volatile unsigned command;
+    volatile unsigned response;
+} __attribute__((__packed__)) BBBSerialData;
 
 class BBBSerialOutput : public ChannelOutputBase {
   public:
-	BBBSerialOutput(unsigned int startChannel, unsigned int channelCount);
-	~BBBSerialOutput();
+    BBBSerialOutput(unsigned int startChannel, unsigned int channelCount);
+    ~BBBSerialOutput();
 
-	int Init(Json::Value config);
-	int Close(void);
+    int Init(Json::Value config);
+    int Close(void);
 
-	int RawSendData(unsigned char *channelData);
+    int RawSendData(unsigned char *channelData);
 
-	void DumpConfig(void);
+    void DumpConfig(void);
 
   private:
-	ledscape_config_t   *m_config;
-	ledscape_t          *m_leds;
-
-	int                  m_outputs;
-	int                  m_pixelnet;
-	vector<int>          m_startChannels;
+    int                m_outputs;
+    int                m_pixelnet;
+    vector<int>        m_startChannels;
     
     uint8_t            *m_lastData;
     uint8_t            *m_curData;
     uint32_t           m_curFrame;
+    
+    BBBPru             *m_pru;
+    BBBSerialData      *m_serialData;
 };
 
 #endif /* _BBBSERIAL_H */

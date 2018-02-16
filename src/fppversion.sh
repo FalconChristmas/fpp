@@ -37,6 +37,7 @@ case "${SOURCE_VERSION}" in
         fi
     ;;
     *)
+        SOURCE_VERSION=$(echo "${SOURCE_VERSION}" | cut -f1-3 -d'-')
         if [ -z "${BRANCH}" ]; then
             BRANCH=$(git branch --no-color | sed -e '/^[^\*]/d' -e 's/^\* //' -e 's/(no branch)/exported/')
         fi

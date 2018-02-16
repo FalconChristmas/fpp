@@ -697,36 +697,39 @@ function DeleteEvent()
 
 function GetUniverseReceivedBytes()
 {
-	global $bytesFile;
+	$data = file_get_contents('http://127.0.0.1:32322/fppd/e131stats');
+	$stats = json_decode($data);
 
-	$status=SendCommand('r');
-	$file = file($bytesFile);
 	$doc = new DomDocument('1.0');
-	if($file != FALSE)
+	if(count($stats->universes))
 	{
 		$root = $doc->createElement('receivedBytes');
-		$root = $doc->appendChild($root);  
-		for($i=0;$i<count($file);$i++)
+		$root = $doc->appendChild($root);
+
+		for ($i = 0; $i < $stats->universes && $i < 8; $i++)
 		{
-			$receivedBytes = explode(",",$file[$i]);
 			$receivedInfo = $doc->createElement('receivedInfo');
 			$receivedInfo = $root->appendChild($receivedInfo); 
 			// universe
 			$universe = $doc->createElement('universe');
 			$universe = $receivedInfo->appendChild($universe);
-			$value = $doc->createTextNode($receivedBytes[0]);
+			$value = $doc->createTextNode($stats->universes[$i]->id);
 			$value = $universe->appendChild($value);
 			// startChannel
 			$startChannel = $doc->createElement('startChannel');
 			$startChannel = $receivedInfo->appendChild($startChannel);
-			$value = $doc->createTextNode($receivedBytes[1]);
+			$value = $doc->createTextNode($stats->universes[$i]->startChannel);
 			$value = $startChannel->appendChild($value);
 			// bytes received
 			$bytesReceived = $doc->createElement('bytesReceived');
 			$bytesReceived = $receivedInfo->appendChild($bytesReceived);
-			$value = $doc->createTextNode($receivedBytes[2]);
+			$value = $doc->createTextNode($stats->universes[$i]->bytesReceived);
 			$value = $bytesReceived->appendChild($value);
-			//Add it to receivedBytes 
+			// packets received
+			$packetsReceived = $doc->createElement('packetsReceived');
+			$packetsReceived = $receivedInfo->appendChild($packetsReceived);
+			$value = $doc->createTextNode($stats->universes[$i]->packetsReceived);
+			$value = $packetsReceived->appendChild($value);
 		}
 	}
 	else

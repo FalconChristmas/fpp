@@ -1,7 +1,7 @@
 /*
- *   Panel Matrix handler for Falcon Pi Player (FPP)
+ *   Panel Matrix handler for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Pi Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -9,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -30,10 +30,8 @@
 #include "log.h"
 #include "PanelMatrix.h"
 
-PanelMatrix::PanelMatrix(int panelWidth, int panelHeight, int channelsPerPixel,
-	int invertedData)
-  : m_channelsPerPixel(channelsPerPixel),
-	m_width(0),
+PanelMatrix::PanelMatrix(int panelWidth, int panelHeight, int invertedData)
+  : m_width(0),
 	m_height(0),
 	m_outputCount(0),
 	m_pixelCount(0),
@@ -97,7 +95,7 @@ int PanelMatrix::AddPanel(std::string config)
 }
 
 int PanelMatrix::AddPanel(int output, int chain, char orientation,
-	 int xOffset, int yOffset)
+	 int xOffset, int yOffset, FPPColorOrder colorOrder)
 {
 	int pWidth  = m_panelWidth;
 	int pHeight = m_panelHeight;
@@ -140,14 +138,14 @@ int PanelMatrix::AddPanel(int output, int chain, char orientation,
 		m_panels[m_panelCount].orientation = orientation;
 		m_panels[m_panelCount].xOffset     = xOffset;
 		m_panels[m_panelCount].yOffset     = yOffset;
+		m_panels[m_panelCount].colorOrder  = colorOrder;
 
 		m_panels[m_panelCount].pixelMap.resize(pWidth & pHeight);
 
 		m_outputPanels[output].push_back(m_panelCount);
 
-		LogDebug(VB_CHANNELOUT, "Added Panel %d of size %dx%d at %dx%d facing '%c'.  Matrix size now: %dx%d. Panel Count: %d, Output: %d, Chain: %d\n",
-			m_panelCount, pWidth, pHeight, xOffset, yOffset, orientation, m_width, m_height, m_panelCount, output, chain);
-LogDebug(VB_CHANNELOUT, "m_outputPanels[%d].size() = %d\n", output, m_outputPanels[output].size());
+		LogDebug(VB_CHANNELOUT, "Added Panel %d of size %dx%d at %dx%d facing '%c'.  Color Order: %s (%d).  Matrix size now: %dx%d. Panel Count: %d, Output: %d, Chain: %d\n",
+			m_panelCount, pWidth, pHeight, xOffset, yOffset, orientation, ColorOrderToString(colorOrder).c_str(), (int)colorOrder, m_width, m_height, m_panelCount, output, chain);
 		m_panelCount++;
 	}
 
@@ -170,8 +168,10 @@ int PanelMatrix::CalculateMaps(void)
 		int pWidth  = m_panels[panel].width;
 		int pHeight = m_panels[panel].height;
 
-		//LogDebug(VB_CHANNELOUT, "P: %d, O: %c, CPP: %d, Pos: %dx%d, w: %d, h: %d\n", panel, m_panels[panel].orientation, m_channelsPerPixel, xOffset, yOffset, pWidth, pHeight);
-		m_panels[panel].pixelMap.resize(pWidth * pHeight * m_channelsPerPixel);
+		FPPColorOrder colorOrder = m_panels[panel].colorOrder;
+
+		//LogDebug(VB_CHANNELOUT, "P: %d, O: %c, Pos: %dx%d, w: %d, h: %d\n", panel, m_panels[panel].orientation, xOffset, yOffset, pWidth, pHeight);
+		m_panels[panel].pixelMap.resize(pWidth * pHeight * 3);
 
 		for (int y = 0; y < pHeight; y++)
 		{
@@ -195,19 +195,50 @@ int PanelMatrix::CalculateMaps(void)
 				}
 
 
-				mOffset *= m_channelsPerPixel;
-				pOffset *= m_channelsPerPixel;
+				mOffset *= 3;
+				pOffset *= 3;
 
-				//LogDebug(VB_CHANNELOUT, "p[%d][%4d] = m[%4d]\n", panel, pOffset, mOffset);
-				m_panels[panel].pixelMap[pOffset] = mOffset;
-				if (m_channelsPerPixel > 1)
+				if (colorOrder == kColorOrderRGB)
 				{
-
-					for (int i = 1; i < m_channelsPerPixel; i++)
-					{
-						//LogDebug(VB_CHANNELOUT, "p[%d][%4d] = m[%4d]\n", panel, pOffset + i, mOffset + i);
-						m_panels[panel].pixelMap[pOffset + i] = mOffset + i;
-					}
+					m_panels[panel].pixelMap[pOffset    ] = mOffset;
+					m_panels[panel].pixelMap[pOffset + 1] = mOffset + 1;
+					m_panels[panel].pixelMap[pOffset + 2] = mOffset + 2;
+				}
+				else if (colorOrder == kColorOrderRBG)
+				{
+					m_panels[panel].pixelMap[pOffset    ] = mOffset;
+					m_panels[panel].pixelMap[pOffset + 2] = mOffset + 1;
+					m_panels[panel].pixelMap[pOffset + 1] = mOffset + 2;
+				}
+				else if (colorOrder == kColorOrderGRB)
+				{
+					m_panels[panel].pixelMap[pOffset + 1] = mOffset;
+					m_panels[panel].pixelMap[pOffset    ] = mOffset + 1;
+					m_panels[panel].pixelMap[pOffset + 2] = mOffset + 2;
+				}
+				else if (colorOrder == kColorOrderGBR)
+				{
+					m_panels[panel].pixelMap[pOffset + 2] = mOffset;
+					m_panels[panel].pixelMap[pOffset    ] = mOffset + 1;
+					m_panels[panel].pixelMap[pOffset + 1] = mOffset + 2;
+				}
+				else if (colorOrder == kColorOrderBRG)
+				{
+					m_panels[panel].pixelMap[pOffset + 1] = mOffset;
+					m_panels[panel].pixelMap[pOffset + 2] = mOffset + 1;
+					m_panels[panel].pixelMap[pOffset    ] = mOffset + 2;
+				}
+				else if (colorOrder == kColorOrderBGR)
+				{
+					m_panels[panel].pixelMap[pOffset + 2] = mOffset;
+					m_panels[panel].pixelMap[pOffset + 1] = mOffset + 1;
+					m_panels[panel].pixelMap[pOffset    ] = mOffset + 2;
+				}
+				else // Assume RGB if somehow invalid
+				{
+					m_panels[panel].pixelMap[pOffset    ] = mOffset;
+					m_panels[panel].pixelMap[pOffset + 1] = mOffset + 1;
+					m_panels[panel].pixelMap[pOffset + 2] = mOffset + 2;
 				}
 			}
 		}

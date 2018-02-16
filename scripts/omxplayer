@@ -5,22 +5,5 @@ BINDIR=$(cd $(dirname $0) && pwd)
 . ${BINDIR}/common
 . ${BINDIR}/functions
 
-forceLocalAudio=$(getSetting forceLocalAudio)
-
-FORCEAUDIO=
-if [ "x${forceLocalAudio}" = "x1" ]
-then
-	FORCEAUDIO="-o local"
-fi
-
-VOLUME=$(getSetting volume)
-if [ "x${VOLUME}" = "x" ]
-then
-	VOLUME=75
-fi
-
-# 75% FPP volume is 87.5% amixer which is around 0dB in omxplayer
-DB=$(echo "((50 + (${VOLUME}/2)) - 87.5) / 2.5 * 3" | bc)
-
-exec /usr/bin/omxplayer ${FORCEAUDIO} --vol ${DB}00 -I -s "$1" 2>&1
+exec /usr/bin/omxplayer -o alsa -I -s "$1" 2>&1
 
