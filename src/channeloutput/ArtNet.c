@@ -462,7 +462,7 @@ int ArtNet_IsConfigured(void) {
 
 	LoadArtNetUniversesFromFile();
 
-	if (ArtNetUniverseCount > 0);
+	if (ArtNetUniverseCount > 0)
 		return 1;
 
 	return 0;
@@ -474,7 +474,7 @@ int ArtNet_IsConfigured(void) {
 int ArtNet_IsActive(void *data) {
 	LogDebug(VB_CHANNELOUT, "ArtNet_IsActive(%p)\n", data);
 
-	if (ArtNetUniverseCount > 0);
+	if (ArtNetUniverseCount > 0)
 		return 1;
 
 	return 0;

@@ -32,15 +32,15 @@ BINDIR=$(cd $(dirname $0) && pwd)
 #${FPPDIR}/etc/asplashscreen &
 
 ##############################################################################
-echo "FPP - Performing initial pre-start setup"
+#echo "FPP - Performing initial pre-start setup"
 ##############################################################################
-if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
-then
-    echo "Skipping default network config, was done at image creation time"
-else
-    echo "    - Setting default network config"
-    SetupDefaultNetworkConfig
-fi
+#if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
+#then
+#    echo "Skipping default network config, was done at image creation time"
+#else
+#    echo "    - Setting default network config"
+#    SetupDefaultNetworkConfig
+#fi
 
 
 ##############################################################################
@@ -63,10 +63,7 @@ fi
 ##############################################################################
 
 
-# On BBB running Stretch, the fpp_init is called prior to network
+# On systems running Stretch, the fpp_init is called prior to network
 # so we can use the opportunity to configure the network adapapters
 # and DNS and other hardware
-if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
-then
-    .  ${BINDIR}/init_pre_network
-fi
+.  ${BINDIR}/init_pre_network

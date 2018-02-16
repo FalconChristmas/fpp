@@ -30,6 +30,39 @@
 
 //run on PRU 0
 #define BBB_PRU  0
+#define BBB_COPY_PRU  1
+
+
+// These are the number of clock cycles it takes to clock out a single "row" of bits (1 bit) for 32x16 1/8 P10 scan panels.  Other
+// panel types and scan rates and stuff are proportional to these
+uint32_t v1Timings[8][16] = {
+    { 0xA65, 0x14EA, 0x1F6F, 0x29ED, 0x346E, 0x3EEE, 0x496C, 0x53EB, 0x5E6B, 0x68ED, 0x7374, 0x7DF0, 0x887B, 0x92F4, 0x9D75, 0xA7FB},
+    { 0xA69, 0x14EA, 0x1F6F, 0x29ED, 0x346E, 0x3EEE, 0x496C, 0x53EB, 0x5E6B, 0x68ED, 0x7374, 0x7DF0, 0x887B, 0x92F4, 0x9D75, 0xA7FB},
+    { 0xA6A, 0x14EA, 0x1F6F, 0x29ED, 0x346E, 0x3EEE, 0x496C, 0x53EB, 0x5E6B, 0x68ED, 0x7374, 0x7DF0, 0x887B, 0x92F4, 0x9D75, 0xA7FB},
+    { 0xC88, 0x1906, 0x2588, 0x320D, 0x3E8D, 0x4B10, 0x5790, 0x6410, 0x7090, 0x7D10, 0x8990, 0x9610, 0xA291, 0xAF0D, 0xBB90, 0xC80D},
+    { 0xC88, 0x1906, 0x2588, 0x320D, 0x3E8D, 0x4B10, 0x5790, 0x6410, 0x7090, 0x7D10, 0x8990, 0x9610, 0xA291, 0xAF0D, 0xBB90, 0xC80D},
+    { 0xC88, 0x1906, 0x2588, 0x320D, 0x3E8D, 0x4B10, 0x5790, 0x6410, 0x7090, 0x7D10, 0x8990, 0x9610, 0xA291, 0xAF0D, 0xBB90, 0xC80D},
+    { 0xC88, 0x1906, 0x2588, 0x320D, 0x3E8D, 0x4B10, 0x5790, 0x6410, 0x7090, 0x7D10, 0x8990, 0x9610, 0xA291, 0xAF0D, 0xBB90, 0xC80D},
+    { 0xC90, 0x190D, 0x2590, 0x320D, 0x3E8D, 0x4B10, 0x5790, 0x6410, 0x7090, 0x7D10, 0x8990, 0x9610, 0xA291, 0xAF0D, 0xBB90, 0xC80D}
+};
+uint32_t v2Timings[8][16] = {
+    { 0x347,  0x64F,  0x95F,  0xC70,  0xF80, 0x129E, 0x15B3, 0x18CB, 0x1BE4, 0x1EFB, 0x2211, 0x252C, 0x2786, 0x2A88, 0x2D85, 0x3088},
+    { 0x864, 0x10ED, 0x196C, 0x21EA, 0x2A6C, 0x32E9, 0x3B6A, 0x43EC, 0x4C6A, 0x54EA, 0x5D6B, 0x65EB, 0x6E6D, 0x76ED, 0x7F6E, 0x87EE},
+    { 0x864, 0x10ED, 0x196C, 0x21EA, 0x2A6C, 0x32E9, 0x3B6A, 0x43EC, 0x4C6A, 0x54EA, 0x5D6B, 0x65EB, 0x6E6D, 0x76ED, 0x7F6E, 0x87EE},
+    { 0xA69, 0x14EA, 0x1F6F, 0x29ED, 0x346E, 0x3EEE, 0x496C, 0x53EB, 0x5E6B, 0x68ED, 0x7374, 0x7DF0, 0x887B, 0x92F4, 0x9D75, 0xA7FB},
+    { 0xA6A, 0x14EA, 0x1F6F, 0x29ED, 0x346E, 0x3EEE, 0x496C, 0x53EB, 0x5E6B, 0x68ED, 0x7374, 0x7DF0, 0x887B, 0x92F4, 0x9D75, 0xA7FB},
+    { 0xC88, 0x1906, 0x2588, 0x320D, 0x3E8D, 0x4B10, 0x5790, 0x6410, 0x7090, 0x7D10, 0x8990, 0x9610, 0xA291, 0xAF0D, 0xBB90, 0xC80D},
+    { 0xC88, 0x1906, 0x2588, 0x320D, 0x3E8D, 0x4B10, 0x5790, 0x6410, 0x7090, 0x7D10, 0x8990, 0x9610, 0xA291, 0xAF0D, 0xBB90, 0xC80D},
+    { 0xC88, 0x1906, 0x2588, 0x320D, 0x3E8D, 0x4B10, 0x5790, 0x6410, 0x7090, 0x7D10, 0x8990, 0x9610, 0xA291, 0xAF0D, 0xBB90, 0xC80D},
+};
+uint32_t psTimings[6][16] = {
+    { 0x440,  0x820,  0xC30, 0x1000, 0x1400, 0x17F1, 0x1C00, 0x2000, 0x2400, 0x2800, 0x2C00, 0x3000, 0x3400, 0x3800, 0x3C00, 0x4000},
+    { 0x940, 0x12C0, 0x1C80, 0x25C0, 0x2F40, 0x3900, 0x4240, 0x4C00, 0x5540, 0x5EC0, 0x6850, 0x71C0, 0x7B40, 0x84C0, 0x8E80, 0x97CE},
+    { 0xB70, 0x1700, 0x2280, 0x2E00, 0x3A00, 0x4500, 0x5080, 0x5C00, 0x6780, 0x7320, 0x7E80, 0x8A00, 0x9580, 0xA100, 0xAC80, 0xB7F0},
+    { 0xB80, 0x1700, 0x2280, 0x2E00, 0x3A00, 0x4500, 0x5080, 0x5C00, 0x6780, 0x7320, 0x7E80, 0x8A00, 0x9580, 0xA100, 0xAC80, 0xB800},
+    { 0xB90, 0x1700, 0x2280, 0x2E00, 0x3A00, 0x4500, 0x5080, 0x5C00, 0x6780, 0x7320, 0x7E80, 0x8A00, 0x9580, 0xA100, 0xAC80, 0xB800},
+    { 0xB90, 0x1700, 0x2280, 0x2E00, 0x3A00, 0x4500, 0x5080, 0x5C00, 0x6780, 0x7320, 0x7E80, 0x8A00, 0x9580, 0xA100, 0xAC80, 0xB800},
+};
 
 
 static void compilePRUMatrixCode(std::vector<std::string> &sargs) {
@@ -53,8 +86,7 @@ static void compilePRUMatrixCode(std::vector<std::string> &sargs) {
 static void configurePSPins() {
     configBBBPin("P1_29", 3, 21, "pruout");  //OE
     configBBBPin("P1_36", 3, 14, "pruout");  //LATCH
-    configBBBPin("P1_33", 3, 15, "gpio");  //CLOCK
-    
+    configBBBPin("P1_33", 3, 15, "gpio");    //CLOCK
     configBBBPin("P2_32", 3, 16, "pruout");  //SEL0
     configBBBPin("P2_30", 3, 17, "pruout");  //SEL1
     configBBBPin("P1_31", 3, 18, "pruout");  //SEL2
@@ -75,67 +107,23 @@ void BBBMatrix::calcBrightnessFlags(std::vector<std::string> &sargs) {
     
     
     uint32_t max = 0xB00;
-    if (m_pinout == BBBMatrix::V1) {
-        if (m_outputs == 1) {
-            max = 0x500;
-        } else if (m_outputs < 4) {
-            max = 0xA00;
-        } else if (m_outputs < 6) {
-            max = 0xB00;
-        } else {
-            max = 0xD00;
-        }
+    if (m_pinout == BBBMatrix::POCKETSCROLLERv1) {
+        max = psTimings[m_outputs-1][m_longestChain-1];
+    } else if (m_pinout == BBBMatrix::V1) {
+        max = v1Timings[m_outputs-1][m_longestChain-1];
     } else if (m_pinout == BBBMatrix::V2) {
-        max = (m_outputs < 4) ? 0xB00 : 0xD00;
-    } else if (m_pinout == BBBMatrix::POCKETSCROLLERv1) {
-        max = 0xB00;
-    }
-    max *= m_longestChain;
-    max *= m_panelWidth;
-    max /= 32;
-    max += m_outputs * 0x200;
-    if (m_pinout == BBBMatrix::V1) {
-        if (m_outputs > 3) {
-            //jumping above output 3 adds increased delay
-            max += 0x300;
-        }
-    } else if (m_pinout == BBBMatrix::V2) {
-        if (m_outputs > 1) {
-            //jumping above output 1 adds increased delay
-            max += 0x300;
-        }
-        if (m_outputs > 3) {
-            //jumping above output 3 adds increased delay
-            max += 0x300;
-        }
-        if (m_outputs > 5) {
-            //jumping above output 3 adds increased delay
-            max += 0x300;
-        }
-    } else if (m_pinout == BBBMatrix::POCKETSCROLLERv1) {
-        if (m_outputs == 1) {
-            max /= 2;
-        }
-        if (m_outputs > 1) {
-            //jumping above output 1 adds increased delay
-            max += 0x300;
-        }
-        if (m_outputs > 2) {
-            //jumping above output 2 adds increased delay
-            max += 0x300;
-        }
+        max = v2Timings[m_outputs-1][m_longestChain-1];
     }
     
     // 1/4 scan we need to double the time since we have twice the number of pixels to clock out
     max *= m_panelHeight;
     max /= (m_panelScan * 2);
-    uint32_t origMax = max * 90 / 100; //max's are calced at roughly 10% over needed
-    
-    if (max < 0x2000) {
+    uint32_t origMax = max;
+    if (max < 0x2500) {
         //if max is too low, the low bit time is too short and
         //extra ghosting occurs
         // At this point, framerate will be supper high anyway >100fps
-        max = 0x2000;
+        max = 0x2500;
     }
     uint32_t origMax2 = max;
 
@@ -203,6 +191,7 @@ void BBBMatrix::calcBrightnessFlags(std::vector<std::string> &sargs) {
 BBBMatrix::BBBMatrix(unsigned int startChannel, unsigned int channelCount)
   : ChannelOutputBase(startChannel, channelCount),
     m_pru(nullptr),
+    m_pruCopy(nullptr),
 	m_matrix(nullptr),
 	m_panelMatrix(nullptr),
     m_outputs(0),
@@ -229,6 +218,7 @@ BBBMatrix::~BBBMatrix()
     if (m_outputFrame) delete [] m_outputFrame;
     if (m_tmpFrame) delete [] m_tmpFrame;
     if (m_pru) delete m_pru;
+    if (m_pruCopy) delete m_pruCopy;
 }
 
 int BBBMatrix::Init(Json::Value config)
@@ -371,7 +361,10 @@ int BBBMatrix::Init(Json::Value config)
 
     compilePRUMatrixCode(compileArgs);
     std::string pru_program = "/tmp/FalconMatrix.bin";
-    
+
+    m_pruCopy = new BBBPru(BBB_COPY_PRU);
+    memset(m_pruCopy->data_ram, 0, 24);
+
     m_pru = new BBBPru(BBB_PRU);
     m_pruData = (BBBPruMatrixData*)m_pru->data_ram;
     m_pruData->address_dma = m_pru->ddr_addr;
@@ -383,6 +376,8 @@ int BBBMatrix::Init(Json::Value config)
         m_pruData->stats[x * 3 + 1] = 0;
         m_pruData->stats[x * 3 + 1] = 0;
     }
+    
+    m_pruCopy->run("/tmp/FalconMatrixPRUCpy.bin");
     m_pru->run(pru_program);
     
     return ChannelOutputBase::Init(config);
@@ -396,6 +391,12 @@ int BBBMatrix::Close(void)
         m_pru->stop();
         delete m_pru;
         m_pru = nullptr;
+    }
+    
+    if (m_pruCopy) {
+        m_pruCopy->stop();
+        delete m_pruCopy;
+        m_pruCopy = nullptr;
     }
     
     return ChannelOutputBase::Close();
@@ -421,12 +422,18 @@ void BBBMatrix::printStats() {
         fprintf(rfile, "DV: %d    %8X   %8X\n", (m_colorDepth-x), brightnessValues[x], delayValues[x]);
     }
     int off = 0;
+    uint32_t total = 0;
+    int count = 0;
     for (int x = 0; x < m_panelScan; ++x) {
         for (int y = m_colorDepth; y > 0; --y) {
             fprintf(rfile, "r%2d  b%2d:   %8X   %8X   %8X\n", x, y, m_pruData->stats[off], m_pruData->stats[off + 1], m_pruData->stats[off + 2]);
+            total += m_pruData->stats[off];
+            count++;
             off += 3;
         }
     }
+    fprintf(rfile, "Average Per Row/Bit:   %8X\n", (total / count));
+    //printf("0x%X\n", (total / count));
     fclose(rfile);
 }
 
@@ -503,29 +510,31 @@ void BBBMatrix::PrepData(unsigned char *channelData)
             }
         }
     }
+    
     if ((m_panelScan * 2) != m_panelHeight) {
         //need to interleave the data, we'll do it by copying blocks to tmpFrame
         //as needed then swap.  This only supports interleaves that are divisible by 8
         //due to the bit packing
-        size_t totalSize = m_outputs * m_longestChain * m_panelHeight * m_panelWidth * 3;
-        size_t fullRowSize = m_outputs * m_longestChain * m_panelWidth * 3;
-        size_t offsetToNextBlock = fullRowSize * m_panelScan / 2;
-        
-        memcpy(m_tmpFrame, m_outputFrame, totalSize);
         int blockSize = m_interleave * m_outputs * 3 * 2 / 8;
+        size_t totalSize = m_outputs * m_longestChain * m_panelHeight * m_panelWidth * 3;
+        size_t fullRowSize = m_outputs * m_longestChain * m_panelWidth * 3 * 2 * m_colorDepth / 8;
+        size_t offsetToNextBlock = fullRowSize * m_panelScan;
+        
+        //printf("%d  %d  %d  %d\n", blockSize, fullRowSize, offsetToNextBlock, totalSize);
+        
+        memset(m_tmpFrame, 0, totalSize);
         int curOut = 0;
         int curIn = 0;
         while (curOut < totalSize) {
-            memcpy(&m_tmpFrame[curOut], &m_outputFrame[curIn], blockSize);
-            curOut += blockSize;
             memcpy(&m_tmpFrame[curOut], &m_outputFrame[curIn + offsetToNextBlock], blockSize);
+            curOut += blockSize;
+            memcpy(&m_tmpFrame[curOut], &m_outputFrame[curIn], blockSize);
             curIn += blockSize;
             curOut += blockSize;
         }
         
         std::swap(m_tmpFrame, m_outputFrame);
     }
-    
 }
 int BBBMatrix::RawSendData(unsigned char *channelData)
 {
@@ -542,6 +551,21 @@ int BBBMatrix::RawSendData(unsigned char *channelData)
         m_pruData->address_dma = m_pru->ddr_addr;
     }
     m_pruData->command = 1;
+    
+    /*
+    if (fcount == 0) {
+        printf("%x %x %x %x %x %x %x %x %x %x %x %x %x %x %x \n",
+           m_outputFrame[0], m_outputFrame[1], m_outputFrame[2],
+           m_outputFrame[3], m_outputFrame[4], m_outputFrame[5],
+           m_outputFrame[6], m_outputFrame[7], m_outputFrame[8],
+           m_outputFrame[9], m_outputFrame[10], m_outputFrame[11],
+           m_outputFrame[12], m_outputFrame[13], m_outputFrame[15]
+           );
+        
+        uint32_t *t = (uint32_t *)m_pruCopy->data_ram;
+        printf("     %d   %X   %X    %X %X %X\n", t[0], t[1], t[2], t[3], t[4], t[5]);
+    }
+    */
     
     return m_channelCount;
 }

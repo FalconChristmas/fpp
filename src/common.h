@@ -42,6 +42,8 @@ int       DateStrToInt(const char *str);
 int       GetCurrentDateInt(int daysOffset = 0);
 int       CurrentDateInRange(int startDate, int endDate);
 
+uint8_t   ReverseBitsInByte(uint8_t n);
+
 void      MergeJsonValues(Json::Value &a, Json::Value &b);
 
 Json::Value JSONStringToObject(const std::string &str);

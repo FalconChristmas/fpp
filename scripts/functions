@@ -668,16 +668,7 @@ stopOLADaemonIfUnused() {
 # Configure Channel Outputs
 setupChannelOutputs() {
 
-	# Setup BBB device tree
-	if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
-	then
-		cat ${FPPHOME}/media/config/channeloutputs.json 2> /dev/null | tr -d "\r\n" | egrep -q '(LEDPanelMatrix|BBB48String|BBBSerial)",[ 	a-zA-Z0-9:",]*"enabled": 1'
-		if [ $? -eq 0 ]
-		then
-			cp ${FPPDIR}/external/LEDscape/dts/CAPE-BONE-OCTO-00A0.dtbo /lib/firmware/
-			echo 'CAPE-BONE-OCTO' > /sys/devices/bone_capemgr.*/slots 2> /dev/null
-		fi
-	elif [ "${FPPPLATFORM}" = "Raspberry Pi" ]
+	if  [ "${FPPPLATFORM}" = "Raspberry Pi" ]
 	then
 		# Check for RGBMatrix channel output
 		cat ${FPPHOME}/media/config/channeloutputs.json 2> /dev/null | tr -d "\r\n" | egrep -q 'LEDPanelMatrix",[ 	a-zA-Z0-9:",]*"enabled": 1'

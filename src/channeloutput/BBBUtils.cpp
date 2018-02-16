@@ -39,7 +39,7 @@ int configBBBPin(const char *name, int gpio, int pin, const char *mode)
 }
 
 BeagleBoneType getBeagleBoneType() {
-    FILE *file = fopen("/proc/device-tree/model", "w");
+    FILE *file = fopen("/proc/device-tree/model", "r");
     if (file) {
         char buf[256];
         fgets(buf , 256 , file);

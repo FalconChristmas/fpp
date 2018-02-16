@@ -122,8 +122,6 @@
 #define gpio_sel3 16
 //#define gpio_sel4 17
 
-
-
 #define GPIO_SEL_MASK (0\
 |(1<<gpio_sel0)\
 |(1<<gpio_sel1)\
@@ -135,6 +133,9 @@
 #define gpio_latch 7
 #define gpio_oe    6
 #define gpio_clock 8
+
+
+
 
 // if using r30
 #define pru_r30_bit_latch 1

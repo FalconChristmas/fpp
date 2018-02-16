@@ -89,7 +89,7 @@ static int pinGPIOs[] = {
     20,
     18
 };
-static const char * pinNames[] = {
+static const char * bbPinNames[] = {
     "P9_25",
     "P9_27",
     "P9_28",
@@ -100,8 +100,23 @@ static const char * pinNames[] = {
     "P9_92",
 };
 
+static const char * pbPinNames[] = {
+    "P1_29",
+    "P2_34",
+    "P2_30",
+    "P1_33",
+    "P2_32",
+    "P1_36",
+    "P2_28",
+    "P1_31",
+};
+
 
 static void configurePRUPins(int start, int end, const char *mode) {
+    const char ** pinNames = bbPinNames;
+    if (getBeagleBoneType() == PocketBeagle) {
+        pinNames = pbPinNames;
+    }
     for (int x = start; x < end; x++) {
         configBBBPin(pinNames[x], 3, pinGPIOs[x], mode);
     }
@@ -332,12 +347,6 @@ int BBBSerialOutput::RawSendData(unsigned char *channelData)
         uint8_t * const realout = (uint8_t *)m_pru->ddr + offset;
         memcpy(realout, m_curData, sz);
 
-        // Map
-        printf("%d   %d:   ", m_pru->ddr_size, offset);
-        for (int x = 0; x < 16; x++) {
-            printf("%2X ", m_curData[x * m_outputs]);
-        }
-        printf("\n");
         m_serialData->address_dma = m_pru->ddr_addr + offset;
 #endif
         

@@ -74,6 +74,10 @@ int InputUniverseCount;
 
 static unsigned long ddpBytesReceived = 0;
 static unsigned long ddpPacketsReceived = 0;
+static unsigned long ddpErrors = 0;
+
+static long ddpLastSequence = 0;
+static long ddpLastChannel = 0;
 
 // prototypes for functions below
 void Bridge_StoreData(int universe, char *bridgeBuffer);
@@ -350,6 +354,19 @@ void Bridge_StoreData(int universe, char *bridgeBuffer)
 	int universeIndex = Bridge_GetIndexFromUniverseNumber(universe);
 	if(universeIndex!=BRIDGE_INVALID_UNIVERSE_INDEX)
 	{
+        int sn = bridgeBuffer[E131_SEQUENCE_INDEX];
+        if (InputUniverses[universeIndex].packetsReceived != 0) {
+            if (InputUniverses[universeIndex].lastSequenceNumber == 255) {
+                // some wrap from 255 -> 1 and some from 255 -> 0, spec doesn't say which
+                if (sn != 0 && sn != 1) {
+                    ++InputUniverses[universeIndex].errorPackets;
+                }
+            } else if ((InputUniverses[universeIndex].lastSequenceNumber + 1) != sn) {
+                ++InputUniverses[universeIndex].errorPackets;
+            }
+        }
+        InputUniverses[universeIndex].lastSequenceNumber = sn;
+        
 		memcpy((void*)(sequence->m_seqData+InputUniverses[universeIndex].startAddress-1),
 			   (void*)(bridgeBuffer+E131_HEADER_LENGTH),
 			   InputUniverses[universeIndex].size);
@@ -363,7 +380,7 @@ void Bridge_StoreDDPData(char *bridgeBuffer)  {
         ddpPacketsReceived++;
         bool tc = bridgeBuffer[0] & DDP_TIMECODE_FLAG;
         //bool push = bridgeBuffer[0] & DDP_PUSH_FLAG;
-
+        
         int chan = bridgeBuffer[4];
         chan <<= 8;
         chan += bridgeBuffer[5];
@@ -371,9 +388,31 @@ void Bridge_StoreDDPData(char *bridgeBuffer)  {
         chan += bridgeBuffer[6];
         chan <<= 8;
         chan += bridgeBuffer[7];
-
+        
         int len = bridgeBuffer[8] << 8;
         len += bridgeBuffer[9];
+        
+        int sn = bridgeBuffer[1] & 0xF;
+        if (sn) {
+            bool isErr = false;
+            if (ddpLastSequence) {
+                if (sn == 1) {
+                    if (ddpLastSequence != 15) {
+                        isErr = true;
+                    }
+                } else if ((sn - 1) != ddpLastSequence) {
+                    isErr = true;
+                }
+            }
+            if (isErr) {
+                ddpErrors++;
+                //printf("%d   %d    %d  %d\n", sn, ddpLastSequence, chan, ddpLastChannel);
+            }
+            ddpLastSequence = sn;
+            ddpLastChannel = chan + len;
+        }
+
+
         
         int offset = tc ? 14 : 10;
         memcpy(sequence->m_seqData + chan, &bridgeBuffer[offset], len);
@@ -412,9 +451,12 @@ void ResetBytesReceived()
 	{
 		InputUniverses[i].bytesReceived = 0;
 		InputUniverses[i].packetsReceived = 0;
+        InputUniverses[i].errorPackets = 0;
+        InputUniverses[i].lastSequenceNumber = 0;
 	}
     ddpBytesReceived = 0;
     ddpPacketsReceived = 0;
+    ddpErrors = 0;
 }
 
 Json::Value GetE131UniverseBytesReceived()
@@ -437,6 +479,11 @@ Json::Value GetE131UniverseBytesReceived()
         pr << ddpPacketsReceived;
         std::string packetsReceived = pr.str();
         ddpUniverse["packetsReceived"] = packetsReceived;
+        
+        std::stringstream er;
+        er << ddpErrors;
+        std::string errors = er.str();
+        ddpUniverse["errors"] = errors;
         universes.append(ddpUniverse);
     }
 
@@ -460,10 +507,15 @@ Json::Value GetE131UniverseBytesReceived()
 		pr << InputUniverses[i].packetsReceived;
 		std::string packetsReceived = pr.str();
 		universe["packetsReceived"] = packetsReceived;
+        
+        std::stringstream er;
+        er << InputUniverses[i].errorPackets;
+        std::string errors = er.str();
+        universe["errors"] = errors;
 
 		universes.append(universe);
 	}
-
+    
 	result["universes"] = universes;
 
 	return result;

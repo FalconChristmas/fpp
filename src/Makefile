@@ -45,6 +45,7 @@ OBJECTS_fppd = \
 	channeloutput/Linsn-RV9.o \
 	channeloutput/LOR.o \
 	channeloutput/Matrix.o \
+	channeloutput/MAX7219Matrix.o \
 	channeloutput/MCP23017.o \
 	channeloutput/PanelMatrix.o \
 	channeloutput/PixelString.o \
@@ -299,8 +300,8 @@ endif
 # Examples of some entries that might exist in Makefile.local:
 #
 # LIBS_fppd += -lX11
-# CFLAGS += -DUSE_X11Matrix
-# OBJECTS_fppd += channeloutput/X11Matrix.o
+# CFLAGS += -DUSE_X11ChannelOutputs
+# OBJECTS_fppd += channeloutput/X11Matrix.o channeloutput/X11VirtualDisplay.o
 ##############################################################################
 
 PWD := $(shell pwd)
