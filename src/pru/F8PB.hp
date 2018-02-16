@@ -1,0 +1,226 @@
+#ifndef _ws281x_F8PB_
+#define _ws281x_F8PB_
+
+//first 12 are common
+
+// Output 1
+#define o1_gpio  	1
+#define o1_pin		14
+// Output 2
+#define o2_gpio		1
+#define o2_pin		15
+// Output 3
+#define o3_gpio		1
+#define o3_pin		20
+// Output 4
+#define o4_gpio		1
+#define o4_pin		28
+// Output 5
+#define o5_gpio		1
+#define o5_pin		25
+// Output 6
+#define o6_gpio		1
+#define o6_pin		26
+// Output 7
+#define o7_gpio		1
+#define o7_pin		27
+// Output 8
+#define o8_gpio		1
+#define o8_pin		18
+// Output 9
+#define o9_gpio		1
+#define o9_pin		12
+// Output 10
+#define o10_gpio	1
+#define o10_pin		9
+// Output 11
+#define o11_gpio	1
+#define o11_pin		8
+// Output 12
+#define o12_gpio	1
+#define o12_pin		13
+
+
+#define EXP_1_gpio	2
+#define EXP_1_pin	24
+#define EXP_2_gpio	0
+#define EXP_2_pin	26
+#define EXP_3_gpio	1
+#define EXP_3_pin	10
+#define EXP_4_gpio	1
+#define EXP_4_pin	11
+#define EXP_5_gpio	0
+#define EXP_5_pin	13
+#define EXP_6_gpio	0
+#define EXP_6_pin	12
+#define EXP_7_gpio	0
+#define EXP_7_pin	20
+#define EXP_8_gpio	0
+#define EXP_8_pin	4
+#define EXP_9_gpio	0
+#define EXP_9_pin	27
+#define EXP_10_gpio	2
+#define EXP_10_pin	0
+#define EXP_11_gpio	2
+#define EXP_11_pin	1
+#define EXP_12_gpio	0
+#define EXP_12_pin	14
+#define EXP_13_gpio	0
+#define EXP_13_pin	15
+#define EXP_14_gpio	0
+#define EXP_14_pin	31
+#define EXP_15_gpio	0
+#define EXP_15_pin	30
+#define EXP_16_gpio	0
+#define EXP_16_pin	23
+
+
+#ifdef PORTA
+#define o13_gpio    3
+#define o13_pin        21
+#define o14_gpio    3
+#define o14_pin        19
+#define o15_gpio    3
+#define o15_pin        17
+#define o16_gpio    3
+#define o16_pin        15
+#endif
+
+#ifdef PORTB
+#define o17_gpio    3
+#define o17_pin        16
+#define o18_gpio    3
+#define o18_pin        14
+#define o19_gpio    3
+#define o19_pin        20
+#define o20_gpio    3
+#define o20_pin        18
+#endif
+
+
+
+
+
+#ifdef F8B_EXP
+
+
+#if defined(PORTA) && defined(PORTB)
+
+#define F8_OUTPUT21 EXP_1
+#define F8_OUTPUT22 EXP_2
+#define F8_OUTPUT23 EXP_3
+#define F8_OUTPUT24 EXP_4
+#define F8_OUTPUT25 EXP_5
+#define F8_OUTPUT26 EXP_6
+#define F8_OUTPUT27 EXP_7
+#define F8_OUTPUT28 EXP_8
+#define F8_OUTPUT29 EXP_9
+#define F8_OUTPUT30 EXP_10
+#define F8_OUTPUT31 EXP_11
+#define F8_OUTPUT32 EXP_12
+#define F8_OUTPUT33 EXP_13
+#define F8_OUTPUT34 EXP_14
+#define F8_OUTPUT35 EXP_15
+#define F8_OUTPUT36 EXP_16
+#elif defined(PORTA) || defined(PORTB)
+
+#define F8_OUTPUT17 EXP_1
+#define F8_OUTPUT18 EXP_2
+#define F8_OUTPUT19 EXP_3
+#define F8_OUTPUT20 EXP_4
+#define F8_OUTPUT21 EXP_5
+#define F8_OUTPUT22 EXP_6
+#define F8_OUTPUT23 EXP_7
+#define F8_OUTPUT24 EXP_8
+#define F8_OUTPUT25 EXP_9
+#define F8_OUTPUT26 EXP_10
+#define F8_OUTPUT27 EXP_11
+#define F8_OUTPUT28 EXP_12
+#define F8_OUTPUT29 EXP_13
+#define F8_OUTPUT30 EXP_14
+#define F8_OUTPUT31 EXP_15
+#define F8_OUTPUT32 EXP_16
+
+#else
+#define F8_OUTPUT13 EXP_1
+#define F8_OUTPUT14 EXP_2
+#define F8_OUTPUT15 EXP_3
+#define F8_OUTPUT16 EXP_4
+#define F8_OUTPUT17 EXP_5
+#define F8_OUTPUT18 EXP_6
+#define F8_OUTPUT19 EXP_7
+#define F8_OUTPUT20 EXP_8
+#define F8_OUTPUT21 EXP_9
+#define F8_OUTPUT22 EXP_10
+#define F8_OUTPUT23 EXP_11
+#define F8_OUTPUT24 EXP_12
+#define F8_OUTPUT25 EXP_13
+#define F8_OUTPUT26 EXP_14
+#define F8_OUTPUT27 EXP_15
+#define F8_OUTPUT28 EXP_16
+#endif
+#endif
+
+
+
+#define PRIMITIVE_CAT(a, ...) a ## __VA_ARGS__
+
+#define O_GPIO(N)  PRIMITIVE_CAT(N,_gpio)
+#define O_PIN(N)   PRIMITIVE_CAT(N,_pin)
+
+#ifndef o13_gpio
+#define o13_gpio  O_GPIO(F8_OUTPUT13)
+#define o13_pin   O_PIN(F8_OUTPUT13)
+#define o14_gpio  O_GPIO(F8_OUTPUT14)
+#define o14_pin   O_PIN(F8_OUTPUT14)
+#define o15_gpio  O_GPIO(F8_OUTPUT15)
+#define o15_pin   O_PIN(F8_OUTPUT15)
+#define o16_gpio  O_GPIO(F8_OUTPUT16)
+#define o16_pin   O_PIN(F8_OUTPUT16)
+#endif
+#ifndef o17_gpio
+#define o17_gpio  O_GPIO(F8_OUTPUT17)
+#define o17_pin   O_PIN(F8_OUTPUT17)
+#define o18_gpio  O_GPIO(F8_OUTPUT18)
+#define o18_pin   O_PIN(F8_OUTPUT18)
+#define o19_gpio  O_GPIO(F8_OUTPUT19)
+#define o19_pin   O_PIN(F8_OUTPUT19)
+#define o20_gpio  O_GPIO(F8_OUTPUT20)
+#define o20_pin   O_PIN(F8_OUTPUT20)
+#endif
+#define o21_gpio  O_GPIO(F8_OUTPUT21)
+#define o21_pin   O_PIN(F8_OUTPUT21)
+#define o22_gpio  O_GPIO(F8_OUTPUT22)
+#define o22_pin   O_PIN(F8_OUTPUT22)
+#define o23_gpio  O_GPIO(F8_OUTPUT23)
+#define o23_pin   O_PIN(F8_OUTPUT23)
+#define o24_gpio  O_GPIO(F8_OUTPUT24)
+#define o24_pin   O_PIN(F8_OUTPUT24)
+#define o25_gpio  O_GPIO(F8_OUTPUT25)
+#define o25_pin   O_PIN(F8_OUTPUT25)
+#define o26_gpio  O_GPIO(F8_OUTPUT26)
+#define o26_pin   O_PIN(F8_OUTPUT26)
+#define o27_gpio  O_GPIO(F8_OUTPUT27)
+#define o27_pin   O_PIN(F8_OUTPUT27)
+#define o28_gpio  O_GPIO(F8_OUTPUT28)
+#define o28_pin   O_PIN(F8_OUTPUT28)
+#define o29_gpio  O_GPIO(F8_OUTPUT29)
+#define o29_pin   O_PIN(F8_OUTPUT29)
+#define o30_gpio  O_GPIO(F8_OUTPUT30)
+#define o30_pin   O_PIN(F8_OUTPUT30)
+#define o31_gpio  O_GPIO(F8_OUTPUT31)
+#define o31_pin   O_PIN(F8_OUTPUT31)
+#define o32_gpio  O_GPIO(F8_OUTPUT32)
+#define o32_pin   O_PIN(F8_OUTPUT32)
+#define o33_gpio  O_GPIO(F8_OUTPUT33)
+#define o33_pin   O_PIN(F8_OUTPUT33)
+#define o34_gpio  O_GPIO(F8_OUTPUT34)
+#define o34_pin   O_PIN(F8_OUTPUT34)
+#define o35_gpio  O_GPIO(F8_OUTPUT35)
+#define o35_pin   O_PIN(F8_OUTPUT35)
+#define o36_gpio  O_GPIO(F8_OUTPUT36)
+#define o36_pin   O_PIN(F8_OUTPUT36)
+
+
+
+#endif

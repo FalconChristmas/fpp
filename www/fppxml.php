@@ -704,9 +704,10 @@ function GetUniverseReceivedBytes()
 	if(count($stats->universes))
 	{
 		$root = $doc->createElement('receivedBytes');
+        $root->setAttribute('size', count($stats->universes));
 		$root = $doc->appendChild($root);
 
-		for ($i = 0; $i < $stats->universes && $i < 8; $i++)
+		for ($i = 0; $i < count($stats->universes); $i++)
 		{
 			$receivedInfo = $doc->createElement('receivedInfo');
 			$receivedInfo = $root->appendChild($receivedInfo); 
@@ -730,6 +731,12 @@ function GetUniverseReceivedBytes()
 			$packetsReceived = $receivedInfo->appendChild($packetsReceived);
 			$value = $doc->createTextNode($stats->universes[$i]->packetsReceived);
 			$value = $packetsReceived->appendChild($value);
+            
+            // errors received
+            $errorCount = $doc->createElement('errors');
+            $errorCount = $receivedInfo->appendChild($errorCount);
+            $value = $doc->createTextNode($stats->universes[$i]->errors);
+            $value = $errorCount->appendChild($value);
 		}
 	}
 	else

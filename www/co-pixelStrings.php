@@ -425,7 +425,7 @@ function populatePixelStringOutputs(data)
 
 function loadPixelStringOutputs()
 {
-	$.getJSON("fppjson.php?command=getPixelStringOutputs", function(data) {
+	$.getJSON("fppjson.php?command=getChannelOutputs&file=co-pixelStrings", function(data) {
 		populatePixelStringOutputs(data)
 	});
 }
@@ -499,7 +499,7 @@ function savePixelStringOutputs()
 		return;
 
 	// Double stringify so JSON in .json file is surrounded by { }
-	postData = "command=setPixelStringOutputs&data=" + JSON.stringify(JSON.stringify(postData));
+	postData = "command=setChannelOutputs&file=co-pixelStrings&data=" + JSON.stringify(JSON.stringify(postData));
 
 	$.post("fppjson.php", postData).success(function(data) {
 		$.jGrowl("Pixel String Output Configuration Saved");
@@ -515,28 +515,33 @@ $(document).ready(function() {
 
 </script>
 
-<div id='divPixelStrings'>
-<b>New Type:</b>
-<select id='pixelOutputType'>
-	<option value='RPIWS281X'>RPIWS281X</option>
+<div id='tab-PixelStrings'>
+	<div id='divPixelStrings'>
+		<b>New Type:</b>
+		<select id='pixelOutputType'>
+			<option value='RPIWS281X'>RPIWS281X</option>
 <!--
-	<option value='SPI-WS2801'>SPI-WS2801</option>
-	<option value='BBB48String'>BBB (not implemented yet)</option>
+			<option value='SPI-WS2801'>SPI-WS2801</option>
+			<option value='BBB48String'>BBB (not implemented yet)</option>
 -->
-</select>
+		</select>
 
-<input type='button' onClick='addPixelOutput();' value='Add Output'>
-<br>
+		<input type='button' onClick='addPixelOutput();' value='Add Output'>
+		<br>
 
-<table style='width: 100%;'><tr><td align='left'>
-<input type='button' onClick='cloneSelectedString();' value='Clone String'>
-<input type='button' onClick='savePixelStringOutputs();' value='Save'>
-<input type='button' onClick='loadPixelStringOutputs();' value='Revert'>
-</td><td align='right'>
-Press F2 to auto set the start channel on the next row.
-</td></tr></table>
-
-<div id='pixelOutputs'>
-</div>
-
+		<table style='width: 100%;'>
+			<tr>
+				<td align='left'>
+					<input type='button' onClick='cloneSelectedString();' value='Clone String'>
+					<input type='button' onClick='savePixelStringOutputs();' value='Save'>
+					<input type='button' onClick='loadPixelStringOutputs();' value='Revert'>
+				</td>
+				<td align='right'>
+					Press F2 to auto set the start channel on the next row.
+				</td>
+			</tr>
+		</table>
+		<div id='pixelOutputs'>
+		</div>
+	</div>
 </div>

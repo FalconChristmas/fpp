@@ -6,9 +6,6 @@
 <title><? echo $pageTitle; ?></title>
 
 <script>
-<?php
-    if ($settings['Platform'] == "BeagleBone Black") {
-?>
 function growSDCardFS() {
     $('#dialog-confirm')
         .dialog({
@@ -19,7 +16,8 @@ function growSDCardFS() {
             buttons: {
             "Yes" : function() {
                 $(this).dialog("close");
-                window.location.href="growbbbsd.php";
+                window.location.href="growsd.php";
+                SetRebootFlag();
             },
             "No" : function() {
                 $(this).dialog("close");
@@ -27,6 +25,10 @@ function growSDCardFS() {
         }
     });
 }
+
+<?php
+    if ($settings['Platform'] == "BeagleBone Black") {
+?>
 
 function flashEMMC() {
     $('#dialog-confirm-emmc')
@@ -142,12 +144,28 @@ function flashEMMCBtrfs() {
 				to bring them into sync.</td>
 		</tr>
 <?
+    }
+    if ($settings['Platform'] == "Raspberry Pi") {
+        exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
+        $rootDevice = $output[0];
+        if ($rootDevice == 'mmcblk0p2') {
+?>
+            <tr><td colspan='2'><hr></td></tr>
+            <tr><td>
+            <input type='button' class='buttons' value='Grow Filesystem' onClick='growSDCardFS();'>
+            </td>
+            <td><b>Grow filsystem on SD card</b> - This will grow the filesystem on the SD card to use
+            the entire size of the SD card.</td>
+            </tr>
+            <tr><td colspan='2'><hr></td></tr>
+<?php
+        }
 	}
     if ($settings['Platform'] == "BeagleBone Black") {
         exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
         $rootDevice = $output[0];
         if ($rootDevice == 'mmcblk0p1') {
-            ?>
+?>
             <tr><td colspan='2'><hr></td></tr>
             <tr><td>
                     <input type='button' class='buttons' value='Grow Filesystem' onClick='growSDCardFS();'>
@@ -171,7 +189,7 @@ function flashEMMCBtrfs() {
 <td><b>Flash to eMMC - BTRFS root</b> - This will copy FPP to the internal eMMC, but use BTRFS for the root filesystem.  BTRFS uses compression to save a lot of space on the eMMC.  WARNING:  this is highly experimental.</td>
             </tr>
             <tr><td colspan='2'><hr></td></tr>
-            <?php
+<?php
             }
         }
     }

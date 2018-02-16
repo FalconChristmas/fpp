@@ -40,15 +40,15 @@
 
 // defines are slightly lower as
 // there is overhead in resetting the clocks
-#define LOW_TIME    230
-#define HIGH_TIME   650
-#define TOTAL_TIME  1250
+#define T0_TIME    230
+#define T1_TIME   650
+#define LOW_TIME  650
 
 // GPIO0 sometimes takes a while to come out of sleep or
 // something so use an lower "low" time
-#define LOW_TIME_GPIO0      180
-#define HIGH_TIME_GPIO0     HIGH_TIME
-#define TOTAL_TIME_GPIO0    TOTAL_TIME
+#define T0_TIME_GPIO0      180
+#define T1_TIME_GPIO0     T1_TIME
+#define LOW_TIME_GPIO0    LOW_TIME
 
 
 #define RUNNING_ON_PRU1
@@ -57,6 +57,8 @@
 #include "F4B.hp"
 #elif defined F8B
 #include "F8B.hp"
+#elif defined F8PB
+#include "F8PB.hp"
 #elif defined RGBCape48C
 #include "RGBCape48C.hp"
 #elif defined RGBCape48F
@@ -440,7 +442,7 @@ _LOOP:
 #endif
 
             //wait for the full cycle to complete
-            WAITNS    TOTAL_TIME, r8, r9
+            WAITNS    LOW_TIME, r8, r9
 
             //start the clock
             RESET_PRU_CLOCK r8, r9
@@ -473,7 +475,7 @@ _LOOP:
 #endif
 
 			// wait for the length of the zero bits
-            WAITNS    LOW_TIME, r8, r9
+            WAITNS    T0_TIME, r8, r9
 
             // turn off all the zero bits
             // if gpio_zeros is 0, nothing will be turned off, skip
@@ -491,7 +493,7 @@ _LOOP:
 #endif
 
 			// Wait until the length of the one bits
-			WAITNS	HIGH_TIME, r8, r9
+			WAITNS	T1_TIME, r8, r9
 
             // Turn all the bits off
             // if gpio#_zeros is equal to the led mask, then everythin was
@@ -508,6 +510,8 @@ _LOOP:
 #ifdef USES_GPIO3
             CLEAR_IF_NOT_EQUAL gpio3_led_mask, gpio3_address, gpio3_zeros
 #endif
+            //start the clock for the LOW time
+            RESET_PRU_CLOCK r8, r9
 
 			QBNE	BIT_LOOP, bit_num, 0
 
@@ -528,10 +532,7 @@ _LOOP:
     XIN    10, data_addr, 12
 
     RESET_PRU_CLOCK r8, r9
-
-	// The data len is in pixels; convert it to 3 channels * pixels
-	ADD	r2, r1, r1
-	ADD	data_len, r1, r2
+	MOV	data_len, DATA_LEN
 
     MOV sram_offset, 512
     LDI bit_flags, 0
@@ -559,7 +560,7 @@ _LOOP:
             DO_OUTPUT_GPIO0
 
             //wait for the full cycle to complete
-            WAITNS    TOTAL_TIME_GPIO0, r8, r9
+            WAITNS    LOW_TIME_GPIO0, r8, r9
 
             //start the clock
             RESET_PRU_CLOCK r8, r9
@@ -568,19 +569,22 @@ _LOOP:
             AND gpio0_zeros, gpio0_zeros, gpio0_led_mask
 
 			// wait for the length of the zero bits
-            WAITNS    LOW_TIME_GPIO0, r8, r9
+            WAITNS    T0_TIME_GPIO0, r8, r9
 
             // turn off all the zero bits
             // if gpio_zeros is 0, nothing will be turned off, skip
             CLEAR_IF_NOT_EQUAL  gpio0_zeros, gpio0_address, 0
 
 			// Wait until the length of the one bits
-			WAITNS	HIGH_TIME_GPIO0, r8, r9
+			WAITNS	T1_TIME_GPIO0, r8, r9
 
             // Turn all the bits off
             // if gpio#_zeros is equal to the led mask, then everythin was
             // already shut off, don't output
             CLEAR_IF_NOT_EQUAL gpio0_led_mask, gpio0_address, gpio0_zeros
+
+            //start the clock for the LOW time
+            RESET_PRU_CLOCK r8, r9
 
 			QBNE	BIT_LOOP_PASS2, bit_num, 0
 

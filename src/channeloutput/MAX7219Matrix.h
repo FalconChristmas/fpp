@@ -1,5 +1,5 @@
 /*
- *   LEDscape Matrix handler for Falcon Player (FPP)
+ *   MAX7219 Matrix Channel Output driver for Falcon Player (FPP)
  *
  *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
@@ -23,59 +23,28 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _LEDSCAPEMATRIX_H
-#define _LEDSCAPEMATRIX_H
-
-#include <string>
-
-#include "ledscape.h"
+#ifndef _MAX7219MATRIX_H
+#define _MAX7219MATRIX_H
 
 #include "ChannelOutputBase.h"
-#include "Matrix.h"
 
-class LEDscapeMatrixOutput : public ChannelOutputBase {
-    enum ColorOrder {
-        RGB,
-        RBG,
-        GRB,
-        GBR,
-        BGR,
-        BRG
-    };
-    
-    
+class MAX7219MatrixOutput : public ChannelOutputBase {
   public:
-    enum ScollerPinout {
-        V1 = 1,
-        V2,
-        POCKETSCROLLERv1
-    };
-
-	LEDscapeMatrixOutput(unsigned int startChannel, unsigned int channelCount);
-	~LEDscapeMatrixOutput();
+	MAX7219MatrixOutput(unsigned int startChannel, unsigned int channelCount);
+	~MAX7219MatrixOutput();
 
 	int Init(Json::Value config);
 	int Close(void);
-
-	void PrepData(unsigned char *channelData);
 
 	int RawSendData(unsigned char *channelData);
 
 	void DumpConfig(void);
 
   private:
-    static ColorOrder mapColorOrder(const std::string &v);
-	ledscape_config_t  *m_config;
-	ledscape_t         *m_leds;
+	int WriteCommand(uint8_t cmd, uint8_t value);
 
-    ColorOrder          m_colorOrder;
-    ScollerPinout       m_pinout;
-
-	int                 m_dataSize;
-	uint8_t            *m_data;
-	uint8_t             m_invertedData;
-
-	Matrix             *m_matrix;
+	int m_panels;
+	int m_pinCS;
 };
 
-#endif /* _LEDSCAPEMATRIX_H */
+#endif

@@ -97,9 +97,6 @@
 #define gpio_sel2 18
 #define gpio_sel3 19
 
-
-
-
 #define GPIO_SEL_MASK (0\
 |(1<<gpio_sel0)\
 |(1<<gpio_sel1)\
@@ -123,9 +120,6 @@
 |(1<<pru_sel2)\
 |(1<<pru_sel3)\
 )
-
-#define NEED_CLOCK_LO
-#define NEED_LATCH_LO
 
 .macro ADJUST_SETTINGS
     MOV gpio_base_cache, GPIO3

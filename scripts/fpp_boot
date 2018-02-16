@@ -26,7 +26,10 @@ ${SCRIPTDIR}/timezone_sync
 
 remountRootReadOnlyIfNeeded
 
-configureGPIOPins
+if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
+then
+	configureGPIOPins
+fi
 
 ${SUDO} ${SCRIPTDIR}/fppd_start
 

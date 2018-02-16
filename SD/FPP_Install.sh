@@ -46,11 +46,14 @@
 #       targetting for support.
 #
 #############################################################################
-# Other platforms should be functioning:
+# Other platforms which may be functioning:
+#
+# NOTE: FPP Development is based on the latest *bian Stretch images, so
+#       hardware which does not support Stretch may have issues.
 #
 #       ODROID C1
 #           http://oph.mdrjr.net/meveric/images/
-#           - Jessie/Debian-Jessie-1.0-20160131-C1.img.xz
+#           - Jessie/Debian-Jessie-1.1-20170526-C1.img.xz
 #           - Login/Password
 #             - root/odroid
 #           - When building a FPP image from this stock image, we will need
@@ -68,15 +71,12 @@
 #############################################################################
 SCRIPTVER="0.9"
 FPPBRANCH="master-v1.x"
-FPPIMAGEVER="1.9"
+FPPIMAGEVER="1.11beta"
 FPPCFGVER="28"
 FPPPLATFORM="UNKNOWN"
 FPPDIR="/opt/fpp"
+FPPHOME="/home/fpp"
 OSVER="UNKNOWN"
-
-# FIXME, need to handle config version 14 to fix force HDMI on the Pi
-# can we do this at install time or does it need to be at first boot?
-# do we need a FPP "first boot" script for this and other things?
 
 #############################################################################
 # Some Helper Functions
@@ -392,7 +392,7 @@ case "${OSVER}" in
 								libdbus-glib-1-dev libdevice-serialport-perl libjs-jquery \
 								libjs-jquery-ui libjson-perl libjsoncpp-dev libnet-bonjour-perl \
 								libpam-smbpass libtagc0-dev libtest-nowarnings-perl locales \
-								mp3info mailutils mpg123 mpg321 mplayer nano node ntp perlmagick \
+								mp3info mailutils mpg123 mpg321 mplayer nano nginx node ntp perlmagick \
 								php5-cli php5-common php5-curl php5-fpm php5-mcrypt \
 								php5-sqlite php-apc python-daemon python-smbus rsync samba \
 								samba-common-bin shellinabox sudo sysstat tcpdump usbmount vim \
@@ -413,7 +413,7 @@ case "${OSVER}" in
 								libdbus-glib-1-dev libdevice-serialport-perl libjs-jquery \
 								libjs-jquery-ui libjson-perl libjsoncpp-dev libmicrohttpd-dev libnet-bonjour-perl \
 								libpam-smbpass libsdl2-dev libssh-4 libtagc0-dev libtest-nowarnings-perl locales \
-								mp3info mailutils mpg123 mpg321 mplayer nano node ntp perlmagick \
+								mp3info mailutils mpg123 mpg321 mplayer nano nginx node ntp perlmagick \
 								php-cli php-common php-curl php-dom php-fpm php-mcrypt \
 								php-sqlite3 python-daemon python-smbus rsync samba \
 								samba-common-bin shellinabox sudo sysstat tcpdump usbmount vim \
@@ -438,6 +438,7 @@ case "${OSVER}" in
 
 		echo "FPP - Configuring shellinabox to use /var/tmp"
 		echo "SHELLINABOX_DATADIR=/var/tmp/" >> /etc/default/shellinabox
+		sed -i -e "s/SHELLINABOX_ARGS.*/SHELLINABOX_ARGS=\"--no-beep -t\"/" /etc/default/shellinabox
 
 		echo "FPP - Cleaning up after installing packages"
 		apt-get -y clean
@@ -820,10 +821,18 @@ FILES="cli/php.ini fpm/php.ini"
 for FILE in ${FILES}
 do
 	sed -i -e "s/^short_open_tag.*/short_open_tag = On/" ${PHPDIR}/${FILE}
-	sed -i -e "s/^; max_input_vars.*/max_input_vars = 5000/" ${PHPDIR}/${FILE}
+	sed -i -e "s/max_execution_time.*/max_execution_time = 300/" ${PHPDIR}/${FILE}
+	sed -i -e "s/max_input_time.*/max_input_time = 300/" ${PHPDIR}/${FILE}
+	sed -i -e "s/default_socket_timeout.*/default_socket_timeout = 300/" ${PHPDIR}/${FILE}
+	sed -i -e "s/post_max_size.*/post_max_size = 4G/" ${PHPDIR}/${FILE}
 	sed -i -e "s/upload_max_filesize.*/upload_max_filesize = 4G/" ${PHPDIR}/${FILE}
-	sed -i -e "s/post_max_filesize.*/post_max_filesize = 4G/" ${PHPDIR}/${FILE}
+	sed -i -e "s/;upload_tmp_dir =.*/upload_tmp_dir = \/home\/fpp\/media\/upload/" ${PHPDIR}/${FILE}
+	sed -i -e "s/^; max_input_vars.*/max_input_vars = 5000/" ${PHPDIR}/${FILE}
 done
+
+echo "FPP - Copying rsync daemon config files into place"
+sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" -e "s#FPPUSER#${FPPUSER}#g" < ${FPPDIR}/etc/rsync > /etc/default/rsync
+sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" -e "s#FPPUSER#${FPPUSER}#g" < ${FPPDIR}/etc/rsyncd.conf > /etc/rsyncd.conf
 
 #######################################
 # echo "FPP - Composing FPP UI"
@@ -844,6 +853,7 @@ esac
 adduser fpp video
 sed -i -e 's/^fpp:\*:/fpp:\$6\$rA953Jvd\$oOoLypAK8pAnRYgQQhcwl0jQs8y0zdx1Mh77f7EgKPFNk\/jGPlOiNQOtE.ZQXTK79Gfg.8e3VwtcCuwz2BOTR.:/' /etc/shadow
 
+
 #######################################
 echo "FPP - Fixing empty root passwd"
 sed -i -e 's/root::/root:*:/' /etc/shadow
@@ -857,6 +867,9 @@ chmod 700 /home/fpp/.ssh
 mkdir /home/fpp/media
 chown fpp.fpp /home/fpp/media
 chmod 700 /home/fpp/media
+
+echo "set mouse=r" > /home/fpp/.vimrc
+chown fpp.fpp /home/fpp/.vimrc
 
 echo >> /home/fpp/.bashrc
 echo ". /opt/fpp/scripts/common" >> /home/fpp/.bashrc
@@ -973,8 +986,8 @@ You can access the UI by typing "http://fpp.local/" into a web browser.[0m
 # Config fstab to mount some filesystems as tmpfs
 echo "FPP - Configuring tmpfs filesystems"
 echo "#####################################" >> /etc/fstab
-echo "tmpfs         /var/log    tmpfs   nodev,nosuid,size=10M 0 0" >> /etc/fstab
-echo "tmpfs         /var/tmp    tmpfs   nodev,nosuid,size=10M 0 0" >> /etc/fstab
+#echo "tmpfs         /var/log    tmpfs   nodev,nosuid,size=10M 0 0" >> /etc/fstab
+echo "tmpfs         /var/tmp    tmpfs   nodev,nosuid,size=50M 0 0" >> /etc/fstab
 echo "#####################################" >> /etc/fstab
 
 COMMENTED=""
@@ -999,27 +1012,14 @@ cat <<-EOF >> /etc/sysctl.conf
 	EOF
 
 #######################################
-# Building nginx
-echo "FPP - Building nginx webserver"
-git clone https://github.com/wandenberg/nginx-push-stream-module.git
-wget http://nginx.org/download/nginx-1.8.1.tar.gz
-tar xzvf nginx-1.8.1.tar.gz
-cd nginx-1.8.1/
-./configure --add-module=../nginx-push-stream-module
-make
-make install
-
-#######################################
 echo "FPP - Configuring nginx webserver"
-# Comment out the default server section
-sed -i.orig '/^\s*location/,/^\s*}/s/^/#/g;/^\s*server/,/^\s*}/s/^/#/g;s/##/#/g' /usr/local/nginx/conf/nginx.conf
-# Add an include of our server configuration
-sed -i -e '/^\s*http\s*{/a\    push_stream_shared_memory_size 32M;\n    include /etc/fpp_nginx.conf;\n' /usr/local/nginx/conf/nginx.conf
-sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/nginx.conf > /etc/fpp_nginx.conf
+
+# Disable default site
+rm /etc/nginx/sites-enabled/default
 # Set user to fpp
-sed -i -e 's/^\s*\#\?\s*user\(\s*\)[^;]*/user\1fpp/' /usr/local/nginx/conf/nginx.conf
-# Ensure pid matches our systemd service file
-sed -i -e 's/^\s*\#\?\s*pid\(\s*\)[^;]*/pid\1logs\/nginx.pid/' /usr/local/nginx/conf/nginx.conf
+sed -i -e 's/^\s*\#\?\s*user\(\s*\)[^;]*/user\1fpp/' /etc/nginx/nginx.conf
+# Install the fpp site
+sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/nginx.conf > /etc/nginx/sites-enabled/fpp_nginx.conf
 
 case "${OSVER}" in
 	debian_7)
@@ -1027,17 +1027,21 @@ case "${OSVER}" in
 		update-rc.d nginx defaults
 		;;
 	debian_8|debian_9)
-		cp ${FPPDIR}/scripts/nginx.service /lib/systemd/system/
 		systemctl enable nginx.service
 		;;
 esac
 
 #######################################
 echo "FPP - Configuring FPP startup"
-cp /opt/fpp/etc/init.d/fppinit /etc/init.d/
-update-rc.d fppinit defaults
-cp /opt/fpp/etc/init.d/fppstart /etc/init.d/
-update-rc.d fppstart defaults
+cp /opt/fpp/etc/systemd/fppinit.service /lib/systemd/system/
+systemctl enable fppinit.service
+cp /opt/fpp/etc/systemd/fppd.service /lib/systemd/system/
+systemctl enable fppd.service
+
+systemctl enable rsync
+
+echo "FPP - Disabling services not needed/used"
+systemctl disable olad
 
 echo "FPP - Compiling binaries"
 cd /opt/fpp/src/
