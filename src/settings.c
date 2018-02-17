@@ -826,7 +826,7 @@ int getDaemonize(void)
 #ifndef __GNUG__
 inline
 #endif
-int getFPPmode(void)
+FPPMode getFPPmode(void)
 {
 	return settings.fppMode;
 }
