@@ -106,7 +106,8 @@ buf[14] = (FPP) Operating Mode
 
 buf[15-18] = IP address (MSB-LSB) (192, 168, 1, 21) (IP address on the network ping was received from)
 buf[19-83] = Hostname (NULL terminated, up to 64 byte hostname plus one byte for NULL)
-buf[84-104] = Version (NULL terminated, up to 20 bytes plus NULL: "1.10", "1.x-master-487-gfa3896", "2018.4")
+buf[84-124] = Version (NULL terminated, up to 30 bytes plus NULL: "1.10", "1.x-master-487-gfa3896", "2018.4")
+buf[125-165] = Hardware Type String (NULL terminated, up to 30 bytes plus NULL: "Raspberry Pi 2 Model B Rev 1.1", "Raspberry Pi 2 Model B Rev 1.2")
 
 
 <<<< End of Ping version 0x01 information
