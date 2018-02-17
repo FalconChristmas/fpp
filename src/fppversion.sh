@@ -26,6 +26,13 @@ cd ${GITTREEDIR}
 
 git status > /dev/null 2>&1
 SOURCE_VERSION=$(git describe --dirty || git describe || echo Unknown)
+MAJOR_VERSION=$(echo ${SOURCE_VERSION} | cut -f1 -d\.)
+MINOR_VERSION=$(echo ${SOURCE_VERSION} | cut -f1 -d- | cut -f2 -d\.)
+
+if [ "x${MINOR_VERSION}" = "xx" ]
+then
+	MINOR_VERSION=0
+fi
 
 case "${SOURCE_VERSION}" in
     exported|Unknown)
@@ -37,7 +44,7 @@ case "${SOURCE_VERSION}" in
         fi
     ;;
     *)
-        SOURCE_VERSION=$(echo "${SOURCE_VERSION}" | cut -f1-3 -d'-')
+        #SOURCE_VERSION=$(echo "${SOURCE_VERSION}" | cut -f1-3 -d'-')
         if [ -z "${BRANCH}" ]; then
             BRANCH=$(git branch --no-color | sed -e '/^[^\*]/d' -e 's/^\* //' -e 's/(no branch)/exported/')
         fi
@@ -51,6 +58,14 @@ cat > fppversion.c.new <<EOF
 
 char *getFPPVersion(void) {
 	return "${SOURCE_VERSION}";
+}
+
+char *getFPPMajorVersion(void) {
+	return "${MAJOR_VERSION}";
+}
+
+char *getFPPMinorVersion(void) {
+	return "${MINOR_VERSION}";
 }
 
 char *getFPPBranch(void) {
