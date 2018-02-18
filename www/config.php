@@ -362,6 +362,7 @@ $settings['channelOutputsFile'] = $mediaDirectory . "/channeloutputs";
 $settings['channelOutputsJSON'] = $mediaDirectory . "/config/channeloutputs.json";
 $settings['co-other'] = $mediaDirectory . "/config/co-other.json";
 $settings['co-pixelStrings'] = $mediaDirectory . "/config/co-pixelStrings.json";
+$settings['co-bbbStrings'] = $mediaDirectory . "/config/co-bbbStrings.json";
 $settings['universeOutputs'] = $mediaDirectory . "/config/co-universes.json";
 $settings['universeInputs'] = $mediaDirectory . "/config/ci-universes.json";
 $settings['channelMemoryMapsFile'] = $mediaDirectory . "/channelmemorymaps";

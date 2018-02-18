@@ -53,26 +53,10 @@ class PixelString {
 	~PixelString();
 
 	int  Init(Json::Value config);
-	int  Init(std::string configStr);
-	int  Init(int portNumber, int channelOffset, int startChannel,
-		int pixelCount, std::string colorOrder, int nullNodes,
-		int hybridMode, int reverse, int grouping, int zigZag,
-        int brightness, float gamma);
 	void DumpConfig(void);
 
 	int               m_portNumber;
 	int               m_channelOffset;
-	int               m_startChannel;
-	int               m_pixelCount;
-	std::string       m_colorOrder;
-	int               m_nullNodes;
-	int               m_hybridMode;
-	int               m_reverseDirection;
-	int               m_grouping;
-	int               m_zigZag;
-    int               m_brightness;
-    float             m_gamma;
-
 	int               m_inputChannels;
 	int               m_outputChannels;
 
@@ -81,11 +65,9 @@ class PixelString {
 	std::vector<VirtualString>  m_virtualStrings;
 
 	std::vector<int>  m_outputMap;
-    uint8_t           m_brightnessMap[256];
 	uint8_t         **m_brightnessMaps;
   private:
 	void SetupMap(int vsOffset, VirtualString vs);
-	void SetupMap(void);
 	void FlipPixels(int offset1, int offset2);
 	void DumpMap(char *msg);
 

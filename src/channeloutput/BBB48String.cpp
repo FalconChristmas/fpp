@@ -166,7 +166,7 @@ static void createOutputLengths(std::vector<PixelString*> &m_strings,
 #endif
     std::set<int> sizes;
     for (int x = 0; x < m_strings.size(); x++) {
-        int pc = m_strings[x]->m_pixelCount + m_strings[x]->m_nullNodes;
+        int pc = m_strings[x]->m_pixels;
         if (pc != 0) {
             sizes.insert(pc);
         }
@@ -192,7 +192,7 @@ static void createOutputLengths(std::vector<PixelString*> &m_strings,
             }
             
             for (int y = 0; y < m_strings.size(); y++) {
-                int pc = m_strings[y]->m_pixelCount + m_strings[y]->m_nullNodes;
+                int pc = m_strings[y]->m_pixels;
                 if (pc == min) {
                     std::string o = std::to_string(y + 1);
                     outputFile << "        CLR GPIO_MASK(o" << o << "_gpio), o" << o << "_pin\n";
@@ -232,44 +232,24 @@ int BBB48StringOutput::Init(Json::Value config)
     m_subType = config["subType"].asString();
     m_channelCount = config["channelCount"].asInt();
 
+    
     for (int i = 0; i < config["outputs"].size(); i++) {
         Json::Value s = config["outputs"][i];
         PixelString *newString = new PixelString;
 
-        int brightness = 100;
-        float gamma = 1.0f;
-        if (!s["brightness"].isNull()) {
-            brightness = s["brightness"].asInt();
-        }
-        if (!s["gamma"].isNull()) {
-            gamma = s["gamma"].asFloat();
-        }
-
-        if (!newString->Init(s["portNumber"].asInt(),
-                            m_startChannel,
-                            s["startChannel"].asInt() - 1,
-                            s["pixelCount"].asInt(),
-                            s["colorOrder"].asString(),
-                            s["nullNodes"].asInt(),
-                            s["hybridMode"].asInt(),
-                            s["reverse"].asInt(),
-                            s["grouping"].asInt(),
-                            s["zigZag"].asInt(),
-                             brightness,
-                             gamma)) {
+        if (!newString->Init(s))
             return 0;
+
+        if (newString->m_pixels > m_maxStringLen) {
+            m_maxStringLen = newString->m_pixels;
         }
 
-        if ((newString->m_pixelCount + newString->m_nullNodes) > m_maxStringLen) {
-            m_maxStringLen = newString->m_pixelCount + newString->m_nullNodes;
-        }
-
-	m_strings.push_back(newString);
+        m_strings.push_back(newString);
     }
-
+    
     if (!MapPins()) {
-	LogErr(VB_CHANNELOUT, "Unable to map pins\n");
-	return 0;
+        LogErr(VB_CHANNELOUT, "Unable to map pins\n");
+        return 0;
     }
 
     if (m_maxStringLen == 0) {
@@ -285,7 +265,7 @@ int BBB48StringOutput::Init(Json::Value config)
     int maxString = -1;
     for (int s = 0; s < m_strings.size(); s++) {
         PixelString *ps = m_strings[s];
-        if (ps->m_pixelCount != 0) {
+        if (ps->m_pixels != 0) {
             maxString = s;
         }
     }
@@ -354,7 +334,7 @@ int BBB48StringOutput::Init(Json::Value config)
     }
     
     for (int x = 0; x < m_numStrings; x++) {
-        if (x >= m_strings.size() || m_strings[x]->m_pixelCount == 0) {
+        if (x >= m_strings.size() || m_strings[x]->m_pixels == 0) {
             std::string v = "-DNOOUT";
             v += std::to_string(x+1);
             args.push_back(v);
@@ -424,9 +404,9 @@ int BBB48StringOutput::Close(void)
 /*
  *
  */
-int BBB48StringOutput::RawSendData(unsigned char *channelData)
+void BBB48StringOutput::PrepData(unsigned char *channelData)
 {
-    LogExcess(VB_CHANNELOUT, "BBB48StringOutput::RawSendData(%p)\n",
+    LogExcess(VB_CHANNELOUT, "BBB48StringOutput::PrepData(%p)\n",
               channelData);
 
     m_curFrame++;
@@ -450,8 +430,6 @@ int BBB48StringOutput::RawSendData(unsigned char *channelData)
         printf("\n%d:  max %d\n", m_curFrame,  max);
     }
 #endif
-
-    // Bypass LEDscape draw routine and format data for PRU ourselves
     uint8_t * out = m_curData;
 
     PixelString *ps = NULL;
@@ -462,42 +440,28 @@ int BBB48StringOutput::RawSendData(unsigned char *channelData)
 
     for (int s = 0; s < m_strings.size(); s++) {
         ps = m_strings[s];
-        uint8_t *brightness = ps->m_brightnessMap;
-        c = out + (ps->m_nullNodes * numStrings * 3) + ps->m_portNumber;
+        c = out + ps->m_portNumber;
+        inCh = 0;
 
-        if ((ps->m_hybridMode) &&
-            ((channelData[ps->m_outputMap[0]]) ||
-             (channelData[ps->m_outputMap[1]]) ||
-             (channelData[ps->m_outputMap[2]]))) {
-            for (int p = 0; p < ps->m_pixelCount; p++) {
-                *c = brightness[channelData[ps->m_outputMap[0]]];
-                c += numStrings;
+        for (int p = 0; p < ps->m_pixels; p++) {
+            uint8_t *brightness = ps->m_brightnessMaps[p];
+            
+            *c = brightness[channelData[ps->m_outputMap[inCh++]]];
+            c += numStrings;
 
-                *c = brightness[channelData[ps->m_outputMap[1]]];
-                c += numStrings;
+            *c = brightness[channelData[ps->m_outputMap[inCh++]]];
+            c += numStrings;
 
-                *c = brightness[channelData[ps->m_outputMap[2]]];
-                c += numStrings;
-            }
-        } else {
-            if (ps->m_hybridMode)
-                inCh = 3;
-            else
-                inCh = 0;
-
-            for (int p = 0; p < ps->m_pixelCount; p++) {
-                *c = brightness[channelData[ps->m_outputMap[inCh++]]];
-                c += numStrings;
-
-                *c = brightness[channelData[ps->m_outputMap[inCh++]]];
-                c += numStrings;
-
-                *c = brightness[channelData[ps->m_outputMap[inCh++]]];
-                c += numStrings;
-            }
+            *c = brightness[channelData[ps->m_outputMap[inCh++]]];
+            c += numStrings;
         }
-		
     }
+}
+int BBB48StringOutput::RawSendData(unsigned char *channelData)
+{
+    LogExcess(VB_CHANNELOUT, "BBB48StringOutput::RawSendData(%p)\n",
+              channelData);
+
     // Wait for the previous draw to finish
     std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
     std::chrono::duration<float, std::milli> duration = std::chrono::high_resolution_clock::now() - t1;
