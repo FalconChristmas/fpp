@@ -137,7 +137,7 @@ SetupFPPNetworkConfigViaConnMann() {
 #############################################################################
 # Create our version of /etc/network/interfaces and wpa_supplicant.conf files
 SetupFPPNetworkConfig () {
-    if [ -f "/usr/bin/connmanctl" ]
+    if [ -f "/usr/bin/connmanctl" -o -f "/usr/sbin/connmanctl" ]
     then
         SetupFPPNetworkConfigViaConnMann
         return
