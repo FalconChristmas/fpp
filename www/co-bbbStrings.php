@@ -251,6 +251,12 @@ function populatePixelStringOutputs(data) {
             str += "</table>";
             
             $('#pixelOutputs').append(str);
+            
+            $('#BBB48String').on('mousedown', 'tr', function(event, ui) {
+                $('#pixelOutputs table tr').removeClass('selectedEntry');
+		        $(this).addClass('selectedEntry');
+		        selectedPixelStringRowId = $(this).attr('id');
+	        });
         }
         if (type == 'BBBSerial') {
             var subType = output.subType;
