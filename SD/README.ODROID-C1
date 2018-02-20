@@ -1,3 +1,6 @@
+NOTE: These are old instructions.  FPP now requires Debian/Raspbian Stretch.
+      The master branch of FPP has not been tested on the ODROID-C1.
+
 =============================================================================
 (incomplete) Instructions for creating a new FPP image for the ODROID-C1
 =============================================================================
