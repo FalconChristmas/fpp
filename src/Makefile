@@ -379,7 +379,7 @@ restart: fppd
 	gcc -shared -o ../lib/librgbmatrix_Classic.so ../external/rpi-rgb-led-matrix/lib/*.o
 	strip ../lib/librgbmatrix_Standard.so ../lib/librgbmatrix_Adafruit.so ../lib/librgbmatrix_Classic.so
 	cp ../lib/librgbmatrix_Standard.so ../external/rpi-rgb-led-matrix/lib/librgbmatrix.so
-	ln -s ./librgbmatrix_Standard.so ../lib/librgbmatrix.so
+	ln -sf ./librgbmatrix_Standard.so ../lib/librgbmatrix.so
 
 
 #############################################################################
