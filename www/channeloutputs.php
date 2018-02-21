@@ -60,16 +60,7 @@ function GetChannelOutputConfig()
 
 	config.channelOutputs.push(GetLEDPanelConfig());
 
-<?
-	if ($settings['Platform'] == "BeagleBone Black")
-	{
-		echo "// BBB 48 String output\n";
-		echo "config.channelOutputs.push(GetBBB48StringConfig());\n";
-		echo "config.channelOutputs.push(GetBBBSerialConfig());\n";
-	}
-?>
-
-  var result = JSON.stringify(config);
+	var result = JSON.stringify(config);
 	return result;
 }
 
