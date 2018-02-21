@@ -485,6 +485,9 @@ function DisableOutputBuffering() {
 
 	ob_implicit_flush(true);
 	flush();
+
+        // for NGINX, set the X-Accel-Buffering header
+        header('X-Accel-Buffering: no');
 }
 
 ?>
