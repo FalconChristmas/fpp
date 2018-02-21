@@ -306,7 +306,7 @@ fi
 export DEBIAN_FRONTEND=noninteractive
 
 case "${OSVER}" in
-	debian_7|debian_8|debian_9)
+	debian_9)
 		case $FPPPLATFORM in
 			'CHIP'|'BeagleBone Black')
 				echo "FPP - Skipping non-free for $FPPPLATFORM"
@@ -321,32 +321,10 @@ case "${OSVER}" in
 		echo "FPP - Marking unneeded packages for removal to save space"
 		case "${OSVER}" in
 			debian_9)
+				systemctl disable network-manager.service
+
 				# This list is based on the Stretch Lite SD image which we base our image on
-				for package in libxmuu1 xauth
-				do
-					echo "$package deinstall" | dpkg --set-selections
-				done
-				;;
-			*)
-				for package in gnome-icon-theme gnome-accessibility-themes \
-					gnome-themes-standard \
-					apache2 apache2-doc apache2-mpm-prefork apache2-utils \
-					apache2.2-bin apache2.2-common libapache2-mod-php5 \
-					gnome-themes-standard-data libsoup-gnome2.4-1:armhf desktop-base \
-					xserver-xorg x11proto-composite-dev x11proto-core-dev \
-					x11proto-damage-dev x11proto-fixes-dev x11proto-input-dev \
-					x11proto-kb-dev x11proto-randr-dev x11proto-render-dev \
-					x11proto-xext-dev x11proto-xinerama-dev xchat xrdp xscreensaver \
-					xscreensaver-data desktop-file-utils dbus-x11 javascript-common \
-					ruby1.9.1 ruby libxxf86vm1:armhf libxxf86dga1:armhf \
-					libxvidcore4:armhf libxv1:armhf libxtst6:armhf libxslt1.1:armhf \
-					libxres1:armhf libxrender1:armhf libxrandr2:armhf libxml2-dev \
-					libxmuu1 xauth wvdial xserver-xorg-video-fbdev xfonts-utils \
-					xfonts-encodings libuniconf4.6 libwvstreams4.6-base \
-					libwvstreams4.6-extras poppler-data desktop-base libsane \
-					libsane-extras sane-utils freepats xserver-xorg-video-modesetting \
-					xserver-xorg-core xserver-xorg xserver-common x11-xserver-utils \
-					xscreensaver xrdp bluej greenfoot oracle-java7-jdk
+				for package in libxmuu1 xauth network-manager
 				do
 					echo "$package deinstall" | dpkg --set-selections
 				done
@@ -381,38 +359,18 @@ case "${OSVER}" in
 		# Install 10 packages, then clean to lower total disk space required
 		PACKAGE_LIST=""
 		case "${OSVER}" in
-			debian_7|debian_8)
-				PACKAGE_LIST="alsa-base alsa-utils arping avahi-daemon \
-								zlib1g-dev libpcre3 libpcre3-dev libbz2-dev libssl-dev \
-								avahi-discover avahi-utils bash-completion bc build-essential \
-								bzip2 ca-certificates ccache curl device-tree-compiler \
-								dh-autoreconf ethtool exfat-fuse fbi fbset file flite gdb \
-								gdebi-core git i2c-tools ifplugd imagemagick less \
-								libboost-dev libconvert-binary-c-perl \
-								libdbus-glib-1-dev libdevice-serialport-perl libjs-jquery \
-								libjs-jquery-ui libjson-perl libjsoncpp-dev libnet-bonjour-perl \
-								libpam-smbpass libtagc0-dev libtest-nowarnings-perl locales \
-								mp3info mailutils mpg123 mpg321 mplayer nano nginx node ntp perlmagick \
-								php5-cli php5-common php5-curl php5-fpm php5-mcrypt \
-								php5-sqlite php-apc python-daemon python-smbus rsync samba \
-								samba-common-bin shellinabox sudo sysstat tcpdump usbmount vim \
-								vim-common vorbis-tools vsftpd firmware-realtek gcc g++\
-								network-manager dhcp-helper hostapd parprouted bridge-utils \
-								firmware-atheros firmware-ralink firmware-brcm80211 \
-								dos2unix \
-								wireless-tools libcurl4-openssl-dev resolvconf"
-				;;
 			debian_9)
 				PACKAGE_LIST="alsa-base alsa-utils arping avahi-daemon \
 								zlib1g-dev libpcre3 libpcre3-dev libbz2-dev libssl-dev \
 								avahi-discover avahi-utils bash-completion bc build-essential \
-								bzip2 ca-certificates ccache curl device-tree-compiler \
+								bzip2 ca-certificates ccache connman curl device-tree-compiler \
 								dh-autoreconf ethtool exfat-fuse fbi fbset file flite gdb \
 								gdebi-core git i2c-tools ifplugd imagemagick less \
+								libavcodec-dev libavformat-dev \
 								libboost-dev libconvert-binary-c-perl \
 								libdbus-glib-1-dev libdevice-serialport-perl libjs-jquery \
 								libjs-jquery-ui libjson-perl libjsoncpp-dev libmicrohttpd-dev libnet-bonjour-perl \
-								libpam-smbpass libsdl2-dev libssh-4 libtagc0-dev libtest-nowarnings-perl locales \
+								libpam-smbpass libsdl2-dev libssh-4 libtagc0-dev libtest-nowarnings-perl locales lsof \
 								mp3info mailutils mpg123 mpg321 mplayer nano nginx node ntp perlmagick \
 								php-cli php-common php-curl php-dom php-fpm php-mcrypt \
 								php-sqlite3 python-daemon python-smbus rsync samba \
@@ -473,7 +431,7 @@ case "${OSVER}" in
 		update-rc.d -f dhcp-helper remove
 		update-rc.d -f hostapd remove
 
-		if [ "x${OSVER}" == "xdebian_8" -o "x${OSVER}" == "xdebian_9" ]; then
+		if [ "x${OSVER}" == "xdebian_9" ]; then
 			systemctl disable display-manager.service
 		fi
 
@@ -494,7 +452,7 @@ case "${FPPPLATFORM}" in
 	'BeagleBone Black')
 
 		case "${OSVER}" in
-			debian_8|debian_9)
+			debian_9)
 				echo "FPP - Disabling HDMI for Falcon and LEDscape cape support"
 				sed -i -e 's/#dtb=am335x-boneblack-emmc-overlay.dtb/dtb=am335x-boneblack-emmc-overlay.dtb/' /boot/uEnv.txt
 
@@ -524,31 +482,6 @@ case "${FPPPLATFORM}" in
 				wget -O /lib/modules/${BBB_KERNEL_VER}/kernel/drivers/net/wireless/8192cu.ko http://fpp.bc2va.org/modules/8192cu-${BBB_KERNEL_VER}.ko
 				sudo depmod ${BBB_KERNEL_VER}
 				#wget -O /lib/modules/${BBB_KERNEL_VER}/kernel/drivers/net/wireless/8192cu.ko https://github.com/FalconChristmas/fpp/releases/download/1.5/8192cu-${BBB_KERNEL_VER}.ko
-				;;
-
-			'debian_7')
-				echo "FPP - Disabling HDMI for Falcon and LEDscape cape support"
-				echo >> /boot/uboot/uEnv.txt
-				echo "# Disable HDMI for Falcon and LEDscape cape support" >> /boot/uboot/uEnv.txt
-				echo "cape_disable=capemgr.disable_partno=BB-BONELT-HDMI,BB-BONELT-HDMIN" >> /boot/uboot/uEnv.txt
-				echo >> /boot/uboot/uEnv.txt
-
-				echo "FPP - Installing OLA packages"
-				apt-get -y --force-yes install libcppunit-dev libcppunit-1.12-1 uuid-dev pkg-config libncurses5-dev libtool autoconf automake libmicrohttpd-dev protobuf-compiler python-protobuf libprotobuf-dev libprotoc-dev bison flex libftdi-dev libftdi1 libusb-1.0-0-dev liblo-dev
-				apt-get -y clean
-				mkdir /tmp/deb
-				cd /tmp/deb
-				FILES="libola-dev_0.9.7-1_armhf.deb libola1_0.9.7-1_armhf.deb ola-python_0.9.7-1_all.deb ola-rdm-tests_0.9.7-1_all.deb ola_0.9.7-1_armhf.deb"
-				for FILE in ${FILES}
-				do
-					# FIXME, get these from github after release is tagged
-					wget -nd http://www.bc2va.org/chris/tmp/fpp/deb/${FILE}
-				done
-				dpkg --unpack ${FILES}
-				rm -f ${FILES}
-
-				echo "FPP - Installing updated 8192cu module"
-				wget -O /lib/modules/3.8.13-bone50/kernel/drivers/net/wireless/8192cu.ko https://github.com/FalconChristmas/fpp/releases/download/1.5/8192cu.ko
 				;;
 		esac
 
@@ -590,22 +523,6 @@ EOF
 		else
 			echo "FPP - Installing OLA"
 			case "${OSVER}" in
-				debian_8)
-					apt-get -y --force-yes install libcppunit-dev uuid-dev pkg-config libncurses5-dev libtool autoconf automake libmicrohttpd-dev protobuf-compiler python-protobuf libprotobuf-dev libprotoc-dev bison flex libftdi-dev libftdi1 libusb-1.0-0-dev liblo-dev
-					apt-get -y clean
-
-					mkdir /tmp/deb
-					cd /tmp/deb
-					FILES="libola-dev_0.10.0-1_armhf.deb libola1_0.10.0-1_armhf.deb ola-python_0.0.10-1_all.deb ola-rdm-tests_0.0.10-1_all.deb ola_0.0.10-1_armhf.deb"
-					for FILE in ${FILES}
-					do
-						# TODO Host the debs I built so we can use our packages
-						# instaed of the broken ones in the OLA repo
-						wget -nd http://www.bc2va.org/chris/tmp/fpp/deb/pi/${OSVER}/${FILE}
-					done
-					dpkg --unpack ${FILES}
-					rm -f ${FILES}
-				;;
 				debian_9)
 					apt-get -y install ola ola-python libola-dev libola1
 				;;
@@ -638,14 +555,40 @@ EOF
 				debian_9)
 					wget -O- https://github.com/FalconChristmas/fpp-binaries/raw/master/Pi/omxplayer-dist-stretch.tgz | tar xzpv -C /
 					;;
-				debian_7)
-					wget -O- https://github.com/FalconChristmas/fpp-binaries/raw/master/Pi/omxplayer-dist.tgz | tar xzpv -C /
-					;;
 				*)
 					echo "WARNING: Unable to install patched omxplayer for this release"
 					;;
 			esac
 		fi
+
+		echo "FPP - Configuring connman"
+		mv /etc/wpa_supplicant/wpa_supplicant.conf /etc/wpa_supplicant/wpa_supplicant.conf.orig
+		cat <<-EOF > /var/lib/connman/settings
+		[global]
+		OfflineMode=false
+
+		[WiFi]
+		Enable=true
+		Tethering=false
+
+		[Bluetooth]
+		Enable=false
+		Tethering=false
+
+		[Wired]
+		Enable=true
+		Tethering=false
+		EOF
+
+		mkdir /etc/connman
+		chmod 755 /etc/connman
+		cat <<-EOF >> /etc/connman/main.conf
+		[General]
+		PreferredTechnologies=wifi,ethernet
+		SingleConnectedTechnology=false
+		AllowHostnameUpdates=false
+		PersistentTetheringMode=true
+		EOF
 
 		echo "FPP - Disabling stock users (pi, odroid, debian), use the 'fpp' user instead"
 		sed -i -e "s/^pi:.*/pi:*:16372:0:99999:7:::/" /etc/shadow
@@ -653,9 +596,7 @@ EOF
 		sed -i -e "s/^debian:.*/debian:*:16372:0:99999:7:::/" /etc/shadow
 
 		echo "FPP - Disabling getty on onboard serial ttyAMA0"
-		if [ "x${OSVER}" == "xdebian_7" ]; then
-			sed -i "s@T0:23:respawn:/sbin/getty -L ttyAMA0@#T0:23:respawn:/sbin/getty -L ttyAMA0@" /etc/inittab
-		elif [ "x${OSVER}" == "xdebian_8" -o "x${OSVER}" == "xdebian_9" ]; then
+		if [ "x${OSVER}" == "xdebian_9" ]; then
 			systemctl disable serial-getty@ttyAMA0.service
 			sed -i -e "s/console=serial0,115200 //" /boot/cmdline.txt
 			sed -i -e "s/autologin pi/autologin fpp/" /etc/systemd/system/autologin@.service
@@ -673,6 +614,9 @@ EOF
 
 		echo "FPP - Updating SPI buffer size"
 		sed -i 's/$/ spidev.bufsiz=102400/' /boot/cmdline.txt
+
+		echo "FPP - Disabling fancy network interface names"
+		sed -e 's/rootwait/rootwait net.ifnames=0 biosdevname=0/' /boot/cmdline.txt
 
 		echo "# Enable I2C in device tree" >> /boot/config.txt
 		echo "dtparam=i2c=on" >> /boot/config.txt
@@ -801,9 +745,6 @@ chmod 755 /usr/local/bin/composer
 #######################################
 PHPDIR="/etc/php5"
 case "${OSVER}" in
-	debian_7|debian_8)
-		PHPDIR="/etc/php5"
-		;;
 	debian_9)
 		PHPDIR="/etc/php/7.0"
 		;;
@@ -911,10 +852,7 @@ cat <<-EOF >> /etc/samba/smb.conf
 
 EOF
 case "${OSVER}" in
-	debian_7)
-		service samba restart
-		;;
-	debian_8|debian_9)
+	debian_9)
 		systemctl restart smbd.service
 		systemctl restart nmbd.service
 		;;
@@ -1022,11 +960,7 @@ sed -i -e 's/^\s*\#\?\s*user\(\s*\)[^;]*/user\1fpp/' /etc/nginx/nginx.conf
 sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/nginx.conf > /etc/nginx/sites-enabled/fpp_nginx.conf
 
 case "${OSVER}" in
-	debian_7)
-		cp ${FPPDIR}/scripts/nginx /etc/init.d/
-		update-rc.d nginx defaults
-		;;
-	debian_8|debian_9)
+	debian_9)
 		systemctl enable nginx.service
 		;;
 esac
