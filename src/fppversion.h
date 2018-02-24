@@ -27,6 +27,8 @@
 #define __FPPVERSION_H__
 
 char *getFPPVersion(void);
+char *getFPPMajorVersion(void);
+char *getFPPMinorVersion(void);
 char *getFPPBranch(void);
 void logVersionInfo(void);
 void printVersionInfo(void);

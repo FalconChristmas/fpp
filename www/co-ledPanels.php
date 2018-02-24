@@ -146,7 +146,7 @@ function printLEDPanelLayoutSelect()
 	PrintSettingSelect("Panel Layout", "LEDPanelsLayout", 1, 0, "1x1", $values, "", "LEDPanelLayoutChanged");
 }
 
-function printLEDPanelSizeSelect($platform, $def, $interleave)
+function printLEDPanelSizeSelect($platform, $def)
 {
 	$values = array();
     if ($platform == "BeagleBone Black") {
@@ -156,18 +156,26 @@ function printLEDPanelSizeSelect($platform, $def, $interleave)
         $values["32x32 1/16 Scan"] = "32x32x16";
         $values["64x32 1/16 Scan"] = "64x32x16";
         
-        $values["64x32 1/8 Scan"] = "64x32x8x64";
-        $values["32x32 1/8 Scan"] = "32x32x8x32";
+        $values["64x32 1/8 Scan"] = "64x32x8";
+        $values["32x32 1/8 Scan"] = "32x32x8";
         $values["40x20 1/5 Scan"] = "40x20x5";
     } else {
         $values["32x16"] = "32x16x8";
         $values["32x32"] = "32x32x16";
     }
-    if ($interleave != "0" && $interleave != "") {
-        PrintSettingSelect("Panel Size", "LEDPanelsSize", 1, 0, $def + "x" + $interleave, $values, "", "LEDPanelLayoutChanged");
-    } else {
-        PrintSettingSelect("Panel Size", "LEDPanelsSize", 1, 0, $def, $values, "", "LEDPanelLayoutChanged");
-    }
+    PrintSettingSelect("Panel Size", "LEDPanelsSize", 1, 0, $def, $values, "", "LEDPanelLayoutChanged");
+}
+
+function printLEDPanelInterleaveSelect($platform, $interleave)
+{
+    $values = array();
+
+    $values["Off"] = "0";
+    $values["8 Pixels"] = "8";
+    $values["16 Pixels"] = "16";
+    $values["32 Pixels"] = "32";
+    $values["64 Pixels"] = "64";
+    PrintSettingSelect("Panel Interleave", "LEDPanelInterleave", 1, 0, $interleave, $values, "", "LEDPanelLayoutChanged");
 }
 
 ?>
@@ -189,7 +197,7 @@ function UpdatePanelSize()
 	LEDPanelWidth = parseInt(sizeparts[0]);
 	LEDPanelHeight = parseInt(sizeparts[1]);
     LEDPanelScan = parseInt(sizeparts[2]);
-    LEDPanelInterleave = parseInt(sizeparts[3]);
+    LEDPanelInterleave = parseInt($('#LEDPanelInterleave').val());
 }
 
 function LEDPanelOrientationClicked(id)
@@ -257,10 +265,14 @@ function LEDPanelLayoutChanged()
 	var parts = layout.split("x");
 	LEDPanelCols = parseInt(parts[0]);
 	LEDPanelRows = parseInt(parts[1]);
-    LEDPanelScan = parseInt(parts[2]);
-    LEDPanelInterleave = parseInt(parts[3]);
 
 	UpdatePanelSize();
+    if ((LEDPanelScan * 2) == LEDPanelHeight) {
+        $('#LEDPanelInterleave').attr("disabled", "disabled");
+        LEDPanelsInterleave = 0;
+    } else {
+        $('#LEDPanelInterleave').removeAttr("disabled");
+    }
 
 	var channelCount = LEDPanelCols * LEDPanelRows * LEDPanelWidth * LEDPanelHeight * 3;
 	$('#LEDPanelsChannelCount').html(channelCount);
@@ -567,7 +579,7 @@ $(document).ready(function(){
 							<td><input id='LEDPanelsStartChannel' type=text size=6 maxlength=6 value='1'></td>
 						</tr>
 						<tr><td><b>Single Panel Size (WxH):</b></td>
-							<td><? printLEDPanelSizeSelect($settings['Platform'], $LEDPanelWidth + "x" + $LEDPanelHeight + "x" + $LEDPanelScan, $LEDPanelInterleave); ?></td>
+							<td><? printLEDPanelSizeSelect($settings['Platform'], $LEDPanelWidth + "x" + $LEDPanelHeight + "x" + $LEDPanelScan); ?></td>
 							<td>&nbsp;</td>
 							<td><b>Channel Count:</b></td>
 							<td><span id='LEDPanelsChannelCount'>1536</span></td>
@@ -647,6 +659,10 @@ else if ($settings['Platform'] == "BeagleBone Black")
 <?
 if ($settings['Platform'] == "BeagleBone Black") {
 ?>
+                        <tr><td><b>Panel Interleave:</b></td>
+							<td><? printLEDPanelInterleaveSelect($settings['Platform'], $LEDPanelInterleave); ?></td>
+							</td>
+						</tr>
 						<tr><td><b>Color Depth:</b></td>
 							<td><select id='LEDPanelsColorDepth'>
 									<option value='8'>8 Bit</option>

@@ -112,6 +112,9 @@ if ($settings['Platform'] == "Raspberry Pi")
 	$revision = $output[0];
 	unset($output);
 
+	$settings['LogoLink'] = "http://raspberrypi.org/";
+	$settings['SubPlatform'] = trim(file_get_contents("cat /sys/firmware/devicetree/base/model"));
+
 	// The data for this table came from the following link:
 	// http://www.raspberrypi-spy.co.uk/2012/09/checking-your-raspberry-pi-board-version/
 	// It has been updated recently with the Pi V3 so it should be kept up to
@@ -158,11 +161,19 @@ if ($settings['Platform'] == "Raspberry Pi")
 			$settings['Logo'] = "Raspberry_Pi_3.png";
 			break;
 		default:
-			$settings['Variant'] = "UNKNOWN";
-			$settings['Logo'] = "Raspberry_Pi_Logo.png";
+			if ($settings['SubPlatform'] == "V2P-CA15")
+			{
+				$settings['Variant'] = "qemu";
+				$settings['Logo'] = "QEMU_Logo.png";
+				$settings['LogoLink'] = "http://qemu.org/";
+			}
+			else
+			{
+				$settings['Variant'] = "UNKNOWN";
+				$settings['Logo'] = "Raspberry_Pi_Logo.png";
+			}
 	}
 
-	$settings['LogoLink'] = "http://raspberrypi.org/";
 	$settings['fppBinDir'] = '/opt/fpp/bin.pi';
 }
 else if ($settings['Platform'] == "BeagleBone Black")
@@ -222,6 +233,11 @@ else if ($settings['Platform'] == "FreeBSD")
 {
 	$settings['Logo'] = "freebsd_logo.png";
 	$settings['LogoLink'] = "http://www.freebsd.org/";
+}
+else if ($settings['Platform'] == "qemu")
+{
+	$settings['Logo'] = "QEMU_Logo.png";
+	$settings['LogoLink'] = "http://qemu.org/";
 }
 else
 {
@@ -362,6 +378,7 @@ $settings['channelOutputsFile'] = $mediaDirectory . "/channeloutputs";
 $settings['channelOutputsJSON'] = $mediaDirectory . "/config/channeloutputs.json";
 $settings['co-other'] = $mediaDirectory . "/config/co-other.json";
 $settings['co-pixelStrings'] = $mediaDirectory . "/config/co-pixelStrings.json";
+$settings['co-bbbStrings'] = $mediaDirectory . "/config/co-bbbStrings.json";
 $settings['universeOutputs'] = $mediaDirectory . "/config/co-universes.json";
 $settings['universeInputs'] = $mediaDirectory . "/config/ci-universes.json";
 $settings['channelMemoryMapsFile'] = $mediaDirectory . "/channelmemorymaps";
