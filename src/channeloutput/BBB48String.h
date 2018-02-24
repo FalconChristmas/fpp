@@ -57,7 +57,7 @@ class BBB48StringOutput : public ChannelOutputBase {
     int Close(void);
 
     int RawSendData(unsigned char *channelData);
-
+    void PrepData(unsigned char *channelData);
     void DumpConfig(void);
 
   private:

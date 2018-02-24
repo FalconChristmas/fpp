@@ -60,16 +60,7 @@ function GetChannelOutputConfig()
 
 	config.channelOutputs.push(GetLEDPanelConfig());
 
-<?
-	if ($settings['Platform'] == "BeagleBone Black")
-	{
-		echo "// BBB 48 String output\n";
-		echo "config.channelOutputs.push(GetBBB48StringConfig());\n";
-		echo "config.channelOutputs.push(GetBBBSerialConfig());\n";
-	}
-?>
-
-  var result = JSON.stringify(config);
+	var result = JSON.stringify(config);
 	return result;
 }
 
@@ -127,6 +118,8 @@ function handleCOKeypress(e)
 	if (e.keyCode == 113) {
 		if (currentTabTitle == "Pi Pixel Strings")
 			setPixelStringsStartChannelOnNextRow();
+        if (currentTabTitle == "BBB Strings")
+            setPixelStringsStartChannelOnNextRow();
 	}
 }
 
@@ -241,7 +234,7 @@ tr.rowUniverseDetails td
 	if ($settings['Platform'] == "BeagleBone Black")
 	{
 		$LEDPanelType = "LEDscape/Octoscroller";
-		echo "<li><a href='#tab-BBB48String'>BBB</a></li>\n";
+		echo "<li><a href='#tab-BBB48String'>BBB Strings</a></li>\n";
 	}
 
 	if ($settings['Platform'] == "Raspberry Pi")
@@ -262,7 +255,7 @@ include_once('co-universes.php');
 if ($settings['Platform'] == "Raspberry Pi")
 {
 	include_once('co-fpd.php');
-	include_once('co-pixelStrings.php');
+	include_once('co-piPixelString.php');
 }
 
 include_once('co-ledPanels.php');

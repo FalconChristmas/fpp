@@ -1,3 +1,8 @@
+NOTE: These are old instructions.  FPP now requires Debian/Raspbian Stretch.
+      The master branch of FPP has not been tested on the OrangePi.
+
+=============================================================================
+
 
 The Orange Pi haa been tested with the Armbian images running Debian Jessie.
 These are available from https://www.armbian.com/

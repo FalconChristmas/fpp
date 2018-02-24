@@ -313,6 +313,7 @@ int InitializeChannelOutputs(void) {
 		"/config/channeloutputs.json",
 		"/config/co-other.json",
 		"/config/co-pixelStrings.json",
+        "/config/co-bbbStrings.json",
 		NULL
 		};
 
@@ -390,9 +391,9 @@ int InitializeChannelOutputs(void) {
 						continue;
 					}
 #ifdef PLATFORM_BBB
-				} else if (type == "BBB48String") {
+				} else if (type == "BBB48String" && f != 0) {
 					channelOutputs[i].output = new BBB48StringOutput(start, count);
-				} else if (type == "BBBSerial") {
+				} else if (type == "BBBSerial" && f != 0) {
 					channelOutputs[i].output = new BBBSerialOutput(start, count);
 #endif
 				} else if (type == "DDP") {
