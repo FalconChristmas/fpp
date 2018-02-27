@@ -266,7 +266,7 @@ int RunEventScript(FPPevent *e)
 		}
 #endif
 
-		ShutdownControlSocket();
+		CloseOpenFiles();
 
 		char *args[128];
 		char *token = strtok(userScript, " ");

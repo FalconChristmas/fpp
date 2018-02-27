@@ -2222,12 +2222,14 @@ function GetRunningEffects()
 	{
 		if (confirm('REBOOT the Falcon Player?'))
 		{
+			ClearRestartFlag();
+			ClearRebootFlag();
+
 			var xmlhttp=new XMLHttpRequest();
 			var url = "fppxml.php?command=rebootPi";
 			xmlhttp.open("GET",url,true);
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
 			xmlhttp.send();
-			ClearRebootFlag();
 		} 
 	}
 

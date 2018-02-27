@@ -43,6 +43,7 @@ int       CheckForHostSpecificFile(const char *hostname, char *filename);
 int       DateStrToInt(const char *str);
 int       GetCurrentDateInt(int daysOffset = 0);
 int       CurrentDateInRange(int startDate, int endDate);
+void      CloseOpenFiles(void);
 
 uint8_t   ReverseBitsInByte(uint8_t n);
 

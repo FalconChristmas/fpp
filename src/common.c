@@ -379,6 +379,17 @@ int GetCurrentDateInt(int daysOffset)
 }
 
 /*
+ * Close all open file descriptors (used after fork())
+ */
+void CloseOpenFiles(void)
+{
+	int maxfd = sysconf(_SC_OPEN_MAX);
+
+	for (int fd = 3; fd < maxfd; fd++)
+	    close(fd);
+}
+
+/*
  * Check to see if current date int is in the range specified
  */
 int CurrentDateInRange(int startDate, int endDate)

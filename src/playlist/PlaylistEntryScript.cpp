@@ -28,6 +28,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "common.h"
 #include "controlrecv.h"
 #include "log.h"
 #include "mpg123.h"
@@ -154,7 +155,7 @@ void PlaylistEntryScript::RunScript(void)
 			}
 #endif
 
-			ShutdownControlSocket();
+			CloseOpenFiles();
 		}
 
 		char *args[128];

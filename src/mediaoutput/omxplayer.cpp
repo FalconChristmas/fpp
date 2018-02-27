@@ -99,7 +99,7 @@ int omxplayerOutput::Start(void)
 	pid_t omxplayerPID = forkpty(&m_childPipe[0], 0, 0, 0);
 	if (omxplayerPID == 0)			// omxplayer process
 	{
-		ShutdownControlSocket();
+		CloseOpenFiles();
 
 		seteuid(1000); // 'pi' user
 

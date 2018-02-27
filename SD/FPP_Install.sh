@@ -72,7 +72,7 @@
 SCRIPTVER="0.9"
 FPPBRANCH="master-v1.x"
 FPPIMAGEVER="1.11beta"
-FPPCFGVER="28"
+FPPCFGVER="29"
 FPPPLATFORM="UNKNOWN"
 FPPDIR="/opt/fpp"
 FPPHOME="/home/fpp"
@@ -369,7 +369,7 @@ case "${OSVER}" in
 								libavcodec-dev libavformat-dev \
 								libboost-dev libconvert-binary-c-perl \
 								libdbus-glib-1-dev libdevice-serialport-perl libjs-jquery \
-								libjs-jquery-ui libjson-perl libjsoncpp-dev libmicrohttpd-dev libnet-bonjour-perl \
+								libjs-jquery-ui libjson-perl libjsoncpp-dev liblo-dev libmicrohttpd-dev libnet-bonjour-perl \
 								libpam-smbpass libsdl2-dev libssh-4 libtagc0-dev libtest-nowarnings-perl locales lsof \
 								mp3info mailutils mpg123 mpg321 mplayer nano nginx node ntp perlmagick \
 								php-cli php-common php-curl php-dom php-fpm php-mcrypt \
