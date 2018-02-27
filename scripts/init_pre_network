@@ -8,9 +8,9 @@
 BINDIR=$(cd $(dirname $0) && pwd)
 
 # See if we should be running from /home/fpp/fpp
-if [ "x${BINDIR}" == "x/opt/fpp/scripts" -a -f "/home/fpp/fpp/scripts/init" ]
+if [ "x${BINDIR}" == "x/opt/fpp/scripts" -a -f "/home/fpp/fpp/scripts/init_pre_network" ]
 then
-	exec /home/fpp/fpp/scripts/init
+	exec /home/fpp/fpp/scripts/init_pre_network
 fi
 
 . ${BINDIR}/common
