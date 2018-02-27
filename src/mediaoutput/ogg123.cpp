@@ -102,6 +102,8 @@ int ogg123Output::Start(void)
 	pid_t ogg123Pid = fork();
 	if (ogg123Pid == 0)			// ogg123 process
 	{
+		CloseOpenFiles();
+
 		//ogg123 uses stderr for output
 	    dup2(m_childPipe[MEDIAOUTPUTPIPE_WRITE], STDERR_FILENO);
 		close(m_childPipe[MEDIAOUTPUTPIPE_WRITE]);

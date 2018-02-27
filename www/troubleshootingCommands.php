@@ -30,6 +30,7 @@ $commands = array(
 
 	// Memory & CPU
 	'Memory'             => 'free',
+	'Uptime'             => 'uptime',
 	'CPU Utilization'    => 'top -bn1 | head -20',
 	'CPUInfo'            => 'cat /proc/cpuinfo',
 

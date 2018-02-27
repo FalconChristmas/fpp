@@ -8,9 +8,9 @@
 BINDIR=$(cd $(dirname $0) && pwd)
 
 # See if we should be running from /home/fpp/fpp
-if [ "x${BINDIR}" == "x/opt/fpp/scripts" -a -f "/home/fpp/fpp/scripts/init" ]
+if [ "x${BINDIR}" == "x/opt/fpp/scripts" -a -f "/home/fpp/fpp/scripts/init_pre_network" ]
 then
-	exec /home/fpp/fpp/scripts/init
+	exec /home/fpp/fpp/scripts/init_pre_network
 fi
 
 . ${BINDIR}/common
@@ -47,13 +47,13 @@ fi
 # Check to make sure media is mounted
 grep -q "^[^#].*${FPPHOME}/media" /etc/fstab
 MOUNTMEDIA=$?
-COUNTER=10
+COUNTER=0
 while [ ${MOUNTMEDIA} -eq 0 ]
 do
     let COUNTER+=1
 
     # max of 60 seconds
-    if [ $COUNTER -gt 12]; then
+    if [ $COUNTER -gt 12 ]; then
         break;
     fi
 
