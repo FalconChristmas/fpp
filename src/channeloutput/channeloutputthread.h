@@ -30,6 +30,7 @@ void DisableChannelOutput(void);
 void EnableChannelOutput(void);
 void InitChannelOutputSyncVars(void);
 void DestroyChannelOutputSyncVars(void);
+void ForceChannelOutputNow(void);
 
 int  ChannelOutputThreadIsRunning(void);
 void SetChannelOutputRefreshRate(int rate);

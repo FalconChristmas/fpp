@@ -80,8 +80,8 @@ static long ddpLastSequence = 0;
 static long ddpLastChannel = 0;
 
 // prototypes for functions below
-void Bridge_StoreData(int universe, char *bridgeBuffer);
-void Bridge_StoreDDPData(char *bridgeBuffer);
+bool Bridge_StoreData(char *bridgeBuffer);
+bool Bridge_StoreDDPData(char *bridgeBuffer);
 int Bridge_GetIndexFromUniverseNumber(int universe);
 void InputUniversesPrint();
 
@@ -179,31 +179,32 @@ void LoadInputUniversesFromFile(void)
 /*
  * Read data waiting for us
  */
-void Bridge_ReceiveE131Data(void)
+bool Bridge_ReceiveE131Data(void)
 {
 //	LogExcess(VB_E131BRIDGE, "Bridge_ReceiveData()\n");
 
-    int universe;
-
     int msgcnt = recvmmsg(bridgeSock, msgs, MAX_MSG, 0, nullptr);
+    bool sync = false;
     while (msgcnt > 0) {
         for (int x = 0; x < msgcnt; x++) {
-            universe = ((int)buffers[x][E131_UNIVERSE_INDEX] << 8) + buffers[x][E131_UNIVERSE_INDEX + 1];
-            Bridge_StoreData(universe, (char*)buffers[x]);
+            sync |= Bridge_StoreData((char*)buffers[x]);
         }
         msgcnt = recvmmsg(bridgeSock, msgs, MAX_MSG, 0, nullptr);
     }
+    return sync;
 }
-void Bridge_ReceiveDDPData(void)
+bool Bridge_ReceiveDDPData(void)
 {
     //    LogExcess(VB_E131BRIDGE, "Bridge_ReceiveData()\n");
     int msgcnt = recvmmsg(ddpSock, msgs, MAX_MSG, 0, nullptr);
+    bool sync = false;
     while (msgcnt > 0) {
         for (int x = 0; x < msgcnt; x++) {
-            Bridge_StoreDDPData((char*)buffers[x]);
+            sync |= Bridge_StoreDDPData((char*)buffers[x]);
         }
         msgcnt = recvmmsg(ddpSock, msgs, MAX_MSG, 0, nullptr);
     }
+    return sync;
 }
 
 void Bridge_Initialize(int &eSock, int &dSock)
@@ -349,37 +350,46 @@ void Bridge_Shutdown(void)
     ddpSock = -1;
 }
 
-void Bridge_StoreData(int universe, char *bridgeBuffer)
+bool Bridge_StoreData(char *bridgeBuffer)
 {
-	int universeIndex = Bridge_GetIndexFromUniverseNumber(universe);
-	if(universeIndex!=BRIDGE_INVALID_UNIVERSE_INDEX)
-	{
-        int sn = bridgeBuffer[E131_SEQUENCE_INDEX];
-        if (InputUniverses[universeIndex].packetsReceived != 0) {
-            if (InputUniverses[universeIndex].lastSequenceNumber == 255) {
-                // some wrap from 255 -> 1 and some from 255 -> 0, spec doesn't say which
-                if (sn != 0 && sn != 1) {
+    if (bridgeBuffer[E131_VECTOR_INDEX] == VECTOR_ROOT_E131_DATA) {
+        int universe = ((int)bridgeBuffer[E131_UNIVERSE_INDEX] << 8) + bridgeBuffer[E131_UNIVERSE_INDEX + 1];
+        int universeIndex = Bridge_GetIndexFromUniverseNumber(universe);
+        if(universeIndex!=BRIDGE_INVALID_UNIVERSE_INDEX)
+        {
+            int sn = bridgeBuffer[E131_SEQUENCE_INDEX];
+            if (InputUniverses[universeIndex].packetsReceived != 0) {
+                if (InputUniverses[universeIndex].lastSequenceNumber == 255) {
+                    // some wrap from 255 -> 1 and some from 255 -> 0, spec doesn't say which
+                    if (sn != 0 && sn != 1) {
+                        ++InputUniverses[universeIndex].errorPackets;
+                    }
+                } else if ((InputUniverses[universeIndex].lastSequenceNumber + 1) != sn) {
                     ++InputUniverses[universeIndex].errorPackets;
                 }
-            } else if ((InputUniverses[universeIndex].lastSequenceNumber + 1) != sn) {
-                ++InputUniverses[universeIndex].errorPackets;
             }
+            InputUniverses[universeIndex].lastSequenceNumber = sn;
+            
+            memcpy((void*)(sequence->m_seqData+InputUniverses[universeIndex].startAddress-1),
+                   (void*)(bridgeBuffer+E131_HEADER_LENGTH),
+                   InputUniverses[universeIndex].size);
+            InputUniverses[universeIndex].bytesReceived += InputUniverses[universeIndex].size;
+            InputUniverses[universeIndex].packetsReceived++;
         }
-        InputUniverses[universeIndex].lastSequenceNumber = sn;
-        
-		memcpy((void*)(sequence->m_seqData+InputUniverses[universeIndex].startAddress-1),
-			   (void*)(bridgeBuffer+E131_HEADER_LENGTH),
-			   InputUniverses[universeIndex].size);
-		InputUniverses[universeIndex].bytesReceived += InputUniverses[universeIndex].size;
-		InputUniverses[universeIndex].packetsReceived++;
-	}
+    } else if (bridgeBuffer[E131_VECTOR_INDEX] == VECTOR_ROOT_E131_EXTENDED) {
+        if (bridgeBuffer[E131_EXTENDED_PACKET_TYPE_INDEX] == VECTOR_E131_EXTENDED_SYNCHRONIZATION) {
+            return true;
+        }
+    }
+    return false;
 }
 
-void Bridge_StoreDDPData(char *bridgeBuffer)  {
+bool Bridge_StoreDDPData(char *bridgeBuffer)  {
+    bool push = false;
     if (bridgeBuffer[3] == 1) {
         ddpPacketsReceived++;
         bool tc = bridgeBuffer[0] & DDP_TIMECODE_FLAG;
-        //bool push = bridgeBuffer[0] & DDP_PUSH_FLAG;
+        push = bridgeBuffer[0] & DDP_PUSH_FLAG;
         
         int chan = bridgeBuffer[4];
         chan <<= 8;
@@ -419,6 +429,7 @@ void Bridge_StoreDDPData(char *bridgeBuffer)  {
         
         ddpBytesReceived += len;
     }
+    return push;
 }
 
 

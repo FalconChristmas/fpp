@@ -54,6 +54,11 @@ pthread_t ChannelOutputThreadID;
 int       RunThread = 0;
 int       ThreadIsRunning = 0;
 
+
+pthread_mutex_t  outputThreadLock;
+pthread_cond_t   outputThreadCond;
+
+
 /* prototypes for functions below */
 void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent);
 
@@ -80,6 +85,13 @@ void EnableChannelOutput(void) {
 	OutputFrames = 1;
 }
 
+void ForceChannelOutputNow(void) {
+    LogDebug(VB_CHANNELOUT, "ForceChannelOutputNow()\n");
+    pthread_cond_signal(&outputThreadCond);
+}
+
+
+
 /*
  * Main loop in channel output thread
  */
@@ -93,6 +105,7 @@ void *RunChannelOutputThread(void *data)
 	long long readTime;
 	int onceMore = 0;
 	struct timespec ts;
+    struct timeval tv;
 	int syncFrameCounter = 0;
 
 	LogDebug(VB_CHANNELOUT, "RunChannelOutputThread() starting\n");
@@ -119,6 +132,7 @@ void *RunChannelOutputThread(void *data)
 	}
 
 	StartOutputThreads();
+    pthread_mutex_lock(&outputThreadLock);
 
 	while (RunThread)
 	{
@@ -185,12 +199,24 @@ void *RunChannelOutputThread(void *data)
 		}
 
 		// Calculate how long we need to nanosleep()
-		ts.tv_sec = 0;
-		ts.tv_nsec = (LightDelay - (GetTime() - startTime)) * 1000;
-		nanosleep(&ts, NULL);
+		long dt = (LightDelay - (GetTime() - startTime)) * 1000;
+        gettimeofday(&tv, NULL);
+        ts.tv_sec = tv.tv_sec;
+        ts.tv_nsec = tv.tv_usec * 1000 + dt;
+        
+        if (ts.tv_nsec >= 1000000000)
+        {
+            ts.tv_sec  += 1;
+            ts.tv_nsec -= 1000000000;
+        }
+        
+        if (pthread_cond_timedwait(&outputThreadCond, &outputThreadLock, &ts) != ETIMEDOUT) {
+            LogDebug(VB_CHANNELOUT, "Forced output");
+        }
 	}
 
 	StopOutputThreads();
+    pthread_mutex_unlock(&outputThreadLock);
 
 	ThreadIsRunning = 0;
 
@@ -214,6 +240,9 @@ void SetChannelOutputRefreshRate(int rate)
 int StartChannelOutputThread(void)
 {
 	LogDebug(VB_CHANNELOUT, "StartChannelOutputThread()\n");
+    
+    pthread_mutex_init(&outputThreadLock, NULL);
+    pthread_cond_init(&outputThreadCond, NULL);
 
 	int E131BridgingInterval = getSettingInt("E131BridgingInterval");
 
@@ -290,6 +319,10 @@ int StopChannelOutputThread(void)
 	// Didn't stop for some reason, so it was hung somewhere
 	if (ThreadIsRunning)
 		return -1;
+
+    
+    pthread_cond_destroy(&outputThreadCond);
+    pthread_mutex_destroy(&outputThreadLock);
 
 	return 0;
 }

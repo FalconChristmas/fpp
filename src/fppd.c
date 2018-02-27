@@ -195,7 +195,7 @@ void MainLoop(void)
 	int            commandSock = 0;
 	int            controlSock = 0;
 	int            bridgeSock = 0;
-        int            ddpSock = 0;
+    int            ddpSock = 0;
 	int            prevFPPstatus = FPPstatus;
 	int            sleepms = 50000;
 	fd_set         active_fd_set;
@@ -259,13 +259,14 @@ void MainLoop(void)
 			}
 		}
 
+        bool pushBridgeData = false;
 		if (commandSock && FD_ISSET(commandSock, &read_fd_set))
 			CommandProc();
 
 		if (bridgeSock && FD_ISSET(bridgeSock, &read_fd_set))
- 			Bridge_ReceiveE131Data();
-                if (ddpSock && FD_ISSET(ddpSock, &read_fd_set))
-                    Bridge_ReceiveDDPData();
+ 			pushBridgeData |= Bridge_ReceiveE131Data();
+        if (ddpSock && FD_ISSET(ddpSock, &read_fd_set))
+            pushBridgeData |= Bridge_ReceiveDDPData();
 
 		if (controlSock && FD_ISSET(controlSock, &read_fd_set))
 			ProcessControlPacket();
@@ -337,7 +338,11 @@ void MainLoop(void)
 			{
 				playlist->ProcessMedia();
 			}
-		}
+        }
+        else if (getFPPmode() == BRIDGE_MODE && pushBridgeData)
+        {
+            ForceChannelOutputNow();
+        }
 
 		CheckGPIOInputs();
 	}
