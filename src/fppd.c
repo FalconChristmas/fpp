@@ -265,7 +265,7 @@ void MainLoop(void)
         if (ddpSock && FD_ISSET(ddpSock, &read_fd_set))
             pushBridgeData |= Bridge_ReceiveDDPData();
 
-		if (controlSock && FD_ISSET(controlSock, &read_fd_set))
+		if (FD_ISSET(controlSock, &read_fd_set))
 			multiSync->ProcessControlPacket();
 
 		// Check to see if we need to start up the output thread.
