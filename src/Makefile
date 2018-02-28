@@ -66,8 +66,6 @@ OBJECTS_fppd = \
 	channeltester/SingleChase.o \
 	command.o \
 	common.o \
-	controlrecv.o \
-	controlsend.o \
 	e131bridge.o \
 	effects.o \
 	events.o \
@@ -76,6 +74,7 @@ OBJECTS_fppd = \
 	fppversion.o \
 	gpio.o \
 	log.o \
+	MultiSync.o \
 	mediadetails.o \
 	mediaoutput/MediaOutputBase.o \
 	mediaoutput/mediaoutput.o \

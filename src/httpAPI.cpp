@@ -33,6 +33,7 @@
 #include "fppversion.h"
 #include "httpAPI.h"
 #include "log.h"
+#include "MultiSync.h"
 #include "Scheduler.h"
 #include "settings.h"
 
@@ -145,6 +146,10 @@ const http_response PlayerResource::render_GET(const http_request &req)
 	else if (url == "e131stats")
 	{
 		GetE131BytesReceived(result);
+	}
+	else if (url == "multiSyncSystems")
+	{
+		GetMultiSyncSystems(result);
 	}
 	else if (boost::starts_with(url, "playlists/"))
 	{
@@ -615,6 +620,19 @@ void PlayerResource::GetE131BytesReceived(Json::Value &result)
 		SetOKResult(result, "");
 	else
 		SetErrorResult(result, 400, "GetE131UniverseBytesReceived() did not return any universes.");
+}
+
+/*
+ *
+ */
+void PlayerResource::GetMultiSyncSystems(Json::Value &result)
+{
+	result = multiSync->GetSystems();
+
+	if (result.isMember("systems"))
+		SetOKResult(result, "");
+	else
+		SetErrorResult(result, 400, "MultiSync did not return any systems.");
 }
 
 /*

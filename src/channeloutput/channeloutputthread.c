@@ -33,10 +33,10 @@
 
 #include "channeloutput.h"
 #include "common.h"
-#include "controlsend.h"
 #include "effects.h"
 #include "fppd.h"
 #include "log.h"
+#include "MultiSync.h"
 #include "PixelOverlay.h"
 #include "Sequence.h"
 #include "settings.h"
@@ -145,7 +145,7 @@ void *RunChannelOutputThread(void *data)
 			{
 				// Send sync every 16 frames (use 16 to make the check simpler)
 				syncFrameCounter = 1;
-				SendSeqSyncPacket(
+				multiSync->SendSeqSyncPacket(
 					sequence->m_seqFilename, channelOutputFrame,
 					(mediaElapsedSeconds > 0) ? mediaElapsedSeconds
 						: 1.0 * channelOutputFrame / RefreshRate );

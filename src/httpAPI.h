@@ -49,6 +49,7 @@ class PlayerResource : public http_resource {
 	void GetCurrentStatus(Json::Value &result);
 	void GetCurrentPlaylists(Json::Value &result);
 	void GetE131BytesReceived(Json::Value &result);
+	void GetMultiSyncSystems(Json::Value &result);
 
 	void PostEffects(const std::string &effectName, const Json::Value &data,
 					Json::Value &result);

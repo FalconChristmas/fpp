@@ -36,12 +36,12 @@
 #include "E131.h"
 #include "channeloutputthread.h"
 #include "common.h"
-#include "controlsend.h"
 #include "events.h"
 #include "effects.h"
 #include "fpp.h" // for FPPstatus && #define-d status values
 #include "fppd.h"
 #include "log.h"
+#include "MultiSync.h"
 #include "PixelOverlay.h"
 #include "Sequence.h"
 #include "settings.h"
@@ -158,7 +158,7 @@ int Sequence::OpenSequenceFile(const char *filename, int startSeconds) {
 
 	if (getFPPmode() == MASTER_MODE)
 	{
-		SendSeqSyncStartPacket(filename);
+		multiSync->SendSeqSyncStartPacket(filename);
 
 		// Give the remotes a head start spining up so they are ready
 		usleep(100000);
@@ -499,7 +499,7 @@ void Sequence::SendBlankingData(void) {
 	usleep(100000);
 
 	if (getFPPmode() == MASTER_MODE)
-		SendBlankingDataPacket();
+		multiSync->SendBlankingDataPacket();
 
 	BlankSequenceData();
 	ProcessSequenceData(0);
@@ -519,7 +519,7 @@ void Sequence::CloseSequenceFile(void) {
 	LogDebug(VB_SEQUENCE, "CloseSequenceFile() %s\n", m_seqFilename);
 
 	if (getFPPmode() == MASTER_MODE)
-		SendSeqSyncStopPacket(m_seqFilename);
+		multiSync->SendSeqSyncStopPacket(m_seqFilename);
 
 	pthread_mutex_lock(&m_sequenceLock);
 

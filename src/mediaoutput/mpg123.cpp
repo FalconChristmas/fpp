@@ -35,9 +35,9 @@
 
 #include "channeloutputthread.h"
 #include "common.h"
-#include "controlsend.h"
 #include "log.h"
 #include "mpg123.h"
+#include "MultiSync.h"
 #include "Sequence.h"
 #include "settings.h"
 
@@ -236,7 +236,7 @@ void mpg123Output::ParseTimes(void)
 		if ((m_mediaOutputStatus->secondsElapsed > 0) &&
 			(lastRemoteSync != m_mediaOutputStatus->secondsElapsed))
 		{
-			SendMediaSyncPacket(m_mediaFilename.c_str(), 0,
+			multiSync->SendMediaSyncPacket(m_mediaFilename.c_str(), 0,
 				m_mediaOutputStatus->mediaSeconds);
 			lastRemoteSync = m_mediaOutputStatus->secondsElapsed;
 		}
