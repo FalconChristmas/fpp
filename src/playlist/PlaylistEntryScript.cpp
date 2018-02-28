@@ -29,7 +29,6 @@
 #include <string.h>
 
 #include "common.h"
-#include "controlrecv.h"
 #include "log.h"
 #include "mpg123.h"
 #include "ogg123.h"

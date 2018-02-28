@@ -164,7 +164,7 @@ void HexDump(char *title, void *data, int len) {
 /*
  * Get IP address on specified network interface
  */
-int GetInterfaceAddress(char *interface, char *addr, char *mask, char *gw)
+int GetInterfaceAddress(const char *interface, char *addr, char *mask, char *gw)
 {
 	int fd;
 	struct ifreq ifr;

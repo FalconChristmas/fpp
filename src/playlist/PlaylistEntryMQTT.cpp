@@ -26,7 +26,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "controlrecv.h"
 #include "log.h"
 #include "mqtt.h"
 #include "PlaylistEntryMQTT.h"

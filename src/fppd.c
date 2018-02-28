@@ -27,8 +27,6 @@
 #include "channeloutputthread.h"
 #include "command.h"
 #include "common.h"
-#include "controlrecv.h"
-#include "controlsend.h"
 #include "e131bridge.h"
 #include "effects.h"
 #include "fppd.h"
@@ -37,6 +35,7 @@
 #include "gpio.h"
 #include "httpAPI.h"
 #include "log.h"
+#include "MultiSync.h"
 #include "mediadetails.h"
 #include "mediaoutput.h"
 #include "mqtt.h"
@@ -118,6 +117,10 @@ int main(int argc, char *argv[])
 	playlist = new Playlist();
 	sequence  = new Sequence();
 	channelTester = new ChannelTester();
+	multiSync = new MultiSync();
+
+	if (!multiSync->Init())
+		exit(EXIT_FAILURE);
 
 	piFaceSetup(200); // PiFace inputs 1-8 == wiringPi 200-207
 
@@ -130,12 +133,6 @@ int main(int argc, char *argv[])
 	if (getFPPmode() != BRIDGE_MODE)
 	{
 		InitMediaOutput();
-	}
-
-	if (getFPPmode() & PLAYER_MODE)
-	{
-		if (getFPPmode() == MASTER_MODE)
-			InitSyncMaster();
 	}
 
 	InitializeChannelOutputs();
@@ -163,15 +160,13 @@ int main(int argc, char *argv[])
 
 	if (getFPPmode() & PLAYER_MODE)
 	{
-		if (getFPPmode() == MASTER_MODE)
-			ShutdownSync();
-
 		CloseChannelDataMemoryMap();
 		CloseEffects();
 	}
 
 	CloseChannelOutputs();
 
+	delete multiSync;
 	delete channelTester;
 	delete scheduler;
 	delete playlist;
@@ -195,7 +190,7 @@ void MainLoop(void)
 	int            commandSock = 0;
 	int            controlSock = 0;
 	int            bridgeSock = 0;
-        int            ddpSock = 0;
+    int            ddpSock = 0;
 	int            prevFPPstatus = FPPstatus;
 	int            sleepms = 50000;
 	fd_set         active_fd_set;
@@ -226,11 +221,13 @@ void MainLoop(void)
                     FD_SET (ddpSock, &active_fd_set);
 	}
 
-	controlSock = InitControlSocket();
+	controlSock = multiSync->GetControlSocket();
 	FD_SET (controlSock, &active_fd_set);
 
 	APIServer apiServer;
 	apiServer.Init();
+
+	multiSync->Discover();
 
 	LogInfo(VB_GENERAL, "Starting main processing loop\n");
 
@@ -259,16 +256,17 @@ void MainLoop(void)
 			}
 		}
 
+        bool pushBridgeData = false;
 		if (commandSock && FD_ISSET(commandSock, &read_fd_set))
 			CommandProc();
 
 		if (bridgeSock && FD_ISSET(bridgeSock, &read_fd_set))
- 			Bridge_ReceiveE131Data();
-                if (ddpSock && FD_ISSET(ddpSock, &read_fd_set))
-                    Bridge_ReceiveDDPData();
+ 			pushBridgeData |= Bridge_ReceiveE131Data();
+        if (ddpSock && FD_ISSET(ddpSock, &read_fd_set))
+            pushBridgeData |= Bridge_ReceiveDDPData();
 
-		if (controlSock && FD_ISSET(controlSock, &read_fd_set))
-			ProcessControlPacket();
+		if (FD_ISSET(controlSock, &read_fd_set))
+			multiSync->ProcessControlPacket();
 
 		// Check to see if we need to start up the output thread.
 		// FIXME, possibly trigger this via a fpp command to fppd
@@ -337,15 +335,17 @@ void MainLoop(void)
 			{
 				playlist->ProcessMedia();
 			}
-		}
+        }
+        else if (getFPPmode() == BRIDGE_MODE && pushBridgeData)
+        {
+            ForceChannelOutputNow();
+        }
 
 		CheckGPIOInputs();
 	}
 
     LogInfo(VB_GENERAL, "Stopping channel output thread.\n");
 	StopChannelOutputThread();
-    LogInfo(VB_GENERAL, "Shutting down control socket.\n");
-	ShutdownControlSocket();
 
 	if (getFPPmode() == BRIDGE_MODE)
 		Bridge_Shutdown();

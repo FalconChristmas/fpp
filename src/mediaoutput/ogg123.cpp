@@ -35,8 +35,8 @@
 
 #include "channeloutputthread.h"
 #include "common.h"
-#include "controlsend.h"
 #include "log.h"
+#include "MultiSync.h"
 #include "ogg123.h"
 #include "Sequence.h"
 #include "settings.h"
@@ -229,7 +229,7 @@ void ogg123Output::ParseTimes()
 		if ((m_mediaOutputStatus->secondsElapsed > 0) &&
 			(lastRemoteSync != m_mediaOutputStatus->secondsElapsed))
 		{
-			SendMediaSyncPacket(m_mediaFilename.c_str(), 0,
+			multiSync->SendMediaSyncPacket(m_mediaFilename.c_str(), 0,
 				m_mediaOutputStatus->mediaSeconds);
 			lastRemoteSync = m_mediaOutputStatus->secondsElapsed;
 		}

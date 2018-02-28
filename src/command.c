@@ -78,7 +78,7 @@ extern PluginCallbackManager pluginCallbackManager;
    if((socket_fd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0)
    {
     perror("server: socket");
-    return 0;
+    exit(1);
    }
 
    fcntl(socket_fd, F_SETFL, O_NONBLOCK);
@@ -93,7 +93,7 @@ extern PluginCallbackManager pluginCallbackManager;
    {
     close(socket_fd);
     perror("command socket bind");
-    return 0;
+    exit(1);
    }
 
    umask(old_umask);
