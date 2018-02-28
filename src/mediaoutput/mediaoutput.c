@@ -29,10 +29,10 @@
 
 #include <string>
 
-#include "controlsend.h"
 #include "log.h"
 #include "mediaoutput.h"
 #include "mpg123.h"
+#include "MultiSync.h"
 #include "ogg123.h"
 #include "omxplayer.h"
 #include "SDLOut.h"
@@ -189,7 +189,7 @@ int OpenMediaOutput(char *filename) {
 	}
 
 	if (getFPPmode() == MASTER_MODE)
-		SendMediaSyncStartPacket(mediaOutput->m_mediaFilename.c_str());
+		multiSync->SendMediaSyncStartPacket(mediaOutput->m_mediaFilename.c_str());
 
 	if (!mediaOutput->Start())
 	{
@@ -225,7 +225,7 @@ void CloseMediaOutput(void) {
 	}
 
 	if (getFPPmode() == MASTER_MODE)
-		SendMediaSyncStopPacket(mediaOutput->m_mediaFilename.c_str());
+		multiSync->SendMediaSyncStopPacket(mediaOutput->m_mediaFilename.c_str());
 
 	delete mediaOutput;
 	mediaOutput = 0;

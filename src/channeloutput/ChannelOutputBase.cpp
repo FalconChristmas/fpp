@@ -58,7 +58,7 @@ ChannelOutputBase::~ChannelOutputBase()
 {
 	LogDebug(VB_CHANNELOUT, "ChannelOutputBase::~ChannelOutputBase()\n");
 
-        pthread_cond_destroy(&m_sendCond);
+    pthread_cond_destroy(&m_sendCond);
 	pthread_mutex_destroy(&m_bufLock);
 	pthread_mutex_destroy(&m_sendLock);
 }

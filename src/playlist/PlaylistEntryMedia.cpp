@@ -26,11 +26,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "controlsend.h"
 #include "log.h"
 #include "mediadetails.h"
 #include "mpg123.h"
 #include "mqtt.h"
+#include "MultiSync.h"
 #include "ogg123.h"
 #include "omxplayer.h"
 #include "PlaylistEntryMedia.h"
@@ -262,7 +262,7 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 	}
 
 	if (getFPPmode() == MASTER_MODE)
-		SendMediaSyncStartPacket(m_mediaFilename.c_str());
+		multiSync->SendMediaSyncStartPacket(m_mediaFilename.c_str());
 
 	if (!m_mediaOutput->Start()) {
 		delete m_mediaOutput;
@@ -302,7 +302,7 @@ int PlaylistEntryMedia::CloseMediaOutput(void)
 	}
 
 	if (getFPPmode() == MASTER_MODE)
-		SendMediaSyncStopPacket(m_mediaOutput->m_mediaFilename.c_str());
+		multiSync->SendMediaSyncStopPacket(m_mediaOutput->m_mediaFilename.c_str());
 
 	delete m_mediaOutput;
 	m_mediaOutput = NULL;

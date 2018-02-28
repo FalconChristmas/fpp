@@ -31,11 +31,10 @@
 #include <unistd.h>
 
 #include "common.h"
-#include "controlrecv.h"
-#include "controlsend.h"
 #include "effects.h"
 #include "events.h"
 #include "log.h"
+#include "MultiSync.h"
 #include "settings.h"
 #include "Plugins.h"
 
@@ -337,7 +336,7 @@ int TriggerEventByID(const char *id)
 	LogDebug(VB_EVENT, "TriggerEventByID(%s)\n", id);
 
 	if (getFPPmode() == MASTER_MODE)
-		SendEventPacket(id);
+		multiSync->SendEventPacket(id);
 
 	FPPevent *event = LoadEvent(id);
 
