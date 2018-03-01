@@ -208,7 +208,7 @@ OBJECTS_fppd += \
 	$(NULL)
 DEPS_fppd += \
 	../external/RF24/librf24-bcm.so \
-	../lib/librgbmatrix.so \
+	../external/rpi-rgb-led-matrix/lib/librgbmatrix.a \
 	../external/rpi_ws281x/libws2811.a \
 	$(NULL)
 SUBMODULES += \
@@ -236,7 +236,7 @@ OBJECTS_fppd += \
 	channeloutput/RGBMatrix.o \
 	$(NULL)
 DEPS_fppd += \
-	../lib/librgbmatrix.so \
+	../external/rpi-rgb-led-matrix/lib/librgbmatrix.a \
 	$(NULL)
 SUBMODULES += \
 	external/RF24 \
@@ -401,28 +401,7 @@ restart: fppd
 
 ../external/rpi-rgb-led-matrix/lib/librgbmatrix.a: ../external/rpi-rgb-led-matrix/.git
 	@echo "Building rpi-rgb-led-matrix library"
-	@make -C ../external/rpi-rgb-led-matrix/lib/ librgbmatrix.a
-
-../lib/librgbmatrix.so: ../external/rpi-rgb-led-matrix/.git
-	@echo "Building rpi-rgb-led-matrix library for Standard pinout"
-	@make -C ../external/rpi-rgb-led-matrix/lib/ clean
-	@make -C ../external/rpi-rgb-led-matrix/lib/ librgbmatrix.a \
-		DEFINES='-DRGB_SLOWDOWN_GPIO=1'
-	gcc -shared -o ../lib/librgbmatrix_Standard.so ../external/rpi-rgb-led-matrix/lib/*.o
-	@echo "Building rpi-rgb-led-matrix library for Adafruit pinout"
-	@make -C ../external/rpi-rgb-led-matrix/lib/ clean
-	@make -C ../external/rpi-rgb-led-matrix/lib/ librgbmatrix.a \
-		DEFINES='-DRGB_SLOWDOWN_GPIO=1 -DADAFRUIT_RGBMATRIX_HAT -DONLY_SINGLE_CHAIN'
-	gcc -shared -o ../lib/librgbmatrix_Adafruit.so ../external/rpi-rgb-led-matrix/lib/*.o
-	@echo "Building rpi-rgb-led-matrix library for Classic pinout"
-	@make -C ../external/rpi-rgb-led-matrix/lib/ clean
-	@make -C ../external/rpi-rgb-led-matrix/lib/ librgbmatrix.a \
-		DEFINES='-DRGB_SLOWDOWN_GPIO=1 -DRGB_CLASSIC_PINOUT -DONLY_SINGLE_CHAIN'
-	gcc -shared -o ../lib/librgbmatrix_Classic.so ../external/rpi-rgb-led-matrix/lib/*.o
-	strip ../lib/librgbmatrix_Standard.so ../lib/librgbmatrix_Adafruit.so ../lib/librgbmatrix_Classic.so
-	cp ../lib/librgbmatrix_Standard.so ../external/rpi-rgb-led-matrix/lib/librgbmatrix.so
-	ln -sf ./librgbmatrix_Standard.so ../lib/librgbmatrix.so
-
+	@CC="ccache gcc" CXX="ccache g++" make -C ../external/rpi-rgb-led-matrix/lib/ librgbmatrix.a
 
 #############################################################################
 # libws2811 on the Pi

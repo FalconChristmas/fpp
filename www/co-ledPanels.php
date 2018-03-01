@@ -356,6 +356,14 @@ function InitializeLEDPanels()
 		$('#LEDPanelsWiringPinout').val(channelOutputsLookup["LEDPanelMatrix"].wiringPinout);
 <?
 	}
+
+	if ($settings['Platform'] == "Raspberry Pi")
+	{
+?>
+		$('#LEDPanelsGPIOSlowdown').val(channelOutputsLookup["LEDPanelMatrix"].gpioSlowdown);
+<?
+	}
+
     if ($settings['Platform'] == "BeagleBone Black")
     {
 ?>
@@ -419,8 +427,14 @@ function GetLEDPanelConfig()
 	config.wiringPinout = $('#LEDPanelsWiringPinout').val();
 <?
 	}
+
+	if ($settings['Platform'] == "Raspberry Pi")
+	{
 ?>
+		config.gpioSlowdown = parseInt($('#LEDPanelsGPIOSlowdown').val());
 <?
+	}
+
     if ($settings['Platform'] == "BeagleBone Black")
     {
 ?>
@@ -518,6 +532,8 @@ function LEDPannelsConnectionChanged()
 {
 	if (($('#LEDPanelsConnection').val() === "ColorLight5a75") || ($('#LEDPanelsConnection').val() === "LinsnRV9")) {
 		$('#LEDPanelsConnectionInterface').show();
+		$('#LEDPanelsGPIOSlowdownLabel').hide();
+		$('#LEDPanelsGPIOSlowdown').hide();
 		$('#LEDPanelsInterface').show();
 		if ($('#LEDPanelsConnection').val() === "LinsnRV9") {
 			$('#LEDPanelsSourceMac').show();
@@ -545,7 +561,11 @@ if ($settings['Platform'] == "BeagleBone Black") {
         echo "        LEDPanelOutputs = 8;\n";
     }
 } else {
-	echo "		LEDPanelOutputs = 3;\n";
+?>
+		LEDPanelOutputs = 3;
+		$('#LEDPanelsGPIOSlowdownLabel').show();
+		$('#LEDPanelsGPIOSlowdown').show();
+<?
 }
 ?>
 	}
@@ -625,9 +645,12 @@ else
 if ($settings['Platform'] == "Raspberry Pi")
 {
 ?>
-									<option value='Standard'>Standard</option>
-									<option value='Classic'>Classic</option>
-									<option value='Adafruit'>Adafruit</option>
+									<option value='regular'>Standard</option>
+									<option value='adafruit-hat'>Adafruit</option>
+									<option value='adafruit-hat-pwm'>Adafruit PWM</option>
+									<option value='regular-pi1'>Standard Pi1</option>
+									<option value='classic'>Classic</option>
+									<option value='classic-pi1'>Classic Pi1</option>
 <?
 }
 else if ($settings['Platform'] == "BeagleBone Black")
@@ -690,9 +713,17 @@ if (($settings['Platform'] == "Raspberry Pi") ||
 								</select>
 							</td>
 							<td>&nbsp;</td>
-							<td id='LEDPanelsConnectionInterface'><b>Interface:</b></td>
+							<td><span id='LEDPanelsConnectionInterface'><b>Interface:</b></span>
+								<span id='LEDPanelsGPIOSlowdownLabel'><b>GPIO Slowdown:</b></span>
+								</td>
 							<td><select id='LEDPanelsInterface' type='hidden'>
 <? PopulateEthernetInterfaces(); ?>
+								</select>
+								<select id='LEDPanelsGPIOSlowdown'>
+									<option value='0'>0 (Pi Zero and other single-core)</option>
+									<option value='1' selected>1 (multi-core Pi's)</option>
+									<option value='2'>2 (slow panels)</option>
+									<option value='3'>3 (slower panels)</option>
 								</select>
 							</td>
 						</tr>
