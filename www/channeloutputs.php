@@ -2744,10 +2744,8 @@ tr.rowUniverseDetails td
 				<li><a href="channeloutput_f16v2.php">F16 v2</a></li>
 -->
 <?
-	$LEDPanelType = "RGBMatrix";
 	if ($settings['Platform'] == "BeagleBone Black")
 	{
-		$LEDPanelType = "LEDscape/Octoscroller";
 		echo "<li><a href='#tab-BBB48String'>BBB</a></li>\n";
 	}
 ?>
@@ -2838,7 +2836,7 @@ tr.rowUniverseDetails td
 	<div id='tab-LEDPanels'>
 		<div id='divLEDPanels'>
 			<fieldset class="fs">
-				<legend> <? echo $LEDPanelType; ?> LED Panels </legend>
+				<legend> LED Panels </legend>
 				<div id='divLEDPanelsData'>
 					<div style="overflow: hidden; padding: 10px;">
 						<table border=0 cellspacing=3>
