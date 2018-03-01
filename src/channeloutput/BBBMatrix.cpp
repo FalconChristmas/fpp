@@ -115,15 +115,25 @@ void BBBMatrix::calcBrightnessFlags(std::vector<std::string> &sargs) {
         max = v2Timings[m_outputs-1][m_longestChain-1];
     }
     
+    //timings are based on 32 pixel wide panels
+    max *= m_panelWidth;
+    max /= 32;
+    
     // 1/4 scan we need to double the time since we have twice the number of pixels to clock out
     max *= m_panelHeight;
     max /= (m_panelScan * 2);
+
+    if (max < 0x4000) {
+        //boost up a bit more
+        max *= 2;
+    }
+    
     uint32_t origMax = max;
-    if (max < 0x2500) {
+    if (max < 0x3500) {
         //if max is too low, the low bit time is too short and
         //extra ghosting occurs
         // At this point, framerate will be supper high anyway >100fps
-        max = 0x2500;
+        max = 0x3500;
     }
     uint32_t origMax2 = max;
 

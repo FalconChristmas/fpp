@@ -560,6 +560,10 @@ if ($settings['Platform'] == "BeagleBone Black") {
     } else {
         echo "        LEDPanelOutputs = 8;\n";
     }
+?>
+    $('#LEDPanelsGPIOSlowdownLabel').hide();
+    $('#LEDPanelsGPIOSlowdown').hide();
+<?
 } else {
 ?>
 		LEDPanelOutputs = 3;
