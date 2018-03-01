@@ -671,7 +671,7 @@ setupChannelOutputs() {
 	if  [ "${FPPPLATFORM}" = "Raspberry Pi" ]
 	then
 		# Check for RGBMatrix channel output
-		cat ${FPPHOME}/media/config/channeloutputs.json 2> /dev/null | tr -d "\r\n" | egrep -q 'LEDPanelMatrix",[ 	a-zA-Z0-9:",]*"enabled": 1'
+		cat ${FPPHOME}/media/config/channeloutputs.json 2> /dev/null | tr -d "\r\n" | egrep -q 'RGBMatrix",[ 	a-zA-Z0-9:",]*"enabled": 1'
 		RGBMatrix=$?
 
 		# RPIWS281X and onboard sound are incompatible
