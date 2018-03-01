@@ -388,7 +388,7 @@ restart: fppd
 
 ../external/RF24/librf24-bcm.so: ../external/RF24/.git
 	@echo "Building RF24 library"
-	@make -C ../external/RF24/
+	@CC="ccache gcc" CXX="ccache g++" make -C ../external/RF24/
 	@ln -s librf24-bcm.so.1.0 ../external/RF24/librf24-bcm.so.1
 	@ln -s librf24-bcm.so.1 ../external/RF24/librf24-bcm.so
 
