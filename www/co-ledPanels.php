@@ -563,7 +563,7 @@ $(document).ready(function(){
 <div id='tab-LEDPanels'>
 	<div id='divLEDPanels'>
 		<fieldset class="fs">
-			<legend> <? echo $LEDPanelType; ?> LED Panels </legend>
+			<legend> LED Panels </legend>
 			<div id='divLEDPanelsData'>
 				<div style="overflow: hidden; padding: 10px;">
 					<table border=0 cellspacing=3>
