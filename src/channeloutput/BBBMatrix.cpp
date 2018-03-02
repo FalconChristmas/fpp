@@ -232,7 +232,6 @@ public:
     virtual void mapCol(int y, int &x) {
         int whichInt = x / m_interleave;
         int offInInt = x % m_interleave;
-        int row = y % m_panelScan;
         int mult = (m_panelHeight / m_panelScan / 2) - 1 - y / m_panelScan;
         x = m_interleave * (whichInt * m_panelHeight / m_panelScan / 2 + mult)  + offInInt;
     }
@@ -258,7 +257,6 @@ public:
     virtual void mapCol(int y, int &x) {
         int whichInt = x / m_interleave;
         int offInInt = x % m_interleave;
-        int row = y % m_panelScan;
         int mult = y / m_panelScan;
         
         if ((y & 0x2) == 0) {

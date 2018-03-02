@@ -11,7 +11,8 @@ enum BeagleBoneType {
     BlackWireless,
     Green,
     GreenWireless,
-    PocketBeagle
+    PocketBeagle,
+    SanCloudEnhanced
 };
 
 BeagleBoneType getBeagleBoneType();
