@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <string>
 
 #include "BBBMatrix.h"
 #include "BBBUtils.h"
@@ -224,15 +225,47 @@ public:
     virtual ~SimpleInterleaveHandler() {}
 
     virtual void mapRow(int &y) {
-        if (y >= m_panelScan) {
+        while (y >= m_panelScan) {
             y -= m_panelScan;
         }
     }
     virtual void mapCol(int y, int &x) {
         int whichInt = x / m_interleave;
         int offInInt = x % m_interleave;
-        int mult = (y >= m_panelScan) ? 0 : 1;
-        x = m_interleave * (whichInt * 2 + mult)  + offInInt;
+        int row = y % m_panelScan;
+        int mult = (m_panelHeight / m_panelScan / 2) - 1 - y / m_panelScan;
+        x = m_interleave * (whichInt * m_panelHeight / m_panelScan / 2 + mult)  + offInInt;
+    }
+    
+private:
+    const int m_interleave;
+    const int m_panelWidth;
+    const int m_panelHeight;
+    const int m_panelScan;
+};
+
+class ZigZagInterleaveHandler : public InterleaveHandler {
+public:
+    ZigZagInterleaveHandler(int interleave, int ph, int pw, int ps)
+        : InterleaveHandler(), m_interleave(interleave), m_panelHeight(ph), m_panelWidth(pw), m_panelScan(ps) {}
+    virtual ~ZigZagInterleaveHandler() {}
+    
+    virtual void mapRow(int &y) {
+        while (y >= m_panelScan) {
+            y -= m_panelScan;
+        }
+    }
+    virtual void mapCol(int y, int &x) {
+        int whichInt = x / m_interleave;
+        int offInInt = x % m_interleave;
+        int row = y % m_panelScan;
+        int mult = y / m_panelScan;
+        
+        if ((y & 0x2) == 0) {
+            offInInt = m_interleave - 1 - offInInt;
+        }
+        
+        x = m_interleave * (whichInt * m_panelHeight / m_panelScan / 2 + mult)  + offInInt;
     }
     
 private:
@@ -288,6 +321,8 @@ int BBBMatrix::Init(Json::Value config)
     if (!m_panelHeight)
         m_panelHeight = 16;
 
+    int addressingType = config["panelAddressing"].asInt();
+    
     m_invertedData = config["invertedData"].asInt();
     m_colorOrder = ColorOrderFromString(config["colorOrder"].asString());
 
@@ -340,8 +375,17 @@ int BBBMatrix::Init(Json::Value config)
     if (m_colorDepth > 8 || m_colorDepth < 6) {
         m_colorDepth = 8;
     }
+    bool zigZagInterleave = false;
     if (config.isMember("panelInterleave")) {
-        m_interleave = config["panelInterleave"].asInt();
+        if (config["panelInterleave"].asString() == "8z") {
+            m_interleave = 8;
+            zigZagInterleave = true;
+        } else if (config["panelInterleave"].asString() == "16z") {
+            m_interleave = 16;
+            zigZagInterleave = true;
+        } else {
+            m_interleave = std::stoi(config["panelInterleave"].asString());
+        }
     } else {
         m_interleave = 0;
     }
@@ -406,6 +450,11 @@ int BBBMatrix::Init(Json::Value config)
     sprintf(buf, "-DROW_LEN=%d", tmp);
     compileArgs.push_back(buf);
 
+    if (addressingType == 1) {
+        // 1/2 scan panel that uses 2 bits, bit one for scan row 1 and bit two for row 2
+        // Normal addressing would be 1 bit, 0 for row 1, 1 for row 2
+        compileArgs.push_back("-DADDRESSING_AB=1");
+    }
     
     calcBrightnessFlags(compileArgs);
     if (m_printStats) {
@@ -435,7 +484,11 @@ int BBBMatrix::Init(Json::Value config)
     m_pru->run(pru_program);
     
     if (m_interleave && ((m_panelScan * 2) != m_panelHeight)) {
-        m_handler = new SimpleInterleaveHandler(m_interleave, m_panelHeight, m_panelWidth, m_panelScan);
+        if (zigZagInterleave) {
+            m_handler = new ZigZagInterleaveHandler(m_interleave, m_panelHeight, m_panelWidth, m_panelScan);
+        } else {
+            m_handler = new SimpleInterleaveHandler(m_interleave, m_panelHeight, m_panelWidth, m_panelScan);
+        }
     } else {
         m_handler = new NoInterleaveHandler();
     }
