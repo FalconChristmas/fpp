@@ -81,6 +81,7 @@ static long ddpLastChannel = 0;
 
 static unsigned long e131Errors = 0;
 static unsigned long e131SyncPackets = 0;
+static UniverseEntry unknownUniverse;
 
 // prototypes for functions below
 bool Bridge_StoreData(char *bridgeBuffer);
@@ -378,7 +379,11 @@ bool Bridge_StoreData(char *bridgeBuffer)
             InputUniverses[universeIndex].bytesReceived += InputUniverses[universeIndex].size;
             InputUniverses[universeIndex].packetsReceived++;
         } else {
-            e131Errors++;
+            unknownUniverse.packetsReceived++;
+            int len = bridgeBuffer[16] & 0xF;
+            len <<= 8;
+            len += bridgeBuffer[17];
+            unknownUniverse.bytesReceived += len;
             LogDebug(VB_E131BRIDGE, "Received data packet for unconfigured universe %d\n", universe);
         }
     } else if (bridgeBuffer[E131_VECTOR_INDEX] == VECTOR_ROOT_E131_EXTENDED) {
@@ -550,6 +555,30 @@ Json::Value GetE131UniverseBytesReceived()
         er << e131Errors;
         std::string errors = er.str();
         universe["errors"] = errors;
+        
+        universes.append(universe);
+    }
+    if (unknownUniverse.packetsReceived) {
+        Json::Value universe;
+        
+        universe["id"] = "Ignored";
+        universe["startChannel"] = "-";
+        
+        std::stringstream er;
+        er << e131Errors;
+        std::string errors = er.str();
+
+        std::stringstream ss;
+        ss << unknownUniverse.bytesReceived;
+        std::string bytesReceived = ss.str();
+        universe["bytesReceived"] = bytesReceived;
+
+        std::stringstream pr;
+        pr << unknownUniverse.packetsReceived;
+        std::string packetsReceived = pr.str();
+        universe["packetsReceived"] = packetsReceived;
+        
+        universe["errors"] = "-";
         
         universes.append(universe);
     }
