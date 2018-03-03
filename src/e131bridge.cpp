@@ -79,6 +79,9 @@ static unsigned long ddpErrors = 0;
 static long ddpLastSequence = 0;
 static long ddpLastChannel = 0;
 
+static unsigned long e131Errors = 0;
+static unsigned long e131SyncPackets = 0;
+
 // prototypes for functions below
 bool Bridge_StoreData(char *bridgeBuffer);
 bool Bridge_StoreDDPData(char *bridgeBuffer);
@@ -355,8 +358,7 @@ bool Bridge_StoreData(char *bridgeBuffer)
     if (bridgeBuffer[E131_VECTOR_INDEX] == VECTOR_ROOT_E131_DATA) {
         int universe = ((int)bridgeBuffer[E131_UNIVERSE_INDEX] << 8) + bridgeBuffer[E131_UNIVERSE_INDEX + 1];
         int universeIndex = Bridge_GetIndexFromUniverseNumber(universe);
-        if(universeIndex!=BRIDGE_INVALID_UNIVERSE_INDEX)
-        {
+        if(universeIndex != BRIDGE_INVALID_UNIVERSE_INDEX) {
             int sn = bridgeBuffer[E131_SEQUENCE_INDEX];
             if (InputUniverses[universeIndex].packetsReceived != 0) {
                 if (InputUniverses[universeIndex].lastSequenceNumber == 255) {
@@ -375,11 +377,20 @@ bool Bridge_StoreData(char *bridgeBuffer)
                    InputUniverses[universeIndex].size);
             InputUniverses[universeIndex].bytesReceived += InputUniverses[universeIndex].size;
             InputUniverses[universeIndex].packetsReceived++;
+        } else {
+            e131Errors++;
+            LogDebug(VB_E131BRIDGE, "Received data packet for unconfigured universe %d\n", universe);
         }
     } else if (bridgeBuffer[E131_VECTOR_INDEX] == VECTOR_ROOT_E131_EXTENDED) {
         if (bridgeBuffer[E131_EXTENDED_PACKET_TYPE_INDEX] == VECTOR_E131_EXTENDED_SYNCHRONIZATION) {
+            e131SyncPackets++;
             return true;
         }
+        e131Errors++;
+        LogDebug(VB_E131BRIDGE, "Unknown e1.31 extended packet type %d\n", (int)bridgeBuffer[E131_EXTENDED_PACKET_TYPE_INDEX]);
+    } else {
+        e131Errors++;
+        LogDebug(VB_E131BRIDGE, "Unknown e1.31 packet type %d\n", (int)bridgeBuffer[E131_VECTOR_INDEX]);
     }
     return false;
 }
@@ -468,6 +479,7 @@ void ResetBytesReceived()
     ddpBytesReceived = 0;
     ddpPacketsReceived = 0;
     ddpErrors = 0;
+    e131Errors = 0;
 }
 
 Json::Value GetE131UniverseBytesReceived()
@@ -526,6 +538,37 @@ Json::Value GetE131UniverseBytesReceived()
 
 		universes.append(universe);
 	}
+    if (e131Errors) {
+        Json::Value universe;
+        
+        universe["id"] = "E1.31 Errors";
+        universe["startChannel"] = "-";
+        universe["bytesReceived"] = "-";
+        universe["packetsReceived"] = "-";
+        
+        std::stringstream er;
+        er << e131Errors;
+        std::string errors = er.str();
+        universe["errors"] = errors;
+        
+        universes.append(universe);
+    }
+    if (e131SyncPackets) {
+        Json::Value universe;
+        
+        universe["id"] = "E1.31 Sync";
+        universe["startChannel"] = "-";
+        universe["bytesReceived"] = "-";
+
+        std::stringstream er;
+        er << e131SyncPackets;
+        std::string sync = er.str();
+        universe["packetsReceived"] = sync;
+        
+        universe["errors"] = "-";
+        
+        universes.append(universe);
+    }
     
 	result["universes"] = universes;
 
