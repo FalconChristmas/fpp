@@ -28,7 +28,6 @@
 
 #include "common.h"
 #include "log.h"
-#include "MultiSync.h"
 #include "RGBMatrix.h"
 #include "settings.h"
 
@@ -139,8 +138,6 @@ int RGBMatrixOutput::Init(Json::Value config)
 
 		return 0;
 	}
-
-	MultiSyncSystem sysInfo = multiSync->GetLocalSystemInfo();
 
 	int gpioSlowdown = 1;
 	if (config.isMember("gpioSlowdown"))
