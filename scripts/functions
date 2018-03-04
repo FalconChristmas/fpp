@@ -671,7 +671,7 @@ setupChannelOutputs() {
 	if  [ "${FPPPLATFORM}" = "Raspberry Pi" ]
 	then
 		# Check for RGBMatrix channel output
-		cat ${FPPHOME}/media/config/channeloutputs.json 2> /dev/null | tr -d "\r\n" | egrep -q 'LEDPanelMatrix",[ 	a-zA-Z0-9:",]*"enabled": 1'
+		cat ${FPPHOME}/media/config/channeloutputs.json 2> /dev/null | tr -d "\r\n" | egrep -q 'RGBMatrix",[ 	a-zA-Z0-9:",]*"enabled": 1'
 		RGBMatrix=$?
 
 		# RPIWS281X and onboard sound are incompatible
@@ -695,24 +695,6 @@ setupChannelOutputs() {
 				modprobe snd-bcm2835
 			fi
 		fi
-
-		# Link in desired version of RGBMatrix library
-		PINOUT=$(cat ${FPPHOME}/media/config/channeloutputs.json 2> /dev/null | tr -d "\r\n" | sed -e 's/.*LEDPanelMatrix",[      a-zA-Z0-9:",]*"enabled": 1//' -e 's/.*"wiringPinout": "//' -e 's/".*//')
-		rm ${FPPDIR}/lib/librgbmatrix.so
-		case ${PINOUT} in
-			Standard)
-				ln -s ${FPPDIR}/lib/librgbmatrix_Standard.so ${FPPDIR}/lib/librgbmatrix.so
-				;;
-			Classic)
-				ln -s ${FPPDIR}/lib/librgbmatrix_Classic.so ${FPPDIR}/lib/librgbmatrix.so
-				;;
-			Adafruit)
-				ln -s ${FPPDIR}/lib/librgbmatrix_Adafruit.so ${FPPDIR}/lib/librgbmatrix.so
-				;;
-			*)
-				ln -s ${FPPDIR}/lib/librgbmatrix_Standard.so ${FPPDIR}/lib/librgbmatrix.so
-				;;
-		esac
 	fi
 
 	startOLADaemonIfNecessary

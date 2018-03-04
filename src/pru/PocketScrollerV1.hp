@@ -181,19 +181,25 @@
 .endm
 
 .macro OUTPUT_ROW_ADDRESS
-/*
-    LSL out_set, row, gpio_sel0
-    MOV out_clr, GPIO_SEL_MASK
-    AND out_set, out_set, out_clr // ensure no extra bits
-    XOR out_clr, out_clr, out_set // complement the bits into clr
-    SBBO out_clr, gpio_base_cache, GPIO_CLRDATAOUT, 8 // set both
-*/
 
+#ifdef ADDRESSING_AB
+    MOV out_set, 0;
+    QBEQ DO_ROW0, row, 0
+        CLR r30, gpio_sel1
+        SET r30, gpio_sel0
+        JMP DONE_OUTPUT_ROW
+    DO_ROW0:
+        CLR r30, gpio_sel0
+        SET r30, gpio_sel1
+    DONE_OUTPUT_ROW:
+#else
     LSL out_set, row, pru_sel0
     MOV out_clr, PRU_SEL_MASK
     NOT out_clr, out_clr
     AND r30, r30, out_clr // clear the address bits
     OR  r30, r30, out_set // set the address bits
+#endif
+
 .endm
 
 
