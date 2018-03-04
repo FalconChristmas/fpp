@@ -189,11 +189,21 @@ MultiSyncSystemType MultiSync::ModelStringToType(std::string model)
 		return kSysTypeFPPRaspberryPiZero;
 	if (boost::starts_with(model, "Raspberry Pi Zero W"))
 		return kSysTypeFPPRaspberryPiZeroW;
-	if (boost::algorithm::contains(model, "BeagleBone Black"))
-		return kSysTypeFPPBeagleBoneBlack;
-	if (boost::starts_with(model, "Green Wireless"))
-		return kSysTypeFPPBeagleBoneGreenWireless;
-	if (boost::starts_with(model, "PocketBeagle"))
+    if (boost::starts_with(model, "SanCloud BeagleBone Enhanced"))
+        return kSysTypeFPPSanCloudBeagleBoneEnhanced;
+    if (boost::algorithm::contains(model, "BeagleBone Black")) {
+        if (boost::algorithm::contains(model, "Wireless")) {
+            return kSysTypeFPPBeagleBoneBlackWireless;
+        }
+        return kSysTypeFPPBeagleBoneBlack;
+    }
+    if (boost::algorithm::contains(model, "BeagleBone Green")) {
+        if (boost::algorithm::contains(model, "Wireless")) {
+            return kSysTypeFPPBeagleBoneGreenWireless;
+        }
+        return kSysTypeFPPBeagleBoneGreen;
+    }
+	if (boost::algorithm::contains(model, "PocketBeagle"))
 		return kSysTypeFPPPocketBeagle;
 	// FIXME, fill in the rest of the types
 
@@ -313,6 +323,12 @@ std::string MultiSync::GetTypeString(MultiSyncSystemType type)
 		case kSysTypeFalconController:        return "Falcon Controller";
 		case kSysTypeOtherSystem:             return "Other Unknown System";
 		case kSysTypexLights:                 return "xLights";
+        case kSysTypeFPPBeagleBoneBlack:      return "BeagleBone Black";
+        case kSysTypeFPPBeagleBoneBlackWireless: return "BeagleBone Black Wireless";
+        case kSysTypeFPPBeagleBoneGreen:      return "BeagleBone Green";
+        case kSysTypeFPPBeagleBoneGreenWireless: return "BeagleBone Green Wireless";
+        case kSysTypeFPPPocketBeagle:         return "PocketBeagle";
+        case kSysTypeFPPSanCloudBeagleBoneEnhanced: return "SanCloud BeagleBone Enhanced";
 		default:                              return "Unknown System Type";
 	}
 }

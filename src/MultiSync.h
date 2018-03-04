@@ -93,6 +93,7 @@ typedef enum systemType {
 	kSysTypeFPPBeagleBoneGreen,
 	kSysTypeFPPBeagleBoneGreenWireless,
 	kSysTypeFPPPocketBeagle,
+    kSysTypeFPPSanCloudBeagleBoneEnhanced,
 	kSysTypeFalconController             = 0x80,
 	kSysTypeFalconF16v2                  = 0x81,
 	kSysTypeFalconF16v3                  = 0x82,

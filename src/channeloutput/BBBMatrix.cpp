@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <string>
 
 #include "BBBMatrix.h"
 #include "BBBUtils.h"
@@ -115,15 +116,25 @@ void BBBMatrix::calcBrightnessFlags(std::vector<std::string> &sargs) {
         max = v2Timings[m_outputs-1][m_longestChain-1];
     }
     
+    //timings are based on 32 pixel wide panels
+    max *= m_panelWidth;
+    max /= 32;
+    
     // 1/4 scan we need to double the time since we have twice the number of pixels to clock out
     max *= m_panelHeight;
     max /= (m_panelScan * 2);
+
+    if (max < 0x4000) {
+        //boost up a bit more
+        max *= 2;
+    }
+    
     uint32_t origMax = max;
-    if (max < 0x2500) {
+    if (max < 0x3500) {
         //if max is too low, the low bit time is too short and
         //extra ghosting occurs
         // At this point, framerate will be supper high anyway >100fps
-        max = 0x2500;
+        max = 0x3500;
     }
     uint32_t origMax2 = max;
 
@@ -186,6 +197,81 @@ void BBBMatrix::calcBrightnessFlags(std::vector<std::string> &sargs) {
     }
 }
 
+class InterleaveHandler {
+protected:
+    InterleaveHandler() {}
+    
+public:
+    virtual ~InterleaveHandler() {}
+
+    virtual void mapRow(int &y) = 0;
+    virtual void mapCol(int y, int &x) = 0;
+
+private:
+};
+
+class NoInterleaveHandler : public InterleaveHandler {
+public:
+    NoInterleaveHandler() {}
+    virtual ~NoInterleaveHandler() {}
+    
+    virtual void mapRow(int &y) {}
+    virtual void mapCol(int y, int &x) {}
+};
+class SimpleInterleaveHandler : public InterleaveHandler {
+public:
+    SimpleInterleaveHandler(int interleave, int ph, int pw, int ps)
+        : InterleaveHandler(), m_interleave(interleave), m_panelHeight(ph), m_panelWidth(pw), m_panelScan(ps) {}
+    virtual ~SimpleInterleaveHandler() {}
+
+    virtual void mapRow(int &y) {
+        while (y >= m_panelScan) {
+            y -= m_panelScan;
+        }
+    }
+    virtual void mapCol(int y, int &x) {
+        int whichInt = x / m_interleave;
+        int offInInt = x % m_interleave;
+        int mult = (m_panelHeight / m_panelScan / 2) - 1 - y / m_panelScan;
+        x = m_interleave * (whichInt * m_panelHeight / m_panelScan / 2 + mult)  + offInInt;
+    }
+    
+private:
+    const int m_interleave;
+    const int m_panelWidth;
+    const int m_panelHeight;
+    const int m_panelScan;
+};
+
+class ZigZagInterleaveHandler : public InterleaveHandler {
+public:
+    ZigZagInterleaveHandler(int interleave, int ph, int pw, int ps)
+        : InterleaveHandler(), m_interleave(interleave), m_panelHeight(ph), m_panelWidth(pw), m_panelScan(ps) {}
+    virtual ~ZigZagInterleaveHandler() {}
+    
+    virtual void mapRow(int &y) {
+        while (y >= m_panelScan) {
+            y -= m_panelScan;
+        }
+    }
+    virtual void mapCol(int y, int &x) {
+        int whichInt = x / m_interleave;
+        int offInInt = x % m_interleave;
+        int mult = y / m_panelScan;
+        
+        if ((y & 0x2) == 0) {
+            offInInt = m_interleave - 1 - offInInt;
+        }
+        
+        x = m_interleave * (whichInt * m_panelHeight / m_panelScan / 2 + mult)  + offInInt;
+    }
+    
+private:
+    const int m_interleave;
+    const int m_panelWidth;
+    const int m_panelHeight;
+    const int m_panelScan;
+};
 
 
 BBBMatrix::BBBMatrix(unsigned int startChannel, unsigned int channelCount)
@@ -196,7 +282,6 @@ BBBMatrix::BBBMatrix(unsigned int startChannel, unsigned int channelCount)
 	m_panelMatrix(nullptr),
     m_outputs(0),
     m_outputFrame(nullptr),
-    m_tmpFrame(nullptr),
     m_longestChain(0),
     m_panelWidth(32),
     m_panelHeight(16),
@@ -206,7 +291,8 @@ BBBMatrix::BBBMatrix(unsigned int startChannel, unsigned int channelCount)
     m_interleave(0),
     m_panelScan(8),
     m_pinout(V1),
-    m_printStats(false)
+    m_printStats(false),
+    m_handler(nullptr)
 {
 	LogDebug(VB_CHANNELOUT, "BBBMatrix::BBBMatrix(%u, %u)\n",
 		startChannel, channelCount);
@@ -216,9 +302,9 @@ BBBMatrix::~BBBMatrix()
 {
     LogDebug(VB_CHANNELOUT, "BBBMatrix::~BBBMatrix()\n");
     if (m_outputFrame) delete [] m_outputFrame;
-    if (m_tmpFrame) delete [] m_tmpFrame;
     if (m_pru) delete m_pru;
     if (m_pruCopy) delete m_pruCopy;
+    if (m_handler) delete m_handler;
 }
 
 int BBBMatrix::Init(Json::Value config)
@@ -233,6 +319,8 @@ int BBBMatrix::Init(Json::Value config)
     if (!m_panelHeight)
         m_panelHeight = 16;
 
+    int addressingType = config["panelAddressing"].asInt();
+    
     m_invertedData = config["invertedData"].asInt();
     m_colorOrder = ColorOrderFromString(config["colorOrder"].asString());
 
@@ -285,8 +373,17 @@ int BBBMatrix::Init(Json::Value config)
     if (m_colorDepth > 8 || m_colorDepth < 6) {
         m_colorDepth = 8;
     }
+    bool zigZagInterleave = false;
     if (config.isMember("panelInterleave")) {
-        m_interleave = config["panelInterleave"].asInt();
+        if (config["panelInterleave"].asString() == "8z") {
+            m_interleave = 8;
+            zigZagInterleave = true;
+        } else if (config["panelInterleave"].asString() == "16z") {
+            m_interleave = 16;
+            zigZagInterleave = true;
+        } else {
+            m_interleave = std::stoi(config["panelInterleave"].asString());
+        }
     } else {
         m_interleave = 0;
     }
@@ -319,7 +416,6 @@ int BBBMatrix::Init(Json::Value config)
     
     m_rowSize = m_longestChain * m_panelWidth * 3;
     m_outputFrame = new uint8_t[m_outputs * m_longestChain * m_panelHeight * m_panelWidth * 3];
-    m_tmpFrame = new uint8_t[m_outputs * m_longestChain * m_panelHeight * m_panelWidth * 3];
 
     std::vector<std::string> compileArgs;
     
@@ -352,6 +448,11 @@ int BBBMatrix::Init(Json::Value config)
     sprintf(buf, "-DROW_LEN=%d", tmp);
     compileArgs.push_back(buf);
 
+    if (addressingType == 1) {
+        // 1/2 scan panel that uses 2 bits, bit one for scan row 1 and bit two for row 2
+        // Normal addressing would be 1 bit, 0 for row 1, 1 for row 2
+        compileArgs.push_back("-DADDRESSING_AB=1");
+    }
     
     calcBrightnessFlags(compileArgs);
     if (m_printStats) {
@@ -379,6 +480,16 @@ int BBBMatrix::Init(Json::Value config)
     
     m_pruCopy->run("/tmp/FalconMatrixPRUCpy.bin");
     m_pru->run(pru_program);
+    
+    if (m_interleave && ((m_panelScan * 2) != m_panelHeight)) {
+        if (zigZagInterleave) {
+            m_handler = new ZigZagInterleaveHandler(m_interleave, m_panelHeight, m_panelWidth, m_panelScan);
+        } else {
+            m_handler = new SimpleInterleaveHandler(m_interleave, m_panelHeight, m_panelWidth, m_panelScan);
+        }
+    } else {
+        m_handler = new NoInterleaveHandler();
+    }
     
     return ChannelOutputBase::Init(config);
 }
@@ -454,7 +565,7 @@ void BBBMatrix::PrepData(unsigned char *channelData)
 
     channelData += m_startChannel; // FIXME, this function gets offset 0
     
-    size_t rowLen = m_panelWidth * m_longestChain * m_outputs * 3 * 2;
+    size_t rowLen = m_panelWidth * m_longestChain * m_outputs * 3 * 2 * m_panelHeight / (m_panelScan * 2);
     rowLen /= 8;
     
     memset(m_outputFrame, 0, m_outputs * m_longestChain * m_panelHeight * m_panelWidth * 3);
@@ -469,7 +580,11 @@ void BBBMatrix::PrepData(unsigned char *channelData)
                 int yw1 = y * m_panelWidth * 3;
                 int yw2 = (y + (m_panelHeight / 2)) * m_panelWidth * 3;
 
-                int offset = y * rowLen * m_colorDepth + output * 2 * 3 + (m_longestChain - chain - 1) * m_panelWidth/8 * m_outputs * 3 * 2;
+                
+                int yOut = y;
+                m_handler->mapRow(yOut);
+                int offset = yOut * rowLen * m_colorDepth + output * 2 * 3
+                    + (m_longestChain - chain - 1) * m_panelWidth/8 * m_outputs * 3 * 2 * m_panelHeight / (m_panelScan * 2);
                 
                 for (int x = 0; x < m_panelWidth; ++x) {
                     uint8_t r1 = mapColor(channelData[m_panelMatrix->m_panels[panel].pixelMap[yw1 + x*3]], m_colorDepth);
@@ -480,8 +595,11 @@ void BBBMatrix::PrepData(unsigned char *channelData)
                     uint8_t g2 = mapColor(channelData[m_panelMatrix->m_panels[panel].pixelMap[yw2 + x*3 + 1]], m_colorDepth);
                     uint8_t b2 = mapColor(channelData[m_panelMatrix->m_panels[panel].pixelMap[yw2 + x*3 + 2]], m_colorDepth);
 
-                    int bitPos = 1 << (x % 8);
-                    int xOff = x / 8 * (m_outputs * 2 * 3);
+                    
+                    int xOut = x;
+                    m_handler->mapCol(y, xOut);
+                    int bitPos = 1 << (xOut % 8);
+                    int xOff = xOut / 8 * (m_outputs * 2 * 3);
                     
                     for (int bit = 8; bit > (8-m_colorDepth); ) {
                         --bit;
@@ -509,31 +627,6 @@ void BBBMatrix::PrepData(unsigned char *channelData)
                 }
             }
         }
-    }
-    
-    if ((m_panelScan * 2) != m_panelHeight) {
-        //need to interleave the data, we'll do it by copying blocks to tmpFrame
-        //as needed then swap.  This only supports interleaves that are divisible by 8
-        //due to the bit packing
-        int blockSize = m_interleave * m_outputs * 3 * 2 / 8;
-        size_t totalSize = m_outputs * m_longestChain * m_panelHeight * m_panelWidth * 3;
-        size_t fullRowSize = m_outputs * m_longestChain * m_panelWidth * 3 * 2 * m_colorDepth / 8;
-        size_t offsetToNextBlock = fullRowSize * m_panelScan;
-        
-        //printf("%d  %d  %d  %d\n", blockSize, fullRowSize, offsetToNextBlock, totalSize);
-        
-        memset(m_tmpFrame, 0, totalSize);
-        int curOut = 0;
-        int curIn = 0;
-        while (curOut < totalSize) {
-            memcpy(&m_tmpFrame[curOut], &m_outputFrame[curIn + offsetToNextBlock], blockSize);
-            curOut += blockSize;
-            memcpy(&m_tmpFrame[curOut], &m_outputFrame[curIn], blockSize);
-            curIn += blockSize;
-            curOut += blockSize;
-        }
-        
-        std::swap(m_tmpFrame, m_outputFrame);
     }
 }
 int BBBMatrix::RawSendData(unsigned char *channelData)

@@ -56,6 +56,7 @@ class RGBMatrixOutput : public ChannelOutputBase {
   private:
 	GPIO        *m_gpio;
 	Canvas      *m_canvas;
+	RGBMatrix   *m_rgbmatrix;
 	std::string  m_layout;
 	std::string  m_colorOrder;
 

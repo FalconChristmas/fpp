@@ -32,6 +32,8 @@
 #define MAX_STATS 16 * 8
 
 
+class InterleaveHandler;
+
 // structure of the data at the start of the PRU ram
 // that the pru program expects to see
 typedef struct {
@@ -89,7 +91,6 @@ class BBBMatrix : public ChannelOutputBase {
     FPPColorOrder m_colorOrder;
 
     uint8_t      *m_outputFrame;
-    uint8_t      *m_tmpFrame;
     int          m_panels;
     int          m_rows;
     int          m_width;
@@ -99,7 +100,8 @@ class BBBMatrix : public ChannelOutputBase {
     bool         m_evenFrame;
     
     ScollerPinout m_pinout;
-
+    InterleaveHandler *m_handler;
+    
     uint32_t     brightnessValues[8];
     uint32_t     delayValues[8];
 };

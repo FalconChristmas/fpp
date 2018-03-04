@@ -230,10 +230,8 @@ tr.rowUniverseDetails td
 				<li><a href="channeloutput_f16v2.php">F16 v2</a></li>
 -->
 <?
-	$LEDPanelType = "RGBMatrix";
 	if ($settings['Platform'] == "BeagleBone Black")
 	{
-		$LEDPanelType = "LEDscape/Octoscroller";
 		echo "<li><a href='#tab-BBB48String'>BBB Strings</a></li>\n";
 	}
 

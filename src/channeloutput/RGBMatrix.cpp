@@ -24,6 +24,7 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
 
 #include "common.h"
 #include "log.h"
@@ -43,6 +44,7 @@ RGBMatrixOutput::RGBMatrixOutput(unsigned int startChannel,
   : ChannelOutputBase(startChannel, channelCount),
 	m_gpio(NULL),
 	m_canvas(NULL),
+	m_rgbmatrix(NULL),
 	m_colorOrder("RGB"),
 	m_panelWidth(32),
 	m_panelHeight(16),
@@ -65,6 +67,7 @@ RGBMatrixOutput::~RGBMatrixOutput()
 {
 	LogDebug(VB_CHANNELOUT, "RGBMatrixOutput::~RGBMatrixOutput()\n");
 
+	delete m_rgbmatrix;
 	delete m_matrix;
 	delete m_panelMatrix;
 }
@@ -136,8 +139,11 @@ int RGBMatrixOutput::Init(Json::Value config)
 		return 0;
 	}
 
-	// 0 for slower systems, possibly 2 for faster systems or slower panels
-	if (!m_gpio->Init(1))
+	int gpioSlowdown = 1;
+	if (config.isMember("gpioSlowdown"))
+		gpioSlowdown = config["gpioSlowdown"].asInt();
+
+	if (!m_gpio->Init(gpioSlowdown))
 	{
 		LogErr(VB_CHANNELOUT, "GPIO->Init() failed\n");
 
@@ -152,10 +158,26 @@ int RGBMatrixOutput::Init(Json::Value config)
 
 	m_channelCount = m_width * m_height * 3;
 
-	m_canvas = new RGBMatrix(m_gpio, m_rows, m_longestChain, m_outputs);
-	if (!m_canvas)
+	RGBMatrix::Options options;
+
+	if (config["wiringPinout"].asString() != "")
+		options.hardware_mapping = strdup(config["wiringPinout"].asString().c_str());
+
+	options.chain_length = m_longestChain;
+	options.parallel = m_outputs;
+	options.rows = m_panelHeight;
+	options.cols = m_panelWidth;
+	options.pwm_bits = 8;
+
+	if (config.isMember("brightness"))
+		options.brightness = config["brightness"].asInt();
+	else
+		options.brightness = 100;
+
+	m_rgbmatrix = new RGBMatrix(m_gpio, options);
+	if (!m_rgbmatrix)
 	{
-		LogErr(VB_CHANNELOUT, "Unable to create Canvas instance\n");
+		LogErr(VB_CHANNELOUT, "Unable to create RGBMatrix instance\n");
 
 		delete m_gpio;
 		m_gpio = NULL;
@@ -163,13 +185,7 @@ int RGBMatrixOutput::Init(Json::Value config)
 		return 0;
 	}
 
-	RGBMatrix *rgbmatrix = reinterpret_cast<RGBMatrix*>(m_canvas);
-	rgbmatrix->SetPWMBits(8);
-
-	if (config.isMember("brightness"))
-		rgbmatrix->SetBrightness(config["brightness"].asInt());
-	else
-		rgbmatrix->SetBrightness(100);
+	m_canvas = reinterpret_cast<Canvas*>(m_rgbmatrix);
 
 	m_matrix = new Matrix(m_startChannel, m_width, m_height);
 
