@@ -85,8 +85,8 @@ const int ILI_dataPins[8] = { ILI_PIN_D1, ILI_PIN_D2, ILI_PIN_D3, ILI_PIN_D4, IL
 ILI9488Output::ILI9488Output(unsigned int startChannel, unsigned int channelCount)
   : ChannelOutputBase(startChannel, channelCount),
 	m_initialized(0),
-	m_rows(320),
-	m_cols(480),
+	m_rows(480),
+	m_cols(320),
 	m_pixels(0),
 	m_bpp(24),
 	m_gpio_map(NULL),
@@ -110,6 +110,8 @@ ILI9488Output::~ILI9488Output()
 {
 	LogDebug(VB_CHANNELOUT, "ILI9488Output::~ILI9488Output()\n");
 }
+
+/////////////////////////////////////////////////////////////////////////////
 
 /*
  *
@@ -212,7 +214,7 @@ void ILI9488Output::ILI9488_Init(void)
 	}
 	LogDebug(VB_CHANNELOUT, "Opened /dev/gpiomem, mem_fd = %d\n", mem_fd);
 
-	off_t peri_base = 0x200000;
+	off_t gpio_base = 0x200000;
 
 	m_gpio_map = mmap(
 		NULL,             //Any adddress in our space will do
@@ -220,7 +222,7 @@ void ILI9488Output::ILI9488_Init(void)
 		PROT_READ|PROT_WRITE,// Enable reading & writting to mapped memory
 		MAP_SHARED,       //Shared with other processes
 		mem_fd,           //File to map
-		peri_base         //Offset to GPIO peripheral
+		gpio_base         //Offset to GPIO peripheral
 	);
 
 	close(mem_fd); //No need to keep mem_fd open after mmap
@@ -254,35 +256,22 @@ void ILI9488Output::ILI9488_Init(void)
 		}
 	}
 
-	GPIO_SET = 1 << ILI_PIN_CSX;
-	usleep(10000);
-	GPIO_CLR = 1 << ILI_PIN_CSX;
+	m_clearWRXDataBits = (1 << ILI_PIN_WRX) | ILI_dataBits;
+	m_bitWRX = 1 << ILI_PIN_WRX;
+	m_bitDCX = 1 << ILI_PIN_DCX;
 
-//	ILI9488_Command(0xe9); // Interface mode control ("Set Image Func" according to PDF)
-//	ILI9488_Data(0x20);    // This isn't valid according to the spec PDF
+	GPIO_CLR = 1 << ILI_PIN_CSX;
 
 	ILI9488_Command(0x11); // Exit sleep
 	usleep(100000);
 
-	ILI9488_Command(0x01); // Software Reset
-	usleep(150000);
+//	ILI9488_Command(0x01); // Software Reset
+//	usleep(150000);
 
-	ILI9488_Command( 0x13 );     // Normal Display Mode
-
-#if 0
-	ILI9488_Command(0xd1); // VCOM Control
-	ILI9488_Data(0x00);    //     SEL/VCM
-	ILI9488_Data(0x0C);    //     VCM
-	ILI9488_Data(0x0F);    //     VDV
-
-	ILI9488_Command(0xd0); // Power_Setting
-	ILI9488_Data(0x07);    //     VC
-	ILI9488_Data(0x04);    //     BT
-	ILI9488_Data(0x00);    //     VRH
-#endif
+//	ILI9488_Command(0x13); // Normal Display Mode
 
 	ILI9488_Command(0x36); // Memory Access Control
-	ILI9488_Data(0b01001000); // 0x48 in binary
+	ILI9488_Data(0b10001000); // RGB with top closest to Pi GPIO connector
 	//ILI9488_Data(0x48);
 	// 0x48 = 0b01001000
 	// 0 - Row Address Order (vertical flip of frame data)
@@ -328,77 +317,25 @@ void ILI9488Output::ILI9488_Init(void)
 	ILI9488_Data(0x37);
 	ILI9488_Data(0x0F);
 
-	ILI9488_Command(0xB1);       // Set the frame rate
-//	ILI9488_Data(0xB0);          // 68.36hz (tear off, 65.65 tear on)
-//	ILI9488_Data(0x11);
-	ILI9488_Data(0x00);          // As low as it will go
+	ILI9488_Command(0xB1); // Frame Rate
+	ILI9488_Data(0x00);    // as low as it can go, ~28hz
 
-//	ILI9488_Command(0xB4);       // Display Inversion Control (bitmask)
-//	ILI9488_Data(0x02);          // 2-dot inversion
-	//ILI9488_Data(0x01);          // 1-dot inversion
-
-//	ILI9488_Command(0xF7);       // Adjust Control 3
-//	ILI9488_Data(0xA9);          // fixed value from doc
-//	ILI9488_Data(0x51);          // fixed value from doc
-//	ILI9488_Data(0x2C);          // fixed value from doc
-//	ILI9488_Data(0x82);          // only most sig bit can change
-
-	ILI9488_Command(0xB0);       // Interface mode control
+	ILI9488_Command(0xB0); // Interface mode control
 	ILI9488_Data(0x00);
 
-	ILI9488_Command( 0x3A );     // Set pixel format
+	ILI9488_Command(0x3A); // Set pixel format
 
 	if (m_bpp == 16)
-		ILI9488_Data( 0x05 );        // 16bpp
+		ILI9488_Data(0x55); // 16bpp RGB565
 	else
-		ILI9488_Data( 0x06 );        // 18bpp display (sent as 24bpp data)
-
-#if 0
-	ILI9488_Command( 0xC0 );     // Power Control 1
-	ILI9488_Data( 0x18 );
-	ILI9488_Data( 0x16 );
-
-	ILI9488_Command( 0xC1 );     // Power Control 2
-	ILI9488_Data( 0x41 );
-
-	ILI9488_Command( 0xC5 );     // Set VCOM voltage
-	ILI9488_Data( 0x00 );
-	ILI9488_Data( 0x1E );
-	ILI9488_Data( 0x80 );
-
-	ILI9488_Command( 0xD2 );     // NV Memory Status Read
-	ILI9488_Data( 0x01 );
-	ILI9488_Data( 0x44 );
-#endif
-
-//	ILI9488_Command( 0xC8 );     // CBAC Control 2 (should have only 1 data)
-//	ILI9488_Data( 0x04 );
-//	ILI9488_Data( 0x67 );
-//	ILI9488_Data( 0x35 );
-//	ILI9488_Data( 0x04 );
-//	ILI9488_Data( 0x08 );
-//	ILI9488_Data( 0x06 );
-//	ILI9488_Data( 0x24 );
-//	ILI9488_Data( 0x01 );
-//	ILI9488_Data( 0x37 );
-//	ILI9488_Data( 0x40 );
-//	ILI9488_Data( 0x03 );
-//	ILI9488_Data( 0x10 );
-//	ILI9488_Data( 0x08 );
-//	ILI9488_Data( 0x80 );
-//	ILI9488_Data( 0x00 );
+		ILI9488_Data(0x66); // 18bpp (24bpp w/ lower 2bpp bits ignored)
 
 	SetRegion(0, 0, m_cols - 1, m_rows - 1);
 
-	ILI9488_Command( 0x29 );        // Display on
+	ILI9488_Command( 0x29 ); //display on
 
-//	ILI9488_Command( 0x2C );        // Turn on Memory Write mode
-
-	m_clearWRXDataBits = (1 << ILI_PIN_WRX) | ILI_dataBits;
-	m_bitWRX = 1 << ILI_PIN_WRX;
-	m_bitDCX = 1 << ILI_PIN_DCX;
-
-	GPIO_CLR = m_bitDCX;
+	// Not sure if we need to do this twice or not, but sample python did
+	SetRegion(0, 0, m_cols - 1, m_rows - 1);
 
 	m_initialized = 1;
 
@@ -456,11 +393,12 @@ void ILI9488Output::ILI9488_Cleanup(void)
 inline
 void ILI9488Output::SetColumnRange(unsigned int x1, unsigned int x2)
 {
-	ILI9488_Command( 0x2B ); // Use 'row' setting here because we rotate display
+//	ILI9488_Command( 0x2B ); // Use 'row' setting here because we rotate display
+	ILI9488_Command( 0x2A );
 	ILI9488_Data( x1 >> 8 );
-	ILI9488_Data( x1 & 0x00FF );
+	ILI9488_Data( x1 );
 	ILI9488_Data( x2 >> 8 );
-	ILI9488_Data( x2 & 0x00FF );
+	ILI9488_Data( x2 );
 }
 
 /*
@@ -469,11 +407,12 @@ void ILI9488Output::SetColumnRange(unsigned int x1, unsigned int x2)
 inline
 void ILI9488Output::SetRowRange(unsigned int y1, unsigned int y2)
 {
-	ILI9488_Command( 0x2A ); // Use 'column' setting here because we rotate display
+//	ILI9488_Command( 0x2A ); // Use 'column' setting here because we rotate display
+	ILI9488_Command( 0x2B );
 	ILI9488_Data( y1 >> 8 );
-	ILI9488_Data( y1 & 0x00FF );
+	ILI9488_Data( y1 );
 	ILI9488_Data( y2 >> 8 );
-	ILI9488_Data( y2 & 0x00FF );
+	ILI9488_Data( y2 );
 }
 
 /*
