@@ -200,18 +200,21 @@ void *RunChannelOutputThread(void *data)
 
 		// Calculate how long we need to nanosleep()
 		long dt = (LightDelay - (GetTime() - startTime)) * 1000;
-        gettimeofday(&tv, NULL);
-        ts.tv_sec = tv.tv_sec;
-        ts.tv_nsec = tv.tv_usec * 1000 + dt;
-        
-        if (ts.tv_nsec >= 1000000000)
-        {
-            ts.tv_sec  += 1;
-            ts.tv_nsec -= 1000000000;
-        }
-        
-        if (pthread_cond_timedwait(&outputThreadCond, &outputThreadLock, &ts) != ETIMEDOUT) {
-            LogDebug(VB_CHANNELOUT, "Forced output");
+		if (dt > 0)
+		{
+			gettimeofday(&tv, NULL);
+			ts.tv_sec = tv.tv_sec;
+			ts.tv_nsec = tv.tv_usec * 1000 + dt;
+
+			if (ts.tv_nsec >= 1000000000)
+			{
+				ts.tv_sec  += 1;
+				ts.tv_nsec -= 1000000000;
+			}
+
+			if (pthread_cond_timedwait(&outputThreadCond, &outputThreadLock, &ts) != ETIMEDOUT) {
+				LogDebug(VB_CHANNELOUT, "Forced output\n");
+			}
         }
 	}
 
