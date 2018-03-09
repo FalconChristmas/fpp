@@ -602,6 +602,9 @@ EOF
 			sed -i -e "s/autologin pi/autologin fpp/" /etc/systemd/system/autologin@.service
 		fi
 
+		echo "FPP - Disabling auto mount of USB drives"
+		sed -i -e "s/ENABLED=1/ENABLED=0/" /etc/usbmount/usbmount.conf 2> /dev/null
+
 		echo "FPP - Disabling the hdmi force hotplug setting"
 		sed -i -e "s/hdmi_force_hotplug/#hdmi_force_hotplug/" /boot/config.txt
 
