@@ -328,6 +328,8 @@ extern PluginCallbackManager pluginCallbackManager;
 			}
 
 			ShutdownFPPD();
+
+			sleep(1);
 		}
 		else if (!strcmp(CommandStr, "e"))
 		{
