@@ -1,8 +1,11 @@
 
-
+#ifdef RUNNING_ON_PRU1
 #undef RUNNING_ON_PRU1
+#define RUNNING_ON_PRU0
+#else
 #undef RUNNING_ON_PRU0
 #define RUNNING_ON_PRU1
+#endif
 
 
 .origin 0

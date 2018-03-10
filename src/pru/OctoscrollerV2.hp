@@ -80,7 +80,13 @@
 #define b61_pin 16
 
 #define r62_gpio 2
+#ifdef E_SCAN_LINE
+//if E line is needed, output 6 is basically bogus
+//but we need to make sure pin 17 is not toggled
+#define r62_pin 1
+#else
 #define r62_pin 17
+#endif
 #define g62_gpio 1
 #define g62_pin 18
 #define b62_gpio 1
@@ -120,55 +126,55 @@
 #define gpio_sel1 14
 #define gpio_sel2 15
 #define gpio_sel3 16
-//#define gpio_sel4 17
+#define gpio_sel4 17
 
+#ifdef E_SCAN_LINE
+#define GPIO_SEL_MASK (0\
+|(1<<gpio_sel0)\
+|(1<<gpio_sel1)\
+|(1<<gpio_sel2)\
+|(1<<gpio_sel3)\
+|(1<<gpio_sel4)\
+)
+
+#else
 #define GPIO_SEL_MASK (0\
 |(1<<gpio_sel0)\
 |(1<<gpio_sel1)\
 |(1<<gpio_sel2)\
 |(1<<gpio_sel3)\
 )
+#endif
 
 // if using GPIO2 for these
-#define gpio_latch 7
-#define gpio_oe    6
+// #define gpio_latch 7
+// #define gpio_oe    6
 #define gpio_clock 8
 
 
+#define pru_latch 1
+#define pru_oe    0
+#define pru_clock 2
 
-
-// if using r30
-#define pru_r30_bit_latch 1
-#define pru_r30_bit_oe    0
-#define pru_r30_bit_clock 2
-
-#ifndef gpio_clock
-.macro CLOCK_HI
-    SET r30, pru_r30_bit_clock
-.endm
-
-.macro CLOCK_LO
-    CLR r30, pru_r30_bit_clock
-.endm
-#endif
 
 #ifndef gpio_latch
 .macro LATCH_HI
-    SET r30, pru_r30_bit_latch
+    READ_TO_FLUSH
+    SET r30, pru_latch
 .endm
 
 .macro LATCH_LO
-    CLR r30, pru_r30_bit_latch
+    CLR r30, pru_latch
 .endm
 #endif
 
 #ifndef gpio_oe
 .macro DISPLAY_OFF
-    SET r30, pru_r30_bit_oe
+    SET r30, pru_oe
 .endm
 
 .macro DISPLAY_ON
-    CLR r30, pru_r30_bit_oe
+    CLR r30, pru_oe
 .endm
 #endif
 
