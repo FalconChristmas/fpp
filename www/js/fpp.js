@@ -868,7 +868,8 @@ function RemovePlaylistEntry()	{
 			var url = "fppxml.php?command=getUniverses&reload=" + reload + "&input=" + input;
 			xmlhttp.open("GET",url,false);
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
- 			var innerHTML="";
+			var headHTML="";
+			var bodyHTML="";
 			UniverseCount = 0;
 
 			xmlhttp.onreadystatechange = function () {
@@ -878,7 +879,7 @@ function RemovePlaylistEntry()	{
 					var entries = xmlDoc.getElementsByTagName('UniverseEntries')[0];
 					if(entries.childNodes.length> 0)
 					{
-						innerHTML = "<tr class=\"tblheader\">" +  
+						headHTML = "<tr class=\"tblheader\">" +
 							"<th width=\"5%\" align='left'>Line<br>#</th>" +
 							"<th width=\"5%\" align='left'>Active</th>" +
 							"<th width=\"30%\" align='left'>Description</th>" +
@@ -911,35 +912,35 @@ function RemovePlaylistEntry()	{
 								var typeBroadcastArtNet = type == 2 ? "selected" : "";
 								var typeUnicastArtNet = type == 3 ? "selected": "";
 								
-								innerHTML += 	"<tr class=\"rowUniverseDetails\">" +
-								              "<td>" + (i+1).toString() + "</td>" +
-															"<td><input name=\"chkActive[" + i.toString() + "]\" id=\"chkActive[" + i.toString() + "]\" type=\"checkbox\" " + activeChecked +"/></td>" +
-															"<td><input name=\"txtDesc[" + i.toString() + "]\" id=\"txtDesc[" + i.toString() + "]\" type=\"text\" size=\"24\" maxlength=\"64\" value=\"" + desc + "\"/></td>" +
-															"<td><input name=\"txtStartAddress[" + i.toString() + "]\" id=\"txtStartAddress[" + i.toString() + "]\" type=\"text\" size=\"6\" maxlength=\"6\" value=\"" + startAddress.toString() + "\"/></td>" +
-															"<td><input name=\"txtUniverse[" + i.toString() + "]\" id=\"txtUniverse[" + i.toString() + "]\" type=\"text\" size=\"5\" maxlength=\"5\" value=\"" + universe.toString() + "\"/></td>" +
-															"<td><input name=\"txtSize[" + i.toString() + "]\" id=\"txtSize[" + i.toString() + "]\" type=\"text\"  size=\"3\"/  maxlength=\"3\"value=\"" + size.toString() + "\"></td>" +
+								bodyHTML += 	"<tr class=\"rowUniverseDetails\">" +
+								              "<td><span class='rowID'>" + (i+1).toString() + "</span></td>" +
+															"<td><input class='chkActive' type='checkbox' " + activeChecked +"/></td>" +
+															"<td><input class='txtDesc' type='text' size='24' maxlength='64' value='" + desc + "'/></td>" +
+															"<td><input class='txtStartAddress' type='text' size='6' maxlength='6' value='" + startAddress.toString() + "'/></td>" +
+															"<td><input class='txtUniverse' type='text' size='5' maxlength='5' value='" + universe.toString() + "'/></td>" +
+															"<td><input class='txtSize' type='text'  size='3'/  maxlength='3'value='" + size.toString() + "'></td>" +
 															
-															"<td><select id=\"universeType[" + i.toString() + "]\" name=\"universeType[" + i.toString() + "]\" style=\"width:150px\">";
+															"<td><select class='universeType' style='width:150px'>";
 
 								if (input)
 								{
-									innerHTML +=
-															      "<option value=\"0\" " + typeMulticastE131 + ">E1.31 - Multicast</option>" +
-															      "<option value=\"1\" " + typeUnicastE131 + ">E1.31 - Unicast</option>";
+									bodyHTML +=
+															      "<option value='0' " + typeMulticastE131 + ">E1.31 - Multicast</option>" +
+															      "<option value='1' " + typeUnicastE131 + ">E1.31 - Unicast</option>";
 								}
 								else
 								{
-									innerHTML +=
-															      "<option value=\"0\" " + typeMulticastE131 + ">E1.31 - Multicast</option>" +
-															      "<option value=\"1\" " + typeUnicastE131 + ">E1.31 - Unicast</option>" +
-															      "<option value=\"2\" " + typeBroadcastArtNet + ">ArtNet - Broadcast</option>" +
-															      "<option value=\"3\" " + typeUnicastArtNet + ">ArtNet - Unicast</option>";
+									bodyHTML +=
+															      "<option value='0' " + typeMulticastE131 + ">E1.31 - Multicast</option>" +
+															      "<option value='1' " + typeUnicastE131 + ">E1.31 - Unicast</option>" +
+															      "<option value='2' " + typeBroadcastArtNet + ">ArtNet - Broadcast</option>" +
+															      "<option value='3' " + typeUnicastArtNet + ">ArtNet - Unicast</option>";
 								}
 
-								innerHTML +=
+								bodyHTML +=
 																  "</select></td>" +
-															"<td " + inputStyle + "><input name=\"txtIP[" + i.toString() + "]\" id=\"txtIP[" + i.toString() + "]\" type=\"text\"/ value=\"" + unicastAddress + "\" size=\"15\" maxlength=\"32\"></td>" +
-															"<td " + inputStyle + "><input name=\"txtPriority[" + i.toString() + "]\" id=\"txtPriority[" + i.toString() + "]\" type=\"text\" size=\"4\" maxlength=\"4\" value=\"" + priority.toString() + "\"/></td>" +
+															"<td " + inputStyle + "><input class='txtIP' type='text' value='" + unicastAddress + "' size='15' maxlength='32'></td>" +
+															"<td " + inputStyle + "><input class='txtPriority' type='text' size='4' maxlength='4' value='" + priority.toString() + "'/></td>" +
 															"<td><input type=button onClick='PingE131IP(" + i.toString() + ");' value='Ping'></td>" +
 															"</tr>";
 
@@ -947,12 +948,15 @@ function RemovePlaylistEntry()	{
 					}
 					else
 					{
-						innerHTML = "No Results Found";	
+						bodyHTML = "No Results Found";
 					}
-					var results = document.getElementById("tblUniverses");
-					results.innerHTML = innerHTML;	
+
+					$('#tblUniversesHead').html(headHTML);
+					$('#tblUniversesBody').html(bodyHTML);
 
 					$('#txtUniverseCount').val(UniverseCount);
+
+					SetUniverseInputNames(); // in co-universes.php
 				}
 			};
 			
@@ -1013,7 +1017,27 @@ function RemovePlaylistEntry()	{
 			
 			xmlhttp.send();			
 		}
-		
+
+		function SetUniverseInputNames()
+		{
+			var fields = Array('chkActive', 'txtDesc', 'txtStartAddress',
+				'txtUniverse', 'txtSize', 'universeType', 'txtIP', 'txtPriority');
+			var id = 0;
+			$('#tblUniversesBody tr').each(function() {
+				$(this).find('span.rowID').html((id + 1).toString());
+
+				for (var i = 0; i < fields.length; i++)
+				{
+					$(this).find('input.' + fields[i]).attr('name', fields[i] + '[' + id + ']');
+					$(this).find('input.' + fields[i]).attr('id', fields[i] + '[' + id + ']');
+					$(this).find('select.' + fields[i]).attr('name', fields[i] + '[' + id + ']');
+					$(this).find('select.' + fields[i]).attr('id', fields[i] + '[' + id + ']');
+				}
+
+				id += 1;
+			});
+		}
+
 		function InitializeUniverses()
 		{
 			UniverseSelected =0;
