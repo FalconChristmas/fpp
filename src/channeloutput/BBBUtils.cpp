@@ -44,7 +44,7 @@ BeagleBoneType getBeagleBoneType() {
         char buf[256];
         fgets(buf , 256 , file);
         fclose(file);
-        if (strcmp(buf, "SanCloud BeagleBone Enhanced")) {
+        if (strcmp(buf, "SanCloud BeagleBone Enhanced") == 0) {
             return SanCloudEnhanced;
         } else if (strcmp(&buf[10], "PocketBeagle") == 0) {
             return PocketBeagle;
