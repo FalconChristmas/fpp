@@ -29,10 +29,6 @@
 #include "common.h"
 #include "log.h"
 
-//run on PRU 0
-#define BBB_PRU  0
-#define BBB_COPY_PRU  1
-
 
 // These are the number of clock cycles it takes to clock out a single "row" of bits (1 bit) for 32x16 1/8 P10 scan panels.  Other
 // panel types and scan rates and stuff are proportional to these
@@ -93,6 +89,11 @@ static void configurePSPins() {
     configBBBPin("P1_31", 3, 18, "pruout");  //SEL2
     configBBBPin("P2_34", 3, 19, "pruout");  //SEL3
 }
+static void configureV2Pins() {
+    configBBBPin("P8_45", 2, 6, "pruout");  //OE
+    configBBBPin("P8_46", 2, 7, "pruout");  //LATCH
+    configBBBPin("P8_43", 2, 8, "gpio");    //CLOCK
+}
 static void resetPSPins() {
     configBBBPin("P1_29", 3, 21, "gpio");  //OE
     configBBBPin("P1_36", 3, 14, "gpio");  //LATCH
@@ -101,6 +102,11 @@ static void resetPSPins() {
     configBBBPin("P2_30", 3, 17, "gpio");  //SEL1
     configBBBPin("P1_31", 3, 18, "gpio");  //SEL2
     configBBBPin("P2_34", 3, 19, "gpio");  //SEL3
+}
+static void resetV2Pins() {
+    configBBBPin("P8_45", 2, 6, "gpio");  //OE
+    configBBBPin("P8_46", 2, 7, "gpio");  //LATCH
+    configBBBPin("P8_43", 2, 8, "gpio");  //CLOCK
 }
 void BBBMatrix::calcBrightnessFlags(std::vector<std::string> &sargs) {
     
@@ -419,10 +425,13 @@ int BBBMatrix::Init(Json::Value config)
 
     std::vector<std::string> compileArgs;
     
+    int pru = 0;
     m_pinout = V1;
     if (config["wiringPinout"] == "v2") {
         m_pinout = V2;
         compileArgs.push_back("-DOCTO_V2");
+        pru = 1;
+        configureV2Pins();
     } else if (config["wiringPinout"] == "PocketScroller1x") {
         m_pinout = POCKETSCROLLERv1;
         compileArgs.push_back("-DPOCKETSCROLLER_V1");
@@ -430,8 +439,9 @@ int BBBMatrix::Init(Json::Value config)
     } else {
         compileArgs.push_back("-DOCTO_V1");
     }
+    
     char buf[200];
-    sprintf(buf, "-DRUNNING_ON_PRU%d", BBB_PRU);
+    sprintf(buf, "-DRUNNING_ON_PRU%d", pru);
     compileArgs.push_back(buf);
     sprintf(buf, "-DOUTPUTS=%d", m_outputs);
     compileArgs.push_back(buf);
@@ -453,6 +463,11 @@ int BBBMatrix::Init(Json::Value config)
         // Normal addressing would be 1 bit, 0 for row 1, 1 for row 2
         compileArgs.push_back("-DADDRESSING_AB=1");
     }
+    if (m_panelScan == 32) {
+        //1:32 scan panels need the "E" line
+        compileArgs.push_back("-DE_SCAN_LINE");
+    }
+    
     
     calcBrightnessFlags(compileArgs);
     if (m_printStats) {
@@ -463,10 +478,10 @@ int BBBMatrix::Init(Json::Value config)
     compilePRUMatrixCode(compileArgs);
     std::string pru_program = "/tmp/FalconMatrix.bin";
 
-    m_pruCopy = new BBBPru(BBB_COPY_PRU);
+    m_pruCopy = new BBBPru(pru ? 0 : 1);
     memset(m_pruCopy->data_ram, 0, 24);
 
-    m_pru = new BBBPru(BBB_PRU);
+    m_pru = new BBBPru(pru);
     m_pruData = (BBBPruMatrixData*)m_pru->data_ram;
     m_pruData->address_dma = m_pru->ddr_addr;
     m_pruData->command = 0;
@@ -513,7 +528,10 @@ int BBBMatrix::Close(void)
     return ChannelOutputBase::Close();
 }
 
-static inline uint8_t mapColor(uint8_t v, uint8_t colorDepth) {
+static inline uint8_t mapColor(uint8_t v, uint8_t colorDepth, int scan) {
+    if (scan == 32) {
+        v &= 0xFE;
+    }
     if (colorDepth == 6 && (v == 3 || v == 2)) {
         return 4;
     }
@@ -587,13 +605,13 @@ void BBBMatrix::PrepData(unsigned char *channelData)
                     + (m_longestChain - chain - 1) * m_panelWidth/8 * m_outputs * 3 * 2 * m_panelHeight / (m_panelScan * 2);
                 
                 for (int x = 0; x < m_panelWidth; ++x) {
-                    uint8_t r1 = mapColor(channelData[m_panelMatrix->m_panels[panel].pixelMap[yw1 + x*3]], m_colorDepth);
-                    uint8_t g1 = mapColor(channelData[m_panelMatrix->m_panels[panel].pixelMap[yw1 + x*3 + 1]], m_colorDepth);
-                    uint8_t b1 = mapColor(channelData[m_panelMatrix->m_panels[panel].pixelMap[yw1 + x*3 + 2]], m_colorDepth);
+                    uint8_t r1 = mapColor(channelData[m_panelMatrix->m_panels[panel].pixelMap[yw1 + x*3]], m_colorDepth, m_panelScan);
+                    uint8_t g1 = mapColor(channelData[m_panelMatrix->m_panels[panel].pixelMap[yw1 + x*3 + 1]], m_colorDepth, m_panelScan);
+                    uint8_t b1 = mapColor(channelData[m_panelMatrix->m_panels[panel].pixelMap[yw1 + x*3 + 2]], m_colorDepth, m_panelScan);
                     
-                    uint8_t r2 = mapColor(channelData[m_panelMatrix->m_panels[panel].pixelMap[yw2 + x*3]], m_colorDepth);
-                    uint8_t g2 = mapColor(channelData[m_panelMatrix->m_panels[panel].pixelMap[yw2 + x*3 + 1]], m_colorDepth);
-                    uint8_t b2 = mapColor(channelData[m_panelMatrix->m_panels[panel].pixelMap[yw2 + x*3 + 2]], m_colorDepth);
+                    uint8_t r2 = mapColor(channelData[m_panelMatrix->m_panels[panel].pixelMap[yw2 + x*3]], m_colorDepth, m_panelScan);
+                    uint8_t g2 = mapColor(channelData[m_panelMatrix->m_panels[panel].pixelMap[yw2 + x*3 + 1]], m_colorDepth, m_panelScan);
+                    uint8_t b2 = mapColor(channelData[m_panelMatrix->m_panels[panel].pixelMap[yw2 + x*3 + 2]], m_colorDepth, m_panelScan);
 
                     
                     int xOut = x;

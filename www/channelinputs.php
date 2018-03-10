@@ -32,6 +32,30 @@ $(document).ready(function() {
 		$(this).select();
 	});
 
+	$('#tblUniversesBody').sortable({
+		start: function (event, ui) {
+			start_pos = ui.item.index();
+		},
+		update: function(event, ui) {
+			SetUniverseInputNames();
+		},
+		beforeStop: function (event, ui) {
+			//undo the firefox fix.
+			// Not sure what this is, but copied from playlists.php to here
+			if (navigator.userAgent.toLowerCase().match(/firefox/) && ui.offset !== undefined) {
+				$(window).unbind('scroll.sortableplaylist');
+				ui.helper.css('margin-top', 0);
+			}
+		},
+		helper: function (e, ui) {
+			ui.children().each(function () {
+				$(this).width($(this).width());
+			});
+			return ui;
+		},
+		scroll: true
+	}).disableSelection();
+
 	$('#tblUniverses').on('mousedown', 'tr', function(event,ui){
 		$('#tblUniverses tr').removeClass('selectedEntry');
 		$(this).addClass('selectedEntry');
@@ -239,7 +263,12 @@ tr.rowUniverseDetails td
     </table>
     
 		<table id="tblUniverses" class='channelInputTable'>
+			<thead id='tblUniversesHead'>
+			</thead>
+			<tbody id='tblUniversesBody'>
+			</tbody>
     </table>
+		<span style="font-size:12px; font-family:Arial; margin-left:15px;">(Drag entry to reposition) </span>
 		</form>
 	</div>
 

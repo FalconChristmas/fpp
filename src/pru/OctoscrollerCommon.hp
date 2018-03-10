@@ -69,11 +69,12 @@
         SET out_set, gpio_sel1
     DO_OUTPUT_ROW:
 #else
-    LSL out_set, row, gpio_sel0
+    MOV out_set, row
+    LSL out_set, out_set, gpio_sel0
 #endif
     MOV out_clr, GPIO_SEL_MASK
     AND out_set, out_set, out_clr // ensure no extra bits
-    XOR out_clr, out_clr, out_set // complement the bits into clr
+    XOR out_clr, out_set, out_clr // complement the bits into clr
     SBBO out_clr, gpio_base_cache, GPIO_CLRDATAOUT, 8 // set both
 .endm
 

@@ -96,13 +96,7 @@
 #define gpio_sel1 17
 #define gpio_sel2 18
 #define gpio_sel3 19
-
-#define GPIO_SEL_MASK (0\
-|(1<<gpio_sel0)\
-|(1<<gpio_sel1)\
-|(1<<gpio_sel2)\
-|(1<<gpio_sel3)\
-)
+#define gpio_sel4 20
 
 
 #define pru_latch  0
@@ -113,13 +107,39 @@
 #define pru_sel1   3
 #define pru_sel2   4
 #define pru_sel3   5
+#define pru_sel4   6
 
+
+#ifdef E_SCAN_LINE
+#define GPIO_SEL_MASK (0\
+|(1<<gpio_sel0)\
+|(1<<gpio_sel1)\
+|(1<<gpio_sel2)\
+|(1<<gpio_sel3)\
+|(1<<gpio_sel4)\
+)
+#define PRU_SEL_MASK (0\
+|(1<<pru_sel0)\
+|(1<<pru_sel1)\
+|(1<<pru_sel2)\
+|(1<<pru_sel3)\
+|(1<<pru_sel4)\
+)
+#else
+#define GPIO_SEL_MASK (0\
+|(1<<gpio_sel0)\
+|(1<<gpio_sel1)\
+|(1<<gpio_sel2)\
+|(1<<gpio_sel3)\
+)
 #define PRU_SEL_MASK (0\
 |(1<<pru_sel0)\
 |(1<<pru_sel1)\
 |(1<<pru_sel2)\
 |(1<<pru_sel3)\
 )
+#endif
+
 
 .macro ADJUST_SETTINGS
     MOV gpio_base_cache, GPIO3
