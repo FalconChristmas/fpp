@@ -264,7 +264,7 @@ void SendCommand(const char * com)
  	 bytes_received = recvfrom(socket_fd, response, 256, MSG_DONTWAIT,
                            (struct sockaddr *) &(server_address),
                            &address_length);
- 	 if(bytes_received > 0)
+	 if((bytes_received > 0) || (bytes_received < 0))
 	 {
 		 break;
 	 }
