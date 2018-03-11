@@ -18,7 +18,7 @@ $system_config_areas = array(
             'friendly_name' => 'Channel Outputs (Universe, Falcon, LED Panels, etc.)',
             'file' => array(
                 'universes' => array('type' => 'file', 'location' => $settings['universeOutputs']),
-                'pixelnet_DMX' => array('type' => 'file', 'location' => $pixelnetFile),
+                'falcon_pixelnet_DMX' => array('type' => 'function', 'location' => array('backup' => 'LoadPixelnetDMXFile_FPDv1', 'restore' => 'SavePixelnetDMXFile_FPDv1')),
                 'pixel_strings' => array('type' => 'file', 'location' => $settings['co-pixelStrings']),
                 'bbb_strings' => array('type' => 'file', 'location' => $settings['co-bbbStrings']),
                 'led_panels' => array('type' => 'file', 'location' => $settings['channelOutputsJSON']),
@@ -167,6 +167,12 @@ if (isset($_POST['btnDownloadConfig'])) {
                                 }
 
                                 $file_data = array($backup_file_data);
+                            } else if ($sfd['type'] == "function") {
+                                $backup_function = $sfd['location']['backup'];
+                                if (function_exists($backup_function)) {
+                                    $backup_file_data = $backup_function();
+                                }
+                                $file_data = array($backup_file_data);
                             }
                             //Remove sensitive data
                             $tmp_settings_data[$config_key][$sfi] = remove_sensitive_data($file_data);
@@ -245,6 +251,13 @@ if (isset($_POST['btnDownloadConfig'])) {
                             } else {
                                 //all other files are std flat files, process them into an array by splitting at line breaks
                                 $backup_file_data = explode("\n", file_get_contents($sfd['location']));
+                            }
+                            $file_data = array($backup_file_data);
+                        } else if ($sfd['type'] == "function") {
+                            $backup_function = $sfd['location']['backup'];
+                            $backup_file_data = array();
+                            if (function_exists($backup_function)) {
+                                $backup_file_data = $backup_function();
                             }
                             $file_data = array($backup_file_data);
                         }
@@ -543,13 +556,18 @@ function process_restore_data($restore_area, $restore_area_data)
                                 $final_file_restore_data = ""; //store restore data in variable
 
                                 //Work out what method we need to use to get the data back into an array
-                                if (in_array($restore_area_data_index, $known_json_config_files)) {
-                                    //JSON
+                                if ($restore_type == "dir" || $restore_type == "file") {
+                                    if (in_array($restore_area_data_index, $known_json_config_files)) {
+                                        //JSON
+                                        $final_file_restore_data = $fn_data;
+                                    } else {
+                                        //everything else
+                                        //line separate the lines
+                                        $final_file_restore_data = implode("\n", $fn_data);
+                                    }
+                                } else if ($restore_type == "function") {
+                                    //get the data as in without any modification so we can pass it into the restore function
                                     $final_file_restore_data = $fn_data;
-                                } else {
-                                    //everything else
-                                    //line separate the lines
-                                    $final_file_restore_data = implode("\n", $fn_data);
                                 }
 
                                 //if restore sub-area is scripts, capture the file names so we can pass those along through RestoreScripts which will perform any InstallActions
@@ -563,7 +581,7 @@ function process_restore_data($restore_area, $restore_area_data)
                                 }
 
                                 //If we have data then write to where it needs to go
-                                if (!empty($final_file_restore_data)) {
+                                if (!empty($final_file_restore_data) && ($restore_type == "dir" || $restore_type == "file")) {
                                     //Work out what method we need to use to get the data back out into the correct format
                                     if (in_array($restore_area_data_index, $known_json_config_files)) {
                                         //JSON
@@ -574,6 +592,13 @@ function process_restore_data($restore_area, $restore_area_data)
                                         $save_result = false;
                                     } else {
                                         $save_result = true;
+                                    }
+                                } //If restore type is function
+                                else if ($restore_type == "function") {
+                                    $restore_function = $restore_areas_data['location']['restore'];
+                                    //if we have valid ata and the function exists, call it
+                                    if (function_exists($restore_function) && !empty($final_file_restore_data)) {
+                                        $save_result = $restore_function($final_file_restore_data);
                                     }
                                 } else {
                                     $save_result = false;
@@ -854,6 +879,109 @@ function SetAudioOutput($card)
 }
 
 /**
+ * Reads the Falcon.FPDV1 - Falcon Pixelnet/DMX file
+ * extracted & modified from LoadPixelnetDMXFile() in ./fppxml.php
+ *
+ * @return array|void
+ */
+function LoadPixelnetDMXFile_FPDv1()
+{
+    global $settings;
+    //Pull in the class
+    require_once './pixelnetdmxentry.php';
+    //Store data in an array instead of session
+    $return_data = array();
+
+    $f = fopen($settings['configDirectory'] . "/Falcon.FPDV1", "rb");
+    if ($f == FALSE) {
+        fclose($f);
+        return;
+    }
+
+    if ($f != FALSE) {
+        $s = fread($f, 1024);
+        fclose($f);
+        $sarr = unpack("C*", $s);
+
+        $dataOffset = 7;
+
+        $i = 0;
+        for ($i = 0; $i < 12; $i++) {
+            $outputOffset = $dataOffset + (4 * $i);
+            $active = $sarr[$outputOffset + 0];
+            $startAddress = $sarr[$outputOffset + 1];
+            $startAddress += $sarr[$outputOffset + 2] * 256;
+            $type = $sarr[$outputOffset + 3];
+            $return_data[$i] = new PixelnetDMXentry($active, $type, $startAddress);
+        }
+    }
+
+    return $return_data;
+}
+
+/**
+ * Restores the FPDv1 channel data from the supplied array
+ * extracted & modified from LoadPixelnetDMXFile() in ./fppxml.php
+ *
+ * @param $restore_data array FPDv1 data to restore
+ * @return bool Success state file write
+ */
+function SavePixelnetDMXFile_FPDv1($restore_data)
+{
+    global $settings;
+    $outputCount = 12;
+    $write_status = false;
+    if (!empty($restore_data) && is_array($restore_data)) {
+
+        $carr = array();
+        for ($i = 0; $i < 1024; $i++) {
+            $carr[$i] = 0x0;
+        }
+
+        $i = 0;
+        // Header
+        $carr[$i++] = 0x55;
+        $carr[$i++] = 0x55;
+        $carr[$i++] = 0x55;
+        $carr[$i++] = 0x55;
+        $carr[$i++] = 0x55;
+        $carr[$i++] = 0xCC;
+
+//    $_SESSION['PixelnetDMXentries']=NULL;
+        for ($o = 0; $o < $outputCount; $o++) {
+            // Active Output
+            if (isset($restore_data[$o]['active']) && ($restore_data[$o]['active'] == '1' || intval($restore_data[$o]['active']) == 1)) {
+                $active = 1;
+                $carr[$i++] = 1;
+            } else {
+                $active = 0;
+                $carr[$i++] = 0;
+            }
+            // Start Address
+            $startAddress = intval($restore_data[$o]['startAddress']);
+            $carr[$i++] = $startAddress % 256;
+            $carr[$i++] = $startAddress / 256;
+            // Type
+            $type = intval($restore_data[$o]['type']);
+            $carr[$i++] = $type;
+//        $_SESSION['PixelnetDMXentries'][] = new PixelnetDMXentry($active,$type,$startAddress);
+        }
+        $f = fopen($settings['configDirectory'] . "/Falcon.FPDV1", "wb");
+//        fwrite($f, implode(array_map("chr", $carr)), 1024);
+
+        if (fwrite($f, implode(array_map("chr", $carr)), 1024) === FALSE) {
+            $write_status = false;
+        } else {
+            $write_status = true;
+        }
+
+        fclose($f);
+//    SendCommand('w');
+    }
+    return $write_status;
+}
+
+/**
  * Starts the download in the browser
  * @param $settings_data array Assoc. Array of settings data
  * @param $area String Area the download was for
@@ -872,7 +1000,7 @@ function doBackupDownload($settings_data, $area)
 
         //Once we have all the settings, process the array and dump it back to the user
         //filename
-        $backup_fname = $settings['HostName'] . "_" . $area . "-backup_";
+        $backup_fname = $settings['HostName'] . "_" . $area . "-backup_" . "v" . $fpp_backup_version . "_";
         //change filename if sensitive data is not protected
         if ($protectSensitiveData == false) {
             $backup_fname .= "unprotected_";
@@ -986,10 +1114,13 @@ moveBackupFiles_ToBackupDirectory();
 <head>
     <?php require_once 'common/menuHead.inc'; ?>
     <title><? echo $pageTitle; ?></title>
-    <script>var helpPage = "help/backup.php";</script>
+    <!--    <script>var helpPage = "help/backup.php";</script>-->
     <script type="text/javascript">
         var settings = new Array();
         <?
+        ////Override restartFlag setting not reflecting actual value after restoring, just read what's in the settings file
+        $settings['restartFlag'] = ReadSettingFromFile('restartFlag');
+
         foreach ($settings as $key => $value) {
             printf("	settings['%s'] = \"%s\";\n", $key, $value);
         }
