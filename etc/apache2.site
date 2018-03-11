@@ -9,26 +9,9 @@
 	</Directory>
 
 	<Directory FPPDIR/www/>
-		Options Indexes FollowSymLinks MultiViews
+		Options Indexes FollowSymLinks
 		AllowOverride All
-		Order allow,deny
-		allow from all
-	</Directory>
-
-	ScriptAlias /cgi-bin/ /usr/lib/cgi-bin/
-	<Directory /usr/lib/cgi-bin>
-		AllowOverride All
-		Options +ExecCGI -MultiViews +SymLinksIfOwnerMatch
-		Order allow,deny
-		Allow from all
-	</Directory>
-
-        Alias /phpsysinfo "/var/www/phpsysinfo-3.1.6"
-	<Directory /var/www/phpsysinfo-3.1.6>
-                Options Indexes FollowSymLinks MultiViews
-                AllowOverride All
-                Order allow,deny
-                allow from all
+		Require all granted
 	</Directory>
 
 	ErrorLog FPPHOME/media/logs/apache2-error.log
@@ -40,5 +23,6 @@
 
 #	CustomLog FPPHOME/media/logs/apache2-access.log combined
 #	CustomLog ${APACHE_LOG_DIR}/access.log combined
+	Include conf-available/serve-cgi-bin.conf
 </VirtualHost>
 
