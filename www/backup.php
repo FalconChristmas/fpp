@@ -60,7 +60,7 @@ $system_config_areas = array(
 //FPP Backup version
 $fpp_backup_version = "2";
 //FPP Backup files directory
-$fpp_backup_location = $settings['configDirectory'] . "/backups/";
+$fpp_backup_location = $settings['configDirectory'] . "/backups";
 
 //Array of plugins
 $system_active_plugins = array();
@@ -89,8 +89,7 @@ $known_json_config_files = array('channelInputs', 'channelOutputs', 'channelRema
 $known_ini_config_files = array('settings', 'system_settings');
 
 //Remove BBB Strings from the system areas if we're on a Pi or any other platform that isn't a BBB
-if ($settings['Platform'] != "BeagleBone Black")
-{
+if ($settings['Platform'] != "BeagleBone Black") {
     unset($system_config_areas['channelOutputs']['file']['bbb_strings']);
 }
 
@@ -230,6 +229,7 @@ if (isset($_POST['btnDownloadConfig'])) {
 //                    }
                     //loop over the array
                     foreach ($setting_file_to_backup as $sfi => $sfd) {
+                        $file_data = array();
                         if ($sfd['type'] == "dir") {
                             $file_data = read_directory_files($sfd['location']);
                         } else if ($sfd['type'] == "file") {
@@ -246,7 +246,7 @@ if (isset($_POST['btnDownloadConfig'])) {
                                 //all other files are std flat files, process them into an array by splitting at line breaks
                                 $backup_file_data = explode("\n", file_get_contents($sfd['location']));
                             }
-                            $file_data = array($sfi => $backup_file_data);
+                            $file_data = array($backup_file_data);
                         }
                         //Remove Sensitive data
                         $tmp_settings_data[$area][$sfi] = remove_sensitive_data($file_data);
@@ -885,7 +885,7 @@ function doBackupDownload($settings_data, $area)
         }
 
         //Write a copy locally as well
-        $backup_local_fpath = $fpp_backup_location . $backup_fname;
+        $backup_local_fpath = $fpp_backup_location . '/' . $backup_fname;
         //Write data into backup file
         file_put_contents($backup_local_fpath, json_encode($settings_data));
 
@@ -965,9 +965,22 @@ function retrievePluginList()
  */
 function moveBackupFiles_ToBackupDirectory()
 {
+    global $settings, $fpp_backup_location;
 
+    //gets all the files in the config directory
+    $config_dir_files = read_directory_files($settings['configDirectory'], false);
+
+    //loop over the backup files we've found
+    foreach ($config_dir_files as $backup_filename => $backup_data) {
+        if ((stripos(strtolower($backup_filename), "-backup_") !== false) && (stripos(strtolower($backup_filename), ".json") != false)) {
+            //move file to the new fpp_backup_locations
+            rename($settings['configDirectory'] . '/' . $backup_filename, $fpp_backup_location . '/' . $backup_filename);
+        }
+    }
 }
 
+//Move backup files
+moveBackupFiles_ToBackupDirectory();
 ?>
 <html>
 <head>
