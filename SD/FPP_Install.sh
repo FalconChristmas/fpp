@@ -35,11 +35,11 @@
 #             - pi/raspberry
 #
 #       BeagleBone Black
-#           - URL: https://rcn-ee.com/rootfs/bb.org/release/2014-05-14/
+#           - URL: http://beagleboard.org/latest-images
 #           - Images
-#             - FIXME for Debian Jessie images
-#           - Login
-#             - root (no password)
+#             - bone-debian-9.3-iot-armhf-2018-03-05-4gb.img
+#           - Login/Password
+#             - debian/temppwd
 #
 #       Other OS images may work with this install script and FPP on the
 #       Pi and BBB platforms, but these are the images we are currently
@@ -748,12 +748,7 @@ mv ./composer.phar /usr/local/bin/composer
 chmod 755 /usr/local/bin/composer
 
 #######################################
-PHPDIR="/etc/php5"
-case "${OSVER}" in
-	debian_9)
-		PHPDIR="/etc/php/7.0"
-		;;
-esac
+PHPDIR="/etc/php/7.0"
 
 echo "FPP - Setting up for UI"
 sed -i -e "s/^user =.*/user = ${FPPUSER}/" ${PHPDIR}/fpm/pool.d/www.conf
@@ -972,7 +967,7 @@ sed -i \
 	-e "s/post_max_size =.*/post_max_size = 4G/" \
 	-e "s/upload_max_filesize =.*/upload_max_filesize = 4G/" \
 	-e "s#;upload_tmp_dir =.*#upload_tmp_dir = ${FPPHOME}/media/upload#" \
-	/etc/php/7.0/apache2/php.ini
+	${PHPDIR}/apache2/php.ini
 
 # Fix name of Apache default error log so it gets rotated by our logrotate config
 sed -i -e "s/error\.log/apache2-base-error.log/" /etc/apache2/apache2.conf
@@ -1019,7 +1014,7 @@ systemctl disable olad
 
 echo "FPP - Compiling binaries"
 cd /opt/fpp/src/
-make clean ; make
+make clean ; make optimized
 
 ENDTIME=$(date)
 

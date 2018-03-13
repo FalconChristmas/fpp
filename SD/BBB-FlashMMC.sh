@@ -1,53 +1,163 @@
-#!/bin/sh
+#!/bin/bash -e
+
 
 DEVICE="/dev/mmcblk1"
 
-echo "---------------------------------------"
-echo "Creating partitions"
-echo ""
 
-# create partitions
-sfdisk --force ${DEVICE} <<-__EOF__
-4M,124M,,*
-128M,,,-
+cylon_leds () {
+        if [ -e /sys/class/leds/beaglebone\:green\:usr0/trigger ] ; then
+                BASE=/sys/class/leds/beaglebone\:green\:usr
+                echo none > ${BASE}0/trigger
+                echo none > ${BASE}1/trigger
+                echo none > ${BASE}2/trigger
+                echo none > ${BASE}3/trigger
+
+                STATE=1
+                while : ; do
+                        case $STATE in
+                        1)      echo 255 > ${BASE}0/brightness
+                                echo 0   > ${BASE}1/brightness
+                                STATE=2
+                                ;;
+                        2)      echo 255 > ${BASE}1/brightness
+                                echo 0   > ${BASE}0/brightness
+                                STATE=3
+                                ;;
+                        3)      echo 255 > ${BASE}2/brightness
+                                echo 0   > ${BASE}1/brightness
+                                STATE=4
+                                ;;
+                        4)      echo 255 > ${BASE}3/brightness
+                                echo 0   > ${BASE}2/brightness
+                                STATE=5
+                                ;;
+                        5)      echo 255 > ${BASE}2/brightness
+                                echo 0   > ${BASE}3/brightness
+                                STATE=6
+                                ;;
+                        6)      echo 255 > ${BASE}1/brightness
+                                echo 0   > ${BASE}2/brightness
+                                STATE=1
+                                ;;
+                        *)      echo 255 > ${BASE}0/brightness
+                                echo 0   > ${BASE}1/brightness
+                                STATE=2
+                                ;;
+                        esac
+                        sleep 0.1
+                done
+        fi
+}
+
+
+prepareBTRFSPartitions() {
+    echo "---------------------------------------"
+    echo "Creating partitions"
+    echo ""
+
+    # create partitions
+    sfdisk --force ${DEVICE} <<-__EOF__
+4M,96M,,*
+100M,,,-
 __EOF__
 
-blockdev --rereadpt ${DEVICE}
-fdisk -l ${DEVICE}
+    blockdev --rereadpt ${DEVICE}
+    fdisk -l ${DEVICE}
 
-echo "---------------------------------------"
-echo "Formating partitions"
-echo ""
+    echo "---------------------------------------"
+    echo "Formating partitions"
+    echo ""
 
+    #format partitions
+    mkfs.ext4 -F -O ^metadata_csum,^64bit ${DEVICE}p1  -L bootfs
+    mkfs.btrfs -f ${DEVICE}p2 -L rootfs
 
-#format partitions
-mkfs.ext4 -F -O ^metadata_csum,^64bit ${DEVICE}p1  -L bootfs
-mkfs.btrfs -f ${DEVICE}p2 -L rootfs
+    echo "---------------------------------------"
+    echo "Creating mount points and mounting rootfs"
+    echo ""
+
+    #mount
+    mkdir /tmp/rootfs
+    mount -t btrfs -o noatime,nodiratime,compress-force=zstd ${DEVICE}p2 /tmp/rootfs
+    mkdir /tmp/rootfs/boot
+    mount -t ext4 -o noatime,nodiratime ${DEVICE}p1 /tmp/rootfs/boot
+}
+prepareEXT4Partitions() {
+    echo "---------------------------------------"
+    echo "Creating partitions"
+    echo ""
+
+    # create partitions
+    sfdisk --force ${DEVICE} <<-__EOF__
+4M,,,-
+__EOF__
+
+    blockdev --rereadpt ${DEVICE}
+    fdisk -l ${DEVICE}
+
+    echo "---------------------------------------"
+    echo "Formating partitions"
+    echo ""
+
+    #format partitions
+    mkfs.ext4 -F -O ^metadata_csum,^64bit ${DEVICE}p1  -L rootfs
+
+    echo "---------------------------------------"
+    echo "Creating mount points and mounting rootfs"
+    echo ""
+
+    #mount
+    mkdir /tmp/rootfs
+    mount -t ext4 -o noatime,nodiratime ${DEVICE}p1 /tmp/rootfs
+
+}
+
+adjustEnvBTRFS() {
+    cd /opt/source/bb.org-overlays
+    make clean
+    make
+
+    mkdir /tmp/rootfs/boot/lib
+    mkdir /tmp/rootfs/boot/lib/firmware
+    cp /opt/source/bb.org-overlays/src/arm/* /tmp/rootfs/boot/lib/firmware
+
+    echo ""  >> /tmp/rootfs/boot/uEnv.txt
+    echo "mmcrootfstype=btrfs" >> /tmp/rootfs/boot/uEnv.txt
+    echo "rootfstype=btrfs" >> /tmp/rootfs/boot/uEnv.txt
+    echo "mmcpart=2" >> /tmp/rootfs/boot/uEnv.txt
+    echo ""  >> /tmp/rootfs/boot/uEnv.txt
+
+    echo "${DEVICE}p2  /  btrfs  noatime,nodiratime,compress=zstd  0  1" > /tmp/rootfs/etc/fstab
+    echo "${DEVICE}p1  /boot  ext4  defaults,noatime,nodiratime  0  2" >> /tmp/rootfs/etc/fstab
+}
+adjustEnvEXT4() {
+    echo "${DEVICE}p1  /  ext4  defaults,noatime,nodiratime  0  1" > /tmp/rootfs/etc/fstab
+
+}
+
+cylon_leds & CYLON_PID=$!
 
 echo "---------------------------------------"
 echo "Installing bootloader "
 echo ""
 
 #install bootloader
-dd if=/opt/backup/uboot/MLO of=/dev/mmcblk1 count=1 seek=1 conv=notrunc bs=128k
-dd if=/opt/backup/uboot/u-boot.img of=/dev/mmcblk1 count=2 seek=1 conv=notrunc bs=384k
+dd if=/opt/backup/uboot/MLO of=${DEVICE} count=1 seek=1 conv=notrunc bs=128k
+dd if=/opt/backup/uboot/u-boot.img of=${DEVICE} count=2 seek=1 conv=notrunc bs=384k
 
-echo "---------------------------------------"
-echo "Creating mount points and mounting rootfs"
-echo ""
+if [ "$1" = "ext4" ]; then
+    prepareEXT4Partitions
+else
+    prepareBTRFSPartitions
+fi
 
-#mount
-mkdir /tmp/rootfs
-mount -t btrfs -o noatime,nodiratime,compress-force=zstd ${DEVICE}p2 /tmp/rootfs
-mkdir /tmp/rootfs/boot
-mount -t ext4 -o noatime ${DEVICE}p1 /tmp/rootfs/boot
 
 echo "---------------------------------------"
 echo "Copy files rootfs"
 echo ""
 
 #copy files
-rsync -aAx --human-readable --info=name0,progress2 /ID.txt /bin /boot /dev /etc /home /lib /lost+found /media /mnt /opt /proc /root /run /sbin /srv /sys /tmp /usr /var /tmp/rootfs --exclude=/dev/* --exclude=/proc/* --exclude=/sys/* --exclude=/tmp/* --exclude=/run/* --exclude=/mnt/* --exclude=/media/* --exclude=/lost+found --exclude=/uEnv.txt
+rsync -aAxv /ID.txt /bin /boot /dev /etc /home /lib /lost+found /media /mnt /opt /proc /root /run /sbin /srv /sys /tmp /usr /var /tmp/rootfs --exclude=/dev/* --exclude=/proc/* --exclude=/sys/* --exclude=/tmp/* --exclude=/run/* --exclude=/mnt/* --exclude=/media/* --exclude=/lost+found --exclude=/uEnv.txt
 
 echo "---------------------------------------"
 echo "Configure /boot"
@@ -58,27 +168,17 @@ cd /tmp/rootfs/boot
 ln -s . boot
 cd /
 
-cd /opt/source/bb.org-overlays
-make clean
-make
-
-mkdir /tmp/rootfs/boot/lib
-mkdir /tmp/rootfs/boot/lib/firmware
-cp /opt/source/bb.org-overlays/src/arm/* /tmp/rootfs/boot/lib/firmware
-
-echo ""  >> /tmp/rootfs/boot/uEnv.txt
-echo "mmcrootfstype=btrfs" >> /tmp/rootfs/boot/uEnv.txt
-echo "rootfstype=btrfs" >> /tmp/rootfs/boot/uEnv.txt
-echo "mmcpart=2" >> /tmp/rootfs/boot/uEnv.txt
-echo ""  >> /tmp/rootfs/boot/uEnv.txt
+if [ "$1" = "ext4" ]; then
+    adjustEnvEXT4
+else
+    adjustEnvBTRFS
+fi
 
 echo "---------------------------------------"
 echo "Configure /etc/fstab"
 echo ""
 
 #configure fstab
-echo "/dev/mmcblk1p2  /  btrfs  noatime,nodiratime,compress=zstd  0  1" > /tmp/rootfs/etc/fstab
-echo "/dev/mmcblk1p1  /boot  ext4  defaults,noatime,nodiratime  0  2" >> /tmp/rootfs/etc/fstab
 echo "debugfs  /sys/kernel/debug  debugfs  defaults  0  0" >> /tmp/rootfs/etc/fstab
 echo "tmpfs         /tmp        tmpfs   nodev,nosuid,size=10M 0 0" >> /tmp/rootfs/etc/fstab
 echo "tmpfs         /var/tmp    tmpfs   nodev,nosuid,size=50M 0 0" >> /tmp/rootfs/etc/fstab

@@ -1,7 +1,7 @@
 # FPP BBB Images creation notes (work in progress)
 #
 # FPP images are currently based on the following Debian BeagleBone images:
-# bone-debian-9.2-iot-armhf-2017-10-10-4gb.img
+# bone-debian-9.3-iot-armhf-2018-03-05-4gb.img
 #
 # The below steps (much can be run via copy/paste into a terminal) will
 # prepare the "clean image" from above to have the appropriate 
@@ -17,23 +17,33 @@
 # the FPP_Install_BBB.sh script
 
 
-sudo apt-get update
-sudo apt-get upgrade
+apt-get update
+apt-get upgrade
 cd /opt/scripts
 git pull
 cd /opt/scripts/tools
-sudo ./update_kernel.sh --lts-4_14
+
+export KERNEL_VERSION=4.14.13-ti-r25
+sudo ./update_kernel.sh --lts-4_14 --kernel  $KERNEL_VERSION
+apt-get install linux-headers-$KERNEL_VERSION
 
 # delete old kernels and modules in /boot and /lib/modules
 # and in /boot/dtbs
 
+apt-get remove --purge --autoremove linux-image-$(uname -r)
+rm -rf /lib/modules/$(uname -r)
+
+
 cd /opt/scripts/tools/developers/
 sudo ./update_bootloader.sh
 
-
+# need to keep extra memory to process network packets
 echo "vm.min_free_kbytes=16384" >> /etc/sysctl.conf
 
-cd ~
+#prefer ipv4
+echo "precedence ::ffff:0:0/96  100" >>  /etc/gai.conf
+
+
 vim /boot/uEnv.txt
 #     enable_uboot_overlays=1
 #     disable_uboot_overlay_video=1
@@ -43,7 +53,7 @@ vim /boot/uEnv.txt
 
 
 cd /opt/backup/uboot
-export BOOTLOADERVER=v2018.01-r8
+export BOOTLOADERVER=v2018.01-r14
 wget https://rcn-ee.com/repos/bootloader/am335x_evm/MLO-am335x_evm-${BOOTLOADERVER}
 wget https://rcn-ee.com/repos/bootloader/am335x_evm/u-boot-am335x_evm-${BOOTLOADERVER}.img
 mv -f MLO-am335x_evm-${BOOTLOADERVER} MLO
@@ -54,27 +64,21 @@ cd /opt/source/bb.org-overlays
 git pull
 cp tools/beaglebone-universal-io/config-pin /usr/bin/config-pin
 
-
 apt-get -y --purge autoremove
 
-apt-get install alsa-utils ccache bzip2 samba rsync vsftpd shellinabox vorbis-tools \
-    bash-completion exfat-fuse btrfs-tools ntp ethtool sysstat tcpdump  \
-    php php-cli php-common php-curl php-fpm php-mcrypt php-pear \
-    python-daemon python-smbus \
-    ola ola-python libola-dev libola1 libboost-dev libjsoncpp-dev libtag1-dev \
-    libconvert-binary-c-perl libjson-perl perlmagick \
-    libavcodec-dev libavformat-dev libswresample-dev libsdl2-dev \
-    sqlite3 php-sqlite3 php-zip zip unzip \
-    mailutils librtmidi-dev libcurl4-openssl-dev
-
-
-#remove a bunch of modules that aren't neeeded, free's up space
-apt-get remove --purge roboticscape nodejs c9-core-installer \
+#remove a bunch of packages that aren't neeeded, free's up space
+apt-get remove --purge --autoremove roboticscape nodejs c9-core-installer \
     doc-beaglebone-getting-started doc-beaglebonegreen-getting-started doc-seeed-bbgw-getting-started \
     bonescript bone101 bb-node-red-installer \
     ardupilot-copter-bbbmini ardupilot-copter-blue ardupilot-plane-bbbmini ardupilot-plane-blue ardupilot-rover-bbbmini ardupilot-rover-blue
-rm /etc/modules-load.d/roboticscape_modules.conf
+
+apt-get -y clean
+apt-get -y --purge autoremove
+apt-get -y clean
+
+
 # remove a bunch of source that is not needed, free's up space
+rm -f /etc/modules-load.d/roboticscape_modules.conf
 rm -rf /usr/local/lib/node_modules
 rm -rf /var/lib/cloud9
 rm -rf /opt/source/Robotics_Cape_Installer
@@ -94,6 +98,23 @@ rm -rf /usr/share/beagle-tester
 rm -rf /usr/sbin/beagle-tester*
 rm -rf /lib/systemd/system/beagle-tester.service
 rm -rf /etc/udev/rules.d/beagle-tester.rules
+rm -rf /opt/cloud9
+rm -rf /etc/avahi/services/cloud9.service
+
+
+apt-get install alsa-utils ccache bzip2 samba rsync vsftpd shellinabox vorbis-tools \
+    bash-completion exfat-fuse btrfs-tools ntp ethtool sysstat tcpdump  \
+    php php-cli php-common php-curl php-mcrypt php-pear \
+    python-daemon python-smbus \
+    libmicrohttpd-dev libmosquitto-dev liblo-dev \
+    ola ola-python libola-dev libola1 libboost-dev libjsoncpp-dev libtag1-dev \
+    libconvert-binary-c-perl libjson-perl perlmagick \
+    libavcodec-dev libavformat-dev libswresample-dev libsdl2-dev \
+    sqlite3 php-sqlite3 php-zip zip unzip \
+    mailutils librtmidi-dev libcurl4-openssl-dev \
+    firmware-ti-connectivity
+
+
 curl -L https://cpanmin.us | perl - --sudo App::cpanminus
 echo "yes" | cpanm -fin Test::Tester File::Map Net::WebSocket::Server Net::PJLink
 
@@ -107,43 +128,37 @@ echo "# allocate 768K instead of the default 256K" > /etc/modprobe.d/uio_pruss.c
 echo "options uio_pruss extram_pool_sz=786432" >> /etc/modprobe.d/uio_pruss.conf
 
 
-#need to reboot to pickup new kernel so install of headers will work
-reboot
+# need to blacklist the gyroscope and barometer on the SanCloud enhanced or it consumes some pins
+echo "blacklist st_pressure_i2c" > /etc/modprobe.d/blacklist-gyro.conf
+echo "blacklist st_pressure" >> /etc/modprobe.d/blacklist-gyro.conf
+echo "blacklist inv_mpu6050_i2c" >> /etc/modprobe.d/blacklist-gyro.conf
+echo "blacklist st_sensors_i2c" >> /etc/modprobe.d/blacklist-gyro.conf
+echo "blacklist inv_mpu6050" >> /etc/modprobe.d/blacklist-gyro.conf
+echo "blacklist st_sensors" >> /etc/modprobe.d/blacklist-gyro.conf
 
 
-apt-get install linux-headers-4.14.12-ti-r24
-apt-get install dkms firmware-ti-connectivity
-# the above installs the 4.9 headers which we don't use
-rm -rf /usr/src/linux-headers-4.9*
 
+
+cd /opt/
+git clone https://github.com/etr/libhttpserver
+cd libhttpserver
+git checkout bd08772
+./bootstrap
+mkdir build
+cd build
+CXXFLAGS=-std=c++98 ../configure --prefix=/usr
+make
+make install
 cd /opt
-git clone https://github.com/pvaret/rtl8192cu-fixes
-dkms add ./rtl8192cu-fixes
-dkms install 8192cu/1.10
-depmod -a
-cp ./rtl8192cu-fixes/blacklist-native-rtl8192.conf /etc/modprobe.d/
-cp ./rtl8192cu-fixes/8192cu-disable-power-management.conf /etc/modprobe.d/
-
-cd /opt
-git clone https://github.com/zebulon2/rtl8812au-driver-5.2.9
-ln -s /opt/rtl8812au-driver-5.2.9 /usr/src/rtl8812au-5.2.9
-cd rtl8812au-driver-5.2.9
-#wget rtl8812au /tmp/rtl8812au
-patch -p1 < /tmp/rtl8812au
-dkms add -m rtl8812au -v 5.2.9
-dkms install rtl8812au/5.2.9
-
-echo "options 8812au rtw_power_mgnt=0" > /etc/modprobe.d/8812au-disable-power-management.conf
-
-#prefer ipv4
-echo "precedence ::ffff:0:0/96  100" >>  /etc/gai.conf
-
+rm -rf libhttpserver
 
 cd /opt
 git clone https://github.com/beagleboard/am335x_pru_package
 cd am335x_pru_package
 make
 make install
+make clean
+
 
 # need to edit some files... sed/awk/perl can do this automatically?
 #vim /lib/systemd/system/apache2.service
@@ -154,9 +169,81 @@ make install
 #    PreferredTechnologies=wifi,ethernet
 
 
-#INvestigate:
-#a2enmod proxy_fcgi setenvif
-#a2enconf php7.0-fpm
+#need to reboot to pickup new kernel so install of wireless modules will work
+reboot
+
+apt-get install dkms
+# the above installs extra headers which we don't use
+apt-get remove --purge linux-headers-4.4.62-ti-xenomai-r99
+
+
+#install new Wifi drivers
+
+cd /tmp
+wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/patches/rtl8812au
+wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/patches/rtl8192cu
+wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/patches/rtl8723bu
+wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/patches/rtl8723au
+
+cd /opt
+mkdir wifi
+
+cd /opt/wifi
+git clone https://github.com/pvaret/rtl8192cu-fixes
+cd rtl8192cu-fixes
+patch -p1 < /tmp/rtl8192cu
+make
+make install
+make clean
+
+cd /opt/wifi
+git clone https://github.com/zebulon2/rtl8812au-driver-5.2.9
+cd rtl8812au-driver-5.2.9
+patch -p1 < /tmp/rtl8812au
+make
+make install
+make clean
+
+cd /opt/wifi
+git clone https://github.com/zebulon2/rtl8814au
+cd rtl8814au
+patch -p1 < /tmp/rtl8812au
+make
+make install
+make clean
+
+cd /opt/wifi
+git clone https://github.com/lwfinger/rtl8723bu
+cd rtl8723bu
+patch -p1 < /tmp/rtl8723bu
+make
+make install
+make clean
+
+cd /opt/wifi
+git clone https://github.com/lwfinger/rtl8723au
+cd rtl8723au
+patch -p1 < /tmp/rtl8723au
+make
+make install
+make clean
+
+
+echo "options 8192cu rtw_power_mgnt=0" > /etc/modprobe.d/wifi-disable-power-management.conf
+echo "options 8812au rtw_power_mgnt=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
+echo "options 8814au rtw_power_mgnt=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
+echo "options 8723bu rtw_power_mgnt=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
+echo "options 8723au rtw_power_mgnt=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
+
+echo "blacklist rtl8192cu" > /etc/modprobe.d/blacklist-native-wifi.conf
+echo "blacklist rtl8192c_common" >> /etc/modprobe.d/blacklist-native-wifi.conf
+echo "blacklist rtlwifi" >> /etc/modprobe.d/blacklist-native-wifi.conf
+echo "blacklist rtl8xxxu" >> /etc/modprobe.d/blacklist-native-wifi.conf
+
+
+
+
+
 
 
 
