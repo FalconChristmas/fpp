@@ -257,7 +257,7 @@ function GetLEDPanelColorOrder(key, selectedItem)
 	var i = 0;
 
 	html += "<select id='" + key + "'>";
-	html += "<option value=''>C-Default</option>";
+	html += "<option value=''>C-Def</option>";
 	for (i = 0; i < colorOrders.length; i++)
 	{
 		selected = "";
@@ -764,7 +764,7 @@ if (($settings['Platform'] == "Raspberry Pi") ||
 					</table>
 					- O-# is physical output number.<br>
 					- P-# is panel number on physical output.<br>
-					- C-(color) is color order if panel has different color order than default.<br>
+					- C-(color) is color order if panel has different color order than default (C-Def).<br>
 					- Arrow <img src='images/arrow_N.png' height=17 width=17> indicates panel orientation, click arrow to rotate.<br>
 				</div>
 			</div>
