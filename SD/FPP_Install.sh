@@ -376,7 +376,7 @@ case "${OSVER}" in
 								mp3info mailutils mpg123 mpg321 mplayer nano nginx node ntp perlmagick \
 								php-cli php-common php-curl php-dom php-fpm php-mcrypt \
 								php-sqlite3 python-daemon python-smbus rsync samba \
-								samba-common-bin shellinabox sudo sysstat tcpdump usbmount vim \
+								samba-common-bin shellinabox sudo sysstat tcpdump time usbmount vim \
 								vim-common vorbis-tools vsftpd firmware-realtek gcc g++\
 								network-manager dhcp-helper hostapd parprouted bridge-utils \
 								firmware-atheros firmware-ralink firmware-brcm80211 \
