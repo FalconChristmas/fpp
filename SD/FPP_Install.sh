@@ -1043,3 +1043,7 @@ echo "sudo rm -rf /etc/ssh/ssh_host*key*"
 echo "sudo shutdown -r now"
 echo "========================================================="
 echo ""
+
+cp /home/pi/FPP_Install.* ${FPPHOME}/
+chown fpp.fpp ${FPPHOME}/FPP_Install.*
+
