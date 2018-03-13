@@ -76,9 +76,9 @@ If you are installing to create a SD image zip, run the following commands:
 	# Remove old pi user's home directory
 	sudo rm -rf /home/pi
 	# Clean up fppd logs
-	sudo /opt/fpp/scripts/fppd_stop
-	sudo service nginx stop
-	sudo rm /home/fpp/media/logs/*
+	sudo systemctl stop fppd.service
+	sudo systemctl stop apache2.service
+	cd /home/fpp/media/logs ; /bin/ls -1 | while read FILE; do > ${FILE}; done
 	# Zero out free space so the SD image will compress better
 	sudo dd if=/dev/zero of=zero.dd bs=4M ; sudo rm zero.dd ; df -k
 	# Shutdown the Pi
