@@ -367,7 +367,7 @@ case "${OSVER}" in
 								avahi-discover avahi-utils bash-completion bc build-essential \
 								bzip2 ca-certificates ccache connman curl device-tree-compiler \
 								dh-autoreconf ethtool exfat-fuse fbi fbset file flite gdb \
-								gdebi-core git i2c-tools ifplugd imagemagick less \
+								gdebi-core git hdparm i2c-tools ifplugd imagemagick less \
 								libavcodec-dev libavformat-dev \
 								libboost-dev libconvert-binary-c-perl \
 								libdbus-glib-1-dev libdevice-serialport-perl libjs-jquery \
@@ -562,6 +562,9 @@ EOF
 					;;
 			esac
 		fi
+
+		echo "FPP - Disabling dhcpcd"
+		systemctl disable dhcpcd.service
 
 		echo "FPP - Configuring connman"
 		mv /etc/wpa_supplicant/wpa_supplicant.conf /etc/wpa_supplicant/wpa_supplicant.conf.orig
