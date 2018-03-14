@@ -178,8 +178,8 @@ MultiSyncSystemType MultiSync::ModelStringToType(std::string model)
 		return kSysTypeFPPRaspberryPiAPlus;
 	if (boost::starts_with(model, "Raspberry Pi Model B Plus"))
 		return kSysTypeFPPRaspberryPiBPlus;
-	if ((boost::starts_with(model, "Raspberry Pi 2 Model B v1.1")) ||
-		(boost::starts_with(model, "Raspberry Pi 2 Model B v1.0")))
+	if ((boost::starts_with(model, "Raspberry Pi 2 Model B 1.1")) ||
+		(boost::starts_with(model, "Raspberry Pi 2 Model B 1.0")))
 		return kSysTypeFPPRaspberryPi2B;
 	if (boost::starts_with(model, "Raspberry Pi 2 Model B"))
 		return kSysTypeFPPRaspberryPi2BNew;
@@ -311,12 +311,12 @@ std::string MultiSync::GetTypeString(MultiSyncSystemType type)
 	switch (type) {
 		case kSysTypeUnknown:                 return "Unknown System Type";
 		case kSysTypeFPP:                     return "FPP (unknown hardware)";
-		case kSysTypeFPPRaspberryPiA:         return "Raspberry Pi Model A";
-		case kSysTypeFPPRaspberryPiB:         return "Raspberry Pi Model B";
-		case kSysTypeFPPRaspberryPiAPlus:     return "Raspberry Pi Model A Plus";
-		case kSysTypeFPPRaspberryPiBPlus:     return "Raspberry Pi Model B+";
-		case kSysTypeFPPRaspberryPi2B:        return "Raspberry Pi Model 2 B";
-		case kSysTypeFPPRaspberryPi2BNew:     return "Raspberry Pi Model 2 B v1.2+";
+		case kSysTypeFPPRaspberryPiA:         return "Raspberry Pi A";
+		case kSysTypeFPPRaspberryPiB:         return "Raspberry Pi B";
+		case kSysTypeFPPRaspberryPiAPlus:     return "Raspberry Pi A Plus";
+		case kSysTypeFPPRaspberryPiBPlus:     return "Raspberry Pi B+";
+		case kSysTypeFPPRaspberryPi2B:        return "Raspberry Pi 2 B";
+		case kSysTypeFPPRaspberryPi2BNew:     return "Raspberry Pi 2 B v1.2+";
 		case kSysTypeFPPRaspberryPi3B:        return "Raspberry Pi 3 B";
 		case kSysTypeFPPRaspberryPiZero:      return "Raspberry Pi Zero";
 		case kSysTypeFPPRaspberryPiZeroW:     return "Raspberry Pi Zero W";
