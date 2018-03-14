@@ -378,7 +378,7 @@ case "${OSVER}" in
 								php-sqlite3 python-daemon python-smbus rsync samba \
 								samba-common-bin shellinabox sudo sysstat tcpdump time usbmount vim \
 								vim-common vorbis-tools vsftpd firmware-realtek gcc g++\
-								network-manager dhcp-helper hostapd parprouted bridge-utils \
+								dhcp-helper hostapd parprouted bridge-utils \
 								firmware-atheros firmware-ralink firmware-brcm80211 \
 								dos2unix libmosquitto-dev mosquitto-clients librtmidi-dev \
 								wireless-tools libcurl4-openssl-dev resolvconf sqlite3"
