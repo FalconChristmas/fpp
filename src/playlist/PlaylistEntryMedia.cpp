@@ -245,6 +245,7 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 			} else if (ext == "ogg") {
 				m_mediaOutput = new ogg123Output(tmpFile, &mediaOutputStatus);
 			}
+		}
 		else
 			m_mediaOutput = new SDLOutput(tmpFile, &mediaOutputStatus);
 #ifdef PLATFORM_PI
