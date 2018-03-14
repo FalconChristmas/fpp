@@ -104,6 +104,10 @@ for testing/release.
 ALPHA set of instructions for switching Pi root file system to btrfs. The
 current SD images will still use ext4.
 
+NOTE: There are several known issues with this, including the fact that
+upgrading the kernel will prevent the Pi from booting because the initrd may
+not be rebuilt and the initrd filename in config.txt will be incorrect.
+
 # update /boot/cmdline.txt to change root location to "root=/dev/mmcblk0p2"
 
 sudo apt-get update
