@@ -807,6 +807,8 @@ mkdir ${FPPHOME}/media
 chown ${FPPUSER}.${FPPUSER} ${FPPHOME}/media
 chmod 770 ${FPPHOME}/media
 chmod a+s ${FPPHOME}/media
+touch ${FPPHOME}/media/.auto_update_disabled
+chmod 644 ${FPPHOME}/media/.auto_update_disabled
 
 echo "set mouse=r" > ${FPPHOME}/.vimrc
 chown ${FPPUSER}.${FPPUSER} ${FPPHOME}/.vimrc
