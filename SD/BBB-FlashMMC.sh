@@ -61,8 +61,8 @@ prepareBTRFSPartitions() {
 100M,,,-
 __EOF__
 
-    blockdev --rereadpt ${DEVICE}
-    fdisk -l ${DEVICE}
+    blockdev --rereadpt ${DEVICE}  || true
+    fdisk -l ${DEVICE}  || true
 
     echo "---------------------------------------"
     echo "Formating partitions"
@@ -92,8 +92,8 @@ prepareEXT4Partitions() {
 4M,,,-
 __EOF__
 
-    blockdev --rereadpt ${DEVICE}
-    fdisk -l ${DEVICE}
+    blockdev --rereadpt ${DEVICE}  || true
+    fdisk -l ${DEVICE}  || true
 
     echo "---------------------------------------"
     echo "Formating partitions"
@@ -137,6 +137,8 @@ adjustEnvEXT4() {
 
 cylon_leds & CYLON_PID=$!
 
+set -o pipefail
+
 echo "---------------------------------------"
 echo "Installing bootloader "
 echo ""
@@ -157,7 +159,7 @@ echo "Copy files rootfs"
 echo ""
 
 #copy files
-rsync -aAxv /ID.txt /bin /boot /dev /etc /home /lib /lost+found /media /mnt /opt /proc /root /run /sbin /srv /sys /tmp /usr /var /tmp/rootfs --exclude=/dev/* --exclude=/proc/* --exclude=/sys/* --exclude=/tmp/* --exclude=/run/* --exclude=/mnt/* --exclude=/media/* --exclude=/lost+found --exclude=/uEnv.txt
+time rsync -aAxv /ID.txt /bin /boot /dev /etc /home /lib /lost+found /media /mnt /opt /proc /root /run /sbin /srv /sys /tmp /usr /var /tmp/rootfs --exclude=/dev/* --exclude=/proc/* --exclude=/sys/* --exclude=/tmp/* --exclude=/run/* --exclude=/mnt/* --exclude=/media/* --exclude=/lost+found --exclude=/uEnv.txt
 
 echo "---------------------------------------"
 echo "Configure /boot"
@@ -191,16 +193,13 @@ echo "Cleaning up"
 echo ""
 rm -rf /tmp/rootfs/etc/ssh/*key*
 rm -rf /tmp/rootfs/var/lib/connman/eth*
-rm /tmp/rootfs/var/log/*
-rm /tmp/rootfs/var/log/samba/*
-rm /tmp/rootfs/home/fpp/media/logs/*
-
+find /tmp/rootfs/var/log/  -type f -delete
+rm -rf /tmp/rootfs/home/fpp/media/logs/*
 
 echo "---------------------------------------"
 echo "Unmounting filesystems"
 echo ""
-umount /tmp/rootfs/boot
-umount /tmp/rootfs
+umount -R /tmp/rootfs
 
 echo "---------------------------------------"
 echo "Done flashing eMMC, powering down"
