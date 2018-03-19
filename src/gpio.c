@@ -39,6 +39,19 @@
 #ifdef USEWIRINGPI
 #   include "wiringPi.h"
 #   include "softPwm.h"
+#elif defined(PLATFORM_BBB)
+#   include "channeloutput/BBBUtils.h"
+#   define INPUT "in"
+#   define OUTPUT "out"
+#   define pinMode(a, b)         configBBBPin(a, "gpio", b)
+
+#   define digitalRead(a)        getBBBPinValue(a)
+#   define digitalWrite(a,b)     setBBBPinValue(a, b)
+#   define pullUpDnControl(a,b)
+#   define softPwmCreate(a,b,c)  0
+#   define softPwmWrite(a,b)     0
+#   define LOW                   0
+#   define PUD_UP                2
 #else
 #   define pinMode(a, b)
 #   define digitalRead(a)        1
@@ -87,7 +100,7 @@ int SetupGPIOInput(void)
 			}
 
 			pinMode(i, INPUT);
-
+            
 			if ((i >= 200) && (i <= 207))
 				pullUpDnControl(i, PUD_UP);
 
@@ -96,6 +109,7 @@ int SetupGPIOInput(void)
 			// Set the time immediately to utilize the debounce code
 			// from triggering our GPIOs on startup.
 			inputLastTriggerTime[i] = GetTime();
+            
 			inputLastState[i] = digitalRead(i);
 
 			enabledCount++;

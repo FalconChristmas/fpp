@@ -437,32 +437,178 @@ function GetUSBRelayOutputConfig(result, cell) {
 
 /////////////////////////////////////////////////////////////////////////////
 // GPIO Pin direct high/low output
+<?
+if ($settings['Platform'] == "BeagleBone Black") {
+    if (strpos($settings['SubPlatform'], 'PocketBeagle') !== FALSE) {
+?>
+var BeagleBoneHeaderPins = [
+    "P1-02:87",
+    "P1-04:89",
+    "P1-06:5",
+    "P1-08:2",
+    "P1-10:3",
+    "P1-12:4",
+    "P1-20:20",
+    "P1-26:12",
+    "P1-28:13",
+    "P1-29:117",
+    "P1-30:43",
+    "P1-31:114",
+    "P1-32:42",
+    "P1-33:111",
+    "P1-34:26",
+    "P1-35:88",
+    "P1-36:110",
+    "P2-01:50",
+    "P2-02:59",
+    "P2-03:23",
+    "P2-04:58",
+    "P2-05:30",
+    "P2-06:57",
+    "P2-07:31",
+    "P2-08:60",
+    "P2-09:15",
+    "P2-10:52",
+    "P2-11:14",
+    "P2-17:65",
+    "P2-18:47",
+    "P2-19:27",
+    "P2-20:64",
+    "P2-22:46",
+    "P2-24:44",
+    "P2-25:41",
+    "P2-27:40",
+    "P2-28:116",
+    "P2-29:7",
+    "P2-30:113",
+    "P2-31:19",
+    "P2-32:112",
+    "P2-33:45",
+    "P2-34:115",
+    "P2-35:86"
+];
+<?
+    } else {
+?>
+var BeagleBoneHeaderPins = [
+    "P8-03:38",
+    "P8-04:39",
+    "P8-05:34",
+    "P8-06:35",
+    "P8-07:66",
+    "P8-08:67",
+    "P8-09:69",
+    "P8-10:68",
+    "P8-11:45",
+    "P8-12:44",
+    "P8-13:23",
+    "P8-14:26",
+    "P8-15:47",
+    "P8-16:46",
+    "P8-17:27",
+    "P8-18:65",
+    "P8-19:22",
+    "P8-20:63",
+    "P8-21:62",
+    "P8-22:37",
+    "P8-23:36",
+    "P8-24:33",
+    "P8-25:32",
+    "P8-26:61",
+    "P8-27:86",
+    "P8-28:88",
+    "P8-29:87",
+    "P8-30:89",
+    "P8-31:10",
+    "P8-32:11",
+    "P8-33:9",
+    "P8-34:81",
+    "P8-35:8",
+    "P8-36:80",
+    "P8-37:78",
+    "P8-38:79",
+    "P8-39:76",
+    "P8-40:77",
+    "P8-41:74",
+    "P8-42:75",
+    "P8-43:72",
+    "P8-44:73",
+    "P8-45:70",
+    "P8-46:71",
+    "P9-11:30",
+    "P9-12:60",
+    "P9-13:31",
+    "P9-14:50",
+    "P9-15:48",
+    "P9-16:51",
+    "P9-17:5",
+    "P9-18:4",
+    "P9-19:13",
+    "P9-20:12",
+    "P9-21:3",
+    "P9-22:2",
+    "P9-23:49",
+    "P9-24:15",
+    "P9-25:117",
+    "P9-26:14",
+    "P9-27:115",
+    "P9-28:113",
+    "P9-29:111",
+    "P9-30:112",
+    "P9-31:110",
+    "P9-41:20",
+    "P9-91:116",
+    "P9-42:7",
+    "P9-92:114"
+];
+<?
+    }
+}
+?>
+
 
 function GPIOGPIOSelect(currentValue) {
 	var result = "";
 <?
-	if (isset($settings['PiFaceDetected']) && ($settings['PiFaceDetected'] == 1))
+if ($settings['Platform'] == "Raspberry Pi") {
+    if (isset($settings['PiFaceDetected']) && ($settings['PiFaceDetected'] == 1))
 	{
 ?>
-	var options = "4,5,6,12,13,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,200,201,202,203,204,205,206,207".split(",");
+        var options = "4,5,6,12,13,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,200,201,202,203,204,205,206,207".split(",");
+        result += " BCM GPIO Output: <select class='gpio'>";
 <?
 	}
 	else
 	{
 ?>
-	var options = "4,5,6,12,13,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31".split(",");
+        var options = "4,5,6,12,13,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31".split(",");
+        result += " BCM GPIO Output: <select class='gpio'>";
 <?
 	}
+} else if ($settings['Platform'] == "BeagleBone Black") {
 ?>
-
-	result += " BCM GPIO Output: <select class='gpio'>";
+    var options = BeagleBoneHeaderPins;
+    result += "Header Pin: <select class='gpio'>";
+<?
+}
+?>
 
 	var i = 0;
 	for (i = 0; i < options.length; i++) {
 		var opt = options[i];
-
-		result += "<option value='" + opt + "'";
-		if (currentValue == opt)
+        var val = opt;
+        
+<?
+if ($settings['Platform'] == "BeagleBone Black") {
+?>
+        var tmp = opt.split(":");
+        opt = tmp[0];
+        val = tmp[1];
+<?
+}
+?>
+		result += "<option value='" + val + "'";
+		if (currentValue == val)
 			result += " selected";
 		result += ">" + opt + "</option>";
 	}
@@ -491,11 +637,16 @@ function GPIODeviceConfig(config) {
 		result += " checked='checked'";
 	result += ">";
 
+<?
+    if ($settings['Platform'] == "Raspberry Pi") {
+?>
 	result += " SoftPWM: <input type=checkbox class='softPWM'";
 	if (config.softPWM)
 		result += " checked='checked'";
 	result += ">";
-
+<?
+    }
+?>
 	return result;
 }
 
@@ -512,10 +663,16 @@ function GetGPIOOutputConfig(result, cell) {
 	if ($cell.find("input.invert").is(":checked"))
 		invert = 1;
 
+    <?
+    if ($settings['Platform'] == "Raspberry Pi") {
+    ?>
 	if ($cell.find("input.softPWM").is(":checked"))
 		softPWM = 1;
+    <?
+    }
+    ?>
 
-	result.gpio = parseInt(gpio);
+    result.gpio = parseInt(gpio);
 	result.invert = invert;
 	result.softPWM = softPWM;
 
@@ -525,23 +682,57 @@ function GetGPIOOutputConfig(result, cell) {
 /////////////////////////////////////////////////////////////////////////////
 // GPIO-attached 74HC595 Shift Register Output
 
+function GPIO595PrintOptionSelect(label, clss, options, currentValue) {
+    var result = "";
+    result += label;
+    result += ": <select class='" + clss + "'>";
+    var i = 0;
+    for (i = 0; i < options.length; i++) {
+        var tmp = options[i].split(":");
+        var opt = tmp[0];
+        var val = tmp[1];
+        
+        result += "<option value='" + val + "'";
+        if (currentValue == val)
+            result += " selected";
+        result += ">" + opt + "</option>";
+    }
+    
+    result += "</select>";
+    return result;
+}
+
 function GPIO595GPIOSelect(currentValue) {
 	var result = "";
-	var options = "17-18-27,22-23-24".split(",");
 
-	result += " BCM GPIO Outputs: <select class='gpio'>";
+    var vals = currentValue;
+    if (Number.isInteger(vals)) {
+        vals = (currentValue.toString() + "-0-0").split("-");
+    } else {
+        vals = currentValue.split("-");
+    }
+    if (vals.length < 3) {
+        vals = "0-0-0".split("-");
+    }
+    var options;
+    <?
+    if ($settings['Platform'] == "Raspberry Pi") {
+    ?>
+        options = "17:17,18:18,22:22,23:23,24:24,27:27".split(",");
+        result += "BCM GPIO Outputs&nbsp;nbsp;"
+    <?
+    } else if ($settings['Platform'] == "BeagleBone Black") {
+    ?>
+        options = BeagleBoneHeaderPins;
+    <?
+    }
+    ?>
 
-	var i = 0;
-	for (i = 0; i < options.length; i++) {
-		var opt = options[i];
-
-		result += "<option value='" + opt + "'";
-		if (currentValue == opt)
-			result += " selected";
-		result += ">" + opt + "</option>";
-	}
-
-	result += "</select>";
+    result += GPIO595PrintOptionSelect("Clock", "clock", options, vals[0]);
+    result += "&nbsp;&nbsp;";
+    result += GPIO595PrintOptionSelect("Data", "data", options, vals[1]);
+    result += "&nbsp;&nbsp;";
+    result += GPIO595PrintOptionSelect("Latch", "latch", options, vals[2]);
 
 	return result;
 }
@@ -564,12 +755,18 @@ function GPIO595DeviceConfig(config) {
 
 function GetGPIO595OutputConfig(result, cell) {
 	$cell = $(cell);
-	var gpio = $cell.find("select.gpio").val();
 
-	if (gpio == "")
-		return "";
+    var clock = $cell.find("select.clock").val();
+    if (clock == "")
+        return "";
+    var data = $cell.find("select.data").val();
+    if (data == "")
+        return "";
+    var latch = $cell.find("select.latch").val();
+    if (latch == "")
+        return "";
 
-	result.gpio = parseInt(gpio);
+    result.gpio = clock + "-" + data + "-" + latch;
 
 	return result;
 }
@@ -1368,7 +1565,7 @@ function AddOtherOutput() {
 				"<option value='DMX-Open'>DMX-Open</option>" +
 				"<option value='GenericSerial'>Generic Serial</option>" +
 <?
-	if ($settings['Platform'] == "Raspberry Pi")
+	if ($settings['Platform'] == "Raspberry Pi" || $settings['Platform'] == "BeagleBone Black")
 	{
 ?>
 				"<option value='GPIO'>GPIO</option>" +
