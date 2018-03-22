@@ -48,6 +48,11 @@ public:
     uint8_t gpio;
     uint8_t pin;
     int8_t pruout;
+    
+    int8_t pwm;
+    int8_t subPwm;
+    
+    PinCapabilities& setPwm(int pwm, int sub);
 };
 
 const PinCapabilities &getBBBPinByName(const std::string &name);
@@ -55,4 +60,8 @@ const PinCapabilities &getBBBPinKgpio(int i);
 
 bool getBBBPinValue(int kio);
 void setBBBPinValue(int kio, bool v);
+
+bool supportsPWMOnBBBPin(int kio);
+bool setupBBBPinPWM(int kio);
+void setBBBPinPWMValue(int kio, int value);
 #endif

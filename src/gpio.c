@@ -39,6 +39,7 @@
 #ifdef USEWIRINGPI
 #   include "wiringPi.h"
 #   include "softPwm.h"
+#   define supportsPWM(a) 1
 #elif defined(PLATFORM_BBB)
 #   include "channeloutput/BBBUtils.h"
 #   define INPUT "in"
@@ -48,11 +49,13 @@
 #   define digitalRead(a)        getBBBPinValue(a)
 #   define digitalWrite(a,b)     setBBBPinValue(a, b)
 #   define pullUpDnControl(a,b)
-#   define softPwmCreate(a,b,c)  0
-#   define softPwmWrite(a,b)     0
+#   define softPwmCreate(a, b, c) setupBBBPinPWM(a)
+#   define softPwmWrite(a, b)    setBBBPinPWMValue(a, b)
+#   define supportsPWM(a)        supportsPWMOnBBBPin(a)
 #   define LOW                   0
 #   define PUD_UP                2
 #else
+#   define supportsPWM(a)        0
 #   define pinMode(a, b)
 #   define digitalRead(a)        1
 #   define digitalWrite(a,b)     0
@@ -194,7 +197,12 @@ int SetupExtGPIO(int gpio, char *mode)
 	else if (!strcmp(mode, "SoftPWM"))
 	{
 		LogDebug(VB_GPIO, "GPIO %d set to SoftPWM mode\n", gpio);
-		retval = softPwmCreate (gpio, 0, 100);
+        if (supportsPWM(gpio)) {
+            retval = softPwmCreate (gpio, 0, 100);
+        } else {
+            LogDebug(VB_GPIO, "GPIO %d does not support PWM\n", gpio);
+            retval = 1;
+        }
 	}
 	else {
 		LogDebug(VB_GPIO, "GPIO %d invalid mode %s\n", gpio, mode);

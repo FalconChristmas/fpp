@@ -445,8 +445,8 @@ var BeagleBoneHeaderPins = [
     "P1-02:87",
     "P1-04:89",
     "P1-06:5",
-    "P1-08:2",
-    "P1-10:3",
+    "P1-08:2:P",
+    "P1-10:3:P",
     "P1-12:4",
     "P1-20:20",
     "P1-26:12",
@@ -455,13 +455,13 @@ var BeagleBoneHeaderPins = [
     "P1-30:43",
     "P1-31:114",
     "P1-32:42",
-    "P1-33:111",
+    "P1-33:111:P",
     "P1-34:26",
     "P1-35:88",
-    "P1-36:110",
-    "P2-01:50",
+    "P1-36:110:P",
+    "P2-01:50:P",
     "P2-02:59",
-    "P2-03:23",
+    "P2-03:23:P",
     "P2-04:58",
     "P2-05:30",
     "P2-06:57",
@@ -501,13 +501,13 @@ var BeagleBoneHeaderPins = [
     "P8-10:68",
     "P8-11:45",
     "P8-12:44",
-    "P8-13:23",
+    "P8-13:23:P",
     "P8-14:26",
     "P8-15:47",
     "P8-16:46",
     "P8-17:27",
     "P8-18:65",
-    "P8-19:22",
+    "P8-19:22:P",
     "P8-20:63",
     "P8-21:62",
     "P8-22:37",
@@ -522,9 +522,9 @@ var BeagleBoneHeaderPins = [
     "P8-31:10",
     "P8-32:11",
     "P8-33:9",
-    "P8-34:81",
+    "P8-34:81:P",
     "P8-35:8",
-    "P8-36:80",
+    "P8-36:80:P",
     "P8-37:78",
     "P8-38:79",
     "P8-39:76",
@@ -533,29 +533,29 @@ var BeagleBoneHeaderPins = [
     "P8-42:75",
     "P8-43:72",
     "P8-44:73",
-    "P8-45:70",
-    "P8-46:71",
+    "P8-45:70:P",
+    "P8-46:71:P",
     "P9-11:30",
     "P9-12:60",
     "P9-13:31",
-    "P9-14:50",
+    "P9-14:50:P",
     "P9-15:48",
-    "P9-16:51",
+    "P9-16:51:P",
     "P9-17:5",
     "P9-18:4",
     "P9-19:13",
     "P9-20:12",
-    "P9-21:3",
-    "P9-22:2",
+    "P9-21:3:P",
+    "P9-22:2:P",
     "P9-23:49",
     "P9-24:15",
     "P9-25:117",
     "P9-26:14",
     "P9-27:115",
     "P9-28:113",
-    "P9-29:111",
+    "P9-29:111:P",
     "P9-30:112",
-    "P9-31:110",
+    "P9-31:110:P",
     "P9-41:20",
     "P9-91:116",
     "P9-42:7",
@@ -566,7 +566,29 @@ var BeagleBoneHeaderPins = [
 }
 ?>
 
-
+function GPIOHeaderPinChanged(item) {
+<?
+    if ($settings['Platform'] == "BeagleBone Black") {
+?>
+        var itemVal = $(item).val();
+        for (i = 0; i < BeagleBoneHeaderPins.length; i++) {
+            var tmp = BeagleBoneHeaderPins[i].split(":");
+            var opt = tmp[0];
+            var val = tmp[1];
+            if (val == itemVal) {
+                var softPwm = $(item).parent().parent().find("input.softPWM");
+                if (tmp.length == 3) {
+                    softPwm.prop('disabled', false);
+                } else {
+                    softPwm.prop('disabled', true);
+                    softPwm.prop('checked', false);
+                }
+            }
+        }
+<?
+    }
+?>
+}
 function GPIOGPIOSelect(currentValue) {
 	var result = "";
 <?
@@ -588,7 +610,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
 } else if ($settings['Platform'] == "BeagleBone Black") {
 ?>
     var options = BeagleBoneHeaderPins;
-    result += "Header Pin: <select class='gpio'>";
+    result += "Header Pin: <select class='gpio' onChange='GPIOHeaderPinChanged(this)'>";
 <?
 }
 ?>
@@ -637,17 +659,12 @@ function GPIODeviceConfig(config) {
 		result += " checked='checked'";
 	result += ">";
 
-<?
-    if ($settings['Platform'] == "Raspberry Pi") {
-?>
-	result += " SoftPWM: <input type=checkbox class='softPWM'";
+	result += " PWM: <input type=checkbox class='softPWM'";
 	if (config.softPWM)
 		result += " checked='checked'";
 	result += ">";
-<?
-    }
-?>
-	return result;
+
+    return result;
 }
 
 function GetGPIOOutputConfig(result, cell) {
@@ -663,14 +680,8 @@ function GetGPIOOutputConfig(result, cell) {
 	if ($cell.find("input.invert").is(":checked"))
 		invert = 1;
 
-    <?
-    if ($settings['Platform'] == "Raspberry Pi") {
-    ?>
 	if ($cell.find("input.softPWM").is(":checked"))
 		softPWM = 1;
-    <?
-    }
-    ?>
 
     result.gpio = parseInt(gpio);
 	result.invert = invert;
