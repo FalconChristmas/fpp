@@ -548,6 +548,7 @@ SDLOutput::SDLOutput(const std::string &mediaFilename, MediaOutputStatus *status
  */
 SDLOutput::~SDLOutput()
 {
+    LogDebug(VB_MEDIAOUT, "SDLOutput::~SDLOutput() %X\n", data);
     Stop();
     if (data) {
         delete data;
@@ -559,7 +560,7 @@ SDLOutput::~SDLOutput()
  */
 int SDLOutput::Start(void)
 {
-	LogDebug(VB_MEDIAOUT, "SDLOutput::Start()\n");
+	LogDebug(VB_MEDIAOUT, "SDLOutput::Start() %d\n", data == nullptr);
     if (data) {
         sdlManager.Start(data);
         m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_PLAYING;
