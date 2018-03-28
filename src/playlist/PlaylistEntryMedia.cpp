@@ -238,6 +238,7 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 		(ext == "m4a") ||
 		(ext == "ogg"))
 	{
+#if !defined(PLATFORM_BBB)
 		if (!getSettingInt("ForceSDL") || getSettingInt("LegacyMediaOutputs"))
 		{
 			if (ext == "mp3") {
@@ -247,6 +248,8 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 			}
 		}
 		else
+#endif
+            LogDebug(VB_MEDIAOUT, "Using SDL to play %s\n", tmpFile);
 			m_mediaOutput = new SDLOutput(tmpFile, &mediaOutputStatus);
 #ifdef PLATFORM_PI
 	}
@@ -273,6 +276,7 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 		multiSync->SendMediaSyncStartPacket(m_mediaFilename.c_str());
 
 	if (!m_mediaOutput->Start()) {
+        LogErr(VB_MEDIAOUT, "Could not start media %s\n", tmpFile);
 		delete m_mediaOutput;
 		m_mediaOutput = 0;
 		pthread_mutex_unlock(&m_mediaOutputLock);
