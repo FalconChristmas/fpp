@@ -203,7 +203,8 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 		pthread_mutex_unlock(&m_mediaOutputLock);
 		CloseMediaOutput();
 	}
-	pthread_mutex_unlock(&m_mediaOutputLock);
+	else
+		pthread_mutex_unlock(&m_mediaOutputLock);
 
 	pthread_mutex_lock(&m_mediaOutputLock);
 
@@ -233,23 +234,30 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 		}
 	}
 
-    // FIXME remove ForceSDL for v2.0
-	if (!getSettingInt("ForceSDL") || getSettingInt("LegacyMediaOutputs")) {
-		if (ext == "mp3") {
-			m_mediaOutput = new mpg123Output(tmpFile, &mediaOutputStatus);
-		} else if (ext == "ogg") {
-			m_mediaOutput = new ogg123Output(tmpFile, &mediaOutputStatus);
+	if ((ext == "mp3") ||
+		(ext == "m4a") ||
+		(ext == "ogg"))
+	{
+		if (!getSettingInt("ForceSDL") || getSettingInt("LegacyMediaOutputs"))
+		{
+			if (ext == "mp3") {
+				m_mediaOutput = new mpg123Output(tmpFile, &mediaOutputStatus);
+			} else if (ext == "ogg") {
+				m_mediaOutput = new ogg123Output(tmpFile, &mediaOutputStatus);
+			}
 		}
-    } else if ((ext == "mp3") ||
-               (ext == "m4a") ||
-               (ext == "ogg")) {
-        m_mediaOutput = new SDLOutput(tmpFile, &mediaOutputStatus);
+		else
+			m_mediaOutput = new SDLOutput(tmpFile, &mediaOutputStatus);
 #ifdef PLATFORM_PI
-	} else if ((ext == "mp4") ||
-			   (ext == "mkv")) {
+	}
+	else if ((ext == "mp4") ||
+			 (ext == "mkv"))
+	{
 		m_mediaOutput = new omxplayerOutput(tmpFile, &mediaOutputStatus);
 #endif
-	} else {
+	}
+	else
+	{
 		pthread_mutex_unlock(&mediaOutputLock);
 		LogDebug(VB_MEDIAOUT, "No Media Output handler for %s\n", tmpFile);
 		return 0;

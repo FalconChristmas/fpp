@@ -53,7 +53,7 @@ class Sequence {
 	void  SingleStepSequenceBack(void);
 	int   SequenceIsPaused(void);
 
-	unsigned long m_seqFileSize;
+	long long     m_seqFileSize;
 	int           m_seqDuration;
 	int           m_seqSecondsElapsed;
 	int           m_seqSecondsRemaining;
@@ -67,7 +67,7 @@ class Sequence {
 	char *CurrentSequenceFilename(void);
 
 	FILE         *m_seqFile;
-	unsigned long m_seqFilePosition;
+	long long     m_seqFilePosition;
 	int           m_seqStarting;
 	int           m_seqPaused;
 	int           m_seqSingleStep;

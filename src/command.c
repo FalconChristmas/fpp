@@ -58,7 +58,6 @@
 
 extern PluginCallbackManager pluginCallbackManager;
 
- char response[1056];
  int socket_fd;
  struct sockaddr_un server_address;
  struct sockaddr_un client_address;
@@ -131,6 +130,7 @@ extern PluginCallbackManager pluginCallbackManager;
     char *s2;
     char *s3;
     char *s4;
+    char response[1056] = "";
     char *response2 = NULL;
     int i;
 		char NextPlaylist[128] = "No playlist scheduled.";
@@ -328,6 +328,8 @@ extern PluginCallbackManager pluginCallbackManager;
 			}
 
 			ShutdownFPPD();
+
+			sleep(1);
 		}
 		else if (!strcmp(CommandStr, "e"))
 		{

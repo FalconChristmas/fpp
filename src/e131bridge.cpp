@@ -78,6 +78,8 @@ static unsigned long ddpErrors = 0;
 
 static long ddpLastSequence = 0;
 static long ddpLastChannel = 0;
+static unsigned long ddpMinChannel = 0xFFFFFFF;
+static unsigned long ddpMaxChannel = 0;
 
 static unsigned long e131Errors = 0;
 static unsigned long e131SyncPackets = 0;
@@ -407,7 +409,7 @@ bool Bridge_StoreDDPData(char *bridgeBuffer)  {
         bool tc = bridgeBuffer[0] & DDP_TIMECODE_FLAG;
         push = bridgeBuffer[0] & DDP_PUSH_FLAG;
         
-        int chan = bridgeBuffer[4];
+        unsigned long chan = bridgeBuffer[4];
         chan <<= 8;
         chan += bridgeBuffer[5];
         chan <<= 8;
@@ -415,7 +417,7 @@ bool Bridge_StoreDDPData(char *bridgeBuffer)  {
         chan <<= 8;
         chan += bridgeBuffer[7];
         
-        int len = bridgeBuffer[8] << 8;
+        unsigned long len = bridgeBuffer[8] << 8;
         len += bridgeBuffer[9];
         
         int sn = bridgeBuffer[1] & 0xF;
@@ -438,8 +440,9 @@ bool Bridge_StoreDDPData(char *bridgeBuffer)  {
             ddpLastChannel = chan + len;
         }
 
+        ddpMinChannel = std::min(ddpMinChannel, chan + 1);
+        ddpMaxChannel = std::max(ddpMaxChannel, chan + len);
 
-        
         int offset = tc ? 14 : 10;
         memcpy(sequence->m_seqData + chan, &bridgeBuffer[offset], len);
         
@@ -497,7 +500,16 @@ Json::Value GetE131UniverseBytesReceived()
     if (ddpBytesReceived) {
         Json::Value ddpUniverse;
         ddpUniverse["id"] = "DDP";
-        ddpUniverse["startChannel"] = "-";
+
+        if (ddpMaxChannel > ddpMinChannel) {
+            std::stringstream ss;
+            ss << ddpMinChannel << "-" << ddpMaxChannel;
+            std::string chanRange = ss.str();
+            ddpUniverse["startChannel"] = chanRange;
+        } else {
+            ddpUniverse["startChannel"] = "-";
+        }
+        
         std::stringstream ss;
         ss << ddpBytesReceived;
         std::string bytesReceived = ss.str();

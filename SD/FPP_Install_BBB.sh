@@ -28,18 +28,18 @@
 #       following OS images for the Raspberry Pi and BeagleBone Black:
 #
 #       Raspberry Pi
-#           - URL: FIXME
+#           - URL: https://www.raspberrypi.org/downloads/
 #           - Image
-#             - 
+#             - 2017-11-29-raspbian-stretch-lite.zip
 #           - Login/Password
 #             - pi/raspberry
 #
 #       BeagleBone Black
-#           - URL: https://rcn-ee.com/rootfs/bb.org/release/2014-05-14/
+#           - URL: http://beagleboard.org/latest-images
 #           - Images
-#             - FIXME for Debian Jessie images
-#           - Login
-#             - root (no password)
+#             - bone-debian-9.3-iot-armhf-2018-03-05-4gb.img
+#           - Login/Password
+#             - debian/temppwd
 #
 #       Other OS images may work with this install script and FPP on the
 #       Pi and BBB platforms, but these are the images we are currently
@@ -67,16 +67,14 @@
 #
 #############################################################################
 SCRIPTVER="0.9"
-FPPBRANCH="PocketScroller"
-FPPIMAGEVER="1.9"
-FPPCFGVER="24"
+FPPBRANCH="master"
+FPPIMAGEVER="2.0alpha"
+FPPCFGVER="29"
 FPPPLATFORM="UNKNOWN"
-FPPDIR="/opt/fpp"
+FPPDIR=/opt/fpp
+FPPUSER=fpp
+FPPHOME=/home/${FPPUSER}
 OSVER="UNKNOWN"
-
-# FIXME, need to handle config version 14 to fix force HDMI on the Pi
-# can we do this at install time or does it need to be at first boot?
-# do we need a FPP "first boot" script for this and other things?
 
 #############################################################################
 # Some Helper Functions
@@ -213,7 +211,7 @@ echo "WARNINGS:"
 echo "- This install expects to be run on a clean freshly-installed system."
 echo "  The script is not currently designed to be re-run multiple times."
 echo "- This installer will take over your system.  It will disable any"
-echo "  existing 'pi' or 'debian' user and create a 'fpp' user.  If the system"
+echo "  existing 'pi' or 'debian' user and create a '${FPPUSER}' user.  If the system"
 echo "  has an empty root password, remote root login will be disabled."
 echo ""
 
@@ -327,63 +325,76 @@ mv ./composer.phar /usr/local/bin/composer
 chmod 755 /usr/local/bin/composer
 
 #######################################
-echo "FPP - Setting up for UI"
-sed -i -e "s/^user =.*/user = fpp/" /etc/php/7.0/fpm/pool.d/www.conf
-sed -i -e "s/^group =.*/group = fpp/" /etc/php/7.0/fpm/pool.d/www.conf
-sed -i -e "s/.*listen.owner =.*/listen.owner = fpp/" /etc/php/7.0/fpm/pool.d/www.conf
-sed -i -e "s/.*listen.group =.*/listen.group = fpp/" /etc/php/7.0/fpm/pool.d/www.conf
-sed -i -e "s/.*listen.mode =.*/listen.mode = 0660/" /etc/php/7.0/fpm/pool.d/www.conf
+PHPDIR="/etc/php/7.0"
 
-#######################################
 echo "FPP - Allowing short tags in PHP"
-sed -i -e "s/^short_open_tag.*/short_open_tag = On/" /etc/php/7.0/cli/php.ini
-sed -i -e "s/^short_open_tag.*/short_open_tag = On/" /etc/php/7.0/fpm/php.ini
+FILES="cli/php.ini apache2/php.ini fpm/php.ini"
+for FILE in ${FILES}
+do
+    sed -i -e "s/^short_open_tag.*/short_open_tag = On/" ${PHPDIR}/${FILE}
+    sed -i -e "s/max_execution_time.*/max_execution_time = 300/" ${PHPDIR}/${FILE}
+    sed -i -e "s/max_input_time.*/max_input_time = 300/" ${PHPDIR}/${FILE}
+    sed -i -e "s/default_socket_timeout.*/default_socket_timeout = 300/" ${PHPDIR}/${FILE}
+    sed -i -e "s/post_max_size.*/post_max_size = 4G/" ${PHPDIR}/${FILE}
+    sed -i -e "s/upload_max_filesize.*/upload_max_filesize = 4G/" ${PHPDIR}/${FILE}
+    sed -i -e "s/;upload_tmp_dir =.*/upload_tmp_dir = \/home\/${FPPUSER}\/media\/upload/" ${PHPDIR}/${FILE}
+    sed -i -e "s/^; max_input_vars.*/max_input_vars = 5000/" ${PHPDIR}/${FILE}
+done
 
 #######################################
-# echo "FPP - Composing FPP UI"
-# FIXME, eventually run composer here in the new UI dir
+echo "FPP - Copying rsync daemon config files into place"
+sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" -e "s#FPPUSER#${FPPUSER}#g" < ${FPPDIR}/etc/rsync > /etc/default/rsync
+sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" -e "s#FPPUSER#${FPPUSER}#g" < ${FPPDIR}/etc/rsyncd.conf > /etc/rsyncd.conf
 
 #######################################
-# Add the fpp user and group memberships
-echo "FPP - Adding fpp user"
-addgroup --gid 500 fpp
-adduser --uid 500 --home /home/fpp --shell /bin/bash --ingroup fpp --gecos "Falcon Player" --disabled-password fpp
-adduser fpp adm
-adduser fpp sudo
+# Add the ${FPPUSER} user and group memberships
+echo "FPP - Adding ${FPPUSER} user"
+addgroup --gid 500 ${FPPUSER}
+adduser --uid 500 --home ${FPPHOME} --shell /bin/bash --ingroup ${FPPUSER} --gecos "Falcon Player" --disabled-password ${FPPUSER}
+adduser ${FPPUSER} adm
+adduser ${FPPUSER} sudo
 case "${FPPPLATFORM}" in
 	'Raspberry Pi'|'BeagleBone Black')
-		adduser fpp spi
+		adduser ${FPPUSER} spi
+        adduser ${FPPUSER} gpio
 		;;
 esac
-adduser fpp video
+adduser ${FPPUSER} video
+# FIXME, use ${FPPUSER} here instead of hardcoding
 sed -i -e 's/^fpp:\*:/fpp:\$6\$rA953Jvd\$oOoLypAK8pAnRYgQQhcwl0jQs8y0zdx1Mh77f7EgKPFNk\/jGPlOiNQOtE.ZQXTK79Gfg.8e3VwtcCuwz2BOTR.:/' /etc/shadow
+
 
 #######################################
 echo "FPP - Fixing empty root passwd"
 sed -i -e 's/root::/root:*:/' /etc/shadow
 
 #######################################
-echo "FPP - Populating /home/fpp"
-mkdir /home/fpp/.ssh
-chown fpp.fpp /home/fpp/.ssh
-chmod 700 /home/fpp/.ssh
+echo "FPP - Populating ${FPPHOME}"
+mkdir ${FPPHOME}/.ssh
+chown ${FPPUSER}.${FPPUSER} ${FPPHOME}/.ssh
+chmod 700 ${FPPHOME}/.ssh
 
-mkdir /home/fpp/media
-chown fpp.fpp /home/fpp/media
-chmod 700 /home/fpp/media
+mkdir ${FPPHOME}/media
+chown ${FPPUSER}.${FPPUSER} ${FPPHOME}/media
+chmod 770 ${FPPHOME}/media
+chmod a+s ${FPPHOME}/media
 
-echo >> /home/fpp/.bashrc
-echo ". /opt/fpp/scripts/common" >> /home/fpp/.bashrc
-echo >> /home/fpp/.bashrc
+echo "set mouse=r" > ${FPPHOME}/.vimrc
+chown ${FPPUSER}.${FPPUSER} ${FPPHOME}/.vimrc
 
-mkdir /home/fpp/media/logs
-chown fpp.fpp /home/fpp/media/logs
+echo >> ${FPPHOME}/.bashrc
+echo ". /opt/fpp/scripts/common" >> ${FPPHOME}/.bashrc
+echo >> ${FPPHOME}/.bashrc
 
+mkdir ${FPPHOME}/media/logs
+chown fpp.fpp ${FPPHOME}/media/logs
 
 #######################################
 # Configure log rotation
 echo "FPP - Configuring log rotation"
 cp /opt/fpp/etc/logrotate.d/* /etc/logrotate.d/
+sed -i -e "s/#compress/compress/" /etc/logrotate.conf
+sed -i -e "s/rotate .*/rotate 2/" /etc/logrotate.conf
 
 #######################################
 # Configure ccache
@@ -402,25 +413,18 @@ echo "FPP - Configuring Samba"
 cat <<-EOF >> /etc/samba/smb.conf
 
 [FPP]
-  comment = FPP Home Share
-  path = /home/fpp
+  comment = FPP Media Share
+  path = ${FPPHOME}/media
   writeable = Yes
   only guest = Yes
   create mask = 0777
   directory mask = 0777
   browseable = Yes
   public = yes
-  force user = fpp
+  force user = ${FPPUSER}
 
 EOF
 case "${OSVER}" in
-	debian_7)
-		service samba restart
-		;;
-	debian_8)
-		systemctl restart smbd.service
-		systemctl restart nmbd.service
-		;;
     debian_9)
         systemctl restart smbd.service
         systemctl restart nmbd.service
@@ -428,9 +432,51 @@ case "${OSVER}" in
 esac
 
 #######################################
+# Setup mail
+echo "FPP - Updating exim4 config file"
+cat <<-EOF > /etc/exim4/update-exim4.conf.conf
+# /etc/exim4/update-exim4.conf.conf
+#
+# Edit this file and /etc/mailname by hand and execute update-exim4.conf
+# yourself or use 'dpkg-reconfigure exim4-config'
+#
+# Please note that this is _not_ a dpkg-conffile and that automatic changes
+# to this file might happen. The code handling this will honor your local
+# changes, so this is usually fine, but will break local schemes that mess
+# around with multiple versions of the file.
+#
+# update-exim4.conf uses this file to determine variable values to generate
+# exim configuration macros for the configuration file.
+#
+# Most settings found in here do have corresponding questions in the
+# Debconf configuration, but not all of them.
+#
+# This is a Debian specific file
+dc_eximconfig_configtype='smarthost'
+dc_other_hostnames='fpp'
+dc_local_interfaces='127.0.0.1'
+dc_readhost=''
+dc_relay_domains=''
+dc_minimaldns='false'
+dc_relay_nets=''
+dc_smarthost='smtp.gmail.com::587'
+CFILEMODE='644'
+dc_use_split_config='true'
+dc_hide_mailname='false'
+dc_mailname_in_oh='true'
+dc_localdelivery='mail_spool'
+EOF
+
+# remove exim4 panic log so exim4 doesn't throw an alert about a non-zero log
+# file due to some odd error thrown during inital setup
+rm /var/log/exim4/paniclog
+#update config and restart exim
+update-exim4.conf
+
+#######################################
 # Fix sudoers to not require password
-echo "FPP - Giving fpp user sudo"
-echo "fpp ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers
+echo "FPP - Giving ${FPPUSER} user sudo"
+echo "${FPPUSER} ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers
 
 #######################################
 # Print notice during login regarding console access
@@ -451,6 +497,7 @@ You can access the UI by typing "http://fpp.local/" into a web browser.[0m
 # Config fstab to mount some filesystems as tmpfs
 echo "FPP - Configuring tmpfs filesystems"
 echo "#####################################" >> /etc/fstab
+#echo "tmpfs         /var/log    tmpfs   nodev,nosuid,size=10M 0 0" >> /etc/fstab
 echo "tmpfs         /var/tmp    tmpfs   nodev,nosuid,size=50M 0 0" >> /etc/fstab
 echo "#####################################" >> /etc/fstab
 
@@ -460,10 +507,37 @@ if [ -n ${SDA1} ]
 then
 	COMMENTED="#"
 fi
-echo "${COMMENTED}/dev/sda1     /home/fpp/media  auto    defaults,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500  0  0" >> /etc/fstab
+echo "${COMMENTED}/dev/sda1     ${FPPHOME}/media  auto    defaults,nonempty,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500  0  0" >> /etc/fstab
 echo "#####################################" >> /etc/fstab
 
 
+
+
+#######################################
+echo "FPP - Configuring Apache webserver"
+
+# Environment variables
+sed -i -e "s/APACHE_RUN_USER=.*/APACHE_RUN_USER=${FPPUSER}/" /etc/apache2/envvars
+sed -i -e "s/APACHE_RUN_GROUP=.*/APACHE_RUN_GROUP=${FPPUSER}/" /etc/apache2/envvars
+sed -i -e "s#APACHE_LOG_DIR=.*#APACHE_LOG_DIR=${FPPHOME}/media/logs#" /etc/apache2/envvars
+sed -i -e "s/Listen 8080.*/Listen 80/" /etc/apache2/ports.conf
+
+sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/apache2.site > /etc/apache2/sites-enabled/000-default.conf
+
+
+# Fix name of Apache default error log so it gets rotated by our logrotate config
+sed -i -e "s/error\.log/apache2-base-error.log/" /etc/apache2/apache2.conf
+
+# Disable private /tmp directory
+sed -i -e "s/PrivateTmp=true/PrivateTmp=false/" /lib/systemd/system/apache2.service
+
+# Disable default access logs
+rm /etc/apache2/conf-enabled/other-vhosts-access-log.conf
+
+#######################################
+echo "FPP - Updating HotSpot"
+sed -i -e "s/USE_PERSONAL_SSID=.*/USE_PERSONAL_SSID=FPP/" /etc/default/bb-wl18xx
+sed -i -e "s/USE_PERSONAL_PASSWORD=.*/USE_PERSONAL_PASSWORD=Christmas/" /etc/default/bb-wl18xx
 
 #######################################
 echo "FPP - Configuring FPP startup"
@@ -478,49 +552,9 @@ echo "FPP - Disabling services not needed/used"
 systemctl disable olad
 systemctl disable dev-hugepages.mount
 
-
-export FPPHOME=/home/fpp
-export FPPDIR=/opt/fpp
-export FPPUSER=fpp
-#######################################
-# Configure Apache run user/group
-echo "FPP - Configuring Apache"
-# environment variables
-sed -i -e "s/APACHE_RUN_USER=.*/APACHE_RUN_USER=fpp/" /etc/apache2/envvars
-sed -i -e "s/APACHE_RUN_GROUP=.*/APACHE_RUN_GROUP=fpp/" /etc/apache2/envvars
-sed -i -e "s#APACHE_LOG_DIR=.*#APACHE_LOG_DIR=/home/fpp/media/logs#" /etc/apache2/envvars
-sed -i -e "s/Listen 8080.*/Listen 80/" /etc/apache2/ports.conf
-
-sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/apache2.site.jesse > /etc/apache2/sites-enabled/000-default.conf
-
-sed -i -e "s/short_open_tag =.*/short_open_tag = On/" /etc/php/7.0/apache2/php.ini
-sed -i -e "s/max_execution_time =.*/max_execution_time = 300/" /etc/php/7.0/apache2/php.ini
-sed -i -e "s/max_input_time =.*/max_input_time = 300/" /etc/php/7.0/apache2/php.ini
-sed -i -e "s/default_socket_timeout =.*/default_socket_timeout = 300/" /etc/php/7.0/apache2/php.ini
-sed -i -e "s/post_max_size =.*/post_max_size = 4G/" /etc/php/7.0/apache2/php.ini
-sed -i -e "s/upload_max_filesize =.*/upload_max_filesize = 4G/" /etc/php/7.0/apache2/php.ini
-sed -i -e "s/;upload_tmp_dir =.*/upload_tmp_dir = \/home\/fpp\/media\/upload/" /etc/php/7.0/apache2/php.ini
-
-echo "FPP - Copying rsync daemon config files into place and restarting"
-sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" -e "s#FPPUSER#${FPPUSER}#g" < ${FPPDIR}/etc/rsync > /etc/default/rsync
-sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" -e "s#FPPUSER#${FPPUSER}#g" < ${FPPDIR}/etc/rsyncd.conf > /etc/rsyncd.conf
-
-
-echo "FPP - Updating HotSpot"
-sed -i -e "s/USE_PERSONAL_SSID=.*/USE_PERSONAL_SSID=FPP/" /etc/default/bb-wl18xx
-sed -i -e "s/USE_PERSONAL_PASSWORD=.*/USE_PERSONAL_PASSWORD=Christmas/" /etc/default/bb-wl18xx
-
-
-echo "SUBSYSTEM==\"net\", ACTION==\"add\", DRIVERS==\"rtl8192cu\", ATTR{dev_id}==\"0x0\", ATTR{type}==\"1\", KERNEL==\"wlan*\", NAME=\"wlan0\"" > /etc/udev/rules.d/71-persistent-net.rules
-echo "SUBSYSTEM==\"net\", ACTION==\"add\", DRIVERS==\"8192cu\", ATTR{dev_id}==\"0x0\", ATTR{type}==\"1\", KERNEL==\"wlan*\", NAME=\"wlan0\"" >> /etc/udev/rules.d/71-persistent-net.rules
-
-
 echo "FPP - Compiling binaries"
 cd /opt/fpp/src/
-make clean ; make
-
-
-
+make clean ; make optimized
 
 ENDTIME=$(date)
 
@@ -529,17 +563,17 @@ echo "FPP Install Complete."
 echo "Started : ${STARTTIME}"
 echo "Finished: ${ENDTIME}"
 echo "========================================================="
-echo "You can reboot the system by changing to the 'fpp' user with the"
+echo "You can reboot the system by changing to the '${FPPUSER} user with the"
 echo "password 'falcon' and running the shutdown command."
 echo ""
-echo "su - fpp"
+echo "su - ${FPPUSER}
 echo "sudo shutdown -r now"
 echo ""
 echo "NOTE: If you are prepping this as an image for release,"
 echo "remove the SSH keys before shutting down so they will be"
 echo "rebuilt during the next boot."
 echo ""
-echo "su - fpp"
+echo "su - ${FPPUSER}
 echo "sudo rm -rf /etc/ssh/ssh_host*key*"
 echo "sudo shutdown -r now"
 echo "========================================================="

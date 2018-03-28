@@ -30,6 +30,9 @@ fi
 
 checkAudioConfig
 
+aplay -l 2>&1 | grep -q "no soundcards"
+HASSOUND=$?
+
 applyReadOnlySDFixups
 
 
@@ -60,7 +63,7 @@ do
     if [ "$(df -h ${MEDIADIR} | tail -n 1 | awk '{print $1}')" == "$(df -h / | tail -n 1 | awk '{print $1}')" ];
     then
 	    echo "FPP - Checking for mounted flash drive, Flash Media Is Missing.  Please Insert.";
-        if [ -f "/usr/bin/flite" ]; then
+        if [ ${HASSOUND} -eq 1 -a -f "/usr/bin/flite" ]; then
 	        flite -voice kal "Boot Stalled, Flash Media Is Missing.  Please Insert."
         fi
 	    sleep 5;
@@ -110,16 +113,6 @@ echo "FPP - Configuring DNS"
 ${BINDIR}/config_dns
 
 echo "FPP - Configuring Audio"
-if [ "${FPPPLATFORM}" = "Raspberry Pi" ]
-then
-	#######################################################################
-	# Part #1 workaround for https://github.com/raspberrypi/linux/issues/570
-	# Play some silence while we set the volume so the new value will stick
-	aplay /opt/fpp/media/silence_5sec.wav > /dev/null 2>&1 &
-	SILENCEPID=$!
-	#######################################################################
-fi
-
 CARDID=0
 if [ -e /root/.asoundrc ]
 then
@@ -173,28 +166,27 @@ fi
 
 amixer -c ${CARDID} set ${MIXERDEVICE} ${VOLUME}% > /dev/null 2>&1
 
-if [ "${FPPPLATFORM}" = "Raspberry Pi" ]
-then
-	#######################################################################
-	# Part #2 workaround for https://github.com/raspberrypi/linux/issues/570
-	sleep 1
-	kill -9 ${SILENCEPID} > /dev/null 2>&1
-	#######################################################################
-fi
-
 # Clear any restart/reboot flags
 echo "FPP - Clearing reboot flags"
 sed -i -e "s/^rebootFlag .*/rebootFlag = 0/" ${FPPHOME}/media/settings
 
 # make sure the media directory in the settings matches what we used at boot
-MEDIADEV=`findmnt -n -o SOURCE /home/fpp/media | colrm 1 5`
+echo "FPP - Sanity checking storage device setting"
+MEDIADEV=""
+findmnt -n -o SOURCE /home/fpp/media | grep -q "^/dev/"
+if [ $? -eq 1 ]
+then
+	MEDIADEV=`findmnt -n -o SOURCE /home/fpp/media | colrm 1 5`
+else
+	MEDIADEV=`findmnt -n -o SOURCE /home/fpp/media`
+fi
 if [ "$MEDIADEV" = "" ]; then
     MEDIADEV=`findmnt -n -o SOURCE / | colrm 1 5`
 fi
 if grep -q storageDevice "${FPPHOME}/media/settings"; then
-    sed -i -e "s/^storageDevice .*/storageDevice = $MEDIADEV/" ${FPPHOME}/media/settings
+    sed -i -e "s#^storageDevice .*#storageDevice = \"$MEDIADEV\"#" ${FPPHOME}/media/settings
 else
-    echo "storageDevice = $MEDIADEV" >> ${FPPHOME}/media/settings
+    echo "storageDevice = \"$MEDIADEV\"" >> ${FPPHOME}/media/settings
 fi
 
 

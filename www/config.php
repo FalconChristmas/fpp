@@ -113,7 +113,7 @@ if ($settings['Platform'] == "Raspberry Pi")
 	unset($output);
 
 	$settings['LogoLink'] = "http://raspberrypi.org/";
-	$settings['SubPlatform'] = trim(file_get_contents("cat /sys/firmware/devicetree/base/model"));
+	$settings['SubPlatform'] = trim(file_get_contents("/sys/firmware/devicetree/base/model"));
 
 	// The data for this table came from the following link:
 	// http://www.raspberrypi-spy.co.uk/2012/09/checking-your-raspberry-pi-board-version/

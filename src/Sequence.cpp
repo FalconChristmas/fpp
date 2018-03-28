@@ -23,6 +23,9 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+// This #define must be before any #include's
+#define _FILE_OFFSET_BITS 64
+
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/mman.h>
@@ -175,7 +178,7 @@ int Sequence::OpenSequenceFile(const char *filename, int startSeconds) {
 		LogErr(VB_SEQUENCE, "Error opening sequence file: %s. Incorrect File Format header: '%s', bytesRead: %d\n",
 			filename, seqFormatID, bytesRead);
 
-		fseek(m_seqFile, 0L, SEEK_SET);
+		fseeko(m_seqFile, 0L, SEEK_SET);
 		bytesRead = fread(tmpData, 1, DATA_DUMP_SIZE, m_seqFile);
 		HexDump("Sequence File head:", tmpData, bytesRead);
 
@@ -195,7 +198,7 @@ int Sequence::OpenSequenceFile(const char *filename, int startSeconds) {
 	{
 		LogErr(VB_SEQUENCE, "Sequence file %s too short, unable to read channel data offset value\n", filename);
 
-		fseek(m_seqFile, 0L, SEEK_SET);
+		fseeko(m_seqFile, 0L, SEEK_SET);
 		bytesRead = fread(tmpData, 1, DATA_DUMP_SIZE, m_seqFile);
 		HexDump("Sequence File head:", tmpData, bytesRead);
 
@@ -211,13 +214,13 @@ int Sequence::OpenSequenceFile(const char *filename, int startSeconds) {
 
 	///////////////////////////////////////////////////////////////////////
 	// Now that we know the header size, read the whole header in one shot
-	fseek(m_seqFile, 0L, SEEK_SET);
+	fseeko(m_seqFile, 0L, SEEK_SET);
 	bytesRead = fread(tmpData, 1, m_seqChanDataOffset, m_seqFile);
 	if (bytesRead != m_seqChanDataOffset)
 	{
 		LogErr(VB_SEQUENCE, "Sequence file %s too short, unable to read fixed header size value\n", filename);
 
-		fseek(m_seqFile, 0L, SEEK_SET);
+		fseeko(m_seqFile, 0L, SEEK_SET);
 		bytesRead = fread(tmpData, 1, DATA_DUMP_SIZE, m_seqFile);
 		HexDump("Sequence File head:", tmpData, bytesRead);
 
@@ -264,8 +267,8 @@ int Sequence::OpenSequenceFile(const char *filename, int startSeconds) {
 
 	m_seqRefreshRate = 1000 / m_seqStepTime;
 
-	fseek(m_seqFile, 0L, SEEK_END);
-	m_seqFileSize = ftell(m_seqFile);
+	fseeko(m_seqFile, 0L, SEEK_END);
+	m_seqFileSize = ftello(m_seqFile);
 
 	// Calculate actual duration based on file size, not m_seqNumPeriods
 	m_seqMSRemaining = (int)(((float)(m_seqFileSize - m_seqChanDataOffset)
@@ -274,7 +277,7 @@ int Sequence::OpenSequenceFile(const char *filename, int startSeconds) {
 		/ ((float)m_seqStepSize * (float)m_seqRefreshRate));
 
 	m_seqSecondsRemaining = m_seqDuration;
-	fseek(m_seqFile, m_seqChanDataOffset, SEEK_SET);
+	fseeko(m_seqFile, m_seqChanDataOffset, SEEK_SET);
 	m_seqFilePosition = m_seqChanDataOffset;
 
 	LogDebug(VB_SEQUENCE, "Sequence File Information\n");
@@ -292,7 +295,7 @@ int Sequence::OpenSequenceFile(const char *filename, int startSeconds) {
 	LogDebug(VB_SEQUENCE, "seqGamma              : %d *\n", m_seqGamma);
 	LogDebug(VB_SEQUENCE, "seqColorEncoding      : %d *\n", m_seqColorEncoding);
 	LogDebug(VB_SEQUENCE, "seqRefreshRate        : %d\n", m_seqRefreshRate);
-	LogDebug(VB_SEQUENCE, "seqFileSize           : %lu\n", m_seqFileSize);
+	LogDebug(VB_SEQUENCE, "seqFileSize           : %lld\n", m_seqFileSize);
 	LogDebug(VB_SEQUENCE, "seqDuration           : %d\n", m_seqDuration);
 	LogDebug(VB_SEQUENCE, "seqMSRemaining        : %d\n", m_seqMSRemaining);
 	LogDebug(VB_SEQUENCE, "'*' denotes field is currently ignored by FPP\n");
@@ -309,7 +312,7 @@ int Sequence::OpenSequenceFile(const char *filename, int startSeconds) {
 		int newPos = m_seqChanDataOffset + (frameNumber * m_seqStepSize);
 		LogDebug(VB_SEQUENCE, "Seeking to byte %d in %s\n", newPos, m_seqFilename);
 
-		fseek(m_seqFile, newPos, SEEK_SET);
+		fseeko(m_seqFile, newPos, SEEK_SET);
 
 		m_seqMSRemaining -= (startSeconds * 1000);
 	}
@@ -343,7 +346,7 @@ int Sequence::SeekSequenceFile(int frameNumber) {
 	int newPos = m_seqChanDataOffset + (frameNumber * m_seqStepSize);
 	LogDebug(VB_SEQUENCE, "Seeking to byte %d in %s\n", newPos, m_seqFilename);
 
-	fseek(m_seqFile, newPos, SEEK_SET);
+	fseeko(m_seqFile, newPos, SEEK_SET);
 
 	m_seqMSRemaining = (int)(((float)(m_seqFileSize - newPos)
 		/ (float)m_seqStepSize) * m_seqStepTime);
@@ -429,7 +432,7 @@ void Sequence::ReadSequenceData(void) {
 			int offset = m_seqStepSize * 2;
 			if (m_seqFilePosition > offset)
 			{
-				fseek(m_seqFile, 0 - offset, SEEK_CUR);
+				fseeko(m_seqFile, 0 - offset, SEEK_CUR);
 				m_seqMSRemaining += m_seqStepTime;
 			}
 		}

@@ -32,11 +32,24 @@
 #ifdef USEWIRINGPI
 #   include "wiringPi.h"
 #   include <softPwm.h>
+#   define supportsPWM(a) 1
+#elif defined(PLATFORM_BBB)
+#   include "channeloutput/BBBUtils.h"
+#   define INPUT "in"
+#   define OUTPUT "out"
+#   define HIGH   1
+#   define LOW   0
+#   define pinMode(a, b)         configBBBPin(a, "gpio", b)
+#   define digitalWrite(a,b)     setBBBPinValue(a, b)
+#   define softPwmCreate(a, b, c) setupBBBPinPWM(a)
+#   define softPwmWrite(a, b)    setBBBPinPWMValue(a, b)
+#   define supportsPWM(a)        supportsPWMOnBBBPin(a)
 #else
 #   define pinMode(a, b)
 #   define digitalWrite(a, b)
 #   define softPwmCreate(a, b, c)
 #   define softPwmWrite(a, b)
+#   define supportsPWM(a) 0
 #endif
 
 /*
@@ -96,10 +109,14 @@ int GPIOOutput::Init(char *configStr)
 
 	if (m_softPWM)
 	{
-		softPwmCreate(m_GPIOPin, 0, 100);
+        if (!supportsPWM(m_GPIOPin)) {
+            LogErr(VB_CHANNELOUT, "GPIO Pin does now support PWM\n");
+            return 0;
+        }
+		softPwmCreate(m_GPIOPin, 0, 255);
 
 		if (m_invertOutput)
-			softPwmWrite(m_GPIOPin, 100);
+			softPwmWrite(m_GPIOPin, 255);
 		else
 			softPwmWrite(m_GPIOPin, 0);
 	}
@@ -136,9 +153,9 @@ int GPIOOutput::RawSendData(unsigned char *channelData)
 	if (m_softPWM)
 	{
 		if (m_invertOutput)
-			softPwmWrite(m_GPIOPin, (int)((255-channelData[0]) * 100.0 / 255));
+			softPwmWrite(m_GPIOPin, (int)(255-channelData[0]));
 		else
-			softPwmWrite(m_GPIOPin, (int)(channelData[0] * 100.0 / 255));
+			softPwmWrite(m_GPIOPin, (int)(channelData[0]));
 	}
 	else
 	{

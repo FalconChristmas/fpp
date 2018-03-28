@@ -35,11 +35,11 @@
 #             - pi/raspberry
 #
 #       BeagleBone Black
-#           - URL: https://rcn-ee.com/rootfs/bb.org/release/2014-05-14/
+#           - URL: http://beagleboard.org/latest-images
 #           - Images
-#             - FIXME for Debian Jessie images
-#           - Login
-#             - root (no password)
+#             - bone-debian-9.3-iot-armhf-2018-03-05-4gb.img
+#           - Login/Password
+#             - debian/temppwd
 #
 #       Other OS images may work with this install script and FPP on the
 #       Pi and BBB platforms, but these are the images we are currently
@@ -70,12 +70,13 @@
 #
 #############################################################################
 SCRIPTVER="0.9"
-FPPBRANCH="master-v1.x"
-FPPIMAGEVER="1.11beta"
+FPPBRANCH="master"
+FPPIMAGEVER="2.0alpha"
 FPPCFGVER="29"
 FPPPLATFORM="UNKNOWN"
-FPPDIR="/opt/fpp"
-FPPHOME="/home/fpp"
+FPPDIR=/opt/fpp
+FPPUSER=fpp
+FPPHOME=/home/${FPPUSER}
 OSVER="UNKNOWN"
 
 #############################################################################
@@ -213,7 +214,7 @@ echo "WARNINGS:"
 echo "- This install expects to be run on a clean freshly-installed system."
 echo "  The script is not currently designed to be re-run multiple times."
 echo "- This installer will take over your system.  It will disable any"
-echo "  existing 'pi' or 'debian' user and create a 'fpp' user.  If the system"
+echo "  existing 'pi' or 'debian' user and create a '${FPPUSER}' user.  If the system"
 echo "  has an empty root password, remote root login will be disabled."
 echo ""
 
@@ -361,11 +362,12 @@ case "${OSVER}" in
 		case "${OSVER}" in
 			debian_9)
 				PACKAGE_LIST="alsa-base alsa-utils arping avahi-daemon \
+								apache2 apache2-bin apache2-data apache2-utils libapache2-mod-php7.0 \
 								zlib1g-dev libpcre3 libpcre3-dev libbz2-dev libssl-dev \
 								avahi-discover avahi-utils bash-completion bc build-essential \
 								bzip2 ca-certificates ccache connman curl device-tree-compiler \
 								dh-autoreconf ethtool exfat-fuse fbi fbset file flite gdb \
-								gdebi-core git i2c-tools ifplugd imagemagick less \
+								gdebi-core git hdparm i2c-tools ifplugd imagemagick less \
 								libavcodec-dev libavformat-dev \
 								libboost-dev libconvert-binary-c-perl \
 								libdbus-glib-1-dev libdevice-serialport-perl libjs-jquery \
@@ -374,9 +376,9 @@ case "${OSVER}" in
 								mp3info mailutils mpg123 mpg321 mplayer nano nginx node ntp perlmagick \
 								php-cli php-common php-curl php-dom php-fpm php-mcrypt \
 								php-sqlite3 python-daemon python-smbus rsync samba \
-								samba-common-bin shellinabox sudo sysstat tcpdump usbmount vim \
+								samba-common-bin shellinabox sudo sysstat tcpdump time usbmount vim \
 								vim-common vorbis-tools vsftpd firmware-realtek gcc g++\
-								network-manager dhcp-helper hostapd parprouted bridge-utils \
+								dhcp-helper hostapd parprouted bridge-utils \
 								firmware-atheros firmware-ralink firmware-brcm80211 \
 								dos2unix libmosquitto-dev mosquitto-clients librtmidi-dev \
 								wireless-tools libcurl4-openssl-dev resolvconf sqlite3"
@@ -408,7 +410,7 @@ case "${OSVER}" in
 		curl -L https://cpanmin.us | perl - --sudo App::cpanminus
 		echo "yes" | cpanm -fi Test::Tester File::Map Net::WebSocket::Server Net::PJLink
 
-		echo "FPP - Disabling any stock 'debian' user, use the 'fpp' user instead"
+		echo "FPP - Disabling any stock 'debian' user, use the '${FPPUSER}' user instead"
 		sed -i -e "s/^debian:.*/debian:*:16372:0:99999:7:::/" /etc/shadow
 
 		if [ -f /bin/systemctl ]
@@ -561,6 +563,9 @@ EOF
 			esac
 		fi
 
+		echo "FPP - Disabling dhcpcd"
+		systemctl disable dhcpcd.service
+
 		echo "FPP - Configuring connman"
 		mv /etc/wpa_supplicant/wpa_supplicant.conf /etc/wpa_supplicant/wpa_supplicant.conf.orig
 		cat <<-EOF > /var/lib/connman/settings
@@ -590,7 +595,7 @@ EOF
 		PersistentTetheringMode=true
 		EOF
 
-		echo "FPP - Disabling stock users (pi, odroid, debian), use the 'fpp' user instead"
+		echo "FPP - Disabling stock users (pi, odroid, debian), use the '${FPPUSER}' user instead"
 		sed -i -e "s/^pi:.*/pi:*:16372:0:99999:7:::/" /etc/shadow
 		sed -i -e "s/^odroid:.*/odroid:*:16372:0:99999:7:::/" /etc/shadow
 		sed -i -e "s/^debian:.*/debian:*:16372:0:99999:7:::/" /etc/shadow
@@ -599,8 +604,11 @@ EOF
 		if [ "x${OSVER}" == "xdebian_9" ]; then
 			systemctl disable serial-getty@ttyAMA0.service
 			sed -i -e "s/console=serial0,115200 //" /boot/cmdline.txt
-			sed -i -e "s/autologin pi/autologin fpp/" /etc/systemd/system/autologin@.service
+			sed -i -e "s/autologin pi/autologin ${FPPUSER}/" /etc/systemd/system/autologin@.service
 		fi
+
+		echo "FPP - Disabling auto mount of USB drives"
+		sed -i -e "s/ENABLED=1/ENABLED=0/" /etc/usbmount/usbmount.conf 2> /dev/null
 
 		echo "FPP - Disabling the hdmi force hotplug setting"
 		sed -i -e "s/hdmi_force_hotplug/#hdmi_force_hotplug/" /boot/config.txt
@@ -711,7 +719,7 @@ EOF
 		(cd /opt/ola && autoreconf -i && ./configure --enable-rdm-tests --enable-python-libs && make && make install && ldconfig)
 		rm -rf /opt/ola
 
-		echo "FPP - Disabling stock users, use the 'fpp' user instead"
+		echo "FPP - Disabling stock users, use the '${FPPUSER}' user instead"
 		sed -i -e "s/^orangepi:.*/orangepi:*:16372:0:99999:7:::/" /etc/shadow
 
 		;;
@@ -743,18 +751,13 @@ mv ./composer.phar /usr/local/bin/composer
 chmod 755 /usr/local/bin/composer
 
 #######################################
-PHPDIR="/etc/php5"
-case "${OSVER}" in
-	debian_9)
-		PHPDIR="/etc/php/7.0"
-		;;
-esac
+PHPDIR="/etc/php/7.0"
 
 echo "FPP - Setting up for UI"
-sed -i -e "s/^user =.*/user = fpp/" ${PHPDIR}/fpm/pool.d/www.conf
-sed -i -e "s/^group =.*/group = fpp/" ${PHPDIR}/fpm/pool.d/www.conf
-sed -i -e "s/.*listen.owner =.*/listen.owner = fpp/" ${PHPDIR}/fpm/pool.d/www.conf
-sed -i -e "s/.*listen.group =.*/listen.group = fpp/" ${PHPDIR}/fpm/pool.d/www.conf
+sed -i -e "s/^user =.*/user = ${FPPUSER}/" ${PHPDIR}/fpm/pool.d/www.conf
+sed -i -e "s/^group =.*/group = ${FPPUSER}/" ${PHPDIR}/fpm/pool.d/www.conf
+sed -i -e "s/.*listen.owner =.*/listen.owner = ${FPPUSER}/" ${PHPDIR}/fpm/pool.d/www.conf
+sed -i -e "s/.*listen.group =.*/listen.group = ${FPPUSER}/" ${PHPDIR}/fpm/pool.d/www.conf
 sed -i -e "s/.*listen.mode =.*/listen.mode = 0660/" ${PHPDIR}/fpm/pool.d/www.conf
 
 echo "FPP - Allowing short tags in PHP"
@@ -767,31 +770,29 @@ do
 	sed -i -e "s/default_socket_timeout.*/default_socket_timeout = 300/" ${PHPDIR}/${FILE}
 	sed -i -e "s/post_max_size.*/post_max_size = 4G/" ${PHPDIR}/${FILE}
 	sed -i -e "s/upload_max_filesize.*/upload_max_filesize = 4G/" ${PHPDIR}/${FILE}
-	sed -i -e "s/;upload_tmp_dir =.*/upload_tmp_dir = \/home\/fpp\/media\/upload/" ${PHPDIR}/${FILE}
+	sed -i -e "s/;upload_tmp_dir =.*/upload_tmp_dir = \/home\/${FPPUSER}\/media\/upload/" ${PHPDIR}/${FILE}
 	sed -i -e "s/^; max_input_vars.*/max_input_vars = 5000/" ${PHPDIR}/${FILE}
 done
 
+#######################################
 echo "FPP - Copying rsync daemon config files into place"
 sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" -e "s#FPPUSER#${FPPUSER}#g" < ${FPPDIR}/etc/rsync > /etc/default/rsync
 sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" -e "s#FPPUSER#${FPPUSER}#g" < ${FPPDIR}/etc/rsyncd.conf > /etc/rsyncd.conf
 
 #######################################
-# echo "FPP - Composing FPP UI"
-# FIXME, eventually run composer here in the new UI dir
-
-#######################################
-# Add the fpp user and group memberships
-echo "FPP - Adding fpp user"
-addgroup --gid 500 fpp
-adduser --uid 500 --home /home/fpp --shell /bin/bash --ingroup fpp --gecos "Falcon Player" --disabled-password fpp
-adduser fpp adm
-adduser fpp sudo
+# Add the ${FPPUSER} user and group memberships
+echo "FPP - Adding ${FPPUSER} user"
+addgroup --gid 500 ${FPPUSER}
+adduser --uid 500 --home ${FPPHOME} --shell /bin/bash --ingroup ${FPPUSER} --gecos "Falcon Player" --disabled-password ${FPPUSER}
+adduser ${FPPUSER} adm
+adduser ${FPPUSER} sudo
 case "${FPPPLATFORM}" in
 	'Raspberry Pi'|'BeagleBone Black')
-		adduser fpp spi
+		adduser ${FPPUSER} spi
 		;;
 esac
-adduser fpp video
+adduser ${FPPUSER} video
+# FIXME, use ${FPPUSER} here instead of hardcoding
 sed -i -e 's/^fpp:\*:/fpp:\$6\$rA953Jvd\$oOoLypAK8pAnRYgQQhcwl0jQs8y0zdx1Mh77f7EgKPFNk\/jGPlOiNQOtE.ZQXTK79Gfg.8e3VwtcCuwz2BOTR.:/' /etc/shadow
 
 
@@ -800,21 +801,24 @@ echo "FPP - Fixing empty root passwd"
 sed -i -e 's/root::/root:*:/' /etc/shadow
 
 #######################################
-echo "FPP - Populating /home/fpp"
-mkdir /home/fpp/.ssh
-chown fpp.fpp /home/fpp/.ssh
-chmod 700 /home/fpp/.ssh
+echo "FPP - Populating ${FPPHOME}"
+mkdir ${FPPHOME}/.ssh
+chown ${FPPUSER}.${FPPUSER} ${FPPHOME}/.ssh
+chmod 700 ${FPPHOME}/.ssh
 
-mkdir /home/fpp/media
-chown fpp.fpp /home/fpp/media
-chmod 700 /home/fpp/media
+mkdir ${FPPHOME}/media
+chown ${FPPUSER}.${FPPUSER} ${FPPHOME}/media
+chmod 770 ${FPPHOME}/media
+chmod a+s ${FPPHOME}/media
+touch ${FPPHOME}/media/.auto_update_disabled
+chmod 644 ${FPPHOME}/media/.auto_update_disabled
 
-echo "set mouse=r" > /home/fpp/.vimrc
-chown fpp.fpp /home/fpp/.vimrc
+echo "set mouse=r" > ${FPPHOME}/.vimrc
+chown ${FPPUSER}.${FPPUSER} ${FPPHOME}/.vimrc
 
-echo >> /home/fpp/.bashrc
-echo ". /opt/fpp/scripts/common" >> /home/fpp/.bashrc
-echo >> /home/fpp/.bashrc
+echo >> ${FPPHOME}/.bashrc
+echo ". /opt/fpp/scripts/common" >> ${FPPHOME}/.bashrc
+echo >> ${FPPHOME}/.bashrc
 
 #######################################
 # Configure log rotation
@@ -841,14 +845,14 @@ cat <<-EOF >> /etc/samba/smb.conf
 
 [FPP]
   comment = FPP Media Share
-  path = /home/fpp/media
+  path = ${FPPHOME}/media
   writeable = Yes
   only guest = Yes
   create mask = 0777
   directory mask = 0777
   browseable = Yes
   public = yes
-  force user = fpp
+  force user = ${FPPUSER}
 
 EOF
 case "${OSVER}" in
@@ -902,8 +906,8 @@ update-exim4.conf
 
 #######################################
 # Fix sudoers to not require password
-echo "FPP - Giving fpp user sudo"
-echo "fpp ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers
+echo "FPP - Giving ${FPPUSER} user sudo"
+echo "${FPPUSER} ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers
 
 #######################################
 # Print notice during login regarding console access
@@ -934,7 +938,7 @@ if [ -n ${SDA1} ]
 then
 	COMMENTED="#"
 fi
-echo "${COMMENTED}/dev/sda1     /home/fpp/media  auto    defaults,nonempty,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500  0  0" >> /etc/fstab
+echo "${COMMENTED}/dev/sda1     ${FPPHOME}/media  auto    defaults,nonempty,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500  0  0" >> /etc/fstab
 echo "#####################################" >> /etc/fstab
 
 #######################################
@@ -950,18 +954,54 @@ cat <<-EOF >> /etc/sysctl.conf
 	EOF
 
 #######################################
-echo "FPP - Configuring nginx webserver"
+echo "FPP - Configuring Apache webserver"
+
+# Environment variables
+sed -i -e "s/APACHE_RUN_USER=.*/APACHE_RUN_USER=${FPPUSER}/" /etc/apache2/envvars
+sed -i -e "s/APACHE_RUN_GROUP=.*/APACHE_RUN_GROUP=${FPPUSER}/" /etc/apache2/envvars
+sed -i -e "s#APACHE_LOG_DIR=.*#APACHE_LOG_DIR=${FPPHOME}/media/logs#" /etc/apache2/envvars
+
+sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/apache2.site > /etc/apache2/sites-enabled/000-default.conf
+
+sed -i \
+	-e "s/short_open_tag =.*/short_open_tag = On/" \
+	-e "s/max_execution_time =.*/max_execution_time = 300/" \
+	-e "s/max_input_time =.*/max_input_time = 300/" \
+	-e "s/max_input_vars =.*/max_input_vars = 5000/" \
+	-e "s/default_socket_timeout =.*/default_socket_timeout = 300/" \
+	-e "s/post_max_size =.*/post_max_size = 4G/" \
+	-e "s/upload_max_filesize =.*/upload_max_filesize = 4G/" \
+	-e "s#;upload_tmp_dir =.*#upload_tmp_dir = ${FPPHOME}/media/upload#" \
+	${PHPDIR}/apache2/php.ini
+
+# Fix name of Apache default error log so it gets rotated by our logrotate config
+sed -i -e "s/error\.log/apache2-base-error.log/" /etc/apache2/apache2.conf
+
+# Disable private /tmp directory
+sed -i -e "s/PrivateTmp=true/PrivateTmp=false/" /lib/systemd/system/apache2.service
+
+# Disable default access logs
+rm /etc/apache2/conf-enabled/other-vhosts-access-log.conf
+
+case "${OSVER}" in
+	debian_9)
+		systemctl enable apache2.service
+		;;
+esac
+#######################################
+echo "FPP - Configuring (but disabling) nginx webserver"
 
 # Disable default site
 rm /etc/nginx/sites-enabled/default
-# Set user to fpp
-sed -i -e 's/^\s*\#\?\s*user\(\s*\)[^;]*/user\1fpp/' /etc/nginx/nginx.conf
+# Set user to ${FPPUSER}
+sed -i -e "s/^\s*\#\?\s*user\(\s*\)[^;]*/user\1${FPPUSER}/" /etc/nginx/nginx.conf
 # Install the fpp site
 sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/nginx.conf > /etc/nginx/sites-enabled/fpp_nginx.conf
 
 case "${OSVER}" in
 	debian_9)
-		systemctl enable nginx.service
+		systemctl disable php7.0-fpm.service
+		systemctl disable nginx.service
 		;;
 esac
 
@@ -979,7 +1019,7 @@ systemctl disable olad
 
 echo "FPP - Compiling binaries"
 cd /opt/fpp/src/
-make clean ; make
+make clean ; make optimized
 
 ENDTIME=$(date)
 
@@ -988,18 +1028,22 @@ echo "FPP Install Complete."
 echo "Started : ${STARTTIME}"
 echo "Finished: ${ENDTIME}"
 echo "========================================================="
-echo "You can reboot the system by changing to the 'fpp' user with the"
+echo "You can reboot the system by changing to the '${FPPUSER} user with the"
 echo "password 'falcon' and running the shutdown command."
 echo ""
-echo "su - fpp"
+echo "su - ${FPPUSER}
 echo "sudo shutdown -r now"
 echo ""
 echo "NOTE: If you are prepping this as an image for release,"
 echo "remove the SSH keys before shutting down so they will be"
 echo "rebuilt during the next boot."
 echo ""
-echo "su - fpp"
+echo "su - ${FPPUSER}
 echo "sudo rm -rf /etc/ssh/ssh_host*key*"
 echo "sudo shutdown -r now"
 echo "========================================================="
 echo ""
+
+cp /home/pi/FPP_Install.* ${FPPHOME}/
+chown fpp.fpp ${FPPHOME}/FPP_Install.*
+

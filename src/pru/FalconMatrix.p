@@ -37,10 +37,10 @@
 #define data_addr       r1
 #define row             r2.b0
 #define bright          r2.b1
-#define bit             r2.b2
 #define sleep_counter   r3.w0
 #define sleepDone       r3.w2
 #define statOffset      r4.w0
+#define pixelCount      r4.w2
 #define out_clr r6 // must be one less than out_set
 #define out_set r7
 #define gpio0_set r8
@@ -58,16 +58,18 @@
 
 
 #define GPIO(R) CAT3(gpio,R,_set)
-#define OUTPUT_ROW(N,reg_r,reg_g,reg_b) \
-    QBBC skip_r##N, reg_r, bit; \
-    SET GPIO(r##N##_gpio), r##N##_pin; \
-    skip_r##N: \
-    QBBC skip_g##N, reg_g, bit; \
-    SET GPIO(g##N##_gpio), g##N##_pin; \
-    skip_g##N: \
-    QBBC skip_b##N, reg_b, bit; \
-    SET GPIO(b##N##_gpio), b##N##_pin; \
-    skip_b##N: \
+
+.macro DO_OUTPUT_ROW
+.mparam rgpio, rpin, reg, bit
+    QBBC skip, reg, bit
+    SET rgpio, rpin
+    skip:
+.endm
+
+#define OUTPUT_ROW(N,reg_r,reg_g,reg_b,bit) \
+    DO_OUTPUT_ROW GPIO(r##N##_gpio), r##N##_pin, reg_r, bit; \
+    DO_OUTPUT_ROW GPIO(g##N##_gpio), g##N##_pin, reg_g, bit; \
+    DO_OUTPUT_ROW GPIO(b##N##_gpio), b##N##_pin, reg_b, bit; \
 
 
 .macro CHECK_FOR_DISPLAY_OFF
@@ -214,6 +216,50 @@
 .endm
 
 
+.macro OUTPUT_ROWS_FOR_BIT
+.mparam bit
+    ZERO &gpio0_set, 16
+
+    OUTPUT_ROW(11, r18.b0, r18.b1, r18.b2, bit)
+    OUTPUT_ROW(12, r18.b3, r19.b0, r19.b1, bit)
+    #if OUTPUTS > 1
+        OUTPUT_ROW(21, r19.b2, r19.b3, r20.b0, bit)
+        OUTPUT_ROW(22, r20.b1, r20.b2, r20.b3, bit)
+    #endif
+    #if OUTPUTS > 2
+        OUTPUT_ROW(31, r21.b0, r21.b1, r21.b2, bit)
+        OUTPUT_ROW(32, r21.b3, r22.b0, r22.b1, bit)
+    #endif
+    #if OUTPUTS > 3
+        OUTPUT_ROW(41, r22.b2, r22.b3, r23.b0, bit)
+        OUTPUT_ROW(42, r23.b1, r23.b2, r23.b3, bit)
+    #endif
+    #if OUTPUTS > 4
+        OUTPUT_ROW(51, r24.b0, r24.b1, r24.b2, bit)
+        OUTPUT_ROW(52, r24.b3, r25.b0, r25.b1, bit)
+    #endif
+    #if OUTPUTS > 5
+        OUTPUT_ROW(61, r25.b2, r25.b3, r26.b0, bit)
+        OUTPUT_ROW(62, r26.b1, r26.b2, r26.b3, bit)
+    #endif
+    #if OUTPUTS > 6
+        OUTPUT_ROW(71, r27.b0, r27.b1, r27.b2, bit)
+        OUTPUT_ROW(72, r27.b3, r28.b0, r28.b1, bit)
+    #endif
+    #if OUTPUTS > 7
+        OUTPUT_ROW(81, r28.b2, r28.b3, r29.b0, bit)
+        OUTPUT_ROW(82, r29.b1, r29.b2, r29.b3, bit)
+    #endif
+
+    CLOCK_LO
+
+    // All bits are configured;
+    // the non-set ones will be cleared
+    OUTPUT_GPIOS gpio0_set, gpio1_set, gpio2_set, gpio3_set
+
+    CLOCK_HI
+.endm
+
 START:
     // Enable OCP master port
     // clear the STANDBY_INIT bit in the SYSCFG register,
@@ -336,8 +382,9 @@ READ_LOOP:
     QBEQ READ_LOOP, r2, #0
 
     // Command of 0xFF is the signal to exit
-    QBEQ EXIT, r2, #0xFF
-
+    QBNE NO_EXIT, r2, #0xFF
+        JMP EXIT
+NO_EXIT:
 
     MOV row, 0
     LDI statOffset, 0
@@ -350,8 +397,8 @@ NEW_ROW_LOOP:
 		// Reset the latch pin; will be toggled at the end of the row
 		LATCH_LO
 
-		// compute where we are in the image
-        LOOP DONE_PIXELS, ROW_LEN
+        MOV pixelCount, ROW_LEN
+        NEXT_PIXEL:
 
 			// Load the sixteen RGB outputs into
 			// consecutive registers, starting at pixel_data
@@ -365,53 +412,26 @@ NEW_ROW_LOOP:
             // on loading it while we process this data
             XOUT 10, data_addr, 4
 
-            LDI bit, 0
-            BIT_LOOP:
-                CHECK_FOR_DISPLAY_OFF
-                ZERO &gpio0_set, 16
+            //CHECK_FOR_DISPLAY_OFF
+            OUTPUT_ROWS_FOR_BIT 0
+            //CHECK_FOR_DISPLAY_OFF
+            OUTPUT_ROWS_FOR_BIT 1
+            //CHECK_FOR_DISPLAY_OFF
+            OUTPUT_ROWS_FOR_BIT 2
+            //CHECK_FOR_DISPLAY_OFF
+            OUTPUT_ROWS_FOR_BIT 3
+            CHECK_FOR_DISPLAY_OFF
+            OUTPUT_ROWS_FOR_BIT 4
+            //CHECK_FOR_DISPLAY_OFF
+            OUTPUT_ROWS_FOR_BIT 5
+            //CHECK_FOR_DISPLAY_OFF
+            OUTPUT_ROWS_FOR_BIT 6
+            //CHECK_FOR_DISPLAY_OFF
+            OUTPUT_ROWS_FOR_BIT 7
 
-                OUTPUT_ROW(11, r18.b0, r18.b1, r18.b2)
-                OUTPUT_ROW(12, r18.b3, r19.b0, r19.b1)
-    #if OUTPUTS > 1
-                OUTPUT_ROW(21, r19.b2, r19.b3, r20.b0)
-                OUTPUT_ROW(22, r20.b1, r20.b2, r20.b3)
-    #endif
-    #if OUTPUTS > 2
-                OUTPUT_ROW(31, r21.b0, r21.b1, r21.b2)
-                OUTPUT_ROW(32, r21.b3, r22.b0, r22.b1)
-    #endif
-    #if OUTPUTS > 3
-                OUTPUT_ROW(41, r22.b2, r22.b3, r23.b0)
-                OUTPUT_ROW(42, r23.b1, r23.b2, r23.b3)
-    #endif
-    #if OUTPUTS > 4
-                OUTPUT_ROW(51, r24.b0, r24.b1, r24.b2)
-                OUTPUT_ROW(52, r24.b3, r25.b0, r25.b1)
-    #endif
-    #if OUTPUTS > 5
-                OUTPUT_ROW(61, r25.b2, r25.b3, r26.b0)
-                OUTPUT_ROW(62, r26.b1, r26.b2, r26.b3)
-    #endif
-    #if OUTPUTS > 6
-                OUTPUT_ROW(71, r27.b0, r27.b1, r27.b2)
-                OUTPUT_ROW(72, r27.b3, r28.b0, r28.b1)
-    #endif
-    #if OUTPUTS > 7
-                OUTPUT_ROW(81, r28.b2, r28.b3, r29.b0)
-                OUTPUT_ROW(82, r29.b1, r29.b2, r29.b3)
-    #endif
-
-                CLOCK_LO
-
-                // All bits are configured;
-                // the non-set ones will be cleared
-                OUTPUT_GPIOS gpio0_set, gpio1_set, gpio2_set, gpio3_set
-
-                CLOCK_HI
-
-            ADD bit, bit, 1
-            QBNE BIT_LOOP, bit, 8
-
+            SUB pixelCount, pixelCount, 1;
+            QBEQ DONE_PIXELS, pixelCount, 0;
+            JMP NEXT_PIXEL
         DONE_PIXELS:
 
 #ifdef ENABLESTATS
@@ -438,9 +458,9 @@ NEW_ROW_LOOP:
         // determine on time (gpio0_set) and delay time (gpio1_set)
         GET_ON_DELAY_TIMES bright
 
-        QBNE NO_SET_ROW, bright, BITS //maxBitsToOutput
+        //QBNE NO_SET_ROW, bright, BITS //maxBitsToOutput
             OUTPUT_ROW_ADDRESS
-        NO_SET_ROW:
+        //NO_SET_ROW:
 
 	    // Full data has been clocked out; latch it
 	    LATCH_HI
@@ -461,15 +481,19 @@ NEW_ROW_LOOP:
 		// Update the brightness, and then give the row another scan
 		SUB bright, bright, 1
 
-		QBLT ROW_LOOP, bright, 0
+		QBGE ROW_DONE, bright, 0
+            JMP ROW_LOOP
+        ROW_DONE:
 
 		// We have just done all eight brightness levels for this
 		// row.  Time to move to the new row
         ADD row, row, 1
 
-        QBEQ READ_LOOP, row, ROWS
+        QBNE READ_LOOP_DONE, row, ROWS
+            JMP READ_LOOP
+        READ_LOOP_DONE:
 
-		QBA NEW_ROW_LOOP
+		JMP NEW_ROW_LOOP
 EXIT:
     MOV data_addr, 0xFFFFFFF
     XOUT 10, data_addr, 4
