@@ -24,6 +24,9 @@ if curl --silent --head https://github.com | grep "Content-Type: text/html; char
 	RELEASEBRANCH=$(echo ${GITBRANCH} | egrep "v[0-9]+\.[0-9]+")
 	if [ -z "${RELEASEBRANCH}" ] || [ "x${FPPPLATFORM}" == "xLinux" ]
 	then
+	    #make sure all scripts are executable
+	    sudo chmod 755 -R ${UPGRADEDIR}
+	    #run config upgrade
 		sudo ${SCRIPTDIR}/upgrade_config
 
 		compileBinaries
