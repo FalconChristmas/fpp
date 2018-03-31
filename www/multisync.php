@@ -79,6 +79,15 @@ include 'common/menuHead.inc';
 			{
 				status = 'Stopped';
 			}
+            else if (data.status_name == 'unknown')
+            {
+                status = '-';
+                if(typeof (data.reason) !== 'undefined'){
+                    DialogError("Get FPP System Status", "Get Status Failed for " + ip + "\n " + data.reason);
+                }else{
+                    DialogError("Get FPP System Status", "Get Status Failed for " + ip);
+                }
+            }
 			else if (data.status_name == 'idle')
 			{
 				if (data.mode_name == 'remote')
@@ -183,7 +192,7 @@ include 'common/menuHead.inc';
 				"<td>" + data[i].IP + "</td>" +
 				"<td>" + data[i].Platform + "</td>" +
 				"<td>" + fppMode + "</td>" +
-				"<td id='" + rowID + "_status'></td>" +
+				"<td id='" + rowID + "_status' align='center'></td>" +
 				"<td id='" + rowID + "_elapsed'></td>" +
 				"<td id='" + rowID + "_files'></td>" +
 				"</tr>";
