@@ -295,24 +295,36 @@ class SDL
     int _initialisedRate;
 
 public:
-    SDL() : hasStarted(false), data(nullptr), _state(SDLSTATE::SDLUNINITIALISED) {}
+    SDL() : data(nullptr), _state(SDLSTATE::SDLUNINITIALISED) {}
     virtual ~SDL();
     
     void Start(SDLInternalData *d) {
-        initAudio();
-        data = d;
-        SDL_PauseAudio(0);
-        _state = SDLSTATE::SDLPLAYING;
+        initSDL();
+        openAudio();
+        if (_state != SDLSTATE::SDLINITIALISED && _state != SDLSTATE::SDLUNINITIALISED) {
+            data = d;
+            SDL_PauseAudio(0);
+            _state = SDLSTATE::SDLPLAYING;
+        }
     }
     void Stop() {
-        SDL_PauseAudio(1);
-        data = nullptr;
-        _state = SDLSTATE::SDLNOTPLAYING;
-    };
+        if (_state == SDLSTATE::SDLPLAYING) {
+            SDL_PauseAudio(1);
+            data = nullptr;
+            _state = SDLSTATE::SDLNOTPLAYING;
+        }
+    }
+    void Close() {
+        Stop();
+        if (_state != SDLSTATE::SDLINITIALISED && _state != SDLSTATE::SDLUNINITIALISED) {
+            SDL_CloseAudio();
+            _state = SDLSTATE::SDLINITIALISED;
+        }
+    }
     
-    void initAudio();
-    
-    bool hasStarted;
+    void initSDL();
+    void openAudio();
+
     SDLInternalData *data;
     
     std::set<std::string> blacklisted;
@@ -354,50 +366,42 @@ void fill_audio(void *udata, Uint8 *stream, int len) {
 }
 
 
-void SDL::initAudio()  {
-    if (hasStarted) {
-        return;
+void SDL::initSDL()  {
+    if (_state == SDLSTATE::SDLUNINITIALISED) {
+        if (!SDL_getenv("SDL_AUDIO_ALSA_SET_BUFFER_SIZE")) {
+            SDL_setenv("SDL_AUDIO_ALSA_SET_BUFFER_SIZE", "1", true);
+        }
+        
+        if (SDL_Init(SDL_INIT_AUDIO | SDL_INIT_TIMER))
+        {
+            return;
+        }
+        _state = SDLSTATE::SDLINITIALISED;
     }
-    
-    if (!SDL_getenv("SDL_AUDIO_ALSA_SET_BUFFER_SIZE")) {
-        SDL_setenv("SDL_AUDIO_ALSA_SET_BUFFER_SIZE", "1", true);
+}
+void SDL::openAudio() {
+    if (_state == SDLSTATE::SDLINITIALISED) {
+        _initialisedRate = DEFAULT_RATE;
+        
+        _wanted_spec.freq = _initialisedRate;
+        _wanted_spec.format = AUDIO_S16SYS;
+        _wanted_spec.channels = 2;
+        _wanted_spec.silence = 0;
+        _wanted_spec.samples = DEFAULT_NUM_SAMPLES;
+        _wanted_spec.callback = fill_audio;
+        _wanted_spec.userdata = nullptr;
+        
+        if (SDL_OpenAudio(&_wanted_spec, nullptr) < 0)
+        {
+            return;
+        }
+        
+        _state = SDLSTATE::SDLOPENED;
     }
-    
-    hasStarted = true;
-    _state = SDLSTATE::SDLUNINITIALISED;
-    
-    if (SDL_Init(SDL_INIT_AUDIO | SDL_INIT_TIMER))
-    {
-        return;
-    }
-    
-    _state = SDLSTATE::SDLINITIALISED;
-    _initialisedRate = DEFAULT_RATE;
-    
-    _wanted_spec.freq = _initialisedRate;
-    _wanted_spec.format = AUDIO_S16SYS;
-    _wanted_spec.channels = 2;
-    _wanted_spec.silence = 0;
-    _wanted_spec.samples = DEFAULT_NUM_SAMPLES;
-    _wanted_spec.callback = fill_audio;
-    _wanted_spec.userdata = nullptr;
-    
-    if (SDL_OpenAudio(&_wanted_spec, nullptr) < 0)
-    {
-        return;
-    }
-    
-    _state = SDLSTATE::SDLOPENED;
 }
 SDL::~SDL() {
-    if (_state != SDLSTATE::SDLOPENED && _state != SDLSTATE::SDLINITIALISED && _state != SDLSTATE::SDLUNINITIALISED)
-    {
-        Stop();
-    }
-    if (_state != SDLSTATE::SDLINITIALISED && _state != SDLSTATE::SDLUNINITIALISED)
-    {
-        SDL_CloseAudio();
-    }
+    Stop();
+    Close();
     if (_state != SDLSTATE::SDLUNINITIALISED)
     {
         SDL_Quit();
@@ -544,6 +548,7 @@ SDLOutput::SDLOutput(const std::string &mediaFilename, MediaOutputStatus *status
  */
 SDLOutput::~SDLOutput()
 {
+    LogDebug(VB_MEDIAOUT, "SDLOutput::~SDLOutput() %X\n", data);
     Stop();
     if (data) {
         delete data;
@@ -555,7 +560,7 @@ SDLOutput::~SDLOutput()
  */
 int SDLOutput::Start(void)
 {
-	LogDebug(VB_MEDIAOUT, "SDLOutput::Start()\n");
+	LogDebug(VB_MEDIAOUT, "SDLOutput::Start() %d\n", data == nullptr);
     if (data) {
         sdlManager.Start(data);
         m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_PLAYING;
@@ -636,6 +641,7 @@ int SDLOutput::IsPlaying(void) {
 int  SDLOutput::Close(void)
 {
     Stop();
+    sdlManager.Close();
 }
 
 /*

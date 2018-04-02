@@ -3,10 +3,7 @@
 $SUDO = "sudo";
 $debug = false;
 $fppRfsVersion = "Unknown";
-$fppHome = "/home/pi";
-
-if (file_exists("/home/fpp"))
-	$fppHome = "/home/fpp";
+$fppHome = "/home/fpp";
 
 $settingsFile = $fppHome . "/media/settings";
 
@@ -113,68 +110,55 @@ if ($settings['Platform'] == "Raspberry Pi")
 	unset($output);
 
 	$settings['LogoLink'] = "http://raspberrypi.org/";
-	$settings['SubPlatform'] = trim(file_get_contents("cat /sys/firmware/devicetree/base/model"));
-
-	// The data for this table came from the following link:
-	// http://www.raspberrypi-spy.co.uk/2012/09/checking-your-raspberry-pi-board-version/
-	// It has been updated recently with the Pi V3 so it should be kept up to
-	// date for us to use moving forward.
-	switch ($revision)
-	{
-		case "0002": // 256MB
-		case "0003": // 256MB
-		case "0004": // 256MB
-		case "0005": // 256MB
-		case "0006": // 256MB
-		case "000d": // 512MB
-		case "000e": // 512MB
-		case "000f": // 512MB
-			$settings['Variant'] = "Model B";
-			$settings['Logo'] = "Raspberry_Pi_B.png";
-			break;
-		case "0007": // 256MB
-		case "0008": // 256MB
-		case "0009": // 256MB
-			$settings['Variant'] = "Model A";
-			$settings['Logo'] = "Raspberry_Pi_A.png";
-			break;
-		case "0010": // 512MB
-			$settings['Variant'] = "Model B+";
-			$settings['Logo'] = "Raspberry_Pi_B+.png";
-			break;
-		case "0012": // 256MB
-			$settings['Variant'] = "Model A+";
-			$settings['Logo'] = "Raspberry_Pi_A+.png";
-			break;
-		case "a01041": // 1GB
-		case "a21041": // 1GB
-			$settings['Variant'] = "Pi 2 Model B";
-			$settings['Logo'] = "Raspberry_Pi_2.png";
-			break;
-		case "900092": // 512MB
-			$settings['Variant'] = "PiZero";
-			$settings['Logo'] = "Raspberry_Pi_Zero.png";
-			break;
-		case "a02082": // 1GB
-		case "a22082": // 1GB
-			$settings['Variant'] = "Pi 3 Model B";
-			$settings['Logo'] = "Raspberry_Pi_3.png";
-			break;
-		default:
-			if ($settings['SubPlatform'] == "V2P-CA15")
-			{
-				$settings['Variant'] = "qemu";
-				$settings['Logo'] = "QEMU_Logo.png";
-				$settings['LogoLink'] = "http://qemu.org/";
-			}
-			else
-			{
-				$settings['Variant'] = "UNKNOWN";
-				$settings['Logo'] = "Raspberry_Pi_Logo.png";
-			}
-	}
-
+	$settings['SubPlatform'] = trim(file_get_contents("/sys/firmware/devicetree/base/model"));
 	$settings['fppBinDir'] = '/opt/fpp/bin.pi';
+
+	if (preg_match('/Pi Model A Rev/', $settings['SubPlatform']))
+	{
+		$settings['Variant'] = "Model A";
+		$settings['Logo'] = "Raspberry_Pi_A.png";
+	}
+	else if (preg_match('/Pi Model B Rev/', $settings['SubPlatform']))
+	{
+		$settings['Variant'] = "Model B";
+		$settings['Logo'] = "Raspberry_Pi_B.png";
+	}
+	else if (preg_match('/Pi Model A Plus/', $settings['SubPlatform']))
+	{
+		$settings['Variant'] = "Model A+";
+		$settings['Logo'] = "Raspberry_Pi_A+.png";
+	}
+	else if (preg_match('/Pi Model B Plus/', $settings['SubPlatform']))
+	{
+		$settings['Variant'] = "Model B+";
+		$settings['Logo'] = "Raspberry_Pi_B+.png";
+	}
+	else if (preg_match('/Pi 2 Model B/', $settings['SubPlatform']))
+	{
+		$settings['Variant'] = "Pi 2 Model B";
+		$settings['Logo'] = "Raspberry_Pi_2.png";
+	}
+	else if (preg_match('/Pi 3 Model B/', $settings['SubPlatform']))
+	{
+		$settings['Variant'] = "Pi 3 Model B";
+		$settings['Logo'] = "Raspberry_Pi_3.png";
+	}
+	else if (preg_match('/Pi Zero/', $settings['SubPlatform']))
+	{
+		$settings['Variant'] = "PiZero";
+		$settings['Logo'] = "Raspberry_Pi_Zero.png";
+	}
+	else if ($settings['SubPlatform'] == "V2P-CA15")
+	{
+		$settings['Variant'] = "qemu";
+		$settings['Logo'] = "QEMU_Logo.png";
+		$settings['LogoLink'] = "http://qemu.org/";
+	}
+	else
+	{
+		$settings['Variant'] = "UNKNOWN";
+		$settings['Logo'] = "Raspberry_Pi_Logo.png";
+	}
 }
 else if ($settings['Platform'] == "BeagleBone Black")
 {

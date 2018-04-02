@@ -159,17 +159,21 @@ int OpenMediaOutput(char *filename) {
 				filename, tmpFile);
 		}
 	}
-
-	// FIXME remove ForceSDL for v2.0
-	if (!getSettingInt("ForceSDL") || getSettingInt("LegacyMediaOutputs")) {
+#if !defined(PLATFORM_BBB)
+    // BBB doesn't have mpg123 installed
+	if (!getSettingInt("ForceSDL") || getSettingInt("LegacyMediaOutputs")
+        && (ext == "mp3" || ext == "ogg")) {
 		if (ext == "mp3") {
 			mediaOutput = new mpg123Output(tmpFile, &mediaOutputStatus);
 		} else if (ext == "ogg") {
 			mediaOutput = new ogg123Output(tmpFile, &mediaOutputStatus);
 		}
-    } else if ((ext == "mp3") ||
-               (ext == "m4a") ||
-               (ext == "ogg")) {
+    } else
+#endif
+    if ((ext == "mp3") ||
+        (ext == "m4a") ||
+        (ext == "ogg")) {
+        
         mediaOutput = new SDLOutput(tmpFile, &mediaOutputStatus);
 #ifdef PLATFORM_PI
 	} else if ((ext == "mp4") ||
@@ -178,7 +182,7 @@ int OpenMediaOutput(char *filename) {
 #endif
 	} else {
 		pthread_mutex_unlock(&mediaOutputLock);
-		LogDebug(VB_MEDIAOUT, "No Media Output handler for %s\n", tmpFile);
+		LogErr(VB_MEDIAOUT, "No Media Output handler for %s\n", tmpFile);
 		return 0;
 	}
 
@@ -193,6 +197,7 @@ int OpenMediaOutput(char *filename) {
 
 	if (!mediaOutput->Start())
 	{
+        LogErr(VB_MEDIAOUT, "Could not start media %s\n", tmpFile);
 		delete mediaOutput;
 		mediaOutput = 0;
 		pthread_mutex_unlock(&mediaOutputLock);

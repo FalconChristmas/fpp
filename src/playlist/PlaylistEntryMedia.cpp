@@ -203,7 +203,8 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 		pthread_mutex_unlock(&m_mediaOutputLock);
 		CloseMediaOutput();
 	}
-	pthread_mutex_unlock(&m_mediaOutputLock);
+	else
+		pthread_mutex_unlock(&m_mediaOutputLock);
 
 	pthread_mutex_lock(&m_mediaOutputLock);
 
@@ -233,23 +234,33 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 		}
 	}
 
-    // FIXME remove ForceSDL for v2.0
-	if (!getSettingInt("ForceSDL") || getSettingInt("LegacyMediaOutputs")) {
-		if (ext == "mp3") {
-			m_mediaOutput = new mpg123Output(tmpFile, &mediaOutputStatus);
-		} else if (ext == "ogg") {
-			m_mediaOutput = new ogg123Output(tmpFile, &mediaOutputStatus);
+	if ((ext == "mp3") ||
+		(ext == "m4a") ||
+		(ext == "ogg"))
+	{
+#if !defined(PLATFORM_BBB)
+		if (!getSettingInt("ForceSDL") || getSettingInt("LegacyMediaOutputs"))
+		{
+			if (ext == "mp3") {
+				m_mediaOutput = new mpg123Output(tmpFile, &mediaOutputStatus);
+			} else if (ext == "ogg") {
+				m_mediaOutput = new ogg123Output(tmpFile, &mediaOutputStatus);
+			}
 		}
-    } else if ((ext == "mp3") ||
-               (ext == "m4a") ||
-               (ext == "ogg")) {
-        m_mediaOutput = new SDLOutput(tmpFile, &mediaOutputStatus);
+		else
+#endif
+            LogDebug(VB_MEDIAOUT, "Using SDL to play %s\n", tmpFile);
+			m_mediaOutput = new SDLOutput(tmpFile, &mediaOutputStatus);
 #ifdef PLATFORM_PI
-	} else if ((ext == "mp4") ||
-			   (ext == "mkv")) {
+	}
+	else if ((ext == "mp4") ||
+			 (ext == "mkv"))
+	{
 		m_mediaOutput = new omxplayerOutput(tmpFile, &mediaOutputStatus);
 #endif
-	} else {
+	}
+	else
+	{
 		pthread_mutex_unlock(&mediaOutputLock);
 		LogDebug(VB_MEDIAOUT, "No Media Output handler for %s\n", tmpFile);
 		return 0;
@@ -265,6 +276,7 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 		multiSync->SendMediaSyncStartPacket(m_mediaFilename.c_str());
 
 	if (!m_mediaOutput->Start()) {
+        LogErr(VB_MEDIAOUT, "Could not start media %s\n", tmpFile);
 		delete m_mediaOutput;
 		m_mediaOutput = 0;
 		pthread_mutex_unlock(&m_mediaOutputLock);

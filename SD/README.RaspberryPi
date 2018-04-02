@@ -76,9 +76,9 @@ If you are installing to create a SD image zip, run the following commands:
 	# Remove old pi user's home directory
 	sudo rm -rf /home/pi
 	# Clean up fppd logs
-	sudo /opt/fpp/scripts/fppd_stop
-	sudo service nginx stop
-	sudo rm /home/fpp/media/logs/*
+	sudo systemctl stop fppd.service
+	sudo systemctl stop apache2.service
+	cd /home/fpp/media/logs ; ls -al ; /bin/ls -1 | while read FILE; do > ${FILE}; done ; ls -al
 	# Zero out free space so the SD image will compress better
 	sudo dd if=/dev/zero of=zero.dd bs=4M ; sudo rm zero.dd ; df -k
 	# Shutdown the Pi
@@ -103,6 +103,10 @@ for testing/release.
 
 ALPHA set of instructions for switching Pi root file system to btrfs. The
 current SD images will still use ext4.
+
+NOTE: There are several known issues with this, including the fact that
+upgrading the kernel will prevent the Pi from booting because the initrd may
+not be rebuilt and the initrd filename in config.txt will be incorrect.
 
 # update /boot/cmdline.txt to change root location to "root=/dev/mmcblk0p2"
 

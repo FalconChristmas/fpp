@@ -28,7 +28,7 @@ Flash BBB eMMC
     
 		echo "==================================================================================\n";
 
-		$command = "sudo TERM=vt100 /opt/scripts/tools/eMMC/init-eMMC-flasher-v3.sh 2>&1";
+        $command = "sudo TERM=vt100 /opt/fpp/SD/BBB-FlashMMC.sh ext4 2>&1";
 
 		echo "Command: $command\n";
 		echo "----------------------------------------------------------------------------------\n";
