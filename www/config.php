@@ -162,11 +162,47 @@ if ($settings['Platform'] == "Raspberry Pi")
 }
 else if ($settings['Platform'] == "BeagleBone Black")
 {
-	$settings['Logo'] = "beagle_logo.png";
 	$settings['LogoLink'] = "http://beagleboard.org/";
 	$settings['fppBinDir'] = '/opt/fpp/bin.bbb';
 	$settings['BBB_Tethering'] = "1";
 	$settings['SubPlatform'] = trim(file_get_contents("/proc/device-tree/model"));
+    if (preg_match('/PocketBeagle/', $settings['SubPlatform']))
+    {
+        $settings['Variant'] = "PocketBeagle";
+        $settings['Logo'] = "beagle_pocket.png";
+    }
+    else if (preg_match('/Green Wireless/', $settings['SubPlatform']))
+    {
+        $settings['Variant'] = "BeagleBone Green Wireless";
+        $settings['Logo'] = "beagle_greenwifi.png";
+    }
+    else if (preg_match('/Green/', $settings['SubPlatform']))
+    {
+        $settings['Variant'] = "BeagleBone Green";
+        $settings['Logo'] = "beagle_green.png";
+    }
+    else if (preg_match('/Black Wireless/', $settings['SubPlatform']))
+    {
+        $settings['Variant'] = "BeagleBone Black Wireless";
+        $settings['Logo'] = "beagle_blackwifi.png";
+    }
+    else if (preg_match('/Black Wireless/', $settings['SubPlatform']))
+    {
+        $settings['Variant'] = "BeagleBone Black";
+        $settings['Logo'] = "beagle_black.png";
+    }
+    else if (preg_match('/SanCloud BeagleBone Enhanced/', $settings['SubPlatform']))
+    {
+        $settings['Variant'] = "SanCloud BeagleBone Enhanced";
+        $settings['Logo'] = "beagle_sancloud.png";
+    }
+    else
+    {
+        $settings['Variant'] = "UNKNOWN";
+        $settings['Logo'] = "beagle_logo.png";
+    }
+
+    
 }
 else if ($settings['Platform'] == "PogoPlug")
 {

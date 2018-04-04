@@ -193,6 +193,30 @@ function SetSetting()
         unset($output);
 	} else if ($setting == "AudioOutput") {
 		SetAudioOutput($value);
+    } else if ($setting == "wifiDrivers") {
+        if ($value == "Kernel") {
+            exec(   $SUDO . " rm -f /etc/modprobe.d/blacklist-native-wifi.conf", $output, $return_val );
+        } else {
+            exec(   $SUDO . " cp /opt/fpp/etc/blacklist-native-wifi.conf /etc/modprobe.d", $output, $return_val );
+        }
+    } else if ($setting == "EnableTethering") {
+        if ($value == "1") {
+            $ssid = ReadSettingFromFile("TetherSSID");
+            $psk = ReadSettingFromFile("TetherPSK");
+            if ($ssid == "") {
+                $ssid = "FPP";
+                WriteSettingToFile("TetherSSID", $ssid);
+            }
+            if ($psk == "") {
+                $psk = "Christmas";
+                WriteSettingToFile("TetherPSK", $psk);
+            }
+            exec(   $SUDO . " systemctl disable dnsmasq", $output, $return_val );
+            exec(   $SUDO . " connmanctl tether wifi on $ssid $psk", $output, $return_val );
+        } else {
+            exec(   $SUDO . " connmanctl tether wifi off", $output, $return_val );
+            exec(   $SUDO . " systemctl enable dnsmasq", $output, $return_val );
+        }
 	} else if ($setting == "ForceHDMI") {
 		if ($value)
 		{
