@@ -72,7 +72,7 @@
 SCRIPTVER="0.9"
 FPPBRANCH="master"
 FPPIMAGEVER="2.0alpha"
-FPPCFGVER="29"
+FPPCFGVER="31"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
 FPPUSER=fpp
@@ -364,7 +364,7 @@ case "${OSVER}" in
 				PACKAGE_LIST="alsa-base alsa-utils arping avahi-daemon \
 								apache2 apache2-bin apache2-data apache2-utils libapache2-mod-php7.0 \
 								zlib1g-dev libpcre3 libpcre3-dev libbz2-dev libssl-dev \
-								avahi-discover avahi-utils bash-completion bc build-essential \
+								avahi-discover avahi-utils bash-completion bc btrfs-tools build-essential \
 								bzip2 ca-certificates ccache connman curl device-tree-compiler \
 								dh-autoreconf ethtool exfat-fuse fbi fbset file flite gdb \
 								gdebi-core git hdparm i2c-tools ifplugd imagemagick less \
@@ -375,7 +375,7 @@ case "${OSVER}" in
 								libpam-smbpass libsdl2-dev libssh-4 libtagc0-dev libtest-nowarnings-perl locales lsof \
 								mp3info mailutils mpg123 mpg321 mplayer nano nginx node ntp perlmagick \
 								php-cli php-common php-curl php-dom php-fpm php-mcrypt \
-								php-sqlite3 python-daemon python-smbus rsync samba \
+								php-sqlite3 php-zip python-daemon python-smbus rsync samba \
 								samba-common-bin shellinabox sudo sysstat tcpdump time usbmount vim \
 								vim-common vorbis-tools vsftpd firmware-realtek gcc g++\
 								dhcp-helper hostapd parprouted bridge-utils \

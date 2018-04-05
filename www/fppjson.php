@@ -78,7 +78,10 @@ return;
 /////////////////////////////////////////////////////////////////////////////
 
 function returnJSON($arr) {
-	header( "Content-Type: application/json");
+	//preemptively close the session
+    session_write_close();
+
+    header( "Content-Type: application/json");
 
 	echo json_encode($arr);
 
@@ -190,6 +193,30 @@ function SetSetting()
         unset($output);
 	} else if ($setting == "AudioOutput") {
 		SetAudioOutput($value);
+    } else if ($setting == "wifiDrivers") {
+        if ($value == "Kernel") {
+            exec(   $SUDO . " rm -f /etc/modprobe.d/blacklist-native-wifi.conf", $output, $return_val );
+        } else {
+            exec(   $SUDO . " cp /opt/fpp/etc/blacklist-native-wifi.conf /etc/modprobe.d", $output, $return_val );
+        }
+    } else if ($setting == "EnableTethering") {
+        if ($value == "1") {
+            $ssid = ReadSettingFromFile("TetherSSID");
+            $psk = ReadSettingFromFile("TetherPSK");
+            if ($ssid == "") {
+                $ssid = "FPP";
+                WriteSettingToFile("TetherSSID", $ssid);
+            }
+            if ($psk == "") {
+                $psk = "Christmas";
+                WriteSettingToFile("TetherPSK", $psk);
+            }
+            exec(   $SUDO . " systemctl disable dnsmasq", $output, $return_val );
+            exec(   $SUDO . " connmanctl tether wifi on $ssid $psk", $output, $return_val );
+        } else {
+            exec(   $SUDO . " connmanctl tether wifi off", $output, $return_val );
+            exec(   $SUDO . " systemctl enable dnsmasq", $output, $return_val );
+        }
 	} else if ($setting == "ForceHDMI") {
 		if ($value)
 		{
@@ -240,13 +267,60 @@ function GetFPPStatusJson()
 {
 	global $args;
 
-	if (isset($args['ip']))
+	//close the session before we start, this removes the session lock and lets other scripts run
+    session_write_close();
+
+    //Default json to be returned
+    $default_return_json = array(
+        'fppd' => 'unknown',
+        'status' => -1,
+        'status_name' => 'unknown',
+        'current_playlist' =>
+            [
+                'playlist' => '',
+                'type' => '',
+                'index' => '0',
+                'count' => '0'
+            ],
+        'current_sequence' => '',
+        'current_song' => '',
+        'seconds_played' => '0',
+        'seconds_remaining' => '0',
+        'time_elapsed' => '00:00',
+        'time_remaining' => '00:00'
+    );
+
+    //if the ip= argument supplied
+    if (isset($args['ip']))
 	{
 		header( "Content-Type: application/json");
 
-		echo file_get_contents("http://" . $args['ip'] . "/fppjson.php?command=getFPPstatus");
+		//validate IP address is a valid IPv4 address - possibly overkill but have seen IPv6 addresses polled
+        if (filter_var($args['ip'], FILTER_VALIDATE_IP)) {
+        	//Make the request
+            $request_content = @file_get_contents("http://" . $args['ip'] . "/fppjson.php?command=getFPPstatus");
+            //check we have valid data
+            if ($request_content === FALSE) {
+            	//check the response header
+				//check for a 401 - Unauthorized response
+				if(stristr($http_response_header[0],'401')){
+					//set a reason so we can inform the user
+                    $default_return_json['reason'] = "Cannot Access - Web GUI Password Set";
+				}
+				error_log("GetFPPStatusJson failed for IP: " . $args['ip'] . " " . json_encode($http_response_header));
+                //error return default response
+				echo json_encode($default_return_json);
+            } else {
+            	//return the actual FPP Status of the device
+                echo $request_content;
+            }
+        } else {
+            error_log("GetFPPStatusJson failed for IP: " . $args['ip'] . " ");
+            //IPv6 (in rare case it happens) return default response
+            echo json_encode($default_return_json);
+        }
 
-		exit(0);
+        exit(0);
 	}
 	else
 	{
@@ -255,29 +329,16 @@ function GetFPPStatusJson()
 		if($status == false || $status == 'false') {
      	
 			$status=exec("if ps cax | grep -q git_pull; then echo \"updating\"; else echo \"false\"; fi");
-     
-			returnJSON([
-					'fppd' => 'Not Running',
-					'status' => -1,
-					'status_name' => $status == 'updating' ? $status : 'stopped',
-					'current_playlist' => [
-						'playlist' => '',
-						'type'     => '',
-						'index'    => '0',
-						'count'    => '0'
-					],
-					'current_sequence'  => '',
-					'current_song'      => '',
-					'seconds_played'    => '0',
-					'seconds_remaining' => '0',
-					'time_elapsed'      => '00:00',
-					'time_remaining'    => '00:00',
-				]);
+
+            $default_return_json['fppd'] = "Not Running";
+            $default_return_json['status_name'] = $status == 'updating' ? $status : 'stopped';
+
+            returnJSON($default_return_json);
 		}
 
 		$data = parseStatus($status);
 
-		returnJson($data);
+        returnJSON($data);
 	}
 }
 

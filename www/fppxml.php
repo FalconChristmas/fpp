@@ -2404,20 +2404,38 @@ function GetZip()
 	if ( is_readable("/var/log/syslog") )
 		$zip->addFile("/var/log/syslog", "Logs/syslog.log");
 
-	$files = array(
-		"channelmemorymaps",
-		"channeloutputs",
-		"channelremap",
-		"config/channeloutputs.json",
-		"pixelnetDMX",
-		"schedule",
-		"settings",
-		"universes"
-		);
-	foreach($files as $file) {
-		if (file_exists("$mediaDirectory/$file"))
-			$zip->addFromString("Config/$file", ScrubFile("$mediaDirectory/$file"));
-	}
+    $files = array(
+        "channelmemorymaps",
+        "channeloutputs",
+        "channelremap",
+        "config/channeloutputs.json",
+        //new v2 config files
+        "config/channelremap.json",
+        "config/co-other.json",
+        "config/co-pixelStrings.json",
+        "config/co-bbbStrings.json",
+        "config/co-universes.json",
+        "config/ci-universes.json",
+        //
+        "pixelnetDMX",
+        "schedule",
+        "settings",
+        "universes"
+    );
+    
+    foreach($files as $file) {
+        if (file_exists("$mediaDirectory/$file")){
+            $fileData='';
+            //Handle these files differently, as they are CSV or other, and not a ini or JSON file
+            //ScrubFile assumes a INI file for files with the .json extension
+            if(in_array($file,array('schedule', 'channelmemorymaps', 'channeloutputs', 'channelremap', 'universes'))){
+                $fileData = file_get_contents("$mediaDirectory/$file");
+            }else{
+                $fileData = ScrubFile("$mediaDirectory/$file");
+            }
+            $zip->addFromString("Config/$file", $fileData);
+        }
+    }
 
 	// /root/.asoundrc is only readable by root, should use /etc/ version
 	exec($SUDO . " cat /root/.asoundrc", $output, $return_val);

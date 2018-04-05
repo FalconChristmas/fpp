@@ -11,7 +11,7 @@
 function PopulateInterfaces()
 {
   $first = 1;
-  $interfaces = explode("\n",trim(shell_exec("/sbin/ifconfig -a | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0 | grep -v usb | grep -v SoftAp | grep -v 'can.'")));
+  $interfaces = explode("\n",trim(shell_exec("/sbin/ifconfig -a | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0 | grep -v usb | grep -v SoftAp | grep -v 'can.' | grep -v tether ")));
   $ifaceE131 = ReadSettingFromFile("E131interface");
   foreach ($interfaces as $iface)
   {
@@ -459,6 +459,25 @@ function setHostName() {
           <input id="btnConfigDNS" type="" style="width:135px; display: none;" class = "buttons" value="Restart DNS" onClick="ApplyDNSConfig();">
 
         </fieldset>
+<br>
+        <fieldset class="fs2">
+        <legend>Tethering</legend>
+            <? PrintSettingCheckbox("Enable Tethering", "EnableTethering", 0, 1, "1", "0"); ?> Enable Tethering
+            <table width = "100%" border="0" cellpadding="1" cellspacing="1">
+            <tr>
+                <td width = "25%">Tethering SSID:</td>
+                <td width = "75%"><? PrintSettingText("TetherSSID", 0, 1, 32, 32, "", "FPP"); ?></td>
+            </tr>
+            <tr>
+                <td>Tethering Pre Shared key (PSK):</td>
+                <td><? PrintSettingText("TetherPSK", 0, 1, 32, 32, "", "Christmas"); ?></td>
+            </tr>
+            </tr>
+            </table>
+            <br>
+            <b>Warning:</b> Turning on tethering may make FPP unavailable.  Many WIFI adapters do not support simultaneous tethering and client modes. Having multiple WIFI adapters will work, but it's relatively unpredictable as to which WIFI adapter CONNMAN will bring tethering up on.    Also, enabling tethering disables the automatic IP assignment on the USB0/1 interfaces on the BeagleBones and thus connecting to the BeagleBone via a USB cable will require you to manually set the IP address to 192.168.6.1 (OSX/Linux) or 192.168.7.1 (Windows).
+        </fieldset>
+
 				<br>
 				<? PrintSettingCheckbox("Enable Routing", "EnableRouting", 0, 0, "1", "0"); ?> Enable Routing between network interfaces
         <br>
