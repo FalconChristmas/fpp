@@ -249,7 +249,6 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 		}
 		else
 #endif
-            LogDebug(VB_MEDIAOUT, "Using SDL to play %s\n", tmpFile);
 			m_mediaOutput = new SDLOutput(tmpFile, &mediaOutputStatus);
 #ifdef PLATFORM_PI
 	}
@@ -330,18 +329,17 @@ Json::Value PlaylistEntryMedia::GetConfig(void)
 {
 	Json::Value result = PlaylistEntryBase::GetConfig();
 
-	m_mediaOutputStatus = mediaOutputStatus;
 
 	result["mediaFilename"]       = m_mediaFilename;
-	result["status"]              = m_mediaOutputStatus.status;
-	result["secondsElapsed"]      = m_mediaOutputStatus.secondsElapsed;
-	result["subSecondsElapsed"]   = m_mediaOutputStatus.subSecondsElapsed;
-	result["secondsRemaining"]    = m_mediaOutputStatus.secondsRemaining;
-	result["subSecondsRemaining"] = m_mediaOutputStatus.subSecondsRemaining;
-	result["minutesTotal"]        = m_mediaOutputStatus.minutesTotal;
-	result["secondsTotal"]        = m_mediaOutputStatus.secondsTotal;
-	result["mediaSeconds"]        = m_mediaOutputStatus.mediaSeconds;
-	result["speedDelta"]          = m_mediaOutputStatus.speedDelta;
+	result["status"]              = mediaOutputStatus.status;
+	result["secondsElapsed"]      = mediaOutputStatus.secondsElapsed;
+	result["subSecondsElapsed"]   = mediaOutputStatus.subSecondsElapsed;
+	result["secondsRemaining"]    = mediaOutputStatus.secondsRemaining;
+	result["subSecondsRemaining"] = mediaOutputStatus.subSecondsRemaining;
+	result["minutesTotal"]        = mediaOutputStatus.minutesTotal;
+	result["secondsTotal"]        = mediaOutputStatus.secondsTotal;
+	result["mediaSeconds"]        = mediaOutputStatus.mediaSeconds;
+	result["speedDelta"]          = mediaOutputStatus.speedDelta;
 
 	return result;
 }

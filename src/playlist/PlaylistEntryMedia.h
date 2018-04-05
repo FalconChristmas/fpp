@@ -67,7 +67,6 @@ class PlaylistEntryMedia : public PlaylistEntryBase {
 	std::string        m_mediaFilename;
 	MediaOutputBase   *m_mediaOutput;
 	pthread_mutex_t    m_mediaOutputLock;
-	MediaOutputStatus  m_mediaOutputStatus;
 };
 
 #endif
