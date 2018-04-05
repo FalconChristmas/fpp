@@ -12,6 +12,9 @@ gblCurrentLoadedPlaylistCount = 0;
 lastPlaylistEntry = '';
 lastPlaylistSection = '';
 
+var max_retries = 60;
+var retry_poll_interval_arr = [];
+
 var statusTimeout = null;
 var lastStatus = '';
 
@@ -1982,7 +1985,51 @@ function RestartFPPD() {
 			ClearRestartFlag();
 		}).fail(function() {
 			$('html,body').css('cursor','auto');
-			DialogError("Restart FPPD", "Error restarting FPPD");
+
+            //If fail, the FPP may have rebooted (eg.FPPD triggering a reboot due to disabling soundcard or activating Pi Pixel output
+            //start polling and see if we can wait for the FPP to come back up
+            //restartFlag will already be cleared, but to keep things simple, just call the original code
+            retries = 0;
+            retries_max = max_retries;//avg timeout is 10-20seconds, polling resolves after 6-10 polls
+            //attempt to poll every second, AJAX block for the default browser timeout if host is unavail
+            retry_poll_interval_arr['restartFPPD'] = setInterval(function () {
+                poll_result = false;
+                if (retries < retries_max) {
+                    // console.log("Polling @ " + retries);
+                    //poll for FPPDRunning as it's the simplest command to run and doesn't put any extra processing load on the backend
+                    $.ajax({
+                            url: "fppxml.php?command=isFPPDrunning",
+                            timeout: 1000,
+                            async: true
+                        }
+                    ).success(
+                        function () {
+                            poll_result = true;
+                            //FPP is up then
+                            clearInterval(retry_poll_interval_arr['restartFPPD']);
+                            //run original code for success
+                            $.jGrowl('FPPD Restarted');
+                            ClearRestartFlag();
+                        }
+                    ).fail(
+                        function () {
+                            poll_result = false;
+                            retries++;
+                            //If on first try throw up a FPP is rebooting notification
+                            if(retries === 1){
+                                //Show FPP is rebooting notification for 10 seconds
+                                $.jGrowl('FPP is rebooting..',{ life: 10000 });
+                            }
+                        }
+                    );
+
+                    // console.log("Polling Result " + poll_result);
+                } else {
+                    //run original code
+                    clearInterval(retry_poll_interval_arr['restartFPPD']);
+                    DialogError("Restart FPPD", "Error restarting FPPD");
+                }
+            }, 2000);
 		});
 	}
 
@@ -2249,11 +2296,17 @@ function GetRunningEffects()
 			ClearRestartFlag();
 			ClearRebootFlag();
 
-			var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=rebootPi";
-			xmlhttp.open("GET",url,true);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-			xmlhttp.send();
+			//Delay reboot for 1 second to allow flags to be cleared
+            setTimeout(function () {
+                var xmlhttp = new XMLHttpRequest();
+                var url = "fppxml.php?command=rebootPi";
+                xmlhttp.open("GET", url, true);
+                xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+                xmlhttp.send();
+
+                //Show FPP is rebooting notification for 10 seconds
+                $.jGrowl('FPP is rebooting..', {life: 10000});
+            }, 1000);
 		} 
 	}
 
