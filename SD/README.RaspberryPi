@@ -3,7 +3,7 @@ Instructions for creating a new FPP SD image package for the Raspberry Pi
 =============================================================================
 
 Install the latest Raspbian Stretch Lite image to the SD card.  The last
-version tested is 2017-11-29-raspbian-stretch-lite.zip
+version tested is 2018-03-13-raspbian-stretch-lite.zip
 
 Resize the root partition to 2.4GiB using fdisk (substitute the proper device
 for your SD card).
@@ -16,8 +16,8 @@ for your SD card).
     n
     p
     2
-	(Replace 94208 with the original start block of partition 2 noted earlier)
-    94208
+	(Replace 98304 with the original start block of partition 2 noted earlier)
+    98304
 	(FIXME, downsize this value once install is tested)
     +3000M
     p
@@ -65,11 +65,10 @@ up.
 
 If you are installing to create a SD image zip, run the following commands:
 
-	su - fpp
 	# Reboot to make sure things take
 	sudo shutdown -r now
 
-	Once the Pi reboots, login as the fpp user again and run the following:
+	Once the Pi reboots, login as the new fpp user and run the following:
 
 	# Reset the SSH keys
 	sudo rm -rf /etc/ssh/ssh_host*key*
