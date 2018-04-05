@@ -183,8 +183,10 @@ MultiSyncSystemType MultiSync::ModelStringToType(std::string model)
 		return kSysTypeFPPRaspberryPi2B;
 	if (boost::starts_with(model, "Raspberry Pi 2 Model B"))
 		return kSysTypeFPPRaspberryPi2BNew;
-	if (boost::starts_with(model, "Raspberry Pi 3 Model B"))
+	if (boost::starts_with(model, "Raspberry Pi 3 Model B Rev"))
 		return kSysTypeFPPRaspberryPi3B;
+	if (boost::starts_with(model, "Raspberry Pi 3 Model B Plus"))
+		return kSysTypeFPPRaspberryPi3BPlus;
 	if (boost::starts_with(model, "Raspberry Pi Zero Rev"))
 		return kSysTypeFPPRaspberryPiZero;
 	if (boost::starts_with(model, "Raspberry Pi Zero W"))
@@ -263,16 +265,9 @@ std::string MultiSync::GetHardwareModel(void)
 	std::string result;
 	std::string filename;
 
-	// Raspberry Pi
 	if (FileExists("/sys/firmware/devicetree/base/model"))
 		filename = "/sys/firmware/devicetree/base/model";
-
-	// BeagleBone
-	if (FileExists("/proc/device-tree/model"))
-		filename = "/proc/device-tree/model";
-
-	// Others?
-	if (FileExists("/sys/class/dmi/id/product_name"))
+	else if (FileExists("/sys/class/dmi/id/product_name"))
 		filename = "/sys/class/dmi/id/product_name";
 
 	if (filename != "")
@@ -318,6 +313,7 @@ std::string MultiSync::GetTypeString(MultiSyncSystemType type)
 		case kSysTypeFPPRaspberryPi2B:        return "Raspberry Pi 2 B";
 		case kSysTypeFPPRaspberryPi2BNew:     return "Raspberry Pi 2 B v1.2+";
 		case kSysTypeFPPRaspberryPi3B:        return "Raspberry Pi 3 B";
+		case kSysTypeFPPRaspberryPi3BPlus:    return "Raspberry Pi 3 B+";
 		case kSysTypeFPPRaspberryPiZero:      return "Raspberry Pi Zero";
 		case kSysTypeFPPRaspberryPiZeroW:     return "Raspberry Pi Zero W";
 		case kSysTypeFalconController:        return "Falcon Controller";
