@@ -189,7 +189,7 @@ int OpenMediaOutput(char *filename) {
         mediaOutput = new SDLOutput(tmpFile, &mediaOutputStatus, "--Disabled--");
 #ifdef PLATFORM_PI
 	} else if (((ext == "mp4") ||
-			   (ext == "mkv") && vOut == "--HDMI--") {
+			   (ext == "mkv")) && vOut == "--HDMI--") {
 		mediaOutput = new omxplayerOutput(tmpFile, &mediaOutputStatus);
 #endif
     } else if ((ext == "mp4") ||
