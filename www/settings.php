@@ -73,6 +73,27 @@ else
 	}
 }
 unset($output);
+    
+$VideoOutputModels = Array();
+if ($settings['Platform'] != "BeagleBone Black") {
+    $VideoOutputModels['HDMI'] = "--HDMI--";
+}
+$VideoOutputModels['Disabled'] = "--Disabled--";
+$f = fopen($settings['channelMemoryMapsFile'], "r");
+    if ($f == FALSE) {
+        fclose($f);
+    } else {
+        while (!feof($f)) {
+            $line = fgets($f);
+            if ($line == "")
+                continue;
+            $entry = explode(",", $line, 7);
+            $VideoOutputModels[$entry[0]] = $entry[0];
+        }
+        fclose($f);
+    }
+
+    
 
 $backgroundColors = Array();
 $backgroundColors['No Border']   = '';
@@ -412,6 +433,10 @@ function ToggleTetherMode()
     <tr>
       <td>Pause Background Effect Sequence when playing a FSEQ file:</td>
       <td><? PrintSettingCheckbox("Pause Background Effects", "pauseBackgroundEffects", 1, 0, "1", "0"); ?></td>
+    </tr>
+    <tr>
+        <td>Default Video Output Device:</td>
+        <td><? PrintSettingSelect("Video Output Device", "VideoOutput", 0, 0, $settings['videoOutput'], $VideoOutputModels); ?></td>
     </tr>
     <tr>
       <td>Audio Output Device:</td>

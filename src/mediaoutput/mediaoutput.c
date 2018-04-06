@@ -159,6 +159,19 @@ int OpenMediaOutput(char *filename) {
 				filename, tmpFile);
 		}
 	}
+    
+    std::string vOut = getSetting("VideoOutput");
+    if (vOut == "") {
+#if !defined(PLATFORM_BBB)
+        vOut = "--HDMI--";
+#else
+        vOut = "--Disabled--";
+#endif
+    }
+
+    //FIXME - lookup default video out from settings
+    
+    
 #if !defined(PLATFORM_BBB)
     // BBB doesn't have mpg123 installed
 	if (!getSettingInt("ForceSDL") || getSettingInt("LegacyMediaOutputs")
@@ -173,13 +186,16 @@ int OpenMediaOutput(char *filename) {
     if ((ext == "mp3") ||
         (ext == "m4a") ||
         (ext == "ogg")) {
-        
-        mediaOutput = new SDLOutput(tmpFile, &mediaOutputStatus);
+        mediaOutput = new SDLOutput(tmpFile, &mediaOutputStatus, "--Disabled--");
 #ifdef PLATFORM_PI
-	} else if ((ext == "mp4") ||
-			   (ext == "mkv")) {
+	} else if (((ext == "mp4") ||
+			   (ext == "mkv") && vOut == "--HDMI--") {
 		mediaOutput = new omxplayerOutput(tmpFile, &mediaOutputStatus);
 #endif
+    } else if ((ext == "mp4") ||
+               (ext == "mkv") ||
+               (ext == "avi")) {
+        mediaOutput = new SDLOutput(tmpFile, &mediaOutputStatus, vOut);
 	} else {
 		pthread_mutex_unlock(&mediaOutputLock);
 		LogErr(VB_MEDIAOUT, "No Media Output handler for %s\n", tmpFile);

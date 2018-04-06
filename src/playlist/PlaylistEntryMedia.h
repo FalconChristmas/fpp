@@ -65,6 +65,7 @@ class PlaylistEntryMedia : public PlaylistEntryBase {
 	int CloseMediaOutput(void);
 
 	std::string        m_mediaFilename;
+    std::string        m_videoOutput;
 	MediaOutputBase   *m_mediaOutput;
 	pthread_mutex_t    m_mediaOutputLock;
 };

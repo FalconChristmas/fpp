@@ -52,7 +52,8 @@ PlaylistEntryMedia::PlaylistEntryMedia(PlaylistEntryBase *parent)
 	m_secondsTotal(0),
 	m_mediaSeconds(0.0),
 	m_speedDelta(0),
-	m_mediaOutput(NULL)
+	m_mediaOutput(NULL),
+    m_videoOutput("--Default--")
 {
     LogDebug(VB_PLAYLIST, "PlaylistEntryMedia::PlaylistEntryMedia()\n");
 
@@ -83,6 +84,10 @@ int PlaylistEntryMedia::Init(Json::Value &config)
 	}
 
 	m_mediaFilename = config["mediaName"].asString();
+    
+    if (config.isMember("videoOut")) {
+        m_videoOutput = config["videoOut"].asString();
+    }
 
 	return PlaylistEntryBase::Init(config);
 }
@@ -125,8 +130,12 @@ int PlaylistEntryMedia::Process(void)
 
 	pthread_mutex_lock(&m_mediaOutputLock);
 
-	if (m_mediaOutput)
+    if (m_mediaOutput) {
 		m_mediaOutput->Process();
+        if (!m_mediaOutput->IsPlaying()) {
+            FinishPlay();
+        }
+    }
 
 	pthread_mutex_unlock(&m_mediaOutputLock);
 
@@ -233,6 +242,18 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 				m_mediaFilename.c_str(), tmpFile);
 		}
 	}
+    
+    std::string vOut = m_videoOutput;
+    if (vOut == "--Default--") {
+        vOut = getSetting("VideoOutput");
+    }
+    if (vOut == "") {
+#if !defined(PLATFORM_BBB)
+        vOut = "--HDMI--";
+#else
+        vOut = "--Disabled--";
+#endif
+    }
 
 	if ((ext == "mp3") ||
 		(ext == "m4a") ||
@@ -249,14 +270,18 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 		}
 		else
 #endif
-			m_mediaOutput = new SDLOutput(tmpFile, &mediaOutputStatus);
+			m_mediaOutput = new SDLOutput(tmpFile, &mediaOutputStatus, "--Disabled--");
 #ifdef PLATFORM_PI
 	}
-	else if ((ext == "mp4") ||
-			 (ext == "mkv"))
+	else if (((ext == "mp4") ||
+			 (ext == "mkv")) && m_videoOutput == "--HDMI--")
 	{
 		m_mediaOutput = new omxplayerOutput(tmpFile, &mediaOutputStatus);
 #endif
+    } else if ((ext == "mp4") ||
+               (ext == "mkv") ||
+               (ext == "avi")) {
+        m_mediaOutput = new SDLOutput(tmpFile, &mediaOutputStatus, vOut);
 	}
 	else
 	{

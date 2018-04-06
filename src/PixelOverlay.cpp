@@ -566,6 +566,48 @@ int SetPixelOverlayState(std::string modelName, std::string newState)
 	return -1;
 }
 
+bool GetPixelOverlayModelSize(const std::string &modelName, int &w, int &h) {
+    if ((!ctrlHeader) || (!ctrlHeader->totalBlocks))
+        return false;
+    
+    FPPChannelMemoryMapControlBlock *cb =
+    (FPPChannelMemoryMapControlBlock*)(ctrlMap +
+                                       sizeof(FPPChannelMemoryMapControlHeader));
+    
+    for (int i = 0; i < ctrlHeader->totalBlocks; i++, cb++) {
+        if (!strcmp(cb->blockName, modelName.c_str())) {
+            h = cb->stringCount * cb->strandsPerString;
+            w = cb->channelCount / 3;
+            w /= h;
+            
+            if (cb->orientation == 'V') {
+                std::swap(w, h);
+            }
+            return true;
+        }
+    }
+    return false;
+}
+void SetPixelOverlayData(const std::string &modelName, const uint8_t *data) {
+    if ((!ctrlHeader) || (!ctrlHeader->totalBlocks))
+        return;
+    
+    FPPChannelMemoryMapControlBlock *cb =
+    (FPPChannelMemoryMapControlBlock*)(ctrlMap +
+                                       sizeof(FPPChannelMemoryMapControlHeader));
+    
+    for (int i = 0; i < ctrlHeader->totalBlocks; i++, cb++) {
+        if (!strcmp(cb->blockName, modelName.c_str())) {
+            
+            for (int c = 0; c < cb->channelCount; c++) {
+                chanDataMap[pixelMap[cb->startChannel + c - 1]] = data[c];
+            }
+        }
+    }
+}
+
+
+
 /*
  * Set the value for channels in a Pixel Overlay model
  */
@@ -665,5 +707,6 @@ int FillPixelOverlayModel(std::string modelName, unsigned char r, unsigned char 
 		if (!strcmp(cb->blockName, modelName.c_str()))
 			return FillPixelOverlayModel(i, r, g, b);
 	}
+    return 0;
 }
 
