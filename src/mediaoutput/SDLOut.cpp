@@ -909,6 +909,7 @@ int SDLOutput::Stop(void)
     sdlManager.Stop();
     if (data->video_stream_idx >= 0) {
         FillPixelOverlayModel(data->videoOverlayModel, 0, 0, 0);
+        SetPixelOverlayState(data->videoOverlayModel, "Disabled");
     }
     if (data && !data->stopped) {
         data->stopped++;
