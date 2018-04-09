@@ -75,6 +75,7 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <cmath>
 
 #include "common.h"
 #include "ColorLight-5a-75.h"
@@ -230,6 +231,25 @@ int ColorLight5a75Output::Init(Json::Value config)
 				sm["yOffset"].asInt());
 		}
 	}
+    
+    float gamma = 1.0;
+    if (config.isMember("gamma")) {
+        gamma = atof(config["gamma"].asString().c_str());
+    }
+    if (gamma < 0.01 || gamma > 50.0) {
+        gamma = 1.0;
+    }
+    for (int x = 0; x < 256; x++) {
+        float f = x;
+        f = 255.0 * pow(f / 255.0f, gamma);
+        if (f > 255.0) {
+            f = 255.0;
+        }
+        if (f < 0.0) {
+            f = 0.0;
+        }
+        m_gammaCurve[x] = round(f);
+    }
 
 	if (config.isMember("interface"))
 		m_ifName = config["interface"].asString();
@@ -350,9 +370,9 @@ void ColorLight5a75Output::PrepData(unsigned char *channelData)
 
 				for (int x = 0; x < pw3; x += 3)
 				{
-					*(dst++) = channelData[m_panelMatrix->m_panels[panel].pixelMap[yw + x]];
-					*(dst++) = channelData[m_panelMatrix->m_panels[panel].pixelMap[yw + x + 1]];
-					*(dst++) = channelData[m_panelMatrix->m_panels[panel].pixelMap[yw + x + 2]];
+					*(dst++) = m_gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[yw + x]]];
+					*(dst++) = m_gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[yw + x + 1]]];
+					*(dst++) = m_gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[yw + x + 2]]];
 
 					px++;
 				}

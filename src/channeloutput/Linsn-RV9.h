@@ -94,6 +94,7 @@ class LinsnRV9Output : public ChannelOutputBase {
 	Matrix      *m_matrix;
 	PanelMatrix *m_panelMatrix;
 	int          m_formatIndex;
+    uint8_t      m_gammaCurve[256];
 
 	struct FormatCode {
 		unsigned char code;
