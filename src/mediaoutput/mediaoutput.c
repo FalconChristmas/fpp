@@ -168,9 +168,6 @@ int OpenMediaOutput(char *filename) {
         vOut = "--Disabled--";
 #endif
     }
-
-    //FIXME - lookup default video out from settings
-    
     
 #if !defined(PLATFORM_BBB)
     // BBB doesn't have mpg123 installed

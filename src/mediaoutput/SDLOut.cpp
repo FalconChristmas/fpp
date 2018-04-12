@@ -788,10 +788,10 @@ int SDLOutput::Start(void)
         SetChannelOutputFrameNumber(0);
         sdlManager.Start(data);
         m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_PLAYING;
-    } else {
-        m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
+        return 1;
     }
-	return 1;
+    m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
+    return 0;
 }
 
 /*
