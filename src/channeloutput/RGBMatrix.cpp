@@ -25,6 +25,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <cmath>
 
 #include "common.h"
 #include "log.h"
@@ -204,6 +205,25 @@ int RGBMatrixOutput::Init(Json::Value config)
 				sm["yOffset"].asInt());
 		}
 	}
+    
+    float gamma = 1.0;
+    if (config.isMember("gamma")) {
+        gamma = atof(config["gamma"].asString().c_str());
+    }
+    if (gamma < 0.01 || gamma > 50.0) {
+        gamma = 1.0;
+    }
+    for (int x = 0; x < 256; x++) {
+        float f = x;
+        f = 255.0 * pow(f / 255.0f, gamma);
+        if (f > 255.0) {
+            f = 255.0;
+        }
+        if (f < 0.0) {
+            f = 0.0;
+        }
+        m_gammaCurve[x] = round(f);
+    }
 
 	return ChannelOutputBase::Init(config);
 }
@@ -260,9 +280,9 @@ int RGBMatrixOutput::RawSendData(unsigned char *channelData)
 				int px = chain * m_panelWidth;
 				for (int x = 0; x < m_panelWidth; x++)
 				{
-					r = channelData[m_panelMatrix->m_panels[panel].pixelMap[(y * m_panelWidth + x) * 3]];
-					g = channelData[m_panelMatrix->m_panels[panel].pixelMap[(y * m_panelWidth + x) * 3 + 1]];
-					b = channelData[m_panelMatrix->m_panels[panel].pixelMap[(y * m_panelWidth + x) * 3 + 2]];
+					r = m_gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[(y * m_panelWidth + x) * 3]]];
+					g = m_gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[(y * m_panelWidth + x) * 3 + 1]]];
+					b = m_gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[(y * m_panelWidth + x) * 3 + 2]]];
 
 					m_canvas->SetPixel(px, y + (output * m_panelHeight), r, g, b);
 

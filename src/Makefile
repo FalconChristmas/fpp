@@ -123,6 +123,7 @@ LIBS_fppd = \
 	-lavcodec \
 	-lavutil \
 	-lswresample \
+	-lswscale \
 	$(NULL)
 
 SUBDIRS = 

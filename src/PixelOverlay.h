@@ -33,6 +33,9 @@ int UsingMemoryMapInput(void);
 void CloseChannelDataMemoryMap(void);
 void OverlayMemoryMap(char *channelData);
 
+bool GetPixelOverlayModelSize(const std::string &modelName, int &w, int &h);
+void SetPixelOverlayData(const std::string &modelName, const uint8_t *data);
+
 int SetPixelOverlayState(std::string modelName, std::string newState);
 int SetPixelOverlayValue(int index, char value, int startChannel = -1, int endChannel = -1);
 int SetPixelOverlayValue(std::string modelName, char value, int startChannel = -1, int endChannel = -1);

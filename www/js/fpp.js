@@ -71,7 +71,7 @@ function PopulatePlaylists(element) {
 	xmlhttp.send();
 }
 
-function GetPlaylistRowHTML(ID, type, data1, data2, firstlast, editMode)
+function GetPlaylistRowHTML(ID, type, data1, data2, data3, firstlast, editMode)
 {
 	var HTML = "";
 
@@ -88,6 +88,11 @@ function GetPlaylistRowHTML(ID, type, data1, data2, firstlast, editMode)
 
 	HTML += "<td class=\"colPlaylistData1\">" + data1 + "</td>";
 	HTML += "<td class=\"colPlaylistData2\">" + data2 + "</td>"
+    if (data3) {
+        HTML += "<td class=\"colPlaylistData3\">" + data3 + "</td>"
+    } else {
+        HTML += "<td class=\"colPlaylistData3\"></td>"
+    }
 	HTML += "</tr>";
 
 	return HTML;
@@ -98,13 +103,13 @@ function PlaylistEntryToTR(i, entry, editMode)
 	var HTML = "";
 
 	if(entry.type == 'both')
-		HTML += GetPlaylistRowHTML((i+1).toString(), "Seq/Med", entry.mediaName, entry.sequenceName, i.toString(), editMode);
+		HTML += GetPlaylistRowHTML((i+1).toString(), "Seq/Med", entry.mediaName, entry.sequenceName, entry.videoOut, i.toString(), editMode);
 	else if(entry.type == 'media')
-		HTML += GetPlaylistRowHTML((i+1).toString(), "Media", entry.mediaName, "---", i.toString(), editMode);
+		HTML += GetPlaylistRowHTML((i+1).toString(), "Media", entry.mediaName, "---", entry.videoOut, i.toString(), editMode);
 	else if(entry.type == 'sequence')
-		HTML += GetPlaylistRowHTML((i+1).toString(), "Sequence", "---", entry.sequenceName, i.toString(), editMode);
+		HTML += GetPlaylistRowHTML((i+1).toString(), "Sequence", "---", entry.sequenceName, "", i.toString(), editMode);
 	else if(entry.type == 'pause')
-		HTML += GetPlaylistRowHTML((i+1).toString(), "Pause", "PAUSE - " + entry.duration.toString(), "---", i.toString(), editMode);
+		HTML += GetPlaylistRowHTML((i+1).toString(), "Pause", "PAUSE - " + entry.duration.toString(), "---", "", i.toString(), editMode);
 	else if(entry.type == 'branch')
 	{
 		var branchStr = "Invalid Config";
@@ -145,14 +150,14 @@ function PlaylistEntryToTR(i, entry, editMode)
 			}
 
 		}
-		HTML += GetPlaylistRowHTML((i+1).toString(), "Branch", branchStr, "---", i.toString(), editMode);
+		HTML += GetPlaylistRowHTML((i+1).toString(), "Branch", branchStr, "---", "", i.toString(), editMode);
 	}
 	else if(entry.type == 'mqtt')
-		HTML += GetPlaylistRowHTML((i+1).toString(), "MQTT", entry.topic, entry.message, i.toString(), editMode);
+		HTML += GetPlaylistRowHTML((i+1).toString(), "MQTT", entry.topic, entry.message, "", i.toString(), editMode);
 	else if(entry.type == 'dynamic')
-		HTML += GetPlaylistRowHTML((i+1).toString(), "Dynamic", entry.subType, entry.data, i.toString(), editMode);
+		HTML += GetPlaylistRowHTML((i+1).toString(), "Dynamic", entry.subType, entry.data, "", i.toString(), editMode);
 	else if(entry.type == 'url')
-		HTML += GetPlaylistRowHTML((i+1).toString(), "URL", entry.method + ' - ' + entry.url, entry.data, i.toString(), editMode);
+		HTML += GetPlaylistRowHTML((i+1).toString(), "URL", entry.method + ' - ' + entry.url, "", entry.data, i.toString(), editMode);
 	else if(entry.type == 'remap')
 	{
 		var desc = "Add ";
@@ -160,7 +165,7 @@ function PlaylistEntryToTR(i, entry, editMode)
 			desc = "Remove ";
 
 		desc += "remap for " + entry.count + " channels from " + entry.source + " to " + entry.destination + " " + entry.loops + " times";
-		HTML += GetPlaylistRowHTML((i+1).toString(), "Remap", desc, "", i.toString(), editMode);
+		HTML += GetPlaylistRowHTML((i+1).toString(), "Remap", desc, "", "", i.toString(), editMode);
 	}
 	else if(entry.type == 'event')
 	{
@@ -174,12 +179,12 @@ function PlaylistEntryToTR(i, entry, editMode)
 
 		id = majorID + '_' + minorID;
 
-		HTML += GetPlaylistRowHTML((i+1).toString(), "Event", id + " - " + entry.desc, "---", i.toString(), editMode);
+		HTML += GetPlaylistRowHTML((i+1).toString(), "Event", id + " - " + entry.desc, "---", "", i.toString(), editMode);
 	}
 	else if(entry.type == 'plugin')
-		HTML += GetPlaylistRowHTML((i+1).toString(), "Plugin", "---", entry.data, editMode);
+		HTML += GetPlaylistRowHTML((i+1).toString(), "Plugin", "---", "", entry.data, editMode);
 	else if(entry.type == 'script')
-		HTML += GetPlaylistRowHTML((i+1).toString(), "Script", entry.scriptName, "---", i.toString(), editMode);
+		HTML += GetPlaylistRowHTML((i+1).toString(), "Script", entry.scriptName, "---", "", i.toString(), editMode);
 
 	return HTML;
 }
@@ -391,6 +396,7 @@ function AddPlaylistEntry() {
 			var	type = document.getElementById("selType").value;
 			var	seqFile = document.getElementById("selSequence").value;
 			var	mediaFile = document.getElementById("selMedia").value;
+			var	videoOut = document.getElementById("videoOut").value;
 			var	scriptName = document.getElementById("selEvent").value;
 			var	eventSel = document.getElementById("selEvent");
 			var	eventID = eventSel.value;
@@ -431,11 +437,13 @@ function AddPlaylistEntry() {
 			else if (entry.type == 'media')
 			{
 				entry.mediaName = $('#selMedia').val();
+                entry.videoOut = $('#videoOut').val();
 			}
 			else if (entry.type == 'both')
 			{
 				entry.sequenceName = $('#selSequence').val();
 				entry.mediaName = $('#selMedia').val();
+                entry.videoOut = $('#videoOut').val();
 			}
 			else if (entry.type == 'pause')
 			{

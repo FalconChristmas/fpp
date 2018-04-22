@@ -173,6 +173,14 @@ function printLEDPanelSizeSelect($platform, $def, $addr)
         PrintSettingSelect("Panel Size", "LEDPanelsSize", 1, 0, $def, $values, "", "LEDPanelLayoutChanged");
     }
 }
+function printLEDPanelGammaSelect($platform, $gamma)
+{
+    if ($gamma == "" || $gamma="0") {
+        $gamma = "1.0";
+    }
+    echo "<input type='number' min='0.1' max='5.0' step='0.1' value='$gamma' id='LEDPanelsGamma'/>";
+}
+
 
 function printLEDPanelInterleaveSelect($platform, $interleave)
 {
@@ -359,6 +367,7 @@ function InitializeLEDPanels()
 		$('#LEDPanelsChannelCount').html(channelOutputsLookup["LEDPanelMatrix"].channelCount);
 		$('#LEDPanelsColorOrder').val(channelOutputsLookup["LEDPanelMatrix"].colorOrder);
 		$('#LEDPanelsBrightness').val(channelOutputsLookup["LEDPanelMatrix"].brightness);
+        $('#LEDPanelsGamma').val(channelOutputsLookup["LEDPanelMatrix"].gamma);
 		$('#LEDPanelsConnection').val(channelOutputsLookup["LEDPanelMatrix"].subType);
 		$('#LEDPanelsInterface').val(channelOutputsLookup["LEDPanelMatrix"].interface);
 		$('#LEDPanelsSourceMacInput').val(channelOutputsLookup["LEDPanelMatrix"].sourceMAC);
@@ -424,6 +433,7 @@ function GetLEDPanelConfig()
 	config.channelCount = parseInt($('#LEDPanelsChannelCount').html());
 	config.colorOrder = $('#LEDPanelsColorOrder').val();
 	config.brightness = parseInt($('#LEDPanelsBrightness').val());
+    config.gamma = $('#LEDPanelsGamma').val();
 	if (($('#LEDPanelsConnection').val() === "ColorLight5a75") || ($('#LEDPanelsConnection').val() === "LinsnRV9"))
 	{
 		config.subType = $('#LEDPanelsConnection').val();
@@ -456,6 +466,7 @@ function GetLEDPanelConfig()
     }
 ?>
     config.brightness = parseInt($('#LEDPanelsBrightness').val());
+    config.gamma = $('#LEDPanelsGamma').val();
 	config.invertedData = parseInt($('#LEDPanelsStartCorner').val());
 	config.panelWidth = LEDPanelWidth;
 	config.panelHeight = LEDPanelHeight;
@@ -699,6 +710,10 @@ else if ($settings['Platform'] == "BeagleBone Black")
 								</select>
 							</td>
 						</tr>
+                        <tr><td><b>Panel Gamma:</b></td>
+                            <td><? printLEDPanelGammaSelect($settings['Platform'], $LEDPanelGamma); ?></td>
+                            </td>
+                        </tr>
 <?
 if ($settings['Platform'] == "BeagleBone Black") {
 ?>

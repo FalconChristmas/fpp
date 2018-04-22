@@ -52,7 +52,8 @@ PlaylistEntryMedia::PlaylistEntryMedia(PlaylistEntryBase *parent)
 	m_secondsTotal(0),
 	m_mediaSeconds(0.0),
 	m_speedDelta(0),
-	m_mediaOutput(NULL)
+	m_mediaOutput(NULL),
+    m_videoOutput("--Default--")
 {
     LogDebug(VB_PLAYLIST, "PlaylistEntryMedia::PlaylistEntryMedia()\n");
 
@@ -83,6 +84,10 @@ int PlaylistEntryMedia::Init(Json::Value &config)
 	}
 
 	m_mediaFilename = config["mediaName"].asString();
+    
+    if (config.isMember("videoOut")) {
+        m_videoOutput = config["videoOut"].asString();
+    }
 
 	return PlaylistEntryBase::Init(config);
 }
@@ -125,8 +130,12 @@ int PlaylistEntryMedia::Process(void)
 
 	pthread_mutex_lock(&m_mediaOutputLock);
 
-	if (m_mediaOutput)
+    if (m_mediaOutput) {
 		m_mediaOutput->Process();
+        if (!m_mediaOutput->IsPlaying()) {
+            FinishPlay();
+        }
+    }
 
 	pthread_mutex_unlock(&m_mediaOutputLock);
 
@@ -233,6 +242,18 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 				m_mediaFilename.c_str(), tmpFile);
 		}
 	}
+    
+    std::string vOut = m_videoOutput;
+    if (vOut == "--Default--") {
+        vOut = getSetting("VideoOutput");
+    }
+    if (vOut == "") {
+#if !defined(PLATFORM_BBB)
+        vOut = "--HDMI--";
+#else
+        vOut = "--Disabled--";
+#endif
+    }
 
 	if ((ext == "mp3") ||
 		(ext == "m4a") ||
@@ -249,15 +270,18 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 		}
 		else
 #endif
-            LogDebug(VB_MEDIAOUT, "Using SDL to play %s\n", tmpFile);
-			m_mediaOutput = new SDLOutput(tmpFile, &mediaOutputStatus);
+			m_mediaOutput = new SDLOutput(tmpFile, &mediaOutputStatus, "--Disabled--");
 #ifdef PLATFORM_PI
 	}
-	else if ((ext == "mp4") ||
-			 (ext == "mkv"))
+	else if (((ext == "mp4") ||
+			 (ext == "mkv")) && m_videoOutput == "--HDMI--")
 	{
 		m_mediaOutput = new omxplayerOutput(tmpFile, &mediaOutputStatus);
 #endif
+    } else if ((ext == "mp4") ||
+               (ext == "mkv") ||
+               (ext == "avi")) {
+        m_mediaOutput = new SDLOutput(tmpFile, &mediaOutputStatus, vOut);
 	}
 	else
 	{
@@ -330,18 +354,17 @@ Json::Value PlaylistEntryMedia::GetConfig(void)
 {
 	Json::Value result = PlaylistEntryBase::GetConfig();
 
-	m_mediaOutputStatus = mediaOutputStatus;
 
 	result["mediaFilename"]       = m_mediaFilename;
-	result["status"]              = m_mediaOutputStatus.status;
-	result["secondsElapsed"]      = m_mediaOutputStatus.secondsElapsed;
-	result["subSecondsElapsed"]   = m_mediaOutputStatus.subSecondsElapsed;
-	result["secondsRemaining"]    = m_mediaOutputStatus.secondsRemaining;
-	result["subSecondsRemaining"] = m_mediaOutputStatus.subSecondsRemaining;
-	result["minutesTotal"]        = m_mediaOutputStatus.minutesTotal;
-	result["secondsTotal"]        = m_mediaOutputStatus.secondsTotal;
-	result["mediaSeconds"]        = m_mediaOutputStatus.mediaSeconds;
-	result["speedDelta"]          = m_mediaOutputStatus.speedDelta;
+	result["status"]              = mediaOutputStatus.status;
+	result["secondsElapsed"]      = mediaOutputStatus.secondsElapsed;
+	result["subSecondsElapsed"]   = mediaOutputStatus.subSecondsElapsed;
+	result["secondsRemaining"]    = mediaOutputStatus.secondsRemaining;
+	result["subSecondsRemaining"] = mediaOutputStatus.subSecondsRemaining;
+	result["minutesTotal"]        = mediaOutputStatus.minutesTotal;
+	result["secondsTotal"]        = mediaOutputStatus.secondsTotal;
+	result["mediaSeconds"]        = mediaOutputStatus.mediaSeconds;
+	result["speedDelta"]          = mediaOutputStatus.speedDelta;
 
 	return result;
 }
