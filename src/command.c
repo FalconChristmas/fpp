@@ -189,6 +189,7 @@ extern PluginCallbackManager pluginCallbackManager;
 					if ((pl["currentEntry"]["type"] == "both") ||
 						(pl["currentEntry"]["type"] == "media"))
 					{
+                        //printf(" %s\n", pl.toStyledString().c_str());
 						sprintf(response,"%d,%d,%d,%s,%s,%s,%s,%d,%d,%d,%d,%s,%s,%d\n",
 							getFPPmode(),
 							FPPstatus,
@@ -196,12 +197,18 @@ extern PluginCallbackManager pluginCallbackManager;
 							pl["name"].asString().c_str(),
 							pl["currentEntry"]["type"].asString().c_str(),
 							pl["currentEntry"]["type"].asString() == "both" ? pl["currentEntry"]["sequence"]["sequenceName"].asString().c_str() : "",
-							pl["currentEntry"]["media"]["mediaFilename"].asString().c_str(),
+                            pl["currentEntry"]["type"].asString() == "both"
+                                ? pl["currentEntry"]["media"]["mediaFilename"].asString().c_str()
+                                : pl["currentEntry"]["mediaFilename"].asString().c_str() ,
 //							pl["currentEntry"]["entryID"].asInt() + 1,
 							playlist->GetPosition(),
 							pl["size"].asInt(),
-							pl["currentEntry"]["media"]["secondsElapsed"].asInt(),
-							pl["currentEntry"]["media"]["secondsRemaining"].asInt(),
+							pl["currentEntry"]["type"].asString() == "both"
+                                ? pl["currentEntry"]["media"]["secondsElapsed"].asInt()
+                                : pl["currentEntry"]["secondsElapsed"].asInt(),
+							pl["currentEntry"]["type"].asString() == "both"
+                                ? pl["currentEntry"]["media"]["secondsRemaining"].asInt()
+                                : pl["currentEntry"]["secondsRemaining"].asInt(),
 							NextPlaylist,
 							NextScheduleStartText,
 							pl["repeat"].asInt());
@@ -226,7 +233,7 @@ extern PluginCallbackManager pluginCallbackManager;
 							pl["repeat"].asInt());
 					}
 					else
-					{			
+					{
 						sprintf(response,"%d,%d,%d,%s,%s,%s,%s,%d,%d,%d,%d,%s,%s,%d\n",
 							getFPPmode(),
 							FPPstatus,

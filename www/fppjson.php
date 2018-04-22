@@ -50,7 +50,8 @@ $command_array = Array(
 	"setTestMode"         => 'SetTestMode',
 	"getTestMode"         => 'GetTestMode',
 	"setupExtGPIO"        => 'SetupExtGPIOJson',
-	"extGPIO"             => 'ExtGPIOJson'
+	"extGPIO"             => 'ExtGPIOJson',
+    "getSysInfo"          => 'GetSystemInfoJson'
 );
 
 $command = "";
@@ -193,6 +194,30 @@ function SetSetting()
         unset($output);
 	} else if ($setting == "AudioOutput") {
 		SetAudioOutput($value);
+    } else if ($setting == "wifiDrivers") {
+        if ($value == "Kernel") {
+            exec(   $SUDO . " rm -f /etc/modprobe.d/blacklist-native-wifi.conf", $output, $return_val );
+        } else {
+            exec(   $SUDO . " cp /opt/fpp/etc/blacklist-native-wifi.conf /etc/modprobe.d", $output, $return_val );
+        }
+    } else if ($setting == "EnableTethering") {
+        if ($value == "1") {
+            $ssid = ReadSettingFromFile("TetherSSID");
+            $psk = ReadSettingFromFile("TetherPSK");
+            if ($ssid == "") {
+                $ssid = "FPP";
+                WriteSettingToFile("TetherSSID", $ssid);
+            }
+            if ($psk == "") {
+                $psk = "Christmas";
+                WriteSettingToFile("TetherPSK", $psk);
+            }
+            exec(   $SUDO . " systemctl disable dnsmasq", $output, $return_val );
+            exec(   $SUDO . " connmanctl tether wifi on $ssid $psk", $output, $return_val );
+        } else {
+            exec(   $SUDO . " connmanctl tether wifi off", $output, $return_val );
+            exec(   $SUDO . " systemctl enable dnsmasq", $output, $return_val );
+        }
 	} else if ($setting == "ForceHDMI") {
 		if ($value)
 		{
@@ -1682,4 +1707,38 @@ function ExtGPIOJson()
 
 /////////////////////////////////////////////////////////////////////////////
 
+function GetSystemInfoJson()
+{
+    global $settings;
+
+    //close the session before we start, this removes the session lock and lets other scripts run
+    session_write_close();
+
+    //Default json to be returned
+    $result = array();
+    $result['HostName'] = $settings['HostName'];
+    $result['Platform'] = $settings['Platform'];
+    $result['Variant'] = $settings['Variant'];
+
+    $IPs = explode("\n",trim(shell_exec("/sbin/ifconfig -a | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0 | grep -v usb | grep -v SoftAp | grep -v 'can.' | sed -e 's/://g' | while read iface ; do /sbin/ifconfig \$iface | grep 'inet ' | awk '{print \$2}'; done")));
+    $kernel_version = exec("uname -r");
+    $fpp_head_version = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ describe --tags", $output, $return_val);
+    if ( $return_val != 0 )
+        $fpp_head_version = "Unknown";
+    unset($output);
+    $git_branch = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ branch --list | grep '\\*' | awk '{print \$2}'", $output, $return_val);
+    if ( $return_val != 0 )
+        $git_branch = "Unknown";
+    unset($output);
+
+    $result['Kernel'] = $kernel_version;
+    $result['Version'] = $fpp_head_version;
+    $result['Branch'] = $git_branch;
+    $result['IPs'] = $IPs;
+    $result['Mode'] = $settings['fppMode'];
+
+    returnJSON($result);
+}
+    
+    
 ?>
