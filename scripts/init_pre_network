@@ -172,14 +172,7 @@ sed -i -e "s/^rebootFlag .*/rebootFlag = 0/" ${FPPHOME}/media/settings
 
 # make sure the media directory in the settings matches what we used at boot
 echo "FPP - Sanity checking storage device setting"
-MEDIADEV=""
-findmnt -n -o SOURCE /home/fpp/media | grep -q "^/dev/"
-if [ $? -eq 1 ]
-then
-	MEDIADEV=`findmnt -n -o SOURCE /home/fpp/media | colrm 1 5`
-else
-	MEDIADEV=`findmnt -n -o SOURCE /home/fpp/media`
-fi
+MEDIADEV=`findmnt -n -o SOURCE /home/fpp/media | colrm 1 5`
 if [ "$MEDIADEV" = "" ]; then
     MEDIADEV=`findmnt -n -o SOURCE / | colrm 1 5`
 fi

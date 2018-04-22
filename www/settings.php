@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
-<?php require_once('common.php'); ?>
-<?php include 'common/menuHead.inc'; ?>
 <?php
+
+require_once('common.php');
+include 'common/menuHead.inc';
 
 exec($SUDO . " grep card /root/.asoundrc | head -n 1 | awk '{print $2}'", $output, $return_val);
 if ( $return_val )
@@ -88,17 +89,26 @@ $backgroundColors['Purple']    = "800080";
 $backgroundColors['Silver']    = "C0C0C0";
 $backgroundColors['Teal']      = "008080";
 $backgroundColors['White']     = "FFFFFF";
+    
+$wifiDrivers = Array();
+$wifiDrivers['Realtek'] = "Realtek";
+$wifiDrivers['Linux Kernel'] = "Kernel";
 
-function PrintStorageDeviceSelect()
+
+function PrintStorageDeviceSelect($platform)
 {
 	global $SUDO;
 
 	# FIXME, this would be much simpler by parsing "lsblk -l"
 	exec('lsblk -l | grep /boot | cut -f1 -d" " | sed -e "s/p[0-9]$//"', $output, $return_val);
-	$bootDevice = $output[0];
+    if (count($output) > 0) {
+        $bootDevice = $output[0];
+    } else {
+        $bootDevice = "";
+    }
 	unset($output);
 
-    if ($settings['Platform'] == "BeagleBone Black") {
+    if ($platform == "BeagleBone Black") {
         exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
         $rootDevice = $output[0];
         unset($output);
@@ -358,6 +368,16 @@ function ToggleTetherMode()
     </tr>
 <?php
         }
+?>
+    
+    <tr>
+        <td width = "45%">WIFI Drivers:</td>
+        <td width = "55%">
+        <? PrintSettingSelect("WIFI Drivers", "wifiDrivers", 0, 1, isset($settings['wifiDrivers']) ? $settings['wifiDrivers'] : "Realtek", $wifiDrivers, "", "reloadPage"); ?>
+        </td>
+    </tr>
+
+<?php
     } else {
 ?>
     <tr>
@@ -411,7 +431,7 @@ function ToggleTetherMode()
     </tr>
     <tr>
       <td>External Storage Device:</td>
-      <td><? PrintStorageDeviceSelect(); ?></td>
+      <td><? PrintStorageDeviceSelect($settings['Platform']); ?></td>
     </tr>
     <tr>
       <td>Log Level:</td>
