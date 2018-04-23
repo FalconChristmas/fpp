@@ -153,8 +153,9 @@ function printLEDPanelSizeSelect($platform, $def, $addr)
     if ($platform == "BeagleBone Black") {
         $values["32x16 1/8 Scan"] = "32x16x8";
         $values["32x16 1/4 Scan"] = "32x16x4";
+        $values["32x16 1/4 Scan ABCD"] = "32x16x4x1";
         $values["32x16 1/2 Scan A"] = "32x16x2";
-        $values["32x16 1/2 Scan A/B"] = "32x16x2x1";
+        $values["32x16 1/2 Scan AB"] = "32x16x2x1";
         $values["32x32 1/16 Scan"] = "32x32x16";
         $values["64x32 1/16 Scan"] = "64x32x16";
         $values["64x64 1/32 Scan"] = "64x64x32";
