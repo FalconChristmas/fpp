@@ -1,13 +1,14 @@
 # FPP BBB Images creation notes (work in progress)
 #
 # FPP images are currently based on the following Debian BeagleBone images:
-# bone-debian-9.3-iot-armhf-2018-03-05-4gb.img
+# bone-debian-9.4-console-armhf-2018-06-03-1gb.img
+# from https://rcn-ee.com/rootfs/bb.org/testing/2018-06-03/stretch-console/
 #
 # The below steps (much can be run via copy/paste into a terminal) will
 # prepare the "clean image" from above to have the appropriate 
 # dependencies installed, kernel updated, bootloaders, etc... ready
 # to run the FPP_Install script.    At this point, parts of it
-# require editing of text files with vim/nano.  In particular the
+# require editing of text files with nano.  In particular the
 # /boot/uEnv.txt file and the various files in /lib/systemd/system
 #
 # Make sure you read all the comment in this file and follow 
@@ -19,18 +20,20 @@
 
 apt-get update
 apt-get upgrade
+apt-get install git
 cd /opt/scripts
 git pull
 cd /opt/scripts/tools
 
-export KERNEL_VERSION=4.14.13-ti-r25
-sudo ./update_kernel.sh --lts-4_14 --kernel  $KERNEL_VERSION
+export KERNEL_VERSION=4.14.47-bone14
+./update_kernel.sh --lts-4_14 --bone-kernel  $KERNEL_VERSION
 apt-get install linux-headers-$KERNEL_VERSION
 
 # delete old kernels and modules in /boot and /lib/modules
 # and in /boot/dtbs
 
 apt-get remove --purge --autoremove linux-image-$(uname -r)
+apt-get remove --purge --autoremove linux-headers-$(uname -r)
 rm -rf /lib/modules/$(uname -r)
 
 
@@ -53,13 +56,15 @@ vim /boot/uEnv.txt
 
 
 cd /opt/backup/uboot
-export BOOTLOADERVER=v2018.01-r14
+export BOOTLOADERVER=v2018.03-r8
 wget https://rcn-ee.com/repos/bootloader/am335x_evm/MLO-am335x_evm-${BOOTLOADERVER}
 wget https://rcn-ee.com/repos/bootloader/am335x_evm/u-boot-am335x_evm-${BOOTLOADERVER}.img
 mv -f MLO-am335x_evm-${BOOTLOADERVER} MLO
 mv -f u-boot-am335x_evm-${BOOTLOADERVER}.img u-boot.img
 
 ## need the latest version for the PocketBeagle pins
+cd /opt/source
+git clone https://github.com/beagleboard/bb.org-overlays
 cd /opt/source/bb.org-overlays
 git pull
 cp tools/beaglebone-universal-io/config-pin /usr/bin/config-pin
@@ -102,17 +107,24 @@ rm -rf /opt/cloud9
 rm -rf /etc/avahi/services/cloud9.service
 
 
-apt-get install alsa-utils ccache bzip2 samba rsync vsftpd shellinabox vorbis-tools \
+apt-get install \
+    alsa-utils arping avahi-daemon avahi-discover avahi-utils \
+    apache2 apache2-bin apache2-data apache2-utils libapache2-mod-php7.0 \
+    bc build-essential ca-certificates ccache connman bzip2 samba rsync \
+    curl dh-autoreconf ethtool fbi fbset file vsftpd shellinabox vorbis-tools \
     bash-completion exfat-fuse btrfs-tools ntp ethtool sysstat tcpdump  \
     php php-cli php-common php-curl php-mcrypt php-pear \
-    python-daemon python-smbus \
-    libmicrohttpd-dev libmosquitto-dev liblo-dev \
+    python-daemon python-smbus hdparm i2c-tools ifplugd \
+    libmicrohttpd-dev libmosquitto-dev liblo-dev imagemagick \
     ola ola-python libola-dev libola1 libboost-dev libjsoncpp-dev libtag1-dev \
     libconvert-binary-c-perl libjson-perl perlmagick \
-    libavcodec-dev libavformat-dev libswresample-dev libsdl2-dev \
-    sqlite3 php-sqlite3 php-zip zip unzip \
+    libavcodec-dev libavformat-dev libswresample-dev libsdl2-dev libswscale-dev libavdevice-dev libavfilter-dev \
+    sqlite3 php-sqlite3 php-zip zip unzip dos2unix \
     mailutils librtmidi-dev libcurl4-openssl-dev \
-    firmware-ti-connectivity
+    gcc g++ firmware-realtek firmware-atheros firmware-ralink firmware-brcm80211 firmware-iwlwifi firmware-libertas firmware-zd1211\
+    firmware-ti-connectivity resolvconf wireless-tools \
+    mailutils mp3info linux-cpupower cpufrequtils \
+    usbutils usb-modeswitch locales lzma lshw lsof libiio-utils device-tree-compiler at haveged bluetooth bluez
 
 
 curl -L https://cpanmin.us | perl - --sudo App::cpanminus
@@ -136,8 +148,10 @@ echo "blacklist st_sensors_i2c" >> /etc/modprobe.d/blacklist-gyro.conf
 echo "blacklist inv_mpu6050" >> /etc/modprobe.d/blacklist-gyro.conf
 echo "blacklist st_sensors" >> /etc/modprobe.d/blacklist-gyro.conf
 
-
-
+nano /etc/locale.gen
+#   uncomment en_US.UTF-8
+locale-gen
+localectl set-locale en_US.utf8
 
 cd /opt/
 git clone https://github.com/etr/libhttpserver
@@ -172,10 +186,7 @@ make clean
 #need to reboot to pickup new kernel so install of wireless modules will work
 reboot
 
-apt-get install dkms
-# the above installs extra headers which we don't use
-apt-get remove --purge linux-headers-4.4.62-ti-xenomai-r99
-
+ldconfig
 
 #install new Wifi drivers
 
@@ -228,6 +239,8 @@ make
 make install
 make clean
 
+cd /opt
+rm -rf /opt/wifi
 
 echo "options 8192cu rtw_power_mgnt=0" > /etc/modprobe.d/wifi-disable-power-management.conf
 echo "options 8812au rtw_power_mgnt=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
