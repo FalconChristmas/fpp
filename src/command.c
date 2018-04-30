@@ -451,15 +451,6 @@ extern PluginCallbackManager pluginCallbackManager;
 			sprintf(response,"%d,%d,Running Effects",getFPPmode(),COMMAND_SUCCESS);
 			GetRunningEffects(response, &response2);
 		}
-		else if (!strcmp(CommandStr, "ReloadChannelRemapData"))
-		{
-			if ((FPPstatus==FPP_STATUS_IDLE) &&
-				(LoadChannelRemapData())) {
-				sprintf(response,"%d,%d,Channel Remap Data Reloaded,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
-			} else {
-				sprintf(response,"%d,%d,Failed to reload Channel Remap Data,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
-			}
-		}
 		else if (!strcmp(CommandStr, "GetFPPDUptime"))
 		{
 			sprintf(response,"%d,%d,FPPD Uptime,%d,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS, time(NULL) - fppdStartTime);
