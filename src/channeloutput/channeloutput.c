@@ -295,6 +295,17 @@ int InitializeChannelOutputs(void) {
 			LogErr(VB_CHANNELOUT, "ERROR Opening ArtNet Channel Output\n");
 		}
 	}
+    
+    // when the artnet/e1.31/DDP stuff is separated out into separate files, this can change
+    DDPOutput *ddpOutput = new DDPOutput(0, FPPD_MAX_CHANNELS);
+    if (ddpOutput->InitFromUniverses())  {
+        channelOutputs[i].startChannel = 0;
+        channelOutputs[i].output = ddpOutput;
+        channelOutputs[i].startChannel = 0;
+        i++;
+    } else {
+        delete ddpOutput;
+    }
 
 	// FIXME, build this list dynamically
 	char *configFiles[] = {
