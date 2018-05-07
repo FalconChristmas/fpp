@@ -115,7 +115,7 @@ function list_plugin_entries($menu)
         <ul>
           <li><a href="channelinputs.php">Channel Inputs</a></li>
           <li><a href="channeloutputs.php">Channel Outputs</a></li>
-          <li><a href="channelremaps.php">Remap Channels</a></li>
+          <li><a href="outputprocessors.php">Output Processors</a></li>
           <li><a href="pixeloverlaymodels.php">Pixel Overlay Models</a></li>
           <li><a href="gpio.php">GPIO Inputs</a></li>
           <?php list_plugin_entries("output"); ?>

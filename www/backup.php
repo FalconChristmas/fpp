@@ -27,7 +27,7 @@ $system_config_areas = array(
             'special' => true
         ),
     'channelmemorymaps' => array('friendly_name' => 'Pixel Overlay Models (Channel Memory Maps)', 'file' => $settings['channelMemoryMapsFile']),
-    'channelRemaps' => array('friendly_name' => 'Remap Channels (Channel Remaps)', 'file' => $settings['remapFile']),
+    'outputProcessors' => array('friendly_name' => 'Output Processors', 'file' => $settings['outputProcessorsFile']),
     'show_setup' =>
         array(
             'friendly_name' => 'Show Setup (Events, Playlists, Schedule, Scripts)',
@@ -85,7 +85,7 @@ $restore_done = false;
 $sensitive_data = array('emailgpass', 'psk', 'password', 'secret');
 
 //Lookup arrays for whats json and a ini file
-$known_json_config_files = array('channelInputs', 'channelOutputs', 'channelRemaps', 'universes', 'pixel_strings', 'bbb_strings', 'led_panels', 'other');
+$known_json_config_files = array('channelInputs', 'channelOutputs', 'outputProcessors', 'universes', 'pixel_strings', 'bbb_strings', 'led_panels', 'other');
 $known_ini_config_files = array('settings', 'system_settings');
 
 //Remove BBB Strings from the system areas if we're on a Pi or any other platform that isn't a BBB
@@ -484,9 +484,9 @@ function process_restore_data($restore_area, $restore_area_data)
     $settings_restored[$restore_area_key] = $save_result;
 
     //////////////////////////////////
-    //CHANNEL REMAPS - REMAP CHANNELS
-    if ($restore_area_key == "channelRemaps") {
-        $channel_remaps_json_filepath = $system_config_areas['channelRemaps']['file'];
+    //OutputProcessors - OutputProcessors
+    if ($restore_area_key == "outputProcessors") {
+        $channel_remaps_json_filepath = $system_config_areas['outputProcessors']['file'];
         //PrettyPrint the JSON data and save it
         $json_pp_data = prettyPrintJSON(json_encode($restore_area_data));
 

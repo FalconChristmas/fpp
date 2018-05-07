@@ -267,8 +267,15 @@ public:
         int offInInt = x % m_interleave;
         int mult = y / m_panelScan;
         
-        if ((y & 0x2) == 0) {
-            offInInt = m_interleave - 1 - offInInt;
+        if (m_panelScan == 2) {
+            if ((y & 0x2) == 0) {
+                offInInt = m_interleave - 1 - offInInt;
+            }
+        } else {
+            int tmp = (y * 2) / m_panelScan;
+            if ((tmp & 0x2) == 0) {
+                offInInt = m_interleave - 1 - offInInt;
+            }
         }
         
         x = m_interleave * (whichInt * m_panelHeight / m_panelScan / 2 + mult)  + offInInt;

@@ -550,8 +550,7 @@ void SDL::openAudio() {
 SDL::~SDL() {
     Stop();
     Close();
-    if (_state != SDLSTATE::SDLUNINITIALISED)
-    {
+    if (_state != SDLSTATE::SDLUNINITIALISED) {
         SDL_Quit();
     }
 }
@@ -604,7 +603,8 @@ static std::string currentMediaFilename;
 static void LogCallback(void *     avcl,
                         int     level,
                         const char *     fmt,
-                        va_list     vl) {
+                        va_list     vl)
+{
     pthread_testcancel();
     
     static int print_prefix = 1;
@@ -630,13 +630,18 @@ static void LogCallback(void *     avcl,
 /*
  *
  */
-SDLOutput::SDLOutput(const std::string &mediaFilename, MediaOutputStatus *status, const std::string &videoOutput)
+SDLOutput::SDLOutput(const std::string &mediaFilename,
+                     MediaOutputStatus *status,
+                     const std::string &videoOutput)
 {
 	LogDebug(VB_MEDIAOUT, "SDLOutput::SDLOutput(%s)\n",
 		mediaFilename.c_str());
     data = nullptr;
-    
+    m_mediaOutputStatus = status;
+    m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
+
     if (sdlManager.blacklisted.find(mediaFilename) != sdlManager.blacklisted.end()) {
+        currentMediaFilename = "";
         LogErr(VB_MEDIAOUT, "%s has been blacklisted!\n", mediaFilename.c_str());
         return;
     }
@@ -651,15 +656,13 @@ SDLOutput::SDLOutput(const std::string &mediaFilename, MediaOutputStatus *status
         fullAudioPath += "/";
         fullAudioPath += mediaFilename;
     }
-    if (!FileExists(fullAudioPath.c_str()))
-    {
+    if (!FileExists(fullAudioPath.c_str())) {
         LogErr(VB_MEDIAOUT, "%s does not exist!\n", fullAudioPath.c_str());
+        currentMediaFilename = "";
         return;
     }
-    
     currentMediaFilename = mediaFilename;
 	m_mediaFilename = fullAudioPath;
-	m_mediaOutputStatus = status;
     
     av_log_set_flags(AV_LOG_SKIP_REPEATED);
     av_log_set_callback(LogCallback);
@@ -669,11 +672,11 @@ SDLOutput::SDLOutput(const std::string &mediaFilename, MediaOutputStatus *status
     // Initialize FFmpeg codecs
     av_register_all();
     int res = avformat_open_input(&data->formatContext, m_mediaFilename.c_str(), nullptr, nullptr);
-    if (avformat_find_stream_info(data->formatContext, nullptr) < 0)
-    {
+    if (avformat_find_stream_info(data->formatContext, nullptr) < 0) {
         LogErr(VB_MEDIAOUT, "Could not find suitable input stream!\n");
         avformat_close_input(&data->formatContext);
         data->formatContext = nullptr;
+        currentMediaFilename = "";
         return;
     }
 
@@ -865,11 +868,9 @@ int SDLOutput::Process(void)
             m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
         }
     }
-    if (getFPPmode() == MASTER_MODE)
-    {
+    if (getFPPmode() == MASTER_MODE) {
         if ((m_mediaOutputStatus->secondsElapsed > 0) &&
-            (lastRemoteSync != m_mediaOutputStatus->secondsElapsed))
-        {
+            (lastRemoteSync != m_mediaOutputStatus->secondsElapsed)) {
             multiSync->SendMediaSyncPacket(m_mediaFilename.c_str(), 0,
                                 m_mediaOutputStatus->mediaSeconds);
             lastRemoteSync = m_mediaOutputStatus->secondsElapsed;
@@ -877,8 +878,7 @@ int SDLOutput::Process(void)
     }
     
     if ((sequence->IsSequenceRunning()) &&
-        (m_mediaOutputStatus->secondsElapsed > 0))
-    {
+        (m_mediaOutputStatus->secondsElapsed > 0)) {
         LogExcess(VB_MEDIAOUT,
                   "Elapsed: %.2d.%.2d  Remaining: %.2d Total %.2d:%.2d.\n",
                   m_mediaOutputStatus->secondsElapsed,
@@ -890,7 +890,8 @@ int SDLOutput::Process(void)
     }
 	return m_mediaOutputStatus->status == MEDIAOUTPUTSTATUS_PLAYING;
 }
-int SDLOutput::IsPlaying(void) {
+int SDLOutput::IsPlaying(void)
+{
     return m_mediaOutputStatus->status == MEDIAOUTPUTSTATUS_PLAYING;
 }
 

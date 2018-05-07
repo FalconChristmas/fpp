@@ -26,6 +26,7 @@
 #ifndef _DDPOUTPUT_H
 #define _DDPOUTPUT_H
 
+#include <list>
 #include "ChannelOutputBase.h"
 
 #define DDP_PORT 4048
@@ -33,10 +34,14 @@
 #define DDP_PUSH_FLAG 0x01
 #define DDP_TIMECODE_FLAG 0x10
 
+class DDPOutputData;
+
 class DDPOutput : public ChannelOutputBase {
   public:
 	DDPOutput(unsigned int startChannel, unsigned int channelCount);
 	~DDPOutput();
+
+    bool InitFromUniverses();
 
 	int  Init(Json::Value config);
 	int  Close(void);
@@ -44,6 +49,13 @@ class DDPOutput : public ChannelOutputBase {
 	int  RawSendData(unsigned char *channelData);
 
 	void DumpConfig(void);
+    
+private:
+    bool InitNetwork();
+    std::vector<DDPOutputData*> outputData;
+    
+    int sendSocket;
+
 };
 
 #endif

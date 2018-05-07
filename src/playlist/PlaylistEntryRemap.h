@@ -30,6 +30,8 @@
 
 #include "PlaylistEntryBase.h"
 
+class RemapOutputProcessor;
+
 class PlaylistEntryRemap : public PlaylistEntryBase {
   public:
 	PlaylistEntryRemap(PlaylistEntryBase *parent = NULL);
@@ -50,6 +52,7 @@ class PlaylistEntryRemap : public PlaylistEntryBase {
 	int m_dstChannel;
 	int m_channelCount;
 	int m_loops;
+    RemapOutputProcessor *m_processor;
 };
 
 #endif

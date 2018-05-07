@@ -51,7 +51,7 @@ $universeFile      = $mediaDirectory . "/universes";
 $pixelnetFile      = $mediaDirectory . "/pixelnetDMX";
 $scheduleFile      = $mediaDirectory . "/schedule";
 $bytesFile         = $mediaDirectory . "/bytesReceived";
-$remapFile         = $mediaDirectory . "/config/channelremap.json";
+$outputProcessorsFile = $mediaDirectory . "/config/outputprocessors.json";
 $exim4Directory    = $mediaDirectory . "/exim4";
 $timezoneFile      = $mediaDirectory . "/timezone";
 $volume            = 0;
@@ -81,7 +81,7 @@ if ($debug)
 	error_log("universe: $universeFile");
 	error_log("pixelnet: $pixelnetFile");
 	error_log("schedule: $scheduleFile");
-	error_log("remaps: $remapFile");
+	error_log("outputProcessors: $outputProcessorsFile");
 	error_log("bytes: $bytesFile");
 	error_log("volume: $volume");
 	error_log("emailenable: $emailenable");
@@ -275,7 +275,7 @@ if ( $fd )
 		global $mediaDirectory, $musicDirectory, $sequenceDirectory, $playlistDirectory;
 		global $eventDirectory, $videoDirectory, $scriptDirectory, $logDirectory, $exim4Directory;
 		global $pluginDirectory, $emailenable, $emailguser, $emailgpass, $emailfromtext, $emailtoemail;
-		global $universeFile, $pixelnetFile, $scheduleFile, $bytesFile, $remapFile;
+		global $universeFile, $pixelnetFile, $scheduleFile, $bytesFile, $outputProcessorsFile;
 
 		// Parse the file, assuming it exists
 		$data = fgets($fd);
@@ -359,8 +359,8 @@ if ( $fd )
 			case "bytesFile":
 				$bytesFile = $value;
 				break;
-			case "remapFile":
-				$remapFile = $value;
+			case "outputProcessorsFile":
+				$outputProcessorsFile = $value;
 				break;
 			case "exim4Directory":
 				$exim4Directory = $value . "/";
@@ -419,7 +419,7 @@ $settings['emailenable'] = $emailenable;
 $settings['emailguser'] = $emailguser;
 $settings['emailfromtext'] = $emailfromtext;
 $settings['emailtoemail'] = $emailtoemail;
-$settings['remapFile'] = $remapFile;
+$settings['outputProcessorsFile'] = $outputProcessorsFile;
 
 if (!isset($settings['restartFlag']))
 	$settings['restartFlag'] = 0;
@@ -452,7 +452,7 @@ if ($debug)
 	error_log("universe: $universeFile");
 	error_log("pixelnet: $pixelnetFile");
 	error_log("schedule: $scheduleFile");
-	error_log("remaps: $remapFile");
+	error_log("outputProcessors: $outputProcessorsFile");
 	error_log("bytes: $bytesFile");
 	error_log("volume: $volume");
 	error_log("emailenable: $emailenable");
