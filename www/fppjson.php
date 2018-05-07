@@ -17,8 +17,8 @@ $_SESSION['session_id'] = session_id();
 $command_array = Array(
 	"getChannelMemMaps"   => 'GetChannelMemMaps',
 	"setChannelMemMaps"   => 'SetChannelMemMaps',
-	"getChannelRemaps"    => 'GetChannelRemaps',
-	"setChannelRemaps"    => 'SetChannelRemaps',
+	"getOutputProcessors" => 'GetOutputProcessors',
+	"setOutputProcessors" => 'SetOutputProcessors',
 	"getChannelOutputs"   => 'GetChannelOutputs',
 	"setChannelOutputs"   => 'SetChannelOutputs',
 	"setUniverses"        => 'SetUniverses',
@@ -1283,21 +1283,21 @@ function SetChannelMemMaps()
 
 /////////////////////////////////////////////////////////////////////////////
 
-function GetChannelRemaps()
+function GetOutputProcessors()
 {
 	global $settings;
 
 	$jsonStr = "";
 
-	if (file_exists($settings['remapFile'])) {
-		$jsonStr = file_get_contents($settings['remapFile']);
+	if (file_exists($settings['outputProcessorsFile'])) {
+		$jsonStr = file_get_contents($settings['outputProcessorsFile']);
 	}
 
 	header( "Content-Type: application/json");
 	echo $jsonStr;
 }
 
-function SetChannelRemaps()
+function SetOutputProcessors()
 {
 	global $settings;
 	global $args;
@@ -1305,9 +1305,9 @@ function SetChannelRemaps()
 	$data = stripslashes($args['data']);
 	$data = prettyPrintJSON(substr($data, 1, strlen($data) - 2));
 
-	file_put_contents($settings['remapFile'], $data);
+	file_put_contents($settings['outputProcessorsFile'], $data);
 
-	GetChannelRemaps();
+	GetOutputProcessors();
 }
 
 /////////////////////////////////////////////////////////////////////////////

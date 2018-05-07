@@ -59,6 +59,11 @@ OBJECTS_fppd = \
 	channeloutput/USBRelay.o \
 	channeloutput/USBRenard.o \
 	channeloutput/VirtualDisplay.o \
+    channeloutput/processors/OutputProcessor.o \
+    channeloutput/processors/RemapOutputProcessor.o \
+    channeloutput/processors/SetValueOutputProcessor.o \
+    channeloutput/processors/BrightnessOutputProcessor.o \
+    channeloutput/processors/ColorOrderOutputProcessor.o \
 	channeltester/ChannelTester.o \
 	channeltester/TestPatternBase.o \
 	channeltester/RGBChase.o \

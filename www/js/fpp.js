@@ -865,7 +865,28 @@ function RemovePlaylistEntry()	{
 			
 			xmlhttp.send();
 		}
-		
+
+        function IPOutputTypeChanged(item) {
+            var itemVal = $(item).val();
+            if (itemVal == 4 || itemVal == 5) {
+                var univ = $(item).parent().parent().find("input.txtUniverse");
+                univ.prop('disabled', true);
+                var sz = $(item).parent().parent().find("input.txtSize");
+                sz.prop('max', 256000);
+            } else {
+                var univ = $(item).parent().parent().find("input.txtUniverse");
+                univ.prop('disabled', false);
+                if (parseInt(univ.val()) < 1) {
+                    univ.val(1);
+                }
+                var sz = $(item).parent().parent().find("input.txtSize");
+                var val = parseInt(sz.val());
+                if (val > 512) {
+                    sz.val(512);
+                }
+                sz.prop('max', 512);
+            }
+        }
 		function getUniverses(reload, input)
 		{
 			var inputStyle = "";
@@ -919,30 +940,41 @@ function RemovePlaylistEntry()	{
 								var typeUnicastE131 = type == 1 ? "selected": "";
 								var typeBroadcastArtNet = type == 2 ? "selected" : "";
 								var typeUnicastArtNet = type == 3 ? "selected": "";
-								
+                                var typeDDPR = type == 4 ? "selected": "";
+                                var typeDDP1 = type == 5 ? "selected": "";
+
+                                var universeSize = 512;
+                                var universeDisable = "";
+                                if (type == 4 || type == 5) {
+                                    universeSize = 256000;
+                                    universeDisable = " disabled";
+                                }
+
 								bodyHTML += 	"<tr class=\"rowUniverseDetails\">" +
 								              "<td><span class='rowID'>" + (i+1).toString() + "</span></td>" +
 															"<td><input class='chkActive' type='checkbox' " + activeChecked +"/></td>" +
 															"<td><input class='txtDesc' type='text' size='24' maxlength='64' value='" + desc + "'/></td>" +
-															"<td><input class='txtStartAddress' type='text' size='6' maxlength='6' value='" + startAddress.toString() + "'/></td>" +
-															"<td><input class='txtUniverse' type='text' size='5' maxlength='5' value='" + universe.toString() + "'/></td>" +
-															"<td><input class='txtSize' type='text'  size='3'/  maxlength='3'value='" + size.toString() + "'></td>" +
+															"<td><input class='txtStartAddress' type='number' min='1' max='524288' value='" + startAddress.toString() + "'/></td>" +
+															"<td><input class='txtUniverse' type='number' min='1' max='63999' value='" + universe.toString() + "'" + universeDisable + "/></td>" +
+															"<td><input class='txtSize' type='number'  min='1'  max='" + universeSize + "' value='" + size.toString() + "'></td>" +
 															
-															"<td><select class='universeType' style='width:150px'>";
+															"<td><select class='universeType' style='width:150px'";
 
 								if (input)
 								{
-									bodyHTML +=
+									bodyHTML +=                   ">" +
 															      "<option value='0' " + typeMulticastE131 + ">E1.31 - Multicast</option>" +
 															      "<option value='1' " + typeUnicastE131 + ">E1.31 - Unicast</option>";
 								}
 								else
 								{
-									bodyHTML +=
+                                    bodyHTML +=                   " onChange='IPOutputTypeChanged(this);'>" +
 															      "<option value='0' " + typeMulticastE131 + ">E1.31 - Multicast</option>" +
 															      "<option value='1' " + typeUnicastE131 + ">E1.31 - Unicast</option>" +
 															      "<option value='2' " + typeBroadcastArtNet + ">ArtNet - Broadcast</option>" +
-															      "<option value='3' " + typeUnicastArtNet + ">ArtNet - Unicast</option>";
+															      "<option value='3' " + typeUnicastArtNet + ">ArtNet - Unicast</option>" +
+                                                                  "<option value='4' " + typeDDPR + ">DDP Raw Channel Numbers</option>" +
+                                                                  "<option value='5' " + typeDDP1 + ">DDP One Based</option>";
 								}
 
 								bodyHTML +=
@@ -1155,33 +1187,39 @@ function RemovePlaylistEntry()	{
 			for(i=0;i<UniverseCount;i++)
 			{
 
+                // unicast address
+                universeType=document.getElementById("universeType[" + i + "]").value;
+                if(universeType == 1 || universeType == 3 || universeType == 4 || universeType == 5)
+                {
+                    if(!validateIPaddress("txtIP[" + i + "]"))
+                    {
+                        returnValue = false;
+                    }
+                }
 				// universe
-				txtUniverse=document.getElementById("txtUniverse[" + i + "]");				
-				if(!validateNumber(txtUniverse,1,63999))
-				{
-					returnValue = false;
-				}
+                if (universeType >= 0 && universeType <= 3) {
+                    txtUniverse=document.getElementById("txtUniverse[" + i + "]");
+                    if(!validateNumber(txtUniverse,1,63999))
+                    {
+                        returnValue = false;
+                    }
+                }
 				// start address
 				txtStartAddress=document.getElementById("txtStartAddress[" + i + "]");				
 				if(!validateNumber(txtStartAddress,1,524288))
 				{
 					returnValue = false;
 				}
-				// size
-				txtSize=document.getElementById("txtSize[" + i + "]");				
-				if(!validateNumber(txtSize,1,512))
-				{
-					returnValue = false;
-				}
-				// unicast address
-				universeType=document.getElementById("universeType[" + i + "]").value;
-				if(universeType == 1 || universeType == 3)
-				{
-					if(!validateIPaddress("txtIP[" + i + "]"))
-					{
-						returnValue = false;
-					}
-				}
+                // size
+                txtSize=document.getElementById("txtSize[" + i + "]");
+                var max = 512;
+                if (universeType == 4 || universeType == 5) {
+                    max = 256000;
+                }
+                if(!validateNumber(txtSize,1,max))
+                {
+                    returnValue = false;
+                }
 
 				// priority
 				txtPriority=document.getElementById("txtPriority[" + i + "]");

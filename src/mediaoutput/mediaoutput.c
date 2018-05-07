@@ -30,6 +30,7 @@
 #include <string>
 
 #include "log.h"
+#include "common.h"
 #include "mediaoutput.h"
 #include "mpg123.h"
 #include "MultiSync.h"
@@ -132,8 +133,6 @@ int OpenMediaOutput(char *filename) {
 	}
 	pthread_mutex_unlock(&mediaOutputLock);
 
-	pthread_mutex_lock(&mediaOutputLock);
-
 	std::string tmpFile(filename);
 	std::size_t found = tmpFile.find_last_of(".");
 
@@ -154,12 +153,30 @@ int OpenMediaOutput(char *filename) {
 		if ((ext == "mp3") || (ext == "ogg") || (ext == "m4a"))
 		{
 			tmpFile.replace(filenameLen - ext.length(), 3, "mp4");
-			LogDebug(VB_MEDIAOUT,
-				"Master is playing %s audio, remote will try %s Video\n",
-				filename, tmpFile);
+            
+            std::string fullVideoPath = getVideoDirectory();
+            fullVideoPath += "/";
+            fullVideoPath += tmpFile;
+            if (!FileExists(fullVideoPath.c_str())) {
+                tmpFile.replace(filenameLen - ext.length(), 3, "avi");
+                fullVideoPath = getVideoDirectory();
+                fullVideoPath += "/";
+                fullVideoPath += tmpFile;
+            }
+            if (!FileExists(fullVideoPath.c_str())) {
+                //video doesn't exist, punt
+                LogInfo(VB_MEDIAOUT, "No video found for remote playing of %s\n", filename);
+                return 0;
+            } else {
+                LogDebug(VB_MEDIAOUT,
+                         "Master is playing %s audio, remote will try %s Video\n",
+                         filename, tmpFile);
+            }
 		}
 	}
-    
+
+    pthread_mutex_lock(&mediaOutputLock);
+
     std::string vOut = getSetting("VideoOutput");
     if (vOut == "") {
 #if !defined(PLATFORM_BBB)

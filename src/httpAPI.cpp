@@ -732,7 +732,7 @@ void PlayerResource::PostOutputsRemap(const Json::Value &data, Json::Value &resu
 	if (data["command"].asString() == "reload")
 	{
 		// FIXME, need to fix this function to lock the remap array
-		LoadChannelRemapData();
+		//LoadChannelRemapData();
 		SetOKResult(result, "channel remaps reloaded");
 	}
 }

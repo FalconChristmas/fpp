@@ -109,7 +109,6 @@
 #define pru_sel3   5
 #define pru_sel4   6
 
-
 #ifdef E_SCAN_LINE
 #define GPIO_SEL_MASK (0\
 |(1<<gpio_sel0)\
@@ -201,17 +200,13 @@
 .endm
 
 .macro OUTPUT_ROW_ADDRESS
-
 #ifdef ADDRESSING_AB
-    MOV out_set, 0;
-    QBEQ DO_ROW0, row, 0
-        CLR r30, gpio_sel1
-        SET r30, gpio_sel0
-        JMP DONE_OUTPUT_ROW
-    DO_ROW0:
-        CLR r30, gpio_sel0
-        SET r30, gpio_sel1
-    DONE_OUTPUT_ROW:
+    MOV out_clr, row
+    ADD out_clr, out_clr, pru_sel0
+
+    OR r30, r30, PRU_SEL_MASK   //all the sel's high
+    CLR r30, pru_sel4           //keep E line low
+    CLR r30, out_clr            //lower the line we need
 #else
     LSL out_set, row, pru_sel0
     MOV out_clr, PRU_SEL_MASK

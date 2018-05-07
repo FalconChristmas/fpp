@@ -2410,7 +2410,7 @@ function GetZip()
         "channelremap",
         "config/channeloutputs.json",
         //new v2 config files
-        "config/channelremap.json",
+        "config/outputprocessors.json",
         "config/co-other.json",
         "config/co-pixelStrings.json",
         "config/co-bbbStrings.json",

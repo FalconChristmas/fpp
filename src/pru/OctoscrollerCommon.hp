@@ -61,13 +61,10 @@
     // set address; select pins in gpio1 are sequential
     // xor with the select bit mask to set which ones should
 #ifdef ADDRESSING_AB
-    MOV out_set, 0;
-    QBEQ DO_ROW0, row, 0
-        SET out_set, gpio_sel0
-        JMP DO_OUTPUT_ROW
-    DO_ROW0:
-        SET out_set, gpio_sel1
-    DO_OUTPUT_ROW:
+    MOV out_set, GPIO_SEL_MASK
+    MOV out_clr, row
+    ADD out_clr, out_clr, gpio_sel0
+    CLR out_set, out_set, out_clr
 #else
     MOV out_set, row
     LSL out_set, out_set, gpio_sel0
