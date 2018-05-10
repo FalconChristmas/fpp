@@ -98,7 +98,7 @@ int RPIWS281xOutput::Init(Json::Value config)
 		if (!newString->Init(s))
 			return 0;
 
-		m_pixels += newString->m_pixels;
+		m_pixels += newString->m_outputChannels / 3;
 
 		m_strings.push_back(newString);
 	}
@@ -107,13 +107,13 @@ int RPIWS281xOutput::Init(Json::Value config)
 	ledstring.dmanum = 5;
 
 	ledstring.channel[0].gpionum = m_string1GPIO;
-	ledstring.channel[0].count   = m_strings[0]->m_pixels;
+	ledstring.channel[0].count   = m_strings[0]->m_outputChannels / 3;
 	ledstring.channel[0].strip_type = WS2811_STRIP_RGB;
 	ledstring.channel[0].invert  = 0;
 	ledstring.channel[0].brightness  = 255;
 
 	ledstring.channel[1].gpionum = m_string2GPIO;
-	ledstring.channel[1].count   = m_strings[1]->m_pixels;
+	ledstring.channel[1].count   = m_strings[1]->m_outputChannels / 3;
 	ledstring.channel[1].strip_type = WS2811_STRIP_RGB;
 	ledstring.channel[1].invert  = 0;
 	ledstring.channel[1].brightness  = 255;
