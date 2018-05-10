@@ -157,11 +157,11 @@ void RPIWS281xOutput::PrepData(unsigned char *channelData)
 		ps = m_strings[s];
 		inCh = 0;
 
-		for (int p = 0; p < ps->m_pixels; p++)
+		for (int p = 0; p < ps->m_outputChannels; )
 		{
-			r = ps->m_brightnessMaps[p][channelData[ps->m_outputMap[inCh++]]];
-			g = ps->m_brightnessMaps[p][channelData[ps->m_outputMap[inCh++]]];
-			b = ps->m_brightnessMaps[p][channelData[ps->m_outputMap[inCh++]]];
+			r = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
+			g = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
+			b = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
 
 			ledstring.channel[s].leds[p] =
 				(r << 16) | (g <<  8) | (b);
