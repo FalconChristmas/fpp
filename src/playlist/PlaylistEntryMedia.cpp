@@ -262,7 +262,7 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 		(ext == "ogg"))
 	{
 #if !defined(PLATFORM_BBB)
-		if (!getSettingInt("ForceSDL") || getSettingInt("LegacyMediaOutputs"))
+		if (getSettingInt("LegacyMediaOutputs"))
 		{
 			if (ext == "mp3") {
 				m_mediaOutput = new mpg123Output(tmpFile, &mediaOutputStatus);
