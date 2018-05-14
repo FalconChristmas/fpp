@@ -69,6 +69,7 @@ OBJECTS_fppd = \
 	channeltester/RGBChase.o \
 	channeltester/RGBFill.o \
 	channeltester/SingleChase.o \
+    ping.o \
 	command.o \
 	common.o \
 	e131bridge.o \

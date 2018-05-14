@@ -331,6 +331,9 @@ void LoadArtNetUniversesFromFile()
 	ArtNetUniverseCount=0;
 	char active =0;
 	char filename[1024];
+    Json::Value root;
+    Json::Reader reader;
+
 
 	strcpy(filename, getMediaDirectory());
 	strcat(filename, "/config/co-universes.json");
@@ -344,8 +347,6 @@ void LoadArtNetUniversesFromFile()
 		return;
 	}
 
-	Json::Value root;
-    Json::Reader reader;
 	std::ifstream t(filename);
 	std::stringstream buffer;
 
