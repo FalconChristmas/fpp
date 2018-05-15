@@ -26,8 +26,32 @@
 #ifndef _ARTNET_H
 #define _ARTNET_H
 
-#include "channeloutput.h"
+#include <sys/uio.h>
+#include <netinet/in.h>
 
-extern FPPChannelOutput ArtNetOutput;
+#include "UDPOutput.h"
+
+#define ARTNET_HEADER_LENGTH         18
+
+class ArtNetOutputData : public UDPOutputData {
+public:
+    ArtNetOutputData(const Json::Value &config);
+    virtual ~ArtNetOutputData();
+    
+    virtual bool IsPingable();
+    virtual void PrepareData(unsigned char *channelData);
+    virtual void CreateMessages(std::vector<struct mmsghdr> &ipMsgs);
+    virtual void CreateBroadcastMessages(std::vector<struct mmsghdr> &bMsgs);
+    virtual void AddPostDataMessages(std::vector<struct mmsghdr> &bMsgs);
+    virtual void DumpConfig();
+    
+    int           universe;
+    int           priority;
+    char          sequenceNumber;
+    
+    sockaddr_in   anAddress;
+    struct iovec  anIovecs[2];
+    unsigned char anBuffer[ARTNET_HEADER_LENGTH];
+};
 
 #endif /* _ARTNET_H */
