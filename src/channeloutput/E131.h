@@ -26,8 +26,29 @@
 #ifndef _E131_H
 #define _E131_H
 
-#include "channeloutput.h"
+#include <sys/uio.h>
+#include <netinet/in.h>
 
-extern FPPChannelOutput E131Output;
+#include "UDPOutput.h"
+#include "e131defs.h"
+
+class E131OutputData : public UDPOutputData {
+public:
+    E131OutputData(const Json::Value &config);
+    virtual ~E131OutputData();
+    
+    virtual bool IsPingable();
+    virtual void PrepareData(unsigned char *channelData);
+    virtual void CreateMessages(std::vector<struct mmsghdr> &ipMsgs);
+    virtual void DumpConfig();
+
+    int           universe;
+    int           priority;
+    char          E131sequenceNumber;
+
+    sockaddr_in   e131Address;
+    struct iovec  e131Iovecs[2];
+    unsigned char e131Buffer[E131_HEADER_LENGTH];
+};
 
 #endif

@@ -105,8 +105,10 @@ int PlaylistEntryMedia::StartPlaying(void)
 		return 0;
 	}
 
-	if (!OpenMediaOutput())
-		return 0;
+    if (!OpenMediaOutput()) {
+        FinishPlay();
+        return 0;
+    }
 
 	if (mqtt)
 		mqtt->Publish("playlist/media/status", m_mediaFilename);
@@ -260,7 +262,7 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 		(ext == "ogg"))
 	{
 #if !defined(PLATFORM_BBB)
-		if (!getSettingInt("ForceSDL") || getSettingInt("LegacyMediaOutputs"))
+		if (getSettingInt("LegacyMediaOutputs"))
 		{
 			if (ext == "mp3") {
 				m_mediaOutput = new mpg123Output(tmpFile, &mediaOutputStatus);
@@ -286,7 +288,7 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 	else
 	{
 		pthread_mutex_unlock(&mediaOutputLock);
-		LogDebug(VB_MEDIAOUT, "No Media Output handler for %s\n", tmpFile);
+		LogDebug(VB_MEDIAOUT, "No Media Output handler for %s\n", tmpFile.c_str());
 		return 0;
 	}
 
@@ -300,7 +302,7 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 		multiSync->SendMediaSyncStartPacket(m_mediaFilename.c_str());
 
 	if (!m_mediaOutput->Start()) {
-        LogErr(VB_MEDIAOUT, "Could not start media %s\n", tmpFile);
+        LogErr(VB_MEDIAOUT, "Could not start media %s\n", tmpFile.c_str());
 		delete m_mediaOutput;
 		m_mediaOutput = 0;
 		pthread_mutex_unlock(&m_mediaOutputLock);

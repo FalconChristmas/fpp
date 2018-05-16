@@ -442,9 +442,13 @@ public:
     SDL() : data(nullptr), _state(SDLSTATE::SDLUNINITIALISED) {}
     virtual ~SDL();
     
-    void Start(SDLInternalData *d) {
-        initSDL();
-        openAudio();
+    bool Start(SDLInternalData *d) {
+        if (!initSDL()) {
+            return false;
+        }
+        if (!openAudio()) {
+            return false;
+        }
         if (_state != SDLSTATE::SDLINITIALISED && _state != SDLSTATE::SDLUNINITIALISED) {
             data = d;
             SDL_PauseAudio(0);
@@ -452,7 +456,9 @@ public:
             long long t = GetTime() / 1000;
             data->videoStartTime = t;
             _state = SDLSTATE::SDLPLAYING;
+            return true;
         }
+        return false;
     }
     void Stop() {
         if (_state == SDLSTATE::SDLPLAYING) {
@@ -469,8 +475,8 @@ public:
         }
     }
     
-    void initSDL();
-    void openAudio();
+    bool initSDL();
+    bool openAudio();
 
     SDLInternalData *data;
     
@@ -514,7 +520,7 @@ void fill_audio(void *udata, Uint8 *stream, int len) {
 }
 
 
-void SDL::initSDL()  {
+bool SDL::initSDL()  {
     if (_state == SDLSTATE::SDLUNINITIALISED) {
         if (!SDL_getenv("SDL_AUDIO_ALSA_SET_BUFFER_SIZE")) {
             SDL_setenv("SDL_AUDIO_ALSA_SET_BUFFER_SIZE", "1", true);
@@ -522,12 +528,14 @@ void SDL::initSDL()  {
         
         if (SDL_Init(SDL_INIT_AUDIO | SDL_INIT_TIMER))
         {
-            return;
+            LogErr(VB_MEDIAOUT, "Could not initialize SDL - %s\n", SDL_GetError());
+            return false;
         }
         _state = SDLSTATE::SDLINITIALISED;
     }
+    return true;
 }
-void SDL::openAudio() {
+bool SDL::openAudio() {
     if (_state == SDLSTATE::SDLINITIALISED) {
         _initialisedRate = DEFAULT_RATE;
         
@@ -541,11 +549,13 @@ void SDL::openAudio() {
         
         if (SDL_OpenAudio(&_wanted_spec, nullptr) < 0)
         {
-            return;
+            LogErr(VB_MEDIAOUT, "Could not open audio device - %s\n", SDL_GetError());
+            return false;
         }
         
         _state = SDLSTATE::SDLOPENED;
     }
+    return true;
 }
 SDL::~SDL() {
     Stop();
@@ -789,7 +799,11 @@ int SDLOutput::Start(void)
 	LogDebug(VB_MEDIAOUT, "SDLOutput::Start() %d\n", data == nullptr);
     if (data) {
         SetChannelOutputFrameNumber(0);
-        sdlManager.Start(data);
+        if (!sdlManager.Start(data)) {
+            m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
+            Stop();
+            return 0;
+        }
         m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_PLAYING;
         return 1;
     }
@@ -908,7 +922,7 @@ int SDLOutput::Stop(void)
 {
 	LogDebug(VB_MEDIAOUT, "SDLOutput::Stop()\n");
     sdlManager.Stop();
-    if (data->video_stream_idx >= 0) {
+    if (data && data->video_stream_idx >= 0) {
         FillPixelOverlayModel(data->videoOverlayModel, 0, 0, 0);
         SetPixelOverlayState(data->videoOverlayModel, "Disabled");
     }

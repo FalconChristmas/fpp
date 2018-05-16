@@ -166,7 +166,7 @@ static void createOutputLengths(std::vector<PixelString*> &m_strings,
 #endif
     std::set<int> sizes;
     for (int x = 0; x < m_strings.size(); x++) {
-        int pc = m_strings[x]->m_pixels;
+        int pc = m_strings[x]->m_outputChannels;
         if (pc != 0) {
             sizes.insert(pc);
         }
@@ -178,21 +178,21 @@ static void createOutputLengths(std::vector<PixelString*> &m_strings,
     while (i != sizes.end()) {
         int min = *i;
         if (min != maxStringLen) {
-            if ((min*3) <= 255) {
+            if (min <= 255) {
                 outputFile << "    QBNE skip_"
                 << std::to_string(min)
                 << ", cur_data, "
-                << std::to_string(min * 3)
+                << std::to_string(min)
                 << "\n";
             } else {
-                outputFile << "    LDI r8, " << std::to_string(min * 3) << "\n";
+                outputFile << "    LDI r8, " << std::to_string(min) << "\n";
                 outputFile << "    QBNE skip_"
                 << std::to_string(min)
                 << ", cur_data, r8\n";
             }
             
             for (int y = 0; y < m_strings.size(); y++) {
-                int pc = m_strings[y]->m_pixels;
+                int pc = m_strings[y]->m_outputChannels;
                 if (pc == min) {
                     std::string o = std::to_string(y + 1);
                     outputFile << "        CLR GPIO_MASK(o" << o << "_gpio), o" << o << "_pin\n";
@@ -200,7 +200,6 @@ static void createOutputLengths(std::vector<PixelString*> &m_strings,
             }
             i++;
             int next = *i;
-            next *= 3;
             outputFile << "    LDI next_check, " << std::to_string(next) << "\n";
             outputFile << "    skip_"
             << std::to_string(min)
@@ -215,7 +214,7 @@ static void createOutputLengths(std::vector<PixelString*> &m_strings,
         outputFile << "#define SET_FIRST_CHECK \\\n    LDI next_check, 10000\n";
     } else {
         int sz = *sizes.begin();
-        outputFile << "#define SET_FIRST_CHECK \\\n    LDI next_check, " << std::to_string(sz*3) << "\n";
+        outputFile << "#define SET_FIRST_CHECK \\\n    LDI next_check, " << std::to_string(sz) << "\n";
     }
 
     outputFile.close();
@@ -240,8 +239,8 @@ int BBB48StringOutput::Init(Json::Value config)
         if (!newString->Init(s))
             return 0;
 
-        if (newString->m_pixels > m_maxStringLen) {
-            m_maxStringLen = newString->m_pixels;
+        if (newString->m_outputChannels > m_maxStringLen) {
+            m_maxStringLen = newString->m_outputChannels;
         }
 
         m_strings.push_back(newString);
@@ -265,7 +264,7 @@ int BBB48StringOutput::Init(Json::Value config)
     int maxString = -1;
     for (int s = 0; s < m_strings.size(); s++) {
         PixelString *ps = m_strings[s];
-        if (ps->m_pixels != 0) {
+        if (ps->m_outputChannels != 0) {
             maxString = s;
         }
     }
@@ -334,7 +333,7 @@ int BBB48StringOutput::Init(Json::Value config)
     }
     
     for (int x = 0; x < m_numStrings; x++) {
-        if (x >= m_strings.size() || m_strings[x]->m_pixels == 0) {
+        if (x >= m_strings.size() || m_strings[x]->m_outputChannels == 0) {
             std::string v = "-DNOOUT";
             v += std::to_string(x+1);
             args.push_back(v);
@@ -342,14 +341,14 @@ int BBB48StringOutput::Init(Json::Value config)
     }
     createOutputLengths(m_strings, m_maxStringLen);
     
-    if (m_maxStringLen < 321) {
+    if (m_maxStringLen < 1000) {
         //if there is plenty of time to output the GPIO0 stuff
         //after the other GPIO's, let's do that
         args.push_back("-DSPLIT_GPIO0");
     }
     //set the total data length (bytes, pixels * 3)
     std::string v = "-DDATA_LEN=";
-    v += std::to_string(m_maxStringLen * 3);
+    v += std::to_string(m_maxStringLen);
     args.push_back(v);
     
     compilePRUCode(args);
@@ -357,7 +356,7 @@ int BBB48StringOutput::Init(Json::Value config)
     if (!StartPRU()) {
         return 0;
     }
-    m_frameSize = m_maxStringLen * m_numStrings * 3;
+    m_frameSize = m_maxStringLen * m_numStrings;
     m_lastData = (uint8_t*)calloc(1, m_frameSize);
     m_curData = (uint8_t*)calloc(1, m_frameSize);
 
@@ -442,16 +441,9 @@ void BBB48StringOutput::PrepData(unsigned char *channelData)
         ps = m_strings[s];
         c = out + ps->m_portNumber;
         inCh = 0;
-
-        for (int p = 0; p < ps->m_pixels; p++) {
+        
+        for (int p = 0; p < ps->m_outputChannels; p++) {
             uint8_t *brightness = ps->m_brightnessMaps[p];
-            
-            *c = brightness[channelData[ps->m_outputMap[inCh++]]];
-            c += numStrings;
-
-            *c = brightness[channelData[ps->m_outputMap[inCh++]]];
-            c += numStrings;
-
             *c = brightness[channelData[ps->m_outputMap[inCh++]]];
             c += numStrings;
         }
@@ -562,7 +554,7 @@ void BBB48StringOutput::DumpConfig(void)
     
     LogDebug(VB_CHANNELOUT, "    type          : %s\n", m_subType.c_str());
     LogDebug(VB_CHANNELOUT, "    strings       : %d\n", m_strings.size());
-    LogDebug(VB_CHANNELOUT, "    longest string: %d pixels\n", m_maxStringLen);
+    LogDebug(VB_CHANNELOUT, "    longest string: %d channels\n", m_maxStringLen);
 
     for (int i = 0; i < m_strings.size(); i++) {
         LogDebug(VB_CHANNELOUT, "    string #%02d\n", i);

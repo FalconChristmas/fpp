@@ -34,7 +34,13 @@
 
 #include "ColorOrder.h"
 
-typedef struct virtualString {
+class VirtualString {
+public:
+    VirtualString() : whiteOffset(-1) {}
+    ~VirtualString() {};
+    
+    int channelsPerNode() const { return whiteOffset == -1 ? 3 : 4;};
+    
 	int            startChannel;
 	int            pixelCount;
 	int            groupCount;
@@ -45,7 +51,9 @@ typedef struct virtualString {
 	int            brightness;
 	float          gamma;
 	uint8_t        brightnessMap[256];
-} VirtualString;
+    
+    int            whiteOffset;
+};
 
 class PixelString {
   public:
@@ -60,15 +68,13 @@ class PixelString {
 	int               m_inputChannels;
 	int               m_outputChannels;
 
-	int               m_pixels;
-
 	std::vector<VirtualString>  m_virtualStrings;
 
 	std::vector<int>  m_outputMap;
 	uint8_t         **m_brightnessMaps;
   private:
 	void SetupMap(int vsOffset, VirtualString vs);
-	void FlipPixels(int offset1, int offset2);
+	void FlipPixels(int offset1, int offset2, int chanCount);
 	void DumpMap(char *msg);
 
 };

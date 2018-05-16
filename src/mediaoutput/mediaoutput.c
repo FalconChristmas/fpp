@@ -188,7 +188,7 @@ int OpenMediaOutput(char *filename) {
     
 #if !defined(PLATFORM_BBB)
     // BBB doesn't have mpg123 installed
-	if (!getSettingInt("ForceSDL") || getSettingInt("LegacyMediaOutputs")
+	if (getSettingInt("LegacyMediaOutputs")
         && (ext == "mp3" || ext == "ogg")) {
 		if (ext == "mp3") {
 			mediaOutput = new mpg123Output(tmpFile, &mediaOutputStatus);
