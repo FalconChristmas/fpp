@@ -2,11 +2,6 @@
  *   E131 output handler for Falcon Player (FPP)
  *
  *   Copyright (C) 2013-2018 the Falcon Player Developers
- *      Initial development by:
- *      - David Pitts (dpitts)
- *      - Tony Mace (MyKroFt)
- *      - Mathew Mrosko (Materdaddy)
- *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
  *   The Falcon Player (FPP) is free software; you can redistribute it
@@ -40,6 +35,9 @@
 #include <sys/ioctl.h>
 #include <net/if.h>
 #include <netdb.h>
+#include <chrono>
+#include <vector>
+#include <list>
 
 #include <fstream>
 #include <sstream>
@@ -57,10 +55,8 @@
 #include "log.h"
 #include "settings.h"
 #include "Universe.h"
+#include "ping.h"
 
-struct sockaddr_in    localAddress;
-struct sockaddr_in    E131address[MAX_UNIVERSE_COUNT];
-int                   sendSocket;
 
 const char  E131header[] = {
 	0x00,0x10,0x00,0x00,0x41,0x53,0x43,0x2d,0x45,0x31,0x2e,0x31,0x37,0x00,0x00,0x00,
@@ -73,408 +69,124 @@ const char  E131header[] = {
 	0x00,0x00,0x01,0x72,0x0b,0x02,0xa1,0x00,0x00,0x00,0x01,0x02,0x01,0x00
 	};
 
-UniverseEntry universes[MAX_UNIVERSE_COUNT];
-int UniverseCount = 0;
-
-char E131LocalAddress[16];
-
-char E131sequenceNumber=1;
-
-/* prototypes for functions below */
-void LoadUniversesFromFile();
-void UniversesPrint();
 
 
-struct mmsghdr *e131Msgs = nullptr;
-struct iovec *e131Iovecs = nullptr;
-unsigned char **e131Buffers = nullptr;
+E131OutputData::E131OutputData(const Json::Value &config)
+: UDPOutputData(config), E131sequenceNumber(1) {
+    memset((char *) &e131Address, 0, sizeof(sockaddr_in));
+    e131Address.sin_family = AF_INET;
+    e131Address.sin_port = htons(E131_DEST_PORT);
 
-int E131_InitializeNetwork()
-{
-	int UniverseOctet[2];
-	char sOctet1[4];
-	char sOctet2[4];
-	char sAddress[32];
-
-	sendSocket = socket(AF_INET, SOCK_DGRAM, 0);
-
-	if (!UniverseCount)
-		return 1;
-
-	if (sendSocket < 0) 
-	{
-		LogErr(VB_CHANNELOUT, "Error opening datagram socket\n");
-
-		exit(1);
-	}
-
-	localAddress.sin_family = AF_INET;
-	localAddress.sin_port = htons(E131_SOURCE_PORT);
-	localAddress.sin_addr.s_addr = inet_addr(E131LocalAddress);
-
-	if(bind(sendSocket, (struct sockaddr *) &localAddress, sizeof(struct sockaddr_in)) == -1)
-	{
-		LogErr(VB_CHANNELOUT, "Error in bind:errno=%d, %s\n", errno, strerror(errno));
-	} 
-
-	/* Disable loopback so I do not receive my own datagrams. */
-	char loopch = 0;
-	if(setsockopt(sendSocket, IPPROTO_IP, IP_MULTICAST_LOOP, (char *)&loopch, sizeof(loopch)) < 0)
-	{
-		LogErr(VB_CHANNELOUT, "Error setting IP_MULTICAST_LOOP error\n");
-		close(sendSocket);
-		return 0;
-	}
-
-	/* Initialize the sockaddr structure. */
-	for(int i=0;i<UniverseCount;i++)
-	{
-		memset((char *) &E131address[i], 0, sizeof(E131address[0]));
-		E131address[i].sin_family = AF_INET;
-		E131address[i].sin_port = htons(E131_DEST_PORT);
-
-		if(universes[i].type == E131_TYPE_MULTICAST)
-		{
-			UniverseOctet[0] = universes[i].universe/256;
-			UniverseOctet[1] = universes[i].universe%256;
-			sprintf(sAddress, "239.255.%d.%d", UniverseOctet[0],UniverseOctet[1]);
-			E131address[i].sin_addr.s_addr = inet_addr(sAddress);
-		}
-		else
-		{
-			char *c = universes[i].unicastAddress;
-			int isAlpha = 0;
-			for (; *c && !isAlpha; c++)
-				isAlpha = isalpha(*c);
-
-			if (isAlpha)
-			{
-				struct hostent* uhost = gethostbyname(universes[i].unicastAddress);
-				if (!uhost)
-				{
-					LogErr(VB_CHANNELOUT,
-						"Error looking up E1.31 hostname: %s\n",
-						universes[i].unicastAddress);
-					close(sendSocket);
-					return 0;
-				}
-
-				E131address[i].sin_addr.s_addr = *((unsigned long*)uhost->h_addr);
-			}
-			else
-			{
-				E131address[i].sin_addr.s_addr = inet_addr(universes[i].unicastAddress);
-			}
-		}
-	}
-    
-    
-    e131Msgs = (struct mmsghdr *)calloc(UniverseCount, sizeof(struct mmsghdr));
-    e131Iovecs = (struct iovec *)calloc(UniverseCount * 2, sizeof(struct iovec));
-    e131Buffers = (unsigned char **)calloc(UniverseCount, sizeof(unsigned char*));
-    for (int x = 0; x < UniverseCount; x++) {
-        e131Buffers[x] = (unsigned char *)malloc(E131_HEADER_LENGTH);
-        memcpy(e131Buffers[x], E131header, E131_HEADER_LENGTH);
-        
-        
-        e131Buffers[x][E131_PRIORITY_INDEX] = universes[x].priority;
-        
-        e131Buffers[x][E131_UNIVERSE_INDEX] = (char)(universes[x].universe/256);
-        e131Buffers[x][E131_UNIVERSE_INDEX+1] = (char)(universes[x].universe%256);
-        
-        // Property Value Count
-        e131Buffers[x][E131_COUNT_INDEX] = ((universes[x].size+1)/256);
-        e131Buffers[x][E131_COUNT_INDEX+1] = ((universes[x].size+1)%256);
-        
-        // RLP Protocol flags and length
-        int count = 638 - 16 - (512 - (universes[x].size));
-        e131Buffers[x][E131_RLP_COUNT_INDEX] = (count/256)+0x70;
-        e131Buffers[x][E131_RLP_COUNT_INDEX+1] = count%256;
-        
-        // Framing Protocol flags and length
-        count = 638 - 38 - (512 - (universes[x].size));
-        e131Buffers[x][E131_FRAMING_COUNT_INDEX] = (count/256)+0x70;
-        e131Buffers[x][E131_FRAMING_COUNT_INDEX+1] = count%256;
-        
-        // DMP Protocol flags and length
-        count = 638 - 115 - (512 - (universes[x].size));
-        e131Buffers[x][E131_DMP_COUNT_INDEX] = (count/256)+0x70;
-        e131Buffers[x][E131_DMP_COUNT_INDEX+1] = count%256;
-
-        // use scatter/gather for the packet.   One IOV will contain
-        // the header, the second will point into the raw channel data
-        // and will be set at output time.   This avoids any memcpy.
-        e131Iovecs[x * 2].iov_base = e131Buffers[x];
-        e131Iovecs[x * 2].iov_len = E131_HEADER_LENGTH;
-        e131Iovecs[x * 2 + 1].iov_base = nullptr;
-        e131Iovecs[x * 2 + 1].iov_len = universes[x].size;
-
-        e131Msgs[x].msg_hdr.msg_name = &E131address[x];
-        e131Msgs[x].msg_hdr.msg_namelen = sizeof(sockaddr_in);
-        e131Msgs[x].msg_hdr.msg_iov = &e131Iovecs[x * 2];
-        e131Msgs[x].msg_hdr.msg_iovlen = 2;
-        e131Msgs[x].msg_len = universes[x].size + E131_HEADER_LENGTH;
+    universe = config["id"].asInt();
+    priority = config["priority"].asInt();
+    switch (type) {
+        case 0: // Multicast
+            ipAddress = "";
+            break;
+        case 1: //UnicastAddress
+            ipAddress = config["address"].asString();
+            break;
     }
+    
+    
+    if (type == E131_TYPE_MULTICAST) {
+        int UniverseOctet[2];
+        char sAddress[32];
 
-	// Set E131 header Data 
-
-	return 1;
-}
-
-void E131_Initialize()
-{
-	LogInfo(VB_CHANNELOUT, "Initializing E1.31 output\n");
-
-	E131sequenceNumber=1;
-	LoadUniversesFromFile();
-	if (UniverseCount)
-	{
-		GetInterfaceAddress(getE131interface(), E131LocalAddress, NULL, NULL);
-		LogDebug(VB_CHANNELOUT, "E131LocalAddress = %s\n",E131LocalAddress);
-		E131_InitializeNetwork();
-	}
-}
-
-/*
- *
- */
-int E131_SendData(void *data, char *channelData, int channelCount)
-{
-	struct itimerval tout_val;
-	int i = 0;
-
-	LogExcess(VB_CHANNELDATA, "Sending %d E1.31 universes\n",
-		UniverseCount);
-
-	for(i=0; i<UniverseCount; i++)
-	{
-        unsigned char *E131packet = e131Buffers[i];
-        E131packet[E131_SEQUENCE_INDEX] = E131sequenceNumber;
-
-        // set the pointer to the channelData for the universe
-        e131Msgs[i].msg_hdr.msg_iov[1].iov_base = (void*)(channelData+universes[i].startAddress-1);
-
-		LogExcess(VB_CHANNELDATA, "  %d) E1.31 universe #%d, %d channels\n",
-			i + 1, universes[i].universe, universes[i].size);
-	}
-
-#if (__GLIBC__ == 2) && (__GLIBC_MINOR__ < 14)
-    for (i = 0; i < UniverseCount; i++) {
-        if(sendmsg(sendSocket, &e131Msgs[i].msg_hdr, 0) < 0)
-        {
-            LogErr(VB_CHANNELOUT, "sendto() failed for E1.31 Universe %d with error: %s\n",
-               universes[i].universe, strerror(errno));
-            return 0;
+        UniverseOctet[0] = universe/256;
+        UniverseOctet[1] = universe%256;
+        sprintf(sAddress, "239.255.%d.%d", UniverseOctet[0],UniverseOctet[1]);
+        e131Address.sin_addr.s_addr = inet_addr(sAddress);
+    } else {
+        bool isAlpha = false;
+        for (int x = 0; x < ipAddress.length(); x++) {
+            isAlpha |= isalpha(ipAddress[x]);
+        }
+        
+        if (isAlpha) {
+            struct hostent* uhost = gethostbyname(ipAddress.c_str());
+            if (!uhost) {
+                LogErr(VB_CHANNELOUT,
+                       "Error looking up E1.31 hostname: %s\n",
+                       ipAddress.c_str());
+                valid = false;
+            }
+            
+            e131Address.sin_addr.s_addr = *((unsigned long*)uhost->h_addr);
+        } else {
+            e131Address.sin_addr.s_addr = inet_addr(ipAddress.c_str());
         }
     }
-#else
-
-    int outputCount = sendmmsg(sendSocket, e131Msgs, UniverseCount, 0);
-    if(outputCount != UniverseCount)
-    {
-        LogErr(VB_CHANNELOUT, "sendto() failed for E1.31 (output count: %d) with error: %s\n",
-               outputCount,
-               strerror(errno));
-        return 0;
-    }
-#endif
-	++E131sequenceNumber;
-
-	return 1;
-}
-
-/*
- *
- */
-void LoadUniversesFromFile()
-{
-	FILE *fp;
-	char buf[512];
-	char *s;
-	UniverseCount=0;
-	char active =0;
-	char filename[1024];
-
-	strcpy(filename, getMediaDirectory());
-	strcat(filename, "/config/co-universes.json");
-
-	LogDebug(VB_CHANNELOUT, "Opening File Now %s\n", filename);
-
-	if (!FileExists(filename))
-	{
-		LogErr(VB_CHANNELOUT, "Universe file %s does not exist\n",
-			filename);
-		return;
-	}
-
-	Json::Value root;
-    Json::Reader reader;
-	std::ifstream t(filename);
-	std::stringstream buffer;
-
-	buffer << t.rdbuf();
-
-	std::string config = buffer.str();
-
-	bool success = reader.parse(buffer.str(), root);
-	if (!success)
-	{
-		LogErr(VB_CHANNELOUT, "Error parsing %s\n", filename);
-		return;
-	}
-
-	Json::Value outputs = root["channelOutputs"];
-
-	std::string type;
-	int start = 0;
-	int count = 0;
-
-	for (int c = 0; c < outputs.size(); c++)
-	{
-		if (outputs[c]["type"].asString() != "universes")
-			continue;
-
-		if (outputs[c]["enabled"].asInt() == 0)
-			continue;
-
-		Json::Value univs = outputs[c]["universes"];
-
-		for (int i = 0; i < univs.size(); i++)
-		{
-			Json::Value u = univs[i];
-
-			if(u["active"].asInt())
-			{
-				universes[UniverseCount].active = u["active"].asInt();
-				universes[UniverseCount].universe = u["id"].asInt();
-				universes[UniverseCount].startAddress = u["startChannel"].asInt();
-				universes[UniverseCount].size = u["channelCount"].asInt();
-				universes[UniverseCount].type = u["type"].asInt();
-
-				switch (universes[UniverseCount].type) {
-					case 0: // Multicast
-							strcpy(universes[UniverseCount].unicastAddress,"\0");
-							break;
-					case 1: //UnicastAddress
-							strcpy(universes[UniverseCount].unicastAddress,
-								u["address"].asString().c_str());
-							break;
-					default: // ArtNet
-							continue;
-				}
-	
-				universes[UniverseCount].priority = u["priority"].asInt();
-
-			    UniverseCount++;
-			}
-		}
-	}
-
-	UniversesPrint();
-}
-
-void UniversesPrint()
-{
-	int i=0;
-	int h;
-
-	for(i=0;i<UniverseCount;i++)
-	{
-		LogDebug(VB_CHANNELOUT, "E1.31 Universe: %d:%d:%d:%d:%d  %s\n",
-				  universes[i].active,
-				  universes[i].universe,
-				  universes[i].startAddress,
-				  universes[i].size,
-				  universes[i].type,
-				  universes[i].unicastAddress);
-	}
-}
-
-/////////////////////////////////////////////////////////////////////////////
-
-/*
- *
- */
-int E131_Open(char *configStr, void **privDataPtr) {
-	LogDebug(VB_CHANNELOUT, "E131_Open()\n");
-
-	E131_Initialize();
-
-	*privDataPtr = NULL;
-
-	return 1;
-}
-
-/*
- *
- */
-int E131_Close(void *data) {
-	LogDebug(VB_CHANNELOUT, "E131_Close(%p)\n", data);
+    memcpy(e131Buffer, E131header, E131_HEADER_LENGTH);
     
+    e131Buffer[E131_PRIORITY_INDEX] = priority;
+    e131Buffer[E131_UNIVERSE_INDEX] = (char)(universe/256);
+    e131Buffer[E131_UNIVERSE_INDEX+1] = (char)(universe%256);
     
-    if (e131Msgs)  {
-        free(e131Msgs);
-        e131Msgs = nullptr;
+    // Property Value Count
+    e131Buffer[E131_COUNT_INDEX] = ((channelCount+1)/256);
+    e131Buffer[E131_COUNT_INDEX+1] = ((channelCount+1)%256);
+    
+    // RLP Protocol flags and length
+    int count = 638 - 16 - (512 - (channelCount));
+    e131Buffer[E131_RLP_COUNT_INDEX] = (count/256)+0x70;
+    e131Buffer[E131_RLP_COUNT_INDEX+1] = count%256;
+    
+    // Framing Protocol flags and length
+    count = 638 - 38 - (512 - (channelCount));
+    e131Buffer[E131_FRAMING_COUNT_INDEX] = (count/256)+0x70;
+    e131Buffer[E131_FRAMING_COUNT_INDEX+1] = count%256;
+    
+    // DMP Protocol flags and length
+    count = 638 - 115 - (512 - (channelCount));
+    e131Buffer[E131_DMP_COUNT_INDEX] = (count/256)+0x70;
+    e131Buffer[E131_DMP_COUNT_INDEX+1] = count%256;
+    
+    // use scatter/gather for the packet.   One IOV will contain
+    // the header, the second will point into the raw channel data
+    // and will be set at output time.   This avoids any memcpy.
+    e131Iovecs[0].iov_base = e131Buffer;
+    e131Iovecs[0].iov_len = E131_HEADER_LENGTH;
+    e131Iovecs[1].iov_base = nullptr;
+    e131Iovecs[1].iov_len = channelCount;
+}
+
+E131OutputData::~E131OutputData() {
+}
+
+bool E131OutputData::IsPingable() {
+    return type == 1;
+}
+
+
+void E131OutputData::PrepareData(unsigned char *channelData) {
+    if (valid && active) {
+        e131Buffer[E131_SEQUENCE_INDEX] = E131sequenceNumber;
+        e131Iovecs[1].iov_base = (void*)(channelData + startChannel - 1);
     }
-    if (e131Iovecs)  {
-        free(e131Iovecs);
-        e131Iovecs = nullptr;
+    E131sequenceNumber++;
+}
+void E131OutputData::CreateMessages(std::vector<struct mmsghdr> &ipMsgs) {
+    if (valid && active) {
+        struct mmsghdr msg;
+        memset(&msg, 0, sizeof(msg));
+        
+        msg.msg_hdr.msg_name = &e131Address;
+        msg.msg_hdr.msg_namelen = sizeof(sockaddr_in);
+        msg.msg_hdr.msg_iov = e131Iovecs;
+        msg.msg_hdr.msg_iovlen = 2;
+        msg.msg_len = channelCount + E131_HEADER_LENGTH;
+        ipMsgs.push_back(msg);
     }
-    if (e131Buffers)  {
-        for (int x = 0; x < UniverseCount; x++) {
-            free(e131Buffers[x]);
-        }
-        free(e131Buffers);
-        e131Buffers = nullptr;
-    }
 }
 
-/*
- *
- */
-int E131_IsConfigured(void) {
-	LogDebug(VB_CHANNELOUT, "E131_IsConfigured()\n");
-
-	if (!getSettingInt("E131Enabled"))
-		return 0;
-
-	LoadUniversesFromFile();
-
-	if (UniverseCount > 0)
-		return 1;
-
-	return 0;
+void E131OutputData::DumpConfig() {
+    LogDebug(VB_CHANNELOUT, "E1.31 Universe: %s   %d:%d:%d:%d:%d  %s\n",
+             description.c_str(),
+             active,
+             universe,
+             startChannel,
+             channelCount,
+             type,
+             ipAddress.c_str());
 }
-
-/*
- *
- */
-int E131_IsActive(void *data) {
-	LogDebug(VB_CHANNELOUT, "E131_IsActive(%p)\n", data);
-
-	if (UniverseCount > 0)
-		return 1;
-
-	return 0;
-}
-
-/*
- *
- */
-int E131_MaxChannels(void *data) {
-	return 32768;
-}
-
-/*
- * Declare our external interface struct
- */
-FPPChannelOutput E131Output = {
-	E131_MaxChannels, //maxChannels
-	E131_Open, //open
-	E131_Close, //close
-	E131_IsConfigured, //isConfigured
-	E131_IsActive, //isActive
-	E131_SendData, //send
-	NULL, //startThread
-	NULL, //stopThread
-};

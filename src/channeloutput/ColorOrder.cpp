@@ -25,7 +25,7 @@
 
 #include "ColorOrder.h"
 
-FPPColorOrder ColorOrderFromString(std::string colorOrderStr)
+FPPColorOrder ColorOrderFromString(const std::string &colorOrderStr)
 {
 	if (colorOrderStr == "RGB")
 		return kColorOrderRGB;

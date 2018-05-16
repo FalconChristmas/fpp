@@ -40,14 +40,12 @@ LogErr(VB_CHANNELOUT, "Invalid PixelString Config %s\n", #SETTING); \
 return 0; \
 }\
 
-
 /*
  *
  */
 PixelString::PixelString()
   : m_portNumber(0),
 	m_channelOffset(0),
-    m_pixels(0),
     m_inputChannels(0),
 	m_outputChannels(0)
 {
@@ -66,7 +64,8 @@ PixelString::~PixelString()
 int PixelString::Init(Json::Value config)
 {
 	m_portNumber = config["portNumber"].asInt();
-
+    m_outputChannels = 0;
+    
 	for (int i = 0; i < config["virtualStrings"].size(); i++)
 	{
 		Json::Value vsc = config["virtualStrings"][i];
@@ -107,33 +106,33 @@ int PixelString::Init(Json::Value config)
             CHECKPS_SETTING(vs.zigZag > vs.pixelCount);
         }
 		CHECKPS_SETTING(vs.zigZag < 0);
-
-		if (vsc["colorOrder"].asString() == "RGB")
-			vs.colorOrder = kColorOrderRGB;
-		else if (vsc["colorOrder"].asString() == "RBG")
-			vs.colorOrder = kColorOrderRBG;
-		else if (vsc["colorOrder"].asString() == "GBR")
-			vs.colorOrder = kColorOrderGBR;
-		else if (vsc["colorOrder"].asString() == "GRB")
-			vs.colorOrder = kColorOrderGRB;
-		else if (vsc["colorOrder"].asString() == "BGR")
-			vs.colorOrder = kColorOrderBGR;
-		else if (vsc["colorOrder"].asString() == "BRG")
-			vs.colorOrder = kColorOrderBRG;
+        
+        std::string colorOrder = vsc["colorOrder"].asString();
+        if (colorOrder.length() == 4) {
+            if (colorOrder[0] == 'W') {
+                vs.whiteOffset = 0;
+                colorOrder = colorOrder.substr(1);
+            } else {
+                vs.whiteOffset = 3;
+                colorOrder = colorOrder.substr(0, 3);
+            }
+        }
+        vs.colorOrder = ColorOrderFromString(colorOrder);
 
 		if (vs.groupCount == 1)
 			vs.groupCount = 0;
 
 		if (vs.groupCount)
-			m_inputChannels += (vs.pixelCount / vs.groupCount * 3);
+			m_inputChannels += (vs.pixelCount / vs.groupCount * vs.channelsPerNode());
 		else
-			m_inputChannels += (vs.pixelCount * 3);
+			m_inputChannels += (vs.pixelCount * vs.channelsPerNode());
 
 		if ((vs.zigZag == vs.pixelCount) || (vs.zigZag == 1))
 			vs.zigZag = 0;
 
-		m_pixels += vs.pixelCount + vs.nullNodes;
-
+        m_outputChannels += vs.nullNodes * 3;
+        m_outputChannels += vs.pixelCount * vs.channelsPerNode();
+        
 		float bf = vs.brightness;
 		float maxB = bf * 2.55f;
 		for (int x = 0; x < 256; x++) {
@@ -151,8 +150,6 @@ int PixelString::Init(Json::Value config)
 		m_virtualStrings.push_back(vs);
 	}
 
-	m_outputChannels = m_pixels * 3;
-
 	m_outputMap.resize(m_outputChannels);
 
 	// Initialize all maps to an unused location which should be zero.
@@ -164,16 +161,16 @@ int PixelString::Init(Json::Value config)
 	int offset = 0;
 	int mapIndex = 0;
 
-	m_brightnessMaps = (uint8_t **)malloc(sizeof(uint8_t*) * m_pixels);
+	m_brightnessMaps = (uint8_t **)calloc(1, sizeof(uint8_t*) * m_outputChannels);
 
 	for (int i = 0; i < m_virtualStrings.size(); i++)
 	{
 		offset += m_virtualStrings[i].nullNodes * 3;
 
 		SetupMap(offset, m_virtualStrings[i]);
-		offset += m_virtualStrings[i].pixelCount * 3;
+		offset += m_virtualStrings[i].pixelCount * m_virtualStrings[i].channelsPerNode();
 
-		for (int j = 0; j < (m_virtualStrings[i].nullNodes + m_virtualStrings[i].pixelCount); j++)
+		for (int j = 0; j < ((m_virtualStrings[i].nullNodes*3) + (m_virtualStrings[i].pixelCount*m_virtualStrings[i].channelsPerNode())); j++)
 			m_brightnessMaps[mapIndex++] = m_virtualStrings[i].brightnessMap;
 	}
 
@@ -206,13 +203,13 @@ void PixelString::SetupMap(int vsOffset, VirtualString vs)
 				itemsInGroup = 0;
 			}
 
-			ch = vs.startChannel + (group * 3);
+			ch = vs.startChannel + (group * vs.channelsPerNode());
 
 			itemsInGroup++;
 		}
 		else
 		{
-			ch = vs.startChannel + (p * 3);
+			ch = vs.startChannel + (p * vs.channelsPerNode());
 		}
 
 		if (vs.colorOrder == kColorOrderRGB)
@@ -251,13 +248,20 @@ void PixelString::SetupMap(int vsOffset, VirtualString vs)
 			ch2 = ch + 1;
 			ch3 = ch;
 		}
-
-		m_outputMap[offset++] = ch1;
-		m_outputMap[offset++] = ch2;
-		m_outputMap[offset++] = ch3;
-
-		ch += 3;
-
+        
+        if (vs.whiteOffset == 0) {
+            m_outputMap[offset++] = ch;
+            ch1++;
+            ch2++;
+            ch3++;
+        }
+        m_outputMap[offset++] = ch1;
+        m_outputMap[offset++] = ch2;
+        m_outputMap[offset++] = ch3;
+        if (vs.whiteOffset == 3) {
+            m_outputMap[offset++] = ch + 3;
+        }
+		ch += vs.channelsPerNode();
 	}
 
 	DumpMap("BEFORE ZIGZAG");
@@ -266,7 +270,7 @@ void PixelString::SetupMap(int vsOffset, VirtualString vs)
 	{
 		int segment = 0;
 		int pixel = 0;
-		int zigChannelCount = vs.zigZag * 3;
+		int zigChannelCount = vs.zigZag * vs.channelsPerNode();
 
 		for (int i = 0; i < m_outputChannels; i += zigChannelCount)
 		{
@@ -274,10 +278,10 @@ void PixelString::SetupMap(int vsOffset, VirtualString vs)
 			if (segment % 2)
 			{
 				int offset1 = i;
-				int offset2 = i + zigChannelCount - 3;
+				int offset2 = i + zigChannelCount - vs.channelsPerNode();
 
 				if ((offset2 + 2) < m_outputChannels)
-					FlipPixels(offset1, offset2);
+					FlipPixels(offset1, offset2, vs.channelsPerNode());
 			}
 		}
 
@@ -286,7 +290,7 @@ void PixelString::SetupMap(int vsOffset, VirtualString vs)
 
 	if (vs.reverse && (vs.pixelCount > 1))
 	{
-		FlipPixels(vsOffset, vsOffset + (vs.pixelCount * 3) - 3);
+		FlipPixels(vsOffset, vsOffset + (vs.pixelCount * vs.channelsPerNode()) - vs.channelsPerNode(), vs.channelsPerNode());
 
 		DumpMap("AFTER REVERSE");
 	}
@@ -312,29 +316,39 @@ void PixelString::DumpMap(char *msg)
 /*
  *
  */
-void PixelString::FlipPixels(int offset1, int offset2)
+void PixelString::FlipPixels(int offset1, int offset2, int chanCount)
 {
 	int ch1 = 0;
 	int ch2 = 0;
 	int ch3 = 0;
-	int flipPixels = (offset2 - offset1 + 3) / 3 / 2;
+    int ch4 = 0;
+	int flipPixels = (offset2 - offset1 + chanCount) / chanCount / 2;
 
 	for (int i = 0; i < flipPixels; i++)
 	{
 		ch1 = m_outputMap[offset1    ];
 		ch2 = m_outputMap[offset1 + 1];
 		ch3 = m_outputMap[offset1 + 2];
+        if (chanCount == 4) {
+            ch4 = m_outputMap[offset1 + 3];
+        }
 
 		m_outputMap[offset1    ] = m_outputMap[offset2    ];
 		m_outputMap[offset1 + 1] = m_outputMap[offset2 + 1];
 		m_outputMap[offset1 + 2] = m_outputMap[offset2 + 2];
-
+        if (chanCount == 4) {
+            m_outputMap[offset1 + 3] = m_outputMap[offset2 + 3];
+        }
+        
 		m_outputMap[offset2    ] = ch1;
 		m_outputMap[offset2 + 1] = ch2;
 		m_outputMap[offset2 + 2] = ch3;
+        if (chanCount == 4) {
+            m_outputMap[offset2 + 3] = ch4;
+        }
 
-		offset1 += 3;
-		offset2 -= 3;
+		offset1 += chanCount;
+		offset2 -= chanCount;
 	}
 }
 

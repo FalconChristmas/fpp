@@ -119,7 +119,6 @@
 
 
 #define DDP_HEADER_LEN 10
-#define DDP_PACKET_LEN (DDP_HEADER_LEN + 1440)
 #define DDP_SYNCPACKET_LEN 10
 
 #define DDP_FLAGS1_VER     0xc0   // version mask
@@ -134,301 +133,134 @@
 #define DDP_ID_CONFIG      250
 #define DDP_ID_STATUS      251
 
-class DDPOutputData {
-public:
-    DDPOutputData(int t, int st, int sz, const std::string &add)
-        : type(t), start(st), size(sz), address(add), seqNum(1) {
-            
-        memset((char *) &socketAddress, 0, sizeof(socketAddress));
-        socketAddress.sin_family = AF_INET;
-        socketAddress.sin_port = htons(DDP_PORT);
-            
-        const char *c = address.c_str();
-        int isAlpha = 0;
-        for (; *c && !isAlpha; c++)
-            isAlpha = isalpha(*c);
-        
-        if (isAlpha) {
-            struct hostent* uhost = gethostbyname(address.c_str());
-            if (!uhost) {
-                LogErr(VB_CHANNELOUT,
-                       "Error looking up DDP hostname: %s\n",
-                       address.c_str());
-                type = 0;
-            } else {
-                socketAddress.sin_addr.s_addr = *((unsigned long*)uhost->h_addr);
-            }
-        } else {
-            socketAddress.sin_addr.s_addr = inet_addr(address.c_str());
-        }
-        
-        //1440 channels per packet
-        pktCount = size / 1440;
-        if (size % 1440) {
-            pktCount++;
-        }
-            
-        ddpMsgs = (struct mmsghdr *)calloc(pktCount, sizeof(struct mmsghdr));
-        ddpIovecs = (struct iovec *)calloc(pktCount * 2, sizeof(struct iovec));
-        ddpBuffers = (unsigned char **)calloc(pktCount, sizeof(unsigned char*));
+//1440 channels per packet
+#define DDP_CHANNELS_PER_PACKET 1440
 
-            
-        int chan = start;
+#define DDP_PACKET_LEN (DDP_HEADER_LEN + DDP_CHANNELS_PER_PACKET)
+
+DDPOutputData::DDPOutputData(const Json::Value &config) : UDPOutputData(config), sequenceNumber(1) {
+    memset((char *) &ddpAddress, 0, sizeof(sockaddr_in));
+    ddpAddress.sin_family = AF_INET;
+    ddpAddress.sin_port = htons(DDP_PORT);
+    
+    ipAddress = config["address"].asString();
+    bool isAlpha = false;
+    for (int x = 0; x < ipAddress.length(); x++) {
+        isAlpha |= isalpha(ipAddress[x]);
+    }
+    
+    if (isAlpha) {
+        struct hostent* uhost = gethostbyname(ipAddress.c_str());
+        if (!uhost) {
+            LogErr(VB_CHANNELOUT,
+                   "Error looking up DDP hostname: %s\n",
+                   ipAddress.c_str());
+            valid = false;
+        }
+        
+        ddpAddress.sin_addr.s_addr = *((unsigned long*)uhost->h_addr);
+    } else {
+        ddpAddress.sin_addr.s_addr = inet_addr(ipAddress.c_str());
+    }
+    
+    
+    pktCount = channelCount / DDP_CHANNELS_PER_PACKET;
+    if (channelCount % DDP_CHANNELS_PER_PACKET) {
+        pktCount++;
+    }
+    
+    ddpIovecs = (struct iovec *)calloc(pktCount * 2, sizeof(struct iovec));
+    ddpBuffers = (unsigned char **)calloc(pktCount, sizeof(unsigned char*));
+    
+    int chan = startChannel - 1;
+    if (type == 5) {
+        chan = 0;
+    }
+    for (int x = 0; x < pktCount; x++) {
+        ddpBuffers[x] = (unsigned char *)calloc(1, DDP_HEADER_LEN);
+        
+        // use scatter/gather for the packet.   One IOV will contain
+        // the header, the second will point into the raw channel data
+        // and will be set at output time.   This avoids any memcpy.
+        ddpIovecs[x * 2].iov_base = ddpBuffers[x];
+        ddpIovecs[x * 2].iov_len = DDP_HEADER_LEN;
+        ddpIovecs[x * 2 + 1].iov_base = nullptr;
+        
+        ddpBuffers[x][0] = DDP_FLAGS1_VER1;
+        ddpBuffers[x][2] = 1;
+        ddpBuffers[x][3] = DDP_ID_DISPLAY;
+        int pktSize = DDP_CHANNELS_PER_PACKET;
+        if (x == (pktCount - 1)) {
+            ddpBuffers[x][0] = DDP_FLAGS1_VER1 | DDP_FLAGS1_PUSH;
+            //last packet
+            if (channelCount % DDP_CHANNELS_PER_PACKET) {
+                pktSize = channelCount % DDP_CHANNELS_PER_PACKET;
+            }
+        }
+        ddpIovecs[x * 2 + 1].iov_len = pktSize;
+        
+        //offset
+        ddpBuffers[x][4] = (chan & 0xFF000000) >> 24;
+        ddpBuffers[x][5] = (chan & 0xFF0000) >> 16;
+        ddpBuffers[x][6] = (chan & 0xFF00) >> 8;
+        ddpBuffers[x][7] = (chan & 0xFF);
+        
+        //size
+        ddpBuffers[x][8] = (pktSize & 0xFF00) >> 8;
+        ddpBuffers[x][9] = pktSize & 0xFF;
+        
+        chan += pktSize;
+    }
+}
+DDPOutputData::~DDPOutputData() {
+    for (int x = 0; x < pktCount; x++) {
+        free(ddpBuffers[x]);
+    }
+    free(ddpIovecs);
+}
+
+void DDPOutputData::PrepareData(unsigned char *channelData) {
+    if (valid && active) {
+        int start = startChannel - 1;
         if (type == 5) {
-            chan = 0;
-        }
-        for (int x = 0; x < pktCount; x++) {
-            ddpBuffers[x] = (unsigned char *)calloc(1, DDP_HEADER_LEN);
-
-            // use scatter/gather for the packet.   One IOV will contain
-            // the header, the second will point into the raw channel data
-            // and will be set at output time.   This avoids any memcpy.
-            ddpIovecs[x * 2].iov_base = ddpBuffers[x];
-            ddpIovecs[x * 2].iov_len = DDP_HEADER_LEN;
-            ddpIovecs[x * 2 + 1].iov_base = nullptr;
-            
-            ddpBuffers[x][0] = DDP_FLAGS1_VER1;
-            ddpBuffers[x][2] = 1;
-            ddpBuffers[x][3] = DDP_ID_DISPLAY;
-            int pktSize = 1440;
-            if (x == (pktCount - 1)) {
-                ddpBuffers[x][0] = DDP_FLAGS1_VER1 | DDP_FLAGS1_PUSH;
-                //last packet
-                if (size % 1440) {
-                    pktSize = size % 1440;
-                }
-            }
-            ddpIovecs[x * 2 + 1].iov_len = pktSize;
-            
-            //offset
-            ddpBuffers[x][4] = (chan & 0xFF000000) >> 24;
-            ddpBuffers[x][5] = (chan & 0xFF0000) >> 16;
-            ddpBuffers[x][6] = (chan & 0xFF00) >> 8;
-            ddpBuffers[x][7] = (chan & 0xFF);
-
-            //size
-            ddpBuffers[x][8] = (pktSize & 0xFF00) >> 8;
-            ddpBuffers[x][9] = pktSize & 0xFF;
-            
-            chan += pktSize;
-
-            ddpMsgs[x].msg_hdr.msg_name = &socketAddress;
-            ddpMsgs[x].msg_hdr.msg_namelen = sizeof(sockaddr_in);
-            ddpMsgs[x].msg_hdr.msg_iov = &ddpIovecs[x * 2];
-            ddpMsgs[x].msg_hdr.msg_iovlen = 2;
-            ddpMsgs[x].msg_len = pktSize + DDP_HEADER_LEN;
-        }
-    }
-    ~DDPOutputData() {
-        for (int x = 0; x < pktCount; x++) {
-            free(ddpBuffers[x]);
-        }
-        free(ddpMsgs);
-        free(ddpIovecs);
-        free(ddpMsgs);
-    }
-    
-    int type;
-    int start;
-    int size;
-    std::string address;
-    
-    sockaddr_in socketAddress;
-    int pktCount;
-    struct mmsghdr *ddpMsgs = nullptr;
-    struct iovec *ddpIovecs = nullptr;
-    unsigned char **ddpBuffers = nullptr;
-    
-    unsigned char seqNum;
-};
-
-
-/*
- *
- */
-DDPOutput::DDPOutput(unsigned int startChannel, unsigned int channelCount)
-    : ChannelOutputBase(startChannel, channelCount), sendSocket(-1)
-{
-	LogDebug(VB_CHANNELOUT, "DDPOutput::DDPOutput(%u, %u)\n",
-		startChannel, channelCount);
-
-	// Set any max channels limit if necessary
-	m_maxChannels = FPPD_MAX_CHANNELS;
-    m_channelCount = FPPD_MAX_CHANNELS;
-    m_useOutputThread = 0;
-    m_startChannel = 0;
-}
-
-/*
- *
- */
-DDPOutput::~DDPOutput()
-{
-	LogDebug(VB_CHANNELOUT, "DDPOutput::~DDPOutput()\n");
-}
-
-bool DDPOutput::InitFromUniverses() {
-    FILE *fp;
-    char buf[512];
-    char *s;
-    char filename[1024];
-    
-    strcpy(filename, getMediaDirectory());
-    strcat(filename, "/config/co-universes.json");
-    
-    LogDebug(VB_CHANNELOUT, "Opening File Now %s\n", filename);
-    if (!FileExists(filename)) {
-        LogDebug(VB_CHANNELOUT, "Universe file %s does not exist\n",
-               filename);
-        return false;
-    }
-    
-    Json::Value root;
-    Json::Reader reader;
-    std::ifstream t(filename);
-    std::stringstream buffer;
-    
-    buffer << t.rdbuf();
-    
-    std::string config = buffer.str();
-    bool success = reader.parse(buffer.str(), root);
-    if (!success) {
-        LogErr(VB_CHANNELOUT, "Error parsing %s\n", filename);
-        return false;
-    }
-    
-    Json::Value outputs = root["channelOutputs"];
-    for (int c = 0; c < outputs.size(); c++) {
-        if (outputs[c]["type"].asString() != "universes")
-            continue;
-        if (outputs[c]["enabled"].asInt() == 0)
-            continue;
-        
-        Json::Value univs = outputs[c]["universes"];
-
-        for (int i = 0; i < univs.size(); i++) {
-            Json::Value u = univs[i];
-            int type = u["type"].asInt();
-            if (u["active"].asInt() && (type == 4 || type == 5)) {
-                outputData.push_back(new DDPOutputData(type,
-                                                   u["startChannel"].asInt() - 1,
-                                                   u["channelCount"].asInt(),
-                                                   u["address"].asString()));
-            }
-        }
-    }
-    DumpConfig();
-    return InitNetwork();
-}
-
-bool DDPOutput::InitNetwork() {
-    if (outputData.size() == 0) {
-        return false;
-    }
-    sendSocket = socket(AF_INET, SOCK_DGRAM, 0);
-    if (sendSocket < 0) {
-        LogErr(VB_CHANNELOUT, "Error opening datagram socket\n");
-        exit(1);
-    }
-    struct sockaddr_in localAddress;
-    localAddress.sin_family = AF_INET;
-    localAddress.sin_port = 0;
-    
-    char localIPAddress[16];
-    GetInterfaceAddress(getE131interface(), localIPAddress, NULL, NULL);
-    localAddress.sin_addr.s_addr = inet_addr(localIPAddress);
-    if (bind(sendSocket, (struct sockaddr *) &localAddress, sizeof(struct sockaddr_in)) == -1) {
-        LogErr(VB_CHANNELOUT, "Error in bind:errno=%d, %s\n", errno, strerror(errno));
-        return false;
-    }
-    /* Disable loopback so I do not receive my own datagrams. */
-    char loopch = 0;
-    if(setsockopt(sendSocket, IPPROTO_IP, IP_MULTICAST_LOOP, (char *)&loopch, sizeof(loopch)) < 0) {
-        LogErr(VB_CHANNELOUT, "Error setting IP_MULTICAST_LOOP error\n");
-        close(sendSocket);
-        return false;
-    }
-    for (auto u : outputData) {
-        if (u->type == 0) {
-            close(sendSocket);
-            return false;
-        }
-    }
-    return true;
-}
-
-/*
- *
- */
-int DDPOutput::Init(Json::Value config)
-{
-	LogDebug(VB_CHANNELOUT, "DDPOutput::Init(JSON)\n");
-
-	// Call the base class' Init() method, do not remove this line.
-	return ChannelOutputBase::Init(config);
-}
-
-/*
- *
- */
-int DDPOutput::Close(void)
-{
-	LogDebug(VB_CHANNELOUT, "DDPOutput::Close()\n");
-    if (sendSocket != -1) {
-        close(sendSocket);
-    }
-
-	return ChannelOutputBase::Close();
-}
-
-/*
- *
- */
-int DDPOutput::RawSendData(unsigned char *channelData)
-{
-	LogExcess(VB_CHANNELOUT, "DDPOutput::RawSendData(%p)\n", channelData);
-    for (auto u : outputData) {
-        int start = u->start;
-        if (u->type == 5) {
             start = 0;
         }
-        for (int p = 0; p < u->pktCount; p++) {
-            unsigned char *header = u->ddpBuffers[p];
-            header[1] = u->seqNum & 0xF;
-            if (u->seqNum == 15) {
-                u->seqNum = 1;
+        for (int p = 0; p < pktCount; p++) {
+            unsigned char *header = ddpBuffers[p];
+            header[1] = sequenceNumber & 0xF;
+            if (sequenceNumber == 15) {
+                sequenceNumber = 1;
             } else {
-                ++u->seqNum;
+                ++sequenceNumber;
             }
             
             // set the pointer to the channelData for the universe
-            u->ddpMsgs[p].msg_hdr.msg_iov[1].iov_base = (void*)(channelData + start);
-            start += u->ddpIovecs[p * 2 + 1].iov_len;
-        }
-        int outputCount = sendmmsg(sendSocket, u->ddpMsgs, u->pktCount, 0);
-        if (outputCount != u->pktCount) {
-            LogErr(VB_CHANNELOUT, "sendto() failed for DDP (output count: %d) with error: %s\n",
-                   outputCount,
-                   strerror(errno));
-            return 0;
+            ddpIovecs[p * 2 + 1].iov_base = (void*)(channelData + start);
+            start += ddpIovecs[p * 2 + 1].iov_len;
         }
     }
-	return 1;
 }
-
-/*
- *
- */
-void DDPOutput::DumpConfig(void)
-{
-	LogDebug(VB_CHANNELOUT, "DDPOutput::DumpConfig()\n");
-    for (auto u : outputData) {
-        LogDebug(VB_CHANNELOUT, "DDP: %d:%d:%d  %s\n",
-                 u->type,
-                 u->start,
-                 u->size,
-                 u->address.c_str());
+void DDPOutputData::CreateMessages(std::vector<struct mmsghdr> &ipMsgs) {
+    if (valid && active) {
+        struct mmsghdr msg;
+        memset(&msg, 0, sizeof(msg));
+        
+        msg.msg_hdr.msg_name = &ddpAddress;
+        msg.msg_hdr.msg_namelen = sizeof(sockaddr_in);
+        for (int x = 0; x < pktCount; x++) {
+            msg.msg_hdr.msg_iov = &ddpIovecs[x * 2];
+            msg.msg_hdr.msg_iovlen = 2;
+            msg.msg_len = ddpIovecs[x * 2 + 1].iov_len + DDP_HEADER_LEN;
+            ipMsgs.push_back(msg);
+        }
     }
-	ChannelOutputBase::DumpConfig();
 }
-
+void DDPOutputData::DumpConfig() {
+    LogDebug(VB_CHANNELOUT, "DDP: %s   %d:%d:%d:%d  %s\n",
+             description.c_str(),
+             active,
+             startChannel,
+             channelCount,
+             type,
+             ipAddress.c_str());
+}

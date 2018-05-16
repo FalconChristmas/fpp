@@ -37,6 +37,7 @@
 #include "DebugOutput.h"
 #include "ArtNet.h"
 #include "ColorLight-5a-75.h"
+#include "UDPOutput.h"
 #include "DDP.h"
 #include "E131.h"
 #include "FBMatrix.h"
@@ -263,52 +264,10 @@ int InitializeChannelOutputs(void) {
 			LogErr(VB_CHANNELOUT, "ERROR Opening FPD Channel Output\n");
 		}
 	}
-
-	if (((getFPPmode() != BRIDGE_MODE) ||
-		 (getSettingInt("E131Bridging"))) &&
-		 (E131Output.isConfigured()))
-	{
-		channelOutputs[i].startChannel = 0;
-		channelOutputs[i].outputOld  = &E131Output;
-
-		if (E131Output.open("", &channelOutputs[i].privData)) {
-			channelOutputs[i].channelCount = channelOutputs[i].outputOld->maxChannels(channelOutputs[i].privData);
-
-			i++;
-			LogDebug(VB_CHANNELOUT, "Configured E1.31 Channel Output\n");
-		} else {
-			LogErr(VB_CHANNELOUT, "ERROR Opening E1.31 Channel Output\n");
-		}
-	}
-
-	if (ArtNetOutput.isConfigured())
-	{
-		channelOutputs[i].startChannel = 0;
-		channelOutputs[i].outputOld  = &ArtNetOutput;
-
-		if (ArtNetOutput.open("", &channelOutputs[i].privData)) {
-			channelOutputs[i].channelCount = channelOutputs[i].outputOld->maxChannels(channelOutputs[i].privData);
-
-			i++;
-			LogDebug(VB_CHANNELOUT, "Configured ArtNet Channel Output\n");
-		} else {
-			LogErr(VB_CHANNELOUT, "ERROR Opening ArtNet Channel Output\n");
-		}
-	}
     
-    // when the artnet/e1.31/DDP stuff is separated out into separate files, this can change
-    DDPOutput *ddpOutput = new DDPOutput(0, FPPD_MAX_CHANNELS);
-    if (ddpOutput->InitFromUniverses())  {
-        channelOutputs[i].startChannel = 0;
-        channelOutputs[i].output = ddpOutput;
-        channelOutputs[i].startChannel = 0;
-        i++;
-    } else {
-        delete ddpOutput;
-    }
-
 	// FIXME, build this list dynamically
 	char *configFiles[] = {
+        "/config/co-universes.json",
 		"/config/channeloutputs.json",
 		"/config/co-other.json",
 		"/config/co-pixelStrings.json",
@@ -395,8 +354,6 @@ int InitializeChannelOutputs(void) {
 				} else if (type == "BBBSerial" && f != 0) {
 					channelOutputs[i].output = new BBBSerialOutput(start, count);
 #endif
-				} else if (type == "DDP") {
-					channelOutputs[i].output = new DDPOutput(start, count);
 				} else if (type == "FBVirtualDisplay") {
 					channelOutputs[i].output = (ChannelOutputBase*)new FBVirtualDisplayOutput(0, FPPD_MAX_CHANNELS);
 				} else if (type == "RHLDVIE131") {
@@ -472,6 +429,8 @@ int InitializeChannelOutputs(void) {
 				} else if (type == "Debug") {
 					channelOutputs[i].output = new DebugOutput(start, count);
 					ChannelOutputJSON2CSV(outputs[c], csvConfig);
+                } else if (type == "universes") {
+                    channelOutputs[i].output = new UDPOutput(start, count);
 				} else {
 					LogErr(VB_CHANNELOUT, "Unknown Channel Output type: %s\n", type.c_str());
 					continue;
