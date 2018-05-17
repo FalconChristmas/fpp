@@ -376,6 +376,18 @@ if (isset($_POST['btnDownloadConfig'])) {
                         if (array_key_exists($restore_area_main, $file_contents_decoded)) {
                             $restore_area_key = $restore_area_main;
                             $area_data = $file_contents_decoded[$restore_area_main];
+
+                            //If we're restoring channelOutputs, we might need the system settings.. eg when restoring the LED panel data we need to set the layout in settings
+                            if ($restore_area_key == "channelOutputs" && array_key_exists('settings', $file_contents_decoded)) {
+                                $system_settings = array();
+                                if (array_key_exists('system_settings', $file_contents_decoded['settings'])) {
+                                    $system_settings = $file_contents_decoded['settings']['system_settings'];
+                                    //modify the area data
+                                    $area_data_new = array('area_data' => $area_data, 'system_settings' => $system_settings);
+                                    $area_data = $area_data_new;
+                                }
+                            }
+
                             //Pass the restore area and data to the restore function
                             $restore_done = process_restore_data($restore_area, $area_data);
                         }
@@ -457,8 +469,8 @@ function read_directory_files($directory, $return_data = true)
 
 /**
  * Function to look after backup restorations
- * @param $restore_area String Area to restore
- * @param $restore_area_data array Area data as an array
+ * @param $restore_area String  Area to restore
+ * @param $restore_area_data array  Area data as an array
  * @return boolean Save result
  */
 function process_restore_data($restore_area, $restore_area_data)
@@ -469,6 +481,7 @@ function process_restore_data($restore_area, $restore_area_data)
 
     $restore_area_key = $restore_area_sub_key = "";
     $save_result = false;
+    $restore_area_system_settings = array();
 
     //if restore area contains a forward slash, then we want to restore into a sub-area
     //split string to get the main area and sub-area
@@ -482,6 +495,13 @@ function process_restore_data($restore_area, $restore_area_data)
 
     //set the initial value
     $settings_restored[$restore_area_key] = $save_result;
+
+    //Check to see if the area data contains the area_data or system_settings keys
+    //break them out if so & overwrite $restore_area_data with the actual area data
+    if (array_key_exists('area_data', $restore_area_data) && array_key_exists('system_settings', $restore_area_data)) {
+        $restore_area_system_settings = $restore_area_data['system_settings'];
+        $restore_area_data = $restore_area_data['area_data'];
+    }
 
     //////////////////////////////////
     //OutputProcessors - OutputProcessors
@@ -570,14 +590,26 @@ function process_restore_data($restore_area, $restore_area_data)
                                     $final_file_restore_data = $fn_data;
                                 }
 
+                                //If backup/restore type of a sub-area is folder, then build the full path to where the file will be restored
+                                if ($restore_type == "dir") {
+                                    $restore_location .= "/" . $fn_to_restore;
+                                }
+
                                 //if restore sub-area is scripts, capture the file names so we can pass those along through RestoreScripts which will perform any InstallActions
                                 if (strtolower($restore_areas_idx) == "scripts") {
                                     $script_filenames[] = $fn_to_restore;
                                 }
 
-                                //If backup/restore type of a sub-area ia  folder, then build the full path to where the file will be restored
-                                if ($restore_type == "dir") {
-                                    $restore_location .= "/" . $fn_to_restore;
+                                //if restore sub-area is LED panels, we need write the matrix size / layout setting to the settings file in case it's different to the backup
+                                if (strtolower($restore_areas_idx) == "led_panels") {
+                                    $panel_layout = null;
+                                    if (!empty($restore_area_system_settings)) {
+                                        $panel_layout = $restore_area_system_settings[0]['LEDPanelsLayout'];
+                                        if ($panel_layout != null) {
+                                            //LEDPanelsLayout = "4x4"
+                                            WriteSettingToFile('LEDPanelsLayout', $panel_layout);
+                                        }
+                                    }
                                 }
 
                                 //If we have data then write to where it needs to go
@@ -654,7 +686,8 @@ function process_restore_data($restore_area, $restore_area_data)
         //search through the files that should of been backed up
         //and then loop over the restore data and match up the data and restore it
         foreach ($restore_areas as $restore_areas_idx => $restore_areas_data) {
-
+            $save_result = false;
+            $restore_data = array();
             //If $restore_area_sub_key is empty then no sub-area has been chosen -- restore as normal and restore all sub areas
             //Or if $restore_area_sub_key is equal to the $restore_areas_idx we're on, then restore just this area, because it matches user selection
             //and break the loop
@@ -663,9 +696,9 @@ function process_restore_data($restore_area, $restore_area_data)
                 if ($restore_areas_idx == "system_settings") {
                     if (is_array($restore_area_data)) {
                         //get data out of nested array
-                        $restore_area_data = $restore_area_data['system_settings'][0];
+                        $restore_data = $restore_area_data['system_settings'][0];
 
-                        foreach ($restore_area_data as $setting_name => $setting_value) {
+                        foreach ($restore_data as $setting_name => $setting_value) {
                             //check if we can change it (default value is checked - true)
                             if ($setting_name == "fppMode") {
                                 if ($keepMasterSlaveSettings == false) {
@@ -710,22 +743,28 @@ function process_restore_data($restore_area, $restore_area_data)
 
                         $save_result = true;
                     } else {
-                        error_log("RESTORE: Cannot read Settings INI settings. Attempted to parse " . json_encode($restore_area_data));
+                        error_log("RESTORE: Cannot read Settings INI settings. Attempted to parse " . json_encode($restore_data));
                     }
                 }
 
                 //EMAIL SETTING RESTORATION
                 if ($restore_areas_idx == "email") {
                     //get data out of nested array
-                    $restore_area_data = $restore_area_data['system_settings'][0];
+                    $restore_data = $restore_area_data['system_settings'][0];
 
                     //TODO rework this so it will work future email system implementation, were different providers are used
-                    if (is_array($restore_area_data)) {
-                        $emailenable = $restore_area_data['emailenable'];
-                        $emailguser = $restore_area_data['emailguser'];
-                        $emailgpass = $restore_area_data['emailgpass'];
-                        $emailfromtext = $restore_area_data['emailfromtext'];
-                        $emailtoemail = $restore_area_data['emailtoemail'];
+                    if (is_array($restore_data)
+                        && array_key_exists('emailenable', $restore_data)
+                        && array_key_exists('emailguser', $restore_data)
+                        && array_key_exists('emailgpass', $restore_data)
+                        && array_key_exists('emailfromtext', $restore_data)
+                        && array_key_exists('emailtoemail', $restore_data)
+                    ) {
+                        $emailenable = $restore_data['emailenable'];
+                        $emailguser = $restore_data['emailguser'];
+                        $emailgpass = $restore_data['emailgpass'];
+                        $emailfromtext = $restore_data['emailfromtext'];
+                        $emailtoemail = $restore_data['emailtoemail'];
 
                         //Write them out
                         WriteSettingToFile('emailenable', $emailenable);
@@ -749,11 +788,16 @@ function process_restore_data($restore_area, $restore_area_data)
                 //TIMEZONE RESTORATION
                 if ($restore_areas_idx == "timezone") {
                     //get data out of nested array
-                    $restore_area_data = $restore_area_data['timezone'][0];
-                    $data = $restore_area_data[0];//first index has the timezone, index 1 is empty to due carriage return in file when its backed up
-                    SetTimezone($data);
+                    $restore_data = $restore_area_data['timezone'][0];
 
-                    $save_result = true;
+                    //Make sure we have an array, there will be 2 indexes, 0 the timezone and 1 a linebreak
+                    if (is_array($restore_data)) {
+                        $data = $restore_data[0];//first index has the timezone, index 1 is empty to due carriage return in file when its backed up
+                        if (!empty($data)) {
+                            SetTimezone($data);
+                            $save_result = true;
+                        }
+                    }
                 }
 
                 $settings_restored[$restore_area_key][$restore_areas_idx] = $save_result;
