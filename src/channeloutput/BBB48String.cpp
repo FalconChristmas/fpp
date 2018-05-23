@@ -85,7 +85,8 @@ BBB48StringOutput::BBB48StringOutput(unsigned int startChannel,
     m_curData(NULL),
     m_curFrame(0),
     m_pru(NULL),
-    m_pruData(NULL)
+    m_pruData(NULL),
+    m_stallCount(0)
 {
     LogDebug(VB_CHANNELOUT, "BBB48StringOutput::BBB48StringOutput(%u, %u)\n",
             startChannel, channelCount);
@@ -274,6 +275,8 @@ int BBB48StringOutput::Init(Json::Value config)
     std::string postf = "B";
     if (getBeagleBoneType() == PocketBeagle) {
         postf = "PB";
+    } else if (config["pinoutVersion"].asString() == "2.x") {
+        postf = "Bv2";
     }
     
     if (m_subType == "F4-B") {
@@ -386,7 +389,7 @@ void BBB48StringOutput::StopPRU(bool wait)
     if (wait) {
         std::this_thread::sleep_for(std::chrono::milliseconds(25));
     }
-    m_pru->stop();
+    m_pru->stop(!wait);
     delete m_pru;
     m_pru = NULL;
 }
@@ -454,16 +457,26 @@ int BBB48StringOutput::RawSendData(unsigned char *channelData)
     LogExcess(VB_CHANNELOUT, "BBB48StringOutput::RawSendData(%p)\n",
               channelData);
 
-    // Wait for the previous draw to finish
-    std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<float, std::milli> duration = std::chrono::high_resolution_clock::now() - t1;
-    while (m_pruData->command && duration.count() < 20) {
-        pthread_yield();
-        duration = std::chrono::high_resolution_clock::now() - t1;
-    }
     if (m_pruData->command) {
-        StopPRU(false);
-        StartPRU();
+        // Wait for the previous draw to finish
+        std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<float, std::milli> duration = std::chrono::high_resolution_clock::now() - t1;
+        while (m_pruData->command && duration.count() < 22) {
+            pthread_yield();
+            duration = std::chrono::high_resolution_clock::now() - t1;
+        }
+        if (m_pruData->command) {
+            m_stallCount++;
+            return m_channelCount;
+        }
+        if (m_stallCount == 10) {
+            LogWarn(VB_CHANNELOUT, "BBB Pru Stalled, restarting PRU\n");
+            StopPRU(false);
+            StartPRU();
+            m_stallCount = 0;
+        }
+    } else {
+        m_stallCount = 0;
     }
 
     unsigned frame = 0;
@@ -479,8 +492,7 @@ int BBB48StringOutput::RawSendData(unsigned char *channelData)
         }
         
         //first 7.5K to main PRU ram
-        uint8_t * const pruMem = (uint8_t *)m_pru->data_ram;
-        memcpy(pruMem + 512, m_curData, mx);
+        memcpy(m_pru->data_ram + 512, m_curData, mx);
         fullsize -= 7628;
         if (fullsize > 0) {
             int outsize = fullsize;
@@ -506,10 +518,8 @@ int BBB48StringOutput::RawSendData(unsigned char *channelData)
             uint8_t * const realout = (uint8_t *)m_pru->ddr + m_frameSize * frame + off;
             memcpy(realout, m_curData + off, m_frameSize - off);
         }
-
-        uint8_t *tmp = m_lastData;
-        m_lastData = m_curData;
-        m_curData = tmp;
+        
+        std::swap(m_lastData, m_curData);
     }
     
     // Map
