@@ -49,8 +49,8 @@
 #define EXP_3_pin	5
 #define EXP_4_gpio	2
 #define EXP_4_pin	4
-#define EXP_5_gpio	0
-#define EXP_5_pin	8
+#define EXP_5_gpio	2
+#define EXP_5_pin	17
 #define EXP_6_gpio	2
 #define EXP_6_pin	16
 #define EXP_7_gpio	2
@@ -72,7 +72,7 @@
 #define EXP_15_gpio	1
 #define EXP_15_pin	12
 #define EXP_16_gpio	1
-#define EXP_16_pin	14
+#define EXP_16_pin	15
 
 
 #ifdef PORTA
