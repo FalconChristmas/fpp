@@ -57,6 +57,8 @@
 #include "F4B.hp"
 #elif defined F8B
 #include "F8B.hp"
+#elif defined F8Bv2
+#include "F8Bv2.hp"
 #elif defined F8PB
 #include "F8PB.hp"
 #elif defined RGBCape48C
@@ -253,7 +255,7 @@ skip:
             SET bit_flags.t2
         QBA     DATALOADED
     USESHAREDRAM:
-        MOV     r9, 0x0001000
+        MOV     r9, 0x00010000
         LBBO    r10, r9, sram_offset, OUTPUTS
         ADD     sram_offset, sram_offset, OUTPUTS
         MOV     r8, 12188
