@@ -401,7 +401,7 @@ void Scheduler::PlayListLoadCheck(void)
     }
 
     if (m_currentSchedulePlaylist.startWeeklySeconds && displayDiff)
-      LogInfo(VB_SCHEDULE, "NowSecs = %d, CurrStartSecs = %d (%d seconds away)\n",
+      LogDebug(VB_SCHEDULE, "NowSecs = %d, CurrStartSecs = %d (%d seconds away)\n",
         nowWeeklySeconds,m_currentSchedulePlaylist.startWeeklySeconds, displayDiff);
 
     if(nowWeeklySeconds == m_currentSchedulePlaylist.startWeeklySeconds)
@@ -416,7 +416,7 @@ void Scheduler::PlayListLoadCheck(void)
         m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].endSecond,
         m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playList,
         m_currentSchedulePlaylist.endWeeklySeconds - m_currentSchedulePlaylist.startWeeklySeconds);
-      LogInfo(VB_SCHEDULE, "NowSecs = %d, CurrStartSecs = %d, CurrEndSecs = %d (%d seconds away)\n",
+      LogDebug(VB_SCHEDULE, "NowSecs = %d, CurrStartSecs = %d, CurrEndSecs = %d (%d seconds away)\n",
         nowWeeklySeconds, m_currentSchedulePlaylist.startWeeklySeconds, m_currentSchedulePlaylist.endWeeklySeconds, displayDiff);
 
       playlist->Play(m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playList,
@@ -451,7 +451,7 @@ void Scheduler::PlayListStopCheck(void)
     }
 
     if (displayDiff)
-      LogInfo(VB_SCHEDULE, "NowSecs = %d, CurrEndSecs = %d (%d seconds away)\n",
+      LogDebug(VB_SCHEDULE, "NowSecs = %d, CurrEndSecs = %d (%d seconds away)\n",
         nowWeeklySeconds, m_currentSchedulePlaylist.endWeeklySeconds, displayDiff);
 
     // This check for 1 second ago is a hack rather than a more invasive

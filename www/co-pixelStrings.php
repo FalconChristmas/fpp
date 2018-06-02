@@ -349,6 +349,7 @@ function getPixelStringOutputJSON()
 
 		output.type = MapPixelStringType($this.attr('type'));
         output.subType = MapPixelStringSubType($this.attr('type'));
+        output.pinoutVersion = MapPixelStringSubTypeVersion($this.attr('type'));
 		output.enabled = ($('#' + enableId).is(':checked')) ? 1 : 0;
 		output.startChannel = 1;
 		output.channelCount = -1;

@@ -94,8 +94,10 @@ int BBBPru::run(const std::string &program) {
     char * program_unconst = (char*)(uintptr_t) program.c_str();
     return prussdrv_exec_program(pru_num, program_unconst);
 }
-void BBBPru::stop() {
-    prussdrv_pru_wait_event(pru_num);
+void BBBPru::stop(bool force) {
+    if (!force) {
+        prussdrv_pru_wait_event(pru_num);
+    }
     prussdrv_pru_clear_event(PRU_EVTOUT0,
                              pru_num == 0 ? PRU0_ARM_INTERRUPT : PRU1_ARM_INTERRUPT);
     prussdrv_pru_disable(pru_num);

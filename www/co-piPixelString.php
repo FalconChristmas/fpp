@@ -5,6 +5,9 @@ function MapPixelStringType(type) {
 function MapPixelStringSubType(type) {
     return "";
 }
+function MapPixelStringSubTypeVersion(version) {
+    return 1;
+}
 </script>
 
 <?

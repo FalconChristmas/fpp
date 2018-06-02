@@ -72,6 +72,9 @@ extern "C"
 #define DEFAULT_NUM_SAMPLES 1024
 #define DEFAULT_RATE 44100
 
+
+static bool AudioHasStalled = false;
+
 class AudioBuffer {
 public:
     AudioBuffer() {
@@ -272,9 +275,11 @@ public:
         
         if (doneRead || bufferCount > 30 || videoFrameCount > VIDEO_FRAME_MAX) {
             //buffers are full, don't so anything
+            if (AudioHasStalled) LogWarn(VB_MEDIAOUT, "Stalled audio, buffers are full.  %d\n", doneRead);
             return doneRead;
         }
-        
+        if (AudioHasStalled) LogWarn(VB_MEDIAOUT, "Stalled audio, buffers still filling.  %X\n", fillBuffer);
+
         if (fillBuffer == nullptr) {
             fillBuffer = new AudioBuffer();
         }
@@ -487,9 +492,11 @@ static SDL sdlManager;
 
 
 void fill_audio(void *udata, Uint8 *stream, int len) {
+
     if (sdlManager.data != nullptr) {
         AudioBuffer *buf = sdlManager.data->curBuffer;
         if (buf == nullptr) {
+            if (AudioHasStalled) LogWarn(VB_MEDIAOUT, "Stalled, but no buffer  %d\n", sdlManager.data->doneRead);
             SDL_memset(stream, 0, len);
             return;
         }
@@ -509,6 +516,7 @@ void fill_audio(void *udata, Uint8 *stream, int len) {
                 sdlManager.data->curBuffer = buf;
                 SDL_memset(&stream[sp], 0, len);
                 if (buf == nullptr) {
+                    if (AudioHasStalled) LogWarn(VB_MEDIAOUT, "Stalled, but last buffer hit\n");
                     sdlManager.data->lastBuffer = nullptr;
                     return;
                 }
@@ -776,7 +784,21 @@ SDLOutput::SDLOutput(const std::string &mediaFilename,
     data->maybeFillBuffer(true);
     data->stopped = 0;
 
-    pthread_create(&data->fillThread, nullptr, BufferFillThread, (void *)data);
+    pthread_attr_t attr;
+    int s = pthread_attr_init(&attr);
+    if (s != 0)
+        LogWarn(VB_MEDIAOUT, "pthread_attr_init: %d\n", s);
+    s = pthread_attr_setstacksize(&attr, 2*1024*1024); //2MB
+    if (s != 0)
+        LogWarn(VB_MEDIAOUT, "pthread_attr_setstacksize: %d\n", s);
+    s = pthread_create(&data->fillThread, &attr, BufferFillThread, (void *)data);
+    if (s) {
+        data->fillThread = -1;
+        LogWarn(VB_MEDIAOUT, "Decode thread not started   %X\n", s);
+    } else {
+        pthread_setname_np(data->fillThread, "Decode Thread");
+    }
+    pthread_attr_destroy(&attr);
 }
 
 /*
@@ -796,7 +818,7 @@ SDLOutput::~SDLOutput()
  */
 int SDLOutput::Start(void)
 {
-	LogDebug(VB_MEDIAOUT, "SDLOutput::Start() %d\n", data == nullptr);
+	LogDebug(VB_MEDIAOUT, "SDLOutput::Start() %X\n", data);
     if (data) {
         SetChannelOutputFrameNumber(0);
         if (!sdlManager.Start(data)) {
@@ -814,6 +836,9 @@ int SDLOutput::Start(void)
 /*
  *
  */
+static int ProcessCount = 0;
+static float lastCurTime = 0;
+
 int SDLOutput::Process(void)
 {
     if (!data) {
@@ -824,6 +849,12 @@ int SDLOutput::Process(void)
     if (data->stopped) {
         //read thread is done, we need to do any frame cleanups
         data->removeUsedBuffers();
+        
+        if (data->fillThread) {
+            //need to "join" the thread to release resources
+            pthread_join(data->fillThread, NULL);
+            data->fillThread = 0;
+        }
     }
 
     if (data->audio_stream_idx != -1) {
@@ -835,6 +866,20 @@ int SDLOutput::Process(void)
             //tell so we'll use the average
             curtime -= ((DEFAULT_NUM_SAMPLES * 2 * 2)/ 2);
         }
+        
+        if (lastCurTime == curtime) {
+            ProcessCount++;
+            if (ProcessCount >= 50) {
+                LogWarn(VB_MEDIAOUT, "Audio has stalled   %d\n", data->doneRead);
+                AudioHasStalled = true;
+                ProcessCount = 0;
+            }
+        } else {
+            AudioHasStalled = false;
+            ProcessCount = 0;
+        }
+        lastCurTime = curtime;
+        
         curtime /= DEFAULT_RATE; //samples per sec
         curtime /= 4; //4 bytes per sample
         
@@ -926,16 +971,16 @@ int SDLOutput::Stop(void)
         FillPixelOverlayModel(data->videoOverlayModel, 0, 0, 0);
         SetPixelOverlayState(data->videoOverlayModel, "Disabled");
     }
-    if (data && !data->stopped) {
+    if (data) {
         data->stopped++;
         timespec tv;
         time(&tv.tv_sec);
         
-        tv.tv_sec += 5;
+        tv.tv_sec += 15;
         tv.tv_nsec = 0;
-        //wait up to 5 seconds
-        if (pthread_timedjoin_np( data->fillThread, NULL, &tv) == ETIMEDOUT) {
-            printf("joining didn't work\n");
+        //wait up to 15 seconds
+        if (pthread_timedjoin_np(data->fillThread, NULL, &tv) == ETIMEDOUT) {
+            LogWarn(VB_MEDIAOUT, "Joining thread didn't work\n");
             //cancel the thread, nothing we can do now
             pthread_cancel(data->fillThread);
             sdlManager.blacklisted.insert(m_mediaFilename);
