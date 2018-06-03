@@ -594,7 +594,7 @@ function DeletePlaylist() {
 				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
 				{
 					var xmlDoc=xmlhttp.responseXML;
-                    status_xml = xmlDoc.getElementsByTagName("Status")[0];
+                    status_xml = xmlDoc.getElementsByTagName("Status")[0].textContent;
 
                     if (status_xml === "Failure" || status_xml !== "Success"){
                         //fail
