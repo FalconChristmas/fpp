@@ -2109,8 +2109,25 @@ function DeletePlaylist()
 	$name = $_GET['name'];
 	check($name, "name", __FUNCTION__);
 
-	unlink($playlistDirectory . '/' . $name);
-	EchoStatusXML('Success');
+    //Check if the file exists, old playlists don't have extensions
+    $playlist_exists = file_exists($playlistDirectory . '/' . $name);
+
+    if($playlist_exists){
+        //then just delete the file
+        $delete_status = unlink($playlistDirectory . '/' . $name);
+    }	else{
+        //if it doesn't exist, then add .json to the filename
+        //All Playlists in FPP v2 are json files
+        $name = $name . '.json';
+        //
+        $delete_status = unlink($playlistDirectory . '/' . $name);
+    }
+
+    if($delete_status == true){
+        EchoStatusXML('Success');
+    }else{
+        EchoStatusXML('Failure');
+    }
 }
 
 function DeleteEntry()
