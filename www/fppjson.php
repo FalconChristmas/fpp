@@ -1609,7 +1609,9 @@ function SaveScript()
 
 		if (file_exists($filename))
 		{
-			if (@file_put_contents($filename, $content))
+            $script_writable = is_writable($filename);
+            $script_save_result = @file_put_contents($filename, $content);
+			if ($script_save_result !== FALSE)
 			{
 				$result['saveStatus'] = "OK";
 				$result['scriptName'] = $data['scriptName'];
@@ -1618,12 +1620,15 @@ function SaveScript()
 			else
 			{
 				$result['saveStatus'] = "Error updating file";
-			}
+                error_log("SaveScript: Error updating file - " . $data['scriptName'] . " ($filename) " . " -> Error: " . $script_save_result);
+                error_log("SaveScript: Error updating file - " . $data['scriptName'] . " ($filename) " . " -> isWritable: " . $script_writable);
+            }
 		}
 		else
 		{
 			$result['saveStatus'] = "Error, file does not exist";
-		}
+            error_log("SaveScript: Error, file does not exist - " . $data['scriptName'] . " -> " . $filename);
+        }
 	}
 	else
 	{
