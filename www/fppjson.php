@@ -1609,9 +1609,6 @@ function SaveScript()
 
 		if (file_exists($filename))
 		{
-            $script_writable = is_writable($filename);
-            $script_directory_writable = is_writable($settings['scriptDirectory']);
-
             //error output is silenced by @, function returns false on failure, it doesn't return true
             $script_save_result = @file_put_contents($filename, $content);
             //check result is not a error
@@ -1623,6 +1620,9 @@ function SaveScript()
 			}
 			else
 			{
+                $script_writable = is_writable($filename);
+                $script_directory_writable = is_writable($settings['scriptDirectory']);
+
 				$result['saveStatus'] = "Error updating file";
                 error_log("SaveScript: Error updating file - " . $data['scriptName'] . " ($filename) ");
                 error_log("SaveScript: Error updating file - " . $data['scriptName'] . " ($filename) " . " -> isWritable: " . $script_writable);
