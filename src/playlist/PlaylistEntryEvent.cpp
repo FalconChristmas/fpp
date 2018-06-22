@@ -1,7 +1,7 @@
 /*
  *   Playlist Entry Event Class for Falcon Player (FPP)
  *
- *   Copyright (C) 2016 the Falcon Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -9,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -32,8 +32,9 @@
 /*
  *
  */
-PlaylistEntryEvent::PlaylistEntryEvent()
-  : m_majorID(0),
+PlaylistEntryEvent::PlaylistEntryEvent(PlaylistEntryBase *parent)
+  : PlaylistEntryBase(parent),
+	m_majorID(0),
 	m_minorID(0),
 	m_blocking(0)
 {
@@ -99,6 +100,7 @@ int PlaylistEntryEvent::Process(void)
 	// FIXME PLAYLIST, blocking is not supported yet
 //	if (!m_blocking)
 //	{
+LogDebug(VB_PLAYLIST, "Process()\n");
 		FinishPlay();
 		return PlaylistEntryBase::Process();
 //	}

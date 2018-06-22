@@ -2,6 +2,12 @@
 
 BINDIR=$(cd $(dirname $0) && pwd)
 
+# See if we should be running from /home/fpp/fpp
+if [ "x${BINDIR}" == "x/opt/fpp/scripts" -a -f "/home/fpp/fpp/scripts/fpp_boot" ]
+then
+    exec /home/fpp/fpp/scripts/fpp_boot
+fi
+
 . ${BINDIR}/common
 . ${BINDIR}/functions
 
@@ -14,6 +20,7 @@ fi
 
 if [ ! -f "${MEDIADIR}/.auto_update_disabled" ]
 then
+    WaitForInterfacesUp
 	${SCRIPTDIR}/git_pull
 fi
 
@@ -24,6 +31,11 @@ ${SCRIPTDIR}/upgrade_config
 ${SCRIPTDIR}/timezone_sync
 
 remountRootReadOnlyIfNeeded
+
+if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
+then
+	configureGPIOPins
+fi
 
 ${SUDO} ${SCRIPTDIR}/fppd_start
 

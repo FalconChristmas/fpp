@@ -23,6 +23,7 @@ require_once('config.php');
           $(this).addClass('selectedentry');
           SequenceNameSelected  = $(this).find('td:first').text();
 		  SetButtonState('#btnDownloadSequence','enable');
+		  SetButtonState('#btnRenameSequence','enable');
 		  SetButtonState('#btnDeleteSequence','enable');
     });
 
@@ -32,6 +33,7 @@ require_once('config.php');
           SongNameSelected  = $(this).find('td:first').text();
 		  SetButtonState('#btnPlayMusicInBrowser','enable');
 		  SetButtonState('#btnDownloadMusic','enable');
+		  SetButtonState('#btnRenameMusic','enable');
 		  SetButtonState('#btnDeleteMusic','enable');
     });
 
@@ -43,6 +45,7 @@ require_once('config.php');
 		  //SetButtonState('#btnPlayVideoInBrowser','enable');
 		  SetButtonState('#btnVideoInfo','enable');
 		  SetButtonState('#btnDownloadVideo','enable');
+		  SetButtonState('#btnRenameVideo','enable');
 		  SetButtonState('#btnDeleteVideo','enable');
     });
 
@@ -52,6 +55,7 @@ require_once('config.php');
           EffectNameSelected  = $(this).find('td:first').text();
 		  SetButtonState('#btnSequenceConvertUpload','disable');
 		  SetButtonState('#btnDownloadEffect','enable');
+		  SetButtonState('#btnRenameEffect','enable');
 		  SetButtonState('#btnDeleteEffect','enable');
     });
 
@@ -64,6 +68,8 @@ require_once('config.php');
 		  SetButtonState('#btnEditScript','enable');
 		  SetButtonState('#btnRunScript','enable');
 		  SetButtonState('#btnDownloadScript','enable');
+		  SetButtonState('#btnCopyScript','enable');
+		  SetButtonState('#btnRenameScript','enable');
 		  SetButtonState('#btnDeleteScript','enable');
     });
 
@@ -217,6 +223,7 @@ h2 {
           <hr />
           <div class='right'>
             <input onclick= "DownloadFile('Sequences', SequenceNameSelected);" id="btnDownloadSequence" class="disableButtons" type="button"  value="Download" />
+            <input onclick= "RenameFile('Sequences', ScriptNameSelected);" id="btnRenameSequence" class="disableButtons" type="button"  value="Rename" />
             <input onclick="DeleteFile('Sequences', SequenceNameSelected);" id="btnDeleteSequence" class="disableButtons" type="button"  value="Delete" />
           </div>
           <br />
@@ -228,7 +235,7 @@ h2 {
     <div id="tab-audio">
       <div id= "divMusic">
         <fieldset  class="fs">
-          <legend> Music Files (.mp3/.ogg) </legend>
+          <legend> Music Files (.mp3/.ogg/.m4a) </legend>
           <div id="divMusicData">
             <table id="tblMusic">
             </table>
@@ -237,10 +244,11 @@ h2 {
           <div class='right'>
             <input onclick= "PlayFileInBrowser('Music', SongNameSelected);" id="btnPlayMusicInBrowser" class="disableButtons" type="button"  value="Listen" />
             <input onclick= "DownloadFile('Music', SongNameSelected);" id="btnDownloadMusic" class="disableButtons" type="button"  value="Download" />
+            <input onclick= "RenameFile('Music', ScriptNameSelected);" id="btnRenameMusic" class="disableButtons" type="button"  value="Rename" />
             <input onclick= "DeleteFile('Music', SongNameSelected);" id="btnDeleteMusic" class="disableButtons" type="button"  value="Delete" />
           </div>
           <br />
-          <font size=-1>Audio files must be in MP3 or OGG format.</font>
+          <font size=-1>Audio files must be in MP3, OGG, or M4A format.</font>
         </fieldset>
       </div>
     </div>
@@ -260,6 +268,7 @@ h2 {
             -->
             <input onclick= "GetVideoInfo(VideoNameSelected);" id="btnVideoInfo" class="disableButtons" type="button"  value="Video Info" />
             <input onclick= "DownloadFile('Videos', VideoNameSelected);" id="btnDownloadVideo" class="disableButtons" type="button"  value="Download" />
+            <input onclick= "RenameFile('Videos', ScriptNameSelected);" id="btnRenameVideo" class="disableButtons" type="button"  value="Rename" />
             <input onclick= "DeleteFile('Videos', VideoNameSelected);" id="btnDeleteVideo" class="disableButtons" type="button"  value="Delete" />
           </div>
           <br />
@@ -279,6 +288,7 @@ h2 {
           <hr />
           <div class='right'>
             <input onclick= "DownloadFile('Effects', EffectNameSelected);" id="btnDownloadEffect" class="disableButtons" type="button"  value="Download" />
+            <input onclick= "RenameFile('Effects', ScriptNameSelected);" id="btnRenameEffect" class="disableButtons" type="button"  value="Rename" />
             <input onclick= "DeleteFile('Effects', EffectNameSelected);" id="btnDeleteEffect" class="disableButtons" type="button"  value="Delete" />
           </div>
           <br />
@@ -301,6 +311,8 @@ h2 {
             <input onclick= "RunScript(ScriptNameSelected);" id="btnRunScript" class="disableButtons" type="button"  value="Run" />
             <input onclick= "EditScript(ScriptNameSelected);" id="btnEditScript" class="disableButtons" type="button"  value="Edit" />
             <input onclick= "DownloadFile('Scripts', ScriptNameSelected);" id="btnDownloadScript" class="disableButtons" type="button"  value="Download" />
+            <input onclick= "CopyFile('Scripts', ScriptNameSelected);" id="btnCopyScript" class="disableButtons" type="button"  value="Copy" />
+            <input onclick= "RenameFile('Scripts', ScriptNameSelected);" id="btnRenameScript" class="disableButtons" type="button"  value="Rename" />
             <input onclick= "DeleteFile('Scripts', ScriptNameSelected);" id="btnDeleteScript" class="disableButtons" type="button"  value="Delete" />
           </div>
           <br />

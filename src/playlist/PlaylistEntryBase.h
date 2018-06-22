@@ -1,7 +1,7 @@
 /*
  *   Playlist Entry Base Class for Falcon Player (FPP)
  *
- *   Copyright (C) 2016 the Falcon Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -9,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -34,7 +34,7 @@
 
 class PlaylistEntryBase {
   public:
-  	PlaylistEntryBase();
+	PlaylistEntryBase(PlaylistEntryBase *parent = NULL);
 	~PlaylistEntryBase();
 
 	virtual int  Init(Json::Value &config);
@@ -58,12 +58,16 @@ class PlaylistEntryBase {
 	int          GetPlaylistEntryID(void) { return m_playlistEntryID; }
 
 	std::string  GetType(void) { return m_type; }
+	std::string  GetNextSection(void) { return m_nextSection; }
+	int          GetNextItem(void) { return m_nextItem; }
+
+	static int   m_playlistEntryCount;
 
   protected:
 	int          CanPlay(void);
 	void         FinishPlay(void);
 
-  	std::string  m_type;
+	std::string  m_type;
 	std::string  m_note;
 	int          m_enabled;
 	int          m_isStarted;
@@ -71,10 +75,12 @@ class PlaylistEntryBase {
 	int          m_isFinished;
 	int          m_playOnce;
 	int          m_playCount;
+	std::string  m_nextSection;
+	int          m_nextItem;
 
 	int          m_playlistEntryID;
-	static int   m_playlistEntryCount;
 
+	PlaylistEntryBase *m_parent;
 };
 
 #endif

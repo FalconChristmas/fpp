@@ -1,7 +1,7 @@
 /*
- *   ArtNet output handler for Falcon Pi Player (FPP)
+ *   ArtNet output handler for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Pi Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -9,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -26,8 +26,32 @@
 #ifndef _ARTNET_H
 #define _ARTNET_H
 
-#include "channeloutput.h"
+#include <sys/uio.h>
+#include <netinet/in.h>
 
-extern FPPChannelOutput ArtNetOutput;
+#include "UDPOutput.h"
+
+#define ARTNET_HEADER_LENGTH         18
+
+class ArtNetOutputData : public UDPOutputData {
+public:
+    ArtNetOutputData(const Json::Value &config);
+    virtual ~ArtNetOutputData();
+    
+    virtual bool IsPingable();
+    virtual void PrepareData(unsigned char *channelData);
+    virtual void CreateMessages(std::vector<struct mmsghdr> &ipMsgs);
+    virtual void CreateBroadcastMessages(std::vector<struct mmsghdr> &bMsgs);
+    virtual void AddPostDataMessages(std::vector<struct mmsghdr> &bMsgs);
+    virtual void DumpConfig();
+    
+    int           universe;
+    int           priority;
+    char          sequenceNumber;
+    
+    sockaddr_in   anAddress;
+    struct iovec  anIovecs[2];
+    unsigned char anBuffer[ARTNET_HEADER_LENGTH];
+};
 
 #endif /* _ARTNET_H */

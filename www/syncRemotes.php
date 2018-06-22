@@ -11,14 +11,54 @@ $dirs = Array(
 	);
 
 $remotes = Array();
-if ( isset($_GET['MultiSyncRemotes']) && !empty($_GET['MultiSyncRemotes'])) {
+if (!isset($settings['fppMode']) || ($settings['fppMode'] != 'master')) {
+	echo "ERROR: Only Master FPP instances can sync to Remotes.\n";
+	exit(0);
+} else if ( isset($_GET['MultiSyncRemotes']) && !empty($_GET['MultiSyncRemotes'])) {
 	$remotes = preg_split('/,/', $_GET['MultiSyncRemotes']);
 } else if ( isset($settings['MultiSyncRemotes']) && !empty($settings['MultiSyncRemotes'])) {
 	if ( $settings['MultiSyncRemotes'] != "255.255.255.255" ) {
 		$remotes = preg_split('/,/', $settings['MultiSyncRemotes']);
 	} else {
-		echo "Sync Remotes does not currently work with the 'ALL Remotes' option.\n";
-		exit(0);
+		exec("ip addr show up | grep 'inet ' | awk '{print $2}' | cut -f1 -d/ | grep -v '^127'", $localIPs);
+
+		exec("avahi-browse -artp | grep -v 'IPv6' | sort", $rmtSysOut);
+
+		$uniqRemotes = Array();
+		$remotes = Array();
+
+		foreach ($rmtSysOut as $system)
+		{
+			if (!preg_match("/^=.*fpp-fppd/", $system))
+				continue;
+			if (!preg_match("/fppMode/", $system))
+				continue;
+
+			$parts = explode(';', $system);
+
+			$matches = preg_grep("/" . $parts[7] . "/", $localIPs);
+			if ((!count($matches)) && (count($parts) > 8))
+			{
+				$mode = "unknown";
+
+				$txtParts = explode(',', preg_replace("/\"/", "", $parts[9]));
+
+				foreach ($txtParts as $txtPart)
+				{
+					$kvPair = explode('=', $txtPart);
+					if ($kvPair[0] == "fppMode")
+						$mode = $kvPair[1];
+				}
+
+				if ($mode == "remote")
+					$uniqRemotes[$parts[7]] = 1;
+			}
+		}
+
+		foreach ($uniqRemotes as $ip => $v)
+		{
+			array_push($remotes, $ip);
+		}
 	}
 } else {
 	echo "No remotes configured and no list supplied.\n";
@@ -49,7 +89,7 @@ foreach ( $remotes as $remote ) {
 			$compress = "-z";
 		}
 
-		$command = "rsync -av $compress --stats $fppHome/media/$dir/ $remote::media/$dir/ 2>&1";
+		$command = "rsync -av --modify-window=1 $compress --stats $fppHome/media/$dir/ $remote::media/$dir/ 2>&1";
 
 		echo "Command: $command\n";
 		echo "----------------------------------------------------------------------------------\n";

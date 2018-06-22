@@ -3,10 +3,7 @@
 $SUDO = "sudo";
 $debug = false;
 $fppRfsVersion = "Unknown";
-$fppHome = "/home/pi";
-
-if (file_exists("/home/fpp"))
-	$fppHome = "/home/fpp";
+$fppHome = "/home/fpp";
 
 $settingsFile = $fppHome . "/media/settings";
 
@@ -54,9 +51,9 @@ $universeFile      = $mediaDirectory . "/universes";
 $pixelnetFile      = $mediaDirectory . "/pixelnetDMX";
 $scheduleFile      = $mediaDirectory . "/schedule";
 $bytesFile         = $mediaDirectory . "/bytesReceived";
-$remapFile         = $mediaDirectory . "/channelremap";
+$outputProcessorsFile = $mediaDirectory . "/config/outputprocessors.json";
 $exim4Directory    = $mediaDirectory . "/exim4";
-$timezoneFile      = $mediaDirectory. "/timezone";
+$timezoneFile      = $mediaDirectory . "/timezone";
 $volume            = 0;
 $emailenable       = "0";
 $emailguser		   = "";
@@ -84,7 +81,7 @@ if ($debug)
 	error_log("universe: $universeFile");
 	error_log("pixelnet: $pixelnetFile");
 	error_log("schedule: $scheduleFile");
-	error_log("remaps: $remapFile");
+	error_log("outputProcessors: $outputProcessorsFile");
 	error_log("bytes: $bytesFile");
 	error_log("volume: $volume");
 	error_log("emailenable: $emailenable");
@@ -112,64 +109,100 @@ if ($settings['Platform'] == "Raspberry Pi")
 	$revision = $output[0];
 	unset($output);
 
-	// The data for this table came from the following link:
-	// http://www.raspberrypi-spy.co.uk/2012/09/checking-your-raspberry-pi-board-version/
-	// It has been updated recently with the Pi V3 so it should be kept up to
-	// date for us to use moving forward.
-	switch ($revision)
-	{
-		case "0002": // 256MB
-		case "0003": // 256MB
-		case "0004": // 256MB
-		case "0005": // 256MB
-		case "0006": // 256MB
-		case "000d": // 512MB
-		case "000e": // 512MB
-		case "000f": // 512MB
-			$settings['Variant'] = "Model B";
-			$settings['Logo'] = "Raspberry_Pi_B.png";
-			break;
-		case "0007": // 256MB
-		case "0008": // 256MB
-		case "0009": // 256MB
-			$settings['Variant'] = "Model A";
-			$settings['Logo'] = "Raspberry_Pi_A.png";
-			break;
-		case "0010": // 512MB
-			$settings['Variant'] = "Model B+";
-			$settings['Logo'] = "Raspberry_Pi_B+.png";
-			break;
-		case "0012": // 256MB
-			$settings['Variant'] = "Model A+";
-			$settings['Logo'] = "Raspberry_Pi_A+.png";
-			break;
-		case "a01041": // 1GB
-		case "a21041": // 1GB
-			$settings['Variant'] = "Pi 2 Model B";
-			$settings['Logo'] = "Raspberry_Pi_2.png";
-			break;
-		case "900092": // 512MB
-			$settings['Variant'] = "PiZero";
-			$settings['Logo'] = "Raspberry_Pi_Zero.png";
-			break;
-		case "a02082": // 1GB
-		case "a22082": // 1GB
-			$settings['Variant'] = "Pi 3 Model B";
-			$settings['Logo'] = "Raspberry_Pi_3.png";
-			break;
-		default:
-			$settings['Variant'] = "UNKNOWN";
-			$settings['Logo'] = "Raspberry_Pi_Logo.png";
-	}
-
 	$settings['LogoLink'] = "http://raspberrypi.org/";
+	$settings['SubPlatform'] = trim(file_get_contents("/sys/firmware/devicetree/base/model"));
 	$settings['fppBinDir'] = '/opt/fpp/bin.pi';
+
+	if (preg_match('/Pi Model A Rev/', $settings['SubPlatform']))
+	{
+		$settings['Variant'] = "Model A";
+		$settings['Logo'] = "Raspberry_Pi_A.png";
+	}
+	else if (preg_match('/Pi Model B Rev/', $settings['SubPlatform']))
+	{
+		$settings['Variant'] = "Model B";
+		$settings['Logo'] = "Raspberry_Pi_B.png";
+	}
+	else if (preg_match('/Pi Model A Plus/', $settings['SubPlatform']))
+	{
+		$settings['Variant'] = "Model A+";
+		$settings['Logo'] = "Raspberry_Pi_A+.png";
+	}
+	else if (preg_match('/Pi Model B Plus/', $settings['SubPlatform']))
+	{
+		$settings['Variant'] = "Model B+";
+		$settings['Logo'] = "Raspberry_Pi_B+.png";
+	}
+	else if (preg_match('/Pi 2 Model B/', $settings['SubPlatform']))
+	{
+		$settings['Variant'] = "Pi 2 Model B";
+		$settings['Logo'] = "Raspberry_Pi_2.png";
+	}
+	else if (preg_match('/Pi 3 Model B/', $settings['SubPlatform']))
+	{
+		$settings['Variant'] = "Pi 3 Model B";
+		$settings['Logo'] = "Raspberry_Pi_3.png";
+	}
+	else if (preg_match('/Pi Zero/', $settings['SubPlatform']))
+	{
+		$settings['Variant'] = "PiZero";
+		$settings['Logo'] = "Raspberry_Pi_Zero.png";
+	}
+	else if ($settings['SubPlatform'] == "V2P-CA15")
+	{
+		$settings['Variant'] = "qemu";
+		$settings['Logo'] = "QEMU_Logo.png";
+		$settings['LogoLink'] = "http://qemu.org/";
+	}
+	else
+	{
+		$settings['Variant'] = "UNKNOWN";
+		$settings['Logo'] = "Raspberry_Pi_Logo.png";
+	}
 }
 else if ($settings['Platform'] == "BeagleBone Black")
 {
-	$settings['Logo'] = "beagle_logo.png";
 	$settings['LogoLink'] = "http://beagleboard.org/";
 	$settings['fppBinDir'] = '/opt/fpp/bin.bbb';
+	$settings['BBB_Tethering'] = "1";
+	$settings['SubPlatform'] = trim(file_get_contents("/proc/device-tree/model"));
+    if (preg_match('/PocketBeagle/', $settings['SubPlatform']))
+    {
+        $settings['Variant'] = "PocketBeagle";
+        $settings['Logo'] = "beagle_pocket.png";
+    }
+    else if (preg_match('/Green Wireless/', $settings['SubPlatform']))
+    {
+        $settings['Variant'] = "BeagleBone Green Wireless";
+        $settings['Logo'] = "beagle_greenwifi.png";
+    }
+    else if (preg_match('/Green/', $settings['SubPlatform']))
+    {
+        $settings['Variant'] = "BeagleBone Green";
+        $settings['Logo'] = "beagle_green.png";
+    }
+    else if (preg_match('/Black Wireless/', $settings['SubPlatform']))
+    {
+        $settings['Variant'] = "BeagleBone Black Wireless";
+        $settings['Logo'] = "beagle_blackwifi.png";
+    }
+    else if (preg_match('/Black Wireless/', $settings['SubPlatform']))
+    {
+        $settings['Variant'] = "BeagleBone Black";
+        $settings['Logo'] = "beagle_black.png";
+    }
+    else if (preg_match('/SanCloud BeagleBone Enhanced/', $settings['SubPlatform']))
+    {
+        $settings['Variant'] = "SanCloud BeagleBone Enhanced";
+        $settings['Logo'] = "beagle_sancloud.png";
+    }
+    else
+    {
+        $settings['Variant'] = "UNKNOWN";
+        $settings['Logo'] = "beagle_logo.png";
+    }
+
+    
 }
 else if ($settings['Platform'] == "PogoPlug")
 {
@@ -201,6 +234,16 @@ else if ($settings['Platform'] == "Debian")
 	$settings['Logo'] = "debian_logo.png";
 	$settings['LogoLink'] = "https://www.debian.org/";
 }
+else if ($settings['Platform'] == "CHIP")
+{
+	$settings['Logo'] = "chip_logo.png";
+	$settings['LogoLink'] = "http://www.getchip.com/";
+}
+else if ($settings['Platform'] == "Debian")
+{
+	$settings['Logo'] = "debian_logo.png";
+	$settings['LogoLink'] = "https://www.debian.org/";
+}
 else if ($settings['Platform'] == "Linux")
 {
 	$settings['Logo'] = "tux_logo.png";
@@ -210,6 +253,11 @@ else if ($settings['Platform'] == "FreeBSD")
 {
 	$settings['Logo'] = "freebsd_logo.png";
 	$settings['LogoLink'] = "http://www.freebsd.org/";
+}
+else if ($settings['Platform'] == "qemu")
+{
+	$settings['Logo'] = "QEMU_Logo.png";
+	$settings['LogoLink'] = "http://qemu.org/";
 }
 else
 {
@@ -227,7 +275,7 @@ if ( $fd )
 		global $mediaDirectory, $musicDirectory, $sequenceDirectory, $playlistDirectory;
 		global $eventDirectory, $videoDirectory, $scriptDirectory, $logDirectory, $exim4Directory;
 		global $pluginDirectory, $emailenable, $emailguser, $emailgpass, $emailfromtext, $emailtoemail;
-		global $universeFile, $pixelnetFile, $scheduleFile, $bytesFile, $remapFile;
+		global $universeFile, $pixelnetFile, $scheduleFile, $bytesFile, $outputProcessorsFile;
 
 		// Parse the file, assuming it exists
 		$data = fgets($fd);
@@ -311,8 +359,8 @@ if ( $fd )
 			case "bytesFile":
 				$bytesFile = $value;
 				break;
-			case "remapFile":
-				$remapFile = $value;
+			case "outputProcessorsFile":
+				$outputProcessorsFile = $value;
 				break;
 			case "exim4Directory":
 				$exim4Directory = $value . "/";
@@ -342,19 +390,27 @@ if ($settings['HostName'] == "FPP")
 
 $settings['fppMode'] = $fppMode;
 $settings['fppDir'] = $fppDir;
+$settings['playlistDirectory'] = $playlistDirectory;
 $settings['pluginDirectory'] = $pluginDirectory;
 $settings['mediaDirectory'] = $mediaDirectory;
 $settings['configDirectory'] = $mediaDirectory . "/config";
 $settings['channelOutputsFile'] = $mediaDirectory . "/channeloutputs";
 $settings['channelOutputsJSON'] = $mediaDirectory . "/config/channeloutputs.json";
+$settings['co-other'] = $mediaDirectory . "/config/co-other.json";
+$settings['co-pixelStrings'] = $mediaDirectory . "/config/co-pixelStrings.json";
+$settings['co-bbbStrings'] = $mediaDirectory . "/config/co-bbbStrings.json";
+$settings['universeOutputs'] = $mediaDirectory . "/config/co-universes.json";
+$settings['universeInputs'] = $mediaDirectory . "/config/ci-universes.json";
 $settings['channelMemoryMapsFile'] = $mediaDirectory . "/channelmemorymaps";
 $settings['scriptDirectory'] = $scriptDirectory;
 $settings['sequenceDirectory'] = $sequenceDirectory;
 $settings['musicDirectory'] = $musicDirectory;
 $settings['videoDirectory'] = $videoDirectory;
 $settings['effectDirectory'] = $effectDirectory;
+$settings['eventDirectory'] = $eventDirectory;
 $settings['logDirectory'] = $logDirectory;
 $settings['uploadDirectory'] = $uploadDirectory;
+$settings['playlistDirectory'] = $playlistDirectory;
 $settings['pluginDirectory'] = $pluginDirectory;
 $settings['docsDirectory'] = $docsDirectory;
 $settings['fppRfsVersion'] = $fppRfsVersion;
@@ -363,6 +419,7 @@ $settings['emailenable'] = $emailenable;
 $settings['emailguser'] = $emailguser;
 $settings['emailfromtext'] = $emailfromtext;
 $settings['emailtoemail'] = $emailtoemail;
+$settings['outputProcessorsFile'] = $outputProcessorsFile;
 
 if (!isset($settings['restartFlag']))
 	$settings['restartFlag'] = 0;
@@ -395,7 +452,7 @@ if ($debug)
 	error_log("universe: $universeFile");
 	error_log("pixelnet: $pixelnetFile");
 	error_log("schedule: $scheduleFile");
-	error_log("remaps: $remapFile");
+	error_log("outputProcessors: $outputProcessorsFile");
 	error_log("bytes: $bytesFile");
 	error_log("volume: $volume");
 	error_log("emailenable: $emailenable");

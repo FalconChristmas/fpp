@@ -1,12 +1,7 @@
 /*
  *   DDP Channel Output driver for Falcon Player (FPP)
  *
- *   Copyright (C) 2017 the Falcon Player Developers
- *      Initial development by:
- *      - David Pitts (dpitts)
- *      - Tony Mace (MyKroFt)
- *      - Mathew Mrosko (Materdaddy)
- *      - Chris Pinkham (CaptainMurdoch)
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      For additional credits and developers, see credits.php.
  *
  *   The Falcon Player (FPP) is free software; you can redistribute it
@@ -26,19 +21,33 @@
 #ifndef _DDPOUTPUT_H
 #define _DDPOUTPUT_H
 
-#include "ChannelOutputBase.h"
+#include <list>
+#include "UDPOutput.h"
 
-class DDPOutput : public ChannelOutputBase {
-  public:
-	DDPOutput(unsigned int startChannel, unsigned int channelCount);
-	~DDPOutput();
+#define DDP_PORT 4048
 
-	int  Init(Json::Value config);
-	int  Close(void);
+#define DDP_PUSH_FLAG 0x01
+#define DDP_TIMECODE_FLAG 0x10
 
-	int  RawSendData(unsigned char *channelData);
 
-	void DumpConfig(void);
+class DDPOutputData : public UDPOutputData {
+public:
+    DDPOutputData(const Json::Value &config);
+    virtual ~DDPOutputData();
+    
+    virtual bool IsPingable() { return true; }
+    virtual void PrepareData(unsigned char *channelData);
+    virtual void CreateMessages(std::vector<struct mmsghdr> &ipMsgs);
+    virtual void DumpConfig();
+    
+    char          sequenceNumber;
+    
+    sockaddr_in   ddpAddress;
+    int           pktCount;
+    
+    struct iovec *ddpIovecs = nullptr;
+    unsigned char **ddpBuffers = nullptr;
 };
+
 
 #endif

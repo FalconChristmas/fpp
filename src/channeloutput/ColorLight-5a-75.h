@@ -1,7 +1,7 @@
 /*
  *   ColorLight 5a-75 Channel Output driver for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -36,7 +36,7 @@
 #include "Matrix.h"
 #include "PanelMatrix.h"
 
-#define CL5A75_BUFFER_SIZE  1024
+#define CL5A75_BUFFER_SIZE  1536
 
 class ColorLight5a75Output : public ChannelOutputBase {
   public:
@@ -72,7 +72,6 @@ class ColorLight5a75Output : public ChannelOutputBase {
 	char *m_data;
 	char *m_rowData;
 	int   m_rowSize;
-	int   m_pktSize;
 
 	struct ifreq          m_if_idx;
 	struct ifreq          m_if_mac;
@@ -89,6 +88,8 @@ class ColorLight5a75Output : public ChannelOutputBase {
 	char        *m_outputFrame;
 	Matrix      *m_matrix;
 	PanelMatrix *m_panelMatrix;
+    uint8_t      m_gammaCurve[256];
+
 };
 
 #endif

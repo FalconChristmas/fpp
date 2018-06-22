@@ -1,7 +1,7 @@
 /*
- *   E131 output handler for Falcon Pi Player (FPP)
+ *   E131 output handler for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Pi Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -9,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -26,35 +26,29 @@
 #ifndef _E131_H
 #define _E131_H
 
-#include "channeloutput.h"
+#include <sys/uio.h>
+#include <netinet/in.h>
 
-#define MAX_UNIVERSE_COUNT    512
-#define E131_HEADER_LENGTH    126
-#define MAX_STEPS_OUT_OF_SYNC 2
+#include "UDPOutput.h"
+#include "e131defs.h"
 
-#define E131_DEST_PORT        5568
-#define E131_SOURCE_PORT      58301
+class E131OutputData : public UDPOutputData {
+public:
+    E131OutputData(const Json::Value &config);
+    virtual ~E131OutputData();
+    
+    virtual bool IsPingable();
+    virtual void PrepareData(unsigned char *channelData);
+    virtual void CreateMessages(std::vector<struct mmsghdr> &ipMsgs);
+    virtual void DumpConfig();
 
-#define E131_UNIVERSE_INDEX   113
-#define E131_SEQUENCE_INDEX   111
-#define E131_COUNT_INDEX      123
-#define E131_PRIORITY_INDEX   108
+    int           universe;
+    int           priority;
+    char          E131sequenceNumber;
 
-#define E131_RLP_COUNT_INDEX       16
-#define E131_FRAMING_COUNT_INDEX   38
-#define E131_DMP_COUNT_INDEX       115
-
-// FIXME, these should be in e131bridge.c, not here
-void  ResetBytesReceived();
-void  WriteBytesReceivedFile();
-void LoadUniversesFromFile();
-
-/* Prototypes for helpers in E131.c */
-void ShowDiff(void);
-void LoadUniversesFromFile();
-void UniversesPrint();
-
-/* Expose our interface */
-extern FPPChannelOutput E131Output;
+    sockaddr_in   e131Address;
+    struct iovec  e131Iovecs[2];
+    unsigned char e131Buffer[E131_HEADER_LENGTH];
+};
 
 #endif

@@ -1,7 +1,7 @@
 /*
- *   E131 bridge for Falcon Pi Player (FPP)
+ *   E131 bridge for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Pi Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -9,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -26,10 +26,14 @@
 #ifndef _E131_BRIDGE_H
 #define _E131_BRIDGE_H
 
-extern char e131Data[];
+#include "e131defs.h"
 
-int Bridge_Initialize(void);
-void Bridge_ReceiveData(void);
+void Bridge_Initialize(int &e131Socket, int &ddpSocket);
+bool Bridge_ReceiveE131Data(void);
+bool Bridge_ReceiveDDPData(void);
 void Bridge_Shutdown(void);
+
+void  ResetBytesReceived();
+Json::Value GetE131UniverseBytesReceived();
 
 #endif

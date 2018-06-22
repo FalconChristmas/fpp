@@ -1,7 +1,7 @@
 /*
  *   Scheduler class for the Falcon Player (FPP) 
  *
- *   Copyright (C) 2013 the Falcon Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -54,6 +54,14 @@
 #define INX_T_TH                        11
 #define INX_SUN_TO_THURS        12
 #define INX_FRI_SAT                 13
+#define INX_DAY_MASK                0x10000
+#define INX_DAY_MASK_SUNDAY         0x04000
+#define INX_DAY_MASK_MONDAY         0x02000
+#define INX_DAY_MASK_TUESDAY        0x01000
+#define INX_DAY_MASK_WEDNESDAY      0x00800
+#define INX_DAY_MASK_THURSDAY       0x00400
+#define INX_DAY_MASK_FRIDAY         0x00200
+#define INX_DAY_MASK_SATURDAY       0x00100
 
 typedef struct{
 	char enable;
@@ -80,11 +88,10 @@ typedef struct {
 	int endWeeklySeconds;
 } SchedulePlaylistDetails;
 
-class Player;
 
 class Scheduler {
   public:
-	Scheduler(Player *parent);
+	Scheduler();
 	~Scheduler();
 
 	void ScheduleProc(void);
@@ -109,10 +116,8 @@ class Scheduler {
 	int  FindNextStartingScheduleIndex(void);
 	void GetScheduleEntryStartText(int index,int weeklySecondIndex, char * txt);
 	void GetDayTextFromDayIndex(int index,char * txt);
-	int  StartScheduledPlaylist(int index, int nowWeeklySeconds);
 
 
-	Player       *m_player;
 	int           m_ScheduleEntryCount;
 	unsigned char m_CurrentScheduleHasbeenLoaded;
 	unsigned char m_NextScheduleHasbeenLoaded;
@@ -133,6 +138,8 @@ class Scheduler {
 	SchedulePlaylistDetails m_currentSchedulePlaylist;
 	SchedulePlaylistDetails m_nextSchedulePlaylist;
 };
+
+extern Scheduler *scheduler;
 
 #endif /* _SCHEDULER_H */
 

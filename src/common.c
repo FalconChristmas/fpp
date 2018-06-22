@@ -1,7 +1,7 @@
 /*
- *   Common functions for Falcon Pi Player (FPP)
+ *   Common functions for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Pi Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -9,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -164,7 +164,7 @@ void HexDump(char *title, void *data, int len) {
 /*
  * Get IP address on specified network interface
  */
-int GetInterfaceAddress(char *interface, char *addr, char *mask, char *gw)
+int GetInterfaceAddress(const char *interface, char *addr, char *mask, char *gw)
 {
 	int fd;
 	struct ifreq ifr;
@@ -328,6 +328,18 @@ int CheckForHostSpecificFile(const char *hostname, char *filename)
 	return 0;
 }
 
+static unsigned char bitLookup[16] = {
+0x0, 0x8, 0x4, 0xc, 0x2, 0xa, 0x6, 0xe,
+0x1, 0x9, 0x5, 0xd, 0x3, 0xb, 0x7, 0xf, };
+
+/*
+ * Reverse bits in a byte
+ */
+uint8_t ReverseBitsInByte(uint8_t n)
+{
+   return (bitLookup[n & 0b1111] << 4) | bitLookup[n >> 4];
+}
+
 /*
  * Convert a string of the form "YYYY-MM-DD to an integer YYYYMMDD
  */
@@ -364,6 +376,17 @@ int GetCurrentDateInt(int daysOffset)
 	result += (now.tm_mday)               ;
 
 	return result;
+}
+
+/*
+ * Close all open file descriptors (used after fork())
+ */
+void CloseOpenFiles(void)
+{
+	int maxfd = sysconf(_SC_OPEN_MAX);
+
+	for (int fd = 3; fd < maxfd; fd++)
+	    close(fd);
 }
 
 /*
@@ -427,6 +450,7 @@ std::vector<std::string> split(const std::string &s, char delim) {
 
     return elems;
 }
+
 
 /*
  * Merge the contens of Json::Value b into Json::Value a

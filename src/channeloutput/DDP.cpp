@@ -1,7 +1,7 @@
 /*
  *   DDP Channel Output driver for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -90,73 +90,177 @@
  *
  */
 
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <signal.h>
+#include <arpa/inet.h>
+#include <ctype.h>
+#include <netinet/in.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <netdb.h>
+
 #include "common.h"
 #include "DDP.h"
 #include "log.h"
 #include "Sequence.h"
+#include "settings.h"
 
-/*
- *
- */
-DDPOutput::DDPOutput(unsigned int startChannel, unsigned int channelCount)
-  : ChannelOutputBase(startChannel, channelCount)
-{
-	LogDebug(VB_CHANNELOUT, "DDPOutput::DDPOutput(%u, %u)\n",
-		startChannel, channelCount);
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <cstring>
 
-	// Set any max channels limit if necessary
-	m_maxChannels = FPPD_MAX_CHANNELS;
+#include <jsoncpp/json/json.h>
+#include <strings.h>
+
+
+#define DDP_HEADER_LEN 10
+#define DDP_SYNCPACKET_LEN 10
+
+#define DDP_FLAGS1_VER     0xc0   // version mask
+#define DDP_FLAGS1_VER1    0x40   // version=1
+#define DDP_FLAGS1_PUSH    0x01
+#define DDP_FLAGS1_QUERY   0x02
+#define DDP_FLAGS1_REPLY   0x04
+#define DDP_FLAGS1_STORAGE 0x08
+#define DDP_FLAGS1_TIME    0x10
+
+#define DDP_ID_DISPLAY       1
+#define DDP_ID_CONFIG      250
+#define DDP_ID_STATUS      251
+
+//1440 channels per packet
+#define DDP_CHANNELS_PER_PACKET 1440
+
+#define DDP_PACKET_LEN (DDP_HEADER_LEN + DDP_CHANNELS_PER_PACKET)
+
+DDPOutputData::DDPOutputData(const Json::Value &config) : UDPOutputData(config), sequenceNumber(1) {
+    memset((char *) &ddpAddress, 0, sizeof(sockaddr_in));
+    ddpAddress.sin_family = AF_INET;
+    ddpAddress.sin_port = htons(DDP_PORT);
+    
+    ipAddress = config["address"].asString();
+    bool isAlpha = false;
+    for (int x = 0; x < ipAddress.length(); x++) {
+        isAlpha |= isalpha(ipAddress[x]);
+    }
+    
+    if (isAlpha) {
+        struct hostent* uhost = gethostbyname(ipAddress.c_str());
+        if (!uhost) {
+            LogErr(VB_CHANNELOUT,
+                   "Error looking up DDP hostname: %s\n",
+                   ipAddress.c_str());
+            valid = false;
+        }
+        
+        ddpAddress.sin_addr.s_addr = *((unsigned long*)uhost->h_addr);
+    } else {
+        ddpAddress.sin_addr.s_addr = inet_addr(ipAddress.c_str());
+    }
+    
+    
+    pktCount = channelCount / DDP_CHANNELS_PER_PACKET;
+    if (channelCount % DDP_CHANNELS_PER_PACKET) {
+        pktCount++;
+    }
+    
+    ddpIovecs = (struct iovec *)calloc(pktCount * 2, sizeof(struct iovec));
+    ddpBuffers = (unsigned char **)calloc(pktCount, sizeof(unsigned char*));
+    
+    int chan = startChannel - 1;
+    if (type == 5) {
+        chan = 0;
+    }
+    for (int x = 0; x < pktCount; x++) {
+        ddpBuffers[x] = (unsigned char *)calloc(1, DDP_HEADER_LEN);
+        
+        // use scatter/gather for the packet.   One IOV will contain
+        // the header, the second will point into the raw channel data
+        // and will be set at output time.   This avoids any memcpy.
+        ddpIovecs[x * 2].iov_base = ddpBuffers[x];
+        ddpIovecs[x * 2].iov_len = DDP_HEADER_LEN;
+        ddpIovecs[x * 2 + 1].iov_base = nullptr;
+        
+        ddpBuffers[x][0] = DDP_FLAGS1_VER1;
+        ddpBuffers[x][2] = 1;
+        ddpBuffers[x][3] = DDP_ID_DISPLAY;
+        int pktSize = DDP_CHANNELS_PER_PACKET;
+        if (x == (pktCount - 1)) {
+            ddpBuffers[x][0] = DDP_FLAGS1_VER1 | DDP_FLAGS1_PUSH;
+            //last packet
+            if (channelCount % DDP_CHANNELS_PER_PACKET) {
+                pktSize = channelCount % DDP_CHANNELS_PER_PACKET;
+            }
+        }
+        ddpIovecs[x * 2 + 1].iov_len = pktSize;
+        
+        //offset
+        ddpBuffers[x][4] = (chan & 0xFF000000) >> 24;
+        ddpBuffers[x][5] = (chan & 0xFF0000) >> 16;
+        ddpBuffers[x][6] = (chan & 0xFF00) >> 8;
+        ddpBuffers[x][7] = (chan & 0xFF);
+        
+        //size
+        ddpBuffers[x][8] = (pktSize & 0xFF00) >> 8;
+        ddpBuffers[x][9] = pktSize & 0xFF;
+        
+        chan += pktSize;
+    }
+}
+DDPOutputData::~DDPOutputData() {
+    for (int x = 0; x < pktCount; x++) {
+        free(ddpBuffers[x]);
+    }
+    free(ddpIovecs);
 }
 
-/*
- *
- */
-DDPOutput::~DDPOutput()
-{
-	LogDebug(VB_CHANNELOUT, "DDPOutput::~DDPOutput()\n");
+void DDPOutputData::PrepareData(unsigned char *channelData) {
+    if (valid && active) {
+        int start = startChannel - 1;
+        if (type == 5) {
+            start = 0;
+        }
+        for (int p = 0; p < pktCount; p++) {
+            unsigned char *header = ddpBuffers[p];
+            header[1] = sequenceNumber & 0xF;
+            if (sequenceNumber == 15) {
+                sequenceNumber = 1;
+            } else {
+                ++sequenceNumber;
+            }
+            
+            // set the pointer to the channelData for the universe
+            ddpIovecs[p * 2 + 1].iov_base = (void*)(channelData + start);
+            start += ddpIovecs[p * 2 + 1].iov_len;
+        }
+    }
 }
-
-/*
- *
- */
-int DDPOutput::Init(Json::Value config)
-{
-	LogDebug(VB_CHANNELOUT, "DDPOutput::Init(JSON)\n");
-
-	// Call the base class' Init() method, do not remove this line.
-	return ChannelOutputBase::Init(config);
+void DDPOutputData::CreateMessages(std::vector<struct mmsghdr> &ipMsgs) {
+    if (valid && active) {
+        struct mmsghdr msg;
+        memset(&msg, 0, sizeof(msg));
+        
+        msg.msg_hdr.msg_name = &ddpAddress;
+        msg.msg_hdr.msg_namelen = sizeof(sockaddr_in);
+        for (int x = 0; x < pktCount; x++) {
+            msg.msg_hdr.msg_iov = &ddpIovecs[x * 2];
+            msg.msg_hdr.msg_iovlen = 2;
+            msg.msg_len = ddpIovecs[x * 2 + 1].iov_len + DDP_HEADER_LEN;
+            ipMsgs.push_back(msg);
+        }
+    }
 }
-
-/*
- *
- */
-int DDPOutput::Close(void)
-{
-	LogDebug(VB_CHANNELOUT, "DDPOutput::Close()\n");
-
-	return ChannelOutputBase::Close();
+void DDPOutputData::DumpConfig() {
+    LogDebug(VB_CHANNELOUT, "DDP: %s   %d:%d:%d:%d  %s\n",
+             description.c_str(),
+             active,
+             startChannel,
+             channelCount,
+             type,
+             ipAddress.c_str());
 }
-
-/*
- *
- */
-int DDPOutput::RawSendData(unsigned char *channelData)
-{
-	LogExcess(VB_CHANNELOUT, "DDPOutput::RawSendData(%p)\n", channelData);
-
-	HexDump("DDPOutput::RawSendData", channelData, m_channelCount);
-
-	return m_channelCount;
-}
-
-/*
- *
- */
-void DDPOutput::DumpConfig(void)
-{
-	LogDebug(VB_CHANNELOUT, "DDPOutput::DumpConfig()\n");
-
-	// Call the base class' DumpConfig() method, do not remove this line.
-	ChannelOutputBase::DumpConfig();
-}
-

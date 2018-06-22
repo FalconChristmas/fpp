@@ -1,7 +1,7 @@
 /*
  *   Playlist Entry Playlist Class for Falcon Player (FPP)
  *
- *   Copyright (C) 2016 the Falcon Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -9,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -25,11 +25,12 @@
 
 #include "common.h"
 #include "log.h"
-#include "Player.h"
+//#include "Player.h"
 #include "PlaylistEntryPlaylist.h"
 
-PlaylistEntryPlaylist::PlaylistEntryPlaylist()
-  : m_playlist(NULL)
+PlaylistEntryPlaylist::PlaylistEntryPlaylist(PlaylistEntryBase *parent)
+  : PlaylistEntryBase(parent),
+	m_playlist(NULL)
 {
 	m_type = "playlist";
 }
@@ -48,7 +49,8 @@ PlaylistEntryPlaylist::~PlaylistEntryPlaylist()
  */
 int PlaylistEntryPlaylist::Init(Json::Value &config)
 {
-	m_playlist = new Playlist(player, 1);
+//	m_playlist = new Playlist(player, 1);
+	m_playlist = new Playlist(NULL, 1);
 
 	if (!m_playlist)
 	{

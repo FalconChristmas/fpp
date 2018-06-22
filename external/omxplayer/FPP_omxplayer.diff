@@ -1,5 +1,5 @@
 diff --git a/KeyConfig.cpp b/KeyConfig.cpp
-index 0a2be00..b0d1815 100644
+index 2aadbd8..da4cb39 100644
 --- a/KeyConfig.cpp
 +++ b/KeyConfig.cpp
 @@ -100,6 +100,9 @@ map<int, int> KeyConfig::buildDefaultKeymap()
@@ -13,26 +13,24 @@ index 0a2be00..b0d1815 100644
      keymap[','] = ACTION_REWIND;
      keymap['>'] = ACTION_FAST_FORWARD;
 diff --git a/KeyConfig.h b/KeyConfig.h
-index 40b63bd..8f8ef67 100644
+index 7de06c7..53b52e0 100644
 --- a/KeyConfig.h
 +++ b/KeyConfig.h
-@@ -38,7 +38,10 @@ class KeyConfig
-         ACTION_UNHIDE_VIDEO = 29,
-         ACTION_HIDE_SUBTITLES = 30,
-         ACTION_SHOW_SUBTITLES = 31,
--        ACTION_SET_ALPHA=32
-+        ACTION_SET_ALPHA = 32,
-+        ACTION_DECREASE_SPEED_MICRO = 33,
-+        ACTION_NORMAL_SPEED = 34,
-+        ACTION_INCREASE_SPEED_MICRO = 35
+@@ -43,6 +43,9 @@ class KeyConfig
+         ACTION_CROP_VIDEO = 34,
+         ACTION_PAUSE = 35,
+         ACTION_PLAY = 36,
++        ACTION_DECREASE_SPEED_MICRO = 37,
++        ACTION_NORMAL_SPEED = 38,
++        ACTION_INCREASE_SPEED_MICRO = 39
      };
  
      #define KEY_LEFT 0x5b44
 diff --git a/omxplayer.cpp b/omxplayer.cpp
-index 5a6000c..75dc2e2 100644
+index bde4536..3dc87ad 100644
 --- a/omxplayer.cpp
 +++ b/omxplayer.cpp
-@@ -97,6 +97,7 @@ bool              m_Pause               = false;
+@@ -96,6 +96,7 @@ bool              m_Pause               = false;
  OMXReader         m_omx_reader;
  int               m_audio_index_use     = 0;
  OMXClock          *m_av_clock           = NULL;
@@ -40,7 +38,7 @@ index 5a6000c..75dc2e2 100644
  OMXControl        m_omxcontrol;
  Keyboard          *m_keyboard           = NULL;
  OMXAudioConfig    m_config_audio;
-@@ -1149,6 +1150,26 @@ int main(int argc, char *argv[])
+@@ -1204,6 +1205,26 @@ int main(int argc, char *argv[])
          m_tv_show_info = !m_tv_show_info;
          vc_tv_show_info(m_tv_show_info);
          break;
@@ -67,7 +65,7 @@ index 5a6000c..75dc2e2 100644
        case KeyConfig::ACTION_DECREASE_SPEED:
          if (playspeed_current < playspeed_slow_min || playspeed_current > playspeed_slow_max)
            playspeed_current = playspeed_slow_max-1;
-@@ -1549,7 +1570,7 @@ int main(int argc, char *argv[])
+@@ -1636,7 +1657,7 @@ int main(int argc, char *argv[])
        if(m_stats)
        {
          static int count;

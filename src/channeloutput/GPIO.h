@@ -1,7 +1,7 @@
 /*
  *   GPIO Pin Channel Output driver for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -43,6 +43,7 @@ class GPIOOutput : public ChannelOutputBase {
   private:
 	int m_GPIOPin;
 	int m_invertOutput;
+	int m_softPWM;
 
 };
 

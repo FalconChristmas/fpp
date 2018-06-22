@@ -1,7 +1,7 @@
 /*
  *   ScheduleEntry class for the Falcon Player (FPP) 
  *
- *   Copyright (C) 2013 the Falcon Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -30,6 +30,8 @@
 
 #include <time.h>
 
+#include "Playlist.h"
+
 #define DAYS_PER_WEEK       7
 
 class ScheduleEntry {
@@ -48,6 +50,7 @@ class ScheduleEntry {
 
 	int          m_enabled;
 	std::string  m_playlistName;
+	OldPlaylist    *m_playlist;
 	int          m_priority;
 	int          m_repeating;
 	int          m_dayIndex;

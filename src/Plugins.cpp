@@ -206,7 +206,7 @@ PluginCallbackManager::~PluginCallbackManager()
 	}
 }
 
-int PluginCallbackManager::nextPlaylistEntryCallback(const char *plugin_data, int currentPlaylistEntry, int mode, bool repeat, PlaylistEntry *pe)
+int PluginCallbackManager::nextPlaylistEntryCallback(const char *plugin_data, int currentPlaylistEntry, int mode, bool repeat, OldPlaylistEntry *pe)
 {
 	BOOST_FOREACH (Callback *callback, mCallbacks)
 	{
@@ -217,14 +217,14 @@ int PluginCallbackManager::nextPlaylistEntryCallback(const char *plugin_data, in
 		}
 	}
 }
-void PluginCallbackManager::playlistCallback(PlaylistDetails *playlistDetails, bool starting)
+void PluginCallbackManager::playlistCallback(OldPlaylistDetails *oldPlaylistDetails, bool starting)
 {
 	BOOST_FOREACH (Callback *callback, mCallbacks)
 	{
 		if ( dynamic_cast<PlaylistCallback*>(callback) != NULL )
 		{
 			PlaylistCallback *cb = dynamic_cast<PlaylistCallback*>(callback);
-			cb->run(playlistDetails, starting);
+			cb->run(oldPlaylistDetails, starting);
 		}
 	}
 }
@@ -280,11 +280,7 @@ void MediaCallback::run(void)
 		LogDebug(VB_PLUGIN, "Child process, calling %s callback for media : %s\n", this->getName().c_str(), this->getFilename().c_str());
 
 		std::string eventScript = std::string(getFPPDirectory()) + "/scripts/eventScript";
-// FIXME PLAYLIST
-//		PlaylistEntry *plEntry = &playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry];
-LogDebug(VB_PLAYLIST, "FIXME PLAYLIST\n");
-return;
-		PlaylistEntry *plEntry = NULL;
+		OldPlaylistEntry *plEntry = &oldPlaylist->m_playlistDetails.playList[oldPlaylist->m_playlistDetails.currentPlaylistEntry];
 		Json::Value root;
 		Json::FastWriter writer;
 
@@ -339,7 +335,7 @@ PlaylistCallback::~PlaylistCallback()
 }
 
 //blocking
-void PlaylistCallback::run(PlaylistDetails *playlistDetails, bool starting)
+void PlaylistCallback::run(OldPlaylistDetails *oldPlaylistDetails, bool starting)
 {
 	int pid;
 
@@ -358,9 +354,9 @@ void PlaylistCallback::run(PlaylistDetails *playlistDetails, bool starting)
 		Json::Value root;
 		Json::FastWriter writer;
 
-		for ( j = 0; j < playlistDetails->playListCount; ++j )
+		for ( j = 0; j < oldPlaylistDetails->playListCount; ++j )
 		{
-			PlaylistEntry plEntry = playlistDetails->playList[j];
+			OldPlaylistEntry plEntry = oldPlaylistDetails->playList[j];
 			Json::Value node;
 
 			node["type"] = std::string(type_to_string[plEntry.type]);
@@ -422,7 +418,7 @@ NextPlaylistEntryCallback::~NextPlaylistEntryCallback()
 }
 
 //blocking
-int NextPlaylistEntryCallback::run(const char *plugin_data, int currentPlaylistEntry, int mode, bool repeat, PlaylistEntry *pe)
+int NextPlaylistEntryCallback::run(const char *plugin_data, int currentPlaylistEntry, int mode, bool repeat, OldPlaylistEntry *pe)
 {
 	int output_pipe[2], pid, ret_val;
 	char playlist_entry[512];
@@ -478,9 +474,7 @@ int NextPlaylistEntryCallback::run(const char *plugin_data, int currentPlaylistE
 		read(output_pipe[0], &playlist_entry, sizeof(playlist_entry));
 
 		LogExcess(VB_PLUGIN, "Parsed playlist entry: %s\n", playlist_entry);
-
-// FIXME PLAYLIST
-//		ret_val = playlist->ParsePlaylistEntry(playlist_entry, pe);
+		ret_val = oldPlaylist->ParsePlaylistEntry(playlist_entry, pe);
 		//Set our type back to 'P' so we re-parse it next time we pass it in the playlist
 		pe->cType = 'P';
 

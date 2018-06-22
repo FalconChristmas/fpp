@@ -1,7 +1,7 @@
 /*
- *   GPIO Input/Output handler for Falcon Pi Player (FPP)
+ *   GPIO Input/Output handler for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Pi Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -9,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -39,7 +39,23 @@
 #ifdef USEWIRINGPI
 #   include "wiringPi.h"
 #   include "softPwm.h"
+#   define supportsPWM(a) 1
+#elif defined(PLATFORM_BBB)
+#   include "channeloutput/BBBUtils.h"
+#   define INPUT "in"
+#   define OUTPUT "out"
+#   define pinMode(a, b)         configBBBPin(a, "gpio", b)
+
+#   define digitalRead(a)        getBBBPinValue(a)
+#   define digitalWrite(a,b)     setBBBPinValue(a, b)
+#   define pullUpDnControl(a,b)
+#   define softPwmCreate(a, b, c) setupBBBPinPWM(a)
+#   define softPwmWrite(a, b)    setBBBPinPWMValue(a, b)
+#   define supportsPWM(a)        supportsPWMOnBBBPin(a)
+#   define LOW                   0
+#   define PUD_UP                2
 #else
+#   define supportsPWM(a)        0
 #   define pinMode(a, b)
 #   define digitalRead(a)        1
 #   define digitalWrite(a,b)     0
@@ -87,7 +103,7 @@ int SetupGPIOInput(void)
 			}
 
 			pinMode(i, INPUT);
-
+            
 			if ((i >= 200) && (i <= 207))
 				pullUpDnControl(i, PUD_UP);
 
@@ -96,6 +112,7 @@ int SetupGPIOInput(void)
 			// Set the time immediately to utilize the debounce code
 			// from triggering our GPIOs on startup.
 			inputLastTriggerTime[i] = GetTime();
+            
 			inputLastState[i] = digitalRead(i);
 
 			enabledCount++;
@@ -180,7 +197,12 @@ int SetupExtGPIO(int gpio, char *mode)
 	else if (!strcmp(mode, "SoftPWM"))
 	{
 		LogDebug(VB_GPIO, "GPIO %d set to SoftPWM mode\n", gpio);
-		retval = softPwmCreate (gpio, 0, 100);
+        if (supportsPWM(gpio)) {
+            retval = softPwmCreate (gpio, 0, 100);
+        } else {
+            LogDebug(VB_GPIO, "GPIO %d does not support PWM\n", gpio);
+            retval = 1;
+        }
 	}
 	else {
 		LogDebug(VB_GPIO, "GPIO %d invalid mode %s\n", gpio, mode);

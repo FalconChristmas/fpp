@@ -179,7 +179,7 @@ echo "
 	echo " onChange='" . $setting . "Changed();'>\n";
 }
 
-function PrintSettingSelect($title, $setting, $restart = 1, $reboot = 0, $defaultValue, $values, $pluginName = "", $callbackName = "")
+function PrintSettingSelect($title, $setting, $restart = 1, $reboot = 0, $defaultValue, $values, $pluginName = "", $callbackName = "", $changedFunction = "")
 {
 	global $settings;
 	global $pluginSettings;
@@ -194,6 +194,9 @@ function PrintSettingSelect($title, $setting, $restart = 1, $reboot = 0, $defaul
 
 	if ($callbackName != "")
 		$callbackName = $callbackName . "();";
+
+    if ($changedFunction == "")
+        $changedFunction = $setting . "Changed";
 
 	echo "
 <script>
@@ -219,7 +222,7 @@ echo "
 }
 </script>
 
-<select id='$setting' onChange='" . $setting . "Changed();'>\n";
+<select id='$setting' onChange='" . $changedFunction . "();'>\n";
 
 	foreach ( $values as $key => $value )
 	{
@@ -384,7 +387,7 @@ function SaveEmailConfig($emailguser, $emailgpass, $emailfromtext, $emailtoemail
     exec("sudo update-exim4.conf");
     exec ("sudo /etc/init.d/exim4 restart");
     exec ("sudo systemctl restart exim4.service");
-    $cmd="sudo chfn -f \"" . $emailfromtext . "\" pi";
+    $cmd="sudo chfn -f \"" . $emailfromtext . "\" fpp";
     exec($cmd);
     $fp = fopen($exim4Directory . '/aliases', 'w');
     fwrite($fp, "mailer-daemon: postmaster\npostmaster: root\nnobody: root\nhostmaster: root\nusenet: root\nnews: root\nwebmaster: root\nwww: root\nftp: root\nabuse: root\nnoc: root\nsecurity: root\nroot: pi\n");
@@ -482,6 +485,9 @@ function DisableOutputBuffering() {
 
 	ob_implicit_flush(true);
 	flush();
+
+        // for NGINX, set the X-Accel-Buffering header
+        header('X-Accel-Buffering: no');
 }
 
 ?>

@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "playlist/Playlist.h"
+#include "Playlist.h"
 #include "mediadetails.h"
 #include "settings.h"
 #include "common.h"
@@ -53,43 +53,38 @@ void clearPreviousMedia()
 	mediaDetails.channels = 0;
 }
 
-void ParseMedia()
+void ParseMedia(const char *mediaFilename)
 {
     char fullMediaPath[1024];
 	int seconds;
 	int minutes;
-//	PlaylistEntry *plEntry = &playlist->m_playlistDetails.playList[playlist->m_playlistDetails.currentPlaylistEntry];
-LogDebug(VB_PLAYLIST, "FIXME PLAYLIST\n");
-return;
 
-	PlaylistEntry *plEntry = NULL;
-
-	if (!plEntry->songName)
+	if (!mediaFilename)
 		return;
 
-    LogDebug(VB_MEDIAOUT, "ParseMedia(%s)\n", plEntry->songName);
+    LogDebug(VB_MEDIAOUT, "ParseMedia(%s)\n", mediaFilename);
 
-    if (snprintf(fullMediaPath, 1024, "%s/%s", getMusicDirectory(), plEntry->songName)
+    if (snprintf(fullMediaPath, 1024, "%s/%s", getMusicDirectory(), mediaFilename)
         >= 1024)
     {
         LogErr(VB_MEDIAOUT, "Unable to parse media details for %s, full path name too long\n",
-            plEntry->songName);
+            mediaFilename);
         return;
     }
 
     if (!FileExists(fullMediaPath))
     {
-    	if (snprintf(fullMediaPath, 1024, "%s/%s", getVideoDirectory(), plEntry->songName)
+		if (snprintf(fullMediaPath, 1024, "%s/%s", getVideoDirectory(), mediaFilename)
 	        >= 1024)
 		{
 			LogErr(VB_MEDIAOUT, "Unable to parse media details for %s, full path name too long\n",
-				plEntry->songName);
+				mediaFilename);
 			return;
 		}
 
 		if (!FileExists(fullMediaPath))
 		{
-			LogErr(VB_MEDIAOUT, "Unable to find %s media file to parse meta data\n", plEntry->songName);
+			LogErr(VB_MEDIAOUT, "Unable to find %s media file to parse meta data\n", mediaFilename);
 			return;
 		}
     }

@@ -1,7 +1,7 @@
 /*
- *   mpg123 player driver for Falcon Pi Player (FPP)
+ *   mpg123 player driver for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Pi Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -9,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -33,11 +33,12 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "channeloutputthread.h"
 #include "common.h"
-#include "controlsend.h"
 #include "log.h"
 #include "mpg123.h"
-#include "Player.h"
+#include "MultiSync.h"
+#include "Sequence.h"
 #include "settings.h"
 
 /*
@@ -101,6 +102,8 @@ int mpg123Output::Start(void)
 	pid_t mpg123Pid = fork();
 	if (mpg123Pid == 0)			// mpg123 process
 	{
+		CloseOpenFiles();
+
 		//mpg123 uses stderr for output
 		dup2(m_childPipe[MEDIAOUTPUTPIPE_WRITE], STDERR_FILENO);
 
@@ -233,13 +236,13 @@ void mpg123Output::ParseTimes(void)
 		if ((m_mediaOutputStatus->secondsElapsed > 0) &&
 			(lastRemoteSync != m_mediaOutputStatus->secondsElapsed))
 		{
-			SendMediaSyncPacket(m_mediaFilename.c_str(), 0,
+			multiSync->SendMediaSyncPacket(m_mediaFilename.c_str(), 0,
 				m_mediaOutputStatus->mediaSeconds);
 			lastRemoteSync = m_mediaOutputStatus->secondsElapsed;
 		}
 	}
 
-	if ((player->SequencesRunning()) &&
+	if ((sequence->IsSequenceRunning()) &&
 		(m_mediaOutputStatus->secondsElapsed > 0))
 	{
 		LogExcess(VB_MEDIAOUT,
@@ -250,12 +253,10 @@ void mpg123Output::ParseTimes(void)
 			m_mediaOutputStatus->minutesTotal,
 			m_mediaOutputStatus->secondsTotal);
 
-		player->CalculateNewChannelOutputDelay(m_mediaOutputStatus->mediaSeconds);
+		CalculateNewChannelOutputDelay(m_mediaOutputStatus->mediaSeconds);
 	}
 }
 
-// Sample format
-// Frame#   149 [ 1842], Time: 00:03.89 [00:48.11], RVA:   off, Vol: 100(100)
 void mpg123Output::ProcessMP3Data(int bytesRead)
 {
 	int  bufferPtr = 0;
@@ -263,6 +264,117 @@ void mpg123Output::ProcessMP3Data(int bytesRead)
 	int  i = 0;
 	bool commandNext=false;
 
+#define NEW_MPG123
+#if defined(NEW_MPG123) && !defined(USE_MPG321)
+	// New verbose output format in v1.??, we key off the > at the beginning
+	// > 0008+3784  00:00.18+01:38.84 --- 100=100 160 kb/s  522 B acc    0 clip p+0.000
+	// States:
+	// 123333455556677777777899999999
+	m_mpg123_strTime[bufferPtr++] = ' ';
+	m_mpg123_strTime[bufferPtr] = 0;
+	for(i=0;i<bytesRead;i++)
+	{
+		switch(m_mp3Buffer[i])
+		{
+			case '-':
+				state = 0;
+				break;
+			case '>':
+				state = 1;
+				break;
+			case ' ':
+				if (state == 1)
+				{
+					state = 2;
+				}
+				else if (state == 5)
+				{
+					state = 6;
+				}
+				else if (state == 6)
+				{
+					// Do nothing
+				}
+				else if (state == 9)
+				{
+					// Parse Times here
+					m_mpg123_strTime[bufferPtr++] = ']';
+					m_mpg123_strTime[bufferPtr] = 0;
+					ParseTimes();
+					bufferPtr = 1;
+					state = 0;
+					m_mpg123_strTime[bufferPtr] = 0;
+				}
+				else
+				{
+					state = 0;
+				}
+				break;
+			case '+':
+				if (state == 3)
+				{
+					state = 4;
+				}
+				else if (state == 7)
+				{
+					state = 8;
+					m_mpg123_strTime[bufferPtr++] = ' ';
+					m_mpg123_strTime[bufferPtr++] = '[';
+					m_mpg123_strTime[bufferPtr] = 0;
+				}
+				else
+				{
+					state = 0;
+				}
+				break;
+			case '0':
+			case '1':
+			case '2':
+			case '3':
+			case '4':
+			case '5':
+			case '6':
+			case '7':
+			case '8':
+			case '9':
+			case ':':
+			case '.':
+				if (state == 2)
+				{
+					state = 3;
+				}
+				else if (state == 3)
+				{
+					// Do nothing
+				}
+				else if (state == 4)
+				{
+					state = 5;
+				}
+				else if (state == 5)
+				{
+					// Do nothing
+				}
+				else if ((state == 6) || (state == 7) || (state == 8) || (state == 9))
+				{
+					if (state == 6)
+						state = 7;
+					else if (state == 8)
+						state = 9;
+
+					m_mpg123_strTime[bufferPtr++] = m_mp3Buffer[i];
+					m_mpg123_strTime[bufferPtr] = 0;
+				}
+				else
+				{
+					state = 0;
+				}
+				break;
+		}
+	}
+#else
+	// Older mpg123 output format, we key off the capital T in Time.
+	// Frame#   149 [ 1842], Time: 00:03.89 [00:48.11], RVA:   off, Vol: 100(100)
 	for(i=0;i<bytesRead;i++)
 	{
 		switch(m_mp3Buffer[i])
@@ -322,6 +434,7 @@ void mpg123Output::ProcessMP3Data(int bytesRead)
 				break;
 		}
 	}
+#endif
 }
 
 void mpg123Output::PollMusicInfo(void)
@@ -338,6 +451,8 @@ void mpg123Output::PollMusicInfo(void)
 	if(select(FD_SETSIZE, &m_readFDSet, NULL, NULL, &mpg123_timeout) < 0)
 	{
 	 	LogErr(VB_MEDIAOUT, "Error Select:%d\n",errno);
+
+		Stop(); // Kill the child if we can't read from the pipe
 	 	return; 
 	}
 	if(FD_ISSET(m_childPipe[MEDIAOUTPUTPIPE_READ], &m_readFDSet))

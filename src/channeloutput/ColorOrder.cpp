@@ -1,7 +1,7 @@
 /*
  *   ColorOrder definitions for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -25,7 +25,7 @@
 
 #include "ColorOrder.h"
 
-FPPColorOrder ColorOrderFromString(std::string colorOrderStr)
+FPPColorOrder ColorOrderFromString(const std::string &colorOrderStr)
 {
 	if (colorOrderStr == "RGB")
 		return kColorOrderRGB;
@@ -48,3 +48,18 @@ FPPColorOrder ColorOrderFromString(std::string colorOrderStr)
 	return kColorOrderRGB;
 }
 
+const std::string ColorOrderToString(FPPColorOrder colorOrder)
+{
+	switch (colorOrder)
+	{
+		case kColorOrderRGB: return std::string("RGB");
+		case kColorOrderRBG: return std::string("RBG");
+		case kColorOrderGBR: return std::string("GBR");
+		case kColorOrderGRB: return std::string("GRB");
+		case kColorOrderBGR: return std::string("BGR");
+		case kColorOrderBRG: return std::string("BRG");
+
+	}
+
+	return std::string("UNKNOWN");
+}

@@ -1,7 +1,7 @@
 /*
  *   ChannelOutputBase class for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -72,7 +72,8 @@ class ChannelOutputBase {
 	unsigned int     m_useOutputThread;
 	unsigned int     m_threadIsRunning;
 	unsigned int     m_runThread;
-	unsigned int     m_dataWaiting;
+	volatile unsigned int     m_dataWaiting;
+	unsigned int     m_useDoubleBuffer;
 
 	pthread_t        m_threadID;
 	pthread_mutex_t  m_bufLock;

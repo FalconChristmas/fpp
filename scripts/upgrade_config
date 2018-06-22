@@ -34,8 +34,16 @@ do
 		then
 			echo "Upgrading config to version ${VERSION}"
 			(cd ${UPGRADEDIR}/${VERSION} && ./upgrade.sh)
-			CFGVERSION=${VERSION}
-			echo ${VERSION} > ${CFGVERSIONFILE}
+			if [ $? -eq 0 ]
+			then
+                CFGVERSION=${VERSION}
+                echo ${VERSION} > ${CFGVERSIONFILE}
+                echo ">>SUCCESS upgraded to config version ${VERSION}"
+			else
+                echo ">>FAILED to update to config version ${VERSION}"
+                echo "!!Config Version not up to date!!"
+                exit 0
+			fi
 		else
 			echo "Up to date at config version ${CFGVERSION}"
 			exit 0

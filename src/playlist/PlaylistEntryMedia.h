@@ -1,7 +1,7 @@
 /*
  *   Playlist Entry Media Class for Falcon Player (FPP)
  *
- *   Copyright (C) 2016 the Falcon Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -9,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -33,7 +33,7 @@
 
 class PlaylistEntryMedia : public PlaylistEntryBase {
   public:
-  	PlaylistEntryMedia();
+	PlaylistEntryMedia(PlaylistEntryBase *parent = NULL);
 	~PlaylistEntryMedia();
 
 	int  Init(Json::Value &config);
@@ -65,9 +65,9 @@ class PlaylistEntryMedia : public PlaylistEntryBase {
 	int CloseMediaOutput(void);
 
 	std::string        m_mediaFilename;
+    std::string        m_videoOutput;
 	MediaOutputBase   *m_mediaOutput;
 	pthread_mutex_t    m_mediaOutputLock;
-	MediaOutputStatus  m_mediaOutputStatus;
 };
 
 #endif

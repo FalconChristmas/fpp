@@ -5,7 +5,12 @@
 #include <vector>
 #include <string>
 
-#include "playlist/Playlist.h"
+#include "Playlist.h"
+
+
+// Use these to make code more readable
+#define PLAYLIST_STARTING				true
+#define PLAYLIST_STOPPING				false
 
 class Callback
 {
@@ -37,7 +42,7 @@ public:
 	PlaylistCallback(std::string a, std::string b) : Callback(a, b) {}
 	~PlaylistCallback();
 
-	void run(PlaylistDetails *, bool);
+	void run(OldPlaylistDetails *, bool);
 private:
 };
 
@@ -47,7 +52,7 @@ public:
 	NextPlaylistEntryCallback(std::string a, std::string b) : Callback(a, b) {}
 	~NextPlaylistEntryCallback();
 
-	int run(const char *, int, int, bool, PlaylistEntry *);
+	int run(const char *, int, int, bool, OldPlaylistEntry *);
 private:
 };
 
@@ -68,8 +73,8 @@ public:
 	~PluginCallbackManager();
 	void init(void);
 
-	int nextPlaylistEntryCallback(const char *plugin_data, int currentPlaylistEntry, int mode, bool repeat, PlaylistEntry *pe);
-	void playlistCallback(PlaylistDetails *playlistDetails, bool starting);
+	int nextPlaylistEntryCallback(const char *plugin_data, int currentPlaylistEntry, int mode, bool repeat, OldPlaylistEntry *pe);
+	void playlistCallback(OldPlaylistDetails *oldPlaylistDetails, bool starting);
 	void eventCallback(char *id, char *impetus);
 	void mediaCallback();
 

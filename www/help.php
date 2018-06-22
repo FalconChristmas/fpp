@@ -28,7 +28,7 @@ $helpPages = array(
 					<li><a href='javascript:void(0);' onClick="helpPage='help/channeloutputs.php'; DisplayHelp();">Channel Outputs</a></li>
 					<li><a href='javascript:void(0);' onClick="helpPage='help/gpio.php'; DisplayHelp();">GPIO Input Triggers</a></li>
 					<li><a href='javascript:void(0);' onClick="helpPage='help/networkconfig.php'; DisplayHelp();">Network Config</a></li>
-					<li><a href='javascript:void(0);' onClick="helpPage='help/channelremaps.php'; DisplayHelp();">Remap Channels</a></li>
+					<li><a href='javascript:void(0);' onClick="helpPage='help/outputprocessors.php'; DisplayHelp();">Output Processors</a></li>
 					<li><a href='javascript:void(0);' onClick="helpPage='help/scheduler.php'; DisplayHelp();">Scheduler</a></li>
 					<li><a href='javascript:void(0);' onClick="helpPage='help/scriptbrowser.php'; DisplayHelp();">Script Repository Browser</a></li>
 					<li><a href='javascript:void(0);' onClick="helpPage='help/settings.php'; DisplayHelp();">Settings</a></li>
@@ -36,7 +36,7 @@ $helpPages = array(
       </div>
     </fieldset>
   </div>
-</div>
   <?php include 'common/footer.inc'; ?>
+</div>
 </body>
 </html>

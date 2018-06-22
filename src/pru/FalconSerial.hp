@@ -1,0 +1,112 @@
+#ifndef _FALCON_SERIAL_
+#define _FALCON_SERIAL_
+
+
+#ifdef F32B
+// Output 40
+#define ser1_gpio    3
+#define ser1_pin    21
+#define ser1_pru30  7
+// Output 42
+#define ser2_gpio    3
+#define ser2_pin    19
+#define ser2_pru30  5
+// Output 43
+#define ser3_gpio    3
+#define ser3_pin    15
+#define ser3_pru30  1
+// Output 44
+#define ser4_gpio    3
+#define ser4_pin    17
+#define ser4_pru30  3
+
+// Output 45
+#define ser5_gpio    3
+#define ser5_pin    16
+#define ser5_pru30  2
+// Output 46
+#define ser6_gpio    3
+#define ser6_pin    14
+#define ser6_pru30  0
+// Output 47
+#define ser7_gpio    3
+#define ser7_pin    18
+#define ser7_pru30  4
+// Output 48
+#define ser8_gpio    3
+#define ser8_pin    20
+#define ser8_pru30  6
+
+
+#define NUMOUT 8
+
+#else
+
+#ifdef ONLYB
+
+// Output 45
+#define ser1_gpio	3
+#define ser1_pin	16
+#define ser1_pru30  2
+// Output 46
+#define ser2_gpio	3
+#define ser2_pin	14
+#define ser2_pru30  0
+// Output 47
+#define ser3_gpio	3
+#define ser3_pin	20
+#define ser3_pru30  6
+// Output 48
+#define ser4_gpio	3
+#define ser4_pin	18
+#define ser4_pru30  4
+
+#define NUMOUT 4
+
+#else
+
+// Output 40
+#define ser1_gpio	3
+#define ser1_pin	21
+#define ser1_pru30  7
+// Output 42
+#define ser2_gpio	3
+#define ser2_pin	19
+#define ser2_pru30  5
+// Output 43
+#define ser3_gpio	3
+#define ser3_pin	17
+#define ser3_pru30  3
+// Output 44
+#define ser4_gpio	3
+#define ser4_pin	15
+#define ser4_pru30  1
+
+#ifdef ONLYA
+#define NUMOUT 4
+
+#else
+// Output 45
+#define ser5_gpio	3
+#define ser5_pin	16
+#define ser5_pru30  2
+// Output 46
+#define ser6_gpio	3
+#define ser6_pin	14
+#define ser6_pru30  0
+// Output 47
+#define ser7_gpio	3
+#define ser7_pin	20
+#define ser7_pru30  6
+// Output 48
+#define ser8_gpio	3
+#define ser8_pin	18
+#define ser8_pru30  4
+
+#define NUMOUT 8
+
+#endif
+#endif
+#endif
+
+#endif

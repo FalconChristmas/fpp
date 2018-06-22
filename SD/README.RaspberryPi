@@ -1,10 +1,54 @@
 =============================================================================
-Instructions for creating a new FPP NOOBS SD image package
+Instructions for creating a new FPP SD image package for the Raspberry Pi
 =============================================================================
 
-Install the latest raspbian image to the SD card using NOOBS.
+Install the latest Raspbian Stretch Lite image to the SD card.  The last
+version tested is 2017-11-29-raspbian-stretch-lite.zip
 
-Run our installer:
+Resize the root partition to 2.4GiB using fdisk (substitute the proper device
+for your SD card).
+
+    fdisk /dev/sdg
+    p
+	(Note the original start block of partition 2, you will need this later)
+    d
+    2
+    n
+    p
+    2
+	(Replace 94208 with the original start block of partition 2 noted earlier)
+    94208
+	(FIXME, downsize this value once install is tested)
+    +3000M
+    p
+    w
+
+FSCK and resize the root partition (again, use your device name.
+
+    e2fsck -f /dev/sdg2
+    resize2fs /dev/sdg2
+
+Disable the auto partition resize script on the SD and enable the SSH server while
+we have the partition mounted:
+
+	# Make a temp mount location
+	mkdir /mnt/tmp
+	# Mount the boot partition
+	mount /dev/sdg1 /mnt/tmp
+	# Backup the cmdline.txt file
+	cp /mnt/tmp/cmdline.txt /mnt/tmp/cmdline.org
+	# Disable the auto-resize of the root partition
+	sed -i -e "s# init=/usr/lib/raspi-config/init_resize.sh##" /mnt/tmp/cmdline.txt
+	# Enable ssh by default
+	touch /mnt/tmp/ssh
+	# Unmount the file system
+	umount /mnt/tmp
+	# Sync the changes so it's safe to remove the SD card
+	sync
+
+Remove the SD card and boot it up in a Pi.
+
+On the Pi, run the FPP installer:
 	wget -O ./FPP_Install.sh \
 		http://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
 	chmod 700 ./FPP_Install.sh
@@ -13,24 +57,109 @@ Run our installer:
 This will install FPP and perform all required changes to the root filesystem
 and add the FPP user, install required packages, etc.
 
-Shutdown the Pi cleanly and remove the SD card after power-off:
+If you are installing for your own use, you can reboot the Pi and FPP should start
+up.
 
 	su - fpp
+	sudo shutdown -r now
+
+If you are installing to create a SD image zip, run the following commands:
+
+	su - fpp
+	# Reboot to make sure things take
+	sudo shutdown -r now
+
+	Once the Pi reboots, login as the fpp user again and run the following:
+
+	# Reset the SSH keys
+	sudo rm -rf /etc/ssh/ssh_host*key*
+	# Remove old pi user's home directory
 	sudo rm -rf /home/pi
+	# Clean up fppd logs
+	sudo systemctl stop fppd.service
+	sudo systemctl stop apache2.service
+	cd /home/fpp/media/logs ; ls -al ; /bin/ls -1 | while read FILE; do > ${FILE}; done ; ls -al
+	# Zero out free space so the SD image will compress better
+	sudo dd if=/dev/zero of=zero.dd bs=4M ; sudo rm zero.dd ; df -k
+	# Shutdown the Pi
 	sudo shutdown -h now
 
-Install the SD card in another Linux computer containing this README.PI
-file and the Pi-createNOOBS.sh shell script in the same directory.
+Put the SD card back in a Linux system and run the following (substitute
+the proper device name for your SD card in place of '/dev/sdg'):
 
-Run Pi-createNOOBS.sh to create a new NOOBS compressed image from the SD
-card with FPP installed.  The first argument is the path to the SD image and
-the second argument is the FPP version number which will be included in the
-output filename.
+	NOTE: The 3000 on the "BLOCK=" line below must match the new size of the
+	      second partition created at the top of this document using fdisk.
 
-	sudo ./Pi-createNOOBS.sh /dev/sdc v1.5
+	VERSION=v1.x-Pi
+	BLOCKS=$(echo "(50 + 3000) / 4" | bc)
+	sudo time dd if=/dev/sdg bs=4M count=${BLOCKS} > FPP-${VERSION}.img
+	time zip -9 FPP-$VERSION.zip FPP-${VERSION}.img
+	unzip -v FPP-$VERSION.zip
 
 This will create a file called FPP-${VERSION}.zip that can be distributed
-for testing/release where ${VERSION} is the version string passed on the
-command line.
+for testing/release.
 
 =============================================================================
+
+ALPHA set of instructions for switching Pi root file system to btrfs. The
+current SD images will still use ext4.
+
+NOTE: There are several known issues with this, including the fact that
+upgrading the kernel will prevent the Pi from booting because the initrd may
+not be rebuilt and the initrd filename in config.txt will be incorrect.
+
+# update /boot/cmdline.txt to change root location to "root=/dev/mmcblk0p2"
+
+sudo apt-get update
+sudo apt-get -y install btrfs-tools btrfs-progs
+
+# append "btrfs" to /etc/initramfs-tools/modules
+
+sudo rpi-update
+
+sudo update-initramfs -c -k `uname -r`
+
+# update /boot/config.txt to add 'initramfs initrd.img-4.14.18+' (or correct
+# kernel version) to the end of the file
+
+# reboot to make sure system still boots correctly
+
+# now copy /dev/mmcblk0p2, reformat as btfs, mount with compress option,
+# and copy data back.  NOTE: This should be done on a newer system so that
+# 'zstd' compression is used instead of zlib or lzo
+
+sudo mkfs.btrfs -L root -f /dev/sdg2
+sudo mount -o compress /dev/sdg2 /mnt/tmp
+
+sudo losetup /dev/loop0 ${IMGFILE}
+sudo kpartx -av /dev/loop0
+sudo mount /dev/mapper/loop0p2 /mnt/tmp2
+sudo rsync -avxHW /mnt/tmp2/ /mnt/tmp/
+sudo umount /mnt/tmp2
+sudo kpartx -d /dev/loop0
+sudo losetup -d /dev/loop0
+
+# update /mnt/tmp/etc/fstab to set btrfs filesystem and compress mount option
+/dev/mmcblk0p2  /               btrfs   compress=zstd,noatime  0    1
+
+# also update /boot to read-only at the same time.
+
+sudo umount /mnt/tmp
+
+# boot the SD up in the Pi
+
+TODO
+- setup something to rebuild the initrd and update /boot/config.txt whenever a
+  new kernel is installed.
+
+
+Attempt to expand root filesystem to fill SD card
+sudo sfdisk --force --no-reread /dev/mmcblk0 <<-EOF
+8192,85045,0x0C,*
+94208,,,-
+EOF
+
+sudo partprobe /dev/mmcblk0
+
+sudo btrfs filesystem resize max /
+

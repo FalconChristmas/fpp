@@ -1,7 +1,7 @@
 /*
  *   Linsn RV9 Channel Output driver for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -94,6 +94,7 @@ class LinsnRV9Output : public ChannelOutputBase {
 	Matrix      *m_matrix;
 	PanelMatrix *m_panelMatrix;
 	int          m_formatIndex;
+    uint8_t      m_gammaCurve[256];
 
 	struct FormatCode {
 		unsigned char code;

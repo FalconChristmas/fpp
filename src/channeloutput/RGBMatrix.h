@@ -1,7 +1,7 @@
 /*
  *   librgbmatrix handler for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -56,6 +56,7 @@ class RGBMatrixOutput : public ChannelOutputBase {
   private:
 	GPIO        *m_gpio;
 	Canvas      *m_canvas;
+	RGBMatrix   *m_rgbmatrix;
 	std::string  m_layout;
 	std::string  m_colorOrder;
 
@@ -71,6 +72,8 @@ class RGBMatrixOutput : public ChannelOutputBase {
 
 	Matrix      *m_matrix;
 	PanelMatrix *m_panelMatrix;
+    
+    uint8_t      m_gammaCurve[256];
 };
 
 #endif /* _RGBMATRIX_H */

@@ -33,16 +33,13 @@ $_SESSION['session_id'] = session_id();
 $command_array = Array(
 	"getMusicFiles" => 'GetMusicFiles',
 	"getPlayLists" => 'GetPlaylists',
-	"getPlayListSettings" => 'GetPlayListSettings',
 	"getFiles" => 'GetFiles',
 	"getZip" => 'GetZip',
 	"getSequences" => 'GetSequenceFiles',
-	"getPlayListEntries" => 'GetPlaylistEntries',
 	"setPlayListFirstLast" => 'SetPlayListFirstLast',
 	"addPlayList" => 'AddPlaylist',
 	"getUniverseReceivedBytes" => 'GetUniverseReceivedBytes',
-	"sort" => 'PlaylistEntryPositionChanged',
-	"savePlaylist" => 'SavePlaylist',
+	"playlistEntryPositionChanged" => 'PlaylistEntryPositionChanged',
 	"deletePlaylist" => 'DeletePlaylist',
 	"deleteEntry" => 'DeleteEntry',
 	"deleteFile" => 'DeleteFile',
@@ -96,6 +93,7 @@ $command_array = Array(
 	"saveUSBDongle" => 'SaveUSBDongle',
 	"getInterfaceInfo" => 'GetInterfaceInfo',
 	"setPiLCDenabled" => 'SetPiLCDenabled',
+    "setBBBTether" => 'SetBBBTether',
 	"updatePlugin" => 'UpdatePlugin',
 	"uninstallPlugin" => 'UninstallPlugin',
 	"installPlugin" => 'InstallPlugin',
@@ -119,10 +117,6 @@ if ( isset($_GET['command']) && !empty($_GET['command']) )
 		call_user_func($command_array[$_GET['command']]);
 	}
 	return;
-}
-else if(!empty($_POST['command']) && $_POST['command'] == "saveUniverses")
-{
-	SetUniverses();
 }
 else if(!empty($_POST['command']) && $_POST['command'] == "saveSchedule")
 {
@@ -307,6 +301,25 @@ function SetVolume()
 	EchoStatusXML($status);
 }
 
+function SetBBBTether()
+{
+    global $SUDO;
+    
+    $enabled = $_GET['enabled'];
+    check($enabled, "enabled", __FUNCTION__);
+    
+    if ($enabled == "true")
+    {
+        $status = exec($SUDO . " sed -i -e \"s/TETHER_ENABLED=.*/TETHER_ENABLED=yes/\" /etc/default/bb-wl18xx");
+    }
+    else
+    {
+        $status = exec($SUDO . " sed -i -e \"s/TETHER_ENABLED=.*/TETHER_ENABLED=no/\" /etc/default/bb-wl18xx");
+    }
+    
+    EchoStatusXML($status);
+}
+
 function SetPiLCDenabled()
 {
 	global $SUDO;
@@ -489,7 +502,7 @@ function MoveFile()
 				exit(1);
 			}
 		}
-		else if (preg_match("/\.(mp3|ogg)$/i", $file))
+		else if (preg_match("/\.(mp3|ogg|m4a)$/i", $file))
 		{
 			if ( !rename($uploadDirectory."/" . $file, $musicDirectory . '/' . $file) )
 			{
@@ -684,36 +697,46 @@ function DeleteEvent()
 
 function GetUniverseReceivedBytes()
 {
-	global $bytesFile;
+	$data = file_get_contents('http://127.0.0.1:32322/fppd/e131stats');
+	$stats = json_decode($data);
 
-	$status=SendCommand('r');
-	$file = file($bytesFile);
 	$doc = new DomDocument('1.0');
-	if($file != FALSE)
+	if(count($stats->universes))
 	{
 		$root = $doc->createElement('receivedBytes');
-		$root = $doc->appendChild($root);  
-		for($i=0;$i<count($file);$i++)
+        $root->setAttribute('size', count($stats->universes));
+		$root = $doc->appendChild($root);
+
+		for ($i = 0; $i < count($stats->universes); $i++)
 		{
-			$receivedBytes = explode(",",$file[$i]);
 			$receivedInfo = $doc->createElement('receivedInfo');
 			$receivedInfo = $root->appendChild($receivedInfo); 
 			// universe
 			$universe = $doc->createElement('universe');
 			$universe = $receivedInfo->appendChild($universe);
-			$value = $doc->createTextNode($receivedBytes[0]);
+			$value = $doc->createTextNode($stats->universes[$i]->id);
 			$value = $universe->appendChild($value);
 			// startChannel
 			$startChannel = $doc->createElement('startChannel');
 			$startChannel = $receivedInfo->appendChild($startChannel);
-			$value = $doc->createTextNode($receivedBytes[1]);
+			$value = $doc->createTextNode($stats->universes[$i]->startChannel);
 			$value = $startChannel->appendChild($value);
 			// bytes received
 			$bytesReceived = $doc->createElement('bytesReceived');
 			$bytesReceived = $receivedInfo->appendChild($bytesReceived);
-			$value = $doc->createTextNode($receivedBytes[2]);
+			$value = $doc->createTextNode($stats->universes[$i]->bytesReceived);
 			$value = $bytesReceived->appendChild($value);
-			//Add it to receivedBytes 
+			// packets received
+			$packetsReceived = $doc->createElement('packetsReceived');
+			$packetsReceived = $receivedInfo->appendChild($packetsReceived);
+			$value = $doc->createTextNode($stats->universes[$i]->packetsReceived);
+			$value = $packetsReceived->appendChild($value);
+            
+            // errors received
+            $errorCount = $doc->createElement('errors');
+            $errorCount = $receivedInfo->appendChild($errorCount);
+            $value = $doc->createTextNode($stats->universes[$i]->errors);
+            $value = $errorCount->appendChild($value);
 		}
 	}
 	else
@@ -738,15 +761,25 @@ function StopNow()
 	EchoStatusXML('true');
 }
 
+function StopFPPDNoStatus()
+{
+    global $SUDO;
+    
+    // Stop Playing
+    SendCommand('d');
+    
+    // Shutdown
+    SendCommand('q'); // Ignore return and just kill if 'q' doesn't work...
+    // wait half a second for shutdown and outputs to close
+    usleep(500000);
+    // kill it if it's still running
+    exec($SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_stop");
+}
 function StopFPPD()
 {
-	global $SUDO;
-
-	SendCommand('d'); // Ignore return and just kill if 'd' doesn't work...
-	$status=exec($SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_stop");
-	EchoStatusXML('true');
+    StopFPPDNoStatus();
+    EchoStatusXML('true');
 }
-
 
 function StartFPPD()
 {
@@ -762,10 +795,7 @@ function StartFPPD()
 
 function RestartFPPD()
 {
-	global $SUDO;
-
-	exec($SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_stop");
-
+    StopFPPDNoStatus();
 	StartFPPD();
 }
 
@@ -1072,7 +1102,7 @@ function DeleteScheduleEntry()
 
 function AddScheduleEntry()
 {
-	$_SESSION['ScheduleEntries'][] = new ScheduleEntry(1,'',7,0,0,0,0,0,0,1,"2014-01-01","2099-12-31");
+	$_SESSION['ScheduleEntries'][] = new ScheduleEntry(1,'',7,0,0,0,24,0,0,1,"2014-01-01","2099-12-31");
 	EchoStatusXML('Success');
 }
 
@@ -1090,6 +1120,24 @@ function SaveSchedule()
 		}
 		$_SESSION['ScheduleEntries'][$i]->playlist = 	$_POST['selPlaylist'][$i];
 		$_SESSION['ScheduleEntries'][$i]->startDay = intval($_POST['selDay'][$i]);
+
+		$dayMask = 0;
+		if (isset($_POST['maskSunday'][$i]))
+			$dayMask |= 0x4000;
+		if (isset($_POST['maskMonday'][$i]))
+			$dayMask |= 0x2000;
+		if (isset($_POST['maskTuesday'][$i]))
+			$dayMask |= 0x1000;
+		if (isset($_POST['maskWednesday'][$i]))
+			$dayMask |= 0x0800;
+		if (isset($_POST['maskThursday'][$i]))
+			$dayMask |= 0x0400;
+		if (isset($_POST['maskFriday'][$i]))
+			$dayMask |= 0x0200;
+		if (isset($_POST['maskSaturday'][$i]))
+			$dayMask |= 0x0100;
+
+		$_SESSION['ScheduleEntries'][$i]->startDay |= $dayMask;
 
 		$startTime = 		$entry = explode(":",$_POST['txtStartTime'][$i],3);
 		$_SESSION['ScheduleEntries'][$i]->startHour = $startTime[0];
@@ -1430,19 +1478,23 @@ function CloneUniverse()
 
 	if($index < count($_SESSION['UniverseEntries']) && ($index + $numberToClone) < count($_SESSION['UniverseEntries']))
 	{
+			$desc = $_SESSION['UniverseEntries'][$index]->desc;
 			$universe = $_SESSION['UniverseEntries'][$index]->universe+1;
 			$size = $_SESSION['UniverseEntries'][$index]->size;
 			$startAddress = $_SESSION['UniverseEntries'][$index]->startAddress+$size;
 			$type = $_SESSION['UniverseEntries'][$index]->type;
 			$unicastAddress = $_SESSION['UniverseEntries'][$index]->unicastAddress;
+			$priority = $_SESSION['UniverseEntries'][$index]->priority;
 
 			for($i=$index+1;$i<$index+1+$numberToClone;$i++,$universe++)
 			{
+				 	$_SESSION['UniverseEntries'][$i]->desc	= $desc;
 				 	$_SESSION['UniverseEntries'][$i]->universe	= $universe;
 				 	$_SESSION['UniverseEntries'][$i]->size	= $size;
 				 	$_SESSION['UniverseEntries'][$i]->startAddress	= $startAddress;
 				 	$_SESSION['UniverseEntries'][$i]->type	= $type;
 					$_SESSION['UniverseEntries'][$i]->unicastAddress	= $unicastAddress;
+				 	$_SESSION['UniverseEntries'][$i]->priority	= $priority;
 					$startAddress += $size;
  			}
 	}
@@ -1463,62 +1515,44 @@ function DeleteUniverse()
 	EchoStatusXML('Success');
 }
 
-function SetUniverses()
+function LoadUniverseFile($input)
 {
-	for($i=0;$i<count($_SESSION['UniverseEntries']);$i++)
-	{
-		if( isset($_POST['chkActive'][$i]))
-		{
-			$_SESSION['UniverseEntries'][$i]->active = 1;
-		}
-		else
-		{
-			$_SESSION['UniverseEntries'][$i]->active = 0;
-		}
-		$_SESSION['UniverseEntries'][$i]->universe = 	intval($_POST['txtUniverse'][$i]);
-		$_SESSION['UniverseEntries'][$i]->size = 	intval($_POST['txtSize'][$i]);
-		$_SESSION['UniverseEntries'][$i]->startAddress = 	intval($_POST['txtStartAddress'][$i]);
-		$_SESSION['UniverseEntries'][$i]->type = 	intval($_POST['universeType'][$i]);
-		$_SESSION['UniverseEntries'][$i]->unicastAddress = 	trim($_POST['txtIP'][$i]);
-	}
-
-	SaveUniversesToFile();
-
-	EchoStatusXML('Success');
-}
-
-function LoadUniverseFile()
-{
-	global $universeFile;
+	global $settings;
 
 	$_SESSION['UniverseEntries']=NULL;
 
-	$f=fopen($universeFile,"r");
-	if($f == FALSE)
+	$filename = $settings['universeOutputs'];
+	if ($input)
+		$filename = $settings['universeInputs'];
+
+	if(!file_exists($filename))
 	{
-		fclose($f);
-		//No file exists add one universe and save to new file.
-		$_SESSION['UniverseEntries'][] = new UniverseEntry(1,1,1,512,0,"",0);
-		SaveUniversesToFile();
+		$_SESSION['UniverseEntries'][] = new UniverseEntry(1,"",1,1,512,0,"",0);
 		return;
 	}
 
-	while (!feof($f))
-	{
-		$line=fgets($f);
-		if ($line == "")
-			continue;
+	$jsonStr = file_get_contents($filename);
 
-		$entry = explode(",",$line,10);
-		$active = $entry[0];
-		$universe = $entry[1];
-		$startAddress = $entry[2];
-		$size = $entry[3];
-		$type = $entry[4];
-		$unicastAddress = $entry[5];
-		$_SESSION['UniverseEntries'][] = new UniverseEntry($active,$universe,$startAddress,$size,$type,$unicastAddress,0);
+	$data = json_decode($jsonStr);
+	$universes = 0;
+	
+	if ($input)
+		$universes = $data->channelInputs[0]->universes;
+	else
+		$universes = $data->channelOutputs[0]->universes;
+
+	foreach ($universes as $univ)
+	{
+		$active = $univ->active;
+		$desc = $univ->description;
+		$universe = $univ->id;
+		$startAddress = $univ->startChannel;
+		$size = $univ->channelCount;
+		$type = $univ->type;
+		$unicastAddress = $univ->address;
+		$priority = $univ->priority;
+		$_SESSION['UniverseEntries'][] = new UniverseEntry($active,$desc,$universe,$startAddress,$size,$type,$unicastAddress,$priority,0);
 	}
-	fclose($f);
 }
 
 function LoadPixelnetDMXFile()
@@ -1559,29 +1593,6 @@ function LoadPixelnetDMXFile()
   }
 }
 
-function SaveUniversesToFile()
-{
-	global $universeFile;
-
-	$entries = "";
-	$f=fopen($universeFile,"w") or exit("Unable to open file! : " . $universeFile);
-	for($i=0;$i<count($_SESSION['UniverseEntries']);$i++)
-	{
-		$entries .= sprintf("%s,%s,%s,%s,%s,%s,\n",
-					$_SESSION['UniverseEntries'][$i]->active,
-					$_SESSION['UniverseEntries'][$i]->universe,
-					$_SESSION['UniverseEntries'][$i]->startAddress,
-					$_SESSION['UniverseEntries'][$i]->size,
-					$_SESSION['UniverseEntries'][$i]->type,
-					$_SESSION['UniverseEntries'][$i]->unicastAddress);
-	}
-	fwrite($f,$entries);
-	fclose($f);
-
-	EchoStatusXML('Success');
-}
-
-
 function SavePixelnetDMXoutputsToFile()
 {
 	global $pixelnetFile;
@@ -1617,10 +1628,12 @@ function GetUniverses()
 {
 	$reload = $_GET['reload'];
 	check($reload, "reload", __FUNCTION__);
+	$input = $_GET['input'];
+	check($input, "input", __FUNCTION__);
 
 	if($reload == "TRUE")
 	{
-		LoadUniverseFile();
+		LoadUniverseFile($input);
 	}
 
 	$doc = new DomDocument('1.0');
@@ -1635,6 +1648,11 @@ function GetUniverses()
 		$active = $UniverseEntry->appendChild($active);
 		$value = $doc->createTextNode($_SESSION['UniverseEntries'][$i]->active);
 		$value = $active->appendChild($value);
+		// description
+		$desc = $doc->createElement('desc');
+		$desc = $UniverseEntry->appendChild($desc);
+		$value = $doc->createTextNode($_SESSION['UniverseEntries'][$i]->desc);
+		$value = $desc->appendChild($value);
 		// universe
 		$universe = $doc->createElement('universe');
 		$universe = $UniverseEntry->appendChild($universe);
@@ -1660,6 +1678,11 @@ function GetUniverses()
 		$unicastAddress = $UniverseEntry->appendChild($unicastAddress);
 		$value = $doc->createTextNode($_SESSION['UniverseEntries'][$i]->unicastAddress);
 		$value = $unicastAddress->appendChild($value);
+		// priority
+		$priority = $doc->createElement('priority');
+		$priority = $UniverseEntry->appendChild($priority);
+		$value = $doc->createTextNode($_SESSION['UniverseEntries'][$i]->priority);
+		$value = $priority->appendChild($value);
 
 	}
 	echo $doc->saveHTML();
@@ -1713,11 +1736,13 @@ function SetUniverseCount()
 		if($universeCount < $count)
 		{
 			$active = 1;
+			$desc = "";
 				$universe = 1;
 				$startAddress = 1;
 				$size = 512;
 				$type = 0;	//Multicast
 				$unicastAddress = "";
+				$priority = 0;
 			if($universeCount == 0)
 			{
 				$universe = 1;
@@ -1725,6 +1750,7 @@ function SetUniverseCount()
 				$size = 512;
 				$type = 0;	//Multicast
 				$unicastAddress = "";
+				$priority = 0;
 
 			}
 			else
@@ -1734,11 +1760,12 @@ function SetUniverseCount()
 				$startAddress = $_SESSION['UniverseEntries'][$universeCount-1]->startAddress+$size;
 				$type = $_SESSION['UniverseEntries'][$universeCount-1]->type;
 				$unicastAddress = $_SESSION['UniverseEntries'][$universeCount-1]->unicastAddress;
+				$priority = $_SESSION['UniverseEntries'][$universeCount-1]->priority;
 			}
 
 			for($i=$universeCount;$i<$count;$i++,$universe++)
 			{
-				$_SESSION['UniverseEntries'][] = new UniverseEntry($active,$universe,$startAddress,$size,$type,$unicastAddress,0);
+				$_SESSION['UniverseEntries'][] = new UniverseEntry($active,$desc,$universe,$startAddress,$size,$type,$unicastAddress,$priority,0);
 				$startAddress += $size;
 			}
 		}
@@ -1760,20 +1787,28 @@ function AddPlayListEntry()
 	$seqFile = $_GET['seqFile'];
 	$songFile = $_GET['mediaFile'];
 	$pause = $_GET['pause'];
+	$scriptName = $_GET['scriptName'];
 	$eventName = $_GET['eventName'];
 	$eventID = $_GET['eventID'];
 	$pluginData = $_GET['pluginData'];
+	check($section, "section", __FUNCTION__);
 	check($type, "type", __FUNCTION__);
 	check($seqFile, "seqFile", __FUNCTION__);
 	check($songFile, "songFile", __FUNCTION__);
 	check($pause, "pause", __FUNCTION__);
+	check($scriptName, "scriptName", __FUNCTION__);
 	check($eventName, "eventName", __FUNCTION__);
 	check($eventID, "eventID", __FUNCTION__);
 	check($pluginData, "pluginData", __FUNCTION__);
 	$index = 0;
 
-	$_SESSION['playListEntries'][] = new PlaylistEntry($type,$songFile,$seqFile,$pause,$eventName,$eventID,$pluginData,count($_SESSION['playListEntries']));
-	EchoStatusXML($_GET['mediaFile']);
+	// Always insert new entries into the main playlist section
+	$section = "MainPlaylist";
+
+	$_SESSION['playListEntries' . $section][] = new PlaylistEntry($type,$songFile,$seqFile,$pause,$scriptName,$eventName,$eventID,$pluginData,
+		0, // FIXME PLAYLIST
+		count($_SESSION['playListEntries' . $section]));
+	EchoStatusXML(sprintf("Playlist Entry added with ID #%d, playlist now has %d entries", count($_SESSION['playListEntries' . $section]) - 1, count($_SESSION['playListEntries' . $section])));
 }
 
 function GetPlaylists()
@@ -1793,18 +1828,13 @@ function GetPlaylists()
 
 	foreach(scandir($playlistDirectory) as $pFile)
 	{
-		// Exclude JSON playlists for now
-		//if ($pFile != "." && $pFile != ".." && !preg_match('/\.json$/', $pFile))
 		if ($pFile != "." && $pFile != "..")
 		{
+			$pFile = preg_replace("/\.json/", "", $pFile);
 			$playList = $doc->createElement('Playlist');
 			$playList = $root->appendChild($playList);
 			$value = $doc->createTextNode(utf8_encode($pFile));
 			$value = $playList->appendChild($value);
-	//		if($showFirst == "true")
-	//		{
-				//LoadPlayListDetails($pFile);
-	//		}
 		}
 	}
 	echo $doc->saveHTML();
@@ -1967,9 +1997,22 @@ function AddPlaylist()
 		$successAttribute = $response->appendChild($successAttribute);
 
 		//$_SESSION['currentPlaylist']	= $pl;
-		$filename = $playlistDirectory . '/' . $name;
+		$filename = $playlistDirectory . '/' . $name . ".json";
 		$file = fopen($filename, "w");
-		fwrite($file, "");
+		$emptyPlaylist = <<<EOT
+{
+	"name": "$name",
+	"repeat": 0,
+	"loopCount": 0,
+	"leadIn": [
+	],
+	"mainPlaylist": [
+	],
+	"leadOut": [
+	]
+}
+EOT;
+		fwrite($file, $emptyPlaylist);
 		fclose($file);
 
 		$playList = $doc->createElement('Playlist');
@@ -1981,593 +2024,82 @@ function AddPlaylist()
 	{
 		//$successAttribute->value = 'false';
 	}
-	$_SESSION['playListEntries'] = NULL;
-	echo $doc->saveHTML();
-}
-
-function SetPlayListFirstLast()
-{
-	$first = $_GET['first'];
-	$last = $_GET['last'];
-	check($first, "first", __FUNCTION__);
-	check($last, "last", __FUNCTION__);
-
-	$_SESSION['playlist_first'] = $first;
-	$_SESSION['playlist_last'] = $last;
-	EchoStatusXML('Success');
-}
-
-function PlaylistEntryFromArray($ple, $index)
-{
-	global $eventDirectory;
-
-	$type = "";
-	$songFile = "";
-	$seqFile = "";
-	$pause = 0;
-	$eventName = "";
-	$eventID = "";
-	$pluginData = "";
-
-	switch ($ple{'type'})
-	{
-		case 'both':
-			$type = 'b';
-			$songFile = $ple{'mediaName'};
-			$seqFile  = $ple{'sequenceName'};
-			break;
-		case 'event':
-			$type = 'e';
-			$eventID = sprintf("%02d_%02d", $ple{'majorID'}, $ple{'minorID'});
-			$eventFile = $eventDirectory . "/" . $eventID . ".fevt";
-			if ( file_exists($eventFile)) {
-				$eventInfo = parse_ini_file($eventFile);
-				$eventName = $eventInfo['name'];
-			} else {
-				$eventName = "ERROR: Event undefined";
-			}
-			break;
-		case 'media':
-			$type = 'm';
-			$songFile = $ple{'mediaName'};
-			break;
-		case 'sequence':
-			$type = 's';
-			$seqFile  = $ple{'sequenceName'};
-			break;
-		case 'pause':
-			$type = 'p';
-			$pause = $ple{'duration'};
-			break;
-		case 'volume':
-			$type = 'v';
-			$pause = $ple{'volume'};
-			break;
-		case 'brightness':
-			$type = 'B';
-			$pause = $ple{'brightness'};
-			break;
-		case 'plugin':
-			$type = 'P';
-			$pluginData = $ple{'data'};
-			break;
-	}
-
-	return new PlaylistEntry($type,$songFile,$seqFile,$pause,$eventName,$eventID,$pluginData,$index);
-}
-
-function LoadPlayListDetailsJSON($file)
-{
-	global $playlistDirectory;
-	global $eventDirectory;
-
-	$playListEntries = NULL;
-	$_SESSION['playListEntries']=NULL;
-
-	$jsonStr = file_get_contents($playlistDirectory . '/' . $file);
-	$playlist = json_decode($jsonStr, true);
-	$index = 0;
-
-	if ((isset($playlist{'leadIn'})) &&
-		(count($playlist{'leadIn'})))
-	{
-		$_SESSION['playlist_first'] = count($playlist{'leadIn'});
-		$playListEntries[$index] = PlaylistEntryFromArray($playlist{'leadIn'}[0], $index);
-		$index++;
-	}
-	else
-		$_SESSION['playlist_first'] = 0;
-
-	foreach ($playlist{'mainPlaylist'} as $ple)
-	{
-		$playListEntries[$index] = PlaylistEntryFromArray($ple, $index);
-		$index++;
-	}
-
-	if ((isset($playlist{'leadOut'})) &&
-		(count($playlist{'leadOut'})))
-	{
-		$_SESSION['playlist_last'] = count($playlist{'leadOut'});
-		$playListEntries[$index] = PlaylistEntryFromArray($playlist{'leadOut'}[0], $index);
-		$index++;
-	}
-	else
-		$_SESSION['playlist_last'] = 0;
-
-	$_SESSION['playListEntries'] = $playListEntries;
-//	Print_r($_SESSION['playListEntries']);
-}
-
-function LoadPlayListDetails($file)
-{
-	global $playlistDirectory;
-	global $eventDirectory;
-
-	if (preg_match('/.json$/', $file))
-	{
-		LoadPlayListDetailsJSON($file);
-		return;
-	}
-
-	$playListEntries = NULL;
-	$_SESSION['playListEntries']=NULL;
-
-	$f=fopen($playlistDirectory . '/' . $file, "rx") or exit("Unable to open file! : " . $playlistDirectory . '/' . $file);
-	$i=0;
-	$line=fgets($f);
-	if(strlen($line)) {
-		$entry = explode(",",$line,50);
-		$_SESSION['playlist_first']=$entry[0];
-		$_SESSION['playlist_last']=$entry[1];
-	}
-	while (!feof($f))
-	{
-		$line=fgets($f);
-		$entry = explode(",",$line,50);
-		if ($entry[0] == 'v')
-			$entry[0] = 'm';
-		$type = $entry[0];
-		if(strlen($line)==0)
-			break;
-		switch($entry[0])
-		{
-			case 'b':
-				$seqFile = $entry[1];
-				$songFile = $entry[2];
-				$pause = 0;
-				$index = $i;
-				$eventName = "";
-				$eventID = "";
-				$pluginData = "";
-				break;
-			default:
-				break;
-			case 'm':
-				$songFile = $entry[1];
-				$seqFile = "";
-				$pause = 0;
-				$index = $i;
-				$eventName = "";
-				$eventID = "";
-				$pluginData = "";
-				break;
-			case 's':
-				$songFile = "";
-				$seqFile = $entry[1];
-				$pause = 0;
-				$index = $i;
-				$eventName = "";
-				$eventID = "";
-				$pluginData = "";
-				break;
-			case 'p':
-				$songFile = "";
-				$seqFile = "";
-				$pause = $entry[1];
-				$index = $i;
-				$eventName = "";
-				$eventID = "";
-				$pluginData = "";
-				break;
-			case 'P':
-				$songFile = "";
-				$seqFile = "";
-				$pause = 0;
-				$index = $i;
-				$eventName = "";
-				$eventID = "";
-				$pluginData = $entry[1];
-				break;
-			case 'e':
-				$seqFile = "";
-				$songFile = "";
-				$pause = 0;
-				$index = $i;
-				$eventID = $entry[1];
-				$pluginData = "";
-
-				$eventFile = $eventDirectory . "/" . $eventID . ".fevt";
-				if ( file_exists($eventFile)) {
-					$eventInfo = parse_ini_file($eventFile);
-					$eventName = $eventInfo['name'];
-				} else {
-					$eventName = "ERROR: Event undefined";
-				}
-				break;
-		}
-		$playListEntries[$i] = new PlaylistEntry($type,$songFile,$seqFile,$pause,$eventName,$eventID,$pluginData,$index);
-		$i++;
-	}
-	fclose($f);
-	$_SESSION['playListEntries'] = $playListEntries;
-//	Print_r($_SESSION['playListEntries']);
-}
-
-function GetPlayListSettings()
-{
-	$file = $_GET['pl'];
-	check($file, "file", __FUNCTION__);
-
-	$doc = new DomDocument('1.0');
-	// Playlist Entries
-	$root = $doc->createElement('playlist_settings');
-	$root = $doc->appendChild($root);
-	// First setting
-	$first = $doc->createElement('playlist_first');
-	$first = $root->appendChild($first);
-	$value = $doc->createTextNode($_SESSION['playlist_first']);
-	$value = $first->appendChild($value);
-	// Last setting
-	$last = $doc->createElement('playlist_last');
-	$last = $root->appendChild($last);
-	$value = $doc->createTextNode($_SESSION['playlist_last']);
-	$value = $last->appendChild($value);
-
-	echo $doc->saveHTML();
-}
-
-function GetPlaylistEntries()
-{
-	$file = $_GET['pl'];
-	$reloadFile = $_GET['reload'];
-	check($file, "file", __FUNCTION__);
-	check($reloadFile, "reloadFile", __FUNCTION__);
-
-	$_SESSION['currentPlaylist'] = $file;
-	if($reloadFile=='true')
-	{
-		LoadPlayListDetails($file);
-	}
-	$doc = new DomDocument('1.0');
-	// Playlist Entries
-	$root = $doc->createElement('PlaylistEntries');
-	$root = $doc->appendChild($root);
-//	Print_r($_SESSION['playListEntries']);
-	for($i=0;$i<count($_SESSION['playListEntries']);$i++)
-	{
-		$playListEntry = $doc->createElement('playListEntry');
-		$playListEntry = $root->appendChild($playListEntry);
-		// type
-		$type = $doc->createElement('type');
-		$type = $playListEntry->appendChild($type);
-		$value = $doc->createTextNode($_SESSION['playListEntries'][$i]->type);
-		$value = $type->appendChild($value);
-		// seqFile
-		$seqFile = $doc->createElement('seqFile');
-		$seqFile = $playListEntry->appendChild($seqFile);
-		$value = $doc->createTextNode($_SESSION['playListEntries'][$i]->seqFile);
-		$value = $seqFile->appendChild($value);
-		// songFile
-		$songFile = $doc->createElement('songFile');
-		$songFile = $playListEntry->appendChild($songFile);
-		$value = $doc->createTextNode($_SESSION['playListEntries'][$i]->songFile);
-		$value = $songFile->appendChild($value);
-		// pause
-		$pause = $doc->createElement('pause');
-		$pause = $playListEntry->appendChild($pause);
-		$value = $doc->createTextNode($_SESSION['playListEntries'][$i]->pause);
-		$value = $pause->appendChild($value);
-		// index
-		$index = $doc->createElement('index');
-		$index = $playListEntry->appendChild($index);
-		$value = $doc->createTextNode($_SESSION['playListEntries'][$i]->index);
-		$value = $index->appendChild($value);
-		// eventName
-		$eventName = $doc->createElement('eventName');
-		$eventName = $playListEntry->appendChild($eventName);
-		$value = $doc->createTextNode($_SESSION['playListEntries'][$i]->eventName);
-		$value = $eventName->appendChild($value);
-		// eventID
-		$eventID = $doc->createElement('eventID');
-		$eventID = $playListEntry->appendChild($eventID);
-		$value = $doc->createTextNode($_SESSION['playListEntries'][$i]->eventID);
-		$value = $eventID->appendChild($value);
-		// plugin data
-		$pluginData = $doc->createElement('pluginData');
-		$pluginData = $playListEntry->appendChild($pluginData);
-		$value = $doc->createTextNode($_SESSION['playListEntries'][$i]->pluginData);
-		$value = $pluginData->appendChild($value);
-	}
+	$_SESSION['playListEntriesLeadIn'] = NULL;
+	$_SESSION['playListEntriesMainPlaylist'] = NULL;
+	$_SESSION['playListEntriesLeadOut'] = NULL;
 	echo $doc->saveHTML();
 }
 
 function PlaylistEntryPositionChanged()
 {
+	$newSection = $_GET['newSection'];
 	$newIndex = $_GET['newIndex'];
+	$oldSection = $_GET['oldSection'];
 	$oldIndex = $_GET['oldIndex'];
+	check($newSection, "newSection", __FUNCTION__);
 	check($newIndex, "newIndex", __FUNCTION__);
+	check($oldSection, "oldSection", __FUNCTION__);
 	check($oldIndex, "oldIndex", __FUNCTION__);
 
-	if(count($_SESSION['playListEntries']) > $oldIndex && count($_SESSION['playListEntries']) > $newIndex)
+	if ($newSection == $oldSection)
 	{
-		$_SESSION['playListEntries'][$oldIndex]->index = $newIndex;
-		if($newIndex < 	$oldIndex)
+		if(count($_SESSION['playListEntries' . $newSection]) > $oldIndex && count($_SESSION['playListEntries' . $newSection]) > $newIndex)
 		{
-			for($index=$newIndex;$index<$oldIndex;$index++)
+			$_SESSION['playListEntries' . $newSection][$oldIndex]->index = $newIndex;
+			if($newIndex < 	$oldIndex)
 			{
-				$_SESSION['playListEntries'][$index]->index++;
+				for($index=$newIndex;$index<$oldIndex;$index++)
+				{
+					$_SESSION['playListEntries' . $newSection][$index]->index++;
+				}
 			}
-		}
-		if ($oldIndex < $newIndex)
-		{
-			for($index=$oldIndex+1;$index<=$newIndex;$index++)
+			if ($oldIndex < $newIndex)
 			{
-				$_SESSION['playListEntries'][$index]->index--;
+				for($index=$oldIndex+1;$index<=$newIndex;$index++)
+				{
+					$_SESSION['playListEntries' . $newSection][$index]->index--;
+				}
 			}
+			usort($_SESSION['playListEntries' . $newSection],"cmp_index");
 		}
-		usort($_SESSION['playListEntries'],cmp_index);
+	}
+	else
+	{
+		// Insert the new entry
+		$_SESSION['playListEntries' . $newSection][] = new PlaylistEntry(
+			$_SESSION['playListEntries' . $oldSection][$oldIndex]->type,
+			$_SESSION['playListEntries' . $oldSection][$oldIndex]->songFile,
+			$_SESSION['playListEntries' . $oldSection][$oldIndex]->seqFile,
+			$_SESSION['playListEntries' . $oldSection][$oldIndex]->pause,
+			$_SESSION['playListEntries' . $oldSection][$oldIndex]->scriptName,
+			$_SESSION['playListEntries' . $oldSection][$oldIndex]->eventName,
+			$_SESSION['playListEntries' . $oldSection][$oldIndex]->eventID,
+			$_SESSION['playListEntries' . $oldSection][$oldIndex]->pluginData,
+			$_SESSION['playListEntries' . $oldSection][$oldIndex]->entry,
+			$newIndex);
 
-	}
-}
+		// Backup the entry
+		unset($_SESSION['playListEntries' . $oldSection][$oldIndex]);
 
-function SavePlaylistEntry($f, $entry)
-{
-	if ($entry->type == 'b')
-	{
-		fprintf($f,
-			'		{' . "\n" .
-			'			"type": "both",' . "\n" .
-			'			"enabled": 1,' . "\n" .
-			'			"playOnce": %d,' . "\n" .
-			'			"sequenceName": "%s",' . "\n" .
-			'			"mediaName": "%s"' . "\n" .
-			'		}',
-			0, // Play Once
-			$entry->seqFile, $entry->songFile
-			);
-	}
-	else if ($entry->type == 's')
-	{
-		fprintf($f,
-			'		{' . "\n" .
-			'			"type": "sequence",' . "\n" .
-			'			"enabled": 1,' . "\n" .
-			'			"playOnce": %d,' . "\n" .
-			'			"sequenceName": "%s"' . "\n" .
-			'		}',
-			0, // Play Once
-			$entry->seqFile
-			);
-	}
-	else if ($entry->type == 'm')
-	{
-		fprintf($f,
-			'		{' . "\n" .
-			'			"type": "media",' . "\n" .
-			'			"enabled": 1,' . "\n" .
-			'			"playOnce": %d,' . "\n" .
-			'			"mediaName": "%s"' . "\n" .
-			'		}',
-			0, // Play Once
-			$entry->songFile
-			);
-	}
-	else if ($entry->type == 'p')
-	{
-		fprintf($f,
-			'		{' . "\n" .
-			'			"type": "pause",' . "\n" .
-			'			"enabled": 1,' . "\n" .
-			'			"playOnce": %d,' . "\n" .
-			'			"duration": %d' . "\n" .
-			'		}',
-			0, // Play Once
-			$entry->pause
-			);
-	}
-	else if ($entry->type == 'v')
-	{
-		fprintf($f,
-			'		{' . "\n" .
-			'			"type": "volume",' . "\n" .
-			'			"enabled": 1,' . "\n" .
-			'			"playOnce": %d,' . "\n" .
-			'			"volume": %d' . "\n" .
-			'		}',
-			0, // Play Once
-			$entry->pause
-			);
-	}
-	else if ($entry->type == 'B')
-	{
-		fprintf($f,
-			'		{' . "\n" .
-			'			"type": "brightness",' . "\n" .
-			'			"enabled": 1,' . "\n" .
-			'			"playOnce": %d,' . "\n" .
-			'			"brightness": %d' . "\n" .
-			'		}',
-			0, // Play Once
-			$entry->pause
-			);
-	}
-	else if ($entry->type == 'e')
-	{
-		$majorID = intval(preg_replace('/_.*/', '', $entry->eventID));
-		$minorID = intval(preg_replace('/.*_/', '', $entry->eventID));
-
-		fprintf($f,
-			'		{' . "\n" .
-			'			"type": "event",' . "\n" .
-			'			"enabled": 1,' . "\n" .
-			'			"playOnce": %d,' . "\n" .
-			'			"majorID": %d,' . "\n" .
-			'			"minorID": %d,' . "\n" .
-			'			"blocking": %d' . "\n" .
-			'		}',
-			0, // Play Once
-			$majorID, $minorID,
-			0  // Blocking
-			);
-	}
-	else if ($entry->type == 'P')
-	{
-		fprintf($f,
-			'		{' . "\n" .
-			'			"type": "plugin",' . "\n" .
-			'			"enabled": 1,' . "\n" .
-			'			"data": "%s"' . "\n" .
-			'		}',
-			0, // Play Once
-			$entry->pluginData
-			);
-	}
-}
-
-function SavePlaylist()
-{
-	global $playlistDirectory;
-
-	$name = $_GET['name'];
-	$first = $_GET['first'];
-	$last = $_GET['last'];
-	check($name, "name", __FUNCTION__);
-	check($first, "first", __FUNCTION__);
-	check($last, "last", __FUNCTION__);
-
-	if (!preg_match('/.json$/', $name))
-	{
-	$f=fopen($playlistDirectory . '/' . $name,"w") or exit("Unable to open file! : " . $playlistDirectory . '/' . $name);
-	}
-
-	$entries = sprintf("%s,%s,\n",$first,$last);
-	for($i=0;$i<count($_SESSION['playListEntries']);$i++)
-	{
-		if($_SESSION['playListEntries'][$i]->type == 'b')
+		// Delete from the old section
+		for($index = $oldIndex+1; $index < count($_SESSION['playListEntries' . $oldSection]); $index++)
 		{
-			$entries .= sprintf("%s,%s,%s,\n",$_SESSION['playListEntries'][$i]->type,$_SESSION['playListEntries'][$i]->seqFile,
-								$_SESSION['playListEntries'][$i]->songFile);
+			$_SESSION['playListEntries' . $oldSection][$index]->index--;
 		}
-		else if($_SESSION['playListEntries'][$i]->type == 's')
+		usort($_SESSION['playListEntries' . $oldSection],"cmp_index");
+
+		// Insert into the new section
+		if ($newIndex < (count($_SESSION['playListEntries' . $newSection]) - 1))
 		{
-			$entries .= sprintf("%s,%s,\n",$_SESSION['playListEntries'][$i]->type,$_SESSION['playListEntries'][$i]->seqFile);
-		}
-		else if($_SESSION['playListEntries'][$i]->type == 'm')
-		{
-			$entries .= sprintf("%s,%s,\n",$_SESSION['playListEntries'][$i]->type,$_SESSION['playListEntries'][$i]->songFile);
-		}
-		else if($_SESSION['playListEntries'][$i]->type == 'p')
-		{
-			$entries .= sprintf("%s,%s,\n",$_SESSION['playListEntries'][$i]->type,$_SESSION['playListEntries'][$i]->pause);
-		}
-		else if($_SESSION['playListEntries'][$i]->type == 'e')
-		{
-			$entries .= sprintf("%s,%s,\n",$_SESSION['playListEntries'][$i]->type,
-				$_SESSION['playListEntries'][$i]->eventID);
-		}
-		else if($_SESSION['playListEntries'][$i]->type == 'P')
-		{
-			$entries .= sprintf("%s,%s,\n",$_SESSION['playListEntries'][$i]->type,$_SESSION['playListEntries'][$i]->pluginData);
+			for($index = $newIndex; $index < (count($_SESSION['playListEntries' . $newSection]) - 1); $index++)
+			{
+				$_SESSION['playListEntries' . $newSection][$index]->index++;
+			}
+			usort($_SESSION['playListEntries' . $newSection],"cmp_index");
 		}
 	}
-	if (!preg_match('/.json$/', $name))
-	{
-	fwrite($f,$entries);
-	fclose($f);
-	}
 
-	// Now save the json version of the playlist
-	$f=fopen($playlistDirectory . '/' . $name,"w") or exit("Unable to open file! : " . $playlistDirectory . '/' . $name);
-	fprintf($f,
-		'{' . "\n" .
-		'	"name": "%s",' . "\n" .
-		'	"repeat": %d,' . "\n" .
-		'	"loopCount": %d',
-		preg_replace('/\.json$/', '', $name),
-		0, // Repeat
-		0	 // Loop Count
-		);
-
-	$firstEntry = 0;
-	if ($first)
-	{
-		$firstEntry = 1;
-	}
-
-	$lastEntry = count($_SESSION['playListEntries']) - 1;
-	if ($last)
-	{
-		$lastEntry--;
-	}
-
-	if ($first)
-	{
-		fprintf($f, ',' . "\n" .
-			'	"leadIn": [' . "\n"
-			);
-
-		// Print first entries here
-		SavePlaylistEntry($f, $_SESSION['playListEntries'][0]);
-
-		fprintf($f, "\n" .
-			'	]'
-			);
-	}
-
-	// FIXME PLAYLIST, need some sanity checks in here for first/last overlap
-
-	fprintf($f, ',' . "\n" .
-		'	"mainPlaylist": [' . "\n"
-		);
-
-	for($i = $firstEntry; $i <= $lastEntry; $i++)
-	{
-		if ($i != $firstEntry)
-			fprintf($f, ",\n");
-
-		SavePlaylistEntry($f, $_SESSION['playListEntries'][$i]);
-	}
-
-	fprintf($f, "\n" .
-		'	]'
-		);
-
-	if ($last)
-	{
-		fprintf($f, ',' . "\n" .
-			'	"leadOut": [' . "\n"
-			);
-
-		// Print last entries here
-		SavePlaylistEntry($f, $_SESSION['playListEntries'][count($_SESSION['playListEntries']) - 1]);
-
-		fprintf($f, "\n" .
-			'	]'
-			);
-	}
-
-	fprintf($f, "\n}\n");
-
-	fclose($f);
-
-
-	EchoStatusXML('Success');
-
-	if($name != $_SESSION['currentPlaylist'])
-	{
-		 unlink($playlistDirectory . '/' . $_SESSION['currentPlaylist']);
-		 $_SESSION['currentPlaylist'] = $name;
-	}
+	EchoStatusXML('NewSectionCount: ' . count($_SESSION['playListEntries' . $newSection]));
 }
 
 function DeletePlaylist()
@@ -2577,26 +2109,52 @@ function DeletePlaylist()
 	$name = $_GET['name'];
 	check($name, "name", __FUNCTION__);
 
-	unlink($playlistDirectory . '/' . $name);
-	EchoStatusXML('Success');
+    //Check if the file exists, old playlists don't have extensions
+    $playlist_exists = file_exists($playlistDirectory . '/' . $name);
+
+    if($playlist_exists){
+        //then just delete the file
+        $delete_status = unlink($playlistDirectory . '/' . $name);
+    }	else{
+        //if it doesn't exist, then add .json to the filename
+        //All Playlists in FPP v2 are json files
+        $name = $name . '.json';
+        //
+        $delete_status = unlink($playlistDirectory . '/' . $name);
+    }
+
+    if($delete_status == true){
+        EchoStatusXML('Success');
+    }else{
+        EchoStatusXML('Failure');
+    }
 }
 
 function DeleteEntry()
 {
+	$section = $_GET['section'];
 	$index = $_GET['index'];
+	check($section, "section", __FUNCTION__);
 	check($index, "index", __FUNCTION__);
 
 	$doc = new DomDocument('1.0');
 	$root = $doc->createElement('Status');
 	$root = $doc->appendChild($root);
+
+	if ($section == 'LeadOut')
+		$index -= count($_SESSION['playListEntriesMainPlaylist']);
+
+	if ($section != 'LeadIn')
+		$index -= count($_SESSION['playListEntriesLeadIn']);
+
 	// Delete from array.
-	if($index < count($_SESSION['playListEntries']))
+	if($index < count($_SESSION['playListEntries' . $section]))
 	{
-		unset($_SESSION['playListEntries'][$index]);
-		$_SESSION['playListEntries'] = array_values($_SESSION['playListEntries']);
-		for($i=0;$i<count($_SESSION['playListEntries']);$i++)
+		unset($_SESSION['playListEntries' . $section][$index]);
+		$_SESSION['playListEntries' . $section] = array_values($_SESSION['playListEntries' . $section]);
+		for($i=0;$i<count($_SESSION['playListEntries' . $section]);$i++)
 		{
-			$_SESSION['playListEntries'][$i]->index = $i;
+			$_SESSION['playListEntries' . $section][$i]->index = $i;
 		}
 		$value = $doc->createTextNode(("Success"));
 	}
@@ -2609,8 +2167,6 @@ function DeleteEntry()
 	echo $doc->saveHTML();
 
 }
-
-
 
 function cmp_index($a, $b)
 {
@@ -2668,7 +2224,7 @@ function ConvertFile()
 
 	if (preg_match("/\.(vix|xseq|lms|las|gled|seq|hlsidata)$/i", $file))
 	{
-        LoadUniverseFile();
+        LoadUniverseFile(0);
         
         usort($_SESSION['UniverseEntries'], "universe_cmp");
         $universeString = "-";
@@ -2788,7 +2344,7 @@ function GetVideoInfo()
 
 	global $settings;
 	$videoInfo = "";
-	exec("omxplayer -i " . $settings['videoDirectory'] . "/" . $filename . " 2>&1", $info);
+	exec("omxplayer -i '" . $settings['videoDirectory'] . "/" . $filename . "' 2>&1", $info);
 	$videoInfo .= implode("\n", $info);
 
 	echo $videoInfo;
@@ -2813,6 +2369,8 @@ function GetFile()
 			header('Content-type: audio/mp3');
 		else if (preg_match('/ogg$/i', $filename))
 			header('Content-type: audio/ogg');
+        else if (preg_match('/m4a$/i', $filename))
+            header('Content-type: audio/m4a');
 		else if (preg_match('/mp4$/i', $filename))
 			header('Content-type: video/mp4');
 	}
@@ -2865,19 +2423,38 @@ function GetZip()
 	if ( is_readable("/var/log/syslog") )
 		$zip->addFile("/var/log/syslog", "Logs/syslog.log");
 
-	$files = array(
-		"channelmemorymaps",
-		"channeloutputs",
-		"config/channeloutputs.json",
-		"pixelnetDMX",
-		"schedule",
-		"settings",
-		"universes"
-		);
-	foreach($files as $file) {
-		if (file_exists("$mediaDirectory/$file"))
-			$zip->addFromString("Config/$file", ScrubFile("$mediaDirectory/$file"));
-	}
+    $files = array(
+        "channelmemorymaps",
+        "channeloutputs",
+        "channelremap",
+        "config/channeloutputs.json",
+        //new v2 config files
+        "config/outputprocessors.json",
+        "config/co-other.json",
+        "config/co-pixelStrings.json",
+        "config/co-bbbStrings.json",
+        "config/co-universes.json",
+        "config/ci-universes.json",
+        //
+        "pixelnetDMX",
+        "schedule",
+        "settings",
+        "universes"
+    );
+    
+    foreach($files as $file) {
+        if (file_exists("$mediaDirectory/$file")){
+            $fileData='';
+            //Handle these files differently, as they are CSV or other, and not a ini or JSON file
+            //ScrubFile assumes a INI file for files with the .json extension
+            if(in_array($file,array('schedule', 'channelmemorymaps', 'channeloutputs', 'channelremap', 'universes'))){
+                $fileData = file_get_contents("$mediaDirectory/$file");
+            }else{
+                $fileData = ScrubFile("$mediaDirectory/$file");
+            }
+            $zip->addFromString("Config/$file", $fileData);
+        }
+    }
 
 	// /root/.asoundrc is only readable by root, should use /etc/ version
 	exec($SUDO . " cat /root/.asoundrc", $output, $return_val);

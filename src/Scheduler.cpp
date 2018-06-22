@@ -1,7 +1,7 @@
 /*
- *   Scheduler Class for Falcon Pi Player (FPP)
+ *   Scheduler Class for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Pi Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -9,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -35,15 +35,16 @@
 #include "common.h"
 #include "fpp.h"
 #include "log.h"
-#include "Player.h"
+#include "playlist/Playlist.h"
 #include "Scheduler.h"
 #include "settings.h"
 
+Scheduler *scheduler = NULL;
+
 /////////////////////////////////////////////////////////////////////////////
 
-Scheduler::Scheduler(Player *parent)
-  : m_player(parent),
-	m_ScheduleEntryCount(0),
+Scheduler::Scheduler()
+  : m_ScheduleEntryCount(0),
 	m_CurrentScheduleHasbeenLoaded(0),
 	m_NextScheduleHasbeenLoaded(0),
 	m_nowWeeklySeconds2(0),
@@ -130,7 +131,8 @@ void Scheduler::CheckIfShouldBePlayingNow(void)
 					m_CurrentScheduleHasbeenLoaded = 1;
 					m_NextScheduleHasbeenLoaded = 0;
 
-					StartScheduledPlaylist(m_currentSchedulePlaylist.ScheduleEntryIndex, nowWeeklySeconds);
+					playlist->Play(m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playList,
+						0, m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].repeat);
 				}				
 			}
 		}
@@ -158,7 +160,7 @@ int Scheduler::GetNextScheduleEntry(int *weeklySecondIndex)
 			for(j=0;j<m_Schedule[i].weeklySecondCount;j++)
 			{
 				difference = GetWeeklySecondDifference(nowWeeklySeconds,m_Schedule[i].weeklyStartSeconds[j]);
-				if(difference<leastWeeklySecondDifferenceFromNow)
+				if(difference > 0 && difference<leastWeeklySecondDifferenceFromNow)
 				{
 					leastWeeklySecondDifferenceFromNow = difference; 
 					nextEntryIndex = i;
@@ -208,12 +210,68 @@ void Scheduler::LoadNextScheduleInfo(void)
   {
     GetNextPlaylistText(p);
     GetNextScheduleStartText(t);
-    LogDebug(VB_SCHEDULE, "Next Scheduled Playlist is '%s' for %s\n",p, t);
+    LogDebug(VB_SCHEDULE, "Next Scheduled Playlist is index %d: '%s' for %s\n", m_nextSchedulePlaylist.ScheduleEntryIndex, p, t);
   }
 }
 
 void Scheduler::SetScheduleEntrysWeeklyStartAndEndSeconds(ScheduleEntryStruct * entry)
 {
+	if (entry->dayIndex & INX_DAY_MASK)
+	{
+		int count = 0;
+		if (entry->dayIndex & INX_DAY_MASK_SUNDAY)
+		{
+			entry->weeklyStartSeconds[count] = GetWeeklySeconds(INX_SUN,entry->startHour,entry->startMinute,entry->startSecond);
+			entry->weeklyEndSeconds[count]   = GetWeeklySeconds(INX_SUN,entry->endHour,entry->endMinute,entry->endSecond);
+			count++;
+		}
+
+		if (entry->dayIndex & INX_DAY_MASK_MONDAY)
+		{
+			entry->weeklyStartSeconds[count] = GetWeeklySeconds(INX_MON,entry->startHour,entry->startMinute,entry->startSecond);
+			entry->weeklyEndSeconds[count]   = GetWeeklySeconds(INX_MON,entry->endHour,entry->endMinute,entry->endSecond);
+			count++;
+		}
+
+		if (entry->dayIndex & INX_DAY_MASK_TUESDAY)
+		{
+			entry->weeklyStartSeconds[count] = GetWeeklySeconds(INX_TUE,entry->startHour,entry->startMinute,entry->startSecond);
+			entry->weeklyEndSeconds[count]   = GetWeeklySeconds(INX_TUE,entry->endHour,entry->endMinute,entry->endSecond);
+			count++;
+		}
+
+		if (entry->dayIndex & INX_DAY_MASK_WEDNESDAY)
+		{
+			entry->weeklyStartSeconds[count] = GetWeeklySeconds(INX_WED,entry->startHour,entry->startMinute,entry->startSecond);
+			entry->weeklyEndSeconds[count]   = GetWeeklySeconds(INX_WED,entry->endHour,entry->endMinute,entry->endSecond);
+			count++;
+		}
+
+		if (entry->dayIndex & INX_DAY_MASK_THURSDAY)
+		{
+			entry->weeklyStartSeconds[count] = GetWeeklySeconds(INX_THU,entry->startHour,entry->startMinute,entry->startSecond);
+			entry->weeklyEndSeconds[count]   = GetWeeklySeconds(INX_THU,entry->endHour,entry->endMinute,entry->endSecond);
+			count++;
+		}
+
+		if (entry->dayIndex & INX_DAY_MASK_FRIDAY)
+		{
+			entry->weeklyStartSeconds[count] = GetWeeklySeconds(INX_FRI,entry->startHour,entry->startMinute,entry->startSecond);
+			entry->weeklyEndSeconds[count]   = GetWeeklySeconds(INX_FRI,entry->endHour,entry->endMinute,entry->endSecond);
+			count++;
+		}
+
+		if (entry->dayIndex & INX_DAY_MASK_SATURDAY)
+		{
+			entry->weeklyStartSeconds[count] = GetWeeklySeconds(INX_SAT,entry->startHour,entry->startMinute,entry->startSecond);
+			entry->weeklyEndSeconds[count]   = GetWeeklySeconds(INX_SAT,entry->endHour,entry->endMinute,entry->endSecond);
+			count++;
+		}
+
+		entry->weeklySecondCount = count;
+		return;
+	}
+
 	switch(entry->dayIndex)
   {
 		case INX_SUN:
@@ -343,13 +401,26 @@ void Scheduler::PlayListLoadCheck(void)
     }
 
     if (m_currentSchedulePlaylist.startWeeklySeconds && displayDiff)
-      LogInfo(VB_SCHEDULE, "NowSecs = %d, CurrStartSecs = %d (%d seconds away)\n",
+      LogDebug(VB_SCHEDULE, "NowSecs = %d, CurrStartSecs = %d (%d seconds away)\n",
         nowWeeklySeconds,m_currentSchedulePlaylist.startWeeklySeconds, displayDiff);
 
     if(nowWeeklySeconds == m_currentSchedulePlaylist.startWeeklySeconds)
     {
       m_NextScheduleHasbeenLoaded = 0;
-	  StartScheduledPlaylist(m_currentSchedulePlaylist.ScheduleEntryIndex, nowWeeklySeconds);
+      LogInfo(VB_SCHEDULE, "Schedule Entry: %02d:%02d:%02d - %02d:%02d:%02d - Starting Playlist %s for %d seconds\n",
+        m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].startHour,
+        m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].startMinute,
+        m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].startSecond,
+        m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].endHour,
+        m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].endMinute,
+        m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].endSecond,
+        m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playList,
+        m_currentSchedulePlaylist.endWeeklySeconds - m_currentSchedulePlaylist.startWeeklySeconds);
+      LogDebug(VB_SCHEDULE, "NowSecs = %d, CurrStartSecs = %d, CurrEndSecs = %d (%d seconds away)\n",
+        nowWeeklySeconds, m_currentSchedulePlaylist.startWeeklySeconds, m_currentSchedulePlaylist.endWeeklySeconds, displayDiff);
+
+      playlist->Play(m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playList,
+        0, m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].repeat);
     }
   }
 }
@@ -380,16 +451,34 @@ void Scheduler::PlayListStopCheck(void)
     }
 
     if (displayDiff)
-      LogInfo(VB_SCHEDULE, "NowSecs = %d, CurrEndSecs = %d (%d seconds away)\n",
+      LogDebug(VB_SCHEDULE, "NowSecs = %d, CurrEndSecs = %d (%d seconds away)\n",
         nowWeeklySeconds, m_currentSchedulePlaylist.endWeeklySeconds, displayDiff);
 
     // This check for 1 second ago is a hack rather than a more invasive
     // patch to handle the race condition if we miss this check on the exact
     // second the schedule should be ending.  The odds of us missing 2 in a row
     // are much lower, so this will suffice for v1.0.
-    if((nowWeeklySeconds == m_currentSchedulePlaylist.endWeeklySeconds) ||
-       (nowWeeklySeconds == (m_currentSchedulePlaylist.endWeeklySeconds + 1)) ||
-       (nowWeeklySeconds == (m_currentSchedulePlaylist.endWeeklySeconds + 2)))
+	int stopPlaying = 0;
+
+	if (m_currentSchedulePlaylist.startWeeklySeconds < m_currentSchedulePlaylist.endWeeklySeconds)
+	{
+		if (nowWeeklySeconds >= m_currentSchedulePlaylist.endWeeklySeconds)
+			stopPlaying = 1;
+	}
+	else if ((m_currentSchedulePlaylist.endWeeklySeconds < (24 * 60 * 60)) &&
+			 (m_currentSchedulePlaylist.startWeeklySeconds > (6 * 24 * 60 * 60)) &&
+			 (nowWeeklySeconds >= m_currentSchedulePlaylist.endWeeklySeconds) &&
+			 (nowWeeklySeconds < m_currentSchedulePlaylist.startWeeklySeconds))
+	{
+		stopPlaying = 1;
+	}
+	else if ((nowWeeklySeconds == m_currentSchedulePlaylist.endWeeklySeconds) ||
+			 (nowWeeklySeconds == (m_currentSchedulePlaylist.endWeeklySeconds + 1)))
+	{
+		stopPlaying = 1;
+	}
+
+	if (stopPlaying)
     {
       LogInfo(VB_SCHEDULE, "Schedule Entry: %02d:%02d:%02d - %02d:%02d:%02d - Stopping Playlist Gracefully\n",
         m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].startHour,
@@ -399,10 +488,9 @@ void Scheduler::PlayListStopCheck(void)
         m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].endMinute,
         m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].endSecond);
       m_CurrentScheduleHasbeenLoaded = 0;
-      m_player->PlaylistStopGracefully();
+      playlist->StopGracefully();
     }
   }
-
 }
 
 void Scheduler::LoadScheduleFromFile(void)
@@ -608,11 +696,10 @@ void Scheduler::GetNextScheduleStartText(char * txt)
 	{
 		char dayText[16];
 		int found = FindNextStartingScheduleIndex();
-
 		if (found >= 0)
 		{
 			GetDayTextFromDayIndex(m_Schedule[found].dayIndex,dayText);
-			sprintf(txt, "%04d-%02d-%02d @ %02d:%02d:%02d - (%s)",
+			sprintf(txt, "%04d-%02d-%02d @ %02d:%02d:%02d - (%s)\n",
 				(int)(m_Schedule[found].startDate / 10000),
 				(int)(m_Schedule[found].startDate % 10000 / 100),
 				(int)(m_Schedule[found].startDate % 100),
@@ -663,6 +750,12 @@ void Scheduler::GetScheduleEntryStartText(int index,int weeklySecondIndex, char 
 
 void Scheduler::GetDayTextFromDayIndex(int index,char * txt)
 {
+	if (index & INX_DAY_MASK)
+	{
+		strcpy(txt,"Day Mask");
+		return;
+	}
+
 	switch(index)
 	{
 		case 0:
@@ -711,26 +804,4 @@ void Scheduler::GetDayTextFromDayIndex(int index,char * txt)
 			strcpy(txt, "Error\0");
 			break;	
 	}
-}
-
-int Scheduler::StartScheduledPlaylist(int index, int nowWeeklySeconds)
-{
-	if (index >= m_ScheduleEntryCount)
-		return 0;
-
-	if (!m_player->PlaylistStart(m_Schedule[index].playList, 0, m_Schedule[index].repeat))
-		return 0;
-
-	LogInfo(VB_SCHEDULE, "Schedule Entry: %02d:%02d:%02d - %02d:%02d:%02d - Starting Playlist %s for %d seconds, CurrEndSecs: %d\n",
-		m_Schedule[index].startHour,
-		m_Schedule[index].startMinute,
-		m_Schedule[index].startSecond,
-		m_Schedule[index].endHour,
-		m_Schedule[index].endMinute,
-		m_Schedule[index].endSecond,
-		m_Schedule[index].playList,
-		m_currentSchedulePlaylist.endWeeklySeconds - nowWeeklySeconds,
-		m_currentSchedulePlaylist.endWeeklySeconds);
-
-	return 1;
 }

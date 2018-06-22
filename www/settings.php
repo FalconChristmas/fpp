@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
-<?php require_once('common.php'); ?>
-<?php include 'common/menuHead.inc'; ?>
 <?php
+
+require_once('common.php');
+include 'common/menuHead.inc';
 
 exec($SUDO . " grep card /root/.asoundrc | head -n 1 | awk '{print $2}'", $output, $return_val);
 if ( $return_val )
@@ -72,19 +73,77 @@ else
 	}
 }
 unset($output);
+    
+$VideoOutputModels = Array();
+if ($settings['Platform'] != "BeagleBone Black") {
+    $VideoOutputModels['HDMI'] = "--HDMI--";
+}
+$VideoOutputModels['Disabled'] = "--Disabled--";
+$f = fopen($settings['channelMemoryMapsFile'], "r");
+    if ($f == FALSE) {
+        fclose($f);
+    } else {
+        while (!feof($f)) {
+            $line = fgets($f);
+            if ($line == "")
+                continue;
+            $entry = explode(",", $line, 7);
+            $VideoOutputModels[$entry[0]] = $entry[0];
+        }
+        fclose($f);
+    }
 
-function PrintStorageDeviceSelect()
+    
+
+$backgroundColors = Array();
+$backgroundColors['No Border']   = '';
+$backgroundColors['Red']       = "ff0000";
+$backgroundColors['Green']     = "008000";
+$backgroundColors['Blue']      = "0000ff";
+$backgroundColors['Aqua']      = "00ffff";
+$backgroundColors['Black']     = "000000";
+$backgroundColors['Gray']      = "808080";
+$backgroundColors['Lime']      = "00FF00";
+$backgroundColors['Navy']      = "000080";
+$backgroundColors['Olive']     = "808000";
+$backgroundColors['Purple']    = "800080";
+$backgroundColors['Silver']    = "C0C0C0";
+$backgroundColors['Teal']      = "008080";
+$backgroundColors['White']     = "FFFFFF";
+    
+$wifiDrivers = Array();
+$wifiDrivers['Realtek'] = "Realtek";
+$wifiDrivers['Linux Kernel'] = "Kernel";
+
+
+function PrintStorageDeviceSelect($platform)
 {
 	global $SUDO;
 
 	# FIXME, this would be much simpler by parsing "lsblk -l"
 	exec('lsblk -l | grep /boot | cut -f1 -d" " | sed -e "s/p[0-9]$//"', $output, $return_val);
-	$bootDevice = $output[0];
+    if (count($output) > 0) {
+        $bootDevice = $output[0];
+    } else {
+        $bootDevice = "";
+    }
 	unset($output);
 
-	exec('lsblk -l | grep " /$" | cut -f1 -d" "', $output, $return_val);
-	$rootDevice = $output[0];
-	unset($output);
+    if ($platform == "BeagleBone Black") {
+        exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
+        $rootDevice = $output[0];
+        unset($output);
+        
+        if ($bootDevice == "") {
+            exec('findmnt -n -o SOURCE / | colrm 1 5 | sed -e "s/p[0-9]$//"', $output, $return_val);
+            $bootDevice = $output[0];
+            unset($output);
+        }
+    } else {
+        exec('lsblk -l | grep " /$" | cut -f1 -d" "', $output, $return_val);
+        $rootDevice = $output[0];
+        unset($output);
+    }
 
 	exec('grep "fpp/media" /etc/fstab | cut -f1 -d" " | sed -e "s/\/dev\///"', $output, $return_val);
 	$storageDevice = $output[0];
@@ -150,15 +209,60 @@ function PrintStorageDeviceSelect()
 	if (!$found)
 	{
 		$arr = array_reverse($values, true);
-		$arr["-- Select a Storage Device --"] = "/dev/sda1";
 		$values = array_reverse($arr);
 	}
+    if ($storageDevice == "") {
+        $storageDevice = $rootDevice;
+    }
 
-	PrintSettingSelect('StorageDevice', 'storageDevice', 0, 1, $storageDevice, $values);
+	PrintSettingSelect('StorageDevice', 'storageDevice', 0, 1, $storageDevice, $values, "", "", "checkFormatStorage");
 }
 
 ?>
+
+
+<script type="text/javascript" src="jquery/jQuery.msgBox/scripts/jquery.msgBox.js"></script>
+<link href="jquery/jQuery.msgBox/styles/msgBoxLight.css" rel="stylesheet" type="text/css">
 <script>
+
+function checkFormatStorage()
+{
+    var value = $('#storageDevice').val();
+    
+    var e = document.getElementById("storageDevice");
+    var name = e.options[e.selectedIndex].text;
+    if (name.includes("Not Mounted")) {
+        var btitle = "Format Storage Location (" + value + ")" + name;
+        $.msgBox({ type: "prompt",
+                 title: btitle,
+                 inputs: [
+                 { header: "Don't Format", type: "radio", name: "formatType", checked:"", value: "none" },
+                 { header: "FAT (Compatible with Windows/OSX)", type: "radio", name: "formatType", value: "FAT"},
+                 { header: "ext4 (Most stable)", type: "radio", name: "formatType", value: "ext4" },
+                 { header: "btrfs (Compression, Fastest)", type: "radio", name: "formatType", value: "btrfs" }],
+                 buttons: [ { value: "OK" } ],
+                 opacity: 0.5,
+                 success: function (result, values) {
+                 var v = $('input[name=formatType]:checked').val();
+                 if (v != "none") {
+                    $.ajax({ url: "formatstorage.php?fs=" + v + "&storageLocation=" + $('#storageDevice').val(),
+                        async: false,
+                        success: function(data) {
+                           storageDeviceChanged();
+                        },
+                        failure: function(data) {
+                        DialogError("Formate Storage", "Error formatting storage.");
+                        }
+                        });
+                    } else {
+                        storageDeviceChanged();
+                    }
+                 }
+                 });
+    } else {
+        storageDeviceChanged();
+    }
+}
 
 	var queuedChanges = 0;
 	function MaskChanged(cbox)
@@ -254,6 +358,13 @@ function ToggleLCDNow()
 		+ enabled).fail(function() { alert("Failed to enable LCD!") });
 }
 
+function ToggleTetherMode()
+{
+    var enabled = $('#BBB_Tethering').is(":checked");
+    $.get("fppxml.php?command=setBBBTether&enabled="
+          + enabled).fail(function() { alert("Failed to disable Tethering!") });
+}
+
 </script>
 <title><? echo $pageTitle; ?></title>
 </head>
@@ -266,6 +377,30 @@ function ToggleLCDNow()
 <fieldset>
 <legend>FPP Global Settings</legend>
   <table table width = "100%">
+<?php
+    if ($settings['Platform'] == "BeagleBone Black")
+    {
+        exec('cat /proc/device-tree/model', $output, $return_val);
+        if (in_array('Wireless', $output) || strpos($output[0], 'Wireless') !== false ) {
+?>
+    <tr>
+        <td width = "45%">BBB Tethering:</td>
+        <td width = "55%"><? PrintSettingCheckbox("BBB Tethering", "BBB_Tethering", 0, 1, "1", "0", "", "ToggleTetherMode"); ?></td>
+    </tr>
+<?php
+        }
+?>
+    
+    <tr>
+        <td width = "45%">WIFI Drivers:</td>
+        <td width = "55%">
+        <? PrintSettingSelect("WIFI Drivers", "wifiDrivers", 0, 1, isset($settings['wifiDrivers']) ? $settings['wifiDrivers'] : "Realtek", $wifiDrivers, "", "reloadPage"); ?>
+        </td>
+    </tr>
+
+<?php
+    } else {
+?>
     <tr>
       <td width = "45%">Blank screen on startup:</td>
       <td width = "55%"><? PrintSettingCheckbox("Screensaver", "screensaver", 0, 1, "1", "0"); ?></td>
@@ -275,13 +410,16 @@ function ToggleLCDNow()
       <td><? PrintSettingCheckbox("Force HDMI Display", "ForceHDMI", 0, 1, "1", "0"); ?></td>
     </tr>
     <tr>
-      <td>Force analog audio output during video playback:</td>
-      <td><? PrintSettingCheckbox("Force Analog Audio Output", "forceLocalAudio", 0, 0, "1", "0"); ?></td>
+      <td>Force Legacy audio outputs (mpg123/ogg123):</td>
+      <td><? PrintSettingCheckbox("Force Legacy Audio Outputs", "LegacyMediaOutputs", 0, 0, "1", "0"); ?></td>
     </tr>
     <tr>
       <td>Pi 2x16 LCD Enabled:</td>
       <td><? PrintSettingCheckbox("Enable LCD Display", "PI_LCD_Enabled", 0, 0, "1", "0", "", "ToggleLCDNow"); ?></td>
     </tr>
+<?php
+}
+?>
     <tr>
       <td>Always transmit channel data:</td>
       <td><? PrintSettingCheckbox("Always Transmit", "alwaysTransmit", 1, 0, "1", "0"); ?></td>
@@ -293,6 +431,10 @@ function ToggleLCDNow()
     <tr>
       <td>Pause Background Effect Sequence when playing a FSEQ file:</td>
       <td><? PrintSettingCheckbox("Pause Background Effects", "pauseBackgroundEffects", 1, 0, "1", "0"); ?></td>
+    </tr>
+    <tr>
+        <td>Default Video Output Device:</td>
+        <td><? PrintSettingSelect("Video Output Device", "VideoOutput", 0, 0, $settings['videoOutput'], $VideoOutputModels); ?></td>
     </tr>
     <tr>
       <td>Audio Output Device:</td>
@@ -307,8 +449,12 @@ function ToggleLCDNow()
       <td><? PrintSettingCheckbox("Disable IP announcement during boot", "disableIPAnnouncement", 0, 0, "1", "0"); ?></td>
     </tr>
     <tr>
+      <td>UI Border Color:</td>
+      <td><? PrintSettingSelect("UI Background Color", "backgroundColor", 0, 0, isset($settings['backgroundColor']) ? $settings['backgroundColor'] : "", $backgroundColors, "", "reloadPage"); ?></td>
+    </tr>
+    <tr>
       <td>External Storage Device:</td>
-      <td><? PrintStorageDeviceSelect(); ?></td>
+      <td><? PrintStorageDeviceSelect($settings['Platform']); ?></td>
     </tr>
     <tr>
       <td>Log Level:</td>
@@ -335,13 +481,12 @@ function ToggleLCDNow()
               <input type='checkbox' id='mask_effect' class='mask_most' onChange='MaskChanged(this);'>Effects<br>
               <input type='checkbox' id='mask_event' class='mask_most' onChange='MaskChanged(this);'>Events<br>
               <input type='checkbox' id='mask_general' class='mask_most' onChange='MaskChanged(this);'>General<br>
-              <input type='checkbox' id='mask_gpio' class='mask_most' onChange='MaskChanged(this);'>GPIO<br>
               </td>
             <td width='10px'></td>
             <td valign=top>
               <input type='checkbox' id='mask_most' class='mask_most' onChange='MaskChanged(this);'>Most (default)<br>
               <br>
-              <input type='checkbox' id='mask_http' class='mask_most' onChange='MaskChanged(this);'>HTTP API<br>
+              <input type='checkbox' id='mask_gpio' class='mask_most' onChange='MaskChanged(this);'>GPIO<br>
               <input type='checkbox' id='mask_mediaout' class='mask_most' onChange='MaskChanged(this);'>Media Outputs<br>
               <input type='checkbox' id='mask_sync' class='mask_most' onChange='MaskChanged(this);'>MultiSync<br>
               <input type='checkbox' id='mask_playlist' class='mask_most' onChange='MaskChanged(this);'>Playlists<br>

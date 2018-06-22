@@ -1,7 +1,7 @@
 /*
  *   librgbmatrix handler for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -24,6 +24,8 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
+#include <cmath>
 
 #include "common.h"
 #include "log.h"
@@ -43,6 +45,7 @@ RGBMatrixOutput::RGBMatrixOutput(unsigned int startChannel,
   : ChannelOutputBase(startChannel, channelCount),
 	m_gpio(NULL),
 	m_canvas(NULL),
+	m_rgbmatrix(NULL),
 	m_colorOrder("RGB"),
 	m_panelWidth(32),
 	m_panelHeight(16),
@@ -65,6 +68,7 @@ RGBMatrixOutput::~RGBMatrixOutput()
 {
 	LogDebug(VB_CHANNELOUT, "RGBMatrixOutput::~RGBMatrixOutput()\n");
 
+	delete m_rgbmatrix;
 	delete m_matrix;
 	delete m_panelMatrix;
 }
@@ -89,7 +93,7 @@ int RGBMatrixOutput::Init(Json::Value config)
 	m_colorOrder = config["colorOrder"].asString();
 
 	m_panelMatrix =
-		new PanelMatrix(m_panelWidth, m_panelHeight, 3, m_invertedData);
+		new PanelMatrix(m_panelWidth, m_panelHeight, m_invertedData);
 
 	if (!m_panelMatrix)
 	{
@@ -107,9 +111,13 @@ int RGBMatrixOutput::Init(Json::Value config)
 		if (o && *o)
 			orientation = o[0];
 
+		if (p["colorOrder"].asString() == "")
+			p["colorOrder"] = m_colorOrder;
+
 		m_panelMatrix->AddPanel(p["outputNumber"].asInt(),
 			p["panelNumber"].asInt(), orientation,
-			p["xOffset"].asInt(), p["yOffset"].asInt());
+			p["xOffset"].asInt(), p["yOffset"].asInt(),
+			ColorOrderFromString(p["colorOrder"].asString()));
 
 		if (p["outputNumber"].asInt() > m_outputs)
 			m_outputs = p["outputNumber"].asInt();
@@ -132,7 +140,11 @@ int RGBMatrixOutput::Init(Json::Value config)
 		return 0;
 	}
 
-	if (!m_gpio->Init())
+	int gpioSlowdown = 1;
+	if (config.isMember("gpioSlowdown"))
+		gpioSlowdown = config["gpioSlowdown"].asInt();
+
+	if (!m_gpio->Init(gpioSlowdown))
 	{
 		LogErr(VB_CHANNELOUT, "GPIO->Init() failed\n");
 
@@ -147,10 +159,26 @@ int RGBMatrixOutput::Init(Json::Value config)
 
 	m_channelCount = m_width * m_height * 3;
 
-	m_canvas = new RGBMatrix(m_gpio, m_rows, m_longestChain, m_outputs);
-	if (!m_canvas)
+	RGBMatrix::Options options;
+
+	if (config["wiringPinout"].asString() != "")
+		options.hardware_mapping = strdup(config["wiringPinout"].asString().c_str());
+
+	options.chain_length = m_longestChain;
+	options.parallel = m_outputs;
+	options.rows = m_panelHeight;
+	options.cols = m_panelWidth;
+	options.pwm_bits = 8;
+
+	if (config.isMember("brightness"))
+		options.brightness = config["brightness"].asInt();
+	else
+		options.brightness = 100;
+
+	m_rgbmatrix = new RGBMatrix(m_gpio, options);
+	if (!m_rgbmatrix)
 	{
-		LogErr(VB_CHANNELOUT, "Unable to create Canvas instance\n");
+		LogErr(VB_CHANNELOUT, "Unable to create RGBMatrix instance\n");
 
 		delete m_gpio;
 		m_gpio = NULL;
@@ -158,13 +186,7 @@ int RGBMatrixOutput::Init(Json::Value config)
 		return 0;
 	}
 
-	RGBMatrix *rgbmatrix = reinterpret_cast<RGBMatrix*>(m_canvas);
-	rgbmatrix->SetPWMBits(8);
-
-	if (config.isMember("brightness"))
-		rgbmatrix->SetBrightness(config["brightness"].asInt());
-	else
-		rgbmatrix->SetBrightness(100);
+	m_canvas = reinterpret_cast<Canvas*>(m_rgbmatrix);
 
 	m_matrix = new Matrix(m_startChannel, m_width, m_height);
 
@@ -183,6 +205,25 @@ int RGBMatrixOutput::Init(Json::Value config)
 				sm["yOffset"].asInt());
 		}
 	}
+    
+    float gamma = 1.0;
+    if (config.isMember("gamma")) {
+        gamma = atof(config["gamma"].asString().c_str());
+    }
+    if (gamma < 0.01 || gamma > 50.0) {
+        gamma = 1.0;
+    }
+    for (int x = 0; x < 256; x++) {
+        float f = x;
+        f = 255.0 * pow(f / 255.0f, gamma);
+        if (f > 255.0) {
+            f = 255.0;
+        }
+        if (f < 0.0) {
+            f = 0.0;
+        }
+        m_gammaCurve[x] = round(f);
+    }
 
 	return ChannelOutputBase::Init(config);
 }
@@ -221,9 +262,9 @@ int RGBMatrixOutput::RawSendData(unsigned char *channelData)
 	LogExcess(VB_CHANNELOUT, "RGBMatrixOutput::RawSendData(%p)\n",
 		channelData);
 
-	unsigned char *r = NULL;
-	unsigned char *g = NULL;
-	unsigned char *b = NULL;
+	unsigned char r;
+	unsigned char g;
+	unsigned char b;
 
 	for (int output = 0; output < m_outputs; output++)
 	{
@@ -239,51 +280,11 @@ int RGBMatrixOutput::RawSendData(unsigned char *channelData)
 				int px = chain * m_panelWidth;
 				for (int x = 0; x < m_panelWidth; x++)
 				{
-					// FIXME, optimize this since it is called once per pixel
-					if (m_colorOrder == "RGB")
-					{
-						r = channelData + m_panelMatrix->m_panels[panel].pixelMap[(y * m_panelWidth + x) * 3];
-						g = r + 1;
-						b = r + 2;
-					}
-					else if (m_colorOrder == "RBG")
-					{
-						r = channelData + m_panelMatrix->m_panels[panel].pixelMap[(y * m_panelWidth + x) * 3];
-						b = r + 1;
-						g = r + 2;
-					}
-					else if (m_colorOrder == "GRB")
-					{
-						g = channelData + m_panelMatrix->m_panels[panel].pixelMap[(y * m_panelWidth + x) * 3];
-						r = g + 1;
-						b = g + 2;
-					}
-					else if (m_colorOrder == "GBR")
-					{
-						g = channelData + m_panelMatrix->m_panels[panel].pixelMap[(y * m_panelWidth + x) * 3];
-						b = g + 1;
-						r = g + 2;
-					}
-					else if (m_colorOrder == "BRG")
-					{
-						b = channelData + m_panelMatrix->m_panels[panel].pixelMap[(y * m_panelWidth + x) * 3];
-						r = b + 1;
-						g = b + 2;
-					}
-					else if (m_colorOrder == "BGR")
-					{
-						b = channelData + m_panelMatrix->m_panels[panel].pixelMap[(y * m_panelWidth + x) * 3];
-						g = b + 1;
-						r = b + 2;
-					}
-					else
-					{
-						r = channelData + m_panelMatrix->m_panels[panel].pixelMap[(y * m_panelWidth + x) * 3];
-						g = r + 1;
-						b = r + 2;
-					}
+					r = m_gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[(y * m_panelWidth + x) * 3]]];
+					g = m_gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[(y * m_panelWidth + x) * 3 + 1]]];
+					b = m_gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[(y * m_panelWidth + x) * 3 + 2]]];
 
-					m_canvas->SetPixel(px, y + (output * m_panelHeight), *r, *g, *b);
+					m_canvas->SetPixel(px, y + (output * m_panelHeight), r, g, b);
 
 					px++;
 				}

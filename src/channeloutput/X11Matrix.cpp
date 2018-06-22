@@ -1,7 +1,7 @@
 /*
  *   X11 Matrix handler for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -53,6 +53,7 @@ X11MatrixOutput::X11MatrixOutput(unsigned int startChannel,
 		startChannel, channelCount);
 
 	m_maxChannels = FPPD_MAX_CHANNELS;
+	m_useDoubleBuffer = 1;
 }
 
 /*

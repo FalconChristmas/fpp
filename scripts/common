@@ -17,12 +17,8 @@ then
 	FPPDIR="${FPPHOME}/fpp"
 fi
 
-. /etc/os-release
-OSID=${ID}
-OSVER="${ID}_${VERSION_ID}"
-
 FPPPLATFORM=$(cat /etc/fpp/platform 2> /dev/null)
-FPPBINDIR="${FPPDIR}/bin"
+FPPBINDIR="${FPPDIR}/src"
 if [ "x${FPPPLATFORM}" = "xRaspberry Pi" ]
 then
 	FPPBINDIR="${FPPDIR}/bin.pi"
@@ -30,6 +26,8 @@ else
 	if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]
 	then
 		FPPBINDIR="${FPPDIR}/bin.bbb"
+		BBBMODEL=$(cut -d' ' -f3- /proc/device-tree/model | tr '\0' '\n')
+		export BBBMODEL
 	fi
 fi
 
@@ -65,6 +63,15 @@ FPPVERSION="${FPPVERSION:-0}"
 CFGVERSIONFILE="${CFGVERSIONFILE:-/etc/fpp/config_version}"
 CFGVERSION="${CFGVERSION:-0}"
 [ -f $CFGVERSIONFILE ] && CFGVERSION="$(cat ${CFGVERSIONFILE})"
+
+. /etc/os-release
+OSID=${ID}
+OSVER="${ID}_${VERSION_ID}"
+if [ "x${OSID}" = "xraspbian" ]
+then
+    OSVER="debian_${VERSION_ID}"
+fi
+
 
 #############################################################################
 makeLogDir() {

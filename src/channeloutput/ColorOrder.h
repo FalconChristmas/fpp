@@ -1,7 +1,7 @@
 /*
  *   ColorOrder definitions for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -38,6 +38,7 @@ typedef enum FPPColorOrder
 	kColorOrderBGR
 } FPPColorOrder;
 
-FPPColorOrder ColorOrderFromString(std::string colorOrderStr);
+FPPColorOrder ColorOrderFromString(const std::string &colorOrderStr);
+const std::string ColorOrderToString(FPPColorOrder colorOrder);
 
 #endif

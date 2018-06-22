@@ -1,0 +1,79 @@
+
+#ifndef __octoscoller_common__
+#define __octoscoller_common__
+
+.macro READ_TO_FLUSH
+    //read the base line to make sure all SET/CLR are
+    //flushed and out
+    LBBO out_clr, gpio_base_cache, GPIO_DATAOUT, 4
+.endm
+
+#ifdef gpio_clock
+.macro CLOCK_HI
+    MOV out_set, 1 << gpio_clock
+    SBBO out_set, gpio_base_cache, GPIO_SETDATAOUT, 4
+.endm
+
+.macro CLOCK_LO
+    // we normally can lower the clock line at the same time as outputing the
+    // gpio data so this doesn't need to be implemented
+
+    //MOV out_clr, 1 << gpio_clock
+    //SBBO out_clr, gpio_base_cache, GPIO_CLRDATAOUT, 4
+.endm
+#endif
+
+#ifdef gpio_latch
+.macro LATCH_HI
+    // LATCH HI NEEDS to be completely independent of
+    // all other GPIO calls or ghosting occurs.  We'll
+    // flush before and after the latch
+    READ_TO_FLUSH
+    MOV out_set, 1 << gpio_latch
+    SBBO out_set, gpio_base_cache, GPIO_SETDATAOUT, 4
+    READ_TO_FLUSH
+.endm
+
+.macro LATCH_LO
+   // we can lower the latch line at the same time as outputing the
+   // gpio data so this doesn't need to be implemented
+
+   //MOV out_clr, 1 << gpio_latch
+   //SBBO out_clr, gpio_base_cache, GPIO_CLRDATAOUT, 4
+.endm
+#endif
+
+#ifdef gpio_oe
+.macro DISPLAY_OFF
+    MOV out_set, 1 << gpio_oe
+    SBBO out_set, gpio_base_cache, GPIO_SETDATAOUT, 4
+.endm
+
+.macro DISPLAY_ON
+    MOV out_clr, 1 << gpio_oe
+    SBBO out_clr, gpio_base_cache, GPIO_CLRDATAOUT, 4
+.endm
+#endif
+
+
+
+.macro OUTPUT_ROW_ADDRESS
+    // set address; select pins in gpio1 are sequential
+    // xor with the select bit mask to set which ones should
+#ifdef ADDRESSING_AB
+    MOV out_set, GPIO_SEL_MASK
+    MOV out_clr, row
+    ADD out_clr, out_clr, gpio_sel0
+    CLR out_set, out_set, out_clr
+#else
+    MOV out_set, row
+    LSL out_set, out_set, gpio_sel0
+#endif
+    MOV out_clr, GPIO_SEL_MASK
+    AND out_set, out_set, out_clr // ensure no extra bits
+    XOR out_clr, out_set, out_clr // complement the bits into clr
+    SBBO out_clr, gpio_base_cache, GPIO_CLRDATAOUT, 8 // set both
+.endm
+
+
+#endif

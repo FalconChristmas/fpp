@@ -3,17 +3,21 @@
 <head>
 <?php
 require_once('config.php');
+require_once('common.php');
 include 'common/menuHead.inc';
 ?>
 <script>
     PlayEntrySelected = 0;
-    $(function() {
-		$('#tblStatusPlaylistEntries').on('mousedown', 'tr', function(event,ui){
-					$('#tblStatusPlaylistEntries tr').removeClass('playlistSelectedEntry');
-          $(this).addClass('playlistSelectedEntry');
-					var items = $('#tblStatusPlaylistEntries tr');
-					PlayEntrySelected  = items.index(this);
+    PlaySectionSelected = '';
 
+    $(function() {
+		$('#tblStatusPlaylist tbody').on('mousedown', 'tr', function(event,ui){
+					$('#tblStatusPlaylist tbody tr').removeClass('playlistSelectedEntry');
+// FIXME, may need to check each tbody individually
+          $(this).addClass('playlistSelectedEntry');
+					var items = $('#tblStatusPlaylistEntries tbody tr');
+					PlayEntrySelected = parseInt($(this).attr('id').substr(11)) - 1;
+					PlaySectionSelected = $(this).parent().attr('id').substr(11);
 		});
 	});
 </script>
@@ -127,7 +131,14 @@ include 'common/menuHead.inc';
         </tr>
       </table>
     </div>
-    <div id="bytesTransferred"><H3>Bytes Transferred</H3>
+    <div id="bytesTransferred"><H3>E1.31 Packets and Bytes Received</H3>
+      <table style='width: 100%'>
+        <tr><td align='left'>
+          <input type='button' onClick='GetUniverseBytesReceived();' value='Update'>
+        </td><td align='right'>
+		  <? PrintSettingCheckbox("E1.31 Live Update", "e131statsLiveUpdate", 0, 0, "1", "0"); ?> Live Update E1.31 Stats
+        </td></tr>
+	  </table>
       <hr>
       <div id="bridgeStatistics1"></div>
       <div id="bridgeStatistics2"></div>
@@ -195,16 +206,35 @@ include 'common/menuHead.inc';
 
     	<div id="playerStatusBottom">
       <div id="statusPlaylist"  class="unselectable">
-        <table id="tblStatusPlaylistHeader" width="100%">
-          <tr class="playlistHeader">
-            <td width="6%">#</td>
-            <td  width="42%">Media File / Event / Pause </td>
-            <td  width="42%">Sequence / Delay</td>
-            <td  width="10%">First/Last</td>
-          </tr>
-        </table>
         <div id= "statusPlaylistContents">
-          <table id="tblStatusPlaylistEntries"   width="100%">
+        <table id="tblStatusPlaylist" width="100%">
+			<colgroup>
+				<col class='colPlaylistNumber'></col>
+				<col class='colPlaylistData1'></col>
+				<col class='colPlaylistData2'></col>
+			</colgroup>
+          <thead>
+          <tr class="playlistHeader">
+            <th class='colPlaylistNumber'>#</th>
+            <th class='colPlaylistData1'>Media File / Script / Event / Pause </th>
+            <th class='colPlaylistData2'>Sequence / Delay</th>
+            <th class='colPlaylistData3'></th>
+          </tr>
+						<tbody id='tblPlaylistLeadInHeader' style='display: none;'>
+							<tr><th colspan=4>-- Lead In --</th></tr>
+						</tbody>
+            <tbody id="tblPlaylistLeadIn">
+            </tbody>
+						<tbody id='tblPlaylistMainPlaylistHeader' style='display: none;'>
+							<tr><th colspan=4>-- Main Playlist --</th></tr>
+						</tbody>
+            <tbody id="tblPlaylistMainPlaylist">
+            </tbody>
+						<tbody id='tblPlaylistLeadOutHeader' style='display: none;'>
+							<tr><th colspan=4>-- Lead Out --</th></tr>
+						</tbody>
+            <tbody id="tblPlaylistLeadOut">
+            </tbody>
           </table>
         </div>
       </div>
@@ -231,5 +261,6 @@ include 'common/menuHead.inc';
   </fieldset>
 </div>
 <?php	include 'common/footer.inc'; ?>
+</div>
 </body>
 </html>

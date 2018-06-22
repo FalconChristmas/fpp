@@ -1,7 +1,7 @@
 /*
  *   Playlist Entry Pixel Overlay Class for Falcon Player (FPP)
  *
- *   Copyright (C) 2016 the Falcon Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -9,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -32,8 +32,9 @@
 /*
  *
  */
-PlaylistEntryPixelOverlay::PlaylistEntryPixelOverlay()
-  : m_action("NoOp"),
+PlaylistEntryPixelOverlay::PlaylistEntryPixelOverlay(PlaylistEntryBase *parent)
+  : PlaylistEntryBase(parent),
+	m_action("NoOp"),
 	m_modelName("None Specified"),
 	m_startChannel(1),
 	m_endChannel(FPPD_MAX_CHANNELS),

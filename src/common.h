@@ -1,7 +1,7 @@
 /*
- *   Common functions for Falcon Pi Player (FPP)
+ *   Common functions for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Pi Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -9,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -26,6 +26,8 @@
 #ifndef _COMMON_H
 #define _COMMON_H
 
+#include <stdint.h>
+
 #include <vector>
 #include <string>
 
@@ -35,12 +37,15 @@ long long GetTime(void);
 int       DirectoryExists(const char * Directory);
 int       FileExists(const char * File);
 void      HexDump(char *title, void *data, int len);
-int       GetInterfaceAddress(char *interface, char *addr, char *mask, char *gw);
+int       GetInterfaceAddress(const char *interface, char *addr, char *mask, char *gw);
 char     *FindInterfaceForIP(char *ip);
 int       CheckForHostSpecificFile(const char *hostname, char *filename);
 int       DateStrToInt(const char *str);
 int       GetCurrentDateInt(int daysOffset = 0);
 int       CurrentDateInRange(int startDate, int endDate);
+void      CloseOpenFiles(void);
+
+uint8_t   ReverseBitsInByte(uint8_t n);
 
 void      MergeJsonValues(Json::Value &a, Json::Value &b);
 

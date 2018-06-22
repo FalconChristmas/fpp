@@ -44,7 +44,7 @@ if ( $return_val != 0 )
 	$kernel_version = "Unknown";
 unset($output);
 
-$git_version = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ rev-parse --short HEAD", $output, $return_val);
+$git_version = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ rev-parse --short=7 HEAD", $output, $return_val);
 if ( $return_val != 0 )
   $git_version = "Unknown";
 unset($output);
@@ -55,7 +55,7 @@ if ( $return_val != 0 )
 unset($output);
 
 $git_remote_version = "Unknown";
-$git_remote_version = exec("ping -q -c 1 github.com > /dev/null && (git ls-remote --heads https://github.com/FalconChristmas/fpp | grep 'refs/heads/$git_branch\$' | awk '$1 > 0 { print substr($1,1,7)}')", $output, $return_val);
+$git_remote_version = exec("ping -q -c 1 github.com > /dev/null && (git --git-dir=/opt/fpp/.git/ ls-remote --heads | grep 'refs/heads/$git_branch\$' | awk '$1 > 0 { print substr($1,1,7)}')", $output, $return_val);
 if ( $return_val != 0 )
   $git_remote_version = "Unknown";
 unset($output);
@@ -117,40 +117,6 @@ function getFileCount($dir)
   }
 
   return $i;
-}
-
-function getRemappedChannelCount()
-{
-	global $mediaDirectory;
-
-	$file = $mediaDirectory . "/channelremap";
-
-	if (!file_exists($file))
-		return 0;
-
-	$f = fopen($file, "r");
-	if($f == FALSE)
-	{
-		return 0;
-	}
-
-	$i = 0;
-    while (!feof($f))
-	{
-		$line = fgets($f);
-		if (!feof($f))
-		{
-			$entry = explode(",", $line, 3);
-			if (($entry[0] > 0) && ($entry[1] > 0) && ($entry[2] > 0))
-			{
-				$i += $entry[2];
-			}
-		}
-	}
-
-	fclose($f);
-
-	return $i;
 }
 
 function PrintGitBranchOptions()
@@ -347,7 +313,6 @@ a:visited {
             <tr><td>Events:</td><td><a href='events.php' class='nonULLink'><? echo getFileCount($eventDirectory); ?></a></td></tr>
             <tr><td>Effects:</td><td><a href='uploadfile.php?tab=3' class='nonULLink'><? echo getFileCount($effectDirectory); ?></a></td></tr>
             <tr><td>Scripts:</td><td><a href='uploadfile.php?tab=4' class='nonULLink'><? echo getFileCount($scriptDirectory); ?></a></td></tr>
-			<tr><td>Remapped Channels:</td><td><a href='channelremaps.php' class='nonULLink'><? echo getRemappedChannelCount(); ?></a></td></tr>
 
             <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
 
@@ -380,7 +345,7 @@ a:visited {
       </pre>
     </div>
   </div>
-</div>
   <?php include 'common/footer.inc'; ?>
+</div>
 </body>
 </html>

@@ -1,7 +1,7 @@
 /*
  *   GPIO attached 74HC595 Shift Register handler for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -38,6 +38,15 @@
 
 #ifdef USEWIRINGPI
 #   include "wiringPi.h"
+#elif defined(PLATFORM_BBB)
+#   include "channeloutput/BBBUtils.h"
+#   define INPUT "in"
+#   define OUTPUT "out"
+#   define HIGH   1
+#   define LOW   0
+#   define pinMode(a, b)         configBBBPin(a, "gpio", b)
+#   define digitalWrite(a,b)     setBBBPinValue(a, b)
+#   define delayMicroseconds(a)     0
 #else
 #   define pinMode(a, b)
 #   define digitalWrite(a, b)

@@ -14,6 +14,8 @@ unset($output);
 
 if (!preg_match("/^$git_branch(-.*)?$/", $fpp_head_version))
 	$fpp_head_version .= " ($git_branch branch)";
+
+$IPs = explode("\n",trim(shell_exec("/sbin/ifconfig -a | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0 | grep -v usb | grep -v SoftAp | grep -v 'can.' | sed -e 's/://g' | while read iface ; do /sbin/ifconfig \$iface | grep 'inet ' | awk '{print \$2}'; done")));
 ?>
 
 <?php require_once(dirname(__FILE__)."/config.php"); ?>
@@ -37,7 +39,7 @@ function list_plugin_entries($menu)
   <div class="header">
     <div class="headerLeft"><a href="http://www.falconchristmas.com"><img src="images/falconlogo.png" class="logo" /></a></div>
     <div class="headerCenter"><div class="siteName"><? echo $settings['Title']; ?></div>
-      Version: <a href='about.php' class='nonULLink'><?php echo $fpp_head_version; ?></a>&nbsp;&nbsp;Host: <? echo "<a href='networkconfig.php' class='nonULLink'>" . $settings['HostName'] . "</a>"; ?>
+      Version: <a href='about.php' class='nonULLink'><?php echo $fpp_head_version; ?></a>&nbsp;&nbsp;Host: <? echo "<a href='networkconfig.php' class='nonULLink'>" . $settings['HostName'] . "</a> (" . join(' ', $IPs) . ")"; ?>
 <?
 	if (file_exists("/etc/fpp/rfs_version") && exec('grep "^[^#].*/home/pi/media" /etc/fstab') )
 	{
@@ -111,8 +113,9 @@ function list_plugin_entries($menu)
       </li>
       <li><a>Input/Output Setup</a>
         <ul>
+          <li><a href="channelinputs.php">Channel Inputs</a></li>
           <li><a href="channeloutputs.php">Channel Outputs</a></li>
-          <li><a href="channelremaps.php">Remap Channels</a></li>
+          <li><a href="outputprocessors.php">Output Processors</a></li>
           <li><a href="pixeloverlaymodels.php">Pixel Overlay Models</a></li>
           <li><a href="gpio.php">GPIO Inputs</a></li>
           <?php list_plugin_entries("output"); ?>

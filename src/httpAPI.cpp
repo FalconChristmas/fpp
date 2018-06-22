@@ -2,7 +2,7 @@
  *   HTTP API for the Falcon Player Daemon 
  *   Falcon Player project (FPP) 
  *
- *   Copyright (C) 2013 the Falcon Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -25,14 +25,17 @@
  */
 
 #include "channeloutput/channeloutput.h"
+#include "channeloutput/channeloutputthread.h"
 #include "common.h"
+#include "e131bridge.h"
 #include "fpp.h"
 #include "fppd.h"
 #include "fppversion.h"
 #include "httpAPI.h"
 #include "log.h"
+#include "MultiSync.h"
+#include "Scheduler.h"
 #include "settings.h"
-#include "Player.h"
 
 #include <fstream>
 #include <iostream>
@@ -43,15 +46,11 @@
 #include <boost/algorithm/string/replace.hpp>
 #include <jsoncpp/json/json.h>
 
-// from command.c
-extern int fppdStartTime;
-
 /*
  *
  */
 APIServer::APIServer()
 {
-	fppdStartTime = time(NULL);
 }
 
 /*
@@ -97,23 +96,22 @@ void LogRequest(const http_request &req)
 /*
  *
  */
-void LogResponse(const http_request &req, http_response **res = NULL)
+void LogResponse(const http_request &req, http_response  &res)
 {
-	if ((res) && LogLevelIsSet(LOG_EXCESSIVE))
+	if (LogLevelIsSet(LOG_EXCESSIVE))
 	{
-		http_response *resp = *res;
 		LogDebug(VB_HTTP, "API Res: %s%s %d %s\n",
 			req.get_path().c_str(),
 			req.get_querystring().c_str(),
-			resp->get_response_code(),
-			resp->get_content().c_str());
+			res.get_response_code(),
+			res.get_content().c_str());
 	}
 }
 
 /*
  *
  */
-void PlayerResource::render_GET(const http_request &req, http_response **res)
+const http_response PlayerResource::render_GET(const http_request &req)
 {
 	LogRequest(req);
 
@@ -144,6 +142,14 @@ void PlayerResource::render_GET(const http_request &req, http_response **res)
 	else if (url == "playlists")
 	{
 		GetCurrentPlaylists(result);
+	}
+	else if (url == "e131stats")
+	{
+		GetE131BytesReceived(result);
+	}
+	else if (url == "multiSyncSystems")
+	{
+		GetMultiSyncSystems(result);
 	}
 	else if (boost::starts_with(url, "playlists/"))
 	{
@@ -190,21 +196,23 @@ void PlayerResource::render_GET(const http_request &req, http_response **res)
 	{
 		result["status"] = "ERROR";
 		result["respCode"] = 400;
-		result["message"] = "GET endpoint helper did not set res variable";
+		result["message"] = "GET endpoint helper did not set result JSON";
 	}
 
 	Json::FastWriter fastWriter;
 	std::string resultStr = fastWriter.write(result);
 
-	*res = new http_response(http_response_builder(resultStr.c_str(), result["respCode"].asInt()).string_response());
+	http_response resp = http_response_builder(resultStr.c_str(), result["respCode"].asInt()).string_response();
 
-	LogResponse(req, res);
+	LogResponse(req, resp);
+
+	return resp;
 }
 
 /*
  *
  */
-void PlayerResource::render_POST(const http_request &req, http_response **res)
+const http_response PlayerResource::render_POST(const http_request &req)
 {
 	LogRequest(req);
 
@@ -223,7 +231,7 @@ void PlayerResource::render_POST(const http_request &req, http_response **res)
 		if (!success)
 		{
 			LogErr(VB_CHANNELOUT, "Error parsing POST content\n");
-			return;
+			return http_response_builder("Error parsing POST content", 400).string_response();
 		}
 	}
 
@@ -415,22 +423,24 @@ void PlayerResource::render_POST(const http_request &req, http_response **res)
 	{
 		result["status"] = "ERROR";
 		result["respCode"] = 400;
-		result["message"] = "POST endpoint helper did not set res variable";
+		result["message"] = "POST endpoint helper did not set result JSON";
 	}
 
 	Json::FastWriter fastWriter;
 	std::string resultStr = fastWriter.write(result);
 
-	*res = new http_response(http_response_builder(resultStr.c_str(), result["respCode"].asInt()).string_response());
+	http_response resp = http_response_builder(resultStr.c_str(), result["respCode"].asInt()).string_response();
 
-	LogResponse(req, res);
+	LogResponse(req, resp);
+
+	return resp;
 }
 
 
 /*
  *
  */
-void PlayerResource::render_DELETE(const http_request &req, http_response **res)
+const http_response PlayerResource::render_DELETE(const http_request &req)
 {
 	LogRequest(req);
 
@@ -462,22 +472,24 @@ void PlayerResource::render_DELETE(const http_request &req, http_response **res)
 	{
 		result["status"] = "ERROR";
 		result["respCode"] = 400;
-		result["message"] = "DELETE endpoint helper did not set res variable";
+		result["message"] = "DELETE endpoint helper did not set result JSON";
 	}
 
 	Json::FastWriter fastWriter;
 	std::string resultStr = fastWriter.write(result);
 
-	*res = new http_response(http_response_builder(resultStr.c_str(), result["respCode"].asInt()).string_response());
+	http_response resp = http_response_builder(resultStr.c_str(), result["respCode"].asInt()).string_response();
 
-	LogResponse(req, res);
+	LogResponse(req, resp);
+
+	return resp;
 }
 
 
 /*
  *
  */
-void PlayerResource::render_PUT(const http_request &req, http_response **res)
+const http_response PlayerResource::render_PUT(const http_request &req)
 {
 	LogRequest(req);
 
@@ -515,15 +527,17 @@ void PlayerResource::render_PUT(const http_request &req, http_response **res)
 	{
 		result["status"] = "ERROR";
 		result["respCode"] = 400;
-		result["message"] = "PUT endpoint helper did not set res variable";
+		result["message"] = "PUT endpoint helper did not set result JSON";
 	}
 
 	Json::FastWriter fastWriter;
 	std::string resultStr = fastWriter.write(result);
 
-	*res = new http_response(http_response_builder(resultStr.c_str(), result["respCode"].asInt()).string_response());
+	http_response resp = http_response_builder(resultStr.c_str(), result["respCode"].asInt()).string_response();
 
-	LogResponse(req, res);
+	LogResponse(req, resp);
+
+	return resp;
 }
 
 /*
@@ -591,7 +605,34 @@ void PlayerResource::GetCurrentPlaylists(Json::Value &result)
 	LogDebug(VB_HTTP, "API - Getting current playlist\n");
 
 	SetOKResult(result, "");
-	result["playlists"] = player->GetCurrentPlaylist();
+// FIXME API
+//	result["playlists"] = player->GetCurrentPlaylist();
+}
+
+/*
+ *
+ */
+void PlayerResource::GetE131BytesReceived(Json::Value &result)
+{
+	result = GetE131UniverseBytesReceived(); // e131bridge.cpp
+
+	if (result.isMember("universes"))
+		SetOKResult(result, "");
+	else
+		SetErrorResult(result, 400, "GetE131UniverseBytesReceived() did not return any universes.");
+}
+
+/*
+ *
+ */
+void PlayerResource::GetMultiSyncSystems(Json::Value &result)
+{
+	result = multiSync->GetSystems();
+
+	if (result.isMember("systems"))
+		SetOKResult(result, "");
+	else
+		SetErrorResult(result, 400, "MultiSync did not return any systems.");
 }
 
 /*
@@ -667,12 +708,12 @@ void PlayerResource::PostOutputs(const Json::Value &data, Json::Value &result)
 
 	if (data["command"].asString() == "enable")
 	{
-		player->EnableChannelOutput();
+		EnableChannelOutput();
 		SetOKResult(result, "channel output enabled");
 	}
 	else if (data["command"].asString() == "disable")
 	{
-		player->DisableChannelOutput();
+		DisableChannelOutput();
 		SetOKResult(result, "channel output disabled");
 	}
 }
@@ -691,7 +732,7 @@ void PlayerResource::PostOutputsRemap(const Json::Value &data, Json::Value &resu
 	if (data["command"].asString() == "reload")
 	{
 		// FIXME, need to fix this function to lock the remap array
-		LoadChannelRemapData();
+		//LoadChannelRemapData();
 		SetOKResult(result, "channel remaps reloaded");
 	}
 }
@@ -710,9 +751,9 @@ void PlayerResource::PostSchedule(const Json::Value data, Json::Value &result)
 	if (data["command"].asString() == "reload")
 	{
 		if(FPPstatus==FPP_STATUS_IDLE)
-			player->ReLoadCurrentScheduleInfo();
+			scheduler->ReLoadCurrentScheduleInfo();
 
-		player->ReLoadNextScheduleInfo();
+		scheduler->ReLoadNextScheduleInfo();
 
 		SetOKResult(result, "Schedule reload triggered");
 	}

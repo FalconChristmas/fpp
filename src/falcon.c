@@ -1,8 +1,8 @@
 /*
- *   Falcon Pi Player config routines for Falcon hardware
- *   Falcon Pi Player project (FPP)
+ *   Falcon Player config routines for Falcon hardware
+ *   Falcon Player project (FPP)
  *
- *   Copyright (C) 2013 the Falcon Pi Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -10,7 +10,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -33,10 +33,10 @@
 #include <strings.h>
 #include <unistd.h>
 
-#include "channeloutput/channeloutput.h"
+#include "channeloutputthread.h"
 #include "common.h"
 #include "log.h"
-#include "Player.h"
+#include "playlist/Playlist.h"
 #include "settings.h"
 #include "Sequence.h"
 
@@ -150,7 +150,7 @@ int FalconConfigureHardware(char *filename, int spiPort)
 
 	int bytesWritten;
 
-	player->DisableChannelOutput();
+	DisableChannelOutput();
 	usleep(100000);
 
 	if ((logLevel & LOG_DEBUG) && (logMask & VB_SETTING))
@@ -180,7 +180,7 @@ int FalconConfigureHardware(char *filename, int spiPort)
 			bytesWritten, FALCON_CFG_BUF_SIZE);
 		free(buf);
 		usleep(100000);
-		player->EnableChannelOutput();
+		EnableChannelOutput();
 		return -1;
 	}
 
@@ -189,7 +189,7 @@ int FalconConfigureHardware(char *filename, int spiPort)
 
 	free(buf);
 	usleep(100000);
-	player->EnableChannelOutput();
+	EnableChannelOutput();
 }
 
 /*
@@ -295,8 +295,7 @@ int FalconPassThroughData(int offset, unsigned char *inBuf, int size)
 		HexDump("Falcon Pass-through data", inBuf, size);
 
 	// Disable channel outputs and let them quiesce before sending config info
-	player->DisableChannelOutput();
-
+ 	DisableChannelOutput();
 	usleep(100000);
 
 	if (getSettingInt("FPDEnabled"))
@@ -345,15 +344,14 @@ int FalconPassThroughData(int offset, unsigned char *inBuf, int size)
 	}
 
 	// Pass data on to our regular channel outputs followed by blanking data
-	bzero(player->m_seqData + offset, 4096);
-	memcpy(player->m_seqData + offset, inBuf, FALCON_PASSTHROUGH_DATA_SIZE);
-	player->SendData();
-	player->SendBlankingData(); // reset data so we don't keep reprogramming
+	bzero(sequence->m_seqData + offset, 4096);
+	memcpy(sequence->m_seqData + offset, inBuf, FALCON_PASSTHROUGH_DATA_SIZE);
+	sequence->SendSequenceData();
+	sequence->SendBlankingData(); // reset data so we don't keep reprogramming
 
 	// Give changes time to take effect then turn back on channel outputs
 	usleep(100000);
-
-	player->EnableChannelOutput();
+	EnableChannelOutput();
 }
 
 /*
@@ -391,11 +389,11 @@ void FalconSetData(int sock, struct sockaddr_in *srcAddr, unsigned char *inBuf)
 
 	FalconWriteConfig(filename, (char *)inBuf, len);
 
-	if (player->SequencesRunning())
+	if (sequence->IsSequenceRunning())
 	{
 		if (inBuf[7] == 0x01)
 		{
-			player->PlaylistStopNow();
+			playlist->StopPlaylistNow(); // FIXME: Need to investigate this more
 		}
 		else
 		{

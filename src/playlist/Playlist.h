@@ -1,7 +1,7 @@
 /*
  *   Playlist Entry Base Class for Falcon Player (FPP)
  *
- *   Copyright (C) 2016 the Falcon Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -9,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -48,7 +48,6 @@
 #define PL_TYPE_PLUGIN_NEXT     6
 #define PL_MAX_ENTRIES        128
 
-
 // FIXME PLAYLIST, get rid of this and use playlist/PlaylistEntryBase.h
 // temporarily copied from old Playlist.h during transition to new playlist
 typedef struct {
@@ -78,11 +77,9 @@ typedef struct {
 } PlaylistDetails;
 
 
-class Player;
-
 class Playlist {
   public:
-	Playlist(Player *parent, int subPlaylist = 0);
+	Playlist(void *parent = NULL, int subPlaylist = 0);
 	~Playlist();
 
 	////////////////////////////////////////
@@ -107,18 +104,21 @@ class Playlist {
 	int                LoadJSONIntoPlaylist(std::vector<PlaylistEntryBase*> &playlistPart, const Json::Value &entries);
 
 	int                Start(void);
-	int                StopNow(void);
-	int                StopGracefully(int afterCurrentLoop = 0);
+	int                StopNow(int forceStop = 0);
+	int                StopGracefully(int forceStop = 0, int afterCurrentLoop = 0);
+
+	int                IsPlaying(void);
 
 	int                Process(void);
+	void               ProcessMedia(void);
 	int                Cleanup(void);
 
 	void               SetIdle(void);
 
-	int                Play(void);
+	int                Play(const char *filename, const int position = -1, const int repeat = -1);
 
-	void               SetPosition(int position) {m_sectionPosition = position;}
-	void               SetRepeat(int repeat) { m_repeat = repeat; }
+	void               SetPosition(int position);
+	void               SetRepeat(int repeat);
 
 	void               Dump(void);
 
@@ -133,11 +133,15 @@ class Playlist {
 	int                GetSize(void);
 	std::string        GetConfigStr(void);
 	Json::Value        GetConfig(void);
+	int                GetForceStop(void) { return m_forceStop; }
+	int                WasScheduled(void) { return m_scheduled; }
+
+	int                MQTTHandler(std::string topic, std::string msg);
 
 	std::string        ReplaceMatches(std::string in);
 
   private:
-	Player              *m_player;
+	void                *m_parent;
   	std::string          m_name;
 	std::string          m_desc;
 	int                  m_repeat;
@@ -150,15 +154,21 @@ class Playlist {
 	long long            m_startTime;
 	int                  m_subPlaylistDepth;
 	int                  m_subPlaylist;
+	int                  m_scheduled;
+	int                  m_forceStop;
 
 	std::string          m_currentState;
 	std::string          m_currentSectionStr;
 	int                  m_sectionPosition;
+	int                  m_absolutePosition;
 
 	std::vector<PlaylistEntryBase*>  m_leadIn;
 	std::vector<PlaylistEntryBase*>  m_mainPlaylist;
 	std::vector<PlaylistEntryBase*>  m_leadOut;
 	std::vector<PlaylistEntryBase*> *m_currentSection;
 };
+
+// Temporary singleton during conversion
+extern Playlist *playlist;
 
 #endif

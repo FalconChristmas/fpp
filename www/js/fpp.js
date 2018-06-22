@@ -9,6 +9,12 @@ gblCurrentPlaylistIndex = 0;
 gblCurrentLoadedPlaylist  = '';
 gblCurrentLoadedPlaylistCount = 0;
 
+lastPlaylistEntry = '';
+lastPlaylistSection = '';
+
+var max_retries = 60;
+var retry_poll_interval_arr = [];
+
 var statusTimeout = null;
 var lastStatus = '';
 
@@ -37,14 +43,25 @@ function PopulatePlaylists(element) {
 			var innerHTML = "<ol>";
 			if(productList.childNodes.length> 0)
 			{
+				innerHTML += "<table border=0 cellspacing=0 cellpadding=0><tr><td valign='top'>";
+				var rowsPerCol = 10;
+				if (productList.childNodes.length > 45)
+				{
+					rowsPerCol = Math.ceil(productList.childNodes.length / 4);
+				}
+				else if (productList.childNodes.length > 30)
+					rowsPerCol = 15;
+
 				for(i=0;i<productList.childNodes.length;i++)
 					{
+						if ((i != 0) && ((i % rowsPerCol) == 0))
+							innerHTML += "</td><td width='50px'>&nbsp;</td><td valign='top'>";
 						Filename = productList.childNodes[i].textContent;
 						// Remove extension
 						//Filename = Filename.substr(0, x.lastIndexOf('.'));	
 						innerHTML += "<li><a href='#' id=playlist" + i.toString() + " onclick=\"PopulatePlayListEntries('" + Filename + "',true)\">" + Filename + "</a></li>";
 					}
-					innerHTML += "</ol>";
+					innerHTML += "</tr></table></ol>";
 			}
 			else
 			{
@@ -57,171 +74,120 @@ function PopulatePlaylists(element) {
 	xmlhttp.send();
 }
 
-
-function GetPlayListSettings(playList) {
-	var xmlhttp=new XMLHttpRequest();
-		var url = "fppxml.php?command=getPlayListSettings&pl=" + playList;
-		xmlhttp.open("GET",url,true);
-		xmlhttp.setRequestHeader('Content-Type', 'text/xml');
- 
-		xmlhttp.onreadystatechange = function () {
-		if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
-		{
-				var xmlDoc=xmlhttp.responseXML; 
-				var entries = xmlDoc.getElementsByTagName('playlist_settings')[0];
-				var first = entries.childNodes[0].textContent;
-				var last = entries.childNodes[1].textContent;
-				if(first == "1")
-				{
-					$("#chkFirst").prop( "checked", true );
-					$("#firstLast0").html("First");
-				}
-				else
-				{
-					$("#chkFirst").prop( "checked", false );
-				}
-				if(last == "1")
-				{
-					$("#chkLast").prop( "checked", true );
-					$("#firstLast" + (gblCurrentLoadedPlaylistCount-1).toString()).html("Last");
-				}
-				else
-				{
-					$("#chkLast").prop( "checked", false );
-				}
-		}
-	};
-	xmlhttp.send();
-}
-
-function GetStatusPlayListSettings(playList) {
-	var xmlhttp=new XMLHttpRequest();
-		var url = "fppxml.php?command=getPlayListSettings&pl=" + playList;
-		xmlhttp.open("GET",url,true);
-		xmlhttp.setRequestHeader('Content-Type', 'text/xml');
- 
-		xmlhttp.onreadystatechange = function () {
-		if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
-		{
-				var xmlDoc=xmlhttp.responseXML; 
-				var entries = xmlDoc.getElementsByTagName('playlist_settings')[0];
-				var first = entries.childNodes[0].textContent;
-				var last = entries.childNodes[1].textContent;
-				if(first == "1")
-				{
-					$("#firstLast0").html("First");
-				}
-				else
-				{
-					$("#chkFirst").prop( "checked", false );
-				}
-				if(last == "1")
-				{
-					$("#firstLast" + (gblCurrentLoadedPlaylistCount-1).toString()).html("Last");
-				}
-				else
-				{
-					$("#chkLast").prop( "checked", false );
-				}
-		}
-	};
-	xmlhttp.send();
-}
-
-function SetPlayListFirst()
-{
-    var xmlhttp=new XMLHttpRequest();
-	var first = $("#chkFirst").is(':checked')?'1':'0';
-	var last = $("#chkLast").is(':checked')?'1':'0';
-	var playlist = $("#txtPlaylistName").val();
-	if(first == 1 && last ==1 && gblCurrentLoadedPlaylistCount < 3)
-	{
-		$("#chkFirst").prop( "checked", false );
-		first =0;
-		alert("A minimum of 3 entries are required for both 'First' and 'Last' options");
-	}
-	else if(first == 1 && last == 0 && gblCurrentLoadedPlaylistCount < 2)
-	{
-		$("#chkFirst").prop( "checked", false );
-		first =0;
-		alert("A minimum of 2 entries are required for 'First' option");
-	}
-	var url = "fppxml.php?command=setPlayListFirstLast&first=" + first + "&last="+last;
-	xmlhttp.open("GET",url,true);
-	xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-	xmlhttp.send();
-	PopulatePlayListEntries(playlist,false);
-}
-
-function SetPlayListLast()
-{
-    	var xmlhttp=new XMLHttpRequest();
-			var first = $("#chkFirst").is(':checked')?'1':'0';
-			var last = $("#chkLast").is(':checked')?'1':'0';
-			var playlist = $("#txtPlaylistName").val();
-			if(first == 1 && last ==1 && gblCurrentLoadedPlaylistCount < 3)
-			{
-				$("#chkLast").prop( "checked", false );
-				last =0;
-				alert("A minimum of 3 entries are required for both 'First' and 'Last' options");
-			}
-			else if(last == 1 && first == 0 && gblCurrentLoadedPlaylistCount < 2)
-			{
-				$("#chkLast").prop( "checked", false );
-				last =0;
-				alert("A minimum of 2 entries are required for 'Last' option");
-			}
-			var url = "fppxml.php?command=setPlayListFirstLast&first=" + first + "&last="+last;
-			xmlhttp.open("GET",url,true);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-			xmlhttp.send();
-			PopulatePlayListEntries(playlist,false);
-}
-
-function CheckFirstLastOptions()
-{
-    	var xmlhttp=new XMLHttpRequest();
-			var first = $("#chkFirst").is(':checked')?'1':'0';
-			var last = $("#chkLast").is(':checked')?'1':'0';
-			var playlist = $("#txtPlaylistName").val();
-			if(first == 1 && last ==1 && gblCurrentLoadedPlaylistCount < 4)
-			{
-				$("#chkLast").prop( "checked", false );
-				$("#chkFirst").prop( "checked", false );
-				last =0;
-				first =0;
-				alert("A minimum of 3 entries are required for both 'First' and 'Last' options");
-			}
-			else if(last == 1 && first == 0 && gblCurrentLoadedPlaylistCount < 3)
-			{
-				$("#chkLast").prop( "checked", false );
-				last =0;
-				alert("A minimum of 2 entries are required for 'First' option");
-			}
-			else if(last == 0 && first == 1 && gblCurrentLoadedPlaylistCount < 3)
-			{
-				$("#chkLast").prop( "checked", false );
-				first =0;
-				alert("A minimum of 2 entries are required for 'Last' option");
-			}
-			var url = "fppxml.php?command=setPlayListFirstLast&first=" + first + "&last="+last;
-			xmlhttp.open("GET",url,true);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-			xmlhttp.send();
-			PopulatePlayListEntries(playlist,false);
-}
-
-function GetPlaylistRowHTML(ID, type, data1, data2, firstlast)
+function GetPlaylistRowHTML(ID, type, data1, data2, data3, firstlast, editMode)
 {
 	var HTML = "";
 
 	HTML += "<tr id=\"playlistRow" + ID + "\">";
-	HTML += "<td class=\"colPlaylistNumber colPlaylistNumberDrag\" id = \"colEntryNumber" + ID + "\" >" + ID + ".</td>";
-	HTML += "<td class=\"colPlaylistType\">" + type + "</td>";
+	HTML += "<td class=\"colPlaylistNumber "
+
+	if (editMode)
+		HTML += "colPlaylistNumberDrag";
+
+	HTML += "\" id = \"colEntryNumber" + ID + "\" >" + ID + ".</td>";
+
+	if (editMode)
+		HTML += "<td class=\"colPlaylistType\">" + type + "</td>";
+
 	HTML += "<td class=\"colPlaylistData1\">" + data1 + "</td>";
 	HTML += "<td class=\"colPlaylistData2\">" + data2 + "</td>"
-	HTML += "<td class=\"colPlaylistFlags\" id=\"firstLast" + firstlast + "\">&nbsp;</td>";
+    if (data3) {
+        HTML += "<td class=\"colPlaylistData3\">" + data3 + "</td>"
+    } else {
+        HTML += "<td class=\"colPlaylistData3\"></td>"
+    }
 	HTML += "</tr>";
+
+	return HTML;
+}
+
+function PlaylistEntryToTR(i, entry, editMode)
+{
+	var HTML = "";
+
+	if(entry.type == 'both')
+		HTML += GetPlaylistRowHTML((i+1).toString(), "Seq/Med", entry.mediaName, entry.sequenceName, entry.videoOut, i.toString(), editMode);
+	else if(entry.type == 'media')
+		HTML += GetPlaylistRowHTML((i+1).toString(), "Media", entry.mediaName, "---", entry.videoOut, i.toString(), editMode);
+	else if(entry.type == 'sequence')
+		HTML += GetPlaylistRowHTML((i+1).toString(), "Sequence", "---", entry.sequenceName, "", i.toString(), editMode);
+	else if(entry.type == 'pause')
+		HTML += GetPlaylistRowHTML((i+1).toString(), "Pause", "PAUSE - " + entry.duration.toString(), "---", "", i.toString(), editMode);
+	else if(entry.type == 'branch')
+	{
+		var branchStr = "Invalid Config";
+		if (entry.trueNextItem < 999)
+		{
+			branchStr = "";
+			if (entry.compInfo.startHour < 0)
+				branchStr += "**:";
+			else
+				branchStr += ((entry.compInfo.startHour < 10) ? ("0" + entry.compInfo.startHour) : entry.compInfo.startHour) + ":";
+
+			branchStr += ""
+				+ ((entry.compInfo.startMinute < 10) ? ("0" + entry.compInfo.startMinute) : entry.compInfo.startMinute) + ":"
+				+ ((entry.compInfo.startSecond < 10) ? ("0" + entry.compInfo.startSecond) : entry.compInfo.startSecond) + " < X < ";
+
+			if (entry.compInfo.endHour < 0)
+				branchStr += "**:";
+			else
+				branchStr += ((entry.compInfo.endHour < 10) ? ("0" + entry.compInfo.endHour) : entry.compInfo.endHour) + ":";
+
+			branchStr += ""
+				+ ((entry.compInfo.endMinute < 10) ? ("0" + entry.compInfo.endMinute) : entry.compInfo.endMinute) + ":"
+				+ ((entry.compInfo.endSecond < 10) ? ("0" + entry.compInfo.endSecond) : entry.compInfo.endSecond);
+
+			branchStr += ", True: ";
+			if (entry.trueNextSection != "")
+				branchStr += entry.trueNextSection + "/" + (entry.trueNextItem + 1);
+			else
+				branchStr += "+" + entry.trueNextItem;
+
+			if (entry.falseNextItem < 999)
+			{
+				branchStr += ", False: ";
+				if (entry.falseNextSection != "")
+					branchStr += entry.falseNextSection + "/" + (entry.falseNextItem + 1);
+				else
+					branchStr += "+" + entry.falseNextItem;
+			}
+
+		}
+		HTML += GetPlaylistRowHTML((i+1).toString(), "Branch", branchStr, "---", "", i.toString(), editMode);
+	}
+	else if(entry.type == 'mqtt')
+		HTML += GetPlaylistRowHTML((i+1).toString(), "MQTT", entry.topic, entry.message, "", i.toString(), editMode);
+	else if(entry.type == 'dynamic')
+		HTML += GetPlaylistRowHTML((i+1).toString(), "Dynamic", entry.subType, entry.data, "", i.toString(), editMode);
+	else if(entry.type == 'url')
+		HTML += GetPlaylistRowHTML((i+1).toString(), "URL", entry.method + ' - ' + entry.url, "", entry.data, i.toString(), editMode);
+	else if(entry.type == 'remap')
+	{
+		var desc = "Add ";
+		if (entry.action == "remove")
+			desc = "Remove ";
+
+		desc += "remap for " + entry.count + " channels from " + entry.source + " to " + entry.destination + " " + entry.loops + " times";
+		HTML += GetPlaylistRowHTML((i+1).toString(), "Remap", desc, "", "", i.toString(), editMode);
+	}
+	else if(entry.type == 'event')
+	{
+		majorID = parseInt(entry.majorID);
+		if (entry.majorID < 10)
+			majorID = "0" + majorID;
+
+		minorID = parseInt(entry.minorID);
+		if (entry.minorID < 10)
+			minorID = "0" + minorID;
+
+		id = majorID + '_' + minorID;
+
+		HTML += GetPlaylistRowHTML((i+1).toString(), "Event", id + " - " + entry.desc, "---", "", i.toString(), editMode);
+	}
+	else if(entry.type == 'plugin')
+		HTML += GetPlaylistRowHTML((i+1).toString(), "Plugin", "---", "", entry.data, editMode);
+	else if(entry.type == 'script')
+		HTML += GetPlaylistRowHTML((i+1).toString(), "Script", entry.scriptName, "---", "", i.toString(), editMode);
 
 	return HTML;
 }
@@ -232,179 +198,151 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow) {
 
 		var innerHTML="";
 		innerHTML +=  "<tr class=\"playlistPlayingEntry\">";
-		innerHTML +=  "<td>No entries in playlist.</td>";
+		innerHTML +=  "<td>No playlist loaded.</td>";
 		innerHTML += "</tr>";
-		$('#tblCreatePlaylistEntries_tbody').html(innerHTML);
+		$('.tblCreatePlaylistEntries_tbody').html(innerHTML);
 
 		return false;
 	}
 
-	var type;
-	var pl;
-	var mediaFile;
-	var seqFile;
-	var pause;
-var xmlhttp=new XMLHttpRequest();
-	var innerHTML="";
-	var url = "fppxml.php?command=getPlayListEntries&pl=" + playList + "&reload=" + reloadFile;
-	xmlhttp.open("GET",url,true);
-	xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+	lastPlaylistEntry = '';
+	lastPlaylistSection = '';
 
-	xmlhttp.onreadystatechange = function () {
-		if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
-		{
-			var xmlDoc=xmlhttp.responseXML; 
-			var entries = xmlDoc.getElementsByTagName('PlaylistEntries')[0];
-			
-			gblCurrentLoadedPlaylist = playList;
-			gblCurrentLoadedPlaylistCount = entries.childNodes.length;
-			$('#txtPlaylistName').val(playList);
-			
-			if(entries.childNodes.length> 0)	
-			{
-					for(i=0;i<entries.childNodes.length;i++)
+	$.ajax({
+		url: 'fppjson.php?command=getPlayListEntries&pl=' + playList + '&reload=' + reloadFile,
+		dataType: 'json',
+		success: function(data, reqStatus, xhr) {	
+			var innerHTML = "";
+
+			if(data && typeof data === 'object') {
+				var entries = 0;
+				if (data.hasOwnProperty('leadIn') && data.leadIn.length > 0)
+				{
+					innerHTML = "";
+					for (i = 0; i < data.leadIn.length; i++)
 					{
-						var type = entries.childNodes[i].childNodes[0].textContent;
-						var seqFile = entries.childNodes[i].childNodes[1].textContent;
-						var mediaFile = entries.childNodes[i].childNodes[2].textContent;
-						var pause = entries.childNodes[i].childNodes[3].textContent;
-						var eventName = entries.childNodes[i].childNodes[5].textContent;
-						var eventID = entries.childNodes[i].childNodes[6].textContent.replace('_', ' / ');
-						var pluginData = entries.childNodes[i].childNodes[7].textContent;
-						if(type == 'b')
-								innerHTML += GetPlaylistRowHTML((i+1).toString(), "Seq/Med", mediaFile, seqFile, i.toString());
-						else if(type == 'm')
-								innerHTML += GetPlaylistRowHTML((i+1).toString(), "Media", mediaFile, "---", i.toString());
-						else if(type == 's')
-								innerHTML += GetPlaylistRowHTML((i+1).toString(), "Seq.", "---", seqFile, i.toString());
-						else if(type == 'p')
-								innerHTML += GetPlaylistRowHTML((i+1).toString(), "Pause", "PAUSE - " + pause.toString(), "---", i.toString());
-						else if(type == 'v')
-								innerHTML += GetPlaylistRowHTML((i+1).toString(), "Volume", "VOLUME - " + pause.toString(), "---", i.toString());
-						else if(type == 'B')
-								innerHTML += GetPlaylistRowHTML((i+1).toString(), "Brightness", "BRIGHTNESS - " + pause.toString(), "---", i.toString());
-						else if(type == 'e')
-						{
-								innerHTML += GetPlaylistRowHTML((i+1).toString(), "Event", eventID + " - " + eventName, "---", i.toString());
-						}
-						else if(type == 'P')
-								innerHTML += GetPlaylistRowHTML((i+1).toString(), "Plugin", "---", pluginData.toString());
+						innerHTML += PlaylistEntryToTR(entries, data.leadIn[i], 1);
+						entries++;
 					}
+					$('#tblPlaylistLeadIn').html(innerHTML);
+				}
+				else
+					$('#tblPlaylistLeadIn').html("<tr id='tblPlaylistLeadInPlaceHolder'><td>&nbsp;</td></tr>");
+					
+
+				if (data.hasOwnProperty('mainPlaylist') && data.mainPlaylist.length > 0)
+				{
+					innerHTML = "";
+					for (i = 0; i < data.mainPlaylist.length; i++)
+					{
+						innerHTML += PlaylistEntryToTR(entries, data.mainPlaylist[i], 1);
+						entries++;
+					}
+					$('#tblPlaylistMainPlaylist').html(innerHTML);
+				}
+				else
+					$('#tblPlaylistMainPlaylist').html("<tr id='tblPlaylistMainPlaylistPlaceHolder'><td>&nbsp;</td></tr>");
+
+				if (data.hasOwnProperty('leadOut') && data.leadOut.length > 0)
+				{
+					innerHTML = "";
+					for (i = 0; i < data.leadOut.length; i++)
+					{
+						innerHTML += PlaylistEntryToTR(entries, data.leadOut[i], 1);
+						entries++;
+					}
+					$('#tblPlaylistLeadOut').html(innerHTML);
+				}
+				else
+					$('#tblPlaylistLeadOut').html("<tr id='tblPlaylistLeadOutPlaceHolder'><td>&nbsp;</td></tr>");
+
+				if (entries == 0)
+				{
+					innerHTML  =  "<tr class=\"playlistPlayingEntry\">";
+					innerHTML +=  "<td colspan='4'>No entries in playlist section.</td>";
+					innerHTML += "</tr>";
+					$('.tblCreatePlaylistEntries_tbody').html(innerHTML);
+				}
+
+				gblCurrentLoadedPlaylist = playList;
+				gblCurrentLoadedPlaylistCount = entries;
+				$('#txtPlaylistName').val(playList);
 			}
 			else
 			{
-								innerHTML +=  "<tr class=\"playlistPlayingEntry\">";
-								innerHTML +=  "<td>No entries in playlist.</td>";
-							  innerHTML += "</tr>";
+				innerHTML  =  "<tr class=\"playlistPlayingEntry\">";
+				innerHTML +=  "<td>No entries in playlist section.</td>";
+				innerHTML += "</tr>";
+				$('.tblCreatePlaylistEntries_tbody').html(innerHTML);
+
+				gblCurrentLoadedPlaylist = playList;
+				gblCurrentLoadedPlaylistCount = 0;
+				$('#txtPlaylistName').val(playList);
 			}
-			$('#tblCreatePlaylistEntries_tbody').html(innerHTML);
-			GetPlayListSettings(playList);
 		}
-	}
-	xmlhttp.send();
-}
-		
-function PlaylistTypeChanged() {
-	var type=document.getElementById("selType").selectedIndex;
-	switch(type)
-	{
-		case 0: // Music and Sequence
-			$("#musicOptions").show();
-			$("#sequenceOptions").show();
-			$("#autoSelectWrapper").show();
-			$("#autoSelectMatches").prop('checked', true);
-			$("#videoOptions").hide();
-			$("#eventOptions").hide();
-			$("#pauseTime").hide();
-			$("#pauseText").hide();
-			$("#delayText").hide();
-			$("#pluginData").hide();
-			break;
-		case 1:	// Media Only
-			$("#musicOptions").show();
-			$("#sequenceOptions").hide();
-			$("#autoSelectWrapper").hide();
-			$("#videoOptions").hide();
-			$("#eventOptions").hide();
-			$("#pauseTime").hide();
-			$("#pauseText").hide();
-			$("#delayText").hide();
-			$("#pluginData").hide();
-			break;
-		case 2:	// Sequence Only
-			$("#musicOptions").hide();
-			$("#sequenceOptions").show();
-			$("#autoSelectWrapper").hide();
-			$("#videoOptions").hide();
-			$("#eventOptions").hide();
-			$("#pauseTime").hide();
-			$("#pauseText").show();
-			$("#delayText").hide();
-			$("#pluginData").hide();
-			break;
-		case 3:	// Pause
-			$("#musicOptions").hide();
-			$("#sequenceOptions").hide();
-			$("#autoSelectWrapper").hide();
-			$("#videoOptions").hide();
-			$("#eventOptions").hide();
-			$("#pauseTime").show();
-			$("#pauseText").show();
-			$("#pauseText").html("Pause Time");
-			$("#delayText").hide();
-			$("#pluginData").hide();
-			break;
-		case 4: // Event
-			$("#musicOptions").hide();
-			$("#sequenceOptions").hide();
-			$("#autoSelectWrapper").hide();
-			$("#videoOptions").hide();
-			$("#eventOptions").show();
-			$("#pauseTime").hide();
-			$("#pauseText").hide();
-			$("#delayText").hide();
-			$("#pluginData").hide();
-			break;
-		case 5: // Plugin
-			$("#musicOptions").hide();
-			$("#sequenceOptions").hide();
-			$("#autoSelectWrapper").hide();
-			$("#videoOptions").hide();
-			$("#eventOptions").hide();
-			$("#pauseTime").hide();
-			$("#pauseText").hide();
-			$("#delayText").hide();
-			$("#pluginData").show();
-			break;
-		case 6:	// Volume
-			$("#musicOptions").hide();
-			$("#sequenceOptions").hide();
-			$("#autoSelectWrapper").hide();
-			$("#videoOptions").hide();
-			$("#eventOptions").hide();
-			$("#pauseTime").show();
-			$("#pauseText").show();
-			$("#pauseText").html("Volume %");
-			$("#delayText").hide();
-			$("#pluginData").hide();
-			break;
-		case 7:	// Brightness
-			$("#musicOptions").hide();
-			$("#sequenceOptions").hide();
-			$("#autoSelectWrapper").hide();
-			$("#videoOptions").hide();
-			$("#eventOptions").hide();
-			$("#pauseTime").show();
-			$("#pauseText").show();
-			$("#pauseText").html("Brightness %");
-			$("#delayText").hide();
-			$("#pluginData").hide();
-			break;
-	}
-	
+	});
 }
 
-	
+
+function PlaylistTypeChanged() {
+	var type = $('#selType').val();
+
+	$('.playlistOptions').hide();
+
+	if (type == 'both')
+	{
+		$("#musicOptions").show();
+		$("#sequenceOptions").show();
+		$("#autoSelectWrapper").show();
+		$("#autoSelectMatches").prop('checked', true);
+	}
+	else if (type == 'media')
+	{
+		$("#musicOptions").show();
+	}
+	else if (type == 'sequence')
+	{
+		$("#sequenceOptions").show();
+	}
+	else if (type == 'pause')
+	{
+		$("#pauseTime").show();
+		$("#pauseText").show();
+	}
+	else if (type == 'script')
+	{
+		$("#scriptOptions").show();
+	}
+	else if (type == 'event')
+	{
+		$("#eventOptions").show();
+	}
+	else if (type == 'plugin')
+	{
+		$("#pluginData").show();
+	}
+	else if (type == 'branch')
+	{
+		$('#branchOptions').show();
+	}
+	else if (type == 'mqtt')
+	{
+		$('#mqttOptions').show();
+	}
+	else if (type == 'remap')
+	{
+		$('#remapOptions').show();
+	}
+	else if (type == 'dynamic')
+	{
+		$('#dynamicOptions').show();
+	}
+	else if (type == 'url')
+	{
+		$('#urlOptions').show();
+	}
+}
+
 function AddNewPlaylist() {
 	var name=document.getElementById("txtNewPlaylistName");
 	var plName = name.value.replace(/ /,'_');
@@ -432,9 +370,9 @@ function AddNewPlaylist() {
 
 }
 		
-function PlaylistEntryIndexChanged(newIndex,oldIndex) {
+function PlaylistEntryPositionChanged(newSection,newIndex,oldSection,oldIndex) {
 	var xmlhttp=new XMLHttpRequest();
-	var url = "fppxml.php?command=sort&newIndex=" + newIndex + "&oldIndex=" + oldIndex;
+	var url = "fppxml.php?command=playlistEntryPositionChanged&newSection=" + newSection + "&newIndex=" + newIndex + "&oldSection=" + oldSection + "&oldIndex=" + oldIndex;
 	xmlhttp.open("GET",url,false);
 	xmlhttp.setRequestHeader('Content-Type', 'text/xml');
 
@@ -461,12 +399,14 @@ function AddPlaylistEntry() {
 			var	type = document.getElementById("selType").value;
 			var	seqFile = document.getElementById("selSequence").value;
 			var	mediaFile = document.getElementById("selMedia").value;
+			var	videoOut = document.getElementById("videoOut").value;
+			var	scriptName = document.getElementById("selEvent").value;
 			var	eventSel = document.getElementById("selEvent");
 			var	eventID = eventSel.value;
 			var	eventName = '';
 			var	pluginData = document.getElementById("txtData").value;
 
-			if ((type == "b") &&
+			if ((type == "both") &&
 					((seqFile == "") || (mediaFile == "")))
 			{
 				var missingType = "";
@@ -486,11 +426,106 @@ function AddPlaylistEntry() {
       {
         eventName = eventSel.options[eventSel.selectedIndex].innerHTML.replace(/.. \/ .. - /, '');
       }
+
+			var entry = new Object();
+
+			entry.type = $('#selType').val();
+			entry.enabled = 1; // FIXME
+			entry.playOnce = 0; // FIXME
+
+			if (entry.type == 'sequence')
+			{
+				entry.sequenceName = $('#selSequence').val();
+			}
+			else if (entry.type == 'media')
+			{
+				entry.mediaName = $('#selMedia').val();
+                entry.videoOut = $('#videoOut').val();
+			}
+			else if (entry.type == 'both')
+			{
+				entry.sequenceName = $('#selSequence').val();
+				entry.mediaName = $('#selMedia').val();
+                entry.videoOut = $('#videoOut').val();
+			}
+			else if (entry.type == 'pause')
+			{
+				if ($('#txtPause').val() != '')
+					entry.duration = parseInt($('#txtPause').val());
+				else
+					entry.duration = 0;
+			}
+			else if (entry.type == 'event')
+			{
+				entry.majorID = $('#selEvent').val().substring(0,2);
+				entry.minorID = $('#selEvent').val().substring(3,5);
+				entry.blocking = 0;
+			}
+			else if (entry.type == 'branch')
+			{
+				entry.branchType = $('#branchType').val();
+				entry.compMode = 1; // FIXME
+				entry.trueNextSection = $('#branchTrueSection').val();
+				entry.trueNextItem = $('#branchTrueItem').val();
+				entry.falseNextSection = $('#branchFalseSection').val();
+				entry.falseNextItem = $('#branchFalseItem').val();
+				entry.compInfo = new Object();
+				entry.compInfo.startHour = parseInt($('#branchStartTime').val().substring(0,2));
+				entry.compInfo.startMinute = parseInt($('#branchStartTime').val().substring(3,5));
+				entry.compInfo.startSecond = parseInt($('#branchStartTime').val().substring(6,8));
+				entry.compInfo.endHour = parseInt($('#branchEndTime').val().substring(0,2));
+				entry.compInfo.endMinute = parseInt($('#branchEndTime').val().substring(3,5));
+				entry.compInfo.endSecond = parseInt($('#branchEndTime').val().substring(6,8));
+			}
+			else if (entry.type == 'script')
+			{
+				entry.scriptName = $('#selScript').val();
+			}
+			else if (entry.type == 'mqtt')
+			{
+				entry.topic = $('#mqttTopic').val();
+				entry.message = $('#mqttMessage').val();
+			}
+			else if (entry.type == 'remap')
+			{
+				entry.action = $('#remapAction').val();
+				entry.source = parseInt($('#srcChannel').val());
+				entry.destination = parseInt($('#dstChannel').val());
+				entry.count = parseInt($('#channelCount').val());
+				entry.loops = parseInt($('#remapLoops').val());
+			}
+			else if (entry.type == 'dynamic')
+			{
+				entry.subType = $('#dynamicSubType').val();
+				entry.data = $('#dynamicData').val();
+			}
+			else if (entry.type == 'url')
+			{
+				entry.url = $('#url').val();
+				entry.method = $('#urlMethod').val();
+				entry.data = $('#urlData').val();
+			}
+			else if (entry.type == 'plugin')
+			{
+				entry.data = $('#txtData').val();
+			}
+
+			var postData = 'command=addPlaylistEntry&data=' + JSON.stringify(entry);
+
+			$.post("fppjson.php", postData).success(function(data) {
+				PopulatePlayListEntries($('#txtPlaylistName').val(),false);
+			}).fail(function() {
+				$.jGrowl("Error: Unable to add new playlist entry.");
+			});
+
+			return;
+
 			var	pause = document.getElementById("txtPause").value;
 			var url = "fppxml.php?command=addPlaylistEntry&type=" + type +
 								"&seqFile=" + encodeURIComponent(seqFile) +
 								"&mediaFile=" + encodeURIComponent(mediaFile) +
 								"&pause=" + pause +
+								"&scriptName=" + encodeURIComponent(scriptName) +
 								"&eventID=" + encodeURIComponent(eventID) + 
 								"&eventName=" + encodeURIComponent(eventName) +
 								"&pluginData=" + encodeURIComponent(pluginData);
@@ -508,13 +543,31 @@ function AddPlaylistEntry() {
 			xmlhttp.send();
 
 		}
-		
+
+function ConvertPlaylistsToJSON() {
+	$('#playlistConvertText').html("Converting");
+	$('#playlistConverter').dialog({ height: 600, width: 800, title: "Playlist Converter" });
+	$('#playlistConverter').dialog( "moveToTop" );
+
+	$.ajax({
+		url: 'fppjson.php?command=convertPlaylists',
+		dataType: 'json',
+		success: function(data, reqStatus, xhr) {
+			if(data && typeof data === 'object') {
+				for (i = 0; i < data.playlists.length; i++)
+				{
+					$('#playlistConverterText').append(data.playlists[i] + '<br>');
+				}
+				PopulatePlaylists('playList');
+			}
+		}
+	});
+}
+
 function SavePlaylist()	{
 	var name=document.getElementById("txtPlaylistName");
     var xmlhttp=new XMLHttpRequest();
-	var first = $("#chkFirst").is(':checked')?'1':'0';
-	var last = $("#chkLast").is(':checked')?'1':'0';
-	var url = "fppxml.php?command=savePlaylist&name=" + name.value + "&first=" + first + "&last="+last;
+	var url = "fppjson.php?command=savePlaylist&name=" + name.value;
 	xmlhttp.open("GET",url,false);
 	xmlhttp.setRequestHeader('Content-Type', 'text/xml');
 
@@ -540,8 +593,15 @@ function DeletePlaylist() {
 			xmlhttp.onreadystatechange = function () {
 				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
 				{
-					var xmlDoc=xmlhttp.responseXML; 
-          PopulatePlaylists("playList");
+					var xmlDoc=xmlhttp.responseXML;
+                    status_xml = xmlDoc.getElementsByTagName("Status")[0].textContent;
+
+                    if (status_xml === "Failure" || status_xml !== "Success"){
+                        //fail
+                        DialogError("Failed to delete Playlist","Failed to delete Playlist '" + name.value + "'.")
+					}
+
+                    PopulatePlaylists("playList");
 					var firstPlaylist = document.getElementById("playlist0");
 					if ( firstPlaylist )
 						PopulatePlayListEntries(firstPlaylist.innerHTML,true);
@@ -557,9 +617,15 @@ function DeletePlaylist() {
 		
 		
 function RemovePlaylistEntry()	{
+		if (lastPlaylistEntry == '')
+		{
+			$.jGrowl("Error: No playlist item selected.");
+			return;
+		}
+
 			var name=document.getElementById("txtPlaylistName");
     	var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=deleteEntry&index=" + lastPlaylistEntry;
+			var url = "fppxml.php?command=deleteEntry&index=" + (lastPlaylistEntry-1) + "&section=" + lastPlaylistSection;
 			xmlhttp.open("GET",url,false);
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
 	 
@@ -573,7 +639,16 @@ function RemovePlaylistEntry()	{
 			};
 			
 			xmlhttp.send();
-			CheckFirstLastOptions();
+		}
+
+		function reloadPage()
+		{
+			location.reload(true);
+		}
+
+		function reloadPage()
+		{
+			location.reload(true);
 		}
 
 		function updatePlugin(pluginName)
@@ -775,7 +850,7 @@ function RemovePlaylistEntry()	{
 			lastPlaylistEntry = index;
 		}
 		
-		function SetUniverseCount()
+		function SetUniverseCount(input)
 		{
 			var txtCount=document.getElementById("txtUniverseCount");
 			var count = Number(txtCount.value);
@@ -786,7 +861,7 @@ function RemovePlaylistEntry()	{
 			UniverseCount = count;
 			
     	var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=setUniverseCount&count=" + count;
+			var url = "fppxml.php?command=setUniverseCount&count=" + count + "&input=" + input;
 			xmlhttp.open("GET",url,false);
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
 	 
@@ -794,20 +869,46 @@ function RemovePlaylistEntry()	{
 				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
 				{
 					var xmlDoc=xmlhttp.responseXML; 
-          getUniverses("FALSE");
+          getUniverses("FALSE", input);
 				}
 			};
 			
 			xmlhttp.send();
 		}
-		
-		function getUniverses(reload)
+
+        function IPOutputTypeChanged(item) {
+            var itemVal = $(item).val();
+            if (itemVal == 4 || itemVal == 5) {
+                var univ = $(item).parent().parent().find("input.txtUniverse");
+                univ.prop('disabled', true);
+                var sz = $(item).parent().parent().find("input.txtSize");
+                sz.prop('max', 256000);
+            } else {
+                var univ = $(item).parent().parent().find("input.txtUniverse");
+                univ.prop('disabled', false);
+                if (parseInt(univ.val()) < 1) {
+                    univ.val(1);
+                }
+                var sz = $(item).parent().parent().find("input.txtSize");
+                var val = parseInt(sz.val());
+                if (val > 512) {
+                    sz.val(512);
+                }
+                sz.prop('max', 512);
+            }
+        }
+		function getUniverses(reload, input)
 		{
+			var inputStyle = "";
+			if (input)
+				inputStyle = "style='display: none;'";
+
     	var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=getUniverses&reload=" + reload;
+			var url = "fppxml.php?command=getUniverses&reload=" + reload + "&input=" + input;
 			xmlhttp.open("GET",url,false);
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
- 			var innerHTML="";
+			var headHTML="";
+			var bodyHTML="";
 			UniverseCount = 0;
 
 			xmlhttp.onreadystatechange = function () {
@@ -817,27 +918,31 @@ function RemovePlaylistEntry()	{
 					var entries = xmlDoc.getElementsByTagName('UniverseEntries')[0];
 					if(entries.childNodes.length> 0)
 					{
-						innerHTML = "<tr class=\"tblheader\">" +  
-												"<td width=\"5%\" align='left'>Line<br>#</td>" +
-												"<td width=\"10%\" align='left'>Universe Active</td>" +
-												"<td width=\"10%\" align='left'>FPP Start<br>Channel</td>" +
-												"<td width=\"10%\" align='left'>Universe<br>#</td>" +
-												"<td width=\"10%\" align='left'>Universe<br>Size</td>" +
-                        "<td width=\"20%\" align='left'>Universe<br>Type</td>" +
-												"<td width=\"20%\" align='left'>Unicast Address</td>" +
-												"<td width=\"5%\" align='left'>Ping</td>" +
-												"</tr>";
+						headHTML = "<tr class=\"tblheader\">" +
+							"<th width=\"5%\" align='left'>Line<br>#</th>" +
+							"<th width=\"5%\" align='left'>Active</th>" +
+							"<th width=\"30%\" align='left'>Description</th>" +
+							"<th width=\"8%\" align='left'>FPP Start<br>Channel</th>" +
+							"<th width=\"8%\" align='left'>Universe<br>#</th>" +
+							"<th width=\"8%\" align='left'>Universe<br>Size</th>" +
+                        	"<th width=\"15%\" align='left'>Universe Type</th>" +
+							"<th width=\"12%\" align='left' " + inputStyle + ">Unicast<br>Address</th>" +
+							"<th width=\"8%\" align='left' " + inputStyle + ">Priority</th>" +
+							"<th width=\"12%\" align='left'>Ping</th>" +
+							"</tr>";
 												
 							UniverseCount = entries.childNodes.length;
 							document.getElementById("txtUniverseCount").value = UniverseCount.toString();
 							for(i=0;i<UniverseCount;i++)
 							{
 								var active = entries.childNodes[i].childNodes[0].textContent;
-								var universe = entries.childNodes[i].childNodes[1].textContent;
-								var startAddress = entries.childNodes[i].childNodes[2].textContent;
-								var size = entries.childNodes[i].childNodes[3].textContent;
-								var type = entries.childNodes[i].childNodes[4].textContent;
-								var unicastAddress =  entries.childNodes[i].childNodes[5].textContent;
+								var desc = entries.childNodes[i].childNodes[1].textContent;
+								var universe = entries.childNodes[i].childNodes[2].textContent;
+								var startAddress = entries.childNodes[i].childNodes[3].textContent;
+								var size = entries.childNodes[i].childNodes[4].textContent;
+								var type = entries.childNodes[i].childNodes[5].textContent;
+								var unicastAddress =  entries.childNodes[i].childNodes[6].textContent;
+								var priority =  entries.childNodes[i].childNodes[7].textContent;
 								unicastAddress = unicastAddress.trim();
 
 								var activeChecked = active == 1  ? "checked=\"checked\"" : "";
@@ -845,21 +950,47 @@ function RemovePlaylistEntry()	{
 								var typeUnicastE131 = type == 1 ? "selected": "";
 								var typeBroadcastArtNet = type == 2 ? "selected" : "";
 								var typeUnicastArtNet = type == 3 ? "selected": "";
-								
-								innerHTML += 	"<tr class=\"rowUniverseDetails\">" +
-								              "<td>" + (i+1).toString() + "</td>" +
-															"<td><input name=\"chkActive[" + i.toString() + "]\" id=\"chkActive[" + i.toString() + "]\" type=\"checkbox\" " + activeChecked +"/></td>" +
-															"<td><input name=\"txtStartAddress[" + i.toString() + "]\" id=\"txtStartAddress[" + i.toString() + "]\" type=\"text\" size=\"6\" maxlength=\"6\" value=\"" + startAddress.toString() + "\"/></td>" +
-															"<td><input name=\"txtUniverse[" + i.toString() + "]\" id=\"txtUniverse[" + i.toString() + "]\" type=\"text\" size=\"3\" maxlength=\"3\" value=\"" + universe.toString() + "\"/></td>" +
-															"<td><input name=\"txtSize[" + i.toString() + "]\" id=\"txtSize[" + i.toString() + "]\" type=\"text\"  size=\"3\"/  maxlength=\"3\"value=\"" + size.toString() + "\"></td>" +
+                                var typeDDPR = type == 4 ? "selected": "";
+                                var typeDDP1 = type == 5 ? "selected": "";
+
+                                var universeSize = 512;
+                                var universeDisable = "";
+                                if (type == 4 || type == 5) {
+                                    universeSize = 256000;
+                                    universeDisable = " disabled";
+                                }
+
+								bodyHTML += 	"<tr class=\"rowUniverseDetails\">" +
+								              "<td><span class='rowID'>" + (i+1).toString() + "</span></td>" +
+															"<td><input class='chkActive' type='checkbox' " + activeChecked +"/></td>" +
+															"<td><input class='txtDesc' type='text' size='24' maxlength='64' value='" + desc + "'/></td>" +
+															"<td><input class='txtStartAddress' type='number' min='1' max='524288' value='" + startAddress.toString() + "'/></td>" +
+															"<td><input class='txtUniverse' type='number' min='1' max='63999' value='" + universe.toString() + "'" + universeDisable + "/></td>" +
+															"<td><input class='txtSize' type='number'  min='1'  max='" + universeSize + "' value='" + size.toString() + "'></td>" +
 															
-															"<td><select id=\"universeType[" + i.toString() + "]\" name=\"universeType[" + i.toString() + "]\" style=\"width:150px\">" +
-															      "<option value=\"0\" " + typeMulticastE131 + ">E1.31 - Multicast</option>" +
-															      "<option value=\"1\" " + typeUnicastE131 + ">E1.31 - Unicast</option>" +
-															      "<option value=\"2\" " + typeBroadcastArtNet + ">ArtNet - Broadcast</option>" +
-															      "<option value=\"3\" " + typeUnicastArtNet + ">ArtNet - Unicast</option>" +
+															"<td><select class='universeType' style='width:150px'";
+
+								if (input)
+								{
+									bodyHTML +=                   ">" +
+															      "<option value='0' " + typeMulticastE131 + ">E1.31 - Multicast</option>" +
+															      "<option value='1' " + typeUnicastE131 + ">E1.31 - Unicast</option>";
+								}
+								else
+								{
+                                    bodyHTML +=                   " onChange='IPOutputTypeChanged(this);'>" +
+															      "<option value='0' " + typeMulticastE131 + ">E1.31 - Multicast</option>" +
+															      "<option value='1' " + typeUnicastE131 + ">E1.31 - Unicast</option>" +
+															      "<option value='2' " + typeBroadcastArtNet + ">ArtNet - Broadcast</option>" +
+															      "<option value='3' " + typeUnicastArtNet + ">ArtNet - Unicast</option>" +
+                                                                  "<option value='4' " + typeDDPR + ">DDP Raw Channel Numbers</option>" +
+                                                                  "<option value='5' " + typeDDP1 + ">DDP One Based</option>";
+								}
+
+								bodyHTML +=
 																  "</select></td>" +
-															"<td><input name=\"txtIP[" + i.toString() + "]\" id=\"txtIP[" + i.toString() + "]\" type=\"text\"/ value=\"" + unicastAddress + "\" size=\"15\" maxlength=\"32\"></td>" +
+															"<td " + inputStyle + "><input class='txtIP' type='text' value='" + unicastAddress + "' size='15' maxlength='32'></td>" +
+															"<td " + inputStyle + "><input class='txtPriority' type='text' size='4' maxlength='4' value='" + priority.toString() + "'/></td>" +
 															"<td><input type=button onClick='PingE131IP(" + i.toString() + ");' value='Ping'></td>" +
 															"</tr>";
 
@@ -867,10 +998,15 @@ function RemovePlaylistEntry()	{
 					}
 					else
 					{
-						innerHTML = "No Results Found";	
+						bodyHTML = "No Results Found";
 					}
-					var results = document.getElementById("tblUniverses");
-					results.innerHTML = innerHTML;	
+
+					$('#tblUniversesHead').html(headHTML);
+					$('#tblUniversesBody').html(bodyHTML);
+
+					$('#txtUniverseCount').val(UniverseCount);
+
+					SetUniverseInputNames(); // in co-universes.php
 				}
 			};
 			
@@ -931,17 +1067,37 @@ function RemovePlaylistEntry()	{
 			
 			xmlhttp.send();			
 		}
-		
+
+		function SetUniverseInputNames()
+		{
+			var fields = Array('chkActive', 'txtDesc', 'txtStartAddress',
+				'txtUniverse', 'txtSize', 'universeType', 'txtIP', 'txtPriority');
+			var id = 0;
+			$('#tblUniversesBody tr').each(function() {
+				$(this).find('span.rowID').html((id + 1).toString());
+
+				for (var i = 0; i < fields.length; i++)
+				{
+					$(this).find('input.' + fields[i]).attr('name', fields[i] + '[' + id + ']');
+					$(this).find('input.' + fields[i]).attr('id', fields[i] + '[' + id + ']');
+					$(this).find('select.' + fields[i]).attr('name', fields[i] + '[' + id + ']');
+					$(this).find('select.' + fields[i]).attr('id', fields[i] + '[' + id + ']');
+				}
+
+				id += 1;
+			});
+		}
+
 		function InitializeUniverses()
 		{
 			UniverseSelected =0;
 			UniverseCount=0;	
 		}
 		
-		function DeleteUniverse()
+		function DeleteUniverse(input)
 		{
     	var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=deleteUniverse&index=" + (UniverseSelected-1).toString();
+			var url = "fppxml.php?command=deleteUniverse&index=" + (UniverseSelected-1).toString() + "&input=" + input;
 			xmlhttp.open("GET",url,false);
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
 	 
@@ -949,7 +1105,7 @@ function RemovePlaylistEntry()	{
 				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
 				{
 					var xmlDoc=xmlhttp.responseXML; 
-          getUniverses("FALSE");
+          getUniverses("FALSE", input);
 				}
 			};
 			
@@ -971,6 +1127,7 @@ function RemovePlaylistEntry()	{
 					var size=Number(document.getElementById("txtSize[" + selectIndex + "]").value);
 					var startAddress=Number(document.getElementById("txtStartAddress[" + selectIndex + "]").value)+ size;
 					var active=document.getElementById("chkActive[" + selectIndex + "]").value;
+					var priority=Number(document.getElementById("txtPriority[" + selectIndex + "]").value);
 
 					for(i=UniverseSelected;i<UniverseSelected+cloneNumber;i++,universe++)
 					{
@@ -980,6 +1137,7 @@ function RemovePlaylistEntry()	{
 						document.getElementById("chkActive[" + i + "]").value = active;
 						document.getElementById("txtSize[" + i + "]").value = size.toString();
 						document.getElementById("txtIP[" + i + "]").value = unicastAddress;
+						document.getElementById("txtPriority[" + i + "]").value = priority;
 						if((universeType == '1') || (universeType == '3'))
 						{
 							document.getElementById("txtIP[" + i + "]").disabled = false;
@@ -1033,37 +1191,51 @@ function RemovePlaylistEntry()	{
 			var txtStartAddress;
 			var txtSize;
 			var universeType;
+			var txtPriority;
 			var result;
 			var returnValue=true;
 			for(i=0;i<UniverseCount;i++)
 			{
 
+                // unicast address
+                universeType=document.getElementById("universeType[" + i + "]").value;
+                if(universeType == 1 || universeType == 3 || universeType == 4 || universeType == 5)
+                {
+                    if(!validateIPaddress("txtIP[" + i + "]"))
+                    {
+                        returnValue = false;
+                    }
+                }
 				// universe
-				txtUniverse=document.getElementById("txtUniverse[" + i + "]");				
-				if(!validateNumber(txtUniverse,1,63999))
-				{
-					returnValue = false;
-				}
+                if (universeType >= 0 && universeType <= 3) {
+                    txtUniverse=document.getElementById("txtUniverse[" + i + "]");
+                    if(!validateNumber(txtUniverse,1,63999))
+                    {
+                        returnValue = false;
+                    }
+                }
 				// start address
 				txtStartAddress=document.getElementById("txtStartAddress[" + i + "]");				
 				if(!validateNumber(txtStartAddress,1,524288))
 				{
 					returnValue = false;
 				}
-				// size
-				txtSize=document.getElementById("txtSize[" + i + "]");				
-				if(!validateNumber(txtSize,1,512))
+                // size
+                txtSize=document.getElementById("txtSize[" + i + "]");
+                var max = 512;
+                if (universeType == 4 || universeType == 5) {
+                    max = 256000;
+                }
+                if(!validateNumber(txtSize,1,max))
+                {
+                    returnValue = false;
+                }
+
+				// priority
+				txtPriority=document.getElementById("txtPriority[" + i + "]");
+				if(!validateNumber(txtPriority,0,9999))
 				{
 					returnValue = false;
-				}
-				// unicast address
-				universeType=document.getElementById("universeType[" + i + "]").value;
-				if(universeType == 1 || universeType == 3)
-				{
-					if(!validateIPaddress("txtIP[" + i + "]"))
-					{
-						returnValue = false;
-					}
 				}
 			}
 			return returnValue;
@@ -1104,13 +1276,9 @@ function RemovePlaylistEntry()	{
 				textbox.style.border="red solid 1px";
 				textbox.value = ""; 
 				result = false;
+			alert(textbox.value + ' is not between ' + minimum + ' and ' + maximum);
 			}
 		}
-		
-		function ReloadUniverses()
-		{
-			getUniverses("TRUE");	
-		} 
 		
 		function ReloadPixelnetDMX()
 		{
@@ -1121,6 +1289,19 @@ function RemovePlaylistEntry()	{
 		{
 			getSchedule("TRUE");	
 		}  
+
+		function ScheduleDaysSelectChanged(item)
+		{
+			var name = $(item).attr('name');
+			var maskSpan = name.replace('selDay', 'dayMask');
+			maskSpan = maskSpan.replace('[', '\\[');
+			maskSpan = maskSpan.replace(']', '\\]');
+
+			if ($(item).find('option:selected').text() == 'Day Mask')
+				$('#' + maskSpan).show();
+			else
+				$('#' + maskSpan).hide();
+		}
 
 		function getSchedule(reload)
 		{
@@ -1138,14 +1319,18 @@ function RemovePlaylistEntry()	{
 					{
 						GetPlaylistArray();
 						headerHTML = "<tr class=\"tblheader\">" +  
-                        "<td width=\"3%\">#</td>" +
-                        "<td width=\"7%\">Enable</td>" +
-                        "<td width=\"10%\">First &amp; Last<br>Run Dates</td>" +
-												"<td width=\"42%\">Playlist</td>" +
-												"<td width=\"15%\">Day(s)</td>" +
-												"<td width=\"15%\">Start &amp; End<br>Times</td>" +
-                        "<td width=\"8%\">Repeat</td>" +
-												"</tr>";
+							"<td>#</td>" +
+							"<td>Enable</td>" +
+							"<td>Start Date</td>" +
+							"<td>End Date</td>" +
+							"<td>Playlist</td>" +
+							"<td>Day(s)</td>" +
+							"<td>Start Time</td>" +
+							"<td>End Time</td>" +
+							"<td>Repeat</td>" +
+							"</tr>";
+
+
 							
 						$('#tblSchedule').append(headerHTML);					
 							ScheduleCount = entries.childNodes.length;
@@ -1176,6 +1361,8 @@ function RemovePlaylistEntry()	{
 									var dayChecked_11 =  day == 11  ? "selected" : "";
 									var dayChecked_12 =  day == 12  ? "selected" : "";
 									var dayChecked_13 =  day == 13  ? "selected" : "";
+									var dayChecked_0x10000 = day >= 0x10000 ? "selected" : "";
+									var dayMaskStyle = day >= 0x10000 ? "" : "display: none;";
 
 									playlistOptionsText = ""
 									for(j=0;j<PlaylistCount;j++)
@@ -1186,12 +1373,12 @@ function RemovePlaylistEntry()	{
 									var tableRow = 	"<tr class=\"rowScheduleDetails\">" +
 								              "<td class='center'>" + (i+1).toString() + "</td>" +
 															"<td class='center' ><input  name=\"chkEnable[" + i.toString() + "]\" id=\"chkEnable[" + i.toString() + "]\" type=\"checkbox\" " + enableChecked +"/></td>" +
-															"<td><input class='date center'  name=\"txtStartDate[" + i.toString() + "]\" id=\"txtStartDate[" + i.toString() + "]\" type=\"text\" size=\"10\" value=\"" + startDate + "\"/><br/>" +
+															"<td><input class='date center'  name=\"txtStartDate[" + i.toString() + "]\" id=\"txtStartDate[" + i.toString() + "]\" type=\"text\" size=\"10\" value=\"" + startDate + "\"/></td><td>" +
 																"<input class='date center'  name=\"txtEndDate[" + i.toString() + "]\" id=\"txtEndDate[" + i.toString() + "]\" type=\"text\" size=\"10\" value=\"" + endDate + "\"/></td>" +
 
 															"<td><select id=\"selPlaylist[" + i.toString() + "]\" name=\"selPlaylist[" + i.toString() + "]\">" +
-															playlistOptionsText + "</select></td>" + 
-															"<td><select id=\"selDay[" + i.toString() + "]\" name=\"selDay[" + i.toString() + "]\">" +
+															playlistOptionsText + "</select></td>" +
+															"<td><select id=\"selDay[" + i.toString() + "]\" name=\"selDay[" + i.toString() + "]\" onChange='ScheduleDaysSelectChanged(this);'>" +
 															      "<option value=\"7\" " + dayChecked_7 + ">Everyday</option>" +
 															      "<option value=\"0\" " + dayChecked_0 + ">Sunday</option>" +
 															      "<option value=\"1\" " + dayChecked_1 + ">Monday</option>" +
@@ -1205,8 +1392,25 @@ function RemovePlaylistEntry()	{
 															      "<option value=\"10\" " + dayChecked_10 + ">Mon/Wed/Fri</option>" +
 															      "<option value=\"11\" " + dayChecked_11 + ">Tues/Thurs</option>" +
 															      "<option value=\"12\" " + dayChecked_12 + ">Sun-Thurs</option>" +
-															      "<option value=\"13\" " + dayChecked_13 + ">Fri/Sat</option></select></td>" +
-															"<td><input class='time center'  name=\"txtStartTime[" + i.toString() + "]\" id=\"txtStartTime[" + i.toString() + "]\" type=\"text\" size=\"8\" value=\"" + startTime + "\"/><br/>" +
+															      "<option value=\"13\" " + dayChecked_13 + ">Fri/Sat</option>" +
+															      "<option value=\"65536\" " + dayChecked_0x10000 + ">Day Mask</option></select><br>" +
+																  "<span id='dayMask[" + i + "]' style='" + dayMaskStyle + "'>" +
+																  "S:<input type='checkbox' name='maskSunday[" + i + "]'" +
+																	((day & 0x04000) ? " checked" : "") + "> " +
+																  "M:<input type='checkbox' name='maskMonday[" + i + "]'" +
+																	((day & 0x02000) ? " checked" : "") + "> " +
+																  "T:<input type='checkbox' name='maskTuesday[" + i + "]'" +
+																	((day & 0x01000) ? " checked" : "") + "> " +
+																  "W:<input type='checkbox' name='maskWednesday[" + i + "]'" +
+																	((day & 0x00800) ? " checked" : "") + "> " +
+																  "T:<input type='checkbox' name='maskThursday[" + i + "]'" +
+																	((day & 0x00400) ? " checked" : "") + "> " +
+																  "F:<input type='checkbox' name='maskFriday[" + i + "]'" +
+																	((day & 0x00200) ? " checked" : "") + "> " +
+																  "S:<input type='checkbox' name='maskSaturday[" + i + "]'" +
+																	((day & 0x00100) ? " checked" : "") + "> " +
+																  "</span></td>" +
+															"<td><input class='time center'  name=\"txtStartTime[" + i.toString() + "]\" id=\"txtStartTime[" + i.toString() + "]\" type=\"text\" size=\"8\" value=\"" + startTime + "\"/></td><td>" +
 															"<input class='time center' name=\"txtEndTime[" + i.toString() + "]\" id=\"txtEndTime[" + i.toString() + "]\" type=\"text\" size=\"8\" value=\"" + endTime + "\"/></td>" +
 															"<td class='center' ><input name=\"chkRepeat[" + i.toString() + "]\" id=\"chkEnable[" + i.toString() + "]\" type=\"checkbox\" " + repeatChecked +"/></td>" +
 															"</tr>";
@@ -1391,7 +1595,7 @@ function RemovePlaylistEntry()	{
 
 	function updateFPPStatus()
 	{
-		var status = GetFPPstatus();
+		var status = GetFPPStatus();
 	}
 	
 	function IsFPPDrunning()
@@ -1509,6 +1713,7 @@ function RemovePlaylistEntry()	{
 		})
 	}
 
+	var firstStatusLoad = 1;
 	function parseStatus(jsonStatus) {
 		var fppStatus = jsonStatus.status;
 		var fppMode = jsonStatus.mode;
@@ -1526,7 +1731,10 @@ function RemovePlaylistEntry()	{
 
 		if (fppMode == 1) {
 			// Bridge Mode
-			GetUniverseBytesReceived();
+			$('#fppTime').html(jsonStatus.time);
+
+			if (firstStatusLoad || $('#e131statsLiveUpdate').is(':checked'))
+				GetUniverseBytesReceived();
 		} else if (fppMode == 8) {
 			$('#fppTime').html(jsonStatus.time);
 
@@ -1579,8 +1787,11 @@ function RemovePlaylistEntry()	{
 				$('#txtTimePlayed').html("Elapsed: " + jsonStatus.time_elapsed );				
 				$('#txtTimeRemaining').html("Remaining: " + jsonStatus.time_remaining );	
 
-				if(currentPlaylist.index != gblCurrentPlaylistIndex && 
-					currentPlaylist.index <= gblCurrentLoadedPlaylistCount) {
+//				if(currentPlaylist.index != gblCurrentPlaylistIndex && 
+//					currentPlaylist.index <= gblCurrentLoadedPlaylistCount) {
+// FIXME, somehow this doesn't refresh on the first page load, so refresh
+// every time for now
+if (1) {
 							
 							UpdateCurrentEntryPlaying(currentPlaylist.index);
 							gblCurrentPlaylistIndex = currentPlaylist.index;
@@ -1603,176 +1814,10 @@ function RemovePlaylistEntry()	{
 			$('#fppTime').html(jsonStatus.time);
 
 		}
-	
+
+		firstStatusLoad = 0;
 	}
 
-	function GetFPPstatus()
-	{
-    	var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=getFPPstatus";
-			xmlhttp.open("GET",url,true);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-	 
-			xmlhttp.onreadystatechange = function () {
-				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
-				{
-					var xmlDoc=xmlhttp.responseXML; 
-					var status = xmlDoc.getElementsByTagName('Status')[0];
-					if(status.childNodes.length> 1)
-					{
-						var fppStatus = status.childNodes[1].textContent;
-
-						if (fppStatus == STATUS_IDLE ||
-							fppStatus == STATUS_PLAYING ||
-							fppStatus == STATUS_STOPPING_GRACEFULLY )
-						{
-							$("#btnDaemonControl").attr('value', 'Stop FPPD');
-							$('#daemonStatus').html("FPPD is running.");
-						}
-
-						var fppMode = parseInt(status.childNodes[0].textContent);
-						SetupUIForMode(fppMode);
-						if (fppMode == 1)
-						{
-							// Bridge Mode
-							GetUniverseBytesReceived();
-						}
-						else if (fppMode == 8)
-						{
-							// Remote Mode
-							var Volume = status.childNodes[2].textContent;
-							var seqFilename = status.childNodes[3].textContent;
-							var mediaFilename = status.childNodes[4].textContent;
-							var secsElapsed = parseInt(status.childNodes[5].textContent);
-							var secsRemaining = parseInt(status.childNodes[6].textContent);
-							var fppTime = status.childNodes[7].textContent;
-
-							$('#fppTime').html(fppTime);
-
-							var status = "Idle";
-							if (secsElapsed)
-							{
-								var minsPlayed = Math.floor(secsElapsed/60);
-								minsPlayed = isNaN(minsPlayed)?0:minsPlayed;
-								var secsPlayed = secsElapsed%60;
-								secsPlayed = isNaN(secsPlayed)?0:secsPlayed;
-
-								var minsRemaining = Math.floor(secsRemaining/60);
-								minsRemaining = isNaN(minsRemaining)?0:minsRemaining;
-								var secsRemaining = secsRemaining%60;
-								secsRemaining = isNaN(secsRemaining)?0:secsRemaining;
-								status = "Syncing to Master: Elapsed: " + zeroPad(minsPlayed,2) + ":" + zeroPad(secsPlayed,2) + "&nbsp;&nbsp;&nbsp;&nbsp;Remaining: " + zeroPad(minsRemaining,2) + ":" + zeroPad(secsRemaining,2);
-							}
-							$('#txtRemoteStatus').html(status);
-							$('#txtRemoteSeqFilename').html(seqFilename);
-							$('#txtRemoteMediaFilename').html(mediaFilename);
-						}
-						else
-						{
-							// Player or Standalone Mode
-							if(fppStatus == STATUS_IDLE)
-							{
-								gblCurrentPlaylistIndex =0;
-								var Volume = status.childNodes[2].textContent;
-								var NextPlaylist = status.childNodes[3].textContent;
-								var NextPlaylistTime = status.childNodes[4].textContent;
-								var fppTime = status.childNodes[5].textContent;
-	
-								$('#txtPlayerStatus').html("Idle");
-								$('#txtTimePlayed').html("");								
-								$('#txtTimeRemaining').html("");	
-								$('#txtNextPlaylist').html(NextPlaylist);
-								$('#nextPlaylistTime').html(NextPlaylistTime);
-								$('#fppTime').html(fppTime);
-								
-								// Enable Play
-								SetButtonState('#btnPlay','enable');
-								SetButtonState('#btnStopNow','disable');
-								SetButtonState('#btnStopGracefully','disable');
-								$('#selStartPlaylist').removeAttr("disabled");
-								UpdateCurrentEntryPlaying(0);
-							}
-							else
-							{
-								var Volume = status.childNodes[2].textContent;
-								var CurrentPlaylist = status.childNodes[3].textContent;
-								var CurrentPlaylistType = status.childNodes[4].textContent;
-								var CurrentSeqName = status.childNodes[5].textContent;
-								var CurrentSongName = status.childNodes[6].textContent;
-								var CurrentPlaylistIndex = status.childNodes[7].textContent;
-								var CurrentPlaylistCount = status.childNodes[8].textContent;
-								var SecondsPlayed = parseInt(status.childNodes[9].textContent,10);
-								var SecondsRemaining = parseInt(status.childNodes[10].textContent,10);
-								var NextPlaylist = status.childNodes[11].textContent;
-								var NextPlaylistTime = status.childNodes[12].textContent;
-								var fppTime = status.childNodes[13].textContent;
-								var repeatMode = parseInt(status.childNodes[14].textContent,10);
-								if(gblCurrentLoadedPlaylist != CurrentPlaylist)
-								{
-									$('#selStartPlaylist').val(CurrentPlaylist);
-									PopulateStatusPlaylistEntries(false,CurrentPlaylist,true);
-								}
-								// Disable Play
-								SetButtonState('#btnPlay','disable');
-								SetButtonState('#btnStopNow','enable');
-								SetButtonState('#btnStopGracefully','enable');
-								$('#selStartPlaylist').attr("disabled");
-	
-								$('#txtNextPlaylist').html(NextPlaylist);
-								$('#nextPlaylistTime').html(NextPlaylistTime);
-								$('#fppTime').html(fppTime);
-								
-								var minsPlayed = Math.floor(SecondsPlayed/60);
-								minsPlayed = isNaN(minsPlayed)?0:minsPlayed;
-								var secsPlayed = SecondsPlayed%60;
-								secsPlayed = isNaN(secsPlayed)?0:secsPlayed;
-								
-								var minsRemaining = Math.floor(SecondsRemaining/60);
-								minsRemaining = isNaN(minsRemaining)?0:minsRemaining;
-								var secsRemaining = SecondsRemaining%60;
-								secsRemaining = isNaN(secsRemaining)?0:secsRemaining;
-								if(fppStatus == STATUS_PLAYING)
-								{
-									$('#txtPlayerStatus').html("Playing <strong>'" + CurrentPlaylist + "'</strong>");
-									$('#txtTimePlayed').html("Elapsed: " + zeroPad(minsPlayed,2) + ":" + zeroPad(secsPlayed,2));								
-									$('#txtTimeRemaining').html("Remaining: " + zeroPad(minsRemaining,2) + ":" + zeroPad(secsRemaining,2));						
-									
-								}
-								else if(fppStatus == STATUS_STOPPING_GRACEFULLY)
-								{
-									$('#txtPlayerStatus').html("Playing <strong>'" + CurrentPlaylist + "'</strong> - Stopping Gracefully");
-									$('#txtTimePlayed').html("Elapsed: " + zeroPad(minsPlayed,2) + ":" + zeroPad(secsPlayed,2));								
-									$('#txtTimeRemaining').html("Remaining: " + zeroPad(minsRemaining,2) + ":" + zeroPad(secsRemaining,2));								
-								}
-	
-								if(CurrentPlaylistIndex != gblCurrentPlaylistIndex && CurrentPlaylistIndex <= gblCurrentLoadedPlaylistCount)
-								{
-										UpdateCurrentEntryPlaying(CurrentPlaylistIndex);
-										gblCurrentPlaylistIndex = CurrentPlaylistIndex;
-										if(CurrentPlaylistIndex != 1)
-										{
-											var j=0;	
-										}
-								}
-
-								if (repeatMode)
-									$("#chkRepeat").prop( "checked", true );
-								else
-									$("#chkRepeat").prop( "checked", false );
-							}
-						}
-					}
-					else
-					{
-						$('#fppTime').html('');
-						IsFPPDrunning();
-					}
-				}
-			};
-			
-			xmlhttp.send();
-	}
-	
 	function GetUniverseBytesReceived()
 	{	
 		var html='';
@@ -1789,23 +1834,29 @@ function RemovePlaylistEntry()	{
 					if(receivedBytes.childNodes.length> 0)
 					{
 						html =  "<table>";
-						html += "<tr id=\"rowReceivedBytesHeader\"><td>Universe</td><td>Start Address</td><td>Bytes Transferred</td>";
+						html += "<tr id=\"rowReceivedBytesHeader\"><td>Universe</td><td>Start Address</td><td>Packets</td><td>Bytes</td><td>Errors</td></tr>";
 
-						var i;	
+                        var i;
+                        var maxRows = receivedBytes.childNodes.length / 2;
+                        if (maxRows < 32) {
+                            maxRows = 32;
+                        }
 						for(i=0;i<receivedBytes.childNodes.length;i++)
 						{
-								if(i==32)
+								if(i==maxRows)
 								{
 									html += "</table>";
 									html1 = html;
 									html =  "<table>";
-									html += "<tr id=\"rowReceivedBytesHeader\"><td>Universe</td><td>Start Address</td><td>Bytes Transferred</td>";
+									html += "<tr id=\"rowReceivedBytesHeader\"><td>Universe</td><td>Start Address</td><td>Packets</td><td>Bytes</td><td>Errors</td></tr>";
 								}
 								var universe = receivedBytes.childNodes[i].childNodes[0].textContent;
 								var startChannel = receivedBytes.childNodes[i].childNodes[1].textContent;
 								var bytes = receivedBytes.childNodes[i].childNodes[2].textContent;
+								var packets = receivedBytes.childNodes[i].childNodes[3].textContent;
+                                var errors = receivedBytes.childNodes[i].childNodes[4].textContent;
 								html += "<tr><td>" + universe + "</td>";
-								html += "<td>" + startChannel + "</td><td>" + bytes + "</td></tr>";
+								html += "<td>" + startChannel + "</td><td>" + packets + "</td><td>" + bytes + "</td><td>" + errors + "</td></tr>";
 						}
 						html += "</table>";
 					}
@@ -1826,10 +1877,10 @@ function RemovePlaylistEntry()	{
 	
 	function UpdateCurrentEntryPlaying(index,lastIndex)
 	{
-		$('#tblStatusPlaylistEntries tr').removeClass('PlaylistRowPlaying');
-		$('#tblStatusPlaylistEntries td').removeClass('PlaylistPlayingIcon');
-		
-		if(index >= 0)
+		$('#tblStatusPlaylist tbody tr').removeClass('PlaylistRowPlaying');
+		$('#tblStatusPlaylist tbody td').removeClass('PlaylistPlayingIcon');
+
+		if((index >= 0) && ($('#playlistRow' + index).length))
 		{
 			$("#colEntryNumber" + index).addClass("PlaylistPlayingIcon");
 			$("#playlistRow" + index).addClass("PlaylistRowPlaying");
@@ -1987,7 +2038,51 @@ function RestartFPPD() {
 			ClearRestartFlag();
 		}).fail(function() {
 			$('html,body').css('cursor','auto');
-			DialogError("Restart FPPD", "Error restarting FPPD");
+
+            //If fail, the FPP may have rebooted (eg.FPPD triggering a reboot due to disabling soundcard or activating Pi Pixel output
+            //start polling and see if we can wait for the FPP to come back up
+            //restartFlag will already be cleared, but to keep things simple, just call the original code
+            retries = 0;
+            retries_max = max_retries;//avg timeout is 10-20seconds, polling resolves after 6-10 polls
+            //attempt to poll every second, AJAX block for the default browser timeout if host is unavail
+            retry_poll_interval_arr['restartFPPD'] = setInterval(function () {
+                poll_result = false;
+                if (retries < retries_max) {
+                    // console.log("Polling @ " + retries);
+                    //poll for FPPDRunning as it's the simplest command to run and doesn't put any extra processing load on the backend
+                    $.ajax({
+                            url: "fppxml.php?command=isFPPDrunning",
+                            timeout: 1000,
+                            async: true
+                        }
+                    ).success(
+                        function () {
+                            poll_result = true;
+                            //FPP is up then
+                            clearInterval(retry_poll_interval_arr['restartFPPD']);
+                            //run original code for success
+                            $.jGrowl('FPPD Restarted');
+                            ClearRestartFlag();
+                        }
+                    ).fail(
+                        function () {
+                            poll_result = false;
+                            retries++;
+                            //If on first try throw up a FPP is rebooting notification
+                            if(retries === 1){
+                                //Show FPP is rebooting notification for 10 seconds
+                                $.jGrowl('FPP is rebooting..',{ life: 10000 });
+                            }
+                        }
+                    );
+
+                    // console.log("Polling Result " + poll_result);
+                } else {
+                    //run original code
+                    clearInterval(retry_poll_interval_arr['restartFPPD']);
+                    DialogError("Restart FPPD", "Error restarting FPPD");
+                }
+            }, 2000);
 		});
 	}
 
@@ -2038,11 +2133,13 @@ function StartPlaylistNow()
 		var Playlist =  $("#selStartPlaylist").val();
     var xmlhttp=new XMLHttpRequest();
 		var repeat = $("#chkRepeat").is(':checked')?'checked':'unchecked';
-		if (PlayEntrySelected >= gblCurrentLoadedPlaylistCount)
+		if ((PlaySectionSelected != '') &&
+			(PlayEntrySelected >= $('#tblPlaylist' + PlaySectionSelected + ' >tr').length))
 		{
 				PlayEntrySelected = 0;
+				PlaySectionSelected = "";
 		}
-		var url = "fppxml.php?command=startPlaylist&playList=" + Playlist + "&repeat=" + repeat + "&playEntry=" + PlayEntrySelected ;
+		var url = "fppxml.php?command=startPlaylist&playList=" + Playlist + "&repeat=" + repeat + "&playEntry=" + PlayEntrySelected + "&section=" + PlaySectionSelected ;
 		xmlhttp.open("GET",url,true);
 		xmlhttp.setRequestHeader('Content-Type', 'text/xml');
 		xmlhttp.send();
@@ -2249,12 +2346,20 @@ function GetRunningEffects()
 	{
 		if (confirm('REBOOT the Falcon Player?'))
 		{
-			var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=rebootPi";
-			xmlhttp.open("GET",url,true);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-			xmlhttp.send();
+			ClearRestartFlag();
 			ClearRebootFlag();
+
+			//Delay reboot for 1 second to allow flags to be cleared
+            setTimeout(function () {
+                var xmlhttp = new XMLHttpRequest();
+                var url = "fppxml.php?command=rebootPi";
+                xmlhttp.open("GET", url, true);
+                xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+                xmlhttp.send();
+
+                //Show FPP is rebooting notification for 10 seconds
+                $.jGrowl('FPP is rebooting..', {life: 10000});
+            }, 1000);
 		} 
 	}
 
@@ -2274,10 +2379,6 @@ function PopulateStatusPlaylistEntries(playselected,playList,reloadFile)
 {
 			var type;
 			var pl;
-			var mediaFile;
-			var seqFile;
-			var pause;
-			var pluginData;
     	var xmlhttp=new XMLHttpRequest();
 			var innerHTML="";
 			if(playselected==true)
@@ -2288,116 +2389,92 @@ function PopulateStatusPlaylistEntries(playselected,playList,reloadFile)
 			{	
 				pl = playList;
 			}
-			var url = "fppxml.php?command=getPlayListEntries&pl=" + pl + "&reload=" + reloadFile;
-			xmlhttp.open("GET",url,true);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-	 
-			xmlhttp.onreadystatechange = function () {
-				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
+
+			PlayEntrySelected = 0;
+			PlaySectionSelected = '';
+
+	$.ajax({
+		url: 'fppjson.php?command=getPlayListEntries&pl=' + pl + '&reload=' + reloadFile,
+		dataType: 'json',
+		success: function(data, reqStatus, xhr) {	
+			var innerHTML = "";
+
+			if(data && typeof data === 'object') {
+				var entries = 0;
+				if (data.hasOwnProperty('leadIn') && data.leadIn.length > 0)
 				{
-					var xmlDoc=xmlhttp.responseXML; 
-					var entries = xmlDoc.getElementsByTagName('PlaylistEntries')[0];
-					
-					gblCurrentLoadedPlaylist = pl;
-					gblCurrentLoadedPlaylistCount = entries.childNodes.length;
-					if(entries.childNodes.length> 0)	
+					innerHTML = "";
+					for (i = 0; i < data.leadIn.length; i++)
 					{
-							for(i=0;i<entries.childNodes.length;i++)
-							{
-								type = entries.childNodes[i].childNodes[0].textContent;
-  							seqFile = entries.childNodes[i].childNodes[1].textContent;
-								mediaFile = entries.childNodes[i].childNodes[2].textContent;
-								pause = entries.childNodes[i].childNodes[3].textContent;
-								eventName = entries.childNodes[i].childNodes[5].textContent;
-								eventID = entries.childNodes[i].childNodes[6].textContent.replace('_', ' / ');
-								pluginData = entries.childNodes[i].childNodes[7].textContent;
-								if(type == 'b')
-								{
-										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
-										innerHTML +=  "<td id = \"colEntryNumber" + (i+1).toString() + "\" width=\"6%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">" + mediaFile + "</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">" + seqFile + "</td>"
-										innerHTML += "<td width=\"10%\" id=\"firstLast" + i.toString() + "\" class=\"textCenter\"></td>";
-									  innerHTML += "</tr>";
-								}
-								else if(type == 'm')
-								{
-										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
-										innerHTML +=  "<td id = \"colEntryNumber" + (i+1).toString() + "\" width=\"6%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">" + mediaFile + "</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">---</td>"
-										innerHTML += "<td width=\"10%\" id=\"firstLast" + i.toString() + "\" class=\"textCenter\"></td>";
-									  innerHTML += "</tr>";
-								}
-								else if(type == 's')
-								{
-										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
-										innerHTML +=  "<td id = \"colEntryNumber" + (i+1).toString() + "\" width=\"6%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">---</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">" + seqFile + "</td>"
-										innerHTML += "<td width=\"10%\" id=\"firstLast" + i.toString() + "\" class=\"textCenter\"></td>";
-									  innerHTML += "</tr>";
-								}
-								else if(type == 'p')
-								{
-										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
-										innerHTML +=  "<td id = \"colEntryNumber" + (i+1).toString() + "\" width=\"6%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">PAUSE - " + pause.toString() + " seconds</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">---</td>"
-										innerHTML += "<td width=\"10%\" id=\"firstLast" + i.toString() + "\" class=\"textCenter\"></td>";
-									  innerHTML += "</tr>";
-								}
-								else if(type == 'v')
-								{
-										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
-										innerHTML +=  "<td id = \"colEntryNumber" + (i+1).toString() + "\" width=\"6%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">VOLUME - " + pause.toString() + " percent</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">---</td>"
-										innerHTML += "<td width=\"10%\" id=\"firstLast" + i.toString() + "\" class=\"textCenter\"></td>";
-									  innerHTML += "</tr>";
-								}
-								else if(type == 'B')
-								{
-										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
-										innerHTML +=  "<td id = \"colEntryNumber" + (i+1).toString() + "\" width=\"6%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">BRIGHTNESS - " + pause.toString() + " percent</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">---</td>"
-										innerHTML += "<td width=\"10%\" id=\"firstLast" + i.toString() + "\" class=\"textCenter\"></td>";
-									  innerHTML += "</tr>";
-								}
-								else if(type == 'e')
-								{
-										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
-										innerHTML +=  "<td id = \"colEntryNumber" + (i+1).toString() + "\" width=\"6%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">" + eventID + " - " + eventName + "</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">---</td>";
-										innerHTML += "<td width=\"10%\" id=\"firstLast" + i.toString() + "\" class=\"textCenter\"></td>";
-										innerHTML += "</tr>";
-								}
-								else if(type == 'P')
-								{
-										innerHTML +=  "<tr id=\"playlistRow" + (i+1).toString() + "\">";
-										innerHTML +=  "<td id = \"colEntryNumber" + (i+1).toString() + "\" width=\"6%\" class = \"textRight\">" + (i+1).toString() + ".</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">plugin - " + pluginData.toString() + "</td>";
-										innerHTML +=  "<td width=\"42%\" class=\"textLeft\">---</td>"
-										innerHTML += "<td width=\"10%\" id=\"firstLast" + i.toString() + "\" class=\"textCenter\"></td>";
-									  innerHTML += "</tr>";
-								}
-							}
+						innerHTML += PlaylistEntryToTR(entries, data.leadIn[i], 0);
+						entries++;
 					}
-					else
-					{
-										innerHTML +=  "<tr class=\"playlistPlayingEntry\">";
-										innerHTML +=  "<td>Playlist not loaded</td>";
-									  innerHTML += "</tr>";
-					}
-					var results = document.getElementById("tblStatusPlaylistEntries");
-					GetStatusPlayListSettings(playList);
-					results.innerHTML = innerHTML;	
+					$('#tblPlaylistLeadIn').html(innerHTML);
+					$('#tblPlaylistLeadInHeader').show();
 				}
+				else
+				{
+					$('#tblPlaylistLeadIn').html("");
+					$('#tblPlaylistLeadInHeader').hide();
+				}
+
+				if (data.hasOwnProperty('mainPlaylist') && data.mainPlaylist.length > 0)
+				{
+					innerHTML = "";
+					for (i = 0; i < data.mainPlaylist.length; i++)
+					{
+						innerHTML += PlaylistEntryToTR(entries, data.mainPlaylist[i], 0);
+						entries++;
+					}
+					$('#tblPlaylistMainPlaylist').html(innerHTML);
+					$('#tblPlaylistMainPlaylistHeader').show();
+				}
+				else
+				{
+					$('#tblPlaylistMainPlaylist').html("");
+					$('#tblPlaylistMainPlaylistHeader').hide();
+				}
+
+				if (data.hasOwnProperty('leadOut') && data.leadOut.length > 0)
+				{
+					innerHTML = "";
+					for (i = 0; i < data.leadOut.length; i++)
+					{
+						innerHTML += PlaylistEntryToTR(entries, data.leadOut[i], 0);
+						entries++;
+					}
+					$('#tblPlaylistLeadOut').html(innerHTML);
+					$('#tblPlaylistLeadOutHeader').show();
+				}
+				else
+				{
+					$('#tblPlaylistLeadOut').html("");
+					$('#tblPlaylistLeadOutHeader').hide();
+				}
+
+				if (entries == 0)
+				{
+					innerHTML  =  "<tr class=\"playlistPlayingEntry\">";
+					innerHTML +=  "<td>No entries in playlist section.</td>";
+					innerHTML += "</tr>";
+					$('.tblCreatePlaylistEntries_tbody').html(innerHTML);
+				}
+
+				gblCurrentLoadedPlaylist = playList;
+				gblCurrentLoadedPlaylistCount = entries;
+				$('#txtPlaylistName').val(playList);
 			}
-			xmlhttp.send();
+			else
+			{
+				innerHTML  =  "<tr class=\"playlistPlayingEntry\">";
+				innerHTML +=  "<td>No entries in playlist section.</td>";
+				innerHTML += "</tr>";
+				$('.tblCreatePlaylistEntries_tbody').html(innerHTML);
+			}
+		}
+	});
 }
+
 function SelectStatusPlaylistEntryRow(index)
 {
 		PlayEntrySelected  = index;
@@ -2519,6 +2596,38 @@ function GetVideoInfo(file)
 function PlayFileInBrowser(dir, file)
 {
 	location.href="fppxml.php?command=getFile&play=1&dir=" + dir + "&filename=" + file;
+}
+
+function CopyFile(dir, file)
+{
+	var newFile = prompt("New Filename:", file);
+
+	var postData = "command=copyFile&dir=" + dir + "&filename=" + encodeURIComponent(file) + "&newfilename=" + encodeURIComponent(newFile);
+
+	$.post("fppjson.php", postData).success(function(data) {
+		if (data.status == 'success')
+			GetFiles(dir);
+		else
+			$.jGrowl("Error: File Copy failed.");
+	}).fail(function() {
+		$.jGrowl("Error: File Copy failed.");
+	});
+}
+
+function RenameFile(dir, file)
+{
+	var newFile = prompt("New Filename:", file);
+
+	var postData = "command=renameFile&dir=" + dir + "&filename=" + encodeURIComponent(file) + "&newfilename=" + encodeURIComponent(newFile);
+
+	$.post("fppjson.php", postData).success(function(data) {
+		if (data.status == 'success')
+			GetFiles(dir);
+		else
+			$.jGrowl("Error: File Rename failed.");
+	}).fail(function() {
+		$.jGrowl("Error: File Rename failed.");
+	});
 }
 
 function DownloadFile(dir, file)

@@ -1,7 +1,7 @@
 /*
  *   Playlist Entry Effect Class for Falcon Player (FPP)
  *
- *   Copyright (C) 2016 the Falcon Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -9,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -30,8 +30,9 @@
 /*
  *
  */
-PlaylistEntryEffect::PlaylistEntryEffect()
-  : m_startChannel(0),
+PlaylistEntryEffect::PlaylistEntryEffect(PlaylistEntryBase *parent)
+  : PlaylistEntryBase(parent),
+	m_startChannel(0),
 	m_repeat(0),
 	m_blocking(0),
 	m_effectID(-1)
@@ -115,7 +116,8 @@ int PlaylistEntryEffect::Process(void)
 		return 1;
 	}
 
-	result = IsEffectRunning(m_effectID);
+// FIXME
+//	result = IsEffectRunning(m_effectID);
 
 	if (!result)
 	{
@@ -139,8 +141,9 @@ int PlaylistEntryEffect::Stop(void)
 	if (m_effectID == -1)
 		return 1;
 
-	if (IsEffectRunning(m_effectID))
-		StopEffect(m_effectID);
+// FIXME
+//	if (IsEffectRunning(m_effectID))
+//		StopEffect(m_effectID);
 
 	return PlaylistEntryBase::Stop();
 }

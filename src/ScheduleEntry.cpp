@@ -1,7 +1,7 @@
 /*
  *   ScheduleEntry class for the Falcon Player (FPP) 
  *
- *   Copyright (C) 2013 the Falcon Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -34,6 +34,7 @@
 ScheduleEntry::ScheduleEntry()
   : m_enabled(0),
 	m_playlistName(""),
+	m_playlist(NULL),
 	m_priority(0),
 	m_repeating(0),
 	m_dayIndex(0),

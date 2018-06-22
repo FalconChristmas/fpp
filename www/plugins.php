@@ -90,7 +90,7 @@ By: <?php echo $plugin['author']; ?>
 
 </div>
 
-</div>
 <?php	include 'common/footer.inc'; ?>
+</div>
 </body>
 </html>

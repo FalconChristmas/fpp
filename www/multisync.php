@@ -1,9 +1,9 @@
 <html>
 <head>
 <?php
-include 'common/menuHead.inc';
 require_once("config.php");
 require_once("common.php");
+include 'common/menuHead.inc';
 ?>
 <title><? echo $pageTitle; ?></title>
 <script>
@@ -79,6 +79,15 @@ require_once("common.php");
 			{
 				status = 'Stopped';
 			}
+            else if (data.status_name == 'unknown')
+            {
+                status = '-';
+                if(typeof (data.reason) !== 'undefined'){
+                    DialogError("Get FPP System Status", "Get Status Failed for " + ip + "\n " + data.reason);
+                }else{
+                    DialogError("Get FPP System Status", "Get Status Failed for " + ip);
+                }
+            }
 			else if (data.status_name == 'idle')
 			{
 				if (data.mode_name == 'remote')
@@ -110,7 +119,7 @@ require_once("common.php");
 			$('#' + rowID + '_elapsed').html(elapsed);
 			$('#' + rowID + '_files').html(files);
 		}).fail(function() {
-			DialogError("Get FPP System Status", "Get Status Failed.");
+			DialogError("Get FPP System Status", "Get Status Failed for " + ip);
 		}).complete(function() {
 			if ($('#MultiSyncRefreshStatus').is(":checked"))
 				setTimeout(function() {getFPPSystemStatus(ip);}, 1000);
@@ -183,7 +192,7 @@ require_once("common.php");
 				"<td>" + data[i].IP + "</td>" +
 				"<td>" + data[i].Platform + "</td>" +
 				"<td>" + fppMode + "</td>" +
-				"<td id='" + rowID + "_status'></td>" +
+				"<td id='" + rowID + "_status' align='center'></td>" +
 				"<td id='" + rowID + "_elapsed'></td>" +
 				"<td id='" + rowID + "_files'></td>" +
 				"</tr>";
@@ -259,7 +268,8 @@ require_once("common.php");
 if ($settings['fppMode'] == 'master')
 {
 ?>
-			<? PrintSettingCheckbox("Send F16v2 Sync Packets", "MultiSyncCSVBroadcast", 1, 0, "1", "0"); ?> Send F16v2 Sync Packets<br>
+			CSV MultiSync Remote IP List (comma separated): (NOTE: Only used for F16v3 running in Remote mode)
+			<? PrintSettingText("MultiSyncCSVRemotes", 1, 0, 255, 60, "", $settings["MultiSyncCSVRemotes"]); ?><br>
 			<? PrintSettingCheckbox("Compress FSEQ files for transfer", "CompressMultiSyncTransfers", 0, 0, "1", "0"); ?> Compress FSEQ files during copy to Remotes to speed up file sync process<br>
 <?php
 }
@@ -285,10 +295,21 @@ if ($settings['fppMode'] == 'master')
 ?>
 		</fieldset>
 	</div>
+	<?php include 'common/footer.inc'; ?>
 </div>
-<?php include 'common/footer.inc'; ?>
 
 <script>
+
+$('#MultiSyncCSVRemotes').on('change keydown paste input', function()
+	{
+		var key = 'MultiSyncCSVRemotes';
+		var desc = $('#' + key).val();
+		if (settings[key] != desc)
+		{
+			$.get('fppjson.php?command=setSetting&key=' + key + '&value=' + desc);
+			settings[key] = desc;
+		}
+	});
 
 $(document).ready(function() {
 	getFPPSystems();

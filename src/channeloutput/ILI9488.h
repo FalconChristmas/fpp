@@ -1,7 +1,7 @@
 /*
  *   ILI9488 Channel Output driver for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -45,8 +45,10 @@ class ILI9488Output : public ChannelOutputBase {
 	int   m_rows;
 	int   m_cols;
 	int   m_pixels;
+	int   m_bpp;
 	void *m_gpio_map;
 
+	unsigned int m_dataValues[256];
 	unsigned int m_clearWRXDataBits;
 	unsigned int m_bitDCX;
 	unsigned int m_bitWRX;
@@ -58,6 +60,10 @@ class ILI9488Output : public ChannelOutputBase {
 	void ILI9488_Command(unsigned char cmd);
 	void ILI9488_Data(unsigned char cmd);
 	void ILI9488_Cleanup(void);
+
+	void SetColumnRange(unsigned int x1, unsigned int x2);
+	void SetRowRange(unsigned int y1, unsigned int y2);
+	void SetRegion(unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2);
 };
 
 #endif

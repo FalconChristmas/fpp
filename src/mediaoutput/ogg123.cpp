@@ -1,7 +1,7 @@
 /*
- *   ogg123 player driver for Falcon Pi Player (FPP)
+ *   ogg123 player driver for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Pi Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -9,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -33,11 +33,12 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "channeloutputthread.h"
 #include "common.h"
-#include "controlsend.h"
 #include "log.h"
+#include "MultiSync.h"
 #include "ogg123.h"
-#include "Player.h"
+#include "Sequence.h"
 #include "settings.h"
 
 
@@ -101,6 +102,8 @@ int ogg123Output::Start(void)
 	pid_t ogg123Pid = fork();
 	if (ogg123Pid == 0)			// ogg123 process
 	{
+		CloseOpenFiles();
+
 		//ogg123 uses stderr for output
 	    dup2(m_childPipe[MEDIAOUTPUTPIPE_WRITE], STDERR_FILENO);
 		close(m_childPipe[MEDIAOUTPUTPIPE_WRITE]);
@@ -226,13 +229,13 @@ void ogg123Output::ParseTimes()
 		if ((m_mediaOutputStatus->secondsElapsed > 0) &&
 			(lastRemoteSync != m_mediaOutputStatus->secondsElapsed))
 		{
-			SendMediaSyncPacket(m_mediaFilename.c_str(), 0,
+			multiSync->SendMediaSyncPacket(m_mediaFilename.c_str(), 0,
 				m_mediaOutputStatus->mediaSeconds);
 			lastRemoteSync = m_mediaOutputStatus->secondsElapsed;
 		}
 	}
 
-	if ((player->SequencesRunning()) &&
+	if ((sequence->IsSequenceRunning()) &&
 		(m_mediaOutputStatus->secondsElapsed > 0))
 	{
 		LogExcess(VB_MEDIAOUT,
@@ -243,7 +246,7 @@ void ogg123Output::ParseTimes()
 			m_mediaOutputStatus->minutesTotal,
 			m_mediaOutputStatus->secondsTotal);
 
-		player->CalculateNewChannelOutputDelay(m_mediaOutputStatus->mediaSeconds);
+		CalculateNewChannelOutputDelay(m_mediaOutputStatus->mediaSeconds);
 	}
 }
 
@@ -329,6 +332,8 @@ void ogg123Output::PollMusicInfo()
 	if(select(FD_SETSIZE, &m_readFDSet, NULL, NULL, &ogg123_timeout) < 0)
 	{
 	 	LogErr(VB_MEDIAOUT, "Error Select:%d\n",errno);
+
+		Stop(); // Kill the child if we can't read from the pipe
 	 	return; 
 	}
 	if(FD_ISSET(m_childPipe[MEDIAOUTPUTPIPE_READ], &m_readFDSet))

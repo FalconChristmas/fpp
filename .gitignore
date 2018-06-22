@@ -7,7 +7,6 @@ lib/librgbmatrix.so
 src/fpp
 src/fppmm
 src/fppd
-src/fsequtil
 src/fppversion.c
 src/pru/*.bin
 src/util/seqdump
@@ -19,7 +18,6 @@ schedule
 universes
 fppdLog.txt
 _notes
-www/.htaccess
 www/.htpasswd
 www/.config.php
 external/rasclock/modules.order
@@ -29,3 +27,4 @@ external/rasclock/.rtc-pcf2127a.*
 external/rasclock/.tmp_versions/*
 plugins/
 .idea/
+._*

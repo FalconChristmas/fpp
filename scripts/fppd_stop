@@ -12,7 +12,19 @@ stopWebSocketServer
 runPreStopScripts
 
 echo "Stopping fppd"
-killall -9 fppd
+# Tell fppd to shut itself down
+${FPPBINDIR}/fpp -q > /dev/null 2>&1
+
+# fpp should quit because its socket was closed by fppd, but give a little
+# time to make sure fppd is down before checking.
+sleep 0.5
+
+# kill fppd if it is still running
+COUNT=$(pgrep -x -c fppd)
+if [ ${COUNT} -ne 0 ]
+then
+	killall -9 fppd
+fi
 
 runPostStopScripts
 

@@ -1,7 +1,7 @@
 /*
- *   Setting manager for Falcon Pi Player (FPP)
+ *   Setting manager for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Pi Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -9,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -182,7 +182,7 @@ char *trimwhitespace(const char *str)
 char *modeToString(int mode)
 {
 	if ( mode == PLAYER_MODE )
-		return strdup("fppMode");
+		return strdup("player");
 	else if ( mode == BRIDGE_MODE )
 		return strdup("bridge");
 	else if ( mode == MASTER_MODE )
@@ -240,11 +240,8 @@ printf("Usage: %s [OPTION...]\n"
 "                                    event       - Event handling\n"
 "                                    general     - general messages\n"
 "                                    gpio        - GPIO Input handling\n"
-#ifdef USEHTTPAPI
 "                                    http        - HTTP API requests\n"
-#endif
 "                                    mediaout    - Media file handling\n"
-"                                    player      - Player code\n"
 "                                    playlist    - Playlist handling\n"
 "                                    plugin      - Plugin handling\n"
 "                                    schedule    - Playlist scheduling\n"
@@ -432,6 +429,12 @@ int parseArguments(int argc, char **argv)
 
 int parseSetting(char *key, char *value)
 {
+	int sIndex = findSettingIndex(key);
+	if (sIndex >= 0) {
+		free(settings.values[sIndex]);
+		settings.values[sIndex] = strdup(value);
+	}
+
 	if ( strcmp(key, "daemonize") == 0 )
 	{
 		if ( strcmp(value, "false") == 0 )
@@ -728,10 +731,7 @@ int loadSettings(const char *filename)
 			parseSetting(key, value);
 
 			sIndex = findSettingIndex(key);
-			if (sIndex >= 0) {
-				free(settings.values[sIndex]);
-				settings.values[sIndex] = strdup(value);
-			} else {
+			if (sIndex < 0) {
 				settings.keys[count] = strdup(key);
 				settings.values[count] = strdup(value);
 				count++;
@@ -826,26 +826,9 @@ int getDaemonize(void)
 #ifndef __GNUG__
 inline
 #endif
-int getFPPmode(void)
+FPPMode getFPPmode(void)
 {
 	return settings.fppMode;
-}
-
-#ifndef __GNUG__
-inline
-#endif
-char *getFPPmodeStr(void)
-{
-	if (settings.fppMode == BRIDGE_MODE)
-		return "bridge";
-	else if (settings.fppMode == PLAYER_MODE)
-		return "player";
-	else if (settings.fppMode == MASTER_MODE)
-		return "master";
-	else if (settings.fppMode == REMOTE_MODE)
-		return "remote";
-
-	return "UNKNOWN";
 }
 
 int getVolume(void)

@@ -17,6 +17,12 @@ PATH="/sbin:/bin:/usr/sbin:/usr/bin"
 
 BINDIR=$(cd $(dirname $0) && pwd)
 
+# See if we should be running from /home/fpp/fpp
+if [ "x${BINDIR}" == "x/opt/fpp/scripts" -a -f "/home/fpp/fpp/scripts/fpp_init" ]
+then
+    exec /home/fpp/fpp/scripts/fpp_init $1
+fi
+
 . ${BINDIR}/common
 . ${BINDIR}/functions
 
@@ -32,10 +38,16 @@ BINDIR=$(cd $(dirname $0) && pwd)
 #${FPPDIR}/etc/asplashscreen &
 
 ##############################################################################
-echo "FPP - Performing initial pre-start setup"
+#echo "FPP - Performing initial pre-start setup"
 ##############################################################################
-echo "    - Setting default network config"
-SetupDefaultNetworkConfig
+#if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
+#then
+#    echo "Skipping default network config, was done at image creation time"
+#else
+#    echo "    - Setting default network config"
+#    SetupDefaultNetworkConfig
+#fi
+
 
 ##############################################################################
 echo "    - Checking SSH keys"
@@ -47,9 +59,17 @@ then
 fi
 
 ##############################################################################
-# Copy our php.ini script into place for when we restart php/nginx
-echo "    - Copying php.ini into place"
-sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/php.ini > /etc/php5/fpm/php.ini
+# Copy our php.ini script into place for when we restart apache
+if [ -f "/etc/php5/apache2/php.ini" ]
+then
+    echo "    - Copying php.ini into place"
+    sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/php.ini > /etc/php5/apache2/php.ini
+fi
 
 ##############################################################################
 
+
+# On systems running Stretch, the fpp_init is called prior to network
+# so we can use the opportunity to configure the network adapapters
+# and DNS and other hardware
+.  ${BINDIR}/init_pre_network

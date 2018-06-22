@@ -1,7 +1,7 @@
 /*
  *   Hill320 Channel Output driver for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -108,6 +108,7 @@ Hill320Output::Hill320Output(unsigned int startChannel, unsigned int channelCoun
 		startChannel, channelCount);
 
 	m_maxChannels = 320;
+	m_useDoubleBuffer = 1;
 
 	m_boxCount = m_channelCount / 8;
 }

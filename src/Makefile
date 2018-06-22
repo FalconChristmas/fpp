@@ -4,7 +4,7 @@ ifneq ($(wildcard /usr/bin/ccache),)
 	CCACHE = ccache
 endif
 
-TARGETS = fpp fppmm fppd fsequtil
+TARGETS = fpp fppmm fppd
 SUBMODULES =
 
 INSTALL_PROGRAM = install -m 755 -p
@@ -26,20 +26,10 @@ LIBS_fppmm = \
 	-ljsoncpp \
 	$(NULL)
 
-OBJECTS_fsequtil = \
-	common.o \
-	fppversion.o \
-	fsequtil.o \
-	log.o \
-	SequenceFile.o \
-	$(NULL)
-LIBS_fsequtil = \
-	-ljsoncpp \
-	$(NULL)
-
 OBJECTS_fppd = \
 	channeloutput/ChannelOutputBase.o \
 	channeloutput/channeloutput.o \
+	channeloutput/channeloutputthread.o \
 	channeloutput/ArtNet.o \
 	channeloutput/ColorOrder.o \
 	channeloutput/ColorLight-5a-75.o \
@@ -52,9 +42,12 @@ OBJECTS_fppd = \
 	channeloutput/GenericSerial.o \
 	channeloutput/GPIO.o \
 	channeloutput/GPIO595.o \
+	channeloutput/UDPOutput.o \
 	channeloutput/Linsn-RV9.o \
 	channeloutput/LOR.o \
 	channeloutput/Matrix.o \
+	channeloutput/MAX7219Matrix.o \
+	channeloutput/MCP23017.o \
 	channeloutput/PanelMatrix.o \
 	channeloutput/PixelString.o \
 	channeloutput/RHL_DVI_E131.o \
@@ -67,15 +60,19 @@ OBJECTS_fppd = \
 	channeloutput/USBRelay.o \
 	channeloutput/USBRenard.o \
 	channeloutput/VirtualDisplay.o \
+    channeloutput/processors/OutputProcessor.o \
+    channeloutput/processors/RemapOutputProcessor.o \
+    channeloutput/processors/SetValueOutputProcessor.o \
+    channeloutput/processors/BrightnessOutputProcessor.o \
+    channeloutput/processors/ColorOrderOutputProcessor.o \
 	channeltester/ChannelTester.o \
 	channeltester/TestPatternBase.o \
 	channeltester/RGBChase.o \
 	channeltester/RGBFill.o \
 	channeltester/SingleChase.o \
+    ping.o \
 	command.o \
 	common.o \
-	controlrecv.o \
-	controlsend.o \
 	e131bridge.o \
 	effects.o \
 	events.o \
@@ -84,29 +81,36 @@ OBJECTS_fppd = \
 	fppversion.o \
 	gpio.o \
 	log.o \
+	MultiSync.o \
 	mediadetails.o \
 	mediaoutput/MediaOutputBase.o \
 	mediaoutput/mediaoutput.o \
 	mediaoutput/mpg123.o \
 	mediaoutput/ogg123.o \
 	mediaoutput/omxplayer.o \
+	mediaoutput/SDLOut.o \
+	mqtt.o \
 	PixelOverlay.o \
-	Player.o \
+	Playlist.o \
 	playlist/Playlist.o \
 	playlist/PlaylistEntryBase.o \
 	playlist/PlaylistEntryBoth.o \
 	playlist/PlaylistEntryBranch.o \
 	playlist/PlaylistEntryBrightness.o \
 	playlist/PlaylistEntryChannelTest.o \
+	playlist/PlaylistEntryDynamic.o \
 	playlist/PlaylistEntryEffect.o \
 	playlist/PlaylistEntryEvent.o \
 	playlist/PlaylistEntryMedia.o \
+	playlist/PlaylistEntryMQTT.o \
 	playlist/PlaylistEntryPause.o \
 	playlist/PlaylistEntryPixelOverlay.o \
 	playlist/PlaylistEntryPlaylist.o \
 	playlist/PlaylistEntryPlugin.o \
+	playlist/PlaylistEntryRemap.o \
 	playlist/PlaylistEntryScript.o \
 	playlist/PlaylistEntrySequence.o \
+	playlist/PlaylistEntryURL.o \
 	playlist/PlaylistEntryVolume.o \
 	Plugins.o \
 	Scheduler.o \
@@ -118,8 +122,15 @@ LIBS_fppd = \
 	-lpthread \
 	-ljsoncpp \
 	-lm \
+	-lmosquitto \
 	-lutil \
 	-ltag \
+	-lSDL2 \
+	-lavformat \
+	-lavcodec \
+	-lavutil \
+	-lswresample \
+	-lswscale \
 	$(NULL)
 
 SUBDIRS = 
@@ -134,9 +145,9 @@ $(shell echo "Building FPP on '$(ARCH)' platform" 1>&2)
 
 HTTPFLAGS := $(shell pkg-config --cflags --libs libhttpserver 2> /dev/null)
 ifneq '$(HTTPFLAGS)' ''
-	CFLAGS += -DUSEHTTPAPI
-	LDFLAGS_fppd += $(HTTPFLAGS) -lhttpserver
-	OBJECTS_fppd += httpAPI.o
+    CFLAGS += -DUSEHTTPAPI
+    LDFLAGS_fppd += $(HTTPFLAGS) -lhttpserver
+    OBJECTS_fppd += httpAPI.o
 endif
 
 OLAFLAGS := $(shell pkg-config --cflags --libs libola 2> /dev/null)
@@ -147,11 +158,6 @@ ifneq '$(OLAFLAGS)' ''
 endif
 
 CURLFLAGS := $(shell curl-config --libs)
-ifneq '$(CURLFLAGS)' ''
-	CFLAGS += -DUSECURL
-	LDFLAGS_fppd += $(CURLFLAGS)
-	OBJECTS_fppd += playlist/PlaylistEntryURL.o
-endif
 
 # Common CFLAGS
 CFLAGS += \
@@ -161,7 +167,7 @@ CFLAGS += \
 	$(NULL)
 
 
-LDFLAGS_fppd += \
+LDFLAGS_fppd += $(CURLFLAGS) \
 	$(NULL)
 
 DEPS_fppd += \
@@ -181,6 +187,7 @@ endif
 ifeq '$(ARCH)' 'Raspberry Pi'
 # do something RaspPi-y
 BINDIR = ../bin.pi
+CXXFLAGS += -std=gnu++11
 CFLAGS += \
 	-DPLATFORM_PI \
 	-DUSEWIRINGPI \
@@ -209,7 +216,7 @@ OBJECTS_fppd += \
 	$(NULL)
 DEPS_fppd += \
 	../external/RF24/librf24-bcm.so \
-	../lib/librgbmatrix.so \
+	../external/rpi-rgb-led-matrix/lib/librgbmatrix.a \
 	../external/rpi_ws281x/libws2811.a \
 	$(NULL)
 SUBMODULES += \
@@ -237,7 +244,7 @@ OBJECTS_fppd += \
 	channeloutput/RGBMatrix.o \
 	$(NULL)
 DEPS_fppd += \
-	../lib/librgbmatrix.so \
+	../external/rpi-rgb-led-matrix/lib/librgbmatrix.a \
 	$(NULL)
 SUBMODULES += \
 	external/RF24 \
@@ -260,30 +267,29 @@ OBJECTS_fppd += \
 	$(NULL)
 else ifeq '$(ARCH)' 'BeagleBone Black'
 # BeagleBone Black
+CXXFLAGS += -std=gnu++14
 BINDIR = ../bin.bbb
 CFLAGS += \
+    -DNOROOT \
 	-DPLATFORM_BBB \
-	-I../external/LEDscape/src/ledscape/ \
+    -I/usr/local/include \
 	$(NULL)
 LIBS_fppd += \
-	-lledscape \
 	-lprussdrv \
 	$(NULL)
 LDFLAGS_fppd += \
-	-L../external/LEDscape/lib/ \
-	-L../external/LEDscape/am335x/app_loader/lib/ \
+    -L/usr/local/lib/ \
 	$(NULL)
 OBJECTS_fppd += \
-	channeloutput/LEDscapeMatrix.o \
 	channeloutput/BBB48String.o \
 	channeloutput/BBBSerial.o \
+    channeloutput/BBBUtils.o \
+    channeloutput/BBBPruUtils.o \
+    channeloutput/BBBMatrix.o \
 	$(NULL)
 DEPS_fppd += \
-	../external/LEDscape/lib/libledscape.a \
 	$(NULL)
-SUBDIRS += pru
 SUBMODULES += \
-	external/LEDscape \
 	$(NULL)
 else
 # do something Linux-y
@@ -301,8 +307,8 @@ endif
 # Examples of some entries that might exist in Makefile.local:
 #
 # LIBS_fppd += -lX11
-# CFLAGS += -DUSE_X11Matrix
-# OBJECTS_fppd += channeloutput/X11Matrix.o
+# CFLAGS += -DUSE_X11ChannelOutputs
+# OBJECTS_fppd += channeloutput/X11Matrix.o channeloutput/X11VirtualDisplay.o
 ##############################################################################
 
 PWD := $(shell pwd)
@@ -330,15 +336,19 @@ gitsubmodules:
 
 force:
 
-release: $(TARGETS)
+debug: CFLAGS+=-g
+debug: $(TARGETS)
+
+optimized: CFLAGS+=-O1
+optimized: $(TARGETS)
+
+release: optimized
 	strip fpp
 	-$(INSTALL_PROGRAM) fpp $(BINDIR)/fpp
 	strip fppmm
 	-$(INSTALL_PROGRAM) fppmm $(BINDIR)/fppmm
 	strip fppd
 	-$(INSTALL_PROGRAM) fppd $(BINDIR)/fppd
-	strip fsequtil
-	-$(INSTALL_PROGRAM) fsequtil $(BINDIR)/fsequtil
 	for dir in $(SUBDIRS); do \
 		$(MAKE) -C $$dir release || exit 1; \
 	done
@@ -349,9 +359,6 @@ fpp: $(OBJECTS_fpp)
 fppmm: $(OBJECTS_fppmm)
 	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
 
-fsequtil: $(OBJECTS_fsequtil)
-	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
-
 fppd: $(DEPS_fppd) $(OBJECTS_fppd)
 	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
 
@@ -359,23 +366,26 @@ fppversion.c: fppversion.sh force
 	@sh fppversion.sh $(PWD)
 
 %.o: %.cpp %.h Makefile
-	$(CCACHE) $(CC) $(CFLAGS) -c $< -o $@
+	$(CCACHE) $(CC) $(CFLAGS) $(CXXFLAGS) -c $< -o $@
 
 %.o: %.c %.h Makefile
 	$(CCACHE) $(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f fppversion.c $(OBJECTS_fpp) $(OBJECTS_fppmm) $(OBJECTS_fppd) $(OBJECTS_fsequtil) fpp fppmm fppd fsequtil
+	rm -f fppversion.c $(OBJECTS_fpp) $(OBJECTS_fppmm) $(OBJECTS_fppd) fpp fppmm fppd
 	@if [ -e ../external/RF24/.git ]; then make -C ../external/RF24 clean; fi
 	@if [ -e ../external/rpi-rgb-led-matrix/.git ]; then make -C ../external/rpi-rgb-led-matrix clean; fi
 	@if [ -e ../external/rpi_ws281x/libws2811.a ]; then rm ../external/rpi_ws281x/*.o ../external/rpi_ws281x/*.a 2> /dev/null; fi
-	@if [ -e ../external/LEDscape/.git ]; then make -C ../external/LEDscape clean; fi
 	for dir in $(SUBDIRS); do \
 		$(MAKE) -C $$dir clean || exit 1; \
 	done
 
 util: force
 	$(MAKE) -C util
+
+restart: fppd
+	sudo ../scripts/fppd_stop
+	sudo ../scripts/fppd_start
 
 #############################################################################
 # RF24 library on the Pi
@@ -386,7 +396,7 @@ util: force
 
 ../external/RF24/librf24-bcm.so: ../external/RF24/.git
 	@echo "Building RF24 library"
-	@make -C ../external/RF24/
+	@CC="ccache gcc" CXX="ccache g++" make -C ../external/RF24/
 	@ln -s librf24-bcm.so.1.0 ../external/RF24/librf24-bcm.so.1
 	@ln -s librf24-bcm.so.1 ../external/RF24/librf24-bcm.so
 
@@ -399,28 +409,8 @@ util: force
 
 ../external/rpi-rgb-led-matrix/lib/librgbmatrix.a: ../external/rpi-rgb-led-matrix/.git
 	@echo "Building rpi-rgb-led-matrix library"
-	@make -C ../external/rpi-rgb-led-matrix/lib/ librgbmatrix.a
-
-../lib/librgbmatrix.so: ../external/rpi-rgb-led-matrix/.git
-	@echo "Building rpi-rgb-led-matrix library for Standard pinout"
-	@make -C ../external/rpi-rgb-led-matrix/lib/ clean
-	@make -C ../external/rpi-rgb-led-matrix/lib/ librgbmatrix.a \
-		DEFINES='-DRGB_SLOWDOWN_GPIO=1'
-	gcc -shared -o ../lib/librgbmatrix_Standard.so ../external/rpi-rgb-led-matrix/lib/*.o
-	cp ../lib/librgbmatrix_Standard.so ../external/rpi-rgb-led-matrix/lib/librgbmatrix.so
-	ln -s ./librgbmatrix_Standard.so ../lib/librgbmatrix.so
-	@echo "Building rpi-rgb-led-matrix library for Adafruit pinout"
-	@make -C ../external/rpi-rgb-led-matrix/lib/ clean
-	@make -C ../external/rpi-rgb-led-matrix/lib/ librgbmatrix.a \
-		DEFINES='-DRGB_SLOWDOWN_GPIO=1 -DADAFRUIT_RGBMATRIX_HAT -DONLY_SINGLE_CHAIN'
-	gcc -shared -o ../lib/librgbmatrix_Adafruit.so ../external/rpi-rgb-led-matrix/lib/*.o
-	@echo "Building rpi-rgb-led-matrix library for Classic pinout"
-	@make -C ../external/rpi-rgb-led-matrix/lib/ clean
-	@make -C ../external/rpi-rgb-led-matrix/lib/ librgbmatrix.a \
-		DEFINES='-DRGB_SLOWDOWN_GPIO=1 -DRGB_CLASSIC_PINOUT -DONLY_SINGLE_CHAIN'
-	gcc -shared -o ../lib/librgbmatrix_Classic.so ../external/rpi-rgb-led-matrix/lib/*.o
-	strip ../lib/librgbmatrix_Standard.so ../lib/librgbmatrix_Adafruit.so ../lib/librgbmatrix_Classic.so
-
+	@if [ -e ../external/rpi-rgb-led-matrix/lib/librgbmatrix.so ]; then rm ../external/rpi-rgb-led-matrix/lib/librgbmatrix.so; fi
+	@CC="ccache gcc" CXX="ccache g++" make -C ../external/rpi-rgb-led-matrix/lib/ librgbmatrix.a
 
 #############################################################################
 # libws2811 on the Pi
@@ -435,19 +425,8 @@ util: force
 		gcc -c -o rpihw.o rpihw.c && \
 		gcc -c -o mailbox.o mailbox.c && \
 		gcc -c -o dma.o dma.c && \
+		gcc -c -o pcm.o pcm.c && \
 		gcc -c -o pwm.o pwm.c && \
 		gcc -c -o ws2811.o ws2811.c && \
-		ar rcs libws2811.a rpihw.o mailbox.o dma.o pwm.o ws2811.o
-
-#############################################################################
-# LEDscape library and PRU code on the BBB
-../external/LEDscape/.git:
-	@cd ../ && \
-		git submodule init && \
-		git submodule update
-
-../external/LEDscape/lib/libledscape.a: ../external/LEDscape/.git
-	@echo "Building LEDscape library"
-	@cd ../external/LEDscape/ && git checkout master && git pull
-	@make -C ../external/LEDscape
+		ar rcs libws2811.a rpihw.o mailbox.o dma.o pwm.o pcm.o ws2811.o
 

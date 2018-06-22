@@ -1,7 +1,7 @@
 /*
- *   Debug Utility for Falcon Pi Player (FPP)
+ *   Debug Utility for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Pi Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -9,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -175,7 +175,7 @@ int OpenEffectFile(const char *filename)
 
 	if (!filename || !filename[0])
 	{
-		printf("Empty Effect Filename! (%s)\n", filename);
+		printf("Empty Effect Filename!\n");
 		return 0;
 	}
 
@@ -290,7 +290,7 @@ int OpenSequenceFile(const char *filename) {
 
 	if (!filename || !filename[0])
 	{
-		printf("Empty Sequence Filename! (%)\n", filename);
+		printf("Empty Sequence Filename!\n");
 		return 0;
 	}
 

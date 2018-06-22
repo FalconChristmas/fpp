@@ -1,7 +1,7 @@
 /*
  *   Playlist Entry Base Class for Falcon Player (FPP)
  *
- *   Copyright (C) 2016 the Falcon Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -9,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -33,13 +33,15 @@ int PlaylistEntryBase::m_playlistEntryCount = 0;
 /*
  *
  */
-PlaylistEntryBase::PlaylistEntryBase()
+PlaylistEntryBase::PlaylistEntryBase(PlaylistEntryBase *parent)
   : m_enabled(1),
 	m_isStarted(0),
 	m_isPlaying(0),
 	m_isFinished(0),
 	m_playOnce(0),
-	m_playCount(0)
+	m_playCount(0),
+	m_nextItem(-1),
+	m_parent(parent)
 {
 	m_type = "base";
 	m_playlistEntryID = m_playlistEntryCount++;

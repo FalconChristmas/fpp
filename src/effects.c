@@ -1,7 +1,7 @@
 /*
- *   Effects handler for Falcon Pi Player (FPP)
+ *   Effects handler for Falcon Player (FPP)
  *
- *   Copyright (C) 2013 the Falcon Pi Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -9,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -32,8 +32,8 @@
 
 #include "common.h"
 #include "effects.h"
+#include "channeloutputthread.h"
 #include "log.h"
-#include "Player.h"
 #include "Sequence.h"
 #include "settings.h"
 
@@ -121,49 +121,12 @@ int GetNextEffectID(void)
 /*
  * Check to see if any effects are running
  */
-inline int IsEffectRunning(void)
+int IsEffectRunning(void)
 {
 	int result = 0;
 
 	pthread_mutex_lock(&effectsLock);
 	result = effectCount;
-	pthread_mutex_unlock(&effectsLock);
-
-	return result;
-}
-
-/*
- * Check if a specific effect ID is still running
- */
-int IsEffectRunning(int effectID)
-{
-	int result = 0;
-
-	pthread_mutex_lock(&effectsLock);
-
-	if (effects[effectID])
-		result = 1;
-
-	pthread_mutex_unlock(&effectsLock);
-
-	return result;
-}
-
-/*
- * Check to see if a specific named effect is running
- */
-int IsEffectRunning(const char *effectName)
-{
-	int result = 0;
-
-	pthread_mutex_lock(&effectsLock);
-
-	for (int i = 0; i < MAX_EFFECTS && result == 0; i++)
-	{
-		if (effects[i] && !strcmp(effects[i]->name, effectName))
-			result = 1;
-	}
-
 	pthread_mutex_unlock(&effectsLock);
 
 	return result;
@@ -194,22 +157,12 @@ int StartEffect(const char *effectName, int startChannel, int loop)
 		return effectID;
 	}
 
-	if (snprintf(filename, 1024 - 5, "%s/%s", getEffectDirectory(), effectName) >= 1024)
+	if (snprintf(filename, 1024, "%s/%s.eseq", getEffectDirectory(), effectName) >= 1024)
 	{
 		LogErr(VB_EFFECT, "Unable to open effects file: %s, filename too long\n",
 			filename);
 		pthread_mutex_unlock(&effectsLock);
 		return effectID;
-	}
-
-	if (!FileExists(filename))
-	{
-		strcat(filename, ".eseq");
-		if (!FileExists(filename))
-		{
-			LogErr(VB_EFFECT, "Unable to find effects file: %s\n", effectName);
-			return effectID;
-		}
 	}
 
 	fp = fopen(filename, "r");
@@ -337,7 +290,7 @@ int StartEffect(const char *effectName, int startChannel, int loop)
 
 	pthread_mutex_unlock(&effectsLock);
 
-	player->StartChannelOutputThread();
+	StartChannelOutputThread();
 
 	return effectID;
 }
@@ -377,8 +330,8 @@ int StopEffect(const char *effectName)
 	pthread_mutex_unlock(&effectsLock);
 
 	if ((!IsEffectRunning()) &&
-		(!player->SequencesRunning()))
-		player->SendBlankingData();
+		(!sequence->IsSequenceRunning()))
+		sequence->SendBlankingData();
 
 	return 1;
 }
@@ -405,8 +358,8 @@ int StopEffect(int effectID)
 	pthread_mutex_unlock(&effectsLock);
 
 	if ((!IsEffectRunning()) &&
-		(!player->SequencesRunning()))
-		player->SendBlankingData();
+		(!sequence->IsSequenceRunning()))
+		sequence->SendBlankingData();
 
 	return 1;
 }
@@ -504,7 +457,7 @@ int OverlayEffects(char *channelData)
 	}
 
 	int skipBackground = 0;
-	if (pauseBackgroundEffects && player->SequencesRunning())
+	if (pauseBackgroundEffects && sequence->IsSequenceRunning())
 		skipBackground = 1;
 
 	for (i = 0; i < MAX_EFFECTS; i++)
@@ -521,8 +474,8 @@ int OverlayEffects(char *channelData)
 
 	if ((dataRead == 0) &&
 		(!IsEffectRunning()) &&
-		(!player->SequencesRunning()))
-		player->SendBlankingData();
+		(!sequence->IsSequenceRunning()))
+		sequence->SendBlankingData();
 
 	return 1;
 }

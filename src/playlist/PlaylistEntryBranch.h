@@ -1,7 +1,7 @@
 /*
  *   Playlist Entry Branch Class for Falcon Player (FPP)
  *
- *   Copyright (C) 2016 the Falcon Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -9,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -43,14 +43,14 @@
 
 class PlaylistEntryBranch : public PlaylistEntryBase {
   public:
-  	PlaylistEntryBranch();
+	PlaylistEntryBranch(PlaylistEntryBase *parent = NULL);
 	~PlaylistEntryBranch();
 
 	int  Init(Json::Value &config);
 
 	int  StartPlaying(void);
-	int  Process(void);
-	int  Stop(void);
+
+	void SetNext(int isTrue);
 
 	void Dump(void);
 
@@ -59,20 +59,23 @@ class PlaylistEntryBranch : public PlaylistEntryBase {
   private:
 	int  m_branchType;
 	int  m_comparisonMode;
-	int  m_hour;
-	int  m_minute;
-	int  m_second;
-	int  m_loopCount;
 
-	std::string m_truePlaylistName;
-	std::string m_falsePlaylistName;
+	// Time comparison
+	int  m_sHour;
+	int  m_sMinute;
+	int  m_sSecond;
+	int  m_sDaySecond;
+	int  m_sHourSecond;
+	int  m_eHour;
+	int  m_eMinute;
+	int  m_eSecond;
+	int  m_eDaySecond;
+	int  m_eHourSecond;
 
-	Playlist *m_truePlaylist;
-	Playlist *m_falsePlaylist;
-
-	int          m_conditionTrue;
-	Playlist    *m_livePlaylist;
-	std::string  m_livePlaylistName;
+	std::string m_trueNextSection;
+	int         m_trueNextItem;
+	std::string m_falseNextSection;
+	int         m_falseNextItem;
 };
 
 #endif

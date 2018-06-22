@@ -2,7 +2,7 @@
  *   HTTP API for the Falcon Player Daemon 
  *   Falcon Player project (FPP) 
  *
- *   Copyright (C) 2013 the Falcon Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -35,12 +35,12 @@
 
 using namespace httpserver;
 
-class PlayerResource : public http_resource<PlayerResource> {
+class PlayerResource : public http_resource {
   public:
-	void render_GET(const http_request&, http_response**);
-	void render_DELETE(const http_request&, http_response**);
-	void render_POST(const http_request&, http_response**);
-	void render_PUT(const http_request&, http_response**);
+	const http_response render_GET(const http_request &req);
+	const http_response render_DELETE(const http_request &req);
+	const http_response render_POST(const http_request &req);
+	const http_response render_PUT(const http_request &req);
 
   private:
 	void GetRunningEffects(Json::Value &result);
@@ -48,6 +48,8 @@ class PlayerResource : public http_resource<PlayerResource> {
 	void GetLogSettings(Json::Value &result);
 	void GetCurrentStatus(Json::Value &result);
 	void GetCurrentPlaylists(Json::Value &result);
+	void GetE131BytesReceived(Json::Value &result);
+	void GetMultiSyncSystems(Json::Value &result);
 
 	void PostEffects(const std::string &effectName, const Json::Value &data,
 					Json::Value &result);

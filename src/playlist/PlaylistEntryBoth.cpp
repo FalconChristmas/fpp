@@ -1,7 +1,7 @@
 /*
  *   Playlist Entry Both Class for Falcon Player (FPP)
  *
- *   Copyright (C) 2016 the Falcon Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -9,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -26,8 +26,9 @@
 #include "log.h"
 #include "PlaylistEntryBoth.h"
 
-PlaylistEntryBoth::PlaylistEntryBoth()
-  : m_duration(0),
+PlaylistEntryBoth::PlaylistEntryBoth(PlaylistEntryBase *parent)
+  : PlaylistEntryBase(parent),
+	m_duration(0),
 	m_mediaEntry(NULL),
 	m_sequenceEntry(NULL)
 {
@@ -47,11 +48,11 @@ int PlaylistEntryBoth::Init(Json::Value &config)
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntryBoth::Init()\n");
 
-	m_sequenceEntry = new PlaylistEntrySequence();
+	m_sequenceEntry = new PlaylistEntrySequence(this);
 	if (!m_sequenceEntry)
 		return 0;
 
-	m_mediaEntry = new PlaylistEntryMedia();
+	m_mediaEntry = new PlaylistEntryMedia(this);
 	if (!m_mediaEntry)
 		return 0;
 
@@ -148,7 +149,6 @@ Json::Value PlaylistEntryBoth::GetConfig(void)
 	result["media"] = m_mediaEntry->GetConfig();
 	result["sequence"] = m_sequenceEntry->GetConfig();
 
-	// FIXME PLAYLIST, need to get things like seconds elapsed/remaining ere
 	return result;
 }
 

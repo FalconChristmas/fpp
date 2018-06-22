@@ -16,7 +16,11 @@ updateAvahiConfig
 
 setupChannelOutputs
 
+WaitForInterfacesUp
+
+
 runPreStartScripts
+
 
 echo "Starting ${FPPBINDIR}/fppd"
 nice -n -20 ${FPPBINDIR}/fppd --config-file ${FPPHOME}/media/settings --daemonize

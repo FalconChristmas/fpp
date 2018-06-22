@@ -1,7 +1,7 @@
 /*
  *   Playlist Entry Brightness Class for Falcon Player (FPP)
  *
- *   Copyright (C) 2016 the Falcon Player Developers
+ *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
  *      - David Pitts (dpitts)
  *      - Tony Mace (MyKroFt)
@@ -9,7 +9,7 @@
  *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
- *   The Falcon Pi Player (FPP) is free software; you can redistribute it
+ *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
  *   the License, or (at your option) any later version.
@@ -26,14 +26,15 @@
 #include "channeloutput.h"
 #include "log.h"
 #include "PlaylistEntryBrightness.h"
-#include "Player.h"
+//#include "Player.h"
 #include "settings.h"
 
 /*
  *
  */
-PlaylistEntryBrightness::PlaylistEntryBrightness()
-  : m_brightness(0)
+PlaylistEntryBrightness::PlaylistEntryBrightness(PlaylistEntryBase *parent)
+  : PlaylistEntryBase(parent),
+	m_brightness(0)
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntryBrightness::PlaylistEntryBrightness()\n");
 
@@ -72,7 +73,7 @@ int PlaylistEntryBrightness::StartPlaying(void)
 		return 0;
 	}
 
-	player->SetBrightness(m_brightness);
+	//player->SetBrightness(m_brightness);
 
 	PlaylistEntryBase::StartPlaying();
 

@@ -23,6 +23,14 @@ BINDIR=$(cd $(dirname $0) && pwd)
 ##############################################################################
 # For now, just call our existing startup script
 
+
+if [ "${FPPPLATFORM}" != "BeagleBone Black" ]
+then
+    # On the BBB/Stretch, we already called this as part of FPP_init
+    .  ${BINDIR}/init_pre_network
+fi
+
+
 echo "FPP - Running ${BINDIR}/startup"
 ${BINDIR}/startup
 
