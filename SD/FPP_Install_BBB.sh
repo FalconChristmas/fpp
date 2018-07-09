@@ -68,8 +68,8 @@
 #############################################################################
 SCRIPTVER="0.9"
 FPPBRANCH="master"
-FPPIMAGEVER="2.0alpha"
-FPPCFGVER="29"
+FPPIMAGEVER="2.0beta"
+FPPCFGVER="31"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
 FPPUSER=fpp
