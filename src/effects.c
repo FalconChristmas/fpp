@@ -78,13 +78,13 @@ int InitEffects(void)
 		LogInfo(VB_EFFECT, "Automatically starting background effect "
 			"sequence %s\n", localFilename);
 
-		StartEffect(localFilename, 0, 1);
+		StartEffect(localFilename, 0, 1, 0);
 	}
 	else if (FileExists(localFilename))
 	{
 		LogInfo(VB_EFFECT, "Automatically starting background effect sequence "
 			"background.eseq\n");
-		StartEffect("background", 0, 1);
+		StartEffect("background", 0, 1, 0);
 	}
 
 	pauseBackgroundEffects = getSettingInt("pauseBackgroundEffects");
@@ -135,7 +135,7 @@ int IsEffectRunning(void)
 /*
  * Start a new effect offset at the specified channel number
  */
-int StartEffect(const char *effectName, int startChannel, int loop)
+int StartEffect(const char *effectName, int startChannel, int loop, int keepState)
 {
 	int   effectID = -1;
 	FILE *fp = NULL;
@@ -267,6 +267,7 @@ int StartEffect(const char *effectName, int startChannel, int loop)
 	effects[effectID]->stepSize = stepSize;
 	effects[effectID]->modelSize = modelSize;
 	effects[effectID]->background = 0;
+	effects[effectID]->keepState = keepState;
 
 	if (!strcmp(effectName, "background"))
 	{
@@ -319,19 +320,27 @@ int StopEffect(const char *effectName)
 {
 	LogDebug(VB_EFFECT, "StopEffect(%s)\n", effectName);
 
+	int keepState = 0;
 	pthread_mutex_lock(&effectsLock);
 
 	for (int i = 0; i < MAX_EFFECTS; i++)
 	{
 		if (effects[i] && !strcmp(effects[i]->name, effectName))
+		{
+			keepState = effects[i]->keepState;
 			StopEffectHelper(i);
+			break;
+		}
 	}
 
 	pthread_mutex_unlock(&effectsLock);
 
 	if ((!IsEffectRunning()) &&
-		(!sequence->IsSequenceRunning()))
+		(!sequence->IsSequenceRunning()) &&
+		(!keepState))
+	{
 		sequence->SendBlankingData();
+	}
 
 	return 1;
 }
@@ -358,8 +367,11 @@ int StopEffect(int effectID)
 	pthread_mutex_unlock(&effectsLock);
 
 	if ((!IsEffectRunning()) &&
-		(!sequence->IsSequenceRunning()))
+		(!sequence->IsSequenceRunning()) &&
+		(!effects[effectID]->keepState))
+	{
 		sequence->SendBlankingData();
+	}
 
 	return 1;
 }
@@ -460,10 +472,12 @@ int OverlayEffects(char *channelData)
 	if (pauseBackgroundEffects && sequence->IsSequenceRunning())
 		skipBackground = 1;
 
+	int keepState = 0;
 	for (i = 0; i < MAX_EFFECTS; i++)
 	{
 		if (effects[i])
 		{
+			keepState |= effects[i]->keepState;
 			if ((!skipBackground) ||
 				(skipBackground && (!effects[i]->background)))
 				dataRead |= OverlayEffect(i, channelData);
@@ -474,8 +488,11 @@ int OverlayEffects(char *channelData)
 
 	if ((dataRead == 0) &&
 		(!IsEffectRunning()) &&
-		(!sequence->IsSequenceRunning()))
-		sequence->SendBlankingData();
+		(!sequence->IsSequenceRunning()) &&
+		(!keepState))
+		{
+			sequence->SendBlankingData();
+		}
 
 	return 1;
 }

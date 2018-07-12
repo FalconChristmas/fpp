@@ -550,8 +550,12 @@ function PlayEffect()
 	if (isset($_GET['loop']))
 		$loop = $_GET['loop'];
 
+	$keepState = 0;
+	if (isset($_GET['keepState']))
+		$keepState = $_GET['keepState'];
+
 	check($startChannel, "startChannel", __FUNCTION__);
-	$status = SendCommand("e," . $effect . "," . $startChannel . "," . $loop. ",");
+	$status = SendCommand("e," . $effect . "," . $startChannel . "," . $loop. "," . "," . $keepState);
 	EchoStatusXML('Success');
 }
 

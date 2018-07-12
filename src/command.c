@@ -306,8 +306,9 @@ char *ProcessCommand(char *command, char *response)
         s = strtok(NULL,",");
         s2 = strtok(NULL,",");
         s3 = strtok(NULL,",");
+	s4 = strtok(NULL,",");
         if (s && s2) {
-            i = StartEffect(s, atoi(s2), atoi(s3));
+            i = StartEffect(s, atoi(s2), atoi(s3), atoi(s4));
             if (i >= 0)
                 sprintf(response,"%d,%d,Starting Effect,%d,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS,i);
             else

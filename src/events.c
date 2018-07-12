@@ -304,7 +304,7 @@ int TriggerEventByID(const char *id)
 	}
 
 	if (event->effect)
-		StartEffect(event->effect, event->startChannel);
+		StartEffect(event->effect, event->startChannel, 0);
 
 	if (event->script)
 		RunEventScript(event);

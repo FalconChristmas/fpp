@@ -88,10 +88,13 @@ include 'common/menuHead.inc';
           <div class='right'>
             <div>
               <table width="100%">
-                <tr><td>Start Channel Override: <input id="effectStartChannel" class="default-value" type="text" value="" size="5" maxlength="5" /></td></tr>
+		<tr>
+                    <td>Start Channel Override: <input id="effectStartChannel" class="default-value" type="text" value="" size="5" maxlength="5" /></td>
+                    <td>Keep last effect state: <input id="keepLastEffectState" class="default-value" type="checkbox"  /></td></tr>
+               </tr>
               </table>
             </div>
-            <input id= "btnPlayEffect" type="button" class ="disableButtons" value="Play Effect" onClick="PlayEffect($('#effectStartChannel').val());">
+            <input id= "btnPlayEffect" type="button" class ="disableButtons" value="Play Effect" onClick="PlayEffect($('#effectStartChannel').val(), $('#keepLastEffectState').prop('checked') ? '1' : '0');">
           </div>
       </div>
       <div id= "divRunningEffects">

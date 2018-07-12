@@ -2391,14 +2391,18 @@ function StartPlaylistNow()
 		xmlhttp.send();
 	}
 
-function PlayEffect(startChannel)
+function PlayEffect(startChannel, keepState)
 {
 	// Start Channel 0 is a special case meaning use the channel # in the .eseq
 	if ((startChannel == undefined) ||
 		(startChannel == ""))
 		startChannel = "0";
 
-	var url = "fppxml.php?command=playEffect&effect=" + EffectNameSelected + "&startChannel=" + startChannel;
+	if ((keepState == undefined) ||
+		(keepState  == ""))
+		keepState = "0";
+
+	var url = "fppxml.php?command=playEffect&effect=" + EffectNameSelected + "&startChannel=" + startChannel + "&keepState=" + keepState;
 	var xmlhttp=new XMLHttpRequest();
 	xmlhttp.open("GET",url,false);
 	xmlhttp.setRequestHeader('Content-Type', 'text/xml');

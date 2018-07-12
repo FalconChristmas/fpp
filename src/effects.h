@@ -40,6 +40,7 @@ typedef struct fppeffect {
 	int       startChannel;
 	int       loop;
 	int       background;
+	int       keepState;
 } FPPeffect;
 
 extern FPPeffect *effects[];
@@ -48,7 +49,7 @@ int  GetRunningEffects(char *msg, char **result);
 int  IsEffectRunning(void);
 int  InitEffects(void);
 void CloseEffects(void);
-int  StartEffect(const char *effectName, int startChannel, int loop = 0);
+int  StartEffect(const char *effectName, int startChannel, int loop = 0, int keepState = 0);
 int  StopEffect(const char *effectName);
 int  StopEffect(int effectID);
 void StopAllEffects(void);
