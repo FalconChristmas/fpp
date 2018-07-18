@@ -303,6 +303,7 @@ nano /home/fpp/.bashrc
 # zero out everything unused so compressing the image will work better
 dd if=/dev/zero of=/dev/mmcblk0 bs=1M status=progress
 /opt/fpp/SD/BBB-FlashMMC.sh -s 2800M -noreboot ext4 /dev/mmcblk0
+rmdir /tmp/rootfs
 
 #place second in slot
 dd if=/dev/zero of=/dev/mmcblk0 bs=1M status=progress

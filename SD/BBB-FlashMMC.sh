@@ -183,6 +183,7 @@ echo ""
 
 #configure /boot
 cd /tmp/rootfs/boot
+rm -f boot
 ln -sf . boot
 cd /
 
