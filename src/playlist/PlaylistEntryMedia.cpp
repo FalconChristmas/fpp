@@ -276,7 +276,7 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 #ifdef PLATFORM_PI
 	}
 	else if (((ext == "mp4") ||
-			 (ext == "mkv")) && m_videoOutput == "--HDMI--")
+			 (ext == "mkv")) && vOut == "--HDMI--")
 	{
 		m_mediaOutput = new omxplayerOutput(tmpFile, &mediaOutputStatus);
 #endif
