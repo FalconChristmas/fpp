@@ -143,7 +143,7 @@ function flashEMMCBtrfs() {
     if ($settings['Platform'] == "BeagleBone Black") {
         exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
         $rootDevice = $output[0];
-        if ($rootDevice == 'mmcblk0p1') {
+        if ($rootDevice == 'mmcblk0p1' || $rootDevice == 'mmcblk0p2') {
 ?>
             <tr><td colspan='2'><hr></td></tr>
             <tr><td>
