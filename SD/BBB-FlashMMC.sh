@@ -183,7 +183,7 @@ echo ""
 
 #configure /boot
 cd /tmp/rootfs/boot
-ln -s . boot
+ln -sf . boot
 cd /
 
 if [ "$1" = "ext4" ]; then

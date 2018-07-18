@@ -302,10 +302,10 @@ nano /home/fpp/.bashrc
 #place 4G SD card in sd slot
 # zero out everything unused so compressing the image will work better
 dd if=/dev/zero of=/dev/mmcblk0 bs=1M status=progress
-/opt/fpp/SD/BBB-FlashMMC.sh -s 2800M ext4 /dev/mmcblk0
+/opt/fpp/SD/BBB-FlashMMC.sh -s 2800M -noreboot ext4 /dev/mmcblk0
 
 #place second in slot
 dd if=/dev/zero of=/dev/mmcblk0 bs=1M status=progress
-/opt/fpp/SD/BBB-FlashMMC.sh -s 1750M btrfs /dev/mmcblk0
+/opt/fpp/SD/BBB-FlashMMC.sh -s 1750M -noreboot btrfs /dev/mmcblk0
 
 
