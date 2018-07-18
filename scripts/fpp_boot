@@ -63,5 +63,5 @@ else
         setterm -blank 0
 fi
 
-${SUDO} ${SCRIPTDIR}/fppd_start
+. ${SCRIPTDIR}/fppd_start
 

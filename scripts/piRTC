@@ -23,13 +23,14 @@ else
 	fi
 fi
 
-if [[ $1 == "set" ]]
-then
-  hwclock -w -f ${RTCDEVICE} &>/dev/null
-else
-  hwclock -s -f ${RTCDEVICE} &>/dev/null
-  cp ${FPPDIR}/etc/update-RTC /etc/cron.daily/
+if [ -f ${RTCDEVICE} ]; then
+    if [[ $1 == "set" ]]
+    then
+      hwclock -w -f ${RTCDEVICE} &>/dev/null
+    else
+      hwclock -s -f ${RTCDEVICE} &>/dev/null
+      cp ${FPPDIR}/etc/update-RTC /etc/cron.daily/
+    fi
+
+    sleep 2
 fi
-
-sleep 2
-
