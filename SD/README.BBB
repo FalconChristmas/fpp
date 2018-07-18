@@ -310,3 +310,12 @@ dd if=/dev/zero of=/dev/mmcblk0 bs=1M status=progress
 /opt/fpp/SD/BBB-FlashMMC.sh -s 1750M -noreboot btrfs /dev/mmcblk0
 
 
+#On a MAC, the resulting SD cards can be used to create an image via:
+# use diskutil list to get the disk name (/dev/rdisk3)
+# For ext4:
+sudo dd=/dev/rdisk3 of=FPP-v2.0-Beta-BBB-ext4.img bs=1m count=3072
+# For btrfs:
+sudo dd=/dev/rdisk3 of=FPP-v2.0-Beta-BBB-btrfs.img bs=1m count=2000
+
+
+
