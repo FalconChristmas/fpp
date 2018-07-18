@@ -1,13 +1,6 @@
 <?php
 require_once('config.php');
 
-$a = session_id();
-
-if(empty($a))
-{
-  session_start();
-}
-$_SESSION['session_id'] = session_id();
 //ini_set('display_errors', 'On');
 error_reporting(E_ALL);
 
