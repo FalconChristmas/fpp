@@ -14,19 +14,40 @@
 # Make sure you read all the comment in this file and follow 
 # any instructions they may specify.
 #
-# After all the steps in this file is compile, reboot and then run
-# the FPP_Install_BBB.sh script
+# This NEEDS to be done on a Beaglebone Black variant that
+# contains an eMMC (so not a PocketBeagle) and it will wipe out
+# the contents of the eMMC.   We setup the system on the eMMC
+# and then copy the system to the SD card
+
+# Burn the above image onto an SD card and insert into the BBB and boot
+# Login with default debian:temppwd then "sudo bash" to become root
+cd /tmp
+wget https://github.com/FalconChristmas/fpp/blob/master/SD/BBB-FlashMMC.sh
+chmod +x BBB-FlashMMC.sh
+./BBB-FlashMMC.sh -noreboot ext4 /dev/mmcblk1
+
+#copy the ssh keys temporarily to allow it to boot quicker and avoid
+#having to reset known_hosts while building image
+mount -t ext4 /dev/mmcblk1p1 /tmp/rootfs
+cp -a /etc/ssh/* /tmp/rootfs/etc/ssh
+reboot
+
+
+#That will flash the stretch-console image to the internal eMMC and then shutdown
+#Remove the SD card and restart the BBB, re-login with default debian:temppwd
+#then "sudo bash" to become root
+
 
 apt-get update
+apt-get -y upgrade
 
 #need to install/generate the UTF-8 locales
 apt-get install -y locales
-echo "en_US.UTF-8 UTF-8" >> locale.gen
+echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
 locale-gen
 localectl set-locale en_US.utf8
 
 
-apt-get upgrade
 apt-get install -y git
 cd /opt/scripts
 git pull
@@ -36,19 +57,17 @@ cd /opt/scripts/tools
 # ./update_kernel.sh --lts-4_14 --bone-kernel
 # and see what is the latest kernel version and put it here
 
-export KERNEL_VERSION=4.14.53-bone16
+export KERNEL_VERSION=4.14.55-bone16
 ./update_kernel.sh --lts-4_14 --bone-kernel  $KERNEL_VERSION
 apt-get install -y linux-headers-$KERNEL_VERSION
 
+apt-get remove -y --purge --autoremove linux-image-$(uname -r) linux-headers-$(uname -r) ti-temperature-modules-$(uname -r) ti-debugss-modules-$(uname -r)
 
-apt-get remove -y --purge --autoremove linux-image-$(uname -r)
-apt-get remove -y --purge --autoremove linux-headers-$(uname -r)
-apt-get remove -y --purge --autoremove ti-temperature-modules-$(uname -r)
-apt-get remove -y --purge --autoremove ti-debugss-modules-$(uname -r)
 
 # delete old kernels and modules in /boot and /lib/modules
-# and in /boot/dtbs
+# and in /boot/dtbs and any initrd's
 rm -rf /lib/modules/$(uname -r)
+rm -rf /boot/initrd.img*
 
 
 cd /opt/scripts/tools/developers/
@@ -123,14 +142,9 @@ rm -rf /opt/cloud9
 rm -rf /etc/avahi/services/cloud9.service
 
 
-# the console image only uses a 1GB root, we need to grow to the full 4GB before
-# installing stuff.  This requires a reboot to finish.
-cd /opt/scripts/tools
-./grow_partition.sh
-
+# need to reboot so that the new kernel is picked up and used
 reboot
-
-#re-login in and make sure "df -k" reports 3.5G+ of space for /
+#re-login in and make sure "df -k" reports 2.5G+ of space for /
 
 apt-get install -y \
     alsa-utils arping avahi-daemon avahi-discover avahi-utils \
@@ -195,6 +209,8 @@ make install
 make clean
 
 
+ldconfig
+
 # need to edit some files... sed/awk/perl can do this automatically?
 #nano /lib/systemd/system/apache2.service
 #    PrivateTmp=false
@@ -204,10 +220,6 @@ make clean
 #    PreferredTechnologies=wifi,ethernet
 
 
-#need to reboot to pickup new kernel so install of wireless modules will work
-reboot
-
-ldconfig
 
 #install new Wifi drivers
 
@@ -280,8 +292,20 @@ chmod 700 ./FPP_Install_BBB.sh
 ./FPP_Install_BBB.sh
 
 
+touch /home/fpp/media/.auto_update_disabled
+chmod 644 /home/fpp/media/.auto_update_disabled
 nano /home/fpp/.bashrc
 # uncomment force_color_prompt=yes
 
+
+
+#place 4G SD card in sd slot
+# zero out everything unused so compressing the image will work better
+dd if=/dev/zero of=/dev/mmcblk0 bs=1M status=progress
+/opt/fpp/SD/BBB-FlashMMC.sh -s 2800M ext4 /dev/mmcblk0
+
+#place second in slot
+dd if=/dev/zero of=/dev/mmcblk0 bs=1M status=progress
+/opt/fpp/SD/BBB-FlashMMC.sh -s 1750M btrfs /dev/mmcblk0
 
 

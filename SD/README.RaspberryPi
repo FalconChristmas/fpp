@@ -114,8 +114,11 @@ sudo apt-get update
 sudo apt-get -y install btrfs-tools btrfs-progs
 
 # append "btrfs" to /etc/initramfs-tools/modules
+echo "btrfs" | sudo tee -a /etc/initramfs-tools/modules
 
-sudo rpi-update
+#make sure we have the latest supported bootloader and kernel
+sudo apt-get dist-upgrade -y
+sudo apt-get install --reinstall raspberrypi-bootloader raspberrypi-kernel
 
 sudo update-initramfs -c -k `uname -r`
 

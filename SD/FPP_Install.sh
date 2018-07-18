@@ -505,9 +505,7 @@ EOF
 
 	'Raspberry Pi')
 		echo "FPP - Updating firmware for Raspberry Pi install"
-		#https://raw.githubusercontent.com/Hexxeh/rpi-update/master/rpi-update
-		wget http://goo.gl/1BOfJ -O /usr/bin/rpi-update && chmod +x /usr/bin/rpi-update
-		SKIP_WARNING=1 rpi-update
+        sudo apt-get dist-upgrade -y
 
 		echo "FPP - Installing Pi-specific packages"
 		apt-get -y install raspi-config
