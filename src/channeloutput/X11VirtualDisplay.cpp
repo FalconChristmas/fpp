@@ -119,6 +119,9 @@ int X11VirtualDisplayOutput::Init(Json::Value config)
 		DefaultVisual(m_display, m_screen), CWBackPixel, &attributes);
 
 	XMapWindow(m_display, m_window);
+
+	XStoreName(m_display, m_window, "Virtual Display");
+	XSetIconName(m_display, m_window, "Virtual Display");
 	
 	XFlush(m_display);
 
