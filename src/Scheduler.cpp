@@ -160,7 +160,7 @@ int Scheduler::GetNextScheduleEntry(int *weeklySecondIndex)
 			for(j=0;j<m_Schedule[i].weeklySecondCount;j++)
 			{
 				difference = GetWeeklySecondDifference(nowWeeklySeconds,m_Schedule[i].weeklyStartSeconds[j]);
-				if(difference<leastWeeklySecondDifferenceFromNow)
+				if(difference > 0 && difference<leastWeeklySecondDifferenceFromNow)
 				{
 					leastWeeklySecondDifferenceFromNow = difference; 
 					nextEntryIndex = i;
@@ -210,7 +210,7 @@ void Scheduler::LoadNextScheduleInfo(void)
   {
     GetNextPlaylistText(p);
     GetNextScheduleStartText(t);
-    LogDebug(VB_SCHEDULE, "Next Scheduled Playlist is '%s' for %s\n",p, t);
+    LogDebug(VB_SCHEDULE, "Next Scheduled Playlist is index %d: '%s' for %s\n", m_nextSchedulePlaylist.ScheduleEntryIndex, p, t);
   }
 }
 
@@ -401,7 +401,7 @@ void Scheduler::PlayListLoadCheck(void)
     }
 
     if (m_currentSchedulePlaylist.startWeeklySeconds && displayDiff)
-      LogInfo(VB_SCHEDULE, "NowSecs = %d, CurrStartSecs = %d (%d seconds away)\n",
+      LogDebug(VB_SCHEDULE, "NowSecs = %d, CurrStartSecs = %d (%d seconds away)\n",
         nowWeeklySeconds,m_currentSchedulePlaylist.startWeeklySeconds, displayDiff);
 
     if(nowWeeklySeconds == m_currentSchedulePlaylist.startWeeklySeconds)
@@ -416,7 +416,7 @@ void Scheduler::PlayListLoadCheck(void)
         m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].endSecond,
         m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playList,
         m_currentSchedulePlaylist.endWeeklySeconds - m_currentSchedulePlaylist.startWeeklySeconds);
-      LogInfo(VB_SCHEDULE, "NowSecs = %d, CurrStartSecs = %d, CurrEndSecs = %d (%d seconds away)\n",
+      LogDebug(VB_SCHEDULE, "NowSecs = %d, CurrStartSecs = %d, CurrEndSecs = %d (%d seconds away)\n",
         nowWeeklySeconds, m_currentSchedulePlaylist.startWeeklySeconds, m_currentSchedulePlaylist.endWeeklySeconds, displayDiff);
 
       playlist->Play(m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playList,
@@ -451,7 +451,7 @@ void Scheduler::PlayListStopCheck(void)
     }
 
     if (displayDiff)
-      LogInfo(VB_SCHEDULE, "NowSecs = %d, CurrEndSecs = %d (%d seconds away)\n",
+      LogDebug(VB_SCHEDULE, "NowSecs = %d, CurrEndSecs = %d (%d seconds away)\n",
         nowWeeklySeconds, m_currentSchedulePlaylist.endWeeklySeconds, displayDiff);
 
     // This check for 1 second ago is a hack rather than a more invasive
@@ -696,7 +696,6 @@ void Scheduler::GetNextScheduleStartText(char * txt)
 	{
 		char dayText[16];
 		int found = FindNextStartingScheduleIndex();
-
 		if (found >= 0)
 		{
 			GetDayTextFromDayIndex(m_Schedule[found].dayIndex,dayText);

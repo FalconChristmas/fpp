@@ -27,29 +27,6 @@ fi
 . ${BINDIR}/functions
 
 ##############################################################################
-# Perform enough line feeds to put the rest of our output at the bottom of the
-# screen so the splash video can show at the top
-# Disable for now until we get the omxplayer dbus issue worked out
-#perl -e "printf( \"\n\" x 50 );"
-
-##############################################################################
-# Start the splash video in the background
-# Disable for now until we get the omxplayer dbus issue worked out
-#${FPPDIR}/etc/asplashscreen &
-
-##############################################################################
-#echo "FPP - Performing initial pre-start setup"
-##############################################################################
-#if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
-#then
-#    echo "Skipping default network config, was done at image creation time"
-#else
-#    echo "    - Setting default network config"
-#    SetupDefaultNetworkConfig
-#fi
-
-
-##############################################################################
 echo "    - Checking SSH keys"
 SSHKEYS=$(ls -al /etc/ssh/ssh_host*key* 2> /dev/null | wc -l)
 if [ ${SSHKEYS} -eq 0 ]
@@ -57,17 +34,7 @@ then
 	echo "      - Renerating SSH keys"
 	ssh-keygen -A
 fi
-
 ##############################################################################
-# Copy our php.ini script into place for when we restart apache
-if [ -f "/etc/php5/apache2/php.ini" ]
-then
-    echo "    - Copying php.ini into place"
-    sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/php.ini > /etc/php5/apache2/php.ini
-fi
-
-##############################################################################
-
 
 # On systems running Stretch, the fpp_init is called prior to network
 # so we can use the opportunity to configure the network adapapters

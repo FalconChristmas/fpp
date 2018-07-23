@@ -164,7 +164,7 @@ void *RunChannelOutputThread(void *data)
 		if (getFPPmode() != BRIDGE_MODE)
 			sequence->ReadSequenceData();
 
-		sequence->ProcessSequenceData();
+		sequence->ProcessSequenceData(1000.0 * channelOutputFrame / RefreshRate, 1);
 
 		readTime = GetTime();
 

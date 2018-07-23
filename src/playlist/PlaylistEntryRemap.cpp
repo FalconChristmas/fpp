@@ -27,6 +27,7 @@
 #include <string.h>
 
 #include "channeloutput.h"
+#include "channeloutput/processors/RemapOutputProcessor.h"
 #include "log.h"
 #include "PlaylistEntryRemap.h"
 
@@ -38,7 +39,8 @@ PlaylistEntryRemap::PlaylistEntryRemap(PlaylistEntryBase *parent)
 	m_srcChannel(0),
 	m_dstChannel(0),
 	m_channelCount(0),
-	m_loops(0)
+	m_loops(0),
+    m_processor(nullptr)
 {
     LogDebug(VB_PLAYLIST, "PlaylistEntryRemap::PlaylistEntryRemap()\n");
 
@@ -50,6 +52,9 @@ PlaylistEntryRemap::PlaylistEntryRemap(PlaylistEntryBase *parent)
  */
 PlaylistEntryRemap::~PlaylistEntryRemap()
 {
+    if (m_processor) {
+        delete m_processor;
+    }
 }
 
 /*
@@ -94,7 +99,8 @@ int PlaylistEntryRemap::Init(Json::Value &config)
 	m_dstChannel   = config["destination"].asInt();
 	m_channelCount = config["count"].asInt();
 	m_loops        = config["loops"].asInt();
-
+    
+    m_processor = new RemapOutputProcessor(m_srcChannel, m_dstChannel, m_channelCount, m_loops);
 	return PlaylistEntryBase::Init(config);
 }
 
@@ -113,13 +119,25 @@ int PlaylistEntryRemap::StartPlaying(void)
 
 	PlaylistEntryBase::StartPlaying();
 
-	if (m_action == "add")
-		AddChannelRemap(m_srcChannel, m_dstChannel, m_channelCount, m_loops);
-	else if (m_action == "remove")
-		RemoveChannelRemap(m_srcChannel, m_dstChannel, m_channelCount, m_loops);
-
+    if (m_action == "add") {
+        outputProcessors.addProcessor(m_processor);
+    } else if (m_action == "remove") {
+        auto f = [this] (OutputProcessor*p2) -> bool {
+            if (p2->getType() == OutputProcessor::REMAP) {
+                RemapOutputProcessor *rp = (RemapOutputProcessor*)p2;
+                return rp->getSourceChannel() == this->m_srcChannel
+                && rp->getDestChannel() == this->m_dstChannel
+                && rp->getLoops() == this->m_loops
+                && rp->getCount() == this->m_channelCount;
+            }
+            return false;
+        };
+        OutputProcessor * p = outputProcessors.find(f);
+        if (p) {
+            outputProcessors.removeProcessor(p);
+        }
+    }
 	FinishPlay();
-
 	return 1;
 }
 

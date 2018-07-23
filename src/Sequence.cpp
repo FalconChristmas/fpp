@@ -49,6 +49,8 @@
 #include "Sequence.h"
 #include "settings.h"
 
+#include "mediaoutput/SDLOut.h"
+
 Sequence *sequence = NULL;
 
 Sequence::Sequence()
@@ -384,7 +386,7 @@ int Sequence::IsSequenceRunning(char *filename) {
 }
 
 void Sequence::BlankSequenceData(void) {
-	bzero(m_seqData, sizeof(m_seqData));
+    memset(m_seqData, 0, sizeof(m_seqData));
 }
 
 int Sequence::SequenceIsPaused(void) {
@@ -461,15 +463,20 @@ void Sequence::ReadSequenceData(void) {
 
 		m_seqSecondsElapsed = (int)((float)(m_seqFilePosition - m_seqChanDataOffset)/((float)m_seqStepSize*(float)m_seqRefreshRate));
 		m_seqSecondsRemaining = m_seqDuration - m_seqSecondsElapsed;
-	}
+    } else {
+        BlankSequenceData();
+    }
 
 	pthread_mutex_unlock(&m_sequenceLock);
 }
 
-void Sequence::ProcessSequenceData(int checkControlChannels) {
+void Sequence::ProcessSequenceData(int ms, int checkControlChannels) {
 	if (IsEffectRunning())
 		OverlayEffects(m_seqData);
 
+    if (SDLOutput::IsOverlayingVideo()) {
+        SDLOutput::ProcessVideoOverlay(ms);
+    }
 	if (UsingMemoryMapInput())
 		OverlayMemoryMap(m_seqData);
 
@@ -505,7 +512,7 @@ void Sequence::SendBlankingData(void) {
 		multiSync->SendBlankingDataPacket();
 
 	BlankSequenceData();
-	ProcessSequenceData(0);
+	ProcessSequenceData(0, 0);
 	SendSequenceData();
 }
 

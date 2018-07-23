@@ -502,7 +502,7 @@ function MoveFile()
 				exit(1);
 			}
 		}
-		else if (preg_match("/\.(mp3|ogg)$/i", $file))
+		else if (preg_match("/\.(mp3|ogg|m4a)$/i", $file))
 		{
 			if ( !rename($uploadDirectory."/" . $file, $musicDirectory . '/' . $file) )
 			{
@@ -2109,8 +2109,25 @@ function DeletePlaylist()
 	$name = $_GET['name'];
 	check($name, "name", __FUNCTION__);
 
-	unlink($playlistDirectory . '/' . $name);
-	EchoStatusXML('Success');
+    //Check if the file exists, old playlists don't have extensions
+    $playlist_exists = file_exists($playlistDirectory . '/' . $name);
+
+    if($playlist_exists){
+        //then just delete the file
+        $delete_status = unlink($playlistDirectory . '/' . $name);
+    }	else{
+        //if it doesn't exist, then add .json to the filename
+        //All Playlists in FPP v2 are json files
+        $name = $name . '.json';
+        //
+        $delete_status = unlink($playlistDirectory . '/' . $name);
+    }
+
+    if($delete_status == true){
+        EchoStatusXML('Success');
+    }else{
+        EchoStatusXML('Failure');
+    }
 }
 
 function DeleteEntry()
@@ -2352,6 +2369,8 @@ function GetFile()
 			header('Content-type: audio/mp3');
 		else if (preg_match('/ogg$/i', $filename))
 			header('Content-type: audio/ogg');
+        else if (preg_match('/m4a$/i', $filename))
+            header('Content-type: audio/m4a');
 		else if (preg_match('/mp4$/i', $filename))
 			header('Content-type: video/mp4');
 	}
@@ -2410,7 +2429,7 @@ function GetZip()
         "channelremap",
         "config/channeloutputs.json",
         //new v2 config files
-        "config/channelremap.json",
+        "config/outputprocessors.json",
         "config/co-other.json",
         "config/co-pixelStrings.json",
         "config/co-bbbStrings.json",

@@ -42,6 +42,7 @@ OBJECTS_fppd = \
 	channeloutput/GenericSerial.o \
 	channeloutput/GPIO.o \
 	channeloutput/GPIO595.o \
+	channeloutput/UDPOutput.o \
 	channeloutput/Linsn-RV9.o \
 	channeloutput/LOR.o \
 	channeloutput/Matrix.o \
@@ -59,11 +60,17 @@ OBJECTS_fppd = \
 	channeloutput/USBRelay.o \
 	channeloutput/USBRenard.o \
 	channeloutput/VirtualDisplay.o \
+    channeloutput/processors/OutputProcessor.o \
+    channeloutput/processors/RemapOutputProcessor.o \
+    channeloutput/processors/SetValueOutputProcessor.o \
+    channeloutput/processors/BrightnessOutputProcessor.o \
+    channeloutput/processors/ColorOrderOutputProcessor.o \
 	channeltester/ChannelTester.o \
 	channeltester/TestPatternBase.o \
 	channeltester/RGBChase.o \
 	channeltester/RGBFill.o \
 	channeltester/SingleChase.o \
+    ping.o \
 	command.o \
 	common.o \
 	e131bridge.o \
@@ -123,6 +130,7 @@ LIBS_fppd = \
 	-lavcodec \
 	-lavutil \
 	-lswresample \
+	-lswscale \
 	$(NULL)
 
 SUBDIRS = 

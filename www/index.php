@@ -218,19 +218,20 @@ include 'common/menuHead.inc';
             <th class='colPlaylistNumber'>#</th>
             <th class='colPlaylistData1'>Media File / Script / Event / Pause </th>
             <th class='colPlaylistData2'>Sequence / Delay</th>
+            <th class='colPlaylistData3'></th>
           </tr>
 						<tbody id='tblPlaylistLeadInHeader' style='display: none;'>
-							<tr><th colspan=3>-- Lead In --</th></tr>
+							<tr><th colspan=4>-- Lead In --</th></tr>
 						</tbody>
             <tbody id="tblPlaylistLeadIn">
             </tbody>
 						<tbody id='tblPlaylistMainPlaylistHeader' style='display: none;'>
-							<tr><th colspan=3>-- Main Playlist --</th></tr>
+							<tr><th colspan=4>-- Main Playlist --</th></tr>
 						</tbody>
             <tbody id="tblPlaylistMainPlaylist">
             </tbody>
 						<tbody id='tblPlaylistLeadOutHeader' style='display: none;'>
-							<tr><th colspan=3>-- Lead Out --</th></tr>
+							<tr><th colspan=4>-- Lead Out --</th></tr>
 						</tbody>
             <tbody id="tblPlaylistLeadOut">
             </tbody>

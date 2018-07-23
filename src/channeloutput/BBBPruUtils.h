@@ -19,7 +19,7 @@ public:
     ~BBBPru();
     
     int run(const std::string &program);
-    void stop();
+    void stop(bool force = false);
     
     
     unsigned pru_num;

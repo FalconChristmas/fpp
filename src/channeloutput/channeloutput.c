@@ -37,6 +37,7 @@
 #include "DebugOutput.h"
 #include "ArtNet.h"
 #include "ColorLight-5a-75.h"
+#include "UDPOutput.h"
 #include "DDP.h"
 #include "E131.h"
 #include "FBMatrix.h"
@@ -87,29 +88,19 @@
 #  include "OLAOutput.h"
 #endif
 
+#include "processors/OutputProcessor.h"
+
 /////////////////////////////////////////////////////////////////////////////
 
-#define MAX_CHANNEL_REMAPS  512
-
-typedef struct {
-	int src;
-	int count;
-	int dest;
-	int loops;
-	int active;
-} ChannelRemap;
-
-pthread_mutex_t          remappedChannelsLock;
-ChannelRemap             remappedChannels[MAX_CHANNEL_REMAPS];
-volatile int             channelRemaps       = 0;
 int                      channelOutputCount  = 0;
 unsigned long            channelOutputFrame  = 0;
 float                    mediaElapsedSeconds = 0.0;
 FPPChannelOutputInstance channelOutputs[FPPD_MAX_CHANNEL_OUTPUTS];
 
-/* Some prototypes for helpers below */
-void RemapChannels(char *channelData);
-void PrintRemappedChannels(void);
+static int LoadOutputProcessors(void);
+
+OutputProcessors         outputProcessors;
+
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -252,8 +243,6 @@ int InitializeChannelOutputs(void) {
 
 	channelOutputFrame = 0;
 
-	pthread_mutex_init(&remappedChannelsLock, NULL);
-
 	for (i = 0; i < FPPD_MAX_CHANNEL_OUTPUTS; i++) {
 		bzero(&channelOutputs[i], sizeof(channelOutputs[i]));
 	}
@@ -275,41 +264,10 @@ int InitializeChannelOutputs(void) {
 			LogErr(VB_CHANNELOUT, "ERROR Opening FPD Channel Output\n");
 		}
 	}
-
-	if (((getFPPmode() != BRIDGE_MODE) ||
-		 (getSettingInt("E131Bridging"))) &&
-		 (E131Output.isConfigured()))
-	{
-		channelOutputs[i].startChannel = 0;
-		channelOutputs[i].outputOld  = &E131Output;
-
-		if (E131Output.open("", &channelOutputs[i].privData)) {
-			channelOutputs[i].channelCount = channelOutputs[i].outputOld->maxChannels(channelOutputs[i].privData);
-
-			i++;
-			LogDebug(VB_CHANNELOUT, "Configured E1.31 Channel Output\n");
-		} else {
-			LogErr(VB_CHANNELOUT, "ERROR Opening E1.31 Channel Output\n");
-		}
-	}
-
-	if (ArtNetOutput.isConfigured())
-	{
-		channelOutputs[i].startChannel = 0;
-		channelOutputs[i].outputOld  = &ArtNetOutput;
-
-		if (ArtNetOutput.open("", &channelOutputs[i].privData)) {
-			channelOutputs[i].channelCount = channelOutputs[i].outputOld->maxChannels(channelOutputs[i].privData);
-
-			i++;
-			LogDebug(VB_CHANNELOUT, "Configured ArtNet Channel Output\n");
-		} else {
-			LogErr(VB_CHANNELOUT, "ERROR Opening ArtNet Channel Output\n");
-		}
-	}
-
+    
 	// FIXME, build this list dynamically
 	char *configFiles[] = {
+        "/config/co-universes.json",
 		"/config/channeloutputs.json",
 		"/config/co-other.json",
 		"/config/co-pixelStrings.json",
@@ -396,8 +354,6 @@ int InitializeChannelOutputs(void) {
 				} else if (type == "BBBSerial" && f != 0) {
 					channelOutputs[i].output = new BBBSerialOutput(start, count);
 #endif
-				} else if (type == "DDP") {
-					channelOutputs[i].output = new DDPOutput(start, count);
 				} else if (type == "FBVirtualDisplay") {
 					channelOutputs[i].output = (ChannelOutputBase*)new FBVirtualDisplayOutput(0, FPPD_MAX_CHANNELS);
 				} else if (type == "RHLDVIE131") {
@@ -473,6 +429,8 @@ int InitializeChannelOutputs(void) {
 				} else if (type == "Debug") {
 					channelOutputs[i].output = new DebugOutput(start, count);
 					ChannelOutputJSON2CSV(outputs[c], csvConfig);
+                } else if (type == "universes") {
+                    channelOutputs[i].output = new UDPOutput(start, count);
 				} else {
 					LogErr(VB_CHANNELOUT, "Unknown Channel Output type: %s\n", type.c_str());
 					continue;
@@ -510,7 +468,7 @@ int InitializeChannelOutputs(void) {
 
 	LogDebug(VB_CHANNELOUT, "%d Channel Outputs configured\n", channelOutputCount);
 
-	LoadChannelRemapData();
+	LoadOutputProcessors();
 
 	return 1;
 }
@@ -538,7 +496,7 @@ int SendChannelData(char *channelData) {
 	int i = 0;
 	FPPChannelOutputInstance *inst;
 
-	RemapChannels(channelData);
+    outputProcessors.ProcessData((unsigned char *)channelData);
 
 	if (logMask & VB_CHANNELDATA) {
 		HexDump("Channel Data", channelData, 16);
@@ -618,25 +576,19 @@ int CloseChannelOutputs(void) {
     }
 }
 
-/*
- *
- * NOTE: We subtract 1 from all source and destination channel numbers
- *       because our array is 0-based and the channel numbers start at 1.
- */
-int LoadChannelRemapData(void) {
+
+int LoadOutputProcessors(void) {
 	char filename[1024];
 	Json::Value root;
 	Json::Reader reader;
 
 	strcpy(filename, getMediaDirectory());
-	strcat(filename, "/config/channelremap.json");
-
+	strcat(filename, "/config/outputprocessors.json");
+    
 	if (!FileExists(filename))
 		return 0;
 
-	channelRemaps = 0;
-
-	LogDebug(VB_CHANNELOUT, "Loading Channel Remap data.\n");
+	LogDebug(VB_CHANNELOUT, "Loading Output Processors.\n");
 
 	std::ifstream t(filename);
 	std::stringstream buffer;
@@ -652,155 +604,8 @@ int LoadChannelRemapData(void) {
 		return 0;
 	}
 
-	const Json::Value remaps = root["remaps"];
-
-	for (int i = 0; i < remaps.size(); i++)
-	{
-		remappedChannels[channelRemaps].active = remaps[i]["active"].asInt();
-		remappedChannels[channelRemaps].src = remaps[i]["source"].asInt();
-		remappedChannels[channelRemaps].dest = remaps[i]["destination"].asInt();
-		remappedChannels[channelRemaps].count = remaps[i]["count"].asInt();
-		remappedChannels[channelRemaps].loops = remaps[i]["loops"].asInt();
-
-		if ((remappedChannels[channelRemaps].src + remappedChannels[channelRemaps].count - 1) > FPPD_MAX_CHANNELS) {
-			LogErr(VB_CHANNELOUT, "ERROR: Source (%d) + Count (%d) exceeds max channel count\n",
-				remappedChannels[channelRemaps].src,
-				remappedChannels[channelRemaps].count );
-		} else if ((remappedChannels[channelRemaps].dest + (remappedChannels[channelRemaps].count * remappedChannels[channelRemaps].loops) - 1) > FPPD_MAX_CHANNELS) {
-			LogErr(VB_CHANNELOUT, "ERROR: Source (%d), Destination (%d), Count (%d), and Loops (%d) exceeds max channel count\n",
-				remappedChannels[channelRemaps].src,
-				remappedChannels[channelRemaps].dest,
-				remappedChannels[channelRemaps].count,
-				remappedChannels[channelRemaps].loops);
-		} else {
-			channelRemaps++;
-		}
-	}
-
-	PrintRemappedChannels();
+    outputProcessors.loadFromJSON(root);
 
 	return 1;
-}
-
-/*
- *
- */
-int  AddChannelRemap(int src, int dest, int count, int loops)
-{
-	pthread_mutex_lock(&remappedChannelsLock);
-
-	int found = 0;
-
-	// Account for our zero-based array
-	src--;
-	dest--;
-
-	for (int i = 0; i < channelRemaps; i++)
-	{
-		if ((remappedChannels[channelRemaps].src == src) &&
-			(remappedChannels[channelRemaps].dest == dest) &&
-			(remappedChannels[channelRemaps].count == count) &&
-			(remappedChannels[channelRemaps].loops == loops))
-		{
-			remappedChannels[channelRemaps].active = 1;
-			found = 1;
-		}
-	}
-
-	if (!found)
-	{
-		remappedChannels[channelRemaps].src = src;
-		remappedChannels[channelRemaps].dest = dest;
-		remappedChannels[channelRemaps].count = count;
-		remappedChannels[channelRemaps].loops = loops;
-		remappedChannels[channelRemaps].active = 1;
-		channelRemaps++;
-	}
-
-	pthread_mutex_unlock(&remappedChannelsLock);
-
-	return 1;
-}
-
-/*
- *
- */
-int  RemoveChannelRemap(int src, int dest, int count, int loops)
-{
-	pthread_mutex_lock(&remappedChannelsLock);
-
-	// Account for our zero-based array
-	src--;
-	dest--;
-
-	for (int i = 0; i < channelRemaps; i++)
-	{
-		if ((remappedChannels[channelRemaps].src == src) &&
-			(remappedChannels[channelRemaps].dest == dest) &&
-			(remappedChannels[channelRemaps].count == count) &&
-			(remappedChannels[channelRemaps].loops == loops))
-		{
-			remappedChannels[channelRemaps].active = 0;
-		}
-	}
-
-	pthread_mutex_unlock(&remappedChannelsLock);
-
-	return 1;
-}
-
-/*
- *
- */
-inline void RemapChannels(char *channelData) {
-	int i = 0;
-	ChannelRemap *mptr;
-
-	if (!channelRemaps)
-		return;
-
-	pthread_mutex_lock(&remappedChannelsLock);
-
-	for (i = 0, mptr = &remappedChannels[0]; i < channelRemaps; i++, mptr++) {
-		if (mptr->active) {
-			for (int l = 0; l < mptr->loops; l++)
-			{
-				if (mptr->count > 1) {
-					memcpy(channelData + mptr->dest + (l * mptr->count),
-						   channelData + mptr->src,
-						   mptr->count);
-				} else {
-					channelData[mptr->dest + l] = channelData[mptr->src];
-				}
-			}
-		}
-	}
-
-	pthread_mutex_unlock(&remappedChannelsLock);
-}
-
-/*
- *
- */
-void PrintRemappedChannels(void) {
-	int i = 0;
-	ChannelRemap *mptr;
-
-	if (!channelRemaps) {
-		LogDebug(VB_CHANNELOUT, "No channels are remapped.\n");
-		return;
-	}
-
-	LogDebug(VB_CHANNELOUT, "Remapped Channels:\n");
-	for (i = 0, mptr = &remappedChannels[0]; i < channelRemaps; i++, mptr++) {
-		if (mptr->count > 1) {
-			LogDebug(VB_CHANNELOUT, "  %d-%d => %d-%d (%d total channels copied in %d loop(s))\n",
-				mptr->src, mptr->src + mptr->count - 1,
-				mptr->dest, mptr->dest + (mptr->count * mptr->loops) - 1, (mptr->count * mptr->loops), mptr->loops);
-		} else {
-			LogDebug(VB_CHANNELOUT, "  %d => %d\n",
-				mptr->src + 1, mptr->dest + 1);
-		}
-	}
 }
 

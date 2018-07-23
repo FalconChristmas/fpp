@@ -235,7 +235,7 @@ h2 {
     <div id="tab-audio">
       <div id= "divMusic">
         <fieldset  class="fs">
-          <legend> Music Files (.mp3/.ogg) </legend>
+          <legend> Music Files (.mp3/.ogg/.m4a) </legend>
           <div id="divMusicData">
             <table id="tblMusic">
             </table>
@@ -248,7 +248,7 @@ h2 {
             <input onclick= "DeleteFile('Music', SongNameSelected);" id="btnDeleteMusic" class="disableButtons" type="button"  value="Delete" />
           </div>
           <br />
-          <font size=-1>Audio files must be in MP3 or OGG format.</font>
+          <font size=-1>Audio files must be in MP3, OGG, or M4A format.</font>
         </fieldset>
       </div>
     </div>

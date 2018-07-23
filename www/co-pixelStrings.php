@@ -89,33 +89,51 @@ function pixelOutputTableInputDirection(reverse)
     return result;
 }
 
+function pixelOutputTableInputOrderOption(colorOrder, selectedColorOrder)
+{
+    var result = "<option value='";
+    result += colorOrder;
+    result += "'";
+    if (colorOrder == selectedColorOrder)
+        result += " selected";
+    result += ">" + colorOrder + "</option>";
+    return result;
+}
+
 function pixelOutputTableInputOrder(colorOrder)
 {
     var result = "";
     
     result += "<td>";
-    result += "<select class='vsColorOrder'>";
-    result += "<option value='RGB'>RGB</option>";
-    result += "<option value='RBG'";
-    if (colorOrder == 'RBG')
-        result += " selected";
-    result += ">RBG</option>";
-    result += "<option value='GBR'";
-    if (colorOrder == 'GBR')
-        result += " selected";
-    result += ">GBR</option>";
-    result += "<option value='GRB'";
-    if (colorOrder == 'GRB')
-        result += " selected";
-    result += ">GRB</option>";
-    result += "<option value='BGR'";
-    if (colorOrder == 'BGR')
-        result += " selected";
-    result += ">BGR</option>";
-    result += "<option value='BRG'";
-    if (colorOrder == 'BRG')
-        result += " selected";
-    result += ">BRG</option>";
+    result += "<select class='vsColorOrder' onChange='updateItemEndChannel(this);'>";
+    result += pixelOutputTableInputOrderOption('RGB', colorOrder);
+    result += pixelOutputTableInputOrderOption('RBG', colorOrder);
+    result += pixelOutputTableInputOrderOption('GBR', colorOrder);
+    result += pixelOutputTableInputOrderOption('GRB', colorOrder);
+    result += pixelOutputTableInputOrderOption('BGR', colorOrder);
+    result += pixelOutputTableInputOrderOption('BRG', colorOrder);
+    
+    <?
+    if ($settings['Platform'] == "BeagleBone Black")
+    {
+    ?>
+        result += pixelOutputTableInputOrderOption('RGBW', colorOrder);
+        result += pixelOutputTableInputOrderOption('RBGW', colorOrder);
+        result += pixelOutputTableInputOrderOption('GBRW', colorOrder);
+        result += pixelOutputTableInputOrderOption('GRBW', colorOrder);
+        result += pixelOutputTableInputOrderOption('BGRW', colorOrder);
+        result += pixelOutputTableInputOrderOption('BRGW', colorOrder);
+
+        result += pixelOutputTableInputOrderOption('WRGB', colorOrder);
+        result += pixelOutputTableInputOrderOption('WRBG', colorOrder);
+        result += pixelOutputTableInputOrderOption('WGBR', colorOrder);
+        result += pixelOutputTableInputOrderOption('WGRB', colorOrder);
+        result += pixelOutputTableInputOrderOption('WBGR', colorOrder);
+        result += pixelOutputTableInputOrderOption('WBRG', colorOrder);
+    <?
+    }
+    ?>
+    
     result += "</select>";
     result += "</td>";
     
@@ -209,7 +227,7 @@ function pixelOutputTableRow(type, oid, port, sid, description, startChannel, pi
     result += "<td><input type='text' class='vsStartChannel' size='6' value='" + startChannel + "' onChange='updateItemEndChannel(this);' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
     result += "<td><input type='text' class='vsPixelCount' size='4' value='" + pixelCount + "' onChange='updateItemEndChannel(this);' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
     result += "<td><input type='text' class='vsGroupCount' size='3' value='" + groupCount + "'></td>";
-    result += "<td align='center' class='vsEndChannel'>" + (startChannel + (pixelCount * 3) - 1) + "</td>";
+    result += "<td align='center' class='vsEndChannel'>" + (startChannel + (pixelCount * colorOrder.length) - 1) + "</td>";
     result += pixelOutputTableInputDirection(reverse);
     result += pixelOutputTableInputOrder(colorOrder);
     result += "<td><input type='text' class='vsNullNodes' size='2' value='" + nullCount + "'></td>";
@@ -244,7 +262,9 @@ function setPixelStringsStartChannelOnNextRow()
 function updateRowEndChannel(row) {
     var startChannel = parseInt(row.find('.vsStartChannel').val());
     var pixelCount = parseInt(row.find('.vsPixelCount').val());
-    var newEnd = startChannel + (3 * pixelCount) - 1;
+    var pixelType = row.find('.vsColorOrder').val();
+    var chanPerNode = pixelType.length;
+    var newEnd = startChannel + (chanPerNode * pixelCount) - 1;
     
     row.find('.vsEndChannel').html(newEnd);
 }
@@ -329,6 +349,7 @@ function getPixelStringOutputJSON()
 
 		output.type = MapPixelStringType($this.attr('type'));
         output.subType = MapPixelStringSubType($this.attr('type'));
+        output.pinoutVersion = MapPixelStringSubTypeVersion($this.attr('type'));
 		output.enabled = ($('#' + enableId).is(':checked')) ? 1 : 0;
 		output.startChannel = 1;
 		output.channelCount = -1;

@@ -19,6 +19,9 @@ function MapPixelStringType(type) {
 function MapPixelStringSubType(type) {
     return type;
 }
+function MapPixelStringSubTypeVersion(version) {
+    return $('#BBB48StringSubTypeVersion').val();
+}
 </script>
 
 <?
@@ -29,6 +32,27 @@ include_once('co-pixelStrings.php');
 
 var PixelStringLoaded = false;
 
+
+function GetBBB48StringRequiresVersion() {
+    <?
+    if (strpos($settings['SubPlatform'], 'PocketBeagle') == FALSE)
+    {
+    ?>
+
+    var subType = $('#BBB48StringSubType').val();
+    if (subType == 'F8-B'
+        || subType == 'F8-B-16'
+        || subType == 'F8-B-20'
+        || subType == 'F8-B-EXP'
+        || subType == 'F8-B-EXP-32'
+        || subType == 'F8-B-EXP-36') {
+        return true;
+    }
+    <?
+    }
+    ?>
+    return false;
+}
 
 function GetBBB48StringRows()
 {
@@ -217,9 +241,18 @@ function populatePixelStringOutputs(data) {
         if (type == 'BBB48String') {
             $('#BBB48String_enable').prop('checked', output.enabled);
             var subType = output.subType;
+            var version = output.pinoutVersion;
             $('#BBB48StringSubType').val(subType);
+            $('#BBB48StringSubTypeVersion').val(version);
             SetupBBBSerialPorts();
             
+            if (GetBBB48StringRequiresVersion()) {
+                $('#BBB48StringSubTypeVersion').show();
+                $('#versionTag').show();
+            } else {
+                $('#BBB48StringSubTypeVersion').hide();
+                $('#versionTag').hide();
+            }
 
             $('#pixelOutputs').html("");
             
@@ -403,7 +436,14 @@ $(document).ready(function(){
     }
 ?>
 								</select>
+
 							</td>
+                            <td><b id='versionTag'>Version: </b></td>
+                            <td><select id='BBB48StringSubTypeVersion'>
+                                    <option value='1.x'>1.x</version>
+                                    <option value='2.x'>2.x</version>
+                                </select>
+                            </td>
 						</tr>
 					</table>
 

@@ -102,12 +102,12 @@ int mpg123Output::Start(void)
 	pid_t mpg123Pid = fork();
 	if (mpg123Pid == 0)			// mpg123 process
 	{
-		CloseOpenFiles();
-
 		//mpg123 uses stderr for output
 		dup2(m_childPipe[MEDIAOUTPUTPIPE_WRITE], STDERR_FILENO);
 
 		close(m_childPipe[MEDIAOUTPUTPIPE_WRITE]);
+		CloseOpenFiles();
+
 		m_childPipe[MEDIAOUTPUTPIPE_WRITE] = 0;
 
 		if (mp3Player == MPG123_BINARY)

@@ -44,7 +44,8 @@ extern "C"
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libswresample/swresample.h>
-    
+#include <libswscale/swscale.h>
+
 #include <SDL2/SDL.h>
 }
 
@@ -56,6 +57,7 @@ extern "C"
 #include "SDLOut.h"
 #include "Sequence.h"
 #include "settings.h"
+#include "PixelOverlay.h"
 
 //1/2 second buffers
 #define MAX_BUFFER_SIZE  44100*2
@@ -64,8 +66,14 @@ extern "C"
 //keep a 5 second buffer
 #define ONGOING_BUFFER_MAX  10
 
+//Only keep 30 frames in buffer
+#define VIDEO_FRAME_MAX     30
+
 #define DEFAULT_NUM_SAMPLES 1024
 #define DEFAULT_RATE 44100
+
+
+static bool AudioHasStalled = false;
 
 class AudioBuffer {
 public:
@@ -86,24 +94,76 @@ public:
 };
 
 
+class VideoFrame {
+public:
+    VideoFrame(int ms,  uint8_t *d, int s) : data(d), timestamp(ms), size(s) {
+        next = nullptr;
+    }
+    ~VideoFrame() {
+        free(data);
+    }
+    
+    int timestamp;
+    int size;
+    uint8_t *data;
+    VideoFrame *next;
+};
+
+
+void SetChannelOutputFrameNumber(int frameNumber);
+
+static int64_t MStoDTS(int ms, int dtspersec)
+{
+    return (((int64_t)ms * (int64_t)dtspersec) / (int64_t)1000);
+}
+
+static int DTStoMS(int64_t dts , int dtspersec)
+{
+    return (int)(((int64_t)1000 * dts) / (int64_t)dtspersec);
+}
+
 
 class SDLInternalData {
 public:
     SDLInternalData() : curPos(0) {
         formatContext = nullptr;
-        codecContext = nullptr;
+        audioCodecContext = nullptr;
+        videoCodecContext = nullptr;
         audio_stream_idx = -1;
+        video_stream_idx = -1;
+        videoStream = audioStream = nullptr;
         firstBuffer = lastBuffer = fillBuffer = nullptr;
         curBuffer = nullptr;
         bufferCount = 0;
         doneRead = false;
         frame = av_frame_alloc();
+        scaledFrame = nullptr;
         au_convert_ctx = nullptr;
         decodedDataLen = 0;
+        swsCtx = nullptr;
+        firstVideoFrame = lastVideoFrame = nullptr;
+        curVideoFrame = nullptr;
+        videoFrameCount = 0;
     }
     ~SDLInternalData() {
         if (frame != nullptr) {
             av_free(frame);
+        }
+        if (swsCtx != nullptr) {
+            sws_freeContext(swsCtx);
+            swsCtx = nullptr;
+        }
+        while (firstVideoFrame) {
+            VideoFrame *t = firstVideoFrame;
+            firstVideoFrame = t->next;
+            delete t;
+        }
+        if (scaledFrame != nullptr) {
+            if (scaledFrame->data[0] != nullptr) {
+                av_free(scaledFrame->data[0]);
+            }
+
+            av_free(scaledFrame);
         }
         if (formatContext != nullptr) {
             avformat_close_input(&formatContext);
@@ -120,25 +180,58 @@ public:
     }
     pthread_t fillThread;
     volatile int stopped;
-    AVFormatContext* formatContext;
-    AVCodecContext *codecContext;
-    int audio_stream_idx = -1;
+    AVFormatContext*formatContext;
     AVPacket readingPacket;
     AVFrame* frame;
+    
+    
+    // stuff for the audio stream
+    AVCodecContext *audioCodecContext;
+    int audio_stream_idx = -1;
     AVStream* audioStream;
     SwrContext *au_convert_ctx;
-
     AudioBuffer *firstBuffer;
     AudioBuffer * volatile curBuffer;
     AudioBuffer *lastBuffer;
     AudioBuffer *fillBuffer;
     int bufferCount;
-    bool doneRead;
-    std::atomic_uint curPos;
     unsigned int totalDataLen;
     unsigned int decodedDataLen;
     float totalLen;
+
+    // stuff for the video stream
+    AVCodecContext *videoCodecContext;
+    int video_stream_idx = -1;
+    AVStream* videoStream;
+    int video_dtspersec;
+    int video_frames;
+    AVFrame* scaledFrame;
+    SwsContext *swsCtx;
+    VideoFrame *firstVideoFrame;
+    VideoFrame *lastVideoFrame;
+    volatile VideoFrame *curVideoFrame;
+    int videoFrameCount;
+    unsigned int totalVideoLen;
+    long long videoStartTime;
+    std::string videoOverlayModel;
     
+    
+    bool doneRead;
+    std::atomic_uint curPos;
+    
+    
+    void addVideoFrame(int ms, uint8_t *d, int sz) {
+        VideoFrame *f = new VideoFrame(ms, d, sz);
+        if (firstVideoFrame == nullptr) {
+            curVideoFrame = f;
+            firstVideoFrame = f;
+            lastVideoFrame = f;
+        } else {
+            lastVideoFrame->next = f;
+            lastVideoFrame = f;
+        }
+        ++videoFrameCount;
+    }
     void addBuffer(AudioBuffer *b) {
         b->size = b->pos;
         b->pos = 0;
@@ -148,6 +241,12 @@ public:
         }
         
         if (lastBuffer == nullptr) {
+            while (firstBuffer != nullptr) {
+                AudioBuffer *tmp = firstBuffer;
+                --bufferCount;
+                firstBuffer = tmp->next;
+                delete tmp;
+            }
             firstBuffer = b;
             curBuffer = b;
             lastBuffer = b;
@@ -157,26 +256,38 @@ public:
         }
         bufferCount++;
     }
-    bool maybeFillBuffer(bool first) {
+    void removeUsedBuffers() {
         while (firstBuffer != curBuffer) {
             AudioBuffer *tmp = firstBuffer;
-            --bufferCount;
             firstBuffer = tmp->next;
+            --bufferCount;
             delete tmp;
         }
-        if (doneRead || bufferCount > 30) {
-            //have ~30 seconds of audio already buffered, don't so anything
+        while (firstVideoFrame && curVideoFrame && (firstVideoFrame != curVideoFrame)) {
+            VideoFrame *tmp = firstVideoFrame;
+            firstVideoFrame = firstVideoFrame->next;
+            --videoFrameCount;
+            delete tmp;
+        }
+    }
+    bool maybeFillBuffer(bool first) {
+        removeUsedBuffers();
+        
+        if (doneRead || bufferCount > 30 || videoFrameCount > VIDEO_FRAME_MAX) {
+            //buffers are full, don't so anything
+            if (AudioHasStalled) LogWarn(VB_MEDIAOUT, "Stalled audio, buffers are full.  %d\n", doneRead);
             return doneRead;
         }
-        
+        if (AudioHasStalled) LogWarn(VB_MEDIAOUT, "Stalled audio, buffers still filling.  %X\n", fillBuffer);
+
         if (fillBuffer == nullptr) {
             fillBuffer = new AudioBuffer();
         }
         bool newBuf = false;
         while (av_read_frame(formatContext, &readingPacket) == 0) {
-            if (readingPacket.stream_index == audioStream->index) {
-                while (avcodec_send_packet(codecContext, &readingPacket)) {
-                    while (!avcodec_receive_frame(codecContext, frame)) {
+            if (readingPacket.stream_index == audio_stream_idx) {
+                while (avcodec_send_packet(audioCodecContext, &readingPacket)) {
+                    while (!avcodec_receive_frame(audioCodecContext, frame)) {
                         int sz = frame->nb_samples * 2 * 2;
                         if ((sz + fillBuffer->pos) >= fillBuffer->size) {
                             addBuffer(fillBuffer);
@@ -198,26 +309,66 @@ public:
                     av_packet_unref(&readingPacket);
                     return doneRead;
                 }
+            } else if (readingPacket.stream_index == video_stream_idx) {
+                while (avcodec_send_packet(videoCodecContext, &readingPacket)) {
+                    while (!avcodec_receive_frame(videoCodecContext, frame)) {
+                        int ms = DTStoMS(frame->pkt_dts, video_dtspersec);
+                       
+                        if (swsCtx) {
+                            sws_scale(swsCtx, frame->data, frame->linesize, 0,
+                                      videoCodecContext->height, scaledFrame->data,
+                                      scaledFrame->linesize);
+                        
+                            int sz = scaledFrame->linesize[0] * scaledFrame->height;
+                            uint8_t *d = (uint8_t*)malloc(sz);
+                            memcpy(d, scaledFrame->data[0], sz);
+                            addVideoFrame(ms, d, sz);
+                        } else {
+                            int sz = frame->linesize[0] * frame->height;
+                            uint8_t *d = (uint8_t*)malloc(sz);
+                            memcpy(d, frame->data[0], sz);
+                            addVideoFrame(ms, d, sz);
+                        }
+                        av_frame_unref(frame);
+                    }
+                }
+                if (videoFrameCount > VIDEO_FRAME_MAX) {
+                    av_packet_unref(&readingPacket);
+                    return doneRead;
+                }
             }
             av_packet_unref(&readingPacket);
         }
-        while (!avcodec_receive_frame(codecContext, frame)) {
-            int sz = frame->nb_samples * 2 * 2;
-            if ((sz + fillBuffer->pos) >= fillBuffer->size) {
-                addBuffer(fillBuffer);
-                fillBuffer = new AudioBuffer();
-            }
+        if (audio_stream_idx != -1) {
+            while (!avcodec_receive_frame(audioCodecContext, frame)) {
+                int sz = frame->nb_samples * 2 * 2;
+                if ((sz + fillBuffer->pos) >= fillBuffer->size) {
+                    addBuffer(fillBuffer);
+                    fillBuffer = new AudioBuffer();
+                }
 
-            uint8_t* out_buffer = &fillBuffer->data[fillBuffer->pos];
-            int outSamples = swr_convert(au_convert_ctx,
-                                         &out_buffer,
-                                         (fillBuffer->size - fillBuffer->pos) / 4,
-                                         (const uint8_t **)frame->extended_data, frame->nb_samples);
-            av_frame_unref(frame);
-            fillBuffer->pos += (outSamples * 2 * 2);
-            decodedDataLen += (outSamples * 2 * 2);
-            if (bufferCount > (first ? INITIAL_BUFFER_MAX : ONGOING_BUFFER_MAX)) {
-                return doneRead;
+                uint8_t* out_buffer = &fillBuffer->data[fillBuffer->pos];
+                int outSamples = swr_convert(au_convert_ctx,
+                                             &out_buffer,
+                                             (fillBuffer->size - fillBuffer->pos) / 4,
+                                             (const uint8_t **)frame->extended_data, frame->nb_samples);
+                av_frame_unref(frame);
+                fillBuffer->pos += (outSamples * 2 * 2);
+                decodedDataLen += (outSamples * 2 * 2);
+            }
+        }
+        if (video_stream_idx != -1) {
+            while (!avcodec_receive_frame(videoCodecContext, frame)) {
+                int ms = DTStoMS(frame->pkt_dts, video_dtspersec);
+                sws_scale(swsCtx, frame->data, frame->linesize, 0,
+                          videoCodecContext->height, scaledFrame->data,
+                          scaledFrame->linesize);
+                
+                int sz = scaledFrame->linesize[0] * scaledFrame->height;
+                uint8_t *d = (uint8_t*)malloc(sz);
+                memcpy(d, scaledFrame->data[0], sz);
+                addVideoFrame(ms, d, sz);
+                av_frame_unref(frame);
             }
         }
         totalDataLen = decodedDataLen;
@@ -239,8 +390,6 @@ static int open_codec_context(int *stream_idx,
     AVDictionary *opts = NULL;
     ret = av_find_best_stream(fmt_ctx, type, -1, -1, NULL, 0);
     if (ret < 0) {
-        fprintf(stderr, "Could not find %s stream in input file '%s'\n",
-                av_get_media_type_string(type), src_filename.c_str());
         return ret;
     } else {
         stream_index = ret;
@@ -298,14 +447,23 @@ public:
     SDL() : data(nullptr), _state(SDLSTATE::SDLUNINITIALISED) {}
     virtual ~SDL();
     
-    void Start(SDLInternalData *d) {
-        initSDL();
-        openAudio();
+    bool Start(SDLInternalData *d) {
+        if (!initSDL()) {
+            return false;
+        }
+        if (!openAudio()) {
+            return false;
+        }
         if (_state != SDLSTATE::SDLINITIALISED && _state != SDLSTATE::SDLUNINITIALISED) {
             data = d;
             SDL_PauseAudio(0);
+
+            long long t = GetTime() / 1000;
+            data->videoStartTime = t;
             _state = SDLSTATE::SDLPLAYING;
+            return true;
         }
+        return false;
     }
     void Stop() {
         if (_state == SDLSTATE::SDLPLAYING) {
@@ -322,8 +480,8 @@ public:
         }
     }
     
-    void initSDL();
-    void openAudio();
+    bool initSDL();
+    bool openAudio();
 
     SDLInternalData *data;
     
@@ -334,9 +492,11 @@ static SDL sdlManager;
 
 
 void fill_audio(void *udata, Uint8 *stream, int len) {
+
     if (sdlManager.data != nullptr) {
         AudioBuffer *buf = sdlManager.data->curBuffer;
         if (buf == nullptr) {
+            if (AudioHasStalled) LogWarn(VB_MEDIAOUT, "Stalled, but no buffer  %d\n", sdlManager.data->doneRead);
             SDL_memset(stream, 0, len);
             return;
         }
@@ -356,6 +516,8 @@ void fill_audio(void *udata, Uint8 *stream, int len) {
                 sdlManager.data->curBuffer = buf;
                 SDL_memset(&stream[sp], 0, len);
                 if (buf == nullptr) {
+                    if (AudioHasStalled) LogWarn(VB_MEDIAOUT, "Stalled, but last buffer hit\n");
+                    sdlManager.data->lastBuffer = nullptr;
                     return;
                 }
             }
@@ -366,7 +528,7 @@ void fill_audio(void *udata, Uint8 *stream, int len) {
 }
 
 
-void SDL::initSDL()  {
+bool SDL::initSDL()  {
     if (_state == SDLSTATE::SDLUNINITIALISED) {
         if (!SDL_getenv("SDL_AUDIO_ALSA_SET_BUFFER_SIZE")) {
             SDL_setenv("SDL_AUDIO_ALSA_SET_BUFFER_SIZE", "1", true);
@@ -374,12 +536,14 @@ void SDL::initSDL()  {
         
         if (SDL_Init(SDL_INIT_AUDIO | SDL_INIT_TIMER))
         {
-            return;
+            LogErr(VB_MEDIAOUT, "Could not initialize SDL - %s\n", SDL_GetError());
+            return false;
         }
         _state = SDLSTATE::SDLINITIALISED;
     }
+    return true;
 }
-void SDL::openAudio() {
+bool SDL::openAudio() {
     if (_state == SDLSTATE::SDLINITIALISED) {
         _initialisedRate = DEFAULT_RATE;
         
@@ -393,20 +557,43 @@ void SDL::openAudio() {
         
         if (SDL_OpenAudio(&_wanted_spec, nullptr) < 0)
         {
-            return;
+            LogErr(VB_MEDIAOUT, "Could not open audio device - %s\n", SDL_GetError());
+            return false;
         }
         
         _state = SDLSTATE::SDLOPENED;
     }
+    return true;
 }
 SDL::~SDL() {
     Stop();
     Close();
-    if (_state != SDLSTATE::SDLUNINITIALISED)
-    {
+    if (_state != SDLSTATE::SDLUNINITIALISED) {
         SDL_Quit();
     }
 }
+
+bool SDLOutput::IsOverlayingVideo() {
+    return sdlManager.data && sdlManager.data->video_stream_idx != -1 && !sdlManager.data->stopped;
+}
+bool SDLOutput::ProcessVideoOverlay(unsigned int msTimestamp) {
+    if (sdlManager.data && !sdlManager.data->stopped && sdlManager.data->curVideoFrame) {
+        while (sdlManager.data->curVideoFrame->next
+               && sdlManager.data->curVideoFrame->next->timestamp <= msTimestamp) {
+            sdlManager.data->curVideoFrame = sdlManager.data->curVideoFrame->next;
+        }
+        if (msTimestamp <= sdlManager.data->totalVideoLen) {
+            VideoFrame *vf = (VideoFrame*)sdlManager.data->curVideoFrame;
+            
+            long long t = GetTime() / 1000;
+            int t2 = ((int)t) - sdlManager.data->videoStartTime;
+            
+            //printf("v:  %d  %d      %d        %d\n", msTimestamp, vf->timestamp, t2, sdlManager.data->videoFrameCount);
+            SetPixelOverlayData(sdlManager.data->videoOverlayModel, vf->data);
+        }
+    }
+}
+
 
 void CancelRoutine(void *arg) {
 }
@@ -434,7 +621,8 @@ static std::string currentMediaFilename;
 static void LogCallback(void *     avcl,
                         int     level,
                         const char *     fmt,
-                        va_list     vl) {
+                        va_list     vl)
+{
     pthread_testcancel();
     
     static int print_prefix = 1;
@@ -460,52 +648,75 @@ static void LogCallback(void *     avcl,
 /*
  *
  */
-SDLOutput::SDLOutput(const std::string &mediaFilename, MediaOutputStatus *status)
+SDLOutput::SDLOutput(const std::string &mediaFilename,
+                     MediaOutputStatus *status,
+                     const std::string &videoOutput)
 {
 	LogDebug(VB_MEDIAOUT, "SDLOutput::SDLOutput(%s)\n",
 		mediaFilename.c_str());
     data = nullptr;
-    
+    m_mediaOutputStatus = status;
+    m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
+
+    if (sdlManager.blacklisted.find(mediaFilename) != sdlManager.blacklisted.end()) {
+        currentMediaFilename = "";
+        LogErr(VB_MEDIAOUT, "%s has been blacklisted!\n", mediaFilename.c_str());
+        return;
+    }
     std::string fullAudioPath = mediaFilename;
     if (!FileExists(mediaFilename.c_str())) {
         fullAudioPath = getMusicDirectory();
         fullAudioPath += "/";
         fullAudioPath += mediaFilename;
     }
-
-    if (!FileExists(fullAudioPath.c_str()))
-    {
-        LogErr(VB_MEDIAOUT, "%s does not exist!\n", fullAudioPath.c_str());
-        return;
+    if (!FileExists(fullAudioPath.c_str())) {
+        fullAudioPath = getVideoDirectory();
+        fullAudioPath += "/";
+        fullAudioPath += mediaFilename;
     }
-    
-    if (sdlManager.blacklisted.find(fullAudioPath) != sdlManager.blacklisted.end()) {
-        LogErr(VB_MEDIAOUT, "%s has been blacklisted!\n", fullAudioPath.c_str());
+    if (!FileExists(fullAudioPath.c_str())) {
+        LogErr(VB_MEDIAOUT, "%s does not exist!\n", fullAudioPath.c_str());
+        currentMediaFilename = "";
         return;
     }
     currentMediaFilename = mediaFilename;
 	m_mediaFilename = fullAudioPath;
-	m_mediaOutputStatus = status;
     
     av_log_set_flags(AV_LOG_SKIP_REPEATED);
     av_log_set_callback(LogCallback);
     
     data = new SDLInternalData();
-
     
     // Initialize FFmpeg codecs
     av_register_all();
     int res = avformat_open_input(&data->formatContext, m_mediaFilename.c_str(), nullptr, nullptr);
-    if (avformat_find_stream_info(data->formatContext, nullptr) < 0)
-    {
+    if (avformat_find_stream_info(data->formatContext, nullptr) < 0) {
         LogErr(VB_MEDIAOUT, "Could not find suitable input stream!\n");
         avformat_close_input(&data->formatContext);
         data->formatContext = nullptr;
+        currentMediaFilename = "";
         return;
     }
 
-    if (open_codec_context(&data->audio_stream_idx, &data->codecContext, data->formatContext, AVMEDIA_TYPE_AUDIO, m_mediaFilename) >= 0) {
+    if (open_codec_context(&data->audio_stream_idx, &data->audioCodecContext, data->formatContext, AVMEDIA_TYPE_AUDIO, m_mediaFilename) >= 0) {
         data->audioStream = data->formatContext->streams[data->audio_stream_idx];
+    } else {
+        data->audioStream = nullptr;
+        data->audio_stream_idx = -1;
+    }
+    int videoOverlayWidth, videoOverlayHeight;
+    if (videoOutput != "--Disabled--" && videoOutput != "" && videoOutput != "--HDMI--") {
+        data->videoOverlayModel = videoOutput;
+        if (GetPixelOverlayModelSize(videoOutput, videoOverlayWidth, videoOverlayHeight) &&
+            open_codec_context(&data->video_stream_idx, &data->videoCodecContext, data->formatContext, AVMEDIA_TYPE_VIDEO, m_mediaFilename) >= 0) {
+            data->videoStream = data->formatContext->streams[data->video_stream_idx];
+        } else {
+            data->videoStream = nullptr;
+            data->video_stream_idx = -1;
+        }
+    } else {
+        data->videoStream = nullptr;
+        data->video_stream_idx = -1;
     }
     //av_dump_format(data->formatContext, 0, m_mediaFilename.c_str(), 0);
     
@@ -518,29 +729,76 @@ SDLOutput::SDLOutput(const std::string &mediaFilename, MediaOutputStatus *status
     m_mediaOutputStatus->secondsTotal = secs;
     m_mediaOutputStatus->minutesTotal = mins;
     
-    int64_t in_channel_layout = av_get_default_channel_layout(data->codecContext->channels);
+    if (data->audio_stream_idx != -1) {
+        int64_t in_channel_layout = av_get_default_channel_layout(data->audioCodecContext->channels);
+
+        uint64_t out_channel_layout = AV_CH_LAYOUT_STEREO;
+        AVSampleFormat out_sample_fmt = AV_SAMPLE_FMT_S16;
+        int out_sample_rate = DEFAULT_RATE;
+        
+        data->au_convert_ctx = swr_alloc_set_opts(nullptr,
+                                            out_channel_layout, out_sample_fmt, out_sample_rate,
+                                            in_channel_layout, data->audioCodecContext->sample_fmt, data->audioCodecContext->sample_rate, 0, nullptr);
+        swr_init(data->au_convert_ctx);
+        
+        //get an estimate of the total length
+        float d = duration / AV_TIME_BASE;
+        float usf = (100 * us);
+        usf /= (float)AV_TIME_BASE;
+        usf /= 100.0f;
+        d += usf;
+        data->totalLen = d;
+        data->totalDataLen = d * DEFAULT_RATE * 2 * 2;
+    }
+    if (data->video_stream_idx != -1) {
+        data->video_frames = (long)data->videoStream->nb_frames;
+        data->video_dtspersec = (int)(((int64_t)data->videoStream->duration * (int64_t)data->videoStream->avg_frame_rate.num) / ((int64_t)data->video_frames * (int64_t)data->videoStream->avg_frame_rate.den));
+        
+        int lengthMS = (int)(((uint64_t)data->video_frames * (uint64_t)data->videoStream->avg_frame_rate.den * 1000) / (uint64_t)data->videoStream->avg_frame_rate.num);
+        if ((lengthMS <= 0 || data->video_frames <= 0) && data->videoStream->avg_frame_rate.den != 0) {
+            lengthMS = (int)((uint64_t)data->formatContext->duration * (uint64_t)data->videoStream->avg_frame_rate.num / (uint64_t)data->videoStream->avg_frame_rate.den);
+            data->video_frames = lengthMS  * (uint64_t)data->videoStream->avg_frame_rate.num / (uint64_t)(data->videoStream->avg_frame_rate.den) / 1000;
+        }
+
+        data->totalVideoLen = lengthMS;
+
+        SetPixelOverlayState(data->videoOverlayModel, "Enabled");
+        
+        data->scaledFrame = av_frame_alloc();
     
-    uint64_t out_channel_layout = AV_CH_LAYOUT_STEREO;
-    AVSampleFormat out_sample_fmt = AV_SAMPLE_FMT_S16;
-    int out_sample_rate = DEFAULT_RATE;
     
-    data->au_convert_ctx = swr_alloc_set_opts(nullptr,
-                                        out_channel_layout, out_sample_fmt, out_sample_rate,
-                                        in_channel_layout, data->codecContext->sample_fmt, data->codecContext->sample_rate, 0, nullptr);
-    swr_init(data->au_convert_ctx);
+        data->scaledFrame->width = videoOverlayWidth;
+        data->scaledFrame->height = videoOverlayHeight;
     
-    //get an estimate of the total length
-    float d = duration / AV_TIME_BASE;
-    float usf = (100 * us);
-    usf /= (float)AV_TIME_BASE;
-    usf /= 100.0f;
-    d += usf;
-    data->totalLen = d;
-    data->totalDataLen = d * DEFAULT_RATE * 2 * 2;
+        data->scaledFrame->linesize[0] = data->scaledFrame->width * 3;
+        data->scaledFrame->data[0] = (uint8_t *)av_malloc(data->scaledFrame->width * data->scaledFrame->height * 3 * sizeof(uint8_t));
+    
+        data->swsCtx = sws_getContext(data->videoCodecContext->width,
+                                      data->videoCodecContext->height,
+                                      data->videoCodecContext->pix_fmt,
+                                      data->scaledFrame->width, data->scaledFrame->height,
+                                      AVPixelFormat::AV_PIX_FMT_RGB24, SWS_BICUBIC, nullptr,
+                                      nullptr, nullptr);
+    }
+
     data->maybeFillBuffer(true);
     data->stopped = 0;
-    
-    pthread_create(&data->fillThread, nullptr, BufferFillThread, (void *)data);
+
+    pthread_attr_t attr;
+    int s = pthread_attr_init(&attr);
+    if (s != 0)
+        LogWarn(VB_MEDIAOUT, "pthread_attr_init: %d\n", s);
+    s = pthread_attr_setstacksize(&attr, 2*1024*1024); //2MB
+    if (s != 0)
+        LogWarn(VB_MEDIAOUT, "pthread_attr_setstacksize: %d\n", s);
+    s = pthread_create(&data->fillThread, &attr, BufferFillThread, (void *)data);
+    if (s) {
+        data->fillThread = -1;
+        LogWarn(VB_MEDIAOUT, "Decode thread not started   %X\n", s);
+    } else {
+        pthread_setname_np(data->fillThread, "Decode Thread");
+    }
+    pthread_attr_destroy(&attr);
 }
 
 /*
@@ -560,19 +818,27 @@ SDLOutput::~SDLOutput()
  */
 int SDLOutput::Start(void)
 {
-	LogDebug(VB_MEDIAOUT, "SDLOutput::Start() %d\n", data == nullptr);
+	LogDebug(VB_MEDIAOUT, "SDLOutput::Start() %X\n", data);
     if (data) {
-        sdlManager.Start(data);
+        SetChannelOutputFrameNumber(0);
+        if (!sdlManager.Start(data)) {
+            m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
+            Stop();
+            return 0;
+        }
         m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_PLAYING;
-    } else {
-        m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
+        return 1;
     }
-	return 1;
+    m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
+    return 0;
 }
 
 /*
  *
  */
+static int ProcessCount = 0;
+static float lastCurTime = 0;
+
 int SDLOutput::Process(void)
 {
     if (!data) {
@@ -580,39 +846,90 @@ int SDLOutput::Process(void)
     }
     static int lastRemoteSync = 0;
     
-    float curtime = data->curPos;
-    if (curtime > 0) {
-        //we've sent DEFAULT_NUM_SAMPLES to the audio, but on
-        //average, only half have been played yet, but no way to really
-        //tell so we'll use the average
-        curtime -= ((DEFAULT_NUM_SAMPLES * 2 * 2)/ 2);
+    if (data->stopped) {
+        //read thread is done, we need to do any frame cleanups
+        data->removeUsedBuffers();
+        
+        if (data->fillThread) {
+            //need to "join" the thread to release resources
+            pthread_join(data->fillThread, NULL);
+            data->fillThread = 0;
+        }
     }
-    curtime /= DEFAULT_RATE; //samples per sec
-    curtime /= 4; //4 bytes per sample
-    
-    m_mediaOutputStatus->mediaSeconds = curtime;
 
-    float ss, s;
-    ss = std::modf( m_mediaOutputStatus->mediaSeconds, &s);
-    m_mediaOutputStatus->secondsElapsed = s;
-    ss *= 100;
-    m_mediaOutputStatus->subSecondsElapsed = ss;
+    if (data->audio_stream_idx != -1) {
+        //if we have an audio stream, that drives everything
+        float curtime = data->curPos;
+        if (curtime > 0) {
+            //we've sent DEFAULT_NUM_SAMPLES to the audio, but on
+            //average, only half have been played yet, but no way to really
+            //tell so we'll use the average
+            curtime -= ((DEFAULT_NUM_SAMPLES * 2 * 2)/ 2);
+        }
+        
+        if (lastCurTime == curtime) {
+            ProcessCount++;
+            if (ProcessCount >= 50) {
+                LogWarn(VB_MEDIAOUT, "Audio has stalled   %d\n", data->doneRead);
+                AudioHasStalled = true;
+                ProcessCount = 0;
+            }
+        } else {
+            AudioHasStalled = false;
+            ProcessCount = 0;
+        }
+        lastCurTime = curtime;
+        
+        curtime /= DEFAULT_RATE; //samples per sec
+        curtime /= 4; //4 bytes per sample
+        
+        m_mediaOutputStatus->mediaSeconds = curtime;
 
-    float rem = data->totalLen - m_mediaOutputStatus->mediaSeconds;
-    ss = std::modf( rem, &s);
-    m_mediaOutputStatus->secondsRemaining = s;
-    ss *= 100;
-    m_mediaOutputStatus->subSecondsRemaining = ss;
+        float ss, s;
+        ss = std::modf( m_mediaOutputStatus->mediaSeconds, &s);
+        m_mediaOutputStatus->secondsElapsed = s;
+        ss *= 100;
+        m_mediaOutputStatus->subSecondsElapsed = ss;
 
-    
-    if (data->curBuffer == nullptr) {
-        m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
+        float rem = data->totalLen - m_mediaOutputStatus->mediaSeconds;
+        ss = std::modf( rem, &s);
+        m_mediaOutputStatus->secondsRemaining = s;
+        ss *= 100;
+        m_mediaOutputStatus->subSecondsRemaining = ss;
+
+        if (data->curBuffer == nullptr && data->doneRead) {
+            m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
+        }
+    } else if (data->video_stream_idx != -1) {
+        //no audio stream, attempt data from video stream
+        float total = data->totalVideoLen;
+        total /= 1000.0;
+
+        long long curTime = GetTime() / 1000;
+        float elapsed = curTime - data->videoStartTime;
+        elapsed /= 1000;
+        float remaining = total - elapsed;
+        
+        m_mediaOutputStatus->mediaSeconds = elapsed;
+        
+        float ss, s;
+        ss = std::modf(elapsed, &s);
+        ss *= 100;
+        m_mediaOutputStatus->secondsElapsed = s;
+        m_mediaOutputStatus->subSecondsElapsed = ss;
+        
+        ss = std::modf(remaining, &s);
+        ss *= 100;
+        m_mediaOutputStatus->secondsRemaining = s;
+        m_mediaOutputStatus->subSecondsRemaining = ss;
+        
+        if (remaining < 0.0 && data->doneRead) {
+            m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
+        }
     }
-    if (getFPPmode() == MASTER_MODE)
-    {
+    if (getFPPmode() == MASTER_MODE) {
         if ((m_mediaOutputStatus->secondsElapsed > 0) &&
-            (lastRemoteSync != m_mediaOutputStatus->secondsElapsed))
-        {
+            (lastRemoteSync != m_mediaOutputStatus->secondsElapsed)) {
             multiSync->SendMediaSyncPacket(m_mediaFilename.c_str(), 0,
                                 m_mediaOutputStatus->mediaSeconds);
             lastRemoteSync = m_mediaOutputStatus->secondsElapsed;
@@ -620,8 +937,7 @@ int SDLOutput::Process(void)
     }
     
     if ((sequence->IsSequenceRunning()) &&
-        (m_mediaOutputStatus->secondsElapsed > 0))
-    {
+        (m_mediaOutputStatus->secondsElapsed > 0)) {
         LogExcess(VB_MEDIAOUT,
                   "Elapsed: %.2d.%.2d  Remaining: %.2d Total %.2d:%.2d.\n",
                   m_mediaOutputStatus->secondsElapsed,
@@ -629,12 +945,12 @@ int SDLOutput::Process(void)
                   m_mediaOutputStatus->secondsRemaining,
                   m_mediaOutputStatus->minutesTotal,
                   m_mediaOutputStatus->secondsTotal);
-        
         CalculateNewChannelOutputDelay(m_mediaOutputStatus->mediaSeconds);
     }
-	return 1;
+	return m_mediaOutputStatus->status == MEDIAOUTPUTSTATUS_PLAYING;
 }
-int SDLOutput::IsPlaying(void) {
+int SDLOutput::IsPlaying(void)
+{
     return m_mediaOutputStatus->status == MEDIAOUTPUTSTATUS_PLAYING;
 }
 
@@ -651,16 +967,20 @@ int SDLOutput::Stop(void)
 {
 	LogDebug(VB_MEDIAOUT, "SDLOutput::Stop()\n");
     sdlManager.Stop();
-    if (data && !data->stopped) {
+    if (data && data->video_stream_idx >= 0) {
+        FillPixelOverlayModel(data->videoOverlayModel, 0, 0, 0);
+        SetPixelOverlayState(data->videoOverlayModel, "Disabled");
+    }
+    if (data) {
         data->stopped++;
         timespec tv;
         time(&tv.tv_sec);
         
-        tv.tv_sec += 1;
+        tv.tv_sec += 15;
         tv.tv_nsec = 0;
-        //wait up to a second
-        if (pthread_timedjoin_np( data->fillThread, NULL, &tv) == ETIMEDOUT) {
-            printf("joining didn't work\n");
+        //wait up to 15 seconds
+        if (pthread_timedjoin_np(data->fillThread, NULL, &tv) == ETIMEDOUT) {
+            LogWarn(VB_MEDIAOUT, "Joining thread didn't work\n");
             //cancel the thread, nothing we can do now
             pthread_cancel(data->fillThread);
             sdlManager.blacklisted.insert(m_mediaFilename);
@@ -670,4 +990,6 @@ int SDLOutput::Stop(void)
 	m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
 	return 1;
 }
+
+
 

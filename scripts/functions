@@ -134,19 +134,13 @@ SetupFPPNetworkConfigViaConnMann() {
         cp $TMPFILE /var/lib/connman/fpp.config
     fi
 
-    connmanctl services > /tmp/services.txt
+    # connmanctl services > /tmp/services.txt
 }
 
 
 #############################################################################
 # Create our version of /etc/network/interfaces and wpa_supplicant.conf files
-SetupFPPNetworkConfig () {
-    if [ -f "/usr/bin/connmanctl" -o -f "/usr/sbin/connmanctl" ]
-    then
-        SetupFPPNetworkConfigViaConnMann
-        return
-    fi
-
+SetupFPPNetworkConfigViaInterfaces () {
 
 	if [ ! -f "${FPPHOME}/media/config/interface.eth0" -a ! -f "${FPPHOME}/media/config/interface.wlan0" ]
 	then
@@ -316,23 +310,22 @@ SetupFPPNetworkConfig () {
 			ifdown wlan0 > /dev/null 2>&1
 		fi
 	fi
+}
+SetupFPPNetworkConfig () {
+    if [ -f "/usr/bin/connmanctl" -o -f "/usr/sbin/connmanctl" ]
+    then
+        SetupFPPNetworkConfigViaConnMann
+    else
+        SetupFPPNetworkConfigViaInterfaces
+    fi
 
-	ENABLEROUTING=$(getSetting EnableRouting)
+    ENABLEROUTING=$(getSetting EnableRouting)
 	if [ "x${ENABLEROUTING}" = "x1" ]
 	then
-		# Remove all ip_forward lines in case there is an "= 0" line
-		sed -i "/Enable Routing/d" /etc/sysctl.conf
-		sed -i "/net.ipv4.ip_forward/d" /etc/sysctl.conf
-
-		# Add in a line to enable forwarding
-		echo "# Enable Routing" >> /etc/sysctl.conf
-		echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
+		sysctl -w net.ipv4.ip_forward=1
 	else
-		# Remote any ip_forward line we put in
-		sed -i "/Enable Routing/d" /etc/sysctl.conf
-		sed -i "/net.ipv4.ip_forward = 1/d" /etc/sysctl.conf
+        sysctl -w net.ipv4.ip_forward=0
 	fi
-	sysctl --system
 }
 
 #############################################################################

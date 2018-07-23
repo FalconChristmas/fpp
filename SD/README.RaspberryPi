@@ -3,7 +3,7 @@ Instructions for creating a new FPP SD image package for the Raspberry Pi
 =============================================================================
 
 Install the latest Raspbian Stretch Lite image to the SD card.  The last
-version tested is 2018-03-13-raspbian-stretch-lite.zip
+version tested is 2018-06-27-raspbian-stretch-lite.zip
 
 Resize the root partition to 2.4GiB using fdisk (substitute the proper device
 for your SD card).
@@ -89,7 +89,7 @@ the proper device name for your SD card in place of '/dev/sdg'):
 	NOTE: The 3000 on the "BLOCK=" line below must match the new size of the
 	      second partition created at the top of this document using fdisk.
 
-	VERSION=v1.x-Pi
+	VERSION=v2.x-Pi
 	BLOCKS=$(echo "(50 + 3000) / 4" | bc)
 	sudo time dd if=/dev/sdg bs=4M count=${BLOCKS} > FPP-${VERSION}.img
 	time zip -9 FPP-$VERSION.zip FPP-${VERSION}.img
@@ -113,8 +113,11 @@ sudo apt-get update
 sudo apt-get -y install btrfs-tools btrfs-progs
 
 # append "btrfs" to /etc/initramfs-tools/modules
+echo "btrfs" | sudo tee -a /etc/initramfs-tools/modules
 
-sudo rpi-update
+#make sure we have the latest supported bootloader and kernel
+sudo apt-get dist-upgrade -y
+sudo apt-get install --reinstall raspberrypi-bootloader raspberrypi-kernel
 
 sudo update-initramfs -c -k `uname -r`
 

@@ -1,41 +1,86 @@
 # FPP BBB Images creation notes (work in progress)
 #
 # FPP images are currently based on the following Debian BeagleBone images:
-# bone-debian-9.3-iot-armhf-2018-03-05-4gb.img
+# bone-debian-9.4-console-armhf-2018-06-17-1gb.img
+# from https://rcn-ee.com/rootfs/bb.org/testing/2018-06-17/stretch-console/
 #
 # The below steps (much can be run via copy/paste into a terminal) will
 # prepare the "clean image" from above to have the appropriate 
 # dependencies installed, kernel updated, bootloaders, etc... ready
 # to run the FPP_Install script.    At this point, parts of it
-# require editing of text files with vim/nano.  In particular the
+# require editing of text files with nano.  In particular the
 # /boot/uEnv.txt file and the various files in /lib/systemd/system
 #
 # Make sure you read all the comment in this file and follow 
 # any instructions they may specify.
 #
-# After all the steps in this file is compile, reboot and then run
-# the FPP_Install_BBB.sh script
+# This NEEDS to be done on a Beaglebone Black variant that
+# contains an eMMC (so not a PocketBeagle) and it will wipe out
+# the contents of the eMMC.   We setup the system on the eMMC
+# and then copy the system to the SD card
+
+# Burn the above image onto an SD card and insert into the BBB and boot
+# Login with default debian:temppwd then "sudo bash" to become root
+cd /tmp
+wget https://github.com/FalconChristmas/fpp/blob/master/SD/BBB-FlashMMC.sh
+chmod +x BBB-FlashMMC.sh
+./BBB-FlashMMC.sh -noreboot ext4 /dev/mmcblk1
+
+#copy the ssh keys temporarily to allow it to boot quicker and avoid
+#having to reset known_hosts while building image
+mount -t ext4 /dev/mmcblk1p1 /tmp/rootfs
+cp -a /etc/ssh/* /tmp/rootfs/etc/ssh
+reboot
+
+
+#That will flash the stretch-console image to the internal eMMC and then shutdown
+#Remove the SD card and restart the BBB, re-login with default debian:temppwd
+#then "sudo bash" to become root
 
 
 apt-get update
-apt-get upgrade
+apt-get -y upgrade
+
+#need to install/generate the UTF-8 locales
+apt-get install -y locales
+echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
+locale-gen
+localectl set-locale en_US.utf8
+
+
+apt-get install -y git
 cd /opt/scripts
 git pull
 cd /opt/scripts/tools
 
-export KERNEL_VERSION=4.14.13-ti-r25
-sudo ./update_kernel.sh --lts-4_14 --kernel  $KERNEL_VERSION
-apt-get install linux-headers-$KERNEL_VERSION
+#check
+# ./update_kernel.sh --lts-4_14 --bone-kernel
+# and see what is the latest kernel version and put it here
+
+export KERNEL_VERSION=4.14.55-bone16
+./update_kernel.sh --lts-4_14 --bone-kernel  $KERNEL_VERSION
+apt-get install -y linux-headers-$KERNEL_VERSION
+
+apt-get remove -y --purge --autoremove linux-image-$(uname -r) linux-headers-$(uname -r) ti-temperature-modules-$(uname -r) ti-debugss-modules-$(uname -r)
+
 
 # delete old kernels and modules in /boot and /lib/modules
-# and in /boot/dtbs
-
-apt-get remove --purge --autoremove linux-image-$(uname -r)
+# and in /boot/dtbs and any initrd's
 rm -rf /lib/modules/$(uname -r)
+rm -rf /boot/initrd.img*
 
 
 cd /opt/scripts/tools/developers/
 sudo ./update_bootloader.sh
+
+
+cd /opt/backup/uboot
+export BOOTLOADERVER=v2018.03-r8
+wget https://rcn-ee.com/repos/bootloader/am335x_evm/MLO-am335x_evm-${BOOTLOADERVER}
+wget https://rcn-ee.com/repos/bootloader/am335x_evm/u-boot-am335x_evm-${BOOTLOADERVER}.img
+mv -f MLO-am335x_evm-${BOOTLOADERVER} MLO
+mv -f u-boot-am335x_evm-${BOOTLOADERVER}.img u-boot.img
+
 
 # need to keep extra memory to process network packets
 echo "vm.min_free_kbytes=16384" >> /etc/sysctl.conf
@@ -43,8 +88,7 @@ echo "vm.min_free_kbytes=16384" >> /etc/sysctl.conf
 #prefer ipv4
 echo "precedence ::ffff:0:0/96  100" >>  /etc/gai.conf
 
-
-vim /boot/uEnv.txt
+nano /boot/uEnv.txt
 #     enable_uboot_overlays=1
 #     disable_uboot_overlay_video=1
 #     disable_uboot_overlay_audio=1
@@ -52,14 +96,10 @@ vim /boot/uEnv.txt
 #     uboot_overlay_pru=/lib/firmware/AM335X-PRU-UIO-00A0.dtbo
 
 
-cd /opt/backup/uboot
-export BOOTLOADERVER=v2018.01-r14
-wget https://rcn-ee.com/repos/bootloader/am335x_evm/MLO-am335x_evm-${BOOTLOADERVER}
-wget https://rcn-ee.com/repos/bootloader/am335x_evm/u-boot-am335x_evm-${BOOTLOADERVER}.img
-mv -f MLO-am335x_evm-${BOOTLOADERVER} MLO
-mv -f u-boot-am335x_evm-${BOOTLOADERVER}.img u-boot.img
 
 ## need the latest version for the PocketBeagle pins
+cd /opt/source
+git clone https://github.com/beagleboard/bb.org-overlays
 cd /opt/source/bb.org-overlays
 git pull
 cp tools/beaglebone-universal-io/config-pin /usr/bin/config-pin
@@ -67,7 +107,7 @@ cp tools/beaglebone-universal-io/config-pin /usr/bin/config-pin
 apt-get -y --purge autoremove
 
 #remove a bunch of packages that aren't neeeded, free's up space
-apt-get remove --purge --autoremove roboticscape nodejs c9-core-installer \
+apt-get remove -y --purge --autoremove roboticscape nodejs c9-core-installer \
     doc-beaglebone-getting-started doc-beaglebonegreen-getting-started doc-seeed-bbgw-getting-started \
     bonescript bone101 bb-node-red-installer \
     ardupilot-copter-bbbmini ardupilot-copter-blue ardupilot-plane-bbbmini ardupilot-plane-blue ardupilot-rover-bbbmini ardupilot-rover-blue
@@ -102,17 +142,28 @@ rm -rf /opt/cloud9
 rm -rf /etc/avahi/services/cloud9.service
 
 
-apt-get install alsa-utils ccache bzip2 samba rsync vsftpd shellinabox vorbis-tools \
+# need to reboot so that the new kernel is picked up and used
+reboot
+#re-login in and make sure "df -k" reports 2.5G+ of space for /
+
+apt-get install -y \
+    alsa-utils arping avahi-daemon avahi-discover avahi-utils \
+    apache2 apache2-bin apache2-data apache2-utils libapache2-mod-php7.0 \
+    bc build-essential ca-certificates ccache connman bzip2 samba rsync \
+    curl dh-autoreconf ethtool fbi fbset file vsftpd shellinabox vorbis-tools \
     bash-completion exfat-fuse btrfs-tools ntp ethtool sysstat tcpdump  \
     php php-cli php-common php-curl php-mcrypt php-pear \
-    python-daemon python-smbus \
-    libmicrohttpd-dev libmosquitto-dev liblo-dev \
+    python-daemon python-smbus hdparm i2c-tools ifplugd \
+    libmicrohttpd-dev libmosquitto-dev liblo-dev imagemagick \
     ola ola-python libola-dev libola1 libboost-dev libjsoncpp-dev libtag1-dev \
     libconvert-binary-c-perl libjson-perl perlmagick \
-    libavcodec-dev libavformat-dev libswresample-dev libsdl2-dev \
-    sqlite3 php-sqlite3 php-zip zip unzip \
+    libavcodec-dev libavformat-dev libswresample-dev libsdl2-dev libswscale-dev libavdevice-dev libavfilter-dev \
+    sqlite3 php-sqlite3 php-zip zip unzip dos2unix \
     mailutils librtmidi-dev libcurl4-openssl-dev \
-    firmware-ti-connectivity
+    gcc g++ firmware-realtek firmware-atheros firmware-ralink firmware-brcm80211 firmware-iwlwifi firmware-libertas firmware-zd1211\
+    firmware-ti-connectivity resolvconf wireless-tools \
+    mailutils mp3info linux-cpupower cpufrequtils \
+    usbutils usb-modeswitch locales lzma lshw lsof libiio-utils device-tree-compiler at haveged bluetooth bluez
 
 
 curl -L https://cpanmin.us | perl - --sudo App::cpanminus
@@ -137,8 +188,6 @@ echo "blacklist inv_mpu6050" >> /etc/modprobe.d/blacklist-gyro.conf
 echo "blacklist st_sensors" >> /etc/modprobe.d/blacklist-gyro.conf
 
 
-
-
 cd /opt/
 git clone https://github.com/etr/libhttpserver
 cd libhttpserver
@@ -160,21 +209,16 @@ make install
 make clean
 
 
+ldconfig
+
 # need to edit some files... sed/awk/perl can do this automatically?
-#vim /lib/systemd/system/apache2.service
+#nano /lib/systemd/system/apache2.service
 #    PrivateTmp=false
-#vim /etc/default/shellinabox
+#nano /etc/default/shellinabox
 #    add -t to args
-#vim /etc/connman/main.conf
+#nano /etc/connman/main.conf
 #    PreferredTechnologies=wifi,ethernet
 
-
-#need to reboot to pickup new kernel so install of wireless modules will work
-reboot
-
-apt-get install dkms
-# the above installs extra headers which we don't use
-apt-get remove --purge linux-headers-4.4.62-ti-xenomai-r99
 
 
 #install new Wifi drivers
@@ -228,6 +272,8 @@ make
 make install
 make clean
 
+cd /opt
+rm -rf /opt/wifi
 
 echo "options 8192cu rtw_power_mgnt=0" > /etc/modprobe.d/wifi-disable-power-management.conf
 echo "options 8812au rtw_power_mgnt=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
@@ -240,10 +286,36 @@ echo "blacklist rtl8192c_common" >> /etc/modprobe.d/blacklist-native-wifi.conf
 echo "blacklist rtlwifi" >> /etc/modprobe.d/blacklist-native-wifi.conf
 echo "blacklist rtl8xxxu" >> /etc/modprobe.d/blacklist-native-wifi.conf
 
+cd /root
+wget -O ./FPP_Install_BBB.sh  http://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install_BBB.sh
+chmod 700 ./FPP_Install_BBB.sh
+./FPP_Install_BBB.sh
+
+
+touch /home/fpp/media/.auto_update_disabled
+chmod 644 /home/fpp/media/.auto_update_disabled
+nano /home/fpp/.bashrc
+# uncomment force_color_prompt=yes
 
 
 
+#place 4G SD card in sd slot
+# zero out everything unused so compressing the image will work better
+dd if=/dev/zero of=/dev/mmcblk0 bs=1M status=progress
+/opt/fpp/SD/BBB-FlashMMC.sh -s 2800M -noreboot ext4 /dev/mmcblk0
+rmdir /tmp/rootfs
 
+#place second in slot
+dd if=/dev/zero of=/dev/mmcblk0 bs=1M status=progress
+/opt/fpp/SD/BBB-FlashMMC.sh -s 1750M -noreboot btrfs /dev/mmcblk0
+
+
+#On a MAC, the resulting SD cards can be used to create an image via:
+# use diskutil list to get the disk name (/dev/rdisk3)
+# For ext4:
+sudo dd=/dev/rdisk3 of=FPP-v2.0-Beta-BBB-ext4.img bs=1m count=3072
+# For btrfs:
+sudo dd=/dev/rdisk3 of=FPP-v2.0-Beta-BBB-btrfs.img bs=1m count=2000
 
 
 

@@ -23,6 +23,8 @@
 #include <string.h>
 #include <strings.h>
 #include <string>
+#include <cmath>
+
 
 #include "BBBMatrix.h"
 #include "BBBUtils.h"
@@ -265,8 +267,15 @@ public:
         int offInInt = x % m_interleave;
         int mult = y / m_panelScan;
         
-        if ((y & 0x2) == 0) {
-            offInInt = m_interleave - 1 - offInInt;
+        if (m_panelScan == 2) {
+            if ((y & 0x2) == 0) {
+                offInInt = m_interleave - 1 - offInInt;
+            }
+        } else {
+            int tmp = (y * 2) / m_panelScan;
+            if ((tmp & 0x2) == 0) {
+                offInInt = m_interleave - 1 - offInInt;
+            }
         }
         
         x = m_interleave * (whichInt * m_panelHeight / m_panelScan / 2 + mult)  + offInInt;
@@ -506,6 +515,36 @@ int BBBMatrix::Init(Json::Value config)
         m_handler = new NoInterleaveHandler();
     }
     
+    
+    float gamma = 1.0;
+    if (config.isMember("gamma")) {
+        gamma = atof(config["gamma"].asString().c_str());
+    }
+    if (gamma < 0.01 || gamma > 50.0) {
+        gamma = 1.0;
+    }
+    for (int x = 0; x < 256; x++) {
+        int v = x;
+        if (m_panelScan == 32) {
+            v &= 0xFE;
+        }
+        if (m_colorDepth == 6 && (v == 3 || v == 2)) {
+            v = 4;
+        } else if (m_colorDepth == 7 && v == 1) {
+            v = 2;
+        }
+        
+        float f = v;
+        f = 255.0 * pow(f / 255.0f, gamma);
+        if (f > 255.0) {
+            f = 255.0;
+        }
+        if (f < 0.0) {
+            f = 0.0;
+        }
+        gammaCurve[x] = round(f);
+    }
+    
     return ChannelOutputBase::Init(config);
 }
 
@@ -528,21 +567,7 @@ int BBBMatrix::Close(void)
     return ChannelOutputBase::Close();
 }
 
-static inline uint8_t mapColor(uint8_t v, uint8_t colorDepth, int scan) {
-    if (scan == 32) {
-        v &= 0xFE;
-    }
-    if (colorDepth == 6 && (v == 3 || v == 2)) {
-        return 4;
-    }
-    if (colorDepth == 7 && v == 1) {
-        return 2;
-    }
-    return v;
-}
-
 static int fcount = 0;
-
 
 void BBBMatrix::printStats() {
     FILE *rfile;
@@ -605,13 +630,13 @@ void BBBMatrix::PrepData(unsigned char *channelData)
                     + (m_longestChain - chain - 1) * m_panelWidth/8 * m_outputs * 3 * 2 * m_panelHeight / (m_panelScan * 2);
                 
                 for (int x = 0; x < m_panelWidth; ++x) {
-                    uint8_t r1 = mapColor(channelData[m_panelMatrix->m_panels[panel].pixelMap[yw1 + x*3]], m_colorDepth, m_panelScan);
-                    uint8_t g1 = mapColor(channelData[m_panelMatrix->m_panels[panel].pixelMap[yw1 + x*3 + 1]], m_colorDepth, m_panelScan);
-                    uint8_t b1 = mapColor(channelData[m_panelMatrix->m_panels[panel].pixelMap[yw1 + x*3 + 2]], m_colorDepth, m_panelScan);
+                    uint8_t r1 = gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[yw1 + x*3]]];
+                    uint8_t g1 = gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[yw1 + x*3 + 1]]];
+                    uint8_t b1 = gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[yw1 + x*3 + 2]]];
                     
-                    uint8_t r2 = mapColor(channelData[m_panelMatrix->m_panels[panel].pixelMap[yw2 + x*3]], m_colorDepth, m_panelScan);
-                    uint8_t g2 = mapColor(channelData[m_panelMatrix->m_panels[panel].pixelMap[yw2 + x*3 + 1]], m_colorDepth, m_panelScan);
-                    uint8_t b2 = mapColor(channelData[m_panelMatrix->m_panels[panel].pixelMap[yw2 + x*3 + 2]], m_colorDepth, m_panelScan);
+                    uint8_t r2 = gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[yw2 + x*3]]];
+                    uint8_t g2 = gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[yw2 + x*3 + 1]]];
+                    uint8_t b2 = gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[yw2 + x*3 + 2]]];
 
                     
                     int xOut = x;

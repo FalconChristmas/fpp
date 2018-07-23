@@ -32,7 +32,7 @@ class SDLInternalData;
 
 class SDLOutput : public MediaOutputBase {
   public:
-	SDLOutput(const std::string &mediaFilename, MediaOutputStatus *status);
+    SDLOutput(const std::string &mediaFilename, MediaOutputStatus *status, const std::string &videoOut);
 	virtual ~SDLOutput();
 
 	virtual int  Start(void);
@@ -41,6 +41,9 @@ class SDLOutput : public MediaOutputBase {
     virtual int  Close(void);
     virtual int  IsPlaying(void);
 
+    
+    static bool IsOverlayingVideo();
+    static bool ProcessVideoOverlay(unsigned int msTimestamp);
   private:
     SDLInternalData *data;
 };

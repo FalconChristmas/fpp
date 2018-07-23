@@ -17,8 +17,8 @@ $_SESSION['session_id'] = session_id();
 $command_array = Array(
 	"getChannelMemMaps"   => 'GetChannelMemMaps',
 	"setChannelMemMaps"   => 'SetChannelMemMaps',
-	"getChannelRemaps"    => 'GetChannelRemaps',
-	"setChannelRemaps"    => 'SetChannelRemaps',
+	"getOutputProcessors" => 'GetOutputProcessors',
+	"setOutputProcessors" => 'SetOutputProcessors',
 	"getChannelOutputs"   => 'GetChannelOutputs',
 	"setChannelOutputs"   => 'SetChannelOutputs',
 	"setUniverses"        => 'SetUniverses',
@@ -50,7 +50,8 @@ $command_array = Array(
 	"setTestMode"         => 'SetTestMode',
 	"getTestMode"         => 'GetTestMode',
 	"setupExtGPIO"        => 'SetupExtGPIOJson',
-	"extGPIO"             => 'ExtGPIOJson'
+	"extGPIO"             => 'ExtGPIOJson',
+    "getSysInfo"          => 'GetSystemInfoJson'
 );
 
 $command = "";
@@ -1282,21 +1283,21 @@ function SetChannelMemMaps()
 
 /////////////////////////////////////////////////////////////////////////////
 
-function GetChannelRemaps()
+function GetOutputProcessors()
 {
 	global $settings;
 
 	$jsonStr = "";
 
-	if (file_exists($settings['remapFile'])) {
-		$jsonStr = file_get_contents($settings['remapFile']);
+	if (file_exists($settings['outputProcessorsFile'])) {
+		$jsonStr = file_get_contents($settings['outputProcessorsFile']);
 	}
 
 	header( "Content-Type: application/json");
 	echo $jsonStr;
 }
 
-function SetChannelRemaps()
+function SetOutputProcessors()
 {
 	global $settings;
 	global $args;
@@ -1304,9 +1305,9 @@ function SetChannelRemaps()
 	$data = stripslashes($args['data']);
 	$data = prettyPrintJSON(substr($data, 1, strlen($data) - 2));
 
-	file_put_contents($settings['remapFile'], $data);
+	file_put_contents($settings['outputProcessorsFile'], $data);
 
-	GetChannelRemaps();
+	GetOutputProcessors();
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -1608,7 +1609,10 @@ function SaveScript()
 
 		if (file_exists($filename))
 		{
-			if (@file_put_contents($filename, $content))
+            //error output is silenced by @, function returns false on failure, it doesn't return true
+            $script_save_result = @file_put_contents($filename, $content);
+            //check result is not a error
+			if ($script_save_result !== false)
 			{
 				$result['saveStatus'] = "OK";
 				$result['scriptName'] = $data['scriptName'];
@@ -1616,13 +1620,20 @@ function SaveScript()
 			}
 			else
 			{
+                $script_writable = is_writable($filename);
+                $script_directory_writable = is_writable($settings['scriptDirectory']);
+
 				$result['saveStatus'] = "Error updating file";
-			}
+                error_log("SaveScript: Error updating file - " . $data['scriptName'] . " ($filename) ");
+                error_log("SaveScript: Error updating file - " . $data['scriptName'] . " ($filename) " . " -> isWritable: " . $script_writable);
+                error_log("SaveScript: Error updating file - " . $data['scriptName'] . " ($filename) " . " -> Scripts directory is writable: " . $script_directory_writable);
+            }
 		}
 		else
 		{
 			$result['saveStatus'] = "Error, file does not exist";
-		}
+            error_log("SaveScript: Error, file does not exist - " . $data['scriptName'] . " -> " . $filename);
+        }
 	}
 	else
 	{
@@ -1706,4 +1717,38 @@ function ExtGPIOJson()
 
 /////////////////////////////////////////////////////////////////////////////
 
+function GetSystemInfoJson()
+{
+    global $settings;
+
+    //close the session before we start, this removes the session lock and lets other scripts run
+    session_write_close();
+
+    //Default json to be returned
+    $result = array();
+    $result['HostName'] = $settings['HostName'];
+    $result['Platform'] = $settings['Platform'];
+    $result['Variant'] = $settings['Variant'];
+
+    $IPs = explode("\n",trim(shell_exec("/sbin/ifconfig -a | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0 | grep -v usb | grep -v SoftAp | grep -v 'can.' | sed -e 's/://g' | while read iface ; do /sbin/ifconfig \$iface | grep 'inet ' | awk '{print \$2}'; done")));
+    $kernel_version = exec("uname -r");
+    $fpp_head_version = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ describe --tags", $output, $return_val);
+    if ( $return_val != 0 )
+        $fpp_head_version = "Unknown";
+    unset($output);
+    $git_branch = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ branch --list | grep '\\*' | awk '{print \$2}'", $output, $return_val);
+    if ( $return_val != 0 )
+        $git_branch = "Unknown";
+    unset($output);
+
+    $result['Kernel'] = $kernel_version;
+    $result['Version'] = $fpp_head_version;
+    $result['Branch'] = $git_branch;
+    $result['IPs'] = $IPs;
+    $result['Mode'] = $settings['fppMode'];
+
+    returnJSON($result);
+}
+    
+    
 ?>

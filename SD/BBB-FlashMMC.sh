@@ -1,7 +1,21 @@
 #!/bin/bash -e
 
+export PARTSIZE=""
+export DOREBOOT="y"
+if [ "$1" == "-s" ]; then
+    PARTSIZE=$2
+    shift; shift;
+fi
+if [ "$1" == "-noreboot" ]; then
+  DOREBOOT="n"
+  shift;
+fi
 
-DEVICE="/dev/mmcblk1"
+
+DEVICE=$2
+if [ "x${DEVICE}" == "x" ]; then
+    DEVICE="/dev/mmcblk1"
+fi
 
 
 cylon_leds () {
@@ -58,7 +72,7 @@ prepareBTRFSPartitions() {
     # create partitions
     sfdisk --force ${DEVICE} <<-__EOF__
 4M,96M,,*
-100M,,,-
+100M,${PARTSIZE},,-
 __EOF__
 
     blockdev --rereadpt ${DEVICE}  || true
@@ -89,7 +103,7 @@ prepareEXT4Partitions() {
 
     # create partitions
     sfdisk --force ${DEVICE} <<-__EOF__
-4M,,,-
+4M,${PARTSIZE},,-
 __EOF__
 
     blockdev --rereadpt ${DEVICE}  || true
@@ -135,7 +149,9 @@ adjustEnvEXT4() {
 
 }
 
-cylon_leds & CYLON_PID=$!
+if [ "$DOREBOOT" == "y" ]; then
+    cylon_leds & CYLON_PID=$!
+fi
 
 set -o pipefail
 
@@ -167,7 +183,8 @@ echo ""
 
 #configure /boot
 cd /tmp/rootfs/boot
-ln -s . boot
+rm -f boot
+ln -sf . boot
 cd /
 
 if [ "$1" = "ext4" ]; then
@@ -204,5 +221,7 @@ umount -R /tmp/rootfs
 echo "---------------------------------------"
 echo "Done flashing eMMC, powering down"
 echo ""
-systemctl poweroff || halt
+if [ "$DOREBOOT" == "y" ]; then
+    systemctl poweroff || halt
+fi
 

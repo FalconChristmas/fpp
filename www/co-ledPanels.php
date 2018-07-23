@@ -153,8 +153,9 @@ function printLEDPanelSizeSelect($platform, $def, $addr)
     if ($platform == "BeagleBone Black") {
         $values["32x16 1/8 Scan"] = "32x16x8";
         $values["32x16 1/4 Scan"] = "32x16x4";
+        $values["32x16 1/4 Scan ABCD"] = "32x16x4x1";
         $values["32x16 1/2 Scan A"] = "32x16x2";
-        $values["32x16 1/2 Scan A/B"] = "32x16x2x1";
+        $values["32x16 1/2 Scan AB"] = "32x16x2x1";
         $values["32x32 1/16 Scan"] = "32x32x16";
         $values["64x32 1/16 Scan"] = "64x32x16";
         $values["64x64 1/32 Scan"] = "64x64x32";
@@ -165,6 +166,7 @@ function printLEDPanelSizeSelect($platform, $def, $addr)
     } else {
         $values["32x16"] = "32x16x8";
         $values["32x32"] = "32x32x16";
+        $values["64x32"] = "64x32x16";
     }
     
     if ($addr != "0" && $addr != "") {
@@ -173,6 +175,14 @@ function printLEDPanelSizeSelect($platform, $def, $addr)
         PrintSettingSelect("Panel Size", "LEDPanelsSize", 1, 0, $def, $values, "", "LEDPanelLayoutChanged");
     }
 }
+function printLEDPanelGammaSelect($platform, $gamma)
+{
+    if ($gamma == "" || $gamma="0") {
+        $gamma = "1.0";
+    }
+    echo "<input type='number' min='0.1' max='5.0' step='0.1' value='$gamma' id='LEDPanelsGamma'/>";
+}
+
 
 function printLEDPanelInterleaveSelect($platform, $interleave)
 {
@@ -359,6 +369,7 @@ function InitializeLEDPanels()
 		$('#LEDPanelsChannelCount').html(channelOutputsLookup["LEDPanelMatrix"].channelCount);
 		$('#LEDPanelsColorOrder').val(channelOutputsLookup["LEDPanelMatrix"].colorOrder);
 		$('#LEDPanelsBrightness').val(channelOutputsLookup["LEDPanelMatrix"].brightness);
+        $('#LEDPanelsGamma').val(channelOutputsLookup["LEDPanelMatrix"].gamma);
 		$('#LEDPanelsConnection').val(channelOutputsLookup["LEDPanelMatrix"].subType);
 		$('#LEDPanelsInterface').val(channelOutputsLookup["LEDPanelMatrix"].interface);
 		$('#LEDPanelsSourceMacInput').val(channelOutputsLookup["LEDPanelMatrix"].sourceMAC);
@@ -424,6 +435,7 @@ function GetLEDPanelConfig()
 	config.channelCount = parseInt($('#LEDPanelsChannelCount').html());
 	config.colorOrder = $('#LEDPanelsColorOrder').val();
 	config.brightness = parseInt($('#LEDPanelsBrightness').val());
+    config.gamma = $('#LEDPanelsGamma').val();
 	if (($('#LEDPanelsConnection').val() === "ColorLight5a75") || ($('#LEDPanelsConnection').val() === "LinsnRV9"))
 	{
 		config.subType = $('#LEDPanelsConnection').val();
@@ -456,6 +468,7 @@ function GetLEDPanelConfig()
     }
 ?>
     config.brightness = parseInt($('#LEDPanelsBrightness').val());
+    config.gamma = $('#LEDPanelsGamma').val();
 	config.invertedData = parseInt($('#LEDPanelsStartCorner').val());
 	config.panelWidth = LEDPanelWidth;
 	config.panelHeight = LEDPanelHeight;
@@ -699,6 +712,10 @@ else if ($settings['Platform'] == "BeagleBone Black")
 								</select>
 							</td>
 						</tr>
+                        <tr><td><b>Panel Gamma:</b></td>
+                            <td><? printLEDPanelGammaSelect($settings['Platform'], $LEDPanelGamma); ?></td>
+                            </td>
+                        </tr>
 <?
 if ($settings['Platform'] == "BeagleBone Black") {
 ?>

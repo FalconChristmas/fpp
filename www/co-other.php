@@ -1078,6 +1078,8 @@ function GetLOROutputConfig(result, cell) {
 
 	result.device = value;
 
+        value = $cell.find("select.speed").val();
+
 	if (value == "")
 		return "";
 

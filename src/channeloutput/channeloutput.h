@@ -31,6 +31,7 @@
 #define FPPD_MAX_CHANNEL_OUTPUTS   64
 
 class ChannelOutputBase;
+class OutputProcessors;
 
 typedef struct fppChannelOutput {
 	int              (*maxChannels)(void *data);
@@ -55,16 +56,13 @@ extern char            channelData[];
 extern pthread_mutex_t channelDataLock;
 extern unsigned long   channelOutputFrame;
 extern float           mediaElapsedSeconds;
-
+extern OutputProcessors outputProcessors;
 
 int  InitializeChannelOutputs(void);
 int  SendChannelData(char *channelData);
 int  CloseChannelOutputs(void);
 void SetChannelOutputFrameNumber(int frameNumber);
 void ResetChannelOutputFrameNumber(void);
-int  LoadChannelRemapData(void);
-int  AddChannelRemap(int src, int dest, int count, int loops);
-int  RemoveChannelRemap(int src, int dest, int count, int loops);
 void StartOutputThreads(void);
 void StopOutputThreads(void);
 

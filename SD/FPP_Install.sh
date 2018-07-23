@@ -71,7 +71,7 @@
 #############################################################################
 SCRIPTVER="0.9"
 FPPBRANCH="master"
-FPPIMAGEVER="2.0alpha"
+FPPIMAGEVER="2.0beta"
 FPPCFGVER="31"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
@@ -368,7 +368,6 @@ case "${OSVER}" in
 								bzip2 ca-certificates ccache connman curl device-tree-compiler \
 								dh-autoreconf ethtool exfat-fuse fbi fbset file flite gdb \
 								gdebi-core git hdparm i2c-tools ifplugd imagemagick less \
-								libavcodec-dev libavformat-dev \
 								libboost-dev libconvert-binary-c-perl \
 								libdbus-glib-1-dev libdevice-serialport-perl libjs-jquery \
 								libjs-jquery-ui libjson-perl libjsoncpp-dev liblo-dev libmicrohttpd-dev libnet-bonjour-perl \
@@ -381,7 +380,8 @@ case "${OSVER}" in
 								dhcp-helper hostapd parprouted bridge-utils \
 								firmware-atheros firmware-ralink firmware-brcm80211 \
 								dos2unix libmosquitto-dev mosquitto-clients librtmidi-dev \
-								wireless-tools libcurl4-openssl-dev resolvconf sqlite3"
+                                libavcodec-dev libavformat-dev libswresample-dev libsdl2-dev libswscale-dev libavdevice-dev libavfilter-dev \
+								wireless-tools libcurl4-openssl-dev resolvconf sqlite3 php7.0-zip"
 				;;
 		esac
 
@@ -505,9 +505,7 @@ EOF
 
 	'Raspberry Pi')
 		echo "FPP - Updating firmware for Raspberry Pi install"
-		#https://raw.githubusercontent.com/Hexxeh/rpi-update/master/rpi-update
-		wget http://goo.gl/1BOfJ -O /usr/bin/rpi-update && chmod +x /usr/bin/rpi-update
-		SKIP_WARNING=1 rpi-update
+        sudo apt-get dist-upgrade -y
 
 		echo "FPP - Installing Pi-specific packages"
 		apt-get -y install raspi-config

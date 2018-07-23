@@ -104,6 +104,8 @@ class BBBMatrix : public ChannelOutputBase {
     
     uint32_t     brightnessValues[8];
     uint32_t     delayValues[8];
+    uint8_t      gammaCurve[256];
+    
 };
 
 #endif

@@ -129,7 +129,7 @@ $(document).ready(function () {
 		if ($('#autoSelectMatches').is(':checked') == false)
 			return;
 
-		var value = $('#selMedia').val().replace(/\.ogg|\.mp3|\.mp4/i, "");
+		var value = $('#selMedia').val().replace(/\.ogg|\.mp3|\.mp4|\.m4a/i, "");
 
 		var seq = document.getElementById("selSequence")
 		for (var i = 0; i < seq.length; i++) {
@@ -147,7 +147,7 @@ $(document).ready(function () {
 
 		var media = document.getElementById("selMedia")
 		for (var i = 0; i < media.length; i++) {
-			if (media.options[i].value.replace(/\.ogg|\.mp3|\.mp4/i, "") == value)
+			if (media.options[i].value.replace(/\.ogg|\.mp3|\.mp4|\.m4a/i, "") == value)
 				$('#selMedia').val(media.options[i].value);
 		}
 	}
@@ -205,6 +205,7 @@ $(document).ready(function () {
 <?php 
   function PrintMediaOptions()
   {
+      global $settings;
 	  global $musicDirectory;
 	  global $videoDirectory;
 		echo "<select id=\"selMedia\" size=\"1\" onChange='MediaChanged();'>";
@@ -219,6 +220,27 @@ $(document).ready(function () {
       }
     }
 		echo "</select>";
+      
+      echo "   Video Output: <select id=\"videoOut\" size=\"1\">";
+      echo "  <option value='--Default--'>Default</option>";
+      echo "  <option value='--Disabled--'>Disabled</option>";
+      
+      $f = fopen($settings['channelMemoryMapsFile'], "r");
+      if ($f == FALSE) {
+          fclose($f);
+      } else {
+          while (!feof($f)) {
+              $line = fgets($f);
+              if ($line == "")
+                  continue;
+              $entry = explode(",", $line, 7);
+              printf( "<option value='%s'>%s</option>\n",
+                     $entry[0], $entry[0]);
+          }
+          fclose($f);
+      }
+      echo "</select>";
+
   }			
  
   function PrintSequenceOptions()
@@ -467,6 +489,7 @@ function PrintScriptOptions($id)
                 <col class='colPlaylistType'></col>
                 <col class='colPlaylistData1'></col>
                 <col class='colPlaylistData2'></col>
+                <col class='colPlaylistData3'></col>
             </colgroup>
 			<thead>
         <tr id="rowCreatePlaylistHeader">
@@ -474,6 +497,7 @@ function PrintScriptOptions($id)
               <th class="colPlaylistType">Type</td>
               <th class="colPlaylistData1">Media File / Script / Event / Pause</td>
               <th class="colPlaylistData2">Sequence / Delay / Data</td>
+              <th class="colPlaylistData3"></td>
             </tr>
 			</thead>
 						<tbody>
