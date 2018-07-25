@@ -958,6 +958,7 @@ int  SDLOutput::Close(void)
 {
     Stop();
     sdlManager.Close();
+    return 0;
 }
 
 /*

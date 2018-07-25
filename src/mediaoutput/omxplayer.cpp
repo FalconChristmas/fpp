@@ -232,7 +232,14 @@ void omxplayerOutput::ProcessPlayerData(int bytesRead)
 			LogErr(VB_MEDIAOUT, "Error parsing omxplayer output.\n");
 			return;
 		}
+    } else if (!strncmp(m_omxBuffer, "have a nice day", 15)) {
+        //hit the end
+        m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
+        m_mediaOutputStatus->secondsRemaining = 0;
+        Stop();
+        return;
 	} else {
+        LogErr(VB_MEDIAOUT, "Error parsing omxplayer output.  %s\n", m_omxBuffer);
 		return;
 	}
 
@@ -316,7 +323,7 @@ int omxplayerOutput::Process(void)
 		PollPlayerInfo();
 	}
 
-	return 1;
+	return m_mediaOutputStatus->status == MEDIAOUTPUTSTATUS_PLAYING;
 }
 
 int omxplayerOutput::Stop(void)
@@ -337,3 +344,11 @@ int omxplayerOutput::Stop(void)
 	return 1;
 }
 
+int omxplayerOutput::IsPlaying(void)
+{
+    return m_mediaOutputStatus->status == MEDIAOUTPUTSTATUS_PLAYING;
+}
+int omxplayerOutput::Close(void) {
+    Stop();
+    return 0;
+}
