@@ -30,9 +30,9 @@ function SaveControlChannels()
 	controlMinor = $('#controlMinor').val();
 
 	$.get('fppjson.php?command=setSetting&key=controlMajor&value=' + controlMajor)
-		.success(function() {
+		.done(function() {
 			$.get('fppjson.php?command=setSetting&key=controlMinor&value=' + controlMinor)
-				.success(function() {
+				.done(function() {
 					$.jGrowl('Event Control Channels Saved');
 					settings['controlMajor'] = controlMajor;
 					settings['controlMinor'] = controlMinor;

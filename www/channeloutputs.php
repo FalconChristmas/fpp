@@ -72,7 +72,7 @@ function SaveChannelOutputsJSON()
 	var postData = "command=setChannelOutputs&file=channelOutputsJSON&data=" + JSON.stringify(configStr);
 
 	$.post("fppjson.php", postData
-	).success(function(data) {
+	).done(function(data) {
 		$.jGrowl(" Channel Output configuration saved");
 		SetRestartFlag();
 	}).fail(function() {

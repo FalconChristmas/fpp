@@ -231,7 +231,7 @@ function SaveGPIOInputEvent(input)
 
 	$.get("fppjson.php?command=setSetting&key=" + setting + "&value="
 		+ event)
-		.success(function() {
+		.done(function() {
 			$.jGrowl('GPIO Input Event saved');
 		}).fail(function() {
 			DialogError("GPIO Input", "Save GPIO Event failed");

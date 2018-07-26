@@ -143,7 +143,7 @@ require_once('config.php');
 
 		postData = "command=saveScript&data=" + encodeURIComponent(JSON.stringify(info));
 
-		$.post("fppjson.php", postData).success(function(data) {
+		$.post("fppjson.php", postData).done(function(data) {
 			if (data.saveStatus == "OK")
 			{
 				$('#fileViewer').dialog('close');

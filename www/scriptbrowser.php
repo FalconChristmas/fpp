@@ -30,7 +30,7 @@ $rfs_ver = normalize_version($fppRfsVersion);
 		$('#dialog-help').dialog( "moveToTop" );
 
 		$.get("fppxml.php?command=viewRemoteScript&category=" + category + "&filename=" + filename
-		).success(function(data) {
+		).done(function(data) {
 			$('#helpText').html("<pre>" + data + "</pre>");
 		}).fail(function() {
 			$('#helpText').html("Error loading script contents from repository.");
@@ -39,7 +39,7 @@ $rfs_ver = normalize_version($fppRfsVersion);
 
   function InstallRemoteScript(category, filename) {
 		$.get("fppxml.php?command=installRemoteScript&category=" + category + "&filename=" + filename
-		).success(function() {
+		).done(function() {
 			$.jGrowl("Script installed.");
 		}).fail(function() {
 			DialogError("Install Script", "Install Failed");

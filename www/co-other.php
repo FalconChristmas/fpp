@@ -1452,7 +1452,7 @@ function SaveOtherChannelOutputs() {
 	// Double stringify so JSON in .json file is surrounded by { }
 	var postDataStr = "command=setChannelOutputs&file=co-other&data=" + JSON.stringify(JSON.stringify(postData));
 
-	$.post("fppjson.php", postDataStr).success(function(data) {
+	$.post("fppjson.php", postDataStr).done(function(data) {
 		PopulateChannelOutputTable(data);
 		$.jGrowl("Channel Output Configuration Saved");
 		SetRestartFlag();

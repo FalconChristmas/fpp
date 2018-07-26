@@ -35,7 +35,7 @@ include 'common/menuHead.inc';
 		}
 
 		$.get("fppjson.php?command=setSetting&key=MultiSyncRemotes&value=" + remotes
-		).success(function() {
+		).done(function() {
 			settings['MultiSyncRemotes'] = remotes;
 			if (remotes == "")
 				$.jGrowl("Remote List Cleared.  You must restart fppd for the changes to take effect.");
@@ -49,7 +49,7 @@ include 'common/menuHead.inc';
 
 	function getFPPSystemStatus(ip) {
 		$.get("fppjson.php?command=getFPPstatus&ip=" + ip
-		).success(function(data) {
+		).done(function(data) {
 			var status = 'Idle';
 			var statusInfo = "";
 			var elapsed = "";
@@ -121,7 +121,7 @@ include 'common/menuHead.inc';
 			$('#' + rowID + '_files').html(files);
 		}).fail(function() {
 			DialogError("Get FPP System Status", "Get Status Failed for " + ip);
-		}).complete(function() {
+		}).always(function() {
 			if ($('#MultiSyncRefreshStatus').is(":checked"))
 				setTimeout(function() {getFPPSystemStatus(ip);}, 1000);
 		});

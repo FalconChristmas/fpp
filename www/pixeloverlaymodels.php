@@ -113,7 +113,7 @@ function SetChannelMemMaps() {
 
 	postData = "command=setChannelMemMaps&data=[ " + postData + " ]";
 
-	$.post("fppjson.php", postData).success(function(data) {
+	$.post("fppjson.php", postData).done(function(data) {
 		$.jGrowl("Pixel Overlay Models saved.");
 		PopulateChannelMemMapTable(data);
 		SetRestartFlag();

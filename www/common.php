@@ -144,7 +144,7 @@ function " . $setting . "Changed() {
 	}
 
 	$.get('fppjson.php?command=set" . $plugin . "Setting&plugin=$pluginName&key=$setting&value=' + value)
-		.success(function() {
+		.done(function() {
 			if (checked)
 				$.jGrowl('$title Enabled');
 			else
@@ -204,7 +204,7 @@ function " . $setting . "Changed() {
 	var value = $('#$setting').val();
 
 	$.get('fppjson.php?command=set" . $plugin . "Setting&plugin=$pluginName&key=$setting&value=' + value)
-		.success(function() {
+		.done(function() {
 			$.jGrowl('$title saved');
 			$settingsName" . "['$setting'] = value;
 			$callbackName
@@ -287,7 +287,7 @@ function save" . $setting . "() {
 	var value = $('#$setting').val();
 
 	$.get('fppjson.php?command=set" . $plugin . "Setting&plugin=$pluginName&key=$setting&value=' + value)
-		.success(function() {
+		.done(function() {
 			$.jGrowl('$title saved');
 			$settingsName" . "['$setting'] = value;
 			$callbackName
