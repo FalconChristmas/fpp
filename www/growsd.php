@@ -1,3 +1,5 @@
+<!DOCTYPE html>
+<html>
 <?php
 
 $skipJSsettings = 1;
@@ -7,7 +9,6 @@ DisableOutputBuffering();
 
 ?>
 
-<html>
 <head>
 <title>
 Grow SD Card Filesystem

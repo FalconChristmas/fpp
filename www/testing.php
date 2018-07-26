@@ -1,3 +1,5 @@
+<!DOCTYPE html>
+<html>
 <?php
 require_once('config.php');
 require_once('common.php');
@@ -54,7 +56,6 @@ else
 
 ?>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <?php include 'common/menuHead.inc'; ?>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />

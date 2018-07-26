@@ -1,3 +1,5 @@
+<!DOCTYPE html>
+<html>
 <?php
 $skipJSsettings = 1;
 //error_reporting(E_ALL);
@@ -1154,7 +1156,6 @@ function moveBackupFiles_ToBackupDirectory()
 //Move backup files
 moveBackupFiles_ToBackupDirectory();
 ?>
-<html>
 <head>
     <?php require_once 'common/menuHead.inc'; ?>
     <title><? echo $pageTitle; ?></title>

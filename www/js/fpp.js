@@ -1831,7 +1831,7 @@ if (1) {
 			{
 					var xmlDoc=xmlhttp.responseXML; 
 					var receivedBytes = xmlDoc.getElementsByTagName('receivedBytes')[0];
-					if(receivedBytes.childNodes.length> 0)
+					if(receivedBytes && receivedBytes.childNodes.length> 0)
 					{
 						html =  "<table>";
 						html += "<tr id=\"rowReceivedBytesHeader\"><td>Universe</td><td>Start Address</td><td>Packets</td><td>Bytes</td><td>Errors</td></tr>";
@@ -1860,7 +1860,7 @@ if (1) {
 						}
 						html += "</table>";
 					}
-					if(receivedBytes.childNodes.length>32)
+					if(receivedBytes && receivedBytes.childNodes.length>32)
 					{
 						$("#bridgeStatistics1").html(html1);
 						$("#bridgeStatistics2").html(html);

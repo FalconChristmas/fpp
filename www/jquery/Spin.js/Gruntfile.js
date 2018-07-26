@@ -4,6 +4,7 @@
  * grunt
  * grunt gh-pages
  * grunt bump-commit
+ * git push --tags
  * npm publish
  */
 module.exports = function(grunt) {
@@ -21,21 +22,23 @@ module.exports = function(grunt) {
 
     uglify: {
       options: {
-        banner: '//fgnass.github.com/spin.js#v<%= pkg.version %>\n'
+        banner: '// http://spin.js.org/#v<%= pkg.version %>\n'
       },
       js: {
-        src: 'site/spin.js',
-        dest: 'site/spin.min.js'
+        files: {
+          'site/spin.min.js': ['site/spin.js'],
+          'spin.min.js': ['site/spin.min.js']
+        }
       }
     },
 
     bump: {
       options: {
-        files: ['package.json', 'component.json', 'bower.json'],
+        files: ['package.json', 'component.json'],
         updateConfigs: ['pkg'],
         commit: true,
         commitMessage: 'Release v%VERSION%',
-        commitFiles: ['package.json', 'component.json', 'bower.json'],
+        commitFiles: ['package.json', 'component.json', 'spin.min.js'],
         createTag: true,
         tagName: '%VERSION%',
         push: false

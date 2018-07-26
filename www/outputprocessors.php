@@ -1,7 +1,8 @@
+<!DOCTYPE html>
+<html>
 <?php
 require_once("common.php");
 ?>
-<html>
 <head>
 <?php include 'common/menuHead.inc'; ?>
 <script language="Javascript">

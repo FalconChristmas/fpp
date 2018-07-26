@@ -1,7 +1,8 @@
 
 	<!-- jquery -->
-	<script type="text/javascript" src="js/jquery-1.9.1.js"></script>
-	<script type="text/javascript" src="js/jquery-ui.js"></script>
+	<script type="text/javascript" src="js/jquery-2.2.4.min.js"></script>
+    <script type="text/javascript" src="js/jquery-migrate-1.4.1.js"></script>
+	<script type="text/javascript" src="js/jquery-ui.min.js"></script>
 	<script type="text/javascript" src="js/jquery.ui.touch-punch.min.js"></script>
 	<script type="text/javascript" src="js/jquery.jgrowl.min.js"></script>
 	<link rel="stylesheet" href="css/jquery-ui.css" />

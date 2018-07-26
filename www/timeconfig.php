@@ -1,3 +1,5 @@
+<!DOCTYPE html>
+<html>
 <?php
 require_once('config.php');
 require_once('common.php');
@@ -113,8 +115,6 @@ function print_if_match($one, $two, $print)
 }
 
 ?>
-<!DOCTYPE html>
-<html>
 <head>
 <?php include 'common/menuHead.inc'; ?>
 <title><? echo $pageTitle; ?></title>

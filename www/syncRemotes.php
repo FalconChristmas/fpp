@@ -1,3 +1,5 @@
+<!DOCTYPE html>
+<html>
 <?php
 
 $skipJSsettings = 1;
@@ -67,7 +69,6 @@ if (!isset($settings['fppMode']) || ($settings['fppMode'] != 'master')) {
 
 ?>
 
-<html>
 <head>
 <title>
 Sync Remotes
