@@ -204,6 +204,10 @@ tr.rowUniverseDetails td
 	text-align: center;
 	width: 100%;
 }
+#tblUniverses input[type=number] {
+    text-align: center;
+    width: 100%;
+}
 
 </style>
 

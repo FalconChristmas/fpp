@@ -8,10 +8,12 @@
 
 .outputTable th {
 	vertical-align: bottom;
+    font-size: 0.9em;
 }
 
 .outputTable td {
 	text-align: center;
+    padding: 0px 9px 0px 0px ;
 }
 
 .addButton {
@@ -32,9 +34,13 @@
 	background-repeat: no-repeat;
 }
 
-#pixelOutputs input[type=text] {
+.outputTable tbody tr td input[type=text] {
 	text-align: center;
-	width: 100%;
+    width: 100%;
+}
+.outputTable tbody tr td input[type=number] {
+    text-align: center;
+    width: 100%;
 }
 
 </style>
