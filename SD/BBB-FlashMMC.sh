@@ -175,7 +175,7 @@ echo "Copy files rootfs"
 echo ""
 
 #copy files
-time rsync -aAxv /ID.txt /bin /boot /dev /etc /home /lib /lost+found /media /mnt /opt /proc /root /run /sbin /srv /sys /tmp /usr /var /tmp/rootfs --exclude=/dev/* --exclude=/proc/* --exclude=/sys/* --exclude=/tmp/* --exclude=/run/* --exclude=/mnt/* --exclude=/media/* --exclude=/lost+found --exclude=/uEnv.txt
+time rsync -aAxv /ID.txt /bin /boot /dev /etc /home /lib /lost+found /media /mnt /opt /proc /root /run /sbin /srv /sys /tmp /usr /var /tmp/rootfs --exclude=/dev/* --exclude=/proc/* --exclude=/sys/* --exclude=/tmp/* --exclude=/run/* --exclude=/mnt/* --exclude=/media/* --exclude=/lost+found --exclude=/uEnv.txt || true
 
 echo "---------------------------------------"
 echo "Configure /boot"
