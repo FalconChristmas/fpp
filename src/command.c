@@ -258,7 +258,11 @@ extern PluginCallbackManager pluginCallbackManager;
 				s = strtok(NULL,",");
 				s2 = strtok(NULL,",");
 
-				if (s && playlist->Play(s, atoi(s2), strcmp(CommandStr, "p") ? 0 : 1))
+				int entry = 0;
+				if (s2 && s2[0])
+					entry = atoi(s2);
+
+				if (s && playlist->Play(s, entry, strcmp(CommandStr, "p") ? 0 : 1))
 				{
 					FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
 					sprintf(response,"%d,%d,Playlist Started,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
