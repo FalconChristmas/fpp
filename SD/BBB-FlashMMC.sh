@@ -91,9 +91,9 @@ __EOF__
     echo ""
 
     #mount
-    mkdir /tmp/rootfs
+    mkdir -p /tmp/rootfs
     mount -t btrfs -o noatime,nodiratime,compress-force=zstd ${DEVICE}p2 /tmp/rootfs
-    mkdir /tmp/rootfs/boot
+    mkdir -p /tmp/rootfs/boot
     mount -t ext4 -o noatime,nodiratime ${DEVICE}p1 /tmp/rootfs/boot
 }
 prepareEXT4Partitions() {
@@ -121,7 +121,7 @@ __EOF__
     echo ""
 
     #mount
-    mkdir /tmp/rootfs
+    mkdir -p /tmp/rootfs
     mount -t ext4 -o noatime,nodiratime ${DEVICE}p1 /tmp/rootfs
 
 }
@@ -131,8 +131,8 @@ adjustEnvBTRFS() {
     make clean
     make
 
-    mkdir /tmp/rootfs/boot/lib
-    mkdir /tmp/rootfs/boot/lib/firmware
+    mkdir -p /tmp/rootfs/boot/lib
+    mkdir -p /tmp/rootfs/boot/lib/firmware
     cp /opt/source/bb.org-overlays/src/arm/* /tmp/rootfs/boot/lib/firmware
 
     echo ""  >> /tmp/rootfs/boot/uEnv.txt
