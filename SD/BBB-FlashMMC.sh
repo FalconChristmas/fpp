@@ -183,6 +183,12 @@ echo ""
 
 #configure /boot
 cd /tmp/rootfs/boot
+
+#remove btrfs stuff from uEnv.txt (may be re-added later)
+sed -i '/mmcpart=2/d' uEnv.txt
+sed -i '/rootfstype=btrfs/d' uEnv.txt
+sed -i '/mmcrootfstype=btrfs/d' uEnv.txt
+
 rm -f boot
 ln -sf . boot
 cd /
