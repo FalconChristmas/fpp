@@ -65,6 +65,7 @@ netcalc(){
 
 
 SetupFPPNetworkConfigViaConnMann() {
+
     CONFIGS=`ls ${FPPHOME}/media/config/interface.*`
 
     DNS1=""
@@ -86,6 +87,11 @@ SetupFPPNetworkConfigViaConnMann() {
     TMPFILE="/tmp/fpp.config"
     rm -f ${TMPFILE}
 
+    echo "[service_default]" >> ${TMPFILE}
+    echo "Type=ethernet" >> ${TMPFILE}
+    echo "IPV4=dhcp" >> ${TMPFILE}
+    echo "" >> ${TMPFILE}
+
     for f in $CONFIGS; do
         . ${f}
 
@@ -99,6 +105,14 @@ SetupFPPNetworkConfigViaConnMann() {
             echo "Security=psk" >> $TMPFILE
             echo "Passphrase=${PSK}" >> $TMPFILE
         fi
+
+        for i in {1..10}
+        do 
+            # wait up to 10 seconds for interface to become available
+            if [ ! -f "/sys/class/net/${INTERFACE}/address" ]; then
+                sleep 1
+            fi
+        done
 
         if [ -f "/sys/class/net/${INTERFACE}/address" ]; then
             MAC=`cat /sys/class/net/${INTERFACE}/address`
@@ -134,6 +148,8 @@ SetupFPPNetworkConfigViaConnMann() {
         cp $TMPFILE /var/lib/connman/fpp.config
     fi
 
+    #ifconfig -a > /tmp/conm.txt
+    #ls -l /sys/class/net/ >>  /tmp/conm.txt
     # connmanctl services > /tmp/services.txt
 }
 

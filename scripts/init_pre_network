@@ -210,6 +210,10 @@ then
     echo "GOVERNOR=\"performance\"" > /etc/default/cpufrequtils
     cpufreq-set -g performance
 
+    # Make sure uio_pruss is loaded early so it's completely initialized
+    # by the time FPPD needs it
+    modprobe uio_pruss
+
     if [ "${BBBMODEL}" != "PocketBeagle" ]; then
         uboot=$(dd if=/dev/mmcblk1 count=32 skip=393248 bs=1 2>/dev/null || true)
         if [[ $uboot != *"U-Boot 2018"* ]]; then
