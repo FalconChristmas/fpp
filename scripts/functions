@@ -84,7 +84,7 @@ SetupFPPNetworkConfigViaConnMann() {
         DNS="$DNS1,$DNS2"
     fi
 
-    TMPFILE="/tmp/fpp.config"
+    TMPFILE="/var/tmp/fpp.config"
     rm -f ${TMPFILE}
 
     echo "[service_default]" >> ${TMPFILE}
@@ -115,8 +115,8 @@ SetupFPPNetworkConfigViaConnMann() {
         done
 
         if [ -f "/sys/class/net/${INTERFACE}/address" ]; then
-            MAC=`cat /sys/class/net/${INTERFACE}/address`
-            echo "MAC=${MAC}" >> $TMPFILE
+             MACA=$(<"/sys/class/net/${INTERFACE}/address")
+            echo "MAC=${MACA}" >> $TMPFILE
         fi
         if [ "x$DNS" != "x" ]
         then
@@ -136,8 +136,6 @@ SetupFPPNetworkConfigViaConnMann() {
                 echo "IPv4=$ADDRESS/$NETMASK" >> $TMPFILE
             fi
         fi
-
-
         echo ""  >> $TMPFILE
         echo ""  >> $TMPFILE
     done
@@ -148,9 +146,9 @@ SetupFPPNetworkConfigViaConnMann() {
         cp $TMPFILE /var/lib/connman/fpp.config
     fi
 
-    #ifconfig -a > /tmp/conm.txt
-    #ls -l /sys/class/net/ >>  /tmp/conm.txt
-    # connmanctl services > /tmp/services.txt
+    #ifconfig -a > /var/tmp/conm.txt
+    #ls -l /sys/class/net/ >>  /var/tmp/conm.txt
+    # connmanctl services > /var/tmp/services.txt
 }
 
 
