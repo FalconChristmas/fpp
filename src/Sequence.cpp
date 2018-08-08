@@ -158,11 +158,8 @@ int Sequence::OpenSequenceFile(const char *filename, int startSeconds) {
 
 		return 0;
 	}
-
-    fseek(m_seqFile, 0L, SEEK_END);
-    size_t fsz = ftell(m_seqFile);
-	posix_fadvise(fileno(m_seqFile), 0, fsz, POSIX_FADV_SEQUENTIAL);
-    rewind(m_seqFile);
+    
+	posix_fadvise(fileno(m_seqFile), 0, 0, POSIX_FADV_SEQUENTIAL);
     // Preload a chunk
     posix_fadvise(fileno(m_seqFile), 0, 1024*1024, POSIX_FADV_WILLNEED);
 
@@ -458,11 +455,17 @@ void Sequence::ReadSequenceData(void) {
 		if(m_seqFilePosition <= m_seqFileSize - m_seqStepSize)
 		{
 			bytesRead = fread(m_seqData, 1, m_seqStepSize, m_seqFile);
-            size_t fsz = ftell(m_seqFile);
-            //don't need up to this anymore, discard it
-			posix_fadvise(fileno(m_seqFile), 0, fsz, POSIX_FADV_DONTNEED);
+            off_t fsz = ftello(m_seqFile);
+            if (fsz > 4096) {
+                //make sure the current memory page stays so we don't reload it
+                fsz -= 4096;
+                //don't need up to this anymore, discard it
+                posix_fadvise(fileno(m_seqFile), 0, fsz, POSIX_FADV_DONTNEED);
+            }
+            
             //let the kernel know we're going to need the next blocks
-            posix_fadvise(fileno(m_seqFile), fsz, m_seqStepSize * 4, POSIX_FADV_WILLNEED);
+            off_t csize = m_seqStepSize * 20 + 4096;
+            posix_fadvise(fileno(m_seqFile), fsz, csize, POSIX_FADV_WILLNEED);
 			m_seqFilePosition += bytesRead;
 		}
 
