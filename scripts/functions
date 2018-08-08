@@ -87,11 +87,6 @@ SetupFPPNetworkConfigViaConnMann() {
     TMPFILE="/var/tmp/fpp.config"
     rm -f ${TMPFILE}
 
-    echo "[service_default]" >> ${TMPFILE}
-    echo "Type=ethernet" >> ${TMPFILE}
-    echo "IPV4=dhcp" >> ${TMPFILE}
-    echo "" >> ${TMPFILE}
-
     for f in $CONFIGS; do
         . ${f}
 
