@@ -205,7 +205,13 @@ class MultiSync {
 
 	float  m_remoteOffset;
 
+    struct iovec m_destIovec;
+    std::vector<struct mmsghdr> m_destMsgs;
 	std::vector<struct sockaddr_in> m_destAddr;
+    
+    
+    struct iovec m_destIovecCSV;
+    std::vector<struct mmsghdr> m_destMsgsCSV;
 	std::vector<struct sockaddr_in> m_destAddrCSV;
 
 };

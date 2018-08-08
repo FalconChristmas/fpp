@@ -832,20 +832,6 @@ setupPiRTC () {
 	# Convert hex to dec
 	REV=$((REV))
 
-	# Locate The Required Modules
-
-	modprobe i2c-bcm2708
-	modprobe i2c-dev
-
-	PCF2127=pcf2127
-	if [ "x$(uname -r)" = "x3.10.33+" ]
-	then
-		PCF2127=pcf2127a
-	fi
-
-	modprobe rtc-${PCF2127}
-	modprobe rtc-ds1307
-	modprobe i2c:mcp7941x
 
 	# Read Clock Setting From Settings File
 
@@ -882,10 +868,13 @@ setupPiRTC () {
 	  ;;
 	3)
 	  # PiFace Chip
-	  if ! grep -qc dtoverlay=i2c-rtc,mcp7941x /boot/config.txt
-		then
-		echo "FPP - Configuring RTC, adding PiFace RTC overlay"
-		echo 'dtoverlay=i2c-rtc,mcp7941x' >> /boot/config.txt
+	  if [ $REV -lt 4 ]
+          then
+	       echo "FPP - Configuring RTC, Settting to mcp7941x/i2c-0"
+	       echo "mcp7941x 0x6f" > /sys/bus/i2c/devices/i2c-0/new_device
+	  else
+	       echo "FPP - Configuring RTC, Settting to mcp7941x/i2c-1"
+	       echo "mcp7941x 0x6f" > /sys/bus/i2c/devices/i2c-1/new_device
 	  fi
 	  ;;
 	*)
