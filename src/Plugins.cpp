@@ -19,6 +19,8 @@
 #include "log.h"
 #include <jsoncpp/json/json.h>
 
+#include "playlist/Playlist.h"
+
 //Boost because... why not?
 #include <boost/algorithm/string.hpp>
 #include <boost/foreach.hpp>
@@ -284,38 +286,74 @@ void MediaCallback::run(void)
 		Json::Value root;
 		Json::FastWriter writer;
 
-		root["type"] = std::string(type_to_string[plEntry->type]);
+		Json::Value pl = playlist->GetInfo();
+		//root["type"] = std::string(type_to_string[plEntry->type]);
+		root["type"] = pl["currentEntry"]["type"];
 
-		if (strlen(plEntry->seqName))
-			root["Sequence"] = std::string(plEntry->seqName);
-		if (strlen(plEntry->songName))
-			root["Media"] = std::string(plEntry->songName);
+		//if (strlen(plEntry->seqName))
+		//{
+			//root["Sequence"] = std::string(plEntry->seqName);
+			root["Sequence"] = pl["currentEntry"]["type"].asString() == "both" ? pl["currentEntry"]["sequence"]["sequenceName"].asString().c_str() : "";
+		//}
+		//if (strlen(plEntry->songName))
+		//{
+			//root["Media"] = std::string(plEntry->songName);
+			root["Media"] = pl["currentEntry"]["type"].asString() == "both"
+                                 ? pl["currentEntry"]["media"]["mediaFilename"].asString().c_str()
+                                 : pl["currentEntry"]["mediaFilename"].asString().c_str();
+		//}
 		if (mediaDetails.title && strlen(mediaDetails.title))
+		{
 			root["title"] = std::string(mediaDetails.title);
+		}
 		if (mediaDetails.artist && strlen(mediaDetails.artist))
+		{
 			root["artist"] = std::string(mediaDetails.artist);
+		}
 		if (mediaDetails.album && strlen(mediaDetails.album))
+		{
 			root["album"] = std::string(mediaDetails.album);
+		}
 		if (mediaDetails.year)
-			root["year"] = mediaDetails.year;
+		{
+			root["year"] = std::to_string(mediaDetails.year);
+		}
 		if (mediaDetails.comment && strlen(mediaDetails.comment))
+		{
 			root["comment"] = std::string(mediaDetails.comment);
+		}
 		if (mediaDetails.track)
-			root["track"] = mediaDetails.track;
+		{
+			root["track"] = std::to_string(mediaDetails.track);
+		}
 		if (mediaDetails.genre && strlen(mediaDetails.genre))
+		{
 			root["genre"] = std::string(mediaDetails.genre);
+		}
 		if (mediaDetails.length)
-			root["length"] = mediaDetails.length;
+		{
+			root["length"] = std::to_string(mediaDetails.length);
+		}
 		if (mediaDetails.seconds)
-			root["seconds"] = mediaDetails.seconds;
+		{
+			root["seconds"] = std::to_string(mediaDetails.seconds);
+		}
 		if (mediaDetails.minutes)
-			root["minutes"] = mediaDetails.minutes;
+		{
+			root["minutes"] = std::to_string(mediaDetails.minutes);
+		}
 		if (mediaDetails.bitrate)
-			root["bitrate"] = mediaDetails.bitrate;
+		{
+			root["bitrate"] = std::to_string(mediaDetails.bitrate);
+		}
 		if (mediaDetails.sampleRate)
-			root["sampleRate"] = mediaDetails.sampleRate;
+		{
+			root["sampleRate"] = std::to_string(mediaDetails.sampleRate);
+		}
 		if (mediaDetails.channels)
-			root["channels"] = mediaDetails.channels;
+		{
+			root["channels"] = std::to_string(mediaDetails.channels);
+		}
 
 		LogDebug(VB_PLUGIN, "Media plugin data: %s\n", writer.write(root).c_str());
 		execl(eventScript.c_str(), "eventScript", this->getFilename().c_str(), "--type", "media", "--data", writer.write(root).c_str(), NULL);
