@@ -69,9 +69,9 @@
 #             so you may want to expand the root partition by a few hundred MB.
 #
 #############################################################################
-SCRIPTVER="0.9"
-FPPBRANCH="master"
-FPPIMAGEVER="2.0beta"
+SCRIPTVER="1.0"
+FPPBRANCH="v2.0"
+FPPIMAGEVER="2.0"
 FPPCFGVER="31"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
@@ -377,7 +377,7 @@ case "${OSVER}" in
 								php-sqlite3 php-zip python-daemon python-smbus rsync samba \
 								samba-common-bin shellinabox sudo sysstat tcpdump time usbmount vim \
 								vim-common vorbis-tools vsftpd firmware-realtek gcc g++\
-								dhcp-helper hostapd parprouted bridge-utils \
+								dhcp-helper hostapd parprouted bridge-utils cpufrequtils \
 								firmware-atheros firmware-ralink firmware-brcm80211 \
 								dos2unix libmosquitto-dev mosquitto-clients librtmidi-dev \
                                 libavcodec-dev libavformat-dev libswresample-dev libsdl2-dev libswscale-dev libavdevice-dev libavfilter-dev \

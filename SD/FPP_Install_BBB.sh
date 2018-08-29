@@ -66,9 +66,9 @@
 #             so you may want to expand the root partition by a few hundred MB.
 #
 #############################################################################
-SCRIPTVER="0.9"
-FPPBRANCH="master"
-FPPIMAGEVER="2.0beta"
+SCRIPTVER="1.0"
+FPPBRANCH="v2.0"
+FPPIMAGEVER="2.0"
 FPPCFGVER="31"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
