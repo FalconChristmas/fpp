@@ -1,8 +1,8 @@
+<!DOCTYPE html>
+<html>
 <?php
 require_once('config.php');
 ?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <?php	include 'common/menuHead.inc'; ?>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
@@ -143,7 +143,7 @@ require_once('config.php');
 
 		postData = "command=saveScript&data=" + encodeURIComponent(JSON.stringify(info));
 
-		$.post("fppjson.php", postData).success(function(data) {
+		$.post("fppjson.php", postData).done(function(data) {
 			if (data.saveStatus == "OK")
 			{
 				$('#fileViewer').dialog('close');
@@ -235,7 +235,7 @@ h2 {
     <div id="tab-audio">
       <div id= "divMusic">
         <fieldset  class="fs">
-          <legend> Music Files (.mp3/.ogg) </legend>
+          <legend> Music Files (.mp3/.ogg/.m4a) </legend>
           <div id="divMusicData">
             <table id="tblMusic">
             </table>
@@ -248,7 +248,7 @@ h2 {
             <input onclick= "DeleteFile('Music', SongNameSelected);" id="btnDeleteMusic" class="disableButtons" type="button"  value="Delete" />
           </div>
           <br />
-          <font size=-1>Audio files must be in MP3 or OGG format.</font>
+          <font size=-1>Audio files must be in MP3, OGG, or M4A format.</font>
         </fieldset>
       </div>
     </div>

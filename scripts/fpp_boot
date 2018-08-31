@@ -37,5 +37,56 @@ then
 	configureGPIOPins
 fi
 
-${SUDO} ${SCRIPTDIR}/fppd_start
+if [ "${FPPPLATFORM}" = "Raspberry Pi" ]
+then
+        PiLCDenabled=$(getSetting PI_LCD_Enabled)
+
+        if [ "x${PiLCDenabled}" = "x1" ]
+        then
+          echo "FPP - Checking for configured LCD, LCD Enabled, starting LCD daemon"
+          ${FPPDIR}/scripts/lcd/fppLCD start
+        else
+          echo "FPP - Checking for configured LCD, LCD Disabled"
+        fi
+fi
+
+##############################################################################
+# Leave these things till last so user can see output of anything above here
+##############################################################################
+SCREENSAVER=$(getSetting screensaver)
+if [ "x${SCREENSAVER}" = "x1" ]
+then
+        echo "FPP - Turning ON screen blanking"
+        setterm -blank 1
+else
+        echo "FPP - Turning OFF screen blanking"
+        setterm -blank 0
+fi
+
+
+# Print/Say the IP address
+if [ -f /usr/bin/flite ]
+then
+	_IP=$(hostname -I) || true
+	if [ "$_IP" ]; then
+		echo "FPP - Found IP(s): $_IP"
+
+		DISABLEIPANN=$(getSetting disableIPAnnouncement)
+		if [ "x${DISABLEIPANN}" != "x1" ]
+		then
+			arrHost=(${_IP// / })
+			FLITESTR="I Have Found The Following I P Addresses, ${arrHost[0]}, ${arrHost[1]},  ${arrHost[2]}"
+			if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
+			then
+				(flite -voice awb -o /var/tmp/flite.wav "${FLITESTR}" && mplayer -ao alsa /var/tmp/flite.wav) &
+			else
+				flite -voice awb "${FLITESTR}" &
+			fi
+		fi
+	else
+		echo "FPP - No IP(s) found"
+	fi
+fi
+
+. ${SCRIPTDIR}/fppd_start
 

@@ -311,6 +311,7 @@ BBBMatrix::BBBMatrix(unsigned int startChannel, unsigned int channelCount)
 {
 	LogDebug(VB_CHANNELOUT, "BBBMatrix::BBBMatrix(%u, %u)\n",
 		startChannel, channelCount);
+    m_useOutputThread = 0;
 }
 
 BBBMatrix::~BBBMatrix()

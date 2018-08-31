@@ -1,3 +1,5 @@
+<!DOCTYPE html>
+<html>
 <?php
 require_once('config.php');
 require_once('common.php');
@@ -54,7 +56,6 @@ else
 
 ?>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <?php include 'common/menuHead.inc'; ?>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
@@ -213,7 +214,7 @@ function UpdateStartEndFromModel()
 
 		var postData = "command=setTestMode&data=" + JSON.stringify(data);
 
-		$.post("fppjson.php", postData).success(function(data) {
+		$.post("fppjson.php", postData).done(function(data) {
 			SetTestMode();
 //			$.jGrowl("Test Mode Disabled");
 		}).fail(function(data) {
@@ -434,7 +435,7 @@ function SetTestMode()
 
 		var postData = "command=setTestMode&data=" + JSON.stringify(data);
 
-		$.post("fppjson.php", postData).success(function(data) {
+		$.post("fppjson.php", postData).done(function(data) {
 //			$.jGrowl("Test Mode Set");
 		}).fail(function(data) {
 			DialogError("Failed to set Test Mode", "Setup failed");
@@ -479,7 +480,7 @@ function PlaySequence()
 	var startSecond = $('#startSecond').val();
 
 	$.get("fppjson.php?command=startSequence&sequence=" + sequence + "&startSecond=" + startSecond
-	).success(function() {
+	).done(function() {
 		$.jGrowl("Started sequence " + sequence);
 		//$('#playSequence').hide();
 		//$('#stopSequence').show();
@@ -491,7 +492,7 @@ function PlaySequence()
 function StopSequence()
 {
 	$.get("fppjson.php?command=stopSequence"
-	).success(function() {
+	).done(function() {
 		$.jGrowl("Stopped sequence");
 		//$('#stopSequence').hide();
 		//$('#playSequence').show();

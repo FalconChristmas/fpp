@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
 <head>
 <?php
@@ -215,6 +216,10 @@ tr.rowUniverseDetails td
 #tblUniverses input[type=text] {
 	text-align: center;
 	width: 100%;
+}
+#tblUniverses input[type=number] {
+    text-align: center;
+    width: 100%;
 }
 
 </style>

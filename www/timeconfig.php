@@ -1,3 +1,5 @@
+<!DOCTYPE html>
+<html>
 <?php
 require_once('config.php');
 require_once('common.php');
@@ -113,8 +115,6 @@ function print_if_match($one, $two, $print)
 }
 
 ?>
-<!DOCTYPE html>
-<html>
 <head>
 <?php include 'common/menuHead.inc'; ?>
 <title><? echo $pageTitle; ?></title>
@@ -147,15 +147,8 @@ function print_if_match($one, $two, $print)
 <select name="piRTC">
   <option value = "N" <?php echo print_if_match("N",ReadSettingFromFile("piRTC"),"selected") ?> >None</option>
   <option value = "2" <?php echo print_if_match("2",ReadSettingFromFile("piRTC"),"selected") ?> >DS1305/DS1307</option>
-<?
-	  if ($settings['Platform'] != "BeagleBone Black")
-		{
-?>
-  <option value = "1" <?php echo print_if_match("1",ReadSettingFromFile("piRTC"),"selected") ?> >RasClock</option>
-  <option value = "3" <?php echo print_if_match("3",ReadSettingFromFile("piRTC"),"selected") ?> >PiFace</option>
-<?
-		}
-?>
+  <option value = "1" <?php echo print_if_match("1",ReadSettingFromFile("piRTC"),"selected") ?> >RasClock (pfc2127)</option>
+  <option value = "3" <?php echo print_if_match("3",ReadSettingFromFile("piRTC"),"selected") ?> >PiFace (mcp7941x)</option>
 </select> <b>NOTE:</b> You must reboot to activate the RTC, then return to this page to set the time on the RTC.
 
 

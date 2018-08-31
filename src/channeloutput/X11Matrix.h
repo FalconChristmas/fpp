@@ -56,6 +56,8 @@ class X11MatrixOutput : public ChannelOutputBase {
 	GC          m_gc;
 	Pixmap      m_pixmap;
 	XImage     *m_image;
+
+	std::string m_title;
 };
 
 #endif /* _X11MATRIX_H */

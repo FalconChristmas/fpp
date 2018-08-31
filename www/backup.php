@@ -1154,6 +1154,7 @@ function moveBackupFiles_ToBackupDirectory()
 //Move backup files
 moveBackupFiles_ToBackupDirectory();
 ?>
+<!DOCTYPE html>
 <html>
 <head>
     <?php require_once 'common/menuHead.inc'; ?>

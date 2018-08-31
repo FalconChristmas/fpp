@@ -160,7 +160,7 @@ int Scheduler::GetNextScheduleEntry(int *weeklySecondIndex)
 			for(j=0;j<m_Schedule[i].weeklySecondCount;j++)
 			{
 				difference = GetWeeklySecondDifference(nowWeeklySeconds,m_Schedule[i].weeklyStartSeconds[j]);
-				if(difference<leastWeeklySecondDifferenceFromNow)
+				if(difference > 0 && difference<leastWeeklySecondDifferenceFromNow)
 				{
 					leastWeeklySecondDifferenceFromNow = difference; 
 					nextEntryIndex = i;
@@ -210,7 +210,7 @@ void Scheduler::LoadNextScheduleInfo(void)
   {
     GetNextPlaylistText(p);
     GetNextScheduleStartText(t);
-    LogDebug(VB_SCHEDULE, "Next Scheduled Playlist is '%s' for %s\n",p, t);
+    LogDebug(VB_SCHEDULE, "Next Scheduled Playlist is index %d: '%s' for %s\n", m_nextSchedulePlaylist.ScheduleEntryIndex, p, t);
   }
 }
 
@@ -696,7 +696,6 @@ void Scheduler::GetNextScheduleStartText(char * txt)
 	{
 		char dayText[16];
 		int found = FindNextStartingScheduleIndex();
-
 		if (found >= 0)
 		{
 			GetDayTextFromDayIndex(m_Schedule[found].dayIndex,dayText);

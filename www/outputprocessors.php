@@ -1,7 +1,8 @@
+<!DOCTYPE html>
+<html>
 <?php
 require_once("common.php");
 ?>
-<html>
 <head>
 <?php include 'common/menuHead.inc'; ?>
 <script language="Javascript">
@@ -180,7 +181,7 @@ function SetOutputProcessors() {
     
 	postData = "command=setOutputProcessors&data={ " + JSON.stringify(data) + " }";
 
-	$.post("fppjson.php", postData).success(function(data) {
+	$.post("fppjson.php", postData).done(function(data) {
 		$.jGrowl("Output Processors Table saved");
 		PopulateOutputProcessorTable(data);
 		SetRestartFlag();

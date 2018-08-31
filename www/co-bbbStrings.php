@@ -234,93 +234,95 @@ function addSerialOutputJSON(postData) {
 }
 
 function populatePixelStringOutputs(data) {
-    for (var i = 0; i < data.channelOutputs.length; i++)
-    {
-        var output = data.channelOutputs[i];
-        var type = output.type;
-        if (type == 'BBB48String') {
-            $('#BBB48String_enable').prop('checked', output.enabled);
-            var subType = output.subType;
-            var version = output.pinoutVersion;
-            $('#BBB48StringSubType').val(subType);
-            $('#BBB48StringSubTypeVersion').val(version);
-            SetupBBBSerialPorts();
-            
-            if (GetBBB48StringRequiresVersion()) {
-                $('#BBB48StringSubTypeVersion').show();
-                $('#versionTag').show();
-            } else {
-                $('#BBB48StringSubTypeVersion').hide();
-                $('#versionTag').hide();
-            }
-
-            $('#pixelOutputs').html("");
-            
-            var outputCount = GetBBB48StringRows();
-            
-            var str = "<table id='BBB48String' type='" + output.subType + "' ports='" + outputCount + "' class='outputTable'>";
-            str += pixelOutputTableHeader();
-            str += "<tbody>";
-            var id = 0; // FIXME if we need to handle multiple outputs of the same type
-            for (var o = 0; o < outputCount; o++)
-            {
-                if (ShouldAddBreak(subType, o)) {
-                    str += "<tr><td colSpan='13'><hr></td></tr>";
-                }
-                if (o < output.outputCount) {
-                    var port = output.outputs[o];
-                    for (var v = 0; v < port.virtualStrings.length; v++)
-                    {
-                        var vs = port.virtualStrings[v];
-                    
-                        str += pixelOutputTableRow(type, id, o, v, vs.description, vs.startChannel + 1, vs.pixelCount, vs.groupCount, vs.reverse, vs.colorOrder, vs.nullNodes, vs.zigZag, vs.brightness, vs.gamma);
-                    }
+    if (data) {
+        for (var i = 0; i < data.channelOutputs.length; i++)
+        {
+            var output = data.channelOutputs[i];
+            var type = output.type;
+            if (type == 'BBB48String') {
+                $('#BBB48String_enable').prop('checked', output.enabled);
+                var subType = output.subType;
+                var version = output.pinoutVersion;
+                $('#BBB48StringSubType').val(subType);
+                $('#BBB48StringSubTypeVersion').val(version);
+                SetupBBBSerialPorts();
+                
+                if (GetBBB48StringRequiresVersion()) {
+                    $('#BBB48StringSubTypeVersion').show();
+                    $('#versionTag').show();
                 } else {
-                    str += pixelOutputTableRow(type, id, o, 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 100, "1.0");
+                    $('#BBB48StringSubTypeVersion').hide();
+                    $('#versionTag').hide();
                 }
-            }
 
-            str += "</tbody>";
-            str += "</table>";
-            
-            $('#pixelOutputs').append(str);
-            
-            $('#BBB48String').on('mousedown', 'tr', function(event, ui) {
-                $('#pixelOutputs table tr').removeClass('selectedEntry');
-		        $(this).addClass('selectedEntry');
-		        selectedPixelStringRowId = $(this).attr('id');
-	        });
-        }
-        if (type == 'BBBSerial') {
-            var subType = output.subType;
+                $('#pixelOutputs').html("");
+                
+                var outputCount = GetBBB48StringRows();
+                
+                var str = "<table id='BBB48String' type='" + output.subType + "' ports='" + outputCount + "' class='outputTable'>";
+                str += pixelOutputTableHeader();
+                str += "<tbody>";
+                var id = 0; // FIXME if we need to handle multiple outputs of the same type
+                for (var o = 0; o < outputCount; o++)
+                {
+                    if (ShouldAddBreak(subType, o)) {
+                        str += "<tr><td colSpan='13'><hr></td></tr>";
+                    }
+                    if (o < output.outputCount) {
+                        var port = output.outputs[o];
+                        for (var v = 0; v < port.virtualStrings.length; v++)
+                        {
+                            var vs = port.virtualStrings[v];
+                        
+                            str += pixelOutputTableRow(type, id, o, v, vs.description, vs.startChannel + 1, vs.pixelCount, vs.groupCount, vs.reverse, vs.colorOrder, vs.nullNodes, vs.zigZag, vs.brightness, vs.gamma);
+                        }
+                    } else {
+                        str += pixelOutputTableRow(type, id, o, 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 100, "1.0");
+                    }
+                }
 
-            if (!HasSerial(output.device)) {
-                subType = "off";
-                $('#BBBSerialOutputs').hide();
+                str += "</tbody>";
+                str += "</table>";
+                
+                $('#pixelOutputs').append(str);
+                
+                $('#BBB48String').on('mousedown', 'tr', function(event, ui) {
+                    $('#pixelOutputs table tr').removeClass('selectedEntry');
+                    $(this).addClass('selectedEntry');
+                    selectedPixelStringRowId = $(this).attr('id');
+                });
             }
-            $('#BBBSerialMode').val(subType);
-            var outputs = output.outputs;
-            if (subType == "DMX") {
-                if (outputs[0].channelCount > 0 && outputs[0].channelCount < 513) {
-                    $('#BBBSerialNumDMXChannels').val(outputs[0].channelCount);
+            if (type == 'BBBSerial') {
+                var subType = output.subType;
+
+                if (!HasSerial(output.device)) {
+                    subType = "off";
+                    $('#BBBSerialOutputs').hide();
+                }
+                $('#BBBSerialMode').val(subType);
+                var outputs = output.outputs;
+                if (subType == "DMX") {
+                    if (outputs[0].channelCount > 0 && outputs[0].channelCount < 513) {
+                        $('#BBBSerialNumDMXChannels').val(outputs[0].channelCount);
+                    } else {
+                        $('#BBBSerialNumDMXChannels').val("512");
+                    }
+                    $('#DMXNumChannelOutput').show();
                 } else {
                     $('#BBBSerialNumDMXChannels').val("512");
+                    $('#DMXNumChannelOutput').hide();
                 }
-                $('#DMXNumChannelOutput').show();
-            } else {
-                $('#BBBSerialNumDMXChannels').val("512");
-                $('#DMXNumChannelOutput').hide();
-            }
-            if (subType == "off")  {
-                $('#BBBSerial_Output').hide();
-            } else {
-                $('#BBBSerial_Output').show();
-            }
-            if (outputs) {
-                for (var i = 0; i < outputs.length; i++)
-                {
-                    var outputNumber = outputs[i].outputNumber + 1;
-                    $('#BBBSerialStartChannel' + outputNumber).val(outputs[i].startChannel);
+                if (subType == "off")  {
+                    $('#BBBSerial_Output').hide();
+                } else {
+                    $('#BBBSerial_Output').show();
+                }
+                if (outputs) {
+                    for (var i = 0; i < outputs.length; i++)
+                    {
+                        var outputNumber = outputs[i].outputNumber + 1;
+                        $('#BBBSerialStartChannel' + outputNumber).val(outputs[i].startChannel);
+                    }
                 }
             }
         }
@@ -382,7 +384,7 @@ function saveBBBOutputs() {
 	// Double stringify so JSON in .json file is surrounded by { }
 	postData = "command=setChannelOutputs&file=co-bbbStrings&data=" + JSON.stringify(JSON.stringify(postData));
 
-	$.post("fppjson.php", postData).success(function(data) {
+	$.post("fppjson.php", postData).done(function(data) {
 		$.jGrowl("Pixel String Output Configuration Saved");
 		SetRestartFlag();
 	}).fail(function() {
