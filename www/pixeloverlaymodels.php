@@ -1,8 +1,9 @@
+<!DOCTYPE html>
+<html>
 <?php
 require_once("common.php");
 
 ?>
-<html>
 <head>
 <?php include 'common/menuHead.inc'; ?>
 <script language="Javascript">
@@ -112,7 +113,7 @@ function SetChannelMemMaps() {
 
 	postData = "command=setChannelMemMaps&data=[ " + postData + " ]";
 
-	$.post("fppjson.php", postData).success(function(data) {
+	$.post("fppjson.php", postData).done(function(data) {
 		$.jGrowl("Pixel Overlay Models saved.");
 		PopulateChannelMemMapTable(data);
 		SetRestartFlag();

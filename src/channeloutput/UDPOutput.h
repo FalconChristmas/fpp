@@ -24,6 +24,8 @@
 #include <list>
 #include <vector>
 #include <string>
+#include <thread>
+#include <mutex>
 
 #include <sys/socket.h>
 #include <jsoncpp/json/json.h>
@@ -74,11 +76,14 @@ public:
     int  RawSendData(unsigned char *channelData);
     
     void DumpConfig(void);
-    
+
+    void BackgroundThreadPing();
+
 private:
     int SendMessages(int socket, std::vector<struct mmsghdr> &sendmsgs);
     bool InitNetwork();
     void PingControllers();
+    void RebuildOutputMessageLists();
     
     int sendSocket;
     int broadcastSocket;
@@ -87,6 +92,12 @@ private:
     std::list<UDPOutputData*> outputs;
     std::vector<struct mmsghdr> udpMsgs;
     std::vector<struct mmsghdr> broadcastMsgs;
+    
+    std::thread *pingThread;
+    volatile bool runDisabledPings;
+    volatile bool rebuildOutputLists;
+    std::mutex invalidOutputsMutex;
+    std::list<UDPOutputData*> invalidOutputs;
 };
 
 #endif

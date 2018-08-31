@@ -105,10 +105,6 @@ if ($settings['Platform'] == FALSE)
 
 if ($settings['Platform'] == "Raspberry Pi")
 {
-	exec("grep ^Revision /proc/cpuinfo | awk '{print $3}'", $output);
-	$revision = $output[0];
-	unset($output);
-
 	$settings['LogoLink'] = "http://raspberrypi.org/";
 	$settings['SubPlatform'] = trim(file_get_contents("/sys/firmware/devicetree/base/model"));
 	$settings['fppBinDir'] = '/opt/fpp/bin.pi';

@@ -512,7 +512,7 @@ function AddPlaylistEntry() {
 
 			var postData = 'command=addPlaylistEntry&data=' + JSON.stringify(entry);
 
-			$.post("fppjson.php", postData).success(function(data) {
+			$.post("fppjson.php", postData).done(function(data) {
 				PopulatePlayListEntries($('#txtPlaylistName').val(),false);
 			}).fail(function() {
 				$.jGrowl("Error: Unable to add new playlist entry.");
@@ -687,7 +687,7 @@ function RemovePlaylistEntry()	{
 			document.body.style.cursor = "wait";
 
 			$.get("fppxml.php?command=uninstallPlugin&plugin=" + pluginName
-			).success(function() {
+			).done(function() {
 				document.body.style.cursor = "pointer";
 				location.reload(true);
 			}).fail(function() {
@@ -719,7 +719,7 @@ function RemovePlaylistEntry()	{
 			document.body.style.cursor = "wait";
 
 			$.get("fppxml.php?command=installPlugin&plugin=" + pluginName
-			).success(function() {
+			).done(function() {
 				document.body.style.cursor = "pointer";
 				location.reload(true);
 			}).fail(function() {
@@ -734,7 +734,7 @@ function RemovePlaylistEntry()	{
 			document.body.style.cursor = "wait";
 
 			$.get("fppxml.php?command=manualGitUpdate"
-			).success(function() {
+			).done(function() {
 				document.body.style.cursor = "pointer";
 				location.reload(true);
 			}).fail(function() {
@@ -754,7 +754,7 @@ function RemovePlaylistEntry()	{
 //				$('#dialog-help').dialog( "moveToTop" );
 
 				$.get("ping.php?ip=" + ip + "&count=" + count
-				).success(function(data) {
+				).done(function(data) {
 						$('#helpText').html(data);
 				}).fail(function() {
 						$('#helpText').html("Error pinging " + ip);
@@ -774,7 +774,7 @@ function RemovePlaylistEntry()	{
 				$('#dialog-help').dialog( "moveToTop" );
 
 				$.get("fppxml.php?command=viewReleaseNotes&version=" + version
-				).success(function(data) {
+				).done(function(data) {
 						$('#helpText').html(
 						"<center><input onClick='UpgradeFPPVersion(\"" + version + "\");' type='button' class='buttons' value='Upgrade'></center>" +
 						"<pre>" + data + "</pre>"
@@ -790,7 +790,7 @@ function RemovePlaylistEntry()	{
 			{
 				document.body.style.cursor = "wait";
 				$.get("fppxml.php?command=upgradeFPPVersion&version=v" + newVersion
-				).success(function() {
+				).done(function() {
 					document.body.style.cursor = "pointer";
 					location.reload(true);
 				}).fail(function() {
@@ -804,7 +804,7 @@ function RemovePlaylistEntry()	{
 		{
 			document.body.style.cursor = "wait";
 			$.get("fppxml.php?command=changeGitBranch&branch=" + newBranch
-			).success(function() {
+			).done(function() {
 				document.body.style.cursor = "pointer";
 				location.reload(true);
 			}).fail(function() {
@@ -1831,7 +1831,7 @@ if (1) {
 			{
 					var xmlDoc=xmlhttp.responseXML; 
 					var receivedBytes = xmlDoc.getElementsByTagName('receivedBytes')[0];
-					if(receivedBytes.childNodes.length> 0)
+					if(receivedBytes && receivedBytes.childNodes.length> 0)
 					{
 						html =  "<table>";
 						html += "<tr id=\"rowReceivedBytesHeader\"><td>Universe</td><td>Start Address</td><td>Packets</td><td>Bytes</td><td>Errors</td></tr>";
@@ -1860,7 +1860,7 @@ if (1) {
 						}
 						html += "</table>";
 					}
-					if(receivedBytes.childNodes.length>32)
+					if(receivedBytes && receivedBytes.childNodes.length>32)
 					{
 						$("#bridgeStatistics1").html(html1);
 						$("#bridgeStatistics2").html(html);
@@ -1969,7 +1969,7 @@ if (1) {
 
 	function SetSetting(key, value, restart, reboot) {
 		$.get("fppjson.php?command=setSetting&key=" + key + "&value=" + value)
-			.success(function() {
+			.done(function() {
 				if ((key != 'restartFlag') && (key != 'rebootFlag'))
 					$.jGrowl(key + " setting saved.");
 
@@ -2032,7 +2032,7 @@ function GetFPPDUptime()
 function RestartFPPD() {
 		$('html,body').css('cursor','wait');
 		$.get("fppxml.php?command=restartFPPD"
-		).success(function() {
+		).done(function() {
 			$('html,body').css('cursor','auto');
 			$.jGrowl('FPPD Restarted');
 			ClearRestartFlag();
@@ -2492,7 +2492,7 @@ function SetVolume(value)
 function SetFPPDmode()
 {
 	$.get("fppxml.php?command=setFPPDmode&mode=" + $('#selFPPDmode').val()
-	).success(function() {
+	).done(function() {
 		$.jGrowl("fppMode Saved");
 		RestartFPPD();
 	}).fail(function() {
@@ -2604,7 +2604,7 @@ function CopyFile(dir, file)
 
 	var postData = "command=copyFile&dir=" + dir + "&filename=" + encodeURIComponent(file) + "&newfilename=" + encodeURIComponent(newFile);
 
-	$.post("fppjson.php", postData).success(function(data) {
+	$.post("fppjson.php", postData).done(function(data) {
 		if (data.status == 'success')
 			GetFiles(dir);
 		else
@@ -2620,7 +2620,7 @@ function RenameFile(dir, file)
 
 	var postData = "command=renameFile&dir=" + dir + "&filename=" + encodeURIComponent(file) + "&newfilename=" + encodeURIComponent(newFile);
 
-	$.post("fppjson.php", postData).success(function(data) {
+	$.post("fppjson.php", postData).done(function(data) {
 		if (data.status == 'success')
 			GetFiles(dir);
 		else
@@ -2717,7 +2717,7 @@ function ConvertFile(file, convertTo)
 	document.body.style.cursor = "wait";
 
 	$.get("fppxml.php?command=convertFile&convertTo=" +
-		convertTo + "&filename=" + file).success(function(data) {
+		convertTo + "&filename=" + file).done(function(data) {
 	
 			target.style.display = 'none';
 			document.body.style.cursor = "default";

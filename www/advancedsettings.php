@@ -80,7 +80,7 @@ function flashEMMCBtrfs() {
 	<fieldset>
 	<legend>FPP Advanced Settings</legend>
 	<table table width = "100%">
-		<tr><td valign='top'><? PrintSettingSelect("E1.31 Bridging Transmit Interval", "E131BridgingInterval", 1, 0,"50", Array('10ms' => '10', '25ms' => '25', '40ms' => '40', '50ms' => '50', '100ms' => '100')); ?></td>
+		<tr><td valign='top'><? PrintSettingSelect("E1.31 Bridging Transmit Interval", "E131BridgingInterval", 1, 0, "50", Array('10ms' => '10', '25ms' => '25', '40ms' => '40', '50ms' => '50', '100ms' => '100')); ?></td>
 			<td valign='top'><b>E1.31 Bridge Mode Transmit Interval</b> - The
 				default Transmit Interval in E1.31 Bridge Mode is 50ms.  This
 				setting allows changing this to match the rate the player is
@@ -143,7 +143,7 @@ function flashEMMCBtrfs() {
     if ($settings['Platform'] == "BeagleBone Black") {
         exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
         $rootDevice = $output[0];
-        if ($rootDevice == 'mmcblk0p1') {
+        if ($rootDevice == 'mmcblk0p1' || $rootDevice == 'mmcblk0p2') {
 ?>
             <tr><td colspan='2'><hr></td></tr>
             <tr><td>

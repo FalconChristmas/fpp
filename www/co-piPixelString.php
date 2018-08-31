@@ -83,51 +83,53 @@ function addPixelOutput()
 function populatePixelStringOutputs(data)
 {
 	$('#pixelOutputs').html("");
+    
+    if (data) {
+        for (var i = 0; i < data.channelOutputs.length; i++)
+        {
+            var output = data.channelOutputs[i];
 
-	for (var i = 0; i < data.channelOutputs.length; i++)
-	{
-		var output = data.channelOutputs[i];
+            var type = output.type;
+            var str = "<hr>\n";
 
-		var type = output.type;
-		var str = "<hr>\n";
+            str += "Output Enabled: <input type='checkbox' id='" + type + "_Output_0_enable'";
 
-		str += "Output Enabled: <input type='checkbox' id='" + type + "_Output_0_enable'";
+            if (output.enabled)
+                str += " checked";
 
-		if (output.enabled)
-			str += " checked";
+            str += "><br>";
 
-		str += "><br>";
+            str += '<b>' + type + ' Output</b><br>';
+            str += "<table id='" + type + "_Output_0' type='" + type + "' ports='" + output.outputCount + "' class='outputTable'>";
+            str += pixelOutputTableHeader();
+            str += "<tbody>";
 
-		str += '<b>' + type + ' Output</b><br>';
-		str += "<table id='" + type + "_Output_0' type='" + type + "' ports='" + output.outputCount + "' class='outputTable'>";
-		str += pixelOutputTableHeader();
-		str += "<tbody>";
+            var id = 0; // FIXME if we need to handle multiple outputs of the same type
 
-		var id = 0; // FIXME if we need to handle multiple outputs of the same type
+            for (var o = 0; o < output.outputCount; o++)
+            {
+                var port = output.outputs[o];
 
-		for (var o = 0; o < output.outputCount; o++)
-		{
-			var port = output.outputs[o];
+                for (var v = 0; v < port.virtualStrings.length; v++)
+                {
+                    var vs = port.virtualStrings[v];
 
-			for (var v = 0; v < port.virtualStrings.length; v++)
-			{
-				var vs = port.virtualStrings[v];
+                    str += pixelOutputTableRow(type, id, o, v, vs.description, vs.startChannel + 1, vs.pixelCount, vs.groupCount, vs.reverse, vs.colorOrder, vs.nullNodes, vs.zigZag, vs.brightness, vs.gamma);
+                }
+            }
 
-				str += pixelOutputTableRow(type, id, o, v, vs.description, vs.startChannel + 1, vs.pixelCount, vs.groupCount, vs.reverse, vs.colorOrder, vs.nullNodes, vs.zigZag, vs.brightness, vs.gamma);
-			}
-		}
+            str += "</tbody>";
+            str += "</table>";
 
-		str += "</tbody>";
-		str += "</table>";
+            $('#pixelOutputs').append(str);
 
-		$('#pixelOutputs').append(str);
-
-		$('#' + type + '_Output_0').on('mousedown', 'tr', function(event, ui) {
-			$('#pixelOutputs table tr').removeClass('selectedEntry');
-			$(this).addClass('selectedEntry');
-			selectedPixelStringRowId = $(this).attr('id');
-		});
-	}
+            $('#' + type + '_Output_0').on('mousedown', 'tr', function(event, ui) {
+                $('#pixelOutputs table tr').removeClass('selectedEntry');
+                $(this).addClass('selectedEntry');
+                selectedPixelStringRowId = $(this).attr('id');
+            });
+        }
+    }
 }
 
 function loadPixelStringOutputs()
@@ -143,7 +145,7 @@ function savePixelStringOutputs() {
 	// Double stringify so JSON in .json file is surrounded by { }
 	postData = "command=setChannelOutputs&file=co-pixelStrings&data=" + JSON.stringify(JSON.stringify(postData));
 
-	$.post("fppjson.php", postData).success(function(data) {
+	$.post("fppjson.php", postData).done(function(data) {
 		$.jGrowl("Pixel String Output Configuration Saved");
 		SetRestartFlag();
 	}).fail(function() {

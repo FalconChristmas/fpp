@@ -103,6 +103,7 @@ void *RunChannelOutputThread(void *data)
 	long long startTime;
 	long long sendTime;
 	long long readTime;
+    long long processTime;
 	int onceMore = 0;
 	struct timespec ts;
     struct timeval tv;
@@ -164,9 +165,10 @@ void *RunChannelOutputThread(void *data)
 		if (getFPPmode() != BRIDGE_MODE)
 			sequence->ReadSequenceData();
 
+        readTime = GetTime();
 		sequence->ProcessSequenceData(1000.0 * channelOutputFrame / RefreshRate, 1);
 
-		readTime = GetTime();
+		processTime = GetTime();
 
 		if ((sequence->IsSequenceRunning()) ||
 			(IsEffectRunning()) ||
@@ -183,9 +185,12 @@ void *RunChannelOutputThread(void *data)
 					sleepTime = 0;
 				lastStatTime = startTime;
 				LogDebug(VB_CHANNELOUT,
-					"Output Thread: Loop: %dus, Send: %lldus, Read: %lldus, Sleep: %dus, FrameNum: %ld\n",
-					LightDelay, sendTime - startTime,
-					readTime - sendTime, sleepTime, channelOutputFrame);
+                         "Output Thread: Loop: %dus, Send: %lldus, Read: %lldus, Process: %lldus, Sleep: %dus, FrameNum: %ld\n",
+					LightDelay,
+                    sendTime - startTime,
+					readTime - sendTime,
+                    processTime - readTime, 
+                    sleepTime, channelOutputFrame);
 			}
 		}
 		else

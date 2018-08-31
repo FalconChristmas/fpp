@@ -19,7 +19,7 @@ $(document).ready(function(){
 			url: "fppxml.php",
 			dataType:"text",
 			data: dataString
-		}).success(function() {
+		}).done(function() {
 			getPixelnetDMXoutputs('TRUE');
 			$.jGrowl("FPD Config Saved");
 			SetRestartFlag();

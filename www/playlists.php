@@ -1,3 +1,5 @@
+<!DOCTYPE html>
+<html>
 <?php
 require_once('config.php');
 require_once('playlistentry.php');
@@ -43,8 +45,6 @@ function SetSetting($file,$varName,$varValue)
 
 ?>
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
     <head>
     <?php	include 'common/menuHead.inc'; ?>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
@@ -129,7 +129,7 @@ $(document).ready(function () {
 		if ($('#autoSelectMatches').is(':checked') == false)
 			return;
 
-		var value = $('#selMedia').val().replace(/\.ogg|\.mp3|\.mp4/i, "");
+		var value = $('#selMedia').val().replace(/\.ogg|\.mp3|\.mp4|\.m4a/i, "");
 
 		var seq = document.getElementById("selSequence")
 		for (var i = 0; i < seq.length; i++) {
@@ -147,7 +147,7 @@ $(document).ready(function () {
 
 		var media = document.getElementById("selMedia")
 		for (var i = 0; i < media.length; i++) {
-			if (media.options[i].value.replace(/\.ogg|\.mp3|\.mp4/i, "") == value)
+			if (media.options[i].value.replace(/\.ogg|\.mp3|\.mp4|\.m4a/i, "") == value)
 				$('#selMedia').val(media.options[i].value);
 		}
 	}

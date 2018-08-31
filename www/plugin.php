@@ -1,3 +1,5 @@
+<!DOCTYPE html>
+<html>
 <?php
 
 if ( !isset($_GET['nopage']) ):
@@ -16,8 +18,6 @@ if (isset($_GET['plugin']))
 
 ?>
 
-<!DOCTYPE html>
-<html>
 <head>
 <?php include 'common/menuHead.inc'; ?>
 <title><? echo $pageTitle; ?></title>

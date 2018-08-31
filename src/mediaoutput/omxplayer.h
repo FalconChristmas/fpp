@@ -36,9 +36,11 @@ class omxplayerOutput : public MediaOutputBase {
 	omxplayerOutput(std::string mediaFilename, MediaOutputStatus *status);
 	~omxplayerOutput();
 
-	int  Start(void);
-	int  Stop(void);
-	int  Process(void);
+	virtual int  Start(void);
+	virtual int  Stop(void);
+	virtual int  Process(void);
+    virtual int  IsPlaying(void);
+    virtual int  Close(void);
 
 	int  AdjustSpeed(int delta);
 	void SetVolume(int volume);

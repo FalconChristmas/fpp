@@ -433,9 +433,21 @@ function ToggleTetherMode()
       <td><? PrintSettingCheckbox("Pause Background Effects", "pauseBackgroundEffects", 1, 0, "1", "0"); ?></td>
     </tr>
     <tr>
-        <td>Default Video Output Device:</td>
-        <td><? PrintSettingSelect("Video Output Device", "VideoOutput", 0, 0, $settings['videoOutput'], $VideoOutputModels); ?></td>
+      <td>Default Video Output Device:</td>
+      <td><? PrintSettingSelect("Video Output Device", "VideoOutput", 0, 0, $settings['videoOutput'], $VideoOutputModels); ?></td>
     </tr>
+<?php
+ if ($settings['Platform'] == "Raspberry Pi") {
+?>
+    <tr>
+      <td>OMXPlayer (mp4 playback) Audio Output:</td>
+      <td><? PrintSettingSelect("OMXPlayer Audio Device", "OMXPlayerAudioOutput", 0, 0, $settings['OMXPlayerAudioOutput'],
+                                Array("ALSA" => "alsa", "HDMI" => "hdmi", "Local" => "local", "Both" => "both", "Disabled" => "disabled")); ?>
+     </td>
+    </tr>
+<?php
+ }
+?>
     <tr>
       <td>Audio Output Device:</td>
       <td><? PrintSettingSelect("Audio Output Device", "AudioOutput", 1, 0, "$CurrentCard", $AlsaCards, "", "SetAudio"); ?></td>

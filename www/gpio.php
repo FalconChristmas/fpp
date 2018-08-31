@@ -1,8 +1,9 @@
+<!DOCTYPE html>
+<html>
 <?php
 require_once("common.php");
 
 ?>
-<html>
 <head>
 <?php
 include 'common/menuHead.inc';
@@ -230,7 +231,7 @@ function SaveGPIOInputEvent(input)
 
 	$.get("fppjson.php?command=setSetting&key=" + setting + "&value="
 		+ event)
-		.success(function() {
+		.done(function() {
 			$.jGrowl('GPIO Input Event saved');
 		}).fail(function() {
 			DialogError("GPIO Input", "Save GPIO Event failed");

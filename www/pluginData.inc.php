@@ -40,10 +40,10 @@ $plugins = Array(
 		'name'        => 'Big Buttons',
 		'author'      => 'Chris Pinkham (CaptainMurdoch)',
 		'description' => 'A new UI page with big buttons which trigger scripts',
-		'homeUrl'     => 'https://github.com/cpinkham/fpp-BigButtons',
-		'sourceUrl'   => 'https://github.com/cpinkham/fpp-BigButtons.git',
-		'bugUrl'      => 'https://github.com/cpinkham/fpp-BigButtons/issues',
-		'sha'         => '0e2eb62bd96de6a8a84679b2d245ebfa28c01c60',
+		'homeUrl'     => 'https://github.com/FalconChristmas/fpp-BigButtons',
+		'sourceUrl'   => 'https://github.com/FalconChristmas/fpp-BigButtons.git',
+		'bugUrl'      => 'https://github.com/FalconChristmas/fpp-BigButtons/issues',
+		'sha'         => '7ca74cdabcd4fd3a0b647a36ad53f89e96e35e64',
 	),
 
 	Array(

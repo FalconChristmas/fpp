@@ -15,6 +15,10 @@ wget -q -O ${SCRIPT} https://raw.githubusercontent.com/FalconChristmas/fpp-scrip
 # Grab out any Install Actions defined in the script and execute them
 grep "^# InstallAction:" ${SCRIPT} | sed -e "s/.*InstallAction: //" > /var/tmp/installactions.sh
 
+# Make fpp owner of the script (initially created with root as owner),
+# fixes after reboot, change owner so user can edit file straight away
+chown fpp:fpp ${SCRIPT}
+
 if [ -s /var/tmp/installactions.sh ]
 then
 	/bin/bash /var/tmp/installactions.sh

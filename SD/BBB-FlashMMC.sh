@@ -1,7 +1,21 @@
 #!/bin/bash -e
 
+export PARTSIZE=""
+export DOREBOOT="y"
+if [ "$1" == "-s" ]; then
+    PARTSIZE=$2
+    shift; shift;
+fi
+if [ "$1" == "-noreboot" ]; then
+  DOREBOOT="n"
+  shift;
+fi
 
-DEVICE="/dev/mmcblk1"
+
+DEVICE=$2
+if [ "x${DEVICE}" == "x" ]; then
+    DEVICE="/dev/mmcblk1"
+fi
 
 
 cylon_leds () {
@@ -58,7 +72,7 @@ prepareBTRFSPartitions() {
     # create partitions
     sfdisk --force ${DEVICE} <<-__EOF__
 4M,96M,,*
-100M,,,-
+100M,${PARTSIZE},,-
 __EOF__
 
     blockdev --rereadpt ${DEVICE}  || true
@@ -77,9 +91,9 @@ __EOF__
     echo ""
 
     #mount
-    mkdir /tmp/rootfs
+    mkdir -p /tmp/rootfs
     mount -t btrfs -o noatime,nodiratime,compress-force=zstd ${DEVICE}p2 /tmp/rootfs
-    mkdir /tmp/rootfs/boot
+    mkdir -p /tmp/rootfs/boot
     mount -t ext4 -o noatime,nodiratime ${DEVICE}p1 /tmp/rootfs/boot
 }
 prepareEXT4Partitions() {
@@ -89,7 +103,7 @@ prepareEXT4Partitions() {
 
     # create partitions
     sfdisk --force ${DEVICE} <<-__EOF__
-4M,,,-
+4M,${PARTSIZE},,-
 __EOF__
 
     blockdev --rereadpt ${DEVICE}  || true
@@ -107,7 +121,7 @@ __EOF__
     echo ""
 
     #mount
-    mkdir /tmp/rootfs
+    mkdir -p /tmp/rootfs
     mount -t ext4 -o noatime,nodiratime ${DEVICE}p1 /tmp/rootfs
 
 }
@@ -117,8 +131,8 @@ adjustEnvBTRFS() {
     make clean
     make
 
-    mkdir /tmp/rootfs/boot/lib
-    mkdir /tmp/rootfs/boot/lib/firmware
+    mkdir -p /tmp/rootfs/boot/lib
+    mkdir -p /tmp/rootfs/boot/lib/firmware
     cp /opt/source/bb.org-overlays/src/arm/* /tmp/rootfs/boot/lib/firmware
 
     echo ""  >> /tmp/rootfs/boot/uEnv.txt
@@ -135,7 +149,9 @@ adjustEnvEXT4() {
 
 }
 
-cylon_leds & CYLON_PID=$!
+if [ "$DOREBOOT" == "y" ]; then
+    cylon_leds & CYLON_PID=$!
+fi
 
 set -o pipefail
 
@@ -159,7 +175,7 @@ echo "Copy files rootfs"
 echo ""
 
 #copy files
-time rsync -aAxv /ID.txt /bin /boot /dev /etc /home /lib /lost+found /media /mnt /opt /proc /root /run /sbin /srv /sys /tmp /usr /var /tmp/rootfs --exclude=/dev/* --exclude=/proc/* --exclude=/sys/* --exclude=/tmp/* --exclude=/run/* --exclude=/mnt/* --exclude=/media/* --exclude=/lost+found --exclude=/uEnv.txt
+time rsync -aAxv /ID.txt /bin /boot /dev /etc /home /lib /lost+found /media /mnt /opt /proc /root /run /sbin /srv /sys /tmp /usr /var /tmp/rootfs --exclude=/dev/* --exclude=/proc/* --exclude=/sys/* --exclude=/tmp/* --exclude=/run/* --exclude=/mnt/* --exclude=/media/* --exclude=/lost+found --exclude=/uEnv.txt || true
 
 echo "---------------------------------------"
 echo "Configure /boot"
@@ -167,7 +183,14 @@ echo ""
 
 #configure /boot
 cd /tmp/rootfs/boot
-ln -s . boot
+
+#remove btrfs stuff from uEnv.txt (may be re-added later)
+sed -i '/mmcpart=2/d' uEnv.txt
+sed -i '/rootfstype=btrfs/d' uEnv.txt
+sed -i '/mmcrootfstype=btrfs/d' uEnv.txt
+
+rm -f boot
+ln -sf . boot
 cd /
 
 if [ "$1" = "ext4" ]; then
@@ -204,5 +227,7 @@ umount -R /tmp/rootfs
 echo "---------------------------------------"
 echo "Done flashing eMMC, powering down"
 echo ""
-systemctl poweroff || halt
+if [ "$DOREBOOT" == "y" ]; then
+    systemctl poweroff || halt
+fi
 

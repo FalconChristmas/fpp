@@ -102,11 +102,12 @@ int ogg123Output::Start(void)
 	pid_t ogg123Pid = fork();
 	if (ogg123Pid == 0)			// ogg123 process
 	{
-		CloseOpenFiles();
-
 		//ogg123 uses stderr for output
 	    dup2(m_childPipe[MEDIAOUTPUTPIPE_WRITE], STDERR_FILENO);
 		close(m_childPipe[MEDIAOUTPUTPIPE_WRITE]);
+
+		CloseOpenFiles();
+
 		m_childPipe[MEDIAOUTPUTPIPE_WRITE] = 0;
 
 		execl(oggPlayer.c_str(), oggPlayer.c_str(), fullAudioPath.c_str(), NULL);

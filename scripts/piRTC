@@ -12,24 +12,26 @@ RTCDEVICE="/dev/rtc0"
 . ${BINDIR}/common
 . ${BINDIR}/functions
 
-if [ "${FPPPLATFORM}" = "Raspberry Pi" ]
-then
-	setupPiRTC
-else
-	if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
-	then
-		setupBBBRTC
-		RTCDEVICE="/dev/rtc1"
-	fi
+setupRTC
+
+if [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
+    RTCDEVICE="/dev/rtc1"
 fi
 
-if [[ $1 == "set" ]]
-then
-  hwclock -w -f ${RTCDEVICE} &>/dev/null
-else
-  hwclock -s -f ${RTCDEVICE} &>/dev/null
-  cp ${FPPDIR}/etc/update-RTC /etc/cron.daily/
+
+if [ -e ${RTCDEVICE} ]; then
+    if [[ $1 == "set" ]]
+    then
+      hwclock -w -f ${RTCDEVICE}
+    else
+      hwclock -s -f ${RTCDEVICE}
+
+      if [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
+          # set the built in rtc to the same time as read from the RTC
+          hwclock -w -f /dev/rtc0
+      fi
+      cp ${FPPDIR}/etc/update-RTC /etc/cron.daily/
+    fi
+
+    date
 fi
-
-sleep 2
-

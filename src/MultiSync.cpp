@@ -183,8 +183,10 @@ MultiSyncSystemType MultiSync::ModelStringToType(std::string model)
 		return kSysTypeFPPRaspberryPi2B;
 	if (boost::starts_with(model, "Raspberry Pi 2 Model B"))
 		return kSysTypeFPPRaspberryPi2BNew;
-	if (boost::starts_with(model, "Raspberry Pi 3 Model B"))
+	if (boost::starts_with(model, "Raspberry Pi 3 Model B Rev"))
 		return kSysTypeFPPRaspberryPi3B;
+	if (boost::starts_with(model, "Raspberry Pi 3 Model B Plus"))
+		return kSysTypeFPPRaspberryPi3BPlus;
 	if (boost::starts_with(model, "Raspberry Pi Zero Rev"))
 		return kSysTypeFPPRaspberryPiZero;
 	if (boost::starts_with(model, "Raspberry Pi Zero W"))
@@ -263,16 +265,9 @@ std::string MultiSync::GetHardwareModel(void)
 	std::string result;
 	std::string filename;
 
-	// Raspberry Pi
 	if (FileExists("/sys/firmware/devicetree/base/model"))
 		filename = "/sys/firmware/devicetree/base/model";
-
-	// BeagleBone
-	if (FileExists("/proc/device-tree/model"))
-		filename = "/proc/device-tree/model";
-
-	// Others?
-	if (FileExists("/sys/class/dmi/id/product_name"))
+	else if (FileExists("/sys/class/dmi/id/product_name"))
 		filename = "/sys/class/dmi/id/product_name";
 
 	if (filename != "")
@@ -318,6 +313,7 @@ std::string MultiSync::GetTypeString(MultiSyncSystemType type)
 		case kSysTypeFPPRaspberryPi2B:        return "Raspberry Pi 2 B";
 		case kSysTypeFPPRaspberryPi2BNew:     return "Raspberry Pi 2 B v1.2+";
 		case kSysTypeFPPRaspberryPi3B:        return "Raspberry Pi 3 B";
+		case kSysTypeFPPRaspberryPi3BPlus:    return "Raspberry Pi 3 B+";
 		case kSysTypeFPPRaspberryPiZero:      return "Raspberry Pi Zero";
 		case kSysTypeFPPRaspberryPiZeroW:     return "Raspberry Pi Zero W";
 		case kSysTypeFalconController:        return "Falcon Controller";
@@ -896,9 +892,20 @@ int MultiSync::OpenControlSockets(void)
 		newRemote.sin_addr.s_addr = inet_addr(s);
 
 		m_destAddr.push_back(newRemote);
-
+        
 		s = strtok(NULL, ",");
 	}
+    for (int x = 0; x < m_destAddr.size(); x++) {
+        struct mmsghdr msg;
+        memset(&msg, 0, sizeof(msg));
+        
+        msg.msg_hdr.msg_name = &m_destAddr[x];
+        msg.msg_hdr.msg_namelen = sizeof(sockaddr_in);
+        msg.msg_hdr.msg_iov = &m_destIovec;
+        msg.msg_hdr.msg_iovlen = 1;
+        msg.msg_len = 0;
+        m_destMsgs.push_back(msg);
+    }
 
 	LogDebug(VB_SYNC, "%d Remote Sync systems configured\n",
 		m_destAddr.size());
@@ -919,13 +926,26 @@ void MultiSync::SendControlPacket(void *outBuf, int len)
 		HexDump("Sending Control packet with contents:", outBuf, len);
 	}
 
-	pthread_mutex_lock(&m_socketLock);
+    m_destIovec.iov_base = outBuf;
+    m_destIovec.iov_len = len;
 
-	for (int i = 0; i < m_destAddr.size(); i++)
-	{
-		if (sendto(m_controlSock, outBuf, len, 0, (struct sockaddr*)&m_destAddr[i], sizeof(struct sockaddr_in)) < 0)
-			LogErr(VB_SYNC, "Error: Unable to send packet: %s\n", strerror(errno));
-	}
+    int msgCount = m_destMsgs.size();
+    if (msgCount == 0) {
+        return;
+    }
+    
+    pthread_mutex_lock(&m_socketLock);
+    int oc = sendmmsg(m_controlSock, &m_destMsgs[0], msgCount, 0);
+    int outputCount = oc;
+    while (oc > 0 && outputCount != msgCount) {
+        int oc = sendmmsg(m_controlSock, &m_destMsgs[outputCount], msgCount - outputCount, 0);
+        if (oc >= 0) {
+            outputCount += oc;
+        }
+    }
+    if (outputCount != msgCount) {
+        LogErr(VB_SYNC, "Error: Unable to send multisync packet: %s\n", strerror(errno));
+    }
 
 	pthread_mutex_unlock(&m_socketLock);
 }
@@ -978,6 +998,18 @@ int MultiSync::OpenCSVControlSockets(void)
 
 		s = strtok(NULL, ",");
 	}
+    for (int x = 0; x < m_destAddrCSV.size(); x++) {
+        struct mmsghdr msg;
+        memset(&msg, 0, sizeof(msg));
+        
+        msg.msg_hdr.msg_name = &m_destAddrCSV[x];
+        msg.msg_hdr.msg_namelen = sizeof(sockaddr_in);
+        msg.msg_hdr.msg_iov = &m_destIovecCSV;
+        msg.msg_hdr.msg_iovlen = 1;
+        msg.msg_len = 0;
+        m_destMsgsCSV.push_back(msg);
+    }
+
 
 	LogDebug(VB_SYNC, "%d CSV Remote Sync systems configured\n",
 		m_destAddrCSV.size());
@@ -999,13 +1031,27 @@ void MultiSync::SendCSVControlPacket(void *outBuf, int len)
 		return;
 	}
 
-	pthread_mutex_lock(&m_socketLock);
 
-	for (int i = 0; i < m_destAddrCSV.size(); i++)
-	{
-		if (sendto(m_controlCSVSock, outBuf, len, 0, (struct sockaddr*)&m_destAddrCSV[i], sizeof(struct sockaddr_in)) < 0)
-			LogErr(VB_SYNC, "Error: Unable to send packet: %s\n", strerror(errno));
-	}
+    m_destIovecCSV.iov_base = outBuf;
+    m_destIovecCSV.iov_len = len;
+    int msgCount = m_destMsgsCSV.size();
+    if (msgCount == 0) {
+        return;
+    }
+    
+    pthread_mutex_lock(&m_socketLock);
+
+    int oc = sendmmsg(m_controlCSVSock, &m_destMsgsCSV[0], msgCount, 0);
+    int outputCount = oc;
+    while (oc > 0 && outputCount != msgCount) {
+        int oc = sendmmsg(m_controlCSVSock, &m_destMsgsCSV[outputCount], msgCount - outputCount, 0);
+        if (oc >= 0) {
+            outputCount += oc;
+        }
+    }
+    if (outputCount != msgCount) {
+        LogErr(VB_SYNC, "Error: Unable to send CSV multisync packet: %s\n", strerror(errno));
+    }
 
 	pthread_mutex_unlock(&m_socketLock);
 }

@@ -65,6 +65,7 @@ netcalc(){
 
 
 SetupFPPNetworkConfigViaConnMann() {
+
     CONFIGS=`ls ${FPPHOME}/media/config/interface.*`
 
     DNS1=""
@@ -83,7 +84,7 @@ SetupFPPNetworkConfigViaConnMann() {
         DNS="$DNS1,$DNS2"
     fi
 
-    TMPFILE="/tmp/fpp.config"
+    TMPFILE="/var/tmp/fpp.config"
     rm -f ${TMPFILE}
 
     for f in $CONFIGS; do
@@ -100,9 +101,17 @@ SetupFPPNetworkConfigViaConnMann() {
             echo "Passphrase=${PSK}" >> $TMPFILE
         fi
 
+        for i in {1..10}
+        do 
+            # wait up to 10 seconds for interface to become available
+            if [ ! -f "/sys/class/net/${INTERFACE}/address" ]; then
+                sleep 1
+            fi
+        done
+
         if [ -f "/sys/class/net/${INTERFACE}/address" ]; then
-            MAC=`cat /sys/class/net/${INTERFACE}/address`
-            echo "MAC=${MAC}" >> $TMPFILE
+             MACA=$(<"/sys/class/net/${INTERFACE}/address")
+            echo "MAC=${MACA}" >> $TMPFILE
         fi
         if [ "x$DNS" != "x" ]
         then
@@ -122,8 +131,6 @@ SetupFPPNetworkConfigViaConnMann() {
                 echo "IPv4=$ADDRESS/$NETMASK" >> $TMPFILE
             fi
         fi
-
-
         echo ""  >> $TMPFILE
         echo ""  >> $TMPFILE
     done
@@ -134,7 +141,9 @@ SetupFPPNetworkConfigViaConnMann() {
         cp $TMPFILE /var/lib/connman/fpp.config
     fi
 
-    connmanctl services > /tmp/services.txt
+    #ifconfig -a > /var/tmp/conm.txt
+    #ls -l /sys/class/net/ >>  /var/tmp/conm.txt
+    # connmanctl services > /var/tmp/services.txt
 }
 
 
@@ -322,19 +331,10 @@ SetupFPPNetworkConfig () {
     ENABLEROUTING=$(getSetting EnableRouting)
 	if [ "x${ENABLEROUTING}" = "x1" ]
 	then
-		# Remove all ip_forward lines in case there is an "= 0" line
-		sed -i "/Enable Routing/d" /etc/sysctl.conf
-		sed -i "/net.ipv4.ip_forward/d" /etc/sysctl.conf
-
-		# Add in a line to enable forwarding
-		echo "# Enable Routing" >> /etc/sysctl.conf
-		echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
+		sysctl -w net.ipv4.ip_forward=1
 	else
-		# Remote any ip_forward line we put in
-		sed -i "/Enable Routing/d" /etc/sysctl.conf
-		sed -i "/net.ipv4.ip_forward = 1/d" /etc/sysctl.conf
+        sysctl -w net.ipv4.ip_forward=0
 	fi
-	sysctl --system
 }
 
 #############################################################################
@@ -821,101 +821,58 @@ checkTimeAgainstUSNO() {
 
 #############################################################################
 # Setup RTC on the Pi.
-setupPiRTC () {
-	# RTC Setup
-	# to get the RPi board version:
-	REV=$(cat /proc/cpuinfo|grep Revision)
-	# Extract revision
-	REV=${REV##*: }
-	# Make it readable as hex
-	REV=0x$REV
-	# Convert hex to dec
-	REV=$((REV))
+setupRTC () {
 
-	# Locate The Required Modules
+    if  [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
+        # RTC Setup
+        # to get the RPi board version:
+        REV=$(cat /proc/cpuinfo|grep Revision)
+        # Extract revision
+        REV=${REV##*: }
+        # Make it readable as hex
+        REV=0x$REV
+        # Convert hex to dec
+        REV=$((REV))
 
-	modprobe i2c-bcm2708
-	modprobe i2c-dev
+        if [ $REV -lt 4 ]; then
+            I2CBUS="i2c-0"
+        else
+            I2CBUS="i2c-1"
+        fi
+    elif [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
+        I2CBUS="i2c-2"
+    else
+        return
+    fi
 
-	PCF2127=pcf2127
-	if [ "x$(uname -r)" = "x3.10.33+" ]
-	then
-		PCF2127=pcf2127a
-	fi
-
-	modprobe rtc-${PCF2127}
-	modprobe rtc-ds1307
-	modprobe i2c:mcp7941x
+    modprobe i2c-dev
 
 	# Read Clock Setting From Settings File
-
 	piRTC=$(awk -f ${FPPDIR}/scripts/readSetting.awk ${SETTINGSFILE} setting=piRTC)
-
-	remountRootReadWrite
-
-	# Remove PiFace RTC overlay from /boot/config.txt.  If a user
-	# is configuring it, the overlay will be re-added shortly
-	sed -i '/dtoverlay=i2c-rtc,mcp7941x/d' /boot/config.txt
 
 	case "$piRTC" in
 	1)
 	  # rasClock chip
-	  if [ $REV -lt 4 ]
-	  then
-		echo "FPP - Configuring RTC, Setting to rasClock/i2c-0"
-		echo ${PCF2127} 0x51 > /sys/class/i2c-adapter/i2c-0/new_device
-	  else
-		echo "FPP - Configuring RTC, Setting to rasClock/i2c-1"
-		echo ${PCF2127} 0x51 > /sys/class/i2c-adapter/i2c-1/new_device
-	  fi
+      echo "FPP - Configuring RTC, Setting to rasClock/${I2CBUS}"
+      echo pfc2127 0x51 > /sys/class/i2c-adapter/${I2CBUS}/new_device
+      sleep 1
 	  ;;
 	2)
 	  # DS1307 chip
-	  if [ $REV -lt 4 ]
-	  then
-		echo "FPP - Configuring RTC, Settting to DS1307/i2c-0"
-		echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-0/new_device
-	  else
-		echo "FPP - Configuring RTC, Setting to DS1307/i2c-1"
-		echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-1/new_device
-	  fi
+      echo "FPP - Configuring RTC, Setting to DS1307/${I2CBUS}"
+      echo ds1307 0x68 > /sys/class/i2c-adapter/${I2CBUS}/new_device
+      sleep 1
 	  ;;
 	3)
 	  # PiFace Chip
-	  if ! grep -qc dtoverlay=i2c-rtc,mcp7941x /boot/config.txt
-		then
-		echo "FPP - Configuring RTC, adding PiFace RTC overlay"
-		echo 'dtoverlay=i2c-rtc,mcp7941x' >> /boot/config.txt
-	  fi
+      echo "FPP - Configuring RTC, Settting to mcp7941x/${I2CBUS}"
+	  echo "mcp7941x 0x6f" > /sys/bus/i2c/devices/${I2CBUS}/new_device
+      sleep 1
 	  ;;
 	*)
 	  # None
 		echo "FPP - Configuring RTC, None Selected"
 	  ;;
-	esac
-
-	remountRootReadOnlyIfNeeded
-}
-
-#############################################################################
-# Setup RTC on the BBB
-setupBBBRTC () {
-	# Read Clock Setting From Settings File
-
-	RTC=$(awk -f ${FPPDIR}/scripts/readSetting.awk ${SETTINGSFILE} setting=piRTC)
-
-	case "$RTC" in
-		2)
-			# DS1307 chip
-			# BBB has onboard clock as rtc0 so we need to use rtc1
-            modprobe rtc_ds1307
-			echo ds1307 0x68 > /sys/class/i2c-adapter/i2c-2/new_device
-			echo "FPP - Configuring RTC, Setting to DS1307/i2c-2"
-			;;
-		*)
-			# None
-			echo "FPP - Configuring RTC, None Selected"
-			;;
 	esac
 }
 

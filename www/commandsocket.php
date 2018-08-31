@@ -94,6 +94,10 @@ function SendCommand($command)
 	}
 
 	CleanupSocket($cpath, $socket);
+
+	if ($socketDebug)
+		printf( "buf: '$buf'<br>\n");
+
 	return $buf;
 }
 

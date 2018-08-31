@@ -335,13 +335,16 @@ int Playlist::Start(void)
 
 	if (m_absolutePosition > 0)
 	{
-		if (m_absolutePosition > (m_leadIn.size() + m_mainPlaylist.size()))
+		if (m_absolutePosition >= (m_leadIn.size() + m_mainPlaylist.size() + m_leadOut.size()))
+			m_absolutePosition = 0;
+
+		if (m_absolutePosition >= (m_leadIn.size() + m_mainPlaylist.size()))
 		{
 			m_sectionPosition = m_absolutePosition - (m_leadIn.size() + m_mainPlaylist.size());
 			m_currentSectionStr = "LeadOut";
 			m_currentSection = &m_leadOut;
 		}
-		else if (m_absolutePosition > m_leadIn.size())
+		else if (m_absolutePosition >= m_leadIn.size())
 		{
 			m_sectionPosition = m_absolutePosition - m_leadIn.size();
 			m_currentSectionStr = "MainPlaylist";

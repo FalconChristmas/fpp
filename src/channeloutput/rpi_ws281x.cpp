@@ -104,7 +104,7 @@ int RPIWS281xOutput::Init(Json::Value config)
 	}
 
 	ledstring.freq   = 800000; // Hard code this for now
-	ledstring.dmanum = 5;
+	ledstring.dmanum = 10;
 
 	ledstring.channel[0].gpionum = m_string1GPIO;
 	ledstring.channel[0].count   = m_strings[0]->m_outputChannels / 3;

@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
 <head>
 <?php
@@ -71,7 +72,7 @@ function SaveChannelOutputsJSON()
 	var postData = "command=setChannelOutputs&file=channelOutputsJSON&data=" + JSON.stringify(configStr);
 
 	$.post("fppjson.php", postData
-	).success(function(data) {
+	).done(function(data) {
 		$.jGrowl(" Channel Output configuration saved");
 		SetRestartFlag();
 	}).fail(function() {
@@ -202,6 +203,10 @@ tr.rowUniverseDetails td
 #tblUniverses input[type=text] {
 	text-align: center;
 	width: 100%;
+}
+#tblUniverses input[type=number] {
+    text-align: center;
+    width: 100%;
 }
 
 </style>

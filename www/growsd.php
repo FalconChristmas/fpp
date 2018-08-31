@@ -1,3 +1,5 @@
+<!DOCTYPE html>
+<html>
 <?php
 
 $skipJSsettings = 1;
@@ -7,7 +9,6 @@ DisableOutputBuffering();
 
 ?>
 
-<html>
 <head>
 <title>
 Grow SD Card Filesystem
@@ -19,7 +20,7 @@ Grow SD Card Filesystem
 <?php
 
 if ($settings['Platform'] == "BeagleBone Black") {
-    $command = "sudo /opt/scripts/tools/grow_partition.sh 2>&1";
+    $command = "sudo /opt/fpp/SD/BBB-grow_partition.sh 2>&1";
 } else if ($settings['Platform'] == "Raspberry Pi") {
     $command = "sudo /usr/bin/raspi-config --expand-rootfs";
 }

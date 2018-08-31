@@ -1,3 +1,5 @@
+<!DOCTYPE html>
+<html>
 <?php
 
 require_once("config.php");
@@ -43,8 +45,6 @@ $pw = file_exists("$mediaDirectory/htaccess");
 
 ?>
 
-<!DOCTYPE html>
-<html>
 <head>
 <?php include 'common/menuHead.inc'; ?>
 <script type="text/javascript" src="/js/validate.min.js"></script>

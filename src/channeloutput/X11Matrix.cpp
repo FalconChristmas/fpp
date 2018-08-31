@@ -75,6 +75,11 @@ int X11MatrixOutput::Init(Json::Value config)
 	m_height = config["height"].asInt();
 	m_scale = config["scale"].asInt();
 
+	if (config.isMember("title"))
+		m_title = config["title"].asString();
+	else
+		m_title = "X11Matrix";
+
 	if (!m_scale)
 		m_scale = 10;
 
@@ -119,6 +124,9 @@ int X11MatrixOutput::Init(Json::Value config)
 		DefaultVisual(m_display, m_screen), CWBackPixel, &attributes);
 
 	XMapWindow(m_display, m_window);
+
+	XStoreName(m_display, m_window, m_title.c_str());
+	XSetIconName(m_display, m_window, m_title.c_str());
 	
 	XFlush(m_display);
 

@@ -1,3 +1,5 @@
+<!DOCTYPE html>
+<html>
 <?php
 
 $skipJSsettings = 1;
@@ -8,7 +10,6 @@ DisableOutputBuffering();
 
 ?>
 
-<html>
 <head>
 <title>
 Flash BBB eMMC
