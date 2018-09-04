@@ -134,6 +134,11 @@ int GenericSerialOutput::Init(char *configStr)
 	return ChannelOutputBase::Init(configStr);
 }
 
+void GenericSerialOutput::GetRequiredChannelRange(int &min, int & max) {
+    min = m_startChannel;
+    max = min + m_channelCount - 1;
+}
+
 /*
  *
  */

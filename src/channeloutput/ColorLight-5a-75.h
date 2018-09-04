@@ -51,6 +51,8 @@ class ColorLight5a75Output : public ChannelOutputBase {
 
 	void DumpConfig(void);
 
+    virtual void GetRequiredChannelRange(int &min, int & max);
+
   private:
 	void SetHostMACs(void *data);
 

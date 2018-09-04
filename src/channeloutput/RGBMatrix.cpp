@@ -227,6 +227,10 @@ int RGBMatrixOutput::Init(Json::Value config)
 
 	return ChannelOutputBase::Init(config);
 }
+void RGBMatrixOutput::GetRequiredChannelRange(int &min, int & max) {
+    min = m_startChannel;
+    max = m_startChannel + m_channelCount - 1;
+}
 
 /*
  *

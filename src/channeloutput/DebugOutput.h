@@ -55,6 +55,11 @@ class DebugOutput : public ChannelOutputBase {
 	// Dump the config variables for debugging.  This method must
 	// also call the base class DumpConfig() method.
 	void DumpConfig(void);
+    
+    virtual void GetRequiredChannelRange(int &min, int & max) {
+        min = m_startChannel; max = min + m_channelCount - 1;
+    }
+
 };
 
 #endif

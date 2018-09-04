@@ -142,6 +142,21 @@ int RPIWS281xOutput::Close(void)
 	return ChannelOutputBase::Close();
 }
 
+void RPIWS281xOutput::GetRequiredChannelRange(int &min, int & max) {
+    min = FPPD_MAX_CHANNELS;
+    max = 0;
+    
+    PixelString *ps = NULL;
+    for (int s = 0; s < m_strings.size(); s++) {
+        ps = m_strings[s];
+        int inCh = 0;
+        for (int p = 0; p < ps->m_outputChannels; p++) {
+            int ch = ps->m_outputMap[inCh++];
+            min = std::min(min, ch);
+            max = std::max(max, ch);
+        }
+    }
+}
 void RPIWS281xOutput::PrepData(unsigned char *channelData)
 {
 	unsigned char *c = channelData;

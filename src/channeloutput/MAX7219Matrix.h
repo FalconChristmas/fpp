@@ -40,6 +40,8 @@ class MAX7219MatrixOutput : public ChannelOutputBase {
 
 	void DumpConfig(void);
 
+    virtual void GetRequiredChannelRange(int &min, int & max);
+
   private:
 	int WriteCommand(uint8_t cmd, uint8_t value);
 

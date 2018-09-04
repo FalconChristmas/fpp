@@ -591,6 +591,10 @@ void BBBMatrix::printStats() {
     //printf("0x%X\n", (total / count));
     fclose(rfile);
 }
+void BBBMatrix::GetRequiredChannelRange(int &min, int & max) {
+    min = m_startChannel;
+    max = m_startChannel + m_channelCount - 1;
+}
 
 
 void BBBMatrix::PrepData(unsigned char *channelData)

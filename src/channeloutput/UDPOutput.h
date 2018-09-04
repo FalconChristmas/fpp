@@ -79,6 +79,7 @@ public:
 
     void BackgroundThreadPing();
 
+    virtual void GetRequiredChannelRange(int &min, int & max);
 private:
     int SendMessages(int socket, std::vector<struct mmsghdr> &sendmsgs);
     bool InitNetwork();

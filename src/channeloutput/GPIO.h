@@ -40,6 +40,10 @@ class GPIOOutput : public ChannelOutputBase {
 
 	void DumpConfig(void);
 
+    virtual void GetRequiredChannelRange(int &min, int & max) {
+        min = max = m_startChannel;
+    }
+
   private:
 	int m_GPIOPin;
 	int m_invertOutput;

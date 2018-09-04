@@ -34,6 +34,7 @@
 #include <jsoncpp/json/json.h>
 
 #include "channeloutput.h"
+#include "../Sequence.h"
 
 class ChannelOutputBase {
   public:
@@ -53,6 +54,7 @@ class ChannelOutputBase {
 
 	void          OutputThread(void);
 
+    virtual void  GetRequiredChannelRange(int &min, int & max) = 0;
   private:
 	int           Init(void);
 

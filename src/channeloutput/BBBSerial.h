@@ -57,6 +57,7 @@ class BBBSerialOutput : public ChannelOutputBase {
 
     void DumpConfig(void);
 
+    virtual void GetRequiredChannelRange(int &min, int & max);
   private:
     int                m_outputs;
     int                m_pixelnet;

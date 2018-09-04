@@ -119,6 +119,11 @@ int MAX7219MatrixOutput::Init(Json::Value config)
 	return ChannelOutputBase::Init(config);
 }
 
+void MAX7219MatrixOutput::GetRequiredChannelRange(int &min, int & max) {
+    min = m_startChannel;
+    max = min + (9 * m_panels) - 1;
+}
+
 /*
  *
  */

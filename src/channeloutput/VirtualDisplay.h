@@ -71,6 +71,8 @@ class VirtualDisplayOutput : public ChannelOutputBase {
 
 	void DumpConfig(void);
 
+    virtual void GetRequiredChannelRange(int &min, int & max);
+
 	std::string  m_backgroundFilename;
 	int          m_width;
 	int          m_height;

@@ -107,6 +107,18 @@ void UDPOutput::PrepData(unsigned char *channelData) {
         }
     }
 }
+void  UDPOutput::GetRequiredChannelRange(int &min, int & max) {
+    min = FPPD_MAX_CHANNELS;
+    max = 0;
+    if (enabled) {
+        for (auto a : outputs) {
+            if (a->active) {
+                min = std::min(min, a->startChannel - 1);
+                max = std::max(max, (a->startChannel + a->channelCount - 2));
+            }
+        }
+    }
+}
 
 int UDPOutput::SendMessages(int socket, std::vector<struct mmsghdr> &sendmsgs) {
     errno = 0;
