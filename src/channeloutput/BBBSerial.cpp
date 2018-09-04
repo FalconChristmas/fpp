@@ -270,7 +270,7 @@ int BBBSerialOutput::Init(Json::Value config)
 }
 
 void BBBSerialOutput::GetRequiredChannelRange(int &min, int & max) {
-    min = FPPD_MAX_CHANNEL;
+    min = FPPD_MAX_CHANNELS;
     max = 0;
     for (int i = 0; i < m_outputs; i++) {
         min = std::min(min, m_startChannels[i] + 1);
