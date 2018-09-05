@@ -63,8 +63,8 @@ extern "C"
 #define MAX_BUFFER_SIZE  44100*2
 //buffer the first 5 seconds
 #define INITIAL_BUFFER_MAX  10
-//keep a 5 second buffer
-#define ONGOING_BUFFER_MAX  10
+//keep a 4-8 second buffer
+#define ONGOING_BUFFER_MAX  16
 
 //Only keep 30 frames in buffer
 #define VIDEO_FRAME_MAX     30
@@ -273,7 +273,7 @@ public:
     bool maybeFillBuffer(bool first) {
         removeUsedBuffers();
         
-        if (doneRead || bufferCount > 30 || videoFrameCount > VIDEO_FRAME_MAX) {
+        if (doneRead || bufferCount > (ONGOING_BUFFER_MAX / 2) || videoFrameCount > VIDEO_FRAME_MAX) {
             //buffers are full, don't so anything
             if (AudioHasStalled) LogWarn(VB_MEDIAOUT, "Stalled audio, buffers are full.  %d\n", doneRead);
             return doneRead;
@@ -286,8 +286,14 @@ public:
         bool newBuf = false;
         while (av_read_frame(formatContext, &readingPacket) == 0) {
             if (readingPacket.stream_index == audio_stream_idx) {
-                while (avcodec_send_packet(audioCodecContext, &readingPacket)) {
+                int packetSendCount = 0;
+                int packetRecvCount = 0;
+                bool failToSend = false;
+                while (avcodec_send_packet(audioCodecContext, &readingPacket) && !failToSend) {
+                    packetSendCount++;
+                    int lastPacketRecvCount = packetRecvCount;
                     while (!avcodec_receive_frame(audioCodecContext, frame)) {
+                        packetRecvCount++;
                         int sz = frame->nb_samples * 2 * 2;
                         if ((sz + fillBuffer->pos) >= fillBuffer->size) {
                             addBuffer(fillBuffer);
@@ -299,10 +305,20 @@ public:
                                                      &out_buffer,
                                                      (fillBuffer->size - fillBuffer->pos) / 4,
                                                      (const uint8_t **)frame->extended_data, frame->nb_samples);
-                        
+
                         fillBuffer->pos += (outSamples * 2 * 2);
                         decodedDataLen += (outSamples * 2 * 2);
                         av_frame_unref(frame);
+                    }
+                    if (packetSendCount > 1000 && lastPacketRecvCount == packetRecvCount) {
+                        //failed to make any progress with this packet, we'll loop out
+                        failToSend = true;
+                    }
+                    
+                    if (lastPacketRecvCount != packetRecvCount) {
+                        //some work was done, reset counters
+                        packetRecvCount = 0;
+                        packetSendCount = 0;
                     }
                 }
                 if (bufferCount > (first ? INITIAL_BUFFER_MAX : ONGOING_BUFFER_MAX)) {
@@ -618,6 +634,7 @@ void *BufferFillThread(void *d) {
 }
 
 static std::string currentMediaFilename;
+
 static void LogCallback(void *     avcl,
                         int     level,
                         const char *     fmt,
@@ -632,13 +649,18 @@ static void LogCallback(void *     avcl,
     if (strcmp(buf, lastBuf) != 0) {
         strcpy(lastBuf, buf);
         if (level >= AV_LOG_DEBUG) {
-            LogExcess(VB_MEDIAOUT, "\"%s\" - %s", currentMediaFilename.c_str(), buf);
+            LogExcess(VB_MEDIAOUT, "Debug: \"%s\" - %s", currentMediaFilename.c_str(), buf);
         } else if (level >= AV_LOG_VERBOSE ) {
-            LogDebug(VB_MEDIAOUT, "\"%s\" - %s", currentMediaFilename.c_str(), buf);
+            LogDebug(VB_MEDIAOUT, "Verbose: \"%s\" - %s", currentMediaFilename.c_str(), buf);
         } else if (level >= AV_LOG_INFO ) {
-            LogInfo(VB_MEDIAOUT, "\"%s\" - %s", currentMediaFilename.c_str(), buf);
+            LogInfo(VB_MEDIAOUT, "Info: \"%s\" - %s", currentMediaFilename.c_str(), buf);
         } else if (level >= AV_LOG_WARNING) {
-            LogWarn(VB_MEDIAOUT, "\"%s\" - %s", currentMediaFilename.c_str(), buf);
+            if (strstr(buf, "Could not update timestamps") != nullptr) {
+                //these are really ignorable
+                LogDebug(VB_MEDIAOUT, "Verbose: \"%s\" - %s", currentMediaFilename.c_str(), buf);
+            } else {
+                LogWarn(VB_MEDIAOUT, "Warn: \"%s\" - %s", currentMediaFilename.c_str(), buf);
+            }
         } else {
             LogErr(VB_MEDIAOUT, "\"%s\" - %s", currentMediaFilename.c_str(), buf);
         }
@@ -657,7 +679,7 @@ SDLOutput::SDLOutput(const std::string &mediaFilename,
     data = nullptr;
     m_mediaOutputStatus = status;
     m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
-
+    
     if (sdlManager.blacklisted.find(mediaFilename) != sdlManager.blacklisted.end()) {
         currentMediaFilename = "";
         LogErr(VB_MEDIAOUT, "%s has been blacklisted!\n", mediaFilename.c_str());
@@ -677,6 +699,11 @@ SDLOutput::SDLOutput(const std::string &mediaFilename,
     if (!FileExists(fullAudioPath.c_str())) {
         LogErr(VB_MEDIAOUT, "%s does not exist!\n", fullAudioPath.c_str());
         currentMediaFilename = "";
+        return;
+    }
+    if (sdlManager.blacklisted.find(fullAudioPath) != sdlManager.blacklisted.end()) {
+        currentMediaFilename = "";
+        LogErr(VB_MEDIAOUT, "%s has been blacklisted!\n", mediaFilename.c_str());
         return;
     }
     currentMediaFilename = mediaFilename;
@@ -985,7 +1012,7 @@ int SDLOutput::Stop(void)
             //cancel the thread, nothing we can do now
             pthread_cancel(data->fillThread);
             sdlManager.blacklisted.insert(m_mediaFilename);
-            LogWarn(VB_MEDIAOUT, "Problems decoding %d, blacklisting", m_mediaFilename.c_str());
+            LogWarn(VB_MEDIAOUT, "Problems decoding %s, blacklisting\n", m_mediaFilename.c_str());
         }
     }
 	m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;

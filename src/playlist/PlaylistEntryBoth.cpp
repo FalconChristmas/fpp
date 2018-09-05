@@ -55,9 +55,13 @@ int PlaylistEntryBoth::Init(Json::Value &config)
 	m_mediaEntry = new PlaylistEntryMedia(this);
 	if (!m_mediaEntry)
 		return 0;
+    
 
-	if (!m_mediaEntry->Init(config))
-		return 0;
+    if (!m_mediaEntry->Init(config)) {
+        delete m_mediaEntry;
+        m_mediaEntry = nullptr;
+    }
+    m_mediaName = m_mediaEntry->GetMediaName();
 
 	if (!m_sequenceEntry->Init(config))
 		return 0;
@@ -78,12 +82,19 @@ int PlaylistEntryBoth::StartPlaying(void)
 		return 0;
 	}
 
-	if (!m_mediaEntry->StartPlaying())
-		return 0;
+    if (m_mediaEntry && !m_mediaEntry->StartPlaying()) {
+        delete m_mediaEntry;
+		m_mediaEntry = nullptr;
+    }
+    if (!m_mediaEntry) {
+        LogInfo(VB_PLAYLIST, "Skipping media playlist entry, likely blacklisted audio: %s\n", m_mediaName.c_str());
+    }
 
 	if (!m_sequenceEntry->StartPlaying())
 	{
-		m_mediaEntry->Stop();
+        if (m_mediaEntry) {
+            m_mediaEntry->Stop();
+        }
 		return 0;
 	}
 
@@ -95,10 +106,10 @@ int PlaylistEntryBoth::StartPlaying(void)
  */
 int PlaylistEntryBoth::Process(void)
 {
-	m_mediaEntry->Process();
+	if (m_mediaEntry) m_mediaEntry->Process();
 	m_sequenceEntry->Process();
 
-	if (m_mediaEntry->IsFinished())
+	if (m_mediaEntry && m_mediaEntry->IsFinished())
 	{
 		FinishPlay();
 		m_sequenceEntry->Stop();
@@ -107,7 +118,7 @@ int PlaylistEntryBoth::Process(void)
 	if (m_sequenceEntry->IsFinished())
 	{
 		FinishPlay();
-		m_mediaEntry->Stop();
+		if (m_mediaEntry) m_mediaEntry->Stop();
 	}
 
 	// FIXME PLAYLIST, handle sync in here somehow
@@ -122,7 +133,7 @@ int PlaylistEntryBoth::Stop(void)
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntryBoth::Stop()\n");
 
-	m_mediaEntry->Stop();
+	if (m_mediaEntry) m_mediaEntry->Stop();
 	m_sequenceEntry->Stop();
 
 	return PlaylistEntryBase::Stop();
@@ -135,7 +146,7 @@ void PlaylistEntryBoth::Dump(void)
 {
 	PlaylistEntryBase::Dump();
 
-	m_mediaEntry->Dump();
+	if (m_mediaEntry) m_mediaEntry->Dump();
 	m_sequenceEntry->Dump();
 }
 
@@ -146,7 +157,13 @@ Json::Value PlaylistEntryBoth::GetConfig(void)
 {
 	Json::Value result = PlaylistEntryBase::GetConfig();
 
-	result["media"] = m_mediaEntry->GetConfig();
+    if (m_mediaEntry) {
+        result["media"] = m_mediaEntry->GetConfig();
+    } else {
+        //fake it so the display will display the times
+        //where the sequence is
+        result["media"] = m_sequenceEntry->GetConfig();
+    }
 	result["sequence"] = m_sequenceEntry->GetConfig();
 
 	return result;
