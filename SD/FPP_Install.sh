@@ -1014,6 +1014,7 @@ systemctl enable rsync
 
 echo "FPP - Disabling services not needed/used"
 systemctl disable olad
+systemctl disable connman-wait-online
 
 echo "FPP - Compiling binaries"
 cd /opt/fpp/src/
