@@ -611,7 +611,7 @@ bool SDLOutput::ProcessVideoOverlay(unsigned int msTimestamp) {
 }
 
 
-void CancelRoutine(void *arg) {
+static void CancelRoutine(void *arg) {
 }
 void *BufferFillThread(void *d) {
     int old;
@@ -995,12 +995,14 @@ int SDLOutput::Stop(void)
 {
 	LogDebug(VB_MEDIAOUT, "SDLOutput::Stop()\n");
     sdlManager.Stop();
-    if (data && data->video_stream_idx >= 0) {
-        FillPixelOverlayModel(data->videoOverlayModel, 0, 0, 0);
-        SetPixelOverlayState(data->videoOverlayModel, "Disabled");
-    }
     if (data) {
         data->stopped++;
+        if (data->video_stream_idx >= 0) {
+            data->video_stream_idx = -1;
+            FillPixelOverlayModel(data->videoOverlayModel, 0, 0, 0);
+            SetPixelOverlayState(data->videoOverlayModel, "Disabled");
+        }
+        
         timespec tv;
         time(&tv.tv_sec);
         

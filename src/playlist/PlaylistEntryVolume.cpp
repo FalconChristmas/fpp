@@ -53,7 +53,10 @@ int PlaylistEntryVolume::Init(Json::Value &config)
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntryVolume::Init()\n");
 
-	m_volume = config["volume"].asInt();
+    std::string vol = config["volume"].asString();
+    m_volAdjust = ((vol[0] == '-') || (vol[0] == '+'));
+    m_volume = std::stoi(vol);
+
 
 	return PlaylistEntryBase::Init(config);
 }
@@ -71,7 +74,19 @@ int PlaylistEntryVolume::StartPlaying(void)
 		return 0;
 	}
 
-	setVolume(m_volume);
+
+    if (!m_volAdjust) {
+        setVolume(m_volume);
+    } else {
+        int vol = getVolume();
+        vol += m_volume;
+        if (vol  < 0) {
+            vol = 0;
+        } else if (vol > 100) {
+            vol = 100;
+        }
+        setVolume(vol);
+    }
 
 	PlaylistEntryBase::StartPlaying();
 

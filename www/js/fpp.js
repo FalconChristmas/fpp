@@ -159,7 +159,9 @@ function PlaylistEntryToTR(i, entry, editMode)
 		HTML += GetPlaylistRowHTML((i+1).toString(), "MQTT", entry.topic, entry.message, "", i.toString(), editMode);
 	else if(entry.type == 'dynamic')
 		HTML += GetPlaylistRowHTML((i+1).toString(), "Dynamic", entry.subType, entry.data, "", i.toString(), editMode);
-	else if(entry.type == 'url')
+    else if(entry.type == 'volume')
+        HTML += GetPlaylistRowHTML((i+1).toString(), "Volume", entry.volume, "", "", i.toString(), editMode);
+    else if(entry.type == 'url')
 		HTML += GetPlaylistRowHTML((i+1).toString(), "URL", entry.method + ' - ' + entry.url, "", entry.data, i.toString(), editMode);
 	else if(entry.type == 'remap')
 	{
@@ -337,6 +339,10 @@ function PlaylistTypeChanged() {
 	{
 		$('#dynamicOptions').show();
 	}
+    else if (type == 'volume')
+    {
+        $('#volumeOptions').show();
+    }
 	else if (type == 'url')
 	{
 		$('#urlOptions').show();
@@ -499,6 +505,10 @@ function AddPlaylistEntry() {
 				entry.subType = $('#dynamicSubType').val();
 				entry.data = $('#dynamicData').val();
 			}
+            else if (entry.type == 'volume')
+            {
+                entry.volume = $('#volume').val();
+            }
 			else if (entry.type == 'url')
 			{
 				entry.url = $('#url').val();
