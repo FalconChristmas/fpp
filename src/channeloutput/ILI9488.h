@@ -40,6 +40,11 @@ class ILI9488Output : public ChannelOutputBase {
 
 	void DumpConfig(void);
 
+    virtual void GetRequiredChannelRange(int &min, int & max) {
+        min = m_startChannel;
+        max = min + m_pixels * 3 - 1;
+    }
+
   private:
 	int   m_initialized;
 	int   m_rows;

@@ -105,6 +105,16 @@ OutputProcessor *OutputProcessors::find(std::function<bool(OutputProcessor*)> f)
     return nullptr;
 }
 
+void OutputProcessors::GetRequiredChannelRange(int &min, int & max) {
+    min = FPPD_MAX_CHANNELS;
+    max = 0;
+    int m1, m2;
+    for (OutputProcessor *a : processors) {
+        a->GetRequiredChannelRange(m1, m2);
+        min = std::min(min, m1);
+        max = std::min(max, m2);
+    }
+}
 
 
 OutputProcessor::OutputProcessor() : description(), active(true) {

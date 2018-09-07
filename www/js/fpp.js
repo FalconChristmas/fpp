@@ -159,7 +159,9 @@ function PlaylistEntryToTR(i, entry, editMode)
 		HTML += GetPlaylistRowHTML((i+1).toString(), "MQTT", entry.topic, entry.message, "", i.toString(), editMode);
 	else if(entry.type == 'dynamic')
 		HTML += GetPlaylistRowHTML((i+1).toString(), "Dynamic", entry.subType, entry.data, "", i.toString(), editMode);
-	else if(entry.type == 'url')
+    else if(entry.type == 'volume')
+        HTML += GetPlaylistRowHTML((i+1).toString(), "Volume", entry.volume, "", "", i.toString(), editMode);
+    else if(entry.type == 'url')
 		HTML += GetPlaylistRowHTML((i+1).toString(), "URL", entry.method + ' - ' + entry.url, "", entry.data, i.toString(), editMode);
 	else if(entry.type == 'remap')
 	{
@@ -337,6 +339,10 @@ function PlaylistTypeChanged() {
 	{
 		$('#dynamicOptions').show();
 	}
+    else if (type == 'volume')
+    {
+        $('#volumeOptions').show();
+    }
 	else if (type == 'url')
 	{
 		$('#urlOptions').show();
@@ -499,6 +505,10 @@ function AddPlaylistEntry() {
 				entry.subType = $('#dynamicSubType').val();
 				entry.data = $('#dynamicData').val();
 			}
+            else if (entry.type == 'volume')
+            {
+                entry.volume = $('#volume').val();
+            }
 			else if (entry.type == 'url')
 			{
 				entry.url = $('#url').val();
@@ -964,7 +974,7 @@ function RemovePlaylistEntry()	{
 								              "<td><span class='rowID'>" + (i+1).toString() + "</span></td>" +
 															"<td><input class='chkActive' type='checkbox' " + activeChecked +"/></td>" +
 															"<td><input class='txtDesc' type='text' size='24' maxlength='64' value='" + desc + "'/></td>" +
-															"<td><input class='txtStartAddress' type='number' min='1' max='524288' value='" + startAddress.toString() + "'/></td>" +
+															"<td><input class='txtStartAddress' type='number' min='1' max='1048576' value='" + startAddress.toString() + "'/></td>" +
 															"<td><input class='txtUniverse' type='number' min='1' max='63999' value='" + universe.toString() + "'" + universeDisable + "/></td>" +
 															"<td><input class='txtSize' type='number'  min='1'  max='" + universeSize + "' value='" + size.toString() + "'></td>" +
 															
@@ -1216,7 +1226,7 @@ function RemovePlaylistEntry()	{
                 }
 				// start address
 				txtStartAddress=document.getElementById("txtStartAddress[" + i + "]");				
-				if(!validateNumber(txtStartAddress,1,524288))
+				if(!validateNumber(txtStartAddress,1,1048576))
 				{
 					returnValue = false;
 				}

@@ -42,6 +42,8 @@ class USBRelayOutput : public ChannelOutputBase {
 
 	void DumpConfig(void);
 
+    virtual void GetRequiredChannelRange(int &min, int & max);
+
   private:
 	enum RelayType {
 		RELAY_DVC_UNKNOWN,

@@ -29,6 +29,11 @@ public:
     
     virtual OutputProcessorType getType() const { return BRIGHTNESS; }
 
+    virtual void GetRequiredChannelRange(int &min, int &max) {
+        min = start;
+        max = start + count - 1;
+    }
+
 protected:
     int start;
     int count;

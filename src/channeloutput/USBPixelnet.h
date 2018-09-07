@@ -42,6 +42,8 @@ class USBPixelnetOutput : public ChannelOutputBase {
 
 	void DumpConfig(void);
 
+    virtual void GetRequiredChannelRange(int &min, int & max);
+
   private:
 	enum DongleType {
 		PIXELNET_DVC_UNKNOWN,

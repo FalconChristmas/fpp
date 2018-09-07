@@ -22,7 +22,7 @@
 # Burn the above image onto an SD card and insert into the BBB and boot
 # Login with default debian:temppwd then "sudo bash" to become root
 cd /tmp
-wget https://github.com/FalconChristmas/fpp/blob/master/SD/BBB-FlashMMC.sh
+wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/BBB-FlashMMC.sh
 chmod +x BBB-FlashMMC.sh
 ./BBB-FlashMMC.sh -noreboot ext4 /dev/mmcblk1
 
@@ -45,7 +45,7 @@ apt-get -y upgrade
 apt-get install -y locales
 echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
 locale-gen
-localectl set-locale en_US.utf8
+localectl set-locale LANG="en_US.utf8"
 
 
 apt-get install -y git
@@ -57,7 +57,7 @@ cd /opt/scripts/tools
 # ./update_kernel.sh --lts-4_14 --bone-kernel
 # and see what is the latest kernel version and put it here
 
-export KERNEL_VERSION=4.14.55-bone16
+export KERNEL_VERSION=4.14.63-bone16
 ./update_kernel.sh --lts-4_14 --bone-kernel  $KERNEL_VERSION
 apt-get install -y linux-headers-$KERNEL_VERSION
 
@@ -228,6 +228,7 @@ wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/patches/rtl
 wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/patches/rtl8192cu
 wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/patches/rtl8723bu
 wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/patches/rtl8723au
+wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/patches/rtl8192eu
 
 cd /opt
 mkdir wifi
@@ -272,6 +273,18 @@ make
 make install
 make clean
 
+
+cd /opt/wifi
+git clone https://github.com/Mange/rtl8192eu-linux-driver
+cd rtl8192eu-linux-driver
+patch -p1 < /tmp/rtl8192eu
+make
+make install
+make clean
+
+
+
+
 cd /opt
 rm -rf /opt/wifi
 
@@ -280,6 +293,7 @@ echo "options 8812au rtw_power_mgnt=0" >> /etc/modprobe.d/wifi-disable-power-man
 echo "options 8814au rtw_power_mgnt=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
 echo "options 8723bu rtw_power_mgnt=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
 echo "options 8723au rtw_power_mgnt=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
+echo "options 8192eu rtw_power_mgnt=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
 
 echo "blacklist rtl8192cu" > /etc/modprobe.d/blacklist-native-wifi.conf
 echo "blacklist rtl8192c_common" >> /etc/modprobe.d/blacklist-native-wifi.conf

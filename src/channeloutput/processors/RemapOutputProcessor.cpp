@@ -48,6 +48,11 @@ RemapOutputProcessor::RemapOutputProcessor(int src, int dst, int c, int l) {
 RemapOutputProcessor::~RemapOutputProcessor() {
     
 }
+void RemapOutputProcessor::GetRequiredChannelRange(int &min, int &max) {
+    min = std::min(sourceChannel, destChannel);
+    max = std::max(sourceChannel, destChannel);
+    max += loops * count - 1;
+}
 
 void RemapOutputProcessor::ProcessData(unsigned char *channelData) const {
     for (int l = 0; l < loops; l++) {

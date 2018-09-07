@@ -60,6 +60,8 @@ class BBB48StringOutput : public ChannelOutputBase {
     void PrepData(unsigned char *channelData);
     void DumpConfig(void);
 
+    virtual void GetRequiredChannelRange(int &min, int & max);
+
   private:
     void StopPRU(bool wait = true);
     int StartPRU();

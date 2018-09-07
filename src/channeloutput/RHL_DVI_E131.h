@@ -42,6 +42,11 @@ class RHLDVIE131Output : public ChannelOutputBase {
 
 	void DumpConfig(void);
 
+    virtual void GetRequiredChannelRange(int &min, int & max) {
+        //FIXME??
+        min = 0; max = FPPD_MAX_CHANNELS;
+    }
+
   private:
 	int     m_fbFd;
 	int     m_ttyFd;
