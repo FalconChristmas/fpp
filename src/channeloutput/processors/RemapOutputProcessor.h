@@ -34,6 +34,9 @@ public:
     int getDestChannel() const { return destChannel;}
     int getCount() const { return count;}
     int getLoops() const { return loops;}
+    
+    virtual void GetRequiredChannelRange(int &min, int &max);
+
 protected:
     int sourceChannel;
     int destChannel;

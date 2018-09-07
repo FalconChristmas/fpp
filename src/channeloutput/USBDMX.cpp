@@ -64,6 +64,11 @@ USBDMXOutput::~USBDMXOutput()
 	LogDebug(VB_CHANNELOUT, "USBDMXOutput::~USBDMXOutput()\n");
 }
 
+void USBDMXOutput::GetRequiredChannelRange(int &min, int & max) {
+    min = m_startChannel;
+    max = m_startChannel + m_channelCount - 1;
+}
+
 /*
  *
  */

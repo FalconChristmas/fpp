@@ -294,7 +294,7 @@ function SetTestMode()
 	var startChannel = parseInt($('#testModeStartChannel').val());
 	var endChannel = parseInt($('#testModeEndChannel').val());
 	var chaseSize = parseInt($('#testModeChaseSize').val());
-	var maxChannel = 524288;
+	var maxChannel = 1048576;
 	var channelSetType = "channelRange";
 	var colorOrder = $('#colorOrder').val();
 
@@ -647,7 +647,7 @@ $(document).ready(function(){
 -->
 					</tr>
 				<tr><td>Start Channel:</td>
-						<td><input type='text' size='6' maxlength='6' value='1' id='testModeStartChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (1-524288)</td>
+						<td><input type='text' size='6' maxlength='6' value='1' id='testModeStartChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (1-1048576)</td>
 <!--
 						<td>Universe Size:</td>
 						<td><input type='text' size=4 maxlength=4 value='512' id='testUniverseSize'></td>
@@ -656,7 +656,7 @@ $(document).ready(function(){
 						<td>Model Name:</td>
 						<td>
 							<select onChange='UpdateStartEndFromModel();' id='modelName'>
-								<option value='1,524288'>-- All Channels --</option>
+								<option value='1,1048576'>-- All Channels --</option>
 <?
 
 $f = fopen($settings['channelMemoryMapsFile'], "r");
@@ -685,7 +685,7 @@ else
 							</td>
 						</tr>
 				<tr><td>End Channel:</td>
-						<td><input type='text' size='6' maxlength='6' value='524288' id='testModeEndChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (1-524288)</td>
+						<td><input type='text' size='6' maxlength='6' value='1048576' id='testModeEndChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (1-1048576)</td>
 <!--
 						<td>Universe #:</td>
 						<td><input type='text' size=5 maxlength=5 value='1' id='testUniverseNumber'></td>

@@ -53,6 +53,9 @@
 
 Sequence *sequence = NULL;
 
+extern int minimumNeededChannel;
+extern int maximumNeededChannel;
+
 Sequence::Sequence()
   : m_seqFileSize(0),
 	m_seqDuration(0),
@@ -454,18 +457,35 @@ void Sequence::ReadSequenceData(void) {
 		bytesRead = 0;
 		if(m_seqFilePosition <= m_seqFileSize - m_seqStepSize)
 		{
-			bytesRead = fread(m_seqData, 1, m_seqStepSize, m_seqFile);
+            int sizeToRead = m_seqStepSize;
+            if (maximumNeededChannel < m_seqStepSize) {
+                sizeToRead = maximumNeededChannel - minimumNeededChannel + 1;
+            }
+            if (sizeToRead == 0) {
+                fseeko(m_seqFile, m_seqStepSize, SEEK_CUR);
+                bytesRead = m_seqStepSize;
+            } else {
+                if (minimumNeededChannel) {
+                    fseeko(m_seqFile, minimumNeededChannel, SEEK_CUR);
+                    bytesRead = minimumNeededChannel;
+                }
+                bytesRead += fread(&m_seqData[minimumNeededChannel], 1, sizeToRead, m_seqFile);
+                if (maximumNeededChannel < m_seqStepSize) {
+                    fseeko(m_seqFile, m_seqStepSize - maximumNeededChannel - 1, SEEK_CUR);
+                    bytesRead += m_seqStepSize - maximumNeededChannel - 1;
+                }
+            }
             off_t fsz = ftello(m_seqFile);
             if (fsz > 4096) {
                 //make sure the current memory page stays so we don't reload it
-                fsz -= 4096;
                 //don't need up to this anymore, discard it
-                posix_fadvise(fileno(m_seqFile), 0, fsz, POSIX_FADV_DONTNEED);
+                posix_fadvise(fileno(m_seqFile), 0, fsz - 4096, POSIX_FADV_DONTNEED);
             }
             
-            //let the kernel know we're going to need the next blocks
-            off_t csize = m_seqStepSize * 20 + 4096;
-            posix_fadvise(fileno(m_seqFile), fsz, csize, POSIX_FADV_WILLNEED);
+            //let the kernel know we're going to need the next few frames
+            for (int x = 0; x < 3; x++) {
+                posix_fadvise(fileno(m_seqFile), fsz + x * m_seqStepSize + minimumNeededChannel, sizeToRead, POSIX_FADV_WILLNEED);
+            }
 			m_seqFilePosition += bytesRead;
 		}
 

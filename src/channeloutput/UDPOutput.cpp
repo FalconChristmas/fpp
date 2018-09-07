@@ -107,6 +107,18 @@ void UDPOutput::PrepData(unsigned char *channelData) {
         }
     }
 }
+void  UDPOutput::GetRequiredChannelRange(int &min, int & max) {
+    min = FPPD_MAX_CHANNELS;
+    max = 0;
+    if (enabled) {
+        for (auto a : outputs) {
+            if (a->active) {
+                min = std::min(min, a->startChannel - 1);
+                max = std::max(max, (a->startChannel + a->channelCount - 2));
+            }
+        }
+    }
+}
 
 int UDPOutput::SendMessages(int socket, std::vector<struct mmsghdr> &sendmsgs) {
     errno = 0;
@@ -169,19 +181,21 @@ void UDPOutput::BackgroundThreadPing() {
 
         std::unique_lock<std::mutex> lck (invalidOutputsMutex);
         for (auto a : invalidOutputs) {
-            std::string host = a->ipAddress;
-            if (done[host] == 0) {
-                int p = ping(host);
-                if (p <= 0) {
-                    p = -1;
+            if (!a->valid) {
+                std::string host = a->ipAddress;
+                if (done[host] == 0) {
+                    int p = ping(host);
+                    if (p <= 0) {
+                        p = -1;
+                    }
+                    done[host] = p;
+                    if (p > 0) {
+                        LogWarn(VB_CHANNELOUT, "Can ping host %s, re-adding to outputs\n",
+                                host.c_str());
+                    }
                 }
-                done[host] = p;
-                if (p > 0) {
-                    LogWarn(VB_CHANNELOUT, "Can ping host %s, re-adding to outputs\n",
-                            host.c_str());
-                }
+                a->valid = done[host] > 0;
             }
-            a->valid = done[host] > 0;
             if (a->valid) {
                 newValid = true;
             }

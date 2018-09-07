@@ -10,7 +10,7 @@ echo "precedence ::ffff:0:0/96  100" >>  /etc/gai.conf
 
 # make sure we use the performance governor, required on BBB, helps on Pi
 echo "GOVERNOR=performance" > /etc/default/cpufrequtils
-apt-get install cpufrequtils
+apt-get -y install cpufrequtils
 
 # Mark to reboot
 sed -i -e "s/^rebootFlag .*/rebootFlag = 1/" /home/fpp/media/settings

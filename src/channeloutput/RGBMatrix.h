@@ -53,6 +53,8 @@ class RGBMatrixOutput : public ChannelOutputBase {
 
 	void DumpConfig(void);
 
+    virtual void GetRequiredChannelRange(int &min, int & max);
+
   private:
 	GPIO        *m_gpio;
 	Canvas      *m_canvas;

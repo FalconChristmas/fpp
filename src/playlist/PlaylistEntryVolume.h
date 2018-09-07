@@ -45,6 +45,7 @@ class PlaylistEntryVolume : public PlaylistEntryBase {
 
   private:
 	int                  m_volume;
+    bool                 m_volAdjust;
 };
 
 #endif

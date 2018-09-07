@@ -101,6 +101,8 @@ static int LoadOutputProcessors(void);
 
 OutputProcessors         outputProcessors;
 
+int minimumNeededChannel = 0;
+int maximumNeededChannel = FPPD_MAX_CHANNELS;
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -279,6 +281,9 @@ int InitializeChannelOutputs(void) {
 	char filename[1024];
 	char csvConfig[2048];
 
+    maximumNeededChannel = 0;
+    minimumNeededChannel = FPPD_MAX_CHANNELS;
+    
 	// Parse the JSON channel outputs config files
 	for (int f = 0; configFiles[f]; f++)
 	{
@@ -453,7 +458,15 @@ int InitializeChannelOutputs(void) {
 				} else if ((channelOutputs[i].output) &&
 						   (((!csvConfig[0]) && (channelOutputs[i].output->Init(outputs[c]))) ||
 							((csvConfig[0]) && (channelOutputs[i].output->Init(csvConfig))))) {
-					i++;
+                               
+                               
+                    int m1, m2;
+                    channelOutputs[i].output->GetRequiredChannelRange(m1, m2);
+                    minimumNeededChannel = std::min(minimumNeededChannel, m1);
+                    maximumNeededChannel = std::max(maximumNeededChannel, m2);
+                    LogInfo(VB_CHANNELOUT, "%d:  Determined range needed %d - %d\n", i, minimumNeededChannel, maximumNeededChannel);
+
+                    i++;
 				} else {
 					LogErr(VB_CHANNELOUT, "ERROR Opening %s Channel Output\n", type.c_str());
 					continue;
@@ -469,6 +482,14 @@ int InitializeChannelOutputs(void) {
 	LogDebug(VB_CHANNELOUT, "%d Channel Outputs configured\n", channelOutputCount);
 
 	LoadOutputProcessors();
+    int m1, m2;
+    outputProcessors.GetRequiredChannelRange(m1, m2);
+    minimumNeededChannel = std::min(minimumNeededChannel, m1);
+    maximumNeededChannel = std::max(maximumNeededChannel, m2);
+    if (maximumNeededChannel < minimumNeededChannel) {
+        maximumNeededChannel = minimumNeededChannel = 0;
+    }
+    LogInfo(VB_CHANNELOUT, "Determined range needed %d - %d\n", minimumNeededChannel, maximumNeededChannel);
 
 	return 1;
 }

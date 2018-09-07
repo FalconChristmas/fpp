@@ -43,6 +43,8 @@ class USBDMXOutput : public ChannelOutputBase {
 
 	void DumpConfig(void);
 
+    virtual void GetRequiredChannelRange(int &min, int & max);
+
   private:
 	int RawSendDataOpen(unsigned char *channelData);
 	int RawSendDataPro(unsigned char *channelData);

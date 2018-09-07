@@ -44,6 +44,7 @@ class GenericSerialOutput : public ChannelOutputBase {
 	int RawSendData(unsigned char *channelData);
 
 	void DumpConfig(void);
+    virtual void GetRequiredChannelRange(int &min, int & max);
 
   private:
 	std::string m_deviceName;

@@ -235,6 +235,11 @@ int FBMatrixOutput::RawSendData(unsigned char *channelData)
 	return m_channelCount;
 }
 
+void FBMatrixOutput::GetRequiredChannelRange(int &min, int & max) {
+    min = m_startChannel;
+    max = min + m_screenSize - 1;
+}
+
 /*
  *
  */

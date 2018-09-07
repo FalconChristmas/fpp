@@ -135,6 +135,10 @@ int SPIws2801Output::Close(void)
 
 	return ChannelOutputBase::Close();
 }
+void SPIws2801Output::GetRequiredChannelRange(int &min, int & max) {
+    min = m_startChannel;
+    max = min + m_channelCount - 1;
+}
 
 /*
  *

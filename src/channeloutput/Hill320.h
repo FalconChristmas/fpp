@@ -40,6 +40,11 @@ class Hill320Output : public ChannelOutputBase {
 
 	void DumpConfig(void);
 
+    virtual void GetRequiredChannelRange(int &min, int & max) {
+        min = m_startChannel;
+        max = min + m_channelCount - 1;
+    }
+
   private:
 	int m_fd;
 	int m_boxCount;

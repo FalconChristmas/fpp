@@ -33,6 +33,8 @@ fi
 RELEASEBRANCH=$(echo $1 | egrep "v[0-9]+\.[0-9]+")
 if [ -z "${RELEASEBRANCH}" ] || [ "x${FPPPLATFORM}" == "xLinux" ]
 then
+    sudo ${SCRIPTDIR}/upgrade_config
+
 	echo "Compiling Binaries"
 	compileBinaries
 fi

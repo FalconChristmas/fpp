@@ -39,6 +39,12 @@ class MCP23017Output : public ChannelOutputBase {
 	int RawSendData(unsigned char *channelData);
 
 	void DumpConfig(void);
+    
+    virtual void GetRequiredChannelRange(int &min, int & max) {
+        min = m_startChannel;
+        max = min + m_channelCount - 1;
+    }
+
 
   private:
 	int m_fd;
