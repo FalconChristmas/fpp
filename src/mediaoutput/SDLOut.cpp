@@ -72,7 +72,7 @@ extern "C"
 #if defined(PLATFORM_PI)
 //on the old single core Pi's, we need to increase the buffer size
 //a bit or the audio stutters.
-static const int DEFAULT_NUM_SAMPLES = std::thread::hardware_concurrency() <= 1 ? 2048 : 1024;
+static const int DEFAULT_NUM_SAMPLES = std::thread::hardware_concurrency() <= 1 ? 4096 : 1024;
 #else 
 static const int DEFAULT_NUM_SAMPLES = 1024;
 #endif
@@ -279,7 +279,7 @@ public:
     }
     
     int buffersFull() {
-        if ((bufferCount >= ONGOING_BUFFER_MAX) || (videoFrameCount >= VIDEO_FRAME_MAX)) {
+        if ((bufferCount >= (ONGOING_BUFFER_MAX - 2)) || (videoFrameCount >= VIDEO_FRAME_MAX)) {
             return 2;
         }
         if (video_stream_idx == -1 && (bufferCount >= (ONGOING_BUFFER_MAX / 2))) {
@@ -504,14 +504,13 @@ void fill_audio(void *udata, Uint8 *stream, int len) {
     if (sdlManager.data != nullptr) {
         /*
         static auto lastt = std::chrono::high_resolution_clock::now();
-        int i = sdlManager.data->curPos;
         auto nowt = std::chrono::high_resolution_clock::now();
         int bc = sdlManager.data->bufferCount;
         int nsc = std::chrono::duration_cast<std::chrono::nanoseconds>(nowt-lastt).count();
-        printf("%d    %d    %d\n", i, nsc, bc);
+        printf("fill: %d  %d       %d\n", bc, len, nsc);
         lastt = nowt;
-         */
-
+        */
+        
         AudioBuffer *buf = sdlManager.data->curBuffer;
         if (buf == nullptr) {
             if (AudioHasStalled) LogWarn(VB_MEDIAOUT, "Stalled, but no buffer  %d\n", sdlManager.data->doneRead);
@@ -640,6 +639,7 @@ void *BufferFillThread(void *d) {
             data->stopped++;
         }
     }
+    LogDebug(VB_MEDIAOUT, "Reading thread done, exiting\n");
     data->stopped++;
     pthread_cleanup_pop(0);
     return nullptr;
@@ -999,6 +999,7 @@ int SDLOutput::IsPlaying(void)
 
 int  SDLOutput::Close(void)
 {
+    LogDebug(VB_MEDIAOUT, "SDLOutput::Close()\n");
     Stop();
     sdlManager.Close();
     return 0;

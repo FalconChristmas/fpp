@@ -136,6 +136,9 @@ int PlaylistEntryMedia::Process(void)
 		m_mediaOutput->Process();
         if (!m_mediaOutput->IsPlaying()) {
             FinishPlay();
+            pthread_mutex_unlock(&m_mediaOutputLock);
+            CloseMediaOutput();
+            pthread_mutex_lock(&m_mediaOutputLock);
         }
     }
 
