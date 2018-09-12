@@ -69,7 +69,7 @@ extern "C"
 //Only keep 30 frames in buffer
 #define VIDEO_FRAME_MAX     30
 
-#define DEFAULT_NUM_SAMPLES 1024
+#define DEFAULT_NUM_SAMPLES 2048
 #define DEFAULT_RATE 44100
 
 
@@ -219,7 +219,6 @@ public:
     bool doneRead;
     std::atomic_uint curPos;
     
-    
     void addVideoFrame(int ms, uint8_t *d, int sz) {
         VideoFrame *f = new VideoFrame(ms, d, sz);
         if (firstVideoFrame == nullptr) {
@@ -270,21 +269,33 @@ public:
             delete tmp;
         }
     }
+    
+    int buffersFull() {
+        if ((bufferCount >= ONGOING_BUFFER_MAX) || (videoFrameCount >= VIDEO_FRAME_MAX)) {
+            return 2;
+        }
+        if (video_stream_idx == -1 && (bufferCount >= (ONGOING_BUFFER_MAX / 2))) {
+            return 1;
+        }
+        return 0;
+    }
     bool maybeFillBuffer(bool first) {
         removeUsedBuffers();
         
-        if (doneRead || bufferCount > (ONGOING_BUFFER_MAX / 2) || videoFrameCount > VIDEO_FRAME_MAX) {
+        if (doneRead || (bufferCount > ONGOING_BUFFER_MAX)  || videoFrameCount > VIDEO_FRAME_MAX) {
             //buffers are full, don't so anything
             if (AudioHasStalled) LogWarn(VB_MEDIAOUT, "Stalled audio, buffers are full.  %d\n", doneRead);
             return doneRead;
         }
         if (AudioHasStalled) LogWarn(VB_MEDIAOUT, "Stalled audio, buffers still filling.  %X\n", fillBuffer);
 
+
         if (fillBuffer == nullptr) {
             fillBuffer = new AudioBuffer();
         }
         bool newBuf = false;
         while (av_read_frame(formatContext, &readingPacket) == 0) {
+            bool packetOk = false;
             if (readingPacket.stream_index == audio_stream_idx) {
                 int packetSendCount = 0;
                 int packetRecvCount = 0;
@@ -321,10 +332,7 @@ public:
                         packetSendCount = 0;
                     }
                 }
-                if (bufferCount > (first ? INITIAL_BUFFER_MAX : ONGOING_BUFFER_MAX)) {
-                    av_packet_unref(&readingPacket);
-                    return doneRead;
-                }
+                packetOk = true;
             } else if (readingPacket.stream_index == video_stream_idx) {
                 while (avcodec_send_packet(videoCodecContext, &readingPacket)) {
                     while (!avcodec_receive_frame(videoCodecContext, frame)) {
@@ -348,45 +356,21 @@ public:
                         av_frame_unref(frame);
                     }
                 }
-                if (videoFrameCount > VIDEO_FRAME_MAX) {
-                    av_packet_unref(&readingPacket);
+                packetOk = true;
+            }
+            av_packet_unref(&readingPacket);
+            
+            if (packetOk) {
+                if (first) {
+                    if ((bufferCount > INITIAL_BUFFER_MAX || videoFrameCount > VIDEO_FRAME_MAX))  {
+                        return doneRead;
+                    }
+                } else {
                     return doneRead;
                 }
             }
-            av_packet_unref(&readingPacket);
         }
-        if (audio_stream_idx != -1) {
-            while (!avcodec_receive_frame(audioCodecContext, frame)) {
-                int sz = frame->nb_samples * 2 * 2;
-                if ((sz + fillBuffer->pos) >= fillBuffer->size) {
-                    addBuffer(fillBuffer);
-                    fillBuffer = new AudioBuffer();
-                }
-
-                uint8_t* out_buffer = &fillBuffer->data[fillBuffer->pos];
-                int outSamples = swr_convert(au_convert_ctx,
-                                             &out_buffer,
-                                             (fillBuffer->size - fillBuffer->pos) / 4,
-                                             (const uint8_t **)frame->extended_data, frame->nb_samples);
-                av_frame_unref(frame);
-                fillBuffer->pos += (outSamples * 2 * 2);
-                decodedDataLen += (outSamples * 2 * 2);
-            }
-        }
-        if (video_stream_idx != -1) {
-            while (!avcodec_receive_frame(videoCodecContext, frame)) {
-                int ms = DTStoMS(frame->pkt_dts, video_dtspersec);
-                sws_scale(swsCtx, frame->data, frame->linesize, 0,
-                          videoCodecContext->height, scaledFrame->data,
-                          scaledFrame->linesize);
-                
-                int sz = scaledFrame->linesize[0] * scaledFrame->height;
-                uint8_t *d = (uint8_t*)malloc(sz);
-                memcpy(d, scaledFrame->data[0], sz);
-                addVideoFrame(ms, d, sz);
-                av_frame_unref(frame);
-            }
-        }
+        
         totalDataLen = decodedDataLen;
         addBuffer(fillBuffer);
         fillBuffer = nullptr;
@@ -458,7 +442,8 @@ class SDL
     SDLSTATE _state;
     SDL_AudioSpec _wanted_spec;
     int _initialisedRate;
-
+    SDL_AudioDeviceID audioDev;
+    
 public:
     SDL() : data(nullptr), _state(SDLSTATE::SDLUNINITIALISED) {}
     virtual ~SDL();
@@ -472,7 +457,7 @@ public:
         }
         if (_state != SDLSTATE::SDLINITIALISED && _state != SDLSTATE::SDLUNINITIALISED) {
             data = d;
-            SDL_PauseAudio(0);
+            SDL_PauseAudioDevice(audioDev, 0);
 
             long long t = GetTime() / 1000;
             data->videoStartTime = t;
@@ -483,7 +468,7 @@ public:
     }
     void Stop() {
         if (_state == SDLSTATE::SDLPLAYING) {
-            SDL_PauseAudio(1);
+            SDL_PauseAudioDevice(audioDev, 1);
             data = nullptr;
             _state = SDLSTATE::SDLNOTPLAYING;
         }
@@ -491,7 +476,7 @@ public:
     void Close() {
         Stop();
         if (_state != SDLSTATE::SDLINITIALISED && _state != SDLSTATE::SDLUNINITIALISED) {
-            SDL_CloseAudio();
+            SDL_CloseAudioDevice(audioDev);
             _state = SDLSTATE::SDLINITIALISED;
         }
     }
@@ -506,10 +491,19 @@ public:
 
 static SDL sdlManager;
 
-
 void fill_audio(void *udata, Uint8 *stream, int len) {
 
     if (sdlManager.data != nullptr) {
+        /*
+        static auto lastt = std::chrono::high_resolution_clock::now();
+        int i = sdlManager.data->curPos;
+        auto nowt = std::chrono::high_resolution_clock::now();
+        int bc = sdlManager.data->bufferCount;
+        int nsc = std::chrono::duration_cast<std::chrono::nanoseconds>(nowt-lastt).count();
+        printf("%d    %d    %d\n", i, nsc, bc);
+        lastt = nowt;
+         */
+
         AudioBuffer *buf = sdlManager.data->curBuffer;
         if (buf == nullptr) {
             if (AudioHasStalled) LogWarn(VB_MEDIAOUT, "Stalled, but no buffer  %d\n", sdlManager.data->doneRead);
@@ -543,15 +537,9 @@ void fill_audio(void *udata, Uint8 *stream, int len) {
     }
 }
 
-
 bool SDL::initSDL()  {
     if (_state == SDLSTATE::SDLUNINITIALISED) {
-        if (!SDL_getenv("SDL_AUDIO_ALSA_SET_BUFFER_SIZE")) {
-            SDL_setenv("SDL_AUDIO_ALSA_SET_BUFFER_SIZE", "1", true);
-        }
-        
-        if (SDL_Init(SDL_INIT_AUDIO | SDL_INIT_TIMER))
-        {
+        if (SDL_Init(SDL_INIT_AUDIO))  {
             LogErr(VB_MEDIAOUT, "Could not initialize SDL - %s\n", SDL_GetError());
             return false;
         }
@@ -563,6 +551,7 @@ bool SDL::openAudio() {
     if (_state == SDLSTATE::SDLINITIALISED) {
         _initialisedRate = DEFAULT_RATE;
         
+        SDL_memset(&_wanted_spec, 0, sizeof(_wanted_spec));
         _wanted_spec.freq = _initialisedRate;
         _wanted_spec.format = AUDIO_S16SYS;
         _wanted_spec.channels = 2;
@@ -571,8 +560,9 @@ bool SDL::openAudio() {
         _wanted_spec.callback = fill_audio;
         _wanted_spec.userdata = nullptr;
         
-        if (SDL_OpenAudio(&_wanted_spec, nullptr) < 0)
-        {
+        SDL_AudioSpec have;
+        audioDev = SDL_OpenAudioDevice(NULL, 0, &_wanted_spec, &have, 0);
+        if (audioDev == 0) {
             LogErr(VB_MEDIAOUT, "Could not open audio device - %s\n", SDL_GetError());
             return false;
         }
@@ -623,7 +613,21 @@ void *BufferFillThread(void *d) {
     while (!data->stopped && !data->maybeFillBuffer(false)) {
         timespec spec;
         spec.tv_sec = 0;
-        spec.tv_nsec = 10000000; //10 ms
+        int i = data->buffersFull();
+        switch (i) {
+            case 0:
+                //not even half full, don't sleep very long
+                spec.tv_nsec = 1000000; //1 ms
+                break;
+            case 1:
+                //half full,
+                spec.tv_nsec = 15000000; //15 ms
+                break;
+            case 2:
+                // completely full, we can sleep for a while
+                spec.tv_nsec = 100000000; //100 ms
+                break;
+        }
         if (nanosleep(&spec, nullptr)) {
             data->stopped++;
         }
@@ -888,10 +892,14 @@ int SDLOutput::Process(void)
         //if we have an audio stream, that drives everything
         float curtime = data->curPos;
         if (curtime > 0) {
-            //we've sent DEFAULT_NUM_SAMPLES to the audio, but on
-            //average, only half have been played yet, but no way to really
-            //tell so we'll use the average
-            curtime -= ((DEFAULT_NUM_SAMPLES * 2 * 2)/ 2);
+            //the last block sent is buffered, but not at the audio hardware yet
+            curtime -= DEFAULT_NUM_SAMPLES;
+            if (curtime > 0) {
+                //we've sent DEFAULT_NUM_SAMPLES to the audio hardware, but on
+                //average, only half have been played yet, but no way to really
+                //tell so we'll use the average
+                curtime -= ((DEFAULT_NUM_SAMPLES * 2 * 2)/ 2);
+            }
         }
         
         if (lastCurTime == curtime) {

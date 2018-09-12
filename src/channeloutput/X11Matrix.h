@@ -42,6 +42,8 @@ class X11MatrixOutput : public ChannelOutputBase {
 
 	void DumpConfig(void);
 
+	virtual void GetRequiredChannelRange(int &min, int & max);
+
   private:
   	int         m_width;
 	int         m_height;
