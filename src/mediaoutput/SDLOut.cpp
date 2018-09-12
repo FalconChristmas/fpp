@@ -35,7 +35,7 @@
 #include <atomic>
 #include <cmath>
 #include <set>
-
+#include <thread>
 #include <list>
 #include <mutex>
 
@@ -69,8 +69,16 @@ extern "C"
 //Only keep 30 frames in buffer
 #define VIDEO_FRAME_MAX     30
 
-#define DEFAULT_NUM_SAMPLES 2048
+#if defined(PLATFORM_PI)
+//on the old single core Pi's, we need to increase the buffer size
+//a bit or the audio stutters.
+static const int DEFAULT_NUM_SAMPLES = std::thread::hardware_concurrency() <= 1 ? 2048 : 1024;
+#else 
+static const int DEFAULT_NUM_SAMPLES = 1024;
+#endif
 #define DEFAULT_RATE 44100
+
+
 
 
 static bool AudioHasStalled = false;
