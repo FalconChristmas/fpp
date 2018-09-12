@@ -203,6 +203,14 @@ int X11MatrixOutput::RawSendData(unsigned char *channelData)
 /*
  *
  */
+void X11MatrixOutput::GetRequiredChannelRange(int &min, int & max) {
+	min = m_startChannel;
+	max = min + m_channelCount - 1;
+}
+
+/*
+ *
+ */
 void X11MatrixOutput::DumpConfig(void)
 {
 	LogDebug(VB_CHANNELOUT, "X11MatrixOutput::DumpConfig()\n");

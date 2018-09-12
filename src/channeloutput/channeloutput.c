@@ -454,6 +454,11 @@ int InitializeChannelOutputs(void) {
 						LogWarn(VB_CHANNELOUT,
 							"Count suppressed to %d for config: %s\n", channelOutputs[i].channelCount, csvConfig);
 					}
+                    
+                    int m1 = channelOutputs[i].startChannel;
+                    int m2 = m1 + channelOutputs[i].channelCount - 1;
+                    minimumNeededChannel = std::min(minimumNeededChannel, m1);
+                    maximumNeededChannel = std::max(maximumNeededChannel, m2);
 					i++;
 				} else if ((channelOutputs[i].output) &&
 						   (((!csvConfig[0]) && (channelOutputs[i].output->Init(outputs[c]))) ||

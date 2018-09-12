@@ -35,37 +35,33 @@ function PopulatePlaylists(element) {
 	var Filename;
  
 	xmlhttp.onreadystatechange = function () {
-		if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
-		{
+		if (xmlhttp.readyState == 4 && xmlhttp.status==200) {
 			var xmlDoc=xmlhttp.responseXML; 
 	
 			var productList = xmlDoc.getElementsByTagName('Playlists')[0];
-			var innerHTML = "<ol>";
-			if(productList.childNodes.length> 0)
-			{
-				innerHTML += "<table border=0 cellspacing=0 cellpadding=0><tr><td valign='top'>";
-				var rowsPerCol = 10;
-				if (productList.childNodes.length > 45)
-				{
-					rowsPerCol = Math.ceil(productList.childNodes.length / 4);
-				}
-				else if (productList.childNodes.length > 30)
-					rowsPerCol = 15;
+			var innerHTML = "";
+			if(productList.childNodes.length> 0) {
+				var colCount = 1;
+				if (productList.childNodes.length > 30) {
+					colCount = 4;
+                } else if (productList.childNodes.length > 20) {
+					colCount = 3;
+                } else if (productList.childNodes.length > 10) {
+                    colCount = 2;
+                }
+                
+                innerHTML += "<ol style='list-style-position: inside; -webkit-column-count:" + colCount + "; -webkit-column-gap:20px; -moz-column-count:"
+                    + colCount + "; -moz-column-gap:20px; column-count:" + colCount + "; column-gap:20px;'>";
 
-				for(i=0;i<productList.childNodes.length;i++)
-					{
-						if ((i != 0) && ((i % rowsPerCol) == 0))
-							innerHTML += "</td><td width='50px'>&nbsp;</td><td valign='top'>";
-						Filename = productList.childNodes[i].textContent;
-						// Remove extension
-						//Filename = Filename.substr(0, x.lastIndexOf('.'));	
-						innerHTML += "<li><a href='#' id=playlist" + i.toString() + " onclick=\"PopulatePlayListEntries('" + Filename + "',true)\">" + Filename + "</a></li>";
-					}
-					innerHTML += "</tr></table></ol>";
-			}
-			else
-			{
-				innerHTML = "No Results Found";	
+				for (i=0; i < productList.childNodes.length; i++) {
+                    Filename = productList.childNodes[i].textContent;
+                    // Remove extension
+                    //Filename = Filename.substr(0, x.lastIndexOf('.'));
+                    innerHTML += "<li><a href='#' id=playlist" + i.toString() + " onclick=\"PopulatePlayListEntries('" + Filename + "',true)\">" + Filename + "</a></li>";
+                }
+                innerHTML += "</ol>";
+			} else {
+				innerHTML = "No Playlists Created";
 			}
 			var results = document.getElementById(element);
 			results.innerHTML = innerHTML;	
