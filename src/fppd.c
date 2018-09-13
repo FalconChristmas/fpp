@@ -141,16 +141,6 @@ int main(int argc, char *argv[])
 	InitEffects();
 	InitializeChannelDataMemoryMap();
 
-#ifndef NOROOT
-	struct sched_param param;
-	param.sched_priority = 99;
-	if (sched_setscheduler(0, SCHED_FIFO, &param) != 0)
-	{
-		perror("sched_setscheduler");
-		exit(EXIT_FAILURE);
-	}
-#endif
-
 	MainLoop();
 
 	if (getFPPmode() != BRIDGE_MODE)

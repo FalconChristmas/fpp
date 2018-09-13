@@ -258,11 +258,27 @@ void ogg123Output::ProcessOGGData(int bytesRead)
 	int  i = 0;
 	bool commandNext=false;
 
+    m_oggBuffer[bytesRead] = 0;
+    LogExcess(VB_MEDIAOUT, "ogg123 output: %s\n", m_oggBuffer);
+    
+    // finished will look like "Done."
+    if (strstr(m_oggBuffer, "Done.\n") != NULL) {
+        Stop();
+        return;
+    }
+
+    
+    if (!strncmp("Done.", m_oggBuffer, 5)) {
+        Stop();
+        return;
+    }
+    
+    
 	for(i=0;i<bytesRead;i++)
 	{
 		switch(m_oggBuffer[i])
 		{
-			case 'T':
+            case 'T':
 				state = 1;
 				break;
 			case 'i':
