@@ -181,15 +181,15 @@ function flashEMMCBtrfs() {
             <table width = "100%" border="0" cellpadding="1" cellspacing="1">
                 <tr>
                     <td >MQTT Broker Host:</td>
-                    <td ><? PrintSettingText("MQTTHost", 0, 1, 64, 64, "", ""); ?></td>
+                    <td ><? PrintSettingTextSaved("MQTTHost", 1, 0, 64, 32, "", ""); ?></td>
                 </tr>
                 <tr>
                     <td >MQTT Broker Port:</td>
-                    <td ><? PrintSettingText("MQTTPort", 0, 1, 32, 32, "", ""); ?></td>
+                    <td ><? PrintSettingTextSaved("MQTTPort", 1, 0, 32, 32, "", ""); ?></td>
                 </tr>
                 <tr>
                     <td >MQTT Prefix:</td>
-                    <td ><? PrintSettingText("MQTTPrefix", 0, 1, 32, 32, "", ""); ?></td>
+                    <td ><? PrintSettingTextSaved("MQTTPrefix", 1, 0, 32, 32, "", ""); ?></td>
                 </tr>
             </table>
             MQTT events will be published to "$prefix/falcon/player/$hostname/" with playlist events being in the "playlist" subtopic. <br/>
