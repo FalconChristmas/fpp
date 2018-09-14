@@ -57,6 +57,8 @@
 #include <pthread.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <fcntl.h>
+
 
 #ifdef USEWIRINGPI
 #   include <wiringPi.h>
@@ -122,7 +124,13 @@ int main(int argc, char *argv[])
 	if (!multiSync->Init())
 		exit(EXIT_FAILURE);
 
-	piFaceSetup(200); // PiFace inputs 1-8 == wiringPi 200-207
+    int fd = -1;
+    if ((fd = open ("/dev/spidev0.0", O_RDWR)) < 0) {
+        LogWarn(VB_GENERAL, "Could not open SPI device.  Skipping piFace setup.\n");
+    } else {
+        close(fd);
+        piFaceSetup(200); // PiFace inputs 1-8 == wiringPi 200-207
+    }
 
 	SetupGPIOInput();
 
