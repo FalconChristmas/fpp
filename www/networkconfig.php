@@ -466,11 +466,11 @@ function setHostName() {
             <table width = "100%" border="0" cellpadding="1" cellspacing="1">
             <tr>
                 <td width = "25%">Tethering SSID:</td>
-                <td width = "75%"><? PrintSettingText("TetherSSID", 0, 1, 32, 32, "", "FPP"); ?></td>
+                <td width = "75%"><? PrintSettingTextSaved("TetherSSID", 0, 1, 32, 32, "", "FPP"); ?></td>
             </tr>
             <tr>
                 <td>Tethering Pre Shared key (PSK):</td>
-                <td><? PrintSettingText("TetherPSK", 0, 1, 32, 32, "", "Christmas"); ?></td>
+                <td><? PrintSettingTextSaved("TetherPSK", 0, 1, 32, 32, "", "Christmas"); ?></td>
             </tr>
             </tr>
             </table>

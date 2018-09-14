@@ -118,3 +118,17 @@ getSetting() {
 	fi
 }
 
+setSetting() {
+    SETTING=$1
+    VALUE=$2
+    if [ -f "${CFGFILE}" ]; then
+        OLD=$(getSetting $SETTING)
+        if [ "x${OLD}" = "x" ]; then
+            echo "${SETTING} = \"${VALUE}\"" >> ${CFGFILE}
+        else
+            sed -i \
+                -e '/^#\?\(\s*'"${SETTING}"'\s*=\s*\).*/{s//\1'"\"${VALUE}\""'/;:a;n;ba;q}' \
+                -e '$a'"${SETTING}"'='"\"${VALUE}\"" ${CFGFILE}
+        fi
+    fi
+}
