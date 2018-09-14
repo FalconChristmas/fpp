@@ -26,6 +26,8 @@
 #include "log.h"
 #include "mqtt.h"
 #include "settings.h"
+#include "events.h"
+#include "effects.h"
 #include "playlist/Playlist.h"
 
 #include <sstream>
@@ -67,9 +69,11 @@ MosquittoClient::MosquittoClient(const std::string &host, const int port,
 	m_host = host;
 	m_topicPrefix = topicPrefix;
 
-	if (m_topicPrefix.size())
-		m_baseTopic = m_topicPrefix + "/";
-	
+    if (m_topicPrefix.size()) {
+        m_topicPrefix += "/";
+    }
+		
+    m_baseTopic = m_topicPrefix;
 	m_baseTopic += FALCON_TOPIC;
 	m_baseTopic += "/";
 	m_baseTopic += getSetting("HostName");
@@ -123,7 +127,8 @@ int MosquittoClient::Init(void)
 		return 0;
 	}
 
-	mosquitto_subscribe(m_mosq, NULL, FALCON_TOPIC "/#", 0);
+    std::string subscribe = m_topicPrefix + FALCON_TOPIC + "/#";
+	mosquitto_subscribe(m_mosq, NULL, subscribe.c_str(), 0);
 
 	int loop = mosquitto_loop_start(m_mosq);
 	if (loop != MOSQ_ERR_SUCCESS)
@@ -209,13 +214,9 @@ void MosquittoClient::MessageCallback(void *obj, const struct mosquitto_message 
 	std::string emptyStr;
 	std::string topic;
 	std::string payload;
-	std::string hostname;
 
 	LogDebug(VB_CONTROL, "Received Mosquitto message: '%s' on topic '%s'\n",
 		(char*) message->payload, message->topic);
-
-	hostname = getSetting("HostName");
-	hostname += "/";
 
 	if (message->topic)
 		topic = (char *)message->topic;
@@ -224,16 +225,33 @@ void MosquittoClient::MessageCallback(void *obj, const struct mosquitto_message 
 		payload = (char *)message->payload;
 
 	mosquitto_topic_matches_sub(m_topicPlaylist.c_str(), message->topic, &match);
-
-	if (match)
-	{
-		std::string topic(message->topic);
-
-		if (topic.find(m_baseTopic) == 0)
-		{
+	if (match) {
+		if (topic.find(m_baseTopic) == 0) {
 			topic.replace(0, m_baseTopic.size() + 1, emptyStr);
 			playlist->MQTTHandler(topic, payload);
 		}
 		return;
 	}
+    std::string eventTopic = m_baseTopic + "/event/#";
+    mosquitto_topic_matches_sub(eventTopic.c_str(), message->topic, &match);
+    if (match) {
+        TriggerEventByID(payload.c_str());
+        return;
+    }
+    std::string effectTopic = m_baseTopic + "/effect/#";
+    mosquitto_topic_matches_sub(effectTopic.c_str(), message->topic, &match);
+    if (match) {
+        if (topic.find(m_baseTopic) == 0) {
+            topic.replace(0, m_baseTopic.size() + 1, emptyStr);
+            if (topic == "effect/stop") {
+                if (payload == "") {
+                    StopAllEffects();
+                } else {
+                    StopEffect(payload.c_str());
+                }
+            } else if (topic == "effect/start") {
+                StartEffect(payload.c_str(), 0);
+            }
+        }
+    }
 }
