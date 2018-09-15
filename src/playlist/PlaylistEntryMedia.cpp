@@ -136,6 +136,9 @@ int PlaylistEntryMedia::Process(void)
 		m_mediaOutput->Process();
         if (!m_mediaOutput->IsPlaying()) {
             FinishPlay();
+            pthread_mutex_unlock(&m_mediaOutputLock);
+            CloseMediaOutput();
+            pthread_mutex_lock(&m_mediaOutputLock);
         }
     }
 
@@ -224,7 +227,7 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 
 	if (found == std::string::npos)
 	{
-		LogDebug(VB_MEDIAOUT, "Unable to determine extension of media file %s\n",
+		LogWarn(VB_MEDIAOUT, "Unable to determine extension of media file %s\n",
 			m_mediaFilename.c_str());
 		return 0;
 	}
@@ -244,7 +247,8 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 				m_mediaFilename.c_str(), tmpFile);
 		}
 	}
-    
+    LogInfo(VB_PLAYLIST, "PlaylistEntryMedia - Starting %s\n", tmpFile.c_str());
+
     std::string vOut = m_videoOutput;
     if (vOut == "--Default--") {
         vOut = getSetting("VideoOutput");

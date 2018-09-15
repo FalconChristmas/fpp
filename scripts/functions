@@ -488,10 +488,7 @@ WaitForInterfacesUp() {
             #to detect the link on it and attach to wifi
             ifconfig wlan0 down
             ifconfig wlan0 up
-            if [ -f "/usr/bin/connmanctl" ]
-            then
-                connmanctl scan wifi
-            fi
+            connmanctl scan wifi
             # Loop up to 8 times, so max wait time is 8 * 2
             for i in {1..8}
             do
@@ -505,16 +502,28 @@ WaitForInterfacesUp() {
         fi
     fi
 
-    if [ -f "/usr/bin/connmanctl" ]
-    then
-        connmanctl services >> /tmp/services.txt
-    fi
+    connmanctl services >> /tmp/services.txt
 
     #turn off power management on wireless... not all adapters
     # support this so just /dev/null any output
     iwconfig wlan0 power off 2>/dev/null >/dev/null
 }
 
+MaybeEnableTethering() {
+    HASLINK="$(ethtool eth0 | grep \"Link detected: yes\")"
+    IPS="$(ip -o -4 addr | grep -v usb | grep -v 127.0)"
+    if [ "x${HASLINK}" = "x" ]; then
+        # no link on eth0
+        if [ -z "$IPS" ]; then
+            #No IPS from anywhere either, lets turn on tethering
+
+            TetherSSID=$(getSetting TetherSSID)
+            TetherPSK=$(getSetting TetherPSK)
+            connmanctl tether wifi on "${TetherSSID:=FPP}" "${TetherPSK:=Christmas}"
+            setSetting EnableTethering 1
+        fi
+    fi
+}
 
 #############################################################################
 # Functions for compiling and cleaning up compiled binaries

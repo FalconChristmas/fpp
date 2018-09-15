@@ -888,7 +888,7 @@ function RemovePlaylistEntry()	{
                 var univ = $(item).parent().parent().find("input.txtUniverse");
                 univ.prop('disabled', true);
                 var sz = $(item).parent().parent().find("input.txtSize");
-                sz.prop('max', 256000);
+                sz.prop('max', 512000);
             } else {
                 var univ = $(item).parent().parent().find("input.txtUniverse");
                 univ.prop('disabled', false);
@@ -962,7 +962,7 @@ function RemovePlaylistEntry()	{
                                 var universeSize = 512;
                                 var universeDisable = "";
                                 if (type == 4 || type == 5) {
-                                    universeSize = 256000;
+                                    universeSize = 512000;
                                     universeDisable = " disabled";
                                 }
 
@@ -1230,7 +1230,7 @@ function RemovePlaylistEntry()	{
                 txtSize=document.getElementById("txtSize[" + i + "]");
                 var max = 512;
                 if (universeType == 4 || universeType == 5) {
-                    max = 256000;
+                    max = 512000;
                 }
                 if(!validateNumber(txtSize,1,max))
                 {

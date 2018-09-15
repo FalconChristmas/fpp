@@ -148,7 +148,7 @@ int mpg123Output::Process(void)
 		PollMusicInfo();
 	}
 
-	return 1;
+    return m_mediaOutputStatus->status == MEDIAOUTPUTSTATUS_PLAYING;
 }
 
 /*
@@ -266,10 +266,20 @@ void mpg123Output::ProcessMP3Data(int bytesRead)
 
 #define NEW_MPG123
 #if defined(NEW_MPG123) && !defined(USE_MPG321)
+    m_mp3Buffer[bytesRead] = 0;
+    LogExcess(VB_MEDIAOUT, "mpg123 output: %s\n", m_mp3Buffer);
 	// New verbose output format in v1.??, we key off the > at the beginning
 	// > 0008+3784  00:00.18+01:38.84 --- 100=100 160 kb/s  522 B acc    0 clip p+0.000
 	// States:
 	// 123333455556677777777899999999
+    
+    // finished will look like [3:05] Decoding of XYZ.mp3 finished.
+    if (strstr(m_mp3Buffer, "] Decoding of") != NULL
+        && strstr(m_mp3Buffer, " finished.") != NULL) {
+        Stop();
+        return;
+    }
+    
 	m_mpg123_strTime[bufferPtr++] = ' ';
 	m_mpg123_strTime[bufferPtr] = 0;
 	for(i=0;i<bytesRead;i++)
@@ -461,7 +471,7 @@ void mpg123Output::PollMusicInfo(void)
 		if (bytesRead > 0) 
 		{
 		    ProcessMP3Data(bytesRead);
-		} 
+		}
 	}
 }
 
