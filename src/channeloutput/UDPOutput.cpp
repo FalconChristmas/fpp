@@ -152,8 +152,8 @@ int UDPOutput::RawSendData(unsigned char *channelData) {
     int outputCount = SendMessages(sendSocket, udpMsgs);
     auto t2 = clock.now();
     long diff = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
-    if ((outputCount != udpMsgs.size()) || (diff > 200)) {
-        //failed to send all messages or it took more than 200ms to send them
+    if ((outputCount != udpMsgs.size()) || (diff > 100)) {
+        //failed to send all messages or it took more than 100ms to send them
         LogErr(VB_CHANNELOUT, "sendmmsg() failed for UDP output (output count: %d/%d   time: %u ms) with error: %d   %s\n",
                outputCount, udpMsgs.size(), diff,
                errno,
@@ -212,7 +212,7 @@ void UDPOutput::BackgroundThreadPing() {
     delete t;
 }
 void UDPOutput::PingControllers() {
-    LogWarn(VB_CHANNELOUT, "Pinging controllers to see what is online\n");
+    LogDebug(VB_CHANNELOUT, "Pinging controllers to see what is online\n");
 
     std::map<std::string, int> done;
     for (auto o : outputs) {
@@ -224,6 +224,11 @@ void UDPOutput::PingControllers() {
                     p = -1;
                 }
                 done[host] = p;
+
+                if (p > 0 && !o->valid) {
+                    LogWarn(VB_CHANNELOUT, "Could ping host %s, re-adding to outputs\n",
+                            host.c_str());
+                }
             }
         }
     }
@@ -239,8 +244,11 @@ void UDPOutput::PingControllers() {
                 }
                 done[host] = p;
                 
-                if (p < 0) {
+                if (p < 0 && o->valid) {
                     LogWarn(VB_CHANNELOUT, "Could not ping host %s, removing from output\n",
+                            host.c_str());
+                } else if (p > 0 && !o->valid) {
+                    LogWarn(VB_CHANNELOUT, "Could ping host %s, re-adding to outputs\n",
                             host.c_str());
                 }
             }
@@ -250,7 +258,7 @@ void UDPOutput::PingControllers() {
     RebuildOutputMessageLists();
 }
 void UDPOutput::RebuildOutputMessageLists() {
-    LogWarn(VB_CHANNELOUT, "Rebuilding message lists\n");
+    LogDebug(VB_CHANNELOUT, "Rebuilding message lists\n");
 
     rebuildOutputLists = false;
     udpMsgs.clear();

@@ -1527,7 +1527,7 @@ function LoadUniverseFile($input)
 
 	if(!file_exists($filename))
 	{
-		$_SESSION['UniverseEntries'][] = new UniverseEntry(1,"",1,1,512,0,"",0);
+		$_SESSION['UniverseEntries'][] = new UniverseEntry(1,"",1,1,512,0,"",0,0);
 		return;
 	}
 
