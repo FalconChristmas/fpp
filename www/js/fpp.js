@@ -507,9 +507,9 @@ function AddPlaylistEntry() {
             }
 			else if (entry.type == 'url')
 			{
-				entry.url = $('#url').val();
+				entry.url = encodeURIComponent($('#url').val());
 				entry.method = $('#urlMethod').val();
-				entry.data = $('#urlData').val();
+				entry.data = encodeURIComponent($('#urlData').val());
 			}
 			else if (entry.type == 'plugin')
 			{
