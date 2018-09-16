@@ -461,6 +461,7 @@ function AddPlaylistEntry() {
 			{
 				entry.majorID = $('#selEvent').val().substring(0,2);
 				entry.minorID = $('#selEvent').val().substring(3,5);
+				entry.desc =  eventName.replace(new RegExp("'", "g"),"").trim();
 				entry.blocking = 0;
 			}
 			else if (entry.type == 'branch')

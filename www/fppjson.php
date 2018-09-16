@@ -512,11 +512,11 @@ function GetJSONPlaylistEntry($entry, $index)
 		return new PlaylistEntry($entry->type,'', '', 0, $entry->scriptName,'','','', $entry, $index);
 	else if ($entry->type == 'event')
 	{
-		$majorID = $entry->majorID;
-		if ($majorID < 10)
+        $majorID = intval(ltrim($entry->majorID, 0));
+        if ($majorID < 10)
 			$majorID = '0' . $majorID;
 
-		$minorID = $entry->minorID;
+        $minorID = intval(ltrim($entry->minorID, 0));
 		if ($minorID < 10)
 			$minorID = '0' . $minorID;
 
@@ -524,7 +524,7 @@ function GetJSONPlaylistEntry($entry, $index)
 
 		AddEventDesc($entry);
 
-		return new PlaylistEntry($entry->type,'', '', 0, '', $id, $entry->desc, '', $entry, $index);
+		return new PlaylistEntry($entry->type,'', '', 0, '', $entry->desc, $id,'', $entry, $index);
 	}
 	else if ($entry->type == 'plugin')
 		return new PlaylistEntry($entry->type, '', '', 0, '', '', '', $entry->data, $entry, $index);
@@ -539,11 +539,11 @@ function AddEventDesc(&$entry)
 	if ($entry->type != 'event')
 		return;
 
-	$majorID = $entry->majorID;
+	$majorID = intval(ltrim($entry->majorID, 0));
 	if ($majorID < 10)
 		$majorID = '0' . $majorID;
 
-	$minorID = $entry->minorID;
+	$minorID = intval(ltrim($entry->minorID, 0));
 	if ($minorID < 10)
 		$minorID = '0' . $minorID;
 
