@@ -141,6 +141,14 @@ SetupFPPNetworkConfigViaConnMann() {
         cp $TMPFILE /var/lib/connman/fpp.config
     fi
 
+    TetherEnabled=$(getSetting EnableTethering)
+    if [ "$TetherEnabled" != "1" ]; then
+        # make sure tethering is off
+        sed -i -e 's/Tethering=true/Tethering=false/g' /var/lib/connman/settings
+        systemctl enable dnsmasq
+    fi
+
+
     #ifconfig -a > /var/tmp/conm.txt
     #ls -l /sys/class/net/ >>  /var/tmp/conm.txt
     # connmanctl services > /var/tmp/services.txt
@@ -510,18 +518,28 @@ WaitForInterfacesUp() {
 }
 
 MaybeEnableTethering() {
-    HASLINK="$(ethtool eth0 | grep \"Link detected: yes\")"
-    IPS="$(ip -o -4 addr | grep -v usb | grep -v 127.0)"
-    if [ "x${HASLINK}" = "x" ]; then
-        # no link on eth0
-        if [ -z "$IPS" ]; then
-            #No IPS from anywhere either, lets turn on tethering
+    TetherEnabled=$(getSetting EnableTethering)
 
-            TetherSSID=$(getSetting TetherSSID)
-            TetherPSK=$(getSetting TetherPSK)
-            connmanctl tether wifi on "${TetherSSID:=FPP}" "${TetherPSK:=Christmas}"
-            setSetting EnableTethering 1
+    if [ "x${TetherEnabled}" == "x" ]; then
+        TetherEnabled=0;
+    fi
+
+    if [ "$TetherEnabled" == "0" ]; then
+        IPS="$(ip -o -4 addr | grep -v usb | grep -v 127.0)"
+        HASLINK="$(ethtool eth0 | grep \"Link detected: yes\")"
+        if [ "x${HASLINK}" = "x" ]; then
+            # no link on eth0
+            if [ -z "$IPS" ]; then
+                #No IPS from anywhere either, lets turn on tethering
+                TetherEnabled=1
+            fi
         fi
+    fi
+    if [ "$TetherEnabled" == "1" ]; then
+        TetherSSID=$(getSetting TetherSSID)
+        TetherPSK=$(getSetting TetherPSK)
+        connmanctl tether wifi on "${TetherSSID:=FPP}" "${TetherPSK:=Christmas}"
+        systemctl disable dnsmasq
     fi
 }
 

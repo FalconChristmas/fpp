@@ -22,6 +22,13 @@ function PopulateInterfaces()
   }
 }
 
+function printTetheringSelect() {
+    $tetherValues = array();
+    $tetherValues["If no connection"] = 0;
+    $tetherValues["Enabled"] = 1;
+    $tetherValues["Disabled"] = 2;
+    PrintSettingSelect("Enable Tethering", "EnableTethering", 0, 1, "0", $tetherValues);
+}
 
 ?>
 <script>
@@ -462,8 +469,11 @@ function setHostName() {
 <br>
         <fieldset class="fs2">
         <legend>Tethering</legend>
-            <? PrintSettingCheckbox("Enable Tethering", "EnableTethering", 0, 1, "1", "0"); ?> Enable Tethering
             <table width = "100%" border="0" cellpadding="1" cellspacing="1">
+            <tr>
+                <td width = "25%">Tethering Mode:</td>
+                <td width = "75%"><? printTetheringSelect(); ?></td>
+            </tr>
             <tr>
                 <td width = "25%">Tethering SSID:</td>
                 <td width = "75%"><? PrintSettingTextSaved("TetherSSID", 0, 1, 32, 32, "", "FPP"); ?></td>
