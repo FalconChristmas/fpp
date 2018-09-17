@@ -371,7 +371,7 @@ function InitializeLEDPanels()
 		$('#LEDPanelsChannelCount').html(channelOutputsLookup["LEDPanelMatrix"].channelCount);
 		$('#LEDPanelsColorOrder').val(channelOutputsLookup["LEDPanelMatrix"].colorOrder);
 		$('#LEDPanelsBrightness').val(channelOutputsLookup["LEDPanelMatrix"].brightness);
-                $('#LEDPanelsGamma').val(channelOutputsLookup["LEDPanelMatrix"].gamma);
+        $('#LEDPanelsGamma').val(channelOutputsLookup["LEDPanelMatrix"].gamma);
 		$('#LEDPanelsConnection').val(channelOutputsLookup["LEDPanelMatrix"].subType);
 		$('#LEDPanelsInterface').val(channelOutputsLookup["LEDPanelMatrix"].interface);
 		$('#LEDPanelsSourceMacInput').val(channelOutputsLookup["LEDPanelMatrix"].sourceMAC);
@@ -716,14 +716,12 @@ else if ($settings['Platform'] == "BeagleBone Black")
 						</tr>
                         <tr><td><b>Panel Gamma:</b></td>
                             <td><? printLEDPanelGammaSelect($settings['Platform'], $LEDPanelGamma); ?></td>
-                            </td>
                         </tr>
 <?
 if ($settings['Platform'] == "BeagleBone Black") {
 ?>
                         <tr><td><b>Panel Interleave:</b></td>
 							<td><? printLEDPanelInterleaveSelect($settings['Platform'], $LEDPanelInterleave); ?></td>
-							</td>
 						</tr>
 						<tr><td><b>Color Depth:</b></td>
 							<td><select id='LEDPanelsColorDepth'>
@@ -758,7 +756,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
 								<span id='LEDPanelsGPIOSlowdownLabel'><b>GPIO Slowdown:</b></span>
 								</td>
 							<td><select id='LEDPanelsInterface' type='hidden'>
-<? PopulateEthernetInterfaces(); ?>
+									<? PopulateEthernetInterfaces(); ?>
 								</select>
 								<select id='LEDPanelsGPIOSlowdown'>
 									<option value='0'>0 (Pi Zero and other single-core)</option>
