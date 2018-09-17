@@ -65,37 +65,14 @@ $(document).ready(function() {
 	});
 
 	$('#frmUniverses').submit(function(event) {
-			 event.preventDefault();
-			 var success = validateUniverseData();
-			 if(success == true)
-			 {
-				 dataString = $("#frmUniverses").serializeArray();
-
-				 enabled = {};
-				 enabled.name = "enabled";
-				 enabled.value = 1;
-
-				 dataString.push(enabled);
-
-				 $.ajax({
-						type: "post",
-						url: "fppjson.php",
-						dataType:"text",
-						data: dataString,
-						success: function (response) {
-								getUniverses('FALSE', 1);
-								$.jGrowl("E1.31 Universes Saved");
-								SetRestartFlag();
-						}
-				}).fail( function() {
-					DialogError("Save E1.31 Universes", "Save Failed");
-				});
-				return false;
-			 }
-			 else
-			 {
-			   DialogError("Save E1.31 Universes", "Validation Failed");
-			 }
+         event.preventDefault();
+         var success = validateUniverseData();
+         if(success == true) {
+             postUniverseJSON(true);
+             return false;
+         } else {
+             DialogError("Save E1.31 Universes", "Validation Failed");
+         }
 	});
 });
 
