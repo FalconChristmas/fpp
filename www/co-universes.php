@@ -56,31 +56,7 @@ $(document).ready(function() {
 			 var success = validateUniverseData();
 			 if(success == true)
 			 {
-				 dataString = $("#frmUniverses").serializeArray();
-
-				 enabled = {};
-				 enabled.name = "enabled";
-
-				 if ($("#E131Enabled").is(':checked'))
-				 	enabled.value = 1;
-				 else
-				 	enabled.value = 0;
-
-				 dataString.push(enabled);
-
-				 $.ajax({
-						type: "post",
-						url: "fppjson.php",
-						dataType:"text",
-						data: dataString,
-						success: function (response) {
-								getUniverses('FALSE', 0);
-								$.jGrowl("E1.31 Universes Saved");
-								SetRestartFlag();
-						}
-				}).fail( function() {
-					DialogError("Save E1.31 Universes", "Save Failed");
-				});
+                postUniverseJSON(false);
 				return false;
 			 }
 			 else
@@ -132,7 +108,7 @@ function PopulateInterfaces()
 			<div id='divE131Data'>
 
 				<div style="overflow: hidden; padding: 10px;">
-					<b>Enable E1.31 /ArtNet Output:</b> <? PrintSettingCheckbox("E1.31 / ArtNet Output", "E131Enabled", 1, 0, "1", "0"); ?><br><br>
+					<b>Enable E1.31 /ArtNet Output:</b> <input type="checkbox" id="E131Enabled"/><br><br>
 					E1.31 / ArtNet Interface: <select id="selE131interfaces" onChange="SetE131interface();"><? PopulateInterfaces(); ?></select>
 					<br><br>
 
