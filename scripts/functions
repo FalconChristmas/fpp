@@ -145,9 +145,12 @@ SetupFPPNetworkConfigViaConnMann() {
     if [ "$TetherEnabled" != "1" ]; then
         # make sure tethering is off
         sed -i -e 's/Tethering=true/Tethering=false/g' /var/lib/connman/settings
-        systemctl enable dnsmasq
+        if [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
+            systemctl enable dnsmasq
+        fi
+    elif [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
+        systemctl disable dnsmasq
     fi
-
 
     #ifconfig -a > /var/tmp/conm.txt
     #ls -l /sys/class/net/ >>  /var/tmp/conm.txt
@@ -521,7 +524,16 @@ MaybeEnableTethering() {
     TetherEnabled=$(getSetting EnableTethering)
 
     if [ "x${TetherEnabled}" == "x" ]; then
-        TetherEnabled=0;
+        if [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
+            # many USB wifi adapters on the BBB don't support AP mode
+            # it also disables the reliable USB connection
+            # thus, on the BBB, make the default to not have Tether mode
+            # and make the user specifically have to enable it
+            setSetting EnableTethering 2
+            TetherEnabled=2
+        else
+            TetherEnabled=0
+        fi
     fi
 
     if [ "$TetherEnabled" == "0" ]; then
@@ -535,11 +547,18 @@ MaybeEnableTethering() {
             fi
         fi
     fi
+    if [ ! -e /sys/class/net/wlan0 ]; then
+        # no wifi adapter, no point enabling tethering
+        TetherEnabled=2
+    fi 
     if [ "$TetherEnabled" == "1" ]; then
         TetherSSID=$(getSetting TetherSSID)
         TetherPSK=$(getSetting TetherPSK)
+        if [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
+            systemctl disable dnsmasq
+            systemctl stop dnsmasq
+        fi
         connmanctl tether wifi on "${TetherSSID:=FPP}" "${TetherPSK:=Christmas}"
-        systemctl disable dnsmasq
     fi
 }
 

@@ -377,7 +377,7 @@ function setHostName() {
           <table width = "100%" border="0" cellpadding="1" cellspacing="1">
             <tr>
               <td width = "25%" valign='top'>Interface Name:</td>
-              <td width = "25%" valign='top'><select id ="selInterfaces" size='2' onChange='LoadNetworkConfig();'><?php PopulateInterfaces();?></select></td>
+              <td width = "25%" valign='top'><select id ="selInterfaces" size='3' style="width:10em;"  onChange='LoadNetworkConfig();'><?php PopulateInterfaces();?></select></td>
               <td width = "50%">&nbsp;</td>
             </tr>
             <tr>
