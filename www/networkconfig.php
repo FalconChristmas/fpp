@@ -22,6 +22,13 @@ function PopulateInterfaces()
   }
 }
 
+function printTetheringSelect() {
+    $tetherValues = array();
+    $tetherValues["If no connection"] = 0;
+    $tetherValues["Enabled"] = 1;
+    $tetherValues["Disabled"] = 2;
+    PrintSettingSelect("Enable Tethering", "EnableTethering", 0, 1, "0", $tetherValues);
+}
 
 ?>
 <script>
@@ -380,7 +387,7 @@ function setHostDescription() {
           <table width = "100%" border="0" cellpadding="1" cellspacing="1">
             <tr>
               <td width = "25%" valign='top'>Interface Name:</td>
-              <td width = "25%" valign='top'><select id ="selInterfaces" size='2' onChange='LoadNetworkConfig();'><?php PopulateInterfaces();?></select></td>
+              <td width = "25%" valign='top'><select id ="selInterfaces" size='3' style="width:10em;"  onChange='LoadNetworkConfig();'><?php PopulateInterfaces();?></select></td>
               <td width = "50%">&nbsp;</td>
             </tr>
             <tr>
@@ -473,21 +480,27 @@ function setHostDescription() {
           <input id="btnConfigDNS" type="" style="width:135px; display: none;" class = "buttons" value="Restart DNS" onClick="ApplyDNSConfig();">
 
         </fieldset>
-            <br>
-            <fieldset class="fs2">
-                <legend>Tethering</legend>
-				<? PrintSettingCheckbox("Enable Tethering", "EnableTethering", 0, 1, "1", "0"); ?> Enable Tethering
-                <table width="100%" border="0" cellpadding="1" cellspacing="1">
-                    <tr>
-                        <td width="25%">Tethering SSID:</td>
-                        <td width="75%"><? PrintSettingTextSaved("TetherSSID", 0, 1, 32, 32, "", "FPP"); ?></td>
-                    </tr>
-                    <tr>
-                        <td>Tethering Pre Shared key (PSK):</td>
-                        <td><? PrintSettingTextSaved("TetherPSK", 0, 1, 32, 32, "", "Christmas"); ?></td>
-                    </tr>
-                    </tr>
-                </table>
+
+        <br>
+        <fieldset class="fs2">
+        <legend>Tethering</legend>
+            <table width = "100%" border="0" cellpadding="1" cellspacing="1">
+            <tr>
+                <td width = "25%">Tethering Mode:</td>
+                <td width = "75%"><? printTetheringSelect(); ?></td>
+            </tr>
+            <tr>
+                <td width = "25%">Tethering SSID:</td>
+                <td width = "75%"><? PrintSettingTextSaved("TetherSSID", 0, 1, 32, 32, "", "FPP"); ?></td>
+            </tr>
+            <tr>
+                <td>Tethering Pre Shared key (PSK):</td>
+                <td><? PrintSettingTextSaved("TetherPSK", 0, 1, 32, 32, "", "Christmas"); ?></td>
+            </tr>
+            </tr>
+            </table>
+
+            
                 <br>
                 <b>Warning:</b> Turning on tethering may make FPP unavailable. Many WIFI adapters do not support
                 simultaneous tethering and client modes. Having multiple WIFI adapters will work, but it's relatively

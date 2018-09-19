@@ -461,6 +461,7 @@ function AddPlaylistEntry() {
 			{
 				entry.majorID = $('#selEvent').val().substring(0,2);
 				entry.minorID = $('#selEvent').val().substring(3,5);
+				entry.desc =  eventName.replace(new RegExp("'", "g"),"").trim();
 				entry.blocking = 0;
 			}
 			else if (entry.type == 'branch')
@@ -507,9 +508,9 @@ function AddPlaylistEntry() {
             }
 			else if (entry.type == 'url')
 			{
-				entry.url = $('#url').val();
+				entry.url = encodeURIComponent($('#url').val());
 				entry.method = $('#urlMethod').val();
-				entry.data = $('#urlData').val();
+				entry.data = encodeURIComponent($('#urlData').val());
 			}
 			else if (entry.type == 'plugin')
 			{
@@ -860,26 +861,71 @@ function RemovePlaylistEntry()	{
 		{
 			var txtCount=document.getElementById("txtUniverseCount");
 			var count = Number(txtCount.value);
-			if(isNaN(count))
-			{
+			if(isNaN(count)) {
 				count = 8;
 			}
-			UniverseCount = count;
-			
-    	var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=setUniverseCount&count=" + count + "&input=" + input;
-			xmlhttp.open("GET",url,false);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-	 
-			xmlhttp.onreadystatechange = function () {
-				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
-				{
-					var xmlDoc=xmlhttp.responseXML; 
-          getUniverses("FALSE", input);
-				}
-			};
-			
-			xmlhttp.send();
+            
+            if (count < UniverseCount) {
+                while (count < UniverseCount) {
+                    UniverseSelected = UniverseCount;
+                    DeleteUniverse(input);
+                }
+            } else if (UniverseCount == 0) {
+                var data = {};
+                var channelData = {};
+                channelData.enabled = 0;
+                channelData.type = "universes";
+                channelData.universes = [];
+                var universe = {};
+                universe.active = 1;
+                universe.description = "";
+                universe.id = 1;
+                universe.startChannel = 1;
+                universe.channelCount = 512;
+                universe.type = 0;
+                universe.address = "";
+                universe.priority = 0;
+                channelData.universes.push(universe);
+                if (input) {
+                    data.channelInputs = [];
+                    data.channelInputs.push(channelData);
+                } else {
+                    data.channelOutputs = [];
+                    data.channelOutputs.push(channelData);
+                }
+                populateUniverseData(data, false, input);
+            } else {
+                var selectIndex = UniverseCount - 1;
+                var universe=Number(document.getElementById("txtUniverse[" + selectIndex + "]").value);
+                var universeType=document.getElementById("universeType[" + selectIndex + "]").value;
+                var unicastAddress=document.getElementById("txtIP[" + selectIndex + "]").value;
+                var size=Number(document.getElementById("txtSize[" + selectIndex + "]").value);
+                var startAddress=Number(document.getElementById("txtStartAddress[" + selectIndex + "]").value);
+                var active=document.getElementById("chkActive[" + selectIndex + "]").value;
+                var priority=Number(document.getElementById("txtPriority[" + selectIndex + "]").value);
+                
+                var tbody=document.getElementById("tblUniversesBody");  //get the table
+                var origRow = tbody.rows[selectIndex];
+                while (UniverseCount < count) {
+                    var row = origRow.cloneNode(true);
+                    tbody.appendChild(row);
+                    SetUniverseInputNames();
+
+                    if (universe != 0) {
+                        universe++;
+                        document.getElementById("txtUniverse[" + UniverseCount + "]").value = universe;
+                    }
+                    startAddress += size;
+                    document.getElementById("txtStartAddress[" + UniverseCount + "]").value = startAddress;
+
+                    if (!input) {
+                        row.cells[9].innerHTML = "<input id='PingButton' type='button' value='Ping' onClick='PingE131IP(" + UniverseCount + ");'/>";
+                    }
+                    
+                    UniverseCount++;
+                }
+                document.getElementById("txtUniverseCount").value = UniverseCount;
+            }
 		}
 
         function IPOutputTypeChanged(item) {
@@ -903,121 +949,116 @@ function RemovePlaylistEntry()	{
                 sz.prop('max', 512);
             }
         }
-		function getUniverses(reload, input)
-		{
-			var inputStyle = "";
-			if (input)
-				inputStyle = "style='display: none;'";
-
-    	var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=getUniverses&reload=" + reload + "&input=" + input;
-			xmlhttp.open("GET",url,false);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+        function populateUniverseData(data, reload, input) {
 			var headHTML="";
 			var bodyHTML="";
 			UniverseCount = 0;
+            var inputStyle = "";
+            if (input)
+                inputStyle = "style='display: none;'";
 
-			xmlhttp.onreadystatechange = function () {
-				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
-				{
-					var xmlDoc=xmlhttp.responseXML; 
-					var entries = xmlDoc.getElementsByTagName('UniverseEntries')[0];
-					if(entries.childNodes.length> 0)
-					{
-						headHTML = "<tr class=\"tblheader\">" +
-							"<th width=\"5%\" align='left'>Line<br>#</th>" +
-							"<th width=\"5%\" align='left'>Active</th>" +
-							"<th width=\"30%\" align='left'>Description</th>" +
-							"<th width=\"8%\" align='left'>FPP Start<br>Channel</th>" +
-							"<th width=\"8%\" align='left'>Universe<br>#</th>" +
-							"<th width=\"8%\" align='left'>Universe<br>Size</th>" +
-                        	"<th width=\"15%\" align='left'>Universe Type</th>" +
-							"<th width=\"12%\" align='left' " + inputStyle + ">Unicast<br>Address</th>" +
-							"<th width=\"8%\" align='left' " + inputStyle + ">Priority</th>" +
-							"<th width=\"12%\" align='left'>Ping</th>" +
-							"</tr>";
-												
-							UniverseCount = entries.childNodes.length;
-							document.getElementById("txtUniverseCount").value = UniverseCount.toString();
-							for(i=0;i<UniverseCount;i++)
-							{
-								var active = entries.childNodes[i].childNodes[0].textContent;
-								var desc = entries.childNodes[i].childNodes[1].textContent;
-								var universe = entries.childNodes[i].childNodes[2].textContent;
-								var startAddress = entries.childNodes[i].childNodes[3].textContent;
-								var size = entries.childNodes[i].childNodes[4].textContent;
-								var type = entries.childNodes[i].childNodes[5].textContent;
-								var unicastAddress =  entries.childNodes[i].childNodes[6].textContent;
-								var priority =  entries.childNodes[i].childNodes[7].textContent;
-								unicastAddress = unicastAddress.trim();
+            var channelData = input ? data.channelInputs[0] : data.channelOutputs[0];
+            
+            if (channelData.universes.length > 0) {
+                headHTML = "<tr class=\"tblheader\">" +
+                "<th width=\"5%\" align='left'>Line<br>#</th>" +
+                "<th width=\"5%\" align='left'>Active</th>" +
+                "<th width=\"30%\" align='left'>Description</th>" +
+                "<th width=\"8%\" align='left'>FPP Start<br>Channel</th>" +
+                "<th width=\"8%\" align='left'>Universe<br>#</th>" +
+                "<th width=\"8%\" align='left'>Universe<br>Size</th>" +
+                "<th width=\"15%\" align='left'>Universe Type</th>" +
+                "<th width=\"12%\" align='left' " + inputStyle + ">Unicast<br>Address</th>" +
+                "<th width=\"8%\" align='left' " + inputStyle + ">Priority</th>" +
+                "<th width=\"12%\" align='left' " + inputStyle + ">Ping</th>" +
+                "</tr>";
+            }
+            UniverseCount = channelData.universes.length;
+            for (var i = 0; i < channelData.universes.length; i++) {
+                var universe = channelData.universes[i];
+                var active = universe.active;
+                var desc = universe.description;
+                var uid = universe.id;
+                var startAddress = universe.startChannel;
+                var size = universe.channelCount;
+                var type = universe.type;
+                var unicastAddress =  universe.address;
+                var priority =  universe.priority;
+                unicastAddress = unicastAddress.trim();
 
-								var activeChecked = active == 1  ? "checked=\"checked\"" : "";
-								var typeMulticastE131 = type == 0 ? "selected" : "";
-								var typeUnicastE131 = type == 1 ? "selected": "";
-								var typeBroadcastArtNet = type == 2 ? "selected" : "";
-								var typeUnicastArtNet = type == 3 ? "selected": "";
-                                var typeDDPR = type == 4 ? "selected": "";
-                                var typeDDP1 = type == 5 ? "selected": "";
+                var activeChecked = active == 1  ? "checked=\"checked\"" : "";
+                var typeMulticastE131 = type == 0 ? "selected" : "";
+                var typeUnicastE131 = type == 1 ? "selected": "";
+                var typeBroadcastArtNet = type == 2 ? "selected" : "";
+                var typeUnicastArtNet = type == 3 ? "selected": "";
+                var typeDDPR = type == 4 ? "selected": "";
+                var typeDDP1 = type == 5 ? "selected": "";
 
-                                var universeSize = 512;
-                                var universeDisable = "";
-                                if (type == 4 || type == 5) {
-                                    universeSize = 512000;
-                                    universeDisable = " disabled";
-                                }
+                var universeSize = 512;
+                var universeDisable = "";
+                if (type == 4 || type == 5) {
+                    universeSize = 512000;
+                    universeDisable = " disabled";
+                }
 
-								bodyHTML += 	"<tr class=\"rowUniverseDetails\">" +
-								              "<td><span class='rowID'>" + (i+1).toString() + "</span></td>" +
-															"<td><input class='chkActive' type='checkbox' " + activeChecked +"/></td>" +
-															"<td><input class='txtDesc' type='text' size='24' maxlength='64' value='" + desc + "'/></td>" +
-															"<td><input class='txtStartAddress' type='number' min='1' max='1048576' value='" + startAddress.toString() + "'/></td>" +
-															"<td><input class='txtUniverse' type='number' min='1' max='63999' value='" + universe.toString() + "'" + universeDisable + "/></td>" +
-															"<td><input class='txtSize' type='number'  min='1'  max='" + universeSize + "' value='" + size.toString() + "'></td>" +
-															
-															"<td><select class='universeType' style='width:150px'";
+                bodyHTML += "<tr class=\"rowUniverseDetails\">" +
+                            "<td><span class='rowID' id='rowID'>" + (i+1).toString() + "</span></td>" +
+                            "<td><input class='chkActive' type='checkbox' " + activeChecked +"/></td>" +
+                            "<td><input class='txtDesc' type='text' size='24' maxlength='64' value='" + desc + "'/></td>" +
+                            "<td><input class='txtStartAddress' type='number' min='1' max='1048576' value='" + startAddress.toString() + "'/></td>" +
+                            "<td><input class='txtUniverse' type='number' min='1' max='63999' value='" + uid.toString() + "'" + universeDisable + "/></td>" +
+                            "<td><input class='txtSize' type='number'  min='1'  max='" + universeSize + "' value='" + size.toString() + "'></td>" +
+                            "<td><select class='universeType' style='width:150px'";
 
-								if (input)
-								{
-									bodyHTML +=                   ">" +
-															      "<option value='0' " + typeMulticastE131 + ">E1.31 - Multicast</option>" +
-															      "<option value='1' " + typeUnicastE131 + ">E1.31 - Unicast</option>";
-								}
-								else
-								{
-                                    bodyHTML +=                   " onChange='IPOutputTypeChanged(this);'>" +
-															      "<option value='0' " + typeMulticastE131 + ">E1.31 - Multicast</option>" +
-															      "<option value='1' " + typeUnicastE131 + ">E1.31 - Unicast</option>" +
-															      "<option value='2' " + typeBroadcastArtNet + ">ArtNet - Broadcast</option>" +
-															      "<option value='3' " + typeUnicastArtNet + ">ArtNet - Unicast</option>" +
-                                                                  "<option value='4' " + typeDDPR + ">DDP Raw Channel Numbers</option>" +
-                                                                  "<option value='5' " + typeDDP1 + ">DDP One Based</option>";
-								}
+                if (input) {
+                    bodyHTML += ">" +
+                                "<option value='0' " + typeMulticastE131 + ">E1.31 - Multicast</option>" +
+                                "<option value='1' " + typeUnicastE131 + ">E1.31 - Unicast</option>";
+                } else {
+                    bodyHTML += " onChange='IPOutputTypeChanged(this);'>" +
+                                "<option value='0' " + typeMulticastE131 + ">E1.31 - Multicast</option>" +
+                                "<option value='1' " + typeUnicastE131 + ">E1.31 - Unicast</option>" +
+                                "<option value='2' " + typeBroadcastArtNet + ">ArtNet - Broadcast</option>" +
+                                "<option value='3' " + typeUnicastArtNet + ">ArtNet - Unicast</option>" +
+                                "<option value='4' " + typeDDPR + ">DDP Raw Channel Numbers</option>" +
+                                "<option value='5' " + typeDDP1 + ">DDP One Based</option>";
+                }
 
-								bodyHTML +=
-																  "</select></td>" +
-															"<td " + inputStyle + "><input class='txtIP' type='text' value='" + unicastAddress + "' size='15' maxlength='32'></td>" +
-															"<td " + inputStyle + "><input class='txtPriority' type='text' size='4' maxlength='4' value='" + priority.toString() + "'/></td>" +
-															"<td><input type=button onClick='PingE131IP(" + i.toString() + ");' value='Ping'></td>" +
-															"</tr>";
+                bodyHTML += "</select></td>" +
+                            "<td " + inputStyle + "><input class='txtIP' type='text' value='" + unicastAddress + "' size='15' maxlength='32'></td>" +
+                            "<td " + inputStyle + "><input class='txtPriority' type='text' size='4' maxlength='4' value='" + priority.toString() + "'/></td>" +
+                            "<td " + inputStyle + "><input id='PingButton' type=button onClick='PingE131IP(" + i.toString() + ");' value='Ping'></td>" +
+                            "</tr>";
+            }
 
-							}
-					}
-					else
-					{
-						bodyHTML = "No Results Found";
-					}
+            if (!input) {
+                var ecb = $('#E131Enabled');
+                if ( channelData.enabled == 1) {
+                    ecb.prop('checked', true);
+                } else {
+                    ecb.prop('checked', false)
+                }
+            }
+            $('#tblUniversesHead').html(headHTML);
+            $('#tblUniversesBody').html(bodyHTML);
 
-					$('#tblUniversesHead').html(headHTML);
-					$('#tblUniversesBody').html(bodyHTML);
+            $('#txtUniverseCount').val(UniverseCount);
 
-					$('#txtUniverseCount').val(UniverseCount);
-
-					SetUniverseInputNames(); // in co-universes.php
-				}
-			};
-			
-			xmlhttp.send();			
+            SetUniverseInputNames(); // in co-universes.php
 		}
+        function getUniverses(reload, input)
+        {
+            var url = "fppjson.php?command=getChannelOutputs&file=universeOutputs";
+            if (input) {
+                url = "fppjson.php?command=getChannelOutputs&file=universeInputs";
+            }
+            $.getJSON(url, function(data) {
+                        populateUniverseData(data, reload, input)
+                      }).fail(function() {
+                              UniverseCount = 0;
+                              $('#txtUniverseCount').val(UniverseCount);
+                      })
+        }
 
 		function getPixelnetDMXoutputs(reload)
 		{
@@ -1074,22 +1115,25 @@ function RemovePlaylistEntry()	{
 			xmlhttp.send();			
 		}
 
+        function SetUniverseRowInputNames(row, id) {
+            var fields = Array('chkActive', 'txtDesc', 'txtStartAddress',
+                               'txtUniverse', 'txtSize', 'universeType', 'txtIP',
+                               'txtPriority');
+            row.find('span.rowID').html((id + 1).toString());
+            
+            for (var i = 0; i < fields.length; i++)
+            {
+                row.find('input.' + fields[i]).attr('name', fields[i] + '[' + id + ']');
+                row.find('input.' + fields[i]).attr('id', fields[i] + '[' + id + ']');
+                row.find('select.' + fields[i]).attr('name', fields[i] + '[' + id + ']');
+                row.find('select.' + fields[i]).attr('id', fields[i] + '[' + id + ']');
+            }
+        }
 		function SetUniverseInputNames()
 		{
-			var fields = Array('chkActive', 'txtDesc', 'txtStartAddress',
-				'txtUniverse', 'txtSize', 'universeType', 'txtIP', 'txtPriority');
-			var id = 0;
+            var id = 0;
 			$('#tblUniversesBody tr').each(function() {
-				$(this).find('span.rowID').html((id + 1).toString());
-
-				for (var i = 0; i < fields.length; i++)
-				{
-					$(this).find('input.' + fields[i]).attr('name', fields[i] + '[' + id + ']');
-					$(this).find('input.' + fields[i]).attr('id', fields[i] + '[' + id + ']');
-					$(this).find('select.' + fields[i]).attr('name', fields[i] + '[' + id + ']');
-					$(this).find('select.' + fields[i]).attr('id', fields[i] + '[' + id + ']');
-				}
-
+                SetUniverseRowInputNames($(this), id);
 				id += 1;
 			});
 		}
@@ -1102,26 +1146,36 @@ function RemovePlaylistEntry()	{
 		
 		function DeleteUniverse(input)
 		{
-    	var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=deleteUniverse&index=" + (UniverseSelected-1).toString() + "&input=" + input;
-			xmlhttp.open("GET",url,false);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-	 
-			xmlhttp.onreadystatechange = function () {
-				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
-				{
-					var xmlDoc=xmlhttp.responseXML; 
-          getUniverses("FALSE", input);
-				}
-			};
-			
-			xmlhttp.send();
-		}
+            if (UniverseSelected > 0) {
+                var selectedIndex = (UniverseSelected-1);
+                for(i = UniverseSelected; i < UniverseCount; i++, selectedIndex++) {
+                    
+                    document.getElementById("txtUniverse[" + selectedIndex + "]").value = document.getElementById("txtUniverse[" + i + "]").value
+                    document.getElementById("universeType[" + selectedIndex + "]").value = document.getElementById("universeType[" + i + "]").value;
+                    var universeType = document.getElementById("universeType[" + selectedIndex + "]").value;
+                    document.getElementById("txtStartAddress[" + selectedIndex + "]").value  = document.getElementById("txtStartAddress[" + i + "]").value;
+                    
+                    var checkb = document.getElementById("chkActive[" + i + "]");
+                    document.getElementById("chkActive[" + selectedIndex + "]").checked = checkb.checked;
+                    document.getElementById("txtSize[" + selectedIndex + "]").value = document.getElementById("txtSize[" + i + "]").value;
+                    document.getElementById("txtIP[" + selectedIndex + "]").value = document.getElementById("txtIP[" + i + "]").value;
+                    document.getElementById("txtPriority[" + selectedIndex + "]").value = document.getElementById("txtPriority[" + i + "]").value;
+                    if ((universeType == '1') || (universeType == '3')) {
+                        document.getElementById("txtIP[" + selectedIndex + "]").disabled = false;
+                    } else {
+                        document.getElementById("txtIP[" + selectedIndex + "]").disabled = true;
+                    }
+                }
+                document.getElementById("tblUniversesBody").deleteRow(selectedIndex);
+                UniverseCount--;
+                document.getElementById("txtUniverseCount").value = UniverseCount;
+                UniverseSelected = 0;
+            }
+        
+        }
 		
-		function CloneUniverse()
+		function CloneUniverses(cloneNumber)
 		{
-			var answer = prompt ("How many universes to clone from selected universe?","1");
-			var cloneNumber = Number(answer);
 			var selectIndex = (UniverseSelected-1).toString();
 			if(!isNaN(cloneNumber))
 			{
@@ -1155,12 +1209,17 @@ function RemovePlaylistEntry()	{
 						
 						startAddress+=size;
 					}
-					$.jGrowl("" + cloneNumber + " Universes Cloned");
 				}
 			} else {
 				DialogError("Clone Universe", "Error, invalid number");
 			}
 		}
+        function CloneUniverse()
+        {
+            var answer = prompt ("How many universes to clone from selected universe?","1");
+            var cloneNumber = Number(answer);
+            CloneUniverses(cloneNumber);
+        }
 
 		function ClonePixelnetDMXoutput()
 		{
@@ -1189,7 +1248,49 @@ function RemovePlaylistEntry()	{
 			}
 		}
 
-		
+        function postUniverseJSON(input) {
+            var postData = {};
+            
+            var output = {};
+            output.type = "universes";
+            output.enabled = 1;
+            output.startChannel = 1;
+            output.channelCount = -1;
+            output.universes = [];
+            
+            var i;
+            for(i = 0; i < UniverseCount; i++) {
+                var universe = {};
+                universe.active = document.getElementById("chkActive[" + i + "]").checked ? 1 : 0;
+                universe.description = document.getElementById("txtDesc[" + i + "]").value;;
+                universe.id = parseInt(document.getElementById("txtUniverse[" + i + "]").value);
+                universe.startChannel = parseInt(document.getElementById("txtStartAddress[" + i + "]").value);
+                universe.channelCount = parseInt(document.getElementById("txtSize[" + i + "]").value);
+                universe.type = parseInt(document.getElementById("universeType[" + i + "]").value);
+                universe.address = document.getElementById("txtIP[" + i + "]").value;
+                universe.priority = parseInt(document.getElementById("txtPriority[" + i + "]").value);
+                output.universes.push(universe);
+            }
+            if (input) {
+                postData.channelInputs = [];
+                postData.channelInputs.push(output);
+            } else {
+                postData.channelOutputs = [];
+                postData.channelOutputs.push(output);
+            }
+            var fileName = input ? 'universeInputs' : 'universeOutputs';
+            var postDataString = 'command=setChannelOutputs&file='+ fileName +'&data={' + JSON.stringify(postData) + '}';
+            
+            $.post("fppjson.php", postDataString).done(function(data) {
+                                                       $.jGrowl("E1.31 Universes Saved");
+                                                       SetRestartFlag();
+                                                       CheckRestartRebootFlags();
+                                                 }).fail(function() {
+                                                        $.jGrowl("Error: Unable to save E1.31 Universes.");
+                                                  });
+            
+        }
+
 		function validateUniverseData()
 		{
 			var i;

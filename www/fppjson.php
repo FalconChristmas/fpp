@@ -198,6 +198,7 @@ function SetSetting()
     } else if ($setting == "wifiDrivers") {
         if ($value == "Kernel") {
             exec(   $SUDO . " rm -f /etc/modprobe.d/blacklist-native-wifi.conf", $output, $return_val );
+            exec(   $SUDO . " rm -f /etc/modprobe.d/rtl8723bu-blacklist.conf", $output, $return_val );
         } else {
             exec(   $SUDO . " cp /opt/fpp/etc/blacklist-native-wifi.conf /etc/modprobe.d", $output, $return_val );
         }
@@ -529,11 +530,11 @@ function GetJSONPlaylistEntry($entry, $index)
 		return new PlaylistEntry($entry->type,'', '', 0, $entry->scriptName,'','','', $entry, $index);
 	else if ($entry->type == 'event')
 	{
-		$majorID = $entry->majorID;
-		if ($majorID < 10)
+        $majorID = intval(ltrim($entry->majorID, 0));
+        if ($majorID < 10)
 			$majorID = '0' . $majorID;
 
-		$minorID = $entry->minorID;
+        $minorID = intval(ltrim($entry->minorID, 0));
 		if ($minorID < 10)
 			$minorID = '0' . $minorID;
 
@@ -541,7 +542,7 @@ function GetJSONPlaylistEntry($entry, $index)
 
 		AddEventDesc($entry);
 
-		return new PlaylistEntry($entry->type,'', '', 0, '', $id, $entry->desc, '', $entry, $index);
+		return new PlaylistEntry($entry->type,'', '', 0, '', $entry->desc, $id,'', $entry, $index);
 	}
 	else if ($entry->type == 'plugin')
 		return new PlaylistEntry($entry->type, '', '', 0, '', '', '', $entry->data, $entry, $index);
@@ -556,11 +557,11 @@ function AddEventDesc(&$entry)
 	if ($entry->type != 'event')
 		return;
 
-	$majorID = $entry->majorID;
+	$majorID = intval(ltrim($entry->majorID, 0));
 	if ($majorID < 10)
 		$majorID = '0' . $majorID;
 
-	$minorID = $entry->minorID;
+	$minorID = intval(ltrim($entry->minorID, 0));
 	if ($minorID < 10)
 		$minorID = '0' . $minorID;
 
@@ -1411,8 +1412,17 @@ function SetUniverses()
 	check($enabled);
 	$input = $_POST['input'];
 	check($input);
+    
+    $count = count($_SESSION['UniverseEntries']);
+    if ( isset($_POST['UniverseCount']) ) {
+        $count = intval($_POST['UniverseCount']);
+        $_SESSION['UniverseEntries'] = NULL;
+        for ($i = 0; $i < $count; $i++) {
+            $_SESSION['UniverseEntries'][$i] = new UniverseEntry(1,"",1,1,512,0,"",0,0);
+        }
+    }
 
-	for($i=0;$i<count($_SESSION['UniverseEntries']);$i++)
+	for($i=0;$i<$count;$i++)
 	{
 		if( isset($_POST['chkActive'][$i]))
 		{
@@ -1423,7 +1433,12 @@ function SetUniverses()
 			$_SESSION['UniverseEntries'][$i]->active = 0;
 		}
 		$_SESSION['UniverseEntries'][$i]->desc = 	$_POST['txtDesc'][$i];
-		$_SESSION['UniverseEntries'][$i]->universe = 	intval($_POST['txtUniverse'][$i]);
+        
+        if ( isset($_POST['txtUniverse']) && isset($_POST['txtUniverse'][$i])) {
+            $_SESSION['UniverseEntries'][$i]->universe = intval($_POST['txtUniverse'][$i]);
+        } else {
+            $_SESSION['UniverseEntries'][$i]->universe = 1;
+        }
 		$_SESSION['UniverseEntries'][$i]->size = 	intval($_POST['txtSize'][$i]);
 		$_SESSION['UniverseEntries'][$i]->startAddress = 	intval($_POST['txtStartAddress'][$i]);
 		$_SESSION['UniverseEntries'][$i]->type = 	intval($_POST['universeType'][$i]);
