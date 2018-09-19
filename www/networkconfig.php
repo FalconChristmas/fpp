@@ -7,6 +7,13 @@
 </head>
 <body>
 <?php
+    
+$wifiDrivers = Array();
+$wifiDrivers['Realtek'] = "Realtek";
+$wifiDrivers['Linux Kernel'] = "Kernel";
+    
+
+    
 
 function PopulateInterfaces()
 {
@@ -383,6 +390,22 @@ function setHostDescription() {
       <div id="InterfaceSettings">
       <fieldset class="fs">
           <legend> Interface Settings</legend>
+<?php
+    if ($settings['Platform'] == "BeagleBone Black") {
+?>
+<table>
+<tr>
+<td width = "45%">WIFI Drivers:</td>
+<td width = "55%">
+<? PrintSettingSelect("WIFI Drivers", "wifiDrivers", 0, 1, isset($settings['wifiDrivers']) ? $settings['wifiDrivers'] : "Realtek", $wifiDrivers, "", "reloadPage"); ?>
+</td>
+</tr>
+</table>
+<br>
+<?php
+    }
+?>
+
           Select an interface name to configure the network information for that interface.<br><br>
           <table width = "100%" border="0" cellpadding="1" cellspacing="1">
             <tr>

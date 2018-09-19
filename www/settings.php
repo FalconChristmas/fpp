@@ -111,11 +111,6 @@ $backgroundColors['Silver']    = "C0C0C0";
 $backgroundColors['Teal']      = "008080";
 $backgroundColors['White']     = "FFFFFF";
     
-$wifiDrivers = Array();
-$wifiDrivers['Realtek'] = "Realtek";
-$wifiDrivers['Linux Kernel'] = "Kernel";
-
-
 function PrintStorageDeviceSelect($platform)
 {
 	global $SUDO;
@@ -389,16 +384,6 @@ function ToggleTetherMode()
     </tr>
 <?php
         }
-?>
-    
-    <tr>
-        <td width = "45%">WIFI Drivers:</td>
-        <td width = "55%">
-        <? PrintSettingSelect("WIFI Drivers", "wifiDrivers", 0, 1, isset($settings['wifiDrivers']) ? $settings['wifiDrivers'] : "Realtek", $wifiDrivers, "", "reloadPage"); ?>
-        </td>
-    </tr>
-
-<?php
     } else {
 ?>
     <tr>
