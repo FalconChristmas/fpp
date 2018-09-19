@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <?php
+require_once('config.php');
 require_once("common.php");
 
 ?>
@@ -60,7 +61,7 @@ include 'common/menuHead.inc';
             );
 
         $piFaceStyle = "style='display: none;'";
-        if (isset($settings['PiFaceDetected']) && ($settings['PiFaceDetected'] == 1))
+        if (isset($settings['PiFaceDetected']) && ($settings['PiFaceDetected'] == "1"))
             $piFaceStyle = "";
 
         foreach ($piFaceInputs as $input)
@@ -289,7 +290,6 @@ $(document).ready(function(){
 		</tr>
 <?
 	}
-    if ($piFaceStyle != "") {
 ?>
 		<tr <? echo $piFaceStyle; ?>><td colspan=5><br>NOTE: ** - BCM 25 conflicts with PiFace GPIO Inputs, do not enable BCM 25 when using a PiFace.<br></td></tr>
 		<tr class='piFaceGPIO' <? echo $piFaceStyle; ?>>
@@ -299,7 +299,7 @@ $(document).ready(function(){
 				<td>En.</td>
 				<td>GPIO #</td>
 				<td>wiring #</td>
-				<td>Events</td>
+				<td colspan="2">Events</td>
 				<td align='center'>Input #</td>
 		</tr>
 <?
@@ -318,7 +318,6 @@ $(document).ready(function(){
 		</tr>
 <?
 	}
-    }
 ?>
 	</table>
 
