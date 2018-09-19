@@ -1,8 +1,8 @@
+<?php require_once('common.php'); ?>
+<?php include 'common/menuHead.inc'; ?>
 <!DOCTYPE html>
 <html>
 <head>
-<?php require_once('common.php'); ?>
-<?php include 'common/menuHead.inc'; ?>
 <title><? echo $pageTitle; ?></title>
 </head>
 <body>
@@ -363,6 +363,16 @@ function setHostName() {
 	});
 }
 
+function setHostDescription() {
+    $.get("fppjson.php?command=setSetting&key=HostDescription&value="
+        + $('#hostDescription').val()
+    ).done(function() {
+        $.jGrowl("HostDescription Saved");
+    }).fail(function() {
+        DialogError("Save HostDescription", "Save Failed");
+    });
+}
+
 </script>
 <div id="bodyWrapper">
 <?php include 'menu.inc'; ?>
@@ -430,12 +440,16 @@ function setHostName() {
         <div id="DNS_Servers">
         <br>
         <fieldset class="fs2">
-          <legend>DNS Settings</legend>
+          <legend>Host & DNS Settings</legend>
           <table width="100%" border="0" cellpadding="1" cellspacing="1">
             <tr>
               <td width = "25%">HostName:</td>
               <td colspan='2'><input id='hostName' value='<? if (isset($settings['HostName'])) echo $settings['HostName']; else echo 'FPP'; ?>' size='30' maxlength='30'> <input type='button' class='buttons' value='Save' onClick='setHostName();'></td>
             </tr>
+              <tr>
+                  <td width = "25%">Description:</td>
+                  <td colspan='2'><input id='hostDescription' value='<? if (isset($settings['HostDescription'])) echo $settings['HostDescription']; else echo ('Falcon Player - ' .  $settings['Variant']); ?>' size='30' maxlength='48'> <input type='button' class='buttons' value='Save' onClick='setHostDescription();'></td>
+              </tr>
             <tr>
               <td>&nbsp;</td>
             </tr>
@@ -466,7 +480,7 @@ function setHostName() {
           <input id="btnConfigDNS" type="" style="width:135px; display: none;" class = "buttons" value="Restart DNS" onClick="ApplyDNSConfig();">
 
         </fieldset>
-<br>
+        <br>
         <fieldset class="fs2">
         <legend>Tethering</legend>
             <table width = "100%" border="0" cellpadding="1" cellspacing="1">
@@ -484,21 +498,29 @@ function setHostName() {
             </tr>
             </tr>
             </table>
+                <br>
+                <b>Warning:</b> Turning on tethering may make FPP unavailable. Many WIFI adapters do not support
+                simultaneous tethering and client modes. Having multiple WIFI adapters will work, but it's relatively
+                unpredictable as to which WIFI adapter CONNMAN will bring tethering up on. Also, enabling tethering
+                disables the automatic IP assignment on the USB0/1 interfaces on the BeagleBones and thus connecting to
+                the BeagleBone via a USB cable will require you to manually set the IP address to 192.168.6.1
+                (OSX/Linux) or 192.168.7.1 (Windows).
+            </fieldset>
             <br>
-            <b>Warning:</b> Turning on tethering may make FPP unavailable.  Many WIFI adapters do not support simultaneous tethering and client modes. Having multiple WIFI adapters will work, but it's relatively unpredictable as to which WIFI adapter CONNMAN will bring tethering up on.    Also, enabling tethering disables the automatic IP assignment on the USB0/1 interfaces on the BeagleBones and thus connecting to the BeagleBone via a USB cable will require you to manually set the IP address to 192.168.6.1 (OSX/Linux) or 192.168.7.1 (Windows).
-        </fieldset>
 
-				<br>
-				<? PrintSettingCheckbox("Enable Routing", "EnableRouting", 0, 0, "1", "0"); ?> Enable Routing between network interfaces
-        <br>
+            <fieldset class="fs2">
+                <legend>Interface Routing</legend>
+				<? PrintSettingCheckbox("Enable Routing", "EnableRouting", 0, 0, "1", "0"); ?> Enable Routing between
+                network interfaces
+                <br>
         </div>
-        </fieldset>
   </fieldset>
+
+</div>
 </div>
 <div id="dialog-confirm" style="display: none">
 	<p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Reconfiguring the network will cause you to lose your connection and have to reconnect if you have changed the IP address.  Do you wish to proceed?</p>
 </div>
 <?php include 'common/footer.inc'; ?>
-</div>
 </body>
 </html>
