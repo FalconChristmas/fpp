@@ -131,7 +131,8 @@ if (isset($_GET['expertView'])) {
 			$('#' + rowID + '_elapsed').html(elapsed);
 			$('#' + rowID + '_files').html(files);
 			//Expert View Rows
-            if(expertView === true && data.status_name !== 'unknown'){
+            if(expertView === true && data.status_name !== 'unknown') {
+                $('#' + rowID + '_platform').html(data.expertView.Platform + "<br><small class='hostDescriptionSM'>" + data.expertView.Variant + "</small>");
                 $('#expertViewVersion_' + rowID).html(data.expertView.Version);
                 $('#expertViewBranch_' + rowID).html(data.expertView.Branch);
                 $('#expertViewGitVersions_' + rowID).html("R: " + (typeof (data.expertView.RemoteGitVersion) !== 'undefined' ? data.expertView.RemoteGitVersion : 'Unknown') + "<br>L: " + (typeof ( data.expertView.LocalGitVersion) !== 'undefined' ? data.expertView.LocalGitVersion : 'Unknown'));
@@ -216,7 +217,7 @@ if (isset($_GET['expertView'])) {
 				"<td align='center'>" + star + "</td>" +
 				"<td>" + link + "<br><small class='hostDescriptionSM'>"+ hostDescription +"</small></td>" +
 				"<td>" + data[i].IP + "</td>" +
-				"<td>" + data[i].Platform + "</td>" +
+                "<td id='" + rowID + "_platform'>" + data[i].Platform + "</td>" +
 				"<td>" + fppMode + "</td>" +
 				"<td id='" + rowID + "_status' align='center'></td>" +
 				"<td id='" + rowID + "_elapsed'></td>" +
