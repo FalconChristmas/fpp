@@ -804,6 +804,40 @@ pre
 #fppMenu li ul li a {
 	font-weight: normal; }
 
+#hostnameColumn{
+	max-width: 50px;
+}
+
+.hostDescriptionSM{
+	font-size: 0.7em;
+}
+
+.multiSyncExpertView{
+	float: right;
+	font-weight: bold;
+}
+
+.expertViewHeaderSpacer{
+	min-width: 20px;
+}
+
+.expertViewHeader {
+	color: #fff;
+	background-color: #414141;
+}
+
+.expertViewRow{
+	font-size: 0.8em;
+	color: #fff;
+	background-color: #414141;
+	text-align: center;
+}
+
+.updateAvailable {
+	color: #FF0000;
+	font-weight: bold;
+}
+
 @media screen and (max-width: 950px) {
 	html {
 		background: #f0f0f0;

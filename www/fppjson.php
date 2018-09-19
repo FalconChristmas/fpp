@@ -51,7 +51,8 @@ $command_array = Array(
 	"getTestMode"         => 'GetTestMode',
 	"setupExtGPIO"        => 'SetupExtGPIOJson',
 	"extGPIO"             => 'ExtGPIOJson',
-    "getSysInfo"          => 'GetSystemInfoJson'
+    "getSysInfo"          => 'GetSystemInfoJson',
+    "getHostNameInfo"     => 'GetSystemHostInfo'
 );
 
 $command = "";
@@ -312,8 +313,24 @@ function GetFPPStatusJson()
                 //error return default response
 				echo json_encode($default_return_json);
             } else {
-            	//return the actual FPP Status of the device
-                echo $request_content;
+				//Check to see if we should also get the systemInfo for multiSync Expert view
+				if (isset($args['expertView']) && ($args['expertView'] == true || strtolower($args['expertView']) == "true")) {
+
+					$request_expert_content = @file_get_contents("http://" . $args['ip'] . "/fppjson.php?command=getSysInfo");
+					//check we have valid data
+					if ($request_expert_content === FALSE) {
+						$request_expert_content = array();
+					}
+					//Add data into the final response, since getFPPStatus returns JSON, decode into array, add data, encode back to json
+					$request_content_tmp = json_decode($request_content, true);
+					//Add a new key for the expert data, also decode it as it's a JSON string
+					$request_content_tmp['expertView'] = json_decode($request_expert_content,true);
+					//Re-encode everything
+					$request_content = json_encode($request_content_tmp);
+				}
+
+				//return the actual FPP Status of the device
+				echo $request_content;
             }
         } else {
             error_log("GetFPPStatusJson failed for IP: " . $args['ip'] . " ");
@@ -1141,9 +1158,12 @@ function GetFPPSystems()
 
 		$parts = explode(';', $system);
 
+		$sysHostInfo = json_decode(@file_get_contents("http://" . $parts[7] . "/fppjson.php?command=getHostNameInfo"), true);
+
 		$elem = Array();
-		$elem['HostName']        = $parts[3];
-		$elem['IP']     = $parts[7];
+		$elem['HostName'] = $parts[3];
+		$elem['HostDescription'] = !empty($sysHostInfo['HostDescription']) ? $sysHostInfo['HostDescription'] : "";
+		$elem['IP'] = $parts[7];
 		$elem['fppMode'] = "Unknown";
 		$elem['Local'] = 0;
 		$elem['Platform'] = "Unknown";
@@ -1727,8 +1747,14 @@ function GetSystemInfoJson()
     //Default json to be returned
     $result = array();
     $result['HostName'] = $settings['HostName'];
-    $result['Platform'] = $settings['Platform'];
+	$result['HostDescription'] = !empty($settings['HostDescription']) ? $settings['HostDescription'] : "";
+	$result['Platform'] = $settings['Platform'];
     $result['Variant'] = $settings['Variant'];
+
+    //Get CPU & memory usage before any heavy processing to try get relatively accurate stat
+	$result['Utilization']['CPU'] =  get_server_cpu_usage();
+	$result['Utilization']['Memory'] = get_server_memory_usage();
+	$result['Utilization']['Uptime'] = get_server_uptime(true);
 
     $IPs = explode("\n",trim(shell_exec("/sbin/ifconfig -a | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0 | grep -v usb | grep -v SoftAp | grep -v 'can.' | sed -e 's/://g' | while read iface ; do /sbin/ifconfig \$iface | grep 'inet ' | awk '{print \$2}'; done")));
     $kernel_version = exec("uname -r");
@@ -1736,19 +1762,36 @@ function GetSystemInfoJson()
     if ( $return_val != 0 )
         $fpp_head_version = "Unknown";
     unset($output);
-    $git_branch = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ branch --list | grep '\\*' | awk '{print \$2}'", $output, $return_val);
-    if ( $return_val != 0 )
-        $git_branch = "Unknown";
-    unset($output);
 
-    $result['Kernel'] = $kernel_version;
+    $git_branch = get_git_branch();
+
+	$result['Kernel'] = $kernel_version;
     $result['Version'] = $fpp_head_version;
     $result['Branch'] = $git_branch;
-    $result['IPs'] = $IPs;
+	$result['LocalGitVersion'] = get_local_git_version();
+	$result['RemoteGitVersion'] = get_remote_git_version($git_branch);
+	$result['AutoUpdatesDisabled'] = file_exists($settings['mediaDirectory'] . "/.auto_update_disabled") ? true : false;
+	$result['IPs'] = $IPs;
     $result['Mode'] = $settings['fppMode'];
 
     returnJSON($result);
 }
-    
+
+/////////////////////////////////////////////////////////////////////////////
+
+function GetSystemHostInfo()
+{
+	global $settings;
+
+	//close the session before we start, this removes the session lock and lets other scripts run
+	session_write_close();
+
+	//Default json to be returned
+	$result = array();
+	$result['HostName'] = $settings['HostName'];
+	$result['HostDescription'] = !empty($settings['HostDescription']) ? $settings['HostDescription'] : "";
+
+	returnJSON($result);
+}
     
 ?>
