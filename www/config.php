@@ -91,6 +91,7 @@ if ($debug)
 }
 
 $settings['HostName'] = 'FPP';
+$settings['HostDescription'] = '';
 $settings['Title'] = "Falcon Player - FPP";
 $settings['fppBinDir'] = '/opt/fpp/src';
 

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <?php
+require_once('common.php');
 require_once('config.php');
 
 //ini_set('display_errors', 'On');
@@ -39,58 +40,17 @@ if ( $return_val != 0 )
 	$kernel_version = "Unknown";
 unset($output);
 
-$git_version = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ rev-parse --short=7 HEAD", $output, $return_val);
-if ( $return_val != 0 )
-  $git_version = "Unknown";
-unset($output);
+//Get local git version
+$git_version = get_local_git_version();
 
-$git_branch = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ branch --list | grep '\\*' | awk '{print \$2}'", $output, $return_val);
-if ( $return_val != 0 )
-  $git_branch = "Unknown";
-unset($output);
+//Get git branch
+$git_branch = get_git_branch();
 
-$git_remote_version = "Unknown";
-$git_remote_version = exec("ping -q -c 1 github.com > /dev/null && (git --git-dir=/opt/fpp/.git/ ls-remote --heads | grep 'refs/heads/$git_branch\$' | awk '$1 > 0 { print substr($1,1,7)}')", $output, $return_val);
-if ( $return_val != 0 )
-  $git_remote_version = "Unknown";
-unset($output);
+//Remote Git branch version
+$git_remote_version = get_remote_git_version($git_branch);
 
-$uptime = exec("uptime", $output, $return_val);
-if ( $return_val != 0 )
-	$uptime = "";
-unset($output);
-$uptime = preg_replace('/[0-9]+ users, /', '', $uptime);
-
-function get_server_memory_usage(){
-  $fh = fopen('/proc/meminfo','r');
-  $total = 0;
-  $free = 0;
-  $buffers = 0;
-  $cached = 0;
-  while ($line = fgets($fh)) {
-    $pieces = array();
-    if (preg_match('/^MemTotal:\s+(\d+)\skB$/', $line, $pieces)) {
-      $total = $pieces[1];
-    } else if (preg_match('/^MemFree:\s+(\d+)\skB$/', $line, $pieces)) {
-      $free = $pieces[1];
-    } else if (preg_match('/^Buffers:\s+(\d+)\skB$/', $line, $pieces)) {
-      $buffers = $pieces[1];
-    } else if (preg_match('/^Cached:\s+(\d+)\skB$/', $line, $pieces)) {
-      $cached = $pieces[1];
-    }
-  }
-  fclose($fh);
-
-  $used = $total - $free - $buffers - $cached;
-  $memory_usage = 1.0 * $used / $total * 100;
-
-  return $memory_usage;
-}
-
-function get_server_cpu_usage(){
-  $load = sys_getloadavg();
-  return $load[0];
-}
+//System uptime
+$uptime = get_server_uptime();
 
 function getSymbolByQuantity($bytes) {
   $symbols = array('B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB');
