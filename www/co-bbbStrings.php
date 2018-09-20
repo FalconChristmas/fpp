@@ -242,9 +242,13 @@ function populatePixelStringOutputs(data) {
             if (type == 'BBB48String') {
                 $('#BBB48String_enable').prop('checked', output.enabled);
                 var subType = output.subType;
-                var version = output.pinoutVersion;
                 $('#BBB48StringSubType').val(subType);
-                $('#BBB48StringSubTypeVersion').val(version);
+                var version = output.pinoutVersion;
+                if (version == '2.x') {
+                    $('#BBB48StringSubTypeVersion').val("2.x");
+                } else {
+                    $('#BBB48StringSubTypeVersion').val("1.x");
+                }
                 SetupBBBSerialPorts();
                 
                 if (GetBBB48StringRequiresVersion()) {
@@ -352,6 +356,7 @@ function BBB48StringSubTypeChanged()
         var output = {};
         output.type = 'BBB48String';
         output.subType = $('#BBB48StringSubType').val();
+        output.pinoutVersion = '1.x';
         defaultData.channelOutputs.push(output);
         populatePixelStringOutputs(defaultData);
     }
@@ -442,8 +447,8 @@ $(document).ready(function(){
 							</td>
                             <td><b id='versionTag'>Version: </b></td>
                             <td><select id='BBB48StringSubTypeVersion'>
-                                    <option value='1.x'>1.x</version>
-                                    <option value='2.x'>2.x</version>
+                                    <option value='1.x'>1.x</option>
+                                    <option value='2.x'>2.x</option>
                                 </select>
                             </td>
 						</tr>

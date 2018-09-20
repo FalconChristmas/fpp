@@ -338,9 +338,9 @@ dd if=/dev/zero of=/dev/mmcblk0 bs=1M status=progress
 #On a MAC, the resulting SD cards can be used to create an image via:
 # use diskutil list to get the disk name (/dev/rdisk3)
 # For ext4:
-sudo dd=/dev/rdisk3 of=FPP-v2.0-Beta-BBB-ext4.img bs=1m count=3072
+sudo dd if=/dev/rdisk3 of=FPP-v2.0-Beta-BBB-ext4.img bs=1m count=3072
 # For btrfs:
-sudo dd=/dev/rdisk3 of=FPP-v2.0-Beta-BBB-btrfs.img bs=1m count=2000
+sudo dd if=/dev/rdisk3 of=FPP-v2.0-Beta-BBB-btrfs.img bs=1m count=2000
 
 
 

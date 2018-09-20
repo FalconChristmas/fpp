@@ -870,31 +870,32 @@ function RemovePlaylistEntry()	{
                     UniverseSelected = UniverseCount;
                     DeleteUniverse(input);
                 }
-            } else if (UniverseCount == 0) {
-                var data = {};
-                var channelData = {};
-                channelData.enabled = 0;
-                channelData.type = "universes";
-                channelData.universes = [];
-                var universe = {};
-                universe.active = 1;
-                universe.description = "";
-                universe.id = 1;
-                universe.startChannel = 1;
-                universe.channelCount = 512;
-                universe.type = 0;
-                universe.address = "";
-                universe.priority = 0;
-                channelData.universes.push(universe);
-                if (input) {
-                    data.channelInputs = [];
-                    data.channelInputs.push(channelData);
-                } else {
-                    data.channelOutputs = [];
-                    data.channelOutputs.push(channelData);
-                }
-                populateUniverseData(data, false, input);
             } else {
+                if (UniverseCount == 0) {
+                    var data = {};
+                    var channelData = {};
+                    channelData.enabled = 0;
+                    channelData.type = "universes";
+                    channelData.universes = [];
+                    var universe = {};
+                    universe.active = 1;
+                    universe.description = "";
+                    universe.id = 1;
+                    universe.startChannel = 1;
+                    universe.channelCount = 512;
+                    universe.type = 0;
+                    universe.address = "";
+                    universe.priority = 0;
+                    channelData.universes.push(universe);
+                    if (input) {
+                        data.channelInputs = [];
+                        data.channelInputs.push(channelData);
+                    } else {
+                        data.channelOutputs = [];
+                        data.channelOutputs.push(channelData);
+                    }
+                    populateUniverseData(data, false, input);
+                }
                 var selectIndex = UniverseCount - 1;
                 var universe=Number(document.getElementById("txtUniverse[" + selectIndex + "]").value);
                 var universeType=document.getElementById("universeType[" + selectIndex + "]").value;
