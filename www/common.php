@@ -455,11 +455,26 @@ function get_local_git_version(){
  */
 function get_remote_git_version($git_branch){
 	$git_remote_version = "Unknown";
-	if(!empty($git_branch)){
-		$git_remote_version = exec("ping -q -c 1 github.com > /dev/null && (git --git-dir=/opt/fpp/.git/ ls-remote --heads | grep 'refs/heads/$git_branch\$' | awk '$1 > 0 { print substr($1,1,7)}')", $output, $return_val);
-		if ( $return_val != 0 )
-			$git_remote_version = "Unknown";
-		unset($output);
+	if (!empty($git_branch)) {
+        $file = "/tmp/git_" . $git_branch . ".ver" ;
+        $time = 90 ; //seconds
+        $ver = "Unknown";
+        if( ! file_exists( $file )  ||  ( time() - filemtime( $file ) > $time)) {
+            // this can take a couple seconds to complete so we'll cache it
+            $ver = exec("ping -q -c 1 github.com > /dev/null && (git --git-dir=/opt/fpp/.git/ ls-remote -q -h origin $git_branch | awk '$1 > 0 { print substr($1,1,7)}')", $output, $return_val);
+            if ( $return_val != 0 )
+                $ver = "Unknown";
+            unset($output);
+            
+            exec("echo \"$ver\" | sudo tee $file", $output, $return_val);
+            unset($output);
+        } else {
+            $handle = fopen($file, 'r');
+            $ver = trim(fread($handle,filesize($file)));
+            fclose($handle);
+        }
+        
+        $git_remote_version = $ver;
 	}
 
 	return $git_remote_version;

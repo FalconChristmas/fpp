@@ -94,9 +94,9 @@ if (isset($_GET['expertView'])) {
             else if (data.status_name == 'unknown')
             {
                 status = '-';
-                if(typeof (data.reason) !== 'undefined'){
+                if (typeof(data.reason) !== 'undefined'){
                     DialogError("Get FPP System Status", "Get Status Failed for " + ip + "\n " + data.reason);
-                }else{
+                } else {
                     DialogError("Get FPP System Status", "Get Status Failed for " + ip);
                 }
             }
@@ -123,7 +123,9 @@ if (isset($_GET['expertView'])) {
 						}
 					}
 				}
-			}
+            } else {
+                status = data.status_name;
+            }
 
 			var rowID = "fpp_" + ip.replace(/\./g, '_');
 
@@ -134,7 +136,7 @@ if (isset($_GET['expertView'])) {
             if(expertView === true && data.status_name !== 'unknown') {
                 $('#' + rowID + '_platform').html(data.expertView.Platform + "<br><small class='hostDescriptionSM'>" + data.expertView.Variant + "</small>");
                 $('#expertViewVersion_' + rowID).html(data.expertView.Version);
-                $('#expertViewBranch_' + rowID).html(data.expertView.Branch);
+                //$('#expertViewBranch_' + rowID).html(data.expertView.Branch);
                 $('#expertViewGitVersions_' + rowID).html("R: " + (typeof (data.expertView.RemoteGitVersion) !== 'undefined' ? data.expertView.RemoteGitVersion : 'Unknown') + "<br>L: " + (typeof ( data.expertView.LocalGitVersion) !== 'undefined' ? data.expertView.LocalGitVersion : 'Unknown'));
                 $('#expertViewAutoUpdateState_' + rowID).html((data.expertView.AutoUpdatesDisabled === true ? "Disabled" : "Enabled") + "<br>" + (
                     (typeof (data.expertView.RemoteGitVersion) !== 'undefined' && typeof (data.expertView.LocalGitVersion) !== 'undefined') && (data.expertView.RemoteGitVersion !== data.expertView.LocalGitVersion) ? '<a class="updateAvailable" href="http://' + ip + '/about.php" target="_blank">Update Available!</a>' : ''));
@@ -145,7 +147,7 @@ if (isset($_GET['expertView'])) {
                     "Uptime: " + (typeof (data.expertView.Utilization) !== 'undefined' ? data.expertView.Utilization.Uptime : 'Unknown'));
             }
 		}).fail(function() {
-			DialogError("Get FPP System Status", "Get Status Failed for " + ip);
+			DialogError("Get FPP System Status", "Get Status Failed for " + ip + " via getFPPstatus");
 		}).always(function() {
 			if ($('#MultiSyncRefreshStatus').is(":checked"))
 				setTimeout(function() {getFPPSystemStatus(ip);}, 1000);
@@ -226,7 +228,7 @@ if (isset($_GET['expertView'])) {
             if (expertView === true) {
                 newRow = newRow + "<td class='expertViewRowSpacer'></td>" +
                     "<td id='expertViewVersion_" + rowID + "' class='expertViewRow'></td>" +
-                    "<td id='expertViewBranch_" + rowID + "'  class='expertViewRow'></td>" +
+                    //"<td id='expertViewBranch_" + rowID + "'  class='expertViewRow'></td>" +
                     "<td id='expertViewGitVersions_" + rowID + "'  class='expertViewRow'></td>" +
                     "<td id='expertViewAutoUpdateState_" + rowID + "' class='expertViewRow'></td>" +
                     "<td id='expertViewUtilization_" + rowID + "'  class='expertViewRow'></td>";
@@ -300,7 +302,7 @@ if (isset($_GET['expertView'])) {
 							?>
                             <th class="expertViewHeaderSpacer"></th>
                             <th class="expertViewHeader">Version</th>
-                            <th class="expertViewHeader">Branch</th>
+                            <!--<th class="expertViewHeader">Branch</th> -->
                             <th class="expertViewHeader">Git Version(s)</th>
                             <th class="expertViewHeader">Auto Updates</th>
                             <th class="expertViewHeader">Utilization</th>
@@ -319,7 +321,12 @@ if ($settings['fppMode'] == 'master')
 {
 ?>
 			CSV MultiSync Remote IP List (comma separated): (NOTE: Only used for F16v3 running in Remote mode)
-			<? PrintSettingText("MultiSyncCSVRemotes", 1, 0, 255, 60, "", $settings["MultiSyncCSVRemotes"]); ?><br>
+            <?
+            $csvRemotes = "";
+            if (isset($settings["MultiSyncCSVRemotes"])) {
+                $csvRemotes = $settings["MultiSyncCSVRemotes"];
+            }
+			PrintSettingText("MultiSyncCSVRemotes", 1, 0, 255, 60, "", $csvRemotes); ?><br>
 			<? PrintSettingCheckbox("Compress FSEQ files for transfer", "CompressMultiSyncTransfers", 0, 0, "1", "0"); ?> Compress FSEQ files during copy to Remotes to speed up file sync process<br>
 <?php
 }
@@ -340,8 +347,16 @@ if ($settings['fppMode'] == 'master')
 				</span>
 			</font>
 			<br>
-            <input type='button' class='buttons' value='Refresh' onClick='getFPPSystems();'>
-            <br>
+                        <input type='button' class='buttons' value='Refresh' onClick='getFPPSystems();'>
+<?php
+if ($settings['fppMode'] == 'master')
+{
+?>
+                        <input type='button' class='buttons' value='Sync Files' onClick='location.href="syncRemotes.php";'>
+<?php
+}
+?>
+                        <br>
             <br>
             <span><b>Views:</b></span>
             <br>
@@ -350,14 +365,6 @@ if ($settings['fppMode'] == 'master')
             <br>
             <input type='button' class='buttons' value='Expert View'
                    onclick="window.open('/multisync.php?expertView=true','_self')">
-<?php
-if ($settings['fppMode'] == 'master')
-{
-?>
-			<input type='button' class='buttons' value='Sync Files' onClick='location.href="syncRemotes.php";'>
-<?php
-}
-?>
 		</fieldset>
 	</div>
 	<?php include 'common/footer.inc'; ?>

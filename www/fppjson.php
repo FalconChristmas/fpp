@@ -345,7 +345,7 @@ function GetFPPStatusJson()
 	{
 		$status = SendCommand('s');
   
-		if($status == false || $status == 'false') {
+		if ($status == false || $status == 'false') {
      	
 			$status=exec("if ps cax | grep -q git_pull; then echo \"updating\"; else echo \"false\"; fi");
 
@@ -1146,7 +1146,7 @@ function GetFPPSystems()
 {
 	exec("ip addr show up | grep 'inet ' | awk '{print $2}' | cut -f1 -d/ | grep -v '^127'", $localIPs);
 
-	exec("avahi-browse -artp | grep -v 'IPv6' | sort", $rmtSysOut);
+	exec("avahi-browse -artp | grep  'IPv4' | grep 'fpp-fppd' | sort", $rmtSysOut);
 
 	$result = Array();
 
@@ -1159,6 +1159,9 @@ function GetFPPSystems()
 
 		$parts = explode(';', $system);
 
+        if (preg_match("/usb.*/", $parts[1]))
+            continue;
+        
 		$sysHostInfo = json_decode(@file_get_contents("http://" . $parts[7] . "/fppjson.php?command=getHostNameInfo"), true);
 
 		$elem = Array();
@@ -1173,8 +1176,7 @@ function GetFPPSystems()
 		if (count($matches))
 			$elem['Local'] = 1;
 
-		if (count($parts) > 8)
-		{
+		if (count($parts) > 8) {
 			$elem['txtRecord'] = $parts[9];
 			$txtParts = explode(',', preg_replace("/\"/", "", $parts[9]));
 			foreach ($txtParts as $txtPart)
@@ -1185,12 +1187,8 @@ function GetFPPSystems()
 				else if ($kvPair[0] == "platform")
 					$elem['Platform'] = $kvPair[1];
 			}
-	 }
-
-		if (!((($elem['IP'] == "192.168.7.2") || ($elem['IP'] == "192.168.6.2")) && ($elem['Platform'] == "BeagleBone Black")))
-		{
-			$result[] = $elem;
-		}
+        }
+        $result[] = $elem;
 	}
 
 	returnJSON($result);
