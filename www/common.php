@@ -365,6 +365,122 @@ echo "
 }
 
 /**
+ * Returns current memory usage
+ * @return float|int
+ */
+function get_server_memory_usage(){
+	$fh = fopen('/proc/meminfo','r');
+	$total = 0;
+	$free = 0;
+	$buffers = 0;
+	$cached = 0;
+	while ($line = fgets($fh)) {
+		$pieces = array();
+		if (preg_match('/^MemTotal:\s+(\d+)\skB$/', $line, $pieces)) {
+			$total = $pieces[1];
+		} else if (preg_match('/^MemFree:\s+(\d+)\skB$/', $line, $pieces)) {
+			$free = $pieces[1];
+		} else if (preg_match('/^Buffers:\s+(\d+)\skB$/', $line, $pieces)) {
+			$buffers = $pieces[1];
+		} else if (preg_match('/^Cached:\s+(\d+)\skB$/', $line, $pieces)) {
+			$cached = $pieces[1];
+		}
+	}
+	fclose($fh);
+
+	$used = $total - $free - $buffers - $cached;
+	$memory_usage = 1.0 * $used / $total * 100;
+
+	return $memory_usage;
+}
+
+/**
+ * Returns average CPU usage
+ * @return mixed
+ */
+function get_server_cpu_usage(){
+	$load = sys_getloadavg();
+	return $load[0];
+}
+
+/**
+ * Returns server uptime
+ * @param bool $uptime_value_only
+ * @return null|string|string[]
+ */
+function get_server_uptime($uptime_value_only=false){
+	$uptime = exec("uptime", $output, $return_val);
+	if ($return_val != 0)
+		$uptime = "";
+	unset($output);
+	$uptime = preg_replace('/[0-9]+ users?, /', '', $uptime);
+	if ($uptime_value_only) {
+		$uptime_portion = explode(",", $uptime,2)[0];
+		if (!empty($uptime_portion) && stripos($uptime_portion, "up") !== false) {
+			$uptime = trim(explode("up", $uptime_portion, 2)[1]);
+		}
+	}
+	return $uptime;
+}
+
+/**
+ * Returns the current system Git branch
+ * @return string
+ */
+function get_git_branch(){
+	$git_branch = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ branch --list | grep '\\*' | awk '{print \$2}'", $output, $return_val);
+	if ( $return_val != 0 )
+		$git_branch = "Unknown";
+	unset($output);
+
+	return $git_branch;
+}
+
+/**
+ * Returns the version of the local Git branch
+ * @return string
+ */
+function get_local_git_version(){
+	$git_version = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ rev-parse --short=7 HEAD", $output, $return_val);
+	if ( $return_val != 0 )
+		$git_version = "Unknown";
+	unset($output);
+
+	return $git_version;
+}
+
+/**
+ * Returns version of the remote Git branch for the supplied branch
+ * @return string
+ */
+function get_remote_git_version($git_branch){
+	$git_remote_version = "Unknown";
+	if (!empty($git_branch)) {
+        $file = "/tmp/git_" . $git_branch . ".ver" ;
+        $time = 90 ; //seconds
+        $ver = "Unknown";
+        if( ! file_exists( $file )  ||  ( time() - filemtime( $file ) > $time)) {
+            // this can take a couple seconds to complete so we'll cache it
+            $ver = exec("ping -q -c 1 github.com > /dev/null && (git --git-dir=/opt/fpp/.git/ ls-remote -q -h origin $git_branch | awk '$1 > 0 { print substr($1,1,7)}')", $output, $return_val);
+            if ( $return_val != 0 )
+                $ver = "Unknown";
+            unset($output);
+            
+            exec("echo \"$ver\" | sudo tee $file", $output, $return_val);
+            unset($output);
+        } else {
+            $handle = fopen($file, 'r');
+            $ver = trim(fread($handle,filesize($file)));
+            fclose($handle);
+        }
+        
+        $git_remote_version = $ver;
+	}
+
+	return $git_remote_version;
+}
+
+/**
  * Restarts the ntp server service
  */
 function NtpServiceRestart(){

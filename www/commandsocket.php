@@ -63,14 +63,13 @@ function SendCommand($command)
 	}
 
 	$i = 0;
-	$max_timeout = 1000;
+	$max_timeout = 100;
 	$buf = "";
 	while ($i < $max_timeout)
 	{
 		$i++;
 		$bytes_received = @socket_recv($socket, $buf, 1024, MSG_DONTWAIT);
-		if ($bytes_received == -1)
-		{
+		if ($bytes_received == -1) {
 			$socketError = 'An error occured while receiving from the socket';
 
 			if ($socketDebug)
@@ -80,15 +79,20 @@ function SendCommand($command)
 			return false;
 		}
 
-		if ($bytes_received > 0)
-		{
+		if ($bytes_received > 0) {
 			break;
 		}
+        if ($i == 10 && $command = 's') {
+            // status request can safely be resent if we don't have a response
+            @socket_send($socket, $command, strLen($command), 0);
+        }
 		usleep(500);
 	}
 
 	if ( $buf == "" )
 	{
+        if ($socketDebug)
+            printf("buf empty<br> %s\n", $cpath);
 		CleanupSocket($cpath, $socket);
 		return false;
 	}
@@ -96,7 +100,7 @@ function SendCommand($command)
 	CleanupSocket($cpath, $socket);
 
 	if ($socketDebug)
-		printf( "buf: '$buf'<br>\n");
+		printf( "buf: '$buf'<br>  %d\n", $i);
 
 	return $buf;
 }

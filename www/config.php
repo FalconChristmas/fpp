@@ -91,6 +91,7 @@ if ($debug)
 }
 
 $settings['HostName'] = 'FPP';
+$settings['HostDescription'] = '';
 $settings['Title'] = "Falcon Player - FPP";
 $settings['fppBinDir'] = '/opt/fpp/src';
 
@@ -182,7 +183,7 @@ else if ($settings['Platform'] == "BeagleBone Black")
         $settings['Variant'] = "BeagleBone Black Wireless";
         $settings['Logo'] = "beagle_blackwifi.png";
     }
-    else if (preg_match('/Black Wireless/', $settings['SubPlatform']))
+    else if (preg_match('/BeagleBone Black/', $settings['SubPlatform']))
     {
         $settings['Variant'] = "BeagleBone Black";
         $settings['Logo'] = "beagle_black.png";
