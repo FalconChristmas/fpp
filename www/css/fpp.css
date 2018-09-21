@@ -149,6 +149,11 @@
 {
 	z-index: 1001;
 }
+.ui-dialog
+{
+ 	z-index: 10000;
+}	
+
 
 .settings
 {

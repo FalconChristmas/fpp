@@ -784,7 +784,7 @@ function RemovePlaylistEntry()	{
 				).done(function(data) {
 						$('#helpText').html(
 						"<center><input onClick='UpgradeFPPVersion(\"" + version + "\");' type='button' class='buttons' value='Upgrade'></center>" +
-						"<pre>" + data + "</pre>"
+						"<pre style='white-space: pre-wrap; word-wrap: break-word;'>" + data + "</pre>"
 						);
 				}).fail(function() {
 						$('#helpText').html("Error loading release notes.");
