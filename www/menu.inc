@@ -134,9 +134,7 @@ function list_plugin_entries($menu)
         </ul>
       </li>
     </ul>
-<!--
-  <div id='upgradeFlag'>FPP v1.6 is available for install - <input name="btnUpgrade" onClick="ViewReleaseNotes('1.6');" type="button" class = "buttons" value="Upgrade"></div>
--->
+  <div id='upgradeFlag'>FPP v2.1 is available for install - <input name="btnUpgrade" onClick="ViewReleaseNotes('2.1');" type="button" class = "buttons" value="Upgrade"></div>
   <div id='restartFlag'>Settings have changed. FPPD Restart Required - <input name="btnRestartFPPD" type="button" onClick="RestartFPPD();" class = "buttons" value="Restart FPPD">
 <?
   if (basename($_SERVER['PHP_SELF']) == "developer.php")
