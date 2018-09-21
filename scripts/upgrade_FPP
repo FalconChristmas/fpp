@@ -34,6 +34,4 @@ sudo ${SCRIPTDIR}/upgrade_config
 echo "Compiling Binaries"
 compileBinaries
 
-echo "Rebooting to fully switch to new version"
-${SUDO} shutdown -r now
 
