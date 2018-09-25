@@ -67,8 +67,8 @@
 #
 #############################################################################
 SCRIPTVER="1.0"
-FPPBRANCH="v2.0"
-FPPIMAGEVER="2.0"
+FPPBRANCH="v2.1"
+FPPIMAGEVER="2.1"
 FPPCFGVER="31"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
@@ -363,6 +363,8 @@ adduser ${FPPUSER} video
 # FIXME, use ${FPPUSER} here instead of hardcoding
 sed -i -e 's/^fpp:\*:/fpp:\$6\$rA953Jvd\$oOoLypAK8pAnRYgQQhcwl0jQs8y0zdx1Mh77f7EgKPFNk\/jGPlOiNQOtE.ZQXTK79Gfg.8e3VwtcCuwz2BOTR.:/' /etc/shadow
 
+echo "FPP - Disabling any stock 'debian' user, use the '${FPPUSER}' user instead"
+sed -i -e "s/^debian:.*/debian:*:16372:0:99999:7:::/" /etc/shadow
 
 #######################################
 echo "FPP - Fixing empty root passwd"
