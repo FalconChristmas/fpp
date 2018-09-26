@@ -1084,7 +1084,12 @@ function SavePlaylistRaw($name)
 		rename($playlistDirectory . '/' . $name, $playlistDirectory . '/' . $name . '-CSV');
 
 	$f = fopen($playlistDirectory . '/' . $name . ".json","w") or exit("Unable to open file! : " . $playlistDirectory . '/' . $name . ".json");
-	fprintf($f, $json);
+	//Avoid nuking playlist file if we have no JSON string for some reason
+	if(!empty($json)){
+		fwrite($f, $json);
+	}else{
+		error_log("Error saving ".$playlistDirectory . '/' . $name . ".json" . " -- No Playlist (JSON) content to write");
+	}
 	fclose($f);
 
 	if(isset($_SESSION['currentPlaylist']) && $name != $_SESSION['currentPlaylist'])
