@@ -157,11 +157,13 @@ int OpenMediaOutput(char *filename) {
             std::string fullVideoPath = getVideoDirectory();
             fullVideoPath += "/";
             fullVideoPath += tmpFile;
+            ext = "mp4";
             if (!FileExists(fullVideoPath.c_str())) {
                 tmpFile.replace(filenameLen - ext.length(), 3, "avi");
                 fullVideoPath = getVideoDirectory();
                 fullVideoPath += "/";
                 fullVideoPath += tmpFile;
+                ext = "avi";
             }
             if (!FileExists(fullVideoPath.c_str())) {
                 //video doesn't exist, punt
