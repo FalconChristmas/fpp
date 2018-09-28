@@ -1325,6 +1325,10 @@ void MultiSync::StopSyncedMedia(char *filename)
 
 				if (!strcmp(mediaOutput->m_mediaFilename.c_str(), tmpFile))
 					stopSyncedMedia = 1;
+                
+                strcpy(&tmpFile[filenameLen - 4], ".avi");
+                if (!strcmp(mediaOutput->m_mediaFilename.c_str(), tmpFile))
+                    stopSyncedMedia = 1;
 			}
 		}
 	}

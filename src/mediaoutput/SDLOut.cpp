@@ -582,7 +582,7 @@ SDLOutput::SDLOutput(const std::string &mediaFilename,
         return;
     }
     currentMediaFilename = mediaFilename;
-	m_mediaFilename = fullAudioPath;
+	m_mediaFilename = mediaFilename;
     
     av_log_set_flags(AV_LOG_SKIP_REPEATED);
     av_log_set_callback(LogCallback);
@@ -591,7 +591,7 @@ SDLOutput::SDLOutput(const std::string &mediaFilename,
     
     // Initialize FFmpeg codecs
     av_register_all();
-    int res = avformat_open_input(&data->formatContext, m_mediaFilename.c_str(), nullptr, nullptr);
+    int res = avformat_open_input(&data->formatContext, fullAudioPath.c_str(), nullptr, nullptr);
     if (avformat_find_stream_info(data->formatContext, nullptr) < 0) {
         LogErr(VB_MEDIAOUT, "Could not find suitable input stream!\n");
         avformat_close_input(&data->formatContext);
@@ -600,7 +600,7 @@ SDLOutput::SDLOutput(const std::string &mediaFilename,
         return;
     }
 
-    if (open_codec_context(&data->audio_stream_idx, &data->audioCodecContext, data->formatContext, AVMEDIA_TYPE_AUDIO, m_mediaFilename) >= 0) {
+    if (open_codec_context(&data->audio_stream_idx, &data->audioCodecContext, data->formatContext, AVMEDIA_TYPE_AUDIO, fullAudioPath.c_str()) >= 0) {
         data->audioStream = data->formatContext->streams[data->audio_stream_idx];
     } else {
         data->audioStream = nullptr;
@@ -610,7 +610,7 @@ SDLOutput::SDLOutput(const std::string &mediaFilename,
     if (videoOutput != "--Disabled--" && videoOutput != "" && videoOutput != "--HDMI--") {
         data->videoOverlayModel = videoOutput;
         if (GetPixelOverlayModelSize(videoOutput, videoOverlayWidth, videoOverlayHeight) &&
-            open_codec_context(&data->video_stream_idx, &data->videoCodecContext, data->formatContext, AVMEDIA_TYPE_VIDEO, m_mediaFilename) >= 0) {
+            open_codec_context(&data->video_stream_idx, &data->videoCodecContext, data->formatContext, AVMEDIA_TYPE_VIDEO, fullAudioPath.c_str()) >= 0) {
             data->videoStream = data->formatContext->streams[data->video_stream_idx];
         } else {
             data->videoStream = nullptr;
@@ -620,7 +620,7 @@ SDLOutput::SDLOutput(const std::string &mediaFilename,
         data->videoStream = nullptr;
         data->video_stream_idx = -1;
     }
-    //av_dump_format(data->formatContext, 0, m_mediaFilename.c_str(), 0);
+    //av_dump_format(data->formatContext, 0, fullAudioPath.c_str(), 0);
     
     int64_t duration = data->formatContext->duration + (data->formatContext->duration <= INT64_MAX - 5000 ? 5000 : 0);
     int secs  = duration / AV_TIME_BASE;
