@@ -103,7 +103,7 @@ MosquittoClient::~MosquittoClient()
 /*
  *
  */
-int MosquittoClient::Init(void)
+int MosquittoClient::Init(const std::string &username, const std::string &password)
 {
 	mosquitto_lib_init();
 
@@ -117,6 +117,10 @@ int MosquittoClient::Init(void)
 	mosquitto_log_callback_set(m_mosq, mosq_log_callback);
 	mosquitto_message_callback_set(m_mosq, mosq_msg_callback);
 	mosquitto_disconnect_callback_set(m_mosq, mosq_disc_callback);
+
+	if (username != "") {
+            mosquitto_username_pw_set(m_mosq, username.c_str(), password.c_str());
+	}
 
 	int result = mosquitto_connect(m_mosq, m_host.c_str(), m_port, m_keepalive);
 

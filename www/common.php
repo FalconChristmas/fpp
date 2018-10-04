@@ -264,8 +264,8 @@ function PrintSettingText($setting, $restart = 1, $reboot = 0, $maxlength = 32, 
 
 	echo "\">\n";
 }
-function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength = 32, $size = 32, $pluginName = "", $defaultValue = "", $callbackName = "", $changedFunction = "")
-{
+function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength = 32, $size = 32, $pluginName = "", $defaultValue = "", $callbackName = "", $changedFunction = "", $inputType = "text")
+{ 
 	global $settings;
 	global $pluginSettings;
 
@@ -308,7 +308,7 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
     </script>
 
     
-    <input type='text' id='$setting' maxlength='$maxlength' size='$size' onChange='" . $changedFunction . "();' value=\"";
+    <input type='$inputType' id='$setting' maxlength='$maxlength' size='$size' onChange='" . $changedFunction . "();' value=\"";
 
 	if (isset($settings[$setting]))
 		echo $settings[$setting];
@@ -319,6 +319,11 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
 
 	echo "\">\n";
 }
+function PrintSettingPasswordSaved($setting, $restart = 1, $reboot = 0, $maxlength = 32, $size = 32, $pluginName = "", $defaultValue = "", $callbackName = "", $changedFunction = "")
+{
+	PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, $pluginName, $defaultValue, $callbackName, $changedFunction, "password");
+}
+
 
 function PrintSettingSave($title, $setting, $restart = 1, $reboot = 0, $pluginName = "", $callbackName = "")
 {

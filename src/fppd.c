@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
 	{
 		mqtt = new MosquittoClient(getSetting("MQTTHost"), getSettingInt("MQTTPort"), getSetting("MQTTPrefix"));
 
-		if (!mqtt || !mqtt->Init())
+		if (!mqtt || !mqtt->Init(getSetting("MQTTUsername"), getSetting("MQTTPassword")))
 			exit(EXIT_FAILURE);
 
 		mqtt->Publish("version", getFPPVersion());

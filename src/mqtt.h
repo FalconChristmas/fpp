@@ -36,7 +36,7 @@ class MosquittoClient {
   	MosquittoClient(const std::string &host, const int port, const std::string &topicPrefix);
 	~MosquittoClient();
 
-	int  Init(void);
+	int  Init(const std::string &username, const std::string &password);
 
 	int  PublishRaw(const std::string &topic, const std::string &msg);
 	int  Publish(const std::string &subTopic, const std::string &msg);

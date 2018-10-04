@@ -178,7 +178,7 @@ function flashEMMCBtrfs() {
 <br/>
     <fieldset>
           <legend>MQTT</legend>
-            <table width = "100%" border="0" cellpadding="1" cellspacing="1">
+            <table  border="0" cellpadding="1" cellspacing="1">
                 <tr>
                     <td >MQTT Broker Host:</td>
                     <td ><? PrintSettingTextSaved("MQTTHost", 1, 0, 64, 32, "", ""); ?></td>
@@ -191,7 +191,15 @@ function flashEMMCBtrfs() {
                     <td >MQTT Prefix:</td>
                     <td ><? PrintSettingTextSaved("MQTTPrefix", 1, 0, 32, 32, "", ""); ?></td>
                 </tr>
-            </table>
+                <tr>
+                    <td >MQTT Username:</td>
+                    <td ><? PrintSettingTextSaved("MQTTUsername", 1, 0, 32, 32, "", ""); ?></td>
+		</tr>
+                <tr>
+                    <td >MQTT Password:</td>
+                    <td ><? PrintSettingPasswordSaved("MQTTPassword", 1, 0, 32, 32, "", ""); ?></td>
+                </tr>
+	    </table>
             MQTT events will be published to "$prefix/falcon/player/$hostname/" with playlist events being in the "playlist" subtopic. <br/>
 FPP will respond to certain events:
 <div class="fppTableWrapper">
