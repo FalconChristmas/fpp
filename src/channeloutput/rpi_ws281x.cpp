@@ -152,8 +152,10 @@ void RPIWS281xOutput::GetRequiredChannelRange(int &min, int & max) {
         int inCh = 0;
         for (int p = 0; p < ps->m_outputChannels; p++) {
             int ch = ps->m_outputMap[inCh++];
-            min = std::min(min, ch);
-            max = std::max(max, ch);
+            if (ch < (FPPD_MAX_CHANNELS - 3)) {
+	        min = std::min(min, ch);
+                max = std::max(max, ch);
+	    }
         }
     }
 }
