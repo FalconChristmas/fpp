@@ -165,7 +165,7 @@ function flashEMMCBtrfs() {
             <tr><td>
                 <input type='button' class='buttons' value='Flash to eMMC' onClick='flashEMMCBtrfs();'>
                 </td>
-<td><b>Flash to eMMC - BTRFS root</b> - This will copy FPP to the internal eMMC, but use BTRFS for the root filesystem.  BTRFS uses compression to save a lot of space on the eMMC.  WARNING:  this is highly experimental.</td>
+<td><b>Flash to eMMC - BTRFS root</b> - This will copy FPP to the internal eMMC, but use BTRFS for the root filesystem.  BTRFS uses compression to save a lot of space on the eMMC, but at the expense of extra CPU usage.</td>
             </tr>
             <tr><td colspan='2'><hr></td></tr>
 <?php

@@ -216,6 +216,8 @@ public:
             return (videoFrameCount >= VIDEO_FRAME_MAX) ? 2 : 0;
         }
         if (audioDev == 0) {
+            //no audio device, clear the audio buffer
+            outBufferPos = 0;
             return 2;
         }
         unsigned int queue = SDL_GetQueuedAudioSize(audioDev);
@@ -405,11 +407,16 @@ public:
         }
         if (_state != SDLSTATE::SDLINITIALISED && _state != SDLSTATE::SDLUNINITIALISED) {
             data = d;
-            SDL_ClearQueuedAudio(audioDev);
-            SDL_QueueAudio(audioDev, data->outBuffer, data->outBufferPos);
-            data->curPos = data->outBufferPos;
-            data->outBufferPos = 0;
-            SDL_PauseAudioDevice(audioDev, 0);
+            if (audioDev) {
+                SDL_ClearQueuedAudio(audioDev);
+                SDL_QueueAudio(audioDev, data->outBuffer, data->outBufferPos);
+                data->curPos = data->outBufferPos;
+                data->outBufferPos = 0;
+                SDL_PauseAudioDevice(audioDev, 0);
+            } else {
+                data->curPos = 0;
+                data->outBufferPos = 0;
+            }
             data->audioDev = audioDev;
 
             long long t = GetTime() / 1000;
@@ -421,8 +428,10 @@ public:
     }
     void Stop() {
         if (_state == SDLSTATE::SDLPLAYING) {
-            SDL_PauseAudioDevice(audioDev, 1);
-            SDL_ClearQueuedAudio(audioDev);
+            if (audioDev) {
+                SDL_PauseAudioDevice(audioDev, 1);
+                SDL_ClearQueuedAudio(audioDev);
+            }
             data = nullptr;
             _state = SDLSTATE::SDLNOTPLAYING;
         }
@@ -430,7 +439,9 @@ public:
     void Close() {
         Stop();
         if (_state != SDLSTATE::SDLINITIALISED && _state != SDLSTATE::SDLUNINITIALISED) {
-            SDL_CloseAudioDevice(audioDev);
+            if (audioDev) {
+                SDL_CloseAudioDevice(audioDev);
+            }
             _state = SDLSTATE::SDLINITIALISED;
         }
     }
@@ -455,6 +466,7 @@ bool SDL::initSDL()  {
     }
     return true;
 }
+static bool noDeviceWarning = false;
 bool SDL::openAudio() {
     if (_state == SDLSTATE::SDLINITIALISED) {
         _initialisedRate = DEFAULT_RATE;
@@ -470,9 +482,9 @@ bool SDL::openAudio() {
         
         SDL_AudioSpec have;
         audioDev = SDL_OpenAudioDevice(NULL, 0, &_wanted_spec, &have, 0);
-        if (audioDev == 0) {
+        if (audioDev == 0 && !noDeviceWarning) {
             LogErr(VB_MEDIAOUT, "Could not open audio device - %s\n", SDL_GetError());
-            return false;
+            noDeviceWarning = true;
         }
         
         _state = SDLSTATE::SDLOPENED;
@@ -713,6 +725,14 @@ int SDLOutput::Start(void)
             Stop();
             return 0;
         }
+        if (data->audioDev == 0 && data->video_stream_idx == -1) {
+            //no audio device so audio data is useless and no video stream so not useful either,
+            //bail
+            m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
+            Stop();
+            return 0;
+        }
+        
         m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_PLAYING;
         return 1;
     }
@@ -758,7 +778,7 @@ int SDLOutput::Process(void)
         }
     }
     
-    if (data->audio_stream_idx != -1) {
+    if (data->audio_stream_idx != -1 && data->audioDev) {
         //if we have an audio stream, that drives everything
         float curtime = data->curPos - SDL_GetQueuedAudioSize(data->audioDev) - (DEFAULT_NUM_SAMPLES * 2);
         if (curtime < 0) curtime = 0;
