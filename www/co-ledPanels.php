@@ -178,7 +178,7 @@ function printLEDPanelSizeSelect($platform, $def, $addr)
 }
 function printLEDPanelGammaSelect($platform, $gamma)
 {
-    if ($gamma == "" || $gamma="0") {
+    if ($gamma == "" || $gamma=="0") {
         $gamma = "1.0";
     }
     echo "<input type='number' min='0.1' max='5.0' step='0.1' value='$gamma' id='LEDPanelsGamma'/>";
