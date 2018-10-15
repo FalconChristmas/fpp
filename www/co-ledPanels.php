@@ -389,14 +389,9 @@ function InitializeLEDPanels()
 		$('#LEDPanelsGPIOSlowdown').val(channelOutputsLookup["LEDPanelMatrix"].gpioSlowdown);
 <?
 	}
-
-    if ($settings['Platform'] == "BeagleBone Black")
-    {
 ?>
+        
         $('#LEDPanelsColorDepth').val(channelOutputsLookup["LEDPanelMatrix"].panelColorDepth);
-<?
-    }
-?>
 		$('#LEDPanelsStartCorner').val(channelOutputsLookup["LEDPanelMatrix"].invertedData);
 
 		if ((channelOutputsLookup["LEDPanelMatrix"].subType == 'ColorLight5a75') ||
@@ -461,14 +456,9 @@ function GetLEDPanelConfig()
 		config.gpioSlowdown = parseInt($('#LEDPanelsGPIOSlowdown').val());
 <?
 	}
+?>
 
-    if ($settings['Platform'] == "BeagleBone Black")
-    {
-?>
-        config.panelColorDepth = parseInt($('#LEDPanelsColorDepth').val());
-<?
-    }
-?>
+    config.panelColorDepth = parseInt($('#LEDPanelsColorDepth').val());
     config.brightness = parseInt($('#LEDPanelsBrightness').val());
     config.gamma = $('#LEDPanelsGamma').val();
 	config.invertedData = parseInt($('#LEDPanelsStartCorner').val());
@@ -565,6 +555,10 @@ function LEDPannelsConnectionChanged()
 		$('#LEDPanelsConnectionInterface').show();
 		$('#LEDPanelsGPIOSlowdownLabel').hide();
 		$('#LEDPanelsGPIOSlowdown').hide();
+        $('#LEDPanelsBrightness').hide();
+        $('#LEDPanelsColorDepth').hide();
+        $('#LEDPanelsBrightnessLabel').hide();
+        $('#LEDPanelsColorDepthLabel').hide();
 		$('#LEDPanelsInterface').show();
 		if ($('#LEDPanelsConnection').val() === "LinsnRV9") {
 			$('#LEDPanelsSourceMac').show();
@@ -581,6 +575,10 @@ function LEDPannelsConnectionChanged()
 		$('#LEDPanelsConnectionInterface').hide();
 		$('#LEDPanelsInterface').hide();
 		$('#LEDPanelsSourceMac').hide();
+        $('#LEDPanelsBrightness').show();
+        $('#LEDPanelsColorDepth').show();
+        $('#LEDPanelsBrightnessLabel').show();
+        $('#LEDPanelsColorDepthLabel').show();
 
 <?
 if ($settings['Platform'] == "BeagleBone Black") {
@@ -657,7 +655,7 @@ $(document).ready(function(){
 								</select>
 							</td>
 						</tr>
-						<tr><td><b>Brightness:</b></td>
+                        <tr><td><span id='LEDPanelsBrightnessLabel'><b><b>Brightness:</b></span></td>
 							<td><select id='LEDPanelsBrightness'>
 <?
 if ($settings['Platform'] == "Raspberry Pi")
@@ -723,7 +721,10 @@ if ($settings['Platform'] == "BeagleBone Black") {
                         <tr><td><b>Panel Interleave:</b></td>
 							<td><? printLEDPanelInterleaveSelect($settings['Platform'], $LEDPanelInterleave); ?></td>
 						</tr>
-						<tr><td><b>Color Depth:</b></td>
+<?
+}
+?>
+						<tr><td><span id='LEDPanelsColorDepthLabel'><b>Color Depth:</b></span></td>
 							<td><select id='LEDPanelsColorDepth'>
 									<option value='8'>8 Bit</option>
 									<option value='7'>7 Bit</option>
@@ -731,9 +732,6 @@ if ($settings['Platform'] == "BeagleBone Black") {
 								</select>
 							</td>
 						</tr>
-<?
-}
-?>
 						<tr><td><b>Connection:</b></td>
 							<td><select id='LEDPanelsConnection' onChange='LEDPannelsConnectionChanged();'>
 <?
@@ -785,6 +783,20 @@ if ($settings['Platform'] == "Raspberry Pi") {
 					- P-# is panel number on physical output.<br>
 					- C-(color) is color order if panel has different color order than default (C-Def).<br>
 					- Arrow <img src='images/arrow_N.png' height=17 width=17> indicates panel orientation, click arrow to rotate.<br>
+                                                                  
+                                                                  
+                    <br>
+              <b>Notes and hints:</b>
+              <ul><li>When wiring panels, divide the panels across as many outputs as possible.  Shorter chains on more outputs will have higher refresh than longer chains on fewer outputs.</li>
+              <li>If not using all outputs, use all the outputs from 1 up to what is needed.   Data is always sent on outputs up to the highest configured, even if no panels are attached.</li>
+  <?
+  if ($settings['Platform'] == "Raspberry Pi") {
+  ?>
+              <li>The FPP developers strongly encourage using either a BeagleBone based panel driver (Octoscroller, PocketScroller) or using a ColorLight controller.  The Raspberry Pi panel code performs poorly compared to the other options and supports a much more limitted set of options.</li>
+  <?
+  }
+  ?>
+              </ul>
 				</div>
 			</div>
 		</fieldset>

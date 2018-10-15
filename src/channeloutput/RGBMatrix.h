@@ -36,6 +36,7 @@
 using rgb_matrix::GPIO;
 using rgb_matrix::RGBMatrix;
 using rgb_matrix::Canvas;
+using rgb_matrix::FrameCanvas;
 
 #include "ChannelOutputBase.h"
 
@@ -57,7 +58,7 @@ class RGBMatrixOutput : public ChannelOutputBase {
 
   private:
 	GPIO        *m_gpio;
-	Canvas      *m_canvas;
+	FrameCanvas *m_canvas;
 	RGBMatrix   *m_rgbmatrix;
 	std::string  m_layout;
 	std::string  m_colorOrder;

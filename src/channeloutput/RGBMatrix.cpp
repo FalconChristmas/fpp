@@ -32,9 +32,6 @@
 #include "RGBMatrix.h"
 #include "settings.h"
 
-#define RGBMatrix_MAX_PIXELS    512 * 4
-#define RGBMatrix_MAX_CHANNELS  RGBMatrix_MAX_PIXELS * 3
-
 /////////////////////////////////////////////////////////////////////////////
 
 /*
@@ -168,13 +165,27 @@ int RGBMatrixOutput::Init(Json::Value config)
 	options.parallel = m_outputs;
 	options.rows = m_panelHeight;
 	options.cols = m_panelWidth;
-	options.pwm_bits = 8;
 
 	if (config.isMember("brightness"))
 		options.brightness = config["brightness"].asInt();
 	else
 		options.brightness = 100;
+    
+    int colorDepth = 8;
+    if (config.isMember("panelColorDepth")) {
+        colorDepth = config["panelColorDepth"].asInt();
+    }
+    if (colorDepth > 8 || colorDepth < 6) {
+        colorDepth = 8;
+    }
+    options.pwm_bits = colorDepth;
 
+    LogDebug(VB_CHANNELOUT, "  chain: %d    parallel: %d   rows: %d     cols: %d    brightness: %d   colordepth: %d\n",
+             options.chain_length, options.parallel, options.rows, options.cols,
+             options.brightness, options.pwm_bits);
+
+    
+    
 	m_rgbmatrix = new RGBMatrix(m_gpio, options);
 	if (!m_rgbmatrix)
 	{
@@ -186,7 +197,9 @@ int RGBMatrixOutput::Init(Json::Value config)
 		return 0;
 	}
 
-	m_canvas = reinterpret_cast<Canvas*>(m_rgbmatrix);
+	m_canvas = m_rgbmatrix->CreateFrameCanvas();
+    FrameCanvas *c2 = m_rgbmatrix->CreateFrameCanvas();
+    m_rgbmatrix->SwapOnVSync(c2);
 
 	m_matrix = new Matrix(m_startChannel, m_width, m_height);
 
@@ -239,13 +252,13 @@ int RGBMatrixOutput::Close(void)
 {
 	LogDebug(VB_CHANNELOUT, "RGBMatrixOutput::Close()\n");
 
-	m_canvas->Fill(0,0,0);
 
-	delete m_canvas;
-	m_canvas = NULL;
+	delete m_rgbmatrix;
+    m_rgbmatrix = nullptr;
+	m_canvas = nullptr;
 
 	delete m_gpio;
-	m_gpio = NULL;
+	m_gpio = nullptr;
 
 	return ChannelOutputBase::Close();
 }
@@ -255,7 +268,39 @@ int RGBMatrixOutput::Close(void)
  */
 void RGBMatrixOutput::PrepData(unsigned char *channelData)
 {
+    LogExcess(VB_CHANNELOUT, "RGBMatrixOutput::PrepData(%p)\n",
+              channelData);
 	m_matrix->OverlaySubMatrices(channelData);
+    
+    unsigned char r;
+    unsigned char g;
+    unsigned char b;
+    
+    for (int output = 0; output < m_outputs; output++)
+    {
+        int panelsOnOutput = m_panelMatrix->m_outputPanels[output].size();
+        
+        for (int i = 0; i < panelsOnOutput; i++)
+        {
+            int panel = m_panelMatrix->m_outputPanels[output][i];
+            
+            int chain = (panelsOnOutput - 1) - m_panelMatrix->m_panels[panel].chain;
+            for (int y = 0; y < m_panelHeight; y++)
+            {
+                int px = chain * m_panelWidth;
+                for (int x = 0; x < m_panelWidth; x++)
+                {
+                    r = m_gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[(y * m_panelWidth + x) * 3]]];
+                    g = m_gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[(y * m_panelWidth + x) * 3 + 1]]];
+                    b = m_gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[(y * m_panelWidth + x) * 3 + 2]]];
+                    
+                    m_canvas->SetPixel(px, y + (output * m_panelHeight), r, g, b);
+                    
+                    px++;
+                }
+            }
+        }
+    }
 }
 
 /*
@@ -266,36 +311,7 @@ int RGBMatrixOutput::RawSendData(unsigned char *channelData)
 	LogExcess(VB_CHANNELOUT, "RGBMatrixOutput::RawSendData(%p)\n",
 		channelData);
 
-	unsigned char r;
-	unsigned char g;
-	unsigned char b;
-
-	for (int output = 0; output < m_outputs; output++)
-	{
-		int panelsOnOutput = m_panelMatrix->m_outputPanels[output].size();
-
-		for (int i = 0; i < panelsOnOutput; i++)
-		{
-			int panel = m_panelMatrix->m_outputPanels[output][i];
-
-			int chain = (panelsOnOutput - 1) - m_panelMatrix->m_panels[panel].chain;
-			for (int y = 0; y < m_panelHeight; y++)
-			{
-				int px = chain * m_panelWidth;
-				for (int x = 0; x < m_panelWidth; x++)
-				{
-					r = m_gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[(y * m_panelWidth + x) * 3]]];
-					g = m_gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[(y * m_panelWidth + x) * 3 + 1]]];
-					b = m_gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[(y * m_panelWidth + x) * 3 + 2]]];
-
-					m_canvas->SetPixel(px, y + (output * m_panelHeight), r, g, b);
-
-					px++;
-				}
-			}
-		}
-	}
-
+    m_canvas = m_rgbmatrix->SwapOnVSync(m_canvas);
 	return m_channelCount;
 }
 
