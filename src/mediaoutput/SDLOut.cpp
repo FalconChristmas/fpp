@@ -213,6 +213,13 @@ public:
     int buffersFull() {
         if (video_stream_idx != -1) {
             //if video
+            while (firstVideoFrame && (firstVideoFrame != curVideoFrame)) {
+                videoFrameCount--;
+                auto tmp = firstVideoFrame->next;
+                delete firstVideoFrame;
+                firstVideoFrame = tmp;
+            }
+            
             return (videoFrameCount >= VIDEO_FRAME_MAX) ? 2 : 0;
         }
         if (audioDev == 0) {
