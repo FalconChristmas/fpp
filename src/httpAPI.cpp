@@ -192,17 +192,19 @@ const http_response PlayerResource::render_GET(const http_request &req)
 		result["message"] = "endpoint does not exist";
 	}
 
-	if (!result.isMember("status"))
-	{
+    int responseCode = 200;
+	if (result.empty()) {
 		result["status"] = "ERROR";
 		result["respCode"] = 400;
 		result["message"] = "GET endpoint helper did not set result JSON";
-	}
+    } else if (result.isMember("respCode")) {
+        responseCode = result["respCode"].asInt();
+    }
 
 	Json::FastWriter fastWriter;
 	std::string resultStr = fastWriter.write(result);
 
-	http_response resp = http_response_builder(resultStr.c_str(), result["respCode"].asInt()).string_response();
+	http_response resp = http_response_builder(resultStr.c_str(), responseCode).string_response();
 
 	LogResponse(req, resp);
 
@@ -595,6 +597,9 @@ void PlayerResource::GetLogSettings(Json::Value &result)
 void PlayerResource::GetCurrentStatus(Json::Value &result)
 {
 	LogDebug(VB_HTTP, "API - Getting fppd status\n");
+
+    result["fppd"] = "running";
+    result["status"] = 0;    
 }
 
 /*

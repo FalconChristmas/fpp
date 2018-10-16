@@ -343,8 +343,16 @@ function GetFPPStatusJson()
 	}
 	else
 	{
-		$status = SendCommand('s');
-  
+        $command = "s";
+        if (isset($args['counter'])) {
+            $command = "s," . $args['counter'];
+        }
+        $status = SendCommand($command);
+        if ($status === false || $status == "") {
+            // status are safe to re-request on failure
+            $status = SendCommand($command);
+        }
+
 		if ($status == false || $status == 'false') {
      	
 			$status=exec("if ps cax | grep -q git_pull; then echo \"updating\"; else echo \"false\"; fi");
@@ -354,8 +362,7 @@ function GetFPPStatusJson()
 
             returnJSON($default_return_json);
 		}
-
-		$data = parseStatus($status);
+        $data = parseStatus($status);
 
         returnJSON($data);
 	}

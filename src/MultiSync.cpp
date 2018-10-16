@@ -1430,7 +1430,11 @@ void MultiSync::ProcessCommandPacket(ControlPkt *pkt, int len)
 
 	CommandPkt *cpkt = (CommandPkt*)(((char*)pkt) + sizeof(ControlPkt));
 
-	ProcessCommand(cpkt->command);
+    char response[1500];
+	char *r2 = ProcessCommand(cpkt->command, response);
+    if (r2) {
+        free(r2);
+    }
 }
 
 /*
