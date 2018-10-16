@@ -211,6 +211,7 @@ public:
     }
 
     int buffersFull() {
+        int retVal = -1;
         if (video_stream_idx != -1) {
             //if video
             while (firstVideoFrame && (firstVideoFrame != curVideoFrame)) {
@@ -220,12 +221,12 @@ public:
                 firstVideoFrame = tmp;
             }
             
-            return (videoFrameCount >= VIDEO_FRAME_MAX) ? 2 : 0;
+            retVal = (doneRead || (videoFrameCount >= VIDEO_FRAME_MAX)) ? 2 : 0;
         }
         if (audioDev == 0) {
             //no audio device, clear the audio buffer
             outBufferPos = 0;
-            return 2;
+            return retVal >= 0 ? retVal : 2;
         }
         unsigned int queue = SDL_GetQueuedAudioSize(audioDev);
         //if we have data and are either below the queue threshold or we've finished reading
@@ -234,6 +235,9 @@ public:
             curPos += outBufferPos;
             outBufferPos = 0;
             queue = SDL_GetQueuedAudioSize(audioDev);
+        }
+        if (retVal >= 0) {
+            return retVal;
         }
         if (doneRead) {
             //done reading, they are as full as they will get
@@ -277,6 +281,9 @@ public:
                                                      frame->nb_samples);
 
                         outBufferPos += (outSamples * 2 * 2);
+                        if (outBufferPos > ALSA_MAX_QUEUED_SIZE) {
+                            AudioHasStalled = true;
+                        }
                         decodedDataLen += (outSamples * 2 * 2);
                         av_frame_unref(frame);
                     }
@@ -713,7 +720,7 @@ SDLOutput::SDLOutput(const std::string &mediaFilename,
 SDLOutput::~SDLOutput()
 {
     LogDebug(VB_MEDIAOUT, "SDLOutput::~SDLOutput() %X\n", data);
-    Stop();
+    Close();
     if (data) {
         delete data;
     }
@@ -789,7 +796,7 @@ int SDLOutput::Process(void)
         //if we have an audio stream, that drives everything
         float curtime = data->curPos - SDL_GetQueuedAudioSize(data->audioDev) - (DEFAULT_NUM_SAMPLES * 2);
         if (curtime < 0) curtime = 0;
-        
+
         if (lastCurTime == curtime) {
             ProcessCount++;
             if (ProcessCount >= 50) {
