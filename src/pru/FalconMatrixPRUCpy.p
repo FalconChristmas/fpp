@@ -37,7 +37,7 @@ READ_LOOP:
     // Wait for a non-zero address
     QBEQ READ_LOOP, data_addr, #0
 
-    // Command of 0xFFFFFF is the signal to exit
+    // Command of 0xFFFFFFF is the signal to exit
     QBEQ EXIT, data_addr, endVal
 
     QBNE DO_DATA, lastData, data_addr

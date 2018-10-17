@@ -548,15 +548,16 @@ int BBBMatrix::Init(Json::Value config)
 int BBBMatrix::Close(void)
 {
     LogDebug(VB_CHANNELOUT, "BBBMatrix::Close()\n");
-    
+    // Send the stop command
+    m_pruData->command = 0xFF;
     if (m_pru) {
-        m_pru->stop();
+        m_pru->stop(true);
         delete m_pru;
         m_pru = nullptr;
     }
     
     if (m_pruCopy) {
-        m_pruCopy->stop();
+        m_pruCopy->stop(true);
         delete m_pruCopy;
         m_pruCopy = nullptr;
     }

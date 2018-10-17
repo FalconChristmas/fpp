@@ -159,6 +159,7 @@ public:
 
         delete [] outBuffer;
     }
+    std::atomic_bool decoding;
     volatile int stopped;
     AVFormatContext*formatContext;
     AVPacket readingPacket;
@@ -210,7 +211,7 @@ public:
         ++videoFrameCount;
     }
 
-    int buffersFull() {
+    int buffersFull(bool flushaudio) {
         int retVal = -1;
         if (video_stream_idx != -1) {
             //if video
@@ -220,11 +221,15 @@ public:
                 delete firstVideoFrame;
                 firstVideoFrame = tmp;
             }
-            
-            retVal = (doneRead || (videoFrameCount >= VIDEO_FRAME_MAX)) ? 2 : 0;
+            retVal = (doneRead || (videoFrameCount >= VIDEO_FRAME_MAX)) ? 2
+                : ((videoFrameCount >= (VIDEO_FRAME_MAX - 6)) ? 1 : 0);
+            if (!flushaudio) {
+                return retVal;
+            }
         }
         if (audioDev == 0) {
             //no audio device, clear the audio buffer
+            curPos += outBufferPos;
             outBufferPos = 0;
             return retVal >= 0 ? retVal : 2;
         }
@@ -259,6 +264,7 @@ public:
         }
         if (AudioHasStalled) LogWarn(VB_MEDIAOUT, "Stalled audio, buffers still filling.\n");
         int orig = outBufferPos;
+        bool vidPacket = false;
         while (av_read_frame(formatContext, &readingPacket) == 0) {
             bool packetOk = false;
             if (readingPacket.stream_index == audio_stream_idx) {
@@ -319,6 +325,7 @@ public:
                             memcpy(d, frame->data[0], sz);
                             addVideoFrame(ms, d, sz);
                         }
+                        vidPacket = true;
                         av_frame_unref(frame);
                     }
                 }
@@ -331,6 +338,8 @@ public:
                     if ((outBufferPos > ALSA_MIN_QUEUED_SIZE || videoFrameCount > VIDEO_FRAME_MAX))  {
                         return outBufferPos - orig;
                     }
+                } else if (video_stream_idx != -1 && !vidPacket) {
+                    //didn't get a video packet, we'll keep going
                 } else {
                     return outBufferPos - orig;
                 }
@@ -397,19 +406,20 @@ typedef enum SDLSTATE {
     SDLINITIALISED,
     SDLOPENED,
     SDLPLAYING,
-    SDLNOTPLAYING
+    SDLNOTPLAYING,
+    SDLDESTROYED
 } SDLSTATE;
 
 
 class SDL
 {
-    SDLSTATE _state;
+    volatile SDLSTATE _state;
     SDL_AudioSpec _wanted_spec;
     int _initialisedRate;
     SDL_AudioDeviceID audioDev;
     
 public:
-    SDL() : data(nullptr), _state(SDLSTATE::SDLUNINITIALISED) {}
+    SDL() : data(nullptr), _state(SDLSTATE::SDLUNINITIALISED), decodeThread(nullptr) {}
     virtual ~SDL();
     
     bool Start(SDLInternalData *d) {
@@ -446,8 +456,13 @@ public:
                 SDL_PauseAudioDevice(audioDev, 1);
                 SDL_ClearQueuedAudio(audioDev);
             }
+            SDLInternalData *d = data;
             data = nullptr;
             _state = SDLSTATE::SDLNOTPLAYING;
+            while (d && d->decoding) {
+                //wait for decoding thread to be done with it
+                std::this_thread::yield();
+            }
         }
     }
     void Close() {
@@ -462,9 +477,10 @@ public:
     
     bool initSDL();
     bool openAudio();
+    void runDecode();
 
     SDLInternalData * volatile data;
-    
+    std::thread *decodeThread;
     std::set<std::string> blacklisted;
 };
 
@@ -480,6 +496,64 @@ bool SDL::initSDL()  {
     }
     return true;
 }
+
+
+void SDL::runDecode() {
+    while (_state != SDLSTATE::SDLUNINITIALISED) {
+        SDLInternalData *data = this->data;
+        if (data == nullptr) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(250));
+        } else {
+            data->decoding = true;
+            int bufFull = data->buffersFull(true);
+            bool bufFillWas0 = false;
+            int count = 0;
+            while (bufFull == 0 && count < 5) {
+                //critical, the SDL queue is < max
+                data->maybeFillBuffer(false);
+                bufFull = data->buffersFull(false);
+                bufFillWas0 = true;
+                count++;
+            }
+            count = 0;
+            int countRead = 0;
+            while (bufFull != 2 && count < 5) {
+                count++;
+                if (data->outBufferPos > ALSA_MIN_QUEUED_SIZE > 2) {
+                    //single packet
+                    countRead += data->maybeFillBuffer(false);
+                    bufFull = 2;
+                } else {
+                    //read a little more than single
+                    countRead += data->maybeFillBuffer(false);
+                    if (countRead > (DEFAULT_RATE*2*2/10)) {
+                        // read a 1/10 of a second, move on
+                        bufFull = 2;
+                    } else {
+                        bufFull = data->buffersFull(false);
+                    }
+                }
+            }
+            if (data->video_stream_idx != -1 && data->videoFrameCount < 15) {
+                //we won't sleep, need to keep decoding
+                data->decoding = false;
+            } else {
+                data->decoding = false;
+                if (bufFillWas0) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                } else {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(25));
+                }
+            }
+        }
+    }
+    _state = SDLSTATE::SDLDESTROYED;
+}
+
+static void decodeThreadEntry(SDL *sdl) {
+    sdl->runDecode();
+}
+
 static bool noDeviceWarning = false;
 bool SDL::openAudio() {
     if (_state == SDLSTATE::SDLINITIALISED) {
@@ -502,6 +576,7 @@ bool SDL::openAudio() {
         }
         
         _state = SDLSTATE::SDLOPENED;
+        decodeThread = new std::thread(decodeThreadEntry, this);
     }
     return true;
 }
@@ -510,6 +585,19 @@ SDL::~SDL() {
     Close();
     if (_state != SDLSTATE::SDLUNINITIALISED) {
         SDL_Quit();
+        _state = SDLSTATE::SDLUNINITIALISED;
+    }
+    if (decodeThread) {
+        int count = 0;
+        while (count < 30) {
+            if (_state == SDLSTATE::SDLDESTROYED) {
+                count = 30;
+            } else {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+        }
+        decodeThread->detach();
+        delete decodeThread;
     }
 }
 
@@ -766,31 +854,7 @@ int SDLOutput::Process(void)
         return 0;
     }
     static int lastRemoteSync = 0;
-    
-    int countRead = 0;
-    int bufFull = data->buffersFull();
-    while (bufFull == 0) {
-        //critical, the SDL queue is < max
-        data->maybeFillBuffer(false);
-        bufFull = data->buffersFull();
-    }
-    int i = 0;
-    while (bufFull != 2) {
-        if (data->outBufferPos > ALSA_MIN_QUEUED_SIZE > 2) {
-            //single packet
-            countRead += data->maybeFillBuffer(false);
-            bufFull = 2;
-        } else {
-            //read a little more than single
-            countRead += data->maybeFillBuffer(false);
-            if (countRead > (DEFAULT_RATE*2*2/10)) {
-                // read a 1/10 of a second, move on
-                bufFull = 2;
-            } else {
-                bufFull = data->buffersFull();
-            }
-        }
-    }
+
     
     if (data->audio_stream_idx != -1 && data->audioDev) {
         //if we have an audio stream, that drives everything
