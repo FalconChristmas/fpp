@@ -795,7 +795,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
   <?
   if ($settings['Platform'] == "Raspberry Pi") {
   ?>
-              <li>The FPP developers strongly encourage using either a BeagleBone based panel driver (Octoscroller, PocketScroller) or using a ColorLight controller.  The Raspberry Pi panel code performs poorly compared to the other options and supports a much more limitted set of options.</li>
+              <li>The FPP developers strongly encourage using either a BeagleBone based panel driver (Octoscroller, PocketScroller) or using a ColorLight controller.  The Raspberry Pi panel code performs poorly compared to the other options and supports a much more limited set of options.</li>
   <?
   }
   ?>
