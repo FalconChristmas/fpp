@@ -159,7 +159,7 @@ public:
 
         delete [] outBuffer;
     }
-    std::atomic_bool decoding;
+
     volatile int stopped;
     AVFormatContext*formatContext;
     AVPacket readingPacket;
@@ -410,24 +410,30 @@ typedef enum SDLSTATE {
     SDLDESTROYED
 } SDLSTATE;
 
-
 class SDL
 {
     volatile SDLSTATE _state;
     SDL_AudioSpec _wanted_spec;
     int _initialisedRate;
     SDL_AudioDeviceID audioDev;
+    std::atomic_bool decoding;
     
 public:
     SDL() : data(nullptr), _state(SDLSTATE::SDLUNINITIALISED), decodeThread(nullptr) {}
     virtual ~SDL();
     
+    static void decodeThreadEntry(SDL *sdl) {
+        sdl->runDecode();
+    }
     bool Start(SDLInternalData *d) {
         if (!initSDL()) {
             return false;
         }
         if (!openAudio()) {
             return false;
+        }
+        if (!decodeThread) {
+            decodeThread = new std::thread(decodeThreadEntry, this);
         }
         if (_state != SDLSTATE::SDLINITIALISED && _state != SDLSTATE::SDLUNINITIALISED) {
             data = d;
@@ -459,7 +465,7 @@ public:
             SDLInternalData *d = data;
             data = nullptr;
             _state = SDLSTATE::SDLNOTPLAYING;
-            while (d && d->decoding) {
+            while (decoding) {
                 //wait for decoding thread to be done with it
                 std::this_thread::yield();
             }
@@ -497,14 +503,14 @@ bool SDL::initSDL()  {
     return true;
 }
 
-
 void SDL::runDecode() {
     while (_state != SDLSTATE::SDLUNINITIALISED) {
+        decoding = true;
         SDLInternalData *data = this->data;
         if (data == nullptr) {
+            decoding = false;
             std::this_thread::sleep_for(std::chrono::milliseconds(250));
         } else {
-            data->decoding = true;
             int bufFull = data->buffersFull(true);
             bool bufFillWas0 = false;
             int count = 0;
@@ -536,9 +542,9 @@ void SDL::runDecode() {
             }
             if (data->video_stream_idx != -1 && data->videoFrameCount < 15) {
                 //we won't sleep, need to keep decoding
-                data->decoding = false;
+                decoding = false;
             } else {
-                data->decoding = false;
+                decoding = false;
                 if (bufFillWas0) {
                     std::this_thread::sleep_for(std::chrono::milliseconds(10));
                 } else {
@@ -548,10 +554,6 @@ void SDL::runDecode() {
         }
     }
     _state = SDLSTATE::SDLDESTROYED;
-}
-
-static void decodeThreadEntry(SDL *sdl) {
-    sdl->runDecode();
 }
 
 static bool noDeviceWarning = false;
@@ -576,7 +578,6 @@ bool SDL::openAudio() {
         }
         
         _state = SDLSTATE::SDLOPENED;
-        decodeThread = new std::thread(decodeThreadEntry, this);
     }
     return true;
 }

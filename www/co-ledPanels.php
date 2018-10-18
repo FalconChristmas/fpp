@@ -390,8 +390,11 @@ function InitializeLEDPanels()
 <?
 	}
 ?>
-        
-        $('#LEDPanelsColorDepth').val(channelOutputsLookup["LEDPanelMatrix"].panelColorDepth);
+        var colordepth = channelOutputsLookup["LEDPanelMatrix"].panelColorDepth;
+        if (typeof colordepth === 'undefined') {
+            colordepth = 8;
+        }
+        $('#LEDPanelsColorDepth').val(colordepth);
 		$('#LEDPanelsStartCorner').val(channelOutputsLookup["LEDPanelMatrix"].invertedData);
 
 		if ((channelOutputsLookup["LEDPanelMatrix"].subType == 'ColorLight5a75') ||

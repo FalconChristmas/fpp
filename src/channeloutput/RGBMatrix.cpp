@@ -56,6 +56,7 @@ RGBMatrixOutput::RGBMatrixOutput(unsigned int startChannel,
 {
 	LogDebug(VB_CHANNELOUT, "RGBMatrixOutput::RGBMatrixOutput(%u, %u)\n",
 		startChannel, channelCount);
+    m_useOutputThread = false;
 }
 
 /*
