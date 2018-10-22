@@ -159,6 +159,16 @@ char *ProcessCommand(char *command, char *response)
                 sprintf(response,"%d,%d,%d,%s,%s,%d,%d\n",
                         getFPPmode(), 0, getVolume(), seqFilename,
                         mediaFilename, secsElapsed, secsRemaining);
+            } else if (sequence->IsSequenceRunning()) {
+                sprintf(response,"%d,%d,%d,,,%s,,0,0,%d,%d,%s,%s,0\n",
+                        getFPPmode(),
+                        1,
+                        getVolume(),
+                        sequence->m_seqFilename,
+                        sequence->m_seqSecondsElapsed,
+                        sequence->m_seqSecondsRemaining,
+                        NextPlaylist,
+                        NextScheduleStartText);
             } else {
                 sprintf(response,"%d,%d,%d,%s,%s\n",getFPPmode(),0,getVolume(),NextPlaylist,NextScheduleStartText);
             }
@@ -252,6 +262,10 @@ char *ProcessCommand(char *command, char *response)
             playlist->StopNow(1);
             scheduler->ReLoadCurrentScheduleInfo();
             sprintf(response,"%d,%d,Playlist Stopping Now,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
+        } else if ((FPPstatus == FPP_STATUS_IDLE) &&
+                   (sequence->IsSequenceRunning())) {
+            sequence->CloseSequenceFile();
+            sprintf(response,"%d,%d,Sequence Stopping Now,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
         } else {
             sprintf(response,"%d,%d,Not playing,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
         }

@@ -1915,6 +1915,17 @@ if (1) {
 					$("#chkRepeat").prop( "checked", false );
 				}
 			
+            } else if (jsonStatus.current_sequence != "") {
+                //only playing a sequence
+                var playerStatusText = "Playing <strong>'" + jsonStatus.current_sequence + "'</strong>";
+                SetButtonState('#btnPlay','disable');
+                SetButtonState('#btnStopNow','enable');
+                SetButtonState('#btnStopGracefully','disable');
+                
+                $('#txtPlayerStatus').html(playerStatusText);
+                $('#txtTimePlayed').html("Elapsed: " + jsonStatus.time_elapsed );
+                $('#txtTimeRemaining').html("Remaining: " + jsonStatus.time_remaining );
+
 			}
 
 			$('#txtNextPlaylist').html(nextPlaylist.playlist);
