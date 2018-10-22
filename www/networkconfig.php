@@ -220,6 +220,7 @@ function SaveNetworkConfig()
 	{
 		data.SSID = $('#eth_ssid').val();
 		data.PSK = $('#eth_psk').val();
+        data.Hidden = $('#eth_hidden').is(':checked');
 	}
 
 	var postData = "command=setInterfaceInfo&data=" + JSON.stringify(data);
@@ -330,6 +331,7 @@ function GetInterfaceInfo(data,status)
 	{
 		$('#eth_ssid').val(data.SSID);
 		$('#eth_psk').val(data.PSK);
+        $('#eth_hidden').prop('checked', data.Hidden);
 	}
 
 	CheckDNS();
@@ -450,7 +452,7 @@ function setHostDescription() {
             </tr>
             <tr>
               <td>WPA Pre Shared key (PSK):</td>
-              <td><input type="text" name="eth_psk" id="eth_psk" size="32" maxlength="64"></td>
+<td><input type="text" name="eth_psk" id="eth_psk" size="32" maxlength="64">&nbsp;<input type="checkbox" name="eth_hidden" id="eth_hidden" value="Hidden">Hidden</td>
             </tr>
             </tr>
           </table>

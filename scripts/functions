@@ -66,7 +66,7 @@ netcalc(){
 
 SetupFPPNetworkConfigViaConnMann() {
 
-    CONFIGS=`ls ${FPPHOME}/media/config/interface.*`
+    CONFIGS=`ls ${FPPHOME}/media/config/interface.w*; ls ${FPPHOME}/media/config/interface.e*`
 
     DNS1=""
     DNS2=""
@@ -113,22 +113,27 @@ SetupFPPNetworkConfigViaConnMann() {
              MACA=$(<"/sys/class/net/${INTERFACE}/address")
             echo "MAC=${MACA}" >> $TMPFILE
         fi
-        if [ "x$DNS" != "x" ]
-        then
-            echo "Nameservers=${DNS}" >> $TMPFILE
-        fi
         if [[ "$INTERFACE" == "wlan"* ]] ; then
             echo "Type=wifi"  >> $TMPFILE
+            if [ "$HIDDEN" == "1" ]; then
+                echo "Hidden=true" >> $TMPFILE
+            fi
         else
             echo "Type=ethernet"  >> $TMPFILE
         fi
         if [ "$PROTO" = "dhcp" ]; then
             echo "IPv4=dhcp"  >> $TMPFILE
+            if [ "x$DNS" != "x" ]; then
+                echo "Nameservers=${DNS}" >> $TMPFILE
+            fi
         else
             if [ "x$GATEWAY" != "x" ]; then
                 echo "IPv4=$ADDRESS/$NETMASK/$GATEWAY" >> $TMPFILE
+                if [ "x$DNS" != "x" ]; then
+                    echo "Nameservers=${DNS}" >> $TMPFILE
+                fi
             else
-                echo "IPv4=$ADDRESS/$NETMASK" >> $TMPFILE
+                echo "IPv4=$ADDRESS/$NETMASK/none" >> $TMPFILE
             fi
         fi
         echo ""  >> $TMPFILE
