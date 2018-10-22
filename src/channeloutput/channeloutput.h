@@ -59,6 +59,7 @@ extern float           mediaElapsedSeconds;
 extern OutputProcessors outputProcessors;
 
 int  InitializeChannelOutputs(void);
+int  PrepareChannelData(char *channelData);
 int  SendChannelData(char *channelData);
 int  CloseChannelOutputs(void);
 void SetChannelOutputFrameNumber(int frameNumber);

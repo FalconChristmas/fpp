@@ -393,9 +393,10 @@ void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent)
 	int diff = channelOutputFrame - expectedFramesSent;
         if (diff < -2) {
             // pretty far behind master, lets just skip forward
-           LogDebug(VB_CHANNELOUT, "Skipping frames - We are at %d, master is at: %d\n", channelOutputFrame, expectedFramesSent);
-           sequence->SeekSequenceFile(expectedFramesSent);
-           return;
+            LogDebug(VB_CHANNELOUT, "Skipping frames - We are at %d, master is at: %d\n", channelOutputFrame, expectedFramesSent);
+            sequence->SeekSequenceFile(expectedFramesSent);
+            LightDelay = DefaultLightDelay;
+            return;
         }
 	if (diff)
 	{

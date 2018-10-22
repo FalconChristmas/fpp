@@ -525,6 +525,8 @@ void Sequence::ProcessSequenceData(int ms, int checkControlChannels) {
 
     if (channelTester->Testing())
         channelTester->OverlayTestData(m_seqData);
+    
+    PrepareChannelData(m_seqData);
 }
 
 void Sequence::SendSequenceData(void) {

@@ -515,6 +515,19 @@ void ResetChannelOutputFrameNumber(void) {
 	mediaElapsedSeconds = 0.0;
 }
 
+
+int PrepareChannelData(char *channelData) {
+    outputProcessors.ProcessData((unsigned char *)channelData);
+    FPPChannelOutputInstance *inst;
+    for (int i = 0; i < channelOutputCount; i++) {
+        inst = &channelOutputs[i];
+        if (inst->output) {
+            inst->output->PrepData((unsigned char *)channelData);
+        }
+    }
+    return 0;
+}
+
 /*
  *
  */
@@ -527,25 +540,17 @@ int SendChannelData(char *channelData) {
 		HexDump("Channel Data", channelData, 16);
 	}
 
-	for (i = 0; i < channelOutputCount; i++) {
-		inst = &channelOutputs[i];
-		if (inst->output) {
-			inst->output->PrepData((unsigned char *)channelData);
-		}
-	}
-
-        for (i = 0; i < channelOutputCount; i++) {
-                inst = &channelOutputs[i];
-                if (inst->outputOld)
-                        inst->outputOld->send(
-                                inst->privData,
-                                channelData + inst->startChannel,
-                                inst->channelCount < (FPPD_MAX_CHANNELS - inst->startChannel) ? inst->channelCount : (FPPD_MAX_CHANNELS - inst->startChannel));
-                else if (inst->output)
-                {
-                        inst->output->SendData((unsigned char *)(channelData + inst->startChannel));
-                }
+    for (i = 0; i < channelOutputCount; i++) {
+        inst = &channelOutputs[i];
+        if (inst->outputOld) {
+            inst->outputOld->send(
+                    inst->privData,
+                    channelData + inst->startChannel,
+                    inst->channelCount < (FPPD_MAX_CHANNELS - inst->startChannel) ? inst->channelCount : (FPPD_MAX_CHANNELS - inst->startChannel));
+        } else if (inst->output) {
+            inst->output->SendData((unsigned char *)(channelData + inst->startChannel));
         }
+    }
 
 
 	channelOutputFrame++;
@@ -553,6 +558,7 @@ int SendChannelData(char *channelData) {
 	// Reset channelOutputFrame every week @ 50ms timing
 	if (channelOutputFrame > 12096000)
 		channelOutputFrame = 0;
+    return 0;
 }
 
 /*
