@@ -70,8 +70,8 @@
 #
 #############################################################################
 SCRIPTVER="1.0"
-FPPBRANCH="v2.1"
-FPPIMAGEVER="2.1"
+FPPBRANCH="v2.2"
+FPPIMAGEVER="2.2"
 FPPCFGVER="31"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
@@ -509,6 +509,9 @@ EOF
 
 		echo "FPP - Installing Pi-specific packages"
 		apt-get -y install raspi-config
+
+        echo "FPP - Install kernel headers so modules can be compiled later"
+        apt-get -y install raspberrypi-kernel-headers
 
 		# TODO: Shouldn't this stuff go somewhere besides the Pi section?  I
 		# believe OLA is supported across most linux systems.  It can probably
@@ -1019,6 +1022,14 @@ systemctl disable connman-wait-online
 echo "FPP - Compiling binaries"
 cd /opt/fpp/src/
 make clean ; make optimized
+
+
+######################################
+if [ "x${FPPPLATFORM}" = "xRaspberry Pi" ]; then
+    echo "FPP - Compiling WIFI drivers
+    cd /opt/fpp/SD
+    ./FPP-Wifi-Drivers.sh
+fi
 
 ENDTIME=$(date)
 
