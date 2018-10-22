@@ -142,9 +142,11 @@ void *RunChannelOutputThread(void *data)
 		if ((getFPPmode() == MASTER_MODE) &&
 			(sequence->IsSequenceRunning()))
 		{
-			if (syncFrameCounter & 0x10)
+                        // send sync every 16 frames except for every 4 frames for first 32
+                        // to help speed up the initial syncs
+                        int syncFrameCounterMax = channelOutputFrame < 32 ? 4 : 16;
+			if (syncFrameCounter >= syncFrameCounterMax)
 			{
-				// Send sync every 16 frames (use 16 to make the check simpler)
 				syncFrameCounter = 1;
 				multiSync->SendSeqSyncPacket(
 					sequence->m_seqFilename, channelOutputFrame,

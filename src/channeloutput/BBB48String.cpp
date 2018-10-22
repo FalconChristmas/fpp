@@ -476,6 +476,11 @@ int BBB48StringOutput::RawSendData(unsigned char *channelData)
     LogExcess(VB_CHANNELOUT, "BBB48StringOutput::RawSendData(%p)\n",
               channelData);
 
+    /*
+    while this would be nice to do, reading from the pruData can take 15-20ms by itself due
+    to memory transfer from the PRU.  Will likely need to move this to DDR if we want to 
+    be able to do this
+
     if (m_pruData->command) {
         // Wait for the previous draw to finish
         std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
@@ -497,6 +502,7 @@ int BBB48StringOutput::RawSendData(unsigned char *channelData)
     } else {
         m_stallCount = 0;
     }
+    */
 
     unsigned frame = 0;
     //unsigned frame = m_curFrame & 1;

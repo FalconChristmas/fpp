@@ -400,6 +400,11 @@ _LOOP:
     //restore the led masks
     XIN 12, gpio0_led_mask, 16
 
+    // reset command to 0 so ARM side will send more data
+    LDI     r2, 0
+    MOV     r3, 1
+    SBCO    r2, CONST_PRUDRAM, 4, 8
+
 	WORD_LOOP:
     LOOP WORD_LOOP_DONE, data_len
         READ_DATA
@@ -604,10 +609,10 @@ _LOOP:
 
 	// Write out that we are done!
 	// Store a non-zero response in the buffer so that they know that we are done
-    // and zero out the command
-	LDI	    r2, 0
-    MOV     r3, 1
-	SBCO	r2, CONST_PRUDRAM, 4, 8
+        // and zero out the command
+	// LDI	    r2, 0
+        // MOV     r3, 1
+        // SBCO	r2, CONST_PRUDRAM, 4, 8
 
 	// Go back to waiting for the next frame buffer
 	QBA	_LOOP

@@ -523,25 +523,30 @@ int SendChannelData(char *channelData) {
 	FPPChannelOutputInstance *inst;
 
     outputProcessors.ProcessData((unsigned char *)channelData);
-
 	if (logMask & VB_CHANNELDATA) {
 		HexDump("Channel Data", channelData, 16);
 	}
 
 	for (i = 0; i < channelOutputCount; i++) {
 		inst = &channelOutputs[i];
-		if (inst->outputOld)
-			inst->outputOld->send(
-				inst->privData,
-				channelData + inst->startChannel,
-				inst->channelCount < (FPPD_MAX_CHANNELS - inst->startChannel) ? inst->channelCount : (FPPD_MAX_CHANNELS - inst->startChannel));
-		else if (inst->output)
-		{
-			// FIXME, get this call to PrepData into another thread
+		if (inst->output) {
 			inst->output->PrepData((unsigned char *)channelData);
-			inst->output->SendData((unsigned char *)(channelData + inst->startChannel));
 		}
 	}
+
+        for (i = 0; i < channelOutputCount; i++) {
+                inst = &channelOutputs[i];
+                if (inst->outputOld)
+                        inst->outputOld->send(
+                                inst->privData,
+                                channelData + inst->startChannel,
+                                inst->channelCount < (FPPD_MAX_CHANNELS - inst->startChannel) ? inst->channelCount : (FPPD_MAX_CHANNELS - inst->startChannel));
+                else if (inst->output)
+                {
+                        inst->output->SendData((unsigned char *)(channelData + inst->startChannel));
+                }
+        }
+
 
 	channelOutputFrame++;
 
