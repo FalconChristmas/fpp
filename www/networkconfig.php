@@ -331,7 +331,11 @@ function GetInterfaceInfo(data,status)
 	{
 		$('#eth_ssid').val(data.SSID);
 		$('#eth_psk').val(data.PSK);
-        $('#eth_hidden').prop('checked', data.Hidden);
+        if (data.HIDDEN == "1") {
+            $('#eth_hidden').prop('checked', true);
+        } else {
+            $('#eth_hidden').prop('checked', false);
+        }
 	}
 
 	CheckDNS();
@@ -448,11 +452,11 @@ function setHostDescription() {
           <table width = "100%" border="0" cellpadding="1" cellspacing="1">
             <tr>
               <td width = "25%">WPA SSID:</td>
-              <td width = "75%"><input type="text" name="eth_ssid" id="eth_ssid" size="32" maxlength="32"></td>
+              <td width = "75%"><input type="text" name="eth_ssid" id="eth_ssid" size="32" maxlength="32">&nbsp;<input type="checkbox" name="eth_hidden" id="eth_hidden" value="Hidden">Hidden</td>
             </tr>
             <tr>
               <td>WPA Pre Shared key (PSK):</td>
-<td><input type="text" name="eth_psk" id="eth_psk" size="32" maxlength="64">&nbsp;<input type="checkbox" name="eth_hidden" id="eth_hidden" value="Hidden">Hidden</td>
+<td><input type="text" name="eth_psk" id="eth_psk" size="32" maxlength="64"></td>
             </tr>
             </tr>
           </table>
