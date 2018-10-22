@@ -173,7 +173,7 @@ int BBBSerialOutput::Init(Json::Value config)
 
     // Initialize the ouputs
     for (int i = 0; i < m_outputs; i++) {
-        m_startChannels[i] = 0;
+        m_startChannels[i] = -1;
     }
 
     int maxChannel = 0;
@@ -190,7 +190,7 @@ int BBBSerialOutput::Init(Json::Value config)
 
     m_channelCount = 0;
     for (int i = 0; i < m_outputs; i++) {
-        if (m_channelCount < m_startChannels[i]) {
+        if (m_startChannels[i] >= 0 && m_channelCount < m_startChannels[i]) {
             m_channelCount = m_startChannels[i];
         }
     }
@@ -210,18 +210,25 @@ int BBBSerialOutput::Init(Json::Value config)
         args.push_back("-DRUNNING_ON_PRU0");
     }
     
+    int maxOut = 8;
     if (config["device"] == "F4-B") {
         args.push_back("-DONLYA");
         configurePRUPins(0, 4, mode);
+        maxOut = 4;
     } else if (config["device"] == "F8-B-16" || config["device"] == "F8-B-EXP-32") {
         args.push_back("-DONLYB");
         configurePRUPins(4, 8, mode);
+        maxOut = 4;
     } else if (config["device"] == "F32-B") {
         args.push_back("-DF32B");
         configurePRUPins(0, 8, mode);
     } else {
         configurePRUPins(0, 8, mode);
     }
+    for (int xx = maxOut; xx < m_outputs; xx++) {
+        m_startChannels[xx] = -1;
+    }
+
     
     if (!m_pixelnet) {
         char buf[256];
@@ -273,8 +280,10 @@ void BBBSerialOutput::GetRequiredChannelRange(int &min, int & max) {
     min = FPPD_MAX_CHANNELS;
     max = 0;
     for (int i = 0; i < m_outputs; i++) {
-        min = std::min(min, m_startChannels[i] + 1);
-        max = std::max(max, m_pixelnet ? m_startChannels[i] + 4095 : m_startChannels[i] + 511);
+        if (m_startChannels[i] >= 0) {
+            min = std::min(min, m_startChannels[i] + 1);
+            max = std::max(max, m_pixelnet ? m_startChannels[i] + 4095 : m_startChannels[i] + 511);
+        }
     }
 }
 
@@ -317,6 +326,9 @@ int BBBSerialOutput::RawSendData(unsigned char *channelData)
     int chCount = m_pixelnet ? 4096 : 512;
 
     for (int i = 0; i < m_outputs; i++) {
+        if (m_startChannels[i] < 0) {
+            continue;
+        }
         // Skip the headers (6 bytes per output for Pixelnet and 1 byte per output
         // for DMX) and index into the proper position in the m_outputs number of
         // bytes in each slice
@@ -390,4 +402,5 @@ void BBBSerialOutput::DumpConfig(void)
 
     ChannelOutputBase::DumpConfig();
 }
+
 
