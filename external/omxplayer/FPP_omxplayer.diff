@@ -17,12 +17,12 @@ index 7de06c7..53b52e0 100644
 --- a/KeyConfig.h
 +++ b/KeyConfig.h
 @@ -43,6 +43,9 @@ class KeyConfig
-         ACTION_CROP_VIDEO = 34,
-         ACTION_PAUSE = 35,
          ACTION_PLAY = 36,
-+        ACTION_DECREASE_SPEED_MICRO = 37,
-+        ACTION_NORMAL_SPEED = 38,
-+        ACTION_INCREASE_SPEED_MICRO = 39
+         ACTION_CHANGE_FILE = 37,
+         ACTION_SET_LAYER = 38,
++        ACTION_DECREASE_SPEED_MICRO = 39,
++        ACTION_NORMAL_SPEED = 40,
++        ACTION_INCREASE_SPEED_MICRO = 41,
      };
  
      #define KEY_LEFT 0x5b44

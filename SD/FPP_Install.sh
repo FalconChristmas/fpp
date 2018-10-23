@@ -527,18 +527,16 @@ case "${FPPPLATFORM}" in
 
 		if $build_omxplayer; then
 			echo "FPP - Building omxplayer from source with our patch"
-			apt-get -y install subversion libpcre3-dev libboost-dev libfreetype6-dev libusb-1.0-0-dev
-			apt-get -y install git-core libidn11-dev libssl1.0-dev libssh-dev libsmbclient-dev libasound2-dev
+			apt-get -y install git-core libssl1.0-dev libssh-dev libsmbclient-dev
+            cd /opt
 			git clone https://github.com/popcornmix/omxplayer.git
 			cd omxplayer
 			# get the latest and greatest to support ALSA
 			#git reset --hard 4d8ffd13153bfef2966671cb4fb484afeaf792a8
-			wget -O- https://raw.githubusercontent.com/FalconChristmas/fpp/master-v1.x/external/omxplayer/FPP_omxplayer.diff | patch -p1
+			wget -O- https://raw.githubusercontent.com/FalconChristmas/fpp/master/external/omxplayer/FPP_omxplayer.diff | patch -p1
 			./prepare-native-raspbian.sh
-			sed -i -e "s/PWD/shell pwd/" Makefile.ffmpeg
-			make ffmpeg
-			make
-			tar xzpvf omxplayer-dist.tgz -C /
+			make omxplayer.bin
+            cp omxplayer.bin 
 			cd ..
 			rm -rf /opt/omxplayer
 		else
