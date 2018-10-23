@@ -96,8 +96,7 @@ int MultiSync::Init(void)
 	if (!OpenBroadcastSocket())
 		return 0;
 
-	if (getFPPmode() == MASTER_MODE)
-	{
+	if (getFPPmode() == MASTER_MODE) {
 		if (!OpenControlSockets())
 			return 0;
 
@@ -118,17 +117,14 @@ void MultiSync::UpdateSystem(MultiSyncSystemType type,
 {
 	pthread_mutex_lock(&m_systemsLock);
 	int found = -1;
-	for (int i = 0; i < m_systems.size(); i++)
-	{
+	for (int i = 0; i < m_systems.size(); i++) {
 		if ((address == m_systems[i].address) &&
-			(hostname == m_systems[i].hostname))
-		{
+			(hostname == m_systems[i].hostname)) {
 			found = i;
 		}
 	}
 
-	if (found < 0)
-	{
+	if (found < 0) {
 		MultiSyncSystem newSystem;
 
 		m_systems.push_back(newSystem);
@@ -270,25 +266,19 @@ std::string MultiSync::GetHardwareModel(void)
 	else if (FileExists("/sys/class/dmi/id/product_name"))
 		filename = "/sys/class/dmi/id/product_name";
 
-	if (filename != "")
-	{
+	if (filename != "") {
 		char buf[128];
 		FILE *fd = fopen(filename.c_str(), "r");
-		if (fd)
-		{
+		if (fd) {
 			if (fgets(buf, 127, fd))
 				result = buf;
 			else
 				result = "Unknown Hardware Platform";
 			fclose(fd);
-		}
-		else
-		{
+		} else {
 			result = "Unknown Hardware Platform";
 		}
-	}
-	else
-	{
+	} else {
 		result = "Unknown Hardware Platform";
 	}
 
@@ -356,8 +346,7 @@ Json::Value MultiSync::GetSystems(void)
 
 	pthread_mutex_lock(&m_systemsLock);
 
-	for (int i = 0; i < m_systems.size(); i++)
-	{
+	for (int i = 0; i < m_systems.size(); i++) {
 		Json::Value system;
 
 		system["type"]         = GetTypeString(m_systems[i].type);
@@ -461,8 +450,7 @@ void MultiSync::SendSeqSyncStartPacket(const char *filename)
 
 	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + strlen(filename));
 
-	if (m_destAddrCSV.size() > 0)
-	{
+	if (m_destAddrCSV.size() > 0) {
 		// Now send the Broadcast CSV version
 		sprintf(outBuf, "FPP,%d,%d,%d,%s\n",
 			CTRL_PKT_SYNC, SYNC_FILE_SEQ, SYNC_PKT_START, filename);
@@ -504,8 +492,7 @@ void MultiSync::SendSeqSyncStopPacket(const char *filename)
 
 	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + strlen(filename));
 
-	if (m_destAddrCSV.size() > 0)
-	{
+    if (m_destAddrCSV.size() > 0) {
 		// Now send the Broadcast CSV version
 		sprintf(outBuf, "FPP,%d,%d,%d,%s\n",
 			CTRL_PKT_SYNC, SYNC_FILE_SEQ, SYNC_PKT_STOP, filename);
@@ -548,8 +535,7 @@ void MultiSync::SendSeqSyncPacket(const char *filename, int frames, float second
 
 	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + strlen(filename));
 
-	if (m_destAddrCSV.size() > 0)
-	{
+    if (m_destAddrCSV.size() > 0) {
 		// Now send the Broadcast CSV version
 		sprintf(outBuf, "FPP,%d,%d,%d,%s,%d,%d\n",
 			CTRL_PKT_SYNC, SYNC_FILE_SEQ, SYNC_PKT_SYNC, filename,
@@ -750,8 +736,7 @@ void MultiSync::SendBlankingDataPacket(void)
 
 	SendControlPacket(outBuf, sizeof(ControlPkt));
 
-	if (m_controlCSVSock >= 0)
-	{
+	if (m_controlCSVSock >= 0) {
 		// Now send the Broadcast CSV version
 		sprintf(outBuf, "FPP,%d\n", CTRL_PKT_BLANK);
 		SendCSVControlPacket(outBuf, strlen(outBuf));
@@ -767,26 +752,22 @@ void MultiSync::ShutdownSync(void)
 
 	pthread_mutex_lock(&m_socketLock);
 
-	if (m_broadcastSock >= 0)
-	{
+	if (m_broadcastSock >= 0) {
 		close(m_broadcastSock);
 		m_broadcastSock = -1;
 	}
 
-	if (m_controlSock >= 0)
-	{
+	if (m_controlSock >= 0) {
 		close(m_controlSock);
 		m_controlSock = -1;
 	}
 
-	if (m_controlCSVSock >= 0)
-	{
+	if (m_controlCSVSock >= 0) {
 		close(m_controlCSVSock);
 		m_controlCSVSock = -1;
 	}
 
-	if (m_receiveSock >= 0)
-	{
+	if (m_receiveSock >= 0) {
 		close(m_receiveSock);
 		m_receiveSock = -1;
 	}
@@ -871,8 +852,7 @@ int MultiSync::OpenControlSockets(void)
 
 	char *tmpRemotes = strdup(getSetting("MultiSyncRemotes"));
 
-	if (!strcmp(tmpRemotes, "255.255.255.255"))
-	{
+	if (!strcmp(tmpRemotes, "255.255.255.255")) {
 		int broadcast = 1;
 		if(setsockopt(m_controlSock, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast)) < 0) {
 			LogErr(VB_SYNC, "Error setting SO_BROADCAST: \n", strerror(errno));
@@ -882,8 +862,7 @@ int MultiSync::OpenControlSockets(void)
 
 	char *s = strtok(tmpRemotes, ",");
 
-	while (s)
-	{
+	while (s) {
 		LogDebug(VB_SYNC, "Setting up Remote Sync for %s\n", s);
 		struct sockaddr_in newRemote;
 
@@ -974,8 +953,7 @@ int MultiSync::OpenCSVControlSockets(void)
 
 	char *tmpRemotes = strdup(getSetting("MultiSyncCSVRemotes"));
 
-	if (!strcmp(tmpRemotes, "255.255.255.255"))
-	{
+	if (!strcmp(tmpRemotes, "255.255.255.255")) {
 		int broadcast = 1;
 		if(setsockopt(m_controlCSVSock, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast)) < 0) {
 			LogErr(VB_SYNC, "Error setting SO_BROADCAST: \n", strerror(errno));
@@ -985,8 +963,7 @@ int MultiSync::OpenCSVControlSockets(void)
 
 	char *s = strtok(tmpRemotes, ",");
 
-	while (s)
-	{
+	while (s) {
 		LogDebug(VB_SYNC, "Setting up CSV Remote Sync for %s\n", s);
 		struct sockaddr_in newRemote;
 
@@ -1095,25 +1072,18 @@ int MultiSync::OpenReceiveSocket(void)
 	m_receiveSrcAddr.sin_port = htons(FPP_CTRL_PORT);
 
 	int optval = 1;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0)
-#  ifndef PLATFORM_ORANGEPI
-	if (setsockopt(m_receiveSock, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval)) < 0)
-	{
+	if (setsockopt(m_receiveSock, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval)) < 0) {
 		LogErr(VB_SYNC, "Error turning on SO_REUSEPORT; %s\n", strerror(errno));
 		return 0;
 	}
-#  endif
-#endif
 
 	// Bind the socket to address/port
-	if (bind(m_receiveSock, (struct sockaddr *) &m_receiveSrcAddr, sizeof(m_receiveSrcAddr)) < 0) 
-	{
+	if (bind(m_receiveSock, (struct sockaddr *) &m_receiveSrcAddr, sizeof(m_receiveSrcAddr)) < 0) {
 		LogErr(VB_SYNC, "Error binding socket; %s\n", strerror(errno));
 		return 0;
 	}
 
-	if (setsockopt(m_receiveSock, IPPROTO_IP, IP_PKTINFO, &optval, sizeof(optval)) < 0)
-	{
+	if (setsockopt(m_receiveSock, IPPROTO_IP, IP_PKTINFO, &optval, sizeof(optval)) < 0) {
 		LogErr(VB_SYNC, "Error calling setsockopt; %s\n", strerror(errno));
 		return 0;
 	}
@@ -1123,6 +1093,18 @@ int MultiSync::OpenReceiveSocket(void)
 		m_remoteOffset = (float)remoteOffsetInt * -0.001;
 	else
 		m_remoteOffset = 0.0;
+    
+    memset(rcvMsgs, 0, sizeof(rcvMsgs));
+    for (int i = 0; i < MAX_MS_RCV_MSG; i++) {
+        rcvIovecs[i].iov_base         = rcvBuffers[i];
+        rcvIovecs[i].iov_len          = MAX_MS_RCV_BUFSIZE;
+        rcvMsgs[i].msg_hdr.msg_iov    = &rcvIovecs[i];
+        rcvMsgs[i].msg_hdr.msg_iovlen = 1;
+        rcvMsgs[i].msg_hdr.msg_name   = &rcvSrcAddr[i];
+        rcvMsgs[i].msg_hdr.msg_namelen  = sizeof(struct sockaddr_storage);
+        rcvMsgs[i].msg_hdr.msg_control = &rcvCmbuf[i];
+        rcvMsgs[i].msg_hdr.msg_controllen = 0x100;
+    }
 
 	return 1;
 }
@@ -1134,105 +1116,84 @@ void MultiSync::ProcessControlPacket(void)
 {
 	LogExcess(VB_SYNC, "ProcessControlPacket()\n");
 
-	unsigned char inBuf[2048];
 	ControlPkt *pkt;
-	int         addrlen = sizeof(m_receiveSrcAddr);
-	int         len = 0;
+    
+    int msgcnt = recvmmsg(m_receiveSock, rcvMsgs, MAX_MS_RCV_MSG, MSG_DONTWAIT, nullptr);
+    LogExcess(VB_SYNC, "ProcessControlPacket msgcnt: %d\n", msgcnt);
+    for (int msg = 0; msg < msgcnt; msg++) {
+        int len = rcvMsgs[msg].msg_len;
+        if (len <= 0) {
+            LogErr(VB_SYNC, "Error: recvmsg failed: %s\n", strerror(errno));
+            continue;
+        }
+        unsigned char *inBuf = rcvBuffers[msg];
 
-	struct iovec iov[1];
-	iov[0].iov_base = inBuf;
-	iov[0].iov_len  = sizeof(inBuf);
+        if (inBuf[0] == 0x55 || inBuf[0] == 0xCC) {
+            struct in_addr  recvAddr;
+            struct cmsghdr *cmsg;
 
-	char                     cmbuf[0x100];
-	struct sockaddr_storage  mSrcAddr;
-	struct msghdr            msg;
+            for (cmsg = CMSG_FIRSTHDR(&rcvMsgs[msg].msg_hdr); cmsg != NULL; cmsg = CMSG_NXTHDR(&rcvMsgs[msg].msg_hdr, cmsg)) {
+                if (cmsg->cmsg_level != IPPROTO_IP || cmsg->cmsg_type != IP_PKTINFO) {
+                    continue;
+                }
 
-	msg.msg_name       = &mSrcAddr;
-	msg.msg_namelen    = sizeof(mSrcAddr);
-	msg.msg_iov        = iov;
-	msg.msg_iovlen     = 1;
-	msg.msg_control    = cmbuf;
-	msg.msg_controllen = sizeof(cmbuf);
+                struct in_pktinfo *pi = (struct in_pktinfo *)CMSG_DATA(cmsg);
+                recvAddr = pi->ipi_addr;
+                recvAddr = pi->ipi_spec_dst;
+            }
 
-	bzero(inBuf, sizeof(inBuf));
+            ProcessFalconPacket(m_receiveSock, (struct sockaddr_in *)&rcvSrcAddr[msg], recvAddr, inBuf);
+            continue;
+        }
 
-	len = recvmsg(m_receiveSock, &msg, 0);
-	if (len == -1) {
-		LogErr(VB_SYNC, "Error: recvmsg failed: %s\n", strerror(errno));
-		return;
-	} else if (msg.msg_flags & MSG_TRUNC) {
-		LogErr(VB_SYNC, "Error: Received control packet too large\n");
-		HexDump("Received data:", (void*)inBuf, iov[0].iov_len);
-		return;
-	}
+        if (len < sizeof(ControlPkt)) {
+            LogErr(VB_SYNC, "Error: Received control packet too short\n");
+            HexDump("Received data:", (void*)inBuf, len);
+            continue;
+        }
 
-	if (inBuf[0] == 0x55 || inBuf[0] == 0xCC) {
-		struct in_addr  recvAddr;
-		struct cmsghdr *cmsg;
+        pkt = (ControlPkt*)inBuf;
 
-		for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL; cmsg = CMSG_NXTHDR(&msg, cmsg))
-		{
-			if (cmsg->cmsg_level != IPPROTO_IP || cmsg->cmsg_type != IP_PKTINFO)
-			{
-				continue;
-			}
+        if ((pkt->fppd[0] != 'F') ||
+            (pkt->fppd[1] != 'P') ||
+            (pkt->fppd[2] != 'P') ||
+            (pkt->fppd[3] != 'D')) {
+            LogErr(VB_SYNC, "Error: Invalid Received Control Packet, missing 'FPPD' header\n");
+            HexDump("Received data:", (void*)inBuf, len);
+            continue;
+        }
 
-			struct in_pktinfo *pi = (struct in_pktinfo *)CMSG_DATA(cmsg);
-			recvAddr = pi->ipi_addr;
-			recvAddr = pi->ipi_spec_dst;
-		}
+        if (len != (sizeof(ControlPkt) + pkt->extraDataLen)) {
+            LogErr(VB_SYNC, "Error: Expected %d data bytes, received %d\n",
+                pkt->extraDataLen, len - sizeof(ControlPkt));
+            HexDump("Received data:", (void*)inBuf, len);
+            continue;
+        }
 
-		ProcessFalconPacket(m_receiveSock, (struct sockaddr_in *)&mSrcAddr, recvAddr, inBuf);
-		return;
-	}
+        if ((logLevel == LOG_EXCESSIVE) &&
+            (logMask & VB_SYNC)) {
+            HexDump("Received MultiSync packet with contents:", (void*)inBuf, len);
+        }
 
-	if (len < sizeof(ControlPkt)) {
-		LogErr(VB_SYNC, "Error: Received control packet too short\n");
-		HexDump("Received data:", (void*)inBuf, len);
-		return;
-	}
-
-	pkt = (ControlPkt*)inBuf;
-
-	if ((pkt->fppd[0] != 'F') ||
-		(pkt->fppd[1] != 'P') ||
-		(pkt->fppd[2] != 'P') ||
-		(pkt->fppd[3] != 'D')) {
-		LogErr(VB_SYNC, "Error: Invalid Received Control Packet, missing 'FPPD' header\n");
-		HexDump("Received data:", (void*)inBuf, len);
-		return;
-	}
-
-	if (len != (sizeof(ControlPkt) + pkt->extraDataLen)) {
-		LogErr(VB_SYNC, "Error: Expected %d data bytes, received %d\n",
-			pkt->extraDataLen, len - sizeof(ControlPkt));
-		HexDump("Received data:", (void*)inBuf, len);
-		return;
-	}
-
-	if ((logLevel == LOG_EXCESSIVE) &&
-		(logMask & VB_SYNC)) {
-		HexDump("Received MultiSync packet with contents:", (void*)inBuf, len);
-	}
-
-	switch (pkt->pktType) {
-		case CTRL_PKT_CMD:	ProcessCommandPacket(pkt, len);
-							break;
-		case CTRL_PKT_SYNC: if (getFPPmode() == REMOTE_MODE)
-								ProcessSyncPacket(pkt, len);
-							break;
-		case CTRL_PKT_EVENT:
-							if (getFPPmode() == REMOTE_MODE)
-								ProcessEventPacket(pkt, len);
-							break;
-		case CTRL_PKT_BLANK:
-							if (getFPPmode() == REMOTE_MODE)
-								sequence->SendBlankingData();
-							break;
-		case CTRL_PKT_PING:
-							ProcessPingPacket(pkt, len);
-							break;
-	}
+        switch (pkt->pktType) {
+            case CTRL_PKT_CMD:	ProcessCommandPacket(pkt, len);
+                                break;
+            case CTRL_PKT_SYNC: if (getFPPmode() == REMOTE_MODE)
+                                    ProcessSyncPacket(pkt, len);
+                                break;
+            case CTRL_PKT_EVENT:
+                                if (getFPPmode() == REMOTE_MODE)
+                                    ProcessEventPacket(pkt, len);
+                                break;
+            case CTRL_PKT_BLANK:
+                                if (getFPPmode() == REMOTE_MODE)
+                                    sequence->SendBlankingData();
+                                break;
+            case CTRL_PKT_PING:
+                                ProcessPingPacket(pkt, len);
+                                break;
+        }
+    }
 }
 
 /*
@@ -1264,14 +1225,14 @@ void MultiSync::SyncSyncedSequence(char *filename, int frameNumber, float second
 	LogExcess(VB_SYNC, "SyncSyncedSequence('%s', %d, %.2f)\n",
 		filename, frameNumber, secondsElapsed);
 
-	if (!sequence->IsSequenceRunning(filename))
-	{
+	if (!sequence->IsSequenceRunning(filename)) {
 		if (sequence->OpenSequenceFile(filename))
 			sequence->SeekSequenceFile(frameNumber);
 	}
 
-	if (sequence->IsSequenceRunning(filename))
+    if (sequence->IsSequenceRunning(filename)) {
 		UpdateMasterPosition(frameNumber);
+    }
 }
 
 /*
@@ -1281,8 +1242,7 @@ void MultiSync::StartSyncedMedia(char *filename)
 {
 	LogDebug(VB_SYNC, "StartSyncedMedia(%s)\n", filename);
 
-	if (mediaOutput)
-	{
+	if (mediaOutput) {
 		LogDebug(VB_SYNC, "Start media %s received while playing media %s\n",
 			filename, mediaOutput->m_mediaFilename.c_str());
 
@@ -1305,18 +1265,14 @@ void MultiSync::StopSyncedMedia(char *filename)
 
 	int stopSyncedMedia = 0;
 
-	if (!strcmp(mediaOutput->m_mediaFilename.c_str(), filename))
-	{
+	if (!strcmp(mediaOutput->m_mediaFilename.c_str(), filename)) {
 		stopSyncedMedia = 1;
-	}
-	else
-	{
+	} else {
 		char tmpFile[1024];
 		strcpy(tmpFile, filename);
 
 		int filenameLen = strlen(filename);
-		if (filenameLen > 4)
-		{
+		if (filenameLen > 4) {
 			if ((!strcmp(&tmpFile[filenameLen - 4], ".mp3")) ||
 				(!strcmp(&tmpFile[filenameLen - 4], ".ogg")) ||
 				(!strcmp(&tmpFile[filenameLen - 4], ".m4a")))
@@ -1333,8 +1289,7 @@ void MultiSync::StopSyncedMedia(char *filename)
 		}
 	}
 
-	if (stopSyncedMedia)
-	{
+	if (stopSyncedMedia) {
 		LogDebug(VB_SYNC, "Stopping synced media: %s\n", mediaOutput->m_mediaFilename.c_str());
 		CloseMediaOutput();
 	}
@@ -1348,15 +1303,13 @@ void MultiSync::SyncSyncedMedia(char *filename, int frameNumber, float secondsEl
 	LogExcess(VB_SYNC, "SyncSyncedMedia('%s', %d, %.2f)\n",
 		filename, frameNumber, secondsElapsed);
 
-	if (!mediaOutput)
-	{
+	if (!mediaOutput) {
 		LogExcess(VB_SYNC, "Received sync for media %s but no media playing\n",
 			filename);
 		return;
 	}
 
-	if (!strcmp(mediaOutput->m_mediaFilename.c_str(), filename))
-	{
+	if (!strcmp(mediaOutput->m_mediaFilename.c_str(), filename)) {
 		UpdateMasterMediaPosition(secondsElapsed);
 	}
 }
@@ -1366,8 +1319,6 @@ void MultiSync::SyncSyncedMedia(char *filename, int frameNumber, float secondsEl
  */
 void MultiSync::ProcessSyncPacket(ControlPkt *pkt, int len)
 {
-	LogDebug(VB_SYNC, "ProcessSyncPacket()\n");
-
 	if (pkt->extraDataLen < sizeof(SyncPkt)) {
 		LogErr(VB_SYNC, "Error: Invalid length of received sync packet\n");
 		HexDump("Received data:", (void*)&pkt, len);
@@ -1376,13 +1327,12 @@ void MultiSync::ProcessSyncPacket(ControlPkt *pkt, int len)
 
 	SyncPkt *spkt = (SyncPkt*)(((char*)pkt) + sizeof(ControlPkt));
 
-	spkt->pktType     = spkt->pktType;
-	spkt->frameNumber = spkt->frameNumber;
+    LogDebug(VB_SYNC, "ProcessSyncPacket()   type: %d   filetype: %d   frameNumber: %d\n",
+             spkt->pktType, spkt->fileType, spkt->frameNumber);
 
 	float secondsElapsed = 0.0;
 
-	if (spkt->fileType == SYNC_FILE_SEQ)
-	{
+	if (spkt->fileType == SYNC_FILE_SEQ) {
 		switch (spkt->pktType) {
 			case SYNC_PKT_START: StartSyncedSequence(spkt->filename);
 								 break;
@@ -1396,9 +1346,7 @@ void MultiSync::ProcessSyncPacket(ControlPkt *pkt, int len)
 									spkt->frameNumber, secondsElapsed);
 								 break;
 		}
-	}
-	else if (spkt->fileType == SYNC_FILE_MEDIA)
-	{
+	} else if (spkt->fileType == SYNC_FILE_MEDIA) {
 		switch (spkt->pktType) {
 			case SYNC_PKT_START: StartSyncedMedia(spkt->filename);
 								 break;

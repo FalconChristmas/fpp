@@ -213,7 +213,15 @@ class MultiSync {
     struct iovec m_destIovecCSV;
     std::vector<struct mmsghdr> m_destMsgsCSV;
 	std::vector<struct sockaddr_in> m_destAddrCSV;
-
+    
+    
+    #define MAX_MS_RCV_MSG 4
+    #define MAX_MS_RCV_BUFSIZE 1500
+    struct mmsghdr rcvMsgs[MAX_MS_RCV_MSG];
+    struct iovec rcvIovecs[MAX_MS_RCV_MSG];
+    unsigned char rcvBuffers[MAX_MS_RCV_MSG][MAX_MS_RCV_BUFSIZE+1];
+    unsigned char rcvCmbuf[MAX_MS_RCV_MSG][0x100];
+    struct sockaddr_storage rcvSrcAddr[MAX_MS_RCV_MSG];
 };
 
 extern MultiSync *multiSync;

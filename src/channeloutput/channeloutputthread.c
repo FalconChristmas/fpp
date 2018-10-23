@@ -107,11 +107,12 @@ void *RunChannelOutputThread(void *data)
 	int onceMore = 0;
 	struct timespec ts;
     struct timeval tv;
-	int syncFrameCounter = 0;
+	int syncFrameCounter = 99; //set high so first frame sends sync immediately
 
 	LogDebug(VB_CHANNELOUT, "RunChannelOutputThread() starting\n");
 
 	ThreadIsRunning = 1;
+    StartOutputThreads();
 
 	if ((getFPPmode() == REMOTE_MODE) &&
 		(!IsEffectRunning()) &&
@@ -132,29 +133,23 @@ void *RunChannelOutputThread(void *data)
 			RunThread = 0;
 	}
 
-	StartOutputThreads();
     pthread_mutex_lock(&outputThreadLock);
 
-	while (RunThread)
-	{
+	while (RunThread) {
 		startTime = GetTime();
 
 		if ((getFPPmode() == MASTER_MODE) &&
-			(sequence->IsSequenceRunning()))
-		{
-                        // send sync every 16 frames except for every 4 frames for first 32
-                        // to help speed up the initial syncs
-                        int syncFrameCounterMax = channelOutputFrame < 32 ? 4 : 16;
-			if (syncFrameCounter >= syncFrameCounterMax)
-			{
+			(sequence->IsSequenceRunning())) {
+            // send sync every 16 frames except for every 4 frames for first 32
+             // to help speed up the initial syncs
+            int syncFrameCounterMax = channelOutputFrame < 32 ? 4 : 16;
+			if (syncFrameCounter >= syncFrameCounterMax) {
 				syncFrameCounter = 1;
 				multiSync->SendSeqSyncPacket(
 					sequence->m_seqFilename, channelOutputFrame,
 					(mediaElapsedSeconds > 0) ? mediaElapsedSeconds
 						: 1.0 * channelOutputFrame / RefreshRate );
-			}
-			else
-			{
+			} else {
 				syncFrameCounter++;
 			}
 		}
