@@ -226,13 +226,6 @@ wget -O ./FPP-Wifi-Drivers.sh  http://raw.githubusercontent.com/FalconChristmas/
 chmod +x FPP-Wifi-Drivers.sh
 ./FPP-Wifi-Drivers.sh
 
-# blacklist the kernel as we use the RTL drivers by default on BBB
-echo "blacklist rtl8192cu" > /etc/modprobe.d/blacklist-native-wifi.conf
-echo "blacklist rtl8192c_common" >> /etc/modprobe.d/blacklist-native-wifi.conf
-echo "blacklist rtlwifi" >> /etc/modprobe.d/blacklist-native-wifi.conf
-echo "blacklist rtl8xxxu" >> /etc/modprobe.d/blacklist-native-wifi.conf
-
-
 
 cd /root
 wget -O ./FPP_Install_BBB.sh  http://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install_BBB.sh

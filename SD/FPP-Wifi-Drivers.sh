@@ -82,13 +82,17 @@ rm -f /etc/modprobe.d/rtl8723bu-blacklist.conf
 cd /opt
 rm -rf /opt/wifi
 
-echo "options 8192cu rtw_power_mgnt=0" > /etc/modprobe.d/wifi-disable-power-management.conf
-echo "options 8192eu rtw_power_mgnt=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
-echo "options 8723au rtw_power_mgnt=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
-echo "options 8723bu rtw_power_mgnt=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
-echo "options 8812au rtw_power_mgnt=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
-echo "options 8821au rtw_power_mgnt=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
-echo "options 8814au rtw_power_mgnt=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
-echo "options 8822bu rtw_power_mgnt=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
-echo "options rtl8812au rtw_power_mgnt=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
+echo "options 8192cu rtw_power_mgnt=0 rtw_enusbss=0" > /etc/modprobe.d/wifi-disable-power-management.conf
+echo "options 8192eu rtw_power_mgnt=0 rtw_enusbss=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
+echo "options 8723au rtw_power_mgnt=0 rtw_enusbss=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
+echo "options 8723bu rtw_power_mgnt=0 rtw_enusbss=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
+echo "options 8812au rtw_power_mgnt=0 rtw_enusbss=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
+echo "options 8821au rtw_power_mgnt=0 rtw_enusbss=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
+echo "options 8814au rtw_power_mgnt=0 rtw_enusbss=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
+echo "options 8822bu rtw_power_mgnt=0 rtw_enusbss=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
+echo "options rtl8812au rtw_power_mgnt=0 rtw_enusbss=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
 
+echo "blacklist rtl8192cu" > /etc/modprobe.d/blacklist-native-wifi.conf
+echo "blacklist rtl8192c_common" >> /etc/modprobe.d/blacklist-native-wifi.conf
+echo "blacklist rtlwifi" >> /etc/modprobe.d/blacklist-native-wifi.conf
+echo "blacklist rtl8xxxu" >> /etc/modprobe.d/blacklist-native-wifi.conf

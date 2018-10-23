@@ -12,10 +12,7 @@ $wifiDrivers = Array();
 $wifiDrivers['External'] = "External";
 $wifiDrivers['Linux Kernel'] = "Kernel";
     
-$defaultWifiDrivers = "Kernel";
-if ($settings['Platform'] == "BeagleBone Black") {
-    $defaultWifiDrivers = "External";
-}
+$defaultWifiDrivers = "External";
 if ($settings['wifiDrivers'] == "Realtek") {
     $settings['wifiDrivers'] == "External";
 }
@@ -402,15 +399,21 @@ function setHostDescription() {
       <div id="InterfaceSettings">
       <fieldset class="fs">
           <legend> Interface Settings</legend>
+<?php
+if (file_exists("/etc/modprobe.d/wifi-disable-power-management.conf")) {
+?>
 <table>
 <tr>
 <td width = "45%">WIFI Drivers:</td>
 <td width = "55%">
-<? PrintSettingSelect("WIFI Drivers", "wifiDrivers", 0, 1, isset($settings['wifiDrivers']) ? $settings['wifiDrivers'] : $defaultWifiDrivers, $wifiDrivers, "", "reloadPage"); ?>
+<?php PrintSettingSelect("WIFI Drivers", "wifiDrivers", 0, 1, isset($settings['wifiDrivers']) ? $settings['wifiDrivers'] : $defaultWifiDrivers, $wifiDrivers, "", "reloadPage"); ?>
 </td>
 </tr>
 </table>
 <br>
+<?
+}
+?>
 
           Select an interface name to configure the network information for that interface.<br><br>
           <table width = "100%" border="0" cellpadding="1" cellspacing="1">
