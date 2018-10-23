@@ -536,7 +536,7 @@ case "${FPPPLATFORM}" in
 			wget -O- https://raw.githubusercontent.com/FalconChristmas/fpp/master/external/omxplayer/FPP_omxplayer.diff | patch -p1
 			./prepare-native-raspbian.sh
 			make omxplayer.bin
-            cp omxplayer.bin 
+            cp omxplayer.bin /usr/bin/omxplayer.bin
 			cd ..
 			rm -rf /opt/omxplayer
 		else
