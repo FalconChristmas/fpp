@@ -52,7 +52,7 @@ On the Pi, run the FPP installer:
 	wget -O ./FPP_Install.sh \
 		http://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
 	chmod 700 ./FPP_Install.sh
-	sudo ./FPP_Install.sh
+	sudo ./FPP_Install.sh --build-omxplayer
 
 This will install FPP and perform all required changes to the root filesystem
 and add the FPP user, install required packages, etc.
@@ -63,7 +63,13 @@ up.
 	su - fpp
 	sudo shutdown -r now
 
-If you are installing to create a SD image zip, run the following commands:
+If you are installing to create a SD image zip, do the following:
+    If you did the above on a armv7 Pi, you will need to boot the new image up
+    on a armv6 device (or vice versa) to compile the Wifi drivers for the other
+    architecture/kernel.  Boot up and then run:
+    cd /opt/fpp/SD
+    sudo ./FPP-Wifi-Drivers.sh
+
 
 	# Reboot to make sure things take
 	sudo shutdown -r now
