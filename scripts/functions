@@ -68,6 +68,7 @@ SetupFPPNetworkConfigViaConnMann() {
 
     CONFIGS=`ls ${FPPHOME}/media/config/interface.w*; ls ${FPPHOME}/media/config/interface.e*`
 
+    DEFGW="none"
     DNS1=""
     DNS2=""
     if [ -f "${FPPHOME}/media/config/dns" ]
@@ -128,12 +129,13 @@ SetupFPPNetworkConfigViaConnMann() {
             fi
         else
             if [ "x$GATEWAY" != "x" ]; then
+		DEFGW="$GATEWAY"
                 echo "IPv4=$ADDRESS/$NETMASK/$GATEWAY" >> $TMPFILE
                 if [ "x$DNS" != "x" ]; then
                     echo "Nameservers=${DNS}" >> $TMPFILE
                 fi
             else
-                echo "IPv4=$ADDRESS/$NETMASK/none" >> $TMPFILE
+                echo "IPv4=$ADDRESS/$NETMASK/$DEFGW" >> $TMPFILE
             fi
         fi
         echo ""  >> $TMPFILE

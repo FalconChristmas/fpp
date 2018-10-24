@@ -308,9 +308,10 @@ void omxplayerOutput::PollPlayerInfo(void)
 	}
 	if(FD_ISSET(m_childPipe[0], &m_readFDSet))
 	{
- 		bytesRead = read(m_childPipe[0], m_omxBuffer, MAX_BYTES_OMX);
+ 		bytesRead = read(m_childPipe[0], m_omxBuffer, MAX_BYTES_OMX - 1);
 		if (bytesRead > 0) 
 		{
+            m_omxBuffer[bytesRead] = 0;
 			ProcessPlayerData(bytesRead);
 		} 
 	}

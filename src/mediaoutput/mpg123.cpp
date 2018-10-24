@@ -458,18 +458,16 @@ void mpg123Output::PollMusicInfo(void)
 	mpg123_timeout.tv_sec = 0;
 	mpg123_timeout.tv_usec = 5;
 
-	if(select(FD_SETSIZE, &m_readFDSet, NULL, NULL, &mpg123_timeout) < 0)
-	{
+	if(select(FD_SETSIZE, &m_readFDSet, NULL, NULL, &mpg123_timeout) < 0) {
 	 	LogErr(VB_MEDIAOUT, "Error Select:%d\n",errno);
 
 		Stop(); // Kill the child if we can't read from the pipe
 	 	return; 
 	}
-	if(FD_ISSET(m_childPipe[MEDIAOUTPUTPIPE_READ], &m_readFDSet))
-	{
-		bytesRead = read(m_childPipe[MEDIAOUTPUTPIPE_READ], m_mp3Buffer, MAX_BYTES_MP3);
-		if (bytesRead > 0) 
-		{
+	if(FD_ISSET(m_childPipe[MEDIAOUTPUTPIPE_READ], &m_readFDSet)) {
+		bytesRead = read(m_childPipe[MEDIAOUTPUTPIPE_READ], m_mp3Buffer, MAX_BYTES_MP3 - 1);
+		if (bytesRead > 0)  {
+            m_mp3Buffer[bytesRead] = 0;
 		    ProcessMP3Data(bytesRead);
 		}
 	}
