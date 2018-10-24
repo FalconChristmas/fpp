@@ -226,6 +226,8 @@ wget -O ./FPP-Wifi-Drivers.sh  http://raw.githubusercontent.com/FalconChristmas/
 chmod +x FPP-Wifi-Drivers.sh
 ./FPP-Wifi-Drivers.sh
 
+rm /etc/modprobe.d/rtl8723bu-blacklist.conf
+
 
 cd /root
 wget -O ./FPP_Install_BBB.sh  http://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install_BBB.sh
@@ -242,12 +244,12 @@ nano /home/fpp/.bashrc
 
 #place 4G SD card in sd slot
 # zero out everything unused so compressing the image will work better
-dd if=/dev/zero of=/dev/mmcblk0 bs=1M status=progress
+dd if=/dev/zero of=/dev/mmcblk0 bs=1M status=progress count=3500
 /opt/fpp/SD/BBB-FlashMMC.sh -s 2800M -noreboot ext4 /dev/mmcblk0
 rmdir /tmp/rootfs
 
 #place second in slot
-dd if=/dev/zero of=/dev/mmcblk0 bs=1M status=progress
+dd if=/dev/zero of=/dev/mmcblk0 bs=1M status=progress count=3000
 /opt/fpp/SD/BBB-FlashMMC.sh -s 1750M -noreboot btrfs /dev/mmcblk0
 
 
