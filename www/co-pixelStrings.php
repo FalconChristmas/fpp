@@ -232,8 +232,11 @@ function pixelOutputTableRow(type, oid, port, sid, description, startChannel, pi
     result += "<td><input type='text' class='vsDescription' size='30' value='" + description + "'></td>";
     result += "<td><input type='text' class='vsStartChannel' size='6' value='" + startChannel + "' onChange='updateItemEndChannel(this);' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
     result += "<td><input type='text' class='vsPixelCount' size='4' value='" + pixelCount + "' onChange='updateItemEndChannel(this);' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
-    result += "<td><input type='text' class='vsGroupCount' size='3' value='" + groupCount + "'></td>";
-    result += "<td align='center' class='vsEndChannel'>" + (startChannel + (pixelCount * colorOrder.length) - 1) + "</td>";
+    result += "<td><input type='text' class='vsGroupCount' size='3' value='" + groupCount + "' onChange='updateItemEndChannel(this);'></td>";
+    if (groupCount == 0) {
+        groupCount = 1;
+    }
+    result += "<td align='center' class='vsEndChannel'>" + (startChannel + (pixelCount * colorOrder.length)/groupCount - 1) + "</td>";
     result += pixelOutputTableInputDirection(reverse);
     result += pixelOutputTableInputOrder(colorOrder);
     result += "<td><input type='text' class='vsNullNodes' size='2' value='" + nullCount + "'></td>";
@@ -253,14 +256,20 @@ function setPixelStringsStartChannelOnNextRow()
         var nextRow = row.closest('tr').next('tr');
         var startChannel = parseInt(row.find('.vsStartChannel').val());
         var pixelCount = parseInt(row.find('.vsPixelCount').val());
-        var nextStart = startChannel + (3 * pixelCount);
-        var nextEnd = nextStart + (parseInt(nextRow.find('.vsPixelCount').val()) * 3) - 1;
+        var groupCount = parseInt(row.find('.vsGroupCount').val());
+        if (groupCount == 0) {
+            groupCount = 1;
+        }
+        var pixelType = row.find('.vsColorOrder').val();
+        var chanPerNode = pixelType.length;
+        var nextStart = startChannel + (chanPerNode * pixelCount)/groupCount;
         
         $('#pixelOutputs table tr').removeClass('selectedEntry');
         
         nextRow.find('.vsStartChannel').val(nextStart);
-        nextRow.find('.vsEndChannel').html(nextEnd);
         nextRow.addClass('selectedEntry');
+        updateRowEndChannel(nextRow);
+        
         selectedPixelStringRowId = nextRow.attr('id');
     }
 }
@@ -268,9 +277,17 @@ function setPixelStringsStartChannelOnNextRow()
 function updateRowEndChannel(row) {
     var startChannel = parseInt(row.find('.vsStartChannel').val());
     var pixelCount = parseInt(row.find('.vsPixelCount').val());
+    var groupCount = parseInt(row.find('.vsGroupCount').val());
     var pixelType = row.find('.vsColorOrder').val();
     var chanPerNode = pixelType.length;
-    var newEnd = startChannel + (chanPerNode * pixelCount) - 1;
+    
+    if (groupCount == 0) {
+        groupCount = 1;
+    }
+    var newEnd = startChannel + (chanPerNode * pixelCount)/groupCount - 1;
+    if (pixelCount == 0) {
+        newEnd = 0;
+    }
     
     row.find('.vsEndChannel').html(newEnd);
 }
