@@ -149,7 +149,7 @@ int USBDMXOutput::Init(char *configStr)
 		m_dmxFooter[0] = 0xE7;
 	}
 	
-	return ChannelOutputBase::Init(configStr);
+	return ThreadedChannelOutputBase::Init(configStr);
 }
 
 /*
@@ -161,7 +161,7 @@ int USBDMXOutput::Close(void)
 
 	SerialClose(m_fd);
 
-	return ChannelOutputBase::Close();
+	return ThreadedChannelOutputBase::Close();
 }
 
 /*
@@ -222,6 +222,6 @@ void USBDMXOutput::DumpConfig(void)
 	LogDebug(VB_CHANNELOUT, "    Device Name: %s\n", m_deviceName.c_str());
 	LogDebug(VB_CHANNELOUT, "    fd         : %d\n", m_fd);
 
-	ChannelOutputBase::DumpConfig();
+    ThreadedChannelOutputBase::DumpConfig();
 }
 

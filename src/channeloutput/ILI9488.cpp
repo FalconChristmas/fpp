@@ -125,7 +125,7 @@ int ILI9488Output::Init(Json::Value config)
 
 	ILI9488_Init();
 
-	return ChannelOutputBase::Init(config);
+	return ThreadedChannelOutputBase::Init(config);
 }
 
 /*
@@ -137,7 +137,7 @@ int ILI9488Output::Close(void)
 
 	ILI9488_Cleanup();
 
-	return ChannelOutputBase::Close();
+	return ThreadedChannelOutputBase::Close();
 }
 
 /*
@@ -196,7 +196,7 @@ void ILI9488Output::DumpConfig(void)
 	LogDebug(VB_CHANNELOUT, "    Rows   : %d\n", m_rows);
 	LogDebug(VB_CHANNELOUT, "    Pixels : %d\n", m_pixels);
 
-	ChannelOutputBase::DumpConfig();
+	ThreadedChannelOutputBase::DumpConfig();
 }
 
 /*

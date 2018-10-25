@@ -128,7 +128,7 @@ int GPIO595Output::Init(char *configStr)
 	pinMode(m_dataPin,  OUTPUT);
 	pinMode(m_latchPin, OUTPUT);
 
-	return ChannelOutputBase::Init(configStr);
+	return ThreadedChannelOutputBase::Init(configStr);
 }
 
 /*
@@ -138,7 +138,7 @@ int GPIO595Output::Close(void)
 {
 	LogDebug(VB_CHANNELOUT, "GPIO595Output::Close()\n");
 
-	return ChannelOutputBase::Close();
+	return ThreadedChannelOutputBase::Close();
 }
 
 /*
@@ -184,6 +184,6 @@ void GPIO595Output::DumpConfig(void)
 	LogDebug(VB_CHANNELOUT, "    Data Pin : %d\n", m_dataPin);
 	LogDebug(VB_CHANNELOUT, "    Latch Pin: %d\n", m_latchPin);
 
-	ChannelOutputBase::DumpConfig();
+	ThreadedChannelOutputBase::DumpConfig();
 }
 

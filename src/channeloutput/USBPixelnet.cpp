@@ -140,7 +140,7 @@ int USBPixelnetOutput::Init(char *configStr)
 		m_outputPacketSize = 4102;
 	}
 
-	return ChannelOutputBase::Init(configStr);
+	return ThreadedChannelOutputBase::Init(configStr);
 }
 
 
@@ -159,7 +159,7 @@ int USBPixelnetOutput::Close(void)
 	SerialClose(m_fd);
 	m_fd = -1;
 
-	return ChannelOutputBase::Close();
+	return ThreadedChannelOutputBase::Close();
 }
 
 /*
@@ -196,6 +196,6 @@ void USBPixelnetOutput::DumpConfig(void)
 	LogDebug(VB_CHANNELOUT, "    fd                : %d\n", m_fd);
 	LogDebug(VB_CHANNELOUT, "    Output Packet Size: %d\n", m_outputPacketSize);
 
-	ChannelOutputBase::DumpConfig();
+	ThreadedChannelOutputBase::DumpConfig();
 }
 

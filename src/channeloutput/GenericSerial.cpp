@@ -131,7 +131,7 @@ int GenericSerialOutput::Init(char *configStr)
 		return 0;
 	}
 
-	return ChannelOutputBase::Init(configStr);
+	return ThreadedChannelOutputBase::Init(configStr);
 }
 
 void GenericSerialOutput::GetRequiredChannelRange(int &min, int & max) {
@@ -150,7 +150,7 @@ int GenericSerialOutput::Close(void)
 
 	delete [] m_data;
 
-	return ChannelOutputBase::Close();
+	return ThreadedChannelOutputBase::Close();
 }
 
 /*
@@ -186,6 +186,6 @@ void GenericSerialOutput::DumpConfig(void)
 	LogDebug(VB_CHANNELOUT, "    Footer     : '%s'\n", m_footer.c_str());
 	LogDebug(VB_CHANNELOUT, "    Packet Size: %d\n", m_packetSize);
 
-	ChannelOutputBase::DumpConfig();
+	ThreadedChannelOutputBase::DumpConfig();
 }
 

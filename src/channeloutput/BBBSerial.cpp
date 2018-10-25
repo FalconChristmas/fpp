@@ -266,7 +266,7 @@ int BBBSerialOutput::Init(Json::Value config)
         }
     }
     memcpy(m_lastData, m_curData, m_outputs * sz);
-    return ChannelOutputBase::Init(config);
+    return ThreadedChannelOutputBase::Init(config);
 }
 
 void BBBSerialOutput::GetRequiredChannelRange(int &min, int & max) {
@@ -298,7 +298,7 @@ int BBBSerialOutput::Close(void)
     configurePRUPins(0, 8, "gpio");
 
     LogDebug(VB_CHANNELOUT, "BBBSerialOutput::Close() done\n");
-    return ChannelOutputBase::Close();
+    return ThreadedChannelOutputBase::Close();
 }
 
 /*
@@ -393,7 +393,7 @@ void BBBSerialOutput::DumpConfig(void)
                  m_pixelnet ? 4096 : 512);
     }
 
-    ChannelOutputBase::DumpConfig();
+    ThreadedChannelOutputBase::DumpConfig();
 }
 
 

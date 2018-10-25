@@ -81,7 +81,7 @@ int OLAOutput::Init(Json::Value config)
 
 	ola::InitLogging(ola::OLA_LOG_WARN, ola::OLA_LOG_STDERR);
 
-	return ChannelOutputBase::Init(config);
+	return ThreadedChannelOutputBase::Init(config);
 }
 
 /*
@@ -94,7 +94,7 @@ int OLAOutput::Close(void)
 	delete m_client;
 	m_client = NULL;
 
-	return ChannelOutputBase::Close();
+	return ThreadedChannelOutputBase::Close();
 }
 
 /*
@@ -140,6 +140,6 @@ void OLAOutput::DumpConfig(void)
 		LogDebug(VB_CHANNELOUT, "        Channel Count: %d\n", u.channelCount);
 	}
 
-	ChannelOutputBase::DumpConfig();
+	ThreadedChannelOutputBase::DumpConfig();
 }
 

@@ -122,7 +122,7 @@ int SPIws2801Output::Init(char *configStr)
 		return 0;
 	}
 
-	return ChannelOutputBase::Init(configStr);
+	return ThreadedChannelOutputBase::Init(configStr);
 }
 
 
@@ -133,7 +133,7 @@ int SPIws2801Output::Close(void)
 {
 	LogDebug(VB_CHANNELOUT, "SPIws2801Output::Close()\n");
 
-	return ChannelOutputBase::Close();
+	return ThreadedChannelOutputBase::Close();
 }
 void SPIws2801Output::GetRequiredChannelRange(int &min, int & max) {
     min = m_startChannel;
@@ -180,6 +180,6 @@ void SPIws2801Output::DumpConfig(void)
 
 	LogDebug(VB_CHANNELOUT, "    port    : %d\n", m_port);
 
-	ChannelOutputBase::DumpConfig();
+	ThreadedChannelOutputBase::DumpConfig();
 }
 

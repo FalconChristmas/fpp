@@ -237,7 +237,7 @@ int VirtualDisplayOutput::Init(Json::Value config)
 		}
 	}
 
-	return ChannelOutputBase::Init(config);
+	return ThreadedChannelOutputBase::Init(config);
 }
 
 
@@ -398,5 +398,6 @@ void VirtualDisplayOutput::DumpConfig(void)
 	LogDebug(VB_CHANNELOUT, "    color Order   : %s\n", m_colorOrder.c_str());
 	LogDebug(VB_CHANNELOUT, "    pixel count   : %d\n", m_pixels.size());
 	LogDebug(VB_CHANNELOUT, "    pixel size    : %d\n", m_pixelSize);
+    ThreadedChannelOutputBase::DumpConfig();
 }
 

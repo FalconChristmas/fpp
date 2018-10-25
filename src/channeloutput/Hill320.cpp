@@ -143,7 +143,7 @@ int Hill320Output::Init(Json::Value config)
 	wiringPiI2CWriteReg8(m_fd, MCP23x17_IODIRA, 0b00000000);
 	wiringPiI2CWriteReg8(m_fd, MCP23x17_IODIRB, 0b00000000);
 
-	return ChannelOutputBase::Init(config);
+	return ThreadedChannelOutputBase::Init(config);
 }
 
 /*
@@ -153,7 +153,7 @@ int Hill320Output::Close(void)
 {
 	LogDebug(VB_CHANNELOUT, "Hill320Output::Close()\n");
 
-	return ChannelOutputBase::Close();
+	return ThreadedChannelOutputBase::Close();
 }
 
 /*
@@ -243,6 +243,6 @@ void Hill320Output::DumpConfig(void)
 	LogDebug(VB_CHANNELOUT, "    fd      : %d\n", m_fd);
 	LogDebug(VB_CHANNELOUT, "    BoxCount: %d\n", m_boxCount);
 
-	ChannelOutputBase::DumpConfig();
+	ThreadedChannelOutputBase::DumpConfig();
 }
 
