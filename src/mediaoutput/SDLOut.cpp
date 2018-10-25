@@ -677,6 +677,11 @@ SDLOutput::SDLOutput(const std::string &mediaFilename,
     m_mediaOutputStatus = status;
     m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
     
+    
+    m_mediaOutputStatus->mediaSeconds = 0.0;
+    m_mediaOutputStatus->secondsElapsed = 0;
+    m_mediaOutputStatus->subSecondsElapsed = 0;
+    
     if (sdlManager.blacklisted.find(mediaFilename) != sdlManager.blacklisted.end()) {
         currentMediaFilename = "";
         LogErr(VB_MEDIAOUT, "%s has been blacklisted!\n", mediaFilename.c_str());
@@ -753,6 +758,9 @@ SDLOutput::SDLOutput(const std::string &mediaFilename,
     m_mediaOutputStatus->secondsTotal = secs;
     m_mediaOutputStatus->minutesTotal = mins;
     
+    m_mediaOutputStatus->secondsRemaining = mins * 60 + secs;
+    m_mediaOutputStatus->subSecondsRemaining = 0;
+
     if (data->audio_stream_idx != -1) {
         int64_t in_channel_layout = av_get_default_channel_layout(data->audioCodecContext->channels);
 
