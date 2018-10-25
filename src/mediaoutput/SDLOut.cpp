@@ -196,7 +196,8 @@ public:
     
     
     bool doneRead;
-    std::atomic_uint curPos;
+    unsigned int curPos;
+    std::mutex curPosLock;
     
     void addVideoFrame(int ms, uint8_t *d, int sz) {
         VideoFrame *f = new VideoFrame(ms, d, sz);
@@ -229,16 +230,20 @@ public:
         }
         if (audioDev == 0) {
             //no audio device, clear the audio buffer
+            curPosLock.lock();
             curPos += outBufferPos;
             outBufferPos = 0;
+            curPosLock.unlock();
             return retVal >= 0 ? retVal : 2;
         }
         unsigned int queue = SDL_GetQueuedAudioSize(audioDev);
         //if we have data and are either below the queue threshold or we've finished reading
         if (outBufferPos && ((queue < ALSA_MIN_QUEUED_SIZE) || doneRead)) {
+            curPosLock.lock();
             SDL_QueueAudio(audioDev, outBuffer, outBufferPos);
             curPos += outBufferPos;
             outBufferPos = 0;
+            curPosLock.unlock();
             queue = SDL_GetQueuedAudioSize(audioDev);
         }
         if (retVal >= 0) {
@@ -438,10 +443,12 @@ public:
         if (_state != SDLSTATE::SDLINITIALISED && _state != SDLSTATE::SDLUNINITIALISED) {
             data = d;
             if (audioDev) {
+                data->curPosLock.lock();
                 SDL_ClearQueuedAudio(audioDev);
                 SDL_QueueAudio(audioDev, data->outBuffer, data->outBufferPos);
                 data->curPos = data->outBufferPos;
                 data->outBufferPos = 0;
+                data->curPosLock.unlock();
                 SDL_PauseAudioDevice(audioDev, 0);
             } else {
                 data->curPos = 0;
@@ -859,8 +866,10 @@ int SDLOutput::Process(void)
     
     if (data->audio_stream_idx != -1 && data->audioDev) {
         //if we have an audio stream, that drives everything
+        data->curPosLock.lock();
         float qas = SDL_GetQueuedAudioSize(data->audioDev);
         long cp = data->curPos;
+        data->curPosLock.unlock();
         float curtime = cp - qas;
         curtime -= (DEFAULT_NUM_SAMPLES * 2);
         
