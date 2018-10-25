@@ -859,7 +859,11 @@ int SDLOutput::Process(void)
     
     if (data->audio_stream_idx != -1 && data->audioDev) {
         //if we have an audio stream, that drives everything
-        float curtime = data->curPos - SDL_GetQueuedAudioSize(data->audioDev) - (DEFAULT_NUM_SAMPLES * 2);
+        float qas = SDL_GetQueuedAudioSize(data->audioDev);
+        long cp = data->curPos;
+        float curtime = cp - qas;
+        curtime -= (DEFAULT_NUM_SAMPLES * 2);
+        
         if (curtime < 0) curtime = 0;
 
         if (lastCurTime == curtime) {
@@ -931,10 +935,9 @@ int SDLOutput::Process(void)
         }
     }
     
-    if ((sequence->IsSequenceRunning()) &&
-        (m_mediaOutputStatus->secondsElapsed > 0)) {
+    if (sequence->IsSequenceRunning()) {
         LogExcess(VB_MEDIAOUT,
-                  "Elapsed: %.2d.%.2d  Remaining: %.2d Total %.2d:%.2d.\n",
+                  "Elapsed: %.2d.%.3d  Remaining: %.2d Total %.2d:%.2d.\n",
                   m_mediaOutputStatus->secondsElapsed,
                   m_mediaOutputStatus->subSecondsElapsed,
                   m_mediaOutputStatus->secondsRemaining,

@@ -38,6 +38,7 @@ class PlaylistEntryMedia : public PlaylistEntryBase {
 
 	int  Init(Json::Value &config);
 
+    int  PreparePlay();
 	int  StartPlaying(void);
 	int  Process(void);
 	int  Stop(void);

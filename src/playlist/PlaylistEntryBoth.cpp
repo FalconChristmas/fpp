@@ -82,7 +82,7 @@ int PlaylistEntryBoth::StartPlaying(void)
 		return 0;
 	}
 
-    if (m_mediaEntry && !m_mediaEntry->StartPlaying()) {
+    if (m_mediaEntry && !m_mediaEntry->PreparePlay()) {
         delete m_mediaEntry;
 		m_mediaEntry = nullptr;
     }
@@ -97,6 +97,12 @@ int PlaylistEntryBoth::StartPlaying(void)
         }
 		return 0;
 	}
+    if (m_mediaEntry && !m_mediaEntry->StartPlaying()) {
+        delete m_mediaEntry;
+        m_mediaEntry = nullptr;
+        m_sequenceEntry->Stop();
+        return 0;
+    }
 
 	return PlaylistEntryBase::StartPlaying();
 }

@@ -92,6 +92,23 @@ int PlaylistEntryMedia::Init(Json::Value &config)
 	return PlaylistEntryBase::Init(config);
 }
 
+
+int PlaylistEntryMedia::PreparePlay() {
+    LogDebug(VB_PLAYLIST, "PlaylistEntryMedia::StartPlaying()\n");
+    
+    if (!CanPlay()) {
+        FinishPlay();
+        return 0;
+    }
+    
+    if (!OpenMediaOutput()) {
+        FinishPlay();
+        return 0;
+    }
+    return 1;
+}
+
+
 /*
  *
  */
@@ -99,22 +116,36 @@ int PlaylistEntryMedia::StartPlaying(void)
 {
     LogDebug(VB_PLAYLIST, "PlaylistEntryMedia::StartPlaying()\n");
 
-	if (!CanPlay())
-	{
-		FinishPlay();
-		return 0;
-	}
-
-    if (!OpenMediaOutput()) {
-        FinishPlay();
+    if (m_mediaOutput == nullptr) {
+        if (PreparePlay() == 0) {
+            return 0;
+        }
+    }
+    if (m_mediaOutput == nullptr) {
         return 0;
     }
 
 	if (mqtt)
 		mqtt->Publish("playlist/media/status", m_mediaFilename);
 
-	ParseMedia(m_mediaFilename.c_str());
 	pluginCallbackManager.mediaCallback();
+
+    pthread_mutex_lock(&m_mediaOutputLock);
+
+    if (getFPPmode() == MASTER_MODE)
+        multiSync->SendMediaSyncStartPacket(m_mediaFilename.c_str());
+    
+    if (!m_mediaOutput->Start()) {
+        LogErr(VB_MEDIAOUT, "Could not start media %s\n", m_mediaOutput->m_mediaFilename.c_str());
+        delete m_mediaOutput;
+        m_mediaOutput = 0;
+        pthread_mutex_unlock(&m_mediaOutputLock);
+        return 0;
+    }
+    
+    mediaOutputStatus.speedDelta = 0;
+    
+    pthread_mutex_unlock(&m_mediaOutputLock);
 
 	return PlaylistEntryBase::StartPlaying();
 }
@@ -302,20 +333,9 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 		return 0;
 	}
 
-	if (getFPPmode() == MASTER_MODE)
-		multiSync->SendMediaSyncStartPacket(m_mediaFilename.c_str());
+    ParseMedia(m_mediaFilename.c_str());
+    pthread_mutex_unlock(&m_mediaOutputLock);
 
-	if (!m_mediaOutput->Start()) {
-        LogErr(VB_MEDIAOUT, "Could not start media %s\n", tmpFile.c_str());
-		delete m_mediaOutput;
-		m_mediaOutput = 0;
-		pthread_mutex_unlock(&m_mediaOutputLock);
-		return 0;
-	}
-
-	mediaOutputStatus.speedDelta = 0;
-
-	pthread_mutex_unlock(&m_mediaOutputLock);
 
 	LogDebug(VB_PLAYLIST, "PlaylistEntryMedia::OpenMediaOutput() - Complete\n");
 

@@ -386,15 +386,14 @@ void CalculateNewChannelOutputDelay(float mediaPosition)
 void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent)
 {
 	int diff = channelOutputFrame - expectedFramesSent;
-        if (diff < -2) {
-            // pretty far behind master, lets just skip forward
-            LogDebug(VB_CHANNELOUT, "Skipping frames - We are at %d, master is at: %d\n", channelOutputFrame, expectedFramesSent);
-            sequence->SeekSequenceFile(expectedFramesSent);
-            LightDelay = DefaultLightDelay;
-            return;
-        }
-	if (diff)
-	{
+    if (diff < -3 && getFPPmode() != MASTER_MODE) {
+        // pretty far behind master, lets just skip forward
+        LogDebug(VB_CHANNELOUT, "Skipping frames - We are at %d, master is at: %d\n", channelOutputFrame, expectedFramesSent);
+        sequence->SeekSequenceFile(expectedFramesSent);
+        LightDelay = DefaultLightDelay;
+        return;
+    }
+	if (diff) {
 		int timerOffset = diff * (DefaultLightDelay / 100);
 		int newLightDelay = LightDelay;
 
@@ -423,9 +422,7 @@ void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent)
 		LogDebug(VB_CHANNELOUT, "LightDelay: %d, newLightDelay: %d,   DiffFrames: %d\n",
 			LightDelay, newLightDelay, diff);
 		LightDelay = newLightDelay;
-	}
-	else if (LightDelay != DefaultLightDelay)
-	{
+	} else if (LightDelay != DefaultLightDelay) {
 		LightDelay = DefaultLightDelay;
 	}
 }
