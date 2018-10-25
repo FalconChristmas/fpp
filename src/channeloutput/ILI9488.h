@@ -26,9 +26,9 @@
 #ifndef _ILI9488_H
 #define _ILI9488_H
 
-#include "ChannelOutputBase.h"
+#include "ThreadedChannelOutputBase.h"
 
-class ILI9488Output : public ChannelOutputBase {
+class ILI9488Output : public ThreadedChannelOutputBase {
   public:
 	ILI9488Output(unsigned int startChannel, unsigned int channelCount);
 	~ILI9488Output();

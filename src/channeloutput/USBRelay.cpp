@@ -147,7 +147,7 @@ int USBRelayOutput::Close(void)
 /*
  *
  */
-int USBRelayOutput::RawSendData(unsigned char *channelData)
+int USBRelayOutput::SendData(unsigned char *channelData)
 {
 	LogExcess(VB_CHANNELOUT, "USBRelayOutput::RawSendData(%p)\n", channelData);
 

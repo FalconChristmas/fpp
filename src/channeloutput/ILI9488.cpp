@@ -83,7 +83,7 @@ const int ILI_dataPins[8] = { ILI_PIN_D1, ILI_PIN_D2, ILI_PIN_D3, ILI_PIN_D4, IL
  *
  */
 ILI9488Output::ILI9488Output(unsigned int startChannel, unsigned int channelCount)
-  : ChannelOutputBase(startChannel, channelCount),
+  : ThreadedChannelOutputBase(startChannel, channelCount),
 	m_initialized(0),
 	m_rows(480),
 	m_cols(320),

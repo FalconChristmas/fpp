@@ -26,9 +26,9 @@
 #ifndef _GPIO595_H
 #define _GPIO595_H
 
-#include "ChannelOutputBase.h"
+#include "ThreadedChannelOutputBase.h"
 
-class GPIO595Output : public ChannelOutputBase {
+class GPIO595Output : public ThreadedChannelOutputBase {
   public:
 	GPIO595Output(unsigned int startChannel, unsigned int channelCount);
 	~GPIO595Output();

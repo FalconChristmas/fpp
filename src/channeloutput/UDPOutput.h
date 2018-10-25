@@ -73,7 +73,7 @@ public:
     int  Close(void);
     
     void PrepData(unsigned char *channelData);
-    int  RawSendData(unsigned char *channelData);
+    int  SendData(unsigned char *channelData);
     
     void DumpConfig(void);
 

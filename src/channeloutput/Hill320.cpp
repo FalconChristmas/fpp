@@ -101,7 +101,7 @@
  *
  */
 Hill320Output::Hill320Output(unsigned int startChannel, unsigned int channelCount)
-  : ChannelOutputBase(startChannel, channelCount),
+  : ThreadedChannelOutputBase(startChannel, channelCount),
 	m_fd(-1)
 {
 	LogDebug(VB_CHANNELOUT, "Hill320Output::Hill320Output(%u, %u)\n",

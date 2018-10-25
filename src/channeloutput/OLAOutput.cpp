@@ -35,7 +35,7 @@
  *
  */
 OLAOutput::OLAOutput(unsigned int startChannel, unsigned int channelCount)
-  : ChannelOutputBase(startChannel, channelCount),
+  : ThreadedChannelOutputBase(startChannel, channelCount),
 	m_client(NULL)
 {
 	LogDebug(VB_CHANNELOUT, "OLAOutput::OLAOutput(%u, %u)\n",

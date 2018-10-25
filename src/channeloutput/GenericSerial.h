@@ -28,11 +28,11 @@
 
 #include <string>
 
-#include "ChannelOutputBase.h"
+#include "ThreadedChannelOutputBase.h"
 
 #define GENERICSERIAL_MAX_CHANNELS 2048
 
-class GenericSerialOutput : public ChannelOutputBase {
+class GenericSerialOutput : public ThreadedChannelOutputBase {
   public:
 	GenericSerialOutput(unsigned int startChannel, unsigned int channelCount);
 	~GenericSerialOutput();

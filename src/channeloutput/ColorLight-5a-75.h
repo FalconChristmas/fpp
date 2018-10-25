@@ -43,11 +43,11 @@ class ColorLight5a75Output : public ChannelOutputBase {
 	ColorLight5a75Output(unsigned int startChannel, unsigned int channelCount);
 	~ColorLight5a75Output();
 
-	int  Init(Json::Value config);
-	int  Close(void);
+	virtual int  Init(Json::Value config);
+	virtual int  Close(void);
 
-	void PrepData(unsigned char *channelData);
-	int  RawSendData(unsigned char *channelData);
+	virtual void PrepData(unsigned char *channelData);
+	virtual int  SendData(unsigned char *channelData);
 
 	void DumpConfig(void);
 

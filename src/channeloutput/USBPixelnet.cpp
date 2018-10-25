@@ -39,7 +39,7 @@
  */
 USBPixelnetOutput::USBPixelnetOutput(unsigned int startChannel,
 	unsigned int channelCount)
-  : ChannelOutputBase(startChannel, channelCount),
+  : ThreadedChannelOutputBase(startChannel, channelCount),
 	m_deviceName(""),
 	m_outputData(NULL),
 	m_pixelnetData(NULL),

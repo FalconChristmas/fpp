@@ -44,7 +44,7 @@
  *
  */
 USBDMXOutput::USBDMXOutput(unsigned int startChannel, unsigned int channelCount)
-  : ChannelOutputBase(startChannel, channelCount),
+  : ThreadedChannelOutputBase(startChannel, channelCount),
 	m_dongleType(DMX_DVC_UNKNOWN),
 	m_deviceName("UNKNOWN"),
 	m_fd(-1)

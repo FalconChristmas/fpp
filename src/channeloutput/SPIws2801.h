@@ -26,9 +26,9 @@
 #ifndef _SPIWS2801_H
 #define _SPIWS2801_H
 
-#include "ChannelOutputBase.h"
+#include "ThreadedChannelOutputBase.h"
 
-class SPIws2801Output : public ChannelOutputBase {
+class SPIws2801Output : public ThreadedChannelOutputBase {
   public:
 	SPIws2801Output(unsigned int startChannel, unsigned int channelCount);
 	~SPIws2801Output();

@@ -28,6 +28,7 @@ LIBS_fppmm = \
 
 OBJECTS_fppd = \
 	channeloutput/ChannelOutputBase.o \
+	channeloutput/ThreadedChannelOutputBase.o \
 	channeloutput/channeloutput.o \
 	channeloutput/channeloutputthread.o \
 	channeloutput/ArtNet.o \

@@ -23,46 +23,56 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _CHANNELOUTPUTBASE_H
-#define _CHANNELOUTPUTBASE_H
+#ifndef _THREADEDCHANNELOUTPUTBASE_H
+#define _THREADEDCHANNELOUTPUTBASE_H
 
 #include <string>
 #include <vector>
 
+#include <pthread.h>
+
 #include <jsoncpp/json/json.h>
 
-#include "channeloutput.h"
-#include "../Sequence.h"
+#include "ChannelOutputBase.h"
 
-class ChannelOutputBase {
+class ThreadedChannelOutputBase : public ChannelOutputBase {
   public:
-	ChannelOutputBase(unsigned int startChannel = 1,
+	ThreadedChannelOutputBase(unsigned int startChannel = 1,
 		unsigned int channelCount = 1);
-	virtual ~ChannelOutputBase();
+	virtual ~ThreadedChannelOutputBase();
 
-	unsigned int  ChannelCount(void) { return m_channelCount; }
-	unsigned int  StartChannel(void) { return m_startChannel; }
-	int           MaxChannels(void)  { return m_maxChannels; }
 
 	virtual int   Init(Json::Value config);
 	virtual int   Init(char *configStr);
-	virtual int   Close(void);
-    
-    virtual void  PrepData(unsigned char *channelData) {}
-	virtual int   SendData(unsigned char *channelData) = 0;
+	virtual int   Close(void)  override;
 
+    virtual int   SendData(unsigned char *channelData)  override;
 
-    virtual void  GetRequiredChannelRange(int &min, int & max) = 0;
+	void          OutputThread(void);
+
   private:
-	int   Init(void);
+	int           Init(void);
 
   protected:
 	virtual void  DumpConfig(void);
+	virtual int   RawSendData(unsigned char *channelData) = 0;
+	int           StartOutputThread(void);
+	int           StopOutputThread(void);
+	int           SendOutputBuffer(void);
 
-	std::string      m_outputType;
-	unsigned int     m_maxChannels;
-	unsigned int     m_startChannel;
-	unsigned int     m_channelCount;
+	unsigned int     m_threadIsRunning;
+	unsigned int     m_runThread;
+	volatile unsigned int     m_dataWaiting;
+	unsigned int     m_useDoubleBuffer;
+
+	pthread_t        m_threadID;
+	pthread_mutex_t  m_bufLock;
+	pthread_mutex_t  m_sendLock;
+	pthread_cond_t   m_sendCond;
+
+	unsigned char   *m_inBuf;
+	unsigned char   *m_outBuf;
+
 };
 
 #endif /* #ifndef _CHANNELOUTPUTBASE_H */

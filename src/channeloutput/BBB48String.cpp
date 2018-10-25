@@ -90,7 +90,6 @@ BBB48StringOutput::BBB48StringOutput(unsigned int startChannel,
 {
     LogDebug(VB_CHANNELOUT, "BBB48StringOutput::BBB48StringOutput(%u, %u)\n",
             startChannel, channelCount);
-    m_useOutputThread = 0;
 }
 
 /*
@@ -471,9 +470,9 @@ void BBB48StringOutput::PrepData(unsigned char *channelData)
         }
     }
 }
-int BBB48StringOutput::RawSendData(unsigned char *channelData)
+int BBB48StringOutput::SendData(unsigned char *channelData)
 {
-    LogExcess(VB_CHANNELOUT, "BBB48StringOutput::RawSendData(%p)\n",
+    LogExcess(VB_CHANNELOUT, "BBB48StringOutput::SendData(%p)\n",
               channelData);
 
     /*
@@ -586,7 +585,6 @@ int BBB48StringOutput::MapPins(void)
 void BBB48StringOutput::DumpConfig(void)
 {
     LogDebug(VB_CHANNELOUT, "BBB48StringOutput::DumpConfig()\n");
-    
     LogDebug(VB_CHANNELOUT, "    type          : %s\n", m_subType.c_str());
     LogDebug(VB_CHANNELOUT, "    strings       : %d\n", m_strings.size());
     LogDebug(VB_CHANNELOUT, "    longest string: %d channels\n", m_maxStringLen);

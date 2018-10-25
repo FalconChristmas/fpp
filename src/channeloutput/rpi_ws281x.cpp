@@ -189,7 +189,7 @@ void RPIWS281xOutput::PrepData(unsigned char *channelData)
 /*
  *
  */
-int RPIWS281xOutput::RawSendData(unsigned char *channelData)
+int RPIWS281xOutput::SendData(unsigned char *channelData)
 {
 	LogDebug(VB_CHANNELOUT, "RPIWS281xOutput::RawSendData(%p)\n", channelData);
 

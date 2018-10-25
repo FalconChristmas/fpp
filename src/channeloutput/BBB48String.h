@@ -56,7 +56,7 @@ class BBB48StringOutput : public ChannelOutputBase {
     int Init(Json::Value config);
     int Close(void);
 
-    int RawSendData(unsigned char *channelData);
+    int SendData(unsigned char *channelData);
     void PrepData(unsigned char *channelData);
     void DumpConfig(void);
 

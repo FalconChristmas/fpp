@@ -197,7 +197,7 @@ int FBMatrixOutput::Close(void)
 /*
  *
  */
-int FBMatrixOutput::RawSendData(unsigned char *channelData)
+int FBMatrixOutput::SendData(unsigned char *channelData)
 {
 	LogExcess(VB_CHANNELOUT, "FBMatrixOutput::RawSendData(%p)\n",
 		channelData);

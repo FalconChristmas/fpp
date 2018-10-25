@@ -42,7 +42,7 @@
  *
  */
 GenericSerialOutput::GenericSerialOutput(unsigned int startChannel, unsigned int channelCount)
-  : ChannelOutputBase(startChannel, channelCount),
+  : ThreadedChannelOutputBase(startChannel, channelCount),
 	m_deviceName("UNKNOWN"),
 	m_fd(-1),
 	m_speed(9600),

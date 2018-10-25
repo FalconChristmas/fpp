@@ -36,7 +36,7 @@ class GPIOOutput : public ChannelOutputBase {
 	int Init(char *configStr);
 	int Close(void);
 
-	int RawSendData(unsigned char *channelData);
+	int SendData(unsigned char *channelData);
 
 	void DumpConfig(void);
 

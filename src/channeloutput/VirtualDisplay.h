@@ -30,7 +30,7 @@
 #include <string>
 #include <vector>
 
-#include "ChannelOutputBase.h"
+#include "ThreadedChannelOutputBase.h"
 
 typedef enum virtualPixelColor {
 	kVPC_RGB,
@@ -58,7 +58,7 @@ typedef struct virtualDisplayPixel {
 	VirtualPixelColor vpc;
 } VirtualDisplayPixel;
 
-class VirtualDisplayOutput : public ChannelOutputBase {
+class VirtualDisplayOutput : public ThreadedChannelOutputBase {
   public:
 	VirtualDisplayOutput(unsigned int startChannel, unsigned int channelCount);
 	~VirtualDisplayOutput();

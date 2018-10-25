@@ -82,9 +82,6 @@ int GPIOOutput::Init(char *configStr)
 {
 	LogDebug(VB_CHANNELOUT, "GPIOOutput::Init('%s')\n", configStr);
 
-	// Disable threading because it is fast to digitalWrite() to one pin
-	m_useOutputThread = 0;
-
 	std::vector<std::string> configElems = split(configStr, ';');
 
 	for (int i = 0; i < configElems.size(); i++)
@@ -146,9 +143,9 @@ int GPIOOutput::Close(void)
 /*
  *
  */
-int GPIOOutput::RawSendData(unsigned char *channelData)
+int GPIOOutput::SendData(unsigned char *channelData)
 {
-	LogExcess(VB_CHANNELOUT, "GPIOOutput::RawSendData(%p)\n", channelData);
+	LogExcess(VB_CHANNELOUT, "GPIOOutput::SendData(%p)\n", channelData);
 
 	if (m_softPWM)
 	{

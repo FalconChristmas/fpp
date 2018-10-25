@@ -26,9 +26,9 @@
 #ifndef _HILL320_H
 #define _HILL320_H
 
-#include "ChannelOutputBase.h"
+#include "ThreadedChannelOutputBase.h"
 
-class Hill320Output : public ChannelOutputBase {
+class Hill320Output : public ThreadedChannelOutputBase {
   public:
 	Hill320Output(unsigned int startChannel, unsigned int channelCount);
 	~Hill320Output();

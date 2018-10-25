@@ -73,7 +73,7 @@ int DebugOutput::Close(void)
 /*
  *
  */
-int DebugOutput::RawSendData(unsigned char *channelData)
+int DebugOutput::SendData(unsigned char *channelData)
 {
 	LogExcess(VB_CHANNELOUT, "DebugOutput::RawSendData(%p)\n", channelData);
 

@@ -28,9 +28,9 @@
 
 #include <string>
 
-#include "ChannelOutputBase.h"
+#include "ThreadedChannelOutputBase.h"
 
-class USBDMXOutput : public ChannelOutputBase {
+class USBDMXOutput : public ThreadedChannelOutputBase {
   public:
 	USBDMXOutput(unsigned int startChannel, unsigned int channelCount);
 	~USBDMXOutput();

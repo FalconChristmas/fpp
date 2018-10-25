@@ -53,7 +53,7 @@
  *
  */
 SPIws2801Output::SPIws2801Output(unsigned int startChannel, unsigned int channelCount)
-  : ChannelOutputBase(startChannel, channelCount),
+  : ThreadedChannelOutputBase(startChannel, channelCount),
 	m_port(-1),
 	m_pi36(0),
 	m_pi36Data(NULL),

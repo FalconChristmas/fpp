@@ -54,7 +54,7 @@
  */
 BBBSerialOutput::BBBSerialOutput(unsigned int startChannel,
 	unsigned int channelCount)
-    : ChannelOutputBase(startChannel, channelCount),
+    : ThreadedChannelOutputBase(startChannel, channelCount),
     m_pixelnet(0),
     m_lastData(NULL),
     m_curData(NULL),
@@ -64,7 +64,6 @@ BBBSerialOutput::BBBSerialOutput(unsigned int startChannel,
 {
     LogDebug(VB_CHANNELOUT, "BBBSerialOutput::BBBSerialOutput(%u, %u)\n",
             startChannel, channelCount);
-    m_useOutputThread = 1;
 }
 
 /*
@@ -162,12 +161,6 @@ int BBBSerialOutput::Init(Json::Value config)
 #ifdef USING_PRU_RAM
     args.push_back("-DUSING_PRU_RAM");
 #endif
-    if (m_pixelnet) {
-        //pixelnet takes 45ms to send so we need to
-        //use a background thread just in case we have a 25ms
-        //sequence.   The main thread would get blocked.
-        m_useOutputThread = 1;
-    }
 
     m_startChannels.resize(config["outputs"].size());
 

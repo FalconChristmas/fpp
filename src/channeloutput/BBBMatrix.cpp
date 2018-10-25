@@ -307,7 +307,6 @@ BBBMatrix::BBBMatrix(unsigned int startChannel, unsigned int channelCount)
 {
 	LogDebug(VB_CHANNELOUT, "BBBMatrix::BBBMatrix(%u, %u)\n",
 		startChannel, channelCount);
-    m_useOutputThread = 0;
 }
 
 BBBMatrix::~BBBMatrix()
@@ -608,7 +607,7 @@ void BBBMatrix::PrepData(unsigned char *channelData)
         }
     }
 
-    channelData += m_startChannel; // FIXME, this function gets offset 0
+    channelData += m_startChannel;
     
     size_t rowLen = m_panelWidth * m_longestChain * m_outputs * 3 * 2 * m_panelHeight / (m_panelScan * 2);
     rowLen /= 8;
@@ -674,9 +673,9 @@ void BBBMatrix::PrepData(unsigned char *channelData)
         }
     }
 }
-int BBBMatrix::RawSendData(unsigned char *channelData)
+int BBBMatrix::SendData(unsigned char *channelData)
 {
-    LogExcess(VB_CHANNELOUT, "BBBMatrix::RawSendData(%p)\n", channelData);
+    LogExcess(VB_CHANNELOUT, "BBBMatrix::SendData(%p)\n", channelData);
     
     int len = m_outputs * m_longestChain * m_panelHeight * m_panelWidth * 3;
     if (len < (m_pru->ddr_size / 2)) {
@@ -704,7 +703,6 @@ int BBBMatrix::RawSendData(unsigned char *channelData)
         printf("     %d   %X   %X    %X %X %X\n", t[0], t[1], t[2], t[3], t[4], t[5]);
     }
     */
-    
     return m_channelCount;
 }
 
@@ -712,7 +710,6 @@ int BBBMatrix::RawSendData(unsigned char *channelData)
 void BBBMatrix::DumpConfig(void)
 {
     LogDebug(VB_CHANNELOUT, "BBBMatrix::DumpConfig()\n");
-    
     LogDebug(VB_CHANNELOUT, "    Width          : %d\n", m_width);
     LogDebug(VB_CHANNELOUT, "    Height         : %d\n", m_height);
     LogDebug(VB_CHANNELOUT, "    Rows           : %d\n", m_rows);

@@ -39,7 +39,7 @@ class FBMatrixOutput : public ChannelOutputBase {
 	int Init(char *configStr);
 	int Close(void);
 
-	int RawSendData(unsigned char *channelData);
+	int SendData(unsigned char *channelData);
 
 	void DumpConfig(void);
     virtual void GetRequiredChannelRange(int &min, int & max);

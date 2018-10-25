@@ -179,9 +179,9 @@ int RHLDVIE131Output::Close(void)
 /*
  *
  */
-int RHLDVIE131Output::RawSendData(unsigned char *channelData)
+int RHLDVIE131Output::SendData(unsigned char *channelData)
 {
-	LogExcess(VB_CHANNELOUT, "RHLDVIE131Output::RawSendData(%p)\n",
+	LogExcess(VB_CHANNELOUT, "RHLDVIE131Output::SendData(%p)\n",
 		channelData);
 
 	// FIXME

@@ -48,7 +48,7 @@
  */
 VirtualDisplayOutput::VirtualDisplayOutput(unsigned int startChannel,
 	unsigned int channelCount)
-  : ChannelOutputBase(startChannel, channelCount),
+  : ThreadedChannelOutputBase(startChannel, channelCount),
 	m_width(1280),
 	m_height(1024),
 	m_scale(1.0),

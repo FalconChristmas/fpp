@@ -28,13 +28,13 @@
 
 #include <vector>
 
-#include "ChannelOutputBase.h"
+#include "ThreadedChannelOutputBase.h"
 #include "UniverseEntry.h"
 
 #include <ola/DmxBuffer.h>
 #include <ola/client/StreamingClient.h>
 
-class OLAOutput : public ChannelOutputBase {
+class OLAOutput : public ThreadedChannelOutputBase {
   public:
 	OLAOutput(unsigned int startChannel, unsigned int channelCount);
 	~OLAOutput();

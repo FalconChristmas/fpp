@@ -50,7 +50,7 @@ class DebugOutput : public ChannelOutputBase {
 	int Close(void);
 
 	// Main routine to send channel data out
-	int RawSendData(unsigned char *channelData);
+	int SendData(unsigned char *channelData);
 
 	// Dump the config variables for debugging.  This method must
 	// also call the base class DumpConfig() method.

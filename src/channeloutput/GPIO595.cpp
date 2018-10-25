@@ -62,7 +62,7 @@
  *
  */
 GPIO595Output::GPIO595Output(unsigned int startChannel, unsigned int channelCount)
-  : ChannelOutputBase(startChannel, channelCount),
+  : ThreadedChannelOutputBase(startChannel, channelCount),
 	m_clockPin(-1),
 	m_dataPin(-1),
 	m_latchPin(-1)

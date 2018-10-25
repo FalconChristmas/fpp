@@ -56,7 +56,6 @@ RGBMatrixOutput::RGBMatrixOutput(unsigned int startChannel,
 {
 	LogDebug(VB_CHANNELOUT, "RGBMatrixOutput::RGBMatrixOutput(%u, %u)\n",
 		startChannel, channelCount);
-    m_useOutputThread = false;
 }
 
 /*
@@ -307,7 +306,7 @@ void RGBMatrixOutput::PrepData(unsigned char *channelData)
 /*
  *
  */
-int RGBMatrixOutput::RawSendData(unsigned char *channelData)
+int RGBMatrixOutput::SendData(unsigned char *channelData)
 {
 	LogExcess(VB_CHANNELOUT, "RGBMatrixOutput::RawSendData(%p)\n",
 		channelData);

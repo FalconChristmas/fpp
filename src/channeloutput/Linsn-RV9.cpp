@@ -168,8 +168,7 @@ int LinsnRV9Output::Init(Json::Value config)
 		return 0;
 	}
 
-	for (int i = 0; i < config["panels"].size(); i++)
-	{
+	for (int i = 0; i < config["panels"].size(); i++) {
 		Json::Value p = config["panels"][i];
 		char orientation = 'N';
 		const char *o = p["orientation"].asString().c_str();
@@ -418,9 +417,9 @@ void LinsnRV9Output::PrepData(unsigned char *channelData)
 /*
  *
  */
-int LinsnRV9Output::RawSendData(unsigned char *channelData)
+int LinsnRV9Output::SendData(unsigned char *channelData)
 {
-	LogExcess(VB_CHANNELOUT, "LinsnRV9Output::RawSendData(%p)\n", channelData);
+	LogExcess(VB_CHANNELOUT, "LinsnRV9Output::SendData(%p)\n", channelData);
 
 	SetHostMACs(m_buffer);
 	memset(m_data, 0, LINSNRV9_DATA_SIZE);
@@ -440,8 +439,7 @@ int LinsnRV9Output::RawSendData(unsigned char *channelData)
 
 	m_buffer[45] = m_formatCodes[m_formatIndex].code;
 
-	if (sendto(m_fd, m_buffer, LINSNRV9_BUFFER_SIZE, 0, (struct sockaddr*)&m_sock_addr, sizeof(struct sockaddr_ll)) < 0)
-	{
+	if (sendto(m_fd, m_buffer, LINSNRV9_BUFFER_SIZE, 0, (struct sockaddr*)&m_sock_addr, sizeof(struct sockaddr_ll)) < 0) {
 		LogErr(VB_CHANNELOUT, "Error sending row data packet: %s\n", strerror(errno));
 		return 0;
 	}
@@ -452,18 +450,13 @@ int LinsnRV9Output::RawSendData(unsigned char *channelData)
 	int framesSent = 0;
 
 	memset(m_header, 0, LINSNRV9_HEADER_SIZE);
-// FIXME
-//memset(m_outputFrame, 0x7f, m_outputFrameSize);
-
-	while (frameNumber < m_framePackets)
-	{
+	while (frameNumber < m_framePackets) {
 		m_buffer[14] = (unsigned char)(frameNumber & 0x00FF);
 		m_buffer[15] = (unsigned char)(frameNumber >> 8);
 
 		memcpy(m_data, m_outputFrame + bytesSent, LINSNRV9_DATA_SIZE);
 
-		if (sendto(m_fd, m_buffer, LINSNRV9_BUFFER_SIZE, 0, (struct sockaddr*)&m_sock_addr, sizeof(struct sockaddr_ll)) < 0)
-		{
+		if (sendto(m_fd, m_buffer, LINSNRV9_BUFFER_SIZE, 0, (struct sockaddr*)&m_sock_addr, sizeof(struct sockaddr_ll)) < 0) {
 			LogErr(VB_CHANNELOUT, "Error sending row data packet: %s\n", strerror(errno));
 			return 0;
 		}

@@ -149,9 +149,9 @@ int MCP23017Output::Close(void)
 /*
  *
  */
-int MCP23017Output::RawSendData(unsigned char *channelData)
+int MCP23017Output::SendData(unsigned char *channelData)
 {
-	LogExcess(VB_CHANNELOUT, "MCP23017Output::RawSendData(%p)\n", channelData);
+	LogExcess(VB_CHANNELOUT, "MCP23017Output::SendData(%p)\n", channelData);
 
 	unsigned char *c = channelData;
 	int bank = 0;

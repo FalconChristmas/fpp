@@ -65,8 +65,6 @@ UDPOutput::~UDPOutput() {
 }
 
 int UDPOutput::Init(Json::Value config) {
-    m_useOutputThread = 0;
-    
     enabled = config["enabled"].asInt();
     for (int i = 0; i < config["universes"].size(); i++) {
         Json::Value s = config["universes"][i];
@@ -139,7 +137,7 @@ int UDPOutput::SendMessages(int socket, std::vector<struct mmsghdr> &sendmsgs) {
     return outputCount;
 }
 
-int UDPOutput::RawSendData(unsigned char *channelData) {
+int UDPOutput::SendData(unsigned char *channelData) {
     if (rebuildOutputLists) {
         RebuildOutputMessageLists();
     }

@@ -98,8 +98,7 @@ int MAX7219MatrixOutput::Init(Json::Value config)
 {
 	LogDebug(VB_CHANNELOUT, "MAX7219MatrixOutput::Init(JSON)\n");
 
-	if (wiringPiSPISetup(0, 1000000) < 0)
-	{
+	if (wiringPiSPISetup(0, 1000000) < 0) {
 		LogErr(VB_CHANNELOUT, "Unable to open spidev0.0\n");
 		return 0;
 	}
@@ -158,22 +157,20 @@ int MAX7219MatrixOutput::WriteCommand(uint8_t cmd, uint8_t value)
 /*
  *
  */
-int MAX7219MatrixOutput::RawSendData(unsigned char *channelData)
+int MAX7219MatrixOutput::SendData(unsigned char *channelData)
 {
-	LogExcess(VB_CHANNELOUT, "MAX7219MatrixOutput::RawSendData(%p)\n",
+	LogExcess(VB_CHANNELOUT, "MAX7219MatrixOutput::SendData(%p)\n",
 		channelData);
 
 	uint8_t data[256];
 
 	int c = 0;
-	for (int i = 1; i < 9; i++)
-	{
-		int bytes = 0;
+	for (int i = 1; i < 9; i++) {
+        int bytes = 0;
 
 		c = (i * m_panels) - 1;
 
-		for (int p = 0; p < m_panels; p++)
-		{
+		for (int p = 0; p < m_panels; p++) {
 			data[bytes++] = i;
 			data[bytes++] = ReverseBitsInByte(channelData[c--]);
 		}
