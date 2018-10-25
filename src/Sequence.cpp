@@ -319,7 +319,7 @@ int Sequence::OpenSequenceFile(const char *filename, int startSeconds) {
         int frameNumber = startSeconds * m_seqRefreshRate;
         off_t newPos = m_seqChanDataOffset;
         newPos += (frameNumber * m_seqStepSize);
-        LogDebug(VB_SEQUENCE, "Seeking to byte %d in %s\n", newPos, m_seqFilename);
+        LogDebug(VB_SEQUENCE, "Seeking to byte %d in %s\n", (int)newPos, m_seqFilename);
 
         fseeko(m_seqFile, newPos, SEEK_SET);
         m_seqFilePosition = newPos;
@@ -354,7 +354,7 @@ int Sequence::SeekSequenceFile(int frameNumber) {
 
     off_t newPos = m_seqChanDataOffset;
     newPos += (frameNumber * m_seqStepSize);
-    LogDebug(VB_SEQUENCE, "Seeking to byte %ld in %s\n", newPos, m_seqFilename);
+    LogDebug(VB_SEQUENCE, "Seeking to byte %d in %s\n", (int)newPos, m_seqFilename);
 
     fseeko(m_seqFile, newPos, SEEK_SET);
 
