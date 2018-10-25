@@ -356,6 +356,7 @@ int Sequence::SeekSequenceFile(int frameNumber) {
 
     fseeko(m_seqFile, newPos, SEEK_SET);
 
+    m_seqFilePosition = newPos;
     m_seqMSRemaining = (int)(((float)(m_seqFileSize - newPos)
         / (float)m_seqStepSize) * m_seqStepTime);
 
