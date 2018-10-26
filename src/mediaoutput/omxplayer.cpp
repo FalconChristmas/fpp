@@ -201,7 +201,8 @@ void omxplayerOutput::ProcessPlayerData(int bytesRead)
 	int        subsecs = 0;
 	int        totalCentiSecs = 0;
 	char      *ptr = NULL;
-
+    bool hasDuration = false;
+    
 	if ((m_mediaOutputStatus->secondsTotal == 0) &&
 		(m_mediaOutputStatus->minutesTotal == 0) &&
 		(ptr = strstr(m_omxBuffer, "Duration: ")))
@@ -219,6 +220,7 @@ void omxplayerOutput::ProcessPlayerData(int bytesRead)
 			m_mediaOutputStatus->minutesTotal = strtol(ptr, NULL, 10) + (hours * 60);
 			ptr += 3;
 			m_mediaOutputStatus->secondsTotal = strtol(ptr, NULL, 10);
+            hasDuration = true;
 		}
 	}
 
@@ -239,7 +241,18 @@ void omxplayerOutput::ProcessPlayerData(int bytesRead)
         Stop();
         return;
 	} else {
-        LogErr(VB_MEDIAOUT, "Error parsing omxplayer output.  %s\n", m_omxBuffer);
+        int l  = strlen(m_omxBuffer);
+        while (l > 0) {
+            if (m_omxBuffer[l] && (m_omxBuffer[l - 1] == '\n' || m_omxBuffer[l - 1] == '\r')) {
+                strcpy(m_omxBuffer, &m_omxBuffer[l]);
+                ProcessPlayerData(strlen(m_omxBuffer));
+                return;
+            }
+            l--;
+        }
+        if (!hasDuration && bytesRead > 2) {
+            LogErr(VB_MEDIAOUT, "Error parsing omxplayer output.  %s\n", m_omxBuffer);
+        }
 		return;
 	}
 
