@@ -209,19 +209,13 @@ void omxplayerOutput::ProcessPlayerData(int bytesRead)
 	{
 		// Sample line format:
 		// (whitespace)Duration: 00:00:37.91, start: 0.000000, bitrate: 2569 kb/s
-		char *ptr2 = strchr(ptr, ',');
-		if (ptr2)
-		{
-			*ptr2 = '\0';
-			ptr = ptr + 10;
-
-			int hours = strtol(ptr, NULL, 10);
-			ptr += 3;
-			m_mediaOutputStatus->minutesTotal = strtol(ptr, NULL, 10) + (hours * 60);
-			ptr += 3;
-			m_mediaOutputStatus->secondsTotal = strtol(ptr, NULL, 10);
-            hasDuration = true;
-		}
+        ptr = ptr + 10;
+        int hours = strtol(ptr, NULL, 10);
+        ptr += 3;
+        m_mediaOutputStatus->minutesTotal = strtol(ptr, NULL, 10) + (hours * 60);
+        ptr += 3;
+        m_mediaOutputStatus->secondsTotal = strtol(ptr, NULL, 10);
+        hasDuration = true;
 	}
 
 	// Data is line buffered so all stats lines should start with "M: "
