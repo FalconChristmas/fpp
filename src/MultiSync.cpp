@@ -1311,6 +1311,26 @@ void MultiSync::SyncSyncedMedia(char *filename, int frameNumber, float secondsEl
 
 	if (!strcmp(mediaOutput->m_mediaFilename.c_str(), filename)) {
 		UpdateMasterMediaPosition(secondsElapsed);
+    } else {
+        char tmpFile[1024];
+        strcpy(tmpFile, filename);
+        
+        int filenameLen = strlen(filename);
+        if (filenameLen > 4) {
+            if ((!strcmp(&tmpFile[filenameLen - 4], ".mp3")) ||
+                (!strcmp(&tmpFile[filenameLen - 4], ".ogg")) ||
+                (!strcmp(&tmpFile[filenameLen - 4], ".m4a")))
+            {
+                strcpy(&tmpFile[filenameLen - 4], ".mp4");
+                
+                if (!strcmp(mediaOutput->m_mediaFilename.c_str(), tmpFile))
+                    UpdateMasterMediaPosition(secondsElapsed);
+
+                strcpy(&tmpFile[filenameLen - 4], ".avi");
+                if (!strcmp(mediaOutput->m_mediaFilename.c_str(), tmpFile))
+                    UpdateMasterMediaPosition(secondsElapsed);
+            }
+        }
 	}
 }
 

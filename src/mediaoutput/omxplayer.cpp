@@ -329,8 +329,12 @@ int omxplayerOutput::Process(void)
 
 int omxplayerOutput::Stop(void)
 {
+    return m_mediaOutputStatus->status == MEDIAOUTPUTSTATUS_IDLE;
+
 	if (!m_childPID)
 		return 0;
+
+    write(m_childPipe[0], "q", 1);
 
 	LogDebug(VB_MEDIAOUT, "Stop(), killing pid %d\n", m_childPID);
 

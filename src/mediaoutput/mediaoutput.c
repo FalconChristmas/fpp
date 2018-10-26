@@ -172,7 +172,7 @@ int OpenMediaOutput(char *filename) {
             } else {
                 LogDebug(VB_MEDIAOUT,
                          "Master is playing %s audio, remote will try %s Video\n",
-                         filename, tmpFile);
+                         filename, tmpFile.c_str());
             }
 		}
 	}
@@ -205,7 +205,8 @@ int OpenMediaOutput(char *filename) {
         mediaOutput = new SDLOutput(tmpFile, &mediaOutputStatus, "--Disabled--");
 #ifdef PLATFORM_PI
 	} else if (((ext == "mp4") ||
-			   (ext == "mkv")) && vOut == "--HDMI--") {
+                (ext == "mkv") ||
+                (ext == "avi")) && vOut == "--HDMI--") {
 		mediaOutput = new omxplayerOutput(tmpFile, &mediaOutputStatus);
 #endif
     } else if ((ext == "mp4") ||

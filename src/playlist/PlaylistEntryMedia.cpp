@@ -357,14 +357,15 @@ int PlaylistEntryMedia::CloseMediaOutput(void)
 		return 0;
 	}
 
+    if (getFPPmode() == MASTER_MODE)
+        multiSync->SendMediaSyncStopPacket(m_mediaFilename.c_str());
+
 	if (m_mediaOutput->m_childPID) {
 		pthread_mutex_unlock(&m_mediaOutputLock);
 		m_mediaOutput->Stop();
 		pthread_mutex_lock(&m_mediaOutputLock);
 	}
 
-	if (getFPPmode() == MASTER_MODE)
-		multiSync->SendMediaSyncStopPacket(m_mediaOutput->m_mediaFilename.c_str());
 
 	delete m_mediaOutput;
 	m_mediaOutput = NULL;
