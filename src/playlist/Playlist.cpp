@@ -835,10 +835,32 @@ void Playlist::Dump(void)
  */
 void Playlist::NextItem(void)
 {
-	if (m_currentState == "idle")
+    if (m_currentState == "idle") {
 		return;
-
-	// FIXME PLAYLIST
+    }
+    if (FPPstatus != FPP_STATUS_PLAYLIST_PLAYING) {
+        return;
+    }
+    
+    int pos = GetPosition() - 1;
+    if (m_currentSectionStr == "MainPlaylist") {
+        if (pos < (m_leadIn.size() + m_mainPlaylist.size())) {
+            pos++;
+        } else {
+            pos = m_leadIn.size();
+        }
+    }
+    
+    
+    std::string name = m_name;
+    std::string desc = m_desc;
+    int repeat = m_repeat;
+    StopNow();
+    m_absolutePosition = pos;
+    m_repeat = repeat;
+    m_desc = desc;
+    m_name = name;
+    Start();
 }
 
 /*
@@ -846,10 +868,31 @@ void Playlist::NextItem(void)
  */
 void Playlist::PrevItem(void)
 {
-	if (m_currentState == "idle")
-		return;
+    if (m_currentState == "idle") {
+        return;
+    }
+    if (FPPstatus != FPP_STATUS_PLAYLIST_PLAYING) {
+        return;
+    }
 
-	// FIXME PLAYLIST
+    int pos = GetPosition() - 1;
+    if (m_currentSectionStr == "MainPlaylist") {
+        if (pos > m_leadIn.size()) {
+            pos--;
+        } else {
+            pos = m_leadIn.size() + m_mainPlaylist.size() - 1;
+        }
+    }
+
+    std::string name = m_name;
+    std::string desc = m_desc;
+    int repeat = m_repeat;
+    StopNow();
+    m_absolutePosition = pos;
+    m_repeat = repeat;
+    m_desc = desc;
+    m_name = name;
+    Start();
 }
 
 /*
