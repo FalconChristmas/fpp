@@ -28,9 +28,9 @@
 
 #include <X11/Xlib.h>
 
-#include "ChannelOutputBase.h"
+#include "ThreadedChannelOutputBase.h"
 
-class X11MatrixOutput : public ChannelOutputBase {
+class X11MatrixOutput : public ThreadedChannelOutputBase {
   public:
 	X11MatrixOutput(unsigned int startChannel, unsigned int channelCount);
 	~X11MatrixOutput();
