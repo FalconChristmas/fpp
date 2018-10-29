@@ -27,5 +27,5 @@ else
     FLAGS="-o ${audioOutput}"
 fi
 
-exec /usr/bin/omxplayer $FLAGS -I -s "$1" 2>&1
+exec /usr/bin/omxplayer $FLAGS -b -I -s "$1" 2>&1
 
