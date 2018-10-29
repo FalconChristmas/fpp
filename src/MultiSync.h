@@ -203,6 +203,8 @@ class MultiSync {
 	struct sockaddr_in  m_broadcastDestAddr;
 	pthread_mutex_t     m_socketLock;
 
+    int m_lastMediaHalfSecond;
+    
 	float  m_remoteOffset;
 
     struct iovec m_destIovec;

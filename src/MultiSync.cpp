@@ -66,6 +66,7 @@ MultiSync::MultiSync()
 	m_controlSock(-1),
 	m_controlCSVSock(-1),
 	m_receiveSock(-1),
+    m_lastMediaHalfSecond(0),
 	m_remoteOffset(0.0)
 {
 	pthread_mutex_init(&m_systemsLock, NULL);
@@ -550,7 +551,7 @@ void MultiSync::SendSeqSyncPacket(const char *filename, int frames, float second
 void MultiSync::SendMediaSyncStartPacket(const char *filename)
 {
 	LogDebug(VB_SYNC, "SendMediaSyncStartPacket('%s')\n", filename);
-
+    m_lastMediaHalfSecond = 0;
 	if (!filename || !filename[0])
 		return;
 
@@ -639,6 +640,14 @@ void MultiSync::SendMediaSyncStopPacket(const char *filename)
  */
 void MultiSync::SendMediaSyncPacket(const char *filename, int frames, float seconds)
 {
+    int curTS = (seconds * 2.0f);
+    if (m_lastMediaHalfSecond == curTS) {
+        //not time to send
+        return;
+    }
+    m_lastMediaHalfSecond = curTS;
+    
+    
 	LogExcess(VB_SYNC, "SendMediaSyncPacket( '%s', %d, %.2f)\n",
 		filename, frames, seconds);
 

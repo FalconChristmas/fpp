@@ -238,6 +238,7 @@ int OpenMediaOutput(char *filename) {
 	}
 
 	mediaOutputStatus.speedDelta = 0;
+    mediaOutputStatus.speedDeltaCount = 0;
 
 	pthread_mutex_unlock(&mediaOutputLock);
 
@@ -282,13 +283,12 @@ void CheckCurrentPositionAgainstMaster(void)
 
 	// Allow faster sync in first 10 seconds
 	int maxDelta = (mediaOutputStatus.mediaSeconds < 10) ? 15 : 5;
-	int desiredDelta = diff / -33;
+	int desiredDelta = diff / -50;
 
 	if (desiredDelta > maxDelta)
 		desiredDelta = maxDelta;
 	else if (desiredDelta < (0 - maxDelta))
 		desiredDelta = 0 - maxDelta;
-
 
 
 	LogDebug(VB_MEDIAOUT, "Master: %.2f, Local: %.2f, Diff: %dms, delta: %d, new: %d\n",
@@ -298,6 +298,22 @@ void CheckCurrentPositionAgainstMaster(void)
 	// Can't adjust speed if not playing yet
 	if (mediaOutputStatus.mediaSeconds < 0.01)
 		return;
+    
+    if ((desiredDelta == -1 || desiredDelta == 1) && mediaOutputStatus.speedDelta == 0 && mediaOutputStatus.speedDeltaCount < 3) {
+        //a small change, but lets delay implementing slightly as it could just be
+        //transient network issue or similar, if still need a delta at next sync, then do it
+        mediaOutputStatus.speedDeltaCount++;
+        desiredDelta = 0;
+    } else if (desiredDelta < 0 && mediaOutputStatus.speedDelta > 0) {
+        //if going from too slow to to too fast (or vice versa), only do a small step across
+        //to not overshoot
+        desiredDelta = -1;
+    } else if (desiredDelta > 0 && mediaOutputStatus.speedDelta < 0) {
+        desiredDelta = 1;
+    } else {
+        mediaOutputStatus.speedDeltaCount = 0;
+    }
+    
 
 	if (desiredDelta)
 	{
@@ -347,11 +363,7 @@ void CheckCurrentPositionAgainstMaster(void)
 			return;
 		}
 
-		if (mediaOutputStatus.speedDelta == 1)
-			mediaOutput->AdjustSpeed(-1);
-		else if (mediaOutputStatus.speedDelta == -1)
-			mediaOutput->AdjustSpeed(1);
-		else if (mediaOutputStatus.speedDelta != 0)
+		if (mediaOutputStatus.speedDelta != 0)
 			mediaOutput->AdjustSpeed(0);
 
 		pthread_mutex_unlock(&mediaOutputLock);

@@ -173,7 +173,6 @@ int ogg123Output::Stop(void)
 
 void ogg123Output::ParseTimes()
 {
-	static int lastRemoteSync = 0;
 	int result;
 	int secs;
 	int mins;
@@ -227,13 +226,8 @@ void ogg123Output::ParseTimes()
 
 	if (getFPPmode() == MASTER_MODE)
 	{
-		if ((m_mediaOutputStatus->secondsElapsed > 0) &&
-			(lastRemoteSync != m_mediaOutputStatus->secondsElapsed))
-		{
-			multiSync->SendMediaSyncPacket(m_mediaFilename.c_str(), 0,
-				m_mediaOutputStatus->mediaSeconds);
-			lastRemoteSync = m_mediaOutputStatus->secondsElapsed;
-		}
+        multiSync->SendMediaSyncPacket(m_mediaFilename.c_str(), 0,
+                                       m_mediaOutputStatus->mediaSeconds);
 	}
 
 	if ((sequence->IsSequenceRunning()) &&

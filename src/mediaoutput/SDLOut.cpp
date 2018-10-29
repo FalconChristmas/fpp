@@ -869,8 +869,6 @@ int SDLOutput::Process(void)
     if (!data) {
         return 0;
     }
-    static int lastRemoteSync = 0;
-
     
     if (data->audio_stream_idx != -1 && data->audioDev) {
         //if we have an audio stream, that drives everything
@@ -944,12 +942,8 @@ int SDLOutput::Process(void)
         }
     }
     if (getFPPmode() == MASTER_MODE) {
-        if ((m_mediaOutputStatus->secondsElapsed > 0) &&
-            (lastRemoteSync != m_mediaOutputStatus->secondsElapsed)) {
-            multiSync->SendMediaSyncPacket(m_mediaFilename.c_str(), 0,
-                                m_mediaOutputStatus->mediaSeconds);
-            lastRemoteSync = m_mediaOutputStatus->secondsElapsed;
-        }
+        multiSync->SendMediaSyncPacket(m_mediaFilename.c_str(), 0,
+                            m_mediaOutputStatus->mediaSeconds);
     }
     
     if (sequence->IsSequenceRunning()) {
