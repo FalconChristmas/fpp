@@ -87,7 +87,7 @@ int USBRenard_Open(char *configStr, void **privDataPtr) {
 	privData->fd = -1;
 
 	char deviceName[32];
-	char *s = strtok(configStr, ";");
+	char *s = strtok(configStr, ",;");
 
 	strcpy(deviceName, "UNKNOWN");
 	strcpy(privData->parm, "8N1");
@@ -122,7 +122,7 @@ int USBRenard_Open(char *configStr, void **privDataPtr) {
 					LogWarn(VB_CHANNELOUT, "Invalid length on serial parameters: %s\n", div);
 			}
 		}
-		s = strtok(NULL, ";");
+		s = strtok(NULL, ",;");
 	}
 
 	if (!strcmp(deviceName, "UNKNOWN"))

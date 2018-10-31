@@ -105,7 +105,7 @@ int LOR_Open(char *configStr, void **privDataPtr) {
 	privData->fd = -1;
 
 	char deviceName[32];
-	char *s = strtok(configStr, ";");
+	char *s = strtok(configStr, ",;");
 
 	strcpy(deviceName, "UNKNOWN");
 
@@ -132,7 +132,7 @@ int LOR_Open(char *configStr, void **privDataPtr) {
 				}
 			}
 		}
-		s = strtok(NULL, ";");
+		s = strtok(NULL, ",;");
 	}
 
 	if (!strcmp(deviceName, "UNKNOWN"))
