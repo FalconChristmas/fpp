@@ -48,11 +48,18 @@ if (isset($_GET['expertView'])) {
 		$.get("fppjson.php?command=setSetting&key=MultiSyncRemotes&value=" + remotes
 		).done(function() {
 			settings['MultiSyncRemotes'] = remotes;
-			if (remotes == "")
-				$.jGrowl("Remote List Cleared.  You must restart fppd for the changes to take effect.");
-			else
-				$.jGrowl("Remote List set to: '" + remotes + "'.  You must restart fppd for the changes to take effect.");
-		}).fail(function() {
+            if (remotes == "") {
+                $.jGrowl("Remote List Cleared.  You must restart fppd for the changes to take effect.");
+            } else {
+                $.jGrowl("Remote List set to: '" + remotes + "'.  You must restart fppd for the changes to take effect.");
+            }
+
+            //Mark FPPD as needing restart
+            $.get('fppjson.php?command=setSetting&key=restartFlag&value=1');
+            settings['restartFlag'] = 1;
+            //Get the resart banner showing
+            CheckRestartRebootFlags();
+        }).fail(function() {
 			DialogError("Save Remotes", "Save Failed");
 		});
 
@@ -137,14 +144,22 @@ if (isset($_GET['expertView'])) {
                 $('#' + rowID + '_platform').html(data.expertView.Platform + "<br><small class='hostDescriptionSM'>" + data.expertView.Variant + "</small>");
                 $('#expertViewVersion_' + rowID).html(data.expertView.Version);
                 //$('#expertViewBranch_' + rowID).html(data.expertView.Branch);
-                $('#expertViewGitVersions_' + rowID).html("R: " + (typeof (data.expertView.RemoteGitVersion) !== 'undefined' ? data.expertView.RemoteGitVersion : 'Unknown') + "<br>L: " + (typeof ( data.expertView.LocalGitVersion) !== 'undefined' ? data.expertView.LocalGitVersion : 'Unknown'));
-                $('#expertViewAutoUpdateState_' + rowID).html((data.expertView.AutoUpdatesDisabled === true ? "Disabled" : "Enabled") + "<br>" + (
-                    (typeof (data.expertView.RemoteGitVersion) !== 'undefined' && typeof (data.expertView.LocalGitVersion) !== 'undefined') && (data.expertView.RemoteGitVersion !== data.expertView.LocalGitVersion) ? '<a class="updateAvailable" href="http://' + ip + '/about.php" target="_blank">Update Available!</a>' : ''));
-                $('#expertViewUtilization_' + rowID).html("CPU: " + (typeof (data.expertView.Utilization) !== 'undefined' ? Math.round((data.expertView.Utilization.CPU) * 100) : 'Unknown') + "%" +
+
+                $('#expertViewGitVersions_' + rowID).html("R: " + (typeof (data.expertView.RemoteGitVersion) !== 'undefined' ? data.expertView.RemoteGitVersion : 'Unknown') + "<br>L: " + (typeof (data.expertView.LocalGitVersion) !== 'undefined' ? data.expertView.LocalGitVersion : 'Unknown'));
+
+                if ((typeof (data.expertView.RemoteGitVersion) !== 'undefined' && typeof (data.expertView.LocalGitVersion) !== 'undefined') && data.expertView.RemoteGitVersion !== "") {
+                    if (data.expertView.RemoteGitVersion !== data.expertView.LocalGitVersion) {
+                        $('#expertViewAutoUpdateState_' + rowID).html((data.expertView.AutoUpdatesDisabled === true ? "Disabled" : "Enabled") + "<br>" + '<a class="updateAvailable" href="http://' + ip + '/about.php" target="_blank">Update Available!</a>');
+                    }
+                } else {
+                    $('#expertViewAutoUpdateState_' + rowID).html((data.expertView.AutoUpdatesDisabled === true ? "Disabled" : "Enabled") + "<br>");
+                }
+
+                $('#expertViewUtilization_' + rowID).html("CPU: " + (typeof (data.expertView.Utilization) !== 'undefined' ? Math.round((data.expertView.Utilization.CPU) * 100) : 'Unk.') + "%" +
                     "<br>" +
-                    "Mem: " + (typeof (data.expertView.Utilization) !== 'undefined' ? Math.round(data.expertView.Utilization.Memory) : 'Unknown')+ "%" +
+                    "Mem: " + (typeof (data.expertView.Utilization) !== 'undefined' ? Math.round(data.expertView.Utilization.Memory) : 'Unk.') + "%" +
                     "<br>" +
-                    "Uptime: " + (typeof (data.expertView.Utilization) !== 'undefined' ? data.expertView.Utilization.Uptime : 'Unknown'));
+                    "Uptime: " + (typeof (data.expertView.Utilization) !== 'undefined' ? data.expertView.Utilization.Uptime : 'Unk.'));
             }
 		}).fail(function() {
 			DialogError("Get FPP System Status", "Get Status Failed for " + ip + " via getFPPstatus");
@@ -335,7 +350,9 @@ if ($settings['fppMode'] == 'master')
             <?php
                 if ($expertView ==true) {
 					?>
-                    <b style="color: #FF0000">**Expert View Active - Auto Refresh is not recommended as it may cause slowdowns</b>
+                    <b style="color: #FF0000; font-size: 0.9em;">**Expert View Active - Auto Refresh is not recommended as it may cause slowdowns</b>
+                    <br>
+                    <b style="color: #FF0000; font-size: 0.9em;">**Git Versions : </b> <b style="color: #FF0000; font-size: 0.9em;">R: - Remote Git Version</b> | <b style="color: #FF0000; font-size: 0.9em;">L: - Local Git Version</b><br>
 					<?php
 				}
             ?>
@@ -380,7 +397,13 @@ $('#MultiSyncCSVRemotes').on('change keydown paste input', function()
 		{
 			$.get('fppjson.php?command=setSetting&key=' + key + '&value=' + desc);
 			settings[key] = desc;
-		}
+
+            //Mark FPPD as needing restart
+            $.get('fppjson.php?command=setSetting&key=restartFlag&value=1');
+            settings['restartFlag'] = 1;
+            //Get the resart banner showing
+            CheckRestartRebootFlags();
+        }
 	});
 
 $(document).ready(function() {
