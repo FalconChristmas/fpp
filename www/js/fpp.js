@@ -254,6 +254,14 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow) {
 				else
 					$('#tblPlaylistLeadOut').html("<tr id='tblPlaylistLeadOutPlaceHolder'><td>&nbsp;</td></tr>");
 
+                if (data.hasOwnProperty('playlistInfo')) {
+                    $('#playlistDuration').text(data.playlistInfo.total_duration);
+                    $('#playlistItems').text(data.playlistInfo.total_items);
+                } else {
+                    $('#playlistDuration').text("00m:00s");
+                    $('#playlistItems').text("0");
+                }
+
 				if (entries == 0)
 				{
 					innerHTML  =  "<tr class=\"playlistPlayingEntry\">";
@@ -588,6 +596,83 @@ function SavePlaylist()	{
 	
 	xmlhttp.send();
 
+}
+
+function RandomizePlaylistEntries() {
+    //Number of children / rows in the main playlist
+    var mainPlaylistItems = $("#tblPlaylistMainPlaylist > tr").length;
+    var mainPlaylistElements = [];
+
+    //Build a list of child element id's
+    $("#tblPlaylistMainPlaylist > tr").each(function (index) {
+        // console.log( index + ": " + $( this ).text() )
+        // console.log( index + ": " + $( this ).attr('id') );
+        mainPlaylistElements.push($(this).attr('id'));
+    });
+
+    //Loop for the entire length of the main playlist, shifting items around
+    var i;
+    var pl = document.getElementById("txtPlaylistName").value;
+    for (i = 0; i < mainPlaylistItems; i++) {
+        random_pos = Math.floor(Math.random() * Math.floor(mainPlaylistItems));
+        this_element = mainPlaylistElements[i];
+        random_element = mainPlaylistElements[random_pos];
+
+        //Move this item to the item determined by random pos;
+        // $("#"+this_element).insertAfter( $("#"+random_element));
+
+        //Change positions of items on the MainPlaylist
+        PlaylistEntryPositionChanged('MainPlaylist', random_pos, 'MainPlaylist', i);
+    }
+    //Refresh playlist after all the moves
+    PopulatePlayListEntries(pl, false, random_pos);
+    //Refresh the sortable table
+    $('.tblCreatePlaylistEntries_tbody').sortable('refresh').sortable('refreshPositions');
+}
+
+function CopyPlaylist()	{
+    var name = document.getElementById("txtPlaylistName");
+    //pop the dialog
+    $("#copyPlaylist_dialog").dialog({
+        buttons: {
+            "Copy Playlist": function () {
+                var new_playlist_name = $(this).find(".newPlaylistName").val();
+                var copy_playlist_url = "fppjson.php?command=copyPlaylist&from=" + name.value + "&to=" + new_playlist_name;
+
+                //Make the request
+                var xmlhttp = new XMLHttpRequest();
+                xmlhttp.open("GET", copy_playlist_url, false);
+                xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+
+                xmlhttp.onreadystatechange = function () {
+                    if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
+                        var xmlDoc = xmlhttp.responseXML;
+                        PopulatePlaylists("playList");
+                        var firstPlaylist = document.getElementById("playlist0");
+                        if (firstPlaylist)
+                            PopulatePlayListEntries(firstPlaylist.innerHTML, true);
+                        else
+                            PopulatePlayListEntries();
+
+                        //Close the dialog once done
+                        $("#copyPlaylist_dialog").dialog("close");
+                    }
+                };
+
+                xmlhttp.send();
+            },
+            Cancel: function () {
+                $(this).dialog("close");
+            }
+        },
+        open: function (event, ui) {
+            //Generate a name for the new playlist
+            $(this).find(".newPlaylistName").val(name.value + " - Copy");
+        },
+        close: function () {
+            $(this).find(".newPlaylistName").val("New Playlist Name");
+        }
+    });
 }
 
 function DeletePlaylist() {
@@ -1707,7 +1792,7 @@ function RemovePlaylistEntry()	{
         var time = files.childNodes[i].childNodes[1].textContent.replace(/ /g, '&nbsp;');
         var fileInfo = files.childNodes[i].childNodes[2].textContent;
 
-        var tableRow = "<tr class='fileDetails' id='fileDetail_" + i + "'><td class ='fileName'>" + name + "</td><td class='fileExtraInfo'>" + fileInfo + "</td><td class ='fileTime'>" + time + "</td></tr>";
+          var tableRow = "<tr class='fileDetails' id='fileDetail_" + i + "'><td class ='fileName'>" + name + "</td><td class='fileExtraInfo'>" + fileInfo + "</td><td class ='fileTime'>" + time + "</td></tr>";
         $('#tbl' + dir).append(tableRow);
       }
     }

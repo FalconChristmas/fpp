@@ -40,7 +40,11 @@ $command_array = Array(
 	"singleStepSequenceBack" => 'SingleStepSequenceBack',
 	"addPlaylistEntry"    => 'AddPlayListEntry',
 	"getPlayListEntries"  => 'GetPlayListEntries',
+	"getPlayListInfo"     => 'GetPlayListInfo',
+	"getMediaDuration"    => 'getMediaDurationInfo',
+	"getFileSize"         => 'getFileSize',
 	"savePlaylist"        => 'SavePlaylist',
+	"copyPlaylist"        => 'CopyPlaylist',
 	"copyFile"            => 'CopyFile',
 	"renameFile"          => 'RenameFile',
 	"convertPlaylists"    => 'ConvertPlaylistsToJSON',
@@ -690,9 +694,11 @@ function LoadPlayListDetails($file)
 	$playListEntriesLeadIn = NULL;
 	$playListEntriesMainPlaylist = NULL;
 	$playListEntriesLeadOut = NULL;
+	$playlistInfo = NULL;
 	$_SESSION['playListEntriesLeadIn']=NULL;
 	$_SESSION['playListEntriesMainPlaylist']=NULL;
 	$_SESSION['playListEntriesLeadOut']=NULL;
+	$_SESSION['playlistInfo']=NULL;
 	$_SESSION['currentPlaylist'] = '';
 
 	$jsonStr = "";
@@ -739,9 +745,16 @@ function LoadPlayListDetails($file)
 		}
 	}
 
+	if (isset($data->playlistInfo))
+	{
+		$playlistInfo = $data->playlistInfo;
+	}
+
 	$_SESSION['playListEntriesLeadIn'] = $playListEntriesLeadIn;
 	$_SESSION['playListEntriesMainPlaylist'] = $playListEntriesMainPlaylist;
 	$_SESSION['playListEntriesLeadOut'] = $playListEntriesLeadOut;
+	$_SESSION['playlistInfo'] = $playlistInfo;
+
 	$_SESSION['currentPlaylist'] = $file;
 }
 
@@ -861,6 +874,214 @@ function ConvertPlaylistsToJSON()
 	returnJSON($result);
 }
 
+/**
+ * Returns filesize for the specified file
+ */
+function getFileSize()
+{
+	//Get Info
+	global $args;
+	global $settings;
+
+	$mediaType = $args['type'];
+	$mediaName = $args['filename'];
+	check($mediaType, "mediaType", __FUNCTION__);
+	check($mediaName, "mediaName", __FUNCTION__);
+
+	$returnStr = [];
+	$filesize = 0;
+	if (strtolower($mediaType) == 'sequence') {
+		//Sequences
+		if (file_exists($settings['sequenceDirectory'] . "/" . $mediaName)) {
+			$filesize = human_filesize(filesize($settings['sequenceDirectory'] . "/" . $mediaName));
+		}
+	} else if (strtolower($mediaType) == 'effect') {
+		if (file_exists($settings['effectDirectory'] . "/" . $mediaName)) {
+			$filesize = human_filesize(filesize($settings['effectDirectory'] . "/" . $mediaName));
+		}
+	} else if (strtolower($mediaType) == 'music') {
+		if (file_exists($settings['musicDirectory'] . "/" . $mediaName)) {
+			$filesize = human_filesize(filesize($settings['musicDirectory'] . "/" . $mediaName));
+		}
+	} else if (strtolower($mediaType) == 'video') {
+		if (file_exists($settings['videoDirectory'] . "/" . $mediaName)) {
+			$filesize = human_filesize(filesize($settings['videoDirectory'] . "/" . $mediaName));
+		}
+	}
+
+	$returnStr[$mediaName]['filesize '] = $filesize;
+
+	$returnStr = json_encode($returnStr, JSON_PRETTY_PRINT);
+
+	header("Content-Type: application/json");
+	echo $returnStr;
+}
+
+/**
+ * Returns duration info about the specified media file
+ *
+ * @param string $mediaName
+ * @param bool $returnArray
+ * @return array|string
+ * @throws getid3_exception
+ */
+function getMediaDurationInfo($mediaName = "", $returnArray = false)
+{
+	//Get Info
+	global $args;
+	global $settings;
+
+	$returnStr = array();
+	$total_duration = 0;
+
+	if (empty($mediaName)) {
+		$mediaName = $args['media'];
+	}
+
+	check($mediaName, "mediaName", __FUNCTION__);
+
+	if (file_exists($settings['musicDirectory'] . "/" . $mediaName)) {
+		//Music Directory
+
+		//Check the cache for the media name first
+		$cache_duration = media_duration_cache($mediaName);
+		//cache duration will be null if not in cache, then retrieve it
+		if ($cache_duration == NULL) {
+			//Include our getid3 library for media
+			require_once('./lib/getid3/getid3.php');
+
+			//Instantiate getID3 object
+			$getID3 = new getID3;
+
+			$ThisFileInfo = $getID3->analyze($settings['musicDirectory'] . "/" . $mediaName);
+			//cache it
+			media_duration_cache($mediaName, $ThisFileInfo['playtime_seconds']);
+		} else {
+			$ThisFileInfo['playtime_seconds'] = $cache_duration;
+		}
+
+		$total_duration = $ThisFileInfo['playtime_seconds'] + $total_duration;
+	} else if (file_exists($settings['videoDirectory'] . "/" . $mediaName)) {
+		//Check video directory
+
+		//Check the cache for the media name first
+		$cache_duration = media_duration_cache($mediaName);
+		//cache duration will be null if not in cache, then retrieve it
+		if ($cache_duration == NULL) {
+			//Include our getid3 library for media
+			require_once('./lib/getid3/getid3.php');
+
+			//Instantiate getID3 object
+			$getID3 = new getID3;
+
+			$ThisFileInfo = $getID3->analyze($settings['videoDirectory'] . "/" . $mediaName);
+			//cache it
+			media_duration_cache($mediaName, $ThisFileInfo['playtime_seconds']);
+		} else {
+			$ThisFileInfo['playtime_seconds'] = $cache_duration;
+		}
+
+		$total_duration = $ThisFileInfo['playtime_seconds'] + $total_duration;
+	}
+
+	if ($total_duration !== 0) {
+		//If return array is false then return the human readable duration, else raw seconds
+		if ($returnArray == false) {
+			$returnStr[$mediaName]['duration'] = human_playtime($total_duration);
+		} else {
+			$returnStr[$mediaName]['duration'] = $total_duration;
+		}
+	}
+
+	if ($returnArray == true) {
+		return $returnStr;
+	} else {
+		$returnStr = json_encode($returnStr, JSON_PRETTY_PRINT);
+
+		header("Content-Type: application/json");
+		echo $returnStr;
+	}
+}
+
+/**
+ * Returns the total playlist duration & number of items in the body/main playlist
+ * @throws getid3_exception
+ */
+function GetPlayListInfo()
+{
+	global $args;
+	global $settings;
+	$reload = false;
+
+	$playlist = $args['pl'];
+	check($playlist, "playlist", __FUNCTION__);
+
+	if (isset($args['reload'])) {
+		$reload = $args['reload'];
+		check($reload, "reload", __FUNCTION__);
+	}
+
+	$returnStr = array();
+	//load in the playlist
+	if (file_exists($settings['playlistDirectory'] . '/' . $playlist . ".json")) {
+		$jsonStr = file_get_contents($settings['playlistDirectory'] . '/' . $playlist . ".json");
+		//decode it
+		$data = json_decode($jsonStr);
+
+		$total_duration = 0;
+		$total_items = 0;
+
+		//Determine if there is a fileInfo node
+		if(array_key_exists('playlistInfo',$data)){
+			//If it exists and we're not reloading then just extract the info
+			$fileInfo_data = $data->playlistInfo;
+			$fileinfo_Duration = $fileInfo_data->total_duration;
+			$fileinfo_Items = $fileInfo_data->total_items;
+
+			//Then use this value, it's stored in raw seconds so make it readable
+			$returnStr['total_duration'] = human_playtime($fileinfo_Duration);
+			$returnStr['total_items'] = $fileinfo_Items;
+		}
+//		else if (!array_key_exists('playlistInfo',$data) || $reload == true){
+			//generate the total duration, also save the duration into the playlist
+			//find the main playlist / body
+//			if (isset($data->mainPlaylist)) {
+//				//Loop over the contents, checking for media and build up a total duration
+//				foreach ($data->mainPlaylist as $idx => $playlistEntry) {
+//					$mediaName = "";
+//
+//					$type = $playlistEntry->type;
+//					if (isset($playlistEntry->mediaName)) {
+//						$mediaName = $playlistEntry->mediaName;
+//					}
+//					//If entry is either both sequence + audio or just media we can look at the media name and extract info
+//					if (($type == "both" || $type == "media") && !empty($mediaName)) {
+//						//Get media duration
+//						$ThisFileInfo = getMediaDurationInfo($mediaName, true);
+//
+//						$total_duration = $ThisFileInfo[$mediaName]['duration'] + $total_duration;
+//						$total_items++;
+//					}
+//					//Consider pause duration also
+//					if ($type == "pause") {
+//						$total_duration = $playlistEntry->duration + $total_duration;
+//					}
+//				}
+//
+//				//Build up the formatted string
+//				$returnStr['total_duration'] = human_playtime($total_duration);
+//				$returnStr['total_items'] = $total_items;
+//				unset($getID3);
+//			}
+//		}
+	}
+
+	$returnStr = json_encode($returnStr, JSON_PRETTY_PRINT);
+
+	header("Content-Type: application/json");
+	echo $returnStr;
+}
+
 function GetPlayListEntries()
 {
 	global $args;
@@ -876,7 +1097,11 @@ function GetPlayListEntries()
 
 	$jsonStr = GenerateJSONPlaylist($playlist);
 
-	$jsonStr = json_encode(json_decode($jsonStr), JSON_PRETTY_PRINT);
+	//Quick hack to make the playlist duration human readable (we want to keep the duration in seconds for the actual playlist) so modify here
+	$jsonStr = json_decode($jsonStr);
+	$jsonStr->playlistInfo->total_duration = human_playtime($jsonStr->playlistInfo->total_duration);
+
+	$jsonStr = json_encode($jsonStr, JSON_PRETTY_PRINT);
 
 	header( "Content-Type: application/json");
 	echo $jsonStr;
@@ -1054,6 +1279,65 @@ function GenerateJSONPlaylistSection($section, $list)
 	return $result;
 }
 
+function GenerateJSONPlaylistInfo($list)
+{
+	global $playlistDirectory, $settings;
+
+	$total_duration = $total_items = 0;
+	$returnStr = array(
+		'playlistInfo' => array(
+			'total_duration' => 0,
+			'total_items' => 0
+		)
+	);
+
+	if (isset($_SESSION['playlistInfo'])) {
+		//pull the data out of the session
+		$session_playlist_info = $_SESSION['playlistInfo'];
+
+		//Build up the formatted string
+		$returnStr['playlistInfo']['total_duration'] = ($session_playlist_info->total_duration);
+		$returnStr['playlistInfo']['total_items'] = $session_playlist_info->total_items;
+	}else if ((is_array($list) && !empty($list)) && !isset($_SESSION['playlistInfo']))  {
+		//Could not find the playlist info in the session so lets generate it
+		//it should be there if it was in the json file.
+
+		//loop over the lists
+		foreach ($list as $listName) {
+			//Loop over the contents, checking for media and build up a total duration
+			foreach ($_SESSION[$listName] as $idx => $playlistEntry) {
+				$mediaName = "";
+
+				$type = $playlistEntry->entry->type;
+				if (isset($playlistEntry->entry->mediaName)) {
+					$mediaName = $playlistEntry->entry->mediaName;
+				}
+
+				//If entry is either both sequence + audio or just media we can look at the media name and extract info
+				if (($type == "both" || $type == "media") && !empty($mediaName)) {
+					//Get media duration
+					$ThisFileInfo = getMediaDurationInfo($mediaName, true);
+
+					$total_duration = $ThisFileInfo[$mediaName]['duration'] + $total_duration;
+					if ($listName == "playListEntriesMainPlaylist") {
+						$total_items++;
+					}
+				}
+				//Consider pause duration also
+				if ($type == "pause") {
+					$total_duration = $playlistEntry->entry->duration + $total_duration;
+				}
+			}
+		}
+
+		//Build up the formatted string
+		$returnStr['playlistInfo']['total_duration'] = ($total_duration);
+		$returnStr['playlistInfo']['total_items'] = $total_items;
+	}
+
+	return ', "playlistInfo":' . json_encode($returnStr['playlistInfo'], JSON_PRETTY_PRINT);
+}
+
 function GenerateJSONPlaylist($name)
 {
 	$result = "";
@@ -1068,9 +1352,13 @@ function GenerateJSONPlaylist($name)
 		0  // Loop Count
 		);
 
+	//Generate json for the primary sections of the playlist
 	$result .= GenerateJSONPlaylistSection('leadIn', 'playListEntriesLeadIn');
 	$result .= GenerateJSONPlaylistSection('mainPlaylist', 'playListEntriesMainPlaylist');
 	$result .= GenerateJSONPlaylistSection('leadOut', 'playListEntriesLeadOut');
+
+	//Generate playlist info for all the areas
+	$result .= GenerateJSONPlaylistInfo(array('playListEntriesLeadIn','playListEntriesMainPlaylist','playListEntriesLeadOut'));
 
 	$result .= sprintf("\n}\n");
 
@@ -1080,6 +1368,9 @@ function GenerateJSONPlaylist($name)
 function SavePlaylistRaw($name)
 {
 	global $playlistDirectory;
+
+	//Hack to get have the playlist duration be recalculated before saving
+	unset($_SESSION['playlistInfo']);
 
 	$json = GenerateJSONPlaylist($name);
 
@@ -1115,6 +1406,30 @@ function SavePlaylist()
 
 	$result = Array();
 	$result['status'] = 'Ok';
+	returnJSON($result);
+}
+
+function CopyPlaylist()
+{
+	global $playlistDirectory;
+
+	$from_playlist_name = $_GET['from'];
+	$to_playlist_name = $_GET['to'];
+
+	check($from_playlist_name, "name", __FUNCTION__);
+	check($to_playlist_name, "name", __FUNCTION__);
+
+	if(empty($to_playlist_name)){
+		$to_playlist_name = $from_playlist_name . " - Copy";
+	}
+
+	if (file_exists($playlistDirectory . '/' . $from_playlist_name . '.json')) {
+		copy($playlistDirectory . '/' . $from_playlist_name . '.json', $playlistDirectory . '/' . $to_playlist_name . '.json');
+	}
+
+	$result = Array();
+	$result['status'] = 'Ok';
+	$result['copyPlaylist'] = $to_playlist_name;
 	returnJSON($result);
 }
 
