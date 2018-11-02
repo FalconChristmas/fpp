@@ -437,18 +437,18 @@ function AddPlaylistEntry() {
 
 			if (entry.type == 'sequence')
 			{
-				entry.sequenceName = $('#selSequence').val();
+				entry.sequenceName = encodeURIComponent($('#selSequence').val());
 			}
 			else if (entry.type == 'media')
 			{
-				entry.mediaName = $('#selMedia').val();
-                entry.videoOut = $('#videoOut').val();
+				entry.mediaName = encodeURIComponent($('#selMedia').val());
+                entry.videoOut = encodeURIComponent($('#videoOut').val());
 			}
 			else if (entry.type == 'both')
 			{
-				entry.sequenceName = $('#selSequence').val();
-				entry.mediaName = $('#selMedia').val();
-                entry.videoOut = $('#videoOut').val();
+				entry.sequenceName = encodeURIComponent($('#selSequence').val());
+				entry.mediaName = encodeURIComponent($('#selMedia').val());
+                entry.videoOut = encodeURIComponent($('#videoOut').val());
 			}
 			else if (entry.type == 'pause')
 			{
@@ -482,7 +482,7 @@ function AddPlaylistEntry() {
 			}
 			else if (entry.type == 'script')
 			{
-				entry.scriptName = $('#selScript').val();
+				entry.scriptName =  encodeURIComponent($('#selScript').val());
 			}
 			else if (entry.type == 'mqtt')
 			{
