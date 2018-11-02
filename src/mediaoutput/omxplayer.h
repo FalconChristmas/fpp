@@ -28,9 +28,6 @@
 
 #include "MediaOutputBase.h"
 
-#define MAX_BYTES_OMX 1000
-#define TIME_STR_MAX  8
-
 class omxplayerOutput : public MediaOutputBase {
   public:
 	omxplayerOutput(std::string mediaFilename, MediaOutputStatus *status);
@@ -47,11 +44,13 @@ class omxplayerOutput : public MediaOutputBase {
 
   private:
 	int  GetVolumeShift(int volume);
-	void ProcessPlayerData(int bytesRead);
+	void ProcessPlayerData(char * buffer, int bytesRead);
 	void PollPlayerInfo(void);
-
-	char m_omxBuffer[MAX_BYTES_OMX];
+    
+    bool m_allowSpeedAdjust;
 	int  m_volumeShift;
+    bool m_beforeFirstTick;
+    char *m_omxBuffer;
 };
 
 #endif

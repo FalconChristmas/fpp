@@ -119,11 +119,12 @@ int SPInRF24L01_Open(char *configStr, void **privDataPtr) {
 	char speed[2] = {0};
 	char channel[4] = {0};
 
-	char *s = strtok(configStr, ";");
+	char *s = strtok(configStr, ",;");
 
 	while (s) {
 		char tmp[128];
 		char *div = NULL;
+
 
 		strcpy(tmp, s);
 		div = strchr(tmp, '=');
@@ -141,7 +142,7 @@ int SPInRF24L01_Open(char *configStr, void **privDataPtr) {
 				strcpy(channel, div);
 			}
 		}
-		s = strtok(NULL, ";");
+		s = strtok(NULL, ",;");
 	}
 
 	if (!strcmp(speed, "0"))

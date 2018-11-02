@@ -275,7 +275,9 @@ void RGBMatrixOutput::PrepData(unsigned char *channelData)
     unsigned char r;
     unsigned char g;
     unsigned char b;
-    
+
+    channelData += m_startChannel;
+
     for (int output = 0; output < m_outputs; output++)
     {
         int panelsOnOutput = m_panelMatrix->m_outputPanels[output].size();

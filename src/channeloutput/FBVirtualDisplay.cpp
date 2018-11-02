@@ -186,7 +186,6 @@ int FBVirtualDisplayOutput::RawSendData(unsigned char *channelData)
 {
 	LogExcess(VB_CHANNELOUT, "FBVirtualDisplayOutput::RawSendData(%p)\n",
 		channelData);
-
 	DrawPixels(channelData);
 
 	return m_channelCount;

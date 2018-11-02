@@ -41,7 +41,7 @@
  */
 X11MatrixOutput::X11MatrixOutput(unsigned int startChannel,
 	unsigned int channelCount)
-  : ChannelOutputBase(startChannel, channelCount),
+  : ThreadedChannelOutputBase(startChannel, channelCount),
 	m_width(0),
 	m_height(0),
 	m_scale(10),
@@ -130,7 +130,7 @@ int X11MatrixOutput::Init(Json::Value config)
 	
 	XFlush(m_display);
 
-	return ChannelOutputBase::Init(config);
+	return ThreadedChannelOutputBase::Init(config);
 }
 
 /*
@@ -147,7 +147,7 @@ int X11MatrixOutput::Close(void)
 	XFreeGC(m_display, m_gc);
 	XCloseDisplay(m_display);
 
-	return ChannelOutputBase::Close();
+	return ThreadedChannelOutputBase::Close();
 }
 
 /*
@@ -221,6 +221,6 @@ void X11MatrixOutput::DumpConfig(void)
 	LogDebug(VB_CHANNELOUT, "    Scaled Width  : %d\n", m_scaleWidth);
 	LogDebug(VB_CHANNELOUT, "    Scaled Height : %d\n", m_scaleHeight);
 
-	ChannelOutputBase::DumpConfig();
+	ThreadedChannelOutputBase::DumpConfig();
 }
 

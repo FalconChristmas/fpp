@@ -199,7 +199,7 @@ int FBMatrixOutput::Close(void)
  */
 int FBMatrixOutput::SendData(unsigned char *channelData)
 {
-	LogExcess(VB_CHANNELOUT, "FBMatrixOutput::RawSendData(%p)\n",
+	LogExcess(VB_CHANNELOUT, "FBMatrixOutput::SendData(%p)\n",
 		channelData);
 
 	// FIXME, enhance this Channel Output to support wrapping, etc. to

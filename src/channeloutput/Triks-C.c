@@ -195,7 +195,7 @@ int TriksC_Open(char *configStr, void **privDataPtr) {
 	privData->fd = -1;
 
 	char deviceName[32];
-	char *s = strtok(configStr, ";");
+	char *s = strtok(configStr, ",;");
 
 	strcpy(deviceName, "UNKNOWN");
 
@@ -243,7 +243,7 @@ int TriksC_Open(char *configStr, void **privDataPtr) {
 				privData->panels = privData->width * privData->height;
 			}
 		}
-		s = strtok(NULL, ",");
+        s = strtok(NULL, ",;");
 	}
 
 	if (!strcmp(deviceName, "UNKNOWN"))

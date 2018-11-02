@@ -180,7 +180,6 @@ int mpg123Output::Stop(void)
  */
 void mpg123Output::ParseTimes(void)
 {
-	static int lastRemoteSync = 0;
 	int result;
 	int secs;
 	int mins;
@@ -233,13 +232,8 @@ void mpg123Output::ParseTimes(void)
 
 	if (getFPPmode() == MASTER_MODE)
 	{
-		if ((m_mediaOutputStatus->secondsElapsed > 0) &&
-			(lastRemoteSync != m_mediaOutputStatus->secondsElapsed))
-		{
-			multiSync->SendMediaSyncPacket(m_mediaFilename.c_str(), 0,
+        multiSync->SendMediaSyncPacket(m_mediaFilename.c_str(), 0,
 				m_mediaOutputStatus->mediaSeconds);
-			lastRemoteSync = m_mediaOutputStatus->secondsElapsed;
-		}
 	}
 
 	if ((sequence->IsSequenceRunning()) &&

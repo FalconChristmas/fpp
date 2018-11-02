@@ -44,6 +44,8 @@
 #include "settings.h"
 #include "Sequence.h"
 
+#define MAX_BYTES_OMX 4096
+
 /*
  *
  */
@@ -53,6 +55,9 @@ omxplayerOutput::omxplayerOutput(std::string mediaFilename, MediaOutputStatus *s
 
 	m_mediaFilename = mediaFilename;
 	m_mediaOutputStatus = status;
+    m_allowSpeedAdjust = true;
+
+    m_omxBuffer = new char[MAX_BYTES_OMX + 1];
 }
 
 /*
@@ -60,6 +65,7 @@ omxplayerOutput::omxplayerOutput(std::string mediaFilename, MediaOutputStatus *s
  */
 omxplayerOutput::~omxplayerOutput()
 {
+    delete [] m_omxBuffer;
 }
 
 /*
@@ -68,6 +74,7 @@ omxplayerOutput::~omxplayerOutput()
 int omxplayerOutput::Start(void)
 {
 	std::string fullVideoPath;
+    m_beforeFirstTick = true;
 
 	LogDebug(VB_MEDIAOUT, "omxplayerOutput::Start()\n");
 
@@ -142,22 +149,18 @@ int omxplayerOutput::GetVolumeShift(int volume)
  */
 int omxplayerOutput::AdjustSpeed(int delta)
 {
-	if (delta < 0)
-	{
-		LogDebug(VB_MEDIAOUT, "Slowing Down playback\n");
-		write(m_childPipe[0], "8", 1);
+    if (m_allowSpeedAdjust) {
+        if (delta < 0) {
+            LogDebug(VB_MEDIAOUT, "Slowing Down playback\n");
+            write(m_childPipe[0], "8", 1);
+        } else if (delta > 0) {
+            LogDebug(VB_MEDIAOUT, "Speeding Up playback\n");
+            write(m_childPipe[0], "0", 1);
+        } else {
+            LogDebug(VB_MEDIAOUT, "Speed Playback Normal\n");
+            write(m_childPipe[0], "9", 1);
+        }
 	}
-	else if (delta > 0)
-	{
-		LogDebug(VB_MEDIAOUT, "Speeding Up playback\n");
-		write(m_childPipe[0], "0", 1);
-	}
-	else
-	{
-		LogDebug(VB_MEDIAOUT, "Speed Playback Normal\n");
-		write(m_childPipe[0], "9", 1);
-	}
-
 	return 1;
 }
 
@@ -192,10 +195,9 @@ void omxplayerOutput::SetVolume(int volume)
 /*
  *
  */
-void omxplayerOutput::ProcessPlayerData(int bytesRead)
+void omxplayerOutput::ProcessPlayerData(char *omxBuffer, int bytesRead)
 {
 	int        ticks = 0;
-	static int lastRemoteSync = 0;
 	int        mins = 0;
 	int        secs = 0;
 	int        subsecs = 0;
@@ -205,7 +207,7 @@ void omxplayerOutput::ProcessPlayerData(int bytesRead)
     
 	if ((m_mediaOutputStatus->secondsTotal == 0) &&
 		(m_mediaOutputStatus->minutesTotal == 0) &&
-		(ptr = strstr(m_omxBuffer, "Duration: ")))
+		(ptr = strstr(omxBuffer, "Duration: ")))
 	{
 		// Sample line format:
 		// (whitespace)Duration: 00:00:37.91, start: 0.000000, bitrate: 2569 kb/s
@@ -219,33 +221,27 @@ void omxplayerOutput::ProcessPlayerData(int bytesRead)
 	}
 
 	// Data is line buffered so all stats lines should start with "M: "
-	if ((!strncmp(m_omxBuffer, "M:", 2)) &&
+	if ((!strncmp(omxBuffer, "M:", 2)) &&
 		(bytesRead > 20))
 	{
 		errno = 0;
-		ticks = strtol(&m_omxBuffer[2], NULL, 10);
+		ticks = strtol(&omxBuffer[2], NULL, 10);
 		if (errno) {
 			LogErr(VB_MEDIAOUT, "Error parsing omxplayer output.\n");
 			return;
 		}
-    } else if (!strncmp(m_omxBuffer, "have a nice day", 15)) {
+        m_beforeFirstTick = false;
+    } else if (!strncmp(omxBuffer, "have a nice day", 15)) {
         //hit the end
         m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
         m_mediaOutputStatus->secondsRemaining = 0;
         Stop();
         return;
+    } else if (!strncmp(omxBuffer, "V:", 2)) {
+        //video settings, informational only, ignore
 	} else {
-        int l  = strlen(m_omxBuffer);
-        while (l > 0) {
-            if (m_omxBuffer[l] && (m_omxBuffer[l - 1] == '\n' || m_omxBuffer[l - 1] == '\r')) {
-                strcpy(m_omxBuffer, &m_omxBuffer[l]);
-                ProcessPlayerData(strlen(m_omxBuffer));
-                return;
-            }
-            l--;
-        }
-        if (!hasDuration && bytesRead > 2) {
-            LogErr(VB_MEDIAOUT, "Error parsing omxplayer output.  %s\n", m_omxBuffer);
+        if (!hasDuration && bytesRead > 2 && !m_beforeFirstTick) {
+            LogErr(VB_MEDIAOUT, "Error parsing omxplayer output.  %s\n", omxBuffer);
         }
 		return;
 	}
@@ -265,31 +261,6 @@ void omxplayerOutput::ProcessPlayerData(int bytesRead)
 	// m_mediaOutputStatus->subSecondsRemaining = subsecs;
 
 	m_mediaOutputStatus->mediaSeconds = (float)((float)m_mediaOutputStatus->secondsElapsed + ((float)m_mediaOutputStatus->subSecondsElapsed/(float)100));
-
-	if (getFPPmode() == MASTER_MODE)
-	{
-		if ((m_mediaOutputStatus->secondsElapsed > 0) &&
-			(lastRemoteSync != m_mediaOutputStatus->secondsElapsed))
-		{
-			multiSync->SendMediaSyncPacket(m_mediaFilename.c_str(), 0,
-				m_mediaOutputStatus->mediaSeconds);
-			lastRemoteSync = m_mediaOutputStatus->secondsElapsed;
-		}
-	}
-
-	if ((sequence->IsSequenceRunning()) &&
-		(m_mediaOutputStatus->secondsElapsed > 0))
-	{
-		LogExcess(VB_MEDIAOUT,
-			"Elapsed: %.2d.%.2d  Remaining: %.2d Total %.2d:%.2d.\n",
-			m_mediaOutputStatus->secondsElapsed,
-			m_mediaOutputStatus->subSecondsElapsed,
-			m_mediaOutputStatus->secondsRemaining,
-			m_mediaOutputStatus->minutesTotal,
-			m_mediaOutputStatus->secondsTotal);
-
-		CalculateNewChannelOutputDelay(m_mediaOutputStatus->mediaSeconds);
-	}
 }
 
 /*
@@ -306,28 +277,52 @@ void omxplayerOutput::PollPlayerInfo(void)
 	omx_timeout.tv_sec = 0;
 	omx_timeout.tv_usec = 5;
 
-	if(select(FD_SETSIZE, &m_readFDSet, NULL, NULL, &omx_timeout) < 0)
-	{
+	if(select(FD_SETSIZE, &m_readFDSet, NULL, NULL, &omx_timeout) < 0) {
 	 	LogErr(VB_MEDIAOUT, "Error Select:%d\n", errno);
 
 		Stop(); // Kill the child if we can't read from the pipe
 	 	return; 
 	}
-	if(FD_ISSET(m_childPipe[0], &m_readFDSet))
-	{
- 		bytesRead = read(m_childPipe[0], m_omxBuffer, MAX_BYTES_OMX - 1);
-		if (bytesRead > 0) 
-		{
-            m_omxBuffer[bytesRead] = 0;
-			ProcessPlayerData(bytesRead);
-		} 
+	if(FD_ISSET(m_childPipe[0], &m_readFDSet)) {
+ 		bytesRead = read(m_childPipe[0], m_omxBuffer, MAX_BYTES_OMX );
+		if (bytesRead > 0) {
+            int cur = 0;
+            int max = 0;
+            for (int m = 0; m < bytesRead; m++) {
+                if (m_omxBuffer[m] == '\n' || m_omxBuffer[m] == '\r') {
+                    m_omxBuffer[m] = 0;
+                    ProcessPlayerData(&m_omxBuffer[cur], m - cur);
+                    cur = m + 1;
+                }
+            }
+            if (cur < bytesRead) {
+                ProcessPlayerData(&m_omxBuffer[cur], bytesRead - cur);
+            }
+            
+            if (getFPPmode() == MASTER_MODE) {
+                multiSync->SendMediaSyncPacket(m_mediaFilename.c_str(), 0,
+                                               m_mediaOutputStatus->mediaSeconds);
+            }
+            
+            if ((sequence->IsSequenceRunning()) &&
+                (m_mediaOutputStatus->secondsElapsed > 0)) {
+                LogExcess(VB_MEDIAOUT,
+                          "Elapsed: %.2d.%.2d  Remaining: %.2d Total %.2d:%.2d.\n",
+                          m_mediaOutputStatus->secondsElapsed,
+                          m_mediaOutputStatus->subSecondsElapsed,
+                          m_mediaOutputStatus->secondsRemaining,
+                          m_mediaOutputStatus->minutesTotal,
+                          m_mediaOutputStatus->secondsTotal);
+                
+                CalculateNewChannelOutputDelay(m_mediaOutputStatus->mediaSeconds);
+            }
+		}
 	}
 }
 
 int omxplayerOutput::Process(void)
 {
-	if(m_childPID > 0)
-	{
+	if(m_childPID > 0) {
 		PollPlayerInfo();
 	}
 

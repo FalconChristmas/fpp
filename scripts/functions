@@ -907,7 +907,7 @@ setupRTC () {
 	1)
 	  # rasClock chip
       echo "FPP - Configuring RTC, Setting to rasClock/${I2CBUS}"
-      echo pfc2127 0x51 > /sys/class/i2c-adapter/${I2CBUS}/new_device
+      echo pcf2127 0x51 > /sys/class/i2c-adapter/${I2CBUS}/new_device
       sleep 1
 	  ;;
 	2)
