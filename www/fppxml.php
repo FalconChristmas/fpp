@@ -1892,6 +1892,35 @@ function GetFileInfo(&$root, &$doc, $dirName, $fileName)
 	$time = $file->appendChild($time);
 	$value = $doc->createTextNode(date('m/d/y  h:i A', filemtime($fileFullName)));
 	$value = $time->appendChild($value);
+
+	$fileInfo = $doc->createElement('FileInfo');
+	$fileInfo = $file->appendChild($fileInfo);
+	//quick and dirty check for music and video dir
+	if(strpos(strtolower($fileFullName),"music") !== FALSE || strpos(strtolower($fileFullName),"video") !== FALSE ){
+
+		//Check the cache first
+		$filesize = filesize($fileFullName);
+		$cache_duration = media_duration_cache($fileName, null, $filesize);
+		//cache duration will be null if not in cache, then retrieve it
+		if ($cache_duration == NULL) {
+			//Include our getid3 library for media
+			require_once('./lib/getid3/getid3.php');
+			//Instantiate getID3 object
+			$getID3 = new getID3;
+			//Get the media duration from file
+			$ThisFileInfo = $getID3->analyze($fileFullName);
+			//cache it
+			media_duration_cache($fileName, $ThisFileInfo['playtime_seconds'], $filesize);
+		} else {
+			$ThisFileInfo['playtime_seconds'] = $cache_duration;
+		}
+
+		$value = $doc->createTextNode(human_playtime($ThisFileInfo['playtime_seconds']));
+	}else{
+		//just return the filesize
+		$value = $doc->createTextNode(human_filesize(filesize($fileFullName)));
+	}
+	$value = $fileInfo->appendChild($value);
 }
 
 function GetFiles()

@@ -1705,7 +1705,9 @@ function RemovePlaylistEntry()	{
         }
 
         var time = files.childNodes[i].childNodes[1].textContent.replace(/ /g, '&nbsp;');
-        var tableRow = "<tr class ='fileDetails'><td class ='fileName'>" + name + "</td><td class ='fileTime'>" + time + "</td></tr>";
+        var fileInfo = files.childNodes[i].childNodes[2].textContent;
+
+        var tableRow = "<tr class='fileDetails' id='fileDetail_" + i + "'><td class ='fileName'>" + name + "</td><td class='fileExtraInfo'>" + fileInfo + "</td><td class ='fileTime'>" + time + "</td></tr>";
         $('#tbl' + dir).append(tableRow);
       }
     }

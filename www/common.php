@@ -370,6 +370,81 @@ echo "
 }
 
 /**
+ * Retrieving the duration of media files takes roughly 100+ms on a Pi2, over large playlists the delays can add up
+ * to speed things up we'll try cache the durations so we don't unnecessarily keep hitting the media files
+ *
+ * If the the media duration exists in the cache then it's returned, else the returned value is null
+ *
+ * @param $media
+ * @param null $duration_seconds
+ * @return null
+ */
+function media_duration_cache($media, $duration_seconds = null, $filesize = null)
+{
+	$file = "/tmp/media_durations.cache";
+	$time = 86400 * 30; //seconds - cache for 24hrs * 30
+	$duration_cache = array();
+	$return_duration = null;
+
+	if (!file_exists($file) ||  ( time() - filemtime( $file ) > $time)) {
+		// cache doesn't exist or expired so lets create it and insert our media entry
+		if ($duration_seconds !== null) {
+			//put the media duration into the cache, but only if it isn't null
+			$duration_cache[$media] = array('filesize' => $filesize, 'duration' => $duration_seconds);
+
+			$return_duration = $duration_seconds;
+			file_put_contents($file, json_encode($duration_cache, JSON_PRETTY_PRINT));
+		}
+	} else {
+		//else cache exists and is valid, replaces/append duration to it
+		$duration_cache = file_get_contents($file);
+		if (!empty($duration_cache)) {
+			$duration_cache = json_decode($duration_cache, true);
+			//if file hashes are the same - then it's the same file
+			if (array_key_exists($media, $duration_cache) && $duration_cache[$media]['filesize'] == $filesize) {
+				//Key exists, then return the cached duration
+				$return_duration = $duration_cache[$media]['duration'];
+			} else if ($duration_seconds !== null) {
+				//put the media duration into the cache, but only if it isn't null
+				$duration_cache[$media] = array('filesize' => $filesize, 'duration' => $duration_seconds);;
+				$return_duration = $duration_seconds;
+
+				file_put_contents($file, json_encode($duration_cache, JSON_PRETTY_PRINT));
+			}
+		}
+	}
+
+	return $return_duration;
+}
+
+/**
+ * Returns the supplied filesize in bytes in a human readable format
+ * @param $bytes
+ * @param int $decimals
+ * @return string
+ */
+function human_filesize($bytes, $decimals = 2) {
+	$sz = 'BKMGTP';
+	$factor = floor((strlen($bytes) - 1) / 3);
+	return sprintf("%.{$decimals}f", $bytes / pow(1024, $factor)) . @$sz[$factor] . ($factor > 0 ?  "B" : "");
+}
+
+/**
+ * Returns the supplied duration in a human readable format (eg. 03m:55s)
+ * @param $total_duration
+ * @return string
+ */
+function human_playtime($total_duration){
+	$hour_return = "";
+	//So we can leave the hours out if it duration isn't long enough
+	if (floor($total_duration / 3600) > 0) {
+		$hour_return = sprintf("%'02d", floor($total_duration / 3600)) . "h:";
+	}
+
+	return $hour_return . sprintf("%'02d", floor($total_duration / 60) % 60) . "m:" . sprintf("%'02d", $total_duration % 60) . "s";
+}
+
+/**
  * Returns current memory usage
  * @return float|int
  */
