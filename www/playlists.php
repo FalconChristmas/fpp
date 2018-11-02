@@ -394,7 +394,15 @@ function PrintScriptOptions($id)
       <div style="float:left">
             <input name="" type="button" value="Save" onclick="SavePlaylist();" class="buttons" style="margin-left:50px"/>
             <input name="" type="button" value="Delete" onclick="DeletePlaylist();"  class="buttons" />
-          </div>
+            <br/>
+            <input name="copyPlaylist" type="button" value="Copy Playlist" onclick="CopyPlaylist();"  class="buttons" style="margin-left:50px"/>
+            <input name="randomizePlaylist" type="button" value="Randomize" onclick="RandomizePlaylistEntries();"  class="buttons" />
+      </div>
+        <div style="float:left; margin-left: 50px;" class="playlistInfoText">
+            <span>Playlist Info:</span><br/>
+            <span>Total Duration: <span id="playlistDuration">00m:00s</span></span><br/>
+            <span>Total Items: <span id="playlistItems">0</span> (In Main)</span>
+        </div>
           <div class="clear"></div>
     </div>
 		    <br />
@@ -508,19 +516,19 @@ function PrintScriptOptions($id)
     <div id="createPlaylistItems">
           <table id="tblCreatePlaylist">
             <colgroup>
-                <col class='colPlaylistNumber'></col>
-                <col class='colPlaylistType'></col>
-                <col class='colPlaylistData1'></col>
-                <col class='colPlaylistData2'></col>
-                <col class='colPlaylistData3'></col>
+                <col class='colPlaylistNumber'>
+                <col class='colPlaylistType'>
+                <col class='colPlaylistData1'>
+                <col class='colPlaylistData2'>
+                <col class='colPlaylistData3'>
             </colgroup>
 			<thead>
         <tr id="rowCreatePlaylistHeader">
-              <th class="colPlaylistNumber">#</td>
-              <th class="colPlaylistType">Type</td>
-              <th class="colPlaylistData1">Media File / Script / Event / Pause</td>
-              <th class="colPlaylistData2">Sequence / Delay / Data</td>
-              <th class="colPlaylistData3"></td>
+              <th class="colPlaylistNumber">#</th>
+              <th class="colPlaylistType">Type</th>
+              <th class="colPlaylistData1">Media File / Script / Event / Pause</th>
+              <th class="colPlaylistData2">Sequence / Delay / Data</th>
+              <th class="colPlaylistData3"></th>
             </tr>
 			</thead>
 						<tbody>
@@ -548,6 +556,12 @@ function PrintScriptOptions($id)
 <div id="playlistConverter" title="Playlist Converter" style="display: none">
   <div id="playlistConverterText">
   </div>
+</div>
+<div id="copyPlaylist_dialog" title="Copy Playlist">
+    <form>
+        <span>Enter new name for playlist</span>
+        <input name="newPlaylistName" type="text" style="z-index:10000; width: 100%" class="newPlaylistName" value="New Playlist Name">
+    </form>
 </div>
 </body>
 </html>
