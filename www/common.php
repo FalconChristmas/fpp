@@ -381,23 +381,26 @@ echo "
  */
 function media_duration_cache($media, $duration_seconds = null, $filesize = null)
 {
-	$file = "/tmp/media_durations.cache";
-	$time = 86400 * 30; //seconds - cache for 24hrs * 30
+	global $settings;
+	$config_dir = $settings['configDirectory'];
+	$cache_file = "media_durations.cache";
+	$file_path = $config_dir . "/" .$cache_file ;
+	$time = 86400 * 30; //seconds - cache for 24hrs * 30days
 	$duration_cache = array();
 	$return_duration = null;
 
-	if (!file_exists($file) ||  ( time() - filemtime( $file ) > $time)) {
+	if (!file_exists($file_path) ||  ( time() - filemtime( $file_path ) > $time)) {
 		// cache doesn't exist or expired so lets create it and insert our media entry
 		if ($duration_seconds !== null) {
 			//put the media duration into the cache, but only if it isn't null
 			$duration_cache[$media] = array('filesize' => $filesize, 'duration' => $duration_seconds);
 
 			$return_duration = $duration_seconds;
-			file_put_contents($file, json_encode($duration_cache, JSON_PRETTY_PRINT));
+			file_put_contents($file_path, json_encode($duration_cache, JSON_PRETTY_PRINT));
 		}
 	} else {
 		//else cache exists and is valid, replaces/append duration to it
-		$duration_cache = file_get_contents($file);
+		$duration_cache = file_get_contents($file_path);
 		if (!empty($duration_cache)) {
 			$duration_cache = json_decode($duration_cache, true);
 			//if file hashes are the same - then it's the same file
@@ -409,7 +412,7 @@ function media_duration_cache($media, $duration_seconds = null, $filesize = null
 				$duration_cache[$media] = array('filesize' => $filesize, 'duration' => $duration_seconds);;
 				$return_duration = $duration_seconds;
 
-				file_put_contents($file, json_encode($duration_cache, JSON_PRETTY_PRINT));
+				file_put_contents($file_path, json_encode($duration_cache, JSON_PRETTY_PRINT));
 			}
 		}
 	}
