@@ -48,7 +48,6 @@ X11VirtualDisplayOutput::X11VirtualDisplayOutput(unsigned int startChannel,
 
 	m_maxChannels = FPPD_MAX_CHANNELS;
 	m_bytesPerPixel = 4;
-	m_useOutputThread = 0;
 }
 
 /*
@@ -150,9 +149,9 @@ int X11VirtualDisplayOutput::Close(void)
 /*
  *
  */
-int X11VirtualDisplayOutput::RawSendData(unsigned char *channelData)
+int X11VirtualDisplayOutput::SendData(unsigned char *channelData)
 {
-	LogExcess(VB_CHANNELOUT, "X11VirtualDisplayOutput::RawSendData(%p)\n", channelData);
+	LogExcess(VB_CHANNELOUT, "X11VirtualDisplayOutput::SendData(%p)\n", channelData);
 
 	DrawPixels(channelData);
 
