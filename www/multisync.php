@@ -135,6 +135,7 @@ if (isset($_GET['expertView'])) {
             }
 
 			var rowID = "fpp_" + ip.replace(/\./g, '_');
+            var auto_updates_stirng = "";
 
 			$('#' + rowID + '_status').html(status);
 			$('#' + rowID + '_elapsed').html(elapsed);
@@ -146,14 +147,15 @@ if (isset($_GET['expertView'])) {
                 //$('#expertViewBranch_' + rowID).html(data.expertView.Branch);
 
                 $('#expertViewGitVersions_' + rowID).html("R: " + (typeof (data.expertView.RemoteGitVersion) !== 'undefined' ? data.expertView.RemoteGitVersion : 'Unknown') + "<br>L: " + (typeof (data.expertView.LocalGitVersion) !== 'undefined' ? data.expertView.LocalGitVersion : 'Unknown'));
-
+                //Generate autoupdate status
+                auto_updates_stirng = ((data.expertView.AutoUpdatesDisabled === true ? "Disabled" : "Enabled"));
+                //Work out if there is a Git version difference
                 if ((typeof (data.expertView.RemoteGitVersion) !== 'undefined' && typeof (data.expertView.LocalGitVersion) !== 'undefined') && data.expertView.RemoteGitVersion !== "") {
                     if (data.expertView.RemoteGitVersion !== data.expertView.LocalGitVersion) {
-                        $('#expertViewAutoUpdateState_' + rowID).html((data.expertView.AutoUpdatesDisabled === true ? "Disabled" : "Enabled") + "<br>" + '<a class="updateAvailable" href="http://' + ip + '/about.php" target="_blank">Update Available!</a>');
+                        auto_updates_stirng = auto_updates_stirng + "<br>" + '<a class="updateAvailable" href="http://' + ip + '/about.php" target="_blank">Update Available!</a>';
                     }
-                } else {
-                    $('#expertViewAutoUpdateState_' + rowID).html((data.expertView.AutoUpdatesDisabled === true ? "Disabled" : "Enabled") + "<br>");
                 }
+                $('#expertViewAutoUpdateState_' + rowID).html(auto_updates_stirng);
 
                 $('#expertViewUtilization_' + rowID).html("CPU: " + (typeof (data.expertView.Utilization) !== 'undefined' ? Math.round((data.expertView.Utilization.CPU) * 100) : 'Unk.') + "%" +
                     "<br>" +
