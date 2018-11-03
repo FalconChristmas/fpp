@@ -944,7 +944,8 @@ function getMediaDurationInfo($mediaName = "", $returnArray = false)
 		//Music Directory
 
 		//Check the cache for the media name first
-		$cache_duration = media_duration_cache($mediaName);
+		$media_filesize = filesize($settings['musicDirectory'] . "/" . $mediaName);
+		$cache_duration = media_duration_cache($mediaName, null, $media_filesize);
 		//cache duration will be null if not in cache, then retrieve it
 		if ($cache_duration == NULL) {
 			//Include our getid3 library for media
@@ -955,7 +956,7 @@ function getMediaDurationInfo($mediaName = "", $returnArray = false)
 
 			$ThisFileInfo = $getID3->analyze($settings['musicDirectory'] . "/" . $mediaName);
 			//cache it
-			media_duration_cache($mediaName, $ThisFileInfo['playtime_seconds']);
+			media_duration_cache($mediaName, $ThisFileInfo['playtime_seconds'], $media_filesize);
 		} else {
 			$ThisFileInfo['playtime_seconds'] = $cache_duration;
 		}
@@ -965,7 +966,8 @@ function getMediaDurationInfo($mediaName = "", $returnArray = false)
 		//Check video directory
 
 		//Check the cache for the media name first
-		$cache_duration = media_duration_cache($mediaName);
+		$media_filesize = filesize($settings['videoDirectory'] . "/" . $mediaName);
+		$cache_duration = media_duration_cache($mediaName, null, $media_filesize);
 		//cache duration will be null if not in cache, then retrieve it
 		if ($cache_duration == NULL) {
 			//Include our getid3 library for media
@@ -976,7 +978,7 @@ function getMediaDurationInfo($mediaName = "", $returnArray = false)
 
 			$ThisFileInfo = $getID3->analyze($settings['videoDirectory'] . "/" . $mediaName);
 			//cache it
-			media_duration_cache($mediaName, $ThisFileInfo['playtime_seconds']);
+			media_duration_cache($mediaName, $ThisFileInfo['playtime_seconds'], $media_filesize);
 		} else {
 			$ThisFileInfo['playtime_seconds'] = $cache_duration;
 		}
