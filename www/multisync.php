@@ -150,7 +150,7 @@ if (isset($_GET['expertView'])) {
                 //Generate autoupdate status
                 auto_updates_stirng = ((data.expertView.AutoUpdatesDisabled === true ? "Disabled" : "Enabled"));
                 //Work out if there is a Git version difference
-                if ((typeof (data.expertView.RemoteGitVersion) !== 'undefined' && typeof (data.expertView.LocalGitVersion) !== 'undefined') && data.expertView.RemoteGitVersion !== "") {
+                if (((typeof (data.expertView.RemoteGitVersion) !== 'undefined' && typeof (data.expertView.LocalGitVersion) !== 'undefined')) && data.expertView.RemoteGitVersion !== "Unknown") {
                     if (data.expertView.RemoteGitVersion !== data.expertView.LocalGitVersion) {
                         auto_updates_stirng = auto_updates_stirng + "<br>" + '<a class="updateAvailable" href="http://' + ip + '/about.php" target="_blank">Update Available!</a>';
                     }
