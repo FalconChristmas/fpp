@@ -6,18 +6,18 @@ require_once("config.php");
 require_once("common.php");
 include 'common/menuHead.inc';
 
-$expertView = false;
-if (isset($_GET['expertView'])) {
-	if ($_GET['expertView'] == true || strtolower($_GET['expertView'])  == "true") {
-		$expertView = true;
+$advancedView = false;
+if (isset($_GET['advancedView'])) {
+	if ($_GET['advancedView'] == true || strtolower($_GET['advancedView'])  == "true") {
+		$advancedView = true;
 	} else {
-		$expertView = false;
+		$advancedView = false;
 	}
 }
 ?>
 <title><? echo $pageTitle; ?></title>
 <script>
-    var expertView = <? echo $expertView == true ? 'true' : 'false'; ?>;
+    var advancedView = <? echo $advancedView == true ? 'true' : 'false'; ?>;
 
     function updateMultiSyncRemotes(checkbox) {
 		var remotes = "";
@@ -66,7 +66,7 @@ if (isset($_GET['expertView'])) {
 	}
 
 	function getFPPSystemStatus(ip) {
-		$.get("fppjson.php?command=getFPPstatus&ip=" + ip + (expertView == true ? '&expertView=true' : '')
+		$.get("fppjson.php?command=getFPPstatus&ip=" + ip + (advancedView == true ? '&advancedView=true' : '')
 		).done(function(data) {
 			var status = 'Idle';
 			var statusInfo = "";
@@ -141,27 +141,27 @@ if (isset($_GET['expertView'])) {
 			$('#' + rowID + '_elapsed').html(elapsed);
 			$('#' + rowID + '_files').html(files);
 			//Expert View Rows
-            if(expertView === true && data.status_name !== 'unknown') {
-                $('#' + rowID + '_platform').html(data.expertView.Platform + "<br><small class='hostDescriptionSM'>" + data.expertView.Variant + "</small>");
-                $('#expertViewVersion_' + rowID).html(data.expertView.Version);
-                //$('#expertViewBranch_' + rowID).html(data.expertView.Branch);
+            if(advancedView === true && data.status_name !== 'unknown') {
+                $('#' + rowID + '_platform').html(data.advancedView.Platform + "<br><small class='hostDescriptionSM'>" + data.advancedView.Variant + "</small>");
+                $('#advancedViewVersion_' + rowID).html(data.advancedView.Version);
+                //$('#advancedViewBranch_' + rowID).html(data.advancedView.Branch);
 
-                $('#expertViewGitVersions_' + rowID).html("R: " + (typeof (data.expertView.RemoteGitVersion) !== 'undefined' ? data.expertView.RemoteGitVersion : 'Unknown') + "<br>L: " + (typeof (data.expertView.LocalGitVersion) !== 'undefined' ? data.expertView.LocalGitVersion : 'Unknown'));
+                $('#advancedViewGitVersions_' + rowID).html("R: " + (typeof (data.advancedView.RemoteGitVersion) !== 'undefined' ? data.advancedView.RemoteGitVersion : 'Unknown') + "<br>L: " + (typeof (data.advancedView.LocalGitVersion) !== 'undefined' ? data.advancedView.LocalGitVersion : 'Unknown'));
                 //Generate autoupdate status
-                auto_updates_stirng = ((data.expertView.AutoUpdatesDisabled === true ? "Disabled" : "Enabled"));
+                auto_updates_stirng = ((data.advancedView.AutoUpdatesDisabled === true ? "Disabled" : "Enabled"));
                 //Work out if there is a Git version difference
-                if (((typeof (data.expertView.RemoteGitVersion) !== 'undefined' && typeof (data.expertView.LocalGitVersion) !== 'undefined')) && data.expertView.RemoteGitVersion !== "Unknown") {
-                    if (data.expertView.RemoteGitVersion !== data.expertView.LocalGitVersion) {
+                if (((typeof (data.advancedView.RemoteGitVersion) !== 'undefined' && typeof (data.advancedView.LocalGitVersion) !== 'undefined')) && data.advancedView.RemoteGitVersion !== "Unknown") {
+                    if (data.advancedView.RemoteGitVersion !== data.advancedView.LocalGitVersion) {
                         auto_updates_stirng = auto_updates_stirng + "<br>" + '<a class="updateAvailable" href="http://' + ip + '/about.php" target="_blank">Update Available!</a>';
                     }
                 }
-                $('#expertViewAutoUpdateState_' + rowID).html(auto_updates_stirng);
+                $('#advancedViewAutoUpdateState_' + rowID).html(auto_updates_stirng);
 
-                $('#expertViewUtilization_' + rowID).html("CPU: " + (typeof (data.expertView.Utilization) !== 'undefined' ? Math.round((data.expertView.Utilization.CPU) * 100) : 'Unk.') + "%" +
+                $('#advancedViewUtilization_' + rowID).html("CPU: " + (typeof (data.advancedView.Utilization) !== 'undefined' ? Math.round((data.advancedView.Utilization.CPU) * 100) : 'Unk.') + "%" +
                     "<br>" +
-                    "Mem: " + (typeof (data.expertView.Utilization) !== 'undefined' ? Math.round(data.expertView.Utilization.Memory) : 'Unk.') + "%" +
+                    "Mem: " + (typeof (data.advancedView.Utilization) !== 'undefined' ? Math.round(data.advancedView.Utilization.Memory) : 'Unk.') + "%" +
                     "<br>" +
-                    "Uptime: " + (typeof (data.expertView.Utilization) !== 'undefined' ? data.expertView.Utilization.Uptime : 'Unk.'));
+                    "Uptime: " + (typeof (data.advancedView.Utilization) !== 'undefined' ? data.advancedView.Utilization.Uptime : 'Unk.'));
             }
 		}).fail(function() {
 			DialogError("Get FPP System Status", "Get Status Failed for " + ip + " via getFPPstatus");
@@ -242,13 +242,13 @@ if (isset($_GET['expertView'])) {
 				"<td id='" + rowID + "_elapsed'></td>" +
 				"<td id='" + rowID + "_files'></td>";
 
-            if (expertView === true) {
-                newRow = newRow + "<td class='expertViewRowSpacer'></td>" +
-                    "<td id='expertViewVersion_" + rowID + "' class='expertViewRow'></td>" +
-                    //"<td id='expertViewBranch_" + rowID + "'  class='expertViewRow'></td>" +
-                    "<td id='expertViewGitVersions_" + rowID + "'  class='expertViewRow'></td>" +
-                    "<td id='expertViewAutoUpdateState_" + rowID + "' class='expertViewRow'></td>" +
-                    "<td id='expertViewUtilization_" + rowID + "'  class='expertViewRow'></td>";
+            if (advancedView === true) {
+                newRow = newRow + "<td class='advancedViewRowSpacer'></td>" +
+                    "<td id='advancedViewVersion_" + rowID + "' class='advancedViewRow'></td>" +
+                    //"<td id='advancedViewBranch_" + rowID + "'  class='advancedViewRow'></td>" +
+                    "<td id='advancedViewGitVersions_" + rowID + "'  class='advancedViewRow'></td>" +
+                    "<td id='advancedViewAutoUpdateState_" + rowID + "' class='advancedViewRow'></td>" +
+                    "<td id='advancedViewUtilization_" + rowID + "'  class='advancedViewRow'></td>";
             }
 
             newRow = newRow + "</tr>";
@@ -315,14 +315,14 @@ if (isset($_GET['expertView'])) {
 						<th>File(s)</th>
 						<?php
                         //Only show expert view is requested
-						if ($expertView == true) {
+						if ($advancedView == true) {
 							?>
-                            <th class="expertViewHeaderSpacer"></th>
-                            <th class="expertViewHeader">Version</th>
-                            <!--<th class="expertViewHeader">Branch</th> -->
-                            <th class="expertViewHeader">Git Version(s)</th>
-                            <th class="expertViewHeader">Auto Updates</th>
-                            <th class="expertViewHeader">Utilization</th>
+                            <th class="advancedViewHeaderSpacer"></th>
+                            <th class="advancedViewHeader">Version</th>
+                            <!--<th class="advancedViewHeader">Branch</th> -->
+                            <th class="advancedViewHeader">Git Version(s)</th>
+                            <th class="advancedViewHeader">Auto Updates</th>
+                            <th class="advancedViewHeader">Utilization</th>
 							<?php
 						}
 						?>
@@ -350,7 +350,7 @@ if ($settings['fppMode'] == 'master')
 ?>
 			<? PrintSettingCheckbox("Auto Refresh Systems Status", "MultiSyncRefreshStatus", 0, 0, "1", "0", "", "getFPPSystems"); ?> Auto Refresh status of FPP Systems<br>
             <?php
-                if ($expertView ==true) {
+                if ($advancedView ==true) {
 					?>
                     <b style="color: #FF0000; font-size: 0.9em;">**Expert View Active - Auto Refresh is not recommended as it may cause slowdowns</b>
                     <br>
@@ -382,8 +382,8 @@ if ($settings['fppMode'] == 'master')
             <input type='button' class='buttons' value='Normal View'
                    onclick="window.open('/multisync.php','_self')">
             <br>
-            <input type='button' class='buttons' value='Expert View'
-                   onclick="window.open('/multisync.php?expertView=true','_self')">
+            <input type='button' class='buttons' value='Advanced View'
+                   onclick="window.open('/multisync.php?advancedView=true','_self')">
 		</fieldset>
 	</div>
 	<?php include 'common/footer.inc'; ?>

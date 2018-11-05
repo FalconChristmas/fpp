@@ -401,7 +401,7 @@ function media_duration_cache($media, $duration_seconds = null, $filesize = null
 	} else {
 		//else cache exists and is valid, replaces/append duration to it
 		$duration_cache = file_get_contents($file_path);
-		if (!empty($duration_cache)) {
+		if ($duration_cache !== FALSE && !empty($duration_cache)) {
 			$duration_cache = json_decode($duration_cache, true);
 			//if file hashes are the same - then it's the same file
 			if (array_key_exists($media, $duration_cache) && $duration_cache[$media]['filesize'] == $filesize) {
@@ -478,6 +478,76 @@ function get_server_memory_usage(){
 }
 
 /**
+ * Simple cache for storing data for a specified time interval
+ *
+ * @param $cache_name
+ * @param $data_to_cache
+ * @param int $cache_age
+ * @return mixed|string
+ */
+function file_cache($cache_name, $data_to_cache, $cache_age = 90)
+{
+	$file_path = "/tmp/cache_" . $cache_name . ".cache";
+	$cache_time = $cache_age; //seconds
+
+	$cache_data_return = null;
+	$cache_data = array();
+
+	if (!file_exists($file_path) || (time() - filemtime($file_path) > $cache_time)) {
+		// cache doesn't exist or expired so lets create it and insert our data
+		if ($data_to_cache !== null || $data_to_cache !== "") {
+			//put the supplied data into the cache, but only if it isn't null
+//			$cache_data[$cache_name] = array('data' => $data_to_cache);
+			$cache_data_return = $data_to_cache;
+
+//			exec("echo \"$data_to_cache\" | sudo tee $file_path", $output, $return_val);
+			file_put_contents($file_path, $data_to_cache);
+		}
+	} else {
+		//else cache exists and is valid, replaces/append duration to it
+		$cache_data_contents = file_get_contents($file_path);
+
+//		$handle = fopen($file_path, 'r');
+//		$cache_data_contents = trim(fread($handle,filesize($file_path)));
+//		fclose($handle);
+
+		if ($cache_data_contents !== FALSE && !empty($cache_data_contents)) {
+//			$cache_data = json_decode($cache_data, true);
+			//if file hashes are the same - then it's the same file
+			//if (array_key_exists($cache_name, $cache_data)) {
+			//Key exists, then return the cached duration
+//			$cache_data_return = $cache_data[$cache_name]['data'];
+			$cache_data_return = $cache_data_contents;
+		} else if ($data_to_cache !== null || $data_to_cache !== "") {
+			//put the supplied data into the cache
+//			$cache_data[$cache_name] = array('data' => $data_to_cache);
+			$cache_data_return = $data_to_cache;
+
+//			exec("echo \"$data_to_cache\" | sudo tee $file_path", $output, $return_val);
+			file_put_contents($file_path, $data_to_cache);
+		}
+	}
+	return $cache_data_return;
+}
+
+function get_kernel_version(){
+	$kernel_version = "";
+	$cachefile_name = "kernel_version";
+	$cache_age = 86400;
+
+	$cached_data = file_cache($cachefile_name, NULL, $cache_age);
+	if ($cached_data == NULL) {
+		$kernel_version = exec("uname -r");
+		//cache result
+		file_cache($cachefile_name, $kernel_version, $cache_age);
+	} else {
+		$kernel_version = $cached_data;
+	}
+
+	return $kernel_version;
+}
+
+/**
  * Returns average CPU usage
  * @return mixed
  */
@@ -507,14 +577,50 @@ function get_server_uptime($uptime_value_only=false){
 }
 
 /**
+ * Returns the FPP head version
+ *
+ * @return mixed|string
+ */
+function get_fpp_head_version(){
+	$fpp_head_version = "Unknown";
+	$cachefile_name = "git_fpp_head_version";
+	$cache_age = 90;
+
+	$cached_data = file_cache($cachefile_name, NULL, $cache_age);
+	if ($cached_data == NULL) {
+		$fpp_head_version = exec("git --git-dir=" . dirname(dirname(__FILE__)) . "/.git/ describe --tags", $output, $return_val);
+		if ($return_val != 0)
+			$fpp_head_version = "Unknown";
+		unset($output);
+		//cache result
+		file_cache($cachefile_name, $fpp_head_version, $cache_age);
+	} else {
+		$fpp_head_version = $cached_data;
+	}
+
+	return $fpp_head_version;
+}
+
+/**
  * Returns the current system Git branch
  * @return string
  */
 function get_git_branch(){
-	$git_branch = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ branch --list | grep '\\*' | awk '{print \$2}'", $output, $return_val);
-	if ( $return_val != 0 )
-		$git_branch = "Unknown";
-	unset($output);
+	$git_branch = "";
+	$cachefile_name = "git_branch";
+	$cache_age = 90;
+
+	$cached_data = file_cache($cachefile_name,NULL,$cache_age);
+	if ($cached_data == NULL) {
+		$git_branch = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ branch --list | grep '\\*' | awk '{print \$2}'", $output, $return_val);
+		if ( $return_val != 0 )
+			$git_branch = "Unknown";
+		unset($output);
+		//cache result
+		file_cache($cachefile_name, $git_branch, $cache_age);
+	}else{
+		$git_branch = $cached_data;
+	}
 
 	return $git_branch;
 }
@@ -524,10 +630,21 @@ function get_git_branch(){
  * @return string
  */
 function get_local_git_version(){
-	$git_version = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ rev-parse --short=7 HEAD", $output, $return_val);
-	if ( $return_val != 0 )
-		$git_version = "Unknown";
-	unset($output);
+	$git_version = "Unknown";
+	$cachefile_name = "local_git_version";
+	$cache_age = 90;
+
+	$cached_data = file_cache($cachefile_name,NULL,$cache_age);
+	if ($cached_data == NULL) {
+		$git_version = exec("git --git-dir=" . dirname(dirname(__FILE__)) . "/.git/ rev-parse --short=7 HEAD", $output, $return_val);
+		if ( $return_val != 0 )
+			$git_version = "Unknown";
+		unset($output);
+		//cache result
+		file_cache($cachefile_name, $git_version, $cache_age);
+	}else{
+		$git_version = $cached_data;
+	}
 
 	return $git_version;
 }
@@ -538,26 +655,53 @@ function get_local_git_version(){
  */
 function get_remote_git_version($git_branch){
 	$git_remote_version = "Unknown";
-	if (!empty($git_branch)) {
-        $file = "/tmp/git_" . $git_branch . ".ver" ;
-        $time = 90 ; //seconds
-        $ver = "Unknown";
-        if( ! file_exists( $file )  ||  ( time() - filemtime( $file ) > $time)) {
-            // this can take a couple seconds to complete so we'll cache it
-            $ver = exec("ping -q -c 1 github.com > /dev/null && (git --git-dir=/opt/fpp/.git/ ls-remote -q -h origin $git_branch | awk '$1 > 0 { print substr($1,1,7)}')", $output, $return_val);
-            if ( $return_val != 0 )
-                $ver = "Unknown";
-            unset($output);
-            
-            exec("echo \"$ver\" | sudo tee $file", $output, $return_val);
-            unset($output);
-        } else {
-            $handle = fopen($file, 'r');
-            $ver = trim(fread($handle,filesize($file)));
-            fclose($handle);
-        }
-        
-        $git_remote_version = $ver;
+
+
+	if (!empty($git_branch) || strtolower($git_branch) != "unknown") {
+		$cachefile_name = "git_" . $git_branch;
+		$cache_age = 90;
+		$git_remote_version = "Unknown";
+
+		//Check the cache for git_<branch>, if null is returned no cache file exists or it's expired, so then off to github
+		$cached_data = file_cache($cachefile_name, NULL, $cache_age);
+		if ($cached_data == NULL) {
+			//if for some reason name resolution fails ping will take roughly 10 seconds to return (Default DNS Timeout 5 seconds x 2 retries)
+			//to try work around this ping the google public DNS @ 8.8.8.8 (to skip DNS) waiting for a reply for max 1 second, if that's ok we have a route to the internet, then it's highly likely DNS will also work
+			$google_dns_ping = exec("ping -q -c 1 -W 1 8.8.8.8 > /dev/null", $output, $return_val);
+			unset($output);
+			if ($return_val == 0){
+				//Google DNS Ping success
+				// this can take a couple seconds to complete so we'll cache it
+				$git_remote_version = exec("ping -q -c 1 github.com > /dev/null && (git --git-dir=/opt/fpp/.git/ ls-remote -q -h origin $git_branch | awk '$1 > 0 { print substr($1,1,7)}')", $output, $return_val);
+				if ($return_val != 0)
+					$git_remote_version = "Unknown";
+				unset($output);
+			}else{
+				//Google DNS Ping fail - return unknown
+				$git_remote_version = "Unknown";
+			}
+
+			//cache result
+			file_cache($cachefile_name, $git_remote_version, $cache_age);
+		} else {
+			//return the cached version
+			$git_remote_version = $cached_data;
+		}
+
+//        if( ! file_exists( $file )  ||  ( time() - filemtime( $file ) > $time)) {
+//            // this can take a couple seconds to complete so we'll cache it
+//            $ver = exec("ping -q -c 1 github.com > /dev/null && (git --git-dir=/opt/fpp/.git/ ls-remote -q -h origin $git_branch | awk '$1 > 0 { print substr($1,1,7)}')", $output, $return_val);
+//            if ( $return_val != 0 )
+//                $ver = "Unknown";
+//            unset($output);
+//
+//            exec("echo \"$ver\" | sudo tee $file", $output, $return_val);
+//            unset($output);
+//        } else {
+//            $handle = fopen($file, 'r');
+//            $ver = trim(fread($handle,filesize($file)));
+//            fclose($handle);
+//        }
 	}
 
 	return $git_remote_version;

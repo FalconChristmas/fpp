@@ -304,8 +304,10 @@ function GetFPPStatusJson()
 
 		//validate IP address is a valid IPv4 address - possibly overkill but have seen IPv6 addresses polled
         if (filter_var($args['ip'], FILTER_VALIDATE_IP)) {
-        	//Make the request
-            $request_content = @file_get_contents("http://" . $args['ip'] . "/fppjson.php?command=getFPPstatus");
+        	$do_expert = (isset($args['advancedView']) && $args['advancedView'] == true) ? "&advancedView=true" : "";
+
+        	//Make the request - also send across whether advancedView data is requested so it's returned all in 1 request
+            $request_content = @file_get_contents("http://" . $args['ip'] . "/fppjson.php?command=getFPPstatus" . $do_expert);
             //check we have valid data
             if ($request_content === FALSE) {
             	//check the response header
@@ -314,27 +316,12 @@ function GetFPPStatusJson()
 					//set a reason so we can inform the user
                     $default_return_json['reason'] = "Cannot Access - Web GUI Password Set";
 				}
-				error_log("GetFPPStatusJson failed for IP: " . $args['ip'] . " " . json_encode($http_response_header));
+				error_log("GetFPPStatusJson failed for IP: " . $args['ip'] . " -> " . $do_expert . " - " . json_encode($http_response_header));
                 //error return default response
 				echo json_encode($default_return_json);
             } else {
-				//Check to see if we should also get the systemInfo for multiSync Expert view
-				if (isset($args['expertView']) && ($args['expertView'] == true || strtolower($args['expertView']) == "true")) {
-
-					$request_expert_content = @file_get_contents("http://" . $args['ip'] . "/fppjson.php?command=getSysInfo");
-					//check we have valid data
-					if ($request_expert_content === FALSE) {
-						$request_expert_content = array();
-					}
-					//Add data into the final response, since getFPPStatus returns JSON, decode into array, add data, encode back to json
-					$request_content_tmp = json_decode($request_content, true);
-					//Add a new key for the expert data, also decode it as it's a JSON string
-					$request_content_tmp['expertView'] = json_decode($request_expert_content,true);
-					//Re-encode everything
-					$request_content = json_encode($request_content_tmp);
-				}
-
 				//return the actual FPP Status of the device
+				//this will already be a JSON string so we don't have to anything
 				echo $request_content;
             }
         } else {
@@ -366,7 +353,20 @@ function GetFPPStatusJson()
 
             returnJSON($default_return_json);
 		}
-        $data = parseStatus($status);
+		$data = parseStatus($status);
+
+		//Check to see if we should also get the systemInfo for multiSync Expert view
+		if (isset($args['advancedView']) && ($args['advancedView'] == true || strtolower($args['advancedView']) == "true")) {
+			//Get the advanced info directly as an array
+			$request_expert_content = GetSystemInfoJson(true);
+			//check we have valid data
+			if ($request_expert_content === FALSE) {
+				$request_expert_content = array();
+			}
+			//Add data into the final response, since we have the status as an array already then just add the expert view
+			//Add a new key for the expert data to the original data array
+			$data['advancedView'] = $request_expert_content;
+		}
 
         returnJSON($data);
 	}
@@ -2080,7 +2080,7 @@ function ExtGPIOJson()
 
 /////////////////////////////////////////////////////////////////////////////
 
-function GetSystemInfoJson()
+function GetSystemInfoJson($return_array = false)
 {
     global $settings;
 
@@ -2100,16 +2100,11 @@ function GetSystemInfoJson()
 	$result['Utilization']['Uptime'] = get_server_uptime(true);
 
     $IPs = explode("\n",trim(shell_exec("/sbin/ifconfig -a | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0 | grep -v usb | grep -v SoftAp | grep -v 'can.' | sed -e 's/://g' | while read iface ; do /sbin/ifconfig \$iface | grep 'inet ' | awk '{print \$2}'; done")));
-    $kernel_version = exec("uname -r");
-    $fpp_head_version = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ describe --tags", $output, $return_val);
-    if ( $return_val != 0 )
-        $fpp_head_version = "Unknown";
-    unset($output);
 
     $git_branch = get_git_branch();
 
-	$result['Kernel'] = $kernel_version;
-    $result['Version'] = $fpp_head_version;
+	$result['Kernel'] = get_kernel_version();
+    $result['Version'] = get_fpp_head_version();
     $result['Branch'] = $git_branch;
 	$result['LocalGitVersion'] = get_local_git_version();
 	$result['RemoteGitVersion'] = get_remote_git_version($git_branch);
@@ -2117,7 +2112,12 @@ function GetSystemInfoJson()
 	$result['IPs'] = $IPs;
     $result['Mode'] = $settings['fppMode'];
 
-    returnJSON($result);
+    //Return just the array if requested
+	if ($return_array == true) {
+		return $result;
+	} else {
+		returnJSON($result);
+	}
 }
 
 /////////////////////////////////////////////////////////////////////////////

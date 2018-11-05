@@ -824,21 +824,21 @@ pre
 }
 
 
-.multiSyncExpertView{
+.multiSyncadvancedView{
 	float: right;
 	font-weight: bold;
 }
 
-.expertViewHeaderSpacer{
+.advancedViewHeaderSpacer{
 	min-width: 20px;
 }
 
-.expertViewHeader {
+.advancedViewHeader {
 	color: #fff;
 	background-color: #414141;
 }
 
-.expertViewRow{
+.advancedViewRow{
 	font-size: 0.8em;
 	color: #fff;
 	background-color: #414141;
