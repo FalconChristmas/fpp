@@ -506,7 +506,7 @@ void MultiSync::SendSeqSyncStopPacket(const char *filename)
  */
 void MultiSync::SendSeqSyncPacket(const char *filename, int frames, float seconds)
 {
-	LogExcess(VB_SYNC, "SendSeqSyncPacket( '%s', %d, %.2f)\n",
+	LogDebug(VB_SYNC, "SendSeqSyncPacket( '%s', %d, %.2f)\n",
 		filename, frames, seconds);
 
 	if (!filename || !filename[0])
@@ -1356,8 +1356,8 @@ void MultiSync::ProcessSyncPacket(ControlPkt *pkt, int len)
 
 	SyncPkt *spkt = (SyncPkt*)(((char*)pkt) + sizeof(ControlPkt));
 
-    LogDebug(VB_SYNC, "ProcessSyncPacket()   type: %d   filetype: %d   frameNumber: %d\n",
-             spkt->pktType, spkt->fileType, spkt->frameNumber);
+    LogDebug(VB_SYNC, "ProcessSyncPacket()   filename: %s    type: %d   filetype: %d   frameNumber: %d\n",
+             spkt->filename, spkt->pktType, spkt->fileType, spkt->frameNumber,);
 
 	float secondsElapsed = 0.0;
 

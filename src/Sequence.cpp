@@ -124,6 +124,7 @@ int Sequence::OpenSequenceFile(const char *filename, int startSeconds) {
     m_seqDuration = 0;
     m_seqSecondsElapsed = 0;
     m_seqSecondsRemaining = 0;
+    SetChannelOutputFrameNumber(0);
 
     strcpy(m_seqFilename, filename);
 
@@ -169,10 +170,12 @@ int Sequence::OpenSequenceFile(const char *filename, int startSeconds) {
 
     if (getFPPmode() == MASTER_MODE)
     {
+        pthread_mutex_unlock(&m_sequenceLock);
         multiSync->SendSeqSyncStartPacket(filename);
 
         // Give the remotes a head start spining up so they are ready
         usleep(100000);
+        pthread_mutex_lock(&m_sequenceLock);
     }
 
     ///////////////////////////////////////////////////////////////////////
@@ -375,7 +378,7 @@ char *Sequence::CurrentSequenceFilename(void) {
 }
 
 int Sequence::IsSequenceRunning(void) {
-    if (m_seqFile)
+    if (m_seqFile && !m_seqStarting)
         return 1;
 
     return 0;
