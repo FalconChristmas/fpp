@@ -19,16 +19,10 @@ fi
 
 FPPPLATFORM=$(cat /etc/fpp/platform 2> /dev/null)
 FPPBINDIR="${FPPDIR}/src"
-if [ "x${FPPPLATFORM}" = "xRaspberry Pi" ]
+if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]
 then
-	FPPBINDIR="${FPPDIR}/bin.pi"
-else
-	if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]
-	then
-		FPPBINDIR="${FPPDIR}/bin.bbb"
-		BBBMODEL=$(cut -d' ' -f3- /proc/device-tree/model | tr '\0' '\n')
-		export BBBMODEL
-	fi
+    BBBMODEL=$(cut -d' ' -f3- /proc/device-tree/model | tr '\0' '\n')
+    export BBBMODEL
 fi
 
 PATHDIRS="${FPPDIR}/scripts/:${FPPBINDIR}/"

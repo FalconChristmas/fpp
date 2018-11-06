@@ -136,8 +136,6 @@ LIBS_fppd = \
 
 SUBDIRS = 
 
-BINDIR = ../bin
-
 ARCH := $(shell cat /etc/fpp/platform 2> /dev/null)
 ifeq '$(ARCH)' ''
 	ARCH = "UNKNOWN"
@@ -187,7 +185,6 @@ endif
 
 ifeq '$(ARCH)' 'Raspberry Pi'
 # do something RaspPi-y
-BINDIR = ../bin.pi
 CXXFLAGS += -std=gnu++11
 CFLAGS += \
 	-DPLATFORM_PI \
@@ -227,7 +224,6 @@ SUBMODULES += \
 	$(NULL)
 else ifeq '$(ARCH)' 'ODROID'
 # do something for ODROID
-BINDIR = ../bin.pi
 CFLAGS += \
 	-DPLATFORM_ODROID \
 	-DUSEWIRINGPI \
@@ -254,7 +250,6 @@ SUBMODULES += \
 	$(NULL)
 else ifeq '$(ARCH)' 'OrangePi'
 # do something for Orange Pi
-BINDIR = ../bin.pi
 CFLAGS += \
 	-DPLATFORM_ORANGEPI \
 	-DUSEWIRINGPI \
@@ -269,7 +264,6 @@ OBJECTS_fppd += \
 else ifeq '$(ARCH)' 'BeagleBone Black'
 # BeagleBone Black
 CXXFLAGS += -std=gnu++14
-BINDIR = ../bin.bbb
 CFLAGS += \
     -DNOROOT \
 	-DPLATFORM_BBB \
@@ -294,7 +288,6 @@ SUBMODULES += \
 	$(NULL)
 else
 # do something Linux-y
-BINDIR = ../bin
 CFLAGS += \
 	-g \
 	-DNOROOT \
@@ -345,11 +338,8 @@ optimized: $(TARGETS)
 
 release: optimized
 	strip fpp
-	-$(INSTALL_PROGRAM) fpp $(BINDIR)/fpp
 	strip fppmm
-	-$(INSTALL_PROGRAM) fppmm $(BINDIR)/fppmm
 	strip fppd
-	-$(INSTALL_PROGRAM) fppd $(BINDIR)/fppd
 	for dir in $(SUBDIRS); do \
 		$(MAKE) -C $$dir release || exit 1; \
 	done

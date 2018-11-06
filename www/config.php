@@ -108,7 +108,6 @@ if ($settings['Platform'] == "Raspberry Pi")
 {
 	$settings['LogoLink'] = "http://raspberrypi.org/";
 	$settings['SubPlatform'] = trim(file_get_contents("/sys/firmware/devicetree/base/model"));
-	$settings['fppBinDir'] = '/opt/fpp/bin.pi';
 
 	if (preg_match('/Pi Model A Rev/', $settings['SubPlatform']))
 	{
@@ -170,7 +169,6 @@ if ($settings['Platform'] == "Raspberry Pi")
 else if ($settings['Platform'] == "BeagleBone Black")
 {
 	$settings['LogoLink'] = "http://beagleboard.org/";
-	$settings['fppBinDir'] = '/opt/fpp/bin.bbb';
 	$settings['BBB_Tethering'] = "1";
 	$settings['SubPlatform'] = trim(file_get_contents("/proc/device-tree/model"));
     if (preg_match('/PocketBeagle/', $settings['SubPlatform']))
