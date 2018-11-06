@@ -44,7 +44,17 @@ if (isset($_GET['advancedView'])) {
 				}
 			});
 		}
-
+        var inp = document.getElementById("extraMultiSyncRemotes");
+        if (inp && inp.value) {
+            if (remotes != "") {
+                remotes += ",";
+            }
+            var str = inp.value;
+            str = str.replace(/\s/g, '');
+            remotes += str;
+        }
+        
+        
 		$.get("fppjson.php?command=setSetting&key=MultiSyncRemotes&value=" + remotes
 		).done(function() {
 			settings['MultiSyncRemotes'] = remotes;
@@ -186,8 +196,10 @@ if (isset($_GET['advancedView'])) {
 			$('#masterLegend').show();
 
 			var star = "<input id='allRemotes' type='checkbox' class='remoteCheckbox' name='255.255.255.255'";
-			if (typeof remotes["255.255.255.255"] !== 'undefined')
+            if (typeof remotes["255.255.255.255"] !== 'undefined') {
 				star += " checked";
+                delete remotes[data[i].IP];
+            }
 			star += " onClick='updateMultiSyncRemotes(this);'>";
 
 			var newRow = "<tr>" +
@@ -216,8 +228,10 @@ if (isset($_GET['advancedView'])) {
 						(data[i].fppMode == "remote"))
 				{
 					star = "<input type='checkbox' class='remoteCheckbox' name='" + data[i].IP + "'";
-					if (typeof remotes[data[i].IP] !== 'undefined')
+                    if (typeof remotes[data[i].IP] !== 'undefined') {
 						star += " checked";
+                        delete remotes[data[i].IP];
+                    }
 					star += " onClick='updateMultiSyncRemotes();'>";
 				}
 			}
@@ -256,6 +270,15 @@ if (isset($_GET['advancedView'])) {
 
 			getFPPSystemStatus(ip);
 		}
+        var extras = "";
+        for (var x in remotes) {
+            if (extras != "") {
+                extras += ",";
+            }
+            extras += x;
+        }
+        var inp = document.getElementById("extraMultiSyncRemotes");
+        inp.value = extras;
 	}
 
 	function getFPPSystems() {
@@ -337,13 +360,18 @@ if (isset($_GET['advancedView'])) {
 if ($settings['fppMode'] == 'master')
 {
 ?>
-			CSV MultiSync Remote IP List (comma separated): (NOTE: Only used for F16v3 running in Remote mode)
+			Additional MultiSync Remote IPs (comma separated): (For non-discoverable remotes)
+            <input type="text" id="extraMultiSyncRemotes" maxlength="255" size="60" onchange='updateMultiSyncRemotes(null);' />
+
+<br>
+            CSV MultiSync Remote IP List (comma separated):
             <?
             $csvRemotes = "";
             if (isset($settings["MultiSyncCSVRemotes"])) {
                 $csvRemotes = $settings["MultiSyncCSVRemotes"];
             }
-			PrintSettingText("MultiSyncCSVRemotes", 1, 0, 255, 60, "", $csvRemotes); ?><br>
+            PrintSettingText("MultiSyncCSVRemotes", 1, 0, 255, 60, "", $csvRemotes); ?>
+<br><br>
 			<? PrintSettingCheckbox("Compress FSEQ files for transfer", "CompressMultiSyncTransfers", 0, 0, "1", "0"); ?> Compress FSEQ files during copy to Remotes to speed up file sync process<br>
 <?php
 }

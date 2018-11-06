@@ -34,6 +34,10 @@
 #include <unistd.h>
 #include <linux/version.h>
 
+#include <netinet/in.h>
+#include <netdb.h>
+
+
 #include <string>
 #include <vector>
 
@@ -869,7 +873,7 @@ int MultiSync::OpenControlSockets(void)
 		}
 	}
 
-	char *s = strtok(tmpRemotes, ",");
+	char *s = strtok(tmpRemotes, ", ");
 
 	while (s) {
 		LogDebug(VB_SYNC, "Setting up Remote Sync for %s\n", s);
@@ -877,11 +881,32 @@ int MultiSync::OpenControlSockets(void)
 
 		newRemote.sin_family      = AF_INET;
 		newRemote.sin_port        = htons(FPP_CTRL_PORT);
-		newRemote.sin_addr.s_addr = inet_addr(s);
-
-		m_destAddr.push_back(newRemote);
         
-		s = strtok(NULL, ",");
+        bool isAlpha = false;
+        int x = 0;
+        while (s[x]) {
+            isAlpha |= isalpha(s[x]);
+            x++;
+        }
+        bool valid = true;
+        if (isAlpha) {
+            struct hostent* uhost = gethostbyname(s);
+            if (!uhost) {
+                LogErr(VB_CHANNELOUT,
+                       "Error looking up Remote hostname: %s\n",
+                       s);
+                valid = false;
+            } else {
+                newRemote.sin_addr.s_addr = *((unsigned long*)uhost->h_addr);
+            }
+        } else {
+            newRemote.sin_addr.s_addr = inet_addr(s);
+        }
+        if (valid) {
+            m_destAddr.push_back(newRemote);
+        }
+        
+		s = strtok(NULL, ", ");
 	}
     for (int x = 0; x < m_destAddr.size(); x++) {
         struct mmsghdr msg;
