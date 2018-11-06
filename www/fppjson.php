@@ -320,6 +320,25 @@ function GetFPPStatusJson()
                 //error return default response
 				echo json_encode($default_return_json);
             } else {
+            	//Work around for older versioned devices where the advanced data was pulled in separately rather than being
+				//included (when requested) with the standard data via getFPPStatus
+				//If were in advanced view and the request_content doesn't have the 'advancedView' key (this is included when requested with the standard data) then we're dealing with a older version
+				//that's using the expertView key and was being obtained separately
+				if ((isset($args['advancedView']) && ($args['advancedView'] == true || strtolower($args['advancedView']) == "true")) && strpos($request_content, 'advancedView') === FALSE) {
+					$request_content_arr = json_decode($request_content, true);
+					//
+					$request_expert_content = @file_get_contents("http://" . $args['ip'] . "/fppjson.php?command=getSysInfo");
+					//check we have valid data
+					if ($request_expert_content === FALSE) {
+						$request_expert_content = array();
+					}
+					//Add data into the final response, since getFPPStatus returns JSON, decode into array, add data, encode back to json
+					//Add a new key for the advanced data, also decode it as it's an array
+					$request_content_arr['advancedView'] = json_decode($request_expert_content, true);
+					//Re-encode everything back to a string
+					$request_content = json_encode($request_content_arr);
+				}
+
 				//return the actual FPP Status of the device
 				//this will already be a JSON string so we don't have to anything
 				echo $request_content;

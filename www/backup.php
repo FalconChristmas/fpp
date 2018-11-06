@@ -570,7 +570,7 @@ function process_restore_data($restore_area, $restore_area_data)
 			$save_result = true;
 		}
 
-		$settings_restored[$restore_area_key]['SUCCESS'] = false;
+		$settings_restored[$restore_area_key]['SUCCESS'] = $save_result;
 	}
 
     //SHOW SETUP & CHANNEL OUTPUT RESTORATION

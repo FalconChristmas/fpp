@@ -843,6 +843,7 @@ pre
 	color: #fff;
 	background-color: #414141;
 	text-align: center;
+	min-width: 90px;
 }
 
 .updateAvailable {
