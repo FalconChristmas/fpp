@@ -40,7 +40,7 @@ class X11VirtualDisplayOutput : protected VirtualDisplayOutput {
 	int Init(Json::Value config);
 	int Close(void);
 
-	int SendData(unsigned char *channelData);
+	int RawSendData(unsigned char *channelData);
 
   private:
 	char       *m_imageData;
