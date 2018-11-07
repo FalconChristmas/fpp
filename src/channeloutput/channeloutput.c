@@ -494,6 +494,17 @@ int InitializeChannelOutputs(void) {
     if (maximumNeededChannel < minimumNeededChannel) {
         maximumNeededChannel = minimumNeededChannel = 0;
     }
+    // having the reads be aligned to intervals of 8 can help performance so
+    // we'll expand the range a bit to align things better
+    //round minimum down to interval of 8
+    if (minimumNeededChannel > 0) {
+        minimumNeededChannel--;
+    }
+    minimumNeededChannel &= 0xFFFFFFF8;
+    maximumNeededChannel += 8;
+    maximumNeededChannel &= 0xFFFFFFF8;
+    maximumNeededChannel -= 1;
+
     LogInfo(VB_CHANNELOUT, "Determined range needed %d - %d\n", minimumNeededChannel, maximumNeededChannel);
 
 	return 1;

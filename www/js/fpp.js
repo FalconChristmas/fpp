@@ -1358,7 +1358,7 @@ function RemovePlaylistEntry()	{
             
             var output = {};
             output.type = "universes";
-            output.enabled = 1;
+            output.enabled = document.getElementById("E131Enabled").checked ? 1 : 0;
             output.startChannel = 1;
             output.channelCount = -1;
             output.universes = [];

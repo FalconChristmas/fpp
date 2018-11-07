@@ -61,13 +61,12 @@ MosquittoClient::MosquittoClient(const std::string &host, const int port,
 	const std::string &topicPrefix)
   : m_port(1883),
 	m_keepalive(60),
-	m_mosq(NULL)
+	m_mosq(NULL),
+    m_host(host),
+    m_topicPrefix(topicPrefix)
 {
 	LogDebug(VB_CONTROL, "MosquittoClient::MosquittoClient('%s', %d, '%s')\n",
 		host.c_str(), port, topicPrefix.c_str());
-
-	m_host = host;
-	m_topicPrefix = topicPrefix;
 
     if (m_topicPrefix.size()) {
         m_topicPrefix += "/";
@@ -107,7 +106,12 @@ int MosquittoClient::Init(const std::string &username, const std::string &passwo
 {
 	mosquitto_lib_init();
 
-	m_mosq = mosquitto_new(getSetting("HostName"), true, NULL);
+    std::string host = getSetting("HostName");
+    if (host != "") {
+        m_mosq = mosquitto_new(host.c_str(), true, NULL);
+    } else {
+        m_mosq = mosquitto_new(nullptr, true, NULL);
+    }
 	if (!m_mosq)
 	{
 		LogErr(VB_CONTROL, "Error, unable to create new Mosquitto instance.\n");

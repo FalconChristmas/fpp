@@ -1754,7 +1754,7 @@ function SaveUniversesToFile($enabled, $input)
 
 function SetUniverses()
 {
-	$enabled = $_POST['enabled'];
+	$enabled = $_POST['E131Enabled'];
 	check($enabled);
 	$input = $_POST['input'];
 	check($input);
