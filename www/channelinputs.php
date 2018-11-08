@@ -224,8 +224,7 @@ tr.rowUniverseDetails td
 						<div id='divE131Data'>
 
   <div style="overflow: hidden; padding: 10px;">
-	E1.31 Bridge Interface: <select id="selE131interfaces" onChange="SetE131interface();"><? PopulateInterfaces(); ?></select>
-	<br><br>
+	<br>
 
     <div>
       <form>

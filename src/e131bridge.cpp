@@ -33,6 +33,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <ifaddrs.h>
 
 #include <fstream>
 #include <sstream>
@@ -234,35 +235,34 @@ void Bridge_Initialize(int &eSock, int &dSock)
 	LogInfo(VB_E131BRIDGE, "Universe Count = %d\n",InputUniverseCount);
 	InputUniversesPrint();
     
+    
+    // FIXME FIXME FIXME FIXME
+    // This is a total hack to get a file descriptor greater than 2
+    // because otherwise, the bind() call later will fail for some reason.
+    // FIXME FIXME FIXME FIXME
+    int i1 = socket(AF_INET, SOCK_DGRAM, 0);
+    int i2 = socket(AF_INET, SOCK_DGRAM, 0);
+    int i3 = socket(AF_INET, SOCK_DGRAM, 0);
+    
     ddpSock = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
     if (ddpSock < 0) {
         LogDebug(VB_E131BRIDGE, "e131bridge DDP socket failed: %s", strerror(errno));
         exit(1);
     }
-    bzero((char *)&addr, sizeof(addr));
+    memset((char *)&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = htonl(INADDR_ANY);
     addr.sin_port = htons(DDP_PORT);
     addrlen = sizeof(addr);
     // Bind the socket to address/port
-    if (bind(ddpSock, (struct sockaddr *) &addr, sizeof(addr)) < 0)
-    {
+    if (bind(ddpSock, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
         LogDebug(VB_E131BRIDGE, "e131bridge DDP bind failed: %s", strerror(errno));
         exit(1);
     }
 
 	int            UniverseOctet[2];
-	int            i;
 	struct ip_mreq mreq;
 	char           strMulticastGroup[16];
-
-	// FIXME FIXME FIXME FIXME
-	// This is a total hack to get a file descriptor greater than 2
-	// because otherwise, the bind() call later will fail for some reason.
-	// FIXME FIXME FIXME FIXME
-	i = socket(AF_INET, SOCK_DGRAM, 0);
-	i = socket(AF_INET, SOCK_DGRAM, 0);
-	i = socket(AF_INET, SOCK_DGRAM, 0);
 
 	/* set up socket */
 	bridgeSock = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
@@ -274,24 +274,26 @@ void Bridge_Initialize(int &eSock, int &dSock)
 	// FIXME, move this to /etc/sysctl.conf or our startup script
 	system("sudo sysctl net/ipv4/igmp_max_memberships=512");
 
-	bzero((char *)&addr, sizeof(addr));
+	memset((char *)&addr, 0, sizeof(addr));
 	addr.sin_family = AF_INET;
 	addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	addr.sin_port = htons(E131_DEST_PORT);
 	addrlen = sizeof(addr);
 	// Bind the socket to address/port
-	if (bind(bridgeSock, (struct sockaddr *) &addr, sizeof(addr)) < 0) 
-	{
+	if (bind(bridgeSock, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
 		LogDebug(VB_E131BRIDGE, "e131bridge bind failed: %s", strerror(errno));
 		exit(1);
 	}
     
+    //get all the addresses
+    struct ifaddrs *interfaces,*tmp;
+    getifaddrs(&interfaces);
+    
 	char address[16];
+    address[0] = 0;
 	// Join the multicast groups
-	for(i=0;i<InputUniverseCount;i++)
-	{
-		if(InputUniverses[i].type == E131_TYPE_MULTICAST)
-		{
+	for(int i = 0; i < InputUniverseCount; i++)  {
+		if (InputUniverses[i].type == E131_TYPE_MULTICAST) {
 			UniverseOctet[0] = InputUniverses[i].universe/256;
 			UniverseOctet[1] = InputUniverses[i].universe%256;
 			sprintf(strMulticastGroup, "239.255.%d.%d", UniverseOctet[0],UniverseOctet[1]);
@@ -299,50 +301,46 @@ void Bridge_Initialize(int &eSock, int &dSock)
 
 			LogInfo(VB_E131BRIDGE, "Adding group %s\n", strMulticastGroup);
 
-			// add group to groups to listen for on eth0 and wlan0 if it exists
-			int multicastJoined = 0;
+            // add group to groups to listen for on eth0 and wlan0 if it exists
+            int multicastJoined = 0;
+            tmp = interfaces;
+            //loop through all the interfaces and subscribe to the group
+            while (tmp) {
+                //struct sockaddr_in *sin = (struct sockaddr_in *)tmp->ifa_addr;
+                //strcpy(address, inet_ntoa(sin->sin_addr));
+                if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET) {
+                    GetInterfaceAddress(tmp->ifa_name, address, NULL, NULL);
+                    if (strcmp(address, "127.0.0.1")) {
+                        LogDebug(VB_E131BRIDGE, "   Adding interface %s - %s\n", tmp->ifa_name, address);
+                        mreq.imr_interface.s_addr = inet_addr(address);
+                        if (setsockopt(bridgeSock, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0) {
+                            LogWarn(VB_E131BRIDGE, "   Could not setup Multicast Group for interface %s\n", tmp->ifa_name);
+                        }
+                        multicastJoined = 1;
+                    }
+                } else if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET6) {
+                    //FIXME for ipv6 multicast
+                    //LogDebug(VB_E131BRIDGE, "   Inet6 interface %s\n", tmp->ifa_name);
+                }
+                tmp = tmp->ifa_next;
+            }
 
-			GetInterfaceAddress("eth0", address, NULL, NULL);
-			if (strcmp(address, "127.0.0.1"))
-			{
-				LogDebug(VB_E131BRIDGE, "binding to eth0: '%s'\n", address);
-				mreq.imr_interface.s_addr = inet_addr(address);
-				if (setsockopt(bridgeSock, IPPROTO_IP, IP_ADD_MEMBERSHIP,&mreq, sizeof(mreq)) < 0) 
-				{
-					perror("e131bridge setsockopt mreq eth0");
-					exit(1);
-				}
-				multicastJoined = 1;
-			}
-
-			// FIXME, need to handle other interface names
-			GetInterfaceAddress("wlan0", address, NULL, NULL);
-			if (strcmp(address, "127.0.0.1"))
-			{
-				LogDebug(VB_E131BRIDGE, "binding to wlan0: '%s'\n", address);
-				mreq.imr_interface.s_addr = inet_addr(address);
-				if (setsockopt(bridgeSock, IPPROTO_IP, IP_ADD_MEMBERSHIP,&mreq, sizeof(mreq)) < 0) 
-				{
-					perror("e131bridge setsockopt mreq wlan0");
-					exit(1);
-				}
-				multicastJoined = 1;
-			}
-
-			if (!multicastJoined)
-			{
-				LogDebug(VB_E131BRIDGE, "binding to default interface\n");
+			if (!multicastJoined) {
+				LogDebug(VB_E131BRIDGE, "  Binding to default interface\n");
 				mreq.imr_interface.s_addr = htonl(INADDR_ANY);
-				if (setsockopt(bridgeSock, IPPROTO_IP, IP_ADD_MEMBERSHIP,&mreq, sizeof(mreq)) < 0) 
-				{
-					perror("e131bridge setsockopt mreq generic");
-					exit(1);
+				if (setsockopt(bridgeSock, IPPROTO_IP, IP_ADD_MEMBERSHIP,&mreq, sizeof(mreq)) < 0) {
+                    LogWarn(VB_E131BRIDGE, "   Could not setup Multicast Group\n");
 				}
 			}
 		}
 	}
+    freeifaddrs(interfaces);
 
 	StartChannelOutputThread();
+    
+    if (i1 >= 0) close(i1);
+    if (i2 >= 0) close(i2);
+    if (i3 >= 0) close(i3);
 
     eSock = bridgeSock;
     dSock = ddpSock;
