@@ -1358,7 +1358,11 @@ function RemovePlaylistEntry()	{
             
             var output = {};
             output.type = "universes";
-            output.enabled = document.getElementById("E131Enabled").checked ? 1 : 0;
+            if (!input) {
+                output.enabled = document.getElementById("E131Enabled").checked ? 1 : 0;
+            } else {
+                output.enabled = true;
+            }
             output.startChannel = 1;
             output.channelCount = -1;
             output.universes = [];
