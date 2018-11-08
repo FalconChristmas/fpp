@@ -58,6 +58,8 @@
 
 .disableButtons
 {
+    cursor: not-allowed;
+    pointer-events: none;
 	background-color: #eeeeee;
 	background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0%, #eeeeee), color-stop(100%, #cccccc));
 	background-image: -webkit-linear-gradient(top, #eeeeee, #cccccc);

@@ -396,7 +396,7 @@ int Playlist::Start(void)
  */
 int Playlist::StopNow(int forceStop)
 {
-	LogDebug(VB_PLAYLIST, "Playlist::StopNow()\n");
+	LogDebug(VB_PLAYLIST, "Playlist::StopNow(%d)\n", forceStop);
 
 	// FIXME PLAYLIST, get rid of this
 	if (!m_subPlaylist)
@@ -417,7 +417,7 @@ int Playlist::StopNow(int forceStop)
  */
 int Playlist::StopGracefully(int forceStop, int afterCurrentLoop)
 {
-	LogDebug(VB_PLAYLIST, "Playlist::StopGracefully()\n");
+	LogDebug(VB_PLAYLIST, "Playlist::StopGracefully(%d, %d)\n", forceStop, afterCurrentLoop);
 
 	// FIXME PLAYLIST, get rid of this
 	if (!m_subPlaylist)

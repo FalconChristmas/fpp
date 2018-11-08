@@ -1207,7 +1207,7 @@ function genSelectList($area_name = "backuparea")
                 foreach ($item_options['file'] as $sub_index => $sub_data) {
                     $disabled = '';
                     if ($area_name == "backuparea") {
-                        $disabled = "disabled";
+                        $disabled = "disabled='disabled'";
                     }
                     $select_html .= "<option value=" . $item . "/" . $sub_index . " " . $disabled . " >--" . ucwords(str_replace("_", " ", $sub_index)) . "</option>";
                 }

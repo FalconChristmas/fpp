@@ -2130,7 +2130,7 @@ if (1) {
 			{
 				$(button).removeClass('buttons');
 				$(button).addClass('disableButtons');
-				$(button).attr("disabled");
+				$(button).attr("disabled", "disabled");
 			}
 	}
 	

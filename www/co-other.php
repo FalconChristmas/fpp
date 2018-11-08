@@ -1215,7 +1215,7 @@ function PopulateChannelOutputTable(data) {
                 (type == 'MAX7219Matrix') ||
                 (type == 'VirtualDisplay') ||
                 (type == 'VirtualMatrix'))
-                countDisabled = " disabled=''";
+                countDisabled = " disabled='disabled'";
 
             newRow += "></td>" +
                     "<td>" + type + "</td>" +
