@@ -18,6 +18,7 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include <chrono>
+#include <set>
 #include <errno.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -26,6 +27,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <ifaddrs.h>
 
 #include "UDPOutput.h"
 #include "log.h"
@@ -91,6 +93,37 @@ int UDPOutput::Init(Json::Value config) {
         }
         
     }
+    
+    std::set<std::string> myIps;
+    //get all the addresses
+    struct ifaddrs *interfaces,*tmp;
+    getifaddrs(&interfaces);
+    tmp = interfaces;
+    //loop through all the interfaces and get the addresses
+    while (tmp) {
+        if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET) {
+            char address[16];
+            GetInterfaceAddress(tmp->ifa_name, address, NULL, NULL);
+            myIps.emplace(address);
+        }
+        tmp = tmp->ifa_next;
+    }
+    freeifaddrs(interfaces);
+    
+    
+    for (auto o : outputs) {
+        if (o->IsPingable() && o->active) {
+            std::string host = o->ipAddress;
+            if (myIps.find(host) != myIps.end()) {
+                // trying to send UDP data to myself, that's bad.  Disable
+                LogWarn(VB_CHANNELOUT, "UDP Output set to send data to myself.  Disabling - %s\n",
+                        host.c_str());
+                o->active = false;
+            }
+        }
+    }
+    
+    
     InitNetwork();
     PingControllers();
     return ChannelOutputBase::Init(config);

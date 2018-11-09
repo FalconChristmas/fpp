@@ -469,7 +469,8 @@ int InitializeChannelOutputs(void) {
                     channelOutputs[i].output->GetRequiredChannelRange(m1, m2);
                     minimumNeededChannel = std::min(minimumNeededChannel, m1);
                     maximumNeededChannel = std::max(maximumNeededChannel, m2);
-                    LogInfo(VB_CHANNELOUT, "%d:  Determined range needed %d - %d\n", i, minimumNeededChannel, maximumNeededChannel);
+                    LogInfo(VB_CHANNELOUT, "%s %d:  Determined range needed %d - %d\n",
+                            type.c_str(), i, minimumNeededChannel, maximumNeededChannel);
 
                     i++;
 				} else {

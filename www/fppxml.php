@@ -449,7 +449,7 @@ function InstallRemoteScript()
 
 function MoveFile()
 {
-	global $mediaDirectory, $uploadDirectory, $musicDirectory, $sequenceDirectory, $videoDirectory, $effectDirectory, $scriptDirectory;
+	global $mediaDirectory, $uploadDirectory, $musicDirectory, $sequenceDirectory, $videoDirectory, $effectDirectory, $scriptDirectory, $SUDO;
 
 	$file = $_GET['file'];
 	check($file, "file", __FUNCTION__);
@@ -473,6 +473,15 @@ function MoveFile()
 				exit(1);
 			}
 		}
+        else if (preg_match("/\.(fseq.gz)$/i", $file))
+        {
+            if ( !rename($uploadDirectory."/" . $file, $sequenceDirectory . '/' . $file) )
+            {
+                error_log("Couldn't move sequence file");
+                exit(1);
+            }
+            exec("$SUDO gunzip $sequenceDirectory/$file");
+        }
 		else if (preg_match("/\.(eseq)$/i", $file))
 		{
 			if ( !rename($uploadDirectory."/" . $file, $effectDirectory . '/' . $file) )
@@ -481,7 +490,7 @@ function MoveFile()
 				exit(1);
 			}
 		}
-		else if (preg_match("/\.(mp4|mkv)$/i", $file))
+		else if (preg_match("/\.(mp4|mkv|avi)$/i", $file))
 		{
 			if ( !rename($uploadDirectory."/" . $file, $videoDirectory . '/' . $file) )
 			{
