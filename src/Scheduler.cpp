@@ -460,12 +460,7 @@ void Scheduler::PlayListStopCheck(void)
     // are much lower, so this will suffice for v1.0.
 	int stopPlaying = 0;
 
-	if (m_currentSchedulePlaylist.startWeeklySeconds < m_currentSchedulePlaylist.endWeeklySeconds)
-	{
-		if (nowWeeklySeconds >= m_currentSchedulePlaylist.endWeeklySeconds)
-			stopPlaying = 1;
-	}
-	else if ((m_currentSchedulePlaylist.endWeeklySeconds < (24 * 60 * 60)) &&
+	if ((m_currentSchedulePlaylist.endWeeklySeconds < (24 * 60 * 60)) &&
 			 (m_currentSchedulePlaylist.startWeeklySeconds > (6 * 24 * 60 * 60)) &&
 			 (nowWeeklySeconds >= m_currentSchedulePlaylist.endWeeklySeconds) &&
 			 (nowWeeklySeconds < m_currentSchedulePlaylist.startWeeklySeconds))
