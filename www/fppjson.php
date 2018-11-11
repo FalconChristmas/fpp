@@ -1326,27 +1326,29 @@ function GenerateJSONPlaylistInfo($list)
 		//loop over the lists
 		foreach ($list as $listName) {
 			//Loop over the contents, checking for media and build up a total duration
-			foreach ($_SESSION[$listName] as $idx => $playlistEntry) {
-				$mediaName = "";
+			if (isset($_SESSION[$listName])) {
+				foreach ($_SESSION[$listName] as $idx => $playlistEntry) {
+					$mediaName = "";
 
-				$type = $playlistEntry->entry->type;
-				if (isset($playlistEntry->entry->mediaName)) {
-					$mediaName = $playlistEntry->entry->mediaName;
-				}
-
-				//If entry is either both sequence + audio or just media we can look at the media name and extract info
-				if (($type == "both" || $type == "media") && !empty($mediaName)) {
-					//Get media duration
-					$ThisFileInfo = getMediaDurationInfo($mediaName, true);
-
-					$total_duration = $ThisFileInfo[$mediaName]['duration'] + $total_duration;
-					if ($listName == "playListEntriesMainPlaylist") {
-						$total_items++;
+					$type = $playlistEntry->entry->type;
+					if (isset($playlistEntry->entry->mediaName)) {
+						$mediaName = $playlistEntry->entry->mediaName;
 					}
-				}
-				//Consider pause duration also
-				if ($type == "pause") {
-					$total_duration = $playlistEntry->entry->duration + $total_duration;
+
+					//If entry is either both sequence + audio or just media we can look at the media name and extract info
+					if (($type == "both" || $type == "media") && !empty($mediaName)) {
+						//Get media duration
+						$ThisFileInfo = getMediaDurationInfo($mediaName, true);
+
+						$total_duration = $ThisFileInfo[$mediaName]['duration'] + $total_duration;
+						if ($listName == "playListEntriesMainPlaylist") {
+							$total_items++;
+						}
+					}
+					//Consider pause duration also
+					if ($type == "pause") {
+						$total_duration = $playlistEntry->entry->duration + $total_duration;
+					}
 				}
 			}
 		}
