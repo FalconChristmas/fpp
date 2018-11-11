@@ -922,6 +922,12 @@ setupRTC () {
 	  echo "mcp7941x 0x6f" > /sys/bus/i2c/devices/${I2CBUS}/new_device
       sleep 1
 	  ;;
+	4)
+	  # AdaFruit
+      echo "FPP - Configuring RTC, Settting to pcf8523/${I2CBUS}"
+	  echo pcf8523 0x68 > /sys/bus/i2c/devices/${I2CBUS}/new_device
+      sleep 1
+	  ;;
 	*)
 	  # None
 		echo "FPP - Configuring RTC, None Selected"
