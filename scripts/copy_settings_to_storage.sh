@@ -15,8 +15,11 @@ elif [[ "$FSTYPE" =~ "DOS" ]]; then
 else
   mount -t ext4 -o noatime,nodiratime,nofail /dev/$DEVICE /tmp/smnt
 fi
+rsync -av --modify-window=1 --exclude=music/* --exclude=sequences/* --exclude=videos/* /home/fpp/media/* /tmp/smnt
+rsync -av --modify-window=1 /home/fpp/media/music /tmp/smnt
+rsync -av --modify-window=1 /home/fpp/media/sequences /tmp/smnt
+rsync -av --modify-window=1 /home/fpp/media/videos /tmp/smnt
 
-rsync -av --modify-window=1 /home/fpp/media/* /tmp/smnt
 
 umount /tmp/smnt
 rmdir /tmp/smnt
