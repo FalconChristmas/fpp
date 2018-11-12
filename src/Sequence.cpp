@@ -82,7 +82,8 @@ Sequence::Sequence()
     m_seqGamma(0),
     m_seqColorEncoding(0),
     m_seqLastControlMajor(0),
-    m_seqLastControlMinor(0)
+    m_seqLastControlMinor(0),
+    m_remoteBlankCount(0)
 {
     m_seqFilename[0] = 0;
 
@@ -452,6 +453,7 @@ void Sequence::ReadSequenceData(void) {
     }
 
     if (IsSequenceRunning()) {
+        m_remoteBlankCount = 0;
         bytesRead = 0;
         if(m_seqFilePosition <= m_seqFileSize - m_seqStepSize) {
             int maxChanToRead = m_seqStepSize - 1;
@@ -496,7 +498,19 @@ void Sequence::ReadSequenceData(void) {
         m_seqSecondsElapsed = (int)((float)(m_seqFilePosition - m_seqChanDataOffset)/((float)m_seqStepSize*(float)m_seqRefreshRate));
         m_seqSecondsRemaining = m_seqDuration - m_seqSecondsElapsed;
     } else {
-        BlankSequenceData();
+        if (getFPPmode() != REMOTE_MODE) {
+            BlankSequenceData();
+        } else {
+            //on a remote, we will get a "stop" and then a "start" a short time later
+            //we don't want to blank immediately (unless the master tells us to)
+            //so we don't get black blinks on the remote.  We'll wait the equivalent
+            //of 20 frames to then blank
+            if (m_remoteBlankCount > 20) {
+                BlankSequenceData();
+            } else {
+                m_remoteBlankCount++;
+            }
+        }
     }
 
     pthread_mutex_unlock(&m_sequenceLock);

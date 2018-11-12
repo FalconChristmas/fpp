@@ -88,6 +88,7 @@ class Sequence {
 	int           m_seqColorEncoding;
 	char          m_seqLastControlMajor;
 	char          m_seqLastControlMinor;
+    int           m_remoteBlankCount;
 
 	pthread_mutex_t      m_sequenceLock;
 	pthread_mutexattr_t  m_sequenceLock_attr;
