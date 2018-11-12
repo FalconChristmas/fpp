@@ -11,7 +11,7 @@ elif [[ "$FSTYPE" =~ "ext4" ]]; then
   mount -t ext4 -o noatime,nodiratime,nofail /dev/$DEVICE /tmp/smnt
 elif [[ "$FSTYPE" =~ "FAT" ]]; then
   EXTRA_ARGS="--no-perms"
-  mount -t ext4 -o noatime,nodiratime,exec,nofail,flush,uid=500,gid=500 /dev/$DEVICE /tmp/smnt
+  mount -t auto -o noatime,nodiratime,exec,nofail,flush,uid=500,gid=500 /dev/$DEVICE /tmp/smnt
 elif [[ "$FSTYPE" =~ "DOS" ]]; then
   EXTRA_ARGS="--no-perms"
   mount -t auto -o noatime,nodiratime,exec,nofail,flush,uid=500,gid=500 /dev/$DEVICE /tmp/smnt
