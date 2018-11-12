@@ -81,7 +81,7 @@ if ($settings['Platform'] != "BeagleBone Black") {
 $VideoOutputModels['Disabled'] = "--Disabled--";
 $f = fopen($settings['channelMemoryMapsFile'], "r");
     if ($f == FALSE) {
-        fclose($f);
+        # fclose($f);
     } else {
         while (!feof($f)) {
             $line = fgets($f);
@@ -220,6 +220,21 @@ function PrintStorageDeviceSelect($platform)
 <link href="jquery/jQuery.msgBox/styles/msgBoxLight.css" rel="stylesheet" type="text/css">
 <script>
 
+function checkForStorageCopy() {
+    $.msgBox({
+             title: "Copy settings?",
+             content: "Would you like to copy all files to the new storage location?\nAll settings on the new storage will be overwritten.",
+             type: "info",
+             buttons: [{ value: "Yes" }, { value: "No" }],
+             success: function (result) {
+                 storageDeviceChanged();
+                 if (result == "Yes") {
+                    window.location.href="copystorage.php?storageLocation=" + $('#storageDevice').val();
+                 }
+            }
+        });
+}
+
 function checkFormatStorage()
 {
     var value = $('#storageDevice').val();
@@ -243,14 +258,14 @@ function checkFormatStorage()
                     $.ajax({ url: "formatstorage.php?fs=" + v + "&storageLocation=" + $('#storageDevice').val(),
                         async: false,
                         success: function(data) {
-                           storageDeviceChanged();
+                           checkForStorageCopy();
                         },
                         failure: function(data) {
                         DialogError("Formate Storage", "Error formatting storage.");
                         }
                         });
                     } else {
-                        storageDeviceChanged();
+                        checkForStorageCopy();
                     }
                  }
                  });
