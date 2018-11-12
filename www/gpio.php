@@ -290,7 +290,8 @@ $(document).ready(function(){
 		</tr>
 <?
 	}
-?>
+if ($settings['Platform'] == "Raspberry Pi") {
+    ?>
 		<tr <? echo $piFaceStyle; ?>><td colspan=5><br>NOTE: ** - BCM 25 conflicts with PiFace GPIO Inputs, do not enable BCM 25 when using a PiFace.<br></td></tr>
 		<tr class='piFaceGPIO' <? echo $piFaceStyle; ?>>
 				<td colspan=6 align='center'><hr><b>PiFace GPIO Inputs</b></td>
@@ -318,6 +319,7 @@ $(document).ready(function(){
 		</tr>
 <?
 	}
+}
 ?>
 	</table>
 

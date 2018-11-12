@@ -32,7 +32,7 @@
  */
 PlaylistEntryPause::PlaylistEntryPause(PlaylistEntryBase *parent)
   : PlaylistEntryBase(parent),
-	m_duration(0),
+	m_duration(0.0f),
 	m_startTime(0),
 	m_endTime(0)
 {
@@ -55,7 +55,7 @@ int PlaylistEntryPause::Init(Json::Value &config)
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntryPause::Init()\n");
 
-	m_duration = config["duration"].asInt();
+	m_duration = config["duration"].asFloat();
 	m_endTime = 0;
 	m_finishTime = 0;
 
@@ -77,7 +77,10 @@ int PlaylistEntryPause::StartPlaying(void)
 
 	// Calculate end time as m_duation number of seconds from now
 	m_startTime = GetTime();
-	m_endTime = m_startTime + (m_duration * 1000000);
+    
+    float tmp = m_duration;
+    tmp *= 1000000;
+	m_endTime = m_startTime + tmp;
 
 	return PlaylistEntryBase::StartPlaying();
 }
@@ -118,7 +121,7 @@ void PlaylistEntryPause::Dump(void)
 {
 	PlaylistEntryBase::Dump();
 
-	LogDebug(VB_PLAYLIST, "Duration: %d\n", m_duration);
+	LogDebug(VB_PLAYLIST, "Duration: %f\n", m_duration);
 	LogDebug(VB_PLAYLIST, "Cur Time: %lld\n", GetTime());
 	LogDebug(VB_PLAYLIST, "Start Time: %lld\n", m_startTime);
 	LogDebug(VB_PLAYLIST, "End Time: %lld\n", m_endTime);

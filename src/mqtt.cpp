@@ -75,7 +75,12 @@ MosquittoClient::MosquittoClient(const std::string &host, const int port,
     m_baseTopic = m_topicPrefix;
 	m_baseTopic += FALCON_TOPIC;
 	m_baseTopic += "/";
-	m_baseTopic += getSetting("HostName");
+    
+    std::string hostname = getSetting("HostName");
+    if (hostname == "") {
+        hostname = "FPP";
+    }
+    m_baseTopic += hostname;
 
 	m_topicPlaylist = m_baseTopic + "/playlist/#";
 

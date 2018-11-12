@@ -46,7 +46,7 @@ class PlaylistEntryPause : public PlaylistEntryBase {
 	Json::Value GetConfig(void);
 
   private:
-	int                  m_duration;
+	float                m_duration;
 	long long            m_startTime;
 	long long            m_endTime;
 	long long            m_finishTime;

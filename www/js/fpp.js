@@ -461,7 +461,7 @@ function AddPlaylistEntry() {
 			else if (entry.type == 'pause')
 			{
 				if ($('#txtPause').val() != '')
-					entry.duration = parseInt($('#txtPause').val());
+					entry.duration = parseFloat($('#txtPause').val());
 				else
 					entry.duration = 0;
 			}
