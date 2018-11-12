@@ -131,6 +131,7 @@ function list_plugin_entries($menu)
         </ul>
       </li>
     </ul>
+<div id='upgradeFlag' style='background-color:red'>All versions of FPP 1.x are now end-of-life and unsupported.  Please update to the latest <a href="https://github.com/FalconChristmas/fpp/releases">2.x release</a> as soon as possible. </div>
 <!--
   <div id='upgradeFlag'>FPP v1.6 is available for install - <input name="btnUpgrade" onClick="ViewReleaseNotes('1.6');" type="button" class = "buttons" value="Upgrade"></div>
 -->
