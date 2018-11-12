@@ -1,6 +1,6 @@
 [Unit]
 Description=FPPd
-After=network.target getty.target apache2.target generic-board-startup.service remote-fs.target
+After=network.target generic-board-startup.service remote-fs.target
 Requires=network.target 
 DefaultDependencies=no
 

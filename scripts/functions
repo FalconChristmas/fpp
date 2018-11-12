@@ -153,10 +153,16 @@ SetupFPPNetworkConfigViaConnMann() {
         # make sure tethering is off
         sed -i -e 's/Tethering=true/Tethering=false/g' /var/lib/connman/settings
         if [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
-            systemctl enable dnsmasq
+            check_dnsmasq=$(systemctl is-enabled dnsmasq.service || true)
+            if [ "x${check_dnsmasq}" = "xdisabled" ] ; then
+                systemctl enable dnsmasq &
+            fi
         fi
     elif [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
-        systemctl disable dnsmasq
+        check_dnsmasq=$(systemctl is-enabled dnsmasq.service || true)
+        if [ "x${check_dnsmasq}" = "xenabled" ] ; then
+            systemctl disable dnsmasq &
+        fi
     fi
 
     #ifconfig -a > /var/tmp/conm.txt

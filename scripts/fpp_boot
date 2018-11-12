@@ -24,13 +24,9 @@ then
 	${SCRIPTDIR}/git_pull
 fi
 
-remountRootReadWrite
-
 ${SCRIPTDIR}/upgrade_config
 
 ${SCRIPTDIR}/timezone_sync
-
-remountRootReadOnlyIfNeeded
 
 if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
 then

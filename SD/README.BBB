@@ -94,7 +94,10 @@ nano /boot/uEnv.txt
 #     disable_uboot_overlay_audio=1
 #     disable_uboot_overlay_adc=1
 #     uboot_overlay_pru=/lib/firmware/AM335X-PRU-UIO-00A0.dtbo
+#  add "rootwait" to cmdline
 
+nano /opt/scripts/boot/am335x_evm.sh
+# comment out all lines related to restart serial-getty@ttyGS0.service
 
 
 ## need the latest version for the PocketBeagle pins

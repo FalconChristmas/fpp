@@ -1,6 +1,6 @@
 [Unit]
 Description=Inialization routines for FPP
-After=home-fpp-media.mount var-tmp.mount systemd-tmpfiles-setup-dev systemd-remount-fsy
+After=home-fpp-media.mount var-tmp.mount systemd-tmpfiles-setup-dev systemd-remount-fs
 Before=connman.target network.target multi-user.target apache2.target
 Wants=network-pre.target home-fpp-media.mount
 DefaultDependencies=no
