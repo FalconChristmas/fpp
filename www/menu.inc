@@ -131,6 +131,7 @@ function list_plugin_entries($menu)
         </ul>
       </li>
     </ul>
+<div id='upgradeFlag' style='background-color:red'>All versions of FPP 1.x are now end-of-life and unsupported.  Please update to the latest <a href="https://github.com/FalconChristmas/fpp/releases">2.x release</a> as soon as possible. </div>
   <div id='upgradeFlag'>FPP v1.9 is available for install - <input name="btnUpgrade" onClick="ViewReleaseNotes('1.9');" type="button" class = "buttons" value="Upgrade"></div>
   <div id='restartFlag'>Settings have changed. FPPD Restart Required - <input name="btnRestartFPPD" type="button" onClick="RestartFPPD();" class = "buttons" value="Restart FPPD">
 <?
