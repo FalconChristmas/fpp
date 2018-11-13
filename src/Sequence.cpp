@@ -498,14 +498,14 @@ void Sequence::ReadSequenceData(void) {
         m_seqSecondsElapsed = (int)((float)(m_seqFilePosition - m_seqChanDataOffset)/((float)m_seqStepSize*(float)m_seqRefreshRate));
         m_seqSecondsRemaining = m_seqDuration - m_seqSecondsElapsed;
     } else {
-        if (getFPPmode() != REMOTE_MODE) {
+        if (getFPPmode() != REMOTE_MODE || getSettingInt("blankBetweenSequences")) {
             BlankSequenceData();
         } else {
             //on a remote, we will get a "stop" and then a "start" a short time later
             //we don't want to blank immediately (unless the master tells us to)
             //so we don't get black blinks on the remote.  We'll wait the equivalent
-            //of 20 frames to then blank
-            if (m_remoteBlankCount > 20) {
+            //of 5 frames to then blank
+            if (m_remoteBlankCount > 5) {
                 BlankSequenceData();
             } else {
                 m_remoteBlankCount++;

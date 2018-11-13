@@ -174,7 +174,8 @@ void *RunChannelOutputThread(void *data)
 			(getAlwaysTransmit()) ||
 			(getFPPmode() == BRIDGE_MODE))
 		{
-			onceMore = 1;
+            // REMOTE mode keeps looping a few extra times before we blank
+            onceMore = (getFPPmode() == REMOTE_MODE) ? 8 : 1;
 
 			if (startTime > (lastStatTime + 1000000)) {
 				int sleepTime = LightDelay - (GetTime() - startTime);
@@ -195,7 +196,7 @@ void *RunChannelOutputThread(void *data)
 			LightDelay = DefaultLightDelay;
 
 			if (onceMore)
-				onceMore = 0;
+				onceMore--;
 			else
 				RunThread = 0;
 		}
