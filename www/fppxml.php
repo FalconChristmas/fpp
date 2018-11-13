@@ -480,7 +480,7 @@ function MoveFile()
                 error_log("Couldn't move sequence file");
                 exit(1);
             }
-            exec("$SUDO gunzip -f $sequenceDirectory/$file");
+            exec("$SUDO gunzip -f '$sequenceDirectory/$file'");
         }
 		else if (preg_match("/\.(eseq)$/i", $file))
 		{
