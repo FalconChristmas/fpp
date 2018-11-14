@@ -455,73 +455,53 @@ function MoveFile()
 	check($file, "file", __FUNCTION__);
 
 	// Fix double quote uploading by simply moving the file first, if we find it with URL encoding
-	if ( strstr($file, '"') )
-	{
-		if (!rename($uploadDirectory."/" . preg_replace('/"/', '%22', $file), $uploadDirectory."/" . $file))
-		{
-			error_log("Couldn't remove double quote from filename");
-			exit(1);
-		}	
+	if ( strstr($file, '"') ) {
+		if (!rename($uploadDirectory."/" . preg_replace('/"/', '%22', $file), $uploadDirectory."/" . $file)) {
+            //Firefox and xLights will upload with " intact so if the rename doesn't work, it's OK
+		}
 	}
-	if(file_exists($uploadDirectory."/" . $file))
-	{
-		if (preg_match("/\.(fseq)$/i", $file))
-		{
-			if ( !rename($uploadDirectory."/" . $file, $sequenceDirectory . '/' . $file) )
-			{
+    
+	if (file_exists($uploadDirectory."/" . $file)) {
+		if (preg_match("/\.(fseq)$/i", $file)) {
+			if ( !rename($uploadDirectory."/" . $file, $sequenceDirectory . '/' . $file) ) {
 				error_log("Couldn't move sequence file");
 				exit(1);
 			}
-		}
-        else if (preg_match("/\.(fseq.gz)$/i", $file))
-        {
-            if ( !rename($uploadDirectory."/" . $file, $sequenceDirectory . '/' . $file) )
-            {
+		} else if (preg_match("/\.(fseq.gz)$/i", $file)) {
+            if ( !rename($uploadDirectory."/" . $file, $sequenceDirectory . '/' . $file) ) {
                 error_log("Couldn't move sequence file");
                 exit(1);
             }
-            exec("$SUDO gunzip -f '$sequenceDirectory/$file'");
-        }
-		else if (preg_match("/\.(eseq)$/i", $file))
-		{
-			if ( !rename($uploadDirectory."/" . $file, $effectDirectory . '/' . $file) )
-			{
+            $nfile = $file;
+            $nfile = str_replace('"', '\\"', $nfile);
+            exec("$SUDO gunzip -f \"$sequenceDirectory/$nfile\"");
+        } else if (preg_match("/\.(eseq)$/i", $file)) {
+			if ( !rename($uploadDirectory."/" . $file, $effectDirectory . '/' . $file) ) {
 				error_log("Couldn't move effect file");
 				exit(1);
 			}
-		}
-		else if (preg_match("/\.(mp4|mkv|avi)$/i", $file))
-		{
-			if ( !rename($uploadDirectory."/" . $file, $videoDirectory . '/' . $file) )
-			{
+		} else if (preg_match("/\.(mp4|mkv|avi)$/i", $file)) {
+			if ( !rename($uploadDirectory."/" . $file, $videoDirectory . '/' . $file) ) {
 				error_log("Couldn't move video file");
 				exit(1);
 			}
-		}
-		else if (preg_match("/\.(sh|pl|pm|php|py)$/i", $file))
-		{
+		} else if (preg_match("/\.(sh|pl|pm|php|py)$/i", $file)) {
 			// Get rid of any DOS newlines
 			$contents = file_get_contents($uploadDirectory."/".$file);
 			$contents = str_replace("\r", "", $contents);
 			file_put_contents($uploadDirectory."/".$file, $contents);
 
-			if ( !rename($uploadDirectory."/" . $file, $scriptDirectory . '/' . $file) )
-			{
+			if ( !rename($uploadDirectory."/" . $file, $scriptDirectory . '/' . $file) ) {
 				error_log("Couldn't move script file");
 				exit(1);
 			}
-		}
-		else if (preg_match("/\.(mp3|ogg|m4a)$/i", $file))
-		{
-			if ( !rename($uploadDirectory."/" . $file, $musicDirectory . '/' . $file) )
-			{
+        } else if (preg_match("/\.(mp3|ogg|m4a)$/i", $file)) {
+			if ( !rename($uploadDirectory."/" . $file, $musicDirectory . '/' . $file) ) {
 				error_log("Couldn't move music file");
 				exit(1);
 			}
 		}
-	}
-	else
-	{
+	} else {
 		error_log("Couldn't find file '" . $file . "' in upload directory");
 		exit(1);
 	}
