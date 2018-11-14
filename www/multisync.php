@@ -198,7 +198,7 @@ if (isset($_GET['advancedView'])) {
 			var star = "<input id='allRemotes' type='checkbox' class='remoteCheckbox' name='255.255.255.255'";
             if (typeof remotes["255.255.255.255"] !== 'undefined') {
 				star += " checked";
-                delete remotes[data[i].IP];
+                delete remotes["255.255.255.255"];
             }
 			star += " onClick='updateMultiSyncRemotes(this);'>";
 
