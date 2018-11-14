@@ -69,8 +69,7 @@ int PlaylistEntryPause::StartPlaying(void)
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntryPause::StartPlaying()\n");
 
-	if (!CanPlay())
-	{
+	if (!CanPlay())	{
 		FinishPlay();
 		return 0;
 	}
@@ -78,8 +77,8 @@ int PlaylistEntryPause::StartPlaying(void)
 	// Calculate end time as m_duation number of seconds from now
 	m_startTime = GetTime();
     
-    float tmp = m_duration;
-    tmp *= 1000000;
+    double tmp = m_duration;
+    tmp *= 1000000.0;
 	m_endTime = m_startTime + tmp;
 
 	return PlaylistEntryBase::StartPlaying();
@@ -90,11 +89,14 @@ int PlaylistEntryPause::StartPlaying(void)
  */
 int PlaylistEntryPause::Process(void)
 {
-	if (!m_isStarted || !m_isPlaying || m_isFinished)
-		return 0;
+    LogExcess(VB_PLAYLIST, "PlaylistEntryPause::Process()\n");
 
-	if (m_isStarted && m_isPlaying && (GetTime() >= m_endTime))
-	{
+    if (!m_isStarted || !m_isPlaying || m_isFinished) {
+		return 0;
+    }
+
+    long long now = GetTime();
+	if (m_isStarted && m_isPlaying && (now >= m_endTime)) {
 		m_finishTime = GetTime();
 		FinishPlay();
 	}
@@ -121,10 +123,10 @@ void PlaylistEntryPause::Dump(void)
 {
 	PlaylistEntryBase::Dump();
 
-	LogDebug(VB_PLAYLIST, "Duration: %f\n", m_duration);
-	LogDebug(VB_PLAYLIST, "Cur Time: %lld\n", GetTime());
-	LogDebug(VB_PLAYLIST, "Start Time: %lld\n", m_startTime);
-	LogDebug(VB_PLAYLIST, "End Time: %lld\n", m_endTime);
+	LogDebug(VB_PLAYLIST, "Duration:    %f\n", m_duration);
+	LogDebug(VB_PLAYLIST, "Cur Time:    %lld\n", GetTime());
+	LogDebug(VB_PLAYLIST, "Start Time:  %lld\n", m_startTime);
+	LogDebug(VB_PLAYLIST, "End Time:    %lld\n", m_endTime);
 	LogDebug(VB_PLAYLIST, "Finish Time: %lld\n", m_finishTime);
 }
 
