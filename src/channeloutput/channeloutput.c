@@ -547,7 +547,6 @@ int SendChannelData(char *channelData) {
 	int i = 0;
 	FPPChannelOutputInstance *inst;
 
-    outputProcessors.ProcessData((unsigned char *)channelData);
 	if (logMask & VB_CHANNELDATA) {
         char buf[128];
         sprintf(buf, "Channel Data starting at channel %d", minimumNeededChannel);
