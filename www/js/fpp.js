@@ -1632,7 +1632,7 @@ function RemovePlaylistEntry()	{
 															"</tr>";
 															
 									$('#tblSchedule').append(tableRow);
-									$('.time').timepicker({'timeFormat': 'H:i:s', 'typeaheadHighlight': false});
+									$('.time').timepicker({'timeFormat': 'H:i:s', 'typeaheadHighlight': false, 'show2400': true});
 									$('.date').datepicker({
 										'changeMonth': true,
 										'changeYear': true,
