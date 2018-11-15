@@ -549,7 +549,9 @@ int SendChannelData(char *channelData) {
 
     outputProcessors.ProcessData((unsigned char *)channelData);
 	if (logMask & VB_CHANNELDATA) {
-		HexDump("Channel Data", channelData, 16);
+        char buf[128];
+        sprintf(buf, "Channel Data starting at channel %d", minimumNeededChannel);
+		HexDump("Channel Data", &channelData[minimumNeededChannel], 16);
 	}
 
     for (i = 0; i < channelOutputCount; i++) {
