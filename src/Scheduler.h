@@ -75,8 +75,8 @@ typedef struct{
 	int  endSecond;
 	char repeat;
 	int  weeklySecondCount;
-	int  weeklyStartSeconds[DAYS_PER_WEEK];
-	int  weeklyEndSeconds[DAYS_PER_WEEK];
+	int  weeklyStartSeconds[DAYS_PER_WEEK + 1];
+	int  weeklyEndSeconds[DAYS_PER_WEEK + 1];
 	int  startDate; // YYYYMMDD format as an integer
 	int  endDate;   // YYYYMMDD format as an integer
 } ScheduleEntryStruct;

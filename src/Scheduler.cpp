@@ -363,6 +363,23 @@ void Scheduler::SetScheduleEntrysWeeklyStartAndEndSeconds(ScheduleEntryStruct * 
     default:
       entry->weeklySecondCount = 0;
   }
+    for (int x = 0; x < entry->weeklySecondCount; x++) {
+        if (entry->weeklyEndSeconds[x] < entry->weeklyStartSeconds[x]) {
+            //end is less than start, likely means crossing to next day, add 24hours
+            entry->weeklyEndSeconds[x] += 24*60*60;
+        }
+    }
+    if (entry->weeklyEndSeconds[entry->weeklySecondCount-1] > (24*60*60*7)) {
+        //Saturday spilling into sunday.   We need to create an extra entry on Sunday for this
+        for (int x = entry->weeklySecondCount; x > 0; --x) {
+            entry->weeklyStartSeconds[x] = entry->weeklyStartSeconds[x-1];
+            entry->weeklyEndSeconds[x] = entry->weeklyEndSeconds[x-1];
+        }
+        entry->weeklyStartSeconds[0] = 0;
+        entry->weeklyEndSeconds[0] = entry->weeklyEndSeconds[entry->weeklySecondCount];
+        entry->weeklySecondCount++;
+        entry->weeklyEndSeconds[0] -= 24*60*60*7;
+    }
 }
 
 
