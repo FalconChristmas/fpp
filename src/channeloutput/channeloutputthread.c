@@ -177,11 +177,13 @@ void *RunChannelOutputThread(void *data)
             // REMOTE mode keeps looping a few extra times before we blank
             onceMore = (getFPPmode() == REMOTE_MODE) ? 8 : 1;
 
-			if (startTime > (lastStatTime + 1000000)) {
-				int sleepTime = LightDelay - (GetTime() - startTime);
+            int sleepTime = LightDelay - (processTime - startTime);
+			if ((channelOutputFrame <= 1) || (sleepTime <= 0) || (startTime > (lastStatTime + 1000000))) {
 				if (sleepTime < 0)
 					sleepTime = 0;
-				lastStatTime = startTime;
+                if (startTime > (lastStatTime + 1000000)) {
+                    lastStatTime = startTime;
+                }
 				LogDebug(VB_CHANNELOUT,
                          "Output Thread: Loop: %dus, Send: %lldus, Read: %lldus, Process: %lldus, Sleep: %dus, FrameNum: %ld\n",
 					LightDelay,
@@ -390,9 +392,18 @@ void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent)
     if (diff < -3 && getFPPmode() != MASTER_MODE) {
         // pretty far behind master, lets just skip forward
         LogDebug(VB_CHANNELOUT, "Skipping frames - We are at %d, master is at: %d\n", channelOutputFrame, expectedFramesSent);
-        sequence->SeekSequenceFile(expectedFramesSent);
-        LightDelay = DefaultLightDelay;
-        return;
+        if (diff > -15) {
+            // off, but not super off, we'll skip a few frames, but not too much to try and keep using
+            // the frames in the cache and avoid hitting the storage, we'll then have the OS preload
+            // the next bunch and we can skip a few more next time
+            sequence->SeekSequenceFile(expectedFramesSent + 4);
+            diff += 4;
+        } else {
+            //very far off, just jump
+            sequence->SeekSequenceFile(expectedFramesSent);
+            LightDelay = DefaultLightDelay;
+            return;
+        }
     }
 	if (diff) {
 		int timerOffset = diff * (DefaultLightDelay / 100);

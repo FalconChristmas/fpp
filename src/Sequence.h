@@ -89,6 +89,7 @@ class Sequence {
 	char          m_seqLastControlMajor;
 	char          m_seqLastControlMinor;
     int           m_remoteBlankCount;
+    bool          m_fullAdvise;
 
 	pthread_mutex_t      m_sequenceLock;
 	pthread_mutexattr_t  m_sequenceLock_attr;

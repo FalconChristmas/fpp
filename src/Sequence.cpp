@@ -83,7 +83,8 @@ Sequence::Sequence()
     m_seqColorEncoding(0),
     m_seqLastControlMajor(0),
     m_seqLastControlMinor(0),
-    m_remoteBlankCount(0)
+    m_remoteBlankCount(0),
+    m_fullAdvise(true)
 {
     m_seqFilename[0] = 0;
 
@@ -164,10 +165,12 @@ int Sequence::OpenSequenceFile(const char *filename, int startSeconds) {
         return 0;
     }
     
-    posix_fadvise(fileno(m_seqFile), 0, 0, POSIX_FADV_SEQUENTIAL);
+    fseeko(m_seqFile, 0L, SEEK_END);
+    m_seqFileSize = ftello(m_seqFile);
+    fseeko(m_seqFile, 0L, SEEK_SET);
+    
     // Preload a chunk
     posix_fadvise(fileno(m_seqFile), 0, 1024*1024, POSIX_FADV_WILLNEED);
-
 
     if (getFPPmode() == MASTER_MODE)
     {
@@ -279,8 +282,6 @@ int Sequence::OpenSequenceFile(const char *filename, int startSeconds) {
 
     m_seqRefreshRate = 1000 / m_seqStepTime;
 
-    fseeko(m_seqFile, 0L, SEEK_END);
-    m_seqFileSize = ftello(m_seqFile);
 
     // Calculate actual duration based on file size, not m_seqNumPeriods
     m_seqMSRemaining = (int)(((float)(m_seqFileSize - m_seqChanDataOffset)
@@ -312,14 +313,28 @@ int Sequence::OpenSequenceFile(const char *filename, int startSeconds) {
     LogDebug(VB_SEQUENCE, "seqMSRemaining        : %d\n", m_seqMSRemaining);
     LogDebug(VB_SEQUENCE, "'*' denotes field is currently ignored by FPP\n");
 
+    //calculate the data rate we will need to read this at proper speed
+    
+    size_t dr = m_seqStepSize * m_seqRefreshRate;
+    //all Devices (Pi/BBB) can read 10MB/sec off their storage
+    //we'll use 8MB to leave some head room.  If our needs are
+    //less that that, we'll do full advise which allows the OS
+    //to treat the fseq as "steaming" with larger readahead buffers
+    m_fullAdvise = dr < (1024*1024*8);
+    if (m_fullAdvise) {
+        posix_fadvise(fileno(m_seqFile), 0, 0, POSIX_FADV_SEQUENTIAL);
+    } else {
+        posix_fadvise(fileno(m_seqFile), 0, 0, POSIX_FADV_NORMAL);
+    }
+    
+    
     m_seqPaused = 0;
     m_seqSingleStep = 0;
     m_seqSingleStepBack = 0;
 
     int frameNumber = 0;
 
-    if (startSeconds)
-    {
+    if (startSeconds) {
         int frameNumber = startSeconds * m_seqRefreshRate;
         off_t newPos = m_seqChanDataOffset;
         newPos += (frameNumber * m_seqStepSize);
@@ -349,8 +364,7 @@ int Sequence::SeekSequenceFile(int frameNumber) {
 
     pthread_mutex_lock(&m_sequenceLock);
 
-    if (!IsSequenceRunning())
-    {
+    if (!IsSequenceRunning()) {
         LogErr(VB_SEQUENCE, "No sequence is running\n");
         pthread_mutex_unlock(&m_sequenceLock);
         return 0;
@@ -476,16 +490,36 @@ void Sequence::ReadSequenceData(void) {
                 }
             }
             off_t fsz = ftello(m_seqFile);
-            if (fsz > 4096) {
+            if (fsz > 16384) {
                 //make sure the current memory page stays so we don't reload it
                 //don't need up to this anymore, discard it
-                posix_fadvise(fileno(m_seqFile), 0, fsz - 4096, POSIX_FADV_DONTNEED);
+                off_t f = fsz;
+                static const off_t m = 0x8FFFFFFFFFFFC000;
+                f &= m;
+                posix_fadvise(fileno(m_seqFile), 0, f, POSIX_FADV_DONTNEED);
             }
-            
-            //let the kernel know we're going to need the next few frames
-            int sizeToRead = maxChanToRead - minimumNeededChannel + 1;
-            for (int x = 0; x < 3; x++) {
-                posix_fadvise(fileno(m_seqFile), fsz + x * m_seqStepSize + minimumNeededChannel, sizeToRead, POSIX_FADV_WILLNEED);
+            //let the kernel know we're going to need the next bunch of frames
+            if (m_fullAdvise) {
+                off_t f = m_seqStepSize;
+                f *= 15;
+                if (f < 131072) {
+                    // at least 128K
+                    f = 131072;
+                }
+                if ((fsz + f) > m_seqFileSize) {
+                    f = 0;
+                }
+                posix_fadvise(fileno(m_seqFile), fsz, f, POSIX_FADV_WILLNEED);
+            } else {
+                int sizeToRead = maxChanToRead - minimumNeededChannel + 1;
+                off_t f = fsz;
+                f += minimumNeededChannel;
+                for (int x = 0; x < 15; x++) {
+                    if (f < m_seqFileSize) {
+                        posix_fadvise(fileno(m_seqFile), f, sizeToRead, POSIX_FADV_WILLNEED);
+                    }
+                    f += m_seqStepSize;
+                }
             }
             m_seqFilePosition += bytesRead;
         }
