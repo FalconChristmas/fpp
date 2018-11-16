@@ -89,6 +89,16 @@ SetupFPPNetworkConfigViaConnMann() {
     rm -f ${TMPFILE}
 
     for f in $CONFIGS; do
+	unset SSID
+	unset PSK
+	unset INTERFACE
+	unset MAC
+	unset HIDDEN
+	unset PROTO
+	unset DNS
+	unset GATEWAY
+	unset NETMASK
+	unset ADDRESS
         . ${f}
 
         echo "[service_$INTERFACE]" >> ${TMPFILE}
@@ -134,6 +144,8 @@ SetupFPPNetworkConfigViaConnMann() {
                 if [ "x$DNS" != "x" ]; then
                     echo "Nameservers=${DNS}" >> $TMPFILE
                 fi
+	    elif [ "$DEFGW" == "none" ]; then
+                echo "IPv4=$ADDRESS/$NETMASK" >> $TMPFILE
             else
                 echo "IPv4=$ADDRESS/$NETMASK/$DEFGW" >> $TMPFILE
             fi
@@ -528,6 +540,24 @@ WaitForInterfacesUp() {
 
     connmanctl services >> /tmp/services.txt
 
+    CONFIGS=`ls ${FPPHOME}/media/config/interface.w*; ls ${FPPHOME}/media/config/interface.e*`
+    for f in $CONFIGS; do
+	. ${f}
+	if [ "x$GATEWAY" != "x" ]; then
+	     DEFGW=${GATEWAY}
+	fi
+    done
+    if [ "x$DEFGW" == "x" ]; then
+        # no gateway defined
+	cd /var/lib/connman
+	ETHS=`ls -d ether*`
+	WIFIS=`ls -d wifi*`
+	if [ "x$WIFIS" != "x" ]; then
+	    for f in $ETHS; do
+	        connmanctl move-before $WIFIS $f
+	    done
+	fi	
+    fi
     #turn off power management on wireless... not all adapters
     # support this so just /dev/null any output
     iwconfig wlan0 power off 2>/dev/null >/dev/null
