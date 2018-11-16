@@ -105,6 +105,11 @@ int PlaylistEntryMedia::PreparePlay() {
         FinishPlay();
         return 0;
     }
+
+    if (mqtt)
+        mqtt->Publish("playlist/media/status", m_mediaFilename);
+    
+    pluginCallbackManager.mediaCallback();
     return 1;
 }
 
@@ -125,10 +130,6 @@ int PlaylistEntryMedia::StartPlaying(void)
         return 0;
     }
 
-	if (mqtt)
-		mqtt->Publish("playlist/media/status", m_mediaFilename);
-
-	pluginCallbackManager.mediaCallback();
 
     pthread_mutex_lock(&m_mediaOutputLock);
 
