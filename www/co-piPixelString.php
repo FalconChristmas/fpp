@@ -100,7 +100,7 @@ function populatePixelStringOutputs(data)
             str += "><br>";
 
             str += '<b>' + type + ' Output</b><br>';
-            str += "<table id='" + type + "_Output_0' type='" + type + "' ports='" + output.outputCount + "' class='outputTable'>";
+            str += "<table id='" + type + "_Output_0' type='" + type + "' ports='2' class='outputTable'>";
             str += pixelOutputTableHeader();
             str += "<tbody>";
 
@@ -116,6 +116,14 @@ function populatePixelStringOutputs(data)
 
                     str += pixelOutputTableRow(type, id, o, v, vs.description, vs.startChannel + 1, vs.pixelCount, vs.groupCount, vs.reverse, vs.colorOrder, vs.nullNodes, vs.zigZag, vs.brightness, vs.gamma);
                 }
+            }
+
+
+	    if (output.outputCount == 0) {
+                str += pixelOutputTableRow(type, id, 0, 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 100, "1.0");
+	    }
+	    if (output.outputCount < 2) {
+		str += pixelOutputTableRow(type, id, 1, 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 100, "1.0");
             }
 
             str += "</tbody>";

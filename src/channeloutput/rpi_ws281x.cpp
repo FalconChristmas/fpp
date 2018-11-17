@@ -103,6 +103,8 @@ int RPIWS281xOutput::Init(Json::Value config)
 		m_strings.push_back(newString);
 	}
 
+
+	LogDebug(VB_CHANNELOUT, "   Fount %d strings of pixels\n", m_strings.size());
 	ledstring.freq   = 800000; // Hard code this for now
 	ledstring.dmanum = 10;
 
@@ -113,7 +115,11 @@ int RPIWS281xOutput::Init(Json::Value config)
 	ledstring.channel[0].brightness  = 255;
 
 	ledstring.channel[1].gpionum = m_string2GPIO;
-	ledstring.channel[1].count   = m_strings[1]->m_outputChannels / 3;
+        if (m_strings.size() > 1) {
+	    ledstring.channel[1].count   = m_strings[1]->m_outputChannels / 3;
+	} else {
+	    ledstring.channel[1].count   = 0;
+	}
 	ledstring.channel[1].strip_type = WS2811_STRIP_RGB;
 	ledstring.channel[1].invert  = 0;
 	ledstring.channel[1].brightness  = 255;
