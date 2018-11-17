@@ -557,7 +557,7 @@ function PrintScriptOptions($id)
   <div id="playlistConverterText">
   </div>
 </div>
-<div id="copyPlaylist_dialog" title="Copy Playlist">
+<div id="copyPlaylist_dialog" title="Copy Playlist" style="display: none">
     <form>
         <span>Enter new name for playlist</span>
         <input name="newPlaylistName" type="text" style="z-index:10000; width: 100%" class="newPlaylistName" value="New Playlist Name">

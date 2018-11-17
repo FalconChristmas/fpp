@@ -370,6 +370,160 @@ echo "
 }
 
 /**
+ * Returns sequence header info for the specified sequence
+ *
+ * @param $mediaName
+ * @return array
+ */
+function get_sequence_file_info($mediaName){
+	global $settings;
+
+	$total_duration=0;
+	$media_filesize = 0;
+	$filename = $settings['sequenceDirectory'] . "/" . $mediaName;
+
+	$all_data = array(
+		'seqFormatID' => null,
+		'seqChanDataOffset' => null,
+		'seqMinorVersion' => null,
+		'seqMajorVersion' => null,
+		'seqVersion' => null,
+		'seqFixedHeaderSize' => null,
+		'seqStepSize' => null,
+		'seqNumPeriods' => null,
+		'seqStepTime' => null,
+		'seqNumUniverses' => null,
+		'seqUniverseSize' => null,
+		'seqGamma' => null,
+		'seqColorEncoding' => null,
+		'seqDuration' => null,
+		'seqMSRemaining' => null,
+		'seqMediaName' => null
+	);
+	//Make sure it exists first
+	if (!empty($mediaName) & file_exists($filename)) {
+		//Get the filesize
+		$media_filesize = filesize($filename);
+		//Read the sequence
+		$file_handle = fopen($filename, "r");
+		//Read the first 28 bytes for the header
+		while (($data = fread($file_handle, 28)) !== FALSE && strlen($data) == 28) {
+
+			//Break data down and split out the bits, ignore my horrible decoding method lol
+			$all_data['seqFormatID'] = unpack("A*", substr($data, 0, 4))[1]; //uint32 - magic cookie -- Results in FSEQ
+			$all_data['seqChanDataOffset'] = unpack("S*", substr($data, 4, 2))[1]; //uint32 - DataOffset -- only 2 bytes so really uint16 -- checks out on test sequence (1040) & FPPD log output
+			$all_data['seqMinorVersion'] = unpack("C*", substr($data, 6, 1))[1]; //uint8 - Minor Version -- May not be correct decoding - results in 0
+			$all_data['seqMajorVersion'] = unpack("C*", substr($data, 7, 1))[1]; //uint8 - Major version -- -- May not be correct decoding - results in 1... Version 1.0? seems correct
+			//build version
+			$all_data['seqVersion'] = $all_data['seqMajorVersion'] . "." . $all_data['seqMinorVersion'];
+
+			$all_data['seqFixedHeaderSize'] = unpack("S*", substr($data, 8, 2))[1];  //uint16 - FixedHeader: 28 - checks out with FPPD log output
+			$all_data['seqStepSize'] = unpack("L*", substr($data, 10, 4))[1]; //uint32 - StepSize
+			$all_data['seqNumPeriods'] = unpack("L*", substr($data, 14, 4))[1]; //uint32 - NumSteps
+			$all_data['seqStepTime'] = unpack("S*", substr($data, 18, 2))[1]; //uint16 - StepTime (eg 50ms)
+			$all_data['seqNumUniverses'] = unpack("S*", substr($data, 20, 2))[1]; //uint16 - Number of Universes -- Def: 0 //Ignored by Pi Player
+			$all_data['seqUniverseSize'] = unpack("S*", substr($data, 22, 2))[1]; //uint16 - Size of Universes -- Def: 0 //Ignored by Pi Player
+			$all_data['seqGamma'] = unpack("C*", substr($data, 24, 1))[1]; //uint8 - Gamma -- Def: 1?
+			$all_data['seqColorEncoding'] = unpack("C*", substr($data, 25, 1))[1]; //uint8 - Type  -- Def: 2? -- RGB Channels //0=encoded, 1=linear, 2=RGB
+//			$all_data['seqUnusedField'] = unpack("S*", substr($data, 26, 2))[1]; //uint16 - unused
+
+			//VARIABLE HEADER
+			//to read the variable header, seek to offset 28, then read data between 28 and seqChanDataOffset..
+			fseek($file_handle, 28);
+			//only read first 128 bytes just to catch everything, shouldn't need more than this for our purpose
+			$seek_data = fread($file_handle, 128); //$all_data['seqChanDataOffset'] - 28
+			//make sure we have data
+			if ($seek_data !== FALSE && strlen($seek_data) == 128) {
+				//Variable header structures start with:
+				//uint16_t: length of structure (including self)
+				//uint16_t: type code for structure
+				//(Other data in structure)
+
+				//Get the length and type of code
+				$variable_header_len = unpack("S*", substr($seek_data, 0, 2))[1]; //uint16 - header len decodes correct
+				//Vixen 3 and xLights have the next 16 bits identified as 'mf' presumably for 'media  filename'
+				$variable_header_type_of_code = unpack("A*", substr($seek_data, 2, 2))[1]; //uint16 - unsure if decodes correct - treat as string
+
+				//Filename offset starts at 5(Vixen) and 4(xLights) after the header stuff,
+				//this is set correctly with a dirty fix around Vixen
+				$media_filename_data_offset = 5;
+				//is mf or media file then continue else fail so we don't read a non media file variable header
+				if (!empty($variable_header_type_of_code) && ($variable_header_type_of_code == "mf" || strtolower($variable_header_type_of_code) == "mf")) {
+					//In Vixen FSEQ files there is there length value preceding the actual media filename
+					//it's easy to forward the offset by one and this works except there's no wait to tell if we're reading a
+					$fn_length_ident = unpack("C*", substr($seek_data, 4, 1))[1];
+
+					//Get the filename
+					//media filename should start at offset 4, in vixen it's offset 5 due to the length value in offset 4 being the filename length
+					//Length of the substring is the header len - the offset... just so we don't read into the next bit or outside the header
+					$remaining_header_len = ($variable_header_len - $media_filename_data_offset);
+					//For Vixen this is just the media filename
+					//For xLights this is the full path to the media at the time of export
+					$sequenceMediaName = unpack("A*", substr($seek_data, $media_filename_data_offset, $remaining_header_len))[1]; //decode as string
+
+					//dirty fix for Vixen FSEQ files
+					//In vixen the length of filename string is at offset 4 (then the filename follows)
+					//because we can't tell if the sequence is from Vixen, check the value in offset 4
+					//if we're processing a Vixen sequence then it will match the length of the filename (starting at offset 5)
+					if (strlen($sequenceMediaName) == $fn_length_ident) {
+						//Vixen - do nothing, if we end up here it's likely that we're reading a FSEQ from Vixen
+					} else {
+						//xLights, then move the offset back to 4 (since there is no filename length and we just read the whole lot)
+						//for xLights file names it's the entire path to the media file, so it's going to be unlikely that the integer value of the first character "C" (C:\ - Windows) or "/" (Linux or Mac)
+						//will match the length of the filename so we're safe in stepping back the offset
+						$media_filename_data_offset = 4;
+						$remaining_header_len = ($variable_header_len - $media_filename_data_offset);
+						$sequenceMediaName = unpack("A*", substr($seek_data, $media_filename_data_offset, $remaining_header_len))[1]; //decode as string
+					}
+
+//					$all_data['variable_header_len'] = $variable_header_len;
+//					$all_data['variable_header_type_of_code'] = $variable_header_type_of_code;
+//					$all_data['variable_header_media_filename'] = unpack("A*", substr($seek_data, $media_filename_data_offset, $remaining_header_len));
+//					$all_data['variable_header_media_offset'] = $media_filename_data_offset;
+//					$all_data['variable_header_filename_len'] = $gs_ident;
+//					$all_data['variable_header_filename_actual_len'] = strlen($sequenceMediaName);
+
+					//Fix up the string by replacing escaped backward slash
+					//then check to see if we can breakdown the string for path info
+					$sequenceMediaName_pathinfo = pathinfo(str_replace("\\", "/", $sequenceMediaName));
+
+					//Get Basename (final filename)
+					if (array_key_exists('basename', $sequenceMediaName_pathinfo) && !empty($sequenceMediaName_pathinfo['basename'])) {
+						//For some reason some xLights sequences
+						$all_data['seqMediaName'] = $sequenceMediaName_pathinfo['basename'];
+					} else {
+						$all_data['seqMediaName'] = "";
+					}
+				} else {
+					error_log("get_sequence_file_info:: Unable to read sequence variable header :: " . $mediaName);
+				}
+			} else {
+				error_log("get_sequence_file_info:: Unable to seek to offset 28 for variable header :: " . $mediaName);
+			}
+
+			//Workout the duration
+			//Time duration: ((NumSteps) * (StepTime) / 1000) seconds
+			$all_data['seqDuration'] = (($all_data['seqNumPeriods']) * ($all_data['seqStepTime']) / 1000);
+			$all_data['seqMSRemaining'] = (($all_data['seqNumPeriods']) * ($all_data['seqStepTime']));
+			$all_data['seqFileSize'] = $media_filesize; //filesize
+
+			//Break the loop, because we don't want to process any further
+			break;
+		}
+		if ($file_handle === FALSE) {
+			error_log("get_sequence_file_info:: Unable to read sequence info for :: " . $mediaName);
+		}
+		fclose($file_handle);
+		unset($data);
+		unset($seek_data);
+	} else {
+		error_log("get_sequence_file_info:: Cannot find sequence :: " . $mediaName);
+	}
+
+	return $all_data;
+}
+
+/**
  * Retrieving the duration of media files takes roughly 100+ms on a Pi2, over large playlists the delays can add up
  * to speed things up we'll try cache the durations so we don't unnecessarily keep hitting the media files
  *

@@ -41,6 +41,7 @@ $command_array = Array(
 	"addPlaylistEntry"    => 'AddPlayListEntry',
 	"getPlayListEntries"  => 'GetPlayListEntries',
 	"getPlayListInfo"     => 'GetPlayListInfo',
+	"getSequenceInfo"     => 'GetSequenceInfo',
 	"getMediaDuration"    => 'getMediaDurationInfo',
 	"getFileSize"         => 'getFileSize',
 	"savePlaylist"        => 'SavePlaylist',
@@ -1003,6 +1004,22 @@ function getMediaDurationInfo($mediaName = "", $returnArray = false)
 		}
 
 		$total_duration = $ThisFileInfo['playtime_seconds'] + $total_duration;
+	} else if (file_exists($settings['sequenceDirectory'] . "/" . $mediaName)) {
+		//Check Sequence directory
+		$sequence_info = get_sequence_file_info($mediaName);
+//		$media_filesize =$sequence_info['seqFileSize'];
+
+		if (array_key_exists('seqDuration', $sequence_info)) {
+			$total_duration = $sequence_info['seqDuration'];
+
+		} else {
+			$total_duration = 0;
+		}
+
+		//This doesn't take very long so no need to cache
+//		media_duration_cache($mediaName, $total_duration, $media_filesize);
+	} else {
+		error_log("getMediaDurationInfo:: Could not find media file - " . $mediaName);
 	}
 
 	if ($total_duration !== 0) {
@@ -1022,6 +1039,36 @@ function getMediaDurationInfo($mediaName = "", $returnArray = false)
 		header("Content-Type: application/json");
 		echo $returnStr;
 	}
+}
+
+/**
+ * Returns sequence header info
+ *
+ * @return array
+ */
+function GetSequenceInfo()
+{
+	global $args;
+	global $settings;
+	$return_arr = array();
+
+	$sequence = $args['seq'];
+	//if the file extension is missing, add it on
+	if (strpos($sequence, '.fseq') === FALSE) {
+		$sequence = $sequence . ".fseq";
+	}
+
+	if (file_exists($settings['sequenceDirectory'] . '/' . $sequence)) {
+		$return_arr = get_sequence_file_info($sequence);
+	} else {
+		$return_arr[$sequence]['error'] = "GetSequenceInfo:: Unable find sequence :: " . $sequence;
+		error_log("GetSequenceInfo:: Unable find sequence :: " . $sequence);
+	}
+
+	$return_arr = json_encode($return_arr, JSON_PRETTY_PRINT);
+
+	header("Content-Type: application/json");
+	echo $return_arr;
 }
 
 /**
@@ -1095,6 +1142,8 @@ function GetPlayListInfo()
 //				unset($getID3);
 //			}
 //		}
+	} else {
+		error_log("GetPlayListInfo:: Playlist doesn't exist - " . $playlist);
 	}
 
 	$returnStr = json_encode($returnStr, JSON_PRETTY_PRINT);
@@ -1333,13 +1382,15 @@ function GenerateJSONPlaylistInfo($list)
 					$type = $playlistEntry->entry->type;
 					if (isset($playlistEntry->entry->mediaName)) {
 						$mediaName = $playlistEntry->entry->mediaName;
+					} else if (isset($playlistEntry->entry->sequenceName)){
+						$mediaName = $playlistEntry->entry->sequenceName;
 					}
 
 					//If entry is either both sequence + audio or just media we can look at the media name and extract info
-					if (($type == "both" || $type == "media") && !empty($mediaName)) {
+					if (($type == "both" || $type == "media" || $type == "sequence" ) && !empty($mediaName)) {
 						//Get media duration
 						$ThisFileInfo = getMediaDurationInfo($mediaName, true);
-
+						//Add it up
 						$total_duration = $ThisFileInfo[$mediaName]['duration'] + $total_duration;
 						if ($listName == "playListEntriesMainPlaylist") {
 							$total_items++;
