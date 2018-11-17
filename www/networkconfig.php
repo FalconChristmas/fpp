@@ -248,12 +248,19 @@ function LoadNetworkConfig() {
 }
 
 function CheckDNSCallback(data) {
-	if ((data.PROTO == "static") &&
-		($('#eth_static').is(':checked')) &&
-		($('#dns_dhcp').is(':checked')))
-	{
+	if (data.PROTO == "static") {
+	   if (($('#eth_static').is(':checked')) &&
+		($('#dns_dhcp').is(':checked'))) {
 		$('#dnsWarning').html("Warning: You must manually configure your DNS Server(s) if all network interfaces use static IPs.");
+	   } else {
+                $('#dnsWarning').html("");
+	   }
+	} else if ($('#eth_static').is(':checked')) {
+	   $('#dnsWarning').html("Warning: if any interface is using DHCP while another interface is using a static IP address, you WILL need to enter a valid Gateway address.");
+	} else {
+	$('#dnsWarning').html("");
 	}
+
 }
 
 function CheckDNS() {
