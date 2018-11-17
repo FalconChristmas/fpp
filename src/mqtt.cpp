@@ -110,13 +110,11 @@ MosquittoClient::~MosquittoClient()
 int MosquittoClient::Init(const std::string &username, const std::string &password)
 {
 	mosquitto_lib_init();
-
-    std::string host = getSetting("HostName");
-    if (host != "") {
+        std::string host = getSetting("HostName");
+        if (host == "") {
+	    host = "FPP";
+        }
         m_mosq = mosquitto_new(host.c_str(), true, NULL);
-    } else {
-        m_mosq = mosquitto_new(nullptr, true, NULL);
-    }
 	if (!m_mosq)
 	{
 		LogErr(VB_CONTROL, "Error, unable to create new Mosquitto instance.\n");
