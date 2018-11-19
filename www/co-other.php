@@ -1065,7 +1065,12 @@ function LOROutputConfig(config) {
 
 	result += DeviceSelect(SerialDevices, config.device) + "&nbsp;&nbsp;";
 	result += LORSpeedSelect(config.speed);
-
+    
+    var val = config.firstControllerId;
+    if (!val) {
+        val = 1;
+    }
+    result += "&nbsp;&nbsp;First Controller ID: <input class='firstControllerId' style='opacity: 1' id='firstControllerId' type='number' value='" + val + "' min='1' max='32' />";
 	return result;
 }
 
@@ -1078,12 +1083,17 @@ function GetLOROutputConfig(result, cell) {
 
 	result.device = value;
 
-        value = $cell.find("select.speed").val();
+    value = $cell.find("select.speed").val();
 
 	if (value == "")
 		return "";
 
 	result.speed = parseInt(value);
+    
+    value = $cell.find("input.firstControllerId");
+    var v2 = parseInt(value.val());
+    
+    result.firstControllerId = v2;
 
 	return result;
 }

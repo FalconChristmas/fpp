@@ -47,6 +47,7 @@ typedef struct lorPrivData {
 	char          filename[1024];
 	int           fd;
 	int           speed;
+    int           controllerOffset;
 	int           maxIntensity;
 	long long     lastHeartbeat;
 	unsigned char intensityMap[256];
@@ -71,6 +72,7 @@ void LOR_Dump(LORPrivData *privData) {
 	LogDebug(VB_CHANNELOUT, "    port speed   : %d\n", privData->speed);
 	LogDebug(VB_CHANNELOUT, "    maxIntensity : %d\n", privData->maxIntensity);
 	LogDebug(VB_CHANNELOUT, "    lastHeartbeat: %d\n", privData->lastHeartbeat);
+    LogDebug(VB_CHANNELOUT, "    controllerOffset: %d\n", privData->controllerOffset);
 }
 
 /*
@@ -103,6 +105,7 @@ int LOR_Open(char *configStr, void **privDataPtr) {
 		(LORPrivData *)malloc(sizeof(LORPrivData));
 	bzero(privData, sizeof(LORPrivData));
 	privData->fd = -1;
+    privData->controllerOffset = 0;
 
 	char deviceName[32];
 	char *s = strtok(configStr, ",;");
@@ -130,6 +133,11 @@ int LOR_Open(char *configStr, void **privDataPtr) {
 					free(privData);
 					return 0;
 				}
+            } else if (!strcmp(tmp, "firstControllerId")) {
+                privData->controllerOffset = strtoll(div, NULL, 10) - 1;
+                if (privData->controllerOffset < 0) {
+                    privData->controllerOffset = 0;
+                }
 			}
 		}
 		s = strtok(NULL, ",;");
@@ -262,7 +270,7 @@ int LOR_SendData(void *data, char *channelData, int channelCount)
 	{
 		if (privData->lastValue[i] != channelData[i])
 		{
-			privData->intensityData[1] = i >> 4;
+			privData->intensityData[1] = privData->controllerOffset + (i >> 4);
 		
 			if (privData->intensityData[1] < 0xF0)
 				privData->intensityData[1]++;
