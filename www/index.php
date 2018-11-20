@@ -104,6 +104,14 @@ include 'common/menuHead.inc';
 	include 'menu.inc';
   ?>
 <br/>
+<?php
+    if ($settings["LastBlock"] < 7000000) {
+    ?>
+<div id='upgradeFlag' style='background-color:red'>SD card has unused space.  Go to <a href="/advancedsettings.php">Advanced Settings</a> to expand the file system or create a new storage partition.</div>
+<br>
+<?php
+    }
+?>
 <div id="programControl" class="settings">
   <fieldset>
     <legend>Program Control</legend>

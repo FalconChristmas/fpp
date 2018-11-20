@@ -25,6 +25,25 @@ function growSDCardFS() {
         }
     });
 }
+function newSDCardPartition() {
+    $('#dialog-confirm-newpartition')
+    .dialog({
+            resizeable: false,
+            height: 300,
+            width: 500,
+            modal: true,
+            buttons: {
+            "Yes" : function() {
+            $(this).dialog("close");
+            window.location.href="newpartitionsd.php";
+            SetRebootFlag();
+            },
+            "No" : function() {
+            $(this).dialog("close");
+            }
+            }
+            });
+}
 
 <?php
     if ($settings['Platform'] == "BeagleBone Black") {
@@ -124,6 +143,8 @@ function flashEMMCBtrfs() {
 		</tr>
 <?
     }
+if ($settings['LastBlock'] < 7000000) {
+    $addnewfsbutton = false;
     if ($settings['Platform'] == "Raspberry Pi") {
         exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
         $rootDevice = $output[0];
@@ -133,17 +154,18 @@ function flashEMMCBtrfs() {
             <tr><td>
             <input type='button' class='buttons' value='Grow Filesystem' onClick='growSDCardFS();'>
             </td>
-            <td><b>Grow filsystem on SD card</b> - This will grow the filesystem on the SD card to use
+            <td><b>Grow file system on SD card</b> - This will grow the file system on the SD card to use
             the entire size of the SD card.</td>
             </tr>
-            <tr><td colspan='2'><hr></td></tr>
 <?php
+            $addnewfsbutton = true;
         }
 	}
     if ($settings['Platform'] == "BeagleBone Black") {
         exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
         $rootDevice = $output[0];
         if ($rootDevice == 'mmcblk0p1' || $rootDevice == 'mmcblk0p2') {
+            $addnewfsbutton = true;
 ?>
             <tr><td colspan='2'><hr></td></tr>
             <tr><td>
@@ -152,10 +174,10 @@ function flashEMMCBtrfs() {
                 <td><b>Grow filsystem on SD card</b> - This will grow the filesystem on the SD card to use
                     the entire size of the SD card.</td>
             </tr>
-            <tr><td colspan='2'><hr></td></tr>
 <?php
     if (strpos($settings['SubPlatform'], 'PocketBeagle') === FALSE) {
 ?>
+            <tr><td colspan='2'><hr></td></tr>
             <tr><td>
                 <input type='button' class='buttons' value='Flash to eMMC' onClick='flashEMMC();'>
                 </td>
@@ -167,11 +189,21 @@ function flashEMMCBtrfs() {
                 </td>
 <td><b>Flash to eMMC - BTRFS root</b> - This will copy FPP to the internal eMMC, but use BTRFS for the root filesystem.  BTRFS uses compression to save a lot of space on the eMMC, but at the expense of extra CPU usage.</td>
             </tr>
-            <tr><td colspan='2'><hr></td></tr>
 <?php
             }
         }
     }
+    if ($addnewfsbutton) {
+?>
+        <tr><td colspan='2'><hr></td></tr>
+        <tr><td>
+        <input type='button' class='buttons' value='New Partition' onClick='newSDCardPartition();'>
+        </td>
+        <td><b>New partition on SD card</b> - This will create a new partition in the unused aread of the SD card.  The new partition can be selected as a storage location and formatted to BTRFS or ext4 after a reboot.</td>
+        </tr>
+<?php
+    }
+}
 ?>
 	</table>
 	</fieldset>
@@ -215,7 +247,7 @@ FPP will respond to certain events:
 <td>$prefix/falcon/player/$hostname/playlist/sectionPosition/set</td><td>Payload contains an integer for the position in the playlist</td>
 </tr>
 <tr>
-<td>$prefix/falcon/player/$hostname/event/$MAJ_$MIN</td><td>Starts the event identified by MAJ/MIN</td>
+<td>$prefix/falcon/player/$hostname/event/</td><td>Starts the event identified by the payload.   The payload format is MAJ_MIN identifying the event.</td>
 </tr>
 <tr>
 <td>$prefix/falcon/player/$hostname/effect/start</td><td>Starts the effect named in the payload</td>
@@ -232,6 +264,9 @@ FPP will respond to certain events:
 </div>
 <div id="dialog-confirm-emmc" style="display: none">
 <p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Flashing the eMMC can take a long time.  Do you wish to proceed?</p>
+</div>
+<div id="dialog-confirm-newpartition" style="display: none">
+<p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Creating a new partition in the unused space will require a reboot to take effect.  Do you wish to proceed?</p>
 </div>
 <?php	include 'common/footer.inc'; ?>
 </div>

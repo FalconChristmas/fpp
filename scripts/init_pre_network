@@ -181,6 +181,11 @@ else
     echo "storageDevice = \"$MEDIADEV\"" >> ${FPPHOME}/media/settings
 fi
 
+LASTBLOCK=$(sfdisk -q -l -o sectors /dev/mmcblk0 2>/dev/null | tail -n 1)
+if [ "$LASTBLOCK" == "" ]; then 
+    LASTBLOCK=0
+fi
+setSetting LastBlock $LASTBLOCK
 
 echo "FPP - Setting max IGMP memberships"
 sysctl net/ipv4/igmp_max_memberships=512 > /dev/null 2>&1
