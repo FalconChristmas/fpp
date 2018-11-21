@@ -251,6 +251,8 @@ int InitializeChannelOutputs(void) {
 
 	// Reset index so we can start populating the outputs array
 	i = 0;
+    maximumNeededChannel = 0;
+    minimumNeededChannel = FPPD_MAX_CHANNELS;
 
 	if (FPDOutput.isConfigured())
 	{
@@ -259,6 +261,13 @@ int InitializeChannelOutputs(void) {
 
 		if (FPDOutput.open("", &channelOutputs[i].privData)) {
 			channelOutputs[i].channelCount = channelOutputs[i].outputOld->maxChannels(channelOutputs[i].privData);
+
+            int m1 = channelOutputs[i].startChannel;
+            int m2 = m1 + channelOutputs[i].channelCount - 1;
+            LogInfo(VB_CHANNELOUT, "FPD:  Determined range needed %d - %d\n",
+                    m1, m2);
+            minimumNeededChannel = std::min(minimumNeededChannel, m1);
+            maximumNeededChannel = std::max(maximumNeededChannel, m2);
 
 			i++;
 			LogDebug(VB_CHANNELOUT, "Configured FPD Channel Output\n");
@@ -281,8 +290,6 @@ int InitializeChannelOutputs(void) {
 	char filename[1024];
 	char csvConfig[2048];
 
-    maximumNeededChannel = 0;
-    minimumNeededChannel = FPPD_MAX_CHANNELS;
     
 	// Parse the JSON channel outputs config files
 	for (int f = 0; configFiles[f]; f++)
@@ -457,6 +464,8 @@ int InitializeChannelOutputs(void) {
                     
                     int m1 = channelOutputs[i].startChannel;
                     int m2 = m1 + channelOutputs[i].channelCount - 1;
+                    LogInfo(VB_CHANNELOUT, "%s %d:  Determined range needed %d - %d\n",
+                            type.c_str(), i, m1, m2);
                     minimumNeededChannel = std::min(minimumNeededChannel, m1);
                     maximumNeededChannel = std::max(maximumNeededChannel, m2);
 					i++;
