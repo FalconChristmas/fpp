@@ -93,8 +93,10 @@ mkdir -p /var/log/samba
 
 # Configure Network and DNS
 #echo "FPP - Configuring Network"
-#${BINDIR}/config_network
-SetupFPPNetworkConfig
+SKIPNETWORKRESET=$(getSetting SkipNetworkReset)
+if [ "x${SKIPNETWORKRESET}" != "x1" ]; then
+    SetupFPPNetworkConfig
+fi
 
 HOSTNAME=$(getSetting HostName)
 if [ "x${HOSTNAME}" != "x" -a "x$(hostname)" != "x${HOSTNAME}" ]
