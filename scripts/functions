@@ -548,14 +548,15 @@ WaitForInterfacesUp() {
     done
     if [ "x$DEFGW" == "x" ]; then
         # no gateway defined
-	cd /var/lib/connman
-	ETHS=`ls -d ether*`
-	WIFIS=`ls -d wifi*`
-	if [ "x$WIFIS" != "x" ]; then
-	    for f in $ETHS; do
-	        connmanctl move-before $WIFIS $f
-	    done
-	fi	
+	    CURDIR=$(pwd)
+        ETHS=`ls -d ether*`
+        WIFIS=`ls -d wifi*`
+        if [ "x$WIFIS" != "x" ]; then
+            for f in $ETHS; do
+	            connmanctl move-before $WIFIS $f
+            done
+        fi
+        cd "${CURDIR}"
     fi
     #turn off power management on wireless... not all adapters
     # support this so just /dev/null any output
