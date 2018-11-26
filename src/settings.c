@@ -55,36 +55,30 @@ int findSettingIndex(char *setting);
  */
 void initSettings(int argc, char **argv)
 {
+    char tmpDir[256];
+    char mediaDir[256];
+
 	settings.binDirectory = strdup(dirname(argv[0]));
-
 	settings.fppMode = PLAYER_MODE;
+    
+    strcpy(tmpDir, settings.binDirectory);
 
-	char *tmp = getcwd(NULL, 0);
-	if ( tmp == NULL )
-		settings.fppDirectory = strdup("/opt/fpp");
-	else
-	{
-		// trim off src/ or bin/
-		char *offset = NULL;
-		int size = strlen(tmp);
+    // trim off src/ or bin/
+    char *offset = NULL;
+    int size = strlen(tmpDir);
 
-		if ((size > 4) && (!strcmp(&tmp[size - 4], "/src")))
-			offset = &tmp[size - 4];
-		else if ((size > 4) && (!strcmp(&tmp[size - 4], "/bin")))
-			offset = &tmp[size - 4];
-		else if ((size > 8) && (!strcmp(&tmp[size - 8], "/scripts")))
-			offset = &tmp[size - 8];
+    if ((size > 4) && (!strcmp(&tmpDir[size - 4], "/src")))
+        offset = &tmpDir[size - 4];
+    else if ((size > 4) && (!strcmp(&tmpDir[size - 4], "/bin")))
+        offset = &tmpDir[size - 4];
+    else if ((size > 8) && (!strcmp(&tmpDir[size - 8], "/scripts")))
+        offset = &tmpDir[size - 8];
 
-		if (offset != NULL)
-			*offset = 0;
+    if (offset != NULL)
+        *offset = 0;
 
-		settings.fppDirectory = strdup(tmp);
+    settings.fppDirectory = strdup(tmpDir);
 
-		free(tmp);
-	}
-
-	char tmpDir[64];
-	char mediaDir[64];
 	if (DirectoryExists("/home/fpp"))
 		strcpy(mediaDir, "/home/fpp");
 	else
