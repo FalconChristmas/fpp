@@ -392,14 +392,14 @@ void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent)
     if (diff < -3 && getFPPmode() != MASTER_MODE) {
         // pretty far behind master, lets just skip forward
         LogDebug(VB_CHANNELOUT, "Skipping frames - We are at %d, master is at: %d\n", channelOutputFrame, expectedFramesSent);
-        if (diff > -15) {
+        if (diff > -(RefreshRate/2)) {
             // off, but not super off, we'll skip a few frames, but not too much to try and keep using
             // the frames in the cache and avoid hitting the storage, we'll then have the OS preload
             // the next bunch and we can skip a few more next time
-            sequence->SeekSequenceFile(expectedFramesSent + 4);
+            sequence->SeekSequenceFile(channelOutputFrame + 4);
             diff += 4;
         } else {
-            //very far off, just jump
+            //more than 1/2 second behind, just jump
             sequence->SeekSequenceFile(expectedFramesSent);
             LightDelay = DefaultLightDelay;
             return;
@@ -431,8 +431,8 @@ void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent)
 		if ((DefaultLightDelay - 15000) > newLightDelay)
 			newLightDelay = DefaultLightDelay - 15000;
 
-		LogDebug(VB_CHANNELOUT, "LightDelay: %d, newLightDelay: %d,   DiffFrames: %d\n",
-			LightDelay, newLightDelay, diff);
+		LogDebug(VB_CHANNELOUT, "LightDelay: %d, newLightDelay: %d,   DiffFrames: %d     %d/%d\n",
+			LightDelay, newLightDelay, diff,   channelOutputFrame , expectedFramesSent);
 		LightDelay = newLightDelay;
 	} else if (LightDelay != DefaultLightDelay) {
 		LightDelay = DefaultLightDelay;

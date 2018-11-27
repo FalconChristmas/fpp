@@ -60,7 +60,7 @@ static void rpi_ws281x_ctrl_c_handler(int signum)
  *
  */
 RPIWS281xOutput::RPIWS281xOutput(unsigned int startChannel, unsigned int channelCount)
-  : ChannelOutputBase(startChannel, channelCount),
+  : ThreadedChannelOutputBase(startChannel, channelCount),
 	m_string1GPIO(18),
 	m_string2GPIO(19),
 	m_pixels(0)
@@ -133,7 +133,7 @@ int RPIWS281xOutput::Init(Json::Value config)
 		return 0;
 	}
 
-	return ChannelOutputBase::Init(config);
+	return ThreadedChannelOutputBase::Init(config);
 }
 
 /*
@@ -145,7 +145,7 @@ int RPIWS281xOutput::Close(void)
 
 	ws2811_fini(&ledstring);
 
-	return ChannelOutputBase::Close();
+	return ThreadedChannelOutputBase::Close();
 }
 
 void RPIWS281xOutput::GetRequiredChannelRange(int &min, int & max) {
@@ -159,9 +159,9 @@ void RPIWS281xOutput::GetRequiredChannelRange(int &min, int & max) {
         for (int p = 0; p < ps->m_outputChannels; p++) {
             int ch = ps->m_outputMap[inCh++];
             if (ch < (FPPD_MAX_CHANNELS - 3)) {
-	        min = std::min(min, ch);
+                min = std::min(min, ch);
                 max = std::max(max, ch);
-	    }
+            }
         }
     }
 }
@@ -195,9 +195,9 @@ void RPIWS281xOutput::PrepData(unsigned char *channelData)
 /*
  *
  */
-int RPIWS281xOutput::SendData(unsigned char *channelData)
+int RPIWS281xOutput::RawSendData(unsigned char *channelData)
 {
-	LogDebug(VB_CHANNELOUT, "RPIWS281xOutput::RawSendData(%p)\n", channelData);
+	LogExcess(VB_CHANNELOUT, "RPIWS281xOutput::RawSendData(%p)\n", channelData);
 
 	if (ws2811_render(&ledstring))
 	{
@@ -222,7 +222,7 @@ void RPIWS281xOutput::DumpConfig(void)
 		m_strings[i]->DumpConfig();
 	}
 
-	ChannelOutputBase::DumpConfig();
+	ThreadedChannelOutputBase::DumpConfig();
 }
 
 void RPIWS281xOutput::SetupCtrlCHandler(void)

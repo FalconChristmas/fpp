@@ -35,6 +35,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <inttypes.h>
 
 #include "E131.h"
 #include "channeloutputthread.h"
@@ -341,7 +342,7 @@ int Sequence::OpenSequenceFile(const char *filename, int startSeconds) {
         LogDebug(VB_SEQUENCE, "Seeking to byte %d in %s\n", (int)newPos, m_seqFilename);
 
         fseeko(m_seqFile, newPos, SEEK_SET);
-        m_seqFilePosition = newPos;
+        m_seqFilePosition = ftello(m_seqFile);
         m_seqMSRemaining -= (startSeconds * 1000);
     }
 
@@ -370,13 +371,15 @@ int Sequence::SeekSequenceFile(int frameNumber) {
         return 0;
     }
 
-    off_t newPos = m_seqChanDataOffset;
-    newPos += (frameNumber * m_seqStepSize);
-    LogDebug(VB_SEQUENCE, "Seeking to byte %d in %s\n", (int)newPos, m_seqFilename);
+    uint64_t newPos = m_seqChanDataOffset;
+    uint64_t additional = frameNumber;
+    additional *= m_seqStepSize;
+    newPos += additional;
+
+    LogDebug(VB_SEQUENCE, "Seeking to byte %" PRIu64 " in %s\n", newPos, m_seqFilename);
 
     fseeko(m_seqFile, newPos, SEEK_SET);
-
-    m_seqFilePosition = newPos;
+    m_seqFilePosition = ftello(m_seqFile);
     m_seqMSRemaining = (int)(((float)(m_seqFileSize - newPos)
         / (float)m_seqStepSize) * m_seqStepTime);
 
@@ -489,18 +492,18 @@ void Sequence::ReadSequenceData(void) {
                     bytesRead += m_seqStepSize - bytesRead;
                 }
             }
-            off_t fsz = ftello(m_seqFile);
+            uint64_t fsz = ftello(m_seqFile);
             if (fsz > 16384) {
                 //make sure the current memory page stays so we don't reload it
                 //don't need up to this anymore, discard it
-                off_t f = fsz;
-                static const off_t m = 0x8FFFFFFFFFFFC000;
+                uint64_t f = fsz;
+                static const uint64_t m = 0x8FFFFFFFFFFFC000;
                 f &= m;
                 posix_fadvise(fileno(m_seqFile), 0, f, POSIX_FADV_DONTNEED);
             }
             //let the kernel know we're going to need the next bunch of frames
             if (m_fullAdvise) {
-                off_t f = m_seqStepSize;
+                uint64_t f = m_seqStepSize;
                 f *= 15;
                 if (f < 131072) {
                     // at least 128K
@@ -511,8 +514,8 @@ void Sequence::ReadSequenceData(void) {
                 }
                 posix_fadvise(fileno(m_seqFile), fsz, f, POSIX_FADV_WILLNEED);
             } else {
-                int sizeToRead = maxChanToRead - minimumNeededChannel + 1;
-                off_t f = fsz;
+                uint64_t sizeToRead = maxChanToRead - minimumNeededChannel + 1;
+                uint64_t f = fsz;
                 f += minimumNeededChannel;
                 for (int x = 0; x < 15; x++) {
                     if (f < m_seqFileSize) {
@@ -529,7 +532,14 @@ void Sequence::ReadSequenceData(void) {
         else
             m_seqMSRemaining -= m_seqStepTime;
 
-        m_seqSecondsElapsed = (int)((float)(m_seqFilePosition - m_seqChanDataOffset)/((float)m_seqStepSize*(float)m_seqRefreshRate));
+        long long secEl = m_seqFilePosition;
+        secEl -= m_seqChanDataOffset;
+        double numerator = secEl;
+
+        double denom = (double)m_seqStepSize;
+        denom *= (double)m_seqRefreshRate;
+
+        m_seqSecondsElapsed = (int)(numerator/denom);
         m_seqSecondsRemaining = m_seqDuration - m_seqSecondsElapsed;
     } else {
         if (getFPPmode() != REMOTE_MODE || getSettingInt("blankBetweenSequences")) {
