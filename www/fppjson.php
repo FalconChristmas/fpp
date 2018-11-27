@@ -913,19 +913,19 @@ function getFileSize()
 	if (strtolower($mediaType) == 'sequence') {
 		//Sequences
 		if (file_exists($settings['sequenceDirectory'] . "/" . $mediaName)) {
-			$filesize = human_filesize(filesize($settings['sequenceDirectory'] . "/" . $mediaName));
+			$filesize = human_filesize($settings['sequenceDirectory'] . "/" . $mediaName);
 		}
 	} else if (strtolower($mediaType) == 'effect') {
 		if (file_exists($settings['effectDirectory'] . "/" . $mediaName)) {
-			$filesize = human_filesize(filesize($settings['effectDirectory'] . "/" . $mediaName));
+			$filesize = human_filesize($settings['effectDirectory'] . "/" . $mediaName);
 		}
 	} else if (strtolower($mediaType) == 'music') {
 		if (file_exists($settings['musicDirectory'] . "/" . $mediaName)) {
-			$filesize = human_filesize(filesize($settings['musicDirectory'] . "/" . $mediaName));
+			$filesize = human_filesize($settings['musicDirectory'] . "/" . $mediaName);
 		}
 	} else if (strtolower($mediaType) == 'video') {
 		if (file_exists($settings['videoDirectory'] . "/" . $mediaName)) {
-			$filesize = human_filesize(filesize($settings['videoDirectory'] . "/" . $mediaName));
+			$filesize = human_filesize($settings['videoDirectory'] . "/" . $mediaName);
 		}
 	}
 

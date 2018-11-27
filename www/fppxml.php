@@ -1909,7 +1909,7 @@ function GetFileInfo(&$root, &$doc, $dirName, $fileName)
 		$value = $doc->createTextNode(human_playtime($ThisFileInfo['playtime_seconds']));
 	}else{
 		//just return the filesize
-		$value = $doc->createTextNode(human_filesize(filesize($fileFullName)));
+		$value = $doc->createTextNode(human_filesize($fileFullName));
 	}
 	$value = $fileInfo->appendChild($value);
 }

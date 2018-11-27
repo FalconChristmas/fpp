@@ -58,6 +58,8 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <signal.h>
+#include <execinfo.h>
 
 
 #ifdef USEWIRINGPI
@@ -79,8 +81,80 @@ ChannelTester *channelTester = NULL;
 /* Prototypes for functions below */
 void MainLoop(void);
 
+
+static void handleCrash(int s) {
+    static volatile bool inCrashHandler = false;
+    if (inCrashHandler) {
+        //need to ignore any crashes in the crash handler
+        return;
+    }
+    inCrashHandler = true;
+    LogErr(VB_ALL, "Crash handler called:  %d\n", s);
+
+    void* callstack[128];
+    int i, frames = backtrace(callstack, 128);
+    char** strs = backtrace_symbols(callstack, frames);
+    for (i = 0; i < frames; i++) {
+        LogErr(VB_ALL, "  %s\n", strs[i]);
+    }
+    for (i = 0; i < frames; i++) {
+        printf("  %s\n", strs[i]);
+    }
+    free(strs);
+    inCrashHandler = false;
+    if (s != SIGQUIT && s != SIGUSR1) {
+        exit(-1);
+    }
+}
+bool setupExceptionHandlers()
+{
+    // old sig handlers
+    static bool s_savedHandlers = false;
+    static struct sigaction s_handlerFPE,
+    s_handlerILL,
+    s_handlerBUS,
+    s_handlerSEGV;
+    
+    bool ok = true;
+    if ( !s_savedHandlers ) {
+        // install the signal handler
+        struct sigaction act;
+        
+        // some systems extend it with non std fields, so zero everything
+        memset(&act, 0, sizeof(act));
+        
+        act.sa_handler = handleCrash;
+        sigemptyset(&act.sa_mask);
+        act.sa_flags = 0;
+        
+        ok &= sigaction(SIGFPE, &act, &s_handlerFPE) == 0;
+        ok &= sigaction(SIGILL, &act, &s_handlerILL) == 0;
+        ok &= sigaction(SIGBUS, &act, &s_handlerBUS) == 0;
+        ok &= sigaction(SIGSEGV, &act, &s_handlerSEGV) == 0;
+        ok &= sigaction(SIGQUIT, &act, nullptr) == 0;
+        ok &= sigaction(SIGUSR1, &act, nullptr) == 0;
+        if (!ok) {
+            LogWarn(VB_ALL, "Failed to install our signal handler.");
+        }
+        
+        s_savedHandlers = true;
+    } else if (s_savedHandlers) {
+        // uninstall the signal handler
+        ok &= sigaction(SIGFPE, &s_handlerFPE, NULL) == 0;
+        ok &= sigaction(SIGILL, &s_handlerILL, NULL) == 0;
+        ok &= sigaction(SIGBUS, &s_handlerBUS, NULL) == 0;
+        ok &= sigaction(SIGSEGV, &s_handlerSEGV, NULL) == 0;
+        if (!ok) {
+            LogWarn(VB_ALL, "Failed to install default signal handlers.");
+        }
+        s_savedHandlers = false;
+    }
+    return ok;
+}
+
 int main(int argc, char *argv[])
 {
+    setupExceptionHandlers();
 	initSettings(argc, argv);
 	initMediaDetails();
 
