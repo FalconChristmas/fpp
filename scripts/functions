@@ -95,7 +95,6 @@ SetupFPPNetworkConfigViaConnMann() {
 	unset MAC
 	unset HIDDEN
 	unset PROTO
-	unset DNS
 	unset GATEWAY
 	unset NETMASK
 	unset ADDRESS
