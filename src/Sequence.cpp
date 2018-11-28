@@ -58,8 +58,8 @@ using namespace std::literals::chrono_literals;
 
 Sequence *sequence = NULL;
 
-extern uint64_t minimumNeededChannel;
-extern uint64_t maximumNeededChannel;
+extern int minimumNeededChannel;
+extern int maximumNeededChannel;
 
 Sequence::Sequence()
   : m_seqFileSize(0),
@@ -141,15 +141,21 @@ void Sequence::ReadFramesLoop() {
             if (offset <= (m_seqFileSize - m_seqStepSize)) {
                 lock.unlock();
                 offset += minimumNeededChannel;
-                fseeko(m_seqFile, offset, SEEK_SET);
+                if (fseeko(m_seqFile, offset, SEEK_SET)) {
+                    LogErr(VB_SEQUENCE, "Failed to seek to proper offset for channel data! %lld\n", offset);
+                }
                 
-                uint64_t maxChanToRead = m_seqStepSize;
+                int maxChanToRead = m_seqStepSize;
                 if (maximumNeededChannel > 0 && maximumNeededChannel < m_seqStepSize) {
                     maxChanToRead = maximumNeededChannel + 1;
                 }
                 maxChanToRead -= minimumNeededChannel;
                 FrameData *fd = new FrameData(frame, maxChanToRead);
-                fread(fd->data, maxChanToRead, 1, m_seqFile);
+
+                size_t bread = fread(fd->data, 1, maxChanToRead, m_seqFile);
+                if (bread != maxChanToRead) {
+                    LogErr(VB_SEQUENCE, "Failed to read channel data!   Needed to read %d but read %d\n", maxChanToRead, (int)bread);
+                }
                 
                 lock.lock();
                 if (m_lastFrameRead == (frame - 1)) {
@@ -539,6 +545,7 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
             frameLoadSignal.notify_all();
 
             memcpy(&m_seqData[minimumNeededChannel], data->data, data->size);
+            
             SetChannelOutputFrameNumber(data->frame);
             m_seqSecondsElapsed = data->frame * m_seqStepTime;
             m_seqSecondsElapsed /= 1000;
