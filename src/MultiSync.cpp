@@ -1260,10 +1260,8 @@ void MultiSync::SyncSyncedSequence(char *filename, int frameNumber, float second
 		filename, frameNumber, secondsElapsed);
 
 	if (!sequence->IsSequenceRunning(filename)) {
-		if (sequence->OpenSequenceFile(filename))
-			sequence->SeekSequenceFile(frameNumber);
+        sequence->OpenSequenceFile(filename, frameNumber);
 	}
-
     if (sequence->IsSequenceRunning(filename)) {
 		UpdateMasterPosition(frameNumber);
     }

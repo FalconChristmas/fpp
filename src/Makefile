@@ -185,7 +185,7 @@ endif
 
 ifeq '$(ARCH)' 'Raspberry Pi'
 # do something RaspPi-y
-CXXFLAGS += -std=gnu++11
+CXXFLAGS += -std=gnu++14
 CFLAGS += \
 	-DPLATFORM_PI \
 	-DUSEWIRINGPI \
