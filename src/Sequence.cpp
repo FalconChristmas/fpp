@@ -139,22 +139,26 @@ void Sequence::ReadFramesLoop() {
             uint64_t offset = frame * m_seqStepSize;
             offset += m_seqChanDataOffset;
             if (offset <= (m_seqFileSize - m_seqStepSize)) {
+                FILE * file = m_seqFile;
                 lock.unlock();
-                offset += minimumNeededChannel;
-                if (fseeko(m_seqFile, offset, SEEK_SET)) {
-                    LogErr(VB_SEQUENCE, "Failed to seek to proper offset for channel data! %lld\n", offset);
-                }
                 
+                offset += minimumNeededChannel;
                 int maxChanToRead = m_seqStepSize;
                 if (maximumNeededChannel > 0 && maximumNeededChannel < m_seqStepSize) {
                     maxChanToRead = maximumNeededChannel + 1;
                 }
                 maxChanToRead -= minimumNeededChannel;
                 FrameData *fd = new FrameData(frame, maxChanToRead);
-
-                size_t bread = fread(fd->data, 1, maxChanToRead, m_seqFile);
-                if (bread != maxChanToRead) {
-                    LogErr(VB_SEQUENCE, "Failed to read channel data!   Needed to read %d but read %d\n", maxChanToRead, (int)bread);
+                if (m_doneRead) {
+                    memset(fd->data, 0, maxChanToRead);
+                } else if (fseeko(file, offset, SEEK_SET)) {
+                    LogErr(VB_SEQUENCE, "Failed to seek to proper offset for channel data! %lld\n", offset);
+                    memset(fd->data, 0, maxChanToRead);
+                } else {
+                    size_t bread = fread(fd->data, 1, maxChanToRead, file);
+                    if (bread != maxChanToRead) {
+                        LogErr(VB_SEQUENCE, "Failed to read channel data!   Needed to read %d but read %d\n", maxChanToRead, (int)bread);
+                    }
                 }
                 
                 lock.lock();
@@ -628,13 +632,16 @@ void Sequence::CloseSequenceFile(void) {
 
     std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
 
+    std::unique_lock<std::mutex> lock(frameCacheLock);
+    clearCaches();
+    m_doneRead = true;
+    m_lastFrameRead = -1;
     if (m_seqFile) {
         fclose(m_seqFile);
         m_seqFile = NULL;
     }
-    std::unique_lock<std::mutex> lock(frameCacheLock);
-    clearCaches();
     lock.unlock();
+    frameLoadedSignal.notify_all();
     
     m_seqFilename[0] = '\0';
     m_seqPaused = 0;
