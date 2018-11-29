@@ -258,7 +258,7 @@ int Sequence::OpenSequenceFile(const char *filename, int startFrame, int startSe
         multiSync->SendSeqSyncStartPacket(filename);
 
         // Give the remotes a head start spining up so they are ready
-        usleep(100000);
+        std::this_thread::sleep_for(10ms);
         seqLock.lock();
     }
 
@@ -616,7 +616,7 @@ void Sequence::SendSequenceData(void) {
 
 void Sequence::SendBlankingData(void) {
     LogDebug(VB_SEQUENCE, "SendBlankingData()\n");
-    usleep(100000);
+    std::this_thread::sleep_for(5ms);
 
     if (getFPPmode() == MASTER_MODE)
         multiSync->SendBlankingDataPacket();
