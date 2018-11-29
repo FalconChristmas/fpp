@@ -1237,8 +1237,8 @@ void MultiSync::StartSyncedSequence(char *filename)
 {
 	LogDebug(VB_SYNC, "StartSyncedSequence(%s)\n", filename);
 
-	sequence->OpenSequenceFile(filename);
-	ResetMasterPosition();
+    ResetMasterPosition();
+    sequence->OpenSequenceFile(filename);
 }
 
 /*
@@ -1282,7 +1282,6 @@ void MultiSync::StartSyncedMedia(char *filename)
 	}
 
 	OpenMediaOutput(filename);
-	ResetMasterPosition();
 }
 
 /*

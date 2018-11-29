@@ -161,17 +161,17 @@ void Sequence::ReadFramesLoop() {
                 if (m_lastFrameRead == (frame - 1)) {
                     m_lastFrameRead = frame;
                     frameCache.push_back(fd);
-                    
+
                     lock.unlock();
-                    frameLoadSignal.notify_all();
-                    std::this_thread::sleep_for(1ms);
+                    frameLoadedSignal.notify_all();
+                    std::this_thread::sleep_for(5ms);
                     lock.lock();
                 } else {
                     //a skip is in progress, we don't need this frame anymore
                     delete fd;
                 }
             } else {
-                frameLoadSignal.notify_all();
+                frameLoadedSignal.notify_all();
                 m_doneRead = true;
             }
         } else {
@@ -409,20 +409,18 @@ int Sequence::SeekSequenceFile(int frameNumber) {
     LogDebug(VB_SEQUENCE, "SeekSequenceFile(%d)\n", frameNumber);
 
     std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
-
     if (!IsSequenceRunning()) {
         LogErr(VB_SEQUENCE, "No sequence is running\n");
         return 0;
     }
+    seqLock.unlock();
     
     std::unique_lock<std::mutex> lock(frameCacheLock);
-    if (!frameCache.empty() && !pastFrameCache.empty()
-        && frameNumber < frameCache.front()->frame && frameNumber >= pastFrameCache.front()->frame) {
+    while (!pastFrameCache.empty()
+        && frameNumber >= pastFrameCache.back()->frame) {
         //Going backwords but frame is cached, we'll push the old frames
-        while (!pastFrameCache.empty()) {
-            frameCache.push_front(pastFrameCache.back());
-            pastFrameCache.pop_back();
-        }
+        frameCache.push_front(pastFrameCache.back());
+        pastFrameCache.pop_back();
     }
     while (!frameCache.empty() && frameCache.front()->frame < frameNumber) {
         delete frameCache.front();
@@ -435,16 +433,9 @@ int Sequence::SeekSequenceFile(int frameNumber) {
     if (frameCache.empty()) {
         m_lastFrameRead = frameNumber - 1;
         frameLoadSignal.notify_all();
-        while (frameCache.empty()) {
-            lock.unlock();
-            std::this_thread::sleep_for(1ms);
-            lock.lock();
-        }
     }
-    frameLoadSignal.notify_all();
     lock.unlock();
-    
-    ReadSequenceData();
+    frameLoadSignal.notify_all();
 }
 
 
@@ -531,7 +522,7 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
         std::unique_lock<std::mutex> lock(frameCacheLock);
         if (frameCache.empty() && !m_doneRead) {
             //wait up to the step time, if we don't have the frame, bail
-            frameLoadSignal.wait_for(lock, std::chrono::milliseconds(m_seqStepTime - 1));
+            frameLoadedSignal.wait_for(lock, std::chrono::milliseconds(m_seqStepTime - 1));
         }
         if (!frameCache.empty()) {
             FrameData *data = frameCache.front();
@@ -566,6 +557,7 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
                     m_dataProcessed = false;
                 }
             }
+            lock.unlock();
             frameLoadSignal.notify_all();
         }
     } else {

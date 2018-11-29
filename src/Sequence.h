@@ -119,7 +119,8 @@ class Sequence {
     void clearCaches();
     std::mutex frameCacheLock;
     std::condition_variable frameLoadSignal;
-    
+    std::condition_variable frameLoadedSignal;
+
     public:
     void ReadFramesLoop();
 };

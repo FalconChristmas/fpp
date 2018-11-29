@@ -45,6 +45,7 @@
 int   RefreshRate = 20;
 int   DefaultLightDelay = 0;
 int   LightDelay = 0;
+volatile int FrameSkip = 0;
 int   MasterFramesPlayed = -1;
 int   OutputFrames = 1;
 float mediaOffset = 0.0;
@@ -160,13 +161,26 @@ void *RunChannelOutputThread(void *data)
                 //processed yet, need to do it
                 sequence->ProcessSequenceData(1000.0 * channelOutputFrame / RefreshRate, 1);
             }
+            if (getFPPmode() == REMOTE_MODE) {
+                // Sleep about 1 seconds waiting for the master
+                int loops = 0;
+                while ((MasterFramesPlayed < 0) && (loops < 1000)) {
+                    usleep(1000);
+                    loops++;
+                }
+            }
 			sequence->SendSequenceData();
         }
 
 		sendTime = GetTime();
 
-		if (getFPPmode() != BRIDGE_MODE)
-			sequence->ReadSequenceData();
+        if (getFPPmode() != BRIDGE_MODE) {
+            if (FrameSkip) {
+                sequence->SeekSequenceFile(channelOutputFrame + FrameSkip + 1);
+                FrameSkip = 0;
+            }
+            sequence->ReadSequenceData();
+        }
 
         readTime = GetTime();
 		sequence->ProcessSequenceData(1000.0 * channelOutputFrame / RefreshRate, 1);
@@ -403,18 +417,18 @@ void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent)
                 // off, but not super off, we'll skip a few frames, but not too much to try and keep using
                 // the frames in the cache and avoid hitting the storage, we'll then have the OS preload
                 // the next bunch and we can skip a few more next time
-                sequence->SeekSequenceFile(channelOutputFrame + 4);
+                FrameSkip = 4;
                 diff += 4;
             } else {
                 LogDebug(VB_CHANNELOUT, "Skipping many frames - We are at %d, master is at: %d\n", channelOutputFrame, expectedFramesSent);
                 //more than 1/2 second behind, just jump
-                sequence->SeekSequenceFile(expectedFramesSent + 1);
+                FrameSkip = expectedFramesSent - channelOutputFrame;
                 LightDelay = DefaultLightDelay;
                 return;
             }
         } else if (diff > 2) {
             //hold the last frame
-            sequence->SeekSequenceFile(channelOutputFrame - 1);
+            FrameSkip = -1;
             diff--;
         }
     }
