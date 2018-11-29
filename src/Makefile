@@ -167,7 +167,7 @@ CFLAGS += \
 	$(NULL)
 CXXFLAGS += -std=gnu++14
 
-LDFLAGS_fppd += $(CURLFLAGS) \
+LDFLAGS_fppd += -rdynamic $(CURLFLAGS) \
 	$(NULL)
 
 DEPS_fppd += \

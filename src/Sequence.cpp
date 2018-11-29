@@ -264,58 +264,46 @@ int Sequence::OpenSequenceFile(const char *filename, int startFrame, int startSe
 
     ///////////////////////////////////////////////////////////////////////
     // Check 4-byte File format identifier
-    char seqFormatID[5];
-    strcpy(seqFormatID, "    ");
-    bytesRead = fread(seqFormatID, 1, 4, m_seqFile);
-    seqFormatID[4] = 0;
-    if ((bytesRead != 4) || (strcmp(seqFormatID, "PSEQ") && strcmp(seqFormatID, "FSEQ"))) {
+    bytesRead = fread(tmpData, 1, DATA_DUMP_SIZE, m_seqFile);
+    if ((bytesRead < 4)
+        || (tmpData[0] != 'P' && tmpData[0] != 'F')
+        || tmpData[1] != 'S'
+        || tmpData[2] != 'E'
+        || tmpData[3] != 'Q') {
         LogErr(VB_SEQUENCE, "Error opening sequence file: %s. Incorrect File Format header: '%s', bytesRead: %d\n",
-            filename, seqFormatID, bytesRead);
-
-        fseeko(m_seqFile, 0L, SEEK_SET);
-        bytesRead = fread(tmpData, 1, DATA_DUMP_SIZE, m_seqFile);
+            filename, tmpData, bytesRead);
         HexDump("Sequence File head:", tmpData, bytesRead);
-
         fclose(m_seqFile);
         m_seqFile = NULL;
         m_seqStarting = 0;
-
         return 0;
     }
 
     ///////////////////////////////////////////////////////////////////////
     // Get Channel Data Offset
-    bytesRead = fread(tmpData, 1, 2, m_seqFile);
-    if (bytesRead != 2) {
+    if (bytesRead < 6) {
         LogErr(VB_SEQUENCE, "Sequence file %s too short, unable to read channel data offset value\n", filename);
-
-        fseeko(m_seqFile, 0L, SEEK_SET);
-        bytesRead = fread(tmpData, 1, DATA_DUMP_SIZE, m_seqFile);
         HexDump("Sequence File head:", tmpData, bytesRead);
-
         fclose(m_seqFile);
         m_seqFile = NULL;
         m_seqStarting = 0;
-
         return 0;
     }
-    m_seqChanDataOffset = tmpData[0] + (tmpData[1] << 8);
+    m_seqChanDataOffset = tmpData[4] + (tmpData[5] << 8);
 
     ///////////////////////////////////////////////////////////////////////
     // Now that we know the header size, read the whole header in one shot
-    fseeko(m_seqFile, 0L, SEEK_SET);
-    bytesRead = fread(tmpData, 1, m_seqChanDataOffset, m_seqFile);
-    if (bytesRead != m_seqChanDataOffset) {
-        LogErr(VB_SEQUENCE, "Sequence file %s too short, unable to read fixed header size value\n", filename);
-
+    // we may have already read the whole thing
+    if (bytesRead < m_seqChanDataOffset) {
         fseeko(m_seqFile, 0L, SEEK_SET);
-        bytesRead = fread(tmpData, 1, DATA_DUMP_SIZE, m_seqFile);
+        bytesRead = fread(tmpData, 1, m_seqChanDataOffset, m_seqFile);
+    }
+    if (bytesRead < m_seqChanDataOffset) {
+        LogErr(VB_SEQUENCE, "Sequence file %s too short, unable to read fixed header size value\n", filename);
         HexDump("Sequence File head:", tmpData, bytesRead);
-
         fclose(m_seqFile);
         m_seqFile = NULL;
         m_seqStarting = 0;
-
         return 0;
     }
 
@@ -386,7 +374,7 @@ int Sequence::OpenSequenceFile(const char *filename, int startFrame, int startSe
     LogDebug(VB_SEQUENCE, "Sequence File Information\n");
     LogDebug(VB_SEQUENCE, "seqFilename           : %s\n", m_seqFilename);
     LogDebug(VB_SEQUENCE, "seqVersion            : %d.%d\n", m_seqVersionMajor, m_seqVersionMinor);
-    LogDebug(VB_SEQUENCE, "seqFormatID           : %s\n", seqFormatID);
+    LogDebug(VB_SEQUENCE, "seqFormatID           : %c%c%c%c\n", tmpData[0], tmpData[1], tmpData[2], tmpData[3]);
     LogDebug(VB_SEQUENCE, "seqChanDataOffset     : %lld\n", m_seqChanDataOffset);
     LogDebug(VB_SEQUENCE, "seqFixedHeaderSize    : %lld\n", m_seqFixedHeaderSize);
     LogDebug(VB_SEQUENCE, "seqStepSize           : %lld\n", m_seqStepSize);

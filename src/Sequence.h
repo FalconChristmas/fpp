@@ -76,10 +76,11 @@ class Sequence {
 	char  NormalizeControlValue(char in);
 	char *CurrentSequenceFilename(void);
 
-	FILE         *m_seqFile;
+	FILE* volatile     m_seqFile;
+    volatile uint64_t  m_seqStepSize;
+    
     uint64_t      m_seqChanDataOffset;
     uint64_t      m_seqFixedHeaderSize;
-    uint64_t      m_seqStepSize;
     uint64_t      m_seqNumPeriods;
     
     int           m_seqStepTime;
