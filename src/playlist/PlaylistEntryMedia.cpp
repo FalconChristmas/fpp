@@ -38,6 +38,8 @@
 #include "SDLOut.h"
 #include "settings.h"
 
+extern MediaDetails mediaDetails;
+
 /*
  *
  */
@@ -106,8 +108,11 @@ int PlaylistEntryMedia::PreparePlay() {
         return 0;
     }
 
-    if (mqtt)
+    if (mqtt) {
         mqtt->Publish("playlist/media/status", m_mediaFilename);
+        mqtt->Publish("playlist/media/title", mediaDetails.title);
+        mqtt->Publish("playlist/media/artist", mediaDetails.artist);
+    }
     
     pluginCallbackManager.mediaCallback();
     return 1;
@@ -190,8 +195,11 @@ int PlaylistEntryMedia::Stop(void)
 
 	CloseMediaOutput();
 
-	if (mqtt)
+    if (mqtt) {
 		mqtt->Publish("playlist/media/status", "");
+        mqtt->Publish("playlist/media/title", "");
+        mqtt->Publish("playlist/media/artist", "");
+    }
 
 	return PlaylistEntryBase::Stop();
 }
@@ -221,8 +229,11 @@ int PlaylistEntryMedia::HandleSigChild(pid_t pid)
 
 	pthread_mutex_unlock(&m_mediaOutputLock);
 
-	if (mqtt)
-		mqtt->Publish("playlist/media/status", "");
+    if (mqtt) {
+        mqtt->Publish("playlist/media/status", "");
+        mqtt->Publish("playlist/media/title", "");
+        mqtt->Publish("playlist/media/artist", "");
+    }
 
 	return 1;
 }
