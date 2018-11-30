@@ -119,6 +119,7 @@ class Sequence {
     std::list<FrameData*> pastFrameCache;
     void clearCaches();
     std::mutex frameCacheLock;
+    std::mutex readFileLock; //lock for just the stuff needed to read from the file (m_seqFile variable)
     std::condition_variable frameLoadSignal;
     std::condition_variable frameLoadedSignal;
 

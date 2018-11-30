@@ -139,9 +139,9 @@ void Sequence::ReadFramesLoop() {
             uint64_t offset = frame * m_seqStepSize;
             offset += m_seqChanDataOffset;
             if (offset <= (m_seqFileSize - m_seqStepSize)) {
-                FILE * file = m_seqFile;
                 lock.unlock();
-                
+
+
                 offset += minimumNeededChannel;
                 int maxChanToRead = m_seqStepSize;
                 if (maximumNeededChannel > 0 && maximumNeededChannel < m_seqStepSize) {
@@ -149,7 +149,10 @@ void Sequence::ReadFramesLoop() {
                 }
                 maxChanToRead -= minimumNeededChannel;
                 FrameData *fd = new FrameData(frame, maxChanToRead);
-                if (m_doneRead) {
+                
+                std::unique_lock<std::mutex> readlock(readFileLock);
+                FILE * file = m_seqFile;
+                if (m_doneRead || file == nullptr) {
                     memset(fd->data, 0, maxChanToRead);
                 } else if (fseeko(file, offset, SEEK_SET)) {
                     LogErr(VB_SEQUENCE, "Failed to seek to proper offset for channel data! %lld\n", offset);
@@ -160,6 +163,7 @@ void Sequence::ReadFramesLoop() {
                         LogErr(VB_SEQUENCE, "Failed to read channel data!   Needed to read %d but read %d\n", maxChanToRead, (int)bread);
                     }
                 }
+                readlock.unlock();
                 
                 lock.lock();
                 if (m_lastFrameRead == (frame - 1)) {
@@ -241,21 +245,21 @@ int Sequence::OpenSequenceFile(const char *filename, int startFrame, int startSe
         m_seqStarting = 0;
         return 0;
     }
-
-    m_seqFile = fopen((const char *)tmpFilename, "r");
-    if (m_seqFile == NULL) {
+    m_seqFile = NULL;
+    FILE *seqFile = fopen((const char *)tmpFilename, "r");
+    if (seqFile == NULL) {
         LogErr(VB_SEQUENCE, "Error opening sequence file: %s. fopen returned NULL\n",
             tmpFilename);
         m_seqStarting = 0;
         return 0;
     }
     
-    fseeko(m_seqFile, 0L, SEEK_END);
-    m_seqFileSize = ftello(m_seqFile);
-    fseeko(m_seqFile, 0L, SEEK_SET);
+    fseeko(seqFile, 0L, SEEK_END);
+    m_seqFileSize = ftello(seqFile);
+    fseeko(seqFile, 0L, SEEK_SET);
     
     // Preload a chunk
-    posix_fadvise(fileno(m_seqFile), 0, 1024*1024, POSIX_FADV_WILLNEED);
+    posix_fadvise(fileno(seqFile), 0, 1024*1024, POSIX_FADV_WILLNEED);
 
     if (getFPPmode() == MASTER_MODE) {
         seqLock.unlock();
@@ -268,7 +272,7 @@ int Sequence::OpenSequenceFile(const char *filename, int startFrame, int startSe
 
     ///////////////////////////////////////////////////////////////////////
     // Check 4-byte File format identifier
-    bytesRead = fread(tmpData, 1, DATA_DUMP_SIZE, m_seqFile);
+    bytesRead = fread(tmpData, 1, DATA_DUMP_SIZE, seqFile);
     if ((bytesRead < 4)
         || (tmpData[0] != 'P' && tmpData[0] != 'F')
         || tmpData[1] != 'S'
@@ -277,8 +281,7 @@ int Sequence::OpenSequenceFile(const char *filename, int startFrame, int startSe
         LogErr(VB_SEQUENCE, "Error opening sequence file: %s. Incorrect File Format header: '%s', bytesRead: %d\n",
             filename, tmpData, bytesRead);
         HexDump("Sequence File head:", tmpData, bytesRead);
-        fclose(m_seqFile);
-        m_seqFile = NULL;
+        fclose(seqFile);
         m_seqStarting = 0;
         return 0;
     }
@@ -288,8 +291,7 @@ int Sequence::OpenSequenceFile(const char *filename, int startFrame, int startSe
     if (bytesRead < 6) {
         LogErr(VB_SEQUENCE, "Sequence file %s too short, unable to read channel data offset value\n", filename);
         HexDump("Sequence File head:", tmpData, bytesRead);
-        fclose(m_seqFile);
-        m_seqFile = NULL;
+        fclose(seqFile);
         m_seqStarting = 0;
         return 0;
     }
@@ -299,14 +301,13 @@ int Sequence::OpenSequenceFile(const char *filename, int startFrame, int startSe
     // Now that we know the header size, read the whole header in one shot
     // we may have already read the whole thing
     if (bytesRead < m_seqChanDataOffset) {
-        fseeko(m_seqFile, 0L, SEEK_SET);
-        bytesRead = fread(tmpData, 1, m_seqChanDataOffset, m_seqFile);
+        fseeko(seqFile, 0L, SEEK_SET);
+        bytesRead = fread(tmpData, 1, m_seqChanDataOffset, seqFile);
     }
     if (bytesRead < m_seqChanDataOffset) {
         LogErr(VB_SEQUENCE, "Sequence file %s too short, unable to read fixed header size value\n", filename);
         HexDump("Sequence File head:", tmpData, bytesRead);
-        fclose(m_seqFile);
-        m_seqFile = NULL;
+        fclose(seqFile);
         m_seqStarting = 0;
         return 0;
     }
@@ -352,7 +353,7 @@ int Sequence::OpenSequenceFile(const char *filename, int startFrame, int startSe
         if (m_lastFrameRead < -1) m_lastFrameRead = -1;
     }
 
-    posix_fadvise(fileno(m_seqFile), 0, 0, POSIX_FADV_RANDOM);
+    posix_fadvise(fileno(seqFile), 0, 0, POSIX_FADV_RANDOM);
 
     // Calculate actual duration based on file size, not m_seqNumPeriods
     m_seqMSRemaining = (int)(((float)(m_seqFileSize - m_seqChanDataOffset)
@@ -364,6 +365,7 @@ int Sequence::OpenSequenceFile(const char *filename, int startFrame, int startSe
     SetChannelOutputRefreshRate(m_seqRefreshRate);
     
     //start reading frames
+    m_seqFile = seqFile;
     m_seqStarting = 1;  //beyond header, read loop can start reading frames
     frameLoadSignal.notify_all();
     m_seqStarting = 0;
@@ -632,14 +634,17 @@ void Sequence::CloseSequenceFile(void) {
 
     std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
 
-    std::unique_lock<std::mutex> lock(frameCacheLock);
-    clearCaches();
-    m_doneRead = true;
-    m_lastFrameRead = -1;
+    std::unique_lock<std::mutex> readLock(readFileLock);
     if (m_seqFile) {
         fclose(m_seqFile);
         m_seqFile = NULL;
     }
+    readLock.unlock();
+    
+    std::unique_lock<std::mutex> lock(frameCacheLock);
+    clearCaches();
+    m_doneRead = true;
+    m_lastFrameRead = -1;
     lock.unlock();
     frameLoadedSignal.notify_all();
     

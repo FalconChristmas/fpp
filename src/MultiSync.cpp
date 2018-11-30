@@ -1316,6 +1316,10 @@ void MultiSync::StopSyncedMedia(char *filename)
                 strcpy(&tmpFile[filenameLen - 4], ".avi");
                 if (!strcmp(mediaOutput->m_mediaFilename.c_str(), tmpFile))
                     stopSyncedMedia = 1;
+                
+                strcpy(&tmpFile[filenameLen - 4], ".mov");
+                if (!strcmp(mediaOutput->m_mediaFilename.c_str(), tmpFile))
+                    stopSyncedMedia = 1;
 			}
 		}
 	}
@@ -1358,6 +1362,10 @@ void MultiSync::SyncSyncedMedia(char *filename, int frameNumber, float secondsEl
                     UpdateMasterMediaPosition(secondsElapsed);
 
                 strcpy(&tmpFile[filenameLen - 4], ".avi");
+                if (!strcmp(mediaOutput->m_mediaFilename.c_str(), tmpFile))
+                    UpdateMasterMediaPosition(secondsElapsed);
+
+                strcpy(&tmpFile[filenameLen - 4], ".mov");
                 if (!strcmp(mediaOutput->m_mediaFilename.c_str(), tmpFile))
                     UpdateMasterMediaPosition(secondsElapsed);
             }

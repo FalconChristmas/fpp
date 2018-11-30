@@ -72,24 +72,26 @@ void MediaOutput_sigchld_handler(int signal)
 
 		pthread_mutex_unlock(&mediaOutputLock);
 
-		if ((sequence->m_seqMSRemaining > 0) &&
-			(sequence->m_seqMSRemaining < 2000))
-		{
-			usleep(sequence->m_seqMSRemaining * 1000);
-		}
+        
+        if (getFPPmode() != REMOTE_MODE)  {
+            if ((sequence->m_seqMSRemaining > 0) &&
+                (sequence->m_seqMSRemaining < 2000)) {
+                usleep(sequence->m_seqMSRemaining * 1000);
+            }
 
-		// Always sleep an extra 100ms to let the sequence finish since playlist watches the media output
-		if (sequence->IsSequenceRunning())
-			usleep(100000);
+            // Always sleep an extra 100ms to let the sequence finish since playlist watches the media output
+            if (sequence->IsSequenceRunning())
+            usleep(100000);
+        }
+
 
 		mediaOutputStatus.status = MEDIAOUTPUTSTATUS_IDLE;
 		CloseMediaOutput();
 
-		if (sequence->IsSequenceRunning())
+        //don't close the sequence in remote mode, a separate stop will come from the master for that
+		if (getFPPmode() != REMOTE_MODE && sequence->IsSequenceRunning())
 			sequence->CloseSequenceFile();
 
-		// Do we really need this??
-		usleep(1000000);
 	} else {
 		pthread_mutex_unlock(&mediaOutputLock);
 	}
@@ -166,6 +168,13 @@ int OpenMediaOutput(char *filename) {
                 ext = "avi";
             }
             if (!FileExists(fullVideoPath.c_str())) {
+                tmpFile.replace(filenameLen - ext.length(), 3, "mov");
+                fullVideoPath = getVideoDirectory();
+                fullVideoPath += "/";
+                fullVideoPath += tmpFile;
+                ext = "mov";
+            }
+            if (!FileExists(fullVideoPath.c_str())) {
                 //video doesn't exist, punt
                 LogInfo(VB_MEDIAOUT, "No video found for remote playing of %s\n", filename);
                 return 0;
@@ -206,11 +215,13 @@ int OpenMediaOutput(char *filename) {
 #ifdef PLATFORM_PI
 	} else if (((ext == "mp4") ||
                 (ext == "mkv") ||
+                (ext == "mov") ||
                 (ext == "avi")) && vOut == "--HDMI--") {
 		mediaOutput = new omxplayerOutput(tmpFile, &mediaOutputStatus);
 #endif
     } else if ((ext == "mp4") ||
                (ext == "mkv") ||
+               (ext == "mov") ||
                (ext == "avi")) {
         mediaOutput = new SDLOutput(tmpFile, &mediaOutputStatus, vOut);
 	} else {
