@@ -1237,8 +1237,8 @@ void MultiSync::StartSyncedSequence(char *filename)
 {
 	LogDebug(VB_SYNC, "StartSyncedSequence(%s)\n", filename);
 
-	sequence->OpenSequenceFile(filename);
-	ResetMasterPosition();
+    ResetMasterPosition();
+    sequence->OpenSequenceFile(filename);
 }
 
 /*
@@ -1260,10 +1260,8 @@ void MultiSync::SyncSyncedSequence(char *filename, int frameNumber, float second
 		filename, frameNumber, secondsElapsed);
 
 	if (!sequence->IsSequenceRunning(filename)) {
-		if (sequence->OpenSequenceFile(filename))
-			sequence->SeekSequenceFile(frameNumber);
+        sequence->OpenSequenceFile(filename, frameNumber);
 	}
-
     if (sequence->IsSequenceRunning(filename)) {
 		UpdateMasterPosition(frameNumber);
     }
@@ -1284,7 +1282,6 @@ void MultiSync::StartSyncedMedia(char *filename)
 	}
 
 	OpenMediaOutput(filename);
-	ResetMasterPosition();
 }
 
 /*
@@ -1304,23 +1301,11 @@ void MultiSync::StopSyncedMedia(char *filename)
 	} else {
 		char tmpFile[1024];
 		strcpy(tmpFile, filename);
-
-		int filenameLen = strlen(filename);
-		if (filenameLen > 4) {
-			if ((!strcmp(&tmpFile[filenameLen - 4], ".mp3")) ||
-				(!strcmp(&tmpFile[filenameLen - 4], ".ogg")) ||
-				(!strcmp(&tmpFile[filenameLen - 4], ".m4a")))
-			{
-				strcpy(&tmpFile[filenameLen - 4], ".mp4");
-
-				if (!strcmp(mediaOutput->m_mediaFilename.c_str(), tmpFile))
-					stopSyncedMedia = 1;
-                
-                strcpy(&tmpFile[filenameLen - 4], ".avi");
-                if (!strcmp(mediaOutput->m_mediaFilename.c_str(), tmpFile))
-                    stopSyncedMedia = 1;
-			}
-		}
+        if (HasVideoForMedia(tmpFile)) {
+            if (!strcmp(mediaOutput->m_mediaFilename.c_str(), tmpFile)) {
+                stopSyncedMedia = 1;
+            }
+        }
 	}
 
 	if (stopSyncedMedia) {
@@ -1348,21 +1333,9 @@ void MultiSync::SyncSyncedMedia(char *filename, int frameNumber, float secondsEl
     } else {
         char tmpFile[1024];
         strcpy(tmpFile, filename);
-        
-        int filenameLen = strlen(filename);
-        if (filenameLen > 4) {
-            if ((!strcmp(&tmpFile[filenameLen - 4], ".mp3")) ||
-                (!strcmp(&tmpFile[filenameLen - 4], ".ogg")) ||
-                (!strcmp(&tmpFile[filenameLen - 4], ".m4a")))
-            {
-                strcpy(&tmpFile[filenameLen - 4], ".mp4");
-                
-                if (!strcmp(mediaOutput->m_mediaFilename.c_str(), tmpFile))
-                    UpdateMasterMediaPosition(secondsElapsed);
-
-                strcpy(&tmpFile[filenameLen - 4], ".avi");
-                if (!strcmp(mediaOutput->m_mediaFilename.c_str(), tmpFile))
-                    UpdateMasterMediaPosition(secondsElapsed);
+        if (HasVideoForMedia(tmpFile)) {
+            if (!strcmp(mediaOutput->m_mediaFilename.c_str(), tmpFile)) {
+                UpdateMasterMediaPosition(secondsElapsed);
             }
         }
 	}

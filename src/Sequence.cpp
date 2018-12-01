@@ -35,6 +35,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <inttypes.h>
 
 #include "E131.h"
 #include "channeloutputthread.h"
@@ -48,6 +49,10 @@
 #include "PixelOverlay.h"
 #include "Sequence.h"
 #include "settings.h"
+#include <chrono>
+using namespace std::literals;
+using namespace std::chrono_literals;
+using namespace std::literals::chrono_literals;
 
 #include "mediaoutput/SDLOut.h"
 
@@ -63,7 +68,6 @@ Sequence::Sequence()
     m_seqSecondsRemaining(0),
     m_seqMSRemaining(0),
     m_seqFile(NULL),
-    m_seqFilePosition(0),
     m_seqStarting(0),
     m_seqPaused(0),
     m_seqSingleStep(0),
@@ -84,49 +88,142 @@ Sequence::Sequence()
     m_seqLastControlMajor(0),
     m_seqLastControlMinor(0),
     m_remoteBlankCount(0),
-    m_fullAdvise(true)
+    m_readThread(nullptr),
+    m_lastFrameRead(-1),
+    m_doneRead(false),
+    m_shuttingDown(false),
+    m_dataProcessed(false)
 {
     m_seqFilename[0] = 0;
-
-    pthread_mutexattr_init(&m_sequenceLock_attr);
-    pthread_mutexattr_settype(&m_sequenceLock_attr, PTHREAD_MUTEX_RECURSIVE);
-
-    pthread_mutex_init(&m_sequenceLock, &m_sequenceLock_attr);
+    memset(m_seqData, 0, sizeof(m_seqData));
 }
 
 Sequence::~Sequence()
 {
-    pthread_mutex_destroy(&m_sequenceLock);
+    m_shuttingDown = true;
+    frameLoadSignal.notify_all();
+    if (m_readThread) {
+        m_readThread->join();
+        delete m_readThread;
+    }
+    clearCaches();
 }
+void Sequence::clearCaches() {
+    while (!frameCache.empty()) {
+        delete frameCache.front();
+        frameCache.pop_front();
+    }
+    while (!pastFrameCache.empty()) {
+        delete pastFrameCache.front();
+        pastFrameCache.pop_front();
+    }
+}
+
 
 /*
  *
  */
 
-int Sequence::OpenSequenceFile(const char *filename, int startSeconds) {
-    LogDebug(VB_SEQUENCE, "OpenSequenceFile(%s, %d)\n", filename, startSeconds);
+void ReadSequenceDataThread(Sequence *sequence) {
+    sequence->ReadFramesLoop();
+}
+void Sequence::ReadFramesLoop() {
+    std::unique_lock<std::mutex> lock(frameCacheLock);
+    while (true) {
+        if (m_shuttingDown) {
+            return;
+        }
+        int cacheSize = frameCache.size();
+        if (frameCache.size() < SEQUENCE_CACHE_FRAMECOUNT && m_seqStarting < 2 && m_seqFile && !m_doneRead) {
+            uint64_t frame = m_lastFrameRead + 1;
+            uint64_t offset = frame * m_seqStepSize;
+            offset += m_seqChanDataOffset;
+            if (offset <= (m_seqFileSize - m_seqStepSize)) {
+                lock.unlock();
 
-    if (!filename || !filename[0])
-    {
+
+                offset += minimumNeededChannel;
+                int maxChanToRead = m_seqStepSize;
+                if (maximumNeededChannel > 0 && maximumNeededChannel < m_seqStepSize) {
+                    maxChanToRead = maximumNeededChannel + 1;
+                }
+                maxChanToRead -= minimumNeededChannel;
+                FrameData *fd = new FrameData(frame, maxChanToRead);
+                
+                std::unique_lock<std::mutex> readlock(readFileLock);
+                FILE * file = m_seqFile;
+                if (m_doneRead || file == nullptr) {
+                    memset(fd->data, 0, maxChanToRead);
+                } else if (fseeko(file, offset, SEEK_SET)) {
+                    LogErr(VB_SEQUENCE, "Failed to seek to proper offset for channel data! %lld\n", offset);
+                    memset(fd->data, 0, maxChanToRead);
+                } else {
+                    size_t bread = fread(fd->data, 1, maxChanToRead, file);
+                    if (bread != maxChanToRead) {
+                        LogErr(VB_SEQUENCE, "Failed to read channel data!   Needed to read %d but read %d\n", maxChanToRead, (int)bread);
+                    }
+                }
+                readlock.unlock();
+                
+                lock.lock();
+                if (m_lastFrameRead == (frame - 1)) {
+                    m_lastFrameRead = frame;
+                    frameCache.push_back(fd);
+
+                    lock.unlock();
+                    frameLoadedSignal.notify_all();
+                    std::this_thread::sleep_for(5ms);
+                    lock.lock();
+                } else {
+                    //a skip is in progress, we don't need this frame anymore
+                    delete fd;
+                }
+            } else {
+                frameLoadedSignal.notify_all();
+                m_doneRead = true;
+            }
+        } else {
+            frameLoadSignal.wait_for(lock, 25ms);
+        }
+    }
+}
+
+int Sequence::OpenSequenceFile(const char *filename, int startFrame, int startSecond) {
+    LogDebug(VB_SEQUENCE, "OpenSequenceFile(%s, %d, %d)\n", filename, startFrame, startSecond);
+
+    if (!filename || !filename[0]) {
         LogErr(VB_SEQUENCE, "Empty Sequence Filename!\n", filename);
         return 0;
     }
 
+    
     size_t bytesRead = 0;
-
-    pthread_mutex_lock(&m_sequenceLock);
+    std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
 
     m_seqFileSize = 0;
 
     if (IsSequenceRunning())
         CloseSequenceFile();
 
-    m_seqStarting = 1;
+    m_seqStarting = 2;
+    m_doneRead = false;
+    m_lastFrameRead = -1;
+    if (startFrame) {
+        m_lastFrameRead = startFrame - 1;
+    }
+
+    std::unique_lock<std::mutex> lock(frameCacheLock);
+    clearCaches();
+    lock.unlock();
+    
     m_seqPaused   = 0;
     m_seqDuration = 0;
     m_seqSecondsElapsed = 0;
     m_seqSecondsRemaining = 0;
-    SetChannelOutputFrameNumber(0);
+    SetChannelOutputFrameNumber(m_lastFrameRead + 1);
+    if (m_readThread == nullptr) {
+        m_readThread = new std::thread(ReadSequenceDataThread, this);
+    }
 
     strcpy(m_seqFilename, filename);
 
@@ -139,112 +236,79 @@ int Sequence::OpenSequenceFile(const char *filename, int startSeconds) {
     if (getFPPmode() == REMOTE_MODE)
         CheckForHostSpecificFile(getSetting("HostName"), tmpFilename);
 
-    if (!FileExists(tmpFilename))
-    {
+    if (!FileExists(tmpFilename)) {
         if (getFPPmode() == REMOTE_MODE)
             LogDebug(VB_SEQUENCE, "Sequence file %s does not exist\n", tmpFilename);
         else
             LogErr(VB_SEQUENCE, "Sequence file %s does not exist\n", tmpFilename);
 
         m_seqStarting = 0;
-
-        pthread_mutex_unlock(&m_sequenceLock);
-
         return 0;
     }
-
-    m_seqFile = fopen((const char *)tmpFilename, "r");
-    if (m_seqFile == NULL) 
-    {
+    m_seqFile = NULL;
+    FILE *seqFile = fopen((const char *)tmpFilename, "r");
+    if (seqFile == NULL) {
         LogErr(VB_SEQUENCE, "Error opening sequence file: %s. fopen returned NULL\n",
             tmpFilename);
         m_seqStarting = 0;
-
-        pthread_mutex_unlock(&m_sequenceLock);
-
         return 0;
     }
     
-    fseeko(m_seqFile, 0L, SEEK_END);
-    m_seqFileSize = ftello(m_seqFile);
-    fseeko(m_seqFile, 0L, SEEK_SET);
+    fseeko(seqFile, 0L, SEEK_END);
+    m_seqFileSize = ftello(seqFile);
+    fseeko(seqFile, 0L, SEEK_SET);
     
     // Preload a chunk
-    posix_fadvise(fileno(m_seqFile), 0, 1024*1024, POSIX_FADV_WILLNEED);
+    posix_fadvise(fileno(seqFile), 0, 1024*1024, POSIX_FADV_WILLNEED);
 
-    if (getFPPmode() == MASTER_MODE)
-    {
-        pthread_mutex_unlock(&m_sequenceLock);
+    if (getFPPmode() == MASTER_MODE) {
+        seqLock.unlock();
         multiSync->SendSeqSyncStartPacket(filename);
 
         // Give the remotes a head start spining up so they are ready
-        usleep(100000);
-        pthread_mutex_lock(&m_sequenceLock);
+        std::this_thread::sleep_for(10ms);
+        seqLock.lock();
     }
 
     ///////////////////////////////////////////////////////////////////////
     // Check 4-byte File format identifier
-    char seqFormatID[5];
-    strcpy(seqFormatID, "    ");
-    bytesRead = fread(seqFormatID, 1, 4, m_seqFile);
-    seqFormatID[4] = 0;
-    if ((bytesRead != 4) || (strcmp(seqFormatID, "PSEQ") && strcmp(seqFormatID, "FSEQ")))
-    {
+    bytesRead = fread(tmpData, 1, DATA_DUMP_SIZE, seqFile);
+    if ((bytesRead < 4)
+        || (tmpData[0] != 'P' && tmpData[0] != 'F')
+        || tmpData[1] != 'S'
+        || tmpData[2] != 'E'
+        || tmpData[3] != 'Q') {
         LogErr(VB_SEQUENCE, "Error opening sequence file: %s. Incorrect File Format header: '%s', bytesRead: %d\n",
-            filename, seqFormatID, bytesRead);
-
-        fseeko(m_seqFile, 0L, SEEK_SET);
-        bytesRead = fread(tmpData, 1, DATA_DUMP_SIZE, m_seqFile);
+            filename, tmpData, bytesRead);
         HexDump("Sequence File head:", tmpData, bytesRead);
-
-        fclose(m_seqFile);
-        m_seqFile = NULL;
+        fclose(seqFile);
         m_seqStarting = 0;
-
-        pthread_mutex_unlock(&m_sequenceLock);
-
         return 0;
     }
 
     ///////////////////////////////////////////////////////////////////////
     // Get Channel Data Offset
-    bytesRead = fread(tmpData, 1, 2, m_seqFile);
-    if (bytesRead != 2)
-    {
+    if (bytesRead < 6) {
         LogErr(VB_SEQUENCE, "Sequence file %s too short, unable to read channel data offset value\n", filename);
-
-        fseeko(m_seqFile, 0L, SEEK_SET);
-        bytesRead = fread(tmpData, 1, DATA_DUMP_SIZE, m_seqFile);
         HexDump("Sequence File head:", tmpData, bytesRead);
-
-        fclose(m_seqFile);
-        m_seqFile = NULL;
+        fclose(seqFile);
         m_seqStarting = 0;
-
-        pthread_mutex_unlock(&m_sequenceLock);
-
         return 0;
     }
-    m_seqChanDataOffset = tmpData[0] + (tmpData[1] << 8);
+    m_seqChanDataOffset = tmpData[4] + (tmpData[5] << 8);
 
     ///////////////////////////////////////////////////////////////////////
     // Now that we know the header size, read the whole header in one shot
-    fseeko(m_seqFile, 0L, SEEK_SET);
-    bytesRead = fread(tmpData, 1, m_seqChanDataOffset, m_seqFile);
-    if (bytesRead != m_seqChanDataOffset)
-    {
+    // we may have already read the whole thing
+    if (bytesRead < m_seqChanDataOffset) {
+        fseeko(seqFile, 0L, SEEK_SET);
+        bytesRead = fread(tmpData, 1, m_seqChanDataOffset, seqFile);
+    }
+    if (bytesRead < m_seqChanDataOffset) {
         LogErr(VB_SEQUENCE, "Sequence file %s too short, unable to read fixed header size value\n", filename);
-
-        fseeko(m_seqFile, 0L, SEEK_SET);
-        bytesRead = fread(tmpData, 1, DATA_DUMP_SIZE, m_seqFile);
         HexDump("Sequence File head:", tmpData, bytesRead);
-
-        fclose(m_seqFile);
-        m_seqFile = NULL;
+        fclose(seqFile);
         m_seqStarting = 0;
-
-        pthread_mutex_unlock(&m_sequenceLock);
-
         return 0;
     }
 
@@ -281,7 +345,15 @@ int Sequence::OpenSequenceFile(const char *filename, int startSeconds) {
     }
 
     m_seqRefreshRate = 1000 / m_seqStepTime;
+    
+    if (startSecond >= 0) {
+        int frame = startSecond * 1000;
+        frame /= m_seqStepTime;
+        m_lastFrameRead = frame - 1;
+        if (m_lastFrameRead < -1) m_lastFrameRead = -1;
+    }
 
+    posix_fadvise(fileno(seqFile), 0, 0, POSIX_FADV_RANDOM);
 
     // Calculate actual duration based on file size, not m_seqNumPeriods
     m_seqMSRemaining = (int)(((float)(m_seqFileSize - m_seqChanDataOffset)
@@ -290,18 +362,29 @@ int Sequence::OpenSequenceFile(const char *filename, int startSeconds) {
         / ((float)m_seqStepSize * (float)m_seqRefreshRate));
 
     m_seqSecondsRemaining = m_seqDuration;
-    fseeko(m_seqFile, m_seqChanDataOffset, SEEK_SET);
-    m_seqFilePosition = m_seqChanDataOffset;
+    SetChannelOutputRefreshRate(m_seqRefreshRate);
+    
+    //start reading frames
+    m_seqFile = seqFile;
+    m_seqStarting = 1;  //beyond header, read loop can start reading frames
+    frameLoadSignal.notify_all();
+    m_seqStarting = 0;
+    m_seqPaused = 0;
+    m_seqSingleStep = 0;
+    m_seqSingleStepBack = 0;
+    m_dataProcessed = false;
+    ReadSequenceData(true);
+    seqLock.unlock();
+    StartChannelOutputThread();
 
     LogDebug(VB_SEQUENCE, "Sequence File Information\n");
     LogDebug(VB_SEQUENCE, "seqFilename           : %s\n", m_seqFilename);
-    LogDebug(VB_SEQUENCE, "seqVersion            : %d.%d\n",
-        m_seqVersionMajor, m_seqVersionMinor);
-    LogDebug(VB_SEQUENCE, "seqFormatID           : %s\n", seqFormatID);
-    LogDebug(VB_SEQUENCE, "seqChanDataOffset     : %d\n", m_seqChanDataOffset);
-    LogDebug(VB_SEQUENCE, "seqFixedHeaderSize    : %d\n", m_seqFixedHeaderSize);
-    LogDebug(VB_SEQUENCE, "seqStepSize           : %d\n", m_seqStepSize);
-    LogDebug(VB_SEQUENCE, "seqNumPeriods         : %d\n", m_seqNumPeriods);
+    LogDebug(VB_SEQUENCE, "seqVersion            : %d.%d\n", m_seqVersionMajor, m_seqVersionMinor);
+    LogDebug(VB_SEQUENCE, "seqFormatID           : %c%c%c%c\n", tmpData[0], tmpData[1], tmpData[2], tmpData[3]);
+    LogDebug(VB_SEQUENCE, "seqChanDataOffset     : %lld\n", m_seqChanDataOffset);
+    LogDebug(VB_SEQUENCE, "seqFixedHeaderSize    : %lld\n", m_seqFixedHeaderSize);
+    LogDebug(VB_SEQUENCE, "seqStepSize           : %lld\n", m_seqStepSize);
+    LogDebug(VB_SEQUENCE, "seqNumPeriods         : %lld\n", m_seqNumPeriods);
     LogDebug(VB_SEQUENCE, "seqStepTime           : %dms\n", m_seqStepTime);
     LogDebug(VB_SEQUENCE, "seqNumUniverses       : %d *\n", m_seqNumUniverses);
     LogDebug(VB_SEQUENCE, "seqUniverseSize       : %d *\n", m_seqUniverseSize);
@@ -312,79 +395,41 @@ int Sequence::OpenSequenceFile(const char *filename, int startSeconds) {
     LogDebug(VB_SEQUENCE, "seqDuration           : %d\n", m_seqDuration);
     LogDebug(VB_SEQUENCE, "seqMSRemaining        : %d\n", m_seqMSRemaining);
     LogDebug(VB_SEQUENCE, "'*' denotes field is currently ignored by FPP\n");
-
-    //calculate the data rate we will need to read this at proper speed
     
-    size_t dr = m_seqStepSize * m_seqRefreshRate;
-    //all Devices (Pi/BBB) can read 10MB/sec off their storage
-    //we'll use 8MB to leave some head room.  If our needs are
-    //less that that, we'll do full advise which allows the OS
-    //to treat the fseq as "steaming" with larger readahead buffers
-    m_fullAdvise = dr < (1024*1024*8);
-    if (m_fullAdvise) {
-        posix_fadvise(fileno(m_seqFile), 0, 0, POSIX_FADV_SEQUENTIAL);
-    } else {
-        posix_fadvise(fileno(m_seqFile), 0, 0, POSIX_FADV_NORMAL);
-    }
-    
-    
-    m_seqPaused = 0;
-    m_seqSingleStep = 0;
-    m_seqSingleStepBack = 0;
-
-    int frameNumber = 0;
-
-    if (startSeconds) {
-        int frameNumber = startSeconds * m_seqRefreshRate;
-        off_t newPos = m_seqChanDataOffset;
-        newPos += (frameNumber * m_seqStepSize);
-        LogDebug(VB_SEQUENCE, "Seeking to byte %d in %s\n", (int)newPos, m_seqFilename);
-
-        fseeko(m_seqFile, newPos, SEEK_SET);
-        m_seqFilePosition = newPos;
-        m_seqMSRemaining -= (startSeconds * 1000);
-    }
-
-    ReadSequenceData();
-
-    SetChannelOutputFrameNumber(frameNumber);
-
-    SetChannelOutputRefreshRate(m_seqRefreshRate);
-    StartChannelOutputThread();
-
-    m_seqStarting = 0;
-
-    pthread_mutex_unlock(&m_sequenceLock);
-
     return 1;
 }
 
 int Sequence::SeekSequenceFile(int frameNumber) {
     LogDebug(VB_SEQUENCE, "SeekSequenceFile(%d)\n", frameNumber);
 
-    pthread_mutex_lock(&m_sequenceLock);
-
+    std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
     if (!IsSequenceRunning()) {
         LogErr(VB_SEQUENCE, "No sequence is running\n");
-        pthread_mutex_unlock(&m_sequenceLock);
         return 0;
     }
-
-    off_t newPos = m_seqChanDataOffset;
-    newPos += (frameNumber * m_seqStepSize);
-    LogDebug(VB_SEQUENCE, "Seeking to byte %d in %s\n", (int)newPos, m_seqFilename);
-
-    fseeko(m_seqFile, newPos, SEEK_SET);
-
-    m_seqFilePosition = newPos;
-    m_seqMSRemaining = (int)(((float)(m_seqFileSize - newPos)
-        / (float)m_seqStepSize) * m_seqStepTime);
-
-    ReadSequenceData();
-
-    SetChannelOutputFrameNumber(frameNumber);
-
-    pthread_mutex_unlock(&m_sequenceLock);
+    seqLock.unlock();
+    
+    std::unique_lock<std::mutex> lock(frameCacheLock);
+    while (!pastFrameCache.empty()
+        && frameNumber >= pastFrameCache.back()->frame) {
+        //Going backwords but frame is cached, we'll push the old frames
+        frameCache.push_front(pastFrameCache.back());
+        pastFrameCache.pop_back();
+    }
+    while (!frameCache.empty() && frameCache.front()->frame < frameNumber) {
+        delete frameCache.front();
+        frameCache.pop_front();
+    }
+    if (!frameCache.empty() && frameNumber < frameCache.front()->frame) {
+        clearCaches();
+    }
+    LogDebug(VB_SEQUENCE, "Seeking to %d.   Last read is %d\n", frameNumber, (int)m_lastFrameRead);
+    if (frameCache.empty()) {
+        m_lastFrameRead = frameNumber - 1;
+        frameLoadSignal.notify_all();
+    }
+    lock.unlock();
+    frameLoadSignal.notify_all();
 }
 
 
@@ -402,12 +447,9 @@ int Sequence::IsSequenceRunning(void) {
 int Sequence::IsSequenceRunning(char *filename) {
     int result = 0;
 
-    pthread_mutex_lock(&m_sequenceLock);
-
+    std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
     if ((!strcmp(sequence->m_seqFilename, filename)) && m_seqFile)
         result = 1;
-
-    pthread_mutex_unlock(&m_sequenceLock);
 
     return result;
 }
@@ -435,14 +477,10 @@ void Sequence::SingleStepSequenceBack(void) {
     m_seqSingleStepBack = 1;
 }
 
-void Sequence::ReadSequenceData(void) {
+void Sequence::ReadSequenceData(bool forceFirstFrame) {
     LogExcess(VB_SEQUENCE, "ReadSequenceData()\n");
-    size_t  bytesRead = 0;
-
-    pthread_mutex_lock(&m_sequenceLock);
-
-    if (m_seqStarting) {
-        pthread_mutex_unlock(&m_sequenceLock);
+    std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
+    if (!forceFirstFrame && m_seqStarting) {
         return;
     }
 
@@ -451,86 +489,71 @@ void Sequence::ReadSequenceData(void) {
             m_seqSingleStep = 0;
         } else if (m_seqSingleStepBack) {
             m_seqSingleStepBack = 0;
-
-            int offset = m_seqStepSize * 2;
-            if (m_seqFilePosition > offset) {
-                fseeko(m_seqFile, 0 - offset, SEEK_CUR);
-                m_seqMSRemaining += m_seqStepTime;
+            std::unique_lock<std::mutex> lock(frameCacheLock);
+            if (!pastFrameCache.empty()) {
+                frameCache.push_front(pastFrameCache.back());
+                pastFrameCache.pop_back();
+            } else if (frameCache.empty()) {
+                m_lastFrameRead = -1;
+                frameLoadSignal.notify_all();
+            } else {
+                int f = frameCache.front()->frame - 1;
+                m_lastFrameRead = f - 1;
+                if (m_lastFrameRead < -1) {
+                    m_lastFrameRead = -1;
+                }
+                clearCaches();
+                frameLoadSignal.notify_all();
             }
-        }
-        else
-        {
-            pthread_mutex_unlock(&m_sequenceLock);
-
+        } else {
             return;
         }
     }
 
-    if (IsSequenceRunning()) {
+    if (forceFirstFrame || IsSequenceRunning()) {
         m_remoteBlankCount = 0;
-        bytesRead = 0;
-        if(m_seqFilePosition <= m_seqFileSize - m_seqStepSize) {
-            int maxChanToRead = m_seqStepSize - 1;
-            if (maximumNeededChannel > 0 && maximumNeededChannel < m_seqStepSize) {
-                maxChanToRead = maximumNeededChannel;
-            }
 
-            if (maximumNeededChannel <= 0) {
-                fseeko(m_seqFile, m_seqStepSize, SEEK_CUR);
-                bytesRead = m_seqStepSize;
-            } else {
-                if (minimumNeededChannel) {
-                    fseeko(m_seqFile, minimumNeededChannel, SEEK_CUR);
-                    bytesRead = minimumNeededChannel;
-                }
-                bytesRead += fread(&m_seqData[minimumNeededChannel], 1, maxChanToRead - minimumNeededChannel + 1, m_seqFile);
-                if (bytesRead < m_seqStepSize) {
-                    fseeko(m_seqFile, m_seqStepSize - bytesRead, SEEK_CUR);
-                    bytesRead += m_seqStepSize - bytesRead;
-                }
-            }
-            off_t fsz = ftello(m_seqFile);
-            if (fsz > 16384) {
-                //make sure the current memory page stays so we don't reload it
-                //don't need up to this anymore, discard it
-                off_t f = fsz;
-                static const off_t m = 0x8FFFFFFFFFFFC000;
-                f &= m;
-                posix_fadvise(fileno(m_seqFile), 0, f, POSIX_FADV_DONTNEED);
-            }
-            //let the kernel know we're going to need the next bunch of frames
-            if (m_fullAdvise) {
-                off_t f = m_seqStepSize;
-                f *= 15;
-                if (f < 131072) {
-                    // at least 128K
-                    f = 131072;
-                }
-                if ((fsz + f) > m_seqFileSize) {
-                    f = 0;
-                }
-                posix_fadvise(fileno(m_seqFile), fsz, f, POSIX_FADV_WILLNEED);
-            } else {
-                int sizeToRead = maxChanToRead - minimumNeededChannel + 1;
-                off_t f = fsz;
-                f += minimumNeededChannel;
-                for (int x = 0; x < 15; x++) {
-                    if (f < m_seqFileSize) {
-                        posix_fadvise(fileno(m_seqFile), f, sizeToRead, POSIX_FADV_WILLNEED);
-                    }
-                    f += m_seqStepSize;
-                }
-            }
-            m_seqFilePosition += bytesRead;
+        std::unique_lock<std::mutex> lock(frameCacheLock);
+        if (frameCache.empty() && !m_doneRead) {
+            //wait up to the step time, if we don't have the frame, bail
+            frameLoadedSignal.wait_for(lock, std::chrono::milliseconds(m_seqStepTime - 1));
         }
+        if (!frameCache.empty()) {
+            FrameData *data = frameCache.front();
+            frameCache.pop_front();
+            if (pastFrameCache.size() > 5) {
+                delete pastFrameCache.front();
+                pastFrameCache.pop_front();
+            }
+            pastFrameCache.push_back(data);
+            lock.unlock();
+            frameLoadSignal.notify_all();
 
-        if (bytesRead != m_seqStepSize)
+            memcpy(&m_seqData[minimumNeededChannel], data->data, data->size);
+            
+            SetChannelOutputFrameNumber(data->frame);
+            m_seqSecondsElapsed = data->frame * m_seqStepTime;
+            m_seqSecondsElapsed /= 1000;
+            m_seqSecondsRemaining = m_seqDuration - m_seqSecondsElapsed;
+            m_dataProcessed = false;
+        } else if (m_doneRead) {
+            lock.unlock();
+            m_seqSecondsElapsed = m_seqDuration;
+            m_seqSecondsRemaining = m_seqDuration - m_seqSecondsElapsed;
             CloseSequenceFile();
-        else
-            m_seqMSRemaining -= m_seqStepTime;
-
-        m_seqSecondsElapsed = (int)((float)(m_seqFilePosition - m_seqChanDataOffset)/((float)m_seqStepSize*(float)m_seqRefreshRate));
-        m_seqSecondsRemaining = m_seqDuration - m_seqSecondsElapsed;
+        } else {
+            if (m_lastFrameRead > 0) {
+                //we'll have the read thread discard the frame
+                m_lastFrameRead++;
+                if (!pastFrameCache.empty()) {
+                    //and copy the last frame data
+                    memcpy(&m_seqData[minimumNeededChannel], pastFrameCache.back()->data, pastFrameCache.back()->size);
+                    m_dataProcessed = false;
+                }
+            }
+            lock.unlock();
+            frameLoadSignal.notify_all();
+        }
     } else {
         if (getFPPmode() != REMOTE_MODE || getSettingInt("blankBetweenSequences")) {
             BlankSequenceData();
@@ -546,8 +569,6 @@ void Sequence::ReadSequenceData(void) {
             }
         }
     }
-
-    pthread_mutex_unlock(&m_sequenceLock);
 }
 
 void Sequence::ProcessSequenceData(int ms, int checkControlChannels) {
@@ -580,6 +601,7 @@ void Sequence::ProcessSequenceData(int ms, int checkControlChannels) {
         channelTester->OverlayTestData(m_seqData);
     
     PrepareChannelData(m_seqData);
+    m_dataProcessed = true;
 }
 
 void Sequence::SendSequenceData(void) {
@@ -588,7 +610,7 @@ void Sequence::SendSequenceData(void) {
 
 void Sequence::SendBlankingData(void) {
     LogDebug(VB_SEQUENCE, "SendBlankingData()\n");
-    usleep(100000);
+    std::this_thread::sleep_for(5ms);
 
     if (getFPPmode() == MASTER_MODE)
         multiSync->SendBlankingDataPacket();
@@ -599,12 +621,9 @@ void Sequence::SendBlankingData(void) {
 }
 
 void Sequence::CloseIfOpen(char *filename) {
-    pthread_mutex_lock(&m_sequenceLock);
-
+    std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
     if (!strcmp(m_seqFilename, filename))
         CloseSequenceFile();
-
-    pthread_mutex_unlock(&m_sequenceLock);
 }
 
 void Sequence::CloseSequenceFile(void) {
@@ -613,13 +632,22 @@ void Sequence::CloseSequenceFile(void) {
     if (getFPPmode() == MASTER_MODE)
         multiSync->SendSeqSyncStopPacket(m_seqFilename);
 
-    pthread_mutex_lock(&m_sequenceLock);
+    std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
 
+    std::unique_lock<std::mutex> readLock(readFileLock);
     if (m_seqFile) {
         fclose(m_seqFile);
         m_seqFile = NULL;
     }
-
+    readLock.unlock();
+    
+    std::unique_lock<std::mutex> lock(frameCacheLock);
+    clearCaches();
+    m_doneRead = true;
+    m_lastFrameRead = -1;
+    lock.unlock();
+    frameLoadedSignal.notify_all();
+    
     m_seqFilename[0] = '\0';
     m_seqPaused = 0;
 
@@ -628,8 +656,6 @@ void Sequence::CloseSequenceFile(void) {
          (FPPstatus != FPP_STATUS_PLAYLIST_PLAYING)) ||
         (getSettingInt("blankBetweenSequences")))
         SendBlankingData();
-
-    pthread_mutex_unlock(&m_sequenceLock);
 }
 
 /*

@@ -160,13 +160,14 @@ CURLFLAGS := $(shell curl-config --libs)
 
 # Common CFLAGS
 CFLAGS += \
+    -g \
 	-I . \
 	-I channeloutput \
 	-I mediaoutput \
 	$(NULL)
+CXXFLAGS += -std=gnu++14
 
-
-LDFLAGS_fppd += $(CURLFLAGS) \
+LDFLAGS_fppd += -rdynamic $(CURLFLAGS) \
 	$(NULL)
 
 DEPS_fppd += \
@@ -183,9 +184,10 @@ else
 CFLAGS += -Wno-write-strings -Wno-narrowing
 endif
 
+
+
 ifeq '$(ARCH)' 'Raspberry Pi'
 # do something RaspPi-y
-CXXFLAGS += -std=gnu++11
 CFLAGS += \
 	-DPLATFORM_PI \
 	-DUSEWIRINGPI \
@@ -263,7 +265,6 @@ OBJECTS_fppd += \
 	$(NULL)
 else ifeq '$(ARCH)' 'BeagleBone Black'
 # BeagleBone Black
-CXXFLAGS += -std=gnu++14
 CFLAGS += \
     -DNOROOT \
 	-DPLATFORM_BBB \
@@ -289,7 +290,6 @@ SUBMODULES += \
 else
 # do something Linux-y
 CFLAGS += \
-	-g \
 	-DNOROOT \
 	$(NULL)
 endif
@@ -330,7 +330,6 @@ gitsubmodules:
 
 force:
 
-debug: CFLAGS+=-g
 debug: $(TARGETS)
 
 optimized: CFLAGS+=-O1

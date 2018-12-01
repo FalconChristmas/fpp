@@ -580,10 +580,18 @@ function media_duration_cache($media, $duration_seconds = null, $filesize = null
  * @param int $decimals
  * @return string
  */
-function human_filesize($bytes, $decimals = 2) {
-	$sz = 'BKMGTP';
-	$factor = floor((strlen($bytes) - 1) / 3);
-	return sprintf("%.{$decimals}f", $bytes / pow(1024, $factor)) . @$sz[$factor] . ($factor > 0 ?  "B" : "");
+function human_filesize($path) {
+    // cannot use filesize($path) as that returns a signed 32bit number so maxes out at 2GB
+    $kbytes = trim(shell_exec("du -k " . $path . " | cut -f1 "));
+    if (strlen($kbytes) < 3) {
+        $bytes = filesize($path);
+        $sz = 'BKMGTP';
+        $factor = floor((strlen($bytes) - 1) / 3);
+        return sprintf("%.2f", $bytes / pow(1024, $factor)) . @$sz[$factor] . ($factor > 0 ?  "B" : "");
+    }
+	$sz = 'KMGTP';
+	$factor = floor((strlen($kbytes) - 1) / 3);
+	return sprintf("%.2f", $kbytes / pow(1024, $factor)) . @$sz[$factor] . "B";
 }
 
 /**

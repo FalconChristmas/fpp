@@ -392,7 +392,7 @@ char *ProcessCommand(char *command, char *response)
             s2 = strtok(NULL,",");
             if (s && s2) {
                 i = atoi(s2);
-                sequence->OpenSequenceFile(s, i);
+                sequence->OpenSequenceFile(s, 0, i);
             } else {
                 LogDebug(VB_COMMAND, "Invalid command: %s\n", command);
             }

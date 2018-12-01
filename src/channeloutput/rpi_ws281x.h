@@ -36,10 +36,10 @@ extern "C" {
 
 #include <vector>
 
-#include "ChannelOutputBase.h"
+#include "ThreadedChannelOutputBase.h"
 #include "PixelString.h"
 
-class RPIWS281xOutput : public ChannelOutputBase {
+class RPIWS281xOutput : public ThreadedChannelOutputBase {
   public:
 	RPIWS281xOutput(unsigned int startChannel, unsigned int channelCount);
 	~RPIWS281xOutput();
@@ -48,7 +48,7 @@ class RPIWS281xOutput : public ChannelOutputBase {
 	int Close(void);
 
 	void PrepData(unsigned char *channelData);
-	int  SendData(unsigned char *channelData);
+	int  RawSendData(unsigned char *channelData);
 
 	void DumpConfig(void);
 

@@ -45,6 +45,7 @@
 int   RefreshRate = 20;
 int   DefaultLightDelay = 0;
 int   LightDelay = 0;
+volatile int FrameSkip = 0;
 int   MasterFramesPlayed = -1;
 int   OutputFrames = 1;
 float mediaOffset = 0.0;
@@ -154,13 +155,32 @@ void *RunChannelOutputThread(void *data)
 			}
 		}
 
-		if (OutputFrames)
+        if (OutputFrames) {
+            if (!sequence->isDataProcessed()) {
+                //first time through or immediately after sequence load, the data might not be
+                //processed yet, need to do it
+                sequence->ProcessSequenceData(1000.0 * channelOutputFrame / RefreshRate, 1);
+            }
+            if (getFPPmode() == REMOTE_MODE) {
+                // Sleep about 1 seconds waiting for the master
+                int loops = 0;
+                while ((MasterFramesPlayed < 0) && (loops < 1000)) {
+                    usleep(1000);
+                    loops++;
+                }
+            }
 			sequence->SendSequenceData();
+        }
 
 		sendTime = GetTime();
 
-		if (getFPPmode() != BRIDGE_MODE)
-			sequence->ReadSequenceData();
+        if (getFPPmode() != BRIDGE_MODE) {
+            if (FrameSkip) {
+                sequence->SeekSequenceFile(channelOutputFrame + FrameSkip + 1);
+                FrameSkip = 0;
+            }
+            sequence->ReadSequenceData();
+        }
 
         readTime = GetTime();
 		sequence->ProcessSequenceData(1000.0 * channelOutputFrame / RefreshRate, 1);
@@ -306,7 +326,7 @@ int StartChannelOutputThread(void)
 
 	// Wait for thread to start
 	while (!ChannelOutputThreadIsRunning())
-		usleep(10000);
+		usleep(1000);
 }
 
 /*
@@ -389,36 +409,40 @@ void CalculateNewChannelOutputDelay(float mediaPosition)
 void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent)
 {
 	int diff = channelOutputFrame - expectedFramesSent;
-    if (diff < -3 && getFPPmode() != MASTER_MODE) {
-        // pretty far behind master, lets just skip forward
-        LogDebug(VB_CHANNELOUT, "Skipping frames - We are at %d, master is at: %d\n", channelOutputFrame, expectedFramesSent);
-        if (diff > -15) {
-            // off, but not super off, we'll skip a few frames, but not too much to try and keep using
-            // the frames in the cache and avoid hitting the storage, we'll then have the OS preload
-            // the next bunch and we can skip a few more next time
-            sequence->SeekSequenceFile(expectedFramesSent + 4);
-            diff += 4;
-        } else {
-            //very far off, just jump
-            sequence->SeekSequenceFile(expectedFramesSent);
-            LightDelay = DefaultLightDelay;
-            return;
+    if (getFPPmode() != MASTER_MODE) {
+        if (diff < -4) {
+            // pretty far behind master, lets just skip forward
+            if (diff > -(RefreshRate/2)) {
+                LogDebug(VB_CHANNELOUT, "Skipping a few frames - We are at %d, master is at: %d\n", channelOutputFrame, expectedFramesSent);
+                // off, but not super off, we'll skip a few frames, but not too much to try and keep using
+                // the frames in the cache and avoid hitting the storage, we'll then have the OS preload
+                // the next bunch and we can skip a few more next time
+                FrameSkip = 4;
+                diff += 4;
+            } else {
+                LogDebug(VB_CHANNELOUT, "Skipping many frames - We are at %d, master is at: %d\n", channelOutputFrame, expectedFramesSent);
+                //more than 1/2 second behind, just jump
+                FrameSkip = expectedFramesSent - channelOutputFrame;
+                LightDelay = DefaultLightDelay;
+                return;
+            }
+        } else if (diff > 2) {
+            //hold the last frame
+            FrameSkip = -1;
+            diff--;
         }
     }
-	if (diff) {
+	if (diff > 1 || diff < -1) {
 		int timerOffset = diff * (DefaultLightDelay / 100);
 		int newLightDelay = LightDelay;
 
-		if (channelOutputFrame >  expectedFramesSent)
-		{
+		if (channelOutputFrame >  expectedFramesSent) {
 			// correct if we slingshot past 0, otherwise offset further
 			if (LightDelay < DefaultLightDelay)
 				newLightDelay = DefaultLightDelay;
 			else
 				newLightDelay += timerOffset;
-		}
-		else
-		{
+		} else {
 			// correct if we slingshot past 0, otherwise offset further
 			if (LightDelay > DefaultLightDelay)
 				newLightDelay = DefaultLightDelay;
@@ -431,9 +455,19 @@ void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent)
 		if ((DefaultLightDelay - 15000) > newLightDelay)
 			newLightDelay = DefaultLightDelay - 15000;
 
-		LogDebug(VB_CHANNELOUT, "LightDelay: %d, newLightDelay: %d,   DiffFrames: %d\n",
-			LightDelay, newLightDelay, diff);
+		LogDebug(VB_CHANNELOUT, "LightDelay: %d, newLightDelay: %d,   DiffFrames: %d     %d/%d\n",
+			LightDelay, newLightDelay, diff,   channelOutputFrame , expectedFramesSent);
 		LightDelay = newLightDelay;
+    } else if (diff == -1) {
+        //for the one frame off cases, keep the existing light delay unless the
+        //previous "off" frame was on the other side of default
+        if (LightDelay > DefaultLightDelay) {
+            LightDelay = DefaultLightDelay;
+        }
+    } else if (diff == 1) {
+        if (LightDelay < DefaultLightDelay) {
+            LightDelay = DefaultLightDelay;
+        }
 	} else if (LightDelay != DefaultLightDelay) {
 		LightDelay = DefaultLightDelay;
 	}

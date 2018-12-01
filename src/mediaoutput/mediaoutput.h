@@ -43,5 +43,8 @@ int  OpenMediaOutput(char *filename);
 void CloseMediaOutput(void);
 void UpdateMasterMediaPosition(float seconds);
 
+/* If try, filename will be updated with the media filename */
+bool HasVideoForMedia(char *filename);
+
 #endif /* _MEDIAOUTPUT_H */
 

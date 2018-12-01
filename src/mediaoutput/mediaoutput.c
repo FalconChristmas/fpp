@@ -28,6 +28,7 @@
 #include <string.h>
 
 #include <string>
+#include <set>
 
 #include "log.h"
 #include "common.h"
@@ -72,24 +73,26 @@ void MediaOutput_sigchld_handler(int signal)
 
 		pthread_mutex_unlock(&mediaOutputLock);
 
-		if ((sequence->m_seqMSRemaining > 0) &&
-			(sequence->m_seqMSRemaining < 2000))
-		{
-			usleep(sequence->m_seqMSRemaining * 1000);
-		}
+        
+        if (getFPPmode() != REMOTE_MODE)  {
+            if ((sequence->m_seqMSRemaining > 0) &&
+                (sequence->m_seqMSRemaining < 2000)) {
+                usleep(sequence->m_seqMSRemaining * 1000);
+            }
 
-		// Always sleep an extra 100ms to let the sequence finish since playlist watches the media output
-		if (sequence->IsSequenceRunning())
-			usleep(100000);
+            // Always sleep an extra 100ms to let the sequence finish since playlist watches the media output
+            if (sequence->IsSequenceRunning())
+            usleep(100000);
+        }
+
 
 		mediaOutputStatus.status = MEDIAOUTPUTSTATUS_IDLE;
 		CloseMediaOutput();
 
-		if (sequence->IsSequenceRunning())
+        //don't close the sequence in remote mode, a separate stop will come from the master for that
+		if (getFPPmode() != REMOTE_MODE && sequence->IsSequenceRunning())
 			sequence->CloseSequenceFile();
 
-		// Do we really need this??
-		usleep(1000000);
 	} else {
 		pthread_mutex_unlock(&mediaOutputLock);
 	}
@@ -120,6 +123,46 @@ void CleanupMediaOutput(void)
 	pthread_mutex_destroy(&mediaOutputLock);
 }
 
+inline bool FileExists(const std::string &s) {
+    return FileExists((const char *)s.c_str());
+}
+std::string GetVideoFilenameForMedia(const std::string &filename, std::string &ext) {
+    ext = "";
+    std::size_t found = filename.find_last_of(".");
+    std::string oext = filename.substr(found + 1);
+    std::string bfile = filename.substr(0, found + 1);
+    std::string videoPath(getVideoDirectory());
+    videoPath += "/";
+    videoPath += bfile;
+
+    if ((oext == "mp3") || (oext == "ogg") || (oext == "m4a")) {
+        if (FileExists(videoPath + "mp4")) {
+            ext = "mp4";
+        } else if (FileExists(videoPath + "avi")) {
+            ext = "avi";
+        } else if (FileExists(videoPath + "mov")) {
+            ext = "mov";
+        } else if (FileExists(videoPath + "mkv")) {
+            ext = "mkv";
+        }
+    }
+    if (ext != "") {
+        return bfile + ext;
+    }
+    return "";
+}
+
+bool HasVideoForMedia(char *filename) {
+    std::string ext;
+    std::string fp = GetVideoFilenameForMedia(filename, ext);
+    if (fp != "") {
+        strcpy(filename, fp.c_str());
+    }
+    return fp != "";
+}
+
+
+static std::set<std::string> alreadyWarned;
 /*
  *
  */
@@ -133,48 +176,33 @@ int OpenMediaOutput(char *filename) {
 	}
 	pthread_mutex_unlock(&mediaOutputLock);
 
-	std::string tmpFile(filename);
-	std::size_t found = tmpFile.find_last_of(".");
+    std::string tmpFile(filename);
+    std::size_t found = tmpFile.find_last_of(".");
+    if (found == std::string::npos) {
+        LogDebug(VB_MEDIAOUT, "Unable to determine extension of media file %s\n",
+                 tmpFile.c_str());
+        return 0;
+    }
+    std::string ext = tmpFile.substr(found + 1);
 
-	if (found == std::string::npos)
-	{
-		LogDebug(VB_MEDIAOUT, "Unable to determine extension of media file %s\n",
-			filename);
-		return 0;
-	}
-
-	std::string ext = tmpFile.substr(found + 1);
-
-	int filenameLen = strlen(filename);
-	if (getFPPmode() == REMOTE_MODE)
-	{
+	if (getFPPmode() == REMOTE_MODE) {
 		// For v1.0 MultiSync, we can't sync audio to audio, so check for
 		// a video file if the master is playing an audio file
-		if ((ext == "mp3") || (ext == "ogg") || (ext == "m4a"))
-		{
-			tmpFile.replace(filenameLen - ext.length(), 3, "mp4");
-            
-            std::string fullVideoPath = getVideoDirectory();
-            fullVideoPath += "/";
-            fullVideoPath += tmpFile;
-            ext = "mp4";
-            if (!FileExists(fullVideoPath.c_str())) {
-                tmpFile.replace(filenameLen - ext.length(), 3, "avi");
-                fullVideoPath = getVideoDirectory();
-                fullVideoPath += "/";
-                fullVideoPath += tmpFile;
-                ext = "avi";
-            }
-            if (!FileExists(fullVideoPath.c_str())) {
-                //video doesn't exist, punt
+        tmpFile = GetVideoFilenameForMedia(tmpFile, ext);
+        
+        if (tmpFile == "") {
+            //video doesn't exist, punt
+            tmpFile = filename;
+            if (alreadyWarned.find(tmpFile) == alreadyWarned.end()) {
+                alreadyWarned.emplace(tmpFile);
                 LogInfo(VB_MEDIAOUT, "No video found for remote playing of %s\n", filename);
-                return 0;
-            } else {
-                LogDebug(VB_MEDIAOUT,
-                         "Master is playing %s audio, remote will try %s Video\n",
-                         filename, tmpFile.c_str());
             }
-		}
+            return 0;
+        } else {
+            LogDebug(VB_MEDIAOUT,
+                     "Master is playing %s audio, remote will try %s Video\n",
+                     filename, tmpFile.c_str());
+        }
 	}
 
     pthread_mutex_lock(&mediaOutputLock);
@@ -206,11 +234,13 @@ int OpenMediaOutput(char *filename) {
 #ifdef PLATFORM_PI
 	} else if (((ext == "mp4") ||
                 (ext == "mkv") ||
+                (ext == "mov") ||
                 (ext == "avi")) && vOut == "--HDMI--") {
 		mediaOutput = new omxplayerOutput(tmpFile, &mediaOutputStatus);
 #endif
     } else if ((ext == "mp4") ||
                (ext == "mkv") ||
+               (ext == "mov") ||
                (ext == "avi")) {
         mediaOutput = new SDLOutput(tmpFile, &mediaOutputStatus, vOut);
 	} else {

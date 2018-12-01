@@ -738,7 +738,7 @@ int Playlist::Play(const char *filename, const int position, const int repeat)
 	if ((FPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||
 		(FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY))
 	{
-		StopPlaylistNow();
+		StopNow();
 
 		sleep(1);
 	}
@@ -1079,36 +1079,5 @@ std::string Playlist::ReplaceMatches(std::string in)
 	LogDebug(VB_PLAYLIST, "Out: '%s'\n", out.c_str());
 
 	return out;
-}
-
-
-void Playlist::StopPlaylistGracefully(void)
-{
-	LogDebug(VB_PLAYLIST, "OLD CALL Playlist::StopPlaylistGracefully()\n");
-}
-
-void Playlist::StopPlaylistNow(void)
-{
-	LogDebug(VB_PLAYLIST, "OLD CALL Playlist::StopPlaylistNow()\n");
-}
-
-void Playlist::PlayListPlayingInit(void)
-{
-	LogDebug(VB_PLAYLIST, "OLD CALL Playlist::PlayListPlayingInit()\n");
-}
-
-void Playlist::PlayListPlayingProcess(void)
-{
-	LogDebug(VB_PLAYLIST, "OLD CALL Playlist::PlayListPlayingProcess()\n");
-}
-
-void Playlist::PlayListPlayingCleanup(void)
-{
-	LogDebug(VB_PLAYLIST, "OLD CALL Playlist::PlayListPlayingCleanup()\n");
-}
-
-void Playlist::PlaylistProcessMediaData(void)
-{
-	LogDebug(VB_PLAYLIST, "OLD CALL Playlist::PlaylistProcessMediaData()\n");
 }
 

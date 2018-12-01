@@ -393,7 +393,7 @@ void FalconSetData(int sock, struct sockaddr_in *srcAddr, unsigned char *inBuf)
 	{
 		if (inBuf[7] == 0x01)
 		{
-			playlist->StopPlaylistNow(); // FIXME: Need to investigate this more
+			playlist->StopNow();
 		}
 		else
 		{
