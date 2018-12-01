@@ -290,7 +290,7 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 				m_mediaFilename.c_str(), tmpFile);
 		}
 	}
-    LogInfo(VB_PLAYLIST, "PlaylistEntryMedia - Starting %s\n", tmpFile.c_str());
+    LogDebug(VB_PLAYLIST, "PlaylistEntryMedia - Starting %s\n", tmpFile.c_str());
 
     std::string vOut = m_videoOutput;
     if (vOut == "--Default--") {
