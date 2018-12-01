@@ -83,14 +83,6 @@ class Playlist {
 	~Playlist();
 
 	////////////////////////////////////////
-	// Stub out old Playlist class methods
-	void StopPlaylistGracefully(void);
-	void StopPlaylistNow(void);
-	void PlayListPlayingInit(void);
-	void PlayListPlayingProcess(void);
-	void PlayListPlayingCleanup(void);
-	void PlaylistProcessMediaData(void);
-
 	int m_playlistAction;
 	PlaylistDetails m_playlistDetails;
 	int m_numberOfSecondsPaused;
