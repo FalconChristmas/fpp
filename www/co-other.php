@@ -146,6 +146,10 @@ function VirtualMatrixConfig(config) {
 				" Height: <input type='text' size='3' maxlength='3' class='height' value='" + config.height + "' onChange='VirtualMatrixLayoutChanged(this);'>";
 
 	result += VirtualMatrixColorOrderSelect(config.colorOrder);
+	result += " Invert: <input type=checkbox class='invert'";
+	if (config.invert)
+		result += " checked='checked'";
+	result += ">";
 
 	return result;
 }
@@ -157,6 +161,7 @@ function NewVirtualMatrixConfig() {
 	config.height = 16;
 	config.layout = "32x16";
 	config.colorOrder = "RGB";
+	config.invert = 0;
 
 	return VirtualMatrixConfig(config);
 }
@@ -178,10 +183,15 @@ function GetVirtualMatrixOutputConfig(result, cell) {
 	if (colorOrder == "")
 		return "";
 
+	var invert = 0;
+	if ($cell.find("input.invert").is(":checked"))
+		invert = 1;
+
 	result.width = parseInt(width);
 	result.height = parseInt(height);
 	result.layout = width + "x" + height;
 	result.colorOrder = colorOrder;
+	result.invert = invert;
 
 	return result;
 }

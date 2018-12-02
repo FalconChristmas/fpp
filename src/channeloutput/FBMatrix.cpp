@@ -52,6 +52,7 @@ FBMatrixOutput::FBMatrixOutput(unsigned int startChannel,
 	m_width(0),
 	m_height(0),
 	m_useRGB(0),
+	m_inverted(0),
 	m_fbp(NULL),
 	m_screenSize(0)
 {
@@ -94,6 +95,10 @@ int FBMatrixOutput::Init(char *configStr)
 		{
 			if (elem[1] == "RGB")
 				m_useRGB = 1;
+		}
+		else if (elem[0] == "invert")
+		{
+			m_inverted = atoi(elem[1].c_str());
 		}
 	}
 
@@ -202,19 +207,29 @@ int FBMatrixOutput::SendData(unsigned char *channelData)
 	LogExcess(VB_CHANNELOUT, "FBMatrixOutput::SendData(%p)\n",
 		channelData);
 
-	// FIXME, enhance this Channel Output to support wrapping, etc. to
-	// allow it to be used for duplicating a physical matrix for testing
+	int stride = m_width * 3;
+
 	if (m_useRGB)
 	{
 		// Slower method but allows sequence data to be in RGB order
-		unsigned char *sR = channelData + 0;
-		unsigned char *sG = channelData + 1;
-		unsigned char *sB = channelData + 2;
-		unsigned char *dR = (unsigned char *)m_fbp + 2;
-		unsigned char *dG = (unsigned char *)m_fbp + 1;
-		unsigned char *dB = (unsigned char *)m_fbp + 0;
+		int srow = 0;
+		int drow = m_inverted ? m_height - 1 : 0;
+		unsigned char *sR;
+		unsigned char *sG;
+		unsigned char *sB;
+		unsigned char *dR;
+		unsigned char *dG;
+		unsigned char *dB;
+
 		for (int y = 0; y < m_height; y++)
 		{
+			sR = channelData + (srow * stride) + 0;
+			sG = channelData + (srow * stride) + 1;
+			sB = channelData + (srow * stride) + 2;
+			dR = (unsigned char *)m_fbp + (drow * stride) + 2;
+			dG = (unsigned char *)m_fbp + (drow * stride) + 1;
+			dB = (unsigned char *)m_fbp + (drow * stride) + 0;
+
 			for (int x = 0; x < m_width; x++)
 			{
 				*dR = *sR;
@@ -227,10 +242,30 @@ int FBMatrixOutput::SendData(unsigned char *channelData)
 				dG += 3;
 				dB += 3;
 			}
+
+			srow++;
+			drow += m_inverted ? -1 : 1;
 		}
 	}
 	else
-		memcpy(m_fbp, channelData, m_screenSize);
+	{
+		if (m_inverted)
+		{
+			unsigned char *src = channelData;
+			unsigned char *dst = (unsigned char *)m_fbp + (stride * (m_height-1));
+
+			for (int y = 0; y < m_height; y++)
+			{
+				memcpy(dst, src, stride);
+				src += stride;
+				dst -= stride;
+			}
+		}
+		else
+		{
+			memcpy(m_fbp, channelData, m_screenSize);
+		}
+	}
 
 	return m_channelCount;
 }
