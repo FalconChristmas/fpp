@@ -257,7 +257,7 @@ void VirtualDisplayOutput::GetRequiredChannelRange(int &min, int & max) {
     max = 0;
     for (auto &pixel : m_pixels) {
         min = std::min(min, pixel.ch);
-        max = std::min(min, pixel.ch + (pixel.cpp == 4 ? 3 : 2));
+        max = std::max(max, pixel.ch + (pixel.cpp == 4 ? 3 : 2));
     }
 }
 
