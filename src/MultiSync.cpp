@@ -36,6 +36,8 @@
 
 #include <netinet/in.h>
 #include <netdb.h>
+#include <ifaddrs.h>
+
 
 
 #include <string>
@@ -71,7 +73,8 @@ MultiSync::MultiSync()
 	m_controlCSVSock(-1),
 	m_receiveSock(-1),
     m_lastMediaHalfSecond(0),
-	m_remoteOffset(0.0)
+	m_remoteOffset(0.0),
+    m_numLocalSystems(0)
 {
 	pthread_mutex_init(&m_systemsLock, NULL);
 	pthread_mutex_init(&m_socketLock, NULL);
@@ -226,11 +229,32 @@ void MultiSync::FillLocalSystemInfo(void)
 	MultiSyncSystemType type = ModelStringToType(model);
 
 	std::string multiSyncInterface = getSetting("MultiSyncInterface");
-	if (multiSyncInterface == "")
-		multiSyncInterface = "eth0";
-
-	GetInterfaceAddress(multiSyncInterface.c_str(), m_localAddress, NULL, NULL);
-	LogDebug(VB_SYNC, "m_localAddress = %s\n", m_localAddress);
+    char addressBuf[128];
+    std::list<std::string> addresses;
+    if (multiSyncInterface == "") {
+        //get all the addresses
+        struct ifaddrs *interfaces,*tmp;
+        getifaddrs(&interfaces);
+        tmp = interfaces;
+        while (tmp) {
+            if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET) {
+                if (strncmp("usb", tmp->ifa_name, 3) != 0) {
+                    //skip the usb* interfaces as we won't support multisync on those
+                    GetInterfaceAddress(tmp->ifa_name, addressBuf, NULL, NULL);
+                    if (strcmp(addressBuf, "127.0.0.1")) {
+                        addresses.push_back(addressBuf);
+                    }
+                }
+            } else if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET6) {
+                //FIXME for ipv6 multisync
+            }
+            tmp = tmp->ifa_next;
+        }
+        freeifaddrs(interfaces);
+    } else {
+        GetInterfaceAddress(multiSyncInterface.c_str(), addressBuf, NULL, NULL);
+        addresses.push_back(addressBuf);
+    }
 
 	m_hostname = getSetting("HostName");
 
@@ -241,19 +265,26 @@ void MultiSync::FillLocalSystemInfo(void)
 	newSystem.type         = type;
 	newSystem.majorVersion = atoi(getFPPMajorVersion());
 	newSystem.minorVersion = atoi(getFPPMinorVersion());
-	newSystem.address      = m_localAddress;
 	newSystem.hostname     = m_hostname;
 	newSystem.fppMode      = getFPPmode();
 	newSystem.version      = getFPPVersion();
 	newSystem.model        = model;
 
-	std::vector<std::string> parts = split(newSystem.address, '.');
-	newSystem.ipa = atoi(parts[0].c_str());
-	newSystem.ipb = atoi(parts[1].c_str());
-	newSystem.ipc = atoi(parts[2].c_str());
-	newSystem.ipd = atoi(parts[3].c_str());
+    for (auto address : addresses) {
+        if (m_localAddress == "") {
+            m_localAddress = address;
+        }
+        newSystem.address = address;
+        std::vector<std::string> parts = split(newSystem.address, '.');
+        newSystem.ipa = atoi(parts[0].c_str());
+        newSystem.ipb = atoi(parts[1].c_str());
+        newSystem.ipc = atoi(parts[2].c_str());
+        newSystem.ipd = atoi(parts[3].c_str());
 
-	m_systems.push_back(newSystem);
+        m_systems.push_back(newSystem);
+        m_numLocalSystems++;
+    }
+    LogDebug(VB_SYNC, "m_localAddress = %s\n", m_localAddress.c_str());
 
 	pthread_mutex_unlock(&m_systemsLock);
 }
@@ -327,23 +358,6 @@ std::string MultiSync::GetTypeString(MultiSyncSystemType type)
 /*
  *
  */
-MultiSyncSystem MultiSync::GetLocalSystemInfo(void)
-{
-	MultiSyncSystem result;
-
-	pthread_mutex_lock(&m_systemsLock);
-
-	if (m_systems.size())
-		result = m_systems[0];
-
-	pthread_mutex_unlock(&m_systemsLock);
-
-	return result;
-}
-
-/*
- *
- */
 Json::Value MultiSync::GetSystems(void)
 {
 	Json::Value result;
@@ -387,38 +401,42 @@ void MultiSync::Ping(int discover)
 		return;
 	}
 
-	MultiSyncSystem sysInfo = multiSync->GetLocalSystemInfo();
-
-	char           outBuf[2048];
-	bzero(outBuf, sizeof(outBuf));
-
-	ControlPkt    *cpkt = (ControlPkt*)outBuf;
-
-	InitControlPacket(cpkt);
-
-	cpkt->pktType        = CTRL_PKT_PING;
-	cpkt->extraDataLen   = 169; // v1 ping length
-
-	unsigned char *ed = (unsigned char*)(outBuf + 7);
-
-	ed[0]  = 1;                    // ping version 1
-	ed[1]  = discover > 0 ? 1 : 0; // 0 = ping, 1 = discover
-	ed[2]  = sysInfo.type;
-	ed[3]  = (sysInfo.majorVersion & 0xFF00) >> 8;
-	ed[4]  = (sysInfo.majorVersion & 0x00FF);
-	ed[5]  = (sysInfo.minorVersion & 0xFF00) >> 8;
-	ed[6]  = (sysInfo.minorVersion & 0x00FF);
-	ed[7]  = sysInfo.fppMode;
-	ed[8]  = sysInfo.ipa;
-	ed[9]  = sysInfo.ipb;
-	ed[10] = sysInfo.ipc;
-	ed[11] = sysInfo.ipd;
-
-	strncpy((char *)(ed + 12), sysInfo.hostname.c_str(), 65);
-	strncpy((char *)(ed + 77), sysInfo.version.c_str(), 41);
-	strncpy((char *)(ed + 118), sysInfo.model.c_str(), 41);
-
-	SendBroadcastPacket(outBuf, sizeof(ControlPkt) + cpkt->extraDataLen);
+    for (int x = 0; x < m_numLocalSystems; x++) {
+        pthread_mutex_lock(&m_systemsLock);
+        MultiSyncSystem sysInfo = m_systems[x];
+        pthread_mutex_unlock(&m_systemsLock);
+        
+        char           outBuf[2048];
+        bzero(outBuf, sizeof(outBuf));
+        
+        ControlPkt    *cpkt = (ControlPkt*)outBuf;
+        
+        InitControlPacket(cpkt);
+        
+        cpkt->pktType        = CTRL_PKT_PING;
+        cpkt->extraDataLen   = 169; // v1 ping length
+        
+        unsigned char *ed = (unsigned char*)(outBuf + 7);
+        
+        ed[0]  = 1;                    // ping version 1
+        ed[1]  = discover > 0 ? 1 : 0; // 0 = ping, 1 = discover
+        ed[2]  = sysInfo.type;
+        ed[3]  = (sysInfo.majorVersion & 0xFF00) >> 8;
+        ed[4]  = (sysInfo.majorVersion & 0x00FF);
+        ed[5]  = (sysInfo.minorVersion & 0xFF00) >> 8;
+        ed[6]  = (sysInfo.minorVersion & 0x00FF);
+        ed[7]  = sysInfo.fppMode;
+        ed[8]  = sysInfo.ipa;
+        ed[9]  = sysInfo.ipb;
+        ed[10] = sysInfo.ipc;
+        ed[11] = sysInfo.ipd;
+        
+        strncpy((char *)(ed + 12), sysInfo.hostname.c_str(), 65);
+        strncpy((char *)(ed + 77), sysInfo.version.c_str(), 41);
+        strncpy((char *)(ed + 118), sysInfo.model.c_str(), 41);
+        
+        SendBroadcastPacket(outBuf, sizeof(ControlPkt) + cpkt->extraDataLen);
+    }
 }
 
 /*
