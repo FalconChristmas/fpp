@@ -943,13 +943,13 @@ setupRTC () {
 	1)
 	  # rasClock chip
       echo "FPP - Configuring RTC, Setting to rasClock/${I2CBUS}"
-      echo pcf2127 0x51 > /sys/class/i2c/devices/${I2CBUS}/new_device
+      echo pcf2127 0x51 > /sys/bus/i2c/devices/${I2CBUS}/new_device
       sleep 1
 	  ;;
 	2)
 	  # DS1307 chip
       echo "FPP - Configuring RTC, Setting to DS1307/${I2CBUS}"
-      echo ds1307 0x68 > /sys/class/i2c/devices/${I2CBUS}/new_device
+      echo ds1307 0x68 > /sys/bus/i2c/devices/${I2CBUS}/new_device
       sleep 1
 	  ;;
 	3)
