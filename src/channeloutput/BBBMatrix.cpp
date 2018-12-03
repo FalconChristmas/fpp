@@ -383,6 +383,12 @@ int BBBMatrix::Init(Json::Value config)
     if (config.isMember("panelColorDepth")) {
         m_colorDepth = config["panelColorDepth"].asInt();
     }
+    bool drop = false;
+    if (m_colorDepth < 0) {
+        drop = true;
+        m_colorDepth = -m_colorDepth;
+        m_colorDepth++;
+    }
     if (m_colorDepth > 8 || m_colorDepth < 6) {
         m_colorDepth = 8;
     }
@@ -523,13 +529,20 @@ int BBBMatrix::Init(Json::Value config)
     }
     for (int x = 0; x < 256; x++) {
         int v = x;
-        if (m_panelScan == 32) {
-            v &= 0xFE;
-        }
-        if (m_colorDepth == 6 && (v == 3 || v == 2)) {
-            v = 4;
-        } else if (m_colorDepth == 7 && v == 1) {
-            v = 2;
+        if (drop) {
+            if (m_colorDepth == 7) {
+                if (v > 0 && v < 4) v = 4;
+                v &= 0xFC;
+            } else {
+                if (v > 0 && v < 2) v = 2;
+                v &= 0xFE;
+            }
+        } else {
+            if (m_colorDepth == 6 && (v == 3 || v == 2)) {
+                v = 4;
+            } else if (m_colorDepth == 7 && v == 1) {
+                v = 2;
+            }
         }
         
         float f = v;
