@@ -24,6 +24,12 @@ setupChannelOutputs
 echo "Running pre-start scripts"
 runPreStartScripts
 
+if [ ! -x ${FPPBINDIR}/fppd ]; then
+   echo "${FPPBINDIR}/fppd doesn't exist, try building it"
+   cleanCompiledBinaries
+   compileBinaries
+fi
+
 echo "Starting ${FPPBINDIR}/fppd"
 nice -n -20 ${FPPBINDIR}/fppd --config-file ${FPPHOME}/media/settings --daemonize
 
