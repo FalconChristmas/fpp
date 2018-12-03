@@ -31,7 +31,7 @@ MINOR_VERSION=$(echo ${SOURCE_VERSION} | cut -f1 -d- | cut -f2 -d\.)
 
 if [ "x${MINOR_VERSION}" = "xx" ]
 then
-	MINOR_VERSION=0
+	MINOR_VERSION=999
 fi
 
 case "${SOURCE_VERSION}" in
