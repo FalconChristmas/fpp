@@ -90,6 +90,7 @@ static void configurePSPins() {
     configBBBPin("P2_30", 3, 17, "pruout");  //SEL1
     configBBBPin("P1_31", 3, 18, "pruout");  //SEL2
     configBBBPin("P2_34", 3, 19, "pruout");  //SEL3
+    configBBBPin("P2_28", 3, 20, "pruout");  //SEL4
 }
 static void configureV2Pins() {
     configBBBPin("P8_45", 2, 6, "pruout");  //OE
@@ -104,6 +105,7 @@ static void resetPSPins() {
     configBBBPin("P2_30", 3, 17, "gpio");  //SEL1
     configBBBPin("P1_31", 3, 18, "gpio");  //SEL2
     configBBBPin("P2_34", 3, 19, "gpio");  //SEL3
+    configBBBPin("P2_28", 3, 20, "gpio");  //SEL4
 }
 static void resetV2Pins() {
     configBBBPin("P8_45", 2, 6, "gpio");  //OE
