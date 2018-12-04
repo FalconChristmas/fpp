@@ -148,7 +148,7 @@ function printLEDPanelLayoutSelect()
 	PrintSettingSelect("Panel Layout", "LEDPanelsLayout", 1, 0, "1x1", $values, "", "LEDPanelLayoutChanged");
 }
 
-function printLEDPanelSizeSelect($platform, $def, $addr)
+function printLEDPanelSizeSelect($platform, $variant, $def, $addr)
 {
 	$values = array();
     if ($platform == "BeagleBone Black") {
@@ -159,8 +159,9 @@ function printLEDPanelSizeSelect($platform, $def, $addr)
         $values["32x16 1/2 Scan AB"] = "32x16x2x1";
         $values["32x32 1/16 Scan"] = "32x32x16";
         $values["64x32 1/16 Scan"] = "64x32x16";
-        $values["64x64 1/32 Scan"] = "64x64x32";
-
+        if (strcmp($variant, 'PocketBeagle') !== FALSE) {
+             $values["64x64 1/32 Scan"] = "64x64x32";
+        }
         $values["64x32 1/8 Scan"] = "64x32x8";
         $values["32x32 1/8 Scan"] = "32x32x8";
         $values["40x20 1/5 Scan"] = "40x20x5";
@@ -635,7 +636,7 @@ $(document).ready(function(){
 							<td><input id='LEDPanelsStartChannel' type=text size=6 maxlength=6 value='1'></td>
 						</tr>
 						<tr><td><b>Single Panel Size (WxH):</b></td>
-							<td><? printLEDPanelSizeSelect($settings['Platform'], $LEDPanelWidth + "x" + $LEDPanelHeight + "x" + $LEDPanelScan, $LEDPanelAddressing); ?></td>
+							<td><? printLEDPanelSizeSelect($settings['Platform'], $settings['Variant'], $LEDPanelWidth + "x" + $LEDPanelHeight + "x" + $LEDPanelScan, $LEDPanelAddressing); ?></td>
 							<td>&nbsp;</td>
 							<td><b>Channel Count:</b></td>
 							<td><span id='LEDPanelsChannelCount'>1536</span></td>
@@ -732,6 +733,14 @@ if ($settings['Platform'] == "BeagleBone Black") {
 									<option value='8'>8 Bit</option>
 									<option value='7'>7 Bit</option>
 									<option value='6'>6 Bit</option>
+<?
+if ($settings['Platform'] == "BeagleBone Black") {
+?>
+                                    <option value='-7'>7 Bit, zero lowest</option>
+                                    <option value='-6'>6 Bit, zero lowest</option>
+<?
+}
+?>
 								</select>
 							</td>
 						</tr>

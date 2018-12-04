@@ -90,6 +90,7 @@ static void configurePSPins() {
     configBBBPin("P2_30", 3, 17, "pruout");  //SEL1
     configBBBPin("P1_31", 3, 18, "pruout");  //SEL2
     configBBBPin("P2_34", 3, 19, "pruout");  //SEL3
+    configBBBPin("P2_28", 3, 20, "pruout");  //SEL4
 }
 static void configureV2Pins() {
     configBBBPin("P8_45", 2, 6, "pruout");  //OE
@@ -104,6 +105,7 @@ static void resetPSPins() {
     configBBBPin("P2_30", 3, 17, "gpio");  //SEL1
     configBBBPin("P1_31", 3, 18, "gpio");  //SEL2
     configBBBPin("P2_34", 3, 19, "gpio");  //SEL3
+    configBBBPin("P2_28", 3, 20, "gpio");  //SEL4
 }
 static void resetV2Pins() {
     configBBBPin("P8_45", 2, 6, "gpio");  //OE
@@ -381,6 +383,12 @@ int BBBMatrix::Init(Json::Value config)
     if (config.isMember("panelColorDepth")) {
         m_colorDepth = config["panelColorDepth"].asInt();
     }
+    bool drop = false;
+    if (m_colorDepth < 0) {
+        drop = true;
+        m_colorDepth = -m_colorDepth;
+        m_colorDepth++;
+    }
     if (m_colorDepth > 8 || m_colorDepth < 6) {
         m_colorDepth = 8;
     }
@@ -521,13 +529,20 @@ int BBBMatrix::Init(Json::Value config)
     }
     for (int x = 0; x < 256; x++) {
         int v = x;
-        if (m_panelScan == 32) {
-            v &= 0xFE;
-        }
-        if (m_colorDepth == 6 && (v == 3 || v == 2)) {
-            v = 4;
-        } else if (m_colorDepth == 7 && v == 1) {
-            v = 2;
+        if (drop) {
+            if (m_colorDepth == 7) {
+                if (v > 0 && v < 4) v = 4;
+                v &= 0xFC;
+            } else {
+                if (v > 0 && v < 2) v = 2;
+                v &= 0xFE;
+            }
+        } else {
+            if (m_colorDepth == 6 && (v == 3 || v == 2)) {
+                v = 4;
+            } else if (m_colorDepth == 7 && v == 1) {
+                v = 2;
+            }
         }
         
         float f = v;

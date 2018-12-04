@@ -559,7 +559,7 @@ int SendChannelData(char *channelData) {
 	if (logMask & VB_CHANNELDATA) {
         char buf[128];
         sprintf(buf, "Channel Data starting at channel %d", minimumNeededChannel);
-		HexDump("Channel Data", &channelData[minimumNeededChannel], 16);
+		HexDump(buf, &channelData[minimumNeededChannel], 16);
 	}
 
     for (i = 0; i < channelOutputCount; i++) {

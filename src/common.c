@@ -124,7 +124,10 @@ void HexDump(char *title, void *data, int len) {
 		} else {
 			sprintf( tmpStr + strlen(tmpStr), "   " );
 			for( ; x > 0 ; x-- ) {
-				if ( isgraph( str[16-x] ) || str[16-x] == ' ' ) {
+                if (str[16-x] == '%' || str[16-x] == '\\') {
+                    //these are escapes for the Log call, so don't display them
+                    sprintf( tmpStr + strlen(tmpStr), "." );
+                } else if ( isgraph( str[16-x] ) || str[16-x] == ' ') {
 					sprintf( tmpStr + strlen(tmpStr), "%c", str[16-x]);
 				} else {
 					sprintf( tmpStr + strlen(tmpStr), "." );
@@ -150,7 +153,10 @@ void HexDump(char *title, void *data, int len) {
 	}
 	sprintf( tmpStr + strlen(tmpStr), "   " );
 	for( y = 0; y < x ; y++ ) {
-		if ( isgraph( str[y] ) || str[y] == ' ' ) {
+        if (str[16-x] == '%' || str[16-x] == '\\') {
+            //these are escapes for the Log call, so don't display them
+            sprintf( tmpStr + strlen(tmpStr), "." );
+        } else if ( isgraph( str[y] ) || str[y] == ' ' ) {
 			sprintf( tmpStr + strlen(tmpStr), "%c", str[y]);
 		} else {
 			sprintf( tmpStr + strlen(tmpStr), "." );

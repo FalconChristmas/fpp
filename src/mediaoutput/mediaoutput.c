@@ -135,7 +135,11 @@ std::string GetVideoFilenameForMedia(const std::string &filename, std::string &e
     videoPath += "/";
     videoPath += bfile;
 
-    if ((oext == "mp3") || (oext == "ogg") || (oext == "m4a")) {
+    if ((oext == "mp4") || (oext == "avi") || (oext == "mov") || (oext == "mkv")) {
+        if (FileExists(videoPath + oext)) {
+            ext = oext;
+        }
+    } else if ((oext == "mp3") || (oext == "ogg") || (oext == "m4a")) {
         if (FileExists(videoPath + "mp4")) {
             ext = "mp4";
         } else if (FileExists(videoPath + "avi")) {

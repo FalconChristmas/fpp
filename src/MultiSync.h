@@ -134,8 +134,6 @@ class MultiSync {
 		unsigned int minorVersion, FPPMode fppMode, std::string address,
 		std::string hostname, std::string version, std::string model);
 
-	MultiSyncSystem GetLocalSystemInfo(void);
-
 	Json::Value GetSystems(void);
 
 	void Ping(int discover = 0);
@@ -157,7 +155,7 @@ class MultiSync {
 	MultiSyncSystemType ModelStringToType(std::string model);
 	void FillLocalSystemInfo(void);
 	std::string GetHardwareModel(void);
-	std::string GetTypeString(MultiSyncSystemType type);
+    std::string GetTypeString(MultiSyncSystemType type);
 
 	int  OpenBroadcastSocket(void);
 	void SendBroadcastPacket(void *outBuf, int len);
@@ -188,6 +186,7 @@ class MultiSync {
 
 	pthread_mutex_t              m_systemsLock;
 	std::vector<MultiSyncSystem> m_systems;
+    int  m_numLocalSystems;
 
 	int  m_broadcastSock;
 	int  m_controlSock;
@@ -197,7 +196,7 @@ class MultiSync {
 	int  m_receiveSock;
 
 	std::string         m_hostname;
-	char                m_localAddress[16];
+    std::string         m_localAddress;
 	struct sockaddr_in  m_srcAddr;
 	struct sockaddr_in  m_receiveSrcAddr;
 	struct sockaddr_in  m_broadcastDestAddr;

@@ -582,7 +582,7 @@ function media_duration_cache($media, $duration_seconds = null, $filesize = null
  */
 function human_filesize($path) {
     // cannot use filesize($path) as that returns a signed 32bit number so maxes out at 2GB
-    $kbytes = trim(shell_exec("du -k " . $path . " | cut -f1 "));
+    $kbytes = trim(shell_exec("du -k \"" . $path . "\" | cut -f1 "));
     if (strlen($kbytes) < 3) {
         $bytes = filesize($path);
         $sz = 'BKMGTP';
