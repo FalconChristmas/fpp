@@ -1573,7 +1573,7 @@ function GetFPPSystems()
 		$elem['Local'] = 0;
 		$elem['Platform'] = "Unknown";
 
-		$matches = preg_grep("/" . $elem['IP'] . "/", $localIPs);
+		$matches = preg_grep("/^" . $elem['IP'] . "$/", $localIPs);
 		if (count($matches))
 			$elem['Local'] = 1;
 
