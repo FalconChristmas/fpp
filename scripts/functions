@@ -659,6 +659,18 @@ runUserHookScript() {
 }
 
 #############################################################################
+# Helper scripts for running at boot time
+runBootHookScripts() {
+	runUserHookScript boot
+
+	/bin/ls -1 ${PLUGINDIR}/*/scripts/boot.sh 2> /dev/null | while read FILE
+	do
+		echo "Running: ${FILE}"
+		/bin/bash ${FILE}
+	done
+}
+
+#############################################################################
 # Helper scripts for running the User and Plugin pre/post start/stop scripts.
 # These are normally run from fppd_start and fppd_stop
 runPreStartScripts() {

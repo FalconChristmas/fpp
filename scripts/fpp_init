@@ -36,6 +36,9 @@ then
 fi
 ##############################################################################
 
+# Run any user boot-time scripts
+runBootHookScripts
+
 # On systems running Stretch, the fpp_init is called prior to network
 # so we can use the opportunity to configure the network adapapters
 # and DNS and other hardware
