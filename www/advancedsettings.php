@@ -143,7 +143,7 @@ function flashEMMCBtrfs() {
 		</tr>
 <?
     }
-if ($settings['LastBlock'] < 7000000) {
+if (isset($settings["LastBlock"]) && $settings['LastBlock'] < 7000000) {
     $addnewfsbutton = false;
     if ($settings['Platform'] == "Raspberry Pi") {
         exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
