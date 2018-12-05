@@ -286,6 +286,17 @@ $plugins = Array(
 		'sourceUrl'   => 'https://github.com/LightsOnHudson/FPP-Plugin-Switcher.git',
 		'bugUrl'      => 'https://github.com/LightsOnHudson/FPP-Plugin-Switcher/issues',
 		'sha'         => '1819feea757afa369ae8c35a411847a50cb8c458',
+	),
+
+	Array(
+		'shortName'   => 'fpp-after-hours',
+		'name'        => 'FPP After Hours',
+		'author'      => 'Jason Cross (jcross)',
+		'description' => 'After hours internet radio stream plugin',
+		'homeUrl'     => 'https://github.com/jcrossbdn/fpp-after-hours',
+		'sourceUrl'   => 'https://github.com/jcrossbdn/fpp-after-hours.git',
+		'bugUrl'      => 'https://github.com/jcrossbdn/fpp-after-hours/issues',
+		'sha'         => '1d0dec3fede85b5ad905fcb0560d646c60434cb3',
 	)
 
 );
