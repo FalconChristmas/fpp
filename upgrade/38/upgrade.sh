@@ -7,11 +7,14 @@
 # the Master system.
 
 # Enable Apache2's CGI module
+echo "Enabling Apache CGI module"
 a2enmod cgi
 
 # Copy new Apache site config into place
+echo "Copying new Apache config into place"
 sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/apache2.site > /etc/apache2/sites-enabled/000-default.conf
 
 # Restart Apache
-nohup systemctl restart apache2 &
+echo "Restarting Apache...  This will cause you to lose connectivity if upgrading via web browser."
+nohup systemctl restart apache2 > /dev/null 2>&1 &
 
