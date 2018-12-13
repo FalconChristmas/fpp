@@ -10,7 +10,7 @@
 a2enmod cgi
 
 # Copy new Apache site config into place
-cp ${FPPDIR}/etc/apache2.site /etc/apache2/sites-enabled/000-default.conf
+sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/apache2.site > /etc/apache2/sites-enabled/000-default.conf
 
 # Restart Apache
 nohup systemctl restart apache2 &
