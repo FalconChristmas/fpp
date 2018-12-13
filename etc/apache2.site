@@ -14,6 +14,16 @@
 		Require all granted
 	</Directory>
 
+	SetEnv GIT_PROJECT_ROOT /opt/fpp/.git
+	SetEnv GIT_HTTP_EXPORT_ALL 1
+	ScriptAlias /git/ /usr/lib/git-core/git-http-backend/
+
+	<Directory "/usr/lib/git-core">
+		Options +ExecCgi -MultiViews +SymLinksIfOwnerMatch
+		AllowOverride none
+		Require all granted
+	</Directory>
+
 	ErrorLog FPPHOME/media/logs/apache2-error.log
 #	ErrorLog ${APACHE_LOG_DIR}/error.log
 
