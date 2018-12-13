@@ -15,6 +15,6 @@ echo "Copying new Apache config into place"
 sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/apache2.site > /etc/apache2/sites-enabled/000-default.conf
 
 # Restart Apache
-echo "Restarting Apache...  This will cause you to lose connectivity if upgrading via web browser."
-nohup systemctl restart apache2 > /dev/null 2>&1 &
+#echo "Restarting Apache...  This will cause you to lose connectivity if upgrading via web browser."
+#nohup systemctl restart apache2 > /dev/null 2>&1 &
 
