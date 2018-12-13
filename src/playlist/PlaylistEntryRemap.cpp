@@ -40,6 +40,7 @@ PlaylistEntryRemap::PlaylistEntryRemap(PlaylistEntryBase *parent)
 	m_dstChannel(0),
 	m_channelCount(0),
 	m_loops(0),
+	m_reverse(0),
     m_processor(nullptr)
 {
     LogDebug(VB_PLAYLIST, "PlaylistEntryRemap::PlaylistEntryRemap()\n");
@@ -99,8 +100,9 @@ int PlaylistEntryRemap::Init(Json::Value &config)
 	m_dstChannel   = config["destination"].asInt();
 	m_channelCount = config["count"].asInt();
 	m_loops        = config["loops"].asInt();
+	m_reverse      = config["reverse"].asInt();
     
-    m_processor = new RemapOutputProcessor(m_srcChannel, m_dstChannel, m_channelCount, m_loops);
+    m_processor = new RemapOutputProcessor(m_srcChannel, m_dstChannel, m_channelCount, m_loops, m_reverse);
 	return PlaylistEntryBase::Init(config);
 }
 
@@ -128,7 +130,8 @@ int PlaylistEntryRemap::StartPlaying(void)
                 return rp->getSourceChannel() == this->m_srcChannel
                 && rp->getDestChannel() == this->m_dstChannel
                 && rp->getLoops() == this->m_loops
-                && rp->getCount() == this->m_channelCount;
+                && rp->getCount() == this->m_channelCount
+                && rp->getReverse() == this->m_reverse;
             }
             return false;
         };

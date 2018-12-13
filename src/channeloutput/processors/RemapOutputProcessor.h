@@ -23,7 +23,7 @@
 class RemapOutputProcessor : public OutputProcessor {
 public:
     RemapOutputProcessor(const Json::Value &config);
-    RemapOutputProcessor(int src, int dst, int count, int loop);
+    RemapOutputProcessor(int src, int dst, int count, int loop, int reverse);
     virtual ~RemapOutputProcessor();
     
     virtual void ProcessData(unsigned char *channelData) const;
@@ -34,6 +34,7 @@ public:
     int getDestChannel() const { return destChannel;}
     int getCount() const { return count;}
     int getLoops() const { return loops;}
+    int getReverse() const { return reverse;}
     
     virtual void GetRequiredChannelRange(int &min, int &max);
 
@@ -42,6 +43,7 @@ protected:
     int destChannel;
     int count;
     int loops;
+    int reverse;
 };
 
 #endif

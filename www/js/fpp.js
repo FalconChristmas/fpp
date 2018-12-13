@@ -504,6 +504,7 @@ function AddPlaylistEntry() {
 				entry.destination = parseInt($('#dstChannel').val());
 				entry.count = parseInt($('#channelCount').val());
 				entry.loops = parseInt($('#remapLoops').val());
+				entry.reverse = parseInt($('#remapReverse').val());
 			}
 			else if (entry.type == 'dynamic')
 			{

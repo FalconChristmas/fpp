@@ -40,7 +40,18 @@ function PopulateOutputProcessorTable(data) {
             html += "Source Channel: <input class='source' type=text  size='6' maxlength='6' value='" + output.source + "'/>&nbsp;"
                       + "Destination: <input class='destination' type=text size='6' maxlength='6' value='" + output.destination + "'/>&nbsp;"
                       + "Count: <input class='count' type=text size='6' maxlength='6' value='" + output.count + "' />&nbsp;"
-                      + "Loops: <input class='loops' type=text size='6' maxlength='6' value='" + output.loops + "'/>";
+                      + "Loops: <input class='loops' type=text size='6' maxlength='6' value='" + output.loops + "'/>&nbsp;"
+                      + "Reverse: <select class='reverse'>";
+			html += "<option value='0' ";
+			if (output.reverse == 0) html += "selected";
+			html += ">None</option>";
+			html += "<option value='1' ";
+			if (output.reverse == 1) html += "selected";
+			html += ">By Channel</option>";
+			html += "<option value='2' ";
+			if (output.reverse == 2) html += "selected";
+			html += ">RGB Pixels</option>";
+			html += "</select>";
         } else if (type == "Brightness") {
             html += "Start Channel: <input class='start' type=text  size='6' maxlength='6' value='" + output.start + "'/>&nbsp;"
                 + "Channel Count: <input class='count' type=text size='6' maxlength='6' value='" + output.count + "'/>&nbsp;"
@@ -103,7 +114,8 @@ function SetOutputProcessors() {
                 source: parseInt($this.find("input.source").val()),
                 destination: parseInt($this.find("input.destination").val()),
                 count: parseInt($this.find("input.count").val()),
-                loops: parseInt($this.find("input.loops").val())
+                loops: parseInt($this.find("input.loops").val()),
+                reverse: parseInt($this.find("select.reverse").val())
 			};
             if ((remap.source > 0) &&
                 (remap.destination > 0) &&
@@ -197,7 +209,12 @@ function AddOtherTypeOptions(row, type) {
         config += "Source Channel: <input class='source' type=text  size='6' maxlength='6' value='1'/>&nbsp;"
                   + "Destination: <input class='destination' type=text size='6' maxlength='6' value='1'/>&nbsp;"
                   + "Count: <input class='count' type=text size='6' maxlength='6' value='1' />&nbsp;"
-                  + "Loops: <input class='loops' type=text size='6' maxlength='6' value='1'/>";
+                  + "Loops: <input class='loops' type=text size='6' maxlength='6' value='1'/>&nbsp;"
+                  + "Reverse: <select class='reverse'>"
+				  + "<option value='0'>None</option>"
+				  + "<option value='1'>By Channel</option>"
+		          + "<option value='2'>RGB Pixels</option>"
+		          + "</select>";
     } else if (type == "Brightness") {
         config += "Start Channel: <input class='start' type=text  size='6' maxlength='6' value='1'/>&nbsp;"
             + "Channel Count: <input class='count' type=text size='6' maxlength='6' value='1'/>&nbsp;"

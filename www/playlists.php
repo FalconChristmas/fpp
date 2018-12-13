@@ -1,3 +1,11 @@
+<?php
+$a = session_id();
+if(empty($a))
+{
+	session_start();
+}
+$_SESSION['session_id'] = session_id();
+?>
 <!DOCTYPE html>
 <html>
 <?php
@@ -5,12 +13,6 @@ require_once('config.php');
 require_once('playlistentry.php');
 //require_once('pi_functions.php');
 
-$a = session_id();
-if(empty($a))
-{
-	session_start();
-}
-$_SESSION['session_id'] = session_id();
 //ini_set('display_errors', 'On');
 error_reporting(E_ALL);
 SetSetting("settings.xml","mysetting","hellow2");
@@ -479,6 +481,7 @@ function PrintScriptOptions($id)
 				<tr><td>Destination Channel:</td><td><input id='dstChannel' type='text' size='6' maxlength='6'></td></tr>
 				<tr><td>Channel Count:</td><td><input id='channelCount' type='text' size='6' maxlength='6'></td></tr>
 				<tr><td>Loops:</td><td><input id='remapLoops' type='text' size='6' maxlength='6'></td></tr>
+				<tr><td>Reverse:</td><td><select id='remapReverse'><option value='0'>None</option><option value='1'>By Channel</option><option value='2'>RGB Pixels</option></select></td></tr>
 				</table>
 			</td>
 			</tr>
