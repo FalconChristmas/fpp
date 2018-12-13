@@ -13,5 +13,5 @@ a2enmod cgi
 cp ${FPPDIR}/etc/apache2.site /etc/apache2/sites-enabled/000-default.conf
 
 # Restart Apache
-systemctl restart apache2
+nohup systemctl restart apache2 &
 
