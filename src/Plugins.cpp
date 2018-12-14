@@ -181,7 +181,7 @@ void PluginCallbackManager::init()
 				}
 				else if (type == "event")
 				{
-					LogDebug(VB_PLUGIN, "Plugin %s supports nextplaylist callback.\n", ep->d_name);
+					LogDebug(VB_PLUGIN, "Plugin %s supports event callback.\n", ep->d_name);
 					EventCallback *eventcallback = new EventCallback(std::string(ep->d_name), filename);
 					mCallbacks.push_back(eventcallback);
 				}
