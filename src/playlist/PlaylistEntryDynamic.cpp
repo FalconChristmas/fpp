@@ -123,7 +123,7 @@ int PlaylistEntryDynamic::StartPlaying(void)
  */
 int PlaylistEntryDynamic::Process(void)
 {
-	LogDebug(VB_PLAYLIST, "PlaylistEntryDynamic::Process()\n");
+	LogExcess(VB_PLAYLIST, "PlaylistEntryDynamic::Process()\n");
 
 	if (m_playlistEntry)
 	{
@@ -171,6 +171,8 @@ Json::Value PlaylistEntryDynamic::GetConfig(void)
 
 	result["subType"] = m_subType;
 	result["data"] = m_data;
+	if (m_playlistEntry)
+		result["dynamic"] = m_playlistEntry->GetConfig();
 
 	return result;
 }

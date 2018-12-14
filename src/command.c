@@ -174,6 +174,9 @@ char *ProcessCommand(char *command, char *response)
             }
         } else {
             Json::Value pl = playlist->GetInfo();
+            if (pl["currentEntry"].isMember("dynamic"))
+                pl["currentEntry"] = pl["currentEntry"]["dynamic"];
+
             if ((pl["currentEntry"]["type"] == "both") ||
                 (pl["currentEntry"]["type"] == "media")) {
                 //printf(" %s\n", pl.toStyledString().c_str());
