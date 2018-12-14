@@ -52,6 +52,7 @@ class PlaylistEntryScript : public PlaylistEntryBase {
 	void RunScript(void);
 
 	std::string        m_scriptFilename;
+	std::string        m_scriptArgs;
 	int                m_blocking;
 };
 

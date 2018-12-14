@@ -152,13 +152,13 @@ function PlaylistEntryToTR(i, entry, editMode)
 		HTML += GetPlaylistRowHTML((i+1).toString(), "Branch", branchStr, "---", "", i.toString(), editMode);
 	}
 	else if(entry.type == 'mqtt')
-		HTML += GetPlaylistRowHTML((i+1).toString(), "MQTT", entry.topic, entry.message, "", i.toString(), editMode);
+		HTML += GetPlaylistRowHTML((i+1).toString(), "MQTT", "MQTT - " + entry.topic, entry.message, "", i.toString(), editMode);
 	else if(entry.type == 'dynamic')
-		HTML += GetPlaylistRowHTML((i+1).toString(), "Dynamic", entry.subType, entry.data, "", i.toString(), editMode);
+		HTML += GetPlaylistRowHTML((i+1).toString(), "Dynamic", "DYNAMIC - " + entry.subType, entry.data, "", i.toString(), editMode);
     else if(entry.type == 'volume')
-        HTML += GetPlaylistRowHTML((i+1).toString(), "Volume", entry.volume, "", "", i.toString(), editMode);
+        HTML += GetPlaylistRowHTML((i+1).toString(), "Volume", "VOLUME - " + entry.volume.toString(), "", "", i.toString(), editMode);
     else if(entry.type == 'url')
-		HTML += GetPlaylistRowHTML((i+1).toString(), "URL", entry.method + ' - ' + entry.url, "", entry.data, i.toString(), editMode);
+		HTML += GetPlaylistRowHTML((i+1).toString(), "URL", "URL - " + entry.method + ' - ' + entry.url, "", entry.data, i.toString(), editMode);
 	else if(entry.type == 'remap')
 	{
 		var desc = "Add ";
@@ -185,7 +185,7 @@ function PlaylistEntryToTR(i, entry, editMode)
 	else if(entry.type == 'plugin')
 		HTML += GetPlaylistRowHTML((i+1).toString(), "Plugin", "---", "", entry.data, editMode);
 	else if(entry.type == 'script')
-		HTML += GetPlaylistRowHTML((i+1).toString(), "Script", entry.scriptName, "---", "", i.toString(), editMode);
+		HTML += GetPlaylistRowHTML((i+1).toString(), "Script", entry.scriptName, entry.scriptArgs, "", i.toString(), editMode);
 
 	return HTML;
 }
@@ -409,8 +409,6 @@ function AddPlaylistEntry() {
 			var	type = document.getElementById("selType").value;
 			var	seqFile = document.getElementById("selSequence").value;
 			var	mediaFile = document.getElementById("selMedia").value;
-			var	videoOut = document.getElementById("videoOut").value;
-			var	scriptName = document.getElementById("selEvent").value;
 			var	eventSel = document.getElementById("selEvent");
 			var	eventID = eventSel.value;
 			var	eventName = '';
@@ -491,6 +489,7 @@ function AddPlaylistEntry() {
 			else if (entry.type == 'script')
 			{
 				entry.scriptName =  encodeURIComponent($('#selScript').val());
+				entry.scriptArgs =  encodeURIComponent($('#selScript_args').val());
 			}
 			else if (entry.type == 'mqtt')
 			{
@@ -510,6 +509,7 @@ function AddPlaylistEntry() {
 			{
 				entry.subType = $('#dynamicSubType').val();
 				entry.data = $('#dynamicData').val();
+				entry.dataArgs = $('#dynamicData_args').val();
 			}
             else if (entry.type == 'volume')
             {
@@ -533,31 +533,6 @@ function AddPlaylistEntry() {
 			}).fail(function() {
 				$.jGrowl("Error: Unable to add new playlist entry.");
 			});
-
-			return;
-
-			var	pause = document.getElementById("txtPause").value;
-			var url = "fppxml.php?command=addPlaylistEntry&type=" + type +
-								"&seqFile=" + encodeURIComponent(seqFile) +
-								"&mediaFile=" + encodeURIComponent(mediaFile) +
-								"&pause=" + pause +
-								"&scriptName=" + encodeURIComponent(scriptName) +
-								"&eventID=" + encodeURIComponent(eventID) + 
-								"&eventName=" + encodeURIComponent(eventName) +
-								"&pluginData=" + encodeURIComponent(pluginData);
-			xmlhttp.open("GET",url,false);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-	 
-			xmlhttp.onreadystatechange = function () {
-				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
-				{
-					var xmlDoc=xmlhttp.responseXML; 
-          PopulatePlayListEntries(name.value,false);
-				}
-			};
-			
-			xmlhttp.send();
-
 		}
 
 function ConvertPlaylistsToJSON() {

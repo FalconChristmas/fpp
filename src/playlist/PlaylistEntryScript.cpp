@@ -69,6 +69,7 @@ int PlaylistEntryScript::Init(Json::Value &config)
 	}
 
 	m_scriptFilename = config["scriptName"].asString();
+	m_scriptArgs = config["scriptArgs"].asString();
 	m_blocking = config["blocking"].asInt();
 
 	// FIXME, blocking not supported yet
@@ -169,6 +170,14 @@ void PlaylistEntryScript::RunScript(void)
 
 			token = strtok(NULL, " ");
 		}
+
+		std::vector<std::string> parts = split(m_scriptArgs, ' ');
+		for (int p = 0; p < parts.size(); p++)
+		{
+			args[i] = strdup(parts[p].c_str());
+			i++;
+		}
+
 		args[i] = NULL;
 
 		if (chdir(getScriptDirectory()))
@@ -179,6 +188,7 @@ void PlaylistEntryScript::RunScript(void)
 		}
 
 		setenv("FPP_EVENT_SCRIPT", m_scriptFilename.c_str(), 0);
+		setenv("FPP_EVENT_ARGS", m_scriptArgs.c_str(), 0);
 
 		if (m_blocking)
 		{

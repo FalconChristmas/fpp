@@ -1246,10 +1246,12 @@ function GenerateJSONPlaylistEntry($entry)
 			'			"enabled": 1,' . "\n" .
 			'			"playOnce": %d,' . "\n" .
 			'			"scriptName": "%s",' . "\n" .
+			'			"scriptArgs": "%s",' . "\n" .
 			'			"blocking": %d' . "\n" .
 			'		}',
 			0, // Play Once
 			$entry->scriptName,
+			$entry->scriptArgs,
 			0  // Blocking
 			);
 	}
