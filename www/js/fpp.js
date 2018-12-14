@@ -1946,6 +1946,11 @@ function RemovePlaylistEntry()	{
 			$('#daemonStatus').html("FPPD is running.");
 		}
 
+		var Volume = parseInt(jsonStatus.volume);
+		$('#volume').html(Volume);
+		$('#slider').slider('value', Volume);
+		SetSpeakerIndicator(Volume);
+
 		SetupUIForMode(fppMode);
 
 		if (fppMode == 1) {
