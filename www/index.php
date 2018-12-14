@@ -225,7 +225,7 @@ include 'common/menuHead.inc';
           <tr class="playlistHeader">
             <th class='colPlaylistNumber'>#</th>
             <th class='colPlaylistData1'>Media File / Script / Event / Pause </th>
-            <th class='colPlaylistData2'>Sequence / Delay</th>
+            <th class='colPlaylistData2'>Sequence / Delay / Data</th>
             <th class='colPlaylistData3'></th>
           </tr>
 						<tbody id='tblPlaylistLeadInHeader' style='display: none;'>
