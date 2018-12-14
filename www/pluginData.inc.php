@@ -7,10 +7,10 @@ $plugins = Array(
 		'name'        => 'Vast V-FMT212R',
 		'author'      => 'Mat Mrosko (Materdaddy)',
 		'description' => 'Basic RDS/Audio support for the Vast Electronics V-FMT212R USB FM Transmitter',
-		'homeUrl'     => 'https://github.com/Materdaddy/fpp-vastfmt',
-		'sourceUrl'   => 'https://github.com/Materdaddy/fpp-vastfmt.git',
-		'bugUrl'      => 'https://github.com/Materdaddy/fpp-vastfmt/issues',
-		'sha'         => 'fd01a57464e9001441c11ae54dced2e1019c18bf',
+		'homeUrl'     => 'https://github.com/FalconChristmas/fpp-vastfmt',
+		'sourceUrl'   => 'https://github.com/FalconChristmas/fpp-vastfmt.git',
+		'bugUrl'      => 'https://github.com/FalconChristmas/fpp-vastfmt/issues',
+		'sha'         => '749dc6bce52276a44e1223647809083947aa037d',
 	),
 
 	Array(
