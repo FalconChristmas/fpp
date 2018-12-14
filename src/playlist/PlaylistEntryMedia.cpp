@@ -26,6 +26,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <boost/algorithm/string.hpp>
+
 #include "log.h"
 #include "mediadetails.h"
 #include "mpg123.h"
@@ -275,21 +277,8 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 		return 0;
 	}
 
-	std::string ext = tmpFile.substr(found + 1);
+	std::string ext = boost::algorithm::to_lower_copy(tmpFile.substr(found + 1));
 
-	int filenameLen = tmpFile.length();
-	if (getFPPmode() == REMOTE_MODE)
-	{
-		// For v1.0 MultiSync, we can't sync audio to audio, so check for
-		// a video file if the master is playing an audio file
-		if ((ext == "mp3") || (ext == "ogg") || (ext == "m4a"))
-		{
-			tmpFile.replace(filenameLen - ext.length(), 3, "mp4");
-			LogDebug(VB_MEDIAOUT,
-				"Master is playing %s audio, remote will try %s Video\n",
-				m_mediaFilename.c_str(), tmpFile);
-		}
-	}
     LogDebug(VB_PLAYLIST, "PlaylistEntryMedia - Starting %s\n", tmpFile.c_str());
 
     std::string vOut = m_videoOutput;

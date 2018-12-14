@@ -30,6 +30,8 @@
 #include <string>
 #include <set>
 
+#include <boost/algorithm/string.hpp>
+
 #include "log.h"
 #include "common.h"
 #include "mediaoutput.h"
@@ -128,32 +130,52 @@ inline bool FileExists(const std::string &s) {
 }
 std::string GetVideoFilenameForMedia(const std::string &filename, std::string &ext) {
     ext = "";
+    std::string result("");
     std::size_t found = filename.find_last_of(".");
     std::string oext = filename.substr(found + 1);
+    std::string lext = boost::algorithm::to_lower_copy(oext);
     std::string bfile = filename.substr(0, found + 1);
     std::string videoPath(getVideoDirectory());
     videoPath += "/";
     videoPath += bfile;
 
-    if ((oext == "mp4") || (oext == "avi") || (oext == "mov") || (oext == "mkv")) {
+    if ((lext == "mp4") || (lext == "avi") || (lext == "mov") || (lext == "mkv")) {
         if (FileExists(videoPath + oext)) {
-            ext = oext;
+            ext = lext;
+            result = bfile + oext;
+        } else if (FileExists(videoPath + lext)) {
+            ext = lext;
+            result = bfile + lext;
         }
-    } else if ((oext == "mp3") || (oext == "ogg") || (oext == "m4a")) {
+    } else if ((lext == "mp3") || (lext == "ogg") || (lext == "m4a")) {
         if (FileExists(videoPath + "mp4")) {
             ext = "mp4";
+            result = bfile + "mp4";
+        } else if (FileExists(videoPath + "MP4")) {
+            ext = "mp4";
+            result = bfile + "MP4";
         } else if (FileExists(videoPath + "avi")) {
             ext = "avi";
+            result = bfile + "avi";
+        } else if (FileExists(videoPath + "AVI")) {
+            ext = "avi";
+            result = bfile + "AVI";
         } else if (FileExists(videoPath + "mov")) {
             ext = "mov";
+            result = bfile + "mov";
+        } else if (FileExists(videoPath + "MOV")) {
+            ext = "mov";
+            result = bfile + "MOV";
         } else if (FileExists(videoPath + "mkv")) {
             ext = "mkv";
+            result = bfile + "mkv";
+        } else if (FileExists(videoPath + "MKV")) {
+            ext = "mkv";
+            result = bfile + "MKV";
         }
     }
-    if (ext != "") {
-        return bfile + ext;
-    }
-    return "";
+
+    return result;
 }
 
 bool HasVideoForMedia(char *filename) {
@@ -187,7 +209,7 @@ int OpenMediaOutput(char *filename) {
                  tmpFile.c_str());
         return 0;
     }
-    std::string ext = tmpFile.substr(found + 1);
+    std::string ext = boost::algorithm::to_lower_copy(tmpFile.substr(found + 1));
 
 	if (getFPPmode() == REMOTE_MODE) {
 		// For v1.0 MultiSync, we can't sync audio to audio, so check for
