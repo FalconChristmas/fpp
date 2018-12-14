@@ -1901,12 +1901,16 @@ function GetFileInfo(&$root, &$doc, $dirName, $fileName)
 			//Get the media duration from file
 			$ThisFileInfo = $getID3->analyze($fileFullName);
 			//cache it
-			media_duration_cache($fileName, $ThisFileInfo['playtime_seconds'], $filesize);
+			if (isset($ThisFileInfo['playtime_seconds']))
+				media_duration_cache($fileName, $ThisFileInfo['playtime_seconds'], $filesize);
 		} else {
 			$ThisFileInfo['playtime_seconds'] = $cache_duration;
 		}
 
-		$value = $doc->createTextNode(human_playtime($ThisFileInfo['playtime_seconds']));
+		if (isset($ThisFileInfo['playtime_seconds']))
+			$value = $doc->createTextNode(human_playtime($ThisFileInfo['playtime_seconds']));
+		else
+			$value = $doc->createTextNode("Unknown");
 	}else{
 		//just return the filesize
 		$value = $doc->createTextNode(human_filesize($fileFullName));

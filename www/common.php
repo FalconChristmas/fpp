@@ -587,7 +587,9 @@ function human_filesize($path) {
         $bytes = filesize($path);
         $sz = 'BKMGTP';
         $factor = floor((strlen($bytes) - 1) / 3);
-        return sprintf("%.2f", $bytes / pow(1024, $factor)) . @$sz[$factor] . ($factor > 0 ?  "B" : "");
+		if ($factor)
+	        return sprintf("%.2f", $bytes / pow(1024, $factor)) . @$sz[$factor] . ($factor > 0 ?  "B" : "");
+        return sprintf("%d", $bytes / pow(1024, $factor)) . @$sz[$factor] . ($factor > 0 ?  "B" : "");
     }
 	$sz = 'KMGTP';
 	$factor = floor((strlen($kbytes) - 1) / 3);
@@ -1017,6 +1019,9 @@ function prettyPrintJSON( $json )
 }
 
 function DisableOutputBuffering() {
+	// for NGINX, set the X-Accel-Buffering header
+	header('X-Accel-Buffering: no');
+
 	// Turn off output buffering
 	ini_set('output_buffering', 'off');
 
@@ -1045,9 +1050,6 @@ function DisableOutputBuffering() {
 
 	ob_implicit_flush(true);
 	flush();
-
-        // for NGINX, set the X-Accel-Buffering header
-        header('X-Accel-Buffering: no');
 }
 
 ?>
