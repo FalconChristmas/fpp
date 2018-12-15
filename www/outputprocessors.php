@@ -51,6 +51,9 @@ function PopulateOutputProcessorTable(data) {
 			html += "<option value='2' ";
 			if (output.reverse == 2) html += "selected";
 			html += ">RGB Pixels</option>";
+			html += "<option value='3' ";
+			if (output.reverse == 3) html += "selected";
+			html += ">RGBW Pixels</option>";
 			html += "</select>";
         } else if (type == "Brightness") {
             html += "Start Channel: <input class='start' type=text  size='6' maxlength='6' value='" + output.start + "'/>&nbsp;"
@@ -214,6 +217,7 @@ function AddOtherTypeOptions(row, type) {
 				  + "<option value='0'>None</option>"
 				  + "<option value='1'>By Channel</option>"
 		          + "<option value='2'>RGB Pixels</option>"
+		          + "<option value='3'>RGBW Pixels</option>"
 		          + "</select>";
     } else if (type == "Brightness") {
         config += "Start Channel: <input class='start' type=text  size='6' maxlength='6' value='1'/>&nbsp;"

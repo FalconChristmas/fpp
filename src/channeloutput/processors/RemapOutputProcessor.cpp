@@ -109,5 +109,28 @@ void RemapOutputProcessor::ProcessData(unsigned char *channelData) const {
                     }
                 }
                 break;
+
+        case 3: // Reverse as a string of RGBW pixels
+                for (int l = 0; l < loops; l++) {
+                    if (count > 1) {
+                        if (!l) { // First loop, reverse pixels while copying
+                            for (int c = 0; c < count;) {
+                                channelData[destChannel + c + 0] = channelData[sourceChannel + count - 1 - c - 3];
+                                channelData[destChannel + c + 1] = channelData[sourceChannel + count - 1 - c - 2];
+                                channelData[destChannel + c + 2] = channelData[sourceChannel + count - 1 - c - 1];
+                                channelData[destChannel + c + 3] = channelData[sourceChannel + count - 1 - c - 0];
+                                c += 4;
+                            }
+                        } else { // Subsequent loops, just copy first reversed block for speed
+                            memcpy(channelData + destChannel + (l * count),
+                                   channelData + destChannel,
+                                   count);
+                        }
+                    } else {
+                        // Shouldn't ever get here, can't reverse pixels if only 1 channel
+                        channelData[destChannel + l] = channelData[sourceChannel];
+                    }
+                }
+                break;
     }
 }
