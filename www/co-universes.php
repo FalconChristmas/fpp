@@ -104,12 +104,12 @@ function PopulateInterfaces()
 <div id='tab-e131'>
 	<div id='divE131'>
 		<fieldset class="fs">
-			<legend> E1.31 / ArtNet </legend>
+			<legend> E1.31 / ArtNet / DDP</legend>
 			<div id='divE131Data'>
 
 				<div style="overflow: hidden; padding: 10px;">
-					<b>Enable E1.31 /ArtNet Output:</b> <input type="checkbox" id="E131Enabled"/><br><br>
-					E1.31 / ArtNet Interface: <select id="selE131interfaces" onChange="SetE131interface();"><? PopulateInterfaces(); ?></select>
+					<b>Enable E1.31 / ArtNet / DDP Output:</b> <input type="checkbox" id="E131Enabled"/><br><br>
+					Source Interface: <select id="selE131interfaces" onChange="SetE131interface();"><? PopulateInterfaces(); ?></select>
 					<br><br>
 
 					<div>

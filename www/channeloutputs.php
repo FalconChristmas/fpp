@@ -14,7 +14,7 @@ include 'common/menuHead.inc';
 
 var channelOutputs = [];
 var channelOutputsLookup = [];
-var currentTabTitle = "E1.31 / ArtNet";
+var currentTabTitle = "E1.31 / ArtNet / DDP";
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -222,7 +222,7 @@ tr.rowUniverseDetails td
 		<div class='title'>Channel Outputs</div>
 		<div id="tabs">
 			<ul>
-				<li><a href="#tab-e131">E1.31 / ArtNet</a></li>
+				<li><a href="#tab-e131">E1.31 / ArtNet / DDP</a></li>
 <?
 	if ($settings['Platform'] == "Raspberry Pi")
 	{
