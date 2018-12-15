@@ -15,8 +15,22 @@ lastPlaylistSection = '';
 var max_retries = 60;
 var retry_poll_interval_arr = [];
 
+var minimalUI = 0;
+
 var statusTimeout = null;
 var lastStatus = '';
+
+function ShowPlaylistDetails() {
+	$('#statusPlaylistDetailsWrapper').show();
+	$('#btnShowPlaylistDetails').hide();
+	$('#btnHidePlaylistDetails').show();
+}
+
+function HidePlaylistDetails() {
+	$('#statusPlaylistDetailsWrapper').hide();
+	$('#btnShowPlaylistDetails').show();
+	$('#btnHidePlaylistDetails').hide();
+}
 
 function PopulateLists() {
 	PlaylistTypeChanged();
@@ -75,23 +89,39 @@ function GetPlaylistRowHTML(ID, type, data1, data2, data3, firstlast, editMode)
 	var HTML = "";
 
 	HTML += "<tr id=\"playlistRow" + ID + "\">";
-	HTML += "<td class=\"colPlaylistNumber "
 
-	if (editMode)
-		HTML += "colPlaylistNumberDrag";
+	if (minimalUI)
+	{
+		HTML += "<td class=\"colPlaylistNumber\" id = \"colEntryNumber" + ID + "\" >" + ID + ".</td>";
+		HTML += "<td class=\"colPlaylistData1\">" + data1;
+		if (data2 && (data2 != '---'))
+			HTML += "<br>" + data2;
 
-	HTML += "\" id = \"colEntryNumber" + ID + "\" >" + ID + ".</td>";
+		if (data3 && (data3 != '---'))
+			HTML += "<br>" + data3;
 
-	if (editMode)
-		HTML += "<td class=\"colPlaylistType\">" + type + "</td>";
+		HTML += "</td>";
+	}
+	else
+	{
+		HTML += "<td class=\"colPlaylistNumber "
 
-	HTML += "<td class=\"colPlaylistData1\">" + data1 + "</td>";
-	HTML += "<td class=\"colPlaylistData2\">" + data2 + "</td>"
-    if (data3) {
-        HTML += "<td class=\"colPlaylistData3\">" + data3 + "</td>"
-    } else {
-        HTML += "<td class=\"colPlaylistData3\"></td>"
-    }
+		if (editMode)
+			HTML += "colPlaylistNumberDrag";
+
+		HTML += "\" id = \"colEntryNumber" + ID + "\" >" + ID + ".</td>";
+
+		if (editMode)
+			HTML += "<td class=\"colPlaylistType\">" + type + "</td>";
+
+		HTML += "<td class=\"colPlaylistData1\">" + data1 + "</td>";
+		HTML += "<td class=\"colPlaylistData2\">" + data2 + "</td>"
+		if (data3) {
+	        HTML += "<td class=\"colPlaylistData3\">" + data3 + "</td>"
+		} else {
+			HTML += "<td class=\"colPlaylistData3\"></td>"
+		}
+	}
 	HTML += "</tr>";
 
 	return HTML;
@@ -149,7 +179,7 @@ function PlaylistEntryToTR(i, entry, editMode)
 			}
 
 		}
-		HTML += GetPlaylistRowHTML((i+1).toString(), "Branch", branchStr, "---", "", i.toString(), editMode);
+		HTML += GetPlaylistRowHTML((i+1).toString(), "Branch", "BRANCH - " + branchStr, "---", "", i.toString(), editMode);
 	}
 	else if(entry.type == 'mqtt')
 		HTML += GetPlaylistRowHTML((i+1).toString(), "MQTT", "MQTT - " + entry.topic, entry.message, "", i.toString(), editMode);
@@ -1957,6 +1987,8 @@ function RemovePlaylistEntry()	{
 				$('#txtPlayerStatus').html("Idle");
 				$('#txtTimePlayed').html("");								
 				$('#txtTimeRemaining').html("");	
+				$('#txtSeqFilename').html("");
+				$('#txtMediaFilename').html("");
 								
 				// Enable Play
 				SetButtonState('#btnPlay','enable');
@@ -1985,6 +2017,8 @@ function RemovePlaylistEntry()	{
 				$('#txtPlayerStatus').html(playerStatusText);
 				$('#txtTimePlayed').html("Elapsed: " + jsonStatus.time_elapsed );				
 				$('#txtTimeRemaining').html("Remaining: " + jsonStatus.time_remaining );	
+				$('#txtSeqFilename').html(jsonStatus.current_sequence);
+				$('#txtMediaFilename').html(jsonStatus.current_song);
 
 //				if(currentPlaylist.index != gblCurrentPlaylistIndex && 
 //					currentPlaylist.index <= gblCurrentLoadedPlaylistCount) {
@@ -2016,6 +2050,8 @@ if (1) {
                 $('#txtPlayerStatus').html(playerStatusText);
                 $('#txtTimePlayed').html("Elapsed: " + jsonStatus.time_elapsed );
                 $('#txtTimeRemaining').html("Remaining: " + jsonStatus.time_remaining );
+				$('#txtSeqFilename').html(jsonStatus.current_sequence);
+				$('#txtMediaFilename').html(jsonStatus.current_song);
 
 			}
 

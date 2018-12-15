@@ -125,7 +125,12 @@ include 'common/menuHead.inc';
 							<option id="optFPPDmode_Master" value="6">Player (Master)</option>
 							<option id="optFPPDmode_Remote" value="8">Player (Remote)</option>
 							<option id="optFPPDmode_Bridge" value="1">Bridge</option>
-						</select></td>
+						</select>
+<?
+	if (isset($settings['fppMode']) && ($settings['fppMode'] == 'master' || $settings['fppMode'] == 'player'))
+		echo "<a href='/minimal.php'>Switch to Compact Status UI</a>";
+?>
+						</td>
           <td class='controlButton'>&nbsp;</td>
         </tr>
         <tr>
