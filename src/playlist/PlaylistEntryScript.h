@@ -49,8 +49,6 @@ class PlaylistEntryScript : public PlaylistEntryBase {
 	std::string GetScriptName(void) { return m_scriptFilename; }
 
   private:
-	void RunScript(void);
-
 	std::string        m_scriptFilename;
 	std::string        m_scriptArgs;
 	int                m_blocking;

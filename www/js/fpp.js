@@ -2475,6 +2475,7 @@ function GetRunningEffects()
 		$('#newEventEffect').val('');
 		$('#newEventStartChannel').val('');
 		$('#newEventScript').val('');
+		$('#newEventScriptArgs').val('');
 		$('#newEvent').show();
 	}
 
@@ -2490,8 +2491,9 @@ function GetRunningEffects()
 
 		$('#newEventName').val($('#event_' + TriggerEventSelected).find('td:eq(1)').text());
 		$('#newEventScript').val($('#event_' + TriggerEventSelected).find('td:eq(2)').text());
-		$('#newEventEffect').val($('#event_' + TriggerEventSelected).find('td:eq(3)').text());
-		$('#newEventStartChannel').val($('#event_' + TriggerEventSelected).find('td:eq(4)').text());
+		$('#newEventScriptArgs').val($('#event_' + TriggerEventSelected).find('td:eq(3)').text());
+		$('#newEventEffect').val($('#event_' + TriggerEventSelected).find('td:eq(4)').text());
+		$('#newEventStartChannel').val($('#event_' + TriggerEventSelected).find('td:eq(5)').text());
 		$('#newEvent').show();
 
 		NewEventEffectChanged();
@@ -2512,21 +2514,23 @@ function GetRunningEffects()
 		"<tr id='event_" + id + "'><td class='eventTblID'>" + idStr +
             "</td><td class='eventTblName'>" + name +
             "</td><td class='eventTblScript'>" + script +
+            "</td><td class='eventTblScriptArgs'>" + scriptArgs +
             "</td><td class='eventTblEffect'>" + effect +
             "</td><td class='eventTblStartCh'>" + startChannel +
             "</td></tr>"
 		);
 	}
 
-	function UpdateExistingEvent(name, id, effect, startChannel, script)
+	function UpdateExistingEvent(name, id, effect, startChannel, script, scriptArgs)
 	{
 		var idStr = id.replace('_', ' / ');
 		var row = $('#tblEventEntries tr#event_' + id);
 		row.find('td:eq(0)').text(idStr);
 		row.find('td:eq(1)').text(name);
 		row.find('td:eq(2)').text(script);
-		row.find('td:eq(3)').text(effect);
-		row.find('td:eq(4)').text(startChannel);
+		row.find('td:eq(3)').text(scriptArgs);
+		row.find('td:eq(4)').text(effect);
+		row.find('td:eq(5)').text(startChannel);
 	}
 
 	function SaveEvent()
@@ -2535,7 +2539,8 @@ function GetRunningEffects()
 			"&id=" + $('#newEventID').val() +
 			"&effect=" + $('#newEventEffect').val() +
 			"&startChannel=" + $('#newEventStartChannel').val() +
-			"&script=" + $('#newEventScript').val();
+			"&script=" + $('#newEventScript').val() +
+			"&scriptArgs=" + encodeURIComponent($('#newEventScriptArgs').val());
 		var xmlhttp=new XMLHttpRequest();
 		xmlhttp.open("GET",url,true);
 		xmlhttp.setRequestHeader('Content-Type', 'text/xml');
@@ -2546,13 +2551,13 @@ function GetRunningEffects()
 				{
 					UpdateExistingEvent($('#newEventName').val(), $('#newEventID').val(),
 						$('#newEventEffect').val(), $('#newEventStartChannel').val(),
-						$('#newEventScript').val());
+						$('#newEventScript').val(), $('#newEventScriptArgs').val());
 				}
 				else
 				{
 					InsertNewEvent($('#newEventName').val(), $('#newEventID').val(),
 						$('#newEventEffect').val(), $('#newEventStartChannel').val(),
-						$('#newEventScript').val());
+						$('#newEventScript').val(), $('#newEventScriptArgs').val());
 				}
 				SetButtonState('#btnTriggerEvent','disable');
 				SetButtonState('#btnEditEvent','disable');

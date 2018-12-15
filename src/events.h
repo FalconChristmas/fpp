@@ -34,6 +34,7 @@ typedef struct fppevent {
 	char *effect;
 	int   startChannel;
 	char *script;
+	char *scriptArgs;
 } FPPevent;
 
 int TriggerEvent(const char major, const char minor);

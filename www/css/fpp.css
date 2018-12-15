@@ -194,13 +194,16 @@
 	width: 30%;
 }
 .eventTblEffect{
-	width: 30%;
+	width: 20%;
 }
 .eventTblStartCh{
 	width: 5%;
 }
 .eventTblScript{
-	width: 30%;
+	width: 20%;
+}
+.eventTblScriptArgs{
+	width: 20%;
 }
 
 .aboutLeft{

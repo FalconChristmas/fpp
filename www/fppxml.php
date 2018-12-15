@@ -664,9 +664,10 @@ function SaveEvent()
 		"name='%s'\n" .
 		"effect='%s'\n" .
 		"startChannel=%s\n" .
-		"script='%s'\n",
+		"script=%s\n" .
+		"scriptArgs=%s\n",
 		$ids[0], $ids[1], $name,
-		$eseq, $_GET['startChannel'], $_GET['script']);
+		$eseq, $_GET['startChannel'], $_GET['script'], $_GET['scriptArgs']);
 	fwrite($f, $eventDefinition);
 	fclose($f);
 

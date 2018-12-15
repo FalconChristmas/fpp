@@ -117,6 +117,7 @@ OBJECTS_fppd = \
 	Scheduler.o \
 	ScheduleEntry.o \
 	Sequence.o \
+	scripts.o \
 	settings.o \
 	$(NULL)
 LIBS_fppd = \

@@ -24,8 +24,8 @@ elif [ -x $1 ]
 then
 	EXECUTABLE=$1
 	shift
-	exec $EXECUTABLE $@
+	exec $EXECUTABLE "$@"
 else
 	
-	echo "ERROR: Unknown file extension: ${EXT}"
+	echo "ERROR: Unknown file extension: ${EXT} on $1"
 fi

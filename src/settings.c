@@ -133,21 +133,21 @@ void initSettings(int argc, char **argv)
 // Returns a string that's the white-space trimmed version
 // of the input string.  Also trim double quotes now that the
 // settings file will have double quotes in it.
-char *trimwhitespace(const char *str)
+char *trimwhitespace(const char *str, int quotesAlso)
 {
 	const char *end;
 	size_t out_size;
 	char *out;
 
 	// Trim leading space
-	while((isspace(*str)) || (*str == '"')) str++;
+	while((isspace(*str)) || (quotesAlso && (*str == '"'))) str++;
 
 	if(*str == 0)  // All spaces?
 		return strdup("");
 
 	// Trim trailing space
 	end = str + strlen(str) - 1;
-	while(end > str && ((isspace(*end)) || (*end == '"'))) end--;
+	while(end > str && ((isspace(*end)) || (quotesAlso && (*end == '"')))) end--;
 	end++;
 
 	// Set output size to minimum of trimmed string length

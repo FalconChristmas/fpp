@@ -74,7 +74,7 @@ struct config
 
 // Helpers
 void initSettings(int argc, char **argv);
-char *trimwhitespace(const char *str);
+char *trimwhitespace(const char *str, int quotesAlso = 1);
 char *modeToString(int mode);
 void usage(char *appname);
 

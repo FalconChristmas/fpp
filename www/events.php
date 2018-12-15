@@ -83,10 +83,14 @@ function SaveControlChannels()
 
 				$info['effect'] = preg_replace('/.eseq$/', '', $info['effect']);
 
+				if (!isset($info['scriptArgs']))
+					$info['scriptArgs'] = '';
+
 				echo "<tr id='event_" . $eventFile . "'><td class='eventTblID'>" .
 						$info['majorID'] . ' / ' . $info['minorID'] .
 						"</td><td class='eventTblName'>" . $info['name'] .
 						"</td><td class='eventTblScript'>" . $info['script'] .
+						"</td><td class='eventTblScriptArgs'>" . $info['scriptArgs'] .
 						"</td><td class='eventTblEffect'>" . $info['effect'] .
 						"</td><td class='eventTblStartCh'>" . $info['startChannel'] .
 						"</td></tr>\n";
@@ -189,6 +193,7 @@ function SaveControlChannels()
 						<td class='fppTableHeader eventTblID'>ID</td>
 						<td class='fppTableHeader eventTblName'>Name</td>
 						<td class='fppTableHeader eventTblScript'>Script</td>
+						<td class='fppTableHeader eventTblScriptArgs'>Args</td>
 						<td class='fppTableHeader eventTblEffect'>Effect</td>
 						<td class='fppTableHeader eventTblStartCh'>Ch.</td>
 					</tr>
@@ -224,6 +229,7 @@ function SaveControlChannels()
 							<option value=''>--- NONE ---</option>
 <? PrintScriptOptions(); ?>
 </select></td></tr>
+					<tr><td width="20%">Script Args:</td><td width="80%"><input id="newEventScriptArgs" class="default-value" type="text" value="" size="60" maxlength="255" /></td></tr>
 				</table>
 				<input id= "btnSaveNewEvent" type="button" class ="buttons" value="Save Event" onClick="SaveEvent();">
 				<input id= "btnCancelNewEvent" type="button" class ="buttons" value="Cancel Edit" onClick="CancelNewEvent();">

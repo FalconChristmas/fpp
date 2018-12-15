@@ -34,6 +34,7 @@
 #include "ogg123.h"
 #include "omxplayer.h"
 #include "PlaylistEntryScript.h"
+#include "scripts.h"
 #include "settings.h"
 
 /*
@@ -97,7 +98,7 @@ int PlaylistEntryScript::StartPlaying(void)
 
 	PlaylistEntryBase::StartPlaying();
 
-	RunScript();
+	RunScript(m_scriptFilename, m_scriptArgs, m_blocking);
 
 	FinishPlay();
 
@@ -117,92 +118,6 @@ int PlaylistEntryScript::Stop(void)
 	}
 
 	return PlaylistEntryBase::Stop();
-}
-
-/*
- *
- */
-void PlaylistEntryScript::RunScript(void)
-{
-	pid_t pid = 0;
-	char  userScript[1024];
-	char  eventScript[1024];
-
-	// Setup the script from our user
-	strcpy(userScript, getScriptDirectory());
-	strcat(userScript, "/");
-	strncat(userScript, m_scriptFilename.c_str(), 1024 - strlen(userScript));
-	userScript[1023] = '\0';
-
-	// Setup the wrapper
-	memcpy(eventScript, getFPPDirectory(), sizeof(eventScript));
-	strncat(eventScript, "/scripts/eventScript", sizeof(eventScript)-strlen(eventScript)-1);
-
-	if (!m_blocking)
-		pid = fork();
-
-	if (pid == 0) // Event Script process
-	{
-		if (!m_blocking)
-		{
-#ifndef NOROOT
-			struct sched_param param;
-			param.sched_priority = 0;
-			if (sched_setscheduler(0, SCHED_OTHER, &param) != 0)
-			{
-				perror("sched_setscheduler");
-				exit(EXIT_FAILURE);
-			}
-#endif
-
-			CloseOpenFiles();
-		}
-
-		char *args[128];
-		char *token = strtok(userScript, " ");
-		int   i = 1;
-
-		args[0] = strdup(userScript);
-		while (token && i < 126)
-		{
-			args[i] = strdup(token);
-			i++;
-
-			token = strtok(NULL, " ");
-		}
-
-		std::vector<std::string> parts = split(m_scriptArgs, ' ');
-		for (int p = 0; p < parts.size(); p++)
-		{
-			args[i] = strdup(parts[p].c_str());
-			i++;
-		}
-
-		args[i] = NULL;
-
-		if (chdir(getScriptDirectory()))
-		{
-			LogErr(VB_EVENT, "Unable to change directory to %s: %s\n",
-				getScriptDirectory(), strerror(errno));
-			exit(EXIT_FAILURE);
-		}
-
-		setenv("FPP_EVENT_SCRIPT", m_scriptFilename.c_str(), 0);
-		setenv("FPP_EVENT_ARGS", m_scriptArgs.c_str(), 0);
-
-		if (m_blocking)
-		{
-		}
-		else
-		{
-			execvp(eventScript, args);
-
-			LogErr(VB_EVENT, "RunScript(), ERROR, we shouldn't be here, "
-				"this means that execvp() failed trying to run '%s %s': %s\n",
-				eventScript, args[0], strerror(errno));
-			exit(EXIT_FAILURE);
-		}
-	}
 }
 
 /*

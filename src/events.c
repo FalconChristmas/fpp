@@ -35,6 +35,7 @@
 #include "events.h"
 #include "log.h"
 #include "MultiSync.h"
+#include "scripts.h"
 #include "settings.h"
 #include "Plugins.h"
 
@@ -52,6 +53,9 @@ void FreeEvent(FPPevent *e)
 
 	if (e->script)
 		free(e->script);
+
+	if (e->scriptArgs)
+		free(e->scriptArgs);
 
 	free(e);
 }
@@ -113,8 +117,9 @@ FPPevent* LoadEvent(const char *id)
 			continue;
 		}
 
+
 		char *key = token;
-		token = trimwhitespace(strtok(NULL, "="));
+		token = trimwhitespace(strtok(NULL, "="), 0);
 
 		if (token && strlen(token))
 		{
@@ -200,6 +205,20 @@ FPPevent* LoadEvent(const char *id)
 						event->script = strdup(token);
 				}
 			}
+			else if (!strcmp(key, "scriptArgs"))
+			{
+				if (strlen(token) && strcmp(token, "''"))
+				{
+					if (token[0] == '\'')
+					{
+						event->scriptArgs = strdup(token + 1);
+						if (event->scriptArgs[strlen(event->scriptArgs) - 1] == '\'')
+							event->scriptArgs[strlen(event->scriptArgs) - 1] = '\0';
+					}
+					else
+						event->scriptArgs = strdup(token);
+				}
+			}
 		}
 
 		if (token)
@@ -222,7 +241,12 @@ FPPevent* LoadEvent(const char *id)
 	LogDebug(VB_EVENT, "Event ID    : %d/%d\n", event->majorID, event->minorID);
 
 	if (event->script)
+	{
 		LogDebug(VB_EVENT, "Event Script: %s\n", event->script);
+
+		if (event->scriptArgs)
+			LogDebug(VB_EVENT, "Script Args : %s\n", event->scriptArgs);
+	}
 
 	if (event->effect)
 	{
@@ -236,78 +260,9 @@ FPPevent* LoadEvent(const char *id)
 /*
  * Fork and run an event script
  */
-int RunEventScript(FPPevent *e)
+void RunEventScript(FPPevent *e)
 {
-	pid_t pid = 0;
-	char  userScript[1024];
-	char  eventScript[1024];
-
-	// Setup the script from our user
-	strcpy(userScript, getScriptDirectory());
-	strcat(userScript, "/");
-	strncat(userScript, e->script, 1024 - strlen(userScript));
-	userScript[1023] = '\0';
-
-	// Setup the wrapper
-	memcpy(eventScript, getFPPDirectory(), sizeof(eventScript));
-	strncat(eventScript, "/scripts/eventScript", sizeof(eventScript)-strlen(eventScript)-1);
-
-	pid = fork();
-	if (pid == 0) // Event Script process
-	{
-#ifndef NOROOT
-		struct sched_param param;
-		param.sched_priority = 0;
-		if (sched_setscheduler(0, SCHED_OTHER, &param) != 0)
-		{
-			perror("sched_setscheduler");
-			exit(EXIT_FAILURE);
-		}
-#endif
-
-		CloseOpenFiles();
-
-		char *args[128];
-		char *token = strtok(userScript, " ");
-		int   i = 1;
-
-		args[0] = strdup(userScript);
-		while (token && i < 126)
-		{
-			args[i] = strdup(token);
-			i++;
-
-			token = strtok(NULL, " ");
-		}
-		args[i] = NULL;
-
-		if (chdir(getScriptDirectory()))
-		{
-			LogErr(VB_EVENT, "Unable to change directory to %s: %s\n",
-				getScriptDirectory(), strerror(errno));
-			exit(EXIT_FAILURE);
-		}
-
-		char majorID[3];
-		char minorID[3];
-
-		sprintf(majorID, "%d", e->majorID);
-		sprintf(minorID, "%d", e->minorID);
-
-		setenv("FPP_EVENT_MAJOR_ID", majorID, 0);
-		setenv("FPP_EVENT_MINOR_ID", minorID, 0);
-		setenv("FPP_EVENT_NAME", e->name, 0);
-		setenv("FPP_EVENT_SCRIPT", e->script, 0);
-
-		execvp(eventScript, args);
-
-		LogErr(VB_EVENT, "RunEventScript(), ERROR, we shouldn't be here, "
-			"this means that execvp() failed trying to run '%s %s': %s\n",
-			eventScript, args[0], strerror(errno));
-		exit(EXIT_FAILURE);
-	}
-
-	return 1;
+	RunScript(e->script, e->scriptArgs);
 }
 
 /*
