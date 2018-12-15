@@ -88,6 +88,10 @@ done
 # Fixup ownership when mounted on an non-FAT filesystem
 chown -R ${FPPUSER}.${FPPUSER} ${FPPHOME}/media
 
+echo "FPP - Copying Apache config into place"
+SITEFILE="/etc/apache2/sites-enabled/000-default.conf"
+sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/apache2.site > ${SITEFILE}
+
 # need to make samba log dir or samba may not start
 mkdir -p /var/log/samba
 
