@@ -407,6 +407,10 @@ if ($settings['fppMode'] == 'master')
 ?>
 			<hr>
 			<b>Copy Files from Master to Remotes</b><br>
+<?
+	if (!isset($settings['MultiSyncCopySequences']))
+		$settings['MultiSyncCopySequences'] = 1;
+?>
 			<? PrintSettingCheckbox("Copy Sequences", "MultiSyncCopySequences", 0, 0, "1", "0"); ?> Copy Sequences<br>
 			<? PrintSettingCheckbox("Copy Effects", "MultiSyncCopyEffects", 0, 0, "1", "0"); ?> Copy Effects<br>
 			<? PrintSettingCheckbox("Copy Videos", "MultiSyncCopyVideos", 0, 0, "1", "0"); ?> Copy Videos<br>

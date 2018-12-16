@@ -9,7 +9,8 @@ DisableOutputBuffering();
 
 $dirs = Array();
 
-if (isset($settings['MultiSyncCopySequences']) && ($settings['MultiSyncCopySequences'] == 1))
+if ((isset($settings['MultiSyncCopySequences']) && ($settings['MultiSyncCopySequences'] == 1)) ||
+	(!isset($settings['MultiSyncCopySequences'])))
 	array_push($dirs, 'sequences');
 if (isset($settings['MultiSyncCopyEffects']) && ($settings['MultiSyncCopyEffects'] == 1))
 	array_push($dirs, 'effects');
