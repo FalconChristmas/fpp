@@ -112,6 +112,7 @@ int PlaylistEntryPause::Stop(void)
 	LogDebug(VB_PLAYLIST, "PlaylistEntryPause::Stop()\n");
 
 	m_finishTime = GetTime();
+	FinishPlay();
 
 	return PlaylistEntryBase::Stop();
 }

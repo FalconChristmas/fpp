@@ -727,6 +727,8 @@ int Playlist::Cleanup(void)
  */
 int Playlist::Play(const char *filename, const int position, const int repeat)
 {
+	int hadToStop = 0;
+
 	if (!strlen(filename))
 		return 0;
 
@@ -738,7 +740,9 @@ int Playlist::Play(const char *filename, const int position, const int repeat)
 	if ((FPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||
 		(FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY))
 	{
-		StopNow();
+		hadToStop = 1;
+
+		StopNow(1);
 
 		sleep(1);
 	}
@@ -754,6 +758,9 @@ int Playlist::Play(const char *filename, const int position, const int repeat)
 		SetRepeat(repeat);
 
 	FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
+
+	if (hadToStop)
+		Start();
 
 	return 1;
 }
