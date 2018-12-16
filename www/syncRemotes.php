@@ -7,10 +7,24 @@ require_once("common.php");
 
 DisableOutputBuffering();
 
-$dirs = Array(
-	'sequences',
-	'videos'
-	);
+$dirs = Array();
+
+if (isset($settings['MultiSyncCopySequences']) && ($settings['MultiSyncCopySequences'] == 1))
+	array_push($dirs, 'sequences');
+if (isset($settings['MultiSyncCopyEffects']) && ($settings['MultiSyncCopyEffects'] == 1))
+	array_push($dirs, 'effects');
+if (isset($settings['MultiSyncCopyVideos']) && ($settings['MultiSyncCopyVideos'] == 1))
+	array_push($dirs, 'videos');
+if (isset($settings['MultiSyncCopyEvents']) && ($settings['MultiSyncCopyEvents'] == 1))
+	array_push($dirs, 'events');
+if (isset($settings['MultiSyncCopyScripts']) && ($settings['MultiSyncCopyScripts'] == 1))
+	array_push($dirs, 'scripts');
+
+if (sizeof($dirs) == 0)
+{
+	echo "You do not have any files set to be copied.  Please return to the <a href='/multisync.php'>MultiSync setup page</a> and select which files you wish to copy to the remotes.";
+	exit(0);
+}
 
 $remotes = Array();
 if (!isset($settings['fppMode']) || ($settings['fppMode'] != 'master')) {

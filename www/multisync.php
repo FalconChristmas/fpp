@@ -394,17 +394,23 @@ if ($settings['fppMode'] == 'master')
 				</span>
 			</font>
 			<br>
-                        <input type='button' class='buttons' value='Refresh' onClick='getFPPSystems();'>
+			<input type='button' class='buttons' value='Refresh' onClick='getFPPSystems();'>
+			<hr>
 <?php
 if ($settings['fppMode'] == 'master')
 {
 ?>
-                        <input type='button' class='buttons' value='Sync Files' onClick='location.href="syncRemotes.php";'>
+			<b>Copy Files from Master to Remotes</b><br>
+			<? PrintSettingCheckbox("Copy Sequences", "MultiSyncCopySequences", 0, 0, "1", "0"); ?> Copy Sequences<br>
+			<? PrintSettingCheckbox("Copy Effects", "MultiSyncCopyEffects", 0, 0, "1", "0"); ?> Copy Effects<br>
+			<? PrintSettingCheckbox("Copy Videos", "MultiSyncCopyVideos", 0, 0, "1", "0"); ?> Copy Videos<br>
+			<? PrintSettingCheckbox("Copy Events", "MultiSyncCopyEvents", 0, 0, "1", "0"); ?> Copy Events<br>
+			<? PrintSettingCheckbox("Copy Scripts", "MultiSyncCopyScripts", 0, 0, "1", "0"); ?> Copy Scripts<br>
+			<input type='button' class='buttons' value='Copy Files' onClick='location.href="syncRemotes.php";'>
+			<hr>
 <?php
 }
 ?>
-                        <br>
-            <br>
             <span><b>Views:</b></span>
             <br>
             <input type='button' class='buttons' value='Normal View'
