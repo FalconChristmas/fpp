@@ -395,11 +395,17 @@ if ($settings['fppMode'] == 'master')
 			</font>
 			<br>
 			<input type='button' class='buttons' value='Refresh' onClick='getFPPSystems();'>
-			<hr>
+<?
+	if ($advancedView == true)
+		echo "<input type='button' class='buttons' value='Normal View' onclick=\"window.open('/multisync.php','_self')\">";
+	else
+		echo "<input type='button' class='buttons' value='Advanced View' onclick=\"window.open('/multisync.php?advancedView=true','_self')\">";
+?>
 <?php
 if ($settings['fppMode'] == 'master')
 {
 ?>
+			<hr>
 			<b>Copy Files from Master to Remotes</b><br>
 			<? PrintSettingCheckbox("Copy Sequences", "MultiSyncCopySequences", 0, 0, "1", "0"); ?> Copy Sequences<br>
 			<? PrintSettingCheckbox("Copy Effects", "MultiSyncCopyEffects", 0, 0, "1", "0"); ?> Copy Effects<br>
@@ -407,17 +413,9 @@ if ($settings['fppMode'] == 'master')
 			<? PrintSettingCheckbox("Copy Events", "MultiSyncCopyEvents", 0, 0, "1", "0"); ?> Copy Events<br>
 			<? PrintSettingCheckbox("Copy Scripts", "MultiSyncCopyScripts", 0, 0, "1", "0"); ?> Copy Scripts<br>
 			<input type='button' class='buttons' value='Copy Files' onClick='location.href="syncRemotes.php";'>
-			<hr>
 <?php
 }
 ?>
-            <span><b>Views:</b></span>
-            <br>
-            <input type='button' class='buttons' value='Normal View'
-                   onclick="window.open('/multisync.php','_self')">
-            <br>
-            <input type='button' class='buttons' value='Advanced View'
-                   onclick="window.open('/multisync.php?advancedView=true','_self')">
 		</fieldset>
 	</div>
 	<?php include 'common/footer.inc'; ?>
