@@ -105,7 +105,7 @@ foreach ( $remotes as $remote ) {
 			$compress = "-z";
 		}
 
-		$command = "rsync -av --modify-window=1 $compress --stats $fppHome/media/$dir/ $remote::media/$dir/ 2>&1";
+		$command = "rsync -rtDlv --modify-window=1 $compress --stats $fppHome/media/$dir/ $remote::media/$dir/ 2>&1";
 
 		echo "Command: $command\n";
 		echo "----------------------------------------------------------------------------------\n";
