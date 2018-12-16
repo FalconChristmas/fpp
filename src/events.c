@@ -262,7 +262,10 @@ FPPevent* LoadEvent(const char *id)
  */
 void RunEventScript(FPPevent *e)
 {
-	RunScript(e->script, e->scriptArgs);
+	if (e->scriptArgs)
+		RunScript(e->script, e->scriptArgs);
+	else
+		RunScript(e->script, "");
 }
 
 /*
