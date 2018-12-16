@@ -124,6 +124,7 @@ class Scheduler {
 	int           m_nowWeeklySeconds2;
 	int           m_lastLoadDate;
 
+	time_t        m_lastProcTime;
 	time_t        m_lastLoadTime;
 	time_t        m_lastCalculateTime;
 

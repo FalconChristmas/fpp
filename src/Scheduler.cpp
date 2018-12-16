@@ -49,6 +49,7 @@ Scheduler::Scheduler()
 	m_NextScheduleHasbeenLoaded(0),
 	m_nowWeeklySeconds2(0),
 	m_lastLoadDate(0),
+	m_lastProcTime(0),
 	m_lastLoadTime(0),
 	m_lastCalculateTime(0),
 	m_runThread(0),
@@ -65,13 +66,18 @@ Scheduler::~Scheduler()
 
 void Scheduler::ScheduleProc(void)
 {
-  if (m_lastLoadDate != GetCurrentDateInt())
+  time_t procTime = time(NULL);
+
+  if ((m_lastLoadDate != GetCurrentDateInt()) ||
+      ((procTime - m_lastProcTime) > 5))
   {
     if (FPPstatus == FPP_STATUS_IDLE)
       m_CurrentScheduleHasbeenLoaded = 0;
 
     m_NextScheduleHasbeenLoaded = 0;
   }
+
+  m_lastProcTime = procTime;
 
   if (!m_CurrentScheduleHasbeenLoaded || !m_NextScheduleHasbeenLoaded)
     LoadScheduleFromFile();
