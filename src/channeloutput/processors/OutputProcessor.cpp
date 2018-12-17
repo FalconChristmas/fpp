@@ -112,7 +112,7 @@ void OutputProcessors::GetRequiredChannelRange(int &min, int & max) {
     for (OutputProcessor *a : processors) {
         a->GetRequiredChannelRange(m1, m2);
         min = std::min(min, m1);
-        max = std::min(max, m2);
+        max = std::max(max, m2);
     }
 }
 
