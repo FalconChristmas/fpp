@@ -311,7 +311,7 @@ function PrintScriptOptions($id)
 	}
 	echo "</select>";
 
-	echo "<br>Arguments: <input id='" . $id . "_args' type='text' size='60' maxlength='255'>";
+	echo "<br>Arguments: <input id=\"" . $id . "_args\" type=\"text\" size=\"60\" maxlength=\"255\">";
 }
 
     function PrintVolumeOptions() {

@@ -115,7 +115,11 @@ function GetPlaylistRowHTML(ID, type, data1, data2, data3, firstlast, editMode)
 			HTML += "<td class=\"colPlaylistType\">" + type + "</td>";
 
 		HTML += "<td class=\"colPlaylistData1\">" + data1 + "</td>";
-		HTML += "<td class=\"colPlaylistData2\">" + data2 + "</td>"
+        if (data2) {
+            HTML += "<td class=\"colPlaylistData2\">" + data2 + "</td>"
+        } else {
+            HTML += "<td class=\"colPlaylistData2\"></td>"
+        }
 		if (data3) {
 	        HTML += "<td class=\"colPlaylistData3\">" + data3 + "</td>"
 		} else {
