@@ -166,7 +166,8 @@ apt-get install -y \
     gcc g++ firmware-realtek firmware-atheros firmware-ralink firmware-brcm80211 firmware-iwlwifi firmware-libertas firmware-zd1211\
     firmware-ti-connectivity resolvconf wireless-tools \
     mailutils mp3info linux-cpupower cpufrequtils \
-    usbutils usb-modeswitch locales lzma lshw lsof libiio-utils device-tree-compiler at haveged bluetooth bluez
+    usbutils usb-modeswitch locales lzma lshw lsof libiio-utils device-tree-compiler at haveged bluetooth bluez \
+    libzstd-dev zstd
 
 
 curl -L https://cpanmin.us | perl - --sudo App::cpanminus

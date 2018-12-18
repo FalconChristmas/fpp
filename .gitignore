@@ -8,7 +8,7 @@ src/fpp
 src/fppmm
 src/fppd
 src/fppversion.c
-src/pru/*.bin
+src/fsequtils
 src/util/seqdump
 src/Makefile.local
 cscope.out

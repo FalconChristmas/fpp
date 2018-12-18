@@ -62,29 +62,17 @@ extern int minimumNeededChannel;
 extern int maximumNeededChannel;
 
 Sequence::Sequence()
-  : m_seqFileSize(0),
+  :
     m_seqDuration(0),
     m_seqSecondsElapsed(0),
     m_seqSecondsRemaining(0),
     m_seqMSRemaining(0),
-    m_seqFile(NULL),
+    m_seqFile(nullptr),
     m_seqStarting(0),
     m_seqPaused(0),
     m_seqSingleStep(0),
     m_seqSingleStepBack(0),
-    m_seqVersionMajor(0),
-    m_seqVersionMinor(0),
-    m_seqVersion(0),
-    m_seqChanDataOffset(0),
-    m_seqFixedHeaderSize(0),
-    m_seqStepSize(8192),
-    m_seqStepTime(50),
-    m_seqNumPeriods(0),
     m_seqRefreshRate(20),
-    m_seqNumUniverses(0),
-    m_seqUniverseSize(0),
-    m_seqGamma(0),
-    m_seqColorEncoding(0),
     m_seqLastControlMajor(0),
     m_seqLastControlMinor(0),
     m_remoteBlankCount(0),
@@ -107,6 +95,9 @@ Sequence::~Sequence()
         delete m_readThread;
     }
     clearCaches();
+    if (m_seqFile) {
+        delete m_seqFile;
+    }
 }
 void Sequence::clearCaches() {
     while (!frameCache.empty()) {
@@ -136,47 +127,33 @@ void Sequence::ReadFramesLoop() {
         int cacheSize = frameCache.size();
         if (frameCache.size() < SEQUENCE_CACHE_FRAMECOUNT && m_seqStarting < 2 && m_seqFile && !m_doneRead) {
             uint64_t frame = m_lastFrameRead + 1;
-            uint64_t offset = frame * m_seqStepSize;
-            offset += m_seqChanDataOffset;
-            if (offset <= (m_seqFileSize - m_seqStepSize)) {
+            if (frame < m_seqFile->m_seqNumFrames) {
                 lock.unlock();
-
-
-                offset += minimumNeededChannel;
-                int maxChanToRead = m_seqStepSize;
-                if (maximumNeededChannel > 0 && maximumNeededChannel < m_seqStepSize) {
-                    maxChanToRead = maximumNeededChannel + 1;
-                }
-                maxChanToRead -= minimumNeededChannel;
-                FrameData *fd = new FrameData(frame, maxChanToRead);
                 
                 std::unique_lock<std::mutex> readlock(readFileLock);
-                FILE * file = m_seqFile;
+                FSEQFile *file = m_seqFile;
+                FrameData *fd = nullptr;
                 if (m_doneRead || file == nullptr) {
-                    memset(fd->data, 0, maxChanToRead);
-                } else if (fseeko(file, offset, SEEK_SET)) {
-                    LogErr(VB_SEQUENCE, "Failed to seek to proper offset for channel data! %lld\n", offset);
-                    memset(fd->data, 0, maxChanToRead);
+                    //memset(fd->data, 0, maxChanToRead);
                 } else {
-                    size_t bread = fread(fd->data, 1, maxChanToRead, file);
-                    if (bread != maxChanToRead) {
-                        LogErr(VB_SEQUENCE, "Failed to read channel data!   Needed to read %d but read %d\n", maxChanToRead, (int)bread);
-                    }
+                    fd = m_seqFile->getFrame(frame);
                 }
                 readlock.unlock();
                 
                 lock.lock();
-                if (m_lastFrameRead == (frame - 1)) {
-                    m_lastFrameRead = frame;
-                    frameCache.push_back(fd);
+                if (fd) {
+                    if (m_lastFrameRead == (frame - 1)) {
+                        m_lastFrameRead = frame;
+                        frameCache.push_back(fd);
 
-                    lock.unlock();
-                    frameLoadedSignal.notify_all();
-                    std::this_thread::sleep_for(5ms);
-                    lock.lock();
-                } else {
-                    //a skip is in progress, we don't need this frame anymore
-                    delete fd;
+                        lock.unlock();
+                        frameLoadedSignal.notify_all();
+                        std::this_thread::sleep_for(5ms);
+                        lock.lock();
+                    } else {
+                        //a skip is in progress, we don't need this frame anymore
+                        delete fd;
+                    }
                 }
             } else {
                 frameLoadedSignal.notify_all();
@@ -199,8 +176,6 @@ int Sequence::OpenSequenceFile(const char *filename, int startFrame, int startSe
     
     size_t bytesRead = 0;
     std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
-
-    m_seqFileSize = 0;
 
     if (IsSequenceRunning())
         CloseSequenceFile();
@@ -245,21 +220,15 @@ int Sequence::OpenSequenceFile(const char *filename, int startFrame, int startSe
         m_seqStarting = 0;
         return 0;
     }
-    m_seqFile = NULL;
-    FILE *seqFile = fopen((const char *)tmpFilename, "r");
+    
+    m_seqFile = nullptr;
+    FSEQFile *seqFile = FSEQFile::openFSEQFile(tmpFilename);
     if (seqFile == NULL) {
-        LogErr(VB_SEQUENCE, "Error opening sequence file: %s. fopen returned NULL\n",
+        LogErr(VB_SEQUENCE, "Error opening sequence file: %s. FSEQFile::openFSEQFile returned NULL\n",
             tmpFilename);
         m_seqStarting = 0;
         return 0;
     }
-    
-    fseeko(seqFile, 0L, SEEK_END);
-    m_seqFileSize = ftello(seqFile);
-    fseeko(seqFile, 0L, SEEK_SET);
-    
-    // Preload a chunk
-    posix_fadvise(fileno(seqFile), 0, 1024*1024, POSIX_FADV_WILLNEED);
 
     if (getFPPmode() == MASTER_MODE) {
         seqLock.unlock();
@@ -270,99 +239,26 @@ int Sequence::OpenSequenceFile(const char *filename, int startFrame, int startSe
         seqLock.lock();
     }
 
-    ///////////////////////////////////////////////////////////////////////
-    // Check 4-byte File format identifier
-    bytesRead = fread(tmpData, 1, DATA_DUMP_SIZE, seqFile);
-    if ((bytesRead < 4)
-        || (tmpData[0] != 'P' && tmpData[0] != 'F')
-        || tmpData[1] != 'S'
-        || tmpData[2] != 'E'
-        || tmpData[3] != 'Q') {
-        LogErr(VB_SEQUENCE, "Error opening sequence file: %s. Incorrect File Format header: '%s', bytesRead: %d\n",
-            filename, tmpData, bytesRead);
-        HexDump("Sequence File head:", tmpData, bytesRead);
-        fclose(seqFile);
-        m_seqStarting = 0;
-        return 0;
-    }
-
-    ///////////////////////////////////////////////////////////////////////
-    // Get Channel Data Offset
-    if (bytesRead < 6) {
-        LogErr(VB_SEQUENCE, "Sequence file %s too short, unable to read channel data offset value\n", filename);
-        HexDump("Sequence File head:", tmpData, bytesRead);
-        fclose(seqFile);
-        m_seqStarting = 0;
-        return 0;
-    }
-    m_seqChanDataOffset = tmpData[4] + (tmpData[5] << 8);
-
-    ///////////////////////////////////////////////////////////////////////
-    // Now that we know the header size, read the whole header in one shot
-    // we may have already read the whole thing
-    if (bytesRead < m_seqChanDataOffset) {
-        fseeko(seqFile, 0L, SEEK_SET);
-        bytesRead = fread(tmpData, 1, m_seqChanDataOffset, seqFile);
-    }
-    if (bytesRead < m_seqChanDataOffset) {
-        LogErr(VB_SEQUENCE, "Sequence file %s too short, unable to read fixed header size value\n", filename);
-        HexDump("Sequence File head:", tmpData, bytesRead);
-        fclose(seqFile);
-        m_seqStarting = 0;
-        return 0;
-    }
-
-    m_seqVersionMinor = tmpData[6];
-    m_seqVersionMajor = tmpData[7];
-    m_seqVersion      = (m_seqVersionMajor * 256) + m_seqVersionMinor;
-
-    m_seqFixedHeaderSize =
-        (tmpData[8])        + (tmpData[9] << 8);
-
-    m_seqStepSize =
-        (tmpData[10])       + (tmpData[11] << 8) +
-        (tmpData[12] << 16) + (tmpData[13] << 24);
-
-    m_seqNumPeriods =
-        (tmpData[14])       + (tmpData[15] << 8) +
-        (tmpData[16] << 16) + (tmpData[17] << 24);
-
-    m_seqStepTime =
-        (tmpData[18])       + (tmpData[19] << 8);
-
-    m_seqNumUniverses = 
-        (tmpData[20])       + (tmpData[21] << 8);
-
-    m_seqUniverseSize = 
-        (tmpData[22])       + (tmpData[23] << 8);
-
-    m_seqGamma         = tmpData[24];
-    m_seqColorEncoding = tmpData[25];
-
-    // End of v1.0 fields
-    if (m_seqVersion > 0x0100)
-    {
-    }
-
+    m_seqStepTime = seqFile->m_seqStepTime;
     m_seqRefreshRate = 1000 / m_seqStepTime;
     
     if (startSecond >= 0) {
         int frame = startSecond * 1000;
-        frame /= m_seqStepTime;
+        frame /= seqFile->m_seqStepTime;
         m_lastFrameRead = frame - 1;
         if (m_lastFrameRead < -1) m_lastFrameRead = -1;
     }
 
-    posix_fadvise(fileno(seqFile), 0, 0, POSIX_FADV_RANDOM);
-
-    // Calculate actual duration based on file size, not m_seqNumPeriods
-    m_seqMSRemaining = (int)(((float)(m_seqFileSize - m_seqChanDataOffset)
-        / (float)m_seqStepSize) * m_seqStepTime);
-    m_seqDuration = (int)((float)(m_seqFileSize - m_seqChanDataOffset)
-        / ((float)m_seqStepSize * (float)m_seqRefreshRate));
-
+    std::vector<std::pair<uint32_t, uint32_t>> ranges;
+    ranges.push_back(std::pair<uint32_t, uint32_t>(minimumNeededChannel, maximumNeededChannel - minimumNeededChannel + 1));
+    seqFile->prepareRead(ranges);
+    // Calculate duration
+    m_seqMSRemaining = seqFile->m_seqNumFrames * seqFile->m_seqStepTime;
+    m_seqDuration = m_seqMSRemaining;
+    m_seqDuration /= 1000;
     m_seqSecondsRemaining = m_seqDuration;
     SetChannelOutputRefreshRate(m_seqRefreshRate);
+    
     
     //start reading frames
     m_seqFile = seqFile;
@@ -377,25 +273,11 @@ int Sequence::OpenSequenceFile(const char *filename, int startFrame, int startSe
     seqLock.unlock();
     StartChannelOutputThread();
 
-    LogDebug(VB_SEQUENCE, "Sequence File Information\n");
-    LogDebug(VB_SEQUENCE, "seqFilename           : %s\n", m_seqFilename);
-    LogDebug(VB_SEQUENCE, "seqVersion            : %d.%d\n", m_seqVersionMajor, m_seqVersionMinor);
-    LogDebug(VB_SEQUENCE, "seqFormatID           : %c%c%c%c\n", tmpData[0], tmpData[1], tmpData[2], tmpData[3]);
-    LogDebug(VB_SEQUENCE, "seqChanDataOffset     : %lld\n", m_seqChanDataOffset);
-    LogDebug(VB_SEQUENCE, "seqFixedHeaderSize    : %lld\n", m_seqFixedHeaderSize);
-    LogDebug(VB_SEQUENCE, "seqStepSize           : %lld\n", m_seqStepSize);
-    LogDebug(VB_SEQUENCE, "seqNumPeriods         : %lld\n", m_seqNumPeriods);
-    LogDebug(VB_SEQUENCE, "seqStepTime           : %dms\n", m_seqStepTime);
-    LogDebug(VB_SEQUENCE, "seqNumUniverses       : %d *\n", m_seqNumUniverses);
-    LogDebug(VB_SEQUENCE, "seqUniverseSize       : %d *\n", m_seqUniverseSize);
-    LogDebug(VB_SEQUENCE, "seqGamma              : %d *\n", m_seqGamma);
-    LogDebug(VB_SEQUENCE, "seqColorEncoding      : %d *\n", m_seqColorEncoding);
+
     LogDebug(VB_SEQUENCE, "seqRefreshRate        : %d\n", m_seqRefreshRate);
-    LogDebug(VB_SEQUENCE, "seqFileSize           : %lld\n", m_seqFileSize);
+    LogDebug(VB_SEQUENCE, "seqFileSize           : %lld\n", seqFile->m_seqFileSize);
     LogDebug(VB_SEQUENCE, "seqDuration           : %d\n", m_seqDuration);
     LogDebug(VB_SEQUENCE, "seqMSRemaining        : %d\n", m_seqMSRemaining);
-    LogDebug(VB_SEQUENCE, "'*' denotes field is currently ignored by FPP\n");
-    
     return 1;
 }
 
@@ -528,9 +410,8 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
             pastFrameCache.push_back(data);
             lock.unlock();
             frameLoadSignal.notify_all();
-
-            memcpy(&m_seqData[minimumNeededChannel], data->data, data->size);
             
+            data->readFrame((uint8_t*)m_seqData);
             SetChannelOutputFrameNumber(data->frame);
             m_seqSecondsElapsed = data->frame * m_seqStepTime;
             m_seqSecondsElapsed /= 1000;
@@ -547,7 +428,7 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
                 m_lastFrameRead++;
                 if (!pastFrameCache.empty()) {
                     //and copy the last frame data
-                    memcpy(&m_seqData[minimumNeededChannel], pastFrameCache.back()->data, pastFrameCache.back()->size);
+                    pastFrameCache.back()->readFrame((uint8_t*)m_seqData);
                     m_dataProcessed = false;
                 }
             }
@@ -636,8 +517,8 @@ void Sequence::CloseSequenceFile(void) {
 
     std::unique_lock<std::mutex> readLock(readFileLock);
     if (m_seqFile) {
-        fclose(m_seqFile);
-        m_seqFile = NULL;
+        delete m_seqFile;
+        m_seqFile = nullptr;
     }
     readLock.unlock();
     

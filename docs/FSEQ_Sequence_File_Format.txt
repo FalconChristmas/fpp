@@ -1,27 +1,55 @@
+v1.0 spec
+0-3 - file identifier, must be 'PSEQ'
+4-5 - Offset to start of channel data
+6   - minor version, should be 0
+7   - major version, should be 2
+8-9 - fixed header length/index to first variable header
+10-13 - channel count per frame
+14-17 - number of frames
+18  - step time in ms, usually 20 or 40
+19  - bit flags/reserved should be 0
+20-21 - universe count, ignored by FPP
+22-23 - universe size, ignored by FPP
+24 - gamma, should be 1, ignored by FPP
+25 - color encoding, 2 for RGB, ignored by FPP
+26-27 - reserved, should be 0
+
+v2.0 spec
+0-3 - file identifier, must be 'PSEQ'
+4-5 - Offset to start of channel data
+6   - minor version, should be 0
+7   - major version, should be 2
+8-9 - fixed header length/index to first variable header
+10-13 - channel count per frame (*)
+14-17 - number of frames
+18  - step time in ms, usually 20 or 40
+19  - bit flags/reserved should be 0
+20  - compression type 0 for uncompressed, 1 for zstd
+21  - number of compression blocks, 0 if uncompressed
+22  - number of sparse ranges, 0  if none
+23  - bit flags/reserved, unused right now, should be 0
+24-31 - 64bit unique identifier, likely a timestamp or uuid
+numberOfBlocks*8 - compress block index
+   0-3 - frame number
+   4-7 - length of block
+numberOfSparseRanges*6 - sparse range definitions
+   0-2 - frame number
+   3-5 - number of channels
+
+(*) The channel count is per frame within this file which may not
+be the full number of channels needed to output.  For example, if there
+is a single "sparse range" of start channel 5000 with lengh 50, the
+channel count in bytes 10-13 will be "50" as there will only be 50
+channels per frame within the file.   If there are multiple sparse
+ranges, each range is appended one after another into the frame
+with the channel count being the total lengths of the ranges.
 
 
-
-
-
-
-Variable Length Headers in FSEQ v1.x spec
-- v1.1+
+Variable Length Headers in FSEQ  spec
+- v1.0+
   - 'mf' - Media Filename
     vh[0] = low byte of variable header length
     vh[1] = high byte of variable header length
     vh[2] = 'm'
     vh[3] = 'f'
     vh[4-Len] = NULL terminated media filename
-  - 'si' - Sparse Index
-    vh[0] = low byte of variable header length
-    vh[1] = high byte of variable header length
-    vh[2] = 's'
-    vh[3] = 'i'
-    vh[4] = low byte of number of entries in index
-    vh[5] = high byte of number of entries in index
-
-    Repeating struct of sparse index entries
-    vh[6+(i*4)] = low byte of channel count
-    vh[7+(i*4)] = high byte of channel count
-    vh[8+(i*4)] = low byte of destination channel
-    vh[9+(i*4)] = high byte of destination channel

@@ -36,6 +36,9 @@
 #include <atomic>
 #include <condition_variable>
 
+#include "fseq/FSEQFile.h"
+
+
 //1024K channels plus a few
 #define FPPD_MAX_CHANNELS 1048580
 #define DATA_DUMP_SIZE    28
@@ -63,7 +66,6 @@ class Sequence {
 	int   SequenceIsPaused(void);
     bool  isDataProcessed() const { return m_dataProcessed; }
 
-	uint64_t      m_seqFileSize;
 	int           m_seqDuration;
 	int           m_seqSecondsElapsed;
 	int           m_seqSecondsRemaining;
@@ -76,26 +78,14 @@ class Sequence {
 	char  NormalizeControlValue(char in);
 	char *CurrentSequenceFilename(void);
 
-	FILE* volatile     m_seqFile;
-    volatile uint64_t  m_seqStepSize;
-    
-    uint64_t      m_seqChanDataOffset;
-    uint64_t      m_seqFixedHeaderSize;
-    uint64_t      m_seqNumPeriods;
-    
-    int           m_seqStepTime;
-	volatile int  m_seqStarting;
+	FSEQFile     *m_seqFile;
+
+    volatile int  m_seqStarting;
 	int           m_seqPaused;
+    int           m_seqStepTime;
 	int           m_seqSingleStep;
 	int           m_seqSingleStepBack;
-	int           m_seqVersionMajor;
-	int           m_seqVersionMinor;
-	int           m_seqVersion;
 	int           m_seqRefreshRate;
-	int           m_seqNumUniverses;
-	int           m_seqUniverseSize;
-	int           m_seqGamma;
-	int           m_seqColorEncoding;
 	char          m_seqLastControlMajor;
 	char          m_seqLastControlMinor;
     int           m_remoteBlankCount;
@@ -103,14 +93,6 @@ class Sequence {
 
     std::recursive_mutex m_sequenceLock;
     
-    class FrameData {
-        public:
-        FrameData(int f, int sz) : frame(f), size(sz) { data = (uint8_t*)malloc(sz);}
-        ~FrameData() { if (data) free(data); };
-        uint8_t *data;
-        uint32_t frame;
-        uint32_t size;
-    };
     std::atomic_int m_lastFrameRead;
     volatile bool m_doneRead;
     volatile bool m_shuttingDown;

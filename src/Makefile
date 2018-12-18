@@ -4,10 +4,21 @@ ifneq ($(wildcard /usr/bin/ccache),)
 	CCACHE = ccache
 endif
 
-TARGETS = fpp fppmm fppd
+TARGETS = fpp fppmm fsequtils fppd
 SUBMODULES =
 
 INSTALL_PROGRAM = install -m 755 -p
+
+OBJECTS_fsequtils = \
+	fppversion.o \
+	log.o \
+    fseq/FSEQUtils.o \
+    fseq/FSEQFile.o \
+	$(NULL)
+LIBS_fsequtils = \
+    -lzstd -lz \
+	-lpthread \
+	$(NULL)
 
 OBJECTS_fpp = \
 	fpp.o \
@@ -71,6 +82,7 @@ OBJECTS_fppd = \
 	channeltester/RGBChase.o \
 	channeltester/RGBFill.o \
 	channeltester/SingleChase.o \
+    fseq/FSEQFile.o \
     ping.o \
 	command.o \
 	common.o \
@@ -122,6 +134,7 @@ OBJECTS_fppd = \
 	$(NULL)
 LIBS_fppd = \
 	-lpthread \
+    -lzstd -lz \
 	-ljsoncpp \
 	-lm \
 	-lmosquitto \
@@ -292,7 +305,14 @@ else
 # do something Linux-y
 CFLAGS += \
 	-DNOROOT \
+	-DPLATFORM_UNKNOWN \
 	$(NULL)
+LDFLAGS_fppd += \
+    -L. \
+	$(NULL)
+LDFLAGS_fsequtils += \
+    -L. \
+    $(NULL)
 endif
 
 ##############################################################################
@@ -351,6 +371,9 @@ fppmm: $(OBJECTS_fppmm)
 	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
 
 fppd: $(DEPS_fppd) $(OBJECTS_fppd)
+	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
+
+fsequtils: $(OBJECTS_fsequtils)
 	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
 
 fppversion.c: fppversion.sh force
