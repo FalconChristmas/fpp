@@ -1,3 +1,4 @@
+
 /*
  *   Falcon Player MultiSync 
  *
@@ -60,6 +61,7 @@
 #include "Plugins.h"
 #include "Sequence.h"
 #include "settings.h"
+#include "channeloutput/channeloutput.h"
 
 
 MultiSync *multiSync;
@@ -358,19 +360,37 @@ std::string MultiSync::GetTypeString(MultiSyncSystemType type)
 /*
  *
  */
-Json::Value MultiSync::GetSystems(void)
+Json::Value MultiSync::GetSystems(bool localOnly, bool timestamps)
 {
 	Json::Value result;
 	Json::Value systems(Json::arrayValue);
 
 	pthread_mutex_lock(&m_systemsLock);
 
-	for (int i = 0; i < m_systems.size(); i++) {
+    int max = localOnly ? m_numLocalSystems : m_systems.size();
+    
+    const std::vector<std::pair<uint32_t, uint32_t>> &ranges = GetOutputRanges();
+    bool first = true;
+    std::string range;
+    for (auto &a : ranges) {
+        if (!first) {
+            range += ",";
+        }
+        char buf[64];
+        sprintf(buf, "%d-%d", a.first, (a.first + a.second - 1));
+        range += buf;
+        first = false;
+    }
+
+    
+	for (int i = 0; i < max; i++) {
 		Json::Value system;
 
 		system["type"]         = GetTypeString(m_systems[i].type);
-		system["lastSeen"]     = (Json::UInt64)m_systems[i].lastSeen;
-		system["lastSeenStr"]  = m_systems[i].lastSeenStr;
+        if (timestamps) {
+            system["lastSeen"]     = (Json::UInt64)m_systems[i].lastSeen;
+            system["lastSeenStr"]  = m_systems[i].lastSeenStr;
+        }
 		system["majorVersion"] = m_systems[i].majorVersion;
 		system["minorVersion"] = m_systems[i].minorVersion;
 		system["fppMode"]      = m_systems[i].fppMode;
@@ -378,6 +398,9 @@ Json::Value MultiSync::GetSystems(void)
 		system["hostname"]     = m_systems[i].hostname;
 		system["version"]      = m_systems[i].version;
 		system["model"]        = m_systems[i].model;
+        if (i < m_numLocalSystems) {
+            system["channelRanges"] = range;
+        }
 
 		systems.append(system);
 	}

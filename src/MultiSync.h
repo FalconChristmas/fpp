@@ -134,7 +134,7 @@ class MultiSync {
 		unsigned int minorVersion, FPPMode fppMode, std::string address,
 		std::string hostname, std::string version, std::string model);
 
-	Json::Value GetSystems(void);
+	Json::Value GetSystems(bool localOnly = false, bool timestamps = true);
 
 	void Ping(int discover = 0);
 	void Discover(void) { Ping(1); }

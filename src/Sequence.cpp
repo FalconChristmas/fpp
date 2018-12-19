@@ -58,9 +58,6 @@ using namespace std::literals::chrono_literals;
 
 Sequence *sequence = NULL;
 
-extern int minimumNeededChannel;
-extern int maximumNeededChannel;
-
 Sequence::Sequence()
   :
     m_seqDuration(0),
@@ -249,9 +246,7 @@ int Sequence::OpenSequenceFile(const char *filename, int startFrame, int startSe
         if (m_lastFrameRead < -1) m_lastFrameRead = -1;
     }
 
-    std::vector<std::pair<uint32_t, uint32_t>> ranges;
-    ranges.push_back(std::pair<uint32_t, uint32_t>(minimumNeededChannel, maximumNeededChannel - minimumNeededChannel + 1));
-    seqFile->prepareRead(ranges);
+    seqFile->prepareRead(GetOutputRanges());
     // Calculate duration
     m_seqMSRemaining = seqFile->m_seqNumFrames * seqFile->m_seqStepTime;
     m_seqDuration = m_seqMSRemaining;

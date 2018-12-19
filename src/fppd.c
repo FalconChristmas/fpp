@@ -152,6 +152,27 @@ bool setupExceptionHandlers()
     return ok;
 }
 
+inline void WriteRuntimeInfoFile(Json::Value v) {
+    
+    Json::Value systems = v["systems"];
+    std::string addresses = "";
+    for (int x = 0; x < systems.size(); x++) {
+        if (addresses != "") {
+            addresses += ",";
+        }
+        addresses += systems[x]["address"].asString();
+    }
+    Json::Value local = systems[0];
+    local.removeMember("address");
+    local["addresses"] = addresses;
+    
+    Json::FastWriter fastWriter;
+    std::string resultStr = fastWriter.write(local);
+    FILE *file = fopen("/home/fpp/media/fpp-info.json", "w");
+    fprintf(file, "%s\n", resultStr.c_str());
+    fclose(file);
+}
+
 int main(int argc, char *argv[])
 {
     setupExceptionHandlers();
@@ -222,6 +243,8 @@ int main(int argc, char *argv[])
 
 	InitEffects();
 	InitializeChannelDataMemoryMap();
+    
+    WriteRuntimeInfoFile(multiSync->GetSystems(true, false));
 
 	MainLoop();
 

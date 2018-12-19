@@ -101,8 +101,14 @@ static int LoadOutputProcessors(void);
 
 OutputProcessors         outputProcessors;
 
-int minimumNeededChannel = 0;
-int maximumNeededChannel = FPPD_MAX_CHANNELS;
+static std::vector<std::pair<uint32_t, uint32_t>> outputRanges;
+const std::vector<std::pair<uint32_t, uint32_t>> GetOutputRanges() {
+    if (outputRanges.empty()) {
+        outputRanges.push_back(std::pair<uint32_t, uint32_t>(0, FPPD_MAX_CHANNELS));
+    }
+    return outputRanges;
+}
+
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -251,8 +257,8 @@ int InitializeChannelOutputs(void) {
 
 	// Reset index so we can start populating the outputs array
 	i = 0;
-    maximumNeededChannel = 0;
-    minimumNeededChannel = FPPD_MAX_CHANNELS;
+    int maximumNeededChannel = 0;
+    int minimumNeededChannel = FPPD_MAX_CHANNELS;
 
 	if (FPDOutput.isConfigured())
 	{
@@ -266,6 +272,7 @@ int InitializeChannelOutputs(void) {
             int m2 = m1 + channelOutputs[i].channelCount - 1;
             LogInfo(VB_CHANNELOUT, "FPD:  Determined range needed %d - %d\n",
                     m1, m2);
+            
             minimumNeededChannel = std::min(minimumNeededChannel, m1);
             maximumNeededChannel = std::max(maximumNeededChannel, m2);
 
@@ -514,6 +521,8 @@ int InitializeChannelOutputs(void) {
     maximumNeededChannel += 8;
     maximumNeededChannel &= 0xFFFFFFF8;
     maximumNeededChannel -= 1;
+    
+    outputRanges.push_back(std::pair<uint32_t, uint32_t>(minimumNeededChannel, maximumNeededChannel - minimumNeededChannel + 1));
 
     LogInfo(VB_CHANNELOUT, "Determined range needed %d - %d\n", minimumNeededChannel, maximumNeededChannel);
 
@@ -557,6 +566,7 @@ int SendChannelData(char *channelData) {
 	FPPChannelOutputInstance *inst;
 
 	if (logMask & VB_CHANNELDATA) {
+        uint32_t minimumNeededChannel = GetOutputRanges()[0].first;
         char buf[128];
         sprintf(buf, "Channel Data starting at channel %d", minimumNeededChannel);
 		HexDump(buf, &channelData[minimumNeededChannel], 16);
