@@ -707,7 +707,50 @@ function LoadCSVPlayListDetails($file)
 	$_SESSION['playListEntriesLeadOut'] = $playListEntriesLeadOut;
 }
 
-function LoadPlayListDetails($file)
+function GetPlaylist($playlistName)
+{
+	global $settings;
+
+	$jsonStr = file_get_contents($settings['playlistDirectory'] . '/' . $playlistName . ".json");
+
+	$data = json_decode($jsonStr);
+
+	return $data;
+}
+
+function LoadSubPlaylist(&$playlist, &$i, $plentry)
+{
+	global $settings;
+
+	$data = GetPlaylist($plentry->name);
+
+	$sections = Array();
+
+	if (isset($data->leadIn))
+		array_push($sections, $data->leadIn);
+	if (isset($data->mainPlaylist))
+		array_push($sections, $data->mainPlaylist);
+	if (isset($data->leadOut))
+		array_push($sections, $data->leadOut);
+
+	foreach ($sections as $section)
+	{
+		foreach ($section as $entry)
+		{
+			if ($entry->type == "playlist")
+			{
+				LoadSubPlaylist($playlist, $i, $entry);
+			}
+			else
+			{
+				$playlist[$i] = GetJSONPlaylistEntry($entry, $i);
+				$i++;
+			}
+		}
+	}
+}
+
+function LoadPlayListDetails($file, $mergeSubs)
 {
 	global $settings;
 
@@ -731,17 +774,22 @@ function LoadPlayListDetails($file)
 		return;
 	}
 
-	$jsonStr = file_get_contents($settings['playlistDirectory'] . '/' . $file . ".json");
-
-	$data = json_decode($jsonStr);
+	$data = GetPlaylist($file);
 
 	if (isset($data->leadIn))
 	{
 		$i = 0;
 		foreach ($data->leadIn as $entry)
 		{
-			$playListEntriesLeadIn[$i] = GetJSONPlaylistEntry($entry, $i);
-			$i++;
+			if ($mergeSubs && $entry->type == "playlist")
+			{
+				LoadSubPlaylist($playListEntriesLeadIn, $i, $entry);
+			}
+			else
+			{
+				$playListEntriesLeadIn[$i] = GetJSONPlaylistEntry($entry, $i);
+				$i++;
+			}
 		}
 	}
 
@@ -750,8 +798,15 @@ function LoadPlayListDetails($file)
 		$i = 0;
 		foreach ($data->mainPlaylist as $entry)
 		{
-			$playListEntriesMainPlaylist[$i] = GetJSONPlaylistEntry($entry, $i);
-			$i++;
+			if ($mergeSubs && $entry->type == "playlist")
+			{
+				LoadSubPlaylist($playListEntriesMainPlaylist, $i, $entry);
+			}
+			else
+			{
+				$playListEntriesMainPlaylist[$i] = GetJSONPlaylistEntry($entry, $i);
+				$i++;
+			}
 		}
 	}
 
@@ -760,8 +815,15 @@ function LoadPlayListDetails($file)
 		$i = 0;
 		foreach ($data->leadOut as $entry)
 		{
-			$playListEntriesLeadOut[$i] = GetJSONPlaylistEntry($entry, $i);
-			$i++;
+			if ($mergeSubs && $entry->type == "playlist")
+			{
+				LoadSubPlaylist($playListEntriesLeadOut, $i, $entry);
+			}
+			else
+			{
+				$playListEntriesLeadOut[$i] = GetJSONPlaylistEntry($entry, $i);
+				$i++;
+			}
 		}
 	}
 
@@ -880,7 +942,7 @@ function ConvertPlaylistsToJSON()
 				$playlist = preg_replace("/\.json/", "", $playlist);
 
 				$_SESSION['currentPlaylist'] = $playlist;
-				LoadPlayListDetails($playlist);
+				LoadPlayListDetails($playlist, 0);
 
 				SavePlaylistRaw($playlist);
 
@@ -1162,8 +1224,12 @@ function GetPlayListEntries()
 	$reload = $args['reload'];
 	check($playlist, "reload", __FUNCTION__);
 
+	$mergeSubs = 0;
+	if (isset($args['mergeSubs']) && $args['mergeSubs'] == 1)
+		$mergeSubs = 1;
+
 	if ($reload == 'true')
-		LoadPlayListDetails($playlist);
+		LoadPlayListDetails($playlist, $mergeSubs);
 
 	$jsonStr = GenerateJSONPlaylist($playlist);
 

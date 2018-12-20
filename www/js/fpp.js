@@ -34,15 +34,18 @@ function HidePlaylistDetails() {
 
 function PopulateLists() {
 	PlaylistTypeChanged();
-	PopulatePlaylists("playList");
+	PopulatePlaylists("playList", '', '');
 	var firstPlaylist = $('#playlist0').html();
 	if (firstPlaylist != undefined)
 		PopulatePlayListEntries(firstPlaylist,true);
 }
 
-function PopulatePlaylists(element) {
+function PopulatePlaylists(element, filter, callback) {
 	var xmlhttp=new XMLHttpRequest();
 	var url = "fppxml.php?command=getPlayLists";
+
+	if (filter != '')
+		url += '&filter=' + filter;
 	
 	xmlhttp.open("GET",url,false);
 	xmlhttp.setRequestHeader('Content-Type', 'text/xml');
@@ -71,7 +74,7 @@ function PopulatePlaylists(element) {
                     Filename = productList.childNodes[i].textContent;
                     // Remove extension
                     //Filename = Filename.substr(0, x.lastIndexOf('.'));
-                    innerHTML += "<li><a href='#' id=playlist" + i.toString() + " onclick=\"PopulatePlayListEntries('" + Filename + "',true)\">" + Filename + "</a></li>";
+                    innerHTML += "<li><a href='#editor' id=playlist" + i.toString() + " onclick=\"PopulatePlayListEntries('" + Filename + "',true);" + callback + "\">" + Filename + "</a></li>";
                 }
                 innerHTML += "</ol>";
 			} else {
@@ -143,6 +146,8 @@ function PlaylistEntryToTR(i, entry, editMode)
 		HTML += GetPlaylistRowHTML((i+1).toString(), "Sequence", "---", entry.sequenceName, "", i.toString(), editMode);
 	else if(entry.type == 'pause')
 		HTML += GetPlaylistRowHTML((i+1).toString(), "Pause", "PAUSE - " + entry.duration.toString(), "---", "", i.toString(), editMode);
+	else if(entry.type == 'playlist')
+		HTML += GetPlaylistRowHTML((i+1).toString(), "Playlist", "PLAYLIST - " + entry.name, "---", "", i.toString(), editMode);
 	else if(entry.type == 'branch')
 	{
 		var branchStr = "Invalid Config";
@@ -241,7 +246,7 @@ function PopulatePlayListEntries(playList,reloadFile,selectedRow) {
 	lastPlaylistSection = '';
 
 	$.ajax({
-		url: 'fppjson.php?command=getPlayListEntries&pl=' + playList + '&reload=' + reloadFile,
+		url: 'fppjson.php?command=getPlayListEntries&pl=' + playList + '&reload=' + reloadFile + '&mergeSubs=0',
 		dataType: 'json',
 		success: function(data, reqStatus, xhr) {	
 			var innerHTML = "";
@@ -377,6 +382,10 @@ function PlaylistTypeChanged() {
 	{
 		$('#dynamicOptions').show();
 	}
+	else if (type == 'playlist')
+	{
+		$('#subPlaylistOptions').show();
+	}
     else if (type == 'volume')
     {
         $('#volumeOptions').show();
@@ -401,7 +410,7 @@ function AddNewPlaylist() {
 		{
 			var xmlDoc=xmlhttp.responseXML; 
 			var productList = xmlDoc.getElementsByTagName('Music')[0];
-			PopulatePlaylists('playList');
+			PopulatePlaylists('playList', '', '');
 			PopulatePlayListEntries(plName,true);
 			$('#txtName').val(plName);
 			$('#txtName').focus()
@@ -425,7 +434,7 @@ function PlaylistEntryPositionChanged(newSection,newIndex,oldSection,oldIndex) {
 		{
 //					var xmlDoc=xmlhttp.responseXML; 
 //					var productList = xmlDoc.getElementsByTagName('Music')[0];
-//					PopulatePlaylists('playList');
+//					PopulatePlaylists('playList', '', '');
 //					PopulatePlayListEntries(name.value);
 //					$('#txtName').val(name.value);
 //					$('#txtName').focus()
@@ -545,6 +554,10 @@ function AddPlaylistEntry() {
 				entry.data = $('#dynamicData').val();
 				entry.dataArgs = $('#dynamicData_args').val();
 			}
+			else if (entry.type == 'playlist')
+			{
+				entry.name = encodeURIComponent($('#selSubPlaylist').val());
+			}
             else if (entry.type == 'volume')
             {
                 entry.volume = $('#volume').val();
@@ -583,13 +596,13 @@ function ConvertPlaylistsToJSON() {
 				{
 					$('#playlistConverterText').append(data.playlists[i] + '<br>');
 				}
-				PopulatePlaylists('playList');
+				PopulatePlaylists('playList', '', '');
 			}
 		}
 	});
 }
 
-function SavePlaylist()	{
+function SavePlaylist(filter, callback)	{
 	var name=document.getElementById("txtPlaylistName");
     var xmlhttp=new XMLHttpRequest();
 	var url = "fppjson.php?command=savePlaylist&name=" + name.value;
@@ -599,7 +612,7 @@ function SavePlaylist()	{
 	xmlhttp.onreadystatechange = function () {
 		if (xmlhttp.readyState == 4 && xmlhttp.status==200) {
 			var xmlDoc=xmlhttp.responseXML; 
-  			PopulatePlaylists("playList");
+			PopulatePlaylists("playList", filter, callback);
   			PopulatePlayListEntries(name.value,true);
 		}
 	};
@@ -657,7 +670,7 @@ function CopyPlaylist()	{
                 xmlhttp.onreadystatechange = function () {
                     if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
                         var xmlDoc = xmlhttp.responseXML;
-                        PopulatePlaylists("playList");
+                        PopulatePlaylists("playList", '', '');
                         var firstPlaylist = document.getElementById("playlist0");
                         if (firstPlaylist)
                             PopulatePlayListEntries(firstPlaylist.innerHTML, true);
@@ -703,7 +716,7 @@ function DeletePlaylist() {
                         DialogError("Failed to delete Playlist","Failed to delete Playlist '" + name.value + "'.")
 					}
 
-                    PopulatePlaylists("playList");
+                    PopulatePlaylists("playList", '', '');
 					var firstPlaylist = document.getElementById("playlist0");
 					if ( firstPlaylist )
 						PopulatePlayListEntries(firstPlaylist.innerHTML,true);
@@ -2649,7 +2662,7 @@ function PopulateStatusPlaylistEntries(playselected,playList,reloadFile)
 			PlaySectionSelected = '';
 
 	$.ajax({
-		url: 'fppjson.php?command=getPlayListEntries&pl=' + pl + '&reload=' + reloadFile,
+		url: 'fppjson.php?command=getPlayListEntries&pl=' + pl + '&reload=' + reloadFile + '&mergeSubs=1',
 		dataType: 'json',
 		success: function(data, reqStatus, xhr) {	
 			var innerHTML = "";

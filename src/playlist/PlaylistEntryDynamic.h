@@ -27,6 +27,7 @@
 #define _PLAYLISTENTRYDYNAMIC_H
 
 #include <string>
+#include <vector>
 
 #include <curl/curl.h>
 #include <jsoncpp/json/json.h>
@@ -41,6 +42,7 @@ class PlaylistEntryDynamic : public PlaylistEntryBase {
 	int  Init(Json::Value &config);
 
 	int  StartPlaying(void);
+	int  Prep(void);
 	int  Process(void);
 	int  Stop(void);
 
@@ -55,14 +57,22 @@ class PlaylistEntryDynamic : public PlaylistEntryBase {
 	int ReadFromURL(std::string url);
 	int ReadFromString(std::string jsonStr);
 
+	int PrepPlugin(void);
+
+	int Started(void);
+	int StartedPlugin(void);
+
 	int ProcessData(void *buffer, size_t size, size_t nmemb);
+	void ClearPlaylistEntries(void);
 
 	static size_t write_data(void *ptr, size_t size, size_t nmemb,
 	                             void *ourpointer);
 
 	std::string            m_subType;
 	std::string            m_data;
-	PlaylistEntryBase     *m_playlistEntry;
+
+	int                    m_currentEntry;
+	std::vector<PlaylistEntryBase *> m_playlistEntries;
 
 	std::string            m_url;
 	std::string            m_method;

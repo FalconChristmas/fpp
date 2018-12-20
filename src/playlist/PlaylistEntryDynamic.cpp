@@ -51,7 +51,7 @@
  */
 PlaylistEntryDynamic::PlaylistEntryDynamic(PlaylistEntryBase *parent)
   : PlaylistEntryBase(parent),
-	m_playlistEntry(NULL)
+	m_currentEntry(-1)
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntryDynamic::PlaylistEntryDynamic()\n");
 
@@ -63,12 +63,7 @@ PlaylistEntryDynamic::PlaylistEntryDynamic(PlaylistEntryBase *parent)
  */
 PlaylistEntryDynamic::~PlaylistEntryDynamic()
 {
-	if (m_playlistEntry)
-	{
-		delete m_playlistEntry;
-		m_playlistEntry = NULL;
-	}
-
+	ClearPlaylistEntries();
 }
 
 /*
@@ -97,6 +92,12 @@ int PlaylistEntryDynamic::StartPlaying(void)
 		return 0;
 	}
 
+	if (!IsPrepped() && !Prep())
+	{
+		FinishPlay();
+		return 0;
+	}
+
 	int res = 0;
 	if (m_subType == "command")
 		res = ReadFromCommand();
@@ -113,7 +114,18 @@ int PlaylistEntryDynamic::StartPlaying(void)
 		return 0;
 	}
 
-	m_playlistEntry->StartPlaying();
+	m_isPrepped = 0;
+
+	if (m_currentEntry >= 0)
+	{
+		m_playlistEntries[m_currentEntry]->StartPlaying();
+		Started();
+	}
+	else
+	{
+		FinishPlay();
+		return 0;
+	}
 
 	return PlaylistEntryBase::StartPlaying();;
 }
@@ -125,11 +137,21 @@ int PlaylistEntryDynamic::Process(void)
 {
 	LogExcess(VB_PLAYLIST, "PlaylistEntryDynamic::Process()\n");
 
-	if (m_playlistEntry)
+	if ((m_currentEntry >= 0) && (m_playlistEntries[m_currentEntry]))
 	{
-		m_playlistEntry->Process();
-		if (m_playlistEntry->IsFinished())
-			FinishPlay();
+		m_playlistEntries[m_currentEntry]->Process();
+		if (m_playlistEntries[m_currentEntry]->IsFinished())
+		{
+			if (m_currentEntry < (m_playlistEntries.size() - 1))
+			{
+				m_currentEntry++;
+				m_playlistEntries[m_currentEntry]->StartPlaying();
+			}
+			else // no more entries
+			{
+				FinishPlay();
+			}
+		}
 
 		return 1;
 	}
@@ -144,9 +166,9 @@ int PlaylistEntryDynamic::Stop(void)
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntryDynamic::Stop()\n");
 
-	if (m_playlistEntry)
+	if ((m_currentEntry >= 0) && (m_playlistEntries[m_currentEntry]))
 	{
-		m_playlistEntry->Stop();
+		m_playlistEntries[m_currentEntry]->Stop();
 		return 1;
 	}
 
@@ -171,8 +193,8 @@ Json::Value PlaylistEntryDynamic::GetConfig(void)
 
 	result["subType"] = m_subType;
 	result["data"] = m_data;
-	if (m_playlistEntry)
-		result["dynamic"] = m_playlistEntry->GetConfig();
+	if ((m_currentEntry >= 0) && (m_playlistEntries[m_currentEntry]))
+		result["dynamic"] = m_playlistEntries[m_currentEntry]->GetConfig();
 
 	return result;
 }
@@ -218,10 +240,9 @@ int PlaylistEntryDynamic::ReadFromPlugin(void)
 
 	std::string url;
 
-	// FIXME Playlist: what should this URL be?
 	url = "http://127.0.0.1/plugin.php?plugin=";
 	url += m_data;
-	url += "&page=dynamicPlaylistEntryJSON.php&nopage=1";
+	url += "&page=playlistCallback.php&nopage=1&command=loadNextItem";
 
 	return ReadFromURL(url);
 }
@@ -284,6 +305,9 @@ int PlaylistEntryDynamic::ReadFromString(std::string jsonStr)
 {
 	Json::Value root;
 	Json::Reader reader;
+	PlaylistEntryBase *playlistEntry = NULL;
+
+	LogDebug(VB_PLAYLIST, "ReadFromString()\n%s\n", jsonStr.c_str());
 
 	if (jsonStr.empty())
 	{
@@ -298,49 +322,180 @@ int PlaylistEntryDynamic::ReadFromString(std::string jsonStr)
 		return 0;
 	}
 
-	if (m_playlistEntry)
-	{
-		delete m_playlistEntry;
-		m_playlistEntry = NULL;
-	}
+	ClearPlaylistEntries();
 
-	if (root["type"].asString() == "both")
-		m_playlistEntry = new PlaylistEntryBoth();
-	else if (root["type"].asString() == "effect")
-		m_playlistEntry = new PlaylistEntryEffect();
-	else if (root["type"].asString() == "event")
-		m_playlistEntry = new PlaylistEntryEvent();
-	else if (root["type"].asString() == "media")
-		m_playlistEntry = new PlaylistEntryMedia();
-	else if (root["type"].asString() == "mqtt")
-		m_playlistEntry = new PlaylistEntryMQTT();
-	else if (root["type"].asString() == "pause")
-		m_playlistEntry = new PlaylistEntryPause();
-	else if (root["type"].asString() == "pixelOverlay")
-		m_playlistEntry = new PlaylistEntryPixelOverlay();
-	else if (root["type"].asString() == "remap")
-		m_playlistEntry = new PlaylistEntryRemap();
-	else if (root["type"].asString() == "script")
-		m_playlistEntry = new PlaylistEntryScript();
-	else if (root["type"].asString() == "sequence")
-		m_playlistEntry = new PlaylistEntrySequence();
-	else if (root["type"].asString() == "url")
-		m_playlistEntry = new PlaylistEntryURL();
-	else if (root["type"].asString() == "volume")
-		m_playlistEntry = new PlaylistEntryVolume();
-	else
+	if (!root.isMember("playlistEntries"))
 	{
-		LogErr(VB_PLAYLIST, "Invalid Playlist Entry Type: %s\n", root["type"].asString().c_str());
-		m_playlistEntry = NULL;
 		return 0;
 	}
 
-	if (m_playlistEntry->Init(root))
-		return 1;
+	for (int i = 0; i < root["playlistEntries"].size(); i++)
+	{
+		Json::Value pe = root["playlistEntries"][i];
+		playlistEntry = NULL;
 
-	m_playlistEntry = NULL;
+		if (pe["type"].asString() == "both")
+			playlistEntry = new PlaylistEntryBoth();
+		else if (pe["type"].asString() == "effect")
+			playlistEntry = new PlaylistEntryEffect();
+		else if (pe["type"].asString() == "event")
+			playlistEntry = new PlaylistEntryEvent();
+		else if (pe["type"].asString() == "media")
+			playlistEntry = new PlaylistEntryMedia();
+		else if (pe["type"].asString() == "mqtt")
+			playlistEntry = new PlaylistEntryMQTT();
+		else if (pe["type"].asString() == "pause")
+			playlistEntry = new PlaylistEntryPause();
+		else if (pe["type"].asString() == "pixelOverlay")
+			playlistEntry = new PlaylistEntryPixelOverlay();
+		else if (pe["type"].asString() == "remap")
+			playlistEntry = new PlaylistEntryRemap();
+		else if (pe["type"].asString() == "script")
+			playlistEntry = new PlaylistEntryScript();
+		else if (pe["type"].asString() == "sequence")
+			playlistEntry = new PlaylistEntrySequence();
+		else if (pe["type"].asString() == "url")
+			playlistEntry = new PlaylistEntryURL();
+		else if (pe["type"].asString() == "volume")
+			playlistEntry = new PlaylistEntryVolume();
+		else
+		{
+			LogErr(VB_PLAYLIST, "Invalid Playlist Entry Type: %s\n", pe["type"].asString().c_str());
+			ClearPlaylistEntries();
+			return 0;
+		}
 
-	return 0;
+		if (!playlistEntry->Init(pe))
+		{
+			LogErr(VB_PLAYLIST, "Error initializing %s Playlist Entry\n", pe["type"].asString().c_str());
+			ClearPlaylistEntries();
+			return 0;
+		}
+
+		m_playlistEntries.push_back(playlistEntry);
+	}
+
+	if (!m_playlistEntries.size())
+	{
+		LogErr(VB_PLAYLIST, "Error, no valid playlistEntries in dynamic data!\n");
+		return 0;
+	}
+
+	m_currentEntry = 0;
+
+	return 1;
+}
+
+/*
+ *
+ */
+int PlaylistEntryDynamic::Started(void)
+{
+	LogDebug(VB_PLAYLIST, "PlaylistEntryDynamic::Started()\n");
+
+	int res = 1;
+	if (m_subType == "plugin")
+		res = StartedPlugin();
+
+	if (!res)
+	{
+		return 0;
+	}
+
+	return res;
+}
+
+/*
+ *
+ */
+int PlaylistEntryDynamic::StartedPlugin(void)
+{
+	CURL *curl;
+	CURLcode res;
+
+	std::string url;
+
+	url = "http://127.0.0.1/plugin.php?plugin=";
+	url += m_data;
+	url += "&page=playlistCallback.php&nopage=1&command=startedNextItem";
+
+	curl = curl_easy_init();
+	if (curl)
+	{
+		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+
+		res = curl_easy_perform(curl);
+		if (res != CURLE_OK)
+		{
+			LogErr(VB_PLAYLIST, "curl_easy_perform returned an error: %d\n", res);
+			return 0;
+		}
+
+		curl_easy_cleanup(curl);
+	}
+	else
+	{
+		LogErr(VB_PLAYLIST, "curl_easy_init() returned an error.\n" );
+		return 0;
+	}
+
+	return 1;
+}
+
+/*
+ *
+ */
+int PlaylistEntryDynamic::Prep(void)
+{
+	LogDebug(VB_PLAYLIST, "PlaylistEntryDynamic::Prep()\n");
+
+	int res = 1;
+	if (m_subType == "plugin")
+		res = PrepPlugin();
+
+	if (!res)
+	{
+		return 0;
+	}
+
+	return PlaylistEntryBase::Prep();;
+}
+
+/*
+ *
+ */
+int PlaylistEntryDynamic::PrepPlugin(void)
+{
+	CURL *curl;
+	CURLcode res;
+
+	std::string url;
+
+	url = "http://127.0.0.1/plugin.php?plugin=";
+	url += m_data;
+	url += "&page=playlistCallback.php&nopage=1&command=prepNextItem";
+
+	curl = curl_easy_init();
+	if (curl)
+	{
+		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+
+		res = curl_easy_perform(curl);
+		if (res != CURLE_OK)
+		{
+			LogErr(VB_PLAYLIST, "curl_easy_perform returned an error: %d\n", res);
+			return 0;
+		}
+
+		curl_easy_cleanup(curl);
+	}
+	else
+	{
+		LogErr(VB_PLAYLIST, "curl_easy_init() returned an error.\n" );
+		return 0;
+	}
+
+	return 1;
 }
 
 /*
@@ -355,6 +510,20 @@ int PlaylistEntryDynamic::ProcessData(void *buffer, size_t size, size_t nmemb)
 	LogDebug(VB_PLAYLIST, "m_response length: %d\n", m_response.size());
 
 	return size * nmemb;
+}
+
+/*
+ *
+ */
+void PlaylistEntryDynamic::ClearPlaylistEntries(void)
+{
+	while (!m_playlistEntries.empty())
+	{
+		delete m_playlistEntries.back();
+		m_playlistEntries.pop_back();
+	}
+
+	m_currentEntry = -1;
 }
 
 /*

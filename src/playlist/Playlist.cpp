@@ -104,7 +104,7 @@ int Playlist::LoadJSONIntoPlaylist(std::vector<PlaylistEntryBase*> &playlistPart
 
 	for (int c = 0; c < entries.size(); c++)
 	{
-#if 0
+#if 1
 		// Long-term handle sub-playlists on-demand instead of at load time
 		if (entries[c]["type"].asString() == "playlist")
 		{
@@ -112,7 +112,7 @@ int Playlist::LoadJSONIntoPlaylist(std::vector<PlaylistEntryBase*> &playlistPart
 
 			if (m_subPlaylistDepth < 3)
 			{
-				Json::Value subPlaylist = LoadJSON(entries[c]["playlistName"].asString().c_str());
+				Json::Value subPlaylist = LoadJSON(entries[c]["name"].asString().c_str());
 
 				if (subPlaylist.isMember("leadIn"))
 					LoadJSONIntoPlaylist(playlistPart, subPlaylist["leadIn"]);

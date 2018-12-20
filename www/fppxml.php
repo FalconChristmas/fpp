@@ -243,6 +243,7 @@ function SetDeveloperMode()
 function SetVolume()
 {
 	global $SUDO;
+	global $settings;
 
 	$volume = $_GET['volume'];
 	check($volume, "volume", __FUNCTION__);
@@ -1806,6 +1807,9 @@ function AddPlayListEntry()
 function GetPlaylists()
 {
 	global $playlistDirectory;
+	$filter = "";
+	if (isset($_GET['filter']))
+		$filter = $_GET['filter'];
 
 	$FirstList=TRUE;
 	$doc = new DomDocument('1.0');
@@ -1820,7 +1824,8 @@ function GetPlaylists()
 
 	foreach(scandir($playlistDirectory) as $pFile)
 	{
-		if ($pFile != "." && $pFile != "..")
+		if (($pFile != "." && $pFile != "..") &&
+			($filter == "" || preg_match('/' . $filter . '/', $pFile)))
 		{
 			$pFile = preg_replace("/\.json/", "", $pFile);
 			$playList = $doc->createElement('Playlist');

@@ -44,6 +44,7 @@ class PlaylistEntryBase {
 	virtual int  IsPlaying(void);
 	virtual int  IsFinished(void);
 
+	virtual int  Prep(void);
 	virtual int  Process(void);
 	virtual int  Stop(void);
 
@@ -60,6 +61,7 @@ class PlaylistEntryBase {
 	std::string  GetType(void) { return m_type; }
 	std::string  GetNextSection(void) { return m_nextSection; }
 	int          GetNextItem(void) { return m_nextItem; }
+	int          IsPrepped(void) { return m_isPrepped; }
 
 	static int   m_playlistEntryCount;
 
@@ -77,6 +79,7 @@ class PlaylistEntryBase {
 	int          m_playCount;
 	std::string  m_nextSection;
 	int          m_nextItem;
+	int          m_isPrepped;
 
 	int          m_playlistEntryID;
 

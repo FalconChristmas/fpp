@@ -41,6 +41,7 @@ PlaylistEntryBase::PlaylistEntryBase(PlaylistEntryBase *parent)
 	m_playOnce(0),
 	m_playCount(0),
 	m_nextItem(-1),
+	m_isPrepped(0),
 	m_parent(parent)
 {
 	m_type = "base";
@@ -153,6 +154,16 @@ int PlaylistEntryBase::IsFinished(void)
 		return 1;
 
 	return 0;
+}
+
+/*
+ *
+ */
+int PlaylistEntryBase::Prep(void)
+{
+	m_isPrepped = 1;
+
+	return 1;
 }
 
 /*
