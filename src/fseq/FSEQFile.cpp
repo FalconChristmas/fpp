@@ -16,8 +16,20 @@
 #include <unistd.h>
 
 #include "FSEQFile.h"
-#include "log.h"
 
+#if defined(PLATFORM_PI) || defined(PLATFORM_BBB) || defined(PLATFORM_ODROID) || defined(PLATFORM_ORANGEPI) || defined(PLATFORM_UNKNOWN)
+//for FPP, use FPP logging
+#include "log.h"
+#else
+//compiling within xLights, use log4cpp
+#define PLATFORM_UNKNOWN
+#include <log4cpp/Category.hh>
+static log4cpp::Category &fseq_logger_base = log4cpp::Category::getInstance(std::string("log_base"));
+#define LogErr(A, B, ...) fseq_logger_base.error(B, ## __VA_ARGS__)
+#define LogInfo(A, B, ...) fseq_logger_base.info(B, ## __VA_ARGS__)
+#define LogDebug(A, B, ...) fseq_logger_base.debug(B, ## __VA_ARGS__)
+#define VB_SEQUENCE 1
+#endif
 
 inline void DumpHeader(const char *title, unsigned char data[], int len) {
     int x = 0;
