@@ -169,8 +169,11 @@ inline void WriteRuntimeInfoFile(Json::Value v) {
     Json::FastWriter fastWriter;
     std::string resultStr = fastWriter.write(local);
     FILE *file = fopen("/home/fpp/media/fpp-info.json", "w");
-    fprintf(file, "%s\n", resultStr.c_str());
-    fclose(file);
+    if (file)
+    {
+        fprintf(file, "%s\n", resultStr.c_str());
+        fclose(file);
+    }
 }
 
 int main(int argc, char *argv[])
