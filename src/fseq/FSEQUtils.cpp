@@ -134,6 +134,11 @@ int main(int argc, char *argv[]) {
             dest->addFrame(x, data);
         }
         dest->finalize();
+        
+        if (!strcmp(outputFilename, "-memory-")) {
+            printf("size: %d\n", (int)dest->m_memoryBufferSize);
+        }
+        
         delete dest;
         delete src;
     }

@@ -181,9 +181,15 @@ FSEQFile::FSEQFile(const std::string &fn)
     m_uniqueId(0),
     m_seqFileSize(0),
     m_seqVersionMajor(1),
-    m_seqVersionMinor(1)
+    m_seqVersionMinor(1),
+    m_memoryBuffer(nullptr),
+    m_memoryBufferSize(0)
 {
-    m_seqFile = fopen((const char *)fn.c_str(), "w");
+    if (fn == "-memory-") {
+        m_seqFile = open_memstream(&m_memoryBuffer, &m_memoryBufferSize);
+    } else {
+        m_seqFile = fopen((const char *)fn.c_str(), "w");
+    }
 }
 void FSEQFile::dumpInfo(bool indent) {
     char ind[5] = "    ";
@@ -210,7 +216,12 @@ void FSEQFile::initializeFromFSEQ(const FSEQFile& fseq) {
 
 
 FSEQFile::FSEQFile(const std::string &fn, FILE *file, const std::vector<uint8_t> &header)
-    : filename(fn), m_seqFile(file), m_uniqueId(0) {
+    : filename(fn),
+    m_seqFile(file),
+    m_uniqueId(0),
+    m_memoryBuffer(nullptr),
+    m_memoryBufferSize(0)
+ {
     fseeko(m_seqFile, 0L, SEEK_END);
     m_seqFileSize = ftello(m_seqFile);
     fseeko(m_seqFile, 0L, SEEK_SET);
@@ -224,7 +235,12 @@ FSEQFile::FSEQFile(const std::string &fn, FILE *file, const std::vector<uint8_t>
     m_seqStepTime = header[18];
 }
 FSEQFile::~FSEQFile() {
-    fclose(m_seqFile);
+    if (m_seqFile) {
+        fclose(m_seqFile);
+    }
+    if (m_memoryBuffer) {
+        free(m_memoryBuffer);
+    }
 }
 void FSEQFile::parseVariableHeaders(const std::vector<uint8_t> &header, int start) {
     while (start < header.size() - 5) {
@@ -241,6 +257,9 @@ void FSEQFile::parseVariableHeaders(const std::vector<uint8_t> &header, int star
         }
         start += len;
     }
+}
+void FSEQFile::finalize() {
+    fflush(m_seqFile);
 }
 
 
@@ -400,6 +419,7 @@ void V1FSEQFile::addFrame(uint32_t frame,
     fwrite(data, 1, m_seqChannelCount, m_seqFile);
 }
 void V1FSEQFile::finalize() {
+    FSEQFile::finalize();
 }
 
 
@@ -544,6 +564,7 @@ public:
             //printf("%d    %d: %d\n", x, frame, len);
         }
         m_file->m_frameOffsets.pop_back();
+        fseeko(m_file->m_seqFile, curr, SEEK_SET);
     }
 
     
@@ -1155,12 +1176,14 @@ FrameData *V2FSEQFile::getFrame(uint32_t frame) {
 void V2FSEQFile::addFrame(uint32_t frame,
                           uint8_t *data) {
     if (m_handler != nullptr) {
-        return m_handler->addFrame(frame, data);
+        m_handler->addFrame(frame, data);
     }
+    fflush(m_seqFile);
 }
 
 void V2FSEQFile::finalize() {
     if (m_handler != nullptr) {
         m_handler->finalize();
     }
+    FSEQFile::finalize();
 }

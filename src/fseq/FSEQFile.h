@@ -72,13 +72,15 @@ public:
     virtual void writeHeader() = 0;
     virtual void addFrame(uint32_t frame,
                           uint8_t *data) = 0;
-    virtual void finalize() = 0;
+    virtual void finalize();
     
     virtual void dumpInfo(bool indent = false);
     
     std::string filename;
     
     FILE* volatile  m_seqFile;
+    char *        m_memoryBuffer;
+    size_t        m_memoryBufferSize;
     
     uint64_t      m_seqFileSize;
     uint64_t      m_seqChanDataOffset;
