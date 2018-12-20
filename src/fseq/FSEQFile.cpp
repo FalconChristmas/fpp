@@ -29,7 +29,20 @@ static log4cpp::Category &fseq_logger_base = log4cpp::Category::getInstance(std:
 #define LogInfo(A, B, ...) fseq_logger_base.info(B, ## __VA_ARGS__)
 #define LogDebug(A, B, ...) fseq_logger_base.debug(B, ## __VA_ARGS__)
 #define VB_SEQUENCE 1
+
+#ifdef __WXOSX__
+//osx doesn't have open_memstream until 10.13.   Thus, we'll need our own implementation
+#define __NEEDS_MEMSTREAM__
 #endif
+#endif
+
+
+#ifdef __NEEDS_MEMSTREAM__
+static FILE *__openmemstream(char **__bufp, size_t *__sizep);
+#else
+#define __openmemstream(a, b) open_memstream(a, b)
+#endif
+
 
 inline void DumpHeader(const char *title, unsigned char data[], int len) {
     int x = 0;
@@ -198,7 +211,7 @@ FSEQFile::FSEQFile(const std::string &fn)
     m_memoryBufferSize(0)
 {
     if (fn == "-memory-") {
-        m_seqFile = open_memstream(&m_memoryBuffer, &m_memoryBufferSize);
+        m_seqFile = __openmemstream(&m_memoryBuffer, &m_memoryBufferSize);
     } else {
         m_seqFile = fopen((const char *)fn.c_str(), "w");
     }
@@ -861,7 +874,7 @@ public:
             memset(m_stream, 0, sizeof(z_stream));
         }
         if (m_curFrameInBlock == 0) {
-            int i = deflateInit(m_stream, m_file->m_compressionLevel == -1 ? 3 : m_file->m_compressionLevel);
+            deflateInit(m_stream, m_file->m_compressionLevel == -1 ? 3 : m_file->m_compressionLevel);
             m_stream->next_out = m_outBuffer;
             m_stream->avail_out = V2FSEQ_OUT_BUFFER_SIZE;
         }
@@ -1199,3 +1212,93 @@ void V2FSEQFile::finalize() {
     }
     FSEQFile::finalize();
 }
+
+
+
+
+#ifdef __NEEDS_MEMSTREAM__
+struct memstream {
+    char **cp;
+    size_t *lenp;
+    size_t offset;
+};
+
+static void memstream_grow(struct memstream *ms, size_t newsize) {
+    char *buf;
+    if (newsize > *ms->lenp) {
+        buf = (char*)realloc(*ms->cp, newsize + 1);
+        if (buf != NULL) {
+            memset(buf + *ms->lenp + 1, 0, newsize - *ms->lenp);
+            *ms->cp = buf;
+            *ms->lenp = newsize;
+        }
+    }
+}
+
+static int memstream_read(void *cookie, char *buf, int len) {
+    struct memstream *ms = (struct memstream *)cookie;
+    int tocopy;
+    memstream_grow(ms, ms->offset + len);
+    tocopy = *ms->lenp - ms->offset;
+    if (len < tocopy)
+    tocopy = len;
+    memcpy(buf, *ms->cp + ms->offset, tocopy);
+    ms->offset += tocopy;
+    return (tocopy);
+}
+
+static int memstream_write(void *cookie, const char *buf, int len) {
+    struct memstream *ms = (struct memstream *)cookie;
+    int tocopy;
+    memstream_grow(ms, ms->offset + len);
+    tocopy = *ms->lenp - ms->offset;
+    if (len < tocopy)
+    tocopy = len;
+    memcpy(*ms->cp + ms->offset, buf, tocopy);
+    ms->offset += tocopy;
+    return (tocopy);
+}
+
+static fpos_t memstream_seek(void *cookie, fpos_t fpos, int whence) {
+    size_t pos = (unsigned int)fpos;
+    struct memstream *ms = (struct memstream *)cookie;
+    switch (whence) {
+        case SEEK_SET:
+            ms->offset = (size_t)pos;
+            break;
+        case SEEK_CUR:
+            ms->offset += (size_t)pos;
+            break;
+        case SEEK_END:
+            ms->offset = *ms->lenp + (size_t)pos;
+            break;
+    }
+    return (fpos_t)(ms->offset);
+}
+
+static int memstream_close(void *cookie) {
+    free(cookie);
+    return (0);
+}
+
+static FILE *__openmemstream(char **cp, size_t *lenp) {
+    struct memstream *ms;
+    int save_errno;
+    FILE *fp;
+    
+    *cp = NULL;
+    *lenp = 0;
+    ms = (struct memstream *)malloc(sizeof(*ms));
+    ms->cp = cp;
+    ms->lenp = lenp;
+    ms->offset = 0;
+    fp = funopen(ms, memstream_read, memstream_write, memstream_seek,
+                 memstream_close);
+    if (fp == NULL) {
+        save_errno = errno;
+        free(ms);
+        errno = save_errno;
+    }
+    return (fp);
+}
+#endif
