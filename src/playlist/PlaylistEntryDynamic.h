@@ -71,9 +71,11 @@ class PlaylistEntryDynamic : public PlaylistEntryBase {
 	std::string            m_subType;
 	std::string            m_data;
 
+	int                    m_drainQueue;
 	int                    m_currentEntry;
 	std::vector<PlaylistEntryBase *> m_playlistEntries;
 
+	std::string            m_pluginHost;
 	std::string            m_url;
 	std::string            m_method;
 	std::string            m_response;

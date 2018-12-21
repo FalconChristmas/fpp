@@ -552,7 +552,13 @@ function AddPlaylistEntry() {
 			{
 				entry.subType = $('#dynamicSubType').val();
 				entry.data = $('#dynamicData').val();
+				entry.pluginHost = $('#dynamicDataHost').val();
 				entry.dataArgs = $('#dynamicData_args').val();
+
+				if ($('#drainQueue').is(':checked'))
+					entry.drainQueue = 1;
+				else
+					entry.drainQueue = 0;
 			}
 			else if (entry.type == 'playlist')
 			{

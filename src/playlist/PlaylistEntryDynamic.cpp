@@ -51,6 +51,7 @@
  */
 PlaylistEntryDynamic::PlaylistEntryDynamic(PlaylistEntryBase *parent)
   : PlaylistEntryBase(parent),
+	m_drainQueue(0),
 	m_currentEntry(-1)
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntryDynamic::PlaylistEntryDynamic()\n");
@@ -75,6 +76,11 @@ int PlaylistEntryDynamic::Init(Json::Value &config)
 
 	m_subType = config["subType"].asString();
 	m_data = config["data"].asString();
+
+	m_drainQueue = config["drainQueue"].asInt();
+
+	if (config.isMember("pluginHost"))
+		m_pluginHost = config["pluginHost"].asString();
 
 	return PlaylistEntryBase::Init(config);
 }
@@ -147,7 +153,13 @@ int PlaylistEntryDynamic::Process(void)
 				m_currentEntry++;
 				m_playlistEntries[m_currentEntry]->StartPlaying();
 			}
-			else // no more entries
+			else if (m_drainQueue)
+			{
+				// Check for more entries to play, if there are none,
+				// then StartPlaying() will call FinishPlay().
+				StartPlaying();
+			}
+			else
 			{
 				FinishPlay();
 			}
@@ -180,8 +192,10 @@ int PlaylistEntryDynamic::Stop(void)
  */
 void PlaylistEntryDynamic::Dump(void)
 {
-	LogDebug(VB_PLAYLIST, "SubType : %s\n", m_subType.c_str());
-	LogDebug(VB_PLAYLIST, "Data    : %s\n", m_data.c_str());
+	LogDebug(VB_PLAYLIST, "SubType    : %s\n", m_subType.c_str());
+	LogDebug(VB_PLAYLIST, "Data       : %s\n", m_data.c_str());
+	LogDebug(VB_PLAYLIST, "Drain Queue: %d\n", m_drainQueue);
+	LogDebug(VB_PLAYLIST, "Plugin Host: %s\n", m_pluginHost.c_str());
 }
 
 /*
@@ -193,6 +207,8 @@ Json::Value PlaylistEntryDynamic::GetConfig(void)
 
 	result["subType"] = m_subType;
 	result["data"] = m_data;
+	result["pluginHost"] = m_pluginHost;
+	result["drainQueue"] = m_drainQueue;
 	if ((m_currentEntry >= 0) && (m_playlistEntries[m_currentEntry]))
 		result["dynamic"] = m_playlistEntries[m_currentEntry]->GetConfig();
 
@@ -240,9 +256,12 @@ int PlaylistEntryDynamic::ReadFromPlugin(void)
 
 	std::string url;
 
-	url = "http://127.0.0.1/plugin.php?plugin=";
-	url += m_data;
-	url += "&page=playlistCallback.php&nopage=1&command=loadNextItem";
+	url = "http://";
+	if (m_pluginHost != "")
+		url += m_pluginHost;
+	else
+		url += "127.0.0.1";
+	url += "/plugin.php?plugin=" + m_data + "&page=playlistCallback.php&nopage=1&command=loadNextItem";
 
 	return ReadFromURL(url);
 }
@@ -415,9 +434,12 @@ int PlaylistEntryDynamic::StartedPlugin(void)
 
 	std::string url;
 
-	url = "http://127.0.0.1/plugin.php?plugin=";
-	url += m_data;
-	url += "&page=playlistCallback.php&nopage=1&command=startedNextItem";
+	url = "http://";
+	if (m_pluginHost != "")
+		url += m_pluginHost;
+	else
+		url += "127.0.0.1";
+	url += "/plugin.php?plugin=" + m_data + "&page=playlistCallback.php&nopage=1&command=startedNextItem";
 
 	curl = curl_easy_init();
 	if (curl)
@@ -471,9 +493,14 @@ int PlaylistEntryDynamic::PrepPlugin(void)
 
 	std::string url;
 
-	url = "http://127.0.0.1/plugin.php?plugin=";
-	url += m_data;
-	url += "&page=playlistCallback.php&nopage=1&command=prepNextItem";
+	url = "http://";
+	if (m_pluginHost != "")
+		url += m_pluginHost;
+	else
+		url += "127.0.0.1";
+	url += "/plugin.php?plugin=" + m_data + "&page=playlistCallback.php&nopage=1&command=prepNextItem";
+
+	LogDebug(VB_PLAYLIST, "URL: %s\n", url.c_str());
 
 	curl = curl_easy_init();
 	if (curl)

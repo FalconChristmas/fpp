@@ -247,7 +247,7 @@ function PrintDynamicJSONPluginOptions()
 {
 	global $settings;
 	
-	echo "<select id=\"dynamicData\" size=\"1\">";
+	echo "Plugin Name: <select id=\"dynamicData\" size=\"1\">";
 
 	$dir = $settings['pluginDirectory'];
 	if ($dh = opendir($dir))
@@ -264,7 +264,10 @@ function PrintDynamicJSONPluginOptions()
 		}
 		closedir($dh);
 	}
-	echo "</select>";
+	echo "</select><br>";
+
+	echo "Optional Host/IP for Remote Plugin: <input id=\"dynamicDataHost\" size=30 maxlength=255><br>";
+	echo "Repeat until Queue is empty: <input type=\"checkbox\" id=\"drainQueue\" checked><br>";
 }
 
 function PrintScriptOptions($id)
@@ -455,18 +458,16 @@ if ($allowDelete)
 				</table>
 			</td>
 			</tr>
-		<tr id="dynamicOptions" class='playlistOptions'><td>Dynamic:</td>
-			<td><table border=0 cellpadding=0 cellspacing=2>
-				<tr><td>Source Type:</td><td><select id='dynamicSubType' onChange='DynamicSubTypeChanged();'>
+		<tr id="dynamicOptions" class='playlistOptions'><td colspan=2>
+			Source Type: <select id='dynamicSubType' onChange='DynamicSubTypeChanged();'>
 						<option value='file'>File</option>
 						<option value='plugin'>Plugin</option>
 						<!--
 						<option value='command'>Script</option>
 						-->
 						<option value='url'>URL</option>
-					</select></td></tr>
-				<tr><td>Source:</td><td id='dynamicDataWrapper'><input id='dynamicData' type='text' size='60' maxlength='255' placeholder='Full File Name of JSON file'></td></tr>
-				</table>
+					</select><br>
+				<span id='dynamicDataWrapper' colspan=2><input id='dynamicData' type='text' size='60' maxlength='255' placeholder='Full File Name of JSON file'></span>
 			</td>
 			</tr>
         <tr id="pluginData" style="display:none;" class='playlistOptions'><td><div><div id='pluginDataText'>Plugin Data:</div></div></td>
