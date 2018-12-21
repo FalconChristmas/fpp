@@ -53,7 +53,7 @@ int                               dataFD     = -1;
 FPPChannelMemoryMapControlHeader *ctrlHeader = NULL;
 char                             *ctrlMap    = NULL;
 int                               ctrlFD     = -1;
-short                            *pixelMap   = NULL;
+long long                        *pixelMap   = NULL;
 int                               pixelFD    = -1;
 
 /*
@@ -222,7 +222,7 @@ int OpenChannelPixelMap(void) {
 		return pixelFD;
 	}
 
-	pixelMap = (short *)mmap(0, FPPD_MAX_CHANNELS * sizeof(short), PROT_WRITE | PROT_READ,
+	pixelMap = (long long *)mmap(0, FPPD_MAX_CHANNELS * sizeof(short), PROT_WRITE | PROT_READ,
 		MAP_SHARED, pixelFD, 0);
 
 	if (!pixelMap) {
@@ -348,7 +348,7 @@ void SetMappedBlockActive(char *blockName, int active) {
  */
 void CopyFileToMappedBlock(char *blockName, char *inputFilename) {
 	if (!FileExists(inputFilename)) {
-		printf( "ERROR: Input file %s does not exist!\n" );
+		printf( "ERROR: Input file %s does not exist!\n", inputFilename );
 		return;
 	}
 
@@ -445,6 +445,28 @@ void DumpMappedBlockInfo(char *blockName) {
 		printf( "Channels  : %lld-%lld (%lld channels)\n",
 			cb->startChannel, cb->startChannel + cb->channelCount - 1,
 			cb->channelCount);
+
+		printf( "String Cnt: %lld\n", cb->stringCount);
+		printf( "Strand Cnt: %lld\n", cb->strandsPerString);
+
+		if ((cb->channelCount % 3) == 0)
+		{
+			int width = 0;
+			int height = 0;
+
+			if (cb->orientation == 'H')
+			{
+				width = cb->channelCount / 3 / cb->stringCount / cb->strandsPerString;
+				height = cb->channelCount / 3 / width;
+			}
+			else // else 'V'ertical
+			{
+				height = cb->channelCount / 3 / cb->stringCount / cb->strandsPerString;
+				width = cb->channelCount / 3 / height;
+			}
+
+			printf( "Layout    : %dx%d\n", width, height);
+		}
 
 		printf( "Status    : ");
 		switch (cb->isActive) {
