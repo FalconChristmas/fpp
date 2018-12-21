@@ -4,33 +4,35 @@
 #include <string>
 #include <vector>
 
-class VariableHeader {
-public:
-    VariableHeader() { code[0] = code[1] = 0; }
-    VariableHeader(const VariableHeader& cp) : data(cp.data) {
-        code[0] = cp.code[0];
-        code[1] = cp.code[1];
-    }
-    ~VariableHeader() {}
-    
-    uint8_t code[2];
-    std::vector<uint8_t> data;
-};
 
-
-class FrameData {
-public:
-    FrameData(uint32_t f) : frame(f) {};
-    virtual ~FrameData() {};
-    
-    virtual void readFrame(uint8_t *data) = 0;
-    
-    uint32_t frame;
-};
 
 
 class FSEQFile {
 public:
+    class VariableHeader {
+        public:
+        VariableHeader() { code[0] = code[1] = 0; }
+        VariableHeader(const VariableHeader& cp) : data(cp.data) {
+            code[0] = cp.code[0];
+            code[1] = cp.code[1];
+        }
+        ~VariableHeader() {}
+        
+        uint8_t code[2];
+        std::vector<uint8_t> data;
+    };
+    
+    
+    class FrameData {
+        public:
+        FrameData(uint32_t f) : frame(f) {};
+        virtual ~FrameData() {};
+        
+        virtual void readFrame(uint8_t *data) = 0;
+        
+        uint32_t frame;
+    };
+    
     enum CompressionType {
         none,
         zstd,
@@ -76,16 +78,24 @@ public:
     
     virtual void dumpInfo(bool indent = false);
     
-    std::string filename;
     
-    FILE* volatile  m_seqFile;
-    char *        m_memoryBuffer;
-    size_t        m_memoryBufferSize;
-    
-    uint64_t      m_seqFileSize;
-    uint64_t      m_seqChanDataOffset;
-    uint64_t      m_uniqueId;
+    uint32_t      getNumFrames() const { return m_seqNumFrames; }
+    int           getStepTime() const { return m_seqStepTime; }
+    uint32_t      getChannelCount() const  { return m_seqChannelCount; }
+    virtual uint32_t getMaxChannel() const = 0;
+    const std::vector<VariableHeader> &getVariableHeaders() const { return m_variableHeaders;}
 
+    void setNumFrames(uint32_t f) { m_seqNumFrames = f; }
+    void setStepTime(int st) { m_seqStepTime = st; }
+    void setChannelCount(int cc) { m_seqChannelCount = cc; }
+    void addVariableHeader(const VariableHeader &header) { m_variableHeaders.push_back(header);}
+
+    
+    const std::vector<uint8_t> &getMemoryBuffer() const { return m_memoryBuffer;}
+    uint64_t getMemoryBufferPos() const { return m_memoryBufferPos; }
+protected:
+    std::string   m_filename;
+    uint64_t      m_uniqueId;
     uint32_t      m_seqNumFrames;
     uint32_t      m_seqChannelCount;
     int           m_seqStepTime;
@@ -94,6 +104,21 @@ public:
     int           m_seqVersion;
     
     std::vector<VariableHeader> m_variableHeaders;
+
+protected:
+    uint64_t      m_seqFileSize;
+    uint64_t      m_seqChanDataOffset;
+
+    int seek(uint64_t location, int origin);
+    uint64_t tell();
+    uint64_t write(const void * ptr, uint64_t size);
+    uint64_t read(void *ptr, uint64_t size);
+    void preload(uint64_t pos, uint64_t size);
+    
+private:
+    FILE* volatile  m_seqFile;
+    std::vector<uint8_t> m_memoryBuffer;
+    uint64_t      m_memoryBufferPos;
 };
 
 
@@ -111,6 +136,9 @@ public:
     virtual void addFrame(uint32_t frame,
                           uint8_t *data) override;
     virtual void finalize() override;
+    
+    virtual uint32_t getMaxChannel() const override;
+
     
     //The ranges to read and the data size needed to read the ranges
     std::vector<std::pair<uint32_t, uint32_t>> m_rangesToRead;
@@ -138,6 +166,8 @@ public:
 
     virtual void dumpInfo(bool indent = false) override;
 
+    virtual uint32_t getMaxChannel() const override;
+
     
     CompressionType m_compressionType;
     int             m_compressionLevel;
@@ -150,6 +180,7 @@ private:
     void createHandler();
     
     V2Handler *m_handler;
+    friend class V2Handler;
 };
 
 

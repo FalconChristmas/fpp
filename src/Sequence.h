@@ -97,8 +97,8 @@ class Sequence {
     volatile bool m_doneRead;
     volatile bool m_shuttingDown;
     std::thread *m_readThread;
-    std::list<FrameData*> frameCache;
-    std::list<FrameData*> pastFrameCache;
+    std::list<FSEQFile::FrameData*> frameCache;
+    std::list<FSEQFile::FrameData*> pastFrameCache;
     void clearCaches();
     std::mutex frameCacheLock;
     std::mutex readFileLock; //lock for just the stuff needed to read from the file (m_seqFile variable)

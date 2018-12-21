@@ -127,8 +127,8 @@ int main(int argc, char *argv[]) {
         dest->writeHeader();
         
         uint8_t data[1024*1024];
-        for (int x = 0; x < src->m_seqNumFrames; x++) {
-            FrameData *fdata = src->getFrame(x);
+        for (int x = 0; x < src->getNumFrames(); x++) {
+            FSEQFile::FrameData *fdata = src->getFrame(x);
             fdata->readFrame(data);
             delete fdata;
             dest->addFrame(x, data);
@@ -136,7 +136,7 @@ int main(int argc, char *argv[]) {
         dest->finalize();
         
         if (!strcmp(outputFilename, "-memory-")) {
-            printf("size: %d\n", (int)dest->m_memoryBufferSize);
+            printf("size: %d\n", (int)dest->getMemoryBuffer().size());
         }
         
         delete dest;

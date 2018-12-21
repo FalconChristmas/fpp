@@ -124,12 +124,12 @@ void Sequence::ReadFramesLoop() {
         int cacheSize = frameCache.size();
         if (frameCache.size() < SEQUENCE_CACHE_FRAMECOUNT && m_seqStarting < 2 && m_seqFile && !m_doneRead) {
             uint64_t frame = m_lastFrameRead + 1;
-            if (frame < m_seqFile->m_seqNumFrames) {
+            if (frame < m_seqFile->getNumFrames()) {
                 lock.unlock();
                 
                 std::unique_lock<std::mutex> readlock(readFileLock);
                 FSEQFile *file = m_seqFile;
-                FrameData *fd = nullptr;
+                FSEQFile::FrameData *fd = nullptr;
                 if (m_doneRead || file == nullptr) {
                     //memset(fd->data, 0, maxChanToRead);
                 } else {
@@ -236,19 +236,19 @@ int Sequence::OpenSequenceFile(const char *filename, int startFrame, int startSe
         seqLock.lock();
     }
 
-    m_seqStepTime = seqFile->m_seqStepTime;
+    m_seqStepTime = seqFile->getStepTime();
     m_seqRefreshRate = 1000 / m_seqStepTime;
     
     if (startSecond >= 0) {
         int frame = startSecond * 1000;
-        frame /= seqFile->m_seqStepTime;
+        frame /= seqFile->getStepTime();
         m_lastFrameRead = frame - 1;
         if (m_lastFrameRead < -1) m_lastFrameRead = -1;
     }
 
     seqFile->prepareRead(GetOutputRanges());
     // Calculate duration
-    m_seqMSRemaining = seqFile->m_seqNumFrames * seqFile->m_seqStepTime;
+    m_seqMSRemaining = seqFile->getNumFrames() * seqFile->getStepTime();
     m_seqDuration = m_seqMSRemaining;
     m_seqDuration /= 1000;
     m_seqSecondsRemaining = m_seqDuration;
@@ -270,7 +270,6 @@ int Sequence::OpenSequenceFile(const char *filename, int startFrame, int startSe
 
 
     LogDebug(VB_SEQUENCE, "seqRefreshRate        : %d\n", m_seqRefreshRate);
-    LogDebug(VB_SEQUENCE, "seqFileSize           : %lld\n", seqFile->m_seqFileSize);
     LogDebug(VB_SEQUENCE, "seqDuration           : %d\n", m_seqDuration);
     LogDebug(VB_SEQUENCE, "seqMSRemaining        : %d\n", m_seqMSRemaining);
     return 1;
@@ -396,7 +395,7 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
             frameLoadedSignal.wait_for(lock, std::chrono::milliseconds(m_seqStepTime - 1));
         }
         if (!frameCache.empty()) {
-            FrameData *data = frameCache.front();
+            FSEQFile::FrameData *data = frameCache.front();
             frameCache.pop_front();
             if (pastFrameCache.size() > 5) {
                 delete pastFrameCache.front();
