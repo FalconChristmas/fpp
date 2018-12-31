@@ -30,6 +30,12 @@
 #include <sstream>
 #include <string>
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
 #include <jsoncpp/json/json.h>
 #include <boost/algorithm/string/replace.hpp>
 
@@ -77,10 +83,12 @@ Playlist::Playlist(void *parent, int subPlaylist)
 	m_subPlaylistDepth(0),
 	m_subPlaylist(subPlaylist),
 	m_forceStop(0),
+	m_fileTime(0),
+	m_configTime(0),
 	m_currentState("idle"),
 	m_currentSectionStr("New"),
 	m_sectionPosition(0),
-	m_absolutePosition(0)
+	m_startPosition(0)
 {
 	SetIdle();
 
@@ -161,7 +169,8 @@ int Playlist::Load(Json::Value &config)
 	m_loopCount = config["loopCount"].asInt();
 	m_subPlaylistDepth = 0;
 
-	// FIXME, how can we do this better?
+	m_playlistInfo = config["playlistInfo"];
+
 	PlaylistEntryBase::m_playlistEntryCount = 0;
 
 	PlaylistEntryBase *plEntry = NULL;
@@ -208,19 +217,20 @@ Json::Value Playlist::LoadJSON(const char *filename)
 	Json::Value root;
 	Json::Reader reader;
 
-	char fullFilename[2048];
-	strcpy(fullFilename, getPlaylistDirectory());
-	strcat(fullFilename, "/");
-	strcat(fullFilename, filename);
-	strcat(fullFilename, ".json");
-
-	if (!FileExists(fullFilename))
+	if (!FileExists(m_filename.c_str()))
 	{
-		LogErr(VB_PLAYLIST, "Playlist %s does not exist\n", fullFilename);
+		LogErr(VB_PLAYLIST, "Playlist %s does not exist\n", m_filename.c_str());
 		return root;
 	}
 
-	std::ifstream t(fullFilename);
+	struct stat attr;
+	stat(m_filename.c_str(), &attr);
+
+	LogDebug(VB_PLAYLIST, "Playlist Last Modified: %s\n", ctime(&attr.st_mtime));
+
+	m_fileTime = attr.st_mtime;
+
+	std::ifstream t(m_filename);
 	std::stringstream buffer;
 
 	buffer << t.rdbuf();
@@ -228,7 +238,7 @@ Json::Value Playlist::LoadJSON(const char *filename)
 	bool success = reader.parse(buffer.str(), root);
 	if (!success)
 	{
-		LogErr(VB_PLAYLIST, "Error parsing %s\n", fullFilename);
+		LogErr(VB_PLAYLIST, "Error parsing %s\n", m_filename.c_str());
 		return root;
 	}
 
@@ -245,9 +255,20 @@ int Playlist::Load(const char *filename)
 	if (mqtt)
 		mqtt->Publish("playlist/name/status", filename);
 
-	Json::Value root = LoadJSON(filename);
+	m_filename = getPlaylistDirectory();
+	m_filename += "/";
+	m_filename += filename;
+	m_filename += ".json";
 
-	return Load(root);
+	std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
+
+	Json::Value root = LoadJSON(m_filename.c_str());
+
+	int res = Load(root);
+
+	GetConfigStr();
+
+	return res;
 }
 
 /*
@@ -308,6 +329,70 @@ PlaylistEntryBase* Playlist::LoadPlaylistEntry(Json::Value entry)
 /*
  *
  */
+int Playlist::ReloadPlaylist(void)
+{
+	LogDebug(VB_PLAYLIST, "Playlist::ReloadPlaylist()\n");
+
+	std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
+	std::string currentSectionStr = m_currentSectionStr;
+	int repeat = m_repeat;
+
+	Json::Value root = LoadJSON(m_filename.c_str());
+
+	if (!Load(root))
+		return 0;
+
+	m_currentSectionStr = currentSectionStr;
+	m_repeat = repeat;
+
+	GetConfigStr();
+
+	return 1;
+}
+
+/*
+ *
+ */
+void Playlist::ReloadIfNeeded(void)
+{
+	if (FileHasBeenModified())
+	{
+		LogDebug(VB_PLAYLIST, "Playlist .json file has been modified, reloading playlist\n");
+
+		if (!ReloadPlaylist())
+			LogErr(VB_PLAYLIST, "Error reloading playlist, continuing with existing copy.");
+	}
+}
+
+/*
+ *
+ */
+void Playlist::SwitchToMainPlaylist(void)
+{
+	LogDebug(VB_PLAYLIST, "Switching to MainPlaylist\n");
+
+	m_currentSectionStr = "MainPlaylist";
+	m_currentSection    = &m_mainPlaylist;
+	m_sectionPosition   = 0;
+	m_mainPlaylist[0]->StartPlaying();
+}
+
+/*
+ *
+ */
+void Playlist::SwitchToLeadOut(void)
+{
+	LogDebug(VB_PLAYLIST, "Switching to LeadOut\n");
+
+	m_currentSectionStr = "LeadOut";
+	m_currentSection    = &m_leadOut;
+	m_sectionPosition   = 0;
+	m_leadOut[0]->StartPlaying();
+}
+
+/*
+ *
+ */
 int Playlist::Start(void)
 {
 	LogDebug(VB_PLAYLIST, "Playlist::Start()\n");
@@ -333,26 +418,26 @@ int Playlist::Start(void)
 
 	LogDebug(VB_PLAYLIST, "============================================================================\n");
 
-	if (m_absolutePosition > 0)
+	if (m_startPosition > 0)
 	{
-		if (m_absolutePosition >= (m_leadIn.size() + m_mainPlaylist.size() + m_leadOut.size()))
-			m_absolutePosition = 0;
+		if (m_startPosition >= (m_leadIn.size() + m_mainPlaylist.size() + m_leadOut.size()))
+			m_startPosition = 0;
 
-		if (m_absolutePosition >= (m_leadIn.size() + m_mainPlaylist.size()))
+		if (m_startPosition >= (m_leadIn.size() + m_mainPlaylist.size()))
 		{
-			m_sectionPosition = m_absolutePosition - (m_leadIn.size() + m_mainPlaylist.size());
+			m_sectionPosition = m_startPosition - (m_leadIn.size() + m_mainPlaylist.size());
 			m_currentSectionStr = "LeadOut";
 			m_currentSection = &m_leadOut;
 		}
-		else if (m_absolutePosition >= m_leadIn.size())
+		else if (m_startPosition >= m_leadIn.size())
 		{
-			m_sectionPosition = m_absolutePosition - m_leadIn.size();
+			m_sectionPosition = m_startPosition - m_leadIn.size();
 			m_currentSectionStr = "MainPlaylist";
 			m_currentSection = &m_mainPlaylist;
 		}
 		else
 		{
-			m_sectionPosition = m_absolutePosition;
+			m_sectionPosition = m_startPosition;
 			m_currentSectionStr = "LeadIn";
 			m_currentSection = &m_leadIn;
 		}
@@ -444,6 +529,22 @@ int Playlist::IsPlaying(void)
 /*
  *
  */
+int Playlist::FileHasBeenModified(void)
+{
+	struct stat attr;
+	stat(m_filename.c_str(), &attr);
+
+	LogDebug(VB_PLAYLIST, "Playlist Last Modified: %s\n", ctime(&attr.st_mtime));
+
+	if (attr.st_mtime > m_fileTime)
+		return 1;
+
+	return 0;
+}
+
+/*
+ *
+ */
 int Playlist::Process(void)
 {
 	LogExcess(VB_PLAYLIST, "Playlist::Process: %s, section %s, position: %d\n", m_name.c_str(), m_currentSectionStr.c_str(), m_sectionPosition);
@@ -481,13 +582,12 @@ int Playlist::Process(void)
 			if ((m_currentSectionStr == "LeadIn") ||
 				(m_currentSectionStr == "MainPlaylist"))
 			{
+				ReloadIfNeeded();
+
 				if (m_leadOut.size())
 				{
-					LogDebug(VB_PLAYLIST, "Stopping Gracefully, Switching to leadOut\n");
-					m_currentSectionStr = "LeadOut";
-					m_currentSection    = &m_leadOut;
-					m_sectionPosition   = 0;
-					m_leadOut[0]->StartPlaying();
+					LogDebug(VB_PLAYLIST, "Stopping Gracefully\n");
+					SwitchToLeadOut();
 				}
 				else
 				{
@@ -543,21 +643,16 @@ int Playlist::Process(void)
 			if (m_currentSectionStr == "LeadIn")
 			{
 				LogDebug(VB_PLAYLIST, "At end of leadIn.\n");
+
+				ReloadIfNeeded();
+
 				if (m_mainPlaylist.size())
 				{
-					LogDebug(VB_PLAYLIST, "Switching to mainPlaylist section.\n");
-					m_currentSectionStr = "MainPlaylist";
-					m_currentSection    = &m_mainPlaylist;
-	 				m_sectionPosition   = 0;
-					m_mainPlaylist[0]->StartPlaying();
+					SwitchToMainPlaylist();
 				}
 				else if (m_leadOut.size())
 				{
-					LogDebug(VB_PLAYLIST, "Switching to leadOut section.\n");
-					m_currentSectionStr = "LeadOut";
-					m_currentSection    = &m_leadOut;
-					m_sectionPosition   = 0;
-					m_leadOut[0]->StartPlaying();
+					SwitchToLeadOut();
 				}
 				else
 				{
@@ -571,15 +666,14 @@ int Playlist::Process(void)
 				LogDebug(VB_PLAYLIST, "mainPlaylist loop now: %d\n", m_loop);
 				if ((m_repeat) && (!m_loopCount || (m_loop < m_loopCount)))
 				{
+					ReloadIfNeeded();
+
 					if (FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP)
 					{
 						if (m_leadOut.size())
 						{
-							LogDebug(VB_PLAYLIST, "Stopping Gracefully after loop, Switching to leadOut\n");
-							m_currentSectionStr = "LeadOut";
-							m_currentSection    = &m_leadOut;
-							m_sectionPosition   = 0;
-							m_leadOut[0]->StartPlaying();
+							LogDebug(VB_PLAYLIST, "Stopping Gracefully after loop\n");
+							SwitchToLeadOut();
 						}
 						else
 						{
@@ -591,16 +685,15 @@ int Playlist::Process(void)
 					}
 
 					LogDebug(VB_PLAYLIST, "mainPlaylist repeating for another loop, %d <= %d\n", m_loop, m_loopCount);
+
 					m_sectionPosition = 0;
 					m_mainPlaylist[0]->StartPlaying();
 				}
 				else if (m_leadOut.size())
 				{
-					LogDebug(VB_PLAYLIST, "Switching to leadOut\n");
-					m_currentSectionStr = "LeadOut";
-					m_currentSection    = &m_leadOut;
-					m_sectionPosition   = 0;
-					m_leadOut[0]->StartPlaying();
+					ReloadIfNeeded();
+
+					SwitchToLeadOut();
 				}
 				else
 				{
@@ -626,13 +719,6 @@ int Playlist::Process(void)
 			mqtt->Publish("playlist/sectionPosition/status", m_sectionPosition);
 		}
 	}
-
-//LogDebug(VB_PLAYLIST, "NPL: Checking if current item needs starting\n");
-//	if (!m_currentSection->at(m_sectionPosition)->IsStarted())
-//	{
-//LogDebug(VB_PLAYLIST, "NPL: Starting current item\n");
-//		m_currentSection->at(m_sectionPosition)->StartPlaying();
-//	}
 
 	return 1;
 }
@@ -669,7 +755,7 @@ void Playlist::SetIdle(void)
 	m_currentState = "idle";
 	m_name = "";
 	m_desc = "";
-	m_absolutePosition = 0;
+	m_startPosition = 0;
 	m_sectionPosition = 0;
 	m_repeat = 0;
 
@@ -711,13 +797,12 @@ int Playlist::Cleanup(void)
 
 	m_name = "";
 	m_desc = "";
-	m_absolutePosition = 0;
+	m_startPosition = 0;
 	m_sectionPosition = 0;
 	m_repeat = 0;
 	m_loopCount = 0;
 	m_startTime = 0;
 	m_currentSectionStr = "New";
-	m_sectionPosition = 0;
 
 	return 1;
 }
@@ -771,7 +856,7 @@ int Playlist::Play(const char *filename, const int position, const int repeat)
  */
 void Playlist::SetPosition(int position)
 {
-	m_absolutePosition = position;
+	m_startPosition = position;
 
 	if (mqtt)
 		mqtt->Publish("playlist/position/status", position);
@@ -863,7 +948,7 @@ void Playlist::NextItem(void)
     std::string desc = m_desc;
     int repeat = m_repeat;
     StopNow();
-    m_absolutePosition = pos;
+    m_startPosition = pos;
     m_repeat = repeat;
     m_desc = desc;
     m_name = name;
@@ -895,7 +980,7 @@ void Playlist::PrevItem(void)
     std::string desc = m_desc;
     int repeat = m_repeat;
     StopNow();
-    m_absolutePosition = pos;
+    m_startPosition = pos;
     m_repeat = repeat;
     m_desc = desc;
     m_name = name;
@@ -969,12 +1054,7 @@ Json::Value Playlist::GetInfo(void)
 		result["blankBetweenSequences"] = 0;
 		result["blankBetweenIterations"] = 0;
 		result["blankAtEnd"] = 0;
-		result["currentSection"] = "";
-		result["sectionPosition"] = 0;
-		result["currentPosition"] = 0;
 		result["size"] = 0;
-		result["elapsed"] = 0;
-		result["remaining"] = 0;
 	}
 	else
 	{
@@ -987,14 +1067,7 @@ Json::Value Playlist::GetInfo(void)
 		result["blankBetweenSequences"] = m_blankBetweenSequences;
 		result["blankBetweenIterations"] = m_blankBetweenIterations;
 		result["blankAtEnd"] = m_blankAtEnd;
-		result["currentSection"] = m_currentSectionStr;
-		result["sectionPosition"] = m_sectionPosition;
-		result["currentPosition"] = GetPosition();
 		result["size"] = GetSize();
-		result["elapsed"] = (int)((GetTime() - m_startTime) / 1000000);
-
-		// FIXME PLAYLIST
-		result["remaining"] = 0;
 	}
 
 	result["currentEntry"] = GetCurrentEntry();
@@ -1007,6 +1080,8 @@ Json::Value Playlist::GetInfo(void)
  */
 std::string Playlist::GetConfigStr(void)
 {
+	std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
+
 	Json::FastWriter fastWriter;
 	Json::Value result = GetConfig();
 
@@ -1019,6 +1094,9 @@ std::string Playlist::GetConfigStr(void)
 Json::Value Playlist::GetConfig(void)
 {
 	Json::Value result = GetInfo();
+
+	if (m_configTime > m_fileTime)
+		return m_config;
 
 	if (m_leadIn.size())
 	{
@@ -1046,6 +1124,12 @@ Json::Value Playlist::GetConfig(void)
 
 		result["leadOut"] = jsonArray;
 	}
+
+	m_configTime = time(NULL);
+	result["configTime"] = (Json::UInt64)m_configTime;
+
+	m_config = result;
+	m_config["playlistInfo"] = m_playlistInfo;
 
 	return result;
 }

@@ -26,6 +26,7 @@
 #ifndef _PLAYLIST_H
 #define _PLAYLIST_H
 
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -125,15 +126,23 @@ class Playlist {
 	int                GetSize(void);
 	std::string        GetConfigStr(void);
 	Json::Value        GetConfig(void);
+	uint64_t           GetFileTime(void) { return (Json::UInt64)m_fileTime; }
 	int                GetForceStop(void) { return m_forceStop; }
 	int                WasScheduled(void) { return m_scheduled; }
 
 	int                MQTTHandler(std::string topic, std::string msg);
 
+	int                FileHasBeenModified(void);
 	std::string        ReplaceMatches(std::string in);
 
   private:
+	int                ReloadPlaylist(void);
+	void               ReloadIfNeeded(void);
+	void               SwitchToMainPlaylist(void);
+	void               SwitchToLeadOut(void);
+
 	void                *m_parent;
+	std::string          m_filename;
   	std::string          m_name;
 	std::string          m_desc;
 	int                  m_repeat;
@@ -149,10 +158,17 @@ class Playlist {
 	int                  m_scheduled;
 	int                  m_forceStop;
 
+	time_t               m_fileTime;
+	Json::Value          m_config;
+	time_t               m_configTime;
+	Json::Value          m_playlistInfo;
+
 	std::string          m_currentState;
 	std::string          m_currentSectionStr;
 	int                  m_sectionPosition;
-	int                  m_absolutePosition;
+	int                  m_startPosition;
+
+	std::recursive_mutex m_playlistMutex;
 
 	std::vector<PlaylistEntryBase*>  m_leadIn;
 	std::vector<PlaylistEntryBase*>  m_mainPlaylist;

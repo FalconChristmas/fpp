@@ -34,6 +34,7 @@
 #include "httpAPI.h"
 #include "log.h"
 #include "MultiSync.h"
+#include "playlist/Playlist.h"
 #include "Scheduler.h"
 #include "settings.h"
 
@@ -151,10 +152,13 @@ const http_response PlayerResource::render_GET(const http_request &req)
 	{
 		GetMultiSyncSystems(result);
 	}
-	else if (boost::starts_with(url, "playlists/"))
+	else if (url == "playlist/filetime")
 	{
-		boost::replace_first(url, "playlists/", "");
-		LogDebug(VB_HTTP, "API - Getting info for running playlist '%s'\n", url.c_str());
+		GetPlaylistFileTime(result);
+	}
+	else if (url == "playlist/config")
+	{
+		GetPlaylistConfig(result);
 	}
 	else if (url == "schedule")
 	{
@@ -609,9 +613,14 @@ void PlayerResource::GetCurrentPlaylists(Json::Value &result)
 {
 	LogDebug(VB_HTTP, "API - Getting current playlist\n");
 
+	Json::Value names(Json::arrayValue);
+
+	if (playlist->IsPlaying())
+		names.append(playlist->GetPlaylistName());
+
+	result["playlists"] = names;
+
 	SetOKResult(result, "");
-// FIXME API
-//	result["playlists"] = player->GetCurrentPlaylist();
 }
 
 /*
@@ -638,6 +647,36 @@ void PlayerResource::GetMultiSyncSystems(Json::Value &result)
 		SetOKResult(result, "");
 	else
 		SetErrorResult(result, 400, "MultiSync did not return any systems.");
+}
+
+/*
+ *
+ */
+void PlayerResource::GetPlaylistFileTime(Json::Value &result)
+{
+	if (playlist->IsPlaying())
+	{
+		uint64_t fileTime = playlist->GetFileTime();
+
+		result["fileTime"] = (Json::UInt64)fileTime;
+	}
+	else
+	{
+		result["fileTime"] = 0;
+	}
+
+	SetOKResult(result, "");
+}
+
+/*
+ *
+ */
+void PlayerResource::GetPlaylistConfig(Json::Value &result)
+{
+	if (playlist->IsPlaying())
+		result = playlist->GetConfig();
+
+	SetOKResult(result, "");
 }
 
 /*
