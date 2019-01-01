@@ -121,9 +121,14 @@ int MultiSync::Init(void)
  *
  */
 void MultiSync::UpdateSystem(MultiSyncSystemType type,
-	unsigned int majorVersion, unsigned int minorVersion,
-	FPPMode fppMode, std::string address,
-	std::string hostname, std::string version, std::string model)
+                             unsigned int majorVersion, unsigned int minorVersion,
+                             FPPMode fppMode,
+                             const std::string &address,
+                             const std::string &hostname,
+                             const std::string &version,
+                             const std::string &model,
+                             const std::string &ranges
+                             )
 {
 	pthread_mutex_lock(&m_systemsLock);
 	int found = -1;
@@ -155,7 +160,7 @@ void MultiSync::UpdateSystem(MultiSyncSystemType type,
 	m_systems[found].fppMode      = fppMode;
 	m_systems[found].version      = version;
 	m_systems[found].model        = model;
-
+    m_systems[found].ranges       = ranges;
 	std::vector<std::string> parts = split(address, '.');
 	m_systems[found].ipa = atoi(parts[0].c_str());
 	m_systems[found].ipb = atoi(parts[1].c_str());
@@ -399,8 +404,9 @@ Json::Value MultiSync::GetSystems(bool localOnly, bool timestamps)
 		system["version"]      = m_systems[i].version;
 		system["model"]        = m_systems[i].model;
         if (i < m_numLocalSystems) {
-            system["channelRanges"] = range;
+            m_systems[i].ranges = range;
         }
+        system["channelRanges"] = m_systems[i].ranges;
 
 		systems.append(system);
 	}
@@ -423,11 +429,26 @@ void MultiSync::Ping(int discover)
 		LogErr(VB_SYNC, "ERROR: Tried to send ping packet but control socket is not open.\n");
 		return;
 	}
-
+    
+    //update the range for local systems so it's accurate
+    const std::vector<std::pair<uint32_t, uint32_t>> &ranges = GetOutputRanges();
+    bool first = true;
+    std::string range;
+    for (auto &a : ranges) {
+        if (!first) {
+            range += ",";
+        }
+        char buf[64];
+        sprintf(buf, "%d-%d", a.first, (a.first + a.second - 1));
+        range += buf;
+        first = false;
+    }
     for (int x = 0; x < m_numLocalSystems; x++) {
         pthread_mutex_lock(&m_systemsLock);
         MultiSyncSystem sysInfo = m_systems[x];
         pthread_mutex_unlock(&m_systemsLock);
+        
+        sysInfo.ranges = range;
         
         char           outBuf[2048];
         bzero(outBuf, sizeof(outBuf));
@@ -437,11 +458,12 @@ void MultiSync::Ping(int discover)
         InitControlPacket(cpkt);
         
         cpkt->pktType        = CTRL_PKT_PING;
-        cpkt->extraDataLen   = 169; // v1 ping length
+        cpkt->extraDataLen   = 214; // v2 ping length
         
         unsigned char *ed = (unsigned char*)(outBuf + 7);
+        memset(ed, 0, cpkt->extraDataLen - 7);
         
-        ed[0]  = 1;                    // ping version 1
+        ed[0]  = 2;                    // ping version 1
         ed[1]  = discover > 0 ? 1 : 0; // 0 = ping, 1 = discover
         ed[2]  = sysInfo.type;
         ed[3]  = (sysInfo.majorVersion & 0xFF00) >> 8;
@@ -457,7 +479,7 @@ void MultiSync::Ping(int discover)
         strncpy((char *)(ed + 12), sysInfo.hostname.c_str(), 65);
         strncpy((char *)(ed + 77), sysInfo.version.c_str(), 41);
         strncpy((char *)(ed + 118), sysInfo.model.c_str(), 41);
-        
+        strncpy((char *)(ed + 159), sysInfo.ranges.c_str(), 41);
         SendBroadcastPacket(outBuf, sizeof(ControlPkt) + cpkt->extraDataLen);
     }
 }
@@ -1489,13 +1511,16 @@ void MultiSync::ProcessPingPacket(ControlPkt *pkt, int len)
 
 	unsigned char pingVersion = extraData[0];
 
-	if ((pingVersion == 1) && (pkt->extraDataLen > 169))
-	{
+	if ((pingVersion == 1) && (pkt->extraDataLen > 169)) {
 		LogErr(VB_SYNC, "ERROR: Ping v1 packet too long\n");
 		HexDump("Received data:", (void*)&pkt, len);
 		return;
 	}
-
+    if ((pingVersion == 2) && (pkt->extraDataLen > 210)) {
+        LogErr(VB_SYNC, "ERROR: Ping v1 packet too long\n");
+        HexDump("Received data:", (void*)&pkt, len);
+        return;
+    }
 	int discover = extraData[1];
 
 	MultiSyncSystemType type = (MultiSyncSystemType)extraData[2];
@@ -1521,11 +1546,16 @@ void MultiSync::ProcessPingPacket(ControlPkt *pkt, int len)
 
 	strcpy(tmpStr, (char*)(extraData + 118));
 	std::string typeStr(tmpStr);
+    
+    std::string ranges;
+    if ((pkt->extraDataLen) > 168) {
+        strcpy(tmpStr, (char*)(extraData + 166-7));
+    }
 
 	// End of v1 packet fields
 
 	multiSync->UpdateSystem(type, majorVersion, minorVersion,
-		systemMode, address, hostname, version, typeStr);
+		systemMode, address, hostname, version, typeStr, ranges);
 
 	if ((discover) &&
 		(hostname != m_hostname) &&

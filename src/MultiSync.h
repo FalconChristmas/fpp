@@ -114,6 +114,7 @@ typedef struct multiSyncSystem {
 	std::string          hostname;
 	std::string          version;
 	std::string          model;
+    std::string          ranges;
 	unsigned char        ipa;
 	unsigned char        ipb;
 	unsigned char        ipc;
@@ -130,9 +131,15 @@ class MultiSync {
 	int  GetControlSocket(void) { return m_receiveSock; }
 	void ProcessControlPacket(void);
 
-	void UpdateSystem(MultiSyncSystemType type, unsigned int majorVersion,
-		unsigned int minorVersion, FPPMode fppMode, std::string address,
-		std::string hostname, std::string version, std::string model);
+	void UpdateSystem(MultiSyncSystemType type,
+                      unsigned int majorVersion,
+                      unsigned int minorVersion,
+                      FPPMode fppMode,
+                      const std::string &address,
+                      const std::string &hostname,
+                      const std::string &version,
+                      const std::string &model,
+                      const std::string &range);
 
 	Json::Value GetSystems(bool localOnly = false, bool timestamps = true);
 
