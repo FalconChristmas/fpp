@@ -1613,11 +1613,34 @@ function SetPluginSetting()
 
 function GetFPPSystems()
 {
-	exec("ip addr show up | grep 'inet ' | awk '{print $2}' | cut -f1 -d/ | grep -v '^127'", $localIPs);
+    $result = Array();
+    exec("ip addr show up | grep 'inet ' | awk '{print $2}' | cut -f1 -d/ | grep -v '^127'", $localIPs);
 
+    $found = Array();
+    
+    $discovered = json_decode(@file_get_contents("http://localhost:32322/fppd/multiSyncSystems"), true);
+    foreach ($discovered['systems'] as $system) {
+        $elem = Array();
+        $elem['HostName'] = $system['hostname'];
+        
+        $sysHostInfo = json_decode(@file_get_contents("http://" . $system['address'] . "/fppjson.php?command=getHostNameInfo"), true);
+        $found[$system['address']] = 1;
+
+        $elem['HostDescription'] = !empty($sysHostInfo['HostDescription']) ? $sysHostInfo['HostDescription'] : "";
+        $elem['IP'] = $system['address'];
+        $elem['fppMode'] = $system['fppModeString'];
+        $elem['Local'] = 0;
+        $elem['Platform'] = $system['type'];
+        $elem['txtRecord'] = "";
+        $elem['version'] = $system['version'];
+        $matches = preg_grep("/^" . $elem['IP'] . "$/", $localIPs);
+        if (count($matches))
+            $elem['Local'] = 1;
+        $result[] = $elem;
+    }
+    
+    
 	exec("avahi-browse -artp | grep  'IPv4' | grep 'fpp-fppd' | sort", $rmtSysOut);
-
-	$result = Array();
 
 	foreach ($rmtSysOut as $system)
 	{
@@ -1630,6 +1653,10 @@ function GetFPPSystems()
 
         if (preg_match("/usb.*/", $parts[1]))
             continue;
+        
+        if ($found[$parts[7]] == 1) {
+            continue;
+        }
         
 		$sysHostInfo = json_decode(@file_get_contents("http://" . $parts[7] . "/fppjson.php?command=getHostNameInfo"), true);
 

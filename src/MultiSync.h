@@ -223,7 +223,7 @@ class MultiSync {
 	std::vector<struct sockaddr_in> m_destAddrCSV;
     
     
-    #define MAX_MS_RCV_MSG 4
+    #define MAX_MS_RCV_MSG 12
     #define MAX_MS_RCV_BUFSIZE 1500
     struct mmsghdr rcvMsgs[MAX_MS_RCV_MSG];
     struct iovec rcvIovecs[MAX_MS_RCV_MSG];

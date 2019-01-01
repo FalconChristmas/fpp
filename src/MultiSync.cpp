@@ -399,6 +399,11 @@ Json::Value MultiSync::GetSystems(bool localOnly, bool timestamps)
 		system["majorVersion"] = m_systems[i].majorVersion;
 		system["minorVersion"] = m_systems[i].minorVersion;
 		system["fppMode"]      = m_systems[i].fppMode;
+        
+        char *s = modeToString(m_systems[i].fppMode);
+        system["fppModeString"] = s;
+        free(s);
+        
 		system["address"]      = m_systems[i].address;
 		system["hostname"]     = m_systems[i].hostname;
 		system["version"]      = m_systems[i].version;
@@ -1512,12 +1517,12 @@ void MultiSync::ProcessPingPacket(ControlPkt *pkt, int len)
 	unsigned char pingVersion = extraData[0];
 
 	if ((pingVersion == 1) && (pkt->extraDataLen > 169)) {
-		LogErr(VB_SYNC, "ERROR: Ping v1 packet too long\n");
+        LogErr(VB_SYNC, "ERROR: Ping v1 packet too long: %d\n", pkt->extraDataLen);
 		HexDump("Received data:", (void*)&pkt, len);
 		return;
 	}
-    if ((pingVersion == 2) && (pkt->extraDataLen > 210)) {
-        LogErr(VB_SYNC, "ERROR: Ping v1 packet too long\n");
+    if ((pingVersion == 2) && (pkt->extraDataLen > 214)) {
+        LogErr(VB_SYNC, "ERROR: Ping v2 packet too long %d\n", pkt->extraDataLen);
         HexDump("Received data:", (void*)&pkt, len);
         return;
     }
@@ -1546,13 +1551,13 @@ void MultiSync::ProcessPingPacket(ControlPkt *pkt, int len)
 
 	strcpy(tmpStr, (char*)(extraData + 118));
 	std::string typeStr(tmpStr);
+    // End of v1 packet fields
     
     std::string ranges;
-    if ((pkt->extraDataLen) > 168) {
+    if ((pkt->extraDataLen) > 169) {
         strcpy(tmpStr, (char*)(extraData + 166-7));
+        ranges = tmpStr;
     }
-
-	// End of v1 packet fields
 
 	multiSync->UpdateSystem(type, majorVersion, minorVersion,
 		systemMode, address, hostname, version, typeStr, ranges);
