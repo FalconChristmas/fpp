@@ -1631,8 +1631,11 @@ function GetFPPSystems()
         $elem['fppMode'] = $system['fppModeString'];
         $elem['Local'] = 0;
         $elem['Platform'] = $system['type'];
-        $elem['txtRecord'] = "";
+        $elem['majorVersion'] = $system['majorVersion'];
+        $elem['minorVersion'] = $system['minorVersion'];
+        $elem['model'] = $system['model'];
         $elem['version'] = $system['version'];
+        $elem['channelRanges'] = !empty($system['channelRanges']) ? $system['channelRanges'] : "";
         $matches = preg_grep("/^" . $elem['IP'] . "$/", $localIPs);
         if (count($matches))
             $elem['Local'] = 1;
