@@ -83,6 +83,7 @@ class PlaylistEntryBase {
 
 	int          m_playlistEntryID;
 
+	Json::Value  m_config;
 	PlaylistEntryBase *m_parent;
 };
 

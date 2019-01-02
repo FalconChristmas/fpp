@@ -72,6 +72,7 @@ int PlaylistEntryBase::Init(Json::Value &config)
 	m_isStarted = 0;
 	m_isPlaying = 0;
 	m_isFinished = 0;
+	m_config = config;
 
 	return 1;
 }
@@ -212,7 +213,7 @@ void PlaylistEntryBase::Dump(void)
  */
 Json::Value PlaylistEntryBase::GetConfig(void)
 {
-	Json::Value result;
+	Json::Value result = m_config;
 
 	result["type"]       = m_type;
 	result["enabled"]    = m_enabled;
