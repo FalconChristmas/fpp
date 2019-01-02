@@ -1623,22 +1623,25 @@ function GetFPPSystems()
         $elem = Array();
         $elem['HostName'] = $system['hostname'];
         
-        $sysHostInfo = json_decode(@file_get_contents("http://" . $system['address'] . "/fppjson.php?command=getHostNameInfo"), true);
-        $found[$system['address']] = 1;
+        $hostNameInfo = @file_get_contents("http://" . $system['address'] . "/fppjson.php?command=getHostNameInfo");
+        if ($hostNameInfo != false) {
+            $sysHostInfo = json_decode($hostNameInfo, true);
+            $found[$system['address']] = 1;
 
-        $elem['HostDescription'] = !empty($sysHostInfo['HostDescription']) ? $sysHostInfo['HostDescription'] : "";
-        $elem['IP'] = $system['address'];
-        $elem['fppMode'] = $system['fppModeString'];
-        $elem['Local'] = 0;
-        $elem['Platform'] = $system['type'];
-        $elem['majorVersion'] = $system['majorVersion'];
-        $elem['minorVersion'] = $system['minorVersion'];
-        $elem['model'] = $system['model'];
-        $elem['version'] = $system['version'];
-        $elem['channelRanges'] = !empty($system['channelRanges']) ? $system['channelRanges'] : "";
-        $matches = preg_grep("/^" . $elem['IP'] . "$/", $localIPs);
-        if (count($matches))
-            $elem['Local'] = 1;
+            $elem['HostDescription'] = !empty($sysHostInfo['HostDescription']) ? $sysHostInfo['HostDescription'] : "";
+            $elem['IP'] = $system['address'];
+            $elem['fppMode'] = $system['fppModeString'];
+            $elem['Local'] = 0;
+            $elem['Platform'] = $system['type'];
+            $elem['majorVersion'] = $system['majorVersion'];
+            $elem['minorVersion'] = $system['minorVersion'];
+            $elem['model'] = $system['model'];
+            $elem['version'] = $system['version'];
+            $elem['channelRanges'] = !empty($system['channelRanges']) ? $system['channelRanges'] : "";
+            $matches = preg_grep("/^" . $elem['IP'] . "$/", $localIPs);
+            if (count($matches))
+                $elem['Local'] = 1;
+        }
         $result[] = $elem;
     }
     

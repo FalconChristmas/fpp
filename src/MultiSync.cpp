@@ -1536,6 +1536,17 @@ void MultiSync::ProcessPingPacket(ControlPkt *pkt, int len)
 	FPPMode systemMode = (FPPMode)extraData[7];
 
 	char addrStr[16];
+    bool isInstance = true;
+    if (extraData[8] == 0
+        && extraData[9] == 0
+        && extraData[10] == 0
+        && extraData[11] == 0
+        && discover) {
+        //No ip address in packet, this is a ping/discovery packet
+        //from something (xLights?) that is just trying to
+        //get a list of FPP instances, we won't record this
+        isInstance = false;
+    }
 
 	snprintf(addrStr, 15, "%d.%d.%d.%d", extraData[8], extraData[9],
 		extraData[10], extraData[11]);
@@ -1559,8 +1570,10 @@ void MultiSync::ProcessPingPacket(ControlPkt *pkt, int len)
         ranges = tmpStr;
     }
 
-	multiSync->UpdateSystem(type, majorVersion, minorVersion,
-		systemMode, address, hostname, version, typeStr, ranges);
+    if (isInstance) {
+        multiSync->UpdateSystem(type, majorVersion, minorVersion,
+                                systemMode, address, hostname, version, typeStr, ranges);
+    }
 
 	if ((discover) &&
 		(hostname != m_hostname) &&
