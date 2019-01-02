@@ -2917,10 +2917,10 @@ function DownloadZip(dir)
 function ViewFile(dir, file)
 {
 	$('#fileText').html("Loading...");
-	$('#fileText').load("fppxml.php?command=getFile&dir=" + dir + "&filename=" + file, function() {
+	$.get("fppxml.php?command=getFile&dir=" + dir + "&filename=" + file, function(text) {
 		var ext = file.split('.').pop();
 		if (ext != "html")
-			$('#fileText').html("<pre>" + $('#fileText').html() + "</pre>");
+			$('#fileText').html("<pre>" + text + "</pre>");
 	});
 
 	$('#fileViewer').dialog({ height: 600, width: 800, title: "File Viewer: " + file });
