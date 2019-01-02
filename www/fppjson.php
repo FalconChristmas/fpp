@@ -1657,7 +1657,7 @@ function GetFPPSystems()
         if (preg_match("/usb.*/", $parts[1]))
             continue;
         
-        if ($found[$parts[7]] == 1) {
+        if (isset($found[$parts[7]]) && ($found[$parts[7]] == 1)) {
             continue;
         }
         
