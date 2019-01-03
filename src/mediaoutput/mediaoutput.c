@@ -125,9 +125,6 @@ void CleanupMediaOutput(void)
 	pthread_mutex_destroy(&mediaOutputLock);
 }
 
-inline bool FileExists(const std::string &s) {
-    return FileExists((const char *)s.c_str());
-}
 std::string GetVideoFilenameForMedia(const std::string &filename, std::string &ext) {
     ext = "";
     std::string result("");

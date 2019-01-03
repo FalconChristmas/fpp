@@ -85,15 +85,14 @@ int DirectoryExists(const char * Directory)
 int FileExists(const char * File)
 {
 	struct stat sts;
-	if (stat(File, &sts) == -1 && errno == ENOENT)
-	{
+	if (stat(File, &sts) == -1 && errno == ENOENT) {
 		return 0;
-	}
-	else
-	{
+	} else {
 		return 1;
 	}
-	
+}
+int FileExists(const std::string &f) {
+    return FileExists(f.c_str());
 }
 
 /*
@@ -287,45 +286,47 @@ char *FindInterfaceForIP(char *ip)
  */
 int CheckForHostSpecificFile(const char *hostname, char *filename)
 {
-	char localFilename[2048];
-	strcpy(localFilename, filename);
+    std::string f = filename;
+    if (CheckForHostSpecificFile(hostname, f)) {
+        strcpy(filename, f.c_str());
+        return 1;
+    }
+    return 0;
+}
+int CheckForHostSpecificFile(const std::string &hostname, std::string &filename)
+{
+    std::string localFilename = filename;
 
-	char ext[6];
-	char *ptr = 0;
-	int len = strlen(localFilename);
-
+	int len = localFilename.length();
+    int extIdx = 0;
+    
 	// Check for 3 or 4-digit extension
-	if (localFilename[len - 4] == '.')
-	    ptr = &localFilename[len - 4];
-	else if (localFilename[len - 5] == '.')
-	    ptr = &localFilename[len - 5];
+    if (localFilename[len - 4] == '.') {
+        extIdx = len - 4;
+    } else if (localFilename[len - 5] == '.') {
+        extIdx = len - 5;
+    }
 
-	if (ptr)
-	{
+	if (extIdx) {
 		// Preserve the extension including the dot
-		strcpy(ext, ptr);
+        std::string ext = localFilename.substr(extIdx);
+        localFilename = localFilename.substr(0, extIdx);
+        localFilename += "-";
+        localFilename += hostname;
+        localFilename += ext;
 
-		*ptr = 0;
-		strcat(ptr, "-");
-		strcat(ptr, hostname);
-		strcat(ptr, ext);
-
-		if (FileExists(localFilename))
-		{
+		if (FileExists(localFilename)) {
 			LogDebug(VB_SEQUENCE, "Found %s to use instead of %s\n",
-				localFilename, filename);
-			strcpy(filename, localFilename);
+				localFilename.c_str(), filename.c_str());
+            filename = localFilename;
 			return 1;
-		}
-		else
-		{
+		} else {
 			// Replace hyphen with an underscore and recheck
-			*ptr = '_';
-			if (FileExists(localFilename))
-			{
+            localFilename[extIdx] = '_';
+            if (FileExists(localFilename)) {
 				LogDebug(VB_SEQUENCE, "Found %s to use instead of %s\n",
-					localFilename, filename);
-				strcpy(filename, localFilename);
+                         localFilename.c_str(), filename.c_str());
+				filename = localFilename;
 				return 1;
 			}
 		}

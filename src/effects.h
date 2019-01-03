@@ -27,29 +27,14 @@
 #ifndef EFFECTS_H_
 #define EFFECTS_H_
 
-#include <stdio.h>
-
-//typedef struct eseqheader {
-//} eSeqHeader;
-
-typedef struct fppeffect {
-	char     *name;
-	FILE     *fp;
-	int       stepSize;
-	int       modelSize;
-	int       startChannel;
-	int       loop;
-	int       background;
-} FPPeffect;
-
-extern FPPeffect *effects[];
+#include <string>
 
 int  GetRunningEffects(char *msg, char **result);
 int  IsEffectRunning(void);
 int  InitEffects(void);
 void CloseEffects(void);
-int  StartEffect(const char *effectName, int startChannel, int loop = 0);
-int  StopEffect(const char *effectName);
+int  StartEffect(const std::string &effectName, int startChannel, int loop = 0);
+int  StopEffect(const std::string &effectName);
 int  StopEffect(int effectID);
 void StopAllEffects(void);
 int  OverlayEffects(char *channelData);

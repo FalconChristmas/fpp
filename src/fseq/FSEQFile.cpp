@@ -2,16 +2,47 @@
 #define _FILE_OFFSET_BITS 64
 #define __STDC_FORMAT_MACROS
 
+
 #include <vector>
 #include <cstring>
+#include <memory>
 
 #include <stdio.h>
 #include <inttypes.h>
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+
+#ifdef _MSC_VER
+#include <wx/wx.h>
+int gettimeofday(struct timeval * tp, struct timezone * tzp)
+{
+    // Note: some broken versions only have 8 trailing zero's, the correct epoch has 9 trailing zero's
+    // This magic number is the number of 100 nanosecond intervals since January 1, 1601 (UTC)
+    // until 00:00:00 January 1, 1970
+    static const uint64_t EPOCH = ((uint64_t)116444736000000000ULL);
+
+    SYSTEMTIME  system_time;
+    FILETIME    file_time;
+    uint64_t    time;
+
+    GetSystemTime(&system_time);
+    SystemTimeToFileTime(&system_time, &file_time);
+    time = ((uint64_t)file_time.dwLowDateTime);
+    time += ((uint64_t)file_time.dwHighDateTime) << 32;
+
+    tp->tv_sec = (long)((time - EPOCH) / 10000000L);
+    tp->tv_usec = (long)(system_time.wMilliseconds * 1000);
+    return 0;
+}
+#define ftello _ftelli64
+#define fseeko _fseeki64
+#define NO_ZLIB
+
+#else
 #include <sys/time.h>
 #include <unistd.h>
+#endif
 
 #include "FSEQFile.h"
 
@@ -22,24 +53,22 @@
 //compiling within xLights, use log4cpp
 #define PLATFORM_UNKNOWN
 #include <log4cpp/Category.hh>
-static void LogErr(int i, const char *fmt, ...) {
+template<typename... Args> static void LogErr(int i, const char *fmt, Args... args) {
     static log4cpp::Category &fseq_logger_base = log4cpp::Category::getInstance(std::string("log_base"));
-    va_list args;
-    fseq_logger_base.error(fmt, args);
+    fseq_logger_base.error(fmt, args...);
 }
-static void LogInfo(int i, const char *fmt, ...) {
+template<typename... Args> static void LogInfo(int i, const char *fmt, Args... args) {
     static log4cpp::Category &fseq_logger_base = log4cpp::Category::getInstance(std::string("log_base"));
-    va_list args;
-    fseq_logger_base.info(fmt, args);
+    fseq_logger_base.info(fmt, args...);
 }
-static void LogDebug(int i, const char *fmt, ...) {
+template<typename... Args> static void LogDebug(int i, const char *fmt, Args... args) {
     static log4cpp::Category &fseq_logger_base = log4cpp::Category::getInstance(std::string("log_base"));
-    va_list args;
-    fseq_logger_base.debug(fmt, args);
+    fseq_logger_base.debug(fmt, args...);
 }
 #define VB_SEQUENCE 1
 #define VB_ALL 0
 #endif
+
 
 #ifndef NO_ZSTD
 #include <zstd.h>
@@ -141,7 +170,7 @@ FSEQFile* FSEQFile::openFSEQFile(const std::string &fn) {
 #endif
 
     if ((bytesRead < 4)
-        || (tmpData[0] != 'P' && tmpData[0] != 'F')
+        || (tmpData[0] != 'P' && tmpData[0] != 'F' && tmpData[0] != 'E')
         || tmpData[1] != 'S'
         || tmpData[2] != 'E'
         || tmpData[3] != 'Q') {
@@ -151,20 +180,25 @@ FSEQFile* FSEQFile::openFSEQFile(const std::string &fn) {
         fclose(seqFile);
         return nullptr;
     }
-
     if (bytesRead < 8) {
         LogErr(VB_SEQUENCE, "Sequence file %s too short, unable to read FSEQ version fields\n", fn.c_str());
         DumpHeader("Sequence File head:", tmpData, bytesRead);
         fclose(seqFile);
         return nullptr;
     }
-
     int seqVersionMinor = tmpData[6];
     int seqVersionMajor = tmpData[7];
 
     ///////////////////////////////////////////////////////////////////////
     // Get Channel Data Offset
     uint64_t seqChanDataOffset = read2ByteUInt(&tmpData[4]);
+    
+    if (tmpData[0] == 'E') {
+        //v1 eseq file.  This is basically an uncompressed v2 file with a custom header
+        seqChanDataOffset = 20;
+        seqVersionMajor = 2;
+        seqVersionMinor = 0;
+    }
     std::vector<uint8_t> header(seqChanDataOffset);
     fseeko(seqFile, 0L, SEEK_SET);
     bytesRead = fread(&header[0], 1, seqChanDataOffset, seqFile);
@@ -173,7 +207,6 @@ FSEQFile* FSEQFile::openFSEQFile(const std::string &fn) {
         DumpHeader("Sequence File head:", &header[0], bytesRead);
         fclose(seqFile);
     }
-
 
     FSEQFile *file = nullptr;
     if (seqVersionMajor == 1) {
@@ -200,8 +233,22 @@ FSEQFile* FSEQFile::createFSEQFile(const std::string &fn,
     }
     return new V2FSEQFile(fn, ct, level);
 }
-
-
+std::string FSEQFile::getMediaFilename(const std::string &fn) {
+    std::unique_ptr<FSEQFile> file(FSEQFile::openFSEQFile(fn));
+    if (file) {
+        return file->getMediaFilename();
+    }
+    return "";
+}
+std::string FSEQFile::getMediaFilename() const {
+    for (auto &a : m_variableHeaders) {
+        if (a.code[0] == 'm' && a.code[1] == 'f') {
+            const char *d = (const char *)&a.data[0];
+            return d;
+        }
+    }
+    return "";
+}
 
 FSEQFile::FSEQFile(const std::string &fn)
     : m_filename(fn),
@@ -212,17 +259,19 @@ FSEQFile::FSEQFile(const std::string &fn)
     m_uniqueId(0),
     m_seqFileSize(0),
     m_seqVersionMajor(1),
-    m_seqVersionMinor(1),
+    m_seqVersionMinor(0),
     m_memoryBuffer(),
+    m_seqChanDataOffset(0),
     m_memoryBufferPos(0)
 {
     if (fn == "-memory-") {
         m_seqFile = nullptr;
         m_memoryBuffer.reserve(1024*1024);
     } else {
-        m_seqFile = fopen((const char *)fn.c_str(), "w");
+        m_seqFile = fopen((const char *)fn.c_str(), "wb");
     }
 }
+
 void FSEQFile::dumpInfo(bool indent) {
     char ind[5] = "    ";
     if (!indent) {
@@ -253,18 +302,26 @@ FSEQFile::FSEQFile(const std::string &fn, FILE *file, const std::vector<uint8_t>
     m_uniqueId(0),
     m_memoryBuffer(),
     m_memoryBufferPos(0)
- {
+{
     fseeko(m_seqFile, 0L, SEEK_END);
     m_seqFileSize = ftello(m_seqFile);
     fseeko(m_seqFile, 0L, SEEK_SET);
 
-    m_seqChanDataOffset = read2ByteUInt(&header[4]);
-    m_seqVersionMinor = header[6];
-    m_seqVersionMajor = header[7];
-    m_seqVersion      = (m_seqVersionMajor * 256) + m_seqVersionMinor;
-    m_seqChannelCount = read4ByteUInt(&header[10]);
-    m_seqNumFrames = read4ByteUInt(&header[14]);
-    m_seqStepTime = header[18];
+    if (header[0] == 'E') {
+        m_seqChanDataOffset = 20;
+        m_seqVersionMinor = 0;
+        m_seqVersionMajor = 2;
+        m_seqChannelCount = read4ByteUInt(&header[8]);
+        m_seqStepTime = 50;
+        m_seqNumFrames = (m_seqFileSize - 20) / m_seqChannelCount;
+    } else {
+        m_seqChanDataOffset = read2ByteUInt(&header[4]);
+        m_seqVersionMinor = header[6];
+        m_seqVersionMajor = header[7];
+        m_seqChannelCount = read4ByteUInt(&header[10]);
+        m_seqNumFrames = read4ByteUInt(&header[14]);
+        m_seqStepTime = header[18];
+    }
 }
 FSEQFile::~FSEQFile() {
     if (m_seqFile) {
@@ -284,12 +341,14 @@ int FSEQFile::seek(uint64_t location, int origin) {
     }
     return 0;
 }
+
 uint64_t FSEQFile::tell() {
     if (m_seqFile) {
-        return ftello(m_seqFile);
+       return ftello(m_seqFile);
     }
     return m_memoryBufferPos;
 }
+
 uint64_t FSEQFile::write(const void * ptr, uint64_t size) {
     if (m_seqFile) {
         return fwrite(ptr, 1, size, m_seqFile);
@@ -301,15 +360,16 @@ uint64_t FSEQFile::write(const void * ptr, uint64_t size) {
     m_memoryBufferPos += size;
     return size;
 }
+
 uint64_t FSEQFile::read(void *ptr, uint64_t size) {
     return fread(ptr, 1, size, m_seqFile);
 }
+
 void FSEQFile::preload(uint64_t pos, uint64_t size) {
 #ifndef PLATFORM_UNKNOWN
     posix_fadvise(fileno(m_seqFile), pos, size, POSIX_FADV_WILLNEED);
 #endif
 }
-
 
 void FSEQFile::parseVariableHeaders(const std::vector<uint8_t> &header, int start) {
     while (start < header.size() - 5) {
@@ -333,9 +393,10 @@ void FSEQFile::finalize() {
 
 
 V1FSEQFile::V1FSEQFile(const std::string &fn)
-  : FSEQFile(fn)
+  : FSEQFile(fn), m_dataBlockSize(0)
 {
 }
+
 void V1FSEQFile::writeHeader() {
     static int fixedHeaderLength = 28;
     uint8_t header[28];
@@ -355,6 +416,8 @@ void V1FSEQFile::writeHeader() {
 
     header[6] = 0; //minor
     header[7] = 1; //major
+    m_seqVersionMinor = header[6];
+    m_seqVersionMajor = header[7];
     // Fixed header length
     write2ByteUInt(&header[8], fixedHeaderLength);
     // Step Size
@@ -386,10 +449,18 @@ void V1FSEQFile::writeHeader() {
         write(&a.data[0], a.data.size());
     }
     uint64_t pos = tell();
+#ifdef _MSC_VER
+    wxASSERT(pos <= dataOffset); // i dont see how this could be wrong but seeing some crashes
+#endif
     if (pos != dataOffset) {
         char buf[4] = {0,0,0,0};
+#ifdef _MSC_VER
+        wxASSERT(dataOffset - pos <= 4); // i dont see how this could be wrong but seeing some crashes
+#endif
         write(buf, dataOffset - pos);
     }
+    m_seqChanDataOffset = dataOffset;
+    dumpInfo(false);
 }
 
 V1FSEQFile::V1FSEQFile(const std::string &fn, FILE *file, const std::vector<uint8_t> &header)
@@ -409,9 +480,11 @@ V1FSEQFile::V1FSEQFile(const std::string &fn, FILE *file, const std::vector<uint
     fstat(fileno(file), &stats);
     m_uniqueId = stats.st_mtime;
 }
+
 V1FSEQFile::~V1FSEQFile() {
 
 }
+
 class UncompressedFrameData : public FSEQFile::FrameData {
 public:
     UncompressedFrameData(uint32_t frame,
@@ -487,6 +560,7 @@ void V1FSEQFile::addFrame(uint32_t frame,
                           uint8_t *data) {
     write(data, m_seqChannelCount);
 }
+
 void V1FSEQFile::finalize() {
     FSEQFile::finalize();
 }
@@ -496,7 +570,7 @@ uint32_t V1FSEQFile::getMaxChannel() const {
 }
 
 static const int V2FSEQ_HEADER_SIZE = 32;
-#if !defined(NO_ZLIB) && !defined(NO_ZSTD)
+#if !defined(NO_ZLIB) || !defined(NO_ZSTD)
 static const int V2FSEQ_OUT_BUFFER_SIZE = 1024*1024; //1M output buffer
 static const int V2FSEQ_OUT_BUFFER_FLUSH_SIZE = 900 * 1024; //90% full, flush it
 #endif
@@ -533,7 +607,7 @@ public:
     void preload(uint64_t pos, uint64_t size) {
         m_file->preload(pos, size);
     }
-    
+
     V2FSEQFile *m_file;
     uint64_t   m_seqChanDataOffset;
 };
@@ -594,7 +668,7 @@ public:
 };
 class V2CompressedHandler : public V2Handler {
 public:
-    V2CompressedHandler(V2FSEQFile *f) : V2Handler(f), m_maxBlocks(0), m_curBlock(99999) {
+    V2CompressedHandler(V2FSEQFile *f) : V2Handler(f), m_maxBlocks(0), m_curBlock(99999), m_framesPerBlock(0), m_curFrameInBlock(0) {
         if (!m_file->m_frameOffsets.empty()) {
             m_maxBlocks = m_file->m_frameOffsets.size() - 1;
         }
@@ -722,9 +796,9 @@ public:
 
             if (m_curBlock < m_file->m_frameOffsets.size() - 2) {
                 //let the kernel know that we'll likely need the next block in the near future
-                uint64_t len = m_file->m_frameOffsets[m_curBlock + 2].second;
-                len -= m_file->m_frameOffsets[m_curBlock+1].second;
-                preload(tell(), len);
+                uint64_t len2 = m_file->m_frameOffsets[m_curBlock + 2].second;
+                len2 -= m_file->m_frameOffsets[m_curBlock+1].second;
+                preload(tell(), len2);
             }
 
             free(m_outBuffer.dst);
@@ -1162,55 +1236,59 @@ V2FSEQFile::V2FSEQFile(const std::string &fn, FILE *file, const std::vector<uint
 m_compressionType(none),
 m_handler(nullptr)
 {
-
-
-    //24-31 - timestamp/uuid/identifier
-    uint64_t *a = (uint64_t*)&header[24];
-    m_uniqueId = *a;
-
-    switch (header[20]) {
-        case 0:
+    if (header[0] == 'E') {
+        uint32_t modelLen = read4ByteUInt(&header[16]);
+        uint32_t modelStart = read4ByteUInt(&header[12]);
+        m_compressionType = CompressionType::none;
+        m_sparseRanges.push_back(std::pair<uint32_t, uint32_t>(modelStart, modelLen));
+    } else {
+        //24-31 - timestamp/uuid/identifier
+        uint64_t *a = (uint64_t*)&header[24];
+        m_uniqueId = *a;
+        
+        switch (header[20]) {
+            case 0:
             m_compressionType = CompressionType::none;
             break;
-        case 1:
+            case 1:
             m_compressionType = CompressionType::zstd;
             break;
-        case 2:
+            case 2:
             m_compressionType = CompressionType::zlib;
             break;
-        default:
+            default:
             LogErr(VB_SEQUENCE, "Unknown compression type: %d", (int)header[32]);
-    }
-
-    uint32_t maxBlocks = header[21];
-
-    uint64_t offset = m_seqChanDataOffset;
-    int hoffset = V2FSEQ_HEADER_SIZE;
-    for (int x = 0; x < maxBlocks; x++) {
-        int frame = read4ByteUInt(&header[hoffset]);
-        hoffset += 4;
-        uint64_t dlen = read4ByteUInt(&header[hoffset]);
-        hoffset += 4;
-        if (dlen > 0) {
-            m_frameOffsets.push_back(std::pair<uint32_t, uint64_t>(frame, offset));
-            offset += dlen;
         }
-        if (x == 0) {
-            uint64_t doff = m_seqChanDataOffset;
-            preload(doff, dlen);
+        
+        uint32_t maxBlocks = header[21];
+        
+        uint64_t offset = m_seqChanDataOffset;
+        int hoffset = V2FSEQ_HEADER_SIZE;
+        for (int x = 0; x < maxBlocks; x++) {
+            int frame = read4ByteUInt(&header[hoffset]);
+            hoffset += 4;
+            uint64_t dlen = read4ByteUInt(&header[hoffset]);
+            hoffset += 4;
+            if (dlen > 0) {
+                m_frameOffsets.push_back(std::pair<uint32_t, uint64_t>(frame, offset));
+                offset += dlen;
+            }
+            if (x == 0) {
+                uint64_t doff = m_seqChanDataOffset;
+                preload(doff, dlen);
+            }
         }
+        
+        m_frameOffsets.push_back(std::pair<uint32_t, uint64_t>(99999999, offset));
+        //sparse ranges
+        for (int x = 0; x < header[22]; x++) {
+            uint32_t st = read3ByteUInt(&header[hoffset]);
+            uint32_t len = read3ByteUInt(&header[hoffset + 3]);
+            hoffset += 6;
+            m_sparseRanges.push_back(std::pair<uint32_t, uint32_t>(st, len));
+        }
+        parseVariableHeaders(header, hoffset);
     }
-
-    m_frameOffsets.push_back(std::pair<uint32_t, uint64_t>(99999999, offset));
-    //sparse ranges
-    for (int x = 0; x < header[22]; x++) {
-        uint32_t st = read3ByteUInt(&header[hoffset]);
-        uint32_t len = read3ByteUInt(&header[hoffset + 3]);
-        hoffset += 6;
-        m_sparseRanges.push_back(std::pair<uint32_t, uint32_t>(st, len));
-    }
-
-    parseVariableHeaders(header, hoffset);
 
     createHandler();
 }
@@ -1272,6 +1350,11 @@ void V2FSEQFile::prepareRead(const std::vector<std::pair<uint32_t, uint32_t>> &r
     }
 }
 FrameData *V2FSEQFile::getFrame(uint32_t frame) {
+    if (m_rangesToRead.empty()) {
+        std::vector<std::pair<uint32_t, uint32_t>> range;
+        range.push_back(std::pair<uint32_t, uint32_t>(0, getMaxChannel()));
+        prepareRead(range);
+    }
     if (frame >= m_seqNumFrames) {
         return nullptr;
     }
