@@ -157,7 +157,7 @@ int StartEffect(const std::string &effectName, int startChannel, int loop)
 
 	if (startChannel != 0) {
 		// This will need to change if/when we support multiple models per file
-        v2fseq->m_sparseRanges[0].first = startChannel;
+        v2fseq->m_sparseRanges[0].first = startChannel - 1;
 	}
 	effectID = GetNextEffectID();
 
