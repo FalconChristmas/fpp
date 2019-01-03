@@ -455,9 +455,6 @@ _LOOP:
             RESET_PRU_CLOCK r8, r9
 
 			// Send all the start bits
-#if !defined(SPLIT_GPIO0) && defined(USES_GPIO0)
-            SET_IF_NOT_EQUAL gpio0_led_mask, gpio0_address, 0
-#endif
 #ifdef USES_GPIO1
             SET_IF_NOT_EQUAL gpio1_led_mask, gpio1_address, 0
 #endif
@@ -466,6 +463,9 @@ _LOOP:
 #endif
 #ifdef USES_GPIO3
             SET_IF_NOT_EQUAL gpio3_led_mask, gpio3_address, 0
+#endif
+#if !defined(SPLIT_GPIO0) && defined(USES_GPIO0)
+            SET_IF_NOT_EQUAL gpio0_led_mask, gpio0_address, 0
 #endif
 
 #ifdef USES_GPIO1
@@ -505,9 +505,6 @@ _LOOP:
             // Turn all the bits off
             // if gpio#_zeros is equal to the led mask, then everythin was
             // already shut off, don't output
-#if !defined(SPLIT_GPIO0) && defined(USES_GPIO0)
-            CLEAR_IF_NOT_EQUAL gpio0_led_mask, gpio0_address, gpio0_zeros
-#endif
 #ifdef USES_GPIO1
             CLEAR_IF_NOT_EQUAL gpio1_led_mask, gpio1_address, gpio1_zeros
 #endif
@@ -516,6 +513,9 @@ _LOOP:
 #endif
 #ifdef USES_GPIO3
             CLEAR_IF_NOT_EQUAL gpio3_led_mask, gpio3_address, gpio3_zeros
+#endif
+#if !defined(SPLIT_GPIO0) && defined(USES_GPIO0)
+            CLEAR_IF_NOT_EQUAL gpio0_led_mask, gpio0_address, gpio0_zeros
 #endif
             //start the clock for the LOW time
             RESET_PRU_CLOCK r8, r9

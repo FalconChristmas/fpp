@@ -106,17 +106,22 @@ BBB48StringOutput::~BBB48StringOutput()
 
 
 static void compilePRUCode(std::vector<std::string> &sargs) {
+    std::string log;
     pid_t compilePid = fork();
     if (compilePid == 0) {
         char * args[sargs.size() + 3];
         args[0] = "/bin/bash";
         args[1] = "/opt/fpp/src/pru/compileWS2811x.sh";
-        
+        log = args[1];
+
         for (int x = 0; x < sargs.size(); x++) {
             args[x + 2] = (char*)sargs[x].c_str();
+            log += " " + sargs[x];
         }
         args[sargs.size() + 2] = NULL;
+        LogDebug(VB_CHANNELOUT, "BBB48StringOutput::compilePRUCode() args: %s\n", log.c_str());
 
+        
         execvp("/bin/bash", args);
     } else {
         wait(NULL);
