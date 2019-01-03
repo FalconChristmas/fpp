@@ -75,7 +75,7 @@ public:
     virtual void initializeFromFSEQ(const FSEQFile& fseq);
     virtual void writeHeader() = 0;
     virtual void addFrame(uint32_t frame,
-                          uint8_t *data) = 0;
+                          const uint8_t *data) = 0;
     virtual void finalize();
     
     virtual void dumpInfo(bool indent = false);
@@ -135,7 +135,7 @@ public:
 
     virtual void writeHeader() override;
     virtual void addFrame(uint32_t frame,
-                          uint8_t *data) override;
+                          const uint8_t *data) override;
     virtual void finalize() override;
     
     virtual uint32_t getMaxChannel() const override;
@@ -162,7 +162,7 @@ public:
     
     virtual void writeHeader() override;
     virtual void addFrame(uint32_t frame,
-                          uint8_t *data) override;
+                          const uint8_t *data) override;
     virtual void finalize() override;
 
     virtual void dumpInfo(bool indent = false) override;

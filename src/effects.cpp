@@ -124,6 +124,7 @@ int IsEffectRunning(void)
 int StartEffect(const std::string &effectName, int startChannel, int loop)
 {
 	int   effectID = -1;
+    int   frameTime = 50;
 	LogInfo(VB_EFFECT, "Starting effect %s at channel %d\n", effectName.c_str(), startChannel);
 
     std::unique_lock<std::mutex> lock(effectsLock);
@@ -159,6 +160,7 @@ int StartEffect(const std::string &effectName, int startChannel, int loop)
 		// This will need to change if/when we support multiple models per file
         v2fseq->m_sparseRanges[0].first = startChannel - 1;
 	}
+    frameTime = v2fseq->getStepTime();
 	effectID = GetNextEffectID();
 
 	if (effectID < 0) {
@@ -185,9 +187,18 @@ int StartEffect(const std::string &effectName, int startChannel, int loop)
         }
 	}
 	effectCount++;
+    int tmpec = effectCount;
     lock.unlock();
 
 	StartChannelOutputThread();
+    
+    if (!sequence->IsSequenceRunning()
+        && tmpec == 1) {
+        //first effect running, no sequence running, set the refresh rate
+        //to the rate of the effect
+        SetChannelOutputRefreshRate(1000 / frameTime);
+    }
+
 
 	return effectID;
 }

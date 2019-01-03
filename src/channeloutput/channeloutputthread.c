@@ -161,7 +161,7 @@ void *RunChannelOutputThread(void *data)
                 //processed yet, need to do it
                 sequence->ProcessSequenceData(1000.0 * channelOutputFrame / RefreshRate, 1);
             }
-            if (getFPPmode() == REMOTE_MODE) {
+            if (getFPPmode() == REMOTE_MODE && !IsEffectRunning()) {
                 // Sleep about 1 seconds waiting for the master
                 int loops = 0;
                 while ((MasterFramesPlayed < 0) && (loops < 1000)) {

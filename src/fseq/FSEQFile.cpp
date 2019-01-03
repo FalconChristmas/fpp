@@ -557,7 +557,7 @@ FrameData *V1FSEQFile::getFrame(uint32_t frame) {
 }
 
 void V1FSEQFile::addFrame(uint32_t frame,
-                          uint8_t *data) {
+                          const uint8_t *data) {
     write(data, m_seqChannelCount);
 }
 
@@ -589,7 +589,7 @@ public:
     virtual FrameData *getFrame(uint32_t frame) = 0;
 
     virtual uint32_t computeMaxBlocks() = 0;
-    virtual void addFrame(uint32_t frame, uint8_t *data) = 0;
+    virtual void addFrame(uint32_t frame, const uint8_t *data) = 0;
     virtual void finalize() = 0;
 
     int seek(uint64_t location, int origin) {
@@ -653,7 +653,7 @@ public:
         }
         return data;
     }
-    virtual void addFrame(uint32_t frame, uint8_t *data) override {
+    virtual void addFrame(uint32_t frame, const uint8_t *data) override {
         if (m_file->m_sparseRanges.empty()) {
             write(data, m_file->getChannelCount());
         } else {
@@ -845,7 +845,7 @@ public:
             count += input.pos;
         }
     }
-    virtual void addFrame(uint32_t frame, uint8_t *data) override {
+    virtual void addFrame(uint32_t frame, const uint8_t *data) override {
 
         if (m_cctx == nullptr) {
             m_cctx = ZSTD_createCStream();
@@ -860,7 +860,7 @@ public:
             ZSTD_initCStream(m_cctx, clevel);
         }
 
-        uint8_t *curData = data;
+        uint8_t *curData = (uint8_t *)data;
         if (m_file->m_sparseRanges.empty()) {
             ZSTD_inBuffer_s input = {
                 curData,
@@ -1003,7 +1003,7 @@ public:
         }
         return data;
     }
-    virtual void addFrame(uint32_t frame, uint8_t *data) override {
+    virtual void addFrame(uint32_t frame, const uint8_t *data) override {
         if (m_outBuffer == nullptr) {
             m_outBuffer = (uint8_t*)malloc(V2FSEQ_OUT_BUFFER_SIZE);
         }
@@ -1026,7 +1026,7 @@ public:
             m_stream->avail_out = V2FSEQ_OUT_BUFFER_SIZE;
         }
 
-        uint8_t *curData = data;
+        uint8_t *curData = (uint8_t *)data;
         if (m_file->m_sparseRanges.empty()) {
             m_stream->next_in = curData;
             m_stream->avail_in = m_file->getChannelCount();
@@ -1366,7 +1366,7 @@ FrameData *V2FSEQFile::getFrame(uint32_t frame) {
     return nullptr;
 }
 void V2FSEQFile::addFrame(uint32_t frame,
-                          uint8_t *data) {
+                          const uint8_t *data) {
     if (m_handler != nullptr) {
         m_handler->addFrame(frame, data);
     }
