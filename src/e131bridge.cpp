@@ -356,7 +356,8 @@ void Bridge_Shutdown(void)
 
 bool Bridge_StoreData(char *bridgeBuffer)
 {
-    if (bridgeBuffer[E131_VECTOR_INDEX] == VECTOR_ROOT_E131_DATA) {
+    if ((bridgeBuffer[E131_VECTOR_INDEX] == VECTOR_ROOT_E131_DATA) &&
+        (bridgeBuffer[E131_START_CODE] == 0x00)) {
         int universe = ((int)bridgeBuffer[E131_UNIVERSE_INDEX] << 8) + bridgeBuffer[E131_UNIVERSE_INDEX + 1];
         int universeIndex = Bridge_GetIndexFromUniverseNumber(universe);
         if(universeIndex != BRIDGE_INVALID_UNIVERSE_INDEX) {
