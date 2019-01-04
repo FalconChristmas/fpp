@@ -1620,11 +1620,11 @@ function GetFPPSystems()
     
     $discovered = json_decode(@file_get_contents("http://localhost:32322/fppd/multiSyncSystems"), true);
     foreach ($discovered['systems'] as $system) {
-        $elem = Array();
-        $elem['HostName'] = $system['hostname'];
         
         $hostNameInfo = @file_get_contents("http://" . $system['address'] . "/fppjson.php?command=getHostNameInfo");
         if ($hostNameInfo != false) {
+            $elem = Array();
+            $elem['HostName'] = $system['hostname'];
             $sysHostInfo = json_decode($hostNameInfo, true);
             $found[$system['address']] = 1;
 
@@ -1641,8 +1641,8 @@ function GetFPPSystems()
             $matches = preg_grep("/^" . $elem['IP'] . "$/", $localIPs);
             if (count($matches))
                 $elem['Local'] = 1;
+            $result[] = $elem;
         }
-        $result[] = $elem;
     }
     
     
