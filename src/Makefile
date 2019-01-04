@@ -174,7 +174,6 @@ CURLFLAGS := $(shell curl-config --libs)
 
 # Common CFLAGS
 CFLAGS += \
-    -g \
 	-I . \
 	-I channeloutput \
 	-I mediaoutput \
@@ -282,21 +281,17 @@ else ifeq '$(ARCH)' 'BeagleBone Black'
 CFLAGS += \
     -DNOROOT \
 	-DPLATFORM_BBB \
-    -I/usr/local/include \
-	$(NULL)
+    -I/usr/local/include
 LIBS_fppd += \
-	-lprussdrv \
-	$(NULL)
+	-lprussdrv
 LDFLAGS_fppd += \
-    -L/usr/local/lib/ \
-	$(NULL)
+    -L/usr/local/lib/
 OBJECTS_fppd += \
 	channeloutput/BBB48String.o \
 	channeloutput/BBBSerial.o \
     channeloutput/BBBUtils.o \
     channeloutput/BBBPruUtils.o \
-    channeloutput/BBBMatrix.o \
-	$(NULL)
+    channeloutput/BBBMatrix.o
 DEPS_fppd += \
 	$(NULL)
 SUBMODULES += \
@@ -352,14 +347,12 @@ gitsubmodules:
 force:
 
 debug: $(TARGETS)
+debug: CFLAGS+=-g
 
 optimized: CFLAGS+=-O1
 optimized: $(TARGETS)
 
 release: optimized
-	strip fpp
-	strip fppmm
-	strip fppd
 	for dir in $(SUBDIRS); do \
 		$(MAKE) -C $$dir release || exit 1; \
 	done
