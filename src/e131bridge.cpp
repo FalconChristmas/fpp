@@ -396,7 +396,7 @@ bool Bridge_StoreData(char *bridgeBuffer)
         LogDebug(VB_E131BRIDGE, "Unknown e1.31 extended packet type %d\n", (int)bridgeBuffer[E131_EXTENDED_PACKET_TYPE_INDEX]);
     } else {
         e131Errors++;
-        LogDebug(VB_E131BRIDGE, "Unknown e1.31 packet type %d\n", (int)bridgeBuffer[E131_VECTOR_INDEX]);
+        LogDebug(VB_E131BRIDGE, "Unknown e1.31 packet type %d, start code %d\n", (int)bridgeBuffer[E131_VECTOR_INDEX], (int)bridgeBuffer[E131_START_CODE]);
     }
     return false;
 }
