@@ -123,7 +123,12 @@ void Scheduler::CheckIfShouldBePlayingNow(void)
 		{
 			for(j=0;j<m_Schedule[i].weeklySecondCount;j++)
 			{
-				if((nowWeeklySeconds>=m_Schedule[i].weeklyStartSeconds[j]) && (nowWeeklySeconds < m_Schedule[i].weeklyEndSeconds[j]))
+				// If end is less than beginning it means this entry wraps from Saturday to Sunday,
+				// otherwise, end should always be higher than start even if end is the next morning.
+				if (((m_Schedule[i].weeklyEndSeconds[j] < m_Schedule[i].weeklyStartSeconds[j]) &&
+					 ((nowWeeklySeconds >= m_Schedule[i].weeklyStartSeconds[j]) ||
+					  (nowWeeklySeconds < m_Schedule[i].weeklyEndSeconds[j]))) ||
+					((nowWeeklySeconds >= m_Schedule[i].weeklyStartSeconds[j]) && (nowWeeklySeconds < m_Schedule[i].weeklyEndSeconds[j])))
 				{
 					LogWarn(VB_SCHEDULE, "Should be playing now - schedule index = %d weekly index= %d\n",i,j);
 					m_currentSchedulePlaylist.ScheduleEntryIndex = i;
@@ -369,23 +374,17 @@ void Scheduler::SetScheduleEntrysWeeklyStartAndEndSeconds(ScheduleEntryStruct * 
     default:
       entry->weeklySecondCount = 0;
   }
-    for (int x = 0; x < entry->weeklySecondCount; x++) {
-        if (entry->weeklyEndSeconds[x] < entry->weeklyStartSeconds[x]) {
-            //end is less than start, likely means crossing to next day, add 24hours
-            entry->weeklyEndSeconds[x] += 24*60*60;
-        }
+
+  for (int x = 0; x < entry->weeklySecondCount; x++) {
+    if (entry->weeklyEndSeconds[x] < entry->weeklyStartSeconds[x]) {
+      // End is less than start, likely means crossing to next day, add 24hours.
+      // If Saturday, roll end around to Sunday morning.
+      if (entry->weeklyEndSeconds[x] < (24*60*60*6))
+        entry->weeklyEndSeconds[x] += 24*60*60;
+      else
+        entry->weeklyEndSeconds[x] -= 24*60*60*6;
     }
-    if (entry->weeklyEndSeconds[entry->weeklySecondCount-1] > (24*60*60*7)) {
-        //Saturday spilling into sunday.   We need to create an extra entry on Sunday for this
-        for (int x = entry->weeklySecondCount; x > 0; --x) {
-            entry->weeklyStartSeconds[x] = entry->weeklyStartSeconds[x-1];
-            entry->weeklyEndSeconds[x] = entry->weeklyEndSeconds[x-1];
-        }
-        entry->weeklyStartSeconds[0] = 0;
-        entry->weeklyEndSeconds[0] = entry->weeklyEndSeconds[entry->weeklySecondCount];
-        entry->weeklySecondCount++;
-        entry->weeklyEndSeconds[0] -= 24*60*60*7;
-    }
+  }
 }
 
 
