@@ -33,7 +33,7 @@ function playlist_insert()
 {
 	global $settings;
 
-	$playlist = $_POST['Playlist'];
+	$playlist = $GLOBALS['_POST'];
 	$playlistName = $playlist['name'];
 
 	$filename = $settings['playlistDirectory'] . '/' . $playlistName . '.json';
@@ -71,7 +71,7 @@ function playlist_update()
 {
 	global $settings;
 
-	$playlist = $_POST['Playlist'];
+	$playlist = $GLOBALS['_POST'];
 	$playlistName = params('PlaylistName');
 
 	$filename = $settings['playlistDirectory'] . '/' . $playlistName . '.json';
