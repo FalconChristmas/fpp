@@ -156,9 +156,9 @@ DDPOutputData::DDPOutputData(const Json::Value &config) : UDPOutputData(config),
                    "Error looking up DDP hostname: %s\n",
                    ipAddress.c_str());
             valid = false;
+        } else {
+            ddpAddress.sin_addr.s_addr = *((unsigned long*)uhost->h_addr);
         }
-        
-        ddpAddress.sin_addr.s_addr = *((unsigned long*)uhost->h_addr);
     } else {
         ddpAddress.sin_addr.s_addr = inet_addr(ipAddress.c_str());
     }

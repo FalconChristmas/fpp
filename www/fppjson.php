@@ -1644,8 +1644,7 @@ function GetFPPSystems()
             $result[] = $elem;
         }
     }
-    
-    
+
 	exec("avahi-browse -artp | grep  'IPv4' | grep 'fpp-fppd' | sort", $rmtSysOut);
 
 	foreach ($rmtSysOut as $system)
@@ -1661,6 +1660,11 @@ function GetFPPSystems()
             continue;
         
         if (isset($found[$parts[7]]) && ($found[$parts[7]] == 1)) {
+            continue;
+        }
+        
+        if (isset($found[$parts[7]]) && strlen($parts[7]) > 16) {
+            //for some reason, despite the IPv4 grep, it occassionally will return an IPv6 address, filter those out
             continue;
         }
         

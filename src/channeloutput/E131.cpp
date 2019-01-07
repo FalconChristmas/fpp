@@ -110,9 +110,9 @@ E131OutputData::E131OutputData(const Json::Value &config)
                        "Error looking up E1.31 hostname: %s\n",
                        ipAddress.c_str());
                 valid = false;
+            } else {
+                e131Address.sin_addr.s_addr = *((unsigned long*)uhost->h_addr);
             }
-            
-            e131Address.sin_addr.s_addr = *((unsigned long*)uhost->h_addr);
         } else {
             e131Address.sin_addr.s_addr = inet_addr(ipAddress.c_str());
         }
