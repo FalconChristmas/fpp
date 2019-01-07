@@ -15,5 +15,8 @@ dispatch_get ('/playlist/:PlaylistName', 'playlist_get');
 dispatch_post('/playlist/:PlaylistName', 'playlist_update');
 dispatch_delete('/playlist/:PlaylistName', 'playlist_delete');
 
+dispatch_post ('/models/raw', 'post_models_raw');
+
+
 run();
 ?>
