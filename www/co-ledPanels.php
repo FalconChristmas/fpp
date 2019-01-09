@@ -191,10 +191,12 @@ function printLEDPanelInterleaveSelect($platform, $interleave)
     $values = array();
 
     $values["Off"] = "0";
+    $values["4 Pixels"] = "4";
     $values["8 Pixels"] = "8";
     $values["16 Pixels"] = "16";
     $values["32 Pixels"] = "32";
     $values["64 Pixels"] = "64";
+    $values["4 Pixels Zig/Zag"] = "4z";
     $values["8 Pixels Zig/Zag"] = "8z";
     $values["16 Pixels Zig/Zag"] = "16z";
 
