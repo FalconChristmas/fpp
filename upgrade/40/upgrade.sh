@@ -12,5 +12,9 @@ a2enmod rewrite
 a2enmod proxy
 a2enmod proxy_http
 
+
+BINDIR=$(cd $(dirname $0) && pwd)
+. ${BINDIR}/../../scripts/common
+setSetting rebootFlag 1
 echo "A reboot will be required to get the new /api directory working"
 
