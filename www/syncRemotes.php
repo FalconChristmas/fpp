@@ -34,7 +34,7 @@ if (!isset($settings['fppMode']) || ($settings['fppMode'] != 'master')) {
 } else if ( isset($_GET['MultiSyncRemotes']) && !empty($_GET['MultiSyncRemotes'])) {
 	$remotes = preg_split('/,/', $_GET['MultiSyncRemotes']);
 } else if ( isset($settings['MultiSyncRemotes']) && !empty($settings['MultiSyncRemotes'])) {
-	if ( $settings['MultiSyncRemotes'] != "255.255.255.255" ) {
+	if ( $settings['MultiSyncRemotes'] != "255.255.255.255" && $settings['MultiSyncRemotes'] != "239.70.80.80") {
 		$remotes = preg_split('/,/', $settings['MultiSyncRemotes']);
 	} else {
 		exec("ip addr show up | grep 'inet ' | awk '{print $2}' | cut -f1 -d/ | grep -v '^127'", $localIPs);

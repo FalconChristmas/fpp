@@ -27,13 +27,23 @@ if (isset($_GET['advancedView'])) {
 
 			$('input.remoteCheckbox').each(function() {
 				if (($(this).is(":checked")) &&
-						($(this).attr("name") != "255.255.255.255"))
-				{
+						($(this).attr("name") != "255.255.255.255")) {
 					$(this).prop('checked', false);
 					if ($(checkbox).attr("name") != "255.255.255.255")
 						DialogError("WARNING", "'All Remotes' is already checked.  Uncheck 'All Remotes' if you want to select individual FPP instances.");
 				}
 			});
+        } else if ($('#allRemotesMulticast').is(":checked")) {
+            remotes = "239.70.80.80";
+            
+            $('input.remoteCheckbox').each(function() {
+                if (($(this).is(":checked")) &&
+                        ($(this).attr("name") != "239.70.80.80")) {
+                    $(this).prop('checked', false);
+                    if ($(checkbox).attr("name") != "239.70.80.80")
+                        DialogError("WARNING", "'All Remotes' is already checked.  Uncheck 'All Remotes' if you want to select individual FPP instances.");
+                    }
+                });
 		} else {
 			$('input.remoteCheckbox').each(function() {
 				if ($(this).is(":checked")) {
@@ -204,12 +214,28 @@ if (isset($_GET['advancedView'])) {
 
 			var newRow = "<tr>" +
 				"<td align='center'>" + star + "</td>" +
-				"<td>ALL Remotes</td>" +
+				"<td>ALL Remotes Broadcast</td>" +
 				"<td>255.255.255.255</td>" +
 				"<td>ALL</td>" +
 				"<td>Remote</td>" +
 				"</tr>";
 			$('#fppSystems tbody').append(newRow);
+            
+            var star = "<input id='allRemotesMulticast' type='checkbox' class='remoteCheckbox' name='239.70.80.80'";
+            if (typeof remotes["239.70.80.80"] !== 'undefined') {
+                star += " checked";
+                delete remotes["239.70.80.80"];
+            }
+            star += " onClick='updateMultiSyncRemotes(this);'>";
+            
+            var newRow = "<tr>" +
+            "<td align='center'>" + star + "</td>" +
+            "<td>ALL Remotes Multicast</td>" +
+            "<td>239.70.80.80</td>" +
+            "<td>ALL</td>" +
+            "<td>Remote</td>" +
+            "</tr>";
+            $('#fppSystems tbody').append(newRow);
 		}
 
 		for (var i = 0; i < data.length; i++) {

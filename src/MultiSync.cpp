@@ -66,6 +66,8 @@
 
 MultiSync *multiSync;
 
+static const char * MULTISYNC_MULTICAST_ADDRESS = "239.70.80.80"; // 239.F.P.P
+
 /*
  *
  */
@@ -933,9 +935,9 @@ int MultiSync::OpenControlSockets(void)
 
 	char *tmpRemotes = strdup(getSetting("MultiSyncRemotes"));
 
-	if (!strcmp(tmpRemotes, "255.255.255.255")) {
+	if (!strcmp(tmpRemotes, "255.255.255.255") || !strcmp(tmpRemotes, MULTISYNC_MULTICAST_ADDRESS)) {
 		int broadcast = 1;
-		if(setsockopt(m_controlSock, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast)) < 0) {
+		if (setsockopt(m_controlSock, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast)) < 0) {
 			LogErr(VB_SYNC, "Error setting SO_BROADCAST: \n", strerror(errno));
 			return 0;
 		}
@@ -1189,6 +1191,37 @@ int MultiSync::OpenReceiveSocket(void)
 		LogErr(VB_SYNC, "Error calling setsockopt; %s\n", strerror(errno));
 		return 0;
 	}
+
+    struct ip_mreq mreq;
+    struct ifaddrs *interfaces,*tmp;
+    getifaddrs(&interfaces);
+    memset(&mreq, 0, sizeof(mreq));
+    mreq.imr_multiaddr.s_addr = inet_addr(MULTISYNC_MULTICAST_ADDRESS);
+    int multicastJoined = 0;
+    tmp = interfaces;
+    //loop through all the interfaces and subscribe to the group
+    while (tmp) {
+        //struct sockaddr_in *sin = (struct sockaddr_in *)tmp->ifa_addr;
+        //strcpy(address, inet_ntoa(sin->sin_addr));
+        if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET) {
+            char address[16];
+            address[0] = 0;
+            GetInterfaceAddress(tmp->ifa_name, address, NULL, NULL);
+            if (strcmp(address, "127.0.0.1")) {
+                LogDebug(VB_SYNC, "   Adding interface %s - %s\n", tmp->ifa_name, address);
+                mreq.imr_interface.s_addr = inet_addr(address);
+                if (setsockopt(m_receiveSock, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0) {
+                    LogWarn(VB_SYNC, "   Could not setup Multicast Group for interface %s\n", tmp->ifa_name);
+                }
+                multicastJoined = 1;
+            }
+        } else if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET6) {
+            //FIXME for ipv6 multicast
+            //LogDebug(VB_SYNC, "   Inet6 interface %s\n", tmp->ifa_name);
+        }
+        tmp = tmp->ifa_next;
+    }
+    freeifaddrs(interfaces);
 
 	int remoteOffsetInt = getSettingInt("remoteOffset");
 	if (remoteOffsetInt)
