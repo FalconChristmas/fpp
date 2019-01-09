@@ -246,9 +246,23 @@ char *ProcessCommand(char *command, char *response)
         if (s2 && s2[0])
             entry = atoi(s2);
 
-        if (s && playlist->Play(s, entry, strcmp(CommandStr, "p") ? 0 : 1, 0)) {
-            FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
-            sprintf(response,"%d,%d,Playlist Started,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
+        if (s)
+        {
+            int repeat = strcmp(CommandStr, "p") ? 0 : 1;
+            int scheduledRepeat = 0;
+            std::string playlistName = scheduler->GetPlaylistThatShouldBePlaying(scheduledRepeat);
+
+            if ((playlistName == s) && (repeat == scheduledRepeat)) {
+                // Use CheckIfShouldBePlayingNow() so the scheduler knows when
+                // to stop the playlist
+                scheduler->CheckIfShouldBePlayingNow(1);
+                sprintf(response,"%d,%d,Playlist Started,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
+            } else if (playlist->Play(s, entry, repeat, 0)) {
+                FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
+                sprintf(response,"%d,%d,Playlist Started,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
+		    } else {
+                sprintf(response,"%d,%d,Error Starting Playlist,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
+            }
         } else {
             sprintf(response,"%d,%d,Unknown Playlist,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
         }
@@ -273,10 +287,11 @@ char *ProcessCommand(char *command, char *response)
             sprintf(response,"%d,%d,Not playing,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
         }
     } else if (!strcmp(CommandStr, "R")) {
+        scheduler->ReLoadNextScheduleInfo();
         if (FPPstatus==FPP_STATUS_IDLE) {
             scheduler->ReLoadCurrentScheduleInfo();
+            scheduler->CheckIfShouldBePlayingNow();
         }
-        scheduler->ReLoadNextScheduleInfo();
         sprintf(response,"%d,%d,Reloading Schedule,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
     } else if (!strcmp(CommandStr, "v")) {
         s = strtok(NULL,",");

@@ -95,11 +95,13 @@ class Scheduler {
 	~Scheduler();
 
 	void ScheduleProc(void);
-	void CheckIfShouldBePlayingNow(void);
+	void CheckIfShouldBePlayingNow(int ignoreRepeat = 0);
 	void ReLoadCurrentScheduleInfo(void);
 	void ReLoadNextScheduleInfo(void);
 	void GetNextScheduleStartText(char * txt);
 	void GetNextPlaylistText(char * txt);
+
+	std::string GetPlaylistThatShouldBePlaying(int &repeat);
 
   private:
 	int  GetNextScheduleEntry(int *weeklySecondIndex);

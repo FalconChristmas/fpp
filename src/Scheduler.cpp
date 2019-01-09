@@ -97,6 +97,8 @@ void Scheduler::ScheduleProc(void)
     case FPP_STATUS_PLAYLIST_PLAYING:
       if (playlist->WasScheduled())
         PlayListStopCheck();
+      else if (m_currentSchedulePlaylist.ScheduleEntryIndex != SCHEDULE_INDEX_INVALID)
+        PlayListLoadCheck();
       break;
     default:
       break;
@@ -104,7 +106,7 @@ void Scheduler::ScheduleProc(void)
   }
 }
 
-void Scheduler::CheckIfShouldBePlayingNow(void)
+void Scheduler::CheckIfShouldBePlayingNow(int ignoreRepeat)
 {
   int i,j,dayCount;
   time_t currTime = time(NULL);
@@ -119,7 +121,7 @@ void Scheduler::CheckIfShouldBePlayingNow(void)
 		// only check schedule entries that are enabled and set to repeat.
 		// Do not start non repeatable entries
 		if ((m_Schedule[i].enable) &&
-			(m_Schedule[i].repeat) &&
+			(m_Schedule[i].repeat || ignoreRepeat) &&
 			(CurrentDateInRange(m_Schedule[i].startDate, m_Schedule[i].endDate)))
 		{
 			for(j=0;j<m_Schedule[i].weeklySecondCount;j++)
@@ -151,6 +153,44 @@ void Scheduler::CheckIfShouldBePlayingNow(void)
   }
 }
 
+std::string Scheduler::GetPlaylistThatShouldBePlaying(int &repeat)
+{
+	int i,j,dayCount;
+	time_t currTime = time(NULL);
+	struct tm now;
+
+	repeat = 0;
+
+	localtime_r(&currTime, &now);
+
+	if (FPPstatus != FPP_STATUS_IDLE)
+		return m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playList;
+
+	int nowWeeklySeconds = GetWeeklySeconds(now.tm_wday, now.tm_hour, now.tm_min, now.tm_sec);
+	for(i=0;i<m_ScheduleEntryCount;i++)
+	{
+		if ((m_Schedule[i].enable) &&
+			(CurrentDateInRange(m_Schedule[i].startDate, m_Schedule[i].endDate)))
+		{
+			for(j=0;j<m_Schedule[i].weeklySecondCount;j++)
+			{
+				// If end is less than beginning it means this entry wraps from Saturday to Sunday,
+				// otherwise, end should always be higher than start even if end is the next morning.
+				if (((m_Schedule[i].weeklyEndSeconds[j] < m_Schedule[i].weeklyStartSeconds[j]) &&
+					 ((nowWeeklySeconds >= m_Schedule[i].weeklyStartSeconds[j]) ||
+					  (nowWeeklySeconds < m_Schedule[i].weeklyEndSeconds[j]))) ||
+					((nowWeeklySeconds >= m_Schedule[i].weeklyStartSeconds[j]) && (nowWeeklySeconds < m_Schedule[i].weeklyEndSeconds[j])))
+				{
+					repeat = m_Schedule[i].repeat;
+
+					return m_Schedule[i].playList;
+				}
+			}
+		}
+	}
+
+	return "";
+}
 
 int Scheduler::GetNextScheduleEntry(int *weeklySecondIndex)
 {
@@ -442,8 +482,12 @@ void Scheduler::PlayListLoadCheck(void)
       LogDebug(VB_SCHEDULE, "NowSecs = %d, CurrStartSecs = %d, CurrEndSecs = %d (%d seconds away)\n",
         nowWeeklySeconds, m_currentSchedulePlaylist.startWeeklySeconds, m_currentSchedulePlaylist.endWeeklySeconds, displayDiff);
 
+      if ((FPPstatus != FPP_STATUS_IDLE) && (!playlist->WasScheduled()))
+        playlist->StopNow(1);
+
       playlist->Play(m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playList,
         0, m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].repeat, 1);
+      playlist->Start();
     }
   }
 }
