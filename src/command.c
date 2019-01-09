@@ -246,7 +246,7 @@ char *ProcessCommand(char *command, char *response)
         if (s2 && s2[0])
             entry = atoi(s2);
 
-        if (s && playlist->Play(s, entry, strcmp(CommandStr, "p") ? 0 : 1)) {
+        if (s && playlist->Play(s, entry, strcmp(CommandStr, "p") ? 0 : 1, 0)) {
             FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
             sprintf(response,"%d,%d,Playlist Started,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
         } else {

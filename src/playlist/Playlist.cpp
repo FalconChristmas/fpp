@@ -810,16 +810,17 @@ int Playlist::Cleanup(void)
 /*
  *
  */
-int Playlist::Play(const char *filename, const int position, const int repeat)
+int Playlist::Play(const char *filename, const int position, const int repeat, const int scheduled)
 {
 	int hadToStop = 0;
 
 	if (!strlen(filename))
 		return 0;
 
-	LogDebug(VB_PLAYLIST, "Playlist::Play('%s', %d, %d)\n",
-		filename, position, repeat);
+	LogDebug(VB_PLAYLIST, "Playlist::Play('%s', %d, %d, %d)\n",
+		filename, position, repeat, scheduled);
 
+	m_scheduled = scheduled;
 
 	// FIXME, handle this better
 	if ((FPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||

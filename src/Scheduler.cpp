@@ -95,7 +95,8 @@ void Scheduler::ScheduleProc(void)
         PlayListLoadCheck();
       break;
     case FPP_STATUS_PLAYLIST_PLAYING:
-      PlayListStopCheck();
+      if (playlist->WasScheduled())
+        PlayListStopCheck();
       break;
     default:
       break;
@@ -143,7 +144,7 @@ void Scheduler::CheckIfShouldBePlayingNow(void)
 					m_NextScheduleHasbeenLoaded = 0;
 
 					playlist->Play(m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playList,
-						0, m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].repeat);
+						0, m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].repeat, 1);
 				}				
 			}
 		}
@@ -442,7 +443,7 @@ void Scheduler::PlayListLoadCheck(void)
         nowWeeklySeconds, m_currentSchedulePlaylist.startWeeklySeconds, m_currentSchedulePlaylist.endWeeklySeconds, displayDiff);
 
       playlist->Play(m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playList,
-        0, m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].repeat);
+        0, m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].repeat, 1);
     }
   }
 }

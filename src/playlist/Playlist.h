@@ -108,7 +108,7 @@ class Playlist {
 
 	void               SetIdle(void);
 
-	int                Play(const char *filename, const int position = -1, const int repeat = -1);
+	int                Play(const char *filename, const int position = -1, const int repeat = -1, const int scheduled = 0);
 
 	void               SetPosition(int position);
 	void               SetRepeat(int repeat);
