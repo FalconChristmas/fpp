@@ -196,6 +196,9 @@ this.value = default_value;
 }
 });
 });
+
+// Make sure this runs after any other ready functions
+setTimeout(function(){ $('#upgradeFlag').show(); }, 200);
 });
 
 function ToggleAutoUpdate() {
