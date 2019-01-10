@@ -1893,7 +1893,7 @@ function GetFileInfo(&$root, &$doc, $dirName, $fileName)
 	$fileInfo = $doc->createElement('FileInfo');
 	$fileInfo = $file->appendChild($fileInfo);
 	//quick and dirty check for music and video dir
-	if(strpos(strtolower($fileFullName),"music") !== FALSE || strpos(strtolower($fileFullName),"video") !== FALSE ){
+	if(strpos(strtolower($dirName),"music") !== FALSE || strpos(strtolower($dirName),"video") !== FALSE ){
 
 		//Check the cache first
 		$filesize = filesize($fileFullName);
