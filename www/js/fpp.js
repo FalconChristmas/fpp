@@ -1961,7 +1961,18 @@ function RemovePlaylistEntry()	{
 		SetSettingReboot('rebootFlag', 1);
 	}
 
+	function DismissUpgradeFlag() {
+		settings['dismissUpgradeFlag'] = 1;
+		SetSetting('dismissUpgradeFlag', 1, 0, 0);
+		$('#upgradeFlag').hide();
+	}
+
 	function CheckRestartRebootFlags() {
+		if (settings['dismissUpgradeFlag'] == 1)
+			$('#upgradeFlag').hide();
+		else
+			$('#upgradeFlag').show();
+
 		if (settings['disableUIWarnings'] == 1)
 		{
 			$('#restartFlag').hide();

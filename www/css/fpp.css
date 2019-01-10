@@ -260,6 +260,7 @@ html
 }
 
 #upgradeFlag {
+	display: none;
 	background-color: #00AA00;
 	color: #FFFFFF;
 	padding-top: 5px;
