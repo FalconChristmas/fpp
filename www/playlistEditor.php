@@ -187,7 +187,7 @@ function PrintMediaOptions()
 	sort($mediaEntries);
 	foreach($mediaEntries as $mediaFile) 
 	{
-		if($mediaFile != '.' && $mediaFile != '..')
+		if($mediaFile != '.' && $mediaFile != '..' && !preg_match('/^\./', $mediaFile))
 		{
 			echo "<option value=\"" . $mediaFile . "\">" . $mediaFile . "</option>";
 		}
@@ -221,7 +221,7 @@ function PrintSequenceOptions()
 	echo "<select id=\"selSequence\" size=\"1\" onChange='SequenceChanged();'>";
 	foreach(scandir($sequenceDirectory) as $seqFile) 
 	{
-		if($seqFile != '.' && $seqFile != '..' && !preg_match('/.eseq$/', $seqFile))
+		if($seqFile != '.' && $seqFile != '..' && !preg_match('/.eseq$/', $seqFile)  && !preg_match('/^\./', $seqFile))
 		{
 			echo "<option value=\"" . $seqFile . "\">" . $seqFile . "</option>";
 		}
