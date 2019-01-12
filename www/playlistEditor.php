@@ -357,11 +357,11 @@ if ($allowDelete)
 {
 ?>
             <input name="" type="button" value="Delete" onclick="DeletePlaylist();"  class="buttons" />
+            <br/>
+            <input name="copyPlaylist" type="button" value="Copy Playlist" onclick="CopyPlaylist();"  class="buttons" style="margin-left:50px"/>
 <?
 }
 ?>
-            <br/>
-            <input name="copyPlaylist" type="button" value="Copy Playlist" onclick="CopyPlaylist();"  class="buttons" style="margin-left:50px"/>
             <input name="randomizePlaylist" type="button" value="Randomize" onclick="RandomizePlaylistEntries();"  class="buttons" />
       </div>
         <div style="float:left; margin-left: 50px;" class="playlistInfoText">
