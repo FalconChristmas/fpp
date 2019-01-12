@@ -14,6 +14,7 @@ dispatch_post('/playlists', 'playlist_insert');
 dispatch_get ('/playlist/:PlaylistName', 'playlist_get');
 dispatch_post('/playlist/:PlaylistName', 'playlist_update');
 dispatch_delete('/playlist/:PlaylistName', 'playlist_delete');
+dispatch_post('/playlist/:PlaylistName/:SectionName/item', 'PlaylistSectionInsertItem');
 
 dispatch_post ('/models/raw', 'post_models_raw');
 

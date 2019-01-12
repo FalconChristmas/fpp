@@ -126,4 +126,56 @@ function playlist_delete()
 }
 
 /////////////////////////////////////////////////////////////////////////////
+function PlaylistSectionInsertItem()
+{
+	global $settings;
+
+	$playlistName = params('PlaylistName');
+	$sectionName = params('SectionName');
+	$entry = $GLOBALS['_POST'];
+	$resp = array();
+
+	$filename = $settings['playlistDirectory'] . '/' . $playlistName . '.json';
+	if (file_exists($filename))
+	{
+		$json = file_get_contents($filename);
+		$playlist = json_decode($json, true);
+
+		if (!isset($playlist[$sectionName]))
+		{
+			$section = array();
+			$playlist[$sectionName] = $section;
+		}
+
+		array_push($playlist[$sectionName], $entry);
+
+		$json = json_encode($playlist, JSON_PRETTY_PRINT);
+
+		$f = fopen($filename, "w");
+		if ($f)
+		{
+			fwrite($f, $json);
+			fclose($f);
+
+			$resp['Status'] = 'OK';
+			$resp['Message'] = '';
+			$resp['playlistName'] = $playlistName;
+			$resp['sectionName'] = $sectionName;
+		}
+		else
+		{
+			$playlist['Status'] = 'Error';
+			$playlist['Message'] = 'Unable to open file for writing';
+		}
+	}
+	else
+	{
+		$resp['Status'] = 'Error';
+		$resp['Message'] = 'Playlist does not exist.';
+	}
+
+	return json($resp);
+}
+
+/////////////////////////////////////////////////////////////////////////////
 ?>
