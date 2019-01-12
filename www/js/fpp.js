@@ -40,6 +40,7 @@ function PopulateLists() {
 		PopulatePlayListEntries(firstPlaylist,true);
 }
 
+var currentPlaylists = [];
 function PopulatePlaylists(element, filter, callback) {
 	var xmlhttp=new XMLHttpRequest();
 	var url = "fppxml.php?command=getPlayLists";
@@ -67,6 +68,8 @@ function PopulatePlaylists(element, filter, callback) {
                     colCount = 2;
                 }
                 
+                currentPlaylists = [];
+
                 innerHTML += "<ol style='list-style-position: inside; -webkit-column-count:" + colCount + "; -webkit-column-gap:20px; -moz-column-count:"
                     + colCount + "; -moz-column-gap:20px; column-count:" + colCount + "; column-gap:20px;'>";
 
@@ -74,6 +77,7 @@ function PopulatePlaylists(element, filter, callback) {
                     Filename = productList.childNodes[i].textContent;
                     // Remove extension
                     //Filename = Filename.substr(0, x.lastIndexOf('.'));
+                    currentPlaylists[i] = Filename;
                     innerHTML += "<li><a href='#editor' id=playlist" + i.toString() + " onclick=\"PopulatePlayListEntries('" + Filename + "',true);" + callback + "\">" + Filename + "</a></li>";
                 }
                 innerHTML += "</ol>";
