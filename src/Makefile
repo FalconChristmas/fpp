@@ -93,6 +93,7 @@ OBJECTS_fppd = \
 	fppd.o \
 	fppversion.o \
 	gpio.o \
+	httpAPI.o \
 	log.o \
 	MultiSync.o \
 	mediadetails.o \
@@ -135,6 +136,7 @@ OBJECTS_fppd = \
 LIBS_fppd = \
 	-lpthread \
     -lzstd -lz \
+	-lhttpserver \
 	-ljsoncpp \
 	-lm \
 	-lmosquitto \
@@ -155,13 +157,6 @@ ifeq '$(ARCH)' ''
 	ARCH = "UNKNOWN"
 endif
 $(shell echo "Building FPP on '$(ARCH)' platform" 1>&2)
-
-HTTPFLAGS := $(shell pkg-config --cflags --libs libhttpserver 2> /dev/null)
-ifneq '$(HTTPFLAGS)' ''
-    CFLAGS += -DUSEHTTPAPI
-    LDFLAGS_fppd += $(HTTPFLAGS) -lhttpserver
-    OBJECTS_fppd += httpAPI.o
-endif
 
 OLAFLAGS := $(shell pkg-config --cflags --libs libola 2> /dev/null)
 ifneq '$(OLAFLAGS)' ''
