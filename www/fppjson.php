@@ -1620,6 +1620,9 @@ function GetFPPSystems()
     
     $discovered = json_decode(@file_get_contents("http://localhost:32322/fppd/multiSyncSystems"), true);
     foreach ($discovered['systems'] as $system) {
+
+        if (preg_match('/^169\.254/', $system['address']))
+            continue;
         
         $hostNameInfo = @file_get_contents("http://" . $system['address'] . "/fppjson.php?command=getHostNameInfo");
         if ($hostNameInfo != false) {
