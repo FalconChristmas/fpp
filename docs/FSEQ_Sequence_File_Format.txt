@@ -2,11 +2,11 @@ v1.0 spec
 0-3 - file identifier, must be 'PSEQ'
 4-5 - Offset to start of channel data
 6   - minor version, should be 0
-7   - major version, should be 2
+7   - major version, should be 1
 8-9 - fixed header length/index to first variable header
 10-13 - channel count per frame
 14-17 - number of frames
-18  - step time in ms, usually 20 or 40
+18  - step time in ms, usually 25 or 50
 19  - bit flags/reserved should be 0
 20-21 - universe count, ignored by FPP
 22-23 - universe size, ignored by FPP
@@ -19,12 +19,12 @@ v2.0 spec
 4-5 - Offset to start of channel data
 6   - minor version, should be 0
 7   - major version, should be 2
-8-9 - fixed header length/index to first variable header
+8-9 - standard header length/index to first variable header
 10-13 - channel count per frame (*)
 14-17 - number of frames
-18  - step time in ms, usually 20 or 40
+18  - step time in ms, usually 25 or 50
 19  - bit flags/reserved should be 0
-20  - compression type 0 for uncompressed, 1 for zstd
+20  - compression type 0 for uncompressed, 1 for zstd, 2 for libz/gzip
 21  - number of compression blocks, 0 if uncompressed
 22  - number of sparse ranges, 0  if none
 23  - bit flags/reserved, unused right now, should be 0
@@ -33,7 +33,7 @@ numberOfBlocks*8 - compress block index
    0-3 - frame number
    4-7 - length of block
 numberOfSparseRanges*6 - sparse range definitions
-   0-2 - frame number
+   0-2 - start channel number
    3-5 - number of channels
 
 (*) The channel count is per frame within this file which may not
