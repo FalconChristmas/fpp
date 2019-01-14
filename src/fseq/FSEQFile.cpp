@@ -154,7 +154,7 @@ inline void write4ByteUInt(uint8_t* data, uint32_t v) {
 
 FSEQFile* FSEQFile::openFSEQFile(const std::string &fn) {
 
-    FILE *seqFile = fopen((const char *)fn.c_str(), "r");
+    FILE *seqFile = fopen((const char *)fn.c_str(), "rb");
     if (seqFile == NULL) {
         LogErr(VB_SEQUENCE, "Error opening sequence file: %s. fopen returned NULL\n",
                fn.c_str());
@@ -206,6 +206,7 @@ FSEQFile* FSEQFile::openFSEQFile(const std::string &fn) {
         LogErr(VB_SEQUENCE, "Error opening sequence file: %s. Could not read header.\n", fn.c_str());
         DumpHeader("Sequence File head:", &header[0], bytesRead);
         fclose(seqFile);
+        return nullptr;
     }
 
     FSEQFile *file = nullptr;
@@ -218,7 +219,6 @@ FSEQFile* FSEQFile::openFSEQFile(const std::string &fn) {
                fn.c_str(), seqVersionMajor, seqVersionMinor);
         DumpHeader("Sequence File head:", tmpData, bytesRead);
         fclose(seqFile);
-
         return nullptr;
     }
     file->dumpInfo();
