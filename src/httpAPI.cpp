@@ -193,7 +193,7 @@ const http_response PlayerResource::render_GET(const http_request &req)
 
 		result["status"] = "ERROR";
 		result["respCode"] = 404;
-		result["message"] = "endpoint does not exist";
+		result["message"] = std::string("endpoint fppd/") + url + " does not exist";
 	}
 
     int responseCode = 200;
@@ -421,7 +421,7 @@ const http_response PlayerResource::render_POST(const http_request &req)
 
 		result["status"] = "ERROR";
 		result["respCode"] = 404;
-		result["message"] = "endpoint does not exist";
+		result["message"] = std::string("endpoint fppd/") + url + " does not exist";
 	}
 
 
@@ -470,7 +470,7 @@ const http_response PlayerResource::render_DELETE(const http_request &req)
 
 		result["status"] = "ERROR";
 		result["respCode"] = 404;
-		result["message"] = "endpoint does not exist";
+		result["message"] = std::string("endpoint fppd/") + url + " does not exist";
 	}
 
 
@@ -524,7 +524,7 @@ const http_response PlayerResource::render_PUT(const http_request &req)
 
 		result["status"] = "ERROR";
 		result["respCode"] = 404;
-		result["message"] = "endpoint does not exist";
+		result["message"] = std::string("endpoint fppd/") + url + " does not exist";
 	}
 
 
