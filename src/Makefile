@@ -262,7 +262,6 @@ OBJECTS_fppd += \
 else ifeq '$(ARCH)' 'BeagleBone Black'
 # BeagleBone Black
 CFLAGS += \
-    -DNOROOT \
 	-DPLATFORM_BBB \
     -I/usr/local/include
 LIBS_fppd += \
@@ -282,7 +281,6 @@ SUBMODULES += \
 else
 # do something Linux-y
 CFLAGS += \
-	-DNOROOT \
 	-DPLATFORM_UNKNOWN \
 	$(NULL)
 LDFLAGS_fppd += \

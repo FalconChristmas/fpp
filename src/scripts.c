@@ -67,18 +67,7 @@ void RunScript(std::string script, std::string scriptArgs, int blocking)
 	if (pid == 0) // Event Script process
 	{
 		if (!blocking)
-		{
-#ifndef NOROOT
-			struct sched_param param;
-			param.sched_priority = 0;
-			if (sched_setscheduler(0, SCHED_OTHER, &param) != 0)
-			{
-				perror("sched_setscheduler");
-				exit(EXIT_FAILURE);
-			}
-#endif
 			CloseOpenFiles();
-		}
 
 		char *args[128];
 		char *token = strtok(userScript, " ");
