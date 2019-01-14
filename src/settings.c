@@ -44,7 +44,7 @@
 #include "common.h"
 
 
-char *fpp_bool_to_string[] = { "false", "true", "default" };
+const char *fpp_bool_to_string[] = { "false", "true", "default" };
 static struct config settings = { 0 };
 
 /* Prototypes for functions below */
@@ -781,7 +781,7 @@ int findSettingIndex(char *setting)
 	return -1;
 }
 
-char *getSetting(char *setting)
+const char *getSetting(const char *setting)
 {
 	int count = 0;
 
@@ -802,9 +802,9 @@ char *getSetting(char *setting)
 	return "";
 }
 
-int getSettingInt(char *setting)
+int getSettingInt(const char *setting)
 {
-	char *valueStr = getSetting(setting);
+	const char *valueStr = getSetting(setting);
 	int   value = strtol(valueStr, NULL, 10);
 
 	LogExcess(VB_SETTING, "getSettingInt(%s) returning %d\n", setting, value);
@@ -940,7 +940,7 @@ void setVolume(int volume)
 	else
 		settings.volume = volume;
 
-	char *mixerDevice = getSetting("AudioMixerDevice");
+	const char *mixerDevice = getSetting("AudioMixerDevice");
 	int   audioOutput = getSettingInt("AudioOutput");
 
 	// audioOutput is 0 on Pi where we need to apply volume adjustment formula.

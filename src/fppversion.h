@@ -26,10 +26,10 @@
 #ifndef __FPPVERSION_H__
 #define __FPPVERSION_H__
 
-char *getFPPVersion(void);
-char *getFPPMajorVersion(void);
-char *getFPPMinorVersion(void);
-char *getFPPBranch(void);
+const char *getFPPVersion(void);
+const char *getFPPMajorVersion(void);
+const char *getFPPMinorVersion(void);
+const char *getFPPBranch(void);
 void logVersionInfo(void);
 void printVersionInfo(void);
 

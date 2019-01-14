@@ -181,18 +181,6 @@ LDFLAGS_fppd += -rdynamic $(CURLFLAGS) \
 DEPS_fppd += \
 	$(NULL)
 
-# Do some things a little different when using gcc vs g++
-#ifeq ($(CC), gcc)
-ifneq (,$(findstring gcc,$(CC)))
-# Warn us if we forget to #include something, but this doesn't work on g++
-CFLAGS += -Wimplicit
-else
-# we get lots of deprecated warnings currently with g++ since we're
-# normally compiling with gcc
-CFLAGS += -Wno-write-strings -Wno-narrowing
-endif
-
-
 
 ifeq '$(ARCH)' 'Raspberry Pi'
 # do something RaspPi-y

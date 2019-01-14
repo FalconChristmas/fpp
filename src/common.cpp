@@ -98,7 +98,7 @@ int FileExists(const std::string &f) {
 /*
  * Dump memory block in hex and human-readable formats
  */
-void HexDump(char *title, void *data, int len) {
+void HexDump(const char *title, const void *data, int len) {
 	int l = 0;
 	int i = 0;
 	int x = 0;

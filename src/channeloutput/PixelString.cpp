@@ -300,7 +300,7 @@ void PixelString::SetupMap(int vsOffset, VirtualString vs)
 /*
  *
  */
-void PixelString::DumpMap(char *msg)
+void PixelString::DumpMap(const char *msg)
 {
 	if ((logLevel == LOG_EXCESSIVE) &&
 		(logMask & VB_CHANNELOUT))

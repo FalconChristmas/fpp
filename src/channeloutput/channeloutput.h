@@ -37,11 +37,11 @@ class OutputProcessors;
 
 typedef struct fppChannelOutput {
 	int              (*maxChannels)(void *data);
-	int              (*open)(char *device, void **privDataPtr);
+	int              (*open)(const char *device, void **privDataPtr);
 	int              (*close)(void *data);
 	int              (*isConfigured)(void);
 	int              (*isActive)(void *data);
-	int              (*send)(void *data, char *channelData, int channelCount);
+	int              (*send)(void *data, const char *channelData, int channelCount);
 	int              (*startThread)(void *data);
 	int              (*stopThread)(void *data);
 } FPPChannelOutput;
@@ -62,7 +62,7 @@ extern OutputProcessors outputProcessors;
 
 int  InitializeChannelOutputs(void);
 int  PrepareChannelData(char *channelData);
-int  SendChannelData(char *channelData);
+int  SendChannelData(const char *channelData);
 int  CloseChannelOutputs(void);
 void SetChannelOutputFrameNumber(int frameNumber);
 void ResetChannelOutputFrameNumber(void);

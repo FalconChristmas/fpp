@@ -71,7 +71,7 @@ void USBRenard_Dump(USBRenardPrivData *privData) {
 /*
  *
  */
-int USBRenard_Open(char *configStr, void **privDataPtr) {
+int USBRenard_Open(const char *configStr, void **privDataPtr) {
 	LogDebug(VB_CHANNELOUT, "USBRenard_Open('%s')\n", configStr);
 
 	USBRenardPrivData *privData =
@@ -87,7 +87,10 @@ int USBRenard_Open(char *configStr, void **privDataPtr) {
 	privData->fd = -1;
 
 	char deviceName[32];
-	char *s = strtok(configStr, ",;");
+	char cfg[1025];
+
+	strncpy(cfg, configStr, 1024);
+	char *s = strtok(cfg, ",;");
 
 	strcpy(deviceName, "UNKNOWN");
 	strcpy(privData->parm, "8N1");
@@ -209,7 +212,7 @@ int USBRenard_IsActive(void *data) {
 /*
  *
  */
-int USBRenard_SendData(void *data, char *channelData, int channelCount)
+int USBRenard_SendData(void *data, const char *channelData, int channelCount)
 {
 	LogDebug(VB_CHANNELDATA, "USBRenard_SendData(%p, %p, %d)\n",
 		data, channelData, channelCount);

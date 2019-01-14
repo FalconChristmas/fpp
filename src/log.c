@@ -44,7 +44,7 @@ char logFileName[1024] = "";
 char logLevelStr[16];
 char logMaskStr[1024];
 
-void _LogWrite(char *file, int line, int level, int facility, const char *format, ...)
+void _LogWrite(const char *file, int line, int level, int facility, const char *format, ...)
 {
 	// Don't log if we're not logging this facility
 	if (!(logMask & facility))
@@ -109,7 +109,7 @@ void _LogWrite(char *file, int line, int level, int facility, const char *format
 	}
 }
 
-void SetLogFile(char *filename)
+void SetLogFile(const char *filename)
 {
 	strcpy(logFileName, filename);
 }

@@ -230,7 +230,7 @@ void PluginCallbackManager::playlistCallback(OldPlaylistDetails *oldPlaylistDeta
 		}
 	}
 }
-void PluginCallbackManager::eventCallback(char *id, char *impetus)
+void PluginCallbackManager::eventCallback(const char *id, const char *impetus)
 {
 	BOOST_FOREACH (Callback *callback, mCallbacks)
 	{
@@ -528,7 +528,7 @@ EventCallback::~EventCallback()
 }
 
 //blocking
-void EventCallback::run(char *id, char *impetus)
+void EventCallback::run(const char *id, const char *impetus)
 {
 	int pid;
 

@@ -98,7 +98,7 @@ void LOR_SetupIntensityMap(LORPrivData *privData) {
 /*
  *
  */
-int LOR_Open(char *configStr, void **privDataPtr) {
+int LOR_Open(const char *configStr, void **privDataPtr) {
 	LogDebug(VB_CHANNELOUT, "LOR_Open('%s')\n", configStr);
 
 	LORPrivData *privData =
@@ -108,7 +108,10 @@ int LOR_Open(char *configStr, void **privDataPtr) {
     privData->controllerOffset = 0;
 
 	char deviceName[32];
-	char *s = strtok(configStr, ",;");
+	char cfg[1025];
+
+	strncpy(cfg, configStr, 1024);
+	char *s = strtok(cfg, ",;");
 
 	strcpy(deviceName, "UNKNOWN");
 
@@ -251,7 +254,7 @@ void LOR_SendHeartbeat(LORPrivData *privData)
 /*
  *
  */
-int LOR_SendData(void *data, char *channelData, int channelCount)
+int LOR_SendData(void *data, const char *channelData, int channelCount)
 {
 	LogDebug(VB_CHANNELDATA, "LOR_SendData(%p, %p, %d)\n",
 		data, channelData, channelCount);

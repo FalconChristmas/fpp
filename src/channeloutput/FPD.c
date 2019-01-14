@@ -80,8 +80,8 @@ typedef struct {
 
 
 pthread_t pixelnetDMXthread;
-char PixelnetDMXcontrolHeader[] = {0x55,0x55,0x55,0x55,0x55,0xCC};
-char PixelnetDMXdataHeader[] =    {0xCC,0xCC,0xCC,0xCC,0xCC,0x55};
+unsigned char PixelnetDMXcontrolHeader[] = {0x55,0x55,0x55,0x55,0x55,0xCC};
+unsigned char PixelnetDMXdataHeader[] =    {0xCC,0xCC,0xCC,0xCC,0xCC,0x55};
 
 
 PixelnetDMXentry pixelnetDMX[MAX_PIXELNET_DMX_PORTS];
@@ -328,7 +328,7 @@ void SendFPDConfig()
 /*
  *
  */
-int FPD_Open(char *configStr, void **privDataPtr) {
+int FPD_Open(const char *configStr, void **privDataPtr) {
 	LogDebug(VB_CHANNELOUT, "FPD_Open()\n");
 
 	if (!FileExists(getPixelnetFile())) {
@@ -402,7 +402,7 @@ int FPD_IsActive(void *data) {
 /*
  *
  */
-int FPD_SendData(void *data, char *channelData, int channelCount)
+int FPD_SendData(void *data, const char *channelData, int channelCount)
 {
 	LogDebug(VB_CHANNELDATA, "FPD_SendData(%p, %p, %d)\n",
 		data, channelData, channelCount);

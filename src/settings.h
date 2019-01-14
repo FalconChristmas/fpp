@@ -88,8 +88,8 @@ int saveSettingsFile(void);
 int parseSetting(char *key, char *value);
 
 // Getters
-char *getSetting(char *setting);
-int   getSettingInt(char *setting);
+const char *getSetting(const char *setting);
+int   getSettingInt(const char *setting);
 
 int getDaemonize(void);
 FPPMode getFPPmode(void);

@@ -37,7 +37,7 @@ long long GetTime(void);
 int       DirectoryExists(const char * Directory);
 int       FileExists(const char * File);
 int       FileExists(const std::string &File);
-void      HexDump(char *title, void *data, int len);
+void      HexDump(const char *title, const void *data, int len);
 int       GetInterfaceAddress(const char *interface, char *addr, char *mask, char *gw);
 char     *FindInterfaceForIP(char *ip);
 int       CheckForHostSpecificFile(const char *hostname, char *filename);

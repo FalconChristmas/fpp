@@ -179,7 +179,7 @@ void *RunTriksCOutputThread(void *data)
 /*
  *
  */
-int TriksC_Open(char *configStr, void **privDataPtr) {
+int TriksC_Open(const char *configStr, void **privDataPtr) {
 	LogDebug(VB_CHANNELOUT, "TriksC_Open('%s')\n", configStr);
 
 	TriksCPrivData *privData =
@@ -195,7 +195,10 @@ int TriksC_Open(char *configStr, void **privDataPtr) {
 	privData->fd = -1;
 
 	char deviceName[32];
-	char *s = strtok(configStr, ",;");
+	char cfg[1025];
+
+	strncpy(cfg, configStr, 1024);
+	char *s = strtok(cfg, ",;");
 
 	strcpy(deviceName, "UNKNOWN");
 
@@ -550,7 +553,7 @@ void ProcessInputBuffer(TriksCPrivData *privData)
 /*
  *
  */
-int TriksC_SendData(void *data, char *channelData, int channelCount)
+int TriksC_SendData(void *data, const char *channelData, int channelCount)
 {
 	LogDebug(VB_CHANNELDATA, "TriksC_SendData(%p, %p, %d)\n",
 		data, channelData, channelCount);

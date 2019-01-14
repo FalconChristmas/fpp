@@ -62,7 +62,7 @@ public:
 	EventCallback(std::string a, std::string b) : Callback(a, b) {}
 	~EventCallback();
 
-	void run(char *, char *);
+	void run(const char *, const char *);
 private:
 };
 
@@ -75,7 +75,7 @@ public:
 
 	int nextPlaylistEntryCallback(const char *plugin_data, int currentPlaylistEntry, int mode, bool repeat, OldPlaylistEntry *pe);
 	void playlistCallback(OldPlaylistDetails *oldPlaylistDetails, bool starting);
-	void eventCallback(char *id, char *impetus);
+	void eventCallback(const char *id, const char *impetus);
 	void mediaCallback();
 
 private:

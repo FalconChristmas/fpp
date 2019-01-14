@@ -57,19 +57,19 @@ cat > fppversion.c.new <<EOF
 
 #include "log.h"
 
-char *getFPPVersion(void) {
+const char *getFPPVersion(void) {
 	return "${SOURCE_VERSION}";
 }
 
-char *getFPPMajorVersion(void) {
+const char *getFPPMajorVersion(void) {
 	return "${MAJOR_VERSION}";
 }
 
-char *getFPPMinorVersion(void) {
+const char *getFPPMinorVersion(void) {
 	return "${MINOR_VERSION}";
 }
 
-char *getFPPBranch(void) {
+const char *getFPPBranch(void) {
 	return "${BRANCH}";
 }
 

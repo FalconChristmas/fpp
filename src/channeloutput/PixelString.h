@@ -75,7 +75,7 @@ class PixelString {
   private:
 	void SetupMap(int vsOffset, VirtualString vs);
 	void FlipPixels(int offset1, int offset2, int chanCount);
-	void DumpMap(char *msg);
+	void DumpMap(const char *msg);
 
 };
 

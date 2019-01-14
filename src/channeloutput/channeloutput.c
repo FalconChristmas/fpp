@@ -284,7 +284,7 @@ int InitializeChannelOutputs(void) {
 	}
     
 	// FIXME, build this list dynamically
-	char *configFiles[] = {
+	const char *configFiles[] = {
         "/config/co-universes.json",
 		"/config/channeloutputs.json",
 		"/config/co-other.json",
@@ -561,7 +561,7 @@ int PrepareChannelData(char *channelData) {
 /*
  *
  */
-int SendChannelData(char *channelData) {
+int SendChannelData(const char *channelData) {
 	int i = 0;
 	FPPChannelOutputInstance *inst;
 

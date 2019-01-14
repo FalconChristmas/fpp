@@ -108,7 +108,7 @@ void SPInRF24L01_Dump(SPInRF24L01PrivData *privData) {
 /*
  *
  */
-int SPInRF24L01_Open(char *configStr, void **privDataPtr) {
+int SPInRF24L01_Open(const char *configStr, void **privDataPtr) {
 //TODO: Add help to the channeloutput page in UI
 	LogDebug(VB_CHANNELOUT, "SPInRF24L01_Open('%s')\n", configStr);
 
@@ -118,8 +118,10 @@ int SPInRF24L01_Open(char *configStr, void **privDataPtr) {
 
 	char speed[2] = {0};
 	char channel[4] = {0};
+	char cfg[1025];
 
-	char *s = strtok(configStr, ",;");
+	strncpy(cfg, configStr, 1024);
+	char *s = strtok(cfg, ",;");
 
 	while (s) {
 		char tmp[128];
@@ -273,7 +275,7 @@ int SPInRF24L01_IsActive(void *data) {
 /*
  *
  */
-int SPInRF24L01_SendData(void *data, char *channelData, int channelCount)
+int SPInRF24L01_SendData(void *data, const char *channelData, int channelCount)
 {
 	LogDebug(VB_CHANNELDATA, "SPInRF24L01_SendData(%p, %p, %d)\n",
 		data, channelData, channelCount);
