@@ -61,6 +61,7 @@
 #include <signal.h>
 #include <execinfo.h>
 
+#include <curl/curl.h>
 
 #ifdef USEWIRINGPI
 #   include <wiringPi.h>
@@ -187,6 +188,8 @@ int main(int argc, char *argv[])
 	else
 		loadSettings("/home/pi/media/settings");
 
+	curl_global_init(CURL_GLOBAL_ALL);
+
 	wiringPiSetupGpio(); // would prefer wiringPiSetupSys();
 	// NOTE: wiringPISetupSys() is not fast enough for SoftPWM on GPIO output
 
@@ -273,6 +276,8 @@ int main(int argc, char *argv[])
 
 	if (mqtt)
 		delete mqtt;
+
+	curl_global_cleanup();
 
 	return 0;
 }
