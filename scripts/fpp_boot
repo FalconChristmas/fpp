@@ -87,5 +87,11 @@ then
 	fi
 fi
 
+SLEEPSECS=$(getSetting bootDelay)
+if [ "x${SLEEPSECS}" != "x" ]
+then
+	sleep ${SLEEPSECS}
+fi
+
 . ${SCRIPTDIR}/fppd_start
 

@@ -107,6 +107,16 @@ function flashEMMCBtrfs() {
 				output devices such as the FPD do not support rates other than 50ms.</td>
 		</tr>
 		<tr><td colspan='2'><hr></td></tr>
+		<tr><td valign='top'><? PrintSettingSelect("Boot Delay", "bootDelay", 0, 0, "0", Array('0s' => '0', '1s' => '1', '2s' => '2', '3s' => '3', '4s' => '4', '5s' => '5', '6s' => '6', '7s' => '7', '8s' => '8', '9s' => '9', '10s' => '10', '15s' => '10', '20s' => '20', '25s' => '25', '30s' => '30')); ?></td>
+			<td valign='top'><b>Boot Delay</b> - The time that FPP waits after
+				system boot up to start fppd.  For environments that are
+				powered down regularly, fppd may start up quicker than the
+				network environment fully starts up which may cause E1.31
+				multicast to not work properly.  Setting a Boot Delay will
+				cause fppd to wait 'X' number of seconds to start which can
+				give the network switches and routers time to fully start up.</td>
+		</tr>
+		<tr><td colspan='2'><hr></td></tr>
 <?
 	if ($settings['fppMode'] != 'remote')
 	{
