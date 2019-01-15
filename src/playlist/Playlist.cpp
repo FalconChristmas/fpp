@@ -844,6 +844,7 @@ int Playlist::Play(const char *filename, const int position, const int repeat, c
 		SetRepeat(repeat);
 
 	FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
+	m_currentState = "playing";
 
 	if (hadToStop)
 		Start();
@@ -1096,8 +1097,9 @@ Json::Value Playlist::GetConfig(void)
 {
 	Json::Value result = GetInfo();
 
-	if (m_configTime > m_fileTime)
-		return m_config;
+// FIXME, need to test the performance of not having this on the Pi/BBB
+//	if (m_configTime > m_fileTime)
+//		return m_config;
 
 	if (m_leadIn.size())
 	{
@@ -1129,8 +1131,8 @@ Json::Value Playlist::GetConfig(void)
 	m_configTime = time(NULL);
 	result["configTime"] = (Json::UInt64)m_configTime;
 
+	result["playlistInfo"] = m_playlistInfo;
 	m_config = result;
-	m_config["playlistInfo"] = m_playlistInfo;
 
 	return result;
 }

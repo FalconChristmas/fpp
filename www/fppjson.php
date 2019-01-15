@@ -707,11 +707,14 @@ function LoadCSVPlayListDetails($file)
 	$_SESSION['playListEntriesLeadOut'] = $playListEntriesLeadOut;
 }
 
-function GetPlaylist($playlistName)
+function GetPlaylist($playlistName, $fromMemory)
 {
 	global $settings;
 
-	$jsonStr = file_get_contents($settings['playlistDirectory'] . '/' . $playlistName . ".json");
+	if ($fromMemory)
+		$jsonStr = file_get_contents('http://127.0.0.1:32322/fppd/playlist/config/');
+	else
+		$jsonStr = file_get_contents($settings['playlistDirectory'] . '/' . $playlistName . ".json");
 
 	$data = json_decode($jsonStr);
 
@@ -722,7 +725,7 @@ function LoadSubPlaylist(&$playlist, &$i, $plentry)
 {
 	global $settings;
 
-	$data = GetPlaylist($plentry->name);
+	$data = GetPlaylist($plentry->name, 0);
 
 	$sections = Array();
 
@@ -750,7 +753,7 @@ function LoadSubPlaylist(&$playlist, &$i, $plentry)
 	}
 }
 
-function LoadPlayListDetails($file, $mergeSubs)
+function LoadPlayListDetails($file, $mergeSubs, $fromMemory)
 {
 	global $settings;
 
@@ -771,10 +774,13 @@ function LoadPlayListDetails($file, $mergeSubs)
 		if (file_exists($settings['playlistDirectory'] . '/' . $file))
 			LoadCSVPlaylistDetails($file);
 
-		return;
+		return "";
 	}
 
-	$data = GetPlaylist($file);
+	$data = GetPlaylist($file, $fromMemory);
+
+	if ($fromMemory)
+		return $data;
 
 	if (isset($data->leadIn))
 	{
@@ -942,7 +948,7 @@ function ConvertPlaylistsToJSON()
 				$playlist = preg_replace("/\.json/", "", $playlist);
 
 				$_SESSION['currentPlaylist'] = $playlist;
-				LoadPlayListDetails($playlist, 0);
+				LoadPlayListDetails($playlist, 0, 0);
 
 				SavePlaylistRaw($playlist);
 
@@ -1222,19 +1228,27 @@ function GetPlayListEntries()
 	$playlist = $args['pl'];
 	check($playlist, "playlist", __FUNCTION__);
 	$reload = $args['reload'];
-	check($playlist, "reload", __FUNCTION__);
+	check($reload, "reload", __FUNCTION__);
 
 	$mergeSubs = 0;
 	if (isset($args['mergeSubs']) && $args['mergeSubs'] == 1)
 		$mergeSubs = 1;
 
+	$fromMemory = 0;
+	if (isset($args['fromMemory']) && $args['fromMemory'] == 1)
+		$fromMemory = 1;
+
 	if ($reload == 'true')
-		LoadPlayListDetails($playlist, $mergeSubs);
+		$jsonStr = LoadPlayListDetails($playlist, $mergeSubs, $fromMemory);
 
-	$jsonStr = GenerateJSONPlaylist($playlist);
+	if (!$fromMemory)
+	{
+		$jsonStr = GenerateJSONPlaylist($playlist);
 
-	//Quick hack to make the playlist duration human readable (we want to keep the duration in seconds for the actual playlist) so modify here
-	$jsonStr = json_decode($jsonStr);
+		//Quick hack to make the playlist duration human readable (we want to keep the duration in seconds for the actual playlist) so modify here
+		$jsonStr = json_decode($jsonStr);
+	}
+
 	$jsonStr->playlistInfo->total_duration = human_playtime($jsonStr->playlistInfo->total_duration);
 
 	$jsonStr = json_encode($jsonStr, JSON_PRETTY_PRINT);

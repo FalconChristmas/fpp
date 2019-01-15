@@ -51,6 +51,7 @@
  */
 PlaylistEntryDynamic::PlaylistEntryDynamic(PlaylistEntryBase *parent)
   : PlaylistEntryBase(parent),
+	m_curl(NULL),
 	m_drainQueue(0),
 	m_currentEntry(-1)
 {
@@ -65,6 +66,9 @@ PlaylistEntryDynamic::PlaylistEntryDynamic(PlaylistEntryBase *parent)
 PlaylistEntryDynamic::~PlaylistEntryDynamic()
 {
 	ClearPlaylistEntries();
+
+	if (m_curl)
+		curl_easy_cleanup(m_curl);
 }
 
 /*
@@ -81,6 +85,38 @@ int PlaylistEntryDynamic::Init(Json::Value &config)
 
 	if (config.isMember("pluginHost"))
 		m_pluginHost = config["pluginHost"].asString();
+
+	if ((m_subType == "plugin") || (m_subType == "url"))
+	{
+		CURLcode status;
+		m_curl = curl_easy_init();
+		if (!m_curl)
+		{
+			LogErr(VB_PLAYLIST, "Unable to create curl instance\n");
+			return 0;
+		}
+
+		status = curl_easy_setopt(m_curl, CURLOPT_WRITEFUNCTION, &PlaylistEntryDynamic::write_data);
+		if (status != CURLE_OK)
+		{
+			LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting write callback function: %s\n", curl_easy_strerror(status));
+			return 0;
+		}
+
+		status = curl_easy_setopt(m_curl, CURLOPT_WRITEDATA, this);
+		if (status != CURLE_OK)
+		{
+			LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting class pointer: %s\n", curl_easy_strerror(status));
+			return 0;
+		}
+
+		curl_easy_setopt(m_curl, CURLOPT_COOKIEFILE, "");
+		if (status != CURLE_OK)
+		{
+			LogErr(VB_PLAYLIST, "curl_easy_setopt() Error initializing cookie jar: %s\n", curl_easy_strerror(status));
+			return 0;
+		}
+	}
 
 	return PlaylistEntryBase::Init(config);
 }
@@ -271,48 +307,29 @@ int PlaylistEntryDynamic::ReadFromPlugin(void)
  */
 int PlaylistEntryDynamic::ReadFromURL(std::string url)
 {
-	CURLcode status;
-
 	LogDebug(VB_PLAYLIST, "ReadFromURL: %s\n", url.c_str());
 
-	CURL *curl = curl_easy_init();
-	if (!curl)
+	m_response = "";
+
+	if (!m_curl)
 	{
-		LogErr(VB_PLAYLIST, "Unable to create curl instance\n");
+		LogErr(VB_PLAYLIST, "m_curl is null\n");
 		return 0;
 	}
 
-	status = curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+	CURLcode status = curl_easy_setopt(m_curl, CURLOPT_URL, url.c_str());
 	if (status != CURLE_OK)
 	{
 		LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting URL: %s\n", curl_easy_strerror(status));
 		return 0;
 	}
 
-	status = curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &PlaylistEntryDynamic::write_data);
-	if (status != CURLE_OK)
-	{
-		LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting write callback function: %s\n", curl_easy_strerror(status));
-		return 0;
-	}
-
-	status = curl_easy_setopt(curl, CURLOPT_WRITEDATA, this);
-	if (status != CURLE_OK)
-	{
-		LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting class pointer: %s\n", curl_easy_strerror(status));
-		return 0;
-	}
-
-	m_response = "";
-
-	status = curl_easy_perform(curl);
+	status = curl_easy_perform(m_curl);
 	if (status != CURLE_OK)
 	{
 		LogErr(VB_PLAYLIST, "curl_easy_perform() failed: %s\n", curl_easy_strerror(status));
 		return 0;
 	}
-
-	curl_easy_cleanup(curl);
 
 	return ReadFromString(m_response);
 }
@@ -326,7 +343,7 @@ int PlaylistEntryDynamic::ReadFromString(std::string jsonStr)
 	Json::Reader reader;
 	PlaylistEntryBase *playlistEntry = NULL;
 
-	LogDebug(VB_PLAYLIST, "ReadFromString()\n%s\n", jsonStr.c_str());
+	LogDebug(VB_PLAYLIST, "ReadFromString(): String:\n%s\n", jsonStr.c_str());
 
 	if (jsonStr.empty())
 	{
@@ -429,9 +446,6 @@ int PlaylistEntryDynamic::Started(void)
  */
 int PlaylistEntryDynamic::StartedPlugin(void)
 {
-	CURL *curl;
-	CURLcode res;
-
 	std::string url;
 
 	url = "http://";
@@ -441,23 +455,17 @@ int PlaylistEntryDynamic::StartedPlugin(void)
 		url += "127.0.0.1";
 	url += "/plugin.php?plugin=" + m_data + "&page=playlistCallback.php&nopage=1&command=startedNextItem";
 
-	curl = curl_easy_init();
-	if (curl)
+	CURLcode status = curl_easy_setopt(m_curl, CURLOPT_URL, url.c_str());
+	if (status != CURLE_OK)
 	{
-		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-
-		res = curl_easy_perform(curl);
-		if (res != CURLE_OK)
-		{
-			LogErr(VB_PLAYLIST, "curl_easy_perform returned an error: %d\n", res);
-			return 0;
-		}
-
-		curl_easy_cleanup(curl);
+		LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting URL: %s\n", curl_easy_strerror(status));
+		return 0;
 	}
-	else
+
+	status = curl_easy_perform(m_curl);
+	if (status != CURLE_OK)
 	{
-		LogErr(VB_PLAYLIST, "curl_easy_init() returned an error.\n" );
+		LogErr(VB_PLAYLIST, "curl_easy_perform returned an error: %d\n", status);
 		return 0;
 	}
 
@@ -488,9 +496,6 @@ int PlaylistEntryDynamic::Prep(void)
  */
 int PlaylistEntryDynamic::PrepPlugin(void)
 {
-	CURL *curl;
-	CURLcode res;
-
 	std::string url;
 
 	url = "http://";
@@ -502,23 +507,17 @@ int PlaylistEntryDynamic::PrepPlugin(void)
 
 	LogDebug(VB_PLAYLIST, "URL: %s\n", url.c_str());
 
-	curl = curl_easy_init();
-	if (curl)
+	CURLcode status = curl_easy_setopt(m_curl, CURLOPT_URL, url.c_str());
+	if (status != CURLE_OK)
 	{
-		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-
-		res = curl_easy_perform(curl);
-		if (res != CURLE_OK)
-		{
-			LogErr(VB_PLAYLIST, "curl_easy_perform returned an error: %d\n", res);
-			return 0;
-		}
-
-		curl_easy_cleanup(curl);
+		LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting URL: %s\n", curl_easy_strerror(status));
+		return 0;
 	}
-	else
+
+	status = curl_easy_perform(m_curl);
+	if (status != CURLE_OK)
 	{
-		LogErr(VB_PLAYLIST, "curl_easy_init() returned an error.\n" );
+		LogErr(VB_PLAYLIST, "curl_easy_perform returned an error: %d\n", status);
 		return 0;
 	}
 

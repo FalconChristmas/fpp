@@ -6,6 +6,9 @@ STATUS_STOPPING_GRACEFULLY = "2";
 
 // Globals
 gblCurrentPlaylistIndex = 0;
+gblCurrentPlaylistEntryType = '';
+gblCurrentPlaylistEntrySeq = '';
+gblCurrentPlaylistEntrySong = '';
 gblCurrentLoadedPlaylist  = '';
 gblCurrentLoadedPlaylistCount = 0;
 
@@ -197,7 +200,15 @@ function PlaylistEntryToTR(i, entry, editMode)
 	else if(entry.type == 'mqtt')
 		HTML += GetPlaylistRowHTML((i+1).toString(), "MQTT", "MQTT - " + entry.topic, entry.message, "", i.toString(), editMode);
 	else if(entry.type == 'dynamic')
-		HTML += GetPlaylistRowHTML((i+1).toString(), "Dynamic", "DYNAMIC - " + entry.subType, entry.data, "", i.toString(), editMode);
+	{
+		if (entry.hasOwnProperty('dynamic'))
+		{
+			entry.dynamic.mediaName = "DYNAMIC >> " + entry.dynamic.mediaName;
+			HTML += PlaylistEntryToTR(i, entry.dynamic, editMode);
+		}
+		else
+			HTML += GetPlaylistRowHTML((i+1).toString(), "Dynamic", "DYNAMIC - " + entry.subType, entry.data, "", i.toString(), editMode);
+	}
     else if(entry.type == 'volume')
         HTML += GetPlaylistRowHTML((i+1).toString(), "Volume", "VOLUME - " + entry.volume.toString(), "", "", i.toString(), editMode);
     else if(entry.type == 'url')
@@ -2011,6 +2022,9 @@ function RemovePlaylistEntry()	{
 			if(fppStatus == STATUS_IDLE) {
 			
 				gblCurrentPlaylistIndex =0;
+				gblCurrentPlaylistEntryType = '';
+				gblCurrentPlaylistEntrySeq = '';
+				gblCurrentPlaylistEntrySong = '';
 				$('#txtPlayerStatus').html("Idle");
 				$('#txtTimePlayed').html("");								
 				$('#txtTimeRemaining').html("");	
@@ -2027,9 +2041,17 @@ function RemovePlaylistEntry()	{
 			} else if (currentPlaylist.playlist != "") {
 				var playerStatusText = "Playing <strong>'" + currentPlaylist.playlist + "'</strong>";
                 var repeatMode = jsonStatus.repeat_mode;
-				if(gblCurrentLoadedPlaylist != currentPlaylist.playlist)	{
+				if ((gblCurrentLoadedPlaylist != currentPlaylist.playlist) ||
+					(gblCurrentPlaylistIndex != currentPlaylist.index) ||
+					(gblCurrentPlaylistEntryType != currentPlaylist.type) ||
+					(gblCurrentPlaylistEntrySeq != jsonStatus.current_sequence) ||
+					(gblCurrentPlaylistEntrySong != jsonStatus.current_song)) {
 					$('#selStartPlaylist').val(currentPlaylist.playlist);
 					PopulateStatusPlaylistEntries(false,currentPlaylist.playlist,true);
+
+					gblCurrentPlaylistEntryType = currentPlaylist.type;
+					gblCurrentPlaylistEntrySeq = jsonStatus.current_sequence;
+					gblCurrentPlaylistEntrySong = jsonStatus.current_song;
 				}
 
 				SetButtonState('#btnPlay','disable');
@@ -2055,10 +2077,6 @@ if (1) {
 							
 							UpdateCurrentEntryPlaying(currentPlaylist.index);
 							gblCurrentPlaylistIndex = currentPlaylist.index;
-							
-							if(currentPlaylist.index != 1) {
-								var j=0;	
-							}
 					}
 
 				if (repeatMode) {
@@ -2659,6 +2677,7 @@ function PopulateStatusPlaylistEntries(playselected,playList,reloadFile)
 			var pl;
     	var xmlhttp=new XMLHttpRequest();
 			var innerHTML="";
+			var fromMemory = "";
 			if(playselected==true)
 			{
 				pl = $('#selStartPlaylist :selected').text(); 
@@ -2666,13 +2685,14 @@ function PopulateStatusPlaylistEntries(playselected,playList,reloadFile)
 			else
 			{	
 				pl = playList;
+				fromMemory = '&fromMemory=1';
 			}
 
 			PlayEntrySelected = 0;
 			PlaySectionSelected = '';
 
 	$.ajax({
-		url: 'fppjson.php?command=getPlayListEntries&pl=' + pl + '&reload=' + reloadFile + '&mergeSubs=1',
+		url: 'fppjson.php?command=getPlayListEntries&pl=' + pl + '&reload=' + reloadFile + '&mergeSubs=1' + fromMemory,
 		dataType: 'json',
 		success: function(data, reqStatus, xhr) {	
 			var innerHTML = "";

@@ -71,6 +71,8 @@ class PlaylistEntryDynamic : public PlaylistEntryBase {
 	std::string            m_subType;
 	std::string            m_data;
 
+	CURL                  *m_curl;
+
 	int                    m_drainQueue;
 	int                    m_currentEntry;
 	std::vector<PlaylistEntryBase *> m_playlistEntries;
