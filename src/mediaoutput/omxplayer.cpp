@@ -51,7 +51,7 @@
  */
 omxplayerOutput::omxplayerOutput(std::string mediaFilename, MediaOutputStatus *status)
 {
-	LogDebug(VB_MEDIAOUT, "omxplayerOutput::omxplayerOutput()\n", mediaFilename.c_str());
+	LogDebug(VB_MEDIAOUT, "omxplayerOutput::omxplayerOutput(%s)\n", mediaFilename.c_str());
 
 	m_mediaFilename = mediaFilename;
 	m_mediaOutputStatus = status;
