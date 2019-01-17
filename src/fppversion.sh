@@ -88,3 +88,48 @@ if ! cmp -s fppversion.c.new fppversion.c; then
 fi
 rm -f fppversion.c.new
 
+cat > ../www/fppversion.php <<EOF
+<?
+function getFPPVersion() {
+	return "${SOURCE_VERSION}";
+}
+
+function getFPPVersionFloat() {
+	return ${MAJOR_VERSION}.${MINOR_VERSION};
+}
+
+function getFPPMajorVersion() {
+	return "${MAJOR_VERSION}";
+}
+
+function getFPPMinorVersion() {
+	return "${MINOR_VERSION}";
+}
+
+function getFPPBranch() {
+	return "${BRANCH}";
+}
+
+?>
+<script>
+function getFPPVersion() {
+	return "${SOURCE_VERSION}";
+}
+
+function getFPPVersionFloat() {
+	return ${MAJOR_VERSION}.${MINOR_VERSION};
+}
+
+function getFPPMajorVersion() {
+	return "${MAJOR_VERSION}";
+}
+
+function getFPPMinorVersion() {
+	return "${MINOR_VERSION}";
+}
+
+function getFPPBranch() {
+	return "${BRANCH}";
+}
+</script>
+EOF
