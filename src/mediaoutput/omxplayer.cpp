@@ -331,7 +331,7 @@ int omxplayerOutput::Process(void)
 
 int omxplayerOutput::Stop(void)
 {
-    return m_mediaOutputStatus->status == MEDIAOUTPUTSTATUS_IDLE;
+	m_mediaOutputStatus->status == MEDIAOUTPUTSTATUS_IDLE;
 
 	if (!m_childPID)
 		return 0;
