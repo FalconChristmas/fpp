@@ -231,7 +231,9 @@ void omxplayerOutput::ProcessPlayerData(char *omxBuffer, int bytesRead)
 			return;
 		}
         m_beforeFirstTick = false;
-    } else if (!strncmp(omxBuffer, "have a nice day", 15)) {
+    } else if ((!strncmp(omxBuffer, "have a nice day", 15)) ||
+			   ((!strncmp(omxBuffer, "Did not receive", 15)) &&
+				(strstr(omxBuffer, "have a nice day")))) {
         //hit the end
         m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
         m_mediaOutputStatus->secondsRemaining = 0;
