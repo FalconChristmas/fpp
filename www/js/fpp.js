@@ -832,7 +832,7 @@ function RemovePlaylistEntry()	{
 			});
 		}
 
-		function installPlugin(pluginName)
+		function installPlugin(pluginName, srcURL, branch, sha)
 		{
 			var opts = {
 				lines: 9, // The number of lines to draw
@@ -854,13 +854,24 @@ function RemovePlaylistEntry()	{
 			target.style.display = 'block';
 			document.body.style.cursor = "wait";
 
-			$.get("fppxml.php?command=installPlugin&plugin=" + pluginName
-			).done(function() {
-				document.body.style.cursor = "pointer";
-				location.reload(true);
-			}).fail(function() {
-				document.body.style.cursor = "pointer";
-				DialogError("Failed to install plugin", "Install failed");
+			var url = 'fppxml.php?command=installPlugin';
+			var data = 'plugin=' + pluginName
+				+ '&srcURL=' + srcURL
+				+ '&branch=' + branch
+				+ '&sha=' + sha;
+
+			$.ajax({
+				type: "POST",
+				url: url,
+				data: data,
+				success: function() {
+					document.body.style.cursor = "pointer";
+					location.reload(true);
+				},
+				fail: function() {
+					document.body.style.cursor = "pointer";
+					DialogError("Failed to install plugin", "Install failed");
+				}
 			});
 		}
 

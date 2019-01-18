@@ -2672,8 +2672,14 @@ function UninstallPlugin()
 
 function InstallPlugin()
 {
-	$plugin = $_GET['plugin'];
+	$plugin = $_POST['plugin'];
 	check($plugin, "plugin", __FUNCTION__);
+	$srcURL = $_POST['srcURL'];
+	check($srcURL, "srcURL", __FUNCTION__);
+	$branch = $_POST['branch'];
+	check($branch, "branch", __FUNCTION__);
+	$sha = $_POST['sha'];
+	check($sha, "sha", __FUNCTION__);
 
 	global $fppDir, $pluginDirectory, $SUDO;
 
@@ -2684,23 +2690,15 @@ function InstallPlugin()
 		return;
 	}
 
-	require_once("pluginData.inc.php");
-
-	foreach ($plugins as $available_plugin)
+	exec("export SUDO=\"".$SUDO."\"; export PLUGINDIR=\"".$pluginDirectory."\"; $fppDir/scripts/install_plugin $plugin \"$srcURL\" \"$branch\" \"$sha\"", $output, $return_val);
+	unset($output);
+	if ( $return_val != 0 )
 	{
-		if ( $available_plugin['shortName'] == $plugin )
-		{
-			exec("export SUDO=\"".$SUDO."\"; export PLUGINDIR=\"".$pluginDirectory."\"; $fppDir/scripts/install_plugin $plugin \"" . $available_plugin['sourceUrl'] .
-				"\" \"" . $available_plugin['sha'] ."\"", $output, $return_val);
-			unset($output);
-			if ( $return_val != 0 )
-			{
-				EchoStatusXML('Failure');
-				error_log("Failure with FPP install script");
-				return;
-			}
-		}
+		EchoStatusXML('Failure');
+		error_log("Failure with FPP install script");
+		return;
 	}
+
 	EchoStatusXML('Success');
 }
 

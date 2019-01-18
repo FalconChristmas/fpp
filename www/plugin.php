@@ -111,6 +111,7 @@ elseif ( isset($_GET['file']) && !empty($_GET['file']) )
 			case "jpeg":
 			case "jpg": $ctype="image/jpg;"; break;
 			case "js":  $ctype="text/javascript;"; break;
+			case "json":$ctype="application/json;"; break;
 			case "css": $ctype="text/css;"; break;
 			default:    $ctype="text/plain;"; break;
 		}

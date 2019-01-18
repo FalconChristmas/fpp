@@ -7,40 +7,37 @@ BINDIR=$(cd $(dirname $0) && pwd)
 
 if [ "x$1" = "x" ] || [ "x$2" = "x" ] || [ "x$3" = "x" ]
 then
-	echo "USAGE: $0 PLUGINNAME GITURL SHA1"
+	echo "USAGE: $0 PLUGINNAME GITURL BRANCH SHA1"
 	exit 1
 fi
 
 logOutput
 
 echo "Installing plugin $1"
-if [ "x${FPPDIR}" = "x/opt/fpp" ] && [ "x${SETTINGSFILE}" = "x${FPPHOME}/media/settings" ]
+cd ${PLUGINDIR} && $SUDO git clone --single-branch --branch $3 $2
+if [ "x$4" != "x" ]
 then
-	cd ${PLUGINDIR} && $SUDO git clone $2 $1
-	cd $1 && $SUDO git reset --hard $3
-elif [ "x${FPPDIR}" = "x${FPPHOME}/fpp" ]
-then
-	cd ${PLUGINDIR} && sudo -u ${FPPUSER} git clone $2 $1
-	cd $1 && sudo -u ${FPPUSER} git reset --hard $3
-else
-	cd ${PLUGINDIR} && git clone $2 $1
-	cd $1 && git reset --hard $3
+	(cd $1 && $SUDO git reset --hard $4)
 fi
 
+$SUDO chown -R fpp.fpp $1
 
-if [ -x "${PLUGINDIR}/$1/fpp_install.sh" ]
+if [ -x "${PLUGINDIR}/$1/scripts/fpp_install.sh" ]
 then
 	remountRootReadWrite
 
-	if [ "x${FPPDIR}" = "x/opt/fpp" ] && [ "x${SETTINGSFILE}" = "x${FPPHOME}/media/settings" ]
-	then
-		$SUDO ${PLUGINDIR}/$1/fpp_install.sh
-	elif [ "x${FPPDIR}" = "x${FPPHOME}/fpp" ]
-	then
-		sudo -u ${FPPUSER} ${PLUGINDIR}/$1/fpp_install.sh
-	else
-		${PLUGINDIR}/$1/fpp_install.sh
-	fi
+	echo "Running fpp_install.sh script for $1"
+	$SUDO ${PLUGINDIR}/$1/scripts/fpp_install.sh
 
 	remountRootReadOnlyIfNeeded
+else
+	if [ -x "${PLUGINDIR}/$1/fpp_install.sh" ]
+	then
+		remountRootReadWrite
+
+		echo "Running fpp_install.sh script for $1"
+		$SUDO ${PLUGINDIR}/$1/fpp_install.sh
+
+		remountRootReadOnlyIfNeeded
+	fi
 fi

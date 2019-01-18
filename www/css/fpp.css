@@ -747,6 +747,37 @@ pre
 	font-family: Arial, Helvetica, sans-serif;
 }
 
+.pluginTable
+{
+	width: 800px;
+}
+
+.pluginTable td
+{
+	text-align: left;
+	vertical-align: top;
+}
+
+td.pluginsHeader {
+	text-align: center;
+	font-weight: bold;
+	font-size: 22px;
+	background-color: #000000;
+	color: #FFFFFF;
+}
+
+td.bgBlue {
+	background-color: #000088;
+}
+
+td.bgGreen {
+	background-color: #008800;
+}
+
+td.bgRed {
+	background-color: #880000;
+}
+
 #overlay{
     position:fixed;
     top:0;

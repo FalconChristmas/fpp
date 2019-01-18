@@ -12,27 +12,18 @@ fi
 
 logOutput
 
-if [ -x "${PLUGINDIR}/$1/fpp_uninstall.sh" ]
+if [ -x "${PLUGINDIR}/$1/scripts/fpp_uninstall.sh" ]
 then
-	if [ "x${FPPDIR}" = "x/opt/fpp" ] && [ "x${SETTINGSFILE}" = "x${FPPHOME}/media/settings" ]
+	echo "Running fpp_uninstall.sh script for $1"
+	$SUDO ${PLUGINDIR}/$1/scripts/fpp_uninstall.sh
+else
+	if [ -x "${PLUGINDIR}/$1/fpp_uninstall.sh" ]
 	then
+		echo "Running fpp_uninstall.sh script for $1"
 		$SUDO ${PLUGINDIR}/$1/fpp_uninstall.sh
-	elif [ "x${FPPDIR}" = "x${FPPHOME}/fpp" ]
-	then
-		sudo -u ${FPPUSER} ${PLUGINDIR}/$1/fpp_uninstall.sh
-	else
-		${PLUGINDIR}/$1/fpp_uninstall.sh
 	fi
 fi
 
 echo "Uninstalling plugin $1"
-if [ "x${FPPDIR}" = "x/opt/fpp" ] && [ "x${SETTINGSFILE}" = "x${FPPHOME}/media/settings" ]
-then
-	cd ${PLUGINDIR} && [ -d $1 ] && $SUDO rm -rf $1
-elif [ "x${FPPDIR}" = "x${FPPHOME}/fpp" ]
-then
-	cd ${PLUGINDIR} && [ -d $1 ] && sudo -u ${FPPUSER} rm -rf $1
-else
-	cd ${PLUGINDIR} && [ -d $1 ] && rm -rf $1
-fi
+cd ${PLUGINDIR} && [ -d $1 ] && $SUDO rm -rf $1
 
