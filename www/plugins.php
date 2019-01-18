@@ -64,7 +64,7 @@ function LoadPlugin(data) {
 
 	if (installed)
 	{
-		html += "<img src=\"images/update.png\" class=\"button\" title=\"Update Plugin\" onClick='updatePlugin(\"" + data.repoName + "\");'>";
+//		html += "<img src=\"images/update.png\" class=\"button\" title=\"Update Plugin\" onClick='updatePlugin(\"" + data.repoName + "\");'>";
 		html += '</td><td align="right">';
 		html += "<img src=\"images/uninstall.png\" class=\"button\" title=\"Uninstall Plugin\" onClick='uninstallPlugin(\"" + data.repoName + "\");'>";
 	}
