@@ -7,28 +7,10 @@ require_once('fppversion.php');
 include 'common/menuHead.inc';
 ?>
 <script type="text/javascript" src="/js/fpp.js"></script>
-<script type="text/javascript" src="/js/pluginList.js"></script>
 <script type="text/javascript" src="/jquery/Spin.js/spin.js"></script>
 <script type="text/javascript" src="/jquery/Spin.js/jquery.spin.js"></script>
 <script>
-var installedPlugins = [
-<?
-$handle = opendir($settings['pluginDirectory']);
-if ($handle)
-{
-	while (($file = readdir($handle)) !== false)
-	{
-		if (!in_array($file, array('.', '..')))
-		{
-			if (file_exists($pluginDirectory."/".$file."/pluginInfo.json"))
-				echo "    \"" . $file . "\",\n";
-		}
-	}
-	closedir($handle);
-}
-
-?>
-];
+var installedPlugins = [];
 
 function PluginIsInstalled(plugin) {
 	for (var i=0; i < installedPlugins.length; i++) {
@@ -39,13 +21,44 @@ function PluginIsInstalled(plugin) {
 	return 0;
 }
 
+function GetInstalledPlugins() {
+	var url = 'api/plugin';
+	$.ajax({
+		url: url,
+		dataType: 'json',
+		success: function(data) {
+			installedPlugins = data.installedPlugins;
+			LoadInstalledPlugins();
+			GetPluginList();
+		},
+		fail: function() {
+			GetPluginList();
+			alert('Error, failed to get list of installed plugins.');
+		}
+	});
+}
+
+function GetPluginList() {
+	var url = 'https://raw.githubusercontent.com/FalconChristmas/fpp-pluginList/master/pluginList.json';
+	$.ajax({
+		url: url,
+		dataType: 'json',
+		success: function(data) {
+			LoadPlugins(data.pluginList);
+		},
+		fail: function() {
+			alert('Error, failed to get pluginList.json');
+		}
+	});
+}
+
 var firstInstalled = 1;
 var firstCompatible = 1;
 var firstIncompatible = 1;
 function LoadPlugin(data) {
 	var html = '';
 
-	html += '<tr>';
+	html += '<tr id="row-' + data.repoName + '">';
 	html += '<td><span class="pluginTitle">' + data.name + '</span></td>';
 	html += '<td align="right">';
 
@@ -64,7 +77,7 @@ function LoadPlugin(data) {
 
 	if (installed)
 	{
-//		html += "<img src=\"images/update.png\" class=\"button\" title=\"Update Plugin\" onClick='updatePlugin(\"" + data.repoName + "\");'>";
+		html += "<img src=\"images/update.png\" class=\"button updateButton\" title=\"Update Plugin\" onClick='updatePlugin(\"" + data.repoName + "\");' style='display: none;'>";
 		html += '</td><td align="right">';
 		html += "<img src=\"images/uninstall.png\" class=\"button\" title=\"Uninstall Plugin\" onClick='uninstallPlugin(\"" + data.repoName + "\");'>";
 	}
@@ -86,6 +99,7 @@ function LoadPlugin(data) {
 	html += '</td></tr>';
 	html += '<tr><td colspan="6">' + data.description;
 	html += '<br><b>By:</b> ' + data.author;
+	html += '<span class="pendingSpan" style="display: none;"><br>Updates available</span>';
 
 	if (compatibleVersion == -1)
 	{
@@ -142,11 +156,10 @@ function LoadPlugin(data) {
 	}
 }
 
-function LoadPlugins() {
-	// Display installed plugins first
+function LoadInstalledPlugins() {
 	for (var i = 0; i < installedPlugins.length; i++)
 	{
-		var url = 'plugin.php?plugin=' + installedPlugins[i] + '&page=pluginInfo.json&nopage=1';
+		var url = 'api/plugin/' + installedPlugins[i];
 		$.ajax({
 			url: url,
 			dataType: 'json',
@@ -154,12 +167,13 @@ function LoadPlugins() {
 				LoadPlugin(data);
 			},
 			fail: function() {
-				alert('Error, failed to fetch ' + pluginList[i]);
+				alert('Error, failed to fetch ' + installedPlugins[i]);
 			}
 		});
 	}
+}
 
-	// then display the remaining list
+function LoadPlugins(pluginList) {
 	for (var i = 0; i < pluginList.length; i++)
 	{
 		if (!PluginIsInstalled(pluginList[i][0]))
@@ -202,7 +216,7 @@ function ManualLoadInfo() {
 }
 
 $(document).ready(function() {
-	LoadPlugins();
+	GetInstalledPlugins();
 });
 </script>
 <title><? echo $pageTitle; ?></title>
@@ -218,7 +232,7 @@ $(document).ready(function() {
 
 <table class='pluginTable' border=0 cellpadding=0>
 <tbody id='pluginTableHead'>
-	<tr><td colspan=6>To manually add a plugin not in the list, provide the URL for the pluginInfo.json file and click the button below:<br>
+	<tr><td colspan=6>If you do not see the plugin you are looking for, you can manually add a plugin to the list by providing the URL for the plugin's pluginInfo.json file below and clicking the 'Retrieve Plugin Info' button:<br>
 pluginInfo.json URL: <input id='pluginInfoURL' size=90 maxlength=255><br>
 		<input type='button' onClick='ManualLoadInfo();' value='Retrieve Plugin Info'>
 		</td></tr>

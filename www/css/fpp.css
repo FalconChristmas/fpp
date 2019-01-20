@@ -778,6 +778,12 @@ td.bgRed {
 	background-color: #880000;
 }
 
+.pendingSpan {
+	font-weight: bold;
+	font-size: 18px;
+	color: #00FF00;
+}
+
 #overlay{
     position:fixed;
     top:0;
