@@ -32,11 +32,37 @@ function GetInstalledPlugins()
 // POST /api/plugin
 function InstallPlugin()
 {
-	global $settings;
-
+	global $settings, $fppDir, $SUDO;
 	$result = Array();
-	$result['Status'] = 'Error';
-	$result['Message'] = 'This endpoint is currently not implemented';
+
+	$pluginInfo = $GLOBALS['_POST'];
+
+	$plugin = $pluginInfo['repoName'];
+	$srcURL = $pluginInfo['srcURL'];
+	$branch = $pluginInfo['branch'];
+	$sha = $pluginInfo['sha'];
+
+	if (!file_exists($settings['pluginDirectory'] . '/' . $plugin))
+	{
+		exec("export SUDO=\"" . $SUDO . "\"; export PLUGINDIR=\"" . $settings['pluginDirectory'] . "\"; $fppDir/scripts/install_plugin $plugin \"$srcURL\" \"$branch\" \"$sha\"", $output, $return_val);
+		unset($output);
+
+		if ($return_val == 0)
+		{
+			$result['Status'] = 'OK';
+			$result['Message'] = '';
+		}
+		else
+		{
+			$result['Status'] = 'Error';
+			$result['Message'] = 'Could not properly install plugin';
+		}
+	}
+	else
+	{
+		$result['Status'] = 'Error';
+		$result['Message'] = 'The (' . $plugin . ') plugin is already installed';
+	}
 
 	return json($result);
 }
@@ -68,13 +94,32 @@ function GetPluginInfo()
 // DELETE /api/plugin/:RepoName
 function UninstallPlugin()
 {
-	global $settings;
+	global $settings, $fppDir, $SUDO;
 	$result = Array();
 
 	$plugin = params('RepoName');
 
-	$result['Status'] = 'Error';
-	$result['Message'] = 'This endpoint is currently not implemented';
+	if (file_exists($settings['pluginDirectory'] . '/' . $plugin))
+	{
+		exec("export SUDO=\"" . $SUDO . "\"; export PLUGINDIR=\"" . $settings['pluginDirectory'] ."\"; $fppDir/scripts/uninstall_plugin $plugin", $output, $return_val);
+		unset($output);
+
+		if ($return_val == 0)
+		{
+			$result['Status'] = 'OK';
+			$result['Message'] = '';
+		}
+		else
+		{
+			$result['Status'] = 'Error';
+			$result['Message'] = 'Failed to properly uninstall plugin (' . $plugin . ')';
+		}
+	}
+	else
+	{
+		$result['Status'] = 'Error';
+		$result['Message'] = 'The plugin (' . $plugin . ') is not installed';
+	}
 
 	return json($result);
 }

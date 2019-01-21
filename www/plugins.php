@@ -11,6 +11,7 @@ include 'common/menuHead.inc';
 <script type="text/javascript" src="/jquery/Spin.js/jquery.spin.js"></script>
 <script>
 var installedPlugins = [];
+var pluginInfos = [];
 
 function PluginIsInstalled(plugin) {
 	for (var i=0; i < installedPlugins.length; i++) {
@@ -52,11 +53,74 @@ function GetPluginList() {
 	});
 }
 
+function InstallPlugin(plugin, branch, sha) {
+	var url = 'api/plugin';
+	var i = FindPluginInfo(plugin);
+
+	if (i < -1)
+	{
+		alert('Could not find plugin ' + plugin + ' in pluginInfo cache.');
+		return;
+	}
+
+	var pluginInfo = pluginInfos[i];
+	pluginInfo['branch'] = branch;
+	pluginInfo['sha'] = sha;
+
+	var postData = JSON.stringify(pluginInfo);
+	$.ajax({
+		url: url,
+		type: 'POST',
+		contentType: 'application/json',
+		data: postData,
+		dataType: 'json',
+		success: function(data) {
+			if (data.Status == 'OK')
+				location.reload(true);
+			else
+				alert('ERROR: ' + data.Message);
+		},
+		fail: function() {
+			alert('Error, API call to install plugin failed');
+		}
+	});
+}
+
+function UninstallPlugin(plugin) {
+	var url = 'api/plugin/' + plugin;
+	$.ajax({
+		url: url,
+		type: 'DELETE',
+		dataType: 'json',
+		success: function(data) {
+			if (data.Status == 'OK')
+				location.reload(true);
+			else
+				alert('ERROR: ' + data.Message);
+		},
+		fail: function() {
+			alert('Error, API call to uninstall plugin failed');
+		}
+	});
+}
+
+function FindPluginInfo(plugin) {
+	for (var i = 0; i < pluginInfos.length; i++)
+	{
+		if (pluginInfos[i].repoName == plugin)
+			return i;
+	}
+
+	return -1;
+}
+
 var firstInstalled = 1;
 var firstCompatible = 1;
 var firstIncompatible = 1;
 function LoadPlugin(data) {
 	var html = '';
+
+	pluginInfos.push(data);
 
 	html += '<tr id="row-' + data.repoName + '">';
 	html += '<td><span class="pluginTitle">' + data.name + '</span></td>';
@@ -78,14 +142,14 @@ function LoadPlugin(data) {
 	{
 		html += "<img src=\"images/update.png\" class=\"button updateButton\" title=\"Update Plugin\" onClick='updatePlugin(\"" + data.repoName + "\");' style='display: none;'>";
 		html += '</td><td align="right">';
-		html += "<img src=\"images/uninstall.png\" class=\"button\" title=\"Uninstall Plugin\" onClick='uninstallPlugin(\"" + data.repoName + "\");'>";
+		html += "<img src=\"images/uninstall.png\" class=\"button\" title=\"Uninstall Plugin\" onClick='UninstallPlugin(\"" + data.repoName + "\");'>";
 	}
 	else
 	{
 		html += '</td><td align="right">';
 		if (compatibleVersion >= 0)
 		{
-			html += "<img src=\"images/install.png\" class=\"button\" title=\"Install Plugin\" onClick='installPlugin(\"" + data.repoName + "\", \"" + data.srcURL + "\", \"" + data.versions[compatibleVersion].branch + "\", \"" + data.versions[compatibleVersion].sha + "\");'>";
+			html += "<img src=\"images/install.png\" class=\"button\" title=\"Install Plugin\" onClick='InstallPlugin(\"" + data.repoName + "\", \"" + data.versions[compatibleVersion].branch + "\", \"" + data.versions[compatibleVersion].sha + "\");'>";
 		}
 	}
 

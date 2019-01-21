@@ -94,9 +94,6 @@ $command_array = Array(
 	"getInterfaceInfo" => 'GetInterfaceInfo',
 	"setPiLCDenabled" => 'SetPiLCDenabled',
     "setBBBTether" => 'SetBBBTether',
-	"updatePlugin" => 'UpdatePlugin',
-	"uninstallPlugin" => 'UninstallPlugin',
-	"installPlugin" => 'InstallPlugin',
 	"setupExtGPIO" => 'SetupExtGPIO',
 	"extGPIO" => 'ExtGPIO'
 );
@@ -2637,69 +2634,6 @@ function GetInterfaceInfo()
 
    
 	echo $doc->saveHTML();
-}
-
-function UpdatePlugin()
-{
-	EchoStatusXML('Failure');
-}
-
-function UninstallPlugin()
-{
-	$plugin = $_GET['plugin'];
-	check($plugin, "plugin", __FUNCTION__);
-
-	global $fppDir, $pluginDirectory, $SUDO;
-
-	if ( !file_exists("$pluginDirectory/$plugin") )
-	{
-		EchoStatusXML('Failure');
-		error_log("Failure, no plugin to uninstall");
-		return;
-	}
-
-	exec("export SUDO=\"".$SUDO."\"; export PLUGINDIR=\"".$pluginDirectory."\"; $fppDir/scripts/uninstall_plugin $plugin", $output, $return_val);
-	unset($output);
-	if ( $return_val != 0 )
-	{
-		EchoStatusXML('Failure');
-		error_log("Failure with FPP uninstall script");
-		return;
-	}
-
-	EchoStatusXML('Success');
-}
-
-function InstallPlugin()
-{
-	$plugin = $_POST['plugin'];
-	check($plugin, "plugin", __FUNCTION__);
-	$srcURL = $_POST['srcURL'];
-	check($srcURL, "srcURL", __FUNCTION__);
-	$branch = $_POST['branch'];
-	check($branch, "branch", __FUNCTION__);
-	$sha = $_POST['sha'];
-	check($sha, "sha", __FUNCTION__);
-
-	global $fppDir, $pluginDirectory, $SUDO;
-
-	if ( file_exists("$pluginDirectory/$plugin") )
-	{
-		EchoStatusXML('Failure');
-		error_log("Failure, plugin you're trying to install already exists");
-		return;
-	}
-
-	exec("export SUDO=\"".$SUDO."\"; export PLUGINDIR=\"".$pluginDirectory."\"; $fppDir/scripts/install_plugin $plugin \"$srcURL\" \"$branch\" \"$sha\"", $output, $return_val);
-	unset($output);
-	if ( $return_val != 0 )
-	{
-		EchoStatusXML('Failure');
-		error_log("Failure with FPP install script");
-		return;
-	}
-
-	EchoStatusXML('Success');
 }
 
 function SetupExtGPIO()
