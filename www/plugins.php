@@ -120,7 +120,11 @@ function LoadPlugin(data) {
 
 	html += '</td></tr>';
 
-	if (installed)
+	if (data.repoName == 'fpp-plugin-Template')
+	{
+		$('#templatePlugin').append(html);
+	}
+	else if (installed)
 	{
 		$('#installedPlugins').show();
 
@@ -243,6 +247,10 @@ pluginInfo.json URL: <input id='pluginInfoURL' size=90 maxlength=255><br>
 <tbody id='pluginTable'>
 	<tr><td colspan=6>&nbsp;</td></tr>
 	<tr><td colspan=6 class='pluginsHeader bgGreen'>Available Plugins</td></tr>
+</tbody>
+<tbody id='templatePlugin'>
+	<tr><td colspan=6>&nbsp;</td></tr>
+	<tr><td colspan=6 class='pluginsHeader bgDarkOrange'>Template Plugin</td></tr>
 </tbody>
 <tbody id='incompatiblePlugins' style='display: none;'>
 	<tr><td colspan=6>&nbsp;</td></tr>
