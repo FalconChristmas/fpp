@@ -23,6 +23,44 @@ var minimalUI = 0;
 var statusTimeout = null;
 var lastStatus = '';
 
+// Compare two version numbers
+function CompareFPPVersions(a, b) {
+	// Turn any non-string version numbers into a string
+	a = "" + a;
+	b = "" + b;
+
+	if (a.indexOf(".") == -1)
+		a += ".0";
+	if (b.indexOf(".") == -1)
+		b += ".0";
+
+	var intA = parseInt(a.split(".")[0]);
+	var intB = parseInt(b.split(".")[0]);
+
+	if (intA > intB)
+	{
+		return 1;
+	}
+	else if (intA < intB)
+	{
+		return -1;
+	}
+	else
+	{
+		var decA = parseInt(a.split(".")[1]);
+		var decB = parseInt(b.split(".")[1]);
+
+		if (decA > decB)
+			return 1;
+		else if (decA < decB)
+			return -1;
+		else
+			return 0;
+	}
+
+	return 0;
+}
+
 function ShowPlaylistDetails() {
 	$('#statusPlaylistDetailsWrapper').show();
 	$('#btnShowPlaylistDetails').hide();

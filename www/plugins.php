@@ -66,10 +66,9 @@ function LoadPlugin(data) {
 	var compatibleVersion = -1;
 	for (var i = 0; i < data.versions.length; i++)
 	{
-		if (((data.versions[i].minFPPVersion == 0) ||
-			 (data.versions[i].minFPPVersion <= getFPPVersionFloat())) &&
-			((data.versions[i].maxFPPVersion == 0) ||
-			 (data.versions[i].maxFPPVersion >= getFPPVersionFloat())))
+		if ((CompareFPPVersions(data.versions[i].minFPPVersion, getFPPVersionFloatStr()) < 0) &&
+			((data.versions[i].maxFPPVersion == "0") || (data.versions[i].maxFPPVersion == "0.0") ||
+			 (CompareFPPVersions(data.versions[i].maxFPPVersion, getFPPVersionFloatStr()) > 0)))
 		{
 			compatibleVersion = i;
 		}

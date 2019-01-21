@@ -98,6 +98,10 @@ function getFPPVersionFloat() {
 	return ${MAJOR_VERSION}.${MINOR_VERSION};
 }
 
+function getFPPVersionFloatStr() {
+	return "${MAJOR_VERSION}.${MINOR_VERSION}";
+}
+
 function getFPPMajorVersion() {
 	return "${MAJOR_VERSION}";
 }
@@ -118,6 +122,10 @@ function getFPPVersion() {
 
 function getFPPVersionFloat() {
 	return ${MAJOR_VERSION}.${MINOR_VERSION};
+}
+
+function getFPPVersionFloatStr() {
+	return "${MAJOR_VERSION}.${MINOR_VERSION}";
 }
 
 function getFPPMajorVersion() {
