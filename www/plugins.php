@@ -163,7 +163,19 @@ var firstIncompatible = 1;
 function LoadPlugin(data) {
 	var html = '';
 
-	pluginInfos.push(data);
+	if ($('#row-' + data.repoName).length)
+	{
+		// Delete the original entry so we can re-add with the latest info
+		$('#row-' + data.repoName).next('tr').remove();
+		if ($('#row-' + data.repoName).next('tr').html() == '<td colspan="7"><hr></td>')
+			$('#row-' + data.repoName).next('tr').remove();
+		else
+			$('#row-' + data.repoName).prev('tr').remove();
+
+		$('#row-' + data.repoName).remove();
+	}
+	else
+		pluginInfos.push(data);
 
 	html += '<tr id="row-' + data.repoName + '">';
 	html += '<td><span class="pluginTitle">' + data.name + '</span></td>';
