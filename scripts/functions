@@ -539,7 +539,7 @@ WaitForInterfacesUp() {
 
     connmanctl services >> /tmp/services.txt
 
-    CONFIGS=`ls ${FPPHOME}/media/config/interface.w*; ls ${FPPHOME}/media/config/interface.e*`
+    CONFIGS=`ls ${FPPHOME}/media/config/interface.w* 2> /dev/null; ls ${FPPHOME}/media/config/interface.e* 2> /dev/null`
     for f in $CONFIGS; do
 	. ${f}
 	if [ "x$GATEWAY" != "x" ]; then
