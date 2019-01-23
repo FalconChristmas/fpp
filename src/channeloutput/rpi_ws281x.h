@@ -57,6 +57,7 @@ class RPIWS281xOutput : public ThreadedChannelOutputBase {
   private:
 	void SetupCtrlCHandler(void);
 
+	int          m_ledstringNumber;
 	int          m_string1GPIO;
 	int          m_string2GPIO;
 	int          m_pixels;
