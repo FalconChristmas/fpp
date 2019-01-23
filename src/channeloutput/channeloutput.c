@@ -48,7 +48,6 @@
 #include "log.h"
 #include "Sequence.h"
 #include "settings.h"
-#include "SPIws2801.h"
 #include "LOR.h"
 #include "SPInRF24L01.h"
 #include "RHL_DVI_E131.h"
@@ -72,9 +71,13 @@
 
 #ifdef USEWIRINGPI
 #  include "Hill320.h"
-#  include "ILI9488.h"
 #  include "MAX7219Matrix.h"
 #  include "MCP23017.h"
+#endif
+
+#ifdef PLATFORM_PI
+#  include "ILI9488.h"
+#  include "SPIws2801.h"
 #  include "rpi_ws281x.h"
 #endif
 
@@ -388,7 +391,7 @@ int InitializeChannelOutputs(void) {
 					channelOutputs[i].output = (ChannelOutputBase*)new FBVirtualDisplayOutput(0, FPPD_MAX_CHANNELS);
 				} else if (type == "USBRelay") {
 					channelOutputs[i].output = new USBRelayOutput(start, count);
-#if defined(PLATFORM_PI)
+#if USEWIRINGPI
 				} else if (type == "Hill320") {
 					channelOutputs[i].output = new Hill320Output(start, count);
 				} else if (type == "MAX7219Matrix") {
