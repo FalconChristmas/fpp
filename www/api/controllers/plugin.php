@@ -77,7 +77,14 @@ function GetPluginInfo()
 	$infoFile = $settings['pluginDirectory'] . '/' . $plugin . '/pluginInfo.json';
 
 	if (file_exists($infoFile))
-		return render_file($infoFile, true);
+	{
+		$json = file_get_contents($infoFile);
+		$result = json_decode($json, true);
+		$result['Status'] = 'OK';
+		$result['updatesAvailable'] = PluginHasUpdates($plugin);
+
+		return json($result);
+	}
 
 	$result = Array();
 	$result['Status'] = 'Error';
@@ -128,13 +135,25 @@ function UninstallPlugin()
 // POST /api/plugin/:RepoName/updates
 function CheckForPluginUpdates()
 {
-	global $settings;
+	global $settings, $SUDO;
+	$result = Array();
 
 	$plugin = params('RepoName');
 
-	$result = Array();
-	$result['Status'] = 'Error';
-	$result['Message'] = 'This endpoint is currently not implemented';
+	$cmd = '(cd ' . $settings['pluginDirectory'] . '/' . $plugin . ' && ' . $SUDO . ' git fetch)';
+	exec($cmd, $output, $return_val);
+
+	if ($return_val == 0)
+	{
+		$result['Status'] = 'OK';
+		$result['Message'] = '';
+		$result['updatesAvailable'] = PluginHasUpdates($plugin);
+	}
+	else
+	{
+		$result['Status'] = 'Error';
+		$result['Message'] = 'Could not run git fetch for plugin ' . $plugin;
+	}
 
 	return json($result);
 }
@@ -143,17 +162,46 @@ function CheckForPluginUpdates()
 // POST /api/plugin/:RepoName/upgrade
 function UpgradePlugin()
 {
-	global $settings;
+	global $settings, $SUDO;
+	$result = Array();
 
 	$plugin = params('RepoName');
 
-	$result = Array();
-	$result['Status'] = 'Error';
-	$result['Message'] = 'This endpoint is currently not implemented';
+	$cmd = '(cd ' . $settings['pluginDirectory'] . '/' . $plugin . ' && ' . $SUDO . ' git pull)';
+	exec($cmd, $output, $return_val);
+
+	if ($return_val == 0)
+	{
+		$result['Status'] = 'OK';
+		$result['Message'] = '';
+	}
+	else
+	{
+		$result['Status'] = 'Error';
+		$result['Message'] = 'Could not run git pull for plugin ' . $plugin;
+	}
 
 	return json($result);
 }
 
 /////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+// Helper functions
+function PluginHasUpdates($plugin)
+{
+	global $settings;
+	$output = '';
+
+	$cmd = '(cd ' . $settings['pluginDirectory'] . '/' . $plugin . ' && git log ..origin)';
+	exec($cmd, $output, $return_val);
+
+	if (($return_val == 0) && !empty($output))
+		return 1;
+
+	return 0;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+
 
 ?>

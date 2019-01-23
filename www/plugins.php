@@ -53,6 +53,49 @@ function GetPluginList() {
 	});
 }
 
+function CheckPluginForUpdates(plugin) {
+	var url = 'api/plugin/' + plugin + '/updates';
+
+	$.ajax({
+		url: url,
+		type: 'POST',
+		dataType: 'json',
+		success: function(data) {
+			if (data.Status == 'OK')
+			{
+				if (data.updatesAvailable)
+					$('#row-' + plugin).find('.updatesAvailable').show();
+				else
+					$.jGrowl('No updates available for ' + plugin);
+			}
+			else
+				alert('ERROR: ' + data.Message);
+		},
+		fail: function() {
+			alert('Error, API call failed when checking plugin for updates');
+		}
+	});
+}
+
+function UpgradePlugin(plugin) {
+	var url = 'api/plugin/' + plugin + '/upgrade';
+
+	$.ajax({
+		url: url,
+		type: 'POST',
+		dataType: 'json',
+		success: function(data) {
+			if (data.Status == 'OK')
+				$('#row-' + plugin).find('.updatesAvailable').hide();
+			else
+				alert('ERROR: ' + data.Message);
+		},
+		fail: function() {
+			alert('Error, API call failed when upgrading plugin');
+		}
+	});
+}
+
 function InstallPlugin(plugin, branch, sha) {
 	var url = 'api/plugin';
 	var i = FindPluginInfo(plugin);
@@ -140,12 +183,30 @@ function LoadPlugin(data) {
 
 	if (installed)
 	{
-		html += "<img src=\"images/update.png\" class=\"button updateButton\" title=\"Update Plugin\" onClick='updatePlugin(\"" + data.repoName + "\");' style='display: none;'>";
+		if (!data.hasOwnProperty('allowUpdates') || data.allowUpdates)
+		{
+			html += "<span class='pendingSpan updatesAvailable'";
+			if (!data.updatesAvailable)
+				html += " style='display: none;'";
+
+			html += "><table border=0 cellspacing=0 class='updateTable'><tr><td>Updates<br>Available</td><td>&nbsp;&nbsp;</td><td><img src=\"images/update.png\" class=\"button\" title=\"Update Plugin\" onClick='UpgradePlugin(\"" + data.repoName + "\");'></td></tr></table>";
+
+			html += '</span>';
+			html += '</td><td align="right">';
+
+			html += "<img src=\"images/checkmark.png\" class=\"button\" title=\"Check for Updates\" onClick='CheckPluginForUpdates(\"" + data.repoName + "\");'>";
+		}
+		else
+		{
+			html += '</td><td align="right">';
+		}
+
 		html += '</td><td align="right">';
 		html += "<img src=\"images/uninstall.png\" class=\"button\" title=\"Uninstall Plugin\" onClick='UninstallPlugin(\"" + data.repoName + "\");'>";
 	}
 	else
 	{
+		html += '</td><td align="right">';
 		html += '</td><td align="right">';
 		if (compatibleVersion >= 0)
 		{
@@ -160,9 +221,8 @@ function LoadPlugin(data) {
 	html += '</td><td align="right">';
 	html += '<a href="' + data.bugURL + '" target="_blank"><img src="images/bug.png" title="Report Bug" class="button"></a>';
 	html += '</td></tr>';
-	html += '<tr><td colspan="6">' + data.description;
+	html += '<tr><td colspan="7">' + data.description;
 	html += '<br><b>By:</b> ' + data.author;
-	html += '<span class="pendingSpan" style="display: none;"><br>Updates available</span>';
 
 	if (compatibleVersion == -1)
 	{
@@ -184,30 +244,31 @@ function LoadPlugin(data) {
 
 	html += '</td></tr>';
 
-	if (data.repoName == 'fpp-plugin-Template')
-	{
-		$('#templatePlugin').append(html);
-	}
-	else if (installed)
+	if (installed)
 	{
 		$('#installedPlugins').show();
 
 		if (firstInstalled)
 			firstInstalled = 0;
 		else
-			$('#installedPlugins').append('<tr><td colspan="6"><hr></td></tr>');
+			$('#installedPlugins').append('<tr><td colspan="7"><hr></td></tr>');
 
 		$('#installedPlugins').append(html);
 
 		if (compatibleVersion == -1)
-			$('#installedPlugins').append('<tr><td colspan="6" class="bad">WARNING: This plugin is already installed, but may be incompatible with this FPP version.</td></tr>');
+			$('#installedPlugins').append('<tr><td colspan="7" class="bad">WARNING: This plugin is already installed, but may be incompatible with this FPP version.</td></tr>');
+	}
+	else if (data.repoName == 'fpp-plugin-Template')
+	{
+		$('#templatePlugin').show();
+		$('#templatePlugin').append(html);
 	}
 	else if (compatibleVersion != -1)
 	{
 		if (firstCompatible)
 			firstCompatible = 0;
 		else
-			$('#pluginTable').append('<tr><td colspan="6"><hr></td></tr>');
+			$('#pluginTable').append('<tr><td colspan="7"><hr></td></tr>');
 
 		$('#pluginTable').append(html);
 	}
@@ -217,7 +278,7 @@ function LoadPlugin(data) {
 		if (firstIncompatible)
 			firstIncompatible = 0;
 		else
-			$('#incompatiblePlugins').append('<tr><td colspan="6"><hr></td></tr>');
+			$('#incompatiblePlugins').append('<tr><td colspan="7"><hr></td></tr>');
 
 		$('#incompatiblePlugins').append(html);
 	}
@@ -299,26 +360,26 @@ $(document).ready(function() {
 
 <table class='pluginTable' border=0 cellpadding=0>
 <tbody id='pluginTableHead'>
-	<tr><td colspan=6>If you do not see the plugin you are looking for, you can manually add a plugin to the list by providing the URL for the plugin's pluginInfo.json file below and clicking the 'Retrieve Plugin Info' button:<br>
+	<tr><td colspan=7>If you do not see the plugin you are looking for, you can manually add a plugin to the list by providing the URL for the plugin's pluginInfo.json file below and clicking the 'Retrieve Plugin Info' button:<br>
 pluginInfo.json URL: <input id='pluginInfoURL' size=90 maxlength=255><br>
 		<input type='button' onClick='ManualLoadInfo();' value='Retrieve Plugin Info'>
 		</td></tr>
 </tbody>
 <tbody id='installedPlugins' style='display: none;'>
-	<tr><td colspan=6>&nbsp;</td></tr>
-	<tr><td colspan=6 class='pluginsHeader bgBlue'>Installed Plugins</td></tr>
+	<tr><td colspan=7>&nbsp;</td></tr>
+	<tr><td colspan=7 class='pluginsHeader bgBlue'>Installed Plugins</td></tr>
 </tbody>
 <tbody id='pluginTable'>
-	<tr><td colspan=6>&nbsp;</td></tr>
-	<tr><td colspan=6 class='pluginsHeader bgGreen'>Available Plugins</td></tr>
+	<tr><td colspan=7>&nbsp;</td></tr>
+	<tr><td colspan=7 class='pluginsHeader bgGreen'>Available Plugins</td></tr>
 </tbody>
-<tbody id='templatePlugin'>
-	<tr><td colspan=6>&nbsp;</td></tr>
-	<tr><td colspan=6 class='pluginsHeader bgDarkOrange'>Template Plugin</td></tr>
+<tbody id='templatePlugin' style='display: none;'>
+	<tr><td colspan=7>&nbsp;</td></tr>
+	<tr><td colspan=7 class='pluginsHeader bgDarkOrange'>Template Plugin</td></tr>
 </tbody>
 <tbody id='incompatiblePlugins' style='display: none;'>
-	<tr><td colspan=6>&nbsp;</td></tr>
-	<tr><td colspan=6 class='pluginsHeader bgRed'>Incompatible Plugins</td></tr>
+	<tr><td colspan=7>&nbsp;</td></tr>
+	<tr><td colspan=7 class='pluginsHeader bgRed'>Incompatible Plugins</td></tr>
 </tbody>
 </table>
 

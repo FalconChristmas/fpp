@@ -783,9 +783,14 @@ td.bgDarkOrange {
 }
 
 .pendingSpan {
+	color: #00AA00;
+}
+
+.updateTable td {
+	text-align: center;
+	vertical-align: middle;
 	font-weight: bold;
-	font-size: 18px;
-	color: #00FF00;
+	font-size: 10px;
 }
 
 #overlay{
