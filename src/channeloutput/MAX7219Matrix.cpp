@@ -99,7 +99,7 @@ int MAX7219MatrixOutput::Init(Json::Value config)
 	LogDebug(VB_CHANNELOUT, "MAX7219MatrixOutput::Init(JSON)\n");
 
 	if (wiringPiSPISetup(0, 1000000) < 0) {
-		LogErr(VB_CHANNELOUT, "Unable to open spidev0.0\n");
+		LogErr(VB_CHANNELOUT, "wiringPiSPISetup() failed\n");
 		return 0;
 	}
 
