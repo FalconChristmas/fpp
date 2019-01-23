@@ -549,8 +549,8 @@ WaitForInterfacesUp() {
     if [ "x$DEFGW" == "x" ]; then
         # no gateway defined
 	    CURDIR=$(pwd)
-        ETHS=`ls -d ether*`
-        WIFIS=`ls -d wifi*`
+        ETHS=`ls -d ether* 2> /dev/null`
+        WIFIS=`ls -d wifi* 2> /dev/null`
         if [ "x$WIFIS" != "x" ]; then
             for f in $ETHS; do
 	            connmanctl move-before $WIFIS $f
