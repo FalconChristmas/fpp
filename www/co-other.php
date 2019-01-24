@@ -247,7 +247,7 @@ function GenericSerialConfig(config) {
 function NewGenericSerialConfig() {
 	var config = {};
 
-	config.device = "ttyUSB0";
+	config.device = "";
 	config.speed = 9600;
 	config.header = "";
 	config.footer = "";
