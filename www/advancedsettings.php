@@ -153,39 +153,39 @@ function flashEMMCBtrfs() {
 		</tr>
 <?
     }
-if (isset($settings["LastBlock"]) && $settings['LastBlock'] < 7000000) {
+
     $addnewfsbutton = false;
-    if ($settings['Platform'] == "Raspberry Pi") {
-        exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
-        $rootDevice = $output[0];
-        if ($rootDevice == 'mmcblk0p2') {
-?>
-            <tr><td colspan='2'><hr></td></tr>
-            <tr><td>
-            <input type='button' class='buttons' value='Grow Filesystem' onClick='growSDCardFS();'>
-            </td>
-            <td><b>Grow file system on SD card</b> - This will grow the file system on the SD card to use
-            the entire size of the SD card.</td>
-            </tr>
-<?php
+    $addflashbutton = false;
+    exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
+    $rootDevice = $output[0];
+    if ($rootDevice == 'mmcblk0p1' || $rootDevice == 'mmcblk0p2') {
+        if (isset($settings["LastBlock"]) && $settings['LastBlock'] < 7000000) {
             $addnewfsbutton = true;
         }
-	}
-    if ($settings['Platform'] == "BeagleBone Black") {
-        exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
-        $rootDevice = $output[0];
-        if ($rootDevice == 'mmcblk0p1' || $rootDevice == 'mmcblk0p2') {
-            $addnewfsbutton = true;
+        if ($settings['Platform'] == "BeagleBone Black") {
+            if (strpos($settings['SubPlatform'], 'PocketBeagle') === FALSE) {
+                $addflashbutton = true;
+            }
+        }
+    }
+    if ($addnewfsbutton) {
 ?>
-            <tr><td colspan='2'><hr></td></tr>
-            <tr><td>
-                    <input type='button' class='buttons' value='Grow Filesystem' onClick='growSDCardFS();'>
-                </td>
-                <td><b>Grow filsystem on SD card</b> - This will grow the filesystem on the SD card to use
-                    the entire size of the SD card.</td>
-            </tr>
+        <tr><td colspan='2'><hr></td></tr>
+        <tr><td>
+        <input type='button' class='buttons' value='Grow Filesystem' onClick='growSDCardFS();'>
+        </td>
+        <td><b>Grow file system on SD card</b> - This will grow the file system on the SD card to use
+        the entire size of the SD card.</td>
+        </tr>
+        <tr><td colspan='2'><hr></td></tr>
+        <tr><td>
+        <input type='button' class='buttons' value='New Partition' onClick='newSDCardPartition();'>
+        </td>
+        <td><b>New partition on SD card</b> - This will create a new partition in the unused aread of the SD card.  The new partition can be selected as a storage location and formatted to BTRFS or ext4 after a reboot.</td>
+        </tr>
 <?php
-    if (strpos($settings['SubPlatform'], 'PocketBeagle') === FALSE) {
+	}
+    if ($addflashbutton) {
 ?>
             <tr><td colspan='2'><hr></td></tr>
             <tr><td>
@@ -200,20 +200,7 @@ if (isset($settings["LastBlock"]) && $settings['LastBlock'] < 7000000) {
 <td><b>Flash to eMMC - BTRFS root</b> - This will copy FPP to the internal eMMC, but use BTRFS for the root filesystem.  BTRFS uses compression to save a lot of space on the eMMC, but at the expense of extra CPU usage.</td>
             </tr>
 <?php
-            }
-        }
     }
-    if ($addnewfsbutton) {
-?>
-        <tr><td colspan='2'><hr></td></tr>
-        <tr><td>
-        <input type='button' class='buttons' value='New Partition' onClick='newSDCardPartition();'>
-        </td>
-        <td><b>New partition on SD card</b> - This will create a new partition in the unused aread of the SD card.  The new partition can be selected as a storage location and formatted to BTRFS or ext4 after a reboot.</td>
-        </tr>
-<?php
-    }
-}
 ?>
 	</table>
 	</fieldset>
