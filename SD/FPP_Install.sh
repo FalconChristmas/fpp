@@ -70,8 +70,8 @@
 #
 #############################################################################
 SCRIPTVER="1.0"
-FPPBRANCH="v2.2"
-FPPIMAGEVER="2.2"
+FPPBRANCH=${FPPBRANCH:-"master"}
+FPPIMAGEVER="2.6"
 FPPCFGVER="31"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
