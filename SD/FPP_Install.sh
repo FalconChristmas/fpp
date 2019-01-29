@@ -96,28 +96,35 @@ checkTimeAgainstUSNO () {
 		# allow clocks to differ by 24 hours to handle time zone differences
 		THRESHOLD=86400
 		USNOSECS=$(wget -q -O - http://www.usno.navy.mil/cgi-bin/time.pl | sed -e "s/.*\">//" -e "s/<\/t.*//" -e "s/...$//")
-		LOCALSECS=$(date +%s)
-		MINALLOW=$(expr ${USNOSECS} - ${THRESHOLD})
-		MAXALLOW=$(expr ${USNOSECS} + ${THRESHOLD})
 
-		#echo "FPP: USNO Secs  : ${USNOSECS}"
-		#echo "FPP: Local Secs : ${LOCALSECS}"
-		#echo "FPP: Min Valid  : ${MINALLOW}"
-		#echo "FPP: Max Valid  : ${MAXALLOW}"
+        if [ "x${USNOSECS}" != "x" ]
+        then
 
-		echo "FPP: USNO Time  : $(date --date=@${USNOSECS})"
-		echo "FPP: Local Time : $(date --date=@${LOCALSECS})"
+            LOCALSECS=$(date +%s)
+            MINALLOW=$(expr ${USNOSECS} - ${THRESHOLD})
+            MAXALLOW=$(expr ${USNOSECS} + ${THRESHOLD})
 
-		if [ ${LOCALSECS} -gt ${MAXALLOW} -o ${LOCALSECS} -lt ${MINALLOW} ]
-		then
-			echo "FPP: Local Time is not within 24 hours of USNO time, setting to USNO time"
-			date $(date --date="@${USNOSECS}" +%m%d%H%M%Y.%S)
+            #echo "FPP: USNO Secs  : ${USNOSECS}"
+            #echo "FPP: Local Secs : ${LOCALSECS}"
+            #echo "FPP: Min Valid  : ${MINALLOW}"
+            #echo "FPP: Max Valid  : ${MAXALLOW}"
 
-			LOCALSECS=$(date +%s)
-			echo "FPP: New Local Time: $(date --date=@${LOCALSECS})"
+            echo "FPP: USNO Time  : $(date --date=@${USNOSECS})"
+            echo "FPP: Local Time : $(date --date=@${LOCALSECS})"
+
+            if [ ${LOCALSECS} -gt ${MAXALLOW} -o ${LOCALSECS} -lt ${MINALLOW} ]
+            then
+                echo "FPP: Local Time is not within 24 hours of USNO time, setting to USNO time"
+                date $(date --date="@${USNOSECS}" +%m%d%H%M%Y.%S)
+
+                LOCALSECS=$(date +%s)
+                echo "FPP: New Local Time: $(date --date=@${LOCALSECS})"
+            else
+                echo "FPP: Local Time is OK"
+            fi
 		else
-			echo "FPP: Local Time is OK"
-		fi
+			echo "FPP: Incorrect result or timeout from query to U.S. Naval Observatory"
+        fi
 	else
 		echo "FPP: Not online, unable to check time against U.S. Naval Observatory."
 	fi
