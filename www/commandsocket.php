@@ -35,6 +35,8 @@ function SendCommand($command)
 		return false;
 	}
 
+	chmod($cpath, 01775);
+
 	if ( @socket_connect($socket, $spath) === false)
 	{
 		$socketError = 'socket_connect() failed for ' . $spath . ' socket: ' . socket_strerror(socket_last_error());
