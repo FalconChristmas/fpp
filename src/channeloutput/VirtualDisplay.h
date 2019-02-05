@@ -65,6 +65,10 @@ class VirtualDisplayOutput : public ThreadedChannelOutputBase {
 
 	virtual int  Init(Json::Value config);
 
+	int  InitializePixelMap(void);
+	int  ScaleBackgroundImage(std::string &bgFile, std::string &rgbFile);
+	void LoadBackgroundImage(void);
+
 	void DrawPixel(int rOffset, int gOffset, int bOffset,
 		unsigned char r, unsigned char g, unsigned char b);
 	void DrawPixels(unsigned char *channelData);
@@ -74,15 +78,20 @@ class VirtualDisplayOutput : public ThreadedChannelOutputBase {
     virtual void GetRequiredChannelRange(int &min, int & max);
 
 	std::string  m_backgroundFilename;
+	float        m_backgroundBrightness;
 	int          m_width;
 	int          m_height;
 	int          m_bytesPerPixel;
+	int          m_bpp;
 	float        m_scale;
 	int          m_previewWidth;
 	int          m_previewHeight;
+	std::string  m_fitTo;
 	std::string  m_colorOrder;
 	char        *m_virtualDisplay;
 	int          m_pixelSize;
+
+	uint16_t ***m_rgb565map;
 
 	std::vector<VirtualDisplayPixel> m_pixels;
 };

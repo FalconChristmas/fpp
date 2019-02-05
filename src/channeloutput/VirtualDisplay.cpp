@@ -31,6 +31,8 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include "common.h"
@@ -49,13 +51,18 @@
 VirtualDisplayOutput::VirtualDisplayOutput(unsigned int startChannel,
 	unsigned int channelCount)
   : ThreadedChannelOutputBase(startChannel, channelCount),
+	m_backgroundFilename("virtualdisplaybackground.jpg"),
+	m_backgroundBrightness(0.5),
 	m_width(1280),
 	m_height(1024),
+	m_bytesPerPixel(3),
+	m_bpp(24),
 	m_scale(1.0),
 	m_previewWidth(800),
 	m_previewHeight(600),
 	m_virtualDisplay(NULL),
-	m_pixelSize(2)
+	m_pixelSize(2),
+	m_rgb565map(nullptr)
 {
 	LogDebug(VB_CHANNELOUT, "VirtualDisplayOutput::VirtualDisplayOutput(%u, %u)\n",
 		startChannel, channelCount);
@@ -70,6 +77,21 @@ VirtualDisplayOutput::VirtualDisplayOutput(unsigned int startChannel,
 VirtualDisplayOutput::~VirtualDisplayOutput()
 {
 	LogDebug(VB_CHANNELOUT, "VirtualDisplayOutput::~VirtualDisplayOutput()\n");
+
+	if (m_rgb565map)
+	{
+		for (int r = 0; r < 32; r++)
+		{
+			for (int g = 0; g < 64; g++)
+			{
+				delete[] m_rgb565map[r][g];
+			}
+
+			delete[] m_rgb565map[r];
+		}
+
+		delete[] m_rgb565map;
+	}
 }
 
 /*
@@ -94,6 +116,20 @@ int VirtualDisplayOutput::Init(Json::Value config)
 	if (config.isMember("colorOrder"))
 		m_colorOrder = config["colorOrder"].asString();
 
+	if (config.isMember("backgroundFilename"))
+		m_backgroundFilename = config["backgroundFilename"].asString();
+
+	if (config.isMember("backgroundBrightness"))
+		m_backgroundBrightness = 1.0 * config["backgroundBrightness"].asInt() / 100;
+
+	return ThreadedChannelOutputBase::Init(config);
+}
+
+/*
+ *
+ */
+int VirtualDisplayOutput::InitializePixelMap(void)
+{
 	std::string virtualDisplayMapFilename(getMediaDirectory());
 	virtualDisplayMapFilename += "/config/virtualdisplaymap";
 
@@ -126,6 +162,8 @@ int VirtualDisplayOutput::Init(Json::Value config)
 	int r = 0;
 	int g = 0;
 	int b = 0;
+	int rowOffset = 0;
+	int colOffset = 0;
 	int first = 1;
 	VirtualPixelColor vpc = kVPC_RGB;
 
@@ -152,11 +190,19 @@ int VirtualDisplayOutput::Init(Json::Value config)
 
 				if ((1.0 * m_width / m_previewWidth) > (1.0 * m_height / m_previewHeight))
 				{
+					// Virtual Display is wider than the preview aspect, so background
+					// image height should equal virtual display height
 					m_scale = 1.0 * m_height / m_previewHeight;
+					rowOffset = 0;
+					colOffset = ((m_width - (m_previewWidth * m_scale)) / 2);
 				}
 				else
 				{
+					// Virtual Display is taller than the preview aspect, so background
+					// image width should equal virtual display width
 					m_scale = 1.0 * m_width / m_previewWidth;
+					colOffset = 0;
+					rowOffset = (m_height - (m_previewHeight * m_scale));
 				}
 			}
 
@@ -171,7 +217,7 @@ int VirtualDisplayOutput::Init(Json::Value config)
 			ch = atoi(parts[2].c_str());
 
 			s = ((m_height - (int)(y * m_scale) - 1) * m_width
-					+ (int)(x * m_scale)) * m_bytesPerPixel;
+					+ (int)(x * m_scale + colOffset)) * m_bytesPerPixel;
 
 			if (m_colorOrder == "RGB")
 			{
@@ -237,7 +283,160 @@ int VirtualDisplayOutput::Init(Json::Value config)
 		}
 	}
 
-	return ThreadedChannelOutputBase::Init(config);
+	LoadBackgroundImage();
+
+	return 1;
+}
+
+/*
+ *
+ */
+int VirtualDisplayOutput::ScaleBackgroundImage(std::string &bgFile, std::string &rgbFile)
+{
+	std::string command;
+
+	command = "convert -scale " + std::to_string(m_width) + "x"
+		+ std::to_string(m_height) + " " + bgFile + " " + rgbFile;
+
+	LogDebug(VB_CHANNELOUT, "Generating scaled RGB background image: %s\n", command.c_str());
+	system(command.c_str());
+
+	return 1;
+}
+
+/*
+ *
+ */
+void VirtualDisplayOutput::LoadBackgroundImage(void)
+{
+	std::string bgFile = "/home/fpp/media/upload/";
+	bgFile += m_backgroundFilename;
+
+	std::string rgbFile = bgFile + ".rgb";
+
+	if (!FileExists(bgFile))
+	{
+		LogErr(VB_CHANNELOUT, "Background image does not exist: %s\n",
+			bgFile.c_str());
+		return;
+	}
+
+	if ((!FileExists(rgbFile)) && (!ScaleBackgroundImage(bgFile, rgbFile)))
+		return;
+
+	struct stat ostat;
+	struct stat sstat;
+
+	stat(bgFile.c_str(), &ostat);
+	stat(rgbFile.c_str(), &sstat);
+
+	// Check if original is newer than scaled version
+	if ((ostat.st_mtim.tv_sec > sstat.st_mtim.tv_sec) && (!ScaleBackgroundImage(bgFile, rgbFile)))
+		return;
+
+	FILE *fd = fopen(rgbFile.c_str(), "rb");
+	if (fd)
+	{
+		unsigned char buf[3072];
+		int bytesRead = -1;
+		int offset = 0;
+		unsigned long RGBx;
+		int imgWidth = 0;
+		int imgHeight = 0;
+
+		if ((1.0 * m_width / m_previewWidth) < (1.0 * m_height / m_previewHeight))
+		{
+			// Virtual Display is taller than the preview aspect, so background
+			// image width should equal virtual display width
+			imgWidth = m_width;
+			imgHeight = sstat.st_size / m_width / 3;
+			offset = (m_height - imgHeight) * m_width * m_bytesPerPixel;
+
+			while (bytesRead != 0)
+			{
+				bytesRead = fread(buf, 1, 3072, fd);
+
+				for (int i = 0; i < bytesRead;)
+				{
+					if ((m_bpp == 24) || (m_bpp == 32))
+					{
+						m_virtualDisplay[offset++] = buf[i++] * m_backgroundBrightness;
+						m_virtualDisplay[offset++] = buf[i++] * m_backgroundBrightness;
+						m_virtualDisplay[offset++] = buf[i++] * m_backgroundBrightness;
+
+						if (m_bpp == 32)
+							offset++;
+					}
+					else // 16bpp RGB565
+					{
+						RGBx = *(unsigned long *)(buf + i);
+						*(uint16_t*)(m_virtualDisplay + offset) =
+							(((int)((RGBx & 0x000000FF) * m_backgroundBrightness) <<  8) & 0b1111100000000000) |
+							(((int)((RGBx & 0x0000FF00) * m_backgroundBrightness) >>  5) & 0b0000011111100000) |
+							(((int)((RGBx & 0x00FF0000) * m_backgroundBrightness) >> 19)); // & 0b0000000000011111);
+
+						i += 3;
+						offset += 2;
+					}
+				}
+			}
+		}
+		else
+		{
+			// Virtual Display is wider than the preview aspect, so background
+			// image height should equal virtual display height
+			imgHeight = m_height;
+			imgWidth = sstat.st_size / m_height / 3;
+
+			int colOffset = (m_width - imgWidth) / 2;
+			int r = 0;
+			int c = 0;
+
+			while (bytesRead != 0)
+			{
+				bytesRead = fread(buf, 1, 3072, fd);
+
+				for (int i = 0; i < bytesRead;)
+				{
+					if (c == 0)
+					{
+						offset = ((r * m_width) + colOffset) * m_bytesPerPixel;
+					}
+
+					if ((m_bpp == 24) || (m_bpp == 32))
+					{
+						m_virtualDisplay[offset++] = buf[i++] * m_backgroundBrightness;
+						m_virtualDisplay[offset++] = buf[i++] * m_backgroundBrightness;
+						m_virtualDisplay[offset++] = buf[i++] * m_backgroundBrightness;
+
+						if (m_bpp == 32)
+							offset++;
+					}
+					else
+					{
+						RGBx = *(unsigned long *)(buf + i);
+						*(uint16_t*)(m_virtualDisplay + offset) =
+							(((int)((RGBx & 0x000000FF) * m_backgroundBrightness) <<  8) & 0b1111100000000000) |
+							(((int)((RGBx & 0x0000FF00) * m_backgroundBrightness) >>  5) & 0b0000011111100000) |
+							(((int)((RGBx & 0x00FF0000) * m_backgroundBrightness) >> 19)); // & 0b0000000000011111);
+
+						i += 3;
+						offset += 2;
+					}
+
+					c++;
+
+					if (c >= imgWidth)
+					{
+						c = 0;
+						r++;
+					}
+				}
+			}
+		}
+
+		fclose(fd);
+	}
 }
 
 
@@ -247,9 +446,39 @@ int VirtualDisplayOutput::Init(Json::Value config)
 void VirtualDisplayOutput::DrawPixel(int rOffset, int gOffset, int bOffset,
 	unsigned char r, unsigned char g, unsigned char b)
 {
-	m_virtualDisplay[rOffset] = r;
-	m_virtualDisplay[gOffset] = g;
-	m_virtualDisplay[bOffset] = b;
+	if (m_bpp == 16)
+	{
+		if ((rOffset < gOffset) && (gOffset < bOffset))
+		{
+			*((uint16_t*)(m_virtualDisplay + rOffset)) = m_rgb565map[r >> 3][g >> 2][b >> 3];
+		}
+		else if ((rOffset < gOffset) && (bOffset < gOffset))
+		{
+			*((uint16_t*)(m_virtualDisplay + rOffset)) = m_rgb565map[r >> 3][b >> 2][g >> 3];
+		}
+		else if ((gOffset < rOffset) && (rOffset < bOffset))
+		{
+			*((uint16_t*)(m_virtualDisplay + gOffset)) = m_rgb565map[g >> 3][r >> 2][b >> 3];
+		}
+		else if ((gOffset < rOffset) && (bOffset < rOffset))
+		{
+			*((uint16_t*)(m_virtualDisplay + gOffset)) = m_rgb565map[g >> 3][b >> 2][r >> 3];
+		}
+		else if ((bOffset < gOffset) && (rOffset < gOffset))
+		{
+			*((uint16_t*)(m_virtualDisplay + bOffset)) = m_rgb565map[b >> 3][r >> 2][g >> 3];
+		}
+		else if ((bOffset < gOffset) && (gOffset < rOffset))
+		{
+			*((uint16_t*)(m_virtualDisplay + bOffset)) = m_rgb565map[b >> 3][g >> 2][r >> 3];
+		}
+	}
+	else
+	{
+		m_virtualDisplay[rOffset] = r;
+		m_virtualDisplay[gOffset] = g;
+		m_virtualDisplay[bOffset] = b;
+	}
 }
 
 void VirtualDisplayOutput::GetRequiredChannelRange(int &min, int & max) {

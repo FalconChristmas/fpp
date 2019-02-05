@@ -476,6 +476,7 @@ function GetDirSetting($dir)
 	else if ($dir == "Logs")        { return GetSettingValue('logDirectory'); }
 	else if ($dir == "Uploads")     { return GetSettingValue('uploadDirectory'); }
 	else if ($dir == "Docs")        { return GetSettingValue('docsDirectory'); }
+	else if ($dir == "Config")      { return GetSettingValue('configDirectory'); }
 
 	return "";
 }

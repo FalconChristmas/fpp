@@ -105,6 +105,18 @@ function NewUSBConfig() {
 
 /////////////////////////////////////////////////////////////////////////////
 // Virtual Matrix Output
+//
+// Framebuffer Devices
+var FBDevices = new Array();
+<?
+	foreach(scandir("/dev/") as $fileName)
+	{
+		if (preg_match("/^fb[0-9]+/", $fileName)) {
+			echo "FBDevices['$fileName'] = '$fileName';\n";
+		}
+	}
+?>
+
 function VirtualMatrixLayoutChanged(item) {
 	var val = parseInt($(item).val());
 
@@ -150,6 +162,7 @@ function VirtualMatrixConfig(config) {
 	if (config.invert)
 		result += " checked='checked'";
 	result += ">";
+	result += DeviceSelect(FBDevices, config.device);
 
 	return result;
 }
@@ -162,6 +175,7 @@ function NewVirtualMatrixConfig() {
 	config.layout = "32x16";
 	config.colorOrder = "RGB";
 	config.invert = 0;
+	config.device = "fb0";
 
 	return VirtualMatrixConfig(config);
 }
@@ -183,6 +197,11 @@ function GetVirtualMatrixOutputConfig(result, cell) {
 	if (colorOrder == "")
 		return "";
 
+	var device = $cell.find("select.device").val();
+
+	if (device == "")
+		return "fb0";
+
 	var invert = 0;
 	if ($cell.find("input.invert").is(":checked"))
 		invert = 1;
@@ -192,6 +211,7 @@ function GetVirtualMatrixOutputConfig(result, cell) {
 	result.layout = width + "x" + height;
 	result.colorOrder = colorOrder;
 	result.invert = invert;
+	result.device = device;
 
 	return result;
 }
@@ -802,6 +822,7 @@ function NewVirtualDisplayConfig() {
 	config.height = 1024;
 	config.colorOrder = "BGR";
 	config.pixelSize = 2;
+	config.device = "fb0";
 
 	return VirtualDisplayConfig(config);
 }
@@ -840,6 +861,7 @@ function VirtualDisplayConfig(config) {
 		result += ">" + i + "</option>";
 	}
 	result += "</select>";
+	result += DeviceSelect(FBDevices, config.device);
 
 	return result;
 }
@@ -871,6 +893,12 @@ function GetVirtualDisplayConfig(result, cell) {
 		return "";
 
 	result.pixelSize = parseInt(pixelSize);
+
+	var device = $cell.find("select.device").val();
+	if (device == "")
+		return "";
+
+	result.device = device;
 
 	return result;
 }

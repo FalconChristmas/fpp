@@ -48,6 +48,7 @@ X11VirtualDisplayOutput::X11VirtualDisplayOutput(unsigned int startChannel,
 
 	m_maxChannels = FPPD_MAX_CHANNELS;
 	m_bytesPerPixel = 4;
+	m_bpp = 32;
 }
 
 /*
@@ -76,7 +77,6 @@ int X11VirtualDisplayOutput::Init(Json::Value config)
 		LogDebug(VB_CHANNELOUT, "Unable to allocate image data\n");
 		return 0;
 	}
-
 	bzero(m_virtualDisplay, m_width * m_height * m_bytesPerPixel);
 
 	// Initialize X11 Window here
@@ -124,7 +124,7 @@ int X11VirtualDisplayOutput::Init(Json::Value config)
 	
 	XFlush(m_display);
 
-	return ChannelOutputBase::Init(config);
+	return InitializePixelMap();
 }
 
 /*

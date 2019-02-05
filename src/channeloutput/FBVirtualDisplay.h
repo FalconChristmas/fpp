@@ -46,6 +46,8 @@ class FBVirtualDisplayOutput : protected VirtualDisplayOutput {
 
 	int     m_screenSize;
 
+	std::string m_device;
+
 	struct fb_var_screeninfo m_vInfo;
 	struct fb_var_screeninfo m_vInfoOrig;
 	struct fb_fix_screeninfo m_fInfo;
